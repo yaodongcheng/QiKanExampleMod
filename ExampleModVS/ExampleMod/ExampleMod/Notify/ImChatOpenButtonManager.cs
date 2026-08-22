@@ -311,18 +311,29 @@ namespace LivingWorldNpcs
             if (_hoverOn != null) { MBInformationManager.HideInformations(); _hoverOn = null; }
             if (_layer != null)
             {
+                // 🔴 2026-08-22（1.2.12 实机崩溃修复）：层已 Finalize（随屏销毁被 HandleFinalize）时，
+                // EventManager._widgetContainers 已置 null、movie 已全部 Release——此时**不能再碰任何引擎 API**：
+                // ReleaseMovie / RemoveLayer 都会二次执行 HandleFinalize → 二次 OnFinalize → EventManager.OnFinalize
+                // 二次执行 → foreach null 字典 → NRE（实机堆栈 EventManager.OnFinalize，1.2.12 的 HandleFinalize
+                // **无 IsFinalized 防护**，1.4.8 才有 if (IsFinalized) return；且 1.2.12 的 OnFinalize 不置
+                // UIContext=null，故能一路进到 EventManager 内部）。
+                // 已死层不摘：层残留屏 _layers 无影响（屏也已销毁），引用置空、下帧自动重挂新层即可。
+                bool layerDead = V.LayerFinalized(_layer);
                 try
                 {
-                    if (_movie != null)
+                    if (!layerDead)
                     {
-                        _layer.ReleaseMovie(_movie);
-                        _movie = null;
+                        if (_movie != null)
+                        {
+                            _layer.ReleaseMovie(_movie);
+                            _movie = null;
+                        }
+                        // 从层实际挂载的屏摘（HasLayer 校验：层可能已随屏销毁，跳过摘除）
+                        if (_layerOwnerScreen != null && _layerOwnerScreen.HasLayer(_layer))
+                            _layerOwnerScreen.RemoveLayer(_layer);
+                        else if (ScreenManager.TopScreen != null && ScreenManager.TopScreen.HasLayer(_layer))
+                            ScreenManager.TopScreen.RemoveLayer(_layer);
                     }
-                    // 从层实际挂载的屏摘（HasLayer 校验：层可能已随屏销毁，跳过摘除）
-                    if (_layerOwnerScreen != null && _layerOwnerScreen.HasLayer(_layer))
-                        _layerOwnerScreen.RemoveLayer(_layer);
-                    else if (ScreenManager.TopScreen != null && ScreenManager.TopScreen.HasLayer(_layer))
-                        ScreenManager.TopScreen.RemoveLayer(_layer);
                 }
                 catch (Exception ex)
                 {
@@ -330,6 +341,7 @@ namespace LivingWorldNpcs
                 }
                 _layer = null;
                 _layerOwnerScreen = null;
+                _movie = null;
             }
             _button = null;
             _badge = null;

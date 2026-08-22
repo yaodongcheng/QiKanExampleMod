@@ -71,21 +71,41 @@ namespace LivingWorldNpcs
         {
             if (_layer != null)
             {
-                // 移除电影和图层
-                if (_movie != null)
+                // 🔴 2026-08-22（1.2.12 实机崩溃修复，同 ImChatOpenButtonManager）：层已 Finalize（随屏销毁
+                // 被 HandleFinalize）时 EventManager._widgetContainers 已置 null、movie 已释放——再
+                // ReleaseMovie/RemoveLayer/ResetInputRestrictions = 二次 HandleFinalize → 二次 OnFinalize →
+                // EventManager.OnFinalize 二次执行 → foreach null 字典 → NRE（1.2.12 的 HandleFinalize
+                // 无 IsFinalized 防护）。已死层跳过一切引擎操作，引用置空即可。
+                bool layerDead = V.LayerFinalized(_layer);
+                try
                 {
-                    _layer.ReleaseMovie(_movie);
-                    _movie = null;
-                }
+                    if (!layerDead)
+                    {
+                        // 移除电影和图层
+                        if (_movie != null)
+                        {
+                            _layer.ReleaseMovie(_movie);
+                            _movie = null;
+                        }
 
-                if (ScreenManager.TopScreen != null)
+                        // 🔴 2026-08-22：HasLayer 校验——层可能挂在非当前 TopScreen 的屏上
+                        //（挂载后屏切换）或已随屏销毁，从 TopScreen 硬摘 = 摘错层 + 层被 Finalize
+                        // 却残留原屏 _layers → 原屏激活遍历死层 → OnActivate NRE。
+                        if (ScreenManager.TopScreen != null && ScreenManager.TopScreen.HasLayer(_layer))
+                        {
+                            ScreenManager.TopScreen.RemoveLayer(_layer);
+                        }
+
+                        // 清理输入限制
+                        _layer.InputRestrictions.ResetInputRestrictions();
+                    }
+                }
+                catch (Exception ex)
                 {
-                    ScreenManager.TopScreen.RemoveLayer(_layer);
+                    try { DebugLogger.Log($"[NinjaNotification] Close 失败: {ex.Message}"); } catch { }
                 }
-
-                // 清理输入限制
-                _layer.InputRestrictions.ResetInputRestrictions();
                 _layer = null;
+                _movie = null;
             }
 
             _vm = null;
