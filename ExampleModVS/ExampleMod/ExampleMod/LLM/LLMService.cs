@@ -319,8 +319,10 @@ namespace LivingWorldNpcs
             return Fail(LLMFailureReason.Other, ex?.Message);
         }
 
-        /// <summary>拼接缺失配置字段的本地化名称列表（"LLM API Base URL, LLM API Key"）。</summary>
-        private static string BuildMissingFieldsText()
+        /// <summary>拼接缺失配置字段的本地化名称列表（"LLM API Base URL, LLM API Key"）。
+        /// 🔴 2026-08-22：private → internal——IM 传讯发送兜底（面板开着中途清空配置等边缘场景）
+        /// 复用同一拼接逻辑给 NotConfigured 提示点名缺哪些字段（与测试连接按钮同款理由）。</summary>
+        internal static string BuildMissingFieldsText()
         {
             var cfg = Settings.Instance;
             var missing = new List<string>();
@@ -470,7 +472,10 @@ namespace LivingWorldNpcs
         /// 429 限流 → 触发全局冷却（RespondRateLimitCooldownS 内所有回应请求直接降级，防连发撞限流）。
         /// 🔴 2026-08-10（im-command-action-upgrade.md §5.1）：needJson 可选——IM 闲聊回复管线
         /// 需要结构化动作输出（npc_action/action_target/action_level）时传 true；既有调用默认 false 不变。</summary>
-        public async Task<string> ChatOnceAsync(string systemPrompt, int maxTokens = 80, float temperature = 0.7f, bool disableReasoning = true, int timeoutMs = 2000, bool needJson = false)
+        /// <param name="showFailureAlert">🔴 2026-08-22（用户裁定分层）：自由输入路径（IM 传讯回复）传 true——
+        /// 配置了但实际连不上必须 DisplayMessage 红字提示（复用 ShowConnectionMessage，5 分钟同原因冷却防刷屏）；
+        /// 世界玩法交互（事件广播评论/世界背景/提议/respond 等）保持默认 false 静默降级模板。</param>
+        public async Task<string> ChatOnceAsync(string systemPrompt, int maxTokens = 80, float temperature = 0.7f, bool disableReasoning = true, int timeoutMs = 2000, bool needJson = false, bool showFailureAlert = false)
         {
             if (!Settings.Instance.IsLLMConfigured) return null;
             if (IsRespondRateLimited()) return null;
@@ -510,6 +515,11 @@ namespace LivingWorldNpcs
                             // 429 限流：进入冷却，避免连发撞限流（2026-08-08 实测网关 429；老 .NET 枚举无 TooManyRequests，用数字）
                             if ((int)response.StatusCode == 429)
                                 _respondRateLimitBlockedUntil = Mission.Current != null ? Mission.Current.CurrentTime + RespondRateLimitCooldownS : float.MaxValue;
+                            // 🔴 2026-08-22（用户裁定：配置了但连不上必须提示）：自由输入路径
+                            //（showFailureAlert=true，仅 IM 传讯回复）→ DisplayMessage 红字分类提示；
+                            // 世界玩法交互默认 false 静默（层 3）
+                            if (showFailureAlert)
+                                ShowConnectionMessage(ClassifyFailure(null, response.StatusCode, null), showSuccess: false);
                             return null;
                         }
                         string responseString = await response.Content.ReadAsStringAsync();
@@ -525,6 +535,9 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[ReactiveRespond] 回应请求失败（降级模板）: {ex.Message}");
+                // 🔴 2026-08-22：异常路径同非 2xx（超时/拒连/解析失败）——自由输入路径提示，玩法路径静默
+                if (showFailureAlert)
+                    ShowConnectionMessage(ClassifyFailure(ex, null, null), showSuccess: false);
                 return null;
             }
         }

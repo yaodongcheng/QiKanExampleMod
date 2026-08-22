@@ -570,7 +570,11 @@ namespace LivingWorldNpcs
                         // 🔴 2026-08-10 8s→12s：日志实锤 8s 超时取消（A task was canceled）→ 模板降级 → 重复台词
                         // 🔴 2026-08-10（§5.1）：needJson=true 结构化输出（npc_reply/npc_action/action_target/action_level），
                         // 🔴 2026-08-14（M4）：max_tokens 220→300——容纳 risk_analysis/risk_verdict 两字段
-                        string raw = await LLMService.Instance.ChatOnceAsync(prompt, 300, 0.8f, disableReasoning: true, timeoutMs: 12000, needJson: true);
+                        // 🔴 2026-08-22（用户裁定：传讯自由输入失败必须提示）：showFailureAlert: true——
+                        // 配置了但实际连不上（URL/密钥/模型/余额/超时）→ DisplayMessage 红字（ShowConnectionMessage
+                        // 按原因分类 + 5 分钟同原因冷却防刷屏）；世界玩法交互路径（事件广播/背景/respond）
+                        // 保持默认 false 静默降级模板（层 3）
+                        string raw = await LLMService.Instance.ChatOnceAsync(prompt, 300, 0.8f, disableReasoning: true, timeoutMs: 12000, needJson: true, showFailureAlert: true);
                         // 🔴 回包落日志（LLM 失败/超时回 null，走下方降级）
                         DebugLogger.Log($"[ImReply] {p.HeroName} 回包: {raw ?? "<null>"}");
                         if (!string.IsNullOrWhiteSpace(raw))

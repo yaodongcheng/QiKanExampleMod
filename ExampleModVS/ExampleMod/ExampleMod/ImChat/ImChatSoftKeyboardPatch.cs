@@ -1,6 +1,7 @@
 using HarmonyLib;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.GauntletUI;
+using TaleWorlds.GauntletUI.BaseTypes;
 
 namespace LivingWorldNpcs
 {
@@ -16,8 +17,11 @@ namespace LivingWorldNpcs
     /// PatchAll 直接崩游戏启动（实机）；② 只补丁 GauntletLayer 回调 → 没拦住（native 可能直接调
     /// UIContext）→ 聚焦仍被清（实机 09:59）。**两层回调都补丁**：GauntletLayer + UIContext。
     /// 跳过 = 不清焦点、不模拟鼠标事件。实体键盘输入不受影响。
-    /// ⚠️ SteamDeck 有真软键盘，IM 内手柄弹软键盘会失效——当前用户是 PC（PC 上此路径本来就坏），
-    /// SteamDeck 支持需平台判定，后续按需加。
+    /// 🔴 Steam Deck（2026-08-22 实装，门控 = SteamDeckKeyboard.IsSteamDeck()）：Deck 有真软键盘，
+    /// Done 链是**提交回填**（不能跳过）——ImChatSoftKeyboardContextDonePatch 加 deck 分支：
+    /// 自己 SetAllText 回填 + 跳过 CancelMouseClick；取消链（Canceled）仍跳过（焦点保持）。
+    /// 配套：SteamDeckKeyboardPatch.cs 补丁 A（点击聚焦弹软键盘）+ EditableTextBackspacePatch.cs
+    /// （直通软键盘退格 \b 吞键修复）。
     /// </summary>
     [HarmonyPatch(typeof(GauntletLayer), "OnOnScreenKeyboardCanceled")]
     public static class ImChatSoftKeyboardCancelPatch
@@ -58,10 +62,21 @@ namespace LivingWorldNpcs
     public static class ImChatSoftKeyboardContextDonePatch
     {
         [HarmonyPrefix]
-        public static bool Prefix(UIContext __instance)
+        public static bool Prefix(UIContext __instance, string inputText)
         {
-            if (ImChatView.IsCurrentContext(__instance)) return false; // IM 层上下文：跳过完成链
-            return true;
+            if (!ImChatView.IsCurrentContext(__instance)) return true;   // 非 IM 层：原版
+#if MB2_GE_130
+            if (SteamDeckKeyboard.IsSteamDeck())
+            {
+                // 🔴 2026-08-22（Steam Deck 实测：IM 输入框弹窗提交后文字丢失——功能阻断）：
+                // Deck 有真软键盘，提交必须回填文本（SetAllText → 绑定推送 VM InputText）；
+                // 跳过 CancelMouseClick（ClearFocus + 模拟鼠标抬起 → 设备翻转坑，见类头注释）。
+                if (inputText != null && __instance.EventManager.FocusedWidget is EditableTextWidget editableTextWidget)
+                    editableTextWidget.SetAllText(inputText);
+                return false;
+            }
+#endif
+            return false;   // PC：跳过全部（原语义，PC 无真软键盘——该链是取消回调，跳过防死锁）
         }
     }
 }

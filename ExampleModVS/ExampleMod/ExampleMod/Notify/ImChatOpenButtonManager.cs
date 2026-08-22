@@ -233,7 +233,10 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>显示条件（与 O 键行为一致）：PlotEnabled 总闸 + 非战斗模式 + 非加载屏。
+        /// <summary>显示条件（与 O 键行为一致）：PlotEnabled 总闸 + IsLLMConfigured（未配置不给入口）+
+        /// 非战斗模式 + 非加载屏。
+        /// 🔴 2026-08-22（用户裁定分层）：未配置 LLM → 按钮隐藏（与 O 键同规则）——传讯入口整体封死，
+        /// 模板回复是不得已的体验；已配置但连不上由 ChatOnceAsync(showFailureAlert:true) 红字提示。
         /// 🔴 2026-08-17：不含 !ImChatView.IsOpen——IM 打开时按钮被 400 层全屏遮罩盖住 + 事件被拦
         /// （层序红利 350 &lt; 400），零额外隐藏逻辑（方案 §5.1）。
         /// 🔴 2026-08-17（实机日志）：加载屏（GameLoadingScreen）期间不挂载——挂了也会随屏销毁重挂
@@ -244,6 +247,7 @@ namespace LivingWorldNpcs
         private static bool ShouldShow()
         {
             if (!Settings.Instance.PlotEnabled) return false;
+            if (!Settings.Instance.IsLLMConfigured) return false;
             if (Mission.Current != null)
             {
                 if (Settings.Instance.IsInteractionDisabled()) return false;
