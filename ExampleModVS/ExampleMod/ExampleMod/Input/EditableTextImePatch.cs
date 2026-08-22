@@ -98,7 +98,13 @@ namespace LivingWorldNpcs
 
             // 信号 1（主）：VK_PROCESSKEY 后 150ms 宽限——组合期间每个字母/退格都被输入法消费，
             // 持续刷新；组合结束 → 无新消费 → 宽限过后门开（新按键是正常编辑）
-            if (Environment.TickCount - _lastVkProcessKeyTick < ImeKeyGraceMs) return true;
+            // 🔴 2026-08-22（PC 实机：退格全失效——启动即误判组合态）：初始哨兵 int.MinValue 与
+            // TickCount 相减必然 int 溢出为负数 → 负数 < 150 恒成立 → 组合态从启动起永远 true，
+            // 可打印字符（123）按「组合中上屏」放行、退格/Delete/方向键/Enter 全被吞（日志：
+            // 启动即「组合态吞键」、无任何 WM_IME 消息）。修：哨兵值跳过判定 + (uint) 差值
+            // 比较（TickCount 无符号溢出安全，系统 uptime 24.8 天翻转免疫）。
+            if (_lastVkProcessKeyTick != int.MinValue
+                && (uint)(Environment.TickCount - _lastVkProcessKeyTick) < ImeKeyGraceMs) return true;
 
             // 信号 2：WM_IME 消息组合态
             bool composing = _imeMsgComposing || Imm32Poll();

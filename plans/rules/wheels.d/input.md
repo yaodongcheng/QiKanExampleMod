@@ -122,12 +122,13 @@ public static class EditableTextImePatch
 }
 ```
 
-**关键 API**：`ImeCompositionHelper.IsComposing()`（主信号：`Environment.TickCount - _lastVkProcessKeyTick < 150`）、`ImeCompositionHelper.DiagState()`（诊断串）。
+**关键 API**：`ImeCompositionHelper.IsComposing()`（主信号：`_lastVkProcessKeyTick != int.MinValue && (uint)(Environment.TickCount - _lastVkProcessKeyTick) < 150`——**哨兵跳过 + (uint) 差值**，见坑 4）、`ImeCompositionHelper.DiagState()`（诊断串）。
 
-**三条实机教训（全踩过，勿重蹈）**：
+**四条实机教训（全踩过，勿重蹈）**：
 1. **TSF 型输入法不走 IMM32**——搜狗/微软拼音下 `ImmGetCompositionString` 返回 0，单 IMM32 检测必漏检。
 2. **WM_IME 消息路由有盲区**——用户组合 "nihao"+2退格（~2s）期间主窗口钩子只收到一对 14ms 的 START/END，组合消息根本不完整到主窗口；依赖它做门控从根上错。
 3. **游戏轮询比物理键晚 1~2 帧**——帧级过渡判定（"上一帧组合、这一帧结束"）会错过按键沿，必漏。事件时刻的判定必须用消息层（VK_PROCESSKEY）/物理层（GetAsyncKeyState）信号。
+4. **🔴 信号 1 初始哨兵溢出锁死（2026-08-22 PC 实机：退格全失效）**——`_lastVkProcessKeyTick` 初始 `int.MinValue`，`Environment.TickCount - int.MinValue` 必然 int 溢出为**负数**，负数 `< 150` 恒成立 → 组合态从启动起永远 true（无任何 IME 消息）：可打印字符（123）按「组合中上屏」放行、退格/Delete/方向键/Enter 全被吞。**正确写法 = 哨兵跳过 + `(uint)` 差值**（`(uint)` 无符号回绕同时免疫 TickCount 24.8 天翻转）。同类模式全项目扫描：`ImChatFillVerifyPatch.FillVerifyWindowStart` 同坑同修（诊断窗口常开刷屏）。排查口诀：**「输入 123 可以、退格不行」+ 日志启动即「组合态吞键」且无 WM_IME 消息 = 信号 1 溢出误判**，不是输入法在组合。
 
 **WndProc 子类化纪律**：委托与函数指针必须静态保活（GC 回收后回调崩溃）；钩到**本进程全部顶层窗口**（`EnumWindows` 按 PID 过滤——组合消息路由到哪个窗口不确定）；组合中 >5s 无 IME 消息 = 超时兜底开门（防钩子失效后永久锁死输入）。**native 回调内绝不允许异常传播**（WndProcHook 整体 try/catch 吞掉继续转发 + 5s 节流日志；`IsPhysDown`/`Imm32Poll` 各自 try/catch 降级）。
 
