@@ -715,3 +715,29 @@ if (_lastEventTick != int.MinValue
 - 初始值不用哨兵也可用 `int.MinValue + 1` 等不影响判断的"远古时间"，但**哨兵跳过最明确**。
 - 新建任何 `TickCount` 时间窗/冷却/宽限/节流字段时按此模板写；`>=` 反向判断（如"超过 5s 超时"）同样受溢出影响——初始哨兵 `int.MinValue` 时 `TickCount - 哨兵 < 0` 恒负，`< 5000` 恒真。
 - 排查口诀：**「启动即处于某时间窗状态 + 日志无对应事件」= 先查哨兵初始值与 TickCount 相减**。同类模式全项目扫描（`int.MinValue` grep）：`ImeCompositionHelper._lastVkProcessKeyTick`（本坑）与 `ImChatSoftKeyboardContextDonePatch.FillVerifyWindowStart`（诊断窗口常开刷屏，同修）已修复。
+
+## Harmony 补丁「显式接口实现」方法 → PatchAll 抛 ArgumentException 崩游戏启动
+
+**症状**：`PatchAll()` 时 `ArgumentException: Undefined target method for patch method ...`（游戏启动即崩，无日志可查）。
+
+**原因（2026-08-22 实机）**：`TwoDimensionEnginePlatform.OpenOnScreenKeyboard` 是 `ITwoDimensionPlatform` 的**显式接口实现**——IL 方法名 = `TaleWorlds.TwoDimension.ITwoDimensionPlatform.OpenOnScreenKeyboard`（带完整接口前缀），Harmony 字符串 `"OpenOnScreenKeyboard"` 匹配不到。**「抽象接口方法不能补丁」不限于接口本身**——补丁具体类的显式实现同样中招（显式实现无裸方法名）。
+
+**规避**：补丁前用 `ilspycmd -l c` / 反编译确认方法名（显式实现必带接口前缀）；落点日志改用**链上公有静态方法**（如 `ScreenManager.OnPlatformScreenKeyboardRequested`——只在引擎链请求到达后才被调用 = 落点证明，返回值 = 平台结果）。
+
+## Steam Deck 弹窗时有时无（同一 DLL 两次启动一次好一次坏）→ IsSteamDeck 检测竞态
+
+**症状**：同一 DLL 会话 A 弹窗正常、会话 B 弹窗全灭（`Steam Deck 检测: False`）；重启后又正常。
+
+**原因（2026-08-22 实机 16:28/16:36 两会话对比实锤）**：`IsSteamRunningOnSteamDeck()`（Steamworks.NET）在 SteamAPI 未初始化时**抛异常**（`TestIfAvailableClient`）——启动早期首次聚焦输入框触发检测，与 SteamAPI.Init 完成形成**竞态**。若异常被 catch 后**缓存 false**，整个会话不再重试 → 弹窗请求链全灭（PC 同理：Epic/GOG 下 Type.GetType 返回 null 属正常降级，**只有「异常」才需要重试**）。
+
+**规避**：检测失败**不缓存** + 冷却重试（3s，防刷日志）：
+
+```csharp
+private static int _retryTick = int.MinValue;
+if (_cached) return _isSteamDeck;
+if (_retryTick != int.MinValue && (uint)(Environment.TickCount - _retryTick) < 3000) return false;
+try { _isSteamDeck = ...; _cached = true; }   // 只有成功（含正常返回 false = 非 Deck）才缓存
+catch (Exception) { _retryTick = Environment.TickCount; }   // 失败：冷却后重试
+```
+
+**排查口诀**：外部 API 首次调用抛异常被 catch 降级时，先问「这个降级结果要不要缓存」——**初始化型竞态（API 就绪需要时间）一律失败不缓存**。

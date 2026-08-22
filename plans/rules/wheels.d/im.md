@@ -337,7 +337,9 @@ private static void SetMouseToWidget(PadItem item)   // MovePad 转移后 + Focu
 
 **机制（反编译全链）**：Steam 提交 → `GamepadTextInputDismissed(提交)` → `OnTextEnteredFromPlatform` → `ScreenManager.OnOnscreenKeyboardDone(text)` → `FocusedLayer.OnOnScreenKeyboardDone` → `UIContext.OnOnScreenkeyboardTextInputDone` → **`FocusedWidget.SetAllText(text)`**（引擎内置回填，vanilla/MCM 层无需改动）+ `CancelMouseClick()`。
 
-**IM 层 deck 分支**（`ImChatSoftKeyboardContextDonePatch` Prefix）：`IsCurrentContext` + `IsSteamDeck()` → 自己 `SetAllText(inputText)`（绑定推送 VM InputText）+ **跳过 CancelMouseClick**（防设备翻转坑）；非 IM 层原版；PC 保持原跳过语义。`SetAllText` 引用包 `#if MB2_GE_130`（1.2.12 无软键盘机制）。
+**IM 层 deck 分支**（两层都改，缺一必丢字——见坑 1）：
+- `ImChatSoftKeyboardDonePatch`（GauntletLayer.OnOnScreenKeyboardDone）Prefix：IM 层 + Deck → **放行**（方法体 = base 空实现 + UIContext 调用——整体跳过 = 回填也跳，日志特征「只有 Done→Layer 没有 Done→Ctx」实锤）；PC 保持跳过。
+- `ImChatSoftKeyboardContextDonePatch`（UIContext.OnOnScreenkeyboardTextInputDone）Prefix：`IsCurrentContext` + `IsSteamDeck()` → 自己 `SetAllText(inputText)`（绑定推送 VM InputText）+ **跳过 CancelMouseClick**（防设备翻转坑）；非 IM 层原版；PC 保持原跳过语义。`SetAllText` 引用包 `#if MB2_GE_130`（1.2.12 无软键盘机制）。
 
 **配套**：`Input/SteamDeckKeyboardPatch.cs`（补丁 A：Deck 上鼠标/触屏点击 EditableTextWidget 也弹浮动键盘——引擎只在 `IsControllerActive && EditableTextWidget` 时请求，点击那帧 IsMouseActive=true 必 false → 直通盲打；补丁 set_FocusedWidget postfix 直接调 `Context.TwoDimensionContext.Platform.OpenOnScreenKeyboard`，参数复制引擎消费块）+ `Input/EditableTextBackspacePatch.cs`（直通软键盘退格 \b 吞键，见 input.md）。
 

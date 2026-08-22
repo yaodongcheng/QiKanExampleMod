@@ -142,13 +142,38 @@ public static class EditableTextImePatch
 
 ---
 
-## 🔴 Steam Deck 软键盘两件套（2026-08-22 用户实测：MCM 文本框无弹窗盲打 / IM 提交文字被吞 / 退格删不掉）— `Input/SteamDeckKeyboardPatch.cs` + `Input/EditableTextBackspacePatch.cs`
+## 🔴 Steam Deck 软键盘三件套 + 五坑（2026-08-22 实机验证通过）— `Input/SteamDeckKeyboardPatch.cs` + `Input/EditableTextBackspacePatch.cs` + `ImChat/ImChatSoftKeyboardPatch.cs`
 
-**① 点击聚焦也弹浮动键盘（补丁 A）**：引擎只在 `EventManager.FocusedWidget` setter 里 `IsControllerActive && EditableTextWidget` 时置 `_isOnScreenKeyboardRequested` → LateUpdate 消费 → `Platform.OpenOnScreenKeyboard` → `ScreenManager.OnPlatformScreenKeyboardRequested` → `PlatformServices.ShowGamepadTextInput` → `SteamUtils.ShowGamepadTextInput`（Steam 浮动键盘弹窗）。`IsControllerActive = !IsMouseActive` → **鼠标/触屏点击那帧必 false → 不请求 → 直通盲打**（IM 手柄 A 聚焦走控制器路径所以有弹窗）。修复 = `set_FocusedWidget` postfix（点击聚焦唯一入口，反编译实锤）：`IsSteamDeck()` && EditableTextWidget && `!IsControllerActive`（防双发）&& `!V.IsOnScreenKeyboardActive()` → 直接调 `Context.TwoDimensionContext.Platform.OpenOnScreenKeyboard(Text, KeyboardInfoText, MaxLength, type)`（参数复制引擎消费块：Obfuscation→2、Integer/FloatInput→1）。**门控 = SteamDeckKeyboard.IsSteamDeck()（Steamworks 官方 API 反射，无 csproj 硬引用，Epic/GOG 降级 false）**——PC 上 OpenOnScreenKeyboard 立即走取消回调链（CancelMouseClick → ClearFocus + 模拟抬起 → 点中文本框即失焦），无条件触发破坏 PC 文本框。整个补丁类包 `#if MB2_GE_130`（1.2.12 无软键盘机制）。
+**引擎软键盘请求/回填链全貌（反编译实锤）**：
 
-**② 直通软键盘退格 \b 吞键（补丁 C）**：Steam 直通键盘发**文本事件流**（非键事件）——打字字符进 `HandleInput` 的 `lastKeysPressed` → AppendCharacter（有效）；退格 = 控制字符 \b(8)/删除 \x7f(127) → 被 vanilla 字符过滤器 `num >= 32 && (num < 127 || num >= 160)` **吞掉**；而删字只走 `Input.IsKeyPressed(BackSpace)` 键事件轮询——直通键盘不发键事件 → 退格彻底失效（用户实测「提交后删不掉」）。修复 = `EditableTextWidget.HandleInput` Prefix（与 IME 补丁同目标）：遍历 `lastKeysPressed` 的 8/127 → 反射调 protected `DeleteChar`（引擎同款删字，绑定照常推送）+ 兜底「键沿捕捉但同帧 IsKeyDown=false」撕裂（vanilla `_keyboardAction` 同帧置 None 吞删除）；组合态（`ImeCompositionHelper.IsComposing()`）不处理（IME 补丁已拦）；放行原方法（8/127 被其过滤器忽略，物理键路径照旧）。**全版本生效**（无 #if——`DeleteChar` 反射 GetMethod null 时降级跳过）。
+```
+请求链：EventManager.FocusedWidget setter（IsControllerActive && EditableTextWidget → _isOnScreenKeyboardRequested）
+  → LateUpdate 消费 → TwoDimensionEnginePlatform.OpenOnScreenKeyboard（ITwoDimensionPlatform 显式实现）
+  → ScreenManager.OnPlatformScreenKeyboardRequested（静态，返回值 = ShowGamepadTextInput 结果 → Input.IsOnScreenKeyboardActive）
+  → PlatformTextRequested 委托（MountAndBlade Module 注册）→ PlatformServices.ShowGamepadTextInput → SteamUtils.ShowGamepadTextInput（浮动键盘弹窗）
+回填链：Steam 提交 → GamepadTextInputDismissed(提交) → OnTextEnteredFromPlatform → ScreenManager.OnOnscreenKeyboardDone（入口复位 IsOnScreenKeyboardActive=false）
+  → FocusedLayer.OnOnScreenKeyboardDone（GauntletLayer：base 空实现 + UIContext.OnOnScreenkeyboardTextInputDone）
+  → FocusedWidget.SetAllText(text)（引擎内置回填，vanilla/MCM 无需改动）+ CancelMouseClick（ClearFocus+模拟抬起）
+取消链：同上入口 OnOnscreenKeyboardCanceled → FocusedLayer/UIContext.OnOnScreenKeyboardCanceled → CancelMouseClick
+```
 
-**诊断**：`[SteamDeckKb]`（检测结果/请求弹窗/失败）、`[TextInput]`（退格处理/反射失败）。
+**Deck 键盘两种模式**：弹窗（请求链触发 = 顶部文本框+提交，提交一次性 SetAllText）/ 直通（无请求 = 按键逐发进游戏，退格 \b 被吞）。**判据**：直通模式有 IME 组合消息+逐字符事件；弹窗模式无（提交才一次性发文本）。
+
+**① 点击聚焦也弹浮动键盘（补丁 A）**：引擎只在 setter 里 `IsControllerActive && EditableTextWidget` 时请求——`IsControllerActive = !IsMouseActive` → **鼠标/触屏点击那帧必 false → 不请求 → 直通盲打**。修复 = `set_FocusedWidget` postfix（点击聚焦唯一入口，反编译实锤）：`IsSteamDeck()` && EditableTextWidget && `FocusedWidget==value` && `!V.IsOnScreenKeyboardActive()` → 直接调 `Context.TwoDimensionContext.Platform.OpenOnScreenKeyboard(Text, KeyboardInfoText, MaxLength, type)`（参数复制引擎消费块：Obfuscation→2、Integer/FloatInput→1）。**门控 = SteamDeckKeyboard.IsSteamDeck()（Steamworks 官方 API 反射，无 csproj 硬引用，Epic/GOG 降级 false）**——PC 上 OpenOnScreenKeyboard 立即走取消回调链（CancelMouseClick → ClearFocus + 模拟抬起 → 点中文本框即失焦），无条件触发破坏 PC 文本框。整个补丁类包 `#if MB2_GE_130`（1.2.12 无软键盘机制）。**🔴 controller 守卫必须去掉**（坑 2）。
+
+**② IM 提交回填（补丁 B）**：IM 层原为 PC 防死锁跳过 Done 链（见 im.md 手柄导航条目）——Deck 上有真软键盘，Done 链 = 提交回填，跳过 = 提交文字被吞（用户实测功能阻断）。改 `ImChatSoftKeyboardDonePatch`（GauntletLayer.OnOnScreenKeyboardDone）+ `ImChatSoftKeyboardContextDonePatch`（UIContext.OnOnScreenkeyboardTextInputDone）加 deck 分支：**GauntletLayer 层放行**（方法体 = base 空实现 + UIContext 调用，反编译实锤——放行安全），UIContext 层自己 `SetAllText(inputText)` 回填 + **跳过 CancelMouseClick**（防设备翻转坑）；PC 保持原跳过语义。
+
+**③ 直通软键盘退格 \b 吞键（补丁 C）**：Steam 直通键盘发**文本事件流**（非键事件）——打字字符进 `HandleInput` 的 `lastKeysPressed` → AppendCharacter（有效）；退格 = 控制字符 \b(8)/删除 \x7f(127) → 被 vanilla 字符过滤器 `num >= 32 && (num < 127 || num >= 160)` **吞掉**；而删字只走 `Input.IsKeyPressed(BackSpace)` 键事件轮询——直通键盘不发键事件 → 退格彻底失效。修复 = `EditableTextWidget.HandleInput` Prefix（与 IME 补丁同目标）：**键事件在场（IsKeyPressed）→ 让原方法删（我们跳过，防双删见坑 4）**；键事件缺席（纯文本事件流）→ 遍历 8/127 反射调 protected `DeleteChar`（引擎同款删字）+ 兜底「键沿捕捉但同帧 IsKeyDown=false」撕裂。组合态（`ImeCompositionHelper.IsComposing()`）不处理（IME 补丁已拦）。**全版本生效**（无 #if——`DeleteChar` 反射 GetMethod null 时降级跳过）。
+
+**🔴 五坑（全部实机踩过）**：
+
+1. **GauntletLayer Done 补丁拦死回填链**：`GauntletLayer.OnOnScreenKeyboardDone` 方法体 = base（ScreenLayer 空实现）+ `UIContext.OnOnScreenkeyboardTextInputDone`（SetAllText 在这）——**整体跳过 = 回填也跳**（日志特征：只有 `Done→Layer` 没有 `Done→Ctx`）。Deck 分支必须**两层都处理**：GauntletLayer 放行 + UIContext 回填。
+2. **Deck 虚拟手柄常驻 → controller 恒 true**：`IsGamepadActive = IsControllerConnected && !IsMouseActive`——Deck 上虚拟手柄常驻，触屏点击后 IsMouseActive 立即回落 → **恒 true** → 补丁 A 的 `controller` 守卫永远跳过 → 弹窗只剩引擎链。**Deck 上必须无视 controller 守卫**（引擎链+补丁 A 双请求，Steam 对重复请求 no-op 无害，kbActive 防重复弹窗）。
+3. **IsSteamDeck 检测竞态（SteamAPI 未就绪）**：启动早期首次聚焦触发检测，`IsSteamRunningOnSteamDeck` 在 Steamworks 未初始化时**抛异常**（TestIfAvailableClient）——吞掉并缓存 false = **整个会话弹窗全灭**（16:28 实测：检测 False → 全灭；16:36 同 DLL 检测 True → 正常——纯竞态）。修 = **失败不缓存 + 3s 冷却重试**（哨兵 + (uint) 差值，与 IME 哨兵同写法）；只有成功（含正常返回 false = 非 Deck）才缓存。
+4. **同一按键双信号路径 → 双删**：物理/软键盘 Delete 产生 WM_CHAR(0x7F)（进 lastKeysPressed）+ 键事件（IsKeyPressed）→ 补丁 C 删一次 + 原方法再删一次 = **双删**（用户实测 Delete 一下删俩）。修 = 键事件在场 → 原方法删（我们跳过）；键事件缺席 → 我们兜底。**原版无双删**（8/127 被过滤器吞，只有键事件删一次）。
+5. **显式接口实现方法名带接口前缀，Harmony 字符串补丁找不到**：`TwoDimensionEnginePlatform.OpenOnScreenKeyboard` 是 `ITwoDimensionPlatform` 显式实现——IL 方法名 = `TaleWorlds.TwoDimension.ITwoDimensionPlatform.OpenOnScreenKeyboard`——`"OpenOnScreenKeyboard"` 匹配不到 → **PatchAll 抛 ArgumentException 崩游戏启动**（轮子已记「不能补丁抽象接口方法」——补丁具体类同样中招，显式实现无裸名）。**落点日志改用 ScreenManager.OnPlatformScreenKeyboardRequested**（静态公有，只在引擎链请求到达后才会被调 = 落点证明 + 返回值即 Steam 结果）。
+
+**诊断**：`[SteamDeckKb]`（检测结果/失败重试/请求弹窗/失败）。定位手法：链入口（ScreenManager.Done/Canceled + FocusedLayer 是谁）→ 层分发（GauntletLayer isIm）→ 上下文+焦点（UIContext focused 类型）→ 回填结果（widget.Text）→ VM 绑定（set_InputText 窗口监听）——逐层日志一次定位。
 
 ---
 
