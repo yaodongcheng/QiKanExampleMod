@@ -30,55 +30,57 @@ namespace LivingWorldNpcs
     {
         private static bool _cached;
         private static bool _isSteamDeck;
+        /// <summary>检测失败冷却起点（TickCount）：Steamworks 未初始化时 IsSteamRunningOnSteamDeck 抛异常，
+        /// 冷却 3s 后重试（启动早期 SteamAPI.Init 竞态，16:28 实测：检测 False → 弹窗全灭）。</summary>
+        private static int _retryTick = int.MinValue;
 
-        /// <summary>是否运行在 Steam Deck（Steamworks 官方 API，反射调用避免对 Steamworks.NET 的硬依赖）。</summary>
+        /// <summary>是否运行在 Steam Deck（Steamworks 官方 API，反射调用避免对 Steamworks.NET 的硬依赖）。
+        /// 🔴 失败不缓存 + 冷却重试：SteamAPI 初始化完成前调用会抛异常（TestIfAvailableClient），
+        /// 若吞掉缓存 false，整个会话弹窗永久失效（2026-08-22 实机：启动早期首次聚焦触发检测撞竞态）。</summary>
         internal static bool IsSteamDeck()
         {
             if (_cached) return _isSteamDeck;
+            // 失败冷却：3s 内不重试（不刷日志），冷却后重试
+            if (_retryTick != int.MinValue && (uint)(Environment.TickCount - _retryTick) < 3000) return false;
             try
             {
                 Type t = Type.GetType("Steamworks.SteamUtils, Steamworks.NET", false);
                 MethodInfo m = t?.GetMethod("IsSteamRunningOnSteamDeck", BindingFlags.Public | BindingFlags.Static);
                 _isSteamDeck = m != null && (bool)m.Invoke(null, null);
+                _cached = true;   // 只有成功（含正常返回 false——非 Deck 设备）才缓存
                 DebugLogger.Log($"[SteamDeckKb] Steam Deck 检测: {_isSteamDeck}");
             }
             catch (Exception ex)
             {
                 _isSteamDeck = false;
-                DebugLogger.Log($"[SteamDeckKb] Steam Deck 检测降级 false: {ex.Message}");
+                _retryTick = Environment.TickCount;   // 失败：冷却后重试（SteamAPI 可能尚未初始化）
+                DebugLogger.Log($"[SteamDeckKb] Steam Deck 检测失败（SteamAPI 未就绪？）3s 后重试: {ex.Message}");
             }
-            _cached = true;
             return _isSteamDeck;
         }
     }
 
-    /// <summary>补丁 A：Deck 上任何 EditableTextWidget 获得焦点（非手柄路径）→ 请求引擎软键盘弹窗。
+    /// <summary>补丁 A：Deck 上任何 EditableTextWidget 获得焦点 → 请求引擎软键盘弹窗。
     /// 点击聚焦唯一入口 = GauntletEvent.MousePressed → FocusedWidget setter（反编译实锤），MCM/vanilla/IM 全覆盖。
     /// 引擎消费块原参（EventManager.Update 反编译）：Text/KeyboardInfoText/MaxLength/
     /// IsObfuscationEnabled→type 2（密码）、IntegerInputTextWidget/FloatInputTextWidget→type 1。
-    /// 🔴 诊断（2026-08-22）：每次点击 EditableTextWidget 都打一行（含早退原因）——Deck 上弹窗
-    /// 时有时无，必须区分是哪个守卫拦的。</summary>
+    /// 🔴 2026-08-22（16:06 Deck 日志实锤）：Steam Deck 虚拟手柄常驻 → IsGamepadActive 恒 true →
+    /// controller 恒 true → 原「controller 守卫跳过」让补丁 A 在 Deck 上永远失效（弹窗只剩引擎链）。
+    /// 修：Deck 上无视 controller 守卫无条件请求（引擎链也会请求——Steam 对重复请求 no-op，无害；
+    /// kbActive 防已弹窗时重复请求）。PC 门控 deck=false 不受影响。</summary>
     [HarmonyPatch(typeof(EventManager), "set_FocusedWidget")]
     public static class SteamDeckEditableKeyboardPatch
     {
         [HarmonyPostfix]
         public static void Postfix(EventManager __instance, Widget value)
         {
-            // 只有 EditableTextWidget 聚焦才打（非输入框点击=按钮/列表项，不打防刷屏）
-            if (!(value is EditableTextWidget)) return;
+            if (!(value is EditableTextWidget)) return;                 // 非输入框不处理
             bool deck = SteamDeckKeyboard.IsSteamDeck();
-            bool focused = __instance.FocusedWidget == value;
-            bool controller = __instance.IsControllerActive;
+            if (!deck) return;                                          // PC/Epic/GOG：零行为变化
+            if (__instance.FocusedWidget != value) return;              // setter 拒绝（不可聚焦）→ 焦点未生效
             bool kbActive = false;
             try { kbActive = V.IsOnScreenKeyboardActive(); } catch { }
-            // 🔴 诊断：EditableTextWidget 获得焦点就无条件打一行——deck=False（检测失败）也看得见
-            DebugLogger.Log($"[KbDiag] 输入框聚焦 deck={deck} focused={focused} controller={controller} "
-                + $"kbActive={kbActive} widget={value.GetType().Name}");
-            // 🔴 2026-08-22（16:06 Deck 日志实锤）：Steam Deck 虚拟手柄常驻 → IsGamepadActive 恒 true →
-            // controller 恒 true → 原「controller 守卫跳过」让补丁 A 在 Deck 上永远失效（弹窗只剩引擎链）。
-            // 修：Deck 上无视 controller 守卫无条件请求（引擎链也会请求——Steam 对重复请求 no-op，无害；
-            // kbActive 防已弹窗时重复请求）。PC 门控 deck=false 不受影响。
-            if (!deck || !focused || kbActive) return;
+            if (kbActive) return;                                       // 软键盘已开（引擎链已请求过）
             try
             {
                 var ew = (EditableTextWidget)value;

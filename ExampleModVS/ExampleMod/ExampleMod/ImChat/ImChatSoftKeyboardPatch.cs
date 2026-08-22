@@ -30,7 +30,6 @@ namespace LivingWorldNpcs
         [HarmonyPrefix]
         public static bool Prefix(GauntletLayer __instance)
         {
-            DebugLogger.Log($"[KbDiag] Cancel→Layer type={__instance.GetType().Name} isIm={ImChatView.IsCurrentLayer(__instance)}");
             if (ImChatView.IsCurrentLayer(__instance)) return false; // IM 层：跳过取消链（ClearFocus + 模拟鼠标 → 死锁）
             return true;                                             // 其他层照常
         }
@@ -40,10 +39,8 @@ namespace LivingWorldNpcs
     public static class ImChatSoftKeyboardDonePatch
     {
         [HarmonyPrefix]
-        public static bool Prefix(GauntletLayer __instance, string inputText)
+        public static bool Prefix(GauntletLayer __instance)
         {
-            DebugLogger.Log($"[KbDiag] Done→Layer type={__instance.GetType().Name} isIm={ImChatView.IsCurrentLayer(__instance)} "
-                + $"textLen={inputText?.Length}");
             if (ImChatView.IsCurrentLayer(__instance))
             {
 #if MB2_GE_130
@@ -71,7 +68,6 @@ namespace LivingWorldNpcs
         [HarmonyPrefix]
         public static bool Prefix(UIContext __instance)
         {
-            DebugLogger.Log($"[KbDiag] Cancel→Ctx isIm={ImChatView.IsCurrentContext(__instance)}");
             if (ImChatView.IsCurrentContext(__instance)) return false; // IM 层上下文：跳过（CancelMouseClick → ClearFocus + 模拟鼠标 → 死锁）
             return true;
         }
@@ -80,15 +76,9 @@ namespace LivingWorldNpcs
     [HarmonyPatch(typeof(UIContext), "OnOnScreenkeyboardTextInputDone")]
     public static class ImChatSoftKeyboardContextDonePatch
     {
-        /// <summary>回填验证窗口起点（TickCount）：SetAllText 后 2s 内的 InputText setter 调用打日志（诊断用）。</summary>
-        internal static int FillVerifyWindowStart = int.MinValue;
-
         [HarmonyPrefix]
         public static bool Prefix(UIContext __instance, string inputText)
         {
-            DebugLogger.Log($"[KbDiag] Done→Ctx isIm={ImChatView.IsCurrentContext(__instance)} "
-                + $"deck={SteamDeckKeyboard.IsSteamDeck()} textLen={inputText?.Length} "
-                + $"focused={__instance.EventManager.FocusedWidget?.GetType()?.Name}");
             if (!ImChatView.IsCurrentContext(__instance)) return true;   // 非 IM 层：原版
 #if MB2_GE_130
             if (SteamDeckKeyboard.IsSteamDeck())
@@ -97,37 +87,11 @@ namespace LivingWorldNpcs
                 // Deck 有真软键盘，提交必须回填文本（SetAllText → 绑定推送 VM InputText）；
                 // 跳过 CancelMouseClick（ClearFocus + 模拟鼠标抬起 → 设备翻转坑，见类头注释）。
                 if (inputText != null && __instance.EventManager.FocusedWidget is EditableTextWidget editableTextWidget)
-                {
                     editableTextWidget.SetAllText(inputText);
-                    FillVerifyWindowStart = Environment.TickCount;   // 开验证窗口：2s 内 setter 调用打日志
-                    DebugLogger.Log($"[KbDiag] IM 回填执行后 widget.Text=\"{editableTextWidget.Text}\"（目标 {inputText.Length} 字符）");
-                }
-                else
-                {
-                    DebugLogger.Log($"[KbDiag] ⛔ IM 回填失败：inputText null 或焦点不是 EditableTextWidget（焦点丢失？）");
-                }
                 return false;
             }
 #endif
             return false;   // PC：跳过全部（原语义，PC 无真软键盘——该链是取消回调，跳过防死锁）
-        }
-    }
-
-    /// <summary>🔴 2026-08-22（诊断用）：监听 IM 输入框 VM 绑定推送——SetAllText → widget.Text →
-    /// 绑定 → ImChatVM.InputText setter（发送逻辑读的就是它）。只在回填后 2s 窗口内打日志，
-    /// 平时打字不刷屏。定位「回填执行了但输入框没字」是绑定断链还是值没到位。</summary>
-    [HarmonyPatch(typeof(ImChatVM), "set_InputText")]
-    public static class ImChatFillVerifyPatch
-    {
-        [HarmonyPrefix]
-        public static void Prefix(string value)
-        {
-            // 哨兵值跳过判定 + (uint) 差值：初始 int.MinValue 相减溢出为负会恒 < 2000（窗口常开刷屏）
-            if (ImChatSoftKeyboardContextDonePatch.FillVerifyWindowStart != int.MinValue
-                && (uint)(Environment.TickCount - ImChatSoftKeyboardContextDonePatch.FillVerifyWindowStart) < 2000)
-            {
-                DebugLogger.Log($"[KbDiag] InputText setter 收到值 \"{value}\"（回填后 {Environment.TickCount - ImChatSoftKeyboardContextDonePatch.FillVerifyWindowStart}ms）");
-            }
         }
     }
 }

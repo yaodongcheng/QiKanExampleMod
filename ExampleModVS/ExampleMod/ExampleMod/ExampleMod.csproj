@@ -320,7 +320,6 @@
     <Compile Include="ImChat\ImChatMapInputPatch.cs" />
     <Compile Include="ImChat\ImChatMissionInputPatch.cs" />
     <Compile Include="ImChat\ImChatSoftKeyboardPatch.cs" />
-    <Compile Include="ImChat\ImChatKbDiagPatch.cs" />
     <Compile Include="ImChat\ImChatVM.cs" />
     <Compile Include="ImChat\ImChatMissionView.cs" />
     <Compile Include="ImChat\ImScreenFrameTickPatch.cs" />

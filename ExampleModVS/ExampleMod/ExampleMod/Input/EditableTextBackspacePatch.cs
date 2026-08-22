@@ -68,25 +68,34 @@ namespace LivingWorldNpcs
             if (__instance.IsDisabled) return true;                     // 与原方法一致：disabled 不处理
             if (ImeCompositionHelper.IsComposing()) return true;        // 输入法组合态：退格是输入法消费的，放行（IME 补丁拦截）
 
-            bool deleted = false;
-            // ① 文本事件流的退格(8)/删除(127)控制字符：vanilla 字符过滤器 num>=32 直接吞掉——
-            //    Steam Deck 直通软键盘的退格就死在这一点（用户实测：提交后游戏框删不掉）
-            for (int i = 0; i < lastKeysPressed.Count; i++)
+            bool backKeyEvent = Input.IsKeyPressed(InputKey.BackSpace);
+            bool delKeyEvent = Input.IsKeyPressed(InputKey.Delete);
+
+            // 🔴 2026-08-22（双删 bug 修复）：同一按键有两条信号路径——文本事件（8/127 进
+            // lastKeysPressed）+ 键事件（IsKeyPressed 轮询）。原方法走键事件删一次；若我们再按
+            // 8/127 删一次 = 双删（用户实测 Delete 一下删俩）。分工：
+            //   键事件在场 → 原方法删（我们跳过）；
+            //   键事件缺席（纯文本事件流，Steam 直通软键盘）→ 我们兜底删。
+            // 原版无此补丁时 8/127 被 num>=32 字符过滤器吞掉 = 键事件单删——本补丁只补「键事件
+            // 缺席」的场景，键事件在场的行为与原版逐字节一致。
+            if (!backKeyEvent && !delKeyEvent)
             {
-                int code = lastKeysPressed[i];
-                if (code == CharBackSpace) { DeleteOne(__instance, false); deleted = true; }
-                else if (code == CharDelete) { DeleteOne(__instance, true); deleted = true; }
+                for (int i = 0; i < lastKeysPressed.Count; i++)
+                {
+                    int code = lastKeysPressed[i];
+                    if (code == CharBackSpace) DeleteOne(__instance, false);
+                    else if (code == CharDelete) DeleteOne(__instance, true);
+                }
             }
-            // ② 键沿撕裂兜底：按下沿已捕捉但同帧 IsKeyDown=false（极短脉冲/直通键事件）——
-            //    vanilla 的 _keyboardAction 同帧置 None 把删除吞掉。物理键按下沿时 IsKeyDown 必 true，
-            //    此分支只命中撕裂帧，与原逻辑不冲突
-            if (!deleted && Input.IsKeyPressed(InputKey.BackSpace) && !Input.IsKeyDown(InputKey.BackSpace))
+            else
             {
-                DeleteOne(__instance, false);
-                deleted = true;
+                // 键沿撕裂兜底：按下沿已捕捉但同帧 IsKeyDown=false（极短脉冲）→ 原方法的
+                // _keyboardAction 同帧置 None 把删除吞掉——物理键按下沿时 IsKeyDown 必 true，
+                // 此分支只命中撕裂帧，与原逻辑不冲突
+                if (backKeyEvent && !Input.IsKeyDown(InputKey.BackSpace)) DeleteOne(__instance, false);
+                if (delKeyEvent && !Input.IsKeyDown(InputKey.Delete)) DeleteOne(__instance, true);
             }
-            if (deleted) DebugLogger.Log("[TextInput] 软键盘退格/删除已处理（文本事件流或键沿撕裂）");
-            return true;    // 放行原方法：8/127 被其 num>=32 过滤器忽略；物理键路径照旧
+            return true;    // 放行原方法：8/127 被其 num>=32 过滤器忽略；键事件路径照旧
         }
     }
 }
