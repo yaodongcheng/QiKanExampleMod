@@ -331,6 +331,18 @@ private static void SetMouseToWidget(PadItem item)   // MovePad 转移后 + Focu
 
 **坑中坑**：① Harmony **不能补丁抽象接口方法**（`ITwoDimensionPlatform.OpenOnScreenKeyboard`）——PatchAll 直接 HarmonyException 崩游戏启动；② 光标可见 = 锚定覆盖 SetMousePosition（坑 2），**光标隐藏时 SetMousePosition 有效**（⚠️ 诊断注意：光标隐藏时 `Input.MousePositionPixel` 读数是**冻结的旧值**——实机 A 键点击落在输入框本体证明 OS 光标已挪位，但读数停在 (960,540)，别据此误判 SetMousePosition 失败）；③ 程序 SetMousePosition 不算「鼠标活动」（十字键导航全程实测未触发 IsMouseActive）；④ 诊断铁证格式：`设备翻转未保护: 裸值= False 聚焦=False IsMouseActive=True 光标可见=False 鼠标位置=(960,540)`——鼠标位置残留屏幕中央 = A 键点击打空。已登记 im-gamepad-navigation.md §11.2 坑 13。
 
+## 🔴 Steam Deck 弹窗键盘提交回填（2026-08-22 实装，门控 = SteamDeckKeyboard.IsSteamDeck()）— `ImChat/ImChatSoftKeyboardPatch.cs`
+
+**背景**：PC 上 Done 链 = 取消回调（ClearFocus+模拟抬起 → 设备翻转死锁），IM 层整体跳过；**Deck 上有真软键盘，Done 链 = 提交回填（SetAllText），跳过 = 提交文字被吞（用户实测功能阻断）**。取消链（Canceled）Deck/PC 都跳过（焦点保持）。
+
+**机制（反编译全链）**：Steam 提交 → `GamepadTextInputDismissed(提交)` → `OnTextEnteredFromPlatform` → `ScreenManager.OnOnscreenKeyboardDone(text)` → `FocusedLayer.OnOnScreenKeyboardDone` → `UIContext.OnOnScreenkeyboardTextInputDone` → **`FocusedWidget.SetAllText(text)`**（引擎内置回填，vanilla/MCM 层无需改动）+ `CancelMouseClick()`。
+
+**IM 层 deck 分支**（`ImChatSoftKeyboardContextDonePatch` Prefix）：`IsCurrentContext` + `IsSteamDeck()` → 自己 `SetAllText(inputText)`（绑定推送 VM InputText）+ **跳过 CancelMouseClick**（防设备翻转坑）；非 IM 层原版；PC 保持原跳过语义。`SetAllText` 引用包 `#if MB2_GE_130`（1.2.12 无软键盘机制）。
+
+**配套**：`Input/SteamDeckKeyboardPatch.cs`（补丁 A：Deck 上鼠标/触屏点击 EditableTextWidget 也弹浮动键盘——引擎只在 `IsControllerActive && EditableTextWidget` 时请求，点击那帧 IsMouseActive=true 必 false → 直通盲打；补丁 set_FocusedWidget postfix 直接调 `Context.TwoDimensionContext.Platform.OpenOnScreenKeyboard`，参数复制引擎消费块）+ `Input/EditableTextBackspacePatch.cs`（直通软键盘退格 \b 吞键，见 input.md）。
+
+**Deck 检测**：`SteamDeckKeyboard.IsSteamDeck()`——Steamworks 官方 API 反射调用（`Type.GetType("Steamworks.SteamUtils, Steamworks.NET")` → `IsSteamRunningOnSteamDeck`），无 csproj 硬引用，Epic/GOG 缺失时降级 false。**门控必须存在**：PC 上 OpenOnScreenKeyboard 立即走取消回调链 → 点中文本框即失焦（无条件触发会破坏 PC 文本框）。
+
 ## 🔴 手柄导航：自绘焦点准星（2026-08-19 用户裁定）— `ImChatView.UpdateNavCursor/HideNavCursor` + prefab `LWN_NavCursor`（GUI/Prefabs/ImChat.xml + ImChatCompact.xml）
 
 **解决什么问题**：导航态系统光标被强制隐藏（见上节坑 2），焦点辨识只剩 hover 高亮——手柄玩家看不清焦点在哪个项。自绘准星 = 焦点框指示器（frame_small_9 sprite），导航态显示并跟随焦点 widget，框中心对齐控件中心。
@@ -377,3 +389,16 @@ private static void SetMouseToWidget(PadItem item)   // MovePad 转移后 + Focu
 - **私聊没有独立容量**——`RecentHistory` 是单一容器（私聊/频道/事件/计划/当面混装，上限 = `MaxRecentHistoryCount` 热度分档 40/20/8），私聊显示条数 = 容器内 im_* 行份额（频道活跃 NPC 的私聊行会被挤掉）。
 - 前端消息流**全量渲染无二次截断**（`foreach msgs Add(new ImMessageVM)` + 滚动）——"后端取出多少，前端显示多少"；唯一 Take 是左栏索引 `Take(6)` 与预览字符串。
 - 群聊显示 = store（每频道上限 100 条 FIFO，读档恢复同样收缩）——与记忆 tab 数据源不同是设计（公区流水全量 vs 参与度过滤 + 总结沉淀）。
+
+---
+
+## 🔴 传讯入口双闸 + 发送失败提示分层（2026-08-22 用户裁定）— `ImChat/ImChatView.cs` + `ImChat/ImChatManager.cs` + `Notify/ImChatOpenButtonManager.cs` + `GUI/SecretLetterButtonInjector.cs`
+
+**解决**：IM 传讯依赖 LLM 才能正常玩——未配置 LLM 时模板回复是不得已的体验，不给入口；配置了但连不上要像测试连接一样红字提示理由；世界玩法交互（事件广播/背景/提议/respond）的模板降级保持静默不打扰。
+
+**三层分层**：
+1. **未配置（`!IsLLMConfigured`）→ 入口整体封死**：O/↑ 键（`ImChatView.OnScreenFrameTick` + `ImChatMissionView.OnMissionTick`）= `ShortFired(IM) && PlotEnabled && IsLLMConfigured`；呼出按钮 `ShouldShow` + 密信按钮（SecretLetterButtonInjector）同双闸；🔴 **`CanOpen()` 兜底**（`PlotEnabled && IsLLMConfigured && …`）——通知点击/按钮点击等一切入口统一汇入
+2. **已配置但连不上 → 发送时红字提示（测试连接同款）**：IM 回复走 `ChatOnceAsync(..., showFailureAlert: true)`（见 llm.md）；`SendPlayerMessage` 兜底 `!IsLLMConfigured` → `ShowConnectionMessage(NotConfigured, BuildMissingFieldsText())`——覆盖「面板开着中途清空配置/读档异常」等边缘场景，**无 tick 监听关面板**（发送动作即检查点）
+3. **非自由输入玩法 → 静默**：事件广播评论/世界背景/提议/respond 保持 `showFailureAlert=false` 模板降级
+
+**纪律**：入口双闸与提示分层不可拆——未配置时入口已封，正常流程走不到提示环节；提示统一走 `ShowConnectionMessage`（5 分钟同原因冷却 + `LWN_llm_fail_*` 分类文案，零新增 key）。

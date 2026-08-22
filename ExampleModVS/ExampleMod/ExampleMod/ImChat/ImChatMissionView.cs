@@ -28,7 +28,8 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
             // 🔴 2026-08-17（Q4 手柄）：↑ 十字短按 = 手柄呼出键（与 O 完全等价，ModInput 玩法行）
             // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略开着时 = 放大为完整模式
-            if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled)
+            // 🔴 2026-08-22（用户裁定分层）：未配置 LLM → O/↑ 也无法呼出（传讯入口整体封死，同 Campaign 侧）
+            if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled && Settings.Instance.IsLLMConfigured)
                 ImChatView.OpenOrExpand();
 
             // 🔴 Q5（2026-08-17 呼出按钮）：Mission 侧驱动（Campaign 侧由 ImChatView.OnScreenFrameTick 驱动）

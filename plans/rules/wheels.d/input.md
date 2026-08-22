@@ -141,6 +141,16 @@ public static class EditableTextImePatch
 
 ---
 
+## 🔴 Steam Deck 软键盘两件套（2026-08-22 用户实测：MCM 文本框无弹窗盲打 / IM 提交文字被吞 / 退格删不掉）— `Input/SteamDeckKeyboardPatch.cs` + `Input/EditableTextBackspacePatch.cs`
+
+**① 点击聚焦也弹浮动键盘（补丁 A）**：引擎只在 `EventManager.FocusedWidget` setter 里 `IsControllerActive && EditableTextWidget` 时置 `_isOnScreenKeyboardRequested` → LateUpdate 消费 → `Platform.OpenOnScreenKeyboard` → `ScreenManager.OnPlatformScreenKeyboardRequested` → `PlatformServices.ShowGamepadTextInput` → `SteamUtils.ShowGamepadTextInput`（Steam 浮动键盘弹窗）。`IsControllerActive = !IsMouseActive` → **鼠标/触屏点击那帧必 false → 不请求 → 直通盲打**（IM 手柄 A 聚焦走控制器路径所以有弹窗）。修复 = `set_FocusedWidget` postfix（点击聚焦唯一入口，反编译实锤）：`IsSteamDeck()` && EditableTextWidget && `!IsControllerActive`（防双发）&& `!V.IsOnScreenKeyboardActive()` → 直接调 `Context.TwoDimensionContext.Platform.OpenOnScreenKeyboard(Text, KeyboardInfoText, MaxLength, type)`（参数复制引擎消费块：Obfuscation→2、Integer/FloatInput→1）。**门控 = SteamDeckKeyboard.IsSteamDeck()（Steamworks 官方 API 反射，无 csproj 硬引用，Epic/GOG 降级 false）**——PC 上 OpenOnScreenKeyboard 立即走取消回调链（CancelMouseClick → ClearFocus + 模拟抬起 → 点中文本框即失焦），无条件触发破坏 PC 文本框。整个补丁类包 `#if MB2_GE_130`（1.2.12 无软键盘机制）。
+
+**② 直通软键盘退格 \b 吞键（补丁 C）**：Steam 直通键盘发**文本事件流**（非键事件）——打字字符进 `HandleInput` 的 `lastKeysPressed` → AppendCharacter（有效）；退格 = 控制字符 \b(8)/删除 \x7f(127) → 被 vanilla 字符过滤器 `num >= 32 && (num < 127 || num >= 160)` **吞掉**；而删字只走 `Input.IsKeyPressed(BackSpace)` 键事件轮询——直通键盘不发键事件 → 退格彻底失效（用户实测「提交后删不掉」）。修复 = `EditableTextWidget.HandleInput` Prefix（与 IME 补丁同目标）：遍历 `lastKeysPressed` 的 8/127 → 反射调 protected `DeleteChar`（引擎同款删字，绑定照常推送）+ 兜底「键沿捕捉但同帧 IsKeyDown=false」撕裂（vanilla `_keyboardAction` 同帧置 None 吞删除）；组合态（`ImeCompositionHelper.IsComposing()`）不处理（IME 补丁已拦）；放行原方法（8/127 被其过滤器忽略，物理键路径照旧）。**全版本生效**（无 #if——`DeleteChar` 反射 GetMethod null 时降级跳过）。
+
+**诊断**：`[SteamDeckKb]`（检测结果/请求弹窗/失败）、`[TextInput]`（退格处理/反射失败）。
+
+---
+
 ## 🔴 设备检测：自监测最后输入来源（2026-08-19 用户裁定，替代引擎 IsGamepadActive 粘性判定）— `Input/ModInput.cs`（`TickInputSource` / `UsingGamepad`）
 
 **解决什么问题**：引擎 `IsGamepadActive = IsControllerConnected && !IsMouseActive`——`IsMouseActive` 是**粘性判定**（手柄 A 的 native 模拟点击 / 锚定回拽让它持续 true 7+ 秒，实机 11:42:33-41）→ 手柄键按下后设备仍判键鼠 → 手柄键永远无法重新宣告身份（「⛔ 设备未激活」死循环）。InteractArea 键帽/IM 提示行/呼出按钮全被同一坑坑到（点击后键帽变 [F]）。

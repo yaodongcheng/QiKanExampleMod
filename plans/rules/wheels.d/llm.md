@@ -62,6 +62,8 @@ LLMService.ShowConnectionMessage(result, showSuccess: true);
 - 玩法路径防刷屏 300s（`_lastFailureShownAt`）：后台自动重试场景（记忆总结等）不每失败弹一条；测试按钮每次都给结果
 - 新增失败原因需四处同步：`LLMFailureReason` 枚举 + `ClassifyFailure` 判级 + `ShowConnectionMessage` 分支 + XML 文案
 
+**🔴 ChatOnceAsync 失败提示开关（2026-08-22 用户裁定分层）**：`ChatOnceAsync(systemPrompt, …, needJson=false, showFailureAlert=false)` 新增末参——**自由输入路径（IM 传讯回复 `ImReplyService.GenerateAndDeliver`）传 `showFailureAlert: true`**：非 2xx / 异常两条失败点调 `ShowConnectionMessage(ClassifyFailure(...), showSuccess: false)`（复用本卷诊断全套：5 分钟同原因冷却 + 按原因分类红字）；**世界玩法交互（`ImEventBroadcaster` 事件评论 / `WorldBackgroundBehavior` 世界背景 / `AutonomyProposal` / `DialogueComponent` / `ReactiveAgent` respond）保持默认 false 静默降级模板**。配套：`BuildMissingFieldsText()` private→internal（IM `SendPlayerMessage` 未配置兜底点名缺字段，与测试按钮同源，见 im.md「传讯入口双闸」）。
+
 
 ---
 

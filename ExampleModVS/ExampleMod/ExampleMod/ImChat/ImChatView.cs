@@ -208,12 +208,16 @@ namespace LivingWorldNpcs
 
         /// <summary>Mission/大地图均可开（需求 1）；战斗中/系统弹窗中禁开（用户决策 4）。
         /// 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭时 O 无法呼出聊天——
-        /// 密聊入口整体隐藏（含通知点击路径，OpenCompact 也走 CanOpen）。</summary>
+        /// 密聊入口整体隐藏（含通知点击路径，OpenCompact 也走 CanOpen）。
+        /// 🔴 2026-08-22（用户裁定分层：未配置 LLM 传讯不可用）：!IsLLMConfigured → 传讯入口整体封死
+        ///（O 键/呼出按钮/密信按钮/通知点击全部汇入 CanOpen 兜底）——模板回复是不得已的体验，
+        /// 未配置时连交互都不给；已配置但连不上才由 ChatOnceAsync(showFailureAlert:true) 红字提示。</summary>
         public static bool CanOpen()
         {
             try
             {
                 if (!Settings.Instance.PlotEnabled) return false;
+                if (!Settings.Instance.IsLLMConfigured) return false;
                 if (Mission.Current != null && Settings.Instance.IsInteractionDisabled()) return false;
                 if (ModInput.IsSystemModalActive()) return false;
                 return ScreenManager.TopScreen != null;
@@ -2612,7 +2616,9 @@ namespace LivingWorldNpcs
                 // 🔴 O 只负责「打开」：面板开着时输入 o 不再触发任何动作（打字不误关）
                 // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
                 // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略开着时 O = 放大为完整模式
-                if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled)
+                // 🔴 2026-08-22（用户裁定分层）：未配置 LLM（IsLLMConfigured=false）→ O 也无法呼出——
+                // 传讯入口整体封死（模板回复是不得已的体验，不给入口）
+                if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled && Settings.Instance.IsLLMConfigured)
                     OpenOrExpand();
 
                 // 🔴 Q2（2026-08-17，密信入口「关屏再开」）：队伍/家族屏 PopScreen 后回大地图，

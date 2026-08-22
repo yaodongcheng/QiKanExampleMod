@@ -248,6 +248,20 @@ namespace LivingWorldNpcs
             if (conv == null || string.IsNullOrWhiteSpace(text)) return;
             string trimmed = text.Trim();
 
+            // 🔴 2026-08-22（用户裁定：发送失败 = 测试连接同款理由提示）：未配置 LLM → 与 MCM 测试按钮
+            // 同款提示（NotConfigured 点名缺哪些字段，ShowConnectionMessage 5 分钟同原因冷却防刷屏）。
+            // 正常流程走不到这里（CanOpen 双闸已封入口）——仅兜底「面板开着中途清空配置 / 读档异常」
+            // 等边缘场景，发送时玩家必须知道为什么回复会是模板。
+            if (!Settings.Instance.IsLLMConfigured)
+            {
+                LLMService.ShowConnectionMessage(new LLMService.LLMConnectionResult
+                {
+                    Success = false,
+                    Reason = LLMService.LLMFailureReason.NotConfigured,
+                    Detail = LLMService.BuildMissingFieldsText(),
+                }, showSuccess: false);
+            }
+
             if (conv.Type == ImConversationType.Direct)
             {
                 // 私聊写透记忆（需求 6：NPC 记得 IM 里聊过什么，能接住后续）
