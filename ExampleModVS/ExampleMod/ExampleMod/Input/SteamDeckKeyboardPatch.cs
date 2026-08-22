@@ -74,7 +74,11 @@ namespace LivingWorldNpcs
             // 🔴 诊断：EditableTextWidget 获得焦点就无条件打一行——deck=False（检测失败）也看得见
             DebugLogger.Log($"[KbDiag] 输入框聚焦 deck={deck} focused={focused} controller={controller} "
                 + $"kbActive={kbActive} widget={value.GetType().Name}");
-            if (!deck || !focused || controller || kbActive) return;
+            // 🔴 2026-08-22（16:06 Deck 日志实锤）：Steam Deck 虚拟手柄常驻 → IsGamepadActive 恒 true →
+            // controller 恒 true → 原「controller 守卫跳过」让补丁 A 在 Deck 上永远失效（弹窗只剩引擎链）。
+            // 修：Deck 上无视 controller 守卫无条件请求（引擎链也会请求——Steam 对重复请求 no-op，无害；
+            // kbActive 防已弹窗时重复请求）。PC 门控 deck=false 不受影响。
+            if (!deck || !focused || kbActive) return;
             try
             {
                 var ew = (EditableTextWidget)value;
