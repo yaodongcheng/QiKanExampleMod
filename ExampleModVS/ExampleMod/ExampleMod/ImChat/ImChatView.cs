@@ -135,6 +135,11 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-18（诊断日志防刷屏）：任意导航键按下沿闩锁——⛔ 门控/输入聚焦行只在按下沿打一次，
         // 禁止每帧打（按住键 = 60 行/s 刷屏 + 同步磁盘写拖慢游戏）
         private static bool _lastPadAnyKey;
+        // 🔴 2026-08-23（ESC/B 统一）：ESC 关闭面板后的原版选项菜单吞窗（ImChatEscapeMenuInputPatch 读）——
+        // 我们的 Tick 关面板与原版 ToggleEscapeMenu 检查（MissionScreen.HandleInputs / MapScreen
+        // TickNavigationInput）同帧先后执行（实机：ESC 关面板的同时选项菜单弹出），只靠 IsOpen 会漏
+        //（检查跑时面板已关）。置 2 帧（ESC 关面板时），Tick 顶部递减——覆盖同帧 + 下一帧的任意检查顺序。
+        private static int _escapeCloseHoldFrames;
 
         // 🔴 七轮：手动滚轮接管（引擎 ScrollablePanel 滚轮派发在模态层下不可靠——官方 SPChatLog 用
         // 「查看模式」按钮规避贴底+滚轮冲突；这里直接从 UIContext 找 ScrollablePanel 操作 ValueFloat）
@@ -153,6 +158,10 @@ namespace LivingWorldNpcs
         /// <summary>当前是否为缩略模式（底部小面板、相机仍可控）。全屏元素（如顶部罗盘）据此决定是否隐藏：
         /// 缩略模式不遮挡 → 不隐藏；完整模式才隐藏（CompassHud 隐藏纪律，2026-08-20）。</summary>
         public static bool IsCompactMode => _mode == ImChatMode.Compact;
+
+        /// <summary>ESC 关闭面板后的吞窗是否生效（ImChatEscapeMenuInputPatch 门控：ToggleEscapeMenu
+        /// 释放沿在窗口内一并吞掉——同帧/下一帧内原版选项菜单检查必须放行，防「面板关了选项又开」）。</summary>
+        internal static bool EscapeCloseHoldActive => _escapeCloseHoldFrames > 0;
 
         /// <summary>当前选中会话（命令模式/通知定位用）。</summary>
         public static ImConversation Selected => _selected;
@@ -562,7 +571,18 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 🔴 2026-08-19（用户裁定：缩略半模态聚焦门控）：面板是否占用手柄键（A/十字键/LB/RB/B）——
         /// ImChatMissionInputPatch 的拦键门控。完整模式 = 模态恒占用；缩略模式 = 聚焦态
-        ///（导航焦点 _padIndex ≥ 0 或输入框聚焦）才占用——无焦点时 A/D-pad 还给游戏（跳跃）。
+        ///（导航焦点 _padIndex ≥ 0 或输入框聚焦）才占用。
+        /// 🔴 2026-08-23（用户裁定：面板打开 = A/D-pad 全部归面板，「无焦点 A 还给游戏」废止）：
+        /// 缩略无焦点时，面板键（A / D-pad）按下沿 = 面板占用——UpdatePadFocus 同帧进聚焦，
+        /// 但 MissionMainAgentController.OnPreMissionTick **先于**本类 OnMissionTick 轮询输入
+        ///（漏帧根因：实机缩略无焦点按 ↓ 蹲下），门控必须提前声明占用，进入聚焦的沿才不落游戏
+        ///（A 跳 / ← 视角——均走 GameKey，可拦）。
+        /// 🔴 引擎限制（2026-08-23 用户裁定：保留移动、接受蹲）：手柄 ↓ 蹲下（Crouch=15）由
+        /// **native 直喂玩家 Agent**（原版 C# 陆上蹲读取 `!IsGamepadActive && IsGameKeyPressed(15)`
+        /// 显式豁免手柄，TaleWorlds.MountAndBlade.View.dll:24000 实证；native 喂入的唯一开关 =
+        /// Agent.Controller=Player，而半模态移动必须 Player 控制器）——**本门控拦不到 ↓ 蹲**，
+        /// Mission 缩略下按 ↓ 仍会蹲（聚焦态亦然），接受为已知限制。D-pad 按住态仍声明占用
+        ///（拦 GameKey 读的 ← 视角等按住判定）。
         /// </summary>
         internal static bool IsPanelKeyOwner
         {
@@ -570,7 +590,8 @@ namespace LivingWorldNpcs
             {
                 if (_layer == null) return false;
                 if (_mode == ImChatMode.Full) return true;
-                return _padIndex >= 0 || _layer.IsFocusedOnInput();
+                if (_padIndex >= 0 || _layer.IsFocusedOnInput()) return true;
+                return AnyDpadPressed() || AnyDpadHeld() || Input.IsKeyPressed(InputKey.ControllerRDown);
             }
         }
 
@@ -725,16 +746,20 @@ namespace LivingWorldNpcs
                 }
 
                 // 🔴 2026-08-19（用户裁定：缩略半模态聚焦门控）——聚焦态才占 A/十字键
-                //（ImChatMissionInputPatch 的 IsPanelKeyOwner 门控）；无焦点态 A 还给游戏（跳跃）：
-                //   ① 左摇杆移动 = 玩家在玩 → 退聚焦（准星隐藏、高亮全清、A 还给游戏）
-                //   ② 无焦点态按十字键（任意向）→ 进入聚焦（该按下沿被吞，不落游戏）
-                //   ③ 无焦点且没按面板键 → 本帧不消费任何键（A 跳、十字键下一按再进入）
+                //（ImChatMissionInputPatch 的 IsPanelKeyOwner 门控）
+                // 🔴 2026-08-23（用户裁定：「无焦点 A 还给游戏」废止）：面板打开 = A/D-pad 全归面板：
+                //   ① 左摇杆移动 = 玩家在玩 → 退聚焦（准星隐藏、高亮全清；A 已不再还给游戏）
+                //   ② 无焦点态按 A 或十字键（任意向）→ 进入聚焦（该按下沿被吞，不落游戏——补丁门控
+                //      IsPanelKeyOwner 同帧提前声明占用，聚焦进入前那帧不漏：实机按↓蹲下根因）
+                //   ③ 无焦点且没按面板键 → 本帧不消费任何键
+                // ⚠️ 引擎限制（2026-08-23 用户裁定：接受）：↓ 蹲 = native 直喂玩家 Agent，本门控
+                //    拦不到——Mission 缩略下按 ↓ 仍会蹲（见 IsPanelKeyOwner 注释，聚焦/无焦点皆然）。
                 // 下拉接管 = 天然聚焦态（按下沿即进列表），不参与门控；完整模式 = 模态恒聚焦。
                 if (_mode == ImChatMode.Compact && !inputFocused && !dropdownOpen)
                 {
                     if (_padIndex >= 0 && LeftStickActive())
                     {
-                        if (PadDbg) DebugLogger.Log($"[Pad] 左摇杆移动 → 退聚焦（A 还给游戏）{PadState()}");
+                        if (PadDbg) DebugLogger.Log($"[Pad] 左摇杆移动 → 退聚焦{PadState()}");
                         _padIndex = -1;
                         HideNavCursor();
                         ResetPadHoldTimers();
@@ -743,19 +768,18 @@ namespace LivingWorldNpcs
                     }
                     if (_padIndex < 0)
                     {
-                        if (AnyDpadPressed())
+                        bool aEdge = Input.IsKeyPressed(InputKey.ControllerRDown);
+                        if (AnyDpadPressed() || aEdge)
                         {
-                            if (PadDbg) DebugLogger.Log($"[Pad] 十字键按下 → 进入聚焦（初始索引 0）{PadState()}");
+                            if (PadDbg) DebugLogger.Log($"[Pad] 面板键按下 → 进入聚焦（初始索引 0）{PadState()}");
                             _padIndex = _padItems.Count > 0 ? 0 : -1;
                             if (_padItems.Count > 0) SetMouseToWidget(_padItems[0]);
+                            if (aEdge) _lastPadA = true;   // A 进聚焦的同一沿不再激活（下一按 A 才激活焦点项）
                         }
                         else
                         {
                             ResetPadHoldTimers();
-                            // 同步 A 状态：无焦点早退不走 PollActivate，若玩家正按 A（跳跃中）且随后
-                            // 按十字键进聚焦，防 _lastPadA 陈旧 → 假按下沿误激活焦点项
-                            _lastPadA = Input.IsKeyPressed(InputKey.ControllerRDown);
-                            return;   // 无焦点：A/D-pad 不消费（补丁门控 IsPanelKeyOwner=false → 游戏跳跃照常）
+                            return;   // 无焦点且无面板键：本帧不消费（补丁门控 IsPanelKeyOwner=false → 全放行）
                         }
                     }
                 }
@@ -977,15 +1001,27 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>🔴 2026-08-19（缩略半模态聚焦门控）：任意十字键按下沿（进入聚焦用——只认十字键，
-        /// 面键/肩键不进入：A 无焦点时 = 游戏跳跃）。</summary>
+        /// 面键/肩键不进入：A 无焦点时 = 游戏跳跃）。
+        /// 🔴 2026-08-23（用户裁定「无焦点 A 还给游戏」废止）：A 无焦点时也进入聚焦（见 UpdatePadFocus），
+        /// 本注释中「面键不进入」已过时——按 A 同样进入（同一沿被吞不激活）。</summary>
         private static bool AnyDpadPressed()
         {
             return Input.IsKeyPressed(InputKey.ControllerLUp) || Input.IsKeyPressed(InputKey.ControllerLDown)
                 || Input.IsKeyPressed(InputKey.ControllerLLeft) || Input.IsKeyPressed(InputKey.ControllerLRight);
         }
 
+        /// <summary>🔴 2026-08-23（D-pad 全归面板）：任意十字键按住态——IsPanelKeyOwner 的按住项，
+        /// 拦走 GameKey 读的 d-pad 键按住判定（如 ← ViewCharacter=25 视角，无手柄豁免）。
+        /// ⚠️ 不覆盖 ↓ 蹲：Crouch=15 手柄侧 native 直喂（见 IsPanelKeyOwner 注释），拦不到。</summary>
+        private static bool AnyDpadHeld()
+        {
+            return Input.IsKeyDown(InputKey.ControllerLUp) || Input.IsKeyDown(InputKey.ControllerLDown)
+                || Input.IsKeyDown(InputKey.ControllerLLeft) || Input.IsKeyDown(InputKey.ControllerLRight);
+        }
+
         /// <summary>🔴 2026-08-19（缩略半模态聚焦门控）：左摇杆是否推满（幅度 &gt; 0.5）——「玩家在玩」
-        /// 信号：推摇杆移动 = 退出聚焦回玩态（A 还给游戏跳跃）。GetKeyState 对摇杆返回轴向量。</summary>
+        /// 信号：推摇杆移动 = 退出聚焦回玩态（A/D-pad 已归面板，仅移动/镜头还给游戏）。GetKeyState
+        /// 对摇杆返回轴向量。</summary>
         private static bool LeftStickActive()
         {
             try
@@ -1494,8 +1530,8 @@ namespace LivingWorldNpcs
             else
             {
                 // 🔴 2026-08-19（用户裁定：缩略半模态聚焦门控）：缩略模式初始 = 无焦点（-1）——
-                // 打开后玩家继续玩（A 跳跃还给游戏），首次按十字键才进入聚焦（见 UpdatePadFocus）；
-                // 完整模式 = 模态恒聚焦（索引 0 立即可见）。
+                // 打开后玩家继续玩（移动/镜头还给游戏），首次按 A/十字键才进入聚焦（见 UpdatePadFocus；
+                // 2026-08-23：A 也已归面板，进聚焦沿被吞）；完整模式 = 模态恒聚焦（索引 0 立即可见）。
                 _padIndex = _mode == ImChatMode.Compact ? -1 : 0;
             }
             // 完整模式兜底钳制（缩略模式的 -1 = 合法的无焦点态，不许钳）
@@ -2695,6 +2731,8 @@ namespace LivingWorldNpcs
  // lwn-ignore: A  🔴 2026-08-19（用户裁定：自监测输入来源每帧更新——必须在本类任何设备判定消费之前，
             // 且面板开闭都跑：InteractArea 键帽等全 Mod 共用 ModInput.UsingGamepad）
             ModInput.TickInputSource();
+            // 🔴 2026-08-23（ESC/B 统一）：ESC 消费窗口递减（面板开闭都跑——关闭后的下一帧也要递减，吞窗才收敛）
+            if (_escapeCloseHoldFrames > 0) _escapeCloseHoldFrames--;
             // 🔴 世界背景生成同样依赖墙钟帧（暂停也运转）——与 IM 同轮子（ImScreenFrameTickPatch）：
             // CampaignEvents.TickEvent 暂停时 dt=0 停发，世界背景会永不生成（2026-08-17 实机教训）
             WorldBackgroundBehavior.Instance?.OnFrameTick(dt);
@@ -2769,6 +2807,11 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-17（Q4 手柄）：B 键二分——缩略下拉打开中 = 先收下拉，再按才关面板（原版 UI 同款心智）
             if (Input.IsKeyReleased(InputKey.Escape))
             {
+                // 🔴 2026-08-23（ESC/B 统一）：置 2 帧吞窗——原版 ToggleEscapeMenu 检查（MissionScreen.
+                // HandleInputs / MapScreen.TickNavigationInput）帧序晚于本 Tick，同一帧内 IsOpen 已 false，
+                // 只靠 IsOpen 会漏（实机：ESC 关面板的同时选项菜单弹出）；窗口内一并吞掉 = 与 B 同语义
+                //（只关面板，不开选项菜单）。面板关闭后下一按 ESC 正常开选项菜单。
+                _escapeCloseHoldFrames = 2;
                 Close();
                 return;
             }
