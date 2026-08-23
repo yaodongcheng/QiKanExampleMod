@@ -81,6 +81,13 @@ namespace LivingWorldNpcs
             return _naturalCounts.Keys.Any(k => k.StartsWith(prefix));
         }
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档偷窃计数）。</summary>
+        public static void ResetAll()
+        {
+            _stolenCounts.Clear();
+            _naturalCounts.Clear();
+        }
+
         // ── 序列化 ──
 
         public static string Serialize()

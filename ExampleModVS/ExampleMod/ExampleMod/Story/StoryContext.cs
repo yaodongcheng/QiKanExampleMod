@@ -16,6 +16,13 @@ namespace LivingWorldNpcs
         private static StoryContext _instance;
         public static StoryContext Instance => _instance ?? (_instance = new StoryContext());
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时丢弃旧单例（static 单例跨档残留旧 LocalVariables；
+        /// GlobalVariableBehavior 是 behavior 实例字段，新档自动清空，不需处理）。</summary>
+        public static void ResetAll()
+        {
+            _instance = null;
+        }
+
         public Dictionary<string, string> LocalVariables { get; private set; } = new Dictionary<string, string>();
 
         public void SetLocalVariable(string key, string value)

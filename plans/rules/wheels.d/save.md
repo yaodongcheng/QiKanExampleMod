@@ -96,3 +96,34 @@ dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
 **症状**：`--keys` 显示 `lwn_im_group_party (22B)` 实际 19,624B（49 条消息）、`lwn_npc_mem_20 (18B)` 实际 5,248B——疑似 key/值 entry 取错（key 与值成对相邻，--keys 取到了相邻 entry 大小）。
 
 **纪律**：排查存档内容一律用 `--dump=<key>`（按 key 定位值 entry，实测准确）；`--keys` 只用于看 key 是否存在。修复待办。
+
+---
+
+## 🔴 新档创建 → 清 static 战役状态 — 2026-08-23 实施
+
+**问题**：同进程「主菜单 → 直接开新档」（不重启游戏）时，进程级 `static` 存储残留旧档数据——旧档 party 频道 51 条消息直接显示在新档 IM、私聊 prompt 注入旧档【对话历史】（新档「百草药僧」的名字与旧档记忆对不上）、新档首次保存把旧数据序列化进新档存档 = **真串档**。根因：清理只挂在读档路径（`SyncData` 的 `IsLoading` + `OnGameLoadedEvent`），新档创建路径零清理。
+
+**判定标准（写新存档条目时照此核对）**：`static` 字段 + 只在 `IsLoading` 时 `Deserialize` = **必须在 ResetAllCampaignState 补 ResetAll**；behavior **实例**字段（新档引擎创建新实例自动为空）与静态**规则表**（`QuestConsequenceResolver._causalityTable`，跨档共享正确）不需要。
+
+**关键签名**：`CampaignEvents.OnNewGameCreatedEvent` = `IMbEvent<CampaignGameStarter>`（三锚点 1.2.12/1.3.15/1.5.1 ilspycmd 实锤均存在，无需版本宏；读档不触发——读档走 `OnGameLoadedEvent`，两路径互不干扰）。
+
+**接入点**（`Core/MyBehavior.cs`）：
+```csharp
+CampaignEvents.OnNewGameCreatedEvent.AddNonSerializedListener(this, _ => ResetAllCampaignState());
+
+// ResetAllCampaignState(): 按 SyncData 存档顺序清空 18 组，单 try/catch + [NewGame] 日志
+IntentCooldownStore/SettlementHonorStore/TrustSystem/InfamySystem/CommissionTierProgression/
+CommissionNarrative/WorldEventDirector/HeroNemesisTracker/ConspiracyManager/StrategicInfiltration/
+WorldEventSimulator.ResetStability/WorldEventStore/TheftLedger/VillageAnimalTracker/PlayerImageStore/
+ImChatStore/ImHeatTracker/AllNpcMemoryManager(ResetActiveMemories 连 pending + ClearTemporaryMemories)/
+WorldBackgroundStore/StoryContext(_instance = null)
+```
+
+**纪律**：每个管理器新增 `ResetAll()`（无锁——这些管理器全部无后台线程；`AllNpcMemoryManager` 例外带 `_dictLock`）；**新增 SyncData 条目时必须在 ResetAllCampaignState 同步补 ResetAll**（清单核对 = SyncData 的 `IsLoading` 恢复点，类注释已写明）。
+
+**刻意不动的**：`GlobalVariableBehavior`/`AIStoryGenerator`/`PlayerDetentionBehavior`/`CompanionDetentionBehavior`（behavior 实例字段）、`AIStoryGenerator.Instance`（构造赋值自动刷新）、`QuestConsequenceResolver`（规则表）。
+
+**日志关键词**：`[NewGame]`（清空完成/失败，实机验证：重开游戏 → 主菜单直接开新档 → IM 面板各频道 0 条 + `[NewGame] 战役级 static 状态已清空`）。
+
+**文件位置**：入口 `Core/MyBehavior.cs`（RegisterEvents + `ResetAllCampaignState`）；ResetAll 分布各管理器文件（ImChatStore/ImHeatTracker/IntentCooldownStore/SettlementHonorStore/TrustSystem/InfamySystem/CommissionData/CommissionNarrative/WorldEventDirector/HeroNemesisTracker/ConspiracyManager/StrategicInfiltration/VillageAnimalTracker/WorldEvent.cs/PlayerImageStore/WorldBackgroundStore/StoryContext）。
+

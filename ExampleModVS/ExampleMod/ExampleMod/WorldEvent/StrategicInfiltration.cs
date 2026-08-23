@@ -153,6 +153,12 @@ namespace LivingWorldNpcs
                 .ToList();
         }
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档卧底记录）。</summary>
+        public static void ResetAll()
+        {
+            _records.Clear();
+        }
+
         #region Persistence
 
         public static string Serialize()

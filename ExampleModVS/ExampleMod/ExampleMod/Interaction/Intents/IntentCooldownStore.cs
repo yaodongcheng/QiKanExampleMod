@@ -50,6 +50,12 @@ namespace LivingWorldNpcs
             _expiryDays[Key(hero, goal)] = CampaignTime.Now.ToDays + days;
         }
 
+        // 🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档冷却）。
+        public static void ResetAll()
+        {
+            _expiryDays.Clear();
+        }
+
         // ── 存档序列化（供 MyBehavior.SyncData 调用）──
 
         public static string Serialize()

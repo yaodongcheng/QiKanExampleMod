@@ -1114,6 +1114,14 @@ namespace LivingWorldNpcs
         private static List<WorldEvent> _allEvents = new List<WorldEvent>();
         private static Dictionary<string, bool> _villageAlertFlags = new Dictionary<string, bool>();
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档犯罪/AI 模拟事件）。
+        /// 只清战役状态字段；OnEventStageChanged 事件委托订阅方随 behavior 重建，不动。</summary>
+        public static void ResetAll()
+        {
+            _allEvents.Clear();
+            _villageAlertFlags.Clear();
+        }
+
         /// <summary>
         /// 当世界事件的阶段发生变化时触发。
         /// 订阅者（CommissionIssueBehavior 等）可以立即刷新 ! 标记等 UI，
@@ -2325,6 +2333,12 @@ namespace LivingWorldNpcs
     public static class TheftLedger
     {
         private static List<TheftTruthRecord> _records = new List<TheftTruthRecord>();
+
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档偷窃账本）。</summary>
+        public static void ResetAll()
+        {
+            _records.Clear();
+        }
 
         /// <summary>记录一次偷窃</summary>
         public static TheftTruthRecord Record(string initiatorId, string victimHeroId, string settlementId,

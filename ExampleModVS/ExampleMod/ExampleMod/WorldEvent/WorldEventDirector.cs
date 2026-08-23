@@ -1208,6 +1208,14 @@ namespace LivingWorldNpcs
 
         #endregion
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档导演状态）。</summary>
+        public static void ResetAll()
+        {
+            _lastApproachNotifyDay = -1f;
+            _interceptCooldowns.Clear();
+            _lastTavernSettlementId = null;
+        }
+
         #region Persistence
 
         public static string Serialize()

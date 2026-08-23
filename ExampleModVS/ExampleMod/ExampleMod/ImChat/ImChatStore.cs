@@ -179,6 +179,23 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-12（合并闲聊/计划模式）：ImMode/GetMode/SetMode/_modes 已整体删除——
         // 模式指示文本改为从会话状态派生（ImCommandFlow.GetPhase），玩家消息恒走闲聊管线。
 
+        /// <summary>
+        /// 🔴 2026-08-23（跨档残留修复）：新档创建时清空全部运行时状态——
+        /// 群聊消息 + 私聊索引 + 未读计数。此前只有读档路径（SerializeSlot 的 IsLoading）
+        /// 覆盖式恢复；同进程「主菜单 → 直接开新档」时 static 残留旧档数据（实机：
+        /// 新档 party 频道残留旧档 51 条消息、左栏旧私聊对象），且新档首次保存会把
+        /// 旧数据序列化进新档存档 = 真串档。读档路径不受影响（Deserialize 在 IsLoading 时覆盖）。
+        /// </summary>
+        public static void ResetAll()
+        {
+            lock (_lock)
+            {
+                _groupMessages.Clear();
+                _directIndex.Clear();
+                _unread.Clear();
+            }
+        }
+
         // ───────────────────────── 存档 ─────────────────────────
 
         public static string SerializeGroup(string channelId)
