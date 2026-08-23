@@ -19,5 +19,13 @@ namespace LivingWorldNpcs
 
         /// <summary>生成时的战役纪元标记（Campaign.Current 实例引用）——跨战役污染防护（读档/新档丢弃旧结果）。</summary>
         public static Campaign CurrentCampaignEra;
+
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会沿用旧档世界观 blob，直到生成状态机重新触发）。</summary>
+        public static void ResetAll()
+        {
+            Blob = "";
+            Fingerprint = "";
+            CurrentCampaignEra = null;
+        }
     }
 }

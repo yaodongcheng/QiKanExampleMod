@@ -2384,6 +2384,13 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空区域稳定性（static 字典，
+        /// 同进程主菜单直接开新档会残留旧档数值；其余模拟状态是 behavior 实例字段，新档自动为空）。</summary>
+        public static void ResetStability()
+        {
+            _regionalStability.Clear();
+        }
+
         /// <summary>序列化区域稳定性为 JSON。</summary>
         public static string SerializeStability()
         {

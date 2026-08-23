@@ -45,6 +45,14 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>每日衰减（每个游戏日 -ImHeatDecayPerDay，下限 0，归零清理防字典膨胀）。</summary>
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空热度与沉寂补偿记录
+        ///（static 残留会让新档 IM 选人/记忆容量继续沿用旧档热度，见 MyBehavior 注释）。</summary>
+        public static void ResetAll()
+        {
+            lock (_heat) { _heat.Clear(); }
+            lock (_lastReplyAt) { _lastReplyAt.Clear(); }
+        }
+
         public static void DecayDaily()
         {
             float decay = Settings.Instance.ImHeatDecayPerDay;

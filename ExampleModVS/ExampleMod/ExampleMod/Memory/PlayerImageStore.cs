@@ -51,6 +51,15 @@ namespace LivingWorldNpcs
                 + LWNTextHelper.ResolvePrompt("LWN_prompt_record_end");
         }
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档画像计数）。</summary>
+        public static void ResetAll()
+        {
+            BattleWins = 0;
+            BattleLosses = 0;
+            Crimes = 0;
+            Imprisonments = 0;
+        }
+
         public static string Serialize()
         {
             try

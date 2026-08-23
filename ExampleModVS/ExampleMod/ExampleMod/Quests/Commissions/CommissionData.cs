@@ -595,6 +595,14 @@ namespace LivingWorldNpcs
             return GetTierCount(category, tier);
         }
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档难度递进）。</summary>
+        public static void ResetAll()
+        {
+            _completionCounts.Clear();
+            _bestGrades.Clear();
+            _tierCounts.Clear();
+        }
+
         #region Persistence
         public static string Serialize()
         {

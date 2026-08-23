@@ -30,6 +30,19 @@ namespace LivingWorldNpcs
             // 否则读档记忆全丢（实机 History=0 根因）。事件名经反编译核实：CampaignEvents.OnGameLoadedEvent。
             CampaignEvents.OnGameLoadedEvent.AddNonSerializedListener(this,
                 _ => AllNpcMemoryManager.ResetActiveMemories(clearPendingRestores: false));
+
+            // 🔴 2026-08-23（跨档残留修复）：新档创建时清空全部战役级 static 状态——
+            // ImChatStore（群聊消息/私聊索引/未读）、ImHeatTracker（热度/沉寂补偿）、
+            // AllNpcMemoryManager（_activeMemories + _pendingRestores + TEMP_AGENT_）。
+            // 此前只有读档路径（SerializeSlot 的 IsLoading + OnGameLoadedEvent）清理；同进程
+            // 「主菜单 → 直接开新档」时 static 残留旧档数据：新档 IM 面板直接显示旧档频道消息
+            // （实机：party 残留 51 条）、私聊 prompt 注入旧档【对话历史】（实机：新档「百草药僧」
+            // prompt 出现旧档努勒丹/斯唐纳夫记录、与当前模板 NPC 名字对不上），且新档首次保存
+            // 会把旧数据序列化进新档存档 = 真串档。读档不触发本事件（走 OnGameLoadedEvent），互不干扰。
+            // 签名实锤（ilspycmd 三锚点）：OnNewGameCreatedEvent = IMbEvent<CampaignGameStarter>，
+            // 1.2.12/1.3.15/1.5.1 均存在，无需版本宏。
+            CampaignEvents.OnNewGameCreatedEvent.AddNonSerializedListener(this, _ => ResetAllCampaignState());
+
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, this.DailyTick);
             CampaignEvents.TickEvent.AddNonSerializedListener(this, this.OnTick);
             CampaignEvents.OnSettlementLeftEvent.AddNonSerializedListener(this, this.OnSettlementLeft);
@@ -75,6 +88,50 @@ namespace LivingWorldNpcs
             // 投票 1-3 天才出结果，结果必须让随从知道（设计哲学原则一：禁止静默——玩家提案后要听到回音）；
             // 只广播玩家家族提案的决策（他人提案不广播，信息边界）。
             CampaignEvents.KingdomDecisionConcluded.AddNonSerializedListener(this, this.OnKingdomDecisionConcluded);
+        }
+
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空全部战役级 static 状态——
+        /// 只在 OnNewGameCreatedEvent 触发（读档走 OnGameLoadedEvent，不受影响）。
+        /// 覆盖 MyBehavior.SyncData 存档的全部 static 管理器 + 未进 SyncData 的 static 单例
+        ///（WorldBackgroundStore/StoryContext）。清单核对自 SyncData 的 IsLoading 恢复点——
+        /// 凡「static + 只在 IsLoading 时 Deserialize」的管理器都在此列，新增存档条目时必须同步补 ResetAll。</summary>
+        private static void ResetAllCampaignState()
+        {
+            try
+            {
+                // 意图冷却 / 据点荣誉（SyncData: lwn_intent_cooldowns / lwn_settlement_honor）
+                IntentCooldownStore.ResetAll();
+                SettlementHonorStore.ResetAll();
+                // 委托四件套（lwn_commission_*）
+                TrustSystem.ResetAll();
+                InfamySystem.ResetAll();
+                CommissionTierProgression.ResetAll();
+                CommissionNarrative.ResetAll();
+                // 世界事件系（lwn_world_director / lwn_nemesis / lwn_conspiracy / lwn_infiltration / lwn_stability / lwn_crime_events）
+                WorldEventDirector.ResetAll();
+                HeroNemesisTracker.ResetAll();
+                ConspiracyManager.ResetAll();
+                StrategicInfiltration.ResetAll();
+                WorldEventSimulator.ResetStability();
+                WorldEventStore.ResetAll();
+                // 偷窃账本 / 动物追踪 / 画像（lwn_theft_ledger / lwn_animal_theft / lwn_player_image）
+                TheftLedger.ResetAll();
+                VillageAnimalTracker.ResetAll();
+                PlayerImageStore.ResetAll();
+                // IM / 记忆系
+                ImChatStore.ResetAll();
+                ImHeatTracker.ResetAll();
+                AllNpcMemoryManager.ResetActiveMemories();      // 清 _activeMemories + _pendingRestores（新档无读档数据，全清）
+                AllNpcMemoryManager.ClearTemporaryMemories();   // 清 TEMP_AGENT_ 模板 NPC 临时记忆
+                // static 单例（未进 SyncData）
+                WorldBackgroundStore.ResetAll();                // 世界观 blob/指纹/纪元标记（生成状态机随 behavior 重建）
+                StoryContext.ResetAll();                        // Story 单例（GlobalVariableBehavior 实例字段自动清空）
+                DebugLogger.Log("[NewGame] 战役级 static 状态已清空（18 组：冷却/荣誉/委托/事件系/偷窃/动物/画像/IM/记忆/世界观/Story）");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[NewGame] ResetAllCampaignState 失败: {ex.Message}");
+            }
         }
 
         // ───────────────────────── 群聊活力·玩家事件 → 主动话题（2026-08-10） ─────────────────────────

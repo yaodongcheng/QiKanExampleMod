@@ -70,6 +70,12 @@ namespace LivingWorldNpcs
             return LWNTextHelper.ResolveText("LWN_trust_level_stranger", "Stranger");
         }
 
+        /// <summary>🔴 2026-08-23（跨档残留修复）：新档创建时清空（同进程主菜单直接开新档会残留旧档信任）。</summary>
+        public static void ResetAll()
+        {
+            _trust.Clear();
+        }
+
         #region Persistence (JSON via MyBehavior.SyncData)
 
         public static string Serialize()
