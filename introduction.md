@@ -16,7 +16,7 @@ https://pan.quark.cn/s/e900a5d0d00d
 https://pan.baidu.com/s/1_7f9-yf7BW4k4ukWT434vA?pwd=d5fk
 
 
-支持游戏版本：1.2.12与最新1.4.8，中间版本没测过
+支持游戏版本：1.2.12与最新1.5.1，中间版本没测过
 需要Mod四前置
 
 玩法介绍
@@ -112,7 +112,7 @@ https://pan.baidu.com/s/1_7f9-yf7BW4k4ukWT434vA?pwd=d5fk
 - Quark: https://pan.quark.cn/s/e900a5d0d00d
 - Baidu: https://pan.baidu.com/s/1_7f9-yf7BW4k4ukWT434vA?pwd=d5fk
 
-**Supported Game Versions:** v1.2.12 and latest v1.4.8 (intermediate versions untested)
+**Supported Game Versions:** v1.2.12 and latest v1.5.1 (intermediate versions untested)
 **Requires:** Harmony / ButterLib / UIExtenderEx / Mod Configuration Menu (the "Big Four" prerequisites)
 
 ---
@@ -217,13 +217,13 @@ Bannerlord 使用专用的 `TaleWorlds.MountAndBlade.SteamWorkshop.exe` 上传�
     <CreateItem/>
     <UpdateItem>
         <ModuleFolder Value="H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs"/>
-        <ItemDescription Value="NPC interaction overhaul — steal, knock out, lockpick, loot, surrender, and investigate crimes. Inspired by Kingdom Come: Deliverance 2 and Red Dead Redemption 2. Works on v1.2.12 and v1.4.8."/>
+        <ItemDescription Value="NPC interaction overhaul — steal, knock out, lockpick, loot, surrender, and investigate crimes. Inspired by Kingdom Come: Deliverance 2 and Red Dead Redemption 2. Works on v1.2.12 and v1.5.1."/>
         <Tags>
             <Tag Value="Gameplay"/>
             <Tag Value="UI"/>
             <Tag Value="Medieval"/>
             <Tag Value="Singleplayer"/>
-            <Tag Value="v1.4.8"/>
+            <Tag Value="v1.5.1"/>
         </Tags>
         <Image Value="H:\path\to\preview.jpg"/>
         <Visibility Value="Public"/>
@@ -239,7 +239,7 @@ Bannerlord 使用专用的 `TaleWorlds.MountAndBlade.SteamWorkshop.exe` 上传�
 - **Type**: Graphical Enhancement, Map Pack, Partial Conversion, Sound, Total Conversion, Troops, UI, Utility, Weapons and Armour
 - **Setting**: Native, Antiquity, Dark Ages, Medieval, Musket Era, Modern, Sci-Fi, Fantasy, Oriental, Apocalypse, Other
 - **Game Mode**: Singleplayer, Multiplayer
-- **Compatible Version**: v1.2.12, v1.4.8 等（可写多个 `<Tag Value="..."/>`）
+- **Compatible Version**: v1.2.12, v1.5.1 等（可写多个 `<Tag Value="..."/>`）
 - **War Sails**（如果你的 mod 需要该 DLC 才加）
 
 > 不用纠结——大部分 tag 都可以发布后在 Steam 页面手动改。
@@ -279,7 +279,7 @@ Bannerlord 使用专用的 `TaleWorlds.MountAndBlade.SteamWorkshop.exe` 上传�
             <Tag Value="UI"/>
             <Tag Value="Medieval"/>
             <Tag Value="Singleplayer"/>
-            <Tag Value="v1.4.8"/>
+            <Tag Value="v1.5.1"/>
         </Tags>
     </UpdateItem>
 </Tasks>

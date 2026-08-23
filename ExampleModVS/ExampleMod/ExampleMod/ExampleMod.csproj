@@ -28,9 +28,11 @@
       v1.5.x  → MB2_GE_130 + MB2_GE_140 + MB2_GE_150
 
     GE = "Greater or Equal"。每个 GE 宏表示『从这个版本开始可用』。
-    代码中按阈值从高到低写分支：#if MB2_GE_150 / #elif MB2_GE_130 / #else。
+    代码中按阈值从高到低写分支：#if MB2_GE_150 / #elif MB2_GE_140 / #elif MB2_GE_130 / #else。
     🔴 MB2_V1212 是【精确匹配】v1.2.12（判定 = Version.xml.Contains('v1.2.12')，非累积）——
        语义 = "v1.2.12 机器专用分支"；#else 分支即 "≤ v1.2.12"（v1.2.12 是支持的最低版本）。
+    🔴 2026-08-23：开发机已升级 v1.5.1（Latest），编译验证 1.5.x 与 1.4.x API 签名一致，
+       MB2_GE_150 已自动定义但尚无代码分支使用（后续发现 1.5.x 独有差异时直接加 #if MB2_GE_150 即可）。
 
     新增版本时（如 v1.6.0）：
     1. 加 <MB2_IsV16x> 侦测
@@ -55,7 +57,7 @@
     <MB2_VersionDefines Condition="'$(MB2_IsV13x)' == 'true' Or '$(MB2_IsV14x)' == 'true' Or '$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_130</MB2_VersionDefines>
     <!-- MB2_GE_140: v1.4.x 或更高 -->
     <MB2_VersionDefines Condition="'$(MB2_IsV14x)' == 'true' Or '$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_140</MB2_VersionDefines>
-    <!-- MB2_GE_150: v1.5.x 或更高（预留，当前无 API 差异需要它） -->
+    <!-- MB2_GE_150: v1.5.x 或更高（2026-08-23 开发机升级 v1.5.1：编译验证 1.5.x 与 1.4.x 签名一致，尚无代码分支使用） -->
     <MB2_VersionDefines Condition="'$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_150</MB2_VersionDefines>
   </PropertyGroup>
   <!-- Debug：自动检测 -->

@@ -7,13 +7,15 @@
 #
 # 用法：
 #   bash refresh_cache.sh <版本号> [DLL源目录]
-#     <版本号>     如 1.3.15 / 1.4.6
+#     <版本号>     如 1.3.15 / 1.5.1
 #     [DLL源目录]  可选。缺省自动解析：1.2.12→Modules/1.2.12DLL，
-#                  1.3.15→游戏 bin，1.4.6→Modules/1.4.6DLL；
+#                  1.3.15→游戏 bin，1.4.6→Modules/1.4.6DLL，
+#                  1.5.1→Modules/1.5.1DLL；
 #                  其他版本→游戏 bin\Win64_Shipping_Client
 #
 # 例：
 #   bash refresh_cache.sh 1.3.15                       # 当前游戏版本
+#   bash refresh_cache.sh 1.5.1                        # Latest 备份（1.5.1DLL）
 #   bash refresh_cache.sh 1.5.0 "D:\MB2\bin\Win64_Shipping_Client"
 #
 # 新增类型：直接往下方 TYPES 数组加一行（DLL别名|类型全名），
@@ -29,6 +31,7 @@ case "$VERSION" in
   1.2.12) SRC="${2:-$LWN/Modules/1.2.12DLL}" ;;
   1.3.15) SRC="${2:-$MB2/bin/Win64_Shipping_Client}" ;;
   1.4.6)  SRC="${2:-$LWN/Modules/1.4.6DLL}" ;;
+  1.5.1)  SRC="${2:-$LWN/Modules/1.5.1DLL}" ;;
   *)      SRC="${2:-$MB2/bin/Win64_Shipping_Client}" ;;
 esac
 # SandBox 源：1.3.15 在模块目录，其余默认与 core 同目录

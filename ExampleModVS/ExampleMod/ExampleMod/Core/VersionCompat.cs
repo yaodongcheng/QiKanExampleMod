@@ -25,9 +25,11 @@ namespace LivingWorldNpcs
     /// Call sites use V.xxx() instead of raw API; the version macros select the correct implementation.
     ///
     /// 🔴 Version macro convention (threshold-based, cumulative):
-    ///   #if MB2_GE_150   — API introduced/modified in v1.5.0+ (future, not yet used)
-    ///   #elif MB2_GE_130 — API introduced in v1.3.0+
-    ///   #else            — v1.2.12 (oldest supported)
+    ///   #if MB2_GE_150   — API introduced/modified in v1.5.0+
+    ///                      （2026-08-23 开发机升级 v1.5.1：编译验证 1.5.x 与 1.4.x 签名一致，尚无分支使用）
+    ///   #elif MB2_GE_140  — API introduced in v1.4.0+
+    ///   #elif MB2_GE_130  — API introduced in v1.3.0+
+    ///   #else             — v1.2.12 (oldest supported)
     ///
     /// MB2_V1212 is the legacy "minimum version" marker; #else is semantically "≤ 1.2.12".
     /// New methods SHOULD use the #if MB2_GE_XXX / #elif / #else convention.
