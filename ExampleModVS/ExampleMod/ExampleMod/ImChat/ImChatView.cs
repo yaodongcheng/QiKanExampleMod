@@ -228,6 +228,12 @@ namespace LivingWorldNpcs
                 if (!Settings.Instance.PlotEnabled) return false;
                 if (!Settings.Instance.IsLLMConfigured) return false;
                 if (Mission.Current != null && Settings.Instance.IsInteractionDisabled()) return false;
+                // 🔴 2026-08-23（用户指引：复用既有对话判定）：任何对话激活中（原版对话流打开——
+                // 定居点对话/正常 mission 内对话/大地图对话）→ M 键/↑/按钮/通知全部禁呼出。
+                // 底层 = ConversationManager.IsConversationFlowActive（ConversationEntryPatch.
+                // IsConversationActive），不依赖 MissionMode=Conversation 翻转时序（地图对话等
+                // 模式不翻的场景也兜住；IsInteractionDisabled 的 Conversation 分支保留双保险）。
+                if (ConversationEntryPatch.IsConversationActive()) return false;
                 if (ModInput.IsSystemModalActive()) return false;
                 // 🔴 2026-08-23（用户要求：ESC/全屏 UI 打开时传讯入口整体封死）——M 键/↑/按钮/通知
                 // 点击全部汇入 CanOpen 兜底：ESC 菜单（MissionEscapeMenu 层 50 / MapEscapeMenu 层 4400）
