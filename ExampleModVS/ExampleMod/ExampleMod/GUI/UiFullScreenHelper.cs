@@ -50,6 +50,22 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 🔴 2026-08-23（用户裁定：创角/开场动画按钮漏网）：Campaign 呼出按钮白名单判定——
+        /// 仅大地图屏（MapScreen）允许。GameMenu（定居点菜单）不是独立 Screen，菜单打开时
+        /// TopScreen 恒为 MapScreen（IsGameMenuOpen 实锤）→ 白名单天然保留「定居点菜单按钮照常
+        /// 显示（键盘 M 可呼出）」裁定（2026-08-23），无需单独放行；
+        /// CharacterCreationScreen（创角）/ GauntletVideoPlaybackScreen（开场动画）/
+        /// GauntletSaveLoadScreen（存读档）等新游戏流程屏全部排除（实机日志 2026-08-23：
+        /// 三屏均按钮 visible=True 漏网）。Mission 模式由调用方绕过此判定（保持现状）。
+        /// </summary>
+        public static bool IsCampaignMapScreen()
+        {
+            var top = ScreenManager.TopScreen;
+            if (top == null) return false;
+            return top.GetType().Name.IndexOf("MapScreen", StringComparison.Ordinal) >= 0;
+        }
+
+        /// <summary>
         /// ESC 菜单层是否打开（层存在 = 打开，RemoveLayer = 关闭）。两条路径反编译实锤（2026-08-23）：
         /// · Mission 内 = <c>MissionEscapeMenu</c> 层——MissionGauntletEscapeMenuBase（MissionBehavior）
         ///   ViewOrderPriority=50 建层挂 MissionScreen；🔴 50 &lt; IM 呼出按钮层 350 → ESC 打开时按钮

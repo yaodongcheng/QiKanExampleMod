@@ -246,7 +246,7 @@ namespace LivingWorldNpcs
                     continue;
                 }
                 // 可见性 = 原版槽位绑定结果（hero 条件）+ PlotEnabled 总闸（密聊开关关闭 → 按钮隐藏）。
-                // 🔴 2026-08-22（用户裁定分层）：未配置 LLM → 密信按钮同样隐藏（与 O 键/呼出按钮同规则——
+                // 🔴 2026-08-22（用户裁定分层）：未配置 LLM → 密信按钮同样隐藏（与 M 键/呼出按钮同规则——
                 // 传讯入口整体封死；点击兜底仍走 CanOpen 双闸）。
                 // 🔴 暂恢复跟随 slot 锚（上一版行为）；IsHeroTarget 判定链路待日志验证后再替换
                 bool anchorVisible = it.VisibilityAnchor != null && it.VisibilityAnchor.IsVisible;
