@@ -8,7 +8,9 @@
       <Children>
 
         <!-- 主面板 (1100x700 居中，canvas_dark + frame_9 边框 Extend 18 画在逻辑盒外；🔴 2026-08-22
-             字号整体 +2 → 面板 1000x640→1100x700) -->
+             字号整体 +2 → 面板 1000x640→1100x700；🔴 2026-08-23 消息内容字号 18→19（气泡/卡片），
+             左栏最近消息 15→19（与标题同号，CoverChildren+MaxWidth 修引擎压字号，见副标题处注释），
+             系统消息 16→17) -->
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="1100" SuggestedHeight="700"
                 HorizontalAlignment="Center" VerticalAlignment="Center"
                 Sprite="StdAssets\Popup\canvas_dark"
@@ -148,10 +150,15 @@
                                                             DoNotAcceptEvents="true"/>
                                               </Children>
                                             </Widget>
-                                            <!-- 第二行：最后消息预览（左对齐，微信会话列表语义） -->
-                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="20"
-                                                        Text="@Subtitle" Brush="MyBrush_18_White" Brush.FontSize="15" Brush.FontColor="#999999FF"
-                                                        Brush.TextHorizontalAlignment="Left"
+                                            <!-- 第二行：最后消息预览（左对齐，微信会话列表语义）
+                                                 🔴 2026-08-23（实机反馈：预览仍小——双因：字号 18<标题 19；且 StretchToParent
+                                                 布局下引擎文本超宽自动压字号（2026-08-19 标题同坑实机证实）。修复 = 标题同款：
+                                                 CoverChildren（宽度=内容测量值，引擎无缩放空间）+ MaxWidth 206（左栏可用宽）+
+                                                 ClipContents 兜底 + 字号 19 与标题同号；C# 截断阈值 14→10 校准（9 正文+省略号 ≈190px）） -->
+                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="24"
+                                                        MaxWidth="206"
+                                                        Text="@Subtitle" Brush="MyBrush_18_White" Brush.FontSize="19" Brush.FontColor="#999999FF"
+                                                        Brush.TextHorizontalAlignment="Left" HorizontalAlignment="Left"
                                                         VerticalAlignment="Bottom" MarginLeft="14" MarginRight="12" MarginBottom="12"
                                                         ClipContents="true"
                                                         DoNotAcceptEvents="true"/>
@@ -263,7 +270,7 @@
                                                     </ListPanel>
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 MaxWidth="560"
-                                                                Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="18" Brush.TextHorizontalAlignment="Left"
+                                                                Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="19" Brush.TextHorizontalAlignment="Left"
                                                                 WordWrapping="Wrap"
                                                                 MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
                                                                 DoNotAcceptEvents="true"/>
@@ -312,7 +319,7 @@
                                                          （MyBrush_16_Left 新增 Style；其余消息 DisplayContent=原文，行为不变） -->
                                                     <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 MaxWidth="560"
-                                                                Text="@DisplayContent" Brush="MyBrush_16_Left" Brush.FontSize="18" Brush.TextHorizontalAlignment="Right"
+                                                                Text="@DisplayContent" Brush="MyBrush_16_Left" Brush.FontSize="19" Brush.TextHorizontalAlignment="Right"
                                                                 WordWrapping="Wrap"
                                                                 MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
                                                                 DoNotAcceptEvents="true"/>
@@ -375,7 +382,7 @@
                                                     <!-- 正文：思考中 = 「XX 正在构思计划…」；就绪 = NPC 简述 / 讲解正文 / 提议文本（Content） -->
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 MaxWidth="600"
-                                                                Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="18" Brush.TextHorizontalAlignment="Left"
+                                                                Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="19" Brush.TextHorizontalAlignment="Left"
                                                                 WordWrapping="Wrap"
                                                                 MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
                                                                 DoNotAcceptEvents="true"/>
@@ -446,7 +453,7 @@
 
                                         <!-- 系统消息：居中灰字 -->
                                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                    Text="@Content" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="#999999FF"
+                                                    Text="@Content" Brush="MyBrush_18_White" Brush.FontSize="17" Brush.FontColor="#999999FF"
                                                     Brush.TextHorizontalAlignment="Center"
                                                     WordWrapping="Wrap"
                                                     IsVisible="@IsSystem"
@@ -468,7 +475,7 @@
                                               <Children>
                                                 <!-- 思考中态：灰字（唯一子元素，撑起卡片高度；就绪态隐藏） -->
                                                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                            Text="@GenerateText" Brush="MyBrush_16_Left" Brush.FontSize="17" Brush.FontColor="#999999FF"
+                                                            Text="@GenerateText" Brush="MyBrush_16_Left" Brush.FontSize="18" Brush.FontColor="#999999FF"
                                                             WordWrapping="Wrap"
                                                             IsVisible="@IsGenerating"
                                                             MarginLeft="14" MarginRight="14" MarginTop="10" MarginBottom="10"

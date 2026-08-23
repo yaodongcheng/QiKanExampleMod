@@ -9,9 +9,11 @@
         <!-- ══════════ 缩略面板：贴底居中（StealBar 同款默认位），可拖动（把手 = 标题行）══════════
              🔴 DoNotAcceptEvents=false（2026-08-15 审查 P0-2）：半模态岛——面板矩形内点击被层吞
              不穿透场景（点气泡文本不会挥刀），矩形外放行；全屏根保持 true。
-             🔴 CoverChildren 高：1 条消息 ~165px / 2 条 ~210px，贴底向上增长不抖动（Bottom 锚定）。 -->
+             🔴 CoverChildren 高：1 条消息 ~165px / 2 条 ~210px，贴底向上增长不抖动（Bottom 锚定）。
+             🔴 2026-08-23：宽度 600 → 720（用户反馈偏窄；内部全部 StretchToParent/CoverChildren
+             自适应，无需改子项）。 -->
         <Widget Id="LWN_ImChat_CompactPanel" WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
-                SuggestedWidth="600"
+                SuggestedWidth="720"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="70"
                 Sprite="StdAssets\Popup\canvas_dark"
                 DoNotAcceptEvents="false">
@@ -183,7 +185,9 @@
                      给回复提供基础上下文；无按钮；与锚点卡共存时也显示。锚点消息本身不进本列表——
                      它在行 A 有完整形态。🔴 IsVisible 绑外层容器（DataSource 同 widget 自身绑定失效）═══
                      🔴 2026-08-17 用户裁定（时间顺序）：行 B 在上、行 A（锚点卡）在下——
-                     新询问/新卡片成为锚点后按时间出现在最底部，不再跳到顶部盖住旧卡。 -->
+                     新询问/新卡片成为锚点后按时间出现在最底部，不再跳到顶部盖住旧卡。
+                     🔴 2026-08-23：聊天字体与完整版对齐——内容 16→19、名字 16→18、系统 16→17、
+                     徽标 14→15，输入框 18→20（与完整版输入框 20 一致）。 -->
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                         IsVisible="@HasCompactLatest"
                         MarginLeft="10" MarginRight="10" MarginTop="6"
@@ -222,13 +226,13 @@
                                                DoNotAcceptEvents="true">
                                       <Children>
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
+                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="18" Brush.FontColor="@NameColor"
                                                     HorizontalAlignment="Left"
                                                     DoNotAcceptEvents="true"/>
                                       </Children>
                                     </ListPanel>
                                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Left"
+                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="19" Brush.TextHorizontalAlignment="Left"
                                                 HorizontalAlignment="Left"
                                                 MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
                                                 DoNotAcceptEvents="true"/>
@@ -259,13 +263,13 @@
                                                DoNotAcceptEvents="true">
                                       <Children>
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
+                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="18" Brush.FontColor="@NameColor"
                                                     HorizontalAlignment="Right"
                                                     DoNotAcceptEvents="true"/>
                                       </Children>
                                     </ListPanel>
                                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Right"
+                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="19" Brush.TextHorizontalAlignment="Right"
                                                 HorizontalAlignment="Right"
                                                 MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
                                                 DoNotAcceptEvents="true"/>
@@ -283,7 +287,7 @@
                                     DoNotAcceptEvents="true">
                               <Children>
                                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                            Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Center"
+                                            Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="17" Brush.TextHorizontalAlignment="Center"
                                             HorizontalAlignment="Center" VerticalAlignment="Center"
                                             MarginLeft="10" MarginRight="10" MarginTop="4" MarginBottom="5"
                                             DoNotAcceptEvents="true"/>
@@ -329,21 +333,21 @@
                                            DoNotAcceptEvents="true">
                               <Children>
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                            Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
+                                            Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="18" Brush.FontColor="@NameColor"
                                             HorizontalAlignment="Left"
                                             DoNotAcceptEvents="true"/>
                               </Children>
                             </ListPanel>
                             <!-- 修改版徽标（Q2） -->
                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                        Text="@ModifiedBadgeText" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.FontColor="#E8C55AFF"
+                                        Text="@ModifiedBadgeText" Brush="MyBrush_16_Left" Brush.FontSize="15" Brush.FontColor="#E8C55AFF"
                                         HorizontalAlignment="Left"
                                         IsVisible="@IsModifiedPlan"
                                         MarginLeft="10" MarginTop="4"
                                         DoNotAcceptEvents="true"/>
                             <!-- 正文：紧凑单行截断（CompactContent，完整内容在完整模式看） -->
                             <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                        Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Left"
+                                        Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="19" Brush.TextHorizontalAlignment="Left"
                                         HorizontalAlignment="Left"
                                         MarginLeft="10" MarginRight="10" MarginTop="4"
                                         DoNotAcceptEvents="true"/>
@@ -445,7 +449,7 @@
                         <!-- 输入框（与完整模式同字段：切模式草稿保留） -->
                         <EditableTextWidget Id="LWN_ImChat_CompactInput" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                             Text="@InputText" DefaultSearchText="@PlaceholderText"
-                                            TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="18"
+                                            TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="20"
                                             GamepadNavigationIndex="6"
                                             MarginRight="6" VerticalAlignment="Center"/>
                         <!-- 发送按钮（Id 2026-08-18 手柄手动导航：KS 焦点项 widget 定位） -->

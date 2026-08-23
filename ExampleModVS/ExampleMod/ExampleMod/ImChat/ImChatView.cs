@@ -225,6 +225,10 @@ namespace LivingWorldNpcs
                 // 与全屏 UI（技能/背包/队伍/家族/王国/任务等屏）打开时禁止呼出（面板层 400 > ESC 层 50，
                 // 不拦则面板盖在 ESC 菜单上）
                 if (UiFullScreenHelper.IsEscapeMenuOpen() || UiFullScreenHelper.IsFullScreenUiOpen()) return false;
+                // 🔴 2026-08-23（用户裁定：定居点菜单手柄屏蔽，键盘照常）：GameMenu 屏（城镇/村庄/
+                // 城堡菜单）内手柄 ↑/↓ 是菜单导航键——手柄模式禁止呼出（触发屏蔽的唯一闸口：消费点
+                // ShortFired 后仍会走到这里）；键盘模式不拦（M 键在菜单内无原版冲突，仍可呼出）。
+                if (UiFullScreenHelper.IsGameMenuOpen() && ModInput.UsingGamepad) return false;
                 return ScreenManager.TopScreen != null;
             }
             catch { return false; }
@@ -2102,6 +2106,9 @@ namespace LivingWorldNpcs
                 //     ClipContents 兜底裁，C# 截断保证不触发溢出）。
                 // 🔴 2026-08-20（用户裁定：与标题同机制统一走 NameDisplayRules.Truncate）：13 → 32——
                 //     StretchToParent 布局下超宽由 ClipContents 像素裁剪，字符截断仅兜底超长预览。
+                // 🔴 2026-08-23（实机推翻 2026-08-20 结论）：StretchToParent 下引擎会压字号（标题
+                //     2026-08-19 实测）——XML 已改 CoverChildren + MaxWidth 206（引擎无从缩放），
+                //     阈值按 19px 校准为 MaxChannelSubtitleChars=10（9 正文 + 省略号 ≈190px ≤ 206px）。
                 preview = NameDisplayRules.Truncate(preview, NameDisplayRules.MaxChannelSubtitleChars);
                 item.Subtitle = preview;
             }
@@ -2631,11 +2638,14 @@ namespace LivingWorldNpcs
                 SecretLetterButtonInjector.TickInject(dt);
                 // 🔴 Q5（2026-08-17 呼出按钮）：Campaign 侧驱动（Mission 侧由 ImChatMissionView 驱动）
                 ImChatOpenButtonManager.Tick(dt);
-                // 🔴 O 只负责「打开」：面板开着时输入 o 不再触发任何动作（打字不误关）
-                // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
-                // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略开着时 O = 放大为完整模式
-                // 🔴 2026-08-22（用户裁定分层）：未配置 LLM（IsLLMConfigured=false）→ O 也无法呼出——
+                // 🔴 M/↑ 只负责「打开」：面板开着时输入不再触发任何动作（打字不误关）
+                // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → 无法呼出聊天
+                // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略开着时 = 放大为完整模式
+                // 🔴 2026-08-22（用户裁定分层）：未配置 LLM（IsLLMConfigured=false）→ 无法呼出——
                 // 传讯入口整体封死（模板回复是不得已的体验，不给入口）
+                // 🔴 2026-08-23（用户裁定：O/↑ 误触与定居点菜单 ↑ 导航冲突 → 重选键位）：键盘 O→M
+                //（M 全分类零绑定）；长按方案废弃（O/↑ 长按 = 原版 CheerBark 表情菜单，必双触发）。
+                // 定居点菜单内手柄 ↑ 屏蔽走 CanOpen（GameMenu && UsingGamepad → false），键盘 M 照常
                 if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled && Settings.Instance.IsLLMConfigured)
                     OpenOrExpand();
 

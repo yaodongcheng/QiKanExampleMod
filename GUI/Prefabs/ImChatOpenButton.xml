@@ -61,16 +61,40 @@
                 <!-- 🔴 2026-08-17（按键绑定提示）：键帽 [O]/[↑] **按钮右侧紧邻**（组内第二位，VerticalAlignment
                      Center 与 56 高按钮垂直居中；原 MarginBottom 153 的垂直偏移归组容器管）。字形经
                      ModInput.Glyph 按设备动态（键盘 [O] / 手柄 [↑]，config 改绑自动跟随）。
-                     C# 驱动可见性（随按钮）。 -->
+                     C# 驱动可见性（随按钮）。
+                     🔴 2026-08-23（用户裁定：IM 呼出改长按）：键帽升级为 InteractArea 同款长按进度环——
+                     底纹 @KeycapColor（按法区分）、四周边+进度填充 @RequiresHold/@SegFillWidth0..3/@SegColor
+                     （蓄力中绿→完成金，满框待命后松手触发），VM 每帧驱动（ImChatOpenButtonManager.Tick）。 -->
                 <Widget Id="LWN_ImChatOpenButtonPadHint" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                         SuggestedWidth="30" SuggestedHeight="30"
                         VerticalAlignment="Center"
                         IsVisible="false"
                         DoNotAcceptEvents="true">
                   <Children>
-                    <!-- 键帽底：近白底纹（InteractArea 键帽同款） -->
+                    <!-- 键帽底：按按法区分——Short 纯白（无四边）、Long 近白（+四边），一眼看出交互方式（InteractArea 同款） -->
                     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                            Sprite="BlankWhiteSquare_9" Color="#E8E8E8FF" />
+                            Sprite="BlankWhiteSquare_9" Color="@KeycapColor" />
+                    <!-- 四周边 + 填充（Long 玩法常显；短按项整体 IsVisible=false，RequiresHold 由 PressMode==Long 推导）。
+                         结构照抄 InteractArea.xml 键帽四边（顺时针闭环：上条 Left+Top → 右条 Right+Top →
+                         下条 Right+Bottom → 左条 Left+Bottom；Gauntlet 双轴独立，每条必须显式写
+                         HorizontalAlignment + VerticalAlignment）。进度填充条 = 绿→金（声明在灰白边之后
+                         渲染在上层），长度绑 VM 每帧算好的像素值（满长 30 = 键帽边长）。 -->
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@RequiresHold">
+                      <Children>
+                        <!-- 上：左→右 -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="3" MarginTop="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="#CCCCCCFF" />
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@SegFillWidth0" SuggestedHeight="3" MarginTop="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
+                        <!-- 右：上→下 -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="30" MarginTop="0" MarginRight="0" HorizontalAlignment="Right" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="#CCCCCCFF" />
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="@SegFillHeight1" MarginTop="0" MarginRight="0" HorizontalAlignment="Right" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
+                        <!-- 下：右→左 -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="3" MarginRight="0" MarginBottom="0" HorizontalAlignment="Right" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="#CCCCCCFF" />
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@SegFillWidth2" SuggestedHeight="3" MarginRight="0" MarginBottom="0" HorizontalAlignment="Right" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
+                        <!-- 左：下→上 -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="30" MarginBottom="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="#CCCCCCFF" />
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="@SegFillHeight3" MarginBottom="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
+                      </Children>
+                    </Widget>
                     <!-- 键名字形（@KeyText——VM 绑定自动求值，键盘 [O] / 手柄 [↑]，设备切换 VM Refresh 驱动） -->
                     <TextWidget Id="LWN_ImChatOpenButtonPadHintKey" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                 Text="@KeyText" Brush="MyBrush_24" TextColor="#000000FF"

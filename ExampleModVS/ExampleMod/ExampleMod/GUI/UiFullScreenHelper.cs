@@ -1,5 +1,6 @@
 using System;
 using TaleWorlds.Engine.GauntletUI;
+using TaleWorlds.MountAndBlade;
 using TaleWorlds.ScreenSystem;
 
 namespace LivingWorldNpcs
@@ -71,6 +72,25 @@ namespace LivingWorldNpcs
                     return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-23（用户反馈：定居点菜单内手柄 ↑ 键帽仍显示）：定居点菜单（城镇/村庄/城堡
+        /// GameMenu）是否打开。手柄 ↑/↓ 在该菜单导航选项——IM 呼出键（手柄 ↑）在此屏蔽
+        /// （键帽隐藏 + CanOpen false）；键盘 M 无原版冲突不受影响。
+        /// 🔴 判定方式（实机日志实锤）：**不能用 TopScreen 类名**——GameMenu 是 MapScreen 上的
+        /// 覆盖 UI，不是独立 Screen，菜单打开时 TopScreen 恒为 MapScreen（日志：挂载 TopScreen=
+        /// MapScreen 与 [GameMenu] ▶ 打开 同帧）。权威信号 = GameMenuVM 生命周期标志
+        /// （GameMenuLogger.IsActive：Refresh 置 true / OnFinalize 清 false，同源补丁三版本已实锤）。
+        /// 🔴 模式守卫（用户裁定 2026-08-23）：**GameMenu 只存在于 Campaign 模式**（Mission 模式下
+        /// 不可能出现，战斗结算/等待菜单也是 Mission 结束回 Campaign 层才打开）——Mission 内恒
+        /// false，↑ 呼出完全不受影响（不依赖「Mission 内无 GameMenuVM」推断——static 标志万一
+        /// 残留卡 true 会误杀 Mission 内呼出，模式守卫从根上关死）。
+        /// </summary>
+        public static bool IsGameMenuOpen()
+        {
+            if (Mission.Current != null) return false;   // Mission 模式无 GameMenu（用户裁定）
+            return GameMenuLogger.IsActive;
         }
     }
 }

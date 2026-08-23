@@ -23,12 +23,14 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
-            // 🔴 O 只负责「打开」：面板开着时输入 o 不触发任何动作（打字不误关）；
+            // 🔴 M/↑ 只负责「打开」：面板开着时输入不触发任何动作（打字不误关）；
             // 关闭走 ESC / 手柄 B / 关闭按钮 / 面板外点击（ImChatView.Tick 内统一处理）
-            // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
-            // 🔴 2026-08-17（Q4 手柄）：↑ 十字短按 = 手柄呼出键（与 O 完全等价，ModInput 玩法行）
+            // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → 无法呼出聊天
+            // 🔴 2026-08-17（Q4 手柄）：↑ 十字 = 手柄呼出键（与键盘同玩法行，ModInput）
             // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略开着时 = 放大为完整模式
-            // 🔴 2026-08-22（用户裁定分层）：未配置 LLM → O/↑ 也无法呼出（传讯入口整体封死，同 Campaign 侧）
+            // 🔴 2026-08-22（用户裁定分层）：未配置 LLM → 无法呼出（传讯入口整体封死，同 Campaign 侧）
+            // 🔴 2026-08-23（用户裁定：键盘 O→M，短按保持；GameMenu 内手柄屏蔽走 CanOpen）：
+            // Mission 内无 GameMenu，本处不需要设备判定
             if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled && Settings.Instance.IsLLMConfigured)
                 ImChatView.OpenOrExpand();
 

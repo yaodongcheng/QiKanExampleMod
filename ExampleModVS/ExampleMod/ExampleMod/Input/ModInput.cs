@@ -26,7 +26,7 @@ namespace LivingWorldNpcs
         public const string StealLeave = "StealLeave";
         public const string Plot = "Plot";          // 密谋：对随从下达自然语言命令（G 长按）
         public const string StopPlan = "StopPlan";  // 停止键：对执行中的随从喊停（G 长按，与 Plot 同键；互斥不同时显示）
-        public const string IM = "IM";              // 传讯：打开/关闭 IM 聊天面板（键盘 O；手柄 ↑ 十字短按 = 面板外唯一呼出键，2026-08-17）
+        public const string IM = "IM";              // 传讯：打开 IM 聊天面板（键盘 M / 手柄 ↑ 十字短按 = 面板外唯一呼出键；2026-08-17 设行、2026-08-23 O→M 重选）
         public const string Intervene = "Intervene"; // 调停：随从犯法被执法时面向守卫按 F（替换 Talk 行，上下文互斥）
     }
 
@@ -421,8 +421,11 @@ namespace LivingWorldNpcs
         ///    同样暂停；③ 系统弹窗（TopScreen 含 Inquiry）同样暂停。
         /// 🔴 2026-08-23（ESC/全屏 UI 激活闸，用户要求）：ESC 菜单（Mission 内 MissionEscapeMenu 层
         ///    层序 50 / Campaign MapEscapeMenu 层 4400）与全屏 UI（技能/背包/队伍/家族/王国/任务等屏）
-        ///    打开时全部玩法行 ResetAll 暂停——O/↑ 呼出键物理轮询拦不住，不加闸 ESC 打开时照样触发
+        ///    打开时全部玩法行 ResetAll 暂停——呼出键物理轮询拦不住，不加闸 ESC 打开时照样触发
         ///    ShortFired(IM) → IM 面板（层 400）盖在 ESC 菜单（层 50）之上（实机穿透）。
+        /// 🔴 2026-08-23（定居点菜单不进门控）：GameMenu 屏（城镇/村庄/城堡菜单）**不进本闸**——
+        ///    键盘 M 在菜单内要正常呼出（M 无原版冲突）；手柄 ↑ 的菜单屏蔽在消费点 CanOpen 侧
+        ///    （GameMenu && UsingGamepad），不全局 ResetAll（那会把键盘 M 也打死）。
         /// </summary>
         public static void Tick(float dt)
         {

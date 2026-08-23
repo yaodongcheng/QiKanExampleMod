@@ -741,3 +741,23 @@ catch (Exception) { _retryTick = Environment.TickCount; }   // 失败：冷却�
 ```
 
 **排查口诀**：外部 API 首次调用抛异常被 catch 降级时，先问「这个降级结果要不要缓存」——**初始化型竞态（API 就绪需要时间）一律失败不缓存**。
+
+---
+
+## Gauntlet TextWidget StretchToParent + 超宽文本 → 引擎自动压字号（"裁剪即止"结论作废）
+
+**症状**（实机 2026-08-23 用户反馈：IM 左栏频道最近消息预览"还是太小"）
+- XML 里 `FontSize` 已设 18/19，但**长文本看起来明显比短文本小**——同一行里"短预览正常、长预览被压扁"。
+- `ClipContents="true"` 已设，文本不会溢出，但**字号照样被压**——裁剪不阻止缩放。
+- 换 CoverChildren 后同字号恒定为期望大小（长文本改为像素裁剪）。
+
+**根因**
+- TextWidget 在 `WidthSizePolicy="StretchToParent"` 布局下，文本测量超出可用宽时**引擎自动缩放字号**（2026-08-19 标题修复时实机证实：长频道名被压扁、短名字正常，观感不齐）。
+- **🔴 2026-08-20 的"StretchToParent 布局无压字号问题，超宽由 ClipContents 像素裁剪兜底"结论错误**（当时记在 `NameDisplayRules.cs` / `ImChatView.cs` 注释里）——裁剪只裁绘制、不阻止字号缩放，2026-08-23 实机推翻。引擎没有"裁剪即止"这回事。
+- 量化判据：可用宽 ≈ 206px（260 左栏 − 内边距），截断阈值 14 字 @19px ≈ 266px > 206px → 预览稍长必触发压字号。
+
+**规避**（标题同款修复，2026-08-19 先例）
+- TextWidget 改 `WidthSizePolicy="CoverChildren"`（宽度=内容测量值，**引擎无缩放空间**）+ `MaxWidth`（=该处可用宽，防挤占兄弟元素）+ `ClipContents` 兜底。
+- C# 侧按显示位置可用宽 + 目标字号校准截断阈值（省略号占 1 格）：`可用宽 ÷ 字号 − 1`。落地：`NameDisplayRules.MaxChannelTitleChars=14`（标题，2026-08-19）/ `MaxChannelSubtitleChars=10`（副标题 9 正文+… ≈190px ≤ 206px，2026-08-23 从 14 校准）。
+- 落地 XML：`GUI/Prefabs/ImChat.xml` 左栏频道行标题 + 副标题；`HorizontalAlignment` 显式 Left（CoverChildren 无拉伸对齐）。
+- 排查口诀：**「短文本正常、长文本变小」= 引擎压字号，不是字号没改对**——先查宽度策略，StretchToParent 一律改 CoverChildren+MaxWidth 后恒字号。

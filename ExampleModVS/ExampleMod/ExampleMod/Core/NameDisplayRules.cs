@@ -33,10 +33,12 @@ namespace LivingWorldNpcs
         /// 引擎无从缩放字号（宽度=内容测量值），阈值只负责省略号时机）。</summary>
         public const int MaxChannelTitleChars = 14;
 
-        /// <summary>频道列表副标题（最后消息预览）最大字符数。🔴 2026-08-20（用户裁定：与标题
-        /// 同机制，统一走 <see cref="Truncate"/>）：原 13 → 32——预览内容短，字符截断几乎不触发；
-        /// 超宽由 XML ClipContents 像素裁剪兜底（StretchToParent 布局无压字号问题，裁剪即止）。</summary>
-        public const int MaxChannelSubtitleChars = 14;
+        /// <summary>频道列表副标题（最后消息预览）最大字符数。🔴 2026-08-23（实机反馈：预览仍小——
+        /// 根因 = StretchToParent 下引擎压字号，与 2026-08-19 标题同坑，2026-08-20"裁剪即止"结论作废）：
+        /// XML 已改 CoverChildren + MaxWidth 206（引擎无从缩放）后阈值按 19px 校准——
+        /// 可用 ≈206px，省略号占 1 格 → 9 正文 + … ≈190px；14 字 @19px = 266px 超 MaxWidth
+        /// 会裁掉省略号，故 14 → 10。</summary>
+        public const int MaxChannelSubtitleChars = 10;
 
         /// <summary>全模式气泡名字行最大字符数（含位置后缀）。🔴 2026-08-19（用户反馈：气泡右侧
         /// 明明大量空间，名字却被截成省略号；且各上下文可用宽不同，禁止共用一个上限）——

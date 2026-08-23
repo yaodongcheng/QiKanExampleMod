@@ -21,6 +21,16 @@ namespace LivingWorldNpcs
     /// </summary>
     internal static class GameMenuLogger
     {
+        /// <summary>
+        /// 🔴 2026-08-23（用户反馈：定居点菜单内手柄 ↑ 键帽仍显示）：菜单显示状态权威标志。
+        /// 背景：GameMenu（定居点/城镇/村庄菜单）是 MapScreen 上的覆盖 UI——**不是独立 Screen**，
+        /// 实机日志实锤「[ImChatOpenButton] 挂载 TopScreen=MapScreen」与「[GameMenu] ▶ 打开」同帧，
+        /// TopScreen 类名判定（UiFullScreenHelper 原实现）永远 false。
+        /// 本标志由 GameMenuVM 生命周期补丁维护：Refresh（菜单显示）置 true / OnFinalize（销毁）置 false——
+        /// 与日志同源同补丁（三版本已实锤生效），UiFullScreenHelper.IsGameMenuOpen 读取。
+        /// </summary>
+        public static bool IsActive { get; internal set; }
+
         // 上一次已记录的快照指纹：菜单ID | 标题 | 各选项(id+文字)
         private static string _lastSignature;
 
@@ -163,14 +173,15 @@ namespace LivingWorldNpcs
         }
     }
 
-    /// <summary>Refresh(true) 会重建 ItemList，但正文要等下一帧才算出来 → 这里只标脏。</summary>
+    /// <summary>Refresh(true) 会重建 ItemList，但正文要等下一帧才算出来 → 这里只标脏。
+    /// 🔴 2026-08-23：同时置位 <see cref="GameMenuLogger.IsActive"/>（菜单显示 = Refresh 驱动，日志实锤）。</summary>
     [HarmonyPatch(typeof(GameMenuVM), nameof(GameMenuVM.Refresh))]
     public static class GameMenuVMRefreshLoggerPatch
     {
         [HarmonyPostfix]
         public static void Postfix()
         {
-            try { GameMenuLogger.MarkDirty(); }
+            try { GameMenuLogger.MarkDirty(); GameMenuLogger.IsActive = true; }
             catch { /* 日志系统绝不能影响游戏正常运行 */ }
         }
     }
@@ -192,14 +203,15 @@ namespace LivingWorldNpcs
         }
     }
 
-    /// <summary>菜单界面销毁（回大地图 / 进场景）。</summary>
+    /// <summary>菜单界面销毁（回大地图 / 进场景）。
+    /// 🔴 2026-08-23：同时清 <see cref="GameMenuLogger.IsActive"/>（菜单销毁 = OnFinalize，唯一关闭沿）。</summary>
     [HarmonyPatch(typeof(GameMenuVM), nameof(GameMenuVM.OnFinalize))]
     public static class GameMenuVMFinalizeLoggerPatch
     {
         [HarmonyPrefix]
         public static void Prefix(GameMenuVM __instance)
         {
-            try { GameMenuLogger.LogClose(__instance); }
+            try { GameMenuLogger.LogClose(__instance); GameMenuLogger.IsActive = false; }
             catch { /* 日志系统绝不能影响游戏正常运行 */ }
         }
     }
