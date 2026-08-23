@@ -58,9 +58,9 @@
                   </Children>
                 </ButtonWidget>
 
-                <!-- 🔴 2026-08-17（按键绑定提示）：键帽 [O]/[↑] **按钮右侧紧邻**（组内第二位，VerticalAlignment
+                <!-- 🔴 2026-08-17（按键绑定提示）：键帽 [M]/[↑] **按钮右侧紧邻**（组内第二位，VerticalAlignment
                      Center 与 56 高按钮垂直居中；原 MarginBottom 153 的垂直偏移归组容器管）。字形经
-                     ModInput.Glyph 按设备动态（键盘 [O] / 手柄 [↑]，config 改绑自动跟随）。
+                     ModInput.Glyph 按设备动态（键盘 [M] / 手柄 [↑]，config 改绑自动跟随）。
                      C# 驱动可见性（随按钮）。
                      🔴 2026-08-23（用户裁定：IM 呼出改长按）：键帽升级为 InteractArea 同款长按进度环——
                      底纹 @KeycapColor（按法区分）、四周边+进度填充 @RequiresHold/@SegFillWidth0..3/@SegColor
@@ -95,7 +95,7 @@
                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="@SegFillHeight3" MarginBottom="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
                       </Children>
                     </Widget>
-                    <!-- 键名字形（@KeyText——VM 绑定自动求值，键盘 [O] / 手柄 [↑]，设备切换 VM Refresh 驱动） -->
+                    <!-- 键名字形（@KeyText——VM 绑定自动求值，键盘 [M] / 手柄 [↑]，设备切换 VM Refresh 驱动） -->
                     <TextWidget Id="LWN_ImChatOpenButtonPadHintKey" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                 Text="@KeyText" Brush="MyBrush_24" TextColor="#000000FF"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"

@@ -216,10 +216,10 @@ namespace LivingWorldNpcs
         // ───────────────────────── 打开/关闭 ─────────────────────────
 
         /// <summary>Mission/大地图均可开（需求 1）；战斗中/系统弹窗中禁开（用户决策 4）。
-        /// 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭时 O 无法呼出聊天——
+        /// 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭时 M 无法呼出聊天——
         /// 密聊入口整体隐藏（含通知点击路径，OpenCompact 也走 CanOpen）。
         /// 🔴 2026-08-22（用户裁定分层：未配置 LLM 传讯不可用）：!IsLLMConfigured → 传讯入口整体封死
-        ///（O 键/呼出按钮/密信按钮/通知点击全部汇入 CanOpen 兜底）——模板回复是不得已的体验，
+        ///（M 键/呼出按钮/密信按钮/通知点击全部汇入 CanOpen 兜底）——模板回复是不得已的体验，
         /// 未配置时连交互都不给；已配置但连不上才由 ChatOnceAsync(showFailureAlert:true) 红字提示。</summary>
         public static bool CanOpen()
         {
@@ -229,7 +229,7 @@ namespace LivingWorldNpcs
                 if (!Settings.Instance.IsLLMConfigured) return false;
                 if (Mission.Current != null && Settings.Instance.IsInteractionDisabled()) return false;
                 if (ModInput.IsSystemModalActive()) return false;
-                // 🔴 2026-08-23（用户要求：ESC/全屏 UI 打开时传讯入口整体封死）——O 键/↑/按钮/通知
+                // 🔴 2026-08-23（用户要求：ESC/全屏 UI 打开时传讯入口整体封死）——M 键/↑/按钮/通知
                 // 点击全部汇入 CanOpen 兜底：ESC 菜单（MissionEscapeMenu 层 50 / MapEscapeMenu 层 4400）
                 // 与全屏 UI（技能/背包/队伍/家族/王国/任务等屏）打开时禁止呼出（面板层 400 > ESC 层 50，
                 // 不拦则面板盖在 ESC 菜单上）
@@ -238,6 +238,12 @@ namespace LivingWorldNpcs
                 // 城堡菜单）内手柄 ↑/↓ 是菜单导航键——手柄模式禁止呼出（触发屏蔽的唯一闸口：消费点
                 // ShortFired 后仍会走到这里）；键盘模式不拦（M 键在菜单内无原版冲突，仍可呼出）。
                 if (UiFullScreenHelper.IsGameMenuOpen() && ModInput.UsingGamepad) return false;
+                // 🔴 2026-08-23（用户裁定：创角/开场动画按钮漏网 → 传讯入口整体封死）：Campaign 非
+                // 大地图屏（创角 CharacterCreationScreen / 开场动画 GauntletVideoPlaybackScreen /
+                // 存读档 GauntletSaveLoadScreen 等）禁止呼出——与呼出按钮白名单同口径
+                //（ImChatOpenButtonManager.ShouldShow 仅 MapScreen）；GameMenu 的 TopScreen 恒为
+                // MapScreen（UiFullScreenHelper.IsGameMenuOpen 实锤）→ 键盘 M 照常；Mission 不受此限。
+                if (Mission.Current == null && !UiFullScreenHelper.IsCampaignMapScreen()) return false;
                 return ScreenManager.TopScreen != null;
             }
             catch { return false; }
@@ -272,8 +278,8 @@ namespace LivingWorldNpcs
             try
             {
                 // 玩家体验完善（Q1f）：首次打开引导提示（玩家可能不知道热键/功能存在）
-                // 🔴 2026-08-17（Q4 手柄）：{OPEN_KEY} 动态 = 当前设备呼出键字形（O / ↑）——
-                // 手柄设备玩家看到「↑ 打开」而非「O 打开」
+                // 🔴 2026-08-17（Q4 手柄）：{OPEN_KEY} 动态 = 当前设备呼出键字形（M / ↑）——
+                // 手柄设备玩家看到「↑ 打开」而非「M 打开」
                 if (!_welcomed)
                 {
                     _welcomed = true;

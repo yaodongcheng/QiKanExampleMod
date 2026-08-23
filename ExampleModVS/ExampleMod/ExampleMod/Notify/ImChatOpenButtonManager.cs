@@ -45,7 +45,7 @@ namespace LivingWorldNpcs
         private const string ButtonId = "LWN_ImChatOpenButton";
         private const string BadgeId = "LWN_ImChatOpenBadge";
         private const string BadgeTextId = "LWN_ImChatOpenBadgeText";
-        // 🔴 2026-08-17（按键绑定提示）：键帽（[O]/[↑]，按钮右侧紧邻；无动作名文字——用户反馈；
+        // 🔴 2026-08-17（按键绑定提示）：键帽（[M]/[↑]，按钮右侧紧邻；无动作名文字——用户反馈；
         // 字形走 XML 绑定 @KeyText，C# 只控制键帽容器可见性）
         private const string PadHintId = "LWN_ImChatOpenButtonPadHint";
         // 本地化 key：呼出按钮 hover 提示（LWN_im_open_button_hint，{KEY} 变量）
@@ -84,7 +84,7 @@ namespace LivingWorldNpcs
         /// 🔴 2026-08-17（按键提示绑定化，InteractArea 同款模式——用户指引）：呼出按钮层 VM。
         /// 键帽字形走 **XML 绑定**（@KeyText——绑定系统自动求值，VM 构造时即正确，
         /// 不依赖 C# 主动设置时机——之前 C# 设置 Text 依赖刷新调用，首帧空白）。
-        /// 2026-08-17 用户反馈：无动作名文字（只一个键帽 [O]）——HintText 已删。
+        /// 2026-08-17 用户反馈：无动作名文字（只一个键帽 [M]）——HintText 已删。
         /// 设备切换（手柄插拔/切鼠标）→ Manager 调 <see cref="Refresh"/>（OnPropertyChanged → 绑定刷新字形）。
         /// </summary>
         public class ImChatOpenButtonVM : ViewModel
@@ -336,12 +336,12 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ImChatOpenButton] 按钮可见性: {visible}（TopScreen={ScreenManager.TopScreen?.GetType().Name} Mission={Mission.Current != null}）");
                     _button.IsVisible = visible;
                     // 🔴 2026-08-17（用户反馈：键鼠模式也要按键绑定提示）：按键提示与按钮可见性联动
-                    //（不限设备——键盘显示 [O]，手柄显示 [↑]，字形经 ModInput.Glyph 按设备动态）
+                    //（不限设备——键盘显示 [M]，手柄显示 [↑]，字形经 ModInput.Glyph 按设备动态）
                     if (_padHintContainer != null)
                         _padHintContainer.IsVisible = visible;
                 }
                 // 🔴 2026-08-17（设备切换，input.md 范式）：手柄插入/拔出/切鼠标 → VM Refresh
-                //（OnPropertyChanged → 绑定重取值，键帽字形 O ↔ ↑；文字内容由 XML 绑定自动求值，
+                //（OnPropertyChanged → 绑定重取值，键帽字形 M ↔ ↑；文字内容由 XML 绑定自动求值，
                 // 不再 C# 主动设置——InteractArea 同款模式）
                 bool usingGamepad = ModInput.UsingGamepad;
                 if (usingGamepad != _lastUsingGamepad)
@@ -375,9 +375,9 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>显示条件（与 O 键行为一致）：PlotEnabled 总闸 + IsLLMConfigured（未配置不给入口）+
+        /// <summary>显示条件（与 M 键行为一致）：PlotEnabled 总闸 + IsLLMConfigured（未配置不给入口）+
         /// 非战斗模式 + 非加载屏 + 非全屏 UI。
-        /// 🔴 2026-08-22（用户裁定分层）：未配置 LLM → 按钮隐藏（与 O 键同规则）——传讯入口整体封死，
+        /// 🔴 2026-08-22（用户裁定分层）：未配置 LLM → 按钮隐藏（与 M 键同规则）——传讯入口整体封死，
         /// 模板回复是不得已的体验；已配置但连不上由 ChatOnceAsync(showFailureAlert:true) 红字提示。
         /// 🔴 2026-08-17：不含 !ImChatView.IsOpen——IM 打开时按钮被 400 层全屏遮罩盖住 + 事件被拦
         /// （层序红利 350 &lt; 400），零额外隐藏逻辑（方案 §5.1）。
@@ -387,7 +387,13 @@ namespace LivingWorldNpcs
         ///（InteractArea，右下角从底部 180 向上生长）会盖住按钮（右缘下部 140）——该时段按钮隐藏
         ///（互动结束自动恢复）。
         /// 🔴 2026-08-22（用户反馈：按钮穿透全屏 UI）：全屏 UI（技能/背包/队伍/家族/王国/任务）打开时
-        /// TopScreen 切换为对应屏（否则按钮会挂载到屏上显示）→ 隐藏（统一判定 UiFullScreenHelper）。</summary>
+        /// TopScreen 切换为对应屏（否则按钮会挂载到屏上显示）→ 隐藏（统一判定 UiFullScreenHelper）。
+        /// 🔴 2026-08-23（用户裁定：创角/开场动画按钮漏网）：Campaign 白名单 = 仅 MapScreen——
+        /// GameMenu（定居点菜单）TopScreen 恒为 MapScreen（UiFullScreenHelper.IsGameMenuOpen 实锤），
+        /// 白名单天然保留「定居点菜单按钮照常显示」裁定（键盘 M 仍可呼出）；创角
+        /// CharacterCreationScreen / 开场动画 GauntletVideoPlaybackScreen / 存读档 GauntletSaveLoadScreen
+        /// 等新游戏流程屏全部排除（实机日志 2026-08-23：三屏均按钮 visible=True 漏网）。
+        /// Mission 保持现状（不受白名单约束）。</summary>
         private static bool ShouldShow()
         {
             if (!Settings.Instance.PlotEnabled) return false;
@@ -397,6 +403,13 @@ namespace LivingWorldNpcs
                 if (Settings.Instance.IsInteractionDisabled()) return false;
                 // 🔴 2026-08-19（高度隔离替代互斥隐藏，用户裁定）：不再因 InteractArea 可见而隐藏——
                 // 按钮上移到玩法行上方（Tick 更新 MarginBottom），新消息/决策卡提醒不丢。
+            }
+            else
+            {
+                // 🔴 2026-08-23（用户裁定：创角/开场动画按钮漏网）：Campaign 白名单——非 MapScreen
+                //（创角/开场动画/存读档/全屏 UI 等独立屏）一律不显示。黑名单（Loading/全屏 UI/ESC）
+                // 保留兜底**层内**场景（ESC 菜单是 MapScreen 上的层，白名单放行、黑名单拦截）。
+                if (!UiFullScreenHelper.IsCampaignMapScreen()) return false;
             }
             var top = ScreenManager.TopScreen;
             if (top == null) return false;
@@ -564,7 +577,7 @@ namespace LivingWorldNpcs
 
         private static string GetHintText()
         {
-            // 本地化：呼出按钮 hover 提示（玩家可见文本）；{KEY} = 当前设备呼出键字形（O / ↑）
+            // 本地化：呼出按钮 hover 提示（玩家可见文本）；{KEY} = 当前设备呼出键字形（M / ↑）
             string key = ModInput.Glyph(InteractionIds.IM);
             return LWNTextHelper.ResolveCompound(HintKey, "Open messaging (key: {KEY})", ("KEY", key));
         }
