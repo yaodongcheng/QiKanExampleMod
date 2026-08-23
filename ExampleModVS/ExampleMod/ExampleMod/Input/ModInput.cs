@@ -419,10 +419,15 @@ namespace LivingWorldNpcs
         ///    面板打开就是旧 PlanCommandFlow 弹窗的模态等价（2026-08-11：旧门控没跟着迁过来，实机
         ///    面板打字时 F 探查等玩法行仍触发）；② 当面对话密谋流程激活（PlanCommandFlow.IsActive）
         ///    同样暂停；③ 系统弹窗（TopScreen 含 Inquiry）同样暂停。
+        /// 🔴 2026-08-23（ESC/全屏 UI 激活闸，用户要求）：ESC 菜单（Mission 内 MissionEscapeMenu 层
+        ///    层序 50 / Campaign MapEscapeMenu 层 4400）与全屏 UI（技能/背包/队伍/家族/王国/任务等屏）
+        ///    打开时全部玩法行 ResetAll 暂停——O/↑ 呼出键物理轮询拦不住，不加闸 ESC 打开时照样触发
+        ///    ShortFired(IM) → IM 面板（层 400）盖在 ESC 菜单（层 50）之上（实机穿透）。
         /// </summary>
         public static void Tick(float dt)
         {
-            if (IsSystemModalActive() || PlanCommandFlow.IsActive || ImChatView.IsOpen)
+            if (IsSystemModalActive() || PlanCommandFlow.IsActive || ImChatView.IsOpen
+                || UiFullScreenHelper.IsEscapeMenuOpen() || UiFullScreenHelper.IsFullScreenUiOpen())
             {
                 ResetAll();   // 清空按住/触发状态，弹窗期间松开也不会陈旧触发
                 return;

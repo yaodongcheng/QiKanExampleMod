@@ -11,7 +11,7 @@
              不穿透场景（点气泡文本不会挥刀），矩形外放行；全屏根保持 true。
              🔴 CoverChildren 高：1 条消息 ~165px / 2 条 ~210px，贴底向上增长不抖动（Bottom 锚定）。 -->
         <Widget Id="LWN_ImChat_CompactPanel" WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
-                SuggestedWidth="560"
+                SuggestedWidth="600"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="70"
                 Sprite="StdAssets\Popup\canvas_dark"
                 DoNotAcceptEvents="false">
@@ -32,7 +32,7 @@
      顶对齐、Dropdown 点击链路在自定义层失效）——中心按钮 = 普通 ButtonWidget +
      Command.Click 直连 VM 显隐（ExecuteToggleChannelList），列表 IsVisible=@IsChannelListOpen，
      外观/笔刷/Radio 项全部保持原版。 -->
-<Widget Id="LWN_ImChat_CompactTitleRow" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="56"
+<Widget Id="LWN_ImChat_CompactTitleRow" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62"
         Sprite="BlankWhiteSquare_9" Color="#000000B3"
         DoNotAcceptEvents="true">
   <Children>
@@ -48,21 +48,21 @@
                    DoNotAcceptEvents="true">
           <Children>
             <!-- 左箭头：上一个频道（Id 2026-08-18 手柄手动导航：K1 焦点项 widget 定位） -->
-            <ButtonWidget Id="LWN_BtnPrev" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
+            <ButtonWidget Id="LWN_BtnPrev" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="50" SuggestedHeight="56"
                           Brush="SPOptions.Dropdown.Left.Button"
                           Command.Click="ExecuteSelectPreviousItem"
                           GamepadNavigationIndex="1"
                           VerticalAlignment="Center" MarginLeft="8" MarginRight="2"/>
             <!-- 中心按钮：显示当前频道，点击切换列表显隐（🔴 自定义直连，不再用原版控件点击机制；
                  Id 2026-08-18：K2 焦点项 widget 定位） -->
-            <ButtonWidget Id="LWN_BtnCenter" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="50"
+            <ButtonWidget Id="LWN_BtnCenter" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="165" SuggestedHeight="56"
                           Brush="SPOptions.Dropdown.Center"
                           Command.Click="ExecuteToggleChannelList"
                           GamepadNavigationIndex="2"
                           VerticalAlignment="Center" MarginLeft="2" MarginRight="2">
               <Children>
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                            Text="@SelectedChannelText" Brush="SPOptions.Dropdown.Center.Text" Brush.FontSize="15"
+                            Text="@SelectedChannelText" Brush="SPOptions.Dropdown.Center.Text" Brush.FontSize="17"
                             Brush.TextHorizontalAlignment="Center"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
                             MarginLeft="10" MarginRight="10" ClipContents="true"
@@ -70,7 +70,7 @@
               </Children>
             </ButtonWidget>
             <!-- 右箭头：下一个频道（Id 2026-08-18 手柄手动导航：K3 焦点项 widget 定位） -->
-            <ButtonWidget Id="LWN_BtnNext" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
+            <ButtonWidget Id="LWN_BtnNext" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="50" SuggestedHeight="56"
                           Brush="SPOptions.Dropdown.Right.Button"
                           Command.Click="ExecuteSelectNextItem"
                           GamepadNavigationIndex="3"
@@ -81,13 +81,13 @@
         <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                 DoNotAcceptEvents="true"/>
         <!-- 放大按钮（回完整模式；plus_button_* 图标，用户裁定；Id 2026-08-18：K4 焦点项 widget 定位） -->
-        <ButtonWidget Id="LWN_BtnExpand" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
+        <ButtonWidget Id="LWN_BtnExpand" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="36" SuggestedHeight="36"
                       VerticalAlignment="Center" MarginLeft="4"
                       Brush="LWN_Btn_Expand"
                       GamepadNavigationIndex="4"
                       Command.Click="ExecuteExpand"/>
         <!-- 关闭按钮（Id 2026-08-18 手柄手动导航：K5 焦点项 widget 定位） -->
-        <ButtonWidget Id="LWN_BtnCloseC" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
+        <ButtonWidget Id="LWN_BtnCloseC" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="36" SuggestedHeight="36"
                       VerticalAlignment="Center" MarginLeft="4" MarginRight="10"
                       Brush="Popup.CloseButton"
                       GamepadNavigationIndex="5"
@@ -106,7 +106,7 @@
          （HandleManualScroll 同款：HandleCompactInput 里按坐标算行号，hover/pressed 视觉 +
          点选派发）。 -->
     <Widget Id="LWN_ImChat_ChannelList" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-            SuggestedWidth="330" SuggestedHeight="@ChannelListHeight"
+            SuggestedWidth="360" SuggestedHeight="@ChannelListHeight"
             VerticalAlignment="Bottom" MarginBottom="52" HorizontalAlignment="Left" MarginLeft="8"
             Brush="SPOptions.Dropdown.Extension"
             DataSource="{ChannelSelector}"
@@ -134,7 +134,7 @@
                          点击 = Command.Click 直连 ExecuteSelect（引擎路径）/ 手动点选派发。
                          🔴 2026-08-15：ImageWidget 用自绘 LWN_DropdownItem（Default 深色底，
                          原版 Standard.DropdownItem Default 透明 → 用户裁定要有底色） -->
-                    <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                    <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34"
                                   ButtonType="Radio" UpdateChildrenStates="true" IsSelected="@IsSelected"
                                   IsEnabled="@CanBeSelected"
                                   Command.Click="ExecuteSelect"
@@ -146,7 +146,7 @@
                                      Brush="LWN_DropdownItem"
                                      DoNotAcceptEvents="true"/>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                                    Text="@StringItem" Brush="SPOptions.Dropdown.Item.Text" Brush.FontSize="14"
+                                    Text="@StringItem" Brush="SPOptions.Dropdown.Item.Text" Brush.FontSize="16"
                                     Brush.TextHorizontalAlignment="Left"
                                     HorizontalAlignment="Left" VerticalAlignment="Center"
                                     MarginLeft="10" MarginRight="10" ClipContents="true"
@@ -222,13 +222,13 @@
                                                DoNotAcceptEvents="true">
                                       <Children>
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
                                                     HorizontalAlignment="Left"
                                                     DoNotAcceptEvents="true"/>
                                       </Children>
                                     </ListPanel>
                                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Left"
+                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Left"
                                                 HorizontalAlignment="Left"
                                                 MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
                                                 DoNotAcceptEvents="true"/>
@@ -259,13 +259,13 @@
                                                DoNotAcceptEvents="true">
                                       <Children>
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
                                                     HorizontalAlignment="Right"
                                                     DoNotAcceptEvents="true"/>
                                       </Children>
                                     </ListPanel>
                                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Right"
+                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Right"
                                                 HorizontalAlignment="Right"
                                                 MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
                                                 DoNotAcceptEvents="true"/>
@@ -283,7 +283,7 @@
                                     DoNotAcceptEvents="true">
                               <Children>
                                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                            Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Center"
+                                            Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Center"
                                             HorizontalAlignment="Center" VerticalAlignment="Center"
                                             MarginLeft="10" MarginRight="10" MarginTop="4" MarginBottom="5"
                                             DoNotAcceptEvents="true"/>
@@ -329,21 +329,21 @@
                                            DoNotAcceptEvents="true">
                               <Children>
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                            Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                            Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
                                             HorizontalAlignment="Left"
                                             DoNotAcceptEvents="true"/>
                               </Children>
                             </ListPanel>
                             <!-- 修改版徽标（Q2） -->
                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                        Text="@ModifiedBadgeText" Brush="MyBrush_16_Left" Brush.FontSize="12" Brush.FontColor="#E8C55AFF"
+                                        Text="@ModifiedBadgeText" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.FontColor="#E8C55AFF"
                                         HorizontalAlignment="Left"
                                         IsVisible="@IsModifiedPlan"
                                         MarginLeft="10" MarginTop="4"
                                         DoNotAcceptEvents="true"/>
                             <!-- 正文：紧凑单行截断（CompactContent，完整内容在完整模式看） -->
                             <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                        Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Left"
+                                        Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Left"
                                         HorizontalAlignment="Left"
                                         MarginLeft="10" MarginRight="10" MarginTop="4"
                                         DoNotAcceptEvents="true"/>
@@ -363,14 +363,14 @@
                                      🔴 2026-08-20（用户反馈：按钮高度远高于文字大小）：MinHeight 56→26
                                      （文字 14px，26 = 文字 + 上下 4px padding；长文本折行时 CoverChildren 仍会撑高）。 -->
                                 <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                              MinHeight="26" MinWidth="96" MaxWidth="240"
+                                              MinHeight="30" MinWidth="100" MaxWidth="240"
                                               Brush="LWN_Btn_Message"
                                               Command.Click="Execute"
                                               IsEnabled="@IsEnabled" MarginRight="4">
                                   <Children>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                MaxWidth="220"
-                                                Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="14"
+                                                MaxWidth="240"
+                                                Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"
                                                 WordWrapping="Wrap"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                                 DoNotAcceptEvents="true"/>
@@ -396,13 +396,13 @@
                                      🔴 2026-08-20（第二次调整）：高度 40→26（用户反馈：按钮高度远高于文字大小，
                                      14px 文字行高约 18px，26px = 文字 + 上下各 4px padding）。
                                      候选项条数上限由 ImCommandFlow.CollectTargetCandidates(maxCount:3) 截断。 -->
-                                <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
                                               Brush="LWN_Btn_Message"
                                               Command.Click="Execute"
                                               IsEnabled="@IsEnabled" MarginTop="0" MarginBottom="0">
                                   <Children>
                                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                                                Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="14"
+                                                Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"
                                                 Brush.TextHorizontalAlignment="Center"
                                                 WordWrapping="Wrap"
                                                 MarginLeft="8" MarginRight="8"
@@ -423,13 +423,13 @@
                 <!-- 🔴 Q4（2026-08-17 手柄提示行）：输入行上方灰字（仅手柄设备；字形动态拼）。
                      声明在输入行之前（LWN 惯例：VerticalBottomToTop + 子元素按屏幕从上到下书写）。 -->
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                            Text="@PadHintText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                            Text="@PadHintText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#888888CC"
                             HorizontalAlignment="Left" MarginLeft="12" MarginTop="2" MarginBottom="2"
                             IsVisible="@HasPadHint"
                             DoNotAcceptEvents="true"/>
 
                 <!-- ═══ 输入行：输入框 + 发送（2026-08-15 用户裁定：频道切换在标题行，输入行独占最宽）═══ -->
-                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50"
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="58"
                         Sprite="BlankWhiteSquare_9" Color="#00000088"
                         DoNotAcceptEvents="true">
                   <Children>
@@ -445,11 +445,11 @@
                         <!-- 输入框（与完整模式同字段：切模式草稿保留） -->
                         <EditableTextWidget Id="LWN_ImChat_CompactInput" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                             Text="@InputText" DefaultSearchText="@PlaceholderText"
-                                            TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="16"
+                                            TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="18"
                                             GamepadNavigationIndex="6"
                                             MarginRight="6" VerticalAlignment="Center"/>
                         <!-- 发送按钮（Id 2026-08-18 手柄手动导航：KS 焦点项 widget 定位） -->
-                        <ButtonWidget Id="LWN_BtnSendC" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="34"
+                        <ButtonWidget Id="LWN_BtnSendC" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="72" SuggestedHeight="40"
                                       Brush="LWN_Btn_Message"
                                       Command.Click="ExecuteSend"
                                       IsEnabled="@CanSend"
@@ -457,7 +457,7 @@
                                       VerticalAlignment="Center" MarginRight="8">
                           <Children>
                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                        Text="@SendText" Brush="MyBrush_18_White" Brush.FontSize="14"
+                                        Text="@SendText" Brush="MyBrush_18_White" Brush.FontSize="16"
                                         HorizontalAlignment="Center" VerticalAlignment="Center"
                                         DoNotAcceptEvents="true"/>
                           </Children>

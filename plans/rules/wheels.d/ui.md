@@ -432,3 +432,42 @@ else if (IsMessageAtBottom()) _pinnedToBottom = true;
 **调用范例**（`GUI/Brushes/MyBrush.xml` `LWN_Btn_Message`，2026-08-20）：三态三图层（Default=`main_button_regular` 深色 / Hovered=`main_button_done_hover` 金色高亮 / Pressed=`main_button_done` 按压缩暗），每层 Extend 22/12/22/12，Styles 用 IsHidden 切换图层。**三态素材的 Extend 必须一致**，否则 hover 时边框跳动。
 
 **关键文件**：`GUI/Brushes/MyBrush.xml`、`GUI/Prefabs/ImChat.xml` + `ImChatCompact.xml`（消息按钮 `Brush="LWN_Btn_Message"`）。
+
+---
+
+## 🔴 全屏 UI / ESC 菜单统一检测 — `GUI/UiFullScreenHelper.cs`（2026-08-23）
+
+**问题**：常驻层（IM 呼出按钮层 350 等）在玩家打开全屏 UI（技能/背包/队伍/家族/王国/任务）或 ESC 菜单时必须「不显示 + 不响应」，否则穿透到界面之上（挡操作 + 出戏）。
+
+**方案**：两个静态判定，均为**字符串判定不引引擎强引用**（`ModInput.IsSystemModalActive` 同款：漏判最坏多显一次，不崩）：
+- `IsFullScreenUiOpen()`：`ScreenManager.TopScreen.GetType().Name` Contains 匹配 marker 表。🔴 marker 必须收**实机类名变体**：个人技能屏实机 = `GauntletCharacterDeveloperScreen`（**不含** "CharacterScreen" 子串，2026-08-23 日志定位漏网）；`GauntletOptionsScreen`（ESC 选项屏）同样漏过。每个新全屏屏先 `custom.print_topscreen` 看类名再登记。
+- `IsEscapeMenuOpen()`：遍历 `TopScreen.Layers` 找 `GauntletLayer.Name` 含 "EscapeMenu"（层存在 = 打开，RemoveLayer = 关闭；`ScreenLayer.Name { get; private set; }` 可读）。
+
+**ESC 菜单两条路径（反编译实锤 2026-08-23）**：
+| 场景 | 形态 | 层序 vs 按钮层 350 |
+|------|------|------|
+| Mission | `MissionEscapeMenu` 层（`MissionGauntletEscapeMenuBase`，MissionBehavior，`ViewOrderPriority=50`） | **50 < 350 → 穿透，必须显式判定** |
+| Campaign | `MapEscapeMenu` 层（`GauntletMapEscapeMenuView`，MapView，层序 4400） | 4400 > 350 → 层序压盖，判定仅保险 |
+| 其他屏（教育/捏脸/旗帜） | 屏自己的 GauntletLayer `LoadMovie("EscapeMenu")`（无独立层，私有 `_isEscapeOpen`） | 已被 IsFullScreenUiOpen 覆盖 |
+
+**接入范式（显示 + 激活分治，三处共用同一判定）**：显示 = `ShouldShow` / VM `IsVisible`；激活 = `ModInput.Tick` 模态门控 `ResetAll`（物理键轮询 `Input.IsKeyDown` 拦不住，必须状态机清）；打开兜底 = `CanOpen`。🔴 **禁止只做显示不做激活**（2026-08-23 用户裁定：要么一起显示+激活，要么都不）。
+
+**性能**：`TopScreen.Layers` 数（Map ~9 / Mission ~5）每帧一次短字符串 IndexOf < 1μs，可忽略，不做缓存/事件驱动（层开闭由原版 view 管，hook 复杂度不值）。
+
+**关键文件**：`GUI/UiFullScreenHelper.cs`、`Notify/ImChatOpenButtonManager.cs`（ShouldShow + OnButtonClick）、`Input/ModInput.cs`（Tick 门控）、`ImChat/ImChatView.cs`（CanOpen）。
+
+---
+
+## 🔴 补丁目标必须精确到实际调用链的类 — ScreenBase.OnFrameTick vs MissionScreen.OnFrameTick（2026-08-23 实机教训）
+
+**现象**：把 Mission 侧驱动迁到 `ScreenBase.OnFrameTick` 补丁 → Mission 内完全不触发，功能静默失效（呼出按钮 Mission 内无人驱动 → 显示没了；日志 Mission 会话零条挂载记录实锤）。
+
+**根因**：**MissionScreen override 了 OnFrameTick 不走基类**——Harmony 补丁挂在基类方法上，override 替换方法体后补丁永不触发。同一条补丁两条命运：Campaign（MapScreen 走基类）正常，Mission（MissionScreen override）失效。
+
+**纪律**：
+- Campaign 钩子 = `ScreenBase.OnFrameTick`（`ImScreenFrameTickPatch`，暂停也跑）；
+- Mission 兜底 = `MissionScreen.OnFrameTick` **独立补丁类**（`ImMissionButtonRefreshPatch`），Postfix **直调目标函数**（`ImChatOpenButtonManager.Tick`），不经过 Campaign 专用入口（`OnScreenFrameTick`）；
+- `MissionView.OnMissionTick` 在 Mission ESC（`MBCommon.PauseGameEngine`）期间可能停摆——UI 刷新兜底挂 `MissionScreen.OnFrameTick`（UI 层回调，暂停也触发：ESC 菜单本身要渲染交互）；
+- 🔴 类级多 `[HarmonyPatch]` 属性**不要用于**跨基类/派生类目标（架构混，上轮教训）；需要多目标就拆独立类。
+
+**关键文件**：`ImChat/ImScreenFrameTickPatch.cs`（`ImScreenFrameTickPatch` + `ImMissionButtonRefreshPatch`）、`ImChat/ImChatView.cs`（OnScreenFrameTick）、`Interaction/InteractionMissionView.cs`。

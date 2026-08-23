@@ -937,6 +937,12 @@ namespace LivingWorldNpcs
             // ── 输入状态机每帧驱动（先于一切消费点；战斗禁用期间也保持物理键状态一致，帧窗口过期防陈旧触发）──
             ModInput.Tick(dt);
 
+            // 🔴 Q5（2026-08-17 呼出按钮）：Mission 侧驱动——与 InteractArea 同 tick（玩家认知：
+            // 按钮属右侧交互面板；InteractAreaTopOffset 上移避让也读本 View）。🔴 2026-08-23（双保险）：
+            // Mission ESC 打开时本 tick 停摆 → ImChatView.OnScreenFrameTick（MissionScreen.OnFrameTick
+            // 补丁，UI 层暂停也触发）兜底刷新隐藏判定；两处双调幂等（Tick 状态比较 + _layer==null 保护）
+            ImChatOpenButtonManager.Tick(dt);
+
             // ── 输入设备切换追踪：键盘↔手柄 → 刷新全部按键提示字形 ──
             bool usingGamepad = ModInput.UsingGamepad;
             if (usingGamepad != _lastUsingGamepad)

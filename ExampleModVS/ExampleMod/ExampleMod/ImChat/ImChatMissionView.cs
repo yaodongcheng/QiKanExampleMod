@@ -32,8 +32,9 @@ namespace LivingWorldNpcs
             if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled && Settings.Instance.IsLLMConfigured)
                 ImChatView.OpenOrExpand();
 
-            // 🔴 Q5（2026-08-17 呼出按钮）：Mission 侧驱动（Campaign 侧由 ImChatView.OnScreenFrameTick 驱动）
-            ImChatOpenButtonManager.Tick(dt);
+            // 🔴 2026-08-23：呼出按钮驱动已统一迁往 InteractionMissionView.OnMissionTick（与 InteractArea
+            // 同 tick，玩家认知 = 右侧交互面板）；Mission ESC 期间由 ImChatView.OnScreenFrameTick
+            //（MissionScreen.OnFrameTick 补丁，UI 层暂停也触发）兜底。本处不再驱动。
 
             ImChatView.Tick(dt);
         }
