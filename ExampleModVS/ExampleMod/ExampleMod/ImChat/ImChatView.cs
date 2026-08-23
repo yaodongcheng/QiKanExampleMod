@@ -220,6 +220,11 @@ namespace LivingWorldNpcs
                 if (!Settings.Instance.IsLLMConfigured) return false;
                 if (Mission.Current != null && Settings.Instance.IsInteractionDisabled()) return false;
                 if (ModInput.IsSystemModalActive()) return false;
+                // 🔴 2026-08-23（用户要求：ESC/全屏 UI 打开时传讯入口整体封死）——O 键/↑/按钮/通知
+                // 点击全部汇入 CanOpen 兜底：ESC 菜单（MissionEscapeMenu 层 50 / MapEscapeMenu 层 4400）
+                // 与全屏 UI（技能/背包/队伍/家族/王国/任务等屏）打开时禁止呼出（面板层 400 > ESC 层 50，
+                // 不拦则面板盖在 ESC 菜单上）
+                if (UiFullScreenHelper.IsEscapeMenuOpen() || UiFullScreenHelper.IsFullScreenUiOpen()) return false;
                 return ScreenManager.TopScreen != null;
             }
             catch { return false; }
@@ -2609,7 +2614,9 @@ namespace LivingWorldNpcs
         /// <summary>
         /// UI 层每帧钩子（ImScreenFrameTickPatch → ScreenBase.OnFrameTick，暂停时也触发）：
         /// 大地图/城镇菜单的热键检测与 UI 驱动（🔴 修复：CampaignEvents.TickEvent 暂停时停发）。
-        /// Mission 内由 ImChatMissionView 驱动（本方法门控跳过，防双驱动）。
+        /// 🔴 Campaign 专用（Mission 由 MissionView 驱动——两套 tick 隔离，2026-08-23 教训：
+        /// OnScreenFrameTick 承担 Mission 驱动导致 Mission 内不触发（MissionScreen override OnFrameTick
+        /// 不走基类）+ 架构混乱，已拆回）。
         /// </summary>
         public static void OnScreenFrameTick(float dt)
         {

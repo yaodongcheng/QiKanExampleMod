@@ -404,3 +404,20 @@ private static void SetMouseToWidget(PadItem item)   // MovePad 转移后 + Focu
 3. **非自由输入玩法 → 静默**：事件广播评论/世界背景/提议/respond 保持 `showFailureAlert=false` 模板降级
 
 **纪律**：入口双闸与提示分层不可拆——未配置时入口已封，正常流程走不到提示环节；提示统一走 `ShowConnectionMessage`（5 分钟同原因冷却 + `LWN_llm_fail_*` 分类文案，零新增 key）。
+
+---
+
+## 🔴 呼出按钮驱动矩阵 — Campaign/Mission 两套 tick 隔离（2026-08-23）
+
+**问题**：`ImChatOpenButtonManager.Tick` 的驱动点放错 → Campaign/Mission 互相连累（2026-08-23 两次实机回归：① Mission 内按钮消失 = 驱动塞进 Campaign 钩子 `OnScreenFrameTick`（MissionScreen override OnFrameTick 不走基类，补丁不触发）；② Mission ESC 期间按钮穿透 = Mission tick 停摆无兜底）。
+
+**驱动矩阵**：
+| 场景 | 驱动点 | 说明 |
+|------|--------|------|
+| Campaign | `ImChatView.OnScreenFrameTick`（ScreenBase.OnFrameTick 补丁） | 暂停也跑（CampaignEvents.TickEvent 暂停停发） |
+| Mission 正常 | `InteractionMissionView.OnMissionTick`（与 InteractArea **同 tick**） | 玩家认知 = 右侧交互面板；InteractAreaTopOffset 上移避让同 View |
+| Mission ESC 暂停 | `ImMissionButtonRefreshPatch`（MissionScreen.OnFrameTick 补丁，**独立类**只驱动按钮） | MissionView tick 可能停摆，UI 层回调兜底 |
+
+**门控三件套（ESC/全屏 UI 打开 → 不显示 + 不激活 + 打不开）**：显示 = `ShouldShow()`（层不挂载 + IsVisible）；激活 = `ModInput.Tick` 模态门控 `ResetAll`（O/↑ 物理键轮询拦不住）；打开 = `CanOpen()`（O/按钮/通知点击统一兜底）。共用 `UiFullScreenHelper.IsEscapeMenuOpen()/IsFullScreenUiOpen()`（见 ui.md「全屏 UI / ESC 菜单统一检测」）。
+
+**纪律**：双驱动点（OnMissionTick + MissionScreen 补丁）双调幂等无害（Tick 状态比较 + `_layer==null` 保护），不要为此加去重复杂度。

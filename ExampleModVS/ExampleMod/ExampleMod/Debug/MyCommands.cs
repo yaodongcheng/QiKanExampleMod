@@ -298,7 +298,24 @@ namespace LivingWorldNpcs
             return msg;
         }
 
-        [CommandLineFunctionality.CommandLineArgumentFunction("weapon_sheath", "custom")]
+        /// <summary>
+        /// 打印当前 TopScreen 的类型名与调试信息（排查 UI 层归属/呼出按钮显隐用）。
+        /// 用法: custom.print_topscreen
+        /// 输出会同时写入 Debug/StoryEngine_RuntimeLog.txt
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("print_topscreen", "custom")]
+        public static string PrintTopScreen(List<string> args)
+        {
+            var top = ScreenManager.TopScreen;
+            string name = top?.GetType().Name ?? "null";
+            bool active = false;
+            try { active = top != null && top.IsActive; } catch { }
+            int layers = top?.Layers?.Count ?? -1;
+            string mission = Mission.Current?.Mode.ToString() ?? "null";
+            string msg = $"[TopScreen] Name={name} Active={active} Layers={layers} FullScreenUI={UiFullScreenHelper.IsFullScreenUiOpen()} Mission={mission}";
+            DebugLogger.Log(msg);
+            return msg;
+        }
         public static string ExecuteTeleportToNpc(List<string> args)
         {
             if (Mission.Current == null) return "Please Enter the mission First.";

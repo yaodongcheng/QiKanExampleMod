@@ -234,7 +234,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>显示条件（与 O 键行为一致）：PlotEnabled 总闸 + IsLLMConfigured（未配置不给入口）+
-        /// 非战斗模式 + 非加载屏。
+        /// 非战斗模式 + 非加载屏 + 非全屏 UI。
         /// 🔴 2026-08-22（用户裁定分层）：未配置 LLM → 按钮隐藏（与 O 键同规则）——传讯入口整体封死，
         /// 模板回复是不得已的体验；已配置但连不上由 ChatOnceAsync(showFailureAlert:true) 红字提示。
         /// 🔴 2026-08-17：不含 !ImChatView.IsOpen——IM 打开时按钮被 400 层全屏遮罩盖住 + 事件被拦
@@ -243,7 +243,9 @@ namespace LivingWorldNpcs
         /// （挂-杀循环浪费），等加载完成 TopScreen=MapScreen 再挂。
         /// 🔴 2026-08-17（用户反馈：与 InteractArea 重叠）：Mission 内面向 NPC 时玩法行 UI
         ///（InteractArea，右下角从底部 180 向上生长）会盖住按钮（右缘下部 140）——该时段按钮隐藏
-        ///（互动结束自动恢复）。</summary>
+        ///（互动结束自动恢复）。
+        /// 🔴 2026-08-22（用户反馈：按钮穿透全屏 UI）：全屏 UI（技能/背包/队伍/家族/王国/任务）打开时
+        /// TopScreen 切换为对应屏（否则按钮会挂载到屏上显示）→ 隐藏（统一判定 UiFullScreenHelper）。</summary>
         private static bool ShouldShow()
         {
             if (!Settings.Instance.PlotEnabled) return false;
@@ -258,6 +260,13 @@ namespace LivingWorldNpcs
             if (top == null) return false;
             string name = top.GetType().Name;
             if (name.Contains("Loading")) return false;   // 加载屏不挂（会随屏销毁）
+            // 🔴 2026-08-22（用户反馈：按钮穿透全屏 UI）：全屏 UI（技能/背包/队伍/家族/王国/任务等）
+            // 打开 → 不挂载不显示（统一判定 UiFullScreenHelper，TopScreen 类型名 Contains 匹配）
+            if (UiFullScreenHelper.IsFullScreenUiOpen()) return false;
+            // 🔴 2026-08-23（用户反馈：ESC 菜单打开按钮穿透）：Mission 内 ESC 层序 50 < 按钮层 350
+            //（MissionGauntletEscapeMenuBase 反编译实锤）→ ESC 打开时必须显式隐藏；
+            // Campaign 的 MapEscapeMenu 层序 4400 天然压盖，此判定为保险。
+            if (UiFullScreenHelper.IsEscapeMenuOpen()) return false;
             return true;
         }
 
@@ -375,6 +384,9 @@ namespace LivingWorldNpcs
         {
             try
             {
+                // 🔴 2026-08-22/23（用户反馈：按钮穿透）：可见性同步帧延迟兜底——全屏 UI / ESC 菜单
+                // 打开时即使按钮还挂着也不响应（ShouldShow 已隐藏，这里防同步间隙误触）
+                if (UiFullScreenHelper.IsFullScreenUiOpen() || UiFullScreenHelper.IsEscapeMenuOpen()) return;
                 // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略模式开着时点击 =
                 // 放大为完整模式（玩家点按钮的意图是看消息；旧行为 Open 返回 false 静默无反应）。
                 bool opened = ImChatView.OpenOrExpand();
