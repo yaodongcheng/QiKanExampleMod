@@ -219,9 +219,12 @@ namespace LivingWorldNpcs
             // 密谋/停止同键（G/LB 长按）：执行中显示 StopPlan、空闲显示 Plot，互斥保证不同时 available（LogBindingConflicts 零冲突）
             [InteractionIds.Plot] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
             [InteractionIds.StopPlan] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
-            // 传讯（IM 面板开关）：键盘 O 短按；手柄 ↑ 十字短按（面板外唯一新键，2026-08-17——
-            // 反编译冲突表：↑ 十字在 Mission 仅 Cheer（口哨）、Campaign 无绑定，冲突最小；长按不用 = 原版表情菜单无法拦截）
-            [InteractionIds.IM] = new InteractionBindingConfig { Keyboard = "O", Gamepad = "LUp", PressMode = "Short" },
+            // 传讯（IM 面板开关）：键盘 M / 手柄 ↑ 十字短按（面板外唯一呼出键，2026-08-17）。
+            // 🔴 2026-08-23（用户裁定：按键重选）：O 换 M——O=原版 Cheer（口哨），M 全分类零绑定
+            //（BannerlordGameKeys.xml 逐分类核查实锤，唯一空闲字母键）；长按方案废弃（O/↑ 长按 =
+            // 原版 CheerBark 表情菜单按住弹出，物理轮询无法拦截必双触发，im-layer-and-input-design.md §4.6）。
+            // 定居点菜单（GameMenu）内：手柄 ↑ 屏蔽（菜单导航键冲突，CanOpen+键帽双屏蔽），键盘 M 照常
+            [InteractionIds.IM] = new InteractionBindingConfig { Keyboard = "M", Gamepad = "LUp", PressMode = "Short" },
             // 调停（随从犯法被执法时面向守卫按 F）：与 Talk 同键——上下文互斥替换（守卫警戒非玩家时
             // Intervene 行替换 Talk 行，永不共存，无冲突警告）
             [InteractionIds.Intervene] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Short" },

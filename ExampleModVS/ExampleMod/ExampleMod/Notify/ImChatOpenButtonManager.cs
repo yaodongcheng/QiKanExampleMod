@@ -11,7 +11,7 @@ using TaleWorlds.ScreenSystem;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// 🔴 Q5（2026-08-17）：IM 常驻呼出按钮（右侧 UI 按钮，三入口等价：键盘 O / 鼠标点击按钮 / 手柄 ↑ 十字）。
+    /// 🔴 Q5（2026-08-17）：IM 常驻呼出按钮（右侧 UI 按钮，三入口等价：键盘 M / 鼠标点击按钮 / 手柄 ↑ 十字）。
     /// 设计文档：plans/im-layer-and-input-design.md §5。
     ///
     /// - 层序 350：&gt; 310（百科/地图玩法 UI，按钮可见可点）、&lt; 400（IM 面板打开时全屏遮罩盖住 + 事件被拦，
@@ -20,13 +20,16 @@ namespace LivingWorldNpcs
     ///   pitfalls 灾难（「任何 Gauntlet 层只要含 Mouse 拦截，在战斗场景都是攻击/格挡杀手」，2026-08-11
     ///   实机记录）；按钮点击靠引擎 hit-test 门控（层只在鼠标位于层内 DoNotAcceptEvents=false 的
     ///   widget 矩形时获得鼠标输入），不需要 mask。
-    /// - 显示条件：PlotEnabled &amp;&amp; !IM 打开 &amp;&amp; !战斗模式（与 O 键行为一致；战斗/开关关闭时
+    /// - 显示条件：PlotEnabled &amp;&amp; !IM 打开 &amp;&amp; !战斗模式（与 M 键行为一致；战斗/开关关闭时
     ///   按钮隐藏，点了也开不了——Open 内部已查 CanOpen 兜底）。
+    /// - 🔴 2026-08-23（用户裁定：定居点菜单手柄屏蔽，键盘照常）：GameMenu 屏内按钮**照常显示**
+    ///   （键盘 M 仍可呼出）；手柄 ↑ 的屏蔽分两处——键帽可见性（Tick 每帧：GameMenu &amp;&amp; UsingGamepad
+    ///   → 键帽隐藏，避免"显示 [↑] 但按了没反应"）+ 触发（CanOpen 内 GameMenu &amp;&amp; UsingGamepad → false）。
     /// - 徽标：总未读（ImChatStore.GetTotalUnread，2026-08-17 新增）；0 → 隐藏；&gt;99 → 「99+」；
     ///   新消息到达（MessageArrived 事件）→ 即时刷新 + 3s 正弦脉冲跳动（0.35s/脉冲，上跳 6px + alpha 0.7→1）；
     ///   Tick 0.3s 轮询兜底（打开面板/查看会话 ClearUnread → 数字回落）。
     /// - hover 提示：手动 hit-test + MBInformationManager.ShowHint（项目先例）。
-    /// - 点击：ImChatView.Open()——与 O 键完全等价（Open 内部已查 IsOpen/CanOpen/PlotEnabled，
+    /// - 点击：ImChatView.Open()——与 M 键完全等价（Open 内部已查 IsOpen/CanOpen/PlotEnabled，
     ///   缩略模式开着时点击 = Open 返回 false 无副作用）。
     /// - 驱动：Campaign = ImChatView.OnScreenFrameTick；Mission = ImChatMissionView.OnMissionTick。
     /// - 层归属迁移：TopScreen 切换 → 摘旧屏挂新屏；旧屏已销毁 → Close（2026-08-17 家族 UI 崩溃修复同款模式）。
@@ -90,6 +93,29 @@ namespace LivingWorldNpcs
             [DataSourceProperty]
             public string KeyText => ModInput.Glyph(InteractionIds.IM);
 
+            // 🔴 2026-08-23（IM 键位重选，默认 Short）：长按进度环状态保留为泛用能力——
+            // 玩家 config.json 把 IM 改 Long 时自动生效（SyncPressMode 每帧按 binding 重推）。
+            // 颜色字段必须字段级初始化合法颜色串——Gauntlet 绑定建立时读取初始值推给 Color 属性，
+            // null/空串会让引擎 ConvertStringToColor 崩溃（InteractionItemVM 同款纪律，2026-08-06 实机）。
+            private bool _requiresHold = false;   // 默认 Short；SyncPressMode 每帧按 binding 重推
+            private string _keycapColor = KeycapColorShort;   // 键帽底色：Short 纯白 / Long 淡青白
+            private string _segColor = SegColorCharging;     // 四边进度颜色：蓄力中绿 / 蓄力完成金
+            private float _segFillWidth0;             // 上条填充长度 px（左→右）
+            private float _segFillHeight1;            // 右条填充长度 px（上→下）
+            private float _segFillWidth2;             // 下条填充长度 px（右→左）
+            private float _segFillHeight3;            // 左条填充长度 px（下→上）
+
+            /// <summary>进度条单段最大长度 px（= 键帽边长 30，与 ImChatOpenButton.xml 布局常量一致——贴键帽边缘）。</summary>
+            private const float SegLength = 30f;
+
+            /// <summary>键帽底色：Short 纯白（无四边）/ Long 淡青白（+四边），按法一眼区分（InteractionItemVM 同值同语义）。</summary>
+            private const string KeycapColorShort = "#FFFFFFFF";
+            private const string KeycapColorLong = "#E8FAF6FF";
+
+            /// <summary>四边进度条颜色：蓄力中绿 / 蓄力完成金（InteractionItemVM 同值；引擎只支持 8 位 hex）。</summary>
+            private const string SegColorCharging = "#00E676FF";
+            private const string SegColorReady = "#FFE97FFF";
+
             private float _marginBottom = DefaultMarginBottom;
             /// <summary>🔴 2026-08-19（高度隔离替代互斥隐藏，用户裁定）：InteractArea 可见时按钮上移到
             /// 玩法行上方（MarginBottom = InteractAreaTopOffset + 间距），不可见回默认 140——
@@ -112,6 +138,111 @@ namespace LivingWorldNpcs
             public void Refresh()
             {
                 OnPropertyChanged(nameof(KeyText));
+            }
+
+            /// <summary>按法推导（PressMode==Long → 显示四边进度）：每帧 UpdateHoldProgress 前同步，
+            /// config 热重载（custom.input_reload）改 PressMode 自动跟随；setter 带 != 守卫，未变化零开销。</summary>
+            private void SyncPressMode()
+            {
+                var b = ModInput.GetBinding(InteractionIds.IM);
+                bool hold = b != null && b.PressMode == ModInputPressMode.Long;
+                RequiresHold = hold;
+                KeycapColor = hold ? KeycapColorLong : KeycapColorShort;
+                if (hold) SegColor = SegColorCharging;
+            }
+
+            /// <summary>
+            /// 长按进度每帧驱动（InteractArea 键帽同款）：进度 0..1 → 4 段像素（蓄力中绿 → 完成金，
+            /// 满框待命后松手触发）；Short 行内部跳过，不产生绑定刷新。
+            /// 第 i 段填充长度 = clamp(progress*4 − i, 0, 1) × 段长（InteractionItemVM.UpdateHoldProgress 同式）。
+            /// </summary>
+            public void UpdateHoldProgress(float progress)
+            {
+                SyncPressMode();
+                if (!RequiresHold) return;   // Short 行无四边进度
+                float p = MathF.Clamp(progress, 0f, 1f);
+                SegFillWidth0 = MathF.Clamp(p * 4f - 0f, 0f, 1f) * SegLength;
+                SegFillHeight1 = MathF.Clamp(p * 4f - 1f, 0f, 1f) * SegLength;
+                SegFillWidth2 = MathF.Clamp(p * 4f - 2f, 0f, 1f) * SegLength;
+                SegFillHeight3 = MathF.Clamp(p * 4f - 3f, 0f, 1f) * SegLength;
+                SegColor = p >= 1f ? SegColorReady : SegColorCharging;   // 蓄力中绿 → 完成金
+            }
+
+            // 对应 XML 中的 IsVisible="@RequiresHold"（四周边 + 进度整体显隐；短按项无）
+            [DataSourceProperty]
+            public bool RequiresHold
+            {
+                get => _requiresHold;
+                set
+                {
+                    if (value != _requiresHold)
+                    {
+                        _requiresHold = value;
+                        OnPropertyChangedWithValue(value, nameof(RequiresHold));
+                    }
+                }
+            }
+
+            // 对应 XML 中的 Color="@KeycapColor"（键帽底色：Short 纯白 / Long 近白）
+            [DataSourceProperty]
+            public string KeycapColor
+            {
+                get => _keycapColor;
+                set
+                {
+                    if (value != _keycapColor)
+                    {
+                        _keycapColor = value;
+                        OnPropertyChangedWithValue(value, nameof(KeycapColor));
+                    }
+                }
+            }
+
+            // 对应 XML 中的 Color="@SegColor"（4 条填充条共用：蓄力中绿 / 满框待命金色）
+            [DataSourceProperty]
+            public string SegColor
+            {
+                get => _segColor;
+                set
+                {
+                    if (value != _segColor)
+                    {
+                        _segColor = value;
+                        OnPropertyChangedWithValue(value, nameof(SegColor));
+                    }
+                }
+            }
+
+            // 对应 XML 中的 SuggestedWidth="@SegFillWidth0"（上条，左→右）
+            [DataSourceProperty]
+            public float SegFillWidth0
+            {
+                get => _segFillWidth0;
+                set { if (value != _segFillWidth0) { _segFillWidth0 = value; OnPropertyChangedWithValue(value, nameof(SegFillWidth0)); } }
+            }
+
+            // 对应 XML 中的 SuggestedHeight="@SegFillHeight1"（右条，上→下）
+            [DataSourceProperty]
+            public float SegFillHeight1
+            {
+                get => _segFillHeight1;
+                set { if (value != _segFillHeight1) { _segFillHeight1 = value; OnPropertyChangedWithValue(value, nameof(SegFillHeight1)); } }
+            }
+
+            // 对应 XML 中的 SuggestedWidth="@SegFillWidth2"（下条，右→左）
+            [DataSourceProperty]
+            public float SegFillWidth2
+            {
+                get => _segFillWidth2;
+                set { if (value != _segFillWidth2) { _segFillWidth2 = value; OnPropertyChangedWithValue(value, nameof(SegFillWidth2)); } }
+            }
+
+            // 对应 XML 中的 SuggestedHeight="@SegFillHeight3"（左条，下→上）
+            [DataSourceProperty]
+            public float SegFillHeight3
+            {
+                get => _segFillHeight3;
+                set { if (value != _segFillHeight3) { _segFillHeight3 = value; OnPropertyChangedWithValue(value, nameof(SegFillHeight3)); } }
             }
         }
 
@@ -226,6 +357,17 @@ namespace LivingWorldNpcs
                 // 玩法行上方（间距 16）；不可见 → 回默认 140。每帧求值，VM setter 带阈值比较，零开销。
                 float interactTop = InteractionMissionView.InteractAreaTopOffset;
                 _vm.MarginBottom = interactTop > 0f ? interactTop + InteractAreaGap : DefaultMarginBottom;
+                // 🔴 2026-08-23（用户裁定：定居点菜单手柄屏蔽键帽，键盘照常）：GameMenu 内手柄玩家
+                // 看不到键帽（↑ 是菜单导航键，触发已在 CanOpen 屏蔽——键帽骗人按了没反应更糟）；
+                // 键盘玩家 [M] 照常显示。每帧求值 + setter 带守卫（按钮可见性/GameMenu/设备切换
+                // 三源变化都能在下一帧纠正，零开销）。
+                bool padHintVisible = visible && !(UiFullScreenHelper.IsGameMenuOpen() && usingGamepad);
+                if (_padHintContainer != null && _padHintContainer.IsVisible != padHintVisible)
+                    _padHintContainer.IsVisible = padHintVisible;
+                // 🔴 2026-08-23（IM 键位重选后默认 Short）：长按进度环每帧驱动保留（泛用——玩家
+                // config.json 把 IM 改 Long 时自动显示四边进度，InteractArea 键帽同款）；
+                // Short 下 RequiresHold=false，XML 整体隐藏 + 内部跳过，零开销
+                _vm?.UpdateHoldProgress(ModInput.HoldProgress(InteractionIds.IM));
             }
             catch (Exception ex)
             {
@@ -267,6 +409,9 @@ namespace LivingWorldNpcs
             //（MissionGauntletEscapeMenuBase 反编译实锤）→ ESC 打开时必须显式隐藏；
             // Campaign 的 MapEscapeMenu 层序 4400 天然压盖，此判定为保险。
             if (UiFullScreenHelper.IsEscapeMenuOpen()) return false;
+            // 🔴 2026-08-23（用户裁定：定居点菜单屏蔽手柄，键盘照常）：GameMenu 屏（城镇/村庄/城堡
+            // 菜单）**不隐藏按钮**——键盘 M 在菜单内仍可呼出（M 无原版冲突），按钮照常显示；
+            // 手柄 ↑ 的屏蔽（显示+触发）由键帽可见性块（Tick）+ CanOpen 分别承担，按钮本身保留。
             return true;
         }
 
