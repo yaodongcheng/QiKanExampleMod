@@ -15,12 +15,13 @@ description: 备份当前游戏版本的 DLL 到 Modules/<版本>DLL（供 ilspy
 
 ## 背景
 
-`Modules/1.2.12DLL/`、`Modules/1.3.15DLL/`、`Modules/1.4.6DLL/` 存放各游戏版本的游戏 DLL 副本，**仅用于 ilspycmd 反编译对比 API 差异，禁止交叉编译**（编译只走 `Debug`/`Release`，引用自己游戏目录的 DLL）。
+`Modules/1.2.12DLL/`、`Modules/1.3.15DLL/`、`Modules/1.4.6DLL/`、`Modules/1.5.1DLL/` 存放各游戏版本的游戏 DLL 副本，**仅用于 ilspycmd 反编译对比 API 差异，禁止交叉编译**（编译只走 `Debug`/`Release`，引用自己游戏目录的 DLL）。🔴 `Modules/1.5.1DLL/` 是当前 Latest 锚点（2026-08-23 备份）；`Modules/1.4.6DLL/` 为 1.4.x 历史锚点。
 
 ## 反编译缓存（先查这里，别急着 ilspycmd）
 
 `Modules/decompile/<版本>/` 已有 1.2.12 / 1.3.15 / 1.4.6 三套**关键类型反编译缓存**（约 23 个类型：
 MobileParty、Agent、Scene、GauntletLayer、ConversationManager、QuestBase、IMapScene、SetPartyAiAction 等，本次三锚点验证时生成并入库）。
+🔴 1.5.1 缓存尚未生成——升级后跑 `bash Modules/decompile/refresh_cache.sh 1.5.1` 补上（脚本已支持 1.5.1 分支）。
 
 **签名对比流程**：
 1. 先查缓存：`grep "方法名" Modules/decompile/<版本>/<类型名>.cs`——命中直接对比，不用重新反编译
@@ -38,7 +39,7 @@ bash Modules/decompile/refresh_cache.sh <版本号>          # 用游戏目录 D
 bash Modules/decompile/refresh_cache.sh 1.5.0 "D:\MB2\bin\Win64_Shipping_Client"
 ```
 
-脚本自动解析 1.2.12/1.3.15/1.4.6 的已知源目录；其他版本需手动传 DLL 源目录。
+脚本自动解析 1.2.12/1.3.15/1.4.6/1.5.1 的已知源目录；其他版本需手动传 DLL 源目录。
 新增类型 → 编辑脚本 `TYPES` 数组（`DLL别名|类型全名`）+ `DL` 映射。⚠️ 注意 NTFS 大小写不敏感：类型名 `Campaign` 与旧文件 `campaign.cs` 是同一文件，删除旧文件时勿误删新生成文件。
 
 ## 前置知识：游戏 DLL 的三个可能来源目录
@@ -157,7 +158,7 @@ if ($miss -eq 0) { Write-Output "ALL HintPaths resolve OK" } else { Write-Output
 
 - 🔴 **`TaleWorlds.MountAndBlade.View.dll` 位置随版本变化**：v1.2.12 在 `bin\Win64_Shipping_Client`，v1.3.15 只在 `Modules\Native\bin\Win64_Shipping_Client`，SandBox 里没有。找不到就全目录搜。
 - 🔴 **不要碰 `bin\Win64_Shipping_Client\mono\` 子树**（2932 个文件），只要根目录。
-- `TaleWorlds.GauntletUI.TooltipExtensions.dll` 只在 v1.2.12 存在，v1.3.15/v1.4.x 没有——csproj 里带 `Condition="Exists(...)"` 守卫，自动跳过，无需处理。
+- `TaleWorlds.GauntletUI.TooltipExtensions.dll` 只在 v1.2.12 存在，v1.3.15/v1.4.x/v1.5.1 都没有（2026-08-23 1.5.1 备份实测缺失）——csproj 里带 `Condition="Exists(...)"` 守卫，自动跳过，无需处理。
 - `0Harmony`/`Bannerlord.Harmony` 优先 Steam workshop（2859188632），未装则回落 `Modules\Bannerlord.Harmony`——csproj 双路径兜底，备份时不需要管。
 - 版本宏：`MB2_V1212` 只在 Version.xml 内容含 `'v1.2.12'` 时定义（= 恰好 v1.2.12）；v1.3.15 机器得到 `MB2_GE_130`（无 `MB2_V1212`、无 `MB2_GE_140`）。此行为与 `VersionCompat.cs` 语义一致（`#else` = "≤ 1.2.12"），编译无需干预。
 - 备份 DLL 仅供反编译，**禁止用备份 DLL 交叉编译**（CLAUDE.md 铁律）。

@@ -167,17 +167,18 @@ grep -c -a "RefreshBehaviorGroups" "$MB2_PATH/bin/Win64_Shipping_Client/"*.dll \
 |------|------|------|
 | `Modules/1.2.12DLL/` | v1.2.12 | 反编译查 v1.2.12 的 API 签名（任意电脑可用） |
 | `Modules/1.3.15DLL/` | v1.3.15 | 反编译查 v1.3.15 的 API 签名（1.3.x 独有的中间形态，非 1.2.12 亦非 1.4.x） |
-| `Modules/1.4.6DLL/` | v1.4.6 | 反编译查 Latest 的 API 签名（1.4.6/1.4.7/1.4.8 签名一致，可代表整套 1.4.x） |
+| `Modules/1.4.6DLL/` | v1.4.6 | 反编译查 1.4.x 历史版本的 API 签名（1.4.6/1.4.7/1.4.8 签名一致；已非 Latest，保留作 1.4.x 锚点） |
+| `Modules/1.5.1DLL/` | v1.5.1 | 🔴 **反编译查 Latest 的 API 签名**（v1.5.1 实测编译验证：签名与 1.4.x 一致，可代表整套 1.5.x） |
 
 **🔴 不要交叉编译**：不要用 `Debug_v1.2.12` 等配置去编译——该配置已废弃。编译只走 `Debug`/`Release`，每台电脑用自己的游戏 DLL，版本由 `Version.xml` 自动检测。
 
-开发时先反编译当前版本看签名，再反编译其他版本对比，确定 `VersionCompat.cs` 里该走哪个阈值分支（`MB2_GE_140` / `MB2_GE_130` / `#else`）。**🔴 1.3.x 有独有形态**：如 `SetPartyAiAction.GetActionForRaidingSettlement`（1.3.x=4参）和 `IssueBase.CanPlayerTakeQuestConditions`（1.2.12~1.3.x=4参）——遇到"1.3.x 与 1.2.12 相同、1.4.x 不同"的 API 必须写 `MB2_GE_140` 三分支，不能沿用 `!MB2_V1212` 二分（override 签名会编译失败）。详细差异清单见 `plans/version-compat-plan.md`「三锚点验证结论」。
+开发时先反编译当前版本看签名，再反编译其他版本对比，确定 `VersionCompat.cs` 里该走哪个阈值分支（`MB2_GE_150` / `MB2_GE_140` / `MB2_GE_130` / `#else`）。**🔴 1.3.x 有独有形态**：如 `SetPartyAiAction.GetActionForRaidingSettlement`（1.3.x=4参）和 `IssueBase.CanPlayerTakeQuestConditions`（1.2.12~1.3.x=4参）——遇到"1.3.x 与 1.2.12 相同、1.4.x 不同"的 API 必须写 `MB2_GE_140` 三分支，不能沿用 `!MB2_V1212` 二分（override 签名会编译失败）。详细差异清单见 `plans/version-compat-plan.md`「三锚点验证结论」。
 
 ```bash
-# 对比三个版本的同个方法
+# 对比四个版本的同个方法
 ilspycmd Modules/1.2.12DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ilspycmd Modules/1.3.15DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
-ilspycmd Modules/1.4.6DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
+ilspycmd Modules/1.5.1DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ```
 
 **限制**：`MBAPI.IMBAgent.xxx` 最终调 C++ native engine，反编译看不到内部实现，只能看到**调用上下文**和**参数用法**。
@@ -208,9 +209,9 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 | 机器 | 游戏版本 | 产出 |
 |------|---------|------|
 | 1.2.12 电脑 | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
-| Latest 电脑 | v1.4.6+ | `LivingWorldNpcs.dll`（Latest 版） |
+| Latest 电脑 | v1.5.x | `LivingWorldNpcs.dll`（Latest 版） |
 
-> 本仓库当前开发机（H: 盘）：**v1.4.8**（Version.xml 实测；1.4.6/1.4.7/1.4.8 签名一致，编译验证通过，见下方 VersionCompat 章节）。
+> 本仓库当前开发机（H: 盘）：**v1.5.1**（Version.xml 实测；1.4.x ~ 1.5.x 签名一致，编译验证通过——2026-08-23 升级后 `dotnet build` 0 错误 0 警告，27 个 Harmony 字符串补丁目标二进制 grep 全存活，见下方 VersionCompat 章节）。
 
 ### 累积阈值宏体系
 
@@ -229,9 +230,11 @@ csproj 编译时读 `Version.xml` 自动定义累积宏（GE = "Greater or Equal
 代码按阈值从高到低写分支：
 ```csharp
 #if MB2_GE_150
-    // v1.5.0+ 的新 API（预留）
+    // v1.5.0+ 的新 API（2026-08-23 已验证 1.5.x 与 1.4.x 签名一致，尚无分支使用）
+#elif MB2_GE_140
+    // v1.4.0+ 的 API
 #elif MB2_GE_130
-    // v1.3.0+ 的 API（当前 Latest）
+    // v1.3.0+ 的 API（覆盖 v1.3.0 ~ v1.5.x）
 #else
     // v1.2.12 的旧 API
 #endif
@@ -245,7 +248,7 @@ csproj 编译时读 `Version.xml` 自动定义累积宏（GE = "Greater or Equal
 
 **合规例外**（不可迁入 V，必须直接写在业务文件里）：override/abstract 签名差异、type-level 字段类型差异、Harmony 补丁目标差异、structural 多语句算法差异、namespace 差异。完整注册表见 `VersionCompat.cs` class doc comment 和 [plans/version-compat-plan.md](plans/version-compat-plan.md)。每次新增版本时必须逐条核查注册表。
 
-**1.4.6 / 1.4.7 / 1.4.8 的 API 签名一致**（1.4.7、1.4.8 均在开发机编译验证通过）——`MB2_GE_130` 分支覆盖 v1.3.0 ~ v1.4.x 全系列。
+**1.4.x ~ 1.5.x 的 API 签名一致**（v1.4.8 与 v1.5.1 均在开发机编译验证通过；v1.5.1 升级时 27 个 Harmony 字符串补丁目标二进制 grep 全存活）——`MB2_GE_130`/`MB2_GE_140` 分支覆盖 v1.3.0 ~ v1.5.x 全系列，`MB2_GE_150` 尚无分支使用。
 
 ### 发布步骤
 

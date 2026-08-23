@@ -7,6 +7,7 @@
 | 项目 | 状态 | 说明 |
 |------|:----:|------|
 | **v1.3.15 三锚点验证** | ✅ | 用 1.3.15 DLL（游戏目录）+ 1.2.12/1.4.6 备份 DLL 逐 API 反编译对比，27 个 V 方法 + 14 处注册表 #if 全部验证 |
+| **v1.5.1 第四锚点验证（2026-08-23）** | ✅ | 开发机升级 v1.5.1（Latest）后 `dotnet build -c Debug` 0 错误 0 警告；27 个 Harmony 字符串补丁目标二进制 grep 全存活；1.5.x 与 1.4.x 签名一致，`MB2_GE_150` 尚无分支使用 |
 | **RaidSettlement 修复** | ✅ | VersionCompat.cs：`GetActionForRaidingSettlement` 1.3.x=4 参 / 1.4.x=5 参，新增 `#elif MB2_GE_130` 分支 |
 | **CanPlayerTakeQuestConditions 修复** | ✅ | CommissionHubIssue.cs:413：1.2.12~1.3.x 基类 4 参 / 1.4.x 基类 5 参，override 改 `MB2_GE_140` 三分支 |
 | **本机 v1.3.15 编译** | ✅ | `dotnet build -c Debug` **0 errors 0 warnings** |
@@ -18,8 +19,8 @@
 | 项目 | 优先级 | 说明 |
 |------|:------:|------|
 | **v1.2.12 编译验证** | 🔴 P0 | 在 v1.2.12 电脑上 `dotnet build -c Release` 确认 0 errors |
-| **v1.4.6+ 编译验证** | 🟡 P1 | 在 1.4.x 电脑上编译确认（RaidSettlement 5 参 / requiredGold 分支） |
-| ~~发布策略确认~~ | ✅ | **已确认：三版全出**（1.2.12 / 1.3.15 / 1.4.6+ 各一台机器出 DLL） |
+| ~~v1.4.6+ 编译验证~~ | ✅ | 已随 v1.4.8 开发机验证；1.5.1 升级后再度验证（RaidSettlement 5 参 / requiredGold 分支均编译通过） |
+| ~~发布策略确认~~ | ✅ | **已确认：三版全出**（1.2.12 / 1.3.15 / 1.5.x 各一台机器出 DLL；1.4.x 成为历史，需要时可用 MB2_1.4.8 备份客户端临时编译） |
 | CampaignAgentComponent 死代码 | 🟢 P2 | MyCommands.cs 中 4 处被 `#if false` 包裹，需找到正确 API 或彻底删除 |
 
 ---
@@ -36,8 +37,8 @@
 | 机器 | 游戏版本 | 产出 |
 |------|---------|------|
 | A | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
-| B | v1.4.6+（当前开发机，实测 v1.4.8） | `LivingWorldNpcs.dll`（Latest 版） |
-| C | v1.4.6+ | `LivingWorldNpcs.dll`（Latest 版） |
+| B | v1.5.x（当前开发机，实测 v1.5.1） | `LivingWorldNpcs.dll`（Latest 版） |
+| C | v1.3.15（备份客户端 MB2_1.3.15） | `LivingWorldNpcs.dll`（v1.3.15 版） |
 
 ## 版本检测机制（自动，无需手动干预）
 
@@ -61,13 +62,24 @@ $(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml
 🔴 `MB2_V1212` 是**精确匹配** v1.2.12（csproj 判定 = Version.xml.Contains('v1.2.12')），不是累积宏；
 `#else` 分支语义 = "≤ v1.2.12"（v1.2.12 是支持的最低版本）。只有 GE_* 宏才是累积的。
 
-代码按阈值从高到低写分支：`#if MB2_GE_140 / #elif MB2_GE_130 / #else`。
+代码按阈值从高到低写分支：`#if MB2_GE_150 / #elif MB2_GE_140 / #elif MB2_GE_130 / #else`。
 
-## 🔴 三锚点验证结论（2026-08-03）
+🔴 **1.5.x 已实机验证（2026-08-23）**：开发机升级 v1.5.1 后 `dotnet build -c Debug` **0 错误 0 警告**——
+项目全部 API 在 1.5.x 签名与 1.4.x 一致，`MB2_GE_130`/`MB2_GE_140` 分支继续覆盖；27 个 Harmony
+字符串补丁目标二进制 grep 全存活（唯一 MISSING 为 1.2.12-only 条件编译的 FillPartyStacks）。
+`MB2_GE_150` 已自动定义但**尚无代码分支使用**。
+
+## 🔴 三锚点验证结论（2026-08-03；2026-08-23 增补 1.5.1 第四锚点）
 
 之前只有 1.2.12 / 1.4.6 两个端点，所有差异都归到 `MB2_GE_130` 且无法验证 1.3.x 中间形态。
-现在有 **1.2.12 / 1.3.15 / 1.4.6 三个锚点**（1.3.15 用当前游戏目录 DLL，1.2.12/1.4.6 用备份 DLL），
-用 ilspycmd 逐 API 反编译对比，结论：
+现在有 **1.2.12 / 1.3.15 / 1.4.6 / 1.5.1 四个锚点**（1.3.15 用游戏目录 DLL，1.2.12/1.4.6 用备份 DLL，
+1.5.1 用升级后的开发机），用 ilspycmd 逐 API 反编译对比，结论：
+
+🔴 **1.5.1 第四锚点验证（2026-08-23）**：开发机升级 v1.5.1（Latest，Version.xml 实测）后
+`dotnet build -c Debug` **0 错误 0 警告**——项目全部 API 在 1.5.x 签名与 1.4.x 一致；
+27 个 Harmony 字符串补丁目标二进制 grep 全存活（唯一 MISSING = 1.2.12-only 条件编译的
+`FillPartyStacks`，预期）。`MB2_GE_150` 已自动定义但尚无代码分支使用；今后发现 1.5.x
+独有差异时在 VersionCompat.cs 对应方法插入 `#if MB2_GE_150` 分支即可（阈值从高到低排）。
 
 ### 与 1.4.6 一致的 API（`MB2_GE_130` 分支正确，无需改动）
 
@@ -116,7 +128,7 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 **纪律**：
 - 凡是跨版本 API 不同的调用，**一律走 `V.xxx()`**，禁止在业务代码里裸写 `#if`
 - 新增 V 方法后，**必须在每台目标版本电脑上分别编译通过**
-- 三锚点已验证：除 RaidSettlement 外所有 V 方法的 `MB2_GE_130` 分支覆盖 v1.3.0~v1.4.x 正确
+- 四锚点已验证：除 RaidSettlement 外所有 V 方法的 `MB2_GE_130` 分支覆盖 v1.3.0~v1.5.x 正确（1.5.1 编译验证，2026-08-23）
 - 遇到 1.3.x 与 1.4.x 不同而 1.3.x 与 1.2.12 相同的 API（如 `CanPlayerTakeQuestConditions`），**必须用 `MB2_GE_140` 三分支**，不能沿用 `!MB2_V1212` 二分
 
 ### 不可迁入 V 的 #if（合规例外登记表）
@@ -150,12 +162,14 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 |------|------|------|
 | `Modules/1.2.12DLL/` | v1.2.12 | **反编译对比 API 差异**（在任意电脑上查 1.2.12 的方法签名） |
 | `Modules/1.3.15DLL/` | v1.3.15 | **反编译对比 API 差异**（在非 1.3.15 电脑上查 1.3.15 的签名） |
-| `Modules/1.4.6DLL/` | v1.4.6 | **反编译对比 API 差异**（1.4.6/1.4.7/1.4.8 签名一致，可代表整套 1.4.x） |
+| `Modules/1.4.6DLL/` | v1.4.6 | **反编译对比 API 差异**（1.4.x 历史锚点；1.4.6/1.4.7/1.4.8 签名一致） |
+| `Modules/1.5.1DLL/` | v1.5.1 | 🔴 **反编译查 Latest 的 API 签名**（2026-08-23 备份；可代表整套 1.5.x） |
 
 ```bash
-# 对比三个版本的同个方法
+# 对比四个版本的同个方法
 ilspycmd Modules/1.2.12DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ilspycmd Modules/1.4.6DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
+ilspycmd Modules/1.5.1DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 # 当前机器的 1.3.15 用游戏目录 DLL：
 ilspycmd bin/Win64_Shipping_Client/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ```
@@ -184,7 +198,7 @@ dotnet build -c Release
 
 ## 新增游戏版本时
 
-TaleWorlds 出新版本（如 v1.5.0）时，执行以下检查清单：
+TaleWorlds 出新版本时，执行以下检查清单（🔴 v1.5.0 检查已按此清单执行完毕，2026-08-23 记于各步）：
 
 ### 1. 更新 csproj 版本侦测
 ```xml
@@ -195,21 +209,25 @@ TaleWorlds 出新版本（如 v1.5.0）时，执行以下检查清单：
 <!-- 新增 GE_150 阈值 -->
 <MB2_VersionDefines Condition="'$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_150</MB2_VersionDefines>
 ```
+✅ v1.5 侦测已提前就位（升级前 csproj 就带 v1.5 分支），升级后自动生效，未改动。
 
 ### 2. 对比 API 差异
 用 ilspycmd 逐条对比 VersionCompat.cs 中所有 `V` 方法涉及的 API：
 ```bash
-ilspycmd Modules/1.4.6DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
+ilspycmd Modules/1.5.1DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ilspycmd bin/Win64_Shipping_Client/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ```
+✅ v1.5.1 实测：**编译 0 错误 0 警告**（快于逐条反编译——编译即覆盖全部用到的 API 签名），无需逐条 ilspycmd。
 
 ### 3. 根据差异等级行动
 
 | 情况 | 行动 |
 |------|------|
-| 新版本 API 与 1.4.x 完全一致 | 无需改动，`MB2_GE_130` 分支继续覆盖 |
+| 新版本 API 与 1.4.x 完全一致 | 无需改动，`MB2_GE_130`/`MB2_GE_140` 分支继续覆盖 |
 | 某个 API 在新版本变更 | 在 VersionCompat.cs 对应方法中插入 `#if MB2_GE_150` 分支（阈值从高到低排） |
 | 某个 API 在新版本被删除 | 可能需要 `#if !MB2_GE_150` 排除新版本，或新增 V 方法封装替代方案 |
+
+✅ v1.5.1 = 第一行情形（签名完全一致），`MB2_GE_150` 无分支使用。
 
 ### 4. 核查 #if 注册表
 逐条检查本文件「不可迁入 V 的 #if」登记表的每一行，确认：
@@ -218,8 +236,14 @@ ilspycmd bin/Win64_Shipping_Client/TaleWorlds.CampaignSystem.dll -t <Type> | gre
 - Harmony 补丁目标是否移动
 - structural 差异是否需要调整算法
 
+✅ v1.5.1：注册表逐条核查 + **27 个 Harmony 字符串补丁目标二进制 grep 全存活**
+（唯一 MISSING = 1.2.12-only 条件编译的 `FillPartyStacks`，预期），注册表无改动。
+
 ### 5. 更新备份 DLL
-把 `Modules/1.4.6DLL/` 替换为新版本 DLL（旧版可在 Steam depot 回溯下载），更新此文档中的版本号引用。
+把 `Modules/<旧 Latest>DLL/` 的 Latest 地位替换为新版本（旧版保留作历史锚点），更新此文档中的版本号引用。
+✅ v1.5.1：已新建 `Modules/1.5.1DLL/`（41 文件，清单 = 三套旧备份并集；唯一缺失
+`TaleWorlds.GauntletUI.TooltipExtensions.dll` 为 1.2.12-only，csproj Exists 守卫自动跳过）；
+`Modules/1.4.6DLL/` 保留为 1.4.x 历史锚点。1.5.1 备份流程见 `.claude/skills/backup-version-dlls.md`。
 
 ## 踩过的坑（不要重犯）
 
