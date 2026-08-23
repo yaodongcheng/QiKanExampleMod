@@ -25,10 +25,13 @@ namespace LivingWorldNpcs
     ///   玩家把 A/十字键改绑到任何动作（Attack/骑马/跳跃…）都不漏
     /// 处置：两档拦（IsDown + IsPressed 同逻辑）：
     ///   ① 战斗分类（CombatHotKeyCategory）且 ControllerKey ∈ {A, 十字键 4 向, LB, RB, B}
-    ///      → false，**仅面板占用态**（ImChatView.IsPanelKeyOwner——缩略聚焦/输入框聚焦/完整模态；
-    ///      缩略无焦点 = 半模态玩态，A 还给游戏跳跃）
-    ///   ② ESC 模型：IM 打开时 B 单发——B 全分类吞掉（Tick 已消费关面板），同一次按下
-    ///      不许漏到任意分类的 B GameKey（Generic.Leave=4 离开 mission / MissionOrder 选 3 等）
+    ///      → false，**仅 Mission + 面板占用态**（ImChatView.IsPanelKeyOwner——缩略无焦点时
+    ///      面板键按下沿也归面板（2026-08-23 用户裁定「无焦点 A 还给游戏」废止：无焦点按 A/十字键
+    ///      = 进入聚焦，沿被吞；左摇杆/扳机/肩键仍放行 = 半模态玩态只剩移动/镜头））
+    ///   ② ESC 模型：IM 打开时 B 单发——B 全分类吞（Mission + 大地图统一），同一次按下
+    ///      不许漏到任意分类的 B GameKey（Mission：Generic.Leave=4 离开战场 / MissionOrder 选 3；
+    ///      大地图：GameMenu Leave=4 离开菜单——MapScreen.OnFrameTick 轮询 IsGameKeyPressed(4)，
+    ///      与 ESC 穿透同款泄漏，2026-08-23 一并封死）
     /// 不拦：左/右摇杆（移动/镜头）、扳机（攻击/格挡）、Y（互动/上马）、X（踢）——
     /// 缩略半模态岛设计（玩家继续操作角色），面板只认 A/十字键/LB/RB/B。
     /// ⚠️ 与 ImChatMapInputPatch 同目标方法双 Prefix——条件互斥（地图 vs 战斗分类），
@@ -58,14 +61,20 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>统一门控（IsDown / IsPressed 两补丁共用）。</summary>
+        /// <summary>统一门控（IsDown / IsPressed 两补丁共用）。
+        /// 🔴 2026-08-23（B 扩展大地图）：② 的 Mission 限制去掉——B 全分类吞全局生效
+        ///（IsOpen 检查提前，Mission 检查只留给 ① 战斗分类——战斗动作只存在于 Mission）。</summary>
         private static bool ShouldBlock(GameKey key)
         {
-            if (!ImChatView.IsOpen || Mission.Current == null) return false;
-            // ② ESC 模型：B 全分类吞——IM 打开时 B 只关聊天（Tick 消费），任何聚焦态都吞
+            if (!ImChatView.IsOpen) return false;
+            // ② ESC 模型：B 全分类吞（Mission + 大地图统一）——IM 打开时 B 只关聊天（Tick 消费），
+            // 任何聚焦态都吞（Mission：Generic.Leave=4 离开战场；大地图：GameMenu Leave=4 离开菜单）
             if (key.ControllerKey != null && key.ControllerKey.InputKey == InputKey.ControllerRRight)
                 return true;
-            // ① 战斗分类 + 面板键：仅面板占用态才拦——缩略无焦点（半模态玩态）时 A/D-pad 还给游戏
+            // ① 战斗分类 + 面板键：仅 Mission（战斗动作只存在于 Mission）+ 面板占用态才拦——
+            // 缩略无焦点时面板键按下沿也归面板（IsPanelKeyOwner 2026-08-23 起含 A/D-pad 沿，
+            // 见 ImChatView.IsPanelKeyOwner 注释——进入聚焦的沿提前声明占用，不落游戏）
+            if (Mission.Current == null) return false;
             if (!ImChatView.IsPanelKeyOwner) return false;
             return key.GroupId == CombatHotKeyCategoryId
                 && key.ControllerKey != null

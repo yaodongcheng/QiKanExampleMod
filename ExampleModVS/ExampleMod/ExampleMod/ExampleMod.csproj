@@ -320,6 +320,7 @@
     <Compile Include="ImChat\ImChatCursorPatch.cs" />
     <Compile Include="ImChat\ImChatMapInputPatch.cs" />
     <Compile Include="ImChat\ImChatMissionInputPatch.cs" />
+    <Compile Include="ImChat\ImChatEscapeMenuInputPatch.cs" />
     <Compile Include="ImChat\ImChatSoftKeyboardPatch.cs" />
     <Compile Include="ImChat\ImChatVM.cs" />
     <Compile Include="ImChat\ImChatMissionView.cs" />

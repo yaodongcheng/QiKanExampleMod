@@ -462,6 +462,7 @@ static bool Prefix(GameKey __instance, ref bool __result)
 - 补丁门控属性 `IsPanelKeyOwner`：完整恒 true；缩略 = `_padIndex >= 0 || _layer.IsFocusedOnInput()`
 - 🔴 坑：无焦点早退必须同步 `_lastPadA`（防跳跃中按十字键进聚焦产生假 A 按下沿）；`RebuildPadNavigation` 初始焦点缩略 = -1、完整 = 0，`if (_padIndex < 0)` 钳制只对完整模式
 - `ApplyPadVisual` 对 -1 = 全项高亮复位（既有语义，退聚焦复用）
+- 🔴 2026-08-23（用户裁定：「无焦点 A 还给游戏」**废止**）：面板打开 = A/D-pad 全归面板——无焦点按 A 或十字键任意向 → 进入聚焦（沿被吞；A 进聚焦的同一沿不激活，`_lastPadA` 闩锁，下一按才激活）。`IsPanelKeyOwner` 无焦点项 = `AnyDpadPressed() || AnyDpadHeld() || ControllerRDown 沿`（🔴 漏帧根因：`MissionMainAgentController.OnPreMissionTick` 先于本类 `OnMissionTick`，门控必须**提前声明占用**，进入聚焦的沿才不落游戏）。左摇杆退聚焦保留（半模态只剩移动/镜头）。⚠️ ↓ 蹲 native 直喂拦不到（见下条 ESC/B 统一条目）。
 
 ## 🔴 模态 UI 打开自动关 IM（2026-08-19）— `Stealth/StealManager.cs` IsUIOpen setter
 
@@ -472,3 +473,26 @@ public static bool IsUIOpen { get { return _isUIOpen; } set { if (value && !_isU
 ```
 
 **安全前提**：`ImChatView` 是静态类无 null 概念；`Close()` 幂等（`_layer == null` no-op——层销毁包在 `if (_layer != null)`，提示/解冻分支有判空/门控，`PlanCommandFlow.End()` 纯字段复位）。IM 从未打开时调用安全。
+
+---
+
+## 🔴 ESC/B 统一：HotKey.IsReleased 吞原版 UI 热键（2026-08-23，B 模型的键盘侧补齐）— `ImChat/ImChatEscapeMenuInputPatch.cs` + `ImChatView.EscapeCloseHoldActive` + `ImChatMissionInputPatch.ShouldBlock`
+
+**解决什么问题**：IM 打开按 ESC →「面板关了选项菜单又开」；手柄 B 只关面板不弹菜单（用户问题「ESC 触发选项、B 不触发」的答案 = B 在 GameKey 层 ② 吞了，ESC 没有对应闸）。
+
+**关键认知（反编译实锤，三锚点 1.2.12 / 1.3.15 / 1.4.6 签名一致，无需版本分支）**：
+1. **原版所有「ESC 选项菜单」入口的公共闸门 = `ToggleEscapeMenu` HotKey**（`GenericPanelGameKeyCategory`，Escape + `ControllerROption`/Menu 键）：Mission `MissionScreen.HandleInputs`（Native `TaleWorlds.MountAndBlade.View.dll`:16591 → `OnEscape()` → `MissionGauntletEscapeMenuBase` 层 50）、大地图 `MapScreen.TickNavigationInput`（`SandBox.View.dll`:15464 → `OpenEscapeMenu`）、对话/教育/捏脸同款——**堵这一个热键 = 全入口堵死**。
+2. **这是 InputContext 层轮询**（`IsHotKeyReleased` → `HotKey.IsReleased`），不受层 InputRestrictions mask 过滤——与 GameKey 同结论，但属输入系统**另一层**（GameKey = 动作键 / HotKey = UI 热键），GameKey 补丁管不到 → 必须新增 `HotKey.IsReleased` 补丁。
+3. **同帧吞窗必须**：本类 Tick 关面板（`ScreenBase.OnFrameTick` postfix / `OnMissionTick`）先于原版检查执行，同一帧内 `IsOpen` 已 false → 只靠 IsOpen 会漏（实机：ESC 关面板的同时选项菜单弹出）。`_escapeCloseHoldFrames = 2`（ESC 关面板时置位，Tick 顶部递减）——窗口覆盖同帧 + 下一帧的任意检查顺序；面板关闭后的下一按 ESC 正常开选项菜单。
+
+**关键签名**：
+```csharp
+[HarmonyPatch(typeof(HotKey), "IsReleased", new Type[] { typeof(bool), typeof(bool), typeof(bool), typeof(bool) })]
+static bool Prefix(HotKey __instance, ref bool __result)
+// 门控 = __instance.Id == "ToggleEscapeMenu" && (ImChatView.IsOpen || ImChatView.EscapeCloseHoldActive)
+// HotKey.Id = public 字段；internal 4-bool 重载三版本签名一致；PatchAll 自动注册，零挂接（IM 关 → 放行）
+```
+
+**配套裁定（2026-08-23）**：`ImChatMissionInputPatch.ShouldBlock` ② 的 B 全分类吞去掉 `Mission.Current == null` 限制（`IsOpen` 检查提前，Mission 检查只留给 ① 战斗分类）——大地图统一：封死 GameMenu 里 B 触发「离开菜单」（`MapScreen.OnFrameTick` 轮询 `IsGameKeyPressed(4)`，与 ESC 穿透同款泄漏）。
+
+**🔴 引擎限制（同 session 发现，2026-08-23 用户裁定：保留移动、接受蹲）**：手柄 ↓ 蹲（`Crouch`=15）由 **native 直喂玩家 Agent**——原版陆上蹲读取（`TaleWorlds.MountAndBlade.View.dll`:24000）是 `(!Input.IsGamepadActive && IsGameKeyPressed(15))`，手柄被显式豁免（native 处理）；native 喂入的唯一开关 = `Agent.Controller = Player`（完整模式冻结 = `Controller=AI`，`V.SetPlayerControlFrozen` 实证），而半模态移动必须 Player 控制器 → **「可移动」与「屏蔽手柄蹲」在 C# 层互斥**。A 跳（24128 `IsGameKeyPressed(14)` 无豁免）/ ← 视角（25 无豁免）走 GameKey 可拦；↓ 蹲在 Mission 缩略下（聚焦/无焦点皆然）拦不到，接受为已知限制。

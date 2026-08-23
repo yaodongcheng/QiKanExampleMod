@@ -360,7 +360,24 @@ if (!_isDropdownOpen && !_isInputFocused)
 - **🔴 设备切换去抖（坑 10，2026-08-19）**：裸 `ModInput.UsingGamepad` 会每帧振荡（86Hz 实测）——Tick 里裸值变化只累 `_padDeviceDebounce`，稳定 0.2s 才提交 `_lastUsingGamepad`；导航门控/冻结/光标全部读去抖值。门控分支置 `_padNavDirty = true` 防 stale 项死锁。
 - 改动文件：`ImChatView.cs`（导航全部逻辑）、`ImChat.xml` / `ImChatCompact.xml`（删 scope + 加 10 个焦点 Id：C1/C2/CM/CS + K1..K5/KS）、`ImChatVM.cs`（**零改动**，竖排按钮逻辑 v1.2.13 已就位）。
 
-### 11.4 遗留未决
+### 11.4 复盘补充（2026-08-23：A/D-pad 全归面板 + ESC/B 统一，🔴 新 session 必读）
+
+**坑 15：缩略无焦点按 ↓ 触发蹲下（漏帧 + 🔴 引擎限制双重根因）**
+- 现象：缩略面板打开、无焦点（半模态玩态），手柄按 ↓ 角色蹲下（按 A 跳跃同理可复现）。
+- 根因一（漏帧，已修）：`MissionMainAgentController.OnPreMissionTick`（收集战斗 GameKey）**先于**本类 `OnMissionTick`（`UpdatePadFocus` 进聚焦）执行——按下 ↓ 的那一帧，补丁门控 `IsPanelKeyOwner` 还是 false（聚焦未进入），GameKey 读放行；随后 UpdatePadFocus 才看到 ↓ 沿进聚焦。修复：`IsPanelKeyOwner` 增加「无焦点态面板键 = 占用」（`AnyDpadPressed() || AnyDpadHeld() || ControllerRDown 沿`）——补丁提前声明占用，进入聚焦的沿不落游戏。
+- 🔴 根因二（引擎限制，未修，2026-08-23 用户裁定：保留移动、接受蹲）：**手柄 ↓ 蹲（Crouch=15）由 native 直喂玩家 Agent，不经过 C# GameKey**——原版陆上蹲读取（TaleWorlds.MountAndBlade.View.dll:24000）是 `(!Input.IsGamepadActive && base.Input.IsGameKeyPressed(15))`，手柄被显式豁免（native 处理）；A 跳（24128 `IsGameKeyPressed(14)`）无豁免走 GameKey，所以 A 拦得住、↓ 拦不住。native 喂入的唯一开关 = `Agent.Controller = Player`（完整模式冻结 = `Controller=AI`，V.SetPlayerControlFrozen 实证）——而半模态移动必须 Player 控制器 → **「可移动」与「屏蔽手柄蹲」在 C# 层互斥**。Mission 缩略下按 ↓ 仍会蹲（聚焦态亦然），已接受为已知限制；← 视角（25）无豁免走 GameKey，可拦。
+
+**裁定（2026-08-23 用户：「无焦点 A 还给游戏」废止）**
+- 旧：缩略无焦点 = 半模态玩态，A 还给游戏（跳跃），D-pad 才进聚焦。
+- 新：面板打开 = **A/D-pad 全部归面板**——无焦点按 A 或任意十字键 = 进入聚焦（沿被吞；A 进聚焦的同一沿不激活，下一按 A 才激活焦点项，`_lastPadA` 闩锁）。左摇杆移动/退聚焦保留；左摇杆/扳机/肩键仍放行（玩态只剩移动/镜头）。
+
+**坑 16：IM 打开按 ESC 触发选项菜单（ESC/B 不统一的根因）**
+- 现象：IM 面板打开按 ESC → 面板关闭的同时选项菜单弹出；手柄 B 只关面板不弹菜单。
+- 根因（反编译实锤）：原版**所有**「ESC 选项菜单」入口的公共闸门 = `ToggleEscapeMenu` HotKey（`GenericPanelGameKeyCategory`，Escape + ControllerROption/Menu 键），走 `InputContext.IsHotKeyReleased → HotKey.IsReleased` 层轮询——**不受 IM 层 InputRestrictions 键盘 mask 拦截**。消费点：Mission `MissionScreen.HandleInputs`（Native TaleWorlds.MountAndBlade.View.dll:16591 → OnEscape → MissionGauntletEscapeMenuBase）；大地图 `MapScreen.TickNavigationInput`（SandBox.View.dll:15464 → OpenEscapeMenu）；对话/教育/捏脸同款。B（ControllerRRight）不漏 = `ImChatMissionInputPatch` ②「B 全分类吞」已堵 + 不属于本 hotkey。
+- 修复：新增 `ImChatEscapeMenuInputPatch`（补丁 `HotKey.IsReleased`）——`Id=="ToggleEscapeMenu" &&（IsOpen || EscapeCloseHoldActive）` → false。**同帧吞窗**：本类 Tick 关面板（ScreenBase.OnFrameTick postfix / OnMissionTick）先于原版检查执行，同一帧 IsOpen 已 false → 只靠 IsOpen 会漏；`_escapeCloseHoldFrames=2`（ESC 关面板时置，Tick 顶部递减）覆盖同帧+下一帧任意检查顺序。面板关闭后的下一按 ESC 正常开选项菜单。
+- 附带：② 的 B 吞去掉 `Mission.Current == null` 限制（大地图统一）——封死 GameMenu 里 B 触发「离开菜单」（MapScreen.OnFrameTick 轮询 IsGameKeyPressed(4)）的同款泄漏。
+
+### 11.5 遗留未决
 
 1. **原生光标模式锚定↔速度的精确切换条件**：观察规律 = 导航态锚定、输入框聚焦速度。是否与 mask/可见性设置相关未 100% 定论——验证时留意。
 2. **缩略模式与原版 UI 的 D-pad 融合**（原方案 A「光标归属制」）：光标隐藏后搁置；当前实际分工 = 左摇杆=游戏、十字键=面板。若要 D-pad 也能控原版 UI 需再议。
