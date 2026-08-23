@@ -308,8 +308,12 @@ namespace LivingWorldNpcs
         /// 对话是否处于激活状态（开场白已播、选项已计算、引擎缓存了下标）。
         /// 激活中禁止 RemoveRelatedLines —— 引擎实现是 _sentences.RemoveAll(...)，
         /// 物理删除会使已缓存的 CurOptions.SentenceNo 失效（见第 4 步注释的崩溃案例）。
+        /// 🔴 2026-08-23（呼出按钮复用，用户指引）：public——IM 呼出按钮（ShouldShow/CanOpen/
+        /// 点击守卫）复用此判定：对话激活中按钮隐藏 + M 键禁呼出。不依赖 MissionMode=Conversation
+        /// 翻转时序（地图对话 MapConversation、部分场景模式不翻转时同样兜住；
+        /// IsInteractionDisabled 的 Conversation 分支保留为双保险）。
         /// </summary>
-        private static bool IsConversationActive()
+        public static bool IsConversationActive()
         {
             try
             {

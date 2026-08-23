@@ -398,6 +398,12 @@ namespace LivingWorldNpcs
         {
             if (!Settings.Instance.PlotEnabled) return false;
             if (!Settings.Instance.IsLLMConfigured) return false;
+            // 🔴 2026-08-23（用户指引：复用既有对话判定）：任何对话激活中（原版对话流打开——
+            // 定居点对话/正常 mission 内对话/大地图对话）→ 按钮隐藏。底层 = 原版
+            // ConversationManager.IsConversationFlowActive（ConversationEntryPatch.IsConversationActive），
+            // 不依赖 MissionMode=Conversation 翻转时序（地图对话等模式不翻的场景也兜住；
+            // IsInteractionDisabled 的 Conversation 分支保留双保险）。
+            if (ConversationEntryPatch.IsConversationActive()) return false;
             if (Mission.Current != null)
             {
                 if (Settings.Instance.IsInteractionDisabled()) return false;
@@ -544,7 +550,8 @@ namespace LivingWorldNpcs
             {
                 // 🔴 2026-08-22/23（用户反馈：按钮穿透）：可见性同步帧延迟兜底——全屏 UI / ESC 菜单
                 // 打开时即使按钮还挂着也不响应（ShouldShow 已隐藏，这里防同步间隙误触）
-                if (UiFullScreenHelper.IsFullScreenUiOpen() || UiFullScreenHelper.IsEscapeMenuOpen()) return;
+                if (UiFullScreenHelper.IsFullScreenUiOpen() || UiFullScreenHelper.IsEscapeMenuOpen()
+                    || ConversationEntryPatch.IsConversationActive()) return;
                 // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略模式开着时点击 =
                 // 放大为完整模式（玩家点按钮的意图是看消息；旧行为 Open 返回 false 静默无反应）。
                 bool opened = ImChatView.OpenOrExpand();
