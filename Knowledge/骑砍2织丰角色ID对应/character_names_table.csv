@@ -1,0 +1,1386 @@
+StringId	LocalizationId	EnglishName	ChineseName	Faction	Culture
+lord_1_asakura	yAchbdS0	Asakura Yoshikage	朝仓 义景	Faction.clan_asakura_1	Culture.hokuriku
+lord_1_asakura_1	92Plru2R	Asakura Shoko	昭子	Faction.clan_asakura_1	Culture.hokuriku
+lord_1_asakura_2	PeZKtHl4	Asakura Kageakira	朝仓 景镜	Faction.clan_asakura_1	Culture.hokuriku
+lord_1_asakura_3	10GS8hh6	Asakura Fusako	房子	Faction.clan_asakura_1	Culture.hokuriku
+lord_1_yamazaki	zHzGUOYl	Yamazaki Yoshiie	山崎 吉家	Faction.clan_yamazaki_1	Culture.hokuriku
+lord_1_yamazaki_1	nTqCvCWT	Yamazaki Icho	一尾	Faction.clan_yamazaki_1	Culture.hokuriku
+dead_lord_1_yamazaki_2	byu8D8HC	Yamazaki Nagayoshi	山崎 长吉	Faction.clan_yamazaki_1	Culture.hokuriku
+dead_lord_1_yamazaki_3	maSOGXrZ	Yamazaki Shomyo-in	昭明院	Faction.clan_yamazaki_1	Culture.hokuriku
+lord_1_yamazaki_4	MxewE2UB	Yamazaki Yoshitake	山崎 吉武	Faction.clan_yamazaki_1	Culture.hokuriku
+lord_1_yamazaki_5	X5qVfju7	Yamazaki Yoshinobu	山崎 吉延	Faction.clan_yamazaki_1	Culture.hokuriku
+lord_1_yamazaki_6	K5vrtqxW	Yamazaki Kogiku	小菊	Faction.clan_yamazaki_1	Culture.hokuriku
+lord_1_yamazaki_7	LrsfIPm8	Yamazaki Naganori	山崎 长德	Faction.clan_yamazaki_1	Culture.hokuriku
+lord_1_mizoe	FjN0SPCO	Mizoe Kageyasu	沟江 景逸	Faction.clan_mizoe_1	Culture.hokuriku
+lord_1_mizoe_1	edubnNQh	Mizoe Tome	阿留	Faction.clan_mizoe_1	Culture.hokuriku
+lord_1_mizoe_2	DGRdBFWD	Mizoe Nagayasu	沟江 长逸	Faction.clan_mizoe_1	Culture.hokuriku
+lord_1_mizoe_3	YiN0QUpV	Mizoe Oku	阿奥	Faction.clan_mizoe_1	Culture.hokuriku
+lord_1_mizoe_4	htAMl2eb	Mizoe Nagauji	沟江 长氏	Faction.clan_mizoe_1	Culture.hokuriku
+lord_1_mizoe_5	m28lOKlG	Mizoe Ben-ei	辨荣	Faction.clan_mizoe_1	Culture.hokuriku
+lord_1_maeba	jGCv6Uil	Maeba Kagemasa	前波 景当	Faction.clan_maeba_1	Culture.hokuriku
+lord_1_maeba_1	jaNkGPsJ	Maeba Sei	阿世	Faction.clan_maeba_1	Culture.hokuriku
+dead_lord_1_maeba_2	Bhxb1sTw	Maeba Kagesada	前波 景定	Faction.clan_maeba_1	Culture.hokuriku
+dead_lord_1_maeba_3	aCNFnmpJ	Maebe Keiko-in	华光院	Faction.clan_maeba_1	Culture.hokuriku
+lord_1_maeba_4	ZctOTbV9	Maeba Katsuhide	前波 胜秀	Faction.clan_maeba_1	Culture.hokuriku
+lord_1_maeba_5	FXVHs6Rl	Maeba Yoshitsugu	前波 吉继	Faction.clan_maeba_1	Culture.hokuriku
+lord_1_maeba_6	pTApzZjo	Maeba Kyo	阿京	Faction.clan_maeba_1	Culture.hokuriku
+lord_1_anekouji	8NfTd97s	Anekouji Yoshiyori	姊小路 良赖	Faction.clan_anekouji_1	Culture.tosan
+lord_1_anekouji_1	khSBd7oA	Anekouji Hagi	阿萩	Faction.clan_anekouji_1	Culture.tosan
+lord_1_anekouji_2	zgHNjeAc	Anekouji Yoritsuna	姊小路 赖纲	Faction.clan_anekouji_1	Culture.tosan
+lord_1_anekouji_3	Ozp8uVH2	Anekouji Mei	阿明	Faction.clan_anekouji_1	Culture.tosan
+lord_1_anekouji_4	3t8eBlK9	Anekouji Nobutsuna	姊小路 信纲	Faction.clan_anekouji_1	Culture.tosan
+lord_1_anekouji_5	50rxSxoL	Anekouji Hidetsuna	姊小路 秀纲	Faction.clan_anekouji_1	Culture.tosan
+lord_1_anekouji_6	YS6J1DSx	Anekouji Suetsuna	姊小路 季纲	Faction.clan_anekouji_1	Culture.tosan
+lord_1_anekouji_7	ChLVdmm5	Anekouji Hisa	阿久	Faction.clan_anekouji_1	Culture.tosan
+lord_1_anekouji_8	fllPpIHN	Anekouji Tei	小丁	Faction.clan_anekouji_1	Culture.tosan
+lord_1_miki	rmn0keBY	Miki Kunitsuna	三木 国纲	Faction.clan_miki_1	Culture.tosan
+lord_1_miki_1	pOV36qLw	Miki Kise	喜势	Faction.clan_miki_1	Culture.tosan
+lord_1_miki_2	Mwzg4d94	Miki Akitsuna	三木 显纲	Faction.clan_miki_1	Culture.tosan
+lord_1_miki_3	BUaB2CAs	Miki Yuki	阿幸	Faction.clan_miki_1	Culture.tosan
+lord_1_uchigashima	reQL1Reg	Uchigashima Ujimasa	内岛 氏理	Faction.clan_uchigashima_1	Culture.tosan
+lord_1_uchigashima_1	ZAVB59DI	Uchigashima Tsune	阿常	Faction.clan_uchigashima_1	Culture.tosan
+dead_lord_1_uchigashima_2	x5bCceO3	Uchigashima Ujitoshi	内岛 氏利	Faction.clan_uchigashima_1	Culture.tosan
+dead_lord_1_uchigashima_3	0wP2NHjx	Uchigashima Shinko-in	心光院	Faction.clan_uchigashima_1	Culture.tosan
+lord_1_uchigashima_4	BFpJOH9B	Uchigashima Ujiyuki	内岛 氏行	Faction.clan_uchigashima_1	Culture.tosan
+lord_1_uchigashima_5	oWMNADvQ	Uchigashima Chise	千世	Faction.clan_uchigashima_1	Culture.tosan
+lord_1_uchigashima_6	VkHrE7QN	Uchigashima Ujinori	内岛 氏规	Faction.clan_uchigashima_1	Culture.tosan
+lord_1_uchigashima_7	8Njl5F1v	Uchigashima Ujifusa	内岛 氏房	Faction.clan_uchigashima_1	Culture.tosan
+lord_1_uchigashima_8	XOj9DW3l	Uchigashima Ujichika	内岛 氏亲	Faction.clan_uchigashima_1	Culture.tosan
+lord_1_uchigashima_9	iDawiizs	Uchigashima Sue	阿末	Faction.clan_uchigashima_1	Culture.tosan
+lord_1_shimotsuma	nO8nbFeD	Shimotsuma Rairen	下间 赖廉	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_1	YJnCp2Ng	Shimotsuma Tensho-in	天璋院	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_2	ELQ0jKOQ	Shimotsuma Rairyo	下间 赖亮	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_3	L6k0BihZ	Shimotsuma  Munekiyo	下间 宗清	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_4	6EDf32QW	Shimotsuma Rengoyoku-ni	莲护尼	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_5	JkG837Se	Shimotsuma Saiko-ni	西光尼	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_6	dTVh9niZ	Shimotsuma Raisho	下间 赖照	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_7	uWUgquZb	Shimotsuma Keian-in	庆安院	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_8	ttOsDrht	Shimotsuma Nakataka	下间 仲孝	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_9	v3KNHiGz	Shimotsuma Raitan	下间 赖旦	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_10	vJhGvDMI	Shimotsuma Koutoku-in	高德院	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shimotsuma_11	xnKhOXA6	Shimotsuma Rairyu	下间 赖龙	Faction.clan_shimotsuma_1	Culture.hokuriku
+lord_1_shichiri	Eh5FcIr3	Shichiri Yorichika	七里 赖周	Faction.clan_shichiri_1	Culture.hokuriku
+lord_1_shichiri_1	HBQgU0KK	Shichiri Renmyo-in	莲妙院	Faction.clan_shichiri_1	Culture.hokuriku
+lord_1_shichiri_2	YxadjwHu	Shichiri Shoko-ni	诸光尼	Faction.clan_shichiri_1	Culture.hokuriku
+lord_1_shichiri_3	EDp1Ip1P	Shichiri Tenshin-ni	天心尼	Faction.clan_shichiri_1	Culture.hokuriku
+lord_1_notohatakeyama	zzPufQWW	Noto-Hatakeyama Yoshinori	畠山 义则	Faction.clan_notohatakeyama_1	Culture.hokuriku
+lord_1_notohatakeyama_1	Uq5GEfN0	Noto-Hatakeyama Keiko	惠子	Faction.clan_notohatakeyama_1	Culture.hokuriku
+dead_lord_1_notohatakeyama_2	uWclrYkK	Noto-Hatakeyama Yoshitsuna	畠山 义纲	Faction.clan_notohatakeyama_1	Culture.hokuriku
+dead_lord_1_notohatakeyama_3	L7cUrjNA	Noto-Hatakeyama Keisei-in	惠圣院	Faction.clan_notohatakeyama_1	Culture.hokuriku
+lord_1_notohatakeyama_4	MzeRfL4G	Noto-Hatakeyama Yoshitaka	畠山 义隆	Faction.clan_notohatakeyama_1	Culture.hokuriku
+lord_1_cho	Ykm1ZcKt	Cho Tsugutsura	长 续连	Faction.clan_cho_1	Culture.hokuriku
+lord_1_cho_1	54P6AoCQ	Cho Kine	阿甲	Faction.clan_cho_1	Culture.hokuriku
+lord_1_cho_2	BH4qApyf	Cho Tsunatsura	长 纲连	Faction.clan_cho_1	Culture.hokuriku
+lord_1_cho_3	mxxEQmKL	Cho Chiho	千本	Faction.clan_cho_1	Culture.hokuriku
+lord_1_cho_4	Pd02cWIP	Cho Turatatsu	长 连龙	Faction.clan_cho_1	Culture.hokuriku
+lord_1_yusa	6UGnlTvg	Yusa Tsugumitsu	游佐 续光	Faction.clan_yusa_1	Culture.hokuriku
+lord_1_yusa_1	mtpjGuCC	Yusa Sue	阿末	Faction.clan_yusa_1	Culture.hokuriku
+lord_1_yusa_2	JoEyAqpB	Yusa Morimitsu	游佐 盛光	Faction.clan_yusa_1	Culture.hokuriku
+lord_1_nukui	zfaBVnTz	Nukui Kagetaka	温井 景隆	Faction.clan_nukui_1	Culture.hokuriku
+lord_1_nukui_1	PkUrZWtb	Nukui Kane	阿金	Faction.clan_nukui_1	Culture.hokuriku
+dead_lord_1_nukui_2	9LHg8tSs	Nukui Tsugumune	温井 续宗	Faction.clan_nukui_1	Culture.hokuriku
+dead_lord_1_nukui_3	PySBB1Zv	Nukui En	阿圆	Faction.clan_nukui_1	Culture.hokuriku
+lord_1_nukui_4	1zGy3GLa	Nukui Nagamori	温井 长盛	Faction.clan_nukui_1	Culture.hokuriku
+lord_1_nukui_5	uNnrQHZs	Nukui Mitsu	阿光	Faction.clan_nukui_1	Culture.hokuriku
+lord_1_maeda	8ZM8IWIL	Maeda Toshiie	前田 利家	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_1	X37Mxlbd	Maeda Matsu	阿松	Faction.clan_maeda_1	Culture.tosan
+dead_lord_1_maeda_2	XY7oOzvJ	Maeda Toshiharu	前田 利春	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_3	16wGsj58	Maeda Chorei-in	长龄院	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_4	gUfblyxg	Maeda Toshinaga	前田 利长	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_5	HNxdD6bx	Maeda Kou	阿江	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_6	KkMduqEv	Maeda Shizu	阿静	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_7	37zNtHHt	Maeda Toshihisa	前田 利久	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_8	pm7cjBgT	Maeda Tomi	阿富	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_9	DCmCs5kM	Maeda Toshimasu	前田 利益	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_10	qPinCtuZ	Maeda Yasukatsu	前田 安胜	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_11	o6NRDplP	Maeda Aki	阿秋	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_12	6cjX925Z	Maeda Toshiyoshi	前田 利好	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_13	pVCYrGIa	Maeda Hidetsugu	前田 秀继	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_14	JJRp7jcS	Maeda Kai	甲斐	Faction.clan_maeda_1	Culture.tosan
+lord_1_maeda_15	EAijrwwg	Maeda Toshihide	前田 利秀	Faction.clan_maeda_1	Culture.tosan
+lord_1_akechi	FOuyGkLb	Akechi Mitsuhide	明智 光秀	Faction.clan_akechi_1	Culture.tosan
+lord_1_akechi_1	WM3E1lhn	Akechi Hiroko	弘子	Faction.clan_akechi_1	Culture.tosan
+lord_1_akechi_2	YMwxPbeL	Akechi Mitsuyoshi	明智 光庆	Faction.clan_akechi_1	Culture.tosan
+lord_1_akechi_3	ADvtqTtw	Akechi Ei	阿英	Faction.clan_akechi_1	Culture.tosan
+lord_1_akechi_4	nvlUciWt	Akechi Mitsutada	明智 光忠	Faction.clan_akechi_1	Culture.tosan
+lord_1_akechi_5	lQFaxxIJ	Akechi Toku	阿德	Faction.clan_akechi_1	Culture.tosan
+lord_1_akechi_6	CkNry5Sa	Akechi Hidemitsu	明智 秀满	Faction.clan_akechi_1	Culture.tosan
+lord_1_akechi_7	1R17d0b8	Akechi Tama	明智 玉	Faction.clan_akechi_1	Culture.tosan
+lord_1_niwa	SKcB9YGC	Niwa Nagahide	丹羽 长秀	Faction.clan_niwa_1	Culture.tosan
+lord_1_niwa_1	L05jsNrJ	Niwa Fuse	阿伏	Faction.clan_niwa_1	Culture.tosan
+lord_1_niwa_2	3qxBLbew	Niwa Masa	真砂	Faction.clan_niwa_1	Culture.tosan
+lord_1_niwa_3	XLXbashl	Niwa Take	阿竹	Faction.clan_niwa_1	Culture.tosan
+lord_1_ikeda	duYGUbdI	Ikeda Tsuneoki	池田 恒兴	Faction.clan_ikeda_1	Culture.tosan
+lord_1_ikeda_1	Ry3yD8SW	Ikeda Zen'o-in	善应院	Faction.clan_ikeda_1	Culture.tosan
+dead_lord_1_ikeda_2	7PtkKC5L	Ikeda Tsunetoshi	池田 恒利	Faction.clan_ikeda_1	Culture.tosan
+lord_1_ikeda_3	a8fhiErH	Ikeda Youtoku-in	养德院	Faction.clan_ikeda_1	Culture.tosan
+lord_1_ikeda_4	mZrml2Ov	Ikeda Motosuke	池田 元助	Faction.clan_ikeda_1	Culture.tosan
+lord_1_ikeda_5	VylcfU2r	Ikeda Terumasa	池田 辉政	Faction.clan_ikeda_1	Culture.tosan
+lord_1_ikeda_6	qiIMdezD	Ikeda Sen	千	Faction.clan_ikeda_1	Culture.tosan
+lord_1_tokugawa	lhX5bcSW	Tokugawa Ieyasu	德川 家康	Faction.clan_tokugawa_1	Culture.tokai
+lord_1_tokugawa_1	0VxHt8iA	Tokugawa Tsukiyama	筑山殿	Faction.clan_tokugawa_1	Culture.tokai
+lord_1_tokugawa_2	KPL2cW75	Tokugawa Nobuyasu	德川 信康	Faction.clan_tokugawa_1	Culture.tokai
+lord_1_tokugawa_3	zHBbLO7U	Tokugawa Kame	龟姬	Faction.clan_tokugawa_1	Culture.tokai
+lord_1_tokugawa_4	T7whzugC	Tokugawa Toku	督姬	Faction.clan_tokugawa_1	Culture.tokai
+lord_1_honda	ttXuqvjP	Honda Tadakatsu	本多 忠胜	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_1	wTE64EJ5	Honda Hisa	阿久	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_2	pzKWxRoL	Honda Shigetsugu	本多 重次	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_3	BDFqD8yc	Honda Sane	阿实	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_4	9DY2gzT7	Honda Toshimasa	本多 俊正	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_5	OfpHBzpT	Honda Chie	千枝	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_6	oGp9i8O6	Honda Masanobu	本多 正信	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_7	NIaOPKNj	Honda Shii	阿椎	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_8	dID6ayTM	Honda Masazumi	本多 正纯	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_9	9gdMPNbq	Honda Masashige	本多 正重	Faction.clan_honda_1	Culture.tokai
+lord_1_honda_10	7TBN1cQm	Honda Tsune	阿常	Faction.clan_honda_1	Culture.tokai
+lord_1_sakakibara	A8v1L7R2	Sakakibara Yasumasa	榊原 康政	Faction.clan_sakakibara_1	Culture.tokai
+dead_lord_1_sakakibara_1	vXdi14Dt	Sakakibara Nagamasa	榊原 长政	Faction.clan_sakakibara_1	Culture.tokai
+dead_lord_1_sakakibara_2	RuAChgqW	Sakakibara Yuzu	柚子	Faction.clan_sakakibara_1	Culture.tokai
+lord_1_sakakibara_3	46c1t4F9	Sakakibara Kiyomasa	榊原 清政	Faction.clan_sakakibara_1	Culture.tokai
+lord_1_sakai	GgnkEyTV	Sakai Tadatsugu	酒井 忠次	Faction.clan_sakai_1	Culture.tokai
+lord_1_sakai_1	rrFghyqq	Sakai Usui	碓井姫	Faction.clan_sakai_1	Culture.tokai
+lord_1_sakai_2	A626l0Gm	Sakai Ietsugu	酒井 家次	Faction.clan_sakai_1	Culture.tokai
+lord_1_sakai_3	60W9WGjN	Sakai Fuu	阿枫	Faction.clan_sakai_1	Culture.tokai
+lord_1_ii	PsuvJwcR	Ii Naotora	井伊 直虎	Faction.clan_ii_1	Culture.tokai
+dead_lord_1_ii_1	eeY8Wqqk	Ii Naochika	井伊 直亲	Faction.clan_ii_1	Culture.tokai
+lord_1_ii_2	xF9RihZf	Ii Hiyo	日余	Faction.clan_ii_1	Culture.tokai
+lord_1_ii_3	usy9v6yR	Ii Naomasa	井伊 直政	Faction.clan_ii_1	Culture.tokai
+lord_1_ii_4	hznl27AL	Ii Takase	高濑姬	Faction.clan_ii_1	Culture.tokai
+lord_1_okubo	4RHGzzz5	Okubo Tadakazu	大久保 忠员	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_1	tIwfNdAU	Okubo Kaede	阿枫	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_2	bp0JE7lD	Okubo Tadayo	大久保 忠世	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_3	p9CqbJC5	Okubo Koto	阿琴	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_4	e0sW01xt	Okubo Tadachika	大久保 忠邻	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_5	ulF9F7Xm	Okubo Tadanari	大久保 忠成	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_6	CAxVPHIx	Okubo Tadasuke	大久保 忠佐	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_7	0Kytj7yK	Okubo Amane	阿周	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_8	2nmhylAz	Okubo Tadatame	大久保 忠为	Faction.clan_okubo_1	Culture.tokai
+lord_1_okubo_9	HrxOrz25	Okubo Tadataka	大久保 忠教	Faction.clan_okubo_1	Culture.tokai
+lord_1_hattori	3fFAXVUS	Hattori Masanari	服部 正成	Faction.clan_hattori_1	Culture.tokai
+lord_1_hattori_1	Q3mn8U0b	Hattori Naga	阿永	Faction.clan_hattori_1	Culture.tokai
+dead_lord_1_hattori_2	fdPNZSo0	Hattori Yasunaga	服部 保长	Faction.clan_hattori_1	Culture.tokai
+dead_lord_1_hattori_3	9eEzhPnB	Hattori Kiku	阿菊	Faction.clan_hattori_1	Culture.tokai
+lord_1_hattori_4	3fFAXVUS	Hattori Masanari	服部 正成	Faction.clan_hattori_1	Culture.tokai
+dead_lord_1_hattori_5	So0Nn6DM	Hattori Yasutoshi	服部 保俊	Faction.clan_hattori_1	Culture.tokai
+lord_1_hattori_6	cYVbPLNq	Hattori Tsuru	阿鹤	Faction.clan_hattori_1	Culture.tokai
+lord_1_hattori_7	mdI2AIhF	Hattori Yasuhide	服部 保英	Faction.clan_hattori_1	Culture.tokai
+lord_1_hattori_8	6S59Qnpu	Hattori Yasumasa	服部 保正	Faction.clan_hattori_1	Culture.tokai
+lord_1_hattori_9	vSW8NxqF	Hattori Haru	阿春	Faction.clan_hattori_1	Culture.tokai
+lord_1_hattori_10	ksrFELDK	Hattori Yasunari	服部 康成	Faction.clan_hattori_1	Culture.tokai
+lord_1_uesugi	qNbyhQaj	Uesugi Kenshin	上杉 谦信	Faction.clan_uesugi_1	Culture.hokuriku
+dead_lord_1_uesugi_1	MLZq7awV	Uesugi Tamekage	长尾 为景	Faction.clan_uesugi_1	Culture.hokuriku
+lord_1_uesugi_2	QwRXJCmI	Uesugi Seigan-in	青岩院	Faction.clan_uesugi_1	Culture.hokuriku
+lord_1_uesugi_3	8Iv9ecNC	Uesugi Aya	绫御前	Faction.clan_uesugi_1	Culture.hokuriku
+dead_lord_1_uesugi_4	axhJs6IX	Uesugi Masakage	长尾 政景	Faction.clan_uesugi_1	Culture.hokuriku
+lord_1_uesugi_5	RWQCCx4o	Uesugi Kagekatsu	上杉 景胜	Faction.clan_uesugi_1	Culture.hokuriku
+lord_1_uesugi_6	shVCPmCc	Uesugi Madoka	阿圆	Faction.clan_uesugi_1	Culture.hokuriku
+lord_1_irobe	Cg9EoY4r	Irobe Katsunaga	色部 胜长	Faction.clan_irobe_1	Culture.hokuriku
+lord_1_irobe_1	6z9bSHa7	Irobe Azuki	小豆	Faction.clan_irobe_1	Culture.hokuriku
+lord_1_irobe_2	luKhUhXh	Irobe Akinaga	色部 显长	Faction.clan_irobe_1	Culture.hokuriku
+lord_1_irobe_3	bSqEzLcJ	Irobe Nagazane	色部 长实	Faction.clan_irobe_1	Culture.hokuriku
+lord_1_kakizaki	XgIyv7bL	Kakizaki Kageie	柿崎 景家	Faction.clan_kakizaki_1	Culture.hokuriku
+lord_1_kakizaki_1	wOt7PGWW	Kakizaki Kiku	安房	Faction.clan_kakizaki_1	Culture.hokuriku
+lord_1_kakizaki_2	RNZWsztn	Kakizaki Haruie	柿崎 晴家	Faction.clan_kakizaki_1	Culture.hokuriku
+lord_1_kakizaki_3	UX8SD6t0	Kakizaki Matsu	小舞	Faction.clan_kakizaki_1	Culture.hokuriku
+lord_1_naoe	CQuYOgRo	Naoe Kagetsuna	直江 景纲	Faction.clan_naoe_1	Culture.hokuriku
+lord_1_naoe_1	9zniFw6a	Naoe Ran	阿兰	Faction.clan_naoe_1	Culture.hokuriku
+lord_1_naoe_2	aizCBXYO	Naoe Sen	阿千	Faction.clan_naoe_1	Culture.hokuriku
+lord_2_shibata	4yJ1D3Lk	Shibata Nagaatsu	新发田 长敦	Faction.clan_shibata_2	Culture.hokuriku
+lord_2_shibata_1	N5nPQ9iT	Shibata Saki	阿咲	Faction.clan_shibata_2	Culture.hokuriku
+dead_lord_2_shibata_2	jCqzvM9s	Shibata Tsunasada	新发田 纲贞	Faction.clan_shibata_2	Culture.hokuriku
+dead_lord_2_shibata_3	r6hPxS8L	Shibata Tensho-in	天璋院	Faction.clan_shibata_2	Culture.hokuriku
+lord_2_shibata_4	Vnl5lCcr	Shibata Shigeie	新发田 重家	Faction.clan_shibata_2	Culture.hokuriku
+lord_2_shibata_5	msDDZ9zQ	Shibata Kotake	小竹	Faction.clan_shibata_2	Culture.hokuriku
+lord_1_jinbo	lTQNNnd4	Jinbo Nagamoto	神保 长职	Faction.clan_jinbo_1	Culture.hokuriku
+lord_1_jinbo_1	hVSyu2fz	Jinbo Asahi	阿旭	Faction.clan_jinbo_1	Culture.hokuriku
+lord_1_jinbo_2	TbOZeUsx	Jinbo Nagazumi	神保 长住	Faction.clan_jinbo_1	Culture.hokuriku
+lord_1_jinbo_3	6HJv9QVb	Jinbo Naka	阿仲	Faction.clan_jinbo_1	Culture.hokuriku
+lord_1_jinbo_4	rctAbfBY	Jinbo Nagakuni	神保 长城	Faction.clan_jinbo_1	Culture.hokuriku
+lord_1_jinbo_5	Bs8eZQFC	Jinbo Sayo	小夜	Faction.clan_jinbo_1	Culture.hokuriku
+lord_2_murakami	W5wJGTC8	Murakami Yoshikiyo	村上 义清	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_1	MESMSv9a	Murakami Fune	阿船	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_2	yGFHfoKI	Murakami Yoshikatsu	村上 义胜	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_3	TCUOLBRT	Murakami Sada	佐多	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_4	5O1LWXJp	Murakami Yoshiteru	村上 义照	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_5	RuCWEn4I	Murakami Kyo	阿京	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_6	6qygzS4a	Murakami Yoshikuni	村上 义邦	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_7	kQx9hdpB	Murakami Tai	碓井	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_8	H9SHda0i	Murakami Kunikiyo	村上 国清	Faction.clan_murakami_2	Culture.hokuriku
+lord_2_murakami_9	subHFWkG	Murakami Kazu	阿一	Faction.clan_murakami_2	Culture.hokuriku
+lord_1_honma	qmR0GKfJ	Honma Sadakane	本间 贞兼	Faction.clan_honma_1	Culture.hokuriku
+lord_1_honma_1	DM691On9	Honma Tsuta	阿茑	Faction.clan_honma_1	Culture.hokuriku
+lord_1_honma_2	fMcQDpxT	Honma Takatsuna	本间 高统	Faction.clan_honma_1	Culture.hokuriku
+lord_1_honma_3	fy68erIy	Honma Tomo	阿友	Faction.clan_honma_1	Culture.hokuriku
+lord_1_honma_4	wr8Xrdq3	Honma Muneyuki	本间 宗幸	Faction.clan_honma_1	Culture.hokuriku
+lord_1_honma_5	jKoS0rtx	Honma Takaou	本间 高应	Faction.clan_honma_1	Culture.hokuriku
+lord_1_honjo	Yb8Jirco	Honjo Sigenaga	本庄 繁长	Faction.clan_honjo_1	Culture.hokuriku
+lord_1_honjo_1	NDluCjrj	Honjo Momiji	红叶	Faction.clan_honjo_1	Culture.hokuriku
+lord_1_honjo_2	Ng1qk1bc	Honjo Akinaga	本庄 显长	Faction.clan_honjo_1	Culture.hokuriku
+lord_1_honjo_3	9107Gylz	Honjo Saneyori	本庄 实乃	Faction.clan_honjo_1	Culture.hokuriku
+lord_1_honjo_4	7U80DoRY	Honjo Sagami	相模	Faction.clan_honjo_1	Culture.hokuriku
+lord_1_honjo_5	5LpGgkPs	Honjo Hidetsuna	本庄 秀纲	Faction.clan_honjo_1	Culture.hokuriku
+lord_1_honjo_6	1oAT3tap	Honjo Ise	伊势	Faction.clan_honjo_1	Culture.hokuriku
+lord_1_honjo_7	3MdGZMX4	Honjo Kageyori	本庄 景赖	Faction.clan_honjo_1	Culture.hokuriku
+lord_1_takeda	CmHdCNgW	Takeda Shingen	武田 信玄	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_1	4i6fDyD8	Takeda Sanjo-no-kata	三条 之方	Faction.clan_takeda_1	Culture.tosan
+dead_lord_1_takeda_2	0W8I3WDW	Takeda Nobutora	武田 信虎	Faction.clan_takeda_1	Culture.tosan
+dead_lord_1_takeda_3	ypwKxiQu	Takeda Oi	小井	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_4	86eH8vEV	Takeda Katsuyori	武田 胜赖	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_5	v3Z4a3yT	Takeda Nobukiyo	武田 信清	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_6	DaR7ks4O	Takeda Mari	麻里	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_7	oDOj9SD6	Takeda Kiku	菊姬	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_8	xpuvPs14	Takeda Matsu	松姬	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_9	y03WXHuV	Takeda Nobukado	武田 信廉	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_10	XTtGyQDW	Takeda Oboro	阿胧	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_11	08ToFFXf	Takeda Nobuzumi	武田 信澄	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_12	1TVdy9aJ	Takeda Nobuaki	武田 信显	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_13	AnDrohq6	Takeda Tsuyu	阿露	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_14	zTstz8YU	Takeda Nobutomo	武田 信友	Faction.clan_takeda_1	Culture.tosan
+lord_1_takeda_15	Kr9vJDJr	Takeda Koharu	小春	Faction.clan_takeda_1	Culture.tosan
+lord_1_baba	mf6qRfQ9	Baba Nobuharu	马场 信春	Faction.clan_baba_1	Culture.tosan
+lord_1_baba_1	g6O5UTIU	Baba Shinko-in	心光院	Faction.clan_baba_1	Culture.tosan
+lord_1_baba_2	sUPNtt42	Baba Masafusa	马场 昌房	Faction.clan_baba_1	Culture.tosan
+lord_1_baba_3	DHiUrEoe	Baba Tatsu	阿龙	Faction.clan_baba_1	Culture.tosan
+lord_1_baba_4	fcNnjXsC	Baba Nobuyoshi	马场 信义	Faction.clan_baba_1	Culture.tosan
+lord_1_baba_5	3qyP1ctn	Baba Fumi	阿文	Faction.clan_baba_1	Culture.tosan
+lord_1_baba_6	gz7lL74b	Baba Fusakatsu	马场 房胜	Faction.clan_baba_1	Culture.tosan
+lord_1_baba_7	njGs760D	Baba Mai	麻衣	Faction.clan_baba_1	Culture.tosan
+lord_1_kiso	Hkshvmje	Kiso Yoshiyasu	木曾 义康	Faction.clan_kiso_1	Culture.tosan
+lord_1_kiso_1	vbIJLnaE	Kiso Maki	万喜	Faction.clan_kiso_1	Culture.tosan
+lord_1_kiso_2	0glR6o3S	Kiso Yoshimasa	木曾 义昌	Faction.clan_kiso_1	Culture.tosan
+lord_1_kiso_3	hCph1y6W	Kiso Mari	麻里	Faction.clan_kiso_1	Culture.tosan
+lord_1_kiso_4	Uh8eLrzj	Kiso Yoshitoyo	木曾 义丰	Faction.clan_kiso_1	Culture.tosan
+lord_1_kiso_5	CST4VZ3y	Kiso Iwa	伊波	Faction.clan_kiso_1	Culture.tosan
+lord_1_sanada	nOD4Gqu3	Sanada Nobutsuna	真田 信纲	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_1	LLDSUh4P	Sanada Kita	喜多	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_2	wcz0nDz4	Sanada Yukitsuna	真田 幸纲	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_3	xCBCWoyE	Sanada Kyou'un-in	恭云院	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_4	Juq9azQr	Sanada Masateru	真田 昌辉	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_5	WVGige9a	Sanada Azuma	阿万	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_6	kgkhqmWv	Sanada Masayuki	真田 昌幸	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_7	8GNzUWme	Sanada Yamanote	山手殿	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_8	RxAnenAt	Sanada Nobuyuki	真田 信幸	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_9	SrBZhW62	Sanada Nobushige	真田 信繁	Faction.clan_sanada_1	Culture.tosan
+lord_1_sanada_10	p6u25ahF	Sanada Nobutada	真田 信尹	Faction.clan_sanada_1	Culture.tosan
+lord_1_nishina	CGW3d2m1	Nishina Morinobu	仁科 盛信	Faction.clan_nishina_1	Culture.tosan
+dead_lord_1_nishina_1	pMatiznR	Nishina Morimasa	仁科 盛政	Faction.clan_nishina_1	Culture.tosan
+lord_1_nishina_2	p5ZVom76	Nishina Sekisho-in	赤松院	Faction.clan_nishina_1	Culture.tosan
+lord_1_nishina_3	NxcRsCiG	Nishina Moritaka	仁科 盛孝	Faction.clan_nishina_1	Culture.tosan
+lord_1_nishina_4	NMWHcNzI	Nishina Morikiyo	仁科 盛清	Faction.clan_nishina_1	Culture.tosan
+lord_1_oyamada	R2xuV24U	Oyamada Nobushige	小山田 信茂	Faction.clan_oyamada_1	Culture.tosan
+lord_1_oyamada_1	Dg5B2zhF	Oyamada Momo	桃子	Faction.clan_oyamada_1	Culture.tosan
+lord_1_oyamada_2	g45BojcX	Oyamada Nobutsuna	小山田 信纲	Faction.clan_oyamada_1	Culture.tosan
+lord_1_oyamada_3	zF6jIhMK	Oyamada Harusuke	春助	Faction.clan_oyamada_1	Culture.tosan
+lord_1_anayama	kJSK4wyx	Anayama Nobutada	穴山 信君	Faction.clan_anayama_1	Culture.tosan
+lord_1_anayama_1	aEtxWN2O	Anayama Fuchi	小渊	Faction.clan_anayama_1	Culture.tosan
+lord_1_yamagata	foSkGqkk	Yamagata Masakage	山县 昌景	Faction.clan_yamagata_1	Culture.tosan
+lord_1_yamagata_1	HjUZWMTO	Yamagata Yumi	小弓	Faction.clan_yamagata_1	Culture.tosan
+lord_1_yamagata_2	YXIWbWf0	Yamagata Masamitsu	山县 昌满	Faction.clan_yamagata_1	Culture.tosan
+lord_1_yamagata_3	92oaxFYB	Yamagata Hana	花子	Faction.clan_yamagata_1	Culture.tosan
+lord_1_yamagata_4	0mCx7j50	Yamagata Masashige	山县 昌重	Faction.clan_yamagata_1	Culture.tosan
+lord_1_yamagata_5	Yq8SOeXP	Yamagata Masahisa	山县 昌久	Faction.clan_yamagata_1	Culture.tosan
+lord_1_yamagata_6	KDNU2gvn	Yamagata Tsuku	木菟	Faction.clan_yamagata_1	Culture.tosan
+lord_1_yamagata_7	ecShe0I2	Yamagata En	阿圆	Faction.clan_yamagata_1	Culture.tosan
+lord_1_kasuga	g4maTpNu	Kasuga Toratsuna	春日 虎纲	Faction.clan_kasuga_1	Culture.tosan
+lord_1_kasuga_1	TYa3IRFt	Kasuga Shige	阿茂	Faction.clan_kasuga_1	Culture.tosan
+lord_1_kasuga_2	MpF2HDx9	Kasuga Masazumi	高坂 昌澄	Faction.clan_kasuga_1	Culture.tosan
+lord_1_kasuga_3	Ha5aVxa5	Kasuga Yuki	阿幸	Faction.clan_kasuga_1	Culture.tosan
+lord_1_kasuga_4	SMr29glZ	Kasuga Masamoto	高坂 昌元	Faction.clan_kasuga_1	Culture.tosan
+lord_1_kasuga_5	cZMqkGId	Kasuga Masasada	高坂 昌定	Faction.clan_kasuga_1	Culture.tosan
+lord_1_imagawa	SJcxjwoG	Imagawa Ujizane	今川 氏真	Faction.clan_imagawa_1	Culture.tokai
+lord_1_imagawa_1	JaOi7kxn	Imagawa Hayakawa	早川殿	Faction.clan_imagawa_1	Culture.tokai
+lord_1_imagawa_2	PTuEiwT5	Imagawa Sada	佐多	Faction.clan_imagawa_1	Culture.tokai
+lord_1_asahina	6F0GOTMx	Asahina Yasutomo	朝比奈 泰朝	Faction.clan_asahina_1	Culture.tokai
+lord_1_asahina_1	iREsPn2R	Asahina Sawa	佐和	Faction.clan_asahina_1	Culture.tokai
+lord_1_asahina_2	LPbuuBT7	Asahina Yasumoto	朝比奈 泰基	Faction.clan_asahina_1	Culture.tokai
+lord_1_asahina_3	tCqVkzwq	Asahina Nobuoki	朝比奈 信置	Faction.clan_asahina_1	Culture.tokai
+lord_1_asahina_4	TyQ6HZYx	Asahina Yui	由比	Faction.clan_asahina_1	Culture.tokai
+lord_1_asahina_5	OO1CZVQY	Asahina Nobuyoshi	朝比奈 泰能	Faction.clan_asahina_1	Culture.tokai
+lord_1_asahina_6	OJ0Bt41g	Asahina Motonaga	朝比奈 元长	Faction.clan_asahina_1	Culture.tokai
+lord_1_asahina_7	QsBBAV6a	Asahina Munetoshi	朝比奈 宗利	Faction.clan_asahina_1	Culture.tokai
+lord_1_fuji	c9kHua0I	Fuji Nobutada	富士 信忠	Faction.clan_fuji_1	Culture.tokai
+lord_1_fuji_1	Fo5zfzvM	Fuji Matsu	阿松	Faction.clan_fuji_1	Culture.tokai
+lord_1_fuji_2	GtQEM4H1	Fuji Nobumichi	富士 信通	Faction.clan_fuji_1	Culture.tokai
+lord_1_fuji_3	R6QFv61S	Fuji Yae	八重	Faction.clan_fuji_1	Culture.tokai
+lord_1_fuji_4	1dudFqAY	Fuji Nobushige	富士 信重	Faction.clan_fuji_1	Culture.tokai
+lord_1_fuji_5	BmHwTG2p	Fuji Kou	阿江	Faction.clan_fuji_1	Culture.tokai
+lord_1_okabe	R0oRncp7	Okabe Motonobu	冈部 元信	Faction.clan_okabe_1	Culture.tokai
+lord_1_okabe_1	P1UiQyME	Okabe Sakae	阿荣	Faction.clan_okabe_1	Culture.tokai
+dead_lord_1_okabe_2	r9MHER6o	Okabe Chikatsuna	冈部 亲纲	Faction.clan_okabe_1	Culture.tokai
+lord_1_okabe_3	mteALoQA	Okabe Myosen-ni	妙宣尼	Faction.clan_okabe_1	Culture.tokai
+lord_1_okabe_4	jDEOJ3VU	Okabe Sanetaka	冈部 真尧	Faction.clan_okabe_1	Culture.tokai
+lord_1_okabe_5	RGfPAqxo	Okabe Motoaki	冈部 元明	Faction.clan_okabe_1	Culture.tokai
+lord_1_okabe_6	9yB1OZBM	Okabe Masatsuna	冈部 正纲	Faction.clan_okabe_1	Culture.tokai
+lord_1_okabe_7	J8S3HAxP	Okabe Kame	阿龟	Faction.clan_okabe_1	Culture.tokai
+lord_1_okabe_8	22eOrkcg	Okabe Nagamori	冈部 长盛	Faction.clan_okabe_1	Culture.tokai
+lord_1_okabe_9	FCzQSXcq	Okabe Nagaaki	冈部 长秋	Faction.clan_okabe_1	Culture.tokai
+lord_1_mori	pK7A2Rp7	Mori Terumoto	毛利 辉元	Faction.clan_mori_1	Culture.sanyo
+lord_1_mori_1	fov5Mzy7	Mori Motonari	毛利 元就	Faction.clan_mori_1	Culture.sanyo
+lord_1_mori_2	DjUMn7At	Mori Myokyu	妙玖夫人	Faction.clan_mori_1	Culture.sanyo
+lord_1_mori_3	14vUfETg	Mori Takamoto	毛利 隆元	Faction.clan_mori_1	Culture.sanyo
+lord_1_mori_4	BSWxMZFE	Mori Ayaya	绫野	Faction.clan_mori_1	Culture.sanyo
+lord_1_mori_5	x08M6xh2	Mori Motoaki	毛利 元秋	Faction.clan_mori_1	Culture.sanyo
+lord_1_mori_6	HzJdFNL7	Mori Hidekane	毛利 秀包	Faction.clan_mori_1	Culture.sanyo
+lord_1_kobayakawa	ljrQK9ik	Kobayakawa Takakage	小早川 隆景	Faction.clan_kobayakawa_1	Culture.sanyo
+lord_1_kobayakawa_1	VQH0SYq0	Kobayakawa Toida	问田大方	Faction.clan_kobayakawa_1	Culture.sanyo
+lord_1_kikkawa	9BscWFYJ	Kikkawa Motoharu	吉川 元春	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_1	PqjmlE5W	Kikkawa Iwakuni	岩国	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_2	QnqH5KZ0	Kikkawa Motonaga	吉川 元长	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_3	3OyxaM6M	Kikkawa Yomogi	蓬生	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_4	0wrHmcK7	Kikkawa Hiroie	吉川 广家	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_5	BrDafz9a	Kikkawa Tomi	阿富	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_6	akFMV6yS	Kikkawa Amane	阿周	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_7	UENAABaj	Kikkawa Tuneyasu	吉川 经安	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_8	BDvDn7EA	Kikkawa Awa	安房	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_9	3PJdgQiO	Kikkawa Tuneie	吉川 经家	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_10	unkJIljQ	Kikkawa Momo	桃子	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_11	tZTNsQR1	Kikkawa Hina	小雏	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_kikkawa_12	9tqn5PPq	Kikkawa Tomoe	巴	Faction.clan_kikkawa_1	Culture.sanyo
+lord_1_yoshimi	3gl90OC4	Yoshimi Masayori	吉见 正赖	Faction.clan_yoshimi_1	Culture.sanyo
+lord_1_yoshimi_1	ujpvQZRt	Yoshimi Omiya	大宫姬	Faction.clan_yoshimi_1	Culture.sanyo
+lord_1_yoshimi_2	tMK6TwxL	Yoshimi Hiroyori	吉见 广赖	Faction.clan_yoshimi_1	Culture.sanyo
+lord_1_yoshimi_3	O6uSZlqz	Yoshimi Makomo	阿蒲	Faction.clan_yoshimi_1	Culture.sanyo
+lord_1_yoshimi_4	p4gAtQ44	Yoshimi Hiromasa	吉见 广正	Faction.clan_yoshimi_1	Culture.sanyo
+lord_1_yoshimi_5	fFw7eVr9	Yoshimi Hagi	阿萩	Faction.clan_yoshimi_1	Culture.sanyo
+lord_1_naito	eqnHNZTn	Naito Takaharu	内藤 隆春	Faction.clan_naito_1	Culture.sanyo
+lord_1_naito_1	FjERkhTK	Naito Hisagi	阿楸	Faction.clan_naito_1	Culture.sanyo
+lord_1_naito_2	wREIyLQ0	Naito Motoyasu	内藤 元康	Faction.clan_naito_1	Culture.sanyo
+dead_lord_1_nanjo_1	fA2yEMQT	Nanjo Munehiro	南条 宗广	Faction.clan_nanjo_1	Culture.sanyo
+dead_lord_1_nanjo_2	vsXnQaY3	Nanjo Shokoku-in	相国院	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo	JBy4izdl	Nanjo Sosyo	南条 宗胜	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo_1	3t890NFw	Nanjo Mukuge	木槿	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo_2	IoiBIuNR	Nanjo Mototsugu	南条 元续	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo_3	3WRBgvB5	Nanjo Yukue	行方	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo_4	Y4IdPEjO	Nanjo Motoaki	南条 元秋	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo_5	Num8z5UZ	Nanjo Nobumasa	南条 信正	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo_6	JNbU5CCb	Nanjo Tokiwa	常盘	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo_7	0LcWeO9q	Nanjo Munenobu	南条 宗信	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_nanjo_8	0VdMZ0JH	Nanjo Shima	小岛	Faction.clan_nanjo_1	Culture.sanyo
+lord_1_misawa	VUZ97dN1	Mizawa Tamekiyo	三泽 为清	Faction.clan_misawa_1	Culture.sanyo
+lord_1_misawa_1	U4DnOQh4	Mizawa Kura	小仓	Faction.clan_misawa_1	Culture.sanyo
+lord_1_misawa_2	gYclqkoJ	Mizawa Tametora	三泽 为虎	Faction.clan_misawa_1	Culture.sanyo
+lord_1_misawa_3	WCuytuAF	Mizawa Wase	早稻	Faction.clan_misawa_1	Culture.sanyo
+lord_1_amano	gzGocQQH	Amano Takashige	天野 隆重	Faction.clan_amano_1	Culture.sanyo
+lord_1_amano_1	e97cGhbY	Amano Kitsu	小吉	Faction.clan_amano_1	Culture.sanyo
+lord_1_amano_2	VDpeZ1bz	Amano Motoaki	天野 元明	Faction.clan_amano_1	Culture.sanyo
+lord_1_amano_3	OCQRIum4	Amano Naka	阿仲	Faction.clan_amano_1	Culture.sanyo
+lord_1_amano_4	5v6c3AmS	Amano Motosuke	天野 元祐	Faction.clan_amano_1	Culture.sanyo
+lord_1_amano_5	MQjGjSgA	Amano Chise	千世	Faction.clan_amano_1	Culture.sanyo
+lord_1_amano_6	8ZbntjPj	Amano Mototomo	天野 元俱	Faction.clan_amano_1	Culture.sanyo
+lord_1_amano_7	qU1saRSl	Amano Motoyoshi	天野 元嘉	Faction.clan_amano_1	Culture.sanyo
+lord_1_amano_8	Zrq9XCGa	Amano Motonobu	天野 元信	Faction.clan_amano_1	Culture.sanyo
+lord_1_murakami	TmaAlQZ0	Murakami Takeyoshi	村上 武吉	Faction.clan_murakami_1	Culture.sanyo
+lord_1_murakami_1	YqOXyWEZ	Murakami Somefuji	染藤	Faction.clan_murakami_1	Culture.sanyo
+lord_1_murakami_2	GdKyldZW	Murakami Motoyoshi	村上 元吉	Faction.clan_murakami_1	Culture.sanyo
+lord_1_murakami_3	wMYFNM6X	Murakami Konagi	小凪	Faction.clan_murakami_1	Culture.sanyo
+lord_1_murakami_4	BXLhyQKn	Murakami Michifusa	来岛 通总	Faction.clan_murakami_1	Culture.sanyo
+lord_1_murakami_5	N2Z8yCGx	Murakami Naoyoshi	村上 尚吉	Faction.clan_murakami_1	Culture.sanyo
+lord_1_murakami_6	EHBZVYCj	Murakami Kohama	小浜	Faction.clan_murakami_1	Culture.sanyo
+lord_1_murakami_7	uIHSWACL	Murakami Yoshimichi	村上 吉通	Faction.clan_murakami_1	Culture.sanyo
+lord_1_murakami_8	MWaaoXcS	Murakami Suo	周防	Faction.clan_murakami_1	Culture.sanyo
+dead_lord_1_kawano_1	dlXo3cfH	Kawano Michiharu	河野 通春	Faction.clan_kawano_1	Culture.sanyo
+dead_lord_1_kawano_2	s4Imj6GD	Kawano Seri	小芹	Faction.clan_kawano_1	Culture.sanyo
+lord_1_kawano	f846iOIo	Kawano Michinobu	河野 通宣	Faction.clan_kawano_1	Culture.sanyo
+lord_1_kawano_1	aNxr9NcV	Kawano Matsuri	小祭	Faction.clan_kawano_1	Culture.sanyo
+lord_1_kawano_2	tAxoidEM	Kawano Michinao	河野 通直	Faction.clan_kawano_1	Culture.sanyo
+lord_1_uragami	wn4Z5851	Uragami Munekage	浦上 宗景	Faction.clan_uragami_1	Culture.sanyo
+lord_1_uragami_1	ys5UK0RM	Uragami Shion	紫苑	Faction.clan_uragami_1	Culture.sanyo
+lord_1_uragami_2	Vcpfb24L	Uragami Munetoki	浦上 宗辰	Faction.clan_uragami_1	Culture.sanyo
+lord_1_uragami_3	N1n8pWTZ	Uragami Tatsu	阿辰	Faction.clan_uragami_1	Culture.sanyo
+dead_lord_1_ukita_1	4JsopToS	Ukita Okiie	宇喜多 兴家	Faction.clan_ukita_1	Culture.sanyo
+dead_lord_1_ukita_2	E1ylj5fW	Ukita Zenjo-in	善净院	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita	FOH3wIT7	Ukita Naoie	宇喜多 直家	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_1	0Gm8PH8I	Ukita Uzu	宇津	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_2	yEwFRYGg	Ukita Ai	阿爱	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_3	EXLq4niV	Ukita Ran	阿兰	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_4	EFdrEfOJ	Ukita Tsukuha	筑波	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_5	cqknUpXj	Ukita Kaya	伽耶	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_6	Yc3JNSpo	Ukita Tadaie	宇喜多 忠家	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_7	HtkNPcxI	Ukita Nadeshiko	抚子	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_8	RTJSr2O7	Ukita Motoie	宇喜多 基家	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_9	nAlhkml6	Ukita Akiie	宇喜多 诠家	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_10	9rJmnygh	Ukita Shiramomo	白桃	Faction.clan_ukita_1	Culture.sanyo
+lord_1_ukita_11	Z173vNw9	Ukita Aofuji	青藤	Faction.clan_ukita_1	Culture.sanyo
+lord_1_akashi	y4yCzF20	Akashi Yukikatsu	明石 行雄	Faction.clan_akashi_1	Culture.sanyo
+lord_1_akashi_1	MBdD4EMq	Akashi Ashi	阿芦	Faction.clan_akashi_1	Culture.sanyo
+lord_1_akashi_2	Les0dY3I	Akashi Teruzumi	明石 全登	Faction.clan_akashi_1	Culture.sanyo
+lord_1_akashi_3	id3ouNCV	Akashi Akebi	明日	Faction.clan_akashi_1	Culture.sanyo
+lord_1_akashi_4	Oh4D3H4n	Akashi Awa	安房	Faction.clan_akashi_1	Culture.sanyo
+lord_1_amago	cndf29xy	Amago Katsuhisa	尼子 胜久	Faction.clan_amago_1	Culture.sanyo
+lord_1_amago_1	3jEENNGd	Amago Tamane	玉根	Faction.clan_amago_1	Culture.sanyo
+lord_1_amago_2	hJUC1nK9	Amago Ujihisa	尼子 氏久	Faction.clan_amago_1	Culture.sanyo
+lord_1_amago_3	Aa6selTk	Amago Michihisa	尼子 通久	Faction.clan_amago_1	Culture.sanyo
+dead_lord_1_amago_1	yGggICSa	Amago Sanehisa	尼子 诚久	Faction.clan_amago_1	Culture.sanyo
+dead_lord_1_amago_2	e5jJlTcT	Amago Seiryo-in	清凉院	Faction.clan_amago_1	Culture.sanyo
+lord_1_yamanaka	qYih12OY	Yamanaka Yukimori	山中 幸盛	Faction.clan_yamanaka_1	Culture.sanyo
+lord_1_yamanaka_1	npZ70oDb	Yamanaka Yura	由良	Faction.clan_yamanaka_1	Culture.sanyo
+lord_1_yamanaka_2	2qyQ5uu7	Yamanaka Yukitaka	山中 幸高	Faction.clan_yamanaka_1	Culture.sanyo
+dead_lord_1_yamanaka_1	HhM0uBm3	Yamanaka Mitsuyuki	山中 满幸	Faction.clan_yamanaka_1	Culture.sanyo
+dead_lord_1_yamanaka_2	fdzr5fWf	Yamanaka Shunkei-in	春庆院	Faction.clan_yamanaka_1	Culture.sanyo
+lord_1_tatsuhara	lDbNEfEh	Tachihara Hisatsuna	立原 久纲	Faction.clan_tatsuhara_1	Culture.sanyo
+lord_1_tatsuhara_1	WFQ0UuXw	Tachihara Fuse	阿伏	Faction.clan_tatsuhara_1	Culture.sanyo
+lord_1_tatsuhara_2	07juHC01	Tachihara Mitsutada	立原 充忠	Faction.clan_tatsuhara_1	Culture.sanyo
+lord_1_tatsuhara_3	DFrIaaPX	Tachihara Nami	奈美	Faction.clan_tatsuhara_1	Culture.sanyo
+lord_1_obata	t4DRKSAY	Obata Nobuzane	小幡 信真	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_1	asA0b5mz	Obata Tae	阿妙	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_2	6U06bX7V	Obata Norishige	小幡 宪重	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_3	k7pTFu2E	Obata Yumi	小弓	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_4	SRa7FYKy	Obata Nobutaka	小幡 信高	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_5	cy3gpggj	Obata Yuki	阿幸	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_6	7lHBstOq	Obata Nobuuji	小幡 信氏	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_7	ayqIRS5x	Obata Nobusada	小幡 信贞	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_8	K4rav43o	Obata Masataka	小幡 昌高	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_9	zVUgQ4Mr	Obata Tose	阿岁	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_10	ZPjH5pVz	Obata Nobuhide	小幡 信秀	Faction.clan_obata_1	Culture.kanto
+lord_1_obata_11	9IFe41L8	Obata Mina	美奈	Faction.clan_obata_1	Culture.kanto
+lord_1_yura	nSIP71V7	Yura Narishige	由良 成繁	Faction.clan_yura_1	Culture.kanto
+lord_1_yura_1	Q4wQhlze	Yura Myouin-ni	妙印尼	Faction.clan_yura_1	Culture.kanto
+lord_1_yura_2	yWf4nQeJ	Yura Kunishige	由良 国繁	Faction.clan_yura_1	Culture.kanto
+lord_1_yura_3	V5SvHfO0	Yura Shigeaki	渡濑 繁诠	Faction.clan_yura_1	Culture.kanto
+lord_1_yura_4	b3YDzA8r	Yura Akinaga	长尾 显长	Faction.clan_yura_1	Culture.kanto
+lord_1_yura_5	ZiQq8JDT	Yura Mayu	真优	Faction.clan_yura_1	Culture.kanto
+lord_1_yura_6	uog9xjJ7	Yura Sumi	阿菫	Faction.clan_yura_1	Culture.kanto
+lord_1_hojo	P3zTiZCm	Hojo Ujimasa	北条 氏政	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_1	RSvvwQuG	Hojo Hosho-in	凤翔院	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_2	fpxfCA95	Hojo Ujiyasu	北条 氏康	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_3	w54S5I3N	Hojo Zuikei-in	瑞溪院	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_4	pizr75r3	Hojo Ujinao	北条 氏直	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_5	1agVt6tW	Hojo Ujiteru	北条 氏照	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_6	iUvP6aFv	Hojo Hisa	阿久	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_7	fAdkH6BS	Hojo Ujikuni	北条 氏邦	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_8	Ihhdccnz	Hojo Fuku	阿福	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_9	I6HLatlC	Hojo Ujinori	北条 氏规	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_10	XT3whBO1	Hojo Kougen-in	高源院	Faction.clan_hojo_1	Culture.kanto
+lord_1_hojo_11	HMftyqYc	Hojo Gen-an	北条 幻庵	Faction.clan_hojo_1	Culture.kanto
+lord_1_matsuda	IFVBo0UW	Matsuda Norihide	松田 宪秀	Faction.clan_matsuda_1	Culture.kanto
+lord_1_matsuda_1	Koe4GEO4	Matsuda Tani	小谷	Faction.clan_matsuda_1	Culture.kanto
+lord_1_matsuda_2	uzEB7rTO	Matsuda Masaharu	笠原 政晴	Faction.clan_matsuda_1	Culture.kanto
+lord_1_matsuda_3	1ME4J4P8	Matsuda Naohide	松田 直秀	Faction.clan_matsuda_1	Culture.kanto
+dead_lord_1_matsuda_4	GXvLySIv	Matsuda Yasusada	松田 康贞	Faction.clan_matsuda_1	Culture.kanto
+dead_lord_1_matsuda_5	ViSD5Bbn	Matsuda Jifuku-in	慈福院	Faction.clan_matsuda_1	Culture.kanto
+lord_1_matsuda_6	tgMbwfiE	Matsuda Yasunaga	松田 康长	Faction.clan_matsuda_1	Culture.kanto
+lord_1_matsuda_7	zDjE64TE	Matsuda Izumi	和泉	Faction.clan_matsuda_1	Culture.kanto
+lord_1_matsuda_8	IOihIX4O	Matsuda Naonaga	松田 直长	Faction.clan_matsuda_1	Culture.kanto
+lord_1_matsuda_9	N7FUZLza	Matsuda Yasusato	松田 康乡	Faction.clan_matsuda_1	Culture.kanto
+lord_1_matsuda_10	8rJWmjlH	Matsuda Ito	阿糸	Faction.clan_matsuda_1	Culture.kanto
+lord_1_toyama	WSOVFn2s	Toyama Masakage	远山 政景	Faction.clan_toyama_1	Culture.kanto
+lord_1_toyama_1	iSVGS3Xg	Toyama Take	小竹	Faction.clan_toyama_1	Culture.kanto
+dead_lord_1_toyama_2	hbrNLVoD	Toyama Tsunakage	远山 纲景	Faction.clan_toyama_1	Culture.kanto
+dead_lord_1_toyama_3	KxM5VRa1	Toyama Joko-in	常光院	Faction.clan_toyama_1	Culture.kanto
+lord_1_toyama_4	zp5C0etl	Toyama Naokage	远山 直景	Faction.clan_toyama_1	Culture.kanto
+lord_1_toyama_5	lsVY4d0J	Toyama Kagemune	远山 景宗	Faction.clan_toyama_1	Culture.kanto
+lord_1_toyama_6	wTLH9970	Toyama Tei	小丁	Faction.clan_toyama_1	Culture.kanto
+lord_1_toyama_7	BEOaffU2	Toyama Kageyoshi	远山 景善	Faction.clan_toyama_1	Culture.kanto
+lord_1_toyama_8	PgAQVzbF	Toyama Kagenobu	远山 景信	Faction.clan_toyama_1	Culture.kanto
+lord_1_toyama_9	gSd6sI0U	Toyama Hideshige	远山 秀重	Faction.clan_toyama_1	Culture.kanto
+lord_1_toyama_10	szgwXx0f	Toyama Shigemasa	远山 重政	Faction.clan_toyama_1	Culture.kanto
+lord_1_didoji	f3MMiYMN	Daidoji Masashige	大道寺 政繁	Faction.clan_didoji_1	Culture.kanto
+lord_1_didoji_1	HxDyc3ql	Daidoji Shino	志乃	Faction.clan_didoji_1	Culture.kanto
+lord_1_didoji_2	nDpdaTzx	Daidoji Naohide	大道寺 直英	Faction.clan_didoji_1	Culture.kanto
+lord_1_didoji_3	Id4pOfky	Daidoji Naoshige	大道寺 直繁	Faction.clan_didoji_1	Culture.kanto
+lord_1_narita	SwQ02lSF	Narita Ujinaga	成田 氏长	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_1	Vm16qd8L	Narita Araragi	阿兰	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_2	78h2ApYu	Narita Nagayasu	成田 长泰	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_3	5Zj9vfbh	Narita Jisho-in	自性院	Faction.clan_narita_1	Culture.kanto
+dead_lord_1_narita_4	dP4NuLXZ	Narita Chikayasu	成田 亲泰	Faction.clan_narita_1	Culture.kanto
+dead_lord_1_narita_5	PiGMjXxP	Narita Myoko-in	妙高院	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_6	QWiufJBx	Narita Kai	甲斐姬	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_7	z0hkNFGC	Narita Yasuchika	成田 泰亲	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_8	l0dKAD1a	Narita Futaba	双叶	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_9	HyfCYlLK	Narita Yasusue	成田 泰季	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_10	wAcogWf3	Narita Tomi	阿富	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_11	fLSGAgYC	Narita Nagachika	成田 长亲	Faction.clan_narita_1	Culture.kanto
+lord_1_narita_12	qjnRwQly	Narita Mari	麻里	Faction.clan_narita_1	Culture.kanto
+lord_1_chiba	KrY4IEpg	Chiba Tanetomi	千叶 胤富	Faction.clan_chiba_1	Culture.kanto
+lord_1_chiba_1	WYTqPJNj	Chiba Hagi	阿萩	Faction.clan_chiba_1	Culture.kanto
+dead_lord_1_chiba_2	RUVHqSha	Chiba Masatane	千叶 昌胤	Faction.clan_chiba_1	Culture.kanto
+dead_lord_1_chiba_3	zsUPpaIN	Chiba Seikyo-in	誓教院	Faction.clan_chiba_1	Culture.kanto
+lord_1_chiba_4	BSQ982ou	Chiba Yoshitane	千叶 良胤	Faction.clan_chiba_1	Culture.kanto
+lord_1_chiba_5	lHQ3t4SP	Chiba Kunitane	千叶 邦胤	Faction.clan_chiba_1	Culture.kanto
+lord_1_chiba_6	jdtXL2lm	Chiba Tanehide	千叶 胤秀	Faction.clan_chiba_1	Culture.kanto
+lord_1_chiba_7	WYTqPJNj	Chiba Hagi	阿萩	Faction.clan_chiba_1	Culture.kanto
+lord_1_chiba_8	RUVHqSha	Chiba Masatane	千叶 昌胤	Faction.clan_chiba_1	Culture.kanto
+lord_1_chiba_9	r8PNf9r5	Chiba Tanenaka	千叶 胤长	Faction.clan_chiba_1	Culture.kanto
+lord_1_chiba_10	L4V95dkR	Chiba Tanetoki	千叶 胤时	Faction.clan_chiba_1	Culture.kanto
+lord_2_oda	N0wdIy1B	Oda Ujiharu	小田 氏治	Faction.clan_oda_2	Culture.kanto
+lord_2_oda_1	vC6z8WVM	Oda Hazuki	叶月	Faction.clan_oda_2	Culture.kanto
+dead_lord_2_oda_2	oBXKUC02	Oda Masaharu	小田 政治	Faction.clan_oda_2	Culture.kanto
+dead_lord_2_oda_3	lIMwYkmk	Oda Keimyo-in	轻妙院	Faction.clan_oda_2	Culture.kanto
+lord_2_oda_4	73thINiW	Oda Tomoharu	小田 友治	Faction.clan_oda_2	Culture.kanto
+lord_2_oda_5	40uzrYwA	Oda Moriharu	小田 守治	Faction.clan_oda_2	Culture.kanto
+lord_2_oda_6	KDNrkROu	Oda Koma	阿驹	Faction.clan_oda_2	Culture.kanto
+lord_2_oda_7	73thINiW	Oda Tomoharu	小田 友治	Faction.clan_oda_2	Culture.kanto
+lord_2_oda_8	QYDzg3jA	Oda Riku	阿陆	Faction.clan_oda_2	Culture.kanto
+lord_2_oda_9	73thINiW	Oda Tomoharu	小田 友治	Faction.clan_oda_2	Culture.kanto
+lord_1_kogakubo	tCf4lIPu	Koga-Kubo Yoshiuji	足利 义氏	Faction.clan_kogakubo_1	Culture.kanto
+lord_1_kogakubo_1	NxaysxUC	Koga-Kubo Jyoko-in	定光院	Faction.clan_kogakubo_1	Culture.kanto
+dead_lord_1_kogakubo_2	O06DIhu2	Koga-Kubo Haruuji	足利 晴氏	Faction.clan_kogakubo_1	Culture.kanto
+dead_lord_1_kogakubo_3	xKCKGPUy	Koga-Kubo Hoshun-in	芳春院	Faction.clan_kogakubo_1	Culture.kanto
+lord_1_kogakubo_4	9zqTKcqA	Koga-Kubo Fujimasa	足利 藤政	Faction.clan_kogakubo_1	Culture.kanto
+lord_1_kogakubo_5	2cUjpzfQ	Koga-Kubo Teruuji	足利 辉氏	Faction.clan_kogakubo_1	Culture.kanto
+lord_1_kogakubo_6	8doVlvNw	Koga-Kubo Iekuni	足利 家国	Faction.clan_kogakubo_1	Culture.kanto
+lord_1_kogakubo_7	olSVCZmf	Koga-Kubo Sato	佐渡	Faction.clan_kogakubo_1	Culture.kanto
+lord_1_sano	7JhWt0Cr	Sano Masatuna	佐野 昌纲	Faction.clan_sano_1	Culture.kanto
+lord_1_sano_1	OjtJRVA8	Sano Moto	阿元	Faction.clan_sano_1	Culture.kanto
+dead_lord_1_sano_2	DkDMVX0S	Sano Yasutsuna	佐野 泰纲	Faction.clan_sano_1	Culture.kanto
+dead_lord_1_sano_3	aVzIfT5b	Sano Kousen-in	向泉院	Faction.clan_sano_1	Culture.kanto
+lord_1_sano_4	jTPsXTQs	Sano Munetsuna	佐野 宗纲	Faction.clan_sano_1	Culture.kanto
+lord_1_sano_5	CimHJY3v	Sano Chikatsuna	桐生 亲纲	Faction.clan_sano_1	Culture.kanto
+dead_lord_1_sano_6	HxOIq1UO	Sano Toyotsuna	佐野 丰纲	Faction.clan_sano_1	Culture.kanto
+lord_1_sano_7	TtRVEzF9	Sano Jyomei-in	舒明院	Faction.clan_sano_1	Culture.kanto
+lord_1_sano_8	OjNzZ4z7	Sano Fusatsuna	佐野 房纲	Faction.clan_sano_1	Culture.kanto
+lord_1_yuki	peuTgDWX	Yuki Harutomo	结城 晴朝	Faction.clan_yuki_1	Culture.kanto
+lord_1_yuki_1	2axdqLeU	Yuki Shoko	翔子	Faction.clan_yuki_1	Culture.kanto
+lord_1_yuki_2	l7gGIVfb	Yuki Teruko	照子	Faction.clan_yuki_1	Culture.kanto
+lord_1_yuki_3	KaW2u7Wt	Yuki Tsuruko	鹤子	Faction.clan_yuki_1	Culture.kanto
+lord_1_yuki_4	3dRiCHIH	Yuki Kuniko	国子	Faction.clan_yuki_1	Culture.kanto
+lord_1_satomi	WNXdlC6n	Satomi Yoshihiro	里见 义弘	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_1	mF93OB0Z	Satomi Maki	万喜	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_2	Vjv0jhtU	Satomi Yoshitaka	里见 义尧	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_3	6pWBEhfi	Satomi Saka	阿坂	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_4	1VsYAGf0	Satomi Takamoto	里见 尧元	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_5	Sl8tIOAe	Satomi Tame	多米	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_6	ZOyxIYLt	Satomi Takatsugu	里见 尧次	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_7	RZW4u1bw	Satomi Kuni	阿国	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_8	BijTmjLN	Satomi Yoshimasa	里见 义政	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_9	mSLw5dla	Satomi Hisa	阿久	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_10	ojHJapKr	Satomi Yoshiyori	里见 义赖	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_11	XsI6P4Lw	Satomi Hama	小浜	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_12	Ae4oJ078	Satomi Tane	多祢	Faction.clan_satomi_1	Culture.kanto
+lord_1_satomi_13	BLEI9odB	Satomi Toyo	阿丰	Faction.clan_satomi_1	Culture.kanto
+lord_1_masaki	3u6MPLG6	Masaki Noritoki	正木 宪时	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_1	wTQEOpa7	Masaki Kaname	金目	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_2	eCgQgJ32	Masaki Tokitada	正木 时忠	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_3	AWwPQ7GP	Masaki Kine	阿甲	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_4	r9bbr3VW	Masaki Tokimichi	正木 时通	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_5	NClTemsw	Masaki Chie	千枝	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_6	y968PY0G	Masaki Tokinari	正木 宪时	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_7	10oV0mMQ	Masaki Saki	阿咲	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_8	jysbc6Uf	Masaki Tokikatsu	正木 时胜	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_9	FxCpKg3G	Masaki Fusa	阿房	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_10	MHd8ZnPH	Masaki Tokihide	正木 时秀	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_11	P3Qi7ksg	Masaki Yoritoki	正木 赖时	Faction.clan_masaki_1	Culture.kanto
+lord_1_masaki_12	UkMRMuYI	Masaki Tokitomi	正木 时富	Faction.clan_masaki_1	Culture.kanto
+lord_2_sakai	EnNxr4sS	Sakai Taneharu	酒井 胤治	Faction.clan_sakai_2	Culture.kanto
+lord_2_sakai_1	L3rcTXEN	Sakai Keirin-ni	庆林尼	Faction.clan_sakai_2	Culture.kanto
+lord_2_sakai_2	JgzJTQRD	Sakai Yasuharu	酒井 康治	Faction.clan_sakai_2	Culture.kanto
+lord_1_utsunomiya	4UF3c1YO	Utsunomiya Hirotsuna	宇都宫 广纲	Faction.clan_utsunomiya_1	Culture.kanto
+lord_1_utsunomiya_1	k8YjNpOk	Utsunomiya Nanryo-in	南吕院	Faction.clan_utsunomiya_1	Culture.kanto
+lord_1_utsunomiya_2	YMsdSa5O	Utsunomiya Kunitsuna	宇都宫 国纲	Faction.clan_utsunomiya_1	Culture.kanto
+lord_1_haga	gwB9W7mm	Haga Takasada	芳贺 高定	Faction.clan_haga_1	Culture.kanto
+lord_1_haga_1	J0VnbU4a	Haga Tama	阿玉	Faction.clan_haga_1	Culture.kanto
+lord_1_haga_2	0xmB7XJS	Haga Takakage	芳贺 高景	Faction.clan_haga_1	Culture.kanto
+lord_1_haga_3	l2brrFCq	Haga Chiyo	千代	Faction.clan_haga_1	Culture.kanto
+lord_1_haga_4	WO5zvxR8	Haga Takatsugu	芳贺 高继	Faction.clan_haga_1	Culture.kanto
+lord_1_haga_5	tGEgf2XE	Haga Miki	见喜	Faction.clan_haga_1	Culture.kanto
+lord_1_kasama	7vqf8p1x	Kasama Mikitsuna	笠间 干纲	Faction.clan_kasama_1	Culture.kanto
+lord_1_kasama_1	B55gNGt8	Kasama Sue	阿末	Faction.clan_kasama_1	Culture.kanto
+lord_1_kasama_2	GhX1cQFn	Kasama Tsunaie	笠间 纲家	Faction.clan_kasama_1	Culture.kanto
+lord_1_kasama_3	u6pL0K8t	Kasama Kiku	阿菊	Faction.clan_kasama_1	Culture.kanto
+lord_1_kasama_4	qs5YLGCM	Kasama Sakon	佐今	Faction.clan_kasama_1	Culture.kanto
+lord_1_satake	IpGWXGXO	Satake Yoshishige	佐竹 义重	Faction.clan_satake_1	Culture.kanto
+lord_1_satake_1	lTEN0uBO	Satake Hoju-in	宝寿院	Faction.clan_satake_1	Culture.kanto
+dead_lord_1_satake_2	lEBzZaFW	Satake Yoshiaki	佐竹 义昭	Faction.clan_satake_1	Culture.kanto
+dead_lord_1_satake_3	cyPZnisM	Satake Kotoku-in	高德院	Faction.clan_satake_1	Culture.kanto
+lord_1_satake_4	cS0BYmEj	Satake Yoshihisa	佐竹 义久	Faction.clan_satake_1	Culture.kanto
+lord_1_satake_5	O91iIET8	Satake Akane	阿茜	Faction.clan_satake_1	Culture.kanto
+lord_1_satake_6	TO3KcPYq	Satake Yoshitane	佐竹 义胤	Faction.clan_satake_1	Culture.kanto
+lord_1_satake_7	di3hvLje	Satake Yoshitsuna	佐竹 义斯	Faction.clan_satake_1	Culture.kanto
+lord_1_satake_8	RlQJPV7D	Satake Chitose	千岁	Faction.clan_satake_1	Culture.kanto
+lord_1_edo	f5XYXxSk	Edo Michimasa	江户 通政	Faction.clan_edo_1	Culture.kanto
+lord_1_edo_1	tLFdyt4x	Edo Seisho-in	誓昌院	Faction.clan_edo_1	Culture.kanto
+lord_1_edo_2	isJ2mg9v	Edo Shigemichi	江户 重通	Faction.clan_edo_1	Culture.kanto
+lord_1_daijo	pRzOVEbH	Daijo Sadakuni	大掾 真国	Faction.clan_daijo_1	Culture.kanto
+lord_1_daijo_1	iK6pKdiD	Daijo Fumi	阿文	Faction.clan_daijo_1	Culture.kanto
+dead_lord_1_daijo_2	JrCw7IOL	Daijo Yoshimoto	大掾 良干	Faction.clan_daijo_1	Culture.kanto
+dead_lord_1_daijo_3	ad2F8T2d	Daijo Rensho-in	莲昌院	Faction.clan_daijo_1	Culture.kanto
+lord_1_daijo_4	mWRFq0Y2	Daijo Tuneharu	大掾 常春	Faction.clan_daijo_1	Culture.kanto
+lord_1_daijo_5	RHgM2Jbk	Daijo Hana	花子	Faction.clan_daijo_1	Culture.kanto
+lord_1_kashima	fFzatPZB	Kashima Ujimiki	鹿岛 氏干	Faction.clan_kashima_1	Culture.kanto
+dead_lord_1_kashima_1	P0Rdtbsk	Kashima Harutoki	鹿岛 治时	Faction.clan_kashima_1	Culture.kanto
+dead_lord_1_kashima_2	lK0BVLKk	Kashima Myoke-in	名家院	Faction.clan_kashima_1	Culture.kanto
+lord_1_kashima_3	e3yhg6Dv	Kashima Yoshikiyo	鹿岛 义清	Faction.clan_kashima_1	Culture.kanto
+lord_1_kashima_4	wOWbGCUg	Kashima Nami	奈美	Faction.clan_kashima_1	Culture.kanto
+lord_1_kashima_5	Nc8F0LEf	Kashima Sadanobu	鹿岛 贞信	Faction.clan_kashima_1	Culture.kanto
+lord_1_kashima_6	xuJSkGe4	Kashima Chiku	知久	Faction.clan_kashima_1	Culture.kanto
+lord_1_kashima_7	wGuR0ntw	Kashima Kiyohide	鹿岛 清秀	Faction.clan_kashima_1	Culture.kanto
+lord_1_kashima_8	aYVxNbSo	Kashima Sai	佐井	Faction.clan_kashima_1	Culture.kanto
+lord_1_kashima_9	g1hC3I76	Kashima Michiharu	鹿岛 通晴	Faction.clan_kashima_1	Culture.kanto
+lord_1_kashima_10	iqtWNEZR	Kashima Sae	佐江	Faction.clan_kashima_1	Culture.kanto
+lord_1_nasu	oRMj5Dw4	Nasu Suketane	那须 资胤	Faction.clan_nasu_1	Culture.kanto
+lord_1_nasu_1	Niu6EEIX	Nasu Toyo	阿丰	Faction.clan_nasu_1	Culture.kanto
+lord_1_nasu_2	BiJQ3gwj	Nasu Sukeharu	那须 资晴	Faction.clan_nasu_1	Culture.kanto
+lord_1_nasu_3	vgzjShtW	Nasu Masa	真砂	Faction.clan_nasu_1	Culture.kanto
+lord_1_akamatsu	kLlP5rni	Akamatsu Yoshisuke	赤松 义祐	Faction.clan_akamatsu_1	Culture.kinai
+lord_1_akamatsu_1	tUcpDeTS	Akamatsu Azami	浅见	Faction.clan_akamatsu_1	Culture.kinai
+lord_1_akamatsu_2	nR1sGRoK	Akamatsu Norifusa	赤松 则房	Faction.clan_akamatsu_1	Culture.kinai
+lord_1_kodera	pRDHDfAf	Kodera Masamoto	小寺 政职	Faction.clan_kodera_1	Culture.kinai
+lord_1_kodera_1	YrKWMZru	Kodera Kame	阿龟	Faction.clan_kodera_1	Culture.kinai
+lord_1_kodera_2	AptV40KY	Kodera Norimoto	小寺 则职	Faction.clan_kodera_1	Culture.kinai
+lord_1_kodera_3	awh97eY4	Kodera Beni	阿红	Faction.clan_kodera_1	Culture.kinai
+lord_1_kodera_4	qaSYtI7f	Kodera Ujimoto	小寺 氏职	Faction.clan_kodera_1	Culture.kinai
+lord_1_kodera_5	964hRB7s	Kodera Kasuga	春日	Faction.clan_kodera_1	Culture.kinai
+lord_1_kuroda	uq93RE5H	Kuroda Yoshitaka	黑田 孝高	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_1	zFfxKok8	Kuroda Mitsu	阿光	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_2	q2wWaf6n	Kuroda Mototaka	黑田 职隆	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_3	vpp0X2di	Kuroda Masu	万寿	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_4	nbMsupjp	Kuroda Nagamasa	黑田 长政	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_5	WBljkXLV	Kuroda Toshitaka	黑田 利高	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_6	tPBBMN4Z	Kuroda Toshinori	黑田 利则	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_7	qgu18aBw	Kuroda Naoyuki	黑田 直之	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_8	jqDkyoQZ	Kuroda Kayo	加世	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_9	Oew1Bf9P	Kuroda Kine	阿甲	Faction.clan_kuroda_1	Culture.kinai
+lord_1_kuroda_10	FZ1Eq6lh	Kuroda Fuku	阿福	Faction.clan_kuroda_1	Culture.kinai
+lord_1_bessho	So1hDGim	Bessho Yasuharu	別所 安治	Faction.clan_bessho_1	Culture.kinai
+lord_1_bessho_1	vbW4lVBo	Bessho Azuma	阿万	Faction.clan_bessho_1	Culture.kinai
+dead_lord_1_bessho_2	apqhx41m	Bessho Nariharu	别所 就治	Faction.clan_bessho_1	Culture.kinai
+dead_lord_1_bessho_3	dO3CawFk	Bessho Nanzen-in	南禅院	Faction.clan_bessho_1	Culture.kinai
+lord_1_bessho_4	Brly3Pam	Bessho Nagaharu	别所 长治	Faction.clan_bessho_1	Culture.kinai
+lord_1_bessho_5	VYrrxnX9	Bessho Tomoyuki	别所 友之	Faction.clan_bessho_1	Culture.kinai
+lord_1_bessho_6	19IdACYb	Bessho Harusada	别所 治定	Faction.clan_bessho_1	Culture.kinai
+lord_1_bessho_7	gzC7F4fo	Bessho Yoshichika	别所 吉亲	Faction.clan_bessho_1	Culture.kinai
+lord_1_bessho_8	PVVSjRbo	Bessho Kashi	阿柏	Faction.clan_bessho_1	Culture.kinai
+lord_1_bessho_9	qRHfzyUs	Bessho Shigemune	别所 重宗	Faction.clan_bessho_1	Culture.kinai
+lord_1_bessho_10	MYV9KYo1	Bessho Seri	小芹	Faction.clan_bessho_1	Culture.kinai
+lord_1_matsunaga	pyD59qMo	Matsunaga Hisahide	松永 久秀	Faction.clan_matsunaga_1	Culture.kinai
+lord_1_matsunaga_1	pvqqQutQ	Matsunaga Kasumi	小霞	Faction.clan_matsunaga_1	Culture.kinai
+lord_1_matsunaga_2	0VHC3xFH	Matsunaga Hisamichi	松永 久通	Faction.clan_matsunaga_1	Culture.kinai
+lord_1_matsunaga_3	Boxu3rYM	Matsunaga Wakaba	若叶	Faction.clan_matsunaga_1	Culture.kinai
+lord_1_tsutsui	Xe63ilYA	Tsutsui Junkei	筒井 顺庆	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_1	sTM8QM4l	Tsutsui Taka	多贺	Faction.clan_tsutsui_1	Culture.kinai
+dead_lord_1_tsutsui_2	us2k9KPi	Tsutsui Junkou	筒井 顺兴	Faction.clan_tsutsui_1	Culture.kinai
+dead_lord_1_tsutsui_3	L3NzXFr3	Tsutsui Saya	佐谷	Faction.clan_tsutsui_1	Culture.kinai
+dead_lord_1_tsutsui_4	pnoyota2	Tsutsui Junsho	筒井 顺昭	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_5	v8k486Cv	Tsutsui Okata	小方	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_6	kZUzygaP	Tsutsui Junkoku	筒井 顺国	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_7	D6cW9BRv	Tsutsui Koharu	小春	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_8	vwBchbKt	Tsutsui Sadatsugu	筒井 定次	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_9	YP2fV2hW	Tsutsui Toshihiro	筒井 顺弘	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_10	pAupiXnj	Tsutsui Tai	碓井	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_11	z8vSvDSj	Tsutsui Junsai	筒井 顺斋	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_tsutsui_12	bPdxO4MG	Tsutsui Hiroyuki	筒井 广之	Faction.clan_tsutsui_1	Culture.kinai
+lord_1_atagi	3Cbdw30u	Atagi Nobuyasu	安宅 信康	Faction.clan_atagi_1	Culture.kinai
+lord_1_atagi_1	QZU9vMWY	Atagi Sawa	佐和	Faction.clan_atagi_1	Culture.kinai
+dead_lord_1_atagi_2	M8CaIjW3	Atagi Fuyuyasu	安宅 冬康	Faction.clan_atagi_1	Culture.kinai
+lord_1_atagi_3	pDYIBBAa	Atagi Keiten-in	敬天院	Faction.clan_atagi_1	Culture.kinai
+lord_1_atagi_4	DakzCL2f	Atagi Kiyoyasu	安宅 清康	Faction.clan_atagi_1	Culture.kinai
+lord_1_ashikaga	Iqa3v7D1	Ashikaga Yoshiaki	足利 义昭	Faction.clan_ashikaga_1	Culture.kinai
+lord_1_ashikaga_1	Cxfk22gK	Ashikaga Sako	佐古	Faction.clan_ashikaga_1	Culture.kinai
+dead_lord_1_ashikaga_2	FlzkbFch	Ashikaga Yoshiharu	足利 义晴	Faction.clan_ashikaga_1	Culture.kinai
+dead_lord_1_ashikaga_3	o05gJRtq	Ashikaga Keijyu-in	庆寿院	Faction.clan_ashikaga_1	Culture.kinai
+dead_lord_1_ashikaga_4	lhA4QmHy	Ashikaga Yoshiteru	足利 义辉	Faction.clan_ashikaga_1	Culture.kinai
+dead_lord_1_ashikaga_5	hsD5bJui	Ashikaga Daiyou-in	大阳院	Faction.clan_ashikaga_1	Culture.kinai
+lord_1_ashikaga_6	dKcLiTvb	Ashikaga Yoshihide	足利 义荣	Faction.clan_ashikaga_1	Culture.kinai
+lord_1_hosokawa	DavzUQup	Hosokawa Fujitaka	细川 藤孝	Faction.clan_hosokawa_1	Culture.kinai
+lord_1_hosokawa_1	EmiPhqA0	Hosokawa Jyako	麝香	Faction.clan_hosokawa_1	Culture.kinai
+lord_1_hosokawa_2	HQiKv4QF	Hosokawa Tadaoki	细川 忠兴	Faction.clan_hosokawa_1	Culture.kinai
+lord_1_hosokawa_3	DtWZ2i3N	Hosokawa Okimoto	细川 兴元	Faction.clan_hosokawa_1	Culture.kinai
+lord_1_hosokawa_4	iYqL2Vy6	Hosokawa Sen	阿千	Faction.clan_hosokawa_1	Culture.kinai
+lord_1_hosokawa_5	7oUfZNuF	Hosokawa Iya	井谷	Faction.clan_hosokawa_1	Culture.kinai
+lord_1_issiki	CHalr5aK	Issiki Yoshimichi	一色 义道	Faction.clan_issiki_1	Culture.kinai
+lord_1_issiki_1	ruz4z36n	Issiki Tunako	纲子	Faction.clan_issiki_1	Culture.kinai
+dead_lord_1_issiki_2	CzufOZcO	Issiki Yoshiyuki	一色 义幸	Faction.clan_issiki_1	Culture.kinai
+dead_lord_1_issiki_3	RurSjEyY	Issiki Keitoku-In	景德院	Faction.clan_issiki_1	Culture.kinai
+lord_1_issiki_4	K0rUvzyH	Issiki Yoshisada	一色 义定	Faction.clan_issiki_1	Culture.kinai
+lord_1_issiki_5	Ez9wouSk	Issiki Yoshikiyo	一色 义清	Faction.clan_issiki_1	Culture.kinai
+lord_1_issiki_6	JD9quZid	Issiki Haruko	春子	Faction.clan_issiki_1	Culture.kinai
+lord_1_yamana	oNEiBB2d	Yamana Suketoyo	山名 祐丰	Faction.clan_yamana_1	Culture.kinai
+lord_1_yamana_1	kJXoV9Pb	Yamana Tomoko	友子	Faction.clan_yamana_1	Culture.kinai
+dead_lord_1_yamana_2	NmILYBIw	Yamana Munetoyo	山名 致丰	Faction.clan_yamana_1	Culture.kinai
+lord_1_yamana_3	nMjExeXI	Yamana Yoshichika	山名 义亲	Faction.clan_yamana_1	Culture.kinai
+lord_1_yamana_4	QbkbZH6B	Yamana Akihiro	山名 尧熙	Faction.clan_yamana_1	Culture.kinai
+lord_1_hatakeyama	vs49SDks	Hatakeyama Akitaka	畠山 秋高	Faction.clan_hatakeyama_1	Culture.kinai
+dead_lord_1_hatakeyama_1	BeVxuHbe	Hatakeyama Masakuni	畠山 政国	Faction.clan_hatakeyama_1	Culture.kinai
+dead_lord_1_hatakeyama_2	eHD3yI8F	Hatakeyama Seiko	势子	Faction.clan_hatakeyama_1	Culture.kinai
+lord_1_hatakeyama_3	0TdWVoYC	Hatakeyama Takamasa	畠山 高政	Faction.clan_hatakeyama_1	Culture.kinai
+lord_1_hatakeyama_4	9QUwXAo6	Hatakeyama Fusako	房子	Faction.clan_hatakeyama_1	Culture.kinai
+lord_1_hatakeyama_5	kYtWhJo4	Hatakeyama Yuko	优子	Faction.clan_hatakeyama_1	Culture.kinai
+lord_1_hatakeyama_6	ACqEvloB	Hatakeyama Masahisa	畠山 政尚	Faction.clan_hatakeyama_1	Culture.kinai
+lord_1_yasumi	PbADW8O5	Yasumi Munefusa	安见 宗房	Faction.clan_yasumi_1	Culture.kinai
+lord_1_yasumi_1	JrNemg5t	Yasumi Yata	矢多	Faction.clan_yasumi_1	Culture.kinai
+lord_1_yasumi_2	iMqha8Z4	Yasumi Tomonaga	安见 友长	Faction.clan_yasumi_1	Culture.kinai
+lord_1_yasumi_3	Rrbu472n	Yasumi Ukon	安见 右近	Faction.clan_yasumi_1	Culture.kinai
+lord_1_yasumi_4	wCCzDL2D	Yasumi Chie	千枝	Faction.clan_yasumi_1	Culture.kinai
+lord_1_yukawa	fcAG1QqW	Yukawa Naoharu	汤川 直春	Faction.clan_yukawa_1	Culture.kinai
+lord_1_yukawa_1	3QhK8vOe	Yukawa Komatsu	小松	Faction.clan_yukawa_1	Culture.kinai
+dead_lord_1_yukawa_2	WCJsiBsB	Yukawa Naomitsu	汤川 直光	Faction.clan_yukawa_1	Culture.kinai
+dead_lord_1_yukawa_3	rCZzutl7	Yukawa Komyyo-in	光明院	Faction.clan_yukawa_1	Culture.kinai
+lord_1_yukawa_4	QQ62CWn2	Yukawa Nobuharu	汤川 信春	Faction.clan_yukawa_1	Culture.kinai
+lord_1_yukawa_5	Bqky19ae	Yukawa Hiroharu	汤川 广春	Faction.clan_yukawa_1	Culture.kinai
+lord_1_yukawa_6	NbKeRcPM	Yukawa Harunobu	汤川 春信	Faction.clan_yukawa_1	Culture.kinai
+lord_1_honganji	vVdUl9kZ	Honganji Ken'nyo	本愿寺 显如	Faction.clan_honganji_1	Culture.kinai
+lord_1_honganji_1	uhGVlVcb	Honganji Nyosyun-ni	如春尼	Faction.clan_honganji_1	Culture.kinai
+lord_1_honganji_2	ZHgHiq5g	Honganji Kyonyo	本愿寺 教如	Faction.clan_honganji_1	Culture.kinai
+lord_1_honganji_3	dLk4Mfmb	Honganji Kenson	本愿寺 显尊	Faction.clan_honganji_1	Culture.kinai
+lord_1_ganshoji	CGMTB5IR	Ganshoji Syoui	愿证寺 证意	Faction.clan_ganshoji_1	Culture.kinai
+lord_1_ganshoji_1	RqrjjOwd	Ganshoji Shomyo-in	昭明院	Faction.clan_ganshoji_1	Culture.kinai
+lord_1_ganshoji_2	dcTmgzR2	Ganshoji Ken'nin	愿证寺 显忍	Faction.clan_ganshoji_1	Culture.kinai
+lord_1_rokkaku	KyBM4EGe	Rokkaku Yoshikata	六角 义贤	Faction.clan_rokkaku_1	Culture.kinai
+lord_1_rokkaku_1	YKfuhIdz	Rokkaku Shizuno	静乃	Faction.clan_rokkaku_1	Culture.kinai
+lord_1_rokkaku_2	5c4QE4T3	Rokkaku Yoshiharu	六角 义治	Faction.clan_rokkaku_1	Culture.kinai
+lord_1_rokkaku_3	f4nYiBuo	Rokkaku Tomoe	巴	Faction.clan_rokkaku_1	Culture.kinai
+lord_1_rokkaku_4	0TCCnJ52	Rokkaku Yoshisada	六角 义定	Faction.clan_rokkaku_1	Culture.kinai
+lord_1_rokkaku_5	ejRgtgY3	Rokkaku Chizuru	千鹤	Faction.clan_rokkaku_1	Culture.kinai
+lord_1_gamou	rUBu7S4M	Gamou Katahide	蒲生 贤秀	Faction.clan_gamou_1	Culture.kinai
+lord_1_gamou_1	3d9HHjwb	Gamou Mitsuki	见月	Faction.clan_gamou_1	Culture.kinai
+lord_1_gamou_2	FD9LbBC5	Gamou Ujisato	蒲生 氏乡	Faction.clan_gamou_1	Culture.kinai
+lord_1_gamou_3	GM8rv4Ak	Gamou Shigesato	蒲生 重乡	Faction.clan_gamou_1	Culture.kinai
+lord_1_gamou_4	SuEovhqt	Gamou Tomo	阿友	Faction.clan_gamou_1	Culture.kinai
+lord_1_gamou_5	2wRgcvgX	Gamou Sana	佐名	Faction.clan_gamou_1	Culture.kinai
+lord_1_azai	iZkMYp72	Azai Nagamasa	浅井 长政	Faction.clan_azai_1	Culture.kinai
+lord_1_azai_1	rvDsCUpk	Azai Ichi	阿市	Faction.clan_azai_1	Culture.kinai
+lord_1_azai_2	qIzG5074	Azai Hisamasa	浅井 久政	Faction.clan_azai_1	Culture.kinai
+lord_1_azai_3	RF8JjIdu	Azai Ako	阿江	Faction.clan_azai_1	Culture.kinai
+lord_1_azai_4	Av28pOpi	Azai Masamoto	浅井 政元	Faction.clan_azai_1	Culture.kinai
+lord_1_azai_5	VBrMcD42	Azai Masayuki	浅井 政之	Faction.clan_azai_1	Culture.kinai
+lord_1_todo	A73fNqDB	Todo Torataka	藤堂 虎高	Faction.clan_todo_1	Culture.kinai
+lord_1_todo_1	wATMO4SF	Todo Ayame	绫女	Faction.clan_todo_1	Culture.kinai
+lord_1_todo_2	ZkYr4Q04	Todo Takatora	藤堂 高虎	Faction.clan_todo_1	Culture.kinai
+lord_1_todo_3	MRwSxq1k	Todo Takanori	藤堂 高则	Faction.clan_todo_1	Culture.kinai
+lord_1_todo_4	6F2ikYXs	Todo Fuji	富士	Faction.clan_todo_1	Culture.kinai
+lord_1_todo_5	VejCmIYn	Todo Tsuta	阿茑	Faction.clan_todo_1	Culture.kinai
+lord_1_isono	kHIiTY6k	Isono Kazumasa	矶野 员昌	Faction.clan_isono_1	Culture.kinai
+lord_1_isono_1	aNr0aTAb	Isono Ayame	绫女	Faction.clan_isono_1	Culture.kinai
+lord_1_isono_2	5wrVt0wH	Isono Yukinobu	矶野 行信	Faction.clan_isono_1	Culture.kinai
+lord_1_isono_3	BzIGHgCx	Isono Masanaga	矶野 政长	Faction.clan_isono_1	Culture.kinai
+lord_1_akao	WvVFYg9z	Akao Kiyotsuna	赤尾 清纲	Faction.clan_akao_1	Culture.kinai
+lord_1_akao_1	eqrjET0Q	Akao Kiru	雾子	Faction.clan_akao_1	Culture.kinai
+lord_1_akao_2	HGBst1md	Akao Kiyofuyu	赤尾 清冬	Faction.clan_akao_1	Culture.kinai
+lord_1_akao_3	quPWUb7d	Akao Yuki	阿幸	Faction.clan_akao_1	Culture.kinai
+lord_1_oda	wqjEk0zZ	Oda Nobunaga	织田 信长	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_1	aCLFE9fV	Oda Nou	浓姬	Faction.clan_oda_1	Culture.kinai
+dead_lord_1_oda_2	6fpqsOCb	Oda Nobuhide	织田 信秀	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_3	WKW8zGVB	Oda Dota-gezen	土田 御前	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_4	3k7drsea	Oda Nobutada	织田 信忠	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_5	0JPVJU94	Oda Nobukatsu	织田 信雄	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_6	ITHpOHC1	Oda Nobutaka	织田 信孝	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_7	XFJfiBaw	Oda Nobuhiro	织田 信广	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_8	Asdctfqh	Oda Nobukane	织田 信包	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_9	7whQnMzi	Oda Hisa	阿久	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_10	8BhkuRWC	Oda Nagamasu	织田 长益	Faction.clan_oda_1	Culture.kinai
+lord_1_oda_11	Jn0K7PNf	Oda Sei	阿世	Faction.clan_oda_1	Culture.kinai
+lord_1_kinoshita	gqt0QIl5	Kinoshita Hideyoshi	木下 秀吉	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_kinoshita_1	wmriGx9z	Kinoshita Nene	宁宁	Faction.clan_kinoshita_1	Culture.kinai
+dead_lord_1_kinoshita_2	9zZwFuMM	Kinoshita Yaemon	木下 弥右卫门	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_kinoshita_3	YCkbvrI5	Kinoshita Naka	阿仲夫人	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_kinoshita_4	iu9a9wWD	Kinoshita Hidenaga	木下 秀长	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_kinoshita_5	nerTByza	Kinoshita Tae	阿妙	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_kinoshita_6	eBydZ8UR	Kinoshita Tomo	阿友	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_kinoshita_7	LmtF2OEL	Kinoshita Yoshifusa	木下 吉房	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_kinoshita_8	78tz8gaC	Kinoshita Asahi	旭姬	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_kinoshita_9	TDa0KpyV	Kinoshita Yoshinari	木下 吉成	Faction.clan_kinoshita_1	Culture.kinai
+lord_1_shibata	Z6OKK1nA	Shibata Katsuie	柴田 胜家	Faction.clan_shibata_1	Culture.kinai
+lord_1_shibata_1	v5MbvJJH	Shibata Sae	佐江	Faction.clan_shibata_1	Culture.kinai
+lord_1_shibata_2	VuO1uj5T	Shibata Katsusato	柴田 胜里	Faction.clan_shibata_1	Culture.kinai
+lord_1_shibata_3	6DNrUFap	Shibata Katsutada	柴田 胜忠	Faction.clan_shibata_1	Culture.kinai
+lord_1_shibata_4	JmzS3yub	Shibata Katsumasa	柴田 胜政	Faction.clan_shibata_1	Culture.kinai
+lord_1_shibata_5	3tcSrSZS	Shibata Katsutoyo	柴田 胜丰	Faction.clan_shibata_1	Culture.kinai
+lord_1_shibata_6	DEN7nvP0	Shibata Katsutoshi	柴田 胜敏	Faction.clan_shibata_1	Culture.kinai
+lord_1_sakuma	rV9fvZPM	Sakuma Nobumori	佐久间 信盛	Faction.clan_sakuma_1	Culture.kinai
+lord_1_sakuma_1	zccColGo	Sakuma Tsutsuji	踯躅	Faction.clan_sakuma_1	Culture.kinai
+dead_lord_1_sakuma_2	1Auqkl29	Sakuma Nobuharu	佐久间 信晴	Faction.clan_sakuma_1	Culture.kinai
+lord_1_sakuma_3	llqgj9e4	Sakuma Kosho-in	光照院	Faction.clan_sakuma_1	Culture.kinai
+lord_1_sakuma_4	9GlIn49d	Sakuma Nobuhide	佐久间 信荣	Faction.clan_sakuma_1	Culture.kinai
+lord_1_sakuma_5	I0VAUSEq	Sakuma Nobutoki	佐久间 信辰	Faction.clan_sakuma_1	Culture.kinai
+lord_1_takigawa	sc9FjP2E	Takigawa Kazumasu	泷川 一益	Faction.clan_takigawa_1	Culture.kinai
+lord_1_takigawa_1	C67lGw7D	Takigawa Kano	加纳	Faction.clan_takigawa_1	Culture.kinai
+lord_1_takigawa_2	eYxUCzZl	Takigawa Kazutada	泷川 一忠	Faction.clan_takigawa_1	Culture.kinai
+lord_1_takigawa_3	iMc2zSg8	Takigawa Kazutoki	泷川 一时	Faction.clan_takigawa_1	Culture.kinai
+lord_1_takigawa_4	Ey1d5pwc	Takigawa Kiku	阿菊	Faction.clan_takigawa_1	Culture.kinai
+lord_1_takigawa_5	wCNIpIB4	Takigawa Sana	佐名	Faction.clan_takigawa_1	Culture.kinai
+lord_1_kuki	WbWoS8l0	Kuki Yoshitaka	九鬼 嘉隆	Faction.clan_kuki_1	Culture.kinai
+lord_1_kuki_1	RsCPH7VE	Kuki Nami	奈美	Faction.clan_kuki_1	Culture.kinai
+lord_1_kuki_2	rwB3k83J	Kuki Naritaka	九鬼 成隆	Faction.clan_kuki_1	Culture.kinai
+lord_1_kuki_3	99ZeqWCB	Kuki Shima	小岛	Faction.clan_kuki_1	Culture.kinai
+lord_1_kitabatake	JTzieEQH	Kitabatake Tomonori	北畠 具教	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_1	cq8VOWkD	Kitabatake Matsu	阿松	Faction.clan_kitabatake_1	Culture.kinai
+dead_lord_1_kitabatake_2	H2FsCrUJ	Kitabatake Harutomo	北畠 晴具	Faction.clan_kitabatake_1	Culture.kinai
+dead_lord_1_kitabatake_3	f3DEuNXC	Kitabatake Kuni	阿国	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_4	PtY5O0oR	Kitabatake Tomofusa	北畠 具房	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_5	wbEuy9q4	Kitabatake Tomofuji	长野 具藤	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_6	P1AgeXcD	Kitabatake Chikanari	北畠 亲成	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_7	Q50kWDFW	Kitabatake Yuki	阿幸	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_8	xz7VtMCD	Kitabatake Tsuki	阿月	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_9	dme8x5FX	Kitabatake Fumi	阿文	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_10	XWDbAYjm	Kitabatake Tomomasa	木造 具政	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_11	sPSLtwCr	Kitabatake Ten	小天	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_12	B4oQXBYc	Kitabatake Nagamasa	木造 长政	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_kitabatake_13	KvnteUqO	Kitabatake Tomochika	北畠 具亲	Faction.clan_kitabatake_1	Culture.kinai
+lord_1_shimazu_11	X2sLljXc	Shimazu Takahisa	岛津 贵久	Faction.clan_shimazu_1	Culture.saikai
+dead_lord_1_shimazu_2	DHsiGvld	Shimazu Sesso	雪窓夫人	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu	7s4dxFt3	Shimazu Yoshihisa	岛津 义久	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_1	gv3wrMe3	Shimazu Enshin-inden	圆信院殿	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_2	czGM0U4X	Shimazu Ohira	大平	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_3	yquLAovd	Shimazu Shinjo	新城	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_4	p9NeUjUw	Shimazu Yoshihiro	岛津 义弘	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_5	8fj2kDNi	Shimazu Kocho	小蝶	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_6	vI3iTRAa	Shimazu Yachi	屋地	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_7	PRLxNKTC	Shimazu Toshihisa	岛津 岁久	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_8	BgW75GXX	Shimazu Ume	阿梅	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_9	bCEeQkkF	Shimazu Iehisa	岛津 家久	Faction.clan_shimazu_1	Culture.saikai
+lord_1_shimazu_10	LvRRedWW	Shimazu Nagi	阿凪	Faction.clan_shimazu_1	Culture.saikai
+lord_1_ijuin_10	xTIL6Lf0	Ijuin Tadaaki	伊集院 忠朗	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_11	j5q1b0ZO	Ijuin Murasaki	阿紫	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin	UdtsY26m	Ijuin Tadaao	伊集院 忠仓	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_1	a5ytpM6f	Ijuin Shizuku	阿雫	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_2	gJxQjIhn	Ijuin Tadamune	伊集院 忠栋	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_3	60Aeo2HK	Ijuin Kusafuji	草藤	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_4	t99JjHho	Ijuin Harunari	伊集院 春成	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_5	YiDzP43I	Ijuin Tadatane	伊集院 忠胤	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_6	ltdCwtlK	Ijuin Hikari	阿光	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_7	CtPTpklz	Ijuin Hisanobu	伊集院 久信	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_8	0PAYYOYo	Ijuin Sasayuri	笹百合	Faction.clan_ijuin_1	Culture.saikai
+lord_1_ijuin_9	t99JjHho	Ijuin Harunari	伊集院 春成	Faction.clan_ijuin_1	Culture.saikai
+lord_1_hongo_4	9j0CtAEy	Hongo Tadachika	北乡 忠亲	Faction.clan_hongo_1	Culture.saikai
+lord_1_hongo_5	Fm7HitzI	Hongo Hasu	阿莲	Faction.clan_hongo_1	Culture.saikai
+lord_1_hongo	a7Bus3qz	Hongo Tokihisa	北乡 时久	Faction.clan_hongo_1	Culture.saikai
+lord_1_hongo_1	YBDz0cMr	Hongo Haru	阿春	Faction.clan_hongo_1	Culture.saikai
+lord_1_hongo_2	SpjpkISo	Hongo Sukehisa	北乡 相久	Faction.clan_hongo_1	Culture.saikai
+lord_1_hongo_3	jp7XzhCN	Hongo Tadatora	北乡 忠虎	Faction.clan_hongo_1	Culture.saikai
+dead_lord_1_kimotsuki_1	aUgD8yWg	Kimotsuki Kanetsugu	肝付 兼续	Faction.clan_kimotsuki_1	Culture.saikai
+lord_1_kimotsuki_6	A8Iz9ZZT	Kimotsuki Onan	御南	Faction.clan_kimotsuki_1	Culture.saikai
+lord_1_kimotsuki	J1KrYoB2	Kimotsuki Yoshikane	肝付 良兼	Faction.clan_kimotsuki_1	Culture.saikai
+lord_1_kimotsuki_1	blCzYNBm	Kimotsuki Takashiro	高城	Faction.clan_kimotsuki_1	Culture.saikai
+lord_1_kimotsuki_2	xk81zGz1	Kimotsuki Kanemiki	肝付 兼树	Faction.clan_kimotsuki_1	Culture.saikai
+lord_1_kimotsuki_3	Ywbdn3tH	Kimotsuki Izumi	和泉	Faction.clan_kimotsuki_1	Culture.saikai
+lord_1_kimotsuki_4	Z7OeNcGK	Kimotsuki Kanesuke	肝付 兼亮	Faction.clan_kimotsuki_1	Culture.saikai
+lord_1_kimotsuki_5	N5VldQQt	Kimotsuki Kanemori	肝付 兼护	Faction.clan_kimotsuki_1	Culture.saikai
+dead_lord_1_tanegashima_1	SqR0Mu6S	Tanegashima Shigetoki	种子岛 惠时	Faction.clan_tanegashima_1	Culture.saikai
+lord_1_tanegashima_4	XCSdjqll	Tanegashima Suiren	水莲	Faction.clan_tanegashima_1	Culture.saikai
+lord_1_tanegashima	qyCDkM5m	Tanegashima Tokitaka	种子岛 时尧	Faction.clan_tanegashima_1	Culture.saikai
+lord_1_tanegashima_1	QF3JI70b	Tanegashima Nishi	阿西	Faction.clan_tanegashima_1	Culture.saikai
+lord_1_tanegashima_2	zy3vzsD2	Tanegashima Hisatoki	种子岛 久时	Faction.clan_tanegashima_1	Culture.saikai
+lord_1_tanegashima_3	V9EPyj3M	Tanegashima Nippo	种子岛 日法	Faction.clan_tanegashima_1	Culture.saikai
+lord_1_kawakami	L1wnB6pW	Kawakami Hisazumi	川上 久隅	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_1	ewils0Dz	Kawakami Kita	喜多	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_2	92pspLlK	Kawakami Hisatoshi	川上 久利	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_3	qb7Z1U5h	Kawakami Hisamichi	川上 久通	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_4	QeuaL3cf	Kawakami Tsuta	阿茑	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_5	V6jIFhcG	Kawakami Tadakatsu	川上 忠克	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_6	TLxsl5iX	Kawakami Mina	美奈	Faction.clan_kawakami_1	Culture.saikai
+dead_lord_1_kawakami_7	k3CpNDG5	Kawakami Hisaaki	川上 久朗	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_8	eCNnvQM4	Kawakami Ai	阿爱	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_9	ODtiTkOv	Kawakami Hisatoki	川上 久辰	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_10	CaWfkO0p	Kawakami Yoshi	阿吉	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_11	Ht8hAJcl	Kawakami Tadatomo	川上 忠智	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_12	emI5NXQu	Kawakami Yae	八重	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_13	Ax7ZFxHb	Kawakami Tadakata	川上 忠坚	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_14	fexWXUPu	Kawakami Tadae	川上 忠兄	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_15	HjyxWWhy	Kawakami Hisatomo	川上 久智	Faction.clan_kawakami_1	Culture.saikai
+lord_1_kawakami_16	u6vPOWe7	Kawakami Sachi	佐知	Faction.clan_kawakami_1	Culture.saikai
+lord_1_uwai	KhqU55r0	Uwai Kunikane	上井 国兼	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_1	3vLKX0xu	Uwai Matsu	阿松	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_2	JMd4a3AO	Uwai Kakuken	上井 觉兼	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_3	5iU3TdnF	Uwai Tomi	阿富	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_4	Otv143ry	Uwai Tsunekane	上井 经兼	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_5	ELhVncx1	Uwai Hideaki	上井 秀明	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_6	o1LMD9ny	Uwai Ise	伊势	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_7	vXMcTPtw	Uwai Satokane	上井 里兼	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_8	tb6JqqiB	Uwai Shige	阿茂	Faction.clan_uwai_1	Culture.saikai
+lord_1_uwai_9	yU00LUuA	Uwai Aki	阿秋	Faction.clan_uwai_1	Culture.saikai
+lord_1_niro	dcCPC5JH	Niro Tadamoto	新纳 忠元	Faction.clan_niro_1	Culture.saikai
+lord_1_niro_1	uOiEhWdc	Niro Shima	志麻	Faction.clan_niro_1	Culture.saikai
+lord_1_niro_2	VHFYSwnu	Niro Tadaaki	新纳 忠明	Faction.clan_niro_1	Culture.saikai
+lord_1_niro_3	we21zLIb	Niro Tadamasu	新纳 忠增	Faction.clan_niro_1	Culture.saikai
+lord_1_niro_4	8SPgT8lv	Niro Kaya	佳弥	Faction.clan_niro_1	Culture.saikai
+lord_1_niro_5	JhlzLqNk	Niro Yasuhisa	新纳 康久	Faction.clan_niro_1	Culture.saikai
+lord_1_niro_6	B8yOZDB1	Niro Sue	素衣	Faction.clan_niro_1	Culture.saikai
+lord_1_niro_7	wqENKt24	Niro Hisaatsu	新纳 久饶	Faction.clan_niro_1	Culture.saikai
+lord_1_niro_8	NkRdYQ2Z	Niro Tadahide	新纳 忠秀	Faction.clan_niro_1	Culture.saikai
+dead_lord_1_ryuzoji_1	TVY3ysQM	Ryuzoji Chikaie	龙造寺 周家	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_2	pKRWlHY2	Ryuzoji Keigin-ni	庆訚尼	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji	EJFqZ0Re	Ryuzoji Takanobu	龙造寺 隆信	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_1	GJikOBTs	Ryuzoji Aoi	阿葵	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_3	IunQmBW8	Ryuzoji Masaie	龙造寺 政家	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_4	BpNWO1VW	Ryuzoji Ietane	江上 家种	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_5	sLjMUtzo	Ryuzoji Ienobu	龙造寺 家信	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_6	GJikOBTs	Ryuzoji Aoi	阿葵	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_7	dJrycT5U	Ryuzoji Yasu	安子	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_8	Bun8uTcC	Ryuzoji Nobukane	龙造寺 信周	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_9	QoJqPtiQ	Ryuzoji Shinobu	阿忍	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_10	1U8b3UIP	Ryuzoji Nobuaki	龙造寺 信昭	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_11	tITu2Ofm	Ryuzoji Naganobu	龙造寺 长信	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_12	jmFzBD6r	Ryuzoji Satsuki	臯月	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_13	oKY3txxT	Ryuzoji Yasutoshi	多久 安顺	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_14	uPz1Xvdn	Ryuzoji Kikyo	桔梗	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_ryuzoji_15	UOIYnsPP	Ryuzoji Shinko-in	心光院	Faction.clan_ryuzoji_1	Culture.saikai
+lord_1_matsuura	IuaPQ3Jf	Matsuura Takanobu	松浦 隆信	Faction.clan_matsuura_1	Culture.saikai
+lord_1_matsuura_1	8SJ7vUnX	Matsuura Suiran	水岚	Faction.clan_matsuura_1	Culture.saikai
+lord_1_matsuura_2	5vMME1MH	Matsuura Shigenobu	松浦 镇信	Faction.clan_matsuura_1	Culture.saikai
+lord_1_matsuura_3	MRn4lWn1	Matsuura Shii	阿椎	Faction.clan_matsuura_1	Culture.saikai
+lord_1_matsuura_4	ZjiY3efx	Matsuura Koreaki	后藤 惟明	Faction.clan_matsuura_1	Culture.saikai
+lord_1_matsuura_5	XUnjjMXE	Matsuura Chikashi	松浦 亲	Faction.clan_matsuura_1	Culture.saikai
+lord_1_matsuura_6	GVedNuqp	Matsuura Kanoko	鹿子	Faction.clan_matsuura_1	Culture.saikai
+lord_1_matsuura_7	SNVHLgax	Matsuura Ayame	绫女	Faction.clan_matsuura_1	Culture.saikai
+lord_1_nabeshima	25ZutWwE	Nabeshima Kiyofusa	锅岛 清房	Faction.clan_nabeshima_1	Culture.saikai
+lord_1_nabeshima_1	3WB4WKAb	Nabeshima Kakei	阿笕	Faction.clan_nabeshima_1	Culture.saikai
+lord_1_nabeshima_2	v3bb1Q5X	Nabeshima Nobufusa	锅岛 信房	Faction.clan_nabeshima_1	Culture.saikai
+lord_1_nabeshima_4	Jnx18tIy	Nabeshima Naoshige	锅岛 直茂	Faction.clan_nabeshima_1	Culture.saikai
+lord_1_nabeshima_5	0YuKB1a0	Nabeshima Hikotsuru	彦鹤	Faction.clan_nabeshima_1	Culture.saikai
+lord_1_nabeshima_6	vHYZgp4m	Nabeshima Kiyoyasu	锅岛 清泰	Faction.clan_nabeshima_1	Culture.saikai
+lord_1_nabeshima_7	b8DHDVJl	Nabeshima Iwagiri	岩桐	Faction.clan_nabeshima_1	Culture.saikai
+lord_1_saigo	aBevKeGx	Saigo Sumitaka	西乡 纯尧	Faction.clan_saigo_1	Culture.saikai
+lord_1_saigo_1	MLD6QUoN	Saigo Sada	阿定	Faction.clan_saigo_1	Culture.saikai
+lord_1_saigo_2	aBevKeGx	Saigo Sumitaka	西乡 纯尧	Faction.clan_saigo_1	Culture.saikai
+lord_1_saigo_3	0WWMrnLV	Saigo Mayumi	真弓	Faction.clan_saigo_1	Culture.saikai
+lord_1_saigo_4	Duy1yvLw	Saigo Nobunao	西乡 信尚	Faction.clan_saigo_1	Culture.saikai
+lord_1_saigo_5	VhUaonxW	Saigo Sumimasa	西乡 纯贤	Faction.clan_saigo_1	Culture.saikai
+lord_1_kumabe	LfZC8oxt	Kumabe Chikaie	隈部 亲家	Faction.clan_kumabe_1	Culture.saikai
+lord_1_kumabe_1	YazRHukF	Kumabe Inasa	引佐	Faction.clan_kumabe_1	Culture.saikai
+lord_1_kumabe_2	PJm0OEPx	Kumabe Chikanaga	隈部 亲永	Faction.clan_kumabe_1	Culture.saikai
+lord_1_kumabe_3	Xup6gETO	Kumabe Yamase	山濑	Faction.clan_kumabe_1	Culture.saikai
+lord_1_kumabe_4	vAL4CzPc	Kumabe Chikayasu	隈部 亲泰	Faction.clan_kumabe_1	Culture.saikai
+lord_1_kumabe_5	Vz6OtTyq	Kumabe Shigefusa	隈部 镇房	Faction.clan_kumabe_1	Culture.saikai
+lord_1_kumabe_6	XbjCzJTi	Kumabe Kiku	菊姫	Faction.clan_kumabe_1	Culture.saikai
+lord_1_kumabe_7	W3XjwTmf	Kumabe Chikafusa	隈部 亲房	Faction.clan_kumabe_1	Culture.saikai
+lord_1_kumabe_8	aACMcMnP	Kumabe Akafuji	朱藤	Faction.clan_kumabe_1	Culture.saikai
+lord_1_arima	EALX2wiH	Arima Yoshisada	有马 义贞	Faction.clan_arima_1	Culture.saikai
+lord_1_arima_1	Zf2ThTMe	Arima Utsugi	阿稔	Faction.clan_arima_1	Culture.saikai
+lord_1_arima_2	bqlAf3Ep	Arima Yoshizumi	有马 义纯	Faction.clan_arima_1	Culture.saikai
+lord_1_arima_3	8KGtAWLM	Arima Kanoko	鹿子	Faction.clan_arima_1	Culture.saikai
+lord_1_arima_4	P5bd2ucF	Arima Yuri	百合	Faction.clan_arima_1	Culture.saikai
+lord_1_arima_5	B67b5TXq	Arima Chikashi	波多亲	Faction.clan_arima_1	Culture.saikai
+lord_1_arima_6	HbzP5AAB	Arima Harunobu	有马 晴信	Faction.clan_arima_1	Culture.saikai
+lord_1_omura	y7KNSSPN	Omura Sumitada	大村 纯忠	Faction.clan_omura_1	Culture.saikai
+lord_1_omura_1	6VZ8rqKC	Omura Oen	阿圆	Faction.clan_omura_1	Culture.saikai
+lord_1_omura_2	qtwaI7LN	Omura Yoshiaki	大村 喜前	Faction.clan_omura_1	Culture.saikai
+lord_1_omura_3	XqAwpT3d	Omura Yuugao	夕颜	Faction.clan_omura_1	Culture.saikai
+lord_1_omura_4	YgGJdujN	Omura Shirasame	白雨	Faction.clan_omura_1	Culture.saikai
+lord_1_yasutomi	hPnLYYJO	Yasutomi Suminao	安富 纯直	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_yasutomi_1	UxSkwZcc	Yasutomi Fuse	阿伏	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_yasutomi_2	qjFeheme	Yasutomi sumiharu	安富 纯晴	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_yasutomi_3	M9fL4iOG	Yasutomi Kesa	袈裟	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_yasutomi_4	S9l95YBY	Yasutomi Sumiyasu	安富 纯泰	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_yasutomi_5	4hhMmQZv	Yasutomi Sumitoshi	安富 纯利	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_yasutomi_6	gP7qZ1sx	Yasutomi Fuku	阿福	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_yasutomi_7	xzrz8EdV	Yasutomi Sumioki	安富 纯兴	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_yasutomi_8	0u4eOAjF	Yasutomi Yumi	小弓	Faction.clan_yasutomi_1	Culture.saikai
+lord_1_fukuda	99cmIBLl	Fukuda Tadakane	福田 忠兼	Faction.clan_fukuda_1	Culture.saikai
+lord_1_fukuda_1	IqQ6wbYX	Fukuda Momo	桃子	Faction.clan_fukuda_1	Culture.saikai
+lord_1_fukuda_2	3DxSAP5P	Fukuda Kanetsugu	福田 兼次	Faction.clan_fukuda_1	Culture.saikai
+lord_1_fukuda_3	m9ddTE2d	Fukuda Chise	千世	Faction.clan_fukuda_1	Culture.saikai
+lord_1_fukuda_4	wq7KfqBC	Fukuda Kanechika	福田 兼亲	Faction.clan_fukuda_1	Culture.saikai
+lord_1_fukuda_5	5EDIHiUN	Fukuda koshi	小紫	Faction.clan_fukuda_1	Culture.saikai
+dead_lord_1_otomo_1	TzTHrzds	Otomo Yoshiaki	大友 义鉴	Faction.clan_otomo_1	Culture.saikai
+dead_lord_1_otomo_2	z3dbPelZ	Otomo Boujo	坊城	Faction.clan_otomo_1	Culture.saikai
+lord_1_otomo	Knylet1a	Otomo Sorin	大友 宗麟	Faction.clan_otomo_1	Culture.saikai
+lord_1_otomo_1	UIKx01xx	Otomo Nata	奈多	Faction.clan_otomo_1	Culture.saikai
+lord_1_otomo_2	7sbPoa0a	Otomo Yoshimune	大友 义统	Faction.clan_otomo_1	Culture.saikai
+lord_1_otomo_3	a5rohL3A	Otomo Chikaie	大友 亲家	Faction.clan_otomo_1	Culture.saikai
+lord_1_otomo_4	acpnamQM	Otomo Chikamori	大友 亲盛	Faction.clan_otomo_1	Culture.saikai
+lord_1_otomo_5	HgdZp0Wl	Otomo Emi	惠美	Faction.clan_otomo_1	Culture.saikai
+lord_1_otomo_6	5HotxjQe	Otomo Yuri	百合	Faction.clan_otomo_1	Culture.saikai
+lord_1_otomo_7	svKW968A	Otomo Chikasada	大友 亲贞	Faction.clan_otomo_1	Culture.saikai
+lord_1_kii_5	QhQNpW8c	Kii Nagafusa	城井 长房	Faction.clan_kii_1	Culture.saikai
+lord_1_kii_6	vTJsC4OH	Kii Aogiri	青桐	Faction.clan_kii_1	Culture.saikai
+lord_1_kii	k92lOXHJ	Kii Shigefusa	城井 镇房	Faction.clan_kii_1	Culture.saikai
+lord_1_kii_1	teYikAqn	Kii Yohira	四葩	Faction.clan_kii_1	Culture.saikai
+lord_1_kii_2	SqbUj7yq	Kii Tomofusa	城井 朝房	Faction.clan_kii_1	Culture.saikai
+lord_1_kii_3	bS8yxN7k	Kii Masafusa	城井 正房	Faction.clan_kii_1	Culture.saikai
+lord_1_kii_4	iIKYURwu	Kii Sukefusa	城井 甫房	Faction.clan_kii_1	Culture.saikai
+lord_1_kamachi	ccbI0eaO	Kamachi Akimori	蒲池 鉴盛	Faction.clan_kamachi_1	Culture.saikai
+lord_1_kamachi_1	l20Tre0E	Kamachi Otsutsuru	乙鹤	Faction.clan_kamachi_1	Culture.saikai
+lord_1_kamachi_2	mZZiN58r	Kamachi Shigehisa	蒲池 镇久	Faction.clan_kamachi_1	Culture.saikai
+lord_1_kamachi_3	4UMLD8VG	Kamachi Shigenami	蒲池 镇涟	Faction.clan_kamachi_1	Culture.saikai
+lord_1_kamachi_4	BQpT7Ot2	Kamachi Tamatsuru	玉鹤	Faction.clan_kamachi_1	Culture.saikai
+lord_1_kamachi_5	PhtIj0GH	Kamachi Muneyasu	蒲池 统安	Faction.clan_kamachi_1	Culture.saikai
+lord_1_bekki	NkAfByDU	Bekki Akitsura	户次 鉴连	Faction.clan_bekki_1	Culture.saikai
+lord_1_bekki_1	c5eoivff	Bekki Hatsu	波津	Faction.clan_bekki_1	Culture.saikai
+lord_1_bekki_2	ovVdGXOn	Bekki Ginchiyo	訚千代	Faction.clan_bekki_1	Culture.saikai
+lord_1_bekki_3	ZlHul9Zt	Bekki Shigetsura	户次 镇连	Faction.clan_bekki_1	Culture.saikai
+dead_lord_1_bekki_4	HQk5m5lx	Bekki Chikayuki	户次 亲行	Faction.clan_bekki_1	Culture.saikai
+dead_lord_1_bekki_5	b9gzn2hY	Bekki Akikata	户次 鉴方	Faction.clan_bekki_1	Culture.saikai
+lord_1_yoshihiro	lKbRz6eD	Yoshihiro Akitada	吉弘 鉴理	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_yoshihiro_1	0Y43uQrL	Yoshihiro Sekkoku-in	石斛院	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_yoshihiro_2	Sj68FhWp	Yoshihiro Shigenobu	吉弘 镇信	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_yoshihiro_3	gcJhVyAL	Yoshihiro Toki	登喜	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_yoshihiro_4	lpweWPGd	Yoshihiro Muneyuki	吉弘 统幸	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_yoshihiro_5	LeuCYp9y	Yoshihiro Munekazu	吉弘 统数	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_yoshihiro_6	dmMvttf2	Yoshihiro Munesada	吉弘 统贞	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_yoshihiro_7	m19CQd6x	Yoshihiro Kanoko	鹿子	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_yoshihiro_8	1yDEuokr	Yoshihiro Yamayuri	山百合	Faction.clan_yoshihiro_1	Culture.saikai
+lord_1_takahashi	E46uMtvl	Takahashi Shigetada	高桥 镇种	Faction.clan_takahashi_1	Culture.saikai
+lord_1_takahashi_1	j1RRxloG	Takahashi Kaname	金目	Faction.clan_takahashi_1	Culture.saikai
+lord_1_takahashi_2	2GaQofVb	Takahashi Munetora	高桥 统虎	Faction.clan_takahashi_1	Culture.saikai
+lord_1_takahashi_3	uBCOrdQV	Takahashi Kai	甲斐	Faction.clan_takahashi_1	Culture.saikai
+lord_1_takahashi_4	Z2GCOUtm	Takahashi Ochiyo	小千代	Faction.clan_takahashi_1	Culture.saikai
+lord_1_takahashi_5	x6R93cIi	Takahashi Kaya	伽耶	Faction.clan_takahashi_1	Culture.saikai
+lord_1_aso	NYlbLufq	Aso Koremasa	阿苏 惟将	Faction.clan_aso_1	Culture.saikai
+lord_1_aso_1	fo7AmZvZ	Aso Hinageshi	雏芥子	Faction.clan_aso_1	Culture.saikai
+lord_1_aso_2	VwVczw6S	Aso Koretane	阿苏 惟种	Faction.clan_aso_1	Culture.saikai
+lord_1_aso_3	LRFeUoJn	Aso Azami	浅见	Faction.clan_aso_1	Culture.saikai
+lord_1_kai	9rmhZ9SX	Kai Soun	甲斐 宗运	Faction.clan_kai_1	Culture.saikai
+lord_1_kai_1	0YMRJmlt	Kai Oume	阿梅	Faction.clan_kai_1	Culture.saikai
+lord_1_kai_2	AwDyF3fr	Kai Chikahide	甲斐 亲英	Faction.clan_kai_1	Culture.saikai
+lord_1_kai_3	0dn4iBEk	Kai Chikamasa	甲斐 亲正	Faction.clan_kai_1	Culture.saikai
+lord_1_kai_4	1erzaD8X	Kai Nobunari	甲斐 宣成	Faction.clan_kai_1	Culture.saikai
+lord_1_nawa	XYmKfVXX	Nawa Yukinao	名和 行直	Faction.clan_nawa_1	Culture.saikai
+lord_1_nawa_1	ZQpSL7UA	Nawa Anzu	阿杏	Faction.clan_nawa_1	Culture.saikai
+lord_1_nawa_2	SQP2yZeu	Nawa Akitaka	名和 显孝	Faction.clan_nawa_1	Culture.saikai
+lord_1_nawa_3	KrF8FmSs	Nawa Akiteru	名和 显辉	Faction.clan_nawa_1	Culture.saikai
+lord_1_nawa_4	1btPFqMR	Nawa Yukiyoshi	名和 行良	Faction.clan_nawa_1	Culture.saikai
+lord_1_nishi	XoV0TPFq	Nishi Koremitsu	西 惟光	Faction.clan_nishi_1	Culture.saikai
+lord_1_nishi_1	saxrxGki	Nishi Koma	阿驹	Faction.clan_nishi_1	Culture.saikai
+lord_1_nishi_2	7eurlUtR	Nishi Koreharu	西 惟治	Faction.clan_nishi_1	Culture.saikai
+lord_1_nishi_3	SRSldKIW	Nishi Uta	宇多	Faction.clan_nishi_1	Culture.saikai
+lord_1_nishi_4	4ZWfBLHb	Nishi Korenobu	西 惟信	Faction.clan_nishi_1	Culture.saikai
+lord_1_nishi_5	jpK0zLw5	Nishi Korehide	西 惟秀	Faction.clan_nishi_1	Culture.saikai
+lord_1_nishi_6	cCBVwKSj	Nishi Seki	势喜	Faction.clan_nishi_1	Culture.saikai
+lord_1_takezaki	hv1qJGAV	Takezaki Koremitsu	竹崎 惟满	Faction.clan_takezaki_1	Culture.saikai
+lord_1_takezaki_1	P62eOd0e	Takezaki Sawa	佐和	Faction.clan_takezaki_1	Culture.saikai
+lord_1_takezaki_2	L7lfoFu7	Takezaki Nagahide	竹崎 长秀	Faction.clan_takezaki_1	Culture.saikai
+lord_1_takezaki_3	WRBJMAxG	Takezaki Tama	阿玉	Faction.clan_takezaki_1	Culture.saikai
+lord_1_takezaki_4	3IgBMBjO	Takezaki Tsuki	阿月	Faction.clan_takezaki_1	Culture.saikai
+dead_lord_1_sagara_1	YNU67geV	Sagara Haruhiro	相良 晴广	Faction.clan_sagara_1	Culture.saikai
+dead_lord_1_sagara_2	916pH86X	Sagara Uchijo	内城	Faction.clan_sagara_1	Culture.saikai
+lord_1_sagara	5eZfB982	Sagara Yoshihi	相良 义阳	Faction.clan_sagara_1	Culture.saikai
+lord_1_sagara_1	qLcsYHM7	Sagara Chiyogiku	千代菊	Faction.clan_sagara_1	Culture.saikai
+lord_1_sagara_2	HAtmAA4A	Sagara Koari	虎满	Faction.clan_sagara_1	Culture.saikai
+lord_1_sagara_3	5GMpq6XY	Sagara Chiari	千满	Faction.clan_sagara_1	Culture.saikai
+lord_1_sagara_4	NutJCPcj	Sagara Kikuchiyo	菊千代	Faction.clan_sagara_1	Culture.saikai
+lord_1_sagara_5	NWi3RA0H	Sagara Yorisada	相良 赖贞	Faction.clan_sagara_1	Culture.saikai
+lord_1_sagara_6	dvyfGKTU	Sagara Hotaru	阿萤	Faction.clan_sagara_1	Culture.saikai
+lord_1_sagara_7	bbvlOOs5	Sagara Umigiri	海桐	Faction.clan_sagara_1	Culture.saikai
+lord_1_indo	dKC0bSr2	Indo Yoriyasu	犬童 赖安	Faction.clan_indo_1	Culture.saikai
+lord_1_indo_1	0K6M8tdY	Indo Myokei-ni	妙桂尼	Faction.clan_indo_1	Culture.saikai
+lord_1_indo_2	EmtnyFBl	Indo Yorimori	犬童 赖兄	Faction.clan_indo_1	Culture.saikai
+lord_1_indo_3	MSsRSBtV	Indo Yusura	山樱桃	Faction.clan_indo_1	Culture.saikai
+lord_1_amakusa	nnG2BZn7	Amakusa Shigenao	天草 镇尚	Faction.clan_amakusa_1	Culture.saikai
+lord_1_amakusa_1	L9k5QuOT	Amakusa Chidori	千鸟	Faction.clan_amakusa_1	Culture.saikai
+lord_1_amakusa_2	16V5w91f	Amakusa Hisatane	天草 久种	Faction.clan_amakusa_1	Culture.saikai
+lord_1_amakusa_3	uq8mSvxo	Amakusa Tanemoto	天草 种元	Faction.clan_amakusa_1	Culture.saikai
+lord_1_amakusa_4	MF8e93EW	Amakusa Hisatake	天草 久武	Faction.clan_amakusa_1	Culture.saikai
+lord_1_amakusa_5	3kwAqpNa	Amakusa Tsudura	阿葛	Faction.clan_amakusa_1	Culture.saikai
+lord_1_amakusa_6	57TkTUlx	Amakusa Tanemoto	天草 种元	Faction.clan_amakusa_1	Culture.saikai
+lord_1_ito	XTnJEsYW	Ito Yoshisuke	伊东 义祐	Faction.clan_ito_1	Culture.saikai
+lord_1_ito_1	Zo5RCGJQ	Ito Asa	安佐	Faction.clan_ito_1	Culture.saikai
+lord_1_ito_2	4atnqu27	Ito Takashiro	高城殿	Faction.clan_ito_1	Culture.saikai
+lord_1_ito_3	uihfZdNy	Ito Aso	阿苏	Faction.clan_ito_1	Culture.saikai
+lord_1_ito_4	zc3RATLY	Ito Yoshimasu	伊东 义益	Faction.clan_ito_1	Culture.saikai
+lord_1_ito_5	bi2KysQW	Ito Houjyo	北条	Faction.clan_ito_1	Culture.saikai
+lord_1_ito_6	lVI3T9fG	Ito Machigami	町上	Faction.clan_ito_1	Culture.saikai
+lord_1_ito_7	85Bsa0wA	Ito Suketaka	伊东 祐兵	Faction.clan_ito_1	Culture.saikai
+lord_1_mera_6	Zyip3QcN	Mera Sukemichi	米良 祐通	Faction.clan_mera_1	Culture.saikai
+lord_1_mera_7	ZtJyjDvr	Mera Namomi	奈茂美	Faction.clan_mera_1	Culture.saikai
+lord_1_mera	2CvJRlY1	Mera Suketsugu	米良 祐次	Faction.clan_mera_1	Culture.saikai
+lord_1_mera_1	ioFUZ0oL	Mera Natsugiku	夏菊	Faction.clan_mera_1	Culture.saikai
+lord_1_mera_2	peaJoNOB	Mera Sigekata	米良 重方	Faction.clan_mera_1	Culture.saikai
+lord_1_mera_3	rOnLD0w7	Mera Hana	花子	Faction.clan_mera_1	Culture.saikai
+lord_1_mera_4	Zyip3QcN	Mera Sukemichi	米良 祐通	Faction.clan_mera_1	Culture.saikai
+lord_1_mera_5	Uf3QK6ng	Mera Yume	汤目	Faction.clan_mera_1	Culture.saikai
+lord_1_nagakura_3	zE5EwPDa	Nagakura Suketoshi	长仓 祐岁	Faction.clan_nagakura_1	Culture.saikai
+lord_1_nagakura_4	4EowmW3n	Nagakura Hisame	久目	Faction.clan_nagakura_1	Culture.saikai
+lord_1_nagakura	IGRDYaLn	Nagakura Sukemasa	长仓 祐政	Faction.clan_nagakura_1	Culture.saikai
+lord_1_nagakura_1	kxPhkWeY	Nagakura Asa	安佐	Faction.clan_nagakura_1	Culture.saikai
+lord_1_nagakura_2	a0POjhcf	Nagakura Dounsai	洞云斋	Faction.clan_nagakura_1	Culture.saikai
+main_hero	w1okK9gq	Rogan			Culture.saikai
+main_hero_father	22a9fyiQ	Father			Culture.saikai
+main_hero_mother	UB4sqrWx	Mother			Culture.saikai
+ferry_driver	CLqPbdiZ	Ferry Driver			Culture.neutral_culture
+dead_lord_1_saionji_1	gTFSsjbm	Saionji Kinnobu	西园寺 公宣	Faction.clan_saionji_1	Culture.nankai
+dead_lord_1_saionji_2	qwJbUUQV	Saionji Seiko-in	清子	Faction.clan_saionji_1	Culture.nankai
+lord_1_saionji	bMfqWjqk	Saionji Kinhiro	西园寺 公广	Faction.clan_saionji_1	Culture.nankai
+lord_1_saionji_1	g5pzHuFm	Saionji Nishi	西姫	Faction.clan_saionji_1	Culture.nankai
+lord_1_saionji_2	kHOJ0Awe	Saionji Nobuhisa	西园寺 宣久	Faction.clan_saionji_1	Culture.nankai
+lord_1_saionji_3	Jb6FawOB	Saionji Hisa	阿久	Faction.clan_saionji_1	Culture.nankai
+lord_1_kashuji	RzWxJC41	Kajuji Motoaki	劝修寺 基明	Faction.clan_kashuji_1	Culture.nankai
+lord_1_kashuji_1	vT8u3noP	Kajuji Fuki	阿蕗	Faction.clan_kashuji_1	Culture.nankai
+lord_1_kashuji_2	GZEDDxOG	Kajuji Motonori	劝修寺 基贤	Faction.clan_kashuji_1	Culture.nankai
+lord_1_kashuji_3	KDfcebZ7	Kajuji Sayuri	小百合	Faction.clan_kashuji_1	Culture.nankai
+lord_1_hoketsu	gSncZATa	Hoketsu Norinobu	法华津 则延	Faction.clan_hoketsu_1	Culture.nankai
+lord_1_hoketsu_1	GCLn5ECy	Hoketsu Hama	羽舞	Faction.clan_hoketsu_1	Culture.nankai
+lord_1_hoketsu_2	UgnuLgbA	Hoketsu Sakinobu	法华津 前延	Faction.clan_hoketsu_1	Culture.nankai
+lord_1_hoketsu_3	51dM4xsA	Hoketsu Kuwa	桑子	Faction.clan_hoketsu_1	Culture.nankai
+lord_1_ichijo	l9dNB33O	Ichijo Kanesada	一条 兼定	Faction.clan_ichijo_1	Culture.nankai
+lord_1_ichijo_1	vZK6RwNC	Ichijo Tamafuji	玉藤	Faction.clan_ichijo_1	Culture.nankai
+lord_1_ichijo_2	aa7k9lsZ	Ichijo Tadamasa	一条 内政	Faction.clan_ichijo_1	Culture.nankai
+lord_1_ichijo_3	FH6ohwg7	Ichijo Nobuko	信子	Faction.clan_ichijo_1	Culture.nankai
+lord_1_ichijo_4	84OJJiZg	Ichijo Mariko	鞠子	Faction.clan_ichijo_1	Culture.nankai
+lord_1_doi	j6oilqBS	Doi Kiyoyoshi	土居 清良	Faction.clan_doi_1	Culture.nankai
+lord_1_doi_1	R9UQCnuM	Doi Mugi	牟岐	Faction.clan_doi_1	Culture.nankai
+lord_1_doi_2	NrJRgRfz	Doi Shigekiyo	土居 重清	Faction.clan_doi_1	Culture.nankai
+lord_1_doi_3	PGjI36Ae	Doi Sozan	土居 宗珊	Faction.clan_doi_1	Culture.nankai
+lord_1_aki	pvhvN7QV	Aki Kunitora	安艺 国虎	Faction.clan_aki_1	Culture.nankai
+lord_1_aki_1	rHKVyyVc	Aki Nishi	阿西	Faction.clan_aki_1	Culture.nankai
+lord_1_aki_2	kCyapaMi	Aki Hirotsune	安艺 弘恒	Faction.clan_aki_1	Culture.nankai
+lord_1_aki_3	qsvolxnV	Aki Ietomo	安艺 家友	Faction.clan_aki_1	Culture.nankai
+lord_1_tsuno	qnY9HZY8	Tsuno Sadakatsu	津野 定胜	Faction.clan_tsuno_1	Culture.nankai
+lord_1_tsuno_1	q7dRw8dj	Tsuno Sumi	须美	Faction.clan_tsuno_1	Culture.nankai
+lord_1_tsuno_2	Pi1K6Dyu	Tsuno Katsuoki	津野 胜兴	Faction.clan_tsuno_1	Culture.nankai
+lord_1_tsuno_3	Q5L1Tq9A	Tsuno Tomo	阿友	Faction.clan_tsuno_1	Culture.nankai
+lord_1_chosokabe	EFVk0L5h	Chosokabe Motochika	长宗我部 元亲	Faction.clan_chosokabe_1	Culture.nankai
+lord_1_chosokabe_1	6CK8HDZR	Chosokabe Amane	阿周	Faction.clan_chosokabe_1	Culture.nankai
+lord_1_chosokabe_2	s6nTS5jf	Chosokabe Nobuchika	长宗我部 信亲	Faction.clan_chosokabe_1	Culture.nankai
+lord_1_chosokabe_3	OdLEdQd3	Chosokabe Chikakazu	长宗我部 亲和	Faction.clan_chosokabe_1	Culture.nankai
+lord_1_chosokabe_4	JVEOWyAi	Chosokabe Suzu	阿铃	Faction.clan_chosokabe_1	Culture.nankai
+lord_1_chosokabe_5	MgtskN05	Chosokabe Honoka	穗香	Faction.clan_chosokabe_1	Culture.nankai
+lord_1_chosokabe_6	ufdDL1IS	Chosokabe Ako	阿江	Faction.clan_chosokabe_1	Culture.nankai
+lord_1_kosokabe	U9RsqAwX	Kosokabe Chikayasu	香宗我部 亲泰	Faction.clan_kosokabe_1	Culture.nankai
+lord_1_kosokabe_1	RySY5fQu	Kosokabe Yuzuha	柚叶	Faction.clan_kosokabe_1	Culture.nankai
+lord_1_kira	hvyaWDgX	Kira Chikasada	吉良 亲贞	Faction.clan_kira_1	Culture.nankai
+lord_1_kira_1	DeCbQeHC	Kira Yumi	小弓	Faction.clan_kira_1	Culture.nankai
+lord_1_kira_2	1YCmAvvP	Kira Chikazane	吉良 亲实	Faction.clan_kira_1	Culture.nankai
+lord_1_kira_3	FXZNXucw	Kira Joen	如渊	Faction.clan_kira_1	Culture.nankai
+lord_1_kira_4	zcC4TL48	Kira Chikamasa	吉良 亲正	Faction.clan_kira_1	Culture.nankai
+lord_1_hisatake	pGrd03pI	Hisatake Chikanobu	久武 亲信	Faction.clan_hisatake_1	Culture.nankai
+lord_1_hisatake_1	kKdyVFsm	Hisatake En	阿圆	Faction.clan_hisatake_1	Culture.nankai
+dead_lord_1_hisatake_2	Uk8wWxBw	Hisatake Shogen	久武 昌源	Faction.clan_hisatake_1	Culture.nankai
+dead_lord_1_hisatake_3	gswXQDd7	Hisatake Mugi	牟岐	Faction.clan_hisatake_1	Culture.nankai
+lord_1_hisatake_4	KwL2BhJu	Hisatake Chikanao	久武 亲直	Faction.clan_hisatake_1	Culture.nankai
+lord_1_hisatake_5	NMjVGI7u	Hisatake Taka	多加	Faction.clan_hisatake_1	Culture.nankai
+lord_1_yoshida	m3YajwyO	Yoshida Shigetoshi	吉田 重俊	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_1	uht0Icck	Yoshida Hisa	阿久	Faction.clan_yoshida_1	Culture.nankai
+dead_lord_1_yoshida_2	YK0QNAGY	Yoshida Norihiro	吉田 则弘	Faction.clan_yoshida_1	Culture.nankai
+dead_lord_1_yoshida_3	uuCL0VJy	Yoshida Chiku	知久	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_4	1OhuHuRD	Yoshida Shigeyasu	吉田 重康	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_5	pOfNSi6V	Yoshida Naka	阿仲	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_6	UYASRxJw	Yoshida Takatoshi	吉田 孝俊	Faction.clan_yoshida_1	Culture.nankai
+dead_lord_1_yoshida_7	hhYUOKRh	Yoshida Takayori	吉田 孝赖	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_8	ic0O247n	Yoshida Sen	阿千	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_9	HAaOI8lO	Yoshida Sadashige	吉田 贞重	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_10	CLvsoPtJ	Yoshida Kinu	阿绢	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_11	KyUYLo0G	Yoshida Chikashige	吉田 周重	Faction.clan_yoshida_1	Culture.nankai
+lord_1_yoshida_12	mfPg78eX	Yoshida Toku	阿德	Faction.clan_yoshida_1	Culture.nankai
+lord_1_fukudome	HVP1iekL	Fukudome Yoshishige	福留 仪重	Faction.clan_fukudome_1	Culture.nankai
+lord_1_fukudome_1	g2mr3QCM	Fukudome Chikamasa	福留 亲政	Faction.clan_fukudome_1	Culture.nankai
+lord_1_fukudome_2	Hlkt9zR1	Fukudome Ume	阿梅	Faction.clan_fukudome_1	Culture.nankai
+dead_lord_1_miyoshi_1	2AJOuAzz	Miyoshi Nagayoshi	三好 长庆	Faction.clan_miyoshi_1	Culture.nankai
+lord_1_miyoshi_5	diWjBHKp	Miyoshi Syoko-in	照光院	Faction.clan_miyoshi_1	Culture.nankai
+lord_1_miyoshi_4	NPrwtYts	Miyoshi Tsuru	阿鹤	Faction.clan_miyoshi_1	Culture.nankai
+lord_1_miyoshi	Mxr5FYoa	Miyoshi Yoshitsugu	三好 义继	Faction.clan_miyoshi_1	Culture.nankai
+lord_1_miyoshi_2	JLomyVbr	Miyoshi Yoshikane	三好 义兼	Faction.clan_miyoshi_1	Culture.nankai
+lord_1_miyoshi_3	75JZYLpa	Miyoshi Yoshishige	三好 义茂	Faction.clan_miyoshi_1	Culture.nankai
+lord_1_miyoshi_1	6gzf2OX9	Miyoshi Azusa	阿梓	Faction.clan_miyoshi_1	Culture.nankai
+dead_lord_1_sogo_1	4jgyfZ85	Sogo Kazumasa	十河 一存	Faction.clan_sogo_1	Culture.nankai
+dead_lord_1_sogo_2	4MZmJxE6	Sogo Komyo-in	光明院	Faction.clan_sogo_1	Culture.nankai
+lord_1_sogo	uu3PRYD5	Sogo Masayasu	十河 存保	Faction.clan_sogo_1	Culture.nankai
+lord_1_sogo_1	HxfQ7WNA	Sogo Satsuki	臯月	Faction.clan_sogo_1	Culture.nankai
+lord_1_sogo_2	GLB0eZon	Sogo Masayuki	十河 存之	Faction.clan_sogo_1	Culture.nankai
+lord_1_sogo_3	nKh0IYa0	Sogo Mayu	阿茧	Faction.clan_sogo_1	Culture.nankai
+lord_1_sogo_4	dBBf1wOB	Sogo Kazuyuki	十河 一行	Faction.clan_sogo_1	Culture.nankai
+lord_1_sogo_5	GiqQGwGA	Sogo Yamagiri	山桐	Faction.clan_sogo_1	Culture.nankai
+lord_1_shingai	cjm2q36D	Shingai Dozen	新开 道善	Faction.clan_shingai_1	Culture.nankai
+lord_1_shingai_1	0vFKvTmm	Shingai Yachiyo	八千代	Faction.clan_shingai_1	Culture.nankai
+lord_1_shingai_2	2yPLLgtG	Shingai Sanenari	新开 实成	Faction.clan_shingai_1	Culture.nankai
+lord_1_shingai_3	cOejVaQ2	Shingai Botan	牡丹	Faction.clan_shingai_1	Culture.nankai
+lord_1_shingai_4	zQfWhCEH	Shingai Renge	莲花	Faction.clan_shingai_1	Culture.nankai
+lord_1_shingai_5	CjIwIpNQ	Shingai Ukon	新开 右近	Faction.clan_shingai_1	Culture.nankai
+lord_1_shingai_6	0D5ublc2	Shingai Kaneyasu	新开 兼安	Faction.clan_shingai_1	Culture.nankai
+lord_1_shingai_7	Z7HNxyjm	Shingai Katashiro	片城	Faction.clan_shingai_1	Culture.nankai
+dead_lord_1_onishi_1	EPAOxYQz	Onishi Mototaka	大西 元高	Faction.clan_onishi_1	Culture.nankai
+dead_lord_1_onishi_2	wx2ueWmc	Onishi Keizen-in	庆善院	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi	RvDxK05Y	Onishi Yoritake	大西 赖武	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_1	hM5I9P0H	Onishi Amaki	甘城	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_2	rWLTD0VP	Onishi Shigemoto	大西 茂元	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_3	1DquGOk6	Onishi Haruka	春香	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_4	IAlJOXYB	Onishi Yoriharu	大西 赖晴	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_5	yHGYnv7J	Onishi Tochi	户知	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_6	nTvvBSyL	Onishi Yorikane	大西 赖包	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_7	SQk4kSuU	Onishi Yorinobu	大西 赖宣	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_8	MuaWnIVG	Onishi Mototake	大西 元武	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_9	oeXBYpPO	Onishi Suzuran	铃兰	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_10	vufFgWYR	Onishi Sadatake	大西 贞武	Faction.clan_onishi_1	Culture.nankai
+lord_1_onishi_11	CoZaJNAY	Onishi Hamagiku	浜菊	Faction.clan_onishi_1	Culture.nankai
+lord_1_ashina	khx3Vgh8	Ashina Morioki	芦名 盛兴	Faction.clan_ashina_1	Culture.ou
+lord_1_ashina_1	mzCn8ZC7	Ashina Hiko	阿彦	Faction.clan_ashina_1	Culture.ou
+lord_1_ashina_2	sdzqsV1G	Ashina Moriuji	芦名 盛氏	Faction.clan_ashina_1	Culture.ou
+lord_1_ashina_3	liJQwhE3	Ashina Yae	八重	Faction.clan_ashina_1	Culture.ou
+lord_1_ashina_4	QkJaEi3K	Ashina Yuzu	柚子	Faction.clan_ashina_1	Culture.ou
+lord_1_inawashiro	YwGkSfbK	Inawashiro Morikuni	猪苗代 盛国	Faction.clan_inawashiro_1	Culture.ou
+lord_1_inawashiro_1	kDG4hH19	Inawashiro Matsu	阿松	Faction.clan_inawashiro_1	Culture.ou
+lord_1_inawashiro_2	7iNle8U9	Inawashiro Moritane	猪苗代 盛胤	Faction.clan_inawashiro_1	Culture.ou
+lord_1_inawashiro_3	scnJL5kL	Inawashiro Munekuni	猪苗代 宗国	Faction.clan_inawashiro_1	Culture.ou
+lord_1_inawashiro_4	9wTMtQuw	Inawashiro Moriaki	猪苗代 盛明	Faction.clan_inawashiro_1	Culture.ou
+lord_1_saze	uSZ3ktlG	Saze Tanetsune	佐濑 种常	Faction.clan_saze_1	Culture.ou
+lord_1_saze_1	eKVl7rFn	Saze Ai	阿爱	Faction.clan_saze_1	Culture.ou
+lord_1_saze_2	E8H6JIrN	Saze Tsunenori	佐濑 常则	Faction.clan_saze_1	Culture.ou
+lord_1_saze_3	4Wvo7FV1	Saze Tose	阿岁	Faction.clan_saze_1	Culture.ou
+lord_1_saze_4	Cu1xPRNB	Saze Morimitsu	佐濑 盛满	Faction.clan_saze_1	Culture.ou
+lord_1_saze_5	IWEJ4mrY	Saze Kine	阿甲	Faction.clan_saze_1	Culture.ou
+lord_1_saze_6	kJATuUtQ	Saze Tsunehide	佐濑 常秀	Faction.clan_saze_1	Culture.ou
+lord_1_matsumoto	PBI1pb9J	Matsumoto Ujisuke	松本 氏辅	Faction.clan_matsumoto_1	Culture.ou
+lord_1_matsumoto_1	VtEfOh9T	Matsumoto Hama	小浜	Faction.clan_matsumoto_1	Culture.ou
+lord_1_matsumoto_2	wnmhSjVG	Matsumoto Yukisuke	松本 行辅	Faction.clan_matsumoto_1	Culture.ou
+lord_1_nikaido	9WmlolIC	Nikaido Moriyoshi	二阶堂 盛义	Faction.clan_nikaido_1	Culture.ou
+lord_1_nikaido_1	foAJh4Aw	Nikaido Onami	阿波	Faction.clan_nikaido_1	Culture.ou
+lord_1_nikaido_2	4gtrnix8	Nikaido Moritaka	二阶堂 盛隆	Faction.clan_nikaido_1	Culture.ou
+lord_1_soma	CrgYCr35	Soma Moritane	相马 盛胤	Faction.clan_soma_1	Culture.ou
+lord_1_soma_1	ppxVSFKS	Soma Kake	鹿毛	Faction.clan_soma_1	Culture.ou
+lord_1_soma_2	CkTKok6g	Soma Yoshitane	相马 义胤	Faction.clan_soma_1	Culture.ou
+lord_1_soma_3	l7TOWvmc	Sōma Takatane	相马 隆胤	Faction.clan_soma_1	Culture.ou
+lord_1_soma_4	YwuGBeax	Soma Satotane	相马 乡胤	Faction.clan_soma_1	Culture.ou
+lord_1_soma_5	nci1JssK	Soma Haru	阿春	Faction.clan_soma_1	Culture.ou
+lord_1_nihonmatsu	BGJzNDaJ	Nihonmatsu Yoshikuni	二本松 义国	Faction.clan_nihonmatsu_1	Culture.ou
+lord_1_nihonmatsu_1	1NJGIP9x	Nihonmatsu Aki	阿秋	Faction.clan_nihonmatsu_1	Culture.ou
+lord_1_nihonmatsu_2	4zIz7SLR	Nihonmatsu Yoshitsugu	二本松 义继	Faction.clan_nihonmatsu_1	Culture.ou
+lord_1_tamura	nlu9kbj8	Tamura Takaaki	田村 隆显	Faction.clan_tamura_1	Culture.ou
+lord_1_tamura_1	HByndZnP	Tamura Aki	安艺	Faction.clan_tamura_1	Culture.ou
+lord_1_tamura_2	sxbLtOpV	Tamura Kiyoaki	田村 清显	Faction.clan_tamura_1	Culture.ou
+lord_1_tamura_3	aZssFvBr	Tamura Kake	鹿毛	Faction.clan_tamura_1	Culture.ou
+lord_1_tamura_4	DuxfRUZv	Tamura Mego	芽子	Faction.clan_tamura_1	Culture.ou
+lord_1_tamura_5	oEJsVsvL	Tamura Ujiaki	田村 氏显	Faction.clan_tamura_1	Culture.ou
+lord_1_okada	AabIiWIA	Okada Shigetane	冈田 茂胤	Faction.clan_okada_1	Culture.ou
+lord_1_okada_1	o5Zq7Oek	Okada Kai	甲斐	Faction.clan_okada_1	Culture.ou
+dead_lord_1_okada_2	MCup3o6i	Okada Yoshitane	冈田 义胤	Faction.clan_okada_1	Culture.ou
+dead_lord_1_okada_3	yi11OrT2	Okada Myokei-in	妙桂院	Faction.clan_okada_1	Culture.ou
+lord_1_okada_4	nMadfoql	Okada Naotane	冈田 直胤	Faction.clan_okada_1	Culture.ou
+lord_1_okada_5	fELklkpF	Okada Tanekage	冈田 胤景	Faction.clan_okada_1	Culture.ou
+lord_1_okada_6	AhCQLCtb	Okada Kiyotane	冈田 清胤	Faction.clan_okada_1	Culture.ou
+lord_1_okada_7	nLNPP20E	Okada Tanetsura	冈田 胤连	Faction.clan_okada_1	Culture.ou
+lord_1_okada_8	UVX0OxFg	Okada Ise	伊势	Faction.clan_okada_1	Culture.ou
+lord_1_okada_9	EB3nmSxp	Okada Tanenobu	冈田 胤宣	Faction.clan_okada_1	Culture.ou
+lord_1_okada_10	PIfaqh7Q	Okada Tanekane	冈田 胤兼	Faction.clan_okada_1	Culture.ou
+lord_1_date	3Pn5oEfx	Date Terumune	伊达 辉宗	Faction.clan_date_1	Culture.ou
+lord_1_date_1	EDAnoqXI	Date Yoshi	义姬	Faction.clan_date_1	Culture.ou
+lord_1_date_2	KAHCFSfY	Date Harumune	伊达 晴宗	Faction.clan_date_1	Culture.ou
+lord_1_date_3	0JKuKUGj	Date Kubo	久保姬	Faction.clan_date_1	Culture.ou
+dead_lord_1_date_4	23ZArAMO	Date Tanemune	伊达 稙宗	Faction.clan_date_1	Culture.ou
+dead_lord_1_date_5	BX6Yp0vZ	Date Taishin-in	泰心院	Faction.clan_date_1	Culture.ou
+lord_1_date_6	5UBPnUHd	Date Masamune	伊达 政宗	Faction.clan_date_1	Culture.ou
+lord_1_date_7	HgsPH3W5	Date Sanemoto	伊达 实元	Faction.clan_date_1	Culture.ou
+lord_1_date_8	TGJrgoXP	Date Kyosei-in	居性院	Faction.clan_date_1	Culture.ou
+lord_1_date_9	5uYt8kLx	Date Shigezane	伊达 成实	Faction.clan_date_1	Culture.ou
+lord_1_katakura	ROpC8P2s	Katakura Shigetsugu	片仓 重继	Faction.clan_katakura_1	Culture.ou
+dead_lord_1_katakura_1	w4XrKYdu	Katakura Kageshige	片仓 景重	Faction.clan_katakura_1	Culture.ou
+dead_lord_1_katakura_2	MlE07cvv	Katakura Naoko	直子	Faction.clan_katakura_1	Culture.ou
+lord_1_katakura_3	xNmZREFs	Katakura Kita	片仓 喜多	Faction.clan_katakura_1	Culture.ou
+lord_1_katakura_4	5M0NN2yN	Katakura Kagetsuna	片仓 景纲	Faction.clan_katakura_1	Culture.ou
+lord_1_oniniwa	faonKywA	Oniniwa Yoshinao	鬼庭 义重	Faction.clan_oniniwa_1	Culture.ou
+lord_1_oniniwa_1	G8NxnJE5	Oniniwa Taki	鬼庭 多岐	Faction.clan_oniniwa_1	Culture.ou
+lord_1_oniniwa_2	C9MEAEGI	Oniniwa Tsunamoto	鬼庭 纲元	Faction.clan_oniniwa_1	Culture.ou
+lord_1_oniniwa_3	tLDDSJ4h	Oniniwa Sagami	相模	Faction.clan_oniniwa_1	Culture.ou
+lord_1_oniniwa_4	6syqEkxm	Oniniwa Yasumoto	鬼庭 安元	Faction.clan_oniniwa_1	Culture.ou
+lord_1_watari	3fLCijjk	Watari Motomune	亘理 元宗	Faction.clan_watari_1	Culture.ou
+lord_1_watari_1	ASQ0gZto	Watari Gekko-in	月光院	Faction.clan_watari_1	Culture.ou
+lord_1_watari_2	JZFYlzYb	Watari Shigemune	亘理 重宗	Faction.clan_watari_1	Culture.ou
+lord_1_watari_3	chvnuxQs	Watari Yui	由比	Faction.clan_watari_1	Culture.ou
+lord_1_osaki	CS8KPrQ8	Osaki Yoshitaka	大崎 义隆	Faction.clan_osaki_1	Culture.ou
+lord_1_osaki_1	hFIaafxw	Osaki Yoshinao	大崎 义直	Faction.clan_osaki_1	Culture.ou
+lord_1_osaki_2	yKztqf7Y	Osaki Tani	小谷	Faction.clan_osaki_1	Culture.ou
+lord_1_osaki_3	PdMyVeC2	Osaki Toshiyo	利世	Faction.clan_osaki_1	Culture.ou
+lord_1_kasai	GfI6uQA0	Kasai Harunobu	葛西 晴信	Faction.clan_kasai_1	Culture.ou
+lord_1_kasai_1	V03JK8Wj	Kasai Toku	阿德	Faction.clan_kasai_1	Culture.ou
+lord_1_kasai_2	4enjcrq2	Kasai Kiyotaka	葛西 清高	Faction.clan_kasai_1	Culture.ou
+lord_1_kasai_3	uLgRyxxy	Kasai Nobuhide	葛西 信秀	Faction.clan_kasai_1	Culture.ou
+lord_1_iwaki	qyv1DVLK	Iwaki Chikataka	岩城 亲隆	Faction.clan_iwaki_1	Culture.ou
+lord_1_iwaki_1	zS1xCtvl	Iwaki Keiju-in	庆寿院	Faction.clan_iwaki_1	Culture.ou
+lord_1_iwaki_2	A91ldYIn	Iwaki Shigetaka	岩城 重隆	Faction.clan_iwaki_1	Culture.ou
+lord_1_iwaki_3	OMoDuAqu	Iwaki Jomei-in	舒明院	Faction.clan_iwaki_1	Culture.ou
+lord_1_iwaki_4	uGlEqEJX	Iwaki Tsunetaka	岩城 常隆	Faction.clan_iwaki_1	Culture.ou
+lord_1_iwaki_5	NpV12vkH	Iwaki Takatoki	岩城 隆时	Faction.clan_iwaki_1	Culture.ou
+lord_1_iwaki_6	rg6sw1Q9	Iwaki Keiju-in	桂树院	Faction.clan_iwaki_1	Culture.ou
+lord_1_iwaki_7	JkZOorvD	Iwaki Takamune	岩城 隆宗	Faction.clan_iwaki_1	Culture.ou
+lord_1_iwaki_8	uxzJmlwA	Iwaki Tora	阿虎	Faction.clan_iwaki_1	Culture.ou
+lord_1_rusu	2vUBdY6S	Rusu Masakage	留守 政景	Faction.clan_rusu_1	Culture.ou
+lord_1_rusu_1	bs10mHWo	Rusu Akimune	留守 显宗	Faction.clan_rusu_1	Culture.ou
+lord_1_rusu_2	qLjgsdLd	Rusu Haru	阿春	Faction.clan_rusu_1	Culture.ou
+lord_1_mogami	BabGjggN	Mogami Yoshimori	最上 义守	Faction.clan_mogami_1	Culture.ou
+lord_1_mogami_1	hxOrAtOY	Mogami Renshin-in	莲心院	Faction.clan_mogami_1	Culture.ou
+lord_1_mogami_2	EtRVL3Xg	Mogami Yoshiaki	最上 义光	Faction.clan_mogami_1	Culture.ou
+lord_1_mogami_3	4GWpCzJZ	Mogami Toshiyo	利世	Faction.clan_mogami_1	Culture.ou
+lord_1_mogami_4	AgF95oLC	Mogami Yoshitoki	中野 义时	Faction.clan_mogami_1	Culture.ou
+lord_1_mogami_5	XWlzkdNm	Mogami Mitsunao	楯冈 光直	Faction.clan_mogami_1	Culture.ou
+lord_1_tendo	PHvwg0Xu	Tendo Yorisada	天童 赖贞	Faction.clan_tendo_1	Culture.ou
+lord_1_tendo_1	PF8gDLpE	Tendo Kikyo	桔梗	Faction.clan_tendo_1	Culture.ou
+lord_1_tendo_2	JjgMoz43	Tendo Kaede	阿枫	Faction.clan_tendo_1	Culture.ou
+lord_1_tendo_3	9ipPC2rK	Tendo Yorizumi	天童 赖澄	Faction.clan_tendo_1	Culture.ou
+lord_1_tendo_4	dUHmrYee	Tendo Yorikage	天童 赖景	Faction.clan_tendo_1	Culture.ou
+lord_1_ujiie	6AupeJ2N	Ujiie Morimune	氏家 守栋	Faction.clan_ujiie_1	Culture.ou
+lord_1_ujiie_1	tY6vS3gw	Ujiie Satsuki	臯月	Faction.clan_ujiie_1	Culture.ou
+lord_1_ujiie_2	KqISOYEY	Ujiie Akimune	氏家 光栋	Faction.clan_ujiie_1	Culture.ou
+lord_1_nobesawa	ZbVonqWL	Nobesawa Mitsunobu	延泽 满延	Faction.clan_nobesawa_1	Culture.ou
+lord_1_nobesawa_1	D0DDSMQY	Nobesawa Yone	世根	Faction.clan_nobesawa_1	Culture.ou
+lord_1_nobesawa_2	gyhJohjp	Nobesawa Mitsuaki	延泽 光秋	Faction.clan_nobesawa_1	Culture.ou
+lord_1_tateoka	mWkIbjPO	Tateoka Yoshikuni	楯冈 义郡	Faction.clan_tateoka_1	Culture.ou
+lord_1_tateoka_1	Txz2u8Oq	Tateoka Ama	阿万	Faction.clan_tateoka_1	Culture.ou
+lord_1_tateoka_2	a2OoRcJh	Tateoka Mitsushige	楯冈 满茂	Faction.clan_tateoka_1	Culture.ou
+lord_1_tateoka_3	vktTGyQq	Tateoka Mitsuhiro	楯冈 满广	Faction.clan_tateoka_1	Culture.ou
+lord_1_daihoji	XUP0oREf	Daihoji Yoshimasu	大宝寺 义增	Faction.clan_daihoji_1	Culture.ou
+lord_1_daihoji_1	jg1L0wFo	Daihoji One	尾根	Faction.clan_daihoji_1	Culture.ou
+lord_1_daihoji_2	p4t1iXm5	Daihoji Yoshiuji	大宝寺 义氏	Faction.clan_daihoji_1	Culture.ou
+lord_1_daihoji_3	8hFeGd0I	Daihoji Yumi	小弓	Faction.clan_daihoji_1	Culture.ou
+lord_1_daihoji_4	RhHRQkPQ	Daihoji Yoshioki	大宝寺 义兴	Faction.clan_daihoji_1	Culture.ou
+lord_1_onodera	M12NsVpR	Onodera Kagemichi	小野寺 景道	Faction.clan_onodera_1	Culture.ou
+lord_1_onodera_1	WkEGfvdg	Onodera Sen	阿千	Faction.clan_onodera_1	Culture.ou
+lord_1_onodera_2	62tdkvpy	Onodera Mitsumichi	小野寺 光道	Faction.clan_onodera_1	Culture.ou
+lord_1_onodera_3	VgE08XCk	Onodera Yoshimichi	小野寺 义道	Faction.clan_onodera_1	Culture.ou
+lord_1_onodera_4	MjQRacs8	Onodera Yasumichi	小野寺 康道	Faction.clan_onodera_1	Culture.ou
+lord_1_sakenobe	cYZFWbZM	Sakenobe Sadatsuna	鲑延 贞纲	Faction.clan_sakenobe_1	Culture.ou
+lord_1_sakenobe_1	FEk7Sghh	Sakenobe Hana	花子	Faction.clan_sakenobe_1	Culture.ou
+lord_1_sakenobe_2	iMBlTpJj	Sakenobe Hidetsuna	鲑延 秀纲	Faction.clan_sakenobe_1	Culture.ou
+lord_1_nikaho	WlbkIU1a	Nikaho Kiyohisa	仁贺保 举久	Faction.clan_nikaho_1	Culture.ou
+lord_1_nikaho_1	NvZMn1nx	Nikaho Hagi	阿萩	Faction.clan_nikaho_1	Culture.ou
+lord_1_nikaho_2	9NoCTl9V	Nikaho Kiyonaga	仁贺保 举永	Faction.clan_nikaho_1	Culture.ou
+lord_1_nikaho_3	6VMRRxMG	Nikaho Take	阿竹	Faction.clan_nikaho_1	Culture.ou
+lord_1_nikaho_4	bxPIgkEG	Nikaho Shigekiyo	仁贺保 诚举	Faction.clan_nikaho_1	Culture.ou
+lord_1_nikaho_5	EI4GudVP	Nikaho Haru	阿春	Faction.clan_nikaho_1	Culture.ou
+lord_1_nikaho_6	l1FlQE5M	Nikaho Chiyo	千代	Faction.clan_nikaho_1	Culture.ou
+lord_1_ando	bLbHwsOu	Ando Chikasue	安东 爱季	Faction.clan_ando_1	Culture.ou
+lord_1_ando_1	2lCIr4Yo	Ando Ume	阿梅	Faction.clan_ando_1	Culture.ou
+dead_lord_1_ando_2	V0yNJaSo	Ando Kiyosue	安东 舜季	Faction.clan_ando_1	Culture.ou
+dead_lord_1_ando_3	KLD5OGKr	Ando Mitsu	阿光	Faction.clan_ando_1	Culture.ou
+lord_1_ando_4	Nn83RWCj	Ando Narisue	安东 成季	Faction.clan_ando_1	Culture.ou
+lord_1_ando_5	CuZoMuTC	Ando Shigesue	安东 茂季	Faction.clan_ando_1	Culture.ou
+lord_1_ando_6	MnxZWCfr	Ando Fusa	阿房	Faction.clan_ando_1	Culture.ou
+lord_1_ando_7	UP1GXVUv	Ando Michisue	安东 通季	Faction.clan_ando_1	Culture.ou
+lord_1_asari	ghllwrCJ	Asari Katsuyori	浅利 胜赖	Faction.clan_asari_1	Culture.ou
+lord_1_asari_1	PZT6X6Nv	Asari Mina	美奈	Faction.clan_asari_1	Culture.ou
+lord_1_asari_2	EhjiWov4	Asari Yorihira	浅利 赖平	Faction.clan_asari_1	Culture.ou
+lord_1_asari_3	J4YAWqUc	Asari Yorihirio	浅利 赖广	Faction.clan_asari_1	Culture.ou
+lord_2_kakizaki	Y4g7oumw	Kakizaki Suehiro	蛎崎 季广	Faction.clan_kakizaki_2	Culture.ou
+lord_2_kakizaki_1	AfDpOut5	Kakizaki Awa	安房	Faction.clan_kakizaki_2	Culture.ou
+lord_2_kakizaki_2	iLroIUcH	Kakizaki Yoshihiro	蛎崎 庆广	Faction.clan_kakizaki_2	Culture.ou
+lord_2_kakizaki_3	hStRHmEI	Kakizaki Mai	小舞	Faction.clan_kakizaki_2	Culture.ou
+lord_2_kakizaki_4	GsSSWLlB	Kakizaki Sadahiro	蛎崎 贞广	Faction.clan_kakizaki_2	Culture.ou
+lord_2_kakizaki_5	NYdIhl32	Kakizaki Nakahiro	蛎崎 中广	Faction.clan_kakizaki_2	Culture.ou
+lord_2_kakizaki_6	xxpsHzns	Kakizaki Morihiro	蛎崎 守广	Faction.clan_kakizaki_2	Culture.ou
+lord_2_kakizaki_7	5cfM2Wsd	Kakizaki Sen	阿千	Faction.clan_kakizaki_2	Culture.ou
+lord_2_kakizaki_8	xzgrBlXk	Kakizaki Kou	阿江	Faction.clan_kakizaki_2	Culture.ou
+lord_1_tozawa	kmuEpByR	Tozawa Michimori	户泽 道盛	Faction.clan_tozawa_1	Culture.ou
+lord_1_tozawa_1	ZPBJZyhY	Tozawa Kiku	阿菊	Faction.clan_tozawa_1	Culture.ou
+lord_1_tozawa_2	97vWqS1S	Tozawa Morishige	户泽 盛重	Faction.clan_tozawa_1	Culture.ou
+lord_1_tozawa_3	97vWqS1S	Tozawa Morishige	户泽 盛重	Faction.clan_tozawa_1	Culture.ou
+lord_1_nanbu	qDo4xRn3	Nanbu Harumasa	南部 晴政	Faction.clan_nanbu_1	Culture.ou
+lord_1_nanbu_1	kD2IsTSN	Nanbu Tsuki	阿月	Faction.clan_nanbu_1	Culture.ou
+lord_1_nanbu_2	4HJGGKQV	Nanbu Nobunao	南部 信直	Faction.clan_nanbu_1	Culture.ou
+lord_1_nanbu_3	oG7Xj5F1	Nanbu Maru	阿丸	Faction.clan_nanbu_1	Culture.ou
+lord_1_shichinohe	sD4FqEXl	Shichinohe Naokuni	七户 直国	Faction.clan_shichinohe_1	Culture.ou
+lord_1_shichinohe_1	4fsMSmDZ	Shichinohe Tsuru	阿鹤	Faction.clan_shichinohe_1	Culture.ou
+lord_1_shichinohe_2	DjV342Vx	Shichinohe Iekuni	七户 家国	Faction.clan_shichinohe_1	Culture.ou
+lord_1_shichinohe_3	L0wrNKVa	Shichinohe Ume	阿梅	Faction.clan_shichinohe_1	Culture.ou
+lord_1_hachinohe	50jyluRi	Hachinohe Masayoshi	八户 政荣	Faction.clan_hachinohe_1	Culture.ou
+lord_1_hachinohe_1	ly1rOf4V	Hachinohe Toki	登喜	Faction.clan_hachinohe_1	Culture.ou
+lord_1_hachinohe_2	IaI3rd8b	Hachinohe Naoyoshi	八户 直义	Faction.clan_hachinohe_1	Culture.ou
+lord_1_konohe	U2fcoM3V	Konohe Masazane	九户 政实	Faction.clan_konohe_1	Culture.ou
+lord_1_konohe_1	OnWob7FY	Konohe Kei	阿桂	Faction.clan_konohe_1	Culture.ou
+lord_1_konohe_2	ybA8C3Pn	Konohe Nobunaka	九户 信仲	Faction.clan_konohe_1	Culture.ou
+lord_1_konohe_3	F44DRUrw	Konohe Yuki	阿幸	Faction.clan_konohe_1	Culture.ou
+lord_1_konohe_4	TLlGQ3hu	Konohe Sanechika	九户 实亲	Faction.clan_konohe_1	Culture.ou
+lord_1_konohe_5	SMHA0cYX	Konohe Shino	志乃	Faction.clan_konohe_1	Culture.ou
+lord_1_kita	ktJ3A4pU	Kita Nobuchika	北 信爱	Faction.clan_kita_1	Culture.ou
+lord_1_kita_1	fCPVtYJi	Kita Miki	见喜	Faction.clan_kita_1	Culture.ou
+lord_1_kita_2	0JfNpzoT	Kita Chikakazu	北 爱一	Faction.clan_kita_1	Culture.ou
+lord_1_kita_3	VrwnAg7Z	Kita Sumire	阿堇	Faction.clan_kita_1	Culture.ou
+lord_1_kita_4	WOxNvejG	Kita Hidechika	北 秀爱	Faction.clan_kita_1	Culture.ou
+lord_1_kita_5	1Ms9l2Vr	Kita Naotsugu	北 直继	Faction.clan_kita_1	Culture.ou
+lord_1_oura	PBJm4EDg	Oura Tamenobu	大浦 为信	Faction.clan_oura_1	Culture.ou
+lord_1_oura_1	Zd7dIZYX	Oura Fuku	阿福	Faction.clan_oura_1	Culture.ou
+dead_lord_1_oura_2	DxKKXmBo	Oura Tamenori	大浦 为则	Faction.clan_oura_1	Culture.ou
+dead_lord_1_oura_3	bCUAVf01	Oura Sumi	须美	Faction.clan_oura_1	Culture.ou
+lord_1_shiba	Kn3UwNzn	Shiba Akizane	斯波 诠真	Faction.clan_shiba_1	Culture.ou
+lord_1_shiba_1	KJxRs4Uz	Shiba Shima	志麻	Faction.clan_shiba_1	Culture.ou
+lord_1_shiba_2	Yhd8MKk4	Shiba Akinao	斯波 诠直	Faction.clan_shiba_1	Culture.ou
+lord_1_shiba_3	aXv9jGz0	Shiba Tsuya	津野	Faction.clan_shiba_1	Culture.ou
+lord_1_shiba_4	LQ4LfBqy	Shiba Akitane	斯波 诠种	Faction.clan_shiba_1	Culture.ou
+lord_1_asonuma	rQvhIKmk	Asonuma Hirosato	阿曾沼 广乡	Faction.clan_asonuma_1	Culture.ou
+lord_1_asonuma_1	Loa2z2lg	Asonuma Yone	世根	Faction.clan_asonuma_1	Culture.ou
+lord_1_asonuma_2	k0VTBlM1	Asonuma Hironaga	阿曾沼 广长	Faction.clan_asonuma_1	Culture.ou
+lord_1_asonuma_3	N8YxPOIs	Asonuma Hirotsuna	阿曾沼 广纲	Faction.clan_asonuma_1	Culture.ou
+lord_1_namioka	PH6vnz2s	Namioka Tomokazu	浪冈 具运	Faction.clan_namioka_1	Culture.ou
+lord_1_namioka_1	UUC5lMpW	Namioka Tama	阿玉	Faction.clan_namioka_1	Culture.ou
+dead_lord_1_namioka_2	7VsSFAbY	Namioka Tomomune	浪冈 具统	Faction.clan_namioka_1	Culture.ou
+lord_1_namioka_3	aCGR0aAJ	Namioka Joko-in	常光院	Faction.clan_namioka_1	Culture.ou
+lord_1_namioka_4	vi4WkU82	Namioka Akimura	浪冈 显村	Faction.clan_namioka_1	Culture.ou
+lord_1_namioka_5	A3IWaEnQ	Namioka Akinori	浪冈 显范	Faction.clan_namioka_1	Culture.ou
+lord_1_namioka_6	JcbZs4It	Namioka Kata	加多	Faction.clan_namioka_1	Culture.ou
+lord_1_namioka_7	ETIKKEst	Namioka Akitada	浪冈 显忠	Faction.clan_namioka_1	Culture.ou
