@@ -40,6 +40,27 @@
 | B | v1.5.x（当前开发机，实测 v1.5.1） | `LivingWorldNpcs.dll`（Latest 版） |
 | C | v1.3.15（备份客户端 MB2_1.3.15） | `LivingWorldNpcs.dll`（v1.3.15 版） |
 
+### 🔴 必选检查项：备份客户端 Modules 下必须有 LivingWorldNpcs junction（2026-08-24）
+
+备份游戏（`MB2_Version\MB2_1.2.12` / `MB2_1.3.15` / `MB2_1.4.8`）**不做独立拷贝**，
+`Modules\LivingWorldNpcs` 一律是 **junction** 指向主游戏
+`H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs`
+（三份已建，2026-08-24 核对：1.2.12 ✅ / 1.3.15 ✅ / 1.4.8 ✅）。
+
+**每次出现新版本备份目录 / 换机 / 目录改动后，编译前必查**（缺失 = 游戏加载不到 mod；
+普通目录 = 版本隔离失效，改源码两处不同步）：
+
+```powershell
+Get-Item "<备份版>\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs" -Force | fl LinkType, Target
+# 期望：LinkType=Junction，Target=主游戏 LivingWorldNpcs 路径；Test-Path 为 False = 死链需重建
+```
+
+创建命令：
+
+```powershell
+New-Item -ItemType Junction -Path "<备份版>\...\Modules\LivingWorldNpcs" -Target "<主游戏>\...\Modules\LivingWorldNpcs"
+```
+
 ## 版本检测机制（自动，无需手动干预）
 
 csproj 在编译时自动读取本地游戏的 `Version.xml`：

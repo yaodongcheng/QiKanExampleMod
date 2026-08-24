@@ -744,6 +744,18 @@ catch (Exception) { _retryTick = Environment.TickCount; }   // 失败：冷却�
 
 ---
 
+## Steam Deck 桌面模式软键盘弹不出（`ShowGamepadTextInput` 恒 false）→ Steam 客户端模式限制，mod 无解
+
+**症状**：Deck 桌面模式跑游戏，聚焦文本框（IM/MCM/原版）无软键盘；日志链：`Steam Deck 检测: True` → 聚焦行守卫全过 → `Steamworks 直连 ShowGamepadTextInput → False` → 无 Done/Cancel 回调 → 约 0.7s 后 `请求判定: IsOnScreenKeyboardActive=False`；**昨晚游戏模式同 DLL 一切正常**。Steam+X 系统键盘在游戏运行中也弹不出（普通软件正常）。
+
+**根因（2026-08-24 实机闭环）**：Steam 客户端**桌面模式无大屏幕键盘 UI 服务**（游戏模式才有）→ `SteamUtils.ShowGamepadTextInput` 直接返回 false（静默，无异常无回调）。**Steam+X 在「Steam 启动的游戏」运行时被路由给游戏进程**（游戏进程桌面模式无键盘可弹 → 无响应）——Steam 客户端行为，游戏/mod 都改不了。`IsSteamRunningOnSteamDeck()` 两种模式都返回 True，**无法用 Steamworks 区分模式**。
+
+**判定技巧**：mod 侧 **Steamworks 直连**调用（反射调 `SteamUtils.ShowGamepadTextInput`，绕过引擎桥/`PlatformServices.Instance`）返回值 = Steam 亲口回答——True = 键盘已弹（引擎桥坏假说成立）；False = Steam 拒绝（环境无解）。引擎桥 `Input.IsOnScreenKeyboardActive = ScreenManager.OnPlatformScreenKeyboardRequested(...)` = `ShowGamepadTextInput` 返回值（反编译实锤）——日志 `请求判定: False` 同义。**别在桌面模式排查 mod 键盘代码**（白费），先确认模式：游戏模式能弹 = 环境问题实锤。
+
+**处置**：桌面模式打字 = 游戏模式 / 实体键盘；`[KbDiag]` 链路日志排查时开（`Settings.KbDiagEnabled`，config.json），平时关。
+
+---
+
 ## Gauntlet TextWidget StretchToParent + 超宽文本 → 引擎自动压字号（"裁剪即止"结论作废）
 
 **症状**（实机 2026-08-23 用户反馈：IM 左栏频道最近消息预览"还是太小"）
