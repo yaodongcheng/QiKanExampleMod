@@ -252,6 +252,10 @@ csproj 编译时读 `Version.xml` 自动定义累积宏（GE = "Greater or Equal
 
 ### 发布步骤
 
+🔴 **备份客户端（`MB2_Version\MB2_1.x.x`）上编译前必查**：其 `Modules\LivingWorldNpcs` 必须是 junction
+（`Get-Item ... -Force | fl LinkType,Target`），缺失/死链先补建，否则游戏加载不到 mod。
+详细命令见 [plans/version-compat-plan.md](plans/version-compat-plan.md)「必选检查项」章节。
+
 ```bash
 # 任意一台电脑：版本 = 本机 MB2_PATH 指向的游戏版本（自动检测，无需指定）
 dotnet build -c Release   # → 本机游戏版本的 DLL（版本见 Version.xml）

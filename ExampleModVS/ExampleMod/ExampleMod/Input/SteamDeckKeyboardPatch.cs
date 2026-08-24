@@ -74,12 +74,27 @@ namespace LivingWorldNpcs
         [HarmonyPostfix]
         public static void Postfix(EventManager __instance, Widget value)
         {
-            if (!(value is EditableTextWidget)) return;                 // 非输入框不处理
+            // 只有 EditableTextWidget 聚焦才打（非输入框点击=按钮/列表项，不打防刷屏）
+            if (!(value is EditableTextWidget)) return;
             bool deck = SteamDeckKeyboard.IsSteamDeck();
-            if (!deck) return;                                          // PC/Epic/GOG：零行为变化
-            if (__instance.FocusedWidget != value) return;              // setter 拒绝（不可聚焦）→ 焦点未生效
+            bool focused = __instance.FocusedWidget == value;
+            bool controller = false;
+            try { controller = __instance.IsControllerActive; } catch { }
             bool kbActive = false;
             try { kbActive = V.IsOnScreenKeyboardActive(); } catch { }
+            // 🔴 诊断（2026-08-22 链路日志，2026-08-23 恢复）：EditableTextWidget 获得焦点就无条件打一行——
+            // 链上每个守卫值都可见：deck=False（Deck 检测失败/Steamworks 未就绪）/ focused=False（setter
+            // 被拒——含引擎早退分支：_isOnScreenKeyboardRequested 残留或 IsOnScreenKeyboardActive 卡 true）/
+            // kbActive=True（引擎链已弹窗或状态卡死）→ 一眼定位弹窗被哪个守卫掐断。
+            if (Settings.Instance.KbDiagEnabled)
+            {
+                int maxLen = 0;
+                try { maxLen = ((EditableTextWidget)value).MaxLength; } catch { }
+                DebugLogger.Log($"[KbDiag] 输入框聚焦 deck={deck} focused={focused} controller={controller} "
+                    + $"kbActive={kbActive} widget={value.GetType().Name} maxLength={maxLen}");
+            }
+            if (!deck) return;                                          // PC/Epic/GOG：零行为变化
+            if (!focused) return;                                       // setter 拒绝（不可聚焦）→ 焦点未生效
             if (kbActive) return;                                       // 软键盘已开（引擎链已请求过）
             try
             {
@@ -89,8 +104,47 @@ namespace LivingWorldNpcs
                 int maxLength = ew.MaxLength;
                 int keyboardTypeEnum = ew.IsObfuscationEnabled ? 2 : 0;
                 if (value is IntegerInputTextWidget || value is FloatInputTextWidget) keyboardTypeEnum = 1;
-                __instance.Context.TwoDimensionContext.Platform.OpenOnScreenKeyboard(initialText, descriptionText, maxLength, keyboardTypeEnum);
-                DebugLogger.Log($"[SteamDeckKb] 点击聚焦 EditableTextWidget → 请求软键盘 (type={keyboardTypeEnum})");
+
+                // 🔴 2026-08-24（Steamworks 直连优先——桌面模式强制呼出尝试）：引擎桥
+                //（OpenOnScreenKeyboard → PlatformServices.Instance.ShowGamepadTextInput）在
+                // Steam 桌面模式返回 false 时，无法区分「Steam 客户端拒绝」vs「桥本身坏」
+                //（PlatformServices.Instance 为 null / 非 Steam 实现——IsSteamDeck 检测是
+                // Steamworks.NET 直连，不经过桥，桥坏不坏检测不出来）。直连 Steamworks API
+                //（反射，同 IsSteamDeck 模式，无 csproj 硬依赖）绕开桥——返回值即 Steam 亲口
+                // 回答：true = 键盘已弹（桥坏假说成立 → 桌面模式问题直接解决）；
+                // false = Steam 客户端拒绝（桌面模式无键盘服务 → 实锤无解，非代码问题）。
+                bool directOk = false;
+                try
+                {
+                    Type t = Type.GetType("Steamworks.SteamUtils, Steamworks.NET", false);
+                    MethodInfo m = t?.GetMethod("ShowGamepadTextInput", BindingFlags.Public | BindingFlags.Static);
+                    if (m != null)
+                    {
+                        Type modeType = t.Assembly.GetType("Steamworks.EGamepadTextInputMode");
+                        Type lineModeType = t.Assembly.GetType("Steamworks.EGamepadTextInputLineMode");
+                        object mode = Enum.ToObject(modeType, keyboardTypeEnum == 2 ? 1 : 0);   // Normal=0 / Password=1（Steam 实现同映射）
+                        object line = Enum.ToObject(lineModeType, 0);                            // SingleLine=0
+                        // maxChars 至少 1：unCharMax=0 语义不明（IM 输入框 MaxLength 默认 0 = 未设限），
+                        // 日志打出原始 maxLength 供对照
+                        directOk = (bool)m.Invoke(null, new object[] { mode, line, descriptionText, (uint)Math.Max(1, maxLength), initialText });
+                        DebugLogger.Log($"[SteamDeckKb] Steamworks 直连 ShowGamepadTextInput → {directOk} (type={keyboardTypeEnum} maxLength={maxLength})");
+                    }
+                    else
+                    {
+                        DebugLogger.Log("[SteamDeckKb] Steamworks 直连反射失败（无 ShowGamepadTextInput）——走引擎桥兜底");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[SteamDeckKb] Steamworks 直连异常: {ex.Message}——走引擎桥兜底");
+                }
+
+                if (!directOk)
+                {
+                    // 直连失败/反射不可用 → 引擎桥兜底（平台抽象路径，原逻辑；重复请求 Steam 对已弹键盘 no-op）
+                    __instance.Context.TwoDimensionContext.Platform.OpenOnScreenKeyboard(initialText, descriptionText, maxLength, keyboardTypeEnum);
+                    DebugLogger.Log($"[SteamDeckKb] 引擎桥请求软键盘 (type={keyboardTypeEnum})");
+                }
             }
             catch (Exception ex)
             {

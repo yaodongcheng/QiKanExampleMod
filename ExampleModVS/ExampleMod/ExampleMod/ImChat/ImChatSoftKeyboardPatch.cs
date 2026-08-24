@@ -30,6 +30,9 @@ namespace LivingWorldNpcs
         [HarmonyPrefix]
         public static bool Prefix(GauntletLayer __instance)
         {
+            // 🔴 诊断（2026-08-23 恢复链路日志）：取消回调——键盘关闭/取消时引擎回调，isIm 区分层归属
+            if (Settings.Instance.KbDiagEnabled)
+                DebugLogger.Log($"[KbDiag] Cancel→Layer type={__instance.GetType().Name} isIm={ImChatView.IsCurrentLayer(__instance)}");
             if (ImChatView.IsCurrentLayer(__instance)) return false; // IM 层：跳过取消链（ClearFocus + 模拟鼠标 → 死锁）
             return true;                                             // 其他层照常
         }
@@ -39,8 +42,12 @@ namespace LivingWorldNpcs
     public static class ImChatSoftKeyboardDonePatch
     {
         [HarmonyPrefix]
-        public static bool Prefix(GauntletLayer __instance)
+        public static bool Prefix(GauntletLayer __instance, string inputText)
         {
+            // 🔴 诊断（2026-08-23 恢复链路日志）：完成回调——提交时引擎回调，textLen 验证回填数据是否送达
+            if (Settings.Instance.KbDiagEnabled)
+                DebugLogger.Log($"[KbDiag] Done→Layer type={__instance.GetType().Name} isIm={ImChatView.IsCurrentLayer(__instance)} "
+                    + $"textLen={inputText?.Length}");
             if (ImChatView.IsCurrentLayer(__instance))
             {
 #if MB2_GE_130
@@ -68,6 +75,9 @@ namespace LivingWorldNpcs
         [HarmonyPrefix]
         public static bool Prefix(UIContext __instance)
         {
+            // 🔴 诊断（2026-08-23 恢复链路日志）：取消回调可能绕过层直接调 UIContext——两层都看，缺层=链路断
+            if (Settings.Instance.KbDiagEnabled)
+                DebugLogger.Log($"[KbDiag] Cancel→Ctx isIm={ImChatView.IsCurrentContext(__instance)}");
             if (ImChatView.IsCurrentContext(__instance)) return false; // IM 层上下文：跳过（CancelMouseClick → ClearFocus + 模拟鼠标 → 死锁）
             return true;
         }
@@ -79,6 +89,11 @@ namespace LivingWorldNpcs
         [HarmonyPrefix]
         public static bool Prefix(UIContext __instance, string inputText)
         {
+            // 🔴 诊断（2026-08-23 恢复链路日志）：Done→Ctx 是回填实际发生处——deck 分支自己 SetAllText
+            if (Settings.Instance.KbDiagEnabled)
+                DebugLogger.Log($"[KbDiag] Done→Ctx isIm={ImChatView.IsCurrentContext(__instance)} "
+                    + $"deck={SteamDeckKeyboard.IsSteamDeck()} textLen={inputText?.Length} "
+                    + $"focused={__instance.EventManager.FocusedWidget?.GetType()?.Name}");
             if (!ImChatView.IsCurrentContext(__instance)) return true;   // 非 IM 层：原版
 #if MB2_GE_130
             if (SteamDeckKeyboard.IsSteamDeck())
@@ -87,7 +102,16 @@ namespace LivingWorldNpcs
                 // Deck 有真软键盘，提交必须回填文本（SetAllText → 绑定推送 VM InputText）；
                 // 跳过 CancelMouseClick（ClearFocus + 模拟鼠标抬起 → 设备翻转坑，见类头注释）。
                 if (inputText != null && __instance.EventManager.FocusedWidget is EditableTextWidget editableTextWidget)
+                {
                     editableTextWidget.SetAllText(inputText);
+                    if (Settings.Instance.KbDiagEnabled)
+                        DebugLogger.Log($"[KbDiag] IM 回填执行后 widget.Text=\"{editableTextWidget.Text}\"（目标 {inputText.Length} 字符）");
+                }
+                else
+                {
+                    if (Settings.Instance.KbDiagEnabled)
+                        DebugLogger.Log($"[KbDiag] ⛔ IM 回填失败：inputText null 或焦点不是 EditableTextWidget（焦点丢失？）");
+                }
                 return false;
             }
 #endif

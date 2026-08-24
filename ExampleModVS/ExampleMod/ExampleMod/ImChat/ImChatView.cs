@@ -132,6 +132,10 @@ namespace LivingWorldNpcs
         // 软键盘回落（降级预案）：输入框聚焦期间导航暂停；检测到「软键盘曾经激活 → 已关闭」转态 →
         // 主动 ClearFocus 恢复导航（不依赖引擎回填链路，🔴 待实机验证，见方案 §五/验证 14）
         private static bool _padWasKeyboardActive;
+        // 🔴 2026-08-23（[KbDiag] 请求判定）：聚焦内一次性判定计时/标记（0.7s 后打 IsOnScreenKeyboardActive
+        // 判定行；退出聚焦复位，下次聚焦重新计时）
+        private static float _kbVerdictTimer;
+        private static bool _kbVerdictLogged;
         // 🔴 2026-08-18（诊断日志防刷屏）：任意导航键按下沿闩锁——⛔ 门控/输入聚焦行只在按下沿打一次，
         // 禁止每帧打（按住键 = 60 行/s 刷屏 + 同步磁盘写拖慢游戏）
         private static bool _lastPadAnyKey;
@@ -808,6 +812,25 @@ namespace LivingWorldNpcs
                     // 无软键盘时（鼠标点击聚焦路径）按十字键 = 退出输入态回导航（防卡死在输入态）
                     bool kbActive = false;
                     try { kbActive = V.IsOnScreenKeyboardActive(); } catch { }
+                    // 🔴 诊断（2026-08-23 恢复链路日志）：软键盘激活状态转换——False→True = 键盘真的
+                    // 弹出来了（引擎链/补丁 A 请求后的最终落地）；True→False = 键盘关闭（Done/Cancel 链）。
+                    // 聚焦后一直 False = 请求没落地（平台层拒绝/IsOnScreenKeyboardActive 卡死），
+                    // 配合 [KbDiag] 输入框聚焦行的 kbActive 值定位断点。每帧一次状态比较，仅转换打一行。
+                    if (kbActive != _padWasKeyboardActive && Settings.Instance.KbDiagEnabled)
+                        DebugLogger.Log($"[KbDiag] 软键盘激活状态: {_padWasKeyboardActive} → {kbActive}");
+                    // 🔴 诊断（2026-08-23）：请求判定——聚焦后 ~0.7s 一次性打判定：IsOnScreenKeyboardActive
+                    // 是 Steam 那次调用的返回值（桥接实锤：Input.IsOnScreenKeyboardActive =
+                    // ScreenManager.OnPlatformScreenKeyboardRequested(...) = SteamUtils.ShowGamepadTextInput 结果），
+                    // False = Steam 层拒绝弹键盘（状态卡死/overlay 问题），把「静默失败」变日志里明确可见。
+                    if (Settings.Instance.KbDiagEnabled && !_kbVerdictLogged)
+                    {
+                        _kbVerdictTimer += dt;
+                        if (_kbVerdictTimer >= 0.7f)
+                        {
+                            _kbVerdictLogged = true;
+                            DebugLogger.Log($"[KbDiag] 请求判定: IsOnScreenKeyboardActive={kbActive}（True=Steam 已弹键盘；False=Steam 拒绝——键盘状态卡死/overlay 关闭）");
+                        }
+                    }
                     bool padPressed = Input.IsKeyPressed(InputKey.ControllerLUp) || Input.IsKeyPressed(InputKey.ControllerLDown)
                         || Input.IsKeyPressed(InputKey.ControllerLLeft) || Input.IsKeyPressed(InputKey.ControllerLRight);
                     if ((_padWasKeyboardActive && !kbActive) || (!kbActive && padPressed))
@@ -819,6 +842,8 @@ namespace LivingWorldNpcs
                     return;
                 }
                 _padWasKeyboardActive = false;
+                _kbVerdictTimer = 0f;
+                _kbVerdictLogged = false;
 
                 // ── 下拉打开：焦点接管为下拉项（↑↓ 循环 + A 选中收起；B 收下拉在 Tick 既有 B 键分支；
                 //    ←→ 收下拉（v4 2026-08-18 用户裁定「每个方向都有通路」——下拉为纵向列表，横向 = 退出，

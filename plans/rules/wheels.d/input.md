@@ -175,6 +175,16 @@ public static class EditableTextImePatch
 
 **诊断**：`[SteamDeckKb]`（检测结果/失败重试/请求弹窗/失败）。定位手法：链入口（ScreenManager.Done/Canceled + FocusedLayer 是谁）→ 层分发（GauntletLayer isIm）→ 上下文+焦点（UIContext focused 类型）→ 回填结果（widget.Text）→ VM 绑定（set_InputText 窗口监听）——逐层日志一次定位。
 
+**🔴 坑 6（2026-08-24 实机闭环）：Steam Deck 桌面模式 `ShowGamepadTextInput` 恒 false——键盘弹不出，mod 无解**：
+- **症状**：桌面模式跑游戏，聚焦文本框（IM/MCM/原版）无软键盘；日志 `Steamworks 直连 ShowGamepadTextInput → False` + 无 Done/Cancel 回调；昨晚游戏模式同 DLL 一切正常。
+- **根因**：Steam 客户端桌面模式无大屏幕键盘 UI 服务（游戏模式才有）→ `SteamUtils.ShowGamepadTextInput` 直接返回 false（静默）。**Steam+X 系统键盘在「Steam 启动的游戏」运行时被路由给游戏进程**（普通软件正常、游戏无响应——Steam 客户端行为，游戏/mod 无法改变）。`IsSteamRunningOnSteamDeck()` 两种模式都 True，**无法用 Steamworks 区分模式**。
+- **判定**：直连返回值 = Steam 亲口回答——True=键盘已弹（引擎桥/PlatformServices 坏假说成立），False=Steam 拒绝（环境无解）。引擎桥 `Input.IsOnScreenKeyboardActive = ScreenManager.OnPlatformScreenKeyboardRequested(...)` = `ShowGamepadTextInput` 返回值（反编译实锤），日志 `请求判定: IsOnScreenKeyboardActive=False` 同义。
+- **处置**：桌面模式打字 = 游戏模式 / 实体键盘。排查键盘问题时先确认模式，别在桌面模式排查 mod 键盘代码（白费）。
+
+**Steamworks 直连探测（补丁 A 请求段，2026-08-24）**：引擎桥（`OpenOnScreenKeyboard` → `PlatformServices.Instance.ShowGamepadTextInput`）返回 false 时无法区分「Steam 拒绝」vs「桥坏」（Instance null/非 Steam 实现——`IsSteamDeck` 检测是 Steamworks.NET 直连不经过桥）。改造 = **Steamworks 直连优先**（反射调 `SteamUtils.ShowGamepadTextInput(mode, line, desc, maxChars, text)`，`Enum.ToObject` 构造枚举：Password=1/其余 Normal=0、SingleLine=0；`maxChars = max(1, MaxLength)`——unCharMax=0 语义不明）→ 日志 `[SteamDeckKb] Steamworks 直连 ShowGamepadTextInput → True/False`；失败/反射异常 → 引擎桥兜底（重复请求 Steam no-op 无害）。游戏模式直连与引擎桥等效（同一 native 调用）。
+
+**KbDiag 统一开关**：`Settings.KbDiagEnabled`（config.json，**默认 false**——诊断期置 true）：`[KbDiag]` 全链路日志——输入框聚焦行（deck/focused/controller/kbActive/maxLength 各守卫值）/ 软键盘激活状态转换（`IsOnScreenKeyboardActive` 翻转 = 键盘真弹了/真关了）/ 聚焦后 0.7s 一次性请求判定 / Done·Cancel 回调链 / 回填结果。排查软键盘问题时开，平时关（聚焦行每点一次输入框一行）。**🔴 DLL 字符串检测**：.NET #US 堆（字符串字面量）UTF-16LE 编码——`grep -a` 搜中文字符串必 0（假阴性），用 UTF-16LE 编码搜（`data.count('ShowGamepadTextInput'.encode('utf-16-le'))`）；方法名在 #Strings 堆（UTF-8）grep 可搜——游戏 DLL 方法名验证（Harmony 目标二进制 grep）不受此限，但 **mod DLL 里的字符串验证必须 UTF-16LE**。
+
 ---
 
 ## 🔴 设备检测：自监测最后输入来源（2026-08-19 用户裁定，替代引擎 IsGamepadActive 粘性判定）— `Input/ModInput.cs`（`TickInputSource` / `UsingGamepad`）

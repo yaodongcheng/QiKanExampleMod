@@ -91,6 +91,14 @@ namespace LivingWorldNpcs
         // （每按一次键好几行，平时刷屏；关闭不影响功能与异常日志）。
         public bool GamepadNavDebugLog { get; set; } = false;
 
+        // ── 🔴 [KbDiag] 软键盘链路诊断总闸（config.json 侧调试项；2026-08-23 新增，08-24 默认关）──
+        // Deck 软键盘「聚焦→请求→弹窗→回填」全链路日志（输入框聚焦行/软键盘激活状态转换/
+        // Done·Cancel 回调链/回填结果/请求判定）。排查软键盘呼不出、打字不回填时置 true，查完置 false
+        // （聚焦行每点一次输入框打一行，平时没必要常开）。关闭不影响功能与异常日志。
+        // 🔴 2026-08-24 结论：Deck 桌面模式 ShowGamepadTextInput 恒 false = Steam 客户端限制（mod 无解），
+        // 本开关保留供游戏模式及未来任何软键盘问题排查用。
+        public bool KbDiagEnabled { get; set; } = false;
+
         // ── 说话 LLM 润色开关（默认开启；config.json 侧调试项）──
         // 能力已全量升级（2026-08-12）：战斗喊话/质问/拒绝/警告等所有说话调用点都有 LLM 实时润色
         // 路径（fire-and-forget，预算超时/失败/无配置 → 原模板立即兜底，铁律 1）。此开关 = 是否启用
