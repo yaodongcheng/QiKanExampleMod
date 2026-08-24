@@ -168,6 +168,7 @@
 | relation | a, b（势力引用）, op, 数字 | 势力间外交关系数值 | 外交感情(1667) | 注册表加行 |
 | hasMet | a, b（角色引用） | 是否认识 | 認識標誌(797) | 注册表加行 |
 | sameSettlement | hero, hero | 同据点 | 所屬據點 == | 注册表加行 |
+| canPromote | hero | 功勋 ≥ 晋升链下一级阈值（17 功勋机制，阶梯数据包查询；无官职=第 0 级、已最高级=false） | 仕官昇進判定 | 注册表加行（17） |
 | （后续按需） | | 新谓词 = 注册表加行 + 实现 | | |
 
 ## 五、动作表（完整，覆盖太阁命令 8 组）
@@ -199,6 +200,9 @@
 | teleport | party, pos | 传送 | 強制移動 | 06 |
 | grant_troops | troopIds, counts | 给兵 | 兵數變更 | 06 |
 | gold_change | hero, amount | 金钱 | 所持金變更 | AgentControlHelper |
+| grant_merit | actor, value | 功勋增减（负值=扣；🔴 按主公维度记账，17） | 武士功勳變更(243) | 17（WorldActionExecutor Scenario 层） |
+| set_title | actor, titleId | 直接设官职（主公特封/剧本用） | 官職變更(148) | 17 |
+| promote | actor | 按晋升链升一级（评定事件用，阶梯查询数据包） | 身份昇進 | 17 |
 | cutscene | sceneId, textKey | 过场 | 圖片/背景（演出） | 05 |
 | perform | compiledId | 预编译演出 | 對話/ＢＧＭ/ＳＥ/圖片 | 05 |
 | scene_enter | sceneId | 进入设施 | 進入設施 | 05 |
@@ -229,7 +233,7 @@
 
 ## 七、覆盖结论
 
-- **Phase 1 可全覆盖**（除明确标注后续扩展）：6 操作符 + 8 引擎域（含 Ctx 代入槽）+ 🔴 Card 能力卡域（数据包扩展）+ 全属性白名单 + 7 谓词 + 25 动作
+- **Phase 1 可全覆盖**（除明确标注后续扩展）：6 操作符 + 8 引擎域（含 Ctx 代入槽）+ 🔴 Card 能力卡域（数据包扩展）+ 全属性白名单 + 8 谓词（含 canPromote，17）+ 28 动作（含 grant_merit/set_title/promote，17）
 - **后续扩展**：容器 `pick` 谓词、组织扩展域（Org）、演出视觉元素（圖片/背景）
 - **纪律**：转化管线遇到表外模式 = 回填附录-太阁5表达式全集 + 本表加行 + 扩展 01 注册表（validator 同步更新）
 
