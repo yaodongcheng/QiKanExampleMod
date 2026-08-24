@@ -90,10 +90,20 @@ namespace LivingWorldNpcs
         public static bool Prefix(UIContext __instance, string inputText)
         {
             // 🔴 诊断（2026-08-23 恢复链路日志）：Done→Ctx 是回填实际发生处——deck 分支自己 SetAllText
+            // ⚠️ 版本兼容：SteamDeckKeyboard 类整体 #if MB2_GE_130（1.2.12 无软键盘机制不编译）——
+            // deck= 字段必须同步条件编译（1.2.12 下打不出 deck 值，属正常降级，1.3+ 才有）
             if (Settings.Instance.KbDiagEnabled)
+            {
+#if MB2_GE_130
                 DebugLogger.Log($"[KbDiag] Done→Ctx isIm={ImChatView.IsCurrentContext(__instance)} "
                     + $"deck={SteamDeckKeyboard.IsSteamDeck()} textLen={inputText?.Length} "
                     + $"focused={__instance.EventManager.FocusedWidget?.GetType()?.Name}");
+#else
+                DebugLogger.Log($"[KbDiag] Done→Ctx isIm={ImChatView.IsCurrentContext(__instance)} "
+                    + $"textLen={inputText?.Length} "
+                    + $"focused={__instance.EventManager.FocusedWidget?.GetType()?.Name}");
+#endif
+            }
             if (!ImChatView.IsCurrentContext(__instance)) return true;   // 非 IM 层：原版
 #if MB2_GE_130
             if (SteamDeckKeyboard.IsSteamDeck())
