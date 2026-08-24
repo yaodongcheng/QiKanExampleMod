@@ -8,6 +8,7 @@
 
 | 规则文件 | 主题 |
 |----------|------|
+| [scenario-campaign-mode/README.md](plans/scenario-campaign-mode/README.md) | 🔴 **历史战役剧本模式工程总纲（会话交接）**：进度/审核表/设计裁定/DSL 要点/文档索引——**仅当任务/选中内容涉及 `plans/scenario-campaign-mode/` 目录时加载**（剧本/事件/DSL/战国数据相关）；该工程全部 plan 审核通过前禁止实施 |
 | [wheels.md](plans/rules/wheels.md) | 🔴**【必读】已造轮子速查（索引）**：先看索引定位域 → 打开 `wheels.d/` 对应分卷，命中即复用 |
 | [llm-optional.md](plans/rules/llm-optional.md) | **LLM 是可选功能**，IsLLMConfigured 总闸，所有入口点必须检查 |
 | [im.md](plans/rules/wheels.d/im.md) | **IM 传讯/群聊轮子速查**：群聊回复管线（延迟调度+丢弃纪律）、群聊记忆参与度写入、回应模式人格化、事件广播线程模型（🔴 主线程禁止同步等 LLM）、选人增强 |
@@ -62,7 +63,7 @@
 
 **常见误判提醒**：①`[ImTopic]` 挑人没选到随从 → 无 [ImReply] 请求 → 不是注入 bug；②感知闸门（同 key 300s/每日 30）会跳过重复事件 → [Sense] 无新行正常；③LLM 可能不引用注入段（回答质量 ≠ 注入缺失），注入是否到位以 prompt 文本为准，不以回复内容为准；④模板降级路径（无 LLM）无 prompt 可查，属正常降级。
 
-## 八条铁律
+## 铁律
 
 1. **LLM 不可用时游戏不能崩** — 任何 LLM 代码路径入口检查 `Settings.Instance.IsLLMConfigured`，不存在就降级或 return
 2. **LLM 返回的 JSON 不可信任** — 每个 `foreach` 前 null check，每个字段用 `?.` 传播
@@ -83,6 +84,7 @@
 17. 🔴**所有玩家检定统一 d20 风格（掷点 ≥ 门槛成功）** — 全局设计裁定（2026-08-13）：检定判定方向统一为「掷点越大越容易成功」——`success = roll >= threshold`，其中 `threshold = 1 − 成功率`（成功率 60% → 门槛 40%，掷出 ≥40% 成功）。**适用**：击晕（玩家+随从）、偷窃（玩家+随从）、对话意图检定（`SingleRollResolver.Roll` 唯一入口）、谈判技能检定、赔偿砍价、招募砍价、劝降、贿赂 Charm 等一切玩家检定。**禁止**新增 roll-under（`roll < chance`）判定。**播报纪律**：检定结果 DisplayMessage 只显示「掷点 {ROLL} vs 门槛 {THRESHOLD}」（`掷点 72% ≥ 门槛 38%`），**禁止**显示成功率/目标难度类措辞；{CHANCE} 只留给事前概率展示（谈判选项等）。**成功率公式**：ratio 式 `0.5 × (己方属性合计 ÷ 目标属性合计)` 钳制 [5%, 85%]（随从）/ [5%, 95%]（玩家）；模板 NPC 属性按 Level 均分估算 `(3+Level/3)/2`，**禁止**硬编码 10+10（实机：偷袭农民成功率被压到 5% 保底）。
 18. 🔴**玩家与 NPC 平权：操作函数共享单管线，禁止两侧各抄一份** — 玩家能做的互动（击晕/扒窃/投降/对话等），NPC 执行同一语义时**必须复用同一套核心函数**，禁止在 NPC 侧复制一份玩家逻辑（2026-08-13 教训：击晕成功率公式、属性估算玩家/NPC 两侧各写一份，改公式要改两遍）。**共享边界**：判定公式 + 结算逻辑（记账/落地/目击广播）进共享管线（范本：`KnockoutFlow.Roll/PlayStrikeAnim/Resolve` + `AgentStatsHelper.GetAgentStats`）；**壳层只留必要差异化**（参数化/内部判断，不复制逻辑）——①挥击动画：玩家永远 as_human_warrior 走 `SetPose`（避 async AI tick 竞态）/ NPC 可能村民 action set 走 `ForcePlayAction`（切 warrior set，SetPose 静默失败）②成功率上限：玩家 95% / NPC 85% ③起手延迟：玩家 400ms / NPC 0.5s ④播报文案：第一人称 vs 第三人称（视角差异留壳）。**执行模型**：玩家 = `async void + Task.Delay`，NPC = 脑驱动 `OnTick(dt)` 定时状态机——共享层用「判定+结算纯函数」，动画节奏留在各自壳。**UI 专属通道排除平权范围**：原版对话流面板/扒窃条/慢动作是玩家专属 UI，NPC 侧对应物 = `AgentSay` 头顶冒泡 + IM 附近频道（`SpeechChannel` 单一出口），**禁止给 NPC 造玩家 UI**（禁止 NPC 调 `StartConversation` 开原版对话面板——那是玩家专属 UI；**NPC↔NPC 说话不在此限**：IM 群聊同僚互回复 + SpeechChannel 附近频道合法且是唯一出口，范本 = 计划动作 `TalkTo` 交涉 → `SpeechChannel.Say/SayPolished`（PlanCommandFlow.cs:201）。新增 NPC 可执行动作时，按此规则对照玩家路径逐条检查表现层（先播动画 → 延迟 → 判定 → 结算）。
 19. 🔴**环境变量以注册表为准，进程快照不可信** — 长期运行的 IDE/终端（VSCode/Claude Code 等）在启动时快照环境变量，改过环境变量后旧进程读到的仍是旧值。**判定 `MB2_PATH` 等环境变量的真实值必须读注册表**（`[Environment]::GetEnvironmentVariable('MB2_PATH','User')` / `'Machine'`），**禁止**用 shell 里 `echo $VAR` 的进程快照下结论（2026-08-19 教训：进程快照显示 1.3.15、注册表实际 1.4.8，快照把编译输出引向错误目录）。**Claude 侧 `dotnet build` 产物仅供验证语法，禁止作为正式交付物**——最终测试/发布一律用 VS2022 手动编译的 DLL（用户工作流，2026-08-19 约定）。
+20. 🔴**剧本/事件数据引用一律用游戏内 StringId，禁止用显示名** — 剧本 DSL、事件 JSON 里引用任何对象（据点/角色/家族/势力/旗标）必须用稳定 StringId（`town_CHUB11`/`lord_1_oda`/`clan_oda_1`/`Kingdom.oda`）。**显示名是本地化产物**（不同语言不同名：英文 "Oda" vs 中文"织田"），且名字可被改名（聚落改岐阜、角色改名）——拿名字做标识运行时匹配不稳、本地化无法处理（2026-08-24 用户裁定，事件设计顶层原则）。中文只允许出现在：①注释 ②可选 `refs` 别名（剧本文件顶部 `"清洲": "town_CHUB11"`，**加载期一次性解析成 ID，运行时无中文参与**）③数据包。查找走铁律 5 两轮策略。范本：[plans/scenario-campaign-mode/01-剧本引擎核心.md](plans/scenario-campaign-mode/01-剧本引擎核心.md)「正式格式（DSL）」。
 
 ## 双配置体系 — `Core/MCMSettings.cs`（小白 UI） vs `Core/Settings.cs`（config.json 高级配置）
 
