@@ -56,6 +56,9 @@ namespace LivingWorldNpcs
         // ── 信号 3：武装键（组合结束瞬间物理按下的导航键掩码，bit: 0=Back 1=Delete 2=Enter 3=Left 4=Up 5=Right 6=Down 7=Home 8=End）──
         private static int _armedKeys;
 
+        // ── 兜底节流：同一轮「5s 无消息」超时只打一次日志（TSF 静默期每帧都进超时分支，见 IsComposing）──
+        private static bool _imeTimeoutLogged;
+
         // ── WndProc 回调异常节流（native 回调内绝不传播异常）──
         private static int _hookErrorTick;
 
@@ -110,11 +113,23 @@ namespace LivingWorldNpcs
             bool composing = _imeMsgComposing || Imm32Poll();
 
             // 兜底：组合中 >5s 无任何 WM_IME 消息 = 视为组合已结束（防钩子失效后永久锁死）
+            // 🔴 2026-08-25（实机日志 16:39:14 刷屏 ~300 行）：TSF 静默期（组词停顿 >5s）内
+            // Imm32Poll 仍报组合中、_lastImeMsgTick 无新消息刷新 → 该分支每帧重进。同轮只打
+            // 一次日志（_imeTimeoutLogged），新消息到达 / 组合实际结束时复位。语义不变：
+            // 兜底仍每帧清 _imeMsgComposing 开门，下个按键的 VK_PROCESSKEY 信号会重新关门。
             if (composing && Environment.TickCount - _lastImeMsgTick > 5000)
             {
-                DebugLogger.Log("[ImeInput] 组合态超时兜底（5s 无 IME 消息，按组合结束处理）");
+                if (!_imeTimeoutLogged)
+                {
+                    _imeTimeoutLogged = true;
+                    Diag("[ImeInput] 组合态超时兜底（5s 无 IME 消息，按组合结束处理）");
+                }
                 _imeMsgComposing = false;
                 composing = false;
+            }
+            else
+            {
+                _imeTimeoutLogged = false;
             }
 
             if (composing) return true;
@@ -189,6 +204,16 @@ namespace LivingWorldNpcs
                 + $"gameBack={Input.IsKeyDown(InputKey.BackSpace)}";
         }
 
+        /// <summary>诊断日志统一出口（2026-08-25 并入 ShowDebugMessages 总闸）：IME 是按键级诊断
+        /// （每敲一次键好几行，平时刷屏），与 <see cref="Settings.ShowDebugMessages"/> 同语义——
+        /// 发布/日常游玩关掉，排查 IME 问题时打开。🔴 异常日志（挂载失败/WndProc 处理异常）
+        /// 不走这里，保持无条件——钩子出问题时不能连排查线索都丢。</summary>
+        public static void Diag(string msg)
+        {
+            if (!Settings.Instance.ShowDebugMessages) return;
+            DebugLogger.Log(msg);
+        }
+
         /// <summary>首次调用时把 WndProc 子类化到**本进程全部顶层窗口**（懒安装，须在窗口线程上调用——
         /// HandleInput/ImChatView.Tick 都在游戏主线程 = 窗口创建线程，合规）。窗口未就绪时静默重试。</summary>
         private static void EnsureHookInstalled()
@@ -205,7 +230,7 @@ namespace LivingWorldNpcs
                     return true;
                 }, IntPtr.Zero);
                 _hookInstalled = count > 0;
-                DebugLogger.Log($"[ImeInput] WndProc 已挂载 {count} 个窗口（hwnd 清单: {string.Join(",", _oldProcByHwnd.Keys)}）");
+                Diag($"[ImeInput] WndProc 已挂载 {count} 个窗口（hwnd 清单: {string.Join(",", _oldProcByHwnd.Keys)}）");
             }
             catch (Exception ex)
             {
@@ -240,17 +265,17 @@ namespace LivingWorldNpcs
                         if (wParam.ToInt32() == VK_PROCESSKEY)
                         {
                             _lastVkProcessKeyTick = Environment.TickCount;
-                            DebugLogger.Log($"[ImeInput] 按键被输入法消费 vk=0xE5 scan=0x{(lParam.ToInt64() >> 16) & 0xFF:X} hwnd={hWnd}");
+                            Diag($"[ImeInput] 按键被输入法消费 vk=0xE5 scan=0x{(lParam.ToInt64() >> 16) & 0xFF:X} hwnd={hWnd}");
                         }
                         break;
                     case WM_IME_STARTCOMPOSITION:
                         _lastImeMsgTick = Environment.TickCount;
-                        DebugLogger.Log($"[ImeInput] MSG STARTCOMPOSITION hwnd={hWnd}");
+                        Diag($"[ImeInput] MSG STARTCOMPOSITION hwnd={hWnd}");
                         SetMsgComposing(true, "WM_IME_STARTCOMPOSITION");
                         break;
                     case WM_IME_ENDCOMPOSITION:
                         _lastImeMsgTick = Environment.TickCount;
-                        DebugLogger.Log($"[ImeInput] MSG ENDCOMPOSITION hwnd={hWnd}");
+                        Diag($"[ImeInput] MSG ENDCOMPOSITION hwnd={hWnd}");
                         SetMsgComposing(false, "WM_IME_ENDCOMPOSITION");
                         ArmKeysDownAtCompositionEnd(); // 组合结束瞬间武装物理按下的导航键
                         break;
@@ -258,7 +283,7 @@ namespace LivingWorldNpcs
                         // lParam = 0 表示组合被清空（部分输入法不发 ENDCOMPOSITION 直接清空）；
                         // GCS_COMPSTR 位 = 组合字符串在变（部分输入法漏发 STARTCOMPOSITION，用它兜底）
                         _lastImeMsgTick = Environment.TickCount;
-                        DebugLogger.Log($"[ImeInput] MSG COMPOSITION lParam=0x{lParam.ToInt64():X} hwnd={hWnd}");
+                        Diag($"[ImeInput] MSG COMPOSITION lParam=0x{lParam.ToInt64():X} hwnd={hWnd}");
                         if (lParam == IntPtr.Zero)
                         {
                             SetMsgComposing(false, "WM_IME_COMPOSITION(清空)");
@@ -295,7 +320,7 @@ namespace LivingWorldNpcs
         {
             if (_imeMsgComposing == composing) return;
             _imeMsgComposing = composing;
-            DebugLogger.Log($"[ImeInput] 组合态 {(_imeMsgComposing ? "开始" : "结束")}（{reason}）");
+            Diag($"[ImeInput] 组合态 {(_imeMsgComposing ? "开始" : "结束")}（{reason}）");
         }
 
         /// <summary>武装组合结束瞬间物理按下的导航键（= 输入法消费掉的按键）。
@@ -315,7 +340,7 @@ namespace LivingWorldNpcs
             if (IsPhysDown(VK_HOME)) mask |= 1 << 7;
             if (IsPhysDown(VK_END)) mask |= 1 << 8;
             _armedKeys = mask;
-            DebugLogger.Log($"[ImeInput] 组合结束武装掩码=0x{mask:X}（physBack={IsPhysDown(VK_BACK)} physDel={IsPhysDown(VK_DELETE)} physEnt={IsPhysDown(VK_RETURN)}）");
+            Diag($"[ImeInput] 组合结束武装掩码=0x{mask:X}（physBack={IsPhysDown(VK_BACK)} physDel={IsPhysDown(VK_DELETE)} physEnt={IsPhysDown(VK_RETURN)}）");
         }
     }
 
@@ -329,6 +354,8 @@ namespace LivingWorldNpcs
     /// 轮询的按键全部不生效；但上屏帧提交的字符（lastKeysPressed 可打印字符）必须放行。
     /// 组合态判定 = ImeCompositionHelper 三信号（VK_PROCESSKEY 按键消费 + WM_IME 消息 + IMM32），
     /// 见类注释——搜狗等 TSF 型输入法走 VK_PROCESSKEY 路径（消息路由盲区的唯一可靠信号）。
+    /// 诊断日志（[ImeInput]）：常规按键级日志走 ImeCompositionHelper.Diag（ShowDebugMessages 门控，
+    /// 2026-08-25 并入总闸），异常日志（挂载失败/WndProc 处理异常）无条件保留。
     /// ⚠️ 版本兼容：补丁目标 `HandleInput(IReadOnlyList&lt;int&gt;)` 与命名空间
     /// `TaleWorlds.GauntletUI.BaseTypes` 已用 ilspycmd 三锚点验证
     /// （1.2.12 / 1.3.15 / 1.4.6 参考 DLL 签名与 namespace 一致，1.4.8 实测反编译一致）。
@@ -356,13 +383,12 @@ namespace LivingWorldNpcs
             if (!composing && (Input.IsKeyPressed(InputKey.BackSpace) || Input.IsKeyPressed(InputKey.Delete)
                 || Input.IsKeyPressed(InputKey.Enter) || Input.IsKeyPressed(InputKey.NumpadEnter)))
             {
-                DebugLogger.Log($"[ImeInput] 门开导航沿 {ImeCompositionHelper.DiagState()}");
+                ImeCompositionHelper.Diag($"[ImeInput] 门开导航沿 {ImeCompositionHelper.DiagState()}");
             }
             if (composing && lastKeysPressed.Count > 0)
             {
-                DebugLogger.Log($"[ImeInput] 组合中字符事件 n={lastKeysPressed.Count} vals=[{string.Join(",", lastKeysPressed)}]");
+                ImeCompositionHelper.Diag($"[ImeInput] 组合中字符事件 n={lastKeysPressed.Count} vals=[{string.Join(",", lastKeysPressed)}]");
             }
-
             if (!composing)
             {
                 _gated = false;
@@ -376,7 +402,7 @@ namespace LivingWorldNpcs
             if (!_gated)
             {
                 _gated = true;
-                DebugLogger.Log("[ImeInput] 组合态吞键（退格/Delete/方向键/Enter 轮询不生效）");
+                ImeCompositionHelper.Diag("[ImeInput] 组合态吞键（退格/Delete/方向键/Enter 轮询不生效）");
             }
             return false;
         }

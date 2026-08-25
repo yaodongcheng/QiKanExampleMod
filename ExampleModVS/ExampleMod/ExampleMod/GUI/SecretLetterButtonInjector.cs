@@ -38,6 +38,12 @@ namespace LivingWorldNpcs
         private static float _scanTimer;
         private static Widget _hoverOn;            // 当前 hover 的注入按钮（防 ShowHint 刷屏）
         private static readonly List<Injected> _live = new List<Injected>();
+        // 🔴 2026-08-25（实机日志 17:19:53 刷屏）：树销毁窗口期内 Scan 对同一批将死行反复重注入
+        // （失败自清理删了 _live 条目 → 幂等去重失效 → 0.3s 后 Scan 又注入 → 下帧再失败再删，
+        // 每个 0.3s 周期刷 ~14 行）。修：销毁失败后抑制注入 2s（销毁窗口只持续数帧，远短于 2s；
+        // 面板刷新重建场景同样被抑制 2s 后自动恢复，不影响功能），日志 5s 节流（WndProc 异常同款）。
+        private static float _injectSuppressSec;
+        private static int _lastCleanupLogTick;
 
         private class Injected
         {
@@ -54,9 +60,10 @@ namespace LivingWorldNpcs
         {
             try
             {
+                if (_injectSuppressSec > 0f) _injectSuppressSec -= dt;
                 UpdateLive();
                 _scanTimer += dt;
-                if (_scanTimer >= ScanIntervalSec)
+                if (_scanTimer >= ScanIntervalSec && _injectSuppressSec <= 0f)
                 {
                     _scanTimer = 0f;
                     Scan();
@@ -275,9 +282,17 @@ namespace LivingWorldNpcs
                     // EventManager.OnFinalize 已置 _widgetContainers=null，树上残留 widget 的
                     // RefreshState → RegisterWidgetForEvent NRE。树已死 → 自清理；若只是面板
                     // 刷新重建（非关屏），0.3s 后 Scan 幂等重注入，无需每帧重试。
+                    // 🔴 2026-08-25：光删条目不够——幂等去重依赖 _live，删了之后 0.3s 后 Scan
+                    // 会对同一批将死行重注入，形成注入→失败→删除→再注入死循环（实机 17:19:53
+                    // 每 0.3s 刷 ~14 行）。抑制注入 2s + 日志 5s 节流（WndProc 异常节流同款）。
                     if (_hoverOn == it.Button) { MBInformationManager.HideInformations(); _hoverOn = null; }
                     _live.RemoveAt(i);
-                    DebugLogger.Log($"[SecretLetter] 可见性设置失败（树销毁窗口），自清理: {ex.Message}");
+                    _injectSuppressSec = 2f;
+                    if (Environment.TickCount - _lastCleanupLogTick > 5000)
+                    {
+                        _lastCleanupLogTick = Environment.TickCount;
+                        DebugLogger.Log($"[SecretLetter] 可见性设置失败（树销毁窗口），自清理: {ex.Message}");
+                    }
                     continue;
                 }
 
