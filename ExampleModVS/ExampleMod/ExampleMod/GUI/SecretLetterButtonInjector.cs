@@ -415,8 +415,14 @@ namespace LivingWorldNpcs
             try { hero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == heroId); } catch { }
             if (hero == null) { DebugLogger.Log($"[SecretLetter] 目标 Hero 不存在: {heroId}"); return; }
 
-            // 前置确认 IM 能开（PlotEnabled 总闸/战斗/系统弹窗）——防点击无效
-            if (!ImChatView.CanOpen()) { DebugLogger.Log("[SecretLetter] CanOpen=false"); return; }
+            // 前置确认 IM 能开（PlotEnabled 总闸/战斗/系统弹窗）——防点击无效。
+            // 🔴 2026-08-25（实机「点击密信后无法呼出 IM」根因修复）：**不能走完整 CanOpen()**——
+            // 08-22/23 CanOpen 收紧后，全屏 UI（队伍/家族屏本身）与 Campaign 非地图屏两项闸口
+            // 在队伍/家族屏上恒 false → 预检永远失败 → 密信按钮全死（实机日志 [SecretLetter]
+            // CanOpen=false 连点无响应）。走 screenStateAgnostic=true：只查静态闸口（配置/战斗/弹窗），
+            // 屏状态闸口由关屏后的 pending 处理器（ImChatView.OnScreenFrameTick 关屏完成分支，
+            // TopScreen 已是 MapScreen）重新核对完整 CanOpen——最终闸口不丢。
+            if (!ImChatView.CanOpen(screenStateAgnostic: true)) { DebugLogger.Log("[SecretLetter] CanOpen=false"); return; }
 
             var conv = ImChatManager.GetDirectConversation(heroId);
             if (conv == null) { DebugLogger.Log($"[SecretLetter] 会话创建失败: {heroId}"); return; }
