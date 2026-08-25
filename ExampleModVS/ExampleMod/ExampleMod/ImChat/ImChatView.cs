@@ -225,7 +225,17 @@ namespace LivingWorldNpcs
         /// 🔴 2026-08-22（用户裁定分层：未配置 LLM 传讯不可用）：!IsLLMConfigured → 传讯入口整体封死
         ///（M 键/呼出按钮/密信按钮/通知点击全部汇入 CanOpen 兜底）——模板回复是不得已的体验，
         /// 未配置时连交互都不给；已配置但连不上才由 ChatOnceAsync(showFailureAlert:true) 红字提示。</summary>
-        public static bool CanOpen()
+        /// <summary>
+        /// 是否可打开 IM 面板。
+        /// 🔴 2026-08-25（密信按钮失效修复）：<paramref name="screenStateAgnostic"/> = true 用于
+        /// 「关屏再开」预检（SecretLetterButtonInjector 点密信时队伍/家族屏还开着）——跳过**屏状态类**
+        /// 闸口（ESC/全屏 UI、GameMenu+手柄、Campaign 非地图屏）：这些闸口在队伍/家族屏上恒 false，
+        /// 预检走完整 CanOpen = 按钮全死（实机日志 [SecretLetter] CanOpen=false 连点无响应）。
+        /// 本流程的意图正是先关屏再开——pending 处理器（OnScreenFrameTick 关屏完成分支）在关屏后
+        /// 重新核对完整 CanOpen，最终闸口不丢。静态闸口（PlotEnabled/LLM 配置/战斗/对话/系统弹窗）
+        /// 无论何时都保留。
+        /// </summary>
+        public static bool CanOpen(bool screenStateAgnostic = false)
         {
             try
             {
@@ -239,6 +249,7 @@ namespace LivingWorldNpcs
                 // 模式不翻的场景也兜住；IsInteractionDisabled 的 Conversation 分支保留双保险）。
                 if (ConversationEntryPatch.IsConversationActive()) return false;
                 if (ModInput.IsSystemModalActive()) return false;
+                if (screenStateAgnostic) return ScreenManager.TopScreen != null;
                 // 🔴 2026-08-23（用户要求：ESC/全屏 UI 打开时传讯入口整体封死）——M 键/↑/按钮/通知
                 // 点击全部汇入 CanOpen 兜底：ESC 菜单（MissionEscapeMenu 层 50 / MapEscapeMenu 层 4400）
                 // 与全屏 UI（技能/背包/队伍/家族/王国/任务等屏）打开时禁止呼出（面板层 400 > ESC 层 50，
@@ -2740,9 +2751,11 @@ namespace LivingWorldNpcs
                     if (stable && CanOpen())
                     {
                         var conv = ImChatManager.GetDirectConversation(_pendingSecretLetterHeroId);
+                        // 🔴 2026-08-25：先打日志再清 elapsed——原顺序清零后才插值打印，恒显 0.00，
+                        // 「关屏到打开耗时」诊断失效
+                        DebugLogger.Log($"[SecretLetter] 关屏完成（TopScreen={topName} IsActive={mapActive} elapsed={_pendingSecretLetterElapsed:0.00}），打开 IM 定位私聊");
                         _pendingSecretLetterHeroId = null;
                         _pendingSecretLetterElapsed = 0f;
-                        DebugLogger.Log($"[SecretLetter] 关屏完成（TopScreen={topName} IsActive={mapActive} elapsed={_pendingSecretLetterElapsed:0.00}），打开 IM 定位私聊");
                         bool opened = Open(conv);
                         DebugLogger.Log($"[SecretLetter] pending 打开结果: {opened}");
                     }
