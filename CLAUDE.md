@@ -8,7 +8,7 @@
 
 | 规则文件 | 主题 |
 |----------|------|
-| [scenario-campaign-mode/README.md](plans/scenario-campaign-mode/README.md) | 🔴 **历史战役剧本模式工程总纲（会话交接）**：进度/审核表/设计裁定/DSL 要点/文档索引——**仅当任务/选中内容涉及 `plans/scenario-campaign-mode/` 目录时加载**（剧本/事件/DSL/战国数据相关）；该工程全部 plan 审核通过前禁止实施 |
+| [scenario-campaign-mode/README.md](plans/scenario-campaign-mode/README.md) | 🔴 **历史战役剧本模式工程总纲（会话交接）**：进度/审核表/设计裁定/DSL 要点/**剧本内容写作纪律（2026-08-25：token 必须 ∈ 注册表，禁止自造 act/字段，注释动作必须落 JSON）**/文档索引——**仅当任务/选中内容涉及 `plans/scenario-campaign-mode/` 目录时加载**（剧本/事件/DSL/战国数据相关）；该工程全部 plan 审核通过前禁止实施 |
 | [wheels.md](plans/rules/wheels.md) | 🔴**【必读】已造轮子速查（索引）**：先看索引定位域 → 打开 `wheels.d/` 对应分卷，命中即复用 |
 | [llm-optional.md](plans/rules/llm-optional.md) | **LLM 是可选功能**，IsLLMConfigured 总闸，所有入口点必须检查 |
 | [im.md](plans/rules/wheels.d/im.md) | **IM 传讯/群聊轮子速查**：群聊回复管线（延迟调度+丢弃纪律）、群聊记忆参与度写入、回应模式人格化、事件广播线程模型（🔴 主线程禁止同步等 LLM）、选人增强 |
