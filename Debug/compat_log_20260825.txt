@@ -1,0 +1,119 @@
+14:13:33.474 [ShokuhoCompat] 兼容层 Init 开始（线程 33）
+14:13:33.574 [ShokuhoCompat] 预加载成功：0Harmony
+14:13:33.602 [ShokuhoCompat] 预加载成功：ColorMinePortable
+14:13:33.630 [ShokuhoCompat] 预加载成功：Serilog
+14:13:33.692 [ShokuhoCompat] 预加载成功：System
+14:13:33.795 [ShokuhoCompat] 预加载成功：System.Numerics.Vectors
+14:13:33.831 [ShokuhoCompat] 预加载成功：System.Windows.Forms
+14:13:33.869 [ShokuhoCompat] 预加载成功：System.Xml
+14:13:33.899 [ShokuhoCompat] AssemblyLoader.LoadFrom 补丁已打：System.Reflection.Assembly LoadFrom(System.String, AssemblyLoadResult ByRef, Boolean)
+14:13:33.899 [ShokuhoCompat] 兼容层就绪：预加载 7 个织丰依赖，兜底目录 ..\..\Modules\Shokuho/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.Harmony/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.ButterLib/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.UIExtenderEx/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.MBOptionScreen/bin\Win64_Shipping_Client | ..\..\Modules\Native/bin\Win64_Shipping_Client | ..\..\Modules\SandBoxCore/bin\Win64_Shipping_Client | ..\..\Modules\CustomBattle/bin\Win64_Shipping_Client | ..\..\Modules\SandBox/bin\Win64_Shipping_Client | ..\..\Modules\StoryMode/bin\Win64_Shipping_Client | ..\..\Modules\StartAsAnyone/bin\Win64_Shipping_Client | ..\..\Modules\LivingWorldNpcs/bin\Win64_Shipping_Client | ..\..\Modules\ShokuhoTaikouExpansionPack/bin\Win64_Shipping_Client | ..\..\Modules\Shokuho/bin\Win64_Shipping_Client
+14:15:24.212 [ShokuhoCompat] 兼容层 Init 开始（线程 33）
+14:15:24.214 [ShokuhoCompat] 预加载成功：0Harmony
+14:15:24.218 [ShokuhoCompat] 预加载成功：ColorMinePortable
+14:15:24.219 [ShokuhoCompat] 预加载成功：Serilog
+14:15:24.220 [ShokuhoCompat] 预加载成功：System
+14:15:24.223 [ShokuhoCompat] 预加载成功：System.Numerics.Vectors
+14:15:24.224 [ShokuhoCompat] 预加载成功：System.Windows.Forms
+14:15:24.225 [ShokuhoCompat] 预加载成功：System.Xml
+14:15:24.256 [ShokuhoCompat] AssemblyLoader.LoadFrom 补丁已打：System.Reflection.Assembly LoadFrom(System.String, AssemblyLoadResult ByRef, Boolean)
+14:15:24.256 [ShokuhoCompat] 兼容层就绪：预加载 7 个织丰依赖，兜底目录 ..\..\Modules\Shokuho/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.Harmony/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.ButterLib/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.UIExtenderEx/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.MBOptionScreen/bin\Win64_Shipping_Client | ..\..\Modules\Native/bin\Win64_Shipping_Client | ..\..\Modules\SandBoxCore/bin\Win64_Shipping_Client | ..\..\Modules\CustomBattle/bin\Win64_Shipping_Client | ..\..\Modules\SandBox/bin\Win64_Shipping_Client | ..\..\Modules\StoryMode/bin\Win64_Shipping_Client | ..\..\Modules\StartAsAnyone/bin\Win64_Shipping_Client | ..\..\Modules\LivingWorldNpcs/bin\Win64_Shipping_Client | ..\..\Modules\ShokuhoTaikouExpansionPack/bin\Win64_Shipping_Client | ..\..\Modules\Shokuho/bin\Win64_Shipping_Client
+14:15:24.256 [ShokuhoCompat] LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:17:37.117 [ShokuhoCompat] 兼容层 Init 开始（线程 33）
+14:17:37.119 [ShokuhoCompat] 预加载成功：0Harmony
+14:17:37.121 [ShokuhoCompat] 预加载成功：ColorMinePortable
+14:17:37.122 [ShokuhoCompat] 预加载成功：Serilog
+14:17:37.124 [ShokuhoCompat] 预加载成功：System
+14:17:37.127 [ShokuhoCompat] 预加载成功：System.Numerics.Vectors
+14:17:37.128 [ShokuhoCompat] 预加载成功：System.Windows.Forms
+14:17:37.130 [ShokuhoCompat] 预加载成功：System.Xml
+14:17:37.161 [ShokuhoCompat] AssemblyLoader.LoadFrom 补丁已打：System.Reflection.Assembly LoadFrom(System.String, AssemblyLoadResult ByRef, Boolean)
+14:17:37.162 [ShokuhoCompat] Assembly.LoadFrom(string) 补丁已打：System.Reflection.Assembly LoadFrom(System.String)
+14:17:37.162 [ShokuhoCompat] 兼容层就绪：预加载 7 个织丰依赖，兜底目录 ..\..\Modules\Shokuho/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.Harmony/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.ButterLib/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.UIExtenderEx/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.MBOptionScreen/bin\Win64_Shipping_Client | ..\..\Modules\Native/bin\Win64_Shipping_Client | ..\..\Modules\SandBoxCore/bin\Win64_Shipping_Client | ..\..\Modules\CustomBattle/bin\Win64_Shipping_Client | ..\..\Modules\SandBox/bin\Win64_Shipping_Client | ..\..\Modules\StoryMode/bin\Win64_Shipping_Client | ..\..\Modules\StartAsAnyone/bin\Win64_Shipping_Client | ..\..\Modules\LivingWorldNpcs/bin\Win64_Shipping_Client | ..\..\Modules\ShokuhoTaikouExpansionPack/bin\Win64_Shipping_Client | ..\..\Modules\Shokuho/bin\Win64_Shipping_Client
+14:17:37.163 [ShokuhoCompat] LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:19:15.260 [ShokuhoCompat] 兼容层 Init 开始（线程 33）
+14:19:15.263 [ShokuhoCompat] 预加载成功：0Harmony
+14:19:15.265 [ShokuhoCompat] 预加载成功：ColorMinePortable
+14:19:15.267 [ShokuhoCompat] 预加载成功：Serilog
+14:19:15.268 [ShokuhoCompat] 预加载成功：System
+14:19:15.271 [ShokuhoCompat] 预加载成功：System.Numerics.Vectors
+14:19:15.272 [ShokuhoCompat] 预加载成功：System.Windows.Forms
+14:19:15.273 [ShokuhoCompat] 预加载成功：System.Xml
+14:19:15.305 [ShokuhoCompat] AssemblyLoader.LoadFrom 补丁已打：System.Reflection.Assembly LoadFrom(System.String, AssemblyLoadResult ByRef, Boolean)
+14:19:15.306 [ShokuhoCompat] Assembly.LoadFrom(string) 补丁已打：System.Reflection.Assembly LoadFrom(System.String)
+14:19:15.306 [ShokuhoCompat] 兼容层就绪：预加载 7 个织丰依赖，兜底目录 ..\..\Modules\Shokuho/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.Harmony/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.ButterLib/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.UIExtenderEx/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.MBOptionScreen/bin\Win64_Shipping_Client | ..\..\Modules\Native/bin\Win64_Shipping_Client | ..\..\Modules\SandBoxCore/bin\Win64_Shipping_Client | ..\..\Modules\CustomBattle/bin\Win64_Shipping_Client | ..\..\Modules\SandBox/bin\Win64_Shipping_Client | ..\..\Modules\StoryMode/bin\Win64_Shipping_Client | ..\..\Modules\StartAsAnyone/bin\Win64_Shipping_Client | ..\..\Modules\LivingWorldNpcs/bin\Win64_Shipping_Client | ..\..\Modules\ShokuhoTaikouExpansionPack/bin\Win64_Shipping_Client | ..\..\Modules\Shokuho/bin\Win64_Shipping_Client
+14:19:15.306 [ShokuhoCompat] LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:19:15.307 [ShokuhoCompat] Assembly.LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:22:26.101 [ShokuhoCompat] 兼容层 Init 开始（线程 33）
+14:22:26.105 [ShokuhoCompat] 预加载成功：0Harmony
+14:22:26.109 [ShokuhoCompat] 预加载成功：ColorMinePortable
+14:22:26.112 [ShokuhoCompat] 预加载成功：Serilog
+14:22:26.116 [ShokuhoCompat] 预加载成功：System
+14:22:26.119 [ShokuhoCompat] 预加载成功：System.Numerics.Vectors
+14:22:26.123 [ShokuhoCompat] 预加载成功：System.Windows.Forms
+14:22:26.127 [ShokuhoCompat] 预加载成功：System.Xml
+14:22:26.159 [ShokuhoCompat] AssemblyLoader.LoadFrom 补丁已打：System.Reflection.Assembly LoadFrom(System.String, AssemblyLoadResult ByRef, Boolean)
+14:22:26.160 [ShokuhoCompat] Assembly.LoadFrom(string) 补丁已打：System.Reflection.Assembly LoadFrom(System.String)
+14:22:26.161 [ShokuhoCompat] OnAssemblyResolve 补丁已打：System.Reflection.Assembly OnAssemblyResolve(System.Object, System.ResolveEventArgs)
+14:22:26.161 [ShokuhoCompat] 兼容层就绪：预加载 7 个织丰依赖，兜底目录 ..\..\Modules\Shokuho/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.Harmony/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.ButterLib/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.UIExtenderEx/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.MBOptionScreen/bin\Win64_Shipping_Client | ..\..\Modules\Native/bin\Win64_Shipping_Client | ..\..\Modules\SandBoxCore/bin\Win64_Shipping_Client | ..\..\Modules\CustomBattle/bin\Win64_Shipping_Client | ..\..\Modules\SandBox/bin\Win64_Shipping_Client | ..\..\Modules\StoryMode/bin\Win64_Shipping_Client | ..\..\Modules\StartAsAnyone/bin\Win64_Shipping_Client | ..\..\Modules\LivingWorldNpcs/bin\Win64_Shipping_Client | ..\..\Modules\ShokuhoTaikouExpansionPack/bin\Win64_Shipping_Client | ..\..\Modules\Shokuho/bin\Win64_Shipping_Client
+14:22:26.163 [ShokuhoCompat] LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:22:26.163 [ShokuhoCompat] Assembly.LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:23:50.040 [ShokuhoCompat] 兼容层 Init 开始（线程 33）
+14:23:50.042 [ShokuhoCompat] 预加载成功：0Harmony
+14:23:50.045 [ShokuhoCompat] 预加载成功：ColorMinePortable
+14:23:50.046 [ShokuhoCompat] 预加载成功：Serilog
+14:23:50.047 [ShokuhoCompat] 预加载成功：System
+14:23:50.050 [ShokuhoCompat] 预加载成功：System.Numerics.Vectors
+14:23:50.052 [ShokuhoCompat] 预加载成功：System.Windows.Forms
+14:23:50.054 [ShokuhoCompat] 预加载成功：System.Xml
+14:23:50.084 [ShokuhoCompat] AssemblyLoader.LoadFrom 补丁已打：System.Reflection.Assembly LoadFrom(System.String, AssemblyLoadResult ByRef, Boolean)
+14:23:50.084 [ShokuhoCompat] Assembly.LoadFrom(string) 补丁已打：System.Reflection.Assembly LoadFrom(System.String)
+14:23:50.087 [ShokuhoCompat] OnAssemblyResolve 补丁已打：System.Reflection.Assembly OnAssemblyResolve(System.Object, System.ResolveEventArgs)
+14:23:50.087 [ShokuhoCompat] 兼容层就绪：预加载 7 个织丰依赖，兜底目录 ..\..\Modules\Shokuho/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.Harmony/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.ButterLib/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.UIExtenderEx/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.MBOptionScreen/bin\Win64_Shipping_Client | ..\..\Modules\Native/bin\Win64_Shipping_Client | ..\..\Modules\SandBoxCore/bin\Win64_Shipping_Client | ..\..\Modules\CustomBattle/bin\Win64_Shipping_Client | ..\..\Modules\SandBox/bin\Win64_Shipping_Client | ..\..\Modules\StoryMode/bin\Win64_Shipping_Client | ..\..\Modules\StartAsAnyone/bin\Win64_Shipping_Client | ..\..\Modules\LivingWorldNpcs/bin\Win64_Shipping_Client | ..\..\Modules\ShokuhoTaikouExpansionPack/bin\Win64_Shipping_Client | ..\..\Modules\Shokuho/bin\Win64_Shipping_Client
+14:23:50.087 [ShokuhoCompat] LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:23:50.088 [ShokuhoCompat] Assembly.LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:25:50.857 [ShokuhoCompat] 兼容层 Init 开始（线程 19）
+14:25:50.858 [ShokuhoCompat] 预加载成功：0Harmony
+14:25:50.861 [ShokuhoCompat] 预加载成功：ColorMinePortable
+14:25:50.862 [ShokuhoCompat] 预加载成功：Serilog
+14:25:50.862 [ShokuhoCompat] 预加载成功：System
+14:25:50.866 [ShokuhoCompat] 预加载成功：System.Numerics.Vectors
+14:25:50.867 [ShokuhoCompat] 预加载成功：System.Windows.Forms
+14:25:50.870 [ShokuhoCompat] 预加载成功：System.Xml
+14:25:50.900 [ShokuhoCompat] AssemblyLoader.LoadFrom 补丁已打：System.Reflection.Assembly LoadFrom(System.String, AssemblyLoadResult ByRef, Boolean)
+14:25:50.901 [ShokuhoCompat] Assembly.LoadFrom(string) 补丁已打：System.Reflection.Assembly LoadFrom(System.String)
+14:25:50.903 [ShokuhoCompat] OnAssemblyResolve 补丁已打：System.Reflection.Assembly OnAssemblyResolve(System.Object, System.ResolveEventArgs)
+14:25:50.903 [ShokuhoCompat] 兼容层就绪：预加载 7 个织丰依赖，兜底目录 ..\..\Modules\Shokuho/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.Harmony/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.ButterLib/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.UIExtenderEx/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.MBOptionScreen/bin\Win64_Shipping_Client | ..\..\Modules\Native/bin\Win64_Shipping_Client | ..\..\Modules\SandBoxCore/bin\Win64_Shipping_Client | ..\..\Modules\CustomBattle/bin\Win64_Shipping_Client | ..\..\Modules\SandBox/bin\Win64_Shipping_Client | ..\..\Modules\StoryMode/bin\Win64_Shipping_Client | ..\..\Modules\StartAsAnyone/bin\Win64_Shipping_Client | ..\..\Modules\LivingWorldNpcs/bin\Win64_Shipping_Client | ..\..\Modules\ShokuhoTaikouExpansionPack/bin\Win64_Shipping_Client | ..\..\Modules\Shokuho/bin\Win64_Shipping_Client
+14:25:50.904 [ShokuhoCompat] LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:25:50.904 [ShokuhoCompat] Assembly.LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:25:50.909 [ShokuhoCompat] LoadFrom 返回 Success（..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll）
+14:25:50.909 [ShokuhoCompat] Assembly.LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:25:50.909 [ShokuhoCompat] 织丰引用 46 个程序集：mscorlib 4.0.0.0, TaleWorlds.CampaignSystem 1.0.0.0, TaleWorlds.Library 1.0.0.0, TaleWorlds.Core 1.0.0.0, TaleWorlds.Localization 1.0.0.0, System 4.0.0.0, TaleWorlds.MountAndBlade 1.0.0.0, TaleWorlds.Core.ViewModelCollection 1.0.0.0, TaleWorlds.SaveSystem 1.0.0.0, MCMv5 5.10.2.0, TaleWorlds.GauntletUI 1.0.0.0, TaleWorlds.ObjectSystem 1.0.0.0, StoryMode 1.0.0.0, Microsoft.Extensions.Logging.Abstractions 2.0.0.0, TaleWorlds.MountAndBlade.View 1.0.0.0, SandBox.View 1.0.0.0, TaleWorlds.Engine.GauntletUI 1.0.0.0, TaleWorlds.CampaignSystem.ViewModelCollection 1.0.0.0, Bannerlord.UIExtenderEx 2.12.0.0, System.Xml 4.0.0.0, SandBox.ViewModelCollection 1.0.0.0, 0Harmony 2.2.2.0, SandBox.GauntletUI 1.0.0.0, TaleWorlds.ScreenSystem 1.0.0.0, TaleWorlds.TwoDimension 1.0.0.0, System.Core 4.0.0.0, ColorMinePortable 1.0.0.0, TaleWorlds.Engine 1.0.0.0, TaleWorlds.DotNet 1.0.0.0, Bannerlord.ButterLib 2.9.10.0, TaleWorlds.MountAndBlade.CustomBattle 1.0.0.0, TaleWorlds.InputSystem 1.0.0.0, TaleWorlds.MountAndBlade.ViewModelCollection 1.0.0.0, TaleWorlds.GauntletUI.Data 1.0.0.0, TaleWorlds.PSAI 1.0.0.0, System.Windows.Forms 4.0.0.0, SandBox 1.0.0.0, TaleWorlds.MountAndBlade.GauntletUI 1.0.0.0, StbSharp 0.7.2.38, TaleWorlds.MountAndBlade.GauntletUI.Widgets 1.0.0.0, System.Numerics.Vectors 4.1.3.0, StoryMode.GauntletUI 1.0.0.0, TaleWorlds.ModuleManager 1.0.0.0, Microsoft.Bcl.HashCode 1.0.0.0, TaleWorlds.LinQuick 1.0.0.0, StoryMode.ViewModelCollection 1.0.0.0
+14:30:49.092 [ShokuhoCompat] 兼容层 Init 开始（线程 33）
+14:30:49.094 [ShokuhoCompat] 预加载成功：0Harmony
+14:30:49.097 [ShokuhoCompat] 预加载成功：ColorMinePortable
+14:30:49.098 [ShokuhoCompat] 预加载成功：Serilog
+14:30:49.100 [ShokuhoCompat] 预加载成功：System
+14:30:49.103 [ShokuhoCompat] 预加载成功：System.Numerics.Vectors
+14:30:49.104 [ShokuhoCompat] 预加载成功：System.Windows.Forms
+14:30:49.107 [ShokuhoCompat] 预加载成功：System.Xml
+14:30:49.140 [ShokuhoCompat] AssemblyLoader.LoadFrom 补丁已打：System.Reflection.Assembly LoadFrom(System.String, AssemblyLoadResult ByRef, Boolean)
+14:30:49.141 [ShokuhoCompat] Assembly.LoadFrom(string) 补丁已打：System.Reflection.Assembly LoadFrom(System.String)
+14:30:49.145 [ShokuhoCompat] OnAssemblyResolve 补丁已打：System.Reflection.Assembly OnAssemblyResolve(System.Object, System.ResolveEventArgs)
+14:30:49.145 [ShokuhoCompat] 兼容层就绪：预加载 7 个织丰依赖，兜底目录 ..\..\Modules\Shokuho/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.Harmony/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.ButterLib/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.UIExtenderEx/bin\Win64_Shipping_Client | ..\..\Modules\Bannerlord.MBOptionScreen/bin\Win64_Shipping_Client | ..\..\Modules\Native/bin\Win64_Shipping_Client | ..\..\Modules\SandBoxCore/bin\Win64_Shipping_Client | ..\..\Modules\CustomBattle/bin\Win64_Shipping_Client | ..\..\Modules\SandBox/bin\Win64_Shipping_Client | ..\..\Modules\StoryMode/bin\Win64_Shipping_Client | ..\..\Modules\StartAsAnyone/bin\Win64_Shipping_Client | ..\..\Modules\LivingWorldNpcs/bin\Win64_Shipping_Client | ..\..\Modules\ShokuhoTaikouExpansionPack/bin\Win64_Shipping_Client | ..\..\Modules\Shokuho/bin\Win64_Shipping_Client
+14:30:49.145 [ShokuhoCompat] LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:30:49.145 [ShokuhoCompat] Assembly.LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:30:49.150 [ShokuhoCompat] LoadFrom 返回 Success（..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll）
+14:30:49.150 [ShokuhoCompat] Assembly.LoadFrom 绝对路径经过：..\..\Modules\Shokuho\bin\Win64_Shipping_Client\Shokuho.dll
+14:30:49.151 [ShokuhoCompat] 织丰引用 46 个程序集：mscorlib 4.0.0.0, TaleWorlds.CampaignSystem 1.0.0.0, TaleWorlds.Library 1.0.0.0, TaleWorlds.Core 1.0.0.0, TaleWorlds.Localization 1.0.0.0, System 4.0.0.0, TaleWorlds.MountAndBlade 1.0.0.0, TaleWorlds.Core.ViewModelCollection 1.0.0.0, TaleWorlds.SaveSystem 1.0.0.0, MCMv5 5.10.2.0, TaleWorlds.GauntletUI 1.0.0.0, TaleWorlds.ObjectSystem 1.0.0.0, StoryMode 1.0.0.0, Microsoft.Extensions.Logging.Abstractions 2.0.0.0, TaleWorlds.MountAndBlade.View 1.0.0.0, SandBox.View 1.0.0.0, TaleWorlds.Engine.GauntletUI 1.0.0.0, TaleWorlds.CampaignSystem.ViewModelCollection 1.0.0.0, Bannerlord.UIExtenderEx 2.12.0.0, System.Xml 4.0.0.0, SandBox.ViewModelCollection 1.0.0.0, 0Harmony 2.2.2.0, SandBox.GauntletUI 1.0.0.0, TaleWorlds.ScreenSystem 1.0.0.0, TaleWorlds.TwoDimension 1.0.0.0, System.Core 4.0.0.0, ColorMinePortable 1.0.0.0, TaleWorlds.Engine 1.0.0.0, TaleWorlds.DotNet 1.0.0.0, Bannerlord.ButterLib 2.9.10.0, TaleWorlds.MountAndBlade.CustomBattle 1.0.0.0, TaleWorlds.InputSystem 1.0.0.0, TaleWorlds.MountAndBlade.ViewModelCollection 1.0.0.0, TaleWorlds.GauntletUI.Data 1.0.0.0, TaleWorlds.PSAI 1.0.0.0, System.Windows.Forms 4.0.0.0, SandBox 1.0.0.0, TaleWorlds.MountAndBlade.GauntletUI 1.0.0.0, StbSharp 0.7.2.38, TaleWorlds.MountAndBlade.GauntletUI.Widgets 1.0.0.0, System.Numerics.Vectors 4.1.3.0, StoryMode.GauntletUI 1.0.0.0, TaleWorlds.ModuleManager 1.0.0.0, Microsoft.Bcl.HashCode 1.0.0.0, TaleWorlds.LinQuick 1.0.0.0, StoryMode.ViewModelCollection 1.0.0.0
+14:30:49.226 [ShokuhoCompat] GetTypes 抛 ReflectionTypeLoadException：86 个加载错误
+14:30:49.226 [ShokuhoCompat]   LoaderError[0]：System.TypeLoadException: Method 'IsStartAllianceDecisionAllowedBetweenKingdoms' in type 'Diplomacy.Models.DiplomacyKingdomDecisionPermissionModel' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
+14:30:49.227 [ShokuhoCompat]   LoaderError[1]：System.TypeLoadException: Method 'OnDeploymentPlanMade' in type 'Diplomacy.Messengers.MessengerManager' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
+14:30:49.227 [ShokuhoCompat]   LoaderError[2]：System.TypeLoadException: Method 'GetBannerLootChanceFromDefeatedHero' in type 'TaleWorlds.CampaignSystem.GameComponents.ShokuhoBattleRewardModel' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
+14:30:49.227 [ShokuhoCompat]   LoaderError[3]：System.TypeLoadException: Method 'MaximumSeeingRange' in type 'TaleWorlds.CampaignSystem.GameComponents.ShokuhoMapVisibilityModel' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
+14:30:49.227 [ShokuhoCompat]   LoaderError[4]：System.TypeLoadException: Method 'get_MaxWagePaymentLimit' in type 'TaleWorlds.CampaignSystem.GameComponents.ShokuhoPartyWageModel' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
+14:30:49.227 [ShokuhoCompat]   LoaderError[5]：System.TypeLoadException: Method 'GetVillageTaxRatio' in type 'TaleWorlds.CampaignSystem.GameComponents.ShokuhoSettlementTaxModel' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
+14:30:49.227 [ShokuhoCompat]   LoaderError[6]：System.TypeLoadException: Method 'GetGoldCostForUpgrade' in type 'TaleWorlds.CampaignSystem.GameComponents.ShokuhoPartyTroopUpgradeModel' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
+14:30:49.227 [ShokuhoCompat]   LoaderError[7]：System.MissingMethodException: Method not found: 'TaleWorlds.Core.IMission ICampaignMissionManager.OpenBattleMission(System.String, Boolean)'.
+14:30:49.227 [ShokuhoCompat]   LoaderError[8]：System.TypeLoadException: Method 'GetDescriptionText' in type 'Shokuho.EditorScripts.AmmoCache' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
+14:30:49.227 [ShokuhoCompat]   LoaderError[9]：System.TypeLoadException: Method 'GetDescriptionText' in type 'Shokuho.EditorScripts.TateShields' from assembly 'Shokuho, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null' does not have an implementation.
