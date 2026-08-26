@@ -54,7 +54,7 @@
 15. 🔴 **事件 = condition + script 骨架**（01）：**骨架与内容分离**——事件 JSON 只放短骨架（条件 + perform 演绎引用 + 条件化 effect + cutscene/inquiry）；长对白/choice 在独立演绎剧本（StoryJson，05 编译）；**choice 是演绎的一部分**（在剧本内，选项设 flag）；IF 分支 = 选项 flag + 效果 when 门控
 16. **validator 自检查**（01）：事件脚本所有内容必须有正确定义——语法/注册表/引用 ID（已知清单）/类型匹配/flag 一致性/事件间引用/本地化 key/资源引用；错误阻断发布
 17. **动作统一管理观察**（16，待后续 plan）：剧本动作表（系统级）vs ActionRegistry（Agent 决策级）都调骑砍2 action 接口——统一方向 = 共享执行层 WorldActionExecutor + 两层入口（铁律 18 精神）
-18. **太阁覆盖全集**（16 对照总表）：6 操作符 + ~32 域 + ~50 属性 + 代入槽 Ctx（~15000 次代入命令，Phase 1 必须）+ Card 技能卡域 + 组织域（忍者待核对/海贼随海战/商家按需/**流派放弃**——骑砍2 战斗体系不大改，真实招式做不了）
+18. **太阁覆盖全集**（16 对照总表）：6 操作符 + 域 42/属性 199/命令 192/谓词 9（CSV 实测，2026-08-26 更新——初稿 ~32 域/~50 属性为 2026-08-24 估算）+ 代入槽 Ctx（~15000 次代入命令，Phase 1 必须）+ Card 技能卡域 + 组织域（忍者待核对/海贼随海战/商家按需/**流派放弃**——骑砍2 战斗体系不大改，真实招式做不了）
 19. **流派的取舍**：仁王式真实招式流派做不了（骑砍2 战斗体系不改），放弃；若只做称号层可走 Card 域
 20. **功勋机制 = 家臣线只做**（用户 2026-08-24）：仿太阁5 功勋升级（04 第六节双成长线，机制见 17）；纯累计制（晋升不耗功勋）、按主公维度记账（换主公清零）、官职只解锁不禁（自由感）、大名支配力线后续 plan
 21. 🔴 **全工程分拆测试纪律**（用户 2026-08-24）：每个子系统先独立验证——运行时 = 控制台指令驱动（12 总纲 A1-A10 + 11 指令全集）、离线/内容 = validator 驱动（B1-B4）；**分拆全绿前禁止拼装测试**；拼装测试 = 从头新档玩家视角端到端跑通（禁指令），对应 12 各阶段验收清单
@@ -74,11 +74,10 @@
   - 属性（单值）vs 谓词（关系：exists/atWar/isAllied/isNeighbor/hasRelation/relation/hasMet/sameSettlement）
   - 判断四形态：属性比较 / 裸布尔真值 (Hero::X.alive) / exists / 关系谓词
 事件结构：condition（条件）+ script（骨架）：
-  perform（引用演绎剧本 playbackId）/ effect（带 when 步骤门控）/ cutscene / inquiry / im / scene_enter / wait·bgm·se
-  🔴 trigger（发生时机 ∈ 01/16 trigger 注册表 v1）/ once（TK5 屬性:一次/多次）/ priority（TK5 屬性:…｜弱）为事件必填/默认字段——触发时机数据化，禁止只写注释（2026-08-26）
+  perform（引用演绎剧本 playbackId）/ effect（带 when 步骤门控）/ cutscene / inquiry / im_message / scene_enter / wait·bgm·se
+  🔴 trigger（发生时机 ∈ 16 §二 trigger 注册表）/ once（TK5 屬性:一次/多次）/ priority（TK5 屬性:…｜弱）为事件必填/默认字段——触发时机数据化，禁止只写注释（2026-08-26）
 演绎剧本（StoryJson）：sceneId + actors + lines（对白 + choice 节点——选项带 effect 设 flag + goto 分支线）
-动作：set_flag/declare_war/set_owner/kill_hero/spawn_clan/change_clan/rename/make_alliance/relation_change/
-      lock_party/army_gather/teleport/cutscene/perform/im_message/battle/create_order/card_gain...（16 全表）
+动作：set_flag/clear_flag/set_variable/global_set/declare_war/make_peace/set_owner/kill_hero/spawn_hero/spawn_clan/fire_hero/change_clan/change_clan_leader/rename/destroy_faction/release_party/lock_party/army_gather/teleport/relation_change/make_alliance/gold_change/grant_merit/set_title/promote/create_order/battle/duel/im_message/cutscene/perform/scene_enter/pause_time...（全表 = 16a-DSL翻译总表.csv 命令区，TK5 映射 + mod 原生 18 行）
 validator：打包前跑，错误阻断；引用 ID 查已知清单；类型匹配静态检查
 ```
 
@@ -119,9 +118,8 @@ validator：打包前跑，错误阻断；引用 ID 查已知清单；类型匹�
 | 13 主命系统与通用 Quest | QuestDef 数据驱动统一框架（多阶段链 stages）/五套机制整合 |
 | 14 历史时间轴与走向约束 | timeline 里程碑（年份+条件）/drift 导向性修正/偏离检测/脱轨→玩家塑造的历史 |
 | 15 时间轴中间事件 | 清洲同盟（含完整可执行定义范本）/美浓/上洛/长篠 |
-| 16 DSL 注册表全表 | 域/属性/谓词/动作全表（太阁覆盖核对）+ Ctx 代入槽 + 太阁映射 |
+| 16 DSL 注册表全表 | 🔴 **太阁5 ↔ 骑砍2 唯一翻译大表**（2026-08-26 重构）：**事实源 = `16a-DSL翻译总表.csv`**（442 行：域 42/属性 199/命令 192（TK5 174 + mod 原生 18）/谓词 9，列 = 太阁原词·频率·类别·我们侧名·类型·语义·参数·实现用法·状态）——**查询词条翻译只看这一处**（含动作全表）；本 plan 其余 = 机制定义（Ctx 三档/trigger/facility 注册表，2026-08-26 起单所有权）；validator 读同一 CSV |
 | 17 功勋与晋升 | 家臣成长线：Merit 功勋/季度评定/canPromote 谓词/晋升链/官职效果（俸禄·权限·称呼·门控）/DSL 动作 |
-| 16 DSL 注册表全表 | 🔴 **太阁5 ↔ 骑砍2 唯一翻译大表**（2026-08-26 重构）：**事实源 = `16-DSL翻译总表.csv`**（424 行：域 42/属性 199/命令 174/谓词 9，列 = 太阁原词·频率·我们侧名·类型·语义·参数·实现用法·状态），16 第一部分 = CSV 渲染，第二部分 = 机制定义（Ctx 三档/trigger/facility）；validator 读同一 CSV |
 | 附录-角色头像生成 | 🔴 非前期必须（Phase 2+ 数据包）：AI 生成光荣风头像 + PNG 导入（custom-png-import-guide 已验证）——大地图 IM/多 agent 面板显示说话人头像；引擎侧只留占位 |
 | 附录-设计蓝图v5 | 历史设计依据存档（不追改；含全部调研依据） |
 
@@ -141,7 +139,7 @@ validator：打包前跑，错误阻断；引用 ID 查已知清单；类型匹�
 
 - 🔴 **全部 plan 待用户审核**（审核表逐项 ✅ 后才实施）
 - 动作统一管理详细 plan（16 观察 → 独立 plan：WorldActionExecutor 共享层 + 两层入口）
-- 16 动作表需核实：spawn_clan（骑砍2 CreateClan 流程）、make_alliance（1.2.10+ StanceType.Allied/DeclareAllianceAction）
+- 16 动作表已登记齐全（2026-08-26：mod 原生 18 动作入 CSV 命令区）；**实现待核实**：spawn_clan（骑砍2 CreateClan 流程）、make_alliance（1.2.10+ StanceType.Allied/DeclareAllianceAction）、global_set（新加，存档）
 - 07 数据核对：织丰有无忍者组织（Org::忍者衆 注册与否）
 - 09 事件链骨架化已产出（[09b 可执行定义](09b-桶狭间剧本-可执行定义.md) 🔴 2026-08-25 重写为双主视角（信长×义元）+ [09c 配角线](09c-桶狭间配角线-可执行定义.md)，待审核）；10 本能寺事件链骨架化待做（对照 09b 重写）
 - 🔴 **2026-08-26 计划修订已完成**：①trigger/once/priority 落 01/16（TK5 头字段数据化）②事件级 `when` 改名 `condition`（用户裁定）③09b/09c 已加字段 + Ctx 跨事件升 Flag + 渠道线当面化修正 + playbackId 统一 ④演绎剧本 lines[] 实体待产出（09b §5.4 清单）⑤09c 事件 A/C/D/0c/0d/2/3/4 的 JSON 骨架待产出（09c 附节）⑥校验工具升级（双格式解析/繁简双侧/行数 WARN/trigger 字段检查/白名单对称）

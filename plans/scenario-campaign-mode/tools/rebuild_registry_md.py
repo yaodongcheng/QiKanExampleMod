@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""重构 16：第一部分 = CSV 大表渲染（唯一事实源 16-DSL翻译总表.csv）+ 保留机制章节"""
+"""重构 16：第一部分 = CSV 大表渲染（唯一事实源 16a-DSL翻译总表.csv）+ 保留机制章节"""
 import csv
 import re
 
-CSV = 'plans/scenario-campaign-mode/16-DSL翻译总表.csv'
+CSV = 'plans/scenario-campaign-mode/16a-DSL翻译总表.csv'
 MD = 'plans/scenario-campaign-mode/16-DSL注册表全表.md'
 
 with open(CSV, encoding='utf-8-sig') as f:
@@ -23,9 +23,9 @@ for r in rows:
     sec.setdefault(r['类别'], []).append(r)
 
 part1 = []
-part1.append('# 第一部分：太阁5 ↔ 骑砍2 翻译总表（唯一事实源 = `16-DSL翻译总表.csv`，2026-08-26 重构）\n')
+part1.append('# 第一部分：太阁5 ↔ 骑砍2 翻译总表（唯一事实源 = `16a-DSL翻译总表.csv`，2026-08-26 重构）\n')
 part1.append('> 🔴 **本部分 = 唯一大翻译表**（策划配置式）：第一列太阁原词 → 我们侧名 → 类型/语义/参数/实现用法/状态，一行一个词条。'
-             '**CSV 是事实源**（`16-DSL翻译总表.csv`，424 行），下表为 markdown 渲染（`tools/build_registry_csv.py` 生成）；'
+             '**CSV 是事实源**（`16a-DSL翻译总表.csv`，424 行），下表为 markdown 渲染（`tools/build_registry_csv.py` 生成）；'
              '01 validator 的注册表检查（域/属性/谓词/动作）读同一份 CSV——改表 = 改 CSV + 重跑生成，三处不再漂移。'
              '统计口径：程序化复跑 `TK5AllEvents_merged.txt`（250576 行），复跑命令见文末。\n')
 part1.append('## 1.0 操作符统计（唯一数据源 = 原附录，2026-08-26 随合并迁入）\n')

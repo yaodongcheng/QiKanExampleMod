@@ -414,6 +414,24 @@ evm,1,属性,🔴 解析碎片,🔴 待定,evm,—,🔴 解析碎片,🔴 需新
 忍者軍團編成,1,命令,02 PartyBrain,演出/流程/系统,军团指令,—,02 PartyBrain,✅ 引擎/映射
 代入國Ｄ,1,命令,Ctx/Variable/GlobalSlot,演出/流程/系统,代入槽赋值,—,Ctx / Variable / GlobalSlot 三档,✅ 引擎/映射
 對話可否選擇,1,命令,05 choice 门控,演出/流程/系统,选择门控,—,05 choice 门控,✅ 引擎/映射
+—,—,命令,set_flag,动作,剧本标志,flag,本 Phase,✅ 引擎/映射
+—,—,命令,clear_flag,动作,剧本标志,flag,本 Phase,✅ 引擎/映射
+—,—,命令,set_variable,动作,剧本变量,"variable, value",本 Phase,✅ 引擎/映射
+—,—,命令,global_set,动作,全局槽赋值,"slot, 引用",🔴 新加（存档）,🔴 需新加/数据包
+—,—,命令,declare_war,动作,宣战,"a, b",本 Phase,✅ 引擎/映射
+—,—,命令,make_peace,动作,停战,"a, b",本 Phase,✅ 引擎/映射
+—,—,命令,spawn_clan,动作,新建家族,"clanId, leader, home",06（需核实 CreateClan）,✅ 引擎/映射
+—,—,命令,make_alliance,动作,结盟,"a, b",02（需核实 StanceType.Allied）,✅ 引擎/映射
+—,—,命令,relation_change,动作,关系变更,"a, b, value",本 Phase（ChangeRelationAction）,✅ 引擎/映射
+—,—,命令,change_clan,动作,阵营变更,"actor, clan",06,✅ 引擎/映射
+—,—,命令,release_party,动作,释放部队,leader,02 PartyBrain,✅ 引擎/映射
+—,—,命令,grant_troops,动作,给兵,"troopIds, counts",06,✅ 引擎/映射
+—,—,命令,card_gain,动作,获得能力卡,"hero, card",数据包扩展（存档持久）,✅ 引擎/映射
+—,—,命令,card_lose,动作,失去能力卡,"hero, card",数据包扩展（存档持久）,✅ 引擎/映射
+—,—,命令,grant_merit,动作,功勋增减,"actor, value",17（WorldActionExecutor Scenario 层）,✅ 引擎/映射
+—,—,命令,set_title,动作,设官职,"actor, titleId",17,✅ 引擎/映射
+—,—,命令,promote,动作,晋升,actor,17,✅ 引擎/映射
+—,—,命令,duel,动作,个人战（1v1）,"opponent, outcomeSlot",03（个人战，CombatManager）,✅ 引擎/映射
 exists,—,谓词,exists,谓词,对象存在,引用,谓词引擎（01 条件求值）,✅ 已设计
 atWar,—,谓词,atWar,谓词,a 与 b 交战,"a, b（势力引用）",谓词引擎（01 条件求值）,✅ 已设计
 isAllied,—,谓词,isAllied,谓词,a 与 b 同盟,"a, b（势力引用）",谓词引擎（01 条件求值）,注册表加行
