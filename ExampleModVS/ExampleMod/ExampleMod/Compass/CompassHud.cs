@@ -190,7 +190,7 @@ namespace LivingWorldNpcs
             _targets.Clear();
             foreach (Agent agent in mission.Agents)
             {
-                if (agent == null || !agent.IsActive()) continue;
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent)) continue;
                 if (agent == Agent.Main) continue;
                 var hero = (agent.Character as CharacterObject)?.HeroObject;
                 if (hero == null) continue;
@@ -234,7 +234,7 @@ namespace LivingWorldNpcs
             for (int i = icons.Count - 1; i >= 0; i--)
             {
                 var icon = icons[i];
-                bool stillTargeted = icon.TargetAgent != null && icon.TargetAgent.IsActive();
+                bool stillTargeted = icon.TargetAgent != null && AgentControlHelper.SafeIsActive(icon.TargetAgent);
                 if (stillTargeted)
                 {
                     foreach (var (agent, _) in _targets)
@@ -287,7 +287,7 @@ namespace LivingWorldNpcs
             foreach (var icon in _vm.IconItems)
             {
                 var agent = icon.TargetAgent;
-                if (agent == null || !agent.IsActive())
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent))
                 {
                     icon.SetCompass(icon.PosX, false, icon.DistanceText);
                     continue;

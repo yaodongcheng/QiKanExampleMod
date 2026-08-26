@@ -364,7 +364,7 @@ namespace LivingWorldNpcs
 
                 // 在当前战场的所有单位中查找名字匹配的人（排除自己）
                 Agent targetAgent = Mission.Current.Agents
-                    .FirstOrDefault(a => a != Agent.Main && a.Name.Contains(searchName) && a.IsActive());
+                    .FirstOrDefault(a => a != Agent.Main && a.Name.Contains(searchName) && AgentControlHelper.SafeIsActive(a));
 
                 if (targetAgent != null)
                 {
@@ -488,7 +488,7 @@ namespace LivingWorldNpcs
             sb.AppendLine($"--- 诊断 Agent: {agent.Name} ---");
 
             // 1. 基础控制状态
-            sb.AppendLine($"IsActive: {agent.IsActive()}");
+            sb.AppendLine($"IsActive: {AgentControlHelper.SafeIsActive(agent)}");
             sb.AppendLine($"Controller: {agent.Controller}"); // 应该是 AI
             sb.AppendLine($"State: {agent.State}"); // 应该是 Active
 
@@ -947,7 +947,7 @@ namespace LivingWorldNpcs
             foreach (Agent agent in Mission.Current.Agents)
             {
                 // Filter: Only show active humans (ignore horses and dead bodies to reduce spam)
-                if (agent.IsHuman && agent.IsActive())
+                if (agent.IsHuman && AgentControlHelper.SafeIsActive(agent))
                 {
                     count++;
 
@@ -2538,7 +2538,7 @@ namespace LivingWorldNpcs
                 string id = args[0];
                 foreach (var agent in Mission.Current.Agents)
                 {
-                    if (agent.IsHuman && agent.IsActive() && agent.Character?.StringId == id)
+                    if (agent.IsHuman && AgentControlHelper.SafeIsActive(agent) && agent.Character?.StringId == id)
                     { target = agent; break; }
                 }
                 if (target == null) return $"Agent '{id}' not found.";
@@ -2549,7 +2549,7 @@ namespace LivingWorldNpcs
                 float minDist = float.MaxValue;
                 foreach (var agent in Mission.Current.Agents)
                 {
-                    if (!agent.IsHuman || !agent.IsActive() || agent == Agent.Main) continue;
+                    if (!agent.IsHuman || !AgentControlHelper.SafeIsActive(agent) || agent == Agent.Main) continue;
                     float d = agent.Position.DistanceSquared(Agent.Main.Position);
                     if (d < minDist) { minDist = d; target = agent; }
                 }
@@ -2604,7 +2604,7 @@ namespace LivingWorldNpcs
                 string id = args[0];
                 foreach (var agent in Mission.Current.Agents)
                 {
-                    if (agent.IsHuman && agent.IsActive() && agent.Character?.StringId == id)
+                    if (agent.IsHuman && AgentControlHelper.SafeIsActive(agent) && agent.Character?.StringId == id)
                     { target = agent; break; }
                 }
             }

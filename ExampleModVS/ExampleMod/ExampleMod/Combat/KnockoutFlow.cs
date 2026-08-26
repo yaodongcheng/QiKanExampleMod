@@ -71,7 +71,7 @@ namespace LivingWorldNpcs
         /// NPC 可能是村民/农民 action set → ForcePlayAction 先切 as_human_warrior 再播放。</summary>
         public static void PlayStrikeAnim(Agent attacker, Agent target)
         {
-            if (attacker == null || target == null || !attacker.IsActive()) return;
+            if (attacker == null || target == null || !AgentControlHelper.SafeIsActive(attacker)) return;
 
             AgentControlHelper.FaceToActor(attacker, target);
 
@@ -95,7 +95,7 @@ namespace LivingWorldNpcs
             // PlayerMissionEventLogic tick）。成功击晕 = Knockout 罪，失败反击 = AttackAlly 罪。
             AttackTriggerMissionLogic.ReportPlayerMisconduct(r.Success ? "Knockout" : "AttackAlly");
 
-            if (r.Success && target.IsActive())
+            if (r.Success && AgentControlHelper.SafeIsActive(target))
             {
                 // 成功：目标倒地 + 击晕事件。★ 必须先标记受害者状态再广播第三方目击——
                 // 否则证人 Brain 处理 WitnessCrime_GatherOnLook 时调 IsKnockedOut(victim)
@@ -132,7 +132,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public static float StandUp(Agent agent)
         {
-            if (agent == null || !agent.IsActive()) return 0f;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return 0f;
             var brain = AgentAIController.GetBrainForAgent(agent);
             if (brain != null) brain.IsStunned = false;
             AgentControlHelper.ForcePlayAction(agent, "act_stand_up_to_front");

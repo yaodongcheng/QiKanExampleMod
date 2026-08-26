@@ -666,6 +666,12 @@ namespace LivingWorldNpcs
 
         private void ReleaseContinueOnConsequence(MenuCallbackArgs args)
         {
+            // 🔴 2026-08-26 防静态财富状态跨场景残留：被制住 → 放人的路径可能绕过 Mission Finalize
+            //    （实机：贾尔马律斯被制住放人后再进领主大厅，[Wealth] 不重跑、箱子用旧分配数据复刷
+            //    → 同一场景反复撬同一箱子 → 第 4 次结算引擎层崩溃）。玩家已在大地图，
+            //    箱子/NPC 分配状态作废，必须主动清，不能依赖 OnMissionScreenFinalize。
+            StealManager.ClearWealthDistribution();
+
             var settlement = DetentionSettlement;
             bool wasJailed = _jailed;
             string reason = _releaseReason;

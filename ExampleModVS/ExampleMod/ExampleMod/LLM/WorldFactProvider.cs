@@ -500,7 +500,7 @@ namespace LivingWorldNpcs
                 Agent target = null;
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || !a.IsActive() || a == Agent.Main) continue;
+                    if (a == null || !AgentControlHelper.SafeIsActive(a) || a == Agent.Main) continue;
                     if (a.Character == hero.CharacterObject) { target = a; break; }
                 }
                 if (target == null) return null;
@@ -659,7 +659,7 @@ namespace LivingWorldNpcs
                 Agent self = null;
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || !a.IsActive() || a == Agent.Main) continue;
+                    if (a == null || !AgentControlHelper.SafeIsActive(a) || a == Agent.Main) continue;
                     if (a.Character == hero.CharacterObject) { self = a; break; }
                 }
                 if (self == null) return "";
@@ -784,7 +784,7 @@ namespace LivingWorldNpcs
                 Agent self = null;
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || !a.IsActive() || a == Agent.Main) continue;
+                    if (a == null || !AgentControlHelper.SafeIsActive(a) || a == Agent.Main) continue;
                     var hero = (a.Character as CharacterObject)?.HeroObject;
                     if (hero != null && hero.StringId == npcHeroId) { self = a; break; }
                 }
@@ -876,7 +876,7 @@ namespace LivingWorldNpcs
                     sb.AppendLine();
                 }
                 // ── 目标段（解析到目标才给；目标在走动 → 时效声明）──
-                if (target != null && target.IsActive())
+                if (target != null && AgentControlHelper.SafeIsActive(target))
                 {
                     // 🔴 2026-08-15（目标唯一标记）：名字带 [#N] index 标记（引擎 Agent.Index，Mission 内稳定）——
                     // LLM 基于场景语义指认目标（「酒馆老板」→ 场景里标着 [#N] 的「酒馆店主」），
@@ -989,7 +989,7 @@ namespace LivingWorldNpcs
                 // ── 战力段（双方合计 + 武装档位 + 结论词；禁止给数字公式让 LLM 编——给结论词）──
                 int selfSide = AgentStatsHelper.GetAgentStatTotal(self);
                 int enemySide = 0;
-                if (target != null && target.IsActive()) enemySide += AgentStatsHelper.GetAgentStatTotal(target);
+                if (target != null && AgentControlHelper.SafeIsActive(target)) enemySide += AgentStatsHelper.GetAgentStatTotal(target);
                 foreach (var info in snap.Agents)
                 {
                     if (info == null || info.Agent == null || info.Agent == self || info.Agent == Agent.Main) continue;
@@ -1027,7 +1027,7 @@ namespace LivingWorldNpcs
                     ("ARMOR", selfArmor),
                     ("VIGOR", AgentStatsHelper.GetAgentStats(self).vigor.ToString()),
                     ("CONTROL", AgentStatsHelper.GetAgentStats(self).control.ToString())));
-                if (target != null && target.IsActive())
+                if (target != null && AgentControlHelper.SafeIsActive(target))
                 {
                     string tArmor = AgentStatsHelper.ArmorProfileWord(AgentStatsHelper.GetArmorProfile(target));
                     string tn = AgentControlHelper.GetDisplayName(target);
@@ -1296,7 +1296,7 @@ namespace LivingWorldNpcs
                 // 统计口径（用户裁定：详写 vs 归入计数）：详写 = 个体行数 + 目标段（目标独立描述）；
                 // 合并 = 未采样者。total = 详写 + 合并（自洽）。
                 int listedRows = selected.Count(s => !(target != null && s.Agent == target))
-                    + (target != null && target.IsActive() ? 1 : 0);
+                    + (target != null && AgentControlHelper.SafeIsActive(target) ? 1 : 0);
                 int mergedCount = unselected.Count;
                 // 总览：人数 + 详写/合并比例 + 分层
                 // 本地化：LWN_word_floor_part（单层人数词组，双桶）
@@ -2674,7 +2674,7 @@ namespace LivingWorldNpcs
                 if (Mission.Current == null || Agent.Main == null) return "";
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || !a.IsActive() || a == Agent.Main) continue;
+                    if (a == null || !AgentControlHelper.SafeIsActive(a) || a == Agent.Main) continue;
                     var h = (a.Character as CharacterObject)?.HeroObject;
                     if (h == null || h.StringId != heroId) continue;
                     if (a.HealthLimit <= 0f) return null;

@@ -588,7 +588,7 @@ namespace LivingWorldNpcs
             {
                 if (string.IsNullOrEmpty(heroId) || Mission.Current == null || Agent.Main == null) return null;
                 var a = FindAgentByHeroId(heroId);
-                if (a == null || !a.IsActive()) return null;
+                if (a == null || !AgentControlHelper.SafeIsActive(a)) return null;
                 return a.Position.Distance(Agent.Main.Position);
             }
             catch { return null; }

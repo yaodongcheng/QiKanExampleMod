@@ -255,7 +255,7 @@ namespace LivingWorldNpcs
             if (distSq > maxDistanceSq) return;
 
             // 活着且不再玩家屏幕里的人，不参与搜索
-            if (agent.IsActive() && !NpcSightSystem.IsPlayerSeeing(agent) && AgentControlHelper.IsHumanOrChild(agent))
+            if (AgentControlHelper.SafeIsActive(agent) && !NpcSightSystem.IsPlayerSeeing(agent) && AgentControlHelper.IsHumanOrChild(agent))
             {
                 return;
             }
@@ -284,7 +284,7 @@ namespace LivingWorldNpcs
         public Agent GetFocusdAgent()
         {
             // 如果玩家自己都死了，就不探测了
-            if (Agent.Main == null || !Agent.Main.IsActive()) return null;
+            if (Agent.Main == null || !AgentControlHelper.SafeIsActive(Agent.Main)) return null;
 
             Camera cam = thisMissionScreen.CombatCamera;
             if (cam == null) return null;
@@ -518,7 +518,7 @@ namespace LivingWorldNpcs
 
             // C. 计算状态（缓存字段，供 UI 刷新对比）
             bool isAnimal = IsAnimalAgent(currentAgent);
-            bool isAlive = currentAgent.IsActive();
+            bool isAlive = AgentControlHelper.SafeIsActive(currentAgent);
             bool isKnockedOut = AgentBrain.IsKnockedOut(currentAgent);
 
             // 已被击晕的Agent视为失去行动能力（引擎可能未立即转为Unconscious时兜底）
@@ -603,7 +603,7 @@ namespace LivingWorldNpcs
         /// </summary>
         private void ExecuteIntervene(Agent guard)
         {
-            if (guard == null || !guard.IsActive()) return;
+            if (guard == null || !AgentControlHelper.SafeIsActive(guard)) return;
             var guardBrain = AgentAIController.GetBrainForAgent(guard);
             if (guardBrain == null) return;
 
@@ -718,7 +718,7 @@ namespace LivingWorldNpcs
                 // 本地化：未知目标名兜底
                     name = LWNTextHelper.ResolveText("LWN_ui_name_unknown", "Unknown");
             }
-            if (!currentAgent.IsActive())
+            if (!AgentControlHelper.SafeIsActive(currentAgent))
             {
                 // 本地化：目标死亡/昏迷/重伤状态后缀
                 name += isAnimal ? LWNTextHelper.ResolveText("LWN_ui_state_dead", "(dead)") : (isKnockedOut ? LWNTextHelper.ResolveText("LWN_ui_state_unconscious", "(unconscious)") : LWNTextHelper.ResolveText("LWN_ui_state_injured", "(badly injured)"));
@@ -981,7 +981,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (Agent a in Mission.Current.Agents)
                     {
-                        if (a.Character == partnerChar && a.IsActive())
+                        if (a.Character == partnerChar && AgentControlHelper.SafeIsActive(a))
                         {
                             partnerAgent = a;
                             break;
@@ -1015,8 +1015,11 @@ namespace LivingWorldNpcs
                     StealManager.DistributeSettlementWealth(settlement);
             }
 
-            // ── 箱子生成：财富分配后有 stash 就生成箱子实体 ──
-            if (!_chestSpawned && StealManager.StashGold > 0)
+            // ── 箱子生成：财富分配后有钱或有物才生成箱子实体（🔴 2026-08-26 用户裁定：
+            //    定居点没资源分配（金币和物品都空）就不生成，省得刷个空箱/幽灵箱）──
+            if (!_chestSpawned
+                && (StealManager.StashGold > 0
+                    || (StealManager.ChestItemRoster != null && !StealManager.ChestItemRoster.IsEmpty())))
             {
                 _chestSpawned = true;
                 SpawnSettlementChest();
@@ -1116,7 +1119,7 @@ namespace LivingWorldNpcs
             while (timer < timeout)
             {
                 // 1. 安全检查
-                if (agent == null || !agent.IsActive()) return;
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
 
                 // 2. 核心判断：如果当前的动作已经是 StayAction，说明前面的 Move/Look 都跑完了
                 if (brain.CurrentAction is StayAction)
@@ -1168,7 +1171,7 @@ namespace LivingWorldNpcs
             Agent.Main.SetLookAgent(agent);    // 玩家持续注视 NPC，防止 AI 控头乱转
 
             // 检查 NPC 是否还在 (防止移动过程中被杀或消失)
-            if (agent == null || !agent.IsActive())
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent))
             {
                 IsHandlingInteraction = false;
                 return;
@@ -1517,7 +1520,7 @@ namespace LivingWorldNpcs
             IsChatting = false;
 
             //恢复主角移动
-            if (Agent.Main != null && Agent.Main.IsActive())
+            if (Agent.Main != null && AgentControlHelper.SafeIsActive(Agent.Main))
             {
                 // 切回玩家控制
                 V.SetAgentPlayer(Agent.Main);
@@ -1562,7 +1565,7 @@ namespace LivingWorldNpcs
             var sceneAnimalsByMonster = new Dictionary<string, List<Agent>>();
             foreach (Agent agent in Mission.Current.Agents)
             {
-                if (!IsAnimalAgent(agent) || !agent.IsActive()) continue;
+                if (!IsAnimalAgent(agent) || !AgentControlHelper.SafeIsActive(agent)) continue;
                 string monsterId = agent.Monster?.StringId;
                 if (string.IsNullOrEmpty(monsterId)) continue;
 
@@ -1704,7 +1707,7 @@ namespace LivingWorldNpcs
         {
             // 战斗模式下禁止偷窃动物
             if (Settings.Instance.IsInteractionDisabled()) return;
-            if (animal == null || !animal.IsActive()) return;
+            if (animal == null || !AgentControlHelper.SafeIsActive(animal)) return;
 
             // 蹲下才能偷（UI 层已拦，此处防御兜底）
             if (!IsMainAgentCrouching()) return;
@@ -1753,7 +1756,7 @@ namespace LivingWorldNpcs
 
             try
             {
-                if (mainAgent == null || !mainAgent.IsActive() || animal == null) return;
+                if (mainAgent == null || !AgentControlHelper.SafeIsActive(mainAgent) || animal == null) return;
 
                 // ── 步骤 1：面向动物 + 蹲下拾取动画 ──
                 AgentControlHelper.FaceToActor(mainAgent, animal);
@@ -1761,7 +1764,7 @@ namespace LivingWorldNpcs
                 await Task.Delay(400);
 
                 // ── 步骤 2：再次确认动物存活且没溜远 ──
-                if (!animal.IsActive() || animal.Position.Distance(mainAgent.Position) > 5f)
+                if (!AgentControlHelper.SafeIsActive(animal) || animal.Position.Distance(mainAgent.Position) > 5f)
                 {
                     InformationManager.DisplayMessage(
                         // 本地化：动物趁机溜走提示
@@ -1808,7 +1811,7 @@ namespace LivingWorldNpcs
                     new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_animal_fail", "Failed to steal the animal"), Colors.Red));
 
                 // 出错了也尝试站起来
-                if (mainAgent != null && mainAgent.IsActive())
+                if (mainAgent != null && AgentControlHelper.SafeIsActive(mainAgent))
                     AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
             }
             finally
@@ -1882,7 +1885,7 @@ namespace LivingWorldNpcs
         [HandleProcessCorruptedStateExceptions]
         private async void TryKnockoutAgent(Agent target)
         {
-            if (target == null || !target.IsActive()) return;
+            if (target == null || !AgentControlHelper.SafeIsActive(target)) return;
 
             // 战斗模式下禁止击晕
             if (Settings.Instance.IsInteractionDisabled()) return;
@@ -1909,14 +1912,14 @@ namespace LivingWorldNpcs
                 // 1. ★ 挥击起手（共享管线：玩家永远 as_human_warrior → SetPose，
                 // 避免不必要的 native AnimationSystemData 替换触发异步 AI tick 竞态）
                 Agent mainAgent = Agent.Main;
-                if (mainAgent != null && mainAgent.IsActive())
+                if (mainAgent != null && AgentControlHelper.SafeIsActive(mainAgent))
                 {
                     KnockoutFlow.PlayStrikeAnim(mainAgent, target);
                     await Task.Delay(400);
                 }
 
                 // ── 延迟后重新验证目标：400ms 内 target 可能已被引擎回收 ──
-                if (target == null || !target.IsActive())
+                if (target == null || !AgentControlHelper.SafeIsActive(target))
                 {
                     DebugLogger.Log($"[Knockout] Target became invalid after delay: {targetName}");
                     return;
@@ -2104,7 +2107,7 @@ namespace LivingWorldNpcs
 
             // 只有活人偷窃时才有挑选界面；死人/昏迷不给。
             // OpenScreenAsLoot 全版本可用（已反编译核实 v1.2.12/v1.3.15/v1.4.x 签名一致）
-            bool showPickButton = targetAgent.IsActive();
+            bool showPickButton = AgentControlHelper.SafeIsActive(targetAgent);
 
             InformationManager.ShowInquiry(new InquiryData(
                 titleText,
@@ -2170,7 +2173,7 @@ namespace LivingWorldNpcs
                     {
                         // 死人/昏迷者（!IsActive）：武器引擎已掉地上，只放防具进挑选界面；
                         // StripAgentEquipment 内置 IsActive 守卫，死人自动跳过，不会 AccessViolation。
-                        bool isDead = !targetAgent.IsActive();
+                        bool isDead = !AgentControlHelper.SafeIsActive(targetAgent);
                         var pickRoster = isDead ? armorRoster : lootRoster;
                         if (pickRoster.IsEmpty())
                         {
@@ -2319,7 +2322,7 @@ namespace LivingWorldNpcs
                     {
                         foreach (Agent pa in Mission.Current.Agents)
                         {
-                            if (pa.Character == MapEncounterDialogState.Partner && pa.IsActive())
+                            if (pa.Character == MapEncounterDialogState.Partner && AgentControlHelper.SafeIsActive(pa))
                             {
                                 distToPartner = a.Position.Distance(pa.Position);
                                 break;
@@ -2550,42 +2553,53 @@ namespace LivingWorldNpcs
                 () =>
                 {
                     // ── 全部拿走 ──
-                    int takenGold = 0;
-                    if (gold > 0)
+                    // 🔴 2026-08-26 整体兜底：此前零 try/catch，结算异常直接弹崩溃窗且无日志可查
+                    //    （实机：连续撬锁第 4 次结算引擎层崩溃，日志戛然而止）。finally 保证 UI 状态必复位。
+                    try
                     {
-                        takenGold = StealManager.LootStash(gold, settlement);
-                        if (takenGold > 0)
-                            // 本地化：开箱获得金币消息
-                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold", ("GOLD", takenGold.ToString())), Colors.Yellow));
-                    }
-
-                    var takenItems = new List<(string itemId, string itemName, int count)>();
-                    if (roster != null && !roster.IsEmpty())
-                    {
-                        int totalItems = 0;
-                        for (int i = roster.Count - 1; i >= 0; i--)
+                        int takenGold = 0;
+                        if (gold > 0)
                         {
-                            var item = roster.GetItemAtIndex(i);
-                            int count = roster.GetElementNumber(i);
-                            if (item != null && count > 0)
-                            {
-                                int taken = StealManager.LootChestItem(item, count, settlement);
-                                totalItems += taken;
-                                if (taken > 0)
-                                    takenItems.Add((item.StringId, item.Name?.ToString() ?? item.StringId, taken));
-                            }
+                            takenGold = StealManager.LootStash(gold, settlement);
+                            if (takenGold > 0)
+                                // 本地化：开箱获得金币消息
+                                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold", ("GOLD", takenGold.ToString())), Colors.Yellow));
                         }
-                        if (totalItems > 0)
-                            // 本地化：开箱获得物品数量消息
-                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", totalItems.ToString())), Colors.Green));
+
+                        var takenItems = new List<(string itemId, string itemName, int count)>();
+                        if (roster != null && !roster.IsEmpty())
+                        {
+                            int totalItems = 0;
+                            for (int i = roster.Count - 1; i >= 0; i--)
+                            {
+                                var item = roster.GetItemAtIndex(i);
+                                int count = roster.GetElementNumber(i);
+                                if (item != null && count > 0)
+                                {
+                                    int taken = StealManager.LootChestItem(item, count, settlement);
+                                    totalItems += taken;
+                                    if (taken > 0)
+                                        takenItems.Add((item.StringId, item.Name?.ToString() ?? item.StringId, taken));
+                                }
+                            }
+                            if (totalItems > 0)
+                                // 本地化：开箱获得物品数量消息
+                                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", totalItems.ToString())), Colors.Green));
+                        }
+
+                        // 犯罪统一接线：目击检测 → 证词 → 围堵质问
+                        if (settlement != null && (takenGold > 0 || takenItems.Count > 0))
+                            StealManager.RecordChestTheft(settlement, takenItems, takenGold);
                     }
-
-                    // 犯罪统一接线：目击检测 → 证词 → 围堵质问
-                    if (settlement != null && (takenGold > 0 || takenItems.Count > 0))
-                        StealManager.RecordChestTheft(settlement, takenItems, takenGold);
-
-                    RemoveChestEntityIfEmpty();
-                    StealManager.IsUIOpen = false; // loot 收尾完成
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[ChestTheft] TakeAll error: {ex}");
+                    }
+                    finally
+                    {
+                        RemoveChestEntity();
+                        StealManager.IsUIOpen = false; // loot 收尾完成
+                    }
                 },
                 () =>
                 {
@@ -2607,27 +2621,35 @@ namespace LivingWorldNpcs
                         AttackTriggerMissionLogic.ReportLootOpen();
                         _pendingLootSession = LootFlowSession.OpenChest(this, roster, pendingGold);
                     }
+                    // 🔴 2026-08-26 用户裁定：撬锁开箱即消失——自己挑选也一样，箱子实体立即移除。
+                    //    挑选界面操作的是 roster 数据（ChestItemRoster 引用），不依赖实体；
+                    //    未拿光的物品留在定居点库存，下次进场景重新分配。移除后 nearChest=false，
+                    //    本 Mission 内无法再撬。
                     else
                     {
                         // 纯金无物品：不开战利品界面，立即记账收尾
                         if (settlement != null && pendingGold > 0)
                             StealManager.RecordChestTheft(settlement, new List<(string, string, int)>(), pendingGold);
-                        RemoveChestEntityIfEmpty();
+                        RemoveChestEntity();
                         StealManager.IsUIOpen = false;
                     }
+
+                    // 🔴 2026-08-26 用户裁定：撬锁开箱即消失——自己挑选也一样，箱子实体立即移除。
+                    //    挑选界面操作的是 roster 数据（ChestItemRoster 引用），不依赖实体；
+                    //    未拿光的物品留在定居点库存，下次进场景重新分配。移除后 nearChest=false，
+                    //    本 Mission 内无法再撬。
+                    RemoveChestEntity();
                 }));
         }
 
-        /// <summary>箱子空了就移除实体（两条 loot 路径共用）。</summary>
-        private void RemoveChestEntityIfEmpty()
+        /// <summary>移除箱子实体（无条件——🔴 2026-08-26 用户裁定：撬锁开箱即消失，不管拿没拿光）。
+        /// 两条 loot 路径共用；重复调用安全（实体已 null 时跳过）。</summary>
+        private void RemoveChestEntity()
         {
-            if (_chestEntity != null && StealManager.StashGold == 0
-                && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
-            {
-                _chestEntity.Remove(0);
-                _chestEntity = null;
-                StealManager.ChestEntity = null;
-            }
+            if (_chestEntity == null) return;
+            _chestEntity.Remove(0);
+            _chestEntity = null;
+            StealManager.ChestEntity = null;
         }
 
         /// <summary>战利品挑选场景类型（共享管线的差异分支点）。</summary>
@@ -2752,7 +2774,7 @@ namespace LivingWorldNpcs
                     // 犯罪统一接线：目击检测 → 证词 → 围堵质问（物品 + 暂存金币一次记账）
                     if (PendingGold > 0 || taken.Count > 0)
                         StealManager.RecordChestTheft(settlement, ToTuples(taken), PendingGold);
-                    _view.RemoveChestEntityIfEmpty();
+                    _view.RemoveChestEntity(); // 无条件移除（回调里已移则此处跳过）
                     StealManager.IsUIOpen = false;
                     return;
                 }

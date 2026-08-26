@@ -66,7 +66,7 @@ namespace LivingWorldNpcs
         public static bool TryExecute(Agent actor, string actionCode, string targetText, string level, string sayText,
             Agent explicitTarget = null, Action<Agent> onFinished = null)
         {
-            if (actor == null || !actor.IsActive() || string.IsNullOrEmpty(actionCode)) return false;
+            if (actor == null || !AgentControlHelper.SafeIsActive(actor) || string.IsNullOrEmpty(actionCode)) return false;
             if (Mission.Current == null) return false;
             try
             {
@@ -76,7 +76,7 @@ namespace LivingWorldNpcs
                     Action = actionCode,
                 };
                 // 目标文本（可选；不传 = 执行器缺省语义）；显式目标走角色名 "target"
-                if (explicitTarget != null && explicitTarget.IsActive())
+                if (explicitTarget != null && AgentControlHelper.SafeIsActive(explicitTarget))
                 {
                     step.Target = "target";
                     targetText = null;

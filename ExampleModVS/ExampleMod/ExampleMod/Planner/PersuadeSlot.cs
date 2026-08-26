@@ -108,7 +108,7 @@ namespace LivingWorldNpcs
             {
                 var responderAgent = responder?.Agent;
                 var initiator = session?.Initiator;
-                if (responderAgent == null || !responderAgent.IsActive()) return;
+                if (responderAgent == null || !AgentControlHelper.SafeIsActive(responderAgent)) return;
                 var brain = AgentAIController.GetBrainForAgent(responderAgent);
                 if (brain == null) return;
 
@@ -134,7 +134,7 @@ namespace LivingWorldNpcs
                         maxTime: 20f, skipGetupDelay: true,
                         endBehavior: MoveToPositionAction.EndBehavior.Unlock));
                 // 决策结果回流（发起者执行器 on_event 控制流——既有链路零改动）
-                if (initiator != null && initiator.IsActive())
+                if (initiator != null && AgentControlHelper.SafeIsActive(initiator))
                     AgentAIController.Instance?.SendEventToAgent(initiator, "plan_decision", "followed", responderAgent);
                 DebugLogger.Log($"[Persuade] 同意兑现：{responderAgent.Name} 跟随 {initiator?.Name}");
             }
@@ -150,13 +150,13 @@ namespace LivingWorldNpcs
             {
                 var responderAgent = responder?.Agent;
                 var initiator = session?.Initiator;
-                if (responderAgent == null || !responderAgent.IsActive()) return;
+                if (responderAgent == null || !AgentControlHelper.SafeIsActive(responderAgent)) return;
                 // 拒绝台词（说话并联 Warning 优先级，不占队列；前因 = 会话拒绝兑现）
                 SpeechChannel.Say(responderAgent,
                     // 本地化：LWN_reactive_refuse（玩家可见文本）
                     LWNTextHelper.ResolveText("LWN_reactive_refuse", "No, I cannot do that."), SpeechPriority.Warning,
                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(responderAgent), initiator, "spoken_to", session?.Topic));
-                if (initiator != null && initiator.IsActive())
+                if (initiator != null && AgentControlHelper.SafeIsActive(initiator))
                     AgentAIController.Instance?.SendEventToAgent(initiator, "plan_decision", "refused", responderAgent);
                 DebugLogger.Log($"[Persuade] 拒绝兑现：{responderAgent.Name} 拒绝 {initiator?.Name}");
             }
@@ -411,7 +411,7 @@ namespace LivingWorldNpcs
             if (CheckSettle())
                 return;
             // ── 台词生成：LLM 润色（有配置走 2s 预算异步；无配置/失败 → 模板）──
-            if (Settings.Instance.IsLLMConfigured && _responder != null && _responder.IsActive())
+            if (Settings.Instance.IsLLMConfigured && _responder != null && AgentControlHelper.SafeIsActive(_responder))
             {
                 RequestLlmResponderLine();
             }
@@ -510,7 +510,7 @@ namespace LivingWorldNpcs
         private void RequestInitiatorLine()
         {
             var s = Session;
-            if (Settings.Instance.IsLLMConfigured && _initiator != null && _initiator.IsActive())
+            if (Settings.Instance.IsLLMConfigured && _initiator != null && AgentControlHelper.SafeIsActive(_initiator))
             {
                 string world = WorldBackgroundProvider.GetWorldSection(_initiator);
                 string initName = _initiator.Name?.ToString() ?? "随从";
@@ -625,8 +625,8 @@ namespace LivingWorldNpcs
         {
             var s = Session;
             if (s == null) return true;
-            if (_responder == null || !_responder.IsActive()) return true;
-            if (_initiator != null && !_initiator.IsActive()) return true;
+            if (_responder == null || !AgentControlHelper.SafeIsActive(_responder)) return true;
+            if (_initiator != null && !AgentControlHelper.SafeIsActive(_initiator)) return true;
             var brain = AgentAIController.GetBrainForAgent(_responder);
             if (brain == null) return true;
             // 战斗（当前或排队）→ 打断（不兑现）
@@ -634,7 +634,7 @@ namespace LivingWorldNpcs
             // 警戒 Alarmed → 打断（质问/对抗优先于会话）
             if (brain.AlertPhase >= AlarmPhase.Alarmed) return true;
             // 距离 > 15m → 打断
-            if (_initiator != null && _initiator.IsActive())
+            if (_initiator != null && AgentControlHelper.SafeIsActive(_initiator))
             {
                 try
                 {
@@ -654,7 +654,7 @@ namespace LivingWorldNpcs
                 mid *= 0.5f;
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || a == _initiator || a == _responder || !a.IsActive()) continue;
+                    if (a == null || a == _initiator || a == _responder || !AgentControlHelper.SafeIsActive(a)) continue;
                     float dist = a.Position.Distance(mid);
                     if (dist > DialogueComponent.BystanderRadius) continue;
                     float chance = Math.Max(1f - dist / DialogueComponent.BystanderRadius, 0.05f);

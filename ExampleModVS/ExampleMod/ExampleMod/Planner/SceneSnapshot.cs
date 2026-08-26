@@ -121,7 +121,7 @@ namespace LivingWorldNpcs
             {
                 foreach (var a in mission.Agents)
                 {
-                    if (a == null || !a.IsActive()) continue;
+                    if (a == null || !AgentControlHelper.SafeIsActive(a)) continue;
                     if (!AgentControlHelper.IsHumanOrChild(a)) continue;
                     agents.Add(a);
                 }
@@ -624,7 +624,7 @@ namespace LivingWorldNpcs
         private static string BuildStateDesc(Agent a)
         {
             // 本地化：LWN_prompt_scene_state_absent（不在场，双桶）
-            if (a == null || !a.IsActive()) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_absent");
+            if (a == null || !AgentControlHelper.SafeIsActive(a)) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_absent");
             try
             {
                 var brain = AgentAIController.GetBrainForAgent(a);

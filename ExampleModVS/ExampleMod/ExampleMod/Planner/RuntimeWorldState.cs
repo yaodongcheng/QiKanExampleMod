@@ -170,7 +170,7 @@ namespace LivingWorldNpcs
             // watcher 三值域：具体实体 / "all" / "any"
             string watcher = c.A ?? "";
             if (!TryResolveAgent(c.B, actorContext, out Agent subject)) return false;
-            if (!subject.IsActive()) return false;
+            if (!AgentControlHelper.SafeIsActive(subject)) return false;
 
             bool result;
             try
@@ -187,14 +187,14 @@ namespace LivingWorldNpcs
                     result = true;
                     foreach (var a in Mission.Current.Agents)
                     {
-                        if (a == null || !a.IsActive() || !AgentControlHelper.IsHumanOrChild(a) || a == subject) continue;
+                        if (a == null || !AgentControlHelper.SafeIsActive(a) || !AgentControlHelper.IsHumanOrChild(a) || a == subject) continue;
                         if (!NpcSightSystem.CanAgentSeeTarget(a, subject)) { result = false; break; }
                     }
                 }
                 else
                 {
                     if (!TryResolveAgent(watcher, actorContext, out Agent watcherAgent)) return false;
-                    if (!watcherAgent.IsActive()) return false;
+                    if (!AgentControlHelper.SafeIsActive(watcherAgent)) return false;
                     result = NpcSightSystem.CanAgentSeeTarget(watcherAgent, subject);
                 }
             }
@@ -215,7 +215,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (var a in Mission.Current.Agents)
                     {
-                        if (a == null || !a.IsActive() || !AgentControlHelper.IsHumanOrChild(a)) continue;
+                        if (a == null || !AgentControlHelper.SafeIsActive(a) || !AgentControlHelper.IsHumanOrChild(a)) continue;
                         var b = AgentAIController.GetBrainForAgent(a);
                         if (b == null) continue;
                         if (PhaseValue(b.AlertPhase) >= ParsePhase(c.Phase)) return true;
@@ -250,7 +250,7 @@ namespace LivingWorldNpcs
         /// 通道②：brain 当前动作是跟随该目标 / 意图是跟随该目标。</summary>
         public bool IsFollowing(Agent follower, Agent leader)
         {
-            if (follower == null || leader == null || !follower.IsActive() || !leader.IsActive()) return false;
+            if (follower == null || leader == null || !AgentControlHelper.SafeIsActive(follower) || !AgentControlHelper.SafeIsActive(leader)) return false;
             if (FollowPairs.Contains((follower.Index, leader.Index))) return true;
             var brain = AgentAIController.GetBrainForAgent(follower);
             if (brain?.CurrentAction is FollowAgentAction fa && fa.TargetAgent == leader)
@@ -264,7 +264,7 @@ namespace LivingWorldNpcs
         {
             if (!TryResolveAgent(c.A, actorContext, out Agent a)) return false;
             if (!TryResolvePosition(c.B, actorContext, out Vec3 b)) return false;
-            if (!a.IsActive()) return false;
+            if (!AgentControlHelper.SafeIsActive(a)) return false;
             try
             {
                 Vec2 look = a.LookDirection.AsVec2.Normalized();
@@ -278,7 +278,7 @@ namespace LivingWorldNpcs
         private bool EvalMoving(Condition c, Agent actorContext)
         {
             if (!TryResolveAgent(c.A, actorContext, out Agent a)) return false;
-            if (!a.IsActive()) return false;
+            if (!AgentControlHelper.SafeIsActive(a)) return false;
             bool moving = false;
             try
             {
@@ -298,7 +298,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (var a in Mission.Current.Agents)
                     {
-                        if (a == null || !a.IsActive() || !AgentControlHelper.IsHumanOrChild(a)) continue;
+                        if (a == null || !AgentControlHelper.SafeIsActive(a) || !AgentControlHelper.IsHumanOrChild(a)) continue;
                         if (a.Position.Distance(zPos) <= zRadius) return true;
                     }
                 }
@@ -329,7 +329,7 @@ namespace LivingWorldNpcs
             // combat(a, b)：a 与 b 交战
             if (!TryResolveAgent(c.A, actorContext, out Agent a)) return false;
             if (!TryResolveAgent(c.B, actorContext, out Agent b)) return false;
-            if (!a.IsActive() || !b.IsActive()) return false;
+            if (!AgentControlHelper.SafeIsActive(a) || !AgentControlHelper.SafeIsActive(b)) return false;
             bool fighting = false;
             try
             {
@@ -379,7 +379,7 @@ namespace LivingWorldNpcs
         private bool EvalDead(Condition c)
         {
             if (!TryResolveAgent(c.Entity ?? c.A, null, out Agent agent)) return true; // 无法解析 = 不在场
-            return !agent.IsActive() || agent.Health <= 0f;
+            return !AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0f;
         }
 
         private bool EvalKnockedOut(Condition c)
@@ -542,7 +542,7 @@ namespace LivingWorldNpcs
                     if (!TryResolveZone(zoneName, out Vec3 zonePos, out float radius)) return null;
                     foreach (var a in Mission.Current.Agents)
                     {
-                        if (a == null || !a.IsActive() || !AgentControlHelper.IsHumanOrChild(a)) continue;
+                        if (a == null || !AgentControlHelper.SafeIsActive(a) || !AgentControlHelper.IsHumanOrChild(a)) continue;
                         if (a.Position.Distance(zonePos) > radius) continue;
                         result.Add(a);
                     }
@@ -564,7 +564,7 @@ namespace LivingWorldNpcs
                         candidates = new List<Agent>();
                         foreach (var a in Mission.Current.Agents)
                         {
-                            if (a == null || !a.IsActive() || !AgentControlHelper.IsHumanOrChild(a)) continue;
+                            if (a == null || !AgentControlHelper.SafeIsActive(a) || !AgentControlHelper.IsHumanOrChild(a)) continue;
                             if (a == OwnerAgent || AgentBrain.IsPlayerTeammate(a)) continue;
                             candidates.Add(a);
                         }
@@ -637,7 +637,7 @@ namespace LivingWorldNpcs
                         bool clear = true;
                         foreach (var a in mission.Agents)
                         {
-                            if (a == null || !a.IsActive()) continue;
+                            if (a == null || !AgentControlHelper.SafeIsActive(a)) continue;
                             if (a.Position.Distance(cand) < 5f) { clear = false; break; }
                         }
                         if (!clear) continue;

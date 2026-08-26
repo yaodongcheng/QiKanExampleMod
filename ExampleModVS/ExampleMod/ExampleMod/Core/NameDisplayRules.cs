@@ -80,7 +80,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (var a in Mission.Current.Agents)
                     {
-                        if (a == null || !a.IsActive()) continue;
+                        if (a == null || !AgentControlHelper.SafeIsActive(a)) continue;
                         if ((a.Character as CharacterObject)?.StringId != senderHeroId) continue;
                         if (FriendlinessHelper.IsFriendlyToPlayer(a)) return FriendlyColor;
                         try { if (Agent.Main.Team.IsEnemyOf(a.Team)) return HostileColor; } catch { }

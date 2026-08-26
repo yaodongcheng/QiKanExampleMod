@@ -109,7 +109,7 @@ namespace LivingWorldNpcs
                 return 0;
 
             Hero victimHero = (victim.Character as CharacterObject)?.HeroObject;
-            Equipment newEquipment = victim.IsActive() ? victim.SpawnEquipment.Clone() : null;
+            Equipment newEquipment = AgentControlHelper.SafeIsActive(victim) ? victim.SpawnEquipment.Clone() : null;
             int returned = 0;
 
             foreach (var entry in list)
@@ -497,7 +497,7 @@ namespace LivingWorldNpcs
             // detach 旧 mesh / 刷新骨骼引用时碰到已被物理系统接管的 ragdoll 内存
             // → AccessViolation。死人不需要刷新外观，直接跳过。
             // 昏迷(Unconscious)同样是 ragdoll，IsActive()=false 一并覆盖。
-            bool isCorpse = !agent.IsActive();
+            bool isCorpse = !AgentControlHelper.SafeIsActive(agent);
 
             // 防具槽位
             var armorSlots = new[] { EquipmentIndex.Head, EquipmentIndex.Body, EquipmentIndex.Leg, EquipmentIndex.Gloves, EquipmentIndex.Cape };
@@ -535,7 +535,7 @@ namespace LivingWorldNpcs
 
             // remainingRoster 为 null 时始终刷新（保持原行为）；非 null 时只有变化才刷新
             // 🔴 尸体/昏迷跳过：ragdoll 骨骼已被物理接管，native 方法碰它就崩
-            if (agent.IsActive() && (remainingRoster == null || anyChange))
+            if (AgentControlHelper.SafeIsActive(agent) && (remainingRoster == null || anyChange))
             {
                 agent.UpdateSpawnEquipmentAndRefreshVisuals(newEquipment);
 
@@ -578,7 +578,7 @@ namespace LivingWorldNpcs
         /// 「会告发的目击者」语义：自己人不告发。</summary>
         private static bool IsPartyMemberOfPlayer(Agent a)
         {
-            if (a == null || !a.IsActive()) return false;
+            if (a == null || !AgentControlHelper.SafeIsActive(a)) return false;
             var hero = (a.Character as CharacterObject)?.HeroObject;
             if (hero != null) return FriendlinessHelper.IsPlayerPartyMember(hero);
             try { return Agent.Main != null && a.Team != null && a.Team == Agent.Main.Team; }
@@ -686,7 +686,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public static void OnAnimalStruggleFlee(Agent animal, string animalName)
         {
-            if (animal == null || !animal.IsActive() || Agent.Main == null) return;
+            if (animal == null || !AgentControlHelper.SafeIsActive(animal) || Agent.Main == null) return;
 
             try
             {
@@ -1186,7 +1186,7 @@ namespace LivingWorldNpcs
 
                 foreach (Agent agent in agents)
                 {
-                    if (!agent.IsHuman || !agent.IsActive()) continue;
+                    if (!agent.IsHuman || !AgentControlHelper.SafeIsActive(agent)) continue;
                     var character = agent.Character as CharacterObject;
                     var hero = character?.HeroObject;
 
@@ -1230,19 +1230,28 @@ namespace LivingWorldNpcs
                 }
 
                 // ── 箱子物品（按场景类型过滤，不动物资——懒扣除）──
+                // 🔴 2026-08-26 数量上限：单种 ≤10 件、总件数 ≤120、种类 ≤40（实机一次偷 712 件/105 种 → 批量结算触发引擎层崩溃）。
+                //    超出部分留在定居点库存（作为镇上流通物资），不进箱子。
+                const int MaxTypesInChest = 40;
+                const int MaxPerType = 10;
+                const int MaxTotalItemsInChest = 120;
                 var settlementRoster = settlement.ItemRoster;
                 int itemTypesInChest = 0;
+                int totalItemsInChest = 0;
                 for (int i = 0; i < settlementRoster.Count; i++)
                 {
+                    if (itemTypesInChest >= MaxTypesInChest) break;
                     var item = settlementRoster.GetItemAtIndex(i);
                     if (item == null) continue;
                     if (!IsItemAllowedInContext(item, ctx)) continue;
                     int have = settlementRoster.GetElementNumber(i);
-                    if (have > 0)
-                    {
-                        ChestItemRoster.AddToCounts(item, have);
-                        itemTypesInChest++;
-                    }
+                    if (have <= 0) continue;
+                    int put = Math.Min(have, MaxPerType);
+                    put = Math.Min(put, MaxTotalItemsInChest - totalItemsInChest);
+                    if (put <= 0) break;
+                    ChestItemRoster.AddToCounts(item, put);
+                    itemTypesInChest++;
+                    totalItemsInChest += put;
                 }
 
                 // ── 汇总日志 ──
@@ -1326,8 +1335,12 @@ namespace LivingWorldNpcs
 
             // 1. 从定居点 ItemRoster 真实扣除
             settlement.ItemRoster.AddToCounts(item, -actual);
-            // 2. 箱子显示同步减少
-            ChestItemRoster.AddToCounts(item, -actual);
+            // 2. 箱子显示同步减少——🔴 2026-08-26 按请求量 count 扣而非 actual：
+            //    settlement 库存不足时 actual < count，若按 actual 扣则 ChestItemRoster 残留
+            //    → RemoveChestEntityIfEmpty 判定不空 → 箱子不销毁 → 同一场景反复撬同一箱子
+            //    → 多次结算后引擎层崩溃（实机：贾尔马律斯连续撬 4 次第 4 次崩）。
+            //    「全部拿走」语义 = 清空箱子，箱子侧必须归零。
+            ChestItemRoster.AddToCounts(item, -count);
             // 3. 给玩家
             AgentControlHelper.TransferItems(null, Hero.MainHero, item, actual);
             // 4. 犯罪记账
@@ -1475,7 +1488,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (Agent agent in agents)
                     {
-                        if (!agent.IsHuman || !agent.IsActive()) continue;
+                        if (!agent.IsHuman || !AgentControlHelper.SafeIsActive(agent)) continue;
                         var co = agent.Character as CharacterObject;
                         var agentOcc = co?.HeroObject?.Occupation ?? co?.Occupation;
                         if (agentOcc.HasValue && agentOcc.Value == occ)
@@ -1488,7 +1501,7 @@ namespace LivingWorldNpcs
                 // 领主大厅/城堡：找 IsLord
                 foreach (Agent agent in agents)
                 {
-                    if (!agent.IsHuman || !agent.IsActive()) continue;
+                    if (!agent.IsHuman || !AgentControlHelper.SafeIsActive(agent)) continue;
                     var hero = (agent.Character as CharacterObject)?.HeroObject;
                     if (hero != null && hero.IsLord)
                         return agent;
@@ -1498,7 +1511,7 @@ namespace LivingWorldNpcs
             // 兜底：任意活跃 Hero
             foreach (Agent agent in agents)
             {
-                if (!agent.IsHuman || !agent.IsActive()) continue;
+                if (!agent.IsHuman || !AgentControlHelper.SafeIsActive(agent)) continue;
                 if ((agent.Character as CharacterObject)?.HeroObject != null)
                     return agent;
             }
@@ -1506,7 +1519,7 @@ namespace LivingWorldNpcs
             // 最终兜底：任意活跃人类
             foreach (Agent agent in agents)
             {
-                if (agent.IsHuman && agent.IsActive())
+                if (agent.IsHuman && AgentControlHelper.SafeIsActive(agent))
                     return agent;
             }
 

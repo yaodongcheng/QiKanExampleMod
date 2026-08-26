@@ -24,6 +24,38 @@ namespace LivingWorldNpcs
     public static class AgentControlHelper
     {
         /// <summary>
+        /// 🔴 安全判活统一入口（2026-08-26 击杀崩溃修复，玩家反馈 10:47:45）：
+        /// Agent.IsActive() 内部 = AgentHelper.GetAgentState(_statePointer)——unsafe 解引用 native 指针。
+        /// 引擎销毁 Agent 时 Clear() 将 _statePointer 清零 → 对已销毁 Agent 调 IsActive() = 解引用 0 指针
+        /// = AccessViolation（致命异常，try/catch 抓不住，只能预防）。
+        /// 既有教训：PlanExecutor.IsAgentActive 的「Mission.Current 前置 + try/catch」封装失效（2026-08-21）；
+        /// 被移除 Agent 的 IsActive() 抛 NRE（实机 2026-08-14）——同一坑第三次踩，统一收敛于此。
+        ///
+        /// 安全原理：**托管判活为主**——agent.Mission 是托管自动属性（引擎 Clear() 同步置 null），
+        /// 读托管零 AV 风险；托管判活通过 ⇒ native 大概率存活 ⇒ 才调引擎 IsActive()。
+        /// **try/catch 为最后防线**：AV 在默认配置下不可捕获（依赖宿主 corrupted-state 策略），
+        /// 不能当主防线；但判活假设被突破时的 NRE / 可捕获 AV 能兜住，返回 false 等价于「已死」。
+        /// 🔴 契约：本方法绝不抛异常，永远返回布尔（Safe 语义）。前几步是纯托管读取
+        /// （Agent.Mission 自动属性 / Mission.Current 静态字段，反编译确认零 native 访问），理论上
+        /// 不抛——全主体包裹是为契约兜底：任何意外异常一律等价于「已死」，调用方无需再防御。
+        ///
+        /// 适用：一切「跨帧缓存 Agent 引用」的判活点（brain/执行器/对话会话/说服槽/气泡队列/LLM 回复队列/
+        /// 战斗动作目标/扒窃目标）。例外：来自当前帧 Mission.Agents 枚举的引用天然存活，裸调 IsActive() 无害。
+        /// </summary>
+        public static bool SafeIsActive(Agent agent)
+        {
+            try
+            {
+                if (agent == null) return false;
+                if (agent.Mission == null) return false;            // 引擎已销毁（Clear 已执行）
+                if (Mission.Current == null) return false;          // 无当前 Mission（场景卸载中）
+                if (agent.Mission != Mission.Current) return false; // 上一个 Mission 的残留引用
+                return agent.IsActive();                            // native 存活，解引用安全
+            }
+            catch { return false; }                                 // 契约兜底：任何异常 = 已死
+        }
+
+        /// <summary>
         /// 🔴 2026-08-15（目标唯一标记方案，用户裁定）：从目标文本解析 `[#N]` index 标记——LLM 基于场景
         /// 语义指认目标（「酒馆老板」→ 场景里标着 [#3] 的「酒馆店主」），C# 用 Agent.Index 精确查 Agent，
         /// 不依赖脆弱的字符串匹配。
@@ -61,7 +93,7 @@ namespace LivingWorldNpcs
             {
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || !a.IsActive()) continue;
+                    if (a == null || !AgentControlHelper.SafeIsActive(a)) continue;
                     if (a.Index == idx) { agent = a; return true; }
                 }
             }
@@ -172,7 +204,7 @@ namespace LivingWorldNpcs
         [HandleProcessCorruptedStateExceptions]
         public static void ForcePlayAction(Agent agent, string actionId, bool restoreAfter = false)
         {
-            if (agent == null || string.IsNullOrEmpty(actionId) || !agent.IsActive())
+            if (agent == null || string.IsNullOrEmpty(actionId) || !AgentControlHelper.SafeIsActive(agent))
                 return;
 
             ActionIndexCache actionCache = ActionIndexCache.Create(actionId);
@@ -241,7 +273,7 @@ namespace LivingWorldNpcs
         private static async Task RestoreActionSetAsync(Agent agent, AnimationSystemData data)
         {
             await Task.Delay(100); // 等动画开始播放
-            if (agent != null && agent.IsActive())
+            if (agent != null && AgentControlHelper.SafeIsActive(agent))
             {
                 agent.SetActionSet(ref data);
             }
@@ -263,7 +295,7 @@ namespace LivingWorldNpcs
        
         public static void ScriptedMoveToPoint(Agent agent, Vec3 targetVec, bool isRun = false,bool hasNav = false)
         {
-            if (agent == null || !agent.IsActive()) return;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
 
             // 1. 清理状态 (原 MoveTo 的前置逻辑)
             if (agent.IsUsingGameObject)
@@ -320,7 +352,7 @@ namespace LivingWorldNpcs
         public static void SmartMoveToPoint(Agent agent, Vec3 goal, bool run,
             float stopDistance, Agent goalAgent = null)
         {
-            if (agent == null || !agent.IsActive()) return;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
 
             Vec3 goalOriginal = goal;   // 避障日志用：记录偏移量
             bool avoided = false;   // 本帧是否发生了避障（日志用；防刷屏按 agent 节流）
@@ -347,7 +379,7 @@ namespace LivingWorldNpcs
             // 面前 8s 超时 impossible。视野锥判据覆盖正面 + 侧向接近（目标转身低频，nudge 跳变可接受）。
             // 2D 计算（XZ 平面 .AsVec2 丢 z，代码既有惯例）：碰撞体是竖圆柱，只看水平距离。
             bool nudgedByTarget = false;
-            if (goalAgent != null && goalAgent.IsActive())
+            if (goalAgent != null && AgentControlHelper.SafeIsActive(goalAgent))
             {
                 try
                 {
@@ -382,7 +414,7 @@ namespace LivingWorldNpcs
                 // 缓存上限守卫：Agent 死亡/换 Mission 后条目滞留，超限时顺手清理失效项
                 if (_moveAvoidCache.Count > 256)
                 {
-                    foreach (Agent dead in _moveAvoidCache.Keys.Where(a => !a.IsActive()).ToList())
+                    foreach (Agent dead in _moveAvoidCache.Keys.Where(a => !AgentControlHelper.SafeIsActive(a)).ToList())
                     {
                         _moveAvoidCache.Remove(dead);
                         _moveAvoidLog.Remove(dead);
@@ -495,7 +527,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public static void ApproachAgent(Agent agent, Agent target, float walkRadius = 5f)
         {
-            if (agent == null || target == null || !agent.IsActive() || !target.IsActive()) return;
+            if (agent == null || target == null || !AgentControlHelper.SafeIsActive(agent) || !AgentControlHelper.SafeIsActive(target)) return;
             float dist = agent.Position.Distance(target.Position);
             ScriptedMoveToPoint(agent, target.Position, dist > walkRadius);
         }
@@ -628,7 +660,7 @@ namespace LivingWorldNpcs
 
         public static async Task MoveToActor(Agent npcAgent, Agent actor, float stopDistance = 0.5f)
         {
-            if (npcAgent == null || !npcAgent.IsActive() || actor == null) return;
+            if (npcAgent == null || !AgentControlHelper.SafeIsActive(npcAgent) || actor == null) return;
             Mat3 playerRot = actor.LookFrame.rotation;
             //npcAgent的目标rotation需要和actor的rot相反
 
@@ -643,7 +675,7 @@ namespace LivingWorldNpcs
 
         public static void StopAndReset(Agent agent)
         {
-            if (agent == null || !agent.IsActive()) return;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
             // agent.ClearTargetFrame();
             ForceUnlockAgent(agent);
             // 可以根据需要决定是否要重置 Flags
@@ -653,11 +685,11 @@ namespace LivingWorldNpcs
         public static void ForceUnlockAgent(Agent agent)
         {
             if (agent == null) return;
-            // 🔴 2026-08-21（实机）：Agent.IsActive() 走 native 指针（State → GetAgentState(_statePointer)），
+            // 🔴 2026-08-21（实机）：AgentControlHelper.SafeIsActive(Agent) 走 native 指针（State → GetAgentState(_statePointer)），
             // agent 已移除/场景结束时指针释放——对象非 null 但调用即抛 NRE。共享管线入口必须永不抛。
             try
             {
-                if (!agent.IsActive()) return;
+                if (!AgentControlHelper.SafeIsActive(agent)) return;
             }
             catch { return; }
 
@@ -695,7 +727,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public static bool StartVanillaFollow(Agent follower, Agent target)
         {
-            if (follower == null || target == null || !follower.IsActive() || !target.IsActive())
+            if (follower == null || target == null || !AgentControlHelper.SafeIsActive(follower) || !AgentControlHelper.SafeIsActive(target))
                 return false;
             if (follower == Agent.Main)
                 return false; // 永不接管玩家（对齐 SuspendVanillaAI 纪律）
@@ -731,7 +763,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public static bool StopVanillaFollow(Agent follower)
         {
-            if (follower == null || !follower.IsActive())
+            if (follower == null || !AgentControlHelper.SafeIsActive(follower))
                 return false;
             if (follower == Agent.Main)
                 return false;
@@ -756,7 +788,7 @@ namespace LivingWorldNpcs
         // ===================================================================
         public static async Task MovePrepare(Agent npcAgent)
         {
-            if (npcAgent == null || !npcAgent.IsActive()) return;
+            if (npcAgent == null || !AgentControlHelper.SafeIsActive(npcAgent)) return;
 
             // 1. 停止当前交互 (如坐在椅子上)
             if (npcAgent.IsUsingGameObject)
@@ -764,7 +796,7 @@ namespace LivingWorldNpcs
                 npcAgent.StopUsingGameObject(false, Agent.StopUsingGameObjectFlags.None);
                 npcAgent.SetInteractionAgent(null);
                 await Task.Delay(2000); // 给动画一点混合时间
-                if (!npcAgent.IsActive()) return; // 检查存活
+                if (!AgentControlHelper.SafeIsActive(npcAgent)) return; // 检查存活
                 npcAgent.StopUsingGameObject(true);
             }
 
@@ -782,7 +814,7 @@ namespace LivingWorldNpcs
         }
         public static void MoveEndAndInteractPrepare(Agent npcAgent, Vec3 initPos)
         {
-            if (npcAgent == null || !npcAgent.IsActive()) return;
+            if (npcAgent == null || !AgentControlHelper.SafeIsActive(npcAgent)) return;
             WorldPosition currentPos = new WorldPosition(npcAgent.Mission.Scene, initPos);
             var lockFlags = AIScriptedFrameFlags.DoNotRun |
                             AIScriptedFrameFlags.NoAttack |
@@ -824,7 +856,7 @@ namespace LivingWorldNpcs
                 await Task.Delay(200); // 没必要太频繁
                 timeElapsed += 0.2f;
 
-                if (!npcAgent.IsActive()) return;
+                if (!AgentControlHelper.SafeIsActive(npcAgent)) return;
             }
 
             // 6. 超时处理 (如果卡住了，瞬移最后一段距离)

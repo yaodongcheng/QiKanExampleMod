@@ -70,7 +70,7 @@ namespace LivingWorldNpcs
         {
             var a = new TargetAssessment { Info = info, Target = info?.Agent, DistanceMeters = distanceMeters };
             var target = a.Target;
-            if (snap == null || target == null || !target.IsActive()
+            if (snap == null || target == null || !AgentControlHelper.SafeIsActive(target)
                 || target == self || target == Agent.Main)
             {
                 a.BehindSpotOk = true;

@@ -42,7 +42,7 @@ namespace LivingWorldNpcs
                 if (ex.ReplanCount >= MaxReplans) return;            // 节流 ≤ 2
                 if (string.IsNullOrEmpty(ex.OriginalCommand)) return;
                 var owner = ex.OwnerAgent;
-                if (owner == null || !owner.IsActive()) return;
+                if (owner == null || !AgentControlHelper.SafeIsActive(owner)) return;
 
                 DebugLogger.Log($"[PlanReplan] 意外 {reason} → 重入计划阶段（第 {ex.ReplanCount + 1} 次）");
 
@@ -102,7 +102,7 @@ namespace LivingWorldNpcs
             var owner = _pendingOwner;
             _pendingResult = null;
             _pendingOwner = null;
-            if (owner == null || !owner.IsActive()) return;
+            if (owner == null || !AgentControlHelper.SafeIsActive(owner)) return;
 
             if (response == null || response.Plan == null)
             {

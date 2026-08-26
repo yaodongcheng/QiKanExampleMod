@@ -575,7 +575,7 @@ namespace LivingWorldNpcs
                 try
                 {
                     // IsActive 防重复：如果 Agent 已被其他路径移除则跳过
-                    if (fadeAgent.IsActive())
+                    if (AgentControlHelper.SafeIsActive(fadeAgent))
                     {
                         fadeAgent.FadeOut(hideInstantly: false, hideMount: true);
                         DebugLogger.Log($"[ConvEnd] LureArrest FadeOut: {fadeAgent.Name}(Idx={fadeAgent.Index})");

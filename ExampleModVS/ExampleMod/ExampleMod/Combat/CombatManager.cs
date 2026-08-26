@@ -88,7 +88,7 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    if (a == null || !a.IsActive() || a.Health <= 0f)
+                    if (a == null || !AgentControlHelper.SafeIsActive(a) || a.Health <= 0f)
                         dead.Add(a);
                 }
                 catch (NullReferenceException)
@@ -177,7 +177,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public static void RegisterCombatant(Agent agent)
         {
-            if (agent != null && agent.IsActive() && agent != Agent.Main)
+            if (agent != null && AgentControlHelper.SafeIsActive(agent) && agent != Agent.Main)
             {
                 _agentsFightingPlayer.Add(agent);
                 DebugLogger.Log($"[CombatManager] RegisterCombatant: {agent.Name}(Idx={agent.Index}), total={_agentsFightingPlayer.Count}");
@@ -221,7 +221,7 @@ namespace LivingWorldNpcs
             }
 
             // 3. 遗留模型：恢复单个 agent
-            if (!agent.IsActive()) return;
+            if (!AgentControlHelper.SafeIsActive(agent)) return;
             // 3.5 重置 WatchState 回 Normal，防止 AlarmedBehaviorGroup 永远占着控制权
             //     （StartFight 设为了 Alarmed，不重置则 RefreshBehaviorGroups 永远选 Alarmed，
             //       DailyBehaviorGroup 永远拿不回控制权，NPC 卡死不动）
@@ -262,7 +262,7 @@ namespace LivingWorldNpcs
         /// 无效且可能干扰玩家输入）。</summary>
         private static void InterruptCombatMotion(Agent agent)
         {
-            if (agent == null || !agent.IsActive() || agent == Agent.Main) return;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent) || agent == Agent.Main) return;
             agent.SetScriptedCombatFlags(Agent.AISpecialCombatModeFlags.None);
             agent.SetMovementDirection(Vec2.Zero);
             agent.SetAttackState(0);
@@ -323,7 +323,7 @@ namespace LivingWorldNpcs
         public static void StartFight(Agent agentA, Agent agentB, int factionIdA = -1, int factionIdB = -1, bool Peace = false)
         {
 
-            if (agentA == null || agentB == null || !agentA.IsActive() || !agentB.IsActive())
+            if (agentA == null || agentB == null || !AgentControlHelper.SafeIsActive(agentA) || !AgentControlHelper.SafeIsActive(agentB))
                 return;
 
             // 🔴 2026-08-14 开战清除蹲姿：蹲姿感知读的是人工记录 CrouchPoseActive（native flag 对
@@ -484,7 +484,7 @@ namespace LivingWorldNpcs
         {
             foreach (var ally in mission.Agents)
             {
-                if (ally == null || !ally.IsActive() || ally == Agent.Main) continue;
+                if (ally == null || !AgentControlHelper.SafeIsActive(ally) || ally == Agent.Main) continue;
                 if (ally.IsUsingGameObject) continue; // 对话/互动中的友方不动
                 if (!FriendlinessHelper.IsFriendlyToPlayer(ally)) continue;
                 RecordAndMove(ally, playerSide);
@@ -502,7 +502,7 @@ namespace LivingWorldNpcs
             if (playerTeam == null) return;
             foreach (var ally in mission.Agents)
             {
-                if (ally == null || !ally.IsActive() || ally == Agent.Main) continue; // 玩家本人永不旁观化
+                if (ally == null || !AgentControlHelper.SafeIsActive(ally) || ally == Agent.Main) continue; // 玩家本人永不旁观化
                 if (ally == sparKeeper || ally == sparOpponent) continue;              // 切磋双方永不旁观化
                 if (ally.Team != playerSide) continue;
                 if (ally.IsUsingGameObject) continue;
@@ -537,7 +537,7 @@ namespace LivingWorldNpcs
                 var agent = kv.Key;
                 try
                 {
-                    if (agent == null || !agent.IsActive() || agent.Team == kv.Value) continue;
+                    if (agent == null || !AgentControlHelper.SafeIsActive(agent) || agent.Team == kv.Value) continue;
                     agent.SetTeam(kv.Value, true);
                     if (agent != Agent.Main)
                     {
@@ -756,7 +756,7 @@ namespace LivingWorldNpcs
         /// <summary>玩家向目标 NPC 认输。发事件给 Brain，Brain 全权负责停战/围观/启动对话。</summary>
         public static void PlayerSurrenderToAgent(Agent target)
         {
-            if (target == null || !target.IsActive()) return;
+            if (target == null || !AgentControlHelper.SafeIsActive(target)) return;
 
             // 玩家收起武器
             Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
@@ -770,7 +770,7 @@ namespace LivingWorldNpcs
         /// <summary>接受目标 NPC 的认输请求。发事件给 Brain，Brain 全权负责停战/围观/启动对话。</summary>
         public static void AcceptAgentSurrender(Agent target)
         {
-            if (target == null || !target.IsActive()) return;
+            if (target == null || !AgentControlHelper.SafeIsActive(target)) return;
 
             // 玩家收起武器
             Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);

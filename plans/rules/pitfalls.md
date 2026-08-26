@@ -773,3 +773,36 @@ catch (Exception) { _retryTick = Environment.TickCount; }   // 失败：冷却�
 - C# 侧按显示位置可用宽 + 目标字号校准截断阈值（省略号占 1 格）：`可用宽 ÷ 字号 − 1`。落地：`NameDisplayRules.MaxChannelTitleChars=14`（标题，2026-08-19）/ `MaxChannelSubtitleChars=10`（副标题 9 正文+… ≈190px ≤ 206px，2026-08-23 从 14 校准）。
 - 落地 XML：`GUI/Prefabs/ImChat.xml` 左栏频道行标题 + 副标题；`HorizontalAlignment` 显式 Left（CoverChildren 无拉伸对齐）。
 - 排查口诀：**「短文本正常、长文本变小」= 引擎压字号，不是字号没改对**——先查宽度策略，StretchToParent 一律改 CoverChildren+MaxWidth 后恒字号。
+
+---
+
+## 保管箱反复撬锁后结算崩溃（日志戛然而止、零异常）→ 静态财富状态残留 + 结算不干净
+
+**症状**（玩家日志 2026-08-26 贾尔马律斯实机）
+- 同一领主大厅**连续撬锁 4 次**（19:09:58 → 19:11:22，无 Mission 切换），前 3 次弹窗后 0.8~3 秒内必有 `[TheftLedger]` 结算日志，**第 4 次弹窗后零输出**——崩在 `ShowChestInquiry` 的「全部拿走」回调里。
+- 崩前累计转移 **769 件物品 + 16044 金币**（单次最多 712 件/105 种），队伍严重超重；**无任何 FirstChance/异常记录** → 引擎层（native）崩溃特征。
+- 附赠怪象：结算后弹窗金币显示 **`保管箱。83`**（正常格式是 `保管箱。\n金币: X 第纳尔`，缺「金币:」前缀）——goldLine 走了异常路径，疑似残留状态（未完全定位，修复后观察是否消失）。
+
+**根因**（两个状态洞叠加，代码链实锤）
+```
+洞① 拘留路径绕过 Mission Finalize：
+  玩家被制住（AttackTriggerMissionLogic 倒地→菜单落定居点）→ 放人（ReleaseContinueOnConsequence）
+    └─ 只清 PlayerDetentionBehavior 自身状态，不清 StealManager 静态财富状态
+    → _lastDistributedSettlementId 残留（正常路径由 OnMissionScreenFinalize→ClearWealthDistribution 清）
+    → 再进同场景：DistributeSettlementWealth 防重键命中提前 return（不打 [Wealth]）
+    → 用旧分配数据复刷箱子（实锤：19:08:47 [Chest] Spawned gold=8227/items=105 与 19:08:08 一字不差）
+
+洞② 结算不干净 → 箱子不销毁 → 反复可撬：
+  「全部拿走」→ LootChestItem：actual = Math.Min(count, settlement.ItemRoster.GetItemNumber(item))
+    └─ settlement 库存不足（已被前面结算扣光）时 actual=0 → ChestItemRoster.AddToCounts(-actual) 不减
+    → ChestItemRoster 残留 → RemoveChestEntityIfEmpty 判定 IsEmpty()=false → 箱子不移除
+    → 同一场景无限撬同一箱子（实锤：第 3 次弹窗 7 种物品全部在第 2 次 TheftLedger 里出现过）
+    → 第 4 次结算对已扣光的定居点库存反复 AddToCounts+TransferItems → 引擎层崩溃
+```
+
+**规避**（2026-08-26 已修复）
+- ① 拘留放人 `PlayerDetentionBehavior.ReleaseContinueOnConsequence` 开头主动 `StealManager.ClearWealthDistribution()`（不依赖 Finalize，玩家已在大地图，状态作废必清）。
+- ② `LootChestItem` 的 `ChestItemRoster.AddToCounts` 改按**请求量 count** 扣（非 actual）——「全部拿走」语义 = 清空，箱子侧必归零，结算后箱子必移除。
+- ③ 箱子填充数量上限（`DistributeSettlementWealth`）：单种 ≤10 件、总件数 ≤120、种类 ≤40——杜绝 712 件/105 种一锅端，压住批量结算的引擎压力。
+- ④ `ShowChestInquiry`「全部拿走」回调整体 try/catch + DebugLogger（finally 保证 `IsUIOpen` 复位），再崩也有日志。
+- 排查口诀：**「弹窗后零输出 + 无异常记录」= 结算回调里引擎层崩溃**——先查结算路径有没有 try/catch、再查静态状态是否残留（同场景能反复撬锁 = 结算没清干净）。

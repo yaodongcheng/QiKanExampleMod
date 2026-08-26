@@ -58,7 +58,7 @@ namespace LivingWorldNpcs
 
             // 🔴 距离过滤：玩家自己的冒泡恒进；其他 NPC 距玩家 > NearbyHearRadius → 玩家听不到，不进频道
             //（force = 远处"听觉"转发：AgentSay 远处分支调用，绕过距离过滤——屏幕消息退役后远处说话也进频道）
-            if (!force && agent != Agent.Main && Agent.Main != null && Agent.Main.IsActive())
+            if (!force && agent != Agent.Main && Agent.Main != null && AgentControlHelper.SafeIsActive(Agent.Main))
             {
                 try
                 {
@@ -138,7 +138,7 @@ namespace LivingWorldNpcs
                 float best = radius;
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || a == Agent.Main || !a.IsActive()) continue;
+                    if (a == null || a == Agent.Main || !AgentControlHelper.SafeIsActive(a)) continue;
                     float d = a.Position.Distance(Agent.Main.Position);
                     if (d < best)
                     {
@@ -203,7 +203,7 @@ namespace LivingWorldNpcs
                 }
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || a == Agent.Main || !a.IsActive()) continue;
+                    if (a == null || a == Agent.Main || !AgentControlHelper.SafeIsActive(a)) continue;
                     var hero = (a.Character as CharacterObject)?.HeroObject;
                     if (hero == null || string.IsNullOrEmpty(hero.StringId)) continue;
                     if (!FriendlinessHelper.IsPlayerPartyMember(hero)) continue;
@@ -252,7 +252,7 @@ namespace LivingWorldNpcs
             {
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || a == Agent.Main || !a.IsActive()) continue;
+                    if (a == null || a == Agent.Main || !AgentControlHelper.SafeIsActive(a)) continue;
                     if (!AgentControlHelper.IsHumanOrChild(a)) continue;
                     if ((a.Character as CharacterObject)?.HeroObject != null) continue;
                     if (string.IsNullOrWhiteSpace(a.Name?.ToString())) continue;
@@ -325,7 +325,7 @@ namespace LivingWorldNpcs
         public static void BroadcastPlayerCallTo(Agent target, string text)
         {
             if (Mission.Current == null || Agent.Main == null) return;
-            if (target == null || !target.IsActive() || string.IsNullOrWhiteSpace(text)) return;
+            if (target == null || !AgentControlHelper.SafeIsActive(target) || string.IsNullOrWhiteSpace(text)) return;
             try
             {
                 // 🔴 2026-08-12（远距离守卫，实机反馈）：目标距玩家超过可听半径（NearbyHearRadius）→
