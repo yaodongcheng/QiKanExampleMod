@@ -431,6 +431,10 @@ evm,1,属性,🔴 解析碎片,🔴 待定,evm,—,🔴 解析碎片,🔴 需新
 —,—,命令,grant_merit,动作,功勋增减,"actor, value",17（WorldActionExecutor Scenario 层）,✅ 引擎/映射
 —,—,命令,set_title,动作,设官职,"actor, titleId",17,✅ 引擎/映射
 —,—,命令,promote,动作,晋升,actor,17,✅ 引擎/映射
+—,—,命令,perform,演出步骤,引用演绎剧本（playbackId 编译产物）,playbackId,01 步骤类型表,✅ 引擎/映射
+—,—,命令,inquiry,演出步骤,弹窗说明,"titleKey, textKey",01 步骤类型表,✅ 引擎/映射
+—,—,命令,im_message,演出步骤,IM 私信/传讯,"channel, actor, textKey",01 步骤类型表 + IM 引擎,✅ 引擎/映射
+—,—,命令,cutscene,演出步骤,过场（SceneNotification）,"sceneId, textKey",01 步骤类型表,✅ 引擎/映射
 —,—,命令,duel,动作,个人战（1v1）,"opponent, outcomeSlot",03（个人战，CombatManager）,✅ 引擎/映射
 exists,—,谓词,exists,谓词,对象存在,引用,谓词引擎（01 条件求值）,✅ 已设计
 atWar,—,谓词,atWar,谓词,a 与 b 交战,"a, b（势力引用）",谓词引擎（01 条件求值）,✅ 已设计

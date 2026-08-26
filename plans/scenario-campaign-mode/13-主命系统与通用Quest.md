@@ -26,6 +26,7 @@
 ```jsonc
 {
   "id": "master_order_theft",            // 任务模板 ID
+  "titleKey": "LWN_ORDER_master_order_theft",   // 任务面板标题（🔴 2026-08-26 补录可选字段——09b order_owari_defense 为使用实例；铁律 13 本地化）
   "type": "theft",                       // 任务类型（复用 QuestType 30 种 + 扩展）
   "giver": { "relation": "lord" },       // 派发者（主公/委托NPC/剧情角色/因果）（顶层 = 派发者描述对象）
   "source": "master_order",              // 来源：主命 / 委托 / 剧情阶段 / 因果链
@@ -34,6 +35,7 @@
   "stages": [                            // 🔴 多阶段链（04 阶段化任务链的落地）：
     { "name": "接受委托",                //   任务面板显示的名字
       "kind": "dialog",                  //   表现方式：dialog/travel/operation/battle/cutscene...
+      "check": "(…)DSL 条件",            //   🔴 2026-08-26 补录可选字段——状态式进度检查（DSL 表达式，如 `(Settlement::X.garrison) >= 50`）；与 progress.listen 事件式二选一；09b order_owari_defense 为使用实例
       "target": { "heroId": "target_npc" }, "next": 1 },
     { "name": "前往目标地点",
       "kind": "travel",
