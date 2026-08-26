@@ -1,262 +1,129 @@
-# 16 — DSL 注册表全表（覆盖太阁5 全集）
+# 16 — DSL 注册表全表（太阁5 ↔ 骑砍2 对照总表，单一事实源）
 
-> 阶段：Phase 1 定稿 / 随覆盖需求扩展 ｜ 依赖：01（DSL 语法）、附录-太阁5表达式全集（需求清单） ｜ 完成后：DSL 能表达太阁5 全集（除明确标注的后续扩展项）
+> 阶段：Phase 1 定稿 / 随覆盖需求扩展 ｜ 依赖：01（DSL 语法） ｜ 完成后：DSL 能表达太阁5 全集（除明确标注的后续扩展项）
 >
 > **审核状态：⏳ 未审核（禁止实施）** ｜ 审核人：用户 ｜ 审核日期：— ｜ 审核意见：—
 > 通过后改为 ✅ 已审核（日期）+ 记录意见。
 
 ## 这一步做什么（一句话）
 
-**完整注册表**：DSL 的域/属性/谓词/动作全表 + 代入槽机制 + 太阁映射——数据作者（人或 LLM 生成事件）查这张表就能写出合法、覆盖太阁5 全部表达能力的表达式。语法规则/类型纪律/安全兜底在 01（本表不重复），**表外用法 = 回填本表 + 扩展 01 注册表**。
+**太阁5 ↔ 骑砍2 唯一翻译大表（2026-08-26 用户裁定重构）**：**事实源 = `16-DSL翻译总表.csv`**（本 plan 数据文件，424 行：域 42 / 属性 199 / 命令 174 / 谓词 9，列 = 太阁原词·频率·类别·我们侧名·类型·语义·参数·实现用法·状态——**查询词条翻译只看这一处**）；本文件 = 机制定义（CSV 装不下的：Ctx 三档生命周期、trigger/facility 注册表）+ 查询指引。01 validator 的注册表检查读同一 CSV。
 
-## 一、域表（完整）
+> 🔴 **文件分工（2026-08-26 重构后）**：`16-DSL翻译总表.csv` = 词条翻译权威（改表 = 改 CSV）；本文件 = 机制权威（怎么用这些词条）；01 = 语法规则/类型纪律/安全兜底（怎么解析，动作表不再重复维护，见 01）；08 = 转化流程（怎么翻译）。原「附录-太阁5表达式全集」已删除（词表并入 CSV，操作符并入本文件二节，2026-08-26）。**表外用法 = 回填 CSV + 扩展 01 注册表**。
 
-### 1.1 引擎注册域（题材无关，任何剧本可用）
+---
 
-| 域 | 语义 | 太阁对应 |
+# 一、查询指引（词条翻译 → 查 16-DSL翻译总表.csv）
+
+> 🔴 **翻译大表 = `16-DSL翻译总表.csv`**（本 plan 数据文件，424 行：域 42 / 属性 199 / 命令 174 / 谓词 9）。
+> 列 = 太阁原词 · 频率 · 类别 · 我们侧名 · 类型 · 语义 · 参数 · 实现用法 · 状态——**查询词条翻译只看这一处**。
+> 生成：`tools/build_registry_csv.py`（字典+规则）→ CSV；01 validator 注册表检查读同一 CSV。
+> 本文件其余部分 = **机制定义**（CSV 装不下的机制性内容）。
+
+## 二、操作符统计（DSL 语法层，01 管）
+
+| 操作符 | 次数 | 说明 |
 |---|---|---|
-| `Time` | 全局时间 | 狀況（年/月/日） |
-| `Settlement` | 据点（城/町/村） | 城 / 據點 / 町 / 砦 / 里 |
-| `Hero` | 角色 | 人物 |
-| `Clan` | 家族 | 大名家（隶属层） |
-| `Faction` | 势力（王国级） | 大名家（战略层） |
-| 🔴 `Event` | **事件已发生查询（2026-08-25 新增——调度器自动记录，随剧本进度存存档；顺序依赖/防重复用这个，🔴 禁止作者手工 flag 记"事件执行过"）** | 事件（`事件::X==1`，**2440 次**） |
-| `Flag` | 🔴 **作者自定义持久标志（语义收窄 2026-08-25：只留真正跨事件的持久标记（战斗结算结果等）；事件执行过 → Event 域、分支选择 → Ctx、世界状态 → 本体属性）** | 事件標誌（674 次） |
-| `Variable` | 剧本数值/字符串变量 | 變量 / 日數計數器 |
-| 🔴 `Ctx` | **剧本上下文变量（代入槽，2026-08-24 新增——太阁"人物Ａ/大名家Ｂ/主人公/發生據點"的映射）** | 代入槽 / 主人公 / 發生據點 |
-
-### 1.2 数据包扩展域（题材相关，逐个评估——2026-08-24 裁定：不合并设计）
-
-| 域 | 语义 | 处理 |
-|---|---|---|
-| `Item` | 物品/交易品 | 织丰 items（映射表）✅ 首版 |
-| 🔴 `Card` | **自定义角色能力（技能卡）**——太阁5 卡片体系（技能卡/秘技卡/称号卡）是角色成长核心 → 数据包注册卡片清单（名称/等级上限/获取方式），角色持有标记持久化（存档）；属性 持有(bool)/等级(数字)；可映射骑砍2 SkillObject（武术→OneHanded），无对应的（茶道/医术）纯自定义；动作 card_gain/card_lose | ✅ 首版（属性表/动作表已含） |
-| `Org::忍者衆` | 忍者组织 | ⏳ 待 07 核对——**织丰不确定是否有忍者组织**，有才注册 |
-| `Org::海賊衆` | 海贼组织 | ⏳ **后续随海战扩展**（织丰有 sho_naval 海战场景 suite；战帆 DLC 内容评估后一起做） |
-| `Org::商家` | 商家 | ⏳ **后续按需新增机制**（需要时再注册 + 实现） |
-| `Org::流派` | 剑术流派 | ❌ **放弃（2026-08-24 用户裁定）**——欣赏仁王式各流派真实招式，但骑砍2 战斗体系不做大改，真实招式流派做不了，强做只是贴皮。若未来只做"称号/背景层"（非招式）可走 Card 域 |
-
-## 二、属性白名单（完整，类型静态判定——值类型纪律见 01）
-
-### Time
-| 属性 | 类型 | 语义 | 太阁对应 |
-|---|---|---|---|
-| year | 数字 | 开局基准年 + 流逝年 | 狀況::年 |
-| month | 数字 | 流逝月 | 狀況::月（主命期限等用） |
-| day | 数字 | 流逝天数 | 日數計數器 |
-
-### Settlement（🔴 2026-08-24 核对补齐：太阁5 据点类域实际 42 个属性，分三层）
-
-**引擎核心（✅ 首版，骑砍2 原生可表达——覆盖太阁最高频属性）**：
-| 属性 | 类型 | 语义 | 太阁对应（次数） |
-|---|---|---|---|
-| owner | 角色引用 | 城主（Bannerlord Settlement.Owner） | 城主(2451) |
-| clan | 家族引用 | 归属家族（OwnerClan） | 所屬大名家(1152) |
-| faction | 势力引用 | 归属势力 | 城.城主→勢力（关联） |
-| type | 枚举(字符串) | 城/町/村 | 據點類型(223)/據點種類(54) |
-| region | 引用 | 所在国/地方（Bannerlord Region） | 所屬國(719)/所在地方(242) |
-| garrison | 数字 | 驻军 | 兵士数(384) |
-| food | 数字 | 兵粮（FoodStocks） | 兵糧(279) |
-| prosperity / security | 数字 | 繁荣/治安（住民安定度近似） | 繁榮/住民安定度(115) |
-| position | 位置 | 位置（不参与比较） | 所在地方 |
-
-**数据包扩展（⏳ 织丰/题材概念，有对应才注册；对应清单见 07 核对）**：
-| 属性 | 类型 | 太阁对应（次数） | 备注 |
-|---|---|---|---|
-| defense | 数字 | 防御度(190) | 攻城防御 |
-| morale | 数字 | 士氣(317) | 驻军士气 |
-| funds | 数字 | 軍資金(309) | 城财政 |
-| training | 数字 | 訓練度(119) | 驻军训练 |
-| rebellion | 布尔 | 暴動標誌(43) | 叛乱状态 |
-| materials | 数字/物品引用 | 鐵砲(180)/軍馬(50)/大筒(7) | 物资储备（织丰有铁炮/马） |
-| kokudaka | 数字 | 現石高(88)/基準石高(48) | 石高（日本题材核心，无对应则降级到 food/prosperity） |
-| mine | 数字 | 現礦山(54)/礦山最高值(30) | 矿山 |
-| vessels | 数字 | 鐵甲船数(77)/所有船舶数(27)/大型船舶数(25) | 🔴 随海战扩展（海賊衆/战帆 DLC 一起） |
-| suppressed | 布尔 | 全城壓制(481)/國屬性1(6) | 国压制（太阁概念） |
-| movable / attackable | 布尔 | 移動可能(72)/攻擊可能(28) | 行动状态 |
-
-**降级/忽略（❌ 或走其他机制）**：道場主人(52)/道場２主人(9)（流派已放弃）、所屬海賊衆(29)/所屬忍者衆(7)（组织域）、地形(2)/曾經訪問(4)/主人(2)/商人司(1)/攻め取りカウンタ(1)/未知2(43)/1(1)（杂项/未知名）。
-
-### Hero（🔴 2026-08-24 核对补齐：太阁5 人物域实际 52 项属性，分三层）
-
-🔴 **引用形式**：剧情角色域（Campaign 层，有 HeroObject）：`Hero::lord_1_oda`——台本 actor 引用剧情角色用此域，运行时按 HeroId 映射 Mission 内 Agent（现有 GetAgentInMission）；vs `Agent::`（场景内模板 NPC，见下）
-
-**引擎核心（✅ 首版，骑砍2 原生可表达——覆盖高频项）**：
-| 属性 | 类型 | 语义 | 太阁对应（次数） |
-|---|---|---|---|
-| alive | 布尔 | 存活（死亡標誌 858 + 状态组合） | 死亡標誌(858)/出現標誌(618)/生病標誌(61) |
-| state | 枚举 | 登场状态（未出生/登场/死亡/囚禁/外出——06 时代重置的 CharacterStates） | 出現標誌/離家標誌(354)/外出禁止標誌(303)/死刑標誌(126) |
-| clan | 家族引用 | 所属家族 | 所屬大名家(4437) |
-| faction | 势力引用 | 所属势力 | 所屬勢力類型(625)/所屬勢力(68) |
-| leader | 布尔 | 是否家主 | 所屬當主(130) |
-| gender | 枚举 | 性别 | 性別(1430) |
-| identity | 枚举 | 身份（大名/家臣/浪人…） | 身份(2062) |
-| age | 数字 | 年龄 | 年齡(327) |
-| home | 据点引用 | 本城 | 本城(787) |
-| settlement | 据点引用 | 所在据点 | 所屬據點(1727) |
-| party | 部队引用 | 所在部队（含出战） | 軍團長(303)/出撃標誌(180) |
-| superior | 角色引用 | 所属上司 | 所屬上司(612) |
-| spouse | 角色引用 | 配偶 | 妻(466) |
-| reputation / infamy | 数字 | 名声/恶名 | 名聲(223)/悪名(299) |
-| gold | 数字 | 所持金 | 所持金(46) |
-| relation_to | 数字（带参） | 与指定角色亲密度 → 谓词 hasRelation | 親密度(908) |
-| available | 布尔 | 事件参加可能 | 事件参加可能(2597) |
-| position | 位置 | 位置（不参与比较） | 所在地方 |
-
-**数据包扩展（⏳ 题材概念/联动系统，有对应才注册）**：
-| 属性 | 类型 | 太阁对应（次数） | 备注 |
-|---|---|---|---|
-| merit | 数字 | 武士功勳(243)/忍者功勳(56)/商人功勳(52)/海賊功勳(43) | 功勋 |
-| loyalty | 数字 | 忠誠度(61) | 对主家忠诚 |
-| health | 数字 | 体力(113) | 体力 |
-| title | 枚举 | 官職(148)/官位(105) | 官职（织丰有对应才注册） |
-| tendency | 枚举 | 仕官傾向(315) | 仕官志向 |
-| questState | 枚举/引用 | 主命狀態(411)/承擔主命(169)/主命目標(111) | 🔴 联动 13 通用 Quest |
-| skills | 集合 | 算術/忍術/水軍/軍学/辯才/醫師(90~42) | 🔴 走 Card 域（技能卡体系） |
-
-**降级/忽略**：劍術師匠(141)/劍術流派(83)（流派已放弃）、妻性格(86)/關係經緯(54)（记忆系统）、工作狀態(46)（13 联动评估）、未知项。
-
-### Agent（🔴 场景内角色域，2026-08-25——台本/演出专用）
-| 属性 | 类型 | 语义 | 备注 |
-|---|---|---|---|
-| 引用形式 | — | **场景内角色域**（Mission 层模板 NPC，无 HeroObject——守卫/随从/士兵/行人，铁律 8 平权）：`Agent::guard_oda`（= CharacterObject.StringId TemplateId）；运行时按 TemplateId 找场景实例 | 05 演出 actor 引用；Hero:: vs Agent:: 区分剧情角色/场景内角色 |
-| 🔴 at（消歧） | 语义位引用 | **多实例消歧**：`{ "actor": "Agent::guard_oda", "at": "护卫1" }`——spawn 时分配语义位并登记 StageDirector._actorMap（实例↔槽位表），按 TemplateId+语义位匹配；`"at": "any"` = 就近/首个；Hero:: 一对一无歧义 | 2026-08-25；战场群演走氛围层不个体引用 |
-
-### Clan（🔴 2026-08-24 核对补齐：太阁5 大名家域实际 26 项）
-
-**引擎核心（✅ 首版）**：
-| 属性 | 类型 | 语义 | 太阁对应（次数） |
-|---|---|---|---|
-| leader | 角色引用 | 家主 | 當主(96) |
-| home | 据点引用 | 本城 | 本城(2298) |
-| influence | 数字 | 影响力（Bannerlord Clan.Influence） | 支配力(162) |
-| settlements | 数字 | 城数 | 城数(87) |
-| kingdom | 势力引用 | 所属势力 | （关联） |
-
-**数据包扩展（⏳）**：strategy（戰略 457/大方針 115/戰略目標 273——🔴 联动 02 纠正器的行为指示）、diplomacy（外交感情 1667 → 谓词 relation）、stopAttack（停止進攻 121）、tribute（朝廷貢献度 6）。
-
-**降级/忽略**：未知8/未知9/出奔計數器/数字噪声。
-
-### Faction
-| 属性 | 类型 | 语义 | 太阁对应 |
-|---|---|---|---|
-| （无单值属性——关系一律走谓词） | | | 戰爭/同盟/從屬 全为关系 |
-
-### Event（🔴 2026-08-25 新增——太阁 `事件::` 域映射，2440 次）
-
-| 属性 | 类型 | 语义 | 太阁对应 |
-|---|---|---|---|
-| done | 布尔 | 事件已触发并完成（🔴 调度器自动记录 + 全局存档，作者不写）——顺序依赖写法：`(Event::okehazama_opening.done) == true` | `調查:(事件::704)==(1)` |
-| state | 枚举 | 进行中/挂起/完成（调度器内部状态，暂不暴露） | — |
-
-### Flag / Variable / Ctx / Card
-| 域 | 属性 | 类型 | 语义 |
-|---|---|---|---|
-| Flag | value | 布尔 | 🔴 只留**跨事件持久自定义标记**（如战斗结算结果）；`(Flag::okehazama_imagawa_killed) == true` |
-| Variable | value | 数字/字符串 | `(Variable::某计数) >= 3` |
-| Ctx | 按需 | 任意 | 🔴 上下文变量（见第三节）：`(Ctx::A.clan) == (Clan::clan_oda_1)`；命名槽：`(Ctx::tactic) == "raid"` |
-| 🔴 Card | 持有（bool）/ 等级（数字）| 自定义角色能力 | `(Card::武术.等级) >= 3`（per-hero 持久标记，存档；数据包注册清单） |
+| `==` | 22657 | 相等（最常用：身份/归属/状态判断） |
+| `!=` | 4233 | 不等 |
+| `>=` | 2633 | 数值门槛（年份/日数/数值属性） |
+| `<` / `>` / `<=` | 686 / 431 / 410 | 数值比较 |
+| 存在性（无操作符） | 9525 | `exists(大名家::X)` 式：势力/人物/组织是否存在 |
 
 ## 三、🔴 代入槽机制（Ctx 上下文变量，太阁"人物Ａ/主人公/發生據點"的映射）
 
 - **背景**：太阁代入命令出现 ~15000 次（代入人物Ａ/代入城Ｂ…），转化必用——Phase 1 必须实现
 - **设计**：剧本上下文变量 `Ctx::A` / `Ctx::B` / `Ctx::C` / `Ctx::D` / `Ctx::E` + 语义槽（🔴 2026-08-25 修正：槽名全部英文 token——原直译中文槽"主人公/發生據點"违反铁律 20 英文 token 纪律）：`Ctx::event_settlement`（事件发生地）/ `Ctx::event_hero`（事件人物）
 - 🔴 **主人公不用 Ctx 槽（2026-08-25）**：玩家主角 = 引擎原生 `Hero::MainHero`（骑砍2 `Hero.MainHero`）——`(Hero::MainHero.clan) == (Clan::clan_oda_1)`；原 `Ctx::主人公` / `Ctx::主人公據點` 废弃（"主人公據點" = `(Hero::MainHero.settlement)`）
-- 🔴 **命名槽（2026-08-25 扩展——分支选择用）**：`Ctx::tactic` / `Ctx::kiyasu` 等按语义命名。choice 选项 effect 用 `ctx_set` 写入（`{ "action": "ctx_set", "slot": "tactic", "value": "raid" }`），同事件 script 的 when 门控读取（`(Ctx::tactic) == "raid"`）；**生命周期 = 事件上下文（触发时初始化、结束清理）**——玩家"点了什么选项"是事件内局部状态，不需要全局 flag；只有跨事件要读的选择结果才升级为 Flag/Variable（01 纪律：分支选择默认 Ctx，升级才用 Flag）
+- 🔴 **命名槽（2026-08-25 扩展——分支选择用）**：`Ctx::tactic` / `Ctx::kiyasu` 等按语义命名。choice 选项 effect 用 `ctx_set` 写入（`{ "action": "ctx_set", "slot": "tactic", "value": "raid" }`），同事件 script 的步骤 `when` 门控读取（`(Ctx::tactic) == "raid"`）；**生命周期 = 事件上下文（触发时初始化、结束清理）**——玩家"点了什么选项"是事件内局部状态，不需要全局 flag；只有跨事件要读的选择结果才升级为 Flag/Variable（01 纪律：分支选择默认 Ctx，升级才用 Flag；🔴 2026-08-26 违规实录：09b `Ctx::imagawa_plan` 0i 写 1i 读 = 跨事件读 Ctx，已改 `Flag::okehazama_imagawa_plan`）
 - **赋值动作**：`ctx_set`（参数：槽位 + 引用）——`{ "action": "ctx_set", "slot": "A", "value": "Hero::lord_1_oda" }`
 - **条件引用**：`(Ctx::A.clan) == (Clan::clan_oda_1)`（Ctx 引用可带域属性）
 - **生命周期**：事件触发时初始化（主人公/發生據點 自动赋值），代入动作修改；事件结束清理
 - **太阁映射**：代入人物Ａ → `ctx_set A`；主人公 → `Hero::MainHero`（🔴 2026-08-25，原 Ctx::主人公 废弃）；發生據點 → `Ctx::event_settlement`；發生人物 → `Ctx::event_hero`
 
-## 四、谓词表（完整，关系判断——与属性区分：属性是单值、谓词是关系）
+### 🔴 代入槽三档作用域（2026-08-26——Ctx vs Variable vs GlobalSlot，存档边界）
 
-> 🔴 **判断形态四类（2026-08-24 澄清）**：
-> ① **属性比较**（是否存活/身份/归属/数值）→ 走属性表 + 操作符：`(Hero::X.alive) == true`——太阁 `調查:(人物::X.死亡標誌)` 形态
-> ② **裸布尔属性真值判断**（太阁无操作符写法）→ `(Hero::X.alive)` 直接作叶子（01 语法"裸引用"）
-> ③ **存在性**（太阁"存在"属性 7277 次）→ `exists(Clan::X)`
-> ④ **关系判断**（交战/同盟/相邻/亲密度/认识）→ 本谓词表
+> TK5 代入命令 ~15000 次，语义分两档：**同事件内**临时计算 vs **跨事件**事件链传递（事件 A 设"人物Ａ"、事件 B 读——TK5 槽是全局存档变量）。翻译时必须按作用域归档，禁止一律 Ctx（Ctx 不存档，跨事件用 Ctx = 读档后丢失）。
 
-| 谓词 | 参数 | 语义 | 太阁对应 | 状态 |
+| 档 | 载体 | 存什么 | 存档 | 纪律 |
 |---|---|---|---|---|
-| exists | 引用 | 对象存在 | 大名家::X 存在(7277)/人物存在 | ✅ 已设计 |
-| atWar | a, b（势力引用） | a 与 b 交战 | 戰爭狀態 | ✅ 已设计 |
-| isAllied | a, b（势力引用） | a 与 b 同盟 | 外交同盟(1957) | 注册表加行 |
-| isNeighbor | a, b（据点引用） | a 与 b 相邻 | 鄰接大名家(102) | 注册表加行 |
-| hasRelation | hero, hero, op, 数字 | 亲密度比较 | 親密度(908) | 注册表加行 |
-| relation | a, b（势力引用）, op, 数字 | 势力间外交关系数值 | 外交感情(1667) | 注册表加行 |
-| hasMet | a, b（角色引用） | 是否认识 | 認識標誌(797) | 注册表加行 |
-| sameSettlement | hero, hero | 同据点 | 所屬據點 == | 注册表加行 |
-| canPromote | hero | 功勋 ≥ 晋升链下一级阈值（17 功勋机制，阶梯数据包查询；无官职=第 0 级、已最高级=false） | 仕官昇進判定 | 注册表加行（17） |
-| （后续按需） | | 新谓词 = 注册表加行 + 实现 | | |
+| **事件内局部** | `Ctx::<命名槽>`（ctx_set 写） | 任意（引用/数字/字符串） | ❌ 不存档（事件上下文，触发初始化/结束清理） | 同事件内代入/读取用这个；**禁止跨事件读 Ctx**（01/16 纪律，09b 教训） |
+| **持久数值/字符串** | `Variable::<名>`（set_variable 写） | 数字/字符串 | ✅ 存档（SyncData） | 跨事件计数/标志（日數計數器/出奔計數器/02 到达感知 `imagawa_army_arrived`） |
+| **🔴 持久对象引用** | `GlobalSlot::<名>`（global_set 写，2026-08-26 新增） | **角色/城/家族/势力引用**（Variable 只支持数字/字符串，引用存不了） | ✅ 存档（SyncData） | 跨事件事件链传递的对象（TK5 人物Ａ/城Ｂ 跨事件用法）；新系统状态（14 当前战略目标、17 当前官职等）；**新 SyncData key 同步补 `ResetAllCampaignState()`**（存档纪律） |
 
-## 五、动作表（完整，覆盖太阁命令 8 组）
+**转化判定（08 纪律）**：代入命令翻译时查作用域——①同一事件内设读 → `Ctx` ②跨事件/跨剧本读且为数值/字符串 → `Variable` ③跨事件读且为对象引用 → `GlobalSlot`；**新系统要持久的状态一律走 Variable/GlobalSlot，不走 Ctx**（Ctx 不存档）。
 
-> 🔴 **动作统一管理（2026-08-24 用户观察——与 Agent 决策动作空间的关系，详细设计后续单独 plan）**：
-> - **现状两套体系**：① 本表 = **系统级权限**——剧本引擎事件效果直接执行（无决策，数据驱动）；② **Agent 决策动作空间**（`ActionRegistry` ~45 个：move_to/order_attack/propose_war/persuade_join/give_gold…）——LLM/意图选择，有 IsValid 检查/确认/播报（ImCommandFlow/PlanExecutor）
-> - **关联**：两者都调骑砍2 原生 action 接口（DeclareWarAction/ChangeOwnerOfSettlementAction/SetPartyAiAction/ChangeRelationAction…）；剧本动作改世界 → Agent 认知/决策空间受影响；Agent 动作可能满足剧本条件
-> - **统一方向**：① **共享执行层 WorldActionExecutor**——所有世界操作收敛到它（内部调原生 action + V. 门面版本兼容），铁律 18 精神（操作函数共享单管线，禁止两侧各抄一份）；② 两层入口：剧本层（ScenarioActionExecutor，数据驱动无决策）/ Agent 层（ActionRegistry，决策+IsValid+确认+播报）——同一底层函数，壳层差异；③ **对应表**（Agent ↔ 剧本）：propose_war↔declare_war、order_attack↔lock_party、give_gold↔gold_change、persuade_join↔change_clan、engage↔battle、negotiate_peace↔make_peace…；④ 纪律：新增世界操作 = 共享执行层加一个函数 + 两层各挂一个动作名
+**动作**：`ctx_set`（Ctx，已有）／ `set_variable`（Variable，已有）／ `global_set`（GlobalSlot，🔴 新增动作，参数 slot + 引用，存档）
 
-| 动作 | 参数 | 语义 | 太阁对应 | 实现 |
+## 四、触发时机注册表（trigger / once / priority，2026-08-26 新增）
+
+> 太阁5 事件头字段 = `屬性` / `發生契機` / `發生條件` / `執行` 四样（实测 2594 事件头字段只有这四样）。**四段全部落 JSON 字段**——触发时机禁止只写注释（数据驱动，09b 教训）。完整语义/调度模型/validator 检查见 01「事件触发时机」节；本表 = token 注册权威。
+
+| trigger | TK5 發生契機 | 引擎监听点（🔴 2026-08-26 逐项反编译验证） | 说明 |
+|---|---|---|---|
+| daily | 每日處理的開頭 | ✅ `CampaignEvents.DailyTick` | 每日检查只是其中一个 trigger |
+| monthly | 每月處理的最後 | 🔴 无原生每月事件（仅 Daily/Hourly/Weekly）→ 自建钩子（DailyTick 计数 30 天 / Time::month 变化检测） | |
+| game_start | 遊戲開始時 | ✅ `CampaignEvents.OnNewGameCreatedEvent` | |
+| settlement_enter | 據點畫面表示後（主人公據點/無效/具體城名） | ✅ `CampaignEvents.OnSettlementEntered`（打开据点菜单即触发，无需进室内 mission） | 实测同契機组最大（主人公據點 632 事件）→ 互斥选路重灾区 |
+| house_enter | 室內畫面表示後（主人公據點,自宅/酒場…） | ✅ `OnMissionStarted` + facility 判定（场景名查「场景 → facility」映射表） | 🔴 设施参数 = 事件字段 facility（见 facility 注册表） |
+| council_start | 評定開始時 | 🔴 17 系统自定义事件（评定会开始） | 134 事件 |
+| travel_screen | 移動畫面表示後 | 🔴 **无原生对应**（实测 0 命中）→ 暂不注册，降级 daily + 移动中条件 | |
+| field_battle_start | 野戰開始時 | ✅ `OnMissionStarted` + `MissionMode.Battle` 判定 | 🔴 与 house_enter 同监听点分流（见下） |
+| field_battle_end | 野戰結束時 | ✅ `CampaignEvents.OnPlayerBattleEnd` + 03 剧情战战果钩子 | |
+| siege_battle_start | 攻城戰開始時 | ✅ `OnMissionStarted` + `MissionMode.Siege` 判定 | |
+| siege_battle_end | 攻城戰結束時 | 🔴 03 战果结算钩子（同 field_battle_end 路径） | |
+| army_move_end | 軍團移動結束時 | 🔴 02 到达感知（每 5 秒轮询，写 Variable::xxx_arrived 处触发） | |
+| chapter_freeze | 章節凍結時 | 🔴 14 系统自定义事件 | |
+| game_clear | 遊戲通關時 | 🔴 mod 剧本结算自定义事件 | |
+
+🔴 **OnMissionStarted 分流模型**：house_enter / field_battle_start / siege_battle_start 共用 `CampaignEvents.OnMissionStarted`，按 Mission 类型判定分流——室内设施（场景名 ∈ facility 映射表）→ house_enter；`MissionMode.Battle` → field_battle_start；`MissionMode.Siege` → siege_battle_start；其余（Duel/Stealth/Tournament）不触发。判定集中一处。
+
+**once / priority 转化**（`屬性` 实测全量分布：一次 2146 + 一次｜弱 256；多次 163 + 多次｜弱 29）：| 屬性 | once | priority |
+|---|---|---|
+| 一次 | true（默认） | normal（默认） |
+| 多次 | false | normal |
+| 一次｜弱 | true | weak |
+| 多次｜弱 | false | weak |
+
+- 🔴 **弱 = 互斥选路低优先级**（实测同契機组内弱与非弱混排；TK5 无数字优先级字段——08 旧表述"显式优先级字段"已修正）
+- 调度语义（详 01「事件触发时机」节）：trigger 触发 → 只遍历挂名事件 → 按 priority 分层（weak < normal）→ **层内按文件声明顺序**逐事件检查 condition → **第一个 condition 满足的触发，其余本轮跳过（一次时机只演一个事件）**；多个 normal 同时满足 = 声明在前者触发；弱事件只在所有非弱都不满足时才有机会，非弱一旦触发弱事件本轮必跳过
+
+### facility 注册表（2026-08-26 新增——house_enter 设施参数，TK5「室內畫面表示後」第二参数全量统计）
+
+> 事件 JSON：`"trigger": "house_enter", "facility": "tavern"`（facility 仅 house_enter 合法，validator 检查项 16）。判定 = OnMissionStarted → Mission.Current.SceneName 查「场景 → facility」映射表（07 素材表产出，两轮策略）。
+
+| facility | TK5 设施 | 次数 | 场景落点 | 状态 |
 |---|---|---|---|---|
-| set_flag / clear_flag | flag | 剧本标志 | 事件標誌設定 | 本 Phase |
-| set_variable | variable, value | 剧本变量 | 變量更新 | 本 Phase |
-| 🔴 ctx_set | slot, value | 代入槽赋值 | 代入人物Ａ/城Ｂ… | Phase 1 |
-| 🔴 card_gain / card_lose | hero, card | 角色获得/失去能力卡 | 卡獲得/失去 | 数据包扩展（存档持久） |
-| declare_war / make_peace | a, b | 宣战/停战 | 宣戰/停戰 | 本 Phase |
-| set_owner | settlement, clan | 换城主 | 城主解任/任命 | 本 Phase |
-| kill_hero | actor | 杀角色 | 武將死亡 | 06 |
-| spawn_hero | actor, clan | 造角色 | 人物登用 | 06 |
-| 🔴 spawn_clan | clanId, leader, home | 新建家族（德川家成立等） | 大名家成立 | 06（需核实 CreateClan 流程） |
-| 🔴 make_alliance | a, b | 结盟（骑砍2 Alliance 机制，1.2.10+；需核实 StanceType.Allied / DeclareAllianceAction） | 外交同盟 | 02 |
-| 🔴 relation_change | a, b（角色）, value | 关系变更 | 親密度變更 | 本 Phase（ChangeRelationAction） |
-| fire_hero | actor | 解雇 | 人物解雇 | 06 |
-| change_clan / change_clan_leader | actor, clan | 阵营/家督 | 家督讓位 | 06 |
-| independence | clan | 独立 | 獨立 | 06 |
-| rename | actor, name | 改名 | 改名 | 06 |
-| destroy_faction | faction | 势力灭亡 | 勢力滅亡 | 02/06 |
-| lock_party / release_party / army_gather | leader, target, behavior | 部队锁定/释放/集结 | 軍團指令/編成 | 02 |
-| teleport | party, pos | 传送 | 強制移動 | 06 |
-| grant_troops | troopIds, counts | 给兵 | 兵數變更 | 06 |
-| gold_change | hero, amount | 金钱 | 所持金變更 | AgentControlHelper |
-| grant_merit | actor, value | 功勋增减（负值=扣；🔴 按主公维度记账，17） | 武士功勳變更(243) | 17（WorldActionExecutor Scenario 层） |
-| set_title | actor, titleId | 直接设官职（主公特封/剧本用） | 官職變更(148) | 17 |
-| promote | actor | 按晋升链升一级（评定事件用，阶梯查询数据包） | 身份昇進 | 17 |
-| cutscene | sceneId, textKey | 过场 | 圖片/背景（演出） | 05 |
-| perform | compiledId | 预编译演出 | 對話/ＢＧＭ/ＳＥ/圖片 | 05 |
-| scene_enter | sceneId | 进入设施 | 進入設施 | 05 |
-| im_message | channel, actor, textKey | 私信 | 對話（campaign 层） | IM 管线 |
-| battle | presetId | 程序化战斗 | 個人戰鬥/合戰 | 03 |
-| create_order | orderId | 主命作成 | 主命作成 | 13 |
-| pause_time | 无 | 停止时间 | 停止時間 | 01 调度 |
+| house | 自宅 | 229 | 🔴 原版无玩家住宅（实测 scn_player_house 0 命中）→ 织丰御殿/城主间顶替（09b 已用 sho_meeting_castle_a） | 🔴 07 素材表确认织丰住宅场景 |
+| tavern | 酒場 | 45 | 原版 scn_*_tavern_a/b | ✅ |
+| za | 座 | 15 | 织丰？无 → 就近映射/降级 | ⏳ 07 |
+| castle_hall | 城主間 | 15 | 原版 scn_*_lords_hall / 织丰御殿 | ✅ |
+| clinic | 主人公診療所 | 14 | 织丰诊疗所？无 → 降级 | ⏳ 07 |
+| dojo | 主人公道場 | 13 | 织丰道场？无 → 降级 | ⏳ 07 |
+| house_min | 民家 | 12 | 原版村落民家 / 织丰 | ⏳ 07 |
+| shop | 商家 | 11 | 织丰？无 → 降级 | ⏳ 07 |
+| nanban_trade | 南蠻商館 | 10 | 🔴 织丰大概率无 → 降级 menu_dialogue | ⏳ 07 |
+| smithy | 主人公鍛冶屋 | 10 | 织丰？无 → 降级 | ⏳ 07 |
+| tea_room | 主人公茶室 | 9 | 织丰茶室？无 → 降级 | ⏳ 07 |
+| temple | 寺 | 5 | 织丰寺社？无 → 降级 | ⏳ 07 |
+| 其余（醫師宅/職人宅/公家宅/海賊宅/武家宅/茶人宅/米屋/海外交易所/忍者宅/宿屋…） | — | ≤4 每种 | 🔴 边缘设施——无场景一律降级 menu_dialogue/inquiry（不注册 house_enter 场景判定） | 🔴 降级 |
 
-## 六、太阁 → DSL 映射总表（按附录-太阁5表达式全集逐项）
+纪律：①边缘设施不假装有场景——翻译时降级 menu_dialogue；②house 自宅 = 织丰御殿/城主间顶替是既定方案（09b opening 先例），07 素材表确认后登记正式映射；③映射表两轮策略（预设场景名 → predicate 兜底，铁律 5）。
 
-| 太阁模式 | DSL 写法 |
-|---|---|
-| `調查:(人物::X.所屬大名家)==(大名家::Y)` | `(Hero::X.clan) == (Clan::Y)` |
-| `調查:(事件::704)==(1)` | `(Event::704.done) == true`（🔴 事件已发生 = 引擎通用查询，2026-08-25 新增域） |
-| `調查:(事件標誌::X)==(1)` | `(Flag::X) == true`（作者自定义持久标志） |
-| `調查:(人物::X.死亡標誌)` | `not( (Hero::X.alive) == true )` |
-| `調查:(狀況::年)>=(1598)` | `(Time::year) >= 1598` |
-| `調查:(據點::發生據點)!=(據點::那覇之町)` | `(Ctx::event_settlement) != (Settlement::那霸町ID)`（🔴 英文槽名，2026-08-25） |
-| `調查:(人物::主人公)==(人物::德川家康)` | `(Hero::MainHero) == (Hero::德川家康ID)`（🔴 主人公 = 引擎原生 MainHero，2026-08-25） |
-| `調查:(大名家::武田家.存在)` | `exists(Clan::武田家ID)` |
-| `調查:(人物::X.親密度)>=(50)` | `hasRelation(Hero::X, Hero::MainHero, >=, 50)` |
-| `代入人物Ａ:(人物::本多正信)` | `{ "action": "ctx_set", "slot": "A", "value": "Hero::本多正信ID" }` |
-| `武將死亡:(人物::X)` | `{ "action": "kill_hero", "actor": "Hero::X" }` |
-| `勢力滅亡:(大名家::X)` | `{ "action": "destroy_faction", "faction": "Faction::X" }` |
-| `主命作成:(...)` | `{ "action": "create_order", "orderId": "..." }` |
-| `進入設施:(施設::X)` | `{ "action": "scene_enter", "sceneId": "..." }` |
-| 容器*系（选人/选城） | 🔴 后续扩展（`pick` 谓词，Phase 3 后评估）；首版静态引用 + 映射表 |
-| 忍者衆/海賊衆/商家/流派域 | 数据包扩展域（织丰有对应才注册，07 核对） |
-| 卡/称号域 | 无对应则忽略 |
-
-## 七、覆盖结论
+## 五、覆盖结论
 
 - **Phase 1 可全覆盖**（除明确标注后续扩展）：6 操作符 + 9 引擎域（含 Ctx 代入槽 + 🔴 Event 事件域）+ 🔴 Card 能力卡域（数据包扩展）+ 全属性白名单 + 8 谓词（含 canPromote，17）+ 28 动作（含 grant_merit/set_title/promote，17）
 - 🔴 **状态表达三层纪律（2026-08-25）**：①事件执行过 → `Event::<id>.done`（调度器自动，禁止手工 flag）②分支选择 → `Ctx::` 命名槽（事件内局部，`ctx_set` 写）③世界状态 → 游戏本体属性/谓词（`Hero.alive`/`Settlement.owner`/`atWar`）；`Flag::` 只留给跨事件持久自定义标记（战斗结算结果等）
 - **后续扩展**：容器 `pick` 谓词、组织扩展域（Org）、演出视觉元素（圖片/背景）
-- **纪律**：转化管线遇到表外模式 = 回填附录-太阁5表达式全集 + 本表加行 + 扩展 01 注册表（validator 同步更新）
+- **纪律**：转化管线遇到表外模式 = 回填第一部分 + 本表加行 + 扩展 01 注册表（validator 同步更新）
+
+## 复跑（第一部分词表统计命令）
+
+```bash
+# 域：grep -oE '([一-鿿A-Za-z]{1,6})::' TK5AllEvents_merged.txt | sort | uniq -c | sort -rn
+# 属性：grep -oE '::[^.（()]+\.([一-鿿A-Za-z]+)' TK5AllEvents_merged.txt | sort | uniq -c | sort -rn
+# 命令：grep -oE '^\s*([一-鿿]{2,8}):' TK5AllEvents_merged.txt | sort | uniq -c | sort -rn
+```
 
 ## 验收
 
