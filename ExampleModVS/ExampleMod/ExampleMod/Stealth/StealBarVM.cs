@@ -337,12 +337,12 @@ namespace LivingWorldNpcs
             if (_mode == StealBarMode.Lockpick) return;
 
             // Pickpocket / Animal：目标消失或走开 → 强制收手（动物无 Brain，警觉检查天然跳过）
-            if (_target == null || !_target.IsActive())
+            if (_target == null || !AgentControlHelper.SafeIsActive(_target))
             {
                 CloseReason = StealBarCloseReason.TargetGone;
                 return;
             }
-            if (Agent.Main == null || !Agent.Main.IsActive()
+            if (Agent.Main == null || !AgentControlHelper.SafeIsActive(Agent.Main)
                 || _target.Position.Distance(Agent.Main.Position) > MaxInteractDistance)
             {
                 CloseReason = StealBarCloseReason.TargetGone;
@@ -554,7 +554,7 @@ namespace LivingWorldNpcs
         /// <summary>抓动物：命中 → View 接 CompleteAnimalSteal；手滑 → 惊叫逃跑（目击者脉冲/围堵走 StealManager）。一次出手定胜负。</summary>
         private void AttemptAnimal()
         {
-            if (_target == null || !_target.IsActive())
+            if (_target == null || !AgentControlHelper.SafeIsActive(_target))
             {
                 CloseReason = StealBarCloseReason.TargetGone;
                 return;

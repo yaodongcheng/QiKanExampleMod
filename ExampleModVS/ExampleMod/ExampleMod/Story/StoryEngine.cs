@@ -473,7 +473,7 @@ namespace LivingWorldNpcs
             CameraDebuggerView.targetAgent = Mission.Current.MainAgent;
 
             //恢复主角移动
-            if (Agent.Main != null && Agent.Main.IsActive())
+            if (Agent.Main != null && AgentControlHelper.SafeIsActive(Agent.Main))
             {
                 // 切回玩家控制
                 V.SetAgentPlayer(Agent.Main);

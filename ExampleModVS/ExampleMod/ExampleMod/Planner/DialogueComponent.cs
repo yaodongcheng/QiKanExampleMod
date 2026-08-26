@@ -103,7 +103,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (s == null || s.Initiator == null || s.Target == null || !s.Initiator.IsActive())
+                if (s == null || s.Initiator == null || s.Target == null || !AgentControlHelper.SafeIsActive(s.Initiator))
                 {
                     DialogueComponent.EndSession(s);
                     return;
@@ -158,7 +158,7 @@ namespace LivingWorldNpcs
                         string result = t.Status == TaskStatus.RanToCompletion && t.Result != null && t.Result.FromLlm
                             ? DialogueComponent.Sanitize(t.Result.Reply, initiatorName)
                             : null;
-                        if (string.IsNullOrWhiteSpace(result) || s.Initiator == null || !s.Initiator.IsActive()) return;
+                        if (string.IsNullOrWhiteSpace(result) || s.Initiator == null || !AgentControlHelper.SafeIsActive(s.Initiator)) return;
                         // 续话 = 发起方再说话（播放 + 广播——对方 respond 新一轮）
                         // 🔴 统一说话框架：社交续话（前因=spoken_to；SpeechChannel 线程安全，LLM 回调可直调）
                         SpeechChannel.Say(s.Initiator, result, SpeechPriority.Dialogue,
@@ -349,7 +349,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (_target != null && _target.IsActive())
+                if (_target != null && AgentControlHelper.SafeIsActive(_target))
                     AgentControlHelper.FaceToActor(_agent, _target);
                 if (!string.IsNullOrEmpty(line))
                     SpeechChannel.Say(_agent, line, SpeechPriority.Dialogue,
@@ -548,7 +548,7 @@ namespace LivingWorldNpcs
                 Vec3 mid = (requester.Position + target.Position) * 0.5f;
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || a == requester || a == target || !a.IsActive()) continue;
+                    if (a == null || a == requester || a == target || !AgentControlHelper.SafeIsActive(a)) continue;
                     float dist = a.Position.Distance(mid);
                     if (dist > BystanderRadius) continue;
                     float chance = Math.Max(1f - dist / BystanderRadius, 0.05f);
@@ -632,7 +632,7 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    if (Mission.Current == null || s.Initiator == null || !s.Initiator.IsActive())
+                    if (Mission.Current == null || s.Initiator == null || !AgentControlHelper.SafeIsActive(s.Initiator))
                     {
                         EndSession(s);
                         continue;

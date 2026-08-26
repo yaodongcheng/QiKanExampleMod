@@ -234,7 +234,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (Owner == null || !Owner.IsActive()) return;
+                if (Owner == null || !AgentControlHelper.SafeIsActive(Owner)) return;
                 if (_currentIntent != null && _currentIntent.Type == NpcIntentType.ExecutingCommand)
                     SetNpcIntent(NpcIntentType.None);
             }
@@ -277,7 +277,7 @@ namespace LivingWorldNpcs
         /// 与 ReceiveEvent 内联分支同权——ReactiveAgent 是 brain 事件处理的内部扩展。</summary>
         internal void RunReactiveAction(params IAtomicAction[] actions)
         {
-            if (actions == null || actions.Length == 0 || !Owner.IsActive()) return;
+            if (actions == null || actions.Length == 0 || !AgentControlHelper.SafeIsActive(Owner)) return;
             ClearAllActions();
             foreach (var a in actions)
             {
@@ -458,7 +458,7 @@ namespace LivingWorldNpcs
                 ChatActionFlow.TryExecute(Owner, assistAction, assistTarget, null, null,
                     onFinished: actor =>
                     {
-                        if (requesterRef != null && requesterRef.IsActive())
+                        if (requesterRef != null && AgentControlHelper.SafeIsActive(requesterRef))
                         {
                             AgentAIController.Instance?.SendEventToAgent(requesterRef, "assist_done", actor);
                             DebugLogger.Log($"[Brain] {actor?.Name} 配合完成 → assist_done 回执给 {requesterRef.Name}");
@@ -531,10 +531,10 @@ namespace LivingWorldNpcs
                 Agent attacker = args[0] as Agent;
                 Agent victim = args[1] as Agent;
                 if (victim == null || attacker == null) return;
-                if (!Owner.IsActive()) return;
-                if(!attacker.IsActive()) return;
+                if (!AgentControlHelper.SafeIsActive(Owner)) return;
+                if(!AgentControlHelper.SafeIsActive(attacker)) return;
                 if (attacker == Owner) return;
-                if(!victim.IsActive()) return;
+                if(!AgentControlHelper.SafeIsActive(victim)) return;
                 if(attacker == victim) return;
 
                 // 🔴 经历旁白（2026-08-11）：被攻击 = 事件事实（与击晕/认输同类，引擎确认的命中）。
@@ -773,7 +773,7 @@ namespace LivingWorldNpcs
                 Agent victim = args[1] as Agent;
                 string resultType = args[2] as string;
                 if (victim == null || thief == null || victim != Owner) return;
-                if (!Owner.IsActive()) return;
+                if (!AgentControlHelper.SafeIsActive(Owner)) return;
                 string itemName = args.Length > 3 ? args[3] as string : null;
                 float amount = resultType switch
                 {
@@ -1288,7 +1288,7 @@ namespace LivingWorldNpcs
         /// </summary>
         private void ResumeVanillaAI()
         {
-            if (!Owner.IsActive()) return;
+            if (!AgentControlHelper.SafeIsActive(Owner)) return;
 
             if (!SuspendedAgentIndices.Remove(Owner.Index))
                 return; // 没被 Suspend 过，不碰原版 AI
@@ -1319,7 +1319,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public void PostConversationCleanup()
         {
-            if (!Owner.IsActive()) return;
+            if (!AgentControlHelper.SafeIsActive(Owner)) return;
 
             PendingPostConversationCleanup = false;
             DebugLogger.Log($"[Brain-PostConvCleanup] {Owner.Name}(Idx={Owner.Index}) 对话结束清理 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count}");
@@ -1352,7 +1352,7 @@ namespace LivingWorldNpcs
         /// </summary>
         private void DecideDefaultBehavior()
         {
-            if (!Owner.IsActive()) return;
+            if (!AgentControlHelper.SafeIsActive(Owner)) return;
             ResumeVanillaAI();           
         }
 
@@ -1398,7 +1398,7 @@ namespace LivingWorldNpcs
                 bool crouchHandled = false, weaponHandled = false;   // 同类型只跟第一个看到的人（原 break 语义）
                 foreach (var t in sightTargets)
                 {
-                    if (t == null || !t.IsActive() || t == Owner) continue;
+                    if (t == null || !AgentControlHelper.SafeIsActive(t) || t == Owner) continue;
                     bool isPlayer = t == Agent.Main;
                     bool crouching = isPlayer ? t.CrouchMode
                         : AgentAIController.GetBrainForAgent(t)?.CrouchPoseActive == true;
@@ -1466,7 +1466,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (player == null || !player.IsActive()) return;
+                if (player == null || !AgentControlHelper.SafeIsActive(player)) return;
                 double now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 if (now < CareCooldownUntilWall) return;
                 // OnRegisterBlow 广播时血量未结算 → Health - damage 预估结算后血线（防单击大伤害漏检）
@@ -1575,7 +1575,7 @@ namespace LivingWorldNpcs
         float GetAlertDistanceMultiplier(Agent target = null)
         {
             var t = target ?? Agent.Main;
-            if (t == null || !t.IsActive()) return 1.0f;
+            if (t == null || !AgentControlHelper.SafeIsActive(t)) return 1.0f;
 
             float dist = Owner.Position.Distance(t.Position);
             const float maxDist = 15f;
@@ -2039,6 +2039,12 @@ namespace LivingWorldNpcs
         }
         public void Tick(float dt)
         {
+            // 🔴 2026-08-26 击杀崩溃修复（纵深防御，玩家反馈 10:47:45）：
+            // Agent.IsActive() 是 unsafe 解引用 _statePointer（native 指针），销毁后调用 = AccessViolation
+            // （致命、抓不住）。统一走 AgentControlHelper.SafeIsActive 托管判活（agent.Mission 托管字段先判死，
+            // native 存活才解引用）。OnMissionTick 已有同款守卫，这里是双保险（防未来新增调用点绕过）。
+            if (!AgentControlHelper.SafeIsActive(Owner))
+                return;
             if(Owner == Agent.Main)
             {
                 return;
@@ -2060,7 +2066,7 @@ namespace LivingWorldNpcs
             }
 
             // 安全兜底：如果持锁者已不活跃，释放质问锁
-            if (ConfrontingBrain == this && !Owner.IsActive())
+            if (ConfrontingBrain == this && !AgentControlHelper.SafeIsActive(Owner))
             {
                 ConfrontingBrain = null;
                 DebugLogger.Log($"[ConvLock] Release by {Owner.Name}(Idx={Owner.Index}) | reason=OwnerInactive");

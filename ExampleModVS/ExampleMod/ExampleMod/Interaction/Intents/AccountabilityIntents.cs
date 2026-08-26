@@ -923,7 +923,7 @@ namespace LivingWorldNpcs
                 // 避免对话进行中 ClearAllActions 把对话本身打断。
                 // 🔴 不广播 order_attack：拔剑是私人恩怨，围观村民不参与（广播无友方过滤，
                 //    会波及旁边站着的玩家随从；且警戒/围殴会让战斗规模失控）。
-                if (ctx.Agent != null && ctx.Agent != Agent.Main && ctx.Agent.IsActive())
+                if (ctx.Agent != null && ctx.Agent != Agent.Main && AgentControlHelper.SafeIsActive(ctx.Agent))
                     ThreatIntent.PendingCombatAgent = ctx.Agent;
 
                 DebugLogger.Log($"[Accountability] FightVillagers in-mission: deferred combat, target={ctx.Agent?.Name ?? "none"}");

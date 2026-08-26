@@ -262,7 +262,7 @@ namespace LivingWorldNpcs
             {
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || !a.IsActive()) continue;
+                    if (a == null || !AgentControlHelper.SafeIsActive(a)) continue;
                     if (string.Equals(a.Character?.StringId, agentId, StringComparison.OrdinalIgnoreCase)
                         || string.Equals(a.Name?.ToString(), agentId, StringComparison.OrdinalIgnoreCase))
                         return a;
@@ -274,7 +274,7 @@ namespace LivingWorldNpcs
             float bestDist = float.MaxValue;
             foreach (var a in Mission.Current.Agents)
             {
-                if (a == null || !a.IsActive() || !AgentControlHelper.IsHumanOrChild(a) || a == Agent.Main) continue;
+                if (a == null || !AgentControlHelper.SafeIsActive(a) || !AgentControlHelper.IsHumanOrChild(a) || a == Agent.Main) continue;
                 var brain = AgentAIController.GetBrainForAgent(a);
                 if (brain?.Leader == Agent.Main) return a;   // 随从优先
                 float d = a.Position.DistanceSquared(Agent.Main?.Position ?? a.Position);

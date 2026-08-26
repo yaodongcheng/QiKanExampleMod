@@ -147,7 +147,7 @@ namespace LivingWorldNpcs
             _allocationCache[target] = assignment;
 
             // 4. 优先分配关键人物 (Judge)
-            if (judge != null && judge != target && judge.IsActive())
+            if (judge != null && judge != target && AgentControlHelper.SafeIsActive(judge))
             {
                 // 找 LayerIndex 最小（最内圈）且距离 Judge 当前位置最近的点
                 var bestSpot = availablePoints
@@ -164,7 +164,7 @@ namespace LivingWorldNpcs
             }
 
             List<Agent> unassignedAgents = witnesses
-                .Where(w => w != target && (judge == null || w != judge) && w.IsActive())
+                .Where(w => w != target && (judge == null || w != judge) && AgentControlHelper.SafeIsActive(w))
                 .ToList();
             AssignSpotsSimple(unassignedAgents, availablePoints, assignment);
             _allocationCache[target] = assignment;

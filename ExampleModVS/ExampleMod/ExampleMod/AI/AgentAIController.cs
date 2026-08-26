@@ -155,7 +155,7 @@ namespace LivingWorldNpcs
                     //暂时关掉看到玩家的事件，避免干扰测试
                     return;
                     //if (target != Agent.Main) return;
-                    //if (observer == null || !observer.IsActive()) return;
+                    //if (observer == null || !AgentControlHelper.SafeIsActive(observer)) return;
                     //if (InteractionMissionView.IsChatting) return;
                     //SendEventToAgent(observer, "StartObservingPlayer");
                 };
@@ -239,21 +239,39 @@ namespace LivingWorldNpcs
 
         public override void OnAgentDeleted(Agent agent)
         {
-            // 说话并联通道清理（M0：agent 删除 → 注册表移除）
-            SpeechChannel.Remove(agent);
-            // 🔴 2026-08-14：随从追踪注销（视线系统里玩家之外的注册目标）
-            if (agent != Agent.Main)
-                NpcSightSystem.Instance?.UnregisterTrackedTarget(agent);
-            // 🔴 2026-08-16（方案 G3②）：在场随从缓存移除（防把中途离场的随从算在场）
-            var delHero = (agent.Character as CharacterObject)?.HeroObject;
-            if (delHero != null)
-                _presentPartyMembers.Remove(delHero);
-            if (_brains.TryGetValue(agent.Index, out var brain))
+            // 🔴 2026-08-26 击杀崩溃修复（玩家反馈 10:47:45）：brain 移除最先执行——
+            // 引擎 Mission.OnAgentDeleted 的 foreach(MissionBehaviors) 回调链无异常保护，
+            // 前序 behavior 或下方任一清理步骤抛异常都会跳过/中断本方法 → brain 残留 →
+            // 下一帧 OnMissionTick 对已销毁 Agent 调 IsActive()（解引用清零的 native 指针）= AV。
+            try
             {
-                if (IsDebugMode)
-                    DebugLogger.Log($"因为删除 移除一个Agent的大脑 name {agent.Name} index{agent.Index} 当前总数{_brains.Count}");
-                brain.OnOwnerDeleted();
-                _brains.Remove(agent.Index);
+                if (_brains.TryGetValue(agent.Index, out var brain))
+                {
+                    if (IsDebugMode)
+                        DebugLogger.Log($"因为删除 移除一个Agent的大脑 name {agent.Name} index{agent.Index} 当前总数{_brains.Count}");
+                    brain.OnOwnerDeleted();
+                    _brains.Remove(agent.Index);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AIController] OnAgentDeleted 移除 brain 异常: {ex.Message}");
+            }
+            try
+            {
+                // 说话并联通道清理（M0：agent 删除 → 注册表移除）
+                SpeechChannel.Remove(agent);
+                // 🔴 2026-08-14：随从追踪注销（视线系统里玩家之外的注册目标）
+                if (agent != Agent.Main)
+                    NpcSightSystem.Instance?.UnregisterTrackedTarget(agent);
+                // 🔴 2026-08-16（方案 G3②）：在场随从缓存移除（防把中途离场的随从算在场）
+                var delHero = (agent.Character as CharacterObject)?.HeroObject;
+                if (delHero != null)
+                    _presentPartyMembers.Remove(delHero);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AIController] OnAgentDeleted 清理异常: {ex.Message}");
             }
         }
         public override void OnMissionTick(float dt)
@@ -262,11 +280,41 @@ namespace LivingWorldNpcs
             // 拔刀/收刀全局状态 + 单条日志，替代 112 个 NPC 各自每帧翻转检测
             EnsurePlayerWeaponHook();
 
+            // 🔴 2026-08-26 击杀崩溃修复（玩家反馈 10:47:45，栈：OnMissionTick→AgentBrain.Tick→AV）：
+            // AgentControlHelper.SafeIsActive(Agent) = AgentHelper.GetAgentState(_statePointer)（unsafe 解引用 native 指针）。
+            // 引擎销毁 Agent 时 Clear() 将 _statePointer 清零 → 残留 brain 再调 IsActive() = 解引用 0 指针 = AccessViolation
+            // （致命异常，try/catch 抓不住，只能预防）。残留来源：引擎 OnAgentDeleted 回调链被异常中断，LWN 未执行移除。
+            // 防御三层：① 判活用托管字段 owner.Mission（Clear() 同步置 null，读托管零 AV 风险；尸体阶段 Mission 仍有效，
+            //            IsActive() 返回 false 时指针安全，照常跳过 Tick）；
+            //          ② 检测到已销毁的残留 brain → 遍历后延迟移除（正常路径由 OnAgentDeleted 移除，这里只兜底）；
+            //          ③ 单脑 Tick 包 try/catch，托管异常不中断整帧（AV 已被①拦截，不会走到这里）。
+            List<int> staleBrains = null;
             foreach (var brain in _brains.Values)
             {
-                if (brain.Owner.IsActive())
+                var owner = brain?.Owner;
+                if (owner == null || owner.Mission != Mission.Current)
+                {
+                    // 引擎已销毁该 Agent（Clear 已执行）但 brain 残留 → 兜底移除（不碰 native）
+                    if (owner != null)
+                        (staleBrains ??= new List<int>()).Add(owner.Index);
+                    continue;
+                }
+                if (!AgentControlHelper.SafeIsActive(owner)) continue;   // 尸体/昏迷阶段：native 仍存活，IsActive() 安全
+                try
                 {
                     brain.Tick(dt);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[AIController] brain.Tick 异常 ({owner.Name}): {ex.Message}");
+                }
+            }
+            if (staleBrains != null)
+            {
+                foreach (var idx in staleBrains)
+                {
+                    if (_brains.Remove(idx))
+                        DebugLogger.Log($"[AIController] 兜底移除已销毁 Agent 的残留 brain (Index={idx})");
                 }
             }
 
@@ -692,7 +740,7 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"当前brains总数为{_brains.Count}");
             foreach (var brain in _brains.Values)
             {
-                if (!brain.Owner.IsActive() || brain.Owner == Agent.Main) continue;
+                if (!AgentControlHelper.SafeIsActive(brain.Owner) || brain.Owner == Agent.Main) continue;
                 if (brain.Owner.Position.Distance(center) > radius) continue;
                 // 楼层闸门：与事件中心高度差 > 2m 视为不同楼层，拦截（二楼打晕不应惊动一楼）
                 if (MathF.Abs(brain.Owner.Position.z - center.z) > SAME_FLOOR_MAX_HEIGHT_DIFF)

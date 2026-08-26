@@ -65,7 +65,7 @@ namespace LivingWorldNpcs
         // 建议每 10-15 帧调用一次
         public void UpdateLogic()
         {
-            if (TargetAgent == null || !TargetAgent.IsActive())
+            if (TargetAgent == null || !AgentControlHelper.SafeIsActive(TargetAgent))
             {
                 IsVisible = false;
                 return;

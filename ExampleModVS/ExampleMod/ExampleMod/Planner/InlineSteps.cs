@@ -43,7 +43,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (agent == null || !agent.IsActive()) return;
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
                 var witnesses = StealManager.GetWitnesses(agent, null, 15f, 120f);
                 string fallback;
                 if (witnesses.Count > 0)
@@ -65,7 +65,7 @@ namespace LivingWorldNpcs
                     // 🔴 2026-08-20（实际情况细分）：还在赶路（>5m）→ 不播独白（调用方已按
                     // dist≤5m 门控，此处双保险）；目标在走动 → 抓不住背身；目标静止仍绕不到 → 角度不可行。
                     if (agent.Position.Distance(target.Position) > 5f) return;
-                    if (target.IsActive() && target.Velocity.LengthSquared > 0.25f)
+                    if (AgentControlHelper.SafeIsActive(target) && target.Velocity.LengthSquared > 0.25f)
                     {
                         // 本地化：犹豫独白-目标在走动（玩家可见文本）
                         fallback = LWNTextHelper.ResolveText("LWN_npc_steal_monologue_moving",
@@ -233,7 +233,7 @@ namespace LivingWorldNpcs
                 _said = true;
                 try
                 {
-                    if (_target != null && _target.IsActive())
+                    if (_target != null && AgentControlHelper.SafeIsActive(_target))
                         AgentControlHelper.FaceToActor(_agent, _target);
                     // 🔴 统一说话框架：say_to 单句模式（前因=plan step 台词）。
                     // 文本是计划期 LLM 生成的密令台词 → 不再 SayPolished（执行期重润色会偏离计划原意）
@@ -475,7 +475,7 @@ namespace LivingWorldNpcs
         {
             _agent = agent;
             _crouch = step.Action == "crouch";
-            if (agent == null || !agent.IsActive()) { Ok = false; return; }
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) { Ok = false; return; }
             Ok = true;
             try
             {
@@ -585,7 +585,7 @@ namespace LivingWorldNpcs
         {
             if (Finished) return;
             var player = Agent.Main;
-            if (_agent == null || !_agent.IsActive()) { _finishedFlag = true; return; }
+            if (_agent == null || !AgentControlHelper.SafeIsActive(_agent)) { _finishedFlag = true; return; }
 
             _fixedTimer += dt;
             switch (_phase)
@@ -598,13 +598,13 @@ namespace LivingWorldNpcs
                         try { AgentControlHelper.ScriptedMoveToPoint(_agent, _destination, false); } catch { }
                     }
                     // 到达目的地（GOAL：玩家到达）
-                    if (player != null && player.IsActive() && player.Position.Distance(_destination) < 3f)
+                    if (player != null && AgentControlHelper.SafeIsActive(player) && player.Position.Distance(_destination) < 3f)
                     {
                         _finishedFlag = true;
                         return;
                     }
                     // 玩家跟丢（> 8m）→ 停下等
-                    if (player != null && player.IsActive() && _agent.Position.Distance(player.Position) > 8f)
+                    if (player != null && AgentControlHelper.SafeIsActive(player) && _agent.Position.Distance(player.Position) > 8f)
                     {
                         _phase = Phase.Waiting;
                         _waitTimer = 0f;
@@ -615,7 +615,7 @@ namespace LivingWorldNpcs
                 case Phase.Waiting:
                     _waitTimer += dt;
                     // 玩家跟上 → 继续
-                    if (player != null && player.IsActive() && _agent.Position.Distance(player.Position) < 3f)
+                    if (player != null && AgentControlHelper.SafeIsActive(player) && _agent.Position.Distance(player.Position) < 3f)
                     {
                         _phase = Phase.Moving;
                         _fixedTimer = 0f;
@@ -773,7 +773,7 @@ namespace LivingWorldNpcs
                         _phase = AttemptPhase.Settled;
                         return;
                     }
-                    if (!target.IsActive())
+                    if (!AgentControlHelper.SafeIsActive(target))
                     {
                         _resultKey = "impossible";
                         _phase = AttemptPhase.Settled;
@@ -920,7 +920,7 @@ namespace LivingWorldNpcs
                         // 目标本人察觉（转身/走动中看到蹲身后的随从）→ 中断（同 interrupted 出口，
                         // 播报点名「她发现你了」——不是第三方目击）
                         bool targetAware = rollTarget != null
-                            && rollTarget.IsActive()
+                            && AgentControlHelper.SafeIsActive(rollTarget)
                             && NpcSightSystem.CanAgentSeeTarget(rollTarget, _agent);
                         if (witnesses.Count > 0 || targetAware)
                         {
@@ -1283,7 +1283,7 @@ namespace LivingWorldNpcs
                     case "interrupted":
                         // 🔴 2026-08-21（用户反馈：不说被谁看到）：中断播报点名——第三方目击者
                         //（「被 帝国守卫#5 看见了」）vs 目标本人察觉（「她发现你了」）；两者都无 = 旧兜底
-                        if (_interruptedBy != null && _interruptedBy.IsActive())
+                        if (_interruptedBy != null && AgentControlHelper.SafeIsActive(_interruptedBy))
                         {
                             string witnessName = _interruptedBy.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_im_name_someone", "someone");
                             // 🔴 2026-08-21（用户要求：DisplayMessage 告知实际目击）：点名 + 目击者总数
@@ -1492,10 +1492,10 @@ namespace LivingWorldNpcs
         {
             if (Finished || !Ok) return;
             _timer += dt;
-            if (_agent == null || !_agent.IsActive()) { Finished = true; return; }
+            if (_agent == null || !AgentControlHelper.SafeIsActive(_agent)) { Finished = true; return; }
             string refName = PlanRefUtil.Normalize(_step.Target, out string q);
             if (q != null) refName = q;
-            if (!_executor.World.TryResolveAgent(refName, _agent, out Agent target) || !target.IsActive())
+            if (!_executor.World.TryResolveAgent(refName, _agent, out Agent target) || !AgentControlHelper.SafeIsActive(target))
             {
                 // 目标已离场 → 本步失败（不静默）
                 _executor.FailStep(_cursor, _step);
@@ -1660,7 +1660,7 @@ namespace LivingWorldNpcs
                     // 目标解析（同袍名字 → agent，快照同口径）
                     string refName = PlanRefUtil.Normalize(_step.Target, out string query);
                     if (query != null) refName = query;
-                    if (!_executor.World.TryResolveAgent(refName, _agent, out Agent buddy) || buddy == null || !buddy.IsActive())
+                    if (!_executor.World.TryResolveAgent(refName, _agent, out Agent buddy) || buddy == null || !AgentControlHelper.SafeIsActive(buddy))
                     {
                         DebugLogger.Log($"[PlanExecutor] ask_help 目标解析失败: {refName} → 等待 on_timeout 兜底");
                         return;

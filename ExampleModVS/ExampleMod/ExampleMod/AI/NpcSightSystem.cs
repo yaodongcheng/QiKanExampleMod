@@ -47,7 +47,7 @@ namespace LivingWorldNpcs
             float radius = 15f, float fovDegrees = 120f)
         {
             if (observer == null || target == null) return false;
-            if (!observer.IsActive() || !target.IsActive()) return false;
+            if (!AgentControlHelper.SafeIsActive(observer) || !AgentControlHelper.SafeIsActive(target)) return false;
             if (observer == target) return false;
 
             // 玩家：用屏幕投影判断（最符合玩家认知）
@@ -81,7 +81,7 @@ namespace LivingWorldNpcs
 
             foreach (var agent in nearby)
             {
-                if (!AgentControlHelper.IsHumanOrChild(agent) || !agent.IsActive()) continue;
+                if (!AgentControlHelper.IsHumanOrChild(agent) || !AgentControlHelper.SafeIsActive(agent)) continue;
                 if (agent == target) continue;
                 if (CanAgentSeeTarget(agent, target, radius, fovDegrees))
                     result.Add(agent);
@@ -106,7 +106,7 @@ namespace LivingWorldNpcs
             if (Mission.Current == null) return result;
             foreach (var agent in Mission.Current.Agents)
             {
-                if (AgentControlHelper.IsHumanOrChild(agent) && agent.IsActive() && agent != Mission.Current.MainAgent)
+                if (AgentControlHelper.IsHumanOrChild(agent) && AgentControlHelper.SafeIsActive(agent) && agent != Mission.Current.MainAgent)
                     if (IsPlayerSeeing(agent)) result.Add(agent);
             }
             return result;
@@ -207,7 +207,7 @@ namespace LivingWorldNpcs
             foreach (KeyValuePair<int, PlayerSightCacheEntry> kv in _playerSightCache)
             {
                 Agent agent = kv.Value.Agent;
-                if (agent == null || !agent.IsActive() || !IsProjectedOnScreen(agent, ms))
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent) || !IsProjectedOnScreen(agent, ms))
                 {
                     // 死亡/离开屏幕：驱逐。下次进入视野走查询侧冷路径同步算
                     if (evictKeys == null) evictKeys = new List<int>();
@@ -299,7 +299,7 @@ namespace LivingWorldNpcs
         /// <summary>玩家是否实际看到 agent：①屏幕投影（WorldPointToScreenPoint，最符合玩家认知的 FOV）②相机→胸口遮挡射线（tick 0.1s 维护的缓存）。墙后/屋内 NPC 一律不可见。</summary>
         public static bool IsPlayerSeeing(Agent agent)
         {
-            if (agent == null || !agent.IsActive()) return false;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return false;
             if (Mission.Current == null) return false;
 
             MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
@@ -365,7 +365,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (var agent in Mission.Current.Agents)
                     {
-                        if (agent == Agent.Main || !AgentControlHelper.IsHumanOrChild(agent) || !agent.IsActive()) continue;
+                        if (agent == Agent.Main || !AgentControlHelper.IsHumanOrChild(agent) || !AgentControlHelper.SafeIsActive(agent)) continue;
                         if (FriendlinessHelper.IsPlayerPartyMember(agent))
                             RegisterTrackedTarget(agent, 15f, 50f);
                     }
@@ -377,13 +377,13 @@ namespace LivingWorldNpcs
             // 全部误替换成玩家——随从注册后必踩，2026-08-14 修正）。随从引用失效靠 OnAgentDeleted 注销。
             foreach (var t in _tracked)
             {
-                if (t.Agent == null || !t.Agent.IsActive())
+                if (t.Agent == null || !AgentControlHelper.SafeIsActive(t.Agent))
                 {
-                    if (Agent.Main != null && Agent.Main.IsActive())
+                    if (Agent.Main != null && AgentControlHelper.SafeIsActive(Agent.Main))
                     {
                         t.Agent = Agent.Main;
                         for (int i = 0; i < TrackedTargets.Count; i++)
-                            if (TrackedTargets[i] == null || !TrackedTargets[i].IsActive())
+                            if (TrackedTargets[i] == null || !AgentControlHelper.SafeIsActive(TrackedTargets[i]))
                                 TrackedTargets[i] = Agent.Main;
                     }
                 }
@@ -394,7 +394,7 @@ namespace LivingWorldNpcs
 
             foreach (var tracked in _tracked)
             {
-                if (tracked.Agent == null || !tracked.Agent.IsActive()) continue;
+                if (tracked.Agent == null || !AgentControlHelper.SafeIsActive(tracked.Agent)) continue;
                 TickTrackedTarget(tracked, tickDt);  // 传入实际累积时间
             }
         }
@@ -410,7 +410,7 @@ namespace LivingWorldNpcs
 
             foreach (var agent in nearby)
             {
-                if (!AgentControlHelper.IsHumanOrChild(agent) || !agent.IsActive()) continue;
+                if (!AgentControlHelper.IsHumanOrChild(agent) || !AgentControlHelper.SafeIsActive(agent)) continue;
                 if (agent == tracked.Agent) continue;
 
                 if (CanAgentSeeTarget(agent, tracked.Agent, tracked.ObserverRadius, 120f))

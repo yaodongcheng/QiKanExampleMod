@@ -470,7 +470,7 @@ namespace LivingWorldNpcs
             // → 引擎走不到 Die。双方同时无敌：收场前的 ~1 帧窗口内不会再判负（另一方的打击不掉血）。
             foreach (var duelist in new[] { _agentA, _agentB })
             {
-                if (duelist == null || !duelist.IsActive()) continue;
+                if (duelist == null || !AgentControlHelper.SafeIsActive(duelist)) continue;
                 try { duelist.SetMortalityState(Agent.MortalityState.Invulnerable); } // ①
                 catch (Exception ex) { DebugLogger.Log($"[Duel] 设无敌失败: {ex.Message}"); }
                 duelist.Health = duelist.HealthLimit;                                   // ②
@@ -493,7 +493,7 @@ namespace LivingWorldNpcs
             foreach (var duelist in new[] { _agentA, _agentB })
             {
                 if (duelist == null) continue;
-                if (duelist.IsActive())
+                if (AgentControlHelper.SafeIsActive(duelist))
                 {
                     try { AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat", duelist); }
                     catch (Exception ex) { DebugLogger.Log($"[Duel] 停战事件失败: {ex.Message}"); }
@@ -502,7 +502,7 @@ namespace LivingWorldNpcs
             // ② 停战已生效，关闭兜底窗口
             foreach (var duelist in new[] { _agentA, _agentB })
             {
-                if (duelist == null || !duelist.IsActive()) continue;
+                if (duelist == null || !AgentControlHelper.SafeIsActive(duelist)) continue;
                 try { duelist.SetMortalityState(Agent.MortalityState.Mortal); }
                 catch (Exception ex) { DebugLogger.Log($"[Duel] 恢复 Mortal 失败: {ex.Message}"); }
             }
@@ -696,7 +696,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (var a in Mission.Current.Agents)
                     {
-                        if (a == null || !a.IsActive() || a == victim || a == attacker) continue;
+                        if (a == null || !AgentControlHelper.SafeIsActive(a) || a == victim || a == attacker) continue;
                         if (a.Position.DistanceSquared(victim.Position) > 15f * 15f) continue;
                         if (!FriendlinessHelper.IsPlayerPartyMember(a)) continue;
                         AgentAIController.Instance?.SendEventToAgent(a, "event_agent_damaged", attacker, victim, b.InflictedDamage);
@@ -914,7 +914,7 @@ namespace LivingWorldNpcs
                         {
                             foreach (var a in Mission.Current.Agents)
                             {
-                                if (a == null || !a.IsActive()) continue;
+                                if (a == null || !AgentControlHelper.SafeIsActive(a)) continue;
                                 if (Agent.Main != null && a.IsEnemyOf(Agent.Main)) theirs++;
                                 else mine++;
                             }
@@ -941,7 +941,7 @@ namespace LivingWorldNpcs
             try
             {
                 if (string.IsNullOrEmpty(_pendingCrimeWord)) return;
-                if (Mission.Current == null || Agent.Main == null || !Agent.Main.IsActive()) return;
+                if (Mission.Current == null || Agent.Main == null || !AgentControlHelper.SafeIsActive(Agent.Main)) return;
                 // 每帧确认窗口（记账后 ~2s 内有效）
                 float now = Mission.Current.CurrentTime;
                 if (_pendingCrimeCheckAt > 0f && now - _pendingCrimeCheckAt > 2f)

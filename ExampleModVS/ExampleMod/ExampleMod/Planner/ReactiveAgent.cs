@@ -445,10 +445,10 @@ namespace LivingWorldNpcs
             try
             {
                 var agent = brain?.Owner;
-                if (agent == null || !agent.IsActive() || ra == null) return;
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent) || ra == null) return;
 
                 // 距离 ≤ 10m（拍板点 2）
-                float dist = speaker != null && speaker.IsActive()
+                float dist = speaker != null && AgentControlHelper.SafeIsActive(speaker)
                     ? agent.Position.Distance(speaker.Position)
                     : float.MaxValue;
                 if (dist > 10f) return;
@@ -485,7 +485,7 @@ namespace LivingWorldNpcs
                     {
                         try
                         {
-                            if (agent == null || !agent.IsActive()) return;
+                            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
                             string occ = ClassifyOccupation(agent);
                             // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
                             string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + occ, occ);
@@ -544,7 +544,7 @@ namespace LivingWorldNpcs
         private static void ExecuteReaction(AgentBrain brain, ReactiveAgent ra, string action, Agent requester, string triggerEvent, object[] args = null, float score = 0f)
         {
             var agent = brain.Owner;
-            if (agent == null || !agent.IsActive()) return;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
 
             switch (action)
             {
@@ -679,7 +679,7 @@ namespace LivingWorldNpcs
             try
             {
                 var agent = brain.Owner;
-                if (agent == null || !agent.IsActive()) return;
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
                 // 铁律 1：LLM 未配置 → 静默（提议是增强）
                 if (!Settings.Instance.IsLLMConfigured) return;
                 // 仅 Hero 可提议（IM 私聊会话按 Hero StringId 索引；模板 NPC 无法进 IM，既有决策）
@@ -738,7 +738,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (self == null || !self.IsActive() || requester == null) return;
+                if (self == null || !AgentControlHelper.SafeIsActive(self) || requester == null) return;
                 var brain = AgentAIController.GetBrainForAgent(self);
                 if (brain == null) return;
                 var ra = Get(self);
@@ -760,7 +760,7 @@ namespace LivingWorldNpcs
             try
             {
                 var agent = brain.Owner;
-                if (agent == null || !agent.IsActive()) return;
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
                 string companionLine = args != null && args.Length > 1 ? args[1] as string : null;
                 string topic = args != null && args.Length > 2 ? args[2] as string : null;
                 string outlineStep = args != null && args.Length > 3 ? args[3] as string : null; // 对话模式当前走向段
@@ -799,7 +799,7 @@ namespace LivingWorldNpcs
                 // 🔴 2026-08-20 prompt 双语化：fallback 去中文（XML 双桶已覆盖）
                 string intention = ResolvePromptFallback("LWN_plan_respond_section_attitude", "")
                     + DescribeIntention(score, triggerEvent);
-                string other = requester != null && requester.IsActive() ? requester.Name.ToString() : "";
+                string other = requester != null && AgentControlHelper.SafeIsActive(requester) ? requester.Name.ToString() : "";
                 string actionSpace = ActionHandler.GetActionSpacePrompt(
                     (agent.Character as CharacterObject)?.HeroObject,
                     (requester?.Character as CharacterObject)?.HeroObject,
@@ -1042,7 +1042,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (agent == null || !agent.IsActive()) return;
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
                 string occ = ClassifyOccupation(agent);
                 // 降级台词：职业模板（无则默认模板）
                 string text = LWNTextHelper.ResolveText("LWN_reactive_respond_" + occ,
@@ -1088,9 +1088,9 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    if (item.Agent == null || !item.Agent.IsActive()) continue;
+                    if (item.Agent == null || !AgentControlHelper.SafeIsActive(item.Agent)) continue;
                     // 接管 brain：RunReactiveAction 清队列 + SuspendVanillaAI + 入队 LookAtAction（面向对方保持 8s）
-                    if (item.Requester != null && item.Requester.IsActive())
+                    if (item.Requester != null && AgentControlHelper.SafeIsActive(item.Requester))
                     {
                         var brain = AgentAIController.GetBrainForAgent(item.Agent);
                         if (brain != null)
@@ -1126,7 +1126,7 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    if (ij.Agent == null || !ij.Agent.IsActive()) continue;
+                    if (ij.Agent == null || !AgentControlHelper.SafeIsActive(ij.Agent)) continue;
                     if (string.IsNullOrWhiteSpace(ij.Text)) continue;
                     SpeechChannel.Say(ij.Agent, ij.Text, SpeechPriority.Interject,
                         SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(ij.Agent), null, "seen_speaking", "旁观话题"));
@@ -1139,7 +1139,7 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    if (p.Agent == null || !p.Agent.IsActive()) continue;
+                    if (p.Agent == null || !AgentControlHelper.SafeIsActive(p.Agent)) continue;
                     var hero = (p.Agent.Character as CharacterObject)?.HeroObject;
                     if (hero == null || string.IsNullOrEmpty(hero.StringId)) continue;
                     if (string.IsNullOrWhiteSpace(p.Text)) continue;

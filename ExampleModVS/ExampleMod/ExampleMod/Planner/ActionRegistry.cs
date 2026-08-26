@@ -231,7 +231,7 @@ namespace LivingWorldNpcs
                     if (target == null && defender != null && defender != Hero.MainHero)
                         target = ActionHandler.FindAgentByHeroId(defender.StringId);
                     if (target == null) target = Agent.Main;   // 兜底（InScene 空间前提 = defender 在场）
-                    if (agent != null && target != null && agent.IsActive() && target.IsActive())
+                    if (agent != null && target != null && AgentControlHelper.SafeIsActive(agent) && AgentControlHelper.SafeIsActive(target))
                         AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
                 },
                 Execute = (attacker, defender, agent, l, t, s) =>
@@ -484,7 +484,7 @@ namespace LivingWorldNpcs
                     if (target == null && defender != null && defender != Hero.MainHero)
                         target = ActionHandler.FindAgentByHeroId(defender.StringId);
                     if (target == null) target = Agent.Main;
-                    if (agent != null && target != null && agent.IsActive() && target.IsActive())
+                    if (agent != null && target != null && AgentControlHelper.SafeIsActive(agent) && AgentControlHelper.SafeIsActive(target))
                         AgentAIController.Instance?.SendEventToAgent(agent, "duel", target);
                 },
                 Execute = (attacker, defender, agent, l, t, s) =>

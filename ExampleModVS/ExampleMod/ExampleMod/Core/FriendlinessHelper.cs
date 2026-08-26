@@ -186,7 +186,7 @@ namespace LivingWorldNpcs
                 float bestSq = float.MaxValue;
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || !a.IsActive() || a == from) continue;
+                    if (a == null || !AgentControlHelper.SafeIsActive(a) || a == from) continue;
                     if (!IsPlayerPartyMember(a)) continue;
                     float d = a.Position.DistanceSquared(from.Position);
                     if (d < bestSq) { bestSq = d; nearest = a; }

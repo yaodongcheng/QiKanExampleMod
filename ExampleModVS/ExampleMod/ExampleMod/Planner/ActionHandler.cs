@@ -566,7 +566,7 @@ namespace LivingWorldNpcs
             {
                 if (info?.Agent == null) continue;
                 var a = info.Agent;
-                if (!a.IsActive() || a == player) continue;
+                if (!AgentControlHelper.SafeIsActive(a) || a == player) continue;
                 if (!AgentControlHelper.IsHumanOrChild(a)) continue;
                 result.Add(a);
             }
@@ -612,7 +612,7 @@ namespace LivingWorldNpcs
                 Agent agent = FindAgentByHeroId(attacker.StringId);
                 // 🔴 预检（与 PostActionProposal 同语义）：执行者不在场 → InScene 动作不可执行，不发卡/不确认
                 //（避免"选定候选 → 同意 → 无法执行"的死链；NPC 已应承的话保留在频道，玩家可再问）
-                if (agent == null || !agent.IsActive())
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent))
                 {
                     DebugLogger.Log($"[ActionHandler] 模板目标 {targetText} 执行者 {attackerName} 不在场 → 降级 NONE");
                     return;

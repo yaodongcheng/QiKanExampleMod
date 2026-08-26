@@ -507,7 +507,7 @@ namespace LivingWorldNpcs
             _= AgentControlHelper.MovePrepare(agent);
 
             // 调查场景：边走边盯目标（原 ReactiveInvestigateAction 语义，2026-08-11 并入）
-            if (_lookTarget != null && _lookTarget.IsActive())
+            if (_lookTarget != null && AgentControlHelper.SafeIsActive(_lookTarget))
                 AgentControlHelper.LookAtAgent(agent, _lookTarget);
 
             // 恐慌/逃跑（skipGetupDelay）：坐蹲躺也立即动；否则按现状（不需要过渡动画 → 提前起身）
@@ -559,7 +559,7 @@ namespace LivingWorldNpcs
         public bool IsFinished(Agent agent)
         {
             if (_interrupted) return true;
-            if (!agent.IsActive()) return true;
+            if (!AgentControlHelper.SafeIsActive(agent)) return true;
             float dist = agent.Position.Distance(_targetPos);
             if (dist <= _stopDistance) return true;   // 正常到达 → 不瞬移（对齐 FollowAgentAction 纪律）
             // 固定超时模式（恐慌/逃跑）：到点或到时二选一，到时即完成且不瞬移——逃跑语义是"放弃"不是"到位"。
@@ -578,7 +578,7 @@ namespace LivingWorldNpcs
         {
             // 仅卡死兜底才瞬移；正常到达保留原位（几十厘米偏差肉眼不可见，瞬移反而突兀）
             // 🔴 2026-08-21（在押守卫）：在押随从禁止瞬移——移动卡死 → TeleportToPosition = 越狱路径
-            if (_teleportOnEnd && agent.IsActive() && !CompanionDetentionBehavior.IsDetained(agent))
+            if (_teleportOnEnd && AgentControlHelper.SafeIsActive(agent) && !CompanionDetentionBehavior.IsDetained(agent))
                 agent.TeleportToPosition(_targetPos);
             // 朝向守卫：逃跑/回岗传 Vec2.Zero（无意义方向）→ 跳过，避免零向量下发给引擎（解锁后原版 AI 接管）
             if (_targetDir.LengthSquared > 0.01f)
@@ -597,7 +597,7 @@ namespace LivingWorldNpcs
         public static MoveToPositionAction FleeFrom(Agent agent, Agent threat, bool isRun = false, float maxTime = 10f)
         {
             // 逃跑方向：远离威胁 ±45° 抖动，8~14m，取第一个 navmesh 有效点（照动物挣脱轮子 OnAnimalStruggleFlee）
-            Vec3 away = threat != null && threat.IsActive()
+            Vec3 away = threat != null && AgentControlHelper.SafeIsActive(threat)
                 ? agent.Position - threat.Position
                 : new Vec3(1f, 0f, 0f);
             away.z = 0f;
@@ -719,7 +719,7 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-12：卡死预算按"距离/速度"算（对齐 MoveToPositionAction）——原固定 5s，
             // 远距目标正常步行（12m ≈ 8s）也会超预算 → 到点瞬移（实机可见）。走 ~1.5m/s ×1.5 余量，下限 5s；
             // 进度采样保证"正在走"永不瞬移，预算只用于"卡墙/寻路死角"判定。
-            float distToTarget = _target != null && _target.IsActive()
+            float distToTarget = _target != null && AgentControlHelper.SafeIsActive(_target)
                 ? agent.Position.Distance(_target.Position) : 0f;
             _maxTime = Math.Max(5f, distToTarget / 1.5f * 1.5f);
             _lastDist = distToTarget;
@@ -733,7 +733,7 @@ namespace LivingWorldNpcs
 
         public void OnTick(Agent agent, float dt)
         {
-            if (_target == null || !_target.IsActive()) return;
+            if (_target == null || !AgentControlHelper.SafeIsActive(_target)) return;
             _timer += dt;
             _fixedTimer += dt;
             if (_timer < 2.0f)
@@ -910,7 +910,7 @@ namespace LivingWorldNpcs
         public bool IsFinished(Agent agent)
         {
             if (_interrupted) return true;
-            if (_target == null || !_target.IsActive()) return true;
+            if (_target == null || !AgentControlHelper.SafeIsActive(_target)) return true;
             // 🔴 跟走模式（optionalDuration > 0）：只按时长完成（目标消失已在上方拦截），
             // 忽略距离判定——跟走语义 = 一直追目标直到时间到（原 ReactiveFollowAction Follow 阶段）。
             // 时长从开始移动算（起身预支不计入，坐蹲躺的起身期不吞跟走时间）
@@ -937,12 +937,12 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-12：卡死兜底瞬移移到 OnEnd（对齐 MoveToPositionAction——正常到达不瞬移，
             // 卡墙/寻路死角才瞬移；跟走模式/持续跟随永不标记 _teleportOnEnd）
             // 🔴 2026-08-21（在押守卫）：在押随从禁止瞬移（越狱路径）
-            if (_teleportOnEnd && agent.IsActive() && _target != null && _target.IsActive()
+            if (_teleportOnEnd && AgentControlHelper.SafeIsActive(agent) && _target != null && AgentControlHelper.SafeIsActive(_target)
                 && !CompanionDetentionBehavior.IsDetained(agent))
                 agent.TeleportToPosition(_currentIdealPosition);
             // 不瞬移：NPC 已在 stopDistance 内（ComeHere 默认 0.5m），
             // 几十厘米的偏差肉眼不可见，瞬移反而比到位的视觉跳变更突兀。
-            if (_target != null && _target.IsActive())
+            if (_target != null && AgentControlHelper.SafeIsActive(_target))
             {
                 Vec3 targetDir = (_target.Position - agent.Position).NormalizedCopy();
                 agent.SetMovementDirection(targetDir.AsVec2);
@@ -974,7 +974,7 @@ namespace LivingWorldNpcs
         public void OnStart(Agent agent)
         {
             // 防御：对话进行中挂载可能被对话系统干扰——跳过并留日志（2026-08-13）
-            if (agent == null || _target == null || !agent.IsActive() || !_target.IsActive())
+            if (agent == null || _target == null || !AgentControlHelper.SafeIsActive(agent) || !AgentControlHelper.SafeIsActive(_target))
             {
                 DebugLogger.Log($"[VanillaFollow] 跳过：目标或执行者不活跃（{agent?.Name ?? "?"} → {_target?.Name ?? "?"}）");
                 return;
@@ -1009,7 +1009,7 @@ namespace LivingWorldNpcs
 
         public void OnStart(Agent agent)
         {
-            if (agent == null || !agent.IsActive())
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent))
             {
                 DebugLogger.Log($"[VanillaFollow-Stop] 跳过：执行者不活跃（{agent?.Name ?? "?"}）");
                 return;
@@ -1059,7 +1059,7 @@ namespace LivingWorldNpcs
         public bool IsFinished(Agent agent) {
 
             if (_interrupted) return true;
-            if (_target == null || !_target.IsActive()) return true;
+            if (_target == null || !AgentControlHelper.SafeIsActive(_target)) return true;
             return _timer >= _duration ;
             }
 
@@ -1172,7 +1172,7 @@ namespace LivingWorldNpcs
 
         public void OnStart(Agent agent)
         {
-            if (_targetEnemy == null || !_targetEnemy.IsActive())
+            if (_targetEnemy == null || !AgentControlHelper.SafeIsActive(_targetEnemy))
             {
                 _isFinished = true;
                 return;
@@ -1234,14 +1234,14 @@ namespace LivingWorldNpcs
             // --- 终止条件检查 ---
 
             // 1. 目标不存在了，或者目标死了，或者目标被打晕了
-            if (_targetEnemy == null || !_targetEnemy.IsActive() || _targetEnemy.Health <= 0)
+            if (_targetEnemy == null || !AgentControlHelper.SafeIsActive(_targetEnemy) || _targetEnemy.Health <= 0)
             {
                 _isFinished = true;
                 return;
             }
 
             // 2. 我自己死了（大脑通常会处理，但这里为了保险）
-            if (!agent.IsActive() || agent.Health <= 0)
+            if (!AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0)
             {
                 _isFinished = true;
                 return;
@@ -1327,8 +1327,8 @@ namespace LivingWorldNpcs
             // （框架复用：群聊议论 + 参与度记忆 + 接话，custom.im_test_event 同入口）。
             RecordFightResultIfPlayerInvolved(agent);
             // 🔴 M0 战斗喊话 + M4 双轨润色：胜利宣言——对方已倒下且自己仍站立时播（被清队列/自己倒下不喊）
-            bool enemyDown = _targetEnemy == null || !_targetEnemy.IsActive() || _targetEnemy.Health <= 0f;
-            bool selfUp = agent.IsActive() && agent.Health > 0f;
+            bool enemyDown = _targetEnemy == null || !AgentControlHelper.SafeIsActive(_targetEnemy) || _targetEnemy.Health <= 0f;
+            bool selfUp = AgentControlHelper.SafeIsActive(agent) && agent.Health > 0f;
             if (enemyDown && selfUp)
                 SpeechChannel.SayPolished(agent,
                     // 本地化：LWN_action_combat_end（玩家可见文本）
@@ -1360,8 +1360,8 @@ namespace LivingWorldNpcs
             {
                 if (_targetEnemy == null || _targetEnemy != Agent.Main) return;   // 只处理玩家参与的战斗
                 if (Hero.MainHero == null) return;
-                bool targetDown = !_targetEnemy.IsActive() || _targetEnemy.Health <= 0;
-                bool selfDown = !agent.IsActive() || agent.Health <= 0;
+                bool targetDown = !AgentControlHelper.SafeIsActive(_targetEnemy) || _targetEnemy.Health <= 0;
+                bool selfDown = !AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0;
                 if (targetDown == selfDown) return;                               // 未分胜负
 
                 bool executorWon = targetDown;
@@ -1534,9 +1534,9 @@ namespace LivingWorldNpcs
         {
             _started = false;
 
-            if (Agent.Main == null || !agent.IsActive())
+            if (Agent.Main == null || !AgentControlHelper.SafeIsActive(agent))
             {
-                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动失败: Agent.Main={Agent.Main != null}, IsActive={agent.IsActive()}");
+                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动失败: Agent.Main={Agent.Main != null}, IsActive={AgentControlHelper.SafeIsActive(agent)}");
                 return;
             }
 

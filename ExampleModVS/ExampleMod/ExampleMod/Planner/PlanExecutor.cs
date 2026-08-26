@@ -1653,16 +1653,15 @@ namespace LivingWorldNpcs
             if (Instance == this) Instance = null;
             evt?.Invoke(this);
         }
-        /// <summary>安全访问 agent 状态（2026-08-21 实机）：Agent.IsActive()/Position 等走 native 指针
-        /// （State → AgentHelper.GetAgentState(_statePointer)），agent 已移除/场景结束时内部指针释放——
-        /// 对象非 null 但调用即抛 NRE（VS 调试器 first-chance 断点；release 被 catch 吞掉但流程走歪）。
-        /// 统一「Mission.Current 前置 + try/catch」收敛于此，禁止散落裸调。IsActive 返回 true 时
-        /// 指针必有效，同帧内可安全访问 Position 等其余 native 成员。</summary>
+        /// <summary>安全访问 agent 状态（2026-08-21 实机 → 2026-08-26 升级）：AgentControlHelper.SafeIsActive(Agent) 走 native 指针
+        /// （State → AgentHelper.GetAgentState(_statePointer)），agent 已移除/场景结束时内部指针清零——
+        /// 对象非 null 但调用即抛（first-chance 断点）。旧封装「Mission.Current 前置 + try/catch」拦不住
+        /// AccessViolation（致命异常，try/catch 不可靠）——统一改用 AgentControlHelper.SafeIsActive 托管判活
+        /// （agent.Mission 托管字段先判死，native 存活才解引用）。IsActive 返回 true 时指针必有效，
+        /// 同帧内可安全访问 Position 等其余 native 成员。</summary>
         private static bool IsAgentActive(Agent a)
         {
-            if (a == null || Mission.Current == null) return false;
-            try { return a.IsActive(); }
-            catch { return false; }
+            return AgentControlHelper.SafeIsActive(a);
         }
         // ═══════════════════════════════════════════════════════════
         // 工具

@@ -3427,7 +3427,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (var a in Mission.Current.Agents)
                     {
-                        if (a == null || !a.IsActive()) continue;
+                        if (a == null || !AgentControlHelper.SafeIsActive(a)) continue;
                         var hero = (a.Character as CharacterObject)?.HeroObject;
                         if (hero != null && hero.StringId == msg.SenderHeroId)
                         {

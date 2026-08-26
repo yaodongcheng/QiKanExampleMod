@@ -58,7 +58,7 @@ namespace LivingWorldNpcs
 
             foreach (var agent in Mission.Current.Agents)
             {
-                if (agent.IsActive() && agent.Character != null && agent.IsHuman)
+                if (AgentControlHelper.SafeIsActive(agent) && agent.Character != null && agent.IsHuman)
                 {
                     EnsureHud(agent);
                 }
@@ -123,7 +123,7 @@ namespace LivingWorldNpcs
                 var agent = hud.TargetAgent;
 
                 // ── 第一层：基础校验 ──
-                if (agent == null || !agent.IsActive())
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent))
                 {
                     if (removeIndices == null) removeIndices = new List<int>();
                     removeIndices.Add(i);
@@ -330,7 +330,7 @@ namespace LivingWorldNpcs
             try { DebugLogger.Log($"[Say] {agent.Name}: {text}{(string.IsNullOrEmpty(reason) ? "" : " ← " + reason)}"); } catch { }
 
             // 🔴 距离分层前置：远处（> FarHearDistance）不冒泡（3D 冒泡玩家看不见，创建 HUD 纯浪费）
-            bool isFar = Agent.Main != null && agent != Agent.Main && Agent.Main.IsActive()
+            bool isFar = Agent.Main != null && agent != Agent.Main && AgentControlHelper.SafeIsActive(Agent.Main)
                 && agent.Position.Distance(Agent.Main.Position) > FarHearDistance;
             if (isFar)
             {
@@ -368,7 +368,7 @@ namespace LivingWorldNpcs
 
             foreach (Agent agent in Mission.Current.Agents)
             {
-                if (agent.IsActive() && agent.Character != null && agent.Character.StringId == agentStringId)
+                if (AgentControlHelper.SafeIsActive(agent) && agent.Character != null && agent.Character.StringId == agentStringId)
                 {
                     try { DebugLogger.Log($"[Say] {agent.Name}: {text}{(string.IsNullOrEmpty(reason) ? "" : " ← " + reason)}"); } catch { }
                     Instance.AddSpeech(agent, text);

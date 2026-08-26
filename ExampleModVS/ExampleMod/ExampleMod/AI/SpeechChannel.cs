@@ -256,7 +256,7 @@ namespace LivingWorldNpcs
         private static async Task<string> BuildPolishedLine(Agent agent, string fallback, SpeechPriority priority,
             SpeechContext context, float budgetS)
         {
-            if (agent == null || !agent.IsActive()) return null;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return null;
             try
             {
                 string name = agent.Name?.ToString() ?? "";
@@ -364,7 +364,7 @@ namespace LivingWorldNpcs
             try
             {
                 string hp = "";
-                if (self != null && self.IsActive() && self.HealthLimit > 0)
+                if (self != null && AgentControlHelper.SafeIsActive(self) && self.HealthLimit > 0)
                 {
                     float ratio = self.Health / self.HealthLimit;
                     // 本地化：LWN_speech_hp_exhausted（血量低于30%后缀，双桶）
@@ -494,7 +494,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (_owner == null || !_owner.IsActive()) return;
+                if (_owner == null || !AgentControlHelper.SafeIsActive(_owner)) return;
                 // 前因序列化：只收非空字段（context 未传 = 调用点没给前因，仅打优先级兜底）
                 var c = req.Context;
                 string reason = $"优先级={req.Priority}";
