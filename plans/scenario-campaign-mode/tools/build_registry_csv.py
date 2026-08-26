@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""生成 16-DSL翻译总表.csv —— 太阁5 ↔ 骑砍2 唯一翻译大表（正式 plan 数据文件，单一事实源）
+"""生成 16a-DSL翻译总表.csv —— 太阁5 ↔ 骑砍2 唯一翻译大表（正式 plan 数据文件，单一事实源）
 
 列：太阁原词, 频率, 类别, 我们侧名, 类型, 语义, 参数, 实现用法, 状态
 - 我们侧名：干净的 DSL 映射名（Hero:: / Settlement.owner / kill_hero / exists），不带括号说明
@@ -55,7 +55,8 @@ ACTIONS = {
     'grant_merit': ('actor, value', '17（WorldActionExecutor Scenario 层）'), 'set_title': ('actor, titleId', '17'),
     'promote': ('actor', '17'), 'cutscene': ('sceneId, textKey', '05'), 'perform': ('compiledId', '05'),
     'scene_enter': ('sceneId', '05'), 'im_message': ('channel, actor, textKey', 'IM 管线'),
-    'battle': ('presetId', '03'), 'create_order': ('orderId', '13'), 'pause_time': ('无', '01 调度'),
+    'battle': ('presetId', '03'), 'duel': ('opponent, outcomeSlot', '03（个人战，CombatManager）'),
+    'create_order': ('orderId', '13'), 'pause_time': ('无', '01 调度'),
     'global_set': ('slot, 引用', '🔴 新加（存档）'),
 }
 
@@ -128,7 +129,7 @@ ACT_SEM = {
     'lock_party': '部队锁定', 'release_party': '释放部队', 'army_gather': '集结', 'teleport': '传送',
     'grant_troops': '给兵', 'gold_change': '金钱变更', 'grant_merit': '功勋增减', 'set_title': '设官职',
     'promote': '晋升', 'cutscene': '过场', 'perform': '预编译演出', 'scene_enter': '进入设施',
-    'im_message': '私信', 'battle': '程序化战斗', 'create_order': '主命作成', 'pause_time': '停止时间',
+    'im_message': '私信', 'battle': '程序化战斗', 'duel': '个人战（1v1）', 'create_order': '主命作成', 'pause_time': '停止时间',
     'global_set': '全局槽赋值',
 }
 
@@ -209,11 +210,20 @@ for k, v in cmds.most_common():
             break
     sem = CMD_SEM.get(label, CMD_SEM.get(side, ACT_SEM.get(side, k)))   # 语义：动作/演出/流程表，兜底词条名
     rows.append([k, v, '命令', side, '动作' if side in ACTIONS else '演出/流程/系统', sem, param, impl, status_of(label)])
+# ── mod 原生动作（无 TK5 命令源词——09b/01/09c 在用 token 登记，2026-08-26；追加为 CSV 命令行动作行）──
+MOD_NATIVE = ['set_flag', 'clear_flag', 'set_variable', 'global_set', 'declare_war', 'make_peace',
+              'spawn_clan', 'make_alliance', 'relation_change', 'change_clan', 'release_party',
+              'grant_troops', 'card_gain', 'card_lose', 'grant_merit', 'set_title', 'promote', 'duel']
+for tok in MOD_NATIVE:
+    param, impl = ACTIONS[tok]
+    st = '🔴 需新加/数据包' if tok == 'global_set' else '✅ 引擎/映射'
+    rows.append(['—', '—', '命令', tok, '动作', ACT_SEM.get(tok, tok), param, impl, st])
+
 # 谓词
 for k, (param, sem, st) in PREDICATES.items():
     rows.append([k, '—', '谓词', k, '谓词', sem, param, '谓词引擎（01 条件求值）', st])
 
-with open('plans/scenario-campaign-mode/16-DSL翻译总表.csv', 'w', encoding='utf-8-sig', newline='') as f:
+with open('plans/scenario-campaign-mode/16a-DSL翻译总表.csv', 'w', encoding='utf-8-sig', newline='') as f:
     w = csv.writer(f)
     w.writerow(['太阁原词', '频率', '类别', '我们侧名', '类型', '语义', '参数', '实现用法', '状态'])
     w.writerows(rows)
