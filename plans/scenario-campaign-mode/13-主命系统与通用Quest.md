@@ -15,7 +15,7 @@
 |---|---|---|
 | 原版 40 种 Issue/Quest | 正常运行，直接复用 | 完整任务管线 |
 | CommissionQuest（委托） | 16 种裁到 3（越狱/偷盗/搜刮） | 委托语义 |
-| **GenericQuest（旧主命）** | 🔴 已废弃（Obsolete）但代码完整：`QuestType` 30 种主命类型（筹粮/军马/铁炮/资金/讨伐/征兵/训练/掠夺/占领/开发/外交/侦查/破坏/人才/劝诱/修业/竞技场/护送/承诺）+ `QuestData` 通用目标字段（Type/TargetId/TargetCount/TargetHero/TargetSettlementId/本金/物资）+ 完整的事件监听/进度/奖惩实现 | 🔴 **主命数据模型和实现范本现成**，注释写明"等主命系统正式重构（Phase C）时迁移"——就是本 plan |
+| **GenericQuest（旧主命）** | 🔴 已废弃（Obsolete）但代码完整：`QuestType` 30 种主命类型（筹粮/军马/铁炮/资金/讨伐/征兵/训练/掠夺/占领/开发/外交/侦查/破坏/人才/劝诱/修业/竞技场/护送/承诺等）+ `QuestData` 通用目标字段（Type/TargetId/TargetCount/TargetHero/TargetSettlementId/本金/物资）+ 完整的事件监听/进度/奖惩实现 | 🔴 **主命数据模型和实现范本现成**，注释写明"等主命系统正式重构（Phase C）时迁移"——就是本 plan |
 | QuestConsequenceResolver（因果链） | ✅ 已实现，JSON 因果表驱动（完成 → 查表 → 生成后续事件/任务） | 因果链条 |
 | ScenarioQuest（剧本阶段） | 本工程新增 | 剧本阶段载体 |
 
@@ -27,7 +27,7 @@
 {
   "id": "master_order_theft",            // 任务模板 ID
   "type": "theft",                       // 任务类型（复用 QuestType 30 种 + 扩展）
-  "giver": { "relation": "lord" },       // 派发者（主公/委托NPC/剧情角色/因果）
+  "giver": { "relation": "lord" },       // 派发者（主公/委托NPC/剧情角色/因果）（顶层 = 派发者描述对象）
   "source": "master_order",              // 来源：主命 / 委托 / 剧情阶段 / 因果链
   "durationDays": 30,                    // 总期限
   "given": { "gold": 500 },              // 主公给的本金/物资
@@ -44,7 +44,7 @@
       "progress": { "listen": ["inventory_exchange"], "daily": false }, "next": 3 },
     { "name": "返回提交",
       "kind": "dialog",
-      "giver": "lord",
+      "giver": "lord",                            // （阶段内 = 上交对象标识字符串）
       "reward": { "gold": 1000, "relation": 5 }, "next": null }
   ],
   "onTimeout": { "relation": -15 },      // 超时惩罚（有本金贪污更重）
@@ -60,7 +60,7 @@
 
 ## 主命系统设计（跑在通用框架上）
 
-- **主命池**：剧本数据 `orders` 表（哪些任务模板可用、什么阶段解锁、谁派发）——太阁式：主公每月/周派 1-2 条
+- **主命池**：剧本数据 `orders` 表（哪些任务模板可用、什么阶段解锁、谁派发）——太阁式：主公**每月**派 1-2 条
 - **派发**：剧本节拍（05 的导演标注覆盖层/演出调度调起）→ 从主命池挑（按阶段/势力关系/玩家状态）→ 生成 UnifiedQuest（source=master_order，giver=主公）
 - **形态**：任务面板可见（标题/目标/期限/报酬）；接了给本金/物资（主公的信任）；完成回报（对话上交）；超时/失败扣关系（贪污本金更重）
 - **接/拒**：拒绝有代价（关系/剧本推进变慢）但**不强迫**（设计哲学：给压力不剥夺选择）
@@ -78,7 +78,7 @@
 |---|---|---|
 | 1 | QuestDef 格式（先冻结）+ 解析 | 样例任务数据能解析 |
 | 2 | UnifiedQuest 执行器（🔴 阶段链执行：每阶段目标/表现方式/进度监听/解锁下一阶段 + 奖惩，复用 GenericQuest 实现） | 控制台能创建并走完一个多阶段任务（接受→前往→执行→提交，任务面板显示当前阶段；完成/超时） |
-| 3 | 主命池数据（orders 表）+ 节拍派发（接 01） | 演示剧本：主公派发主命 → 任务面板可见 → 接/拒双路径 |
+| 3 | 主命池数据（orders 表）+ 节拍派发（接 01 事件引擎（trigger 注册）） | 演示剧本：主公派发主命 → 任务面板可见 → 接/拒双路径 |
 | 4 | 完成回报（对话上交）+ 惩罚（超时/失败/贪污） | 回报拿报酬；超时扣关系（有本金扣更多） |
 | 5 | 因果链接入（完成后走 QuestConsequenceResolver） | 完成主命 → 按因果表生成后续事件/任务 |
 | 6 | 剧本阶段任务并入（ScenarioQuest → UnifiedQuest source=scenario） | 剧情阶段在任务面板正常显示/推进 |
