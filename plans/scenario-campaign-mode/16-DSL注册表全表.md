@@ -7,9 +7,9 @@
 
 ## 文件分工（2026-08-26 重构后，单一所有权）
 
-- **词条翻译权威 = `16a-DSL翻译总表.csv`**（🔴 编号 16a = plan 16 的数据文件，与 plan 本体 `16-DSL注册表全表.md` 区分——文件夹惯例：字母后缀 = 主 plan 的子文件，先例 = 原 07a；442 行：域 42 / 属性 199 / 命令 192（TK5 语料 174 + mod 原生 18）/ 谓词 9；列 = 太阁原词·频率·类别·我们侧名·类型·语义·参数·实现用法·状态）——**查询词条翻译只看这一处**，域/属性/谓词/动作 token 全表都在 CSV。CSV 由 `tools/build_registry_csv.py` 程序化生成（复跑 `TK5AllEvents_merged.txt` + ACTIONS/MOD_NATIVE 字典）；改词条 = 改 `gen_registry_tables.py`/`build_registry_csv.py` 字典 + 重跑
+- **词条翻译权威 = `16a-DSL翻译总表.csv`**（🔴 编号 16a = plan 16 的数据文件，与 plan 本体 `16-DSL注册表全表.md` 区分——文件夹惯例：字母后缀 = 主 plan 的子文件，先例 = 原 07a；442 行：域 42 / 属性 199 / 命令 192（太阁5（简称 TK5）语料（从太阁5 事件文本统计出的词表） 174 + mod 原生 18）/ 谓词 9；列 = 太阁原词·频率·类别·我们侧名·类型·语义·参数·实现用法·状态）——**查询词条翻译只看这一处**，域/属性/谓词/动作 token 全表都在 CSV。CSV 由 `tools/build_registry_csv.py` 程序化生成（复跑 `TK5AllEvents_merged.txt` + ACTIONS/MOD_NATIVE 字典）；改词条 = 改 `gen_registry_tables.py`/`build_registry_csv.py` 字典 + 重跑
 - **本文件 = 机制权威**（CSV 装不下的）：§一 Ctx 三档作用域 ｜ §二 trigger/facility 注册表（🔴 2026-08-26 起**单所有权**，01 不再重复维护）
-- **01 = 语法规则/类型纪律/安全兜底**（怎么解析；trigger 调度模型/validator 检查项在 01，注册表数据在 16）；**08 = 转化流程**（怎么翻译）
+- **01 = 语法规则/类型纪律/安全兜底**（怎么解析；trigger 调度模型/validator（校验器，打包前检查剧本语法的工具）检查项在 01，注册表数据在 16）；**08 = 转化流程**（怎么翻译）
 - **步骤类型注册在 01 步骤类型表**（perform / inquiry / im_message / cutscene / wait / bgm / se / scene_enter / choice / effect）；**05/03 = 台本指令/战斗预设格式注册**（actor_enter/camera/actor_action 等引擎内部 token，无 TK5 源词，不入 CSV）
 - **表外用法 = 回填生成字典（见下方「CSV 编辑纪律」）+ 扩展 01 注册表**
 
@@ -120,8 +120,8 @@
 
 ## 三、覆盖结论
 
-- **Phase 1 可全覆盖**（除明确标注后续扩展）：6 操作符 + 9 引擎域（含 Ctx 代入槽 + 🔴 Event 事件域）+ 🔴 Card 能力卡域（数据包扩展）+ 全属性白名单 + 8 谓词（含 canPromote，17）+ 动作全表（CSV 命令区：TK5 映射 + mod 原生 18 行，含 grant_merit/set_title/promote 17、duel 03）
-- 🔴 **状态表达三层纪律（2026-08-25，权威 = 01 纪律节）**：①事件执行过 → `Event::<id>.done`（调度器自动，禁止手工 flag）②分支选择 → `Ctx::` 命名槽（事件内局部，`ctx_set` 写）③世界状态 → 游戏本体属性/谓词（`Hero.alive`/`Settlement.owner`/`atWar`）；`Flag::` 只留给跨事件持久自定义标记（战斗结算结果等）——违规实录与细节见 01
+- **Phase 1 可全覆盖**（除明确标注后续扩展）：6 操作符 + 9 引擎域（含 Ctx 代入槽 + 🔴 Event 事件域）+ 🔴 Card 能力卡域（数据包扩展）+ 全属性白名单 + 9 谓词（含 canPromote，17）+ 动作全表（CSV 命令区：TK5 映射 + mod 原生 18 行，含 grant_merit/set_title/promote 17、duel 03）
+- 🔴 **状态表达三层纪律（执行过 = `Event::<id>.done` / 分支选择 = `Ctx::` 命名槽 / 世界状态 = 本体属性与谓词，`Flag::` 只留跨事件标记）权威 = 01 纪律节**（违规实录与细节见 01）
 - **后续扩展**：容器 `pick` 谓词、组织扩展域（Org）、演出视觉元素（圖片/背景）
 - **纪律**：转化管线遇到表外模式 = 回填 CSV 词条/动作行（mod 原生动作 `太阁原词` 列 = `—`）+ 扩展 01 注册表（validator 同步更新）
 

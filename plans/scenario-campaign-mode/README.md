@@ -1,13 +1,13 @@
 # 历史战役剧本模式 — 总纲（会话交接版）
 
-> **状态: 📋 设计阶段（2026-08-24，全部 plan 待审核，未实施）**
+> **状态: 📋 设计阶段（2026-08-24；除 07 附录已审核外，全部 plan 待审核，未实施）**
 > 本文件是**会话交接文档**：新 session 接手本工程先读本文件（进度/裁定/DSL 要点都在这里），再按需打开对应 plan。
 
 ## 🔴 会话交接速读（30 秒版）
 
 1. **工程是什么**：让玩家在骑砍2 里玩"历史剧本"（太阁立志传/三国志式）——选剧本（桶狭间/本能寺）、扮演历史人物、事件按年份+条件触发、可改变历史（IF 线）。美术全用织丰 mod 现成资源，**只做编排不做新资源**
 2. **项目定位**：LWN 是**通用引擎**（权游/三国以后能用）——机制进 LWN 核心，LWN 只承担功能机制；🔴 **所有剧本文件 + 补充 XML 数据包（人物/城池/势力等）全部在 ShokuhoTaikouExpansionPack 补充包内开发产出**（worldview 铁律：核心零日战字串）
-3. **当前阶段**：**设计完成，15 个 plan + 2 附录全部 ⏳ 未审核，用户审核通过前禁止实施**（审核表见下）
+3. **当前阶段**：**设计完成，15 个 plan + 2 附录（除 07 附录 ✅ 已审核外）全部 ⏳ 未审核，用户审核通过前禁止实施**（审核表见下）
 4. **DSL 已定稿**（01/16）：条件 = 太阁式文本表达式（英文 token + **StringId 引用**，铁律 20）；事件 = condition + script 骨架（perform 引用演绎剧本、effect 带 when 步骤门控、**choice 在演绎剧本内**）；validator 自检查（01）
 5. **时间模型**：连续时间流（太阁5 模式，时间不跳；1560→1582 一局长档）；桶狭间后元康**独立+清洲同盟（对等）**，非"转投织田"
 
@@ -43,7 +43,7 @@
 4. **程序化战斗编排**：不手工做场景/点位，布局/装饰/agent/AI 全数据驱动但符合叙事（03）
 5. **资源只组合不造**（原版 + 织丰现成，07 素材表）
 6. **内容 = 剧本转化管线**（08：太阁5 事件包直译 + **任意题材原文直接提取成 01 DSL 剧本（无中间格式）**——三国演义走提取线；源 = `太閣立志傳5DX官方劇本解密-20220902/EVENT_TW/` 分剧本文件 169 个，**标准读取 = 单一合并文件 `Knowledge/太阁事件包/TK5AllEvents_merged.txt`（2594 个唯一事件号，编号 = 文件名_事件ID）** + 用户匹配资产库 taikou_final_v9_inference.xlsx）
-7. 🔴 **织丰接入 = 方案 A 依赖织丰嵌入剧本层（2026-08-25 裁定，07）**：反编译实测推翻旧"1.5.1 硬失败"结论（程序集/部分 API 兼容）；真机实测织丰 DLL 报 dependency conflict（AssemblyLoader 引用循环，根因已定位）→ **ShokuhoTaikouExpansionPack 补充包**（独立 mod/仓库，同一工作区、打包分开）= 兼容层（AssemblyLoader 补丁 + 依赖预加载，排织丰前加载）+ 剧本层（入口/时间覆盖/行为注入）。🔴 **2026-08-25 修正：方案 A 在 1.5.1 上不可行（07a 五轮实机）**——`GetTypes()` 86 个 1.2.12→1.5.1 API 签名差异（OpenBattleMission 2参→3参 等），织丰 DLL 无源码不可修，非 AssemblyLoader 层面问题；**1.2.12 上织丰原生可运行**（设计环境，用户 1.2.12 客户端库齐全）→ **剧本开发/运行环境 = 1.2.12**，补充包的实际用途 = 剧本层（等审核）；兼容层无使用场景（详见 [附录-织丰验证与兼容层历史](附录-织丰验证与兼容层历史.md)）；**方案 B 克隆注册层已废弃（2026-08-25 用户裁定）**
+7. 🔴 **织丰接入（2026-08-25 裁定，07）**——**决定：剧本开发/运行环境 = 1.2.12**（织丰在 1.2.12 原生可跑）；织丰 1.5.1 不可行（`GetTypes()` 86 个 API 签名差异，DLL 无源码不可修）；兼容层无使用场景；补充包（ShokuhoTaikouExpansionPack）实际用途 = 剧本层（入口/时间覆盖/行为注入，等审核）；**方案 B 克隆注册层已废弃**。验证过程详见 [附录-织丰验证与兼容层历史](附录-织丰验证与兼容层历史.md)
 8. 🔴 **时间连续流**（太阁5 模式）：时间不跳，事件按年份+条件自然发生；桶狭间与本能寺 = 同一时间轴章节；22 游戏年 = 正常长档；背景 drift 维持历史格局（14/02）
 9. 🔴 **史实修正**：桶狭间后元康**独立 + 清洲同盟（对等同盟）**，非"转投织田"；随后美浓（岐阜 1567）→上洛（1568）→长篠（1575）→本能寺（1582）
 10. **体验 3A 标准**（04）：玩家旅程/节奏（平静-升温-高潮-余波）/引导六通道/反馈闭环/失败有出路/阶段化任务链（禁止纯点点点）
@@ -51,7 +51,7 @@
 12. **StoryDialogVM 升级**（05）：废弃 = 可自由重制；UI 重构接近原版对话流风格 + 多 agent 互动（轮转/旁听/镜头跟随）；斩断 OnDialogClosed 旧链 + IM confirmFight 不碰重制版 Close()（铁律 16）
 13. **主命 = 通用 Quest 框架**（13）：整合五套任务机制（原版 40 种/CommissionQuest/旧主命 GenericQuest/因果链 QuestConsequenceResolver/剧情阶段）成 QuestDef 数据驱动统一框架；任务 = 多阶段链（stages）
 14. 🔴 **DSL 结构（01/16）**：条件 = 太阁式文本表达式（`调查:(據點::X)!=(據點::Y)` 转化而来）；**英文 token + StringId 引用（铁律 20，禁止显示名）**；值类型静态判定；属性（单值）vs 谓词（关系）分离；判断四形态（属性比较/裸布尔真值/存在性/关系谓词）
-15. 🔴 **事件 = condition + script 骨架**（01）：**骨架与内容分离**——事件 JSON 只放短骨架（条件 + perform 演绎引用 + 条件化 effect + cutscene/inquiry）；长对白/choice 在独立演绎剧本（StoryJson，05 编译）；**choice 是演绎的一部分**（在剧本内，选项设 flag）；IF 分支 = 选项 flag + 效果 when 门控
+15. 🔴 **事件 = condition + script 骨架**（01）：**骨架与内容分离**——事件 JSON 只放短骨架（条件 + perform 演绎引用 + 条件化 effect + cutscene/inquiry）；长对白/choice 在独立演绎剧本（StoryJson，05 编译）；**choice 是演绎的一部分**（在剧本内，选项默认写 Ctx 命名槽（ctx_set，01/16 纪律），跨事件持久才 set_flag）；IF 分支 = 选项 Ctx/Flag + 效果 when 门控
 16. **validator 自检查**（01）：事件脚本所有内容必须有正确定义——语法/注册表/引用 ID（已知清单）/类型匹配/flag 一致性/事件间引用/本地化 key/资源引用；错误阻断发布
 17. **动作统一管理观察**（16，待后续 plan）：剧本动作表（系统级）vs ActionRegistry（Agent 决策级）都调骑砍2 action 接口——统一方向 = 共享执行层 WorldActionExecutor + 两层入口（铁律 18 精神）
 18. **太阁覆盖全集**（16 对照总表）：6 操作符 + 域 42/属性 199/命令 192/谓词 9（CSV 实测，2026-08-26 更新——初稿 ~32 域/~50 属性为 2026-08-24 估算）+ 代入槽 Ctx（~15000 次代入命令，Phase 1 必须）+ Card 技能卡域 + 组织域（忍者待核对/海贼随海战/商家按需/**流派放弃**——骑砍2 战斗体系不大改，真实招式做不了）
@@ -59,11 +59,12 @@
 20. **功勋机制 = 家臣线只做**（用户 2026-08-24）：仿太阁5 功勋升级（04 第六节双成长线，机制见 17）；纯累计制（晋升不耗功勋）、按主公维度记账（换主公清零）、官职只解锁不禁（自由感）、大名支配力线后续 plan
 21. 🔴 **全工程分拆测试纪律**（用户 2026-08-24）：每个子系统先独立验证——运行时 = 控制台指令驱动（12 总纲 A1-A10 + 11 指令全集）、离线/内容 = validator 驱动（B1-B4）；**分拆全绿前禁止拼装测试**；拼装测试 = 从头新档玩家视角端到端跑通（禁指令），对应 12 各阶段验收清单
 22. 🔴 **3D 多视角三通道模型**（用户 2026-08-24）：不做太阁5 式"每视角一份完整演绎"（AVG 重放，3D 出戏 + 成本爆炸）；= ①世界结算唯一（01 纪律）②真实玩法共享（玩家阵营/站位 = 视角，03）③**事件只在玩家身上运行一次**（太阁5 同款互斥选路：玩家命中哪条哪条演，05 参与门控；**NPC 当事人从不演出** = 世界模拟结算）与渠道分发（IM 延迟失真/世界信号，情报必须来自渠道）；**当事人 = 玩法非演出**（义元被杀 = 真实战败 → 06 死亡继承）；玩家不在场事件照常发生（14 在场性）
-23. 🔴 **全时间轴人物池**（用户 2026-08-24）：人物数据 = 整个时间轴全集（**含时代点已死/未出生的**，07/08 产出）；时代重置 = 表驱动选择性激活（活着/未出生/已死三态，06）；**角色池 = 人物池 ∩ 可扮演标记 ∩ 时代存活**；人物池 = validator 已知 ID 清单来源（16）；亡者仍服务关系网/回忆/开场叙事/多时代可扮演。🔴 **现成数据源 = 骑砍2太阁Mod表_v1.xlsm.xlsx（TaikouHero 1960 人 × 125 列：骑砍ID StringId / 生年·终年 / 家系 / 9 剧本章节状态 = 阵营演变）**
+23. 🔴 **全时间轴人物池**（用户 2026-08-24）：人物数据 = 整个时间轴全集（**含时代点已死/未出生的**，07/08 产出）；时代重置 = 表驱动选择性激活（活着/未出生/已死三态，06）；**角色池 = 人物池 ∩ 时代存活**（🔴 2026-08-25 修正：人人可扮演——可扮演标记层已放宽为时代存活，06）；人物池 = validator 已知 ID 清单来源（16）；亡者仍服务关系网/回忆/开场叙事/多时代可扮演。🔴 **现成数据源 = 骑砍2太阁Mod表_v1.xlsm.xlsx（TaikouHero 1960 人 × 125 列：骑砍ID StringId / 生年·终年 / 家系 / 9 剧本章节状态 = 阵营演变）**
 24. 🔴 **模块职责划分**（用户 2026-08-25）：**所有剧本文件**（DSL 剧本/演绎剧本/编译产物/本地化文件）+ **补充 XML 数据包**（人物/城池/势力等）**全部在 ShokuhoTaikouExpansionPack 补充包内开发产出**；**LivingWorldNpcs = 功能机制**（引擎/机制层/通用转化工具框架），题材内容零进入核心——08 转化产物、09/10 剧本数据、附录-角色头像数据均按此归属
 
 ## DSL 要点速查（详细见 01 语法 + 16 注册表）
 
+> 🔴 not 行仅为语法演示：防重复由调度器自动处理（01 三层纪律），实际事件条件不写 not(Flag)。
 ```
 条件表达式：and( (Settlement::town_CHUB11.owner) == (Clan::clan_oda_1),
                  exists(Hero::lord_1_imagawa),
@@ -76,8 +77,8 @@
 事件结构：condition（条件）+ script（骨架）：
   perform（引用演绎剧本 playbackId）/ effect（带 when 步骤门控）/ cutscene / inquiry / im_message / scene_enter / wait·bgm·se
   🔴 trigger（发生时机 ∈ 16 §二 trigger 注册表）/ once（TK5 屬性:一次/多次）/ priority（TK5 屬性:…｜弱）为事件必填/默认字段——触发时机数据化，禁止只写注释（2026-08-26）
-演绎剧本（StoryJson）：sceneId + actors + lines（对白 + choice 节点——选项带 effect 设 flag + goto 分支线）
-动作：set_flag/clear_flag/set_variable/global_set/declare_war/make_peace/set_owner/kill_hero/spawn_hero/spawn_clan/fire_hero/change_clan/change_clan_leader/rename/destroy_faction/release_party/lock_party/army_gather/teleport/relation_change/make_alliance/gold_change/grant_merit/set_title/promote/create_order/battle/duel/im_message/cutscene/perform/scene_enter/pause_time...（全表 = 16a-DSL翻译总表.csv 命令区，TK5 映射 + mod 原生 18 行）
+演绎剧本（StoryJson）：sceneId + actors + lines（对白 + choice 节点——选项带 effect 写 Ctx 命名槽（跨事件持久才 set_flag）+ goto 分支线）
+动作：ctx_set/set_flag/clear_flag/set_variable/global_set/declare_war/make_peace/set_owner/kill_hero/spawn_hero/spawn_clan/fire_hero/change_clan/change_clan_leader/rename/destroy_faction/release_party/lock_party/army_gather/teleport/relation_change/make_alliance/gold_change/grant_merit/set_title/promote/create_order/battle/duel/im_message/cutscene/perform/scene_enter/pause_time...（全表 = 16a-DSL翻译总表.csv 命令区，TK5 映射 + mod 原生 18 行）
 validator：打包前跑，错误阻断；引用 ID 查已知清单；类型匹配静态检查
 ```
 
