@@ -53,15 +53,15 @@
 ```
 
 **核心原则**：
-- **QuestDef 数据驱动**（像因果链那样 JSON 定义），C# 侧只有一个统一的任务类（UnifiedQuest : QuestBase）负责执行
+- **QuestDef 数据驱动**（像因果链那样 JSON 定义），代码侧只有一个统一的任务类（UnifiedQuest : QuestBase）负责执行
 - 🔴 **任务 = 阶段链**：stages 数组（每阶段：名字/表现方式 kind/目标/进度监听/下一阶段），完成当前解锁下一个——任务面板随时显示"当前阶段"，玩家每一步都知道去哪、干什么（对应 04 的阶段化任务链）
 - **目标/进度/奖惩通用化**：QuestData 的通用字段设计保留（TargetId/Count/Hero/Settlement/StartValue/Given*），补上"阶段链 + 进度监听声明 + 完成后后续"
-- **五套并入一套**：主命（GenericQuest 复活重构）→ UnifiedQuest；委托（CommissionQuest）→ 语义并入；剧情阶段（ScenarioQuest）→ 也是 UnifiedQuest 的一种 source；原版 40 种**不动**（引擎原生，复用即可）；因果链（QuestConsequenceResolver）→ 保留，作为"完成后后续"的执行器
+- **五套并入一套**：主命（GenericQuest 复活重构）→ UnifiedQuest；委托（CommissionQuest）→ 委托能力迁入统一框架；剧情阶段（ScenarioQuest）→ 也是 UnifiedQuest 的一种 source；原版 40 种**不动**（引擎原生，复用即可）；因果链（QuestConsequenceResolver）→ 保留，作为"完成后后续"的执行器
 
 ## 主命系统设计（跑在通用框架上）
 
 - **主命池**：剧本数据 `orders` 表（哪些任务模板可用、什么阶段解锁、谁派发）——太阁式：主公每月/周派 1-2 条
-- **派发**：剧本节拍（01 的 ScenarioDirector 调起）→ 从主命池挑（按阶段/势力关系/玩家状态）→ 生成 UnifiedQuest（source=master_order，giver=主公）
+- **派发**：剧本节拍（05 的导演标注覆盖层/演出调度调起）→ 从主命池挑（按阶段/势力关系/玩家状态）→ 生成 UnifiedQuest（source=master_order，giver=主公）
 - **形态**：任务面板可见（标题/目标/期限/报酬）；接了给本金/物资（主公的信任）；完成回报（对话上交）；超时/失败扣关系（贪污本金更重）
 - **接/拒**：拒绝有代价（关系/剧本推进变慢）但**不强迫**（设计哲学：给压力不剥夺选择）
 - **与剧本的关系**：主命是"可选推进器"——完成主命加速剧本走向（触发条件提前）；不接等时间窗自然成熟
@@ -86,7 +86,7 @@
 
 ## 做完怎么验收
 
-> 🔴 分拆验证（12 总纲 A8）：`custom.quest_spawn <questId>` → `custom.quest_complete` / `custom.quest_fail`（含超时、拒绝路径、minTitle 过滤、功勋报酬）；拼装验收 = 12 Phase 1。分拆全绿前不拼装。
+> 🔴 分拆验证（12 总纲 A8）：`custom.quest_spawn <questId>` → `custom.quest_complete` / `custom.quest_fail`（含超时、拒绝路径、minTitle 过滤（按最低身份限制过滤）、功勋报酬）；拼装验收 = 12 Phase 1。分拆全绿前不拼装。
 
 1. 五套并存的现状 → 一套通用框架（原版 40 种除外，保持不动）
 2. 主命全流程：派发 → 接 → 做（进度条）→ 回报（报酬）→ 超时/失败（惩罚）→ 完成后走因果链
@@ -96,7 +96,7 @@
 
 ## 要注意的坑
 
-- **GenericQuest 的旧存档兼容**：旧档里有进行中的 GenericQuest，反序列化需要类壳——迁移时保留壳（注释已写明），别删类
+- **GenericQuest 的旧存档兼容**：旧档里有进行中的 GenericQuest，读存档还原任务时需要旧类结构壳（只为读旧存档保留，不挂业务）——迁移时保留壳（注释已写明），别删类
 - QuestType 30 种主命类型是日式语义（铁炮/军资金）——QuestDef 里保留为"任务模板库"，题材名走数据包，代码无日式字串
 - 进度监听声明化（QuestDef 里声明监听哪些事件）——避免像 GenericQuest 那样按类型 switch 写死监听
 - 任务上限：通用框架要防任务刷屏（主命 1-2 条 + 委托 + 剧情阶段，控制总量）
