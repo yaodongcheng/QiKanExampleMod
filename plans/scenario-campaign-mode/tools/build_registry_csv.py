@@ -25,7 +25,7 @@ for line in txt.splitlines():
 # ── 属性类型（16 属性白名单类型列）──
 ATTR_TYPES = {
     'year': '数字', 'month': '数字', 'day': '数字',
-    'owner': '角色引用', 'clan': '家族引用', 'faction': '势力引用', 'type': '枚举', 'region': '引用',
+    'owner': '势力引用', 'clan': '家族引用', 'faction': '势力引用', 'type': '枚举', 'region': '引用',
     'garrison': '数字', 'food': '数字', 'prosperity': '数字', 'security': '数字', 'position': '位置',
     'defense': '数字', 'morale': '数字', 'funds': '数字', 'training': '数字', 'rebellion': '布尔',
     'materials': '数字/物品引用', 'kokudaka': '数字', 'mine': '数字', 'vessels': '数字',
@@ -97,7 +97,8 @@ ATTR_SEM = {
 
 # ── 命令常用中文语义（动作/演出/流程）──
 CMD_SEM = {
-    '05 lines[] speaker/textKey': '对白', 'condition 表达式（when→condition）': '条件判断', 'script 分支（choice/goto）': '分支选择',
+    '05 lines[] speaker/textKey': '对白', 'condition 表达式（when→condition）': '条件判断', 'script 分支（if 步骤，01 骨架）': '条件分支',
+    'script 分支（主人公分派，01/05）': '按主人公分派',
     '动作/ctx_set（16 动作表）': '变量/槽赋值', '05 narrator 行': '旁白', '05 bgm 指令（异步）': 'BGM', '05 se 指令': '音效',
     '05 视觉': '视觉/立绘', '05 消息控制': '消息控制', '05 choice 节点': '玩家选择', '05 choice 门控': '选择门控',
     '05 choice 门控（narrator）': '旁白选择', '05 变名节点（动作表现+台词）': '变名对白', '05 文本变量': '文本变量',
@@ -115,7 +116,7 @@ CMD_SEM = {
     '🔴 海战扩展': '海战（扩展）', '🔴 降级（骑砍2 无对应小游戏）': '小游戏（降级）', '🔴 Variable 暂存（降级）': '变量暂存',
     '🔴 属性暂存（降级）': '属性暂存', '🔴 解析碎片（忽略）': '解析碎片', '🔴 降级（无对应）': '数字输入（降级）',
     '13 事件主命（QuestDef）': '事件主命', '🔴 13 主命解除（QuestDef）': '解除主命', '🔴 低频 → 降级/忽略': '低频杂项（降级）',
-    '05 演出环境（数据包）': '环境变量', '🔴 场景退出（05）': '离开设施',
+    '05 演出环境（数据包）': '环境变量', 'scene_exit 动作（05 场景退出）': '离开设施',
 }
 
 

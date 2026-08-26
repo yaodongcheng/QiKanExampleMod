@@ -8,9 +8,9 @@
 ## 文件分工（2026-08-26 重构后，单一所有权）
 
 - **词条翻译权威 = `16a-DSL翻译总表.csv`**（🔴 编号 16a = plan 16 的数据文件，与 plan 本体 `16-DSL注册表全表.md` 区分——文件夹惯例：字母后缀 = 主 plan 的子文件，先例 = 原 07a；442 行：域 42 / 属性 199 / 命令 192（太阁5（简称 TK5）语料（从太阁5 事件文本统计出的词表） 174 + mod 原生 18）/ 谓词 9；列 = 太阁原词·频率·类别·我们侧名·类型·语义·参数·实现用法·状态）——**查询词条翻译只看这一处**，域/属性/谓词/动作 token 全表都在 CSV。CSV 由 `tools/build_registry_csv.py` 程序化生成（复跑 `TK5AllEvents_merged.txt` + ACTIONS/MOD_NATIVE 字典）；改词条 = 改 `gen_registry_tables.py`/`build_registry_csv.py` 字典 + 重跑
-- **本文件 = 机制权威**（CSV 装不下的）：§一 Ctx 三档作用域 ｜ §二 trigger/facility 注册表（🔴 2026-08-26 起**单所有权**，01 不再重复维护）
+- **本文件 = 机制权威**（CSV 装不下的）：§一 Ctx 三档作用域 ｜ §二 trigger/facility 注册表 ｜ §三 谓词注册表（🔴 2026-08-26 起**单所有权**，01 不再重复维护——trigger/facility 2026-08-26 先例）
 - **01 = 语法规则/类型纪律/安全兜底**（怎么解析；trigger 调度模型/validator（校验器，打包前检查剧本语法的工具）检查项在 01，注册表数据在 16）；**08 = 转化流程**（怎么翻译）
-- **步骤类型注册在 01 步骤类型表**（perform / inquiry / im_message / cutscene / wait / bgm / se / scene_enter / choice / effect）；**05/03 = 台本指令/战斗预设格式注册**（actor_enter/camera/actor_action 等引擎内部 token，无 TK5 源词，不入 CSV）
+- **步骤类型注册在 01 步骤类型表**（perform / inquiry / im_message / cutscene / wait / bgm / se / scene_enter / choice / 🔴 if / effect）；**05/03 = 台本指令/战斗预设格式注册**（actor_enter/camera/actor_action 等引擎内部 token，无 TK5 源词，不入 CSV）
 - **表外用法 = 回填生成字典（见下方「CSV 编辑纪律」）+ 扩展 01 注册表**
 
 ## 🔴 CSV 编辑纪律（16a 是纯生成物，禁止直接编辑）
@@ -118,7 +118,34 @@
 
 纪律：①边缘设施不假装有场景——翻译时降级 menu_dialogue；②house 自宅 = 织丰御殿/城主间顶替是既定方案（09b opening 先例），07 素材表确认后登记正式映射；③映射表两轮策略（预设场景名 → predicate 兜底，铁律 5）；④翻译对照：`室內畫面表示後(無效,酒場)` → `"trigger": "house_enter", "facility": "tavern"`。
 
-## 三、覆盖结论
+## 三、谓词注册表（单所有权，2026-08-26 起）
+
+> 关系判断（带参函数，直接布尔）——与属性区分：属性是单值、谓词是关系。**token/频率/状态权威 = 16a CSV 谓词区**（9 个，本表为人读摘要）；语法语义（条件求值、四形态判断）见 01。**新谓词 = CSV 回填字典加行 + 实现（01 条件求值）**。
+
+| 谓词 | 参数 | 语义 | 状态 |
+|---|---|---|---|
+| exists | 引用 | 对象存在 | ✅ 已设计 |
+| atWar | a, b（势力引用） | a 与 b 交战 | ✅ 已设计 |
+| isAllied | a, b（势力引用） | a 与 b 同盟 | 注册表加行 |
+| isNeighbor | a, b（据点引用） | a 与 b 相邻 | 注册表加行 |
+| hasRelation | hero, hero, op, 数字 | 亲密度比较 | 注册表加行 |
+| relation | a, b, op, 数字 | 势力间外交关系数值 | 注册表加行 |
+| hasMet | a, b（角色引用） | 是否认识 | 注册表加行 |
+| sameSettlement | hero, hero | 同据点 | 注册表加行 |
+| canPromote | hero | 功勋 ≥ 晋升链下一级阈值 | 注册表加行（17） |
+
+## 四、枚举注册表（值 token 权威，2026-08-26）
+
+> 枚举属性（类型 ∈ 01 值类型表：identity/gender/state/title…）的值 = **英文 token 字符串字面量**：`(Hero::X.identity) == "daimyo"`。🔴 **禁止中文/自由字符串**（铁律 20 + 类型纪律）——validator 检查：①比较对象类型 = 枚举属性 ②字符串值 ∈ 对应枚举注册表（静态可查）。值表 v1 见下；全量复跑 = 语料 `身份::` 统计（复跑节命令），08 转化时按表翻 token，表外值 = 回填本表。
+
+| 枚举属性 | 值（token） | TK5 源词（语料频次） | 状态 |
+|---|---|---|---|
+| identity（身份） | `daimyo` 大名(426) / `castle_lord` 城主(388) / `ronin` 浪人(246) / `province_lord` 國主(230) / `karou` 家老(132) / `general` 部將(86) / `master` 師範(77) / `ninja_chief` 頭(62) / `chief` 頭領(58) / `boss` 元締(50) / `senior_general` 侍大將(49) / `jounin` 上忍(35) / `foreman` 番頭(29) / `clerk` 手代(29) / `manager` 支配人(28) / `chunin` 中忍(28) | ~30 值全量 ⏳ 08 复跑补全 | v1 常用值；全量待补 |
+| gender（性别） | `male` / `female` | 男/女（语料写法待核对） | ⏳ 08 |
+| state（出现标志） | 待定 | 出現標誌 | ⏳ 08 |
+| title（官职） | 17 官职表产出 | 官職 | 17 |
+
+## 五、覆盖结论
 
 - **Phase 1 可全覆盖**（除明确标注后续扩展）：6 操作符 + 9 引擎域（含 Ctx 代入槽 + 🔴 Event 事件域）+ 🔴 Card 能力卡域（数据包扩展）+ 全属性白名单 + 9 谓词（含 canPromote，17）+ 动作全表（CSV 命令区：TK5 映射 + mod 原生 18 行，含 grant_merit/set_title/promote 17、duel 03）
 - 🔴 **状态表达三层纪律（执行过 = `Event::<id>.done` / 分支选择 = `Ctx::` 命名槽 / 世界状态 = 本体属性与谓词，`Flag::` 只留跨事件标记）权威 = 01 纪律节**（违规实录与细节见 01）

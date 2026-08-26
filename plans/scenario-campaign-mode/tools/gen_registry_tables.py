@@ -102,7 +102,7 @@ def attr_rule(name):
 # ═══ 命令 174 → 落点（精确表 + 规则兜底）═══
 CMD_MAP = {}
 CMD_EXACT = {
-    '對話': '05 lines[] speaker/textKey', '調查': 'condition 表达式（when→condition）', '分歧': 'script 分支（choice/goto）',
+    '對話': '05 lines[] speaker/textKey', '調查': 'condition 表达式（when→condition）', '分歧': 'script 分支（if 步骤，01 骨架）',
     '更新': '动作/ctx_set（16 动作表）', '旁白': '05 narrator 行', '容器篩選': '🔴 pick 谓词（后续扩展，首版静态引用）',
     '容器選擇': '🔴 pick 谓词（后续扩展）', '自語': '05 narrator/自语行', '容器設定': '🔴 pick 谓词（后续扩展）',
     'ＢＧＭ變更': '05 bgm 指令（异步）', '容器排除': '🔴 pick 谓词（后续扩展）', '事件': '事件 JSON id（头字段）',
@@ -110,11 +110,11 @@ CMD_EXACT = {
     '發生條件': '事件 JSON condition 字段（头字段）', '執行': '事件 JSON script（头字段）', '容器清理': '🔴 pick 谓词（后续扩展）',
     '脫出模塊': '🔴 流程控制（事件内循环，首版线性展开）', '循環': '🔴 流程控制（首版线性展开）',
     'ＡＮＤ調查': 'condition and(…)', 'ＯＲ調查': 'condition or(…)', '變名對話': '05 变名节点（动作表现+台词）',
-    '場合分歧': 'script 分支（choice/goto）', '關閉消息': '05 消息控制', '主人公分歧': 'script 分支（玩家选择）',
+    '場合分歧': 'script 分支（if 步骤，01 骨架）', '關閉消息': '05 消息控制', '主人公分歧': 'script 分支（主人公分派，01/05）',
     '主人公別': 'script 分支（玩家身份门控 when）', 'ＳＥ開始': '05 se 指令（异步）', '圖片表示': '05 视觉（立绘/过场）',
     '圖片消去': '05 视觉（立绘/过场）', '人物解雇': 'fire_hero 动作（16）', '軍團指令': '02 PartyBrain（lock_party/army_gather）',
     '武將死亡': 'kill_hero 动作（16）', '文字列設定': '05 文本变量', '人物登用': 'spawn_hero 动作（16）',
-    '離開設施': '🔴 场景退出（05）', '勢力滅亡': 'destroy_faction 动作（16）', '選擇': '05 choice 节点',
+    '離開設施': 'scene_exit 动作（05 场景退出）', '勢力滅亡': 'destroy_faction 动作（16）', '選擇': '05 choice 节点',
     '城主解任': 'set_owner 动作（16）', '軍團編成最強': '02 PartyBrain（army_gather）', '居城變更': '🔴 06 本城变更（Hero.home）',
     '進入設施': 'scene_enter 动作（05/16）', '容器排序': '🔴 pick 谓词（后续扩展）', '場合別': 'script 分支（when 门控）',
     '停止時間': 'pause_time 动作（01 调度）', '改名': 'rename 动作（16）', '背景變更': '05 场景切换', '遊戲中斷': '🔴 剧本结局（06/14）',
