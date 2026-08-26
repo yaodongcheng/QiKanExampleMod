@@ -87,7 +87,7 @@
 | house_enter | 室內畫面表示後（主人公據點,自宅/酒場…） | ✅ `OnMissionStarted` + facility 判定（场景名查「场景 → facility」映射表） | 🔴 设施参数 = 事件字段 facility（见下） |
 | council_start | 評定開始時 | 🔴 17 系统自定义事件（评定会开始） | 134 事件 |
 | travel_screen | 移動畫面表示後 | 🔴 **无原生对应**（实测 0 命中）→ 暂不注册，降级 daily + 移动中条件 | |
-| field_battle_start | 野戰開始時 | ✅ `OnMissionStarted` + `MissionMode.Battle` 判定 | 🔴 与 house_enter 同监听点分流（OnMissionStarted 分流模型见 01） |
+| field_battle_start | 野戰開始時 | 🔴 **02 锁军拦截遭遇（两军遭遇、进战斗前，Campaign 层）**（2026-08-26 修正：**不走 OnMissionStarted**——01 分流模型明确 field_battle_start 不在此列） | 演出在进战斗前发生（09b 野战开场主案：大地图立绘对白 → 解除拦截 → 进战役）；战斗内演出走 field_battle_end / 03 战斗内钩子 |
 | field_battle_end | 野戰結束時 | ✅ `CampaignEvents.OnPlayerBattleEnd` + 03 剧情战战果钩子 | |
 | siege_battle_start | 攻城戰開始時 | ✅ `OnMissionStarted` + `MissionMode.Siege` 判定 | |
 | siege_battle_end | 攻城戰結束時 | 🔴 03 战果结算钩子（同 field_battle_end 路径） | |
@@ -101,7 +101,7 @@
 
 | facility | TK5 设施 | 次数 | 场景落点 | 状态 |
 |---|---|---|---|---|
-| house | 自宅 | 229 | 🔴 原版无玩家住宅（实测 scn_player_house 0 命中）→ 织丰御殿/城主间顶替（09b opening 已用 sho_meeting_castle_a） | 🔴 07 素材表确认织丰住宅场景 |
+| house | 自宅 | 229（🔴 口径注 2026-08-26：229 = 自宅设施出现**总次数**；01/README 的 211 = 「室內畫面表示後(主人公據點,自宅)」**组合契機数**——两个口径不同，非矛盾） | 🔴 原版无玩家住宅（实测 scn_player_house 0 命中）→ 织丰御殿/城主间顶替（09b opening 已用 sho_meeting_castle_a） | 🔴 07 素材表确认织丰住宅场景 |
 | tavern | 酒場 | 45 | 原版 scn_*_tavern_a/b | ✅ |
 | castle_hall | 城主間 | 15 | 原版 scn_*_lords_hall / 织丰御殿 | ✅ |
 | council_room | 評定間 | — | 织丰御殿（09b 评定会已用） | ✅ |

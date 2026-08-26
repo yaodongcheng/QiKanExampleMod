@@ -382,7 +382,9 @@ def main():
                     # 🔴 白名单对称（2026-08-26）：多文件运行时，豁免行必须在其它文件也有原文落点
                     if len(args) > 1:
                         n2 = norm(text)
-                        if not any(n2 in c for op, c in pools.items() if op != md_path):
+                        # 🔴 2026-08-26 修正：与演出行检查同语义（子串匹配，非整条等值）——
+                        #   引用式注释携带原文（`// F26【秀吉】"…"`）norm 后 ≠ 源行纯文本，等值判断永远过不了
+                        if not any(n2 in cc for op, c in pools.items() if op != md_path for cc in c):
                             cross_miss.append((idx, reasons[0]))
                     continue
                 missing.append((idx, spk, text))
