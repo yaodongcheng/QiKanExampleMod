@@ -33,7 +33,8 @@ from gen_registry_tables import (ENUM_SETS, RES_SETS, RES_PREFIX, enum_side, arg
                                  DOMAIN_MAP, ATTR_MAP, CMD_MAP, FUNC_SIDE_NOARG,
                                  CALL_MAP, DOMAIN_VAL_MAP, PAIR_OVERRIDE, ENTITY_DOMAINS, SYNTAX_CMDS,
                                  SPECIAL_VALS, SPECIAL_TYPES,
-                                 domains, attr_pairs, domain_vals, calls, cmds,
+                                 domains, attr_pairs, attr_triples, domain_vals, calls, cmds,
+                                 DIGIT_ATTR, digit_attr_class,
                                  pair_side, val_side, call_side, verify_coverage)
 
 txt = open('Knowledge/太阁事件包/TK5AllEvents_merged.txt', encoding='utf-8').read()
@@ -468,11 +469,31 @@ for k, v in domains.most_common():
 #    侧名按语料域聚合多段；备注：侧名尾段 ∈ ATTR_TYPES（引擎查询器已有）→ ✅；否则 🔴 mod 需新增外置属性 ──
 attr_agg = {}       # 属性名 → [频率合计, [侧名段去重], {域集合}]
 attr_infer, attr_vals, bool_flag_attrs = infer_attr_types()     # 🔴 语料驱动值类型推断 + 枚举值集合（2026-08-27 用户裁定）
-for (d, a), c in attr_pairs.items():
+# 🔴 2026-08-27 patch13：纯数字属性位三分类（见 gen_registry_tables.digit_attr_class）——
+#   A = 真属性位（進 DIGIT_ATTR 专表，出属性行）；B = 域值的数字ID后缀（域::某个已登记的域值.编号，
+#   整体已由域值行覆盖，**不是属性**，不出行）；C = 转储的未具名原始 ID 对（主体也是纯数字），
+#   合并成一行说明，不逐个出行。旧版兜底 `attr.isdigit() → prefix.attr_N` 会把 B/C 也当属性，
+#   造出 `3 / 1 / 205…` 这类跨域拼接的垃圾行（自检形同虚设）。
+digit_b = digit_c = 0
+rawref = [0, [], set()]     # C 类合并行：[频率, 侧名段, 域集合]
+for (d, sj, a), c in attr_triples.items():
+    subj = sj.strip().splitlines()[-1] if sj.strip() else ''
     if a in CALL_MAP:
         continue        # 🔴 带参调用词条 = 函数（卡持有/外交同盟/全城壓制…，语料零无参形态），
                         #   只归函数区，不进属性区（2026-08-27 用户裁定）
-    side = pair_side(d, a)
+    if a.isdigit():
+        kls, side = digit_attr_class(d, a, subj)
+        if kls == 'B':
+            digit_b += c
+            continue
+        if kls == 'C':
+            digit_c += c
+            rawref[0] += c
+            if side not in rawref[1]:
+                rawref[1].append(side)
+            rawref[2].add(d)
+            continue
+    side = pair_side(d, a, subj)
     if side is None:
         continue        # 自检已报错（verify_coverage 在 main 里先行 exit）
     agg = attr_agg.setdefault(a, [0, [], set()])
@@ -529,7 +550,7 @@ for a, (c, sides, doms) in sorted(attr_agg.items(), key=lambda kv: -kv[1][0]):
         vs = [v for v, _ in attr_vals.get(a, Counter()).most_common(8)]
         if vs:
             sem = f'{sem}（TK5 拼写：{" / ".join(vs)} → true/false）'
-    if sides[0] == 'unknown':
+    if sides[0].startswith('unknown'):
         note = '🔴 解析碎片'
     elif all(s.split('.')[-1] not in ATTR_TYPES for s in sides):
         # 🔴 mod 需新增外置属性（用户裁定标注）；归属从侧名前缀推
@@ -544,7 +565,16 @@ for a, (c, sides, doms) in sorted(attr_agg.items(), key=lambda kv: -kv[1][0]):
         note = f'🔴 需新增（{owner}）'
     else:
         note = '✅ 引擎查询器'
+    for _d in doms:                     # 🔴 A 类数字属性位：语义列用 DIGIT_ATTR 的实测说明
+        if (_d, a) in DIGIT_ATTR:
+            sem = DIGIT_ATTR[(_d, a)][1]
+            break
     rows.append([a, c, '属性', dom_all, side_all, typ, sem, '—', note])
+if rawref[0]:
+    rows.append(['（純數字轉儲對）', rawref[0], '属性', ' / '.join(sorted(rawref[2])),
+                 ' / '.join(rawref[1]), '数字',
+                 'TK5 转储的未具名原始 ID 对（主体与属性位均为纯数字，无语义）——翻译时原样保留，不落我们侧字段',
+                 '—', '🔴 解析碎片'])
 
 # ── v2：域值行（域::值 形态：身份枚举/狀況值/命名槽）——实体域不生成行（名字表/fallback 的事）；
 #    太阁原词 = 纯值（元締），所属域列 = 域（身份）——第二列不掺符号（2026-08-27 用户裁定）──
@@ -780,6 +810,9 @@ for _line in txt.splitlines():
     for cm in re.finditer(r'\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]+)\(', s):
         if ('函数', cm.group(1)) in terms:
             example.setdefault(('函数', cm.group(1)), s)
+# 🔴 C 类合并行的例句：合并词条在语料里没有字面形态，直接给一条实测原句（2026-08-27）
+example.setdefault(('属性', '（純數字轉儲對）'), '調查:(環境變量::5270.88)-(主命屬性::5288.80)')
+
 for r in rows:
     if r[2] in ('枚举值', '文本变量'):
         ex = ENUM_EX.get(r[0], '')

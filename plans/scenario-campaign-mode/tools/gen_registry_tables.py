@@ -34,6 +34,14 @@ domain_vals = Counter(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::
 # 🔴 2026-08-27 用户裁定：`域::值.属性` 形态（流派::流派Ａ.宗家）——槽/具名值后跟属性访问，
 #   值也要提取为域值；值须以非数字开头（主命屬性::5288.80 的数字主体 5288 不提取，防垃圾行）
 domain_vals.update(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ][一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]{0,13})(?=\.)', body))
+# 🔴 2026-08-27 patch13：同一模式再抓一次「主体」——纯数字属性位（域::X.27）要靠主体形态
+#   三分类（真属性位 / 域值的数字ID后缀 / 转储原始数值引用），见 digit_attr_class()。
+#   模式与 attr_pairs 逐字一致（只多一个捕获组），故 (域,属性) 对集恒等，不会多出/漏掉词条。
+attr_triples = Counter(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::([^.（()）]+)\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)', body))
+ATTR_SUBJECTS = {}
+for (_d, _s, _a), _c in attr_triples.items():
+    ATTR_SUBJECTS.setdefault((_d, _a), Counter())[_s.strip().splitlines()[-1] if _s.strip() else ''] += _c
+
 # 带参调用：`域::主体.属性(参数)` → 函数候选（外交同盟/全城壓制…）
 calls = Counter(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()）]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]+)\(', body))
 cmds = Counter()
@@ -48,9 +56,9 @@ DOMAIN_MAP = {
     '事件': 'Event::done（引擎域，调度器记录）', '勢力': 'Faction::（引擎域）', '據點': 'Settlement::（引擎域）',
     '軍團': 'Army::（02 PartyBrain 受控集合）', '身份': 'Identity:: 枚举值（17）', '變量': 'Variable::（引擎域）',
     '狀況': 'Time:: + Flag::（引擎域）', '真偽': '布尔字面量',
-    '事件標誌': 'Flag::（引擎域）', '國': 'Settlement.region（Region）', '日數計數器': 'Time::day',
+    '事件標誌': 'Flag::（引擎域）', '國': 'Settlement.province（Region，省级）', '日數計數器': 'Time::counter_N（编号计时器，N = 太阁编号）',
     '海賊衆': 'Org::海賊衆（数据包，随海战）', '卡': 'Card::（数据包技能卡）', '物品': 'Item::（数据包映射表）',
-    '忍者衆': 'Org::忍者衆（数据包，07 核对）', '砦': 'Settlement::（type=砦）', '地方': 'Settlement.region',
+    '忍者衆': 'Org::忍者衆（数据包，07 核对）', '砦': 'Settlement::（type=砦）', '地方': 'Settlement.region（大区）',
     '交易品': 'Item::（数据包交易品）', '儲存號': 'Ctx/Variable（存档槽变量）', '官職': 'Hero.title（17 官职）',
     '流派': '🔴 数据包（流派系统，后续补充——2026-08-27 用户裁定：可能做，不放弃）', '主命': 'QuestDef（13 主命框架）', '町': 'Settlement::（type=町）',
     '官位': 'Hero.court_rank（17 官位品级链）', '商家': 'Org::商家（数据包，按需）', '里': 'Settlement::（type=里）',
@@ -83,7 +91,7 @@ PAIR_OVERRIDE = {
     '支配力': 'Clan.power / Org.power', '城数': 'Clan.settlements',
     '戰略': 'Clan.strategy / Org.strategy', '戰略目標': 'Clan.strategy_goal / Org.strategy_goal',
     '停止進攻': 'Clan.ceasefire', '大方針': 'Clan.policy / Org.policy', '大方針目標': 'Clan.policy_goal',
-    '朝廷貢献度': 'Clan.court_favor', '出奔計數器': 'Clan.deserter_count', '與主人公關係': 'relation',
+    '朝廷貢献度': 'Clan.court_favor', '出奔計數器': 'Clan.deserter_count',
     '本據': 'Faction.home / Org.home', '支持大名家': 'Org.supporter',
     '鐵甲船建造技術': 'Org.tech_vessel', '大型船建造技術': 'Org.tech_large_vessel',
     '商業圈数': 'Org.merchant_net', '本店': 'Org.hq',
@@ -95,22 +103,45 @@ PAIR_OVERRIDE = {
     '大型船舶数': 'Settlement.vessels_large', '主人': 'Settlement.owner',
     '攻め取りカウンタ': 'Settlement.attack', '地形': 'Settlement.terrain',
     '所屬忍者衆': 'Hero.ninja_group / Settlement.ninja_group', '所屬海賊衆': 'Hero.pirate_group / Settlement.pirate_group',
+    # 🔴 patch12（2026-08-27）侧名塌缩拆分：下列每组原先挤在一个侧名里，翻译器分不开、写回会串。
+    #   判定依据 = 语料值空间实测（据點種類 0~3 vs 據點類型 0~5；價值 2~7 品级 vs 價格 5000~65535 钱）。
+    '基準石高': 'Settlement.kokudaka_base',      # 基准石高 ≠ 現石高（Settlement.kokudaka）
+    '所屬國': 'Settlement.province',             # 国（省级）≠ 地方（大区，Settlement.region）
+    '據點種類': 'Settlement.kind',               # 取值 0~3，与 據點類型（0~5，Settlement.type）不同
+    '軍馬': 'Settlement.materials_horse / Army.materials_horse',
+    '鐵砲': 'Settlement.materials_gun / Army.materials_gun',
+    '大筒': 'Settlement.materials_cannon / Army.materials_cannon',
+    # Item 域
+    '價值': 'Item.value_grade',                  # 品级 2~7（≠ 價格 = 钱数，Item.price）
     # 軍團域（02 PartyBrain 受控集合）
     '軍團長': 'Army.leader', '武將': 'Army.general', '結果': 'Army.result',
     '士氣': 'Settlement.morale / Army.morale', '使用狀況': 'Army.state', '士兵數': 'Army.troops',
     '援軍對象軍團番號': 'Army.reinforce_id', '所屬勢力': 'Hero.faction / Army.faction',
-    '軍馬': 'Army.materials / Settlement.materials', '鐵砲': 'Settlement.materials / Army.materials', '軍團方針': 'Army.intent',
+    '軍團方針': 'Army.intent',
     # 人物域
     '主命狀態': 'Hero.quest_state', '承擔主命': 'Hero.quest_assigned',
     '主命目標': 'Hero.quest_goal', '主命期限': 'Hero.quest_deadline',
     '事件参加可能': 'Hero.available', '認識標誌': 'Hero.known', '親密度': 'Hero.relation_to',
-    '仕官傾向': 'Hero.tendency', '義理': 'Hero.loyalty', '忠誠度': 'Hero.loyalty',
+    '仕官傾向': 'Hero.tendency', '忠誠度': 'Hero.loyalty',
+    # 🔴 patch12：7 个独立布尔标志原先全塌缩成 Hero.state（一个字段存七件事，写回必串）
+    '出現標誌': 'Hero.flag_appeared', '生病標誌': 'Hero.flag_sick',
+    '外出禁止標誌': 'Hero.flag_confined', '死刑標誌': 'Hero.flag_executed',
+    '仇敵標誌': 'Hero.flag_nemesis', '出撃標誌': 'Hero.flag_sortie',
+    '失蹤標誌': 'Hero.flag_missing',
+    # 🔴 patch12：4 种职业功勋各自独立（原先都叫 Hero.merit）
+    '武士功勳': 'Hero.merit_samurai', '忍者功勳': 'Hero.merit_ninja',
+    '商人功勳': 'Hero.merit_merchant', '海賊功勳': 'Hero.merit_pirate',
+    # 🔴 patch12：随身钱 ≠ 存款；忠诚 ≠ 义理；势力 ≠ 势力类型
+    '貯金': 'Hero.savings', '義理': 'Hero.honor',
+    '所屬勢力類型': 'Hero.faction_type',
+    # 🔴 patch12：對主人公的关系（属性形态）≠ 外交感情（带参调用，走 CALL_MAP → relation）
+    '與主人公關係': 'Clan.relation_to_player / Org.relation_to_player',
     '身份': 'Hero.identity',
     '統率力': 'Hero.leadership', '武力': 'Hero.might', '智謀': 'Hero.intellect',
     '政務': 'Hero.governance', '魅力': 'Hero.charm', '野心': 'Hero.ambition',
     '素統率力': 'Hero.leadership_base', '素武力': 'Hero.might_base',
     '素智謀': 'Hero.intellect_base', '素政務': 'Hero.governance_base', '素魅力': 'Hero.charm_base',
-    '所持金': 'Hero.gold', '貯金': 'Hero.gold',
+    '所持金': 'Hero.gold',
     '名聲': 'Hero.reputation', '悪名': 'Hero.infamy', '壽命': 'Hero.lifespan',
     '工作狀態': 'Hero.work_state', '工作目標': 'Hero.work_goal', '承擔工作': 'Hero.work_assigned',
     '類別': 'Hero.category', '卡持有': 'Hero.card_held',
@@ -125,7 +156,7 @@ PAIR_OVERRIDE = {
     '對手武將': 'Hero.rival', '劍勝利回数': 'Hero.sword_wins',
     '離家標誌': 'Hero.away_flag',          # 🔴 mod 需新增外置属性（引擎无，状态列标注）
     # 物品/交易品域（Item:: 数据包）
-    '所有者': 'Item.owner', '所有個数': 'Item.count', '價值': 'Item.price',
+    '所有者': 'Item.owner', '所有個数': 'Item.count',
     '價格': 'Item.price', '鑑定標誌': 'Item.appraised', '物品類型': 'Item.type',
     '補正值': 'Item.bonus', '交易品數量': 'Item.count',
     # 卡域 / 流派域（2026-08-24 用户裁定放弃真实招式；称号层走 Card，数据包降级）
@@ -387,7 +418,12 @@ def domain_val_rule(dom, val):
     if dom == '狀況':
         return f'Variable::{fallback_id(val)}'         # 全局状态值（除专表外）
     if dom == '日數計數器':
-        return 'Time::day'                             # 天数计数比较（日數計數器::X → 与天数计数比）
+        # 🔴 2026-08-27：编号计数器（语料实测 85 个全数字编号，用法 更新:(日數計數器::12)(0) /
+        #   調查:(日數計數器::14)>=(5)）——每个编号是**一个独立计时器**，与 事件標誌::N 同构。
+        #   旧版全部返回 Time::day = 85 个计数器塌缩成一个字段，写回必串。
+        if val.isdigit():
+            return f'Time::counter_{val}'
+        return f'Time::counter_{fallback_id(val)}'
     if dom == '變量':
         return f'Variable::{ascii_translit(val) or fallback_id(val)}'   # 全角→半角转写优先
     if dom == '儲存號':
@@ -486,6 +522,63 @@ ATTR_MAP = {
 }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴 纯数字属性位（2026-08-27 patch13，废掉「万能接收器」）
+#   旧规则 `if attr.isdigit(): return f'{prefix}.attr_{attr}'` 能接住任何数字 → 这一块的自检
+#   等于没查。现在按**主体形态**三分类，只有 A 类是真属性、且必须逐条登记：
+#     A 真数字属性位  —— 主体是实体/命名槽，取值空间有意义 → DIGIT_ATTR 逐条登记（表外 = 报错）
+#     B 域值的数字ID后缀 —— 主体是**已登记的域值**，`.N` 是 TK5 内部编号（官位::無效.3 /
+#        工作::助陣.5 / 天氣::晴.147）。它不是属性：整体就是那个域值，翻译期丢掉 .N。
+#        → 不产属性行（域值行已覆盖它），不算漏。
+#     C 转储原始数值引用 —— 主体也是纯数字（環境變量::5270.88），TK5 转储未命名的原始 ID 对。
+#        → 合并成 CSV 单行「解析碎片」，不逐个产行。
+# ═══════════════════════════════════════════════════════════════════════════
+# (域, 数字属性位) → (侧名, 语义)。语义 = 语料值空间实证，不臆测；未知处如实标注。
+DIGIT_ATTR = {
+    ('軍團', '27'):  ('Army.attr_27',   '军团目标据点槽（== 城::X / 據點::X）'),
+    ('交易品', '3'): ('Item.attr_3',    '交易品开关位（==1 / !=1，随 商業圈数 门控）'),
+    ('官職', '1'):   ('title.attr_1',   '官职现任者（== 人物::X / 人物::無效）'),
+    ('人物', '176'): ('Hero.attr_176',  '剑豪线布尔位（== 真偽::真/偽；主体为柳生/佐佐木等剑豪）'),
+    ('人物', '205'): ('Hero.attr_205',  '人物数值槽（婚礼改名时从原人物整体拷贝；家督让位赋 1154）'),
+    ('人物', '206'): ('Hero.attr_206',  '人物数值槽（与 205 成对拷贝/赋值）'),
+    ('軍團', '8'):   ('Army.attr_8',    '军团方针位（== 軍團方針::歸還；軍團方針 的数字位别名）'),
+    ('大名家', '10'): ('Clan.attr_10',  '大名家据点目标槽（与 戰略目標 并列写入同一据点）'),
+    ('人物', '207'): ('Hero.attr_207',  '主人公数值槽（剑豪线门槛 >=5 / >=15 / >=25）'),
+    ('大名家', '26'): ('Clan.attr_26',  '大名家位掩码槽（赋 31 / 2097183）'),
+    ('大名家', '24'): ('Clan.attr_24',  '大名家关联人物槽（== 商家Ａ.當主 / 今井宗久，御用商人形态）'),
+    ('軍團', '28'):  ('Army.attr_28',   '军团数值槽（赋 10000 / 30000，军资金形态）'),
+    ('人物', '94'):  ('Hero.attr_94',   '主人公数值槽（==0 / >500 / >4000）'),
+    ('大名家', '25'): ('Clan.attr_25',  '大名家数值槽（<1 / 赋 12）'),
+    ('人物', '161'): ('Hero.attr_161',  '主人公数值槽（赋 0 / 200 / 1000，与 所持金 同段写入）'),
+    ('人物', '118'): ('Hero.attr_118',  '主人公布尔位（== 真偽::真，事件门控）'),
+    ('人物', '148'): ('Hero.attr_148',  '主人公数值位（==0，与 事件標誌 同段门控）'),
+    ('人物', '154'): ('Hero.attr_154',  '主人公数值位（==1，每月处理门控）'),
+    ('地方', '1'):   ('Region.attr_1',  '地方支配大名家（== 大名家::X）'),
+}
+
+
+def digit_attr_class(dom, attr, subj=None):
+    """纯数字属性位三分类 → ('A'|'B'|'C'|None, 侧名)。subj=None 时只认 A（无主体信息不放行）。"""
+    if (dom, attr) in DIGIT_ATTR:
+        return 'A', DIGIT_ATTR[(dom, attr)][0]
+    if subj is None:
+        for sj in ATTR_SUBJECTS.get((dom, attr), ()):          # 无显式主体 → 用语料主体集判定
+            k, _ = digit_attr_class(dom, attr, sj)
+            if k:
+                return k, _
+        return None, None
+    if subj.isdigit():
+        return 'C', (PREFIX_BY_DOMAIN.get(dom) or 'obj') + '.raw_ref'
+    if val_side(dom, subj) is not None:
+        return 'B', val_side(dom, subj)                        # 整体 = 那个域值，.N 是内部编号
+    return None, None
+
+
+def halfwidth(t):
+    """全角数字 → 半角（武將２ 的 ２ → 2）。"""
+    return t.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
+
+
 def clean_side(raw):
     """旧表侧名清洗：'Settlement.garrison / Party 兵数' → 'Settlement.garrison'；去中文注释。"""
     s = raw.split(' / ')[0]
@@ -522,7 +615,7 @@ def side_candidates(attr):
 _FUNC_SIDES = ('exists', 'isAllied', 'isNeighbor', 'allControlled', 'hasMet', 'hasRelation', 'relation', 'unknown')
 
 
-def pair_side(dom, attr):
+def pair_side(dom, attr, subj=None):
     """(域, 属性) → 干净侧名。候选段按语料域前缀选段；无匹配段 = None（自检报错 = 域错配/表外）。"""
     prefix = PREFIX_BY_DOMAIN.get(dom)
     cands = side_candidates(attr)
@@ -540,18 +633,22 @@ def pair_side(dom, attr):
     if attr.endswith('技能'):
         tok = SKILL_TOKENS.get(attr[:-2]) or fallback_id(attr)
         return f'Hero.skill_{tok}'                          # 技能数值 0-100，数据包实现
+    if attr.startswith('未知'):
+        # 未知NN = 转储未命名的属性位（解析碎片）。保留编号——与 CALL_MAP 的 unknown_2/unknown_8 同口径。
+        mu = re.search(r'[0-9０-９]+', attr)
+        return 'unknown_' + halfwidth(mu.group(0)) if mu else 'unknown'
     if attr.isdigit():
-        # TK5 编号属性（交易品::玻璃瓶.3 / 人物::X.205 = 对象编号属性槽）；语义待 TK5 属性表核对
-        return f'{prefix or "obj"}.attr_{attr}'
+        return digit_attr_class(dom, attr, subj)[1]     # A/B/C 三分类；表外 = None = 生成期报错
     m = re.search(r'[0-9０-９]+', attr)
     if m:
+        num = halfwidth(m.group(0))
         base = attr[:m.start()] + attr[m.end():]            # 编号槽属性：武將２→武將、道場２主人→道場主人
         if base and base != attr:
             s = pair_side(dom, base)
             if s:
-                return s
-    if attr.startswith('未知'):
-        return 'unknown'                                    # 未知NN 解析碎片
+                # 🔴 2026-08-27 patch12：保留编号（武將２→Army.general_2、容貌１→Hero.appearance_1），
+                #   否则 2/3/4/5 号槽全塌缩成同一个侧名。带参调用形态走 CALL_MAP，不编号。
+                return s if attr in CALL_MAP else f'{s}_{num}'
     if dom == '人物' and attr.endswith('標誌') and not cands:
         return 'Hero.state'
     return None
@@ -1202,6 +1299,66 @@ TWIN_EXEMPT = {
 }
 
 
+# 🔴 属性侧名塌缩自检（2026-08-27 patch12）：同一个域内，两个不同的太阁属性映射到同一个
+#   我们侧字段 = 翻译器分不开、写回会串（旧塌缩断言只查词汇表，不查属性表，漏了整整一类）。
+#   数据源 = 语料实测的「域-属性」对 attr_pairs；真同义词写进 ATTR_SYNONYM_EXEMPT。
+ATTR_SYNONYM_EXEMPT = {
+    # (域, 属性A, 属性B) —— 确实是同一个字段的两种拼写，不是塌缩
+    ('人物', '裝備武器', '装備武器'),      # 繁/简两种转储拼写
+    ('人物', '裝備防具', '装備防具'),
+}
+
+
+def attr_synonym_collisions():
+    """返回 [(域, [属性…], 侧名)] —— 同域内多个属性共用一个侧名的塌缩清单。"""
+    by = {}
+    for (d, a), c in attr_pairs.items():
+        if a in CALL_MAP:
+            continue            # 带参调用形态归函数区，不产属性行（外交感情/未知8/國屬性1）
+        if a.isdigit() and digit_attr_class(d, a)[0] in ('B', 'C'):
+            continue            # B=域值的数字ID后缀 / C=转储原始数值引用：本就不是属性
+        sd = pair_side(d, a)
+        if sd is None:
+            continue            # 表外 → 由覆盖自检单独报错
+        by.setdefault((d, sd), []).append(a)
+    out = []
+    for (d, sd), attrs in sorted(by.items()):
+        if len(attrs) < 2:
+            continue
+        attrs = sorted(attrs)
+        if any((d, x, y) in ATTR_SYNONYM_EXEMPT or (d, y, x) in ATTR_SYNONYM_EXEMPT
+               for i, x in enumerate(attrs) for y in attrs[i + 1:]) and len(attrs) == 2:
+            continue
+        out.append((d, attrs, sd))
+    return out
+
+
+def val_synonym_collisions():
+    """同一个域内两个不同的域值共用一个侧名 = 塌缩（日數計數器::10/12 都叫 Time::day 那种）。"""
+    by = {}
+    for (d, v) in domain_vals:
+        if d in ENTITY_DOMAINS:
+            continue        # 具名实体域不进 CSV（走名字表）
+        sd = val_side(d, v)
+        if sd is None:
+            continue
+        by.setdefault((d, sd), set()).add(v)
+    return [(d, sorted(vs), sd) for (d, sd), vs in sorted(by.items()) if len(vs) > 1]
+
+
+def enum_member_collisions():
+    """同一个枚举里两个不同的太阁词共用一个成员名 = 塌缩。"""
+    out = []
+    for name, tbl in ENUM_SETS.items():
+        by = {}
+        for k, v in tbl.items():
+            by.setdefault(v, []).append(k)
+        for v, ks in sorted(by.items()):
+            if len(ks) > 1:
+                out.append((name, sorted(ks), v))
+    return out
+
+
 def all_vocabs():
     """所有词表 → {表名: {TK5 词: 侧名}}（域值 / 枚举 / 资源集）。"""
     out, dv = {}, {}
@@ -1238,9 +1395,10 @@ def twin_divergences():
 # ═══ 生成期自检：全语料覆盖断言（表外 = 生成失败）═══
 def verify_coverage():
     errors = []
-    for (d, a), c in attr_pairs.items():
-        if pair_side(d, a) is None:
-            errors.append(f'属性表外: {d}::{a} ×{c}')
+    for (d, sj, a), c in attr_triples.items():
+        subj = sj.strip().splitlines()[-1] if sj.strip() else ''
+        if pair_side(d, a, subj) is None:
+            errors.append(f'属性表外: {d}::{subj}.{a} ×{c}')
     for (d, v), c in domain_vals.items():
         if d in ENTITY_DOMAINS:
             continue        # 实体引用域：翻译器名字表/确定性兜底，不要求 CSV 行
@@ -1281,6 +1439,13 @@ def verify_coverage():
         want_ = {v_: s_ for (d_, v_), s_ in DOMAIN_VAL_MAP.items() if d_ == n_}
         if ENUM_SETS.get(n_) != want_:
             errors.append(f'词汇表分叉: ENUM_SETS[{n_}] 与 DOMAIN_VAL_MAP 的 {n_} 域值不一致')
+    for d_, attrs_, sd_ in attr_synonym_collisions():
+        errors.append(f'属性侧名塌缩: {d_} 域的 {"/".join(attrs_)} 共用侧名 {sd_}'
+                      f'（一个字段存多件事 → 翻译器分不开、写回会串；拆开或写进 ATTR_SYNONYM_EXEMPT）')
+    for d_, vals_, sd_ in val_synonym_collisions():
+        errors.append(f'域值侧名塌缩: {d_} 域的 {len(vals_)} 个值（{"/".join(vals_[:6])}…）共用侧名 {sd_}')
+    for e_, ks_, mb_ in enum_member_collisions():
+        errors.append(f'枚举成员塌缩: {e_} 里的 {"/".join(ks_)} 共用成员名 {mb_}')
     for w_, ka_, sa_, kb_, sb_ in twin_divergences():
         errors.append(f'跨表侧名分叉: {w_} 在 {ka_}={sa_} / {kb_}={sb_}'
                       f'（同一个词两个侧名 → 翻译器按哪个走？合并到单一词表，或写进 TWIN_EXEMPT）')
