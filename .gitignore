@@ -48,3 +48,7 @@ Debug/crash/
 Debug/dump_theft_ledger.txt
 Debug/save_report.txt
 *.sav
+# 转化器生成产物（tk5_to_json.py / stage_inject.py 随时可重生成，不跟踪）
+# 跟踪的只有 plan 文档 + py 脚本；审核记录.md 是文档，保留跟踪
+plans/scenario-campaign-mode/story_event_json/*
+!plans/scenario-campaign-mode/story_event_json/审核记录.md
