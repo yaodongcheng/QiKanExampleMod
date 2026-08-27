@@ -136,8 +136,10 @@ class Scanner:
                     self.note(self.gap_call, '%s::…%s()' % (dom, attr), line, lineno)
                 else:
                     self.consumed['函数调用'] += 1
-            elif G.pair_side(dom, attr) is None:
-                self.note(self.gap_attr, '%s::…%s' % (dom, attr), line, lineno)
+            elif G.pair_side(dom, attr, subj) is None:
+                # 🔴 patch13：带主体判定——纯数字属性位分三类（真属性位 / 域值的数字ID后缀 /
+                #   转储原始数值引用），不带主体判不出 B 类。
+                self.note(self.gap_attr, '%s::%s.%s' % (dom, subj, attr), line, lineno)
             else:
                 self.consumed['属性访问'] += 1
         if dom not in G.DOMAIN_MAP:
