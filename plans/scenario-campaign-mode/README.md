@@ -51,11 +51,11 @@
 11. **StoryEngine 执行器化 + StoryCompiler 预生成**（05）：编译期算好分幕/站位/镜头，运行时零扫描；导演标注覆盖层
 12. **StoryDialogVM 升级**（05）：废弃 = 可自由重制；UI 重构接近原版对话流风格 + 多 agent 互动（轮转/旁听/镜头跟随）；斩断 OnDialogClosed 旧链 + IM confirmFight 不碰重制版 Close()（铁律 16）
 13. **主命 = 通用 Quest 框架**（13）：整合五套任务机制（原版 40 种/CommissionQuest/旧主命 GenericQuest/因果链 QuestConsequenceResolver/剧情阶段）成 QuestDef 数据驱动统一框架；任务 = 多阶段链（stages）
-14. 🔴 **DSL 结构（01/16）**：条件 = 太阁式文本表达式（`调查:(據點::X)!=(據點::Y)` 转化而来）；**英文 token + StringId 引用（铁律 20，禁止显示名）**；值类型静态判定；属性（单值）vs 谓词（关系）分离；判断四形态（属性比较/裸布尔真值/存在性/关系谓词）
+14. 🔴 **DSL 结构（01/16）**：条件 = 太阁式文本表达式（`调查:(據點::X)!=(據點::Y)` 转化而来）；**英文 token + StringId 引用（铁律 20，禁止显示名）**；值类型静态判定；属性（单值）vs 函数（关系）分离；判断四形态（属性比较/裸布尔真值/存在性/关系函数）
 15. 🔴 **事件 = condition + script 骨架**（01）：**骨架与内容分离**——事件 JSON 只放短骨架（条件 + perform 演绎引用 + if 分支 + 条件化 effect + cutscene/inquiry）；长对白/choice 在独立演绎剧本（StoryJson，05 编译）；**choice 是演绎的一部分**（在剧本内，选项默认写 Ctx 命名槽（ctx_set，01/16 纪律），跨事件持久才 set_flag）；IF 分支 = 选项 Ctx + 骨架 `if` 步骤（🔴 2026-08-26：TK5 場合分歧 1:1 翻译——Agent 生产正确率优先，拍平漏 when = 静默语义错误；`when` 保留给参与门控/单命令条件）
 16. **validator 自检查**（01）：事件脚本所有内容必须有正确定义——语法/注册表/引用 ID（已知清单）/类型匹配/flag 一致性/事件间引用/本地化 key/资源引用；错误阻断发布
 17. **动作统一管理观察**（16，待后续 plan）：剧本动作表（系统级）vs ActionRegistry（Agent 决策级）都调骑砍2 action 接口——统一方向 = 共享执行层 WorldActionExecutor + 两层入口（铁律 18 精神）
-18. **太阁覆盖全集**（16 对照总表）：6 操作符 + 域 42/属性 199/命令 192/谓词 9（CSV 实测，2026-08-26 更新——初稿 ~32 域/~50 属性为 2026-08-24 估算）+ 代入槽 Ctx（~15000 次代入命令，Phase 1 必须）+ Card 技能卡域 + 组织域（忍者待核对/海贼随海战/商家按需/**流派放弃**——骑砍2 战斗体系不大改，真实招式做不了）
+18. **太阁覆盖全集**（16 对照总表）：6 操作符 + 域 42/属性 199/命令 192/函数 9（CSV 实测，2026-08-26 更新——初稿 ~32 域/~50 属性为 2026-08-24 估算）+ 代入槽 Ctx（~15000 次代入命令，Phase 1 必须）+ Card 技能卡域 + 组织域（忍者待核对/海贼随海战/商家按需/**流派放弃**——骑砍2 战斗体系不大改，真实招式做不了）
 19. **流派的取舍**：仁王式真实招式流派做不了（骑砍2 战斗体系不改），放弃；若只做称号层可走 Card 域
 20. **功勋机制 = 家臣线只做**（用户 2026-08-24）：仿太阁5 功勋升级（04 第六节双成长线，机制见 17）；纯累计制（晋升不耗功勋）、按主公维度记账（换主公清零）、官职只解锁不禁（自由感）、大名支配力线后续 plan
 21. 🔴 **全工程分拆测试纪律**（用户 2026-08-24）：每个子系统先独立验证——运行时 = 控制台指令驱动（12 总纲 A1-A11 + 11 指令全集）、离线/内容 = validator 驱动（B1-B4）；**分拆全绿前禁止拼装测试**；拼装测试 = 从头新档玩家视角端到端跑通（禁指令），对应 12 各阶段验收清单
@@ -74,8 +74,8 @@
                  not( (Flag::okehazama_started) == true ) )
   - 引用 = 域::StringId[.属性]（英文 token：Time/Settlement/Hero/Clan/Faction/Flag/Variable/Ctx）
   - 值类型静态判定；比较左右同型；> < 仅数字
-  - 属性（单值）vs 谓词（关系：exists/atWar/isAllied/isNeighbor/hasRelation/relation/hasMet/sameSettlement）
-  - 判断四形态：属性比较 / 裸布尔真值 (Hero::X.alive) / exists / 关系谓词
+  - 属性（单值）vs 函数（关系：exists/atWar/isAllied/isNeighbor/hasRelation/relation/hasMet/sameSettlement）
+  - 判断四形态：属性比较 / 裸布尔真值 (Hero::X.alive) / exists / 关系函数
 事件结构：condition（条件）+ script（骨架）：
   perform（引用演绎剧本 playbackId）/ 🔴 if（分支块，TK5 場合分歧 1:1，then/else）/ effect（带 when 步骤门控——参与门控与单命令条件）/ cutscene / inquiry / im_message / scene_enter / wait·bgm·se
   🔴 trigger（发生时机 ∈ 16 §二 trigger 注册表）/ once（TK5 屬性:一次/多次）/ priority（TK5 屬性:…｜弱）为事件必填/默认字段——触发时机数据化，禁止只写注释（2026-08-26）
@@ -88,7 +88,7 @@ validator：打包前跑，错误阻断；引用 ID 查已知清单；类型匹�
 
 > 任何剧本文件/演绎剧本/事件 JSON 的写作与审查，先过这七条——注册表外的 token 一律禁止落 JSON。
 
-1. **一切 token 先查注册表再写**：域/属性/谓词/动作 ∈ 16 注册表；演绎剧本指令（actor_action/face/camera/choice/async 等）∈ 05；`act` 值 ∈ 05 动作库注册表（`act → animId` 数据包定义，编译期校验 MBActionSet 枚举）；sceneId/playbackId/textKey ∈ 对应清单。**注册表外 = 禁止落 JSON**（validator 会阻断，但写的时候就该查，不是等 validator）
+1. **一切 token 先查注册表再写**：域/属性/函数/动作 ∈ 16 注册表；演绎剧本指令（actor_action/face/camera/choice/async 等）∈ 05；`act` 值 ∈ 05 动作库注册表（`act → animId` 数据包定义，编译期校验 MBActionSet 枚举）；sceneId/playbackId/textKey ∈ 对应清单。**注册表外 = 禁止落 JSON**（validator 会阻断，但写的时候就该查，不是等 validator）
 2. **注释描述的可执行动作必须落 JSON 字段**（`actor_action` 独立指令 / 对话节点 `action` / `face` 朝向 / `camera` 镜头），且字段值必须注册过；注释只留情绪/语气/动机提示——【玩家看到】注释描述了动作而 JSON 没有对应字段 = 欠账
 3. **禁止无机制消费方的字段**（如 tone——骑砍2 无角色语音）
 4. **写剧本前先看 16 注册表 + 05 动作能力模型 + 本文件 DSL 要点**；不确定的动作 → 标注"动作库待注册"或注释化，不假装能执行
@@ -121,8 +121,8 @@ validator：打包前跑，错误阻断；引用 ID 查已知清单；类型匹�
 | 13 主命系统与通用 Quest | QuestDef 数据驱动统一框架（多阶段链 stages）/五套机制整合 |
 | 14 历史时间轴与走向约束 | timeline 里程碑（年份+条件）/drift 导向性修正/偏离检测/脱轨→玩家塑造的历史 |
 | 15 时间轴中间事件 | 清洲同盟（含完整可执行定义范本）/美浓/上洛/长篠 |
-| 16 DSL 注册表全表 | 🔴 **太阁5 ↔ 骑砍2 唯一翻译大表**（2026-08-26 重构）：**事实源 = `16a-DSL翻译总表.csv`**（442 行：域 42/属性 199/命令 192（TK5 174 + mod 原生 18）/谓词 9，列 = 太阁原词·频率·类别·我们侧名·类型·语义·参数·实现用法·状态）——**查询词条翻译只看这一处**（含动作全表）；本 plan 其余 = 机制定义（Ctx 三档/trigger/facility 注册表，2026-08-26 起单所有权）；validator 读同一 CSV |
-| 17 功勋与晋升 | 家臣成长线：Merit 功勋/季度评定/canPromote 谓词/晋升链/官职效果（俸禄·权限·称呼·门控）/DSL 动作 |
+| 16 DSL 注册表全表 | 🔴 **太阁5 ↔ 骑砍2 唯一翻译大表**（2026-08-26 重构）：**事实源 = `16a-DSL翻译总表.csv`**（442 行：域 42/属性 199/命令 192（TK5 174 + mod 原生 18）/函数 9，列 = 太阁原词·频率·类别·我们侧名·类型·语义·参数·实现用法·状态）——**查询词条翻译只看这一处**（含动作全表）；本 plan 其余 = 机制定义（Ctx 三档/trigger/facility 注册表，2026-08-26 起单所有权）；validator 读同一 CSV |
+| 17 功勋与晋升 | 家臣成长线：Merit 功勋/季度评定/canPromote 函数/晋升链/官职效果（俸禄·权限·称呼·门控）/DSL 动作 |
 | 附录-角色头像生成 | 🔴 非前期必须（Phase 2+ 数据包）：AI 生成光荣风头像 + PNG 导入（custom-png-import-guide 已验证）——大地图 IM/多 agent 面板显示说话人头像；引擎侧只留占位 |
 | 附录-设计蓝图v5 | 历史设计依据存档（不追改；含全部调研依据） |
 

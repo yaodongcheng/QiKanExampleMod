@@ -24,7 +24,12 @@ namespace LivingWorldNpcs
     /// - 指纹判定：blob 空 或 指纹 ≠ 当前指纹 → 生成；否则置 Done
     /// - 主线程 BuildMaterialSnapshot + 记录战役纪元 → 线程池 ChatOnceAsync（maxTokens 600 /
     ///   30s / 非 JSON——默认 80 token 必截断 300 字）→ 结果入队 → 主线程 Tick 消费：
-    ///   校验纪元与指纹 → 解析单段（=== 世界格局 === 标记）→ 写 blob + 指纹 + [WorldBg] 日志。
+    ///   校验纪元与指纹 → 解析单段（=== 世界格局 === 标记）→ **内容质量校验**（🔴 2026-08-27：
+    ///   推理模型思考草稿不得入档）→ 写 blob + 指纹 + [WorldBg] 日志
+    /// - 🔴 失败废弃重试（2026-08-27 用户裁定）：生成结果不合格（无标记/空/疑似思考草稿）→
+    ///   不写 blob、不标指纹、状态回 **Idle**（下一轮轮询重新触发）——旧实现非空即成功，
+    ///   草稿也写指纹永久锁档（R1 实机：blob=500 字思考草稿，指纹匹配后 300s 巡检永不重生成）；
+    ///   连续失败达 MaxQualityFails → Failed（防模型始终出草稿时无限重试烧 token）。
     ///
     /// 异步纪律：LLM continuation 线程池 → 结果入队 → 主线程 Tick 消费（wheels.d/im.md:
     /// async-over-sync 死锁教训），主线程禁止同步等 LLM。
@@ -43,6 +48,13 @@ namespace LivingWorldNpcs
         private const float RecheckIntervalSeconds = 300f;
         private const int MaxTokens = 600;
         private const int TimeoutMs = 30000;
+        /// <summary>连续质量失败上限（🔴 2026-08-27）：达上限置 Failed 本会话收工——
+        /// 模型始终输出思考草稿（推理模型/代理不剥离 reasoning）时，重试每 15s 一次全量 LLM 调用，
+        /// 不封顶会无限烧 token；上限内回 Idle 重试，给格式性失败留自愈空间。</summary>
+        private const int MaxQualityFails = 3;
+
+        /// <summary>连续质量失败计数（实例字段：进档天然复位；成功清零）。</summary>
+        private int _qualityFailCount;
 
         /// <summary>墙钟驱动入口（ImChatView.Tick 每帧调用，Mission/Campaign 双端；null = 未进档）。</summary>
         public static WorldBackgroundBehavior Instance { get; private set; }
@@ -228,14 +240,31 @@ namespace LivingWorldNpcs
                     CurrentState = State.Idle;
                     return;
                 }
-                // ③ 解析单段（=== 世界格局 === 标记）
+                // ③ 解析单段（=== 世界格局 === 标记）+ 内容质量校验
                 string blob = ParseSingleSection(raw);
-                if (string.IsNullOrWhiteSpace(blob))
+                bool qualityBad = string.IsNullOrWhiteSpace(blob) || LooksLikeReasoningDraft(blob);
+                if (qualityBad)
                 {
-                    DebugLogger.Log("[WorldBg] 解析失败（无 === 世界格局 === 标记或内容为空）→ Failed");
-                    CurrentState = State.Failed;
+                    // 🔴 2026-08-27（玩家实机：R1 推理草稿污染 blob=500 字，指纹锁档）：生成失败必须废弃重试——
+                    // 旧实现「非空即成功」：思考草稿也写 blob + 指纹 + Done → 指纹匹配后 300s 巡检永不重生成，
+                    // 垃圾世界观永久沿用（每个 NPC prompt 的【世界观】段都是"我得避开这些话题…"草稿）。
+                    // 现在：不写 blob、不标指纹、状态回 Idle（15s 后重新触发）；
+                    // 连续失败达 MaxQualityFails → Failed（模型始终出草稿时防无限重试烧 token）。
+                    _qualityFailCount++;
+                    _accumDt = 0f;   // 重试间隔重新计时（干净 15s 空隙）
+                    if (_qualityFailCount >= MaxQualityFails)
+                    {
+                        DebugLogger.Log($"[WorldBg] 生成结果连续 {_qualityFailCount} 次不合格（疑似推理模型思考草稿，请换非推理模型）→ Failed（本会话不再重试）：{TruncateLog(blob)}");
+                        CurrentState = State.Failed;
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"[WorldBg] 生成结果不合格（无标记/空/疑似思考草稿）→ 废弃本轮，重新触发（第 {_qualityFailCount}/{MaxQualityFails} 次）：{TruncateLog(blob)}");
+                        CurrentState = State.Idle;
+                    }
                     return;
                 }
+                _qualityFailCount = 0;
                 // 上限 500 字（UTF-8 约 1.5KB，远低于 SaveStringGuard 30000）
                 if (blob.Length > 500) blob = blob.Substring(0, 500);
                 WorldBackgroundStore.Blob = blob;
@@ -259,6 +288,32 @@ namespace LivingWorldNpcs
             // 跳过标记行（可能整行 = "=== 世界格局 ===" 或 "=== 世界格局 ===" 后跟正文）
             int after = raw.IndexOf('\n', idx);
             return after < 0 ? raw.Substring(idx).Trim() : raw.Substring(after + 1).Trim();
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-27（玩家实机：R1 推理草稿污染）：思考草稿特征判定。
+        /// 推理模型（DeepSeek-R1 系）的 reasoning 经中转代理未剥离时直接进 content——
+        /// 标题下正文就是"我得避开这些话题…首先，我得确定时间范围…"式元认知草稿，
+        /// 非空 ≠ 成品。命中任一特征词 → 判为草稿，不得入档。
+        /// 特征词全为元认知口吻（我该如何写/用户要求什么），正常世界格局正文不会出现。
+        /// </summary>
+        private static bool LooksLikeReasoningDraft(string blob)
+        {
+            if (string.IsNullOrEmpty(blob)) return false;
+            foreach (var marker in DraftMarkers)
+                if (blob.Contains(marker))
+                    return true;
+            return false;
+        }
+
+        /// <summary>思考草稿特征词表（元认知口吻；命中即废弃重试）。</summary>
+        private static readonly string[] DraftMarkers = { "我得", "我需要", "用户要求", "我必须", "所以我需要" };
+
+        /// <summary>日志截断（失败日志不打整段 500 字草稿，留头 120 字足够定位）。</summary>
+        private static string TruncateLog(string s, int max = 120)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Length <= max ? s : s.Substring(0, max) + "…";
         }
 
         /// <summary>调试指令用：清空 blob 强制重生成（状态复位）。</summary>

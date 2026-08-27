@@ -4,7 +4,7 @@
 🔴 v2（2026-08-27 结构性修复）：属性表从「属性名 → 单一侧名」改为「(域, 属性) → 侧名」二维——
    旧版正则 `::X.属性` 丢弃域前缀，导致跨域同名属性只登记一条且侧名域错配
    （大名家.本城 2298 次被登记成 人物域 Hero.home → 下游全部 🔴待注册）。
-   同时新增「域::值」形态提取（身份枚举/狀況值/命名槽）与带参调用提取（谓词候选），
+   同时新增「域::值」形态提取（身份枚举/狀況值/命名槽）与带参调用提取（函数候选），
    并在生成期跑全语料覆盖自检：**表外词条 = 生成失败，禁止带病产出**（下游不再可能出现待注册）。
 """
 import hashlib
@@ -13,15 +13,18 @@ import sys
 from collections import Counter
 
 txt = open('Knowledge/太阁事件包/TK5AllEvents_merged.txt', encoding='utf-8').read()
+# 🔴 提取前过滤注释行（# 开头——文件名/说明行含 事件:: 等字样且全角右括号不在排除集，
+#   贪婪跨行匹配会污染词条：evm 就是 `# 文件内事件标志引用（事件::N）…EC500000.evm` 提取出来的，2026-08-27 用户裁定）
+body = '\n'.join(l for l in txt.splitlines() if not l.strip().startswith('#'))
 
 # ═══ 提取（v2：保留域维度）═══
-domains = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::', txt))
+domains = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::', body))
 # (域, 属性) 对：`域::主体.属性`（属性名保留原域，跨域同名属性各行一条；含全角数字：武將２）
-attr_pairs = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]+)', txt))
+attr_pairs = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()）]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]+)', body))
 # 域::值（无主体无点）：身份枚举 / 狀況值 / 命名槽（據點::主人公當主據點）——旧版零提取
-domain_vals = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]{1,14})(?=[),，）])', txt))
-# 带参调用：`域::主体.属性(参数)` → 谓词候选（外交同盟/全城壓制…）
-calls = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ]+)\(', txt))
+domain_vals = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]{1,14})(?=[),，）])', body))
+# 带参调用：`域::主体.属性(参数)` → 函数候选（外交同盟/全城壓制…）
+calls = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()）]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ]+)\(', body))
 cmds = Counter()
 for line in txt.splitlines():
     m = re.match(r'^\s*([一-鿿Ａ-Ｚａ-ｚA-Za-z]{2,8}):', line)
@@ -38,7 +41,7 @@ DOMAIN_MAP = {
     '海賊衆': 'Org::海賊衆（数据包，随海战）', '卡': 'Card::（数据包技能卡）', '物品': 'Item::（数据包映射表）',
     '忍者衆': 'Org::忍者衆（数据包，07 核对）', '砦': 'Settlement::（type=砦）', '地方': 'Settlement.region',
     '交易品': 'Item::（数据包交易品）', '儲存號': 'Ctx/Variable（存档槽变量）', '官職': 'Hero.title（17 官职）',
-    '流派': '❌ 放弃（2026-08-24 用户裁定）', '主命': 'QuestDef（13 主命框架）', '町': 'Settlement::（type=町）',
+    '流派': '🔴 数据包（流派系统，后续补充——2026-08-27 用户裁定：可能做，不放弃）', '主命': 'QuestDef（13 主命框架）', '町': 'Settlement::（type=町）',
     '官位': 'Hero.title（17）', '商家': 'Org::商家（数据包，按需）', '里': 'Settlement::（type=里）',
     '天氣': '03 预设 weather（数据包）', '場面': '05 演出形态（scene/menu_dialogue）', '軍團方針': '02 PartyIntent（新加）',
     '工作': '13 主命/工作（QuestDef）', '人物類別': '枚举字面量', '事件主命': '13 事件主命（QuestDef 关联事件）',
@@ -129,8 +132,8 @@ SKILL_TOKENS = {
     '弓術': 'archery', '算術': 'arithmetic', '醫術': 'medicine', '建築': 'construction',
 }
 
-# ═══ 谓词候选：带参调用 → 谓词（v2：全城壓制 等从语料提取，不再硬编码待注册）═══
-# 🔴 v3（2026-08-27 用户裁定）：谓词 = 带返回值的函数——第三元 = 返回值类型：
+# ═══ 函数候选：带参调用 → 函数（v2：全城壓制 等从语料提取，不再硬编码待注册）═══
+# 🔴 v3（2026-08-27 用户裁定）：函数 = 带返回值的函数——第三元 = 返回值类型：
 #   外交同盟/外交感情 返回数字（例句 外交感情(...)+(10) 做算术、外交同盟(...)!=(2) 与数字比较），
 #   其余返回布尔（==(真偽::真) 或裸布尔）
 CALL_MAP = {
@@ -142,8 +145,8 @@ CALL_MAP = {
     '移動可能': ('canMove', ('settlement', 'hero'), '布尔'),
     '攻擊可能': ('canAttack', ('settlement', 'hero'), '布尔'),
 }
-# 无参但语义为关系谓词的属性侧名（认识標誌/親密度 → 与主人公的关系）
-PRED_SIDE_NOARG = {'hasMet', 'relation', 'hasRelation'}
+# 无参但语义为关系函数的属性侧名（认识標誌/親密度 → 与主人公的关系）
+FUNC_SIDE_NOARG = {'hasMet', 'relation', 'hasRelation'}
 
 # ═══ 域::值 注册表（v2 新增；侧名 = 英文枚举 token / 完整 DSL 引用）═══
 DOMAIN_VAL_MAP = {
@@ -342,7 +345,7 @@ def side_candidates(attr):
     return []
 
 
-_PRED_SIDES = ('exists', 'isAllied', 'isNeighbor', 'allControlled', 'hasMet', 'hasRelation', 'relation', 'unknown')
+_FUNC_SIDES = ('exists', 'isAllied', 'isNeighbor', 'allControlled', 'hasMet', 'hasRelation', 'relation', 'unknown')
 
 
 def pair_side(dom, attr):
@@ -357,8 +360,8 @@ def pair_side(dom, attr):
         if s.startswith(('Variable::', 'Ctx::')):
             return s        # 全局变量侧名与域无关（賊遭遇計數器 → Variable::bandit_enc）
     for s in cands:
-        if s in _PRED_SIDES:
-            return s        # 谓词/碎片侧名与域无关
+        if s in _FUNC_SIDES:
+            return s        # 函数/碎片侧名与域无关
     # 规则兜底
     if attr.endswith('技能'):
         tok = SKILL_TOKENS.get(attr[:-2]) or fallback_id(attr)
@@ -393,7 +396,7 @@ def val_side(dom, val):
 
 
 def call_side(dom, attr):
-    """带参调用 → 谓词。表外 = None（生成期报错）。"""
+    """带参调用 → 函数。表外 = None（生成期报错）。"""
     return CALL_MAP.get(attr)
 
 

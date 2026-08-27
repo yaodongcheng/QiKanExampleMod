@@ -2,12 +2,12 @@
 """生成 16a-DSL翻译总表.csv —— 太阁5 ↔ 骑砍2 唯一翻译大表（正式 plan 数据文件，单一事实源）
 
 列：类别, 太阁原词, 所属域, 我们侧名, 值类型, 语义, 参数, 备注, 频率
-- 类别（第一列）：域 / 属性 / 域值 / 命令 / 谓词——排序即可分区
+- 类别（第一列）：域 / 属性 / 域值 / 命令 / 函数——排序即可分区
 - 所属域（第三列）：属性/域值行 = 语料实际出现的域（人物 / 城 / 大名家 / 多域用「/」分隔）；
-  域/命令/谓词行 = —
+  域/命令/函数行 = —
 - 我们侧名：干净的 DSL 映射名（Hero:: / Settlement.owner / kill_hero / exists），不带括号说明
 - 值类型（第五列）：仅 属性/域值 行有值——DSL 值的数据类型（数字/布尔/枚举/引用/家族引用…），
-  validator 用做「比较左右同型」检查；域/命令/谓词行 = —（🔴 2026-08-27 用户裁定：与类别区分、写清楚）
+  validator 用做「比较左右同型」检查；域/命令/函数行 = —（🔴 2026-08-27 用户裁定：与类别区分、写清楚）
 - 语义：我们侧名的中文释义（高频从白名单/动作表提取；低频词条名自解释）
 - 备注（第八列）：🔴 2026-08-27 用户裁定——原「实现用法+状态」合并；人读规划信息（翻译程序不消费）：
   `✅ 引擎查询器` / `🔴 需新增（13 主命 / 02 PartyBrain / 17 官职 / 数据包 / mod 外置属性）` / `❌ 放弃` 等
@@ -18,7 +18,7 @@
 - 属性行从「属性名 → 单一侧名」改为「域.属性 → 侧名」二维（语料实测域，杜绝跨域同名错配：
   大名家.本城 2298 次曾被登记成 人物域 Hero.home → 下游全量 🔴待注册）
 - 新增「域值」类别行（域::值 形态：身份枚举/狀況值/命名槽——旧版零提取）
-- 新增谓词 allControlled（全城壓制 481 次带参调用）
+- 新增函数 allControlled（全城壓制 481 次带参调用）
 - 生成期自检（verify_coverage）：全语料 (域,属性)/(域,值)/带参调用/命令 必须全部可解析，
   表外词条 = 生成失败 exit(1)；侧名合法性断言防中文侧名再犯
 """
@@ -27,7 +27,7 @@ import re
 import sys
 from collections import Counter
 
-from gen_registry_tables import (DOMAIN_MAP, ATTR_MAP, CMD_MAP, PRED_SIDE_NOARG,
+from gen_registry_tables import (DOMAIN_MAP, ATTR_MAP, CMD_MAP, FUNC_SIDE_NOARG,
                                  CALL_MAP, DOMAIN_VAL_MAP, PAIR_OVERRIDE, ENTITY_DOMAINS, SYNTAX_CMDS,
                                  domains, attr_pairs, domain_vals, calls, cmds,
                                  pair_side, val_side, call_side, verify_coverage)
@@ -43,11 +43,11 @@ ATTR_TYPES = {
     'defense': '数字', 'morale': '数字', 'funds': '数字', 'training': '数字', 'rebellion': '布尔',
     'materials': '数字', 'kokudaka': '数字', 'mine': '数字', 'vessels': '数字',
     'suppressed': '布尔', 'movable': '布尔', 'attackable': '布尔', 'siege': '布尔',
-    'alive': '布尔', 'state': '枚举', 'leader': '布尔', 'gender': '枚举', 'identity': '枚举（带序：17 身份链）', 'age': '数字',
+    'alive': '布尔', 'state': '枚举', 'leader': '布尔', 'gender': '枚举', 'identity': '枚举:身份（带序：17 身份链）', 'age': '数字',
     'home': '对象:据点', 'settlement': '对象:据点', 'party': '对象:部队', 'superior': '对象:人物',
     'spouse': '对象:人物', 'reputation': '数字', 'infamy': '数字', 'gold': '数字',
     'relation_to': '数字（带参）', 'available': '布尔', 'merit': '数字', 'loyalty': '数字',
-    'health': '数字', 'title': '枚举（带序：17 官职品级）', 'tendency': '枚举',
+    'health': '数字', 'title': '枚举:官職（带序：17 官职品级）', 'tendency': '枚举',
     'kingdom': '对象:王国', 'done': '布尔', 'value': '数字/字符串/对象', '持有': '布尔', '等级': '数字',
     'result': '枚举（BattleResult）', 'strategy': '枚举', 'policy': '枚举',
     'goal': '枚举', 'intent': '枚举', 'power': '数字', 'settlements': '数字', 'unknown': '未知',
@@ -55,10 +55,10 @@ ATTR_TYPES = {
 
 # 域值类型（值类型体系同 ATTR_TYPES）
 DOMAIN_VAL_TYPES = {
-    '身份': '枚举（带序：17 身份链）', '狀況': '数字/布尔/对象', '據點': '对象:据点', '忍者衆': '对象:组织', '商家': '对象:组织',
-    '戰鬥結束種類': '枚举', '軍團': '对象:部队', '人物類別': '枚举', '事件標誌': '布尔', '真偽': '布尔',
+    '身份': '枚举:身份（带序：17 身份链）', '狀況': '数字/布尔/对象', '據點': '对象:据点', '忍者衆': '对象:组织', '商家': '对象:组织',
+    '戰鬥結束種類': '枚举', '軍團': '对象:部队', '人物類別': '枚举', '事件標誌': '枚举:旗标狀態', '真偽': '布尔',
     '天氣': '枚举', '日數計數器': '数字', '變量': '数字/字符串/对象', '儲存號': '数字/字符串/对象',
-    '場面': '对象:设施', '物品類型': '枚举', '軍團方針': '枚举', '官位': '枚举（带序：17 官职品级）', '官職': '枚举（带序：17 官职品级）',
+    '場面': '对象:设施', '物品類型': '枚举', '軍團方針': '枚举', '官位': '枚举:官位（带序：17 官职品级）', '官職': '枚举:官職（带序：17 官职品级）',
     '工作': '对象:任务', '事件主命': '对象:任务',
 }
 # 按具体 (域,值) 精确化（語料例句判定：劇本==(2) 数字、場面==(場面::自宅) 设施、評定期間標誌 布尔）
@@ -67,8 +67,84 @@ DOMAIN_VAL_TYPE_OVERRIDE = {
     ('狀況', '24'): '数字', ('狀況', '遊戲經過日數'): '数字',
     ('狀況', '戰爭禁止日數'): '数字', ('狀況', '空閒大名家數'): '数字', ('狀況', '劇本'): '数字',
     ('狀況', '評定期間標誌'): '布尔', ('狀況', '評定期限結束標誌'): '布尔',
-    ('狀況', '場面'): '对象:设施', ('狀況', '天氣'): '枚举',
+    ('狀況', '場面'): '对象:设施', ('狀況', '天氣'): '枚举:天氣',
 }
+
+
+# 🔴 域内容类型（2026-08-27 用户裁定：域 = 值域，「域::值」里值的类型就是域的内容类型——
+# 人物域值=人物对象、身份域值=身份枚举、真偽域值=布尔；与 16.md 值类型体系（42 域对照）一致）
+DOMAIN_CTYPE = {
+    '人物': '对象:人物', '大名家': '对象:家族', '城': '对象:据点', '據點': '对象:据点',
+    '砦': '对象:据点', '町': '对象:据点', '里': '对象:据点',
+    '勢力': '对象:王国', '國': '对象:区域', '地方': '对象:区域',
+    '軍團': '对象:部队', '忍者衆': '对象:组织', '商家': '对象:组织', '海賊衆': '对象:组织',
+    '卡': '对象:卡', '流派': '对象:卡', '物品': '对象:物品', '交易品': '对象:物品',
+    '場面': '对象:设施', '主命': '对象:任务', '工作': '对象:任务', '事件主命': '对象:任务',
+    '事件標誌': '对象:旗标', '事件': '对象:事件', '事件發生狀態': '对象:事件',
+    '身份': '枚举:身份（带序：17 身份链）', '官位': '枚举:官位（带序：17 官职品级）', '官職': '枚举:官職（带序：17 官职品级）',
+    '天氣': '枚举:天氣', '人物類別': '枚举:人物類別', '戰鬥結束種類': '枚举:戰鬥結束種類', '物品類型': '枚举:物品類型', '軍團方針': '枚举:軍團方針',
+    '真偽': '布尔', '日數計數器': '数字',
+    '狀況': '数字/布尔/对象', '變量': '数字/字符串/对象', '儲存號': '数字/字符串/对象',
+    '主命屬性': '数字（编号）', '遊戲通關種類': '🔴 待定', '環境變量': '🔴 待定', '背景音樂': '🔴 待定',
+}
+
+
+def _rtype_of(v):
+    """右值 → 类型（语料推断用）：数字字面量→数字、真偽→布尔、域::值→域内容类型（DOMAIN_CTYPE）、
+    槽引用（ａ/人物Ｄ）→数字/对象（动态）、裸值→枚举（状态值）"""
+    v = v.strip()
+    if re.match(r'^-?\d+$', v):
+        return '数字'
+    if v.startswith('真偽::'):
+        return '布尔'
+    if v in ('真', '偽'):
+        return '布尔'      # 🔴 真偽 裸写（2026-08-27 用户裁定：更新:(商家::X.未知３)(偽) → 布尔）
+    if re.match(r'^[ａ-ｚＡ-Ｅ]$', v) or re.match(r'^(?:人物|據點|城|大名家|勢力|國|忍者衆|商家|海賊衆|地方|町|砦|里|軍團)[Ａ-Ｅ]$', v):
+        return '数字/对象'      # 变量槽引用（动态类型）
+    if '::' in v:
+        return DOMAIN_CTYPE.get(v.split('::', 1)[0], '数字/字符串/对象')
+    return '枚举'      # 裸值 = 状态枚举（出撃中/未出現/死刑…）
+
+
+def infer_attr_types():
+    """🔴 语料驱动属性值类型推断（2026-08-27 用户裁定：属性类型从比较/赋值的右值类型推断，
+    不靠人工表——自动且能纠错：城主 比较右值 = 大名家 → 对象:家族 而非人工标的 对象:王国）。
+    扫描 調查/更新 行：恰好 1 个属性表达式（域::X.属性）时，与同行右值（括号组）配对计数取主流。"""
+    from collections import Counter as _C
+    inf, inf_vals = {}, {}
+    for line in txt.splitlines():
+        s = line.strip()
+        if not s or s.startswith('#') or not s.startswith(('調查', '更新', '代入', '場合別', '場合分歧')):
+            continue
+        groups = re.findall(r'\(([^()]*)\)', s)
+        attrs = [g for g in groups
+                 if re.match(r'^(?:[一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$', g)]
+        if len(attrs) != 1:
+            continue                          # 无属性/多属性/嵌套调用（函数形态）→ 跳过
+        attr = re.match(r'^(?:[一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$', attrs[0]).group(1)
+        # 🔴 switch 分支（2026-08-27 用户裁定）：場合別/場合分歧 的条件属性——分支值 = 数字
+        #   （喜好 等 = 数字编码的枚举，具体枚举含义未知；類型 = 数字）
+        if s.startswith(('場合別', '場合分歧')):
+            inf.setdefault(attr, _C())['数字'] += 1
+            continue
+        # 🔴 算术运算（2026-08-27 用户裁定）：`)*(`/`)+(`/`)-(`/`)/(` 括号间加减乘除 =
+        #   两侧同量纲 = 数字强证据（代入ｄ:(...個人戰敗北数)*(4) → 个人戰敗北数 = 数字）
+        if re.search(r'\)\s*[\*\+\-/]\s*\(', s):
+            inf.setdefault(attr, _C())['数字'] += 1
+            continue
+        for g in groups:
+            if g == attrs[0]:
+                continue                      # 左值（属性表达式）
+            if len(g) > 24:
+                continue                      # 超长 = 复杂表达式，跳过
+            inf.setdefault(attr, _C())[_rtype_of(g)] += 1
+            inf_vals.setdefault(attr, _C())[g] += 1      # 🔴 枚举值集合收集（原屬下標誌 → 原上司/原同事/原屬下…）
+    # 🔴 状态枚举族修正（2026-08-27 用户裁定）：標誌 属性语料有具名状态值（未出現/出撃中/死刑…）
+    #   → 类型 = 枚举（状态枚举），TK5 的 0/1 只是数字编码，不改变语义（出現標誌=枚举，未出現是值之一）
+    for attr, cnt in inf.items():
+        if attr.endswith('標誌') and cnt.get('枚举', 0) >= 1:
+            inf[attr] = _C({'枚举': sum(cnt.values())})
+    return inf, inf_vals
 
 
 def slot_ctype(cmd):
@@ -114,8 +190,8 @@ ACTIONS = {
     'global_set': ('slot, 引用', '🔴 新加（存档）'),
 }
 
-# ── 谓词（16 谓词表；v2 加入 allControlled——全城壓制 语料 481 次带参调用）──
-PREDICATES = {
+# ── 函数（16 函数表；v2 加入 allControlled——全城壓制 语料 481 次带参调用）──
+FUNCTIONS = {
     'exists': ('引用', '对象存在', '✅ 已设计'), 'atWar': ('a, b（势力引用）', 'a 与 b 交战', '✅ 已设计'),
     'isAllied': ('a, b（势力引用）', 'a 与 b 同盟', '注册表加行'), 'isNeighbor': ('a, b（据点引用）', 'a 与 b 相邻', '注册表加行'),
     'hasRelation': ('hero, hero, op, 数字', '亲密度比较', '注册表加行'), 'relation': ('a, b, op, 数字', '势力间外交关系数值', '注册表加行'),
@@ -129,7 +205,7 @@ DOMAIN_SEM = {
     '人物': '角色', '大名家': '家族/势力', '城': '据点（城）', '事件': '事件状态查询', '勢力': '势力', '據點': '据点',
     '軍團': '军团', '身份': '身份枚举', '變量': '剧本变量', '狀況': '全局时间状态', '真偽': '布尔', '事件標誌': '旗标',
     '國': '国/区域', '日數計數器': '天数计数', '海賊衆': '海贼组织', '卡': '技能卡', '物品': '物品', '忍者衆': '忍者组织',
-    '砦': '据点（砦）', '地方': '地方/区域', '交易品': '交易品', '儲存號': '存档槽', '官職': '官职', '流派': '流派（放弃）',
+    '砦': '据点（砦）', '地方': '地方/区域', '交易品': '交易品', '儲存號': '存档槽', '官職': '官职', '流派': '流派（后续补充）',
     '主命': '主命/任务', '町': '据点（町）', '官位': '官位', '商家': '商家组织', '里': '据点（里）', '天氣': '天气',
     '場面': '场面/演出形态', '軍團方針': '军团方针', '工作': '工作', '人物類別': '人物类别', '事件主命': '事件主命',
     '戰鬥結束種類': '战斗结束种类', '物品類型': '物品类型', '主命屬性': '主命属性', '遊戲通關種類': '通关种类',
@@ -234,7 +310,7 @@ def side_name(label):
     m = re.search(r'([A-Za-z]+::(?:[A-Za-z_]+)?(?:\.\w+)?)', label)
     if m:
         return m.group(1)
-    m = re.search(r'([A-Za-z_]+)(?: 动作| 谓词| 指令)', label)
+    m = re.search(r'([A-Za-z_]+)(?: 动作| 函数| 指令)', label)
     if m:
         return m.group(1)
     if label.startswith('Ctx /'):
@@ -275,15 +351,19 @@ for k, v in domains.most_common():
     side = side_name(label)
     st = status_of(label)
     note = ('❌ 放弃' if st == '❌ 放弃' else
-            '🔴 数据包（07 核对）' if '数据包' in label else
-            '🔴 需新加' if st.startswith('🔴') else
+            '🔴 数据包（07 核对）' if '数据包' in label and '07' in label else
+            '🔴 数据包（后续补充）' if '数据包' in label else            '🔴 需新加' if st.startswith('🔴') else
             '✅ 引擎域')
-    rows.append([k, v, '域', '—', side, '—', DOMAIN_SEM.get(k, k), '—', note])
+    rows.append([k, v, '域', '—', side, '域', DOMAIN_SEM.get(k, k), '—', note])  # 🔴 域 = 容器：值类型列 = '域'（2026-08-27 用户裁定：容器无类型，域值才有类型）
 
 # ── v2：属性行 = 属性名单键（太阁原词 = 属性名），所属域 = 语料实测域（多域 ' / ' 分隔），
-#    侧名按语料域聚合多段；状态列：侧名尾段 ∈ ATTR_TYPES（引擎查询器已有）→ ✅；否则 🔴 mod 需新增外置属性 ──
+#    侧名按语料域聚合多段；备注：侧名尾段 ∈ ATTR_TYPES（引擎查询器已有）→ ✅；否则 🔴 mod 需新增外置属性 ──
 attr_agg = {}       # 属性名 → [频率合计, [侧名段去重], {域集合}]
+attr_infer, attr_vals = infer_attr_types()     # 🔴 语料驱动值类型推断 + 枚举值集合（2026-08-27 用户裁定）
 for (d, a), c in attr_pairs.items():
+    if a in CALL_MAP:
+        continue        # 🔴 带参调用词条 = 函数（卡持有/外交同盟/全城壓制…，语料零无参形态），
+                        #   只归函数区，不进属性区（2026-08-27 用户裁定）
     side = pair_side(d, a)
     if side is None:
         continue        # 自检已报错（verify_coverage 在 main 里先行 exit）
@@ -296,12 +376,20 @@ for a, (c, sides, doms) in sorted(attr_agg.items(), key=lambda kv: -kv[1][0]):
     side_all = ' / '.join(sides)
     dom_all = ' / '.join(sorted(doms))
     tail = sides[0].split('.')[-1]
-    if sides[0].startswith('exists') or sides[0] in PRED_SIDE_NOARG or sides[0] in ('allControlled',):
-        typ, sem = '谓词', ATTR_SEM.get(tail, a)
-        note = '谓词引擎（01 条件求值）'
+    if sides[0].startswith('exists') or sides[0] in FUNC_SIDE_NOARG or sides[0] in ('allControlled',):
+        typ, sem = '函数', ATTR_SEM.get(tail, a)
+        note = '函数引擎（01 条件求值）'
     else:
-        typ = ATTR_TYPES.get(tail, ('布尔' if a.endswith(('標誌', '可能')) else '🔴 待定'))
+        # 🔴 值类型 = 语料推断主流（比较/赋值右值类型）；无推断 → 人工表 ATTR_TYPES 兜底
+        infer = attr_infer.get(a)
         sem = ATTR_SEM.get(tail, a)
+        typ = infer.most_common(1)[0][0] if infer else ATTR_TYPES.get(tail, ('布尔' if a.endswith(('標誌', '可能')) else '🔴 待定'))
+        if typ == '枚举':
+            typ = f'枚举:{a}'   # 🔴 属性枚举 = 属性名（出撃標誌 → 枚举:出撃標誌）
+            # 🔴 枚举值集合（语料右值事实，2026-08-27 用户裁定：写了枚举类型就要定义全部值）
+            vs = [v for v, _ in attr_vals.get(a, Counter()).most_common(8)]
+            if vs:
+                sem = f'{sem}（值：{" / ".join(vs)}）'
         if sides[0] == 'unknown':
             note = '🔴 解析碎片'
         elif all(s.split('.')[-1] not in ATTR_TYPES for s in sides):
@@ -330,6 +418,8 @@ for (d, v), c in domain_vals.most_common():
         continue
     val_seen.add((d, v))
     typ = DOMAIN_VAL_TYPE_OVERRIDE.get((d, v), DOMAIN_VAL_TYPES.get(d, '枚举'))
+    if typ == '枚举':
+        typ = f'枚举:{d}'   # 🔴 域值枚举 = 所属域类型（2026-08-27 用户裁定：枚举太宽泛，标具体类型）
     sem = v
     impl = DOMAIN_VAL_IMPL.get(d, '引擎')
     note = '✅ 引擎' if impl == '引擎' else f'🔴 需新加（{impl}）'
@@ -362,14 +452,14 @@ for k, v in cmds.most_common():
         sem = '状态写入（事件完成/旗标/数值/归属/状态）'
     rows.append([k, v, cat, '—', side, typ, sem, param, impl])         # 备注 = 实现归属（含 🔴/❌ 状态，label 自含）
 
-# ── 谓词区：只收 TK5 调用词翻译行（外交同盟→isAllied…）──
-# mod DSL 谓词 token（atWar/isAllied/…）权威 = 16.md §三 谓词注册表（2026-08-27 用户裁定：CSV 太阁原词列只收 TK5 词）
+# ── 函数区：只收 TK5 调用词翻译行（外交同盟→isAllied…）──
+# mod DSL 函数 token（atWar/isAllied/…）权威 = 16.md §三 函数注册表（2026-08-27 用户裁定：CSV 太阁原词列只收 TK5 词）
 CALL_SEM = {
     'isAllied': 'a 与 b 同盟（数值：!=0 即同盟）', 'relation': '势力间外交关系数值', 'isNeighbor': 'a 与 b 相邻',
     'allControlled': '区域全部据点由 clan 控制', 'hasCard': '是否持有技能卡',
     'canMove': '角色能否前往该据点', 'canAttack': '角色能否攻击该据点',
 }
-# 🔴 v3（2026-08-27 用户裁定）：谓词 = 带返回值的函数——所属域列 = 语料调用方域并集（全城壓制→國、
+# 🔴 v3（2026-08-27 用户裁定）：函数 = 带返回值的函数——所属域列 = 语料调用方域并集（全城壓制→國、
 #   卡持有→人物、外交同盟→大名家/商家…）；值类型列 = 返回值类型（数字/布尔）
 call_doms = {}
 for (d, a) in calls:
@@ -377,7 +467,7 @@ for (d, a) in calls:
         call_doms.setdefault(a, set()).add(d)
 for call_word, (pred, params, ret) in CALL_MAP.items():
     doms = ' / '.join(sorted(call_doms.get(call_word, [])))
-    rows.append([call_word, '—', '谓词', doms, pred, ret, CALL_SEM.get(pred, pred), ', '.join(params), '注册表加行（谓词引擎）'])
+    rows.append([call_word, '—', '函数', doms, pred, ret, CALL_SEM.get(pred, pred), ', '.join(params), '注册表加行（函数引擎）'])
 
 # ── 例句列：词条 → TK5 事件原句示范（首次出现行截断；🔴 2026-08-27 用户裁定，给人检查用）──
 # 🔴 域值行例句 key 必须带域（事件標誌::95 vs 日數計數器::95 同值不同域，纯值 key 会串例句）
@@ -415,8 +505,8 @@ for _line in txt.splitlines():
             if ('域', dom) in terms:
                 example.setdefault(('域', dom), s)
     for cm in re.finditer(r'\.([一-鿿A-Za-zＡ-Ｚａ-ｚ]+)\(', s):
-        if ('谓词', cm.group(1)) in terms:
-            example.setdefault(('谓词', cm.group(1)), s)
+        if ('函数', cm.group(1)) in terms:
+            example.setdefault(('函数', cm.group(1)), s)
 for r in rows:
     key = (r[2], r[3], r[0]) if r[2] == '域值' else (r[2], r[0])
     ex = example.get(key, '')
@@ -443,9 +533,9 @@ def main():
             print('  ', e)
         print(f'  …共 {len(errors)} 条表外')
         sys.exit(1)
-    # 侧名合法性断言：DSL token 只收 ASCII（防「角色引用」式中文侧名）；只查 属性/域值/谓词 行
+    # 侧名合法性断言：DSL token 只收 ASCII（防「角色引用」式中文侧名）；只查 属性/域值/函数 行
     #（命令行侧名是描述性 label，翻译器另有动作映射，不在此列）
-    side_errors = [r[4] for r in rows if r[2] in ('属性', '域值', '谓词') and not side_ok(r[4])]
+    side_errors = [r[4] for r in rows if r[2] in ('属性', '域值', '函数') and not side_ok(r[4])]
     if side_errors:
         print('❌ 侧名非法（DSL token 必须 ASCII）：')
         for s in side_errors[:30]:
@@ -461,20 +551,19 @@ def main():
 
     with open('plans/scenario-campaign-mode/16a-DSL翻译总表.csv', 'w', encoding='utf-8-sig', newline='') as f:
         w = csv.writer(f)
-        # 🔴 行序（2026-08-27 用户裁定）：第一列类别为主排序（域→属性→域值→命令→语法→谓词），
-        #    第二列太阁原词为次排序（Unicode）
-        CAT_ORDER = {'域': 0, '属性': 1, '域值': 2, '命令': 3, '语法': 4, '谓词': 5}
-        rows.sort(key=lambda r: (CAT_ORDER.get(r[2], 9), r[0]))
-        # 🔴 列序（2026-08-27 用户裁定）：类别第一列、太阁原词第二列、例句第三列（词条后紧跟原句示范）、
-        #    所属域第四列、频率倒数第二
+        # 🔴 行序（2026-08-27 用户裁定）：类别 → 所属域 → 太阁原词 三级排序
+        CAT_ORDER = {'域': 0, '属性': 1, '域值': 2, '命令': 3, '语法': 4, '函数': 5}
+        rows.sort(key=lambda r: (CAT_ORDER.get(r[2], 9), r[3], r[0]))
+        # 🔴 列序（2026-08-27 用户裁定）：类别第一列、所属域第二列、太阁原词第三列、例句第四列、
+        #    频率最后一列；所属域第二列 = 排序分区第二级（属性按 大名家/城/人物… 分组、域值按域分组）
         # 内部 rows 保持 [原词, 频率, 类别, 所属域, 侧名, 值类型, 语义, 参数, 备注, 例句] → 写文件重排
-        ORDER = [2, 0, 9, 3, 4, 5, 6, 7, 8, 1]
-        w.writerow(['类别', '太阁原词', '例句', '所属域', '我们侧名', '值类型', '语义', '参数', '备注', '频率'])
+        ORDER = [2, 3, 0, 9, 4, 5, 6, 7, 8, 1]
+        w.writerow(['类别', '所属域', '太阁原词', '例句', '我们侧名', '值类型', '语义', '参数', '备注', '频率'])
         for r in rows:
             w.writerow([r[i] for i in ORDER])
     n_attr = len([r for r in rows if r[2] == '属性'])
     n_val = len([r for r in rows if r[2] == '域值'])
-    print(f'✅ CSV 生成完成：{len(rows)} 行（域 {len(domains)} + 属性 {n_attr} + 域值 {n_val} + 命令 {len(cmds)} + 谓词 {len(CALL_MAP)}）')
+    print(f'✅ CSV 生成完成：{len(rows)} 行（域 {len(domains)} + 属性 {n_attr} + 域值 {n_val} + 命令 {len(cmds)} + 函数 {len(CALL_MAP)}）')
     print('  全语料覆盖自检通过：属性(域,属性)、域值(域::值)、带参调用、命令 全部可解析')
 
 
