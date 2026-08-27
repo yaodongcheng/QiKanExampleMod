@@ -175,13 +175,19 @@ import hashlib
 def _fallback_ascii(subject):
     h = hashlib.md5(subject.encode("utf-8")).hexdigest()[:6]
     return f"tk5_u{h}"
-# 域词 → DSL 侧名前缀（用于属性侧名匹配）
-DOMAIN_PREFIX = {
-    "人物": "Hero", "大名家": "Clan", "城": "Settlement", "據點": "Settlement",
-    "勢力": "Faction", "國": "Region", "狀況": "Time", "事件標誌": "Flag",
-    "變量": "Variable", "身份": "Identity", "真偽": "Bool", "物品": "Item",
-    "軍團": "Party", "卡": "Card", "主命": "Quest",
+
+
+# 🔴 v2：实体引用域 fallback 前缀（与 gen_registry_tables.ENTITY_DOMAINS 同步）——
+# 具名实体（忍者衆::伊賀衆 / 卡::無刀取 / 官位::正一位…）不进 CSV 域值区，
+# 翻译器名字表 miss 后走确定性兜底 + report 登记，由 07/13/17 数据包定稿 StringId
+_ENTITY_FALLBACK = {
+    "忍者衆": "Org", "商家": "Org", "海賊衆": "Org", "卡": "Card", "流派": "Card",
+    "物品": "Item", "交易品": "Item", "地方": "Region", "官位": "court_rank",
+    "官職": "title", "工作": "QuestDef", "事件主命": "QuestDef",
 }
+
+# 谓词/碎片侧名（与域无关，_pick_side 直接接受）
+_PRED_SIDES = {"exists", "isAllied", "isNeighbor", "allControlled", "hasMet", "hasRelation", "relation", "unknown"}
 
 EVENT_NAME = {
     "EFF0C300_159": "情报宣告+评议会+敦盛之舞+出阵（织田线开场）",
@@ -353,25 +359,39 @@ def build_tree(body_lines):
 
 
 # ---------------------------------------------------------------------------
-# 翻译表加载
+# 翻译表加载（v2：属性 = 域.属性 二维；新增 域值 区——16a CSV 是全语料闭包，查不到 = 生成器缺陷）
 # ---------------------------------------------------------------------------
+class RegistryGapError(Exception):
+    """表外词条 = 生成器缺陷（16a CSV 已做全语料覆盖自检；翻译器查不到 → 修表重跑，禁止产出 🔴待注册）。"""
+
+
 class Registry:
     def __init__(self, csv_path):
-        self.domains, self.attrs, self.predicates, self.commands = {}, {}, {}, {}
+        self.domains, self.attrs, self.domain_vals, self.predicates, self.commands = {}, {}, {}, {}, {}
+        self.bare_vals = {}     # 域值区纯 token 反查（武將→general 等，translate_value 用）
         with open(csv_path, encoding="utf-8-sig") as f:
             for r in csv.DictReader(f):
-                cat, src, side, usage = r["类别"], r["太阁原词"], r["我们侧名"], r["实现用法"]
+                cat, src, side, usage = r["类别"], r["太阁原词"], r["我们侧名"], r["备注"]
                 if cat == "域":
                     self.domains[src] = side
                 elif cat == "属性":
-                    self.attrs[src] = (side, r["类型"], usage)
+                    self.attrs[src] = (side, r["值类型"], usage)          # src = 属性名（单键，多域 ' / ' 分段）
+                elif cat == "域值":
+                    # 🔴 v2：CSV 太阁原词 = 纯值，所属域列 = 域（第二列不掺符号）→ 内部重建「域::值」键
+                    key = f"{r['所属域']}::{src}"
+                    self.domain_vals[key] = (side, r["值类型"], usage)
+                    if "::" not in side and side != "null":
+                        if src not in self.bare_vals:
+                            self.bare_vals[src] = side            # 同名多域同 token（浪人→ronin）
                 elif cat == "谓词":
-                    self.predicates[src] = side
+                    self.predicates[src] = side                          # src = 调用词（外交同盟→isAllied）
                 elif cat == "命令":
                     self.commands[src] = (side, usage)
 
     def domain(self, w): return self.domains.get(w)
-    def attr(self, w): return self.attrs.get(w)
+    def attr(self, name): return self.attrs.get(name)
+    def domain_val(self, dom, val): return self.domain_vals.get(f"{dom}::{val}")
+    def predicate(self, w): return self.predicates.get(w)
     def command(self, w): return self.commands.get(w)
 
 
@@ -464,58 +484,80 @@ class Translator:
         """`域::主体.属性(参数)` / `域::主体.属性` / `域::主体` → DSL。返回 (dsl, ok)。"""
         m = re.match(r"^(.*?)::(.*)$", ref_str)
         if not m:
-            self.todo_mark("引用", ref_str)
-            return f"🔴待注册:{ref_str}", False
+            raise RegistryGapError(f"无域引用: {ref_str}")
         dom_word, rest = m.group(1), m.group(2)
         # 主体 = 第一个 .属性 之前；属性部分含调用括号
         if "." in rest:
             subject, attr_part = rest.split(".", 1)
         else:
             subject, attr_part = rest, ""
-        # 属性调用：attr(参数)
-        callm = re.match(r"^(.*?)\((.*)\)$", attr_part) if attr_part else None
+        # 属性调用：attr(参数) → 谓词（16a CSV 谓词区，全语料闭包）
         attr_word = attr_part
+        callm = re.match(r"^(.*?)\((.*)\)$", attr_part) if attr_part else None
         if callm:
             attr_word, call_args = callm.group(1), callm.group(2)
-            if attr_word == "外交同盟":
-                target = self.translate_ref(call_args)
-                return f"isAllied({self._kingdom(subject)}, {target[0]})", target[1]
-            if attr_word == "鄰接大名家":
-                target = self.translate_ref(call_args)
-                return f"isNeighbor({self._kingdom(subject)}, {target[0]})", target[1]
-            if attr_word == "全城壓制":
-                target = self.translate_ref(call_args)
-                self.todo_mark("谓词", "全城压制", ref_str)
-                return f"🔴待注册:allControlled({self._region(subject)}, {target[0]})", False
-            self.todo_mark("属性调用", attr_word, ref_str)
-            return f"🔴待注册:{ref_str}", False
+            pred = self.reg.predicate(attr_word)
+            if not pred:
+                raise RegistryGapError(f"调用表外: {dom_word}::{subject}.{attr_word}(…)——16a CSV 谓词区无此调用")
+            target = self.translate_ref(call_args)
+            return f"{pred}({self._call_subject(pred, dom_word, subject)}, {target[0]})", target[1]
         if not attr_part:
             # 纯 `域::主体`（存在性/裸引用/代入槽）
             return self.translate_subject(dom_word, subject), True
         attr = self.reg.attr(attr_word)
         if not attr:
-            self.todo_mark("属性", attr_word, ref_str)
-            return f"🔴待注册:{ref_str}", False
-        side = attr[0]
+            raise RegistryGapError(f"属性表外: {attr_word}——16a CSV 属性区无此属性行")
+        side, typ, usage = attr
         if side.startswith("exists"):
             return f"exists({self.translate_subject(dom_word, subject)})", True
-        # 侧名域匹配：`Hero.clan / Settlement.clan` → 按主体域取
-        rest_side = self._pick_domain_side(side, dom_word)
-        if rest_side is None:
-            self.todo_mark("属性域", f"{dom_word}.{attr_word}", ref_str)
-            return f"🔴待注册:{dom_word}.{attr_word}", False
         subj = self.translate_subject(dom_word, subject)
-        return f"({subj}.{rest_side})", True
+        seg = self._pick_side(side, dom_word)
+        if seg is None:
+            raise RegistryGapError(f"属性域错配: {dom_word}.{attr_word}——侧名「{side}」无 {dom_word} 域段（回填 gen_registry_tables PAIR_OVERRIDE）")
+        if seg == "hasMet":
+            return f"hasMet({subj}, Hero::MainHero)", True     # 認識標誌 = 与主人公是否认识
+        if seg in ("relation", "hasRelation"):
+            return f"relation({subj}, Hero::MainHero)", True   # 親密度/與主人公關係
+        if seg == "unknown":
+            self.todo_mark("属性-未知", f"{dom_word}.{attr_word}", ref_str)
+        if re.match(r'^[A-Z][A-Za-z]*\.', seg):
+            seg = seg.split('.', 1)[1]                          # 剥域前缀：Hero.clan → .clan
+        return f"({subj}.{seg})", True
 
-    def _pick_domain_side(self, side, dom_word):
-        prefix = DOMAIN_PREFIX.get(dom_word)
-        for p in side.split("/"):
+    # 🔴 v2：多段侧名 'Hero.clan / Settlement.clan' → 按域前缀取段（与 gen_registry_tables.PREFIX_BY_DOMAIN 同步）
+    _DOMAIN_PREFIX = {
+        "人物": "Hero", "城": "Settlement", "據點": "Settlement", "砦": "Settlement", "町": "Settlement", "里": "Settlement",
+        "大名家": "Clan", "勢力": "Faction", "國": "Region", "地方": "Region",
+        "軍團": "Army", "事件": "Event", "狀況": "Time", "事件標誌": "Flag", "變量": "Variable",
+        "主命": "QuestDef", "官職": "title", "官位": "court_rank", "人物類別": "Identity",
+        "忍者衆": "Org", "商家": "Org", "海賊衆": "Org", "卡": "Card", "流派": "Card",
+        "物品": "Item", "交易品": "Item", "工作": "QuestDef", "事件主命": "QuestDef", "主命屬性": "QuestDef",
+        "遊戲通關種類": "ending", "事件發生狀態": "Event", "環境變量": "env", "背景音樂": "bgm",
+        "天氣": "weather", "軍團方針": "intent", "物品類型": "ItemType",
+        "日數計數器": "Time", "儲存號": "Variable", "場面": "Facility",
+        "戰鬥結束種類": "BattleResult", "真偽": "Bool", "身份": "Identity",
+    }
+
+    def _pick_side(self, side, dom_word):
+        """多段侧名按域前缀取段；全局变量段/谓词段与域无关。"""
+        prefix = self._DOMAIN_PREFIX.get(dom_word)
+        for p in side.split(" / "):
             p = p.strip()
-            if "." in p and p.split(".", 1)[0] == prefix:
-                rest = p.split(".", 1)[1].strip()
-                rest = re.sub(r"\s+.*$", "", rest)   # 去掉「 枚举」尾注
-                return rest
+            if prefix and (p.startswith(prefix + ".") or p == prefix):
+                return p
+        for p in side.split(" / "):
+            p = p.strip()
+            if p.startswith(("Variable::", "Ctx::")) or p in _PRED_SIDES:
+                return p
         return None
+
+    def _call_subject(self, pred, dom_word, subject):
+        """谓词主体验证/转换：外交/邻接 → 势力（Faction::Kingdom），全城压制 → 区域（Region）。"""
+        if pred in ("isAllied", "isNeighbor", "relation"):
+            return self._kingdom(subject)
+        if pred == "allControlled":
+            return self._region(subject)
+        return self.translate_subject(dom_word, subject)
 
     def _kingdom(self, subject):
         v = KINGDOM_MAP.get(subject)
@@ -539,13 +581,14 @@ class Translator:
             if subject == "主人公據點":
                 return "(Hero::MainHero.settlement)"
             if subject == "主人公當主據點":
-                self.todo_mark("属性", "主人公當主據點")
-                return "🔴待注册:主人公當主據點"
+                return "(Hero::MainHero.home)"      # v2：CSV 域值区登记（據點::主人公當主據點）
         if subject.startswith("發生人物"):
             return "Ctx::event_hero"
+        if subject.startswith("發生據點"):
+            return "Ctx::event_settlement"
         if subject.startswith("發生大名家") or subject.startswith("發生勢力"):
             return f"Ctx::{slot_cname(subject)}"
-        if re.match(r"^(人物|據點|城|大名家|勢力|國)[Ａ-Ｅ]$", subject) or re.match(r"^[ａ-ｚ]$", subject):
+        if re.match(r"^(人物|據點|城|大名家|勢力|國|忍者衆|商家|海賊衆|地方|町|砦|里|軍團|流派)[Ａ-Ｅ]$", subject) or re.match(r"^[ａ-ｚ]$", subject):
             # 🔴 v4.4：条件块代入槽 → 静态展开（cond_ctx 有值）；执行块代入槽 → Ctx 变量
             if subject in self.cond_ctx:
                 return self.cond_ctx[subject]
@@ -564,7 +607,7 @@ class Translator:
                 return v
             self.todo_mark("大名家", subject)
             return f"Clan::{_fallback_ascii(subject)}"
-        if dom_word in ("城", "據點"):
+        if dom_word in ("城", "據點", "砦", "町", "里"):
             v = SETTLEMENT_MAP.get(subject) or FALLBACK_MAP.get(subject)
             if v:
                 return v
@@ -582,28 +625,27 @@ class Translator:
                 return v
             self.todo_mark("区域", subject)
             return f"Region::{_fallback_ascii(subject)}"
-        if dom_word == "身份":
-            self.todo_mark("枚举-身份", subject)
-            return f'"🔴待注册:{subject}"'
         if dom_word == "真偽":
             return "true" if subject == "真" else "false"
         if dom_word == "事件":
             return f"(Event::{subject}.done)"
-        if dom_word == "狀況":
-            if subject == "年": return "(Time::year)"
-            if subject == "月": return "(Time::month)"
-            if subject == "日": return "(Time::day)"
-            self.todo_mark("状况", subject)
-            return f"🔴待注册:Time::{subject}"
-        if dom_word == "事件標誌":
-            self.todo_mark("事件标志", subject)
-            return f"(Flag::🔴待注册:{subject})"
-        if dom_word == "變量":
-            return f"(Variable::{subject})"
         if dom_word == "無效":
             return "null"
-        self.todo_mark("域", dom_word, ref := f"{dom_word}::{subject}")
-        return f"🔴待注册:{ref}"
+        # 🔴 v2：实体引用域（忍者衆/商家/卡/流派/物品/地方/官位/官職/工作…）→ 名字表 fallback，
+        #   不进 CSV 域值区（具名实体是归一表的事，2026-08-27 用户裁定）
+        if dom_word in _ENTITY_FALLBACK:
+            self.todo_mark("实体", f"{dom_word}::{subject}")
+            return f"{_ENTITY_FALLBACK[dom_word]}::{_fallback_ascii(subject)}"
+        # 🔴 v2：词条域（身份/狀況/人物類別…）→ 查 16a CSV 域值区（全语料闭包；查不到 = 修表重跑）
+        dv = self.reg.domain_val(dom_word, subject)
+        if dv:
+            side, typ, usage = dv
+            if side == "null":
+                return "null"
+            if "::" in side:
+                return side                       # 完整引用（Time::year / Variable::x / Ctx::y / Org::z / Flag::x…）
+            return f'"{side}"'                    # 纯枚举 token 字面量（daimyo / city_lord / general…）
+        raise RegistryGapError(f"域值表外: {dom_word}::{subject}——16a CSV 域值区无此 (域,值) 行")
 
     # ---------- 条件翻译 ----------
     def translate_condition(self, cond_block):
@@ -679,8 +721,18 @@ class Translator:
             return "true" if v.endswith("真") else "false"
         if "::" in v:
             return self.translate_ref(v)[0]
+        if re.match(r"^(人物|據點|城|大名家|勢力|國|忍者衆|商家|海賊衆|地方|町|砦|里|軍團|流派)[Ａ-Ｅ]$", v) or re.match(r"^[ａ-ｚ]$", v):
+            return f"Ctx::{slot_cname(v)}"              # 代入槽名（人物Ａ → Ctx::hero_A）
+        # 🔴 v2：裸值 → 名字表（容器排除的人物/城名）→ 域值 token 反查 → 确定性兜底
+        for table in (HERO_MAP, CLAN_MAP, SETTLEMENT_MAP, REGION_MAP, AGENT_MAP, FALLBACK_MAP):
+            r = table.get(v)
+            if r:
+                return r
+        bare = self.reg.bare_vals.get(v)
+        if bare:
+            return f'"{bare}"'                     # 武將 → "general"、城主 → "city_lord"
         self.todo_mark("值", v)
-        return f'"🔴待注册:{v}"'
+        return f"Hero::{_fallback_ascii(v)}"       # 有主占位：确定性兜底 + report 登记（非表外词条）
 
     # ---------- 执行翻译 ----------
     def translate_execution(self, items):
@@ -769,6 +821,10 @@ class Translator:
 
     def translate_exec_line(self, line):
         cmd = line.cmd
+        # ---- 解析碎片（未知NN:(2B 00 00 00) 原始字节命令，08b 踩坑 14）----
+        if cmd.startswith("未知"):
+            self.script_out.append({"step": "note", "note": "🔴 未知命令（解析碎片）→ 忽略", "src": line.text})
+            return
         # ---- 表现层 ----
         if cmd in ("對話", "自語", "旁白"):
             seg = self.ensure_segment()
@@ -884,8 +940,13 @@ class Translator:
         # ---- 世界结算 ----
         if self._world_effect(cmd, line):
             return
-        self.todo_mark("命令", cmd, line.text)
-        self.script_out.append({"step": "note", "note": f"🔴待注册 命令:{cmd}", "src": line.text})
+        # 🔴 v2：命令区兜底 → CSV 命令区承接注（05 消息控制 等）；CSV 也无 = 生成器缺陷
+        hit = self.reg.command(cmd)
+        if hit:
+            side, usage = hit
+            self.script_out.append({"step": "note", "note": f"🔴 {side} 承接（命令:{cmd}）", "src": line.text})
+            return
+        raise RegistryGapError(f"命令表外: {cmd}——16a CSV 命令区无此命令")
 
     def _slot_value(self, v):
         """代入槽值：含域 → 完整引用翻译；纯值（数字/真偽/枚举）→ translate_value。"""
@@ -909,9 +970,9 @@ class Translator:
     _WORLD_EFFECTS = {
         "武將死亡": ("kill_hero", ["actor"]),
         "勢力滅亡": ("destroy_faction", ["faction"]),
-        "城主變更": ("set_owner", ["settlement", "clan"]),
-        "城主任命": ("set_owner", ["settlement", "clan"]),
-        "城主解任": ("set_owner", ["settlement", "clan"]),
+        "城主變更": ("set_owner", ["actor", "settlement"]),   # TK5 序：(新城主, 城)
+        "城主任命": ("set_owner", ["actor", "settlement"]),   # TK5 序：(新城主, 城)
+        "城主解任": ("set_owner", ["settlement"]),            # TK5 序：(城)
         "家督讓位": ("change_clan_leader", ["actor", "clan"]),
         "改名": ("rename", ["actor", "name"]),
         "據點改名": ("rename", ["actor", "name"]),
@@ -924,6 +985,7 @@ class Translator:
         "獨立": ("independence", ["clan"]),
         "軍團指令": ("🔴 02 lock_party/army_gather", ["leader", "target", "behavior"]),
         "軍團編成": ("🔴 02 army_gather", ["leader", "target", "behavior"]),
+        "軍團編成最強": ("🔴 02 army_gather", ["leader", "target", "behavior"]),
         "個人戰鬥": ("🔴 03 battle", ["presetId"]),
         "主命作成": ("create_order", ["orderId"]),
         "宣戰": ("declare_war", ["a", "b"]),
@@ -985,6 +1047,13 @@ class Translator:
             self._push_if(cond, block, hero_override=override)
         elif b in ("ＡＮＤ調查", "ＯＲ調查"):
             self.script_out.append({"step": "note", "note": f"🔴 执行内 {b} → 条件门控", "src": block.raw})
+            # 🔴 v2：块内 children 必须翻译（調查 → pending_cond；分歧 → 路由）——旧版只输出
+            #   note 导致块内分歧无待用条件（EFF06E00_161 实机，fail-fast 抓出）
+            for item in block.children:
+                if isinstance(item, Line):
+                    self.translate_exec_line(item)
+                elif isinstance(item, Block):
+                    self.translate_exec_block(item)
         elif b in ("循環", "模塊開始", "腳本"):
             # 🔴 v4.7 用户裁定：完整语义保留——循环 = loop 步骤（body 递归），禁止线性展开降级
             self.script_out.append({"step": "loop", "body": self._inline_block(block)})
@@ -993,7 +1062,7 @@ class Translator:
             self.script_out.append({"step": "break", "src": block.raw})
         else:
             self.todo_mark("命令块", b, block.raw)
-            self.script_out.append({"step": "note", "note": f"🔴待注册 块:{b}", "src": block.raw})
+            raise RegistryGapError(f"命令块表外: {b}——16a CSV 命令区无此块命令")
 
     def _resolve_branch_cond(self, val):
         """分歧:(N) 的条件解析：选择路由 / 条件分支 / 未知。"""
@@ -1005,9 +1074,9 @@ class Translator:
                 return cond
             if val == "0":
                 return _simplify_not(f"not( {cond} )")
-            return f"🔴待注册:分歧值{val}"
+            raise RegistryGapError(f"分歧值表外: {val}——条件分支值仅 0/1（08 裸分歧规则）")
         self.todo_mark("分歧", val)
-        return f'🔴待注册:分歧({val})'
+        raise RegistryGapError(f"分歧表外: {val}——无待用条件/选择路由")
 
     def _inline_block(self, block, when=None):
         """块内容就地翻译（if 的 then）——when 传播进 lines。"""
@@ -1032,8 +1101,7 @@ class Translator:
             if hero == "其他":
                 conds = [f"not( (Hero::MainHero) == ({self.speaker_of(h)}) )" for h in self.seen_heroes]
                 if not conds:
-                    self.todo_mark("主人公其他", block.raw)
-                    return "🔴待注册:其他机位"
+                    raise RegistryGapError("主人公分歧(其他) 无前序机位——语料结构异常（主人公別 先于 主人公分歧）")
                 return "and( " + ", ".join(conds) + " )" if len(conds) > 1 else conds[0]
             self.seen_heroes.add(hero)
             return f"(Hero::MainHero) == ({self.speaker_of(hero)})"
@@ -1188,7 +1256,7 @@ class Translator:
         self.cur_seg, self.seg_n = None, 0
         self.current_hero = "Hero::MainHero"
 
-        ev = {"id": ev_id, "trigger": "🔴待注册", "once": True, "priority": "normal",
+        ev = {"id": ev_id, "trigger": "", "once": True, "priority": "normal",
               "condition": "", "script": []}
         self.head_src["id"] = f"事件:事件{ev_id}{{"   # 🔴 id 字段对照注释（源事件块头）
         src_comments = []      # 事件上方注释（触发/条件原文）
@@ -1209,7 +1277,10 @@ class Translator:
                 elif t.startswith("發生契機:"):
                     content = t.split(":", 1)[1].strip()
                     base = content.split("(")[0].strip()
-                    ev["trigger"] = TRIGGER_MAP.get(base, f"🔴待注册:{base}")
+                    trig = TRIGGER_MAP.get(base)
+                    if not trig:
+                        raise RegistryGapError(f"trigger 表外: {base}——08 时机对照表无此契機（回填 01/16 trigger 注册表）")
+                    ev["trigger"] = trig
                     self.form = TRIGGER_FORM.get(base, "menu_dialogue")
                     m = re.search(r"\((.*?)\)", content)
                     if m and ev["trigger"] == "house_enter":
@@ -1309,7 +1380,12 @@ def main():
             print(f"[WARN] 源中找不到事件 {ev_id}，跳过")
             continue
         tr = Translator(reg, args.scenario)
-        ev, comments = tr.translate_event(ev_id, build_tree(events_map[ev_id]))
+        try:
+            ev, comments = tr.translate_event(ev_id, build_tree(events_map[ev_id]))
+        except RegistryGapError as e:
+            print(f"[FAIL] {ev_id}: {e}")
+            print("❌ 表外词条 = 16a CSV 生成器缺陷：回填映射表 → 重跑 build_registry_csv.py → 重跑本脚本")
+            sys.exit(1)
         results.append((ev_id, ev, comments, tr))
 
     if args.sort == "cluster":
