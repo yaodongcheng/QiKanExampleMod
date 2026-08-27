@@ -28,29 +28,69 @@ import sys
 from collections import Counter
 
 from gen_registry_tables import (DOMAIN_MAP, ATTR_MAP, CMD_MAP, PRED_SIDE_NOARG,
-                                 CALL_MAP, DOMAIN_VAL_MAP, PAIR_OVERRIDE, ENTITY_DOMAINS,
+                                 CALL_MAP, DOMAIN_VAL_MAP, PAIR_OVERRIDE, ENTITY_DOMAINS, SYNTAX_CMDS,
                                  domains, attr_pairs, domain_vals, calls, cmds,
                                  pair_side, val_side, call_side, verify_coverage)
 
 txt = open('Knowledge/太阁事件包/TK5AllEvents_merged.txt', encoding='utf-8').read()
 
-# ── 属性类型（16 属性白名单类型列）──
+# ── 值类型体系（🔴 2026-08-27 用户裁定统一）：布尔 / 数字 / 字符串 / 枚举（受限字符串）/ 空 /
+#    对象:子类型（据点/人物/家族/王国/区域/部队/组织/卡/物品/设施/官职/任务/旗标/位置）/ 未知 / 🔴 待定
 ATTR_TYPES = {
     'year': '数字', 'month': '数字', 'day': '数字',
-    'owner': '势力引用', 'clan': '家族引用', 'faction': '势力引用', 'type': '枚举', 'region': '引用',
-    'garrison': '数字', 'food': '数字', 'prosperity': '数字', 'security': '数字', 'position': '位置',
+    'owner': '对象:王国', 'clan': '对象:家族', 'faction': '对象:王国', 'type': '枚举', 'region': '对象:区域',
+    'garrison': '数字', 'food': '数字', 'prosperity': '数字', 'security': '数字', 'position': '对象:位置',
     'defense': '数字', 'morale': '数字', 'funds': '数字', 'training': '数字', 'rebellion': '布尔',
-    'materials': '数字/物品引用', 'kokudaka': '数字', 'mine': '数字', 'vessels': '数字',
+    'materials': '数字', 'kokudaka': '数字', 'mine': '数字', 'vessels': '数字',
     'suppressed': '布尔', 'movable': '布尔', 'attackable': '布尔', 'siege': '布尔',
-    'alive': '布尔', 'state': '枚举', 'leader': '布尔', 'gender': '枚举', 'identity': '枚举', 'age': '数字',
-    'home': '据点引用', 'settlement': '据点引用', 'party': '部队引用', 'superior': '角色引用',
-    'spouse': '角色引用', 'reputation': '数字', 'infamy': '数字', 'gold': '数字',
+    'alive': '布尔', 'state': '枚举', 'leader': '布尔', 'gender': '枚举', 'identity': '枚举（带序：17 身份链）', 'age': '数字',
+    'home': '对象:据点', 'settlement': '对象:据点', 'party': '对象:部队', 'superior': '对象:人物',
+    'spouse': '对象:人物', 'reputation': '数字', 'infamy': '数字', 'gold': '数字',
     'relation_to': '数字（带参）', 'available': '布尔', 'merit': '数字', 'loyalty': '数字',
-    'health': '数字', 'title': '枚举', 'tendency': '枚举',
-    'kingdom': '势力引用', 'done': '布尔', 'value': '数字/字符串/引用', '持有': '布尔', '等级': '数字',
-    'result': '枚举（BattleResult）', 'leader2': '角色引用', 'strategy': '枚举', 'policy': '枚举',
+    'health': '数字', 'title': '枚举（带序：17 官职品级）', 'tendency': '枚举',
+    'kingdom': '对象:王国', 'done': '布尔', 'value': '数字/字符串/对象', '持有': '布尔', '等级': '数字',
+    'result': '枚举（BattleResult）', 'strategy': '枚举', 'policy': '枚举',
     'goal': '枚举', 'intent': '枚举', 'power': '数字', 'settlements': '数字', 'unknown': '未知',
 }
+
+# 域值类型（值类型体系同 ATTR_TYPES）
+DOMAIN_VAL_TYPES = {
+    '身份': '枚举（带序：17 身份链）', '狀況': '数字/布尔/对象', '據點': '对象:据点', '忍者衆': '对象:组织', '商家': '对象:组织',
+    '戰鬥結束種類': '枚举', '軍團': '对象:部队', '人物類別': '枚举', '事件標誌': '布尔', '真偽': '布尔',
+    '天氣': '枚举', '日數計數器': '数字', '變量': '数字/字符串/对象', '儲存號': '数字/字符串/对象',
+    '場面': '对象:设施', '物品類型': '枚举', '軍團方針': '枚举', '官位': '枚举（带序：17 官职品级）', '官職': '枚举（带序：17 官职品级）',
+    '工作': '对象:任务', '事件主命': '对象:任务',
+}
+# 按具体 (域,值) 精确化（語料例句判定：劇本==(2) 数字、場面==(場面::自宅) 设施、評定期間標誌 布尔）
+DOMAIN_VAL_TYPE_OVERRIDE = {
+    ('狀況', '年'): '数字', ('狀況', '月'): '数字', ('狀況', '日'): '数字',
+    ('狀況', '24'): '数字', ('狀況', '遊戲經過日數'): '数字',
+    ('狀況', '戰爭禁止日數'): '数字', ('狀況', '空閒大名家數'): '数字', ('狀況', '劇本'): '数字',
+    ('狀況', '評定期間標誌'): '布尔', ('狀況', '評定期限結束標誌'): '布尔',
+    ('狀況', '場面'): '对象:设施', ('狀況', '天氣'): '枚举',
+}
+
+
+def slot_ctype(cmd):
+    """代入XX 命令 → 槽值类型（🔴 2026-08-27 用户裁定：赋值对象类型写清楚，城Ａ = 对象:据点）。"""
+    m = re.match(r'^代入([一-鿿Ａ-Ｚａ-ｚA-Za-z]+)$', cmd)
+    if not m:
+        return None
+    body = m.group(1)
+    if re.match(r'^[ａ-ｚ]$', body):
+        return '数字/对象'                              # ａ-ｚ 通用变量槽（士气值/年份/人物引用都可能）
+    if body.startswith('文字列'):
+        return '字符串'
+    for dom, t in (('人物', '对象:人物'), ('城', '对象:据点'), ('據點', '对象:据点'),
+                   ('町', '对象:据点'), ('里', '对象:据点'), ('砦', '对象:据点'),
+                   ('大名家', '对象:家族'), ('勢力', '对象:王国'), ('國', '对象:区域'), ('地方', '对象:区域'),
+                   ('忍者衆', '对象:组织'), ('商家', '对象:组织'), ('海賊衆', '对象:组织'),
+                   ('軍團', '对象:部队'), ('卡', '对象:卡'), ('流派', '对象:流派'),
+                   ('物品', '对象:物品'), ('交易品', '对象:物品'),
+                   ('主命目標', '对象:任务'), ('事件主命', '对象:任务')):
+        if body.startswith(dom):
+            return t
+    return '数字/字符串/对象'
 
 # ── 动作参数 + 实现（16 动作表）──
 ACTIONS = {
@@ -137,10 +177,7 @@ DOMAIN_VAL_IMPL = {
     '身份': '17 身份系统', '狀況': '引擎', '據點': '引擎', '忍者衆': '数据包（07 核对）', '商家': '数据包（07 核对）',
     '戰鬥結束種類': '03 战果', '軍團': '02 PartyBrain', '人物類別': '枚举', '事件標誌': '引擎 Flag',
 }
-DOMAIN_VAL_TYPES = {
-    '身份': '枚举', '狀況': '引用/布尔', '據點': '引用', '忍者衆': '组织引用', '商家': '组织引用',
-    '戰鬥結束種類': '枚举', '軍團': '部队引用', '人物類別': '枚举', '事件標誌': '旗标',
-}
+# 域值类型定义见上方 ATTR_TYPES 后的 DOMAIN_VAL_TYPES（值类型体系统一，2026-08-27 用户裁定）
 
 # ── 命令常用中文语义（动作/演出/流程）──
 CMD_SEM = {
@@ -292,13 +329,14 @@ for (d, v), c in domain_vals.most_common():
     if side is None:
         continue
     val_seen.add((d, v))
-    typ = DOMAIN_VAL_TYPES.get(d, '枚举')
+    typ = DOMAIN_VAL_TYPE_OVERRIDE.get((d, v), DOMAIN_VAL_TYPES.get(d, '枚举'))
     sem = v
     impl = DOMAIN_VAL_IMPL.get(d, '引擎')
     note = '✅ 引擎' if impl == '引擎' else f'🔴 需新加（{impl}）'
     rows.append([v, c, '域值', d, side, typ, sem, '—', note])
 
-# 命令（纯 TK5——mod 原生 18 动作 token 已移出 16a，权威 = 16.md §六 动作 token 注册表，2026-08-27 用户裁定）
+# 命令（纯 TK5——mod 原生 18 动作 token 已移出 16a，权威 = 16.md §六 动作 token 注册表，2026-08-27 用户裁定）；
+# 🔴 语法词（條件/流程/事件结构）类别 = 语法，不占「命令」（2026-08-27 用户裁定：语法全量进表）
 for k, v in cmds.most_common():
     label = CMD_MAP.get(k)
     if label is None:
@@ -315,29 +353,49 @@ for k, v in cmds.most_common():
             param, impl = ap, ai
             break
     sem = CMD_SEM.get(label, CMD_SEM.get(side, ACT_SEM.get(side, k)))   # 语义：动作/演出/流程表，兜底词条名
-    rows.append([k, v, '命令', '—', side, '—', sem, param, impl])      # 备注 = 实现归属（含 🔴/❌ 状态，label 自含）
+    cat = '语法' if k in SYNTAX_CMDS else '命令'
+    typ = slot_ctype(k) if k.startswith('代入') else '—'                # 🔴 代入槽：值类型 = 赋值对象类型（2026-08-27 用户裁定）
+    if k == '更新':
+        # 🔴 双括号语法 + 类型一致性（2026-08-27 用户裁定）：
+        #   更新:(目标属性)(新值)——目标属性值类型必须 == 值的类型（例：所屬據點=对象:据点 == 町::松江=对象:据点）
+        param = '(目标)(值)——双括号：更新:(人物::X.所屬據點)(町::松江)；🔴 两侧值类型必须一致（同型约束）'
+        sem = '状态写入（事件完成/旗标/数值/归属/状态）'
+    rows.append([k, v, cat, '—', side, typ, sem, param, impl])         # 备注 = 实现归属（含 🔴/❌ 状态，label 自含）
 
 # ── 谓词区：只收 TK5 调用词翻译行（外交同盟→isAllied…）──
 # mod DSL 谓词 token（atWar/isAllied/…）权威 = 16.md §三 谓词注册表（2026-08-27 用户裁定：CSV 太阁原词列只收 TK5 词）
 CALL_SEM = {
-    'isAllied': 'a 与 b 同盟', 'relation': '势力间外交关系数值', 'isNeighbor': 'a 与 b 相邻',
+    'isAllied': 'a 与 b 同盟（数值：!=0 即同盟）', 'relation': '势力间外交关系数值', 'isNeighbor': 'a 与 b 相邻',
     'allControlled': '区域全部据点由 clan 控制', 'hasCard': '是否持有技能卡',
     'canMove': '角色能否前往该据点', 'canAttack': '角色能否攻击该据点',
 }
-for call_word, (pred, params) in CALL_MAP.items():
-    rows.append([call_word, '—', '谓词', '—', pred, '—', CALL_SEM.get(pred, pred), ', '.join(params), '注册表加行（谓词引擎）'])
+# 🔴 v3（2026-08-27 用户裁定）：谓词 = 带返回值的函数——所属域列 = 语料调用方域并集（全城壓制→國、
+#   卡持有→人物、外交同盟→大名家/商家…）；值类型列 = 返回值类型（数字/布尔）
+call_doms = {}
+for (d, a) in calls:
+    if a in CALL_MAP:
+        call_doms.setdefault(a, set()).add(d)
+for call_word, (pred, params, ret) in CALL_MAP.items():
+    doms = ' / '.join(sorted(call_doms.get(call_word, [])))
+    rows.append([call_word, '—', '谓词', doms, pred, ret, CALL_SEM.get(pred, pred), ', '.join(params), '注册表加行（谓词引擎）'])
 
 # ── 例句列：词条 → TK5 事件原句示范（首次出现行截断；🔴 2026-08-27 用户裁定，给人检查用）──
+# 🔴 域值行例句 key 必须带域（事件標誌::95 vs 日數計數器::95 同值不同域，纯值 key 会串例句）
 EXAMPLE_LEN = 60
 example = {}
-terms = {(r[2], r[0]) for r in rows if r[0] != '—'}
+terms = set()
+for r in rows:
+    if r[0] == '—':
+        continue
+    terms.add((r[2], r[3], r[0]) if r[2] == '域值' else (r[2], r[0]))
 for _line in txt.splitlines():
     s = _line.strip()
-    if not s:
-        continue
+    if not s or s.startswith('#'):
+        continue        # 🔴 跳过注释/说明行（# 文件内事件标志引用… 含 事件:: 字样会污染例句，2026-08-27 用户裁定）
     m = re.match(r'^([一-鿿Ａ-Ｚａ-ｚA-Za-z]{2,8}):', s)
-    if m and ('命令', m.group(1)) in terms:
-        example.setdefault(('命令', m.group(1)), s)
+    if m and (('命令', m.group(1)) in terms or ('语法', m.group(1)) in terms):
+        key = ('命令', m.group(1)) if ('命令', m.group(1)) in terms else ('语法', m.group(1))
+        example.setdefault(key, s)
     for dm in re.finditer(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９.]{1,16})', s):
         dom, rest = dm.group(1), dm.group(2)
         if rest.endswith('.'):
@@ -346,16 +404,34 @@ for _line in txt.splitlines():
             attr = rest.split('.')[-1]
             if ('属性', attr) in terms:
                 example.setdefault(('属性', attr), s)
+            # 🔴 数字主体.数字属性（主命屬性::5288.80）——域值词条 = 末尾数字（2026-08-27 用户裁定消灭无例句行）
+            if re.fullmatch(r'[0-9０-９]+\.[0-9０-９]+', rest):
+                tail = rest.split('.')[-1]
+                if ('域值', dom, tail) in terms:
+                    example.setdefault(('域值', dom, tail), s)
         else:
-            if ('域值', rest) in terms:
-                example.setdefault(('域值', rest), s)
+            if ('域值', dom, rest) in terms:
+                example.setdefault(('域值', dom, rest), s)
             if ('域', dom) in terms:
                 example.setdefault(('域', dom), s)
     for cm in re.finditer(r'\.([一-鿿A-Za-zＡ-Ｚａ-ｚ]+)\(', s):
         if ('谓词', cm.group(1)) in terms:
             example.setdefault(('谓词', cm.group(1)), s)
 for r in rows:
-    ex = example.get((r[2], r[0]), '')
+    key = (r[2], r[3], r[0]) if r[2] == '域值' else (r[2], r[0])
+    ex = example.get(key, '')
+    if not ex:
+        # 🔴 宽松兜底：无例句词条 → 语料含词条名的任意**非注释**行（evm 只在文件头注释出现等，2026-08-27 用户裁定消灭无例句）
+        for _line in txt.splitlines():
+            if r[0] in _line and not _line.strip().startswith('#'):
+                ex = _line.strip()
+                break
+        if not ex:
+            # 词条只出现在注释/文件名（evm 解析碎片）→ 取其出处（去 # 前缀，如实标注来源）
+            for _line in txt.splitlines():
+                if r[0] in _line:
+                    ex = _line.strip().lstrip('#').strip()
+                    break
     r.append(ex if len(ex) <= EXAMPLE_LEN else ex[:EXAMPLE_LEN] + '…')
 
 # ── 防再犯自检 ──
@@ -385,11 +461,15 @@ def main():
 
     with open('plans/scenario-campaign-mode/16a-DSL翻译总表.csv', 'w', encoding='utf-8-sig', newline='') as f:
         w = csv.writer(f)
-        # 🔴 列序（2026-08-27 用户裁定）：类别第一列（排序分区看），所属域第三列（属性类别），
-        #    频率倒数第二，例句最后一列（TK5 原句示范，人检查用）
+        # 🔴 行序（2026-08-27 用户裁定）：第一列类别为主排序（域→属性→域值→命令→语法→谓词），
+        #    第二列太阁原词为次排序（Unicode）
+        CAT_ORDER = {'域': 0, '属性': 1, '域值': 2, '命令': 3, '语法': 4, '谓词': 5}
+        rows.sort(key=lambda r: (CAT_ORDER.get(r[2], 9), r[0]))
+        # 🔴 列序（2026-08-27 用户裁定）：类别第一列、太阁原词第二列、例句第三列（词条后紧跟原句示范）、
+        #    所属域第四列、频率倒数第二
         # 内部 rows 保持 [原词, 频率, 类别, 所属域, 侧名, 值类型, 语义, 参数, 备注, 例句] → 写文件重排
-        ORDER = [2, 0, 3, 4, 5, 6, 7, 8, 1, 9]
-        w.writerow(['类别', '太阁原词', '所属域', '我们侧名', '值类型', '语义', '参数', '备注', '频率', '例句'])
+        ORDER = [2, 0, 9, 3, 4, 5, 6, 7, 8, 1]
+        w.writerow(['类别', '太阁原词', '例句', '所属域', '我们侧名', '值类型', '语义', '参数', '备注', '频率'])
         for r in rows:
             w.writerow([r[i] for i in ORDER])
     n_attr = len([r for r in rows if r[2] == '属性'])

@@ -130,14 +130,17 @@ SKILL_TOKENS = {
 }
 
 # ═══ 谓词候选：带参调用 → 谓词（v2：全城壓制 等从语料提取，不再硬编码待注册）═══
+# 🔴 v3（2026-08-27 用户裁定）：谓词 = 带返回值的函数——第三元 = 返回值类型：
+#   外交同盟/外交感情 返回数字（例句 外交感情(...)+(10) 做算术、外交同盟(...)!=(2) 与数字比较），
+#   其余返回布尔（==(真偽::真) 或裸布尔）
 CALL_MAP = {
-    '外交同盟': ('isAllied', ('a', 'b')),        # a,b = 势力
-    '外交感情': ('relation', ('a', 'b')),          # a,b = 势力
-    '鄰接大名家': ('isNeighbor', ('a', 'b')),
-    '全城壓制': ('allControlled', ('region', 'clan')),
-    '卡持有': ('hasCard', ('hero', 'card')),       # 语料: (人物::X.卡持有(卡::Y)) = 是否持有技能卡
-    '移動可能': ('canMove', ('settlement', 'hero')),    # 语料: (城::X.移動可能(人物::Y)) = Y 能否前往 X
-    '攻擊可能': ('canAttack', ('settlement', 'hero')),
+    '外交同盟': ('isAllied', ('a', 'b'), '数字'),          # 同盟状态值（!=0 即同盟；例句 !=(2)）
+    '外交感情': ('relation', ('a', 'b'), '数字'),          # 关系数值（例句 +(10) 算术）
+    '鄰接大名家': ('isNeighbor', ('a', 'b'), '布尔'),
+    '全城壓制': ('allControlled', ('region', 'clan'), '布尔'),
+    '卡持有': ('hasCard', ('hero', 'card'), '布尔'),
+    '移動可能': ('canMove', ('settlement', 'hero'), '布尔'),
+    '攻擊可能': ('canAttack', ('settlement', 'hero'), '布尔'),
 }
 # 无参但语义为关系谓词的属性侧名（认识標誌/親密度 → 与主人公的关系）
 PRED_SIDE_NOARG = {'hasMet', 'relation', 'hasRelation'}
@@ -203,7 +206,11 @@ ENTITY_DOMAINS = {
 # ═══ 域::值 规则兜底（词条域专用；实体域由 ENTITY_DOMAINS 处理，不进 CSV）═══
 def domain_val_rule(dom, val):
     if dom == '事件標誌':
-        return f'Flag::{fallback_id(val)}'            # flag 名是运行数据，确定性 hash + report 登记中文名
+        # 编号旗标（语料实测值全为数字：38/95/167…，用法 更新/調查:(事件標誌::38)）——
+        # 编号即稳定 ID，保留可读（Flag::flag_38）；事件完成状态是另一套：事件::X → Event::<id>.done
+        if val.isdigit():
+            return f'Flag::flag_{val}'
+        return f'Flag::{fallback_id(val)}'            # 非数字 flag 名：确定性 hash + report 登记中文名
     if dom == '狀況':
         return f'Variable::{fallback_id(val)}'         # 全局状态值（除专表外）
     if dom == '日數計數器':
@@ -446,6 +453,21 @@ CMD_EXACT = {
     '容器檢索': 'container_query', 'ＳＥ停止': '05 se 指令', 'ＳＥ循環': '05 se 指令（循环）',
 }
 CMD_MAP.update(CMD_EXACT)
+
+# 🔴 语法类别（2026-08-27 用户裁定：条件/流程/事件结构 词不是「命令」——
+# 不产生独立执行步骤，只参与条件/分支/循环/文件结构；命令区纯化为真·命令）
+# 「更新」= 状态写入（事件完成/旗标成立/士气值），翻译器 = 机制行 note 承接（无执行步骤），归语法（2026-08-27 用户裁定）
+SYNTAX_CMDS = {
+    # 条件子句/组合器/分支
+    '調查', 'ＡＮＤ調查', 'ＯＲ調查', '場合分歧', '場合別', '主人公分歧', '主人公別',
+    '對話可否選擇', '旁白可否選擇',
+    # 流程控制
+    '循環', '脫出模塊', '模塊開始', '腳本', '遊戲中斷',
+    # 事件文件结构（头字段）
+    '事件', '屬性', '發生契機', '發生條件', '執行',
+    # 状态写入（机制行，翻译器 note 承接）
+    '更新',
+}
 
 def cmd_rule(name):
     if name.startswith('代入'):
