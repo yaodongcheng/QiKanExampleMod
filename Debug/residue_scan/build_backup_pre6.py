@@ -27,10 +27,7 @@ import re
 import sys
 from collections import Counter
 
-from gen_registry_tables import (ENUM_SETS, RES_SETS, RES_PREFIX, enum_side, arg_spec,
-                                 TEXT_VARS, TEXT_FIELDS, CMD_ARG_SPEC, CMD_ARG_PREFIX,
-                                 arg_positions, head_vals, talk_interps,
-                                 DOMAIN_MAP, ATTR_MAP, CMD_MAP, FUNC_SIDE_NOARG,
+from gen_registry_tables import (DOMAIN_MAP, ATTR_MAP, CMD_MAP, FUNC_SIDE_NOARG,
                                  CALL_MAP, DOMAIN_VAL_MAP, PAIR_OVERRIDE, ENTITY_DOMAINS, SYNTAX_CMDS,
                                  SPECIAL_VALS, SPECIAL_TYPES,
                                  domains, attr_pairs, domain_vals, calls, cmds,
@@ -52,7 +49,7 @@ ATTR_TYPES = {
     'spouse': '对象:人物', 'reputation': '数字', 'infamy': '数字', 'gold': '数字',
     'relation_to': '数字', 'available': '布尔', 'merit': '数字', 'loyalty': '数字',
     'known': '布尔',
-    'health': '数字', 'title': '枚举:官職', 'court_rank': '枚举:官位（带序：17 官位品级链）', 'tendency': '枚举',
+    'health': '数字', 'title': '枚举:官職（带序：17 官职品级）', 'tendency': '枚举',
     'kingdom': '对象:王国', 'done': '布尔', 'value': '数字/字符串/对象', '持有': '布尔', '等级': '数字',
     'result': '枚举（BattleResult）', 'strategy': '枚举', 'policy': '枚举',
     'goal': '枚举', 'intent': '枚举', 'power': '数字', 'settlements': '数字', 'unknown': '未知',
@@ -63,7 +60,7 @@ DOMAIN_VAL_TYPES = {
     '身份': '枚举:身份（带序：17 身份链）', '狀況': '数字/布尔/对象', '據點': '对象:据点', '忍者衆': '对象:组织', '商家': '对象:组织',
     '戰鬥結束種類': '枚举', '軍團': '对象:部队', '人物類別': '枚举', '事件標誌': '布尔', '真偽': '布尔',
     '天氣': '枚举', '日數計數器': '数字', '變量': '数字/字符串/对象', '儲存號': '数字/字符串/对象',
-    '場面': '对象:设施', '物品類型': '枚举', '軍團方針': '枚举', '官位': '枚举:官位（带序：17 官位品级链）', '官職': '枚举:官職',
+    '場面': '对象:设施', '物品類型': '枚举', '軍團方針': '枚举', '官位': '枚举:官位（带序：17 官职品级）', '官職': '枚举:官職（带序：17 官职品级）',
     '工作': '枚举:工作', '事件主命': '枚举:事件主命', '主命': '枚举:主命',
 }
 # 按具体 (域,值) 精确化（語料例句判定：劇本==(2) 数字、場面==(場面::自宅) 设施、評定期間標誌 布尔）
@@ -86,7 +83,7 @@ DOMAIN_CTYPE = {
     '卡': '对象:卡', '流派': '对象:卡', '物品': '对象:物品', '交易品': '对象:物品',
     '場面': '对象:设施', '主命': '枚举:主命', '工作': '枚举:工作', '事件主命': '枚举:事件主命',
     '事件標誌': '对象:旗标', '事件': '对象:事件', '事件發生狀態': '对象:事件',
-    '身份': '枚举:身份（带序：17 身份链）', '官位': '枚举:官位（带序：17 官位品级链）', '官職': '枚举:官職',
+    '身份': '枚举:身份（带序：17 身份链）', '官位': '枚举:官位（带序：17 官职品级）', '官職': '枚举:官職（带序：17 官职品级）',
     '天氣': '枚举:天氣', '人物類別': '枚举:人物類別', '戰鬥結束種類': '枚举:戰鬥結束種類', '物品類型': '枚举:物品類型', '軍團方針': '枚举:軍團方針',
     '真偽': '布尔', '日數計數器': '数字',
     '狀況': '数字/布尔/对象', '變量': '数字/字符串/对象', '儲存號': '数字/字符串/对象',
@@ -626,120 +623,6 @@ for call_word, (pred, params, ret) in CALL_MAP.items():
     doms = ' / '.join(sorted(call_doms.get(call_word, [])))
     rows.append([call_word, '—', '函数', doms, pred, ret, CALL_SEM.get(pred, pred), ', '.join(params), '注册表加行（函数引擎）'])
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 🔴 v4（2026-08-27）：命令参数位词条进表 —— 枚举值 / 资源名 / 文本变量 / 参数签名
-#   翻译器查落点时，「對話:(上忍,主人公)」的 上忍、「ＢＧＭ變更:(合戰)」的 合戰
-#   都要能在总表查到侧名；旧版这批词条一条都没有（只有 域::X 形态进表）。
-# ═══════════════════════════════════════════════════════════════════════════
-
-# 词条频率：语料里该 token 出现在命令参数位/头值的次数
-ENUM_FREQ = Counter()
-for (_c, _p), _toks in arg_positions.items():
-    for _t, (_n, _sib) in _toks.items():
-        ENUM_FREQ[_t] += _n
-for (_c, _h), _n in head_vals.items():
-    ENUM_FREQ[_h] += _n
-
-# 枚举值例句：单趟扫语料，按「命令:(参数,参数)」取每个 token 的首现行
-ENUM_TOKENS = set()
-for _s, _m in ENUM_SETS.items():
-    ENUM_TOKENS |= set(_m)
-for _s, _m in RES_SETS.items():
-    ENUM_TOKENS |= set(_m)
-ENUM_TOKENS |= set(TEXT_VARS) | set(TEXT_FIELDS)
-
-ENUM_EX = {}
-for _line in txt.splitlines():
-    _s = _line.strip()
-    if not _s or _s.startswith('#') or ':' not in _s:
-        continue
-    for _piece in re.split(r'[():,\uff0c\[\]{}<>|\uff5c]', _s):   # 🔴 全角括号不切（統一（完全）/ししおどし（メイン）整token）
-        _piece = _piece.strip()
-        if _piece in ENUM_TOKENS and _piece not in ENUM_EX:
-            ENUM_EX[_piece] = _s
-
-# 首趟按分隔符切分会漏两类：含半角括号的资源名（雪(メイン)）、插值字段（{人物Ａ.名前} 的 名前）
-# → 对剩余 token 做一趟子串兜底（数量个位数，一遍扫完即止）
-_missing = {t for t in ENUM_TOKENS if t not in ENUM_EX}
-if _missing:
-    for _line in txt.splitlines():
-        _s = _line.strip()
-        if not _s or _s.startswith('#'):
-            continue
-        for _t in tuple(_missing):
-            if _t in _s:
-                ENUM_EX[_t] = _s
-                _missing.discard(_t)
-        if not _missing:
-            break
-
-# 🔴 域值行索引：(所属域, 原词) → 行（供枚举值行合并频率，见下方「枚举值行」）
-_VAL_ROW = {(r[3], r[0]): r for r in rows if r[2] == '域值'}
-
-# ── 枚举值行 ──
-ENUM_KIND = {                      # 集名 → (值类型, 备注)
-    **{k: ('资源', '🔴 数据包资源（05 演出/场景/角色模板）') for k in RES_PREFIX},
-    '觸發': ('资源', '🔴 事件触发名（01 调度器 trigger 表）'),
-}
-for _set in sorted(set(ENUM_SETS) | set(RES_SETS)):
-    _toks = ENUM_SETS.get(_set) or {t: None for t in RES_SETS.get(_set, ())}
-    _typ, _note = ENUM_KIND.get(_set, ('枚举', '✅ 枚举字面量'))
-    _sem = ('%s 资源名' % _set) if _typ == '资源' else ('%s 枚举值' % _set)
-    for _tok in sorted(_toks):
-        _side = enum_side(_set, _tok)
-        if _side is None:
-            continue               # 理论上不会发生（生成期自检已断言），保守跳过
-        # 🔴 2026-08-27 用户抓包：同域同词禁止两行 —— `身份::元締`（域值形态）与命令参数位裸
-        #   `元締`（枚举形态）是同一个词，旧版各出一行、各带一个频率，读者无从判断。
-        #   已有域值行 → 频率并进去（域值形态次数 + 参数位次数 = 该词总出现次数），不另起行。
-        _dup = _VAL_ROW.get((_set, _tok))
-        if _dup is not None:
-            _dup[1] += ENUM_FREQ.get(_tok, 0)
-            continue
-        rows.append([_tok, ENUM_FREQ.get(_tok, 0), '枚举值', _set, _side, _typ, _sem, '—', _note])
-
-# ── 文本变量行（台词插值 {一人稱} / {人物Ａ.姓}）──
-for _v, _side in sorted(TEXT_VARS.items()):
-    rows.append([_v, talk_interps.get(_v, 0), '文本变量', '插值变量', _side, '文本',
-                 '台词插值变量（05 lines 渲染期替换）', '{%s}' % _v, '✅ 文本渲染'])
-for _f, _side in sorted(TEXT_FIELDS.items()):
-    rows.append([_f, sum(_n for _i, _n in talk_interps.items() if _i.endswith('.' + _f)),
-                 '文本变量', '插值字段', 'Text%s' % _side, '文本',
-                 '台词插值字段（主体.字段 → 取对象字段渲染）', '{主体.%s}' % _f, '✅ 文本渲染'])
-
-# ── 命令/语法行「参数」列：回填参数位签名 ──
-_KIND_CN = {'E': '具名实体', 'D': '域名', 'A': '属性名',
-            'VA': '值（取值空间由属性参决定）', '*': '头值'}
-
-
-def _kind_cn(k):
-    if k in _KIND_CN:
-        return _KIND_CN[k]
-    if k.startswith('域:'):
-        return '%s 域值' % k[2:]
-    return '%s 枚举' % k
-
-
-def _sig_of(cmd):
-    spec = CMD_ARG_SPEC.get(cmd)
-    if spec is None:
-        spec = next((s for pre, s in CMD_ARG_PREFIX.items() if cmd.startswith(pre)), None)
-    if not spec:
-        return None
-    out = []
-    if '*' in spec:
-        out.append('头值=%s' % '/'.join(_kind_cn(k) for k in spec['*']))
-    for p in sorted(k for k in spec if k != '*'):
-        out.append('pos%d=%s' % (p, '/'.join(_kind_cn(k) for k in spec[p])))
-    return ', '.join(out)
-
-
-for _r in rows:
-    if _r[2] in ('命令', '语法') and _r[7] == '—':
-        _sig = _sig_of(_r[0])
-        if _sig:
-            _r[7] = _sig
-
 # ── 例句列：词条 → TK5 事件原句示范（首次出现行截断；🔴 2026-08-27 用户裁定，给人检查用）──
 # 🔴 域值行例句 key 必须带域（事件標誌::95 vs 日數計數器::95 同值不同域，纯值 key 会串例句）
 EXAMPLE_LEN = 60
@@ -748,8 +631,6 @@ terms = set()
 for r in rows:
     if r[0] == '—':
         continue
-    if r[2] in ('枚举值', '文本变量'):
-        continue          # 例句已由 ENUM_EX 单趟扫描给出，不进兜底（O(行×词条) 跑不动）
     terms.add((r[2], r[3], r[0]) if r[2] == '域值' else (r[2], r[0]))
 for _line in txt.splitlines():
     s = _line.strip()
@@ -781,10 +662,6 @@ for _line in txt.splitlines():
         if ('函数', cm.group(1)) in terms:
             example.setdefault(('函数', cm.group(1)), s)
 for r in rows:
-    if r[2] in ('枚举值', '文本变量'):
-        ex = ENUM_EX.get(r[0], '')
-        r.append(ex if len(ex) <= EXAMPLE_LEN else ex[:EXAMPLE_LEN] + '…')
-        continue
     key = (r[2], r[3], r[0]) if r[2] == '域值' else (r[2], r[0])
     ex = example.get(key, '')
     if not ex:
@@ -812,18 +689,7 @@ def main():
         sys.exit(1)
     # 侧名合法性断言：DSL token 只收 ASCII（防「角色引用」式中文侧名）；只查 属性/域值/函数 行
     #（命令行侧名是描述性 label，翻译器另有动作映射，不在此列）
-    # 🔴 唯一性断言（2026-08-27 用户抓包：身份 一词两行）：同 (所属域, 太阁原词) 只能一行
-    _seen = {}
-    _dups = []
-    for r in rows:
-        k = (r[3], r[0])
-        if k in _seen and {_seen[k][2], r[2]} <= {'域值', '枚举值', '属性'}:
-            _dups.append('%s::%s（%s + %s）' % (r[3], r[0], _seen[k][2], r[2]))
-        _seen[k] = r
-    assert not _dups, '同域同词重复行 %d 条：%s' % (len(_dups), ' / '.join(_dups[:10]))
-    side_errors = [r[4] for r in rows
-                   if r[2] in ('属性', '域值', '函数', '枚举值', '文本变量')
-                   and not (side_ok(r[4]) or re.fullmatch(r'-?[0-9]+', r[4]))]
+    side_errors = [r[4] for r in rows if r[2] in ('属性', '域值', '函数') and not side_ok(r[4])]
     if side_errors:
         print('❌ 侧名非法（DSL token 必须 ASCII）：')
         for s in side_errors[:30]:
@@ -840,8 +706,7 @@ def main():
     with open('plans/scenario-campaign-mode/16a-DSL翻译总表.csv', 'w', encoding='utf-8-sig', newline='') as f:
         w = csv.writer(f)
         # 🔴 行序（2026-08-27 用户裁定）：类别 → 所属域 → 太阁原词 三级排序
-        CAT_ORDER = {'域': 0, '属性': 1, '域值': 2, '枚举值': 3, '文本变量': 4,
-                     '命令': 5, '语法': 6, '函数': 7}
+        CAT_ORDER = {'域': 0, '属性': 1, '域值': 2, '命令': 3, '语法': 4, '函数': 5}
         rows.sort(key=lambda r: (CAT_ORDER.get(r[2], 9), r[3], r[0]))
         # 🔴 列序（2026-08-27 用户裁定）：类别第一列、所属域第二列、太阁原词第三列、例句第四列、
         #    频率最后一列；所属域第二列 = 排序分区第二级（属性按 大名家/城/人物… 分组、域值按域分组）
@@ -852,9 +717,7 @@ def main():
             w.writerow([r[i] for i in ORDER])
     n_attr = len([r for r in rows if r[2] == '属性'])
     n_val = len([r for r in rows if r[2] == '域值'])
-    n_enum = len([r for r in rows if r[2] == '枚举值'])
-    n_text = len([r for r in rows if r[2] == '文本变量'])
-    print(f'✅ CSV 生成完成：{len(rows)} 行（域 {len(domains)} + 属性 {n_attr} + 域值 {n_val} + 枚举值 {n_enum} + 文本变量 {n_text} + 命令 {len(cmds)} + 函数 {len(CALL_MAP)}）')
+    print(f'✅ CSV 生成完成：{len(rows)} 行（域 {len(domains)} + 属性 {n_attr} + 域值 {n_val} + 命令 {len(cmds)} + 函数 {len(CALL_MAP)}）')
     print('  全语料覆盖自检通过：属性(域,属性)、域值(域::值)、带参调用、命令 全部可解析')
 
 

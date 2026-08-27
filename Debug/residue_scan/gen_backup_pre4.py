@@ -6,12 +6,6 @@
    （大名家.本城 2298 次被登记成 人物域 Hero.home → 下游全部 🔴待注册）。
    同时新增「域::值」形态提取（身份枚举/狀況值/命名槽）与带参调用提取（函数候选），
    并在生成期跑全语料覆盖自检：**表外词条 = 生成失败，禁止带病产出**（下游不再可能出现待注册）。
-
-🔴 v4（2026-08-27）：自检范围补齐「命令参数位 / 命令头值 / 台词插值」——
-   旧版只解析 `域::X` 形态，命令裸参数（枚举/资源名/容器字段/触发名）与台词插值
-   完全没有模型，5.4 万处词条游离在总表与自检之外。现在结构化解析每行
-   `命令:[头值](参数,参数)…[[台词]]`，每个参数位声明收什么（CMD_ARG_SPEC），
-   表外即生成失败。配套残渣扫描器：tools/registry_residue_scan.py（扣除法查漏）。
 """
 import hashlib
 import re
@@ -53,7 +47,7 @@ DOMAIN_MAP = {
     '忍者衆': 'Org::忍者衆（数据包，07 核对）', '砦': 'Settlement::（type=砦）', '地方': 'Settlement.region',
     '交易品': 'Item::（数据包交易品）', '儲存號': 'Ctx/Variable（存档槽变量）', '官職': 'Hero.title（17 官职）',
     '流派': '🔴 数据包（流派系统，后续补充——2026-08-27 用户裁定：可能做，不放弃）', '主命': 'QuestDef（13 主命框架）', '町': 'Settlement::（type=町）',
-    '官位': 'Hero.court_rank（17 官位品级链）', '商家': 'Org::商家（数据包，按需）', '里': 'Settlement::（type=里）',
+    '官位': 'Hero.title（17）', '商家': 'Org::商家（数据包，按需）', '里': 'Settlement::（type=里）',
     '天氣': '03 预设 weather（数据包）', '場面': '05 演出形态（scene/menu_dialogue）', '軍團方針': '02 PartyIntent（新加）',
     '工作': '13 主命/工作（QuestDef）', '人物類別': '枚举字面量', '事件主命': '13 事件主命（QuestDef 关联事件）',
     '戰鬥結束種類': '03 战果枚举（BattleResult）', '物品類型': 'Item 类型（数据包）', '主命屬性': '13 主命属性（数据包）',
@@ -167,119 +161,6 @@ CALL_MAP = {
 FUNC_SIDE_NOARG = {'hasMet', 'relation', 'hasRelation'}
 
 # ═══ 域::值 注册表（v2 新增；侧名 = 英文枚举 token / 完整 DSL 引用）═══
-# ═══════════════════════════════════════════════════════════════════════════
-# 🔴 场所词汇单一来源（2026-08-27 补注册）：設施 / 背景 / 場面 / 決鬥場地 四张表
-#   说的是同一套「地方」词——之前四张表各写各的（場面::城主間=lord_room、
-#   設施::城主間=hash、決鬥場地::城主間=lord_room），跟 身份 双表分叉同一个病。
-#   现在只此一张表，四处按各自前缀取用（Facility:: / Background:: / 裸 slug）。
-#   ✅16 = 16-DSL注册表全表.md §二 facility 注册表 v1 已声明，原样采用。
-# ═══════════════════════════════════════════════════════════════════════════
-PLACE_TOKENS = {
-    # ── 16.md §二 已声明（权威，勿改）──
-    '自宅': 'house',                   # ✅16
-    '酒場': 'tavern',                  # ✅16
-    '城主間': 'castle_hall',           # ✅16（原 場面/決鬥場地 写的 lord_room，以 16.md 为准）
-    '評定間': 'council_room',          # ✅16（原 場面 写的 council）
-    '座': 'za',                        # ✅16
-    '主人公診療所': 'clinic',           # ✅16
-    '主人公道場': 'dojo',               # ✅16
-    '民家': 'house_min',               # ✅16
-    '商家': 'shop',                    # ✅16
-    '南蠻商館': 'nanban_trade',         # ✅16
-    '主人公鍛冶屋': 'smithy',           # ✅16
-    '主人公茶室': 'tea_room',           # ✅16
-    '寺': 'temple',                    # ✅16
-    # ── 16.md「其余（≤4 次，无场景一律降级 menu_dialogue）」——本次补注册 token ──
-    '主人公評定': 'council_own',        # 主人公自己主持的评定（区别于 評定間 场所）
-    '公家宅': 'kuge_house',             # 公家 = 朝廷贵族
-    '南蠻寺': 'nanban_temple',          # 南蛮寺 = 天主教堂
-    '城練兵場': 'castle_drill',
-    '宿屋': 'inn',
-    '御所': 'imperial_palace',          # 御所 = 天皇居所
-    '忍屋敷': 'ninja_manor',
-    '忍者宅': 'ninja_house',
-    '據點內畫面': 'settlement_screen',  # 不是设施，是「据点主界面」占位
-    '武家宅': 'samurai_house',
-    '海外交易所': 'overseas_trade',
-    '海賊宅': 'pirate_den',
-    '海賊屋敷': 'pirate_manor',
-    '砦修業場': 'fort_training',        # 砦 = 要塞
-    '砦練兵場': 'fort_drill',
-    '米屋': 'rice_shop',
-    '職人宅': 'artisan_house',
-    '茶人宅': 'tea_master_house',
-    '造船所': 'shipyard',
-    '道場': 'dojo_town',               # 城里的公用道场（主人公道場 = dojo，两者不同）
-    '醫師宅': 'doctor_house',
-    '里修業場': 'village_training',
-    '里練兵場': 'village_drill',
-    '鍛冶屋': 'smithy_town',           # 城里的公用铁匠铺（主人公鍛冶屋 = smithy）
-    '馬屋': 'stable',
-    # ── 場面 域独有：占位符，指「本事件的发生设施」──
-    '發生設施': 'event_facility',
-    # ── 背景独有（场地背景图，不是可进入设施）──
-    '初期設定': 'initial_setup',
-    '合戰畫面': 'battle_screen',
-    '海道': 'sea_route',
-    '賭博所': 'gambling_den',
-    '路口': 'crossroad',
-    '陸道': 'land_route',
-    '黑暗': 'darkness',
-    # ── 決鬥場地独有（庭院/野外）──
-    '原野': 'field',
-    '忍者宅庭院': 'ninja_yard',
-    '武家宅庭院': 'samurai_yard',
-    '民家庭院': 'house_yard',
-    '沙灘': 'beach',
-    '船的甲板': 'ship_deck',
-}
-
-# 🔴 触发时机 token（16-DSL注册表全表.md §二 trigger 注册表 v1 = 权威，✅16 标记原样采用）
-TRIGGER_TOKENS = {
-    '每日處理的開頭': 'daily',              # ✅16
-    '每月處理的最後': 'monthly',            # ✅16
-    '遊戲開始時': 'game_start',             # ✅16
-    '據點畫面表示後': 'settlement_enter',   # ✅16
-    '室內畫面表示後': 'house_enter',        # ✅16（第二参 = facility，见 PLACE_TOKENS）
-    '評定開始時': 'council_start',          # ✅16
-    '移動畫面表示後': 'travel_screen',      # ✅16
-    '野戰開始時': 'field_battle_start',     # ✅16
-    '野戰結束時': 'field_battle_end',       # ✅16
-    '攻城戰開始時': 'siege_battle_start',   # ✅16
-    '攻城戰結束時': 'siege_battle_end',     # ✅16
-    '軍團移動結束時': 'army_move_end',      # ✅16
-    '章節凍結時': 'chapter_freeze',         # ✅16
-    '遊戲通關時': 'game_clear',             # ✅16
-    # ── 语料里有、16.md v1 未声明——本次补注册（16.md §二 表需同步补行）──
-    '人物對話時': 'npc_talk',               # 77 次，最大的未声明契機
-    '合戰決定時': 'battle_decided',         # 合战（会战）判定打不打之后
-    '大名家滅亡時': 'clan_destroyed',
-    '每月處理的最後絕對': 'monthly_forced',  # 「絕對」= 不参与互斥选路，必执行
-    '選擇移動畫面時': 'travel_screen_select',   # 点开移动画面的瞬间（travel_screen 是画面显示完）
-    '選擇設施時': 'facility_select',        # 点设施图标的瞬间（house_enter 是进去之后）
-    '軍團移動開始時': 'army_move_start',
-    '遊戲結束時': 'game_over',              # 败亡结束（game_clear 是通关）
-}
-
-# 🔴 模板 NPC token（05 演出的无名角色模板；07 素材表落 CharacterObject）
-NPC_TOKENS = {
-    '凄腕用心棒': 'elite_bodyguard', '喝醉的女人': 'drunk_woman', '喝醉的男人': 'drunk_man',
-    '奇怪的姑娘': 'strange_girl', '女の子': 'young_girl', '婆さん': 'old_woman',
-    '小孩': 'child', '明國商人': 'ming_merchant', '槍術師範代': 'spear_instructor',
-    '琉球商人': 'ryukyu_merchant', '米屋的老闆': 'rice_shop_owner', '賊': 'bandit',
-    '頭目': 'boss',
-}
-
-# 🔴 军团槽单一来源：軍團(域值) 与 軍團槽(枚举) 是同一套槽位，之前两张表各写各的
-#   （主人公軍團 = main_army / player 两个侧名，事件用１軍團 = event_army_1 / event_1）
-ARMY_SLOTS = {
-    '主人公軍團': 'Army::player',
-    '軍團１': 'Army::army_1', '軍團２': 'Army::army_2',
-    '事件用１軍團': 'Army::event_1', '事件用２軍團': 'Army::event_2',
-    '事件用３軍團': 'Army::event_3', '事件用４軍團': 'Army::event_4',
-    '事件用５軍團': 'Army::event_5',
-}
-
 DOMAIN_VAL_MAP = {
     # 身份枚举（17 功勋/身份系统，token 定稿权在 17）
     ('身份', '大名'): 'daimyo', ('身份', '城主'): 'city_lord', ('身份', '國主'): 'province_lord',
@@ -291,36 +172,7 @@ DOMAIN_VAL_MAP = {
     ('身份', '船頭'): 'boatswain', ('身份', '船大將'): 'naval_captain', ('身份', '水夫頭'): 'boat_leader',
     ('身份', '水夫'): 'sailor', ('身份', '上忍'): 'ninja_high', ('身份', '中忍'): 'ninja_mid',
     ('身份', '下忍'): 'ninja_low', ('身份', '鍛冶匠'): 'smith', ('身份', '醫師'): 'doctor',
-    ('身份', '茶人'): 'tea_master', ('身份', '姑娘'): 'girl',
-    # 🔴 2026-08-27：頭 原与 頭領 同为 chief（表内塌缩，两个不同品级共用 token → 品级链坏）
-    ('身份', '頭'): 'head',
-    # 🔴 2026-08-27：原 ENUM_SETS['身份'] 独有的三个 token 回填（词汇表单一来源）
-    ('身份', '町人'): 'townsman', ('身份', '最高位'): 'top_rank',
-    ('身份', '事件人物'): 'event_person',       # 与 人物類別::事件人物 同侧名（同一概念）
-    # 🔴 2026-08-27：物品類型域值原走 hash 兜底（ItemType::tk5_u44a3d9），
-    #   与 枚举 物品種類 是同一套词 → 对齐 物品種類 侧名
-    ('物品類型', '武器'): 'weapon', ('物品類型', '茶器'): 'tea_ware',
-    # 官位域值（🔴 2026-08-27：16.md §四 裁定「官位不是对象，值 = 枚举 token」——
-    #   原走 ENTITY_DOMAINS 哈希兜底 = 万能接收器，自检失效；改逐值登记。
-    #   品级序（正一位 > 從一位 > 正二位 …）= 17 产出的等级表，不编进 token）
-    ('官位', '正一位'): 'shoichii', ('官位', '從一位'): 'juichii',
-    ('官位', '正二位'): 'shonii', ('官位', '從二位'): 'junii',
-    ('官位', '正三位'): 'shosanmi', ('官位', '從三位'): 'jusanmi',
-    ('官位', '正四位上'): 'shoshii_jo', ('官位', '正四位下'): 'shoshii_ge',
-    ('官位', '從四位上'): 'jushii_jo', ('官位', '從四位下'): 'jushii_ge',
-    ('官位', '正五位上'): 'shogoi_jo', ('官位', '正五位下'): 'shogoi_ge',
-    ('官位', '從五位上'): 'jugoi_jo', ('官位', '從五位下'): 'jugoi_ge',
-    ('官位', '正六位上'): 'shorokui_jo', ('官位', '正六位下'): 'shorokui_ge',
-    # 官職域值（同上裁定；称号无序，17 官职表权威）
-    ('官職', '征夷大將軍'): 'seii_taishogun', ('官職', '左大臣'): 'sadaijin',
-    ('官職', '右大臣'): 'udaijin', ('官職', '內大臣'): 'naidaijin',
-    ('官職', '大納言'): 'dainagon', ('官職', '中納言'): 'chunagon',
-    ('官職', '權中納言'): 'gon_chunagon', ('官職', '左近衛大將'): 'sakonoe_taisho',
-    ('官職', '左近衛中將'): 'sakonoe_chujo', ('官職', '右近衛中將'): 'ukonoe_chujo',
-    ('官職', '左衛門佐'): 'saemon_no_suke', ('官職', '刑部少輔'): 'gyobu_shoyu',
-    ('官職', '治部少輔'): 'jibu_shoyu', ('官職', '修理亮'): 'shuri_no_suke',
-    ('官職', '右京大夫'): 'ukyo_daibu', ('官職', '筑前守'): 'chikuzen_no_kami',
-    ('官職', '日向守'): 'hyuga_no_kami',
+    ('身份', '茶人'): 'tea_master', ('身份', '姑娘'): 'girl', ('身份', '頭'): 'chief',
     # 真偽域值（布尔字面量）
     ('真偽', '真'): 'true', ('真偽', '偽'): 'false',
     # 天氣域值（03 预设 weather 数据包）
@@ -335,7 +187,8 @@ DOMAIN_VAL_MAP = {
     # 战果枚举（03 BattleResult）
     ('戰鬥結束種類', '終結'): 'ended',
     # 軍團实例（02 PartyBrain 受控集合标识）
-    # 🔴 軍團 域值不在此手写——见 ARMY_SLOTS（军团槽单一来源），domain_val_rule('軍團') 取用
+    ('軍團', '軍團１'): 'Army::army_1', ('軍團', '軍團２'): 'Army::army_2',
+    ('軍團', '主人公軍團'): 'Army::main_army', ('軍團', '事件用１軍團'): 'Army::event_army_1',
     # 人物类别（容器筛选枚举）
     ('人物類別', '武將'): 'general', ('人物類別', '浪人'): 'ronin', ('人物類別', '忍者'): 'ninja', ('人物類別', '海賊'): 'pirate',
     ('人物類別', '泛用對手'): 'generic_rival', ('人物類別', '町人'): 'townsman', ('人物類別', '事件人物'): 'event_person',
@@ -349,13 +202,10 @@ DOMAIN_VAL_MAP = {
     ('人物', '主人公'): 'Hero::MainHero',
     ('人物', '無效'): 'null', ('據點', '無效'): 'null', ('城', '無效'): 'null', ('大名家', '無效'): 'null',
     # 場面域值（05 演出形态 / 01 facility 注册表）
-    # 🔴 場面 域值不在此手写——见 PLACE_TOKENS（场所词汇单一来源），domain_val_rule('場面') 取用
+    ('場面', '自宅'): 'Facility::home', ('場面', '發生設施'): 'Facility::event_facility', ('場面', '海賊宅'): 'Facility::pirate_den',
+    ('場面', '評定間'): 'Facility::council', ('場面', '城主間'): 'Facility::lord_room',
     # 狀況域值（无主体属性形态）
     ('狀況', '戰爭禁止日數'): 'Variable::war_ban_days', ('狀況', '空閒大名家數'): 'Variable::idle_clans', ('狀況', '場面'): 'Variable::scene',
-    ('狀況', '天氣'): 'Variable::weather', ('狀況', '遊戲經過日數'): 'Variable::days_elapsed',
-    ('狀況', '評定期限結束標誌'): 'Variable::assessment_deadline_flag',
-    ('變量', '容器記錄數'): 'Variable::container_count', ('變量', '參考值'): 'Variable::ref_value',
-    ('軍團方針', '歸還'): 'intent_return_home',   # 与 軍團指令::歸還=return_home 同义，加 intent_ 前缀区分层
 }
 
 # 🔴 v2：实体引用域——域::值 = 具名实体（人名/城名/组织名…），由翻译器名字表查 StringId +
@@ -365,7 +215,7 @@ ENTITY_DOMAINS = {
     '國': 'Region', '砦': 'Settlement', '町': 'Settlement', '里': 'Settlement',
     '忍者衆': 'Org', '商家': 'Org', '海賊衆': 'Org', '卡': 'Card', '流派': 'Card',
     '事件': 'Event', '物品': 'Item', '交易品': 'Item', '地方': 'Region',
-    '工作': 'QuestDef', '事件主命': 'QuestDef',   # 🔴 官位/官職 已移出（16.md §四：不是对象，是枚举）
+    '官位': 'court_rank', '官職': 'title', '工作': 'QuestDef', '事件主命': 'QuestDef',
 }
 
 # 🔴 槽域前缀 → Ctx 槽名（2026-08-27 用户裁定：与 tk5_to_json SLOT_NAME_MAP/_SLOT_CAT 一致，CSV 侧名权威）
@@ -393,10 +243,9 @@ def domain_val_rule(dom, val):
     if dom == '儲存號':
         return f'Variable::{fallback_id(val)}'         # 存档槽变量
     if dom == '場面':
-        # 🔴 场所词汇单一来源：設施/背景/場面/決鬥場地 同一张 PLACE_TOKENS
-        return f'Facility::{PLACE_TOKENS[val]}' if val in PLACE_TOKENS else f'Facility::{fallback_id(val)}'
+        return f'Facility::{fallback_id(val)}'         # 05 演出设施（专表外）
     if dom == '軍團':
-        return ARMY_SLOTS.get(val) or f'Army::{fallback_id(val)}'   # 军团槽单一来源
+        return f'Army::{fallback_id(val)}'             # 命名军团实例（专表外）
     if dom == '人物類別':
         return f'category_{fallback_id(val)}'          # 容器类别枚举（专表外）
     if dom == '主命':
@@ -451,7 +300,7 @@ ATTR_MAP = {
     '所屬海賊衆': 'Org::pirate_group', '所屬當主': 'Clan.leader', '戰鬥標誌': 'Hero.state', '死刑標誌': 'Hero.state',
     '大方針': 'Hero.policy', '停止進攻': 'Hero.ceasefire', '所屬忍者衆': 'Org::ninja_group',
     '訓練度': 'Settlement.training', '住民安定度': 'Settlement.security', '卡持有': 'Card.held',
-    '体力': 'Hero.health', '主命目標': 'Hero.quest_goal', '官位': 'Hero.court_rank', '鄰接大名家': 'isNeighbor',
+    '体力': 'Hero.health', '主命目標': 'Hero.quest_goal', '官位': 'Hero.title', '鄰接大名家': 'isNeighbor',
     '現石高': 'Settlement.kokudaka', '城数': 'Clan.settlements', '妻性格': 'Hero.spouse_personality',
     '劍術流派': 'sword_style', '規模': 'Settlement.scale', '鐵甲船数': 'vessels', '所屬勢力': 'Hero.faction',
     '移動可能': 'Settlement.movable', '生病標誌': 'Hero.state', '忠誠度': 'Hero.loyalty',
@@ -615,16 +464,14 @@ ENUM_SETS = {
     '容器存取': {'保存': 'save', '恢復': 'restore'},
     '排序方向': {'降順': 'desc', '升順': 'asc'},
     '排序特殊鍵': {'亂序': 'random'},
-    '容器統計': {'容器記錄數': 'container_count'},   # 与 變量::容器記錄數 同 slug（勿分叉）
+    '容器統計': {'容器記錄數': 'container.count'},
     # 军团（02 PartyBrain）
-    # 🔴 軍團槽 不在此手写——下方从 ARMY_SLOTS 派生（军团槽单一来源）
-    '軍團槽': {},
+    '軍團槽': {'主人公軍團': 'Army::player', '軍團１': 'Army::army_1', '軍團２': 'Army::army_2',
+              '事件用１軍團': 'Army::event_1', '事件用２軍團': 'Army::event_2', '事件用３軍團': 'Army::event_3',
+              '事件用４軍團': 'Army::event_4', '事件用５軍團': 'Army::event_5'},
     '軍團指令': {'據點移動': 'move_to', '軍團攻擊': 'attack_party', '據點攻擊': 'siege',
-                '歸還': 'return_home', '終結': 'disband', '平局': 'draw',
-                '統一（完全）': 'unify_full', '統一（通常）': 'unify_normal'},
+                '歸還': 'return_home', '終結': 'disband', '平局': 'draw'},
     '零值': {'Ｚｅｒｏ': '0'},
-    '通關方式': {'統一（完全）': 'unify_full', '統一（通常）': 'unify_normal',
-                '輔佐統一天下': 'assist_unify'},
     # 演出（05）
     '轉場': {'褪去': 'fade', '無效果': 'none', '圓形擦出': 'circle_wipe', '回旋擦出': 'spiral_wipe'},
     '畫面效果': {'暗出': 'fade_out', '暗入': 'fade_in'},
@@ -634,8 +481,14 @@ ENUM_SETS = {
     '從屬類型': {'直臣': 'direct_vassal', '陪臣': 'sub_vassal'},
     '獨立方式': {'只有陪臣': 'sub_only', '通常': 'normal'},
     '出現狀態': {'已出現': 'appeared', '未出現': 'hidden'},
+    '真偽': {'真': 'true', '偽': 'false'},
     '其他分支': {'其他': 'else'},
-    # 🔴 真偽 / 身份 / 人物類別 / 物品類型 不在此手写——见下方 DERIVED_ENUM_SETS（词汇表单一来源）
+    '身份': {'大名': 'daimyo', '城主': 'castle_lord', '國主': 'province_lord', '家老': 'elder',
+            '侍大將': 'samurai_general', '足輕大將': 'ashigaru_general', '足輕組頭': 'ashigaru_captain',
+            '頭領': 'chief', '頭': 'head', '上忍': 'jonin', '元締': 'boss', '支配人': 'manager',
+            '大老闆': 'big_merchant', '船大將': 'fleet_captain', '町人': 'townsman', '浪人': 'ronin',
+            '師範代': 'instructor', '最高位': 'top_rank', '事件人物': 'event_hero'},
+    '人物類別': {'泛用對手': 'generic_rival'},
     '物品種類': {'武器': 'weapon', '書物': 'book', '兵法書': 'strategy_book', '茶器': 'tea_ware',
                 '藝術品': 'art', '南蠻物': 'exotic', '酒': 'sake', '財寶': 'treasure', '海外': 'overseas',
                 '小粒金': 'gold_nugget'},
@@ -646,8 +499,9 @@ ENUM_SETS = {
     # 个人战斗 / 迷你游戏
     '逃跑許可': {'不可逃跑': 'no_flee', '可逃跑': 'can_flee'},
     '護衛': {'無護衛': 'no_guard', '有護衛': 'guarded'},
-    # 🔴 決鬥場地 不在此手写——下方从 PLACE_TOKENS 派生（场所词汇单一来源）
-    '決鬥場地': {},
+    '決鬥場地': {'原野': 'field', '城主間': 'lord_room', '民家庭院': 'house_yard',
+                '武家宅庭院': 'samurai_yard', '道場': 'dojo', '酒場': 'tavern',
+                '忍者宅庭院': 'ninja_yard', '沙灘': 'beach', '船的甲板': 'ship_deck'},
     '迷你遊戲': {'調製藥物': 'medicine', '鐵砲打靶': 'gun_range', '建設灌溉水路': 'irrigation',
                 '閃躲飛矢': 'dodge_arrows', '組合木材': 'carpentry', '二十一計': 'twentyone',
                 '排列茶器': 'tea_arrange', '組合九張畫': 'picture_puzzle', '破壞方陣': 'break_formation',
@@ -701,26 +555,28 @@ RES_SETS = {   # 🔴 资源型枚举 token 清单（数据包资源；不列清
         'シッピン知らせる（メイン）', 'バー上昇', 'バー減少', 'プレイヤー勝利（メイン）', 'プレイヤー勝利（賭博）', 'ミニゲーム開始音（メイン）',
         '人物卡獲得音', '休養（メイン）', '休養（女）', '刀で斬られる２（メイン）', '刀を鞘から抜く', '刀碰撞', '初期設定的停止',
         '単発げんこつ（メイン）', '単発平手（メイン）', '取消音', '同名牌獲得音', '大筒の弾が飛来する', '失敗音', '建設工事音（商人司）',
-        '引き戸を開ける', '忍者報告', '成功音', '提高水平', '播放聲音ー勝利', '播放聲音ー敗北', '暴風雨Ａ', '木魚（メイン）',
-        '札めくり音（賭博）', '札配り音（賭博）', '歓声（メイン）', '残念な音（メイン）', '殴られる（メイン）', '決定音（バーン！）', '決定音（ポン）',
-        '決定音（ｄｏ）', '液體倒入茶碗聲', '烏鴉', '無敵状態', '物音（メイン）', '猫の鳴き真似（メイン）', '生薬をくだく（メイン）', '畫面轉換音',
-        '禁止音', '移動·大型船', '移動·步兵', '移動·船', '移動·船(メイン)', '移動·騎兵', '蟬鳴', '賭場特別①', '賭場特別②',
-        '賭場特別③', '跳入', '通常牌獲得音', '選取音', '酒宴', '鍛冶屋', '鐵砲·射擊聲', '鐵砲擊中', '開門', '雑踏（メイン）', '雨',
-        '雨(メイン)', '雪(メイン)', '骰子', '鳥（メイン）', '黑暗指令', '鼓の音（メイン）'
+        '引き戸を開ける', '忍者報告', '成功音', '提高水平', '播放聲音ー勝利', '播放聲音ー敗北', '木魚（メイン）', '札めくり音（賭博）',
+        '札配り音（賭博）', '歓声（メイン）', '残念な音（メイン）', '殴られる（メイン）', '決定音（バーン！）', '決定音（ポン）', '決定音（ｄｏ）',
+        '液體倒入茶碗聲', '烏鴉', '無敵状態', '物音（メイン）', '猫の鳴き真似（メイン）', '生薬をくだく（メイン）', '畫面轉換音', '禁止音',
+        '移動·大型船', '移動·步兵', '移動·船', '移動·船(メイン)', '移動·騎兵', '蟬鳴', '賭場特別①', '賭場特別②', '賭場特別③', '跳入',
+        '通常牌獲得音', '選取音', '酒宴', '鍛冶屋', '鐵砲·射擊聲', '鐵砲擊中', '開門', '雑踏（メイン）', '雨', '雨(メイン)',
+        '雪(メイン)', '骰子', '鳥（メイン）', '黑暗指令', '鼓の音（メイン）'
     },
     '事件ＣＧ': {
         'さらば親父', 'エンディング作家', 'エンディング修羅', 'エンディング旅人', 'エンディング義賊', 'エンディング軍師', '三日天下', '三枝箭',
-        '上洛', '中國地方大折返', '信長的葬禮', '傾奇舞劇團', '光秀打擲', '出征', '切腹', '剣豪将軍の最期', '勝利的歡呼', '北野大茶會',
-        '和寧寧結婚', '城攻陷', '填平掘溝', '大名臣服', '天下布武的象徵', '婚禮', '安和樂利的街町', '宴席', '小山評定', '小粒金',
-        '巖流島的決戰', '川中島的二英雄', '強右衛門的磔刑', '拜受正一位', '攻城戰', '救出官兵衛', '敗戰', '敦盛之舞', '斬刑', '方廣寺鐘銘',
-        '暗殺', '本能寺之變', '桶狹間奇襲', '正德寺的會見', '死去', '海戰', '火燒寺社', '真田十勇士', '真田隊衝鋒', '祥瑞', '空城之計',
-        '結局劍豪１', '結局劍豪２', '結局商人１', '結局商人２', '結局奇人', '結局忍者１', '結局忍者２', '結局海賊１', '結局海賊２',
-        '結局茶人', '結局農民', '結局醫師', '結局鍛冶工匠', '結局風雅之士', '統一天下', '義昭的陰謀', '義隆の最期', '議論', '輔佐統一天下',
-        '輝宗之死', '野戰', '鍋煮五右衛門', '鐵甲船出渠', '長篠合戰', '阿市御寮人', '阿鼻交換地獄', '骷髏之酒', '鹿介對月兒發誓'
+        '中國地方大折返', '信長的葬禮', '傾奇舞劇團', '光秀打擲', '出征', '切腹', '剣豪将軍の最期', '勝利的歡呼', '北野大茶會', '和寧寧結婚',
+        '城攻陷', '填平掘溝', '墨股築城', '大名臣服', '大阪築城', '天下布武的象徵', '婚禮', '安和樂利的街町', '安土築城', '宴席',
+        '小山評定', '巖流島的決戰', '川中島的二英雄', '強右衛門的磔刑', '拜受正一位', '攻城戰', '救出官兵衛', '敗戰', '敦盛之舞', '斬刑',
+        '方廣寺鐘銘', '暗殺', '本能寺之變', '桶狹間奇襲', '正德寺的會見', '死去', '水攻高松城', '海戰', '火燒寺社', '真田十勇士',
+        '真田隊衝鋒', '祥瑞', '空城之計', '結局劍豪１', '結局劍豪２', '結局商人１', '結局商人２', '結局奇人', '結局忍者１', '結局忍者２',
+        '結局海賊１', '結局海賊２', '結局茶人', '結局農民', '結局醫師', '結局鍛冶工匠', '結局風雅之士', '義昭的陰謀', '義隆の最期', '議論',
+        '輔佐統一天下', '輝宗之死', '野戰', '鍋煮五右衛門', '鐵甲船出渠', '長篠合戰', '阿市御寮人', '阿鼻交換地獄', '骷髏之酒',
+        '鹿介對月兒發誓'
     },
     '背景': {
-        '主人公評定', '初期設定', '合戰畫面', '商家', '城主間', '寺', '忍屋敷', '據點內畫面', '武家宅', '民家', '海賊屋敷', '海道',
-        '自宅', '評定間', '賭博所', '路口', '道場', '陸道', '黑暗'
+        '主人公評定', '初期設定', '合戰畫面', '唐澤山城', '商家', '城主間', '宇都宮城', '寺', '小山城', '忍屋敷', '戶石城',
+        '據點內畫面', '武家宅', '民家', '海賊屋敷', '海道', '石山本願城', '稻村城', '自宅', '評定間', '賭博所', '路口', '道場',
+        '陸道', '黑暗'
     },
     '設施': {
         '主人公茶室', '主人公診療所', '主人公評定', '主人公道場', '主人公鍛冶屋', '公家宅', '南蠻商館', '南蠻寺', '商家', '城主間',
@@ -729,8 +585,8 @@ RES_SETS = {   # 🔴 资源型枚举 token 清单（数据包资源；不列清
         '里修業場', '里練兵場', '鍛冶屋', '馬屋'
     },
     '模板NPC': {
-        '凄腕用心棒', '喝醉的女人', '喝醉的男人', '奇怪的姑娘', '女の子', '婆さん', '小孩', '明國商人', '槍術師範代',
-        '琉球商人', '米屋的老闆', '賊', '頭目'
+        '凄腕用心棒', '喝醉的女人', '喝醉的男人', '奇怪的姑娘', '女の子', '婆さん', '小孩', '明國商人', '槍術師範代', '琉球商人',
+        '米屋的老闆', '賊', '頭目'
     },
     '觸發': {
         '人物對話時', '合戰決定時', '大名家滅亡時', '室內畫面表示後', '據點畫面表示後', '攻城戰結束時', '攻城戰開始時', '每日處理的開頭',
@@ -745,66 +601,10 @@ RES_PREFIX = {
 }
 
 
-RES_TOKEN_TABLE = {           # 资源集 → 单一词表（表内有 = 用可读 token；BGM/SE/CG 无表，走转写/hash）
-    '設施': PLACE_TOKENS, '背景': PLACE_TOKENS, '觸發': TRIGGER_TOKENS, '模板NPC': NPC_TOKENS,
-}
-
-
 def res_side(setname, tok):
-    """资源型枚举侧名。有单一词表的查表（設施/背景/觸發/模板NPC），
-    其余（ＢＧＭ/ＳＥ/事件ＣＧ = 纯媒体资产名，07 素材表落文件）走全角转写 + hash 兜底。"""
+    """资源型枚举侧名：Bgm::tk5_uXXXXXX（08b 踩坑 5：确定性 ID + report 登记中文名）。"""
     p = RES_PREFIX[setname]
-    tbl = RES_TOKEN_TABLE.get(setname)
-    if tbl is not None and tok in tbl:
-        return '%s::%s' % (p, tbl[tok])
-    # 媒体资产（ＢＧＭ/ＳＥ/事件ＣＧ）：名字若已在别处注册过（自宅/上洛/統一天下），复用其 slug
-    g = WORD_SLUG.get(tok) if 'WORD_SLUG' in globals() else None
-    return '%s::%s' % (p, g or ascii_translit(tok) or fallback_id(tok))
-
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 🔴 词汇表单一来源（2026-08-27 用户抓包）：集名 == 域名 时，枚举集**派生**自 DOMAIN_VAL_MAP。
-#   在此之前 身份 被写了两遍（域值 30 条 / 枚举 19 条），10 个词两个侧名，
-#   ashigaru_captain 跨表指两个不同品级。手写副本 = 迟早分叉，改成派生 + 断言。
-#   要加新词只改 DOMAIN_VAL_MAP 一处。
-# ═══════════════════════════════════════════════════════════════════════════
-DERIVED_ENUM_SETS = ('真偽', '身份', '人物類別', '物品類型')
-for _n in DERIVED_ENUM_SETS:
-    ENUM_SETS[_n] = {_v: _s for (_d, _v), _s in DOMAIN_VAL_MAP.items() if _d == _n}
-    assert ENUM_SETS[_n], '派生枚举集为空：%s（DOMAIN_VAL_MAP 里没有该域的值）' % _n
-
-# 決鬥場地 = PLACE_TOKENS 的子集（决斗能打的那几个场所）；軍團槽 = ARMY_SLOTS 全量
-DUEL_PLACES = ('原野', '城主間', '民家庭院', '武家宅庭院', '道場', '酒場',
-               '忍者宅庭院', '沙灘', '船的甲板')
-ENUM_SETS['決鬥場地'] = {_p: PLACE_TOKENS[_p] for _p in DUEL_PLACES}
-ENUM_SETS['軍團槽'] = dict(ARMY_SLOTS)
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 🔴 全局「TK5 词 → slug」总表：把各词表已注册的 slug 汇总一张，供**无专表**的
-#   媒体资产集（ＢＧＭ/ＳＥ/事件ＣＧ）兜底——曲名/CG 名往往就是某个场所或事件词
-#   （自宅 / 上洛 / 統一天下），有现成 slug 就别再吐 hash。
-#   歧义词（多张表给了不同 slug）不收，宁可 hash 也不猜。
-# ═══════════════════════════════════════════════════════════════════════════
-def _collect_word_slugs():
-    seen, bad = {}, set()
-    tables = [PLACE_TOKENS, TRIGGER_TOKENS, NPC_TOKENS]
-    tables += [{_v: _s for (_d, _v), _s in DOMAIN_VAL_MAP.items()}]
-    tables += list(ENUM_SETS.values())
-    for tbl in tables:
-        for w, s in tbl.items():
-            sl = str(s).split('::')[-1]
-            if not sl or not re.fullmatch(r'[A-Za-z][A-Za-z0-9_.]*', sl):
-                continue                       # 数字字面量/空 slug 不进总表
-            if w in seen and seen[w] != sl:
-                bad.add(w)                     # 歧义：两张表给了不同 slug
-            seen.setdefault(w, sl)
-    for w in bad:
-        seen.pop(w, None)
-    return seen
-
-
-WORD_SLUG = _collect_word_slugs()
+    return '%s::%s' % (p, ascii_translit(tok) or fallback_id(tok))
 
 
 def enum_side(setname, tok):
@@ -859,68 +659,16 @@ TEXT_VARS = {                       # 裸变量
 }
 
 
-EXTRA_SETTLEMENT_NAMES = {   # 只在命令参数位出现、从不写成 城::X 的具名据点
-    '三木城', '丸龜之町', '二本松城', '二股城', '伊賀之里', '佐東銀山城', '八代城', '勝龍寺城', '厩橋之町', '吉田城', '唐澤山城',
-    '墨股築城', '大和郡山城', '大垣城', '大津城', '大阪之町', '大阪城', '大阪築城', '姫路城', '宇都宮城', '安土之町', '安土城',
-    '安土築城', '富山之町', '小倉之町', '小山城', '小濱之町', '小田原城', '小諸之町', '尾道之町', '岐阜之町', '岐阜城', '岡崎之町',
-    '岡崎城', '岩槻城', '岩殿城', '平戶之町', '府內城', '弘前之町', '忍城', '戶石城', '曳馬城', '有岡城', '木曾福島城',
-    '松倉之町', '柳川之町', '櫻尾城', '水攻高松城', '江戶之町', '江戶城', '河越城', '沼田城', '浦戶之町', '湯築城', '濱松之町',
-    '濱松城', '玉繩城', '甲府之町', '甲府城', '白石城', '白鹿城', '石山本願城', '稻村城', '興國寺城', '躑躅崎城', '軒猿之里',
-    '那古野城', '長濱之町', '長濱城', '長篠城', '長船之町', '須賀川城', '飯田城', '飯盛城', '駿府之町', '駿府城', '高天神城',
-    '魚津城', '鳥羽城', '鳴門之町', '鹿兒島之町', '黑川城'
-}
-for _t in EXTRA_SETTLEMENT_NAMES:
-    EXTRA_ENTITY_NAMES.setdefault(_t, 'Settlement')
-
-# ── 属性取值空间：「容器篩選:(城,所屬國,紀伊)」第三参收什么，由第二参那个属性决定 ──
-#    '域:X' = 该值是 X 域的成员（走 val_side）；'枚:X' = 该值是枚举集 X 的 token
-ATTR_VALUE_SPACE = {
-    '所屬國': '域:國', '所在地方': '域:地方', '所屬據點': '域:據點', '本據': '域:據點',
-    '本城': '域:城', '所屬大名家': '域:大名家', '所屬當主': '域:人物', '所屬上司': '域:人物',
-    '城主': '域:人物', '當主': '域:人物', '所有者': '域:人物', '妻': '域:人物',
-    '所屬勢力': '域:勢力', '所屬海賊衆': '域:海賊衆', '所屬忍者衆': '域:忍者衆',
-    '類別': '域:人物類別', '身份': '域:身份', '官位': '域:官位', '官職': '域:官職',
-    '戰略': '域:戰略', '戰略目標': '域:戰略', '立場': '域:立場', '承擔主命': '域:主命',
-    '物品種類': '枚:物品種類', '武器種類': '枚:武器種類', '性別': '枚:性別',
-    '出現標誌': '枚:出現狀態', '死亡標誌': '枚:生存狀態', '武將': '枚:真偽',
-}
-
-# ── 容器字段属性：只作「容器篩選/排序/排除的字段名」出现，没有 域::主体.属性 形态 ──
-ATTR_EXTRA = {
-    '人口': 'Settlement.population', '物品種類': 'Item.category', '武器種類': 'Item.weapon_class',
-    '類別': 'Hero.category', '石高': 'Settlement.income', '商業': 'Settlement.trade',
-}
-RE_INDEX_ATTR = re.compile(r'^[^0-9]{1,6}番號$')       # 人物番號/城番號/物品番號… = 对象序号
-
-
-def attr_side_any(tok):
-    """属性名（不带域）→ 侧名。容器字段/序号字段走补充表与规则。"""
-    if tok in ATTR_EXTRA:
-        return ATTR_EXTRA[tok]
-    if RE_INDEX_ATTR.match(tok):
-        return '%s.index' % ENTITY_DOMAINS.get(tok[:-2], 'Object')
-    return next((pair_side(d, tok) for d in PREFIX_BY_DOMAIN if pair_side(d, tok)), None)
-
-
-def value_space_side(attr, tok):
-    """按属性的取值空间解释一个值（容器三参式）。"""
-    sp = ATTR_VALUE_SPACE.get(attr)
-    if not sp:
-        return None
-    kind, name = sp.split(':', 1)
-    return val_side(name, tok) if kind == '域' else enum_side(name, tok)
-
-
 # ═══ 命令参数位签名（位 → 收什么）═══
 #   位类型：'E' 具名实体 / 'D' 域名 / 'A' 属性名 / '<枚举集名>'
 #   任何位都隐含允许：数字、槽（人物Ａ/ａ）、特殊值（主人公/無效…）、域::X 形态、事件 ID、空参
 #   键 '*' = 命令头值（發生契機:據點畫面表示後(…) 里冒号后、括号前那一段）
 CMD_ARG_SPEC = {
     # ── 容器（pick 组）──
-    '容器篩選': {0: ('D',), 1: ('A',), 2: ('VA', 'E', '真偽', '狀態值', '身份', '物品種類',
+    '容器篩選': {0: ('D',), 1: ('A',), 2: ('E', '真偽', '狀態值', '身份', '物品種類',
                                         '武器種類', '生存狀態', '軍團槽', '人物類別')},
-    '容器排除': {0: ('D',), 1: ('A',), 2: ('VA', 'E', '身份', '真偽', '狀態值', '人物類別', '物品種類')},
-    '容器設定': {0: ('D',), 1: ('A',), 2: ('VA', 'E', '真偽', '人物類別', '物品種類', '狀態值')},
+    '容器排除': {0: ('D',), 1: ('A',), 2: ('E', '身份', '真偽', '狀態值', '人物類別', '物品種類')},
+    '容器設定': {0: ('D',), 1: ('A',), 2: ('E', '真偽', '人物類別', '物品種類', '狀態值')},
     '容器排序': {0: ('D',), 1: ('A', '排序特殊鍵'), 2: ('排序方向',)},
     '容器選擇': {1: ('容器位置',)},
     '容器清理': {0: ('容器清理',)},
@@ -944,13 +692,13 @@ CMD_ARG_SPEC = {
     '下個場面': {0: ('設施',)},
     # ── 事件文件头 ──
     '屬性': {'*': ('事件屬性',)},
-    '發生契機': {'*': ('觸發',), 0: ('E', '設施', '軍團槽', '生存狀態', '身份', '觸發', '通關方式'),
-                1: ('E', '設施', 'D'), 2: ('軍團指令', 'E'), 3: ('E', '軍團槽')},
+    '發生契機': {'*': ('觸發',), 0: ('E', '設施', '軍團槽', '生存狀態', '身份', '觸發'),
+                1: ('E', '設施'), 2: ('軍團指令', 'E'), 3: ('E', '軍團槽')},
     # ── 对话 ──
-    '對話': {0: ('E', '模板NPC', '域:身份'), 1: ('E', '模板NPC', '域:身份')},
-    '變名對話': {0: ('E', '模板NPC', '域:身份'), 1: ('E', '模板NPC', '域:身份')},
-    '對話選擇': {0: ('E', '模板NPC', '域:身份'), 1: ('E', '模板NPC', '域:身份')},
-    '對話可否選擇': {0: ('E', '模板NPC', '域:身份'), 1: ('E', '模板NPC', '域:身份')},
+    '對話': {0: ('E', '模板NPC'), 1: ('E', '模板NPC')},
+    '變名對話': {0: ('E', '模板NPC'), 1: ('E', '模板NPC')},
+    '對話選擇': {0: ('E', '模板NPC'), 1: ('E', '模板NPC')},
+    '對話可否選擇': {0: ('E', '模板NPC'), 1: ('E', '模板NPC')},
     # ── 军团（02）──
     '軍團指令': {0: ('軍團槽',), 1: ('軍團指令',), 2: ('E', '軍團槽'), 3: ('軍團槽',)},
     # ── 人事 / 势力 ──
@@ -964,8 +712,8 @@ CMD_ARG_SPEC = {
     '國主任命': {0: ('E',), 1: ('E',), 2: ('E',)}, '國主解任': {0: ('E',)},
     '家督讓位': {0: ('E',), 1: ('E',)},
     '勢力滅亡': {0: ('E',), 1: ('E',)}, '武將死亡': {0: ('E',)},
-    '成為御用商人': {0: ('E',), 1: ('E',)},
-    '主命作成': {0: ('E',), 1: ('E',), 2: ('域:主命',)}, '事件主命作成': {0: ('E',), 1: ('域:主命',), 2: ('域:主命',)}, '解除主命': {0: ('E',)},
+    '成為御用商人': {0: ('E',)},
+    '主命作成': {0: ('E',), 1: ('E',)}, '事件主命作成': {0: ('E',)}, '解除主命': {0: ('E',)},
     '事件主命變更': {0: ('主命字段',)},
     # ── 战斗 / 小游戏 ──
     '個人戰鬥': {0: ('逃跑許可',), 1: ('護衛',), 2: ('E', '身份', '模板NPC'),
@@ -1000,239 +748,21 @@ def arg_spec(cmd, pos):
     return (spec or {}).get(pos, ())
 
 
-def arg_side(cmd, pos, tok, args=None):
-    """命令裸参数 → 侧名。表外返回 None（生成期报错）。
-
-    args = 同一条命令的全部参数（有的位要看兄弟参数才知道收什么：
-           容器篩選:(城,所屬國,紀伊) 第三参的取值空间由第二参属性 所屬國 决定）。
-    """
-    for k in arg_spec(cmd, pos):
+def arg_side(cmd, pos, tok):
+    """命令裸参数 → 侧名。表外返回 None（生成期报错）。"""
+    kinds = arg_spec(cmd, pos)
+    for k in kinds:
         if k == 'E':
             s = entity_side(tok)
         elif k == 'D':
             s = DOMAIN_MAP.get(tok) and ('Domain::' + tok)
         elif k == 'A':
-            s = attr_side_any(tok)
-        elif k == 'VA':
-            s = value_space_side(args[1], tok) if args and len(args) > 1 else None
-        elif k.startswith('域:'):
-            s = val_side(k[2:], tok)
+            s = next((pair_side(d, tok) for d in PREFIX_BY_DOMAIN if pair_side(d, tok)), None)
         else:
             s = enum_side(k, tok)
         if s:
             return s
     return None
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 🔴 v4（2026-08-27）：结构化语料解析 —— 命令头值 / 参数位 / 台词插值 全量抽取，
-#     供 verify_coverage() 断言（表外 = 生成失败）。旧版只解析 `域::X` 形态，
-#     命令裸参数位（枚举/资源名/容器字段/触发名）与台词插值不在自检范围内。
-# ═══════════════════════════════════════════════════════════════════════════
-_JA = r'々〆ヶ・·一-鿿㐀-䶿぀-ヿＡ-Ｚａ-ｚA-Za-z0-9０-９_'
-RE_LINE_HEAD = re.compile(r'^([' + _JA + r']{1,12}):')
-RE_TOKENISH = re.compile('[' + _JA + ']+')
-RE_NUMLIT = re.compile(r'-?[0-9]+(?:\.[0-9]+)?')
-RE_SLOTLIKE = re.compile(r'^([' + _JA + r']{1,8}?)([Ａ-Ｅ])$')
-RE_VARSLOT = re.compile(r'^[ａ-ｚ]$')
-RE_EVENTID = re.compile(r'^(?:事件)?[A-Z]{1,3}[0-9A-F]{4,8}_[0-9]+$')
-RE_HEXSEQ = re.compile(r'^(?:[0-9A-F]{2}\s*)+$')
-RE_INTERP = re.compile(r'\{([^{}]*)\}|<([^<>]*)>|\(([^()]*)\)')
-_SLOT_EXTRA = ('文字列', '數值', '變量', '容器')
-
-
-def is_slotlike(tok):
-    """槽位记号：人物Ａ / 大名家Ｂ / 文字列Ａ / ａ（代入变量）。"""
-    m = RE_SLOTLIKE.match(tok)
-    if m and (m.group(1) in SLOT_CAT or m.group(1) in _SLOT_EXTRA):
-        return True
-    return bool(RE_VARSLOT.match(tok))
-
-
-def is_structural(tok):
-    """结构性 token（数字/事件ID/槽/特殊值/解析碎片）—— 不需要词条落点。"""
-    return bool(not tok or RE_NUMLIT.fullmatch(tok) or RE_EVENTID.match(tok)
-                or is_slotlike(tok) or tok in SPECIAL_VALS
-                or RE_UNKNOWN_N.match(tok) or RE_HEXSEQ.fullmatch(tok))
-
-
-def _split_args(inner):
-    """顶层逗号切分（跳过嵌套括号，保留 決定音（バーン！）这类含括号的整参）。"""
-    out, buf, depth = [], '', 0
-    for ch in inner:
-        if ch == '(':
-            depth += 1
-        elif ch == ')':
-            depth -= 1
-        if ch in ',，' and depth == 0:
-            out.append(buf.strip())
-            buf = ''
-        else:
-            buf += ch
-    out.append(buf.strip())
-    return out
-
-
-def _parse_command_lines(text):
-    """语料 → (头值 Counter, 参数位 dict, 插值 Counter)。
-
-    参数位 dict：(命令, 位) → {token: [次数, 兄弟参数列表]}——兄弟参数供 'VA' 位
-    （容器篩選 第三参的取值空间由第二参属性决定）解析用。
-    位序跨括号组连续编号，与语料一致（更新:(左)(右) = pos0/pos1）。
-    """
-    heads, argpos, interps = Counter(), {}, Counter()
-    for raw in text.splitlines():
-        s = raw.strip()
-        if not s or s.startswith(('#', '{', '}')):
-            continue
-        m = RE_LINE_HEAD.match(s)
-        if not m:
-            continue
-        cmd, rest = m.group(1), s[m.end():]
-        i, n, pos, seen_group, allargs = 0, len(s) - m.end(), 0, False, []
-        groups = []
-        while i < n:
-            if rest.startswith('[[', i):
-                e = rest.find(']]', i)
-                interps.update(_talk_interps(rest[i + 2:e if e >= 0 else n]))
-                i = (e + 2) if e >= 0 else n
-                continue
-            if rest.startswith('//', i):
-                break
-            if rest[i] == '(':
-                depth, j = 1, i + 1
-                while j < n and depth:
-                    if rest[j] == '(':
-                        depth += 1
-                    elif rest[j] == ')':
-                        depth -= 1
-                    j += 1
-                g = _split_args(rest[i + 1:j - 1])
-                groups.append(g)
-                allargs += g
-                seen_group = True
-                i = j
-                continue
-            mh = RE_TOKENISH.match(rest, i)
-            if mh and not seen_group:
-                heads[(cmd, mh.group(0))] += 1
-                i = mh.end()
-                continue
-            i += 1
-        for g in groups:
-            for a in g:
-                t = a
-                mc = RE_ARG_CALL.match(t)
-                if mc and CALL_MAP.get(mc.group(1)):
-                    t = mc.group(2)          # 带参属性调用 外交同盟(大名家Ａ) → 查内层参数
-                if is_term_arg(t):
-                    slot = argpos.setdefault((cmd, pos), {}).setdefault(t, [0, allargs])
-                    slot[0] += 1
-                pos += 1
-    return heads, argpos, interps
-
-
-EXPR_OPS = ('==', '!=', '>=', '<=', '>', '<', '+', '=', '*', '/', '%', '｜')
-RE_ARG_CALL = re.compile(r'^([' + _JA + r']{1,10})[(（]([^()（）]*)[)）]$')
-
-
-def is_term_arg(a):
-    """这个参数是不是「需要词条落点」的整参？
-
-    排除：结构性 token（数字/槽/碎片）、`域::X` 形态（另有域/属性/域值断言覆盖）、
-    运算表达式（同上）、`[[字面文本]]`（變名對話 的临时姓名，走台词插值断言）。
-    """
-    if not a or is_structural(a) or '::' in a or a.startswith('[['):
-        return False
-    return not any(o in a for o in EXPR_OPS)
-
-
-def _talk_interps(payload):
-    """台词正文里的 {变量} / <变量> / (主体.字段) —— 正文自然语言不检查，引用要检查。"""
-    out = Counter()
-    for m in RE_INTERP.finditer(payload):
-        inner = (m.group(1) or m.group(2) or m.group(3) or '').strip()
-        if not inner or not RE_TOKENISH.search(inner):
-            continue                    # 纯标点 / 自然语言括注
-        out[inner] += 1
-    return out
-
-
-head_vals, arg_positions, talk_interps = _parse_command_lines(txt)
-
-
-def interp_side(inner):
-    """台词插值 → 侧名；表外返回 None。"""
-    if '.' in inner:
-        subj, attr = inner.split('.', 1)
-        fld = TEXT_FIELDS.get(attr) or attr_side_any(attr)
-        if not fld:
-            return None
-        if is_slotlike(subj) or subj in SPECIAL_VALS or entity_side(subj):
-            return 'Text%s' % fld if fld.startswith('.') else fld
-        return None
-    if inner in TEXT_VARS:
-        return TEXT_VARS[inner]
-    if inner in ENUM_SETS['主命目標類']:
-        return ENUM_SETS['主命目標類'][inner]
-    if RE_UNKNOWN_N.match(inner) or RE_NUMLIT.fullmatch(inner) or is_slotlike(inner) \
-            or inner in SPECIAL_VALS:
-        return 'Text::raw'
-    return entity_side(inner)
-
-
-def head_val_side(cmd, tok):
-    """命令头值（屬性:一次｜弱 / 發生契機:據點畫面表示後）→ 侧名；表外 None。"""
-    if is_structural(tok):
-        return 'Literal'
-    return arg_side(cmd, '*', tok) or entity_side(tok)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 🔴 跨表侧名分叉自检（2026-08-27）：同一个 TK5 词在两张词表里给出不同 slug =
-#   翻译器不知道该按哪个走（身份 双表分叉的教训：ashigaru_captain 一名两指）。
-#   合法的一词多义写进 TWIN_EXEMPT，其余一律生成期报错。
-# ═══════════════════════════════════════════════════════════════════════════
-MEDIA_SETS = ('ＢＧＭ', 'ＳＥ', '事件ＣＧ')     # 媒体资产名 ≠ 语义词，与语义表重名不算分叉
-
-TWIN_EXEMPT = {
-    # (TK5 词, slugA, slugB) —— 确实是两个意思，不是分叉
-    ('終結', 'ended', 'disband'),                   # 戰鬥結束種類「战斗以终结收场」/ 軍團指令「解散军团」
-    ('歸還', 'intent_return_home', 'return_home'),  # 軍團方針 = 持续方针（02 PartyIntent）/ 軍團指令 = 一次性命令
-}
-
-
-def all_vocabs():
-    """所有词表 → {表名: {TK5 词: 侧名}}（域值 / 枚举 / 资源集）。"""
-    out, dv = {}, {}
-    for (_d, _v), _s in DOMAIN_VAL_MAP.items():
-        dv.setdefault(_d, {})[_v] = _s
-    for _d, _m in dv.items():
-        out['域:' + _d] = _m
-    for _n, _m in ENUM_SETS.items():
-        out['枚:' + _n] = _m
-    for _n, _ts in RES_SETS.items():
-        out['资:' + _n] = {_t: res_side(_n, _t) for _t in _ts}
-    return out
-
-
-def twin_divergences():
-    """返回 [(词, 表A, slugA, 表B, slugB)] —— 同词异 slug 的分叉清单。"""
-    vocabs = all_vocabs()
-    keys = sorted(vocabs)
-    out = []
-    for i in range(len(keys)):
-        for j in range(i + 1, len(keys)):
-            ka, kb = keys[i], keys[j]
-            if ka[2:] in MEDIA_SETS or kb[2:] in MEDIA_SETS:
-                continue
-            a, b = vocabs[ka], vocabs[kb]
-            for w in sorted(set(a) & set(b)):
-                sa, sb = str(a[w]).split('::')[-1], str(b[w]).split('::')[-1]
-                if sa == sb or (w, sa, sb) in TWIN_EXEMPT or (w, sb, sa) in TWIN_EXEMPT:
-                    continue
-                out.append((w, ka, sa, kb, sb))
-    return out
 
 
 # ═══ 生成期自检：全语料覆盖断言（表外 = 生成失败）═══
@@ -1252,38 +782,6 @@ def verify_coverage():
     for k, c in cmds.items():
         if k not in CMD_MAP and cmd_rule(k) == '🔴 低频 → 降级/忽略':
             errors.append(f'命令表外: {k} ×{c}')
-    for (c_, h_), n_ in head_vals.items():
-        if head_val_side(c_, h_) is None:
-            errors.append(f'命令头值表外: {c_}:{h_} ×{n_}')
-    for (c_, p_), toks in arg_positions.items():
-        for t_, (n_, sib_) in toks.items():
-            if arg_side(c_, p_, t_, sib_) is None:
-                errors.append(f'命令参数位表外: {c_}[pos{p_}]:{t_} ×{n_}')
-    for i_, n_ in talk_interps.items():
-        if interp_side(i_) is None:
-            errors.append(f'台词插值表外: {{{i_}}} ×{n_}')
-    # 🔴 词汇表内 token→侧名单射（2026-08-27）：两个不同的词共用一个侧名 = 语义塌缩
-    #   （身份是带序枚举，頭/頭領 都叫 chief 会把品级链压扁）
-    _vocab = {}
-    for (d_, v_), s_ in DOMAIN_VAL_MAP.items():
-        _vocab.setdefault('域值:' + d_, {}).setdefault(s_, []).append(v_)
-    for n_, m_ in ENUM_SETS.items():
-        if n_ in DERIVED_ENUM_SETS:
-            continue                      # 派生自域值表，查一遍即可
-        for t_, s_ in m_.items():
-            _vocab.setdefault('枚举:' + n_, {}).setdefault(s_, []).append(t_)
-    for name_, bys_ in _vocab.items():
-        for s_, ts_ in bys_.items():
-            if len(ts_) > 1:
-                errors.append(f'侧名塌缩: {name_} 的 {"/".join(sorted(ts_))} 共用侧名 {s_}')
-    # 🔴 派生集与域值表逐条一致（防以后有人再手写一份副本复辟分叉）
-    for n_ in DERIVED_ENUM_SETS:
-        want_ = {v_: s_ for (d_, v_), s_ in DOMAIN_VAL_MAP.items() if d_ == n_}
-        if ENUM_SETS.get(n_) != want_:
-            errors.append(f'词汇表分叉: ENUM_SETS[{n_}] 与 DOMAIN_VAL_MAP 的 {n_} 域值不一致')
-    for w_, ka_, sa_, kb_, sb_ in twin_divergences():
-        errors.append(f'跨表侧名分叉: {w_} 在 {ka_}={sa_} / {kb_}={sb_}'
-                      f'（同一个词两个侧名 → 翻译器按哪个走？合并到单一词表，或写进 TWIN_EXEMPT）')
     return errors
 
 
@@ -1377,11 +875,7 @@ def main():
         print(f'  …共 {len(errors)} 条表外')
         sys.exit(1)
     print('✅ 全语料覆盖自检通过')
-    print('  属性(域,属性) %d 对 / 域值(域::值) %d 对 / 带参调用 %d 种 / 命令 %d 种'
-          % (len(attr_pairs), len(domain_vals), len(calls), len(cmds)))
-    print('  命令头值 %d 种 / 参数位 %d 个（词条 %d 种）/ 台词插值 %d 种'
-          % (len(head_vals), len(arg_positions),
-             sum(len(v) for v in arg_positions.values()), len(talk_interps)))
+    print('  属性(域,属性) %d 对 / 域值(域::值) %d 对 / 带参调用 %d 种 / 命令 %d 种' % (len(attr_pairs), len(domain_vals), len(calls), len(cmds)))
 
 
 if __name__ == "__main__":
