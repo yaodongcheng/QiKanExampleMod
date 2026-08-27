@@ -7,7 +7,7 @@
 
 ## 文件分工（2026-08-26 重构后，单一所有权）
 
-- **词条翻译权威 = `16a-DSL翻译总表.csv`**（🔴 编号 16a = plan 16 的数据文件，与 plan 本体 `16-DSL注册表全表.md` 区分——文件夹惯例：字母后缀 = 主 plan 的子文件，先例 = 原 07a；442 行：域 42 / 属性 199 / 命令 192（太阁5（简称 TK5）语料（从太阁5 事件文本统计出的词表） 174 + mod 原生 18）/ 谓词 9；列 = 太阁原词·频率·类别·我们侧名·类型·语义·参数·实现用法·状态）——**查询词条翻译只看这一处**，域/属性/谓词/动作 token 全表都在 CSV。CSV 由 `tools/build_registry_csv.py` 程序化生成（复跑 `TK5AllEvents_merged.txt` + ACTIONS/MOD_NATIVE 字典）；改词条 = 改 `gen_registry_tables.py`/`build_registry_csv.py` 字典 + 重跑
+- **词条翻译权威 = `16a-DSL翻译总表.csv`**（🔴 编号 16a = plan 16 的数据文件，与 plan 本体 `16-DSL注册表全表.md` 区分——文件夹惯例：字母后缀 = 主 plan 的子文件，先例 = 原 07a；840 行：域 42 / 属性 245 / 域值 372 / 命令 174 / 谓词 7——🔴 全部为 TK5 语料词（太阁原词列零 `—`、零 `::`/`.`、零英文 token，2026-08-27 用户裁定：mod 原生 18 动作 + 10 mod DSL 谓词 token 移出 16a，权威 = 本文件 §六/§三）；列 = 类别·太阁原词·所属域·我们侧名·值类型·语义·参数·备注·频率，🔴 2026-08-27 用户裁定列序：类别第一列（排序分区）、所属域第三列（属性挂哪类对象）、频率最后一列）——**查询词条翻译只看这一处**，域/属性/域值/谓词/动作 token 全表都在 CSV。CSV 由 `tools/build_registry_csv.py` 程序化生成（复跑 `TK5AllEvents_merged.txt` + 映射字典）；改词条 = 改 `gen_registry_tables.py`/`build_registry_csv.py` 字典 + 重跑。🔴 **v2 结构性修复（2026-08-27）**：属性 = 单键属性名 + 多段侧名（`Hero.clan / Settlement.clan`，域错配由生成期自检按语料实际域拦截——旧版 大名家.本城 2298 次被登记成 人物域 Hero.home 导致下游全量待注册）；**域值区** = 身份枚举/狀況值/命名槽等词条（实体引用如 人物::伊藤總十郎 **不入表**，走翻译器名字表 + 确定性兜底）；**表外词条 = 生成器缺陷**，生成期全语料覆盖自检不绿即 exit(1)
 - **本文件 = 机制权威**（CSV 装不下的）：§一 Ctx 三档作用域 ｜ §二 trigger/facility 注册表 ｜ §三 谓词注册表（🔴 2026-08-26 起**单所有权**，01 不再重复维护——trigger/facility 2026-08-26 先例）
 - **01 = 语法规则/类型纪律/安全兜底**（怎么解析；trigger 调度模型/validator（校验器，打包前检查剧本语法的工具）检查项在 01，注册表数据在 16）；**08 = 转化流程**（怎么翻译）
 - **步骤类型注册在 01 步骤类型表**（perform / inquiry / im_message / cutscene / wait / bgm / se / scene_enter / choice / 🔴 if / effect）；**05/03 = 台本指令/战斗预设格式注册**（actor_enter/camera/actor_action 等引擎内部 token，无 TK5 源词，不入 CSV）
@@ -15,19 +15,20 @@
 
 ## 🔴 CSV 编辑纪律（16a 是纯生成物，禁止直接编辑）
 
-> `16a-DSL翻译总表.csv` 由 `tools/build_registry_csv.py` 每次**重写整个文件**——**任何列的任何直接编辑都会在下次重跑时被覆盖，禁止手改 CSV 本体**。改词条的唯一入口 = 改生成字典 + 重跑（重跑后 `git diff` 应只含预期变化）。
+> `16a-DSL翻译总表.csv` 由 `tools/build_registry_csv.py` 每次**重写整个文件**——**任何列的任何直接编辑都会在下次重跑时被覆盖，禁止手改 CSV 本体**（🔴 CLAUDE.md 铁律 22）。改词条的唯一入口 = 改生成字典 + 重跑（重跑后 `git diff` 应只含预期变化）。**表外词条出现 = 生成器缺陷**：回填 `gen_registry_tables.py` 映射/规则 → 重跑 → 全语料覆盖自检（不绿 = exit(1)，禁止带病产出）。
 
 | 列 | 来源 | LLM/人工能填吗 | 写入位置 |
 |---|---|---|---|
-| 太阁原词 | TK5 语料正则提取（域/属性/命令）；`—`（谓词/mod 原生行） | ❌ **禁止**——语料事实，脚本复跑得出，手填必与语料不符 | — |
-| 频率 | 语料统计；`—`（谓词/mod 原生行） | ❌ **禁止**——同上 | — |
-| 类别 | 代码硬编码（域/属性/命令/谓词） | ❌ | — |
-| 我们侧名 | 字典映射派生（`DOMAIN_MAP`/`ATTR_MAP`/`CMD_EXACT` + side_name 规则）；mod 原生行 = `MOD_NATIVE` 列表 token | ✅ **映射决策可设计**，但写入位置 = 字典，不是 CSV | [gen_registry_tables.py](tools/gen_registry_tables.py) 映射字典 |
-| 类型 | `ATTR_TYPES` + 规则推断（布尔/数字启发式） | ✅ 新属性类型 = 补 `ATTR_TYPES` | build_registry_csv.py `ATTR_TYPES` |
+| 类别（第一列） | 代码硬编码（域/属性/域值/命令/谓词） | ❌ | — |
+| 太阁原词 | TK5 语料正则提取（域/属性/域值/命令）；`—`（谓词/mod 原生行） | ❌ **禁止**——语料事实，脚本复跑得出，手填必与语料不符 | — |
+| 所属域（第三列） | 语料 (域,属性) 对聚合（多域 ` / ` 分隔）；域值行 = 域；其余 = `—` | ❌ 自动 | — |
+| 我们侧名 | 字典映射派生（`DOMAIN_MAP`/`PAIR_OVERRIDE`/`ATTR_MAP`/`CMD_EXACT`/`DOMAIN_VAL_MAP` + 规则）；多域同名属性用 ` / ` 分段；🔴 DSL token 只收 ASCII（侧名合法性自检） | ✅ **映射决策可设计**，但写入位置 = 字典，不是 CSV | [gen_registry_tables.py](tools/gen_registry_tables.py) 映射字典 |
+| 值类型 | `ATTR_TYPES` + 规则推断（布尔/数字启发式）；🔴 仅 属性/域值 行有值（域/命令/谓词行 = `—`，2026-08-27 用户裁定：与「类别」区分开） | ✅ 新属性类型 = 补 `ATTR_TYPES` | build_registry_csv.py `ATTR_TYPES` |
 | 语义 | 语义字典（`DOMAIN_SEM`/`ATTR_SEM`/`CMD_SEM`/`ACT_SEM`），兜底 = 词条名自解释 | ✅ 低风险人读信息（中文释义），补字典即可；兜底自解释也可接受 | 两个脚本的 `*_SEM` 字典 |
 | 参数 | `ACTIONS` 字典（动作行）；`—`（域/属性行） | ✅ 新动作参数 = 补 `ACTIONS` | build_registry_csv.py `ACTIONS` |
-| 实现用法 | 从 label 提取 / `ACTIONS` 字典 | ✅ 随动作登记（同上） | 同上 |
-| 状态 | 规则派生（label 前缀 → `✅`/`🔴`/`❌`） | ❌ **禁止手填**——由 label 决定；想改状态 = 改 label | — |
+| 备注 | 🔴 2026-08-27 用户裁定：原「实现用法+状态」合并列——人读规划信息（翻译程序不消费）：`✅ 引擎查询器` / `🔴 需新增（13 主命 / 02 PartyBrain / 17 官职 / 数据包 / mod 外置属性）` / `❌ 放弃`；规则派生（侧名尾段 ∈ `ATTR_TYPES` → ✅，∉ → 🔴 需新增），命令行 = 实现归属 label | ❌ 禁止手填——想改 = 改侧名/label | 同上 |
+| 频率（最后一列前） | 语料统计；`—`（谓词/mod 原生行） | ❌ **禁止**——同上 | — |
+| 例句（最后一列） | 🔴 2026-08-27 用户裁定新增：词条 → TK5 事件原句示范（语料首次出现行自动摘取，截 60 字）——给人检查「词条 ↔ 原句」对应是否成立；低频碎片（evm 等）无字面 = 留空 | ❌ 自动摘取 | 同上 |
 
 **mod 原生动作**（无 TK5 源词，2026-08-26 起）：`太阁原词`/`频率` 列固定 `—`；token 加入 `MOD_NATIVE` 列表（build_registry_csv.py），参数/实现/语义入 `ACTIONS`/`ACT_SEM` 字典。
 
@@ -120,7 +121,7 @@
 
 ## 三、谓词注册表（单所有权，2026-08-26 起）
 
-> 关系判断（带参函数，直接布尔）——与属性区分：属性是单值、谓词是关系。**token/频率/状态权威 = 16a CSV 谓词区**（9 个，本表为人读摘要）；语法语义（条件求值、四形态判断）见 01。**新谓词 = CSV 回填字典加行 + 实现（01 条件求值）**。
+> 关系判断（带参函数，直接布尔）——与属性区分：属性是单值、谓词是关系。**mod DSL 谓词 token 权威 = 本表（10 个）**；🔴 2026-08-27 用户裁定：16a CSV 谓词区**只收 TK5 调用词翻译行**（外交同盟→isAllied 等 7 行），mod token 不冒充太阁原词。语法语义（条件求值、四形态判断）见 01。**新谓词 = 本表加行 + CSV 调用词翻译行（若 TK5 有源词）+ 实现（01 条件求值）**。
 
 | 谓词 | 参数 | 语义 | 状态 |
 |---|---|---|---|
@@ -133,21 +134,47 @@
 | hasMet | a, b（角色引用） | 是否认识 | 注册表加行 |
 | sameSettlement | hero, hero | 同据点 | 注册表加行 |
 | canPromote | hero | 功勋 ≥ 晋升链下一级阈值 | 注册表加行（17） |
+| allControlled | region, clan | 区域全部据点由 clan 控制 | 注册表加行（全城壓制 481 次带参调用） |
 
 ## 四、枚举注册表（值 token 权威，2026-08-26）
 
-> 枚举属性（类型 ∈ 01 值类型表：identity/gender/state/title…）的值 = **英文 token 字符串字面量**：`(Hero::X.identity) == "daimyo"`。🔴 **禁止中文/自由字符串**（铁律 20 + 类型纪律）——validator 检查：①比较对象类型 = 枚举属性 ②字符串值 ∈ 对应枚举注册表（静态可查）。值表 v1 见下；全量复跑 = 语料 `身份::` 统计（复跑节命令），08 转化时按表翻 token，表外值 = 回填本表。
+> 枚举属性（类型 ∈ 01 值类型表：identity/gender/state/title…）的值 = **英文 token 字符串字面量**：`(Hero::X.identity) == "daimyo"`。🔴 **禁止中文/自由字符串**（铁律 20 + 类型纪律）——validator 检查：①比较对象类型 = 枚举属性 ②字符串值 ∈ 对应枚举注册表（静态可查）。值表 v1 见下；🔴 全量 token 权威 = 16a CSV 域值区（身份枚举 29 值等，2026-08-27 从语料提取），本表为人读摘要；表外值 = 回填 gen_registry_tables.DOMAIN_VAL_MAP。
 
 | 枚举属性 | 值（token） | TK5 源词（语料频次） | 状态 |
 |---|---|---|---|
-| identity（身份） | `daimyo` 大名(426) / `castle_lord` 城主(388) / `ronin` 浪人(246) / `province_lord` 國主(230) / `karou` 家老(132) / `general` 部將(86) / `master` 師範(77) / `ninja_chief` 頭(62) / `chief` 頭領(58) / `boss` 元締(50) / `senior_general` 侍大將(49) / `jounin` 上忍(35) / `foreman` 番頭(29) / `clerk` 手代(29) / `manager` 支配人(28) / `chunin` 中忍(28) | ~30 值全量 ⏳ 08 复跑补全 | v1 常用值；全量待补 |
+| identity（身份） | `daimyo` 大名(426) / `city_lord` 城主(388) / `ronin` 浪人(246) / `province_lord` 國主(230) / `elder` 家老(132) / `general` 部將(86) / `sword_master` 師範(77) / `chief` 頭(62)+頭領(58) / `overseer` 元締(50) / `samurai_captain` 侍大將(49) / `ninja_high` 上忍(35) / `foreman` 番頭(29) / `clerk` 手代(29) / `manager` 支配人(28) / `ninja_mid` 中忍(28) | 全量 29 值已提取（16a 域值区） | ✅ 语料提取 |
 | gender（性别） | `male` / `female` | 男/女（语料写法待核对） | ⏳ 08 |
 | state（出现标志） | 待定 | 出現標誌 | ⏳ 08 |
 | title（官职） | 17 官职表产出 | 官職 | 17 |
 
 ## 五、覆盖结论
 
-- **Phase 1 可全覆盖**（除明确标注后续扩展）：6 操作符 + 9 引擎域（含 Ctx 代入槽 + 🔴 Event 事件域）+ 🔴 Card 能力卡域（数据包扩展）+ 全属性白名单 + 9 谓词（含 canPromote，17）+ 动作全表（CSV 命令区：TK5 映射 + mod 原生 18 行，含 grant_merit/set_title/promote 17、duel 03）
+- **Phase 1 可全覆盖**（除明确标注后续扩展）：6 操作符 + 9 引擎域（含 Ctx 代入槽 + 🔴 Event 事件域）+ 🔴 Card 能力卡域（数据包扩展）+ 全属性白名单 + 10 谓词（含 canPromote，17）+ 动作全表（CSV 命令区纯 TK5 174 行；mod 原生 18 动作 token 见 §六）
+
+## 六、动作 token 注册表（mod 原生，无 TK5 源词，2026-08-27 自 16a 移出）
+
+> 09b/01/09c 手写剧本在用的 mod DSL 动作 token——**不是 TK5 翻译词条**（16a CSV 太阁原词列只收 TK5 词，用户裁定），权威 = 本表；validator 校验剧本动作 token 查本表。参数/实现/语义权威 = `build_registry_csv.py` ACTIONS/ACT_SEM 字典。
+
+| token | 参数 | 语义 | 实现 |
+|---|---|---|---|
+| set_flag | flag | 剧本标志 | 本 Phase |
+| clear_flag | flag | 剧本标志 | 本 Phase |
+| set_variable | variable, value | 剧本变量 | 本 Phase |
+| global_set | slot, 引用 | 全局槽赋值 | 🔴 新加（存档） |
+| declare_war | a, b | 宣战 | 本 Phase |
+| make_peace | a, b | 停战 | 本 Phase |
+| spawn_clan | clanId, leader, home | 新建家族 | 06（需核实 CreateClan） |
+| make_alliance | a, b | 结盟 | 02（需核实 StanceType.Allied） |
+| relation_change | a, b, value | 关系变更 | 本 Phase（ChangeRelationAction） |
+| change_clan | actor, clan | 阵营变更 | 06 |
+| release_party | leader | 释放部队 | 02 PartyBrain |
+| grant_troops | troopIds, counts | 给兵 | 06 |
+| card_gain | hero, card | 获得能力卡 | 数据包扩展（存档持久） |
+| card_lose | hero, card | 失去能力卡 | 数据包扩展（存档持久） |
+| grant_merit | actor, value | 功勋增减 | 17（WorldActionExecutor Scenario 层） |
+| set_title | actor, titleId | 设官职 | 17 |
+| promote | actor | 晋升 | 17 |
+| duel | opponent, outcomeSlot | 个人战（1v1） | 03（个人战，CombatManager） |
 - 🔴 **状态表达三层纪律（执行过 = `Event::<id>.done` / 分支选择 = `Ctx::` 命名槽 / 世界状态 = 本体属性与谓词，`Flag::` 只留跨事件标记）权威 = 01 纪律节**（违规实录与细节见 01）
 - **后续扩展**：容器 `pick` 谓词、组织扩展域（Org）、演出视觉元素（圖片/背景）
 - **纪律**：转化管线遇到表外模式 = 回填 CSV 词条/动作行（mod 原生动作 `太阁原词` 列 = `—`）+ 扩展 01 注册表（validator 同步更新）
@@ -156,9 +183,11 @@
 
 ```bash
 # 域：grep -oE '([一-鿿A-Za-z]{1,6})::' TK5AllEvents_merged.txt | sort | uniq -c | sort -rn
-# 属性：grep -oE '::[^.（()]+\.([一-鿿A-Za-z]+)' TK5AllEvents_merged.txt | sort | uniq -c | sort -rn
+# 属性（v2 保留域维度：(域,属性) 对）：grep -oE '([一-鿿A-Za-z]{1,6})::[^.（()]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]+)' TK5AllEvents_merged.txt | sort | uniq -c | sort -rn
+# 域值（v2 新增：域::值 形态——身份枚举/狀況值/命名槽）：grep -oE '([一-鿿A-Za-z]{1,6})::([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]{1,14})(?=[),，）])' TK5AllEvents_merged.txt | sort | uniq -c | sort -rn
 # 命令：grep -oE '^\s*([一-鿿]{2,8}):' TK5AllEvents_merged.txt | sort | uniq -c | sort -rn
 # 动作行（mod 原生段）：build_registry_csv.py ACTIONS + MOD_NATIVE 字典
+# 🔴 全量生成 + 覆盖自检：python plans/scenario-campaign-mode/tools/build_registry_csv.py（表外 = exit(1)）
 ```
 
 ## 验收
