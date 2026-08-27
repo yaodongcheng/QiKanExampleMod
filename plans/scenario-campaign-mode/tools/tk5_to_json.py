@@ -186,8 +186,8 @@ _ENTITY_FALLBACK = {
     "官職": "title", "工作": "QuestDef", "事件主命": "QuestDef",
 }
 
-# 谓词/碎片侧名（与域无关，_pick_side 直接接受）
-_PRED_SIDES = {"exists", "isAllied", "isNeighbor", "allControlled", "hasMet", "hasRelation", "relation", "unknown"}
+# 函数/碎片侧名（与域无关，_pick_side 直接接受）
+_FUNC_SIDES = {"exists", "isAllied", "isNeighbor", "allControlled", "hasMet", "hasRelation", "relation", "unknown"}
 
 EVENT_NAME = {
     "EFF0C300_159": "情报宣告+评议会+敦盛之舞+出阵（织田线开场）",
@@ -383,7 +383,7 @@ class Registry:
                     if "::" not in side and side != "null":
                         if src not in self.bare_vals:
                             self.bare_vals[src] = side            # 同名多域同 token（浪人→ronin）
-                elif cat == "谓词":
+                elif cat == "函数":
                     self.predicates[src] = side                          # src = 调用词（外交同盟→isAllied）
                 elif cat == "命令":
                     self.commands[src] = (side, usage)
@@ -491,14 +491,14 @@ class Translator:
             subject, attr_part = rest.split(".", 1)
         else:
             subject, attr_part = rest, ""
-        # 属性调用：attr(参数) → 谓词（16a CSV 谓词区，全语料闭包）
+        # 属性调用：attr(参数) → 函数（16a CSV 函数区，全语料闭包）
         attr_word = attr_part
         callm = re.match(r"^(.*?)\((.*)\)$", attr_part) if attr_part else None
         if callm:
             attr_word, call_args = callm.group(1), callm.group(2)
             pred = self.reg.predicate(attr_word)
             if not pred:
-                raise RegistryGapError(f"调用表外: {dom_word}::{subject}.{attr_word}(…)——16a CSV 谓词区无此调用")
+                raise RegistryGapError(f"调用表外: {dom_word}::{subject}.{attr_word}(…)——16a CSV 函数区无此调用")
             target = self.translate_ref(call_args)
             return f"{pred}({self._call_subject(pred, dom_word, subject)}, {target[0]})", target[1]
         if not attr_part:
@@ -539,7 +539,7 @@ class Translator:
     }
 
     def _pick_side(self, side, dom_word):
-        """多段侧名按域前缀取段；全局变量段/谓词段与域无关。"""
+        """多段侧名按域前缀取段；全局变量段/函数段与域无关。"""
         prefix = self._DOMAIN_PREFIX.get(dom_word)
         for p in side.split(" / "):
             p = p.strip()
@@ -547,12 +547,12 @@ class Translator:
                 return p
         for p in side.split(" / "):
             p = p.strip()
-            if p.startswith(("Variable::", "Ctx::")) or p in _PRED_SIDES:
+            if p.startswith(("Variable::", "Ctx::")) or p in _FUNC_SIDES:
                 return p
         return None
 
     def _call_subject(self, pred, dom_word, subject):
-        """谓词主体验证/转换：外交/邻接 → 势力（Faction::Kingdom），全城压制 → 区域（Region）。"""
+        """函数主体验证/转换：外交/邻接 → 势力（Faction::Kingdom），全城压制 → 区域（Region）。"""
         if pred in ("isAllied", "isNeighbor", "relation"):
             return self._kingdom(subject)
         if pred == "allControlled":
