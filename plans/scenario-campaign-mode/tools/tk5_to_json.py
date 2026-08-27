@@ -55,6 +55,21 @@ _SLOT_CAT = {
 }
 
 
+# 🔴 布尔标誌族语义词 → bool（2026-08-27 用户裁定；词表 = 16a CSV 语义列「TK5 拼写」清单，
+#   用于 更新 承接注记等非比较上下文；比较右值只出现 0/1/已發生/未發生，走 _canonical_right 通用表）
+BOOL_MARKER_WORDS = {
+    '出現標誌': {'已出現': True, '未出現': False},
+    '所持標誌': {'持有中': True, '沒持有': False},
+    '出撃標誌': {'出撃中': True, '平常': False},
+    '生病標誌': {'生病': True, '健康': False},
+    '離家標誌': {'離家': True, '在家': False},
+    '鑑定標誌': {'已鑑定': True},
+    '死刑標誌': {'死刑': True},
+    '死亡標誌': {'死亡': False, '生存': True},
+    '事件標誌': {'成立': True, '不成立': False},
+}
+
+
 def slot_cname(s):
     """TK5 槽名（人物Ｄ/城Ａ/據點Ａ/ａ…）→ Ctx 英文槽名（hero_D/settlement_A/place_A/var_a…）。"""
     if s in SLOT_NAME_MAP:
@@ -703,16 +718,55 @@ class Translator:
             left, op, right = m.group(1).strip(), m.group(2), m.group(3).strip()
             left = left[1:-1].strip() if left.startswith("(") and left.endswith(")") else left
             right = right[1:-1].strip() if right.startswith("(") and right.endswith(")") else right
-            # 死亡標誌 特例：==1 → not(alive)；==0 → alive
+            # 死亡標誌 特例：==1/死亡/已發生 → not(alive)；==0/生存 → alive
+            # 🔴 2026-08-27 语义词补全：比较右值 = 0/1/死亡/生存/已發生 全拼写（死亡標誌 = 死亡轴，alive 反义）
             lm = re.match(r"^(.*?::.+?)\.死亡標誌$", left)
             if lm:
                 ref = self.translate_ref(lm.group(1))[0]
-                return f"not( ({ref}.alive) == true )" if right == "1" else f"({ref}.alive) == true"
+                dead = right in ("1", "死亡", "已發生")
+                return f"not( ({ref}.alive) == true )" if dead else f"({ref}.alive) == true"
             left_dsl = self.translate_ref(left)[0]
-            right_dsl = self.translate_value(right)
+            right_dsl = self._canonical_right(left, right)
             return f"({left_dsl}) {op} ({right_dsl})"
         e = expr[1:-1].strip() if expr.startswith("(") and expr.endswith(")") else expr
         return self.translate_ref(e)[0]
+
+    def _canonical_right(self, left, right):
+        """🔴 布尔标誌族规范化（2026-08-27 用户裁定，16 §四 值类型一致性纪律）：
+        左值 = 布尔型引用（Flag::/Event::/标誌属性）时，右值数字拼写 0/1 与语义词拼写
+        （成立/不成立/已發生/未發生/真/偽/属性特有词…）一律 → true/false；其余按原逻辑译。"""
+        if not self._is_bool_ref(left):
+            return self.translate_value(right)
+        if right in ("1", "成立", "已發生", "真"):
+            return "true"
+        if right in ("0", "不成立", "未發生", "偽"):
+            return "false"
+        m = re.match(r"^[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6}::[^.（()]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$", left)
+        if m:
+            words = BOOL_MARKER_WORDS.get(m.group(1))
+            if words and right in words:
+                return "true" if words[right] else "false"
+        return self.translate_value(right)
+
+    def _is_bool_ref(self, left):
+        """左值是否为布尔型引用：事件標誌/事件 域固定布尔（Flag:: / Event::.done）；
+        其余按 16a CSV 值类型列判定（标誌族 → 布尔）。"""
+        l = left.strip()
+        while l.startswith("(") and l.endswith(")"):
+            l = l[1:-1].strip()
+        if l.startswith("事件標誌::") or l.startswith("事件::"):
+            return True
+        m = re.match(r"^([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$", l)
+        if m:
+            at = self.reg.attr(m.group(2))
+            if at is not None and at[1] == "布尔":
+                return True
+        m2 = re.match(r"^([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::([^.（()]+)$", l)
+        if m2:
+            dv = self.reg.domain_val(m2.group(1), m2.group(2))
+            if dv is not None and dv[1] == "布尔":
+                return True
+        return False
 
     def translate_value(self, v):
         if re.match(r"^-?\d+$", v):
@@ -882,7 +936,14 @@ class Translator:
             self.script_out.append({"step": "scene_exit"})
             return
         if cmd == "更新":
-            self.script_out.append({"step": "note", "note": "🔴 机制行 更新 → 承接系统", "src": line.text})
+            params = line.params()
+            note = "🔴 机制行 更新 → 承接系统"
+            if params and len(params) >= 2:
+                target, value = params[0].strip(), params[1].strip()
+                if self._is_bool_ref(target):
+                    # 🔴 布尔标誌族：注明规范化承接值（成立/1 → true、不成立/0 → false，2026-08-27 用户裁定）
+                    note = f"🔴 机制行 更新 → 承接系统（{self._canonical_right(target, value)}）"
+            self.script_out.append({"step": "note", "note": note, "src": line.text})
             return
         if cmd == "停止時間":
             self.script_out.append({"step": "effect", "action": "pause_time"})
