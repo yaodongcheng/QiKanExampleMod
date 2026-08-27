@@ -18,16 +18,21 @@ txt = open('Knowledge/太阁事件包/TK5AllEvents_merged.txt', encoding='utf-8'
 body = '\n'.join(l for l in txt.splitlines() if not l.strip().startswith('#'))
 
 # ═══ 提取（v2：保留域维度）═══
-domains = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::', body))
+domains = Counter(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::', body))
 # (域, 属性) 对：`域::主体.属性`（属性名保留原域，跨域同名属性各行一条；含全角数字：武將２）
-attr_pairs = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()）]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]+)', body))
-# 域::值（无主体无点）：身份枚举 / 狀況值 / 命名槽（據點::主人公當主據點）——旧版零提取
-domain_vals = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]{1,14})(?=[),，）])', body))
+attr_pairs = Counter(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()）]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)', body))
+# 域::值（无主体无点）：身份枚举 / 狀況值 / 命名槽（據點::主人公當主據點）——旧版零提取；
+# 🔴 2026-08-27 用户裁定：lookahead 含全角/半角左括号——`主命::獲取貴重品（忍者）` = 具名值带
+#   职业变体参数（武士/商人/海賊/忍者，167 条），值 = 括号前部分，参数留在例句原文（X( = 带参形态警惕）
+domain_vals = Counter(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]{1,14})(?=[),，）(（])', body))
+# 🔴 2026-08-27 用户裁定：`域::值.属性` 形态（流派::流派Ａ.宗家）——槽/具名值后跟属性访问，
+#   值也要提取为域值；值须以非数字开头（主命屬性::5288.80 的数字主体 5288 不提取，防垃圾行）
+domain_vals.update(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ][一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]{0,13})(?=\.)', body))
 # 带参调用：`域::主体.属性(参数)` → 函数候选（外交同盟/全城壓制…）
-calls = Counter(re.findall(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()）]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ]+)\(', body))
+calls = Counter(re.findall(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()）]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]+)\(', body))
 cmds = Counter()
 for line in txt.splitlines():
-    m = re.match(r'^\s*([一-鿿Ａ-Ｚａ-ｚA-Za-z]{2,8}):', line)
+    m = re.match(r'^\s*([一-鿿぀-ヿＡ-Ｚａ-ｚA-Za-z]{2,8}):', line)
     if m:
         cmds[m.group(1)] += 1
 
@@ -82,7 +87,7 @@ PAIR_OVERRIDE = {
     '商人司': 'Settlement.merchant_office', '曾經訪問': 'Settlement.visited',
     '鐵甲船数': 'Settlement.vessels_ironclad', '所有船舶数': 'Settlement.vessels',
     '大型船舶数': 'Settlement.vessels_large', '主人': 'Settlement.owner',
-    '攻': 'Settlement.attack', '地形': 'Settlement.terrain',
+    '攻め取りカウンタ': 'Settlement.attack', '地形': 'Settlement.terrain',
     '所屬忍者衆': 'Hero.ninja_group / Settlement.ninja_group', '所屬海賊衆': 'Hero.pirate_group / Settlement.pirate_group',
     # 軍團域（02 PartyBrain 受控集合）
     '軍團長': 'Army.leader', '武將': 'Army.general', '結果': 'Army.result',
@@ -92,7 +97,7 @@ PAIR_OVERRIDE = {
     # 人物域
     '主命狀態': 'Hero.quest_state', '承擔主命': 'Hero.quest_assigned',
     '主命目標': 'Hero.quest_goal', '主命期限': 'Hero.quest_deadline',
-    '事件参加可能': 'Hero.available', '認識標誌': 'hasMet', '親密度': 'relation',
+    '事件参加可能': 'Hero.available', '認識標誌': 'Hero.known', '親密度': 'Hero.relation_to',
     '仕官傾向': 'Hero.tendency', '義理': 'Hero.loyalty', '忠誠度': 'Hero.loyalty',
     '身份': 'Hero.identity',
     '統率力': 'Hero.leadership', '武力': 'Hero.might', '智謀': 'Hero.intellect',
@@ -144,8 +149,15 @@ CALL_MAP = {
     '卡持有': ('hasCard', ('hero', 'card'), '布尔'),
     '移動可能': ('canMove', ('settlement', 'hero'), '布尔'),
     '攻擊可能': ('canAttack', ('settlement', 'hero'), '布尔'),
+    # 🔴 2026-08-27 用户裁定：带参调用形态（域::X.属性(参数)）= 函数，不是属性——属性行值类型永不"函数"，
+    #   而带括号的属性必须归函数区（属性行生成 `a in CALL_MAP` 自动拦截）：
+    '國屬性1': ('region_attr_1', ('clan',), '布尔'),     # 国属性位 1（== 真偽 判定）
+    '未知2': ('unknown_2', ('clan',), '布尔'),           # 未知属性位 2（地方域，== 真偽 判定）
+    '未知8': ('unknown_8', ('faction',), '数字'),        # 未知属性位 8（大名家域，更新(59) 赋值）
 }
-# 无参但语义为关系函数的属性侧名（认识標誌/親密度 → 与主人公的关系）
+# 🔴 2026-08-27 已废弃：属性形态（人物::X.親密度/認識標誌）不再映射函数侧名——属性就是属性，
+#   值类型走推断（親密度=数字、認識標誌=布尔）；函数侧名（hasMet/relation/hasRelation）只留给
+#   带参调用形态（外交感情(a,b) → relation）。本集合保留仅为 build_registry_csv import 兼容，无使用。
 FUNC_SIDE_NOARG = {'hasMet', 'relation', 'hasRelation'}
 
 # ═══ 域::值 注册表（v2 新增；侧名 = 英文枚举 token / 完整 DSL 引用）═══
@@ -206,6 +218,14 @@ ENTITY_DOMAINS = {
     '官位': 'court_rank', '官職': 'title', '工作': 'QuestDef', '事件主命': 'QuestDef',
 }
 
+# 🔴 槽域前缀 → Ctx 槽名（2026-08-27 用户裁定：与 tk5_to_json SLOT_NAME_MAP/_SLOT_CAT 一致，CSV 侧名权威）
+SLOT_CAT = {
+    '人物': 'hero', '城': 'settlement', '據點': 'place', '大名家': 'clan', '勢力': 'faction',
+    '國': 'region', '砦': 'fort', '町': 'town', '里': 'village', '忍者衆': 'ninja', '商家': 'merchant',
+    '海賊衆': 'pirate', '卡': 'card', '流派': 'school', '物品': 'item', '交易品': 'trade',
+    '軍團': 'army', '地方': 'area',
+}
+
 # ═══ 域::值 规则兜底（词条域专用；实体域由 ENTITY_DOMAINS 处理，不进 CSV）═══
 def domain_val_rule(dom, val):
     if dom == '事件標誌':
@@ -228,6 +248,9 @@ def domain_val_rule(dom, val):
         return f'Army::{fallback_id(val)}'             # 命名军团实例（专表外）
     if dom == '人物類別':
         return f'category_{fallback_id(val)}'          # 容器类别枚举（专表外）
+    if dom == '主命':
+        return f'tk5_u{hashlib.md5(val.encode("utf-8")).hexdigest()[:6]}'   # 🔴 2026-08-27 用户裁定：主命 = 枚举（类型标识）——
+        #   语料 169 次全为 ==/!= 纯比较，零对象用法（无属性访问/代入）；token 占位 = tk5_uXXXX，13 QuestDef 表产出语义 token
     if dom == '物品類型':
         return f'ItemType::{fallback_id(val)}'         # 物品类型数据包
     if dom == '軍團方針':
@@ -262,8 +285,8 @@ def ascii_translit(w):
 ATTR_MAP = {
     '存在': 'exists', '所屬大名家': 'Hero.clan / Settlement.clan', '事件参加可能': 'Hero.available',
     '城主': 'Settlement.owner', '本城': 'Hero.home', '外交同盟': 'isAllied', '身份': 'Hero.identity',
-    '外交感情': 'relation', '所屬據點': 'Hero.settlement', '性別': 'Hero.gender', '親密度': 'hasRelation',
-    '死亡標誌': 'Hero.alive', '認識標誌': 'hasMet', '所屬國': 'Settlement.region', '所屬勢力類型': 'Hero.faction',
+    '外交感情': 'relation', '所屬據點': 'Hero.settlement', '性別': 'Hero.gender', '親密度': 'Hero.relation_to',
+    '死亡標誌': 'Hero.alive', '認識標誌': 'Hero.known', '所屬國': 'Settlement.region', '所屬勢力類型': 'Hero.faction',
     '出現標誌': 'Hero.state', '所屬上司': 'Hero.superior', '所持標誌': 'Hero.item_flag', '武將': 'Hero.general',
     '全城壓制': 'allControlled', '使用狀況': 'Hero.state', '戰略': 'Hero.strategy', '妻': 'Hero.spouse',
     '主命狀態': 'Hero.quest_state', '軍團長': 'Hero.party', '兵士数': 'Settlement.garrison', '離家標誌': 'Hero.state',
@@ -383,12 +406,38 @@ def pair_side(dom, attr):
     return None
 
 
+# 🔴 特殊引用值（2026-08-27 用户裁定：代词/特殊值 ≠ 具名实体，进 CSV 登记；与 tk5_to_json
+#   translate_subject 语义一致——主人公 跨域统一 Hero::MainHero，無效 → null，發生X → Ctx 事件槽）
+SPECIAL_VALS = {
+    '主人公': 'Hero::MainHero',
+    '主人公據點': 'Hero::MainHero.settlement',
+    '主人公當主據點': 'Hero::MainHero.home',
+    '發生人物': 'Ctx::event_hero',
+    '發生據點': 'Ctx::event_settlement',
+    '無效': 'null',
+}
+SPECIAL_TYPES = {
+    '主人公': '对象:人物', '主人公據點': '对象:据点', '主人公當主據點': '对象:据点',
+    '發生人物': '对象:人物', '發生據點': '对象:据点', '無效': '空',
+}
+
+
 def val_side(dom, val):
-    """(域, 值) → 侧名/引用。专表 > 实体域规则 > 数据型规则。"""
+    """(域, 值) → 侧名/引用。专表 > 特殊值 > 槽 > 实体域规则 > 数据型规则。"""
     if (dom, val) in DOMAIN_VAL_MAP:
         return DOMAIN_VAL_MAP[(dom, val)]
+    if val in SPECIAL_VALS:
+        return SPECIAL_VALS[val]
     if val == '無效':
         return 'null'
+    # 🔴 槽形态例外（2026-08-27 用户裁定：人物Ｂ/城Ａ/據點Ｃ = 命名槽引用，不是具名实体——
+    #   具名实体（人物::伊藤總十郎）不进 CSV（查名字表），槽引用进表 Ctx::hero_B；与 tk5_to_json 槽名一致）
+    m = re.match(r'^([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,8})([Ａ-Ｅ])$', val)
+    if m:
+        cat = SLOT_CAT.get(m.group(1), 'slot')
+        return f'Ctx::{cat}_{chr(ord("A") + (ord(m.group(2)) - ord("Ａ")))}'
+    if re.match(r'^[ａ-ｚ]$', val):
+        return f'Ctx::var_{chr(ord("a") + (ord(val) - ord("ａ")))}'
     if dom in ENTITY_DOMAINS:
         prefix = ENTITY_DOMAINS[dom]
         return f'{prefix}::{fallback_id(val)}'          # 具名实体：翻译器名字表先行，fallback 兜底

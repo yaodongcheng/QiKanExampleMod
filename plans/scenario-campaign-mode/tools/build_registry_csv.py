@@ -29,6 +29,7 @@ from collections import Counter
 
 from gen_registry_tables import (DOMAIN_MAP, ATTR_MAP, CMD_MAP, FUNC_SIDE_NOARG,
                                  CALL_MAP, DOMAIN_VAL_MAP, PAIR_OVERRIDE, ENTITY_DOMAINS, SYNTAX_CMDS,
+                                 SPECIAL_VALS, SPECIAL_TYPES,
                                  domains, attr_pairs, domain_vals, calls, cmds,
                                  pair_side, val_side, call_side, verify_coverage)
 
@@ -46,7 +47,8 @@ ATTR_TYPES = {
     'alive': '布尔', 'state': '枚举', 'leader': '布尔', 'gender': '枚举', 'identity': '枚举:身份（带序：17 身份链）', 'age': '数字',
     'home': '对象:据点', 'settlement': '对象:据点', 'party': '对象:部队', 'superior': '对象:人物',
     'spouse': '对象:人物', 'reputation': '数字', 'infamy': '数字', 'gold': '数字',
-    'relation_to': '数字（带参）', 'available': '布尔', 'merit': '数字', 'loyalty': '数字',
+    'relation_to': '数字', 'available': '布尔', 'merit': '数字', 'loyalty': '数字',
+    'known': '布尔',
     'health': '数字', 'title': '枚举:官職（带序：17 官职品级）', 'tendency': '枚举',
     'kingdom': '对象:王国', 'done': '布尔', 'value': '数字/字符串/对象', '持有': '布尔', '等级': '数字',
     'result': '枚举（BattleResult）', 'strategy': '枚举', 'policy': '枚举',
@@ -56,10 +58,10 @@ ATTR_TYPES = {
 # 域值类型（值类型体系同 ATTR_TYPES）
 DOMAIN_VAL_TYPES = {
     '身份': '枚举:身份（带序：17 身份链）', '狀況': '数字/布尔/对象', '據點': '对象:据点', '忍者衆': '对象:组织', '商家': '对象:组织',
-    '戰鬥結束種類': '枚举', '軍團': '对象:部队', '人物類別': '枚举', '事件標誌': '枚举:旗标狀態', '真偽': '布尔',
+    '戰鬥結束種類': '枚举', '軍團': '对象:部队', '人物類別': '枚举', '事件標誌': '布尔', '真偽': '布尔',
     '天氣': '枚举', '日數計數器': '数字', '變量': '数字/字符串/对象', '儲存號': '数字/字符串/对象',
     '場面': '对象:设施', '物品類型': '枚举', '軍團方針': '枚举', '官位': '枚举:官位（带序：17 官职品级）', '官職': '枚举:官職（带序：17 官职品级）',
-    '工作': '对象:任务', '事件主命': '对象:任务',
+    '工作': '枚举:工作', '事件主命': '枚举:事件主命', '主命': '枚举:主命',
 }
 # 按具体 (域,值) 精确化（語料例句判定：劇本==(2) 数字、場面==(場面::自宅) 设施、評定期間標誌 布尔）
 DOMAIN_VAL_TYPE_OVERRIDE = {
@@ -79,13 +81,22 @@ DOMAIN_CTYPE = {
     '勢力': '对象:王国', '國': '对象:区域', '地方': '对象:区域',
     '軍團': '对象:部队', '忍者衆': '对象:组织', '商家': '对象:组织', '海賊衆': '对象:组织',
     '卡': '对象:卡', '流派': '对象:卡', '物品': '对象:物品', '交易品': '对象:物品',
-    '場面': '对象:设施', '主命': '对象:任务', '工作': '对象:任务', '事件主命': '对象:任务',
+    '場面': '对象:设施', '主命': '枚举:主命', '工作': '枚举:工作', '事件主命': '枚举:事件主命',
     '事件標誌': '对象:旗标', '事件': '对象:事件', '事件發生狀態': '对象:事件',
     '身份': '枚举:身份（带序：17 身份链）', '官位': '枚举:官位（带序：17 官职品级）', '官職': '枚举:官職（带序：17 官职品级）',
     '天氣': '枚举:天氣', '人物類別': '枚举:人物類別', '戰鬥結束種類': '枚举:戰鬥結束種類', '物品類型': '枚举:物品類型', '軍團方針': '枚举:軍團方針',
     '真偽': '布尔', '日數計數器': '数字',
     '狀況': '数字/布尔/对象', '變量': '数字/字符串/对象', '儲存號': '数字/字符串/对象',
     '主命屬性': '数字（编号）', '遊戲通關種類': '🔴 待定', '環境變量': '🔴 待定', '背景音樂': '🔴 待定',
+}
+
+
+# 🔴 槽引用推断接管表（2026-08-27 用户裁定）：语料只有 (ａ) 槽赋值 → 推断「数字/对象」（动态类型）模糊；
+#   语义明确（如五维属性 = 数字）→ 此表接管。⚠️ 不放进 ATTR_TYPES——备注判定把 ATTR_TYPES 当
+#   「引擎已有查询器」清单，放进去会谎报实现状态（武力 被标 ✅ 引擎查询器）
+FUZZY_TYPE_OVERRIDE = {
+    'might': '数字', 'governance': '数字', 'leadership': '数字', 'intellect': '数字', 'charm': '数字',
+    'might_base': '数字', 'governance_base': '数字', 'leadership_base': '数字', 'intellect_base': '数字', 'charm_base': '数字',
 }
 
 
@@ -118,10 +129,30 @@ def infer_attr_types():
             continue
         groups = re.findall(r'\(([^()]*)\)', s)
         attrs = [g for g in groups
-                 if re.match(r'^(?:[一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$', g)]
+                 if re.match(r'^(?:[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$', g)]
+        if not attrs:
+            continue                          # 无属性 → 跳过
+        # 🔴 属性对属性 算式/不等式（两侧都是属性表达式，2026-08-27 用户裁定：算式与不等式 = 数字——
+        #   格>格 / 現石高>現石高 / 技能+技能 两侧都计数字；单属性算式/不等式走下方 RHS 计数——
+        #   身份>=(身份::城主)、官位>=(官位::X) 是带序枚举比较，保持枚举，不进此分支）
+        if len(attrs) >= 2 and (re.search(r'\)\s*(?:>=|<=|>|<)\s*\(', s)
+                                or re.search(r'\)\s*[\*\+\-/]\s*\(', s)):
+            for g in attrs:
+                inf.setdefault(re.match(r'^[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6}::[^.（()]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$', g).group(1),
+                               _C())['数字'] += 1
+            continue
         if len(attrs) != 1:
-            continue                          # 无属性/多属性/嵌套调用（函数形态）→ 跳过
-        attr = re.match(r'^(?:[一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$', attrs[0]).group(1)
+            continue                          # 多属性（非算式/不等式）/嵌套调用（函数形态）→ 跳过
+        attr = re.match(r'^(?:[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$', attrs[0]).group(1)
+        # 🔴 单属性不等式（>= <= > <）= 数字强证据（2026-08-27 用户裁定：基準石高>=(變量::ｇ) → 数字，
+        #   右值是什么不影响——不等式本身只对数字有意义）；**带序枚举右值除外**——
+        #   身份>=(身份::城主) 是带序枚举合法比较（17 等级链），不是数字证据
+        if re.search(r'\)\s*(?:>=|<=|>|<)\s*\(', s):
+            ordered = any(DOMAIN_VAL_TYPES.get(g.split('::', 1)[0], '').find('带序') >= 0
+                          for g in groups if '::' in g and g != attrs[0])
+            if not ordered:
+                inf.setdefault(attr, _C())['数字'] += 1
+                continue
         # 🔴 switch 分支（2026-08-27 用户裁定）：場合別/場合分歧 的条件属性——分支值 = 数字
         #   （喜好 等 = 数字编码的枚举，具体枚举含义未知；類型 = 数字）
         if s.startswith(('場合別', '場合分歧')):
@@ -132,6 +163,12 @@ def infer_attr_types():
         if re.search(r'\)\s*[\*\+\-/]\s*\(', s):
             inf.setdefault(attr, _C())['数字'] += 1
             continue
+        # 🔴 代入槽反向推断（2026-08-27 用户裁定：代入槽:(属性) → 属性类型 = 槽类型——
+        #   代入勢力Ａ:(町::町Ａ.商人司) → 商人司 = 对象:王国；ｐ/ｂ 通用变量槽 → 数字/对象 模糊
+        #   （弱证据，具体优先规则在属性行生成处处理））
+        if s.startswith('代入') and len(attrs) == 1:
+            inf.setdefault(attr, _C())[slot_ctype(s.split(':', 1)[0])] += 1
+            continue
         for g in groups:
             if g == attrs[0]:
                 continue                      # 左值（属性表达式）
@@ -139,17 +176,85 @@ def infer_attr_types():
                 continue                      # 超长 = 复杂表达式，跳过
             inf.setdefault(attr, _C())[_rtype_of(g)] += 1
             inf_vals.setdefault(attr, _C())[g] += 1      # 🔴 枚举值集合收集（原屬下標誌 → 原上司/原同事/原屬下…）
-    # 🔴 状态枚举族修正（2026-08-27 用户裁定）：標誌 属性语料有具名状态值（未出現/出撃中/死刑…）
-    #   → 类型 = 枚举（状态枚举），TK5 的 0/1 只是数字编码，不改变语义（出現標誌=枚举，未出現是值之一）
-    for attr, cnt in inf.items():
-        if attr.endswith('標誌') and cnt.get('枚举', 0) >= 1:
+    # 🔴 标誌族二态判定（2026-08-27 用户裁定：标誌类二态属性统一布尔——TK5 的 0/1 只是数字拼写，
+    #   与语义词（已出現/未出現…）指同一状态；已發生/未發生 是跨域借用拼写，归入成立轴不计数）：
+    #   语义词 ≤2 个且无 ≥2 数字 → 布尔（出現/死亡/所持/戰鬥/出撃/生病/離家/鑑定/死刑標誌…）；
+    #   语义词 ≥3 → 枚举（原屬下標誌 3 态）；出现 ≥2 数字 → 数字（天覧試合標誌==(3)）
+    bool_flag_attrs = set()
+    for attr, cnt in list(inf.items()):
+        if not attr.endswith('標誌'):
+            continue
+        vals = set(inf_vals.get(attr, ()))
+        bare = [w for w in vals if not re.match(r'^-?\d+$', w) and '::' not in w
+                and w not in ('真', '偽', '已發生', '未發生')]
+        nums = [int(w) for w in vals if re.match(r'^-?\d+$', w)]
+        if not bare and any(n >= 2 for n in nums):
+            inf[attr] = _C({'数字': sum(cnt.values())})
+        elif len(bare) >= 3:
             inf[attr] = _C({'枚举': sum(cnt.values())})
-    return inf, inf_vals
+        else:
+            inf[attr] = _C({'布尔': sum(cnt.values())})
+            bool_flag_attrs.add(attr)
+    return inf, inf_vals, bool_flag_attrs
+
+
+def infer_domain_val_types():
+    """🔴 域值类型语料驱动推断（2026-08-27 用户裁定）：值类型一致性纪律（16 §四）反向利用——
+    代入槽:(域::值) → 槽类型（代入人物Ｂ:(儲存號::本能寺呼寄武将) → 对象:人物）；
+    更新:(域::值)(X) / 調查 与 X 比较 → X 类型（X 为数字字面量/具名槽/域值/属性表达式/真偽）。
+    域默认动态（数字/字符串/对象）时接管为具体类型；域默认明确（據點=对象:据点 等）不接管。"""
+    from collections import Counter as _C
+    res = {}
+    DV = re.compile(r'^([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]{1,14})$')
+    SLOT = re.compile(r'^(?:[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})?[Ａ-Ｅ]$')
+    ATTR = re.compile(r'^[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6}::[^.（()]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$')
+    FUZZY = ('数字/对象', '数字/字符串/对象', '数字/字符串', '枚举')
+
+    def other_t(g):
+        g = g.strip()
+        if SLOT.match(g):
+            t = slot_ctype('代入' + g)
+            return t if t not in FUZZY else None          # 具名槽（人物Ｂ → 对象:人物）；ａ-ｚ 动态槽无强证据
+        m = DV.match(g)
+        if m:
+            return DOMAIN_VAL_TYPES.get(m.group(1))        # 对方域值 → 其域默认（明确时）
+        m2 = ATTR.match(g)
+        if m2:
+            return ATTR_TYPES.get(m2.group(1))             # 属性表达式 → 人工表类型（妻 → 对象:人物）
+        t = _rtype_of(g)
+        return t if t not in FUZZY else None               # 数字字面量/真偽 → 数字/布尔
+
+    for line in txt.splitlines():
+        s = line.strip()
+        if not s or s.startswith('#') or not s.startswith(('調查', '更新', '代入')):
+            continue
+        groups = re.findall(r'\(([^()]*)\)', s)
+        if not groups:
+            continue
+        if s.startswith('代入'):
+            t = slot_ctype(s.split(':', 1)[0])
+            if t not in FUZZY:
+                m = DV.match(groups[0].strip())
+                if m:
+                    res.setdefault((m.group(1), m.group(2)), _C())[t] += 1
+            continue
+        for g in groups:
+            m = DV.match(g.strip())
+            if not m:
+                continue
+            key = (m.group(1), m.group(2))
+            for h in groups:
+                if h == g:
+                    continue
+                t = other_t(h)
+                if t:
+                    res.setdefault(key, _C())[t] += 1
+    return res
 
 
 def slot_ctype(cmd):
     """代入XX 命令 → 槽值类型（🔴 2026-08-27 用户裁定：赋值对象类型写清楚，城Ａ = 对象:据点）。"""
-    m = re.match(r'^代入([一-鿿Ａ-Ｚａ-ｚA-Za-z]+)$', cmd)
+    m = re.match(r'^代入([一-鿿぀-ヿＡ-Ｚａ-ｚA-Za-z]+)$', cmd)
     if not m:
         return None
     body = m.group(1)
@@ -241,7 +346,7 @@ ATTR_SEM = {
     'merchant_net': '商业圈数', 'merchant_office': '商人司', 'weapon_type': '武具种类', 'spirit': '精神',
     'tournament_flag': '天览试合标记', 'master': '主人', 'terrain': '地形', 'invincible': '无敌标记',
     'weapon_exp': '武具经验', 'knows_taste': '知喜好标记', 'duel_streak': '个人战连胜数', 'bandit_enc': '贼遭遇计数器',
-    'attack': '攻', 'greed': '物欲', 'taste': '喜好', 'appearance': '容貌', 'farming': '开垦',
+    'attack': '攻城计数器', 'greed': '物欲', 'taste': '喜好', 'appearance': '容貌', 'farming': '开垦',
     'origin': '出自', 'stance': '立场', 'personality': '性情', 'bonus': '补正值', 'capacity': '最大载重量',
     'rank': '格', 'clinic_days': '义诊天数', 'medicine_days': '制药天数', 'sword_wins': '剑胜利回数',
     'scale': '规模', 'smith_exp': '制铁经验', 'cannon_exp': '制炮经验', 'visited': '曾经访问',
@@ -359,7 +464,7 @@ for k, v in domains.most_common():
 # ── v2：属性行 = 属性名单键（太阁原词 = 属性名），所属域 = 语料实测域（多域 ' / ' 分隔），
 #    侧名按语料域聚合多段；备注：侧名尾段 ∈ ATTR_TYPES（引擎查询器已有）→ ✅；否则 🔴 mod 需新增外置属性 ──
 attr_agg = {}       # 属性名 → [频率合计, [侧名段去重], {域集合}]
-attr_infer, attr_vals = infer_attr_types()     # 🔴 语料驱动值类型推断 + 枚举值集合（2026-08-27 用户裁定）
+attr_infer, attr_vals, bool_flag_attrs = infer_attr_types()     # 🔴 语料驱动值类型推断 + 枚举值集合（2026-08-27 用户裁定）
 for (d, a), c in attr_pairs.items():
     if a in CALL_MAP:
         continue        # 🔴 带参调用词条 = 函数（卡持有/外交同盟/全城壓制…，语料零无参形态），
@@ -376,48 +481,95 @@ for a, (c, sides, doms) in sorted(attr_agg.items(), key=lambda kv: -kv[1][0]):
     side_all = ' / '.join(sides)
     dom_all = ' / '.join(sorted(doms))
     tail = sides[0].split('.')[-1]
-    if sides[0].startswith('exists') or sides[0] in FUNC_SIDE_NOARG or sides[0] in ('allControlled',):
-        typ, sem = '函数', ATTR_SEM.get(tail, a)
-        note = '函数引擎（01 条件求值）'
+    # 🔴 2026-08-27 用户裁定：属性行值类型**永不**是"函数"（值类型体系 = 布尔/数字/字符串/枚举/空/对象:子类型）——
+    #   亲密度/認識標誌 的属性形态已改映射为 Hero.relation_to/Hero.known，走统一推断
+    # 🔴 值类型 = 语料推断主流（比较/赋值右值类型）；无推断 → 人工表 ATTR_TYPES 兜底
+    infer = attr_infer.get(a)
+    sem = ATTR_SEM.get(tail, a)
+    # 🔴 具体类型优先（2026-08-27 用户裁定：赋值/比较对方类型 = 强证据；「数字/对象」等模糊类型
+    #   是"推断不出"的标记、不是类型——具体证据存在时忽略模糊证据：
+    #   補正值 (7) 字面量 1 票 > (ｐ) 槽 2 票 → 数字）
+    FUZZY_TYPES = ('数字/对象', '数字/字符串/对象', '数字/布尔/对象', '数字/字符串', '数字/布尔')
+    if infer:
+        concrete = Counter({k: v for k, v in infer.items() if k not in FUZZY_TYPES})
+        top = (concrete.most_common(1)[0][0] if concrete
+               else infer.most_common(1)[0][0])
     else:
-        # 🔴 值类型 = 语料推断主流（比较/赋值右值类型）；无推断 → 人工表 ATTR_TYPES 兜底
-        infer = attr_infer.get(a)
-        sem = ATTR_SEM.get(tail, a)
-        typ = infer.most_common(1)[0][0] if infer else ATTR_TYPES.get(tail, ('布尔' if a.endswith(('標誌', '可能')) else '🔴 待定'))
-        if typ == '枚举':
-            typ = f'枚举:{a}'   # 🔴 属性枚举 = 属性名（出撃標誌 → 枚举:出撃標誌）
-            # 🔴 枚举值集合（语料右值事实，2026-08-27 用户裁定：写了枚举类型就要定义全部值）
-            vs = [v for v, _ in attr_vals.get(a, Counter()).most_common(8)]
-            if vs:
-                sem = f'{sem}（值：{" / ".join(vs)}）'
-        if sides[0] == 'unknown':
-            note = '🔴 解析碎片'
-        elif all(s.split('.')[-1] not in ATTR_TYPES for s in sides):
-            # 🔴 mod 需新增外置属性（用户裁定标注）；归属从侧名前缀推
-            owner = ('13 主命' if sides[0].startswith(('Hero.quest', 'Hero.work')) else
-                     '02 PartyBrain' if sides[0].startswith('Army') else
-                     '17 官职' if sides[0].startswith(('court_rank', 'title')) else
-                     '13 主命' if sides[0].startswith('QuestDef') else
-                     '03 预设' if sides[0].startswith('weather') else
-                     '05 演出设施' if sides[0].startswith('Facility') else
-                     '数据包' if sides[0].startswith(('Item', 'Card', 'Org', 'ItemType', 'env', 'bgm', 'ending')) else
-                     'mod 外置属性')
-            note = f'🔴 需新增（{owner}）'
-        else:
-            note = '✅ 引擎查询器'
+        top = None
+    # 🔴 槽引用推断 = 动态类型（模糊证据，2026-08-27 用户裁定）→ FUZZY_TYPE_OVERRIDE 明确类型接管：
+    #   武力/統率力 语料只有 (ａ) 槽赋值 → 数字/对象；五维属性语义 = 数字，接管表修正（政務/智謀/魅力 有数字字面量证据则语料直接推断）
+    if top == '数字/对象' and tail in FUZZY_TYPE_OVERRIDE:
+        top = FUZZY_TYPE_OVERRIDE[tail]
+    if top and top not in FUZZY_TYPES:
+        typ = top
+    elif re.fullmatch(r'[0-9０-９]+', a):
+        # 🔴 编号属性兜底（2026-08-27 用户裁定）：全数字属性名 = 域::具名值.编号 的数值编码
+        #   （人物類別::泛用對手.60 → Identity.attr_60、官位::正一位.16 → court_rank.attr_16、
+        #   天氣::晴.147 → weather.attr_147）→ 数字——**无推断 或 推断为动态类型**
+        #   （数字/布尔/对象 等宽泛类型 = 弱证据，如 更新:(狀況::天氣)(天氣::晴.147) 右值是动态域）都兜底数字；
+        #   有具体类型推断（==真偽 → 布尔、==(0) → 数字、==(城::X) → 对象:据点）保持推断
+        typ = '数字'
+    elif top:
+        # 全模糊推断 → 人工表 ATTR_TYPES 兜底（大筒 → Settlement.materials，ATTR_TYPES['materials']=数字）；
+        # 人工表无登记 → 保持模糊类型如实
+        typ = ATTR_TYPES.get(tail, top)
+    else:
+        typ = ATTR_TYPES.get(tail, ('布尔' if a.endswith(('標誌', '可能')) else '🔴 待定'))
+    if typ == '枚举':
+        typ = f'枚举:{a}'   # 🔴 属性枚举 = 属性名（原屬下標誌 → 枚举:原屬下標誌）
+        # 🔴 枚举值集合（语料右值事实，2026-08-27 用户裁定：写了枚举类型就要定义全部值）
+        vs = [v for v, _ in attr_vals.get(a, Counter()).most_common(8)]
+        if vs:
+            sem = f'{sem}（值：{" / ".join(vs)}）'
+    elif a in bool_flag_attrs:
+        # 🔴 布尔标誌族：语义列附 TK5 拼写清单（0/1 与语义词 → true/false 的映射依据，2026-08-27 用户裁定）
+        vs = [v for v, _ in attr_vals.get(a, Counter()).most_common(8)]
+        if vs:
+            sem = f'{sem}（TK5 拼写：{" / ".join(vs)} → true/false）'
+    if sides[0] == 'unknown':
+        note = '🔴 解析碎片'
+    elif all(s.split('.')[-1] not in ATTR_TYPES for s in sides):
+        # 🔴 mod 需新增外置属性（用户裁定标注）；归属从侧名前缀推
+        owner = ('13 主命' if sides[0].startswith(('Hero.quest', 'Hero.work')) else
+                 '02 PartyBrain' if sides[0].startswith('Army') else
+                 '17 官职' if sides[0].startswith(('court_rank', 'title')) else
+                 '13 主命' if sides[0].startswith('QuestDef') else
+                 '03 预设' if sides[0].startswith('weather') else
+                 '05 演出设施' if sides[0].startswith('Facility') else
+                 '数据包' if sides[0].startswith(('Item', 'Card', 'Org', 'ItemType', 'env', 'bgm', 'ending')) else
+                 'mod 外置属性')
+        note = f'🔴 需新增（{owner}）'
+    else:
+        note = '✅ 引擎查询器'
     rows.append([a, c, '属性', dom_all, side_all, typ, sem, '—', note])
 
 # ── v2：域值行（域::值 形态：身份枚举/狀況值/命名槽）——实体域不生成行（名字表/fallback 的事）；
 #    太阁原词 = 纯值（元締），所属域列 = 域（身份）——第二列不掺符号（2026-08-27 用户裁定）──
 val_seen = set()
+slot_inf = infer_domain_val_types()     # 🔴 域值类型用法推断（2026-08-27 用户裁定：代入槽/比较/赋值的对方类型）
 for (d, v), c in domain_vals.most_common():
-    if d in ENTITY_DOMAINS:
-        continue            # 实体引用域：不进 CSV（人物::伊藤總十郎 等，2026-08-27 用户裁定）
+    if d in ENTITY_DOMAINS and not re.match(r'^[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,8}[Ａ-Ｅ]$', v) and not re.match(r'^[ａ-ｚ]$', v) and v not in SPECIAL_VALS:
+        continue            # 具名实体域：不进 CSV（人物::伊藤總十郎 等，2026-08-27 用户裁定）；
+                            # 🔴 槽形态（人物Ｂ）与特殊值（主人公/無效）例外——进表（2026-08-27 用户裁定）
     side = val_side(d, v)
     if side is None:
         continue
     val_seen.add((d, v))
-    typ = DOMAIN_VAL_TYPE_OVERRIDE.get((d, v), DOMAIN_VAL_TYPES.get(d, '枚举'))
+    if v in SPECIAL_TYPES:
+        typ = SPECIAL_TYPES[v]            # 🔴 特殊值类型（主人公 = 对象:人物、無效 = 空）
+    elif re.match(r'^[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,8}[Ａ-Ｅ]$', v) or re.match(r'^[ａ-ｚ]$', v):
+        # 🔴 槽域值：类型 = 槽类型（人物Ｂ → 对象:人物，slot_ctype 判定），与 tk5_to_json 一致
+        typ = slot_ctype('代入' + v)
+    else:
+        typ = DOMAIN_VAL_TYPE_OVERRIDE.get((d, v), DOMAIN_VAL_TYPES.get(d, '枚举'))
+    # 🔴 域默认动态（數字/字符串/对象 等）→ 用法推断接管（代入人物Ｂ:(儲存號::X) → 对象:人物；
+    #   調查:(儲存號::X)<=(45) → 数字）；域默认明确（據點=对象:据点）不接管；人工 OVERRIDE 最高优先
+    if (d, v) not in DOMAIN_VAL_TYPE_OVERRIDE and DOMAIN_VAL_TYPES.get(d, '') in ('数字/字符串/对象', '数字/对象', '数字/字符串', '数字/布尔/对象'):
+        si = slot_inf.get((d, v))
+        if si:
+            t = si.most_common(1)[0][0]
+            if t not in ('枚举',):
+                typ = t
     if typ == '枚举':
         typ = f'枚举:{d}'   # 🔴 域值枚举 = 所属域类型（2026-08-27 用户裁定：枚举太宽泛，标具体类型）
     sem = v
@@ -458,6 +610,8 @@ CALL_SEM = {
     'isAllied': 'a 与 b 同盟（数值：!=0 即同盟）', 'relation': '势力间外交关系数值', 'isNeighbor': 'a 与 b 相邻',
     'allControlled': '区域全部据点由 clan 控制', 'hasCard': '是否持有技能卡',
     'canMove': '角色能否前往该据点', 'canAttack': '角色能否攻击该据点',
+    'region_attr_1': '国属性位 1（参数=家族；返回布尔，具体语义待数据包）', 'unknown_2': '未知属性位 2（解析碎片，待 07 数据包）',
+    'unknown_8': '未知属性位 8（解析碎片，待 07 数据包）',
 }
 # 🔴 v3（2026-08-27 用户裁定）：函数 = 带返回值的函数——所属域列 = 语料调用方域并集（全城壓制→國、
 #   卡持有→人物、外交同盟→大名家/商家…）；值类型列 = 返回值类型（数字/布尔）
@@ -482,11 +636,11 @@ for _line in txt.splitlines():
     s = _line.strip()
     if not s or s.startswith('#'):
         continue        # 🔴 跳过注释/说明行（# 文件内事件标志引用… 含 事件:: 字样会污染例句，2026-08-27 用户裁定）
-    m = re.match(r'^([一-鿿Ａ-Ｚａ-ｚA-Za-z]{2,8}):', s)
+    m = re.match(r'^([一-鿿぀-ヿＡ-Ｚａ-ｚA-Za-z]{2,8}):', s)
     if m and (('命令', m.group(1)) in terms or ('语法', m.group(1)) in terms):
         key = ('命令', m.group(1)) if ('命令', m.group(1)) in terms else ('语法', m.group(1))
         example.setdefault(key, s)
-    for dm in re.finditer(r'([一-鿿A-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿A-Za-zＡ-Ｚａ-ｚ0-9０-９.]{1,16})', s):
+    for dm in re.finditer(r'([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９.]{1,16})', s):
         dom, rest = dm.group(1), dm.group(2)
         if rest.endswith('.'):
             continue
@@ -504,7 +658,7 @@ for _line in txt.splitlines():
                 example.setdefault(('域值', dom, rest), s)
             if ('域', dom) in terms:
                 example.setdefault(('域', dom), s)
-    for cm in re.finditer(r'\.([一-鿿A-Za-zＡ-Ｚａ-ｚ]+)\(', s):
+    for cm in re.finditer(r'\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]+)\(', s):
         if ('函数', cm.group(1)) in terms:
             example.setdefault(('函数', cm.group(1)), s)
 for r in rows:
