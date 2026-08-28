@@ -9,7 +9,7 @@ KINGDOM_MAP / SETTLEMENT_MAP / REGION_MAP），只覆盖桶狭间那几十个人
 手写表必然漏，而且漏了不报错——直接生成 `tk5_uXXXXXX` 哈希占位，静默错到底。
 
 本脚本把这张表换成从织丰数据表机器生成：
-    Knowledge/骑砍2织丰角色ID对应/骑砍2太阁Mod表.xlsx   （用户指定的事实源）
+    Knowledge/骑砍2织丰角色ID对应/csv/*.csv                （xlsx_to_csv.py 从织丰表转换的上游镜像）
         + Modules/ShokuhoTaikouExpansionPack/ModuleData/{Shokuho,DesignData}/*.xml  （存在性核对）
         → tools/entity_maps.py                          （生成物，禁止手改，铁律 22）
 
@@ -27,6 +27,7 @@ KINGDOM_MAP / SETTLEMENT_MAP / REGION_MAP），只覆盖桶狭间那几十个人
 
 用法
 ----
+    python tools/xlsx_to_csv.py             # 上游织丰表更新后：刷新镜像 CSV（一次性转换，见该脚本）
     python tools/gen_entity_maps.py            # 生成 + 打统计
     python tools/gen_entity_maps.py --report   # 只打统计与缺口清单，不写文件
 """
@@ -35,6 +36,7 @@ import io
 import os
 import re
 import sys
+import csv
 import collections
 import hashlib
 
@@ -46,7 +48,7 @@ except Exception:
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..'))          # LivingWorldNpcs
 MODULES = os.path.dirname(ROOT)                                        # …/Modules
-XLSX = os.path.join(ROOT, 'Knowledge', '骑砍2织丰角色ID对应', '骑砍2太阁Mod表.xlsx')
+CSV_DIR = os.path.join(ROOT, 'Knowledge', '骑砍2织丰角色ID对应', 'csv')
 SHOKUHO = os.path.join(MODULES, 'ShokuhoTaikouExpansionPack', 'ModuleData')
 # 🔴 活数据在**基础织丰 mod**（Modules/Shokuho），不在扩展包：扩展包的 Shokuho/settlements.xml
 # 只有 5 条示例、spkingdoms.xml 只有 1 条。存在性核对必须扫基础 mod，否则会误报几百条缺失。
@@ -133,62 +135,23 @@ SUFFIXES = ('', '城', '馆', '館', '之町', '町', '之砦', '砦', '港', '�
 
 
 # ---------------------------------------------------------------------------
-# 读 xlsx
+# 读织丰表（CSV 镜像，由 tools/xlsx_to_csv.py 从《骑砍2太阁Mod表.xlsx》转换）
 # ---------------------------------------------------------------------------
 def read_sheets():
-    """直接读 xlsx（= zip + XML），不依赖 openpyxl。
+    """读 csv/ 下一张 sheet 一个 CSV。返回同旧格式：{sheet名: [dict]}。
 
-    织丰表的样式段 openpyxl 3.1 解析不了（`Fill() takes no arguments`），而我们只要单元格文本，
-    所以自己拆：sharedStrings.xml 是字符串池，sheetN.xml 里 `t="s"` 的单元格值是池下标。
+    列名 = 表头行；数据行缺列补 ''；类型/注释行（string/int/编号/骑砍ID/内置番号 开头）
+    跳过（织丰表格式，不是数据）。
+    🔴 镜像 CSV 禁止手改（铁律 22 精神）：改映射 → 本文件映射表；改数据 → 改 xlsx 后
+       重跑 xlsx_to_csv.py 刷新镜像。
     """
-    import zipfile
-    import xml.etree.ElementTree as ET
-    NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
-    REL = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
-    PKG = '{http://schemas.openxmlformats.org/package/2006/relationships}'
-    z = zipfile.ZipFile(XLSX)
-
-    shared = []
-    if 'xl/sharedStrings.xml' in z.namelist():
-        for si in ET.fromstring(z.read('xl/sharedStrings.xml')):
-            shared.append(''.join(t.text or '' for t in si.iter(NS + 't')))
-
-    rels = {}
-    for r in ET.fromstring(z.read('xl/_rels/workbook.xml.rels')):
-        rels[r.get('Id')] = r.get('Target')
-    order = []
-    for s in ET.fromstring(z.read('xl/workbook.xml')).iter(NS + 'sheet'):
-        tgt = rels.get(s.get(REL + 'id')) or rels.get(s.get(PKG + 'id')) or ''
-        order.append((s.get('name'), 'xl/' + tgt.lstrip('/').replace('xl/', '', 1)))
-
-    def col_of(ref):
-        i = 0
-        for ch in ref:
-            if not ch.isalpha():
-                break
-            i = i * 26 + (ord(ch.upper()) - 64)
-        return i - 1
-
-    out = {}
-    for name, path in order:
-        if path not in z.namelist():
-            continue
-        rows = []
-        for row in ET.fromstring(z.read(path)).iter(NS + 'row'):
-            cells = []
-            for c in row.iter(NS + 'c'):
-                idx = col_of(c.get('r') or '')
-                if c.get('t') == 'inlineStr':
-                    v = ''.join(t.text or '' for t in c.iter(NS + 't'))
-                else:
-                    vn = c.find(NS + 'v')
-                    v = '' if vn is None or vn.text is None else vn.text
-                    if c.get('t') == 's' and v.isdigit():
-                        v = shared[int(v)] if int(v) < len(shared) else ''
-                while len(cells) < idx:
-                    cells.append('')
-                cells.append(v.strip())
-            rows.append(cells)
+    sheets = {}
+    if not os.path.isdir(CSV_DIR):
+        print('找不到 CSV 数据目录：%s（先跑 `python tools/xlsx_to_csv.py` 从织丰表转换）' % CSV_DIR)
+        return None
+    for fn in sorted(f for f in os.listdir(CSV_DIR) if f.endswith('.csv')):
+        with io.open(os.path.join(CSV_DIR, fn), encoding='utf-8-sig', newline='') as f:
+            rows = list(csv.reader(f))
         if not rows:
             continue
         head = rows[0]
@@ -196,9 +159,8 @@ def read_sheets():
         # 第 2~3 行 = 类型行 / 中文注释行（织丰表格式），不是数据
         while body and body[0] and body[0][0] in ('string', 'int', '编号', '骑砍ID', '内置番号'):
             body.pop(0)
-        out[name] = [dict(zip(head, r + [''] * (len(head) - len(r)))) for r in body]
-    z.close()
-    return out
+        sheets[fn[:-4]] = [dict(zip(head, r + [''] * (len(head) - len(r)))) for r in body]
+    return sheets
 
 
 def keys_of(name):
@@ -236,10 +198,9 @@ def xml_ids(*globs):
 
 def main():
     report_only = '--report' in sys.argv
-    if not os.path.exists(XLSX):
-        print('找不到织丰表：%s' % XLSX)
-        return 1
     sh = read_sheets()
+    if sh is None:
+        return 1
     need = ('TaikouHero', 'Clan', 'Kingdom', 'Settlements', 'CityTaikou')
     for n in need:
         if n not in sh:
@@ -285,29 +246,31 @@ def main():
                 sid = find_settle(near)
         if not sid:
             sid = find_settle(cn)                     # 城名本身在 Settlements 里
+        anchor = None
         if not sid:
             sid = 'tk5_city_%03d' % int(r.get('ID') or 0)
             anchor = find_settle(near)
-            if anchor:
-                for k in keys_of(cn):
-                    SETTLEMENT_ANCHOR[k] = anchor
-                placeholder_city.append(cn)
-            else:
-                anchorless_city.append(cn)
-        put(SETTLEMENT_MAP, cn, sid, conflicts, '据点')
+            (placeholder_city if anchor else anchorless_city).append(cn)
+
+        # 🔴 同一座城的不同区都指向同一个据点：太阁把「岡崎城」（城）和「岡崎之町」（町区）
+        # 当两个地点写，骑砍这边 town_CHUB10 一个据点就把城和町都包了。不注册变体键的话，
+        # 「岡崎之町」查不到 → 发独立占位 → 事件里「筛选所属据点=岡崎之町的人」一个也筛不到。
+        # 🔴 据点表和锚点表必须挂**同一套查找键**（2026-08-28 修）：原来锚点只挂在表里的正名
+        # （鳴海城）上，事件里写的是别名（鳴海館）→ 据点查得到、锚点查不到，报告里显示成
+        # 「占位据点无锚点」，事件就不知道该在地图哪一带发生。实测键覆盖率只有 20.7%。
+        names = [cn]
         base = re.sub('(城|馆|館|之町|町|之砦|砦)$', '', cn)
         if base and base != cn:
-            put(SETTLEMENT_MAP, base, sid, conflicts, '据点')
-            # 🔴 同一座城的不同区都指向同一个据点：太阁把「岡崎城」（城）和「岡崎之町」（町区）
-            # 当两个地点写，骑砍这边 town_CHUB10 一个据点就把城和町都包了。不注册变体键的话，
-            # 「岡崎之町」查不到 → 发独立占位 → 事件里「筛选所属据点=岡崎之町的人」一个也筛不到。
-            for suf in ('城', '之町', '町', '之砦', '砦', '館', '馆', '港', '之港'):
-                if base + suf != cn:
-                    put(SETTLEMENT_MAP, base + suf, sid, conflicts, '据点')
-            if cn in SAME_AS_NEAR or sid.startswith('tk5_city_'):
-                for k in keys_of(base):
-                    if to_trad(cn) in SETTLEMENT_ANCHOR or cn in SETTLEMENT_ANCHOR:
-                        SETTLEMENT_ANCHOR[k] = SETTLEMENT_ANCHOR.get(cn) or SETTLEMENT_ANCHOR.get(to_trad(cn))
+            names.append(base)
+            names.extend(base + suf for suf in ('城', '之町', '町', '之砦', '砦',
+                                                '館', '馆', '港', '之港') if base + suf != cn)
+        for n in names:
+            put(SETTLEMENT_MAP, n, sid, conflicts, '据点')
+            if not anchor:
+                continue
+            for k in keys_of(n):
+                if SETTLEMENT_MAP.get(k) == sid:      # 键确实指向这座占位城，才给它挂锚点
+                    SETTLEMENT_ANCHOR.setdefault(k, anchor)
 
     # ---- 势力：Kingdom 表 ----
     kingdom_ids = set()
@@ -435,7 +398,8 @@ def main():
 
     out = ['# -*- coding: utf-8 -*-\n',
            '# 🔴 自动生成，勿手改（铁律 22）。由 tools/gen_entity_maps.py 从\n',
-           '# Knowledge/骑砍2织丰角色ID对应/骑砍2太阁Mod表.xlsx 生成，剧本年份 = %s。\n' % year,
+           '# Knowledge/骑砍2织丰角色ID对应/csv/*.csv（xlsx_to_csv.py 从织丰表转换的镜像）生成，'
+           '剧本年份 = %s。\n' % year,
            '# 要改映射 → 改 gen_entity_maps.py（NAME_ALIAS / TK5_ONLY_HERO / SUFFIXES）→ 重跑。\n',
            'from __future__ import unicode_literals\n\n',
            'SCENARIO_YEAR = %s\n\n' % lit(year)]
