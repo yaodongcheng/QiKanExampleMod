@@ -52,3 +52,15 @@ Debug/save_report.txt
 # 跟踪的只有 plan 文档 + py 脚本；审核记录.md 是文档，保留跟踪
 plans/scenario-campaign-mode/story_event_json/*
 !plans/scenario-campaign-mode/story_event_json/审核记录.md
+
+# 立绘生成的接口测试图（生成物，不进 git；流水线见 plans/scenario-campaign-mode/附录-角色立绘生成流水线.md）
+Debug/*.png
+Debug/*.jpg
+Debug/*.jpeg
+
+# 16b 落点裁定表一次性补丁脚本（_ 前缀 = 改完即弃的临时脚本，不进 git；正式脚本无 _ 前缀）
+plans/scenario-campaign-mode/tools/_patch16b*.py
+
+# 调试探查/dump 产物（heroes_probe、织丰表 xlsx dump）
+Debug/heroes_probe.json
+Debug/xlsx_dump/

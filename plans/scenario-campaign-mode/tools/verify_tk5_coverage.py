@@ -160,15 +160,40 @@ TRIGGER_REGISTRY = {
 # ---------------------------------------------------------------------------
 # 解析剧本 .md：提取 jsonc 代码块注释 + 声明源事件 ID 的标题
 # ---------------------------------------------------------------------------
+FENCE = "`" * 3
 RE_CODEBLOCK = re.compile(r"```jsonc\s*\n(.*?)\n```", re.DOTALL)
 RE_HEADING = re.compile(r"^#{2,4}\s+(.+)$", re.MULTILINE)
 RE_EVENT_ID = re.compile(r"(EFF0C300|EFF06E00|ECF00000|EPF29300|EFF0D000)_\d+")
 
 
-def parse_md(path):
-    """返回 (事件ID→首个声明标题后的 when 注释块文本, 全文件注释列表)"""
+def read_doc(path):
+    """读文件。`.jsonc` 生成物（tk5_to_json 直出）也能直接喂进来：
+    横幅注释 `// ==== 事件 EFF… ====` 当成标题，其余正文当成一个 jsonc 代码块——
+    这样校验器不用为生成物再写一份解析。"""
     with open(path, encoding="utf-8") as f:
         content = f.read()
+    if not path.endswith((".jsonc", ".json")):
+        return content
+    out, opened = [], False
+    for line in content.splitlines():
+        if line.startswith("// ===="):
+            if opened:
+                out.append(FENCE)
+            out += ["", "## " + line.strip("/= ").strip(), "", FENCE + "jsonc"]
+            opened = True
+            continue
+        if not opened:
+            out.append(FENCE + "jsonc")
+            opened = True
+        out.append(line)
+    if opened:
+        out.append(FENCE)
+    return "\n".join(out)
+
+
+def parse_md(path):
+    """返回 (事件ID→首个声明标题后的 when 注释块文本, 全文件注释列表)"""
+    content = read_doc(path)
 
     headings = [(m.start(), m.group(1)) for m in RE_HEADING.finditer(content)]
     blocks = [(m.start(), m.group(1)) for m in RE_CODEBLOCK.finditer(content)]
@@ -258,9 +283,15 @@ def main():
 
     # 🔴 白名单对称池（2026-08-26）：多文件运行时，豁免行必须在其它文件也有落点
     pools = {}
+    # 🔴 跨文件合池（2026-08-28）：本流水线把一个事件拆成两个文件——events.jsonc 放条件、
+    #   story.jsonc 放台词。条件注释块按文件找必然半数落空，所以 when 块跨全部入参合并。
+    when_all = {}
     for md_path in args:
         if os.path.exists(md_path):
-            pools[md_path] = [norm(c) for c in parse_md(md_path)["all_comments"]]
+            parsed = parse_md(md_path)
+            pools[md_path] = [norm(c) for c in parsed["all_comments"]]
+            for eid, cs in parsed["when"].items():
+                when_all.setdefault(eid, []).extend(cs)
 
     exit_code = 0
     for md_path in args:
@@ -268,11 +299,14 @@ def main():
             print("错误：剧本文件不存在：" + md_path)
             sys.exit(2)
         md = parse_md(md_path)
+        # 落点池同样跨文件合并（events.jsonc 只有条件、story.jsonc 只有台词，分开查必然误报缺行）
         all_norm = [norm(c) for c in md["all_comments"]]
+        for other, pool in pools.items():
+            if other != md_path:
+                all_norm += pool
 
         # 事件 ID 声明只认标题行（##/###）——正文表格/指针/修订记录里的 ID 不算声明
-        with open(md_path, encoding="utf-8") as f:
-            md_text = f.read()
+        md_text = read_doc(md_path)
         claimed = sorted({
             m.group(0)
             for htext in RE_HEADING.findall(md_text)
@@ -298,7 +332,7 @@ def main():
             if not t_key:
                 trig_ok = "[OK]（源无触发头）"
             else:
-                when_comments = md["when"].get(event_id, [])
+                when_comments = md["when"].get(event_id) or when_all.get(event_id, [])
                 if any(t_key and t_key in norm(c) for c in when_comments):
                     trig_ok = "[OK]"
                 elif when_comments:
@@ -308,7 +342,7 @@ def main():
             print("    触发检查：%s" % trig_ok)
 
             # ── 条件检查（弱）：对象名覆盖率 ──
-            when_comments = md["when"].get(event_id, [])
+            when_comments = md["when"].get(event_id) or when_all.get(event_id, [])
             # 🔴 双侧繁简归一（2026-08-26）：条件对象已 trad2simple，注释侧同样转简——防"織田家存在" vs "织田" 漏配
             when_norm = trad2simple(" ".join(norm(c) for c in when_comments))
             cond_hit, cond_total = 0, 0
