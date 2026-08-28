@@ -87,7 +87,10 @@ namespace LivingWorldNpcs
                 if (Agent.Main == null || !FriendlinessHelper.IsPlayerPartyMember(b.Owner)) continue;
                 if (b.Leader == null)
                     b.SetLeader(Agent.Main);
-                NpcSightSystem.Instance?.RegisterTrackedTarget(b.Owner, 15f, 50f);
+                // 🔴 2026-08-28（玩家日志刷屏修复）：注册侧同款守卫（理由同 OnAgentCreated 注）——
+                // 仅 RegisterTrackedTarget 一行加框，SetLeader / _presentPartyMembers 补录照常，勿一并跳过。
+                if (!Settings.Instance.IsInteractionDisabled())
+                    NpcSightSystem.Instance?.RegisterTrackedTarget(b.Owner, 15f, 50f);
                 // 🔴 2026-08-16（方案 G3②）：在场随从缓存补录（OnAgentCreated 时 Agent.Main 未就绪漏掉的）
                 var ph = (b.Owner.Character as CharacterObject)?.HeroObject;
                 if (ph != null && !_presentPartyMembers.Contains(ph))
@@ -215,7 +218,12 @@ namespace LivingWorldNpcs
                         // 🔴 2026-08-14（正规路线）：随从注册进 NpcSightSystem 追踪（与玩家同列），
                         // AgentBrain 蹲姿感知遍历 TrackedTargets 读随从脑 CrouchPoseActive——
                         // sight 职责统一归 NpcSightSystem，不搞每操作一个缓存列表。
-                        NpcSightSystem.Instance?.RegisterTrackedTarget(agent, 15f, 50f);
+                        // 🔴 2026-08-28（玩家日志刷屏修复）：注册侧加同款守卫——IsInteractionDisabled
+                        // （战场 Battle/Deployment 等）时 NpcSightSystem.tick 已冻结，注册却无框：
+                        // 战场 200+ 队伍兵全注册进 TrackedTargets，战斗结束 OnAgentDeleted 逐个注销
+                        // → [SightTrack] 注销追踪逐条刷屏。非禁用场景（城镇等）行为不变，随从照常注册。
+                        if (!Settings.Instance.IsInteractionDisabled())
+                            NpcSightSystem.Instance?.RegisterTrackedTarget(agent, 15f, 50f);
                         if (IsDebugMode)
                             DebugLogger.Log($"[随从关系] {agent.Name} → Leader=玩家（身份判定自动建立）");
                     }

@@ -889,7 +889,10 @@ namespace LivingWorldNpcs
                 return LWNTextHelper.ResolveCompound("LWN_prompt_kinship_sibling",
                     ("BLOOD", blood), ("TYPE", type), ("PRONOUN", pronoun), ("SELFTITLE", selfTitle));
             }
-            return null;
+            // 🔴 2026-08-28（公孙瓒老丈人案 + 用户补全裁定）：深 1 闭集判不成 → 亲属关系图引擎
+            // （BFS ≤3 + 语义表 21 类，覆盖岳父/公公/小舅子/外甥/舅舅/舅妈/连襟/亲家/祖辈/孙辈/继亲），
+            // 距离 3 内全部有称谓关系一次到位；乱婚窗组合返回 null 零注入。
+            return KinshipRelationHelper.DescribeInLaw(npc, other);
         }
 
         /// <summary>
