@@ -680,3 +680,20 @@ if (script != null) DialogueInjector.InjectScript(script, "AlertL3_NpcName");
 - C 拒不认账：`ApplyDenyConsequence` = 权威对玩家好感 -10（关系惩罚）
 
 触发入口 = 原版对话流注入管道（与既有犯罪对话同管道），对话目标 = `WorldEventStore.GetAuthorityNpc(evt)`。新 key `LWN_dialogue_companion_crime_*` 系列 EN/CN 双份。
+
+---
+
+## 🔴 对话入口禁止普适重定向对话对象到 party leader —— `ConversationEntryPatch.Prefix`
+
+**坑（2026-08-28 实机）**：`ConversationEntryPatch.Prefix` 曾有「party 有 LeaderHero 就把对话对象换成队长」的重定向逻辑（原意图：队伍杂兵 → 换成队长谈；可能为复仇队场景设想）。但普适放在对话入口危害面极大：
+
+- **主队成员（家族成员/随从）也在 Party 里**，主队 leader = `Hero.MainHero` = 玩家本人 → 对话对象被换成**玩家自己**
+- vanilla `conversation_unmet_lord_main_party_on_condition`（反编译确认：`OneToOneConversationHero.PartyBelongedTo == MainParty && !HasMet`）被自洽满足 → 走 `lord_meet_in_main_party_player_response` 会话流 → 该 token 只有一句玩家选项「有你作为我们一员真好」→ NPC（=你自己）回「我效忠于您。」→ **死循环，无退出选项**
+
+**已核实的事实链（反编译 + 日志）**：
+- vanilla 自己的调用方**从不传非队长成员**——商队走 `ConversationHelper.GetConversationCharacterPartyLeader(party)`（无 LeaderHero 时自动选最高兵阶模板 NPC，模板 NPC 对话完全合法；强盗直接传 `BanditLeader`），所以 vanilla 不需要 hero 也不需重定向
+- 真正传入「队伍里某成员」的只有**主队成员对话**一种情况（家族/随从）
+
+**裁定（用户 2026-08-28）**：整段注释禁用，保留代码供恢复。若复仇队等特殊场景需要「杂兵→队长」重定向，放**该场景自身调用链**做特判，不进普适入口。恢复前先重读本条目。
+
+**文件位置**：`Interaction/Dialogue/ConversationEntryPatch.cs`（Prefix，两段：`partnerChar` 重定向 + `q` 重建分支，均已注释）

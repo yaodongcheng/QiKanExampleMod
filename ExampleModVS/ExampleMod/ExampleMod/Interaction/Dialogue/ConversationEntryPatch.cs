@@ -65,13 +65,19 @@ namespace LivingWorldNpcs
                 if (conversationPartnerData.Party == null)
                     return true;
 
-                // ── 如果 party 有 leader Hero，重定向对话对象到 leader ──
-                Hero partyLeader = conversationPartnerData.Party?.MobileParty?.LeaderHero;
-                if (partyLeader != null && partyLeader.CharacterObject != partnerChar)
-                {
-                    DebugLogger.Log($"[ConvEntry] Redirecting conversation from '{partnerChar.Name}' (hero=none) to party leader '{partyLeader.Name}'");
-                    partnerChar = partyLeader.CharacterObject;
-                }
+                // ── 重定向对话对象到 party leader：🔴 2026-08-28 用户裁定整段注释禁用 ──
+                // 背景：曾为"村民带人找玩家复仇（复仇队）"等特殊场景设想——对话对象是队伍
+                // 杂兵时换成队长。但普适放在对话入口危害面极大：主队成员（家族成员/随从）
+                // 的 party leader = 玩家本人 → 对话对象被换成玩家自己 → vanilla 误判
+                // "未会面的领主加入主队"，该 token 只有一句"有你作为我们一员真好" →
+                // "我效忠于您"无限循环，对话无法退出（实机 2026-08-28）。
+                // 结论：特殊场景请放到复仇队自身调用链做特判，对话入口不做普适重定向。
+                // Hero partyLeader = conversationPartnerData.Party?.MobileParty?.LeaderHero;
+                // if (partyLeader != null && partyLeader.CharacterObject != partnerChar)
+                // {
+                //     DebugLogger.Log($"[ConvEntry] Redirecting conversation from '{partnerChar.Name}' (hero=none) to party leader '{partyLeader.Name}'");
+                //     partnerChar = partyLeader.CharacterObject;
+                // }
 
                 // 对话对象名兜底：查不到名字时称"对方"
                 string npcName = partnerChar?.Name?.ToString()
@@ -80,16 +86,17 @@ namespace LivingWorldNpcs
 
                 var p = playerCharacterData;
                 var q = conversationPartnerData;
-                if (partyLeader != null && partyLeader.CharacterObject != conversationPartnerData.Character)
-                {
-                    q = new ConversationCharacterData(
-                        partyLeader.CharacterObject,
-                        q.Party,
-                        q.NoHorse, q.NoWeapon, q.SpawnedAfterFight,
-                        q.IsCivilianEquipmentRequiredForLeader,
-                        q.IsCivilianEquipmentRequiredForBodyGuardCharacters,
-                        noBodyguards: true);
-                }
+                // ── 2026-08-28 随上一段重定向一并注释（引用已禁用的 partyLeader）──
+                // if (partyLeader != null && partyLeader.CharacterObject != conversationPartnerData.Character)
+                // {
+                //     q = new ConversationCharacterData(
+                //         partyLeader.CharacterObject,
+                //         q.Party,
+                //         q.NoHorse, q.NoWeapon, q.SpawnedAfterFight,
+                //         q.IsCivilianEquipmentRequiredForLeader,
+                //         q.IsCivilianEquipmentRequiredForBodyGuardCharacters,
+                //         noBodyguards: true);
+                // }
 
                 // ── 闲聊关闭：跳过 Inquiry，直接走原版对话 ──
                 if (!InteractionMissionView.EnableSmallTalk)
