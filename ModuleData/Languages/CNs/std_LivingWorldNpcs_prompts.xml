@@ -602,6 +602,8 @@
     <string id="LWN_fact_body_family_leader" text="，族长是 {LEADER}" />
     <string id="LWN_fact_body_family_members_base" text="- 家族共有 {COUNT} 名成员" />
     <string id="LWN_fact_body_family_spouse" text="- 主公的配偶是 {NAME}。" />
+    <!-- ⚠ 2026-08-28（公孙瓒老丈人案）：配偶家世行——{NAME}=配偶名，{KIND}=父亲/母亲，{PARENT}=亲戚名。禁 emoji（铁律 14） -->
+    <string id="LWN_fact_body_family_spouse_lineage" text="- 主公的配偶 {NAME}，{KIND}是 {PARENT}。" />
     <string id="LWN_fact_body_fencetip_far" text="- 把刚弄到手的赃物找座远点的城卖了，来钱最快。" />
     <string id="LWN_fact_body_fencetip_near" text="- 把刚弄到手的赃物带到附近的 {SETTLEMENT} 卖了，来钱最快。" />
     <string id="LWN_fact_body_fief" text="- 家族名下现有 {TOWNS} 城镇、{CASTLES} 城堡、{VILLAGES} 村庄（如：{NAMES}）。" />
@@ -1223,6 +1225,26 @@
     <string id="LWN_prompt_kinship_parent" text="是{PARENT}，你是{PRONOUN}的{ROLE}" />
     <string id="LWN_prompt_kinship_child" text="是{PARENT}，你是{PRONOUN}的{ROLE}" />
     <string id="LWN_prompt_kinship_sibling" text="是{BLOOD}同胞{TYPE}，你是{PRONOUN}的{SELFTITLE}" />
+    <!-- ═══ 亲缘深2（姻亲/连带亲，2026-08-28 公孙瓒老丈人案）═══ -->
+    <!-- {M}=中间人（配偶）名；{CHILDREN}=女儿/儿子；{SIB}=哥哥/弟弟/姐姐/妹妹 -->
+    <string id="LWN_prompt_kinship_inlaw_child" text="是{M}的配偶，{M}是我的{CHILDREN}" />
+    <string id="LWN_prompt_kinship_inlaw_sibling" text="是{M}的配偶，{M}是我的{SIB}" />
+    <string id="LWN_prompt_kinship_inlaw_my_spouse_your_child" text="是{M}的配偶，{M}是你的{CHILDREN}" />
+    <string id="LWN_prompt_kinship_inlaw_my_spouse_your_sibling" text="是{M}的配偶，{M}是你的{SIB}" />
+    <!-- 距离 3 内全闭集（2026-08-28）：链式描述，主语=我（N）：{M}=中间人名，{PTH}/{PTH1}/{PTH2}=父/母词，
+         {SIB}=手足词（带年龄），{CHILDREN}=子/女词 -->
+    <string id="LWN_prompt_kinship_stepparent" text="是{M}的配偶，{M}是{NAME}的{PTH}" />
+    <string id="LWN_prompt_kinship_spouse_child" text="是{M}的孩子，{M}是{NAME}的配偶" />
+    <string id="LWN_prompt_kinship_niece_nephew" text="是{M}的孩子，{M}是{NAME}的{SIB}" />
+    <string id="LWN_prompt_kinship_parent_sibling" text="是{M}的{SIB}，{M}是{NAME}的{PTH}" />
+    <string id="LWN_prompt_kinship_parent_sibling_spouse" text="是{M}的配偶，{M}是{NAME}的{PTH}的{SIB}" />
+    <string id="LWN_prompt_kinship_cousin" text="是{M}的孩子，{M}是{NAME}的{PTH}的{SIB}" />
+    <string id="LWN_prompt_kinship_grandparent" text="是{M}的{PTH1}，{M}是{NAME}的{PTH2}" />
+    <string id="LWN_prompt_kinship_grandchild" text="是{M}的孩子，{M}是{NAME}的{CHILDREN}" />
+    <string id="LWN_prompt_kinship_spouse_sibling_spouse" text="是{M}的配偶，{M}是{NAME}的配偶的{SIB}" />
+    <string id="LWN_prompt_kinship_co_parent" text="是{M}的{PTH}，{M}是{NAME}的{CHILDREN}的配偶" />
+    <string id="LWN_prompt_kinship_spouse_niece_nephew" text="是{M}的孩子，{M}是{NAME}的配偶的{SIB}" />
+    <string id="LWN_prompt_kinship_spouse_grandparent" text="是{M}的{PTH1}，{M}是{NAME}的配偶的{PTH2}" />
     <string id="LWN_word_kin_father" text="父" />
     <string id="LWN_word_kin_mother" text="母" />
     <string id="LWN_word_kin_son" text="子" />

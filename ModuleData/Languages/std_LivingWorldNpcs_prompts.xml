@@ -654,6 +654,8 @@ A dispute is under way. The specifics: {CONFLICT}" />
     <string id="LWN_fact_body_family_leader" text=", led by chieftain {LEADER}" />
     <string id="LWN_fact_body_family_members_base" text="- The clan counts {COUNT} members" />
     <string id="LWN_fact_body_family_spouse" text="- My lord’s spouse is {NAME}." />
+    <!-- Spouse lineage (2026-08-28 Gongsun Zan father-in-law case): {NAME}=spouse, {KIND}=father/mother, {PARENT}=relative name -->
+    <string id="LWN_fact_body_family_spouse_lineage" text="- My lord’s spouse {NAME}’s {KIND} is {PARENT}." />
     <string id="LWN_fact_body_fencetip_far" text="- Take your fresh plunder to some far-off city and sell it — the quickest coin there is." />
     <string id="LWN_fact_body_fencetip_near" text="- Haul your fresh plunder to nearby {SETTLEMENT} and sell it there — the quickest coin there is." />
     <string id="LWN_fact_body_fief" text="- The clan holds {TOWNS} towns, {CASTLES} castles, {VILLAGES} villages (for instance: {NAMES})." />
@@ -1275,6 +1277,24 @@ Requirements: 1. Output a single passage — first line literally &quot;=== Worl
     <string id="LWN_prompt_kinship_parent" text="are {PARENT}; you are {PRONOUN} {ROLE}" />
     <string id="LWN_prompt_kinship_child" text="are {PARENT}; you are {PRONOUN} {ROLE}" />
     <string id="LWN_prompt_kinship_sibling" text="are {BLOOD} siblings ({TYPE}); you are {PRONOUN} {SELFTITLE}" />
+    <!-- Kinship in-law (deep-2, 2026-08-28 Gongsun Zan father-in-law case): {M}=middle person (spouse); {CHILDREN}=daughter/son; {SIB}=elder/younger sibling -->
+    <string id="LWN_prompt_kinship_inlaw_child" text="is the spouse of {M}, and {M} is my {CHILDREN}" />
+    <string id="LWN_prompt_kinship_inlaw_sibling" text="is the spouse of {M}, and {M} is my {SIB}" />
+    <string id="LWN_prompt_kinship_inlaw_my_spouse_your_child" text="is the spouse of {M}, and {M} is your {CHILDREN}" />
+    <string id="LWN_prompt_kinship_inlaw_my_spouse_your_sibling" text="is the spouse of {M}, and {M} is your {SIB}" />
+    <!-- Distance <=3 full closure (2026-08-28): chain-style, subject = me (N); {M}=middle person; {PTH}/{PTH1}/{PTH2}=father/mother word; {SIB}=sibling word (with age); {CHILDREN}=son/daughter word -->
+    <string id="LWN_prompt_kinship_stepparent" text="is the spouse of {M}, and {M} is {NAME}'s {PTH}" />
+    <string id="LWN_prompt_kinship_spouse_child" text="is a child of {M}, and {M} is {NAME}'s spouse" />
+    <string id="LWN_prompt_kinship_niece_nephew" text="is a child of {M}, and {M} is {NAME}'s {SIB}" />
+    <string id="LWN_prompt_kinship_parent_sibling" text="is {M}'s {SIB}, and {M} is {NAME}'s {PTH}" />
+    <string id="LWN_prompt_kinship_parent_sibling_spouse" text="is the spouse of {M}, and {M} is {NAME}'s {PTH}'s {SIB}" />
+    <string id="LWN_prompt_kinship_cousin" text="is a child of {M}, and {M} is {NAME}'s {PTH}'s {SIB}" />
+    <string id="LWN_prompt_kinship_grandparent" text="is {M}'s {PTH1}, and {M} is {NAME}'s {PTH2}" />
+    <string id="LWN_prompt_kinship_grandchild" text="is a child of {M}, and {M} is {NAME}'s {CHILDREN}" />
+    <string id="LWN_prompt_kinship_spouse_sibling_spouse" text="is the spouse of {M}, and {M} is {NAME}'s spouse's {SIB}" />
+    <string id="LWN_prompt_kinship_co_parent" text="is {M}'s {PTH}, and {M} is the spouse of {NAME}'s {CHILDREN}" />
+    <string id="LWN_prompt_kinship_spouse_niece_nephew" text="is a child of {M}, and {M} is {NAME}'s spouse's {SIB}" />
+    <string id="LWN_prompt_kinship_spouse_grandparent" text="is {M}'s {PTH1}, and {M} is {NAME}'s spouse's {PTH2}" />
     <string id="LWN_word_kin_father" text="father" />
     <string id="LWN_word_kin_mother" text="mother" />
     <string id="LWN_word_kin_son" text="son" />

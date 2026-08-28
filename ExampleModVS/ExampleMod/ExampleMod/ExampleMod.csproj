@@ -371,6 +371,7 @@
     <!-- LLM -->
     <Compile Include="LLM\LLMService.cs" />
     <Compile Include="LLM\PromptBuilder.cs" />
+    <Compile Include="LLM\KinshipRelationHelper.cs" />
     <Compile Include="LLM\WorldFactProvider.cs" />
     <Compile Include="LLM\WorldBackgroundStore.cs" />
     <Compile Include="LLM\WorldBackgroundBehavior.cs" />

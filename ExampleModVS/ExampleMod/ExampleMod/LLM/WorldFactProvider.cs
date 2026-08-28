@@ -111,8 +111,14 @@ namespace LivingWorldNpcs
             new FactTopic
             {
                 Id = "family", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_family"), NeedsPartyMember = false, // lwn-ignore: B
+                // 🔴 2026-08-28（公孙瓒老丈人案）：补婚嫁词——"我娶了公孙离你是我老丈人" 原先
+                // 只命中妻子/丈夫表却无"娶/嫁/婚/岳父"等字，family RAG 未触发 rag[] 空，LLM 无从
+                // 知道主公已婚（实机：公孙瓒否认"何时许过这门亲事"）。
                 Keywords = new[] { "家族", "家人", "亲人", "配偶", "妻子", "丈夫", "孩子", "儿女", "儿子", "女儿",
-                    "family", "clan", "wife", "husband", "child", "children", "kid", "kids" },
+                    "婚", "娶", "嫁", "成亲", "婚礼", "婚约", "订婚", "迎娶", "女婿", "岳父", "岳母", "老丈人",
+                    "媳妇", "亲家", "联姻",
+                    "family", "clan", "wife", "husband", "child", "children", "kid", "kids",
+                    "marriage", "marry", "wedding", "wed" },
                 Query = QueryFamilyFact,
             },
             new FactTopic
@@ -1650,6 +1656,23 @@ namespace LivingWorldNpcs
             {
                 // 本地化：LWN_fact_body_family_spouse（主公配偶行，双桶）
                 sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_family_spouse", ("NAME", spouse)));
+                // 🔴 2026-08-28（公孙瓒老丈人案）：配偶家世行——只有配偶名不够，LLM 无法把
+                // "主公配偶=公孙离"与"公孙离是公孙瓒之女"对上（老丈人自己反而不认女婿）。
+                // 借 LWN_word_kin_role_father/mother 现成词，缺一个就只写有的那边。
+                if (hero.Spouse.Father != null)
+                    // 本地化：LWN_fact_body_family_spouse_lineage（配偶家世行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_family_spouse_lineage",
+                        ("NAME", spouse),
+                        // 本地化：LWN_word_kin_role_father（父/母词，双桶）
+                        ("KIND", LWNTextHelper.ResolvePrompt("LWN_word_kin_role_father")),
+                        ("PARENT", hero.Spouse.Father.Name?.ToString() ?? "?")));
+                if (hero.Spouse.Mother != null)
+                    // 本地化：LWN_fact_body_family_spouse_lineage（配偶家世行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_family_spouse_lineage",
+                        ("NAME", spouse),
+                        // 本地化：LWN_word_kin_role_mother（父/母词，双桶）
+                        ("KIND", LWNTextHelper.ResolvePrompt("LWN_word_kin_role_mother")),
+                        ("PARENT", hero.Spouse.Mother.Name?.ToString() ?? "?")));
             }
             int members = clan?.Heroes?.Count ?? 0;
             // 本地化：LWN_fact_body_family_members_base / LWN_fact_body_family_leader（成员基数+族长后缀，双桶）

@@ -112,6 +112,10 @@ KNOWN_PLACEHOLDERS = {
     "COUNT_H", "COUNT_L", "COST_TYPE", "NOTO", "REP",
     # 2026-08-20 称呼纪律/亲缘段迁移新增占位符
     "KIND", "PARENT", "PRONOUN", "BLOOD", "SELFTITLE", "AGE", "IDENTITY",
+    # 2026-08-28 亲缘深2（姻亲/连带亲）新增占位符
+    "CHILDREN", "SIB",
+    # 2026-08-28 亲缘距离3全闭集新增占位符（金家案；{PTH}=父/母词，{PTH1}/{PTH2}=祖辈双指）
+    "PTH", "PTH1", "PTH2",
     # 2026-08-20 记忆类 prompt 迁移新增占位符
     "CALC", "FADING", "HISTORY", "MEMORY", "MERCY", "VALOR",
     # 2026-08-20 导演类 prompt 迁移新增占位符
