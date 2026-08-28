@@ -1,0 +1,4 @@
+﻿ID,ScriptName,GateTrans,ChairTrans,GuestTrans,Accompany1Trans,Accompany2Trans
+场景ID,剧本中文名,出入口坐标,主席坐标和方向,客席坐标和方向,陪席1坐标和方向,陪席2坐标和方向
+lordshall,城主间,abs|60.8|44.9|4.42|0,abs|60.8|44.9|4.42|0,rel_chair|0|4|0|180,rel_chair|-2|4|0|180,rel_chair|2|4|0|180
+center,城镇中心,abs|303.941|310.411|2.25|90,abs|303.941|300.411|2.25|90,rel_chair|0|4|0|180,rel_chair|-2|4|0|180,rel_chair|2|4|0|180

@@ -1,0 +1,1578 @@
+﻿数据处理原则,,,,
+1,尽可能使用织丰中已经存在的数据,,,状态
+,1.1,类型为精确匹配的，角色表的ID、罗马音名、家族、文化全盘采用（手动操作，已完成）,,手动编辑已完成
+,1.2,1.2.1,BaseInfo表提取姓氏，BaseInfo表提取第C列的日本姓名，如果名字是三个字就取第1个字作为姓氏，如果名字不足三个字就无姓氏，如果名字四个字就取前2个作为姓氏，如果名字五或六个字，就取前三个字作为姓氏。但是需要注意一些特殊姓氏白名单，只要满足了就默认提取，比如长宗我部、茶屋、伊藤、伊贺、鸟居、中岛、道川、吕宋、风魔、御宿、百地、母里、吉冈、X屋（X可以是任意的）、X田（X可以是任意的）、X川（X可以是任意的）、XX寺（XX可以是任意的）。另外名字有五个字，到但是叫XXX兵卫、XXX之助的，一般姓是前两个字。如果还有更多规则可以自行补充。姓氏填入BaseInfo第D列。,"公式为 =IFERROR(IF(C2="""","""",IF(OR(LEFT(C2,3)=""长宗我部"",LEFT(C2,3)=""香宗我部"",LEFT(C2,2)=""茶屋"",LEFT(C2,2)=""奈佐"",LEFT(C2,2)=""友野"",LEFT(C2,2)=""伊藤"",LEFT(C2,2)=""伊贺"",LEFT(C2,2)=""鸟居"",LEFT(C2,2)=""中岛"",LEFT(C2,2)=""道川"",LEFT(C2,2)=""吕宋"",LEFT(C2,2)=""风魔"",LEFT(C2,2)=""御宿"",LEFT(C2,2)=""百地"",LEFT(C2,2)=""母里"",LEFT(C2,2)=""吉冈""),LOOKUP(2,1/(LEFT(C2,{3,2})<>""""),LEFT(C2,{3,2})),IF(OR(MID(C2,2,1)=""屋"",MID(C2,2,1)=""田"",MID(C2,2,1)=""川"",MID(C2,2,1)=""野"",MID(C2,2,1)=""洲""),LEFT(C2,2),IF(MID(C2,3,1)=""寺"",LEFT(C2,3),IF(LEN(C2)=5,IF(OR(RIGHT(C2,2)=""兵卫"",RIGHT(C2,2)=""之助""),LEFT(C2,2),IF(OR(RIGHT(C2,1)=""郎"",RIGHT(C2,2)=""卫门""),LEFT(C2,2),LEFT(C2,3))),CHOOSE(LEN(C2),,"""",LEFT(C2,1),LEFT(C2,2),LEFT(C2,3),LEFT(C2,3))))))),"""")"
+,,1.2.2,Clan表数据预处理,
+,,,基于Sheet名为Clan的第D列所属王国Kingdom，去Sheet名为Kingdom表第1列检索匹配的王国，匹配成功后，将Kingdom中第d列的文化提取出来，赋值给Clan的第G列,vba已完成
+,,,"提取家族名，将Sheet名为Clan的第1列的clan_家族名_数字中提取出家族名，放在Clan第F列家族姓氏中,姓氏首字母大写","Sub ProcessClanAndKingdomData()
+    Dim wsClan As Worksheet
+    Dim wsKingdom As Worksheet
+    Dim lastRowClan As Long
+    Dim lastRowKingdom As Long
+    Dim i As Long, j As Long
+    Dim kingdomDict As Object
+    Dim clanName As String
+    Dim kingdomName As String
+    Dim splitArr() As String
+    
+    ' 设置工作表对象
+    Set wsClan = ThisWorkbook.Sheets(""Clan"")
+    Set wsKingdom = ThisWorkbook.Sheets(""Kingdom"")
+    
+    ' 获取数据最后一行
+    lastRowClan = wsClan.Cells(wsClan.Rows.Count, ""A"").End(xlUp).Row
+    lastRowKingdom = wsKingdom.Cells(wsKingdom.Rows.Count, ""A"").End(xlUp).Row
+    
+    ' 创建字典对象用于快速查找王国文化
+    Set kingdomDict = CreateObject(""Scripting.Dictionary"")
+    kingdomDict.CompareMode = vbTextCompare  ' 不区分大小写
+    
+    ' 构建王国-文化字典
+    For i = 2 To lastRowKingdom
+        kingdomName = Trim(wsKingdom.Cells(i, 1).value)
+        If kingdomName <> """" Then
+            ' 将王国名称作为键，文化作为值
+            kingdomDict(kingdomName) = wsKingdom.Cells(i, 4).value
+        End If
+    Next i
+    
+    ' 处理Clan表数据
+    For i = 2 To lastRowClan
+        ' 任务1: 根据D列的王国名称匹配并获取文化
+        kingdomName = Trim(wsClan.Cells(i, 4).value)
+        If kingdomName <> """" Then
+            If kingdomDict.Exists(kingdomName) Then
+                wsClan.Cells(i, 7).value = kingdomDict(kingdomName)  ' G列为第7列
+            Else
+                wsClan.Cells(i, 7).value = ""未找到匹配的王国""
+            End If
+        End If
+        
+        ' 任务2: 提取A列中的家族名
+        clanName = Trim(wsClan.Cells(i, 1).value)
+        If clanName <> """" Then
+            ' 按""_""分割字符串
+            splitArr = Split(clanName, ""_"")
+            If UBound(splitArr) >= 1 Then
+                ' 格式为clan_家族名_数字，取第二部分（索引1）
+                ' 使用StrConv函数将家族姓氏的每个单词首字母大写，其他字母小写
+                wsClan.Cells(i, 6).value = StrConv(splitArr(1), vbProperCase)  ' 修改这一行，首字母大写
+            Else
+                wsClan.Cells(i, 6).value = ""格式错误""
+            End If
+        End If
+    Next i
+    
+    ' 清理对象
+    Set kingdomDict = Nothing
+    Set wsClan = Nothing
+    Set wsKingdom = Nothing
+    
+    MsgBox ""处理完成！共处理了 "" & lastRowClan - 1 & "" 行数据。""
+End Sub"
+,1.3,类型为模糊匹配/姓氏推断/待新建的，可以先由Clan表，按照已有的Clan做一轮推荐,,
+,,1.3.1,自动填充Hero的Clan和Culture，更正罗马音：Sheet名为BaseInfo，第E列匹配类型不为“精确匹配”的，取第D列的姓氏推断去Sheet名为Clan表匹配第B列家族姓氏，如果匹配成功，就把Clan表的第1列家族ID填入填充BaseInfo表的第H列，把Clan表的第G列文化填入BaseInfo表的第I列，把Clan表的F列替换BaseInfo表第G列的空格之前的部分，第BaseInfo表的第J列填上“家族和文化自动推断”,"已完成。Sub MatchClanInfo()
+    Dim wsBase As Worksheet, wsClan As Worksheet
+    Dim lastRowBase As Long, lastRowClan As Long
+    Dim i As Long, j As Long
+    Dim surname As String, baseGValue As String
+    Dim matchFound As Boolean
+    Dim matchCount As Long, processedCount As Long
+    ' 设置工作表
+    Set wsBase = ThisWorkbook.Worksheets(""BaseInfo"")
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    
+    ' 获取最后一行
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, ""D"").End(xlUp).Row
+    lastRowClan = wsClan.Cells(wsClan.Rows.Count, ""F"").End(xlUp).Row
+    
+    ' 初始化计数器
+    matchCount = 0
+    processedCount = 0
+    
+    ' 清除立即窗口以便查看最新结果
+    Debug.Print String(50, ""-"")
+    Debug.Print ""开始处理..."" & Now
+    Debug.Print ""BaseInfo表数据行数: "" & lastRowBase - 1
+    Debug.Print ""Clan表数据行数: "" & lastRowClan - 1
+    Debug.Print String(50, ""-"")
+    
+    ' 遍历BaseInfo表的每一行
+    For i = 2 To lastRowBase ' 假设第1行是标题行
+        ' 检查E列是否为""精确匹配""
+        If LCase(Trim(wsBase.Cells(i, ""E"").value)) <> ""精确匹配"" Then
+            processedCount = processedCount + 1
+            
+            ' 获取D列的姓氏
+            kanjiname = Trim(wsBase.Cells(i, ""D"").value)
+            ' 初始化匹配标志
+            matchFound = False
+            
+            ' 在Clan表的F列中查找匹配的姓氏
+            For j = 2 To lastRowClan ' 假设第1行是标题行
+                If Trim(wsClan.Cells(j, ""B"").value) = kanjiname Then
+                    ' 匹配成功，填充数据
+                    wsBase.Cells(i, ""H"").value = wsClan.Cells(j, 1).value ' Clan表第1列（A列） -> BaseInfo表H列
+                    wsBase.Cells(i, ""I"").value = wsClan.Cells(j, ""G"").value ' Clan表G列 -> BaseInfo表I列
+                    
+                    ' 处理G列：替换空格之前的部分
+                    
+                    surname = Trim(wsClan.Cells(j, ""F"").value)
+                    baseGValue = wsBase.Cells(i, ""G"").value
+                    If InStr(1, baseGValue, "" "") > 0 Then
+                        ' 如果有空格，替换空格之前的部分
+                        wsBase.Cells(i, ""G"").value = surname & Mid(baseGValue, InStr(1, baseGValue, "" ""))
+                    Else
+                        ' 如果没有空格，替换整个单元格
+                        wsBase.Cells(i, ""G"").value = surname
+                    End If
+                    
+                    ' J列填上""家族和文化自动推断""
+                    wsBase.Cells(i, ""J"").value = ""家族和文化自动推断""
+                    
+                    ' 记录成功匹配
+                    matchCount = matchCount + 1
+                    matchFound = True
+                    
+                    ' 输出匹配成功的详细信息
+                    Debug.Print ""匹配成功 #"" & matchCount & "" - 行"" & i & "":""
+                    Debug.Print ""  姓氏: "" & surname
+                    Debug.Print ""  家族ID: "" & wsClan.Cells(j, 1).value
+                    Debug.Print ""  文化: "" & wsClan.Cells(j, ""G"").value
+                    Debug.Print ""  原始G列值: "" & baseGValue
+                    Debug.Print ""  新G列值: "" & wsBase.Cells(i, ""G"").value
+                    Debug.Print String(30, ""-"")
+                    
+                    Exit For ' 找到匹配后跳出内层循环
+                End If
+            Next j
+            
+            ' 如果没有找到匹配
+            If Not matchFound Then
+                ' 输出未匹配信息
+                Debug.Print ""未找到匹配 - 行"" & i & "":""
+                Debug.Print ""  姓氏 '"" & surname & ""' 在Clan表中未找到匹配项""
+                Debug.Print String(30, ""-"")
+            End If
+        Else
+         
+        End If
+    Next i
+    
+    ' 输出最终统计信息
+    Debug.Print String(50, ""="")
+    Debug.Print ""处理完成!""
+    Debug.Print ""总处理行数: "" & lastRowBase - 1
+    Debug.Print ""处理了非精确匹配的行数: "" & processedCount
+    Debug.Print ""成功匹配并替换的行数: "" & matchCount
+    Debug.Print ""未匹配的行数: "" & (processedCount - matchCount)
+    Debug.Print ""完成时间: "" & Now
+    Debug.Print String(50, ""="")
+    
+    ' 显示消息框总结
+    Dim summaryMsg As String
+    summaryMsg = ""操作完成!"" & vbCrLf & vbCrLf
+    summaryMsg = summaryMsg & ""总处理行数: "" & lastRowBase - 1 & vbCrLf
+    summaryMsg = summaryMsg & ""处理了非精确匹配的行数: "" & processedCount & vbCrLf
+    summaryMsg = summaryMsg & ""成功匹配并替换的行数: "" & matchCount & vbCrLf
+    summaryMsg = summaryMsg & ""未匹配的行数: "" & (processedCount - matchCount)
+    
+    MsgBox summaryMsg, vbInformation, ""处理结果""
+    
+    ' 清理对象
+    Set wsBase = Nothing
+    Set wsClan = Nothing
+End Sub"
+,,1.3.2,Clan表找不到的部分，则需要自动创建Clan,
+,,,创建Clan原则：遍历BaseInfo表中第E列匹配类型不为“精确匹配”的且第J列不为“家族和文化自动推断”的且第2列小于1000的部分，取第D列相同的放入一组。随后找组内人的第G列空格之前的部分出现最多的，作为家族名，并且以clan_家族名_1的格式作为家族ID填入第H列。符合条件在BaseInfo的J列填入  基于分组自动创建家族,"已完成。Sub AutoCreateClans()
+    Dim wsBase As Worksheet, wsClan As Worksheet
+    Dim lastRowBase As Long, lastRowClan As Long, i As Long
+    Dim dict As Object, groupDict As Object, nameDict As Object
+    Dim surname As String, familyName As String, familyID As String, baseName As String
+    Dim mostCommonName As String, maxCount As Long
+    Dim tempFamilyName As String, suffix As Integer
+    Dim key As Variant, subKey As Variant
+    Dim originalName As String, restOfName As String
+    Dim resultDict As Object, existingIDs As Object
+    Dim matchType As String, autoInfer As String
+    Dim bValue As Variant
+    Dim familyNameDisplay As String
+    
+    ' 设置工作表对象
+    Set wsBase = ThisWorkbook.Worksheets(""BaseInfo"")
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    
+    ' 获取最后一行
+    lastRowBase = wsBase.Cells(wsBase.Rows.count, ""B"").End(xlUp).Row
+    lastRowClan = wsClan.Cells(wsClan.Rows.count, ""A"").End(xlUp).Row
+    
+    ' 创建字典
+    Set dict = CreateObject(""Scripting.Dictionary"")
+    Set resultDict = CreateObject(""Scripting.Dictionary"")
+    Set existingIDs = CreateObject(""Scripting.Dictionary"")
+    
+    ' 收集Clan表中所有已存在的家族ID（使用小写）
+    For i = 2 To lastRowClan
+        If Not IsEmpty(wsClan.Cells(i, ""A"")) Then
+            existingIDs.Add LCase(CStr(wsClan.Cells(i, ""A"").value)), 1
+        End If
+    Next i
+    
+    ' 第一步：收集符合条件的行并按姓氏分组
+    For i = 2 To lastRowBase
+        matchType = CStr(wsBase.Cells(i, ""E"").value)
+        autoInfer = CStr(wsBase.Cells(i, ""J"").value)
+        bValue = wsBase.Cells(i, ""B"").value
+        
+        ' 检查条件：E列不为""精确匹配""，J列不为""家族和文化自动推断""，B列小于1000
+        If matchType <> ""精确匹配"" And _
+           autoInfer <> ""家族和文化自动推断"" And _
+           IsNumeric(bValue) And bValue < 1000 Then
+           
+            surname = Trim(CStr(wsBase.Cells(i, ""D"").value))
+            If surname <> """" Then
+                If Not dict.Exists(surname) Then
+                    Set groupDict = CreateObject(""Scripting.Dictionary"")
+                    dict.Add surname, groupDict
+                Else
+                    Set groupDict = dict(surname)
+                End If
+                
+                baseName = Trim(CStr(wsBase.Cells(i, ""G"").value))
+                If InStr(1, baseName, "" "") > 0 Then
+                    baseName = Split(baseName, "" "")(0)
+                End If
+                
+                groupDict.Add CStr(i), baseName
+            End If
+        End If
+    Next i
+    
+    Application.ScreenUpdating = False
+    
+    ' 第二步：处理每个组
+    For Each key In dict.Keys
+        surname = CStr(key)
+        Set groupDict = dict(surname)
+        
+        ' 找出最常出现的名字
+        Set nameDict = CreateObject(""Scripting.Dictionary"")
+        maxCount = 0
+        mostCommonName = """"
+        
+        For Each subKey In groupDict.Keys
+            baseName = CStr(groupDict(subKey))
+            If Not nameDict.Exists(baseName) Then
+                nameDict.Add baseName, 1
+            Else
+                nameDict(baseName) = nameDict(baseName) + 1
+            End If
+            
+            If nameDict(baseName) > maxCount Then
+                maxCount = nameDict(baseName)
+                mostCommonName = baseName
+            End If
+        Next
+        
+        If mostCommonName <> """" Then
+            ' 生成唯一的家族ID
+            familyName = mostCommonName
+            suffix = 1
+            Dim uniqueIDFound As Boolean
+            
+            ' 尝试生成唯一ID
+            Do
+                ' 生成家族ID（小写）
+                familyID = LCase(""clan_"" & familyName & ""_1"")
+                
+                ' 检查是否已存在
+                If Not existingIDs.Exists(familyID) Then
+                    ' 在同一批次中也检查
+                    uniqueIDFound = True
+                    For Each k In resultDict.Keys
+                        If resultDict(k)(1) = familyID Then
+                            uniqueIDFound = False
+                            Exit For
+                        End If
+                    Next k
+                    
+                    If uniqueIDFound Then
+                        Exit Do
+                    End If
+                End If
+                
+                ' 如果已存在，修改家族名
+                familyName = mostCommonName & String(suffix, Right(mostCommonName, 1))
+                suffix = suffix + 1
+            Loop
+            
+            ' 生成用于显示的家族名（首字母大写）
+            familyNameDisplay = UCase(Left(familyName, 1)) & Mid(familyName, 2)
+            
+            ' 存储结果
+            resultDict.Add surname, Array(familyName, familyID, familyNameDisplay)
+            
+            ' 添加到现有ID列表
+            existingIDs.Add familyID, 1
+        End If
+        
+        Set nameDict = Nothing
+    Next key
+    
+    ' 第三步：更新数据
+    For Each key In resultDict.Keys
+        surname = CStr(key)
+        familyName = resultDict(key)(0)  ' 原始家族名（小写）
+        familyID = resultDict(key)(1)     ' 家族ID（小写）
+        familyNameDisplay = resultDict(key)(2)  ' 显示用的家族名（首字母大写）
+        
+        ' 更新BaseInfo表
+        Set groupDict = dict(surname)
+        For Each subKey In groupDict.Keys
+            i = CLng(subKey)
+            
+            ' 更新H列：家族ID（小写）
+            wsBase.Cells(i, ""H"").value = familyID
+            
+            ' 更新J列：标记
+            wsBase.Cells(i, ""J"").value = ""基于分组自动创建家族""
+            
+            ' 更新G列：替换空格前的部分为显示用的家族名（首字母大写）
+            originalName = CStr(wsBase.Cells(i, ""G"").value)
+            If InStr(1, originalName, "" "") > 0 Then
+                restOfName = Mid(originalName, InStr(1, originalName, "" ""))
+                wsBase.Cells(i, ""G"").value = familyNameDisplay & restOfName
+            Else
+                wsBase.Cells(i, ""G"").value = familyNameDisplay
+            End If
+        Next
+        
+        ' 在Clan表中添加新行
+        lastRowClan = wsClan.Cells(wsClan.Rows.count, ""A"").End(xlUp).Row
+        With wsClan
+            .Cells(lastRowClan + 1, ""A"").value = familyID                   ' 第1列：家族ID（小写）
+            .Cells(lastRowClan + 1, ""B"").value = surname                    ' 第2列：姓氏
+            .Cells(lastRowClan + 1, ""C"").value = ""{=my_"" & LCase(familyName) & ""}"" & familyNameDisplay & ""-shi""  ' 第3列：本地化名
+            .Cells(lastRowClan + 1, ""D"").value = """"                         ' 第4列：王国名（留空）
+            .Cells(lastRowClan + 1, ""E"").value = 0                          ' 第5列：0
+            .Cells(lastRowClan + 1, ""F"").value = familyNameDisplay          ' 第6列：家族名（首字母大写）
+            .Cells(lastRowClan + 1, ""G"").value = """"                         ' 第7列：留空
+        End With
+    Next
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox ""成功创建 "" & resultDict.count & "" 个家族！"" & vbCrLf & _
+           ""家族ID全部使用小写，家族名首字母大写。"", vbInformation
+    
+    ' 清理
+    Set dict = Nothing
+    Set groupDict = Nothing
+    Set nameDict = Nothing
+    Set resultDict = Nothing
+    Set existingIDs = Nothing
+End Sub
+
+' 验证函数：检查是否有重复的家族ID
+Sub CheckDuplicateClanIDs()
+    Dim wsClan As Worksheet
+    Dim lastRow As Long, i As Long, j As Long
+    Dim idDict As Object, duplicates As Object
+    Dim clanID As String, lowerID As String
+    Dim duplicateCount As Long
+    
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    lastRow = wsClan.Cells(wsClan.Rows.count, ""A"").End(xlUp).Row
+    
+    Set idDict = CreateObject(""Scripting.Dictionary"")
+    Set duplicates = CreateObject(""Scripting.Dictionary"")
+    
+    ' 收集所有家族ID
+    For i = 2 To lastRow
+        clanID = Trim(CStr(wsClan.Cells(i, ""A"").value))
+        If clanID <> """" Then
+            lowerID = LCase(clanID)
+            
+            If idDict.Exists(lowerID) Then
+                ' 找到重复
+                If Not duplicates.Exists(lowerID) Then
+                    duplicates.Add lowerID, idDict(lowerID) & "","" & i
+                Else
+                    duplicates(lowerID) = duplicates(lowerID) & "","" & i
+                End If
+                duplicateCount = duplicateCount + 1
+            Else
+                idDict.Add lowerID, i
+            End If
+        End If
+    Next i
+    
+    ' 显示结果
+    If duplicates.count = 0 Then
+        MsgBox ""没有发现重复的家族ID。"", vbInformation
+    Else
+        Dim msg As String
+        msg = ""发现 "" & duplicates.count & "" 个重复的家族ID:"" & vbCrLf & vbCrLf
+        
+        For Each key In duplicates.Keys
+            Dim rowList As Variant
+            rowList = Split(duplicates(key), "","")
+            msg = msg & ""ID: "" & key & "" 在第 "" & Join(rowList, "", "") & "" 行重复"" & vbCrLf
+        Next
+        
+        MsgBox msg, vbExclamation
+    End If
+    
+    Set idDict = Nothing
+    Set duplicates = Nothing
+End Sub
+
+' 检查家族名格式
+Sub CheckClanNameFormat()
+    Dim wsClan As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim incorrectFormat As String
+    Dim count As Long
+    
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    lastRow = wsClan.Cells(wsClan.Rows.count, ""A"").End(xlUp).Row
+    count = 0
+    incorrectFormat = """"
+    
+    For i = 2 To lastRow
+        Dim clanID As String, familyName As String
+        clanID = CStr(wsClan.Cells(i, ""A"").value)
+        familyName = CStr(wsClan.Cells(i, ""F"").value)
+        
+        ' 检查家族ID是否小写
+        If clanID <> LCase(clanID) Then
+            count = count + 1
+            incorrectFormat = incorrectFormat & ""第"" & i & ""行: 家族ID不是小写 - "" & clanID & vbCrLf
+        End If
+        
+        ' 检查家族名是否首字母大写
+        If Len(familyName) > 0 Then
+            If Left(familyName, 1) <> UCase(Left(familyName, 1)) Then
+                count = count + 1
+                incorrectFormat = incorrectFormat & ""第"" & i & ""行: 家族名首字母不是大写 - "" & familyName & vbCrLf
+            End If
+        End If
+    Next i
+    
+    If count = 0 Then
+        MsgBox ""所有家族ID都是小写，所有家族名首字母都是大写。"", vbInformation
+    Else
+        MsgBox ""发现 "" & count & "" 个格式问题:"" & vbCrLf & vbCrLf & incorrectFormat, vbExclamation
+    End If
+End Sub
+
+' 清理函数：删除所有自动创建的家族
+Sub CleanAutoCreatedClans()
+    Dim wsBase As Worksheet, wsClan As Worksheet
+    Dim lastRowBase As Long, lastRowClan As Long, i As Long
+    Dim response As VbMsgBoxResult
+    
+    response = MsgBox(""这将删除所有'基于分组自动创建家族'的记录。"" & vbCrLf & _
+                     ""BaseInfo表的H、J列将被清空，Clan表中相关的行将被删除。"" & vbCrLf & _
+                     ""确定要继续吗？"", vbExclamation + vbYesNo, ""警告"")
+    
+    If response = vbNo Then Exit Sub
+    
+    Set wsBase = ThisWorkbook.Worksheets(""BaseInfo"")
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    
+    Application.ScreenUpdating = False
+    
+    ' 清空BaseInfo表中相关标记的行
+    lastRowBase = wsBase.Cells(wsBase.Rows.count, ""J"").End(xlUp).Row
+    For i = 2 To lastRowBase
+        If wsBase.Cells(i, ""J"").value = ""基于分组自动创建家族"" Then
+            wsBase.Cells(i, ""H"").value = """"
+            wsBase.Cells(i, ""J"").value = """"
+        End If
+    Next i
+    
+    ' 删除Clan表中相关的行（从下往上删除，避免索引问题）
+    lastRowClan = wsClan.Cells(wsClan.Rows.count, ""A"").End(xlUp).Row
+    For i = lastRowClan To 2 Step -1
+        Dim clanID As String
+        clanID = CStr(wsClan.Cells(i, ""A"").value)
+        If clanID <> """" Then
+            If LCase(Left(clanID, 5)) = ""clan_"" And _
+               InStr(clanID, ""_1"") > 0 Then
+                wsClan.Rows(i).Delete
+            End If
+        End If
+    Next i
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox ""清理完成！"", vbInformation
+End Sub
+
+' 辅助函数：检查工作表是否存在
+Function SheetExists(sheetName As String) As Boolean
+    On Error Resume Next
+    SheetExists = Not ThisWorkbook.Worksheets(sheetName) Is Nothing
+    On Error GoTo 0
+End Function
+
+' 修正函数：将Clan表第一列全部转换为小写，第六列首字母大写
+Sub FixClanTableFormat()
+    Dim wsClan As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim familyName As String
+    
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    lastRow = wsClan.Cells(wsClan.Rows.count, ""A"").End(xlUp).Row
+    
+    Application.ScreenUpdating = False
+    
+    For i = 2 To lastRow
+        ' 修正第一列：家族ID转换为小写
+        If Not IsEmpty(wsClan.Cells(i, ""A"")) Then
+            wsClan.Cells(i, ""A"").value = LCase(CStr(wsClan.Cells(i, ""A"").value))
+        End If
+        
+        ' 修正第六列：家族名首字母大写
+        If Not IsEmpty(wsClan.Cells(i, ""F"")) Then
+            familyName = CStr(wsClan.Cells(i, ""F"").value)
+            If Len(familyName) > 0 Then
+                wsClan.Cells(i, ""F"").value = UCase(Left(familyName, 1)) & Mid(familyName, 2)
+            End If
+        End If
+    Next i
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox ""修正完成！已将所有家族ID转换为小写，所有家族名首字母大写。"", vbInformation
+End Sub"
+,,,"同时，Clan表中增加一行，第一列为家族ID，格式为刚刚的clan_家族名_1。第二列为BaseInfo第D列的姓氏，第三列为本地化名，格式为{=my_家族名}家族名-shi，第4列为王国名，暂时留空，第5列填0。第六列为家族名，第七列留空。
+如果发现新增的这行家族ID和前面的其他行有重复，则需要家族名最后一个字母额外再加一个作为后缀，比如sakai改成sakaii，并且修正掉Clan新增行的第1列、第6列，以及BaseInfo对应组成员的第H列。以及BaseInfo表第G列的空格之前的部分",
+,1.4,基于太阁的势力Sheet-ForceTaikou补全王国表Kingdom,,
+,,,遍历Sheet名为ForceTaikou表第2列值为Warrior的每一行，取第1列然后将“家”替换为“”后作为家族名，去Sheet名为kingdom表中的第2列检索是否已存在，如果已存在就跳过。对于未存在的，那么就在Kingdom中新建1行，第2列填家族名，第5列填0，第1列需要去Sheet名为Clan中第5列为0的部分检索第2列是否有匹配的，如果有的话，把Clan表中的第F列的首字母转小写之后，先填入Clan表第D列，再放入Kingdom第1列作为王国名，同时把Kingdom第3列填成 {=my_王国名}王国名 的格式。王国名是变量，不是硬编码的字。如果Clan第5列为1，也可以查找，匹配的话直接把对应行的第6F列转小写之后填入Kingdom表第1列，不需要在修改Clan表这一行,"已完成。Sub ProcessWarriorFamilies()
+    Dim wsForce As Worksheet, wsKingdom As Worksheet, wsClan As Worksheet
+    Dim lastRowForce As Long, lastRowKingdom As Long, lastRowClan As Long
+    Dim i As Long, j As Long, k As Long
+    Dim familyName As String, kingdomName As String, tempName As String
+    Dim familyExists As Boolean
+    Dim rng As Range, cell As Range
+    Dim foundCell As Range
+    Dim firstChar As String
+    Dim clanFound As Boolean
+    
+    ' 设置工作表对象
+    On Error Resume Next
+    Set wsForce = ThisWorkbook.Worksheets(""ForceTaikou"")
+    Set wsKingdom = ThisWorkbook.Worksheets(""kingdom"")
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    On Error GoTo 0
+    
+    ' 检查工作表是否存在
+    If wsForce Is Nothing Then
+        MsgBox ""找不到名为 ForceTaikou 的工作表！""
+        Exit Sub
+    End If
+    If wsKingdom Is Nothing Then
+        MsgBox ""找不到名为 kingdom 的工作表！""
+        Exit Sub
+    End If
+    If wsClan Is Nothing Then
+        MsgBox ""找不到名为 Clan 的工作表！""
+        Exit Sub
+    End If
+    
+    ' 获取ForceTaikou表的最后一行
+    lastRowForce = wsForce.Cells(wsForce.Rows.count, 1).End(xlUp).Row
+    
+    ' 获取Kingdom表的最后一行
+    lastRowKingdom = wsKingdom.Cells(wsKingdom.Rows.count, 1).End(xlUp).Row
+    
+    ' 遍历ForceTaikou表的每一行
+    For i = 1 To lastRowForce
+        ' 检查第2列是否为""Warrior""
+        If Trim(wsForce.Cells(i, 2).value) = ""Warrior"" Then
+            ' 获取家族名，将""家""替换为空
+            familyName = Replace(Trim(wsForce.Cells(i, 1).value), ""家"", """")
+            If familyName = """" Then GoTo ContinueLoop
+            
+            ' 在Kingdom表的第2列中检查是否已存在该家族名
+            familyExists = False
+            Set rng = wsKingdom.Range(""B1:B"" & lastRowKingdom)
+            Set foundCell = rng.Find(What:=familyName, LookIn:=xlValues, LookAt:=xlWhole)
+            
+            If Not foundCell Is Nothing Then
+                familyExists = True
+            End If
+            
+            ' 如果不存在，则在Kingdom表中添加新行
+            If Not familyExists Then
+                ' 在Kingdom表中增加新行
+                lastRowKingdom = lastRowKingdom + 1
+                
+                ' 在第2列填入家族名
+                wsKingdom.Cells(lastRowKingdom, 2).value = familyName
+                
+                ' 在第5列填入0
+                wsKingdom.Cells(lastRowKingdom, 5).value = 0
+                
+                ' 在Clan表中查找匹配项
+                kingdomName = """"
+                clanFound = False
+                lastRowClan = wsClan.Cells(wsClan.Rows.count, 1).End(xlUp).Row
+                
+                For k = 1 To lastRowClan
+                    ' 检查Clan表第5列为0或1，且第2列是否与家族名匹配
+                    If (wsClan.Cells(k, 5).value = 0 Or wsClan.Cells(k, 5).value = 1) And _
+                       Trim(wsClan.Cells(k, 2).value) = familyName Then
+                        
+                        ' 获取第F列的值并转换首字母为小写
+                        tempName = Trim(wsClan.Cells(k, 6).value)
+                        If Len(tempName) > 0 Then
+                            firstChar = LCase(Left(tempName, 1))
+                            If Len(tempName) > 1 Then
+                                kingdomName = firstChar & Mid(tempName, 2)
+                            Else
+                                kingdomName = firstChar
+                            End If
+                            
+                            ' 只在Clan表第5列为0时，将转换后的值填入Clan表第D列
+                            If wsClan.Cells(k, 5).value = 0 Then
+                                wsClan.Cells(k, 4).value = kingdomName
+                            End If
+                            
+                            ' 将王国名填入Kingdom表第1列
+                            wsKingdom.Cells(lastRowKingdom, 1).value = kingdomName
+                            
+                            ' 在Kingdom表第3列填入公式格式
+                            wsKingdom.Cells(lastRowKingdom, 3).value = ""{=my_"" & kingdomName & ""}"" & kingdomName
+                            
+                            clanFound = True
+                        End If
+                        
+                        Exit For
+                    End If
+                Next k
+                
+                ' 如果没有找到匹配项，Kingdom表的第1列和第3列将留空
+                If Not clanFound Then
+                    wsKingdom.Cells(lastRowKingdom, 1).value = """"
+                    wsKingdom.Cells(lastRowKingdom, 3).value = """"
+                End If
+            End If
+        End If
+        
+ContinueLoop:
+    Next i
+    
+    ' 清理对象
+    Set rng = Nothing
+    Set foundCell = Nothing
+    Set wsForce = Nothing
+    Set wsKingdom = Nothing
+    Set wsClan = Nothing
+    
+    MsgBox ""处理完成！""
+End Sub"
+,1.5,基于所属势力，查询clan和kingdom的隶属关系,,
+,,,还需要基于据点查询隶属哪一家,
+,,,"用vba做这件事：遍历Sheet名为BaseInfo，针对每一行取第D列(姓氏)，基于第BN、BU、CB、CI、CP、CW、DD、DK列组成集合，去掉集合中的""无""，剩余的去重后再将“家“替换为空字符串”“，随后让集合的每一个元素去Sheet名为Clan中检索第2列，如果找到了匹配的，那么就说明这就是这个角色的主家，获取一下主家的第D列（如果第D列为空需要输出调试信息）作为王国ID。随后基于BaseInfo的第H列家族ID，在Clan的第2列找到自己家族后，把自己家族的第D列赋值为刚刚搜索到的王国ID。如果如果找到的自家Clan的第D列已经有值，则忽略，说明自家就是大名，不需要找主家。生成的时候规避下这种报错 
+foreach控件变量必须是变体或对象","已完成。
+Sub AssignKingdomIDToClan_Corrected()
+    Dim wsBase As Worksheet, wsClan As Worksheet
+    Dim lastRowBase As Long, lastRowClan As Long
+    Dim i As Long, j As Long
+    Dim surname As String, familyID As String, kingdomID As String
+    Dim clans As Object, clanNames As Object, clanIDs As Object
+    Dim searchCols As Variant
+    Dim searchValue As String
+    Dim clanKey As Variant
+    Dim targetRow As Long, ownClanRow As Long
+    Dim existingKingdomID As String
+    Dim found As Boolean
+    Dim clanNameValue As String
+    Dim specialKeywords As Variant
+    Dim hasValidClan As Boolean
+    
+    ' 设置工作表对象
+    Set wsBase = ThisWorkbook.Worksheets(""BaseInfo"")
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    
+    ' 获取最后一行
+    lastRowBase = wsBase.Cells(wsBase.Rows.count, ""D"").End(xlUp).Row
+    lastRowClan = wsClan.Cells(wsClan.Rows.count, ""B"").End(xlUp).Row
+    
+    ' 列号：BN=66, BU=73, CB=80, CI=87, CP=94, CW=101, DD=108, DK=116
+    searchCols = Array(66, 73, 80, 87, 94, 101, 108, 116)
+    
+    ' 特殊关键词：包含这些关键词的候选主家不是真正的主家
+    specialKeywords = Array(""屋"", ""众"", ""水军"")
+    
+    ' 使用字典
+    Set clans = CreateObject(""Scripting.Dictionary"")
+    Set clanNames = CreateObject(""Scripting.Dictionary"")  ' 用于按中文名查找
+    Set clanIDs = CreateObject(""Scripting.Dictionary"")    ' 用于按ID查找
+    
+    ' 读取Clan工作表的数据到字典
+    For i = 2 To lastRowClan
+        Dim clanIdValue As String, clanNameValue2 As String
+        clanIdValue = Trim(wsClan.Cells(i, 1).value)    ' 第1列：家族ID
+        clanNameValue2 = Trim(wsClan.Cells(i, 2).value) ' 第2列：家族中文名
+        
+        ' ========== 调试信息：当Clan表第1列为clan_igasaki_1时 ==========
+        If clanIdValue = ""clan_igasaki_1"" Then
+            Debug.Print ""=== Clan表调试信息 ===""
+            Debug.Print ""在第 "" & i & "" 行找到 clan_igasaki_1""
+            Debug.Print ""家族ID: "" & clanIdValue
+            Debug.Print ""家族名: "" & clanNameValue2
+            Debug.Print ""当前行号: "" & i
+            Debug.Print ""=========================""
+        End If
+        
+        If clanNameValue2 <> """" Then
+            ' 按中文名存储（去掉""家""字）
+            clanNames(clanNameValue2) = i
+            If Right(clanNameValue2, 1) = ""家"" Then
+                clanNames(Left(clanNameValue2, Len(clanNameValue2) - 1)) = i
+            End If
+        End If
+        
+        If clanIdValue <> """" Then
+            ' 按家族ID存储
+            clanIDs(clanIdValue) = i
+        End If
+    Next i
+    
+    ' 遍历BaseInfo的每一行
+    For i = 2 To lastRowBase
+        On Error Resume Next
+        
+        surname = Trim(wsBase.Cells(i, ""D"").value)
+        
+        ' ========== 调试信息：当BaseInfo的surname为伊贺崎道顺时 ==========
+        If surname = ""伊贺崎道顺"" Then
+            Debug.Print ""=== BaseInfo表调试信息 ===""
+            Debug.Print ""在第 "" & i & "" 行找到 伊贺崎道顺""
+            Debug.Print ""姓氏: "" & surname
+            Debug.Print ""家族ID(H列): "" & wsBase.Cells(i, ""H"").value
+            Debug.Print ""当前行号: "" & i
+            
+            ' 输出搜索列的值用于调试
+            Debug.Print ""搜索列值:""
+            For j = 0 To UBound(searchCols)
+                searchValue = Trim(wsBase.Cells(i, searchCols(j)).value)
+                Debug.Print ""  列"" & searchCols(j) & "": "" & searchValue
+            Next j
+            Debug.Print ""=========================""
+        End If
+        
+        If surname = """" Then GoTo NextRow
+        
+        ' 获取BaseInfo当前行的家族ID（第H列）
+        familyID = Trim(wsBase.Cells(i, ""H"").value)
+        
+        ' ========== 调试信息：针对伊贺崎道顺的家族检查 ==========
+        If surname = ""伊贺崎道顺"" Then
+            Debug.Print ""=== 家族检查调试信息 ===""
+            Debug.Print ""家族ID: "" & familyID
+            Debug.Print ""家族ID在字典中: "" & clanIDs.Exists(familyID)
+            If clanIDs.Exists(familyID) Then
+                ownClanRow = clanIDs(familyID)
+                Debug.Print ""在Clan表的行号: "" & ownClanRow
+                Debug.Print ""家族中文名: "" & wsClan.Cells(ownClanRow, 2).value
+            End If
+            Debug.Print ""=========================""
+        End If
+        
+        ' 清空字典，用于存储当前行的家族名
+        clans.RemoveAll
+        hasValidClan = False ' 标记是否有有效的主家候选
+        
+        ' 收集指定列的值到字典（自动去重）
+        For j = 0 To UBound(searchCols)
+            searchValue = Trim(wsBase.Cells(i, searchCols(j)).value)
+            If searchValue <> """" And searchValue <> ""无"" Then
+                ' 去掉""家""字
+                searchValue = Replace(searchValue, ""家"", """")
+                
+                ' 检查是否包含特殊关键词
+                Dim isSpecialClan As Boolean
+                isSpecialClan = False
+                
+                If searchValue <> """" Then
+                    ' 检查是否包含特殊关键词
+                    Dim k As Long
+                    For k = 0 To UBound(specialKeywords)
+                        If InStr(1, searchValue, specialKeywords(k), vbTextCompare) > 0 Then
+                            isSpecialClan = True
+                            Exit For
+                        End If
+                    Next k
+                    
+                    ' 如果不包含特殊关键词，才加入候选列表
+                    If Not isSpecialClan Then
+                        clans(searchValue) = 1
+                        hasValidClan = True
+                        
+                        ' ========== 调试信息 ==========
+                        If surname = ""伊贺崎道顺"" Then
+                            Debug.Print ""添加有效候选主家: "" & searchValue
+                        End If
+                    Else
+                        ' ========== 调试信息 ==========
+                        If surname = ""伊贺崎道顺"" Then
+                            Debug.Print ""跳过特殊候选主家: "" & searchValue
+                        End If
+                    End If
+                End If
+            End If
+        Next j
+        
+        ' ========== 调试信息：针对伊贺崎道顺的搜索列值 ==========
+        If surname = ""伊贺崎道顺"" Then
+            Debug.Print ""=== 最终候选主家列表 ===""
+            Debug.Print ""有效候选主家数量: "" & clans.count
+            For Each clanKey In clans.Keys
+                Debug.Print ""  - "" & clanKey
+            Next clanKey
+            Debug.Print ""=========================""
+        End If
+        
+        ' 如果没有找到有效候选主家
+        If Not hasValidClan Then
+            ' 检查自己的家族是否在Clan表中
+            If familyID <> """" And clanIDs.Exists(familyID) Then
+                ownClanRow = clanIDs(familyID)
+                existingKingdomID = Trim(wsClan.Cells(ownClanRow, ""D"").value)
+                
+                If existingKingdomID = """" Then
+                    ' 设置自己的家族为noKingdom
+                    wsClan.Cells(ownClanRow, ""D"").value = ""noKingdom""
+                    Debug.Print ""行 "" & i & "": 没有有效候选主家，将家族(ID:"" & familyID & "") 设置为noKingdom""
+                End If
+            End If
+            GoTo NextRow
+        End If
+        
+        kingdomID = """"
+        found = False
+        
+        ' 遍历去重后的家族名，在Clan表中查找主家
+        For Each clanKey In clans.Keys
+            If clanNames.Exists(clanKey) Then
+                targetRow = clanNames(clanKey)
+                ' 获取王国ID（第D列）
+                kingdomID = Trim(wsClan.Cells(targetRow, ""D"").value)
+                
+                ' ========== 调试信息：针对伊贺崎道顺的主家查找 ==========
+                If surname = ""伊贺崎道顺"" Then
+                    Debug.Print ""=== 主家查找调试信息 ===""
+                    Debug.Print ""当前查找的候选主家: "" & clanKey
+                    Debug.Print ""在Clan表的行号: "" & targetRow
+                    Debug.Print ""找到的王国ID: "" & kingdomID
+                    Debug.Print ""候选主家在字典中: "" & clanNames.Exists(clanKey)
+                    Debug.Print ""=========================""
+                End If
+                
+                If kingdomID = """" Then
+                    ' 输出调试信息
+                    Debug.Print ""行 "" & i & "": 找到候选主家 '"" & clanKey & ""' 但第D列为空""
+                Else
+                    found = True
+                    Exit For ' 找到有效的王国ID，跳出循环
+                End If
+            End If
+        Next clanKey
+        
+        ' 如果找到了王国ID，则更新自己的家族
+        If found And kingdomID <> """" Then
+            ' 再次获取家族ID
+            familyID = Trim(wsBase.Cells(i, ""H"").value)
+            
+            If familyID <> """" Then
+                ' 直接用家族ID在Clan表中查找（假设第1列是家族ID）
+                ownClanRow = 0
+                
+                If clanIDs.Exists(familyID) Then
+                    ownClanRow = clanIDs(familyID)
+                Else
+                    Debug.Print ""行 "" & i & "": 未找到家族ID '"" & familyID & ""' 在Clan表中""
+                    GoTo NextRow
+                End If
+                
+                If ownClanRow > 0 Then
+                    ' 检查自己的家族是否已经有王国ID
+                    existingKingdomID = Trim(wsClan.Cells(ownClanRow, ""D"").value)
+                    
+                    If existingKingdomID = """" Then
+                        ' 如果为空，则设置王国ID
+                        wsClan.Cells(ownClanRow, ""D"").value = kingdomID
+                        Debug.Print ""行 "" & i & "": 为家族(ID:"" & familyID & "") 设置王国ID为 "" & kingdomID
+                    ElseIf existingKingdomID = ""noKingdom"" Then
+                        ' 如果已经是noKingdom，覆盖为找到的王国ID
+                        wsClan.Cells(ownClanRow, ""D"").value = kingdomID
+                        Debug.Print ""行 "" & i & "": 覆盖家族(ID:"" & familyID & "") 的noKingdom，设置为 "" & kingdomID
+                    Else
+                        Debug.Print ""行 "" & i & "": 家族(ID:"" & familyID & "") 已有王国ID "" & existingKingdomID & ""，跳过""
+                    End If
+                End If
+            End If
+        Else
+            ' 没有找到有效的王国ID
+            If familyID <> """" And clanIDs.Exists(familyID) Then
+                ownClanRow = clanIDs(familyID)
+                existingKingdomID = Trim(wsClan.Cells(ownClanRow, ""D"").value)
+                
+                If existingKingdomID = """" Then
+                    ' 设置自己的家族为noKingdom
+                    wsClan.Cells(ownClanRow, ""D"").value = ""noKingdom""
+                    Debug.Print ""行 "" & i & "": 没有找到有效主家，将家族(ID:"" & familyID & "") 设置为noKingdom""
+                End If
+            End If
+        End If
+        
+NextRow:
+    Next i
+    
+    ' 清理对象
+    Set clans = Nothing
+    Set clanNames = Nothing
+    Set clanIDs = Nothing
+    
+    MsgBox ""处理完成！请查看立即窗口中的调试信息。按Ctrl+G可打开立即窗口。""
+End Sub
+
+' 辅助函数：检查是否包含特殊关键词
+Function ContainsSpecialKeyword(clanName As String) As Boolean
+    Dim keywords As Variant
+    Dim i As Long
+    
+    keywords = Array(""屋"", ""众"", ""水军"")
+    
+    ContainsSpecialKeyword = False
+    
+    If clanName = """" Then Exit Function
+    
+    For i = 0 To UBound(keywords)
+        If InStr(1, clanName, keywords(i), vbTextCompare) > 0 Then
+            ContainsSpecialKeyword = True
+            Exit Function
+        End If
+    Next i
+End Function"
+,,,目前忍者、水军、商人，都把kingdom设置为了noKingdom,
+,1.6,文化和据点是绑定的，需要知道这个王国名下有哪些据点。,,
+,,,遍历Sheet名为Kingdom的第4列为空的，取第2列家族中文名，去BaseInfo表逐行检查，如果家族中文名和Base表第D列吻合，则提取第BO、BV、CC、CJ、CQ、CX、DE、DL作为角色相关据点集合，并且去查询Sheet名为CityTaikou第1列中查询集合中的据点，一旦找到相符合的据点，就取CityTaikou第3列作为文化，再去Sheet名为Culture第3列匹配，取Culture第1列作为文化id，填入Kingdom第4列。如果CityTaikou第1列找不到，还可以去CityTaikou第5列（别名）再找。如果还找不到，可以去Sheet名为Settlements第2列中查询集合中的据点，一旦找到相符合的据点，就取Settlements第4列作为文化Id填入Kingdom第4列。,"已完成。Sub FillKingdomCultureEnhanced()
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    '定义工作表变量
+    Dim wsKingdom As Worksheet, wsBaseInfo As Worksheet
+    Dim wsCityTaikou As Worksheet, wsCulture As Worksheet, wsSettlements As Worksheet
+    Dim dictCulture As Object  '用于存储文化名称和文化ID的对应关系
+    Dim dictSettlements As Object '用于存储据点和文化ID的对应关系
+    
+    '设置工作表
+    On Error Resume Next
+    Set wsKingdom = ThisWorkbook.Sheets(""Kingdom"")
+    Set wsBaseInfo = ThisWorkbook.Sheets(""BaseInfo"")
+    Set wsCityTaikou = ThisWorkbook.Sheets(""CityTaikou"")
+    Set wsCulture = ThisWorkbook.Sheets(""Culture"")
+    Set wsSettlements = ThisWorkbook.Sheets(""Settlements"")
+    On Error GoTo 0
+    
+    '检查必须的工作表是否存在
+    If wsKingdom Is Nothing Then
+        MsgBox ""未找到名为'Kingdom'的工作表！"", vbCritical
+        Exit Sub
+    End If
+    If wsBaseInfo Is Nothing Then
+        MsgBox ""未找到名为'BaseInfo'的工作表！"", vbCritical
+        Exit Sub
+    End If
+    If wsCityTaikou Is Nothing Then
+        MsgBox ""未找到名为'CityTaikou'的工作表！"", vbCritical
+        Exit Sub
+    End If
+    If wsCulture Is Nothing Then
+        MsgBox ""未找到名为'Culture'的工作表！"", vbCritical
+        Exit Sub
+    End If
+    
+    'Settlements表是可选的，但如果有会使用
+    Dim hasSettlementsSheet As Boolean
+    hasSettlementsSheet = Not (wsSettlements Is Nothing)
+    
+    '创建字典对象来存储文化名称和ID的映射
+    Set dictCulture = CreateObject(""Scripting.Dictionary"")
+    dictCulture.CompareMode = vbTextCompare
+    
+    '创建字典对象来存储据点和文化ID的映射（用于Settlements表）
+    Set dictSettlements = CreateObject(""Scripting.Dictionary"")
+    dictSettlements.CompareMode = vbTextCompare
+    
+    '预先加载Culture表的数据到字典（提高效率）
+    Dim lastRowCulture As Long
+    lastRowCulture = wsCulture.Cells(wsCulture.Rows.count, ""C"").End(xlUp).Row
+    
+    Dim i As Long
+    For i = 2 To lastRowCulture '假设第1行是标题行
+        Dim cultureName As String
+        Dim cultureID As Variant
+        
+        cultureName = Trim(wsCulture.Cells(i, 3).value)
+        cultureID = wsCulture.Cells(i, 1).value
+        
+        If cultureName <> """" And Not IsEmpty(cultureID) Then
+            If Not dictCulture.Exists(cultureName) Then
+                dictCulture.Add cultureName, cultureID
+            End If
+        End If
+    Next i
+    
+    '预先加载Settlements表的数据到字典（提高效率）
+    If hasSettlementsSheet Then
+        Dim lastRowSettlements As Long
+        lastRowSettlements = wsSettlements.Cells(wsSettlements.Rows.count, ""A"").End(xlUp).Row
+        
+        For i = 2 To lastRowSettlements '假设第1行是标题行
+            Dim settlementName As String
+            Dim settlementCultureID As Variant
+            
+            settlementName = Trim(wsSettlements.Cells(i, 2).value) '第2列是据点名
+            settlementCultureID = wsSettlements.Cells(i, 4).value '第4列是文化ID
+            
+            If settlementName <> """" And Not IsEmpty(settlementCultureID) Then
+                '可能有多个据点对应同一个名称，我们取第一个找到的
+                If Not dictSettlements.Exists(settlementName) Then
+                    dictSettlements.Add settlementName, settlementCultureID
+                End If
+            End If
+        Next i
+    End If
+    
+    '获取Kingdom表的数据范围
+    Dim lastRowKingdom As Long
+    lastRowKingdom = wsKingdom.Cells(wsKingdom.Rows.count, ""A"").End(xlUp).Row
+    
+    '统计处理的行数
+    Dim processedCount As Long
+    processedCount = 0
+    Dim notFoundCount As Long
+    notFoundCount = 0
+    Dim fromCityTaikouCount As Long
+    fromCityTaikouCount = 0
+    Dim fromSettlementsCount As Long
+    fromSettlementsCount = 0
+    
+    '遍历Kingdom表的每一行
+    Dim k As Long
+    For k = 45 To 46  '假设第1行是标题行
+        
+        '检查第4列是否为空
+        If IsEmpty(wsKingdom.Cells(k, 4).value) Or Trim(wsKingdom.Cells(k, 4).value) = """" Then
+            
+            '获取家族中文名
+            Dim familyName As String
+            familyName = Trim(wsKingdom.Cells(k, 2).value)
+            
+            If familyName = """" Then
+                GoTo ContinueLoop
+            End If
+            
+            '在BaseInfo表中查找匹配的家族
+            Dim lastRowBaseInfo As Long
+            lastRowBaseInfo = wsBaseInfo.Cells(wsBaseInfo.Rows.count, ""D"").End(xlUp).Row
+            
+            Dim foundInBaseInfo As Boolean
+            foundInBaseInfo = False
+            
+            Dim b As Long
+            For b = 2 To lastRowBaseInfo '假设第1行是标题行
+                
+                If Trim(wsBaseInfo.Cells(b, ""D"").value) = familyName Then
+                    foundInBaseInfo = True
+                    
+                    '提取据点集合的列
+                    Dim settlements As Collection
+                    Set settlements = New Collection
+                    
+                    '定义要提取的列（根据您的要求）
+                    Dim settlementColumns As Variant
+                    settlementColumns = Array(""BO"", ""BV"", ""CC"", ""CJ"", ""CQ"", ""CX"", ""DE"", ""DL"")
+                    
+                    '提取据点
+                    Dim col As Variant
+                    For Each col In settlementColumns
+                        Dim settlement As String
+                        settlement = Trim(wsBaseInfo.Cells(b, col).value)
+                        
+                        If settlement <> """" Then
+                            '添加到集合中（确保不重复）
+                            Dim alreadyExists As Boolean
+                            alreadyExists = False
+                            
+                            Dim s As Variant
+                            For Each s In settlements
+                                If s = settlement Then
+                                    alreadyExists = True
+                                    Exit For
+                                End If
+                            Next s
+                            
+                            If Not alreadyExists Then
+                                settlements.Add settlement
+                            End If
+                        End If
+                    Next col
+                    
+                    '如果找到了据点集合，开始查询流程
+                    If settlements.count > 0 Then
+                        
+                        '步骤1: 在CityTaikou表第1列查找
+                        Dim cultureFound As String
+                        cultureFound = FindCultureFromCityTaikou(settlements, wsCityTaikou, False)
+                        
+                        '步骤2: 如果在CityTaikou表第1列没找到，尝试在第5列（别名）查找
+                        If cultureFound = """" Then
+                            cultureFound = FindCultureFromCityTaikou(settlements, wsCityTaikou, True)
+                        End If
+                        
+                        '步骤3: 如果在CityTaikou表找到了文化名，查询Culture表获取文化ID
+                        If cultureFound <> """" Then
+                            '从字典中获取文化ID
+                            If dictCulture.Exists(cultureFound) Then
+                                Dim cultureIDResult As Variant
+                                cultureIDResult = dictCulture(cultureFound)
+                                
+                                '填入Kingdom表第4列
+                                wsKingdom.Cells(k, 4).value = cultureIDResult
+                                processedCount = processedCount + 1
+                                fromCityTaikouCount = fromCityTaikouCount + 1
+                                
+                                '可以添加格式标记（可选）
+                                wsKingdom.Cells(k, 4).Interior.Color = RGB(200, 255, 200) '浅绿色背景，来自CityTaikou
+                            Else
+                                '文化名在Culture表中未找到
+                                wsKingdom.Cells(k, 4).value = ""未找到文化ID""
+                                wsKingdom.Cells(k, 4).Interior.Color = RGB(255, 200, 200) '浅红色背景
+                                notFoundCount = notFoundCount + 1
+                            End If
+                        Else
+                            '步骤4: 如果在CityTaikou表中未找到，尝试在Settlements表中查找
+                            If hasSettlementsSheet Then
+                                Dim settlementCultureIDResult As Variant
+                                settlementCultureIDResult = FindCultureFromSettlements(settlements, dictSettlements)
+                                
+                                If Not IsEmpty(settlementCultureIDResult) Then
+                                    '在Settlements表中找到了文化ID
+                                    wsKingdom.Cells(k, 4).value = settlementCultureIDResult
+                                    processedCount = processedCount + 1
+                                    fromSettlementsCount = fromSettlementsCount + 1
+                                    
+                                    '可以添加格式标记（可选）
+                                    wsKingdom.Cells(k, 4).Interior.Color = RGB(200, 200, 255) '浅蓝色背景，来自Settlements
+                                Else
+                                    '在Settlements表中也未找到
+                                    wsKingdom.Cells(k, 4).value = ""未找到文化信息""
+                                    wsKingdom.Cells(k, 4).Interior.Color = RGB(255, 255, 200) '浅黄色背景
+                                    notFoundCount = notFoundCount + 1
+                                End If
+                            Else
+                                '没有Settlements表，直接标记未找到
+                                wsKingdom.Cells(k, 4).value = ""未找到文化信息""
+                                wsKingdom.Cells(k, 4).Interior.Color = RGB(255, 255, 200) '浅黄色背景
+                                notFoundCount = notFoundCount + 1
+                            End If
+                        End If
+                        
+                        Exit For '只处理第一个匹配的BaseInfo行
+                    Else
+                        '没有找到据点集合
+                        wsKingdom.Cells(k, 4).value = ""无据点信息""
+                        wsKingdom.Cells(k, 4).Interior.Color = RGB(220, 220, 220) '灰色背景
+                        notFoundCount = notFoundCount + 1
+                        Exit For
+                    End If
+                End If
+            Next b
+            
+            If Not foundInBaseInfo Then
+                '在BaseInfo表中未找到家族
+                wsKingdom.Cells(k, 4).value = ""未找到家族信息""
+                wsKingdom.Cells(k, 4).Interior.Color = RGB(200, 200, 200) '深灰色背景
+                notFoundCount = notFoundCount + 1
+            End If
+        End If
+        
+ContinueLoop:
+    Next k
+    
+    '清理和恢复设置
+    Set dictCulture = Nothing
+    Set dictSettlements = Nothing
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    
+    '显示处理结果
+    Dim resultMsg As String
+    resultMsg = ""处理完成！"" & vbCrLf & _
+                ""总处理行数: "" & (processedCount + notFoundCount) & vbCrLf & _
+                ""成功填充: "" & processedCount & vbCrLf & _
+                ""  - 来自CityTaikou表: "" & fromCityTaikouCount & vbCrLf
+                
+    If hasSettlementsSheet Then
+        resultMsg = resultMsg & ""  - 来自Settlements表: "" & fromSettlementsCount & vbCrLf
+    End If
+    
+    resultMsg = resultMsg & ""未找到: "" & notFoundCount & vbCrLf & _
+                ""请检查Kingdom表第4列的填充结果。""
+    
+    MsgBox resultMsg, vbInformation
+    
+End Sub
+
+'函数：在CityTaikou表中查找据点并返回文化名
+Function FindCultureFromCityTaikou(settlements As Collection, wsCityTaikou As Worksheet, ByVal useAliasColumn As Boolean) As String
+    Dim lastRowCityTaikou As Long
+    lastRowCityTaikou = wsCityTaikou.Cells(wsCityTaikou.Rows.count, ""A"").End(xlUp).Row
+    
+    Dim c As Long
+    For c = 2 To lastRowCityTaikou '假设第1行是标题行
+        
+        Dim searchColumn As Long
+        If useAliasColumn Then
+            searchColumn = 5 '第5列是别名
+        Else
+            searchColumn = 1 '第1列是据点名
+        End If
+        
+        Dim cityName As String
+        cityName = Trim(wsCityTaikou.Cells(c, searchColumn).value)
+        
+        '如果使用别名列，可能有多个别名用逗号分隔
+        If useAliasColumn And cityName <> """" Then
+            '分割别名
+            Dim aliases() As String
+            aliases = Split(cityName, "","")
+            
+            Dim aliasItem As Variant
+            For Each aliasItem In aliases
+                Dim trimmedAlias As String
+                trimmedAlias = Trim(aliasItem)
+                
+                '检查据点是否在集合中
+                Dim settlementItem As Variant
+                For Each settlementItem In settlements
+                    If trimmedAlias = settlementItem Then
+                        '找到匹配的据点，获取文化名（第3列）
+                        FindCultureFromCityTaikou = Trim(wsCityTaikou.Cells(c, 3).value)
+                        Exit Function
+                    End If
+                Next settlementItem
+            Next aliasItem
+        Else
+            '检查据点是否在集合中
+            Dim settlementItem2 As Variant
+            For Each settlementItem2 In settlements
+                If cityName = settlementItem2 Then
+                    '找到匹配的据点，获取文化名（第3列）
+                    FindCultureFromCityTaikou = Trim(wsCityTaikou.Cells(c, 3).value)
+                    Exit Function
+                End If
+            Next settlementItem2
+        End If
+    Next c
+    
+    '没有找到
+    FindCultureFromCityTaikou = """"
+End Function
+
+'函数：在Settlements字典中查找据点并返回文化ID
+Function FindCultureFromSettlements(settlements As Collection, dictSettlements As Object) As Variant
+    Dim settlementItem As Variant
+    For Each settlementItem In settlements
+        If dictSettlements.Exists(settlementItem) Then
+            FindCultureFromSettlements = dictSettlements(settlementItem)
+            Exit Function
+        End If
+    Next settlementItem
+    
+    '没有找到
+    FindCultureFromSettlements = Empty
+End Function
+
+'辅助函数：将列字母转换为列号
+Function ColumnLetterToNumber(ByVal colLetter As String) As Integer
+    Dim colNum As Integer
+    colNum = 0
+    
+    Dim i As Integer
+    For i = 1 To Len(colLetter)
+        colNum = colNum * 26 + (Asc(UCase(Mid(colLetter, i, 1))) - Asc(""A"") + 1)
+    Next i
+    
+    ColumnLetterToNumber = colNum
+End Function
+
+'快速执行宏的按钮
+Sub RunFillKingdomCultureEnhanced()
+    FillKingdomCultureEnhanced
+End Sub"
+,,,Sheet名为Clan表基于第4列查询Sheet名为Kingdom的第1列，匹配的话，取Kingdom的第4列填入Clan的第G列。只有Clan第G列为空的时候需要填。,"已完成。Sub MatchAndFillData_IfEmpty()
+    Dim wsClan As Worksheet
+    Dim wsKingdom As Worksheet
+    Dim lastRowClan As Long
+    Dim lastRowKingdom As Long
+    Dim i As Long, j As Long
+    Dim clanValue As String
+    Dim dict As Object
+    
+    ' 设置工作表
+    Set wsClan = ThisWorkbook.Sheets(""Clan"")
+    Set wsKingdom = ThisWorkbook.Sheets(""Kingdom"")
+    
+    ' 获取最后一行
+    lastRowClan = wsClan.Cells(wsClan.Rows.count, ""D"").End(xlUp).Row
+    lastRowKingdom = wsKingdom.Cells(wsKingdom.Rows.count, ""A"").End(xlUp).Row
+    
+    ' 创建字典存储Kingdom表的数据
+    Set dict = CreateObject(""Scripting.Dictionary"")
+    
+    ' 将Kingdom表的数据存入字典（A列为键，D列为值）
+    For i = 2 To lastRowKingdom ' 假设第1行是标题行
+        If Not dict.Exists(wsKingdom.Cells(i, 1).value) Then
+            dict.Add wsKingdom.Cells(i, 1).value, wsKingdom.Cells(i, 4).value
+        End If
+    Next i
+    
+    ' 在Clan表中查找并填充（仅当G列为空时）
+    For i = 2 To lastRowClan ' 假设第1行是标题行
+        ' 检查G列是否为空
+        If Trim(wsClan.Cells(i, 7).value) = """" Or IsEmpty(wsClan.Cells(i, 7)) Then
+            clanValue = wsClan.Cells(i, 4).value
+            If dict.Exists(clanValue) Then
+                wsClan.Cells(i, 7).value = dict(clanValue)
+            End If
+        End If
+    Next i
+    
+    ' 清理对象
+    Set dict = Nothing
+    Set wsClan = Nothing
+    Set wsKingdom = Nothing
+    
+    MsgBox ""数据匹配完成！（仅填充G列为空的行）""
+End Sub
+
+' 优化版本：增加更多检查和灵活性
+Sub MatchAndFillData_Enhanced()
+    Dim wsClan As Worksheet
+    Dim wsKingdom As Worksheet
+    Dim lastRowClan As Long
+    Dim lastRowKingdom As Long
+    Dim i As Long, j As Long
+    Dim clanValue As Variant
+    Dim dict As Object
+    
+    ' 错误处理
+    On Error GoTo ErrorHandler
+    
+    ' 检查工作表是否存在
+    If Not SheetExists(""Clan"") Then
+        MsgBox ""找不到名为'Clan'的工作表！"", vbExclamation
+        Exit Sub
+    End If
+    
+    If Not SheetExists(""Kingdom"") Then
+        MsgBox ""找不到名为'Kingdom'的工作表！"", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 设置工作表
+    Set wsClan = ThisWorkbook.Sheets(""Clan"")
+    Set wsKingdom = ThisWorkbook.Sheets(""Kingdom"")
+    
+    ' 获取最后一行
+    lastRowClan = wsClan.Cells(wsClan.Rows.count, ""D"").End(xlUp).Row
+    lastRowKingdom = wsKingdom.Cells(wsKingdom.Rows.count, ""A"").End(xlUp).Row
+    
+    ' 如果没有数据，退出
+    If lastRowClan < 2 Then
+        MsgBox ""Clan表没有数据（从第2行开始）！"", vbExclamation
+        Exit Sub
+    End If
+    
+    If lastRowKingdom < 2 Then
+        MsgBox ""Kingdom表没有数据（从第2行开始）！"", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 创建字典存储Kingdom表的数据
+    Set dict = CreateObject(""Scripting.Dictionary"")
+    
+    ' 将Kingdom表的数据存入字典
+    For i = 2 To lastRowKingdom
+        If Not IsEmpty(wsKingdom.Cells(i, 1)) Then
+            clanValue = Trim(CStr(wsKingdom.Cells(i, 1).value))
+            If clanValue <> """" And Not dict.Exists(clanValue) Then
+                dict.Add clanValue, wsKingdom.Cells(i, 4).value
+            End If
+        End If
+    Next i
+    
+    ' 计数器
+    Dim filledCount As Long
+    filledCount = 0
+    
+    ' 在Clan表中查找并填充
+    For i = 2 To lastRowClan
+        ' 检查G列是否为空（包括空字符串、空白字符）
+        If IsEmpty(wsClan.Cells(i, 7)) Or Trim(wsClan.Cells(i, 7).value) = """" Then
+            If Not IsEmpty(wsClan.Cells(i, 4)) Then
+                clanValue = Trim(CStr(wsClan.Cells(i, 4).value))
+                If clanValue <> """" And dict.Exists(clanValue) Then
+                    wsClan.Cells(i, 7).value = dict(clanValue)
+                    filledCount = filledCount + 1
+                End If
+            End If
+        End If
+    Next i
+    
+    ' 清理对象
+    Set dict = Nothing
+    Set wsClan = Nothing
+    Set wsKingdom = Nothing
+    
+    MsgBox ""数据匹配完成！"" & vbCrLf & _
+           ""已填充 "" & filledCount & "" 个空单元格。"", vbInformation
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox ""发生错误："" & vbCrLf & _
+           ""错误号: "" & Err.Number & vbCrLf & _
+           ""错误描述: "" & Err.Description, vbCritical
+    Set dict = Nothing
+    Set wsClan = Nothing
+    Set wsKingdom = Nothing
+End Sub
+
+' 辅助函数：检查工作表是否存在
+Function SheetExists(sheetName As String) As Boolean
+    On Error Resume Next
+    SheetExists = Not ThisWorkbook.Sheets(sheetName) Is Nothing
+    On Error GoTo 0
+End Function
+
+' 选择性填充：仅填充选中的区域中G列为空的部分
+Sub FillSelectedRangeIfEmpty()
+    Dim wsClan As Worksheet
+    Dim wsKingdom As Worksheet
+    Dim rng As Range
+    Dim cell As Range
+    Dim dict As Object
+    Dim lastRowKingdom As Long
+    Dim i As Long
+    Dim clanValue As String
+    
+    ' 设置工作表
+    Set wsClan = ThisWorkbook.Sheets(""Clan"")
+    Set wsKingdom = ThisWorkbook.Sheets(""Kingdom"")
+    
+    ' 检查是否有选中的单元格
+    If TypeName(Selection) <> ""Range"" Then
+        MsgBox ""请选择需要填充的区域！"", vbExclamation
+        Exit Sub
+    End If
+    
+    Set rng = Selection
+    
+    ' 只处理Clan表中的选中区域
+    If rng.Parent.name <> wsClan.name Then
+        MsgBox ""请在Clan表中选择要填充的区域！"", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 获取Kingdom表数据
+    lastRowKingdom = wsKingdom.Cells(wsKingdom.Rows.count, ""A"").End(xlUp).Row
+    Set dict = CreateObject(""Scripting.Dictionary"")
+    
+    For i = 2 To lastRowKingdom
+        If Not dict.Exists(wsKingdom.Cells(i, 1).value) Then
+            dict.Add wsKingdom.Cells(i, 1).value, wsKingdom.Cells(i, 4).value
+        End If
+    Next i
+    
+    ' 填充选中区域中G列为空的单元格
+    Dim filledCount As Long
+    filledCount = 0
+    
+    For Each cell In rng.Columns(7).Cells ' 只处理G列
+        If Trim(cell.value) = """" Or IsEmpty(cell) Then
+            clanValue = wsClan.Cells(cell.Row, 4).value
+            If dict.Exists(clanValue) Then
+                cell.value = dict(clanValue)
+                filledCount = filledCount + 1
+            End If
+        End If
+    Next cell
+    
+    Set dict = Nothing
+    MsgBox ""已填充 "" & filledCount & "" 个空单元格。""
+End Sub"
+,,,Sheet名为BaseInfo表基于第H列查询Sheet名为Clan的第1列，匹配的话，取Clan的第G列填入BaseInfo的第I列。只有BaseInfo的第I列为空的时候需要填。,"已完成。Sub FillBaseInfoFromClan()
+    Dim wsBase As Worksheet, wsClan As Worksheet
+    Dim lastRowBase As Long, lastRowClan As Long
+    Dim baseData As Variant, clanData As Variant
+    Dim i As Long, j As Long
+    Dim dict As Object
+    Dim updateCount As Long
+    
+    ' 设置工作表对象
+    Set wsBase = ThisWorkbook.Worksheets(""BaseInfo"")
+    Set wsClan = ThisWorkbook.Worksheets(""Clan"")
+    
+    ' 获取最后一行
+    lastRowBase = wsBase.Cells(wsBase.Rows.count, ""H"").End(xlUp).Row
+    lastRowClan = wsClan.Cells(wsClan.Rows.count, ""A"").End(xlUp).Row
+    
+    ' 读取数据到数组（提高处理速度）
+    baseData = wsBase.Range(""H1:I"" & lastRowBase).value
+    clanData = wsClan.Range(""A1:G"" & lastRowClan).value
+    
+    ' 创建字典用于快速查找
+    Set dict = CreateObject(""Scripting.Dictionary"")
+    
+    ' 将Clan表A列值作为键，G列值作为值存入字典
+    For i = 2 To lastRowClan  ' 从第2行开始，跳过标题行
+        If Not IsEmpty(clanData(i, 1)) Then
+            dict(Trim(CStr(clanData(i, 1)))) = clanData(i, 7)  ' A列是第1列，G列是第7列
+        End If
+    Next i
+    
+    ' 更新BaseInfo表
+    updateCount = 0
+    For i = 2 To lastRowBase  ' 从第2行开始，跳过标题行
+        ' 检查BaseInfo的I列是否为空
+        If IsEmpty(baseData(i, 2)) Then  ' baseData中H列是第1列，I列是第2列
+            Dim key As String
+            key = Trim(CStr(baseData(i, 1)))  ' H列值
+            
+            ' 检查字典中是否存在匹配项
+            If dict.Exists(key) Then
+                ' 更新BaseInfo的I列
+                wsBase.Cells(i, ""I"").value = dict(key)
+                updateCount = updateCount + 1
+            End If
+        End If
+    Next i
+    
+    ' 清理和提示
+    Set dict = Nothing
+    
+    MsgBox ""完成！共更新了 "" & updateCount & "" 条记录。"", vbInformation
+End Sub"
+,1.7,生成唯一ID,,
+,,,遍历Sheet名为BaseInfo表，第E列不为“精确匹配”的，取第G列的罗马音姓名，例如Asakura Kageakira，填充第F列的ID。ID的格式是lord_1_罗马音的姓_罗马音的名。罗马音姓名中间有空格分隔，有些人罗马音只有名没有姓，就处理成lord_1_罗马音的名。都生成完后，检查第F列是否有重复值，有的话就在后面加_1，如果已经有_1就改成_2以此类推。,
+,1.8,替换罗马音,,
+,,"写vba：遍历Sheet名为BaseHero第E列不为“精确匹配”的行、以及Culture第F列不为1的行，以及Kingdom第E列不为1的行，以及Clan第E列不为1的行，进行罗马特殊字符替换成英文字符。ā / Ā / â / Â / á / Á / ã / Ã替换成aa,ē / Ē / ê / Ê / é / É替换成ee，ī / Ī / î / Î / í / Í替换成ii，ō / Ō / ô / Ô / ó / Ó / õ / Õ替换成oo，ū / Ū / û / Û / ú / Ú替换成uu,Ñ / Ñ替换成n，Ç / Ç 替换成c。一次性输出可运行的vba，代码尽量简洁，不要废话和方法比选。",,
