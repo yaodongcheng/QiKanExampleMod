@@ -1,0 +1,1960 @@
+﻿StringId,NameRaw,ChineseName,Culture,Faction
+lord_1_asakura,Asakura Yoshikage,朝仓 义景,Culture.hokuriku,Faction.clan_asakura_1
+lord_1_asakura_1,Asakura Shoko,昭子,Culture.hokuriku,Faction.clan_asakura_1
+lord_1_asakura_2,Asakura Kageakira,朝仓 景镜,Culture.hokuriku,Faction.clan_asakura_1
+lord_1_asakura_3,Asakura Fusako,房子,Culture.hokuriku,Faction.clan_asakura_1
+lord_1_yamazaki,Yamazaki Yoshiie,山崎 吉家,Culture.hokuriku,Faction.clan_yamazaki_1
+lord_1_yamazaki_1,Yamazaki Icho,一尾,Culture.hokuriku,Faction.clan_yamazaki_1
+dead_lord_1_yamazaki_2,Yamazaki Nagayoshi,山崎 长吉,Culture.hokuriku,Faction.clan_yamazaki_1
+dead_lord_1_yamazaki_3,Yamazaki Shomyo-in,昭明院,Culture.hokuriku,Faction.clan_yamazaki_1
+lord_1_yamazaki_4,Yamazaki Yoshitake,山崎 吉武,Culture.hokuriku,Faction.clan_yamazaki_1
+lord_1_yamazaki_5,Yamazaki Yoshinobu,山崎 吉延,Culture.hokuriku,Faction.clan_yamazaki_1
+lord_1_yamazaki_6,Yamazaki Kogiku,小菊,Culture.hokuriku,Faction.clan_yamazaki_1
+lord_1_yamazaki_7,Yamazaki Naganori,山崎 长德,Culture.hokuriku,Faction.clan_yamazaki_1
+lord_1_mizoe,Mizoe Kageyasu,沟江 景逸,Culture.hokuriku,Faction.clan_mizoe_1
+lord_1_mizoe_1,Mizoe Tome,阿留,Culture.hokuriku,Faction.clan_mizoe_1
+lord_1_mizoe_2,Mizoe Nagayasu,沟江 长逸,Culture.hokuriku,Faction.clan_mizoe_1
+lord_1_mizoe_3,Mizoe Oku,阿奥,Culture.hokuriku,Faction.clan_mizoe_1
+lord_1_mizoe_4,Mizoe Nagauji,沟江 长氏,Culture.hokuriku,Faction.clan_mizoe_1
+lord_1_mizoe_5,Mizoe Ben-ei,辨荣,Culture.hokuriku,Faction.clan_mizoe_1
+lord_1_maeba,Maeba Kagemasa,前波 景当,Culture.hokuriku,Faction.clan_maeba_1
+lord_1_maeba_1,Maeba Sei,阿世,Culture.hokuriku,Faction.clan_maeba_1
+dead_lord_1_maeba_2,Maeba Kagesada,前波 景定,Culture.hokuriku,Faction.clan_maeba_1
+dead_lord_1_maeba_3,Maebe Keiko-in,华光院,Culture.hokuriku,Faction.clan_maeba_1
+lord_1_maeba_4,Maeba Katsuhide,前波 胜秀,Culture.hokuriku,Faction.clan_maeba_1
+lord_1_maeba_5,Maeba Yoshitsugu,前波 吉继,Culture.hokuriku,Faction.clan_maeba_1
+lord_1_maeba_6,Maeba Kyo,阿京,Culture.hokuriku,Faction.clan_maeba_1
+lord_1_anekouji,Anekouji Yoshiyori,姊小路 良赖,Culture.tosan,Faction.clan_anekouji_1
+lord_1_anekouji_1,Anekouji Hagi,阿萩,Culture.tosan,Faction.clan_anekouji_1
+lord_1_anekouji_2,Anekouji Yoritsuna,姊小路 赖纲,Culture.tosan,Faction.clan_anekouji_1
+lord_1_anekouji_3,Anekouji Mei,阿明,Culture.tosan,Faction.clan_anekouji_1
+lord_1_anekouji_4,Anekouji Nobutsuna,姊小路 信纲,Culture.tosan,Faction.clan_anekouji_1
+lord_1_anekouji_5,Anekouji Hidetsuna,姊小路 秀纲,Culture.tosan,Faction.clan_anekouji_1
+lord_1_anekouji_6,Anekouji Suetsuna,姊小路 季纲,Culture.tosan,Faction.clan_anekouji_1
+lord_1_anekouji_7,Anekouji Hisa,阿久,Culture.tosan,Faction.clan_anekouji_1
+lord_1_anekouji_8,Anekouji Tei,小丁,Culture.tosan,Faction.clan_anekouji_1
+lord_1_miki,Miki Kunitsuna,三木 国纲,Culture.tosan,Faction.clan_miki_1
+lord_1_miki_1,Miki Kise,喜势,Culture.tosan,Faction.clan_miki_1
+lord_1_miki_2,Miki Akitsuna,三木 显纲,Culture.tosan,Faction.clan_miki_1
+lord_1_miki_3,Miki Yuki,阿幸,Culture.tosan,Faction.clan_miki_1
+lord_1_uchigashima,Uchigashima Ujimasa,内岛 氏理,Culture.tosan,Faction.clan_uchigashima_1
+lord_1_uchigashima_1,Uchigashima Tsune,阿常,Culture.tosan,Faction.clan_uchigashima_1
+dead_lord_1_uchigashima_2,Uchigashima Ujitoshi,内岛 氏利,Culture.tosan,Faction.clan_uchigashima_1
+dead_lord_1_uchigashima_3,Uchigashima Shinko-in,心光院,Culture.tosan,Faction.clan_uchigashima_1
+lord_1_uchigashima_4,Uchigashima Ujiyuki,内岛 氏行,Culture.tosan,Faction.clan_uchigashima_1
+lord_1_uchigashima_5,Uchigashima Chise,千世,Culture.tosan,Faction.clan_uchigashima_1
+lord_1_uchigashima_6,Uchigashima Ujinori,内岛 氏规,Culture.tosan,Faction.clan_uchigashima_1
+lord_1_uchigashima_7,Uchigashima Ujifusa,内岛 氏房,Culture.tosan,Faction.clan_uchigashima_1
+lord_1_uchigashima_8,Uchigashima Ujichika,内岛 氏亲,Culture.tosan,Faction.clan_uchigashima_1
+lord_1_uchigashima_9,Uchigashima Sue,阿末,Culture.tosan,Faction.clan_uchigashima_1
+lord_1_shimotsuma,Shimotsuma Rairen,下间 赖廉,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_1,Shimotsuma Tensho-in,天璋院,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_2,Shimotsuma Rairyo,下间 赖亮,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_3,Shimotsuma  Munekiyo,下间 宗清,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_4,Shimotsuma Rengoyoku-ni,莲护尼,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_5,Shimotsuma Saiko-ni,西光尼,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_6,Shimotsuma Raisho,下间 赖照,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_7,Shimotsuma Keian-in,庆安院,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_8,Shimotsuma Nakataka,下间 仲孝,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_9,Shimotsuma Raitan,下间 赖旦,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_10,Shimotsuma Koutoku-in,高德院,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shimotsuma_11,Shimotsuma Rairyu,下间 赖龙,Culture.hokuriku,Faction.clan_shimotsuma_1
+lord_1_shichiri,Shichiri Yorichika,七里 赖周,Culture.hokuriku,Faction.clan_shichiri_1
+lord_1_shichiri_1,Shichiri Renmyo-in,莲妙院,Culture.hokuriku,Faction.clan_shichiri_1
+lord_1_shichiri_2,Shichiri Shoko-ni,诸光尼,Culture.hokuriku,Faction.clan_shichiri_1
+lord_1_shichiri_3,Shichiri Tenshin-ni,天心尼,Culture.hokuriku,Faction.clan_shichiri_1
+lord_1_notohatakeyama,Noto-Hatakeyama Yoshinori,畠山 义则,Culture.hokuriku,Faction.clan_notohatakeyama_1
+lord_1_notohatakeyama_1,Noto-Hatakeyama Keiko,惠子,Culture.hokuriku,Faction.clan_notohatakeyama_1
+dead_lord_1_notohatakeyama_2,Noto-Hatakeyama Yoshitsuna,畠山 义纲,Culture.hokuriku,Faction.clan_notohatakeyama_1
+dead_lord_1_notohatakeyama_3,Noto-Hatakeyama Keisei-in,惠圣院,Culture.hokuriku,Faction.clan_notohatakeyama_1
+lord_1_notohatakeyama_4,Noto-Hatakeyama Yoshitaka,畠山 义隆,Culture.hokuriku,Faction.clan_notohatakeyama_1
+lord_1_cho,Cho Tsugutsura,长 续连,Culture.hokuriku,Faction.clan_cho_1
+lord_1_cho_1,Cho Kine,阿甲,Culture.hokuriku,Faction.clan_cho_1
+lord_1_cho_2,Cho Tsunatsura,长 纲连,Culture.hokuriku,Faction.clan_cho_1
+lord_1_cho_3,Cho Chiho,千本,Culture.hokuriku,Faction.clan_cho_1
+lord_1_cho_4,Cho Turatatsu,长 连龙,Culture.hokuriku,Faction.clan_cho_1
+lord_1_yusa,Yusa Tsugumitsu,游佐 续光,Culture.hokuriku,Faction.clan_yusa_1
+lord_1_yusa_1,Yusa Sue,阿末,Culture.hokuriku,Faction.clan_yusa_1
+lord_1_yusa_2,Yusa Morimitsu,游佐 盛光,Culture.hokuriku,Faction.clan_yusa_1
+lord_1_nukui,Nukui Kagetaka,温井 景隆,Culture.hokuriku,Faction.clan_nukui_1
+lord_1_nukui_1,Nukui Kane,阿金,Culture.hokuriku,Faction.clan_nukui_1
+dead_lord_1_nukui_2,Nukui Tsugumune,温井 续宗,Culture.hokuriku,Faction.clan_nukui_1
+dead_lord_1_nukui_3,Nukui En,阿圆,Culture.hokuriku,Faction.clan_nukui_1
+lord_1_nukui_4,Nukui Nagamori,温井 长盛,Culture.hokuriku,Faction.clan_nukui_1
+lord_1_nukui_5,Nukui Mitsu,阿光,Culture.hokuriku,Faction.clan_nukui_1
+lord_1_maeda,Maeda Toshiie,前田 利家,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_1,Maeda Matsu,阿松,Culture.tosan,Faction.clan_maeda_1
+dead_lord_1_maeda_2,Maeda Toshiharu,前田 利春,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_3,Maeda Chorei-in,长龄院,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_4,Maeda Toshinaga,前田 利长,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_5,Maeda Kou,阿江,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_6,Maeda Shizu,阿静,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_7,Maeda Toshihisa,前田 利久,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_8,Maeda Tomi,阿富,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_9,Maeda Toshimasu,前田 利益,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_10,Maeda Yasukatsu,前田 安胜,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_11,Maeda Aki,阿秋,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_12,Maeda Toshiyoshi,前田 利好,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_13,Maeda Hidetsugu,前田 秀继,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_14,Maeda Kai,甲斐,Culture.tosan,Faction.clan_maeda_1
+lord_1_maeda_15,Maeda Toshihide,前田 利秀,Culture.tosan,Faction.clan_maeda_1
+lord_1_akechi,Akechi Mitsuhide,明智 光秀,Culture.tosan,Faction.clan_akechi_1
+lord_1_akechi_1,Akechi Hiroko,弘子,Culture.tosan,Faction.clan_akechi_1
+lord_1_akechi_2,Akechi Mitsuyoshi,明智 光庆,Culture.tosan,Faction.clan_akechi_1
+lord_1_akechi_3,Akechi Ei,阿英,Culture.tosan,Faction.clan_akechi_1
+lord_1_akechi_4,Akechi Mitsutada,明智 光忠,Culture.tosan,Faction.clan_akechi_1
+lord_1_akechi_5,Akechi Toku,阿德,Culture.tosan,Faction.clan_akechi_1
+lord_1_akechi_6,Akechi Hidemitsu,明智 秀满,Culture.tosan,Faction.clan_akechi_1
+lord_1_akechi_7,Akechi Tama,明智 玉,Culture.tosan,Faction.clan_akechi_1
+lord_1_niwa,Niwa Nagahide,丹羽 长秀,Culture.tosan,Faction.clan_niwa_1
+lord_1_niwa_1,Niwa Fuse,阿伏,Culture.tosan,Faction.clan_niwa_1
+lord_1_niwa_2,Niwa Masa,真砂,Culture.tosan,Faction.clan_niwa_1
+lord_1_niwa_3,Niwa Take,阿竹,Culture.tosan,Faction.clan_niwa_1
+lord_1_ikeda,Ikeda Tsuneoki,池田 恒兴,Culture.tosan,Faction.clan_ikeda_1
+lord_1_ikeda_1,Ikeda Zen'o-in,善应院,Culture.tosan,Faction.clan_ikeda_1
+dead_lord_1_ikeda_2,Ikeda Tsunetoshi,池田 恒利,Culture.tosan,Faction.clan_ikeda_1
+lord_1_ikeda_3,Ikeda Youtoku-in,养德院,Culture.tosan,Faction.clan_ikeda_1
+lord_1_ikeda_4,Ikeda Motosuke,池田 元助,Culture.tosan,Faction.clan_ikeda_1
+lord_1_ikeda_5,Ikeda Terumasa,池田 辉政,Culture.tosan,Faction.clan_ikeda_1
+lord_1_ikeda_6,Ikeda Sen,千,Culture.tosan,Faction.clan_ikeda_1
+lord_1_tokugawa,Tokugawa Ieyasu,德川 家康,Culture.tokai,Faction.clan_tokugawa_1
+lord_1_tokugawa_1,Tokugawa Tsukiyama,筑山殿,Culture.tokai,Faction.clan_tokugawa_1
+lord_1_tokugawa_2,Tokugawa Nobuyasu,德川 信康,Culture.tokai,Faction.clan_tokugawa_1
+lord_1_tokugawa_3,Tokugawa Kame,龟姬,Culture.tokai,Faction.clan_tokugawa_1
+lord_1_tokugawa_4,Tokugawa Toku,督姬,Culture.tokai,Faction.clan_tokugawa_1
+lord_1_honda,Honda Tadakatsu,本多 忠胜,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_1,Honda Hisa,阿久,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_2,Honda Shigetsugu,本多 重次,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_3,Honda Sane,阿实,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_4,Honda Toshimasa,本多 俊正,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_5,Honda Chie,千枝,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_6,Honda Masanobu,本多 正信,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_7,Honda Shii,阿椎,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_8,Honda Masazumi,本多 正纯,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_9,Honda Masashige,本多 正重,Culture.tokai,Faction.clan_honda_1
+lord_1_honda_10,Honda Tsune,阿常,Culture.tokai,Faction.clan_honda_1
+lord_1_sakakibara,Sakakibara Yasumasa,榊原 康政,Culture.tokai,Faction.clan_sakakibara_1
+dead_lord_1_sakakibara_1,Sakakibara Nagamasa,榊原 长政,Culture.tokai,Faction.clan_sakakibara_1
+dead_lord_1_sakakibara_2,Sakakibara Yuzu,柚子,Culture.tokai,Faction.clan_sakakibara_1
+lord_1_sakakibara_3,Sakakibara Kiyomasa,榊原 清政,Culture.tokai,Faction.clan_sakakibara_1
+lord_1_sakai,Sakai Tadatsugu,酒井 忠次,Culture.tokai,Faction.clan_sakai_1
+lord_1_sakai_1,Sakai Usui,碓井姫,Culture.tokai,Faction.clan_sakai_1
+lord_1_sakai_2,Sakai Ietsugu,酒井 家次,Culture.tokai,Faction.clan_sakai_1
+lord_1_sakai_3,Sakai Fuu,阿枫,Culture.tokai,Faction.clan_sakai_1
+lord_1_ii,Ii Naotora,井伊 直虎,Culture.tokai,Faction.clan_ii_1
+dead_lord_1_ii_1,Ii Naochika,井伊 直亲,Culture.tokai,Faction.clan_ii_1
+lord_1_ii_2,Ii Hiyo,日余,Culture.tokai,Faction.clan_ii_1
+lord_1_ii_3,Ii Naomasa,井伊 直政,Culture.tokai,Faction.clan_ii_1
+lord_1_ii_4,Ii Takase,高濑姬,Culture.tokai,Faction.clan_ii_1
+lord_1_okubo,Okubo Tadakazu,大久保 忠员,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_1,Okubo Kaede,阿枫,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_2,Okubo Tadayo,大久保 忠世,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_3,Okubo Koto,阿琴,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_4,Okubo Tadachika,大久保 忠邻,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_5,Okubo Tadanari,大久保 忠成,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_6,Okubo Tadasuke,大久保 忠佐,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_7,Okubo Amane,阿周,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_8,Okubo Tadatame,大久保 忠为,Culture.tokai,Faction.clan_okubo_1
+lord_1_okubo_9,Okubo Tadataka,大久保 忠教,Culture.tokai,Faction.clan_okubo_1
+lord_1_hattori,Hattori Masanari,服部 正成,Culture.tokai,Faction.clan_hattori_1
+lord_1_hattori_1,Hattori Naga,阿永,Culture.tokai,Faction.clan_hattori_1
+dead_lord_1_hattori_2,Hattori Yasunaga,服部 保长,Culture.tokai,Faction.clan_hattori_1
+dead_lord_1_hattori_3,Hattori Kiku,阿菊,Culture.tokai,Faction.clan_hattori_1
+lord_1_hattori_4,Hattori Masanari,服部 正成,Culture.tokai,Faction.clan_hattori_1
+dead_lord_1_hattori_5,Hattori Yasutoshi,服部 保俊,Culture.tokai,Faction.clan_hattori_1
+lord_1_hattori_6,Hattori Tsuru,阿鹤,Culture.tokai,Faction.clan_hattori_1
+lord_1_hattori_7,Hattori Yasuhide,服部 保英,Culture.tokai,Faction.clan_hattori_1
+lord_1_hattori_8,Hattori Yasumasa,服部 保正,Culture.tokai,Faction.clan_hattori_1
+lord_1_hattori_9,Hattori Haru,阿春,Culture.tokai,Faction.clan_hattori_1
+lord_1_hattori_10,Hattori Yasunari,服部 康成,Culture.tokai,Faction.clan_hattori_1
+lord_1_uesugi,Uesugi Kenshin,上杉 谦信,Culture.hokuriku,Faction.clan_uesugi_1
+dead_lord_1_uesugi_1,Uesugi Tamekage,长尾 为景,Culture.hokuriku,Faction.clan_uesugi_1
+lord_1_uesugi_2,Uesugi Seigan-in,青岩院,Culture.hokuriku,Faction.clan_uesugi_1
+lord_1_uesugi_3,Uesugi Aya,绫御前,Culture.hokuriku,Faction.clan_uesugi_1
+dead_lord_1_uesugi_4,Uesugi Masakage,长尾 政景,Culture.hokuriku,Faction.clan_uesugi_1
+lord_1_uesugi_5,Uesugi Kagekatsu,上杉 景胜,Culture.hokuriku,Faction.clan_uesugi_1
+lord_1_uesugi_6,Uesugi Madoka,阿圆,Culture.hokuriku,Faction.clan_uesugi_1
+lord_1_irobe,Irobe Katsunaga,色部 胜长,Culture.hokuriku,Faction.clan_irobe_1
+lord_1_irobe_1,Irobe Azuki,小豆,Culture.hokuriku,Faction.clan_irobe_1
+lord_1_irobe_2,Irobe Akinaga,色部 显长,Culture.hokuriku,Faction.clan_irobe_1
+lord_1_irobe_3,Irobe Nagazane,色部 长实,Culture.hokuriku,Faction.clan_irobe_1
+lord_1_kakizaki,Kakizaki Kageie,柿崎 景家,Culture.hokuriku,Faction.clan_kakizaki_1
+lord_1_kakizaki_1,Kakizaki Kiku,安房,Culture.hokuriku,Faction.clan_kakizaki_1
+lord_1_kakizaki_2,Kakizaki Haruie,柿崎 晴家,Culture.hokuriku,Faction.clan_kakizaki_1
+lord_1_kakizaki_3,Kakizaki Matsu,小舞,Culture.hokuriku,Faction.clan_kakizaki_1
+lord_1_naoe,Naoe Kagetsuna,直江 景纲,Culture.hokuriku,Faction.clan_naoe_1
+lord_1_naoe_1,Naoe Ran,阿兰,Culture.hokuriku,Faction.clan_naoe_1
+lord_1_naoe_2,Naoe Sen,阿千,Culture.hokuriku,Faction.clan_naoe_1
+lord_2_shibata,Shibata Nagaatsu,新发田 长敦,Culture.hokuriku,Faction.clan_shibata_2
+lord_2_shibata_1,Shibata Saki,阿咲,Culture.hokuriku,Faction.clan_shibata_2
+dead_lord_2_shibata_2,Shibata Tsunasada,新发田 纲贞,Culture.hokuriku,Faction.clan_shibata_2
+dead_lord_2_shibata_3,Shibata Tensho-in,天璋院,Culture.hokuriku,Faction.clan_shibata_2
+lord_2_shibata_4,Shibata Shigeie,新发田 重家,Culture.hokuriku,Faction.clan_shibata_2
+lord_2_shibata_5,Shibata Kotake,小竹,Culture.hokuriku,Faction.clan_shibata_2
+lord_1_jinbo,Jinbo Nagamoto,神保 长职,Culture.hokuriku,Faction.clan_jinbo_1
+lord_1_jinbo_1,Jinbo Asahi,阿旭,Culture.hokuriku,Faction.clan_jinbo_1
+lord_1_jinbo_2,Jinbo Nagazumi,神保 长住,Culture.hokuriku,Faction.clan_jinbo_1
+lord_1_jinbo_3,Jinbo Naka,阿仲,Culture.hokuriku,Faction.clan_jinbo_1
+lord_1_jinbo_4,Jinbo Nagakuni,神保 长城,Culture.hokuriku,Faction.clan_jinbo_1
+lord_1_jinbo_5,Jinbo Sayo,小夜,Culture.hokuriku,Faction.clan_jinbo_1
+lord_2_murakami,Murakami Yoshikiyo,村上 义清,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_1,Murakami Fune,阿船,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_2,Murakami Yoshikatsu,村上 义胜,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_3,Murakami Sada,佐多,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_4,Murakami Yoshiteru,村上 义照,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_5,Murakami Kyo,阿京,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_6,Murakami Yoshikuni,村上 义邦,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_7,Murakami Tai,碓井,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_8,Murakami Kunikiyo,村上 国清,Culture.hokuriku,Faction.clan_murakami_2
+lord_2_murakami_9,Murakami Kazu,阿一,Culture.hokuriku,Faction.clan_murakami_2
+lord_1_honma,Honma Sadakane,本间 贞兼,Culture.hokuriku,Faction.clan_honma_1
+lord_1_honma_1,Honma Tsuta,阿茑,Culture.hokuriku,Faction.clan_honma_1
+lord_1_honma_2,Honma Takatsuna,本间 高统,Culture.hokuriku,Faction.clan_honma_1
+lord_1_honma_3,Honma Tomo,阿友,Culture.hokuriku,Faction.clan_honma_1
+lord_1_honma_4,Honma Muneyuki,本间 宗幸,Culture.hokuriku,Faction.clan_honma_1
+lord_1_honma_5,Honma Takaou,本间 高应,Culture.hokuriku,Faction.clan_honma_1
+lord_1_honjo,Honjo Sigenaga,本庄 繁长,Culture.hokuriku,Faction.clan_honjo_1
+lord_1_honjo_1,Honjo Momiji,红叶,Culture.hokuriku,Faction.clan_honjo_1
+lord_1_honjo_2,Honjo Akinaga,本庄 显长,Culture.hokuriku,Faction.clan_honjo_1
+lord_1_honjo_3,Honjo Saneyori,本庄 实乃,Culture.hokuriku,Faction.clan_honjo_1
+lord_1_honjo_4,Honjo Sagami,相模,Culture.hokuriku,Faction.clan_honjo_1
+lord_1_honjo_5,Honjo Hidetsuna,本庄 秀纲,Culture.hokuriku,Faction.clan_honjo_1
+lord_1_honjo_6,Honjo Ise,伊势,Culture.hokuriku,Faction.clan_honjo_1
+lord_1_honjo_7,Honjo Kageyori,本庄 景赖,Culture.hokuriku,Faction.clan_honjo_1
+lord_1_takeda,Takeda Shingen,武田 信玄,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_1,Takeda Sanjo-no-kata,三条 之方,Culture.tosan,Faction.clan_takeda_1
+dead_lord_1_takeda_2,Takeda Nobutora,武田 信虎,Culture.tosan,Faction.clan_takeda_1
+dead_lord_1_takeda_3,Takeda Oi,小井,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_4,Takeda Katsuyori,武田 胜赖,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_5,Takeda Nobukiyo,武田 信清,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_6,Takeda Mari,麻里,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_7,Takeda Kiku,菊姬,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_8,Takeda Matsu,松姬,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_9,Takeda Nobukado,武田 信廉,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_10,Takeda Oboro,阿胧,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_11,Takeda Nobuzumi,武田 信澄,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_12,Takeda Nobuaki,武田 信显,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_13,Takeda Tsuyu,阿露,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_14,Takeda Nobutomo,武田 信友,Culture.tosan,Faction.clan_takeda_1
+lord_1_takeda_15,Takeda Koharu,小春,Culture.tosan,Faction.clan_takeda_1
+lord_1_baba,Baba Nobuharu,马场 信春,Culture.tosan,Faction.clan_baba_1
+lord_1_baba_1,Baba Shinko-in,心光院,Culture.tosan,Faction.clan_baba_1
+lord_1_baba_2,Baba Masafusa,马场 昌房,Culture.tosan,Faction.clan_baba_1
+lord_1_baba_3,Baba Tatsu,阿龙,Culture.tosan,Faction.clan_baba_1
+lord_1_baba_4,Baba Nobuyoshi,马场 信义,Culture.tosan,Faction.clan_baba_1
+lord_1_baba_5,Baba Fumi,阿文,Culture.tosan,Faction.clan_baba_1
+lord_1_baba_6,Baba Fusakatsu,马场 房胜,Culture.tosan,Faction.clan_baba_1
+lord_1_baba_7,Baba Mai,麻衣,Culture.tosan,Faction.clan_baba_1
+lord_1_kiso,Kiso Yoshiyasu,木曾 义康,Culture.tosan,Faction.clan_kiso_1
+lord_1_kiso_1,Kiso Maki,万喜,Culture.tosan,Faction.clan_kiso_1
+lord_1_kiso_2,Kiso Yoshimasa,木曾 义昌,Culture.tosan,Faction.clan_kiso_1
+lord_1_kiso_3,Kiso Mari,麻里,Culture.tosan,Faction.clan_kiso_1
+lord_1_kiso_4,Kiso Yoshitoyo,木曾 义丰,Culture.tosan,Faction.clan_kiso_1
+lord_1_kiso_5,Kiso Iwa,伊波,Culture.tosan,Faction.clan_kiso_1
+lord_1_sanada,Sanada Nobutsuna,真田 信纲,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_1,Sanada Kita,喜多,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_2,Sanada Yukitsuna,真田 幸纲,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_3,Sanada Kyou'un-in,恭云院,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_4,Sanada Masateru,真田 昌辉,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_5,Sanada Azuma,阿万,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_6,Sanada Masayuki,真田 昌幸,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_7,Sanada Yamanote,山手殿,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_8,Sanada Nobuyuki,真田 信幸,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_9,Sanada Nobushige,真田 信繁,Culture.tosan,Faction.clan_sanada_1
+lord_1_sanada_10,Sanada Nobutada,真田 信尹,Culture.tosan,Faction.clan_sanada_1
+lord_1_nishina,Nishina Morinobu,仁科 盛信,Culture.tosan,Faction.clan_nishina_1
+dead_lord_1_nishina_1,Nishina Morimasa,仁科 盛政,Culture.tosan,Faction.clan_nishina_1
+lord_1_nishina_2,Nishina Sekisho-in,赤松院,Culture.tosan,Faction.clan_nishina_1
+lord_1_nishina_3,Nishina Moritaka,仁科 盛孝,Culture.tosan,Faction.clan_nishina_1
+lord_1_nishina_4,Nishina Morikiyo,仁科 盛清,Culture.tosan,Faction.clan_nishina_1
+lord_1_oyamada,Oyamada Nobushige,小山田 信茂,Culture.tosan,Faction.clan_oyamada_1
+lord_1_oyamada_1,Oyamada Momo,桃子,Culture.tosan,Faction.clan_oyamada_1
+lord_1_oyamada_2,Oyamada Nobutsuna,小山田 信纲,Culture.tosan,Faction.clan_oyamada_1
+lord_1_oyamada_3,Oyamada Harusuke,春助,Culture.tosan,Faction.clan_oyamada_1
+lord_1_anayama,Anayama Nobutada,穴山 信君,Culture.tosan,Faction.clan_anayama_1
+lord_1_anayama_1,Anayama Fuchi,小渊,Culture.tosan,Faction.clan_anayama_1
+lord_1_yamagata,Yamagata Masakage,山县 昌景,Culture.tosan,Faction.clan_yamagata_1
+lord_1_yamagata_1,Yamagata Yumi,小弓,Culture.tosan,Faction.clan_yamagata_1
+lord_1_yamagata_2,Yamagata Masamitsu,山县 昌满,Culture.tosan,Faction.clan_yamagata_1
+lord_1_yamagata_3,Yamagata Hana,花子,Culture.tosan,Faction.clan_yamagata_1
+lord_1_yamagata_4,Yamagata Masashige,山县 昌重,Culture.tosan,Faction.clan_yamagata_1
+lord_1_yamagata_5,Yamagata Masahisa,山县 昌久,Culture.tosan,Faction.clan_yamagata_1
+lord_1_yamagata_6,Yamagata Tsuku,木菟,Culture.tosan,Faction.clan_yamagata_1
+lord_1_yamagata_7,Yamagata En,阿圆,Culture.tosan,Faction.clan_yamagata_1
+lord_1_kasuga,Kasuga Toratsuna,春日 虎纲,Culture.tosan,Faction.clan_kasuga_1
+lord_1_kasuga_1,Kasuga Shige,阿茂,Culture.tosan,Faction.clan_kasuga_1
+lord_1_kasuga_2,Kasuga Masazumi,高坂 昌澄,Culture.tosan,Faction.clan_kasuga_1
+lord_1_kasuga_3,Kasuga Yuki,阿幸,Culture.tosan,Faction.clan_kasuga_1
+lord_1_kasuga_4,Kasuga Masamoto,高坂 昌元,Culture.tosan,Faction.clan_kasuga_1
+lord_1_kasuga_5,Kasuga Masasada,高坂 昌定,Culture.tosan,Faction.clan_kasuga_1
+lord_1_imagawa,Imagawa Ujizane,今川 氏真,Culture.tokai,Faction.clan_imagawa_1
+lord_1_imagawa_1,Imagawa Hayakawa,早川殿,Culture.tokai,Faction.clan_imagawa_1
+lord_1_imagawa_2,Imagawa Sada,佐多,Culture.tokai,Faction.clan_imagawa_1
+lord_1_asahina,Asahina Yasutomo,朝比奈 泰朝,Culture.tokai,Faction.clan_asahina_1
+lord_1_asahina_1,Asahina Sawa,佐和,Culture.tokai,Faction.clan_asahina_1
+lord_1_asahina_2,Asahina Yasumoto,朝比奈 泰基,Culture.tokai,Faction.clan_asahina_1
+lord_1_asahina_3,Asahina Nobuoki,朝比奈 信置,Culture.tokai,Faction.clan_asahina_1
+lord_1_asahina_4,Asahina Yui,由比,Culture.tokai,Faction.clan_asahina_1
+lord_1_asahina_5,Asahina Nobuyoshi,朝比奈 泰能,Culture.tokai,Faction.clan_asahina_1
+lord_1_asahina_6,Asahina Motonaga,朝比奈 元长,Culture.tokai,Faction.clan_asahina_1
+lord_1_asahina_7,Asahina Munetoshi,朝比奈 宗利,Culture.tokai,Faction.clan_asahina_1
+lord_1_fuji,Fuji Nobutada,富士 信忠,Culture.tokai,Faction.clan_fuji_1
+lord_1_fuji_1,Fuji Matsu,阿松,Culture.tokai,Faction.clan_fuji_1
+lord_1_fuji_2,Fuji Nobumichi,富士 信通,Culture.tokai,Faction.clan_fuji_1
+lord_1_fuji_3,Fuji Yae,八重,Culture.tokai,Faction.clan_fuji_1
+lord_1_fuji_4,Fuji Nobushige,富士 信重,Culture.tokai,Faction.clan_fuji_1
+lord_1_fuji_5,Fuji Kou,阿江,Culture.tokai,Faction.clan_fuji_1
+lord_1_okabe,Okabe Motonobu,冈部 元信,Culture.tokai,Faction.clan_okabe_1
+lord_1_okabe_1,Okabe Sakae,阿荣,Culture.tokai,Faction.clan_okabe_1
+dead_lord_1_okabe_2,Okabe Chikatsuna,冈部 亲纲,Culture.tokai,Faction.clan_okabe_1
+lord_1_okabe_3,Okabe Myosen-ni,妙宣尼,Culture.tokai,Faction.clan_okabe_1
+lord_1_okabe_4,Okabe Sanetaka,冈部 真尧,Culture.tokai,Faction.clan_okabe_1
+lord_1_okabe_5,Okabe Motoaki,冈部 元明,Culture.tokai,Faction.clan_okabe_1
+lord_1_okabe_6,Okabe Masatsuna,冈部 正纲,Culture.tokai,Faction.clan_okabe_1
+lord_1_okabe_7,Okabe Kame,阿龟,Culture.tokai,Faction.clan_okabe_1
+lord_1_okabe_8,Okabe Nagamori,冈部 长盛,Culture.tokai,Faction.clan_okabe_1
+lord_1_okabe_9,Okabe Nagaaki,冈部 长秋,Culture.tokai,Faction.clan_okabe_1
+lord_1_mori,Mori Terumoto,毛利 辉元,Culture.sanyo,Faction.clan_mori_1
+lord_1_mori_1,Mori Motonari,毛利 元就,Culture.sanyo,Faction.clan_mori_1
+lord_1_mori_2,Mori Myokyu,妙玖夫人,Culture.sanyo,Faction.clan_mori_1
+lord_1_mori_3,Mori Takamoto,毛利 隆元,Culture.sanyo,Faction.clan_mori_1
+lord_1_mori_4,Mori Ayaya,绫野,Culture.sanyo,Faction.clan_mori_1
+lord_1_mori_5,Mori Motoaki,毛利 元秋,Culture.sanyo,Faction.clan_mori_1
+lord_1_mori_6,Mori Hidekane,毛利 秀包,Culture.sanyo,Faction.clan_mori_1
+lord_1_kobayakawa,Kobayakawa Takakage,小早川 隆景,Culture.sanyo,Faction.clan_kobayakawa_1
+lord_1_kobayakawa_1,Kobayakawa Toida no ookata,问田大方,Culture.sanyo,Faction.clan_kobayakawa_1
+lord_1_kikkawa,Kikkawa Motoharu,吉川 元春,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_1,Kikkawa Iwakuni,岩国,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_2,Kikkawa Motonaga,吉川 元长,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_3,Kikkawa Yomogi,蓬生,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_4,Kikkawa Hiroie,吉川 广家,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_5,Kikkawa Tomi,阿富,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_6,Kikkawa Amane,阿周,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_7,Kikkawa Tuneyasu,吉川 经安,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_8,Kikkawa Awa,安房,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_9,Kikkawa Tuneie,吉川 经家,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_10,Kikkawa Momo,桃子,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_11,Kikkawa Hina,小雏,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_kikkawa_12,Kikkawa Tomoe,巴,Culture.sanyo,Faction.clan_kikkawa_1
+lord_1_yoshimi,Yoshimi Masayori,吉见 正赖,Culture.sanyo,Faction.clan_yoshimi_1
+lord_1_yoshimi_1,Yoshimi Omiya,大宫姬,Culture.sanyo,Faction.clan_yoshimi_1
+lord_1_yoshimi_2,Yoshimi Hiroyori,吉见 广赖,Culture.sanyo,Faction.clan_yoshimi_1
+lord_1_yoshimi_3,Yoshimi Makomo,阿蒲,Culture.sanyo,Faction.clan_yoshimi_1
+lord_1_yoshimi_4,Yoshimi Hiromasa,吉见 广正,Culture.sanyo,Faction.clan_yoshimi_1
+lord_1_yoshimi_5,Yoshimi Hagi,阿萩,Culture.sanyo,Faction.clan_yoshimi_1
+lord_1_naito,Naito Takaharu,内藤 隆春,Culture.sanyo,Faction.clan_naito_1
+lord_1_naito_1,Naito Hisagi,阿楸,Culture.sanyo,Faction.clan_naito_1
+lord_1_naito_2,Naito Motoyasu,内藤 元康,Culture.sanyo,Faction.clan_naito_1
+lord_1_nanjo,Nanjo Sosyo,南条 宗胜,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_nanjo_1,Nanjo Mukuge,木槿,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_nanjo_2,Nanjo Mototsugu,南条 元续,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_nanjo_3,Nanjo Yukue,行方,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_nanjo_4,Nanjo Motoaki,南条 元秋,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_nanjo_5,Nanjo Nobumasa,南条 信正,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_nanjo_6,Nanjo Tokiwa,常盘,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_nanjo_7,Nanjo Munenobu,南条 宗信,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_nanjo_8,Nanjo Shima,小岛,Culture.sanyo,Faction.clan_nanjo_1
+dead_lord_1_nanjo_1,Nanjo Munehiro,南条 宗广,Culture.sanyo,Faction.clan_nanjo_1
+dead_lord_1_nanjo_2,Nanjo Shokoku-in,相国院,Culture.sanyo,Faction.clan_nanjo_1
+lord_1_misawa,Mizawa Tamekiyo,三泽 为清,Culture.sanyo,Faction.clan_misawa_1
+lord_1_misawa_1,Mizawa Kura,小仓,Culture.sanyo,Faction.clan_misawa_1
+lord_1_misawa_2,Mizawa Tametora,三泽 为虎,Culture.sanyo,Faction.clan_misawa_1
+lord_1_misawa_3,Mizawa Wase,早稻,Culture.sanyo,Faction.clan_misawa_1
+lord_1_amano,Amano Takashige,天野 隆重,Culture.sanyo,Faction.clan_amano_1
+lord_1_amano_1,Amano Kitsu,小吉,Culture.sanyo,Faction.clan_amano_1
+lord_1_amano_2,Amano Motoaki,天野 元明,Culture.sanyo,Faction.clan_amano_1
+lord_1_amano_3,Amano Naka,阿仲,Culture.sanyo,Faction.clan_amano_1
+lord_1_amano_4,Amano Motosuke,天野 元祐,Culture.sanyo,Faction.clan_amano_1
+lord_1_amano_5,Amano Chise,千世,Culture.sanyo,Faction.clan_amano_1
+lord_1_amano_6,Amano Mototomo,天野 元俱,Culture.sanyo,Faction.clan_amano_1
+lord_1_amano_7,Amano Motoyoshi,天野 元嘉,Culture.sanyo,Faction.clan_amano_1
+lord_1_amano_8,Amano Motonobu,天野 元信,Culture.sanyo,Faction.clan_amano_1
+lord_1_murakami,Murakami Takeyoshi,村上 武吉,Culture.sanyo,Faction.clan_murakami_1
+lord_1_murakami_1,Murakami Somefuji,染藤,Culture.sanyo,Faction.clan_murakami_1
+lord_1_murakami_2,Murakami Motoyoshi,村上 元吉,Culture.sanyo,Faction.clan_murakami_1
+lord_1_murakami_3,Murakami Konagi,小凪,Culture.sanyo,Faction.clan_murakami_1
+lord_1_murakami_4,Murakami Michifusa,来岛 通总,Culture.sanyo,Faction.clan_murakami_1
+lord_1_murakami_5,Murakami Naoyoshi,村上 尚吉,Culture.sanyo,Faction.clan_murakami_1
+lord_1_murakami_6,Murakami Kohama,小浜,Culture.sanyo,Faction.clan_murakami_1
+lord_1_murakami_7,Murakami Yoshimichi,村上 吉通,Culture.sanyo,Faction.clan_murakami_1
+lord_1_murakami_8,Murakami Suo,周防,Culture.sanyo,Faction.clan_murakami_1
+lord_1_kawano,Kawano Michinobu,河野 通宣,Culture.sanyo,Faction.clan_kawano_1
+lord_1_kawano_1,Kawano Mukuge,小祭,Culture.sanyo,Faction.clan_kawano_1
+lord_1_kawano_2,Kawano Michinao,河野 通直,Culture.sanyo,Faction.clan_kawano_1
+dead_lord_1_kawano_1,Kawano Michiharu,河野 通春,Culture.sanyo,Faction.clan_kawano_1
+dead_lord_1_kawano_2,Kawano Seri,小芹,Culture.sanyo,Faction.clan_kawano_1
+lord_1_uragami,Uragami Munekage,浦上 宗景,Culture.sanyo,Faction.clan_uragami_1
+lord_1_uragami_1,Uragami Shion,紫苑,Culture.sanyo,Faction.clan_uragami_1
+lord_1_uragami_2,Uragami Munetoki,浦上 宗辰,Culture.sanyo,Faction.clan_uragami_1
+lord_1_uragami_3,Uragami Tatsu,阿辰,Culture.sanyo,Faction.clan_uragami_1
+lord_1_ukita,Ukita Naoie,宇喜多 直家,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_1,Ukita Uzu,宇津,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_2,Ukita Ai,阿爱,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_3,Ukita Ran,阿兰,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_4,Ukita Tsukuha,筑波,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_5,Ukita Kaya,伽耶,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_6,Ukita Tadaie,宇喜多 忠家,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_7,Ukita Nadeshiko,抚子,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_8,Ukita Motoie,宇喜多 基家,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_9,Ukita Akiie,宇喜多 诠家,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_10,Ukita Shiramomo,白桃,Culture.sanyo,Faction.clan_ukita_1
+lord_1_ukita_11,Ukita Aofuji,青藤,Culture.sanyo,Faction.clan_ukita_1
+dead_lord_1_ukita_1,Ukita Okiie,宇喜多 兴家,Culture.sanyo,Faction.clan_ukita_1
+dead_lord_1_ukita_2,Ukita Zenjo-in,善净院,Culture.sanyo,Faction.clan_ukita_1
+lord_1_akashi,Akashi Yukikatsu,明石 行雄,Culture.sanyo,Faction.clan_akashi_1
+lord_1_akashi_1,Akashi Ashi,阿芦,Culture.sanyo,Faction.clan_akashi_1
+lord_1_akashi_2,Akashi Teruzumi,明石 全登,Culture.sanyo,Faction.clan_akashi_1
+lord_1_akashi_3,Akashi Akebi,明日,Culture.sanyo,Faction.clan_akashi_1
+lord_1_akashi_4,Akashi Awa,安房,Culture.sanyo,Faction.clan_akashi_1
+lord_1_amago,Amago Katsuhisa,尼子 胜久,Culture.sanyo,Faction.clan_amago_1
+lord_1_amago_1,Amago Tamane,玉根,Culture.sanyo,Faction.clan_amago_1
+lord_1_amago_2,Amago Ujihisa,尼子 氏久,Culture.sanyo,Faction.clan_amago_1
+lord_1_amago_3,Amago Michihisa,尼子 通久,Culture.sanyo,Faction.clan_amago_1
+dead_lord_1_amago_1,Amago Sanehisa,尼子 诚久,Culture.sanyo,Faction.clan_amago_1
+dead_lord_1_amago_2,Amago Seiryo-in,清凉院,Culture.sanyo,Faction.clan_amago_1
+lord_1_yamanaka,Yamanaka Yukimori,山中 幸盛,Culture.sanyo,Faction.clan_yamanaka_1
+lord_1_yamanaka_1,Yamanaka Yura,由良,Culture.sanyo,Faction.clan_yamanaka_1
+lord_1_yamanaka_2,Yamanaka Yukitaka,山中 幸高,Culture.sanyo,Faction.clan_yamanaka_1
+dead_lord_1_yamanaka_1,Yamanaka Mitsuyuki,山中 满幸,Culture.sanyo,Faction.clan_yamanaka_1
+dead_lord_1_yamanaka_2,Yamanaka Shunkei-in,春庆院,Culture.sanyo,Faction.clan_yamanaka_1
+lord_1_tatsuhara,Tachihara Hisatsuna,立原 久纲,Culture.sanyo,Faction.clan_tatsuhara_1
+lord_1_tatsuhara_1,Tachihara Fuse,阿伏,Culture.sanyo,Faction.clan_tatsuhara_1
+lord_1_tatsuhara_2,Tachihara Mitsutada,立原 充忠,Culture.sanyo,Faction.clan_tatsuhara_1
+lord_1_tatsuhara_3,Tachihara Nami,奈美,Culture.sanyo,Faction.clan_tatsuhara_1
+lord_1_obata,Obata Nobuzane,小幡 信真,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_1,Obata Tae,阿妙,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_2,Obata Norishige,小幡 宪重,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_3,Obata Yumi,小弓,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_4,Obata Nobutaka,小幡 信高,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_5,Obata Yuki,阿幸,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_6,Obata Nobuuji,小幡 信氏,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_7,Obata Nobusada,小幡 信贞,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_8,Obata Masataka,小幡 昌高,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_9,Obata Tose,阿岁,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_10,Obata Nobuhide,小幡 信秀,Culture.kanto,Faction.clan_obata_1
+lord_1_obata_11,Obata Mina,美奈,Culture.kanto,Faction.clan_obata_1
+lord_1_yura,Yura Narishige,由良 成繁,Culture.kanto,Faction.clan_yura_1
+lord_1_yura_1,Yura Myouin-ni,妙印尼,Culture.kanto,Faction.clan_yura_1
+lord_1_yura_2,Yura Kunishige,由良 国繁,Culture.kanto,Faction.clan_yura_1
+lord_1_yura_3,Yura Shigeaki,渡濑 繁诠,Culture.kanto,Faction.clan_yura_1
+lord_1_yura_4,Yura Akinaga,长尾 显长,Culture.kanto,Faction.clan_yura_1
+lord_1_yura_5,Yura Mayu,真优,Culture.kanto,Faction.clan_yura_1
+lord_1_yura_6,Yura Sumi,阿菫,Culture.kanto,Faction.clan_yura_1
+lord_1_hojo,Hojo Ujimasa,北条 氏政,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_1,Hojo Hosho-in,凤翔院,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_2,Hojo Ujiyasu,北条 氏康,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_3,Hojo Zuikei-in,瑞溪院,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_4,Hojo Ujinao,北条 氏直,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_5,Hojo Ujiteru,北条 氏照,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_6,Hojo Hisa,阿久,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_7,Hojo Ujikuni,北条 氏邦,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_8,Hojo Fuku,阿福,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_9,Hojo Ujinori,北条 氏规,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_10,Hojo Kougen-in,高源院,Culture.kanto,Faction.clan_hojo_1
+lord_1_hojo_11,Hojo Gen-an,北条 幻庵,Culture.kanto,Faction.clan_hojo_1
+lord_1_matsuda,Matsuda Norihide,松田 宪秀,Culture.kanto,Faction.clan_matsuda_1
+lord_1_matsuda_1,Matsuda Tani,小谷,Culture.kanto,Faction.clan_matsuda_1
+lord_1_matsuda_2,Matsuda Masaharu,笠原 政晴,Culture.kanto,Faction.clan_matsuda_1
+lord_1_matsuda_3,Matsuda Naohide,松田 直秀,Culture.kanto,Faction.clan_matsuda_1
+dead_lord_1_matsuda_4,Matsuda Yasusada,松田 康贞,Culture.kanto,Faction.clan_matsuda_1
+dead_lord_1_matsuda_5,Matsuda Jifuku-in,慈福院,Culture.kanto,Faction.clan_matsuda_1
+lord_1_matsuda_6,Matsuda Yasunaga,松田 康长,Culture.kanto,Faction.clan_matsuda_1
+lord_1_matsuda_7,Matsuda Izumi,和泉,Culture.kanto,Faction.clan_matsuda_1
+lord_1_matsuda_8,Matsuda Naonaga,松田 直长,Culture.kanto,Faction.clan_matsuda_1
+lord_1_matsuda_9,Matsuda Yasusato,松田 康乡,Culture.kanto,Faction.clan_matsuda_1
+lord_1_matsuda_10,Matsuda Ito,阿糸,Culture.kanto,Faction.clan_matsuda_1
+lord_1_toyama,Toyama Masakage,远山 政景,Culture.kanto,Faction.clan_toyama_1
+lord_1_toyama_1,Toyama Take,小竹,Culture.kanto,Faction.clan_toyama_1
+dead_lord_1_toyama_2,Toyama Tsunakage,远山 纲景,Culture.kanto,Faction.clan_toyama_1
+dead_lord_1_toyama_3,Toyama Joko-in,常光院,Culture.kanto,Faction.clan_toyama_1
+lord_1_toyama_4,Toyama Naokage,远山 直景,Culture.kanto,Faction.clan_toyama_1
+lord_1_toyama_5,Toyama Kagemune,远山 景宗,Culture.kanto,Faction.clan_toyama_1
+lord_1_toyama_6,Toyama Tei,小丁,Culture.kanto,Faction.clan_toyama_1
+lord_1_toyama_7,Toyama Kageyoshi,远山 景善,Culture.kanto,Faction.clan_toyama_1
+lord_1_toyama_8,Toyama Kagenobu,远山 景信,Culture.kanto,Faction.clan_toyama_1
+lord_1_toyama_9,Toyama Hideshige,远山 秀重,Culture.kanto,Faction.clan_toyama_1
+lord_1_toyama_10,Toyama Shigemasa,远山 重政,Culture.kanto,Faction.clan_toyama_1
+lord_1_didoji,Daidoji Masashige,大道寺 政繁,Culture.kanto,Faction.clan_didoji_1
+lord_1_didoji_1,Daidoji Shino,志乃,Culture.kanto,Faction.clan_didoji_1
+lord_1_didoji_2,Daidoji Naohide,大道寺 直英,Culture.kanto,Faction.clan_didoji_1
+lord_1_didoji_3,Daidoji Naoshige,大道寺 直繁,Culture.kanto,Faction.clan_didoji_1
+lord_1_narita,Narita Ujinaga,成田 氏长,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_1,Narita Araragi,阿兰,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_2,Narita Nagayasu,成田 长泰,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_3,Narita Jisho-in,自性院,Culture.kanto,Faction.clan_narita_1
+dead_lord_1_narita_4,Narita Chikayasu,成田 亲泰,Culture.kanto,Faction.clan_narita_1
+dead_lord_1_narita_5,Narita Myoko-in,妙高院,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_6,Narita Kai,甲斐姬,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_7,Narita Yasuchika,成田 泰亲,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_8,Narita Futaba,双叶,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_9,Narita Yasusue,成田 泰季,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_10,Narita Tomi,阿富,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_11,Narita Nagachika,成田 长亲,Culture.kanto,Faction.clan_narita_1
+lord_1_narita_12,Narita Mari,麻里,Culture.kanto,Faction.clan_narita_1
+lord_1_chiba,Chiba Tanetomi,千叶 胤富,Culture.kanto,Faction.clan_chiba_1
+lord_1_chiba_1,Chiba Hagi,阿萩,Culture.kanto,Faction.clan_chiba_1
+dead_lord_1_chiba_2,Chiba Masatane,千叶 昌胤,Culture.kanto,Faction.clan_chiba_1
+dead_lord_1_chiba_3,Chiba Seikyo-in,誓教院,Culture.kanto,Faction.clan_chiba_1
+lord_1_chiba_4,Chiba Yoshitane,千叶 良胤,Culture.kanto,Faction.clan_chiba_1
+lord_1_chiba_5,Chiba Kunitane,千叶 邦胤,Culture.kanto,Faction.clan_chiba_1
+lord_1_chiba_6,Chiba Tanehide,千叶 胤秀,Culture.kanto,Faction.clan_chiba_1
+lord_1_chiba_7,Chiba Hagi,阿萩,Culture.kanto,Faction.clan_chiba_1
+lord_1_chiba_8,Chiba Masatane,千叶 昌胤,Culture.kanto,Faction.clan_chiba_1
+lord_1_chiba_9,Chiba Tanenaka,千叶 胤长,Culture.kanto,Faction.clan_chiba_1
+lord_1_chiba_10,Chiba Tanetoki,千叶 胤时,Culture.kanto,Faction.clan_chiba_1
+lord_2_oda,Oda Ujiharu,小田 氏治,Culture.kanto,Faction.clan_oda_2
+lord_2_oda_1,Oda Hazuki,叶月,Culture.kanto,Faction.clan_oda_2
+dead_lord_2_oda_2,Oda Masaharu,小田 政治,Culture.kanto,Faction.clan_oda_2
+dead_lord_2_oda_3,Oda Keimyo-in,轻妙院,Culture.kanto,Faction.clan_oda_2
+lord_2_oda_4,Oda Tomoharu,小田 友治,Culture.kanto,Faction.clan_oda_2
+lord_2_oda_5,Oda Moriharu,小田 守治,Culture.kanto,Faction.clan_oda_2
+lord_2_oda_6,Oda Koma,阿驹,Culture.kanto,Faction.clan_oda_2
+lord_2_oda_7,Oda Tomoharu,小田 友治,Culture.kanto,Faction.clan_oda_2
+lord_2_oda_8,Oda Riku,阿陆,Culture.kanto,Faction.clan_oda_2
+lord_2_oda_9,Oda Tomoharu,小田 友治,Culture.kanto,Faction.clan_oda_2
+lord_1_kogakubo,Koga-Kubo Yoshiuji,足利 义氏,Culture.kanto,Faction.clan_kogakubo_1
+lord_1_kogakubo_1,Koga-Kubo Jyoko-in,定光院,Culture.kanto,Faction.clan_kogakubo_1
+dead_lord_1_kogakubo_2,Koga-Kubo Haruuji,足利 晴氏,Culture.kanto,Faction.clan_kogakubo_1
+dead_lord_1_kogakubo_3,Koga-Kubo Hoshun-in,芳春院,Culture.kanto,Faction.clan_kogakubo_1
+lord_1_kogakubo_4,Koga-Kubo Fujimasa,足利 藤政,Culture.kanto,Faction.clan_kogakubo_1
+lord_1_kogakubo_5,Koga-Kubo Teruuji,足利 辉氏,Culture.kanto,Faction.clan_kogakubo_1
+lord_1_kogakubo_6,Koga-Kubo Iekuni,足利 家国,Culture.kanto,Faction.clan_kogakubo_1
+lord_1_kogakubo_7,Koga-Kubo Sato,佐渡,Culture.kanto,Faction.clan_kogakubo_1
+lord_1_sano,Sano Masatuna,佐野 昌纲,Culture.kanto,Faction.clan_sano_1
+lord_1_sano_1,Sano Moto,阿元,Culture.kanto,Faction.clan_sano_1
+dead_lord_1_sano_2,Sano Yasutsuna,佐野 泰纲,Culture.kanto,Faction.clan_sano_1
+dead_lord_1_sano_3,Sano Kousen-in,向泉院,Culture.kanto,Faction.clan_sano_1
+lord_1_sano_4,Sano Munetsuna,佐野 宗纲,Culture.kanto,Faction.clan_sano_1
+lord_1_sano_5,Sano Chikatsuna,桐生 亲纲,Culture.kanto,Faction.clan_sano_1
+dead_lord_1_sano_6,Sano Toyotsuna,佐野 丰纲,Culture.kanto,Faction.clan_sano_1
+lord_1_sano_7,Sano Jyomei-in,舒明院,Culture.kanto,Faction.clan_sano_1
+lord_1_sano_8,Sano Fusatsuna,佐野 房纲,Culture.kanto,Faction.clan_sano_1
+lord_1_yuki,Yuki Harutomo,结城 晴朝,Culture.kanto,Faction.clan_yuki_1
+lord_1_yuki_1,Yuki Shoko,翔子,Culture.kanto,Faction.clan_yuki_1
+lord_1_yuki_2,Yuki Teruko,照子,Culture.kanto,Faction.clan_yuki_1
+lord_1_yuki_3,Yuki Tsuruko,鹤子,Culture.kanto,Faction.clan_yuki_1
+lord_1_yuki_4,Yuki Kuniko,国子,Culture.kanto,Faction.clan_yuki_1
+lord_1_satomi,Satomi Yoshihiro,里见 义弘,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_1,Satomi Maki,万喜,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_2,Satomi Yoshitaka,里见 义尧,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_3,Satomi Saka,阿坂,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_4,Satomi Takamoto,里见 尧元,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_5,Satomi Tame,多米,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_6,Satomi Takatsugu,里见 尧次,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_7,Satomi Kuni,阿国,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_8,Satomi Yoshimasa,里见 义政,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_9,Satomi Hisa,阿久,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_10,Satomi Yoshiyori,里见 义赖,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_11,Satomi Hama,小浜,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_12,Satomi Tane,多祢,Culture.kanto,Faction.clan_satomi_1
+lord_1_satomi_13,Satomi Toyo,阿丰,Culture.kanto,Faction.clan_satomi_1
+lord_1_masaki,Masaki Noritoki,正木 宪时,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_1,Masaki Kaname,金目,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_2,Masaki Tokitada,正木 时忠,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_3,Masaki Kine,阿甲,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_4,Masaki Tokimichi,正木 时通,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_5,Masaki Chie,千枝,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_6,Masaki Tokinari,正木 宪时,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_7,Masaki Saki,阿咲,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_8,Masaki Tokikatsu,正木 时胜,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_9,Masaki Fusa,阿房,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_10,Masaki Tokihide,正木 时秀,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_11,Masaki Yoritoki,正木 赖时,Culture.kanto,Faction.clan_masaki_1
+lord_1_masaki_12,Masaki Tokitomi,正木 时富,Culture.kanto,Faction.clan_masaki_1
+lord_2_sakai,Sakai Taneharu,酒井 胤治,Culture.kanto,Faction.clan_sakai_2
+lord_2_sakai_1,Sakai Keirin-ni,庆林尼,Culture.kanto,Faction.clan_sakai_2
+lord_2_sakai_2,Sakai Yasuharu,酒井 康治,Culture.kanto,Faction.clan_sakai_2
+lord_1_utsunomiya,Utsunomiya Hirotsuna,宇都宫 广纲,Culture.kanto,Faction.clan_utsunomiya_1
+lord_1_utsunomiya_1,Utsunomiya Nanryo-in,南吕院,Culture.kanto,Faction.clan_utsunomiya_1
+lord_1_utsunomiya_2,Utsunomiya Kunitsuna,宇都宫 国纲,Culture.kanto,Faction.clan_utsunomiya_1
+lord_1_haga,Haga Takasada,芳贺 高定,Culture.kanto,Faction.clan_haga_1
+lord_1_haga_1,Haga Tama,阿玉,Culture.kanto,Faction.clan_haga_1
+lord_1_haga_2,Haga Takakage,芳贺 高景,Culture.kanto,Faction.clan_haga_1
+lord_1_haga_3,Haga Chiyo,千代,Culture.kanto,Faction.clan_haga_1
+lord_1_haga_4,Haga Takatsugu,芳贺 高继,Culture.kanto,Faction.clan_haga_1
+lord_1_haga_5,Haga Miki,见喜,Culture.kanto,Faction.clan_haga_1
+lord_1_kasama,Kasama Mikitsuna,笠间 干纲,Culture.kanto,Faction.clan_kasama_1
+lord_1_kasama_1,Kasama Sue,阿末,Culture.kanto,Faction.clan_kasama_1
+lord_1_kasama_2,Kasama Tsunaie,笠间 纲家,Culture.kanto,Faction.clan_kasama_1
+lord_1_kasama_3,Kasama Kiku,阿菊,Culture.kanto,Faction.clan_kasama_1
+lord_1_kasama_4,Kasama Sakon,佐今,Culture.kanto,Faction.clan_kasama_1
+lord_1_satake,Satake Yoshishige,佐竹 义重,Culture.kanto,Faction.clan_satake_1
+lord_1_satake_1,Satake Hoju-in,宝寿院,Culture.kanto,Faction.clan_satake_1
+dead_lord_1_satake_2,Satake Yoshiaki,佐竹 义昭,Culture.kanto,Faction.clan_satake_1
+dead_lord_1_satake_3,Satake Kotoku-in,高德院,Culture.kanto,Faction.clan_satake_1
+lord_1_satake_4,Satake Yoshihisa,佐竹 义久,Culture.kanto,Faction.clan_satake_1
+lord_1_satake_5,Satake Akane,阿茜,Culture.kanto,Faction.clan_satake_1
+lord_1_satake_6,Satake Yoshitane,佐竹 义胤,Culture.kanto,Faction.clan_satake_1
+lord_1_satake_7,Satake Yoshitsuna,佐竹 义斯,Culture.kanto,Faction.clan_satake_1
+lord_1_satake_8,Satake Chitose,千岁,Culture.kanto,Faction.clan_satake_1
+lord_1_edo,Edo Michimasa,江户 通政,Culture.kanto,Faction.clan_edo_1
+lord_1_edo_1,Edo Seisho-in,誓昌院,Culture.kanto,Faction.clan_edo_1
+lord_1_edo_2,Edo Shigemichi,江户 重通,Culture.kanto,Faction.clan_edo_1
+lord_1_daijo,Daijo Sadakuni,大掾 真国,Culture.kanto,Faction.clan_daijo_1
+lord_1_daijo_1,Daijo Fumi,阿文,Culture.kanto,Faction.clan_daijo_1
+dead_lord_1_daijo_2,Daijo Yoshimoto,大掾 良干,Culture.kanto,Faction.clan_daijo_1
+dead_lord_1_daijo_3,Daijo Rensho-in,莲昌院,Culture.kanto,Faction.clan_daijo_1
+lord_1_daijo_4,Daijo Tuneharu,大掾 常春,Culture.kanto,Faction.clan_daijo_1
+lord_1_daijo_5,Daijo Hana,花子,Culture.kanto,Faction.clan_daijo_1
+lord_1_kashima,Kashima Ujimiki,鹿岛 氏干,Culture.kanto,Faction.clan_kashima_1
+dead_lord_1_kashima_1,Kashima Harutoki,鹿岛 治时,Culture.kanto,Faction.clan_kashima_1
+dead_lord_1_kashima_2,Kashima Myoke-in,名家院,Culture.kanto,Faction.clan_kashima_1
+lord_1_kashima_3,Kashima Yoshikiyo,鹿岛 义清,Culture.kanto,Faction.clan_kashima_1
+lord_1_kashima_4,Kashima Nami,奈美,Culture.kanto,Faction.clan_kashima_1
+lord_1_kashima_5,Kashima Sadanobu,鹿岛 贞信,Culture.kanto,Faction.clan_kashima_1
+lord_1_kashima_6,Kashima Chiku,知久,Culture.kanto,Faction.clan_kashima_1
+lord_1_kashima_7,Kashima Kiyohide,鹿岛 清秀,Culture.kanto,Faction.clan_kashima_1
+lord_1_kashima_8,Kashima Sai,佐井,Culture.kanto,Faction.clan_kashima_1
+lord_1_kashima_9,Kashima Michiharu,鹿岛 通晴,Culture.kanto,Faction.clan_kashima_1
+lord_1_kashima_10,Kashima Sae,佐江,Culture.kanto,Faction.clan_kashima_1
+lord_1_nasu,Nasu Suketane,那须 资胤,Culture.kanto,Faction.clan_nasu_1
+lord_1_nasu_1,Nasu Toyo,阿丰,Culture.kanto,Faction.clan_nasu_1
+lord_1_nasu_2,Nasu Sukeharu,那须 资晴,Culture.kanto,Faction.clan_nasu_1
+lord_1_nasu_3,Nasu Masa,真砂,Culture.kanto,Faction.clan_nasu_1
+lord_1_akamatsu,Akamatsu Yoshisuke,赤松 义祐,Culture.kinai,Faction.clan_akamatsu_1
+lord_1_akamatsu_1,Akamatsu Azami,浅见,Culture.kinai,Faction.clan_akamatsu_1
+lord_1_akamatsu_2,Akamatsu Norifusa,赤松 则房,Culture.kinai,Faction.clan_akamatsu_1
+lord_1_kodera,Kodera Masamoto,小寺 政职,Culture.kinai,Faction.clan_kodera_1
+lord_1_kodera_1,Kodera Kame,阿龟,Culture.kinai,Faction.clan_kodera_1
+lord_1_kodera_2,Kodera Norimoto,小寺 则职,Culture.kinai,Faction.clan_kodera_1
+lord_1_kodera_3,Kodera Beni,阿红,Culture.kinai,Faction.clan_kodera_1
+lord_1_kodera_4,Kodera Ujimoto,小寺 氏职,Culture.kinai,Faction.clan_kodera_1
+lord_1_kodera_5,Kodera Kasuga,春日,Culture.kinai,Faction.clan_kodera_1
+lord_1_kuroda,Kuroda Yoshitaka,黑田 孝高,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_1,Kuroda Mitsu,阿光,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_2,Kuroda Mototaka,黑田 职隆,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_3,Kuroda Masu,万寿,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_4,Kuroda Nagamasa,黑田 长政,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_5,Kuroda Toshitaka,黑田 利高,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_6,Kuroda Toshinori,黑田 利则,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_7,Kuroda Naoyuki,黑田 直之,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_8,Kuroda Kayo,加世,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_9,Kuroda Kine,阿甲,Culture.kinai,Faction.clan_kuroda_1
+lord_1_kuroda_10,Kuroda Fuku,阿福,Culture.kinai,Faction.clan_kuroda_1
+lord_1_bessho,Bessho Yasuharu,別所 安治,Culture.kinai,Faction.clan_bessho_1
+lord_1_bessho_1,Bessho Azuma,阿万,Culture.kinai,Faction.clan_bessho_1
+dead_lord_1_bessho_2,Bessho Nariharu,别所 就治,Culture.kinai,Faction.clan_bessho_1
+dead_lord_1_bessho_3,Bessho Nanzen-in,南禅院,Culture.kinai,Faction.clan_bessho_1
+lord_1_bessho_4,Bessho Nagaharu,别所 长治,Culture.kinai,Faction.clan_bessho_1
+lord_1_bessho_5,Bessho Tomoyuki,别所 友之,Culture.kinai,Faction.clan_bessho_1
+lord_1_bessho_6,Bessho Harusada,别所 治定,Culture.kinai,Faction.clan_bessho_1
+lord_1_bessho_7,Bessho Yoshichika,别所 吉亲,Culture.kinai,Faction.clan_bessho_1
+lord_1_bessho_8,Bessho Kashi,阿柏,Culture.kinai,Faction.clan_bessho_1
+lord_1_bessho_9,Bessho Shigemune,别所 重宗,Culture.kinai,Faction.clan_bessho_1
+lord_1_bessho_10,Bessho Seri,小芹,Culture.kinai,Faction.clan_bessho_1
+lord_1_matsunaga,Matsunaga Hisahide,松永 久秀,Culture.kinai,Faction.clan_matsunaga_1
+lord_1_matsunaga_1,Matsunaga Kasumi,小霞,Culture.kinai,Faction.clan_matsunaga_1
+lord_1_matsunaga_2,Matsunaga Hisamichi,松永 久通,Culture.kinai,Faction.clan_matsunaga_1
+lord_1_matsunaga_3,Matsunaga Wakaba,若叶,Culture.kinai,Faction.clan_matsunaga_1
+lord_1_tsutsui,Tsutsui Junkei,筒井 顺庆,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_1,Tsutsui Taka,多贺,Culture.kinai,Faction.clan_tsutsui_1
+dead_lord_1_tsutsui_2,Tsutsui Junkou,筒井 顺兴,Culture.kinai,Faction.clan_tsutsui_1
+dead_lord_1_tsutsui_3,Tsutsui Saya,佐谷,Culture.kinai,Faction.clan_tsutsui_1
+dead_lord_1_tsutsui_4,Tsutsui Junsho,筒井 顺昭,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_5,Tsutsui Okata,小方,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_6,Tsutsui Junkoku,筒井 顺国,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_7,Tsutsui Koharu,小春,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_8,Tsutsui Sadatsugu,筒井 定次,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_9,Tsutsui Toshihiro,筒井 顺弘,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_10,Tsutsui Tai,碓井,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_11,Tsutsui Junsai,筒井 顺斋,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_tsutsui_12,Tsutsui Hiroyuki,筒井 广之,Culture.kinai,Faction.clan_tsutsui_1
+lord_1_atagi,Atagi Nobuyasu,安宅 信康,Culture.kinai,Faction.clan_atagi_1
+lord_1_atagi_1,Atagi Sawa,佐和,Culture.kinai,Faction.clan_atagi_1
+dead_lord_1_atagi_2,Atagi Fuyuyasu,安宅 冬康,Culture.kinai,Faction.clan_atagi_1
+lord_1_atagi_3,Atagi Keiten-in,敬天院,Culture.kinai,Faction.clan_atagi_1
+lord_1_atagi_4,Atagi Kiyoyasu,安宅 清康,Culture.kinai,Faction.clan_atagi_1
+dead_lord_1_ashikaga_2,Ashikaga Yoshiharu,足利 义晴,Culture.kinai,Faction.clan_ashikaga_1
+dead_lord_1_ashikaga_3,Ashikaga Keijyu-in,庆寿院,Culture.kinai,Faction.clan_ashikaga_1
+dead_lord_1_ashikaga_4,Ashikaga Yoshiteru,足利 义辉,Culture.kinai,Faction.clan_ashikaga_1
+dead_lord_1_ashikaga_5,Ashikaga Daiyou-in,大阳院,Culture.kinai,Faction.clan_ashikaga_1
+lord_1_ashikaga_6,Ashikaga Yoshihide,足利 义荣,Culture.kinai,Faction.clan_ashikaga_1
+lord_1_hosokawa,Hosokawa Fujitaka,细川 藤孝,Culture.kinai,Faction.clan_hosokawa_1
+lord_1_hosokawa_1,Hosokawa Jyako,麝香,Culture.kinai,Faction.clan_hosokawa_1
+lord_1_hosokawa_2,Hosokawa Tadaoki,细川 忠兴,Culture.kinai,Faction.clan_hosokawa_1
+lord_1_hosokawa_3,Hosokawa Okimoto,细川 兴元,Culture.kinai,Faction.clan_hosokawa_1
+lord_1_hosokawa_4,Hosokawa Sen,阿千,Culture.kinai,Faction.clan_hosokawa_1
+lord_1_hosokawa_5,Hosokawa Iya,井谷,Culture.kinai,Faction.clan_hosokawa_1
+lord_1_issiki,Issiki Yoshimichi,一色 义道,Culture.kinai,Faction.clan_issiki_1
+lord_1_issiki_1,Issiki Tunako,纲子,Culture.kinai,Faction.clan_issiki_1
+dead_lord_1_issiki_2,Issiki Yoshiyuki,一色 义幸,Culture.kinai,Faction.clan_issiki_1
+dead_lord_1_issiki_3,Issiki Keitoku-In,景德院,Culture.kinai,Faction.clan_issiki_1
+lord_1_issiki_4,Issiki Yoshisada,一色 义定,Culture.kinai,Faction.clan_issiki_1
+lord_1_issiki_5,Issiki Yoshikiyo,一色 义清,Culture.kinai,Faction.clan_issiki_1
+lord_1_issiki_6,Issiki Haruko,春子,Culture.kinai,Faction.clan_issiki_1
+lord_1_yamana,Yamana Suketoyo,山名 祐丰,Culture.kinai,Faction.clan_yamana_1
+lord_1_yamana_1,Yamana Tomoko,友子,Culture.kinai,Faction.clan_yamana_1
+dead_lord_1_yamana_2,Yamana Munetoyo,山名 致丰,Culture.kinai,Faction.clan_yamana_1
+lord_1_yamana_3,Yamana Yoshichika,山名 义亲,Culture.kinai,Faction.clan_yamana_1
+lord_1_yamana_4,Yamana Akihiro,山名 尧熙,Culture.kinai,Faction.clan_yamana_1
+lord_1_hatakeyama,Hatakeyama Akitaka,畠山 秋高,Culture.kinai,Faction.clan_hatakeyama_1
+dead_lord_1_hatakeyama_1,Hatakeyama Masakuni,畠山 政国,Culture.kinai,Faction.clan_hatakeyama_1
+dead_lord_1_hatakeyama_2,Hatakeyama Seiko,势子,Culture.kinai,Faction.clan_hatakeyama_1
+lord_1_hatakeyama_3,Hatakeyama Takamasa,畠山 高政,Culture.kinai,Faction.clan_hatakeyama_1
+lord_1_hatakeyama_4,Hatakeyama Fusako,房子,Culture.kinai,Faction.clan_hatakeyama_1
+lord_1_hatakeyama_5,Hatakeyama Yuko,优子,Culture.kinai,Faction.clan_hatakeyama_1
+lord_1_hatakeyama_6,Hatakeyama Masahisa,畠山 政尚,Culture.kinai,Faction.clan_hatakeyama_1
+lord_1_yasumi,Yasumi Munefusa,安见 宗房,Culture.kinai,Faction.clan_yasumi_1
+lord_1_yasumi_1,Yasumi Yata,矢多,Culture.kinai,Faction.clan_yasumi_1
+lord_1_yasumi_2,Yasumi Tomonaga,安见 友长,Culture.kinai,Faction.clan_yasumi_1
+lord_1_yasumi_3,Yasumi Ukon,安见 右近,Culture.kinai,Faction.clan_yasumi_1
+lord_1_yasumi_4,Yasumi Chie,千枝,Culture.kinai,Faction.clan_yasumi_1
+lord_1_yukawa,Yukawa Naoharu,汤川 直春,Culture.kinai,Faction.clan_yukawa_1
+lord_1_yukawa_1,Yukawa Komatsu,小松,Culture.kinai,Faction.clan_yukawa_1
+dead_lord_1_yukawa_2,Yukawa Naomitsu,汤川 直光,Culture.kinai,Faction.clan_yukawa_1
+dead_lord_1_yukawa_3,Yukawa Komyyo-in,光明院,Culture.kinai,Faction.clan_yukawa_1
+lord_1_yukawa_4,Yukawa Nobuharu,汤川 信春,Culture.kinai,Faction.clan_yukawa_1
+lord_1_yukawa_5,Yukawa Hiroharu,汤川 广春,Culture.kinai,Faction.clan_yukawa_1
+lord_1_yukawa_6,Yukawa Harunobu,汤川 春信,Culture.kinai,Faction.clan_yukawa_1
+lord_1_honganji,Honganji Ken'nyo,本愿寺 显如,Culture.kinai,Faction.clan_honganji_1
+lord_1_honganji_1,Honganji Nyosyun-ni,如春尼,Culture.kinai,Faction.clan_honganji_1
+lord_1_honganji_2,Honganji Kyonyo,本愿寺 教如,Culture.kinai,Faction.clan_honganji_1
+lord_1_honganji_3,Honganji Kenson,本愿寺 显尊,Culture.kinai,Faction.clan_honganji_1
+lord_1_ganshoji,Ganshoji Syoui,愿证寺 证意,Culture.kinai,Faction.clan_ganshoji_1
+lord_1_ganshoji_1,Ganshoji Shomyo-in,昭明院,Culture.kinai,Faction.clan_ganshoji_1
+lord_1_ganshoji_2,Ganshoji Ken'nin,愿证寺 显忍,Culture.kinai,Faction.clan_ganshoji_1
+lord_1_rokkaku,Rokkaku Yoshikata,六角 义贤,Culture.kinai,Faction.clan_rokkaku_1
+lord_1_rokkaku_1,Rokkaku Shizuno,静乃,Culture.kinai,Faction.clan_rokkaku_1
+lord_1_rokkaku_2,Rokkaku Yoshiharu,六角 义治,Culture.kinai,Faction.clan_rokkaku_1
+lord_1_rokkaku_3,Rokkaku Tomoe,巴,Culture.kinai,Faction.clan_rokkaku_1
+lord_1_rokkaku_4,Rokkaku Yoshisada,六角 义定,Culture.kinai,Faction.clan_rokkaku_1
+lord_1_rokkaku_5,Rokkaku Chizuru,千鹤,Culture.kinai,Faction.clan_rokkaku_1
+lord_1_gamou,Gamou Katahide,蒲生 贤秀,Culture.kinai,Faction.clan_gamou_1
+lord_1_gamou_1,Gamou Mitsuki,见月,Culture.kinai,Faction.clan_gamou_1
+lord_1_gamou_2,Gamou Ujisato,蒲生 氏乡,Culture.kinai,Faction.clan_gamou_1
+lord_1_gamou_3,Gamou Shigesato,蒲生 重乡,Culture.kinai,Faction.clan_gamou_1
+lord_1_gamou_4,Gamou Tomo,阿友,Culture.kinai,Faction.clan_gamou_1
+lord_1_gamou_5,Gamou Sana,佐名,Culture.kinai,Faction.clan_gamou_1
+lord_1_azai,Azai Nagamasa,浅井 长政,Culture.kinai,Faction.clan_azai_1
+lord_1_azai_1,Azai Ichi,阿市,Culture.kinai,Faction.clan_azai_1
+lord_1_azai_2,Azai Hisamasa,浅井 久政,Culture.kinai,Faction.clan_azai_1
+lord_1_azai_3,Azai Ako,阿江,Culture.kinai,Faction.clan_azai_1
+lord_1_azai_4,Azai Masamoto,浅井 政元,Culture.kinai,Faction.clan_azai_1
+lord_1_azai_5,Azai Masayuki,浅井 政之,Culture.kinai,Faction.clan_azai_1
+lord_1_todo,Todo Torataka,藤堂 虎高,Culture.kinai,Faction.clan_todo_1
+lord_1_todo_1,Todo Ayame,绫女,Culture.kinai,Faction.clan_todo_1
+lord_1_todo_2,Todo Takatora,藤堂 高虎,Culture.kinai,Faction.clan_todo_1
+lord_1_todo_3,Todo Takanori,藤堂 高则,Culture.kinai,Faction.clan_todo_1
+lord_1_todo_4,Todo Fuji,富士,Culture.kinai,Faction.clan_todo_1
+lord_1_todo_5,Todo Tsuta,阿茑,Culture.kinai,Faction.clan_todo_1
+lord_1_isono,Isono Kazumasa,矶野 员昌,Culture.kinai,Faction.clan_isono_1
+lord_1_isono_1,Isono Ayame,绫女,Culture.kinai,Faction.clan_isono_1
+lord_1_isono_2,Isono Yukinobu,矶野 行信,Culture.kinai,Faction.clan_isono_1
+lord_1_isono_3,Isono Masanaga,矶野 政长,Culture.kinai,Faction.clan_isono_1
+lord_1_akao,Akao Kiyotsuna,赤尾 清纲,Culture.kinai,Faction.clan_akao_1
+lord_1_akao_1,Akao Kiru,雾子,Culture.kinai,Faction.clan_akao_1
+lord_1_akao_2,Akao Kiyofuyu,赤尾 清冬,Culture.kinai,Faction.clan_akao_1
+lord_1_akao_3,Akao Yuki,阿幸,Culture.kinai,Faction.clan_akao_1
+lord_1_oda,Oda Nobunaga,织田 信长,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_1,Oda Nou,浓姬,Culture.kinai,Faction.clan_oda_1
+dead_lord_1_oda_2,Oda Nobuhide,织田 信秀,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_3,Oda Dota-gezen,土田 御前,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_4,Oda Nobutada,织田 信忠,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_5,Oda Nobukatsu,织田 信雄,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_6,Oda Nobutaka,织田 信孝,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_7,Oda Nobuhiro,织田 信广,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_8,Oda Nobukane,织田 信包,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_9,Oda Hisa,阿久,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_10,Oda Nagamasu,织田 长益,Culture.kinai,Faction.clan_oda_1
+lord_1_oda_11,Oda Sei,阿世,Culture.kinai,Faction.clan_oda_1
+lord_1_kinoshita,Kinoshita Hideyoshi,木下 秀吉,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_kinoshita_1,Kinoshita Nene,宁宁,Culture.kinai,Faction.clan_kinoshita_1
+dead_lord_1_kinoshita_2,Kinoshita Yaemon,木下 弥右卫门,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_kinoshita_3,Kinoshita Naka,阿仲夫人,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_kinoshita_4,Kinoshita Hidenaga,木下 秀长,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_kinoshita_5,Kinoshita Tae,阿妙,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_kinoshita_6,Kinoshita Tomo,阿友,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_kinoshita_7,Kinoshita Yoshifusa,木下 吉房,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_kinoshita_8,Kinoshita Asahi,旭姬,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_kinoshita_9,Kinoshita Yoshinari,木下 吉成,Culture.kinai,Faction.clan_kinoshita_1
+lord_1_shibata,Shibata Katsuie,柴田 胜家,Culture.kinai,Faction.clan_shibata_1
+lord_1_shibata_1,Shibata Sae,佐江,Culture.kinai,Faction.clan_shibata_1
+lord_1_shibata_2,Shibata Katsusato,柴田 胜里,Culture.kinai,Faction.clan_shibata_1
+lord_1_shibata_3,Shibata Katsutada,柴田 胜忠,Culture.kinai,Faction.clan_shibata_1
+lord_1_shibata_4,Shibata Katsumasa,柴田 胜政,Culture.kinai,Faction.clan_shibata_1
+lord_1_shibata_5,Shibata Katsutoyo,柴田 胜丰,Culture.kinai,Faction.clan_shibata_1
+lord_1_shibata_6,Shibata Katsutoshi,柴田 胜敏,Culture.kinai,Faction.clan_shibata_1
+lord_1_sakuma,Sakuma Nobumori,佐久间 信盛,Culture.kinai,Faction.clan_sakuma_1
+lord_1_sakuma_1,Sakuma Tsutsuji,踯躅,Culture.kinai,Faction.clan_sakuma_1
+dead_lord_1_sakuma_2,Sakuma Nobuharu,佐久间 信晴,Culture.kinai,Faction.clan_sakuma_1
+lord_1_sakuma_3,Sakuma Kosho-in,光照院,Culture.kinai,Faction.clan_sakuma_1
+lord_1_sakuma_4,Sakuma Nobuhide,佐久间 信荣,Culture.kinai,Faction.clan_sakuma_1
+lord_1_sakuma_5,Sakuma Nobutoki,佐久间 信辰,Culture.kinai,Faction.clan_sakuma_1
+lord_1_takigawa,Takigawa Kazumasu,泷川 一益,Culture.kinai,Faction.clan_takigawa_1
+lord_1_takigawa_1,Takigawa Kano,加纳,Culture.kinai,Faction.clan_takigawa_1
+lord_1_takigawa_2,Takigawa Kazutada,泷川 一忠,Culture.kinai,Faction.clan_takigawa_1
+lord_1_takigawa_3,Takigawa Kazutoki,泷川 一时,Culture.kinai,Faction.clan_takigawa_1
+lord_1_takigawa_4,Takigawa Kiku,阿菊,Culture.kinai,Faction.clan_takigawa_1
+lord_1_takigawa_5,Takigawa Sana,佐名,Culture.kinai,Faction.clan_takigawa_1
+lord_1_kuki,Kuki Yoshitaka,九鬼 嘉隆,Culture.kinai,Faction.clan_kuki_1
+lord_1_kuki_1,Kuki Nami,奈美,Culture.kinai,Faction.clan_kuki_1
+lord_1_kuki_2,Kuki Naritaka,九鬼 成隆,Culture.kinai,Faction.clan_kuki_1
+lord_1_kuki_3,Kuki Shima,小岛,Culture.kinai,Faction.clan_kuki_1
+lord_1_kitabatake,Kitabatake Tomonori,北畠 具教,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_1,Kitabatake Matsu,阿松,Culture.kinai,Faction.clan_kitabatake_1
+dead_lord_1_kitabatake_2,Kitabatake Harutomo,北畠 晴具,Culture.kinai,Faction.clan_kitabatake_1
+dead_lord_1_kitabatake_3,Kitabatake Kuni,阿国,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_4,Kitabatake Tomofusa,北畠 具房,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_5,Kitabatake Tomofuji,长野 具藤,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_6,Kitabatake Chikanari,北畠 亲成,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_7,Kitabatake Yuki,阿幸,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_8,Kitabatake Tsuki,阿月,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_9,Kitabatake Fumi,阿文,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_10,Kitabatake Tomomasa,木造 具政,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_11,Kitabatake Ten,小天,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_12,Kitabatake Nagamasa,木造 长政,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_kitabatake_13,Kitabatake Tomochika,北畠 具亲,Culture.kinai,Faction.clan_kitabatake_1
+lord_1_ito,Ito Yoshisuke,伊东 义祐,Culture.saikai,Faction.clan_ito_1
+lord_1_ito_1,Ito Asa,安佐,Culture.saikai,Faction.clan_ito_1
+lord_1_ito_2,Ito Takashiro,高城殿,Culture.saikai,Faction.clan_ito_1
+lord_1_ito_3,Ito Aso,阿苏,Culture.saikai,Faction.clan_ito_1
+lord_1_ito_4,Ito Yoshimasu,伊东 义益,Culture.saikai,Faction.clan_ito_1
+lord_1_ito_5,Ito Houjyo,北条,Culture.saikai,Faction.clan_ito_1
+lord_1_ito_6,Ito Machigami,町上,Culture.saikai,Faction.clan_ito_1
+lord_1_ito_7,Ito Suketaka,伊东 祐兵,Culture.saikai,Faction.clan_ito_1
+lord_1_mera,Mera Suketsugu,米良 祐次,Culture.saikai,Faction.clan_mera_1
+lord_1_mera_1,Mera Natsugiku,夏菊,Culture.saikai,Faction.clan_mera_1
+lord_1_mera_2,Mera Sigekata,米良 重方,Culture.saikai,Faction.clan_mera_1
+lord_1_mera_3,Mera Hana,花子,Culture.saikai,Faction.clan_mera_1
+lord_1_mera_4,Mera Sukemichi,米良 祐通,Culture.saikai,Faction.clan_mera_1
+lord_1_mera_5,Mera Yume,汤目,Culture.saikai,Faction.clan_mera_1
+lord_1_mera_6,Mera Sukemichi,米良 祐通,Culture.saikai,Faction.clan_mera_1
+lord_1_mera_7,Mera Namomi,奈茂美,Culture.saikai,Faction.clan_mera_1
+lord_1_nagakura,Nagakura Sukemasa,长仓 祐政,Culture.saikai,Faction.clan_nagakura_1
+lord_1_nagakura_1,Nagakura Asa,安佐,Culture.saikai,Faction.clan_nagakura_1
+lord_1_nagakura_2,Nagakura Dounsai,洞云斋,Culture.saikai,Faction.clan_nagakura_1
+lord_1_nagakura_3,Nagakura Suketoshi,长仓 祐岁,Culture.saikai,Faction.clan_nagakura_1
+lord_1_nagakura_4,Nagakura Hisame,久目,Culture.saikai,Faction.clan_nagakura_1
+lord_1_sagara,Sagara Yoshihi,相良 义阳,Culture.saikai,Faction.clan_sagara_1
+lord_1_sagara_1,Sagara Chiyogiku,千代菊,Culture.saikai,Faction.clan_sagara_1
+lord_1_sagara_2,Sagara Koari,虎满,Culture.saikai,Faction.clan_sagara_1
+lord_1_sagara_3,Sagara Chiari,千满,Culture.saikai,Faction.clan_sagara_1
+lord_1_sagara_4,Sagara Kikuchiyo,菊千代,Culture.saikai,Faction.clan_sagara_1
+lord_1_sagara_5,Sagara Yorisada,相良 赖贞,Culture.saikai,Faction.clan_sagara_1
+lord_1_sagara_6,Sagara Hotaru,阿萤,Culture.saikai,Faction.clan_sagara_1
+lord_1_sagara_7,Sagara Umigiri,海桐,Culture.saikai,Faction.clan_sagara_1
+dead_lord_1_sagara_1,Sagara Haruhiro,相良 晴广,Culture.saikai,Faction.clan_sagara_1
+dead_lord_1_sagara_2,Sagara Uchijo,内城,Culture.saikai,Faction.clan_sagara_1
+lord_1_indo,Indo Yoriyasu,犬童 赖安,Culture.saikai,Faction.clan_indo_1
+lord_1_indo_1,Indo Myokei-ni,妙桂尼,Culture.saikai,Faction.clan_indo_1
+lord_1_indo_2,Indo Yorimori,犬童 赖兄,Culture.saikai,Faction.clan_indo_1
+lord_1_indo_3,Indo Yusura,山樱桃,Culture.saikai,Faction.clan_indo_1
+lord_1_amakusa,Amakusa Shigenao,天草 镇尚,Culture.saikai,Faction.clan_amakusa_1
+lord_1_amakusa_1,Amakusa Chidori,千鸟,Culture.saikai,Faction.clan_amakusa_1
+lord_1_amakusa_2,Amakusa Hisatane,天草 久种,Culture.saikai,Faction.clan_amakusa_1
+lord_1_amakusa_3,Amakusa Tanemoto,天草 种元,Culture.saikai,Faction.clan_amakusa_1
+lord_1_amakusa_4,Amakusa Hisatake,天草 久武,Culture.saikai,Faction.clan_amakusa_1
+lord_1_amakusa_5,Amakusa Tsudura,阿葛,Culture.saikai,Faction.clan_amakusa_1
+lord_1_amakusa_6,Amakusa Tanemoto,天草 种元,Culture.saikai,Faction.clan_amakusa_1
+lord_1_otomo,Otomo Sorin,大友 宗麟,Culture.saikai,Faction.clan_otomo_1
+lord_1_otomo_1,Otomo Nata,奈多,Culture.saikai,Faction.clan_otomo_1
+lord_1_otomo_2,Otomo Yoshimune,大友 义统,Culture.saikai,Faction.clan_otomo_1
+lord_1_otomo_3,Otomo Chikaie,大友 亲家,Culture.saikai,Faction.clan_otomo_1
+lord_1_otomo_4,Otomo Chikamori,大友 亲盛,Culture.saikai,Faction.clan_otomo_1
+lord_1_otomo_5,Otomo Emi,惠美,Culture.saikai,Faction.clan_otomo_1
+lord_1_otomo_6,Otomo Yuri,百合,Culture.saikai,Faction.clan_otomo_1
+lord_1_otomo_7,Otomo Chikasada,大友 亲贞,Culture.saikai,Faction.clan_otomo_1
+dead_lord_1_otomo_1,Otomo Yoshiaki,大友 义鉴,Culture.saikai,Faction.clan_otomo_1
+dead_lord_1_otomo_2,Otomo Boujo,坊城,Culture.saikai,Faction.clan_otomo_1
+lord_1_kii,Kii Shigefusa,城井 镇房,Culture.saikai,Faction.clan_kii_1
+lord_1_kii_1,Kii Yohira,四葩,Culture.saikai,Faction.clan_kii_1
+lord_1_kii_2,Kii Tomofusa,城井 朝房,Culture.saikai,Faction.clan_kii_1
+lord_1_kii_3,Kii Masafusa,城井 正房,Culture.saikai,Faction.clan_kii_1
+lord_1_kii_4,Kii Sukefusa,城井 甫房,Culture.saikai,Faction.clan_kii_1
+lord_1_kii_5,Kii Nagafusa,城井 长房,Culture.saikai,Faction.clan_kii_1
+lord_1_kii_6,Kii Aogiri,青桐,Culture.saikai,Faction.clan_kii_1
+lord_1_kamachi,Kamachi Akimori,蒲池 鉴盛,Culture.saikai,Faction.clan_kamachi_1
+lord_1_kamachi_1,Kamachi Otsutsuru,乙鹤,Culture.saikai,Faction.clan_kamachi_1
+lord_1_kamachi_2,Kamachi Shigehisa,蒲池 镇久,Culture.saikai,Faction.clan_kamachi_1
+lord_1_kamachi_3,Kamachi Shigenami,蒲池 镇涟,Culture.saikai,Faction.clan_kamachi_1
+lord_1_kamachi_4,Kamachi Tamatsuru,玉鹤,Culture.saikai,Faction.clan_kamachi_1
+lord_1_kamachi_5,Kamachi Muneyasu,蒲池 统安,Culture.saikai,Faction.clan_kamachi_1
+lord_1_bekki,Bekki Akitsura,户次 鉴连,Culture.saikai,Faction.clan_bekki_1
+lord_1_bekki_1,Bekki Hatsu,波津,Culture.saikai,Faction.clan_bekki_1
+lord_1_bekki_2,Bekki Ginchiyo,訚千代,Culture.saikai,Faction.clan_bekki_1
+lord_1_bekki_3,Bekki Shigetsura,户次 镇连,Culture.saikai,Faction.clan_bekki_1
+dead_lord_1_bekki_4,Bekki Chikayuki,户次 亲行,Culture.saikai,Faction.clan_bekki_1
+dead_lord_1_bekki_5,Bekki Akikata,户次 鉴方,Culture.saikai,Faction.clan_bekki_1
+lord_1_yoshihiro,Yoshihiro Akitada,吉弘 鉴理,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_yoshihiro_1,Yoshihiro Sekkoku-in,石斛院,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_yoshihiro_2,Yoshihiro Shigenobu,吉弘 镇信,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_yoshihiro_3,Yoshihiro Toki,登喜,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_yoshihiro_4,Yoshihiro Muneyuki,吉弘 统幸,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_yoshihiro_5,Yoshihiro Munekazu,吉弘 统数,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_yoshihiro_6,Yoshihiro Munesada,吉弘 统贞,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_yoshihiro_7,Yoshihiro Kanoko,鹿子,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_yoshihiro_8,Yoshihiro Yamayuri,山百合,Culture.saikai,Faction.clan_yoshihiro_1
+lord_1_takahashi,Takahashi Shigetada,高桥 镇种,Culture.saikai,Faction.clan_takahashi_1
+lord_1_takahashi_1,Takahashi Kaname,金目,Culture.saikai,Faction.clan_takahashi_1
+lord_1_takahashi_2,Takahashi Munetora,高桥 统虎,Culture.saikai,Faction.clan_takahashi_1
+lord_1_takahashi_3,Takahashi Kai,甲斐,Culture.saikai,Faction.clan_takahashi_1
+lord_1_takahashi_4,Takahashi Ochiyo,小千代,Culture.saikai,Faction.clan_takahashi_1
+lord_1_takahashi_5,Takahashi Kaya,伽耶,Culture.saikai,Faction.clan_takahashi_1
+lord_1_aso,Aso Koremasa,阿苏 惟将,Culture.saikai,Faction.clan_aso_1
+lord_1_aso_1,Aso Hinageshi,雏芥子,Culture.saikai,Faction.clan_aso_1
+lord_1_aso_2,Aso Koretane,阿苏 惟种,Culture.saikai,Faction.clan_aso_1
+lord_1_aso_3,Aso Azami,浅见,Culture.saikai,Faction.clan_aso_1
+lord_1_kai,Kai Soun,甲斐 宗运,Culture.saikai,Faction.clan_kai_1
+lord_1_kai_1,Kai Oume,阿梅,Culture.saikai,Faction.clan_kai_1
+lord_1_kai_2,Kai Chikahide,甲斐 亲英,Culture.saikai,Faction.clan_kai_1
+lord_1_kai_3,Kai Chikamasa,甲斐 亲正,Culture.saikai,Faction.clan_kai_1
+lord_1_kai_4,Kai Nobunari,甲斐 宣成,Culture.saikai,Faction.clan_kai_1
+lord_1_nawa,Nawa Yukinao,名和 行直,Culture.saikai,Faction.clan_nawa_1
+lord_1_nawa_1,Nawa Anzu,阿杏,Culture.saikai,Faction.clan_nawa_1
+lord_1_nawa_2,Nawa Akitaka,名和 显孝,Culture.saikai,Faction.clan_nawa_1
+lord_1_nawa_3,Nawa Akiteru,名和 显辉,Culture.saikai,Faction.clan_nawa_1
+lord_1_nawa_4,Nawa Yukiyoshi,名和 行良,Culture.saikai,Faction.clan_nawa_1
+lord_1_nishi,Nishi Koremitsu,西 惟光,Culture.saikai,Faction.clan_nishi_1
+lord_1_nishi_1,Nishi Koma,阿驹,Culture.saikai,Faction.clan_nishi_1
+lord_1_nishi_2,Nishi Koreharu,西 惟治,Culture.saikai,Faction.clan_nishi_1
+lord_1_nishi_3,Nishi Uta,宇多,Culture.saikai,Faction.clan_nishi_1
+lord_1_nishi_4,Nishi Korenobu,西 惟信,Culture.saikai,Faction.clan_nishi_1
+lord_1_nishi_5,Nishi Korehide,西 惟秀,Culture.saikai,Faction.clan_nishi_1
+lord_1_nishi_6,Nishi Seki,势喜,Culture.saikai,Faction.clan_nishi_1
+lord_1_takezaki,Takezaki Koremitsu,竹崎 惟满,Culture.saikai,Faction.clan_takezaki_1
+lord_1_takezaki_1,Takezaki Sawa,佐和,Culture.saikai,Faction.clan_takezaki_1
+lord_1_takezaki_2,Takezaki Nagahide,竹崎 长秀,Culture.saikai,Faction.clan_takezaki_1
+lord_1_takezaki_3,Takezaki Tama,阿玉,Culture.saikai,Faction.clan_takezaki_1
+lord_1_takezaki_4,Takezaki Tsuki,阿月,Culture.saikai,Faction.clan_takezaki_1
+lord_1_arima,Arima Yoshisada,有马 义贞,Culture.saikai,Faction.clan_arima_1
+lord_1_arima_1,Arima Utsugi,阿稔,Culture.saikai,Faction.clan_arima_1
+lord_1_arima_2,Arima Yoshizumi,有马 义纯,Culture.saikai,Faction.clan_arima_1
+lord_1_arima_3,Arima Kanoko,鹿子,Culture.saikai,Faction.clan_arima_1
+lord_1_arima_4,Arima Yuri,百合,Culture.saikai,Faction.clan_arima_1
+lord_1_arima_5,Arima Chikashi,波多亲,Culture.saikai,Faction.clan_arima_1
+lord_1_arima_6,Arima Harunobu,有马 晴信,Culture.saikai,Faction.clan_arima_1
+lord_1_omura,Omura Sumitada,大村 纯忠,Culture.saikai,Faction.clan_omura_1
+lord_1_omura_1,Omura Oen,阿圆,Culture.saikai,Faction.clan_omura_1
+lord_1_omura_2,Omura Yoshiaki,大村 喜前,Culture.saikai,Faction.clan_omura_1
+lord_1_omura_3,Omura Yuugao,夕颜,Culture.saikai,Faction.clan_omura_1
+lord_1_omura_4,Omura Shirasame,白雨,Culture.saikai,Faction.clan_omura_1
+lord_1_yasutomi,Yasutomi Suminao,安富 纯直,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_yasutomi_1,Yasutomi Fuse,阿伏,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_yasutomi_2,Yasutomi sumiharu,安富 纯晴,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_yasutomi_3,Yasutomi Kesa,袈裟,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_yasutomi_4,Yasutomi Sumiyasu,安富 纯泰,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_yasutomi_5,Yasutomi Sumitoshi,安富 纯利,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_yasutomi_6,Yasutomi Fuku,阿福,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_yasutomi_7,Yasutomi Sumioki,安富 纯兴,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_yasutomi_8,Yasutomi Yumi,小弓,Culture.saikai,Faction.clan_yasutomi_1
+lord_1_fukuda,Fukuda Tadakane,福田 忠兼,Culture.saikai,Faction.clan_fukuda_1
+lord_1_fukuda_1,Fukuda Momo,桃子,Culture.saikai,Faction.clan_fukuda_1
+lord_1_fukuda_2,Fukuda Kanetsugu,福田 兼次,Culture.saikai,Faction.clan_fukuda_1
+lord_1_fukuda_3,Fukuda Chise,千世,Culture.saikai,Faction.clan_fukuda_1
+lord_1_fukuda_4,Fukuda Kanechika,福田 兼亲,Culture.saikai,Faction.clan_fukuda_1
+lord_1_fukuda_5,Fukuda koshi,小紫,Culture.saikai,Faction.clan_fukuda_1
+lord_1_ryuzoji,Ryuzoji Takanobu,龙造寺 隆信,Culture.saikai,Faction.clan_ryuzoji_1
+dead_lord_1_ryuzoji_1,Ryuzoji Chikaie,龙造寺 周家,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_2,Ryuzoji Keigin-ni,庆訚尼,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_1,Ryuzoji Aoi,阿葵,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_3,Ryuzoji Masaie,龙造寺 政家,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_4,Ryuzoji Ietane,江上 家种,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_5,Ryuzoji Ienobu,龙造寺 家信,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_6,Ryuzoji Aoi,阿葵,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_7,Ryuzoji Yasu,安子,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_8,Ryuzoji Nobukane,龙造寺 信周,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_9,Ryuzoji Shinobu,阿忍,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_10,Ryuzoji Nobuaki,龙造寺 信昭,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_11,Ryuzoji Naganobu,龙造寺 长信,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_12,Ryuzoji Satsuki,臯月,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_13,Ryuzoji Yasutoshi,多久 安顺,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_14,Ryuzoji Kikyo,桔梗,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_ryuzoji_15,Ryuzoji Shinko-in,心光院,Culture.saikai,Faction.clan_ryuzoji_1
+lord_1_matsuura,Matsuura Takanobu,松浦 隆信,Culture.saikai,Faction.clan_matsuura_1
+lord_1_matsuura_1,Matsuura Suiran,水岚,Culture.saikai,Faction.clan_matsuura_1
+lord_1_matsuura_2,Matsuura Shigenobu,松浦 镇信,Culture.saikai,Faction.clan_matsuura_1
+lord_1_matsuura_3,Matsuura Shii,阿椎,Culture.saikai,Faction.clan_matsuura_1
+lord_1_matsuura_4,Matsuura Koreaki,后藤 惟明,Culture.saikai,Faction.clan_matsuura_1
+lord_1_matsuura_5,Matsuura Chikashi,松浦 亲,Culture.saikai,Faction.clan_matsuura_1
+lord_1_matsuura_6,Matsuura Kanoko,鹿子,Culture.saikai,Faction.clan_matsuura_1
+lord_1_matsuura_7,Matsuura Ayame,绫女,Culture.saikai,Faction.clan_matsuura_1
+lord_1_nabeshima,Nabeshima Kiyofusa,锅岛 清房,Culture.saikai,Faction.clan_nabeshima_1
+lord_1_nabeshima_1,Nabeshima Kakei,阿笕,Culture.saikai,Faction.clan_nabeshima_1
+lord_1_nabeshima_2,Nabeshima Nobufusa,锅岛 信房,Culture.saikai,Faction.clan_nabeshima_1
+lord_1_nabeshima_4,Nabeshima Naoshige,锅岛 直茂,Culture.saikai,Faction.clan_nabeshima_1
+lord_1_nabeshima_5,Nabeshima Hikotsuru,彦鹤,Culture.saikai,Faction.clan_nabeshima_1
+lord_1_nabeshima_6,Nabeshima Kiyoyasu,锅岛 清泰,Culture.saikai,Faction.clan_nabeshima_1
+lord_1_nabeshima_7,Nabeshima Iwagiri,岩桐,Culture.saikai,Faction.clan_nabeshima_1
+lord_1_saigo,Saigo Sumitaka,西乡 纯尧,Culture.saikai,Faction.clan_saigo_1
+lord_1_saigo_1,Saigo Sada,阿定,Culture.saikai,Faction.clan_saigo_1
+lord_1_saigo_2,Saigo Sumitaka,西乡 纯尧,Culture.saikai,Faction.clan_saigo_1
+lord_1_saigo_3,Saigo Mayumi,真弓,Culture.saikai,Faction.clan_saigo_1
+lord_1_saigo_4,Saigo Nobunao,西乡 信尚,Culture.saikai,Faction.clan_saigo_1
+lord_1_saigo_5,Saigo Sumimasa,西乡 纯贤,Culture.saikai,Faction.clan_saigo_1
+lord_1_kumabe,Kumabe Chikaie,隈部 亲家,Culture.saikai,Faction.clan_kumabe_1
+lord_1_kumabe_1,Kumabe Inasa,引佐,Culture.saikai,Faction.clan_kumabe_1
+lord_1_kumabe_2,Kumabe Chikanaga,隈部 亲永,Culture.saikai,Faction.clan_kumabe_1
+lord_1_kumabe_3,Kumabe Yamase,山濑,Culture.saikai,Faction.clan_kumabe_1
+lord_1_kumabe_4,Kumabe Chikayasu,隈部 亲泰,Culture.saikai,Faction.clan_kumabe_1
+lord_1_kumabe_5,Kumabe Shigefusa,隈部 镇房,Culture.saikai,Faction.clan_kumabe_1
+lord_1_kumabe_6,Kumabe Kiku,菊姫,Culture.saikai,Faction.clan_kumabe_1
+lord_1_kumabe_7,Kumabe Chikafusa,隈部 亲房,Culture.saikai,Faction.clan_kumabe_1
+lord_1_kumabe_8,Kumabe Akafuji,朱藤,Culture.saikai,Faction.clan_kumabe_1
+lord_1_shimazu,Shimazu Yoshihisa,岛津 义久,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_1,Shimazu Enshin-inden,圆信院殿,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_2,Shimazu Ohira,大平,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_3,Shimazu Shinjo,新城,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_4,Shimazu Yoshihiro,岛津 义弘,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_5,Shimazu Kocho,小蝶,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_6,Shimazu Yachi,屋地,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_7,Shimazu Toshihisa,岛津 岁久,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_8,Shimazu Ume,阿梅,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_9,Shimazu Iehisa,岛津 家久,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_10,Shimazu Nagi,阿凪,Culture.saikai,Faction.clan_shimazu_1
+lord_1_shimazu_11,Shimazu Takahisa,岛津 贵久,Culture.saikai,Faction.clan_shimazu_1
+dead_lord_1_shimazu_2,Shimazu Sesso,雪窓夫人,Culture.saikai,Faction.clan_shimazu_1
+lord_1_ijuin,Ijuin Tadaao,伊集院 忠仓,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_1,Ijuin Shizuku,阿雫,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_2,Ijuin Tadamune,伊集院 忠栋,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_3,Ijuin Kusafuji,草藤,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_4,Ijuin Harunari,伊集院 春成,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_5,Ijuin Tadatane,伊集院 忠胤,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_6,Ijuin Hikari,阿光,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_7,Ijuin Hisanobu,伊集院 久信,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_8,Ijuin Sasayuri,笹百合,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_9,Ijuin Harunari,伊集院 春成,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_10,Ijuin Tadaaki,伊集院 忠朗,Culture.saikai,Faction.clan_ijuin_1
+lord_1_ijuin_11,Ijuin Murasaki,阿紫,Culture.saikai,Faction.clan_ijuin_1
+lord_1_hongo,Hongo Tokihisa,北乡 时久,Culture.saikai,Faction.clan_hongo_1
+lord_1_hongo_1,Hongo Haru,阿春,Culture.saikai,Faction.clan_hongo_1
+lord_1_hongo_2,Hongo Sukehisa,北乡 相久,Culture.saikai,Faction.clan_hongo_1
+lord_1_hongo_3,Hongo Tadatora,北乡 忠虎,Culture.saikai,Faction.clan_hongo_1
+lord_1_hongo_4,Hongo Tadachika,北乡 忠亲,Culture.saikai,Faction.clan_hongo_1
+lord_1_hongo_5,Hongo Hasu,阿莲,Culture.saikai,Faction.clan_hongo_1
+lord_1_kimotsuki,Kimotsuki Yoshikane,肝付 良兼,Culture.saikai,Faction.clan_kimotsuki_1
+lord_1_kimotsuki_1,Kimotsuki Takashiro,高城,Culture.saikai,Faction.clan_kimotsuki_1
+lord_1_kimotsuki_2,Kimotsuki Kanemiki,肝付 兼树,Culture.saikai,Faction.clan_kimotsuki_1
+lord_1_kimotsuki_3,Kimotsuki Izumi,和泉,Culture.saikai,Faction.clan_kimotsuki_1
+lord_1_kimotsuki_4,Kimotsuki Kanesuke,肝付 兼亮,Culture.saikai,Faction.clan_kimotsuki_1
+lord_1_kimotsuki_5,Kimotsuki Kanemori,肝付 兼护,Culture.saikai,Faction.clan_kimotsuki_1
+dead_lord_1_kimotsuki_1,Kimotsuki Kanetsugu,肝付 兼续,Culture.saikai,Faction.clan_kimotsuki_1
+lord_1_kimotsuki_6,Kimotsuki Onan,御南,Culture.saikai,Faction.clan_kimotsuki_1
+lord_1_tanegashima,Tanegashima Tokitaka,种子岛 时尧,Culture.saikai,Faction.clan_tanegashima_1
+lord_1_tanegashima_1,Tanegashima Nishi,阿西,Culture.saikai,Faction.clan_tanegashima_1
+lord_1_tanegashima_2,Tanegashima Hisatoki,种子岛 久时,Culture.saikai,Faction.clan_tanegashima_1
+lord_1_tanegashima_3,Tanegashima Nippo,种子岛 日法,Culture.saikai,Faction.clan_tanegashima_1
+dead_lord_1_tanegashima_1,Tanegashima Shigetoki,种子岛 惠时,Culture.saikai,Faction.clan_tanegashima_1
+lord_1_tanegashima_4,Tanegashima Suiren,水莲,Culture.saikai,Faction.clan_tanegashima_1
+lord_1_kawakami,Kawakami Hisazumi,川上 久隅,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_1,Kawakami Kita,喜多,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_2,Kawakami Hisatoshi,川上 久利,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_3,Kawakami Hisamichi,川上 久通,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_4,Kawakami Tsuta,阿茑,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_5,Kawakami Tadakatsu,川上 忠克,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_6,Kawakami Mina,美奈,Culture.saikai,Faction.clan_kawakami_1
+dead_lord_1_kawakami_7,Kawakami Hisaaki,川上 久朗,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_8,Kawakami Ai,阿爱,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_9,Kawakami Hisatoki,川上 久辰,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_10,Kawakami Yoshi,阿吉,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_11,Kawakami Tadatomo,川上 忠智,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_12,Kawakami Yae,八重,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_13,Kawakami Tadakata,川上 忠坚,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_14,Kawakami Tadae,川上 忠兄,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_15,Kawakami Hisatomo,川上 久智,Culture.saikai,Faction.clan_kawakami_1
+lord_1_kawakami_16,Kawakami Sachi,佐知,Culture.saikai,Faction.clan_kawakami_1
+lord_1_uwai,Uwai Kunikane,上井 国兼,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_1,Uwai Matsu,阿松,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_2,Uwai Kakuken,上井 觉兼,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_3,Uwai Tomi,阿富,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_4,Uwai Tsunekane,上井 经兼,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_5,Uwai Hideaki,上井 秀明,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_6,Uwai Ise,伊势,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_7,Uwai Satokane,上井 里兼,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_8,Uwai Shige,阿茂,Culture.saikai,Faction.clan_uwai_1
+lord_1_uwai_9,Uwai Aki,阿秋,Culture.saikai,Faction.clan_uwai_1
+lord_1_niro,Niro Tadamoto,新纳 忠元,Culture.saikai,Faction.clan_niro_1
+lord_1_niro_1,Niro Shima,志麻,Culture.saikai,Faction.clan_niro_1
+lord_1_niro_2,Niro Tadaaki,新纳 忠明,Culture.saikai,Faction.clan_niro_1
+lord_1_niro_3,Niro Tadamasu,新纳 忠增,Culture.saikai,Faction.clan_niro_1
+lord_1_niro_4,Niro Kaya,佳弥,Culture.saikai,Faction.clan_niro_1
+lord_1_niro_5,Niro Yasuhisa,新纳 康久,Culture.saikai,Faction.clan_niro_1
+lord_1_niro_6,Niro Sue,素衣,Culture.saikai,Faction.clan_niro_1
+lord_1_niro_7,Niro Hisaatsu,新纳 久饶,Culture.saikai,Faction.clan_niro_1
+lord_1_niro_8,Niro Tadahide,新纳 忠秀,Culture.saikai,Faction.clan_niro_1
+lord_1_saionji,Saionji Kinhiro,西园寺 公广,Culture.nankai,Faction.clan_saionji_1
+lord_1_saionji_1,Saionji Nishi,西姫,Culture.nankai,Faction.clan_saionji_1
+lord_1_saionji_2,Saionji Nobuhisa,西园寺 宣久,Culture.nankai,Faction.clan_saionji_1
+lord_1_saionji_3,Saionji Hisa,阿久,Culture.nankai,Faction.clan_saionji_1
+dead_lord_1_saionji_1,Saionji Kinnobu,西园寺 公宣,Culture.nankai,Faction.clan_saionji_1
+dead_lord_1_saionji_2,Saionji Seiko-in,清子,Culture.nankai,Faction.clan_saionji_1
+lord_1_kashuji,Kajuji Motoaki,劝修寺 基明,Culture.nankai,Faction.clan_kashuji_1
+lord_1_kashuji_1,Kajuji Fuki,阿蕗,Culture.nankai,Faction.clan_kashuji_1
+lord_1_kashuji_2,Kajuji Motonori,劝修寺 基贤,Culture.nankai,Faction.clan_kashuji_1
+lord_1_kashuji_3,Kajuji Sayuri,小百合,Culture.nankai,Faction.clan_kashuji_1
+lord_1_hoketsu,Hoketsu Norinobu,法华津 则延,Culture.nankai,Faction.clan_hoketsu_1
+lord_1_hoketsu_1,Hoketsu Hama,羽舞,Culture.nankai,Faction.clan_hoketsu_1
+lord_1_hoketsu_2,Hoketsu Sakinobu,法华津 前延,Culture.nankai,Faction.clan_hoketsu_1
+lord_1_hoketsu_3,Hoketsu Kuwa,桑子,Culture.nankai,Faction.clan_hoketsu_1
+lord_1_ichijo,Ichijo Kanesada,一条 兼定,Culture.nankai,Faction.clan_ichijo_1
+lord_1_ichijo_1,Ichijo Tamafuji,玉藤,Culture.nankai,Faction.clan_ichijo_1
+lord_1_ichijo_2,Ichijo Tadamasa,一条 内政,Culture.nankai,Faction.clan_ichijo_1
+lord_1_ichijo_3,Ichijo Nobuko,信子,Culture.nankai,Faction.clan_ichijo_1
+lord_1_ichijo_4,Ichijo Mariko,鞠子,Culture.nankai,Faction.clan_ichijo_1
+lord_1_doi,Doi Kiyoyoshi,土居 清良,Culture.nankai,Faction.clan_doi_1
+lord_1_doi_1,Doi Mugi,牟岐,Culture.nankai,Faction.clan_doi_1
+lord_1_doi_2,Doi Shigekiyo,土居 重清,Culture.nankai,Faction.clan_doi_1
+lord_1_doi_3,Doi Sozan,土居 宗珊,Culture.nankai,Faction.clan_doi_1
+lord_1_aki,Aki Kunitora,安艺 国虎,Culture.nankai,Faction.clan_aki_1
+lord_1_aki_1,Aki Nishi,阿西,Culture.nankai,Faction.clan_aki_1
+lord_1_aki_2,Aki Hirotsune,安艺 弘恒,Culture.nankai,Faction.clan_aki_1
+lord_1_aki_3,Aki Ietomo,安艺 家友,Culture.nankai,Faction.clan_aki_1
+lord_1_tsuno,Tsuno Sadakatsu,津野 定胜,Culture.nankai,Faction.clan_tsuno_1
+lord_1_tsuno_1,Tsuno Sumi,须美,Culture.nankai,Faction.clan_tsuno_1
+lord_1_tsuno_2,Tsuno Katsuoki,津野 胜兴,Culture.nankai,Faction.clan_tsuno_1
+lord_1_tsuno_3,Tsuno Tomo,阿友,Culture.nankai,Faction.clan_tsuno_1
+lord_1_chosokabe,Chosokabe Motochika,长宗我部 元亲,Culture.nankai,Faction.clan_chosokabe_1
+lord_1_chosokabe_1,Chosokabe Amane,阿周,Culture.nankai,Faction.clan_chosokabe_1
+lord_1_chosokabe_2,Chosokabe Nobuchika,长宗我部 信亲,Culture.nankai,Faction.clan_chosokabe_1
+lord_1_chosokabe_3,Chosokabe Chikakazu,长宗我部 亲和,Culture.nankai,Faction.clan_chosokabe_1
+lord_1_chosokabe_4,Chosokabe Suzu,阿铃,Culture.nankai,Faction.clan_chosokabe_1
+lord_1_chosokabe_5,Chosokabe Honoka,穗香,Culture.nankai,Faction.clan_chosokabe_1
+lord_1_chosokabe_6,Chosokabe Ako,阿江,Culture.nankai,Faction.clan_chosokabe_1
+lord_1_kosokabe,Kosokabe Chikayasu,香宗我部 亲泰,Culture.nankai,Faction.clan_kosokabe_1
+lord_1_kosokabe_1,Kosokabe Yuzuha,柚叶,Culture.nankai,Faction.clan_kosokabe_1
+lord_1_kira,Kira Chikasada,吉良 亲贞,Culture.nankai,Faction.clan_kira_1
+lord_1_kira_1,Kira Yumi,小弓,Culture.nankai,Faction.clan_kira_1
+lord_1_kira_2,Kira Chikazane,吉良 亲实,Culture.nankai,Faction.clan_kira_1
+lord_1_kira_3,Kira Joen,如渊,Culture.nankai,Faction.clan_kira_1
+lord_1_kira_4,Kira Chikamasa,吉良 亲正,Culture.nankai,Faction.clan_kira_1
+lord_1_hisatake,Hisatake Chikanobu,久武 亲信,Culture.nankai,Faction.clan_hisatake_1
+lord_1_hisatake_1,Hisatake En,阿圆,Culture.nankai,Faction.clan_hisatake_1
+dead_lord_1_hisatake_2,Hisatake Shogen,久武 昌源,Culture.nankai,Faction.clan_hisatake_1
+dead_lord_1_hisatake_3,Hisatake Mugi,牟岐,Culture.nankai,Faction.clan_hisatake_1
+lord_1_hisatake_4,Hisatake Chikanao,久武 亲直,Culture.nankai,Faction.clan_hisatake_1
+lord_1_hisatake_5,Hisatake Taka,多加,Culture.nankai,Faction.clan_hisatake_1
+lord_1_yoshida,Yoshida Shigetoshi,吉田 重俊,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_1,Yoshida Hisa,阿久,Culture.nankai,Faction.clan_yoshida_1
+dead_lord_1_yoshida_2,Yoshida Norihiro,吉田 则弘,Culture.nankai,Faction.clan_yoshida_1
+dead_lord_1_yoshida_3,Yoshida Chiku,知久,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_4,Yoshida Shigeyasu,吉田 重康,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_5,Yoshida Naka,阿仲,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_6,Yoshida Takatoshi,吉田 孝俊,Culture.nankai,Faction.clan_yoshida_1
+dead_lord_1_yoshida_7,Yoshida Takayori,吉田 孝赖,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_8,Yoshida Sen,阿千,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_9,Yoshida Sadashige,吉田 贞重,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_10,Yoshida Kinu,阿绢,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_11,Yoshida Chikashige,吉田 周重,Culture.nankai,Faction.clan_yoshida_1
+lord_1_yoshida_12,Yoshida Toku,阿德,Culture.nankai,Faction.clan_yoshida_1
+lord_1_fukudome,Fukudome Yoshishige,福留 仪重,Culture.nankai,Faction.clan_fukudome_1
+lord_1_fukudome_1,Fukudome Chikamasa,福留 亲政,Culture.nankai,Faction.clan_fukudome_1
+lord_1_fukudome_2,Fukudome Ume,阿梅,Culture.nankai,Faction.clan_fukudome_1
+lord_1_miyoshi,Miyoshi Yoshitsugu,三好 义继,Culture.nankai,Faction.clan_miyoshi_1
+lord_1_miyoshi_1,Miyoshi Azusa,阿梓,Culture.nankai,Faction.clan_miyoshi_1
+lord_1_miyoshi_2,Miyoshi Yoshikane,三好 义兼,Culture.nankai,Faction.clan_miyoshi_1
+lord_1_miyoshi_3,Miyoshi Yoshishige,三好 义茂,Culture.nankai,Faction.clan_miyoshi_1
+lord_1_miyoshi_4,Miyoshi Tsuru,阿鹤,Culture.nankai,Faction.clan_miyoshi_1
+dead_lord_1_miyoshi_1,Miyoshi Nagayoshi,三好 长庆,Culture.nankai,Faction.clan_miyoshi_1
+lord_1_miyoshi_5,Miyoshi Syoko-in,照光院,Culture.nankai,Faction.clan_miyoshi_1
+lord_1_sogo,Sogo Masayasu,十河 存保,Culture.nankai,Faction.clan_sogo_1
+lord_1_sogo_1,Sogo Satsuki,臯月,Culture.nankai,Faction.clan_sogo_1
+lord_1_sogo_2,Sogo Masayuki,十河 存之,Culture.nankai,Faction.clan_sogo_1
+lord_1_sogo_3,Sogo Mayu,阿茧,Culture.nankai,Faction.clan_sogo_1
+lord_1_sogo_4,Sogo Kazuyuki,十河 一行,Culture.nankai,Faction.clan_sogo_1
+lord_1_sogo_5,Sogo Yamagiri,山桐,Culture.nankai,Faction.clan_sogo_1
+dead_lord_1_sogo_1,Sogo Kazumasa,十河 一存,Culture.nankai,Faction.clan_sogo_1
+dead_lord_1_sogo_2,Sogo Komyo-in,光明院,Culture.nankai,Faction.clan_sogo_1
+lord_1_shingai,Shingai Dozen,新开 道善,Culture.nankai,Faction.clan_shingai_1
+lord_1_shingai_1,Shingai Yachiyo,八千代,Culture.nankai,Faction.clan_shingai_1
+lord_1_shingai_2,Shingai Sanenari,新开 实成,Culture.nankai,Faction.clan_shingai_1
+lord_1_shingai_3,Shingai Botan,牡丹,Culture.nankai,Faction.clan_shingai_1
+lord_1_shingai_4,Shingai Renge,莲花,Culture.nankai,Faction.clan_shingai_1
+lord_1_shingai_5,Shingai Ukon,新开 右近,Culture.nankai,Faction.clan_shingai_1
+lord_1_shingai_6,Shingai Kaneyasu,新开 兼安,Culture.nankai,Faction.clan_shingai_1
+lord_1_shingai_7,Shingai Katashiro,片城,Culture.nankai,Faction.clan_shingai_1
+lord_1_onishi,Onishi Yoritake,大西 赖武,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_1,Onishi Amaki,甘城,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_2,Onishi Shigemoto,大西 茂元,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_3,Onishi Haruka,春香,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_4,Onishi Yoriharu,大西 赖晴,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_5,Onishi Tochi,户知,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_6,Onishi Yorikane,大西 赖包,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_7,Onishi Yorinobu,大西 赖宣,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_8,Onishi Mototake,大西 元武,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_9,Onishi Suzuran,铃兰,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_10,Onishi Sadatake,大西 贞武,Culture.nankai,Faction.clan_onishi_1
+lord_1_onishi_11,Onishi Hamagiku,浜菊,Culture.nankai,Faction.clan_onishi_1
+dead_lord_1_onishi_1,Onishi Mototaka,大西 元高,Culture.nankai,Faction.clan_onishi_1
+dead_lord_1_onishi_2,Onishi Keizen-in,庆善院,Culture.nankai,Faction.clan_onishi_1
+lord_1_ashina,Ashina Morioki,芦名 盛兴,Culture.ou,Faction.clan_ashina_1
+lord_1_ashina_1,Ashina Hiko,阿彦,Culture.ou,Faction.clan_ashina_1
+lord_1_ashina_2,Ashina Moriuji,芦名 盛氏,Culture.ou,Faction.clan_ashina_1
+lord_1_ashina_3,Ashina Yae,八重,Culture.ou,Faction.clan_ashina_1
+lord_1_ashina_4,Ashina Yuzu,柚子,Culture.ou,Faction.clan_ashina_1
+lord_1_inawashiro,Inawashiro Morikuni,猪苗代 盛国,Culture.ou,Faction.clan_inawashiro_1
+lord_1_inawashiro_1,Inawashiro Matsu,阿松,Culture.ou,Faction.clan_inawashiro_1
+lord_1_inawashiro_2,Inawashiro Moritane,猪苗代 盛胤,Culture.ou,Faction.clan_inawashiro_1
+lord_1_inawashiro_3,Inawashiro Munekuni,猪苗代 宗国,Culture.ou,Faction.clan_inawashiro_1
+lord_1_inawashiro_4,Inawashiro Moriaki,猪苗代 盛明,Culture.ou,Faction.clan_inawashiro_1
+lord_1_saze,Saze Tanetsune,佐濑 种常,Culture.ou,Faction.clan_saze_1
+lord_1_saze_1,Saze Ai,阿爱,Culture.ou,Faction.clan_saze_1
+lord_1_saze_2,Saze Tsunenori,佐濑 常则,Culture.ou,Faction.clan_saze_1
+lord_1_saze_3,Saze Tose,阿岁,Culture.ou,Faction.clan_saze_1
+lord_1_saze_4,Saze Morimitsu,佐濑 盛满,Culture.ou,Faction.clan_saze_1
+lord_1_saze_5,Saze Kine,阿甲,Culture.ou,Faction.clan_saze_1
+lord_1_saze_6,Saze Tsunehide,佐濑 常秀,Culture.ou,Faction.clan_saze_1
+lord_1_matsumoto,Matsumoto Ujisuke,松本 氏辅,Culture.ou,Faction.clan_matsumoto_1
+lord_1_matsumoto_1,Matsumoto Hama,小浜,Culture.ou,Faction.clan_matsumoto_1
+lord_1_matsumoto_2,Matsumoto Yukisuke,松本 行辅,Culture.ou,Faction.clan_matsumoto_1
+lord_1_nikaido,Nikaido Moriyoshi,二阶堂 盛义,Culture.ou,Faction.clan_nikaido_1
+lord_1_nikaido_1,Nikaido Onami,阿波,Culture.ou,Faction.clan_nikaido_1
+lord_1_nikaido_2,Nikaido Moritaka,二阶堂 盛隆,Culture.ou,Faction.clan_nikaido_1
+lord_1_soma,Soma Moritane,相马 盛胤,Culture.ou,Faction.clan_soma_1
+lord_1_soma_1,Soma Kake,鹿毛,Culture.ou,Faction.clan_soma_1
+lord_1_soma_2,Soma Yoshitane,相马 义胤,Culture.ou,Faction.clan_soma_1
+lord_1_soma_3,Sōma Takatane,相马 隆胤,Culture.ou,Faction.clan_soma_1
+lord_1_soma_4,Soma Satotane,相马 乡胤,Culture.ou,Faction.clan_soma_1
+lord_1_soma_5,Soma Haru,阿春,Culture.ou,Faction.clan_soma_1
+lord_1_nihonmatsu,Nihonmatsu Yoshikuni,二本松 义国,Culture.ou,Faction.clan_nihonmatsu_1
+lord_1_nihonmatsu_1,Nihonmatsu Aki,阿秋,Culture.ou,Faction.clan_nihonmatsu_1
+lord_1_nihonmatsu_2,Nihonmatsu Yoshitsugu,二本松 义继,Culture.ou,Faction.clan_nihonmatsu_1
+lord_1_tamura,Tamura Takaaki,田村 隆显,Culture.ou,Faction.clan_tamura_1
+lord_1_tamura_1,Tamura Aki,安艺,Culture.ou,Faction.clan_tamura_1
+lord_1_tamura_2,Tamura Kiyoaki,田村 清显,Culture.ou,Faction.clan_tamura_1
+lord_1_tamura_3,Tamura Kake,鹿毛,Culture.ou,Faction.clan_tamura_1
+lord_1_tamura_4,Tamura Mego,芽子,Culture.ou,Faction.clan_tamura_1
+lord_1_tamura_5,Tamura Ujiaki,田村 氏显,Culture.ou,Faction.clan_tamura_1
+lord_1_okada,Okada Shigetane,冈田 茂胤,Culture.ou,Faction.clan_okada_1
+lord_1_okada_1,Okada Kai,甲斐,Culture.ou,Faction.clan_okada_1
+dead_lord_1_okada_2,Okada Yoshitane,冈田 义胤,Culture.ou,Faction.clan_okada_1
+dead_lord_1_okada_3,Okada Myokei-in,妙桂院,Culture.ou,Faction.clan_okada_1
+lord_1_okada_4,Okada Naotane,冈田 直胤,Culture.ou,Faction.clan_okada_1
+lord_1_okada_5,Okada Tanekage,冈田 胤景,Culture.ou,Faction.clan_okada_1
+lord_1_okada_6,Okada Kiyotane,冈田 清胤,Culture.ou,Faction.clan_okada_1
+lord_1_okada_7,Okada Tanetsura,冈田 胤连,Culture.ou,Faction.clan_okada_1
+lord_1_okada_8,Okada Ise,伊势,Culture.ou,Faction.clan_okada_1
+lord_1_okada_9,Okada Tanenobu,冈田 胤宣,Culture.ou,Faction.clan_okada_1
+lord_1_okada_10,Okada Tanekane,冈田 胤兼,Culture.ou,Faction.clan_okada_1
+lord_1_date,Date Terumune,伊达 辉宗,Culture.ou,Faction.clan_date_1
+lord_1_date_1,Date Yoshi,义姬,Culture.ou,Faction.clan_date_1
+lord_1_date_2,Date Harumune,伊达 晴宗,Culture.ou,Faction.clan_date_1
+lord_1_date_3,Date Kubo,久保姬,Culture.ou,Faction.clan_date_1
+dead_lord_1_date_4,Date Tanemune,伊达 稙宗,Culture.ou,Faction.clan_date_1
+dead_lord_1_date_5,Date Taishin-in,泰心院,Culture.ou,Faction.clan_date_1
+lord_1_date_6,Date Masamune,伊达 政宗,Culture.ou,Faction.clan_date_1
+lord_1_date_7,Date Sanemoto,伊达 实元,Culture.ou,Faction.clan_date_1
+lord_1_date_8,Date Kyosei-in,居性院,Culture.ou,Faction.clan_date_1
+lord_1_date_9,Date Shigezane,伊达 成实,Culture.ou,Faction.clan_date_1
+lord_1_katakura,Katakura Shigetsugu,片仓 重继,Culture.ou,Faction.clan_katakura_1
+dead_lord_1_katakura_1,Katakura Kageshige,片仓 景重,Culture.ou,Faction.clan_katakura_1
+dead_lord_1_katakura_2,Katakura Naoko,直子,Culture.ou,Faction.clan_katakura_1
+lord_1_katakura_3,Katakura Kita,片仓 喜多,Culture.ou,Faction.clan_katakura_1
+lord_1_katakura_4,Katakura Kagetsuna,片仓 景纲,Culture.ou,Faction.clan_katakura_1
+lord_1_oniniwa,Oniniwa Yoshinao,鬼庭 义重,Culture.ou,Faction.clan_oniniwa_1
+lord_1_oniniwa_1,Oniniwa Taki,鬼庭 多岐,Culture.ou,Faction.clan_oniniwa_1
+lord_1_oniniwa_2,Oniniwa Tsunamoto,鬼庭 纲元,Culture.ou,Faction.clan_oniniwa_1
+lord_1_oniniwa_3,Oniniwa Sagami,相模,Culture.ou,Faction.clan_oniniwa_1
+lord_1_oniniwa_4,Oniniwa Yasumoto,鬼庭 安元,Culture.ou,Faction.clan_oniniwa_1
+lord_1_watari,Watari Motomune,亘理 元宗,Culture.ou,Faction.clan_watari_1
+lord_1_watari_1,Watari Gekko-in,月光院,Culture.ou,Faction.clan_watari_1
+lord_1_watari_2,Watari Shigemune,亘理 重宗,Culture.ou,Faction.clan_watari_1
+lord_1_watari_3,Watari Yui,由比,Culture.ou,Faction.clan_watari_1
+lord_1_osaki,Osaki Yoshitaka,大崎 义隆,Culture.ou,Faction.clan_osaki_1
+lord_1_osaki_1,Osaki Yoshinao,大崎 义直,Culture.ou,Faction.clan_osaki_1
+lord_1_osaki_2,Osaki Tani,小谷,Culture.ou,Faction.clan_osaki_1
+lord_1_osaki_3,Osaki Toshiyo,利世,Culture.ou,Faction.clan_osaki_1
+lord_1_kasai,Kasai Harunobu,葛西 晴信,Culture.ou,Faction.clan_kasai_1
+lord_1_kasai_1,Kasai Toku,阿德,Culture.ou,Faction.clan_kasai_1
+lord_1_kasai_2,Kasai Kiyotaka,葛西 清高,Culture.ou,Faction.clan_kasai_1
+lord_1_kasai_3,Kasai Nobuhide,葛西 信秀,Culture.ou,Faction.clan_kasai_1
+lord_1_iwaki,Iwaki Chikataka,岩城 亲隆,Culture.ou,Faction.clan_iwaki_1
+lord_1_iwaki_1,Iwaki Keiju-in,庆寿院,Culture.ou,Faction.clan_iwaki_1
+lord_1_iwaki_2,Iwaki Shigetaka,岩城 重隆,Culture.ou,Faction.clan_iwaki_1
+lord_1_iwaki_3,Iwaki Jomei-in,舒明院,Culture.ou,Faction.clan_iwaki_1
+lord_1_iwaki_4,Iwaki Tsunetaka,岩城 常隆,Culture.ou,Faction.clan_iwaki_1
+lord_1_iwaki_5,Iwaki Takatoki,岩城 隆时,Culture.ou,Faction.clan_iwaki_1
+lord_1_iwaki_6,Iwaki Keiju-in,桂树院,Culture.ou,Faction.clan_iwaki_1
+lord_1_iwaki_7,Iwaki Takamune,岩城 隆宗,Culture.ou,Faction.clan_iwaki_1
+lord_1_iwaki_8,Iwaki Tora,阿虎,Culture.ou,Faction.clan_iwaki_1
+lord_1_rusu,Rusu Masakage,留守 政景,Culture.ou,Faction.clan_rusu_1
+lord_1_rusu_1,Rusu Akimune,留守 显宗,Culture.ou,Faction.clan_rusu_1
+lord_1_rusu_2,Rusu Haru,阿春,Culture.ou,Faction.clan_rusu_1
+lord_1_mogami,Mogami Yoshimori,最上 义守,Culture.ou,Faction.clan_mogami_1
+lord_1_mogami_1,Mogami Renshin-in,莲心院,Culture.ou,Faction.clan_mogami_1
+lord_1_mogami_2,Mogami Yoshiaki,最上 义光,Culture.ou,Faction.clan_mogami_1
+lord_1_mogami_3,Mogami Toshiyo,利世,Culture.ou,Faction.clan_mogami_1
+lord_1_mogami_4,Mogami Yoshitoki,中野 义时,Culture.ou,Faction.clan_mogami_1
+lord_1_mogami_5,Mogami Mitsunao,楯冈 光直,Culture.ou,Faction.clan_mogami_1
+lord_1_tendo,Tendo Yorisada,天童 赖贞,Culture.ou,Faction.clan_tendo_1
+lord_1_tendo_1,Tendo Kikyo,桔梗,Culture.ou,Faction.clan_tendo_1
+lord_1_tendo_2,Tendo Kaede,阿枫,Culture.ou,Faction.clan_tendo_1
+lord_1_tendo_3,Tendo Yorizumi,天童 赖澄,Culture.ou,Faction.clan_tendo_1
+lord_1_tendo_4,Tendo Yorikage,天童 赖景,Culture.ou,Faction.clan_tendo_1
+lord_1_ujiie,Ujiie Morimune,氏家 守栋,Culture.ou,Faction.clan_ujiie_1
+lord_1_ujiie_1,Ujiie Satsuki,臯月,Culture.ou,Faction.clan_ujiie_1
+lord_1_ujiie_2,Ujiie Akimune,氏家 光栋,Culture.ou,Faction.clan_ujiie_1
+lord_1_nobesawa,Nobesawa Mitsunobu,延泽 满延,Culture.ou,Faction.clan_nobesawa_1
+lord_1_nobesawa_1,Nobesawa Yone,世根,Culture.ou,Faction.clan_nobesawa_1
+lord_1_nobesawa_2,Nobesawa Mitsuaki,延泽 光秋,Culture.ou,Faction.clan_nobesawa_1
+lord_1_tateoka,Tateoka Yoshikuni,楯冈 义郡,Culture.ou,Faction.clan_tateoka_1
+lord_1_tateoka_1,Tateoka Ama,阿万,Culture.ou,Faction.clan_tateoka_1
+lord_1_tateoka_2,Tateoka Mitsushige,楯冈 满茂,Culture.ou,Faction.clan_tateoka_1
+lord_1_tateoka_3,Tateoka Mitsuhiro,楯冈 满广,Culture.ou,Faction.clan_tateoka_1
+lord_1_daihoji,Daihoji Yoshimasu,大宝寺 义增,Culture.ou,Faction.clan_daihoji_1
+lord_1_daihoji_1,Daihoji One,尾根,Culture.ou,Faction.clan_daihoji_1
+lord_1_daihoji_2,Daihoji Yoshiuji,大宝寺 义氏,Culture.ou,Faction.clan_daihoji_1
+lord_1_daihoji_3,Daihoji Yumi,小弓,Culture.ou,Faction.clan_daihoji_1
+lord_1_daihoji_4,Daihoji Yoshioki,大宝寺 义兴,Culture.ou,Faction.clan_daihoji_1
+lord_1_onodera,Onodera Kagemichi,小野寺 景道,Culture.ou,Faction.clan_onodera_1
+lord_1_onodera_1,Onodera Sen,阿千,Culture.ou,Faction.clan_onodera_1
+lord_1_onodera_2,Onodera Mitsumichi,小野寺 光道,Culture.ou,Faction.clan_onodera_1
+lord_1_onodera_3,Onodera Yoshimichi,小野寺 义道,Culture.ou,Faction.clan_onodera_1
+lord_1_onodera_4,Onodera Yasumichi,小野寺 康道,Culture.ou,Faction.clan_onodera_1
+lord_1_sakenobe,Sakenobe Sadatsuna,鲑延 贞纲,Culture.ou,Faction.clan_sakenobe_1
+lord_1_sakenobe_1,Sakenobe Hana,花子,Culture.ou,Faction.clan_sakenobe_1
+lord_1_sakenobe_2,Sakenobe Hidetsuna,鲑延 秀纲,Culture.ou,Faction.clan_sakenobe_1
+lord_1_nikaho,Nikaho Kiyohisa,仁贺保 举久,Culture.ou,Faction.clan_nikaho_1
+lord_1_nikaho_1,Nikaho Hagi,阿萩,Culture.ou,Faction.clan_nikaho_1
+lord_1_nikaho_2,Nikaho Kiyonaga,仁贺保 举永,Culture.ou,Faction.clan_nikaho_1
+lord_1_nikaho_3,Nikaho Take,阿竹,Culture.ou,Faction.clan_nikaho_1
+lord_1_nikaho_4,Nikaho Shigekiyo,仁贺保 诚举,Culture.ou,Faction.clan_nikaho_1
+lord_1_nikaho_5,Nikaho Haru,阿春,Culture.ou,Faction.clan_nikaho_1
+lord_1_nikaho_6,Nikaho Chiyo,千代,Culture.ou,Faction.clan_nikaho_1
+lord_1_ando,Ando Chikasue,安东 爱季,Culture.ou,Faction.clan_ando_1
+lord_1_ando_1,Ando Ume,阿梅,Culture.ou,Faction.clan_ando_1
+dead_lord_1_ando_2,Ando Kiyosue,安东 舜季,Culture.ou,Faction.clan_ando_1
+dead_lord_1_ando_3,Ando Mitsu,阿光,Culture.ou,Faction.clan_ando_1
+lord_1_ando_4,Ando Narisue,安东 成季,Culture.ou,Faction.clan_ando_1
+lord_1_ando_5,Ando Shigesue,安东 茂季,Culture.ou,Faction.clan_ando_1
+lord_1_ando_6,Ando Fusa,阿房,Culture.ou,Faction.clan_ando_1
+lord_1_ando_7,Ando Michisue,安东 通季,Culture.ou,Faction.clan_ando_1
+lord_1_asari,Asari Katsuyori,浅利 胜赖,Culture.ou,Faction.clan_asari_1
+lord_1_asari_1,Asari Mina,美奈,Culture.ou,Faction.clan_asari_1
+lord_1_asari_2,Asari Yorihira,浅利 赖平,Culture.ou,Faction.clan_asari_1
+lord_1_asari_3,Asari Yorihirio,浅利 赖广,Culture.ou,Faction.clan_asari_1
+lord_2_kakizaki,Kakizaki Suehiro,蛎崎 季广,Culture.ou,Faction.clan_kakizaki_2
+lord_2_kakizaki_1,Kakizaki Awa,安房,Culture.ou,Faction.clan_kakizaki_2
+lord_2_kakizaki_2,Kakizaki Yoshihiro,蛎崎 庆广,Culture.ou,Faction.clan_kakizaki_2
+lord_2_kakizaki_3,Kakizaki Mai,小舞,Culture.ou,Faction.clan_kakizaki_2
+lord_2_kakizaki_4,Kakizaki Sadahiro,蛎崎 贞广,Culture.ou,Faction.clan_kakizaki_2
+lord_2_kakizaki_5,Kakizaki Nakahiro,蛎崎 中广,Culture.ou,Faction.clan_kakizaki_2
+lord_2_kakizaki_6,Kakizaki Morihiro,蛎崎 守广,Culture.ou,Faction.clan_kakizaki_2
+lord_2_kakizaki_7,Kakizaki Sen,阿千,Culture.ou,Faction.clan_kakizaki_2
+lord_2_kakizaki_8,Kakizaki Kou,阿江,Culture.ou,Faction.clan_kakizaki_2
+lord_1_tozawa,Tozawa Michimori,户泽 道盛,Culture.ou,Faction.clan_tozawa_1
+lord_1_tozawa_1,Tozawa Kiku,阿菊,Culture.ou,Faction.clan_tozawa_1
+lord_1_tozawa_2,Tozawa Morishige,户泽 盛重,Culture.ou,Faction.clan_tozawa_1
+lord_1_tozawa_3,Tozawa Morishige,户泽 盛重,Culture.ou,Faction.clan_tozawa_1
+lord_1_nanbu,Nanbu Harumasa,南部 晴政,Culture.ou,Faction.clan_nanbu_1
+lord_1_nanbu_1,Nanbu Tsuki,阿月,Culture.ou,Faction.clan_nanbu_1
+lord_1_nanbu_2,Nanbu Nobunao,南部 信直,Culture.ou,Faction.clan_nanbu_1
+lord_1_nanbu_3,Nanbu Maru,阿丸,Culture.ou,Faction.clan_nanbu_1
+lord_1_shichinohe,Shichinohe Naokuni,七户 直国,Culture.ou,Faction.clan_shichinohe_1
+lord_1_shichinohe_1,Shichinohe Tsuru,阿鹤,Culture.ou,Faction.clan_shichinohe_1
+lord_1_shichinohe_2,Shichinohe Iekuni,七户 家国,Culture.ou,Faction.clan_shichinohe_1
+lord_1_shichinohe_3,Shichinohe Ume,阿梅,Culture.ou,Faction.clan_shichinohe_1
+lord_1_hachinohe,Hachinohe Masayoshi,八户 政荣,Culture.ou,Faction.clan_hachinohe_1
+lord_1_hachinohe_1,Hachinohe Toki,登喜,Culture.ou,Faction.clan_hachinohe_1
+lord_1_hachinohe_2,Hachinohe Naoyoshi,八户 直义,Culture.ou,Faction.clan_hachinohe_1
+lord_1_konohe,Konohe Masazane,九户 政实,Culture.ou,Faction.clan_konohe_1
+lord_1_konohe_1,Konohe Kei,阿桂,Culture.ou,Faction.clan_konohe_1
+lord_1_konohe_2,Konohe Nobunaka,九户 信仲,Culture.ou,Faction.clan_konohe_1
+lord_1_konohe_3,Konohe Yuki,阿幸,Culture.ou,Faction.clan_konohe_1
+lord_1_konohe_4,Konohe Sanechika,九户 实亲,Culture.ou,Faction.clan_konohe_1
+lord_1_konohe_5,Konohe Shino,志乃,Culture.ou,Faction.clan_konohe_1
+lord_1_kita,Kita Nobuchika,北 信爱,Culture.ou,Faction.clan_kita_1
+lord_1_kita_1,Kita Miki,见喜,Culture.ou,Faction.clan_kita_1
+lord_1_kita_2,Kita Chikakazu,北 爱一,Culture.ou,Faction.clan_kita_1
+lord_1_kita_3,Kita Sumire,阿堇,Culture.ou,Faction.clan_kita_1
+lord_1_kita_4,Kita Hidechika,北 秀爱,Culture.ou,Faction.clan_kita_1
+lord_1_kita_5,Kita Naotsugu,北 直继,Culture.ou,Faction.clan_kita_1
+lord_1_oura,Oura Tamenobu,大浦 为信,Culture.ou,Faction.clan_oura_1
+lord_1_oura_1,Oura Fuku,阿福,Culture.ou,Faction.clan_oura_1
+dead_lord_1_oura_2,Oura Tamenori,大浦 为则,Culture.ou,Faction.clan_oura_1
+dead_lord_1_oura_3,Oura Sumi,须美,Culture.ou,Faction.clan_oura_1
+lord_1_shiba,Shiba Akizane,斯波 诠真,Culture.ou,Faction.clan_shiba_1
+lord_1_shiba_1,Shiba Shima,志麻,Culture.ou,Faction.clan_shiba_1
+lord_1_shiba_2,Shiba Akinao,斯波 诠直,Culture.ou,Faction.clan_shiba_1
+lord_1_shiba_3,Shiba Tsuya,津野,Culture.ou,Faction.clan_shiba_1
+lord_1_shiba_4,Shiba Akitane,斯波 诠种,Culture.ou,Faction.clan_shiba_1
+lord_1_asonuma,Asonuma Hirosato,阿曾沼 广乡,Culture.ou,Faction.clan_asonuma_1
+lord_1_asonuma_1,Asonuma Yone,世根,Culture.ou,Faction.clan_asonuma_1
+lord_1_asonuma_2,Asonuma Hironaga,阿曾沼 广长,Culture.ou,Faction.clan_asonuma_1
+lord_1_asonuma_3,Asonuma Hirotsuna,阿曾沼 广纲,Culture.ou,Faction.clan_asonuma_1
+lord_1_namioka,Namioka Tomokazu,浪冈 具运,Culture.ou,Faction.clan_namioka_1
+lord_1_namioka_1,Namioka Tama,阿玉,Culture.ou,Faction.clan_namioka_1
+dead_lord_1_namioka_2,Namioka Tomomune,浪冈 具统,Culture.ou,Faction.clan_namioka_1
+lord_1_namioka_3,Namioka Joko-in,常光院,Culture.ou,Faction.clan_namioka_1
+lord_1_namioka_4,Namioka Akimura,浪冈 显村,Culture.ou,Faction.clan_namioka_1
+lord_1_namioka_5,Namioka Akinori,浪冈 显范,Culture.ou,Faction.clan_namioka_1
+lord_1_namioka_6,Namioka Kata,加多,Culture.ou,Faction.clan_namioka_1
+lord_1_namioka_7,Namioka Akitada,浪冈 显忠,Culture.ou,Faction.clan_namioka_1
+peasant_farmer,Peasant Farmer,农民,Culture.ashigaru,
+yari_ashigaru,Yari Ashigaru,枪足轻,Culture.ashigaru,
+trained_sword_ashigaru,Katana Ashigaru,佩刀足轻,Culture.ashigaru,
+veteran_sword_ashigaru,Skilled Katana Ashigaru,熟练佩刀足轻,Culture.ashigaru,
+trained_yari_ashigaru,Trained Yari Ashigaru,熟练枪足轻,Culture.ashigaru,
+veteran_yari_ashigaru,Veteran Yari Ashigaru,资深枪足轻,Culture.ashigaru,
+nagamaki_ashigaru,Nagamaki Ashigaru,长卷足轻,Culture.ashigaru,
+trained_nagamaki_ashigaru,Trained Nagamaki Ashigaru,熟练长卷足轻,Culture.ashigaru,
+veteran_nagamaki_ashigaru,Veteran Nagamaki Ashigaru,资深长卷足轻,Culture.ashigaru,
+yumi_ashigaru,Yumi Ashigaru,弓足轻,Culture.ashigaru,
+teppo_ashigaru,Teppo Ashigaru,铁炮足轻,Culture.ashigaru,
+trained_yumi_ashigaru,Trained Yumi Ashigaru,熟练弓足轻,Culture.ashigaru,
+veteran_yumi_ashigaru,Veteran Yumi Ashigaru,资深弓足轻,Culture.ashigaru,
+sailor,Sailor,水手,Culture.looters,
+portuguese_tier_1,Portuguese Mercenary,葡萄牙佣兵,Culture.ashigaru,
+portuguese_tier_2,Portuguese Adventurer,葡萄牙探险家,Culture.ashigaru,
+portuguese_tier_3,Portuguese Captain,葡萄牙队长,Culture.ashigaru,
+zoku_thief,Zoku Thief,贼寇泥棒,Culture.zoku,
+zoku_bandit,Zoku Bandit,贼寇匪徒,Culture.zoku,
+yato_thief,Yato Thief,野盗泥棒,Culture.yato,
+yato_bandit,Yato Bandit,野盗匪徒,Culture.yato,
+wokou_pirate,Wokou Pirate,倭寇水兵,Culture.wokou,
+hardened_wokou_pirate,Hardened Wokou Pirate,历战倭寇水兵,Culture.wokou,
+wokou_raider,Wokou Raider,倭寇强盗,Culture.wokou,
+sanzoku_bandit,Sanzoku Bandit,山贼,Culture.sanzoku,
+sanzoku_robber,Sanzoku Robber,熟练山贼,Culture.sanzoku,
+sanzoku_raider,Sanzoku Raider,资深山贼,Culture.sanzoku,
+looter,Oihagi Looter,追剥,Culture.looters,
+ochimusya,Ochimusya-gari Samurai Hunter,落武者狩,Culture.ochimusya,
+zoku_bandit_boss,Zoku Bandit Boss,贼寇头,Culture.zoku,
+yato_bandit_boss,Yato Bandit Boss,野盗头,Culture.yato,
+wokou_bandit_boss,Wokou Bandit Boss,倭寇头,Culture.wokou,
+sanzoku_bandit_boss,Sanzoku Bandit Boss,山贼头,Culture.sanzoku,
+ochimusya_bandit_boss,Ochimusya-gari Bandit Boss,落武者狩头,Culture.ochimusya,
+commander_13,Farmer Samurai,农人武者,Culture.nankai,
+commander_14,Inland Sea Samurai,内海武者,Culture.sanyo,
+commander_16,Long Spear Officer,长枪组头,Culture.tokai,
+commander_15,The Fencer,剑豪,Culture.saikai,
+commander_17,Nodachi Noble,野太刀豪族,Culture.kinai,
+commander_18,Armored Cavalry Officer,骑马组头,Culture.kanto,
+commander_19,Onnamusha,女武者,Culture.buddhists,
+commander_20,Archer Troop,弓足轻,Culture.hokuriku,
+commander_21,Oni Duelist,鬼武者,Culture.tosan,
+commander_22,Recruited Monk Gunner,征召僧枪手,Culture.buddhists,
+hokuriku_militia_peasant,Hokuriku Militia Peasant,北陆民兵,Culture.hokuriku,
+hokuriku_hired_monk,Hokuriku Hired Monk,北陆僧侣,Culture.hokuriku,
+hokuriku_hired_monk_mercenary,Hokuriku Hired Monk Mercenary,北陆僧兵,Culture.hokuriku,
+hokuriku_hired_monk_mercenary_veteran,Hokuriku Hired Monk Mercenary Veteran,北陆资深僧兵,Culture.hokuriku,
+hokuriku_jizamurai,Hokuriku Jizamurai,北陆地侍,Culture.hokuriku,
+hokuriku_yumi_samurai,Hokuriku Yumi Samurai,北陆弓武者,Culture.hokuriku,
+skilled_hokuriku_yumi_samurai,Skilled Hokuriku Yumi Samurai,北陆熟练弓武者,Culture.hokuriku,
+hokuriku_teppo_samurai,Hokuriku Teppo Samurai,北陆铁炮武者,Culture.hokuriku,
+hokuriku_infantry_samurai,Hokuriku Samurai Infantry,北陆枪武者,Culture.hokuriku,
+skilled_hokuriku_infantry,Skilled Hokuriku Naginata Infantry,北陆熟练薙刀武者,Culture.hokuriku,
+veteran_hokuriku_infantry,Veteran Hokuriku Naginata Infantry,北陆资深薙刀武者,Culture.hokuriku,
+veteran_hokuriku_odachi,Hokuriku Odachi Samurai,北陆大太刀武者,Culture.hokuriku,
+hokuriku_odachi_mounted_samurai,Hokuriku Mounted Odachi Samurai,北陆大太刀骑马武者,Culture.hokuriku,
+hokuriku_mounted_samurai,Hokuriku Mounted Samurai,北陆骑马武者,Culture.hokuriku,
+skilled_hokuriku_horse_archer_samurai,Skilled Hokuriku Horse Archer Samurai,北陆熟练骑射武者,Culture.hokuriku,
+skilled_hokuriku_horse_gunner_samurai,Skilled Hokuriku Horse Gunner Samurai,北陆熟练骑马铁炮,Culture.hokuriku,
+skilled_hokuriku_horse_carbine_samurai,Skilled Hokuriku Carbine Samurai,北陆熟练马上筒武者,Culture.hokuriku,
+skilled_hokuriku_mounted_samurai,Skilled Hokuriku Mounted Samurai,北陆熟练骑马武者,Culture.hokuriku,
+kanto_militia_peasant,Kanto Militia Peasant,关东民兵,Culture.kanto,
+kanto_ashigaru_scout,Ashigaru Scout,物见足轻,Culture.kanto,
+kanto_skilled_ashigaru_scout,Skilled Ashigaru Scout,熟练物见足轻,Culture.kanto,
+kanto_mounted_ashigaru_scout,Kanto Mounted Scout,关东骑马物见,Culture.kanto,
+kanto_jizamurai,Kanto Jizamurai,关东地侍,Culture.kanto,
+kanto_yumi_samurai,Kanto Yumi Samurai,关东弓武者,Culture.kanto,
+skilled_kanto_yumi_samurai,Skilled Kanto Yumi Samurai,关东熟练弓武者,Culture.kanto,
+kanto_teppo_samurai,Kanto Teppo Samurai,关东铁炮武者,Culture.kanto,
+kanto_samurai_infantry,Kanto Samurai Infantry,关东枪武者,Culture.kanto,
+skilled_kanto_infantry,Skilled Kanto Infantry,关东熟练枪武者,Culture.kanto,
+kanto_mounted_samurai,Kanto Mounted Samurai,关东骑马武者,Culture.kanto,
+kanto_heavy_cavalry,Kanto Heavy Cavalry,关东重装骑马武者,Culture.kanto,
+skilled_kanto_heavy_cavalry,Skilled Kanto Heavy Cavalry,关东熟练重装骑马武者,Culture.kanto,
+kanto_elite_cavalry,Kanto Elite Cavalry,关东精锐骑马武者,Culture.kanto,
+kinai_militia_peasant,Kinai Militia Peasant,畿内民兵,Culture.kinai,
+kinai_ashigaru_vanguard,Ashigaru Vanguard,先阵足轻,Culture.kinai,
+kinai_trained_ashigaru_vanguard,Trained Ashigaru Vanguard,熟练先阵足轻,Culture.kinai,
+kinai_heavy_infantry_ashigaru,Heavy Infantry Ashigaru,重装足轻,Culture.kinai,
+kinai_jizamurai,Kinai Jizamurai,畿内地侍,Culture.kinai,
+kinai_yumi_samurai,Kinai Yumi Samurai,畿内弓武者,Culture.kinai,
+skilled_kinai_yumi_samurai,Skilled Kinai Yumi Samurai,畿内熟练弓武者,Culture.kinai,
+kinai_teppo_samurai,Kinai Teppo Samurai,畿内铁炮武者,Culture.kinai,
+kinai_yari_samurai,Kinai Yari Samurai,畿内枪武者,Culture.kinai,
+skilled_kinai_yari,Skilled Kinai Yari,畿内熟练枪武者,Culture.kinai,
+kinai_katana_samurai,Kinai Katana Samurai,畿内刀武者,Culture.kinai,
+skilled_kinai_katana,Skilled Kinai Katana Samurai,畿内熟练刀武者,Culture.kinai,
+kinai_odachi_samurai,Kinai Odachi Samurai,畿内熟练大太刀武者,Culture.kinai,
+kinai_mounted_samurai,Kinai Mounted Samurai,畿内骑马武者,Culture.kinai,
+kinai_horse_archer_samurai,Kinai Horse Archer Samurai,畿内骑射武者,Culture.kinai,
+lord_1_ashikaga,Ashikaga Yoshiaki,足利 义昭,Culture.kinai,
+lord_1_ashikaga_1,Ashikaga Sako,佐古,Culture.kinai,
+monk_temple_follower,Temple Follower,堂众,Culture.buddhists,
+ikki_rebel,Ikki Rebel,一揆,Culture.buddhists,
+ikki_agitator,Ikki Agitator,一揆煽动者,Culture.buddhists,
+ikki_radical,Ikki Radical,狂热一揆,Culture.buddhists,
+ikki_ranged_radical,Ranged Ikki Radical,狂热一揆射手,Culture.buddhists,
+monk_temple_yumi_footsoldier,Temple Yumi Footsoldier,寺院弓持步兵,Culture.buddhists,
+monk_yumi,Yumi Monk,弓僧兵,Culture.buddhists,
+monk_yumi_skilled,Skilled Yumi Monk,熟练弓僧兵,Culture.buddhists,
+monk_yumi_devoted,Devoted Yumi Monk,虔信弓僧兵,Culture.buddhists,
+monk_teppo,Teppo Monk,铁炮僧兵,Culture.buddhists,
+monk_teppo_marksman,Teppo Monk Marksman,铁炮恶法师,Culture.buddhists,
+monk_temple_footsoldier,Temple Footsoldier,寺院步兵,Culture.buddhists,
+monk_yari,Yari Monk,枪持僧兵,Culture.buddhists,
+monk_yari_skilled,Skilled Yari Monk,熟练枪僧兵,Culture.buddhists,
+monk_yari_devoted,Devoted Yari Monk,虔信枪僧兵,Culture.buddhists,
+monk_sword,Sword Monk,刀持僧兵,Culture.buddhists,
+monk_sword_skilled,Skilled Sword Monk,熟练刀持僧兵,Culture.buddhists,
+monk_sword_devoted,Devoted Sword Monk,虔信刀持僧兵,Culture.buddhists,
+monk_odachi_devoted,Devoted Odachi Monk,虔信大太刀僧兵,Culture.buddhists,
+monk_naginata,Naginata Monk,薙刀僧兵,Culture.buddhists,
+monk_naginata_skilled,Skilled Naginata Monk,熟练薙刀僧兵,Culture.buddhists,
+monk_naginata_devoted,Devoted Naginata Monk,虔信薙刀僧兵,Culture.buddhists,
+monk_onnamusha,Onna-musha,女武者,Culture.buddhists,
+monk_onnamusha_gunner_devoted,Devoted Onna-musha Gunner,虔信铁炮女武者,Culture.buddhists,
+monk_onnamusha_naginata_devoted,Devoted Naginata Onna-musha,虔信薙刀女武者,Culture.buddhists,
+monk_onnamusha_horse_archer_devoted,Onnamusha Horse Archer,骑射女武者,Culture.buddhists,
+nankai_militia_peasant,Nankai Militia Peasant,南海民兵,Culture.nankai,
+nankai_ichiryogusoku,Ichiryogusoku,一领具足足轻,Culture.nankai,
+trained_nankai_ichiryogusoku_swordsman,Trained Ichiryogusoku Swordsman,一领具足熟练刀足轻,Culture.nankai,
+veteran_nankai_ichiryogusoku_swordsman,Veteran Ichiryogusoku Swordsman,一领具足资深刀足轻,Culture.nankai,
+trained_nankai_ichiryogusoku_bowman,Trained Ichiryogusoku Bowman,一领具足熟练弓足轻,Culture.nankai,
+veteran_nankai_ichiryogusoku_bowman,Veteran Ichiryogusoku Bowman,一领具足资深弓足轻,Culture.nankai,
+trained_nankai_ichiryogusoku_spearman,Trained Ichiryogusoku Spearman,一领具足熟练枪足轻,Culture.nankai,
+veteran_nankai_ichiryogusoku_spearman,Veteran Ichiryogusoku Spearman,一领具足资深枪足轻,Culture.nankai,
+nankai_jizamurai,Nankai Jizamurai,南海地侍,Culture.nankai,
+nankai_yumi_samurai,Nankai Yumi Samurai,南海弓武者,Culture.nankai,
+skilled_nankai_yumi_samurai,Skilled Nankai Yumi Samurai,南海熟练弓武者,Culture.nankai,
+nankai_teppo_samurai,Nankai Teppo Samurai,南海铁炮武者,Culture.nankai,
+nankai_infantry_samurai,Nankai Samurai Infantry,南海枪武者,Culture.nankai,
+skilled_nankai_infantry,Skilled Nankai Infantry,南海熟练枪武者,Culture.nankai,
+nankai_mounted_samurai,Nankai Mounted Samurai,南海骑马武者,Culture.nankai,
+skilled_nankai_horse_archer_samurai,Skilled Nankai Horse Archer Samurai,南海熟练骑射武者,Culture.nankai,
+skilled_nankai_mounted_samurai,Skilled Nankai Mounted Samurai,南海熟练骑马武者,Culture.nankai,
+spc_notable_saikai_0,Cautious imperial merchant,谨慎的帝国商人,Culture.saikai,
+spc_notable_saikai_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.saikai,
+spc_notable_saikai_1,"saikai merchant 3, ruthless",心狠手辣的西海商人,Culture.saikai,
+spc_notable_saikai_1b,Cold imperial merchant,冷血的帝国商人,Culture.saikai,
+spc_notable_saikai_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.saikai,
+spc_notable_saikai_2b,"saikai merchant 6, cautious",谨慎的西海商人,Culture.saikai,
+spc_notable_saikai_3,"saikai merchant 7, selfmade",奋斗中的西海商人,Culture.saikai,
+spc_notable_saikai_3b,"saikai merchant 8, jocular",风趣的西海商人,Culture.saikai,
+spc_notable_saikai_4,"saikai merchant 9, heiress",获得家族继承的西海商人,Culture.saikai,
+spc_notable_saikai_4b,"saikai merchant 10, devious",狡诈的西海商人,Culture.saikai,
+spc_notable_saikai_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.saikai,
+spc_notable_saikai_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.saikai,
+spc_notable_saikai_7,Female imperial mystic,女性帝国术士,Culture.saikai,
+spc_notable_saikai_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.saikai,
+spc_notable_saikai_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.saikai,
+spc_notable_saikai_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.saikai,
+spc_notable_saikai_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.saikai,
+spc_notable_saikai_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.saikai,
+spc_notable_saikai_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.saikai,
+spc_notable_saikai_12,Female imperial gang leader,女性帝国帮派头目,Culture.saikai,
+spc_notable_saikai_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.saikai,
+spc_notable_saikai_21,saikai gruff rural notable,粗鲁的西海乡村要人,Culture.saikai,
+spc_notable_saikai_22,saikai rural notable agreeable,和蔼的西海乡村要人,Culture.saikai,
+spc_saikai_headman_1,saikai rebellious headman,西海桀骜头人,Culture.saikai,
+spc_saikai_headman_2,saikai conservative headman,西海保守头人,Culture.saikai,
+spc_saikai_headman_3,saikai devious headman,西海狡猾头人,Culture.saikai,
+spc_notable_nankai_0,Cautious imperial merchant,谨慎的帝国商人,Culture.nankai,
+spc_notable_nankai_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.nankai,
+spc_notable_nankai_1,"nankai merchant 3, ruthless",心狠手辣的南海商人,Culture.nankai,
+spc_notable_nankai_1b,Cold imperial merchant,冷血的帝国商人,Culture.nankai,
+spc_notable_nankai_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.nankai,
+spc_notable_nankai_2b,"nankai merchant 6, cautious",谨慎的南海商人,Culture.nankai,
+spc_notable_nankai_3,"nankai merchant 7, selfmade",奋斗中的南海商人,Culture.nankai,
+spc_notable_nankai_3b,"nankai merchant 8, jocular",风趣的南海商人,Culture.nankai,
+spc_notable_nankai_4,"nankai merchant 9, heiress",获得家族继承的南海商人,Culture.nankai,
+spc_notable_nankai_4b,"nankai merchant 10, devious",狡诈的南海商人,Culture.nankai,
+spc_notable_nankai_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.nankai,
+spc_notable_nankai_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.nankai,
+spc_notable_nankai_7,Female imperial mystic,女性帝国术士,Culture.nankai,
+spc_notable_nankai_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.nankai,
+spc_notable_nankai_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.nankai,
+spc_notable_nankai_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.nankai,
+spc_notable_nankai_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.nankai,
+spc_notable_nankai_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.nankai,
+spc_notable_nankai_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.nankai,
+spc_notable_nankai_12,Female imperial gang leader,女性帝国帮派头目,Culture.nankai,
+spc_notable_nankai_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.nankai,
+spc_notable_nankai_21,nankai gruff rural notable,粗鲁的南海乡村要人,Culture.nankai,
+spc_notable_nankai_22,nankai rural notable agreeable,和蔼的南海乡村要人,Culture.nankai,
+spc_nankai_headman_1,nankai rebellious headman,南海桀骜头人,Culture.nankai,
+spc_nankai_headman_2,nankai conservative headman,南海保守头人,Culture.nankai,
+spc_nankai_headman_3,nankai devious headman,南海狡猾头人,Culture.nankai,
+spc_notable_sanyo_0,Cautious imperial merchant,谨慎的帝国商人,Culture.sanyo,
+spc_notable_sanyo_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.sanyo,
+spc_notable_sanyo_1,"sanyo merchant 3, ruthless",心狠手辣的山阳商人,Culture.sanyo,
+spc_notable_sanyo_1b,Cold imperial merchant,冷血的帝国商人,Culture.sanyo,
+spc_notable_sanyo_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.sanyo,
+spc_notable_sanyo_2b,"sanyo merchant 6, cautious",谨慎的山阳商人,Culture.sanyo,
+spc_notable_sanyo_3,"sanyo merchant 7, selfmade",奋斗中的山阳商人,Culture.sanyo,
+spc_notable_sanyo_3b,"sanyo merchant 8, jocular",风趣的山阳商人,Culture.sanyo,
+spc_notable_sanyo_4,"sanyo merchant 9, heiress",获得家族继承的山阳商人,Culture.sanyo,
+spc_notable_sanyo_4b,"sanyo merchant 10, devious",狡诈的山阳商人,Culture.sanyo,
+spc_notable_sanyo_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.sanyo,
+spc_notable_sanyo_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.sanyo,
+spc_notable_sanyo_7,Female imperial mystic,女性帝国术士,Culture.sanyo,
+spc_notable_sanyo_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.sanyo,
+spc_notable_sanyo_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.sanyo,
+spc_notable_sanyo_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.sanyo,
+spc_notable_sanyo_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.sanyo,
+spc_notable_sanyo_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.sanyo,
+spc_notable_sanyo_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.sanyo,
+spc_notable_sanyo_12,Female imperial gang leader,女性帝国帮派头目,Culture.sanyo,
+spc_notable_sanyo_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.sanyo,
+spc_notable_sanyo_21,sanyo gruff rural notable,粗鲁的山阳乡村要人,Culture.sanyo,
+spc_notable_sanyo_22,sanyo rural notable agreeable,和蔼的山阳乡村要人,Culture.sanyo,
+spc_sanyo_headman_1,sanyo rebellious headman,山阳桀骜头人,Culture.sanyo,
+spc_sanyo_headman_2,sanyo conservative headman,山阳保守头人,Culture.sanyo,
+spc_sanyo_headman_3,sanyo devious headman,山阳狡猾头人,Culture.sanyo,
+spc_notable_kinai_0,Cautious imperial merchant,谨慎的帝国商人,Culture.kinai,
+spc_notable_kinai_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.kinai,
+spc_notable_kinai_1,"kinai merchant 3, ruthless",心狠手辣的畿内商人,Culture.kinai,
+spc_notable_kinai_1b,Cold imperial merchant,冷血的帝国商人,Culture.kinai,
+spc_notable_kinai_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.kinai,
+spc_notable_kinai_2b,"kinai merchant 6, cautious",谨慎的畿内商人,Culture.kinai,
+spc_notable_kinai_3,"kinai merchant 7, selfmade",奋斗中的畿内商人,Culture.kinai,
+spc_notable_kinai_3b,"kinai merchant 8, jocular",风趣的畿内商人,Culture.kinai,
+spc_notable_kinai_4,"kinai merchant 9, heiress",获得家族继承的畿内商人,Culture.kinai,
+spc_notable_kinai_4b,"kinai merchant 10, devious",狡诈的畿内商人,Culture.kinai,
+spc_notable_kinai_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.kinai,
+spc_notable_kinai_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.kinai,
+spc_notable_kinai_7,Female imperial mystic,女性帝国术士,Culture.kinai,
+spc_notable_kinai_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.kinai,
+spc_notable_kinai_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.kinai,
+spc_notable_kinai_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.kinai,
+spc_notable_kinai_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.kinai,
+spc_notable_kinai_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.kinai,
+spc_notable_kinai_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.kinai,
+spc_notable_kinai_12,Female imperial gang leader,女性帝国帮派头目,Culture.kinai,
+spc_notable_kinai_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.kinai,
+spc_notable_kinai_21,kinai gruff rural notable,粗鲁的畿内乡村要人,Culture.kinai,
+spc_notable_kinai_22,kinai rural notable agreeable,和蔼的畿内乡村要人,Culture.kinai,
+spc_kinai_headman_1,kinai rebellious headman,畿内桀骜头人,Culture.kinai,
+spc_kinai_headman_2,kinai conservative headman,畿内保守头人,Culture.kinai,
+spc_kinai_headman_3,kinai devious headman,畿内狡猾头人,Culture.kinai,
+spc_notable_hokuriku_0,Cautious imperial merchant,谨慎的帝国商人,Culture.hokuriku,
+spc_notable_hokuriku_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.hokuriku,
+spc_notable_hokuriku_1,"hokuriku merchant 3, ruthless",心狠手辣的北陆商人,Culture.hokuriku,
+spc_notable_hokuriku_1b,Cold imperial merchant,冷血的帝国商人,Culture.hokuriku,
+spc_notable_hokuriku_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.hokuriku,
+spc_notable_hokuriku_2b,"hokuriku merchant 6, cautious",谨慎的北陆商人,Culture.hokuriku,
+spc_notable_hokuriku_3,"hokuriku merchant 7, selfmade",奋斗中的北陆商人,Culture.hokuriku,
+spc_notable_hokuriku_3b,"hokuriku merchant 8, jocular",风趣的北陆商人,Culture.hokuriku,
+spc_notable_hokuriku_4,"hokuriku merchant 9, heiress",获得家族继承的北陆商人,Culture.hokuriku,
+spc_notable_hokuriku_4b,"hokuriku merchant 10, devious",狡诈的北陆商人,Culture.hokuriku,
+spc_notable_hokuriku_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.hokuriku,
+spc_notable_hokuriku_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.hokuriku,
+spc_notable_hokuriku_7,Female imperial mystic,女性帝国术士,Culture.hokuriku,
+spc_notable_hokuriku_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.hokuriku,
+spc_notable_hokuriku_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.hokuriku,
+spc_notable_hokuriku_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.hokuriku,
+spc_notable_hokuriku_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.hokuriku,
+spc_notable_hokuriku_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.hokuriku,
+spc_notable_hokuriku_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.hokuriku,
+spc_notable_hokuriku_12,Female imperial gang leader,女性帝国帮派头目,Culture.hokuriku,
+spc_notable_hokuriku_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.hokuriku,
+spc_notable_hokuriku_21,hokuriku gruff rural notable,粗鲁的北陆乡村要人,Culture.hokuriku,
+spc_notable_hokuriku_22,hokuriku rural notable agreeable,和蔼的北陆乡村要人,Culture.hokuriku,
+spc_hokuriku_headman_1,hokuriku rebellious headman,北陆桀骜头人,Culture.hokuriku,
+spc_hokuriku_headman_2,hokuriku conservative headman,北陆保守头人,Culture.hokuriku,
+spc_hokuriku_headman_3,hokuriku devious headman,北陆狡猾头人,Culture.hokuriku,
+spc_notable_tosan_0,Cautious imperial merchant,谨慎的帝国商人,Culture.tosan,
+spc_notable_tosan_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.tosan,
+spc_notable_tosan_1,"tosan merchant 3, ruthless",心狠手辣的东山商人,Culture.tosan,
+spc_notable_tosan_1b,Cold imperial merchant,冷血的帝国商人,Culture.tosan,
+spc_notable_tosan_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.tosan,
+spc_notable_tosan_2b,"tosan merchant 6, cautious",谨慎的东山商人,Culture.tosan,
+spc_notable_tosan_3,"tosan merchant 7, selfmade",奋斗中的东山商人,Culture.tosan,
+spc_notable_tosan_3b,"tosan merchant 8, jocular",风趣的东山商人,Culture.tosan,
+spc_notable_tosan_4,"tosan merchant 9, heiress",获得家族继承的东山商人,Culture.tosan,
+spc_notable_tosan_4b,"tosan merchant 10, devious",狡诈的东山商人,Culture.tosan,
+spc_notable_tosan_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.tosan,
+spc_notable_tosan_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.tosan,
+spc_notable_tosan_7,Female imperial mystic,女性帝国术士,Culture.tosan,
+spc_notable_tosan_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.tosan,
+spc_notable_tosan_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.tosan,
+spc_notable_tosan_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.tosan,
+spc_notable_tosan_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.tosan,
+spc_notable_tosan_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.tosan,
+spc_notable_tosan_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.tosan,
+spc_notable_tosan_12,Female imperial gang leader,女性帝国帮派头目,Culture.tosan,
+spc_notable_tosan_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.tosan,
+spc_notable_tosan_21,tosan gruff rural notable,粗鲁的东山乡村要人,Culture.tosan,
+spc_notable_tosan_22,tosan rural notable agreeable,和蔼的东山乡村要人,Culture.tosan,
+spc_tosan_headman_1,tosan rebellious headman,东山桀骜头人,Culture.tosan,
+spc_tosan_headman_2,tosan conservative headman,东山保守头人,Culture.tosan,
+spc_tosan_headman_3,tosan devious headman,东山狡猾头人,Culture.tosan,
+spc_notable_tokai_0,Cautious imperial merchant,谨慎的帝国商人,Culture.tokai,
+spc_notable_tokai_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.tokai,
+spc_notable_tokai_1,"tokai merchant 3, ruthless",心狠手辣的东海商人,Culture.tokai,
+spc_notable_tokai_1b,Cold imperial merchant,冷血的帝国商人,Culture.tokai,
+spc_notable_tokai_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.tokai,
+spc_notable_tokai_2b,"tokai merchant 6, cautious",谨慎的东海商人,Culture.tokai,
+spc_notable_tokai_3,"tokai merchant 7, selfmade",奋斗中的东海商人,Culture.tokai,
+spc_notable_tokai_3b,"tokai merchant 8, jocular",风趣的东海商人,Culture.tokai,
+spc_notable_tokai_4,"tokai merchant 9, heiress",获得家族继承的东海商人,Culture.tokai,
+spc_notable_tokai_4b,"tokai merchant 10, devious",狡诈的东海商人,Culture.tokai,
+spc_notable_tokai_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.tokai,
+spc_notable_tokai_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.tokai,
+spc_notable_tokai_7,Female imperial mystic,女性帝国术士,Culture.tokai,
+spc_notable_tokai_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.tokai,
+spc_notable_tokai_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.tokai,
+spc_notable_tokai_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.tokai,
+spc_notable_tokai_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.tokai,
+spc_notable_tokai_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.tokai,
+spc_notable_tokai_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.tokai,
+spc_notable_tokai_12,Female imperial gang leader,女性帝国帮派头目,Culture.tokai,
+spc_notable_tokai_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.tokai,
+spc_notable_tokai_21,tokai gruff rural notable,粗鲁的东海乡村要人,Culture.tokai,
+spc_notable_tokai_22,tokai rural notable agreeable,和蔼的东海乡村要人,Culture.tokai,
+spc_tokai_headman_1,tokai rebellious headman,东海桀骜头人,Culture.tokai,
+spc_tokai_headman_2,tokai conservative headman,东海保守头人,Culture.tokai,
+spc_tokai_headman_3,tokai devious headman,东海狡猾头人,Culture.tokai,
+spc_notable_kanto_0,Cautious imperial merchant,谨慎的帝国商人,Culture.kanto,
+spc_notable_kanto_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.kanto,
+spc_notable_kanto_1,"kanto merchant 3, ruthless",心狠手辣的关东商人,Culture.kanto,
+spc_notable_kanto_1b,Cold imperial merchant,冷血的帝国商人,Culture.kanto,
+spc_notable_kanto_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.kanto,
+spc_notable_kanto_2b,"kanto merchant 6, cautious",谨慎的关东商人,Culture.kanto,
+spc_notable_kanto_3,"kanto merchant 7, selfmade",奋斗中的关东商人,Culture.kanto,
+spc_notable_kanto_3b,"kanto merchant 8, jocular",风趣的关东商人,Culture.kanto,
+spc_notable_kanto_4,"kanto merchant 9, heiress",获得家族继承的关东商人,Culture.kanto,
+spc_notable_kanto_4b,"kanto merchant 10, devious",狡诈的关东商人,Culture.kanto,
+spc_notable_kanto_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.kanto,
+spc_notable_kanto_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.kanto,
+spc_notable_kanto_7,Female imperial mystic,女性帝国术士,Culture.kanto,
+spc_notable_kanto_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.kanto,
+spc_notable_kanto_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.kanto,
+spc_notable_kanto_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.kanto,
+spc_notable_kanto_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.kanto,
+spc_notable_kanto_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.kanto,
+spc_notable_kanto_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.kanto,
+spc_notable_kanto_12,Female imperial gang leader,女性帝国帮派头目,Culture.kanto,
+spc_notable_kanto_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.kanto,
+spc_notable_kanto_21,kanto gruff rural notable,粗鲁的关东乡村要人,Culture.kanto,
+spc_notable_kanto_22,kanto rural notable agreeable,和蔼的关东乡村要人,Culture.kanto,
+spc_kanto_headman_1,kanto rebellious headman,关东桀骜头人,Culture.kanto,
+spc_kanto_headman_2,kanto conservative headman,关东保守头人,Culture.kanto,
+spc_kanto_headman_3,kanto devious headman,关东狡猾头人,Culture.kanto,
+spc_notable_ou_0,Cautious imperial merchant,谨慎的帝国商人,Culture.ou,
+spc_notable_ou_0b,{FIRSTNAME} the Vintner,“酒商”{FIRSTNAME},Culture.ou,
+spc_notable_ou_1,"ou merchant 3, ruthless",心狠手辣的奥羽商人,Culture.ou,
+spc_notable_ou_1b,Cold imperial merchant,冷血的帝国商人,Culture.ou,
+spc_notable_ou_2,{FIRSTNAME} the Saltpanner,“盐场工”{FIRSTNAME},Culture.ou,
+spc_notable_ou_2b,"ou merchant 6, cautious",谨慎的奥羽商人,Culture.ou,
+spc_notable_ou_3,"ou merchant 7, selfmade",奋斗中的奥羽商人,Culture.ou,
+spc_notable_ou_3b,"ou merchant 8, jocular",风趣的奥羽商人,Culture.ou,
+spc_notable_ou_4,"ou merchant 9, heiress",获得家族继承的奥羽商人,Culture.ou,
+spc_notable_ou_4b,"ou merchant 10, devious",狡诈的奥羽商人,Culture.ou,
+spc_notable_ou_5,Messianic imperial preacher,弥赛亚的帝国传教士,Culture.ou,
+spc_notable_ou_6,Puritan imperial preacher,清教徒的帝国传教士,Culture.ou,
+spc_notable_ou_7,Female imperial mystic,女性帝国术士,Culture.ou,
+spc_notable_ou_8,Imperial gruff labor leader,粗鲁的帝国劳工领袖,Culture.ou,
+spc_notable_ou_9,Imperial outgoing labor leader,外向的帝国劳工领袖,Culture.ou,
+spc_notable_ou_gl1,Protective imperial male gang leader,保护性的帝国男帮派头目,Culture.ou,
+spc_notable_ou_10,Ironic imperial gang leader,刻薄的帝国帮派头目,Culture.ou,
+spc_notable_ou_11,Intimidating male imperial gang leader,可怕的帝国男帮派头目,Culture.ou,
+spc_notable_ou_gl4,Bestial male imperial gang leader,野蛮的帝国男帮派头目,Culture.ou,
+spc_notable_ou_12,Female imperial gang leader,女性帝国帮派头目,Culture.ou,
+spc_notable_ou_13,Menacing female imperial gang leader,险恶的帝国女帮派头目,Culture.ou,
+spc_notable_ou_21,ou gruff rural notable,粗鲁的奥羽乡村要人,Culture.ou,
+spc_notable_ou_22,ou rural notable agreeable,和蔼的奥羽乡村要人,Culture.ou,
+spc_ou_headman_1,ou rebellious headman,奥羽桀骜头人,Culture.ou,
+spc_ou_headman_2,ou conservative headman,奥羽保守头人,Culture.ou,
+spc_ou_headman_3,ou devious headman,奥羽狡猾头人,Culture.ou,
+ou_militia_peasant,Ou Militia Peasant,奥羽民兵,Culture.ou,
+ou_woodsman,Ou Woodsman,奥羽森民,Culture.ou,
+ou_ranger,Ou Ranger,奥羽游击兵,Culture.ou,
+ou_seasoned_ranger,Seasoned Ou Ranger,奥羽熟练游击兵,Culture.ou,
+ou_jizamurai,Ou Jizamurai,奥羽地侍,Culture.ou,
+ou_yumi_samurai,Ou Yumi Samurai,奥羽弓武者,Culture.ou,
+skilled_ou_yumi_samurai,Skilled Ou Yumi Samurai,奥羽熟练弓武者,Culture.ou,
+ou_samurai_infantry,Ou Samurai Infantry,奥羽枪武者,Culture.ou,
+skilled_ou_infantry,Skilled Ou Infantry,奥羽熟练枪武者,Culture.ou,
+ou_kanasaibo_samurai,Ou Kanasaibo Samurai,奥羽金碎棒武者,Culture.ou,
+skilled_ou_kansaibo,Skilled Ou Kanasaibo,奥羽熟练金碎棒武者,Culture.ou,
+ou_mounted_samurai,Ou Mounted Samurai,奥羽骑马武者,Culture.ou,
+ou_horse_archer_samurai,Ou Horse Archer Samurai,奥羽骑射武者,Culture.ou,
+veteran_ou_horse_archer_samurai,Veteran Ou Horse Archer Samurai,奥羽资深骑射武者,Culture.ou,
+legendary_ou_horse_archer,Elite Ou Horse Archer Samurai,奥羽精锐骑射武者,Culture.ou,
+saikai_militia_peasant,Saikai Militia Peasant,西海民兵,Culture.saikai,
+saikai_ashigaru_gunner,Ashigaru Gunner,铁炮足轻,Culture.saikai,
+saikai_skilled_ashigaru_gunner,Skilled Ashigaru Gunner,熟练铁炮足轻,Culture.saikai,
+saikai_ashigaru_marksman,Ashigaru Marksman,精锐铁炮足轻,Culture.saikai,
+saikai_jizamurai,Saikai Jizamurai,西海地侍,Culture.saikai,
+saikai_yumi_samurai,Saikai Yumi Samurai,西海弓武者,Culture.saikai,
+skilled_saikai_yumi_samurai,Skilled Saikai Yumi Samurai,西海熟练弓武者,Culture.saikai,
+saikai_teppo_samurai,Saikai Teppo Samurai,西海铁炮武者,Culture.saikai,
+skilled_saikai_teppo_samurai,Skilled Saikai Teppo Samurai,西海熟练铁炮武者,Culture.saikai,
+saikai_teppo_samurai_marksman,Saikai Samurai Marksman,西海精锐铁炮武者,Culture.saikai,
+saikai_otzutsu_samurai,Saikai Ozutsu Samurai,西海大筒武者,Culture.saikai,
+saikai_infantry_samurai,Saikai Samurai Infantry,西海枪武者,Culture.saikai,
+skilled_saikai_infantry,Skilled Saikai Samurai Infantry,西海熟练枪武者,Culture.saikai,
+saikai_mounted_samurai,Saikai Mounted Samurai,西海骑马武者,Culture.saikai,
+saikai_horse_gunner_samurai,Saikai Horse Gunner Samurai,西海骑马铁炮武者,Culture.saikai,
+skilled_saikai_mounted_samurai,Skilled Saikai Mounted Samurai,西海熟练骑马武者,Culture.saikai,
+saikai_pistol_cavalry,Saikai Pistol Cavalry,西海短筒骑马武者,Culture.saikai,
+skilled_saikai_horse_gunner_cavalry,Skilled Saikai Horse Gunner Cavalry,西海熟练骑马铁炮,Culture.saikai,
+sanyo_militia_peasant,Sanyo Militia Peasant,山阳民兵,Culture.sanyo,
+sanyo_deckhand,Sanyo Deckhand,山阳水手,Culture.sanyo,
+sanyo_sea_raider,Sanyo Sea Raider,山阳水兵,Culture.sanyo,
+hardened_sanyo_sea_raider,Hardened Sea Raider,山阳熟练水兵,Culture.sanyo,
+sanyo_sea_raider_archer,Sea Raider Archer,水兵射手,Culture.sanyo,
+sanyo_sea_raider_gunner,Sea Raider Gunner,铁炮水兵,Culture.sanyo,
+sanyo_jizamurai,Sanyo Jizamurai,山阳地侍,Culture.sanyo,
+sanyo_yumi_samurai,Sanyo Yumi Samurai,山阳弓武者,Culture.sanyo,
+skilled_sanyo_yumi_samurai,Skilled Sanyo Yumi Samurai,山阳熟练弓武者,Culture.sanyo,
+sanyo_teppo_samurai,Sanyo Teppo Samurai,山阳铁炮武者,Culture.sanyo,
+skilled_sanyo_yari,Skilled Sanyo Yari Samurai,山阳熟练枪武者,Culture.sanyo,
+sanyo_samurai_infantry,Sanyo Samurai Infantry,山阳枪武者,Culture.sanyo,
+skilled_sanyo_infantry,Skilled Sanyo Katana Samurai,山阳熟练刀武者,Culture.sanyo,
+sanyo_mounted_samurai,Sanyo Mounted Samurai,山阳骑马武者,Culture.sanyo,
+skilled_sanyo_horse_archer_samurai,Skilled Sanyo Horse Archer Samurai,山阳熟练骑射武者,Culture.sanyo,
+skilled_sanyo_mounted_samurai,Skilled Sanyo Mounted Samurai,山阳熟练骑马武者,Culture.sanyo,
+facgen_template_test_char_0,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_1,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_2,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_3,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_4,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_5,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_6,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_7,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_8,Serdar,Serdar,Culture.saikai,
+facgen_template_test_char_9,Serdar,Serdar,Culture.saikai,
+ashigaru_bat_template_medium_male,ashigaru_lord_male_medium,ashigaru_lord_male_medium,Culture.ashigaru,
+ashigaru_bat_template_medium_female,ashigaru_lord_female_medium,ashigaru_lord_female_medium,Culture.ashigaru,
+buddhists_bat_template_medium_male,buddhists_lord_male_medium,buddhists_lord_male_medium,Culture.buddhists,
+buddhists_bat_template_medium_female,buddhists_lord_female_medium,buddhists_lord_female_medium,Culture.buddhists,
+saikai_bat_template_medium_male,Saikai_lord_male_medium,Saikai_lord_male_medium,Culture.saikai,
+saikai_bat_template_medium_female,Saikai_lord_female_medium,Saikai_lord_female_medium,Culture.saikai,
+nankai_bat_template_medium_male,Nankai_lord_male_medium,Nankai_lord_male_medium,Culture.nankai,
+nankai_bat_template_medium_female,Nankai_lord_female_medium,Nankai_lord_female_medium,Culture.nankai,
+sanyo_bat_template_medium_male,sanyo_lord_male_medium,sanyo_lord_male_medium,Culture.sanyo,
+sanyo_bat_template_medium_female,sanyo_lord_female_medium,sanyo_lord_female_medium,Culture.sanyo,
+kinai_bat_template_medium_male,kinai_lord_male_medium,kinai_lord_male_medium,Culture.kinai,
+kinai_bat_template_medium_female,kinai_lord_female_medium,kinai_lord_female_medium,Culture.kinai,
+hokuriku_bat_template_medium_male,hokuriku_lord_male_medium,hokuriku_lord_male_medium,Culture.hokuriku,
+hokuriku_bat_template_medium_female,hokuriku_lord_female_medium,hokuriku_lord_female_medium,Culture.hokuriku,
+tosan_bat_template_medium_male,tosan_lord_male_medium,tosan_lord_male_medium,Culture.tosan,
+tosan_bat_template_medium_female,tosan_lord_female_medium,tosan_lord_female_medium,Culture.tosan,
+tokai_bat_template_medium_male,tokai_lord_male_medium,tokai_lord_male_medium,Culture.tokai,
+tokai_bat_template_medium_female,tokai_lord_female_medium,tokai_lord_female_medium,Culture.tokai,
+kanto_bat_template_medium_male,kanto_lord_male_medium,kanto_lord_male_medium,Culture.kanto,
+kanto_bat_template_medium_female,kanto_lord_female_medium,kanto_lord_female_medium,Culture.kanto,
+ou_bat_template_medium_male,ou_lord_male_medium,ou_lord_male_medium,Culture.ou,
+ou_bat_template_medium_female,ou_lord_female_medium,ou_lord_female_medium,Culture.ou,
+ashigaru_civ_template_default_male,ashigaru_lord_male_noncom,ashigaru_lord_male_noncom,Culture.ashigaru,
+ashigaru_civ_template_default_female,ashigaru_lord_female_noncom,ashigaru_lord_female_noncom,Culture.ashigaru,
+buddhists_civ_template_default_male,buddhists_lord_male_noncom,buddhists_lord_male_noncom,Culture.buddhists,
+buddhists_civ_template_default_female,buddhists_lord_female_noncom,buddhists_lord_female_noncom,Culture.buddhists,
+saikai_civ_template_default_male,saikai_lord_male_noncom,saikai_lord_male_noncom,Culture.saikai,
+saikai_civ_template_default_female,saikai_lord_female_noncom,saikai_lord_female_noncom,Culture.saikai,
+nankai_civ_template_default_male,nankai_lord_male_noncom,nankai_lord_male_noncom,Culture.nankai,
+nankai_civ_template_default_female,nankai_lord_female_noncom,nankai_lord_female_noncom,Culture.nankai,
+sanyo_civ_template_default_male,sanyo_lord_male_noncom,sanyo_lord_male_noncom,Culture.sanyo,
+sanyo_civ_template_default_female,sanyo_lord_female_noncom,sanyo_lord_female_noncom,Culture.sanyo,
+kinai_civ_template_default_male,kinai_lord_male_noncom,kinai_lord_male_noncom,Culture.kinai,
+kinai_civ_template_default_female,kinai_lord_female_noncom,kinai_lord_female_noncom,Culture.kinai,
+hokuriku_civ_template_default_male,hokuriku_lord_male_noncom,hokuriku_lord_male_noncom,Culture.hokuriku,
+hokuriku_civ_template_default_female,hokuriku_lord_female_noncom,hokuriku_lord_female_noncom,Culture.hokuriku,
+tosan_civ_template_default_male,tosan_lord_male_noncom,tosan_lord_male_noncom,Culture.tosan,
+tosan_civ_template_default_female,tosan_lord_female_noncom,tosan_lord_female_noncom,Culture.tosan,
+tokai_civ_template_default_male,tokai_lord_male_noncom,tokai_lord_male_noncom,Culture.tokai,
+tokai_civ_template_default_female,tokai_lord_female_noncom,tokai_lord_female_noncom,Culture.tokai,
+kanto_civ_template_default_male,kanto_lord_male_noncom,kanto_lord_male_noncom,Culture.kanto,
+kanto_civ_template_default_female,kanto_lord_female_noncom,kanto_lord_female_noncom,Culture.kanto,
+ou_civ_template_default_male,ou_lord_male_noncom,ou_lord_male_noncom,Culture.ou,
+ou_civ_template_default_female,ou_lord_female_noncom,ou_lord_female_noncom,Culture.ou,
+npc_wanderer_equipment_template_saikai,wanderer_equipment,wanderer_equipment,Culture.saikai,
+npc_armed_wanderer_equipment_template_saikai,wanderer_equipment,wanderer_equipment,Culture.saikai,
+npc_armed_wanderer_equipment_template_nanban_saikai,wanderer_equipment,wanderer_equipment,Culture.saikai,
+npc_wanderer_equipment_template_nankai,wanderer_equipment,wanderer_equipment,Culture.nankai,
+npc_armed_wanderer_equipment_template_nankai,wanderer_equipment,wanderer_equipment,Culture.nankai,
+npc_wanderer_equipment_template_sanyo,wanderer_equipment,wanderer_equipment,Culture.sanyo,
+npc_armed_wanderer_equipment_template_sanyo,wanderer_equipment,wanderer_equipment,Culture.sanyo,
+npc_wanderer_equipment_template_kinai,wanderer_equipment,wanderer_equipment,Culture.kinai,
+npc_armed_wanderer_equipment_template_kinai,wanderer_equipment,wanderer_equipment,Culture.kinai,
+npc_wanderer_equipment_template_hokuriku,wanderer_equipment,wanderer_equipment,Culture.hokuriku,
+npc_armed_wanderer_equipment_template_hokuriku,wanderer_equipment,wanderer_equipment,Culture.hokuriku,
+npc_wanderer_equipment_template_tosan,wanderer_equipment,wanderer_equipment,Culture.tosan,
+npc_armed_wanderer_equipment_template_tosan,wanderer_equipment,wanderer_equipment,Culture.tosan,
+npc_wanderer_equipment_template_tokai,wanderer_equipment,wanderer_equipment,Culture.tokai,
+npc_armed_wanderer_equipment_template_tokai,wanderer_equipment,wanderer_equipment,Culture.tokai,
+npc_wanderer_equipment_template_kanto,wanderer_equipment,wanderer_equipment,Culture.kanto,
+npc_armed_wanderer_equipment_template_kanto,wanderer_equipment,wanderer_equipment,Culture.kanto,
+npc_wanderer_equipment_template_ou,wanderer_equipment,wanderer_equipment,Culture.ou,
+npc_armed_wanderer_equipment_template_ou,wanderer_equipment,wanderer_equipment,Culture.ou,
+quest_fighter_saikai,Fighter,斗士,Culture.saikai,
+quest_daughter,Daughter,女儿,Culture.saikai,
+quest_missionary,Fighter,斗士,Culture.saikai,
+spc_wanderer_saikai_0,{FIRSTNAME} the Wallbreaker,“国崩”{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_1,{FIRSTNAME} the Ronin,“牢人”{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_2,{FIRSTNAME} the Gatekeeper,“门番”{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_3,{FIRSTNAME} the Nanban,“南蛮”{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_4,{FIRSTNAME} Headtaker,“首狩”{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_6,Brother {FIRSTNAME},{FIRSTNAME}兄弟,Culture.saikai,
+spc_wanderer_saikai_7,{FIRSTNAME} the Oni,“鬼”{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_8,{FIRSTNAME} the Mamushi,“蝮蛇”{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_9,{FIRSTNAME} the Wandering,“浮浪”{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_10,{FIRSTNAME} of the South,南方的{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_11,{FIRSTNAME} of the Onsen,温泉的{FIRSTNAME},Culture.saikai,
+spc_wanderer_saikai_12,{FIRSTNAME} Cursemaker,“咒巫”{FIRSTNAME},Culture.saikai,
+spc_yamakuguri_shu_leader_0,Shuncho-bo of the Yamakuguri-shu,舜长坊,Culture.saikai,
+spc_yamakuguri_shu_leader_1,Shinren-bo of the Yamakuguri-shu,亲莲坊,Culture.saikai,
+spc_yamakuguri_shu_leader_2,Nagaku-bo of the Yamakuguri-shu,长久坊,Culture.saikai,
+spc_yamakuguri_shu_leader_3,Rencho-bo of the Yamakuguri-shu,莲长坊,Culture.saikai,
+spc_shiwaku_shu_leader_0,Dendayu of the Shiwaku-shu,传太夫,Culture.nankai,
+spc_shiwaku_shu_leader_1,Hikozaemon of the Shiwaku-shu,彦左卫门,Culture.nankai,
+spc_shiwaku_shu_leader_2,Matazaemon of the Shiwaku-shu,又左卫门,Culture.nankai,
+spc_shiwaku_shu_leader_3,Shirozaemon of the Shiwaku-shu,四郎左卫门,Culture.nankai,
+spc_tango_kaizoku_leader_0,Yamato-no-suke of the Tango-Kaizoku,大和之助,Culture.sanyo,
+spc_tango_kaizoku_leader_1,Ichinosuke of the Tango-Kaizoku,市之助,Culture.sanyo,
+spc_tango_kaizoku_leader_2,Souemon of the Tango-Kaizoku,宗右卫门,Culture.sanyo,
+spc_tango_kaizoku_leader_3,Geneomon of the Tango-Kaizoku,源右卫门,Culture.sanyo,
+spc_saika_shu_leader_0,Shigehide of the Saika-shu,铃木重秀,Culture.kinai,
+spc_saika_shu_leader_1,Yoshinaga of the Saika-shu,佐武义昌,Culture.kinai,
+spc_saika_shu_leader_2,Masanaga of the Saika-shu,的场昌长,Culture.kinai,
+spc_saika_shu_leader_3,Tanetsugu of the Saika-shu,土桥胤继,Culture.kinai,
+spc_hakusan_shuto_leader_0,Hoko-in of the Hakusan-shuto,宝光院,Culture.hokuriku,
+spc_hakusan_shuto_leader_1,Daigaku-in of the Hakusan-shuto,大学院,Culture.hokuriku,
+spc_hakusan_shuto_leader_2,Hoju-bo of the Hakusan-shuto,宝寿坊,Culture.hokuriku,
+spc_hakusan_shuto_leader_3,Daien-bo of the Hakusan-shuto,大圆坊,Culture.hokuriku,
+spc_katsurayama_shu_leader_0,Yosuke of the Katsurayama-shu,与助,Culture.tosan,
+spc_katsurayama_shu_leader_1,Genzaemon of the Katsurayama-shu,源左卫门,Culture.tosan,
+spc_katsurayama_shu_leader_2,Hikoshiro of the Katsurayama-shu,彦四郎,Culture.tosan,
+spc_katsurayama_shu_leader_3,Tanzaemon of the Katsurayama-shu,湛左卫门,Culture.tosan,
+spc_suruga_shu_leader_0,Masakatsu of the Suruga-shu,向井政胜,Culture.tokai,
+spc_suruga_shu_leader_1,Sadatsuna of the Suruga-shu,冈部贞纲,Culture.tokai,
+spc_suruga_shu_leader_2,Masatsuna of the Suruga-shu,向井正纲,Culture.tokai,
+spc_suruga_shu_leader_3,Kagetaka of the Suruga-shu,小浜景隆,Culture.tokai,
+spc_kazama_shu_leader_0,Kotaro of the Kazama-shu,小太郎,Culture.kanto,
+spc_kazama_shu_leader_1,Shinzo of the Kazama-shu,新藏,Culture.kanto,
+spc_kazama_shu_leader_2,Tatsugoro of the Kazama-shu,辰五郎,Culture.kanto,
+spc_kazama_shu_leader_3,Gensuke of the Kazama-shu,源助,Culture.kanto,
+spc_kurohabaki_shu_leader_0,Kurando of the Kurohabaki-shu,藏人,Culture.ou,
+spc_kurohabaki_shu_leader_1,Tobei of the Kurohabaki-shu,藤平,Culture.ou,
+spc_kurohabaki_shu_leader_2,Kinsuke of the Kurohabaki-shu,金助,Culture.ou,
+spc_kurohabaki_shu_leader_3,Shunkai of the Kurohabaki-shu,骏介,Culture.ou,
+betting_fraud_thug_female,Thug,恶党,Culture.saikai,
+cutscene_midwife,Midwife,产婆,Culture.saikai,
+cutscene_monk,Wedding Monk,婚礼僧,Culture.saikai,
+guard_saikai,Guard,番人,Culture.saikai,
+guard_nankai,Guard,番人,Culture.nankai,
+guard_sanyo,Guard,番人,Culture.sanyo,
+guard_kinai,Guard,番人,Culture.kinai,
+guard_hokuriku,Guard,番人,Culture.hokuriku,
+guard_tosan,Guard,番人,Culture.tosan,
+guard_tokai,Guard,番人,Culture.tokai,
+guard_kanto,Guard,番人,Culture.kanto,
+guard_ou,Guard,番人,Culture.ou,
+tokai_militia_peasant,Tokai Militia Peasant,东海民兵,Culture.tokai,
+tokai_ashigaru,Long Yari Ashigaru,长枪足轻,Culture.tokai,
+tokai_trained_infantry_ashigaru,Trained Long Yari Ashigaru,熟练长枪足轻,Culture.tokai,
+tokai_heavy_infantry_ashigaru,Veteran Long Yari Ashigaru,资深长枪足轻,Culture.tokai,
+tokai_hatamoto,Tokai Hatamoto,东海旗本,Culture.tokai,
+tokai_veteran_teppo_hatamoto,Veteran Teppo Hatamoto,资深铁炮旗本,Culture.tokai,
+tokai_veteran_yumi_hatamoto,Veteran Yumi Hatamoto,资深弓旗本,Culture.tokai,
+tokai_veteran_infantry_hatamoto,Veteran Yari Hatamoto,资深枪旗本,Culture.tokai,
+tokai_veteran_horse_archer_hatamoto,Veteran Horse Archer Hatamoto,资深骑射旗本,Culture.tokai,
+tokai_veteran_mounted_hatamoto,Veteran Mounted Hatamoto,资深骑马旗本,Culture.tokai,
+tosan_militia_peasant,Tosan Militia Peasant,东山民兵,Culture.tosan,
+tosan_hunter,Tosan Hunter,东山狩人,Culture.tosan,
+tosan_tracker,Tosan Tracker,东山斥候,Culture.tosan,
+seasoned_tosan_tracker,Seasoned Tosan Tracker,东山熟练斥候,Culture.tosan,
+tosan_jizamurai,Tosan Jizamurai,东山地侍,Culture.tosan,
+tosan_mounted_samurai,Tosan Mounted Samurai,东山骑马武者,Culture.tosan,
+tosan_heavy_cavalry,Tosan Heavy Cavalry,东山重装骑马武者,Culture.tosan,
+tosan_yumi_samurai,Tosan Yumi Samurai,东山弓武者,Culture.tosan,
+skilled_tosan_yumi_samurai,Skilled Tosan Yumi Samurai,东山熟练弓武者,Culture.tosan,
+tosan_teppo_samurai,Tosan Teppo Samurai,东山铁炮武者,Culture.tosan,
+tosan_yari_samurai,Tosan Yari Samurai,东山枪武者,Culture.tosan,
+skilled_tosan_yari,Skilled Tosan Yari Samurai,东山熟练枪武者,Culture.tosan,
+tosan_axe_samurai,Tosan Axe Samurai,东山斧武者,Culture.tosan,
+tosan_kanasaibo_samurai,Tosan Kanasaibo Samurai,东山金碎棒武者,Culture.tosan,
+skilled_tosan_kanasaibo_samurai,Skilled Tosan Kanasaibo Samurai,东山熟练金碎棒武者,Culture.tosan,

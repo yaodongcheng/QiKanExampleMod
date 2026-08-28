@@ -1,1 +1,0 @@
-Shokuho\ModuleData\spcultures\shokuho_main_cultures.xml: Cultures.Culture.name
