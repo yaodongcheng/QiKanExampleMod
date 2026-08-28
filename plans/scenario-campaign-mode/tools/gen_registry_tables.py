@@ -1551,3 +1551,36 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ── 代入族：把「代入人物Ａ」拆成 动作 token + 槽位名（词法，§9.4 边界归本文件）──
+# 太阁的代入命令 = 往一个具名槽位里塞对象，槽位按「域 + 全角字母」编号。
+# 动作只有两个：塞对象槽 = assign_ctx，塞变量槽（单个全角字母）= assign_var。
+_ASSIGN_DOMAIN = {
+    '人物': 'hero', '大名家': 'clan', '勢力': 'kingdom', '城': 'town', '據點': 'settlement',
+    '砦': 'castle', '里': 'village', '町': 'district', '物品': 'item', '軍團': 'army',
+    '卡': 'card', '流派': 'school', '忍者衆': 'ninja', '海賊衆': 'pirate', '商家': 'merchant',
+    '國': 'province', '地方': 'region', '交易品': 'trade_good',
+    '主命目標海域': 'quest_target_sea', '主命目標銷路': 'quest_target_market',
+}
+_FULLWIDTH = {chr(0xFF21 + i): chr(ord('a') + i) for i in range(26)}      # Ａ-Ｚ
+_FULLWIDTH.update({chr(0xFF41 + i): chr(ord('a') + i) for i in range(26)})  # ａ-ｚ
+
+
+def assign_side(word):
+    """代入命令 → (侧名, 槽位名)；不是代入命令返回 None。
+
+    代入人物Ａ → ('assign_ctx', 'hero_a')      对象槽
+    代入ｔ     → ('assign_var', 'var_t')       变量槽
+    """
+    if not word.startswith('代入'):
+        return None
+    body = word[2:]
+    if len(body) == 1 and body in _FULLWIDTH:
+        return ('assign_var', 'var_' + _FULLWIDTH[body])
+    if body in _ASSIGN_DOMAIN:
+        return ('assign_ctx', _ASSIGN_DOMAIN[body])
+    dom, letter = body[:-1], body[-1:]
+    if dom in _ASSIGN_DOMAIN and letter in _FULLWIDTH:
+        return ('assign_ctx', '%s_%s' % (_ASSIGN_DOMAIN[dom], _FULLWIDTH[letter]))
+    return None

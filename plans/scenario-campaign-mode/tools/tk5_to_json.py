@@ -90,85 +90,34 @@ def slot_cname(s):
 # 归一表 v4.2（🔴 占位 ID 全部英文 ASCII——StringId 合法形态，程序可解析；
 # report 输出「占位 ID 映射表」，07 素材表落地后全局替换为织丰真实 ID）
 # ---------------------------------------------------------------------------
-HERO_MAP = {   # 有 Hero 身份的正式/占位名
-    "織田信長": "Hero::lord_1_oda",
-    "今川義元": "Hero::lord_1_imagawa",
-    "今川氏真": "Hero::lord_1_imagawa_uji",
-    "德川家康": "Hero::lord_1_matsudaira",
-    "前田利家": "Hero::lord_1_maeda",
-    "豐臣秀吉": "Hero::lord_1_hideyoshi",
-    "主人公": "Hero::MainHero",
-    "織田信勝": "Hero::tk5_nobukatsu",
-    "齋藤道三": "Hero::tk5_dosan",
-    "北條氏康": "Hero::tk5_houjou_ujiyasu",
-    "武田信玄": "Hero::tk5_takeda_shingen",
-    "足利義輝": "Hero::tk5_ashikaga_yoshiteru",
-    "三好長慶": "Hero::tk5_miyoshi_nagayoshi",
-    "歸蝶": "Hero::tk5_kicho",
-    "服部小平太": "Hero::tk5_hattori_koheita",
-    "毛利新介": "Hero::tk5_mori_shinsuke",
-    "岡部元信": "Hero::tk5_okabe_motonobu",
-    "鵜殿長照": "Hero::tk5_udono_nagateru",
-    "太原雪齋": "Hero::tk5_taigen_sessai",
-    "蜂須賀小六": "Hero::tk5_hachisuka_koroku",
-    "豐臣秀長": "Hero::tk5_hidenaga",
-    "寧寧": "Hero::tk5_nene",
-    "九鬼嘉隆": "Hero::tk5_kuki_yoshitaka",
-}
-AGENT_MAP = {  # 模板角色（无 Hero → Agent:: = CharacterObject 模板引用；menu_dialogue 形态 = 立绘头像源）
-    "忍者": "Agent::tk5_ninja",
-    "小姓": "Agent::tk5_kosho",
-    "家臣": "Agent::tk5_kashin",
-    "傳令": "Agent::tk5_denrei",
-    "侍從": "Agent::tk5_jiju",
-    "足輕": "Agent::tk5_ashigaru",
-    "備大將": "Agent::tk5_bitaisho",
-    "部將": "Agent::tk5_busho",
-    "武將": "Agent::tk5_busho_generic",
-    "僧侶": "Agent::tk5_monk",
-    "旅人": "Agent::tk5_traveler",
-    "守將": "Agent::tk5_shusho",
-    "守軍": "Agent::tk5_shugun",
-    "今川兵": "Agent::tk5_imagawa_soldier",
-    "士兵": "Agent::tk5_soldier",
-}
-CLAN_MAP = {
-    "今川義元": "Clan::clan_imagawa_1",
-    "織田信長": "Clan::clan_oda_1",
-    "北條氏康": "Clan::tk5_houjou",
-    "武田信玄": "Clan::tk5_takeda",
-    "足利義輝": "Clan::tk5_ashikaga",
-    "三好長慶": "Clan::tk5_miyoshi",
-    "德川家康": "Clan::tk5_matsudaira",
-    "今川氏真": "Clan::clan_imagawa_1",
-}
-KINGDOM_MAP = {
-    "今川義元": "Faction::Kingdom.imagawa",
-    "織田信長": "Faction::Kingdom.oda",
-    "北條氏康": "Faction::Kingdom.tk5_houjou",
-    "武田信玄": "Faction::Kingdom.tk5_takeda",
-    "足利義輝": "Faction::Kingdom.tk5_ashikaga",
-    "三好長慶": "Faction::Kingdom.tk5_miyoshi",
-}
-SETTLEMENT_MAP = {
-    "鳴海": "Settlement::tk5_narumi",
-    "鳴海城": "Settlement::tk5_narumi",
-    "岡崎": "Settlement::tk5_okazaki",
-    "岡崎城": "Settlement::tk5_okazaki",
-    "二條": "Settlement::tk5_nijo",
-    "二條城": "Settlement::tk5_nijo",
-    "清洲": "Settlement::town_CHUB11",
-    "清洲城": "Settlement::town_CHUB11",
-    "那古野": "Settlement::tk5_nagoya",
-    "駿府": "Settlement::tk5_sumpu",
-    "駿府城": "Settlement::tk5_sumpu",
-}
-REGION_MAP = {
-    "駿河": "Region::tk5_suruga",
-    "遠江": "Region::tk5_totomi",
-    "三河": "Region::tk5_mikawa",
-    "尾張": "Region::tk5_owari",
-}
+# 🔴 v5：六张名字表不再手写，改由 tools/gen_entity_maps.py 从织丰表机器生成
+# （entity_maps.py 是生成物，禁止手改——要改映射改 gen_entity_maps.py 重跑，铁律 22）。
+# 生成表给的是裸 StringId，这里按域加 DSL 前缀。
+try:
+    import entity_maps as _EM
+except ImportError:                                    # pragma: no cover
+    raise SystemExit(
+        "缺 tools/entity_maps.py —— 先跑 `python tools/gen_entity_maps.py` 生成实体归一表")
+
+HERO_MAP = dict((k, "Hero::" + v) for k, v in _EM.HERO_MAP.items())
+HERO_MAP["主人公"] = "Hero::MainHero"
+AGENT_MAP = dict((k, "Agent::" + v) for k, v in _EM.AGENT_MAP.items())
+CLAN_MAP = dict((k, "Clan::" + v) for k, v in _EM.CLAN_BY_HERO.items())
+# 势力：先按势力名（今川家），再按当主名（今川義元）——太阁两种写法都出现
+KINGDOM_MAP = dict((k, "Faction::Kingdom." + v) for k, v in _EM.KINGDOM_BY_NAME.items())
+for _k, _v in _EM.KINGDOM_BY_HERO.items():
+    KINGDOM_MAP.setdefault(_k, "Faction::Kingdom." + _v)
+SETTLEMENT_MAP = dict((k, "Settlement::" + v) for k, v in _EM.SETTLEMENT_MAP.items())
+REGION_MAP = dict((k, "Region::" + v) for k, v in _EM.REGION_MAP.items())
+# 组织（忍者众/水军/商屋）：织丰表没有 Kingdom 条目，走 Org:: 占位（16b Org.* = T3-预留）
+ORG_MAP = dict((k, "Org::" + v) for k, v in _EM.ORG_NAMES.items())
+# 人物在剧本年份的状态（登场/势力/居城），stage_inject 与 report 用
+HERO_META = _EM.HERO_META
+MISSING_IN_XML = _EM.MISSING_IN_XML
+# 太阁有、骑砍地图上没有的城 → tk5_city_NNN 占位；这里留反查表，报告里点名要 07 数据包补
+CITY_PLACEHOLDER = dict((v, k) for k, v in _EM.SETTLEMENT_MAP.items() if v.startswith("tk5_city_"))
+CITY_ANCHOR = dict(_EM.SETTLEMENT_ANCHOR)
+
 # fallback 罗马音映射（漏网角色/城；确定性英文 ID——禁止中文进 ID）
 FALLBACK_MAP = {
     "佐久間盛重": "Hero::tk5_sakuma_masanari",
@@ -181,7 +130,6 @@ FALLBACK_MAP = {
     "寧波之町": "Settlement::tk5_ningbo",
     "呂宋之町": "Settlement::tk5_lusong",
     "發生據點": "Ctx::event_settlement",
-    "岡崎之町": "Settlement::tk5_okazaki",
 }
 # 确定性兜底：中文名 → 稳定英文 ID（hash 后缀），report 登记中文名
 import hashlib
@@ -380,13 +328,47 @@ class RegistryGapError(Exception):
     """表外词条 = 生成器缺陷（16a CSV 已做全语料覆盖自检；翻译器查不到 → 修表重跑，禁止产出 🔴待注册）。"""
 
 
+class Verdict(object):
+    """一行 16a 的落点裁定（16b §10.4 四列）——翻译器据此决定「这条到底往哪落」。
+
+    tier   档：T1 引擎直取 / T2 引擎改造 / T3 本 mod 新造 / T3-预留（可解析可落仓、行为空执行）/ T0 降级
+    carrier 载体：引擎 / 外置仓 / 13主命 / 05演出 / Ctx …
+    savekey 存档键：lwn_scn_attr / lwn_scn_state / 13 / 17 / 无
+    anchor  实现锚点：读写落在哪个模块（16b 的「读实现 / 写实现」两列合并）
+    """
+    __slots__ = ("tier", "carrier", "savekey", "anchor")
+
+    def __init__(self, row):
+        self.tier = (row.get("档") or "").strip()
+        self.carrier = (row.get("载体") or "").strip()
+        self.savekey = (row.get("存档键") or "").strip()
+        self.anchor = (row.get("实现锚点") or "").strip()
+
+    @property
+    def reserved(self):
+        """T3-预留：步骤照常生成，运行时空执行并打 [Scenario][TODO]（16b §3.3）。"""
+        return self.tier == "T3-预留"
+
+    @property
+    def degraded(self):
+        """T0：本期不落地，只作注释保留。"""
+        return self.tier == "T0"
+
+    def tag(self):
+        return "%s/%s" % (self.tier or "?", self.carrier or "?")
+
+
 class Registry:
     def __init__(self, csv_path):
         self.domains, self.attrs, self.domain_vals, self.predicates, self.commands = {}, {}, {}, {}, {}
         self.bare_vals = {}     # 域值区纯 token 反查（武將→general 等，translate_value 用）
+        self.verdicts = {}      # (类别, 所属域, 太阁原词) → Verdict，报告统计用
+        self.used = set()       # 本次翻译真正查过的 (类别, 太阁原词)
         with open(csv_path, encoding="utf-8-sig") as f:
             for r in csv.DictReader(f):
-                cat, src, side, usage = r["类别"], r["太阁原词"], r["我们侧名"], r["备注"]
+                cat, src, side = r["类别"], r["太阁原词"], r["我们侧名"]
+                usage = Verdict(r)
+                self.verdicts[(cat, r.get("所属域", ""), src)] = usage
                 if cat == "域":
                     self.domains[src] = side
                 elif cat == "属性":
@@ -403,11 +385,29 @@ class Registry:
                 elif cat == "命令":
                     self.commands[src] = (side, usage)
 
-    def domain(self, w): return self.domains.get(w)
-    def attr(self, name): return self.attrs.get(name)
-    def domain_val(self, dom, val): return self.domain_vals.get(f"{dom}::{val}")
-    def predicate(self, w): return self.predicates.get(w)
-    def command(self, w): return self.commands.get(w)
+    # 查表即登记「本剧本用到了这个词」，报告按此统计落点分档（键不含域：属性/命令按词聚合）
+    def _use(self, cat, w):
+        self.used.add((cat, w))
+
+    def domain(self, w):
+        self._use("域", w)
+        return self.domains.get(w)
+
+    def attr(self, name):
+        self._use("属性", name)
+        return self.attrs.get(name)
+
+    def domain_val(self, dom, val):
+        self._use("域值", val)
+        return self.domain_vals.get(f"{dom}::{val}")
+
+    def predicate(self, w):
+        self._use("函数", w)
+        return self.predicates.get(w)
+
+    def command(self, w):
+        self._use("命令", w)
+        return self.commands.get(w)
 
 
 # ---------------------------------------------------------------------------
@@ -452,7 +452,10 @@ class Translator:
         self.cur_seg = None
         self.script_out = []    # 骨架步骤
         self.when_stack = []    # 条件栈（传播到 lines）
-        self.seen_heroes = set()   # 已见机位（主人公分歧:(其他) 取反用）
+        # 🔴 必须有序：`主人公分歧:(其他)` 会把已见机位逐个取反拼成 and(...)，
+        # 用 set 会让拼出来的条件顺序随 Python 哈希随机化每次都变（同输入两次重跑产物不一致，
+        # 没法 diff 复核）。改用 dict 保留源码出现顺序 —— 太阁源里分支本来就是有序的。
+        self.seen_heroes = {}      # 已见机位（有序去重；主人公分歧:(其他) 取反用）
         self.pending_cond = None    # 执行内 調查 → 待用条件（最近一次调查，保留至被覆盖）
         self.pending_choice = None  # 選擇 → 待用路由标记
         self.t_counter = 0
@@ -522,7 +525,9 @@ class Translator:
         attr = self.reg.attr(attr_word)
         if not attr:
             raise RegistryGapError(f"属性表外: {attr_word}——16a CSV 属性区无此属性行")
-        side, typ, usage = attr
+        side, typ, verd = attr
+        if verd.degraded:
+            raise RegistryGapError(f"属性 T0: {dom_word}.{attr_word}——16b 判 T0（{verd.anchor or '降级'}），不该走到取值路径")
         if side.startswith("exists"):
             return f"exists({self.translate_subject(dom_word, subject)})", True
         subj = self.translate_subject(dom_word, subject)
@@ -649,12 +654,14 @@ class Translator:
         # 🔴 v2：实体引用域（忍者衆/商家/卡/流派/物品/地方/官位/官職/工作…）→ 名字表 fallback，
         #   不进 CSV 域值区（具名实体是归一表的事，2026-08-27 用户裁定）
         if dom_word in _ENTITY_FALLBACK:
+            if _ENTITY_FALLBACK[dom_word] == "Org" and subject in ORG_MAP:
+                return ORG_MAP[subject]              # 织丰表里以「势力」出现过的组织，ID 已定
             self.todo_mark("实体", f"{dom_word}::{subject}")
             return f"{_ENTITY_FALLBACK[dom_word]}::{_fallback_ascii(subject)}"
         # 🔴 v2：词条域（身份/狀況/人物類別…）→ 查 16a CSV 域值区（全语料闭包；查不到 = 修表重跑）
         dv = self.reg.domain_val(dom_word, subject)
         if dv:
-            side, typ, usage = dv
+            side, typ, _verd = dv
             if side == "null":
                 return "null"
             if "::" in side:
@@ -1004,8 +1011,16 @@ class Translator:
         # 🔴 v2：命令区兜底 → CSV 命令区承接注（05 消息控制 等）；CSV 也无 = 生成器缺陷
         hit = self.reg.command(cmd)
         if hit:
-            side, usage = hit
-            self.script_out.append({"step": "note", "note": f"🔴 {side} 承接（命令:{cmd}）", "src": line.text})
+            side, verd = hit
+            step = {"step": "note", "note": f"🔴 {side} 承接（命令:{cmd}｜{verd.tag()}）",
+                    "tier": verd.tier, "carrier": verd.carrier, "src": line.text}
+            if verd.anchor and verd.anchor != "—":
+                step["anchor"] = verd.anchor
+            if verd.savekey and verd.savekey != "无":
+                step["savekey"] = verd.savekey
+            if verd.reserved:
+                step["reserved"] = True          # 运行时空执行 + [Scenario][TODO]（16b §3.3）
+            self.script_out.append(step)
             return
         raise RegistryGapError(f"命令表外: {cmd}——16a CSV 命令区无此命令")
 
@@ -1164,7 +1179,7 @@ class Translator:
                 if not conds:
                     raise RegistryGapError("主人公分歧(其他) 无前序机位——语料结构异常（主人公別 先于 主人公分歧）")
                 return "and( " + ", ".join(conds) + " )" if len(conds) > 1 else conds[0]
-            self.seen_heroes.add(hero)
+            self.seen_heroes[hero] = True
             return f"(Hero::MainHero) == ({self.speaker_of(hero)})"
         if block.bare_cmd == "場合分歧":
             return self.translate_expression(block.args_raw) if block.args_raw else None
@@ -1179,7 +1194,11 @@ class Translator:
         if v and "::" in v:
             last = v.split("::")[-1].split(".")[-1]
             return last.replace("lord_1_", "").replace("tk5_", "").upper()
-        return re.sub(r"[^A-Za-z0-9]", "_", who).upper()
+        # 代入槽（人物Ｄ / 城Ａ…）不是具体角色，占位符跟着槽走 → {HERO_D.NAME}，与 Ctx::hero_D 对得上
+        cname = slot_cname(who)
+        if not cname.startswith("slot_"):
+            return cname.upper()
+        return re.sub(r"[^A-Za-z0-9]", "_", who).upper() or cname.upper()
 
     def convert_text_vars(self, text, t_no=None):
         phs = []
@@ -1313,7 +1332,7 @@ class Translator:
         self.cond_pairs = []    # (TK5 原文行, DSL 表达式) 逐条对照（condition 注释渲染用）
         self.head_src = {}      # 事件头字段 → TK5 源行（trigger/facility/once/priority 对照注释）
         self.when_stack, self.pending_cond, self.pending_choice = [], None, None
-        self.seen_heroes = set()
+        self.seen_heroes = {}
         self.cur_seg, self.seg_n = None, 0
         self.current_hero = "Hero::MainHero"
 
@@ -1551,6 +1570,59 @@ def main():
         seen_ij.add(k)
         report.append(f"- {ev} T{t_no}: {{{ph}}} [{vtype}] {arg}")
     report.append("")
+    # ---- 落点分档（16b 裁定 → 本剧本实际用到的那些词）----
+    reg = results[0][3].reg if results else None
+    if reg:
+        import collections as _c2
+        used = reg.used
+        tier_cnt = _c2.Counter()
+        store = _c2.defaultdict(set)
+        reserved, degraded = set(), set()
+        for k in sorted(reg.verdicts):
+            if (k[0], k[2]) not in used:
+                continue
+            v = reg.verdicts[k]
+            tier_cnt[v.tier or "?"] += 1
+            if v.savekey and v.savekey != "无":
+                store[v.savekey].add("%s::%s" % (k[1], k[2]) if k[1] else k[2])
+            if v.reserved:
+                reserved.add("%s / %s" % (k[0], k[2]))
+            if v.degraded:
+                degraded.add("%s / %s" % (k[0], k[2]))
+        report.append("## 落点分档（本剧本实际用到的 %d 个词条，裁定来自 16b）" % sum(tier_cnt.values()))
+        report.append("- " + "  ".join("%s=%d" % kv for kv in sorted(tier_cnt.items())))
+        report.append("")
+        report.append("### 落仓清单（要存档的字段 → 存档键）")
+        for key in sorted(store):
+            ws = sorted(store[key])
+            report.append("- `%s`：%d 个字段 —— %s%s"
+                          % (key, len(ws), "、".join(ws[:12]), " …" if len(ws) > 12 else ""))
+        report.append("")
+        report.append("### T3-预留（能解析能存档，行为空执行 + [Scenario][TODO] 日志）：%d 个" % len(reserved))
+        for w in sorted(reserved):
+            report.append("- " + w)
+        report.append("")
+        report.append("### T0 降级（本期不落地，只作注释保留）：%d 个" % len(degraded))
+        for w in sorted(degraded):
+            report.append("- " + w)
+        report.append("")
+    # ---- 占位据点（骑砍地图上没有这座城 → 07 数据包补，锚点只说明大概位置）----
+    _txt = "\n".join(combined) + "\n".join(merged_story)
+    _cities = sorted(set(re.findall(r"tk5_city_\d+", _txt)))
+    if _cities:
+        report.append("## 占位据点（太阁有、骑砍地图上没有 → 07 数据包补真城）")
+        report.append("> 锚点 = 织丰表给的「最近的骑砍据点」，只用来定位置，**不是同一个地方**。")
+        for cid in _cities:
+            cn = CITY_PLACEHOLDER.get(cid, "?")
+            report.append("- `%s` = %s｜锚点 %s" % (cid, cn, CITY_ANCHOR.get(cn) or "（无）"))
+        report.append("")
+    # ---- 实体归一表缺口（gen_entity_maps 报出来的，07 数据包要补）----
+    if MISSING_IN_XML:
+        report.append("## 实体缺口（织丰表有、模块 XML 里没有 → 07 数据包补）")
+        for label, ids in MISSING_IN_XML.items():
+            report.append("- %s：%d 个 —— %s%s"
+                          % (label, len(ids), "、".join(ids[:10]), " …" if len(ids) > 10 else ""))
+        report.append("")
     report.append("## 待注册清单（去重，禁止猜译，逐条人工裁决）")
     seen = set()
     for e, w, c, x in all_todo:

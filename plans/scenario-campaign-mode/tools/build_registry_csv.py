@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """生成 16a-DSL翻译总表.csv —— 太阁5 ↔ 骑砍2 唯一翻译大表（正式 plan 数据文件，单一事实源）
 
-列：类别, 太阁原词, 所属域, 我们侧名, 值类型, 语义, 参数, 备注, 频率
+列：类别, 所属域, 太阁原词, 例句, 我们侧名, 值类型, 语义, 参数, 档, 载体, 存档键, 实现锚点, 频率
 - 类别（第一列）：域 / 属性 / 域值 / 命令 / 函数——排序即可分区
 - 所属域（第三列）：属性/域值行 = 语料实际出现的域（人物 / 城 / 大名家 / 多域用「/」分隔）；
   域/命令/函数行 = —
@@ -9,8 +9,13 @@
 - 值类型（第五列）：仅 属性/域值 行有值——DSL 值的数据类型（数字/布尔/枚举/引用/家族引用…），
   validator 用做「比较左右同型」检查；域/命令/函数行 = —（🔴 2026-08-27 用户裁定：与类别区分、写清楚）
 - 语义：我们侧名的中文释义（高频从白名单/动作表提取；低频词条名自解释）
-- 备注（第八列）：🔴 2026-08-27 用户裁定——原「实现用法+状态」合并；人读规划信息（翻译程序不消费）：
-  `✅ 引擎查询器` / `🔴 需新增（13 主命 / 02 PartyBrain / 17 官职 / 数据包 / mod 外置属性）` / `❌ 放弃` 等
+- 档 / 载体 / 存档键 / 实现锚点（第 9~12 列）：🔴 2026-08-27 起**全部来自 16b《落点裁定表》**，
+  经 `tools/fill_registry.py` 生成的 `tools/registry_verdicts.py` 读入，本脚本不再自己反推：
+    档     = T0 降级 / T1 引擎直取 / T2 引擎改造 / T3 本 mod 新造 / T3-预留（能存能读、行为留空坑）
+    载体   = 这个词最终落在哪（引擎 / 外置仓 / 旗标仓 / 数据包 / 13主命 / 17功勋 / 02战略 …）
+    存档键 = 要落盘时进哪个存档字段（lwn_scn_attr / lwn_scn_state / 13 / 17 / 无）
+    实现锚点 = 读写各走哪个 API 或哪条侧名规则
+  （旧「备注」列是本脚本按侧名反推的自由文本，已废弃——裁定归 16b，一处写、一处读）
 - 频率（最后一列）：语料出现次数（不太重要，排最后）
 运行：仓库根目录 `python plans/scenario-campaign-mode/tools/build_registry_csv.py`
 
@@ -35,7 +40,13 @@ from gen_registry_tables import (ENUM_SETS, RES_SETS, RES_PREFIX, enum_side, arg
                                  SPECIAL_VALS, SPECIAL_TYPES,
                                  domains, attr_pairs, attr_triples, domain_vals, calls, cmds,
                                  DIGIT_ATTR, digit_attr_class,
-                                 pair_side, val_side, call_side, verify_coverage)
+                                 pair_side, val_side, call_side, verify_coverage, assign_side)
+
+try:
+    from registry_verdicts import VERDICTS      # 生成物：tools/fill_registry.py 从 16b 正文表生成
+except ImportError:
+    print('❌ 缺 tools/registry_verdicts.py —— 先跑 `python tools/fill_registry.py` 生成裁定表')
+    sys.exit(1)
 
 txt = open('Knowledge/太阁事件包/TK5AllEvents_merged.txt', encoding='utf-8').read()
 
@@ -878,11 +889,41 @@ def main():
         rows.sort(key=lambda r: (CAT_ORDER.get(r[2], 9), r[3], r[0]))
         # 🔴 列序（2026-08-27 用户裁定）：类别第一列、所属域第二列、太阁原词第三列、例句第四列、
         #    频率最后一列；所属域第二列 = 排序分区第二级（属性按 大名家/城/人物… 分组、域值按域分组）
-        # 内部 rows 保持 [原词, 频率, 类别, 所属域, 侧名, 值类型, 语义, 参数, 备注, 例句] → 写文件重排
-        ORDER = [2, 3, 0, 9, 4, 5, 6, 7, 8, 1]
-        w.writerow(['类别', '所属域', '太阁原词', '例句', '我们侧名', '值类型', '语义', '参数', '备注', '频率'])
+        # 内部 rows 保持 [原词, 频率, 类别, 所属域, 侧名, 值类型, 语义, 参数, 旧备注, 例句] → 写文件重排
+        #（第 9 位「旧备注」不再进 CSV，只留作下面的反推 vs 裁定 对账；裁定四列来自 16b）
+        ORDER = [2, 3, 0, 9, 4, 5, 6, 7]
+        w.writerow(['类别', '所属域', '太阁原词', '例句', '我们侧名', '值类型', '语义', '参数',
+                    '档', '载体', '存档键', '实现锚点', '频率'])
+        missing, disagree, renamed = [], 0, 0
         for r in rows:
-            w.writerow([r[i] for i in ORDER])
+            v = VERDICTS.get((r[2], r[3], r[0]))
+            if v is None:
+                missing.append('%s / %s / %s' % (r[2], r[3], r[0]))
+                continue
+            # 侧名以 16b 行裁定为准（那里逐条写死了干净 token；本脚本的反推会出中文/残渣/撞名）
+            if v['侧名'] and v['侧名'] != '—' and v['侧名'] != r[4]:
+                r[4] = v['侧名']
+                renamed += 1
+            # 代入族 83 条：侧名 = 动作 token（assign_ctx / assign_var），槽位名进「参数」列
+            _a = assign_side(r[0]) if r[2] == '命令' else None
+            if _a:
+                r[4] = _a[0]
+                r[7] = 'slot=%s' % _a[1] + ('' if r[7] in ('—', '') else ', ' + str(r[7]))
+                renamed += 1
+            # 对账：旧的自由文本备注（按侧名反推）说「✅ 引擎」，而 16b 裁定是 T2/T3 → 计一次分歧
+            old = str(r[8])
+            if ('✅' in old or '引擎' in old) and v['档'] not in ('T1',):
+                disagree += 1
+            w.writerow([r[i] for i in ORDER] +
+                       [v['档'], v['载体'], v['存档键'] or '无', v['实现锚点'], r[1]])
+        if missing:
+            print('❌ 有 %d 行在 16b 裁定表里查无裁定（键 = 类别/所属域/太阁原词）：' % len(missing))
+            for m in missing[:30]:
+                print('  ', m)
+            print('  → 去 16b-落点裁定表.md 补行裁定或组裁定，再跑 `python tools/fill_registry.py`')
+            sys.exit(1)
+        print('  裁定对账：旧反推备注说「引擎可用」但 16b 判非 T1 的有 %d 行（以 16b 为准）' % disagree)
+        print('  侧名以 16b 为准改写 %d 行' % renamed)
     n_attr = len([r for r in rows if r[2] == '属性'])
     n_val = len([r for r in rows if r[2] == '域值'])
     n_enum = len([r for r in rows if r[2] == '枚举值'])
