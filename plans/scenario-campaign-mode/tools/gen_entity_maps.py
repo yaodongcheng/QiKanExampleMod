@@ -78,6 +78,14 @@ NAME_ALIAS = {
     '豐臣秀長': '木下小一郎',
     '德川家康': '松平元康',
     '寧寧': '宁宁',
+    # 🔴 2026-08-28：从历史脚本 generate_taikou_char_info.py 的 HISTORICAL_ALIASES 抄入（原则 3 化名库）。
+    # 只抄 5 条（tk 源文无键 + zf 表内确认存在）；旧脚本其余 8 条未抄：
+    # 松平元康/长尾景虎/大友义镇/木下小一郎/真田幸村/真田信幸/黑田如水 = tk 已有键；斋藤利三 = 自映射占位。
+    '木下秀吉': '丰臣秀吉',
+    '羽柴秀吉': '丰臣秀吉',
+    '竹中重治': '竹中半兵卫',
+    '黑田孝高': '黑田如水',   # 🔴 zf 必须 = CNName（黑田官兵卫 只是年份别名，alias 机制只认 CNName 行）
+    '山本晴幸': '山本勘助',
 }
 
 # 势力别名：太阁按 1560 年的家名叫，织丰表按代表家名建 Kingdom
@@ -91,6 +99,27 @@ TK5_ONLY_HERO = {
     '服部小平太': 'tk5_hattori_koheita',
     '毛利新介': 'tk5_mori_shinsuke',
     '簗田政綱': 'tk5_yanada_masatsuna',
+}
+
+# 🔴 ID 写法平替（2026-08-28 用户抓包 小早川隆景 案）：主表按「全名式/后人名」造 id，
+# 但基础织丰 mod 真身用「省名式/当年名」——同一人两套 id，表里还标着「精确匹配织丰」。
+# 原则 1：沿用真身 id。全表扫描又回 13 条同类（改名前/别号系列），已确认同人；
+# （铃木重秀↔杂贺孙一 有父子歧义，留 07c 步骤 2 分诊，不武断映射）
+ID_REPLACE = {
+    'lord_1_kobayakawa_takakage': 'lord_1_kobayakawa',   # 小早川隆景
+    'lord_1_ito_hoan': 'lord_1_ito',                     # 伊东义祐
+    'lord_1_ito_sadachika': 'lord_1_ito_7',              # 伊东祐兵
+    'lord_1_tsugaru_tamenobu': 'lord_1_oura',            # 大浦为信（津轻为信）
+    'lord_1_sakazaki_naomori': 'lord_1_ukita_9',         # 宇喜多诠家
+    'lord_1_yamana_yuu': 'lord_1_yamana',                # 山名祐丰
+    'lord_1_tachibana_dosetsu': 'lord_1_bekki',          # 户次鉴连（立花道雪）
+    'lord_1_takeda_harufusa': 'lord_1_takeda_9',         # 武田信廉（逍遥轩）
+    'lord_1_sanada_taneju': 'lord_1_sanada_8',           # 真田信幸
+    'lord_1_anayama_akisane': 'lord_1_anayama',          # 穴山信君
+    'lord_1_hosokawa_yuu': 'lord_1_hosokawa',            # 细川藤孝（幽斋）
+    'lord_1_oda_kiyoeimon': 'lord_1_oda_10',             # 织田长益（有乐）
+    'lord_1_tachibana_muneshige': 'lord_1_takahashi_2',  # 高桥统虎（立花宗茂）
+    'lord_1_kuroda_iekata': 'lord_1_kuroda',             # 黑田孝高（官兵卫/如水）
 }
 
 # 模板角色（无 Hero 身份的路人）→ Agent:: 模板引用；织丰表里不会有，本表就是事实源
@@ -332,33 +361,57 @@ def main():
             if kid:
                 put(KINGDOM_BY_HERO, n, kid, conflicts, '势力(按人)')
 
+    # 🔴 TK5_ONLY 三人 = Hero 实例（有名有姓的个体，用户 2026-08-28 裁定）。
+    #   归属：挂 Faction.clan_oda_1 —— 骑砍的 Clan/Faction 是**政治集团**（原版草寇/
+    #   雇佣商人/流浪者各有 clan），「织田家武士」挂织田集团语义正确；无 clan Hero
+    #   在织丰战役容错不明（风险），用户裁定挂织田（安全优先）。
+    #   HERO_META.clan 同步填 clan_oda_1；家庭成员无关，不体现血亲。
     for n, hid in TK5_ONLY_HERO.items():
         put(HERO_MAP, n, hid, conflicts, '人物')
-        HERO_META.setdefault(hid, {'clan': '', 'kingdom': '', 'kingdom_name': '',
-                                   'city': '', 'appear': '太阁独有', 'identity': '', 'stance': ''})
+        HERO_META.setdefault(hid, {'clan': 'clan_oda_1', 'kingdom': 'oda', 'kingdom_name': '织田家',
+                                   'city': '', 'appear': '太阁独有', 'identity': '织田家武士', 'stance': ''})
+    # 🔴 ID_REPLACE 置换（2026-08-28）：金句「表里的全名式 id 换基础 mod 真身省名式 id」
+    for k, v in list(HERO_MAP.items()):
+        if v in ID_REPLACE:
+            HERO_MAP[k] = ID_REPLACE[v]
+        HERO_META.setdefault(ID_REPLACE.get(v, v), HERO_META.get(v))  # 防 HERO_META 键仍然挂在旧 id 上
+    for old, new in ID_REPLACE.items():
+        if old in HERO_META:
+            HERO_META.setdefault(new, HERO_META.pop(old))
 
-    # ---- 存在性核对 ----
-    xml_hero = xml_ids('Shokuho/ModuleData/heroes/*.xml', 'Shokuho/ModuleData/lords/*.xml',
-                       'ShokuhoTaikouExpansionPack/ModuleData/*/heroes.xml',
-                       'ShokuhoTaikouExpansionPack/ModuleData/*/lords.xml')
-    xml_clan = xml_ids('Shokuho/ModuleData/spclans/*.xml',
-                       'ShokuhoTaikouExpansionPack/ModuleData/*/clans.xml')
-    xml_kingdom = xml_ids('Shokuho/ModuleData/spkingdoms/*.xml')
-    xml_settle = xml_ids('Shokuho/ModuleData/settlements.xml',
-                         'Shokuho/ModuleData/port_location_settlements.xml',
-                         'Shokuho/ModuleData/*_location_settlements.xml')
+    # ---- 存在性核对（🔴 2026-08-28 双池改造：基础织丰 mod / 扩展包分开扫，再不分池混扫）----
+    xml_hero_base = xml_ids('Shokuho/ModuleData/heroes/*.xml', 'Shokuho/ModuleData/lords/*.xml',
+                            'Shokuho/ModuleData/spnpccharactertemplates.xml',
+                            'Shokuho/ModuleData/spspecialcharacters/*.xml',
+                            'Shokuho/ModuleData/spnpccharacters/*.xml')
+    xml_hero_exp = xml_ids('ShokuhoTaikouExpansionPack/ModuleData/*/heroes.xml',
+                           'ShokuhoTaikouExpansionPack/ModuleData/*/lords.xml')
+    xml_clan_base = xml_ids('Shokuho/ModuleData/spclans/*.xml')
+    xml_clan_exp = xml_ids('ShokuhoTaikouExpansionPack/ModuleData/*/clans.xml')
+    xml_kingdom_base = xml_ids('Shokuho/ModuleData/spkingdoms/*.xml')
+    xml_settle_base = xml_ids('Shokuho/ModuleData/settlements.xml',
+                              'Shokuho/ModuleData/port_location_settlements.xml',
+                              'Shokuho/ModuleData/*_location_settlements.xml')
     missing = collections.OrderedDict()
-    def check(label, ids, pool):
-        if not pool:
-            return []
-        bad = sorted(i for i in ids if i not in pool and not i.startswith('tk5_'))
+    supplements = {}
+    def check2(label, ids, base_pool, exp_pool):
+        """分层核对：真缺 = 两边都没有；supplement = 只在扩展包生成物（注册前运行时不活）。"""
+        sup = sorted(i for i in ids - base_pool if i in exp_pool and not i.startswith('tk5_'))
+        bad = sorted(i for i in ids - base_pool - exp_pool if not i.startswith('tk5_'))
         if bad:
             missing[label] = bad
-        return bad
-    check('人物', set(HERO_MAP.values()), xml_hero)
-    check('家族', clan_ids, xml_clan)
-    check('势力', kingdom_ids, xml_kingdom)
-    check('据点', settle_ids, xml_settle)
+        if sup:
+            supplements[label] = sup
+        return bad, sup
+    check2('人物', set(HERO_MAP.values()), xml_hero_base, xml_hero_exp)
+    check2('家族', clan_ids, xml_clan_base, xml_clan_exp)
+    # 🔴 势力只核 IsShokuho=1（启用）的：IsShokuho=0 = 织丰做好但未启用的预备数据（07b §4.1 已定性），不是缺口
+    kingdom_active = set()
+    for r in sh['Kingdom']:
+        if r.get('ID') and (r.get('IsShokuho') or '').strip() == '1':
+            kingdom_active.add(r['ID'])
+    check2('势力', kingdom_active, xml_kingdom_base, set())
+    check2('据点', settle_ids, xml_settle_base, set())
 
     # ---- 统计 ----
     print('== 织丰表 → 实体归一表 ==')
@@ -377,6 +430,15 @@ def main():
               % (len(org_names), '、'.join(n for n, _ in org_names.most_common(8)) + ' …'))
     for label, bad in missing.items():
         print('  ⚠️ %s：%d 个 ID 在模块 XML 里查不到 → %s' % (label, len(bad), '、'.join(bad[:6])))
+    for label, sup in supplements.items():
+        print('  🔴 %s：%d 个 ID 只在扩展包生成物（需注册才行，运行时未注册 = 查得到活不了）→ %s'
+              % (label, len(sup), '、'.join(sup[:6])))
+    n_base = sum(1 for v in set(HERO_MAP.values()) if v in xml_hero_base)
+    n_exp = sum(1 for v in set(HERO_MAP.values()) if v not in xml_hero_base and v in xml_hero_exp)
+    print('  人物存活分层：基础 mod %d ｜ 生成物 %d ｜ 全新 %d' % (n_base, n_exp, len(set(HERO_MAP.values())) - n_base - n_exp))
+    prem = len(kingdom_ids) - len(kingdom_active)
+    if prem:
+        print('  势力：IsShokuho=0 预备数据 %d 条（织丰做好未启用，非缺口，07b §4.1）' % prem)
     for c in conflicts[:10]:
         print('  冲突 ' + c)
     if len(conflicts) > 10:
@@ -432,7 +494,26 @@ def main():
     out.append('MISSING_IN_XML = {\n')
     for label, bad in missing.items():
         out.append('    %s: [%s],\n' % (lit(label), ', '.join(lit(b) for b in bad)))
-    out.append('}\n')
+    out.append('}\n\n')
+    # 🔴 存活分层（2026-08-28 用户裁定）：调用方先问 ORIGIN 再决定引用安全性
+    out.append('# 🔴 StringId 存活分层（2026-08-28）：base = 织丰基础 mod 本来就有的（可直接引用）；\n'
+               '#   supplement = 只在扩展包生成物里（SubModule 注册前运行时不活——查得到 ≠ 找得到）；\n'
+               '#   new = 两边都没有（待 07 数据包/07c 步骤 2 新增）。翻译器引用前必查。\n')
+    def dump_origin(name, d):
+        buf = ['%s = {\n' % name]
+        for i in sorted(d):
+            buf.append('    %s: %s,\n' % (lit(i), lit(d[i])))
+        buf.append('}\n\n')
+        return ''.join(buf)
+    out.append(dump_origin('HERO_ORIGIN',
+                           {i: ('base' if i in xml_hero_base else 'supplement' if i in xml_hero_exp else 'new')
+                            for i in set(HERO_MAP.values())}))
+    out.append(dump_origin('CLAN_ORIGIN',
+                           {i: ('base' if i in xml_clan_base else 'supplement' if i in xml_clan_exp else 'new')
+                            for i in clan_ids}))
+    out.append(dump_origin('SETTLEMENT_ORIGIN',
+                           {i: ('base' if i in xml_settle_base else 'new')
+                            for i in settle_ids}))
     io.open(P_OUT, 'w', encoding='utf-8').write(''.join(out))
     print('已生成 %s' % os.path.relpath(P_OUT, ROOT))
     return 0
