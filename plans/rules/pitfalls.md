@@ -806,3 +806,42 @@ catch (Exception) { _retryTick = Environment.TickCount; }   // 失败：冷却�
 - ③ 箱子填充数量上限（`DistributeSettlementWealth`）：单种 ≤10 件、总件数 ≤120、种类 ≤40——杜绝 712 件/105 种一锅端，压住批量结算的引擎压力。
 - ④ `ShowChestInquiry`「全部拿走」回调整体 try/catch + DebugLogger（finally 保证 `IsUIOpen` 复位），再崩也有日志。
 - 排查口诀：**「弹窗后零输出 + 无异常记录」= 结算回调里引擎层崩溃**——先查结算路径有没有 try/catch、再查静态状态是否残留（同场景能反复撬锁 = 结算没清干净）。
+
+---
+
+## 动态插入按钮叠在目标按钮上（插入点是无布局的普通 Widget + 行结构跨版本不一致）
+
+**症状**（2026-08-29 队伍屏密信按钮实机诊断实锤）
+- 注入按钮与原版交谈按钮**渲染位置完全重合**：诊断日志 `talk=(1489,590) 54x43` vs `btn=(1489,586) 50x50`——同一个 X。
+- 点交谈按钮 → 点击被注入按钮偷走（日志 `[SecretLetter] 点击密信按钮` 出现在交谈按钮矩形的落点，IM 打开）；注入按钮隐藏后（传讯开关关）点击恢复正常。
+
+**根因**：插入目标不是「有布局算法的容器」。
+- 队友行 `ButtonsList` 的父容器 **ButtonCarrier 是普通 Widget（无 StackLayout）**——子树没有布局驱动，子节点 `Left/Top` 保持默认 0 → 渲染在容器原点 = 目标按钮的位置。
+- 为什么会插到 ButtonCarrier：**行结构跨版本不一致**——H盘 1.5.2 XML 是 `TalkButton → 容器 → ButtonsList(ListPanel) → ButtonCarrier`；玩家实机（旧版）是 `TalkButton → ButtonsList(ListPanel) → ButtonCarrier`（无中间容器）。旧代码 `slot = talkWidget.ParentWidget; slot.ParentWidget.AddChild(...)` 在实机上把 `slot.ParentWidget` 算成了 ButtonCarrier。
+
+**防法**（已修复 `GUI/SecretLetterButtonInjector.cs`，详见 wheels.d/ui.md「动态插入」条）：
+- **插入点必须上溯到最近 `ListPanel`**，不要赌固定行结构：
+  ```csharp
+  Widget wrapper = talkWidget;
+  if (!(talkWidget.ParentWidget is ListPanel))
+      wrapper = talkWidget.ParentWidget;    // 有容器包装形态：跟在容器后
+  Widget insertInto = wrapper.ParentWidget; // 两形态下都是列表本体
+  if (!(insertInto is ListPanel)) return false;  // 结构未知 → 安全跳过
+  ```
+- 排查口诀：**「注入按钮和原版按钮同坐标」= 插进了无布局的普通 Widget**——打印插入目标的类型名（`btn.ParentWidget?.GetType().Name(Id)`），不是 `ListPanel` 就错了。
+
+---
+
+## 引擎 StackLayout 不给不可见子节点分配布局盒 / IsVisible 翻转不触发重排（动态插入按钮的延迟错位）
+
+**症状**（2026-08-29，与上一条同事故鉴定时发现的第二条引擎行为）：
+- 动态插入列表的按钮在「隐藏→显示」翻转瞬间，位置仍是旧值/默认值（悬在列表 (0,0) 或上一次分配的位置），叠压带布局的邻居——即使插入点是对的列表。
+
+**根因**（反编译 `TaleWorlds.GauntletUI.dll` `StackLayout` / `Widget`，v1.5.1 实锤）：
+- `LayoutLinearHorizontal` / `MeasureLinear` **只处理 `IsVisible=true` 的子节点**：不可见子节点既不推进 x 也不调用 `Layout()`（布局盒空缺，`Left/Top` 保持上次值或默认 0）。
+- `Widget.IsHidden` setter **只改字段不触发重排**（`SetMeasureAndLayoutDirty` 只在 `ParentWidget=`/`SetSiblingIndex`/尺寸属性变更时调用）——「行数据变化 → 锚点变可见 → 按钮 IsVisible=true」这个翻转引擎完全不知情，布局不会补跑。
+
+**防法**（`GUI/SecretLetterButtonInjector.cs` UpdateLive 已实现）：
+- **可见性 false→true 翻转后立即 `SetSiblingIndex(GetSiblingIndex(), force: true)`**——引擎公开 API，强制整树 measure+layout，以可见态重分配布局盒；签名 1.2.12~1.5.x 一致。
+- 低频事件（行数据变化才触发），成本可忽略；反转方向（→隐藏）不需要——不可见不渲染、且再次显示时翻转判定会重新触发。
+- 排查口诀：**「注入按钮长在对的位置上（列表内）但翻出来就错位」= 布局盒在隐藏态空缺**——翻转时加强制重排。
