@@ -1,8 +1,9 @@
 # face-pipeline — 骑砍2 换脸管线工具集
 
+> **状态（2026-08-29）**：实验归档，**目标判定为贴图替换不可达**（五官层不在 diffuse），
+> 结论与踩坑全过程见 `Knowledge/换脸踩坑与结论-2026-08.md`。下面事实/工具仍可复现复用。
 > 用途：把「任意正脸参考图像」变换成骑砍2 主角/NPC 用的脸部贴图资源包（资源覆盖型 mod），
 > 保留原生五官动画（morph 顶点动画，不参与修改）。
-> 状态：工具链已打通（解包/打包/渲染预览/UV 锚点）。warp 生成器（参考图 → 男 UV 贴图）为待接入 TODO。
 
 ## 目录
 
@@ -63,7 +64,19 @@ python scripts/anchor_v2.py       # 锚点 v2（当前最优，输出五官紫 U
 
 5. **覆盖机制**：mod 的 `AssetPackages/*.tpac` 里放**同名资源**（如 `head_male_a_d`）→ 按加载顺序覆盖 Native。范本：已装的 `GT_Face`（换女头）、`WomeninCalradia`（换全部头，`head_malfoy_a_*`）。**给单个角色专用脸**需要自建 skin/race 拆分（后续接线，见 TODO）。
 
+## 2026-08-29 实测更新（重要事实）
+
+- **织丰皮肤换头**：Shokuho `ModuleData/skins.xml` 把男性 `face_meta_mesh` 改为
+  `sho_head_male_japanese`（自建网格+4096 贴图 `2sho_head_male_japanese_d/_n/_s`）——**换脸的真正目标 = 织丰素材，不是原生 head_male_a**。其 diffuse 已导出到 `data/sho_head_male_japanese_d.png`（验证参考）。
+- **face_mesh_cache**：NPC 的 `face_mesh_cache="true"` → 旧存档 NPC 脸固化，不受新贴图影响（主角实时生成）。
+- **覆盖生效确认**：A 包（孤儿资源）框架可进游戏；红/黑/绿底色探针在主角全生效 → **同名覆盖机制 100% 通**；异常 = 拼脸五官区未显（疑 FaceGen 合成层；标尺探针调查中）。
+- **视图分叉坑**：Bash（Claude 沙箱）产生的内容与宿主多视图（IDE/游戏）不同——**交付 dist/装游戏一律走 PowerShell 或 Write/Read**，bash 产物宿主不可见。
+- 包大小非指标：tpac 段有压缩（uniform 贴图 147KB 正常；roundtrip 已验证字节级一致）。
+- 打包保险三件套：Source=""（防引擎外链校验）、MipmapCount 与数据层一致（12）、段随模板（GT_Face 纹理对象字段复制）。
+
 ## TODO（warp 生成器）
+
+
 
 - `warp_face.py`：mediapipe(468点) landmark → 参考图五官 5 点 → 对齐男 UV 锚点（上表）→ 仿射 + 薄板样条嵌入脸区（大 UV 岛）→ 肤色渐变填边 → 输出 diffuse 2048。
 - normal 生成（Sobel+噪声；或中性法线兜底）。spec 直接沿用/白图。

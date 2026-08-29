@@ -10,12 +10,14 @@ import mediapipe as mp
 
 # ---- 目标 UV 矩形 (u0,v0,u1,v1) v:0=底部 — 来自 geo_anchor_v4 面片中心测量 ----
 RECTS = {
-    # uv_pick.py 确定性测量 (数值桥: 3D解剖点 -> UV)
-    "eye":  (0.040, 0.256, 0.100, 0.316),   # 单眼岛(镜像共用)
-    "brow": (0.450, 0.150, 0.555, 0.195),   # 眉岛(独立于面区,在图中部!)
-    "nose": (0.000, 0.222, 0.028, 0.248),
-    "mouth":(0.000, 0.165, 0.058, 0.205),
-    "chin": (0.020, 0.098, 0.075, 0.128),
+    # v21: 左右脸双带布局, 脸中央 u≈0.5 (colorrect 已证右脸带 0.05-0.45)
+    "eyeL": (0.560, 0.335, 0.680, 0.455),
+    "eyeR": (0.320, 0.335, 0.440, 0.455),
+    "browL":(0.555, 0.250, 0.690, 0.330),
+    "browR":(0.310, 0.250, 0.440, 0.330),
+    "nose": (0.435, 0.455, 0.565, 0.580),
+    "mouth":(0.420, 0.580, 0.585, 0.685),
+    "chin": (0.430, 0.685, 0.570, 0.790),
 }
 
 def detect(img_path):
@@ -39,18 +41,20 @@ def src_windows(lm, W, H):
     """mediapipe 关键点 -> (部件名, (x0,y0,x1,y1) 源窗口矩形)"""
     def mx(i): return lm[i][0]
     def my(i): return lm[i][1]
-    # 单眼: 取画面左眼 (33=外角,133=内角) 扩充
-    ex0, ex1 = min(mx(33), mx(133)), max(mx(33), mx(133))
-    ey0, ey1 = min(my(159), my(145)), max(my(159), my(145))   # 上眼睑/下眼睑
-    pad = 0.25
-    ey = (ex0 - (ex1 - ex0) * pad, ey0 - (ey1 - ey0) * pad,
-          ex1 + (ex1 - ex0) * pad, ey1 + (ey1 - ey0) * pad)
-    # 眉: 用眉线外中点 70(左眉外),293(右眉内) 与 300 定位眉行
-    bx0 = mx(70); bx1 = mx(300)
-    by = (my(70) + my(300)) * 0.5
-    bw = abs(bx1 - bx0)
-    bh = abs(my(71) - my(80)) * 2.0   # 眉上下厚度
-    br = (bx0 - bw * 0.05, by - bh, bx1 + bw * 0.05, by + bh)
+    # 双眼独立窗口: 观察者左(33/133), 右(362/263)
+    def eye_win(i1, i2):
+        ex0, ex1 = min(mx(i1), mx(i2)), max(mx(i1), mx(i2))
+        ey0, ey1 = min(my(159), my(145)), max(my(159), my(145))
+        pad = 0.25
+        return (ex0 - (ex1 - ex0) * pad, ey0 - (ey1 - ey0) * pad,
+                ex1 + (ex1 - ex0) * pad, ey1 + (ey1 - ey0) * pad)
+    # 眉独立: 70/63 左, 300/293 右
+    def brow_win(i1, i2):
+        bx = (mx(i1) + mx(i2)) * 0.5
+        by = (my(i1) + my(i2)) * 0.5
+        bw = abs(mx(i1) - mx(i2)) * 0.9 + 20
+        bh = abs(my(71) - my(80)) * 2.0 + 10
+        return (bx - bw, by - bh, bx + bw, by + bh)
     # 鼻: 鼻梁 168 -> 鼻尖 1
     nx0, nx1 = mx(1) - abs(mx(49) - mx(59)) * 0.6, mx(1) + abs(mx(49) - mx(59)) * 0.6
     ny0, ny1 = my(168), my(1) + (my(2) - my(1)) * 0.4
@@ -62,7 +66,9 @@ def src_windows(lm, W, H):
     cx, cy = mx(152), my(152)
     ch = abs(my(152) - my(17)) * 0.30
     chin = (cx - ch, cy - ch, cx + ch, cy)
-    return {"eye": ey, "brow": br, "nose": (nx0, ny0, nx1, ny1),
+    return {"eyeL": eye_win(33, 133), "eyeR": eye_win(362, 263),
+            "browL": brow_win(70, 63), "browR": brow_win(300, 293),
+            "nose": (nx0, ny0, nx1, ny1),
             "mouth": mouth, "chin": chin}
 
 def main():
