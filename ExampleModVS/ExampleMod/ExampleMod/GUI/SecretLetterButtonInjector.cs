@@ -125,38 +125,68 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 幂等注入：在交谈按钮/容器旁插入密信按钮（返回是否新注入）。
-        /// 插入点 = talkWidget 所在槽位容器的父级（队伍=ButtonsList / 家族=LastSeenLocationParent），index+1 紧跟交谈按钮。
+        /// 插入点 = 容纳交谈按钮的列表（上溯最近 ListPanel），紧跟交谈按钮（或其容器）。
+        /// 🔴 2026-08-29（实机诊断「密信按钮叠在交谈按钮上」根因修复）：行结构存在两代形态——
+        ///   H盘 1.5.2: TalkButton → 容器 → ButtonsList(ListPanel) → ButtonCarrier；
+        ///   玩家实机(旧版): TalkButton → ButtonsList(ListPanel) → ButtonCarrier（无容器）。
+        ///   旧代码统一插「slot.ParentWidget」：实机上 = ButtonCarrier（无布局的普通 Widget）→
+        ///   按钮渲染在容器原点 = 正好叠在交谈按钮上（诊断坐标实锤 btn=(1489,586) vs talk=(1489,590)）。
+        ///   现改为上溯最近 ListPanel 插入，两代形态都落到列表布局里，结构未知则安全跳过。
         /// </summary>
         private static bool InjectNextToSlot(Widget talkWidget, bool isParty, Widget root)
         {
             if (talkWidget == null) return false;
-            // 队伍：talkWidget = TalkButton 按钮 → slot = 其父（ButtonsList 的槽位容器）
-            // 家族：talkWidget = Id=TalkToHeroButton 的容器（FindWidgetById 父先命中）→ slot = 自身
-            Widget slot = isParty ? talkWidget.ParentWidget : talkWidget;
-            if (slot == null || slot.ParentWidget == null) return false;
-            // 幂等：同一父容器已注入过则跳过（_live 引用判断，不依赖 Id——比 FindWidgetById 可靠）
-            foreach (var x in _live)
-            {
-                if (x.Button.ParentWidget == slot.ParentWidget) return false;
-            }
 
-            // 🔴 可见性锚：队伍行 = TalkButton 父容器（@IsTalkableCharacter）；
-            //   家族屏不能跟随 TalkToHeroButton 容器（@IsTalkVisible 在非本队成员行 = false——召回按钮显示时交谈按钮隐藏）
-            //   → 改为向上找「子树含 CharacterTableauWidget 的最近祖先」= 详情面板容器（@IsAnyValidMemberSelected，选中有效成员即显示）
-            Widget anchor = slot;
-            if (!isParty)
+            Widget insertInto;   // 注入目标列表
+            Widget slot;         // 紧跟目标（插其 index+1）
+            Widget anchor;       // 可见性锚
+            if (isParty)
             {
+                // 队伍：wrapper = 交谈按钮的「最近包装」（1.5.2 形态=容器 / 旧形态=按钮自身），
+                // insertInto = wrapper 所在列表（两形态下统一为 ListPanel）
+                Widget wrapper = talkWidget;
+                if (!(talkWidget.ParentWidget is ListPanel))
+                    wrapper = talkWidget.ParentWidget;
+                if (wrapper == null) return false;
+                insertInto = wrapper.ParentWidget;
+                if (!(insertInto is ListPanel)) return false;   // 结构未知 → 安全跳过（不注入、不崩）
+                slot = wrapper;
+                anchor = wrapper;
+            }
+            else
+            {
+                // 家族：talkWidget = Id=TalkToHeroButton 的容器（FindWidgetById 父先命中）→ slot = 自身
+                slot = talkWidget;
+                if (slot == null || slot.ParentWidget == null) return false;
+                insertInto = slot.ParentWidget;
+                anchor = slot;
+                // 🔴 家族屏不能跟随 TalkToHeroButton 容器（@IsTalkVisible 在非本队成员行 = false——召回按钮显示时交谈按钮隐藏）
+                // → 改为向上找「子树含 CharacterTableauWidget 的最近祖先」= 详情面板容器（@IsAnyValidMemberSelected，选中有效成员即显示）
                 for (Widget p = slot.ParentWidget; p != null; p = p.ParentWidget)
                 {
                     if (FindWidgetByType(p, "CharacterTableauWidget") != null) { anchor = p; break; }
                 }
             }
 
+            // 幂等：同一父容器已注入过则跳过（_live 引用判断，不依赖 Id——比 FindWidgetById 可靠）
+            foreach (var x in _live)
+            {
+                if (x.Button.ParentWidget == insertInto) return false;
+            }
+
+            // 🔴 2026-08-29（用户质疑「队伍 7 行只 1 个 hero，为什么注入 7 个」）：先做英雄行判定再注入——
+            // 队伍屏非英雄行（模板士兵行/玩家行）根本不注入，列表里不留隐藏按钮。原实现「全行注入 + 依赖
+            // 可见性锚隐藏」会让隐藏按钮带默认布局盒 (0,0) 悬在 ButtonsList——「引擎 StackLayout 不给
+            // 不可见子节点分配布局盒」正是密信按钮盖住交谈按钮那类隐患的土壤；且每 0.3s 扫描对全行做
+            // 创建-摘除循环 = 无效布局抖动。行数据变化（士兵行→英雄行）由 0.3s 扫描重注入兜底。
+            bool heroTarget = !isParty || ResolveIsHeroTarget(talkWidget, null);
+            if (!heroTarget) return false;
+
             var btn = CreateButton(slot.Context);
-            int idx = IndexOfChild(slot.ParentWidget, slot);
+            int idx = IndexOfChild(insertInto, slot);
             if (idx < 0) return false;
-            slot.ParentWidget.AddChildAtIndex(btn, idx + 1);
-            _live.Add(new Injected { Button = btn, VisibilityAnchor = anchor, ClanRoot = isParty ? null : root, IsHeroTarget = ResolveIsHeroTarget(btn, isParty ? null : root) });
+            insertInto.AddChildAtIndex(btn, idx + 1);
+            _live.Add(new Injected { Button = btn, VisibilityAnchor = anchor, ClanRoot = isParty ? null : root, IsHeroTarget = heroTarget });
             return true;
         }
 
@@ -271,10 +301,25 @@ namespace LivingWorldNpcs
                     }
                     catch { }
                 }
+                bool wantVisible = anchorVisible && !isPlayerSelf && Settings.Instance.PlotEnabled
+                    && Settings.Instance.IsLLMConfigured;
+                bool wasVisible = it.Button.IsVisible;
                 try
                 {
-                    it.Button.IsVisible = anchorVisible && !isPlayerSelf && Settings.Instance.PlotEnabled
-                        && Settings.Instance.IsLLMConfigured;
+                    it.Button.IsVisible = wantVisible;
+                    // 🔴 2026-08-29（用户实机反馈「密信按钮盖住交谈按钮」根因）：注入的按钮是 ButtonsList
+                    // 的子节点，引擎 StackLayout 只给**可见**子节点分配布局盒（LayoutLinearHorizontal
+                    // 对不可见子节点既不推进 x 也不调用 Layout()，反编译实锤）。若按钮在注入时锚点不可见
+                    // （普通士兵行 / 行被 PartyListPanel 回收后数据未判成英雄行），布局盒 = 默认 (0,0)；
+                    // 之后行数据变化使锚点可见 → IsVisible 翻转为 true——但 **IsVisible 翻转不触发父列表
+                    // 重排** → 按钮仍渲染在列表 (0,0)，正好压住交谈按钮盒 [10..66]（实机覆盖症状）。
+                    // 修：false→true 翻转时用 SetSiblingIndex(force: true) 强制整树 measure+layout，
+                    // 以可见态重新分配盒（引擎公开 API，1.2.12~1.5.x 签名一致）。
+                    if (wantVisible && !wasVisible && it.Button.ParentWidget != null)
+                    {
+                        it.Button.SetSiblingIndex(it.Button.GetSiblingIndex(), force: true);
+                        DebugLogger.Log("[SecretLetter] 可见性翻转 → 强制整树重排（修复按钮布局盒未分配）");
+                    }
                 }
                 catch (Exception ex)
                 {

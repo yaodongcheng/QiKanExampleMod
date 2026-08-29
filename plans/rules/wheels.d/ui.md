@@ -471,3 +471,26 @@ else if (IsMessageAtBottom()) _pinnedToBottom = true;
 - 🔴 类级多 `[HarmonyPatch]` 属性**不要用于**跨基类/派生类目标（架构混，上轮教训）；需要多目标就拆独立类。
 
 **关键文件**：`ImChat/ImScreenFrameTickPatch.cs`（`ImScreenFrameTickPatch` + `ImMissionButtonRefreshPatch`）、`ImChat/ImChatView.cs`（OnScreenFrameTick）、`Interaction/InteractionMissionView.cs`。
+
+---
+
+## 🔴 往原版 GauntletUI 屏动态插入按钮（版本无关插入点）— `GUI/SecretLetterButtonInjector.cs`（2026-08-29 实机修复后登记）
+
+**解决**：不覆写原版 prefab（避开与其他 UI mod 同名互斥），纯 C# 在队伍屏/家族屏「交谈按钮」旁注入「密信」按钮：扫描原版 widget 树 → 插入 → 点击 → IM 私聊（关屏再开）。
+
+- **扫描**：`ScreenManager.TopScreen.Layers` → `GauntletLayer.UIContext.Root` → DFS 按 Id/类型名找（`FindWidgetById` / `FindAllWidgetsById` / `FindWidgetByType` 三个助手）；0.3s 节流 + TopScreen 类名过滤（`Contains("PartyScreen")` 等，覆盖各版本命名变体）。
+- **🔴 插入点必须是「有布局算法的容器」**：`AddChildAtIndex(btn, idx + 1)` 的目标若是普通 Widget（无 StackLayout），子节点渲染在其原点、必然叠在目标按钮上（2026-08-29 实机事故：H盘 1.5.2 行结构 `TalkButton→容器→ButtonsList` 与旧客户端 `TalkButton→ButtonsList`（无容器）两代形态差异，旧代码插进 ButtonCarrier 直接叠在交谈按钮上）。**版本无关统一算法**：
+  ```csharp
+  Widget wrapper = talkWidget;
+  if (!(talkWidget.ParentWidget is ListPanel))
+      wrapper = talkWidget.ParentWidget;   // 有容器包装（1.5.2 形态）：跟在容器后
+  Widget insertInto = wrapper.ParentWidget; // 两种形态下都是列表本体
+  if (!(insertInto is ListPanel)) return false;   // 结构未知 → 安全跳过（不注入、不崩）
+  ```
+- **数据桥**：读原版绑定已赋值的 widget 属性（反射，属性名跨版本稳定）：队伍行根 `PartyTroopTupleButtonWidget.CharacterID`（=`Character.StringId`）；家族详情 `CharacterTableauWidget.CharStringId`。**行根匹配用类型名不能用 Id**——CustomType 实例化时外层模板 Id 被覆盖为 null（反编译实锤）；家族行根是普通 Widget 类型不唯一 → 从 UIContext.Root DFS 找全局唯一的 `CharacterTableauWidget`。
+- **可见性**：每帧跟随锚点可见性（队伍=交谈按钮最外层包装 `@IsTalkableCharacter`；家族=含 tableau 的详情面板容器）+ 总闸（`PlotEnabled && IsLLMConfigured`——未配置 LLM 按钮同步隐藏，传讯入口整体封死纪律）。hover 提示 = 手动 hit-test（`IsPointInRect(Input.MousePositionPixel, …)` + `MBInformationManager.ShowHint`）。
+- **点击 → 关屏再开**：`ImChatManager.GetDirectConversation(heroId)` → 原版关屏路径（队伍屏 `PartyScreenHelper.CloseScreen` 反射 / 家族屏 `GameStateManager.PopState(0)`——**裸 PopScreen 绕过 GameState 栈 = 地图黑屏**，两次实机复现）→ `ImChatView.SetPendingSecretLetter(heroId)`（下帧 TopScreen 稳定后开 IM 定位私聊）。
+- **英雄门**：注入前用同一个行映射反射判定「英雄行且非玩家行」（`IsMainHero` 行根反射 + `Hero.AllAliveHeroes` 校验）——非英雄行根本不注入。省去「全行注入 + 可见性隐藏」的隐藏按钮布局盒空缺坑，也免除每 0.3s 扫描对全行创建-摘除的布局抖动。
+- **🔴 翻转为可见时强制重排**：`SetSiblingIndex(GetSiblingIndex(), force: true)`（引擎坑见 pitfalls「不可见子节点无布局盒」；签名 1.2.12~1.5.x 一致）。
+
+**关键文件**：`GUI/SecretLetterButtonInjector.cs`（注入/可见性/hover/点击全链路）、`ImChat/ImChatView.cs`（OnScreenFrameTick 驱动 + `SetPendingSecretLetter` + `CanOpen(screenStateAgnostic)`）、语言 XML `LWN_im_secret_letter_hint`。设计文档：`plans/im-secret-letter-button.md`。
