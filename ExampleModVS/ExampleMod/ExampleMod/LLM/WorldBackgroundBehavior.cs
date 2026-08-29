@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
@@ -66,6 +67,7 @@ namespace LivingWorldNpcs
         private string _result;          // 线程池回写，主线程 Tick 消费
         private bool _resultReady;
         private string _generatedFingerprint;  // 发起生成时的指纹（结果回来后再重算复核）
+        private string _generatedSnapshot;      // 发起生成时的材料快照（结果回来做「材料外名词」校验）
 
         /// <summary>状态机（实例字段：进档天然复位）。Failed = 本会话不再重试。</summary>
         public enum State { Idle, Generating, Done, Failed }
@@ -93,6 +95,9 @@ namespace LivingWorldNpcs
                 WorldBackgroundStore.Fingerprint = fp ?? "";
                 // 🔴 读档初始化检查：确认存档是否带世界背景（空 = 旧档/未生成过 → 下一轮 tick 触发生成）
                 DebugLogger.Log($"[WorldBg] 读档初始化：blob={ (string.IsNullOrEmpty(WorldBackgroundStore.Blob) ? "空" : WorldBackgroundStore.Blob.Length + " 字") } 指纹={ WorldBackgroundStore.Fingerprint ?? "(空)" }");
+                // 🔴 2026-08-29（用户反馈：日志只打字数/指纹看不到内容）：追加存档世界观正文
+                if (!string.IsNullOrEmpty(WorldBackgroundStore.Blob))
+                    DebugLogger.Log($"[WorldBg] 存档世界观文本：{WorldBackgroundStore.Blob}"); // lwn-ignore: A（日志豁免）
             }
         }
 
@@ -173,6 +178,8 @@ namespace LivingWorldNpcs
                     // 🔴 比对值说清楚（2026-08-17 用户要求）：存档指纹 vs 当前指纹（相等才沿用）
                     DebugLogger.Log($"[WorldBg] 指纹匹配，沿用存档世界观（{WorldBackgroundStore.Blob.Length} 字）："
                         + $"存档指纹={WorldBackgroundStore.Fingerprint} 当前指纹={currentFp}"); // lwn-ignore: A（续行中文字符串，日志豁免）
+                    // 🔴 2026-08-29（用户反馈：沿用路径没打印正文）：追加生效的世界观文本
+                    DebugLogger.Log($"[WorldBg] 生效世界观文本（沿用）：{WorldBackgroundStore.Blob}"); // lwn-ignore: A（日志豁免）
                     return;
                 }
 
@@ -184,8 +191,17 @@ namespace LivingWorldNpcs
                 WorldBackgroundStore.CurrentCampaignEra = Campaign.Current;
                 // 主线程构建快照（引擎对象只读主线程）——LLM 请求发线程池
                 string snapshot = WorldBackgroundProvider.BuildMaterialSnapshot();
+                _generatedSnapshot = snapshot;
+                // 🔴 2026-08-29（排查「材料是否残留原版世界观」）：快照落盘 + 异世界词计数——
+                // 材料里有/没有卡拉德亚的正规判断（ForeignHits=0 但生成仍带异世界词 → 就是 prompt/模型侧问题）
+                int foreignHits = ForeignWorldMarkers.Count(m => !string.IsNullOrEmpty(snapshot) && snapshot.Contains(m));
+                DebugLogger.Log($"[WorldBg] 材料快照（{snapshot.Length} 字，异世界词命中 {foreignHits}）");
                 string lang = LWNTextHelper.GetReplyLanguageInstruction();
                 string prompt = WorldBackgroundProvider.BuildGeneratePrompt(snapshot, lang);
+                // 🔴 2026-08-29（用户要求：prompt 是否完全打印——查污染必须看模型实际收到的全文）：
+                // 完整 prompt（规则 + 材料全量，≤9KB）落盘，一次生成一行；与材料快照计数行配合：
+                // 材料命中 M、规则无世界词 → 模型输出仍带异世界词 = 模型侧问题。
+                DebugLogger.Log($"[WorldBg] 生成 prompt（{prompt.Length} 字）：\n{prompt}");
 
                 _ = Task.Run(async () =>
                 {
@@ -242,7 +258,8 @@ namespace LivingWorldNpcs
                 }
                 // ③ 解析单段（=== 世界格局 === 标记）+ 内容质量校验
                 string blob = ParseSingleSection(raw);
-                bool qualityBad = string.IsNullOrWhiteSpace(blob) || LooksLikeReasoningDraft(blob);
+                bool qualityBad = string.IsNullOrWhiteSpace(blob) || LooksLikeReasoningDraft(blob)
+                    || ContaminatesForeignWorld(blob, _generatedSnapshot);
                 if (qualityBad)
                 {
                     // 🔴 2026-08-27（玩家实机：R1 推理草稿污染 blob=500 字，指纹锁档）：生成失败必须废弃重试——
@@ -254,12 +271,12 @@ namespace LivingWorldNpcs
                     _accumDt = 0f;   // 重试间隔重新计时（干净 15s 空隙）
                     if (_qualityFailCount >= MaxQualityFails)
                     {
-                        DebugLogger.Log($"[WorldBg] 生成结果连续 {_qualityFailCount} 次不合格（疑似推理模型思考草稿，请换非推理模型）→ Failed（本会话不再重试）：{TruncateLog(blob)}");
+                        DebugLogger.Log($"[WorldBg] 生成结果连续 {_qualityFailCount} 次不合格（无标记/空/思考草稿/套用材料外世界名词，请换非推理模型）→ Failed（本会话不再重试）：{TruncateLog(blob)}");
                         CurrentState = State.Failed;
                     }
                     else
                     {
-                        DebugLogger.Log($"[WorldBg] 生成结果不合格（无标记/空/疑似思考草稿）→ 废弃本轮，重新触发（第 {_qualityFailCount}/{MaxQualityFails} 次）：{TruncateLog(blob)}");
+                        DebugLogger.Log($"[WorldBg] 生成结果不合格（无标记/空/思考草稿/套用材料外世界名词）→ 废弃本轮，重新触发（第 {_qualityFailCount}/{MaxQualityFails} 次）：{TruncateLog(blob)}");
                         CurrentState = State.Idle;
                     }
                     return;
@@ -308,6 +325,29 @@ namespace LivingWorldNpcs
 
         /// <summary>思考草稿特征词表（元认知口吻；命中即废弃重试）。</summary>
         private static readonly string[] DraftMarkers = { "我得", "我需要", "用户要求", "我必须", "所以我需要" };
+
+        /// <summary>🔴 2026-08-29（实机：三国档生成正文仍带卡拉德亚开头）：模型先验泄漏防护——
+        /// 材料外世界专有名词校验。非卡拉迪亚 mod（三国等）下，原版文明对象残留注册表虽有活文化
+        /// 判定排除（WorldBackgroundProvider），但 LLM 自身训练记忆里的骑砍正史仍可能泄漏进正文
+        /// （实锤：材料=纯三国，正文却写了「千年前，卡拉德人…巴旦尼亚森林…」）。
+        /// 判定：blob 含下表任一「异世界专有名词」且**材料快照不含该词** → 套壳，废弃。
+        /// 原版卡拉迪亚世界下材料含这些词 → 判定自然跳过（不误杀）。</summary>
+        private static readonly string[] ForeignWorldMarkers =
+        {
+            "卡拉德亚", "卡拉德人", "卡拉德", "巴旦尼亚", "库赛特", "阿塞莱", "斯特吉亚", "瓦兰迪亚",
+            "Calradia", "Calradic", "Calrad", "Battania", "Khuzait", "Aserai", "Sturgia", "Vlandia"
+        };
+
+        private static bool ContaminatesForeignWorld(string blob, string snapshot)
+        {
+            if (string.IsNullOrWhiteSpace(blob)) return true;
+            foreach (var m in ForeignWorldMarkers)
+            {
+                if (blob.Contains(m) && (snapshot == null || !snapshot.Contains(m)))
+                    return true;
+            }
+            return false;
+        }
 
         /// <summary>日志截断（失败日志不打整段 500 字草稿，留头 120 字足够定位）。</summary>
         private static string TruncateLog(string s, int max = 120)

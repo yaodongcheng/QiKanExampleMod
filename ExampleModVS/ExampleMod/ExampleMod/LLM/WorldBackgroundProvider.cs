@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
@@ -93,11 +94,34 @@ namespace LivingWorldNpcs
                 var sb = new StringBuilder();
                 // 本地化：LWN_worldbg_section_culture（=== 文化 ===，双桶）
                 sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_worldbg_section_culture"));
-                int ci = 1;
+                // 🔴 2026-08-29（衣谷三国实锤 + 用户发现「百科无文化栏目」）：13 州文化百科文本 =
+                // 原版帝国正史逐字复制粘贴（同一段在 ≥2 个文化重复）。占位文本检测——收集先行，
+                // 同一段百科文本出现在 ≥2 个不同文化 = mod 复制粘贴的占位（原版世界各文化文本
+                // 互不相同，天然不触发），该文本不采纳（只保留文化名——州名本身就是有价值的地理材料）。
+                var textCount = new Dictionary<string, int>();
+                var cultureText = new Dictionary<CultureObject, string>();
+                var liveCultures = new List<CultureObject>();
                 foreach (var culture in MBObjectManager.Instance.GetObjectTypeList<CultureObject>())
                 {
                     if (culture == null || string.IsNullOrEmpty(culture.Name?.ToString())) continue;
+                    // 🔴 2026-08-29（实机：三国档生成的世界观全是卡拉德亚）：文化百科字符串 = 原版整个
+                    // 卡拉迪亚正史；非卡拉迪亚 mod 下原版文化对象仍残留在注册表（无定居点、无王国归属）
+                    // → 材料被原版文化百科淹没。活文化判定：被现存王国引用 或 属于现存定居点 → 收材料；
+                    // 注册表残留（无地无国）→ 排除。
+                    bool live = Kingdom.All.Any(k => k.Culture == culture)
+                        || Settlement.All.Any(s => s.Culture == culture);
+                    if (!live) continue;
                     string enc = culture.EncyclopediaText?.ToString();
+                    liveCultures.Add(culture);
+                    cultureText[culture] = enc;
+                    if (!string.IsNullOrWhiteSpace(enc))
+                        textCount[enc] = textCount.TryGetValue(enc, out var n) ? n + 1 : 1;
+                }
+                int ci = 1;
+                foreach (var culture in liveCultures)
+                {
+                    string enc = cultureText[culture];
+                    if (enc != null && textCount.TryGetValue(enc, out var n) && n >= 2) enc = null;   // 占位副本 → 文本不采纳
                     // 本地化：LWN_worldbg_culture_line（{NUM}. {NAME}：{TEXT}，双桶）
                     sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_worldbg_culture_line",
                         ("NUM", ci.ToString()), ("NAME", culture.Name.ToString()), ("TEXT", Truncate(enc, 600))));

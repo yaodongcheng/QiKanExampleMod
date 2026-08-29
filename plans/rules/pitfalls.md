@@ -845,3 +845,20 @@ catch (Exception) { _retryTick = Environment.TickCount; }   // 失败：冷却�
 - **可见性 false→true 翻转后立即 `SetSiblingIndex(GetSiblingIndex(), force: true)`**——引擎公开 API，强制整树 measure+layout，以可见态重分配布局盒；签名 1.2.12~1.5.x 一致。
 - 低频事件（行数据变化才触发），成本可忽略；反转方向（→隐藏）不需要——不可见不渲染、且再次显示时翻转判定会重新触发。
 - 排查口诀：**「注入按钮长在对的位置上（列表内）但翻出来就错位」= 布局盒在隐藏态空缺**——翻转时加强制重排。
+
+---
+
+## ShowHint/tooltip 展示有寿命自动淡出 + 屏关闭销毁窗口期旧矩形 → 手动 hover 提示两病（凭空出现 / 悬停不显）
+
+**症状**（2026-08-29 密信按钮 hover 实机反馈）
+- 在大地图上随意移动鼠标，会「凭空」弹出密信按钮的 hover 提示（按钮明明不在屏幕上）。
+- 鼠标停在密信按钮上，提示有时不出现——特别是一开始出现、后来自行消失后就不再出现。
+
+**根因**（两条独立引擎行为叠加）
+- **① 销毁窗口期旧矩形**：队伍/家族屏关闭后，widget 树要等 `HandleFinalize` 才拆——期间按钮 `ParentWidget` 仍非 null（`_live` 自清理分支未触发），`GlobalPosition` 仍是**旧屏幕坐标**。手动 hit-test 每帧只判 `鼠标 ∈ 按钮矩形`——鼠标扫过大地图上的旧矩形位置 = `over=true` → 弹提示。
+- **② tooltip 展示寿命**：`MBInformationManager.ShowHint`（→ `InformationManager.ShowTooltip(typeof(string), …)`）显示后**自身淡出**；而 hover 代码只在「进入矩形瞬间」Show 一次——淡出后鼠标仍停在按钮上 = 永不重显（除非移出再进）。
+
+**防法**（`GUI/SecretLetterButtonInjector.cs` UpdateLive 已实现）
+- **屏激活门控**：hover 判定前先查 `ScreenManager.TopScreen` 是注入按钮所属屏（Party/ClanScreen）——不是 → `over=false`（隐藏 + 复位）。注入按钮的矩形只在它自己的屏存在意义。
+- **周期重发**：`over && _hoverOn == 按钮` 期间每 ~3s 重发一次 `ShowHint`；`_hoverShowTimer` 在进入瞬间清零、离开即停。
+- 排查口诀：**「提示出现在别的屏/大地图上」= 按钮矩形来自已关闭屏的销毁窗口**；**「提示第一次出、后面不出」= tooltip 淡出后未重发**。二者都是「每帧判定 + 一次性 Show」的必然结果——手动 hit-test 的 hover 都要配门控 + 重发。
