@@ -37,6 +37,7 @@ namespace LivingWorldNpcs
 
         private static float _scanTimer;
         private static Widget _hoverOn;            // 当前 hover 的注入按钮（防 ShowHint 刷屏）
+        private static float _hoverShowTimer;      // 持续悬停提示重发计时（引擎 tooltip 淡出后 3s 刷新一次）
         private static readonly List<Injected> _live = new List<Injected>();
         // 🔴 2026-08-25（实机日志 17:19:53 刷屏）：树销毁窗口期内 Scan 对同一批将死行反复重注入
         // （失败自清理删了 _live 条目 → 幂等去重失效 → 0.3s 后 Scan 又注入 → 下帧再失败再删，
@@ -44,6 +45,7 @@ namespace LivingWorldNpcs
         // 面板刷新重建场景同样被抑制 2s 后自动恢复，不影响功能），日志 5s 节流（WndProc 异常同款）。
         private static float _injectSuppressSec;
         private static int _lastCleanupLogTick;
+        private static int _lastRowDiagLogTick;   // 行解析诊断日志 5s 节流（LogRowDiag）
 
         private class Injected
         {
@@ -61,7 +63,7 @@ namespace LivingWorldNpcs
             try
             {
                 if (_injectSuppressSec > 0f) _injectSuppressSec -= dt;
-                UpdateLive();
+                UpdateLive(dt);
                 _scanTimer += dt;
                 if (_scanTimer >= ScanIntervalSec && _injectSuppressSec <= 0f)
                 {
@@ -219,6 +221,18 @@ namespace LivingWorldNpcs
             return false;
         }
 
+        /// <summary>🔴 2026-08-29：行解析诊断日志 5s 节流。英雄门每 0.3s 扫描对每一行调行解析，
+        /// 当前客户端全部成功；若某版本行结构对不上（行根类型名/CharacterID 属性缺失），每 0.3s 打一行
+        /// = 20 行/秒刷屏。节流后最多 5 秒 1 行（同 2026-08-25 树销毁日志节流方案）。</summary>
+        private static void LogRowDiag(string msg)
+        {
+            if (Environment.TickCount - _lastRowDiagLogTick > 5000)
+            {
+                _lastRowDiagLogTick = Environment.TickCount;
+                DebugLogger.Log(msg);
+            }
+        }
+
         private static bool IsAliveHero(string heroId)
         {
             try { return Hero.AllAliveHeroes.Any(h => h.StringId == heroId); } catch { return false; }
@@ -267,8 +281,12 @@ namespace LivingWorldNpcs
 
         // ───────────────────────── 每帧同步（可见性 + hover 提示）─────────────────────────
 
-        private static void UpdateLive()
+        private static void UpdateLive(float dt)
         {
+            // 🔴 2026-08-29（hover 屏激活门控）：注入按钮只归属队伍/家族屏——屏幕不是 TopScreen
+            // （屏已关闭、destroy 窗口树还活着）时按钮矩形是旧屏幕坐标，鼠标扫过即"凭空"弹提示。
+            string topName = ScreenManager.TopScreen?.GetType().Name ?? "";
+            bool screenActive = topName.Contains("PartyScreen") || topName.Contains("ClanScreen");
             for (int i = _live.Count - 1; i >= 0; i--)
             {
                 var it = _live[i];
@@ -342,12 +360,27 @@ namespace LivingWorldNpcs
                 }
 
                 // hover 提示（手动 hit-test，ImChatView 缩略模式同款）
-                bool over = it.Button.IsVisible && IsPointInRect(Input.MousePositionPixel, it.Button.GlobalPosition, it.Button.Size);
+                // 🔴 2026-08-29（实机反馈两病）：①campaign 凭空出现 = 屏关闭后 widget 树销毁窗口期内
+                //   按钮矩形仍是旧屏幕坐标，鼠标扫过旧矩形即弹提示——加屏激活门控（TopScreen 必须是
+                //   Party/ClanScreen 才判定提示；屏幕关闭 → over=false → 隐藏+复位）；②hover 着提示
+                //   有时没有 = 引擎 tooltip 展示有寿命，淡出后代码不再重显（只"进入瞬间"Show 一次）——
+                //   持续悬停期间每 3s 重发 ShowHint 刷新。
+                bool over = screenActive && it.Button.IsVisible && IsPointInRect(Input.MousePositionPixel, it.Button.GlobalPosition, it.Button.Size);
                 if (over && _hoverOn != it.Button)
                 {
                     if (_hoverOn != null) MBInformationManager.HideInformations();
                     MBInformationManager.ShowHint(GetHintText());
                     _hoverOn = it.Button;
+                    _hoverShowTimer = 0f;
+                }
+                else if (over && _hoverOn == it.Button)
+                {
+                    _hoverShowTimer += dt;
+                    if (_hoverShowTimer >= 3f)
+                    {
+                        _hoverShowTimer = 0f;
+                        MBInformationManager.ShowHint(GetHintText());   // 引擎 tooltip 淡出后刷新重显
+                    }
                 }
                 else if (!over && _hoverOn == it.Button)
                 {
@@ -425,14 +458,14 @@ namespace LivingWorldNpcs
                         string id = prop?.GetValue(p) as string;
                         if (string.IsNullOrWhiteSpace(id))
                         {
-                            DebugLogger.Log($"[SecretLetter] 行根命中但 CharacterID 读不到: propNull={prop == null} id='{id ?? "null"}' type={p.GetType().Name}");
+                            LogRowDiag($"[SecretLetter] 行根命中但 CharacterID 读不到: propNull={prop == null} id='{id ?? "null"}' type={p.GetType().Name}");
                             return null;
                         }
                         return id.Trim();
                     }
                     if (depth > 40) break;
                 }
-                DebugLogger.Log($"[SecretLetter] 行解析失败: 遍历 {depth} 层未命中行根，末层 {last}");
+                LogRowDiag($"[SecretLetter] 行解析失败: 遍历 {depth} 层未命中行根，末层 {last}");
             }
             catch (Exception ex)
             {

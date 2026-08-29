@@ -488,7 +488,7 @@ else if (IsMessageAtBottom()) _pinnedToBottom = true;
   if (!(insertInto is ListPanel)) return false;   // 结构未知 → 安全跳过（不注入、不崩）
   ```
 - **数据桥**：读原版绑定已赋值的 widget 属性（反射，属性名跨版本稳定）：队伍行根 `PartyTroopTupleButtonWidget.CharacterID`（=`Character.StringId`）；家族详情 `CharacterTableauWidget.CharStringId`。**行根匹配用类型名不能用 Id**——CustomType 实例化时外层模板 Id 被覆盖为 null（反编译实锤）；家族行根是普通 Widget 类型不唯一 → 从 UIContext.Root DFS 找全局唯一的 `CharacterTableauWidget`。
-- **可见性**：每帧跟随锚点可见性（队伍=交谈按钮最外层包装 `@IsTalkableCharacter`；家族=含 tableau 的详情面板容器）+ 总闸（`PlotEnabled && IsLLMConfigured`——未配置 LLM 按钮同步隐藏，传讯入口整体封死纪律）。hover 提示 = 手动 hit-test（`IsPointInRect(Input.MousePositionPixel, …)` + `MBInformationManager.ShowHint`）。
+- **可见性**：每帧跟随锚点可见性（队伍=交谈按钮最外层包装 `@IsTalkableCharacter`；家族=含 tableau 的详情面板容器）+ 总闸（`PlotEnabled && IsLLMConfigured`——未配置 LLM 按钮同步隐藏，传讯入口整体封死纪律）。hover 提示 = 手动 hit-test（`IsPointInRect(Input.MousePositionPixel, …)` + `MBInformationManager.ShowHint`）。🔴 **hover 提示两个引擎坑（2026-08-29 实机反馈）**：①**屏激活门控**——判定再加 `TopScreen` 必须是注入按钮所属屏（Party/ClanScreen），否则屏关闭后树销毁窗口期按钮矩形仍是旧坐标，鼠标扫过 = campaign 上凭空弹提示；②**周期重发**——引擎 tooltip 显示后自动淡出，代码只在「进入瞬间」Show 一次 → 悬停中不重显，持续悬停每 ~3s 重发 `ShowHint`。详见 pitfalls「ShowHint tooltip 寿命 + 销毁窗口期旧矩形」。
 - **点击 → 关屏再开**：`ImChatManager.GetDirectConversation(heroId)` → 原版关屏路径（队伍屏 `PartyScreenHelper.CloseScreen` 反射 / 家族屏 `GameStateManager.PopState(0)`——**裸 PopScreen 绕过 GameState 栈 = 地图黑屏**，两次实机复现）→ `ImChatView.SetPendingSecretLetter(heroId)`（下帧 TopScreen 稳定后开 IM 定位私聊）。
 - **英雄门**：注入前用同一个行映射反射判定「英雄行且非玩家行」（`IsMainHero` 行根反射 + `Hero.AllAliveHeroes` 校验）——非英雄行根本不注入。省去「全行注入 + 可见性隐藏」的隐藏按钮布局盒空缺坑，也免除每 0.3s 扫描对全行创建-摘除的布局抖动。
 - **🔴 翻转为可见时强制重排**：`SetSiblingIndex(GetSiblingIndex(), force: true)`（引擎坑见 pitfalls「不可见子节点无布局盒」；签名 1.2.12~1.5.x 一致）。
