@@ -1,33 +1,61 @@
 # 原版 SceneNotification 过场动画系统 — 完整参考
 
-> 引擎机制：通过 `MBInformationManager.ShowSceneNotification(SceneNotificationData)` 触发，
-> 游戏以 `MissionMode.CutScene` 加载对应场景，Spawn Agent 并播放预设动画。
+> **织丰嵌入研究（如何复用织丰的过场场景/事件类/触发）见 [织丰过场嵌入研究.md](织丰过场嵌入研究.md)**。
+>
+> 引擎机理（v1.2.12 / v1.3.15 / v1.4.x / v1.5.x **全版本同构**，2026-08-30 四版本反编译实测）：
+> `MBInformationManager.ShowSceneNotification(SceneNotificationData)` 触发 → 全局 UI 层
+> `GauntletSceneNotification`（层序 19000）内部创建**独立渲染的 3D 场景**（非 Mission！）播放。
+> ⚠️ 早期文档所述「以 `MissionMode.CutScene` 加载场景」的旧制式已作废——1.2.12 起即为下述 Gauntlet 制式。
 
-## 架构总览
+## 架构总览（实测）
 
 ```
-MBInformationManager.ShowSceneNotification(data)
-  → 加载 data.SceneID 场景 (MissionMode.CutScene)
-    → 按 data.GetSceneNotificationCharacters() 创建 Agent
-    → 渲染 data.GetBanners() 旗帜
-    → 显示 data.TitleText 标题文本
-    → 可选：AffirmativeText / NegativeText 交互按钮
+MBInformationManager.ShowSceneNotification(data)      [TaleWorlds.Core.dll，唯一入口]
+  → 触发事件 OnShowSceneNotification                  [Core.dll]
+    → GauntletSceneNotification.OnShowSceneNotification   [Native GauntletUI.dll]
+        data 入队（一次只播一个；LoadingWindow 激活时暂停出队）
+      → 队列取头 → 上下文门控 IsGivenContextApplicableToCurrentContext(RelevantContext)
+        ├─ 不适用 → 排队等待（如 Map 型在 mission 中需等切回大地图）
+        └─ 适用 → CreateSceneNotification(data) → 真正开播
+            → 自建 Scene.CreateNewScene + Scene.Read(SceneID)（独立 3D 场景，不走 Mission 加载）
+            → PopupSceneCameraPath 相机脚本（场景 tag）播放运镜
+            → PopupSceneSpawnPoint（tag "spawnpoint_player_N"）摆放 AgentVisuals 角色
+            → Banner 旗帜渲染（tag "banner_N"，BannerVisual 到绘到网格）
+            → 1.3.15+：VisualShipFactory 船（tag "spawnpoint_ship_N"）
+            → 叠加 UI：标题 / 描述 / 两互动按钮 / 「点击继续」
 ```
 
 ## 核心类型
 
 | 类型 | 位置 | 说明 |
 |------|------|------|
-| `SceneNotificationData` | `TaleWorlds.CampaignSystem.dll` | 抽象基类，定义 SceneID / TitleText / GetSceneNotificationCharacters() 等 |
-| `SceneNotificationCharacter` | `SceneNotificationData` 的嵌套类 | 封装 CharacterObject + Equipment + BodyProperties + 颜色 |
-| `CampaignSceneNotificationHelper` | 同命名空间 | 静态工具类：CreateNotificationCharacterFromHero / GetBodyguardOfCulture / RemoveWeaponsFromEquipment 等 |
-| `DefaultCutscenesCampaignBehavior` | `SandBox.dll` | 监听游戏事件（结婚/死亡/建国等），new 对应的 SceneNotificationItem 并调用 ShowSceneNotification |
+| `SceneNotificationData` | `TaleWorlds.Core.dll` | 基类（非抽象）。定义 SceneID / TitleText / RelevantContext / GetSceneNotificationCharacters() 等全部虚属性 |
+| `SceneNotificationData.SceneNotificationCharacter` | 同上嵌套 struct | 封装 CharacterObject + Equipment + BodyProperties + 颜色 + 骑马 |
+| `SceneNotificationData.SceneNotificationShip` | 同上（1.3.15+） | 船：prefab / 升级件 / 血比 / 帆色 / 种子 |
+| `MBInformationManager` | `TaleWorlds.Core.dll` | **唯一请求入口** `ShowSceneNotification`；另有 `HideSceneNotification` / `GetIsAnySceneNotificationActive` / `GetActiveSceneNotificationData` |
+| `GauntletSceneNotification : GlobalLayer` | Native `TaleWorlds.MountAndBlade.GauntletUI.dll` | 播放管理器（单例 `Current`，`Initialize()` 时 `ScreenManager.AddGlobalLayer`，层序 19000） |
+| `SceneNotificationVM` | `TaleWorlds.Core.ViewModelCollection.dll` | 数据源 VM（文本/按钮/场景/EndProgress 绑定） |
+| `SandboxSceneNotificationContextProvider` | `SandBox.GauntletUI.dll` | 沙盒版上下文门控：仅 `Map` 需 `ActiveState is MapState` |
+| `CampaignSceneNotificationHelper` | `TaleWorlds.CampaignSystem.dll` | 静态工具类：CreateNotificationCharacterFromHero / GetBodyguardOfCulture / RemoveWeaponsFromEquipment 等 |
+
+## 是否可播放：上下文门控（RelevantContext）
+
+`SceneNotificationData.RelevantContext` 枚举：`Any / MPLobby / CustomBattle / Mission / Map`（**全版本有**）。
+
+| 值 | 行为（Sandbox provider 实测） | 典型用途 |
+|---|---|---|
+| `Any`（基类默认） | 任何时刻都允许（含 mission 战斗内） | 处决等随时可播的过场（`HeroExecutionSceneNotificationData` 工厂默认 `Any`） |
+| `Mission` | 恒 true（provider 不拦）——**mission 内可播**，过场盖在战斗 UI 之上并暂停游戏（`PauseActiveState` 时 `MBCommon.PauseGameEngine`） | 战斗中插播剧情 |
+| `Map` | 仅 `GameStateManager.Current.ActiveState is MapState`——mission 内会一直排队等切回大地图 | 大地图剧情（婚礼/建国等多数过场） |
+| `MPLobby` / `CustomBattle` | 恒 true | MP / 自定义战斗 |
+
+更多细节：一次只能播一个；播放期间新请求入队；队列项出队前有 2 帧延迟；`LoadingWindow.IsLoadingWindowActive`（读档/场景切换）期间不出队。
 
 ## SceneNotificationCharacter 构造
 
 ```csharp
 new SceneNotificationCharacter(
-    CharacterObject character,          // 可为 null（空位）
+    BasicCharacterObject character,     // 可为 null（空位）
     Equipment overriddenEquipment,      // 覆盖默认装备
     BodyProperties overriddenBodyProps, // 身体属性（年龄/身高/体重等）
     bool useCivilianEquipment,
@@ -36,13 +64,40 @@ new SceneNotificationCharacter(
 )
 ```
 
+注：1.2.12 基础参数为 `CharacterObject`（`BasicCharacterObject` 是 1.3.15+ 泛化），mod 以当前版本反编译为准。
+
 ## 文本系统
 
-文本使用 `GameTexts.FindText("str_xxx")` 获取本地化字符串，通过 `GameTexts.SetVariable("KEY", value)` 注入变量。所有时间类场景都使用 `CampaignSceneNotificationHelper.GetFormalDayAndSeasonText()` 生成"X年X季第X天"格式。
+`TitleText` / `AffirmativeText` / `NegativeText` 等全部是 `TextObject` 虚属性——mod 自定义子类直接 override，用 `TextObject("{=LWN_key}...")` 走标准本地化（项目铁律 13 合规）。原生场景用 `GameTexts.FindText("str_xxx")` + `SetVariable` 注入变量；所有时间类场景使用 `CampaignSceneNotificationHelper.GetFormalDayAndSeasonText()` 生成"X年X季第X天"格式。
+
+## 互动按钮（2026-08-30 实测）
+
+| 控件 | 触发方式 | 行为 |
+|---|---|---|
+| 肯定按钮（Affirmative） | 显示条件 `IsAffirmativeOptionShown` | 调 `data.OnAffirmativeAction()` + `OnPositiveAction()`（相机/角色切「同意」动作帧）——**不关窗**，需再点「点击继续」关闭 |
+| 否定按钮（Negative/取消） | `IsNegativeOptionShown` | 关窗 + `data.OnNegativeAction()` |
+| 点击继续 / 关闭 | `Command.Close`（点击场景任意处/提示文本） | 关窗 + `data.OnCloseAction()` |
+| 自动确认 | 仅 1.5.x 有 `ShouldAutoConfirm` | 开播约 1 秒后自动执行 `OnAffirmativeAction`（「通知型」过场用，如处决信息） |
+| 按钮文案 | `AffirmativeText` / `NegativeText` + Description 变体 | TextObject 虚属性，mod 可 override |
+
+注：1.2.12 的队列项额外记录 `PauseActiveState`（tuple），暂停逻辑与 1.5.x 相同但取数位置不同——不需要 mod 关心。
+
+## 版本差异（SceneNotificationData 基类成员，四版本反编译实测）
+
+| 成员 | 1.2.12 | 1.3.15 | 1.4.x | 1.5.x |
+|---|---|---|---|---|
+| SceneID / TitleText / SoundEventPath / Affirmative+Negative 全部文本与按钮开关 / PauseActiveState / RelevantContext / 三个回调 | ✅ | ✅ | ✅ | ✅ |
+| `GetBanners()` / `GetSceneNotificationCharacters()` 返回 | `IEnumerable<T>` | `T[]` | `T[]` | `T[]` |
+| `GetShips()` / `SceneProperties`（物理/阴影/水） | ❌ | ✅ | ✅ | ✅ |
+| `DescriptionText`（独立正文描述） | ❌ | ❌ | ❌ | ✅ |
+| `ShouldAutoConfirm` | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
 ## 全部 25 个过场场景
+
+> 清单基于 v1.2.12 反编译（角色槽位 / 文本 ID 在 1.5.x 仍有效）。
+> ⚠️ 版本补充（1.3.15+）：新增海战死亡过场 `NavalDeathSceneNotificationItem`（1.3.15+ 的 `GetShips()` 生效）。
 
 ### 1. 加冕为王 — `scn_become_king_notification`
 
@@ -477,7 +532,19 @@ new SceneNotificationCharacter(
 
 继承 `SceneNotificationData`，override `SceneID`、`TitleText`、`GetSceneNotificationCharacters()`，然后调用 `MBInformationManager.ShowSceneNotification(yourData)`。
 
-前提是你有对应的场景文件（`scn_xxx`），否则 Mission 加载会失败。可以用游戏内已有的 SceneID 复用场景布局，只替换角色。
+前提是你有对应的场景文件（`scn_xxx`）。`Scene.Read(SceneID)` 找不到会渲染失败——可以用游戏内已有的 SceneID 复用场景布局，只替换角色（README 上方 25 个场景 ID 皆可直接复用）。
+
+### 🔴 自定义图片：原生无槽位（2026-08-30 实测）
+
+1.2.12 → 1.5.x 的 `SceneNotificationData` **全都没有纹理/图片属性**（无 TextureName/Sprite），UI 布局 `Modules/Native/GUI/Prefabs/Information/SceneNotification.xml` 也只有 `SceneWidget`（3D 场景）+ 文字 + 按钮，无 ImageWidget。**"背景图"的官方表达 = 3D 场景布景**。想要 2D 图覆盖层的替代方案：
+1. 自定义 3D 场景（SceneID 指向自己的场景文件，把图做成布景/标语板）；
+2. 自挂 GauntletLayer 叠图（随过场开关显隐）；
+3. 播放前先切 2D 层过渡。
+
+### 自定义音效 / 减速
+
+- `SoundEventPath`（全版本有）——播放过场的音效。
+- 1.3.15+：`SceneProperties` 控制 `InitializePhysics` / `DisableStaticShadows` / `OverriddenWaterStrength`。
 
 ### 关键辅助方法
 
@@ -519,3 +586,16 @@ CampaignSceneNotificationHelper.GetMilitaryAudienceForKingdom(Kingdom kingdom, .
 | `marriage_female_*_cutscene_template` | 新娘礼服（6 种文化） | 婚礼 |
 | `comingofage_kid_*_cutscene_template` | 儿童装备（6 种文化） | 继承人成年 |
 | `villager_empire` / `villager_battania` / ... | 村民 CharacterObject | 阴谋场景 |
+
+## 本 mod 调试观察（2026-08-30 登记）
+
+`Debug/SceneNotificationLoggerPatch.cs`（`[HarmonyPatch]`，PatchAll 自动注册）在两个站点打日志到 `Debug/StoryEngine_RuntimeLog.txt`：
+
+| 标签 | 补丁点 | 含义 |
+|---|---|---|
+| `[SceneNotification:REQUEST]` | `MBInformationManager.ShowSceneNotification` | 过场**请求**（唯一入口，原生+mod 全部经过） |
+| `[SceneNotification:PLAY]` | `GauntletSceneNotification.CreateSceneNotification` | 上下文门控通过后**真正开播** |
+
+日志内容：`type=`（数据类名）/ `scene=` / `title=` / `context=`（Any/Mission/Map…）/ `pause=` / `sound=` / `affirmBtn=`/`negBtn=` / `chars=` / `banners=`（1.3.15+ 追加 `ships=`）。搜索标签两处同构：REQUEST 与 PLAY 成对出现即一次完整播放；只有 REQUEST 没有 PLAY = 被门控排队/未播。
+
+版本适配：`GetShips()` 用 `#if MB2_GE_130` 裁剪；`data` 参数名在 1.2.12（双参）与 1.5.x（单参）一致，Harmony 按名注入全版本可用。
