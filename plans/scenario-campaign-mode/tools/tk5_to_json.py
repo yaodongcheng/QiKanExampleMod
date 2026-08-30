@@ -73,6 +73,8 @@ ORG_MAP = dict((k, "Org::" + v) for k, v in _EM.ORG_NAMES.items())
 MISSING_IN_XML = _EM.MISSING_IN_XML
 CITY_PLACEHOLDER = dict((v, k) for k, v in _EM.SETTLEMENT_MAP.items() if v.startswith("tk5_city_"))
 CITY_ANCHOR = dict(_EM.SETTLEMENT_ANCHOR)
+ITEM_MAP = dict((k, "Item::" + v) for k, v in getattr(_EM, "ITEM_MAP", {}).items())
+MERC_T_MAP = dict((k, "Item::" + v) for k, v in getattr(_EM, "MERC_T_MAP", {}).items())
 
 # 域词 → 信源 B 表（数据驱动：域名表即 16a 域表键，表 = 实体表；这里只挂"表引用"，不挂名词）
 _ENTITY_TABLES = {
@@ -83,6 +85,7 @@ _ENTITY_TABLES = {
     "町": (SETTLEMENT_MAP,), "里": (SETTLEMENT_MAP,),
     "國": (REGION_MAP,),
     "忍者衆": (ORG_MAP,), "商家": (ORG_MAP,), "海賊衆": (ORG_MAP,),
+    "物品": (ITEM_MAP,), "交易品": (MERC_T_MAP,),   # 语料闭包占位（gen_entity_maps.py ITEM_MAP）
 }
 
 # ---------------------------------------------------------------------------
@@ -678,10 +681,12 @@ class Translator:
         self.ctx = {}
         self.segments = []
         self.cur_seg = None
+        self._seg_fresh = False        # 段刚建：下一条 add_line = 段首行 → 给 perform 挂源注释
         self.script_out = []
         self.when_stack = []
         self.seen_heroes = {}   # 有序去重（主人公分歧:(其他) 取反用，纪律 24）
         self.pending_cond = None
+        self.pending_cond_src = None   # 最近調査的原文行（条件分歧注释显示 when 的来源链）
         self.pending_choice = None
         self.t_counter = 0
         self.current_hero = "Hero::MainHero"
@@ -711,6 +716,7 @@ class Translator:
         seg = Segment(f"{self.scenario}_{self.event_id}_seg{self.seg_n}", self.form)
         self.segments.append(seg)
         self.cur_seg = seg
+        self._seg_fresh = True         # 下一条 add_line = 段首行 → perform 挂源注释
         self.script_out.append({"step": "perform", "playbackId": seg.id})
         return seg
 
@@ -728,18 +734,31 @@ class Translator:
 
     # ---------- 信源 B 查询（零兜底：查无 = 停机报错） ----------
     def lookup_entity(self, dom_word, subject):
-        """具名实体 → DSL 引用（按域词查信源 B 实体表）。查无 = RegistryGapError。"""
-        if dom_word not in _ENTITY_TABLES:
-            raise RegistryGapError(
-                f"信源 B 无此实体域: {dom_word}::{subject}——16a 域表/16b 未定义该域，回填 16a 域表或 gen_registry_tables.py")
-        tables = _ENTITY_TABLES[dom_word]
-        for t in tables:
-            v = t.get(subject)
-            if v:
-                return v
+        """具名实体 → DSL 引用（按域词查信源 B 实体表）。查无 = RegistryGapError。
+        🔴 2026-08-30 v6：TK5 源文域词宽泛（`勢力::伊賀衆`=组织、`勢力::今川氏真`=大名家）——
+        本域表查无 → 跨表扫描，唯一命中才采用（值驱动查的仍是注册表，非兜底；0/多重命中 = 停机）。"""
+        hits = []
+        if dom_word in _ENTITY_TABLES:
+            for t in _ENTITY_TABLES[dom_word]:
+                v = t.get(subject)
+                if v:
+                    hits.append((dom_word, v))
+        if not hits:
+            seen = set()
+            for d, tables in _ENTITY_TABLES.items():
+                for t in tables:
+                    v = t.get(subject)
+                    if v and v not in seen:
+                        seen.add(v)
+                        hits.append((d, v))
+        if len(hits) == 1:
+            return hits[0][1]
+        if len(hits) > 1:
+            self.todo_mark("实体歧义", subject, str([(d, v) for d, v in hits]))
+        name = f"{dom_word}::{subject}" if dom_word else subject
         raise RegistryGapError(
-            f"信源 B 查无实体: {dom_word}::{subject}（源第 {self.event_id} 引）——回填 gen_entity_maps.py"
-            "（CLOSURE 闭包登记，纪律 21）或补齐 07 数据包；禁止脚本兜底")
+            f"信源 B 查无实体/歧义: {name}（跨表命中 {len(hits)} {[(d, v) for d, v in hits][:3]}）——"
+            "回填 gen_entity_maps.py（CLOSURE 闭包登记，纪律 21）或补齐 07 数据包；禁止脚本兜底")
 
     # ---------- 引用翻译 ----------
     def translate_ref(self, ref_str):
@@ -966,6 +985,24 @@ class Translator:
                 return True
         return False
 
+    def _domain_scan(self, v):
+        """域值区全表扫描（按值命中：事件用１軍團 → Army::event_1——裸名值驱动）；
+        查无 = None（由调用方决定后续：信源 B / 报错）；同值多侧名 = 歧义停机。"""
+        hits = []
+        for key, (side, _t, _v) in self.reg.domain_vals.items():
+            if "::" in key:
+                dom, val = key.split("::", 1)
+                if val == v:
+                    hits.append((dom, side))
+        if not hits:
+            return None
+        sides = set(s for _d, s in hits)
+        if len(sides) == 1:
+            s = sides.pop()
+            return s if "::" in s else f'"{s}"'
+        raise RegistryGapError(
+            f"域值区值歧义: {v} 命中 {len(sides)} 个侧名（{sorted(sides)[:4]}）——回填/修 16a 域值区")
+
     def translate_value(self, v):
         """纯值（数字/真偽/枚举 token/名字）→ DSL 值。v6 = 查表，零兜底。"""
         if re.match(r"^-?\d+$", v):
@@ -975,19 +1012,9 @@ class Translator:
         if "::" in v:
             return self.translate_ref(v)[0]
         # 域值区全表扫描（按值命中：事件用１軍團 → 军團::事件用１軍團 = Army::event_1——裸名值驱动）
-        hits = []
-        for key, (side, _t, _v) in self.reg.domain_vals.items():
-            if "::" in key:
-                dom, val = key.split("::", 1)
-                if val == v:
-                    hits.append((dom, side))
-        if hits:
-            sides = set(s for _d, s in hits)
-            if len(sides) == 1:
-                s = sides.pop()
-                return s if "::" in s else f'"{s}"'
-            raise RegistryGapError(
-                f"域值区值歧义: {v} 命中 {len(sides)} 个侧名（{sorted(sides)[:4]}）——回填/修 16a 域值区")
+        dv = self._domain_scan(v)
+        if dv is not None:
+            return dv
         # 域值区 bare token 反查（武將→general / 城主→city_lord …）
         bare = self.reg.bare_vals.get(v)
         if bare:
@@ -1046,22 +1073,30 @@ class Translator:
                    "对象:物品": "物品", "对象:卡": "卡", "对象:部队": "大名家"}.get(typ)
             if "::" in v:
                 return self.translate_ref(v)[0]
+            # 🔴 2026-08-30 v6 修正：域值区条目的值类型同为「对象:*」（城::城Ｅ → Ctx::town_e，
+            #   T1 引擎直写 StringId），必须先域值区反查再落信源 B——容器排除:(人物,所屬據點,城Ｅ)
+            #   的「城Ｅ」不是具名据点实体，是代入槽域值（A7/15.1.5 分流：值命中域值区 = 信源 A）。
+            dv = self._domain_scan(v)
+            if dv is not None:
+                return dv
             if dom in _ENTITY_TABLES:
                 return self.lookup_entity(dom, v)
             raise RegistryGapError(f"对象值域缺失: {attr_word} 值 {v}（类型 {typ}）——回填对象→域映射")
         m = re.match(r"^枚举:(.+)$", typ)
         if m and "（" not in typ:
             space = m.group(1)
-            ev = self.reg.enum_val(space, v)
+            # 🔴 2026-08-30 v6：域::值（官職::左大臣）剥前缀再查——枚举值区/域值区的键都不含 ::。
+            raw = v.split("::", 1)[1] if "::" in v else v
+            ev = self.reg.enum_val(space, raw)
             if not ev and space in ENUM_SPACE_ALIAS:
-                ev = self.reg.enum_val(ENUM_SPACE_ALIAS[space], v)
+                ev = self.reg.enum_val(ENUM_SPACE_ALIAS[space], raw)
             if ev:
                 return self._enum_side(ev)
             # 同空间兼有域值区（人物類別=枚举值区 3 + 域值区 4——拆两区是 16a 词源分区，非缺）
-            dv = self.reg.domain_val(space, v)
+            dv = self.reg.domain_val(space, raw)
             if dv:
                 return dv[0] if "::" in dv[0] else f'"{dv[0]}"'
-            raise RegistryGapError(f"枚举值表外: {space}::{v}（属性 {attr_word}，16a 枚举值区「{space}」域无此行）")
+            raise RegistryGapError(f"枚举值表外: {space}::{raw}（属性 {attr_word}，16a 枚举值区「{space}」域无此行）")
         # 数字/其他 → 原样或数字
         if re.match(r"^-?\d+$", v):
             return v
@@ -1107,22 +1142,29 @@ class Translator:
         elif isinstance(item, Line):
             self.translate_exec_line(item)
 
+    def _branch_src(self, block):
+        """条件分歧的源注释：`調査行原文 → 分歧行`——读者能看到 when 的语义来源链（用户 2026-08-30）；
+        选择路由（pending_choice）不拼（when=choice 槽，源 = 演出段的选择行，T# 注释在台词管线）。"""
+        if self.pending_cond_src and self.pending_choice is None:
+            return f"{self.pending_cond_src} → {block.raw.strip()}"
+        return block.raw.strip()
+
     def _translate_branch(self, block, paired):
         val = block.args[0] if block.args else ""
         cond = self._resolve_branch_cond(val)
         if paired:
             pv = paired.args[0] if paired.args else ""
             if val == "1" and pv == "0":
-                self._push_if(cond, block, paired)
+                self._push_if(cond, block, paired, src=self._branch_src(block), else_src=self._branch_src(paired))
                 return
             if val == "0" and pv == "1":
                 orig = _simplify_not(f"not( {cond} )" if cond else None)
-                self._push_if(orig, paired, block)
+                self._push_if(orig, paired, block, src=self._branch_src(paired), else_src=self._branch_src(block))
                 return
-            self._push_if(cond, block)
-            self._push_if(self._resolve_branch_cond(pv), paired)
+            self._push_if(cond, block, src=self._branch_src(block))
+            self._push_if(self._resolve_branch_cond(pv), paired, src=self._branch_src(paired))
             return
-        self._push_if(cond, block)
+        self._push_if(cond, block, src=self._branch_src(block))
 
     def _is_pure_perform(self, block):
         for item in block.children:
@@ -1137,7 +1179,7 @@ class Translator:
                     return False
         return True
 
-    def _push_if(self, cond, block, else_block=None, hero_override=None):
+    def _push_if(self, cond, block, else_block=None, hero_override=None, src=None, else_src=None):
         saved_hero = self.current_hero
         if hero_override:
             self.current_hero = hero_override
@@ -1150,11 +1192,16 @@ class Translator:
                 self._translate_one(item)
             del self.when_stack[push_len:]
         else:
-            self.script_out.append({"step": "if",
-                                    "when": cond if usable else "🔴待注册:分支条件",
-                                    "then": self._inline_block(block, cond if usable else None)})
+            step = {"step": "if",
+                    "when": cond if usable else "🔴待注册:分支条件",
+                    "then": self._inline_block(block, cond if usable else None)}
+            if src:
+                step["src"] = src                      # 结构步骤也挂源注释（纪律 20：步骤贴 // 源：）
+            self.script_out.append(step)
         if else_block is not None:
-            self._push_if(_simplify_not(f"not( {cond} )" if usable else None), else_block)
+            # else 支 = 同一歧义的 0/1 支（各自原文，独立步骤贴独立注释——生成器单点生成不漂移）
+            self._push_if(_simplify_not(f"not( {cond} )" if usable else None), else_block,
+                          src=else_src)
         self.current_hero = saved_hero
 
     # ---------- S2 核心：单行通用交换机 ----------
@@ -1192,6 +1239,7 @@ class Translator:
         # ---- 调查（语法区 side=condition）：待用条件（pending_cond，纪律 15 保留至被覆盖）----
         if side == "condition":
             self.pending_cond = self.translate_cond_line(line)
+            self.pending_cond_src = line.text          # 条件分歧注释的来源链（調査行原文）
             return
         # ---- 块类（语法结构：词条名查表登记，输出 = 01 步骤词）----
         if side in ("loop", "module_exit", "module_begin", "script"):
@@ -1515,21 +1563,14 @@ class Translator:
                     f"参数标注表外: 命令 {cmd} 参数 {ps.name}=「{ps.ann}」——16a 参数列写法未建模（回填 parse_params_spec/_classify_ann）")
 
     def _translate_entity_param(self, dom, raw):
-        """具名实体参数值：按参数名→域 分流到信源 B。域未知时扫描实体表（带域报告）。"""
-        if dom in _ENTITY_TABLES:
-            return self.lookup_entity(dom, raw)
-        # 域未定（无 PARAM_DOMAIN 条目）→ 全表扫描（唯一命中才返回；多重命中 = 报告点名）
-        hits = []
-        for d, tables in _ENTITY_TABLES.items():
-            for t in tables:
-                if raw in t:
-                    hits.append((d, t[raw]))
-        if len(hits) == 1:
-            return hits[0][1]
-        if len(hits) > 1:
-            self.todo_mark("实体歧义", raw, str(hits))
-        raise RegistryGapError(
-            f"实体表外/歧义: {raw}——信源 B 查无或命中 {len(hits)} 表（回填 gen_entity_maps.py；域未定 = 回填 PARAM_DOMAIN）")
+        """具名实体参数值：域词→信源 B；域词宽泛/未定 → lookup_entity 值驱动跨表扫描。
+        🔴 2026-08-30 v6：E 位隐含允许槽/特殊值（gen_registry_tables.py CMD_ARG_SPEC 契约
+        「任何位都隐含允许：数字、槽（人物Ａ/ａ）、特殊值…」）——域值区值命中（人物Ｅ→Ctx::hero_e）
+        先于实体表（双信源值驱动，不是兜底；双边查无仍停机）。"""
+        dv = self._domain_scan(raw)
+        if dv is not None:
+            return dv
+        return self.lookup_entity(dom or "", raw)
 
     def _translate_union(self, ann, raw, cmd, fname):
         """复合标注（A/B/C，含 枚举/具名实体 无空格写法）→ 逐候选尝试翻译（值命中哪个信源用哪个）。"""
@@ -1592,22 +1633,22 @@ class Translator:
         b = block.bare_cmd
         if b == "分歧":
             cond = self._resolve_branch_cond(block.args[0] if block.args else "")
-            self._push_if(cond, block)
+            self._push_if(cond, block, src=self._branch_src(block))
         elif b in ("場合別", "場合分歧"):
             cond = self.translate_expression(block.args_raw) if block.args_raw else None
-            self._push_if(cond, block)
+            self._push_if(cond, block, src=block.raw)
         elif b == "主人公別":
             for sub in block.children:
                 if isinstance(sub, Block) and sub.bare_cmd == "主人公分歧":
                     hero = sub.args[0] if sub.args else ""
                     cond = self._branch_when(sub)
                     override = self.speaker_of(hero) if hero != "其他" else None
-                    self._push_if(cond, sub, hero_override=override)
+                    self._push_if(cond, sub, hero_override=override, src=sub.raw)
         elif b == "主人公分歧":
             hero = block.args[0] if block.args else ""
             cond = self._branch_when(block)
             override = self.speaker_of(hero) if hero != "其他" else None
-            self._push_if(cond, block, hero_override=override)
+            self._push_if(cond, block, hero_override=override, src=block.raw)
         elif b in ("ＡＮＤ調查", "ＯＲ調查"):
             self.script_out.append({"step": "note", "note": f"🔴 执行内 {b} → 条件门控", "src": block.raw})
             for item in block.children:
@@ -1618,9 +1659,9 @@ class Translator:
         elif b in ("循環", "模塊開始", "腳本"):
             # 循环 = loop 步骤（body 递归）；模塊開始/腳本 = 单层容器
             if b == "循環":
-                self.script_out.append({"step": "loop", "body": self._inline_block(block)})
+                self.script_out.append({"step": "loop", "body": self._inline_block(block), "src": block.raw})
             else:
-                self.script_out.append({"step": "module_begin", "body": self._inline_block(block)})
+                self.script_out.append({"step": "module_begin", "body": self._inline_block(block), "src": block.raw})
         elif b == "脫出模塊":
             self.script_out.append({"step": "module_exit", "src": block.raw})
         else:
@@ -1779,7 +1820,12 @@ class Translator:
             line["when"] = when
         line["_t"] = self.t_counter
         line["_src"] = src_raw
-        self.ensure_segment().lines.append(line)
+        seg = self.ensure_segment()
+        if self._seg_fresh and self.script_out and self.script_out[-1].get("step") == "perform":
+            # perform 挂段首行源注释（纪律 20：步骤贴 // 源：——seg1 的源 = 演出段第一句）
+            self.script_out[-1]["src"] = src_raw
+            self._seg_fresh = False
+        seg.lines.append(line)
         conv = self.convert_text_vars(text, self.t_counter)
         self.i18n.append((key, conv, "🔴待翻译"))
 

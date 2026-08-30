@@ -32,13 +32,17 @@ verify_tk5_coverage.py — 太阁5 事件 ↔ mod 剧本 JSON 覆盖校验器
         --source Knowledge/太阁事件包/TK5AllEvents_merged.txt
     python verify_tk5_coverage.py 09b.md 09c.md --strict
 参数：
-    --source    TK5 合并源文件（默认 Knowledge/太阁事件包/TK5AllEvents_merged.txt）
-    --strict    禁用白名单豁免（全部按 [FAIL] 报）
+    --source         TK5 合并源文件（默认 Knowledge/太阁事件包/TK5AllEvents_merged.txt）
+    --strict         禁用白名单豁免（全部按 [FAIL] 报）
+    --products-dir   产物 JSON 目录（story_event_json/<剧本>/）——入参时追加第五道硬断言
+                      （命令翻译合规：step/cmd/action ∈ 权威名集 + 参数值零中文/全角/🔴）
 退出码：0 = 无缺失；1 = 有 [FAIL] 缺失；2 = 事件整体缺失（md 未声明该源事件）
 """
 import os
 import re
 import sys
+import csv
+import io
 
 # Windows 控制台默认 GBK，强制 UTF-8 以支持 [OK]/[WARN]/[FAIL] 输出
 try:
@@ -262,6 +266,61 @@ def trad2simple(s):
     return "".join(TRAD2SIMPLE.get(ch, ch) for ch in s)
 
 
+# ---------------------------------------------------------------------------
+# 🔴 第五道硬断言（08b §十五 S4，2026-08-30）：产物 JSON 命令翻译合规
+#   ① step/cmd 名 ∈ DSL 步骤名/05 形态词（常量＝01/05 步骤表快照）
+#   ② action ∈ 16a 命令区侧名集（动态读 CSV，单一事实源）
+#   ③ 参数值零中文/零全角/零🔴（豁免 note/src/text/carrier：注释性/原文旁注/16b 载体列，
+#      非终端参数）；台词原文走 textKey 本地化（第四道断言兜底）
+# ---------------------------------------------------------------------------
+_STEP_NAMES = {
+    "effect", "if", "perform", "note", "loop", "module_exit", "message_close",
+    "scene_enter", "scene_exit", "scene_next", "bgm_change", "se_start", "se_stop", "se_loop",
+    "image_show", "image_hide", "bg_change", "bg_restore", "screen_effect", "wait", "cutscene",
+    "container_pick", "container_sort", "container_clear", "container_query",
+    "container_access", "container_set", "container_filter", "container_exclude",
+}
+_CMD_FORMS = {"dialogue", "narrator", "choice"}      # 05 形态词（§15.4-1：不是 CSV 侧名）
+_CONTENT_FIELDS = {"note", "_note", "src", "text", "carrier"}
+_CN_RE = re.compile(r"[一-鿿]")
+_FW_RE = re.compile(r"[＀-￯]")              # 全角区（Ａ-Ｚ／ａ-ｚ／０-９／（）／，｜等）
+
+
+def check_conformance(products_dir):
+    """第五道断言：产物 step/cmd ∈ 步骤名/形态词；action ∈ 16a 命令区侧名集；参数值零中文/全角/🔴。"""
+    csv_path = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "16a-DSL翻译总表.csv"))
+    action_sides = set()
+    with io.open(csv_path, encoding="utf-8-sig", errors="replace") as f:
+        for r in csv.DictReader(f):
+            cat = (r.get("类别") or "").strip()
+            side = (r.get("我们侧名") or "").strip()
+            # 命令区 + 语法区（更新=update 等 T1 引擎直取词条在语法区——16a 词源分区）
+            if side and cat in ("命令", "语法"):
+                action_sides.add(side)
+    bad, count = [], 0
+    for root, _dirs, files in os.walk(products_dir):
+        for fn in sorted(files):
+            if not fn.endswith(".jsonc"):
+                continue
+            code = re.sub(r"//[^\n]*", "", io.open(os.path.join(root, fn), encoding="utf-8").read())
+            count += 1
+            for m in re.finditer(r"\"(step|cmd|action)\":\s*\"([^\"]*)\"", code):
+                key, val = m.group(1), m.group(2)
+                ok = (val in _CMD_FORMS if key == "cmd"
+                      else val in _STEP_NAMES if key == "step"
+                      else val in action_sides)
+                if not ok:
+                    bad.append("%s: %s=%s 不在权威名集" % (fn, key, val))
+            for m in re.finditer(r"\"([a-zA-Z_]+)\":\s*\"([^\"]*)\"", code):
+                key, val = m.group(1), m.group(2)
+                if key in _CONTENT_FIELDS or key in ("step", "cmd", "action"):
+                    continue
+                if _CN_RE.search(val) or _FW_RE.search(val) or "🔴" in val:
+                    bad.append("%s: 字段 %s 值含中文/全角/🔴: %s" % (fn, key, val[:60]))
+    return bad, count
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     source = DEFAULT_SOURCE
@@ -270,7 +329,12 @@ def main():
         source = sys.argv[sys.argv.index("--source") + 1]
     if "--strict" in sys.argv:
         strict = True
-    if not args:
+    products = None
+    if "--products-dir" in sys.argv:
+        i = sys.argv.index("--products-dir")
+        products = sys.argv[i + 1]
+        args = [a for a in args if a != products]   # 产物目录不是剧本 md 参数
+    if not args and not products:
         print(__doc__)
         sys.exit(2)
 
@@ -450,6 +514,17 @@ def main():
                 reason = cross_miss[0][1]
                 print("    [WARN] 白名单豁免 %d 行（%s）在其它剧本文件未找到原文落点——迁移/引用待产出，人工核对（09c 附节已登记）" % (len(cross_miss), ",".join(rng)))
                 print("          原因：%s" % reason)
+
+    # 🔴 第五道硬断言（v6 S4）：产物 JSON 命令翻译合规（step/cmd/action ∈ 权威名集 + 参数值零中文/全角/🔴）
+    if products:
+        bad, n = check_conformance(products)
+        print("\n第五道断言：%d 个产物 JSON%s" % (n, "" if not bad else " → FAIL"))
+        for b in bad:
+            print("    [FAIL] " + b)
+        if bad:
+            exit_code = max(exit_code, 1)
+        else:
+            print("    ✓ 全部通过（step/cmd ∈ 步骤名、action ∈ 16a 命令区侧名、参数值零中文/全角/🔴）")
 
     print("\n结果：%s" % ("通过（无缺失）" if exit_code == 0 else "存在缺失/错误，详见上方 [FAIL]"))
     sys.exit(exit_code)
