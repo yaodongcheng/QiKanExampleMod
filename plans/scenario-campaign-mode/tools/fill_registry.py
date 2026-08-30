@@ -404,7 +404,7 @@ def emit(verdicts):
         v = verdicts[key]
         buf.append('    (%s, %s, %s): {' % (lit(key[0]), lit(key[1]), lit(key[2])))
         buf.append(', '.join('%s: %s' % (lit(k), lit(v[k])) for k in
-                             ('侧名', '档', '值类型', '载体', '存档键', '降级', '待核实', '实现锚点')))
+                             ('侧名', '档', '值类型', '载体', '存档键', '降级', '待核实', '实现锚点', '源')))
         buf.append('},\n')
     buf.append('}\n\n')
     buf.append('''

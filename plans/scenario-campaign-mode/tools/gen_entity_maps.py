@@ -193,6 +193,16 @@ SAME_AS_NEAR = {
 # 据点名后缀：太阁「鳴海」/「鳴海城」/「岡崎之町」↔ 织丰「鸣海城」
 SUFFIXES = ('', '城', '馆', '館', '之町', '町', '之砦', '砦', '港', '之港')
 
+# 🔴 织丰表查无之町（2026-08-30 v6 回填——太阁有、CityTaikou 表查无此地 → 无 Match 无 Near）：
+#   闭包登记占位 ID + 报告点名（07 数据包补真城/锚点）；ID 沿用 2026-08-27 report 用过的
+#   tk5_busan/tk5_naha/tk5_ningbo/tk5_lusong（与已发布报告里的占位 ID 保持一致，不另起名字）
+CLOSURE_TOWN = {
+    '釜山之町': 'tk5_busan',
+    '那覇之町': 'tk5_naha',
+    '寧波之町': 'tk5_ningbo',
+    '呂宋之町': 'tk5_lusong',
+}
+
 
 # ---------------------------------------------------------------------------
 # 读织丰表（CSV 镜像，由 tools/xlsx_to_csv.py 从《骑砍2太阁Mod表.xlsx》转换）
@@ -332,6 +342,13 @@ def main():
                 if SETTLEMENT_MAP.get(k) == sid:      # 键确实指向这座占位城，才给它挂锚点
                     SETTLEMENT_ANCHOR.setdefault(k, anchor)
 
+    # 🔴 织丰表查无之町（太阁有、CityTaikou 表里连名字都没有 → 无 Match 无 Near，连锚点都发不出）：
+    #   2026-08-30 v6 回填（原 tk5_to_json FALLBACK_MAP 兜底已删，归信源 B 生成器闭包登记）。
+    #   纪律 21 同款：确定性占位 ID + 报告点名，07 数据包补真城/补锚点。
+    for _cn, _sid in CLOSURE_TOWN.items():
+        put(SETTLEMENT_MAP, _cn, _sid, conflicts, '据点（织丰表查无，闭包占位）')
+        anchorless_city.append(_cn + '（织丰表查无）')
+
     # ---- 势力：Kingdom 表 ----
     kingdom_ids = set()
     KINGDOM_BY_NAME = {}
@@ -361,6 +378,19 @@ def main():
 
     HERO_MAP, HERO_META, CLAN_BY_HERO, KINGDOM_BY_HERO = {}, {}, {}, {}
     org_names = collections.Counter()
+    heroid2cn = {}            # hero ID → 中文名（当主→势力反查用）
+    clan_kingdom = {}         # ClanID → Kingdom ID（Clan 表 Kingdom 列）
+    owner_id = {}             # ClanID → Owner(当主 hero ID)
+    for r in sh['Clan']:
+        if r.get('ID'):
+            clan_kingdom[r['ID']] = r.get('Kingdom', '') or ''
+            owner_id[r['ID']] = r.get('Owner', '') or ''
+    for r in hero_rows:
+        cn = r.get('CNName', '')
+        if not cn:
+            continue
+        hid = r['ID']
+        heroid2cn[hid] = cn
     for r in hero_rows:
         cn = r.get('CNName', '')
         if not cn:
@@ -373,23 +403,51 @@ def main():
             names.append(yname)
         for n in names:
             put(HERO_MAP, n, hid, conflicts, '人物')
-        kname = r.get('Kingdom_%s' % year, '')
-        kid = find_kingdom(kname)
-        if kname and kname != '无' and not kid:
+        cid = r.get('ClanID', '')
+        kid = clan_kingdom.get(cid, '')
+        if not kid:
+            # 🔴 Kingdom_年份 列实测 = 该年居城名（骏府城/清洲城…），不是势力名——
+            #   当主→势力一律走 Clan 表（Clan.Kingdom 列），禁以城名当势力名（2026-08-30 v6）
+            kname = ''
+        else:
+            kname = r.get('Kingdom_%s' % year, '')
+        if kname and kname != '无':
             org_names[kname] += 1
         HERO_META[hid] = {
-            'clan': r.get('ClanID', ''),
+            'clan': cid,
             'kingdom': kid or '',
-            'kingdom_name': kname,
+            'kingdom_name': r.get('Kingdom_%s' % year, ''),   # 王国名（今川家）；镜像修复后正确
             'city': SETTLEMENT_MAP.get(r.get('City_%s' % year, ''), ''),
             'appear': r.get('Appear_%s' % year, ''),
             'identity': r.get('Identity_%s' % year, ''),
             'stance': r.get('CareerStance_%s' % year, ''),
         }
         for n in names:
-            if r.get('ClanID'):
-                put(CLAN_BY_HERO, n, r['ClanID'], conflicts, '家族')
-            if kid:
+            if cid:
+                put(CLAN_BY_HERO, n, cid, conflicts, '家族')
+    # 🔴 当主名 → Kingdom（2026-08-30 v6 双链修复——TaikouHero 镜像 CSV 曾被加列事故错位
+    #   （2dbba69：TK5编号插入时数据行右移，Kingdom_年份 列读到 City 残值），修复后：
+    #   链①（首选）：hero.ClanID（真家族 ID）→ Clan.Kingdom —— 一行直达；
+    #   链②（兜底）：Kingdom_年份 列 = 王国名（今川家）→ Kingdom 表 ChineseName（+家）直接查。
+    #   2026-08-30 用户确认：Kingdom_年份 = 1560 剧本所处王国（枚举 = Kingdom.csv）。
+    settle_owneroc = {}
+    for r in sh['Settlements']:
+        if r.get('CityName') and r.get('OwnerClan'):
+            settle_owneroc[r['CityName']] = r['OwnerClan'].replace('Faction.', '')
+    for cid, okid in clan_kingdom.items():          # 链①（Clan.Owner 当主反查，直接命中者优先）
+        oname = heroid2cn.get(owner_id.get(cid, ''), '')
+        if okid and oname:
+            put(KINGDOM_BY_HERO, oname, okid, conflicts, '势力(按人)')
+    for r in hero_rows:                              # 链①② 同时跑（按人字典序后到者不覆盖——put 先到保留）
+        cn = r.get('CNName', '')
+        if not cn:
+            continue
+        cid = r.get('ClanID', '')
+        kid = clan_kingdom.get(cid, '') or ''
+        if not kid:
+            kid = find_kingdom(r.get('Kingdom_%s' % year, ''))
+        if kid:
+            for n in [cn] + alias_rev.get(cn, []):
                 put(KINGDOM_BY_HERO, n, kid, conflicts, '势力(按人)')
 
     # 🔴 TK5_ONLY 三人 = Hero 实例（有名有姓的个体，用户 2026-08-28 裁定）。

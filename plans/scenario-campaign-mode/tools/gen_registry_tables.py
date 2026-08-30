@@ -399,12 +399,16 @@ ENTITY_DOMAINS = {
     '工作': 'QuestDef', '事件主命': 'QuestDef',   # 🔴 官位/官職 已移出（16.md §四：不是对象，是枚举）
 }
 
-# 🔴 槽域前缀 → Ctx 槽名（2026-08-27 用户裁定：与 tk5_to_json SLOT_NAME_MAP/_SLOT_CAT 一致，CSV 侧名权威）
+# 🔴 槽域前缀 → Ctx 槽名（单一来源 2026-08-30 v6 统一：域值区「Ctx::* 槽引用」与命令区
+#   「代入X → slot= 预设名」共用本表、小写字母字形——此前两表分叉（域值区 hero_A 大写 +
+#   faction/place/town 旧前缀 vs 命令区 hero_a 小写 + kingdom/settlement/district 新前缀），
+#   按 v6 裁定「以 CSV 命令区 slot= 为准」回填本处；改槽名 = 只改这里，重跑 CSV）
 SLOT_CAT = {
-    '人物': 'hero', '城': 'settlement', '據點': 'place', '大名家': 'clan', '勢力': 'faction',
-    '國': 'region', '砦': 'fort', '町': 'town', '里': 'village', '忍者衆': 'ninja', '商家': 'merchant',
-    '海賊衆': 'pirate', '卡': 'card', '流派': 'school', '物品': 'item', '交易品': 'trade',
-    '軍團': 'army', '地方': 'area',
+    '人物': 'hero', '大名家': 'clan', '勢力': 'kingdom', '城': 'town', '據點': 'settlement',
+    '砦': 'castle', '里': 'village', '町': 'district', '物品': 'item', '軍團': 'army',
+    '卡': 'card', '流派': 'school', '忍者衆': 'ninja', '海賊衆': 'pirate', '商家': 'merchant',
+    '國': 'province', '地方': 'region', '交易品': 'trade_good',
+    '主命目標海域': 'quest_target_sea', '主命目標銷路': 'quest_target_market',
 }
 
 # ═══ 域::值 规则兜底（词条域专用；实体域由 ENTITY_DOMAINS 处理，不进 CSV）═══
@@ -679,11 +683,12 @@ def val_side(dom, val):
     if val == '無效':
         return 'null'
     # 🔴 槽形态例外（2026-08-27 用户裁定：人物Ｂ/城Ａ/據點Ｃ = 命名槽引用，不是具名实体——
-    #   具名实体（人物::伊藤總十郎）不进 CSV（查名字表），槽引用进表 Ctx::hero_B；与 tk5_to_json 槽名一致）
+    #   具名实体（人物::伊藤總十郎）不进 CSV（查名字表），槽引用进表 Ctx::hero_D；与 tk5_to_json 槽名一致）
+    # 🔴 2026-08-30 v6：字母槽字形统一小写（Ctx::hero_a，与命令区「代入人物Ａ→slot=hero_a」同形）
     m = re.match(r'^([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,8})([Ａ-Ｅ])$', val)
     if m:
         cat = SLOT_CAT.get(m.group(1), 'slot')
-        return f'Ctx::{cat}_{chr(ord("A") + (ord(m.group(2)) - ord("Ａ")))}'
+        return f'Ctx::{cat}_{chr(ord("a") + (ord(m.group(2)) - ord("Ａ")))}'
     if re.match(r'^[ａ-ｚ]$', val):
         return f'Ctx::var_{chr(ord("a") + (ord(val) - ord("ａ")))}'
     if dom in ENTITY_DOMAINS:
@@ -1556,13 +1561,8 @@ if __name__ == "__main__":
 # ── 代入族：把「代入人物Ａ」拆成 动作 token + 槽位名（词法，§9.4 边界归本文件）──
 # 太阁的代入命令 = 往一个具名槽位里塞对象，槽位按「域 + 全角字母」编号。
 # 动作只有两个：塞对象槽 = assign_ctx，塞变量槽（单个全角字母）= assign_var。
-_ASSIGN_DOMAIN = {
-    '人物': 'hero', '大名家': 'clan', '勢力': 'kingdom', '城': 'town', '據點': 'settlement',
-    '砦': 'castle', '里': 'village', '町': 'district', '物品': 'item', '軍團': 'army',
-    '卡': 'card', '流派': 'school', '忍者衆': 'ninja', '海賊衆': 'pirate', '商家': 'merchant',
-    '國': 'province', '地方': 'region', '交易品': 'trade_good',
-    '主命目標海域': 'quest_target_sea', '主命目標銷路': 'quest_target_market',
-}
+# 🔴 2026-08-30 v6：槽名表 = 上方 SLOT_CAT（单一来源，域值区引用与命令区写槽同形小写）
+_ASSIGN_DOMAIN = SLOT_CAT
 _FULLWIDTH = {chr(0xFF21 + i): chr(ord('a') + i) for i in range(26)}      # Ａ-Ｚ
 _FULLWIDTH.update({chr(0xFF41 + i): chr(ord('a') + i) for i in range(26)})  # ａ-ｚ
 
