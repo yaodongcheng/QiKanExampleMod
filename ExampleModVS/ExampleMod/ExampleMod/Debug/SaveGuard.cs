@@ -125,7 +125,9 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 保存成功但发生了超长裁剪 → 弹窗提醒玩家（"保存完成，但部分数据超长被裁剪"）。
+        /// 保存成功但发生了超长裁剪 → 飘字提醒玩家（"保存完成，但部分数据超长被裁剪"）。
+        /// 🔴 2026-08-30（玩家反馈：弹窗烦）：Inquiry 弹窗 → DisplayMessage 飘字——
+        /// 保存本身成功（裁剪只是兜底丢最老记录），不打断玩家，信息保留（标题+正文合一条）。
         /// 铁律 13：玩家可见文本走 LWN key（英文 fallback，条目注册于 std_LivingWorldNpcs_strings.xml）。
         /// </summary>
         public static void ShowTrimNoticeIfAny()
@@ -141,17 +143,12 @@ namespace LivingWorldNpcs
             try
             {
                 DebugLogger.Log($"[SaveStringGuard] 本次保存发生超长裁剪: {keys}");
-                InformationManager.ShowInquiry(new InquiryData(
-                    // 本地化：LWN_save_trim_title（玩家可见文本）
-                    LWNTextHelper.ResolveText("LWN_save_trim_title", "Save Warning"),
-                    // 本地化：LWN_save_trim_body（玩家可见文本）
-                    LWNTextHelper.ResolveCompound("LWN_save_trim_body",
-                        "The save completed, but some data exceeded the safe size limit and was trimmed: {KEYS}. The oldest affected records were discarded.",
-                        ("KEYS", keys)),
-                    true, false,
-                    // 本地化：LWN_save_trim_ok（玩家可见文本）
-                    LWNTextHelper.ResolveText("LWN_save_trim_ok", "OK"), "",
-                    null, null), false, false);
+                string title = LWNTextHelper.ResolveText("LWN_save_trim_title", "Save Warning");
+                // 本地化：LWN_save_trim_body（玩家可见文本）
+                string body = LWNTextHelper.ResolveCompound("LWN_save_trim_body",
+                    "The save completed, but some data exceeded the safe size limit and was trimmed: {KEYS}. The oldest affected records were discarded.",
+                    ("KEYS", keys));
+                InformationManager.DisplayMessage(new InformationMessage($"{title}: {body}"));
             }
             catch (Exception ex) { DebugLogger.Log($"[SaveStringGuard] Trim notice failed: {ex.Message}"); }
         }

@@ -210,3 +210,18 @@
 - **HERO_FIX 的实际命中 16/19**：3 个 `_onna` 键（lord_1_nomin_onna / lord_1_choumin_onna / lord_1_hanyou_onna）是别名残留，CSV 内实际宿主为 lord_1_anatsu（1113 阿夏）/ lord_1_jinbo_5（1115 小夜）/ lord_1_aya（1125 阿绫）——已映射，无缺失。
 - 变量行 TK5『-』= 6 行（prounon_*），符合「'-' 只应来自变量」；交接原文「4 处」为估算笔误。
 - BTM import 会顶层重写 `_template_id_final.tsv`（幂等，非本次产出）。
+
+### 9.5 第二轮裁定与执行（2026-08-29 延续会话）
+
+**用户裁定（全部落地）**：
+1. **简繁并 +2**：馬屋的老闆×马屋老板、酒場的老闆娘×酒馆老板娘 → DEL 26 行，终态 **1116/67**（标记 1=67）。
+2. **忍者族只保留 5 身份**：忍者（+档）/上忍/中忍/下忍/女忍者——现状 5 行即终态。
+3. **无卡池全量并入主行 TK5 列**（非加行）：商人主行 TK5 = 无卡商人 62 枚全枚举、忍者 53、海贼 55（`pool_of()` 按 refs 文件名动态收集，不写死枚数）；立绘阶段列维持「主卡+3 档」形象账。
+4. **BUSTUP 全 id 栖身（终局目标）**：`E:\taikou5\TaikouImage\BUSTUP` 全部 1292 id 必须在 CSV 某行 TK5 列出现（一 id 可多行）——已达标 1291；**仅剩 1043「无」未定**（建议挂 prounon_none，待批）。
+5. **多 tkid 人物全覆盖**：35 人词表核对 = 主形象批全过 + 阶段批 38 张（29 完成 / 9 FAIL）+ **非主形象漏跑 = 0**；秀吉 4 枚 = 1172(PASS)/1174(PASS_EYES)/517/1173(FAIL 待重跑)。
+6. **模型 = gpt-image-2**（api_config.json 本来就是；代码默认值 seedream 仅为兜底不生效）；**单价 ¥0.40/张**（1024×1536 medium，final/ 实测规格一致）。
+7. **MAX_ATT=2**（重试 ≤2，不跑第 3 seed）——run_batch.py 已改。
+8. **250 缺口 = 83 旧 + 158 新（无卡池）+ 9 阶段 FAIL**，清单 `ArtSource/_gap_full_list.tsv`（tkid/StringId/名字三列）；已确认合计 ≈¥100，**rerun_remaining.py 后台跑批启动**（249 张 = 250−1043 未栖身）。
+
+**新脚本**：`ArtSource/ensure_ref_all.py`（7.1 转置差集补全，幂等）、`ArtSource/rerun_remaining.py`（卡驱动补跑：CSV 反查 tkid→StringId→h，复用 run_batch 轮子，key=tk{tkid}/sid#stage）。
+**候选复核（未动）**：funa_daisho/sentou/suifu_tou/suifu=1012、bantou=1136、kenkyu=1139、yadoya/kusuriya 通用脸、hime_hanyou=1049、tsuuyaku=952（均无专卡，refs/BUSTUP 金查无专卡）。
