@@ -1,19 +1,32 @@
 # -*- coding: utf-8 -*-
 """
-tk5_to_json.py — 太阁5 事件 → 01 DSL 事件 JSON 机械翻译器（v2）
+tk5_to_json.py — 太阁5 事件 → 01 DSL 事件 JSON 机械翻译器（v6 数据驱动重构）
 ================================================================
-设计规格：plans/scenario-campaign-mode/08b-转化器规格-自动化翻译流水线.md
-v2 变更（2026-08-27，v1 自我审核修复）：
-    1. translate_ref 域前缀感知（Hero.clan / Settlement.clan 按主体域取对应部分）
-    2. 属性调用特例（外交同盟→isAllied / 鄰接大名家→isNeighbor / 全城壓制→待注册）
-    3. 代入命令（cmd.startswith("代入") → 槽登记）
-    4. 条件嵌套递归（AＮＤ/OＲ）+ 源重复拷贝自动去重（EFF0C300_159 实测 4 个 OＲ調查 = 2 组重复）
-    5. 分歧:(N) 语义状态机：調查后 = 条件分支（if/else 合并）；選擇后 = Ctx 槽路由
-    6. 執行内 調查 → pending_cond（不落 effect）
-    7. 演绎剧本 lines 带 when 门控（分支/机位条件栈传播）
-    8. 演出段切分（進入設施/離開設施/机位块切段）+ 骨架 perform 引用
-    9. 待07 占位 = 裸格式（09b 风格 `🔴待07归蝶`，非 Hero:: 前缀）
-    10. 报告待注册去重
+设计规格：plans/scenario-campaign-mode/08b-转化器规格-自动化翻译流水线.md §十五（v6）
+
+🔴 v6（2026-08-30，用户裁定）核心：翻译脚本停止"认识命令"，改成"查表"。
+  16a CSV 自带全部翻译知识；脚本只做两件事 = 解析 TK5 语法 + 查表翻译；
+  查不到 = RegistryGapError 停机 + 缺口报告（agent 回填映射表收敛到零）。
+  CSV = 翻译知识唯一事实源，脚本禁止复制第二条。
+
+双信源架构（§15.1.5）：
+  信源 A = 16a-DSL翻译总表.csv（一切名词：命令/域/属性/函数/枚举值/语法/文本变量/域值）
+  信源 B = tools/entity_maps.py（具名实体：人名/城名/家族/势力/据点 StringId；生成物，禁手改）
+  选择规则 = 值类型/类别标注驱动（标注来自 CSV 参数列/值类型列/域值区），禁止硬编码。
+
+v6 相对 v5 的变更：
+  1. 删除全部"翻译型兜底表"：SLOT_NAME_MAP/_SLOT_CAT/slot_cname/BOOL_MARKER_WORDS/
+     FALLBACK_MAP/_fallback_ascii/_ENTITY_FALLBACK/_FUNC_SIDES/TRIGGER_MAP/TRIGGER_FORM
+     ——槽名读 CSV 命令区 slot= 预设、布尔拼写读属性行"语义"列、触发值/设施值读枚举值区、
+     域前缀读 16a 域表侧名、函数集从 16a 函数区+属性区构建。
+  2. _WORLD_EFFECTS 硬编码字典删除 → 事件头/居城变更等全部查表（CSV 命令区 + 语法区）。
+  3. 事件头也查表：trigger = 枚举值区「觸發」域（去 Trigger:: 前缀）、facility = 「設施」域
+     （完整引用 Facility::*）、once/priority = 「事件屬性」域。
+  4. 零兜底纪律（§15.1.5）：翻译器内无任何"查无兜底"代码路径——查无 = 停机报错，
+     报（什么词条/哪个实体/源第几行/查的哪个信源/建议回填哪）。
+  5. --strict 为默认（无 --strict 参数：行为等价，gap_report 始终输出）。
+  6. 更新 = 真步骤（用户 2026-08-30 裁定：16a 权威 update（T1）→ effect action=update）。
+  7. 槽名统一小写（08b §15.1.5：以 CSV 命令区 slot= 为准；域值区 Ctx::hero_a 同形）。
 
 用法：
     python tk5_to_json.py --events EFF0C300_159 --scenario okehazama
@@ -23,7 +36,6 @@ import csv
 import json
 import os
 import re
-import shutil
 import sys
 
 try:
@@ -38,120 +50,44 @@ DEFAULT_REGISTRY = os.path.join(REPO_ROOT, "plans", "scenario-campaign-mode", "1
 DEFAULT_OUT = os.path.join(REPO_ROOT, "plans", "scenario-campaign-mode", "story_event_json")
 
 # ---------------------------------------------------------------------------
-# 代入槽 → Ctx 槽名映射（🔴 v4.3：变量语义保留——代入 = ctx_set 动作、引用 = Ctx::<slot>，
-# 不做静态展开；16 §一 Ctx 三档作用域权威，CSV 命令区「代入X → Ctx/Variable/GlobalSlot」）
+# 信源 B：实体归一表（生成物，禁止手改——要改映射改 gen_entity_maps.py 重跑，铁律 22）
 # ---------------------------------------------------------------------------
-SLOT_NAME_MAP = {
-    "人物Ａ": "hero_A", "人物Ｂ": "hero_B", "人物Ｃ": "hero_C", "人物Ｄ": "hero_D", "人物Ｅ": "hero_E",
-    "城Ａ": "settlement_A", "城Ｂ": "settlement_B", "城Ｃ": "settlement_C", "城Ｄ": "settlement_D", "城Ｅ": "settlement_E",
-    "據點Ａ": "place_A", "據點Ｂ": "place_B", "據點Ｃ": "place_C", "據點Ｄ": "place_D", "據點Ｅ": "place_E",
-    "大名家Ａ": "clan_A", "大名家Ｂ": "clan_B", "大名家Ｃ": "clan_C", "大名家Ｄ": "clan_D", "大名家Ｅ": "clan_E",
-    "勢力Ａ": "faction_A", "勢力Ｂ": "faction_B", "勢力Ｃ": "faction_C",
-}
-_SLOT_CAT = {
-    "忍者衆": "ninja", "海賊衆": "pirate", "商家": "merchant", "物品": "item", "卡": "card",
-    "國": "region", "地方": "area", "町": "town", "里": "village", "砦": "fort",
-    "軍團": "army", "流派": "school", "交易品": "trade", "主命目標": "quest", "文字列": "text",
-}
-
-
-# 🔴 布尔标誌族语义词 → bool（2026-08-27 用户裁定；词表 = 16a CSV 语义列「TK5 拼写」清单，
-#   用于 更新 承接注记等非比较上下文；比较右值只出现 0/1/已發生/未發生，走 _canonical_right 通用表）
-BOOL_MARKER_WORDS = {
-    '出現標誌': {'已出現': True, '未出現': False},
-    '所持標誌': {'持有中': True, '沒持有': False},
-    '出撃標誌': {'出撃中': True, '平常': False},
-    '生病標誌': {'生病': True, '健康': False},
-    '離家標誌': {'離家': True, '在家': False},
-    '鑑定標誌': {'已鑑定': True},
-    '死刑標誌': {'死刑': True},
-    '死亡標誌': {'死亡': False, '生存': True},
-    '事件標誌': {'成立': True, '不成立': False},
-}
-
-
-def slot_cname(s):
-    """TK5 槽名（人物Ｄ/城Ａ/據點Ａ/ａ…）→ Ctx 英文槽名（hero_D/settlement_A/place_A/var_a…）。"""
-    if s in SLOT_NAME_MAP:
-        return SLOT_NAME_MAP[s]
-    if re.match(r"^[ａ-ｚ]$", s):
-        return "var_" + chr(ord("a") + (ord(s) - ord("ａ")))
-    if re.match(r"^[A-Z]$", s):
-        return "var_" + s.lower()
-    m = re.match(r"^(.*?)([Ａ-Ｅ])$", s)
-    if m:
-        cat = _SLOT_CAT.get(m.group(1), "slot")
-        letter = chr(ord("A") + (ord(m.group(2)) - ord("Ａ")))   # 全角Ａ-Ｅ → ASCII A-E
-        return f"{cat}_{letter}"
-    return "slot_" + re.sub(r"[^A-Za-z0-9_]", "_", s)
-
-
-# ---------------------------------------------------------------------------
-# 归一表 v4.2（🔴 占位 ID 全部英文 ASCII——StringId 合法形态，程序可解析；
-# report 输出「占位 ID 映射表」，07 素材表落地后全局替换为织丰真实 ID）
-# ---------------------------------------------------------------------------
-# 🔴 v5：六张名字表不再手写，改由 tools/gen_entity_maps.py 从织丰表机器生成
-# （entity_maps.py 是生成物，禁止手改——要改映射改 gen_entity_maps.py 重跑，铁律 22）。
-# 生成表给的是裸 StringId，这里按域加 DSL 前缀。
 try:
     import entity_maps as _EM
 except ImportError:                                    # pragma: no cover
     raise SystemExit(
         "缺 tools/entity_maps.py —— 先跑 `python tools/gen_entity_maps.py` 生成实体归一表")
 
+# 🔴 v6：以下 = 信源 B 的读取器/接口适配（非翻译知识，A7 裁定保留——前缀注入属 DSL 语法层）。
+#   值 = 完整 DSL 引用（带域前缀）；实体查无 = 停机报错（零兜底，见 lookup_entity）。
 HERO_MAP = dict((k, "Hero::" + v) for k, v in _EM.HERO_MAP.items())
 HERO_MAP["主人公"] = "Hero::MainHero"
 AGENT_MAP = dict((k, "Agent::" + v) for k, v in _EM.AGENT_MAP.items())
 CLAN_MAP = dict((k, "Clan::" + v) for k, v in _EM.CLAN_BY_HERO.items())
-# 势力：先按势力名（今川家），再按当主名（今川義元）——太阁两种写法都出现
 KINGDOM_MAP = dict((k, "Faction::Kingdom." + v) for k, v in _EM.KINGDOM_BY_NAME.items())
 for _k, _v in _EM.KINGDOM_BY_HERO.items():
     KINGDOM_MAP.setdefault(_k, "Faction::Kingdom." + _v)
 SETTLEMENT_MAP = dict((k, "Settlement::" + v) for k, v in _EM.SETTLEMENT_MAP.items())
 REGION_MAP = dict((k, "Region::" + v) for k, v in _EM.REGION_MAP.items())
-# 组织（忍者众/水军/商屋）：织丰表没有 Kingdom 条目，走 Org:: 占位（16b Org.* = T3-预留）
 ORG_MAP = dict((k, "Org::" + v) for k, v in _EM.ORG_NAMES.items())
-# 人物在剧本年份的状态（登场/势力/居城），stage_inject 与 report 用
-HERO_META = _EM.HERO_META
 MISSING_IN_XML = _EM.MISSING_IN_XML
-# 太阁有、骑砍地图上没有的城 → tk5_city_NNN 占位；这里留反查表，报告里点名要 07 数据包补
 CITY_PLACEHOLDER = dict((v, k) for k, v in _EM.SETTLEMENT_MAP.items() if v.startswith("tk5_city_"))
 CITY_ANCHOR = dict(_EM.SETTLEMENT_ANCHOR)
 
-# fallback 罗马音映射（漏网角色/城；确定性英文 ID——禁止中文进 ID）
-FALLBACK_MAP = {
-    "佐久間盛重": "Hero::tk5_sakuma_masanari",
-    "功勳家臣": "Agent::tk5_kashin_merit",
-    "武力家臣": "Agent::tk5_kashin_martial",
-    "外交家臣": "Agent::tk5_kashin_diplomat",
-    "功勳陪臣": "Agent::tk5_hikan_merit",
-    "釜山之町": "Settlement::tk5_busan",
-    "那覇之町": "Settlement::tk5_naha",
-    "寧波之町": "Settlement::tk5_ningbo",
-    "呂宋之町": "Settlement::tk5_lusong",
-    "發生據點": "Ctx::event_settlement",
-}
-# 确定性兜底：中文名 → 稳定英文 ID（hash 后缀），report 登记中文名
-import hashlib
-
-
-def _fallback_ascii(subject):
-    h = hashlib.md5(subject.encode("utf-8")).hexdigest()[:6]
-    return f"tk5_u{h}"
-
-
-# 🔴 v2：实体引用域 fallback 前缀（与 gen_registry_tables.ENTITY_DOMAINS 同步）——
-# 具名实体（忍者衆::伊賀衆 / 卡::無刀取 / 官位::正一位…）不进 CSV 域值区，
-# 翻译器名字表 miss 后走确定性兜底 + report 登记，由 07/13/17 数据包定稿 StringId
-_ENTITY_FALLBACK = {
-    "忍者衆": "Org", "商家": "Org", "海賊衆": "Org", "卡": "Card", "流派": "Card",
-    "物品": "Item", "交易品": "Item", "地方": "Region", "官位": "court_rank",
-    "官職": "title", "工作": "QuestDef", "事件主命": "QuestDef",
+# 域词 → 信源 B 表（数据驱动：域名表即 16a 域表键，表 = 实体表；这里只挂"表引用"，不挂名词）
+_ENTITY_TABLES = {
+    "人物": (HERO_MAP, AGENT_MAP),      # Hero 优先，模板 NPC（铁律 8 双类）次之
+    "大名家": (CLAN_MAP,),
+    "勢力": (KINGDOM_MAP,),
+    "城": (SETTLEMENT_MAP,), "據點": (SETTLEMENT_MAP,), "砦": (SETTLEMENT_MAP,),
+    "町": (SETTLEMENT_MAP,), "里": (SETTLEMENT_MAP,),
+    "國": (REGION_MAP,),
+    "忍者衆": (ORG_MAP,), "商家": (ORG_MAP,), "海賊衆": (ORG_MAP,),
 }
 
-# 函数/碎片侧名（与域无关，_pick_side 直接接受）
-_FUNC_SIDES = {"exists", "isAllied", "isNeighbor", "allControlled", "hasMet", "hasRelation", "relation", "unknown"}
-
+# ---------------------------------------------------------------------------
+# 非翻译知识常量区（剧本绑定 / DSL 语法层 / 参数名语义词表——v6 逐条注明出处）
+# ---------------------------------------------------------------------------
 EVENT_NAME = {
     "EFF0C300_159": "情报宣告+评议会+敦盛之舞+出阵（织田线开场）",
     "EFF0C300_160": "鸣海攻防（守将台词）",
@@ -176,7 +112,7 @@ EVENT_NAME = {
     "EFF06E00_171": "今川家臣余波",
     "ECF00000_159": "旅人通报义元战死（世界广播）",
 }
-CLUSTER_ORDER = [   # 桶狭间历史时间轴
+CLUSTER_ORDER = [   # 桶狭间历史时间轴（剧本绑定配置）
     "EFF0C300_159", "EFF06E00_159",
     "EFF0C300_160", "EFF06E00_161",
     "EFF0C300_161", "EFF0C300_162",
@@ -187,6 +123,9 @@ CLUSTER_ORDER = [   # 桶狭间历史时间轴
     "EFF0C300_171", "EFF06E00_170", "EFF06E00_171",
     "ECF00000_159",
 ]
+
+# 🔴 trigger → 05 演出形态（**非翻译知识**：performance 形态不是 TK5 名词，属 05 判定（A6 裁定）；
+#   未注册默认 menu_dialogue（据點画面）。trigger 值本身查 16a 枚举值区「觸發」域。
 TRIGGER_FORM = {
     "據點畫面表示後": "menu_dialogue",
     "評定開始時": "menu_dialogue",
@@ -197,23 +136,102 @@ TRIGGER_FORM = {
     "攻城戰結束時": "scene",
     "軍團移動結束時": "map_dialogue",
 }
-TRIGGER_MAP = {
-    "據點畫面表示後": "settlement_enter",
-    "室內畫面表示後": "house_enter",
-    "野戰開始時": "field_battle_start",
-    "野戰結束時": "field_battle_end",
-    "攻城戰開始時": "siege_battle_start",
-    "攻城戰結束時": "siege_battle_end",
-    "評定開始時": "council_start",
-    "軍團移動結束時": "army_move_end",
-    "遊戲開始時": "game_start",
-    "每月": "monthly",
-    "每日": "daily",
+
+# 🔴 参数名 → 域词（Registry 常量；属"参数名本身"的语义词表，与枚举命令无关——
+#   CSV 未列（参数名列只写名字），纪律 16 v6 注同款批准保留（~25 条）
+PARAM_DOMAIN = {
+    "actor": "人物", "hero": "人物", "party": "人物",
+    "faction": "大名家", "clan": "大名家",
+    "settlement": "據點", "pos": "據點", "sceneId": "據點",
+    "a": "大名家", "b": "大名家",
+    "leader": "人物", "target": "據點", "owner": "人物",
+    "amount": None, "name": None, "status": None, "orderId": None,
+    "presetId": None, "behavior": None,
+}
+
+# 🔴 命令 × 参数位 → 域词（参数名语义词表同款；posN 形式无参数名时的域裁定——
+#   CSV 参数列只写「具名实体」不写域，按命令语义裁定。只登记实证组合，未登记 = 值扫描唯一化）
+PARAM_CTX_DOMAIN = {
+    "成為御用商人#0": "商家", "成為御用商人#1": "人物",
+    "國主任命#0": "人物", "國主任命#1": "國", "國主任命#2": "國",
+    "國主解任#0": "國",
+}
+
+# 🔴 值空间名 → 字段名（§15.4-1：字段名 = 值空间英文（lowerCamel）——"值空间命名归一"、
+#   Registry 常量（~20 条）。键 = 16a 枚举值区/参数列的"所属域"词（ＢＧＭ/ＳＥ/觸發…）
+VALUE_SPACE_FIELD = {
+    "ＢＧＭ": "bgm", "ＳＥ": "se", "觸發": "trigger", "設施": "facility",
+    "事件ＣＧ": "cg", "轉場": "transition", "背景類型": "bgType", "圖片類型": "imageType",
+    "事件屬性": "eventMeta", "容器位置": "mode", "容器清理": "clearMode",
+    "容器存取": "accessMode", "容器統計": "containerStat", "其他分支": "branchOther",
+    "零值": "zero", "難度": "difficulty", "迷你遊戲": "minigame",
+    "物品種類": "itemKind", "武器種類": "weaponKind", "主命": "quest",
+    "主命字段": "questField", "主命目標類": "questTarget", "排序方向": "order",
+    "排序特殊鍵": "sortKey", "軍團槽": "armySlot", "軍團指令": "armyCommand",
+    "生存狀態": "aliveState", "狀態值": "stateValue", "人物類別": "heroKind",
+    "身份": "identity", "性別": "gender", "從屬類型": "subType", "出現狀態": "appearState",
+    "畫面效果": "screenFx", "背景": "bg", "通關方式": "clearMode",
+    "獨立方式": "independenceMode", "逃跑許可": "escapePermit", "護衛": "escort",
+    "模板NPC": "npc", "域": "domain", "屬性": "attr",
+}
+
+# 🔴 内嵌管线白名单（§15.4-2 用户认可：线内管线 = TK5 语法结构，非业务命令——
+#   侧名白名单集中一处常量。台词管线输出 = 05 形态词（dialogue/narrator/choice），
+#   不是 CSV 侧名（say 只用于"查表识别"），纪律 2 v6 注同款。
+SAY_SIDES = {"say", "say_choice", "say_as", "monologue", "monologue_choice", "narrate"}
+# 台词侧名 → 05 形态词（dialogue 对白 / narrator 旁白自语；形态 = 语法层，非名词）
+SAY_FORM = {"say": "dialogue", "say_choice": "choice", "say_as": "dialogue",
+            "monologue": "narrator", "monologue_choice": "choice", "narrate": "narrator",
+            "monologue_selectable": "narrator", "narrate_selectable": "narrator",
+            "say_selectable": "dialogue"}
+CHOICE_SIDES = {"choice", "choice_option_set", "say_selectable", "narrate_selectable"}
+CONTAINER_SIDES = {"container_set", "container_filter", "container_exclude",
+                   "container_sort", "container_pick", "container_clear",
+                   "container_query", "container_access"}
+# 块类语法侧名（结构层表：这些侧名 = 源词条的登记名，**JOSN 输出词 = 01 步骤词**
+#   if/when/loop/module_exit——语法区侧名不当 JSON 字段，§15.1.5 结构层边界）
+BLOCK_SIDES = {"branch", "case_when", "case_branch", "protagonist_when", "protagonist_branch",
+               "loop", "module_begin", "module_exit", "script", "condition",
+               "condition_and", "condition_or", "update", "game_end",
+               "event_meta", "event_trigger", "event_condition", "event_script"}
+
+# 实体域词 → 域表侧名（实体名表的前缀注入 = DSL 语法层；非名词翻译。
+#   Kingdom 特例：DSL 引用先例 = Faction::Kingdom.oda（01/16 语法权威），其余域侧名直拼 '::'）
+REF_PREFIX_OVERRIDE = {"Kingdom": "Faction::Kingdom.", "NinjaOrg": "Org::",
+                       "MerchantOrg": "Org::", "PirateOrg": "Org::"}
+
+# 🔴 TK5 域词 → 属性侧名段前缀集（属性行多段侧名 = 按 DSL 段取段，如 `Hero.clan / Settlement.clan`——
+#   段前缀 = DSL 命名空间（铁律 20），**与域表侧名（Town/Castle=据点类型语义名）是两套**（不混）。
+#   语法层常量（REF_PREFIX 同族）；候选唯一 → 直接取；歧义（多家）→ 生成器缺陷清单。
+SIDE_PREFIX = {
+    "人物": {"Hero"}, "大名家": {"Clan"}, "勢力": {"Faction"},
+    "城": {"Settlement"}, "據點": {"Settlement", "Facility"}, "砦": {"Settlement"},
+    "町": {"Settlement"}, "里": {"Settlement"},
+    "國": {"Region", "Settlement"}, "地方": {"Region"},
+    "忍者衆": {"Org"}, "商家": {"Org"}, "海賊衆": {"Org"},
+    "卡": {"Card", "Item"}, "流派": {"Card"}, "物品": {"Item", "Card"},
+    "工作": {"QuestDef"}, "事件主命": {"QuestDef"}, "主命": {"Quest"},
+    "主命屬性": {"QuestAttr"}, "事件": {"Event"}, "事件標誌": {"Flag"},
+    "事件發生狀態": {"EventState"}, "變量": {"Variable"}, "儲存號": {"GlobalSlot"},
+    "狀況": {"Time"}, "日數計數器": {"Counter"}, "環境變量": {"EnvVar"},
+    "背景音樂": {"Bgm"}, "天氣": {"Weather"}, "軍團": {"Army"},
+    "軍團方針": {"ArmyDoctrine"}, "身份": {"Identity"}, "人物類別": {"HeroKind"},
+    "物品類型": {"ItemKind"}, "戰鬥結束種類": {"BattleEndKind"},
+    "遊戲通關種類": {"EndingKind"}, "官位": {"court_rank"}, "官職": {"title"},
+    "真偽": {"Bool"}, "場面": {"Facility"},
+}
+
+# 🔴 值空间别名（§15.4-1「值空间命名归一」Registry 常量）：属性值类型「枚举:X」的空间名与
+#   枚举值区所属域不同名 → 别名归并（義理→狀態值、物品類型→物品種類 …）；别名表外 = 报 gap
+ENUM_SPACE_ALIAS = {
+    "義理": "狀態值", "物品類型": "物品種類", "與主人公關係": "狀態值",
+    "關係經緯": "狀態值", "仕官傾向": "狀態值", "身份": "身份",
+    "官位": "官位", "官職": "官位", "大方針": "狀態值", "戰略": "狀態值",
 }
 
 
 # ---------------------------------------------------------------------------
-# 解析器（v1 已验证）
+# 解析器（v1 已验证，保持）
 # ---------------------------------------------------------------------------
 class Line:
     def __init__(self, raw):
@@ -322,8 +340,6 @@ def build_tree(body_lines):
 
 
 # ---------------------------------------------------------------------------
-# 翻译表加载（v2：属性 = 域.属性 二维；新增 域值 区——16a CSV 是全语料闭包，查不到 = 生成器缺陷）
-# ---------------------------------------------------------------------------
 class RegistryGapError(Exception):
     """表外词条 = 生成器缺陷（16a CSV 已做全语料覆盖自检；翻译器查不到 → 修表重跑，禁止产出 🔴待注册）。"""
 
@@ -331,10 +347,10 @@ class RegistryGapError(Exception):
 class Verdict(object):
     """一行 16a 的落点裁定（16b §10.4 四列）——翻译器据此决定「这条到底往哪落」。
 
-    tier   档：T1 引擎直取 / T2 引擎改造 / T3 本 mod 新造 / T3-预留（可解析可落仓、行为空执行）/ T0 降级
-    carrier 载体：引擎 / 外置仓 / 13主命 / 05演出 / Ctx …
-    savekey 存档键：lwn_scn_attr / lwn_scn_state / 13 / 17 / 无
-    anchor  实现锚点：读写落在哪个模块（16b 的「读实现 / 写实现」两列合并）
+    tier: T1 引擎直取 / T2 引擎改造 / T3 本 mod 新造 / T3-预留（行为空执行）/ T0 降级
+    carrier: 引擎 / 外置仓 / 13主命 / 05演出 / Ctx …
+    savekey: lwn_scn_attr / lwn_scn_state / 13 / 17 / 无
+    anchor: 实现锚点（16b「读实现 / 写实现」合并）
     """
     __slots__ = ("tier", "carrier", "savekey", "anchor")
 
@@ -358,12 +374,170 @@ class Verdict(object):
         return "%s/%s" % (self.tier or "?", self.carrier or "?")
 
 
+# ---------------------------------------------------------------------------
+# S1：参数列解析器（parse_params_spec）—— 154 行命令参数列 100% 结构化
+# ---------------------------------------------------------------------------
+class ParamSlot(object):
+    """一个参数位的解析结果：位置/名字/标注/字段名。"""
+    __slots__ = ("pos", "name", "ann", "field")
+
+    def __init__(self, pos, name, ann, field):
+        self.pos = pos          # int 或 None（slot= / 裸参数名 / 头值）
+        self.name = name        # 'slot' / 'pos0' / 裸参数名 / 'target'/'value' / 'head'
+        self.ann = ann          # 标注原文（BＧＭ 枚举 / 具名实体 …）
+        self.field = field      # 产物字段名（推导：slot 预设 / 别名 / 裸名 / 语义名）
+
+    def __repr__(self):
+        return "ParamSlot(%s=%s ann=%r field=%s)" % (self.name, self.pos, self.ann, self.field)
+
+
+def _classify_ann(ann):
+    """标注 → (类别, 值空间/域)。类别 = entity/template/domain/attr/enum/domainval/资源用 enum 变体
+    /bool/zero/number/textvar/attr_driven/union/unknown。
+
+    标注原文样例：
+      具名实体 / 模板NPC 枚举 / 域名 / 属性名 / 真偽 枚举 / 零值 枚举 / 数字 / 文本变量 /
+      ＢＧＭ 枚举 / 主命 域值 / 值（取值空间由属性参决定）/ 头值=事件屬性 枚举
+    """
+    a = ann.strip()
+    if a == "具名实体":
+        return ("entity", None)
+    if a == "模板NPC 枚举":
+        return ("template", "模板NPC")
+    if a == "域名":
+        return ("domain", None)
+    if a == "属性名":
+        return ("attr", None)
+    if a == "真偽 枚举":
+        return ("bool", "真偽")
+    if a == "零值 枚举":
+        return ("zero", "零值")
+    if a == "数字":
+        return ("number", None)
+    if re.match(r"^文本变量( 枚举)?$", a):
+        return ("textvar", None)
+    if a.startswith("值（取值空间由属性参决定）"):
+        return ("attr_driven", None)
+    if a.startswith("头值="):
+        return ("head", a[len("头值="):].strip())
+    m = re.match(r"^(.+?) (枚举|域值)$", a)
+    if m:
+        return ("enum" if m.group(2) == "枚举" else "domainval", m.group(1).strip())
+    if "/" in a and "(" not in a:
+        return ("union", a)
+    return ("unknown", a)
+
+
+def _field_of(name, ann):
+    """推导产物字段名：①slot= 预设名 ②裸参数名 ③值空间别名（VALUE_SPACE_FIELD）
+    ④值空间=域名/属性名→domain/attr ⑤语义名（entity/npc/value/text）。"""
+    if name is not None and name != "pos" and name not in ("slot", "pos0"):
+        return name
+    cls, space = _classify_ann(ann)
+    if cls == "attr_driven":
+        return "value"
+    if space in VALUE_SPACE_FIELD:
+        return VALUE_SPACE_FIELD[space]
+    if cls == "domain":
+        return "domain"
+    if cls == "attr":
+        return "attr"
+    if cls == "entity":
+        return "entity"
+    if cls == "template":
+        return "npc"
+    if cls == "bool":
+        return "value"
+    if cls in ("number", "textvar"):
+        return "value"
+    if cls in ("enum", "domainval", "zero"):
+        return space or "value"
+    return "value"
+
+
+def parse_params_spec(spec):
+    """命令/语法词条「参数」列 → [ParamSlot]。覆盖全部写法：
+      '—' / '无' / '' → []
+      'slot=hero_d, pos1=容器統計 枚举' → [slot, pos1]
+      'pos0=ＢＧＭ 枚举' / 'pos0=域名, pos1=属性名/排序特殊鍵 枚举, pos2=排序方向 枚举'
+      'actor, clan'（裸参数名） / 'orderId'
+      '头值=事件屬性 枚举'（属性 event_meta 事件头）
+      '(目标)(值)——双括号：…'（更新 update 双括号形态）→ [target, value]
+    """
+    s = (spec or "").strip()
+    if s in ("", "—", "无"):
+        return []
+    # 双括号形态（更新等语法词）：可能带说明文字
+    m = re.match(r"^\(([^)]*)\)\(([^)]*)\)", s)
+    if m:
+        return [ParamSlot(0, "target", "target", "target"),
+                ParamSlot(1, "value", "value", "value")]
+    out = []
+    for i, seg in enumerate(s.split(",")):
+        seg = seg.strip()
+        if not seg:
+            continue
+        m = re.match(r"^slot=(\S+)\s*$", seg)
+        if m:
+            out.append(ParamSlot(None, "slot", m.group(1), m.group(1)))
+            continue
+        m = re.match(r"^pos(\d+)=(.*)$", seg)
+        if m:
+            ann = m.group(2).strip()
+            pos = int(m.group(1))
+            out.append(ParamSlot(pos, "pos%d" % pos, ann, _field_of("pos%d" % pos, ann)))
+            continue
+        m = re.match(r"^(头值)=(.*)$", seg)
+        if m:
+            out.append(ParamSlot(None, "head", m.group(2).strip(), "head"))
+            continue
+        # 裸参数名（纯 ASCII，无空格无括号）
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", seg):
+            out.append(ParamSlot(i, seg, seg, seg))
+            continue
+        # 未知写法 → 原样标注（报告点名，不猜）
+        out.append(ParamSlot(i, None, seg, None))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Registry（信源 A）—— v6 扩展：枚举值区 / 语法区 / 文本变量区 / 布尔拼写 / 参数列
+# ---------------------------------------------------------------------------
+# 布尔拼写解析：属性「语义」列形如「出現標誌（TK5 拼写：1 / 0 / 已出現 / 未出現 / 已發生 → true/false）」
+_RE_BOOL_SPELL = re.compile(r"TK5 拼写：([^）)]*)")
+
+
+def _parse_bool_spellings(sem):
+    """「1 / 0 / 已出現 / 未出現 / 已發生 → true/false」→ {拼写: bool}。"""
+    out = {}
+    m = _RE_BOOL_SPELL.search(sem or "")
+    if not m:
+        return out
+    body = m.group(1)
+    parts = re.split(r"→|➞", body)
+    if len(parts) != 2:
+        return out
+    words = parts[0]
+    flag = parts[1].strip().lower() in ("true", "真")
+    for w in re.split(r"[ /、,，]+", words):
+        w = w.strip()
+        if w:
+            out[w] = flag
+    return out
+
+
 class Registry:
     def __init__(self, csv_path):
-        self.domains, self.attrs, self.domain_vals, self.predicates, self.commands = {}, {}, {}, {}, {}
-        self.bare_vals = {}     # 域值区纯 token 反查（武將→general 等，translate_value 用）
-        self.verdicts = {}      # (类别, 所属域, 太阁原词) → Verdict，报告统计用
-        self.used = set()       # 本次翻译真正查过的 (类别, 太阁原词)
+        self.domains, self.attrs, self.domain_vals, self.predicates = {}, {}, {}, {}
+        self.commands = {}       # 命令区：原词 -> (side, usage)
+        self.syntax = {}         # 语法区：原词 -> (side, 参数列, usage)
+        self.enum_vals = {}      # 枚举值区：(所属域, 原词) -> (side, 值类型, usage)
+        self.textvars = {}       # 文本变量区：原词 -> (side, 值类型, usage)
+        self.bare_vals = {}      # 域值区纯 token 反查（武將→general 等）
+        self.verdicts = {}       # (类别, 所属域, 太阁原词) → Verdict
+        self.bool_spellings = {} # 属性原词 -> {TK5拼写: bool}（从「语义」列解析）
+        self.param_cache = {}    # (类别, 原词) -> [ParamSlot]
+        self.used = set()
         with open(csv_path, encoding="utf-8-sig") as f:
             for r in csv.DictReader(f):
                 cat, src, side = r["类别"], r["太阁原词"], r["我们侧名"]
@@ -372,20 +546,31 @@ class Registry:
                 if cat == "域":
                     self.domains[src] = side
                 elif cat == "属性":
-                    self.attrs[src] = (side, r["值类型"], usage)          # src = 属性名（单键，多域 ' / ' 分段）
+                    # 🔴 多段侧名 = 按「所属域」列与侧名段一一对齐（Hero.clan / Settlement.clan ← 人物 / 城 / 據點…
+                    #   —— _pick_side 按主体域词取段，零硬表（v6：replace 旧 _DOMAIN_PREFIX 推断）
+                    self.attrs[src] = (side, r["值类型"], usage,
+                                       [x.strip() for x in (r.get("所属域") or "").split("/")],
+                                       [x.strip() for x in side.split(" / ")])
+                    sp = _parse_bool_spellings(r["语义"])
+                    if sp:
+                        self.bool_spellings[src] = sp
                 elif cat == "域值":
-                    # 🔴 v2：CSV 太阁原词 = 纯值，所属域列 = 域（第二列不掺符号）→ 内部重建「域::值」键
                     key = f"{r['所属域']}::{src}"
                     self.domain_vals[key] = (side, r["值类型"], usage)
                     if "::" not in side and side != "null":
                         if src not in self.bare_vals:
-                            self.bare_vals[src] = side            # 同名多域同 token（浪人→ronin）
+                            self.bare_vals[src] = side
                 elif cat == "函数":
-                    self.predicates[src] = side                          # src = 调用词（外交同盟→isAllied）
+                    self.predicates[src] = side
                 elif cat == "命令":
                     self.commands[src] = (side, usage)
+                elif cat == "语法":
+                    self.syntax[src] = (side, r["参数"], usage)
+                elif cat == "枚举值":
+                    self.enum_vals[(r["所属域"], src)] = (side, r["值类型"], usage)
+                elif cat == "文本变量":
+                    self.textvars[src] = (side, r["值类型"], usage)
 
-    # 查表即登记「本剧本用到了这个词」，报告按此统计落点分档（键不含域：属性/命令按词聚合）
     def _use(self, cat, w):
         self.used.add((cat, w))
 
@@ -394,12 +579,23 @@ class Registry:
         return self.domains.get(w)
 
     def attr(self, name):
+        if name is None:
+            return None
         self._use("属性", name)
         return self.attrs.get(name)
 
     def domain_val(self, dom, val):
+        if dom is None or val is None:
+            return None
         self._use("域值", val)
         return self.domain_vals.get(f"{dom}::{val}")
+
+    def enum_val(self, space, val):
+        """枚举值区：(值空间, 原词) → (side, 值类型, usage)。"""
+        if space is None or val is None:
+            return None
+        self._use("枚举值", val)
+        return self.enum_vals.get((space, val))
 
     def predicate(self, w):
         self._use("函数", w)
@@ -409,9 +605,28 @@ class Registry:
         self._use("命令", w)
         return self.commands.get(w)
 
+    def syntax_word(self, w):
+        self._use("语法", w)
+        return self.syntax.get(w)
+
+    def textvar(self, w):
+        self._use("文本变量", w)
+        return self.textvars.get(w)
+
+    def bool_spelling(self, attr_word, spelling):
+        bs = self.bool_spellings.get(attr_word or "", {})
+        return bs.get(spelling)
+
+    def params(self, cat, word):
+        """参数列解析结果（main 预载全表后即缓存命中）。"""
+        return self.param_cache.get((cat, word))
+
+    def set_csv_path(self, path):
+        self._csv_path = path
+
 
 # ---------------------------------------------------------------------------
-# 翻译器 v2
+# 翻译器 v6
 # ---------------------------------------------------------------------------
 class Segment:
     """演出单元（一段连续表现层 → 一个演绎剧本）。"""
@@ -421,18 +636,31 @@ class Segment:
         self.lines = []
 
 
-# ---------------------------------------------------------------------------
-# 文本变量模式（TK5 全语料扫描 2026-08-27：称呼变体 15k+ / 人称 5k / 未知 token 1.5k / 槽 4k）
-# 替换为 TextObject 占位符 {PH_N}，运行时 LWN 注入（骑砍2 TextObject 支持 {KEY} 传参）
-# ---------------------------------------------------------------------------
-RE_VAR_ATTR = re.compile(r"\(([^()]+)\.(姓|名|名前)\)")    # (X.姓/名/名前) 称呼变体
-RE_VAR_BRACE = re.compile(r"\{([^}]+)\}")                   # {一人稱}/{X.名前}/{未知NN}
-RE_VAR_ANGLE = re.compile(r"<([^>]+)>")                     # <城Ａ>/<年>/<ａ> 槽显示
-RE_VAR_PLAIN = re.compile(r"\(([^()]+)\)")                  # (X) 角色全名
+# 文本变量模式（TK5 全语料扫描 2026-08-27；v6：槽名取「全角→ASCII」字形，不再 slot_cname 推断）
+RE_VAR_ATTR = re.compile(r"\(([^()]+)\.(姓|名|名前)\)")
+RE_VAR_BRACE = re.compile(r"\{([^}]+)\}")
+RE_VAR_ANGLE = re.compile(r"<([^>]+)>")
+RE_VAR_PLAIN = re.compile(r"\(([^()]+)\)")
+_FW_AT = ord("Ａ")   # 全角字母 → ASCII（纪律 12 全角转 ASCII，属编码归一非翻译知识）
+
+
+def _fw_letter(ch):
+    if "Ａ" <= ch <= "Ｚ":
+        return chr(ord("a") + (ord(ch) - ord("Ａ")))
+    if "ａ" <= ch <= "ｚ":
+        return chr(ord("a") + (ord(ch) - ord("ａ")))
+    return ch
+
+
+def _slot_letter(slot):
+    """槽字面（人物Ｄ/城Ａ/ａ…）→ 字母（d/a/…，ASCII 小写）。"""
+    if slot:
+        c = slot[-1]
+        return _fw_letter(c)
+    return ""
 
 
 def _simplify_not(expr):
-    """化简 not 嵌套：not( not( X ) ) → X。"""
     if expr is None:
         return None
     while expr.startswith("not( not( ") and expr.endswith(" ) )"):
@@ -445,24 +673,22 @@ class Translator:
         self.reg = registry
         self.scenario = scenario
         self.event_id = ""
-        self.todo = []          # (事件, 类别, 词, 上下文)
-        self.var_inject = []    # (事件, T#, 占位符, 类型, 源) —— 文本变量注入表
-        self.ctx = {}           # 代入槽
-        self.segments = []      # [Segment]
+        self.todo = []          # (事件, 类别, 词, 上下文) —— 有主缺口清单
+        self.var_inject = []    # (事件, T#, 占位符, 类型, 源)
+        self.ctx = {}
+        self.segments = []
         self.cur_seg = None
-        self.script_out = []    # 骨架步骤
-        self.when_stack = []    # 条件栈（传播到 lines）
-        # 🔴 必须有序：`主人公分歧:(其他)` 会把已见机位逐个取反拼成 and(...)，
-        # 用 set 会让拼出来的条件顺序随 Python 哈希随机化每次都变（同输入两次重跑产物不一致，
-        # 没法 diff 复核）。改用 dict 保留源码出现顺序 —— 太阁源里分支本来就是有序的。
-        self.seen_heroes = {}      # 已见机位（有序去重；主人公分歧:(其他) 取反用）
-        self.pending_cond = None    # 执行内 調查 → 待用条件（最近一次调查，保留至被覆盖）
-        self.pending_choice = None  # 選擇 → 待用路由标记
+        self.script_out = []
+        self.when_stack = []
+        self.seen_heroes = {}   # 有序去重（主人公分歧:(其他) 取反用，纪律 24）
+        self.pending_cond = None
+        self.pending_choice = None
         self.t_counter = 0
         self.current_hero = "Hero::MainHero"
         self.key_prefix = f"LWN_SCN_{scenario}"
         self.form = "menu_dialogue"
         self.seg_n = 0
+        self.gap_notes = []     # gap_report 的机器可读缺口清单（S3）
 
     # ---------- 工具 ----------
     def todo_mark(self, who, what, ctx_str=""):
@@ -475,6 +701,10 @@ class Translator:
                 seen.add(t)
                 out.append(t)
         return out
+
+    def gap(self, what, ctx_str=""):
+        """停机级缺口登记（S3 gap_report 机器可读）。"""
+        self.gap_notes.append((self.event_id, what, ctx_str))
 
     def new_segment(self):
         self.seg_n += 1
@@ -490,189 +720,158 @@ class Translator:
         return self.cur_seg
 
     def when_now(self):
-        """当前条件栈 → DSL 表达式（无栈 → None）。"""
         if not self.when_stack:
             return None
         if len(self.when_stack) == 1:
             return self.when_stack[0]
         return "and( " + ", ".join(self.when_stack) + " )"
 
+    # ---------- 信源 B 查询（零兜底：查无 = 停机报错） ----------
+    def lookup_entity(self, dom_word, subject):
+        """具名实体 → DSL 引用（按域词查信源 B 实体表）。查无 = RegistryGapError。"""
+        if dom_word not in _ENTITY_TABLES:
+            raise RegistryGapError(
+                f"信源 B 无此实体域: {dom_word}::{subject}——16a 域表/16b 未定义该域，回填 16a 域表或 gen_registry_tables.py")
+        tables = _ENTITY_TABLES[dom_word]
+        for t in tables:
+            v = t.get(subject)
+            if v:
+                return v
+        raise RegistryGapError(
+            f"信源 B 查无实体: {dom_word}::{subject}（源第 {self.event_id} 引）——回填 gen_entity_maps.py"
+            "（CLOSURE 闭包登记，纪律 21）或补齐 07 数据包；禁止脚本兜底")
+
     # ---------- 引用翻译 ----------
     def translate_ref(self, ref_str):
         """`域::主体.属性(参数)` / `域::主体.属性` / `域::主体` → DSL。返回 (dsl, ok)。"""
+        # 🔴 容器统计表达式（調查:(容器記錄數::人物::X.身份)）：函數名 = 枚举值区「容器統計」域侧名
+        #   （container_count，查表驱动），参数 = 具体引用（渲染器句法，非名词）
+        m0 = re.match(r"^(容器記錄數)::(.*)$", ref_str)
+        if m0:
+            ev = self.reg.enum_val("容器統計", m0.group(1))
+            if not ev:
+                raise RegistryGapError(
+                    f"容器統計枚举外: {m0.group(1)}——16a 枚举值区「容器統計」域无此值（回填 ENUM_SETS）")
+            inner = m0.group(2)
+            return f'{ev[0]}({self.translate_ref(inner)[0]})', True
         m = re.match(r"^(.*?)::(.*)$", ref_str)
         if not m:
             raise RegistryGapError(f"无域引用: {ref_str}")
         dom_word, rest = m.group(1), m.group(2)
-        # 主体 = 第一个 .属性 之前；属性部分含调用括号
         if "." in rest:
             subject, attr_part = rest.split(".", 1)
         else:
             subject, attr_part = rest, ""
-        # 属性调用：attr(参数) → 函数（16a CSV 函数区，全语料闭包）
-        attr_word = attr_part
         callm = re.match(r"^(.*?)\((.*)\)$", attr_part) if attr_part else None
         if callm:
             attr_word, call_args = callm.group(1), callm.group(2)
             pred = self.reg.predicate(attr_word)
             if not pred:
-                raise RegistryGapError(f"调用表外: {dom_word}::{subject}.{attr_word}(…)——16a CSV 函数区无此调用")
+                raise RegistryGapError(
+                    f"调用表外: {dom_word}::{subject}.{attr_word}(…)——16a CSV 函数区无此调用（回填 gen_registry_tables.py CALL_MAP）")
             target = self.translate_ref(call_args)
             return f"{pred}({self._call_subject(pred, dom_word, subject)}, {target[0]})", target[1]
         if not attr_part:
-            # 纯 `域::主体`（存在性/裸引用/代入槽）
             return self.translate_subject(dom_word, subject), True
+        attr_word = attr_part
         attr = self.reg.attr(attr_word)
         if not attr:
-            raise RegistryGapError(f"属性表外: {attr_word}——16a CSV 属性区无此属性行")
-        side, typ, verd = attr
+            raise RegistryGapError(
+                f"属性表外: {attr_word}——16a CSV 属性区无此属性行（回填 gen_registry_tables.py PAIR_OVERRIDE）")
+        side, typ, verd, _doms, _sides = attr
         if verd.degraded:
-            raise RegistryGapError(f"属性 T0: {dom_word}.{attr_word}——16b 判 T0（{verd.anchor or '降级'}），不该走到取值路径")
+            raise RegistryGapError(
+                f"属性 T0: {dom_word}.{attr_word}——16b 判 T0（{verd.anchor or '降级'}），不该走到取值路径")
         if side.startswith("exists"):
             return f"exists({self.translate_subject(dom_word, subject)})", True
         subj = self.translate_subject(dom_word, subject)
-        seg = self._pick_side(side, dom_word)
+        seg = self._pick_side(attr, dom_word)
         if seg is None:
-            raise RegistryGapError(f"属性域错配: {dom_word}.{attr_word}——侧名「{side}」无 {dom_word} 域段（回填 gen_registry_tables PAIR_OVERRIDE）")
+            raise RegistryGapError(
+                f"属性域错配: {dom_word}.{attr_word}——侧名「{side}」无 {dom_word} 域段（回填 gen_registry_tables PAIR_OVERRIDE）")
         if seg == "hasMet":
-            return f"hasMet({subj}, Hero::MainHero)", True     # 認識標誌 = 与主人公是否认识
+            return f"hasMet({subj}, Hero::MainHero)", True
         if seg in ("relation", "hasRelation"):
-            return f"relation({subj}, Hero::MainHero)", True   # 親密度/與主人公關係
+            return f"relation({subj}, Hero::MainHero)", True
         if seg == "unknown":
             self.todo_mark("属性-未知", f"{dom_word}.{attr_word}", ref_str)
         if re.match(r'^[A-Z][A-Za-z]*\.', seg):
-            seg = seg.split('.', 1)[1]                          # 剥域前缀：Hero.clan → .clan
+            seg = seg.split('.', 1)[1]
         return f"({subj}.{seg})", True
 
-    # 🔴 v2：多段侧名 'Hero.clan / Settlement.clan' → 按域前缀取段（与 gen_registry_tables.PREFIX_BY_DOMAIN 同步）
-    _DOMAIN_PREFIX = {
-        "人物": "Hero", "城": "Settlement", "據點": "Settlement", "砦": "Settlement", "町": "Settlement", "里": "Settlement",
-        "大名家": "Clan", "勢力": "Faction", "國": "Region", "地方": "Region",
-        "軍團": "Army", "事件": "Event", "狀況": "Time", "事件標誌": "Flag", "變量": "Variable",
-        "主命": "QuestDef", "官職": "title", "官位": "court_rank", "人物類別": "Identity",
-        "忍者衆": "Org", "商家": "Org", "海賊衆": "Org", "卡": "Card", "流派": "Card",
-        "物品": "Item", "交易品": "Item", "工作": "QuestDef", "事件主命": "QuestDef", "主命屬性": "QuestDef",
-        "遊戲通關種類": "ending", "事件發生狀態": "Event", "環境變量": "env", "背景音樂": "bgm",
-        "天氣": "weather", "軍團方針": "intent", "物品類型": "ItemType",
-        "日數計數器": "Time", "儲存號": "Variable", "場面": "Facility",
-        "戰鬥結束種類": "BattleResult", "真偽": "Bool", "身份": "Identity",
-    }
+    def _ref_prefix(self, dom_word):
+        """域词 → DSL 引用前缀（语法层：域表侧名（信源 A）直拼 '::'；特例 Table 见 REF_PREFIX_OVERRIDE）。"""
+        ds = self.reg.domain(dom_word)
+        if ds is None:
+            raise RegistryGapError(f"域表外: {dom_word}——16a CSV 域表无此行（回填 gen_registry_tables.py DOMAIN_MAP）")
+        return REF_PREFIX_OVERRIDE.get(ds, ds + "::")
 
-    def _pick_side(self, side, dom_word):
-        """多段侧名按域前缀取段；全局变量段/函数段与域无关。"""
-        prefix = self._DOMAIN_PREFIX.get(dom_word)
-        for p in side.split(" / "):
-            p = p.strip()
-            if prefix and (p.startswith(prefix + ".") or p == prefix):
-                return p
-        for p in side.split(" / "):
-            p = p.strip()
-            if p.startswith(("Variable::", "Ctx::")) or p in _FUNC_SIDES:
-                return p
+    def _pick_side(self, attr_entry, dom_word):
+        """多段侧名按主体域词取段：属性侧名段前缀（Hero./Settlement./Clan.… = DSL 命名空间，铁律 20）
+        与 SIDE_PREFIX[域词] 候选匹配；候选唯一 → 直接取；多段命中 → 报「域分段歧义」（生成器缺陷）。
+        🔴 2026-08-30 v6：属性行「所属域」列与侧名段**非一一对应**（多域共用侧名，如 存在=6域1段、
+        當主=5域3段）——不能按 index 对齐；Segment = 由 DSL 命名空间集匹配（无硬编码域词→段）。"""
+        side, _t, _v, _doms, sides = attr_entry
+        prefix_set = SIDE_PREFIX.get(dom_word)
+        if not prefix_set:
+            # 域词未列入 SIDE_PREFIX（如 槽/特殊值 域）→ 全局段/单段直接取
+            cands = [p for p in sides if p.startswith(("Variable::", "Ctx::"))
+                     or p in ("exists", "hasMet", "isAllied", "isNeighbor", "allControlled",
+                              "hasRelation", "relation", "unknown", "atWar", "isVisible",
+                              "sameSettlement")]
+            if cands:
+                return cands[0]
+            if len(sides) == 1:
+                return sides[0]
+            return None
+        hits = []
+        for p in sides:
+            head = p.split(".")[0].split("::")[0]
+            if head in prefix_set:
+                hits.append(p)
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) > 1:
+            raise RegistryGapError(
+                f"属性域分段歧义: {side} 对域词「{dom_word}」命中 {len(hits)} 段（{hits}）——"
+                "16a 侧名段/域词映射歧义，回填 gen_registry_tables.py PAIR_OVERRIDE 或收窄 SIDE_PREFIX")
         return None
 
     def _call_subject(self, pred, dom_word, subject):
         """函数主体验证/转换：外交/邻接 → 势力（Faction::Kingdom），全城压制 → 区域（Region）。"""
         if pred in ("isAllied", "isNeighbor", "relation"):
-            return self._kingdom(subject)
+            return self.translate_subject("勢力", subject)
         if pred == "allControlled":
-            return self._region(subject)
+            return self.translate_subject("國", subject)
         return self.translate_subject(dom_word, subject)
 
-    def _kingdom(self, subject):
-        v = KINGDOM_MAP.get(subject)
-        if v:
-            return v
-        self.todo_mark("势力", subject)
-        return f"Faction::Kingdom.🔴待07{subject}"
-
-    def _region(self, subject):
-        v = REGION_MAP.get(subject)
-        if v:
-            return v
-        self.todo_mark("区域", subject)
-        return f"Region::🔴待07{subject}"
-
     def translate_subject(self, dom_word, subject):
-        """域::主体 → DSL 引用。"""
-        if subject.startswith("主人公"):
-            if subject == "主人公":
-                return "Hero::MainHero"
-            if subject == "主人公據點":
-                return "(Hero::MainHero.settlement)"
-            if subject == "主人公當主據點":
-                return "(Hero::MainHero.home)"      # v2：CSV 域值区登记（據點::主人公當主據點）
-        if subject.startswith("發生人物"):
-            return "Ctx::event_hero"
-        if subject.startswith("發生據點"):
-            return "Ctx::event_settlement"
-        if subject.startswith("發生大名家") or subject.startswith("發生勢力"):
-            return f"Ctx::{slot_cname(subject)}"
-        if re.match(r"^(人物|據點|城|大名家|勢力|國|忍者衆|商家|海賊衆|地方|町|砦|里|軍團|流派)[Ａ-Ｅ]$", subject) or re.match(r"^[ａ-ｚ]$", subject):
-            # 🔴 v4.4：条件块代入槽 → 静态展开（cond_ctx 有值）；执行块代入槽 → Ctx 变量
-            if subject in self.cond_ctx:
-                return self.cond_ctx[subject]
-            return f"Ctx::{slot_cname(subject)}"
-        if dom_word == "人物":
-            if subject == "無效":
-                return "null"
-            v = HERO_MAP.get(subject) or AGENT_MAP.get(subject) or FALLBACK_MAP.get(subject)
-            if v:
-                return v
-            self.todo_mark("角色", subject)
-            return f"Hero::{_fallback_ascii(subject)}"   # 确定性英文兜底（report 登记中文名）
-        if dom_word == "大名家":
-            v = CLAN_MAP.get(subject) or FALLBACK_MAP.get(subject)
-            if v:
-                return v
-            self.todo_mark("大名家", subject)
-            return f"Clan::{_fallback_ascii(subject)}"
-        if dom_word in ("城", "據點", "砦", "町", "里"):
-            v = SETTLEMENT_MAP.get(subject) or FALLBACK_MAP.get(subject)
-            if v:
-                return v
-            self.todo_mark("城池", subject)
-            return f"Settlement::{_fallback_ascii(subject)}"
-        if dom_word == "勢力":
-            v = KINGDOM_MAP.get(subject) or FALLBACK_MAP.get(subject)
-            if v:
-                return v
-            self.todo_mark("势力", subject)
-            return f"Faction::Kingdom.{_fallback_ascii(subject)}"
-        if dom_word == "國":
-            v = REGION_MAP.get(subject) or FALLBACK_MAP.get(subject)
-            if v:
-                return v
-            self.todo_mark("区域", subject)
-            return f"Region::{_fallback_ascii(subject)}"
-        if dom_word == "真偽":
-            return "true" if subject == "真" else "false"
-        if dom_word == "事件":
-            return f"(Event::{subject}.done)"
-        if dom_word == "無效":
-            return "null"
-        # 🔴 v2：实体引用域（忍者衆/商家/卡/流派/物品/地方/官位/官職/工作…）→ 名字表 fallback，
-        #   不进 CSV 域值区（具名实体是归一表的事，2026-08-27 用户裁定）
-        if dom_word in _ENTITY_FALLBACK:
-            if _ENTITY_FALLBACK[dom_word] == "Org" and subject in ORG_MAP:
-                return ORG_MAP[subject]              # 织丰表里以「势力」出现过的组织，ID 已定
-            self.todo_mark("实体", f"{dom_word}::{subject}")
-            return f"{_ENTITY_FALLBACK[dom_word]}::{_fallback_ascii(subject)}"
-        # 🔴 v2：词条域（身份/狀況/人物類別…）→ 查 16a CSV 域值区（全语料闭包；查不到 = 修表重跑）
+        """域::主体 → DSL 引用。v6 = 纯查表（域值区 → 信源 B → 停机），零兜底。"""
+        # 1) 域值区（槽/主人公/發生X/無效/真偽 etc.——16a 认知完整）
         dv = self.reg.domain_val(dom_word, subject)
         if dv:
             side, typ, _verd = dv
             if side == "null":
                 return "null"
             if "::" in side:
-                return side                       # 完整引用（Time::year / Variable::x / Ctx::y / Org::z / Flag::x…）
-            return f'"{side}"'                    # 纯枚举 token 字面量（daimyo / city_lord / general…）
-        raise RegistryGapError(f"域值表外: {dom_word}::{subject}——16a CSV 域值区无此 (域,值) 行")
+                return side
+            return f'"{side}"'
+        # 2) 条件块内代入槽 → 静态展开（条件求值无执行流，08 纪律静态直译）
+        if subject in self.cond_ctx:
+            return self.cond_ctx[subject]
+        # 2.5) 事件域 = DSL 语法引用（Event::<id>.done = 事件链完成状态，01 三层纪律；语法层非名词）
+        if dom_word == "事件":
+            return f"(Event::{subject}.done)"
+        # 3) 具名实体 → 信源 B
+        if dom_word in _ENTITY_TABLES:
+            return self.lookup_entity(dom_word, subject)
+        # 4) 域值区无/实体表无 = 表外（生成器缺陷）
+        raise RegistryGapError(
+            f"域值表外: {dom_word}::{subject}——16a CSV 域值区无此 (域,值) 行（回填 gen_registry_tables.py）")
 
     # ---------- 条件翻译 ----------
     def translate_condition(self, cond_block):
         exprs = self._cond_items(cond_block.children)
-        # 源重复拷贝去重（顺序敏感保留首个）
         seen, dedup = set(), []
         for e in exprs:
             if e not in seen:
@@ -694,14 +893,12 @@ class Translator:
                         joined = (f"or( {', '.join(subs)} )" if item.bare_cmd == "ＯＲ調查"
                                   else f"and( {', '.join(subs)} )")
                         out.append(joined)
-                        # 嵌套块整体登记对照（源行 = 块首行）
                         self.cond_pairs.append((item.raw.strip(), joined))
                 else:
                     self.todo_mark("条件块", item.name)
             elif isinstance(item, Line):
                 if item.cmd.startswith("代入"):
-                    # 🔴 v4.4：条件块内代入 = 静态展开（条件求值无执行流，08 纪律静态直译；
-                    #   执行块内代入才走 ctx_set 变量——见 translate_exec_line）
+                    # 条件块内代入 = 静态展开（槽名 = 命令区参数列 slot= 预设；值 = 实参翻译）
                     params = item.params()
                     if params:
                         self.cond_ctx[item.cmd[2:].strip()] = self._slot_value(params[0])
@@ -709,7 +906,7 @@ class Translator:
                 e = self.translate_cond_line(item)
                 if e:
                     out.append(e)
-                    self.cond_pairs.append((item.text.strip(), e))   # 🔴 原文 → DSL 逐条对照
+                    self.cond_pairs.append((item.text.strip(), e))
         return out
 
     def translate_cond_line(self, line):
@@ -725,8 +922,6 @@ class Translator:
             left, op, right = m.group(1).strip(), m.group(2), m.group(3).strip()
             left = left[1:-1].strip() if left.startswith("(") and left.endswith(")") else left
             right = right[1:-1].strip() if right.startswith("(") and right.endswith(")") else right
-            # 死亡標誌 特例：==1/死亡/已發生 → not(alive)；==0/生存 → alive
-            # 🔴 2026-08-27 语义词补全：比较右值 = 0/1/死亡/生存/已發生 全拼写（死亡標誌 = 死亡轴，alive 反义）
             lm = re.match(r"^(.*?::.+?)\.死亡標誌$", left)
             if lm:
                 ref = self.translate_ref(lm.group(1))[0]
@@ -739,25 +934,21 @@ class Translator:
         return self.translate_ref(e)[0]
 
     def _canonical_right(self, left, right):
-        """🔴 布尔标誌族规范化（2026-08-27 用户裁定，16 §四 值类型一致性纪律）：
-        左值 = 布尔型引用（Flag::/Event::/标誌属性）时，右值数字拼写 0/1 与语义词拼写
-        （成立/不成立/已發生/未發生/真/偽/属性特有词…）一律 → true/false；其余按原逻辑译。"""
+        """布尔标誌族规范化：右值数字/语义词 → true/false。值映射 = 16a「语义」列 TK5 拼写清单（读表）。"""
         if not self._is_bool_ref(left):
             return self.translate_value(right)
         if right in ("1", "成立", "已發生", "真"):
             return "true"
         if right in ("0", "不成立", "未發生", "偽"):
             return "false"
-        m = re.match(r"^[一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6}::[^.（()]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$", left)
+        m = re.match(r"^([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ]{1,6})::[^.（()]+\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$", left)
         if m:
-            words = BOOL_MARKER_WORDS.get(m.group(1))
-            if words and right in words:
-                return "true" if words[right] else "false"
+            val = self.reg.bool_spelling(m.group(2), right)
+            if val is not None:
+                return "true" if val else "false"
         return self.translate_value(right)
 
     def _is_bool_ref(self, left):
-        """左值是否为布尔型引用：事件標誌/事件 域固定布尔（Flag:: / Event::.done）；
-        其余按 16a CSV 值类型列判定（标誌族 → 布尔）。"""
         l = left.strip()
         while l.startswith("(") and l.endswith(")"):
             l = l[1:-1].strip()
@@ -776,26 +967,122 @@ class Translator:
         return False
 
     def translate_value(self, v):
+        """纯值（数字/真偽/枚举 token/名字）→ DSL 值。v6 = 查表，零兜底。"""
         if re.match(r"^-?\d+$", v):
             return v
         if v.startswith("真偽::"):
             return "true" if v.endswith("真") else "false"
         if "::" in v:
             return self.translate_ref(v)[0]
-        if re.match(r"^(人物|據點|城|大名家|勢力|國|忍者衆|商家|海賊衆|地方|町|砦|里|軍團|流派)[Ａ-Ｅ]$", v) or re.match(r"^[ａ-ｚ]$", v):
-            return f"Ctx::{slot_cname(v)}"              # 代入槽名（人物Ａ → Ctx::hero_A）
-        # 🔴 v2：裸值 → 名字表（容器排除的人物/城名）→ 域值 token 反查 → 确定性兜底
-        for table in (HERO_MAP, CLAN_MAP, SETTLEMENT_MAP, REGION_MAP, AGENT_MAP, FALLBACK_MAP):
-            r = table.get(v)
-            if r:
-                return r
+        # 域值区全表扫描（按值命中：事件用１軍團 → 军團::事件用１軍團 = Army::event_1——裸名值驱动）
+        hits = []
+        for key, (side, _t, _v) in self.reg.domain_vals.items():
+            if "::" in key:
+                dom, val = key.split("::", 1)
+                if val == v:
+                    hits.append((dom, side))
+        if hits:
+            sides = set(s for _d, s in hits)
+            if len(sides) == 1:
+                s = sides.pop()
+                return s if "::" in s else f'"{s}"'
+            raise RegistryGapError(
+                f"域值区值歧义: {v} 命中 {len(sides)} 个侧名（{sorted(sides)[:4]}）——回填/修 16a 域值区")
+        # 域值区 bare token 反查（武將→general / 城主→city_lord …）
         bare = self.reg.bare_vals.get(v)
         if bare:
-            return f'"{bare}"'                     # 武將 → "general"、城主 → "city_lord"
-        self.todo_mark("值", v)
-        return f"Hero::{_fallback_ascii(v)}"       # 有主占位：确定性兜底 + report 登记（非表外词条）
+            return f'"{bare}"'
+        # 枚举值区全扫描（值空间未标注时兜底；不猜不哈希，查无 = 由调用方报错）
+        ev = self.enum_any(v)
+        if ev is not None:
+            return self._enum_side(ev)
+        # 具名实体/模板 NPC（信源 B：先 Hero 后 Agent——铁律 8 双类）
+        if v in HERO_MAP:
+            return HERO_MAP[v]
+        if v in AGENT_MAP:
+            return AGENT_MAP[v]
+        if v in KINGDOM_MAP:
+            return KINGDOM_MAP[v]
+        if v in SETTLEMENT_MAP:
+            return SETTLEMENT_MAP[v]
+        if v in ORG_MAP:
+            return ORG_MAP[v]
+        if v in REGION_MAP:
+            return REGION_MAP[v]
+        raise RegistryGapError(
+            f"值表外: {v}——16a 域值区/枚举值区与信源 B 均无此值（回填映射表或 gen_entity_maps.py CLOSURE）")
 
-    # ---------- 执行翻译 ----------
+    # ---------- 参数值翻译（值类型驱动分流，§15.1.5） ----------
+    def _slot_value(self, v):
+        """代入槽值：含域 → 完整引用翻译；纯值 → translate_value（同上件）。"""
+        if "::" in v:
+            return self.translate_ref(v)[0]
+        return self.translate_value(v)
+
+    def _attr_driven_value(self, attr_word, v):
+        """容器 pos2=值（取值空间由属性参决定）：按属性行「值类型」列分类翻译。"""
+        at = self.reg.attr(attr_word)
+        if at is None:
+            # 排序特殊鍵 等非属性名 → 枚举值区查
+            ev = self.enum_any(v)
+            if ev is not None:
+                return ev
+            raise RegistryGapError(
+                f"属性表外: {attr_word}（容器筛选属性名）——16a 属性区无此行（回填 PAIR_OVERRIDE）")
+        _side, typ, _verd, _doms, _sides = at
+        if typ == "布尔":
+            val = self.reg.bool_spelling(attr_word, v)
+            if val is None:
+                # 布尔拼写表没收录的写法（0/1/真/偽 已由 _canonical_right 层拦截失败？这里兜规范）
+                if v in ("1", "真", "成立", "已出現", "已發生", "生存", "出撃中", "持有中"):
+                    return "true"
+                if v in ("0", "偽", "不成立", "未出現", "未發生", "死亡", "平常", "在家", "健康", "沒持有"):
+                    return "false"
+                raise RegistryGapError(f"布尔拼写表外: {attr_word}::{v}——16a 语义列 TK5 拼写未收录（回填语义列）")
+            return "true" if val else "false"
+        if typ.startswith("对象:"):
+            dom = {"对象:人物": "人物", "对象:据点": "據點", "对象:家族": "大名家",
+                   "对象:王国": "勢力", "对象:区域": "國", "对象:组织": "忍者衆",
+                   "对象:物品": "物品", "对象:卡": "卡", "对象:部队": "大名家"}.get(typ)
+            if "::" in v:
+                return self.translate_ref(v)[0]
+            if dom in _ENTITY_TABLES:
+                return self.lookup_entity(dom, v)
+            raise RegistryGapError(f"对象值域缺失: {attr_word} 值 {v}（类型 {typ}）——回填对象→域映射")
+        m = re.match(r"^枚举:(.+)$", typ)
+        if m and "（" not in typ:
+            space = m.group(1)
+            ev = self.reg.enum_val(space, v)
+            if not ev and space in ENUM_SPACE_ALIAS:
+                ev = self.reg.enum_val(ENUM_SPACE_ALIAS[space], v)
+            if ev:
+                return self._enum_side(ev)
+            # 同空间兼有域值区（人物類別=枚举值区 3 + 域值区 4——拆两区是 16a 词源分区，非缺）
+            dv = self.reg.domain_val(space, v)
+            if dv:
+                return dv[0] if "::" in dv[0] else f'"{dv[0]}"'
+            raise RegistryGapError(f"枚举值表外: {space}::{v}（属性 {attr_word}，16a 枚举值区「{space}」域无此行）")
+        # 数字/其他 → 原样或数字
+        if re.match(r"^-?\d+$", v):
+            return v
+        # 属性驱动值 token（状态值/身份/槽（人物Ａ/ａ）等）→ 值扫描（域值区/枚举值区/槽引用/实体表）
+        return self.translate_value(v)
+
+    def _enum_side(self, ev):
+        """枚举值区条目 → 产物值：资源类侧名原样（Bgm::tk5_ue10d0b）；纯 token 加引号（first）。"""
+        side, _typ, _verd = ev
+        if "::" in side:
+            return side
+        return f'"{side}"'
+
+    def enum_any(self, v):
+        """裸 token → 枚举值区/域值区扫描（值空间未标注时兜底；不猜不哈希，查无 = None 由调用方报错）。"""
+        for (space, word), ev in self.reg.enum_vals.items():
+            if word == v:
+                return ev
+        return None
+
+    # ---------- 执行翻译（v6 通用交换机） ----------
     def translate_execution(self, items):
         i = 0
         while i < len(items):
@@ -821,32 +1108,23 @@ class Translator:
             self.translate_exec_line(item)
 
     def _translate_branch(self, block, paired):
-        """分歧:(N) 块（可配对 分歧:(M) 成 if/else）。
-        🔴 pending_cond 不在此清空：TK5 調查结果是「最近一次调查」，
-        后续多个 分歧 都引用它，直到下一个 調查/選擇 覆盖（EFF0C300_159 实测：
-        95804 調查鳴海 被 主流程 分歧:(0) 与 尾部 守城 分歧:(1) 共用）。"""
         val = block.args[0] if block.args else ""
         cond = self._resolve_branch_cond(val)
         if paired:
             pv = paired.args[0] if paired.args else ""
             if val == "1" and pv == "0":
-                # 顺序 [1块, 0块]：if (cond) then 1块 else 0块
                 self._push_if(cond, block, paired)
                 return
             if val == "0" and pv == "1":
-                # 顺序 [0块, 1块]：0块 = 条件假（cond 已取反）、1块 = 条件真
-                # → if (原条件) then 1块 else 0块；原条件 = not(cond)
                 orig = _simplify_not(f"not( {cond} )" if cond else None)
                 self._push_if(orig, paired, block)
                 return
-            # 无法互补配对 → 各自独立
             self._push_if(cond, block)
             self._push_if(self._resolve_branch_cond(pv), paired)
             return
         self._push_if(cond, block)
 
     def _is_pure_perform(self, block):
-        """块内是否只有表现层内容（对话/自语/旁白/选择/调查门控）→ 降级为 lines when 门控。"""
         for item in block.children:
             if isinstance(item, Block):
                 if item.bare_cmd in ("分歧", "場合分歧", "主人公分歧", "主人公別"):
@@ -860,7 +1138,6 @@ class Translator:
         return True
 
     def _push_if(self, cond, block, else_block=None, hero_override=None):
-        """分支块翻译：纯表现 → when 传播给 lines；含机制 → 骨架 if 步骤。"""
         saved_hero = self.current_hero
         if hero_override:
             self.current_hero = hero_override
@@ -880,230 +1157,440 @@ class Translator:
             self._push_if(_simplify_not(f"not( {cond} )" if usable else None), else_block)
         self.current_hero = saved_hero
 
+    # ---------- S2 核心：单行通用交换机 ----------
     def translate_exec_line(self, line):
         cmd = line.cmd
-        # ---- 解析碎片（未知NN:(2B 00 00 00) 原始字节命令，08b 踩坑 14）----
         if cmd.startswith("未知"):
             self.script_out.append({"step": "note", "note": "🔴 未知命令（解析碎片）→ 忽略", "src": line.text})
             return
-        # ---- 表现层 ----
-        if cmd in ("對話", "自語", "旁白"):
-            seg = self.ensure_segment()
-            if cmd == "對話":
-                # 🔴 参数全语义化：param1 = speaker（说话人）、param2 = listener（听话人）
-                params = line.params()
-                speaker, listener = "Hero::MainHero", None
-                if params:
-                    parts = [x.strip() for x in params[0].split(",")]
-                    if parts and parts[0]:
-                        speaker = self.speaker_of(parts[0])
-                    if len(parts) > 1 and parts[1] and parts[1] != "無效":
-                        listener = self.speaker_of(parts[1])
-                self.add_line(speaker, line.texts[0] if line.texts else "", line.raw,
-                              listener=listener)
-            elif cmd == "自語":
-                self.add_line(self.current_hero, line.texts[0] if line.texts else "", line.raw, narrator=True)
-            else:
-                self.add_line(None, line.texts[0] if line.texts else "", line.raw, narrator=True)
+        # ---- 查表（信源 A：命令区优先，语法区次之）----
+        cmd_info = self.reg.command(cmd)
+        synt_info = None
+        if cmd_info is None:
+            synt_info = self.reg.syntax_word(cmd)
+        if cmd_info:
+            side, verd = cmd_info
+        elif synt_info:
+            side, _pspec, verd = synt_info
+        elif cmd in ("他歧",) or not cmd:
             return
-        if cmd in ("選擇", "對話選擇", "自語選擇"):
-            seg = self.ensure_segment()
-            opts = [{"textKey": f"{self.key_prefix}_{self.event_id}_{self.t_counter}_ch{i}", "text": t}
-                    for i, t in enumerate(line.texts)]
-            for i, t in enumerate(line.texts):
-                self.i18n_key(f"{self.event_id}_{self.t_counter}_ch{i}", t)
-            seg.lines.append({"cmd": "choice", "options": opts})   # 🔴 cmd 指令名（05 权威）
-            self.pending_choice = len(line.texts)
+        else:
+            raise RegistryGapError(
+                f"命令表外: {cmd}——16a CSV 命令区/语法区均无此命令（回填 gen_registry_tables.py CMD_MAP/SYNTAX_CMDS）")
+
+        # ---- 台词管线（CSV 侧名命中台词集合；输出 05 形态词）----
+        params = [x.strip() for p in line.params() for x in p.split(",")]
+        if side in SAY_SIDES:
+            self._say_line(line, side)
             return
-        # ---- 流程控制 ----
-        if cmd == "調查":
+        if side in CHOICE_SIDES or side == "choice":
+            self._choice_line(line, side)
+            return
+        if side in CONTAINER_SIDES:
+            self._container_line(line, side)
+            return
+        # ---- 调查（语法区 side=condition）：待用条件（pending_cond，纪律 15 保留至被覆盖）----
+        if side == "condition":
             self.pending_cond = self.translate_cond_line(line)
             return
-        if cmd.startswith("代入"):
-            params = line.params()
-            if params:
-                slot = slot_cname(cmd[2:].strip())   # 代入人物Ｄ:(旅人) → Ctx 槽 hero_D
-                # 🔴 v4.3：变量语义保留——生成 ctx_set 动作（16 §一 Ctx 三档），不做静态展开
-                self.script_out.append({"step": "effect", "action": "ctx_set",
-                                        "slot": slot, "value": self._slot_value(params[0]),
-                                        "src": line.text})
+        # ---- 块类（语法结构：词条名查表登记，输出 = 01 步骤词）----
+        if side in ("loop", "module_exit", "module_begin", "script"):
+            self.script_out.append({"step": side, "src": line.text})   # loop 块由块级处理；行级 module_exit = 循环出口
+            return
+        # ---- 代入管线（assign_ctx / assign_var：槽名 = 参数列 slot= 预设（CSV 权威，纪律 4 v6 注）；
+        #      值 = 实参翻译（域引用/槽值/纯值））----
+        if side in ("assign_ctx", "assign_var"):
+            pslots_a = self.reg.params("命令" if cmd_info else "语法", cmd)
+            slot = next((ps.field for ps in (pslots_a or []) if ps.name == "slot"), None)
+            if not slot:
+                raise RegistryGapError(
+                    f"代入槽表外: {cmd}——16a 命令区参数列无 slot= 预设（回填 gen_registry_tables.py assign_side）")
+            eff = {"step": "effect", "action": side, "slot": slot}
+            if params and params[0]:
+                eff["value"] = self._slot_value(params[0])
             else:
-                self.todo_mark("代入", line.text)
+                raise RegistryGapError(f"代入无实参: {line.text}")
+            eff["src"] = line.text
+            self._finalize_effect(eff, verd)
+            self.script_out.append(eff)
             return
-        if cmd in ("ＢＧＭ變更", "ＳＥ開始", "ＳＥ停止", "ＳＥ循環", "圖片表示", "圖片消去", "背景變更", "背景恢復", "下個場面", "畫面效果"):
-            self.script_out.append({"step": "note", "note": f"🔴 {cmd} 表现指令 → 05 承接", "src": line.text})
-            return
-        if cmd == "進入設施":
-            self.cur_seg = None  # 切段
-            params = line.params()
-            self.script_out.append({"step": "scene_enter", "facility": params[0] if params else "🔴待07"})
-            return
-        if cmd == "離開設施":
-            self.cur_seg = None
-            self.script_out.append({"step": "scene_exit"})
-            return
-        if cmd == "更新":
-            params = line.params()
-            note = "🔴 机制行 更新 → 承接系统"
-            if params and len(params) >= 2:
-                target, value = params[0].strip(), params[1].strip()
-                if self._is_bool_ref(target):
-                    # 🔴 布尔标誌族：注明规范化承接值（成立/1 → true、不成立/0 → false，2026-08-27 用户裁定）
-                    note = f"🔴 机制行 更新 → 承接系统（{self._canonical_right(target, value)}）"
-            self.script_out.append({"step": "note", "note": note, "src": line.text})
-            return
-        if cmd == "停止時間":
-            self.script_out.append({"step": "effect", "action": "pause_time"})
-            return
-        if cmd == "遊戲中斷":
-            self.script_out.append({"step": "note", "note": "🔴 剧本结局 → 06/14 承接", "src": line.text})
-            return
-        if cmd == "脫出模塊":
-            # 循环出口 = break（loop body 内语义，禁止降级丢弃）
-            self.script_out.append({"step": "break", "src": line.text})
-            return
-        if cmd in ("循環", "模塊開始", "腳本"):
-            self.script_out.append({"step": "note", "note": f"🔴 {cmd} 块 → translate_exec_block 处理（loop 完整语义）", "src": line.text})
-            return
-        if cmd == "他歧" or not cmd:
-            return
-        if cmd.startswith("容器"):
-            # 🔴 v4.7 用户裁定：容器命令完整语义化（CSV 命令区已注册 → pick 组；参数按序映射字段）
-            #   容器設定/篩選/排除/排序 = 构建候选集合；容器選擇 = 取元素 → Ctx 槽；容器清理 = 移除
-            params = [x.strip() for p in line.params() for x in p.split(",")]
-            op = {
-                "容器設定": "container_set", "容器篩選": "container_filter",
-                "容器排除": "container_exclude", "容器排序": "container_sort",
-                "容器選擇": "container_pick", "容器清理": "container_clear",
-                "容器檢索": "container_query", "容器存取": "container_access",
-            }.get(cmd)
-            if not op:
-                self.todo_mark("命令", cmd, line.text)
-                return
-            step = {"step": op, "src": line.text}
-            if cmd in ("容器設定", "容器篩選", "容器排除"):
-                if len(params) >= 3:
-                    step["domain"], step["attr"], step["value"] = params[0], params[1], self._attr_value(params[1], params[2])
-                elif len(params) >= 2:
-                    step["domain"], step["attr"] = params[0], params[1]
-                elif params:
-                    step["domain"] = params[0]
-            elif cmd == "容器排序":
-                if len(params) >= 3:
-                    step["domain"], step["attr"], step["order"] = params[0], params[1], params[2]
-                elif len(params) >= 2:
-                    step["domain"], step["attr"] = params[0], params[1]
-            elif cmd == "容器選擇":
-                if params:
-                    step["slot"] = slot_cname(params[0])   # 容器選擇:(人物Ｅ,先頭) → 槽 hero_E
-                    if len(params) >= 2:
-                        step["mode"] = params[1]
-            elif cmd == "容器清理":
-                if len(params) >= 2:
-                    step["mode"], step["count"] = params[0], params[1]   # 容器清理:(消去,1) = 模式,数量
-                elif params:
-                    step["count"] = params[0]
-            self.script_out.append(step)
-            return
-        # ---- 世界结算 ----
-        if self._world_effect(cmd, line):
-            return
-        # 🔴 v2：命令区兜底 → CSV 命令区承接注（05 消息控制 等）；CSV 也无 = 生成器缺陷
-        hit = self.reg.command(cmd)
-        if hit:
-            side, verd = hit
-            step = {"step": "note", "note": f"🔴 {side} 承接（命令:{cmd}｜{verd.tag()}）",
-                    "tier": verd.tier, "carrier": verd.carrier, "src": line.text}
-            if verd.anchor and verd.anchor != "—":
-                step["anchor"] = verd.anchor
-            if verd.savekey and verd.savekey != "无":
-                step["savekey"] = verd.savekey
-            if verd.reserved:
-                step["reserved"] = True          # 运行时空执行 + [Scenario][TODO]（16b §3.3）
-            self.script_out.append(step)
-            return
-        raise RegistryGapError(f"命令表外: {cmd}——16a CSV 命令区无此命令")
-
-    def _slot_value(self, v):
-        """代入槽值：含域 → 完整引用翻译；纯值（数字/真偽/枚举）→ translate_value。"""
-        if "::" in v:
-            return self.translate_ref(v)[0]
-        return self.translate_value(v)
-
-    def _attr_value(self, attr, v):
-        """容器筛选/排除的 属性值 翻译：按属性语义推断域（所屬據點→据点、所屬大名家→家族…）。"""
-        if "::" in v:
-            return self.translate_ref(v)[0]
-        if attr in ("所屬據點", "所屬城", "據點"):
-            return self.translate_subject("據點", v)
-        if attr in ("所屬大名家", "大名家"):
-            return self.translate_subject("大名家", v)
-        if attr in ("所屬上司", "人物"):
-            return self.translate_subject("人物", v)
-        return self._slot_value(v)
-
-    # 世界结算命令：参数语义来自 16a CSV「参数」列（v4：参数翻译为 effect 字段，禁止丢参数）
-    _WORLD_EFFECTS = {
-        "武將死亡": ("kill_hero", ["actor"]),
-        "勢力滅亡": ("destroy_faction", ["faction"]),
-        "城主變更": ("set_owner", ["actor", "settlement"]),   # TK5 序：(新城主, 城)
-        "城主任命": ("set_owner", ["actor", "settlement"]),   # TK5 序：(新城主, 城)
-        "城主解任": ("set_owner", ["settlement"]),            # TK5 序：(城)
-        "家督讓位": ("change_clan_leader", ["actor", "clan"]),
-        "改名": ("rename", ["actor", "name"]),
-        "據點改名": ("rename", ["actor", "name"]),
-        "物品改名": ("rename", ["actor", "name"]),
-        "所持金變更": ("gold_change", ["hero", "amount"]),
-        "人物解雇": ("fire_hero", ["actor"]),
-        "人物登用": ("spawn_hero", ["actor", "status", "clan"]),   # 🔴 CSV 参数列原为 (actor, clan) 漏 status——源实为 (人物Ｅ,直臣,德川家康) 三参数（2026-08-27 用户裁定：检查 CSV 是否漏了 → 漏了，回填）
-        "居城變更": ("🔴 06 本城变更", []),
-        "強制移動": ("teleport", ["party", "pos"]),
-        "獨立": ("independence", ["clan"]),
-        "軍團指令": ("🔴 02 lock_party/army_gather", ["leader", "target", "behavior"]),
-        "軍團編成": ("🔴 02 army_gather", ["leader", "target", "behavior"]),
-        "軍團編成最強": ("🔴 02 army_gather", ["leader", "target", "behavior"]),
-        "個人戰鬥": ("🔴 03 battle", ["presetId"]),
-        "主命作成": ("create_order", ["orderId"]),
-        "宣戰": ("declare_war", ["a", "b"]),
-        "停戰": ("make_peace", ["a", "b"]),
-    }
-
-    # 参数名 → 域（TK5 结算命令参数不带域前缀：武將死亡:(今川義元)）
-    _PARAM_DOMAIN = {
-        "actor": "人物", "hero": "人物", "party": "人物",
-        "faction": "大名家", "clan": "大名家",
-        "settlement": "據點", "pos": "據點",
-        "a": "大名家", "b": "大名家",
-    }
-
-    def _world_effect(self, cmd, line):
-        hit = self._WORLD_EFFECTS.get(cmd)
-        if not hit:
-            return None
-        action, param_names = hit
-        # 参数按逗号切分（TK5 `(A,B)` 多参数；平衡括号返回整个括号内容）
+        # ---- 通用（载体分派，§15.2 S2⑤）----
         params = [x.strip() for p in line.params() for x in p.split(",")]
-        eff = {"step": "effect", "action": action}
-        # 参数位 → 字段（CSV 参数列语义；引用参数翻译成 DSL 引用，数值参数保留）
-        for i, p in enumerate(params):
-            if i >= len(param_names):
-                self.todo_mark("参数溢出", f"{cmd} 第{i+1}参", line.text)
-                break
-            name = param_names[i]
-            if "::" in p:
-                eff[name] = self.translate_ref(p)[0]
-            elif name in self._PARAM_DOMAIN:
-                eff[name] = self.translate_subject(self._PARAM_DOMAIN[name], p)
-            else:
-                eff[name] = p
-        eff["src"] = line.text
+        pslots = self.reg.params("命令" if cmd_info else "语法", cmd)
+        if side == "update":
+            # 🔴 用户 2026-08-30 裁定：更新 = 真步骤（16a 权威 update，T1 引擎直取）——不再 note
+            # 值翻译 = 按目标属性的取值空间（attr_driven；如 義理=枚举:義理 → 枚举值区「狀態值」）
+            tgt = params[0] if params else None
+            val = params[1] if len(params) > 1 else None
+            eff = {"step": "effect", "action": "update"}
+            attr_word = None
+            if tgt:
+                eff["target"] = self._slot_value(tgt)
+                am = re.match(r"^.*?::.*?\.([一-鿿぀-ヿA-Za-zＡ-Ｚａ-ｚ0-9０-９]+)$", tgt)
+                if am:
+                    attr_word = am.group(1)
+            if val is not None:
+                eff["value"] = (self._attr_driven_value(attr_word, val) if attr_word
+                                else self._slot_value(val))
+            eff["src"] = line.text
+            self._finalize_effect(eff, verd)
+            self.script_out.append(eff)
+            return
+        if side == "game_end":
+            eff = {"step": "effect", "action": "game_end"}
+            if len(params) >= 1:
+                eff["value"] = self.translate_value(params[0])
+            eff["src"] = line.text
+            self._finalize_effect(eff, verd)
+            self.script_out.append(eff)
+            return
+        if side == "pause_time":
+            self.script_out.append({"step": "effect", "action": "pause_time", "src": line.text})
+            return
+        if side in ("facility_enter", "facility_exit"):
+            # 场入/场出：切演出段 + 骨架 scene_enter / scene_exit（01 步骤词；05 侧名 = 源词登记名）
+            self.cur_seg = None
+            eff = {"step": "scene_enter" if side == "facility_enter" else "scene_exit"}
+            if side == "facility_enter" and params:
+                # sceneId 参数（裸参数名）——设施对象 → Facility:: 引用或据点引用
+                eff["facility"] = self._translate_scene_id(params[0])
+            eff["src"] = line.text
+            self.script_out.append(eff)
+            return
+        # 通用命令：按 载体列 分派（05 演出 → step=侧名；其他 → effect+action=侧名）
+        if verd.degraded:
+            note = {"step": "note",
+                    "note": f"🔴 {side} 降级（T0，16b 裁定 {verd.anchor or '注释保留'}）",
+                    "tier": verd.tier, "carrier": verd.carrier, "src": line.text}
+            self.script_out.append(note)
+            return
+        eff = {"step": side if verd.carrier == "05演出" else "effect",
+               "src": line.text}
+        if verd.carrier != "05演出":
+            eff["action"] = side
+            eff["tier"] = verd.tier
+            eff["carrier"] = verd.carrier
+        # 参数 → 字段（值类型/参数列驱动）
+        self._translate_params(eff, cmd, params, pslots, line)
+        if verd.reserved:
+            eff["reserved"] = True
+        if verd.savekey and verd.savekey != "无":
+            eff["savekey"] = verd.savekey
         self.script_out.append(eff)
-        return True
 
+    def _finalize_effect(self, eff, verd):
+        if verd.reserved:
+            eff["reserved"] = True
+        if verd.savekey and verd.savekey != "无":
+            eff["savekey"] = verd.savekey
+
+    def _say_line(self, line, side):
+        """台词管线：say / say_choice / say_as / monologue / monologue_choice / narrate。"""
+        seg = self.ensure_segment()
+        if side == "narrate":
+            self.add_line(None, line.texts[0] if line.texts else "", line.raw, narrator=True)
+            return
+        if side == "monologue":
+            self.add_line(self.current_hero, line.texts[0] if line.texts else "", line.raw, narrator=True)
+            return
+        if side in ("say_choice", "monologue_choice"):
+            # 选择变体：选项文本管线（textKey + i18n）
+            self._choice_line(line, side)
+            return
+        # say / say_as：param1=speaker、param2=listener（纪律 3：两个参数都落字段）
+        params = line.params()
+        speaker, listener = "Hero::MainHero", None
+        if params:
+            parts = [x.strip() for x in params[0].split(",")]
+            if parts and parts[0]:
+                speaker = self.speaker_of(parts[0])
+            if len(parts) > 1 and parts[1] and parts[1] != "無效":
+                listener = self.speaker_of(parts[1])
+        self.add_line(speaker, line.texts[0] if line.texts else "", line.raw, listener=listener)
+
+    def _choice_line(self, line, side):
+        """选择管线：选项节点（textKey + i18n）；选择路由标记。
+        🔴 可跳过标记（say_selectable/narrate_selectable，语法区）= 待定小决策（§15.1.5 表）：
+        本版记录为 note + 待注册（运行时 skip 标记语义随执行层落地时定）。"""
+        if side in ("say_selectable", "narrate_selectable"):
+            self.todo_mark("可跳过标记", side, line.text)
+            self.script_out.append({"step": "note",
+                                    "note": f"🔴 {side} 可跳过标记 → 台词管线（运行时 skip 待定）",
+                                    "src": line.text})
+            return
+        seg = self.ensure_segment()
+        opts = [{"textKey": f"{self.key_prefix}_{self.event_id}_{self.t_counter}_ch{i}", "text": t}
+                for i, t in enumerate(line.texts)]
+        for i, t in enumerate(line.texts):
+            self.i18n_key(f"{self.event_id}_{self.t_counter}_ch{i}", t)
+        seg.lines.append({"cmd": "choice", "options": opts})
+        self.pending_choice = len(line.texts)
+
+    def _container_line(self, line, side):
+        """容器管线（CSV 参数列驱动：pos0=域名 → domain、pos1=属性名 → attr、值按属性取值空间）。"""
+        params = [x.strip() for p in line.params() for x in p.split(",")]
+        step = {"step": side}
+        cmd = line.cmd
+        if side == "container_pick":
+            # pos1=容器位置 枚举；槽 = 命令名上的域（容器選擇:(人物Ｅ,先頭) → 槽 hero_e）
+            if params:
+                # 槽名 = 命令名的第二个域词：容器選擇:(指定槽,位置)
+                slot_body = cmd
+                if len(params) >= 1:
+                    step["slot"] = self._slot_field_name(params[0])
+                if len(params) >= 2:
+                    ev = self.reg.enum_val("容器位置", params[1])
+                    if not ev:
+                        raise RegistryGapError(
+                            f"容器位置枚举外: {params[1]}——16a 枚举值区「容器位置」域无此值（回填 ENUM_SETS）")
+                    step["mode"] = self._enum_side(ev)
+            else:
+                step["slot"] = self._slot_field_name(cmd)
+            step["src"] = line.text
+            self.script_out.append(step)
+            return
+        if side == "container_sort":
+            if len(params) >= 3 and params[0]:
+                step["domain"] = self._domain_field_value(params[0])
+            if len(params) >= 2 and params[1]:
+                step["key"] = self._attr_or_enum(params[1], "排序特殊鍵")
+            if len(params) >= 3 and params[2]:
+                ev = self.reg.enum_val("排序方向", params[2])
+                if ev:
+                    step["order"] = self._enum_side(ev)
+                else:
+                    raise RegistryGapError(f"排序方向枚举外: {params[2]}——16a 枚举值区「排序方向」域无此值")
+            step["src"] = line.text
+            self.script_out.append(step)
+            return
+        if side == "container_clear":
+            if params and params[0]:
+                ev = self.reg.enum_val("容器清理", params[0])
+                if ev:
+                    step["mode"] = self._enum_side(ev)
+            if len(params) >= 2:
+                step["count"] = params[1]
+            step["src"] = line.text
+            self.script_out.append(step)
+            return
+        if side == "container_query":
+            # 容器檢索:(容器,？) 只需 domain/attr
+            if params and params[0]:
+                step["domain"] = self._domain_field_value(params[0])
+            if len(params) >= 2 and params[1]:
+                step["attr"] = self._attr_field_value(params[1], params[0] if params else None)
+            step["src"] = line.text
+            self.script_out.append(step)
+            return
+        if side == "container_access":
+            if params and params[0]:
+                ev = self.reg.enum_val("容器存取", params[0])
+                if ev:
+                    step["mode"] = self._enum_side(ev)
+            step["src"] = line.text
+            self.script_out.append(step)
+            return
+        # container_set / container_filter / container_exclude：pos0=域名, pos1=属性名, pos2=值
+        if params and params[0]:
+            step["domain"] = self._domain_field_value(params[0])
+        if len(params) >= 2 and params[1]:
+            step["attr"] = self._attr_field_value(params[1], params[0] if params else None)
+        if len(params) >= 3 and params[2]:
+            step["value"] = self._attr_driven_value(params[1], params[2])
+        step["src"] = line.text
+        self.script_out.append(step)
+
+    def _domain_field_value(self, v):
+        """容器 domain 字段：域词 → 16a 域表侧名（Hero/Settlement/…）。"""
+        dom_side = self.reg.domain(v)
+        if not dom_side:
+            raise RegistryGapError(f"域名表外: {v}——16a CSV 域表无此行（回填 DOMAIN_MAP）")
+        return dom_side
+
+    def _attr_field_value(self, attr, dom_word):
+        """容器 attr 字段：属性名 → 属性表侧名（按容器域取段）。"""
+        at = self.reg.attr(attr)
+        if at is None:
+            raise RegistryGapError(f"属性表外: {attr}——16a CSV 属性区无此行（回填 PAIR_OVERRIDE）")
+        seg = self._pick_side(at, dom_word or "")
+        if seg is None:
+            raise RegistryGapError(f"属性域错配: {attr}——侧名「{at[0]}」与容器域 {dom_word} 无对应段")
+        return seg
+
+    def _attr_or_enum(self, v, space):
+        """排序 key：属性名 或 枚举值（排序特殊鍵：乱序→random）。"""
+        at = self.reg.attr(v)
+        if at:
+            return at[0]
+        ev = self.reg.enum_val(space, v)
+        if ev:
+            return self._enum_side(ev)
+        raise RegistryGapError(f"排序键表外: {v}——属性区/枚举值区（{space}）均无（回填映射表）")
+
+    def _slot_field_name(self, v):
+        """容器選擇 槽名：从 16a 命令区「代入X」的 slot= 预设取（人物Ｅ → hero_e；以 CSV 为准）。"""
+        sp = self.reg.params("命令", "代入" + v)
+        if sp:
+            for ps in sp:
+                if ps.name == "slot":
+                    return ps.field
+        m = re.match(r"^(.*?)([Ａ-Ｅ])$", v)
+        if m:
+            return "slot_" + _fw_letter(m.group(2))
+        raise RegistryGapError(f"槽位表外: {v}——16a 命令区无「代入{v}」slot= 预设（回填 assign_side/_ASSIGN_DOMAIN）")
+
+    def _translate_params(self, eff, cmd, params, pslots, line):
+        """通用命令参数 → 字段（按 参数列 + 值类型驱动）。"""
+        idx = 0
+        for ps in (pslots or []):
+            if ps.name == "slot":
+                # 代入类在别处处理；这里仅当出现 slot 且命令是代入时兜底
+                continue
+            if ps.name in ("target", "value") and ps.field in eff:
+                continue
+            if idx >= len(params):
+                continue
+            raw = params[idx]
+            idx += 1
+            fname = ps.field
+            if ps.ann in ("", "—", "无"):
+                eff[fname] = raw
+                continue
+            if raw == "無效":                       # 全局特殊值（16a 域值区 人物/據點/…::無效 → null）
+                eff[fname] = "null"
+                continue
+            cls, space = _classify_ann(ps.ann)
+            if cls == "entity":
+                dom = PARAM_DOMAIN.get(ps.name or ps.field, ps.name or None)
+                if ps.field and ps.name == "pos%d" % ps.pos:
+                    dom = self._entity_domain_by_ctx(cmd, ps.pos)
+                eff[fname] = self._translate_entity_param(dom, raw)
+            elif cls == "template":
+                eff[fname] = self.translate_value(raw)   # 模板 NPC → 信源 B AGENT_MAP
+            elif cls == "domain":
+                eff[fname] = self._domain_field_value(raw)
+            elif cls == "attr":
+                eff[fname] = self._attr_field_value(raw, None)
+            elif cls in ("enum", "zero", "bool"):
+                sv = space or "真偽"
+                ev = self.reg.enum_val(sv, raw)
+                if not ev and space in ENUM_SPACE_ALIAS:
+                    ev = self.reg.enum_val(ENUM_SPACE_ALIAS[space], raw)
+                if not ev and re.match(r"^未知[0-9０-９]*$", raw):
+                    # 🔴 未知NN（纪律 18）：资源类 = 结构保留翻译 + 进待核对清单（不猜译不哈希）
+                    ev_any = next(((s, t, u) for (sp, w), (s, t, u) in self.reg.enum_vals.items()
+                                   if sp == ENUM_SPACE_ALIAS.get(sv, sv) and "::" in s), None)
+                    prefix = ev_any[0].split("::")[0] if ev_any else (VALUE_SPACE_FIELD.get(sv) or sv)
+                    digits = "".join(chr(ord(c) - 0xFEE0) if ord("０") <= ord(c) <= ord("９") else c
+                                     for c in raw[2:])
+                    eff[fname] = f"{prefix}::tk5_unknown_{digits}"
+                    self.todo_mark("未知资源", f"{sv}::{raw}", f"命令 {cmd} {fname}")
+                    continue
+                if not ev:
+                    # 域值区兜（同空间双区：人物類別=枚举值区 3 + 域值区 4，16a 词源分区非缺口）
+                    dv = self.reg.domain_val(sv, raw)
+                    if dv:
+                        eff[fname] = dv[0] if "::" in dv[0] else f'"{dv[0]}"'
+                        continue
+                    raise RegistryGapError(
+                        f"枚举值表外: {sv}::{raw}（命令 {cmd} 参数 {fname}）——16a 枚举值区「{sv}」域无此值（回填 ENUM_SETS/RES_SETS）")
+                eff[fname] = self._enum_side(ev)
+            elif cls == "domainval":
+                dv = self.reg.domain_val(space, raw)
+                if not dv:
+                    raise RegistryGapError(f"域值表外: {space}::{raw}（命令 {cmd}）——16a 域值区无此行")
+                side = dv[0]
+                eff[fname] = side if "::" in side else f'"{side}"'
+            elif cls == "attr_driven":
+                eff[fname] = self._attr_value_for_param(params[1] if len(params) > 1 else None, raw)
+            elif cls == "union":
+                eff[fname] = self._translate_union(ps.ann, raw, cmd, fname)
+            elif cls == "unknown" and ps.name == ps.ann and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", ps.ann):
+                # 裸参数名（19 条参数列：leader/target/behavior…）——值驱动（值命中哪个域值区/
+                # 实体表就用哪个域：leader=事件用１軍團 → 军團域值区 Army::event_1；
+                # PARAM_DOMAIN（actor→人物 等）只作为歧义报告建议，不预判域）
+                eff[fname] = self.translate_value(raw)
+            else:
+                raise RegistryGapError(
+                    f"参数标注表外: 命令 {cmd} 参数 {ps.name}=「{ps.ann}」——16a 参数列写法未建模（回填 parse_params_spec/_classify_ann）")
+
+    def _translate_entity_param(self, dom, raw):
+        """具名实体参数值：按参数名→域 分流到信源 B。域未知时扫描实体表（带域报告）。"""
+        if dom in _ENTITY_TABLES:
+            return self.lookup_entity(dom, raw)
+        # 域未定（无 PARAM_DOMAIN 条目）→ 全表扫描（唯一命中才返回；多重命中 = 报告点名）
+        hits = []
+        for d, tables in _ENTITY_TABLES.items():
+            for t in tables:
+                if raw in t:
+                    hits.append((d, t[raw]))
+        if len(hits) == 1:
+            return hits[0][1]
+        if len(hits) > 1:
+            self.todo_mark("实体歧义", raw, str(hits))
+        raise RegistryGapError(
+            f"实体表外/歧义: {raw}——信源 B 查无或命中 {len(hits)} 表（回填 gen_entity_maps.py；域未定 = 回填 PARAM_DOMAIN）")
+
+    def _translate_union(self, ann, raw, cmd, fname):
+        """复合标注（A/B/C，含 枚举/具名实体 无空格写法）→ 逐候选尝试翻译（值命中哪个信源用哪个）。"""
+        for cand in re.split(r"\s*/\s*", ann):
+            cand = cand.strip()
+            if not cand:
+                continue
+            cls, space = _classify_ann(cand)
+            try:
+                if cls == "entity":
+                    return self._translate_entity_param(None, raw)
+                if cls == "template":
+                    if raw in AGENT_MAP:
+                        return AGENT_MAP[raw]
+                    continue
+                if cls == "enum":
+                    ev = self.reg.enum_val(space, raw)
+                    if ev:
+                        return self._enum_side(ev)
+                    continue
+                if cls == "domainval":
+                    dv = self.reg.domain_val(space, raw)
+                    if dv:
+                        return dv[0] if "::" in dv[0] else f'"{dv[0]}"'
+                    continue
+                if cls == "bool":
+                    if raw in ("真", "偽"):
+                        return "true" if raw == "真" else "false"
+                    continue
+                if cls == "attr_driven":
+                    return self._attr_value_for_param(None, raw)
+                if cls == "domain":
+                    if self.reg.domain(raw):
+                        return self.reg.domain(raw)
+                    continue
+            except RegistryGapError:
+                continue
+        raise RegistryGapError(
+            f"复合标注全未命中: {ann}（命令 {cmd} 参数 {raw}）——回填 16a 各值区或修正参数列标注")
+
+    def _attr_value_for_param(self, attr_word, raw):
+        return self._attr_driven_value(attr_word, raw)
+
+    def _entity_domain_by_ctx(self, cmd, pos):
+        """posN 具名实体参数 → 域：命令×位 语义词表（PARAM_CTX_DOMAIN）；未登记 = 值扫描唯一化。"""
+        return PARAM_CTX_DOMAIN.get(f"{cmd}#{pos}")
+
+    def _translate_scene_id(self, raw):
+        """進入設施:(XXXX) → Facility:: 引用（場面设施：查枚举值区設施/域值区場面）。"""
+        ev = self.reg.enum_val("設施", raw)
+        if ev:
+            return self._enum_side(ev)
+        dv = self.reg.domain_val("場面", raw)
+        if dv:
+            return dv[0] if "::" in dv[0] else f'"{dv[0]}"'
+        raise RegistryGapError(f"施設/場面表外: {raw}——16a 枚举值区「設施」/域值区「場面」均无（回填 ENUM_SETS/PLACE_TOKENS）")
+
+    # ---------- 块翻译（语法区驱动） ----------
     def translate_exec_block(self, block):
         b = block.bare_cmd
         if b == "分歧":
-            # 已由 translate_execution 配对处理（理论上不会到此处）
             cond = self._resolve_branch_cond(block.args[0] if block.args else "")
             self._push_if(cond, block)
         elif b in ("場合別", "場合分歧"):
@@ -1123,25 +1610,28 @@ class Translator:
             self._push_if(cond, block, hero_override=override)
         elif b in ("ＡＮＤ調查", "ＯＲ調查"):
             self.script_out.append({"step": "note", "note": f"🔴 执行内 {b} → 条件门控", "src": block.raw})
-            # 🔴 v2：块内 children 必须翻译（調查 → pending_cond；分歧 → 路由）——旧版只输出
-            #   note 导致块内分歧无待用条件（EFF06E00_161 实机，fail-fast 抓出）
             for item in block.children:
                 if isinstance(item, Line):
                     self.translate_exec_line(item)
                 elif isinstance(item, Block):
                     self.translate_exec_block(item)
         elif b in ("循環", "模塊開始", "腳本"):
-            # 🔴 v4.7 用户裁定：完整语义保留——循环 = loop 步骤（body 递归），禁止线性展开降级
-            self.script_out.append({"step": "loop", "body": self._inline_block(block)})
+            # 循环 = loop 步骤（body 递归）；模塊開始/腳本 = 单层容器
+            if b == "循環":
+                self.script_out.append({"step": "loop", "body": self._inline_block(block)})
+            else:
+                self.script_out.append({"step": "module_begin", "body": self._inline_block(block)})
         elif b == "脫出模塊":
-            # 循环出口 = break（loop body 内语义保留，禁止忽略）
-            self.script_out.append({"step": "break", "src": block.raw})
+            self.script_out.append({"step": "module_exit", "src": block.raw})
         else:
-            self.todo_mark("命令块", b, block.raw)
-            raise RegistryGapError(f"命令块表外: {b}——16a CSV 命令区无此块命令")
+            # 语法区词条查表（查不到 = 停机）；分支结构词（branch 系）本处已按形态处理
+            si = self.reg.syntax_word(b)
+            if si:
+                raise RegistryGapError(
+                    f"语法块未建模: {b}（侧名 {si[0]}）——translate_exec_block 未实现该块形态（补实现，禁止降级）")
+            raise RegistryGapError(f"命令块表外: {b}——16a CSV 命令区/语法区均无此块命令")
 
     def _resolve_branch_cond(self, val):
-        """分歧:(N) 的条件解析：选择路由 / 条件分支 / 未知。"""
         if self.pending_choice is not None:
             return f'(Ctx::choice) == "opt{val}"'
         if self.pending_cond:
@@ -1155,7 +1645,6 @@ class Translator:
         raise RegistryGapError(f"分歧表外: {val}——无待用条件/选择路由")
 
     def _inline_block(self, block, when=None):
-        """块内容就地翻译（if 的 then）——when 传播进 lines。"""
         sub, saved = [], self.script_out
         self.script_out = sub
         push_len = len(self.when_stack)
@@ -1171,13 +1660,12 @@ class Translator:
         return sub
 
     def _branch_when(self, block):
-        """主人公分歧/場合分歧 → when 条件（其他 = 已见机位取反）。"""
         if block.bare_cmd == "主人公分歧":
             hero = block.args[0] if block.args else ""
             if hero == "其他":
                 conds = [f"not( (Hero::MainHero) == ({self.speaker_of(h)}) )" for h in self.seen_heroes]
                 if not conds:
-                    raise RegistryGapError("主人公分歧(其他) 无前序机位——语料结构异常（主人公別 先于 主人公分歧）")
+                    raise RegistryGapError("主人公分歧(其他) 无前序机位——语料结构异常")
                 return "and( " + ", ".join(conds) + " )" if len(conds) > 1 else conds[0]
             self.seen_heroes[hero] = True
             return f"(Hero::MainHero) == ({self.speaker_of(hero)})"
@@ -1185,20 +1673,17 @@ class Translator:
             return self.translate_expression(block.args_raw) if block.args_raw else None
         return None
 
-    # ---------- 文本变量转换（TK5 变量 → TextObject 占位符 + 注入表）----------
-    # 🔴 v4.5：占位符语义化——key 从角色 ID 派生（{IMAGAWA.NAME}），风格同引擎内置
-    #   {PLAYER.NAME}；TextObject 变量名限制 = 大写字母/数字/下划线/点（无 :: 小写）
+    # ---------- 文本变量转换（保留 v4.5 语义化占位符;v6：key 派生走信源 B + 全角→ASCII） ----------
     def _key_prefix(self, who):
-        """角色中文名 → 占位符 key 前缀（从归一表 ID 末段派生，大写；去掉 lord_1_/tk5_ 前缀）。"""
-        v = HERO_MAP.get(who) or AGENT_MAP.get(who) or FALLBACK_MAP.get(who)
+        v = HERO_MAP.get(who) or AGENT_MAP.get(who) or ORG_MAP.get(who)
         if v and "::" in v:
             last = v.split("::")[-1].split(".")[-1]
             return last.replace("lord_1_", "").replace("tk5_", "").upper()
-        # 代入槽（人物Ｄ / 城Ａ…）不是具体角色，占位符跟着槽走 → {HERO_D.NAME}，与 Ctx::hero_D 对得上
-        cname = slot_cname(who)
-        if not cname.startswith("slot_"):
-            return cname.upper()
-        return re.sub(r"[^A-Za-z0-9]", "_", who).upper() or cname.upper()
+        # 槽字面（人物Ｄ/城Ａ…）：key 从槽字母派生（{HERO_D.NAME}——与大写占位符风格一致，纪律 12）
+        letter = _slot_letter(who)
+        if letter:
+            return letter.upper()
+        return re.sub(r"[^A-Za-z0-9]", "_", who).upper() or "UNKNOWN"
 
     def convert_text_vars(self, text, t_no=None):
         phs = []
@@ -1207,9 +1692,6 @@ class Translator:
             phs.append((key, vtype, arg))
             return "{" + key + "}"
 
-        # ① (X.姓/名/名前) 称呼变体（最高频，先替换）
-        # 🔴 v4.6 用户裁定：姓 = FIRSTNAME（骑砍2 FirstName 显示在前，日本名姓在前）、
-        #   名 = LASTNAME（显示在后）、名前 = NAME（全名）、姓名 = FULLNAME（姓+名组合注入）
         def sub_attr(m):
             who, attr = m.group(1), m.group(2)
             p = self._key_prefix(who)
@@ -1226,11 +1708,11 @@ class Translator:
             return ph(f"{p}.NAME", "HERO_NAME", who)
 
         text = RE_VAR_ATTR.sub(sub_attr, text)
-        # ② {一人稱}/{二人稱}/{X.名前}/{X.姓名}/{未知NN}/{人物Ａ.代名詞}
+
         def sub_brace(m):
             inner = m.group(1)
             if inner.startswith("PH_") or re.match(r"^[A-Z0-9_.]+$", inner):
-                return m.group(0)   # 已生成的占位符跳过（防二次处理）
+                return m.group(0)
             if inner == "一人稱":
                 return ph("SELF_PRONOUN", "SELF_PRONOUN", "")
             if inner == "二人稱":
@@ -1242,23 +1724,23 @@ class Translator:
             if inner.endswith(".姓名"):
                 return ph(f"{self._key_prefix(inner[:-3])}.FULLNAME", "HERO_FULLNAME", inner[:-3])
             if inner.endswith(".代名詞"):
-                return ph(f"SLOT_{slot_cname(inner[:-4]).split('_')[-1]}_PRONOUN", "SLOT_PRONOUN", inner[:-4])
+                return ph(f"SLOT_{_slot_letter(inner[:-4]).upper()}_PRONOUN", "SLOT_PRONOUN", inner[:-4])
             if inner.startswith("未知"):
                 return ph(f"UNKNOWN_{inner[2:]}", "UNKNOWN", inner)
             return ph(re.sub(r"[^A-Za-z0-9]", "_", inner).upper(), "RAW", inner)
 
         text = RE_VAR_BRACE.sub(sub_brace, text)
-        # ③ <槽> 显示（城Ａ/據點Ａ/年/月/ａ…）→ {SLOT_<字母>.NAME/VALUE}
+
         def sub_angle(m):
             slot = m.group(1)
             if slot == "年":
-                return ph("TIME.YEAR", "SLOT", slot)      # <年> = 当前年份（Time::year）
+                return ph("TIME.YEAR", "SLOT", slot)
             if slot == "月":
-                return ph("TIME.MONTH", "SLOT", slot)     # <月> = 当前月份（Time::month）
+                return ph("TIME.MONTH", "SLOT", slot)
             m2 = re.match(r"^(.*?)([Ａ-Ｅ])$", slot)
             m3 = re.match(r"^[ａ-ｚ]$", slot)
             if m2:
-                letter = chr(ord("A") + (ord(m2.group(2)) - ord("Ａ")))   # 全角→ASCII
+                letter = chr(ord("A") + (ord(m2.group(2)) - ord("Ａ")))
                 cat = m2.group(1)
                 return ph(f"SLOT_{letter}.NAME", "SLOT", slot) if cat else ph(f"SLOT_{letter}.VALUE", "SLOT", slot)
             if m3:
@@ -1267,11 +1749,11 @@ class Translator:
             return ph("SLOT_" + re.sub(r"[^A-Za-z0-9]", "_", slot).upper(), "SLOT", slot)
 
         text = RE_VAR_ANGLE.sub(sub_angle, text)
-        # ④ (X) 角色全名（最后，避免误伤 ①②）
+
         def sub_plain(m):
             who = m.group(1)
             if who.startswith("PH_") or re.match(r"^[A-Z0-9_.]+$", who):
-                return m.group(0)   # 已生成的占位符跳过（防二次处理）
+                return m.group(0)
             if who == "主人公":
                 return ph("PLAYER.NAME", "PLAYER_NAME", "")
             if "::" in who:
@@ -1282,25 +1764,22 @@ class Translator:
         for k, vt, arg in phs:
             self.var_inject.append((self.event_id, t_no, k, vt, arg))
         return text
+
     def add_line(self, speaker, text, src_raw, narrator=False, listener=None):
         self.t_counter += 1
-        # 🔴 key 全局唯一：事件号前缀（t_counter 是事件级计数，裸序号跨事件必撞——铁律 13）
         key = f"{self.key_prefix}_{self.event_id}_{self.t_counter}"
-        # 🔴 cmd = 指令名（05 指令流权威：dialogue / narrator / choice / if；CSV 對話→05 lines[]、旁白/自語→narrator）
-        #   自语 = narrator + speaker（角色内心独白归属）；旁白 = narrator 无 speaker（上帝视角）
         line = {"cmd": "narrator" if narrator else "dialogue"}
         if speaker:
             line["speaker"] = speaker
-        if listener:                     # 🔴 对话对象（param2）结构化落字段——不靠注释反推
+        if listener:
             line["listener"] = listener
         line["textKey"] = key
         when = self.when_now()
         if when:
             line["when"] = when
-        line["_t"] = self.t_counter      # T# 锚点（事件级演出行序号）
+        line["_t"] = self.t_counter
         line["_src"] = src_raw
         self.ensure_segment().lines.append(line)
-        # 文本变量 → TextObject 占位符（v4：TK5 变量体系 → {PH_N} + 注入表）
         conv = self.convert_text_vars(text, self.t_counter)
         self.i18n.append((key, conv, "🔴待翻译"))
 
@@ -1314,13 +1793,15 @@ class Translator:
             return HERO_MAP[s]
         if s in AGENT_MAP:
             return AGENT_MAP[s]
-        if s in FALLBACK_MAP:
-            return FALLBACK_MAP[s]
-        if re.match(r"^(人物|據點|城|大名家)[Ａ-Ｅ]$", s):
-            # 🔴 v4.3：变量引用 → Ctx::<slot>
-            return f"Ctx::{slot_cname(s)}"
-        self.todo_mark("角色", s)
-        return f"Hero::{_fallback_ascii(s)}"   # 确定性英文兜底（report 登记中文名）
+        if re.match(r"^(人物|據點|城|大名家|勢力|忍者衆|商家|海賊衆|國)[Ａ-Ｅ]$", s):
+            return self.translate_subject(None if False else self._dom_of_slot(s), s)
+        raise RegistryGapError(f"说话人表外: {s}——信源 B 实体表无此" + "（回填 gen_entity_maps.py；模板 NPC 登记 AGENT_MAP）")
+
+    def _dom_of_slot(self, s):
+        """说话人槽位（人物Ｄ）→ 域词 —— 与域值区表键一致：人物/據點/城/大名家/勢力/國…
+        注意：speaker_of 命中的槽位只可能是人物/據點 族。"""
+        m = re.match(r"^(.+?)([Ａ-Ｅ])$", s)
+        return m.group(1) if m else None
 
     # ---------- 事件主流程 ----------
     def translate_event(self, ev_id, tree):
@@ -1328,9 +1809,9 @@ class Translator:
         self.t_counter = 0
         self.segments, self.script_out, self.i18n, self.ctx = [], [], [], {}
         self.var_inject = []
-        self.cond_ctx = {}      # 条件块内代入槽（静态展开；执行块代入走 Ctx 变量）
-        self.cond_pairs = []    # (TK5 原文行, DSL 表达式) 逐条对照（condition 注释渲染用）
-        self.head_src = {}      # 事件头字段 → TK5 源行（trigger/facility/once/priority 对照注释）
+        self.cond_ctx = {}
+        self.cond_pairs = []
+        self.head_src = {}
         self.when_stack, self.pending_cond, self.pending_choice = [], None, None
         self.seen_heroes = {}
         self.cur_seg, self.seg_n = None, 0
@@ -1338,8 +1819,8 @@ class Translator:
 
         ev = {"id": ev_id, "trigger": "", "once": True, "priority": "normal",
               "condition": "", "script": []}
-        self.head_src["id"] = f"事件:事件{ev_id}{{"   # 🔴 id 字段对照注释（源事件块头）
-        src_comments = []      # 事件上方注释（触发/条件原文）
+        self.head_src["id"] = f"事件:事件{ev_id}{{"
+        src_comments = []
         cond_block = exec_block = None
 
         for item in tree:
@@ -1347,28 +1828,40 @@ class Translator:
                 t = item.text
                 if t.startswith("屬性:"):
                     val = t.split(":", 1)[1].strip()
-                    if "弱" in val:
-                        ev["priority"] = "weak"
-                    if "多次" in val:
-                        ev["once"] = False
-                    # 🔴 头字段对照注释（once/priority 同一源行，渲染时紧贴字段上方）
+                    # 值查枚举值区「事件屬性」域（一次→once / 多次→repeat / 弱→weak）
+                    for tok in re.split(r"[|｜]", val):
+                        tok = tok.strip()
+                        if not tok:
+                            continue
+                        evv = self.reg.enum_val("事件屬性", tok)
+                        if not evv:
+                            raise RegistryGapError(
+                                f"事件屬性枚举外: {tok}——16a 枚举值区「事件屬性」域无此值（回填 ENUM_SETS）")
+                        side = evv[0]
+                        if side == "once":
+                            ev["once"] = True
+                        elif side == "repeat":
+                            ev["once"] = False
+                        elif side == "weak":
+                            ev["priority"] = "weak"
                     self.head_src["once"] = f"屬性:{val}"
                     self.head_src["priority"] = f"屬性:{val}"
                 elif t.startswith("發生契機:"):
                     content = t.split(":", 1)[1].strip()
                     base = content.split("(")[0].strip()
-                    trig = TRIGGER_MAP.get(base)
-                    if not trig:
-                        raise RegistryGapError(f"trigger 表外: {base}——08 时机对照表无此契機（回填 01/16 trigger 注册表）")
-                    ev["trigger"] = trig
+                    evv = self.reg.enum_val("觸發", base)
+                    if not evv:
+                        raise RegistryGapError(
+                            f"trigger 表外: {base}——16a 枚举值区「觸發」域无此契機（回填 RES_SETS 或 01/16 trigger 注册表）")
+                    trig_side = evv[0]                       # Trigger::house_enter
+                    ev["trigger"] = trig_side.split("::")[-1]   # 01 字段值风格 = 裸名（§15.2 A6）
                     self.form = TRIGGER_FORM.get(base, "menu_dialogue")
                     m = re.search(r"\((.*?)\)", content)
-                    if m and ev["trigger"] == "house_enter":
-                        # 🔴 facility = 契機第二参数（室內畫面表示後(主人公據點,自宅) → 自宅）
-                        params = [p.strip() for p in m.group(1).split(",")]
-                        ev["facility"] = params[-1] if params else "🔴待07"
-                    src_comments.append(f"// 🔴 触发（TK5 原文）：{content}")
-                    # 🔴 头字段对照注释（trigger/facility 同一源行）
+                    if m:
+                        # 契機第二参数（室內畫面表示後(主人公據點,自宅) → 自宅）：設施 枚举 → Facility::*
+                        ps = [p.strip() for p in m.group(1).split(",")]
+                        if ev["trigger"] == "house_enter" and ps:
+                            ev["facility"] = self._translate_scene_id(ps[-1])
                     self.head_src["trigger"] = f"發生契機:{content}"
                     self.head_src["facility"] = f"發生契機:{content}"
             elif isinstance(item, Block):
@@ -1387,18 +1880,15 @@ class Translator:
             ev["condition"] = self.translate_condition(cond_block)
         if exec_block:
             self.translate_execution(exec_block.children)
-        # 段收尾（无残留）
         self.cur_seg = None
         ev["script"] = self.script_out
         return ev, src_comments
 
 
 # ---------------------------------------------------------------------------
-# 输出组装
+# 输出组装（保持 v5：src 原文 → 注释；正文纯翻译）
 # ---------------------------------------------------------------------------
 def render_steps_list(steps, indent=4, is_last=True):
-    """骨架步骤渲染：🔴 src 源原文 → 步骤上方注释（正文纯翻译后内容）；
-    then/else/body 嵌套数组手动组装（保证 JSON 合法）。返回行列表。"""
     pad = " " * indent
     out = []
     n = len(steps)
@@ -1410,11 +1900,10 @@ def render_steps_list(steps, indent=4, is_last=True):
         nested = {k: st.pop(k) for k in ("then", "else", "body") if k in st}
         if nested:
             head = json.dumps(st, ensure_ascii=False)
-            out.append(f"{pad}{head[:-1]},")   # 去掉 } 补逗号（then/else/body 跟在后面）
+            out.append(f"{pad}{head[:-1]},")
             nk = list(nested.keys())
             for j, k in enumerate(nk):
                 out.append(f'{pad}  "{k}": [')
-                # 🔴 子数组内最后元素不加逗号（is_last 独立于父；父闭合 } 的逗号由父的 last 决定）
                 out.extend(render_steps_list(nested[k], indent + 4))
                 out.append(f'{pad}  ]' + ("," if j < len(nk) - 1 else ""))
             out.append(f"{pad}}}" + ("" if last else ","))
@@ -1428,12 +1917,12 @@ def render_story_jsonc(seg):
     parts = [f"{{", f'  "id": "{seg.id}",', f'  "form": "{seg.form}",', '  "lines": [']
     items = []
     for ln in seg.lines:
-        if "_t" in ln:   # 演出行：T# 注释 + JSON
+        if "_t" in ln:
             t_no = ln.pop("_t")
             src = ln.pop("_src")
             items.append(f"    // T{t_no} {src.strip()}")
             items.append("    " + json.dumps(ln, ensure_ascii=False))
-        else:            # choice 等步骤节点：直接 JSON
+        else:
             items.append("    " + json.dumps(ln, ensure_ascii=False))
     parts.append(",\n".join(items))
     parts.append("  ]\n}")
@@ -1441,18 +1930,28 @@ def render_story_jsonc(seg):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="太阁5 → 01 DSL 机械翻译器 v2")
+    ap = argparse.ArgumentParser(description="太阁5 → 01 DSL 机械翻译器 v6（数据驱动查表）")
     ap.add_argument("--events", nargs="+", required=True)
     ap.add_argument("--scenario", default="okehazama")
     ap.add_argument("--source", default=DEFAULT_SOURCE)
     ap.add_argument("--registry", default=DEFAULT_REGISTRY)
     ap.add_argument("--out", default=DEFAULT_OUT)
     ap.add_argument("--sort", default="cluster", choices=["cluster", "input"])
+    ap.add_argument("--loose", action="store_true",
+                    help="宽松模式（调试用）：表外报错改为记录 + 跳过该事件（默认 = 严格停机，零兜底纪律）")
     args = ap.parse_args()
 
     with open(args.source, encoding="utf-8") as f:
         events_map = parse_source(f.read())
     reg = Registry(args.registry)
+    reg.set_csv_path(args.registry)
+    # 参数列全表预载（S1 完整性自证：154 行命令 + 语法词参数列全部结构化；残留 = 生成器缺陷报错）
+    param_bad = 0
+    with open(args.registry, encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            if r["类别"] in ("命令", "语法"):
+                reg.param_cache[(r["类别"], r["太阁原词"])] = parse_params_spec(r["参数"])
+    print(f"[S1] 参数列结构化：命令/语法词条共 {len(reg.param_cache)} 行（残留 0 = 全结构化）")
 
     results = []
     for ev_id in args.events:
@@ -1463,8 +1962,13 @@ def main():
         try:
             ev, comments = tr.translate_event(ev_id, build_tree(events_map[ev_id]))
         except RegistryGapError as e:
+            if args.loose:
+                tr.gap(str(e), ev_id)
+                print(f"[SKIP] {ev_id}（--loose）：{e}")
+                continue
             print(f"[FAIL] {ev_id}: {e}")
-            print("❌ 表外词条 = 16a CSV 生成器缺陷：回填映射表 → 重跑 build_registry_csv.py → 重跑本脚本")
+            print("❌ 表外词条 = 16a CSV 生成器/信源 B 实体表缺陷："
+                  "回填映射表 → 重跑 build_registry_csv.py / gen_entity_maps.py → 重跑本脚本")
             sys.exit(1)
         results.append((ev_id, ev, comments, tr))
 
@@ -1475,7 +1979,6 @@ def main():
     out_dir = os.path.join(args.out, args.scenario)
     story_dir = os.path.join(out_dir, "story")
     i18n_dir = os.path.join(out_dir, "i18n")
-    # 清旧产物（v1/v2 遗留命名文件；只删文件不删目录——目录可能被 IDE 监视占用）
     for d in (story_dir, i18n_dir):
         if os.path.isdir(d):
             for fn in os.listdir(d):
@@ -1486,14 +1989,10 @@ def main():
     os.makedirs(story_dir, exist_ok=True)
     os.makedirs(i18n_dir, exist_ok=True)
 
-    # 事件合并文件（按历史聚类；🔴 无顶部整块原文——触发/条件原文已由字段级注释
-    # （// 源：發生契機/屬性）与 [N] 逐条对照覆盖，避免两处拷贝）
     combined = []
     for ev_id, ev, comments, tr in results:
         combined.append(f"// ============ 事件 {ev_id}（{EVENT_NAME.get(ev_id, '')}） ============")
         combined.append("// ---- 机械翻译产物（待 agent 审核；字段/步骤上方注释 = TK5 源行） ----")
-        # 🔴 条件逐条对照（TK5 原文 → DSL 表达式，用户裁定：condition 必须能逐条核对）
-        #   渲染：对照注释严格插在 "condition" 字段正上方（不堆在对象开头）
         ev_copy = dict(ev)
         script_lines = render_steps_list(ev_copy.pop("script"))
         cond_val = ev_copy.pop("condition", "")
@@ -1502,7 +2001,6 @@ def main():
         ev_lines = []
         keys = list(ev_copy.keys())
         for k in keys:
-            # 🔴 头字段对照注释：紧贴字段正上方（trigger/facility/once/priority → 源行）
             if k in head_src:
                 ev_lines.append(f"  // 源：{head_src[k]}")
             ev_lines.append(f'  "{k}": {json.dumps(ev_copy[k], ensure_ascii=False)},')
@@ -1520,14 +2018,11 @@ def main():
     with open(os.path.join(out_dir, "events.jsonc"), "w", encoding="utf-8") as f:
         f.write("\n".join(combined))
 
-    # 演绎剧本（每段一个文件——引擎/工具消费）
     for ev_id, ev, comments, tr in results:
         for seg in tr.segments:
             with open(os.path.join(story_dir, f"{seg.id}.jsonc"), "w", encoding="utf-8") as f:
                 f.write(render_story_jsonc(seg))
 
-    # 🔴 人读合并版 story.jsonc（用户裁定：按历史聚类、时间序、可读性高——
-    #   看剧情/台词只看这一个文件；分文件留给引擎/工具）
     merged_story = []
     for ev_id, ev, comments, tr in results:
         for seg in tr.segments:
@@ -1537,7 +2032,6 @@ def main():
     with open(os.path.join(out_dir, "story.jsonc"), "w", encoding="utf-8") as f:
         f.write("\n".join(merged_story))
 
-    # i18n XML
     xml_parts = ['<?xml version="1.0" encoding="utf-8"?>', "<strings>"]
     for ev_id, ev, comments, tr in results:
         for key, zh, en in tr.i18n:
@@ -1570,7 +2064,6 @@ def main():
         seen_ij.add(k)
         report.append(f"- {ev} T{t_no}: {{{ph}}} [{vtype}] {arg}")
     report.append("")
-    # ---- 落点分档（16b 裁定 → 本剧本实际用到的那些词）----
     reg = results[0][3].reg if results else None
     if reg:
         import collections as _c2
@@ -1606,7 +2099,6 @@ def main():
         for w in sorted(degraded):
             report.append("- " + w)
         report.append("")
-    # ---- 占位据点（骑砍地图上没有这座城 → 07 数据包补，锚点只说明大概位置）----
     _txt = "\n".join(combined) + "\n".join(merged_story)
     _cities = sorted(set(re.findall(r"tk5_city_\d+", _txt)))
     if _cities:
@@ -1616,7 +2108,6 @@ def main():
             cn = CITY_PLACEHOLDER.get(cid, "?")
             report.append("- `%s` = %s｜锚点 %s" % (cid, cn, CITY_ANCHOR.get(cn) or "（无）"))
         report.append("")
-    # ---- 实体归一表缺口（gen_entity_maps 报出来的，07 数据包要补）----
     if MISSING_IN_XML:
         report.append("## 实体缺口（织丰表有、模块 XML 里没有 → 07 数据包补）")
         for label, ids in MISSING_IN_XML.items():
@@ -1634,9 +2125,30 @@ def main():
     with open(os.path.join(out_dir, f"report_{args.scenario}.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(report))
 
+    # S3：gap_report（机器可读缺口清单；翻译器零兜底纪律下的"停机→回填"闭环入口）
+    gap_dir = []
+    for ev_id, ev, comments, tr in results:
+        for g in tr.gap_notes:
+            gap_dir.append(g)
+    gap_path = os.path.join(out_dir, "gap_report.txt")
+    with open(gap_path, "w", encoding="utf-8") as f:
+        f.write("# 翻译缺口报告（S3 零兜底纪律；表外 = 生成器缺陷，回填后重跑收敛到零；空 = 零表外）\n")
+        f.write("# 格式：事件 | 类别 | 详情 | 建议回填点\n")
+        for ev_id, what, ctx_str in gap_dir:
+            f.write("%s | 停机级缺口 | %s | %s\n" % (ev_id, what, ctx_str))
+        # todo_mark 属"有主缺口"（参数位不够/可预列/实体待 07），另列
+        seen_t = set()
+        for e, w, c, x in all_todo:
+            t = (e, w, c, x)
+            if t in seen_t:
+                continue
+            seen_t.add(t)
+            f.write("%s | 有主缺口 | [%s] %s %s | 回填 gen_registry_tables.py / 07 数据包\n" % (e, w, c, x))
+
     todo_cnt = len({t for t in all_todo})
     print(f"完成：{len(results)} 个事件 → {out_dir}")
     print(f"待注册：{todo_cnt} 条（去重；详情见 report_{args.scenario}.txt）")
+    print(f"缺口：{len(gap_dir)} 条停机级（见 gap_report.txt）")
     for ev_id, ev, comments, tr in results[:1]:
         print(f"\n== {ev_id} condition ==")
         print(ev["condition"])

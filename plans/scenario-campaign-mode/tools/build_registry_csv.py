@@ -39,8 +39,9 @@ from gen_registry_tables import (ENUM_SETS, RES_SETS, RES_PREFIX, enum_side, arg
                                  CALL_MAP, DOMAIN_VAL_MAP, PAIR_OVERRIDE, ENTITY_DOMAINS, SYNTAX_CMDS,
                                  SPECIAL_VALS, SPECIAL_TYPES,
                                  domains, attr_pairs, attr_triples, domain_vals, calls, cmds,
-                                 DIGIT_ATTR, digit_attr_class,
-                                 pair_side, val_side, call_side, verify_coverage, assign_side)
+                                 DIGIT_ATTR, digit_attr_class, PREFIX_BY_DOMAIN,
+                                 pair_side, val_side, call_side, verify_coverage, assign_side,
+                                 attr_side_any)
 
 try:
     from registry_verdicts import VERDICTS      # 生成物：tools/fill_registry.py 从 16b 正文表生成
@@ -587,6 +588,43 @@ if rawref[0]:
                  'TK5 转储的未具名原始 ID 对（主体与属性位均为纯数字，无语义）——翻译时原样保留，不落我们侧字段',
                  '—', '🔴 解析碎片'])
 
+# ── 🔴 v6 补录：容器属性名参位（命令参数列的 'A' 位 token）→ 属性表行 ──
+#   条件表达式属性（域::主体.属性）由 attr_pairs 生成；容器命令 pos1=属性名 位
+#   （人物番號 603 次、城番號 76 次…）此前只被 gen 的 attr_side_any 规则"覆盖"（自检通过），
+#   但没落 CSV 行 → 翻译器容器管线查"人物番號"报表外（2026-08-30 v6 抓包）。
+#   补录规则 = attr_side_any（与生成期自检同源）；侧名带 Hero./Settlement. 等前缀 →
+#   16b 组裁定「属性/侧名^=X.」自动认领（T3/同前缀），无需新行裁定（fill 六道自检通过）。
+_attr_toks = {}
+for (_cmd, _pos), _toks in arg_positions.items():
+    bits = CMD_ARG_SPEC.get(_cmd, {})
+    if _pos in bits and 'A' in bits[_pos]:
+        for tok, meta in _toks.items():
+            if tok not in _attr_toks:
+                _attr_toks[tok] = meta
+_attr_known = {r[0] for r in rows if r[2] == '属性'}
+_n_add = 0
+for tok, meta in sorted(_attr_toks.items()):
+    if tok in _attr_known:
+        continue
+    side = attr_side_any(tok)
+    if not side:
+        continue
+    m = re.match(r'^([^0-9]{1,6})番號$', tok)
+    if m and m.group(1) in ENTITY_DOMAINS:
+        doms = [m.group(1)]
+    else:
+        doms = [d for d in PREFIX_BY_DOMAIN if pair_side(d, tok)]
+    dom_all = ' / '.join(doms or ['人物'])
+    # 🔴 v6：值类型按域推导（人物番號 = 人物对象的引用（对象:人物），非纯数字——容器排除的
+    #   值 = 实体（德川家康）；序号属性侧名虽为 .index，取值空间随域）
+    _OBJ_TYP = {'人物': '对象:人物', '城': '对象:据点', '據點': '对象:据点', '大名家': '对象:家族',
+                '勢力': '对象:王国', '忍者衆': '对象:组织', '商家': '对象:组织', '海賊衆': '对象:组织',
+                '物品': '对象:物品'}
+    typ = _OBJ_TYP.get(doms[0] if doms else '', ATTR_TYPES.get(side.split('.')[-1], '数字'))
+    rows.append([tok, meta[0], '属性', dom_all, side, typ, tok, '—', '容器属性名参位补录（v6）'])
+    _n_add += 1
+print('  容器属性名参位补录 %d 行（人物番號/城番號 等；16b 前缀组自动认领）' % _n_add)
+
 # ── v2：域值行（域::值 形态：身份枚举/狀況值/命名槽）——实体域不生成行（名字表/fallback 的事）；
 #    太阁原词 = 纯值（元締），所属域列 = 域（身份）——第二列不掺符号（2026-08-27 用户裁定）──
 val_seen = set()
@@ -596,6 +634,7 @@ for (d, v), c in domain_vals.most_common():
         continue            # 具名实体域：不进 CSV（人物::伊藤總十郎 等，2026-08-27 用户裁定）；
                             # 🔴 槽形态（人物Ｂ）与特殊值（主人公/無效）例外——进表（2026-08-27 用户裁定）
     side = val_side(d, v)
+    if v == '人物Ｄ' or v == '聲域': print('VALDEBUG', repr(d), repr(v), '->', repr(side))
     if side is None:
         continue
     val_seen.add((d, v))
@@ -899,9 +938,16 @@ def main():
             v = VERDICTS.get((r[2], r[3], r[0]))
             if v is None:
                 missing.append('%s / %s / %s' % (r[2], r[3], r[0]))
+                if '--allow-missing-rows' in sys.argv:
+                    # 🔴 allow 模式：缺裁定行以临时列写出（fill 认领后正式跑覆盖——两阶段时序，
+                    #   新增语料行只能由本脚本产出，fill 认领依赖含新行的 16a）
+                    w.writerow([r[i] for i in ORDER] + ['T3', '', '', '待16b认领（--allow）', r[1]])
                 continue
             # 侧名以 16b 行裁定为准（那里逐条写死了干净 token；本脚本的反推会出中文/残渣/撞名）
-            if v['侧名'] and v['侧名'] != '—' and v['侧名'] != r[4]:
+            # 🔴 2026-08-30 v6：只对源=row（16b 行裁定写死侧名）盖章；源=group 的侧名 = 16a 旁路
+            #   （fill_registry 把 16a 我们侧名原样搬进 verdicts），对它盖章 = 用旧 16a 覆盖新 16a
+            #   → val_side 改规则（槽名小写统一）后 build 永远盖回旧值（死锁，实测复现）
+            if v['侧名'] and v['侧名'] != '—' and v['侧名'] != r[4] and v.get('源') != 'group':
                 r[4] = v['侧名']
                 renamed += 1
             # 代入族 83 条：侧名 = 动作 token（assign_ctx / assign_var），槽位名进「参数」列
@@ -916,12 +962,18 @@ def main():
                 disagree += 1
             w.writerow([r[i] for i in ORDER] +
                        [v['档'], v['载体'], v['存档键'] or '无', v['实现锚点'], r[1]])
-        if missing:
+        if missing and '--allow-missing-rows' not in sys.argv:
             print('❌ 有 %d 行在 16b 裁定表里查无裁定（键 = 类别/所属域/太阁原词）：' % len(missing))
             for m in missing[:30]:
                 print('  ', m)
             print('  → 去 16b-落点裁定表.md 补行裁定或组裁定，再跑 `python tools/fill_registry.py`')
             sys.exit(1)
+        if missing:
+            # 🔴 两阶段时序（2026-08-30 v6）：新增语料行只能由本脚本产出，而产出时 16b 裁定
+            #   还未经 fill 认领（fill 基于含新行的 16a）——先 --allow-missing-rows 产出 →
+            #   fill 认领（组裁定前缀组覆盖）→ 再正式跑一次（missing=0 全绿）
+            print('  [WARN] %d 行暂无 16b 裁定（--allow-missing-rows：先产出，等 fill 认领后重跑）: %s'
+                  % (len(missing), missing[:8]))
         print('  裁定对账：旧反推备注说「引擎可用」但 16b 判非 T1 的有 %d 行（以 16b 为准）' % disagree)
         print('  侧名以 16b 为准改写 %d 行' % renamed)
     n_attr = len([r for r in rows if r[2] == '属性'])
