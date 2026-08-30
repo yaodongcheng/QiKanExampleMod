@@ -1,19 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-stage_inject.py — 演绎剧本舞台注入（v1）
+stage_inject.py — 演绎剧本舞台注入（v2）
 ================================================================
-设计规格：08b §三（08b-转化器规格-自动化翻译流水线.md）
+设计规格：08b §三（08b-转化器规格-自动化翻译流水线.md）+ 05 源格式纪律 4-7
 输入：tk5_to_json.py 生成的 story/*.jsonc（第一版：lines + T# 注释 + _src 源行）
-输出：第二版 story/*.jsonc（actors 表 + present 标记 + slot 槽位）
+输出：第二版 story/*.jsonc（actors 表 + present 标记 + slot 槽位 + 显式 actor_enter/actor_leave 指令）
 
 推导规则（05 源格式补充纪律 4-7）：
-    1. actors = 说话人集合 ∪ 对话对象集合（对象从 _src 注释解析 `對話:(說話人,對象)`）
+    1. actors = 说话人集合 ∪ 对话对象集合（对象从 listener 字段取，v4.1 结构化）
     2. 沉默观众位：有出场无台词的角色（对象 - 说话人）→ "present": true（演出开始即入场）
-    3. 说话人 → 编译器自动入场（05 纪律 6①），不写 present
+    3. 说话人 → 首次发言前插 actor_enter（05 纪律 6①——显式化，编译器只透传），slot = 演员表位
     4. slot 分配（StageDirector.cs 槽位语义参考）：
        最高频说话人 = throne（主位）；对话对象优先 = side；其余 = gate
-    5. 形态约束（05 纪律 7）：actor_*/actors 仅 scene 形态合法；
+    5. 段末收场：本段已入场且非玩家位 → actor_leave（05:163 编译排演对应物）
+    6. 玩家位（Hero::MainHero）= 入场照注入（执行侧直接控制分流，05 玩家位例外）；
+       段末 leave 玩家位不注入（玩家不能离场藏身）
+    7. 形态约束（05 纪律 7）：actor_*/actors 仅 scene 形态合法；
        map_dialogue/menu_dialogue 纯对白序列禁止 actors（立绘常驻）
+    8. actor_move / camera / actor_action = 无源信息 → 不注入（05 纪律 6③ 显式指令留审核；
+       camera 默认中景跟说话人，05:351）——本节明确不造无源数据
 """
 import json
 import os
@@ -58,7 +63,7 @@ def load_segment(path):
 
 
 def dump_segment(seg):
-    """dict → jsonc（保持 T# 注释）。"""
+    """dict → jsonc（保持 T# 注释与舞台推导注释）。"""
     lines = seg.get("lines", [])
     parts = ["{"]
     parts.append(f'  "id": "{seg["id"]}",')
@@ -77,11 +82,91 @@ def dump_segment(seg):
             src = ln.pop("_src")
             items.append(f"    // T{t_no} {src.strip()}")
             items.append("    " + json.dumps(ln, ensure_ascii=False))
+        elif "_stage_note" in ln:
+            note = ln.pop("_stage_note")
+            items.append(f"    // 舞台推导：{note}")
+            items.append("    " + json.dumps(ln, ensure_ascii=False))
         else:
             items.append("    " + json.dumps(ln, ensure_ascii=False))
     parts.append(",\n".join(items))
     parts.append("  ]\n}")
     return "\n".join(parts)
+
+
+def _make_stage_cmd(cmd, actor, slot=None, when=None, note=""):
+    """构造注入的舞台指令（05 源格式；落盘字段 = cmd，与 lines 现有条目一致——08b 纪律 2）。"""
+    item = {"cmd": cmd, "actor": actor}
+    if slot:
+        item["slot"] = slot
+    if when:
+        item["when"] = when
+    item["_stage_note"] = note
+    return item
+
+
+def inject_staging_events(seg):
+    """v2：显式入场/退场指令注入（05 源格式纪律 4-6——编译器只透传，不再运行时现算）。
+
+    规则：
+      1. present:true 条目 → 段首 actor_enter（05 纪律 5）
+      2. 非 present 说话人 → 首次发言前插 actor_enter（05 纪律 6①），slot = 演员表位
+      3. 段末收场：本段已入场且非玩家位 → actor_leave（05:163 编译排演对应物）
+      4. 玩家位（Hero::MainHero）= 入场照注入（执行侧直接控制分流，05 玩家位例外）；
+         段末 leave 玩家位不注入（玩家不能离场藏身）
+      5. actor_move / camera / actor_action = 无源信息 → 不注入（05 纪律 6③ 显式指令留审核；
+         camera 默认中景跟说话人，05:351）
+    """
+    if seg.get("form", "scene") != "scene":
+        return seg  # 05 纪律 7：立绘形态禁止舞台指令
+    actors = seg.get("actors") or []
+    if not actors:
+        return seg
+
+    slot_of = {}
+    entry_meta = {}
+    for a in actors:
+        key = a.get("heroId") or a.get("agentId")
+        if key:
+            slot_of[key] = a.get("slot")
+            entry_meta[key] = a.get("when")  # actors 条目带 when = 条件入场，透传
+
+    present_keys = {a.get("heroId") or a.get("agentId") for a in actors if a.get("present")}
+    player_key = "Hero::MainHero"
+    entered = set()
+    new_lines = []
+
+    # 1. 段首：present 条目按 actors 表序入场
+    for k in slot_of:
+        if k in present_keys:
+            new_lines.append(_make_stage_cmd(
+                "actor_enter", k, slot=slot_of[k], when=entry_meta.get(k),
+                note=f"present 开场即入场（05 纪律 5）: {k}"))
+            entered.add(k)
+
+    # 2. 非 present 说话人：首次发言前入场
+    for ln in seg.get("lines", []):
+        sp = ln.get("speaker") if isinstance(ln, dict) else None
+        if sp and sp not in entered:
+            # 玩家位也注入（执行侧分流）；未登记的 speaker 给缺省位 + 警告（不崩，验证器兜底）
+            slot = slot_of.get(sp)
+            note = f"首次发言自动入场（05 纪律 6①）: {sp}"
+            if sp != player_key and slot is None:
+                slot = "side"
+                print(f"[WARN] {seg.get('id')}: speaker 未登记 actors 条目: {sp}（缺省 side，待验证器拦截）")
+            new_lines.append(_make_stage_cmd("actor_enter", sp, slot=slot,
+                                             when=entry_meta.get(sp), note=note))
+            entered.add(sp)
+        new_lines.append(ln)
+
+    # 3. 段末收场：已入场且非玩家位 → 按 actors 表序离场
+    for k in slot_of:
+        if k in entered and k != player_key:
+            new_lines.append(_make_stage_cmd(
+                "actor_leave", k, slot=slot_of[k],
+                note=f"段末收场（05:163 排演对应物）: {k}"))
+
+    seg["lines"] = new_lines
+    return seg
 
 
 def inject_stage(path):
@@ -135,6 +220,8 @@ def inject_stage(path):
                                 "角色池成员待 07 确认"})
 
     seg["actors"] = actors
+    # v2：显式入场/退场指令注入（05 纪律 4-6）
+    seg = inject_staging_events(seg)
     return seg
 
 
