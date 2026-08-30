@@ -119,6 +119,15 @@
 > UTF-8 BOM，Excel 可直接打开）。xlsx 只作上游导入源：织丰表更新 → 先跑 `xlsx_to_csv.py` 刷新镜像，
 > 再重跑下面命令。🔴 镜像 CSV 禁止手改（重跑即覆盖）；人填数据（StringId 补列等）写
 > `gen_entity_maps.py` 的映射表或独立文件。
+>
+> 🔴 **`csv/item.csv`（2026-08-30 新建）= 非镜像人工维护源表**：织丰 xlsx 无物品表（16 张 sheet
+> 只有人物/据点/音乐等，无 Item），TK5 物品/交易品数据以此表为第 1 手来源——**141 词条**
+> （101 物品 + 40 交易品；槽行物品Ａ/Ｂ、交易品Ａ/Ｅ 已剔除），**ID 列 = 规则 ID**：
+> `tk5_item_/tk5_trade_` + 罗马字语义词（同织丰物品 ID 风格 `fire_arrow`/`sho_fukinuki_banner`；
+> 词表 = `gen_entity_maps.py` 的 `ITEM_SLUG`，词表外 md5 占位 + 报告点名）；
+> **07 数据包创建织丰物品时，把骑砍 ItemObject StringId 覆盖进 ID 列**（覆盖后重跑 gen_entity_maps
+> 即替换规则 ID）；人可编辑列 = ID / CNName / TK5Type / Remark，TK5Name/Kind/SourceCount 由生成器
+> 维护（only-append 补行，人填行不覆盖）。
 
 ```bash
 cd plans/scenario-campaign-mode

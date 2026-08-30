@@ -128,8 +128,11 @@ def inject_stage(path):
         if obj in seen or obj == "主人公":
             continue
         seen.add(obj)
-        actors.append({"agentId": f"🔴待07{obj}", "slot": "gate", "present": True,
-                       "_note": "对话对象（沉默观众位，05 纪律 5）"})
+        # 🔴 2026-08-30 v6：agentId = 纯 DSL 引用（listener 已翻译，槽/特殊值亦合法引用）；
+        #   「待 07 确认角色池成员」语义放 _note 注记层——禁止把 🔴待07 前缀写进 agentId（参数污染）
+        actors.append({"agentId": obj, "slot": "gate", "present": True,
+                       "_note": f"对话对象（沉默观众位，05 纪律 5）；{obj} 为槽/特殊引用，"
+                                "角色池成员待 07 确认"})
 
     seg["actors"] = actors
     return seg
@@ -162,17 +165,21 @@ def main():
         print(f"[OK] {fn}: actors={len(seg['actors'])}")
 
     # 🔴 重建人读合并版 story.jsonc（与分文件保持同步——注入后 actors 一致）
-    merged = []
-    for fn in sorted(os.listdir(story_dir)):
-        if not fn.endswith(".jsonc"):
-            continue
+    #   合法 JSON 数组：外层 [ ] 包裹、段间逗号、横幅注释为 // 注释行（jsonc 合法——注释可行，
+    #   剥注释后 = json.loads 可解析）；引擎读取源 = story/*.jsonc 分文件，合并版仅供人读/搜索。
+    merged = ["["]
+    files = sorted(f for f in os.listdir(story_dir) if f.endswith(".jsonc"))
+    for fi, fn in enumerate(files):
         with open(os.path.join(story_dir, fn), encoding="utf-8") as f:
-            raw = f.read()
+            raw = f.read().rstrip()
+        if not raw.endswith("}"):
+            raw = raw.rstrip(",")          # 防御：分文件尾不该有逗号，有则剥
         merged.append(f"// ============ {fn[:-6]} ============")
         merged.append(raw)
-        merged.append("")
+        merged.append("," if fi < len(files) - 1 else "")
+    merged.append("]")
     with open(os.path.join(args.story, args.scenario, "story.jsonc"), "w", encoding="utf-8") as f:
-        f.write("\n".join(merged))
+        f.write("\n".join(merged) + "\n")
 
     print(f"\n完成：scene 形态注入 {n_scene} 个，立绘形态跳过 {n_skip} 个；story.jsonc 已重建")
 

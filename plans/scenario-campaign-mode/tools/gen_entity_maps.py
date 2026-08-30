@@ -20,6 +20,15 @@ KINGDOM_MAP / SETTLEMENT_MAP / REGION_MAP），只覆盖桶狭间那几十个人
 3. **铁律 5**：每个 ID 都拿模块 XML 核对过存在性；核不到的进 `MISSING_IN_XML`，翻译器照常用
    （数据包可能后补），但报告里点名，禁止静默。
 
+🔴 物品/交易品（2026-08-30 v6.1）
+--------------------------------
+织丰 xlsx 无物品表（列表见下）→ 新建 **`Knowledge/骑砍2织丰角色ID对应/csv/item.csv`**：
+**非镜像人工维护源表**（xff 织丰物品数据第 1 张表，07 数据包建织丰物品时填骑砍真 StringId）。
+- 人只编辑 ID / CNName / TK5Type / Remark 四列；TK5Name / Kind / SourceCount 由本脚本从语料
+  扫描维护（only-append 补行，已有行不覆盖）。
+- 本脚本产 ITEM_MAP/MERC_T_MAP：ID 列有真值用真值（铁律 5）；空/占位 = 确定性占位 ID
+  tk5_item_*/tk5_trade_*（生成器产物，翻译器零兜底不变）。
+
 繁简
 ----
 太阁源文是繁体（織田信長），织丰表是简体（织田信长）。生成期用 zhconv 把简体名转成繁体，
@@ -172,6 +181,52 @@ REGION_MAP = {
     '駿河': 'tk5_suruga', '遠江': 'tk5_totomi', '三河': 'tk5_mikawa', '尾張': 'tk5_owari',
     '美濃': 'tk5_mino', '伊勢': 'tk5_ise', '近江': 'tk5_omi', '山城': 'tk5_yamashiro',
     '甲斐': 'tk5_kai', '信濃': 'tk5_shinano', '相模': 'tk5_sagami', '武藏': 'tk5_musashi',
+}
+
+# 🔴 TK5 物品/交易品 → 罗马字 slug（2026-08-30 v6.2 用户裁定：ID 列按骑砍 StringId 规则填——小写
+#   蛇形语义词（同织丰既有物品风格：fire_arrow / sho_fukinuki_banner / hr_weapon_kunai…）。
+#   规则：中日同形词 → 日文读法（三日月茶壺→mikazuki_chaho、葡萄酒→putaojiu/麦酒→bakushu）；
+#   纯中文词 → 汉语拼音（斗篷→doupeng、蛋糕→dangao）；读音存疑的取近似读法 + 注释。
+#   词表外新词条 = md5 占位 + 报告点名「待罗马字转写」（07 数据包落地时补词表重跑）。
+ITEM_SLUG = {
+    '万葉集': 'manyoshu', '万金丹': 'mankin_tan', '三味線': 'shamisen', '三國黑': 'mikuni_kuro',
+    '三日月茶壺': 'mikazuki_chaho', '三芳野': 'miyoshino', '不二山': 'fujisan',
+    '世界圖屏風': 'sekai_zu_byobu', '丹波茶壺': 'tanba_chaho', '九十九髪茄子': 'tsukumo_nasubi',
+    '二人静': 'futari_shizuka', '五輪書': 'gorinsho', '信樂燒': 'shigaraki_yaki',
+    '備前燒': 'bizen_yaki', '備前長船兼光': 'bizen_osafune_kanemitsu', '僧坊酒': 'soboshi',
+    '初花肩衝': 'hatsuhana_katatsuki', '利休酒': 'rikyu_shu', '十文字槍': 'jumonji_yari',
+    '千鳥之香炉': 'chidori_no_koro', '反魂丹': 'hankontan', '古今和歌集': 'kokinshu',
+    '古天明平蜘蛛': 'kotenmei_hirakumo', '吉光骨食': 'yoshimitsu_kotsujiki', '呂宋壺': 'ruson_tsubo',
+    '唐芋': 'kara_imo', '國友筒': 'kunimoto_tsutsu', '地球儀': 'chikyugi', '大真珠': 'o_shinju',
+    '天國': 'tengoku', '天明釜': 'tenmei_gama', '宗三左文字': 'sozan_samonji', '寶冠': 'hokan',
+    '小粒金': 'kotsubugane', '小雲雀': 'kohibari', '山桃': 'yamamomo', '帝釋栗毛': 'taishaku_kurige',
+    '徒然草': 'tsurezuregusa', '忍鎌': 'shinobi_gama', '手裏剣': 'shuriken', '捨子': 'sutego',
+    '放生月毛': 'hojou_tsukige', '斗篷': 'doupeng', '新田肩衝': 'shinden_katatsuki',
+    '日本號': 'nihon_go', '旨酒': 'umazake', '星崎': 'hoshizaki', '會津黑': 'aizu_kuro',
+    '朝鮮唐津': 'chousen_karatsu', '春慶塗': 'shunkei_nuri', '更紗': 'sarasa', '杉原紙': 'sugihara_kami',
+    '村正': 'muramasa', '村雨': 'murasame', '松島之壺': 'matsushima_no_tsubo',
+    '松本茶碗': 'matsumoto_chawan', '松風': 'matsukaze', '根來塗': 'negoro_nuri', '梨': 'nashi',
+    '梳子': 'shuzi', '楢柴肩衝': 'narashiba_katatsuki', '正宗': 'masamune', '水晶': 'suisho',
+    '沙丁魚': 'shadingyu', '淚': 'namida', '清酒': 'seishu', '渡航朱印狀': 'tokou_shuinjou',
+    '濁酒': 'nigorizake', '無效藥': 'fukouyaku', '無銘槍': 'mumei_yari', '煙槍': 'enso',
+    '物干竿': 'monohoshizao', '珍陀酒': 'chindashu', '珠光小茄子': 'shuko_konasubi',
+    '瓶割刀': 'kamewarito', '疊': 'tatami', '白石': 'shiraishi', '百段': 'hyakudan',
+    '祥瑞': 'shouzui', '童子切': 'doujigiri', '竹光': 'takemitsu', '紅寶石之戒': 'hongem_no_yubiwa',
+    '縹糸下散紅威': 'kokiito_shitasankoui', '美濃紙': 'mino_gami', '翡翠首飾': 'hisui_no_kazari',
+    '聖騎士之鎧': 'seikishi_no_yoroi', '肥皂': 'feizao', '脇差': 'wakizashi', '色紙': 'shikishi',
+    '茜': 'akane', '荏胡麻': 'egoma', '花下遊樂圖': 'hanashita_yuraku_zu', '胡椒': 'koshou',
+    '莫邪': 'moye', '菊池槍': 'kikuchi_yari', '菊酒': 'kikuzake', '萩燒': 'hagi_yaki',
+    '萬曆赤絵': 'manreki_akae', '葡萄': 'budo', '葡萄酒': 'putao_jiu', '蕎麦': 'soba',
+    '藍': 'ai', '蘆屋釜': 'ashiya_gama', '蘭奢待': 'ranshatai', '蚩尤之鎧': 'shiyu_no_yoroi',
+    '蛋糕': 'dangao', '蜜柑': 'mikan', '赤樂茶碗': 'akaraku_chawan', '足輕具足': 'ashigaru_gusoku',
+    '輪島塗': 'wajima_nuri', '近江黑': 'oomi_kuro', '醬油': 'shoyu', '金塊': 'kinkai',
+    '金平糖': 'konpeito', '金陀美具足': 'kondami_gusoku', '鎖具足': 'kusari_gusoku',
+    '鑽石': 'zuanshi', '雷切': 'raikiri', '青磁花入': 'seiji_hanaire', '馬蝗絆': 'bakouhaken',
+    '鬼丸': 'onimaru', '鮨': 'sushi', '鯛魚': 'tai', '鳥子紙': 'torinoko_kami', '麦酒': 'bakushu',
+    '黄瀬戶花入': 'kizeto_hanaire', '黄瀬戶茶碗': 'kizeto_chawan', '黄金分銅': 'ougon_bundo',
+    '黑樂茶碗': 'kuro_raku_chawan', '黑葦威胴丸': 'kuroashi_odoshi_doumaru', '黑雲': 'kurogumo',
+    '龍蝦': 'longxia', '煙草': 'tabako', '牡蠣': 'kaki', '玻璃瓶': 'boli_ping', '白磁': 'hakuji',
+    '硯': 'suzuri', '筆': 'fude', '紅花': 'benibana', '紙': 'kami', '紫根': 'shikon',
 }
 
 # 🔴 据点两列的语义不一样，不能混用（2026-08-28 查表实证）：
@@ -376,6 +431,22 @@ def main():
     for tk, zf in NAME_ALIAS.items():
         alias_rev.setdefault(zf, []).append(tk)
 
+    # ---- 模板 NPC：织丰表模板行（模板NPC=1，ScriptName/CNName = TK5 模板名）→ CharacterObject
+    #      模板真 StringId，优先于手写占位（tk5_* = 表外模板才用）；铁律 8 模板身份 = CharacterObject
+    agent_map = dict(AGENT_MAP)
+    for r in hero_rows:
+        if (r.get('模板NPC') or '').strip() != '1':
+            continue
+        tid = r.get('ID')
+        if not tid:
+            continue
+        for n in (r.get('ScriptName', ''), r.get('CNName', '')):
+            if n:
+                agent_map[n] = tid        # 表行真 ID 优先（织丰现成 CharacterObject，铁律 5）
+    hero_rows = [r for r in hero_rows if (r.get('模板NPC') or '').strip() != '1']   # 🔴 模板行进 HERO_MAP
+    #   = 语义污染（CharacterObject 模板 ≠ HeroObject；原 HERO_MAP 的 template_shougun_01 与 AGENT_MAP
+    #   tk5_bitaisho 双命中歧义，2026-08-30 v6）——hero 相关循环一律在过滤后的列表上跑
+
     HERO_MAP, HERO_META, CLAN_BY_HERO, KINGDOM_BY_HERO = {}, {}, {}, {}
     org_names = collections.Counter()
     heroid2cn = {}            # hero ID → 中文名（当主→势力反查用）
@@ -391,6 +462,8 @@ def main():
             continue
         hid = r['ID']
         heroid2cn[hid] = cn
+
+    # ---- 人物：TaikouHero 表（本剧本年份那一组列）----
     for r in hero_rows:
         cn = r.get('CNName', '')
         if not cn:
@@ -481,6 +554,81 @@ def main():
     xml_settle_base = xml_ids('Shokuho/ModuleData/settlements.xml',
                               'Shokuho/ModuleData/port_location_settlements.xml',
                               'Shokuho/ModuleData/*_location_settlements.xml')
+    # ---- 物品/交易品（2026-08-30 v6.2 用户裁定：ID 列按骑砍 StringId 规则填——tk5_item_/tk5_trade_
+    #   + 罗马字语义词，与织丰既有物品 ID（fire_arrow/sho_fukinuki_banner/hr_weapon_kunai）同风格；
+    #   ID = 生成器按 ITEM_SLUG 词表产出（确定性、可读），07 数据包建真物品时人覆盖为真 StringId）。
+    #   🔴 v6.2 槽剔除：`物品::物品Ａ`/`圖片表示:(物品,物品Ａ,…)` 是**槽引用**（16a 域值区
+    #   Ctx::item_a），不是物品名——含全角字母/数字的词一律剔除（物品Ａ/Ｂ、交易品Ａ/Ｅ 曾误收录）。
+    #   职责：人只编辑 ID/CNName/TK5Type/Remark；生成器维护 TK5Name/Kind/SourceCount + 自动补行
+    #   （only-append 语义，人填行不覆盖——仅槽行清洗会删行）；脚本不猜真 ID。
+    ITEM_MAP, MERC_T_MAP = {}, {}
+    _item_csv_path = os.path.join(CSV_DIR, 'item.csv')
+    _src_tk5 = os.path.join(ROOT, 'Knowledge', '太阁事件包', 'TK5AllEvents_merged.txt')
+    _item_kinds = collections.defaultdict(collections.Counter)   # TK5名 -> Counter(item/trade_good)
+    _item_known = {}                                             # TK5名 -> 已登记行
+
+    def _is_slot_name(k):
+        """槽引用判定：物品Ａ/交易品Ｅ 等——含全角字母或纯全角数字 = 槽（16a 有 Ctx::item_* 注册）。"""
+        return bool(re.search(r'[Ａ-Ｚａ-ｚ０-９]', k)) or k in ('無效', '主人公')
+
+    if os.path.exists(_src_tk5):
+        _txt = io.open(_src_tk5, encoding='utf-8-sig').read()
+        for _m in re.finditer(r'(?:物品|交易品)::([^.\s（()（）]+)', _txt):
+            _k = _m.group(1)
+            if _k and not _is_slot_name(_k):
+                _item_kinds[_k]['trade_good' if _m.group(0).startswith('交易品') else 'item'] += 1
+        for _m in re.finditer(r'圖片表示:\s*\(\s*物品\s*,\s*([^,()]+)', _txt):
+            _k = _m.group(1).strip()
+            if _k and not _is_slot_name(_k):
+                _item_kinds[_k]['item'] += 1
+    if os.path.exists(_item_csv_path):
+        with io.open(_item_csv_path, encoding='utf-8-sig') as _f:
+            for _r in csv.DictReader(_f):
+                _n = (_r.get('TK5Name') or '').strip()
+                if _n and not _is_slot_name(_n):          # 🔴 槽行清洗（v6.0 误收录 → 剔除）
+                    _item_known[_n] = _r
+    # 补行 + 汇总（唯一写入口：本段结尾统一写回；已有行仅当 ID 为空/占位时回填规则 ID，不覆盖人）
+    _rows = [_r for _n, _r in sorted(_item_known.items())]
+    _slug_used, _slug_missing = {}, []
+    def _item_id(_n, _kind):     # 规则 ID：slug 优先，词表缺 = md5 占位 + 点名
+        _slug = ITEM_SLUG.get(_n)
+        if not _slug:
+            _slug_missing.append(_n)
+            _slug = hashlib.md5(_n.encode('utf-8')).hexdigest()[:6]
+        _n2 = _slug_used.get(_slug, 0) + 1
+        _slug_used[_slug] = _n2
+        _slug = '%s_%d' % (_slug, _n2) if _n2 > 1 else _slug
+        return ('tk5_trade_' if _kind == 'trade_good' else 'tk5_item_') + _slug
+    for _n in sorted(_item_kinds):
+        if _n in _item_known:
+            continue
+        _cnt = _item_kinds[_n]
+        _kind = 'trade_good' if _cnt.get('trade_good', 0) > _cnt.get('item', 0) else 'item'
+        _rows.append({'ID': '', 'TK5Name': _n, 'CNName': '', 'TK5Type': '', 'Kind': _kind,
+                      'SourceCount': str(sum(_cnt.values())),
+                      'Remark': '2026-08-30 语料扫描（07 数据包补 ID/类型）'})
+    _shielded = 0                                        # 已定真 ID 的行数（07 人填，不覆盖）
+    for _r in _rows:
+        _n = _r['TK5Name']
+        _kind = _r.get('Kind')
+        if _kind not in ('item', 'trade_good'):
+            _cnt = _item_kinds[_n]
+            _kind = 'trade_good' if _cnt.get('trade_good', 0) > _cnt.get('item', 0) else 'item'
+            _r['Kind'] = _kind
+        _cid = (_r.get('ID') or '').strip()
+        if _cid and not _cid.startswith('tk5_'):
+            _shielded += 1
+            (MERC_T_MAP if _kind == 'trade_good' else ITEM_MAP)[_n] = _cid
+            continue
+        _r['ID'] = _item_id(_n, _kind)
+        (MERC_T_MAP if _kind == 'trade_good' else ITEM_MAP)[_n] = _r['ID']
+    import csv as _csv
+    with io.open(_item_csv_path, 'w', encoding='utf-8-sig', newline='') as _f:
+        _w = _csv.DictWriter(_f, fieldnames=['ID', 'TK5Name', 'CNName', 'TK5Type',
+                                             'Kind', 'SourceCount', 'Remark'])
+        _w.writeheader()
+        for _r in _rows:
+            _w.writerow({k: (_r.get(k) or '') for k in _w.fieldnames})
     missing = collections.OrderedDict()
     supplements = {}
     def check2(label, ids, base_pool, exp_pool):
@@ -533,6 +681,15 @@ def main():
     if len(conflicts) > 10:
         print('  …还有 %d 条冲突' % (len(conflicts) - 10))
 
+    if ITEM_MAP or MERC_T_MAP:
+        _all = len(_item_kinds)
+        print('  物品 %d 件 ／ 交易品 %d 件（源表 csv/item.csv %d 词条：规则 ID 已生成 %d，'
+              '07 真 ID %d（人已填，不覆盖））'
+              % (len(ITEM_MAP), len(MERC_T_MAP), _all, _all - _shielded, _shielded))
+        if _slug_missing:
+            print('    ⚠️ 罗马字词表缺失 %d 词条（ID = md5 占位，待补 gen_entity_maps.py ITEM_SLUG）：%s'
+                  % (len(set(_slug_missing)), '、'.join(sorted(set(_slug_missing))[:12])))
+        print('    物品样例：%s' % '、'.join(sorted(ITEM_MAP)[:10]))
     if report_only:
         return 0
 
@@ -562,8 +719,15 @@ def main():
                     '太阁据点名 → Settlement StringId（tk5_city_NNN = 骑砍地图上没有这座城，07 数据包补）'))
     out.append(dump('SETTLEMENT_ANCHOR', SETTLEMENT_ANCHOR,
                     '占位据点 → 最近的骑砍真据点（决定事件在地图哪一带发生，不是同一个地方）'))
-    out.append(dump('AGENT_MAP', AGENT_MAP, '模板角色名 → CharacterObject 模板占位 ID（织丰表无此类，本表即事实源）'))
+    out.append(dump('AGENT_MAP', agent_map,
+                    '模板角色名 → CharacterObject 模板 StringId（织丰表模板行 template_* 真 ID 优先；'
+                    'tk5_* = 表外模板占位，07 数据包补）'))
     out.append(dump('REGION_MAP', REGION_MAP, '令制国名 → Region 占位 ID（织丰表只到「文化大区/细分区」两层，无令制国层，本表兜底）'))
+    out.append(dump('ITEM_MAP', ITEM_MAP,
+                    'TK5 物品名 → Item StringId（源表 csv/item.csv 的 ID 列——真 ID 优先；'
+                    'tk5_item_XXXX = 占位（07 数据包建织丰物品后填 item.csv 重跑即换真 ID））'))
+    out.append(dump('MERC_T_MAP', MERC_T_MAP,
+                    'TK5 交易品名 → Item StringId（同上；tk5_trade_XXXX = 占位）'))
     out.append('# 人物在本剧本年份的状态：{hero_id: {clan, kingdom, kingdom_name, city, appear, identity, stance}}\n')
     out.append('HERO_META = {\n')
     for hid in sorted(HERO_META):
