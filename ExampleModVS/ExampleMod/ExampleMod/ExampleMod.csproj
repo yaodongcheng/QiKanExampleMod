@@ -214,6 +214,10 @@
       <HintPath>$(MB2_NATIVE_REF)\TaleWorlds.MountAndBlade.View.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="TaleWorlds.MountAndBlade.GauntletUI">
+      <HintPath>$(MB2_NATIVE_REF)\TaleWorlds.MountAndBlade.GauntletUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="TaleWorlds.MountAndBlade.ViewModelCollection">
       <HintPath>$(MB2_CORE_REF)\TaleWorlds.MountAndBlade.ViewModelCollection.dll</HintPath>
       <Private>False</Private>
@@ -299,6 +303,7 @@
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
     <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
+    <Compile Include="Debug\SceneNotificationLoggerPatch.cs" />
     <Compile Include="Debug\SaveGuard.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
