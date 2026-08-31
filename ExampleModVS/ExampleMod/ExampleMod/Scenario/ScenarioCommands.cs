@@ -20,7 +20,7 @@ namespace LivingWorldNpcs
                 ScenarioLoader.LoadAll();
 
             var sb = new StringBuilder();
-            sb.AppendLine($"== 剧本事件 {ScenarioLoader.Events.Count} 个（{ScenarioLoader.LoadedFileCount} 文件）==");
+            sb.AppendLine($"== Scenario events {ScenarioLoader.Events.Count} ({ScenarioLoader.LoadedFileCount} files)==");
             foreach (var evt in ScenarioLoader.Events)
                 sb.AppendLine($"  {evt}");
             return sb.ToString();
@@ -30,14 +30,14 @@ namespace LivingWorldNpcs
         public static string ScnStatus(List<string> args)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("== 剧本状态 ==");
+            sb.AppendLine("== Scenario state ==");
             var sink = GlobalVariableBehavior.Instance;
-            sb.AppendLine($"  仓存在: {(sink != null ? "是" : "否（未开始战役）")}");
-            sb.AppendLine($"  加载报告 {ScenarioLoader.LoadReport.Count} 行:");
+            sb.AppendLine($"  Store exists: {(sink != null ? "yes" : "no (no campaign)")}");
+            sb.AppendLine($"  Load report {ScenarioLoader.LoadReport.Count} lines:");
             var tail = ScenarioLoader.LoadReport.Count > 30 ? ScenarioLoader.LoadReport.GetRange(ScenarioLoader.LoadReport.Count - 30, 30) : ScenarioLoader.LoadReport;
             foreach (var line in tail)
                 sb.AppendLine($"    {line}");
-            sb.AppendLine("  [ERROR 行] " + ScenarioLoader.LoadReport.FindAll(l => l.StartsWith("[ERR]")).Count);
+            sb.AppendLine("  [ERROR] count: " + ScenarioLoader.LoadReport.FindAll(l => l.StartsWith("[ERR]")).Count);
             return sb.ToString();
         }
 
@@ -46,7 +46,7 @@ namespace LivingWorldNpcs
         {
             ScenarioLoader.Reset();
             ScenarioLoader.LoadAll();
-            return "剧本数据已重载";
+            return "Scenario data reloaded";
         }
 
         /// <summary>custom.scn_init：手动跑一次剧本初始化（新档自动跑；本指令 = 测试/补种）</summary>
@@ -54,7 +54,7 @@ namespace LivingWorldNpcs
         public static string ScnInit(List<string> args)
         {
             ScenarioInit.Apply();
-            return $"[Scenario][Init] 完成：英雄 {ScenarioInit.SeededHeroes} / 属性 {ScenarioInit.SeededAttrs} / 拨年龄 {ScenarioInit.AdjustedAges} / 未出生 {ScenarioInit.UnbornSkipped} / 已死 {ScenarioInit.DeceasedSkipped}";
+            return $"[Scenario][Init] done: heroes {ScenarioInit.SeededHeroes} / attrs {ScenarioInit.SeededAttrs} / ages {ScenarioInit.AdjustedAges} / unborn {ScenarioInit.UnbornSkipped} / deceased {ScenarioInit.DeceasedSkipped}";
         }
 
         /// <summary>custom.scn_force_event &lt;eventId&gt;：强制触发某事件（12 A2；互斥选路/once/done 全走真路径）</summary>
@@ -62,19 +62,19 @@ namespace LivingWorldNpcs
         public static string ScnForceEvent(List<string> args)
         {
             string id = args != null && args.Count > 0 ? args[0] : null;
-            if (string.IsNullOrEmpty(id)) return "用法: custom.scn_force_event EVENT_ID";
+            if (string.IsNullOrEmpty(id)) return "Usage: custom.scn_force_event EVENT_ID";
             ScenarioScheduler.EnsureLoadedAll();
             var evt = ScenarioLoader.Events.Find(e => e.Id == id);
-            if (evt == null) return $"未找到事件 {id}（先 scn_list 看清单）";
+            if (evt == null) return $"Event not found: {id} (try scn_list)";
             ScenarioScheduler.ExecuteEvent(evt);
-            return $"[Scenario] 事件 {id} 执行完毕（once={(evt.Once ? "是→done" : "否")}）";
+            return $"[Scenario] Event {id} executed (once={(evt.Once ? "yes->done" : "no")})";
         }
 
         /// <summary>custom.scn_run_action &lt;action&gt; [key=value...]：单动作落世界（12 A3；例：scn_run_action update target="(Hero::x.alive)" value="true"）</summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("scn_run_action", "custom")]
         public static string ScnRunAction(List<string> args)
         {
-            if (args == null || args.Count == 0) return "用法: custom.scn_run_action ACTION [k=v ...]";
+            if (args == null || args.Count == 0) return "Usage: custom.scn_run_action ACTION [k=v ...]";
             var step = new ScenarioScriptStep { Step = "effect", Action = args[0] };
             for (int i = 1; i < args.Count; i++)
             {
@@ -85,7 +85,7 @@ namespace LivingWorldNpcs
                 step.Extra[k] = new Newtonsoft.Json.Linq.JValue(v.Trim('"'));
             }
             bool ok = ScenarioActions.Execute(step, ScenarioContext.Instance);
-            return $"[Scenario][Action] {args[0]} 执行{(ok ? "完成" : "（返回 false）")}";
+            return $"[Scenario][Action] {args[0]} executed ({(ok ? "ok" : "false")})";
         }
 
         /// <summary>custom.playback_dump &lt;playbackId&gt;：dump 一个分件的指令流（05 验收；无参 = 列清单）</summary>
@@ -96,13 +96,13 @@ namespace LivingWorldNpcs
             var sb = new StringBuilder();
             if (args == null || args.Count == 0 || string.IsNullOrEmpty(args[0]))
             {
-                sb.AppendLine($"== 演绎分件 {ScenarioLoader.Playbacks.Count} 个 ==");
+                sb.AppendLine($"== Playbacks {ScenarioLoader.Playbacks.Count} ==");
                 foreach (var p in ScenarioLoader.Playbacks)
-                    sb.AppendLine($"  {p.Id}  [{(p.Form ?? "?")}] {p.Lines?.Count ?? 0} 行");
+                    sb.AppendLine($"  {p.Id}  [{(p.Form ?? "?")}] {p.Lines?.Count ?? 0} lines");
                 return sb.ToString();
             }
             var def = ScenarioLoader.FindPlayback(args[0]);
-            if (def == null) return $"未找到分件 {args[0]}";
+            if (def == null) return $"Playback not found: {args[0]}";
             sb.AppendLine($"{def.Id} [{(def.Form ?? "?")}]");
             foreach (var ln in def.Lines ?? new List<PlaybackLine>())
                 sb.AppendLine($"  {ln}");
@@ -113,19 +113,19 @@ namespace LivingWorldNpcs
         [CommandLineFunctionality.CommandLineArgumentFunction("playback_play", "custom")]
         public static string PlaybackPlay(List<string> args)
         {
-            if (args == null || args.Count == 0 || string.IsNullOrEmpty(args[0])) return "用法: custom.playback_play PLAYBACK_ID";
+            if (args == null || args.Count == 0 || string.IsNullOrEmpty(args[0])) return "Usage: custom.playback_play PLAYBACK_ID";
             if (ScenarioLoader.Playbacks.Count == 0) ScenarioLoader.LoadPlaybacks();
             PlaybackPlayer.Play(args[0]);
-            return PlaybackPlayer.IsPlaying ? $"[Playback] 开始演 {args[0]}" : $"[Playback] {args[0]} 未开始（见日志）";
+            return PlaybackPlayer.IsPlaying ? $"[Playback] playing {args[0]}" : $"[Playback] {args[0]} not started (see log)";
         }
 
         /// <summary>custom.scn_set_identity &lt;heroId|none&gt;：设定当前扮演身份（显示层：立绘/名字/镜像位；06 身份注入前身）。例：scn_set_identity lord_1_oda</summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("scn_set_identity", "custom")]
         public static string ScnSetIdentity(List<string> args)
         {
-            if (args == null || args.Count == 0 || args[0] == "none") return "用法: custom.scn_set_identity HERO_ID（none 清除）";
+            if (args == null || args.Count == 0 || args[0] == "none") return "Usage: custom.scn_set_identity HERO_ID (none to clear)";
             ScenarioPlayerIdentity.SetPlayerHero(args[0].Trim());
-            return $"[Scenario][Identity] 当前扮演 = {args[0]}（显示层跟随；世界注入 = 06 后置）";
+            return $"[Scenario][Identity] Current identity = {args[0]} (display-layer only; world injection = 06 later)";
         }
 
         /// <summary>
@@ -135,6 +135,8 @@ namespace LivingWorldNpcs
         [CommandLineFunctionality.CommandLineArgumentFunction("playback_demo", "custom")]
         public static string PlaybackDemo(List<string> args)
         {
+            if (TaleWorlds.CampaignSystem.Campaign.Current == null)
+                return "[Playback] Requires campaign context (main menu not supported) - enter a sandbox campaign first";
             ScenarioPlayerIdentity.SetPlayerHero("lord_1_oda");   // 用户 2026-08-31："我是信长"——demo 固定主角=信长（换人 = scn_set_identity 手动）
             string T(string key, string fallback) => new TaleWorlds.Localization.TextObject("{=" + key + "}" + fallback).ToString();
 
@@ -157,19 +159,19 @@ namespace LivingWorldNpcs
                 },
             };
             PlaybackPlayer.Play(def);
-            return PlaybackPlayer.IsPlaying ? "[Playback] 演示开始（秀吉→信长→选项→秀吉）" : "[Playback] 演示未开始（见日志）";
+            return PlaybackPlayer.IsPlaying ? "[Playback] Demo started (Hideyoshi -> Nobunaga -> choice -> Hideyoshi)" : "[Playback] demo not started (see log)";
         }
 
         /// <summary>custom.playback_show &lt;text&gt;：显示一条 PlaybackDialog 对白（T7 面板真机验证）</summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("playback_show", "custom")]
         public static string PlaybackShow(List<string> args)
         {
-            if (args == null || args.Count == 0) return "用法: custom.playback_show \"台词\" 或 playback_show 说话人 台词";
-            string speaker = args.Count >= 2 ? args[0] : "测试";
+            if (args == null || args.Count == 0) return "Usage: custom.playback_show \"PLAYER_TEXT\" or playback_show SPEAKER TEXT";
+            string speaker = args.Count >= 2 ? args[0] : "Test";
             string text = args.Count >= 2 ? string.Join(" ", args.Skip(1)) : string.Join(" ", args);
             PlaybackDialogUI.VM.Show(speaker, text, null);
             PlaybackDialogUI.Open();
-            return $"[PlaybackDialog] 显示: {speaker} —— {text}";
+            return $"[PlaybackDialog] shown: {speaker} -- {text}";
         }
 
         /// <summary>custom.playback_close：关闭面板</summary>
@@ -178,7 +180,7 @@ namespace LivingWorldNpcs
         {
             PlaybackDialogUI.VM.Close();
             PlaybackDialogUI.Close();
-            return "[PlaybackDialog] 已关闭";
+            return "[PlaybackDialog] closed";
         }
 
         /// <summary>custom.dsl_eval &lt;表达式&gt;：单条 DSL 求值（12 A1 分拆测试）</summary>
@@ -186,13 +188,13 @@ namespace LivingWorldNpcs
         public static string DslEval(List<string> args)
         {
             string expr = string.Join(" ", args ?? new List<string>());
-            if (string.IsNullOrWhiteSpace(expr)) return "用法: custom.dsl_eval \"表达式\"（空格会拼接）";
+            if (string.IsNullOrWhiteSpace(expr)) return "Usage: custom.dsl_eval \"EXPR\" (spaces joined)";
             var r = DslEvaluator.EvaluateDetailed(expr);
-            return $"[Scenario][Dsl] {r.Result} | 不可判定={r.Undecidable.Count} | 错误={r.Error ?? "(无)"}" +
+            return $"[Scenario][Dsl] {r.Result} | undecidable={r.Undecidable.Count} | errors={r.Error ?? "(none)"}" +
                    (r.Undecidable.Count > 0 ? "\n  " + string.Join("\n  ", r.Undecidable) : "");
         }
 
-        /// <summary>custom.dsl_validate：全事件条件求值状态（可判定/不可判定/错误 三档汇总）</summary>
+        /// <summary>custom.dsl_validate：全事件条件求值状态（OK/不OK/错误 三档汇总）</summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("dsl_validate", "custom")]
         public static string DslValidate(List<string> args)
         {
@@ -205,10 +207,10 @@ namespace LivingWorldNpcs
                 if (r.Error != null) err++;
                 else if (r.Undecidable.Count > 0) undec++;
                 else ok++;
-                sb.AppendLine($"  {evt.Id}: {(r.Error != null ? "语法错误" : r.Undecidable.Count > 0 ? $"不可判定 {r.Undecidable.Count} 条" : "可判定")}");
+                sb.AppendLine($"  {evt.Id}: {(r.Error != null ? "syntax error" : r.Undecidable.Count > 0 ? $"undecidable {r.Undecidable.Count}" : "OK")}");
                 foreach (var u in r.Undecidable) sb.AppendLine($"      ↳ {u}");
             }
-            sb.Insert(0, $"[Scenario][Dsl-validate] {ScenarioLoader.Events.Count} 事件：可判定 {ok} / 不可判定 {undec} / 错误 {err}\n");
+            sb.Insert(0, $"[Scenario][Dsl-validate] {ScenarioLoader.Events.Count} events: OK {ok} / UNDECIDABLE {undec} / ERRORS {err}\n");
             return sb.ToString();
         }
     }

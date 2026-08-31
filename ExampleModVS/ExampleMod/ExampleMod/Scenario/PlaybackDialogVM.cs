@@ -123,15 +123,18 @@ namespace LivingWorldNpcs
 
         // ── DataSource 命令（XML Command.Click 绑定）──
 
-        /// <summary>继续按钮点击 → 关闭（推进由订阅方处理）</summary>
+        /// <summary>继续（点屏幕任意处触发；选项出现时忽略——选项由选项按钮接收）</summary>
         public void OnClickContinue()
         {
+            if (_areOptionsVisible) return;   // 旧 VM ExecuteClick 同款守卫
+            DebugLogger.Log("[PlaybackDialog] 点击继续 → 播放下一步");
             Close();
         }
 
-        /// <summary>选项按钮点击 → 关闭（选中值在 StoryOptionVM 内，W5 播放器按 OnClosed 取）</summary>
+        /// <summary>选项按钮点击（参数 = 被点按钮的数据源 StoryOptionVM——确认协议用日志验证；StoryOptionVM 无 Text getter，日志走 Identifier）</summary>
         public void ExecuteOption(StoryOptionVM opt)
         {
+            DebugLogger.Log($"[PlaybackDialog] 选项点击 = {(opt?.Identifier ?? "(无id)")}");
             if (opt == null) return;
             Close();
         }
