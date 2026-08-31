@@ -1,0 +1,26 @@
+{
+  "id": "okehazama_EFF06E00_168_seg2",
+  "form": "menu_dialogue",
+  "lines": [
+    // T3 對話:(今川義元,功勳家臣)[[託大家的福，\n終於即將達成我上京的宿願……\n真的是太感謝各位了。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Agent::template_koushin_kashin_01", "textKey": "LWN_SCN_okehazama_EFF06E00_168_3", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T4 對話:(武力家臣,今川義元)[[這一切都是因為主公大人的人德啊！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_buryoku_kashin_01", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_168_4", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T5 對話:(外交家臣,今川義元)[[也不辜負我們的努力了。]],
+    {"cmd": "dialogue", "speaker": "Agent::template_gaikou_kashin_01", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_168_5", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T6 對話:(今川義元,功勳家臣)[[嗯，我想順便將居城移到二條城，\n正式地以統一天下為目標。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Agent::template_koushin_kashin_01", "textKey": "LWN_SCN_okehazama_EFF06E00_168_6", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T7 對話:(今川義元,功勳家臣)[[讓我們來結束亂世，\n創造安寧樂土吧！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Agent::template_koushin_kashin_01", "textKey": "LWN_SCN_okehazama_EFF06E00_168_7", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T8 對話:(外交家臣,今川義元)[[是！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_gaikou_kashin_01", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_168_8", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T9 旁白:[[<年>年<月>月，\n(今川義元)終於完成了上京的宿願……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_168_9", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T10 旁白:[[朝廷也盛大地歡迎(今川義元.姓)的到來……\n(今川義元)要成為天下人，\n也只剩時間的問題罷了……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_168_10", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T11 旁白:[[(主人公)的根據地移到二條城了。]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_168_11", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T12 旁白:[[(今川義元)被任命為左大臣了。]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_168_12", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), ((Hero::lord_1_imagawa_katsumoto.court_rank)) < (\"juichii\") )"}
+  ]
+}

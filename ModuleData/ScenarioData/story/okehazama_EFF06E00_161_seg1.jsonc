@@ -1,0 +1,16 @@
+{
+  "id": "okehazama_EFF06E00_161_seg1",
+  "form": "map_dialogue",
+  "lines": [
+    // T1 對話:(忍者,主人公)[[報告！\n(德川家康)大人擊破鳴海城將，\n已攻陷鳴海城了！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_ninja_male_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_161_1"},
+    // T2 對話:(今川義元,人物Ｂ)[[哦哦，真不愧是(德川家康.名)！！\n一開始就打了這麼漂亮的勝仗啊！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF06E00_161_2"},
+    // T3 對話:(人物Ｂ,人物Ｂ)[[(織田信長)是會死守城內，\n還是選擇野戰呢……\n不知道他會採取何種戰術……]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF06E00_161_3"},
+    // T4 對話:(今川義元,人物Ｂ)[[哪一種都行……\n我都會把他幹掉的！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF06E00_161_4"},
+    // T5 對話:(今川義元,人物Ｂ)[[嗯，進軍吧……\n再不久就可以見到尾張大呆瓜\n來向我求饒了！……哈哈哈！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF06E00_161_5"}
+  ]
+}

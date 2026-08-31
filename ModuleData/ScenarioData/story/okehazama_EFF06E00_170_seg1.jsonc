@@ -1,0 +1,8 @@
+{
+  "id": "okehazama_EFF06E00_170_seg1",
+  "form": "menu_dialogue",
+  "lines": [
+    // T1 對話:(德川家康,今川義元)[[總而言之……必須通報敗戰的消息。\n心情真是沉重。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_170_1", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"}
+  ]
+}

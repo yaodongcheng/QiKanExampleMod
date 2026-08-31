@@ -862,3 +862,30 @@ catch (Exception) { _retryTick = Environment.TickCount; }   // 失败：冷却�
 - **屏激活门控**：hover 判定前先查 `ScreenManager.TopScreen` 是注入按钮所属屏（Party/ClanScreen）——不是 → `over=false`（隐藏 + 复位）。注入按钮的矩形只在它自己的屏存在意义。
 - **周期重发**：`over && _hoverOn == 按钮` 期间每 ~3s 重发一次 `ShowHint`；`_hoverShowTimer` 在进入瞬间清零、离开即停。
 - 排查口诀：**「提示出现在别的屏/大地图上」= 按钮矩形来自已关闭屏的销毁窗口**；**「提示第一次出、后面不出」= tooltip 淡出后未重发**。二者都是「每帧判定 + 一次性 Show」的必然结果——手动 hit-test 的 hover 都要配门控 + 重发。
+
+---
+
+## 启动即崩 `Cannot bind to the target method...` → 控制台指令签名写成 `string[]` 而不是 `List<string>`
+
+**症状**（实机 2026-08-31 1.2.12 启动报错）
+- 游戏启动即崩，异常 `System.ArgumentException: Cannot bind to the target method because its signature or security transparency is not compatible with that of the delegate type.`
+- 栈只有引擎侧：`CommandLineFunctionality.CollectCommandLineFunctions()` → `Delegate.CreateDelegate`，看不到任何 mod 方法名（**栈里没有 = 反射扫描中招，不是某个调用点出错**）。
+- 毫无先兆：DLL 编译 0 错误 0 警告，旧版本同源代码能跑。
+
+**根因**（反编译实锤，1.2.12 与 1.5.1 的 `TaleWorlds.Library.CommandLineFunctionality` 逻辑一致）
+
+```
+CollectCommandLineFunctions()  // 启动时反射扫描所有程序集
+  └─ 每个带 [CommandLineArgumentFunction] 特性的方法：
+        Delegate.CreateDelegate(typeof(Func<List<string>, string>), methodInfo)  ← 引擎要求 List<string>
+             └─ 方法写成了 (string[] args) → 签名不匹配 → ArgumentException
+```
+
+- 引擎委托是 `Func<List<string>, string>`，**不是** `Func<string[], string>`——`string[]` 和 `List<string>` 是不同类型，委托绑定直接失败。
+- **为什么编译能过**：特性不校验签名，绑定是运行期反射行为——与 Harmony 字符串式补丁同款「编译不校验、运行期才判断」陷阱。
+- 2026-08-31 肇事点：`Scenario/ScenarioCommands.cs` 新写的 12 个指令全用了 `string[] args`（MyCommands.cs 等其他 70+ 指令均为 `List<string>`，同库对照一秒钟就能看出异常）。
+
+**规避**（已修复 `Scenario/ScenarioCommands.cs`）
+- 签名固定：`public static string Xxx(List<string> args)`；内部用 `args.Count`，`string.Join(" ", args)` 直接可用。
+- **新增任何控制台指令后自查**：grep `string\[\] args`，命中必炸启动。
+- 排查口诀：**「启动即崩 + 栈里只有 CollectCommandLineFunctions」= 特性方法签名不匹配**——全库搜 `CommandLineArgumentFunction` 列表逐方法看签名，别去查崩溃点。已登轮子：wheels.d/config.md「控制台调试指令」。

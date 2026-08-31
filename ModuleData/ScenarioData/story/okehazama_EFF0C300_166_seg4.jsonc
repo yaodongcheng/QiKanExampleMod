@@ -1,0 +1,16 @@
+{
+  "id": "okehazama_EFF0C300_166_seg4",
+  "form": "menu_dialogue",
+  "lines": [
+    // T31 對話:(人物Ｂ,主人公)[[歡迎你回來，老公。\n結果怎麼樣了？]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_31", "when": "and( and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), ((Hero::MainHero.spouse)) != (null) )"},
+    // T32 對話:(主人公,人物Ｂ)[[我們成功了，(人物Ｂ.名)！\n殺死那個(今川義元)了！\n我們的主公殺死那個(今川義元.姓)了！]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF0C300_166_32", "when": "and( and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), ((Hero::MainHero.spouse)) != (null) )"},
+    // T33 對話:(人物Ｂ,主人公)[[真是值得慶賀呀！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_33", "when": "and( and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), ((Hero::MainHero.spouse)) != (null) )"},
+    // T34 對話:(主人公,人物Ｂ)[[那位被稱為尾張的呆瓜的我家主公，\n竟然擊敗了擁有東海第一弓取異名的(今川義元.姓)……\n這簡直是一項壯舉啊！]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF0C300_166_34", "when": "and( and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), ((Hero::MainHero.spouse)) != (null) )"},
+    // T35 對話:(人物Ｂ,主人公)[[是的！！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_35", "when": "and( and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), ((Hero::MainHero.spouse)) != (null) )"}
+  ]
+}

@@ -494,3 +494,55 @@ else if (IsMessageAtBottom()) _pinnedToBottom = true;
 - **🔴 翻转为可见时强制重排**：`SetSiblingIndex(GetSiblingIndex(), force: true)`（引擎坑见 pitfalls「不可见子节点无布局盒」；签名 1.2.12~1.5.x 一致）。
 
 **关键文件**：`GUI/SecretLetterButtonInjector.cs`（注入/可见性/hover/点击全链路）、`ImChat/ImChatView.cs`（OnScreenFrameTick 驱动 + `SetPendingSecretLetter` + `CanOpen(screenStateAgnostic)`）、语言 XML `LWN_im_secret_letter_hint`。设计文档：`plans/im-secret-letter-button.md`。
+
+---
+
+## 🔴 立绘/头像 Sprite 按需加载 + 内容包契约 — `GUI/SpriteAssetsManager.cs` + `Data/PortraitRegistry.cs`（2026-08-31 实机验收通过后登记）
+
+**解决**：内容包（如 ShokuhoTaikouExpansionPack）打进 tpac 的 2000+ 张立绘/头像，怎么"显示一张" + "内存不爆"。引擎 SpriteCategory 默认整分类全量加载（2700 张 ≈ 600MB 变鸭梨），引擎原生 partial-load API 直接可用，封装成两个静态管理器。
+
+**引擎机制（反编译实锤，先懂再用）**：
+- 引擎 UI 初始化时**自动**做两件事，内容包零注册：①挂载所有模块 `AssetPackages/*.tpac`；②解析所有模块 `GUI/*SpriteData.xml`（文件名必须 `*SpriteData.xml` 结尾，放 GUI/ 下即可）。
+- `SpriteCategory.Load` → 纹理名 = `SpriteSheets\{Category}\{Category}_{N}`（N 1-based，取最后一段 → `GetFromResource("{Category}_{N}")`）。
+- partial 三件套（1.2.12~1.5.1 签名一致，无 #if）：`InitializePartialLoad()` 进入按需模式 / `PartialLoadAtIndex(ctx, depot, sheetIndex)` 加载单张 / `PartialUnloadAtIndex(idx)` 释放单张。
+- SpritePart 每卡一格（SheetID=N, SheetX/Y=0, SheetSize=卡尺寸）→ UV=0..1；`SpritePart.Texture` 读 `SpriteSheets[SheetID-1]`（partial 兼容）。
+
+**API（接入方只用两个类）**：
+```csharp
+// ① 显示一张：唯一入口，每次显示时调用，**不要缓存返回的 Sprite 对象**
+Sprite s = SpriteAssetsManager.GetOrLoad("lwnprof_bustup_517");
+if (s != null) { icon.Sprite = s; icon.IsVisible = true; }   // 先例：SecretLetterButtonInjector 的 ImageWidget
+
+// ② 角色→哪张卡（阶段数据）：StringId → 阶段列表（含 stage/tkid/sprite 名）
+var stages = PortraitRegistry.GetStagePortraits("lord_1_kinoshita");   // 秀吉 4 阶段
+var cur = PortraitRegistry.GetStagePortrait("lord_1_kinoshita", "藤吉郎");
+string emoSprite = PortraitRegistry.GetEmotionSpriteName("361", "happy", isBustup: true);
+```
+
+**内存纪律（LRU 已内建）**：bustup 桶 12 张 / minihead 桶 64 张（按字节分档）；驱逐 = `PartialUnloadAtIndex` + 250ms（≈2 帧）宽限 + 只逐最近未用；跨场景/读档引擎卸载后会自动重建 partial 状态。全程 try/catch → null 降级（铁律 1）。
+
+**内容包契约（数据怎么喂进来）**：内容包自备三件（由 `ArtSource/scripts/build_profile_pack.py` 生成，禁手改）——
+- `AssetPackages/lwnprof_*.tpac`（texture 名 = `{Category}_{N}`）
+- `GUI/LWProfilesSpriteData.xml`（4 个 category：lwnprof_bustup/mini/emobustup/emomini；sprite 名 = `lwnprof_{kind}_{tkid}` / `lwnprof_em{kind}_{tkid}_{emo}`）
+- `ModuleData/AssetRegistry/ProfileStages.csv`（列：StringId,stage,tkid,bustupSprite,miniheadSprite）+ `ProfileEmotion.csv`（tkid,emotion,bustupSprite,miniheadSprite）
+PortraitRegistry 扫**所有模块**的 `ModuleData/AssetRegistry/*.csv`（列名大小写敏感，TextFieldParser 处理 BOM/CRLF；CsvLoader 两行表头格式不可复用）。
+
+**坑（实机采集，防重踩）**：
+- 🔴 **ImageWidget 半透明垫底必须设 `bg.Brush.Color`**——渲染走 BrushRenderer，色调 = `Brush.DefaultStyle.GetLayer("Default").Color`（默认纯白 100% 不透明）；`Widget.Color` 不参与渲染（文字等用途）。这就是"立绘显示正常但背景白块"两次实机截图根因（已修）。
+- 🔴 **UI 调试热重载（CheckForChanges → SpriteData.Reload）会替换全部 SpritePart/SpriteCategory 对象**：不缓存 Sprite/Category 引用（每次现取 `GetSprite`/`part.Category`），否则旧引用指向已卸载纹理 → 黑块。
+- 内容包没装/tpac 名打错 → 返回 null + `[SpriteAssets]` 日志，不崩（铁律 1）。
+
+**关键文件**：`GUI/SpriteAssetsManager.cs`（GetSprite/GetOrLoad/EnsureLoaded/Release/ReleaseAll + LRU）、`Data/PortraitRegistry.cs`（GetStagePortraits/GetStagePortrait/GetEmotionSpriteName + CSV 扫描）、`Core/VersionCompat.cs`（`V.UIResourceDepot()`/`V.GetSpriteCategory()`——1.2.12 与 1.3+ 差异适配）。生产工具：`tools/face-pipeline/tpactool/TpacToolCLI`（makepack/inspect 命令，`TpacToolCLI/Bc3Encoder.cs` 内嵌 DXT5/BC3 编码器），产物生成器 `ShokuhoTaikouExpansionPack/ArtSource/scripts/build_profile_pack.py`。完整计划：`plans/scenario-campaign-mode/附录-立绘显示接入与分发方案.md`。
+
+---
+
+## tpac 打包链：任意 PNG → 引擎原生纹理包 — TpacToolCLI makepack/inspect（2026-08-31 登记）
+
+**解决**：无官方 TPAC 编译器，第三方 `TpacTool`（MIT, szszss）能读写但不含打包命令。本项目扩了 CLI 两个命令（`TpacToolCLI/Program.cs` + `MakePack.cs` + `Bc3Encoder.cs`）：
+
+- `tpaccli inspect --packdir <dir> --filter <名字>`——打印 texture **全字段**（Flags/SystemFlags/格式/OwnerGuid 等）。**模板字段第一站**（做新包前先 inspect 一个同款现成纹理，照着填：Flags=[dont_degrade,dont_delay_loading]、SystemFlags=[has_alpha]、Source=""、u3=1/byte=2/u4=1/u6=4/u7=1701736302、OwnerGuid==asset.Guid 实锤）。
+- `tpaccli makepack --manifest <json> --out <dir>`——manifest 描述 `{name, png, width, height}` → PNG（TpacTool.IO 内置 BigGustave 解码，零 NuGet）→ 内嵌 BC3/DXT5 编码（`Bc3Encoder.cs`：PCA 主轴端点 + c0>c1 强制（否则解码器切 3 色模式出透明黑）+ 端点重定位；直 alpha 不 premultiplied）→ 组装 Texture asset（模板字段 + **确定性 GUID**（名字 hash）+ 段 OwnerGuid 同值）→ `AssetPackage.Save`（数据段自动 LZ4HC）。
+- **验证闭环**（每轮打包必做）：`tpaccli dump --format png` 回解 → 与源 PNG 逐像素 diff（mean 1.78/255、alpha 0.83 上限 = DXT5 物理极限；全量 2720/2720 PASS）。
+- 纹理格式定版：**DXT5（BC3）无 mipmap**（织丰官方 UI 同款；原版部分 UI 是 BC7 也兼容，但 TpacTool 回解链只解 DXT1-5，选 DXT5 保离线验证）。
+
+**关键文件**：`tools/face-pipeline/tpactool/TpacToolCLI/`（Program.cs/MakePack.cs/Bc3Encoder.cs）、`TpacTool.Lib`（AssetPackage/Texture/TexturePixelData，仅只读使用）、`ShokuhoTaikouExpansionPack/ArtSource/scripts/build_profile_pack.py`（生成 manifest + SpriteData XML + 内容包 CSV 的完整链路）。参考：`Knowledge/tpac资源替换打包指南.md`（换脸场景 + 五个坑）。

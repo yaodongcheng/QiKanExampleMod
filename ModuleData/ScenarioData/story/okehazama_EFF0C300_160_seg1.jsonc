@@ -1,0 +1,24 @@
+{
+  "id": "okehazama_EFF0C300_160_seg1",
+  "form": "scene",
+  "actors": [
+    {"agentId": "Ctx::hero_c", "slot": "throne"},
+    {"agentId": "Ctx::hero_b", "slot": "side"}
+  ],
+  "lines": [
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Ctx::hero_c,
+    {"cmd": "actor_enter", "actor": "Ctx::hero_c", "slot": "throne"},
+    // T1 對話:(人物Ｃ,人物Ｂ)[[大家聽好了，這一戰無論如何都不能打輸！\n這座城陷落的話，(織田信長.姓)家就會滅亡！\n不管怎麼樣都要守下來！]],,,
+    {"cmd": "dialogue", "speaker": "Ctx::hero_c", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF0C300_160_1", "when": "((Ctx::hero_c.gender)) == (0)"},
+    // T2 對話:(人物Ｃ,人物Ｂ)[[這一戰無論如何都絕不能打輸！\n這座城陷落的話，(織田信長.姓)家就會滅亡！\n不管怎麼樣都要守下來！]],,,
+    {"cmd": "dialogue", "speaker": "Ctx::hero_c", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF0C300_160_2", "when": "not( ((Ctx::hero_c.gender)) == (0) )"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Ctx::hero_b,
+    {"cmd": "actor_enter", "actor": "Ctx::hero_b", "slot": "side"},
+    // T3 對話:(人物Ｂ,人物Ｂ)[[哦～！！]],,,
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF0C300_160_3"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Ctx::hero_c,
+    {"cmd": "actor_leave", "actor": "Ctx::hero_c", "slot": "throne"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Ctx::hero_b,
+    {"cmd": "actor_leave", "actor": "Ctx::hero_b", "slot": "side"}
+  ]
+}

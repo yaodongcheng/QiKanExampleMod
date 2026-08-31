@@ -1,0 +1,40 @@
+{
+  "id": "okehazama_EFF0C300_159_seg2",
+  "form": "scene",
+  "actors": [
+    {"heroId": "Hero::MainHero", "slot": "throne"},
+    {"heroId": "Hero::lord_1_kicho", "slot": "side"},
+    {"agentId": "Agent::template_ninja_male_01", "slot": "side"},
+    {"heroId": "Hero::lord_1_oda", "slot": "side"}
+  ],
+  "lines": [
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::MainHero,
+    {"cmd": "actor_enter", "actor": "Hero::MainHero", "slot": "throne"},
+    // T10 對話:(主人公,忍者)[[可惡的義元！\n終於有所行動了啊！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_10", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Agent::template_ninja_male_01,
+    {"cmd": "actor_enter", "actor": "Agent::template_ninja_male_01", "slot": "side"},
+    // T11 對話:(忍者,主人公)[[屬下立刻去傳達，\n將家中諸將招集至評定間的指令。]],,,
+    {"cmd": "dialogue", "speaker": "Agent::template_ninja_male_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_11", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::lord_1_kicho,
+    {"cmd": "actor_enter", "actor": "Hero::lord_1_kicho", "slot": "side"},
+    // T12 對話:(歸蝶,主人公)[[啊啊，如果父親大人還活著的話……]],,,
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_kicho", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_12", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T13 對話:(主人公,歸蝶)[[別說了，(歸蝶)。\n如果岳父大人還在，(今川義元.姓)是不會有所行動的。]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Hero::lord_1_kicho", "textKey": "LWN_SCN_okehazama_EFF0C300_159_13", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T14 對話:(主人公,歸蝶)[[因為岳父大人過世，\n他們才作出攻略(織田信長.姓)家的打算啊！\n無益之事就不必再說了！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Hero::lord_1_kicho", "textKey": "LWN_SCN_okehazama_EFF0C300_159_14", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T15 對話:(歸蝶,主人公)[[主公……]],,,
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_kicho", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_15", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::lord_1_oda,
+    {"cmd": "actor_enter", "actor": "Hero::lord_1_oda", "slot": "side"},
+    // T16 自語:[[該怎麼辦……]],,,
+    {"cmd": "narrator", "speaker": "Hero::lord_1_oda", "textKey": "LWN_SCN_okehazama_EFF0C300_159_16", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Hero::lord_1_kicho,
+    {"cmd": "actor_leave", "actor": "Hero::lord_1_kicho", "slot": "side"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Agent::template_ninja_male_01,
+    {"cmd": "actor_leave", "actor": "Agent::template_ninja_male_01", "slot": "side"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Hero::lord_1_oda,
+    {"cmd": "actor_leave", "actor": "Hero::lord_1_oda", "slot": "side"}
+  ]
+}

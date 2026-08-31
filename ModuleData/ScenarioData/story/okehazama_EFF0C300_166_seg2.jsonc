@@ -1,0 +1,12 @@
+{
+  "id": "okehazama_EFF0C300_166_seg2",
+  "form": "menu_dialogue",
+  "lines": [
+    // T23 自語:[[雖然以為這一次的戰爭，\n一點勝算都沒有……]],
+    {"cmd": "narrator", "speaker": "Hero::lord_1_kinoshita", "textKey": "LWN_SCN_okehazama_EFF0C300_166_23", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null), not( (Variable::scenario) == (1) ) )"},
+    // T24 自語:[[結果竟然殺死了那個(今川義元)，打贏這場仗……\n主公果然不是什麼呆瓜啊！\n主公應該是恐怖的天才才對吧……]],
+    {"cmd": "narrator", "speaker": "Hero::lord_1_kinoshita", "textKey": "LWN_SCN_okehazama_EFF0C300_166_24", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null), not( (Variable::scenario) == (1) ) )"},
+    // T25 自語:[[{一人稱}能夠成為(織田信長.名)大人的家臣，\n真的是太好了……]],
+    {"cmd": "narrator", "speaker": "Hero::lord_1_kinoshita", "textKey": "LWN_SCN_okehazama_EFF0C300_166_25", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null), not( (Variable::scenario) == (1) ) )"}
+  ]
+}

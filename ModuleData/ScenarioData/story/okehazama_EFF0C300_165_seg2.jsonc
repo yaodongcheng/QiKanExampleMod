@@ -1,0 +1,26 @@
+{
+  "id": "okehazama_EFF0C300_165_seg2",
+  "form": "menu_dialogue",
+  "lines": [
+    // T3 對話:(岡部元信,織田信長)[[在下是(今川氏真.姓)家臣，<城Ｃ>城代(岡部元信)。\n非常高興能獲得您接見……]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_okabe", "listener": "Hero::lord_1_oda", "textKey": "LWN_SCN_okehazama_EFF0C300_165_3", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T4 對話:(織田信長,岡部元信)[[招呼就免了。\n說吧，找{一人稱}有什麼事？]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_oda", "listener": "Hero::lord_1_okabe", "textKey": "LWN_SCN_okehazama_EFF0C300_165_4", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T5 對話:(岡部元信,織田信長)[[希望您能歸還主公的首級。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_okabe", "listener": "Hero::lord_1_oda", "textKey": "LWN_SCN_okehazama_EFF0C300_165_5", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T6 對話:(織田信長,岡部元信)[[哦，(今川義元.名)的首級是嗎？]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_oda", "listener": "Hero::lord_1_okabe", "textKey": "LWN_SCN_okehazama_EFF0C300_165_6", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T7 對話:(岡部元信,織田信長)[[這是(今川氏真.姓)家臣的矜持！\n雖說是打輸了戰爭，但主公的首級\n絕對不可以棄之不顧！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_okabe", "listener": "Hero::lord_1_oda", "textKey": "LWN_SCN_okehazama_EFF0C300_165_7", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T8 對話:(岡部元信,織田信長)[[如果您願意歸還首級，\n我方願意割讓<城Ｃ>，然後保護著首級\n撤退到<城Ｂ>。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_okabe", "listener": "Hero::lord_1_oda", "textKey": "LWN_SCN_okehazama_EFF0C300_165_8", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T9 對話:(織田信長,岡部元信)[[如果我說不還呢？]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_oda", "listener": "Hero::lord_1_okabe", "textKey": "LWN_SCN_okehazama_EFF0C300_165_9", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T10 對話:(岡部元信,織田信長)[[那就只有一戰了。\n我早已做好與此<城Ｃ>\n共生死的覺悟了。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_okabe", "listener": "Hero::lord_1_oda", "textKey": "LWN_SCN_okehazama_EFF0C300_165_10", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T11 對話:(織田信長,岡部元信)[[哼，好吧。\n看在{二人稱}的面子上，(今川義元.名)之首就給你，\n記得鄭重埋葬。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_oda", "listener": "Hero::lord_1_okabe", "textKey": "LWN_SCN_okehazama_EFF0C300_165_11", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T12 對話:(岡部元信,織田信長)[[真是感激不盡！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_okabe", "listener": "Hero::lord_1_oda", "textKey": "LWN_SCN_okehazama_EFF0C300_165_12", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"}
+  ]
+}

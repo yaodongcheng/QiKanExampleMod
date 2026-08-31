@@ -17,6 +17,11 @@ namespace LivingWorldNpcs
     {
         public static List<ScenarioEventDef> Events { get; } = new List<ScenarioEventDef>();
 
+        /// <summary>演绎分件（story/*.jsonc；W5 播放器消费）</summary>
+        public static List<ScenarioPlaybackDef> Playbacks { get; } = new List<ScenarioPlaybackDef>();
+
+        public static ScenarioPlaybackDef FindPlayback(string id) => Playbacks.FirstOrDefault(p => p.Id == id);
+
         public static List<string> LoadReport { get; } = new List<string>();
 
         public static int LoadedFileCount { get; private set; }
@@ -55,6 +60,37 @@ namespace LivingWorldNpcs
             }
             foreach (var line in LoadReport)
                 DebugLogger.Log($"[Scenario] {line}");
+        }
+
+        /// <summary>读取全部演绎分件（ModuleData/ScenarioData/story/*.jsonc——每文件单对象）</summary>
+        public static void LoadPlaybacks()
+        {
+            foreach (var file in LocateStoryFiles())
+            {
+                try
+                {
+                    string clean = JsoncHelper.StripComments(File.ReadAllText(file, Encoding.UTF8));
+                    var def = JsonConvert.DeserializeObject<ScenarioPlaybackDef>(clean);
+                    if (def == null || string.IsNullOrEmpty(def.Id)) { LoadReport.Add($"[ERR] {Path.GetFileName(file)}: 分件缺 id"); continue; }
+                    if (Playbacks.Any(p => p.Id == def.Id)) { LoadReport.Add($"[WARN] {Path.GetFileName(file)}: 分件 id 重复（忽略）: {def.Id}"); continue; }
+                    Playbacks.Add(def);
+                }
+                catch (Exception e)
+                {
+                    LoadReport.Add($"[ERR] {Path.GetFileName(file)}: 分件解析失败: {e.Message}");
+                }
+            }
+            foreach (var line in LoadReport.Where(l => !l.StartsWith("[OK]")))
+                DebugLogger.Log($"[Scenario] {line}");
+        }
+
+        private static IEnumerable<string> LocateStoryFiles()
+        {
+            string gameRoot = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.Parent?.FullName;
+            if (gameRoot == null) return new List<string>();
+            string dir = Path.Combine(gameRoot, "Modules", "LivingWorldNpcs", "ModuleData", "ScenarioData", "story");
+            if (!Directory.Exists(dir)) return new List<string>();
+            return Directory.GetFiles(dir, "*.jsonc").OrderBy(f => f).ToList();
         }
 
         private static void ValidateEvent(ScenarioEventDef evt, List<string> report)
@@ -156,6 +192,7 @@ namespace LivingWorldNpcs
         public static void Reset()
         {
             Events.Clear();
+            Playbacks.Clear();
             LoadReport.Clear();
             LoadedFileCount = 0;
         }

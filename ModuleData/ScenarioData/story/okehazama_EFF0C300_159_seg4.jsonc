@@ -1,0 +1,36 @@
+{
+  "id": "okehazama_EFF0C300_159_seg4",
+  "form": "scene",
+  "actors": [
+    {"heroId": "Hero::MainHero", "slot": "throne"},
+    {"heroId": "Hero::lord_1_kinoshita_1", "slot": "side"}
+  ],
+  "lines": [
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::lord_1_kinoshita_1,
+    {"cmd": "actor_enter", "actor": "Hero::lord_1_kinoshita_1", "slot": "side"},
+    // T20 對話:(寧寧,主人公)[[(主人公.名)大人！\n發生什麼事了嗎？\n怎麼一臉慌張樣啊！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_kinoshita_1", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_20", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::MainHero,
+    {"cmd": "actor_enter", "actor": "Hero::MainHero", "slot": "throne"},
+    // T21 對話:(主人公,寧寧)[[(寧寧)小姐！\n(今川義元.姓)發兵攻打過來了！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Hero::lord_1_kinoshita_1", "textKey": "LWN_SCN_okehazama_EFF0C300_159_21", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // T22 對話:(寧寧,主人公)[[啊！？]],,,
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_kinoshita_1", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_22", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // T23 對話:(主人公,寧寧)[[這一次的戰爭，\n想必會成為賭上(織田信長.姓)家命運的一戰吧！\n老實說，勝算實在很小啊！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Hero::lord_1_kinoshita_1", "textKey": "LWN_SCN_okehazama_EFF0C300_159_23", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // T24 對話:(主人公,寧寧)[[在下原本打算再多立一點功勞之後，\n就要向(寧寧)小姐你求婚的。]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Hero::lord_1_kinoshita_1", "textKey": "LWN_SCN_okehazama_EFF0C300_159_24", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // T25 對話:(寧寧,主人公)[[啊！是真的嗎！？]],,,
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_kinoshita_1", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_25", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // T26 對話:(主人公,寧寧)[[在下身為武士說不定會死在這次的戰爭裡。\n如果沒能傳達思念之意就死去的話，\n那在下一定會非常後悔的……]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Hero::lord_1_kinoshita_1", "textKey": "LWN_SCN_okehazama_EFF0C300_159_26", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // T27 對話:(主人公,寧寧)[[如果在下能夠存活下來的話，\n……到時能請你考慮一下嗎？]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Hero::lord_1_kinoshita_1", "textKey": "LWN_SCN_okehazama_EFF0C300_159_27", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // T28 對話:(寧寧,主人公)[[一、一定會的。]],,,
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_kinoshita_1", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_28", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // T29 對話:(主人公,寧寧)[[很抱歉突然跟你說這這些話。\n那麼，在下告辭！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Hero::lord_1_kinoshita_1", "textKey": "LWN_SCN_okehazama_EFF0C300_159_29", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Hero::lord_1_kinoshita_1,
+    {"cmd": "actor_leave", "actor": "Hero::lord_1_kinoshita_1", "slot": "side"}
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "okehazama_EFF0C300_159_seg7",
+  "form": "scene",
+  "actors": [
+    {"heroId": "Hero::MainHero", "slot": "throne"},
+    {"agentId": "Agent::template_ninja_male_01", "slot": "side"}
+  ],
+  "lines": [
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::MainHero,
+    {"cmd": "actor_enter", "actor": "Hero::MainHero", "slot": "throne"},
+    // T65 自語:[[主公到底在做什麼打算啊……]],,,
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_65", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ) )"},
+    // T66 自語:[[再這樣下去，<城Ｃ>會陷落的！\n(今川義元.姓)軍遲早會進攻到城下來啊！]],,,
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_66", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), ((Hero::MainHero.gender)) == (0) )"},
+    // T67 自語:[[再這樣下去，<城Ｃ>會陷落的！\n(今川義元.姓)軍會進攻到城下來，\n也只是時間的問題而已啊！]],,,
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_67", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), not( ((Hero::MainHero.gender)) == (0) ) )"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Agent::template_ninja_male_01,
+    {"cmd": "actor_enter", "actor": "Agent::template_ninja_male_01", "slot": "side"},
+    // T68 對話:(忍者,主人公)[[(主人公)大人，\n出陣的指令傳達下來了！！]],,,
+    {"cmd": "dialogue", "speaker": "Agent::template_ninja_male_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_68", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ) )"},
+    // T69 對話:(主人公,忍者)[[什麼！\n那麼說主公是決定打野戰囉！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_69", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), ((Hero::MainHero.gender)) == (0) )"},
+    // T70 對話:(主人公,忍者)[[既然這樣就不能再發呆了！\n必須去和主公一起並肩作戰才行！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_70", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), ((Hero::MainHero.gender)) == (0) )"},
+    // T71 對話:(主人公,忍者)[[你說什麼！\n那麼說主公是決定打野戰囉！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_71", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), not( ((Hero::MainHero.gender)) == (0) ) )"},
+    // T72 對話:(主人公,忍者)[[既然這樣就不能再發呆了！\n必須去和主公一起並肩作戰才行！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_72", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), not( ((Hero::MainHero.gender)) == (0) ) )"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Agent::template_ninja_male_01,
+    {"cmd": "actor_leave", "actor": "Agent::template_ninja_male_01", "slot": "side"}
+  ]
+}

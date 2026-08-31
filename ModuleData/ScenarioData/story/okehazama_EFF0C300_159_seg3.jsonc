@@ -1,0 +1,22 @@
+{
+  "id": "okehazama_EFF0C300_159_seg3",
+  "form": "scene",
+  "actors": [
+    {"heroId": "Hero::MainHero", "slot": "throne"},
+    {"agentId": "Agent::template_ninja_male_01", "slot": "side"}
+  ],
+  "lines": [
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Agent::template_ninja_male_01,
+    {"cmd": "actor_enter", "actor": "Agent::template_ninja_male_01", "slot": "side"},
+    // T17 對話:(忍者,主人公)[[主公有令，\n「立刻登城」！]],,,
+    {"cmd": "dialogue", "speaker": "Agent::template_ninja_male_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_17", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ) )"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::MainHero,
+    {"cmd": "actor_enter", "actor": "Hero::MainHero", "slot": "throne"},
+    // T18 對話:(主人公,忍者)[[知道了！！\n馬上去！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_18", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), ((Hero::MainHero.gender)) == (0) )"},
+    // T19 對話:(主人公,忍者)[[瞭解了！！\n馬上就去！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_19", "when": "and( not( (Hero::MainHero.settlement) == (Settlement::tk5_city_083) ), not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( ((Hero::MainHero.gender)) == (0) ) )"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Agent::template_ninja_male_01,
+    {"cmd": "actor_leave", "actor": "Agent::template_ninja_male_01", "slot": "side"}
+  ]
+}

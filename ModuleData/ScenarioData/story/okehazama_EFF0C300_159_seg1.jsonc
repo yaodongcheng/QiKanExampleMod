@@ -1,0 +1,39 @@
+{
+  "id": "okehazama_EFF0C300_159_seg1",
+  "form": "scene",
+  "actors": [
+    {"heroId": "Hero::MainHero", "slot": "throne"},
+    {"agentId": "Agent::template_ninja_male_01", "slot": "side"},
+    {"agentId": "Agent::template_shougun_01", "slot": "side"}
+  ],
+  "lines": [
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Agent::template_ninja_male_01,
+    {"cmd": "actor_enter", "actor": "Agent::template_ninja_male_01", "slot": "side"},
+    // T1 對話:(忍者,主人公)[[(主人公)大人，大事不好了！！\n(今川義元)率領著大軍正向著我方而來。]],,,
+    {"cmd": "dialogue", "speaker": "Agent::template_ninja_male_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_1"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::MainHero,
+    {"cmd": "actor_enter", "actor": "Hero::MainHero", "slot": "throne"},
+    // T2 對話:(主人公,忍者)[[什、什麼！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_2", "when": "((Hero::MainHero.gender)) == (0)"},
+    // T3 對話:(主人公,忍者)[[你說什麼！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF0C300_159_3", "when": "not( ((Hero::MainHero.gender)) == (0) )"},
+    // T4 旁白:[[<ｃ>年<ｄ>月，駿河、遠江、三河的太守，\n擁有『東海第一武士』之異名的\n(今川義元)終於發兵上京。]],,,
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_159_4"},
+    // T5 旁白:[[於此，\n(織田信長.姓)家也面臨了前所未有的大危機。]],,,
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_159_5"},
+    // T6 自語:[[這麼說來，\n首先會被對方盯上的，\n應是這座城吧……]],,,
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_6", "when": "(Hero::MainHero.settlement) == (Settlement::tk5_city_083)"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Agent::template_shougun_01,
+    {"cmd": "actor_enter", "actor": "Agent::template_shougun_01", "slot": "side"},
+    // T7 對話:(備大將,主人公)[[(今川義元.姓)軍的先鋒是(德川家康)隊！\n正在向這座城攻來！]],,,
+    {"cmd": "dialogue", "speaker": "Agent::template_shougun_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_7", "when": "(Hero::MainHero.settlement) == (Settlement::tk5_city_083)"},
+    // T8 自語:[[果然來了嗎！！\n可惡……無論如何都得守住啊！\n(織田信長.姓)家是浮是沉，端看這一戰了！]],,,
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_8", "when": "and( (Hero::MainHero.settlement) == (Settlement::tk5_city_083), ((Hero::MainHero.gender)) == (0) )"},
+    // T9 自語:[[果然來了嗎！！\n可惡……無論如何都得守住啊！\n(織田信長.姓)家是浮是沉，端看這一戰了！]],,,
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_159_9", "when": "and( (Hero::MainHero.settlement) == (Settlement::tk5_city_083), not( ((Hero::MainHero.gender)) == (0) ) )"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Agent::template_ninja_male_01,
+    {"cmd": "actor_leave", "actor": "Agent::template_ninja_male_01", "slot": "side"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Agent::template_shougun_01,
+    {"cmd": "actor_leave", "actor": "Agent::template_shougun_01", "slot": "side"}
+  ]
+}
