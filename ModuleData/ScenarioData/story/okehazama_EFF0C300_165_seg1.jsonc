@@ -1,0 +1,10 @@
+{
+  "id": "okehazama_EFF0C300_165_seg1",
+  "form": "menu_dialogue",
+  "lines": [
+    // T1 對話:(小姓,織田信長)[[主公，\n有一位叫做(岡部元信)的(今川氏真.姓)家人士，\n以使者的身份前來拜訪。]],
+    {"cmd": "dialogue", "speaker": "Agent::template_koshou_01", "listener": "Hero::lord_1_oda", "textKey": "LWN_SCN_okehazama_EFF0C300_165_1", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"},
+    // T2 對話:(織田信長,小姓)[[哦……\n(今川氏真.姓)家臣來找我是有什麼事呢？\n好吧，讓他進來。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_oda", "listener": "Agent::template_koshou_01", "textKey": "LWN_SCN_okehazama_EFF0C300_165_2", "when": "and( (Hero::MainHero.settlement) == (Hero::MainHero.home), (Hero::MainHero) == (Hero::lord_1_oda) )"}
+  ]
+}

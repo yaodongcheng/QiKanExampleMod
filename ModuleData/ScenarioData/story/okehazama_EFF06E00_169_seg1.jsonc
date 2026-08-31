@@ -1,0 +1,26 @@
+{
+  "id": "okehazama_EFF06E00_169_seg1",
+  "form": "menu_dialogue",
+  "lines": [
+    // T1 對話:(德川家康,備大將)[[終於……我能在故鄉岡崎\n獨立的日子終於來了。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_169_1"},
+    // T2 對話:(功勳家臣,備大將)[[大人……]],
+    {"cmd": "dialogue", "speaker": "Agent::template_koushin_kashin_01", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_169_2"},
+    // T3 對話:(德川家康,備大將)[[我已不再是(今川氏真.姓)家的武將了！\n今後，我的領土由我自己來守護……！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_169_3"},
+    // T4 對話:(外交家臣,德川家康)[[大人，\n多虧大人一直這麼有耐心啊{未知38}……]],
+    {"cmd": "dialogue", "speaker": "Agent::template_gaikou_kashin_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_169_4"},
+    // T5 對話:(武力家臣,德川家康)[[今後，\n也已經不需要再顧慮今川了。]],
+    {"cmd": "dialogue", "speaker": "Agent::template_buryoku_kashin_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_169_5"},
+    // T6 對話:(功勳家臣,德川家康)[[三河原本就是(德川家康.姓)家的領地。\n從今天起，就由我們來守護吧。]],
+    {"cmd": "dialogue", "speaker": "Agent::template_koushin_kashin_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_169_6", "when": "((Agent::template_koushin_kashin_01.gender)) == (0)"},
+    // T7 對話:(功勳家臣,德川家康)[[三河原本就是(德川家康.姓)家的領地。\n從今天起，就由我們來守護吧。]],
+    {"cmd": "dialogue", "speaker": "Agent::template_koushin_kashin_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_169_7", "when": "not( ((Agent::template_koushin_kashin_01.gender)) == (0) )"},
+    // T8 對話:(備大將,德川家康)[[我們將會共同輔佐主公大人，\n並且盡忠盡義！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_shougun_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_169_8"},
+    // T9 對話:(德川家康,備大將)[[嗯！\n拜託你們了！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_169_9"},
+    // T10 旁白:[[在桶狹間之戰中，\n由於(今川義元)突如其來的陣亡，\n使得(德川家康)得以獨立……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_169_10"}
+  ]
+}

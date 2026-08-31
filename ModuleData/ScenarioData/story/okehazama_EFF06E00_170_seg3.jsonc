@@ -1,0 +1,30 @@
+{
+  "id": "okehazama_EFF06E00_170_seg3",
+  "form": "menu_dialogue",
+  "lines": [
+    // T11 對話:(德川家康,今川義元)[[果然，主公大人真的很生氣……\n短時間內，要再興(德川家康.姓)家大概是不可能的了……]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_170_11", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T12 旁白:[[就這樣，(今川義元)的上京計劃半途而廢了……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_170_12", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T13 對話:(主人公,忍者)[[呃……{今川義元.名前}陣亡了。\n接下來該怎麼辦呢……]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF06E00_170_13", "when": "and( not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) ), ((Hero::MainHero.gender)) == (0) )"},
+    // T14 對話:(主人公,忍者)[[呃……{今川義元.名前}陣亡了。\n接下來該怎麼辦呢……]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_ninja_male_01", "textKey": "LWN_SCN_okehazama_EFF06E00_170_14", "when": "and( not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) ), not( ((Hero::MainHero.gender)) == (0) ) )"},
+    // T15 旁白:[[被譽為海道第一弓取，\n並成為駿河遠江三河大大名\n的戰國英雄(今川義元)……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_170_15", "when": "not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) )"},
+    // T16 旁白:[[他的死亡使時代產生了極大變動……\n因為繼承(今川義元.名)衣缽的(今川氏真)，\n並沒有足以超越其父的器量……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_170_16", "when": "not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) )"},
+    // T17 自語:[[父親大人……想必您一定心存遺憾吧。\n但是，我和父親大人不同。]],
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_170_17", "when": "and( not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) ), (Hero::MainHero) == (Hero::lord_1_imagawa) )"},
+    // T18 自語:[[我……\n能好好地做個大名嗎？]],
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_170_18", "when": "and( not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) ), (Hero::MainHero) == (Hero::lord_1_imagawa) )"},
+    // T19 自語:[[新的當主(今川氏真.名)大人\n雖說已繼承了已故主公大人的衣缽，\n但卻沒有他那樣的器量……]],
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_170_19", "when": "and( not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) ), not( (Hero::MainHero) == (Hero::lord_1_imagawa) ) )"},
+    // T20 自語:[[今後，(今川氏真.姓)家\n將會何去何從呢……？]],
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_170_20", "when": "and( not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) ), not( (Hero::MainHero) == (Hero::lord_1_imagawa) ) )"},
+    // T21 旁白:[[(主人公)的擔心，\n馬上就成為現實……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_170_21", "when": "not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) )"},
+    // T22 旁白:[[對(今川氏真.名)死心的(德川家康)，\n趁著(今川義元.名)死後的混亂之際，\n在三河岡崎發表了獨立宣言……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_170_22", "when": "not( ((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa) )"}
+  ]
+}

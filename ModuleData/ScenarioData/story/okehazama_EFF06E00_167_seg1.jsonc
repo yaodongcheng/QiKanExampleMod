@@ -1,0 +1,28 @@
+{
+  "id": "okehazama_EFF06E00_167_seg1",
+  "form": "map_dialogue",
+  "lines": [
+    // T1 對話:(德川家康,備大將)[[全軍止步─！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_167_1"},
+    // T2 對話:(備大將,德川家康)[[大人？什麼事呢？\n岡崎就在眼前了啊。]],
+    {"cmd": "dialogue", "speaker": "Agent::template_shougun_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_167_2"},
+    // T3 對話:(德川家康,備大將)[[……還不行，城裡還有(今川義元.姓)的代官在。\n雖說主公大人已經身亡，\n我也還是(今川義元.姓)家的武將啊。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_167_3"},
+    // T4 對話:(德川家康,備大將)[[像這樣無謂的爭鬥，還是算了吧……]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_167_4"},
+    // T5 對話:(備大將,德川家康)[[可是，那樣一來……]],
+    {"cmd": "dialogue", "speaker": "Agent::template_shougun_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_167_5"},
+    // T6 旁白:[[(德川家康)進入了大樹寺，\n並命令部下打探岡崎城下的情勢……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_167_6"},
+    // T7 對話:(忍者,德川家康)[[報告！守備岡崎城的今川方的代官一聽到\n主公大人身亡的消息後，\n就一溜煙的逃回自己的故鄉去了！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_ninja_male_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_167_7"},
+    // T8 對話:(德川家康,備大將)[[什麼……！\n這麼說來，岡崎城現在是座空城囉。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_167_8"},
+    // T9 對話:(忍者,德川家康)[[正是！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_ninja_male_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_167_9"},
+    // T10 對話:(德川家康,備大將)[[如果是座被丟棄的城，由我來接收的話，\n相信誰都不會有怨言吧……\n好，就讓我們接收這座城吧。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_167_10"},
+    // T11 對話:(備大將,德川家康)[[是！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_shougun_01", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_167_11"}
+  ]
+}

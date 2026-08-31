@@ -1,0 +1,24 @@
+{
+  "id": "okehazama_EFF06E00_170_seg2",
+  "form": "menu_dialogue",
+  "lines": [
+    // T2 對話:(德川家康,今川義元)[[……非常抱歉。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_170_2", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T3 對話:(今川義元,德川家康)[[…………]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_170_3", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T4 對話:(德川家康,今川義元)[[難得主公大人上京的宿願……\n在下身為先鋒卻被打敗……\n屬下真的是萬死不足以謝罪。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_170_4", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T5 對話:(今川義元,德川家康)[[算了……\n太過信任你，我自己也太笨了……]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_170_5", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T6 對話:(德川家康,今川義元)[[主公大人……]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_170_6", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T7 對話:(今川義元,德川家康)[[本次上京的計劃就此打住吧。\n首戰就這麼不吉利，\n往後只會更辛苦而已。]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_170_7", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T8 對話:(今川義元,德川家康)[[當然，(德川家康.姓)家再興一事也就沒了。\n知道了嗎！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_170_8", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T9 對話:(德川家康,今川義元)[[是！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_170_9", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"},
+    // T10 對話:(今川義元,德川家康)[[重新好好規劃戰略吧……\n接下來，要怎麼辦呢？]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Hero::lord_1_tokugawa", "textKey": "LWN_SCN_okehazama_EFF06E00_170_10", "when": "((Hero::MainHero.superior)) == (Hero::lord_1_tokugawa)"}
+  ]
+}

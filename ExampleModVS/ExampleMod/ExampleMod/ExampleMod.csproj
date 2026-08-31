@@ -266,6 +266,9 @@
     <Compile Include="Scenario\ScenarioActions.cs" />
     <Compile Include="Scenario\ScenarioExecutor.cs" />
     <Compile Include="Scenario\ScenarioScheduler.cs" />
+    <Compile Include="Interaction\PlaybackDialogVM.cs" />
+    <Compile Include="Interaction\PlaybackDialogUI.cs" />
+    <Compile Include="Scenario\PlaybackPlayer.cs" />
     <Compile Include="Scenario\DslExpression.cs" />
     <Compile Include="Scenario\AttributeResolver.cs" />
     <Compile Include="AI\AlertTypes.cs" />
@@ -313,7 +316,7 @@
     <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" />
     <Compile Include="Debug\AiPatrollingNullFix.cs" />
     <Compile Include="Debug\CrashLogHook.cs" />
-    <Compile Include="Debug\PortraitPreviewInjector.cs" />
+    <Compile Include="Debug\DebugLogger.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />

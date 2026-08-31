@@ -172,6 +172,21 @@ DebugLogger.Log("消息");   // 线程安全，落盘到 Configs/StoryEngine_Run
 
 ## 控制台调试指令 — `Debug/MyCommands.cs`
 
+**🔴 注册签名铁律（2026-08-31 实机教训）**：引擎委托是 `Func<List<string>, string>`——带 `[CommandLineFunctionality.CommandLineArgumentFunction("x", "custom")]` 的方法必须写：
+
+```csharp
+public static string Xxx(List<string> args)   // ✅ 唯一合法签名（1.2.12 ~ 1.5.x 反编译一致）
+```
+
+```csharp
+public static string Xxx(string[] args)       // ❌ 编译能过，启动必崩
+```
+
+- **为什么崩**：`CommandLineFunctionality.CollectCommandLineFunctions()` 启动时反射扫描**所有**已加载程序集里的特性方法，逐个 `Delegate.CreateDelegate(typeof(Func<List<string>, string>), methodInfo)`——签名不匹配 → `ArgumentException: Cannot bind to the target method...` → 整场启动直接炸（与 Harmony 字符串补丁同理：**无编译期检查**）。
+- **自查**：新增/修改指令后 grep `string\[\] args`，命中必改。
+- **调用范例**：`args.Count`（不是 `args.Length`）、`string.Join(" ", args)`。
+- **已用位置**：`Debug/MyCommands.cs`（70+ 指令）、`Scenario/ScenarioCommands.cs`（scn_*/playback_*/dsl_*）、`Story/StoryEngine.cs`、`Quests/QuestManager.cs` 等，全库同款签名；控制台名 = `{GroupName}.{Name}`（如 `custom.scn_list`）。
+
 ```
 custom.alert_status [agentStringId]    # 查看 NPC 分类警戒值明细
 custom.alert_force_intercept <npcId>   # 强制触发 L3 质问

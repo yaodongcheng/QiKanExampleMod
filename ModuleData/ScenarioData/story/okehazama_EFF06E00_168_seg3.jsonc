@@ -1,0 +1,22 @@
+{
+  "id": "okehazama_EFF06E00_168_seg3",
+  "form": "menu_dialogue",
+  "lines": [
+    // T13 對話:(備大將,主人公)[[(主人公)大人！\n主公大人終於實現了上京的宿願了！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_shougun_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_168_13", "when": "not( (Hero::MainHero.settlement) == (Hero::MainHero.home) )"},
+    // T14 對話:(主人公,備大將)[[哦哦……！\n那真是可喜可賀啊！]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_168_14", "when": "not( (Hero::MainHero.settlement) == (Hero::MainHero.home) )"},
+    // T15 對話:(備大將,主人公)[[據說主公大人藉此機會將據點移到二條城，\n以制霸全國為目標。]],
+    {"cmd": "dialogue", "speaker": "Agent::template_shougun_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_168_15", "when": "not( (Hero::MainHero.settlement) == (Hero::MainHero.home) )"},
+    // T16 對話:(主人公,備大將)[[這樣一來，\n本家的存在也越來越顯得舉足輕重了啊……]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_168_16", "when": "not( (Hero::MainHero.settlement) == (Hero::MainHero.home) )"},
+    // T17 對話:(備大將,主人公)[[主公大人的天下，\n或許就在眼前了呢！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_shougun_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_168_17", "when": "not( (Hero::MainHero.settlement) == (Hero::MainHero.home) )"},
+    // T18 旁白:[[<年>年<月>月，\n(今川義元)終於完成了上京的宿願……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_168_18", "when": "not( (Hero::MainHero.settlement) == (Hero::MainHero.home) )"},
+    // T19 旁白:[[朝廷也盛大地歡迎(今川義元.姓)的到來……\n(今川義元)成為天下人，\n也只剩時間的問題罷了……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_168_19", "when": "not( (Hero::MainHero.settlement) == (Hero::MainHero.home) )"},
+    // T20 旁白:[[(今川義元)被任命為左大臣了。]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_168_20", "when": "and( not( (Hero::MainHero.settlement) == (Hero::MainHero.home) ), ((Hero::lord_1_imagawa_katsumoto.court_rank)) < (\"juichii\") )"}
+  ]
+}

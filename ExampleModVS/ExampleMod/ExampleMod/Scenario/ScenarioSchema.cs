@@ -79,7 +79,7 @@ namespace LivingWorldNpcs
         public override string ToString() => $"[{Step}] {Action ?? PlaybackId ?? ""}";
     }
 
-    /// <summary>演绎分件（story/*.jsonc）——W5 播放器消费，W1 只负责列出。</summary>
+    /// <summary>演绎分件（story/*.jsonc）——W5 播放器消费。lines 项为游戏行（dialogue/narrator/choice/actor_*/camera…）。</summary>
     public class ScenarioPlaybackDef
     {
         [JsonProperty("id")]
@@ -92,7 +92,55 @@ namespace LivingWorldNpcs
         public List<ScenarioPlaybackActor> Actors { get; set; }
 
         [JsonProperty("lines")]
-        public List<ScenarioScriptStep> Lines { get; set; }
+        public List<PlaybackLine> Lines { get; set; }
+    }
+
+    /// <summary>演绎台词行（+舞台行）。字段 = 05 源格式（cmd/speaker/listener/textKey/when/options）。</summary>
+    public class PlaybackLine
+    {
+        [JsonProperty("cmd")]
+        public string Cmd { get; set; }
+
+        [JsonProperty("speaker")]
+        public string Speaker { get; set; }
+
+        [JsonProperty("listener")]
+        public string Listener { get; set; }
+
+        [JsonProperty("textKey")]
+        public string TextKey { get; set; }
+
+        [JsonProperty("text")]
+        public string Text { get; set; }
+
+        [JsonProperty("when")]
+        public string When { get; set; }
+
+        [JsonProperty("options")]
+        public List<PlaybackOption> Options { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JToken> Extra { get; set; }
+
+        public string Get(string key)
+        {
+            if (Extra == null || !Extra.TryGetValue(key, out var t)) return null;
+            return t.Type == JTokenType.String ? (string)t : t.ToString();
+        }
+
+        public override string ToString() => $"[{Cmd}] {Speaker ?? ""} {TextKey ?? ""}";
+    }
+
+    /// <summary>选择项（textKey + 中文原文 fallback；选择结果 = 选项索引 optN 写入 Ctx::choice——08b 纪律：选项序 = TK5 索引序）</summary>
+    public class PlaybackOption
+    {
+        [JsonProperty("textKey")]
+        public string TextKey { get; set; }
+
+        [JsonProperty("text")]
+        public string Text { get; set; }
+
+        public string Value { get; set; }   // 运行时填：opt0/opt1…（执行器写 Ctx::choice）
     }
 
     public class ScenarioPlaybackActor

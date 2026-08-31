@@ -1,0 +1,16 @@
+{
+  "id": "okehazama_EFF0C300_166_seg3",
+  "form": "menu_dialogue",
+  "lines": [
+    // T26 對話:(人物Ｂ,主人公)[[歡迎你回來，老公。]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_26", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), not( (Variable::scenario) == (1) ) )"},
+    // T27 對話:(主人公,人物Ｂ)[[我們打贏了，(人物Ｂ.名)！\n而且還殺死了那個(今川義元)！\n那個東海第一弓取！]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF0C300_166_27", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), not( (Variable::scenario) == (1) ) )"},
+    // T28 對話:(人物Ｂ,主人公)[[真是恭喜了！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_28", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), not( (Variable::scenario) == (1) ) )"},
+    // T29 對話:(主人公,人物Ｂ)[[果然和我所期待的一樣。\n主公是足以制伏這個亂世的大人物，\n我能夠侍奉主公真是太幸福了！]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Ctx::hero_b", "textKey": "LWN_SCN_okehazama_EFF0C300_166_29", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), not( (Variable::scenario) == (1) ) )"},
+    // T30 對話:(人物Ｂ,主人公)[[是的！！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_30", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), not( (Variable::scenario) == (1) ) )"}
+  ]
+}

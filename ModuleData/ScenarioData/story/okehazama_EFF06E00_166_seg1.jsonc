@@ -1,0 +1,26 @@
+{
+  "id": "okehazama_EFF06E00_166_seg1",
+  "form": "menu_dialogue",
+  "lines": [
+    // T1 對話:(今川義元,人物Ｄ)[[哎呀哎呀，真是千鈞一髮呀！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Ctx::hero_d", "textKey": "LWN_SCN_okehazama_EFF06E00_166_1"},
+    // T2 對話:(人物Ｄ,今川義元)[[所以在下之前才說……\n千萬不能小看那個人哪！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_d", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_166_2"},
+    // T3 對話:(今川義元,人物Ｄ)[[嗯，實在是太過大意了。\n尾張的那個大呆瓜……我太小看他了。\n差一點腦袋就沒了啊！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Ctx::hero_d", "textKey": "LWN_SCN_okehazama_EFF06E00_166_3"},
+    // T4 對話:(人物Ｄ,今川義元)[[總之，您平安無事就好了。\n那麼上京一事，大人有何打算呢？]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_d", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_166_4"},
+    // T5 對話:(今川義元,人物Ｄ)[[嗯……\n這次一開始就碰釘子，\n我看，就延期吧……]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Ctx::hero_d", "textKey": "LWN_SCN_okehazama_EFF06E00_166_5"},
+    // T6 對話:(人物Ｄ,今川義元)[[屬下也是認為這樣比較好……]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_d", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_166_6"},
+    // T7 對話:(今川義元,人物Ｄ)[[但是，\n煩人的(織田信長)已經不在了……\n總有一天，我一定要完成上京！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Ctx::hero_d", "textKey": "LWN_SCN_okehazama_EFF06E00_166_7"},
+    // T8 對話:(人物Ｄ,今川義元)[[是！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_d", "listener": "Hero::lord_1_imagawa_katsumoto", "textKey": "LWN_SCN_okehazama_EFF06E00_166_8"},
+    // T9 旁白:[[因為(織田信長)的陣亡，\n織田家臣團開始動搖，\n轉而投靠(今川義元.姓)的人也漸漸出現了。]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_166_9"},
+    // T10 旁白:[[另外，\n由於獲得了舊(織田信長.姓)的領地，\n使得(今川義元.姓)的威勢，變得比以往更強大……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF06E00_166_10"}
+  ]
+}

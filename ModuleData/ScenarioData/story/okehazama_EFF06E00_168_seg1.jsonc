@@ -1,0 +1,10 @@
+{
+  "id": "okehazama_EFF06E00_168_seg1",
+  "form": "menu_dialogue",
+  "lines": [
+    // T1 對話:(功勳家臣,主人公)[[主公大人……二條城終於得手了。\n終於可以實現上京的夢想了！]],
+    {"cmd": "dialogue", "speaker": "Agent::template_koushin_kashin_01", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_168_1", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"},
+    // T2 對話:(今川義元,備大將)[[嗯……這段路真是漫長啊。\n好，快召集眾人到評定間去！]],
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_imagawa_katsumoto", "listener": "Agent::template_shougun_01", "textKey": "LWN_SCN_okehazama_EFF06E00_168_2", "when": "(Hero::MainHero.settlement) == (Hero::MainHero.home)"}
+  ]
+}

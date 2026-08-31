@@ -1,0 +1,20 @@
+{
+  "id": "okehazama_EFF0C300_166_seg5",
+  "form": "menu_dialogue",
+  "lines": [
+    // T36 自語:[[雖然以為這一次的戰爭，\n一點勝算都沒有……]],
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_36", "when": "and( and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), not( ((Hero::MainHero.spouse)) != (null) ) )"},
+    // T37 自語:[[結果竟然殺死了那個(今川義元)，打贏這場仗……\n主公果然不是什麼呆瓜啊！\n主公應該是恐怖的天才才對吧……]],
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_37", "when": "and( and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), not( ((Hero::MainHero.spouse)) != (null) ) )"},
+    // T38 自語:[[{一人稱}能夠成為(織田信長.名)大人的家臣，\n真的是太好了……]],
+    {"cmd": "narrator", "speaker": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_166_38", "when": "and( and( not( (Hero::MainHero) == (Hero::lord_1_oda) ), not( (Hero::MainHero) == (Hero::lord_1_kinoshita) ) ), not( ((Hero::MainHero.spouse)) != (null) ) )"},
+    // T39 旁白:[[在桶狹間以奇襲擊破(今川義元)的(織田信長)，\n從此一躍成為時代的寵兒，揚名於戰國之世。]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_166_39"},
+    // T40 旁白:[[另一方面，失去了(今川義元.名)這位英雄的\n(今川義元.姓)家，在新當主(今川氏真.名)的領導下，\n也只能漸漸地邁向沒落一途……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_166_40"},
+    // T41 旁白:[[有如在象徵此一沒落般，\n(德川家康)獨立於三河之地，\n也是不久之後的事了……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_166_41"},
+    // T42 旁白:[[於是在沸騰著桶狹間大勝利歡聲的<據點Ａ>裡，\n(豐臣秀吉)達成了期望已久的心願，\n和(寧寧)成了婚。]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_166_42", "when": "and( (Hero::MainHero) == (Hero::lord_1_kinoshita), ((Hero::MainHero.spouse)) == (null) )"}
+  ]
+}

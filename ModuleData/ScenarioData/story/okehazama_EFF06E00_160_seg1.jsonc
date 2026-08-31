@@ -1,0 +1,25 @@
+{
+  "id": "okehazama_EFF06E00_160_seg1",
+  "form": "scene",
+  "actors": [
+    {"heroId": "Hero::lord_1_tokugawa", "slot": "throne"},
+    {"agentId": "Ctx::hero_b", "slot": "side"},
+    {"agentId": "Hero::MainHero", "slot": "gate", "present": true, "_note": "对话对象（沉默观众位，05 纪律 5）；Hero::MainHero 为槽/特殊引用，角色池成员待 07 确认"}
+  ],
+  "lines": [
+    // 舞台推导：present 开场即入场（05 纪律 5）: Hero::MainHero,
+    {"cmd": "actor_enter", "actor": "Hero::MainHero", "slot": "gate"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Hero::lord_1_tokugawa,
+    {"cmd": "actor_enter", "actor": "Hero::lord_1_tokugawa", "slot": "throne"},
+    // T1 對話:(德川家康,主人公)[[好！將兵糧成功地運進<城Ｂ>去吧！\n(德川家康.姓)家的未來全看這一戰了！\n各位，讓我們立下功勞吧！]],,,
+    {"cmd": "dialogue", "speaker": "Hero::lord_1_tokugawa", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_160_1"},
+    // 舞台推导：首次发言自动入场（05 纪律 6①）: Ctx::hero_b,
+    {"cmd": "actor_enter", "actor": "Ctx::hero_b", "slot": "side"},
+    // T2 對話:(人物Ｂ,主人公)[[哦─！]],,,
+    {"cmd": "dialogue", "speaker": "Ctx::hero_b", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF06E00_160_2"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Hero::lord_1_tokugawa,
+    {"cmd": "actor_leave", "actor": "Hero::lord_1_tokugawa", "slot": "throne"},
+    // 舞台推导：段末收场（05:163 排演对应物）: Ctx::hero_b,
+    {"cmd": "actor_leave", "actor": "Ctx::hero_b", "slot": "side"}
+  ]
+}

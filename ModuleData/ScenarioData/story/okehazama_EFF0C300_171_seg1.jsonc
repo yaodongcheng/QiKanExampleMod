@@ -1,0 +1,28 @@
+{
+  "id": "okehazama_EFF0C300_171_seg1",
+  "form": "menu_dialogue",
+  "lines": [
+    // T1 對話:(人物Ｄ,主人公)[[{主人公.名前}！！\n發生大事情了！！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_d", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_171_1"},
+    // T2 對話:(主人公,人物Ｄ)[[什麼事！？]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Ctx::hero_d", "textKey": "LWN_SCN_okehazama_EFF0C300_171_2"},
+    // T3 對話:(人物Ｄ,主人公)[[(今川義元)的大軍，\n攻入我方的領地裡了！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_d", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_171_3"},
+    // T4 對話:(主人公,人物Ｄ)[[什、你說什麼！！]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Ctx::hero_d", "textKey": "LWN_SCN_okehazama_EFF0C300_171_4", "when": "((Hero::MainHero.gender)) == (0)"},
+    // T5 對話:(主人公,人物Ｄ)[[什、你說什麼！！]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Ctx::hero_d", "textKey": "LWN_SCN_okehazama_EFF0C300_171_5", "when": "not( ((Hero::MainHero.gender)) == (0) )"},
+    // T6 對話:(人物Ｄ,主人公)[[主公似乎只率領著少量的部隊\n就在桶狹間\n把(今川義元)給擊敗了！！]],
+    {"cmd": "dialogue", "speaker": "Ctx::hero_d", "listener": "Hero::MainHero", "textKey": "LWN_SCN_okehazama_EFF0C300_171_6"},
+    // T7 對話:(主人公,人物Ｄ)[[什麼！\n那真是值得慶賀啊！\n但是，竟然真的把那個(今川義元.姓)給……]],
+    {"cmd": "dialogue", "speaker": "Hero::MainHero", "listener": "Ctx::hero_d", "textKey": "LWN_SCN_okehazama_EFF0C300_171_7"},
+    // T8 旁白:[[<ａ>年<ｂ>月，\n(今川義元)在桶狹間遭到(織田信長)的奇襲，\n戰敗之餘更慘遭砍頭……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_171_8"},
+    // T9 旁白:[[被譽為海道第一弓取，\n並成為駿河、遠江、三河大大名\n的戰國英雄(今川義元)……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_171_9"},
+    // T10 旁白:[[他的死亡使時代產生了極大變動……\n因為繼承了(今川義元.名)衣缽的(今川氏真)，\n並沒有足以超越其父的器量……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_171_10"},
+    // T11 旁白:[[有如在象徵此一沒落般，\n(德川家康)獨立於三河之地，\n也是不久之後的事了……]],
+    {"cmd": "narrator", "textKey": "LWN_SCN_okehazama_EFF0C300_171_11"}
+  ]
+}
