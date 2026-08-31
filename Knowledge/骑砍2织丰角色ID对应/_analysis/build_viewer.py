@@ -47,10 +47,10 @@ def compact(era, data):
         hist = [x for x in (r['name_history'] or '').split('|') if x]
         cur = r['name_official'] or ('城#' + r['city_idx'])
         cs.append({
-            'idx': r['city_idx'], 'kana4': r['kana4'], 'chain': hist, 'name': cur,
-            'lord': r['lord_name'], 'force': r['force_name'] or '—',
-            's': int(r['soldiers']), 'food': int(r['food']), 'gold': int(r['gold']),
-            'train': int(r['train']), 'morale': int(r['morale']),
+            'idx': r['city_idx'], 'kana4': r.get('kana4',''), 'chain': hist, 'name': cur,
+            'lord': r['lord_name'], 'force': r['force_name'] or '—', 'type': r['type'],
+            's': int(r['soldiers'] or 0), 'food': int(r['food'] or 0), 'gold': int(r['gold'] or 0),
+            'train': int(r['train'] or 0), 'morale': int(r['morale'] or 0),
         })
     ps = []
     for r in data['persons']:
@@ -101,7 +101,7 @@ const $=s=>document.querySelector(s);
 const fmt=n=>n.toLocaleString();
 function chip(f){return '<span class="chip" style="background:'+(window.COL[f]||'#555')+'">'+f+'</span>'}
 function cityRow(c){return `<tr data-idx="${c.idx}">
-<td>${c.name}${c.chain&&c.chain.length>1?` <span class="eq" title="别名(改名链): ${c.chain.join(' → ')}">改名链</span>`:''}</td>
+<td><span class="chip" style="background:#4a4235">${c.type}</span> ${c.name}${c.chain&&c.chain.length>1?` <span class="eq" title="别名(改名链): ${c.chain.join(' → ')}">改名链</span>`:''}</td>
 <td>${c.lord}</td><td>${chip(c.force)}</td>
 <td><div style="width:90px;height:9px;background:#120e0a;border-radius:5px;overflow:hidden"><div style="width:${Math.min(100,c.s/200)}%;height:100%;background:var(--gold)"></div></div> ${c.s}</td>
 <td>${fmt(c.food)}</td><td>${fmt(c.gold)}</td><td class="dim">${c.train} / ${c.morale}</td></tr>`}

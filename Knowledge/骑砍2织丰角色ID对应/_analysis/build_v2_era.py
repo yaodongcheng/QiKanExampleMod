@@ -65,6 +65,11 @@ def era_name(idx, era):
 # 官方城名单（names_180.txt，输入表=事实；改名人工走该文件）
 NAMES = [n for n in open(os.path.join(HERE, 'names_180.txt'), encoding='utf-8').read().split('\n') if n]
 assert len(NAMES) == 180, 'names_180.txt 必须 180 城'
+def _load_names(fn):
+    return {int(a): b.strip() for a, b in (l.split(',') for l in open(os.path.join(HERE, fn), encoding='utf-8').read().splitlines() if l and ',' in l)}
+TOWN_NAMES = _load_names('names_town_180.txt')    # 180..245 町
+RI_NAMES = _load_names('names_ri_246.txt')        # 246..257 里
+FORT_NAMES = _load_names('names_fort_258.txt')    # 258..273 砦
 
 
 def official_name(idx):
@@ -111,6 +116,42 @@ def person_records(plain, base):
             'kamon': rec[0x10],
         }
     return rows
+
+
+def town_table(plain, city_head):
+    """町表：城表头+0x1958 起 184B×66（编号 180..245）"""
+    base = city_head + 0x1958
+    out = []
+    for k in range(66):
+        r = plain[base + 184*k : base + 184*(k+1)]
+        out.append({
+            'idx': 180 + k,
+            'rice_price': r[0x2A],    # 米价（编辑器对照=单字节: 65）
+            'rice_amount': r[0x2B],   # 米量 千石 (100)
+            'horse_price': r[0x2C],   # 马价 (20)
+            'horse_amount': r[0x2D],  # 马量 (100)
+            'raw_head': r[0:18].hex(),
+        })
+    return out
+
+
+def ri_fort_table(plain, city_head):
+    """里/砦表：城表头+0x48C0 起 24B×28（里 246..257 + 砦 258..273）"""
+    base = city_head + 0x48C0
+    out = []
+    for k in range(28):
+        r = plain[base + 24*k : base + 24*(k+1)]
+        out.append({
+            'idx': 246 + k,
+            'gold': int.from_bytes(r[6:8], 'little'),
+            'food': int.from_bytes(r[10:12], 'little'),
+            'leader_pid': int.from_bytes(r[14:16], 'little'),  # 首领 = 人物 ID（柳原户兵卫=749 实测）
+            'soldiers': int.from_bytes(r[16:18], 'little'),
+            'morale': r[18],
+            'defense': r[19],
+            'train': r[20],
+        })
+    return out
 
 
 def city_table(plain):
@@ -181,10 +222,13 @@ def main():
 
     # 城表（城主/兵/粮/金=城表直读；城名=官方名单+历史名事实表，无推断）
     all_cities = {}
+    plain_of, city_head_of = {}, {}
     for scn, era in enumerate(ERAS):
         plain = decode_snr(scn)
+        plain_of[era] = plain
         _head, recs, bad = city_table(plain)
         assert not bad, 'city table partial invalid era %s: %s' % (era, bad)
+        city_head_of[era] = _head
         all_cities[era] = recs
 
     os.makedirs(DECODED, exist_ok=True)
@@ -212,18 +256,29 @@ def main():
         # cities.csv
         with open(os.path.join(edir, 'cities.csv'), 'w', newline='', encoding='utf-8-sig') as f:
             w = csv.writer(f)
-            w.writerow(['city_idx', 'kana4', 'name_official', 'name_history', 'lord_pid', 'lord_name', 'force_id',
-                        'force_name', 'soldiers', 'food', 'gold', 'train', 'morale'])
+            w.writerow(['city_idx', 'type', 'name_official', 'name_history', 'lord_name', 'leader_kana', 'force_id',
+                        'force_name', 'soldiers', 'food', 'gold', 'train', 'morale', 'rice_price', 'rice_amount', 'horse_price', 'horse_amount', 'raw'])
             hb = hero_by_tk
             for r in sorted(all_cities[era], key=lambda x: x['idx']):
                 h = hb.get(r['lord'])
                 fid = all_persons[era].get(r['lord'], {}).get('force', None)
                 # 全量历史名 = 当前官方名 + 其他历史名（用过的所有名字集合，| 分隔）
                 hist = [official_name(r['idx'])] + [n for n in RENAME_FACTS.get(official_name(r['idx']), []) if n != official_name(r['idx'])]
-                w.writerow([r['idx'], r['kana4'], era_name(r['idx'], era), '|'.join(hist), r['lord'],
-                            h['CNName'] if h else '?', fid if fid is not None else '',
+                w.writerow([r['idx'], '城', era_name(r['idx'], era), '|'.join(hist),
+                            h['CNName'] if h else '?', '',
+                            fid if fid is not None else '',
                             force_name.get(era, {}).get(fid, '') if fid is not None else '',
-                            r['soldiers'], r['food'], r['gold'], r['train'], r['morale']])
+                            r['soldiers'], r['food'], r['gold'], r['train'], r['morale'], ''])
+            for t in town_table(plain_of[era], city_head_of[era]):
+                w.writerow([t['idx'], '町', TOWN_NAMES.get(t['idx'], '?'), TOWN_NAMES.get(t['idx'], '?'),
+                            '', '', '', '', '', '', '', '', '', t['rice_price'], t['rice_amount'],
+                            t['horse_price'], t['horse_amount'], t['raw_head'][:40]])
+            for t in ri_fort_table(plain_of[era], city_head_of[era]):
+                tp = '里' if t['idx'] <= 257 else '砦'
+                nm = RI_NAMES.get(t['idx']) if tp == '里' else FORT_NAMES.get(t['idx'])
+                lh = hero_by_tk.get(t['leader_pid'])
+                w.writerow([t['idx'], tp, nm, nm, lh['CNName'] if lh else '?', str(t['leader_pid']), '', '',
+                            t['soldiers'], t['food'], t['gold'], t['train'], t['morale'], '', '', '', '', ''])
         # forces.csv（当主 = 该 force 城表城主中「主城兵最大」者 = 势力当主（§3.7 规则）；
         #            无城 force 兜底 = superior==1101 且 rank 最大者）
         fo = collections.defaultdict(list)
