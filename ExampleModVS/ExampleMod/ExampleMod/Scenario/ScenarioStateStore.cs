@@ -42,6 +42,9 @@ namespace LivingWorldNpcs
         /// <summary>按原始键读（Event::X.done / Time::assessment_flag / counter_N —— 读链统一入口）</summary>
         public static string GetRaw(string key) => Get(key);
 
+        /// <summary>按原始键写（调度器 Event::<id>.done / 结算标记）</summary>
+        public static void SetRaw(string key, string val) => Set(key, val);
+
         private static string Get(string key)
         {
             if (string.IsNullOrEmpty(key)) return null;
@@ -62,6 +65,15 @@ namespace LivingWorldNpcs
         {
             // 项目惯例（MyBehavior.cs:46 同款）：DailyTickEvent + AddNonSerializedListener
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
+            // 新档初始化（W3）：清仓（MyBehavior 先注册先跑）→ 种子（本监听后跑——AddBehavior 顺序保证）
+            CampaignEvents.OnNewGameCreatedEvent.AddNonSerializedListener(this, OnNewGameCreated);
+        }
+
+        private void OnNewGameCreated(CampaignGameStarter starter)
+        {
+            ScenarioScheduler.Reset();      // 新档：清调度状态（防跨档串）
+            ScenarioInit.Apply();           // ①种子（清仓 → 种子顺序纪律见 MyBehavior 新档钩子先跑）
+            ScenarioScheduler.OnGameStartTick();  // ②game_start 事件检查
         }
 
         public override void SyncData(IDataStore dataStore) { }
@@ -85,6 +97,9 @@ namespace LivingWorldNpcs
                 try { sink.SetGlobalState(kv.Key, (kv.Value + 1).ToString(CultureInfo.InvariantCulture)); }
                 catch (System.Exception e) { DebugLogger.Log($"[Scenario] counter {kv.Key} +1 失败: {e.Message}"); }
             }
+
+            // 剧本调度器：daily 检查 + monthly（自建 30 天钩子）
+            ScenarioScheduler.OnDailyTick();
         }
     }
 }

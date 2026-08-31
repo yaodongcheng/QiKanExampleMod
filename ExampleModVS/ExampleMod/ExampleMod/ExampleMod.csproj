@@ -262,6 +262,10 @@
     <Compile Include="Scenario\ScenarioCommands.cs" />
     <Compile Include="Scenario\ScenarioDataPack.cs" />
     <Compile Include="Scenario\ScenarioContext.cs" />
+    <Compile Include="Scenario\ScenarioInit.cs" />
+    <Compile Include="Scenario\ScenarioActions.cs" />
+    <Compile Include="Scenario\ScenarioExecutor.cs" />
+    <Compile Include="Scenario\ScenarioScheduler.cs" />
     <Compile Include="Scenario\DslExpression.cs" />
     <Compile Include="Scenario\AttributeResolver.cs" />
     <Compile Include="AI\AlertTypes.cs" />

@@ -1,0 +1,25 @@
+{
+  // ── 剧本数据包（W3 样例种子——机制验证用；🔴 全量内容（人物 1049/区域 62/卡/戒指等）= 07 数据包的活） ──
+  // 字段说明：baseYear = 剧本年代锚（Time::year 绝对年基准；1560 时代）
+  //          heroes[]：人物池种子——stringId（铁律 20 骑砍 StringId）/ birthYear / deathYear（-1=未知）
+  //                     attrs = 默认属性（16a 侧名；五维/技能/功勋开局真值——16b §3.1 默认值来源）
+  //                     🔴 三态判定在 ScenarioInit（birthYear>era=未出生 / deathYear<era=已死；同段=在场）
+  "baseYear": 1560,
+  "kokudakaRatio": 10.0,
+  "loyaltyConvert": 2.0,
+  "isNeighborDistance": 40,
+  "heroes": [
+    { "stringId": "lord_1_oda",               "birthYear": 1534, "deathYear": 1582,
+      "attrs": { "might": 82, "governance": 92, "intellect": 88, "charm": 86, "leadership": 96, "merit_samurai": 0 } },
+    { "stringId": "lord_1_imagawa_katsumoto", "birthYear": 1519, "deathYear": 1560,
+      "attrs": { "might": 80, "governance": 95, "intellect": 90, "charm": 84, "leadership": 93, "merit_samurai": 0 } },
+    { "stringId": "lord_1_tokugawa",          "birthYear": 1543, "deathYear": 1616,
+      "attrs": { "might": 76, "governance": 88, "intellect": 82, "charm": 80, "leadership": 90, "merit_samurai": 0 } },
+    { "stringId": "lord_1_imagawa",           "birthYear": 1538, "deathYear": 1591,
+      "attrs": { "might": 30, "governance": 44, "intellect": 38, "charm": 35, "leadership": 40, "merit_samurai": 0 } },
+    { "stringId": "lord_1_saito_dosan",       "birthYear": 1496, "deathYear": 1555,
+      "attrs": { "might": 50, "governance": 84, "intellect": 92, "charm": 70, "leadership": 80, "merit_samurai": 0 } }
+  ],
+  "identityRanks": {},   // 17 身份链（RankLadder 数据包）；空 = identity 带序比较不可判定（W2 已知降级）
+  "regions": []          // 区域表（Region 反向索引 province/allControlled）；空 = 区域功能不可判定（W2 已知降级）
+}
