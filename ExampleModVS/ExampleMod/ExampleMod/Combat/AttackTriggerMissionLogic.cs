@@ -237,7 +237,13 @@ namespace LivingWorldNpcs
         }
         public override void OnAgentRemoved(Agent affectedAgent, Agent affectedAgentAffectsCalc, AgentState affectedAgentState, KillingBlow blow)
         {
+
+
             base.OnAgentRemoved(affectedAgent, affectedAgentAffectsCalc, affectedAgentState, blow);
+
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+
 
             // 侧容器模型：成员死亡/倒地 → 战斗提前收场（防计数泄漏、玩家+友方滞留队2）
             // 死后 FightEnemyAction 不会 OnEnd，计数不归零则全员还原永远不会触发
@@ -397,7 +403,10 @@ namespace LivingWorldNpcs
             //作用一，记录死人
             // 玩家自己永远不进可搜刮尸体列表：引擎在 OnAgentHit 之前就写过 Health，
             // 玩家吃到致命一击时这里会看到 Health<=0。
-            if (affectedAgent.Health <= 0 && !affectedAgent.IsMainAgent)
+            // 🔴 2026-08-31（用户裁定）：非互动场景（战场等）不登记——与 OnAgentRemoved 的
+            // 开头 return 同口径；若兜底入口不一起关，战场最后一击会走这里把尸体加回可搜刮列表。
+            if (affectedAgent.Health <= 0 && !affectedAgent.IsMainAgent
+                && !Settings.Instance.IsInteractionDisabled())
             {
                 if (AgentControlHelper.IsHumanOrChild(affectedAgent))
                 {

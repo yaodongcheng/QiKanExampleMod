@@ -18,6 +18,13 @@ namespace LivingWorldNpcs
         public string EventSettlement { get; set; }
         public string EventHero { get; set; }
 
+        /// <summary>事件触发时初始化（W4 调度器调用点；值 = DSL 引用文本如 "Settlement::town_CHUB11"）</summary>
+        public void InitForEvent(string eventSettlement, string eventHero)
+        {
+            EventSettlement = eventSettlement;
+            EventHero = eventHero;
+        }
+
         public void Set(string slot, string value)
         {
             if (string.IsNullOrEmpty(slot)) return;

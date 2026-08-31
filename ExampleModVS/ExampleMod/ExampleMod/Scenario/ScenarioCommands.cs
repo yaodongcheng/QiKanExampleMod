@@ -45,6 +45,45 @@ namespace LivingWorldNpcs
             return "剧本数据已重载";
         }
 
+        /// <summary>custom.scn_init：手动跑一次剧本初始化（新档自动跑；本指令 = 测试/补种）</summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("scn_init", "custom")]
+        public static string ScnInit(string[] args)
+        {
+            ScenarioInit.Apply();
+            return $"[Scenario][Init] 完成：英雄 {ScenarioInit.SeededHeroes} / 属性 {ScenarioInit.SeededAttrs} / 拨年龄 {ScenarioInit.AdjustedAges} / 未出生 {ScenarioInit.UnbornSkipped} / 已死 {ScenarioInit.DeceasedSkipped}";
+        }
+
+        /// <summary>custom.scn_force_event &lt;eventId&gt;：强制触发某事件（12 A2；互斥选路/once/done 全走真路径）</summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("scn_force_event", "custom")]
+        public static string ScnForceEvent(string[] args)
+        {
+            string id = args != null && args.Length > 0 ? args[0] : null;
+            if (string.IsNullOrEmpty(id)) return "用法: custom.scn_force_event EVENT_ID";
+            ScenarioScheduler.EnsureLoadedAll();
+            var evt = ScenarioLoader.Events.Find(e => e.Id == id);
+            if (evt == null) return $"未找到事件 {id}（先 scn_list 看清单）";
+            ScenarioScheduler.ExecuteEvent(evt);
+            return $"[Scenario] 事件 {id} 执行完毕（once={(evt.Once ? "是→done" : "否")}）";
+        }
+
+        /// <summary>custom.scn_run_action &lt;action&gt; [key=value...]：单动作落世界（12 A3；例：scn_run_action update target="(Hero::x.alive)" value="true"）</summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("scn_run_action", "custom")]
+        public static string ScnRunAction(string[] args)
+        {
+            if (args == null || args.Length == 0) return "用法: custom.scn_run_action ACTION [k=v ...]";
+            var step = new ScenarioScriptStep { Step = "effect", Action = args[0] };
+            for (int i = 1; i < args.Length; i++)
+            {
+                int eq = args[i].IndexOf('=');
+                if (eq <= 0) continue;
+                string k = args[i].Substring(0, eq), v = args[i].Substring(eq + 1);
+                if (step.Extra == null) step.Extra = new System.Collections.Generic.Dictionary<string, Newtonsoft.Json.Linq.JToken>();
+                step.Extra[k] = new Newtonsoft.Json.Linq.JValue(v.Trim('"'));
+            }
+            bool ok = ScenarioActions.Execute(step, ScenarioContext.Instance);
+            return $"[Scenario][Action] {args[0]} 执行{(ok ? "完成" : "（返回 false）")}";
+        }
+
         /// <summary>custom.dsl_eval &lt;表达式&gt;：单条 DSL 求值（12 A1 分拆测试）</summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("dsl_eval", "custom")]
         public static string DslEval(string[] args)

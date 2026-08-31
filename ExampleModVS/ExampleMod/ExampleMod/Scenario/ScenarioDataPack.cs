@@ -27,6 +27,17 @@ namespace LivingWorldNpcs
         // —— 身份链（17 RankLadder；带序枚举 >= <= 专用；缺表 = 等级比较返回不可判定（null））——
         private static Dictionary<string, int> _identityRanks = new Dictionary<string, int>(StringComparer.Ordinal);
 
+        /// <summary>人物池种子（W3 初始化：三态 + 默认属性；数据包 heroes[]——全量 = 07 产出，`骑砍2太阁Mod表` 125 列）</summary>
+        public class HeroSeedDef
+        {
+            public string StringId;                                   // 骑砍 StringId（铁律 20）
+            public int BirthYear = -1;                                // 出生年（剧本年代；-1 = 未知）
+            public int DeathYear = -1;                                // 终年（-1 = 未知/未定）
+            public Dictionary<string, string> Attrs = new Dictionary<string, string>(System.StringComparer.Ordinal); // 默认属性（五维/技能/功勋/卡优先置位）
+        }
+
+        public static readonly List<HeroSeedDef> Heroes = new List<HeroSeedDef>();
+
         public class RegionDef
         {
             public string Id;                    // Region::tk5_totomi
@@ -66,6 +77,14 @@ namespace LivingWorldNpcs
                 if (rootObj["identityRanks"] is JObject ranks)
                     foreach (var kv in ranks)
                         _identityRanks[kv.Key] = (int)kv.Value;
+                if (rootObj["heroes"] is JArray ha)
+                    foreach (var h in ha)
+                    {
+                        var d = new HeroSeedDef { StringId = (string)h["stringId"], BirthYear = (int?)h["birthYear"] ?? -1, DeathYear = (int?)h["deathYear"] ?? -1 };
+                        if (h["attrs"] is JObject a)
+                            foreach (var kv in a) d.Attrs[kv.Key] = kv.Value?.ToString() ?? "";
+                        if (!string.IsNullOrEmpty(d.StringId)) Heroes.Add(d);
+                    }
                 DebugLogger.Log($"[ScenarioDataPack] pack.json 加载完成：regions={_regions.Count} ranks={_identityRanks.Count}");
             }
             catch (Exception e)

@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 
 namespace LivingWorldNpcs
@@ -36,7 +37,8 @@ namespace LivingWorldNpcs
         public override string ToString() => $"{Id} [{Trigger}] once={Once} pri={Priority} steps={Script?.Count ?? 0}";
     }
 
-    /// <summary>事件脚本步骤。step = 步骤类型（01 步骤类型表）；effect 的 action = 16a 命令侧名。</summary>
+    /// <summary>事件脚本步骤。step = 步骤类型（01 步骤类型表）；effect 的 action = 16a 命令侧名。
+    /// 参数字段为动态（actor/clan/target/value/slot…按 action 取用）→ 未显式列出的键进 Extra（JsonExtensionData）。</summary>
     public class ScenarioScriptStep
     {
         [JsonProperty("step")]
@@ -61,6 +63,18 @@ namespace LivingWorldNpcs
 
         [JsonProperty("else")]
         public List<ScenarioScriptStep> Else { get; set; }
+
+        /// <summary>其余动态参数（actor/clan/target/value/slot/…——按 action 语义取用）</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JToken> Extra { get; set; }
+
+        /// <summary>取动态参数（字符串化；无 = null）</summary>
+        public string Get(string key)
+        {
+            if (Extra == null || !Extra.TryGetValue(key, out var t)) return null;
+            if (t.Type == JTokenType.String) return (string)t;
+            return t.ToString();
+        }
 
         public override string ToString() => $"[{Step}] {Action ?? PlaybackId ?? ""}";
     }
