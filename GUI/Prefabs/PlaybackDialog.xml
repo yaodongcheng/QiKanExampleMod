@@ -7,8 +7,11 @@
 -->
 <Prefab>
   <Window Id="LWN_PlaybackDialog">
-    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true"
-            IsVisible="@IsVisible">
+    <!-- 🔴 根 Widget 可点：点击任意处 = 继续（旧 DialogChoice 同款交互；选项出现时 VM.OnClickContinue 自守卫）
+         旧版样式参照：继续 = 右下淡色文字提示（#888），非按钮 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+            IsVisible="@IsVisible"
+            Command.Click="OnClickContinue">
       <Children>
 
         <!-- ② 底部对话框面板（全宽 x 360，贴底；🔴 背景全透明 = 无全屏遮罩层——地图完整可见） -->
@@ -68,7 +71,7 @@
                            DataSource="{OptionList}">
                   <ItemTemplate>
                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                                  SuggestedWidth="360" HeightSizePolicy="Fixed" SuggestedHeight="52"
+                                  SuggestedWidth="360" SuggestedHeight="52"
                                   Brush="Simple.Button.Bg"
                                   Command.Click="ExecuteOption"
                                   MarginBottom="10">
@@ -85,22 +88,16 @@
               </Children>
             </Widget>
 
-            <!-- ⑥ 继续按钮（面板右下；@AreContinueVisible） -->
-            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                          SuggestedWidth="180" HeightSizePolicy="Fixed" SuggestedHeight="48"
-                          Brush="Simple.Button.Bg"
-                          HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                          MarginRight="48" MarginBottom="16"
-                          Command.Click="OnClickContinue"
-                          IsVisible="@AreContinueVisible">
-              <Children>
-                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                            Text="@ContinueHintText" Brush="Simple.Button.Text"
-                            Brush.TextHorizontalAlignment="Center"
-                            DoNotAcceptEvents="true"
-                            HorizontalAlignment="Center" VerticalAlignment="Center" />
-              </Children>
-            </ButtonWidget>
+            <!-- ⑥ 继续提示（右下淡色文字，@AreContinueVisible；点击本体 = 根 Widget 任意处） -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        Text="@ContinueHintText"
+                        FontSize="22"
+                        Brush="Simple.Text"
+                        TextColor="#88888888"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        MarginRight="48" MarginBottom="16"
+                        DoNotAcceptEvents="true"
+                        IsVisible="@AreContinueVisible" />
 
           </Children>
         </Widget>

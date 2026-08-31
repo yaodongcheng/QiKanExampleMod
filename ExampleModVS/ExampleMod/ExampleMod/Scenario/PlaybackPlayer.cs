@@ -107,7 +107,7 @@ namespace LivingWorldNpcs
                                 int idx = i;
                                 vms.Add(new StoryOptionVM(
                                     LWNTextHelper.ResolveText(options[i].TextKey ?? "", options[i].Text),
-                                    () => chosen = idx));
+                                    () => chosen = idx, id: "opt" + idx));
                             }
                             PlaybackDialogUI.VM.OnClosedHandler = () =>
                             {

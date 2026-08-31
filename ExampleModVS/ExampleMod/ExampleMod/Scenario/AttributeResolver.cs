@@ -330,11 +330,12 @@ namespace LivingWorldNpcs
         internal static Hero FindHero(string refString)
         {
             if (string.IsNullOrEmpty(refString)) return null;
+            if (Campaign.Current == null || MBObjectManager.Instance == null) return null;   // 主菜单/无战役 = 直接 null（铁律 1，零异常路径）
             string id = refString.StartsWith("Hero::") ? refString.Substring(6) : refString;
             try
             {
                 // 第一轮：CampaignObjectManager 精确查找（项目先例 StoryContext.FindHeroById）
-                var h = Campaign.Current != null ? Campaign.Current.CampaignObjectManager.Find<Hero>(id) : null;
+                var h = Campaign.Current.CampaignObjectManager.Find<Hero>(id);
                 if (h != null) return h;
                 // 第二轮：CharacterObject 桥（MBObjectBase 注册表）
                 var co = MBObjectManager.Instance.GetObject<CharacterObject>(x => x.StringId == id);
