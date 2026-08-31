@@ -133,10 +133,24 @@ namespace LivingWorldNpcs
         protected override void OnGameStart(Game game, IGameStarter gameStarter)
         {
             base.OnGameStart(game, gameStarter);
+            // 🔴 临时 smoke（2026-08-30 立绘 tpac 验证用，实机通关后用户自行决定删留）：
+            //    SpriteData 在 UI 初始化后恒定可用；GetOrLoad 失败 = 内容包缺 tpac/XML → 日志明说。
+            try
+            {
+                var smoke = SpriteAssetsManager.GetOrLoad("lwnprof_emobustup_517_happy");
+                var smoke2 = SpriteAssetsManager.GetOrLoad("lwnprof_bustup_517");
+                int stageCount = PortraitRegistry.GetStagePortraits("lord_1_kinoshita")?.Count ?? 0;
+                DebugLogger.Log($"[SpriteAssets] smoke: emo={(smoke != null ? "OK" : "FAIL")} bustup={(smoke2 != null ? "OK" : "FAIL")} 秀吉阶段数={stageCount}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[SpriteAssets] smoke 异常: {ex.Message}");
+            }
             if (game.GameType is Campaign)
             {
                 var campaignGameStarter = (CampaignGameStarter)gameStarter;
                 campaignGameStarter.AddBehavior(new GlobalVariableBehavior());
+                campaignGameStarter.AddBehavior(new ScenarioCampaignBehavior()); // 剧本日 tick（计数器 +1；W1）
 
                 campaignGameStarter.AddBehavior(new AIStoryGeneratorBehavior());
 
@@ -269,6 +283,8 @@ namespace LivingWorldNpcs
         {
             base.OnApplicationTick(dt);
 
+            // 🔴 临时验证（2026-08-30 立绘 tpac 实机验证用，验证完成后删除）
+            PortraitPreviewInjector.Tick(dt);
 
             // 只有当 StoryEngine 实例存在时才尝试更新
             if (StoryEngine.Instance != null)

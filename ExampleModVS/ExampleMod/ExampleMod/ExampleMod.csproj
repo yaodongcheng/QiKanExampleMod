@@ -255,6 +255,15 @@
     <Compile Include="AI\AgentAIController.cs" />
     <Compile Include="AI\AgentBrain.cs" />
     <Compile Include="AI\SpeechChannel.cs" />
+    <Compile Include="Scenario\ScenarioSchema.cs" />
+    <Compile Include="Scenario\ScenarioAttrStore.cs" />
+    <Compile Include="Scenario\ScenarioStateStore.cs" />
+    <Compile Include="Scenario\ScenarioLoader.cs" />
+    <Compile Include="Scenario\ScenarioCommands.cs" />
+    <Compile Include="Scenario\ScenarioDataPack.cs" />
+    <Compile Include="Scenario\ScenarioContext.cs" />
+    <Compile Include="Scenario\DslExpression.cs" />
+    <Compile Include="Scenario\AttributeResolver.cs" />
     <Compile Include="AI\AlertTypes.cs" />
     <Compile Include="AI\NpcIntent.cs" />
     <Compile Include="AI\AiSuspendPatch.cs" />
@@ -295,10 +304,12 @@
     <Compile Include="Core\VersionCompat.cs" />
     <!-- Data -->
     <Compile Include="Data\DesignDataLoad.cs" />
+    <Compile Include="Data\PortraitRegistry.cs" />
     <!-- Debug -->
     <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" />
     <Compile Include="Debug\AiPatrollingNullFix.cs" />
     <Compile Include="Debug\CrashLogHook.cs" />
+    <Compile Include="Debug\PortraitPreviewInjector.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
@@ -309,6 +320,7 @@
     <Compile Include="Debug\MyCommands.cs" />
     <!-- GUI -->
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />
+    <Compile Include="GUI\SpriteAssetsManager.cs" />
     <Compile Include="GUI\StackLayoutVerticalSwapPatch.cs" />
     <Compile Include="GUI\UiFullScreenHelper.cs" />
     <!-- ImChat（IM 即时传讯系统：微信式聊天 + 密令下达通道） -->

@@ -16,6 +16,7 @@ using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.TwoDimension;
 using Helpers; // v1.3.0+：InventoryManager 改名 InventoryScreenHelper，namespace 也改为 Helpers
 
 namespace LivingWorldNpcs
@@ -72,6 +73,26 @@ namespace LivingWorldNpcs
     /// </summary>
     public static class V
     {
+        // ── UI 资源（Sprite partial-load，2026-08-30）─────────────
+        // v1.2.12: UIResourceManager.UIResourceDepot（且无 GetSpriteCategory）
+        // v1.3.0+: UIResourceManager.ResourceDepot
+
+        public static ResourceDepot UIResourceDepot()
+        {
+#if MB2_GE_130
+            return UIResourceManager.ResourceDepot;
+#else
+            return UIResourceManager.UIResourceDepot;
+#endif
+        }
+
+        // SpriteData.SpriteCategories 字典两版本同名同构，直接查询即可（1.2.12~1.5.1 均无 #if 需求）
+        public static SpriteCategory GetSpriteCategory(string name)
+        {
+            var data = UIResourceManager.SpriteData;
+            if (data == null) return null;
+            return data.SpriteCategories.TryGetValue(name, out var cat) ? cat : null;
+        }
         // ── Position ──────────────────────────────────────────────
         // v1.2.12: party.Position2D / settlement.Position2D
         // Latest:  party.GetPosition2D / settlement.GetPosition2D

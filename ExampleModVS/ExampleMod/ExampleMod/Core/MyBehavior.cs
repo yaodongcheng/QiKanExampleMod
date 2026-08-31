@@ -126,6 +126,7 @@ namespace LivingWorldNpcs
                 // static 单例（未进 SyncData）
                 WorldBackgroundStore.ResetAll();                // 世界观 blob/指纹/纪元标记（生成状态机随 behavior 重建）
                 StoryContext.ResetAll();                        // Story 单例（GlobalVariableBehavior 实例字段自动清空）
+                GlobalVariableBehavior.Instance?.ClearAll();    // 双保险：新档清剧本仓（11 存档纪律；行为实例随新档重建，此乃额外防线）
                 DebugLogger.Log("[NewGame] 战役级 static 状态已清空（18 组：冷却/荣誉/委托/事件系/偷窃/动物/画像/IM/记忆/世界观/Story）");
             }
             catch (Exception ex)
