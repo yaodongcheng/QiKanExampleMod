@@ -62,6 +62,27 @@ def era_name(idx, era):
     return cur
 
 
+# 编辑器真名覆盖表（人物显示名=编辑器=游戏内真实名；TaikouHero 名字列废弃）
+EDITOR_NAMES = {
+    94: '出浦盛清', 412: '杉之坊照算', 423: '世鬼政时', 473: '多罗尾光俊',
+    543: '奈佐日本助', 613: '风魔小太郎', 729: '百地三太夫', 749: '柳原户兵卫',
+    800: '無',          # 编辑器 800=已死/未登场占位（TaikouHero 800=上杉宪政 系错配，废弃）
+    944: '三次郎',      # 羽黑里长（编辑器 247）
+    948: '仙左卫门',    # 十三凑砦主（编辑器 258）
+}
+
+TEMPLATE_NAMES = {'商人', '忍者', '女忍者', '海贼', '無', '武士'}
+
+
+def display_name(pid, hero_name=''):
+    """人物显示名：编辑器真名 > 英雄名（确定性段保留） > 待替换（模板段未收录）"""
+    if pid in EDITOR_NAMES:
+        return EDITOR_NAMES[pid]
+    if hero_name and hero_name not in TEMPLATE_NAMES:
+        return hero_name
+    return '待替换(ID %s)' % pid
+
+
 # 官方城名单（names_180.txt，输入表=事实；改名人工走该文件）
 NAMES = [n for n in open(os.path.join(HERE, 'names_180.txt'), encoding='utf-8').read().split('\n') if n]
 assert len(NAMES) == 180, 'names_180.txt 必须 180 城'
@@ -245,7 +266,7 @@ def main():
             sname = {}
             for pid, p in per.items():
                 h = hero_by_tk.get(pid)
-                sname[pid] = h['CNName'] if h else '?'
+                sname[pid] = display_name(pid, h['CNName'] if h else '')
             for pid in sorted(per):
                 p = per[pid]
                 h = hero_by_tk.get(pid)
@@ -265,7 +286,7 @@ def main():
                 # 全量历史名 = 当前官方名 + 其他历史名（用过的所有名字集合，| 分隔）
                 hist = [official_name(r['idx'])] + [n for n in RENAME_FACTS.get(official_name(r['idx']), []) if n != official_name(r['idx'])]
                 w.writerow([r['idx'], '城', era_name(r['idx'], era), '|'.join(hist),
-                            h['CNName'] if h else '?', '',
+                            display_name(r['lord'], h['CNName'] if h else ''), '',
                             fid if fid is not None else '',
                             force_name.get(era, {}).get(fid, '') if fid is not None else '',
                             r['soldiers'], r['food'], r['gold'], r['train'], r['morale'], ''])
@@ -276,8 +297,7 @@ def main():
             for t in ri_fort_table(plain_of[era], city_head_of[era]):
                 tp = '里' if t['idx'] <= 257 else '砦'
                 nm = RI_NAMES.get(t['idx']) if tp == '里' else FORT_NAMES.get(t['idx'])
-                lh = hero_by_tk.get(t['leader_pid'])
-                w.writerow([t['idx'], tp, nm, nm, lh['CNName'] if lh else '?', str(t['leader_pid']), '', '',
+                w.writerow([t['idx'], tp, nm, nm, display_name(t['leader_pid'], ''), str(t['leader_pid']), '', '',
                             t['soldiers'], t['food'], t['gold'], t['train'], t['morale'], '', '', '', '', ''])
         # forces.csv（当主 = 该 force 城表城主中「主城兵最大」者 = 势力当主（§3.7 规则）；
         #            无城 force 兜底 = superior==1101 且 rank 最大者）
