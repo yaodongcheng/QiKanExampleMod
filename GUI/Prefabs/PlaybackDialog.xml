@@ -1,103 +1,109 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  PlaybackDialog.xml —— 剧本演绎对话面板（T7 重制版 · 2026-08-30）
-  蓝本 = DialogChoice.xml（旧谈判面板）——砍掉：谈判进度条/特质/预测/冲突信息（旧 VM 所余三件套全部不含）
-  保留 = 对白文本框 + 角色立绘位 + 选项按钮 + 底部继续按钮
-  绑定源 = PlaybackDialogVM（Interaction/PlaybackDialogVM.cs）
-  🔴 纪律：@PortraitTexture 为空 = 立绘位隐藏（没图占位不塌，05:303）；本面板服务 scene/menu/map 三形态演绎
+  PlaybackDialog.xml —— 剧本演绎对话面板（T7 重制 · 2026-08-31 v3 布局：用户实机三连否决后定稿）
+  构图：半透明遮罩（地图退后，Brush 自带 alpha——⚠️ Color 属性不参与渲染（附录坑，纯白屏根源））
+  → 底部对话框面板（横排：立绘槽 | 文字区）+ 主角镜像（SpriteMirror）。
+  绑定源 = PlaybackDialogVM（Scenario/PlaybackDialogVM.cs）。
 -->
 <Prefab>
   <Window Id="LWN_PlaybackDialog">
-    <!-- 全屏根容器 -->
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true"
             IsVisible="@IsVisible">
       <Children>
 
-        <!-- 说话人名字 -->
-        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60"
-                HorizontalAlignment="Left" MarginTop="120" DoNotAcceptEvents="true">
-          <Children>
-            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                        Text="@SpeakerName"
-                        Brush="Simple.Button.Text"
-                        FontSize="28"
-                        HorizontalAlignment="Left" VerticalAlignment="Center"
-                        MarginLeft="60" />
-          </Children>
-        </Widget>
-
-        <!-- 角色立绘位（@PortraitTexture 空 = 隐藏；无图占位不塌） -->
-        <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                MarginRight="60" MarginBottom="220" DoNotAcceptEvents="true"
-                IsVisible="@IsPortraitVisible">
-          <Children>
-            <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                         SuggestedWidth="512" SuggestedHeight="768"
-                         Sprite="@PortraitTexture"
-                         HorizontalAlignment="Right" VerticalAlignment="Bottom" />
-          </Children>
-        </Widget>
-
-        <!-- 对白文本区 -->
-        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="220"
-                MarginTop="700" DoNotAcceptEvents="true">
-          <Children>
-            <TextWidget Id="LWN_PlaybackDialog_Text"
-                        WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                        Text="@DialogueContent"
-                        Brush="Simple.Text"
-                        FontSize="24"
-                        HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="60" MarginRight="300" MarginTop="10" />
-          </Children>
-        </Widget>
-
-        <!-- 底部选项列表（@AreOptionsVisible；选项模型 = StoryOptionVM，复用品） -->
-        <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+        <!-- ② 底部对话框面板（全宽 x 360，贴底；🔴 背景全透明 = 无全屏遮罩层——地图完整可见） -->
+        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="360"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                MarginTop="0" MarginBottom="40" DoNotAcceptEvents="true"
-                IsVisible="@AreOptionsVisible">
+                DoNotAcceptEvents="true">
           <Children>
-            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                       Id="LWN_PlaybackDialog_Options"
-                       StackLayout.LayoutMethod="VerticalTopToBottom"
-                       DataSource="{OptionList}">
-              <ItemTemplate>
-                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                              SuggestedWidth="500" SuggestedHeight="50"
-                              Brush="Simple.Button.Bg"
-                              Command.Click="ExecuteOption"
-                              MarginBottom="10">
-                  <Children>
-                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                                Text="@OptionText" Brush="Simple.Button.Text"
-                                Brush.TextHorizontalAlignment="Center"
-                                DoNotAcceptEvents="true"
-                                HorizontalAlignment="Center" VerticalAlignment="Center" />
-                  </Children>
-                </ButtonWidget>
-              </ItemTemplate>
-            </ListPanel>
+
+            <!-- 面板底（半透明），Brush = Simple.Button.Bg（自带 alpha） -->
+            <ImageWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                         Brush="Simple.Button.Bg"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                         DoNotAcceptEvents="true" />
+
+            <!-- ③ 立绘槽（面板内左侧，缩小 320x480；主角 = 镜像图——SpriteMirror；null = 隐藏） -->
+            <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                         SuggestedWidth="320" SuggestedHeight="480"
+                         Sprite="@PortraitLeft"
+                         HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                         MarginLeft="48" MarginBottom="8"
+                         DoNotAcceptEvents="true"
+                         IsVisible="@IsPortraitVisible" />
+
+            <!-- ④ 文字区（面板内右侧：名字 + 正文；右侧留选项列） -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    MarginLeft="400" MarginRight="40" MarginTop="16" MarginBottom="16"
+                    DoNotAcceptEvents="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="44"
+                            Text="@SpeakerName"
+                            FontSize="30"
+                            Brush="Simple.Button.Text"
+                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                            MarginLeft="10" MarginTop="8"
+                            DoNotAcceptEvents="true" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Text="@DialogueContent"
+                            FontSize="26"
+                            Brush="Simple.Text"
+                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                            MarginLeft="10" MarginTop="60" MarginRight="10" MarginBottom="16"
+                            DoNotAcceptEvents="true" />
+              </Children>
+            </Widget>
+
+            <!-- ⑤ 选项列（面板右侧竖列；@AreOptionsVisible） -->
+            <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                    MarginLeft="420" MarginRight="0" MarginTop="0" MarginBottom="16"
+                    DoNotAcceptEvents="true"
+                    IsVisible="@AreOptionsVisible">
+              <Children>
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           Id="LWN_PlaybackDialog_Options"
+                           StackLayout.LayoutMethod="VerticalTopToBottom"
+                           DataSource="{OptionList}">
+                  <ItemTemplate>
+                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                  SuggestedWidth="360" HeightSizePolicy="Fixed" SuggestedHeight="52"
+                                  Brush="Simple.Button.Bg"
+                                  Command.Click="ExecuteOption"
+                                  MarginBottom="10">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    Text="@OptionText" Brush="Simple.Button.Text"
+                                    Brush.TextHorizontalAlignment="Center"
+                                    DoNotAcceptEvents="true"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Children>
+                    </ButtonWidget>
+                  </ItemTemplate>
+                </ListPanel>
+              </Children>
+            </Widget>
+
+            <!-- ⑥ 继续按钮（面板右下；@AreContinueVisible） -->
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="180" HeightSizePolicy="Fixed" SuggestedHeight="48"
+                          Brush="Simple.Button.Bg"
+                          HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                          MarginRight="48" MarginBottom="16"
+                          Command.Click="OnClickContinue"
+                          IsVisible="@AreContinueVisible">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Text="@ContinueHintText" Brush="Simple.Button.Text"
+                            Brush.TextHorizontalAlignment="Center"
+                            DoNotAcceptEvents="true"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Children>
+            </ButtonWidget>
+
           </Children>
         </Widget>
-
-        <!-- 继续按钮（无选项时的推进；@AreContinueVisible） -->
-        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                      SuggestedWidth="200" SuggestedHeight="50"
-                      Brush="Simple.Button.Bg"
-                      HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                      MarginRight="60" MarginBottom="40"
-                      Command.Click="OnClickContinue"
-                      IsVisible="@AreContinueVisible">
-          <Children>
-            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                        Text="@ContinueHintText" Brush="Simple.Button.Text"
-                        Brush.TextHorizontalAlignment="Center"
-                        DoNotAcceptEvents="true"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" />
-          </Children>
-        </ButtonWidget>
 
       </Children>
     </Widget>

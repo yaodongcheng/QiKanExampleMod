@@ -266,8 +266,12 @@
     <Compile Include="Scenario\ScenarioActions.cs" />
     <Compile Include="Scenario\ScenarioExecutor.cs" />
     <Compile Include="Scenario\ScenarioScheduler.cs" />
-    <Compile Include="Interaction\PlaybackDialogVM.cs" />
-    <Compile Include="Interaction\PlaybackDialogUI.cs" />
+    <Compile Include="Scenario\PlaybackDialogVM.cs" />
+    <Compile Include="Scenario\PlaybackDialogUI.cs" />
+    <Compile Include="Scenario\SpriteMirror.cs" />
+    <Compile Include="Scenario\ScenarioPlayerIdentity.cs" />
+    <Compile Include="Scenario\StageDirector.cs" />
+    <Compile Include="Scenario\ScenarioStores.cs" />
     <Compile Include="Scenario\PlaybackPlayer.cs" />
     <Compile Include="Scenario\DslExpression.cs" />
     <Compile Include="Scenario\AttributeResolver.cs" />
@@ -489,7 +493,6 @@
     <Compile Include="Story\AIStoryGenerator.cs" />
     <Compile Include="Story\CommandManager.cs" />
     <Compile Include="Story\LogicCommands.cs" />
-    <Compile Include="Story\StageDirector.cs" />
     <Compile Include="Story\StoryContext.cs" />
     <Compile Include="Story\StoryEngine.cs" />
     <Compile Include="Story\SystemCommands.cs" />

@@ -34,19 +34,39 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[Playback] 找不到分件 {playbackId}（先 custom.scn_list/all 看清单）");
                     return;
                 }
-                _lines = def.Lines;
-                _idx = 0;
-                _onFinished = onFinished;
-                CurrentPlaybackId = playbackId;
-                ScenarioContext.Instance.Set("choice", null);   // 事件上下文复用：选择槽每段清一次
-                PlaybackDialogUI.VM.OnClosedHandler = null;
-                PlaybackDialogUI.Open();
-                DebugLogger.Log($"[Playback] ▶ 开始 {playbackId}（{def.Form}，{def.Lines.Count} 行）");
-                MoveNext();
+                Play(def, onFinished);
             }
             catch (Exception e)
             {
                 DebugLogger.Log($"[Playback] Play({playbackId}) 异常（不崩）: {e.Message}");
+                Finish();
+            }
+        }
+
+        /// <summary>开始演一段（直接给分件——demo 指令/内存流用）</summary>
+        public static void Play(ScenarioPlaybackDef def, Action onFinished = null)
+        {
+            try
+            {
+                if (IsPlaying) { DebugLogger.Log($"[Playback] 已在演 {CurrentPlaybackId}，拒绝 {def.Id}"); return; }
+                if (def == null || def.Lines == null)
+                {
+                    DebugLogger.Log($"[Playback] 分件为空: {(def?.Id ?? "null")}");
+                    return;
+                }
+                _lines = def.Lines;
+                _idx = 0;
+                _onFinished = onFinished;
+                CurrentPlaybackId = def.Id;
+                ScenarioContext.Instance.Set("choice", null);   // 事件上下文复用：选择槽每段清一次
+                PlaybackDialogUI.VM.OnClosedHandler = null;
+                PlaybackDialogUI.Open();
+                DebugLogger.Log($"[Playback] ▶ 开始 {def.Id}（{def.Form}，{def.Lines.Count} 行）");
+                MoveNext();
+            }
+            catch (Exception e)
+            {
+                DebugLogger.Log($"[Playback] Play({def?.Id}) 异常（不崩）: {e.Message}");
                 Finish();
             }
         }
@@ -73,7 +93,8 @@ namespace LivingWorldNpcs
                             PlaybackDialogUI.VM.Show(
                                 speakerName,
                                 LWNTextHelper.ResolveText(line.TextKey ?? "", line.Text),
-                                null);                                // 立绘槽 W6 接入（缺 = 占位隐藏）
+                                line.Cmd == "narrator" ? null : ResolvePortrait(line.Speaker),
+                                ScenarioPlayerIdentity.IsMainHeroRef(line.Speaker) || line.Speaker == "Hero::MainHero");   // 主角 = 右侧镜像（用户 2026-08-31 裁定）；非主角 = 左侧原朝向
                             return;                                    // 挂起等回调
                         }
                         case "choice":
@@ -139,6 +160,29 @@ namespace LivingWorldNpcs
             return new Dictionary<string, Newtonsoft.Json.Linq.JToken>(extra);   // 原样透传（effect 参数）
         }
 
+        /// <summary>立绘解析（附录-立绘显示接入与分发方案.md 契约）：Hero:: → GetStagePortraits 首卡 → GetOrLoad；无卡/无内容包 = null（占位隐藏，铁律 1）</summary>
+        private static TaleWorlds.TwoDimension.Sprite ResolvePortrait(string speakerRef)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(speakerRef) || !speakerRef.StartsWith("Hero::")) return null;
+                string id = speakerRef.Substring(6);
+                if (id == "MainHero" || ScenarioPlayerIdentity.IsMainHeroRef(speakerRef))   // 主角位 = 身份锚（信长）/玩家所选角色
+                    id = ScenarioPlayerIdentity.ResolveMainHeroId() ?? TaleWorlds.CampaignSystem.Hero.MainHero?.StringId;
+                if (string.IsNullOrEmpty(id)) return null;
+                var list = PortraitRegistry.GetStagePortraits(id);
+                if (list == null || list.Count == 0) return null;
+                var first = list[0];
+                if (first.BustupSpriteName == null) return null;   // StagePortrait = 值类型（struct，不能用 ?.）
+                return SpriteAssetsManager.GetOrLoad(first.BustupSpriteName);
+            }
+            catch (Exception e)
+            {
+                DebugLogger.Log($"[Playback] 立绘解析失败（占位隐藏）: {speakerRef} → {e.Message}");
+                return null;
+            }
+        }
+
         private static string ResolveSpeakerName(string speakerRef)
         {
             if (string.IsNullOrEmpty(speakerRef)) return "";
@@ -149,8 +193,8 @@ namespace LivingWorldNpcs
                     var h = AttributeResolver.FindHero(speakerRef);
                     if (h != null) return h.Name.ToString();
                 }
-                if (speakerRef == "Hero::MainHero")
-                    return TaleWorlds.CampaignSystem.Hero.MainHero.Name.ToString();
+                if (speakerRef == "Hero::MainHero" || ScenarioPlayerIdentity.IsMainHeroRef(speakerRef))
+                    return ScenarioPlayerIdentity.ResolveMainHero()?.Name.ToString() ?? TaleWorlds.CampaignSystem.Hero.MainHero?.Name.ToString() ?? speakerRef;
                 return speakerRef;   // Agent::/Ctx:: 槽/未知 = 原样（T6 接模板转名；不崩）
             }
             catch (Exception e)

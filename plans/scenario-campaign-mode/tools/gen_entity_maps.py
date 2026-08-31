@@ -81,52 +81,33 @@ except Exception:                                                      # pragma:
 # ---------------------------------------------------------------------------
 # 人工覆盖：太阁原文里的写法 ≠ 织丰表里的写法（生成期一次性对齐，运行时无中文参与）
 # ---------------------------------------------------------------------------
-# 🔴 NAME_ALIAS = 双向别名表（2026-08-29 约定，使用侧必须双向查询）：
-#   ① dict 本体 = 单向「太阁写法(左键) → 织丰写法(右键)」；
-#   ② 反向查询由调用方构建 ALIAS_REV(右键→[左键们])，一对多支持（如 丰臣秀吉←木下秀吉/羽柴秀吉）；
-#   ③ 两类条目，方向都必须是「左=源文/太阁目录名，右=织丰 CNName」：
-#      - 目录名别名：左键 = TK5 BUSTUP 立绘目录名（含异体字，如 丽璐/龟井茲矩/淀殿），
-#        右键 = 主源 CSV 的 CNName（里璐/龟井兹矩/淀夫人）——build_refs_full 建图匹配用，
-#        左键应能在 E:\taikou5\TaikouImage\BUSTUP 命中目录；
-#      - 史名别名：左键 = 历史异写/化名（豐臣秀吉/寧寧/木下秀吉…），右键 = 织丰名——
-#        不要求左键在 BUSTUP，服务剧本侧文本与 Name_{年份} 匹配；
-#   ④ 防呆检查：新增条目后跑一遍「左键 BUSTUP 命中」把两类分开核对（史名别名命中失败属于正常）。
+# 🔴 NAME_ALIAS = 人物双向别名表（2026-08-31 迁移：数据在 TaikouHero.csv 的 Alias 列，禁止写死 py —— 铁律 25）
+#   ① 数据侧规则：每行 Alias 列 = 该织丰人物的全部可用名（含 Name_1549…Name_1598/dream1560 所有年代名，| 分隔），
+#      查询契约见 CLAUDE.md 铁律 25：GetStringIdByName 只查 CNName + ScriptName + Alias，禁止查 Name_YYYY；
+#   ② 本函数按「别名 → 主名(CNName 优先)」构建单向 dict（左=别名键，右=织丰 CNName）；
+#   ③ 反向查询由调用方构建 ALIAS_REV(右键→[左键们])，一对多支持；
+#   ④ 防呆（BUSTUP 目录名类别名仍由 build_refs_full 侧处理，键在 alias 列即可命中）。
+def _load_hero_aliases():
+    """铁律 25：别名数据 = TaikouHero.csv（Alias/CNName/ScriptName），py 不写死。"""
+    path = os.path.join(CSV_DIR, 'TaikouHero.csv')
+    name_alias = {}
+    with open(path, encoding='utf-8-sig') as f:
+        for row in csv.DictReader(f):
+            cn = (row.get('CNName') or '').strip()
+            sn = (row.get('ScriptName') or '').strip()
+            al = (row.get('Alias') or '').strip()
+            main = cn if cn else sn
+            if not main:
+                continue
+            for key in al.split('|'):
+                key = key.strip()
+                if not key or key == main:
+                    continue
+                if key not in name_alias:          # 保持旧语义：左唯一键
+                    name_alias[key] = main
+    return name_alias
 
-NAME_ALIAS = {
-    # 太阁写法 → 织丰表写法（简体）
-    '豐臣秀吉': '木下藤吉郎',
-    '豐臣秀長': '木下小一郎',
-    '德川家康': '松平元康',
-    '寧寧': '宁宁',
-    # 🔴 2026-08-28：从历史脚本 generate_taikou_char_info.py 的 HISTORICAL_ALIASES 抄入（原则 3 化名库）。
-    # 只抄 5 条（tk 源文无键 + zf 表内确认存在）；旧脚本其余 8 条未抄：
-    # 松平元康/长尾景虎/大友义镇/木下小一郎/真田幸村/真田信幸/黑田如水 = tk 已有键；斋藤利三 = 自映射占位。
-    '木下秀吉': '丰臣秀吉',
-    '羽柴秀吉': '丰臣秀吉',
-    '竹中重治': '竹中半兵卫',
-    '黑田孝高': '黑田如水',   # 🔴 zf 必须 = CNName（黑田官兵卫 只是年份别名，alias 机制只认 CNName 行）
-    '山本晴幸': '山本勘助',
-    # 2026-08-29 底图匹配（ArtSource/build_refs_full.py Task1）补：织丰显示名 ≠ TK5 立绘目录名
-    # 的同人写法。方向 = 太阁写法 → 织丰写法（与全表同义）；build_refs_full 反向使用做 TK5 目录候选。
-    '长坂钓闲': '长阪长闲',   # 530_长坂钓闲(长坂长闲)：长闲/钓闲 = 长坂光定 通称，括号别名曾命中
-    '铃木佐大夫': '铃木佐太夫',
-    '糟屋武则': '糟谷武则',
-    '小川祐忠': '小川佑忠',
-    '阿尔梅达': '阿鲁梅达',   # 1039_阿尔梅达（音译变体）
-    '拉斐尔': '拉斐耶鲁',     # 1040_拉斐尔（音译变体）
-    '弗洛伊斯': '佛罗伊斯',
-    '淀殿': '淀夫人',
-    '德姬': '德公主',
-    '白㭴': '白枧',   # 1093_白㭴（㭴/枧 异体）
-    '菊姬': '菊公主',
-    '早川殿': '早川夫人',
-    '南姬': '南姫',
-    '泰泉寺丰后': '秦泉寺丰后',   # 1271_泰泉寺丰后（秦/泰 史称异写）
-    '森田浄云': '森田净云',
-    '武田逍遙轩': '武田逍遥轩',
-    '龟井茲矩': '龟井兹矩',   # 239_龟井茲矩（太阁用異体字）
-    '丽璐': '里璐',   # 1041_丽璐（太阁）=> lord_1_sato 里璐（织丰）；同音异形，2026-08-29 用户抓包   # 1038_弗洛伊斯（音译变体）
-}
+NAME_ALIAS = _load_hero_aliases()
 
 # 势力别名：太阁按 1560 年的家名叫，织丰表按代表家名建 Kingdom
 # （长尾景虎 1561 年才继上杉家；织丰表只有 uesugi 一条，所以 1560 年的「长尾家」要指过去）
