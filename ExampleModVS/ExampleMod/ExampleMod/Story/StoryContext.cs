@@ -76,10 +76,14 @@ namespace LivingWorldNpcs
 
 
     // 这是一个战役行为，它会自动随游戏保存和加载
+    // 🔴 2026-08-30 升级（W1 数据底座）：对齐 11 存档键登记表——SyncData 键名 = lwn_scn_attr / lwn_scn_state；
+    //   保留 16b §3.1 红线（禁 JSON 字符串键、单值长上限）；键总量上限放宽到 10 万级（16b：2000 人物×8 格 ≈ 2 万格，
+    //   超 5 万格才告警），自动淘汰改为告警（🎲 剧本剧情状态被淘汰 = 永久丢失，禁止——16b「清理只走控制台人工确认」）。
     public class GlobalVariableBehavior : CampaignBehaviorBase
     {
         // 存储结构： 主体ID -> { 属性名 -> 值 }
         // 例如: "hero_oda_nobunaga" -> { "親密度": "80", "出現標誌": "未出現" }
+        // 🔴 剧本侧写入 key 规范 = 「域:StringId」（铁律 20，见 ScenarioAttrStore）——旧 Story 引擎无前缀用法继续可用（key 空间不相交）
         private Dictionary<string, Dictionary<string, string>> _extendedProperties = new Dictionary<string, Dictionary<string, string>>();
 
         // 全局变量，比如 "狀況::劇本"
@@ -95,10 +99,9 @@ namespace LivingWorldNpcs
 
         public override void SyncData(IDataStore dataStore)
         {
-            //我想问一下这个函数可以自动完成战役加载时读取，战役保存时写入的操作吗？
-
-            dataStore.SyncData("_extendedProperties", ref _extendedProperties);
-            dataStore.SyncData("_globalStates", ref _globalStates);
+            // 存档键名 = 11-存档与配置.md 登记表（唯一权威；改键名 = 改登记表 + 本处同步，禁止单边）
+            dataStore.SyncData("lwn_scn_attr", ref _extendedProperties);
+            dataStore.SyncData("lwn_scn_state", ref _globalStates);
 
           //  dataStore.SyncData("_npcProfiles", ref _npcProfiles);
 
@@ -145,21 +148,51 @@ namespace LivingWorldNpcs
 
             if (!_extendedProperties.ContainsKey(subjectId))
             {
-                // 总键上限：超限淘汰最老的 subject（Dictionary 枚举顺序 = 插入顺序），保持总量有界
-                while (_extendedProperties.Sum(s => s.Value?.Count ?? 0) >= MaxExtendedTotalKeys && _extendedProperties.Count > 0)
+                // 🔴 2026-08-30（W1）：总量上限评估从「淘汰最老」改为「告警」——自动淘汰 = 剧情状态永久丢失（16b §3.1 禁止）
+                if (TotalPropertyKeys() >= MaxExtendedTotalKeys)
                 {
-                    var oldest = _extendedProperties.Keys.FirstOrDefault();
-                    if (oldest == null) break;
-                    _extendedProperties.Remove(oldest);
-                    DebugLogger.Log($"[ExtPropsGuard] 键总数达上限 {MaxExtendedTotalKeys}，淘汰最老 subject: {oldest}");
+                    DebugLogger.Log($"[ExtPropsGuard] 🔴 剧本属性总量超上限 {MaxExtendedTotalKeys}（现 {TotalPropertyKeys()}）——不再自动淘汰，调用方排查（custom.scn_status）");
                 }
                 _extendedProperties[subjectId] = new Dictionary<string, string>();
             }
             _extendedProperties[subjectId][propertyKey] = value;
         }
 
-        /// <summary>扩展属性总键数上限（所有 subject 的 property 之和）</summary>
-        private const int MaxExtendedTotalKeys = 500;
+        private int TotalPropertyKeys()
+        {
+            int n = 0;
+            foreach (var s in _extendedProperties) n += s.Value?.Count ?? 0;
+            return n;
+        }
+
+        /// <summary>清除全部剧本状态（11 存档纪律：新档挂 ResetAllCampaignState；本行为实例新档自动重建，这是双保险）</summary>
+        public void ClearAll()
+        {
+            _extendedProperties.Clear();
+            _globalStates.Clear();
+        }
+
+        // --- 全局状态读写（旗标/计数器/变量/全局槽；16 §一 三档 + 16b §3.2 旗标计数仓） ---
+
+        public string GetGlobalState(string key)
+        {
+            return _globalStates.TryGetValue(key, out var v) ? v : null;
+        }
+
+        public void SetGlobalState(string key, string value)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            _globalStates[key] = value;
+        }
+
+        /// <summary>枚举全部全局状态键（ScenarioCampaignBehavior 计数器 +1 用；复制快照）</summary>
+        public List<string> EnumerateGlobalStateKeys()
+        {
+            return new List<string>(_globalStates.Keys);
+        }
+
+        /// <summary>扩展属性总键数上限（所有 subject 的 property 之和；10 万级 = 16b 估算 2 万格 × 安全余量；超限 = 告警不淘汰）</summary>
+        private const int MaxExtendedTotalKeys = 100000;
         /// <summary>单属性值长度上限（字符数；1000 中文字 ≈ 3000 字节，远低于 Strings 表 32767 上限）</summary>
         private const int MaxExtendedValueChars = 1000;
 
