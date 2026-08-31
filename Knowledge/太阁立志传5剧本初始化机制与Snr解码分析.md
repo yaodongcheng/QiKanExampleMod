@@ -1,6 +1,17 @@
 # 太阁5 剧本初始化机制与 Snr 文件解码分析
 
-> ⏮️ **2026-08-31 破译会话总结（阶段性成果，写于用户提交前）** —— 本会话把"六剧本全量隶属关系"从猜测式解析升级为**确定性导出**，以下结论已被用户逐条校验/拍板，改数据=改事实表重跑，禁止回归到"投票/匹配"思路。
+> ⏮️ **数据引用导览（2026-09-01 新增：六剧本年代的人物/势力/城池归属去哪里查）** —— 六个剧本年代目录：`骑砍2织丰角色ID对应/_analysis/decoded/era_v2/{1554, 1560, 1568, 1575, 1582, 1598}/`（年代=剧本起始年）。
+
+| 要查什么 | 路径 | 关键列 |
+|---|---|---|
+| 人物归属（某人当年属谁的势力、身份等级、上司、俸禄/野心/忠诚/家纹） | `{年代}/persons.csv` | person_id=人物号(character id)；force_id/force_name=所属势力；rank=身份等级；superior_id/superior_name=上司；salary/ambition/loyalty/kamon |
+| 势力归属（某势力当主是谁、部众多少人） | `{年代}/forces.csv` | force_id/force_name=势力；lord_pid/lord_name=当主；member_count=成员数 |
+| 城池归属（某城/町/砦当年城主、属哪家、兵粮金钱粮） | `{年代}/cities.csv` | city_idx=城序号(0-179城/180-245町/246-273里砦)；lord_name=城主；force_id/force_name=归属势力；soldiers/food/gold/train/morale |
+| 人物号 ↔ 内存编辑器名单名（同号对照） | `_analysis/人物ID对照表_20260901.csv` | ID/character名单名/内存编辑器名单名 |
+| 人物号 800-1056 三 AI 识别基准（claudecode 列为准） | `_analysis/人物ID_820_1056_三方识别_20260831.csv` | id/豆包/ds/claudecode |
+| 800-1056 段 × 6 年代提取（person 一览） | `_analysis/decoded/era_v2/person_era_info_20260901.csv` | 截图id/基准名/年代/世界表pid/force/rank/superior/... |
+
+> ⌛ **2026-08-31 破译会话总结（阶段性成果，写于用户提交前）** —— 本会话把"六剧本全量隶属关系"从猜测式解析升级为**确定性导出**，以下结论已被用户逐条校验/拍板，改数据=改事实表重跑，禁止回归到"投票/匹配"思路。
 
 ## 0.1 本会话裁定与结论速查（用户逐条拍板）
 
