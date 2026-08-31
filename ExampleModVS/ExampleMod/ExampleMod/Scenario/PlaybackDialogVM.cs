@@ -2,20 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.Library;
+using TaleWorlds.TwoDimension;
 
 namespace LivingWorldNpcs
 {
     /// <summary>
     /// 剧本演绎对话面板 VM（T7 重制版，2026-08-30 用户裁定：基于 DialogChoice 砍剩三要素）——
-    /// 说话人名字 + 角色立绘位（@PortraitTexture 空 = 隐藏，没图占位不塌）+ 对白文本 + 选项按钮 + 继续按钮。
-    /// 🔴 隔离纪律：新类新链，不碰旧 StoryDialogVM（谈判 UI + OnDialogClosed 旧链 GenerateEventAsync 崩溃路径，铁律 16）；
-    ///    关闭 = 本 VM 自清（OnClosed 事件 → 播放器/W 层收尾；IM confirmFight 禁令路径在此不存在）。
+    /// 说话人名字 + 角色立绘位（PortraitImage null = 隐藏，没图占位不塌）+ 对白文本 + 选项按钮 + 继续按钮。
+    /// 🔴 隔离纪律：新类新链，不碰旧 StoryDialogVM（谈判 UI + OnDialogClosed 旧链 GenerateEventAsync 崩溃路径，铁律 16）。
     /// </summary>
     public class PlaybackDialogVM : ViewModel
     {
         private string _speakerName = "";
         private string _dialogueContent = "";
-        private string _portraitTexture;             // 立绘 sprite 名（"lwnprof_bustup_xxx"）；空 = 不显示
+        private Sprite _portraitLeft;              // 立绘槽（面板左；主角 = 镜像图——镜像在 Show 内做）
         private bool _isVisible;
         private bool _areOptionsVisible;
         private bool _areContinueVisible = true;
@@ -40,10 +40,10 @@ namespace LivingWorldNpcs
         }
 
         [DataSourceProperty]
-        public string PortraitTexture
+        public Sprite PortraitLeft
         {
-            get => _portraitTexture;
-            set { _portraitTexture = value; OnPropertyChangedWithValue(_portraitTexture, "PortraitTexture"); }
+            get => _portraitLeft;
+            set { _portraitLeft = value; OnPropertyChangedWithValue(value, "PortraitLeft"); }
         }
 
         [DataSourceProperty]
@@ -87,13 +87,14 @@ namespace LivingWorldNpcs
         {
         }
 
-        /// <summary>显示一句话（portraitTexture null = 无立绘只说话人名+正文）</summary>
-        public void Show(string speaker, string text, string portraitTexture = null)
+        /// <summary>显示一句话。立绘槽 = 面板左（0.2.31 用户："立绘在文字区左侧"）；isMainHero = 主体镜像图（SpriteMirror，面朝左）。
+        /// portrait null = 无卡（占位隐藏）。</summary>
+        public void Show(string speaker, string text, Sprite portrait = null, bool isMainHero = false)
         {
             SpeakerName = speaker;
             DialogueContent = text;
-            PortraitTexture = portraitTexture;
-            IsPortraitVisible = !string.IsNullOrEmpty(portraitTexture);
+            PortraitLeft = isMainHero ? SpriteMirror.GetOrMirror(portrait) : portrait;   // 主角 = 镜像（朝左）；非主 = 原朝向（朝右）→ 都面向中央文字区
+            IsPortraitVisible = portrait != null;
             IsVisible = true;
             AreOptionsVisible = false;
             AreContinueVisible = true;

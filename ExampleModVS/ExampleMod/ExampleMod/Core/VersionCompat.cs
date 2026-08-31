@@ -86,6 +86,19 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // 镜像 Sprite 构造（2026-08-31，立绘镜像 SpriteMirror）：
+        // v1.2.12: SpriteGeneric(string name, SpritePart spritePart) —— 2 参（1.2.12 客户端 DLL 实测 4046 行）
+        // v1.4.x/v1.5.x: 3 参 (name, part, in SpriteNinePatchParameters)（1.5.1 bin 实测 4748 行）；🔴 1.3.x 未核（开发机 1.2.12，次验证机 1.5.1）
+        public static TaleWorlds.TwoDimension.SpriteGeneric NewSpriteGeneric(string name, TaleWorlds.TwoDimension.SpritePart spritePart)
+        {
+#if MB2_V1212
+            return new TaleWorlds.TwoDimension.SpriteGeneric(name, spritePart);
+#else
+            var nine = TaleWorlds.TwoDimension.SpriteNinePatchParameters.Empty;
+            return new TaleWorlds.TwoDimension.SpriteGeneric(name, spritePart, nine);
+#endif
+        }
+
         // SpriteData.SpriteCategories 字典两版本同名同构，直接查询即可（1.2.12~1.5.1 均无 #if 需求）
         public static SpriteCategory GetSpriteCategory(string name)
         {

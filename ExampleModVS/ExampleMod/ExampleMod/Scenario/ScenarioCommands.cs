@@ -119,7 +119,48 @@ namespace LivingWorldNpcs
             return PlaybackPlayer.IsPlaying ? $"[Playback] 开始演 {args[0]}" : $"[Playback] {args[0]} 未开始（见日志）";
         }
 
-        /// <summary>custom.playback_show [speaker] text：显示一条 PlaybackDialog 对白（T7 面板真机验证）</summary>
+        /// <summary>custom.scn_set_identity &lt;heroId|none&gt;：设定当前扮演身份（显示层：立绘/名字/镜像位；06 身份注入前身）。例：scn_set_identity lord_1_oda</summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("scn_set_identity", "custom")]
+        public static string ScnSetIdentity(List<string> args)
+        {
+            if (args == null || args.Count == 0 || args[0] == "none") return "用法: custom.scn_set_identity HERO_ID（none 清除）";
+            ScenarioPlayerIdentity.SetPlayerHero(args[0].Trim());
+            return $"[Scenario][Identity] 当前扮演 = {args[0]}（显示层跟随；世界注入 = 06 后置）";
+        }
+
+        /// <summary>
+        /// custom.playback_demo：对话流演示（来回对白 + 选项 + 立绘——附录-立绘显示接入与分发方案.cs 轮子）。
+        /// 主角 = 信长（身份锚已设：lord_1_oda——右侧镜像）；非主角（秀吉）= 左侧原朝向。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("playback_demo", "custom")]
+        public static string PlaybackDemo(List<string> args)
+        {
+            ScenarioPlayerIdentity.SetPlayerHero("lord_1_oda");   // 用户 2026-08-31："我是信长"——demo 固定主角=信长（换人 = scn_set_identity 手动）
+            string T(string key, string fallback) => new TaleWorlds.Localization.TextObject("{=" + key + "}" + fallback).ToString();
+
+            var def = new ScenarioPlaybackDef
+            {
+                Id = "demo_flow",
+                Form = "scene",
+                Lines = new List<PlaybackLine>
+                {
+                    new PlaybackLine { Cmd = "dialogue", Speaker = "Hero::lord_1_kinoshita", Text = T("LWN_SCN_demo_1", "（秀吉）织田信长大人——今宵，就是决断之时！") },
+                    new PlaybackLine { Cmd = "dialogue", Speaker = "Hero::lord_1_oda", Text = T("LWN_SCN_demo_2", "（信长）哦？终于轮到你开口了吗，羽柴！") },
+                    new PlaybackLine { Cmd = "dialogue", Speaker = "Hero::MainHero", Text = T("LWN_SCN_demo_5", "（你）主公！末将愿为先锋——请下令！") },
+                    new PlaybackLine { Cmd = "dialogue", Speaker = "Hero::lord_1_kinoshita", Text = T("LWN_SCN_demo_3", "（秀吉）天下布武，就在今朝！前线大军**兵发清州**！") },
+                    new PlaybackLine { Cmd = "choice", Options = new List<PlaybackOption>
+                    {
+                        new PlaybackOption { Text = T("LWN_SCN_demo_opt0", "立刻发兵！") },
+                        new PlaybackOption { Text = T("LWN_SCN_demo_opt1", "休要急躁，再探军情") },
+                    }},
+                    new PlaybackLine { Cmd = "dialogue", Speaker = "Hero::lord_1_kinoshita", Text = T("LWN_SCN_demo_4", "（秀吉）好！末将这就去整军出发——決断已定！") },
+                },
+            };
+            PlaybackPlayer.Play(def);
+            return PlaybackPlayer.IsPlaying ? "[Playback] 演示开始（秀吉→信长→选项→秀吉）" : "[Playback] 演示未开始（见日志）";
+        }
+
+        /// <summary>custom.playback_show &lt;text&gt;：显示一条 PlaybackDialog 对白（T7 面板真机验证）</summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("playback_show", "custom")]
         public static string PlaybackShow(List<string> args)
         {
