@@ -70,3 +70,26 @@ tools/
 
 # 数据表临时备份（迁移/修改前快照，一律不进库）
 *.bak_*
+
+# ===== TK5 分析工程（_analysis）：只保留最终成果 csv + 关键解析脚本，中间产物不入库 =====
+Knowledge/骑砍2织丰角色ID对应/_analysis/*
+# --- 关键解析脚本（生成链入口 + 核心解析器）---
+!Knowledge/骑砍2织丰角色ID对应/_analysis/build_v2_era.py
+!Knowledge/骑砍2织丰角色ID对应/_analysis/build_viewer.py
+!Knowledge/骑砍2织丰角色ID对应/_analysis/build_era_init_v1.py
+!Knowledge/骑砍2织丰角色ID对应/_analysis/extract_affiliations.py
+!Knowledge/骑砍2织丰角色ID对应/_analysis/gen_city_era.py
+!Knowledge/骑砍2织丰角色ID对应/_analysis/rebuild_city_bridge.py
+!Knowledge/骑砍2织丰角色ID对应/_analysis/pair_cities.py
+!Knowledge/骑砍2织丰角色ID对应/_analysis/cluster_cities.py
+!Knowledge/骑砍2织丰角色ID对应/_analysis/migrate_aliases.py
+# --- 关键输入事实表（城名官方名单 / 编辑器 S-box 表）---
+!Knowledge/骑砍2织丰角色ID对应/_analysis/names_180.txt
+!Knowledge/骑砍2织丰角色ID对应/_analysis/editor124/
+Knowledge/骑砍2织丰角色ID对应/_analysis/editor124/*
+!Knowledge/骑砍2织丰角色ID对应/_analysis/editor124/*.rtg
+# --- 最终成果目录（每年代 CSV + 总览 + HTML 成品）---
+!Knowledge/骑砍2织丰角色ID对应/_analysis/decoded/
+Knowledge/骑砍2织丰角色ID对应/_analysis/decoded/*
+!Knowledge/骑砍2织丰角色ID对应/_analysis/decoded/era_v2/
+!Knowledge/骑砍2织丰角色ID对应/_analysis/decoded/era_v2/**
