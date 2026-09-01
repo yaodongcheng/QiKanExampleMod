@@ -1,0 +1,28 @@
+﻿SchoolID,流派名(枚举),引用名(简体),别名,首领(织丰Hero),备注
+SchoolID,TK5EnumName,CNName,Alias,Leader,Note
+29,主人公創始,主人公創始,,,玩家自建流派(官方枚举)
+30,一刀,一刀流,,lord_1_itoo_ittosai,官方枚举
+31,新陰,新阴流,,lord_1_kamiizumi_nobutsuna,官方枚举
+32,新當|香取神道,新当流,香取神道,lord_1_tsukahara_bokuden,官方枚举
+33,中條,中条流,,lord_1_tomita_seigen,官方枚举
+34,吉岡,吉冈流,,lord_1_yoshioka_kenpoo,官方枚举
+35,自由齋|津田,津田流,自由齋,lord_1_tsuda_sancho,官方枚举
+36,林崎夢想,林崎梦想流,,lord_1_hayashizaki_jinsuke,官方枚举
+37,一羽,一羽流,,lord_1_shioka_ichiwa,官方枚举
+38,小野一刀,小野一刀流,,lord_1_sugiya_satayu,官方枚举
+39,天,天流,,lord_1_saitoo_denki,官方枚举
+40,嚴,严流,,lord_1_sasaki_kojiroo,官方枚举
+41,佐分利,佐分利流,,lord_1_saburi_inosuke,官方枚举
+42,示顯,示显流,,lord_1_togo_shigekata,官方枚举
+43,寶藏院,宝藏院流,,lord_1_hoozooin_inei,官方枚举
+44,二天一,二天一流,,lord_1_miyamotoo_musashi,官方枚举
+45,微塵,微尘流,,lord_1_negishi_tokaku,官方枚举
+46,柳生新陰,柳生新阴流,,lord_1_yagyuu_sekishuusai,官方枚举
+47,體捨,体舍流,,lord_1_marume_nagayoshi,官方枚举
+48,霞,霞流,,lord_1_makabe_shikan,官方枚举
+49,稻富,稻富流,,lord_1_inatomi_ichimu,官方枚举
+50,日置,日置流,,lord_1_yoshida_dooton,官方枚举
+51,鐘捲,钟卷流,,lord_1_kanee_tsumura,官方枚举
+52,阴流,阴流,,lord_1_aisu_motokosai,"扩展(官方枚举外,来源=TaikouHero School列)"
+53,随波斋流,随波斋流,,lord_1_ichinomiya_zuibasai,"扩展(官方枚举外,来源=TaikouHero School列)"
+54,高田流,高田流,,lord_1_takada_matahei,"扩展(官方枚举外,来源=TaikouHero School列)"
