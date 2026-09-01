@@ -1,0 +1,296 @@
+﻿ID,TK5Name,JPName,Type,Source,Remark
+tk5_card_sword_saint,劍聖,剣聖,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_sword_hero,劍豪,剣豪,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_fencer,劍客,剣客,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_swordsman,劍士,剣士,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_best_spear,天下第一槍,槍天下一,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_best_kunai,天下第一苦無,苦無天下一,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_best_kusarigama,天下第一鎖鐮,鎖鎌天下一,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_kusarigama_master,鎖鐮達人,鎖鎌達人,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_kusarigama_adept,鎖鐮名人,鎖鎌名人,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_kusarigama_skilled,鎖鐮上手,鎖鎌上手,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_best_matchlock,天下第一鐵炮,鉄砲天下一,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_matchlock_master,鐵炮達人,鉄砲達人,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_matchlock_adept,鐵炮名人,鉄砲名人,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_matchlock_skilled,鐵炮上手,鉄砲上手,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_best_bow,天下第一弓,弓天下一,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_strategist,智將,智将,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_art_connoisseur,風雅之士,数寄者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_political_schemer,縱橫家,縦横家,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_silver_tongue,懸河之辯,懸河の弁,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_persuader,說客,説客,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_eloquent_tongue,雄辯,雄弁,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_best_smith,天下第一鍛冶,天下一鍛冶,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_divine_physician,神醫,神医,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_renowned_physician,名醫,名医,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_top_physician,上醫,上医,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_good_physician,良醫,良医,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_lord_killer,弒主者,主殺し,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_assassin,殺手,人斬り,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_arch_fiend,惡逆非道,悪逆非道,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_ninja_mastery,忍術奧義皆傳,忍術奥義皆伝,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_best_gambler,天下第一賭徒,天下一博徒,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_peerless,天下無雙,天下無双,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_drifting_ronin,漂泊旅人,漂泊の旅人,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_arts_patron,藝術支援家,芸術支援家,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_infantry_expert,足輕能手,足軽の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_cavalry_expert,騎馬能手,騎馬の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_firearms_expert,鉄炮能手,鉄砲の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_navy_expert,水軍能手,水軍の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_archery_expert,弓術能手,弓術の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_martial_expert,武芸能手,武芸の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_tactics_expert,軍學能手,軍学の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_ninjutsu_expert,忍術能手,忍術の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_construction_expert,建築能手,建築の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_farming_expert,開墾能手,開墾の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_mining_expert,礦山能手,鉱山の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_arithmetic_expert,算術能手,算術の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_etiquette_expert,禮法能手,礼法の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_rhetoric_expert,辯論能手,弁舌の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_tea_expert,茶道能手,茶道の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_medicine_expert,醫術能手,医術の練達者,称号・技能,keywords,keywords 称号/技能卡区（含 练达者 22 张）
+tk5_card_shindo_style,新當流,新当流,流派,keywords,keywords 流派全名区
+tk5_card_shindo,新當,新当,流派,keywords,keywords 流派全名区
+tk5_card_nakajo_style,中條流,中条流,流派,keywords,keywords 流派全名区
+tk5_card_ganryu_style,巖流,巌流,流派,keywords,keywords 流派全名区
+tk5_card_jigen_style,示顯流,示顕流,流派,keywords,keywords 流派全名区
+tk5_card_hosoin_style,寶藏院流,宝蔵院流,流派,keywords,keywords 流派全名区
+tk5_card_taisha_style,體捨流,タイ捨流,流派,keywords,keywords 流派全名区
+tk5_card_inatomi_style,稻富流,稲富流,流派,keywords,keywords 流派全名区
+tk5_card_zuihosai_style,隨波齋流,随波斎流,流派,keywords,keywords 流派全名区
+tk5_card_oyamazumi_shrine,大山祗神社,大山祗神社,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_consecutive_slash,連續斬,連続斬り,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_slash_down,切落,切落し,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_exquisite_blade,絕妙劍,絶妙剣,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_sweep_blade,拂捨刀,払捨刀,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_poison_slash,毒斬,毒斬り,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_slash_two_halves,一刀兩斷,一刀両断,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_eight_god_blade,八神之太刀,八神の太刀,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_first_blade,一之太刀,一の太刀,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_pivot_strike,轉,転,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_cross_slash,碁盤斬,碁盤斬り,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_iai_slash,居合斬,居合斬り,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_manji_step,卍字拔,卍抜け,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_dash_thrust,拔突,抜け突き,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_vital_strike,急所擊,急所撃ち,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_double_matchlock,二挺擊,二挺撃ち,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_rolling_spear,卷槍,巻槍,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_sideways_ram,橫車,横車,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_divine_blade,神妙劍,神妙剣,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_garuda_blade,金翅鳥王劍,金翅鳥王剣,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_cross_throw,十字投,十字投げ,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_kunai_storm,亂苦無,乱れ苦無,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_spray_shot,亂射,乱射,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_cicada_escape,空蟬之術,空蝉の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_yank_down,引落,引落し,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_mat_throw,畳返之術,畳返しの術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_disarm,無刀取,無刀取り,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_body_strike,當身,当て身,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_swallow_return,燕返,燕返し,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_wave_return,浪返,浪返し,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_dream_blade,夢想劍,夢想剣,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_hilt_turn,柄返,柄返し,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_unique_blade,獨妙劍,独妙剣,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_iron_wall,鐵壁,鉄壁,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_speed_god_step,韋馱天之術,韋駄天の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_clone_art,分身之術,分身の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_mirage_shadow,朧影之術,おぼろ影の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_hound_art,忍犬之術,忍犬の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_leaf_conceal,木葉隱術,木葉隠れの術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_wound_salve,傷藥,傷薬,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_battle_cry,氣聲,気声,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_shadow_bind,影縫之術,影縫いの術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_cloud_hide,雲隱之術,雲隠れの術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_coin_throw,丟錢,銭投げ,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_insult,辱罵,罵り,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_bribe,賄賂,袖の下,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_puppet_art,傀儡之術,傀儡の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_rakshasa,羅剎,羅刹,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_cat_deceive,貓騙,猫だまし,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_lavish_feast,大宴賓客,大盤振る舞い,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_flying_dragon_blade,飛龍劍,飛竜剣,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_iron_break,鐵破,鉄破,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_rock_shatter,岩碎,岩砕,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_poison_arrow,毒箭,毒矢,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_divine_aura,神氣,神気,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_spirit_hide,神隱術,神隠しの術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_steel_cut,斬鐵,斬鉄,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_weak_point_strike,弱點攻擊,弱点撃ち,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_cavalry_charge,騎馬突擊,騎馬突撃,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_crimson_charge,赤備突擊,赤備突撃,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_horse_archer_charge,騎射突擊,騎射突撃,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_volley_fire,組擊鐵炮,組撃ち鉄砲,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_triple_volley,三段擊,三段撃ち,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_snipe,狙擊,狙撃,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_matchlock_barrage,鐵炮亂射,鉄砲乱射,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_bucket_volley,釣瓶擊,釣瓶撃ち,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_synchronized_fire,一齊射擊,一斉射撃,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_butterfly_formation,蝴蝶之陣,胡蝶の陣,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_water_hold,水上拖延,水上足止,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_water_charge,水上突擊,水上突撃,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_trap,陷阱,陥穽,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_clairvoyance,千里眼術,千里眼の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_abyss_art,奈落之術,奈落の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_technique_break,特技破術,特技破りの術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_confusion_art,錯亂之術,錯乱の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_mist_hide,霧隱之術,霧隠の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_ally_turn,同士討術,同士討の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_thunder_blast,雷爆之術,雷爆の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_demon_feet,鬼腳之術,鬼脚の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_red_lotus_art,紅蓮之術,紅蓮の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_illusion_art,幻惑之術,幻惑の術,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_assassination,刺殺,闇討,奥义・秘技,keywords,keywords 奥义/秘技卡区（刀剑/枪/弓/铁炮/苦无/锁镰/忍术）
+tk5_card_feast,宴會,宴会,战术,keywords,keywords 战术卡区
+tk5_card_win_over,拉攏,引き込み,战术,keywords,keywords 战术卡区
+tk5_card_fight_hard,奮鬥,奮闘,战术,keywords,keywords 战术卡区
+tk5_card_link_up,聯手,連携,战术,keywords,keywords 战术卡区
+tk5_card_all_out_attack,一齊攻擊,一斉攻撃,战术,keywords,keywords 战术卡区
+tk5_card_luring_ambush,釣野伏,釣り野伏,战术,keywords,keywords 战术卡区
+tk5_card_drizzle_volley,五月雨擊,五月雨撃ち,战术,keywords,keywords 战术卡区
+tk5_card_arrow_barrage,弓亂射,弓乱射,战术,keywords,keywords 战术卡区
+tk5_card_raging_abuse,謾罵叫囂,罵詈雑言,战术,keywords,keywords 战术卡区
+tk5_card_provocation,挑釁,挑発,战术,keywords,keywords 战术卡区
+tk5_card_intimidation,恫嚇,恫喝,战术,keywords,keywords 战术卡区
+tk5_card_coercion,威壓,威圧,战术,keywords,keywords 战术卡区
+tk5_card_encouragement,激勵,激励,战术,keywords,keywords 战术卡区
+tk5_card_brute_assault,力攻,力攻め,战术,keywords,keywords 战术卡区
+tk5_card_fire_assault,火攻,火攻め,战术,keywords,keywords 战术卡区
+tk5_card_mole_siege,土龍攻,土龍攻め,战术,keywords,keywords 战术卡区
+tk5_card_boiling_water,沸水,熱湯,战术,keywords,keywords 战术卡区
+tk5_card_rain_fire,雨天射擊,雨天射撃,战术,keywords,keywords 战术卡区
+tk5_card_troop_replenish,補充士兵,兵補充,战术,keywords,keywords 战术卡区
+tk5_card_thousand_gourd,千成葫蘆,千成瓢箪,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_six_coins,六文錢,六文銭,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_perfect_aim,百發百中,百発百中,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_united_million,百萬一心,百万一心,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_majestic,威風堂堂,威風堂々,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_mighty_warrior,大武邊者,大武辺者,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_master_strategist,機略縱橫,機略縦横,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_sea_legs,乘船不暈,船酔不知,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_boatmanship_mastery,操船術秘傳,操船術秘伝,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_helmsman_mastery,船頭奧義,船頭奥義,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_wabi_sabi_heart,雅緻寂寥之心,侘び寂びの心,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_empty_mind,無之心,無の心,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_virtuous_heart,德之心,徳の心,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_herb_gathering,藥草採集,薬草採集,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_medicine_making,生藥製造,生薬製造,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_cold_remedy,風邪藥調製,風邪薬調合,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_vigor_tonic,強狀劑調製,強壮剤調合,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_panacea_brew,萬能藥調製,万能薬調合,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_stealth_step,忍足,忍び足,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_sprint,早驅,早駆け,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_iron_sand_mining,流鐵穴,鉄穴流し,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_disguise,變裝,変装,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_stone_pull,拔石,石抜き,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_arson,點火,火付け,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_debt_amnesty,德政令,徳政令,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_corvee_schedule,分次普請,割普請,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_kyo_dialect,都話,都言葉,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_sword_hunt,刀狩,刀狩り,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_nanban_weave,南蠻絞,南蛮絞り,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_appraisal_eye,辨識,目利き,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_iron_sand_collect,鐵砂採集,砂鉄採集,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_gunpowder_blend,火藥調製,火薬調合,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_tatara_smelting,踏犕製鐵,たたら製鉄,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_sagami_tradition,相州傳,相州伝,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_mino_tradition,美濃傳,美濃伝,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_bizen_tradition,備前傳,備前伝,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_yamato_tradition,大和傳,大和伝,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_yamashiro_tradition,山城傳,山城伝,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_farm_tool_upgrade,改良農具,農具向上,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_matchlock_crafting,鐵炮製作,鉄砲製作,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_hirado_intro,平戶介紹狀,平戸紹介状,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_sakai_intro,堺介紹狀,堺紹介状,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_open_market,樂市樂座,楽市楽座,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_hawker_pitch,攤販叫賣,香具師口上,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_drainage_ditch,整備溝渠,背割下水,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_curated_library,和漢藏書,和漢蔵書,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_canal_dig,修建運河,掘割,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_kabuki_dance,傾奇舞,傾奇踊り,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_dengaku_play,田樂能,田楽能,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_garden_tea,露天茶筵,野点,技能・能力,keywords,keywords 技能/能力卡区（含 相州伝 等）
+tk5_card_nakajo,中條,中条,流派,keywords,keywords 流派短名区（716-723）
+tk5_card_ganryu,嚴,巌,流派,keywords,keywords 流派短名区（716-723）
+tk5_card_jigen,示顯,示顕,流派,keywords,keywords 流派短名区（716-723）
+tk5_card_hosoin,寶藏院,宝蔵院,流派,keywords,keywords 流派短名区（716-723）
+tk5_card_taisha,體捨,タイ捨,流派,keywords,keywords 流派短名区（716-723）
+tk5_card_inatomi,稻富,稲富,流派,keywords,keywords 流派短名区（716-723）
+tk5_card_zuihosai,隨波齋,随波斎,流派,keywords,keywords 流派短名区（716-723）
+tk5_card_power_charge,強襲,强袭,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 809 人持有
+tk5_card_hard_bow,剛弓,刚弓,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 221 人持有
+tk5_card_mighty_strength,剛力,刚力,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 162 人持有
+tk5_card_double_kunai,二連苦無,二连苦无,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 114 人持有
+tk5_card_sticky_flower,粘花,粘花,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 55 人持有
+tk5_card_half_moon,半月,半月,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 52 人持有
+tk5_card_loud_roar,大喝,大喝,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 29 人持有
+tk5_card_mind_eye,心眼,心眼,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 23 人持有
+tk5_card_all_out_attack_2,齊攻,齐攻,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 22 人持有
+tk5_card_flint_spark,石火,石火,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 17 人持有
+tk5_card_schemer,策士,策士,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 17 人持有
+tk5_card_divine_protection,加護,加护,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 16 人持有
+tk5_card_adamant_strength,金剛力,金刚力,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 15 人持有
+tk5_card_stop_bleeding,止血,止血,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 15 人持有
+tk5_card_mat_throw_2,疊返之術,叠返之术,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 13 人持有
+tk5_card_menace,威嚇,威吓,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 13 人持有
+tk5_card_water_blockade,水上禁行,水上禁行,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 13 人持有
+tk5_card_matchlock_adept_2,火槍名人,火枪名人,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 12 人持有
+tk5_card_eight_god_blade_2,八神太刀,八神太刀,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 12 人持有
+tk5_card_forced_breakthrough,強行突破,强行突破,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 12 人持有
+tk5_card_war_counsel,軍師,军师,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 12 人持有
+tk5_card_fiendish_scheme,鬼謀,鬼谋,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 11 人持有
+tk5_card_technique_break_2,破技之術,破技之术,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 11 人持有
+tk5_card_venom_kunai,猛毒苦無,猛毒苦无,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 11 人持有
+tk5_card_spear_adept,槍術名人,枪术名人,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 11 人持有
+tk5_card_emergency_repair,緊急修補,紧急修补,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 11 人持有
+tk5_card_swamping,進水,进水,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 10 人持有
+tk5_card_bow_barrage,弓箭亂射,弓箭乱射,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 10 人持有
+tk5_card_foment_strife,內訌之術,内讧之术,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 10 人持有
+tk5_card_divine_bow,神弓,神弓,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 10 人持有
+tk5_card_gate_blasting,城門爆破,城门爆破,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 10 人持有
+tk5_card_shadow_double,影武者,影武者,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 10 人持有
+tk5_card_gun_barrage,槍炮亂射,枪炮乱射,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 9 人持有
+tk5_card_imposing_aura,威風凜凜,威风凛凛,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 9 人持有
+tk5_card_mikawa_warrior,三河武者,三河武者,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 9 人持有
+tk5_card_capable_official,能吏,能吏,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 9 人持有
+tk5_card_heaven_bow,天弓,天弓,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 9 人持有
+tk5_card_volley_fire_2,齊射,齐射,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 9 人持有
+tk5_card_firebomb,焙烙,焙烙,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 9 人持有
+tk5_card_battle_motto,風林火山,风林火山,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 9 人持有
+tk5_card_eagle_eye,炯眼,炯眼,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 8 人持有
+tk5_card_thousand_birds,千鳥,千鸟,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 8 人持有
+tk5_card_kunai_adept,苦無名人,苦无名人,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 8 人持有
+tk5_card_spiral_charge,車懸,车悬,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 8 人持有
+tk5_card_lion_rage,獅子奮迅,狮子奋迅,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 8 人持有
+tk5_card_moon_shadow,月影,月影,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 8 人持有
+tk5_card_bow_adept,弓術名人,弓术名人,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 7 人持有
+tk5_card_floating_boat,浮舟,浮舟,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 7 人持有
+tk5_card_rib_jab,肋一寸,肋一寸,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 7 人持有
+tk5_card_feigned_stillness,天狗抄,天狗抄,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 7 人持有
+tk5_card_fake_intel,僞情報,伪情报,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 6 人持有
+tk5_card_self_restraint,克己,克己,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 5 人持有
+tk5_card_poison_kunai,毒苦無,毒苦无,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 5 人持有
+tk5_card_spear_expert,槍術能手,枪术能手,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 5 人持有
+tk5_card_kusarigama_expert,鎖鐮高手,锁镰高手,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 4 人持有
+tk5_card_war_deity,毘沙門天,毘沙门天,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 4 人持有
+tk5_card_flying_bird,飛鳥,飞鸟,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 4 人持有
+tk5_card_humming_bow,鳴弦,鸣弦,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_famous_magistrate,名奉行,名奉行,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_sweep_blade_2,拂舍刀,拂舍刀,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_matchlock_expert,火槍高手,火枪高手,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_tea_sage,茶宗,茶宗,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_kunai_expert,苦無高手,苦无高手,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_famous_craftsman,名工,名工,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_mist_strike,霞,霞,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_lightning,閃電,闪电,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 3 人持有
+tk5_card_spear_skilled,槍術高手,枪术高手,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 2 人持有
+tk5_card_bow_skilled,弓術高手,弓术高手,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_tea_immortal,茶仙,茶仙,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_famous_chancellor,名宰相,名宰相,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_dual_wielding,二刀流,二刀流,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_tiger_swing,虎振,虎振,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_cloudburst,驟雨,骤雨,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_dry_rice_rations,乾飯,干饭,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_speed_god_step_2,韋陀天之術,韦陀天之术,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_capable_physician,能醫,能医,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_matchlock_expert_2,火槍能手,火枪能手,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
+tk5_card_snake_bite,蛇咬,蛇咬,人物卡(织丰),TaikouHero 卡列,织丰侧卡名（简转繁，待核）; 1 人持有
