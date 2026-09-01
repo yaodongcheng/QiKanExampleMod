@@ -29,10 +29,10 @@ verify_tk5_coverage.py — 太阁5 事件 ↔ mod 剧本 JSON 覆盖校验器
     python verify_tk5_coverage.py <剧本.md>... [--source TK5AllEvents_merged.txt]
 示例：
     python verify_tk5_coverage.py plans/scenario-campaign-mode/09b-桶狭间剧本-可执行定义.md \
-        --source Knowledge/太阁事件包/TK5AllEvents_merged.txt
+        --source Knowledge/太阁5/太阁事件包/TK5AllEvents_merged.txt
     python verify_tk5_coverage.py 09b.md 09c.md --strict
 参数：
-    --source         TK5 合并源文件（默认 Knowledge/太阁事件包/TK5AllEvents_merged.txt）
+    --source         TK5 合并源文件（默认 Knowledge/太阁5/太阁事件包/TK5AllEvents_merged.txt）
     --strict         禁用白名单豁免（全部按 [FAIL] 报）
     --products-dir   产物 JSON 目录（story_event_json/<剧本>/）——入参时追加第五道硬断言
                       （命令翻译合规：step/cmd/action ∈ 权威名集 + 参数值零中文/全角/🔴）
@@ -72,7 +72,7 @@ ALLOWLIST = {
 # 源文件默认路径（相对仓库根）
 DEFAULT_SOURCE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    "..", "..", "..", "Knowledge", "太阁事件包", "TK5AllEvents_merged.txt",
+    "..", "..", "..", "Knowledge", "太阁5", "太阁事件包", "TK5AllEvents_merged.txt",
 )
 
 # ---------------------------------------------------------------------------
