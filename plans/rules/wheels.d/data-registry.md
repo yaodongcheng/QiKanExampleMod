@@ -121,13 +121,13 @@ python plans/scenario-campaign-mode/tools/registry_residue_scan.py    # 扣除�
 
 ## 七、数据源读取纪律 —— 找太阁5 数据：CSV 优先，不读 xlsx（2026-08-28 登记）
 
-**解决什么问题**：织丰表是 3.2MB 二进制 xlsx（`Knowledge/骑砍2织丰角色ID对应/骑砍2太阁Mod表.xlsx`）——git diff 不可读、openpyxl 解析不了它的样式段（`Fill() takes no arguments`，所以才手扒 zip+XML）、补一列数据只能开 Excel。2026-08-28 用户裁定：**数据层以 CSV 入 git，xlsx 只作上游导入源**。
+**解决什么问题**：织丰表是 3.2MB 二进制 xlsx（`Knowledge/太阁5/骑砍2织丰角色ID对应/骑砍2太阁Mod表.xlsx`）——git diff 不可读、openpyxl 解析不了它的样式段（`Fill() takes no arguments`，所以才手扒 zip+XML）、补一列数据只能开 Excel。2026-08-28 用户裁定：**数据层以 CSV 入 git，xlsx 只作上游导入源**。
 
 **三个动作用哪个文件**（记这行就够了）：
 
 | 动作 | 用这个 | 禁止 |
 |---|---|---|
-| 找/读数据 | `Knowledge/骑砍2织丰角色ID对应/csv/*.csv`（一张 sheet 一个 csv，UTF-8 BOM，Excel 可开） | 直接读 xlsx 找数据 |
+| 找/读数据 | `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/*.csv`（一张 sheet 一个 csv，UTF-8 BOM，Excel 可开） | 直接读 xlsx 找数据 |
 | 上游数据本身要改 | 改 xlsx → 重跑 `python tools/xlsx_to_csv.py` | 手改镜像 CSV（重跑即覆盖，铁律 22） |
 | 人填映射（StringId 补列/地方名对照/别名） | `gen_entity_maps.py` 映射表（`NAME_ALIAS` / `TK5_ONLY_HERO` / `SAME_AS_NEAR` 范式）或独立文件 | 写进镜像 CSV |
 
