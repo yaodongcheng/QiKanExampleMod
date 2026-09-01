@@ -1,6 +1,6 @@
 # 07b — 织丰表解读：我们要的 StringId 到底在不在
 
-> 事实源：`Knowledge/骑砍2织丰角色ID对应/骑砍2太阁Mod表.xlsx`（15 张工作表）
+> 事实源：`Knowledge/太阁5/骑砍2织丰角色ID对应/骑砍2太阁Mod表.xlsx`（15 张工作表）
 > 核对对象：`Knowledge/太阁事件包/TK5AllEvents_merged.txt`（7.4 MB / 25 万行 / 2594 个事件）
 > 全部数字由脚本实测，可复跑（复跑命令见 §七）。
 
@@ -115,7 +115,7 @@
 
 ## 七、复跑命令
 
-> **数据层 2026-08-28 起以 CSV 入 git**（`Knowledge/骑砍2织丰角色ID对应/csv/`，一张 Sheet 一个 CSV；
+> **数据层 2026-08-28 起以 CSV 入 git**（`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/`，一张 Sheet 一个 CSV；
 > UTF-8 BOM，Excel 可直接打开）。xlsx 只作上游导入源：织丰表更新 → 先跑 `xlsx_to_csv.py` 刷新镜像，
 > 再重跑下面命令。🔴 镜像 CSV 禁止手改（重跑即覆盖）；人填数据（StringId 补列等）写
 > `gen_entity_maps.py` 的映射表或独立文件。

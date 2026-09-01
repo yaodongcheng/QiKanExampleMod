@@ -72,7 +72,7 @@
 
 > ✅ 2026-08-29 已执行（详见「第九节 执行记录与复核清单」）。以下为原计划步骤，勾选 = 完成：
 
-1. **基线**：`git checkout HEAD -- "Knowledge/骑砍2织丰角色ID对应/csv/TaikouHero.csv"`（已完成，1154 行 = wc 口径；csv.reader 数据行 1142）
+1. **基线**：`git checkout HEAD -- "Knowledge/太阁5/骑砍2织丰角色ID对应/csv/TaikouHero.csv"`（已完成，1154 行 = wc 口径；csv.reader 数据行 1142）
 2. ✅ **跑修复脚本**：`cd ArtSource && python repair_csv.py`（ShokuhoTaikouExpansionPack/ArtSource/）——已 review + R1 修正后运行：
    - A 删 24 行 → B 模板代表图/4 档填充（TPL_REP + WKA 4 档）→ C 英雄词表 35 组 + HERO_FIX 16 行 → **C2 兜底：立绘阶段列非 JSON 行按 TK5 写单图 JSON（992 行，含 lord_tk5 具名 35）** → D 排序（真人/具名/模板族序/变量）
    - ⚠️ review 结论：脚本原 B 步 typ 解析丢性别（choumin_male/female 会同图）、WKA 主行被 sort 破序（已修：保留性别查询 + WKA 不 sort）、原 C 步 ref 重算丢显式 ref（已修：`rec.get('ref') or ref_of()`）

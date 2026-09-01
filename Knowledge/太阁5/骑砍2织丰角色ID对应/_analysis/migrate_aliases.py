@@ -11,7 +11,7 @@ import csv, sys, os, ast, shutil
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CSV = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\骑砍2织丰角色ID对应\csv\TaikouHero.csv'
+CSV = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\太阁5\骑砍2织丰角色ID对应\csv\TaikouHero.csv'
 GEN = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\plans\scenario-campaign-mode\tools\gen_entity_maps.py'
 
 # 1. 从 gen_entity_maps.py 提取 NAME_ALIAS

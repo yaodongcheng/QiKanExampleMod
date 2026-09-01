@@ -11,7 +11,7 @@
 import csv, sys, os, json, collections
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-KN = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\骑砍2织丰角色ID对应\csv'
+KN = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\太阁5\骑砍2织丰角色ID对应\csv'
 TK5 = r'E:\taikou5\Taikou5.Green.Edition-ALI213\Taikou5\_analysis\decoded\tk5_era_init_v1.json'
 
 def rdd(fn):
@@ -22,9 +22,9 @@ settle = rdd('Settlements.csv')
 clans = rdd('Clan.csv')
 
 # 索引
-hero_by_tk = {}          # TK5编号(int) -> hero row
+hero_by_tk = {}          # 外观ID(int) -> hero row
 for h in hero:
-    tk = h.get('TK5编号', '').strip()
+    tk = h.get('外观ID', '').strip()
     if tk.isdigit():
         hero_by_tk[int(tk)] = h
 clan_by_id = {c['ID']: c for c in clans}

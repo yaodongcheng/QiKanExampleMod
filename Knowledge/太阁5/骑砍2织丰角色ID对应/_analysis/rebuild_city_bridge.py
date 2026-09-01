@@ -8,7 +8,7 @@ TK5 侧信息（TK5_ID / TK5_Name / TK5_Area / IsMerge）来自旧表（git HEAD
 import csv, sys, os, collections, re
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-KN = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\骑砍2织丰角色ID对应\csv'
+KN = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\太阁5\骑砍2织丰角色ID对应\csv'
 OLD = os.path.join(KN, 'CityTaikou.csv.old_from_git')   # 旧表（TK5 视角, 20列版）
 OUT = os.path.join(KN, 'CityTaikou.csv')
 ERAS = ['1554', '1560', '1568', '1575', '1582', '1598']

@@ -21,7 +21,7 @@ import sys, os, csv, io, json, collections
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEC = os.path.join(HERE, 'editor124', 'DeCode.rtg')
 DECODED = os.path.join(HERE, 'decoded', 'era_v2')
-KN = r"h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\骑砍2织丰角色ID对应\csv"
+KN = r"h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\太阁5\骑砍2织丰角色ID对应\csv"
 ERAS = ['1554', '1560', '1568', '1575', '1582', '1598']
 # 历史名事实表（确定性：每项均为史料明确记载的改名/异称；改此表=改事实，重跑生效）
 RENAME_FACTS = {
@@ -122,7 +122,7 @@ def reall_finditer(plain):
 
 def person_records(plain, base):
     rows = {}
-    # 🔴 2026-09-01：从 0 号开读（base 即第 0 条记录 = TK5编号 0 = 青山忠成，原 range(1,1400) 漏读 0 号）
+    # 🔴 2026-09-01：从 0 号开读（base 即第 0 条记录 = 外观ID 0 = 青山忠成，原 range(1,1400) 漏读 0 号）
     for pid in range(0, 1400):
         off = base + pid * 36
         if off + 36 > len(plain):
@@ -216,7 +216,7 @@ def main():
         hero_rows = list(csv.DictReader(f))
     hero_by_tk = {}
     for h in hero_rows:
-        for part in (h.get('TK5编号') or '').split('|'):
+        for part in (h.get('外观ID') or '').split('|'):
             part = part.strip()
             if part.isdigit():
                 hero_by_tk.setdefault(int(part), h)
@@ -356,13 +356,13 @@ def main():
         f.write('方法：Snr 解码 → 城表(180条×36B 等距连续, 城主/兵/粮/金直读) + 人物表(36B×1400) + 官方城名单(按城位序号直取)。\n')
         f.write('城名 = name_official(官方名单) / name_history(历史名事实表 RENAME_FACTS, 史料明确记载的改名)。\n')
         f.write('无推断：不存在投票/匹配；所有列均为文件直读或事实表 join。\n\n')
-        f.write('## 🔴 ID 身份声明（2026-09-01 用户裁定）\n\n')
-        f.write('**`person_id` = character id（人物数据库号）**，非内存编辑器显示号。依据：\n')
-        f.write('1. 名字列按织丰 TaikouHero.TK5编号 同号映射（TK5编号 = character 表体系；613=风魔小太郎、1049=阿市 三源一致：TK5编号/立绘目录/Snr）。\n')
-        f.write('2. 0-799 段内存编辑器显示名与 character 表名肉眼一致（2026-09-01 用户确认）。\n')
-        f.write('3. 内存编辑器名单（修改器截图繁体名）与 character 表名 = 同一批人的两套显示名，同号同人；对号见 ../人物ID对照表_20260901.csv。\n\n')
+        f.write('## 🔴 ID 身份声明（2026-09-01 用户裁定 + AppearID 大修正）\n\n')
+        f.write('**`person_id` = 人物番号**（database.xml / database_dx.xml 人物段，官方空间原版 0-1286 / DX 0-1294 + 本机扩展槽），非内存编辑器显示号、非外观ID。依据：\n')
+        f.write('1. Snr 人物记录 = 36B×id（基址+36×人物ID 公式），信长槽=195 与 database.xml 一致（高亚男截图/城表城主字段交叉自证）。\n')
+        f.write('2. 名字列（显示名）按 EDITOR_NAMES / TaikouHero 映射：🔴 2026-09-01 复核 TaikouHero.外观ID 列（原列名 TK5编号）≠ 人物番号——阿市 外观ID=1049 vs 人物番号 1019（原版）/1181（DX）；列内混身份枚举（忍者/足轻/备大将）。名字列映射 = 旧路径，追加段（800+）需按 database.xml/database_dx.xml 重对齐——**待下轮数据工程，勿再引用本行作权威**。\n')
+        f.write('3. 外观ID = BUSTUP 目录编号（E:\\taikou5\\TaikouImage\\BUSTUP，1292 槽「编号_姓名」）+ character_1292_名单.csv；与人物番号是两套钥匙禁混用；史实段多数同号（195 信长/506 家康/613 风魔）系外观槽顺排巧合而非同一体系。\n\n')
         f.write('补充说明：\n')
-        f.write('- 人物表共 **1400 槽（0-1399）**，0 号 = 青山忠成（TK5编号 0，2026-09-01 起由 range(0,1400) 读出；先前 range(1,1400) 漏读 0 号，已于同日修正重跑）。\n')
+        f.write('- 人物表共 **1400 槽（0-1399）**，0 号 = 青山忠成（人物番号 0＝快照槽 0＝外观ID 0 三表同号；2026-09-01 起由 range(0,1400) 读出；先前 range(1,1400) 漏读 0 号，已于同日修正重跑）。\n')
         f.write('- 1292-1399 为世界表扩展槽（无卡类模板），不在 character 表 0-1291 范围内。\n')
 
 

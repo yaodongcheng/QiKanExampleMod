@@ -2,7 +2,7 @@
 """城配对器 v2：直接以 TK5 解析城数据（城主/士兵/兵粮）填 Owner_YYYY。
 
 桥 = 三跳（都不依赖织丰 OwnerClan）：
-① TK5 城城主ID → TaikouHero(TK5编号列) → 城主中文名 + CultureID(织丰大区)
+① TK5 城城主ID → TaikouHero(外观ID列) → 城主中文名 + CultureID(织丰大区)
 ② 旧表(爬取版 .bak) 180 行 = TK5 城名(中文) + Area + Settlement(织丰城名/别名)——TK5 城↔织丰城名权威桥
 ③ 配对 = [城主名 ∈ 旧表行的关键人物?] —— 用 [城主 CultureID == 织丰城 Culture] + [规模档] + [每族城数] 在
    "旧表 TK5 城名行" 上落位，再经 Settlement 跳到织丰城。
@@ -12,7 +12,7 @@
 import csv, sys, os, json, collections
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-KN = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\骑砍2织丰角色ID对应\csv'
+KN = r'h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Knowledge\太阁5\骑砍2织丰角色ID对应\csv'
 TK5 = r'E:\taikou5\Taikou5.Green.Edition-ALI213\Taikou5\_analysis\decoded\tk5_era_init_v1.json'
 OUT = r'E:\taikou5\Taikou5.Green.Edition-ALI213\Taikou5\_analysis\city_pair_review.csv'
 ERAS = ['1554', '1560', '1568', '1575', '1582', '1598']
@@ -26,7 +26,7 @@ old = rdd('CityTaikou.csv.old_from_git')     # git HEAD 版(20列) = TK5 城名�
 
 hero_by_tk = {}
 for h in hero:
-    tk = (h.get('TK5编号') or '').strip()
+    tk = (h.get('外观ID') or '').strip()
     for part in tk.split('|'):
         part = part.strip()
         if part.isdigit() and int(part) not in hero_by_tk:
