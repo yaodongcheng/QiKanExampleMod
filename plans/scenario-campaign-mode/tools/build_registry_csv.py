@@ -49,7 +49,7 @@ except ImportError:
     print('❌ 缺 tools/registry_verdicts.py —— 先跑 `python tools/fill_registry.py` 生成裁定表')
     sys.exit(1)
 
-txt = open('Knowledge/太阁事件包/TK5AllEvents_merged.txt', encoding='utf-8').read()
+txt = open('Knowledge/太阁5/太阁事件包/TK5AllEvents_merged.txt', encoding='utf-8').read()
 
 # ── 值类型体系（🔴 2026-08-27 用户裁定统一）：布尔 / 数字 / 字符串 / 枚举（受限字符串）/ 空 /
 #    对象:子类型（据点/人物/家族/王国/区域/部队/组织/卡/物品/设施/官职/任务/旗标/位置）/ 未知 / 🔴 待定
@@ -659,6 +659,24 @@ for (d, v), c in domain_vals.most_common():
     impl = DOMAIN_VAL_IMPL.get(d, '引擎')
     note = '✅ 引擎' if impl == '引擎' else f'🔴 需新加（{impl}）'
     rows.append([v, c, '域值', d, side, typ, sem, '—', note])
+
+# 🔴 2026-09-01 链完整性：官位/官職 是带序链（17 功勋等级表，validator 按链做 >=/<= 比较）——
+#   语料 0 命中的链节也必须进表（否则链断档/表不全）；权威序 = T5EvDatTbl 类型 24
+CHAIN_DOMAINS = ('官位', '官職')
+for _cd in CHAIN_DOMAINS:
+    for (_d, _v), _s in DOMAIN_VAL_MAP.items():
+        if _d != _cd or (_d, _v) in val_seen:
+            continue
+        _side2 = val_side(_d, _v)
+        if _side2 is None:
+            continue
+        val_seen.add((_d, _v))
+        _typ2 = DOMAIN_VAL_TYPE_OVERRIDE.get((_d, _v), DOMAIN_VAL_TYPES.get(_d, '枚举'))
+        if _typ2 == '枚举':
+            _typ2 = f'枚举:{_d}'
+        _impl2 = DOMAIN_VAL_IMPL.get(_d, '引擎')
+        rows.append([_v, 0, '域值', _d, _side2, _typ2, _v, '—',
+                     '✅ 引擎' if _impl2 == '引擎' else f'🔴 需新加（{_impl2}）'])
 
 # 命令（纯 TK5——mod 原生 18 动作 token 已移出 16a，权威 = 16.md §六 动作 token 注册表，2026-08-27 用户裁定）；
 # 🔴 语法词（條件/流程/事件结构）类别 = 语法，不占「命令」（2026-08-27 用户裁定：语法全量进表）
