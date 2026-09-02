@@ -1293,6 +1293,14 @@ namespace LivingWorldNpcs
                         SpeechPriority.Combat,
                         SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"),
                         budgetS: 1f);
+                    // 🔴 2026-09-02 自终结（同步事件重入）：SendEventToAgent 是同步投递（AgentAIController.cs:739
+                    // 直接 brain.ReceiveEvent）→ 重入自己脑的 event_npc_surrender 分支 → ClearAllActions()
+                    // → 本动作 OnEnd 被代调（_targetEnemy 置 null）。若不在此终结，下方 1321-1323 行
+                    // SetTargetAgent(_targetEnemy=null) 会错误清掉引擎目标。发完即完成：
+                    // 重入路径 OnEnd 恰好一次（ClearAllActions 代调）；非重入路径由 Tick 标准清理
+                    // （2112 IsFinished → OnEnd → 置 null），也是恰好一次。详参 pitfalls。
+                    _isFinished = true;
+                    return;
                 }
             }
 

@@ -39,6 +39,18 @@ namespace LivingWorldNpcs
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
             harmony.PatchAll( );
 
+            // ── 伤害模型 Culture-null 空保护（通用：枚举所有 AgentApplyDamageModel 子类，无第三方探测）──
+            // 时机正确性依据：LoadSubModules（TaleWorlds.MountAndBlade.dll:102627）先把所有激活模块的
+            // DLL 装配进 AppDomain，全部装配完毕才依次回调 OnSubModuleLoad —— 此处枚举必能看到全部模型。
+            try
+            {
+                AgentDamageModelCultureNullFix.TryInstallPatches(harmony);
+            }
+            catch (Exception ex)
+            {
+                Debug.PrintError($"[LivingWorldNpcs] Failed to patch damage models: {ex.Message}");
+            }
+
             // ── 全局异常钩子：崩溃/被吞异常自动写入运行日志 + 崩溃现场快照 ──
             // 三层覆盖（FirstChance / UnobservedTask / Unhandled），噪声过滤与去重见 CrashLogHook。
             try
@@ -130,6 +142,8 @@ namespace LivingWorldNpcs
             //🔴 2026-09-02（用户裁定）：是否挂载由上方总闸（IsInteractionDisabled）统一决定，
             // 战场等场景不跑本 mod 玩法逻辑；入口内部 gate 保留作纵深防御。
             mission.AddMissionBehavior(new AttackTriggerMissionLogic());
+            //无文化模板补全（Townsfolk 只在 settlement 场景生成 → 用定居点文化补；野战无 settlement 自动跳过）
+            mission.AddMissionBehavior(new CharacterCultureBackfill());
             //AI
             mission.AddMissionBehavior(new AgentAIController());
             //IM 传讯（Mission 侧 tick 驱动 + 热键）
@@ -279,6 +293,7 @@ namespace LivingWorldNpcs
 
         // 这个函数游戏运行时的每一帧都会调用
         private bool _hasPatched = false;
+
         protected override void OnApplicationTick(float dt)
         {
             base.OnApplicationTick(dt);
