@@ -72,6 +72,8 @@ tools/face-pipeline/**/obj/
 tools/face-pipeline/data/
 tools/face-pipeline/dist/
 tools/face-pipeline/*.png
+# FreeUV 外部依赖（内嵌 git 仓库）：管线已改为 LLM 生成 UV 图，不再需要，整目录不进库
+tools/face-pipeline/external/FreeUV/
 
 # 数据表临时备份（迁移/修改前快照，一律不进库）
 *.bak_*
