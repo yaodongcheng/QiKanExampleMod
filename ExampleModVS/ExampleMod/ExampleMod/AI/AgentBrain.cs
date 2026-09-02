@@ -2109,7 +2109,13 @@ namespace LivingWorldNpcs
             {
                 _currentAction.OnTick(Owner, dt);
 
-                if (_currentAction.IsFinished(Owner))
+                // 🔴 2026-09-02 修复 2112 行 NRE（用户实机崩溃，现场=乞丐残血认输）：
+                // OnTick 内部可同步事件重入把本字段清空——FightEnemyAction 残血 → SendEventToAgent("event_npc_surrender")
+                // 同步投递到自己脑 ReceiveEvent（AgentAIController.cs:739 直接 brain.ReceiveEvent）→ event_npc_surrender
+                // 分支 ClearAllActions()（AgentBrain.cs:1150）→ _currentAction=null（1248。OnEnd 已由 ClearAllActions 代调）。
+                // 2108 的检查发生在 OnTick 之前，挡不住 OnTick 期间被清空。
+                // 被清空时跳过收尾即可：OnEnd 已调、StayAction 已入队，下一帧 Tick 自动 Dequeue。
+                if (_currentAction != null && _currentAction.IsFinished(Owner))
                 {
                     DebugLogger.Log($"[Brain-Tick] {Owner.Name}(Idx={Owner.Index}) 完成 {_currentAction.GetType().Name}");
                     _currentAction.OnEnd(Owner);

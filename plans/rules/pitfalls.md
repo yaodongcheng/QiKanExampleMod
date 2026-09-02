@@ -889,3 +889,31 @@ CollectCommandLineFunctions()  // 启动时反射扫描所有程序集
 - 签名固定：`public static string Xxx(List<string> args)`；内部用 `args.Count`，`string.Join(" ", args)` 直接可用。
 - **新增任何控制台指令后自查**：grep `string\[\] args`，命中必炸启动。
 - 排查口诀：**「启动即崩 + 栈里只有 CollectCommandLineFunctions」= 特性方法签名不匹配**——全库搜 `CommandLineArgumentFunction` 列表逐方法看签名，别去查崩溃点。已登轮子：wheels.d/config.md「控制台调试指令」。
+
+## 同步事件重入清空执行字段：`if (x != null)` 检查后仍 NRE（OnTick 内发事件给自己脑）
+
+**症状**（实机 2026-09-02 22:02，乞丐残血认输）
+- `AgentBrain.Tick` 2112 行 NRE：栈指向 `_currentAction.IsFinished(Owner)`，但 2108 行明明有 `if (_currentAction != null)` 保护——「检查过了怎么还是 null」。
+- 宿主无 [Crash] 记录（该局崩溃没走到 unhandled 处理器），只能靠运行时日志还原时序（[Brain-Tick] 开始执行 → 断档 → 无「完成」行）。
+
+**根因**（代码链实锤）
+
+```
+AgentBrain.Tick (2108 if != null 检查通过)
+  └─ 2110 _currentAction.OnTick()   ← 关键：字段在 OnTick 执行期间被改
+       └─ FightEnemyAction.OnTick 残血 (<30%) → SendEventToAgent("event_npc_surrender")
+            └─ SendEventToAgent 同步投递（AgentAIController.cs:739 直接 brain.ReceiveEvent）
+                 └─ 自脑 ReceiveEvent → event_npc_surrender 分支 → ClearAllActions()
+                      → _currentAction.OnEnd 代调 + _currentAction = null + 入队 StayAction
+  └─ 2112 _currentAction.IsFinished()  ← 字段早已 null → NRE
+```
+
+- 本质 = **字段读-用之间的同步重入**：单线程内、`if` 检查与第二次访问之间隔着一次完整函数调用，调用链里事件同步分发回来清掉了字段。2108 的检查只保护「检查前」，不保护「检查后」。
+- `_currentAction = null` 的**唯一**写入点 = `ClearAllActions`（AgentBrain.cs:1248），排查只认它。
+- 副伤：重入发生后**本动作的 OnEnd 已被代调**（`_targetEnemy` 等状态已清），但 OnTick 剩余代码还在跑——FightEnemyAction 后续 `SetTargetAgent(_targetEnemy=null)` 会错误清掉引擎目标。
+
+**规避**（已修复，双层防御）
+- ① **Tick 侧最终防线**（AgentBrain.cs:2112）：`OnTick` 后补 `_currentAction != null &&`——被清空时 OnEnd 已由 ClearAllActions 代调，跳过收尾即可，下一帧 Tick 自动 Dequeue 新动作，无泄漏。
+- ② **动作侧自终结**（AtomicAction.cs 残血认输分支）：OnTick 内同步投递**会终结自己**的事件后，`_isFinished = true; return;`——重入路径 OnEnd 恰好一次（ClearAllActions 代调），非重入路径由 Tick 标准清理（IsFinished → OnEnd → 置 null）也是恰好一次，两种时序对上都成立。
+- ③ **排查口诀**：Tick 内 NRE 且目标字段是「执行字段」→ 搜该字段唯一写入点 → 找出同步重入路径 → OnTick 里搜 `SendEventToAgent`/`StartConversation` 等同步调用。
+- 2026-09-02 全量扫描结论：AtomicAction.cs 所有 OnTick 中**唯一**的同步自投递就是残血认输一处（276 行在 UI 回调不插帧；AlertForceConversationAction 的 StartConversation 在 OnStart，2108 检查在后无影响；SpeechChannel 只入队 + async 润色不同步）。写新动作时按「OnTick 内发事件 = 发完自终结」自检。

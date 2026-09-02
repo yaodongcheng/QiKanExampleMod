@@ -327,6 +327,8 @@
     <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
     <Compile Include="Debug\SceneNotificationLoggerPatch.cs" />
     <Compile Include="Debug\SaveGuard.cs" />
+    <Compile Include="Debug\AgentDamageModelCultureNullFix.cs" />
+    <Compile Include="Debug\CharacterCultureBackfill.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <!-- GUI -->
