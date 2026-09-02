@@ -18,6 +18,7 @@ var dir = Environment.CurrentDirectory;
 string filter = null;
 string outDir = null;
 string format = "png";
+string mapping = null;
 
 string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -34,6 +35,7 @@ if (command != "assetclone")
             case "--filter": filter = args[++i]; break;
             case "--out": outDir = args[++i]; break;
             case "--format": format = args[++i]; break;
+            case "--mapping": mapping = args[++i]; break;
             default: Console.Error.WriteLine("unknown arg: " + args[i]); break;
         }
     }
@@ -75,6 +77,10 @@ switch (command)
             return 1;
         }
         return MakePack.Run(manifestPath, makeOutDir);
+    }
+    case "texreplace":
+    {
+        return ReplaceTex.Run(dir, filter, mapping, outDir);
     }
     case "inspect":
     {

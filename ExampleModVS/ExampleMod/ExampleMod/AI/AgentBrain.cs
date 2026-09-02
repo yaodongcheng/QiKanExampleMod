@@ -606,9 +606,10 @@ namespace LivingWorldNpcs
                 }
 
 
-                // 见义勇为/护主/反抗：本脑准备攻击谁（排查参战逻辑用）
+                // 见义勇为/护主/反抗：本脑意图攻击谁（⚠️ 仅"防御评估成立"，不必然进战斗——
+                // 后置闸门：切磋冷却/玩家殴打梯度（第一刀仅警告）/已在战斗中/儿童逃跑。排查参战逻辑用）
                 if (shouldHelp)
-                    DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 准备攻击 {attacker.Name}(Idx={attacker.Index}) 救援 {victim.Name}(Idx={victim.Index})");
+                    DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 意图攻击 {attacker.Name}(Idx={attacker.Index}) 救援 {victim.Name}(Idx={victim.Index})");
                 else
                     DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 不参战：victim={victim.Name}(Idx={victim.Index}) attacker={attacker.Name}(Idx={attacker.Index})");
 
@@ -674,10 +675,16 @@ namespace LivingWorldNpcs
                     // 第二刀 2.4 → Alarmed 反击——2026-08-12 用户裁定，原 3.0 一刀拉满直接开打）
                     if (attacker == Agent.Main)
                     {
+                        // 🔴 2026-09-02（用户裁定）：受害者本人血量已低于 60% → 玩家再打一下直接 +2
+                        //（Alarmed 变红——重伤者被动手即激化，不给第一刀警告梯度；血量充足才走 1.2 梯度）
+                        // 判定用打前血量（本事件链先于警告刀补偿结算——补偿伤害在 OnRegisterBlow 稍后段）
+                        float pulse = 1.2f;
+                        if (victim.HealthLimit > 0f && victim.Health / victim.HealthLimit < 0.6f)
+                            pulse = 2.0f;
                         // 先写脉冲上下文再加值：受害者 = 真受害者——本人被攻击 → 上下文指向本人，
                         // 队友豁免（AddAlert 内判定）因此不豁免；队友围观玩家打别人 → 上下文指向他人 → 豁免。
                         SetPulseTarget(PlayerActionType.AttackAlly, victim.Name, null, victim.Index);
-                        if (AddAlert(PlayerActionType.AttackAlly, 1.2f))  // 队友围观豁免（false）→ 跳过阶段检查
+                        if (AddAlert(PlayerActionType.AttackAlly, pulse))  // 队友围观豁免（false）→ 跳过阶段检查
                             CheckPhaseTransition();
                     }
                     // 玩家打非友方平民 → 走专用事件 'PlayerAttackedCivilian'（AttackTriggerMissionLogic 广播，

@@ -294,6 +294,7 @@
     <Compile Include="Compass\CompassIconVM.cs" />
     <Compile Include="Compass\CompassVM.cs" />
     <!-- Combat -->
+    <Compile Include="Combat\AgentDamageHelper.cs" />
     <Compile Include="Combat\AttackTriggerMissionLogic.cs" />
     <Compile Include="Combat\CombatManager.cs" />
     <Compile Include="Combat\DuelMissionView.cs" />
@@ -320,7 +321,6 @@
     <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" />
     <Compile Include="Debug\AiPatrollingNullFix.cs" />
     <Compile Include="Debug\CrashLogHook.cs" />
-    <Compile Include="Debug\DebugLogger.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />

@@ -755,6 +755,49 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 15f, "PlayerAttackedAlly", false, attacker, victim);
             }
 
+            // 👁 前置哨兵观测（2026-09-02）：玩家对人类的 0 伤害刀——补偿段若被条件挡掉，
+            // 从这里看是哪条条件（格挡/招架/竞技场/总闸/友方/敌队）拦的。
+            if (attacker.IsMainAgent && victim != null && b.InflictedDamage <= 0
+                && AgentControlHelper.IsHumanOrChild(victim) && !IsArenaCombat() && !Settings.Instance.IsInteractionDisabled())
+            {
+                bool teamEnemy = attacker.Team != null && victim.Team != null
+                    && attacker.Team.IsValid && victim.Team.IsValid && attacker.Team.IsEnemyOf(victim.Team);
+                DebugLogger.Log($"[WarningStrike] 0伤害刀: {victim.Name}(Idx={victim.Index}) blockedShield={collisionData.AttackBlockedWithShield} backShield={collisionData.CollidedWithShieldOnBack} colRes={collisionData.CollisionResult} 敌队={teamEnemy} 友方={FriendlinessHelper.IsFriendlyToPlayer(victim)} attTVal={attacker.Team?.IsValid} vicT={victim.Team?.TeamIndex} vicTVal={victim.Team?.IsValid}");
+            }
+
+            // 🔴 2026-09-02 警告刀补偿（引擎伤害接口方案，用户裁定）：单机引擎对「非敌方人类」取消近战
+            // 伤害（Mission.MeleeHitCallback → CancelsDamageAndBlocksAttackBecauseOfNonEnemyCase →
+            // InflictedDamage=0；Agent.HandleBlow 里 `<=0` 直接 return）——玩家打和平村民永远不掉血，
+            // 但 OnRegisterBlow 照常触发（上面旁白/警戒/围观全发）。此处用 AgentDamageHelper 补一条
+            // 真伤害：模拟伤害掉血 + 血条反馈 + OnAgentHit 链（记身价、负伤统计），保命 clamp（最多
+            // 降到 1 血）、不建敌队不进战斗（设计上后续警戒/质问/赔偿由脑流程处理）。
+            if (victim != null && attacker.IsMainAgent && b.InflictedDamage <= 0
+                && !collisionData.AttackBlockedWithShield && !collisionData.CollidedWithShieldOnBack
+                // 格挡/招架（非盾挡）也走 0 伤害路径——不得补警告伤（挥击被对方弹开是有效防御）
+                && collisionData.CollisionResult != CombatCollisionResult.Parried
+                && collisionData.CollisionResult != CombatCollisionResult.Blocked
+                && collisionData.CollisionResult != CombatCollisionResult.ChamberBlocked
+                && !IsArenaCombat()
+                // 总闸（与 OnAgentRemoved/OnPlayerKnockedOut 同口径）：战场/训练场/自定义战斗等
+                // 交互关闭场景不补警告伤（原生战斗结算归属引擎，mod 侧不插一手）
+                && !Settings.Instance.IsInteractionDisabled()
+                && (!FriendlinessHelper.IsFriendlyToPlayer(victim) || Settings.Instance.AllowHostileOnAllies)
+                // 🔴 2026-09-02 修正：村民 Team = Team.Invalid（TeamIndex -1，IsValid=false）——
+                // 旧写法（Team.IsValid 前置 + IsEnemyOf 反推）把无效 team 一律挡掉，警告刀永远不触发；
+                // 语义应为「不是明确敌队即放行」。IsValid 判定保留在 IsEnemyOf 调用前短路（防 NRE），
+                // 无效/缺省 team → 不是敌队 → 放行（引擎取消伤害的正是这类场景）。
+                && !(attacker.Team != null && victim.Team != null
+                     && attacker.Team.IsValid && victim.Team.IsValid
+                     && attacker.Team.IsEnemyOf(victim.Team)))
+            {
+                // 身价首记（同人重复打击不重复累计身价——身价是"受害者值多少"，不是"打了几刀"）
+                bool firstRecord = !FriendlinessHelper.IsFriendlyToPlayer(victim);
+                var pending = AgentAIController.Instance?.PendingWorldEvent;
+                if (firstRecord && pending?.AssaultVictimNames != null)
+                    firstRecord = !pending.AssaultVictimNames.Contains(victim.Name?.ToString());
+                AgentDamageHelper.ApplyWarningStrike(victim, b, collisionData, firstRecord);
+            }
+
             // 【场景 1】当前正在切磋中
             if (_isDuelActive)
             {

@@ -10,6 +10,17 @@ namespace TpacCli
     /// </summary>
     public static class Bc3Encoder
     {
+        // ── 编码：RGBA8 (w*h*4) → BC1 裸块串（无 alpha 版，每块 8B）────────
+        public static byte[] EncodeBc1(byte[] rgba, int w, int h)
+        {
+            byte[] bc3 = Encode(rgba, w, h);
+            int blocks = bc3.Length / 16;
+            byte[] bc1 = new byte[blocks * 8];
+            for (int i = 0; i < blocks; i++)
+                Array.Copy(bc3, i * 16 + 8, bc1, i * 8, 8);   // BC3 = [alpha8B][color8B]，剥 alpha 段
+            return bc1;
+        }
+
         // ── 编码：RGBA8 (w*h*4) → BC3 裸块串 ──────────────────────────────
         public static byte[] Encode(byte[] rgba, int w, int h)
         {
