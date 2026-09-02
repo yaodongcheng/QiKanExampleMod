@@ -11,6 +11,9 @@ from PIL import Image
 OBJ = r"h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\tools\face-pipeline\data\meshes\head_male_a.obj"
 out_path = sys.argv[1] if len(sys.argv) > 1 else r"C:\Users\yaodongcheng\AppData\Local\Temp\head_export\uvview.png"
 face_only = len(sys.argv) > 2 and sys.argv[2] == "face"
+if len(sys.argv) > 3:  # 参数化: argv[3]=obj路径, argv[4]=皮肤子网格索引(男=5, 女=0)
+    OBJ = sys.argv[3]
+SKIN_IDX = int(sys.argv[4]) if len(sys.argv) > 4 else 5
 
 verts, uvs, faces, mesh_names, cur_mesh = [], [], [], [], -1
 for line in open(OBJ, encoding="utf-8", errors="ignore"):
@@ -35,14 +38,19 @@ img = np.zeros((Hp, Wp, 3), dtype=np.uint8)
 img[:] = (60, 60, 70)
 
 def to_screen(p):
-    sx = (p[0] + 0.11) / 0.22 * Wp
-    sy = Hp * 0.92 - (p[1] + 0.10) / 0.30 * Hp
+    if AXIS == 'zx':
+        sx = (p[2] + 0.11) / 0.22 * Wp
+        sy = Hp * 0.92 - (p[1] - 1.60) / 0.24 * Hp
+    elif AXIS == 'zxr':
+        sx = (0.11 - p[2]) / 0.22 * Wp
+        sy = Hp * 0.92 - (p[1] - 1.60) / 0.24 * Hp
+    else:  # xy 男头(局部头系)
+        sx = (p[0] + 0.11) / 0.22 * Wp
+        sy = Hp * 0.92 - (p[1] + 0.10) / 0.30 * Hp
     return sx, sy
 
 for mesh_idx, vi, ti in faces:
-    if mesh_idx < 5:
-        continue
-    if face_only and mesh_idx != 5:
+    if mesh_idx != SKIN_IDX:
         continue
     for i in range(0, len(vi) - 2, 3):
         a, b, c = vi[i], vi[i + 1], vi[i + 2]

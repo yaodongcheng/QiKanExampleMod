@@ -1,0 +1,9 @@
+castle_AMA1 组件段:
+<Components>
+      <Town id="castle_comp_AMA1" is_castle="true" level="1" background_crop_position="0.0" background_mesh="menu_empire_seaside_1" wait_mesh="wait_sho_town" gate_rotation="0.008" prosperity="656" />
+    </Components>
+
+village_* Settlement 总数: 164
+castle_village_* Settlement 总数: 363
+castle_* Settlement 总数(不含cv): 181
+town_* Settlement 总数: 56

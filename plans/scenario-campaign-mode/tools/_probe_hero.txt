@@ -1,0 +1,3 @@
+佐仓 | TK5_ID= 40 | TK5_Name= 佐仓城 | Alias=  | Owner1554= lord_2_oda
+京 | TK5_ID= 106 | TK5_Name= 二条城 | Alias=  | Owner1554= 
+浦户 | TK5_ID= 154 | TK5_Name= 安芸城 | Alias=  | Owner1554= lord_1_chosokabe_kunichika

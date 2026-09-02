@@ -1,0 +1,8 @@
+lord_1_aki | CNName= 安艺国虎 | ScriptName= 安藝國虎 | TK5= 10
+lord_2_oda | CNName= 小田氏治 | ScriptName= 小田氏治 | TK5= 188
+lord_1_chiba | CNName= 千叶胤富 | ScriptName= 千葉胤富 | TK5= 478
+lord_1_chosokabe_kunichika | CNName= 长宗我部国亲 | ScriptName= 長宗我部國親 | TK5= 481
+---CNName 搜索---
+lord_1_aki | CNName= 安艺国虎
+lord_1_chiba | CNName= 千叶胤富
+lord_1_chosokabe_kunichika | CNName= 长宗我部国亲

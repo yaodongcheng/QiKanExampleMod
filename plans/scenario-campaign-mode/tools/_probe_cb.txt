@@ -1,0 +1,6 @@
+castle_* Settlement: 181
+castle 节点出现关联字样: {'castle': 181}
+castle 组件类型: {'Town': 181}
+
+原版 castle_*: 0 | town_*: 0 | village_*: 1 | hideout: 0
+原版 castle 组件: 无

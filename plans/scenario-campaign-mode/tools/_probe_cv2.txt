@@ -1,0 +1,6 @@
+Village 组件总数: 527
+village_*: 108 | castle_village_*: 182
+village_* bound 目标类型: Counter({'town': 108})
+castle_village_* bound 目标类型: Counter({'castle': 182})
+castle_village 前缀推导 ≠ bound: 182 条 [('castle_village_AMA1_2', '推导=Settlement.castle_AMA1', 'bound=castle_AMA1'), ('castle_village_CHU1_2', '推导=Settlement.castle_CHU1', 'bound=castle_CHU1'), ('castle_village_CHU2_2', '推导=Settlement.castle_CHU2', 'bound=castle_CHU2'), ('castle_village_CHU3_2', '推导=Settlement.castle_CHU3', 'bound=castle_CHU3'), ('castle_village_CHU4_2', '推导=Settlement.castle_CHU4', 'bound=castle_CHU4'), ('castle_village_CHU5_2', '推导=Settlement.castle_CHU5', 'bound=castle_CHU5')]
+village_* bound 非 town 目标: 108 [('village_CHU1_2', 'town_CHU1'), ('village_CHU1_3', 'town_CHU1'), ('village_CHU2_2', 'town_CHU2'), ('village_CHU2_3', 'town_CHU2'), ('village_CHU3_2', 'town_CHU3'), ('village_CHU3_3', 'town_CHU3')]

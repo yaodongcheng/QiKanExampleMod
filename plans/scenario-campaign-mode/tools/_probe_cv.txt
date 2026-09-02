@@ -1,0 +1,23 @@
+== castle_village_AMA1_1 节点 ==
+<Settlement id="castle_village_AMA1_1" name="{=k1yojJ4A}Nishinoshima" posX="594.486" posY="751.712" culture="Culture.sanyo" text="{=KEX5sbP0}REPLACE_DESCRIPTION">
+    <Components>
+      <Village id="castle_village_comp_AMA1_1" village_type="VillageType.fishing" hearth="200" gate_rotation="0.008" bound="Settlement.castle_AMA1" background_crop_position="0.0" background_mesh="menu_empire_seaside_1" wait_mesh="wait_sho_village" castle_background_mesh="gui_bg_castle_empire" />
+    </Components>
+    <Locations complex_template="LocationComplexTemplate.village_complex">
+      <Location id="village_center" scene_name="sho_village_d" max_prosperity="300" />
+    </Locations>
+    <CommonAreas>
+      <Area type="Pasture" name="{=fOUsLdZR}Pasture" />
+      <Area type="Thicket" name="{=66Mzk0NZ}Thicket"
+
+== village_CHU1_1 节点（对照）==
+<Settlement id="village_CHU1_1" name="{=kD3Q4P0u}Akamagazeki" posX="356.662" posY="485.635" culture="Culture.sanyo" text="{=KEX5sbP0}REPLACE_DESCRIPTION">
+    <Components>
+      <Village id="village_comp_CHU1_1" village_type="VillageType.ramie_farm" hearth="200" gate_rotation="0.008" bound="Settlement.town_CHU1" background_crop_position="0.0" background_mesh="menu_empire_seaside_1" wait_mesh="wait_sho_village" castle_background_mesh="gui_bg_castle_empire" />
+    </Components>
+    <Locations comp
+
+castle_village Settlement 节点总数: 363
+带 bound 属性: 363 / 363 | 带 Village 组件: 363
+bound 目标统计（前 6）: [('Settlement.castle_KIN18', 3), ('Settlement.castle_AMA1', 2), ('Settlement.castle_CHU1', 2), ('Settlement.castle_CHU2', 2), ('Settlement.castle_CHU3', 2), ('Settlement.castle_CHU4', 2)]
+农村 village_* 节点: 164 | 带 bound: 164

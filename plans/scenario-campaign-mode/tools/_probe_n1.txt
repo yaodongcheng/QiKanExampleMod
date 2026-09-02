@@ -1,0 +1,6 @@
+骏府城 | TK5_ID= 74|75 | TK5_Name= 兴国寺城|骏府城 | IsMerge= 0|1 | Alias= 
+挂川城 | TK5_ID= 77|78 | TK5_Name= 二股城|高天神城 | IsMerge= 1 | Alias= 
+小谷城 | TK5_ID= 95 | TK5_Name= 小谷城 | IsMerge= 0 | Alias= 
+龟冈 | TK5_ID= 107|108 | TK5_Name= 丹波龟山城|八上城 | IsMerge= 1 | Alias= 
+萩城 | TK5_ID= 143|142 | TK5_Name= 且山城|山口城 | IsMerge= 1 | Alias= 
+德岛 | TK5_ID= 149|150|152 | TK5_Name= 抚养城|白地城|胜瑞城 | IsMerge= 1 | Alias= 

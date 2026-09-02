@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+		<TargetFrameworks>netstandard2.0;net462;net472;net6.0</TargetFrameworks>
+		<PackageId>TpacTool.IO</PackageId>
+		<AssemblyName>TpacTool.IO</AssemblyName>
+	</PropertyGroup>
+	
+	
+	<PropertyGroup Condition="'$(TargetFramework)'=='net35' or '$(TargetFramework)'=='net40'">
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<Folder Include="Thirdparty\" />
+	</ItemGroup>
+	
+	<ItemGroup>
+		<ProjectReference Include="..\TpacTool.Lib\TpacTool.Lib.csproj" />
+	</ItemGroup>
+	
+	<Choose>
+		<When Condition="'$(TargetFramework)'!='net35' And '$(TargetFramework)'!='net40'">
+			<ItemGroup>
+				<PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
+			</ItemGroup>
+			<PropertyGroup>
+				<DefineConstants>$(DefineConstants);SYSTEM_NUMERICS</DefineConstants>
+			</PropertyGroup>
+		</When>
+	</Choose>
+	
+	<Choose>
+		<When Condition="'$(TargetFramework)'!='net35' And '$(TargetFramework)'!='net40' And '$(TargetFramework)'!='net45' And '$(TargetFramework)'!='net451'">
+			<PropertyGroup>
+				<DefineConstants>$(DefineConstants);FBX_SHARPIE</DefineConstants>
+			</PropertyGroup>
+		</When>
+	</Choose>
+
+	<Import Project="../Common.targets" />
+</Project>

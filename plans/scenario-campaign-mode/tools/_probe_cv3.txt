@@ -1,0 +1,3 @@
+匹配到 Village 组件总数: 527
+Settlement id 前缀分布: {'其他前缀:castle': 181, 'castle_village': 182, '其他前缀:town': 56, 'village': 108}
+样本: [('castle_AMA1', 'castle_AMA1'), ('town_CHU1', 'town_CHU1'), ('town_CHU2', 'town_CHU2'), ('town_CHU3', 'town_CHU3'), ('town_CHU4', 'town_CHU4'), ('town_CHU5', 'town_CHU5')]

@@ -20,7 +20,7 @@
 | 1. 生成图片 | 任意（这里=拼脸 Python 管线） | 输出 2048/4096 的 PNG（注意 UV 布局必须对齐目标资源，见"校准"章） |
 | 2. 转 DDS | `texconv in.png -ft dds -f BC1_UNORM -m 12 -y` | 格式/层数要与目标一致；男头原版=2048/DXT1/12 mips；织丰头=4096/DXT1/13 mips |
 | 3. 打包 tpac | `tpaccli makeface --packdir <模板包> --out <mod目录> --name <资源名> --diffuse x.dds [--normal --spec]` | 必须以**已存在的可读纹理对象**（模板，如 GT_Face pack0 里的 2048 纹理）为骨架拷字段，不能从零 new；见"五个坑" |
-| 4. 写 SubModule.xml | 手写/拷贝 | 见 `tools/face-pipeline/dist/FaceCustomLWN/SubModule.xml`（依赖 Native e1.0.1 以上即可跨版本） |
+| 4. 写 SubModule.xml | 手写/拷贝 | 内容包无需新 SubModule（沿用既有）；示例参考任意纯资产 mod（如 xxFemaleHead）；覆盖资源靠同名 + skins.xslt（见脸部系统分析 §十） |
 | 5. 装游戏 | 复制到 `Modules/<ModName>/` | 启动器勾选，排在 Native 之后 |
 | 6. 验证 | 游戏内看；配合"探针法"定位问题 | 见"校准" |
 
@@ -60,5 +60,5 @@
 - CLI 全部命令：`tools/face-pipeline/README.md`
 - makeface 源代码骨架：`tpactool/TpacToolCLI/Program.cs`（MakeFace/ParseDds/roundtrip）
 - 有效参考包：`Modules/GT_Face/AssetPackages/pack0.tpac`（换脸 mod 卡，模板纹理来源）
-- 打包产物示例：`tools/face-pipeline/dist/FaceCustomLWN/`
+- 打包产物示例：见 `ShokuhoTaikouExpansionPack/AssetPackages/`（lwn_femhead_copy.tpac 等；旧 dist/FaceCustomLWN 已删除——贴图替换路线判废，见脸部系统分析 §十）
 - 系统知识：`Knowledge/脸部系统分析.md`
