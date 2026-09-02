@@ -78,6 +78,25 @@ namespace LivingWorldNpcs
             WorldEventStore.TransitionStage(evt, EventStage.Resolved);
         }
 
+        /// <summary>
+        /// 玩家拔刀视觉（威胁/拔剑共用）：点按即出鞘——手里已有武器（主副手任一持械）则跳过，
+        /// 避免重复出鞘动画。
+        /// 🔴 用引擎 WieldInitialWeapons（PlayerAgentController AutoWield 分支同款），不用裸
+        /// TryToWieldWeaponInSlot(WeaponItemBeginSlot)——后者对空手（武器槽全空）玩家会把空 slot 0
+        /// 传进 native（native 实现不可见、C# 封装无防御、无引擎先例证明安全），且固定 slot 0
+        /// 在玩家武器排在 1/2/3 槽时拔不出刀。WieldInitialWeapons 内部 GetInitialWeaponIndicesToEquip
+        /// 逐槽过滤空槽 + None 检查后才调 native——纯空手 100% 不进 native。
+        /// </summary>
+        public static void TryDrawPlayerWeapon()
+        {
+            var main = Agent.Main;
+            if (main == null) return;
+            bool inHand = V.MainWpn(main) != EquipmentIndex.None
+                || V.OffWpn(main) != EquipmentIndex.None;
+            if (inHand) return;
+            main.WieldInitialWeapons(Agent.WeaponWieldActionType.WithAnimation);
+        }
+
         /// <summary>权威 NPC 名字（村长等），无 Hero 时回落本地化兜底</summary>
         public static string GetAuthorityName(WorldEvent evt)
         {
@@ -521,6 +540,9 @@ namespace LivingWorldNpcs
 
         public override void OnSuccess(IntentContext ctx)
         {
+            // 威胁视觉：成功/失败都拔出武器（伸张声势；手里已有武器则跳过，见 TryDrawPlayerWeapon）
+            AccountabilityHelper.TryDrawPlayerWeapon();
+
             var evt = ctx.ActiveEvent;
             if (evt != null)
             {
@@ -545,6 +567,9 @@ namespace LivingWorldNpcs
         public override void OnFail(IntentContext ctx)
         {
             base.OnFail(ctx);
+            // 威胁视觉：成功/失败都拔出武器（伸张声势；手里已有武器则跳过，见 TryDrawPlayerWeapon）
+            AccountabilityHelper.TryDrawPlayerWeapon();
+
             var evt = ctx.ActiveEvent;
             if (evt != null)
             {
@@ -891,6 +916,9 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
+            // 拔剑视觉：选项点了就拔出武器（手里已有武器则跳过，见 TryDrawPlayerWeapon）
+            AccountabilityHelper.TryDrawPlayerWeapon();
+
             // Alert 场景兜底：对话中 ActiveEvent 可能为 null，从 PendingWorldEvent 取 Misconduct
             var evt = ctx.ActiveEvent ?? AccountabilityHelper.GetMisconductEvent(ctx.Agent);
             if (evt != null)
