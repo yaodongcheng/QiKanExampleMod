@@ -327,7 +327,7 @@ namespace LivingWorldNpcs
             // -------------------------------------------------------
             // 来源 A：附近的尸体 (Dead Agents)
             // -------------------------------------------------------
-            var corpses = AttackTriggerMissionLogic.Instance.GetDeadAgentsRaw();
+            var corpses = AttackTriggerMissionLogic.Instance?.GetDeadAgentsRaw() ?? new List<Agent>();
             foreach (Agent agent in corpses)
             {
                 ProcessAgentCandidate(agent, eyePos, lookDir, maxDistanceSq, corpseMinDot, ref bestDotProduct, ref bestAgent);

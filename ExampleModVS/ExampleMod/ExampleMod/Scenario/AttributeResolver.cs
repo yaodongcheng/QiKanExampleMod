@@ -33,7 +33,6 @@ namespace LivingWorldNpcs
         public static DslValue CallFunction(string name, List<DslNode> args, ScenarioContext ctx)
         {
             var a = args ?? new List<DslNode>();
-            string Ref(DslNode n){ var v = n.Eval(ctx); return v.IsNull ? null : v.Str; }
 
             switch (name)
             {

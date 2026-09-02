@@ -94,6 +94,17 @@ namespace LivingWorldNpcs
             if (Campaign.Current == null)
                 return;
 
+            // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
+            // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
+            // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——
+            // 原生 AI 接管。未来需要做战斗场景内互动时，再按需放开下方个别 AddMissionBehavior。
+            // ⚠️ 判据时机注意：训练场按 Settlement.CurrentSettlement 直判，OnMissionBehaviorInitialize
+            // 回调时该字段可能未就绪（且其 Mode=StartUp 与村庄相同）→ 训练场可能误挂——
+            // 各入口内部保留的 IsInteractionDisabled gate 作纵深防御兜底（运行时判定准确），
+            // 挂上空转无副作用；战场/竞技场按 Mode/SceneName 判定，回调时已就绪，不会误挂。
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+
             //召唤某个英雄并且和他对话功能
             mission.AddMissionBehavior(new HeroSpawnerMissionBehavior());
             //🔴 2026-08-16（方案 D/K/L/P）：玩家 Mission 事件感知（首帧分类广播 + 血线关切 +
@@ -116,6 +127,8 @@ namespace LivingWorldNpcs
             //右下角交互区
             mission.AddMissionBehavior(new InteractionMissionView());
             //攻击触发 / 战斗监控总线（尸体登记 + 切磋虚拟血 + 玩家被制服 → 大地图扣押）
+            //🔴 2026-09-02（用户裁定）：是否挂载由上方总闸（IsInteractionDisabled）统一决定，
+            // 战场等场景不跑本 mod 玩法逻辑；入口内部 gate 保留作纵深防御。
             mission.AddMissionBehavior(new AttackTriggerMissionLogic());
             //AI
             mission.AddMissionBehavior(new AgentAIController());

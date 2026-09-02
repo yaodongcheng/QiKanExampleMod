@@ -100,51 +100,9 @@ namespace LivingWorldNpcs
             }
 
             // ── PendingWorldEvent 初始化 ──
-            // 非战役模式（自定义战斗等）无 Campaign：Settlement.CurrentSettlement 的
-            // getter 内部直接访问 MobileParty.MainParty，无 null 保护会抛 NRE，
-            // 先判 Campaign.Current（兜底，正常流程已被 MySubModule 注册闸门挡住）
-            var settlement = Campaign.Current == null ? null : (Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement);
-            if (settlement != null)
-            {
-                string sceneLoc = WorldEvent.ResolveSceneLocationName(CampaignMission.Current?.Location?.StringId);
-
-                // 场景感知查找：同子场景的已有事件可续档；旧存档中未设置子场景的事件首次遇
-                // 到具体场景时自动升级 LocationName（之后便不会与其他子场景的事件合并）。
-                WorldEvent existing = null;
-                if (!string.IsNullOrEmpty(sceneLoc))
-                {
-                    // 有具体子场景 → 优先匹配同场景；其次匹配旧存档未设置子场景的事件（升级之）
-                    existing = WorldEventStore.FindOnGoing(settlement.StringId, evt =>
-                        evt.Type == EventType.Misconduct &&
-                        (evt.LocationName == sceneLoc || evt.LocationName == null));
-
-                    if (existing != null && existing.LocationName == null)
-                    {
-                        existing.LocationName = sceneLoc;
-                        DebugLogger.Log($"[WorldEvent] Upgraded legacy event {existing.EventId} LocationName: null → {sceneLoc}");
-                    }
-                }
-                else
-                {
-                    // 无具体子场景（城镇中心 / 村庄中心等） → 只匹配同样无子场景的事件
-                    existing = WorldEventStore.FindOnGoing(settlement.StringId, evt =>
-                        evt.Type == EventType.Misconduct && evt.LocationName == null);
-                }
-
-                PendingWorldEvent = existing
-                    ?? new WorldEvent
-                    {
-                        EventId = $"misconduct_{settlement.StringId}_{(int)CampaignTime.Now.ToHours}_{++_misconductSeq}",
-                        Category = EventCategory.Crime,
-                        Type = EventType.Misconduct,
-                        InitiatorId = Hero.MainHero?.StringId ?? "player",
-                        TargetSettlementId = settlement.StringId,
-                        OccurredDay = (float)CampaignTime.Now.ToDays,
-                        LocationName = sceneLoc,
-                        Stage = EventStage.Dormant,
-                        WitnessTestimonies = new List<WitnessTestimony>(),
-                    };
-            }
+            // 🔴 2026-09-02：初始化逻辑抽进 ResolveOrCreatePendingCrimeEvent（工厂）——
+            // RegisterWitness 的「结案后再犯置换新案」复用同一查找/构造链（含 Severity 初始化修复）。
+            PendingWorldEvent = ResolveOrCreatePendingCrimeEvent();
 
             // ── NpcSightSystem → AgentBrain 事件桥接 ──
             // 当 NPC 开始看到玩家时，路由为事件发给对应 AgentBrain，
@@ -189,6 +147,65 @@ namespace LivingWorldNpcs
                 }
             }
             DebugLogger.Log($"[AI-Debug-Init] 总计 {humanCount} 个人形 Agent，脑数量={_brains.Count}");
+        }
+
+        /// <summary>
+        /// PendingWorldEvent 工厂（2026-09-02 抽出）：查找同场景可续档的 Misconduct 事件
+        /// （场景感知，跨 Mission 续档），没有则新建 Dormant 事件。两个调用方：
+        /// ① AfterStart（Mission 起点首次创建）；② RegisterWitness（「结案后再犯」置换新案）。
+        /// 无 Campaign / 无定居点上下文 → 返回 null。
+        /// 🔴 2026-09-02 Severity 初始化修复：手工构造的 Mission 犯案事件此前 Severity 恒为 0，
+        /// → CrimePenaltyCalculator.BaseValue 兜底 `Severity×10` = 0 → 赔偿 0 第纳尔（打人零成本，
+        /// 实机 2026-09-02）。必须从 config 的 DefaultSeverity 初始化。
+        /// </summary>
+        WorldEvent ResolveOrCreatePendingCrimeEvent()
+        {
+            // 非战役模式（自定义战斗等）无 Campaign：Settlement.CurrentSettlement 的
+            // getter 内部直接访问 MobileParty.MainParty，无 null 保护会抛 NRE，
+            // 先判 Campaign.Current（兜底，正常流程已被 MySubModule 注册闸门挡住）
+            var settlement = Campaign.Current == null ? null : (Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement);
+            if (settlement == null) return null;
+
+            string sceneLoc = WorldEvent.ResolveSceneLocationName(CampaignMission.Current?.Location?.StringId);
+
+            // 场景感知查找：同子场景的已有事件可续档；旧存档中未设置子场景的事件首次遇
+            // 到具体场景时自动升级 LocationName（之后便不会与其他子场景的事件合并）。
+            WorldEvent existing = null;
+            if (!string.IsNullOrEmpty(sceneLoc))
+            {
+                // 有具体子场景 → 优先匹配同场景；其次匹配旧存档未设置子场景的事件（升级之）
+                existing = WorldEventStore.FindOnGoing(settlement.StringId, evt =>
+                    evt.Type == EventType.Misconduct &&
+                    (evt.LocationName == sceneLoc || evt.LocationName == null));
+
+                if (existing != null && existing.LocationName == null)
+                {
+                    existing.LocationName = sceneLoc;
+                    DebugLogger.Log($"[WorldEvent] Upgraded legacy event {existing.EventId} LocationName: null → {sceneLoc}");
+                }
+            }
+            else
+            {
+                // 无具体子场景（城镇中心 / 村庄中心等） → 只匹配同样无子场景的事件
+                existing = WorldEventStore.FindOnGoing(settlement.StringId, evt =>
+                    evt.Type == EventType.Misconduct && evt.LocationName == null);
+            }
+
+            return existing
+                ?? new WorldEvent
+                {
+                    EventId = $"misconduct_{settlement.StringId}_{(int)CampaignTime.Now.ToHours}_{++_misconductSeq}",
+                    Category = EventCategory.Crime,
+                    Type = EventType.Misconduct,
+                    InitiatorId = Hero.MainHero?.StringId ?? "player",
+                    TargetSettlementId = settlement.StringId,
+                    OccurredDay = (float)CampaignTime.Now.ToDays,
+                    LocationName = sceneLoc,
+                    Stage = EventStage.Dormant,
+                    // 🔴 见方法注释：Severity 必须从 config 初始化（否则赔偿公式兜底 0）
+                    Severity = EventConfig.Get(EventType.Misconduct).DefaultSeverity,
+                    WitnessTestimonies = new List<WitnessTestimony>(),
+                };
         }
 
         public override void OnAgentCreated(Agent agent)
@@ -401,7 +418,23 @@ namespace LivingWorldNpcs
         public void RegisterWitness(AgentBrain brain)
         {
             var pending = PendingWorldEvent;
-            if (pending == null) return;
+
+            // 🔴 2026-09-02（用户实机：赔偿后再犯 NPC 不理——"你的事不是已经了结了吗？走吧。"）：
+            // PendingWorldEvent 是 Mission 起点创建的一次性对象，结案（赔钱/坐牢/自首 → Resolved）
+            // 后从未置换——再犯案时下方 `pending.Stage < EventStage.Active` 不成立（Resolved(4) > Active(2)），
+            // 新案永远进不了世界：无犯罪等级 +5、无新质问要账；质问注入侧被 Resolved 旧案挡住。
+            // 修复：结案/无案 → 置换新案（新 EventId + Dormant，走工厂），旧案立即入档——
+            // AddOrMerge 落库后不再依赖 PendingWorldEvent 引用（否则 Mission 内结案的事件丢档）。
+            // AddOrMerge 自带 ReferenceEquals 守卫：续档复用的同一 store 对象不会自合并双计。
+            if (pending == null || pending.Stage == EventStage.Resolved || pending.Stage == EventStage.Unsolved)
+            {
+                if (pending != null && pending.Stage != EventStage.Dormant)
+                    WorldEventStore.AddOrMerge(pending);
+                PendingWorldEvent = ResolveOrCreatePendingCrimeEvent();
+                pending = PendingWorldEvent;
+                if (pending == null) return;
+                DebugLogger.Log($"[WorldEvent] 结案/无案后再犯 → 置换新案 {pending.EventId}（旧案已入档）");
+            }
 
             // 🆕 目击者当场看到作案 → 嫌疑人 = 顶条目嫌疑犯（2026-08-14 三态单一事实源，不回落玩家）：
             //   TopSuspectAgent() 为 null（-1 玩家语义）→ 玩家（MainHero）；
@@ -566,7 +599,12 @@ namespace LivingWorldNpcs
         public void RecordAssaultVictim(Agent victim)
         {
             var pending = PendingWorldEvent;
-            if (pending == null || victim == null) return;
+            if (pending == null || victim == null)
+            {
+                // 🔴 2026-09-02 观测：记账失败必须可见（补偿伤害照样结算，别让"没记账"伪装成"没触发"）
+                DebugLogger.Log($"[Assault] 记身价跳过: pending={(PendingWorldEvent != null)} victim={(victim != null)}（Mission={Mission.Current?.SceneName ?? "null"}）");
+                return;
+            }
 
             int value = CrimePenaltyCalculator.EstimateVictimValue(victim);
             pending.AssaultValue += value;

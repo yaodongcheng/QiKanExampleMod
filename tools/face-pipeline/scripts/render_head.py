@@ -1,7 +1,8 @@
 # Render the head mesh (LOD0 skin + eye meshes) with a texture applied,
 # orthographic front view. Used to (a) verify UV orientation and
 # (b) preview final custom face results.
-# usage: python render_head.py <texture.png> <out.png> <which_mesh: all|skin|eye>
+# usage: python render_head.py <texture.png> <out.png> <which_mesh: all|skin|eye> [obj] [axis: xy|xz] [skin_idx]
+#   axis xy = 男头(x 左右,y 上下) ; xz = 女头(x 左右,z 上下, y=前后)
 import re
 import sys
 import numpy as np
@@ -11,6 +12,10 @@ OBJ = r"h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\Liv
 tex_path = sys.argv[1]
 out_path = sys.argv[2]
 which = sys.argv[3] if len(sys.argv) > 3 else "all"
+if len(sys.argv) > 4:
+    OBJ = sys.argv[4]
+AXIS = sys.argv[5] if len(sys.argv) > 5 else "xy"   # xy 男 / xz 女
+SKIN_IDX = int(sys.argv[6]) if len(sys.argv) > 6 else 5
 
 verts, uvs, faces = [], [], []   # faces: (mesh, [v0..v?], [t0..t?])
 cur_mesh = -1
@@ -44,8 +49,8 @@ Wp, Hp = 1024, 1024
 img = np.zeros((Hp, Wp, 3), dtype=np.uint8)
 img[:] = (10, 10, 14)
 
-# bounds of mesh for scaling
-allp = verts[:, :2]
+# bounds of mesh for scaling (axis-dependent)
+allp = np.stack([verts[:, 0], verts[:, 2]], axis=1) if AXIS == "xz" else verts[:, :2]
 sx_min, sx_max = allp[:, 0].min(), allp[:, 0].max()
 sy_min, sy_max = allp[:, 1].min(), allp[:, 1].max()
 sX = Wp * 0.9 / (sx_max - sx_min)
@@ -53,13 +58,13 @@ sY = Hp * 0.9 / (sy_max - sy_min)
 
 def to_screen(p):
     sx = (p[0] - sx_min) * sX + Wp * 0.05
-    sy = Hp * 0.95 - (p[1] - sy_min) * sY
+    sy = Hp * 0.95 - (p[2 if AXIS == "xz" else 1] - sy_min) * sY
     return sx, sy
 
 def sample_uv(u, v):
-    # uv in [0,1]; assume v=0 bottom (engine) -> flip because pixel rows go down
+    # xxFemaleHead 网格 vt: v=0 对应贴图顶行(实测: 额 v0.281->行575) -> py = v * H
     px = u * (W - 1)
-    py = (1.0 - v) * (H - 1)
+    py = v * (H - 1)
     x0 = int(np.clip(px, 0, W - 2)); y0 = int(np.clip(py, 0, H - 2))
     fx = px - x0; fy = py - y0
     c = (tex[y0, x0] * (1 - fx) * (1 - fy) + tex[y0, x0 + 1] * fx * (1 - fy)
@@ -68,12 +73,13 @@ def sample_uv(u, v):
 
 for mesh_idx, vi, ti in faces:
     name = mesh_names[mesh_idx]
-    if which == "skin" and mesh_idx not in (5, 6, 7):
+    if which == "skin" and mesh_idx != SKIN_IDX:
         continue
-    if which == "eye" and mesh_idx < 6:
+    if which == "eye" and mesh_idx < (SKIN_IDX + 1):
         continue
-    if mesh_idx < 5:  # skip LOD1-4
-        continue
+    if mesh_idx < 5:  # skip LOD1-4 (男头布局); 女头贴图回显只有 0-3 低 LOD 头->不跳
+        if AXIS == "xy":
+            continue
     for i in range(0, len(vi) - 2, 3):
         a, b, c = vi[i], vi[i + 1], vi[i + 2]
         ta, tb, tc = ti[i], ti[i + 1], ti[i + 2]
@@ -102,7 +108,7 @@ for mesh_idx, vi, ti in faces:
         # sample per-pixel color (vectorized via index arrays, one by one loop is slow;
         # use bilinear per pixel with numpy gather)
         px = uu * (W - 1)
-        py = (1.0 - vv) * (H - 1)
+        py = vv * (H - 1)
         xs_f = np.clip(px, 0, W - 2); ys_f = np.clip(py, 0, H - 2)
         x0i = xs_f.astype(int); y0i = ys_f.astype(int)
         fx = (xs_f - x0i)[:, None]; fy = (ys_f - y0i)[:, None]
