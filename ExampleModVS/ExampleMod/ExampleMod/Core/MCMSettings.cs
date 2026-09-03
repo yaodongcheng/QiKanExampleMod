@@ -201,5 +201,27 @@ namespace LivingWorldNpcs
             get => Settings.Instance.ShowCompass;
             set => Settings.Instance.ShowCompass = value;
         }
+
+        // ── 性能诊断面板（透传核心 Settings；默认全关，诊断工具按需开）──
+        // ① 帧率行：左上角 FPS / 帧时间 / 场景标识；② 性能详情：本 mod 子系统 + 其他 DLL
+        // 的每帧方法耗时 TOP（②开即自动包裹其他 mod，无需单独开关）。
+        // Order = -5/-6：继续按显示倒序下沉到列表最底部（诊断工具不打扰日常玩家）。
+        [SettingPropertyBool("{=LWN_mcm_perf_fps}FPS Overlay", Order = -5, RequireRestart = false,
+            HintText = "{=LWN_mcm_perf_fps_hint}When enabled, an FPS overlay (frame rate / frame time / scene) appears at the top-left corner in missions and on the campaign map.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool ShowPerfHud
+        {
+            get => Settings.Instance.ShowPerfHud;
+            set => Settings.Instance.ShowPerfHud = value;
+        }
+
+        [SettingPropertyBool("{=LWN_mcm_perf_details}Module Cost Details", Order = -6, RequireRestart = false,
+            HintText = "{=LWN_mcm_perf_details_hint}When enabled, the overlay also lists the per-frame cost of this mod's subsystems and of other installed mods' tick methods (wrapped at runtime by DLL name). Shows ms/frame, share of frame time, and peak cost per module — sorted by cost.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool ShowPerfDetails
+        {
+            get => Settings.Instance.ShowPerfDetails;
+            set => Settings.Instance.ShowPerfDetails = value;
+        }
     }
 }

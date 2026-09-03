@@ -550,12 +550,14 @@ namespace LivingWorldNpcs
 
         private void OnTick(float dt)
         {
+            long t0 = PerfProfiler.Now();          // perf: CP_MyBehavior
             if (Input.IsKeyReleased(InputKey.H))
             {
                 if (Settings.Instance.ShowDebugMessages)
                     // 本地化：LWN_sys_map_h_test（玩家可见文本）
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_map_h_test", "H pressed on the map (test)")));
             }
+            PerfProfiler.Accum(PerfSlot.CP_MyBehavior, t0); // perf: CP_MyBehavior
         }
 
         private void OnSettlementLeft(MobileParty party, Settlement settlement)

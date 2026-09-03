@@ -99,6 +99,10 @@ namespace LivingWorldNpcs
         {
             base.OnMissionBehaviorInitialize(mission);
 
+            // 🔴 性能面板不挂 MissionView：统一宿主 PerfHudManager（层挂 TopScreen，
+            // ImChatOpenButton 范本，2026-09-03 用户指引）——Mission 驱动挂在
+            // MissionScreen.OnFrameTick 补丁（PerfMissionFrameTickPatch），战场照常。
+
             // 🔴 非战役模式（自定义战斗 / 联机 / 主菜单试玩等）不挂载任何行为：
             // 没有 Campaign 时 Settlement.CurrentSettlement、Hero.MainHero 等战役 API 会 NRE
             // （实测 2026-08-12：自定义战斗 AgentAIController.AfterStart 崩，getter 内部访问
@@ -297,6 +301,13 @@ namespace LivingWorldNpcs
         protected override void OnApplicationTick(float dt)
         {
             base.OnApplicationTick(dt);
+
+            // 🔴 性能诊断帧心跳：引擎应用层每帧回调（Campaign 暂停/读档界面照常触发）——
+            // 帧时长 + 卡顿捕获唯一帧钟源（见 Diagnostics/PerfProfiler.cs）。
+            PerfProfiler.OnFrameTick();
+            // 🔴 性能面板驱动（单点 = 应用层：主菜单/创角/全屏 UI/读档/Mission/Campaign 全场景
+            // 每帧都到，包括暂停；层挂 TopScreen、层序见 PerfHudManager（ImChatOpenButton 范本））
+            PerfHudManager.Tick(dt);
 
             // 只有当 StoryEngine 实例存在时才尝试更新
             if (StoryEngine.Instance != null)

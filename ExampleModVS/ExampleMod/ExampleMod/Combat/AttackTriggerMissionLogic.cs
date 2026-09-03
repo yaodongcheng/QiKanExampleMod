@@ -628,6 +628,8 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
+            long t0 = PerfProfiler.Now();          // perf: CV_CombatLogic
+
             // 🔴 2026-08-16（PlayerMissionEventLogic 并入）：D1 mission 进出感知（首帧分类广播）+
             // K2 犯罪关切延迟确认——全部 try/catch 各段独立
             try { ReportMissionEntered(); } catch (Exception ex) { DebugLogger.Log($"[MissionSense] 首帧分类失败: {ex.Message}"); }
@@ -640,8 +642,16 @@ namespace LivingWorldNpcs
             CombatManager.OnCombatManagerTick(Mission.Current);
 
             // 抢在原版 LeaveMissionLogic之前离场
-            if (!_playerDown || _endMissionAt < 0f) return;
-            if (Mission.CurrentTime < _endMissionAt) return;
+            if (!_playerDown || _endMissionAt < 0f)
+            {
+                PerfProfiler.Accum(PerfSlot.CV_CombatLogic, t0); // perf: CV_CombatLogic
+                return;
+            }
+            if (Mission.CurrentTime < _endMissionAt)
+            {
+                PerfProfiler.Accum(PerfSlot.CV_CombatLogic, t0); // perf: CV_CombatLogic
+                return;
+            }
             _endMissionAt = -1f;
 
             try
@@ -653,6 +663,8 @@ namespace LivingWorldNpcs
                 }
             }
             catch (Exception ex) { DebugLogger.Log($"[Detention] EndMission failed: {ex.Message}"); }
+
+            PerfProfiler.Accum(PerfSlot.CV_CombatLogic, t0); // perf: CV_CombatLogic
         }
 
         // 当产生打击判定时触发（哪怕伤害为0）

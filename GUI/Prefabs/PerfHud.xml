@@ -1,0 +1,75 @@
+<Prefab>
+  <!-- 性能诊断面板（PerfHud）：左上角帧率/模块耗时/DLL 归属（MCM 两开关控制）。
+       纯显示层：全链 DoNotAcceptEvents，不吃任何事件。
+       🔴 真表格布局（2026-09-03 用户裁定：单 RichText 拼 \n+空格 对齐方向错误——比例字体 +
+         UI 缩放折行三连坑）：行 = 垂直 ListPanel（ItemTemplate = 三列 TextWidget 横向排布），
+         列宽固定（220/170/200）由布局控件决定——永远对齐、不折行、换语言也齐。
+       🔴 双版本 StackLayout swap：ListPanel Id 前缀 LWN 会被 StackLayoutVerticalSwapPatch 在
+         1.3+ 翻转方向（1.2.12 bug 版 = 等价格式化后语义一致）——写法与 ImChat 消息流同款，
+         实机目验方向（期望从上往下）。
+       FPS 行为独立行（全宽）；Rows = 固定 13 行模板。改 PerfHudVM 属性必须同步改本文件绑定。 -->
+  <Window Id="LWN_PerfHud">
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+        <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                PositionXOffset="8" PositionYOffset="8"
+                IsVisible="@IsVisible"
+                Sprite="BlankWhiteSquare_9" Color="#00000099"
+                DoNotAcceptEvents="true" SuggestedWidth="620">
+          <Children>
+            <!-- 🔴 主面板内两块（FPS 行 + 表格列）必须包进垂直 ListPanel：主面板是普通 Widget，
+                 子元素全部 Layout 到同一矩形 = 重叠（实机 2026-09-03「性能分析和帧率显示重叠」） -->
+            <ListPanel Id="LWN_PerfHud_Main" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       StackLayout.LayoutMethod="VerticalTopToBottom"
+                       DoNotAcceptEvents="true">
+              <Children>
+                <!-- ① FPS 行（全宽：FPS 变色 span + 帧时间 + 场景） -->
+                <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                MaxWidth="604"
+                                MarginLeft="8" MarginRight="8" MarginTop="4" MarginBottom="0"
+                                Text="@FpsLine"
+                                Brush="LWN_Perf_Text"
+                                WordWrapping="Wrap"
+                                TextHorizontalAlignment="Left"
+                                DoNotAcceptEvents="true"/>
+                <!-- ② 表格行：垂直列表（13 行固定），行模板 = 三列（名称 220 / 数值 170 / 尾列 200） -->
+                <ListPanel Id="LWN_PerfHud_Rows" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           DataSource="{Rows}"
+                           StackLayout.LayoutMethod="VerticalTopToBottom"
+                           MarginLeft="8" MarginRight="8" MarginTop="2" MarginBottom="6"
+                           DoNotAcceptEvents="true">
+                  <ItemTemplate>
+                    <!-- 🔴 行容器必须是 ListPanel：普通 Widget + StackLayout.LayoutMethod 附着属性
+                         不被布局器读取 → 三列全部 Layout 到同一矩形（实机 2026-09-03 文字成团堆叠；
+                         ui.md「普通 Widget 的 OnLayout 把所有子元素 Layout 到同一个矩形」） -->
+                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                               StackLayout.LayoutMethod="HorizontalLeftToRight" DoNotAcceptEvents="true">
+                      <Children>
+                        <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
+                                    SuggestedWidth="220" SuggestedHeight="18"
+                                    Text="@Col1" Brush="LWN_Perf_Text" Brush.FontSize="13"
+                                    ClipContents="true"
+                                    TextHorizontalAlignment="Left" DoNotAcceptEvents="true"/>
+                        <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
+                                    SuggestedWidth="170" SuggestedHeight="18"
+                                    Text="@Col2" Brush="LWN_Perf_Text" Brush.FontSize="13"
+                                    ClipContents="true"
+                                    TextHorizontalAlignment="Left" DoNotAcceptEvents="true"/>
+                        <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
+                                    SuggestedWidth="200" SuggestedHeight="18"
+                                    Text="@Col3" Brush="LWN_Perf_Text" Brush.FontSize="13"
+                                    ClipContents="true"
+                                    TextHorizontalAlignment="Left" DoNotAcceptEvents="true"/>
+                      </Children>
+                    </ListPanel>
+                  </ItemTemplate>
+                </ListPanel>
+              </Children>
+            </ListPanel>
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

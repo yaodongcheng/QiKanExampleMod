@@ -311,6 +311,7 @@ namespace LivingWorldNpcs
                 return;
             }
 
+            long t0 = PerfProfiler.Now();          // perf: ST_StoryEngine
             //这部分，不需要触发等待，只需要进行就行了
             if (_isWaitingForMovement_Leaving && !_isWaitingForSceneChange)
             {
@@ -459,6 +460,8 @@ namespace LivingWorldNpcs
             {
                 Resume();
             }
+
+            PerfProfiler.Accum(PerfSlot.ST_StoryEngine, t0); // perf: ST_StoryEngine
         }
 
         private void FinishEvent()

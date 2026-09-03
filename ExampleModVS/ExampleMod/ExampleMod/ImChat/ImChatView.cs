@@ -2778,15 +2778,21 @@ namespace LivingWorldNpcs
         /// <summary>Mission（ImChatMissionView.OnMissionTick）/ Campaign（OnScreenFrameTick）双端调用。</summary>
         public static void Tick(float dt)
         {
- // lwn-ignore: A  🔴 2026-08-19（用户裁定：自监测输入来源每帧更新——必须在本类任何设备判定消费之前，
+            // lwn-ignore: A  🔴 2026-08-19（用户裁定：自监测输入来源每帧更新——必须在本类任何设备判定消费之前，
             // 且面板开闭都跑：InteractArea 键帽等全 Mod 共用 ModInput.UsingGamepad）
+            long t0 = PerfProfiler.Now();          // perf: CT_InputSource
             ModInput.TickInputSource();
+            PerfProfiler.Accum(PerfSlot.CT_InputSource, t0); // perf: CT_InputSource
             // 🔴 2026-08-23（ESC/B 统一）：ESC 消费窗口递减（面板开闭都跑——关闭后的下一帧也要递减，吞窗才收敛）
             if (_escapeCloseHoldFrames > 0) _escapeCloseHoldFrames--;
             // 🔴 世界背景生成同样依赖墙钟帧（暂停也运转）——与 IM 同轮子（ImScreenFrameTickPatch）：
             // CampaignEvents.TickEvent 暂停时 dt=0 停发，世界背景会永不生成（2026-08-17 实机教训）
+            long t1 = PerfProfiler.Now();          // perf: CT_WorldBackground
             WorldBackgroundBehavior.Instance?.OnFrameTick(dt);
+            PerfProfiler.Accum(PerfSlot.CT_WorldBackground, t1); // perf: CT_WorldBackground
+            long t2 = PerfProfiler.Now();          // perf: CT_ImChatManager
             ImChatManager.Tick(dt);
+            PerfProfiler.Accum(PerfSlot.CT_ImChatManager, t2); // perf: CT_ImChatManager
             // 🔴 2026-08-15（密信通知）：通知层驱动（自动消失计时）挂在 IM Tick 上——
             // 不依赖面板是否打开（提前 return 之前），Mission/Campaign 双端都到这里。
             // 🔴 2026-08-17（用户裁定）：ImSecretNotify（ninjareport 密信圆环）已废除——私聊通知

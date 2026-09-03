@@ -66,10 +66,12 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
+            long t0 = PerfProfiler.Now();          // perf: CAM_SpringArm
             if (_isActive && Mission.Current.MainAgent != null)
             {
                 ApplyCameraOverrideForUI();
             }
+            PerfProfiler.Accum(PerfSlot.CAM_SpringArm, t0); // perf: CAM_SpringArm
         }
 
         // --- 核心数学逻辑: 将 UI 参数应用到相机 ---

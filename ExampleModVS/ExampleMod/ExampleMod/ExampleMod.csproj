@@ -293,6 +293,16 @@
     <Compile Include="Compass\CompassHud.cs" />
     <Compile Include="Compass\CompassIconVM.cs" />
     <Compile Include="Compass\CompassVM.cs" />
+    <Compile Include="Diagnostics\PerfCommands.cs" />
+    <Compile Include="Diagnostics\PerfHudManager.cs" />
+    <Compile Include="Diagnostics\PerfHudVM.cs" />
+    <Compile Include="Diagnostics\PerfProfiler.cs" />
+    <Compile Include="Diagnostics\PerfUiTickPatches.cs" />
+    <Compile Include="Diagnostics\PerfWrapper.cs" />
+    <!-- 🔴 2026-09-03（用户指引：主菜单也要有——驱动改为 OnApplicationTick 单点全场景覆盖）：
+         PerfHudMissionView / PerfScreenFrameTickPatch（含 PerfMissionFrameTickPatch）已废弃——
+         PerfHudManager.Tick 由 MySubModule.OnApplicationTick 每帧调用（主菜单/创角/读档/Mission/Campaign
+         全场景，含暂停）；PerfUiTickPatches 保留（UI 层汇总槽）。两个废弃文件保留至用户手动删除，禁止在此重新启用。 -->
     <!-- Combat -->
     <Compile Include="Combat\AgentDamageHelper.cs" />
     <Compile Include="Combat\AttackTriggerMissionLogic.cs" />

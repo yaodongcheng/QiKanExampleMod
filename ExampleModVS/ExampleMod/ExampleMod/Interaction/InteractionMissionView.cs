@@ -935,13 +935,17 @@ namespace LivingWorldNpcs
             base.OnMissionTick(dt);
 
             // ── 输入状态机每帧驱动（先于一切消费点；战斗禁用期间也保持物理键状态一致，帧窗口过期防陈旧触发）──
+            long p0 = PerfProfiler.Now();          // perf: IMV_ModInput
             ModInput.Tick(dt);
+            PerfProfiler.Accum(PerfSlot.IMV_ModInput, p0); // perf: IMV_ModInput
 
             // 🔴 Q5（2026-08-17 呼出按钮）：Mission 侧驱动——与 InteractArea 同 tick（玩家认知：
             // 按钮属右侧交互面板；InteractAreaTopOffset 上移避让也读本 View）。🔴 2026-08-23（双保险）：
             // Mission ESC 打开时本 tick 停摆 → ImChatView.OnScreenFrameTick（MissionScreen.OnFrameTick
             // 补丁，UI 层暂停也触发）兜底刷新隐藏判定；两处双调幂等（Tick 状态比较 + _layer==null 保护）
+            long p1 = PerfProfiler.Now();          // perf: IMV_ImChatOpenButton
             ImChatOpenButtonManager.Tick(dt);
+            PerfProfiler.Accum(PerfSlot.IMV_ImChatOpenButton, p1); // perf: IMV_ImChatOpenButton
 
             // ── 输入设备切换追踪：键盘↔手柄 → 刷新全部按键提示字形 ──
             bool usingGamepad = ModInput.UsingGamepad;
@@ -953,11 +957,15 @@ namespace LivingWorldNpcs
             }
 
             // ── 计划执行层驱动（PlanCommandFlow 已 IM 化，无主线程消费——结果全部由 ImChatManager.Tick 消费）──
+            long p2 = PerfProfiler.Now();          // perf: IMV_PlanReplan
             PlanReplan.Tick();
+            PerfProfiler.Accum(PerfSlot.IMV_PlanReplan, p2); // perf: IMV_PlanReplan
 
             // ── 顶部罗盘每帧驱动（🔴 必须在互动门控之前：战场/竞技场/对话等场景罗盘照常显示——
             //    DisabledInteractionMissionModes 含 Battle/Tournament/Duel 等，放门控后罗盘会在战场上失效）──
+            long p3 = PerfProfiler.Now();          // perf: IMV_Compass
             CompassHud.OnTick(dt);
+            PerfProfiler.Accum(PerfSlot.IMV_Compass, p3); // perf: IMV_Compass
 
             // 战斗模式下跳过交互 UI 全部逻辑：大世界遭遇/箱子/射线检测/交互选项构建
             if (Settings.Instance.IsInteractionDisabled())
@@ -1069,7 +1077,9 @@ namespace LivingWorldNpcs
             // 只有在第 3 帧时，才去执行射线检测和 UI 刷新
             if (_tickCounter % 3 == 0)
             {
+                long p4 = PerfProfiler.Now();      // perf: IMV_Interact
                 PerformPerformanceHeavyLogic();
+                PerfProfiler.Accum(PerfSlot.IMV_Interact, p4); // perf: IMV_Interact
             }
 
             // ----------------- 3. NPC信息面板关闭：ESC / 手柄B -----------------
@@ -1089,7 +1099,9 @@ namespace LivingWorldNpcs
             // 门控 = available 非空（IsVisible 只管 UI 显示）：无目标场景 available=[Inspect] 且 UI 隐藏时，探查键依然响应
             if (_availableIds.Count > 0)
             {
+                long p5 = PerfProfiler.Now();      // perf: IMV_Raycast
                 HandleInput();
+                PerfProfiler.Accum(PerfSlot.IMV_Raycast, p5); // perf: IMV_Raycast
             }
 
         }

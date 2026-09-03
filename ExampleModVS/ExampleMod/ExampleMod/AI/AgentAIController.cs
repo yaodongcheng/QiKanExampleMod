@@ -314,6 +314,7 @@ namespace LivingWorldNpcs
             //          ② 检测到已销毁的残留 brain → 遍历后延迟移除（正常路径由 OnAgentDeleted 移除，这里只兜底）；
             //          ③ 单脑 Tick 包 try/catch，托管异常不中断整帧（AV 已被①拦截，不会走到这里）。
             List<int> staleBrains = null;
+            long t0 = PerfProfiler.Now();          // perf: AIC_BrainAll
             foreach (var brain in _brains.Values)
             {
                 var owner = brain?.Owner;
@@ -334,6 +335,7 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[AIController] brain.Tick 异常 ({owner.Name}): {ex.Message}");
                 }
             }
+            PerfProfiler.Accum(PerfSlot.AIC_BrainAll, t0); // perf: AIC_BrainAll
             if (staleBrains != null)
             {
                 foreach (var idx in staleBrains)
@@ -344,13 +346,21 @@ namespace LivingWorldNpcs
             }
 
             // 密谋命令系统：执行器统一驱动（与 brain 队列解耦，收尾报告流程也在此推进）
+            long t1 = PerfProfiler.Now();          // perf: AIC_PlanExecutor
             PlanExecutor.TickAll(dt);
+            PerfProfiler.Accum(PerfSlot.AIC_PlanExecutor, t1); // perf: AIC_PlanExecutor
             // 密谋命令系统：ReactiveAgent 实时回应结果消费（BC-006：respond 的 LLM 台词主线程播放）
+            long t2 = PerfProfiler.Now();          // perf: AIC_ReactiveAgent
             ReactiveAgent.TickAll(dt);
+            PerfProfiler.Accum(PerfSlot.AIC_ReactiveAgent, t2); // perf: AIC_ReactiveAgent
             // 🔴 2026-08-11 续话器：活跃对话的续话/中止策略调度（SocialSlot 威胁/NPC 闲聊跟进）
+            long t3 = PerfProfiler.Now();          // perf: AIC_DialogueContinuations
             DialogueComponent.TickContinuations(dt);
+            PerfProfiler.Accum(PerfSlot.AIC_DialogueContinuations, t3); // perf: AIC_DialogueContinuations
             // 🔴 M0 说话并联通道：气泡队列推进（与动作队列完全并联，不占 CurrentAction）
+            long t4 = PerfProfiler.Now();          // perf: AIC_SpeechChannel
             SpeechChannel.TickAll(dt);
+            PerfProfiler.Accum(PerfSlot.AIC_SpeechChannel, t4); // perf: AIC_SpeechChannel
         }
 
         // 🔴 2026-08-12：玩家武器切换事件源（lazy 挂载：Agent.Main 就绪后一次性挂 OnMainAgentWieldedItemChange——

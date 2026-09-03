@@ -2849,6 +2849,56 @@ namespace LivingWorldNpcs
             return WorldBackgroundStore.Blob;
         }
 
+        /// <summary>
+        /// 导出指定 Hero（默认主角）的完整脸参数：BodyProperties 原文 + 反序列化后的 KeyWeights[320]。
+        /// 用途：拿游戏进程内 native 解码（GetParamsFromKey）的结果，供 Blender 侧复原脸。
+        /// 用法: custom.dump_facekey [heroStringId]   (不传参数 = 主角)
+        /// 输出同时写入 Debug/StoryEngine_RuntimeLog.txt
+        /// 已核实签名 (1.5.1)：FaceGenerationParams.KeyWeights = float[320]；
+        ///   MBBodyProperties.GetParamsFromKey(ref FaceGenerationParams, BodyProperties, bool earsAreHidden, bool mouthHidden)
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("dump_facekey", "custom")]
+        public static string DumpFaceKey(List<string> args)
+        {
+            if (Campaign.Current == null || Hero.MainHero == null)
+                return "Error: Campaign not loaded.";
+
+            Hero target = Hero.MainHero;
+            if (args.Count >= 1 && !string.IsNullOrWhiteSpace(args[0]))
+            {
+                target = Campaign.Current.CampaignObjectManager.Find<Hero>(args[0]);
+                if (target == null)
+                    return $"Error: Hero '{args[0]}' not found.";
+            }
+
+            CharacterObject charObj = target.CharacterObject;
+            if (charObj == null || charObj.BodyPropertyRange == null)
+                return $"Error: {target.Name} has no BodyPropertyRange.";
+            // 定脸 NPC: BodyPropertyRange.Init(face, face) → min == max == 确定的脸；随机范围脸才 min!=max
+            BodyProperties raw = charObj.BodyPropertyRange.BodyPropertyMin;
+            FaceGenerationParams fgp = new FaceGenerationParams();
+            try
+            {
+                TaleWorlds.MountAndBlade.MBBodyProperties.GetParamsFromKey(ref fgp, raw, false, false);
+            }
+            catch (Exception e)
+            {
+                return $"Error: GetParamsFromKey failed on this build: {e.Message}";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"=== FaceKey Dump: {target.Name} ({target.StringId}) ===");
+            sb.AppendLine(raw.ToString());
+            sb.AppendLine($"CurrentFaceTattoo={fgp.CurrentFaceTattoo}");
+            for (int i = 0; i < fgp.KeyWeights.Length; i++)
+            {
+                sb.AppendLine($"[{i}] {fgp.KeyWeights[i]:F4}");
+            }
+            string msg = sb.ToString();
+            DebugLogger.Log(msg);
+            return msg;
+        }
+
     }
 
 }

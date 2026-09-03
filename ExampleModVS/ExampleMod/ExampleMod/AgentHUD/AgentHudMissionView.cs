@@ -91,6 +91,8 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
+            long t0 = PerfProfiler.Now();          // perf: HV_AgentHud
+
             // 初始扫描延迟
             if (_pendingInitialScan)
             {
@@ -248,6 +250,8 @@ namespace LivingWorldNpcs
                         _dataSource.Huds.RemoveAt(idx);
                 }
             }
+
+            PerfProfiler.Accum(PerfSlot.HV_AgentHud, t0); // perf: HV_AgentHud
         }
 
         // ── 屏幕边缘 clamp 辅助 ──

@@ -337,9 +337,15 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
+            long t0 = PerfProfiler.Now();          // perf: NV_NpcSight
+
             // 0.1 秒闸门：全类统一节奏，感知段和认知段共用
             _tickTimer += dt;
-            if (_tickTimer < 0.1f) return;
+            if (_tickTimer < 0.1f)
+            {
+                PerfProfiler.Accum(PerfSlot.NV_NpcSight, t0); // perf: NV_NpcSight
+                return;
+            }
             float tickDt = _tickTimer;  // 保存实际累积时间
             _tickTimer = 0f;
 
@@ -348,7 +354,10 @@ namespace LivingWorldNpcs
 
             // ── 认知层：战斗模式下追踪/事件冻结（静态查询 IsPlayerSeeing 仍可用）──
             if (Settings.Instance.IsInteractionDisabled())
+            {
+                PerfProfiler.Accum(PerfSlot.NV_NpcSight, t0); // perf: NV_NpcSight
                 return;
+            }
 
             //只有被注册过的Agent，才会被Npc视野跟踪，比如玩家，或者玩家自己的随从
             if (!_firstTickDone)
@@ -397,6 +406,8 @@ namespace LivingWorldNpcs
                 if (tracked.Agent == null || !AgentControlHelper.SafeIsActive(tracked.Agent)) continue;
                 TickTrackedTarget(tracked, tickDt);  // 传入实际累积时间
             }
+
+            PerfProfiler.Accum(PerfSlot.NV_NpcSight, t0); // perf: NV_NpcSight
         }
 
         private void TickTrackedTarget(TrackedTarget tracked, float dt)

@@ -4491,5 +4491,20 @@
     <string id="LWN_save_error_debug_line" text="[SaveDebug] 结果={RESULT}
 {DETAIL}" />
     <string id="LWN_save_error_body" text="无法创建存档数据。" />
+    <string id="LWN_mcm_perf_fps" text="帧率显示" />
+    <string id="LWN_mcm_perf_fps_hint" text="开启后，左上角显示帧率辅助行（每秒帧数 / 帧时间 / 当前场景），本 mod 与大地图上均可见。" />
+    <string id="LWN_mcm_perf_details" text="模块耗时详情" />
+    <string id="LWN_mcm_perf_details_hint" text="开启后，帧率面板追加本 mod 各子系统与其他已安装 mod 的每帧方法耗时（运行时按 DLL 名自动包裹，无需对方配合）。每个模块显示：每帧毫秒、占帧时间比例、峰值耗时，按耗时降序排列。" />
+    <string id="LWN_perf_scene_mission" text="场景" />
+    <string id="LWN_perf_scene_campaign" text="大地图" />
+    <string id="LWN_perf_scene_campaign_paused" text="大地图(暂停)" />
+    <string id="LWN_perf_scene_ui_save" text="存档界面" />
+    <string id="LWN_perf_scene_ui_loading" text="加载界面" />
+    <string id="LWN_perf_scene_ui" text="界面" />
+    <string id="LWN_perf_section_mod" text="--- 本 mod 模块 ---" />
+    <string id="LWN_perf_section_wrap" text="--- 其他 DLL ---" />
+    <string id="LWN_perf_modshare" text="本 mod {MOD}ms/帧（占帧 {PCT}%）" />
+    <string id="LWN_perf_detail_prefix" text="[细] " />
+    <string id="LWN_perf_unattributed" text="引擎/未归因" />
 </strings>
 </base>

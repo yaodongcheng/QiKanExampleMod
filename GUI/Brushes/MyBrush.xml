@@ -1,5 +1,29 @@
 <Brushes>
 
+	<!-- 性能诊断面板行文本：Default 白底，Warn(黄)/Bad(红)/Good(青绿)/Dim(灰) 仅覆盖 FontColor；
+	     多行拼 \n，FPS 行按档位包 <span style="Bad">（StealBar.RuleText 同机制）。 -->
+	<Brush Name="LWN_Perf_Text"
+	       Font="FiraSansExtraCondensed-Regular"
+	       TextHorizontalAlignment="Left">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#FFFFFFFF"
+                   TextOutlineAmount="0.3"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="1"
+                   TextShadowAngle="60"
+                   FontSize="14" />
+            <Style Name="Warn"  FontColor="#E8C55AFF" />
+            <Style Name="Bad"   FontColor="#E06055FF" />
+            <Style Name="Good"  FontColor="#55CC55FF" />
+            <Style Name="Dim"   FontColor="#BBBBBBFF" />
+        </Styles>
+    </Brush>
+
 	<!-- 偷窃条规则行①富文本：Default 灰白基底；Perfect/Normal/Fail 仅覆盖 FontColor（其余属性回落 Default）。
 	     行内变色用法：文本里写 <span style="Perfect">…</span><span style="Normal">…</span><span style="Fail">…</span>，
 	     RichTextWidget 按 span 的 style 名解析到本笔刷的命名 Style（GetStyleOrDefault）。 -->
