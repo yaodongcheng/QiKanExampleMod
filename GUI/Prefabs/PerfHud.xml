@@ -19,9 +19,12 @@
                 DoNotAcceptEvents="true" SuggestedWidth="620">
           <Children>
             <!-- 🔴 主面板内两块（FPS 行 + 表格列）必须包进垂直 ListPanel：主面板是普通 Widget，
-                 子元素全部 Layout 到同一矩形 = 重叠（实机 2026-09-03「性能分析和帧率显示重叠」） -->
+                 子元素全部 Layout 到同一矩形 = 重叠（实机 2026-09-03「性能分析和帧率显示重叠」）。
+                 🔴 方向语义（实机 2026-09-03「列表倒着」）：LWN 前缀 Id 会被 StackLayoutVerticalSwapPatch
+                 在 1.3+ 翻转（BottomToTop↔TopToBottom）——要得到「从上往下」，XML 必须写
+                 VerticalBottomToTop（swap 后=TopToBottom=正常；1.2.12 bug 版也恰好同观感）。 -->
             <ListPanel Id="LWN_PerfHud_Main" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                       StackLayout.LayoutMethod="VerticalTopToBottom"
+                       StackLayout.LayoutMethod="VerticalBottomToTop"
                        DoNotAcceptEvents="true">
               <Children>
                 <!-- ① FPS 行（全宽：FPS 变色 span + 帧时间 + 场景） -->
@@ -33,10 +36,11 @@
                                 WordWrapping="Wrap"
                                 TextHorizontalAlignment="Left"
                                 DoNotAcceptEvents="true"/>
-                <!-- ② 表格行：垂直列表（13 行固定），行模板 = 三列（名称 220 / 数值 170 / 尾列 200） -->
+                <!-- ② 表格行：垂直列表（13 行固定），行模板 = 三列（名称 220 / 数值 170 / 尾列 200）
+                     🔴 方向同上：LWN Id → swap → XML 写 VerticalBottomToTop 得「从上往下」 -->
                 <ListPanel Id="LWN_PerfHud_Rows" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                            DataSource="{Rows}"
-                           StackLayout.LayoutMethod="VerticalTopToBottom"
+                           StackLayout.LayoutMethod="VerticalBottomToTop"
                            MarginLeft="8" MarginRight="8" MarginTop="2" MarginBottom="6"
                            DoNotAcceptEvents="true">
                   <ItemTemplate>
