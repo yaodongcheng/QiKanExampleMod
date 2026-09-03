@@ -936,8 +936,8 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>全部已加载 Mod 的 SubModule 实例列表（性能诊断 B 层包裹用）。
-        /// 🔴 版本分歧 API：1.2.12 = Module.GetInstance().SubModules（1.2.12:Mission.cs:3485 引擎用法）；
-        ///    1.3.15+ = Module.CurrentModule.CollectSubModules()（1.3.15:Mission.cs:3759 引擎用法）。
+        /// 🔴 版本分歧 API：1.2.12 = Module.CurrentModule.SubModules（⚠ GetInstance() 是 internal，
+        ///    mod 程序集不可调 → 只能用公共属性 CurrentModule）；1.3.15+ = Module.CurrentModule.CollectSubModules()。
         /// CurrentModule 可能为 null（加载早期）→ 返回空列表。</summary>
         public static IEnumerable<MBSubModuleBase> CollectSubModules()
         {
@@ -945,7 +945,8 @@ namespace LivingWorldNpcs
             var list = TaleWorlds.MountAndBlade.Module.CurrentModule?.CollectSubModules();
             return list ?? (IEnumerable<MBSubModuleBase>)new MBSubModuleBase[0];
 #else
-            return TaleWorlds.MountAndBlade.Module.GetInstance().SubModules;
+            var module = TaleWorlds.MountAndBlade.Module.CurrentModule;
+            return module == null ? (IEnumerable<MBSubModuleBase>)new MBSubModuleBase[0] : (IEnumerable<MBSubModuleBase>)module.SubModules;
 #endif
         }
     }

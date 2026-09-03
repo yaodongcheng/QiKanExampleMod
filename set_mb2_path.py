@@ -24,7 +24,7 @@ import sys
 # 填 "1.5.1" / "1.4.8" / "1.3.15" / "1.2.12"：无参数运行（VSCode 点运行）时切换到该版本
 # 留空 ""：无参数运行 = 只查询当前值，不切换
 # 命令行带参数（python set_mb2_path.py 1.4.8）优先于本变量
-DEFAULT_VERSION = "1.4.8"
+DEFAULT_VERSION = "1.2.12"
 
 # 版本 -> 游戏根目录（不带尾斜杠；新增客户端位置时改这里）
 # 🔴 主目录（SteamLibrary） = latest（当前 v1.5.1）；历史版本客户端在 MB2_Version 备份目录

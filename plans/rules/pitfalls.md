@@ -917,3 +917,59 @@ AgentBrain.Tick (2108 if != null 检查通过)
 - ② **动作侧自终结**（AtomicAction.cs 残血认输分支）：OnTick 内同步投递**会终结自己**的事件后，`_isFinished = true; return;`——重入路径 OnEnd 恰好一次（ClearAllActions 代调），非重入路径由 Tick 标准清理（IsFinished → OnEnd → 置 null）也是恰好一次，两种时序对上都成立。
 - ③ **排查口诀**：Tick 内 NRE 且目标字段是「执行字段」→ 搜该字段唯一写入点 → 找出同步重入路径 → OnTick 里搜 `SendEventToAgent`/`StartConversation` 等同步调用。
 - 2026-09-02 全量扫描结论：AtomicAction.cs 所有 OnTick 中**唯一**的同步自投递就是残血认输一处（276 行在 UI 回调不插帧；AlertForceConversationAction 的 StartConversation 在 OnStart，2108 检查在后无影响；SpeechChannel 只入队 + async 润色不同步）。写新动作时按「OnTick 内发事件 = 发完自终结」自检。
+
+---
+
+## `Campaign.Current` 先置后初始化：getter 无空守卫 → 加载窗口期 NRE（正确修法 = 零异常就绪检测）
+
+**症状**（实机 2026-09-03，1.2.12 开新战役）
+- `System.NullReferenceException`，`Source=TaleWorlds.CampaignSystem`，栈顶 = `Campaign.get_CampaignEntityComponents()`——**栈顶是 getter = Current 非 null**（若 Current 为 null，异常标在调用点行、不进 getter 帧），是 getter 内部字段为 null。
+- 触发点：mod 在 `Campaign.Current != null` 时立即访问 `Campaign.Current.CampaignEntityComponents`。
+- 隐藏危害①：安装逻辑「先标记完成再 try」→ 失败一次后**整局不再重试** → 那层性能包裹（campaign 行为 `OnTick`）永远没装上——比弹窗更隐蔽：功能静默缺失，无人知道。
+- 隐藏危害②：改成 `catch (NRE) + 下帧重试` 后游戏不崩，但**被 catch 的预期异常在每帧热路径上反复抛，VS「抛出时中断」按次弹窗刷屏**——看起来"还是有问题"。
+
+**根因**（1.2.12 ~ 1.5.1 四版本反编译确认，同形态）
+
+```csharp
+// Campaign.cs（全版本如此）
+public MBReadOnlyList<CampaignEntityComponent> CampaignEntityComponents
+    => _campaignEntitySystem.Components;   // 无空守卫，null 直接炸
+
+// 时序窗口（1.2.12 实锤）：
+SetLoadingParameters → Current = this（Current 先置 ✔，此时 _campaignEntitySystem 还是 null）
+  → …加载过程（多帧）…
+OnNewGameCreatedInternal / OnLoad → _campaignEntitySystem = new EntitySystem<>()（后初始化）
+```
+
+- 引擎自己从不调这个 getter → 无守卫没人踩；mod 拿 `Campaign.Current != null` 当就绪信号 → 撞上窗口。
+- getter 是唯一公开访问口，`?.` 救不了（NRE 发生在 getter 内部）。
+
+**规避**（已修复 `Diagnostics/PerfWrapper.cs`）
+
+- 此类「Current 先置、内部字段后初始化」的引擎属性：**就绪检测必须是零异常方式**——反射读引擎初始化所依赖的私有字段，就绪前根本不碰 getter；字段名验证过 1.2.12~1.5.1 同为 `_campaignEntitySystem`：
+
+```csharp
+private static readonly FieldInfo _campaignEntitySystemField =
+    typeof(Campaign).GetField("_campaignEntitySystem", BindingFlags.Instance | BindingFlags.NonPublic);
+
+private static bool CampaignEntitySystemReady()
+{
+    Campaign campaign = Campaign.Current;
+    if (campaign == null) return false;
+    if (_campaignEntitySystemField == null) return true; // 未来版本字段改名：放行，外层 catch 兜底
+    return _campaignEntitySystemField.GetValue(campaign) != null;
+}
+
+// Tick：
+if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
+{
+    _campaignDone = true;
+    try { InstallCampaignTargets(); }
+    catch (Exception ex) { DebugLogger.Log($"[PerfWrap] campaign install failed: {ex.Message}"); }
+}
+// 未就绪 → 下帧重试（无异常可抛，VS 不再弹窗）；就绪后一次性安装
+```
+
+- 落地：`Diagnostics/PerfWrapper.cs` Tick + `CampaignEntitySystemReady()`。
+- 排查口诀：**「`Campaign.Current != null` 检查过了还 NRE」= 引擎对象先置后初始化**——去反编译 getter 看它访问的字段在哪条初始化路径上，再用「反射读该字段」做零异常就绪门。
+- 同类先例：`Team.Invalid` 单例（non-null 但内部 `_mission` 为 null，见本文顶部条目）——**「非 null ≠ 就绪」是引擎对象常态**。

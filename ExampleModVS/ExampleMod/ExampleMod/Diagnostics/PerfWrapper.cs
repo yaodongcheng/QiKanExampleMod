@@ -25,7 +25,7 @@ namespace LivingWorldNpcs
     ///
     /// 包裹目标三类（幂等，HashSet&lt;MethodInfo&gt; 去重——Harmony 对同方法重复 Patch 会重复执行）：
     ///   a) Mission：MissionBehaviors → OnMissionTick / OnPreDisplayMissionTick（Mission.Current 变化时补装）；
-    ///   b) 进程级 once：Module.GetInstance().SubModules → 各 mod override 的 OnApplicationTick
+    ///   b) 进程级 once：Module.CurrentModule.SubModules（走 V.CollectSubModules()，GetInstance 为 internal 不可调）→ 各 mod override 的 OnApplicationTick
     ///      （跳过 DeclaringType==MBSubModuleBase 的空基方法，避免把全体未改写 submodule 噪声包进来）；
     ///   c) Campaign 兜底：Campaign.Current.CampaignEntityComponents → OnTick(float,float)（覆盖量低）。
     /// 排除 LivingWorldNpcs 自身程序集（与 A 层插桩双计）。
@@ -85,9 +85,17 @@ namespace LivingWorldNpcs
 
             if (!_campaignDone && Campaign.Current != null)
             {
-                _campaignDone = true;
-                try { InstallCampaignTargets(); }
-                catch (Exception ex) { DebugLogger.Log($"[PerfWrap] campaign install failed: {ex.Message}"); }
+                // 🔴 就绪检查 = 反射读 _campaignEntitySystem，≠ null 才碰 getter：
+                //    CampaignEntityComponents getter 无空守卫（=> _campaignEntitySystem.Components），
+                //    加载窗口期直接调必抛 NRE——catch 了 vs 不 catch，VS「抛出时中断」照样每帧弹一次。
+                //    （2026-09-03 实机：catch+重试写法仍被 NRE 弹窗刷屏）
+                if (CampaignEntitySystemReady())
+                {
+                    _campaignDone = true;
+                    try { InstallCampaignTargets(); }
+                    catch (Exception ex) { DebugLogger.Log($"[PerfWrap] campaign install failed: {ex.Message}"); }
+                }
+                // else：实体系统尚未初始化（新战役/读档加载窗口期）→ 下一帧重试
             }
 
             // Mission 补装：**只在 Mission.Current 引用变化时扫**（🔴 2026-09-03 实机教训：
@@ -115,6 +123,21 @@ namespace LivingWorldNpcs
                 if (m.DeclaringType == typeof(MBSubModuleBase)) continue; // 空基方法：全体不 Rewrite 的噪声
                 TryPatch(m);
             }
+        }
+
+        /// <summary>Campaign.EntitySystem 就绪检查——引擎私有字段 _campaignEntitySystem（1.2.12~1.5.1 同名实锤）。
+        /// getter 无空守卫（=> _campaignEntitySystem.Components），加载窗口期（Current 已置、字段未初始化）
+        /// 直接调 CampaignEntityComponents 必抛 NRE；反射读字段 = 零异常的就绪检测。</summary>
+        private static readonly FieldInfo _campaignEntitySystemField =
+            typeof(Campaign).GetField("_campaignEntitySystem",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private static bool CampaignEntitySystemReady()
+        {
+            Campaign campaign = Campaign.Current;
+            if (campaign == null) return false;
+            if (_campaignEntitySystemField == null) return true; // 未来版本字段改名：放行，外层 catch 兜底
+            return _campaignEntitySystemField.GetValue(campaign) != null;
         }
 
         private static void InstallCampaignTargets()
