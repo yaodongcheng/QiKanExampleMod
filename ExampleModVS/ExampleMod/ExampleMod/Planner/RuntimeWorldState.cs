@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Newtonsoft.Json.Linq;
@@ -46,48 +47,81 @@ namespace LivingWorldNpcs
         private readonly HashSet<string> _wasEver = new HashSet<string>(StringComparer.Ordinal);
         private float _dt = 0.02f;
 
-        /// <summary>每 tick 刷新（PlanExecutor 调用；100ms 节流由执行器保证）。</summary>
+        /// <summary>世界时钟推进（PlanExecutor 节流段调用）：更新 sustained 积分步长。
+        /// 🔴 2026-09-03（性能优化 P2）：快照重建拆出（RebuildSnapshot）且完全懒化——快照是
+        /// 按名兜底索引（#N 计划期定死 + 物件/区域创建时注册），正常执行期零重扫；
+        /// 仅兜底解析 miss 时懒重建（TryRefreshSnapshotForMiss，0.25s 冷却）。
+        /// sustained 积分步长按段设置（轻活 0.1s 档 / 重活 0.25s 档）。</summary>
         public void Tick(float dt)
         {
             _dt = dt;
-            Snapshot = SceneSnapshot.Build(Mission.Current);
         }
+
+        /// <summary>重建场景快照（懒重建：兜底解析 miss 时触发；大头 = SceneSnapshot.Build）。
+        /// 降频依据（性能优化 P2）：快照只服务兜底解析（角色/物件未注册时按名字找，§5.0）——
+        /// 动态 query 求值一次即注册进 RoleAgents/NamedPositions 字典，已解析产物不依赖快照。</summary>
+        public void RebuildSnapshot()
+        {
+            long t0 = PerfProfiler.Now();
+            Snapshot = SceneSnapshot.Build(Mission.Current);
+            PerfProfiler.Accum(PerfSlot.PlanInner_World, t0);
+        }
+
+        /// <summary>懒重建（解析 miss 时按需刷新一次快照）。冷却 0.25s（墙钟）防 miss 风暴——
+        /// 场景里不存在该引用名（LLM 写错）时逐个解析点连续 miss，不能每秒重建 10 次。
+        /// 冷却期内的 miss 直接诚实失败（与原「本轮失败」语义一致）。</summary>
+        private bool TryRefreshSnapshotForMiss()
+        {
+            long now = PerfProfiler.Now();
+            if (now - _lastLazyRebuildTicks < Stopwatch.Frequency / 4) return false;
+            _lastLazyRebuildTicks = now;
+            RebuildSnapshot();
+            return true;
+        }
+        private long _lastLazyRebuildTicks;
 
         // ═══════════════════════════════════════════════════════════
         // 条件求值（§5.2）
         // ═══════════════════════════════════════════════════════════
 
         /// <summary>求值条件。actorContext = 当前步骤的执行 actor（self 解析目标）；goal/contingency 用 OwnerAgent。
-        /// 条件树来自 JSON（无环），可安全递归——and/or 嵌套正常求值。</summary>
+        /// 条件树来自 JSON（无环），可安全递归——and/or 嵌套正常求值。
+        /// 🔴 P3（2026-09-03 性能优化）：无 sustained/was 的条件不构建状态键——原实现无条件
+        /// StringBuilder 拼键（求值点每 0.1s 数十次字符串分配 → GC 停顿本身贡献执行期抖动）。
+        /// 键只服务 sustained/was 两个状态字典，两者都不用 = 真不用；and/or 嵌套的子条件同样受益。</summary>
         public bool Evaluate(Condition c, Agent actorContext)
         {
             if (c == null) return true;
             bool opRaw = EvaluateRaw(c, actorContext);   // 含 op 的当前值
-            string key = ConditionKey(c);
 
-            // sustained：连续成立 N 秒（防抖确认）
-            if (c.SustainedS > 0f)
+            if (c.SustainedS > 0f || c.Was)
             {
-                if (opRaw)
-                {
-                    _sustained.TryGetValue(key, out float t);
-                    _sustained[key] = t + _dt;
-                    opRaw = _sustained[key] >= c.SustainedS;
-                }
-                else
-                {
-                    _sustained[key] = 0f;
-                }
-            }
+                string key = ConditionKey(c);
 
-            // was：记录"基础谓词曾成立"（不含 op，§5.2 与 op 结果 AND）
-            // 例：following==false && was:true = "曾跟随、已停止"——wasEver 记的是 following==true 发生过，
-            //     与当前 following==false 取 AND → 折返瞬间才成立，计划开局（从未跟随）不误触发
-            if (c.Was)
-            {
-                bool baseRaw = EvaluateBaseRaw(c, actorContext);
-                if (baseRaw) _wasEver.Add(key);
-                opRaw = opRaw && _wasEver.Contains(key);
+                // sustained：连续成立 N 秒（防抖确认）
+                if (c.SustainedS > 0f)
+                {
+                    if (opRaw)
+                    {
+                        _sustained.TryGetValue(key, out float t);
+                        _sustained[key] = t + _dt;
+                        opRaw = _sustained[key] >= c.SustainedS;
+                    }
+                    else
+                    {
+                        _sustained[key] = 0f;
+                    }
+                }
+
+                // was：记录"基础谓词曾成立"（不含 op，§5.2 与 op 结果 AND）
+                // 例：following==false && was:true = "曾跟随、已停止"——wasEver 记的是 following==true 发生过，
+                //     与当前 following==false 取 AND → 折返瞬间才成立，计划开局（从未跟随）不误触发
+                if (c.Was)
+                {
+                    bool baseRaw = EvaluateBaseRaw(c, actorContext);
+                    if (baseRaw) _wasEver.Add(key);
+                    opRaw = opRaw && _wasEver.Contains(key);
+                }
             }
 
             return opRaw;
@@ -421,6 +455,20 @@ namespace LivingWorldNpcs
             if (RoleAgents.TryGetValue(refName, out agent) && agent != null)
                 return true;
             // 快照兜底（角色未注册时按显示名/职业找）
+            if (TryResolveSnapshotAgent(refName, out agent))
+                return true;
+            // 🔴 懒重建（2026-09-03 用户裁定）：miss → 按需刷新快照 → 重试一次（0.25s 冷却防
+            // miss 风暴——场景里不存在该引用名时连续 miss，不能每秒重建 10 次）。执行期零周期
+            // 重扫：计划期已定死的引用（#N 目标/区域/物件）全在字典（RoleAgents/NamedPositions）。
+            if (TryRefreshSnapshotForMiss() && TryResolveSnapshotAgent(refName, out agent))
+                return true;
+            return false;
+        }
+
+        /// <summary>按名快照兜底（显示名/StringId/职业关键词，SceneSnapshot.FindAgent 五层匹配）。</summary>
+        private bool TryResolveSnapshotAgent(string refName, out Agent agent)
+        {
+            agent = null;
             if (Snapshot != null)
             {
                 var info = Snapshot.FindAgent(refName);
@@ -447,6 +495,30 @@ namespace LivingWorldNpcs
             }
             if (NamedPositions.TryGetValue(refName, out pos))
                 return true;
+            // 快照兜底（物件/zone 按名找）→ miss 懒重建重试一次
+            if (TryResolveSnapshotPosition(refName, out pos))
+                return true;
+            if (TryRefreshSnapshotForMiss() && TryResolveSnapshotPosition(refName, out pos))
+                return true;
+            // query 动态求值（求值一次注册具名；其内部 zone/point 分支吃的快照已被上方懒重建刷新过）
+            if (refName.StartsWith("nearest_enemy(") || refName.StartsWith("all_in(")
+                || refName.StartsWith("hidden_spot(") || refName.StartsWith("lure_spot(")
+                || refName.StartsWith("stand_spot(") || refName.StartsWith("zone(")
+                || refName.StartsWith("point("))
+            {
+                if (ResolveQuery(refName, actorContext, out pos))
+                {
+                    NamedPositions[refName] = pos;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>快照兜底：物件名 → 坐标（命中即注册 NamedObjects/NamedPositions）+ zone 名 → 坐标/半径。</summary>
+        private bool TryResolveSnapshotPosition(string refName, out Vec3 pos)
+        {
+            pos = Vec3.Zero;
             if (Snapshot != null)
             {
                 var obj = Snapshot.FindObject(refName);
@@ -466,18 +538,6 @@ namespace LivingWorldNpcs
                     return true;
                 }
             }
-            // query 动态求值（求值一次注册具名）
-            if (refName.StartsWith("nearest_enemy(") || refName.StartsWith("all_in(")
-                || refName.StartsWith("hidden_spot(") || refName.StartsWith("lure_spot(")
-                || refName.StartsWith("stand_spot(") || refName.StartsWith("zone(")
-                || refName.StartsWith("point("))
-            {
-                if (ResolveQuery(refName, actorContext, out pos))
-                {
-                    NamedPositions[refName] = pos;
-                    return true;
-                }
-            }
             return false;
         }
 
@@ -489,6 +549,19 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(refName)) return false;
             if (NamedZoneRadii.TryGetValue(refName, out radius) && NamedPositions.TryGetValue(refName, out pos))
                 return true;
+            // 快照兜底（zone/物件按名找）→ miss 懒重建重试一次
+            if (TryResolveSnapshotZone(refName, out pos, out radius))
+                return true;
+            if (TryRefreshSnapshotForMiss() && TryResolveSnapshotZone(refName, out pos, out radius))
+                return true;
+            return false;
+        }
+
+        /// <summary>快照兜底：zone 名（SceneSnapshot.FindZone）→ 位置/半径；回落物件名匹配（gate/village 等按物件定位）。</summary>
+        private bool TryResolveSnapshotZone(string refName, out Vec3 pos, out float radius)
+        {
+            pos = Vec3.Zero;
+            radius = 5f;
             if (Snapshot != null)
             {
                 var zone = Snapshot.FindZone(refName);
@@ -500,7 +573,6 @@ namespace LivingWorldNpcs
                     NamedZoneRadii[refName] = radius;
                     return true;
                 }
-                // 回落：物件名匹配（如 gate 门、village 无则诚实失败）
                 var obj = Snapshot.FindObject(refName);
                 if (obj != null)
                 {

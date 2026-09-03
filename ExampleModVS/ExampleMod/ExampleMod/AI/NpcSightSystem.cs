@@ -313,6 +313,25 @@ namespace LivingWorldNpcs
             return !IsOccludedFromPlayerView(agent, ms);
         }
 
+        /// <summary>玩家视野判定（已投影重载，2026-09-03 性能优化）：pixelX/Y/screenWidth/screenHeight 为
+        /// 调用方已算好的屏幕像素坐标（AgentHudMissionView 每帧每人必算一次投影——原 IsPlayerSeeing
+        /// 内部 IsProjectedOnScreen 再投一次是纯重复；本重载跳过投影，只做 FOV 数学 + 遮挡缓存查。
+        /// 遮挡射线仍走既有缓存（0.1s 闸门 + 1s 兜底），非每帧射线。</summary>
+        public static bool IsPlayerSeeingProjected(Agent agent,
+            float pixelX, float pixelY, float screenWidth, float screenHeight)
+        {
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return false;
+            MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
+            if (ms == null) return false;
+
+            // 投影判定（同 IsProjectedOnScreen 的 padding 语义，跳过 WorldPointToScreenPoint）
+            const float padding = 100f;
+            if (pixelX < -padding || pixelX > screenWidth + padding ||
+                pixelY < -padding || pixelY > screenHeight + padding) return false;
+
+            return !IsOccludedFromPlayerView(agent, ms);
+        }
+
         /// <summary>agent 头顶是否投影在玩家屏幕内（含 100px padding）。查询路径和 tick 驱逐判断共用。</summary>
         private static bool IsProjectedOnScreen(Agent agent, MissionScreen ms)
         {

@@ -48,6 +48,16 @@ namespace LivingWorldNpcs
         ImMgr_EventBroadcaster,    // ImEventBroadcaster.Tick
         ImMgr_AutonomyProposal,    // AutonomyProposal.Tick
         ImMgr_DelayedMsgs,         // 延迟投递队列消费
+
+        // ── 明细槽：PlanExecutor 执行期分账（2026-09-03 P1 插桩；只进 TOP 不进 modShare——
+        //    嵌套于根槽 AIC_PlanExecutor 中，防双计。用途：perf_status 分账执行期热段，
+        //    区分「快照重建大头」vs「contingency 目击判定大头」）──
+        PlanInner_World = 200,     // RuntimeWorldState.RebuildSnapshot（🔴 2026-09-03 懒化后 = 兜底
+                                   // 解析 miss 时才重建；正常执行期该槽应为 0——计的是懒重建成本）
+        PlanInner_Guard,           // TickGuardrails
+        PlanInner_Contingency,     // TickContingencies（Evaluate 求值：seeing(any) 目击判定等）
+        PlanInner_Trigger,         // TickTriggers
+        PlanInner_Cursor,          // TickCursor（when 门控 Evaluate + 子动作轮询）
     }
 
     /// <summary>
@@ -65,7 +75,7 @@ namespace LivingWorldNpcs
         public const int RootSlotCount = (int)PerfSlot.UI_MissionUIFrame + 1;
 
         /// <summary>枚举总槽数（含明细槽）。</summary>
-        public const int TotalSlotCount = (int)PerfSlot.ImMgr_DelayedMsgs + 1;
+        public const int TotalSlotCount = (int)PerfSlot.PlanInner_Cursor + 1;
 
         /// <summary>与 PerfSlot 对齐的显示名。</summary>
         public static readonly string[] SlotNames = new string[TotalSlotCount];
