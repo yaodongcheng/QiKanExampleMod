@@ -567,6 +567,9 @@ namespace LivingWorldNpcs
             // 统一走 NpcSightSystem 的视线检测（FOV+RayCast），只额外过滤 victim
             List<Agent> witnesses = NpcSightSystem.GetObserversOf(thief, maxDistance, fovDegrees);
             witnesses.RemoveAll(a => a == victim);
+            // 🔴 2026-09-03（用户裁定「晕倒了凭什么目击」）：击晕者无感知，不算「会告发的目击者」——
+            // 否则晕倒者躺在犯罪现场会让偷窃「等没人看见」恒不成立（被自己打晕的受害人视为在场目击）。
+            witnesses.RemoveAll(a => AgentBrain.IsKnockedOut(a));
             // 🔴 2026-08-19（用户裁定：「会告发的目击者」语义——EvalSeeing 注释写了「清醒+非队友」
             // 但从未实现）：排除玩家与队伍成员。玩家在旁注视（IsPlayerSeeing 屏幕投影恒 true）会让
             // 偷窃目击检查恒命中、「等没人看见」永不成立（实机 40s 干等硬原因）；队友旁观同理不算目击。

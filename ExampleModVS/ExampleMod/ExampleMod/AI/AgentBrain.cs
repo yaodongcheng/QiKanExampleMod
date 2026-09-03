@@ -124,6 +124,11 @@ namespace LivingWorldNpcs
         /// <summary>认知更新计时器（累积 dt），达到 _alertCognitionInterval 时触发一次 UpdateAlertCognition 然后归零。</summary>
         private float _alertCognitionTimer;
 
+        /// <summary>脑 tick 节流累计（距离分档降频用，2026-09-03 用户裁定：20m 内每帧 / 20-100m 每 0.1s /
+        /// 100m+ 每 0.25s）。由 AgentAIController.OnMissionTick 驱动（累积帧 dt，到档才 Tick，dt = 窗口真实经过时间）。
+        /// ReceiveEvent 同步直发不经 Tick，不受降频影响。</summary>
+        internal float TickAccum;
+
         // ── 全局质问锁（同一时间只有一个 NPC 能质问玩家）──
         /// <summary>当前正在质问玩家的 Brain。null 表示无人质问中。</summary>
         internal static AgentBrain ConfrontingBrain;
@@ -2046,6 +2051,15 @@ namespace LivingWorldNpcs
         }
         public void Tick(float dt)
         {
+            // 🔴 距离分档降频（2026-09-03 用户裁定：20m 内每帧 / 20-100m 每 0.1s / 100m+ 每 0.25s；
+            // ReceiveEvent 同步直发不经本方法，事件响应零延迟）。拦截写在本方法内——
+            // 分档判定全用本脑字段（IsInCombat/IsStunned/CurrentIntent 直读，无需经
+            // GetBrainForAgent 反查）；未到档直接 return（controller 层已先判活才调 Tick，
+            // 顶部判活守卫此处一并跳过——到档才重查）。到档时 dt 语义 = 窗口真实经过时间
+            // （动作计时正确快进，不饿死，同 PlanExecutor tickDt 纪律）。
+            if (!EnterTickWindow(dt, out float tickDt))
+                return;
+
             // 🔴 2026-08-26 击杀崩溃修复（纵深防御，玩家反馈 10:47:45）：
             // Agent.IsActive() 是 unsafe 解引用 _statePointer（native 指针），销毁后调用 = AccessViolation
             // （致命、抓不住）。统一走 AgentControlHelper.SafeIsActive 托管判活（agent.Mission 托管字段先判死，
@@ -2057,7 +2071,7 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // 战斗模式下 AgentBrain 不运行——原生 AI 接管所有战斗行为
+            // 战斗场景下 AgentBrain 不运行——原生 AI 接管所有战斗行为
             // （事件处理/行为队列/警戒认知/默认行为恢复 均无意义）
             if (Settings.Instance.IsInteractionDisabled())
                 return;
@@ -2107,7 +2121,7 @@ namespace LivingWorldNpcs
             // 执行当前动作
             if (_currentAction != null)
             {
-                _currentAction.OnTick(Owner, dt);
+                _currentAction.OnTick(Owner, tickDt);
 
                 // 🔴 2026-09-02 修复 2112 行 NRE（用户实机崩溃，现场=乞丐残血认输）：
                 // OnTick 内部可同步事件重入把本字段清空——FightEnemyAction 残血 → SendEventToAgent("event_npc_surrender")
@@ -2130,12 +2144,50 @@ namespace LivingWorldNpcs
             }
 
             // 警戒值更新
-            _alertCognitionTimer += dt;
+            _alertCognitionTimer += tickDt;
             if (_alertCognitionTimer >= _alertCognitionInterval)
             {
                 UpdateAlertCognition(_alertCognitionTimer);  // 传入累积 dt，不是原始帧 dt
                 _alertCognitionTimer = 0f;
             }
+        }
+
+        /// <summary>距离分档判定（2026-09-03 用户裁定）：<20m 每帧（interval=0）/
+        /// 20-100m 每 0.1s / 100m+ 每 0.25s。未到档返回 false（不执行本帧逻辑）；
+        /// 到档时 tickDt = 窗口真实经过时间。「必须每帧」安全豁免（本脑字段直读）：
+        /// ① 战斗中——城镇小冲突即时反应（战斗模式 IsInteractionDisabled 时 Tick 自身 return，不受影响）；
+        /// ② 计划执行中——计划步进敏感（D2 空窗守卫同款哨兵 = ExecutingCommand 意图）。
+        /// 击晕不豁免（2026-09-03 用户审核）：苏醒是外部 KnockoutFlow.StandUp 事件驱动（不经 Tick 计时，
+        /// ReceiveEvent 同步直发不受降频影响）；击晕 StayAction 的 OnTick 只有原地重置（自带 0.2s 节流），
+        /// 0.25s 档粒度无感。</summary>
+        private bool EnterTickWindow(float dt, out float tickDt)
+        {
+            tickDt = dt;
+            float interval = GetTickInterval();
+            if (interval <= 0f)
+            {
+                TickAccum = 0f;
+                return true;
+            }
+            TickAccum += dt;
+            if (TickAccum < interval) return false;
+            tickDt = TickAccum;
+            TickAccum = 0f;
+            return true;
+        }
+
+        private float GetTickInterval()
+        {
+            var main = Agent.Main;
+            if (main == null || !AgentControlHelper.SafeIsActive(main)
+                || !AgentControlHelper.SafeIsActive(Owner))
+                return 0f;
+            // 安全豁免（每帧）
+            if (IsInCombat) return 0f;
+            if (_currentIntent?.Type == NpcIntentType.ExecutingCommand) return 0f;
+            // 距离分档
+            float dist = Owner.Position.Distance(main.Position);
+            return dist <= 20f ? 0f : (dist <= 100f ? 0.1f : 0.25f);
         }
 
 

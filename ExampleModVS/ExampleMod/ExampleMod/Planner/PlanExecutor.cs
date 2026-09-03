@@ -93,6 +93,8 @@ namespace LivingWorldNpcs
             }
 
             if (ActiveExecutors.Count == 0) return;
+            // 🔴 必须 ToList 快照迭代：Tick 回调链路内 Finish → ActiveExecutors.Remove（1657 行），
+            // 字典遍历中修改 = InvalidOperationException（perf 面板 2026-09-03 排查后保留原样）。
             foreach (var e in ActiveExecutors.Values.ToList())
                 e.Tick(dt);
         }
@@ -146,7 +148,11 @@ namespace LivingWorldNpcs
         private readonly Dictionary<Contingency, bool> _contingencyPrev = new Dictionary<Contingency, bool>();
         private readonly HashSet<Contingency> _oneShotFired = new HashSet<Contingency>();
         private readonly Dictionary<Trigger, bool> _triggerPrev = new Dictionary<Trigger, bool>();
-        private float _tickAccum;
+        private float _tickAccum;      // 轻活节流（when 门控/子动作轮询）：0.1s 档
+        /// <summary>重活节流（快照/意外/触发/护栏）：0.25s 档。性能优化 P2（2026-09-03）：
+        /// 原 0.1s 档下重活每 0.1s 秒吃掉 ~34ms —— 降频后求值总量减半以上；
+        /// 意外检测延迟 0.25s 不可感知（触发条件本身由 LLM 写成数秒级 sustained）。</summary>
+        private float _heaviesAccum;
         private float _heartbeatAccum;
         private static float _tickAllHeartbeatAccum;
         private bool _goalMet;
@@ -228,6 +234,7 @@ namespace LivingWorldNpcs
             Instance = this;
             ActiveExecutors[agent] = this;
             _tickAccum = 0f;
+            _heaviesAccum = 0f;    // P2 重活计时器同初始化（防上一片残留窗口）
             Elapsed = 0f;
             _stepStartTime = 0f;
             CurrentSummary = Summary ?? "";
@@ -300,13 +307,15 @@ namespace LivingWorldNpcs
             if (IsFinished) return;
             Elapsed += dt;
             _tickAccum += dt;
-            if (_tickAccum < 0.1f) return;      // 100ms 节流
+            _heaviesAccum += dt;
+            if (_tickAccum < 0.1f) return;      // 100ms 节流（轻活：when 门控/子动作轮询）
             // 🔴 时间基准：节流通过后必须把"真实经过时间"（约 0.1s+）传给下游——
             // 传帧 dt（~16ms）会让子动作计时/步骤超时/sustained_s 全部 ~6 倍饿死
             // （起身 2s→12.5s、_maxTime 8s→50s、timeout 20s→125s，实机表现 = NPC 原地发呆）。
             float tickDt = _tickAccum;
             _tickAccum = 0f;
-            _world.Tick(tickDt);
+            // 注：原 _world.Tick（SceneSnapshot.Build + sustained 步长）已按 P2 分档移入下方——
+            // 重活段设 heavyDt 步长（0.25s）+ 快照独立 0.5s 档；轻活游标推进前设 tickDt 步长。
             // R7 玩家模态（偷窃条/对话/剧情演出）→ Pause；模态结束 → Resume
             bool modal = DetectPlayerModalUi();
             IsPlayerInModalUi = modal;
@@ -340,22 +349,51 @@ namespace LivingWorldNpcs
                 }
             }
             if (State != ExecutorState.Executing) return;
-            // Guardrails R2/R5/R6
-            TickGuardrails(tickDt);
+            // ── 重活段（性能优化 P2 2026-09-03：0.25s 档）──
+            // 降频依据：意外检测延迟 0.25s 不可感知（触发条件本身由 LLM 写成数秒级 sustained）；
+            // ask_player pending 冻结逻辑不受影响；force/超时等硬语义是步骤驱动（轻活 0.1s 档）不受影响。
+            if (_heaviesAccum >= 0.25f)
+            {
+                float heavyDt = _heaviesAccum;
+                _heaviesAccum = 0f;
+                // heavyDt 上限钳制：R1/R4 暂停期窗口累计含暂停时长——sustained 积分步长必须 ≪ 触发阈值
+                //（0.25s 粒度 < 5s 阈值的 1/20，plan 验证标准），否则恢复后第一步直接满触发。
+                // 0.6s 只拦「暂停恢复」一种异常：正常 60fps 下窗口 0.25~0.3s，不受钳制影响。
+                if (heavyDt > 0.6f) heavyDt = 0.6f;
+                _world.Tick(heavyDt);                          // sustained 积分步长（0.25s 档）
+                // 🔴 快照已懒化（2026-09-03 用户裁定）：零周期重扫——计划期已定死的引用全在
+                // 字典；兜底解析 miss 时 RuntimeWorldState 内部重建（PlanInner_World 插桩在
+                // RebuildSnapshot 内，懒重建发生才计——perf_status 该槽平时应为 0）。
+                // Guardrails R2/R5/R6（0.25s 档：目标敌对/死亡检测延迟 0.25s；
+                // 顶部死亡看门狗每帧拦截，死亡/离场不受降频影响）
+                long t0Guard = PerfProfiler.Now();
+                TickGuardrails(heavyDt);
+                PerfProfiler.Accum(PerfSlot.PlanInner_Guard, t0Guard);
+                if (State != ExecutorState.Executing) return;
+                // contingencies（EDGE 上升沿）
+                long t0Cont = PerfProfiler.Now();
+                TickContingencies();
+                PerfProfiler.Accum(PerfSlot.PlanInner_Contingency, t0Cont);
+                if (State != ExecutorState.Executing) return;
+                // triggers（TRIGGER 上升沿 → signal_player，计划不结束）
+                long t0Trig = PerfProfiler.Now();
+                TickTriggers();
+                PerfProfiler.Accum(PerfSlot.PlanInner_Trigger, t0Trig);
+            }
             if (State != ExecutorState.Executing) return;
-            // contingencies（EDGE 上升沿）
-            TickContingencies();
-            if (State != ExecutorState.Executing) return;
-            // triggers（TRIGGER 上升沿 → signal_player，计划不结束）
-            TickTriggers();
-            // 游标推进（actor 间并行）
+            // 游标推进（actor 间并行；when 门控 = 轻活 0.1s 档——步进敏感（ask_player/force 跳转 +
+            // 门控等待判定），sustained 用 tickDt 步长，与重活段 0.25s 步长互不干扰）
+            _world.Tick(tickDt);
             bool anyActive = false;
             foreach (var cursor in _cursors)
             {
                 if (!cursor.Done && IsAgentActive(cursor.Agent))
                 {
                     anyActive = true;
+                    // P1 明细槽：单迭代计时（提前 return 也先记账——Accum 单点语义，无配对要求）
+                    long t0Cur = PerfProfiler.Now();
                     TickCursor(cursor, tickDt);
+                    PerfProfiler.Accum(PerfSlot.PlanInner_Cursor, t0Cur);
                     if (IsFinished || State != ExecutorState.Executing) return;
                 }
             }

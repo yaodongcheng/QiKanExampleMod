@@ -328,6 +328,8 @@ namespace LivingWorldNpcs
                 if (!AgentControlHelper.SafeIsActive(owner)) continue;   // 尸体/昏迷阶段：native 仍存活，IsActive() 安全
                 try
                 {
+                    // 距离分档降频在 brain.Tick 内部（2026-09-03 用户裁定）：20m 内每帧 /
+                    // 20-100m 每 0.1s / 100m+ 每 0.25s（判定用本脑字段直读，此处只管驱动）
                     brain.Tick(dt);
                 }
                 catch (Exception ex)
@@ -366,8 +368,7 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-12：玩家武器切换事件源（lazy 挂载：Agent.Main 就绪后一次性挂 OnMainAgentWieldedItemChange——
         // 引擎只在主玩家武器切换时触发，无每帧轮询；状态供 AgentBrain 感知 + FightEnemyAction 停战检测读取）
         private void EnsurePlayerWeaponHook()
-        {
-            if (_weaponEventHooked) return;
+        {            if (_weaponEventHooked) return;
             var main = Agent.Main;
             if (main == null) return;
             main.OnMainAgentWieldedItemChange += OnPlayerWeaponChanged;
@@ -783,6 +784,14 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>广播核心实现（isCrime 透传到 WitnessCrime 舞台分配的两个 AIEvent 构造）。</summary>
+        /// <summary>击晕者豁免白名单（广播链）：晕倒者仍能收到的事件类型 = 可唤醒/救援类语义。
+        /// 2026-09-03 用户裁定「暂时排除击晕者，但保留白名单」——当前为空（尚无治疗/救援事件），
+        /// 未来内容接入（治疗/搀扶/唤醒等）在此登记事件字符串即恢复投递给晕倒者。</summary>
+        private static readonly HashSet<string> _knockoutWakeEvents = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // "treatment",  // 预留：治疗/救援事件（内容接入时启用）
+        };
+
         private void BroadcastEventInRangeCore(Vec3 center, float radius, string eventType, HashSet<Agent> exclude, bool requireSight, bool isCrime, params object[] args)
         {
             // 战斗模式下不发送 LLM 事件——原生 AI 接管所有战斗行为
@@ -808,6 +817,14 @@ namespace LivingWorldNpcs
                     continue;
                 }
                 if (exclude != null && exclude.Contains(brain.Owner)) continue;
+
+                // 🔴 击晕者不参与目击/围观（2026-09-03 用户裁定「晕倒了凭什么目击」）：晕倒者无感知，
+                // 不该被算 witness；同时防连锁——围观事件 ReceiveEvent 分支 ClearAllActions 会
+                // 清掉击晕 StayAction（"永久静止"占位）→ 躺尸起立围观。
+                // 白名单（_knockoutWakeEvents）例外 = 可唤醒/救援类事件（治疗等未来接入点），照常投递；
+                // 定向链（SendEventToAgent 单发：order_execute_plan/event_agent_damaged 等）不经本方法，不受影响。
+                if (AgentBrain.IsKnockedOut(brain.Owner) && !_knockoutWakeEvents.Contains(eventType))
+                    continue;
 
                 // 视线过滤：requireSight 时跳过看不见事件源的 NPC
                 // 🔴 2026-08-14 修复：原锚点恒为玩家（CanNpcSeePlayer）——随从执行计划犯罪时，

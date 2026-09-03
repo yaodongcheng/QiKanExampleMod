@@ -150,7 +150,10 @@ namespace LivingWorldNpcs
                 float pixelX = screenPos.x * screenWidth;
                 float pixelY = screenPos.y * screenHeight;
 
-                bool inFov = NpcSightSystem.IsPlayerSeeing(agent);
+                // 🔴 2026-09-03 性能优化：已投影重载——本循环 147-151 行已算好 pixelX/Y，
+                // 传进去跳过 IsPlayerSeeing 内部的二次屏幕投影（每帧每人省一次 WorldPointToScreenPoint）；
+                // 遮挡射线走既有缓存（0.1s 闸门 + 1s 兜底），语义不变。
+                bool inFov = NpcSightSystem.IsPlayerSeeingProjected(agent, pixelX, pixelY, screenWidth, screenHeight);
 
                 // ── 第五层：警戒值更新（FOV 豁免，距离内始终追踪） ──
                 // 🆕 从 AgentBrain 读警戒值（Phase 1 迁移：状态从 NpcSightSystem → AgentBrain）
