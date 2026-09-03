@@ -898,8 +898,12 @@ namespace LivingWorldNpcs
 
         /// <summary>层是否已 Finalize（死层权威标志）。v1.2.12 属性名 Finalized，v1.3.0+ 改名 IsFinalized
         ///（类 = ScreenLayer，两版本同名——GauntletLayer : ScreenLayer）。</summary>
+        /// <summary>层是否已 Finalize（死层）。🔴 null 层 = 视为已死（true）——调用方对 dead=true
+        /// 的处理 = 跳过一切引擎操作，语义安全（实机 2026-09-03：PerfHud 未判 null 直接调本方法 NRE，
+        /// 调用方三层判断极易漏一层，工具方法自身兜底）。</summary>
         public static bool LayerFinalized(TaleWorlds.ScreenSystem.ScreenLayer layer)
         {
+            if (layer == null) return true;
 #if MB2_GE_130
             return layer.IsFinalized;
 #else
@@ -928,6 +932,20 @@ namespace LivingWorldNpcs
             return TaleWorlds.InputSystem.Input.IsOnScreenKeyboardActive;
 #else
             return false;
+#endif
+        }
+
+        /// <summary>全部已加载 Mod 的 SubModule 实例列表（性能诊断 B 层包裹用）。
+        /// 🔴 版本分歧 API：1.2.12 = Module.GetInstance().SubModules（1.2.12:Mission.cs:3485 引擎用法）；
+        ///    1.3.15+ = Module.CurrentModule.CollectSubModules()（1.3.15:Mission.cs:3759 引擎用法）。
+        /// CurrentModule 可能为 null（加载早期）→ 返回空列表。</summary>
+        public static IEnumerable<MBSubModuleBase> CollectSubModules()
+        {
+#if MB2_GE_130
+            var list = TaleWorlds.MountAndBlade.Module.CurrentModule?.CollectSubModules();
+            return list ?? (IEnumerable<MBSubModuleBase>)new MBSubModuleBase[0];
+#else
+            return TaleWorlds.MountAndBlade.Module.GetInstance().SubModules;
 #endif
         }
     }

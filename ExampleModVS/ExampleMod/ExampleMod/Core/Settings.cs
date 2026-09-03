@@ -148,6 +148,16 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool ShowCompass { get; set; } = true;
 
+        // ── 性能诊断面板二开关（默认全关，诊断工具按需开；唯一来源 = MCM）──
+        // ShowPerfHud    = 左上角帧率行（FPS / 帧时间 / 场景）
+        // ShowPerfDetails = 追加模块耗时 TOP（本 mod 子系统 + 其他 mod DLL，合并一个开关）
+        // 🔴 插桩/卡顿捕获本身常开（~2μs/帧，不可感知；卡顿行永远带 mod 数据）——
+        //    二开关只控制「面板显示 + 是否包裹其他 mod + 卡顿行是否带 [Wrap] 段」。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowPerfHud { get; set; } = false;
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowPerfDetails { get; set; } = false;
+
         // ── 罗盘重要人物图标开关（默认开启；关闭 = 只留刻度带与方向字母，不带任务图标）──
         // 🔴 2026-08-20（用户裁定）：MCM 侧开关已移除（跟随罗盘总开关），此字段归入
         // config.json 高级配置（小白玩家不需要分开控制；想只留刻度带的改 config.json 此项）。

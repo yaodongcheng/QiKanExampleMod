@@ -290,6 +290,7 @@ namespace LivingWorldNpcs
 
         private void OnTick(float dt)
         {
+            long t0 = PerfProfiler.Now();          // perf: CP_Detention
             // 只有"待弹释放菜单"需要主动切菜单；待选择阶段的选项是挂在原版定居点菜单上的，
             // 玩家自己走到那儿就能看到，不抢菜单、不打断操作。
             if (_stage != STAGE_PENDING_RELEASE) return;
@@ -301,6 +302,7 @@ namespace LivingWorldNpcs
             _menuRetryDelay -= dt;
             if (_menuRetryDelay > 0f) return;
             ShowMenu(MENU_RELEASE);
+            PerfProfiler.Accum(PerfSlot.CP_Detention, t0); // perf: CP_Detention
         }
 
         private static bool IsCurrentMenu(string menuId)

@@ -805,12 +805,22 @@ namespace LivingWorldNpcs
         /// <summary>Mission/Campaign 双端每帧驱动（ImChatMissionView.OnMissionTick / ImChatCampaignBehavior.TickEvent 调用）。</summary>
         public static void Tick(float dt)
         {
+            long m0 = PerfProfiler.Now();          // perf: ImMgr_Reply（明细槽：只进 TOP，不进 modShare）
             ImReplyService.Tick();
+            PerfProfiler.Accum(PerfSlot.ImMgr_Reply, m0); // perf: ImMgr_Reply
+            long m1 = PerfProfiler.Now();          // perf: ImMgr_CommandFlow
             ImCommandFlow.Tick();
+            PerfProfiler.Accum(PerfSlot.ImMgr_CommandFlow, m1); // perf: ImMgr_CommandFlow
+            long m2 = PerfProfiler.Now();          // perf: ImMgr_EventBroadcaster
             ImEventBroadcaster.Tick();
+            PerfProfiler.Accum(PerfSlot.ImMgr_EventBroadcaster, m2); // perf: ImMgr_EventBroadcaster
             // 🔴 NPC 自主行动提议投递（后台生成 → 主线程投递）
+            long m3 = PerfProfiler.Now();          // perf: ImMgr_AutonomyProposal
             AutonomyProposal.Tick();
+            PerfProfiler.Accum(PerfSlot.ImMgr_AutonomyProposal, m3); // perf: ImMgr_AutonomyProposal
+            long m4 = PerfProfiler.Now();          // perf: ImMgr_DelayedMsgs
             TickDelayedMessages(dt);
+            PerfProfiler.Accum(PerfSlot.ImMgr_DelayedMsgs, m4); // perf: ImMgr_DelayedMsgs
         }
 
         // ───────────────────────── 分时投递（🔴 2026-08-15）─────────────────────────

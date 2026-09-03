@@ -95,6 +95,7 @@ namespace LivingWorldNpcs
         /// <summary>路途拦截 + 酒馆传闻 + 事件 party AI 监控：dt 累积到指定间隔执行（不再依赖游戏时间）。</summary>
         private void OnCampaignTick(float dt)
         {
+            long t0 = PerfProfiler.Now();          // perf: CP_WorldEventSim
             if (SuppressAutoGeneration) return;
             try
             {
@@ -117,6 +118,7 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[WorldEventSimulator] OnCampaignTick error: {ex.Message}");
             }
+            PerfProfiler.Accum(PerfSlot.CP_WorldEventSim, t0); // perf: CP_WorldEventSim
         }
 
         /// <summary>每 ~5 秒扫描所有活跃事件 party 的 AI 状态，仅行为/目标变化时打印日志。</summary>

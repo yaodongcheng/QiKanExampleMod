@@ -4388,5 +4388,20 @@
     <string id="LWN_distress_bribe_short" text="Your purse runs dry, and the guard stays unmoved." />
     <string id="LWN_distress_bribe_ok" text="The guard tucks the coins away and looks elsewhere. You slip free." />
     <string id="LWN_distress_bribe_fail" text="The guard pockets your money... then seizes your arm. You are still locked up." />
+    <string id="LWN_mcm_perf_fps" text="FPS Overlay" />
+    <string id="LWN_mcm_perf_fps_hint" text="When enabled, an FPS overlay (frame rate / frame time / scene) appears at the top-left corner in missions and on the campaign map." />
+    <string id="LWN_mcm_perf_details" text="Module Cost Details" />
+    <string id="LWN_mcm_perf_details_hint" text="When enabled, the overlay also lists the per-frame cost of this mod's subsystems and of other installed mods' tick methods (wrapped at runtime by DLL name). Shows ms/frame, share of frame time, and peak cost per module — sorted by cost." />
+    <string id="LWN_perf_scene_mission" text="mission" />
+    <string id="LWN_perf_scene_campaign" text="map" />
+    <string id="LWN_perf_scene_campaign_paused" text="map (paused)" />
+    <string id="LWN_perf_scene_ui_save" text="save-ui" />
+    <string id="LWN_perf_scene_ui_loading" text="loading" />
+    <string id="LWN_perf_scene_ui" text="ui" />
+    <string id="LWN_perf_section_mod" text="--- this mod ---" />
+    <string id="LWN_perf_section_wrap" text="--- other DLLs ---" />
+    <string id="LWN_perf_modshare" text="mod {MOD}ms/frame ({PCT}% of frame)" />
+    <string id="LWN_perf_detail_prefix" text="[d] " />
+    <string id="LWN_perf_unattributed" text="engine/unattributed" />
 </strings>
 </base>
