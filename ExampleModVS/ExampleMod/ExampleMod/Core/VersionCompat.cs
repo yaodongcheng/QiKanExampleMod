@@ -185,6 +185,20 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // ── Clan strength ─────────────────────────────────────────
+        // v1.2.12: clan.TotalStrength
+        // Latest:  clan.CurrentTotalStrength
+
+        public static float ClanStr(Clan clan)
+        {
+            if (clan == null) return 0f;
+#if MB2_GE_130
+            return clan.CurrentTotalStrength;
+#else
+            return clan.TotalStrength;
+#endif
+        }
+
         // ── TextObject.Empty ──────────────────────────────────────
         // v1.2.12: TextObject.Empty
         // Latest:  TextObject.GetEmpty() or TextObject.Empty (check)
