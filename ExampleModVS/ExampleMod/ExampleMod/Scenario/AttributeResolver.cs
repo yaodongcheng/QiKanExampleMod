@@ -84,7 +84,7 @@ namespace LivingWorldNpcs
                     var s1 = FindSettlement(RefOrNull(a, 0, ctx)); var s2 = FindSettlement(RefOrNull(a, 1, ctx));
                     if (s1 == null || s2 == null) return DslValue.FromBool(false);
                     // 16b T2 待核实：地图坐标直线距离 < 阈值（数据包 IsNeighborDistance，默认 40）
-                    float d = (s1.Position2D - s2.Position2D).Length;
+                    float d = (V.Pos(s1) - V.Pos(s2)).Length;
                     return DslValue.FromBool(d <= ScenarioDataPack.IsNeighborDistance);
                 }
                 case "allControlled":
@@ -218,7 +218,7 @@ namespace LivingWorldNpcs
                     case "kingdom": return clan.Kingdom != null ? DslValue.FromString(clan.Kingdom.StringId) : DslValue.Null;
                     case "leader": return clan.Leader != null ? DslValue.FromString("Hero::" + clan.Leader.StringId) : DslValue.Null;
                     case "home": return clan.HomeSettlement != null ? DslValue.FromString("Settlement::" + clan.HomeSettlement.StringId) : DslValue.Null;
-                    case "power": return DslValue.FromNumber((long)clan.TotalStrength);                       // T2 归一 v1（原始强度值；量纲 16b §4.4 待核实改造）
+                    case "power": return DslValue.FromNumber((long)V.ClanStr(clan));                          // T2 归一 v1（原始强度值；量纲 16b §4.4 待核实改造）
                     case "settlements": return DslValue.FromNumber(clan.Settlements.Count);
                     default: return AttrOrNull("Clan::" + clan.StringId, attr);
                 }

@@ -92,6 +92,8 @@ def main():
 
     # 4. Items to package
     ITEMS = ["ModuleData", "SubModule.xml", "GUI", "config.json", "bin", "Debug"]
+    # 开发素材子目录，整体排除（ModuleData/ScenarioData = 剧本源数据 pack.json + story/*.jsonc，不发布）
+    SKIP_DIR_NAMES = {"ScenarioData"}
 
     existing = [item for item in ITEMS if (MOD_ROOT / item).exists()]
     for item in ITEMS:
@@ -123,6 +125,7 @@ def main():
     BIN_SKIP_SUFFIXES = {".pdb"}
     skipped_pdb = 0
     skipped_debug = 0
+    skipped_dev_dir = 0
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for item in existing:
@@ -134,6 +137,10 @@ def main():
 
                 for file in item_path.rglob("*"):
                     if not file.is_file():
+                        continue
+                    # 排除开发素材目录（如 ModuleData/ScenarioData：剧本源数据，不随发布）
+                    if any(part in SKIP_DIR_NAMES for part in file.relative_to(MOD_ROOT).parts):
+                        skipped_dev_dir += 1
                         continue
                     # Debug folder: only keep the runtime log (whitelist)
                     if item == "Debug" and file.name not in DEBUG_WHITELIST:
@@ -160,6 +167,8 @@ def main():
         print(f"  Skipped {skipped_pdb} .pdb file(s)")
     if skipped_debug:
         print(f"  Skipped {skipped_debug} temp file(s) in Debug/")
+    if skipped_dev_dir:
+        print(f"  Skipped {skipped_dev_dir} file(s) in dev-only dir(s): {', '.join(sorted(SKIP_DIR_NAMES))}")
     print("=" * 40)
 
 
