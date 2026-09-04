@@ -973,3 +973,21 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 - 落地：`Diagnostics/PerfWrapper.cs` Tick + `CampaignEntitySystemReady()`。
 - 排查口诀：**「`Campaign.Current != null` 检查过了还 NRE」= 引擎对象先置后初始化**——去反编译 getter 看它访问的字段在哪条初始化路径上，再用「反射读该字段」做零异常就绪门。
 - 同类先例：`Team.Invalid` 单例（non-null 但内部 `_mission` 为 null，见本文顶部条目）——**「非 null ≠ 就绪」是引擎对象常态**。
+
+## Module Editor 启动 RGL 报 `Invalid submodule tag in .../SubModule.xml` → 第三方 mod 的社区扩展 tag（BUTR/BLSE）
+
+**症状**：打开 Module Editor（Ctrl+E）时弹 RGL WARNING：`Invalid submodule tag in file:///.../Modules/Bannerlord.MBOptionScreen/SubModule.xml`（名字点名哪份 XML），**点了确定还是进不去**，或编辑器卡在加载。1.5.2 与 1.2.12 Modding Kit 均复现。
+
+**机理**：编辑器的 RGL **扫描 Modules 目录下所有 SubModule.xml**（不读 Launcher 勾选态、**无视 Windows 隐藏属性**），按**引擎 SubModule schema** 校验元素。带社区扩展块**`<DependedModuleMetadatas>`**/**`<Tags>`**（BUTR/BLSE 的社区依赖元数据，`key="DumpXML"` 等）的 mod——典型 = `Bannerlord.MBOptionScreen`、`Bannerlord.UIExtenderEx`——被判定非法 tag → 编辑器拒载。
+
+**规避**（已在 1.2.12 库 + 1.5.2 主库修过，均 `.bak` 备份）：
+
+```xml
+<!-- DependedModuleMetadatas commented out (engine schema rejects); prev .bak available -->
+<!-- Tags commented out (engine schema rejects); prev .bak available -->
+```
+
+- 这两个块**引擎游戏运行不读**（仅供社区加载器/BLSE 元数据）→ 注释掉后 mod 照常玩（织丰/PCL 环境验证过）。
+- 三选一：① 正则注释这两块（`(?s)<DependedModuleMetadatas>.*?</DependedModuleMetadatas>`，`Tags` 同理）；② 把 mod 文件夹整体改名 `.off`（编辑完改回）；③ Windows 隐藏目录**无效**（编辑器按路径树扫，不按属性）。
+- 排查口诀：**「编辑器扫描 ≠ Launcher 勾选」**；报错点名哪份 xml，改哪份。
+- 相关：本坑与"编辑器只认 schema 内元素"同源于社区 mod 生命周期；Keep `SubModule.xml.bak` 备还原。
