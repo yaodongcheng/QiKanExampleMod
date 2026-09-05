@@ -142,8 +142,9 @@ def _get_corner_normal(mesh, loop_index):
             return (0.0, 0.0, 0.0)
 
 
-def _get_corner_color(mesh, color_attr, loop_index, vertex_index):
-    """返回 (r,g,b,a) float。CORNER 域用 loop_index, POINT 域用 vertex_index。"""
+def _get_corner_color(mesh, color_attr, alpha_attr, loop_index, vertex_index):
+    """返回 (r,g,b,a) float。CORNER 域用 loop_index, POINT 域用 vertex_index。
+    alpha 独立属性存在时覆盖第 4 通道(importer 的 rgb/alpha 拆分版)。"""
     if color_attr is None:
         return (1.0, 1.0, 1.0, 1.0)
     try:
@@ -151,13 +152,19 @@ def _get_corner_color(mesh, color_attr, loop_index, vertex_index):
             c = color_attr.data[loop_index].color
         else:
             c = color_attr.data[vertex_index].color
-        return (c[0], c[1], c[2], c[3])
+        a = c[3]
+        if alpha_attr is not None:
+            if alpha_attr.domain == 'CORNER':
+                a = alpha_attr.data[loop_index].value
+            else:
+                a = alpha_attr.data[vertex_index].value
+        return (c[0], c[1], c[2], a)
     except Exception:
         return (1.0, 1.0, 1.0, 1.0)
 
 
 def _get_vertex_fvf_index(trf_mesh, index, normal, color, uv, uv2):
-    """查找相同属性的已有 FVF, 没有则新建。参照截图去重逻辑(3位小数比较)。"""
+    """查找相同属性的已有 FVF, 没有则新建。参照截图去重逻辑(法线/UV/UV2 按 3 位小数比较)。"""
     for i, vertex_fvf in enumerate(trf_mesh.vertex_fvfs):
         if vertex_fvf.vertex_index != index:
             continue
@@ -170,8 +177,12 @@ def _get_vertex_fvf_index(trf_mesh, index, normal, color, uv, uv2):
             round(vertex_fvf.uv_x, 3) == round(uv[0], 3)
             and round(vertex_fvf.uv_y, 3) == round(uv[1], 3)
         )
+        is_uv2_equal = (
+            round(vertex_fvf.uv2_x, 3) == round(uv2[0], 3)
+            and round(vertex_fvf.uv2_y, 3) == round(uv2[1], 3)
+        )
         is_color_equal = vertex_fvf.vertex_color == color
-        if is_normal_equal and is_uv_equal and is_color_equal:
+        if is_normal_equal and is_uv_equal and is_uv2_equal and is_color_equal:
             return i
     fvf = TrfVertexFvf()
     fvf.vertex_index = index
@@ -214,11 +225,13 @@ def create_trf_mesh(obj):
     if me.uv_layers and len(me.uv_layers) > 1:
         uv2_layer = me.uv_layers[1]
 
-    # 顶点色
+    # 顶点色: rgb (color attribute) + alpha (普通 FLOAT 属性), 兼容旧版 'Col'
     color_attr = None
+    alpha_attr = None
     try:
         if me.color_attributes:
-            color_attr = me.color_attributes.get('Col') or me.color_attributes.active_color
+            color_attr = me.color_attributes.get('rgb') or me.color_attributes.get('Col') or me.color_attributes.active_color
+        alpha_attr = me.attributes.get('alpha') if me.attributes else None
     except Exception:
         color_attr = None
 
@@ -238,7 +251,7 @@ def create_trf_mesh(obj):
             normal = _get_corner_normal(me, li)
             uv = uv_layer.data[li].uv if uv_layer else (0.0, 0.0)
             uv2 = uv2_layer.data[li].uv if uv2_layer else (0.0, 0.0)
-            r, g, b, a = _get_corner_color(me, color_attr, li, vidx)
+            r, g, b, a = _get_corner_color(me, color_attr, alpha_attr, li, vidx)
             color_int = color_to_argb_int(r, g, b, a)
             fi = _get_vertex_fvf_index(trf_mesh, pos_idx, normal, color_int, uv, uv2)
             fvf_indices.append(fi)
