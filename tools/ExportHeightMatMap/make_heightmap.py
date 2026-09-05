@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""japanmap_hires.png -> 16bit 灰度高度图 + RGBA 材质图（战役地形管线，链路见 Knowledge/骑砍2战役地形制作管线.md）
+"""japanmap_hires.png -> 16bit 灰度高度图 + RGBA 材质图 + 分层 mask（战役地形管线，链路见 Knowledge/骑砍2战役地形制作管线.md）
 
 2026-09-04/05 分层模型版（替换旧「亮度差分吃整图」;实测校验见知识文档）:
   | 元素        | 判据（源图色域采样）                    | 高度            |
@@ -19,7 +19,7 @@
   修复=雪帽检测（最大白点簇）+ PEAKS 地标区豁免海清零（高度图、材质图两边必须同源，禁止分叉）。
 
 用法（可复现）:
-  python tools/make_heightmap.py    # 主档 4096x2560：hm_4096x2560_16bit.png + mat_4096x2560.png + 预览
+  python tools/make_heightmap.py    # 主档 4096x2560：hm_*_16bit.png + mat_*.png + mask_*_L? 分层 + 预览
   python tools/make_heightmap.py 2048 1280   # 任意档
 """
 import os
@@ -56,6 +56,10 @@ OPEN_ITERS = 2                        # 5x5 开运算×2 ≈ 结构元 9x9：线
 MASTER_W = 15840                      # 管线几何阈值的校准尺度（采样阈值基于 hires 推导）
 SIG_BASE_SRC_PX = 150.0               # 🔴 山影差分基底 σ（源图px）：150=山域级(平顺, 交付版基线)；
                                       #    60=山脊级(细节细、噪感升)。待用户 ModKit 实测选定后定稿
+HEIGHT_GAMMA = 1.4                    # 🔴 压平曲线指数（2026-09-05 用户裁定「普通地表压平、富士独大」）：
+                                      #    >1 = 普通地表压低、顶值保留：平 0.2→0.105 / 普通山 0.45→0.30 /
+                                      #    雪帽 ~0.6→0.49 / 富士 1.0→1.0（1.0 = 不压，原样输出）
+                                      #    场景 max_height=21 时：平原≈2m / 普通山≈6m / 富士≈21m（≈3.3×）
 
 
 def classify(a):
@@ -251,7 +255,7 @@ def build(out_w, out_h):
     # 🔴 最终坐标用户亲报（2026-09-05 坐标格线图）：富士 = (10500, 7000)，山顶白点格线交点。
     # 源图特征=中心白点+蓝白雪圈+绿地包围（高山雪画法）；雪帽检测此前也在 (10453,6948) 摸到此块。
     PEAKS = [
-        (10500, 7000, 320, 0.88, 0.42, 800),   # 富士山
+        (10500, 7000, 320, 1.00, 0.42, 800),   # 富士山（峰高顶格 1.00 = 全图唯一峰值，2026-09-05 用户裁定「富士独大」）
     ]
     if PEAKS:
         ys, xs = np.mgrid[0:out_h, 0:out_w]
@@ -274,6 +278,11 @@ def build(out_w, out_h):
     # 线状元素底色替换：中值滤波只在 yline 高概率处写入（路/河不抬山不刻槽）
     hmf = ndimage.median_filter(hm, size=min(31, max(15, out_w // 96)))
     hm = np.where(M['yline'] > 0.25, hmf, hm)
+
+    # ===== 3.6) 压平曲线（2026-09-05 用户裁定：普通地表压平、富士独大）=====
+    # 幂曲线：顶部(=1.0 富士)保留，中间值下压 → 平原 0.2→0.105、普通山 0.45→0.30、雪帽 0.6+ 仅微降；
+    # 雪 mask 阈值 0.42 仍达标（0.55^1.4≈0.43>0.42），材质分档不受扰动；海 0 不变。
+    hm = np.power(hm, HEIGHT_GAMMA)
 
     # ===== 4) 平滑 + 16bit + 强制海 0 =====
     # 防针尖平滑固定 σ2.0（输出格单位）；禁止随分辨率放大
@@ -327,6 +336,18 @@ def build(out_w, out_h):
     Image.fromarray(mat8, "RGBA").save(outmat)
     print(f"[out] {outmat}  R草={100 * (mat8[...,0] > 0).mean():.1f}% G林={100 * (mat8[...,1] > 0).mean():.1f}% "
           f"B沙={100 * (mat8[...,2] > 0).mean():.1f}% A雪={100 * (mat8[...,3] > 0).mean():.1f}%")
+
+    # ===== 6.5) 分层 mask（官方流程：每图层一张 8bit 灰度，Add Layer→全选→逐层导入）=====
+    # L1草 / L2林 / L3沙 / L4雪 与 RGBA 四通道同源同值（仅在引擎分层导入模式下使用，杜绝通道顺序猜谜）；
+    # L5水 = 真水（海/湖，排除雪帽/地标区；河/路暂未分离，见知识文档三·八）
+    wmask = (((M['sea'] >= 0.5) & (mat8[..., 3] < 128) & (mat8[..., 2] < 128)
+              & (peak_zone < 0.5)).astype(np.uint8) * 255)
+    for name, ch in (("L1_grass", mat8[..., 0]), ("L2_forest", mat8[..., 1]),
+                     ("L3_sand", mat8[..., 2]), ("L4_snow", mat8[..., 3]),
+                     ("L5_water", wmask)):
+        p = os.path.join(OUTD, f"mask_{ST}_{name}_{out_w}x{out_h}.png")
+        Image.fromarray(np.ascontiguousarray(ch).astype(np.uint8), "L").save(p)
+        print(f"[out] {p}  {(np.asarray(ch) > 0).mean() * 100:.1f}%")
     # 材质预览（自然调色板：草浅绿/林深绿/沙土黄/雪白/海蓝）——mat_xxx.png 是 RGBA 四通道引擎版，
     # 普通查看器会把 A=雪当 alpha 显示成半透明/黑，肉眼看这张 preview
     w = mat8.astype(np.float32) / 255.0

@@ -54,6 +54,7 @@ class TrfMesh:
         self.morph_keys = []
         self.bones = []
         self.bone_weights = []
+        self.vertex_src = []      # trf 共享顶点 -> 源 Blender 顶点索引 (morph key 导出用)
 
 
 class TrfVertex:
@@ -216,6 +217,7 @@ def create_trf_mesh(obj):
             tv = TrfVertex()
             tv.x, tv.y, tv.z = v.co.x, v.co.y, v.co.z
             trf_mesh.vertices.append(tv)
+            trf_mesh.vertex_src.append(v.index)
         vertex_to_pos.append(pos_map[key])
     trf_mesh.vertex_count = len(trf_mesh.vertices)
 
@@ -262,6 +264,39 @@ def create_trf_mesh(obj):
     trf_mesh.face_count = len(trf_mesh.faces)
     trf_mesh.vertex_fvf_count = len(trf_mesh.vertex_fvfs)
     return trf_mesh
+
+
+def export_shape_keys_as_morph(trf_mesh, obj):
+    """把 Blender shape keys 追加为 TRF morph keys (跳过 Basis)。
+
+    结构约定(未验证, 见文件头说明): 假设 morph 段与 base 同构 —— 顶点数组与
+    base 共享顶点按索引一一对应, 顶点数必须一致; FVF 数组复制 base(位置变,
+    法线/UV/色不变)。不一致的 key 跳过。"""
+    sk = obj.data.shape_keys
+    if not sk:
+        return
+    if len(trf_mesh.vertex_src) != len(trf_mesh.vertices):
+        print("morph 跳过: 共享顶点映射缺失")
+        return
+    for kb in sk.key_blocks:
+        if kb.name == 'Basis':
+            continue
+        if len(kb.data) < len(trf_mesh.vertex_src):
+            print("morph key '%s' 顶点数不足, 跳过" % kb.name)
+            continue
+        mk = TrfMorphKey()
+        mk.morph_key_time = MORPH_TIME_OVERRIDES.get(kb.name, len(trf_mesh.morph_keys) * MORPH_TIME_STEP)
+        for src in trf_mesh.vertex_src:
+            co = kb.data[src].co
+            v = TrfVertex()
+            v.x, v.y, v.z = co.x, co.y, co.z
+            mk.vertices.append(v)
+        mk.vertex_count = len(mk.vertices)
+        mk.vertex_fvfs = list(trf_mesh.vertex_fvfs)
+        mk.vertex_fvf_count = len(mk.vertex_fvfs)
+        trf_mesh.morph_keys.append(mk)
+        print("morph key '%s' time=%s v=%d" % (kb.name, mk.morph_key_time, mk.vertex_count))
+    trf_mesh.morph_key_count = len(trf_mesh.morph_keys)
 
 
 def add_morph_key_to_trf_mesh(trf_mesh, morph_name, morph_key_time, trf_mesh2):
@@ -347,6 +382,12 @@ EXPORT_MESH_NAMES = []
 # 黑名单: 这些名称的子 mesh 会被忽略(跳过)
 SKIP_MESH_NAMES = []
 
+# ===== 顶点动画 (morph key) =====
+# Blender shape keys -> TRF morph keys 的接线开关
+EXPORT_SHAPE_KEYS = True    # 是否把 shape keys 导成 morph key
+MORPH_TIME_STEP = 0.1       # 未指定时逐 key 递增的时间(骑砍引擎按 time 播放/插值)
+MORPH_TIME_OVERRIDES = {}   # {"key名": 时间} 手动指定某个 key 的时间
+
 
 def export_meshes(out_path):
     """遍历场景 mesh 并按过滤名单导出到 out_path"""
@@ -366,6 +407,8 @@ def export_meshes(out_path):
             continue
 
         trf_mesh = create_trf_mesh(obj)
+        if EXPORT_SHAPE_KEYS:
+            export_shape_keys_as_morph(trf_mesh, obj)
         print("mesh name:" + trf_mesh.mesh_name)
         print("mesh vertex count:" + str(trf_mesh.vertex_count))
         print("mesh vertex fvf count:" + str(trf_mesh.vertex_fvf_count))

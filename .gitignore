@@ -107,3 +107,6 @@ refs_koei/
 # 地形管线：素材与产物均为大文件/可重跑生成物（脚本 tools/ExportHeightMatMap/make_heightmap.py）
 tools/ExportHeightMatMap/SourceMap/
 tools/ExportHeightMatMap/Output/
+
+# 原版地形导出样本（NativeExample：原版高度图 + 8 层权重，16bit 4097x4097，实验对照数据，不入库）
+tools/ExportHeightMatMap/NativeExample/
