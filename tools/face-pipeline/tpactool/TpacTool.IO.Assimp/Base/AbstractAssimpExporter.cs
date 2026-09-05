@@ -282,13 +282,13 @@ namespace TpacTool.IO.Assimp
 					{
 						var vertIndex = data.Vertices[i].PositionIndex;
 						var bone = data.Bones[vertIndex];
-						if (bone.W0 > 0)
+						if (bone.W0 > 0 && bone.B0 < boneList.Count)
 							boneList[bone.B0].VertexWeights.Add(new VertexWeight(i, bone.W0));
-						if (bone.W1 > 0)
+						if (bone.W1 > 0 && bone.B1 < boneList.Count)
 							boneList[bone.B1].VertexWeights.Add(new VertexWeight(i, bone.W1));
-						if (bone.W2 > 0)
+						if (bone.W2 > 0 && bone.B2 < boneList.Count)
 							boneList[bone.B2].VertexWeights.Add(new VertexWeight(i, bone.W2));
-						if (bone.W3 > 0)
+						if (bone.W3 > 0 && bone.B3 < boneList.Count)
 							boneList[bone.B3].VertexWeights.Add(new VertexWeight(i, bone.W3));
 					}
 				}

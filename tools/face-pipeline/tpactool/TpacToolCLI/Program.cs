@@ -49,13 +49,22 @@ if (command is "help" or "-h" or "--help")
 
 var mgr = new AssetManager();
 mgr.Load(new DirectoryInfo(dir));
+// 多目录(--packdir 逗号分隔): 递归收集全部包 → 全局 byGuid + 缺项不炸的 resolver
+var packDirs = (dir ?? ".").Split(',').Select(d => d.Trim()).Where(d => d.Length > 0).ToArray();
+var byGuid = new Dictionary<Guid, AssetItem>();
+foreach (var pd in packDirs)
+    foreach (var f in Directory.EnumerateFiles(pd, "*.tpac", SearchOption.AllDirectories))
+        foreach (var it in new AssetPackage(f, true, false).Items)
+            byGuid[it.Guid] = it;
+DefaultDependenceResolver.Instance = new ByGuidResolver(byGuid);
+IReadOnlyList<AssetItem> assets = byGuid.Values.ToList();
+Console.WriteLine($"Loaded {mgr.LoadedPackages.Count} packages from {packDirs.Length} dirs, {assets.Count} assets");
 
 if (!File.Exists(dir + "/dummy.lock"))
 {
     // no-op to keep structure explicit
 }
 
-Console.WriteLine($"Loaded {mgr.LoadedPackages.Count} packages, {mgr.LoadedAssets.Count} assets");
 
 switch (command)
 {
@@ -84,7 +93,7 @@ switch (command)
     }
     case "inspect":
     {
-        var items = mgr.LoadedAssets
+        var items = assets
             .Where(a => a is Texture && (filter == null || a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(a => a.Name)
             .ToList();
@@ -129,9 +138,89 @@ switch (command)
         }
         return 0;
     }
+    case "groups":
+    {
+        // 组名 = Source 字段里 AssetSources/ 的下一级目录 (如 GauntletUI) —— EmAssetPackages 组包按此归组
+        var groups = new SortedDictionary<string, Dictionary<string, int>>();
+        foreach (var item in assets)
+        {
+            string group = GroupOf(item);
+            if (!groups.TryGetValue(group, out var tc)) groups[group] = tc = new Dictionary<string, int>();
+            var t = item.GetType().Name;
+            tc[t] = tc.TryGetValue(t, out var n) ? n + 1 : 1;
+        }
+        Console.WriteLine($"# groups = {groups.Count}, assets = {assets.Count}");
+        foreach (var kv in groups)
+            Console.WriteLine($"{kv.Key}\t{string.Join(", ", kv.Value.Select(x => $"{x.Key}:{x.Value}"))}");
+        return 0;
+    }
+    case "segs":
+    {
+        // 段类型分布: 逐 item 打印其 TypelessDataSegments 类型统计 (对照 edit data 段是否存在于包内)
+        var stat = new SortedDictionary<string, Dictionary<string, int>>();
+        var segTypes = new SortedDictionary<string, int>();
+        foreach (var item in assets)
+        {
+            if (filter != null && !item.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)) continue;
+            var t = item.GetType().Name;
+            if (!stat.TryGetValue(t, out var c)) stat[t] = c = new Dictionary<string, int>();
+            foreach (var seg in item.TypelessDataSegments)
+            {
+                var st = seg.GetType().Name; // ExternalLoader`1[...]
+                if (st.StartsWith("ExternalLoader"))
+                    st = "ExternalLoader<" + (seg.GetType().GetGenericArguments().Length > 0 ? seg.GetType().GetGenericArguments()[0].Name : "?") + ">";
+                c[st] = c.TryGetValue(st, out var n) ? n + 1 : 1;
+            }
+        }
+        foreach (var kv in stat)
+            Console.WriteLine($"{kv.Key}\t{string.Join(", ", kv.Value.Select(x => $"{x.Key}:{x.Value}"))}");
+        return 0;
+    }
+    case "missingrefs":
+    {
+        // 多目录(--packdir 逗号分隔,递归 *.tpac): 收集 byGuid, 报告 Metamesh 引用的材质/贴图 guid 是否齐
+        var dirs = (dir ?? ".").Split(',').Select(d => d.Trim()).Where(d => d.Length > 0).ToArray();
+        var refsGuid = new Dictionary<Guid, AssetItem>();
+        foreach (var dd in dirs)
+        {
+            if (!Directory.Exists(dd)) { Console.Error.WriteLine("missing dir: " + dd); return 1; }
+            foreach (var f in Directory.EnumerateFiles(dd, "*.tpac", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    var pkg = new AssetPackage(f, true, false);
+                    foreach (var it in pkg.Items) byGuid[it.Guid] = it;
+                }
+                catch (Exception ex) { Console.Error.WriteLine("warn load " + f + ": " + ex.Message); }
+            }
+        }
+        Console.WriteLine($"refs: {refsGuid.Count} assets from {dirs.Length} dirs");
+        int missing = 0;
+        foreach (var kv in refsGuid)
+        {
+            if (kv.Value is not Metamesh meta) continue;
+            var check = new List<Guid> { meta.Material };
+            foreach (var m in meta.Meshes)
+            {
+                check.Add(m.Material.Guid);
+                if (m.SecondMaterial != null) check.Add(m.SecondMaterial.Guid);
+            }
+            foreach (var g in check)
+            {
+                if (g.Equals(Guid.Empty)) continue;
+                if (!refsGuid.ContainsKey(g))
+                {
+                    missing++;
+                    if (missing <= 30) Console.WriteLine($"  MISSING {kv.Value.Name} needs mat-guid {g}");
+                }
+            }
+        }
+        Console.WriteLine($"missing material refs: {missing}");
+        return 0;
+    }
     case "list":
     {
-        var items = mgr.LoadedAssets
+        var items = assets
             .Where(a => filter == null || a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
             .OrderBy(a => a.Name);
         foreach (var item in items)
@@ -173,7 +262,7 @@ switch (command)
             Console.Error.WriteLine("dump requires --filter");
             return 1;
         }
-        var items = mgr.LoadedAssets
+        var items = assets
             .Where(a => a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
             .OrderBy(a => a.Name)
             .ToList();
@@ -181,14 +270,15 @@ switch (command)
         foreach (var item in items)
         {
             if (outDir == null) outDir = "./export_" + filter;
-            Directory.CreateDirectory(outDir);
+            var targetDir = Path.Combine(outDir, SubDirOf(item));
+            Directory.CreateDirectory(targetDir);
             try
             {
                 if (item is Texture tex)
                 {
                     if (tex.HasPixelData)
                     {
-                        var path = Path.Combine(outDir, SafeName(tex.Name));
+                        var path = Path.Combine(targetDir, SafeName(tex.Name));
                         if (format == "dds")
                         {
                             TextureExporter.ExportToFile(path + ".dds", tex);
@@ -206,7 +296,7 @@ switch (command)
                 }
                 else if (item is Metamesh meta)
                 {
-                    var path = Path.Combine(outDir, SafeName(meta.Name));
+                    var path = Path.Combine(targetDir, SafeName(meta.Name));
                     if (format == "obj")
                     {
                         ExportObj(path + ".obj", meta);
@@ -215,8 +305,26 @@ switch (command)
                     else if (format is "fbx" or "dae")
                     {
                         AssimpModelExporter.InitAssimp();
-                        AssimpModelExporter.ExportToFile(path + "." + format, meta, null, null, null, 0, 0, 24f);
-                        Console.WriteLine($"OK  mesh {item.Name} -> {path}.{format}");
+                        // 骨架/动画关联: 骨架优先取所有 SkeletalAnimation 共同引用的那个(真正的人形骨架), 次选名字含 human/skel
+                        Skeleton skel = null;
+                        {
+                            var anims = assets.OfType<SkeletalAnimation>().ToList();
+                            if (anims.Count > 0)
+                            {
+                                var mainGuid = anims.GroupBy(a => a.Skeleton).OrderByDescending(g => g.Count()).First().Key;
+                                skel = assets.OfType<Skeleton>().FirstOrDefault(s => s.Guid == mainGuid);
+                            }
+                            skel ??= assets.OfType<Skeleton>().FirstOrDefault(s =>
+                                s.Name.ToLowerInvariant().Contains("human"));
+                            skel ??= assets.OfType<Skeleton>().FirstOrDefault();
+                        }
+                        SkeletalAnimation anim = null;
+                        foreach (var a in assets)
+                            if (a is SkeletalAnimation sa &&
+                                (sa.Skeleton == (skel?.Guid ?? Guid.Empty) || sa.GeometryGuid == meta.Guid))
+                            { anim = sa; break; }
+                        AssimpModelExporter.ExportToFile(path + "." + format, meta, skel, anim, null, 0, 0, 24f);
+                        Console.WriteLine($"OK  mesh {item.Name} -> {path}.{format} (skel={skel?.Name ?? "none"}, anim={anim?.Name ?? "none"})");
                     }
                     else
                     {
@@ -226,7 +334,7 @@ switch (command)
                 else if (item is Material mat)
                 {
                     // Material 二进制元数据已可解析：打印全部字段 + 解析贴图引用名
-                    var path = Path.Combine(outDir, SafeName(mat.Name) + ".mat.txt");
+                    var path = Path.Combine(targetDir, SafeName(mat.Name) + ".mat.txt");
                     var sb = new System.Text.StringBuilder();
                     sb.AppendLine($"material {mat.Name}");
                     sb.AppendLine($"  version = {mat.Version}");
@@ -241,7 +349,7 @@ switch (command)
                     sb.AppendLine($"  extra: ao={mat.ExtraMaterialSettings.AmbientOcclusionCoef} spec={mat.ExtraMaterialSettings.SpecularCoef} gloss={mat.ExtraMaterialSettings.GlossCoef}");
                     foreach (var kv in mat.Textures.OrderBy(k => k.Key))
                     {
-                        var refName = mgr.LoadedAssets.FirstOrDefault(a => a.Guid == kv.Value.Guid)?.Name ?? "?";
+                        var refName = assets.FirstOrDefault(a => a.Guid == kv.Value.Guid)?.Name ?? "?";
                         sb.AppendLine($"  tex[{kv.Key}] = {kv.Value.Guid} ({refName})");
                     }
                     File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
@@ -257,7 +365,7 @@ switch (command)
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"ERR  {item.Name}: {ex.Message}");
+                Console.Error.WriteLine($"ERR  {item.Name}: {ex.Message}\n{ex.StackTrace}");
             }
         }
         return 0;
@@ -310,4 +418,71 @@ static void ExportObj(string path, Metamesh meta)
         vOffset += vs.Positions.Length;
     }
     File.WriteAllText(path, sb.ToString());
+}
+
+static string GroupOf(AssetItem item)
+{
+    // 组名 = Source 字段里 AssetSources/ 的下一级目录 (如 GauntletUI)
+    string src = null;
+    foreach (var p in item.GetType().GetProperties())
+    {
+        if (p.PropertyType == typeof(string) && (p.Name == "Source" || p.Name == "Original"))
+        {
+            src = p.GetValue(item) as string;
+            if (!string.IsNullOrEmpty(src)) break;
+        }
+    }
+    if (string.IsNullOrEmpty(src))
+    {
+        foreach (var p in item.GetType().GetProperties())
+        {
+            if (p.PropertyType != typeof(string)) continue;
+            var v = p.GetValue(item) as string;
+            if (v != null && v.Contains("AssetSources")) { src = v; break; }
+        }
+    }
+    if (string.IsNullOrEmpty(src)) return "(none)";
+    var m = System.Text.RegularExpressions.Regex.Match(src, @"AssetSources/([^/\\]+)[/\\]");
+    return m.Success ? m.Groups[1].Value : "(unparsed)";
+}
+
+static string SubDirOf(AssetItem item)
+{
+    string sub = item switch
+    {
+        Texture => GroupOf(item),
+        _ => PrefixOf(item.Name),
+    };
+    if (string.IsNullOrEmpty(sub)) sub = "misc";
+    return SafeName(sub);
+}
+
+static string PrefixOf(string name)
+{
+    var idx = name.IndexOf('_');
+    var s = idx > 0 ? name.Substring(0, idx) : name;
+    s = s.ToLowerInvariant();
+    foreach (var c in Path.GetInvalidFileNameChars()) if (s.Contains(c)) s = s.Replace(c, '_');
+    return string.IsNullOrEmpty(s) ? "misc" : s;
+}
+
+sealed class ByGuidResolver : IDependenceResolver
+{
+    readonly Dictionary<Guid, AssetItem> _map;
+    public ByGuidResolver(Dictionary<Guid, AssetItem> map) { _map = map; }
+    public bool Resolve<T>(Guid guid, string name, out T result) where T : class, IDependence
+    {
+        if (_map.TryGetValue(guid, out var it) && it is T t) { result = t; return true; }
+        result = (T)(IDependence)PlaceholderFor<T>(guid);
+        return true; // 缺失依赖 → 占位实体, 防止 UnresolvedDependenceException 中断导出
+    }
+    static IDependence PlaceholderFor<T>(Guid guid) where T : class
+    {
+        var nm = "missing_" + guid.ToString("N").Substring(0, 8);
+        if (typeof(T) == typeof(Texture)) return new Texture { Name = nm, Guid = guid };
+        if (typeof(T) == typeof(Material)) return new Material { Name = nm, Guid = guid };
+        if (typeof(T) == typeof(Skeleton)) return new Skeleton { Name = nm, Guid = guid };
+        if (typeof(T) == typeof(Metamesh)) return new Metamesh { Name = nm, Guid = guid };
+        throw new NotSupportedException(typeof(T).Name);
+    }
 }

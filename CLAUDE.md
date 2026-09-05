@@ -153,6 +153,26 @@ ilspycmd <dll路径> | grep -n "关键字"    # 全 DLL 搜索
 
 实际使用时先用 `Glob` 找 `.csproj`，再从 `<HintPath>` 取完整路径。
 
+**🔴 游戏本体 vs 编辑器（ModKit）是两套 DLL 路径，反编译前先定"查哪一侧"（2026-09-05 踩坑实录）**：
+
+| 用途 | 根目录 | 说明 |
+|---|---|---|
+| 游戏本体（Client/运行时） | `$(MB2_PATH)\bin\Win64_Shipping_Client\` | 游戏运行时加载的程序集 |
+| 模块级（Client） | `$(MB2_PATH)\Modules\*\bin\Win64_Shipping_Client\` | SandBox.dll / StoryMode.dll 等模块 DLL |
+| **编辑器（wEditor/ModKit）** | `$(MB2_PATH)\bin\Win64_Shipping_wEditor\` | ModKit 编辑器模式加载的程序集 |
+| **模块级（wEditor）** | `$(MB2_PATH)\Modules\Native\bin\Win64_Shipping_wEditor\` + `$(MB2_PATH)\Modules\SandBox\bin\Win64_Shipping_wEditor\` | 编辑器模式下模块版 DLL（SandBox.dll 含编辑器面板） |
+
+- 查**编辑器侧功能**（Terrain 面板、场景工具、编辑器 UI 等）→ 去 wEditor 目录；**不要在 Client 目录找编辑器面板类型**（同名字符串命中概率低且是不同构建）
+- 实测（2026-09-05）：地形导入相关 `Heightmap`/`Materialmap` 字符串在 `TaleWorlds.Engine.dll`（C# 桥）+ `TaleWorlds.Native.dll`（C++ 引擎实现，反编译只能看调用上下文）；**三个 wEditor 目录全扫后**，Modules\Native / Modules\SandBox 的 wEditor DLL 均 0 命中——**检索必须三个 wEditor 目录全扫，只扫本体 bin 会漏**
+- 教训（2026-09-05）：搜"编辑器实现"只 grep 了本体 `bin\Win64_Shipping_wEditor\` 单目录，漏掉 Modules 级 wEditor，差点凭未被证实的结论下判断，被用户抓住——**先全目录定位，再说结论**
+
+检索命令模板：
+```bash
+grep -l -a "ImportHeightmap" "$MB2_PATH/bin/Win64_Shipping_wEditor/"*.dll \
+  "$MB2_PATH/Modules/Native/bin/Win64_Shipping_wEditor/"*.dll \
+  "$MB2_PATH/Modules/SandBox/bin/Win64_Shipping_wEditor/"*.dll 2>/dev/null
+```
+
 **🔴 类型/方法在哪个 DLL —— 禁止凭名字猜（2026-08-11 踩坑实录）**：
 
 上表只是「典型」，**类型归属不能猜**。反例：`AgentNavigator` / `AgentBehavior` / `AgentBehaviorGroup`（行为组接管体系，含 `RefreshBehaviorGroups`）在 **SandBox.dll**，**不在** `TaleWorlds.MountAndBlade.dll`——但 namespace 仍是 `TaleWorlds.MountAndBlade`（跨程序集共用命名空间，骑砍2 常见）。只按归属表搜 MountAndBlade.dll 会搜到 0 次，白白绕圈。
