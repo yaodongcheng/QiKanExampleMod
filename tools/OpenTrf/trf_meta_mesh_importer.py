@@ -263,12 +263,14 @@ def create_blender_mesh(trf_mesh):
                 fvf = trf_mesh.vertex_fvfs[vidx]
                 uv_layer.data[li].uv = (fvf.uv_x, fvf.uv_y)
 
-    # 顶点色 (BYTE_COLOR, POINT 域)
+    # 顶点色: 拆分创建两个属性 rgb (BYTE_COLOR, POINT 域) + alpha (FLOAT, POINT 域)
     try:
-        col_layer = mesh.color_attributes.new(name="Col", type='BYTE_COLOR', domain='POINT')
+        rgb_layer = mesh.color_attributes.new(name="rgb", type='BYTE_COLOR', domain='POINT')
+        alpha_layer = mesh.attributes.new(name="alpha", type='FLOAT', domain='POINT')
         for i, fvf in enumerate(trf_mesh.vertex_fvfs):
             a, r, g, b = color_to_argb(fvf.vertex_color)
-            col_layer.data[i].color = (r, g, b, a)
+            rgb_layer.data[i].color = (r, g, b, a)
+            alpha_layer.data[i].value = a
     except Exception as e:
         print("设置顶点色跳过:", e)
 
