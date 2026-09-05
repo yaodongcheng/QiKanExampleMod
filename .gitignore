@@ -100,3 +100,10 @@ Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/editor124/*
 Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/decoded/*
 !Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/decoded/era_v2/
 !Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/decoded/era_v2/**
+
+# 参考素材与研究工作区（太阁5 图片素材、地图研究中间产物，不入库）
+refs_koei/
+
+# 地形管线：素材与产物均为大文件/可重跑生成物（脚本 tools/ExportHeightMatMap/make_heightmap.py）
+tools/ExportHeightMatMap/SourceMap/
+tools/ExportHeightMatMap/Output/

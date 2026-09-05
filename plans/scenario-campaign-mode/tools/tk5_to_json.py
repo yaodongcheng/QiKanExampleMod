@@ -45,7 +45,7 @@ except Exception:
     pass
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
-DEFAULT_SOURCE = os.path.join(REPO_ROOT, "Knowledge", "太阁事件包", "TK5AllEvents_merged.txt")
+DEFAULT_SOURCE = os.path.join(REPO_ROOT, "Knowledge", "太阁5", "太阁事件包", "TK5AllEvents_merged.txt")
 DEFAULT_REGISTRY = os.path.join(REPO_ROOT, "plans", "scenario-campaign-mode", "16a-DSL翻译总表.csv")
 DEFAULT_OUT = os.path.join(REPO_ROOT, "plans", "scenario-campaign-mode", "story_event_json")
 
@@ -1962,7 +1962,7 @@ def render_steps_list(steps, indent=4, is_last=True):
 def render_story_jsonc(seg):
     parts = [f"{{", f'  "id": "{seg.id}",', f'  "form": "{seg.form}",', '  "lines": [']
     items = []
-    for ln in seg.lines:
+    for ln in (dict(_ln) for _ln in seg.lines):
         if "_t" in ln:
             t_no = ln.pop("_t")
             src = ln.pop("_src")
@@ -2036,7 +2036,8 @@ def main():
     os.makedirs(i18n_dir, exist_ok=True)
 
     combined = []
-    for ev_id, ev, comments, tr in results:
+    for i, (ev_id, ev, comments, tr) in enumerate(results):
+        last = i == len(results) - 1
         combined.append(f"// ============ 事件 {ev_id}（{EVENT_NAME.get(ev_id, '')}） ============")
         combined.append("// ---- 机械翻译产物（待 agent 审核；字段/步骤上方注释 = TK5 源行） ----")
         ev_copy = dict(ev)
@@ -2059,24 +2060,24 @@ def main():
         combined.append(f'  "script": [')
         combined.extend(script_lines)
         combined.append("  ]")
-        combined.append("}")
+        combined.append("}" + ("" if last else ","))
         combined.append("")
     with open(os.path.join(out_dir, "events.jsonc"), "w", encoding="utf-8") as f:
-        f.write("\n".join(combined))
+        f.write("[" + "\n".join(combined).rstrip() + "\n]\n")
 
     for ev_id, ev, comments, tr in results:
         for seg in tr.segments:
             with open(os.path.join(story_dir, f"{seg.id}.jsonc"), "w", encoding="utf-8") as f:
                 f.write(render_story_jsonc(seg))
 
-    merged_story = []
+    merged_blocks = []
     for ev_id, ev, comments, tr in results:
         for seg in tr.segments:
-            merged_story.append(f"// ============ {seg.id}（{EVENT_NAME.get(ev_id, '')}） ============")
-            merged_story.append(render_story_jsonc(seg))
-            merged_story.append("")
+            merged_blocks.append(
+                "// ============ %s（%s） ============\n%s"
+                % (seg.id, EVENT_NAME.get(ev_id, ""), render_story_jsonc(seg)))
     with open(os.path.join(out_dir, "story.jsonc"), "w", encoding="utf-8") as f:
-        f.write("\n".join(merged_story))
+        f.write("[" + ",\n".join(merged_blocks) + "\n]\n")
 
     xml_parts = ['<?xml version="1.0" encoding="utf-8"?>', "<strings>"]
     for ev_id, ev, comments, tr in results:
@@ -2145,7 +2146,7 @@ def main():
         for w in sorted(degraded):
             report.append("- " + w)
         report.append("")
-    _txt = "\n".join(combined) + "\n".join(merged_story)
+    _txt = "\n".join(combined) + "\n".join(merged_blocks)
     _cities = sorted(set(re.findall(r"tk5_city_\d+", _txt)))
     if _cities:
         report.append("## 占位据点（太阁有、骑砍地图上没有 → 07 数据包补真城）")
