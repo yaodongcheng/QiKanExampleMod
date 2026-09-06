@@ -51,7 +51,9 @@ namespace LivingWorldNpcs
             int soundIndex = SoundEvent.GetEventIdFromString(soundId);
             if (soundIndex >= 0)
             {
-                StoryEngine.currentBgm = SoundEvent.CreateEvent(soundIndex, Mission.Current.Scene);
+                // 🔴 2026-09-06 fix：campaign 下 Mission.Current == null，传 Scene 会 NRE；
+                // 2D 音乐（campaign_bed）传 null 即可（引擎 Scene==null 时走全屏 2D 通道）。
+                StoryEngine.currentBgm = SoundEvent.CreateEvent(soundIndex, null);
                 StoryEngine.currentBgm.Play();
                 return false;
             }

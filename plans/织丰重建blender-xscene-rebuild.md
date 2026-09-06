@@ -122,7 +122,12 @@ P0 稳化脚本(设上限) → P1 批量场景(先小后大, Main_map 降级策�
 - [ ] 目标：调 `<meshes>` 参数 → 重导入 forest 材质图 → 密度接近原版（复现"烘焙感"）
 - [ ] 实验设计：单变量（density → size → weight_offset → colony → seed）每改一次重导+对照 OnlyTerrian
 - [ ] 参照物：OnlyTerrian flora.bin 每类型计数（map_pine_a 10376 / pine_b 7658 / pine_c 22217 / acacia 22936 / beech 10847）
-- [ ] 反编译备选：wEditor/SandBox.dll 找 Flora 生成器实现定公式
+- [ ] 反编译备选：wEditor/SandBox.dll 找 Flora 生成器实现定公式（已试：engine 原生层，C# 仅有计数接口 → 已放弃）
 - [ ] 收尾：通 → 参数固化进 `make_flora.py`（日本图用）
+
+### P5（🔴 已放弃，2026-09-06 用户裁定）：织丰 terrain.bin 魔改 PNG 解码（高度图提取）
+- [x] 放弃——解码成本 > 收益；高度走自生成管线（v2/v3 已达标 Native 水准）；织丰素材保留观感参照（Shokuho_V14_colourmap 16K + flowmap），线索全部存档于 Knowledge 三·九 进度快照
+<!-- 未来若要做"织丰高度对比"，可从 Knowledge 三·九 快照续攻 -->
+
 
 

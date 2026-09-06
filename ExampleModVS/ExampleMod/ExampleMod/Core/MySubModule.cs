@@ -67,6 +67,10 @@ namespace LivingWorldNpcs
             {
                 GameDatabase.Initialize();
 
+                // 主菜单 BGM 内容包重载（仅 1.2.12；Psai 工程在启动最早段已被引擎加载，
+                // Harmony 拦截时机太晚，必须在此主动重载——见 Core/MenuSoundtrackPatch.cs）
+                MenuSoundtrackReload.TryApply();
+
                 //   StoryEngine.ChangeNameBasedOnHistory();
                // SystemCommands.ChangeBgm("上呀");
             }

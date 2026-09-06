@@ -161,6 +161,17 @@ namespace LivingWorldNpcs
         // Videos/ 下文件名（不含扩展名；同名 .ivf + .ogg 必须齐全）。替换链路见 Core/SplashVideoReplacePatch.cs。
         public string SplashVideoModuleId { get; set; } = "";
         public string SplashVideoFileName { get; set; } = "";
+
+        // ── 设计数据内容包注入（config.json 侧；默认空 = 不注入，剧本表（Hero/Music/TagPoint 等）保持空表）──
+        // "DesignDataModuleId" 指定内容包模块 Id（如 Taikou）；非空则启动时注入该模块
+        // ModuleData/DesignData 下的 CSV。注入链路见 Data/DesignDataLoad.cs Initialize()。
+        public string DesignDataModuleId { get; set; } = "";
+
+        // ── 主菜单 BGM 内容包注入（config.json 侧；默认空 = 不接管，播放原生 Maintheme）──
+        // "MenuSoundtrackModuleId" 指定音乐工程所在内容包模块 Id（如 Taikou）——该模块
+        // music/soundtrack.xml（Psai 工程）+ music/PC/*.ogg 即主菜单 BGM 源。
+        // 链路见 Core/MenuSoundtrackPatch.cs（仅 1.2.12 生效；1.5.x 原生支持模块工程）。
+        public string MenuSoundtrackModuleId { get; set; } = "";
         [Newtonsoft.Json.JsonIgnore]
         public bool ShowPerfDetails { get; set; } = false;
 

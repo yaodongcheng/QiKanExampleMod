@@ -110,3 +110,7 @@ tools/ExportHeightMatMap/Output/
 
 # 原版地形导出样本（NativeExample：原版高度图 + 8 层权重，16bit 4097x4097，实验对照数据，不入库）
 tools/ExportHeightMatMap/NativeExample/
+
+# 音频资产（太阁 BGM / 菜单主题——2026-09-06 已迁往内容包 Modules\Taikou，勿再入库）
+music/
+ModuleSounds/

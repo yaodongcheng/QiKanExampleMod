@@ -28,6 +28,18 @@
   "SplashVideoModuleId": "Taikou",
   "SplashVideoFileName": "TR5OP_TW",
   // ══════════════════════════════════════════════════════════════
+  // 设计数据内容包注入：把剧本引擎需要的 CSV 表（Hero/Music/TagPoint/Emotion）
+  // 从指定内容包模块的 ModuleData/DesignData/ 注入 GameDatabase（剧本表）。
+  //   "DesignDataModuleId": "Taikou"   内容包模块 Id（默认空 = 不注入）
+  // 注入链路见 Data/DesignDataLoad.cs Initialize()（与开场视频替换同款"内容包零 DLL"模式）。
+  "DesignDataModuleId": "Taikou",
+  // ══════════════════════════════════════════════════════════════
+  // 主菜单 BGM 内容包注入：把主菜单背景音乐工程指向内容包模块的
+  // music/soundtrack.xml（Psai 工程）+ music/PC/*.ogg。
+  //   "MenuSoundtrackModuleId": "Taikou"   音乐工程所在模块 Id（默认空 = 播放原生 Maintheme）
+  // 链路见 Core/MenuSoundtrackPatch.cs（仅 1.2.12 引擎触发，1.5.x 原生支持模块工程）。
+  "MenuSoundtrackModuleId": "Taikou",
+  // ══════════════════════════════════════════════════════════════
   // [KbDiag] 软键盘链路诊断总闸（2026-08-23 新增，08-24 默认关）：Deck 软键盘
   // 「聚焦→请求→弹窗→回填」全链路日志（输入框聚焦行/软键盘激活状态转换/Done·Cancel
   // 回调链/回填结果/请求判定）。排查软键盘呼不出、打字不回填时置 true，查完置 false。
