@@ -376,7 +376,7 @@ def build(out_w, out_h):
     # v3A 山块差异化：massif（山块层）振幅 << 加大，宏脊也加重——Native 全图山块间
     # 明暗差 ±0.15 是「丰富感」的主因之一（不是纹理，是块阶）
     meg = ridge_net(85.0, 4, 0.22, 2.0, 2.2)          # 宏脊（窗内坡度）
-    massif = ridge_net(220.0, 3, 0.20, 2.0, 1.5)      # 山块（山块间差异，加大块径）
+    massif = ridge_net(300.0, 3, 0.20, 2.0, 1.5)      # 山块（山块间差异，加大块径）
     det = det * 0.50 + 0.26 * meg + 0.24 * massif
     det = det - float(det.mean())
     det = np.clip(det, -0.45, 0.42)
@@ -454,10 +454,10 @@ def build(out_w, out_h):
     # 4.5) 云丘柔化（2026-09-06 用户五打回「碎钻/痘子」的根治）：rank 匹配产出「值域被打散」的
     #   黑白小粒；native 是「大云状连片山体」。做法=匹配后 σ10 大低通（成云丘连片），
     #   再叠 native 式连续纹理（中纹 σ2.5 残差 + 微纹 σ1.2 残差 + 细支脉）——纹理连片不散点。
-    hmv = ndimage.gaussian_filter(hmv, 10.0)
+    hmv = ndimage.gaussian_filter(hmv, 15.0)
     base = hmv
-    mid = ndimage.gaussian_filter(hmv, 2.5)
-    fin = ndimage.gaussian_filter(hmv, 1.2)
+    mid = ndimage.gaussian_filter(hmv, 3.5)
+    fin = ndimage.gaussian_filter(hmv, 1.4)
     d_fine = ((base - mid) + (mid - fin)) * 0.30 + env * np.clip(mnet, -1, 1) * 0.012
     hmv = np.clip(hmv + d_fine, 0, 1)
     nz = np.random.default_rng(SEED + 1)
