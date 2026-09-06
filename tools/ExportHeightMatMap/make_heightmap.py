@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 """japanmap_hires.png -> 16bit 灰度高度图 + RGBA 材质图 + 分层 mask（战役地形管线，链路见 Knowledge/骑砍2战役地形制作管线.md）
 
-2026-09-04/05 分层模型版（替换旧「亮度差分吃整图」;实测校验见知识文档）:
+🔴 v2（2026-09-06）：高度细节达到 NativeExample（卡拉迪亚原版高度图）水准——
+   宏观（山块明暗经过 σ200 大平滑再分段，画法斑点≠海拔）+ 结构感知排水网（多倍频 fbm
+   整域山脊变换 + 源图笔触方向场 + 半分辨率软烤）；校准实测：band(6-40px) std 0.0345
+   vs Native 0.035，形态连通排水网、宽亮丘+窄深沟。原型迭代见 Output/_probe/（v6.x 系列）。
+
+v1（2026-09-04/05 分层模型，历史语义保留在注释里）:
   | 元素        | 判据（源图色域采样）                    | 高度            |
   |-------------|-----------------------------------------|-----------------|
   | 海（深浅湾） | blueish & lum≤165                       | 0（统一）        |
@@ -54,8 +59,7 @@ LUM_SEA_MAX = 165.0                   # 海面深蓝 lum≈84-150，浅湾可到
 T_BEACH = 150.0                       # 滩/雪切分：距海欧氏距离阈值（源px，≈12km，按 MASTER 尺度）
 OPEN_ITERS = 2                        # 5x5 开运算×2 ≈ 结构元 9x9：线厚≤8px 被识别为“线/点”
 MASTER_W = 15840                      # 管线几何阈值的校准尺度（采样阈值基于 hires 推导）
-SIG_BASE_SRC_PX = 150.0               # 🔴 山影差分基底 σ（源图px）：150=山域级(平顺, 交付版基线)；
-                                      #    60=山脊级(细节细、噪感升)。待用户 ModKit 实测选定后定稿
+SEED = 20260906                       # 细节噪声固定种子 → 同素材同图（可复现）
 HEIGHT_GAMMA = 1.4                    # 🔴 压平曲线指数（2026-09-05 用户裁定「普通地表压平、富士独大」）：
                                       #    >1 = 普通地表压低、顶值保留：平 0.2→0.105 / 普通山 0.45→0.30 /
                                       #    雪帽 ~0.6→0.49 / 富士 1.0→1.0（1.0 = 不压，原样输出）
@@ -111,6 +115,25 @@ def autobbox(im):
         x0 = max(0.0, x0); y0 = max(0.0, y0)
         x1 = min(SRC_W, x1); y1 = min(SRC_H, y1)
     return (x0, y0, x1, y1)
+
+
+def fbm(rng, shape, base_cell, octaves=4, gain=0.5):
+    """多倍频值噪声（每倍频独立随机格，map_coordinates 双线性采样）——平滑场"""
+    H, W = shape
+    acc = np.zeros(shape, np.float32)
+    amp, tot, cell = 1.0, 0.0, base_cell
+    for _ in range(octaves):
+        gw_lat = max(3, int(W / cell) + 3)
+        gh_lat = max(3, int(H / cell) + 3)
+        lat = rng.random((gh_lat, gw_lat)).astype(np.float32)
+        xs = np.broadcast_to((np.arange(W, dtype=np.float32) / cell)[None, :], (H, W))
+        ys = np.broadcast_to((np.arange(H, dtype=np.float32) / cell)[:, None], (H, W))
+        n = ndimage.map_coordinates(lat, [ys, xs], order=1, mode='wrap', prefilter=False)
+        acc += amp * n
+        tot += amp
+        amp *= gain
+        cell *= 0.5
+    return acc / tot
 
 
 def build(out_w, out_h):
@@ -209,58 +232,39 @@ def build(out_w, out_h):
     lum = 0.299 * r + 0.587 * g + 0.114 * b
     greenw = ((g > r * 1.02) & (g >= b * 0.95)).astype(np.float32)
 
-    # ===== 3) 高度模型 =====
-    # 绿基底：亮度连续映射（山脉暗 90→0.10，平原亮 180→0.35）+ 山影高斯差分
-    # σ 按源图山域尺度换算（源纹 60px → 输出格数），禁止按输出分辨率等比放大（会把细节抹平）
-    # 60px 比早期 150px 更「收窄」：捕获山脊级细节（2026-09-05 用户反馈 hires 山体太平滑）
-    sig = SIG_BASE_SRC_PX * out_w / SRC_W
-    base = np.asarray(Image.fromarray(lum.astype(np.uint8))
-                      .filter(ImageFilter.GaussianBlur(sig))).astype(np.float32)
-    detail = np.clip(lum - base, -55, 55)
-    # 绿基底的亮度分段归位（Koei 画法：平原=亮黄绿、山地=暗绿 → 亮度与高度「反向」，
-    # 不能直接用亮度抬山；山形主信号=山影差分 detail，亮度只做平原/山地的分档）：
-    #   lum≥150 亮平原/城郭 → 0.14~0.20 低档（越亮越低，大平原发白 bug 修复）
-    #   lum 110~150 普通山地 → 0.20~0.26 中档（暗绿=森林山）
-    #   lum<110 阴影级 → 0.26~0.34 凹陷区微抬（防“山沟黑洞”视觉）
+    # ===== 3) 高度模型（v2 细节管代：2026-09-06 为 Native 细节水平改造） =====
+    # 宏观（山块级）形态 + 结构感知山脊噪声：
+    #   A 宏观：源图亮度先大平滑（σ=200源px，滤掉画法斑点/林冠/云影——画法明暗≠海拔，
+    #           v1 直接分段=「暗绿大陆→黑团」根因）→ 分段 h_base + 雪帽映射 + PEAKS 地标 + gamma
+    #   B 细节：多倍频 fbm 整域山脊变换（1-|2n-1|：|n-0.5| 过零曲线 = 连通排水网）+
+    #           方向场=源图笔触描线方向（有机顺纹）→ 半分辨率生成再双线性放大 = 软润质感
+    #   C 标定：band(6-40px) std=0.0345 vs Native 0.035 / p05 -0.063 vs -0.082 / 形态连通
+    #           （2026-09-06 实测 NativeExample/terrain_heightmap.png 山窗基准）
+    lum_big = np.asarray(Image.fromarray(np.clip(lum, 0, 255).astype(np.uint8))
+                         .filter(ImageFilter.GaussianBlur(200.0 * out_w / SRC_W))).astype(np.float32)
     h_base = np.where(
-        lum >= 150, np.clip(0.22 - (lum - 150) * 0.0018, 0.10, 0.22),
-        np.where(lum >= 110, 0.38 + (150 - lum) * 0.0020,
-                 0.455 + np.clip(110 - lum, 0, 60) * 0.0015))
-    # 山影增益按「低通亮度」调制（实测：Koei 平原纹理 detail P90=39 反而比山地 17 大——
-    # detail 本身判别不了平原/山地；有效的判别=亮度：平原亮绿 160 / 山地暗绿 120）。
-    # 亮处（softlum≥168）山影增益→0（路网/城郭细纹不再抬高平原），暗绿山地→全增益。
-    softlum = np.asarray(Image.fromarray(lum.astype(np.uint8))
-                         .filter(ImageFilter.GaussianBlur(25))).astype(np.float32)
-    g = np.clip((168.0 - softlum) / 45.0, 0, 1)
-    # 非对称增益：脊快（/95）谷缓（/165）——山脊骨骼锐利、谷地平缓（2026-09-05 增强）
-    # 山影增益：均匀 /150（交付基线；非对称 脊/95 谷/165 曾实验性进入又覆写——以基线为准，参数见 SIG_BASE_SRC_PX）
-    h_green = np.clip(h_base + detail * g / 150.0, 0.08, 0.55)
-    # 白色系（滩/岩壁/雪）连续映射：离海 0 → 0.05，600px → 0.55；雪脊内部差分再抬
-    h_white = 0.05 + np.clip(M['dist'] / 600.0, 0, 1) * 0.50 \
-              + M['white'] * np.clip(detail, 0, 55) / 420.0
+        lum_big >= 150, np.clip(0.22 - (lum_big - 150) * 0.0018, 0.10, 0.22),
+        np.where(lum_big >= 110, 0.38 + (150 - lum_big) * 0.0020,
+                 0.455 + np.clip(110 - lum_big, 0, 60) * 0.0015))
+    # 白色系（滩/岩壁/雪）连续距离映射：贴海 0.05 → 600源px 0.55；雪顶雪帽另算
+    h_white = 0.05 + np.clip(M['dist'] / 600.0, 0, 1) * 0.50
     h_white = np.clip(h_white, 0.05, 0.95)
-
     w_land = np.clip(1.0 - M['sea'] * 1.5, 0, 1)          # 海概率把陆地权重压下去
     hm = h_white * M['white'] * w_land \
-        + h_green * greenw * w_land \
-        + h_green * np.clip(1 - greenw - M['white'], 0, 1) * w_land  # 非绿非白回落绿域
+        + h_base * greenw * w_land \
+        + h_base * np.clip(1 - greenw - M['white'], 0, 1) * w_land  # 非绿非白回落绿域
     hm = np.where((M['sea'] >= 0.5) & (M['cap'] < 0.5), 0.0, hm)
 
-    # ===== 3.5) 雪帽救赎：蓝白雪+中心白点 → 高山雪顶（0.62 圈 / 0.90 白点核）
+    # ===== 3.5) 雪帽救赎 + PEAKS 地标（与 v1 相同的判断与裁定，不变） =====
     h_cap = 0.60 + 0.30 * M['dot']
     hm = np.maximum(hm, h_cap * M['cap'])
-
-    # 地标修正：图面画法没画高但地理上必须高的峰 =====
-    # 表项 = (源图 cx, cy, 锥半径px, 峰高, 山体基底高, 山体半径px)
-    # 🔴 最终坐标用户亲报（2026-09-05 坐标格线图）：富士 = (10500, 7000)，山顶白点格线交点。
-    # 源图特征=中心白点+蓝白雪圈+绿地包围（高山雪画法）；雪帽检测此前也在 (10453,6948) 摸到此块。
     PEAKS = [
-        (10500, 7000, 320, 1.00, 0.42, 800),   # 富士山（峰高顶格 1.00 = 全图唯一峰值，2026-09-05 用户裁定「富士独大」）
+        (10500, 7000, 320, 1.00, 0.42, 800),   # 富士山（唯一峰值，雪顶/山体双层锥）
     ]
     if PEAKS:
         ys, xs = np.mgrid[0:out_h, 0:out_w]
         peak_zone = np.zeros((out_h, out_w), np.float32)
-        peak_cone = np.zeros((out_h, out_w), np.float32)   # 峰锥（雪）与山体基底分层：材质图雪只认锥
+        peak_cone = np.zeros((out_h, out_w), np.float32)
         for cx, cy, R, H, B, RB in PEAKS:
             px = cx * out_w / SRC_W
             py = cy * out_h / SRC_H
@@ -268,26 +272,106 @@ def build(out_w, out_h):
             d = np.sqrt((xs - px) ** 2 + (ys - py) ** 2) / sc
             cone = H * np.clip(1.0 - d, 0, 1) ** 1.2          # 峰锥
             body = B * np.clip(1.0 - d * (R / RB), 0, 1) ** 0.8  # 山体基底（宽裙坡）
-            hm = np.maximum(hm, np.maximum(cone, body))       # 只抬不压：周边已有更高地形不削
+            hm = np.maximum(hm, np.maximum(cone, body))       # 只抬不压
             peak_zone = np.maximum(peak_zone, (np.maximum(cone, body) > 0.03).astype(np.float32))
             peak_cone = np.maximum(peak_cone, (cone > 0.35 * H).astype(np.float32))
     else:
         peak_zone = np.zeros((out_h, out_w), np.float32)
         peak_cone = np.zeros((out_h, out_w), np.float32)
+    # 压平曲线（用户裁定：普通地表压平、富士独大；雪 mask 阈值 0.42 仍达标）
+    hm_m = np.power(hm, HEIGHT_GAMMA)
+
+    # ===== 3.6) 结构感知山脊细节（连通排水网 + 笔触方向场 + 半分辨软烤） =====
+    # 结构场：源图山影带通（θ=75源px）→ 渐变方向 = 画中山脊描线走向
+    sig_mid = 75.0 * out_w / SRC_W
+    base_mid = np.asarray(Image.fromarray(np.clip(lum, 0, 255).astype(np.uint8))
+                          .filter(ImageFilter.GaussianBlur(sig_mid))).astype(np.float32)
+    S_mid = lum - base_mid
+    sstd = float(S_mid.std())
+    Ws = ndimage.gaussian_filter(np.clip(S_mid / (2.5 * max(sstd, 1e-6)), -1, 1), 6.0)
+    gsy_, gsx_ = np.gradient(Ws)
+    gg = np.sqrt(gsx_ ** 2 + gsy_ ** 2) + 1e-6
+    Dx = ndimage.gaussian_filter(gsx_ / gg, 1.5)
+    Dy = ndimage.gaussian_filter(gsy_ / gg, 1.5)
+    rng = np.random.default_rng(SEED)
+    warp_y = fbm(rng, (out_h, out_w), 26.0, 3, 0.5) - 0.5
+    K = 5.0
+
+    # 崎岖度包络：高度驱动（平原缓、山域满）+ 坡增比 + 近海平滑（滩岩海岸不皱）
+    slope = ndimage.gaussian_filter(np.sqrt(
+        (np.gradient(hm)[1]) ** 2 + (np.gradient(hm)[0]) ** 2), 3.0)
+    env = np.clip((hm_m - 0.08) / 0.22, 0, 1) ** 1.3
+    env = env * (0.75 + 0.25 * np.clip(slope / 0.006, 0, 1))
+    env = env * np.clip(M['dist'] / 120.0, 0.1, 1.0)
+    env = np.clip(env, 0, 1)
+
+    # 半分辨率细节场参数（软润质感 与 消除 1-2px 脆毛）
+    head, we = max(2, out_h // 2), max(2, out_w // 2)
+    def _hs(arr):
+        u8 = (np.clip(arr, -1, 1) * 127.5 + 127.5).astype(np.uint8)
+        return np.asarray(Image.fromarray(u8).resize((we, head), Image.BILINEAR),
+                          np.float32) / 127.5 - 1.0
+
+    Gx_h = np.broadcast_to(np.arange(we, dtype=np.float32)[None, :], (head, we))
+    Gy_h = np.broadcast_to(np.arange(head, dtype=np.float32)[:, None], (head, we))
+    Dx_h, Dy_h = _hs(Dx), _hs(Dy)
+    Uo = Gx_h * Dx_h + Gy_h * Dy_h
+    Vo = Gx_h * (-Dy_h) + Gy_h * Dx_h
+    Ws_h, warp_h = _hs(Ws), _hs(warp_y)
+
+    def ridge_net(base_cell, octv, sb, sd, s=1.0):
+        """整域山脊变换：多倍频 fbm 一次 (1-|2n-1|) 变换——|n-0.5| 过零曲线=连通排水网；
+        sb 小→亮丘宽；sd 大→暗沟窄。采样坐标沿笔触方向拉伸 s 倍（顺纹）。"""
+        acc = np.zeros((head, we), np.float32); amp, tot = 1.0, 0.0
+        lat_cell = base_cell
+        U = Uo / s + K * Ws_h
+        V = Vo + K * warp_h
+        for _ in range(octv):
+            gw_lat = max(3, int(U.max() / lat_cell) + 3)
+            gh_lat = max(3, int(V.max() / lat_cell) + 3)
+            lat = rng.random((gh_lat, gw_lat)).astype(np.float32)
+            n = ndimage.map_coordinates(lat, [V / lat_cell, U / lat_cell], order=1,
+                                        mode='wrap', prefilter=False)
+            acc += amp * n
+            tot += amp
+            amp *= 0.5
+            lat_cell *= 0.5
+        n = acc / tot
+        r = 1.0 - 2.0 * np.abs(n - 0.5)
+        return r ** sb - 1.15 * (1.0 - r) ** sd
+
+    # 频段（半分辨格；全分辨率×2）：主 36(~72px) / 中 9 / 微 3.5 —— Native 实测频段能量
+    # 90% 在 20px 以上（细带 std 只有中带 1/6），高频必须很少
+    cfg = [("main", 42.0, 5, 0.22, 1.9, 2.0, 0.80),
+           ("mid", 10.0, 3, 0.30, 2.4, 1.0, 0.16),
+           ("micro", 4.0, 2, 0.40, 2.8, 1.0, 0.04)]
+    totw = sum(c[6] for c in cfg)
+    det = np.zeros((head, we), np.float32)
+    for name, base_cell, octv, shp_b, shp_d, s, wt in cfg:
+        det += wt * ridge_net(base_cell, octv, shp_b, shp_d, s) / totw
+    meg = ridge_net(85.0, 4, 0.22, 2.0, 2.2)          # 宏脊（窗内坡度）
+    massif = ridge_net(180.0, 3, 0.20, 2.0, 1.5)      # 山块（山块间差异）
+    det = det * 0.50 + 0.26 * meg + 0.24 * massif
+    det = det - float(det.mean())
+    det = np.clip(det, -0.36, 0.34)
+    det = np.where(det > 0, det * 1.75, det * 0.95)   # 亮侧补强：峰丘亮沟深（Native skew 特征）
+    det = (det + 0.36) / 0.70
+    det = np.asarray(Image.fromarray((np.clip(det, 0, 1) * 255).astype(np.uint8))
+                     .resize((out_w, out_h), Image.BILINEAR), np.float32) / 255.0 * 0.70 - 0.36
+    massif = (massif - massif.min()) / max(1e-6, massif.max() - massif.min())
+    massif = np.asarray(Image.fromarray((np.clip(massif, 0, 1) * 255).astype(np.uint8))
+                        .resize((out_w, out_h), Image.BILINEAR), np.float32) / 255.0
+    d = env * (det * 0.80 + (massif - massif.mean()) * 0.42)
+    hm = np.clip(hm_m + d, 0, 1)
 
     # 线状元素底色替换：中值滤波只在 yline 高概率处写入（路/河不抬山不刻槽）
     hmf = ndimage.median_filter(hm, size=min(31, max(15, out_w // 96)))
     hm = np.where(M['yline'] > 0.25, hmf, hm)
 
-    # ===== 3.6) 压平曲线（2026-09-05 用户裁定：普通地表压平、富士独大）=====
-    # 幂曲线：顶部(=1.0 富士)保留，中间值下压 → 平原 0.2→0.105、普通山 0.45→0.30、雪帽 0.6+ 仅微降；
-    # 雪 mask 阈值 0.42 仍达标（0.55^1.4≈0.43>0.42），材质分档不受扰动；海 0 不变。
-    hm = np.power(hm, HEIGHT_GAMMA)
-
     # ===== 4) 平滑 + 16bit + 强制海 0 =====
-    # 防针尖平滑固定 σ2.0（输出格单位）；禁止随分辨率放大
+    # 防针尖平滑固定 σ2.2（输出格单位）；禁止随分辨率放大
     hm8 = Image.fromarray((hm * 255).astype(np.uint8)).filter(ImageFilter.MedianFilter(5))
-    hm8 = hm8.filter(ImageFilter.GaussianBlur(2.0))
+    hm8 = hm8.filter(ImageFilter.GaussianBlur(2.2))
     hmv = np.asarray(hm8).astype(np.float32)
     hmv[(M['sea'] >= 0.5) & (M['cap'] < 0.5) & (peak_zone < 0.5)] = 0.0  # 洋统一高度；雪帽/地标区豁免
     hmv = (hmv / 255.0 * 65535.0).astype(np.uint16)
@@ -298,7 +382,7 @@ def build(out_w, out_h):
           f"min={hmv.min()} max={hmv.max()}")
 
     # ===== 5) QA：上半分类花色（海蓝/滩土黄/岩灰/雪白/路金/绿底灰）+ 下半灰度高度 =====
-    gw = (np.clip(h_green / 0.55, 0, 1) * 200).astype(np.uint8)
+    gw = (np.clip(h_base / 0.55, 0, 1) * 200).astype(np.uint8)
     qa = np.dstack([gw, gw, gw])
     qa[np.where(M['sea'] >= 0.5)] = (30, 80, 150)
     rock = (M['white'] >= 0.5) & (M['dist'] > 150) & (M['dist'] <= 400)
@@ -313,10 +397,19 @@ def build(out_w, out_h):
     # ===== 6) Materialmap 材质图（RGBA 8bit）= R草 G林 B沙土 A雪；海/湖=0（引擎自动铺水面）=====
     # 草/林与高度模型同源（h_base 平原/山地档）：平原档(亮绿段 h_base<0.30)=草，山地档=林
     # 注：源图関東平原为暗绿画法（lum 128 落山地档），归林——如要草，调 h_base 平原阈值重生成
+    # 🔴 v2：材质分档必须用「未大平滑」的源图亮度（画法覆盖是语义本身：亮绿=草野、暗绿=森山）；
+    #    高度用 σ200 大平滑（防斑点当海拔）但分类用原始画法——两把尺子，禁止复用 h_base。
+    lum8_cls = np.clip(lum, 0, 255).astype(np.uint8)
+    lum_cls = np.asarray(Image.fromarray(lum8_cls)
+                         .filter(ImageFilter.GaussianBlur(25.0 * out_w / SRC_W))).astype(np.float32)
+    h_base_cls = np.where(
+        lum_cls >= 150, np.clip(0.22 - (lum_cls - 150) * 0.0018, 0.10, 0.22),
+        np.where(lum_cls >= 110, 0.38 + (150 - lum_cls) * 0.0020,
+                 0.455 + np.clip(110 - lum_cls, 0, 60) * 0.0015))
     mat = np.zeros((out_h, out_w, 4), np.float32)
     gmask = (M['sea'] < 0.5) & (M['white'] < 0.5) & (M['yline'] < 0.6)
-    mat[..., 0] = np.where(gmask & (h_base < 0.30), 255.0, 0.0)   # 草（平原档）
-    mat[..., 1] = np.where(gmask & (h_base >= 0.30), 255.0, 0.0)  # 林（山地档）
+    mat[..., 0] = np.where(gmask & (h_base_cls < 0.30), 255.0, 0.0)   # 草（平原档）
+    mat[..., 1] = np.where(gmask & (h_base_cls >= 0.30), 255.0, 0.0)  # 林（山地档）
     mat[..., 2] = np.where((M['white'] >= 0.5) & (M['dist'] <= 400), 255.0, 0.0)   # 沙/岩
     # 🔴 雪与高度交叉（用户裁定 2026-09-05）：白系虽判「远段=雪」，但必须 hm≥0.42 才配当雪；
     # 海岸线白带（岩壁/浪花）高度低 → 降级为沙/岩；高度太高说明地形本身就是高海拔。
