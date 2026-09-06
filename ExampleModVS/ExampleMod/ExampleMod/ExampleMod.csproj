@@ -344,6 +344,7 @@
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <!-- GUI -->
+    <Compile Include="GUI\LoadingRandomPatch.cs" />
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />
     <Compile Include="GUI\SpriteAssetsManager.cs" />
     <Compile Include="GUI\StackLayoutVerticalSwapPatch.cs" />

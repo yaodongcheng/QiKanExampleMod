@@ -39,6 +39,14 @@ Debug/llm_samples*/
 Debug/_archive_old_samples/
 Debug/regress_*.log
 
+# Python 字节码（tools/ 下所有 py 工具通用）
+__pycache__/
+*.pyc
+
+# loading 打包管线生成物（tools/loading_pipeline/ 脚本可重跑再生成；脚本本体入库）
+tools/loading_pipeline/gen/
+tools/loading_pipeline/__pycache__/
+
 # Python 缓存
 __pycache__/
 *.pyc

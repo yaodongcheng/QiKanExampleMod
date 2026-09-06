@@ -13,6 +13,10 @@ namespace LivingWorldNpcs
     /// 并交给 VideoPlaybackState.SetStartingParameters 播放。
     /// SetStartingParameters 是启动视频的唯一播放入口（反编译实证：1.2.12 / 1.5.2 均为唯一调用点，签名一致，无需版本分支）。
     ///
+    /// 🔴 替换范围纪律（2026-09-06 用户裁定）：开新战役的开场视频也走 SetStartingParameters，
+    /// 但那是原版宣发叙事的一部分——不允许替换。Prefix 只拦截「TWLogo 启动 splash」：
+    /// videoPath 不含 TWLogo（如 SandBox/StoryMode 的战役开场视频）→ 原样放行（与原生一致）。
+    ///
     /// 用法（config.json 两字段，默认空 = 不启用、行为与原生一致）：
     ///   "SplashVideoModuleId": "Taikou",      // 视频所在模块 Id
     ///   "SplashVideoFileName": "TR5OP_TW"     // Videos/ 下的视频文件名（不含扩展名；ivf + ogg 必须成对）
@@ -23,6 +27,11 @@ namespace LivingWorldNpcs
     {
         public static void Prefix(ref string videoPath, ref string audioPath, string subtitleFileBasePath, float frameRate, bool canUserSkip)
         {
+            // 🔴 只替换启动 splash（TWLogo）；开新战役开场等其它视频 = 原版（2026-09-06 用户裁定）
+            if (videoPath == null || !videoPath.Replace('\\', '/').ToLowerInvariant().Contains("twlogo"))
+            {
+                return;
+            }
             string moduleId = Settings.Instance.SplashVideoModuleId;
             string fileName = Settings.Instance.SplashVideoFileName;
             if (string.IsNullOrEmpty(moduleId) || string.IsNullOrEmpty(fileName))

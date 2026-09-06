@@ -227,7 +227,7 @@ def build(out_w, out_h):
     print(f"[src] sea={100 * sea.mean():.2f}% river={100 * river.mean():.2f}% "
           f"thin={100 * thin_white.mean():.2f}% beach={100 * beach.mean():.2f}% "
           f"snow={100 * snow.mean():.2f}% yline={100 * yline.mean():.2f}%")
-    del a, river, thin_white, w_open, line, line_big, sea_block
+    del a, thin_white, w_open, line, line_big, sea_block   # river 保留（L8 river 层掩膜要用）
 
     # ===== 2) 目标尺度降采样 =====
     # 避免 BOX 均值吞掉信号：掩膜放大 255 后 BOX 均值 = 概率（float 0..1）
@@ -243,6 +243,7 @@ def build(out_w, out_h):
         'yline': softmask(yline),
         'cap':   softmask(snowcap),
         'dot':   softmask(snow_dot),
+        'river': softmask(ndimage.binary_dilation(river, np.ones((3, 3)), iterations=1)),  # 河床（细蓝线→膨胀后 L8 可用；线太细 softmask 均值会稀释到 0）
         'dist':  np.asarray(Image.fromarray(
             np.clip(dist_sea / 8192.0, 0, 1).astype(np.float32)).resize((out_w, out_h), Image.BOX),
             np.float32) * 8192.0,
@@ -279,11 +280,32 @@ def build(out_w, out_h):
         + h_base * np.clip(1 - greenw - M['white'], 0, 1) * w_land  # 非绿非白回落绿域
     hm = np.where((M['sea'] >= 0.5) & (M['cap'] < 0.5), 0.0, hm)
 
-    # ===== 3.5) 雪帽救赎 + PEAKS 地标（与 v1 相同的判断与裁定，不变） =====
-    h_cap = 0.60 + 0.30 * M['dot']
-    hm = np.maximum(hm, h_cap * M['cap'])
+    # ===== 3.5) 雪帽救赎 + PEAKS 地标 =====
+    # 🔴 2026-09-06 用户裁定「富士光点圈太大/珍珠球/水变陆」：雪帽原为「平盘 0.6-0.9」实心圆
+    #   （珍珠球元凶）。修三层：①锥形山冠（每 cap 块锥衰减 中心0.95→外缘0.30）；
+    #   ②蓝白雪圈 = 山体语义——只允许落在「绿地包围圈」内（源图：雪圈被陆地绿包围；
+    #      骏河湾侧无绿 = 裁剪 = 水不再变陆）；③PEAKS 基底收窄（下注）。
+    green_ball = ndimage.binary_dilation(greenw > 0.4, np.ones((9, 9)), iterations=8)
+    cap_ok = (M['cap'] > 0.05) & green_ball
+    cap_hard = (M['cap'] > 0.5) & green_ball
+    if cap_hard.any():
+        labc, nc = ndimage.label(cap_hard)
+        edt = np.asarray(ndimage.distance_transform_edt(~cap_hard), np.float32)
+        areas = np.asarray(ndimage.sum(cap_hard, labc, range(1, nc + 1)), np.float32)
+        d_n = np.zeros((out_h, out_w), np.float32)
+        for i in range(1, nc + 1):
+            ri = max(float(np.sqrt(areas[i - 1] / np.pi)), 1.0)
+            m = labc == i
+            d_n[m] = edt[m] / ri
+        cone_cap = np.clip(1.0 - d_n, 0, 1) ** 1.1          # 每雪帽块：中心 1 → 边缘 0（锥形）
+        h_cap = (0.62 + 0.30 * M['dot']) * cone_cap + 0.30 * cone_cap
+        hm = np.maximum(hm, h_cap * cap_ok)
     PEAKS = [
-        (10500, 7000, 320, 1.00, 0.42, 800),   # 富士山（唯一峰值，雪顶/山体双层锥）
+        (10500, 7000, 130, 1.00, 0.30, 180),   # 富士山🔴 三收紧（2026-09-06 用户裁定）：
+                                                 #  R 420→130：源图蓝白圈直径仅 ~130-150 源px
+                                                 #  （草地间小雪山画法）——原 420 解析大锥=珍珠球元凶；
+                                                 #  RB 380→180：基底随锥收窄（骏河湾不再被抬）。
+                                                 #  雪圈形状=源图 cap 锥形化（本段 head），頂锥=1.0 中心。
     ]
     if PEAKS:
         ys, xs = np.mgrid[0:out_h, 0:out_w]
@@ -441,8 +463,11 @@ def build(out_w, out_h):
     hmv = hm_sm.copy()
     # 洋统一高度；雪帽/地标区豁免（保持原裁定值：富士 1.0 独大、雪顶 0.6-0.9）
     hmv[(M['sea'] >= 0.5) & (M['cap'] < 0.5) & (peak_zone < 0.5)] = 0.0
-    # 🔴 严格重排（平滑后）：全部 land（非豁免）按 rank 严格映射 NQ → CDF == Native 精确；
-    # rank 保序 → 结构/细节拓扑保留。豁免区（富士/雪帽）保留原裁定值。
+    # 4.5) 云丘柔化（用户五打回「碎钻/痘子」根治）：大低通成云丘连片
+    hmv = ndimage.gaussian_filter(hmv, 15.0)
+    # 4.6) 🔴 梯度还原（用户七打回「缺乏明显梯度」）：重排移到云丘**之后**——
+    #   单调 rank 匹配不改变空间形态（云丘连片保留），只把值域拉回 Native 分布：
+    #   黑谷 0.01-0.1 / 中灰 0.25 / 亮峰 0.55+ → 明暗梯度与 native 同款（σ15 吃掉的就是这个）。
     if NQ is not None and len(NQ) >= 2:
         exempt = (peak_zone >= 0.5) | (M['cap'] >= 0.5)
         landx = (M['sea'] < 0.5) & ~exempt
@@ -451,18 +476,34 @@ def build(out_w, out_h):
         outf = np.interp(rankx, np.linspace(0.0, 1.0, len(NQ)), NQ)
         hmv = np.array(hmv, copy=True)
         hmv[landx] = outf
-    # 4.5) 云丘柔化（2026-09-06 用户五打回「碎钻/痘子」的根治）：rank 匹配产出「值域被打散」的
-    #   黑白小粒；native 是「大云状连片山体」。做法=匹配后 σ10 大低通（成云丘连片），
-    #   再叠 native 式连续纹理（中纹 σ2.5 残差 + 微纹 σ1.2 残差 + 细支脉）——纹理连片不散点。
-    hmv = ndimage.gaussian_filter(hmv, 15.0)
     base = hmv
     mid = ndimage.gaussian_filter(hmv, 3.5)
     fin = ndimage.gaussian_filter(hmv, 1.4)
-    d_fine = ((base - mid) + (mid - fin)) * 0.30 + env * np.clip(mnet, -1, 1) * 0.012
+    # 🔴 v3K（用户九打回「这是光影图不是高度图」）：删除方向性 hillshade——
+    #   高度图 = 几何高程 + 各向同性地形起伏；打光是引擎渲染的事，单向 hs 叠加在高度图里
+    #   = 双重错误（方向一致发光/阴影）。明暗梯度由「云丘+排分布（黑谷深/亮峰高）+各向同性软纹」
+    #   自然给出（正是 native 高度图的形态）。
+    # v3I（用户六打回「打开一片模糊」）：中尺度花斑提到 8bit 可见级（连片软纹不是散点）
+    d_fine = ((base - mid) + (mid - fin)) * (0.22 + 0.44 * env) + env * np.clip(mnet, -1, 1) * 0.030
     hmv = np.clip(hmv + d_fine, 0, 1)
     nz = np.random.default_rng(SEED + 1)
     wn = nz.standard_normal((out_h, out_w)).astype(np.float32) * 0.0012
     hmv = np.clip(hmv + wn, 0, 1)
+    # 4.8) 峰顶重插（2026-09-06：R 收紧后小锥会被 σ15/新纹拉平（中心 0.74→0.41）——
+    #   「富士独大」裁定要被保住：平滑+纹理之后重新落峰锥（0.9 顶、130 源px 小锥不被抹平）。
+    if PEAKS:
+        ys, xs = np.mgrid[0:out_h, 0:out_w]
+        for cx, cy, R, H, B, RB in PEAKS:
+            px = cx * out_w / SRC_W
+            py = cy * out_h / SRC_H
+            sc = R * out_w / SRC_W
+            d = np.sqrt((xs - px) ** 2 + (ys - py) ** 2) / sc
+            cone = H * np.clip(1.0 - d, 0, 1) ** 1.2
+            hmv = np.maximum(hmv, cone * 0.90)
+    # 4.9) 二次海清 0（σ15 云丘低通会把 0 海缘刷出几十 px 的渐变「雾圈」——
+    #   实测 18.4% 像素落在海缘渗透带 = 无效信息撑体积；最后一道归一清海，信息 100% 集中在陆地）。
+    hmv = np.array(hmv, copy=True)
+    hmv[(M['sea'] >= 0.5) & (M['cap'] < 0.5) & (peak_zone < 0.5)] = 0.0
     hmv = (hmv * 65535.0).astype(np.uint16)
 
     out16 = os.path.join(OUTD, f"hm_{ST}_{out_w}x{out_h}_16bit.png")
@@ -519,17 +560,33 @@ def build(out_w, out_h):
     print(f"[out] {outmat}  R草={100 * (mat8[...,0] > 0).mean():.1f}% G林={100 * (mat8[...,1] > 0).mean():.1f}% "
           f"B沙={100 * (mat8[...,2] > 0).mean():.1f}% A雪={100 * (mat8[...,3] > 0).mean():.1f}%")
 
-    # ===== 6.5) 分层 mask（官方流程：每图层一张 8bit 灰度，Add Layer→全选→逐层导入）=====
-    # L1草 / L2林 / L3沙 / L4雪 与 RGBA 四通道同源同值（仅在引擎分层导入模式下使用，杜绝通道顺序猜谜）；
-    # L5水 = 真水（海/湖，排除雪帽/地标区；河/路暂未分离，见知识文档三·八）
-    wmask = (((M['sea'] >= 0.5) & (mat8[..., 3] < 128) & (mat8[..., 2] < 128)
-              & (peak_zone < 0.5)).astype(np.uint8) * 255)
-    for name, ch in (("L1_grass", mat8[..., 0]), ("L2_forest", mat8[..., 1]),
-                     ("L3_sand", mat8[..., 2]), ("L4_snow", mat8[..., 3]),
-                     ("L5_water", wmask)):
+    # ===== 6.5) 分层 mask —— 🔴 2026-09-06 按「原版 Main_map 标准层表 8 层」导出 =====
+    # （用户裁定：OnlyTerrian 8 层 = 原版标准层表；层号 = xscene <layers> 顺序 = 面板层列表顺序）
+    # 编号 | 层名            | 我们侧映射
+    #   1  default           | 恒 255（垫底满权重层——"权重图没画"的地方就是它）
+    #   2  flora_forest      | 林区（山地暗绿，与 G 通道同源）
+    #   3  rock              | 岩/沙基（白系全量，与 B 通道同源——岩山裸岩/滩岩墙体）
+    #   4  grass             | 亮草平原（亮绿段，与 R 通道同源）
+    #   5  dirt              | 土路网（路网金线 yline）
+    #   6  dirt2             | 0（无细分数据——原版泥土变体 scale5；不填 = 权重图没画 = default 兜）
+    #   7  forest2           | 0（针叶/阔叶细分数据缺失——待 R5；不填 = default 兜）
+    #   8  river             | 河床（细蓝河线 river 掩膜；引擎水面另行铺）
+    # ⚠️ 权重语义：每层 mask 是该层权重（255=满权重）；default 恒满 → 其他层"没画"处自动垫底。
+    #   高层级压低层级（大号压小号）——导入后若与预期次序相反，按三·七层序对位。
+    L = np.zeros((out_h, out_w, 8), np.uint8)
+    L[..., 0] = 255                                                          # 1 default（恒满）
+    L[..., 1] = np.where(mat8[..., 1] > 0, 255, 0).astype(np.uint8)          # 2 flora_forest（林）
+    L[..., 2] = np.where(mat8[..., 2] > 0, 255, 0).astype(np.uint8)          # 3 rock（岩/沙）
+    L[..., 3] = np.where(mat8[..., 0] > 0, 255, 0).astype(np.uint8)          # 4 grass（亮草）
+    L[..., 4] = np.where(M['yline'] >= 0.4, 255, 0).astype(np.uint8)         # 5 dirt（土路网）
+    L[..., 5] = 0                                                            # 6 dirt2（留空）
+    L[..., 6] = 0                                                            # 7 forest2（留空）
+    L[..., 7] = np.where(M['river'] >= 0.08, 255, 0).astype(np.uint8)        # 8 river（河床；细线 BOX 均值低，阈值放宽 0.08）
+    for i, name in enumerate(("L1_default", "L2_flora_forest", "L3_rock", "L4_grass",
+                              "L5_dirt", "L6_dirt2", "L7_forest2", "L8_river")):
         p = os.path.join(OUTD, f"mask_{ST}_{name}_{out_w}x{out_h}.png")
-        Image.fromarray(np.ascontiguousarray(ch).astype(np.uint8), "L").save(p)
-        print(f"[out] {p}  {(np.asarray(ch) > 0).mean() * 100:.1f}%")
+        Image.fromarray(np.ascontiguousarray(L[..., i]), "L").save(p)
+        print(f"[out] {p}  {100 * (L[..., i] > 0).mean():.1f}%")
     # 材质预览（自然调色板：草浅绿/林深绿/沙土黄/雪白/海蓝）——mat_xxx.png 是 RGBA 四通道引擎版，
     # 普通查看器会把 A=雪当 alpha 显示成半透明/黑，肉眼看这张 preview
     w = mat8.astype(np.float32) / 255.0
