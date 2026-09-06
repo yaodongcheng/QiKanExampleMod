@@ -155,6 +155,12 @@ namespace LivingWorldNpcs
         //    二开关只控制「面板显示 + 是否包裹其他 mod + 卡顿行是否带 [Wrap] 段」。
         [Newtonsoft.Json.JsonIgnore]
         public bool ShowPerfHud { get; set; } = false;
+
+        // ── 启动 Logo 视频替换（config.json 侧内容包注入；默认空 = 不替换，播放原生 Taleworlds 标志）──
+        // 两个字段成对启用："SplashVideoModuleId" 指定视频所在模块 Id，"SplashVideoFileName" 为
+        // Videos/ 下文件名（不含扩展名；同名 .ivf + .ogg 必须齐全）。替换链路见 Core/SplashVideoReplacePatch.cs。
+        public string SplashVideoModuleId { get; set; } = "";
+        public string SplashVideoFileName { get; set; } = "";
         [Newtonsoft.Json.JsonIgnore]
         public bool ShowPerfDetails { get; set; } = false;
 

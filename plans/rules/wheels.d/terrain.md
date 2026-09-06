@@ -26,6 +26,24 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 - 材质图 A=雪 被 PNG 查看器当 alpha → **人看用 `matpreview_*.png`**，引擎版保持 RGBA
 - 素材与产物已 gitignore，产出=脚本重跑
 
+## 场景黑/白诊断 — atmosphere time_of_day / tileset 贴图争议（2026-09-05~06 登记，BigMapLearn 实机）
+
+**解决什么问题**：ModKit 打开战役主图场景，地形整体**黑**或整片**白**（材质/层/权重配置"正确"却不对）——确定性排查顺序与修法。
+
+**黑 = `atmosphere.xml` 的 `time_of_day` = 22.000（深夜 10 点）**（实锤）。
+- **原版 main_map 的 atmosphere.xml 存的就是 22:00**——游戏里被游戏时间覆盖正常显示；**编辑器按存储值渲染 → 全黑剪影**（"用原版 atmosphere.xml" ≠ "白天大气"）
+- 🔴 **UI 无 time_of_day 设置项**（Atmosphere Inspector 属性面板里没有）——只能改 XML
+- 修法：`Modules/<mod>/SceneObj/<Scene>/atmosphere.xml` → `<value name="time_of_day" value="10.000"/>`（6~12 = 白昼）。同文件易混"夜/晨大气组"：`color_grade_name`（harsh / cg_50c_5b）、`is_indoor`、`fog_density/fog_color`、`global_ambient`、`middle_gray`。
+
+**白 = 层引用 WorldMap 图集页贴图 + `vista_tileset` 为空**（2026-09-06 单步控制实验实锤）：
+- 判定链：单层 desert_a（普通贴图 `desert_floor_*`）彩色 → 仅加原版 default 层（图集贴图 `ground_grass_b_d_mainmap`）→ 全白 → 仅挂 `vista_tileset="WorldMap"` → 全彩
+- 规则：**层纹理名带 `*_mainmap` / `main_map_*`（图集页资源）→ 场景必须挂 `vista_tileset="WorldMap"`**，否则整层渲染白/丢失；`desert_floor_*` 等普通贴图不依赖 tileset
+- 陷阱：`references.txt`、node masks（`layer_is_used_mask_*` 位图→255 全用）、terrain.bin WGHT（旧权重通道映射到新层表第一层——加层后必须逐层 Import 权重复写）都被怀疑过、**均非根因**——教训：黑/白问题先在 atmosphere.xml 与 tileset/贴图组合上隔离，再做掩码/权重理论
+- **观感差异（"同一个数据两种色调"）→ 先对 Vista Textures 段**：`vista_diffuse_blend_type`（1=原版）/ `vista_layer_detail_distance`（10000=原版）/ `vista_albedo_multiplier`（0.67=原版）/ `colormap_detail_level`（0=原版）——**原版"雪山白"观感 = 白岩贴图 × Vista 冷调 × 0.67 明度，不是雪线/动态雪**（BigMapLearn 半残值 blend 0/layerdist 1/albedo 1/colormap -1 = 黄土木；对齐后即雪白，2026-09-06 实机）
+- **方法学经验**：单变量逐步实验（每步只动一处 + 每步备份 + 一次打开看结果）是定位 scene 渲染问题的最快路径——"一把梭注入×N 字段"必然无法定位
+
+**文件**：`Knowledge/骑砍2战役地形制作管线.md` 三·十五（BigMapLearn vs BigMapLearn2 逐字段完整对照实录——黑/正常两场景仅剩字段清单）。
+
 ## OpenTrf — .trf 网格 Blender 导入/导出器
 
 **解决什么问题**：Bannerlord `.trf`（Text Resource Files，纯文本网格：顶点/法线/UV/顶点色/三角面/材质）可直接用 Blender 读取、编辑、导回——素材网格资产的 Blender 化修改链路。

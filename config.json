@@ -19,6 +19,15 @@
   // ══════════════════════════════════════════════════════════════
   "ShowDebugMessages": false,
   // ══════════════════════════════════════════════════════════════
+  // 启动 Logo 视频替换（内容包注入）：把引擎原生 Taleworlds 标志开屏换成
+  // 指定模块 Videos/ 下的视频（同名 .ivf + .ogg 必须成对存在）。
+  //   SplashVideoModuleId  视频所在模块 Id（任意内容包：Taikou / Shokuho / 自建…）
+  //   SplashVideoFileName  Videos/ 下文件名（不含扩展名）
+  // 默认（两个字段保留为空字符串）= 不替换，行为与原生一致。
+  // 替换链路见 Core/SplashVideoReplacePatch.cs（Harmony 拦截唯一播放入口）。
+  "SplashVideoModuleId": "Taikou",
+  "SplashVideoFileName": "TR5OP_TW",
+  // ══════════════════════════════════════════════════════════════
   // [KbDiag] 软键盘链路诊断总闸（2026-08-23 新增，08-24 默认关）：Deck 软键盘
   // 「聚焦→请求→弹窗→回填」全链路日志（输入框聚焦行/软键盘激活状态转换/Done·Cancel
   // 回调链/回填结果/请求判定）。排查软键盘呼不出、打字不回填时置 true，查完置 false。

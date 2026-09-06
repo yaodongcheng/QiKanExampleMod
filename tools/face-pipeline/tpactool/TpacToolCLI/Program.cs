@@ -48,9 +48,9 @@ if (command is "help" or "-h" or "--help")
 }
 
 var mgr = new AssetManager();
-mgr.Load(new DirectoryInfo(dir));
 // 多目录(--packdir 逗号分隔): 递归收集全部包 → 全局 byGuid + 缺项不炸的 resolver
 var packDirs = (dir ?? ".").Split(',').Select(d => d.Trim()).Where(d => d.Length > 0).ToArray();
+try { mgr.Load(new DirectoryInfo(packDirs[0])); } catch { }
 var byGuid = new Dictionary<Guid, AssetItem>();
 foreach (var pd in packDirs)
     foreach (var f in Directory.EnumerateFiles(pd, "*.tpac", SearchOption.AllDirectories))
@@ -68,6 +68,13 @@ if (!File.Exists(dir + "/dummy.lock"))
 
 switch (command)
 {
+    case "listformats":
+    {
+        AssimpModelExporter.InitAssimp();
+        foreach (var f in Assimp.Unmanaged.AssimpLibrary.Instance.GetExportFormatDescriptions())
+            Console.WriteLine(f.FormatId + "  " + f.Description);
+        return 0;
+    }
     case "assetclone":
     {
         return AssetClone.Run(cmdLine.Skip(1).ToArray());
@@ -270,6 +277,11 @@ switch (command)
         foreach (var item in items)
         {
             if (outDir == null) outDir = "./export_" + filter;
+            if (item is Texture && format != "png" && format != "dds")
+            {
+                // 纹理仅在 png/dds 模式下导出, 避免 fbx/obj 模式下产出假后缀垃圾
+                continue;
+            }
             var targetDir = Path.Combine(outDir, SubDirOf(item));
             Directory.CreateDirectory(targetDir);
             try
@@ -302,28 +314,40 @@ switch (command)
                         ExportObj(path + ".obj", meta);
                         Console.WriteLine($"OK  mesh {item.Name} -> {path}.obj");
                     }
-                    else if (format is "fbx" or "dae")
+                    else if (format is "fbx" or "dae" or "gltf" or "gltf2")
                     {
                         AssimpModelExporter.InitAssimp();
-                        // 骨架/动画关联: 骨架优先取所有 SkeletalAnimation 共同引用的那个(真正的人形骨架), 次选名字含 human/skel
+                        // 只有蒙皮网格(SkinDataSize>0)才关联骨架/动画; 纯静态件(建筑/道具)不绑骨
+                        var skinned = meta.Meshes.Any(m => m.SkinDataSize > 0);
                         Skeleton skel = null;
+                        SkeletalAnimation anim = null;
+                        if (skinned)
                         {
-                            var anims = assets.OfType<SkeletalAnimation>().ToList();
-                            if (anims.Count > 0)
-                            {
-                                var mainGuid = anims.GroupBy(a => a.Skeleton).OrderByDescending(g => g.Count()).First().Key;
-                                skel = assets.OfType<Skeleton>().FirstOrDefault(s => s.Guid == mainGuid);
-                            }
-                            skel ??= assets.OfType<Skeleton>().FirstOrDefault(s =>
+                            // 人形骨架优先 (织丰本体无人体骨架, 来自 Native human 组); 次选动画多数派; 再任意
+                            skel = assets.OfType<Skeleton>().FirstOrDefault(s =>
                                 s.Name.ToLowerInvariant().Contains("human"));
+                            if (skel == null)
+                            {
+                                var anims = assets.OfType<SkeletalAnimation>().ToList();
+                                if (anims.Count > 0)
+                                {
+                                    var mainGuid = anims.GroupBy(a => a.Skeleton).OrderByDescending(g => g.Count()).First().Key;
+                                    skel = assets.OfType<Skeleton>().FirstOrDefault(s => s.Guid == mainGuid);
+                                }
+                            }
                             skel ??= assets.OfType<Skeleton>().FirstOrDefault();
                         }
-                        SkeletalAnimation anim = null;
+                        if (skinned)
                         foreach (var a in assets)
                             if (a is SkeletalAnimation sa &&
                                 (sa.Skeleton == (skel?.Guid ?? Guid.Empty) || sa.GeometryGuid == meta.Guid))
                             { anim = sa; break; }
-                        AssimpModelExporter.ExportToFile(path + "." + format, meta, skel, anim, null, 0, 0, 24f);
+                        var noskel = Environment.GetEnvironmentVariable("TPAC_NO_SKEL") != null;
+                        if (format == "gltf" || format == "gltf2")
+                            ModelExporter.ExportToFile(new Gltf2Exporter(), path + ".gltf", meta,
+                                noskel ? null : skel, noskel ? null : anim, null, 0);
+                        else
+                            AssimpModelExporter.ExportToFile(path + "." + format, meta, noskel ? null : skel, noskel ? null : anim, null, 0, 0, 24f);
                         Console.WriteLine($"OK  mesh {item.Name} -> {path}.{format} (skel={skel?.Name ?? "none"}, anim={anim?.Name ?? "none"})");
                     }
                     else
