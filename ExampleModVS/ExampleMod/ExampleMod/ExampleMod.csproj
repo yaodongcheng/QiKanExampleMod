@@ -322,6 +322,7 @@
     <Compile Include="Core\CustomPartyComponent.cs" />
     <Compile Include="Core\Settings.cs" />
     <Compile Include="Core\SplashVideoReplacePatch.cs" />
+    <Compile Include="Core\MenuSoundtrackPatch.cs" />
     <Compile Include="Core\MCMSettings.cs" />
     <Compile Include="Core\FriendlinessHelper.cs" />
     <Compile Include="Core\VersionCompat.cs" />

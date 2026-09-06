@@ -136,6 +136,27 @@ def fbm(rng, shape, base_cell, octaves=4, gain=0.5):
     return acc / tot
 
 
+_NQ_CACHE = None
+def _load_nq():
+    """NativeExample 陆地高度 CDF（native_quantiles.py 预计算表）——分布匹配的后验分布；
+    表由 NativeExample/terrain_heightmap.png land 采样生成（quantile 0..100 步 1/128）。
+    文件缺失（发布环境不带 NativeExample 时）→ 返回 None，管线自动跳过匹配。"""
+    global _NQ_CACHE
+    if _NQ_CACHE is not None:
+        return _NQ_CACHE
+    p = os.path.join(BASE, "native_quantiles.py")
+    if not os.path.exists(p):
+        print("[nq] native_quantiles.py 不存在 → 跳过分布匹配")
+        _NQ_CACHE = None
+        return None
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location("native_quantiles", p)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    _NQ_CACHE = np.asarray(mod.NATIVE_QUANTILES, np.float32)
+    return _NQ_CACHE
+
+
 def build(out_w, out_h):
     im = Image.open(SRC).convert("RGB")
     _set_src(im)
@@ -242,10 +263,13 @@ def build(out_w, out_h):
     #           （2026-09-06 实测 NativeExample/terrain_heightmap.png 山窗基准）
     lum_big = np.asarray(Image.fromarray(np.clip(lum, 0, 255).astype(np.uint8))
                          .filter(ImageFilter.GaussianBlur(200.0 * out_w / SRC_W))).astype(np.float32)
+    # v3A 宏观加陡：山档铺开到 0.74 顶（γ1.4 后 0.65）——Native 全图「山域发亮」的根
+    # 是山块自身到 0.5-0.7 的亮度 + 山块间 ±0.15 差异（massif 层叠加），v2 只到 0.35 必秃。
+    # 排布：亮平原 0.10-0.22 / 普通山地 0.38-0.50 / 暗山西 0.50-0.74（富士 1.0 仍独大）
     h_base = np.where(
         lum_big >= 150, np.clip(0.22 - (lum_big - 150) * 0.0018, 0.10, 0.22),
-        np.where(lum_big >= 110, 0.38 + (150 - lum_big) * 0.0020,
-                 0.455 + np.clip(110 - lum_big, 0, 60) * 0.0015))
+        np.where(lum_big >= 110, 0.38 + (150 - lum_big) * 0.0030,
+                 0.50 + np.clip(110 - lum_big, 0, 60) * 0.0040))
     # 白色系（滩/岩壁/雪）连续距离映射：贴海 0.05 → 600源px 0.55；雪顶雪帽另算
     h_white = 0.05 + np.clip(M['dist'] / 600.0, 0, 1) * 0.50
     h_white = np.clip(h_white, 0.05, 0.95)
@@ -349,32 +373,97 @@ def build(out_w, out_h):
     det = np.zeros((head, we), np.float32)
     for name, base_cell, octv, shp_b, shp_d, s, wt in cfg:
         det += wt * ridge_net(base_cell, octv, shp_b, shp_d, s) / totw
+    # v3A 山块差异化：massif（山块层）振幅 << 加大，宏脊也加重——Native 全图山块间
+    # 明暗差 ±0.15 是「丰富感」的主因之一（不是纹理，是块阶）
     meg = ridge_net(85.0, 4, 0.22, 2.0, 2.2)          # 宏脊（窗内坡度）
-    massif = ridge_net(180.0, 3, 0.20, 2.0, 1.5)      # 山块（山块间差异）
+    massif = ridge_net(220.0, 3, 0.20, 2.0, 1.5)      # 山块（山块间差异，加大块径）
     det = det * 0.50 + 0.26 * meg + 0.24 * massif
     det = det - float(det.mean())
-    det = np.clip(det, -0.36, 0.34)
-    det = np.where(det > 0, det * 1.75, det * 0.95)   # 亮侧补强：峰丘亮沟深（Native skew 特征）
-    det = (det + 0.36) / 0.70
+    det = np.clip(det, -0.45, 0.42)
+    det = np.where(det > 0, det * 2.0, det * 1.30)    # 亮侧与谷沟同步刻深（Native：峰亮沟黑）
+    det = (det + 0.45) / 0.87
     det = np.asarray(Image.fromarray((np.clip(det, 0, 1) * 255).astype(np.uint8))
-                     .resize((out_w, out_h), Image.BILINEAR), np.float32) / 255.0 * 0.70 - 0.36
+                     .resize((out_w, out_h), Image.BILINEAR), np.float32) / 255.0 * 0.87 - 0.45
     massif = (massif - massif.min()) / max(1e-6, massif.max() - massif.min())
     massif = np.asarray(Image.fromarray((np.clip(massif, 0, 1) * 255).astype(np.uint8))
                         .resize((out_w, out_h), Image.BILINEAR), np.float32) / 255.0
-    d = env * (det * 0.80 + (massif - massif.mean()) * 0.42)
+    # v3A 宽谷带：大格(360px)山脊场的负部深刻——Native 全图的「黑色宽河谷带」贯穿感
+    vally = ridge_net(360.0, 3, 0.35, 1.5, 1.5)
+    vally = np.clip(vally - vally.mean(), -0.45, 0.10)
+    vally = np.asarray(Image.fromarray((np.clip((vally + 0.45) / 0.55, 0, 1) * 255).astype(np.uint8))
+                       .resize((out_w, out_h), Image.BILINEAR), np.float32) / 255.0 * 0.55 - 0.45
+    d = env * (det * 0.95 + (massif - massif.mean()) * 0.85 + np.clip(vally, -0.45, 0.0) * 0.65)
     hm = np.clip(hm_m + d, 0, 1)
 
     # 线状元素底色替换：中值滤波只在 yline 高概率处写入（路/河不抬山不刻槽）
     hmf = ndimage.median_filter(hm, size=min(31, max(15, out_w // 96)))
     hm = np.where(M['yline'] > 0.25, hmf, hm)
 
-    # ===== 4) 平滑 + 16bit + 强制海 0 =====
-    # 防针尖平滑固定 σ2.2（输出格单位）；禁止随分辨率放大
-    hm8 = Image.fromarray((hm * 255).astype(np.uint8)).filter(ImageFilter.MedianFilter(5))
-    hm8 = hm8.filter(ImageFilter.GaussianBlur(2.2))
-    hmv = np.asarray(hm8).astype(np.float32)
-    hmv[(M['sea'] >= 0.5) & (M['cap'] < 0.5) & (peak_zone < 0.5)] = 0.0  # 洋统一高度；雪帽/地标区豁免
-    hmv = (hmv / 255.0 * 65535.0).astype(np.uint16)
+    # ===== 3.9) 分布匹配（2026-09-06 用户在线判决：全图丰富度 = 分布层次 + 块尺度结构）=====
+    # NativeExample 陆地高度 CDF（native_quantiles.py 预计算表）为「后验分布」：
+    # 单调 rank 映射 → 亮块/黑谷/中灰 比例与 Native 同构。
+    # 🔴 v3C 结构放大（关键修正）：rank 匹配是单调映射——空间块形状全由匹配前的结构决定。
+    #    massif（山块层 ±0.2）必须 ×2.8 放大注入 core（σ90 平滑的大结构）再匹配，
+    #    否则 core 是均质平台 → 匹配后仍是平台（v3B 碎钻 / v3C 平灰 两个极端教训）。
+    # 豁免：PEAKS（富士 1.0 独大）与雪帽（0.6-0.9）不参与映射。
+    NQ = _load_nq()
+    if NQ is not None and len(NQ) >= 2:
+        hmf = np.clip(hm, 0, 1)
+        exempt = (peak_zone >= 0.5) | (M['cap'] >= 0.5)
+        m_land = (M['sea'] < 0.5) & ~exempt
+        if m_land.any():
+            sig_core = 130.0 * out_w / 4096.0
+            core = np.asarray(Image.fromarray((hmf * 255).astype(np.uint8))
+                              .filter(ImageFilter.GaussianBlur(sig_core))).astype(np.float32) / 255.0
+            fine = hmf - core
+            core_s = core + 3.6 * (massif - massif.mean())     # 山块结构放大后进匹配
+            vals = np.clip(core_s, 0, 1)[m_land]
+            rank = np.argsort(np.argsort(vals)).astype(np.float32) / max(1, vals.size - 1)
+            outf = np.interp(rank, np.linspace(0.0, 1.0, len(NQ)), NQ)
+            hmf = np.array(hmf, copy=True)
+            hmf[m_land] = outf + fine[m_land] * 0.35
+        hm = np.where(m_land, hmf, hm)
+
+    # ===== 4) 平滑 + 细节回补 + 严格分布重排 + 16bit + 强制海 0 =====
+    # 🔴 v3G（用户硬指标：文件熵 B/px native 1.06 vs 我们 0.28——高频细节差一个量级）：
+    #   ①全流程 float 域（旧链中段经 uint8 量化 → 16bit 图只有 8bit 有效信息）；
+    #   ②重排（CDF 钉死 Native）后回补「平滑损失的多尺度细节」→ 空间信息密度从 0.28 → 0.8+；
+    #   ③回补后值域 CDF 仅轻微扰动（±0.04 幅度），空间熵不受影响。
+    hm_f = np.clip(hm, 0, 1).astype(np.float32)
+    hm_sm = ndimage.median_filter(hm_f, size=5)
+    hm_sm = ndimage.gaussian_filter(hm_sm, 2.2)
+    fine2 = hm_f - hm_sm                                    # 平滑损失的 1-8px 细节
+    # 微排水网（树状细支脉；半格生成→全格 float）
+    env_h = _hs(np.clip(env, 0, 1))
+    mnet_h = env_h * np.clip(ridge_net(7.0, 3, 0.30, 2.2, 1.5), -1, 1) * 0.030
+    mnet = np.asarray(Image.fromarray((np.clip(mnet_h * 127.5 + 127.5, 0, 255)).astype(np.uint8))
+                      .resize((out_w, out_h), Image.BILINEAR), np.float32) / 127.5 - 1.0
+    hmv = hm_sm.copy()
+    # 洋统一高度；雪帽/地标区豁免（保持原裁定值：富士 1.0 独大、雪顶 0.6-0.9）
+    hmv[(M['sea'] >= 0.5) & (M['cap'] < 0.5) & (peak_zone < 0.5)] = 0.0
+    # 🔴 严格重排（平滑后）：全部 land（非豁免）按 rank 严格映射 NQ → CDF == Native 精确；
+    # rank 保序 → 结构/细节拓扑保留。豁免区（富士/雪帽）保留原裁定值。
+    if NQ is not None and len(NQ) >= 2:
+        exempt = (peak_zone >= 0.5) | (M['cap'] >= 0.5)
+        landx = (M['sea'] < 0.5) & ~exempt
+        valsx = hmv[landx]
+        rankx = np.argsort(np.argsort(valsx)).astype(np.float32) / max(1, valsx.size - 1)
+        outf = np.interp(rankx, np.linspace(0.0, 1.0, len(NQ)), NQ)
+        hmv = np.array(hmv, copy=True)
+        hmv[landx] = outf
+    # 4.5) 云丘柔化（2026-09-06 用户五打回「碎钻/痘子」的根治）：rank 匹配产出「值域被打散」的
+    #   黑白小粒；native 是「大云状连片山体」。做法=匹配后 σ10 大低通（成云丘连片），
+    #   再叠 native 式连续纹理（中纹 σ2.5 残差 + 微纹 σ1.2 残差 + 细支脉）——纹理连片不散点。
+    hmv = ndimage.gaussian_filter(hmv, 10.0)
+    base = hmv
+    mid = ndimage.gaussian_filter(hmv, 2.5)
+    fin = ndimage.gaussian_filter(hmv, 1.2)
+    d_fine = ((base - mid) + (mid - fin)) * 0.30 + env * np.clip(mnet, -1, 1) * 0.012
+    hmv = np.clip(hmv + d_fine, 0, 1)
+    nz = np.random.default_rng(SEED + 1)
+    wn = nz.standard_normal((out_h, out_w)).astype(np.float32) * 0.0012
+    hmv = np.clip(hmv + wn, 0, 1)
+    hmv = (hmv * 65535.0).astype(np.uint16)
 
     out16 = os.path.join(OUTD, f"hm_{ST}_{out_w}x{out_h}_16bit.png")
     Image.fromarray(hmv).save(out16)

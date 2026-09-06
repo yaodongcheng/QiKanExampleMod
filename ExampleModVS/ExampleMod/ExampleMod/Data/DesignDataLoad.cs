@@ -268,6 +268,33 @@ namespace LivingWorldNpcs
             Music    = new DataTable("Music");
             TagPoint = new DataTable("TagPoint");
             Emotion  = CsvLoader.LoadTable(Path.Combine(directoryPath, "Emotion.csv"), "Emotion");
+
+            // 内容包注入（通用）：config.json "DesignDataModuleId" 指定内容包模块 Id（如 Taikou），
+            // 非空则把该模块 ModuleData/DesignData 下的 CSV（Hero/Music/TagPoint/Emotion）注入 GameDatabase。
+            // 与 Core/SplashVideoReplacePatch.cs 同款：功能逻辑留在 Mod A，内容包零 DLL。
+            string designDataModuleId = Settings.Instance.DesignDataModuleId;
+            if (!string.IsNullOrEmpty(designDataModuleId))
+            {
+                try
+                {
+                    string injectPath = Path.Combine(
+                        TaleWorlds.ModuleManager.ModuleHelper.GetModuleFullPath(designDataModuleId),
+                        "ModuleData", "DesignData");
+                    if (Directory.Exists(injectPath))
+                    {
+                        LoadTablesFromPath(injectPath);
+                        DebugLogger.Log($"[DesignData] 内容包注入成功：{designDataModuleId} ({injectPath})");
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"[DesignData] 内容包未就绪（目录不存在），保持空表：{injectPath}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    DebugLogger.Log($"[DesignData] 内容包注入失败，保持空表：{designDataModuleId} ({ex.GetType().Name})");
+                }
+            }
         }
 
     }
