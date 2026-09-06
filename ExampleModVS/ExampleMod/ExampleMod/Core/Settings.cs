@@ -172,6 +172,13 @@ namespace LivingWorldNpcs
         // music/soundtrack.xml（Psai 工程）+ music/PC/*.ogg 即主菜单 BGM 源。
         // 链路见 Core/MenuSoundtrackPatch.cs（仅 1.2.12 生效；1.5.x 原生支持模块工程）。
         public string MenuSoundtrackModuleId { get; set; } = "";
+
+        // ── loading 背景图内容包注入（config.json 侧；默认空 = 原生 loading 图）──
+        // "LoadingImageCategory" 指定内容包 SpriteCategory 名（如 Taikou 的 "taikou_loading" 79 张池）。
+        // 内容包契约：SpriteData 定义 N 个 sheet 的类目 + 同名 GenericSprite 条目 {category}_{001..NNN}；
+        // 启用后每次场景切换 loading 随机抽一张，纹理按 PartialLoad 单张进显存（无 AlwaysLoad 大驻流）。
+        // 链路见 GUI/LoadingRandomPatch.cs。
+        public string LoadingImageCategory { get; set; } = "";
         [Newtonsoft.Json.JsonIgnore]
         public bool ShowPerfDetails { get; set; } = false;
 

@@ -38,7 +38,14 @@
   // music/soundtrack.xml（Psai 工程）+ music/PC/*.ogg。
   //   "MenuSoundtrackModuleId": "Taikou"   音乐工程所在模块 Id（默认空 = 播放原生 Maintheme）
   // 链路见 Core/MenuSoundtrackPatch.cs（仅 1.2.12 引擎触发，1.5.x 原生支持模块工程）。
+  // ══════════════════════════════════════════════════════════════
+  // loading 背景图内容包注入：每次场景切换 loading 从内容包图池随机抽一张铺满屏幕。
+  //   "LoadingImageCategory": "taikou_loading"   SpriteCategory 名（默认空 = 原生 loading 图）
+  // 内容包契约：SpriteData 定义 N 个 sheet 的类目 + GenericSprite 条目 {category}_{001..NNN}，
+  //   纹理键短名 = {category}_{NNN}（见 Taikou/GUI/TaikouSpriteData.xml + AssetPackages/taikou_loading.tpac）
+  // 链路见 GUI/LoadingRandomPatch.cs。
   "MenuSoundtrackModuleId": "Taikou",
+  "LoadingImageCategory": "taikou_loading",
   // ══════════════════════════════════════════════════════════════
   // [KbDiag] 软键盘链路诊断总闸（2026-08-23 新增，08-24 默认关）：Deck 软键盘
   // 「聚焦→请求→弹窗→回填」全链路日志（输入框聚焦行/软键盘激活状态转换/Done·Cancel

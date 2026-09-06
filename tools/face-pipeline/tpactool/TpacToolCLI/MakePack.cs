@@ -66,7 +66,10 @@ namespace TpacCli
                     rgba[pos++] = px.A;
                 }
             }
-            byte[] bc3 = Bc3Encoder.Encode(rgba, png.Width, png.Height);
+            // format 支持 DXT1（默认 DXT5）：DXT1 = BC1 4B/px 无 alpha（引擎早期链路/原生 core_loading 同规格）
+            bool dxt1 = string.Equals(t.Format, "DXT1", StringComparison.OrdinalIgnoreCase);
+            byte[] encoded = dxt1 ? Bc3Encoder.EncodeBc1(rgba, png.Width, png.Height)
+                                  : Bc3Encoder.Encode(rgba, png.Width, png.Height);
 
             var asset = new Texture
             {
@@ -77,8 +80,8 @@ namespace TpacCli
                 Height = (uint)png.Height,
                 MipmapCount = 1,
                 ArrayCount = 1,
-                Format = TextureFormat.DXT5,
-                SystemFlags = new List<string> { "has_alpha" },
+                Format = dxt1 ? TextureFormat.DXT1 : TextureFormat.DXT5,
+                SystemFlags = dxt1 ? new List<string>() : new List<string> { "has_alpha" },
                 GeneratedAssets = new List<Tuple<Guid, Guid>>(),
                 UnknownUlong = 0,
                 UnknownUlong2 = 0,
@@ -88,8 +91,8 @@ namespace TpacCli
 
             var loader = new ExternalLoader<TexturePixelData>(new TexturePixelData
             {
-                PrimaryRawImage = bc3,
-                RawImage = new[] { new[] { bc3 } },
+                PrimaryRawImage = encoded,
+                RawImage = new[] { new[] { encoded } },
             })
             {
                 OwnerGuid = asset.Guid,
@@ -98,7 +101,7 @@ namespace TpacCli
             loader.UserData[TexturePixelData.KEY_HEIGHT] = (int)png.Height;
             loader.UserData[TexturePixelData.KEY_ARRAY] = 1;
             loader.UserData[TexturePixelData.KEY_MIPMAP] = 1;
-            loader.UserData[TexturePixelData.KEY_FORMAT] = TextureFormat.DXT5;
+            loader.UserData[TexturePixelData.KEY_FORMAT] = dxt1 ? TextureFormat.DXT1 : TextureFormat.DXT5;
             asset.TypelessDataSegments.Add(loader);
             return asset;
         }
@@ -128,6 +131,7 @@ namespace TpacCli
             [JsonPropertyName("png")] public string Png { get; set; }
             [JsonPropertyName("width")] public int Width { get; set; }
             [JsonPropertyName("height")] public int Height { get; set; }
+            [JsonPropertyName("format")] public string Format { get; set; }   // 可选 "DXT1"（默认 DXT5）
         }
     }
 }
