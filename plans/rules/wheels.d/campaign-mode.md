@@ -1,0 +1,50 @@
+# 自定义战役模式 / 内容包自给域轮子（2026-09-08 登记）
+
+> **场景**：LWN 作为通用基座挂自定义 GameType（TaikouCampaign 打头，三国等后续走同通路）。内容包 = 纯数据、必须在**自己体系内自洽**；战役启动链的崩法 = "半成品对象"型 NRE。本卷收这两类排雷/校验轮子。
+> **来源**：2026-09-07 TaikouCampaign 启动链排雷（Companion NRE 三段链结案，详见 `plans/太阁数据加载taikou-campaign-boot-20260907.md`「T1 结案」）。
+> 注意事项：路径约定——脚本在**仓库根 `Scripts/`**，C# 在 `ExampleModVS/ExampleMod/ExampleMod/` 下（与索引默认前缀一致）。
+
+## 一、内容包数据自给校验 —— 交叉引用闭合检查（每次改数据必跑）
+
+**解决什么问题**：自定义 GameType 下官方段被 IncludedGameTypes 白名单过滤，但拷贝官方文件残留的引用（物品/工艺件/音乐/装备模板带 1835 处 `Culture.<原版八文化>`）会经引擎 **`MBObjectManager.GetPresumedObject`（引用创建：对象不存在只建"裸对象"，只记 id、从不 Deserialize）** 生成空壳桩（模板列表 null）→ 原版行为无 null 保护 → NRE。任何新内容包（三国等）都会复刻这个坑。
+
+**判定模型（图结构，实现为查字典）**：引用 = 有向边 `类型.名字`，闭合判定 = 边另一端落账于三区块之一：
+1. **Taikou 自给定义**（每文件根的直接子元素 `id=`，类型映射表含 Items→Item、SPCultures→Culture 等）
+2. **引擎基础层**（Native 段**无 IncludedGameTypes** = 所有游戏类型都装载：Monster/ItemModifier/ItemModifierGroup/WeaponDescription/CraftingTemplate/SkeletonScale/SiegeEngine + Skill/Perk/Trait 等代码枚举）
+3. **别名边**（Faction→Clan——引擎里 Faction 就是 Clan 的别称）
+
+落不了账 = **悬空**（报错退出码 1）；前缀连认都不认 = **未知区**（单独列出供人工过目——防"白名单藏漏网之鱼"）。
+
+**关键签名**（仓库根 `Scripts/check_taikou_xml_references.py`）：
+```python
+python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Taikou 路径
+# XML-aware（ElementTree，跳过注释）；退出码 0=无悬空
+# 首跑即抓 14 类悬空：Culture×8（1835 处）/ NPCCharacter×5（今川真空+幽灵 id）/ Clan.clan_imagawa×2
+```
+**配套清洗**：`Scripts/sanitize_taikou_cultures.py`（8 类原版文化引用 → `Culture.ikoku`，替换+minidom parse 双验证，`--dry-run` 可用）。
+
+**验收话术**：`check ... = dangling 0 / unknown 0` = 数据改动达标（"引用的任何东西都必须在自我体系内"）。
+**铁则**：新内容包数据 = 手写或生成器产出后先过本检查；**拷贝官方文件 = 默认带原版引用尾巴，必须清洗**。
+
+## 二、CultureTemplateNullFix —— 引擎默认行为的"文化模板列表"null 兜底
+
+**解决什么问题**：即使数据自给到位，第三方引用/历史档案仍可能产生裸文化桩；引擎 `CompanionsCampaignBehavior.InitializeCompanionTemplateList`（及 LordTemplates/RebelliousHeroTemplates 的消费点）无 null 保护。LWN 作为通用基座兜底：战役启动（`LivingWorldCampaign.OnInitialize`）把每个文化的三个模板列表修复为非空、剔除 null 条目。
+
+**关键点**：
+- 反射**按属性名存在性**修复（`GetProperty` null 即跳过）——🔴 1.5.x 属性名/归属已变（`NotableAndWandererTemplates` 字符串在 1.5.1 DLL 0 命中），硬编码 Harmony 属性补丁会静默失败；反射 + 日志为跨版本安全解
+- `{ get; private set; }` 的 SetValue 必须显式取非公共 setter：`GetSetMethod(true).Invoke`（默认 `SetValue` 只走 public setter 会抛）
+- 空列表构造用 `new MBReadOnlyList<CharacterObject>(new List<CharacterObject>())`（公开构造，已验证 1.2.12）
+- 日志：`[CultureTemplateNullFix]`（null→空 / 剔除 null 条目 / 属性不存在的版本差异提示）
+
+**文件**：`ExampleModVS/ExampleMod/ExampleMod/Debug/CultureTemplateNullFix.cs`（csproj 显式 Compile，新增文件必须登记——旧式 csproj 无通配）。
+
+## 三、同族兜底索引（别重复造）
+
+文化类 NRE 已有三层战线，本卷只持新轮子：
+| 轮子 | 层 | 文件 |
+|---|---|---|
+| `AgentDamageModelCultureNullFix` | 运行时 Transpiler（伤害模型 `.Culture.IsBandit` 裸解引用） | `Debug/AgentDamageModelCultureNullFix.cs` |
+| `CharacterCultureBackfill` | 生成期 MissionLogic（角色缺 culture 按生成地点补全） | `Debug/CharacterCultureBackfill.cs` |
+| 本卷 `CultureTemplateNullFix` | 加载期（文化模板列表 null→空）+ 数据侧 `check_taikou_xml_references.py` 根治 | 见上 |
+
+**联动**：改内容包发现新的"半成品对象"NRE = 先查 `check` 脚本有没有抓到同型悬空 → 数据根治为主、LWN 兜底为辅。

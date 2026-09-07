@@ -27,8 +27,10 @@ namespace LivingWorldNpcs.CampaignMode
 		protected override void OnInitialize()
 		{
 			base.OnInitialize();
-			// v0：占位。后续在此初始化通用玩法层（内容包行为/列表挂载）。
-			// 🔴 诊断点（2026-09-07）：Clan.ValidateInitialPosition NRE——dump 世界状态（DebugLogger 走 StoryEngine_RuntimeLog.txt）
+			// 🔴 诊断 + 加固（2026-09-07 排雷 T1 结案）：
+			//   自定义 GameType 下官方段被过滤 → Taikou 拷贝文件的文化引用经 GetPresumedObject
+			//   创建「裸文化桩」（模板列表 null）→ 引擎 InitializeCompanionTemplateList NRE。
+			//   ① 诊断：世界规模摘要（T2/T3 排雷仍要）；② 加固：CultureTemplateNullFix（通用基座兜底）。
 			try
 			{
 				var objs = MBObjectManager.Instance;
@@ -47,12 +49,21 @@ namespace LivingWorldNpcs.CampaignMode
 				int nSett = 0;
 				foreach (var s in Settlement.All) { nSett++; _ = s; }
 				DebugLogger.Log($"[LWN-dump] Settlement.All.Count={nSett} | Clan.Count={nClan}");
-				// (2026-09-07) 二次装载实验已完成使命（结论：Settlement.All=0 根因=settlements.xml 未闭合，已修）——移除
+				if (Campaign.Current.Models?.CharacterDevelopmentModel != null)
+				{
+					DebugLogger.Log("[LWN-dump] Models.CharacterDevelopmentModel=OK");
+				}
+				else
+				{
+					DebugLogger.Log("[LWN-dump] Models.CharacterDevelopmentModel=<NULL> (!!)");
+				}
+				// 加固：文化模板列表 null → 空（NRE 兜底；数据侧根治见 Scripts/check_taikou_xml_references.py）
+				CultureTemplateNullFix.Apply();
 			}
 			catch (Exception ex)
 			{
-				TaleWorlds.Library.Debug.PrintError($"[LWN-dump] dump failed: {ex.Message}");
-				DebugLogger.Log($"[LWN-dump] dump FAILED: {ex.Message}");
+				TaleWorlds.Library.Debug.PrintError($"[LWN-dump] diagnostics failed: {ex.Message}");
+				DebugLogger.Log($"[LWN-dump] diagnostics FAILED: {ex.Message}");
 			}
 		}
 	}
