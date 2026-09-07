@@ -67,3 +67,32 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 - 两器**严格对称**（导入器导出的文件可被导出器读回，已往返验证：几何/面数/FVF/包围盒一致）
 - `.trf` 结构（rfver 4）：`rfver 4 → mesh <count> → <mesh_name/flag/material_name + 顶点数据...>`，经 test.trf 逐行对账验证
 - **路径约定**：脚本目录 = `tools/OpenTrf/`；TRF 目录 = `Modules/MyMapTest/EmAssetPackages/TRF/`（test.trf 样例 4 子 mesh `mi_ship_2.0~2.3`；building.trf/trf_preview 为产物示例）
+
+## 实机地形导出 — custom.export_heightmap（2026-09-07 定案，织丰实机闭环）
+
+**解决什么问题**：ModKit 打不开的场景（织丰 Main_map 依赖 ButterLib/Harmony/MCM/UIExtenderEx 四前置，编辑器加载即失败）或客户端黑盒数据，如何拿到**地形高度图 16bit PNG + 真实规格五元组（X/Y/Size/Dim/Scale）**——游戏运行中一条命令搞定。
+
+**文件**：`Debug/TerrainExportCommands.cs`（namespace LivingWorldNpcs；命令组 `custom`，参数一律忽略）。产物 `Debug/HeightmapExport/`（`heightmap_16bit.png` + `info.txt` + `tracelog.txt`），**该目录已 gitignore**。
+
+**调用**：游戏内 `~` → `custom.export_heightmap`（横在战役大地图或任意 Mission；同步执行，4096² 采样数十秒内完成，进度写日志）。
+
+**关键 API 三段论（实机逐一字验证，2026-09-07）**：
+
+| 类别 | API | 客户端行为 |
+|---|---|---|
+| ✅ 有效 | `Scene.GetTerrainData`（nodeDim/nodeSize/layerCount/layerVersion） | 两版一致：真值（原版/织丰都 OK） |
+| ✅ 有效 | `Scene.GetTerrainNodeData(x,y, out vtx, out quadLength, out min, out max)` | **原版=垃圾未初始化（vtx=-394260642）→ fallback 256 quads/节点；织丰=真值（vtx=257, quad=0.516）**——值入口自动双判 |
+| ✅ 有效 | `Scene.GetTerrainHeight(Vec2, bool checkHoles)` | 逐点采样，客户端唯一安全活路（运行时寻路/射线同源）。**注意 checkHoles 参数保留 true** |
+| ✅ 有效 | `Scene.GetTerrainMinMaxHeight`（Scale/min） | 全版本有效 = 场景 max_height 参数（导入面板 min/max 口径） |
+| 💣 炸弹 | `Scene.GetTerrainHeightData` **永久禁用** | 原版=空壳；**织丰=direct native 崩溃（托管 catch 不住、引擎 crash handler 都不弹、tracelog 冻结于调用行）**——只禁不调 |
+| 💣 炸弹 | `Scene.GetTerrainMemoryUsage` | 同族（原版返回 0）；禁用 |
+| ⚠️ 空壳族 | 材质层权重（GetTerrainWeight/Materialmap/Weightmap/SplatLayer/LayerWeight） | **client 引擎 DLL 全 0 命中——运行时无材质权重 API**；唯一候选 `GetTerrainPhysicsMaterialIndexData`（PHYM 段，物理材质索引 short[]）待 probe 定案（见 custom.probe_terrainlayers） |
+
+**坑点回炉（全踩过）**：
+- 🔴 **崩溃定位法**：DebugLogger 每行独立 Write 但有缓冲，进程崩溃丢尾行 → `TraceLog`（AutoFlush StreamWriter 直写 `tracelog.txt`）逐调用打点，**冻结行 = native 崩溃点**（本次 3 轮崩溃全部靠它一行定位）
+- 🔴 **朝向**：引擎世界 Y+ 指向**南** → 采样 y 需反转（`wy = (H-1-y+0.5)*quad`），否则输出图上下颠倒（织丰实机目验：翻转后北海道上/九州下/四国左中下、日本海在上侧）
+- 🔴 **拼图/精度**：采样网格 = nodeDim × 每节点格数（有真值 quadLength 时 = 世界尺寸/quadLength；无则 256 格/节点——与原版精密度对齐）；织丰 = 16×16 节点 × 257 顶点（256 quads）→ 4096²、世界 2112×2112m、0.516m/顶点、13 层、Scale 20.968m（min -8）
+- **归一化**：GetTerrainMinMaxHeight 区间 → [0, 65535]（info.txt 记录区间，导入面板照抄）
+- **PNG 编码零依赖**（PNG 签名 + IHDR/IDAT/IEND + zlib(DeflateStream raw) + CRC32/Adler32 手写）；**离线同源验证过**（PIL 打开 I;16 逐像素一致）。注：Filter=0 保守档 4.7MB；PIL 自适应过滤 3.8MB——纯编码差异不伤数据
+- **getter 逐调用分离打 trace**（ContainsTerrain/HasTerrainHeightmap/GetTerrainData/…），任何一步崩一查即知
+- 已知规格：原版 16×16@53m/848m/8 层/Scale 25；织丰 16×16@**132m**/2112m/13 层/Scale 20.968——织丰世界 2.5 倍大、顶点密度 0.516m、**织丰地图列岛全图 = 4096² (h>0 判定)**；海域 ~76%

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Engine;
@@ -19,42 +20,78 @@ namespace LivingWorldNpcs
 {
     /// <summary>
     /// 实机地形高度图导出命令（2026-09-07）。
-    /// 游戏内 `~` 控制台调用：
+    /// 游戏内 `~` 控制台调用（参数一律忽略）：
     ///   custom.export_heightmap            # 导出到 <模块根>/Debug/HeightmapExport/
-    ///   custom.export_heightmap D:\hm_out   # 指定输出目录
     ///
     /// 产物 = 16bit 灰度 PNG（引擎 Import Heightmap / 编辑器 Export Heightmap 同规格）
     ///   + info.txt（真实四件套 X/Y/Size/Dim/Scale + 模式说明，人读摘要）。
-    /// 双模数据来源（自动判定）：
-    ///   grid:    Scene.GetTerrainHeightData 逐节点整格导出（编辑器可用时，最快最准）；
-    ///   sampled: 整格数据客户端不保留时（GetTerrainHeightData 返回空，2026-09-07 实机实证）
-    ///            → 降级 GetTerrainHeight(Vec2) 逐像素采样（运行时射线/寻路同源 API，必活），
-    ///            按真实网格分辨率采样，输出插值曲面高度图。采样进度写 DebugLogger。
+    /// 数据来源（🔴 2026-09-07 实机定案：客户端一律 sampling）：
+    ///   GetTerrainHeightData（编辑器式整格导出）对原版=空壳、对织丰=direct native crash（托管 catch 不住、
+    ///   引擎 crash handler 都不弹，tracelog 冻结于调用行）→ 永久禁用；
+    ///   只走 GetTerrainHeight(Vec2) 逐像素采样（运行时射线/寻路同源 API，必活），
+    ///   按真实网格分辨率采样，输出插值曲面高度图。采样进度写 DebugLogger。
     /// 场景解析顺序：Mission 场景优先，否则战役大地图（SandBox.MapScene.Scene）。
     /// PNG 编码零依赖手写（PNG 签名 + IHDR/IDAT/IEND + zlib(DeflateStream) + CRC32），无 System.Drawing。
     /// </summary>
     public class TerrainExportCommands
     {
+        // 🔴 专用崩溃追踪日志：DebugLogger 每行独立 Write 但可能有缓冲，进程崩溃丢尾行（织丰实机 2026-09-07 教训）；
+        //    TraceLog 用 AutoFlush StreamWriter 直写，崩溃不丢最后一行 → 冻结行 = native 崩溃点。
+        private static readonly object _traceLock = new object();
+
+        private static string TracePath()
+        {
+            return SysPath.Combine(ModuleRootDir(), "Debug", "HeightmapExport", "tracelog.txt");
+        }
+
+        private static void TraceLog(string message)
+        {
+            try
+            {
+                lock (_traceLock)
+                {
+                    string dir = SysPath.GetDirectoryName(TracePath());
+                    SysDirectory.CreateDirectory(dir);
+                    using (var sw = new StreamWriter(TracePath(), true, Encoding.UTF8) { AutoFlush = true })
+                    {
+                        sw.WriteLine("[" + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                try { DebugLogger.Log("[TerrainExport] tracelog write failed: " + ex.Message); } catch { }
+            }
+        }
         /// <summary>
-        /// 导出当前场景的地形高度图（16bit 灰度 PNG）。
+        /// 导出当前场景的地形高度图（16bit 灰度 PNG）。参数忽略，输出路径固定模块目录。
         /// </summary>
-        /// <param name="args">args[0] 可选：输出目录（绝对路径；空 = 模块目录下 Debug/HeightmapExport/）</param>
+        /// <param name="args">忽略（调试命令参数无意义，防止手滑误传目录/数值）</param>
         [TaleWorlds.Library.CommandLineFunctionality.CommandLineArgumentFunction("export_heightmap", "custom")]
         public static string ExportHeightmap(List<string> args)
         {
             try
             {
+                TraceLog("cmd entered, args=" + (args == null ? "0" : args.Count.ToString()));
+
                 Scene scene = ResolveCurrentScene();
+                TraceLog("scene resolved: " + (scene != null ? "ok" : "null"));
                 if (scene == null)
                     return "error: no scene available (run in a mission or in campaign map)";
 
-                if (!scene.ContainsTerrain)
+                bool containsTerrain = scene.ContainsTerrain;
+                TraceLog("ContainsTerrain=" + containsTerrain);
+                if (!containsTerrain)
                     return "error: current scene has no terrain";
 
-                if (!scene.HasTerrainHeightmap)
+                bool hasHeightmap = scene.HasTerrainHeightmap;
+                TraceLog("HasTerrainHeightmap=" + hasHeightmap);
+                if (!hasHeightmap)
                     return "error: HasTerrainHeightmap == false, height grid not available in client";
 
                 scene.GetTerrainData(out Vec2i nodeDim, out float nodeSize, out int layerCount, out int layerVersion);
+                TraceLog(string.Format("GetTerrainData ok: nodeDim={0}x{1} size={2} layers={3}v{4}", nodeDim.X, nodeDim.Y,
+                    nodeSize.ToString("0.###", CultureInfo.InvariantCulture), layerCount, layerVersion));
 
                 int nodeCount = nodeDim.X * nodeDim.Y;
                 if (nodeDim.X <= 0 || nodeDim.Y <= 0 || nodeCount > 100000)
@@ -62,6 +99,7 @@ namespace LivingWorldNpcs
 
                 // ── 元数据探测（GetTerrainNodeData 是纯元数据读；🔴 实机 2026-09-07：客户端返回无效值 vtx<=0 或 quadLength<=0）──
                 scene.GetTerrainNodeData(0, 0, out int vtx, out float quadLength, out float node0Min, out float node0Max);
+                TraceLog("GetTerrainNodeData(0,0): vtx=" + vtx + " quadLength=" + quadLength);
                 bool nodeMetaValid = vtx > 0 && quadLength > 0;
                 if (!nodeMetaValid)
                 {
@@ -70,26 +108,21 @@ namespace LivingWorldNpcs
                     quadLength = 0;
                 }
 
-                // ── 整格数据探测：编辑器侧 API，客户端可能不填充（实机 2026-09-07 实证为空）──
-                float[] probe = scene.GetTerrainHeightData(0, 0);
-                bool gridMode = probe != null && probe.Length > 0 && nodeMetaValid;
-                int terrainMemUsage = scene.GetTerrainMemoryUsage();
+                // ── 整格数据：🔴 永久禁用（2026-09-07 织丰实机：GetTerrainHeightData(0,0) 直接 native 崩溃，
+                //    托管 try/catch 包不住、引擎 crash handler 都不弹——该调用对织丰场景=炸弹，原版=空壳。
+                //    一律走 sampling（GetTerrainHeight 是客户端唯一安全活路）。──
+                bool gridMode = false;
+                TraceLog("mode decision: gridMode=" + gridMode + " (GetTerrainHeightData disabled, crash-risk)");
 
                 float[] grid;
                 int totalW, totalH;
                 string mode;
 
-                if (gridMode)
-                {
-                    mode = "grid";
-                    grid = ExportByNodeGrid(scene, nodeDim, vtx, out totalW, out totalH);
-                }
-                else
-                {
-                    mode = "sampled";
-                    grid = ExportBySampling(scene, nodeDim, nodeSize, nodeMetaValid ? quadLength : 0f, out totalW, out totalH);
-                    DebugLogger.Log("[TerrainExport] 整格数据不可用（grid mode fallback）→ sampled 模式采样完成 " + totalW + "x" + totalH);
-                }
+                // 🔴 GetTerrainMemoryUsage 同样禁用（原版空但织丰/未知场景有崩溃风险，2026-09-07）
+                mode = "sampled";
+                grid = ExportBySampling(scene, nodeDim, nodeSize, nodeMetaValid ? quadLength : 0f, out totalW, out totalH);
+                DebugLogger.Log("[TerrainExport] 整格数据不可用（grid mode fallback）→ sampled 模式采样完成 " + totalW + "x" + totalH);
+                TraceLog("sampled export done: " + totalW + "x" + totalH);
 
                 // ── 归一化区间：优先引擎全局 min/max；NaN/退化时用数据实际范围 ──
                 float gMin, gMax;
@@ -137,9 +170,7 @@ namespace LivingWorldNpcs
                     }
                 }
 
-                string outDir = (args != null && args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]))
-                    ? SysPath.GetFullPath(args[0])
-                    : SysPath.Combine(ModuleRootDir(), "Debug", "HeightmapExport");
+                string outDir = SysPath.Combine(ModuleRootDir(), "Debug", "HeightmapExport");
 
                 SysDirectory.CreateDirectory(outDir);
 
@@ -152,7 +183,7 @@ namespace LivingWorldNpcs
                 var info = new StringBuilder();
                 info.AppendLine("Live terrain heightmap export info");
                 info.AppendLine("================================");
-                info.AppendLine(string.Format("Mode          : {0} (grid = per-node GetTerrainHeightData; sampled = per-pixel GetTerrainHeight fallback)", mode));
+                info.AppendLine(string.Format("Mode          : {0} (per-pixel GetTerrainHeight sampling; grid API GetTerrainHeightData disabled — native crash on Shokuho map, 2026-09-07)", mode));
                 info.AppendLine(string.Format("IMPORT PARAMS (real engine values)  "));
                 info.AppendLine(string.Format("  X     = {0} (nodes along X)", nodeDim.X));
                 info.AppendLine(string.Format("  Y     = {0} (nodes along Y)", nodeDim.Y));
@@ -168,7 +199,7 @@ namespace LivingWorldNpcs
                     gMax.ToString("0.###", CultureInfo.InvariantCulture), gMin.ToString("0.###", CultureInfo.InvariantCulture)));
                 info.AppendLine(string.Format("Layers        : {0} (v{1})", layerCount, layerVersion));
                 info.AppendLine(string.Format("PNG grid      : {0} x {1}", totalW, totalH));
-                info.AppendLine(string.Format("Terrain mem   : {0} bytes (GetTerrainMemoryUsage; 诊断用)", terrainMemUsage));
+                info.AppendLine("Terrain mem   : n/a (GetTerrainMemoryUsage not queried; crash risk)");
                 info.AppendLine(string.Format("Data min/max  : {0} / {1}", dataMin.ToString("0.###", CultureInfo.InvariantCulture), dataMax.ToString("0.###", CultureInfo.InvariantCulture)));
                 info.AppendLine(string.Format("Normalize     : [{0}, {1}] -> [0, 65535]", gMin.ToString("0.###", CultureInfo.InvariantCulture), gMax.ToString("0.###", CultureInfo.InvariantCulture)));
                 info.AppendLine(string.Format("PNG           : {0}", pngPath));
@@ -185,43 +216,12 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
-                return "error: " + ex.Message;
+                // 🔴 异常信息全量进日志（中文/英文均可）——控制台只给英文固定提示（命令返回文本纪律）
+                DebugLogger.Log("[TerrainExport] exception: " + ex);
+                return "error: exception (full details in Debug/StoryEngine_RuntimeLog.txt)";
             }
         }
 
-        /// <summary>
-        /// 整格模式：逐节点 GetTerrainHeightData → 相邻节点共享边拼图（总 = nodeDim*(vtx-1)+1）。
-        /// </summary>
-        private static float[] ExportByNodeGrid(Scene scene, Vec2i nodeDim, int vtx, out int totalW, out int totalH)
-        {
-            int stride = vtx - 1;
-            totalW = nodeDim.X * stride + 1;
-            totalH = nodeDim.Y * stride + 1;
-
-            float[] grid = new float[totalW * totalH];
-            int nodeIdx = 0;
-            for (int ny = 0; ny < nodeDim.Y; ny++)
-            {
-                for (int nx = 0; nx < nodeDim.X; nx++)
-                {
-                    scene.GetTerrainNodeData(nx, ny, out int v, out float ql, out float nMin, out float nMax);
-                    float[] local = scene.GetTerrainHeightData(nx, ny);
-                    if (local == null || local.Length != vtx * vtx)
-                        throw new Exception("node (" + nx + "," + ny + ") returned bad data");
-
-                    _ = ql; _ = nMin; _ = nMax;
-                    for (int ly = 0; ly < vtx; ly++)
-                    {
-                        int destRow = (ny * stride + ly) * totalW + nx * stride;
-                        Array.Copy(local, ly * vtx, grid, destRow, vtx);
-                    }
-                    nodeIdx++;
-                }
-            }
-            if (nodeIdx != nodeDim.X * nodeDim.Y)
-                throw new Exception("node iteration mismatch");
-            return grid;
-        }
 
         /// <summary>
         /// 采样模式：无整格数据时按逐像素 GetTerrainHeight（运行时必活 API）采样。
@@ -255,13 +255,16 @@ namespace LivingWorldNpcs
                 }
             }
             DebugLogger.Log(probeLog.ToString());
+            TraceLog(probeLog.ToString());
 
             float[] grid = new float[totalW * totalH];
             long done = 0;
             long total = (long)totalW * totalH;
+            // 🔴 朝向定案（2026-09-07 织丰实机）：引擎世界 Y+ 指向南 → 采样 y=0 是南端、图上下颠倒。
+            //    采样行按 y 反转（wy 从大到小），输出恒为北朝上（北海道上、九州下）。
             for (int y = 0; y < totalH; y++)
             {
-                float wy = (y + 0.5f) * quad;
+                float wy = (totalH - 1 - y + 0.5f) * quad;
                 for (int x = 0; x < totalW; x++)
                 {
                     float wx = (x + 0.5f) * quad;
@@ -274,6 +277,64 @@ namespace LivingWorldNpcs
                 }
             }
             return grid;
+        }
+
+        /// <summary>
+        /// 物理材质索引探针：验证 GetTerrainPhysicsMaterialIndexData（PHYM 段）在客户端是否可用
+        /// ——若可用 = 逐顶点「层/物理索引」网格（材质分层判据的替代路线，matmap 运行时无 API）。
+        /// 🔴 独立命令（不并入 export_heightmap）：GetTerrainHeightData 同族 API 有 native 崩溃风险，
+        ///    单独探测互不牵连；控制台英文摘要，全量写 tracelog。
+        /// </summary>
+        [TaleWorlds.Library.CommandLineFunctionality.CommandLineArgumentFunction("probe_terrainlayers", "custom")]
+        public static string ProbeTerrainLayers(List<string> args)
+        {
+            try
+            {
+                Scene scene = ResolveCurrentScene();
+                TraceLog("probe: scene=" + (scene == null ? "null" : "ok"));
+                if (scene == null)
+                    return "error: no scene available";
+
+                bool contains = scene.ContainsTerrain;
+                TraceLog("probe: ContainsTerrain=" + contains);
+                if (!contains)
+                    return "error: scene has no terrain";
+
+                scene.GetTerrainData(out Vec2i nodeDim, out float nodeSize, out int layerCount, out int layerVersion);
+                TraceLog("probe: GetTerrainData nodeDim=" + nodeDim.X + "x" + nodeDim.Y +
+                    " size=" + nodeSize.ToString("0.###", CultureInfo.InvariantCulture) +
+                    " layers=" + layerCount + "v" + layerVersion);
+
+                short[] phy = scene.GetTerrainPhysicsMaterialIndexData(0, 0);
+                TraceLog("probe: GetTerrainPhysicsMaterialIndexData(0,0) len=" + (phy == null ? -1 : phy.Length));
+                if (phy == null || phy.Length == 0)
+                    return "error: physics material index data empty";
+
+                int min = int.MaxValue, max = int.MinValue;
+                var hist = new Dictionary<int, int>();
+                foreach (short v in phy)
+                {
+                    int iv = v;
+                    if (iv < min) min = iv;
+                    if (iv > max) max = iv;
+                    hist[iv] = hist.TryGetValue(iv, out int c) ? c + 1 : 1;
+                }
+                var top = new List<string>();
+                foreach (var kv in hist.OrderByDescending(x => x.Value).Take(8))
+                {
+                    top.Add(kv.Key + ":" + kv.Value);
+                }
+
+                string summary = "OK: len=" + phy.Length + " min=" + min + " max=" + max +
+                    " uniq=" + hist.Count + " top=" + string.Join(",", top);
+                TraceLog("probe result: " + summary);
+                return summary;
+            }
+            catch (Exception ex)
+            {
+                TraceLog("probe exception: " + ex);
+                return "error: exception (see tracelog.txt)";
+            }
         }
 
         /// <summary>
