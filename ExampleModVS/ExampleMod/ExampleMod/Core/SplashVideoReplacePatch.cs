@@ -38,6 +38,13 @@ namespace LivingWorldNpcs
             {
                 return; // 未配置：保持原生（TWLogo）
             }
+            // 🔴 模块启用判定（2026-09-07）：config 有值不够——1.2.12 的 GetModuleFullPath
+            // 只看物理目录（未勾选也返回路径），必须过引擎启用列表，否则没挂 Taikou 也替换。
+            if (!ModuleActivationHelper.IsModuleEnabled(moduleId))
+            {
+                DebugLogger.Log($"[SplashVideo] 模块未启用（launcher 未勾选），保持原生：{moduleId}");
+                return;
+            }
             try
             {
                 // 未挂载模块：GetModuleFullPath 是字典直索引（反编译实证 _allFoundModules[id].FolderPath），

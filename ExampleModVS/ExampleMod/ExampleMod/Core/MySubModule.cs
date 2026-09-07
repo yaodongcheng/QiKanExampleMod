@@ -21,6 +21,7 @@ using TaleWorlds.InputSystem;
 using HarmonyLib;
 using psai;
 using psai.net;
+using LivingWorldNpcs.CampaignMode;
 
 namespace LivingWorldNpcs
 {
@@ -78,6 +79,17 @@ namespace LivingWorldNpcs
             {
                 string errorMsg = $"[LivingWorldNpcs] Failed to load CSV Data!\nError: {ex.Message}";
                 Debug.PrintError(errorMsg);
+            }
+
+            // ── 双模式开关：内容包（Taikou）已加载 → 激活通用战役模式（主菜单接线）；
+            //    未加载 → 纯功能包（玩原版战役），LWN 行为层照常。见 Core/CampaignMode/。
+            try
+            {
+                CampaignModeActivator.TryActivateCampaignMode();
+            }
+            catch (Exception ex)
+            {
+                Debug.PrintError($"[LivingWorldNpcs] CampaignMode activation failed: {ex.Message}");
             }
 
         }

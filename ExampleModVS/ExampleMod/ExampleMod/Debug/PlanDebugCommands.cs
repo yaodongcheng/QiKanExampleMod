@@ -81,12 +81,12 @@ namespace LivingWorldNpcs
             if (v == "off" || v == "none" || v == "0")
             {
                 Settings.Instance.StealSuccessRateOverride = -1f;
-                return $"偷窃/击晕成功率覆盖已关闭（走原公式）";
+                return "OK: steal/knockout success rate override disabled (vanilla formula).";
             }
             if (!float.TryParse(v, out float rate) || rate < 0.05f || rate > 0.95f)
-                return "error: 值须在 0.05~0.95 之间（或 off）";
+                return "error: rate must be between 0.05~0.95 (or off)";
             Settings.Instance.StealSuccessRateOverride = rate;
-            return $"偷窃/击晕成功率强制为 {rate:P0}（随从偷窃 + 击晕共享管线生效）";
+            return $"OK: steal/knockout success rate forced to {rate:P0} (shared pipeline).";
         }
 
         /// <summary>当前步骤详情（§12 调试：执行器游标位置/步骤动作/摘要）。</summary>
@@ -95,12 +95,12 @@ namespace LivingWorldNpcs
             var agent = ResolveAgent(args.Count > 1 ? args[1] : null);
             if (agent == null) return "error: agent not found";
             var ex = PlanExecutor.GetExecutorFor(agent);
-            if (ex == null) return $"{agent.Name} 当前无执行中的计划";
+            if (ex == null) return $"{agent.Name} has no active plan";
             var sb = new StringBuilder();
-            sb.AppendLine($"{agent.Name} 当前执行详情:");
+            sb.AppendLine($"{agent.Name} execution details:");
             sb.AppendLine($"  State: {ex.State}   Elapsed: {ex.Elapsed:F1}s");
-            sb.AppendLine($"  Goal: {ex.Plan?.Goal?.Type ?? "(无 goal)"}");
-            sb.AppendLine($"  主链步骤: {ex.Plan?.Steps?.Count ?? 0}  预案: {ex.Plan?.Fallbacks?.Count ?? 0}  contingencies: {ex.Plan?.Contingencies?.Count ?? 0}");
+            sb.AppendLine($"  Goal: {ex.Plan?.Goal?.Type ?? "(none)"}");
+            sb.AppendLine($"  Main steps: {ex.Plan?.Steps?.Count ?? 0}  Fallbacks: {ex.Plan?.Fallbacks?.Count ?? 0}  Contingencies: {ex.Plan?.Contingencies?.Count ?? 0}");
             var world = ex.World;
             var steps = ex.Plan?.Steps;
             if (steps != null)
@@ -122,12 +122,12 @@ namespace LivingWorldNpcs
             var agent = ResolveAgent(args.Count > 1 ? args[1] : null);
             if (agent == null) return "error: agent not found";
             var ex = PlanExecutor.GetExecutorFor(agent);
-            if (ex == null) return $"{agent.Name} 当前无执行中的计划";
-            if (!Settings.Instance.IsLLMConfigured) return "error: LLM 未配置（IsLLMConfigured=false）";
-            if (string.IsNullOrEmpty(ex.OriginalCommand)) return "error: 无原命令（replan 上下文缺失）";
+            if (ex == null) return $"{agent.Name} has no active plan";
+            if (!Settings.Instance.IsLLMConfigured) return "error: LLM not configured (IsLLMConfigured=false)";
+            if (string.IsNullOrEmpty(ex.OriginalCommand)) return "error: no original command (replan context missing)";
             ex.EventLog.Add($"{ex.Elapsed:F0}s: 调试强制 replan（步骤 {ex.SelfCursorIndex} 处）");
             ex.AbortForReplanDebug(PlanTexts.FightBrokeOut);
-            return $"{agent.Name} 已触发 replan（第 {ex.ReplanCount + 1} 次，LLM 异步执行，结果看日志）";
+            return $"{agent.Name} replan triggered (attempt {ex.ReplanCount + 1}, LLM async; see logs)";
         }
 
         private static string DumpSnapshot()
@@ -180,12 +180,12 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
-                return $"error: plan JSON 解析失败: {ex.Message}";
+                return $"error: plan JSON parse failed: {ex.Message}";
             }
             if (plan == null) return "error: plan is null";
 
             Agent agent = ResolveAgent(agentId);
-            if (agent == null) return "error: agent not found（需在场景中，或指定 agentId）";
+            if (agent == null) return "error: agent not found (must be in the scene, or pass agentId)";
 
             // 角色表注入：示例里的 guard/chief 等角色 → 场景匹配
             var roleAgents = new Dictionary<string, Agent>();
@@ -210,7 +210,7 @@ namespace LivingWorldNpcs
             }
 
             var executor = PlanExecutor.Create(agent, plan, plan.Intent?.IntentType, roleAgents);
-            if (executor == null) return "error: 计划校验未通过（见日志）";
+            if (executor == null) return "error: plan validation failed (see logs)";
 
             var brain = AgentAIController.GetBrainForAgent(agent);
             if (brain == null) return "error: agent has no brain";
@@ -223,9 +223,9 @@ namespace LivingWorldNpcs
             var exRef = executor;
             executor.OnFinished += e => brain.OnPlanExecutorFinished(exRef);
             // Replan 接线（调试注入同样支持意外重入）
-            PlanReplan.Wire(executor, plan.Summary ?? "（调试命令）", plan.Intent?.IntentType);
+            PlanReplan.Wire(executor, plan.Summary ?? "(debug command)", plan.Intent?.IntentType);
 
-            return $"计划已注入 {agent.Name}：{plan.Summary ?? plan.Intent?.IntentType}（steps={plan.Steps?.Count ?? 0}）";
+            return $"plan injected into {agent.Name}: {plan.Summary ?? plan.Intent?.IntentType} (steps={plan.Steps?.Count ?? 0})";
         }
 
         private static string Status(List<string> args)
@@ -233,9 +233,9 @@ namespace LivingWorldNpcs
             var agent = ResolveAgent(args.Count > 1 ? args[1] : null);
             if (agent == null) return "error: agent not found";
             var ex = PlanExecutor.GetExecutorFor(agent);
-            if (ex == null) return $"{agent.Name} 当前无执行中的计划";
+            if (ex == null) return $"{agent.Name} has no active plan";
             var sb = new StringBuilder();
-            sb.AppendLine($"{agent.Name} 执行器状态:");
+            sb.AppendLine($"{agent.Name} executor status:");
             sb.AppendLine($"  State: {ex.State}");
             sb.AppendLine($"  Intent: {ex.IntentType}");
             sb.AppendLine($"  Elapsed: {ex.Elapsed:F1}s");
@@ -249,9 +249,9 @@ namespace LivingWorldNpcs
             var agent = ResolveAgent(args.Count > 1 ? args[1] : null);
             if (agent == null) return "error: agent not found";
             var ex = PlanExecutor.GetExecutorFor(agent);
-            if (ex == null) return $"{agent.Name} 当前无执行中的计划";
+            if (ex == null) return $"{agent.Name} has no active plan";
             ex.CancelByPlayer("调试停止");
-            return $"{agent.Name} 计划已停止";
+            return $"{agent.Name} plan stopped";
         }
 
         /// <summary>解析目标 agent：agentId（StringId）→ 指定；null → 随从（Leader==Main）或最近的非玩家。</summary>

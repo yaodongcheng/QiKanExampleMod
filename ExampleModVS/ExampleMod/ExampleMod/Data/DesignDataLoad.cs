@@ -277,6 +277,13 @@ namespace LivingWorldNpcs
             {
                 try
                 {
+                    // 🔴 模块启用判定（2026-09-07）：1.2.12 的 GetModuleFullPath 只看物理目录，
+                    // 未勾选也返回路径——必须过引擎启用列表，否则没挂 Taikou 也注入。
+                    if (!ModuleActivationHelper.IsModuleEnabled(designDataModuleId))
+                    {
+                        DebugLogger.Log($"[DesignData] 模块未启用（launcher 未勾选），保持空表：{designDataModuleId}");
+                        return;
+                    }
                     string injectPath = Path.Combine(
                         TaleWorlds.ModuleManager.ModuleHelper.GetModuleFullPath(designDataModuleId),
                         "ModuleData", "DesignData");

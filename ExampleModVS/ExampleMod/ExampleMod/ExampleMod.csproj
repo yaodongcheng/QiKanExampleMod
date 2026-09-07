@@ -133,6 +133,8 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
+    <!-- 🔴 2026-09-07: TerrainExportCommands 手写 PNG 编码器用 DeflateStream（raw deflate → zlib 包装） -->
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.Xml" />
     <Reference Include="TaleWorlds.CampaignSystem">
       <HintPath>$(MB2_CORE_REF)\TaleWorlds.CampaignSystem.dll</HintPath>
@@ -313,6 +315,12 @@
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
+    <!-- CampaignMode：通用自定义战役（GameType）层——内容包加载时激活（三单元架构） -->
+    <Compile Include="Core\CampaignMode\CampaignModeActivator.cs" />
+    <Compile Include="Core\CampaignMode\LivingWorldCampaign.cs" />
+    <Compile Include="Core\CampaignMode\LivingWorldCampaignGameManager.cs" />
+    <Compile Include="Core\CampaignMode\LivingWorldCharacterCreationContent.cs" />
+    <Compile Include="Core\CampaignMode\TaikouCampaign.cs" />
     <Compile Include="Core\MyBehavior.cs" />
     <Compile Include="Core\NameDisplayRules.cs" />
     <Compile Include="Core\MySubModule.cs" />
@@ -324,6 +332,7 @@
     <Compile Include="Core\SplashVideoReplacePatch.cs" />
     <Compile Include="Core\MenuSoundtrackPatch.cs" />
     <Compile Include="Core\MCMSettings.cs" />
+    <Compile Include="Core\ModuleActivationHelper.cs" />
     <Compile Include="Core\FriendlinessHelper.cs" />
     <Compile Include="Core\VersionCompat.cs" />
     <!-- Data -->
@@ -343,6 +352,7 @@
     <Compile Include="Debug\CharacterCultureBackfill.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
+    <Compile Include="Debug\TerrainExportCommands.cs" />
     <!-- GUI -->
     <Compile Include="GUI\LoadingRandomPatch.cs" />
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />
