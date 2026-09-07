@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CharacterCreationContent;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Localization;
 
 namespace LivingWorldNpcs.CampaignMode
@@ -36,6 +37,20 @@ namespace LivingWorldNpcs.CampaignMode
 			typeof(CharacterCreationCultureStage),
 			typeof(CharacterCreationReviewStage),
 		};
+
+		/// <summary>
+		/// 建号完成 → 重设主队出生位置。
+		/// 🔴 引擎 Campaign.DefaultStartingPosition 非 virtual（InitializeMainParty / CC finalize 兜底
+		/// 都锁定基类实现）→ 出生点在本处写入（织丰母本同法：shokuho.txt:164613）。
+		/// </summary>
+		public override void OnCharacterCreationFinalized()
+		{
+			base.OnCharacterCreationFinalized();
+			if (_contentPack == "Taikou" && MobileParty.MainParty != null)
+			{
+				MobileParty.MainParty.Position2D = TaikouCampaign.TaikouStartingPosition;
+			}
+		}
 #else
 		// v1.5.x：TODO —— 接 CharacterCreationManager 新体系时实现
 #endif

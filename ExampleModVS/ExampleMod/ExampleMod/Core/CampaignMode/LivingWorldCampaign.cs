@@ -1,4 +1,9 @@
+using System;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Core;
+using TaleWorlds.Library;
+using TaleWorlds.ObjectSystem;
 
 namespace LivingWorldNpcs.CampaignMode
 {
@@ -23,6 +28,32 @@ namespace LivingWorldNpcs.CampaignMode
 		{
 			base.OnInitialize();
 			// v0：占位。后续在此初始化通用玩法层（内容包行为/列表挂载）。
+			// 🔴 诊断点（2026-09-07）：Clan.ValidateInitialPosition NRE——dump 世界状态（DebugLogger 走 StoryEngine_RuntimeLog.txt）
+			try
+			{
+				var objs = MBObjectManager.Instance;
+				int nClan = 0;
+				foreach (var c in objs.GetObjectTypeList<Clan>())
+				{
+					nClan++;
+					string cid = c.StringId ?? "?";
+					string cult = c.Culture != null ? c.Culture.StringId : "<NULL>";
+					string kingdom = c.Kingdom != null ? c.Kingdom.StringId : "<NONE>";
+					int sCount = 0;
+					foreach (var s in c.Settlements) { sCount++; _ = s; }
+					Vec2 ip = c.InitialPosition;
+					DebugLogger.Log($"[LWN-dump] Clan {cid} | culture={cult} | kingdom={kingdom} | settlements={sCount} | initPos=({ip.X},{ip.Y})");
+				}
+				int nSett = 0;
+				foreach (var s in Settlement.All) { nSett++; _ = s; }
+				DebugLogger.Log($"[LWN-dump] Settlement.All.Count={nSett} | Clan.Count={nClan}");
+				// (2026-09-07) 二次装载实验已完成使命（结论：Settlement.All=0 根因=settlements.xml 未闭合，已修）——移除
+			}
+			catch (Exception ex)
+			{
+				TaleWorlds.Library.Debug.PrintError($"[LWN-dump] dump failed: {ex.Message}");
+				DebugLogger.Log($"[LWN-dump] dump FAILED: {ex.Message}");
+			}
 		}
 	}
 }

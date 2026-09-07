@@ -1,4 +1,5 @@
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Library;
 
 namespace LivingWorldNpcs.CampaignMode
 {
@@ -13,5 +14,12 @@ namespace LivingWorldNpcs.CampaignMode
 			: base(gameMode)
 		{
 		}
+
+		/// <summary>
+		/// 玩家出生点（日本图世界米坐标 = 京（969.4, 421.6）东侧 (973, 421)）。
+		/// 🔴 引擎 Campaign.DefaultStartingPosition 非 virtual（两个调用点都锁定基类实现）——
+		/// 出生位置由建号 Content 的 OnCharacterCreationFinalized 写入（织丰母本同法，shokuho.txt:164613）。
+		/// </summary>
+		public static Vec2 TaikouStartingPosition => new Vec2(973f, 421f);
 	}
 }

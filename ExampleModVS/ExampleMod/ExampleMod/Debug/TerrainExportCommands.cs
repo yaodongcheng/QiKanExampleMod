@@ -285,7 +285,7 @@ namespace LivingWorldNpcs
         /// 🔴 独立命令（不并入 export_heightmap）：GetTerrainHeightData 同族 API 有 native 崩溃风险，
         ///    单独探测互不牵连；控制台英文摘要，全量写 tracelog。
         /// </summary>
-        [TaleWorlds.Library.CommandLineFunctionality.CommandLineArgumentFunction("probe_terrainlayers", "custom")]
+        [TaleWorlds.Library.CommandLineFunctionality.CommandLineArgumentFunction("export_terrainlayers", "custom")]
         public static string ProbeTerrainLayers(List<string> args)
         {
             try

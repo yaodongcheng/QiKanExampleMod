@@ -86,7 +86,7 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 | ✅ 有效 | `Scene.GetTerrainMinMaxHeight`（Scale/min） | 全版本有效 = 场景 max_height 参数（导入面板 min/max 口径） |
 | 💣 炸弹 | `Scene.GetTerrainHeightData` **永久禁用** | 原版=空壳；**织丰=direct native 崩溃（托管 catch 不住、引擎 crash handler 都不弹、tracelog 冻结于调用行）**——只禁不调 |
 | 💣 炸弹 | `Scene.GetTerrainMemoryUsage` | 同族（原版返回 0）；禁用 |
-| ⚠️ 空壳族 | 材质层权重（GetTerrainWeight/Materialmap/Weightmap/SplatLayer/LayerWeight） | **client 引擎 DLL 全 0 命中——运行时无材质权重 API**；唯一候选 `GetTerrainPhysicsMaterialIndexData`（PHYM 段，物理材质索引 short[]）待 probe 定案（见 custom.probe_terrainlayers） |
+| ⚠️ 空壳族 | 材质层权重（GetTerrainWeight/Materialmap/Weightmap/SplatLayer/LayerWeight） | **client 引擎 DLL 全 0 命中——运行时无材质权重 API**；唯一候选 `GetTerrainPhysicsMaterialIndexData`（PHYM 段，物理材质索引 short[]）待 probe 定案（见 custom.export_terrainlayers） |
 
 **坑点回炉（全踩过）**：
 - 🔴 **崩溃定位法**：DebugLogger 每行独立 Write 但有缓冲，进程崩溃丢尾行 → `TraceLog`（AutoFlush StreamWriter 直写 `tracelog.txt`）逐调用打点，**冻结行 = native 崩溃点**（本次 3 轮崩溃全部靠它一行定位）
