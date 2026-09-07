@@ -29,6 +29,39 @@
 
 **1.5.x 对照**：1.5.1 DLL 中 `NotableAndWandererTemplates` 字符串 0 命中（属性名/归属已变）——加固代码设计为"属性存在才修"（GetProperty null 即跳过），天然兼容；1.5.x 机首测时留意 `[CultureTemplateNullFix] 属性 xxx 在本版本不存在` 日志。
 
+## 决策表：每个环节按「织丰做了什么」分类（2026-09-08 用户裁定维度）
+
+> 实施纪律：再遇到「缺 X」类问题，先反编译织丰（Shokuho.dll + spcultures/）拿到它是"做了/不做/怎么做"的证据，再定我们的动作。
+
+| 环节 | 织丰证据 | 分类 | 我们的动作 |
+|---|---|---|---|
+| BackstoryCampaignBehavior（卡拉迪亚前史） | Shokuho.dll:99600 实锤：`[HarmonyPatch "RegisterEvents"]` + Prefix false | **A 织丰做+我们必做** | ✅ 完成（`BackstoryCampaignBehaviorPatch` 同款） |
+| neutral_culture 文化 | 织丰**有定义**（spcultures/shokuho_main_cultures.xml：basic/elite=guard 复用、militia_template、encounter_mesh、roster×2、banner 武器——最小 7 字段） | **A**（引擎 fallback 消费点 32472/32477/47645 等 4 处 + 织丰证词 = 自定义世界需要它存在） | 待做（照织丰最小字段集） |
+| PartyTemplate 引线（militia/villager/caravan/elite_caravan/rebels/vassal_reward 6 个） | 织丰有 militia_template | **A**（世界 tick 一跑商队/守军就消费） | 待做（T3 进图前） |
+| 兵种（militia melee/ranged/elite） | **织丰做派 = basic=elite=guard 单兵复用**（不造多兵种树） | A | 待做（同做派最少化：guard 1 + militia 2） |
+| C 组路人 40 职业（townsman/townswoman/villager/blacksmith…） | 织丰有完整 sho_* NPC 体系 | **B 织丰做+我们最小集不做**（后续 T4 数据层）；但最小 4 个（guard/villager/townsman/townswoman）场景生成必撞 → 提前到 A | 核心 4 个随 Party 线做，其余 T4 |
+| gear_practice_dummy_<culture>（43826）/ nervous_caravanmaster | 织丰有 | B（触发 = 进练习场/商队事件——当前 v0 触发面小） | 留 T3 观察/随场景线 |
+| 未成年变体 / tournament_master / notary / 舞女 / beggar | 织丰有 | **C 都不做**（v0-T4 不再评；T4 数据层重审） | 不做 |
+| 日式素材（mesh/face/banner_key 日本风） | 织丰有（encounter_sho_lord 等） | B/T5 | 先抄官方值（能跑），T5 日化 |
+| 卡拉迪亚 LRS 文本（world_lore_strings 注释块） | 织丰 n/a | C | 不做（注释态） |
+
+## 织丰经验索引（2026-09-08 系统盘点）
+
+> **完整版见 `Knowledge/织丰自定义世界观经验.md`（65 条世界工程补丁全清单 + 数据做派方法论 + 证据行号）。发现新经验 → 先更新 Knowledge 文档，再同步本表。**
+> 用法：到 T3/T4 环节先回查 Knowledge 对应面，按织丰同款适配。
+
+| 面 | 织丰做法 | 采纳时机 |
+|---|---|---|
+| 建号/捏脸 | FaceGen 种族名收窄（否则 CC 显示 Imperial/Aserai 出戏） | **T2 可用，建议现在抄** |
+| 建号阶段 | 原版 CC 框架 + 自加 ClanNamingStageView（家族命名阶段） | T2+（可选第 3 阶段——太阁5 玩家家名对味） |
+| 遭遇-战斗全链 | PlayerEncounter×6 + Encounter 菜单 + MapEvent×5 + BattleEndLogic 等 | T3（进图后第一战前回查 Knowledge §5.2） |
+| 城镇体验 | PlayerTownVisit×5 + Barber×3 + SettlementMenuOverlay | T3（§5.3） |
+| 地图视觉 | SettlementNameplate×5 + PartyVisual×4 + 天气/相机 | T3（§5.4） |
+| 战争层 | 攻城机械×8 + SiegeAftermath + CustomBattle×6 | T4（§5.5） |
+| 政治 UI | KingdomManagementVM/Encyclopedia/BannerEditor 系列 | T4+（§5.6） |
+| 玩法扩展 | Diplomacy 系 TPatch | ❌ 不采纳：LWN 走自家玩法线 |
+| 母本工程 | GameManager 6 步/CC 框架/主线接线/出生点 | ✅ 已采纳 |
+
 ## 一句话现状
 
 **太阁5 还原工程的自定义战役模式（TaikouCampaign）已过"建世界事件链"第 3 颗雷（Companion NRE，根因=拷贝文件残留原版引用×2 层）**——DLL+数据已就位，**下一站 = 跑游戏 → 建号界面（T2）**。
@@ -81,7 +114,8 @@
 9. 同点再崩（误判今川）→ 今川全删（最小世界实验，设计保持）
 10. `CompanionsCampaignBehavior.InitializeCompanionTemplateList` NRE = culture 缺 notable_and_wanderer_templates → 补（引用世界内存在的 5 角色）
 11. 同函数再崩 → **结案（见 T1 结案）**：真因 = 拷贝文件 1835 处原版文化引用 → GetPresumedObject 创 8 裸文化桩；+ 模板引用 5 角色只定义 3（今川真空）+ 幽灵 id（peasant_farmer 实为织丰角色 / lord_template_empire_male = 自编 id）→ 修复三层（数据清洗/数据自洽/代码加固）+ 校验脚本
-12. **下一站**：建号界面（CC 2 阶段）——崩点照旧：读 RuntimeLog 尾 → dump 诊断 → 排雷
+12. `BackstoryCampaignBehavior.OnNewGameCreated` NRE（原版卡拉迪亚前史硬编码 8 领主+town_V6）→ **结案：织丰同款屏蔽**（Debug/BackstoryCampaignBehaviorPatch 打 RegisterEvents prefix false，实证 Shokuho.dll:99600）
+13. **CC 升级（2026-09-08，追问"主角文化/外观怎么定"触发）**：原 CC 2 阶段砍掉了属性分配/名字 → 升 **Culture → Generic（属性/技能分配）→ Review**；`OnCultureSelected` 补织丰同款家名生成（GenerateClanNameforPlayer）——**下一雷预告：Generic 阶段页（引擎自带 VM）实测**
 
 ## 纪律提醒（这轮踩过的）
 
