@@ -581,10 +581,13 @@ def build(out_w, out_h):
     L[..., 4] = np.where(M['yline'] >= 0.4, 255, 0).astype(np.uint8)         # 5 dirt（土路网）
     L[..., 5] = 0                                                            # 6 dirt2（留空）
     L[..., 6] = 0                                                            # 7 forest2（留空）
-    L[..., 7] = np.where(M['river'] >= 0.08, 255, 0).astype(np.uint8)        # 8 river（河床；细线 BOX 均值低，阈值放宽 0.08）
+    L[..., 7] = np.where((M['river'] >= 0.08) | (M['sea'] >= 0.5), 255, 0).astype(np.uint8)  # 8 river
+    # 🔴 海=river 层（2026-09-06 用户裁定「水弄成和原版一样」：原版 water_exists=false，
+    #   海视觉=river 层 water_ground 贴图（ocean path 区域刷 river 权重）——我们海区=0 高度 + L8 权重
+    #   = 原版同机制（河/海同层：water_ground 蓝）；细线河 BOX 均值低阈值放宽 0.08
     for i, name in enumerate(("L1_default", "L2_flora_forest", "L3_rock", "L4_grass",
                               "L5_dirt", "L6_dirt2", "L7_forest2", "L8_river")):
-        p = os.path.join(OUTD, f"mask_{ST}_{name}_{out_w}x{out_h}.png")
+        p = os.path.join(OUTD, "masks_8layers", f"mask_{ST}_{name}_{out_w}x{out_h}.png")
         Image.fromarray(np.ascontiguousarray(L[..., i]), "L").save(p)
         print(f"[out] {p}  {100 * (L[..., i] > 0).mean():.1f}%")
     # 材质预览（自然调色板：草浅绿/林深绿/沙土黄/雪白/海蓝）——mat_xxx.png 是 RGBA 四通道引擎版，

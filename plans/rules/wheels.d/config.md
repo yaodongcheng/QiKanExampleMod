@@ -272,3 +272,20 @@ ilspycmd <dll> -t <全名> | grep "<方法名>"
 ```
 
 **文件位置**：`Core/VersionCompat.cs`（V 方法全部差异）；`ExampleModVS/ExampleMod/ExampleMod.csproj`（版本宏自动侦测）；详细策略 `plans/version-compat-plan.md`。
+
+## 🔴 模块启用判据（2026-09-07 登记）：判断「内容包是否被勾选」唯一入口 = `Utilities.GetModulesNames()`
+
+**问题**：守卫写成 `ModuleHelper.GetModuleInfo("Taikou") != null`，导致**未勾选 Taikou 也判"已加载"**——① CampaignMode 误接线清主菜单按钮 → IndexOutOfRange（实机 2026-09-07）② splash/BGM/DesignData 三资源注入通道误替换（纯原版启动也播太阁片头/太阁 BGM，日志 `[SplashVideo] 替换成功` 实锤）。
+**根因**：1.2.12 的 `ModuleHelper._allFoundModules` = **物理目录扫描表**（`GetPhysicalModules()` 扫 `Modules/` 下所有有 SubModule.xml 的目录，无启用过滤）——文件夹在 = 返回，与 launcher 勾选无关。
+
+**三个不可用判据（反编译实锤，1.2.12 实库 DLL）**：
+
+| 判据 | 为什么不行 |
+|---|---|
+| `GetModuleInfo(id) != null` | 物理扫描表，未勾选也非 null |
+| `info.IsSelected` | 游戏本体进程内唯一写点 = `LoadWithFullPath` 的 `IsSelected = IsNative`（ModuleManager.dll:381）→ 非 Native 恒 false，**勾上也判未启用**（launcher 勾选只存在于 launcher 进程：Launcher.Library:1232 写、:1108-1113 拼 `_MODULES_` 命令行传 C++） |
+| `GetModuleFullPath` 依赖抛异常 | 目录在 = 不抛（只有目录不存在才抛 KeyNotFoundException） |
+
+**正确判据**：`TaleWorlds.Engine.Utilities.GetModulesNames()` = `IUtil.GetModulesCode().Split('*')`——launcher 传入的启用列表，引擎 `LoadSubModules` 装配 DLL 同一来源；**1.2.12~1.5.1 四版本同签名，无版本分支**。
+
+**落地**：`ModuleActivationHelper.IsModuleEnabled(string moduleId)`（Any 忽略大小写；任何异常保守判 false + `[ModuleActivation]` 日志）。**已统一替换的 4 个调用点**（禁止再出现第二套判据）：`Core/SplashVideoReplacePatch` / `Core/MenuSoundtrackPatch` / `Data/DesignDataLoad` / `Core/CampaignMode/CampaignModeActivator.IsModuleLoaded`；新文件 `Core/ModuleActivationHelper.cs`。

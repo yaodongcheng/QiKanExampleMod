@@ -137,7 +137,7 @@ namespace LivingWorldNpcs
             // 1. 检查是否在场景中且主角存在
             if (Mission.Current == null || Agent.Main == null)
             {
-                return "错误：必须进入战场或场景后才能使用此命令。";
+                return "error: must be in a scene/mission to use this command.";
             }
 
             // 2. 检查是否有参数输入
@@ -333,12 +333,12 @@ namespace LivingWorldNpcs
         {
             if (Mission.Current == null || Agent.Main == null)
             {
-                return "错误：请先进入战场。";
+                return "error: enter a mission first.";
             }
 
             if (args.Count == 0)
             {
-                return "请输入参数: mount, npc [名字], camera, 或 reset";
+                return "usage: mount, npc [name], camera, or reset";
             }
 
             string targetType = args[0].ToLower();
@@ -350,15 +350,15 @@ namespace LivingWorldNpcs
                 {
                     // 让主角的头锁定坐骑
                     Agent.Main.SetLookAgent(Agent.Main.MountAgent);
-                    return "表演：正在深情地注视着爱马。";
+                    return "performed: gazing affectionately at your horse.";
                 }
-                return "错误：你当前没有骑马，或者马不在身边。";
+                return "error: you are not mounted, or your horse is not nearby.";
             }
 
             // --- 2. 看向特定 NPC ---
             else if (targetType == "npc")
             {
-                if (args.Count < 2) return "错误：请输入NPC名字的一部分。例如: custom.look npc 织田";
+                if (args.Count < 2) return "error: enter part of an NPC name. e.g. custom.look npc lorden";
 
                 string searchName = args[1];
 
@@ -369,11 +369,11 @@ namespace LivingWorldNpcs
                 if (targetAgent != null)
                 {
                     Agent.Main.SetLookAgent(targetAgent);
-                    return $"表演：正在注视 NPC '{targetAgent.Name}'。";
+                    return $"performed: gazing at NPC '{targetAgent.Name}'.";
                 }
                 else
                 {
-                    return $"未找到名字包含 '{searchName}' 的NPC。";
+                    return $"no NPC found matching '{searchName}'.";
                 }
             }
 
@@ -388,7 +388,7 @@ namespace LivingWorldNpcs
                     Vec3 cameraPos = Mission.Current.GetCameraFrame().origin;
 
                     Agent.Main.SetLookToPointOfInterest(cameraPos);
-                    return "表演：正在注视着镜头（观众）。";
+                    return "performed: gazing at the camera (audience).";
                 }
             }
 
@@ -397,10 +397,10 @@ namespace LivingWorldNpcs
             {
                 // 清除锁定，恢复鼠标控制视线
                 Agent.Main.ResetLookAgent();
-                return "表演：视线已重置，恢复自由控制。";
+                return "performed: look reset, free control restored.";
             }
 
-            return "未知指令。可用参数: mount, npc [名字], camera, reset";
+            return "unknown command. usage: mount, npc [name], camera, reset";
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("cam_face", "custom")]
@@ -2794,7 +2794,7 @@ namespace LivingWorldNpcs
                 _ => "主公经历了一件大事",
             };
             ImEventBroadcaster.BroadcastPlayerEvent(type, desc);
-            return "已模拟事件 " + type + "：" + desc + "（队伍频道将有 NPC 主动发言，注意防刷屏冷却）";
+            return "OK: simulated event '" + type + "' broadcast to party channel (NPC will speak; watch anti-spam cooldown).";
         }
 
         /// <summary>
@@ -2806,7 +2806,7 @@ namespace LivingWorldNpcs
         {
             if (Campaign.Current == null) return "Error: Campaign not loaded.";
             var behavior = Campaign.Current.GetCampaignBehavior<WorldBackgroundBehavior>();
-            string state = behavior != null ? behavior.CurrentState.ToString() : "(behavior 未注册)";
+            string state = behavior != null ? behavior.CurrentState.ToString() : "(behavior not registered)";
             string fp = WorldBackgroundStore.Fingerprint ?? "";
             string currentFp = "";
             try { currentFp = WorldBackgroundProvider.GetFingerprint(); } catch { }
@@ -2814,7 +2814,7 @@ namespace LivingWorldNpcs
             var sb = new StringBuilder();
             sb.AppendLine("=== WorldBackground Status ===");
             sb.AppendLine($"State: {state}");
-            sb.AppendLine($"Blob: {(string.IsNullOrEmpty(WorldBackgroundStore.Blob) ? "(空)" : WorldBackgroundStore.Blob)}");
+            sb.AppendLine($"Blob: {(string.IsNullOrEmpty(WorldBackgroundStore.Blob) ? "(empty)" : WorldBackgroundStore.Blob)}");
             sb.AppendLine($"BlobLen: {WorldBackgroundStore.Blob?.Length ?? 0}");
             sb.AppendLine($"Fingerprint: {fp}");
             sb.AppendLine($"CurrentFingerprint: {currentFp}");
@@ -2834,7 +2834,7 @@ namespace LivingWorldNpcs
             var behavior = Campaign.Current.GetCampaignBehavior<WorldBackgroundBehavior>();
             if (behavior == null) return "Error: WorldBackgroundBehavior not registered.";
             behavior.ForceRegenerate();
-            return "已清空 blob，下一 tick 重新生成（等 [WorldBg] 日志确认）";
+            return "OK: blob cleared, will regenerate on next tick (await [WorldBg] log).";
         }
 
         /// <summary>
@@ -2845,7 +2845,7 @@ namespace LivingWorldNpcs
         public static string WorldBgDump(List<string> args)
         {
             if (string.IsNullOrEmpty(WorldBackgroundStore.Blob))
-                return "（blob 为空：未生成/生成失败/未配置 LLM）";
+                return "(blob empty: not generated / generation failed / LLM not configured)";
             return WorldBackgroundStore.Blob;
         }
 

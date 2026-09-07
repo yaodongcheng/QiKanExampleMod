@@ -48,7 +48,10 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 **白 = 层引用 WorldMap 图集页贴图 + `vista_tileset` 为空**（2026-09-06 单步控制实验实锤）：
 - 判定链：单层 desert_a（普通贴图 `desert_floor_*`）彩色 → 仅加原版 default 层（图集贴图 `ground_grass_b_d_mainmap`）→ 全白 → 仅挂 `vista_tileset="WorldMap"` → 全彩
 - 规则：**层纹理名带 `*_mainmap` / `main_map_*`（图集页资源）→ 场景必须挂 `vista_tileset="WorldMap"`**，否则整层渲染白/丢失；`desert_floor_*` 等普通贴图不依赖 tileset
-- 陷阱：`references.txt`、node masks（`layer_is_used_mask_*` 位图→255 全用）、terrain.bin WGHT（旧权重通道映射到新层表第一层——加层后必须逐层 Import 权重复写）都被怀疑过、**均非根因**——教训：黑/白问题先在 atmosphere.xml 与 tileset/贴图组合上隔离，再做掩码/权重理论
+- ⚠️ **该结论的前提**：**层数=1 时成立**（BigMapLearn 新建 1 层时代的实验）——tileset 修好≠层数问题修好。
+- 🔴 **第二种白（2026-09-06 用户实机抓到，上午结论套错场景的教训）**：**层数被注入/增加后，节点 `layer_is_used_mask_*` 不自动更新**——新建场景 mask 按「新建时层数」写入（1 层 → 全 1 = 只认 layer0），8 层时代 mask 仍是 1 → **除 default 外 7 层全不渲染 + default 冬季变体雪白贴图 = 全图白**（三·十五头号嫌疑/copy1 实机白）。修法：**层数变化后节点 mask ×4季 → 255**（scene.xscene 正则替换 layer_is_used_mask_(summer|fall|winter|spring)="1" → "255"；改前备份）。判据：**mask 值唯一值=255（多值=内容化原版）**。
+- 🔴 **注入场景后必须同批对齐 Vista Textures 段**：`vista_diffuse_blend_type=1 / vista_layer_detail_distance=10000.000 / vista_albedo_multiplier=0.670 / vista_detail_tile=1.000 / colormap_detail_level=0`（原版组）；半残值（blend 0/layerdist 35/tile 20）=「黄土木」色调。
+- 陷阱：`references.txt`、terrain.bin WGHT（旧权重通道映射到新层表第一层——加层后必须逐层 Import 权重复写）都被怀疑过、**均非根因**——教训：黑/白问题先在 atmosphere.xml 与 tileset/贴图组合上隔离，再做掩码/权重理论；**每个白案例先问「层数=1 还是 >1」再选修法**
 - **观感差异（"同一个数据两种色调"）→ 先对 Vista Textures 段**：`vista_diffuse_blend_type`（1=原版）/ `vista_layer_detail_distance`（10000=原版）/ `vista_albedo_multiplier`（0.67=原版）/ `colormap_detail_level`（0=原版）——**原版"雪山白"观感 = 白岩贴图 × Vista 冷调 × 0.67 明度，不是雪线/动态雪**（BigMapLearn 半残值 blend 0/layerdist 1/albedo 1/colormap -1 = 黄土木；对齐后即雪白，2026-09-06 实机）
 - **方法学经验**：单变量逐步实验（每步只动一处 + 每步备份 + 一次打开看结果）是定位 scene 渲染问题的最快路径——"一把梭注入×N 字段"必然无法定位
 

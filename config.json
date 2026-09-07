@@ -45,7 +45,7 @@
   //   纹理键短名 = {category}_{NNN}（见 Taikou/GUI/TaikouSpriteData.xml + AssetPackages/taikou_loading.tpac）
   // 链路见 GUI/LoadingRandomPatch.cs。
   "MenuSoundtrackModuleId": "Taikou",
-  "LoadingImageCategory": "taikou_loading",
+  "LoadingImageCategory": "",
   // ══════════════════════════════════════════════════════════════
   // [KbDiag] 软键盘链路诊断总闸（2026-08-23 新增，08-24 默认关）：Deck 软键盘
   // 「聚焦→请求→弹窗→回填」全链路日志（输入框聚焦行/软键盘激活状态转换/Done·Cancel

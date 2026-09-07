@@ -335,14 +335,30 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 
 **🔴 删除操作被权限拦截 = 交给用户，禁止绕道重试** — Claude Code 的权限分类器会拦截 `rm`/`Remove-Item`/覆盖写入等不可逆操作（尤其是用户以问句形式表达的删除意图）。被拦截时：**停止该操作**，向用户说明「要删什么 + 为什么 + 给出现成命令」，由用户执行或明确授权「删」之后再来（2026-08-28 用户裁定）。禁止换 PowerShell/别的方式变相执行同一删除。删除前先 `ls`/`git status` 确认对象范围未超出用户意图。
 
+**🔴 控制台命令返回文本必须纯英文** — `CommandLineArgumentFunction` 命令的返回字符串（显示在游戏内 `~` 控制台）**禁止中文**，一律英文（2026-09-07 用户裁定）。C# 注释 / `DebugLogger.Log` 不受限；命令写出的数据文件（如 info.txt）同样用英文。
+
 **每完成一个功能后，必须主动询问用户：是否要把本次产出提炼成新的轮子并登记进 [wheels.d/](plans/rules/wheels.d/) 对应域文件（[wheels.md](plans/rules/wheels.md) 是索引）。**
 
 - 判断标准：本次是否产生了可复用的基础设施、新的引擎扩展点、或值得固化的模式。
 - 若用户同意 → 在 `plans/rules/wheels.d/` 对应域文件增补条目（解决什么问题 + 关键签名 + 调用范例 + 文件路径），与现有格式一致。
 - 即使本次只是用了已有轮子、没产出新轮子，也简短说明一句"无新轮子"，不要跳过这一步。
 
-## 拆分架构
+## 🔴 三单元架构原则（2026-09-07 用户裁定，最高优先级）
 
-- **LivingWorldNpcs**（本 mod）= 通用玩法引擎，卡拉迪亚世界观（🔴 世界观完全自动生成，无静态 flavor；数据型背景 mod 由指纹机制天然适配，见 [worldview.md](plans/rules/worldview.md)）
-- **TaikouContent**（Mod B，已删除）= 纯内容包——原通过覆盖 Settings.Instance 注入日本战国 flavor，该注入方式已随 WorldDescription/EraDescription 删除而失效（2026-08-17）；数据型背景 mod 改由世界观指纹机制适配
-- 完整计划：`plans/ai-2mod-2-zippy-puppy.md`
+**LivingWorldNpcs = 通用玩法框架（基座）；其他全部 = 内容包（纯数据）；功能逻辑一律进 LWN。**
+
+| 单元 | 角色 | 内容 | 状态 |
+|---|---|---|---|
+| **LivingWorldNpcs** | 🔴 **通用基座**——所有内容包共享的玩法引擎（战役模式/LLM 戏剧/IM 叙事/行为层） | 代码（LWN.dll）：`LivingWorldCampaign : Campaign` 通用自定义战役 + `LivingWorldCampaignGameManager` + 通用建号管线 + 全部玩法行为 | 施工中（2026-09-07 起承担「通用自定义战役 GameType」职责） |
+| **Taikou**（`MB2_Version/MB2_1.2.12/.../Modules/Taikou`） | 日本战国**数据包**（1.2.12 机；**不依赖织丰**） | 纯数据：spcultures/settlements/spkingdoms/spclans/spnpccharacters + 日本图（SceneObj/Main_map 已导入）+ SubModule.xml 注册 `<GameType value="TaikouCampaign"/>` | 施工中：数据层 + 场景层 |
+| **ShokuhoTaikouExpansionPack** | 曾作为织丰思路剧本包 | 织丰城池不符合要求 | 🔴 **已归档**（2026-09-07），不再投入 |
+| （未来）三国扩展 | 数据包 | 同 Taikou 通路 | 预设 |
+
+**铁则（写任何代码前对照）**：
+1. **功能逻辑归 LWN**——重复玩法逻辑（战役模式/行为/LLM 管线）只允许写在 LWN；内容包内发现逻辑代码 = 设计错误，搬回 LWN。
+2. **内容包归数据**——文化/据点/角色/王国/剧本/地图 = 内容包文件；引用一律 StringId（铁律 20）。
+3. **每内容包 = LWN 里一个 thin 适配类**（如 `TaikouCampaign : LivingWorldCampaign`，几行）——引擎 `IncludedGameTypes` 按战役类名匹配（官方 `Campaign`、织丰 `ShokuhoCampaign` 两例实证），thin 类就是数据包与引擎的接插点；新内容包 = 加一个数据包 + LWN 加 3 行。
+4. **世界观参数化**：世界观指纹机制（[worldview.md](plans/rules/worldview.md)）是内容包接入点，内容包禁止硬编码进 LWN。
+5. 🔴 **LWN 双模式开关（2026-09-07 用户裁定）**——LWN 启动时检查**数据包模块是否加载**（`ModuleHelper.GetModuleInfo("Taikou")` 非 null = 已加载）：**已加载 → 接通用战役模式**（主菜单接线/自定义 GameManager/建号管线）；**未加载 → 纯功能包**（现状，原版战役上跑 LLM/戏剧/IM/玩法扩展）。检查点 = `OnSubModuleLoad`，运行时判断（**非编译分叉**），同一个 dll 服务两种玩家。
+
+**历史遗留**：旧「TaikouContent（Mod B，已删除）」——原通过覆盖 Settings.Instance 注入日本 flavor，该注入方式已随 WorldDescription/EraDescription 删除而失效（2026-08-17），勿复活。完整剧本计划：`plans/ai-2mod-2-zippy-puppy.md`（剧本层内容已在归档包，不含本架构）。

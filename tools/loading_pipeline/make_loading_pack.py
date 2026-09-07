@@ -32,7 +32,8 @@ TPACCLI = os.path.join(HERE, "..", "face-pipeline", "tpactool", "TpacToolCLI", "
 
 CAT = "taikou_loading"           # SpriteCategory 名（纹理键名 = {CAT}_{N} 短名）
 HILITE_W, HILITE_H = 1920, 1080  # loading 窗口显示尺寸（渲染按 widget 拉伸）
-SLOT_COUNT = 12                  # 原版 loading_01~12 槽位覆盖数（零代码兜底路径）
+# 原版槽位覆盖数 = 织丰同构策略：显示名走原版轮换链 loading_01..N（SetTotalGenericImageCount postfix=N），
+# N = 池张数（79）。2026-09-06 用户裁定复刻织丰机制（显示名=原版链，不绕开）。
 DEFAULT_SIZE = (1920, 1080)      # 默认不缩放（素材原生即全高清）
 
 
@@ -43,6 +44,7 @@ def natural_key(name):
 
 def build_sprite_data_xml(n_textures, sheet_w, sheet_h):
     """生成 SpriteData XML。零注释（解析器手坑）；全子元素形式。"""
+    slot_count = n_textures
     lines = ['<?xml version="1.0" encoding="utf-8"?>', '<SpriteData>', '  <SpriteCategories>']
     lines.append('    <SpriteCategory>')
     lines.append(f'      <Name>{CAT}</Name>')
@@ -68,7 +70,7 @@ def build_sprite_data_xml(n_textures, sheet_w, sheet_h):
 
     for i in range(1, n_textures + 1):
         lines += spritepart(f"{CAT}_{i:03d}", i)
-    for i in range(1, SLOT_COUNT + 1):
+    for i in range(1, slot_count + 1):
         lines += spritepart(f"loading_{i:02d}", i)
     lines.append('  </SpriteParts>')
     lines.append('  <Sprites>')
@@ -77,7 +79,7 @@ def build_sprite_data_xml(n_textures, sheet_w, sheet_h):
         lines.append(f'      <Name>{CAT}_{i:03d}</Name>')
         lines.append(f'      <SpritePartName>{CAT}_{i:03d}</SpritePartName>')
         lines.append('    </GenericSprite>')
-    for i in range(1, SLOT_COUNT + 1):
+    for i in range(1, slot_count + 1):
         lines.append('    <GenericSprite>')
         lines.append(f'      <Name>loading_{i:02d}</Name>')
         lines.append(f'      <SpritePartName>loading_{i:02d}</SpritePartName>')
