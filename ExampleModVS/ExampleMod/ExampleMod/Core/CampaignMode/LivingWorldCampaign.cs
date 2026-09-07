@@ -57,6 +57,25 @@ namespace LivingWorldNpcs.CampaignMode
 				{
 					DebugLogger.Log("[LWN-dump] Models.CharacterDevelopmentModel=<NULL> (!!)");
 				}
+				// 🔴 第 5 颗雷（Kingdom.OnNewGameCreated NRE = Leader null）：dump Hero→Clan 链定位断环
+				int nHero = 0;
+				foreach (var h in Campaign.Current.AliveHeroes) { nHero++; _ = h; }
+				DebugLogger.Log($"[LWN-dump] Heroes.Count={nHero}");
+				foreach (var h2 in objs.GetObjectTypeList<Hero>())
+				{
+					bool ready = h2.IsReady;
+					string hClan = h2.Clan != null ? h2.Clan.StringId : "<NULL>";
+					string heroChr = h2.CharacterObject != null ? h2.CharacterObject.StringId : "<NULL>";
+					DebugLogger.Log($"[LWN-dump] Hero {h2.StringId} | ready={ready} | clan={hClan} | character={heroChr}");
+				}
+				foreach (var c2 in objs.GetObjectTypeList<Clan>())
+				{
+					string cl = c2.Leader != null ? c2.Leader.StringId : "<NULL>";
+					string leaderClan = c2.Leader?.Clan != null ? c2.Leader.Clan.StringId : "<NULL>";
+					DebugLogger.Log($"[LWN-dump] Clan {c2.StringId} | leader={cl} | leader.clan={leaderClan}");
+				}
+				var k = objs.GetObject<Kingdom>("kingdom_oda");
+				DebugLogger.Log($"[LWN-dump] Kingdom kingdom_oda | RulingClan={(k?.RulingClan != null ? k.RulingClan.StringId : "<NULL>")}");
 				// 加固：文化模板列表 null → 空（NRE 兜底；数据侧根治见 Scripts/check_taikou_xml_references.py）
 				CultureTemplateNullFix.Apply();
 			}

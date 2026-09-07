@@ -4,6 +4,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CharacterCreationContent;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Localization;
+using Helpers;
 
 namespace LivingWorldNpcs.CampaignMode
 {
@@ -35,8 +36,21 @@ namespace LivingWorldNpcs.CampaignMode
 		public override IEnumerable<Type> CharacterCreationStages => new[]
 		{
 			typeof(CharacterCreationCultureStage),
+			typeof(CharacterCreationGenericStage),
 			typeof(CharacterCreationReviewStage),
 		};
+
+		/// <summary>
+		/// 选文化完成（织丰母本同款：shokuho_full.cs 164600）——补上家族名与头衔默认值：
+		/// 基类默认不生成家族名（我们在 Stage 链里砍了 ClanNaming 阶段——家名改这里一次性生成，为 v0 占位）。
+		/// </summary>
+		protected override void OnCultureSelected()
+		{
+			SelectedTitleType = 1;
+			SelectedParentType = 0;
+			TextObject clanName = FactionHelper.GenerateClanNameforPlayer();
+			Clan.PlayerClan.ChangeClanName(clanName, clanName);
+		}
 
 		/// <summary>
 		/// 建号完成 → 重设主队出生位置。
