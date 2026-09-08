@@ -35,6 +35,13 @@ namespace LivingWorldNpcs.CampaignMode
 		protected override void OnInitialize()
 		{
 			base.OnInitialize();
+			// 🔴 读档早退（2026-09-08 实机 21:44）——读档时对象表未恢复（GetObjectTypeList<T>() 为 null）：
+			//   诊断/加固块只服务新建档；读档链走官方恢复（同族坑：partial-followup 时点 GetObjectTypeList null）。
+			if (CampaignGameLoadingType == Campaign.GameLoadingType.SavedCampaign)
+			{
+				DebugLogger.Log("[LWN-dump] 读档路径：诊断块跳过（SavedCampaign）");
+				return;
+			}
 			// 🔴 诊断 + 加固（2026-09-07 排雷 T1 结案）：
 			//   自定义 GameType 下官方段被过滤 → Taikou 拷贝文件的文化引用经 GetPresumedObject
 			//   创建「裸文化桩」（模板列表 null）→ 引擎 InitializeCompanionTemplateList NRE。
