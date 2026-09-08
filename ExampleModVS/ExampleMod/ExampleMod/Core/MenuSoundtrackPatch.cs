@@ -1,6 +1,9 @@
 using System.IO;
 using TaleWorlds.ModuleManager;
+using TaleWorlds.MountAndBlade;
+using HarmonyLib;
 using psai.net;
+using LivingWorldNpcs.CampaignMode;
 
 namespace LivingWorldNpcs
 {
@@ -52,8 +55,47 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[MenuSoundtrack] 重载失败，保持原生：{moduleId} ({ex.GetType().Name})");
             }
 #else
-            // 1.5.x：引擎原生支持模块音乐工程，无需重载（模块 Id 走 Taikou/project.mbproj 的 soln_soundtrack）
+            // 1.5.x：引擎原生支持模块音乐工程，无需重载：
+            //   引擎路径 = XmlResources.GetMbprojxmls(moduleId)（读 Modules/<Id>/ModuleData/project.mbproj）
+            //   → MBMusicManager 过滤 file id="soln_soundtrack" → PsaiCore.LoadSoundtrackFromProjectFile。
+            //   🔴 数据包侧注意：解析器 SelectNodes("file") 只认 <file> 节点——Taikou 原用 <Module> 节点
+            //   整文件 0 匹配被跳过 = 主菜单 BGM 未替换的实机根因（2026-09-08，1.2.12/1.5.2 引擎一致）；已改 <file>。
+            {
+                string mid = Settings.Instance.MenuSoundtrackModuleId;
+                if (!string.IsNullOrEmpty(mid))
+                {
+                    string target = ModuleHelper.GetModuleFullPath(mid) + "ModuleData/project.mbproj";
+                    DebugLogger.Log($"[MenuSoundtrack] 1.5.x 原生路径：{target} 存在 = {(File.Exists(target) ? "是" : "否")}");
+                }
+            }
 #endif
         }
     }
+
+#if MB2_GE_130
+    /// <summary>
+    /// 🔴 1.3+ 主菜单音乐主题重映射（2026-09-08 实机：mbproj/psai 修好后 BGM 仍不换——引擎按固定枚举值选主题）。
+    /// 引擎 MBMusicManager.ActivateMenuMode 实锤：PsaiCore.Instance.MenuModeEnter((int)MusicTheme.MainTheme, ...)，
+    /// MainTheme = 5（枚举实测），永远查 Native 的主题；内容包工程带 ModuleIdPrefix（Taikou = "1000000"）
+    /// → 内容是主题 id = 10000005（🔴 字符串拼接 int.Parse("1000000"+5)=10000005，不是数值加 1000005！
+    ///   2026-09-08 实机：1000005 查无主题 = 静默，日志命中但无声）。NavalDLC 同型先例（模块激活 → 换枚举值）。
+    /// 本补丁：内容包激活时把 5 重映射为内容包主题 id。
+    /// 🔴 1.2.12 psai 无 ModuleIdPrefix 机制（二进制 0 命中）：工程 id 保持原值 5，天然命中引擎枚举，此补丁不适用。
+    /// </summary>
+    [HarmonyPatch(typeof(PsaiCore), "MenuModeEnter")]
+    public static class PsaiMenuThemeRemapPatch
+    {
+        private static bool Prefix(ref int menuThemeId, float menuThemeIntensity)
+        {
+            if (menuThemeId == (int)MusicTheme.MainTheme && CampaignModeActivator.ActiveContentPack != null)
+            {
+                // 🔴 契约：内容包音乐工程 ModuleIdPrefix 是【字符串】——psai: int.Parse(prefix + theme.Id)
+                //   = int.Parse("1000000" + 5) = 10000005；数值加法（1000005）是错的（实机教训）。
+                menuThemeId = int.Parse("1000000" + (int)MusicTheme.MainTheme);
+                DebugLogger.Log("[MenuSoundtrack] 主题重映射：MainTheme(5) → 内容包主题 " + menuThemeId);
+            }
+            return true;
+        }
+    }
+#endif
 }

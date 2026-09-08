@@ -991,3 +991,48 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 - 三选一：① 正则注释这两块（`(?s)<DependedModuleMetadatas>.*?</DependedModuleMetadatas>`，`Tags` 同理）；② 把 mod 文件夹整体改名 `.off`（编辑完改回）；③ Windows 隐藏目录**无效**（编辑器按路径树扫，不按属性）。
 - 排查口诀：**「编辑器扫描 ≠ Launcher 勾选」**；报错点名哪份 xml，改哪份。
 - 相关：本坑与"编辑器只认 schema 内元素"同源于社区 mod 生命周期；Keep `SubModule.xml.bak` 备还原。
+
+---
+
+## 内容包音乐工程（Psai / mbproj）—— 启动四连坑到主菜单 BGM 静默（2026-09-08 实机，Taikou + 1.5.2）
+
+**症状链**（同一天 4 次实机，全部已修）：
+1. 启动即弹报错框：`ArgumentException: An item with the same key has already been added`，线程池栈：`psai.Editor.PsaiProject.BuildPsaiDotNetSoundtrackFromProject` → `psai.net.Logik.LoadSoundtrackFromProjectFile` → `MBMusicManager..ctor`。
+2. 修完再弹：`KeyNotFoundException`（`MBObjectManager.MergeElements` → `CreateMergedXmlFile` → `Module.CreateProcessedActionSetsXMLForNative`）。
+3. 两个都修完：主菜单 BGM 仍原生/全静默——**日志显示"重映射命中"但无声**。
+
+**根因（四层 + 第五层，全部反编译确认）**：
+1. **mbproj 节点名坑**：引擎 `XmlResources.GetMbprojxmls` 用 `SelectSingleNode("base").SelectNodes("file")` —— **只认 `<file>` 节点**。数据包原用 `<Module id=...>`（11 行）→ 0 匹配 = 整个文件静默失效（1.2.12 与 1.5.2 引擎一字不差）。
+2. **mbproj 按 soln id 跨模块合并**：`GetMergedXmlForNative("soln_action_sets")` 合并**所有**声明该 id 的模块文件（MyMapTest/Native/Shokuho/Taikou/…）。拷贝模板死档（physics_materials/action_sets/skins…）**一次性全激活** → Taikou 的 action_sets.xml 与 Native 同源冲突 → `MergeElements` 的 ToDictionary 缺 key → KeyNotFoundException → 启动崩。**铁律：mbproj 启用一个为一个**；数据包正路 = SubModule.xml 段（19 个 TaikouCampaign 段），mbproj 只管引擎级 soln。
+3. **音乐工程主题 id 与 Native 模板同源**：Taikou 的 Main Theme 与 Native **逐行同 id**（ThemeId=5 / SegmentId=17）→ psai 合并 `soundtrack.m_themes.Add(theme.Id)` / `m_snippets.Add(segment.Id)` 重复键。规避 = 工程加 `<ModuleIdPrefix>`（1.3+ 才有该机制；**1.2.12 的 psai 无此机制**，二进制 0 命中，走 LWN `MenuSoundtrackReload` 单文件重载链）。
+4. **🔴 ModuleIdPrefix 是【字符串】前缀，不是数字**：psai `theme.Id = int.Parse(prefix + theme.Id)` = `int.Parse("1000000" + 5)` = **10000005**；写成数值加法 `1000000 + 5` = 1000005（少一个 0）→ 按 1000005 查主题 = 查无 = **静默无声**——且 LWN 日志"主题重映射成功"照打，**日志命中 ≠ 成功**。
+5. **引擎选菜单主题 = 硬编码枚举**（为什么上了前缀还被忽略）：`MBMusicManager.ActivateMenuMode` 实锤 `PsaiCore.Instance.MenuModeEnter((int)MusicTheme.MainTheme, 0.5f)`，MainTheme=5（枚举实测）→ 永远查 Native 主题；模块主题 id 平移后（10000005）**永不命中**。官方 NavalDLC = 同型先例（模块激活 → 换枚举值）。规避 = LWN Harmony 补丁重映射（`PsaiMenuThemeRemapPatch`，Core/MenuSoundtrackPatch.cs）：内容包激活时 `5 → int.Parse("1000000"+5)`。
+
+**引擎能接受的模块音乐最小结构**：`ModuleData/project.mbproj`（`<base type="solution">/<file id="soln_soundtrack" name="music/soundtrack.xml"/>`，解析器路径 = `ModuleHelper.GetMbprojPath` = `Modules/<Id>/ModuleData/project.mbproj`）+ `music/soundtrack.xml`（PsaiProject 1.0）+ `music/PC/*.ogg`（psai 相对工程目录解析）。
+
+**排查口诀**：
+- 启动早期弹报错框（无主线程栈、栈在 ThreadPool）= 先怀疑 **MBMusicManager 后台线程**（`ProcessCreation` = QueueUserWorkItem 创建，主线程死等）——psai 工程加载发生在这。
+- 主菜单 BGM 排查三步：① `[MenuSoundtrack] ... project.mbproj 存在 = 是`（加载链路通不通）② `[MenuSoundtrack] 主题重映射`（补丁命中否）③ **id 位数核对**（字符串拼接：10000005 ≠ 1000005）。
+
+---
+
+## 引擎"可选"参数传 null ≠ 安全空值（Campaign 构造 AdvancedStartOptionsData，2026-09-08 实机）
+
+**症状**：1.5.0+ `Campaign(CampaignGameMode, AdvancedStartOptionsData)` 传 `null` → `CampaignOptions..ctor → AdvancedStartOptionsExtensions.TryGetSeed(null, out _)` 解引用 NRE，新游戏启动即崩（栈在引擎内，mod 侧看不到）。
+
+**规避**：传引擎构造/静态入口参数前，**反编译看消费点**是否 null 安全（`TryGetSeed` 一类扩展方法普遍无 null 保护）。给空实例 `new AdvancedStartOptionsData()`（少字段 = 引擎走默认分支），不要给 null。
+
+**口诀**：**宁可给空实例，不要给 null**——引擎"可选参数"的契约基本是非 null 假定；"编译能过" ≠ "运行安全"。
+
+---
+
+## "以为是新文件"的 Write 覆盖 —— 先 git status 再写（2026-09-08 实机自踩）
+
+**症状**：排查中误判"Taikou 没有 project.mbproj"（`find -maxdepth 3` 漏掉深度 4 的 `ModuleData/`）→ 直接 Write 覆盖——事后 `git status` 发现它是**已跟踪文件**（显示 ` M` 而非 `??`）→ 已有内容被覆盖，需 `git show` 找回。
+
+**根因**：部署目录（`Modules/Taikou`）本身是 git 仓库 + find 深度不足，两个误判叠加。
+
+**规避**：
+- 写任何"疑似新文件"前：`git status --short <path>`（` M` = 已跟踪——立刻停下核对原内容引）＋ `git log --oneline -1 -- <path>` 看出处。
+- "文件不存在"结论必须在足够深度的搜索后下（`ModuleData/` 在 maxdepth 4）。
+- 覆盖后立刻 `git diff --stat` 核对差异；改坏恢复 = `git show HEAD:<path> > <path>`（字节级）；恢复前先 `git show HEAD:path > path.orig_backup` 取证。

@@ -24,8 +24,9 @@ namespace LivingWorldNpcs.CampaignMode
 			: base(gameMode)
 #else
 			// 🔴 1.5.0+：Campaign 构造改为 (CampaignGameMode, AdvancedStartOptionsData)（时代开局数据）。
-			//   null = 不启用时代开局；战役模式在 1.5.x 暂不接入（CampaignModeActivator 裁定），本分支仅编译期存在。
-			: base(gameMode, null)
+			//   必须传非 null 实例——null 会在 CampaignOptions..ctor → TryGetSeed 解引用 NRE（实机 2026-09-08 16:45）。
+			//   空实例 = 无种子/无场景设定 = 引擎默认展开；本分支现仅保证编译 + 启动存活（v1 再接 1.5.x 建号体系）。
+			: base(gameMode, new TaleWorlds.CampaignSystem.AdvancedStartOptions.AdvancedStartOptionsData())
 #endif
 		{
 		}
