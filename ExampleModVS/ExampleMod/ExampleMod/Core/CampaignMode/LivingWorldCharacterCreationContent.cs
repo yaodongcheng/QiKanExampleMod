@@ -4,6 +4,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CharacterCreationContent;
 using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.CampaignSystem.Extensions;
+using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -149,6 +150,13 @@ namespace LivingWorldNpcs.CampaignMode
 			if (_contentPack == "Taikou" && MobileParty.MainParty != null)
 			{
 				MobileParty.MainParty.Position2D = TaikouCampaign.TaikouStartingPosition;
+				// 🔴 相机拉回玩家（织丰母本同款：ShokuhoCharacterCreationContent.OnCharacterCreationFinalized 实锤）——
+				// CC 完成落场时地图默认机位停在官方地图坐标（camera_top/默认），不拉回 = 开局看不见角色（2026-09-08 用户实测）。
+				if (GameStateManager.Current.ActiveState is MapState mapState && mapState.Handler != null)
+				{
+					mapState.Handler.ResetCamera(true, true);
+					mapState.Handler.TeleportCameraToMainParty();
+				}
 			}
 		}
 #else
