@@ -240,7 +240,7 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 | 1.2.12 电脑 | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
 | Latest 电脑 | v1.5.x | `LivingWorldNpcs.dll`（Latest 版） |
 
-> 本仓库当前开发机（H: 盘）：**v1.5.1**（Version.xml 实测；1.4.x ~ 1.5.x 签名一致，编译验证通过——2026-08-23 升级后 `dotnet build` 0 错误 0 警告，27 个 Harmony 字符串补丁目标二进制 grep 全存活，见下方 VersionCompat 章节）。
+> 本仓库当前开发机（H: 盘）：🔴 **版本号不写死**——以 `Version.xml` 实测为准（Steam 官方随更新，数字随时会变，别按文档里的数字下结论；实测：2026-09-08 = v1.5.2）。1.4.x ~ 1.5.x 签名一致，编译验证通过——2026-08-23 升级后 `dotnet build` 0 错误 0 警告，27 个 Harmony 字符串补丁目标二进制 grep 全存活，见下方 VersionCompat 章节。
 
 ### 累积阈值宏体系
 

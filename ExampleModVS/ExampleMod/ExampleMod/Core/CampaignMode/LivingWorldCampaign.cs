@@ -20,10 +20,17 @@ namespace LivingWorldNpcs.CampaignMode
 		public new static LivingWorldCampaign Current => (LivingWorldCampaign)Campaign.Current;
 
 		public LivingWorldCampaign(CampaignGameMode gameMode)
+#if MB2_V1212
 			: base(gameMode)
+#else
+			// 🔴 1.5.0+：Campaign 构造改为 (CampaignGameMode, AdvancedStartOptionsData)（时代开局数据）。
+			//   null = 不启用时代开局；战役模式在 1.5.x 暂不接入（CampaignModeActivator 裁定），本分支仅编译期存在。
+			: base(gameMode, null)
+#endif
 		{
 		}
 
+#if MB2_V1212
 		protected override void OnInitialize()
 		{
 			base.OnInitialize();
@@ -196,5 +203,18 @@ namespace LivingWorldNpcs.CampaignMode
 				DebugLogger.Log($"[LWN-dump] 家宅置位 FAILED: {exHome.Message}");
 			}
 		}
+#else
+		// 🔴 1.5.x：战役模式暂不接入（裁定：CampaignModeActivator——该版本机不装 Taikou 数据包 = 纯功能包，
+		//   本类不会被实例化）。本支只负责编译通过；1.2.12 独有 API（Clan.InitialPosition /
+		//   Kingdom.InitialHomeLand / Clan.UpdateHomeSettlement / HeroCreator.CreateHeroAtOccupation /
+		//   GameModels.SettlementConsumptionModel）在 1.5.2 已改名/移除（等价物：InitialHomeSettlement /
+		//   SetInitialHomeSettlement / HeroCreator.CreateNotable）——v1 接入 1.5.x 建号体系（CharacterCreationManager）时
+		//   按 1.5.2 等价 API 重写本类。
+		protected override void OnInitialize()
+		{
+			base.OnInitialize();
+			DebugLogger.Log("[LWN-dump] LivingWorldCampaign: 1.5.x 空壳 OnInitialize（战役模式暂不接入）");
+		}
+#endif
 	}
 }

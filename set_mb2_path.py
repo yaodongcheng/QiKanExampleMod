@@ -24,10 +24,10 @@ import sys
 # 填 "1.5.2" / "1.4.8" / "1.3.15" / "1.2.12"：无参数运行（VSCode 点运行）时切换到该版本
 # 留空 ""：无参数运行 = 只查询当前值，不切换
 # 命令行带参数（python set_mb2_path.py 1.4.8）优先于本变量
-DEFAULT_VERSION = "1.2.12"
+DEFAULT_VERSION = "1.5.2"
 
 # 版本 -> 游戏根目录（不带尾斜杠；新增客户端位置时改这里）
-# 🔴 主目录（SteamLibrary） = latest（当前 v1.5.1）；历史版本客户端在 MB2_Version 备份目录
+# 🔴 主目录（SteamLibrary）= latest，跟随 Steam 官方更新——版本号不写死，实测以 Version.xml 为准（2026-09-08 实测 v1.5.2，之后随时更新）
 TARGETS = {
     "1.5.2":  r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord",
     "1.4.8":  r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.4.8\Mount & Blade II Bannerlord",
@@ -55,7 +55,7 @@ def main():
         cur = current_value()
         print("当前 MB2_PATH (用户环境变量): %s" % (cur if cur else "(未设置)"))
         print("要切换版本：在脚本开头修改 DEFAULT_VERSION 变量后点运行按钮，")
-        print("或命令行执行: python set_mb2_path.py <1.5.1|1.4.8|1.3.15|1.2.12>")
+        print("或命令行执行: python set_mb2_path.py <1.5.2|1.4.8|1.3.15|1.2.12>")
         return
 
     if ver not in TARGETS:

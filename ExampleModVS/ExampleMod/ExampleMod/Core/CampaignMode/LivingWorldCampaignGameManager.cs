@@ -80,7 +80,8 @@ namespace LivingWorldNpcs.CampaignMode
 				case 4:
 				{
 					bool flag = true;
-					foreach (MBSubModuleBase item in Module.CurrentModule.SubModules)
+					// 版本兼容：1.2.12 = Module.CurrentModule.SubModules；1.3+ = CollectSubModules()——既有轮子 V.CollectSubModules
+					foreach (MBSubModuleBase item in V.CollectSubModules())
 					{
 						flag = flag && item.DoLoading(Game.Current);
 					}
@@ -110,9 +111,13 @@ namespace LivingWorldNpcs.CampaignMode
 			base.OnLoadFinished();
 			if (!_loadingSavedGame)
 			{
+#if MB2_V1212
 				Game.Current.GameStateManager.CleanAndPushState(
 					Game.Current.GameStateManager.CreateState<CharacterCreationState>(
 						new LivingWorldCharacterCreationContent(CampaignModeActivator.ActiveContentPack)));
+#else
+				// 🔴 1.5.x：建号 = CharacterCreationManager 新体系（LivingWorldCharacterCreationContent 在该版本是空占位）——v0 不接入（v1 TODO）
+#endif
 			}
 		}
 	}
