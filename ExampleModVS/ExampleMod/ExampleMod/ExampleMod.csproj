@@ -220,6 +220,10 @@
       <HintPath>$(MB2_NATIVE_REF)\TaleWorlds.MountAndBlade.GauntletUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="TaleWorlds.MountAndBlade.GauntletUI.Widgets">
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.MountAndBlade.GauntletUI.Widgets.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="TaleWorlds.MountAndBlade.ViewModelCollection">
       <HintPath>$(MB2_CORE_REF)\TaleWorlds.MountAndBlade.ViewModelCollection.dll</HintPath>
       <Private>False</Private>
@@ -352,6 +356,9 @@
     <Compile Include="Debug\CharacterCultureBackfill.cs" />
     <Compile Include="Debug\CultureTemplateNullFix.cs" />
     <Compile Include="Debug\BackstoryCampaignBehaviorPatch.cs" />
+    <Compile Include="Debug\CharacterCreationCultureStageSortPatch.cs" />
+    <Compile Include="Debug\CharacterCreationCultureVisualFallbackPatch.cs" />
+    <Compile Include="Debug\FaceGenCtorProbe.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <Compile Include="Debug\TerrainExportCommands.cs" />

@@ -4,7 +4,7 @@
 
 ## 🔴 TODO（下一步从这里开始，2026-09-08 更新）
 
-- [ ] **T2（进行中）**：跑到 **CC 建号界面**——目前进度：**行为链 12 颗雷全排（封装完毕），第 13 站 = 建号界面**。用户跑游戏 → 若崩贴 Log → 按排雷链继续；若进 CC → 检查 3 阶段（Culture→Generic→Review）/家名生成/出生点（973,421）→ **T3 日本图**
+- [ ] **T2（进行中，深水区）**：CC 全链 = **文化 ✓ → FaceGen（捏脸，雷 25/26/27 修完；主英雄脸=10 号；模板=容貌样板）→ Generic（出身菜单 + 3D 模型）→ Review**——**下一站：跑游戏验证 FaceGen + Generic**（期待：捏脸界面出、左侧 3D 模型现、出身 3 选项、Review 正常）；过了 → 收尾（出生点/家名核对）→ T3 进日本图。**数据增补铁律：一律先进 gen_taikou_culture_full.py 再重跑（生成器唯一真源——16 雷两踩此坑）**
 - [x] **T1（完成）**：Companion NRE 三段链结案（详见「T1 结案」）
 - [ ] T3：建号完成 → **日本图** → 京塔图标可见（实体 z=4.6）/出生点 (973,421)
 - [ ] T4：全量数据（TK5 布局表 → place_settlements.py 批量 + settlements.xml 同步 + **兵种树/日式物品自建**——原料已备 112 SkillSet/38 物品/25 BodyProperty）
@@ -129,6 +129,27 @@
 16. `CaravanPartyComponent.InitializeCaravanOnCreation`（First(CaravanGuard&&Lv26&&ikoku) 零命中）→ **根因 = occupation 枚举非法**（12+ 个非 33 成员）→ **枚举解析失败 = NPCCharacters 段静默截断** → occupation 全合法化 + caravan_guard 等级 1→26
 17. `Workshop.InitializeWorkshop`（type null）→ spworkshops 空壳 + SubModule 未注册 WorkshopTypes 段 → 拷官方 14 类型 + 注册
 18. `TownMarketData.GetPrice` NRE（分类表空）→ 根因 = 29 物品 merchandise=0 + Outputs 38 分类无匹配 → 6 资源物品转 ikoku+merch + Outputs 裁 9 类
+19. `AlleyCampaignBehavior.OnNewGameCreated` DivideByZero（`settlement.Alleys.Count=0` → `i % 0`）→ **Alleys 来源 = `<CommonAreas><Area>` 子节**（Settlement.Deserialize 145801 实锤）→ town_kyoto +2 巷；+`gang_leader` 模板（occupation=**GangLeader**——IsGangLeader 判定→黑帮名流 SetOwner 另一 `% source.Count()` 防炸）
+20. CC 启动崩 `CharacterCreationCultureStageVM.SortCultureList`（`Single(x=>CultureID.Contains("vlan"/"stur"/...))`——原版六大文化摆拍排序器）→ **LWN 补丁 prefix 跳过**（`CharacterCreationCultureStageSortPatch`——自定义世界无原版文化）
+21. `RecruitmentCampaignBehavior.FindTotalMercenaryProbability` NRE（`Culture.BasicMercenaryTroops` 空节→GetRandomElementInefficiently null）→ +`mercenary_ikoku`（occupation=Mercenary）→ Culture 挂 1 引用
+22. `NameGenerator.GenerateClanName` NRE（Culture 名字池空——clan_names/male_names/female_names 空节）→ **织丰日式名池植入**（21/390/214——对味）——崩在我们自己的 OnCultureSelected（生成家名）
+23. CC 文化界面**没翻译/没大图/按钮小字**（2026-09-08）→ 三合一：①**文本** = `CharacterCreationCultureVM` 构造时 `FindText("str_culture_rich_name"/"str_culture_description", Culture.StringId)` variation=ikoku——织丰做派 = module_strings.xml 加 `id="str_culture_rich_name.ikoku"`（实锤 Shokuho module_strings.xml:193-207；Native 同构 5947 起）→ Taikou/taikou_module_strings.xml 补 2 词条 + 新建 `ModuleData/Languages/CNs/taikou_culture_CNs.xml`（照 Shokuho_CNs 格式）；②**大图** = `CharacterCreationCultureVisualBrushWidget.SetCultureVisual(id)` → 4 层 `Culture.Banner.Layer.1..4` 每文化一个 `<Style Name=id>`（Native 仅 7 官方 Style——brush XML 实锤 Style 集）→ 无 ikoku state = 空图只留边框；**修法 = LWN `Debug/CharacterCreationCultureVisualFallbackPatch`**（Prefix：id 在 Layer.1 Style 集里不存在 → 换官方兜底 `empire`——判据数据驱动，不硬编码内容包文化；1.2.12/1.5.2 同名同参同私方法已验证，csproj 新引用 TaleWorlds.MountAndBlade.GauntletUI.Widgets）；③**按钮小字** = ShortenedNameText 解析失败残留——补文本自动消失。织丰对照：织丰把文化选择界面整套自建（Sho*View + 地图选文化艺术 + ShoCulture.MapButton.Nankai 自家 brush），v0 我们 = 引擎线 + 官方 art 兜底，T5 日化时再定自建/自美术。**实测通过**（截图：大图/Japanese/描述/无 ERROR）
+24. 选完文化进 **Generic 属性阶段即崩**：`CharacterCreationGenericStageVM` 构造 → `CharacterCreationOnInit(0)` → `CharacterCreationMenus[0]` 越界 = **内容套餐列表空**。链路实锤：GenericStageView 按菜单序号 0..MenuCount-1 逐页消费；菜单由 ContentBase.`OnInitialized(CharacterCreation)` 里 `AddNewMenu` 建造（原生 SandboxCharacterCreationContent / 织丰 ShokuhoCharacterCreationContent.OnInitialized 6 菜单全链——织丰 = Family/Childhood/Education/Youth/Adulthood/AgeSeletion 全包 + 11 职业）；我们没实现 OnInitialized = 0 菜单 = 崩溃。**修法**：LivingWorldCharacterCreationContent 加 OnInitialized → v0 最小「出身」菜单（1 菜单 3 选项：武士从者/商人之子/浪人——技能+属性加成，引擎选项自带 ApplySkillAndAttributeEffects；General 世界 2 选项兜底）。彩蛋：Culture 阶段不需要菜单（CultureVM 不查菜单）——所以文化阶段能过、Generic 才崩
+25. Generic 阶段 **Tick NRE（`_playerOrParentAgentVisuals` null）**：模型数据 FaceGenChars 为空——填入方 = FaceGen 阶段（`CharacterCreationFaceGeneratorView` 完成时 `new FaceGenChar(...)` → `ChangeFaceGenChars` 实锤）；我们的阶段链是 [Culture, Generic, Review] **缺 FaceGenerator**。原版顺序（1.2.12 SandboxCharacterCreationContent 实锤）= Culture → FaceGenerator → Generic → BannerEditor → ClanNaming → Review → Options；织丰同款（+ RacesPatch 收窄种族）。**修法**：阶段链插入 `CharacterCreationFaceGeneratorStage`（在 Culture 与 Generic 之间）；模型预览场景 = Native character_menu_new（引擎硬编码，任何自定义战役共用）
+26. FaceGen 阶段崩 **`MBGlobals.GetActionSet` NRE**：真凶 = `MBGlobals._actionSets` 静态词典 **从未初始化**（`InitializeReferences()` 没人调 → null.TryGetValue 崩）——不是动作库资源缺失（Native 模块永远在，你的原则没错）。必调点实锤：SandBox `EditorSceneMissionManager.DoLoadingForGameManager` case0（紧跟 ModuleData 加载）；织丰自家 GameManager 同样补调（Shokuho.dll:121150）。**我们漏因**：LivingWorldCampaignGameManager.DoLoading 状态机 case0 与母本分叉时跳过了该行。**修法**：case 0 加 `MBGlobals.InitializeReferences()`（幂等：_initialized 守卫；任何内容包战役共通）
+27. FaceGen 阶段崩（26 修后新 NRE）——**捏脸模板段被 GameType 白名单过滤**：探针三连（InitBodyGenerator/OpenScene/AddCharacterEntity 全过）→ 死点在 ctor 尾部模板盘查段：`GetObject<BasicCharacterObject>("facgen_template_test_char_0").GetBodyProperties()` NRE——`facgen_template_test_char_0..9` 定义在 **SandBoxCore `spnpccharactertemplates.xml`（NPCCharacters 段），只注册 Campaign/CampaignStoryMode/CustomGame/EditorGame**，TaikouCampaign 下为 null。织丰做派 = 自家副本+自家 GameType 注册（Shokuho SubModule.xml:417-423 实锤）。**修法**：①拷 SandBoxCore 模板文件进 Taikou 模块 ②sanitize 文化引用→ikoku（140 处）③SubModule.xml 注册 `<XmlName id="NPCCharacters" path="spnpccharactertemplates"/>`（仅 TaikouCampaign）④⚠️ 纠偏记录：模板引用 120 件官方物品——我此轮曾全量恢复官方物品库（1759 件）违背"**模仿织丰做自建物品体系**"裁定，被用户当场纠正 → **回滚**（prune 重跑回 69 件精选集）+ **模板装备槽/升级线清空**（887 处）——模板 = 容貌样板，T4 自建物品后再挂自家装备；物品库裁剪真源 = prune_taikou_items.py 不可绕过。checker：0 悬空 0 未知
+
+**🔴🔴 为"生成器真源"教训加强（16 雷两踩，不再犯）**：gen_taikou_culture_full.py 重跑会覆盖对 spcultures/spnpccharacters 的一切手改（N&W 增补被覆盖/佣兵被覆盖——两现场）。**铁令：凡改 Culture/NPC 数据 → 先改生成器 → 重跑 → checker**；生成器幂等判断的"已存在"检查要**覆盖所有新增 id**。
+
+## 🔴🔴 不再犯清单（16 雷沉淀——改动前逐条自查）
+
+1. **生成器唯一真源**：Culture/NPC 数据增补 = 先改 `gen_taikou_culture_full.py` → 重跑 → checker。**禁止直接改 spcultures/spnpccharacters 再指望存活**（两种死法：手改被下次重跑覆盖〔N&W 增补、佣兵——双现场〕；生成器幂等检查漏新 id〔gang_leader〕）。新增模板后立即把 id 纳入幂等判断。
+2. **枚举字段必须过全集校验**：occupation 等枚举值对照引擎枚举全集（Occupation=33 成员）；写错 = NPCCharacters 段**静默截断**（不报错、只少加载——探针才知道）。
+3. **每次数据改动后必跑**：`check_taikou_xml_references.py`（0 悬空）+ parse 所有改过 XML（minidom）。
+4. **脚本/程序改 XML 必 parse**（09-07 未闭合教训 + 本次两处）。
+5. **裁剪前建引擎白名单**（物品 51 / roster 5 / neutral 文化——prune 脚本常量；将来扩展内容包先查）。
+6. **时点坑**：Kingdom.InitialHomeLand 置位必须 partial-followup（OnInitialize 会被洗白）；partial 时点 `GetObjectTypeList<T>()` 返回 null——用 `Campaign.Current.*` 合集。
+7. **行为链数据依赖一次给全**：N&W 池（名流生成）/名字池（家名生成）/basic_mercenary_troops（雇佣兵）/Alleys（黑巷）/工坊 Outputs 分类——这些组从雷链里学到的"文化必备组"，新内容包照清单配。
 
 ## 纪律提醒（这轮踩过的）
 
