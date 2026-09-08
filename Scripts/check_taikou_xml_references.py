@@ -57,7 +57,7 @@ ENGINE_BASIC_PREFIXES = {
     "Monster", "ItemModifier", "ItemModifierGroup", "WeaponDescription",
     "CraftingTemplate", "SkeletonScale", "SiegeEngine",
     "Skill", "SkillEffect", "Perk", "Trait", "BannerEffect", "BuildingType",
-    "Policy", "Title", "Town", "Village",
+    "Policy", "Title", "Town", "Village", "ItemCategory",
 }
 
 # Alias: Faction in XML = Clan reference (engine alias, 织丰/Native 同款)

@@ -2,13 +2,21 @@
 
 > 本文件 = 会话交接。**下个 session 从这里开始**，不用重跑任何反编译（结论全部实锤并附出处）。
 
-## 🔴 TODO（下一步从这里开始）
+## 🔴 TODO（下一步从这里开始，2026-09-08 更新）
 
-- [x] **T1（已完成 2026-09-07）**：Companion NRE = 三段链（详见「T1 结案」）——数据根治 + LWN 加固层已落盘，**下一步 = 跑游戏验证**
-- [ ] **T2**：过了行为链 → **建号界面**（CC 2 阶段）→ 预期下一雷：CC 阶段/视图问题 → 崩点照旧处理（**先读 `Modules/LivingWorldNpcs/Debug/StoryEngine_RuntimeLog.txt`**）
+- [ ] **T2（进行中）**：跑到 **CC 建号界面**——目前进度：**行为链 12 颗雷全排（封装完毕），第 13 站 = 建号界面**。用户跑游戏 → 若崩贴 Log → 按排雷链继续；若进 CC → 检查 3 阶段（Culture→Generic→Review）/家名生成/出生点（973,421）→ **T3 日本图**
+- [x] **T1（完成）**：Companion NRE 三段链结案（详见「T1 结案」）
 - [ ] T3：建号完成 → **日本图** → 京塔图标可见（实体 z=4.6）/出生点 (973,421)
-- [ ] T4：全量数据（TK5 布局表 → place_settlements.py 批量 + settlements.xml 同步）——**场景实体 = 从 `Main_map_native` 整组拷贝改名的路线**（知识文档五节已有教程）
-- [ ] T5：日式素材（先 Native mi_*，织丰 sho_* 因"不依赖织丰"裁定不可用——后续决断来源）
+- [ ] T4：全量数据（TK5 布局表 → place_settlements.py 批量 + settlements.xml 同步 + **兵种树/日式物品自建**——原料已备 112 SkillSet/38 物品/25 BodyProperty）
+- [ ] T5：日式素材（先 Native mi_*，织丰 sho_* 不可用——后续决断来源）
+
+## 一句话现状（2026-09-08）
+
+**进步**：行为链 NRE **12 颗雷全部排完**（Companion→Backstory→Kingdom→DefaultEquipments→Militias→Workshops→Caravans→TownMarketData）——**数据全部自给**（checker 0 悬空 0 未知），卡在 **第 13 站 = 建号界面（T2）**。**下一动作 = 跑游戏**（最后改动全为纯数据，无需编译；如需新 DLL 则 `dotnet build -c Debug` 部署）。
+
+**⚠️ 雷区备忘（已修但需知）**：
+- 生成器重跑会覆盖手改（铁律 22 现场教训——**改数据必须改生成器**；`gen_taikou_culture_full.py` 幂等已修；`gen_taikou_workshop_items.py` 是一次性脚本（重跑会重复插入——用前先看代码）
+- 数据改动后必跑：`python Scripts/check_taikou_xml_references.py`（0 悬空）+ `check_taikou_field_coverage.py`（七类交集，跑完后人工甄别误报/特例——见 Knowledge/内容包最小字段交集.md）
 
 ## T1 结案（2026-09-07 深夜，三颗雷合一）
 
@@ -115,7 +123,12 @@
 10. `CompanionsCampaignBehavior.InitializeCompanionTemplateList` NRE = culture 缺 notable_and_wanderer_templates → 补（引用世界内存在的 5 角色）
 11. 同函数再崩 → **结案（见 T1 结案）**：真因 = 拷贝文件 1835 处原版文化引用 → GetPresumedObject 创 8 裸文化桩；+ 模板引用 5 角色只定义 3（今川真空）+ 幽灵 id（peasant_farmer 实为织丰角色 / lord_template_empire_male = 自编 id）→ 修复三层（数据清洗/数据自洽/代码加固）+ 校验脚本
 12. `BackstoryCampaignBehavior.OnNewGameCreated` NRE（原版卡拉迪亚前史硬编码 8 领主+town_V6）→ **结案：织丰同款屏蔽**（Debug/BackstoryCampaignBehaviorPatch 打 RegisterEvents prefix false，实证 Shokuho.dll:99600）
-13. **CC 升级（2026-09-08，追问"主角文化/外观怎么定"触发）**：原 CC 2 阶段砍掉了属性分配/名字 → 升 **Culture → Generic（属性/技能分配）→ Review**；`OnCultureSelected` 补织丰同款家名生成（GenerateClanNameforPlayer）——**下一雷预告：Generic 阶段页（引擎自带 VM）实测**
+13. `Kingdom.OnNewGameCreated` NRE（Leader=null 链）→ **结案**：英雄带装备+neutral/party/roster 数据 → 置位 partial-followup（王都=京，反射 private setter）；⚠️ 两个坑记录：①OnInitialize 置位被引擎 OnNewGameCreated 洗白（时点必须 partial-followup）②**GetObjectTypeList<T> 在 partial 时点返回 null**（Kingdom 被吞教训——改 Campaign.Current 合集）
+14. `Settlement.SpawnMilitiaParty` NRE（Culture.MilitiaPartyTemplate 空）→ Party 引线全挂（militia_template 复用）
+15. `WorkshopsCampaignBehavior.BuildWorkshopForHeroAtGameStart` NRE（城镇无 Notables → ChooseWeighted(空)）→ **根因 = 文化 N&W 模板池只有 Lord**（CreateHeroAtOccupation 从 N&W 挑职业）→ N&W 补 merchant/artisan；**证据三连：名流非 XML 预定义**（heroes.xml 0 商人/settlement 0 Notables/Hero cell 8 属性）
+16. `CaravanPartyComponent.InitializeCaravanOnCreation`（First(CaravanGuard&&Lv26&&ikoku) 零命中）→ **根因 = occupation 枚举非法**（12+ 个非 33 成员）→ **枚举解析失败 = NPCCharacters 段静默截断** → occupation 全合法化 + caravan_guard 等级 1→26
+17. `Workshop.InitializeWorkshop`（type null）→ spworkshops 空壳 + SubModule 未注册 WorkshopTypes 段 → 拷官方 14 类型 + 注册
+18. `TownMarketData.GetPrice` NRE（分类表空）→ 根因 = 29 物品 merchandise=0 + Outputs 38 分类无匹配 → 6 资源物品转 ikoku+merch + Outputs 裁 9 类
 
 ## 纪律提醒（这轮踩过的）
 
