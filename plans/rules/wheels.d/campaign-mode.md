@@ -4,6 +4,25 @@
 > **来源**：2026-09-07 TaikouCampaign 启动链排雷（Companion NRE 三段链结案，详见 `plans/太阁数据加载taikou-campaign-boot-20260907.md`「T1 结案」）。
 > 注意事项：路径约定——脚本在**仓库根 `Scripts/`**，C# 在 `ExampleModVS/ExampleMod/ExampleMod/` 下（与索引默认前缀一致）。
 
+## 〇、🔴 版本警示（2026-09-08 教训：campaign-mode 代码只编译过 1.2.12 机，1.5.2 机 11 条 CS1061）
+
+**战役模式 = 1.2.12 独有 API 最密集区**。Core/CampaignMode/ 的排雷诊断大量使用 **v1.3.0 起被移除/改名** 的 Campaign API（别处永远碰不到，宏体系里也没有它们的对照表）：
+
+| 1.2.12 独有（别用） | 1.5.2 等价物 |
+|---|---|
+| `Clan.InitialPosition` | （无，诊断改用 `InitialHomeSettlement`） |
+| `Kingdom.InitialHomeLand` | `Kingdom.InitialHomeSettlement` |
+| `Clan.UpdateHomeSettlement` | `Clan.SetInitialHomeSettlement` |
+| `HeroCreator.CreateHeroAtOccupation` | `HeroCreator.CreateNotable(occupation, settlement)` |
+| `GameModels.SettlementConsumptionModel` | （无） |
+| `Module.CurrentModule.SubModules` | 既有轮子 `V.CollectSubModules()`（1.3+ = `CollectSubModules()`） |
+| `Campaign(CampaignGameMode)` 构造 | 1.5.0+ 双参 `(CampaignGameMode, AdvancedStartOptionsData)`（占位传 null） |
+
+**铁律**：
+1. **任何改 Core/CampaignMode/ 的提交，1.5.2 机必须 `dotnet build -c Debug` 验一遍**——排雷闭环只在 1.2.12 机"编译→跑→崩→修"，1.5.2 从未编译 = 本次漏检根因；别绕开已有的 `V.*` 轮子。
+2. **写法 = `#if MB2_V1212` 全类/整段分叉**（1.2.12 全量 / 1.5.x 注释占位），范本 = `LivingWorldCharacterCreationContent`；1.5.x 建号 = CharacterCreationManager 新体系，v0 不接入（`CampaignModeActivator` 裁定）。
+3. 裸 `#if` 新位置必须登记 VersionCompat 注册表（已登记：`LivingWorldCampaign.cs` 全类 / `LivingWorldCampaignGameManager.cs:OnLoadFinished`）。
+
 ## 一、内容包数据自给校验 —— 交叉引用闭合检查（每次改数据必跑）
 
 **解决什么问题**：自定义 GameType 下官方段被 IncludedGameTypes 白名单过滤，但拷贝官方文件残留的引用（物品/工艺件/音乐/装备模板带 1835 处 `Culture.<原版八文化>`）会经引擎 **`MBObjectManager.GetPresumedObject`（引用创建：对象不存在只建"裸对象"，只记 id、从不 Deserialize）** 生成空壳桩（模板列表 null）→ 原版行为无 null 保护 → NRE。任何新内容包（三国等）都会复刻这个坑。

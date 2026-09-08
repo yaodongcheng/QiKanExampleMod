@@ -66,6 +66,15 @@ namespace LivingWorldNpcs
     ///     MyBehavior.cs:33,45                CampaignEvents 事件注册差异：HeroPrisonerReleased
     ///                                         5参=1.3+ / 4参=1.2.12（lambda 适配）；BeforeHeroesMarried
     ///                                         1.3+ / 1.2.12 为同名同签名 HeroesMarried（婚后触发）
+    ///     LivingWorldCampaign.cs               全类按 MB2_V1212 分叉（1.2.12 全量 / 1.5.x 空壳）：
+    ///                                         ①构造 base 参数差——1.2.12 Campaign(CampaignGameMode) /
+    ///                                           1.5.0+ (CampaignGameMode, AdvancedStartOptionsData)；
+    ///                                         ②1.2.12 独有 API：Clan.InitialPosition / Kingdom.InitialHomeLand /
+    ///                                           Clan.UpdateHomeSettlement / HeroCreator.CreateHeroAtOccupation /
+    ///                                           GameModels.SettlementConsumptionModel（1.5.2 等价物 =
+    ///                                           InitialHomeSettlement / SetInitialHomeSettlement / CreateNotable）
+    ///     LivingWorldCampaignGameManager.cs:111  OnLoadFinished 建号分支（1.2.12 CharacterCreationContentBase /
+    ///                                           1.5.x CharacterCreationManager 未接入 = 空分支）
     ///   （搜刮/开箱 Loot 流的 InventoryManager #if 已于 2026-08-14 移除：类在 v1.3.0 改名
     ///     InventoryScreenHelper，签名一致，统一走 V.OpenLootScreen，不再裸 #if。）
     /// </summary>
