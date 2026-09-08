@@ -358,7 +358,8 @@
     <Compile Include="Debug\BackstoryCampaignBehaviorPatch.cs" />
     <Compile Include="Debug\CharacterCreationCultureStageSortPatch.cs" />
     <Compile Include="Debug\CharacterCreationCultureVisualFallbackPatch.cs" />
-    <Compile Include="Debug\FaceGenCtorProbe.cs" />
+    <Compile Include="Debug\MapScreenCameraPatch.cs" />
+    <Compile Include="Core\CampaignMode\LivingWorldSaveableTypeDefiner.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <Compile Include="Debug\TerrainExportCommands.cs" />
