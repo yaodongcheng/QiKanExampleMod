@@ -26,7 +26,7 @@
   // 默认（两个字段保留为空字符串）= 不替换，行为与原生一致。
   // 替换链路见 Core/SplashVideoReplacePatch.cs（Harmony 拦截唯一播放入口）。
   "SplashVideoModuleId": "Taikou",
-  "SplashVideoFileName": "TR5OP_TW",
+  "SplashVideoFileName": "TR5OP_TW_1080",
   // ══════════════════════════════════════════════════════════════
   // 设计数据内容包注入：把剧本引擎需要的 CSV 表（Hero/Music/TagPoint/Emotion）
   // 从指定内容包模块的 ModuleData/DesignData/ 注入 GameDatabase（剧本表）。

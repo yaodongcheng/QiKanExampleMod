@@ -47,6 +47,9 @@ __pycache__/
 tools/loading_pipeline/gen/
 tools/loading_pipeline/__pycache__/
 
+# 开场视频转换产物（tools/video_tools/ 脚本可重跑再生成；脚本本体入库）
+tools/video_tools/out/
+
 # Python 缓存
 __pycache__/
 *.pyc

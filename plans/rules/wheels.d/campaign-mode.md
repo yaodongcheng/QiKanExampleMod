@@ -23,6 +23,14 @@
 2. **写法 = `#if MB2_V1212` 全类/整段分叉**（1.2.12 全量 / 1.5.x 注释占位），范本 = `LivingWorldCharacterCreationContent`；1.5.x 建号 = CharacterCreationManager 新体系，v0 不接入（`CampaignModeActivator` 裁定）。
 3. 裸 `#if` 新位置必须登记 VersionCompat 注册表（已登记：`LivingWorldCampaign.cs` 全类 / `LivingWorldCampaignGameManager.cs:OnLoadFinished`）。
 
+## 〇·五、🔴 1.2.12 ↔ 1.5.2 战役场景迁移判据（2026-09-08 实机，T3 前置）
+
+- **结构层**：1.2.12 ModKit 场景与 1.5.2 资源头同构（xscene version=2 / navmesh RNM1 v3 / terrain ZGR6RTRN / flora FLR2），**外壳已排除**。
+- **编辑器侧可行**：1.5.2 ModKit 可打开 1.2.12 Main_map；保存 = 重写 xscene + ShaderCache，**terrain.bin 同时被重写**（3,895,164B → 6,619,168B）；**navmesh.bin 保存不动**——需 Navmesh 工具重生（生成器输出带 inverted-normal/clockwise 警告面属编辑器校验警告）或走 `nav_mesh_auto_generated_="true"` 通路（删 bin → 引擎自动重算）。
+- **客户端侧（实锤差异）**：1.5.2 **client** 读 1.2.12 场景 = `SandBox.MapScene.Load → _scene.Read("Main_map", "Taikou", ...)` **native 无栈 NRE**（Source=无法计算异常源；三种断点排查法见 Load() 内分段：CreateNewScene 链 / DisableUnwalkableNavigationMeshes(Models 链) / Scene.Read 之后）；**同批文件 wEditor 全程正常打开** = 编辑器可迁移 ≠ 客户端可读；ModKit 重生 navmesh（1.5.2 格式）后 client 仍崩。
+- **选图逻辑**：`GetMainMapModule()` 遍历 active modules **无 break = 最后一个**有 `SceneObj/Main_map/scene.xscene` 的胜出（Launcher 排序决定；SandBox/Taikou 皆有 → 默认 SandBox 胜，要日本图 = launcher 让 Taikou 顺序在前）。
+- **裁定（2026-09-08 用户）**：先回 1.2.12 完成正常功能（该机场景自洽）；1.5.2 转场（T3）搁置重审。⚠️ 排查时本机无引擎日志（无 rgl_log），1.5.2 侧依赖 LWN `[MapSceneTrace]` 类分段探针。
+
 ## 一、内容包数据自给校验 —— 交叉引用闭合检查（每次改数据必跑）
 
 **解决什么问题**：自定义 GameType 下官方段被 IncludedGameTypes 白名单过滤，但拷贝官方文件残留的引用（物品/工艺件/音乐/装备模板带 1835 处 `Culture.<原版八文化>`）会经引擎 **`MBObjectManager.GetPresumedObject`（引用创建：对象不存在只建"裸对象"，只记 id、从不 Deserialize）** 生成空壳桩（模板列表 null）→ 原版行为无 null 保护 → NRE。任何新内容包（三国等）都会复刻这个坑。

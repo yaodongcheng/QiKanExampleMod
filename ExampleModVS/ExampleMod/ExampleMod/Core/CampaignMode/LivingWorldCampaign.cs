@@ -213,8 +213,39 @@ namespace LivingWorldNpcs.CampaignMode
 		//   按 1.5.2 等价 API 重写本类。
 		protected override void OnInitialize()
 		{
+			// 🔴 第 5 颗雷（1.5.2 版，2026-09-08）：EquipmentRosters 段新战役不加载——反编译实锤：
+			//   Campaign.InitializeDefaultCampaignObjects（官方读档链，CampaignSystem?11082）里才 LoadXML("EquipmentRosters")；
+			//   Campaign.OnInitialize 早期执行 InitializeDefaultEquipments →
+			//   GetObject("default_battle_equipment_roster_neutral") 为 null → .DefaultEquipment NRE。
+			//   （1.2.12 同因，修复同式。）补载（读档同序）→ 再走 base.OnInitialize。
+			try
+			{
+				MBObjectManager.Instance.LoadXML("EquipmentRosters");
+				// 🔴 探针（2026-09-08）：LoadXML 没抛异常 ≠ 装进去了——1-arg 走扩展
+				//   MBObjectManagerExtensions.LoadXML → gameType = Game.Current.GameType.GameTypeStringId，
+				//   若为空/不符 → GetMergedXmlForManaged 按 GameType 过滤 = 空合并。探针判"装没装进去"。
+				var probeR = MBObjectManager.Instance.GetObject<MBEquipmentRoster>("default_battle_equipment_roster_neutral");
+				var probeAll = MBObjectManager.Instance.GetObjectTypeList<MBEquipmentRoster>();
+				DebugLogger.Log($"[LWN-dump] EquipmentRosters 探针：battle={(probeR != null ? "有" : "null")} | 全部架子数={(probeAll?.Count ?? -1)} | GameType={((Game.Current?.GameType != null) ? Game.Current.GameType.GameTypeStringId : "?")}");
+			}
+			catch (Exception exEq)
+			{
+				DebugLogger.Log($"[LWN-dump] EquipmentRosters 段补载 FAILED: {exEq.Message}");
+			}
 			base.OnInitialize();
-			DebugLogger.Log("[LWN-dump] LivingWorldCampaign: 1.5.x 空壳 OnInitialize（战役模式暂不接入）");
+			// 🔴 MapScene.Load NRE 判据探针（2026-09-08）：GetRegionMapping/model.IsTerrainTypeValidForNavigationType
+			//   消费 Campaign.Current.Models.PartyNavigationModel——null 则 NRE 落在 SandBox.MapScene.Load。
+			//   官方装配链 = Campaign 内部 SandBoxManager.Initialize(starter)——若此探针为 null = 该链没跑。
+			try
+			{
+				var lwM = Campaign.Current.Models;
+				DebugLogger.Log($"[LWN-dump] Models 家族探针：Models={(lwM != null ? "有" : "null")} | PartyNavigation={((lwM?.PartyNavigationModel != null) ? "有" : "null")} | MapWeather={((lwM?.MapWeatherModel != null) ? "有" : "null")}");
+			}
+			catch (Exception exP)
+			{
+				DebugLogger.Log($"[LWN-dump] Models 探针异常: {exP.Message}");
+			}
+			DebugLogger.Log("[LWN-dump] LivingWorldCampaign: 1.5.x OnInitialize 完成");
 		}
 #endif
 	}
