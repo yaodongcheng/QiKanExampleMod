@@ -42,6 +42,12 @@ namespace LivingWorldNpcs.CampaignMode
 			switch ((int)gameManagerLoadingStep)
 			{
 				case 0:
+					// 🔴 第 26 颗雷（2026-09-08）——MBGlobals.InitializeReferences() 必调：
+					// _actionSets 静态词典由它初始化；漏调 → FaceGen/身体模型首个 GetActionSet NRE
+					// （真凶链：MBGlobals.GetActionSet → _actionSets null；SandBox EditorSceneMissionManager
+					// DoLoading case0 实锤必调点；织丰自家 GameManager 同样补调（Shokuho.dll:121150））。
+					// 幂等（_initialized 守卫），任何内容包战役共通。
+					MBGlobals.InitializeReferences();
 					nextStep = (GameManagerLoadingSteps)1;
 					break;
 				case 1:
