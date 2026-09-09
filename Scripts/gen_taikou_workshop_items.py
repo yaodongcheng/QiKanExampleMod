@@ -55,7 +55,7 @@ def find_official_item(item_id):
     for f in (MB / "Modules" / "SandBoxCore" / "ModuleData" / "items").glob("*.xml"):
         txt = f.read_text(encoding="utf-8-sig", errors="replace")
         for m in re.finditer(r'<Item\s+([^>]*?)\bid="' + re.escape(item_id) + r'"([^>]*?)>(.*?)</Item>', txt, re.S):
-            return f"<Item{m.group(1)}id=\"{item_id}\"{m.group(2)}>{m.group(3)}</Item>"
+            return f"<Item {m.group(1)}id=\"{item_id}\"{m.group(2)}>{m.group(3)}</Item>"
     return None
 
 
