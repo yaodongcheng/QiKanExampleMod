@@ -39,6 +39,18 @@ namespace LivingWorldNpcs.CampaignMode
 			//   诊断/加固块只服务新建档；读档链走官方恢复（同族坑：partial-followup 时点 GetObjectTypeList null）。
 			if (CampaignGameLoadingType == Campaign.GameLoadingType.SavedCampaign)
 			{
+				// 🔴 2026-09-09 20:20 读档崩排查：读档早期 Settlement.All（=Campaign.Current.Settlements）被 IssuesGuard
+				//   抓到 0 —— 此处补一个"读档 OnInitialize 时刻"的参考计数（对象表未恢复，GetObjectTypeList 仍可能 null，
+				//   但 Campaign.Current.Settlements 可读）。对照 9:29/12:35 健康会话（Count=2）。
+				try
+				{
+					DebugLogger.Log($"[LWN-dump] 读档路径（SavedCampaign）参考计数: Settlement.All={(Campaign.Current != null ? Campaign.Current.Settlements.Count.ToString() : "Campaign null")} " +
+						$"Settlement.All-All={TaleWorlds.CampaignSystem.Settlements.Settlement.All.Count}");
+				}
+				catch (Exception ex)
+				{
+					DebugLogger.Log($"[LWN-dump] 读档计数段异常: {ex.Message}");
+				}
 				DebugLogger.Log("[LWN-dump] 读档路径：诊断块跳过（SavedCampaign）");
 				return;
 			}
