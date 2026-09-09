@@ -1036,3 +1036,38 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 - 写任何"疑似新文件"前：`git status --short <path>`（` M` = 已跟踪——立刻停下核对原内容引）＋ `git log --oneline -1 -- <path>` 看出处。
 - "文件不存在"结论必须在足够深度的搜索后下（`ModuleData/` 在 maxdepth 4）。
 - 覆盖后立刻 `git diff --stat` 核对差异；改坏恢复 = `git show HEAD:<path> > <path>`（字节级）；恢复前先 `git show HEAD:path > path.orig_backup` 取证。
+
+---
+
+## 自定义地图相机"空气墙"：到某条坐标线就动不了 → 场景缺 border_min/border_max 实体（2026-09-08 实机）
+
+**症状**（日本图，实机复现）
+- 相机（WASD/双击跳镜）能在地图中部自由移动，**到一条直线就永远停住**——没有边框、没有报错、画面正常，就是"空气墙"。
+- 初始机位正常、城图标（京）看得见——**但京都恰好在墙外一点点**：能看见，靠近不了。
+- 本坑无任何异常日志/崩溃，纯行为异常，属于最容易当成"操作习惯"误判的一类。
+
+**根因**（反编译实锤，调用链）
+```
+相机目标位置每帧被钳进 [Campaign.MapMinimumPosition, MapMaximumPosition]
+  └─ SandBox.View.dll MapCamera `ComputeMapCamera`（ClampFloat，反编译实锤）
+       └─ Campaign.MapMinimumPosition/MapMaximumPosition ← Campaign.LoadMapScene
+            └─ SandBox.MapScene.GetMapBorders（SandBox.dll）
+                 └─ 读场景内两个命名实体：border_min / border_max（名字硬编码，反编译实锤）
+```
+
+- **border_min / border_max = 大地图摄像机边界**：两个普通实体，各拿一个坐标，引擎按名字硬查（`GetFirstEntityWithName`）。官方 bigmap = (62,30,0)/(790,640,620)；织丰 Main_map = (87.4,105.4,-7.98)/(2100,2100,1000)。
+- **版本行为差异（本坑核心）**：
+  - **v1.2.12**：缺实体 → 引擎**静默兜底** min=(0,0) / max=**(900,900)** / height=670（SandBox.dll 反编译实锤）→ 相机被钳在 0~900 矩形 → "空气墙"在 x=900 / y=900。**无任何提示**，模拟出"活着的系统"。
+  - **v1.5.x**：**无兜底**，`GetFirstEntityWithName("border_min").GetGlobalFrame()` 直接解引用 → 缺一个实体 = **进图即崩**（比空气墙更狠）。
+- 为什么"看得见京却过不去"：京 (969,421)，墙面 x=900——城图标悬在墙外 69m。
+- 为什么克隆时缺：从 bigmap 基底克隆地形常见清单里只带地形 + 脚本实体，**边界实体属于"看不见的东西"，克隆时天然被遗漏**。
+
+**规避**
+1. **地图场景必备实体清单 + border_min/border_max**：任何克隆/重建的大地图，出图前 `grep scene.xscene` 确认两个实体存在（连同 12 个官方地图脚本实体——完整清单在 `plans/太阁数据加载taikou-campaign-boot-20260907.md` 雷 28）。
+2. **取值 = 地形实际范围**：读 scene `<terrain>` 的 `node_dimension × node_size`（日本图 16×10 节点 × 128m → (0,0,0)-(2048,1280)），`border_min` 用 (0,0,0)；`border_max` 的 **z 值管相机最大缩放距离 + 远裁剪面**（取织丰 1000，别抄官方 620——那是卡拉迪亚地图尺寸）。
+3. **判别口诀**：
+   - "相机沿一个正交矩形边界停住、零报错" = 缺 border 实体（1.2.12 引擎兜底 900×900）；
+   - "进图就崩、栈在引擎侧" = 同因的 1.5.x 表现。
+   - 一听到"空气墙/走不出去"先查场景 grep `border_min`，再去查输入/操作。
+4. **实装防线**：`Debug/MapBorderDiagnosticPatch.cs`（`GetMapBorders` Postfix，进图打一行 `[MapBorder]` min/max/height；命中引擎兜底值 (0,0)/(900,900)/670 时打警示）——重建地图后看一眼日志即知边界是否健全。
+5. 边界实体只是坐标标记，**不动 navmesh**：加/删实体无需重新生成 navmesh（与雷 28 实体插入同结论）。

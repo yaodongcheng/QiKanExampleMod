@@ -1,0 +1,1022 @@
+﻿settlement_id,name,type,culture,complex,alley,arena,center,duel_location_id,house_1,house_2,house_3,lordshall,port_location_id,prison,retirement_retreat,tavern,village_center
+castle_AMA1,Kono Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_k,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_AMA1_1,Nishinoshima,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_AMA1_2,Chiburi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_f
+town_CHU1,Kushizaki,town,Culture.sanyo,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHU1_1,Akamagazeki,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_CHU1_2,Chofu,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_CHU1_3,Aio,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_CHU2,Sanbonmatsu,town,Culture.sanyo,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHU2_1,Hagi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_CHU2_2,Oi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_CHU2_3,Mikazura,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_CHU3,Yoshida-Koriyama,town,Culture.sanyo,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHU3_1,Togouchi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_CHU3_2,Kabe,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_CHU3_3,Miyoshi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_CHU4,Iwami,town,Culture.sanyo,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHU4_1,Tomogaura,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_CHU4_2,Ishigane,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_CHU4_3,Hane,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+town_CHU5,Gassan-Toda,town,Culture.sanyo,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHU5_1,Yasugi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_CHU5_2,Mihonoseki,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_CHU5_3,Yodoe,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_CHU6,Okayama,town,Culture.sanyo,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHU6_1,Kibitsu,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_CHU6_2,Hachihama,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_CHU6_3,Saidaiji,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_CHU1,Aratakiyama Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU1_1,Hiju,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHU1_2,Setozaki,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_CHU2,Kounomine Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU2_1,Mitajiri,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHU2_2,Miyaichi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_CHU3,Shimoseyama Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU3_1,Susa,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHU3_2,Nakazu,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHU4,Mitsuodake Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU4_1,Murozumi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHU4_2,Iwakuni,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_CHU5,Sakurao Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU5_1,Kuba,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_CHU5_2,Itsukushima,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_CHU6,Hinoyama Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU6_1,Misumiminato,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHU6_2,Goutsu,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHU7,Noumi Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_k,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU7_1,Seto,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHU7_2,Kure,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_CHU8,Matsuo Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU8_1,Takehara,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHU8_2,Shiraichi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_CHU9,Mizawa Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU9_1,Kizuki,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHU9_2,Shirakata,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_CHU10,Kurushima Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_k,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU10_1,Ojou,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHU10_2,Miyaura,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHU11,Aoki Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_k,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU11_1,Nakanosho,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_f
+castle_village_CHU11_2,Setoda,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_CHU12,Niitakayama Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU12_1,Onomichi,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHU12_2,Kasaoka,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHU13,Kouzan Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU13_1,Tsurajima,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHU13_2,Shimotsu,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_CHU14,Hogi Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU14_1,Ushimado,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHU14_2,Inbe,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_CHU15,Tenjinyama Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU15_1,Shioyu,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_CHU15_2,Togawa,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_CHU16,Ueshi Castle,castle,Culture.sanyo,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHU16_1,Hashizu,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHU16_2,Karo,village,Culture.sanyo,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+town_CHUB1,Ichijodani,town,Culture.hokuriku,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB1_1,Mizuochi,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_CHUB1_2,Kitanosho,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_CHUB1_3,Heisenji,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+town_CHUB2,Oyama,town,Culture.hokuriku,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB2_1,Ushibuki,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_CHUB2_2,Ataka,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_CHUB2_3,Miyanokoshi,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+town_CHUB3,Nanao,town,Culture.hokuriku,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB3_1,Noto-Fukura,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_CHUB3_2,Hakui,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_CHUB3_3,Himi,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_CHUB4,Kasugayama,town,Culture.hokuriku,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB4_1,Funai,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_CHUB4_2,Naoetsu,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_CHUB4_3,Arai,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_CHUB5,Niigata,town,Culture.hokuriku,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB5_1,Kanbara,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_CHUB5_2,Shibata,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_CHUB5_3,Tsugawa,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_CHUB6,Fukashi,town,Culture.tosan,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB6_1,Shiojiri,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_CHUB6_2,Azumi,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_CHUB6_3,Suwa,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+town_CHUB7,Kofu,town,Culture.tosan,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB7_1,Iwama,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_CHUB7_2,Uwato,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_CHUB7_3,Enzan,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+town_CHUB8,Sunpu,town,Culture.tokai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB8_1,Kogawa-minato,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_CHUB8_2,Kunoujii,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_CHUB8_3,Shimizu,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_CHUB9,Hamamatsu,town,Culture.tokai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB9_1,Kakezuka,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_CHUB9_2,Asaba,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_CHUB9_3,Hamanoura,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+town_CHUB10,Okazaki,town,Culture.tokai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB10_1,Utsumi,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_CHUB10_2,Ohama,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_CHUB10_3,Kariya,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_CHUB11,Kiyosu,town,Culture.tosan,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB11_1,Tsushima,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_CHUB11_2,Nagono,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_CHUB11_3,Atsuta,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+town_CHUB12,Sakurabora,town,Culture.tosan,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB12_1,Gero,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_CHUB12_2,Maze,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_CHUB12_3,Hagiwara,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_CHUB13,Gifu,town,Culture.tosan,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_CHUB13_1,Kani,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_CHUB13_2,Kakamigahara,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_CHUB13_3,Inuyama,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB1,Tezutsuyama Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB1_1,Tsuruga,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB1_2,Obama,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB2,Etsufu Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB2_1,Konoura,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHUB2_2,Etsufu,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_CHUB3,Mizoe Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB3_1,Mikuniminato,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHUB3_2,Kanazu,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_CHUB4,Daishoji Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB4_1,Yoshizaki,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHUB4_2,Miyukizuka,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_CHUB5,Masuyama Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB5_1,Hojozu,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB5_2,Uozu,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_CHUB6,Anamizu Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB6_1,Nakai,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHUB6_2,Wajima,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB7,Nechi Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB7_1,Oumi,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHUB7_2,Nou,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB8,Saruge Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB8_1,Kakizaki,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHUB8_2,Kasiwazaki,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB9,Yoita Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB9_1,Izumosaki,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB9_2,Teradomari,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB10,Shishiga Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_k,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB10_1,Sawane,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHUB10_2,Matsugasaki,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB11,Hirabayashi Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB11_1,Hirabayashi,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHUB11_2,Iwafune,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_CHUB12,Honjyo Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB12_1,Murakami,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB12_2,Sarusawa,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB13,Tochio Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB13_1,Zaodo,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_CHUB13_2,Sanjo,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB14,Sakato Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB14_1,Iiyama,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHUB14_2,Yuzawa,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB15,Kaizu Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB15_1,Imoi,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_CHUB15_2,Higano,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB16,Ueda Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB16_1,Sakaki,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB16_2,Yamaga,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB17,Komoro Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB17_1,Tateshina,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_CHUB17_2,Iwamurada,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_CHUB18,Iwadonoyama Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB18_1,Yoshida,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_CHUB18_2,Tsuru,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB19,Yamanaka Castle,castle,Culture.tokai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB19_1,Okanomiya,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_CHUB19_2,Mishima,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB20,Nagahama Castle,castle,Culture.tokai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB20_1,Numazu,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHUB20_2,Dohi,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB21,Shimoda Castle,castle,Culture.tokai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB21_1,Ito,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_CHUB21_2,Shimoda,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB22,Omiya Castle,castle,Culture.tokai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB22_1,Omiya,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB22_2,Yoshiwara,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_CHUB23,Kakegawa Castle,castle,Culture.tokai,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB23_1,Kakegawa,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB23_2,Sagara-Minato,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_CHUB24,Iinoya Castle,castle,Culture.tokai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB24_1,Arai-minato,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_CHUB24_2,Murakushi,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_CHUB25,Yoshida Castle,castle,Culture.tokai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB25_1,Muro,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_CHUB25_2,Tokannonji,village,Culture.tokai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_CHUB26,Ogaki Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB26_1,Miyakawa,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB26_2,Yoro,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_CHUB28,Joganji Castle,castle,Culture.hokuriku,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB28_1,Joganj,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_CHUB28_2,Maeba,village,Culture.hokuriku,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB29,Kaerikumo Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB29_1,Kaerikumo,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_CHUB29_2,Shirakawa,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB30,Nabeyama Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB30_1,Hachiga,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_CHUB30_2,Yoshiki,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB31,Kotakari Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB31_1,Furukawa,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB31_2,Kojima,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB32,Mori Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB32_1,Ikeda,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_CHUB32_2,Sarashina,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_CHUB33,Kiso-Fukushima Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB33_1,Seba,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_CHUB33_2,Tsumago,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_CHUB34,Takato Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB34_1,Tera,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_CHUB34_2,Fukuchi,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_CHUB35,Noken Castle,castle,Culture.tosan,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_CHUB35_1,Nirasaki,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_CHUB35_2,Ichikawa,village,Culture.tosan,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_KA1,Odawara,town,Culture.kanto,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KA1_1,Atami,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_KA1_2,Suga,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_KA1_3,Kamakura,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+town_KA2,Edo,town,Culture.kanto,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KA2_1,Shinagawa,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KA2_2,Funabashi,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_KA2_3,Ichikawa,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_KA3,Ota,town,Culture.kanto,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KA3_1,Nukada,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KA3_2,Kuzihama,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_KA3_3,Okubo,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_KA4,Utsunomiya,town,Culture.kanto,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KA4_1,Kanuma,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_KA4_2,Iiyama,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KA4_3,Shioya,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+town_KA5,Minowa,town,Culture.kanto,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KA5_1,Annaka,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KA5_2,Kuragano,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_KA5_3,Umayabashi,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KA1,Misaki Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA1_1,Misaki,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KA1_2,Uraga,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,
+castle_KA2,Kozukue Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA2_1,Mutsura,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KA2_2,Kanagawa,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA3,Motosakura Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA3_1,Sakura,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KA3_2,Narita,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA4,Toke Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA4_1,Ichihara,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA4_2,Oyumi,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA5,Shiizu Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA5_1,Kisarazu,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KA5_2,Shiizu,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA6,Sanuki Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA6_1,Sanuki,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KA6_2,Futtsu,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA7,Okamoto Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA7_1,Tateyama,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KA7_2,Hota,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KA8,Otaki Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA8_1,Kominato,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KA8_2,Katsuura,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA9,Kururi Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA9_1,Kururi,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KA9_2,Mariyatsu,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KA10,Iinuma Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA10_1,Hatsukaichi,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA10_2,Iinuma,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_KA11,Fuchu Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA11_1,Takahama,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KA11_2,Hokota,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KA12,Mito Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA12_1,Mito,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA12_2,Nakaminato,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_KA13,Karasuyama Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA13_1,Fukuhara,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KA13_2,Otawara,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA14,Numata Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA14_1,Shibukawa,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KA14_2,Numata,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA15,Kunimine Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA15_1,Obata,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_KA15_2,Okudaira,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_KA16,Oshi Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA16_1,Fukaya,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KA16_2,Kumagaya,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA17,Kawagoe Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA17_1,Kawagoe,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA17_2,Urawa,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA18,Kanayama Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA18_1,Nitta,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA18_2,Tatebayashi,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA19,Karasawayama Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA19_1,Akami,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KA19_2,Sano,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA20,Yuki Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA20_1,Mibu,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA20_2,Shimodate,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA21,Masuko Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA21_1,Haga,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_KA21_2,Mooka,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA22,Kasama Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA22_1,Kasama,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA22_2,Akasawa,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_KA23,Oda Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA23_1,Oda,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA23_2,Tsuchiura,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA24,Ushiku Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA24_1,Ushiku,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA24_2,Yatabe,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA25,Iwatsuki Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA25_1,Kogane,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA25_2,Matsuyama,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA26,Koga Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA26_1,Koga,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA26_2,Sekiyado,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KA27,Kashima Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA27_1,Sahara,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KA27_2,Kashima,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KA28,Hachigata Castle,castle,Culture.kanto,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KA28_1,Fujita,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KA28_2,Chichibu,village,Culture.kanto,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_KIN1,Himeji,town,Culture.kinai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KIN1_1,Naba,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KIN1_2,Muro,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KIN1_3,Aga,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+town_KIN2,Osaka,town,Culture.kinai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KIN2_1,Amagasaki,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KIN2_2,Hirakata,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KIN2_3,Wakae,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_KIN3,Sakai,town,Culture.kinai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KIN3_1,Kusabe,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KIN3_2,Haze,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KIN3_3,Ishizu,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+town_KIN4,Nara,town,Culture.kinai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KIN4_1,Koriyama,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_KIN4_2,Ikaruga,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KIN4_3,Imai,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_KIN5,Kyoto,town,Culture.kinai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KIN5_1,Kameoka,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KIN5_2,Otsu,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KIN5_3,Yamashina,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_KIN6,Kannonji,town,Culture.kinai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KIN6_1,Sakamoto,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KIN6_2,Katata,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KIN6_3,Azuchi,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_KIN7,Odani,town,Culture.kinai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KIN7_1,Nagahama,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_KIN7_2,Kunitomo,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KIN7_3,Shiozu,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KIN1,Shiota Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN1_1,Shisou,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KIN1_2,Iwa,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KIN2,Ikuno Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN2_1,Asago,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KIN2_2,Awaga,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KIN3,Konosumiyama Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN3_1,Yabu,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KIN3_2,Kinosaki,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN4,Takebeyama Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN4_1,Miyazu,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KIN4_2,Tanabe,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN5,Gochaku Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN5_1,Oshio,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KIN5_2,Takasago,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_KIN6,Miki Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN6_1,Miki,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN6_2,Akashi,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN7,Takiyama Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN7_1,Hyogo,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KIN7_2,Arima,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KIN8,Akutagawasan Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN8_1,Itami,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN8_2,Tonda,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN9,Kutsuki Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN9_1,Nagahama,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KIN9_2,Kaizu,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN10,Sawayama Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN10_1,Taga,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KIN10_2,Koura,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN11,Shigisan Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN11_1,Tomio,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN11_2,Heguri,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KIN12,Takaya Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN12_1,Kyuhouji,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN12_2,Tondabayashi,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN13,Kishiwada Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN13_1,Kaizuka,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN13_2,Tannowa,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_KIN14,Sumoto Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_k,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN14_1,Yura,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KIN14_2,Fukura,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_KIN15,Iwamuro Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN15_1,Kada,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN15_2,Kinominato,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KIN16,Toya Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN16_1,Yuasa,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KIN16_2,Kii-Yura,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KIN17,Toba Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN17_1,Kuzaki,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KIN17_2,Ominato,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN18,Tsu Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN18_1,Aritaki,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KIN18_2,Hosokumi,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KIN18_3,Anotsu,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KIN19,Ueno Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN19_1,Nabari,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KIN19_2,Tsuge,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KIN20,Hino Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN20_1,Minakuchi,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN20_2,Otowa,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KIN21,Sakuma-Kameyama Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN21_1,Shirako,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN21_2,Kusu,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_KIN22,Nagashima Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN22_1,Kuwana,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN22_2,Nakae,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KIN23,Shoryuji Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN23_1,Oyamazaki,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KIN23_2,Uji,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KIN24,Kii-Kameyama Castle,castle,Culture.kinai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KIN24_1,Komatsubara,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KIN24_2,Gobo,village,Culture.kinai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_KY1,Koyama,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY1_1,Takasu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_KY1_2,Aira,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KY1_3,Kanoya,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_KY2,Uchi,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY2_1,Kawakami,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_KY2_2,Imuta,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KY2_3,Chiran,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_KY3,Sadowara,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY3_1,Miyazaki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_KY3_2,Kiwaki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KY3_3,Tsuma,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_KY4,Hitoyoshi,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY4_1,Okoba,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KY4_2,Kinoue,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KY4_3,Yamada,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_KY5,Niujima,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY5_1,Hikiji,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_KY5_2,Isshakuya,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+town_KY6,Kiidani,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY6_1,Honjo,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KY6_2,Hirotsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_KY6_3,Urustu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+town_KY7,Yanagawa,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY7_1,Shiozuka,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_KY7_2,Sarukaki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_KY7_3,Tachiarai,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_KY8,Kumamoto,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY8_1,Mifune,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KY8_2,Umeo,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_KY8_3,Kikuchi,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_KY9,Tachibanayama,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY9_1,Mizuki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_KY9_2,Komono,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_KY10,Muranaka,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY10_1,Tokushima,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_KY10_2,Sarushi,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_KY11,Hinoe,town,Culture.saikai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_KY11_1,Kuchinotsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_KY11_2,Koujiro,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_KY11_3,Hamano,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KY1,Tomita Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY1_1,Nejime,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KY1_2,Noma,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KY2,Shibushi Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY2_1,Shibushitsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KY2_2,Anraku,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY3,Kasedaga Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY3_1,Tarumizu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KY3_2,Nogata,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KY4,Miyakono Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY4_1,Umekita,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KY4_2,Takarabe,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY5,Kajiki Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY5_1,Kamou,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY5_2,Hiramatsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KY6,Izaku Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY6_1,Tajiri,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KY6_2,Bonotsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KY7,Ei Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY7_1,Yamagawa,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KY7_2,Ibusuki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KY8,Iino Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY8_1,Ikejima,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY8_2,Shiratori,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KY9,Ichiuji Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY9_1,Kushikino,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KY9_2,Fujikawa,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY10,Izumi Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY10_1,Akune,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KY10_2,Dozaki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KY11,Obi Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY11_1,Sakatani,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY11_2,Aburanotsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KY12,Kiyotake Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY12_1,Kagamizu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY12_2,Soi,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY13,Aya Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY13_1,Nojiri,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KY13_2,Minou,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KY14,Kadogawa Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY14_1,Shiomi,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY14_2,Agata,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KY15,Nabe Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY15_1,Kume,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY15_2,Taragi,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KY16,Okuchi Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY16_1,Hatsuki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY16_2,Ushikusoin,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KY17,Furufumoto Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY17_1,Tokubuchitsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_KY17_2,Sashiki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY18,Tsurusaki Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY18_1,Terajihama,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY18_2,Senzai,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KY19,Oka Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY19_1,Fujikita,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY19_2,Ichimada,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY20,Kitsuki Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY20_1,Nata,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY20_2,Takada,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_KY21,Takaidake Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY21_1,Sakamoto,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KY21_2,Ishimatsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY22,Yamashita Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY22_1,Mizoguchi,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY22_2,Yabe,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY23,Tamaoka Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY23_1,Maki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY23_2,Takaba,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KY24,Kawaradake Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY24_1,Okurayama,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KY24_2,Soeda,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY25,Matsuyama Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY25_1,Moji,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_KY25_2,Nagano,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KY26,Hasuike Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY26_1,Kanoe,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KY26_2,Sakimura,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KY27,Seifukuji Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY27_1,Chifu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY27_2,Imayama,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KY28,Kajimine Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY28_1,Hazama,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_KY28_2,Haruke,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY29,Sanjo Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY29_1,Iwamatsu,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY29_2,Nagasaki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_KY30,Suko Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY30_1,Ojima,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KY30_2,Kishima,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_KY31,Mifune Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY31_1,Mashiki,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_KY31_2,Udo,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_KY32,Iwao Castle,castle,Culture.saikai,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_KY32_1,Katashida,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_KY32_2,Kosa,village,Culture.saikai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_SHI1,Nakamura,town,Culture.nankai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_SHI1_1,Kashiwajima,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_SHI1_2,Shimizu,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_SHI1_3,Irino,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+town_SHI2,Kurose,town,Culture.nankai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_SHI2_1,Itashima,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_SHI2_2,Yawatahama,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_SHI2_3,Hoketsu,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_SHI4,Yuzuki,town,Culture.nankai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_SHI4_1,Ebara,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_SHI4_2,Masaki,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_SHI4_3,Mitsuhama,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+town_SHI5,Okou,town,Culture.nankai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_SHI5_1,Urado,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_SHI5_2,Motoyama,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_SHI5_3,Kouso,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+town_SHI6,Amagiri,town,Culture.nankai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_SHI6_1,Nio,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_SHI6_2,Tadotsu,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_SHI7,Ushiki,town,Culture.nankai,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_SHI7_1,Tachibana,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+village_SHI7_2,Hirashima,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_SHI7_3,Yuki,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_SHI1,Himenono Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI1_1,Yotsu,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_SHI1_2,Susaki,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_SHI2,Ozu Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI2_1,Nagahama,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_SHI2_2,Uchiko,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_SHI3,Tokiwa Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI3_1,Fukaura,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_SHI3_2,Sukumo,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_SHI4,Kokubuyama Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI4_1,Imabari,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_SHI4_2,Oura,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_SHI5,Kira Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI5_1,Ino,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_SHI5_2,Usa,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_SHI6,Kaneko Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI6_1,Niihama,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_SHI6_2,Kawanoe,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_SHI7,Onishi Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI7_1,Umaji,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_SHI7_2,Shuzu,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_SHI8,Aki Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI8_1,Inoguchi,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_SHI8_2,Nahari,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_SHI9,Sakihama Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI9_1,Murotsu,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_SHI9_2,Kannoura,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_SHI10,Sogo Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI10_1,Kozai,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_SHI10_2,Shido,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_SHI11,Tosadomari Castle,castle,Culture.nankai,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_SHI11_1,Bekku,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_b
+castle_village_SHI11_2,Komatsushima,village,Culture.nankai,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_TOHO1,Kurokawa,town,Culture.ou,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_TOHO1_1,Kouzashi,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_TOHO1_2,Shingu,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_TOHO1_3,Sakigawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_TOHO2,Yonezawa,town,Culture.ou,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_TOHO2_1,Nagai,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_TOHO2_2,Komatsu,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_TOHO2_3,Takahata,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+town_TOHO3,Yamagata,town,Culture.ou,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_b,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_TOHO3_1,Kashikura,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_TOHO3_2,Narisawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_TOHO3_3,Iwanami,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+town_TOHO4,Ishinomaki,town,Culture.ou,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_TOHO4_1,Monou,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_TOHO4_2,Yokoura,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_TOHO4_3,Hagihama,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_j
+town_TOHO5,Sakata,town,Culture.ou,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_TOHO5_1,Fukiura,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+village_TOHO5_2,Kamegasaki,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_TOHO5_3,Dewa-Oura,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+town_TOHO6,Tsuchizaki-Minato,town,Culture.ou,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_TOHO6_1,Wakimoto,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_TOHO6_2,Akitanada,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+village_TOHO6_3,Toshima,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+town_TOHO7,Sannohe,town,Culture.ou,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_c,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_TOHO7_1,Okuse,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_TOHO7_2,Tonai,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+village_TOHO7_3,Tago,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+town_TOHO8,Tosaminato,town,Culture.ou,LocationComplexTemplate.town_complex,,sho_arena_b,sho_town_a,,empire_house_d_interior_house,empire_house_d_interior_house,empire_house_d_interior_house,sho_keep_scene,,sho_prison_b,,sho_tavern_a,
+village_TOHO8_1,Minmaya,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+village_TOHO8_2,Isomatsu,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+village_TOHO8_3,Ushiogata,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_TOHO1,Funaoka Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO1_1,Sekishiba,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_TOHO1_2,Funaoka,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO2,Inawashiro Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO2_1,Shirotsu,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO2_2,Inawashiro,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO3,Nihonmatsu Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO3_1,Adachi,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO3_2,Nihonmatsu,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO4,Miharu Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO4_1,Tamura,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO4_2,Koriyama,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO5,Sukagawa Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO5_1,Asaka,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO5_2,Iwase,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO6,Iinotaira Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO6_1,Shirado,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_TOHO6_2,Funao,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_TOHO7,Odaka Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO7_1,Kusano,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO7_2,Odaka,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO8,Soma-Nakamura Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO8_1,Kakeda,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_TOHO8_2,Nakamuta,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO9,Yanagawa Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO9_1,Nishiyama,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO9_2,Marumori,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO10,Watari Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO10_1,Sakatsuta,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO10_2,Watari,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO11,Tendo Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO11_1,Shiraiwa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_TOHO11_2,Aterazawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO12,Iwakiri Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO12_1,Shiogama,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_TOHO12_2,Sendai,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO13,Nakaniida Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO13_1,Ohira,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_TOHO13_2,Kurokawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO14,Iwadeyama Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO14_1,Ichikuri,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO14_2,Isoda,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO15,Takashimizu Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO15_1,Miyazawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_TOHO15_2,Furukawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO16,Teraike Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO16_1,Sanuma,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_TOHO16_2,Matsuzaki,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO17,Nobesawa Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_j,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO17_1,Obanazawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_TOHO17_2,Nobesawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO18,Sakenobe Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO18_1,Kisakata,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_TOHO18_2,Niwatsuki,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO19,Nikaho Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO19_1,Akozu,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_TOHO19_2,Konoura,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_TOHO20,Inaniwa Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO20_1,Iwasaki,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO20_2,Yuzawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO21,Yokote Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO21_1,Inooka,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_village_TOHO21_2,Nabekura,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO22,Akaiwa Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO22_1,Karakuwa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_TOHO22_2,Kesennuma,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO23,Yokota Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO23_1,Tono,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO23_2,Otsuchi,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO24,Sentoku Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO24_1,Takusari,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO24_2,Miyako,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO25,Kousuiji Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO25_1,Kozukata,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO25_2,Toyagasaki,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO26,Kakunodate Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_h,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO26_1,Naraoka,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO26_2,Tomaki,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO27,Hiyama Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO27_1,Noshiro,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_village_TOHO27_2,Yonaizawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO28,Odate Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO28_1,Hanaoka,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO28_2,Sugisawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_c
+castle_TOHO29,Kunohe Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_b,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO29_1,Joho-ji,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO29_2,Kuzumaki,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO30,Kuji Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_e,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO30_1,Kuji,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO30_2,Tamagawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO31,Ne Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO31_1,Gonohe,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_TOHO31_2,Hachinohe,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_TOHO32,Shichinohe Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO32_1,Yokohama,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_village_TOHO32_2,Nobeji,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_a
+castle_TOHO33,Oura Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_i,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO33_1,Ajigasawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_TOHO33_2,Itchoda,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_h
+castle_TOHO34,Namioka Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_c,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO34_1,Aburakawa,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_village_TOHO34_2,Hirota,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+castle_TOHO35,Junpo-ji Castle,castle,Culture.ou,LocationComplexTemplate.castle_complex,,,sho_castle_map_d,,,,,sho_keep_scene,,sho_prison_b,,,
+castle_village_TOHO35_1,Ohata,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_d
+castle_village_TOHO35_2,Tanabe,village,Culture.ou,LocationComplexTemplate.village_complex,,,,,,,,,,,,,sho_village_e
+hideout_1,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_2,Hideout,?,Culture.ochimusya,,,,,,,,,,,,,,
+hideout_3,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_4,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_5,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_6,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_7,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_8,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_9,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_10,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_11,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_12,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_13,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_14,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_15,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_16,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_17,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_18,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_19,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_20,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_21,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_22,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_23,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_24,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_25,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_26,Hideout,?,Culture.ochimusya,,,,,,,,,,,,,,
+hideout_27,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_28,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_29,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_30,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_31,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_32,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_33,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_34,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_35,Hideout,?,Culture.ochimusya,,,,,,,,,,,,,,
+hideout_36,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_37,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_38,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_39,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_40,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_42,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_43,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_44,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_45,Hideout,?,Culture.ochimusya,,,,,,,,,,,,,,
+hideout_46,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_47,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_48,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_49,Hideout,?,Culture.ochimusya,,,,,,,,,,,,,,
+hideout_50,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_51,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_52,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_53,Hideout,?,Culture.ochimusya,,,,,,,,,,,,,,
+hideout_54,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_55,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_56,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_57,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_58,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_59,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_60,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_61,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_62,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_63,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_64,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_65,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_66,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_67,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_68,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_69,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_70,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_71,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_72,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_73,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_74,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_75,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_76,Hideout,?,Culture.wokou,,,,,,,,,,,,,,
+hideout_77,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+hideout_78,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_79,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_80,Hideout,?,Culture.ochimusya,,,,,,,,,,,,,,
+hideout_81,Hideout,?,Culture.zoku,,,,,,,,,,,,,,
+hideout_82,Hideout,?,Culture.yato,,,,,,,,,,,,,,
+hideout_83,Hideout,?,Culture.sanzoku,,,,,,,,,,,,,,
+retirement_retreat,The Retreat,?,Culture.saikai,LocationComplexTemplate.retreat_complex,,,,,,,,,,,scn_retirement,,
+duel_location_1,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_2,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_3,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_4,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_5,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_6,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_7,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_8,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_9,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_10,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_11,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_12,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_13,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_c,,,,,,,,,
+duel_location_14,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_15,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_c,,,,,,,,,
+duel_location_16,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_17,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_18,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_19,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_20,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_c,,,,,,,,,
+duel_location_21,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_c,,,,,,,,,
+duel_location_22,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_23,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_c,,,,,,,,,
+duel_location_24,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_25,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_26,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_27,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_c,,,,,,,,,
+duel_location_28,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_29,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_c,,,,,,,,,
+duel_location_30,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_31,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_32,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_33,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_34,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_35,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_36,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_37,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_38,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_39,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_40,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_c,,,,,,,,,
+duel_location_41,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_42,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_43,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_44,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_45,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+duel_location_46,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_a,,,,,,,,,
+duel_location_47,Duel Location,DuelLocationComponent,Culture.duelists,LocationComplexTemplate.duel_location_complex,,,,sho_duel_map_b,,,,,,,,,
+sho_port_KY5_2,Port Niujima,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_SHI2_1,Port Kurose,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KY11,Port Hinoe,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_SHI1,Port Nakamura,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_SHI5,Port Okou,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_SHI7,Port Ushiki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_SHI6,Port Amagiri,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_SHI14,Port Yuzuki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_castle_CHU2,Port Kounomine,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_CHU12_1,Port Onomichi,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHU6,Port Okayama,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_castle_AMA1,Port Kono,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_AMA1_1,Port Nishinoshima,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KY8,Port Kumamoto,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KY10,Port Muranaka,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_castle_KY2,Port Matsuyama,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KY1,Port Koyama,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_castle_KY10,Port Izumi,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_KY10_2,Port Dozaki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_castle_KY6,Port Izaku,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KY2,Port Uchi,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_KY1_1,Port Takasu,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KY3,Port Sadowara,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_AMA1_2,Port Chiburi,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_CHU5_2,Port Mihonoseki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_castle_CHU11,Port Aoki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_CHU10_2,Port Miyaura,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHU4,Port Iwami,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_CHU3_1,Port Susa,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_CHU1_1,Port Akamagazeki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_village_CHU11_1,Port Nakanosho,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN1,Port Himeji,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN2,Port Osaka,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN3,Port Sakai,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN9,Port Sumoto,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN4,Port Toya,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN7,Port Kutsuki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN8,Port Konosumiyama,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN5,Port Toba,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KIN6,Port Nagashima,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHUB2,Port Masuyama,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHUB1,Port Oyama,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHUB3,Port Yoita,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHUB4,Port Shishiga,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHUB5,Port Shimoda,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHUB6,Port Hamamatsu,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KA4,Port Okubo,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KA1,Port Odawara,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KA2,Port Edo,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KA3,Port Iinuma,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_KA5,Port Sanuki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_TOHO1,Port Odaka,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_TOHO6,Port Tosaminato,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_TOHO2,Port Ishinomaki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_TOHO3,Port Sentoku,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_TOHO4,Port Ne,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_TOHO5,Port Junpo-ji,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_TOHO7,Port Tsuchizaki,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHUB7,Port Kasugayama,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+sho_port_CHUB8,Port Niigata,PortLocation,Culture.neutral_culture,LocationComplexTemplate.port_location_complex,,,,,,,,,sho_duel_map_a,,,,
+temple_location_1,Fukusho-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_2,Chozen-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_3,Aso-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_4,Shimen-gu Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_6,Hikosan-jingu Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_7,Munakata-taisha Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_8,Usa-jingu Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_9,Udo-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_10,Tsuno-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_12,Yasaka-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_13,Kurotaki-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_14,Dainei-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_15,Itsukushima-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_16,Ankoku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_17,Izumo-taisha Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_18,Daisen-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_19,Kibitsu-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_20,Ube-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_21,Entsu-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_22,Sokoku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_23,Aga-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_24,Enryaku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_25,Seishu-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_26,Sangaku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_27,Ise-jingu Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_28,Kofuku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_29,Kongobu-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_31,Kokawa-dera Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_32,Negoro-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_33,Kumano-taisha Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_34,Heiraku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_35,Atsuta-jingu Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_36,Ten'on-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_37,Shotoku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_38,Daien-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_39,Zentoku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_40,Erin-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_41,Suwa-taisha Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_42,Zenko-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_43,Togakushi-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_44,Heisen-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_45,Shoren-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_46,Kotoku-Ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_47,Tenpyo-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_48,Rinsen-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_49,Zuirin-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_50,Akagi-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_51,Nukisaki-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_52,Choraku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_53,Hikawa-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_54,Hoyo-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_55,Samukawa-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_56,Awa-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_57,Enmei-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_58,Kashima-jingu Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_59,Zenju-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_60,Isasumi-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_61,Zuigan-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_62,Futarayama-jinja Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_63,Rin'no-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_64,Enichi-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_65,Yudonosan Shrine,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_66,Risshaku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_67,Gyokurin-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_68,Hyakutaku-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_69,Towan-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,
+temple_location_70,Chuson-ji Temple,TempleLocationComponent,Culture.buddhists,,,,,,,,,,,,,,

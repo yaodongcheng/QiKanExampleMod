@@ -57,6 +57,32 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 
 **文件**：`Knowledge/骑砍2战役地形制作管线.md` 三·十五（BigMapLearn vs BigMapLearn2 逐字段完整对照实录——黑/正常两场景仅剩字段清单）。
 
+## 地图场景必备实体 border_min / border_max — 大地图相机边界（2026-09-08 登记，Taikou 日本图实机）
+
+**解决什么问题**：克隆/新建战役大地图（Main_map）时**忘记抄这两个实体** → 相机"空气墙"（v1.2.12 静默降级）/ 进图即崩（v1.5.x）——不崩不报错、纯行为异常，曾误判成"操作习惯"。
+
+**关键事实**（全反编译实锤）：
+- **地图边界 = 两个普通场景实体的坐标**，没有配置文件、没有属性：`SandBox.MapScene.GetMapBorders`（SandBox.dll）按名字硬查 `GetFirstEntityWithName("border_min"/"border_max")`；`MapCamera.ComputeMapCamera`（SandBox.View.dll）**每帧**把相机目标钳进矩形 [min,max]
+- 🔴 **版本分岔（同一缺实体两种死法）**：**v1.2.12 有兜底**——缺实体 → min=(0,0) / max=**(900,900)** / height=670（静默，零提示）→ 相机墙在 x=900/y=900；**v1.5.x 无兜底**——直接解引用 null → 进图崩。任何内容包造图都必须在两个版本都检查
+- **取值 = 地形实际范围**：scene `<terrain>` 节点 `node_dimension × node_size`（Taikou 例：16×10 × 128m = 2048×1280，与 physics_world / flora_bounding_rect 三处互证）
+- **border_max 的 z 值 = 相机最大缩放距离 + 远裁剪面（远面 = z×4）**：官方 bigmap 620 / 织丰 1000——别抄官方值，按地图尺寸斟酌
+- 边界实体 = 纯坐标标记，**不影响 navmesh，加/删无需重生成**
+
+**调用**：无代码调用——纯场景数据，官方原样写法（<entities> 顶部）：
+```xml
+<game_entity name="border_min" old_prefab_name="">
+  <transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+</game_entity>
+<game_entity name="border_max" old_prefab_name="">
+  <transform position="2048.000, 1280.000, 1000.000" rotation_euler="0.000, 0.000, 0.000"/>
+</game_entity>
+```
+参考值：官方 bigmap (62,30,0)/(790,640,620)；织丰 (87.4,105.4,-7.98)/(2100,2100,1000)
+
+**文件**：场景 = `Modules/<mod>/SceneObj/Main_map/scene.xscene`；诊断日志 = `Debug/MapBorderDiagnosticPatch.cs`（`GetMapBorders` Postfix，`[MapBorder]` 打一行 min/max/height，命中引擎兜底值 (0,0)/(900,900)/670 自动警示——重建地图后的验证入口）
+
+**配套纪律**：地图场景克隆必备实体清单 = **border_min/border_max + 12 个官方地图脚本实体**（完整清单与排雷实录见 `plans/太阁数据加载taikou-campaign-boot-20260907.md` 雷 28/34）；出图前 `grep scene.xscene border_min` 必查；坑点格式全文见 `plans/rules/pitfalls.md`「自定义地图相机"空气墙"」
+
 ## OpenTrf — .trf 网格 Blender 导入/导出器
 
 **解决什么问题**：Bannerlord `.trf`（Text Resource Files，纯文本网格：顶点/法线/UV/顶点色/三角面/材质）可直接用 Blender 读取、编辑、导回——素材网格资产的 Blender 化修改链路。
