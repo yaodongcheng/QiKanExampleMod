@@ -1,0 +1,71 @@
+# Use Decompiled Bannerlord sources with AI
+
+<!-- 源: https://docs.bannerlordmodding.lt/guides/use_ai_with_bl_source/ | 抓取日期: 2026-09-09 -->
+
+DO NOT USE GITHUB'S COPILOT. IT'S TOTAL CRAP/SCAM. USE CURSOR OR CLAUDE INSTEAD.
+
+THIS IS A HUGE PRODUCTIVITY BOOST
+
+This method gives the AI full access to the Bannerlord source to explore and analyse, and allows me to save up to 80% of the time I previously spent searching for where and how things are implemented. Actually I am lying. It saves me 100% of time. I don't remember when I searched something in the BLs code.
+
+---
+
+## Step 1 — Decompile BL files using the script
+
+Run the decompilation script against the Bannerlord game binaries.
+
+Get script [here](https://drive.google.com/file/d/10njkFEEIb5-kUhf4YhwpPSXqqX9e_aG0/view?usp=drive_link).
+
+(Copy from Noxix Targaryen's [script](https://github.com/DarthNoxix/BannerlordSourceGPT/blob/d73d823f7690747b59605a005a92ed2571e68550/decompile.bat))
+
+Adjust destination folder in the script based on your environment.
+
+---
+
+## Step 2 — Create `BLSource` in your project folder
+
+Inside your mod project directory, create a dedicated folder `BLSource`
+
+---
+
+## Step 3 — Copy decompiled files into `BLSource`
+
+Move the output from Step 1 into `BLSource`.   
+Keep the original folder structure so AI can navigate namespaces naturally.
+
+![](https://docs.bannerlordmodding.lt/pics/2603031604a.png)
+
+---
+
+## Step 4 — Exclude folder from project in Visual Studio
+
+Right-click `BLSource` in Solution Explorer -> **Exclude From Project**.
+
+This keeps the files visible on disk (and to AI) without polluting your build — VS won't try to compile them.
+
+![](https://docs.bannerlordmodding.lt/pics/2603031604b.png)
+
+---
+
+## Step 5 — Done
+
+Your project tree now contains readable BL source as a silent reference layer. No build errors, no extra dependencies.
+
+---
+
+## Step 6 — Ask AI to explore `BLSource`
+
+AI indexes local files in your workspace. Example prompts:
+
+* *"In /BLSource, how does `MissionAgentSpawnLogic` decide spawn positions?"*
+* *"Find the base class for campaign behaviors in /BLSource and explain the tick pattern."*
+* *"How does settlement loyalty decay work in /BLSource?"*
+
+Looks like this:
+
+![](https://docs.bannerlordmodding.lt/pics/2603031604c.png)
+
+## Github Copilot
+
+UPDATE 2026-05-25  
+ Copilot in VS Studio is crap. Better solution is to use Cursor/Claude.

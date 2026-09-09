@@ -1,0 +1,198 @@
+# Editor
+
+<!-- 源: https://docs.bannerlordmodding.lt/editor/editor/ | 抓取日期: 2026-09-09 -->
+
+* [Video Guides & Tutorials Here](/resources/video_tutorials/)
+
+## General Notes
+
+* Editor needs to be on the same disk as the Game, as the modding tools use the base games files - they both install to the same folder, and that only works if they are on the same disk
+* On map save overwrites settlements.xml (crashes if this file is not present or has errors)
+* On map save Editor does not write/update/generate settlements\_distance\_cache.bin
+
+NPC99: Saving uses extra memory. So, sometimes if you are over 80% use of your RAM its worth waiting for 10 minutes or so for the idle Editor to release some memory before saving.
+
+## Problems/Solutions
+
+Use [ButterLib](/modules/mods_for_devs) or [attach dnSpy](/resources/dnspy) to the game to catch the crashes. Do not use both at the same time, dnSpy gets confused.
+
+### Does not start
+
+* "There is no target file! Please verify your files." [How to fix](https://www.youtube.com/watch?v=iFlfOSMawi0) or switch to Steam beta
+
+```
+Steam → Settings → Interface → Client Beta Participation → Steam Beta Update
+After restarting Steam, it should install/place the Modding Kit files correctly.
+```
+
+* If installed on another drive than the main game it will not start
+* Version mismatch with the base game - does not start at all, no process - install same version (not always true)
+* Hanged previous process - Close on Steam or check the Task Manager, kill the old process
+
+Install [Visual C++ Redistributable Packages for Visual Studio 2013](https://www.microsoft.com/en-us/download/details.aspx?id=40784)
+
+![](https://docs.bannerlordmodding.lt/pics/2504280817.png)
+
+After installation, make sure you have it like this:
+![](https://docs.bannerlordmodding.lt/pics/2601251701.png)
+
+#### MSVCP120.dll was not found
+
+![](https://docs.bannerlordmodding.lt/pics/2403231933.png)
+
+Install [Visual C++ Redistributable Packages for Visual Studio 2013](https://www.microsoft.com/en-us/download/details.aspx?id=40784)
+
+![](https://docs.bannerlordmodding.lt/pics/2504280817.png)
+
+### Test Mode not working
+
+Closes when Play button is clicked. This function is broken for a long time. Do not use it.
+
+* ["Start Mission" does not work](https://forums.taleworlds.com/index.php?threads/v1-2-7-test-function-in-scene-creator-start-mission-dont-work.460937/)
+* [Testing Custom Scene Ingame](https://docs.google.com/document/d/1Rwsd9pdv5QA5s3K4oOuJX16_K9A5NaoWh0p78IcUi1w/edit?tab=t.0)
+* Use [Editor Test Mode Mod](/editor/editor_test_mode_mod/) by Gotha
+
+### Top Bar gone
+
+![](https://docs.bannerlordmodding.lt/pics/2411250838.png)
+
+Delete `..Documents\Mount and Blade II Bannerlord\Editor Files\Layouts`
+
+### Editor Crashes
+
+#### Crash when trying to import PNG texture
+
+Sometimes shows this before crashing:
+
+![](https://docs.bannerlordmodding.lt/pics/2408301318.png)
+
+Reason: non-latin letter(s) in the folder's name from which PNG is imported
+
+#### Crash when deleting used texture
+
+After crash/restart Texture appears deleted
+
+#### Crash on the map save
+
+* settlements.xml missing from /MOD/ModuleData folder
+* When there is some error in the XML file (settlements.xml)
+  Double < Settlements/> for example
+* Last line in the log: opening ../../Modules/MODULE\_NAME/ModuleData/settlements.xml - missing settlements.xml
+
+#### Crash on the interior scene save
+
+[hunharibo:](https://discord.com/channels/411286129317249035/761302555308720148/1202691179896897536)
+
+PSA: for scenes crashing on saves - add a terrain, even if your scene is interior and you would normally not need it  
+can be really small, like 2x2, 16 node dimension  
+and just hide it away in a corner of the map or put entities on top of it  
+terrain present in scene = no crashing on save
+
+#### Crash when deleting the paint layer
+
+No solution yet. Can't delete the layer...
+
+Log shows: [22:19:02.024] rglTerrain\_shader\_generator::handle\_mesh\_blend\_state : 0.012403
+
+#### Crash on exit
+
+Reason: ??
+
+### Game crashes
+
+* Not fully saved map - could be the reason that game was active/loaded/in progress when map was saved. Exit the game, then save the map in the Editor. Check map folder, should see following files:
+
+![](https://docs.bannerlordmodding.lt/pics/VYlzH6c.png)
+
+### Hangs on map save in the Editor
+
+Possible causes:
+
+* Too much terrain editing (Smoothing?)
+* Erasing a lot of info on some layer
+
+![](https://docs.bannerlordmodding.lt/pics/MMmqYCn.png)
+
+To cancel the Save, use X from the Taskbar:
+
+![](https://docs.bannerlordmodding.lt/pics/qOfC2xV.png)
+
+Try to save again.
+
+NOTE: after the save Editor often crashes. (At least you saved your last changes)
+
+### Controls stops to work
+
+Reload/Restart?
+
+### High CPU usage
+
+In the Visibility tab turn off Game Entities, Helpers and Shadows
+
+![](https://docs.bannerlordmodding.lt/pics/B6B7BMC.png)
+
+Looking down to the ground also helps, so no entities will be visible.
+
+### Assert Spam
+
+Spams ASSERT windows on start.
+
+#### FairyTale assert
+
+![](https://docs.bannerlordmodding.lt/pics/2404120847.jpg)
+
+This one because in file project.mbproj  entry was above  entry:
+
+Good:
+
+```
+<base type="solution">
+    <Module id="soln_physics_materials" name="ModuleData/physics_materials.xml" type="physics_material"/>
+    <file id="soln_face_animation_records" name="ModuleData/NoBigSmiles.xml" type="face_animation_record" />
+</base>
+```
+
+Bad (with assert spam):
+
+```
+<base type="solution">
+    <file id="soln_face_animation_records" name="ModuleData/NoBigSmiles.xml" type="face_animation_record" />
+    <Module id="soln_physics_materials" name="ModuleData/physics_materials.xml" type="physics_material"/>
+</base>
+```
+
+## Distance Tool
+
+If this appears:
+
+![](https://docs.bannerlordmodding.lt/pics/2504280827.png)
+
+Fear not, turn it off with:
+
+![](https://docs.bannerlordmodding.lt/pics/2504280828.png)
+
+## Controller cursor
+
+![](https://docs.bannerlordmodding.lt/pics/2402110846.png)
+
+If you see this cursor and you can't access any menus - make sure to not have any controller plugged in while using the Editor. (Xbox controller or any other kind).
+
+## Rainbow country
+
+![](https://docs.bannerlordmodding.lt/pics/2602080840.png)
+
+## Black helpers
+
+![](https://docs.bannerlordmodding.lt/pics/2602240843.png)
+
+Delete `CoreShaders` and `TerrainShaders` folders in `C:\ProgramData\Mount and Blade II Bannerlord\Shaders`
+
+## Custom scripts
+
+Artem:
+
+Should have usablemachine class as a base
+
+You need to create folder `Win64_Shipping_wEditor` and add your dll inside
+
+Then script shows up in the Editor

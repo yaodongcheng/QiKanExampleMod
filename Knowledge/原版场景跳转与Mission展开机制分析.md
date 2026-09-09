@@ -142,6 +142,23 @@
 
 > 🔴 **攻城场景与定居点数据强绑定**：`OpenSiegeMissionWithDeployment` 的第一个参数 = `settlement.LocationComplex.GetLocationWithId("center").GetSceneName(wallLevel)`。**定居点数据里的 `center` 场景名同时决定「日常进城」和「攻城战场」**——给 mod 做日本城时，`center` 配对场景，野战/围城自动对接。
 
+### 3.12 复用场景如何加载不同人物（场景是壳、人物是数据）🔴
+
+**问题**：`sho_keep_scene` 被 237 个据点共用作领主大厅，为何每个据点进去的人不一样？
+
+**答案（反编译实证）**：
+1. `.sco` 场景文件 = **静态外壳**：只有建筑/道路/出生点标签（`sp_notable`/`sp_guard`/`npc_common`/`player` 等），不含任何具体人物。
+2. **「谁在哪」是战役层数据**：每个 `Location` 挂 `_characterList`（`LocationCharacter` 列表，运行时由行为系统写入）——
+   - 英雄（领主→`lordshall`、普通→`center`、名人→`village_center`、囚犯→`prison`）：由 `HeroAgentLocationModel`（组件模型，`HeroAgentSpawnCampaignBehavior` 调用，61907-61974 行）判定后 `LocationComplex.ChangeLocation(hero, from, to)` 落位；
+   - 模板 NPC（守卫/路人）：`Location.AddLocationCharacters(delegate, culture, relation, count)` 按文化随机创建。
+3. **进场景对接**（`SandBoxMissions.OpenTownCenterMission` → `MissionLocationLogic`，sb15 §22147）：
+   - 读 `Location.GetCharacterList()` → 每个 `LocationCharacter` 带 **`SpawnTag`**；
+   - 发 `LocationCharactersAreReadyToSpawnEvent`（tag→数量字典）→ 在 .sco 场景里找 **同名 tag 实体**出生人物；
+   - 人物被杀/离场：`OnAgentRemoved` → 从该 `Location` 列表移除（双向同步）。
+4. **结论**：换场景文件（如织丰 `sho_keep_scene`）不需要任何人物代码——领主/守卫/囚犯按原版行为自动进各自 location，进场景时按据点数据生成。同场景不同据点：人物**数量**由 `Location` 的繁荣度/人口模型，**站位**由场景 tag 决定（换据点人变、站位不变属原版设计）。
+
+> 🔴 **tag 的完整消费模型**（出生位只是其中之一）：tag 分三级——①出生位（纯 tag 实体，spawn 用）②行为位（`AnimationPoint`/`ChairUsePoint` = `StandingPoint : UsableMissionObject`，AI 自动占位播动画、离场换人——"固定点位面对面交谈、动态换人"就是它）③机械位（门/梯/马/攻城器）。详见 [场景Tag与StandingPoint系统分析](场景Tag与StandingPoint系统分析.md)。
+
 ---
 
 ## 4. 织丰侧（Modules/Shokuho）
@@ -218,6 +235,39 @@
 | 织丰 1.2.12 机 | 「1.2.12 游玩库」版本使用同款机制（`CustomLocationsEncounter` 是织丰自定义类，不存在于原版）| — |
 
 > 1.2.12 织丰机的具体 DLL 行为以该机实测为准；此处仅按仓库 1.2.12 参考 DLL 与 1.5.2 反编译的对比结论。
+
+---
+
+## 附：术语中英对照（官方语言包/织丰汉化包按 key 提取）
+
+**菜单/选项原文 vs 官方中文（键在 `std_TaleWorlds_CampaignSystem-zho-CN.xml`）**：
+
+| 原文（代码内） | 官方中文 | 说明 |
+|---|---|---|
+| Go to the tavern district | 前往酒馆区 | town 菜单 → town_backstreet |
+| Visit the tavern | 造访酒馆 | town_backstreet → 进酒馆 |
+| Enter the dungeon | 进入地牢 | town_keep_dungeon → 进地牢 |
+| Go to the dungeon | 前往地牢 | castle 菜单选项 |
+| You are in the backstreets... | 你进入了后巷。当地酒馆内似乎非常热闹。 | town_backstreet 菜单描述 |
+
+**地点模板名（键在 `std_location_complex_templates_xml-zho-CN.xml`）**：
+
+| 地点 id | 官方中文 |
+|---|---|
+| center（城） | 城镇中心 |
+| center（堡） | 城堡庭院 |
+| arena | 竞技场 |
+| tavern | 酒馆 |
+| lordshall | 领主大厅 |
+| prison | 地牢 |
+| house_1/2/3 | 房屋 |
+| alley | 巷子 |
+| village_center | 村庄中心 |
+| hideout_center | 藏身处 |
+| retirement_retreat | 中央（退休地） |
+| Backstreet（Area） | 后巷 |
+
+**技术名词**（文档正文用词对照）：GameMenu=游戏菜单（菜单位）｜ Location=地点（场景内的一个场所）｜ LocationComplex=地点复合体（一套地点集合）｜ Mission/Scene=场景（可加载 .sco 的世界）｜ Encounter=遭遇（玩家与某对象的战役级交互）｜ Settlement=据点。
 
 ---
 
