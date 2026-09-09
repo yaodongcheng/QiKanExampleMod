@@ -359,6 +359,7 @@
     <Compile Include="Debug\CharacterCreationCultureStageSortPatch.cs" />
     <Compile Include="Debug\CharacterCreationCultureVisualFallbackPatch.cs" />
     <Compile Include="Debug\MapScreenCameraPatch.cs" />
+    <Compile Include="Debug\MapBorderDiagnosticPatch.cs" />
     <Compile Include="Core\CampaignMode\LivingWorldSaveableTypeDefiner.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
