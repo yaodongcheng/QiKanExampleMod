@@ -20,13 +20,20 @@ namespace TpacTool.Lib
 		{
 			switch (format)
 			{
+#if NET6_0_OR_GREATER
 				// in fact R16G16B16 can't be exported, too
+				case TextureFormat.BC6H_UF16:
+					return false;
+#else
+				// in fact R16G16B16 can't be exported, too
+				case TextureFormat.BC6H_UF16:
+				case TextureFormat.BC7:
+					return false;
+#endif
 				case TextureFormat.DF24:
 				case TextureFormat.ATOC:
 				case TextureFormat.A2M0:
 				case TextureFormat.A2M1:
-				case TextureFormat.BC6H_UF16:
-				case TextureFormat.BC7:
 				case TextureFormat.INDEX16:
 				case TextureFormat.INDEX32:
 					return false;
@@ -504,6 +511,11 @@ namespace TpacTool.Lib
 					case TextureFormat.BC5:
 						reader = new BC5Reader(data, format, width, height);
 						break;
+#if NET6_0_OR_GREATER
+					case TextureFormat.BC7:
+						reader = new BC7Reader(data, format, width, height);
+						break;
+#endif
 					default:
 						reader = new DefaultReader(data, format, width, height);
 						break;
@@ -1362,12 +1374,51 @@ namespace TpacTool.Lib
 					maskR  = maskB = maskA = 0;
 					addR = addG = addB = addA = 0;
 				});
-				/*DXT5Reader.ReadBC3AlphaBlock(stream.ReadInt64(), ref cache, blockX * 4, (ref PixelColor pixel, float value) =>
+	#if NET6_0_OR_GREATER
+			/*DXT5Reader.ReadBC3AlphaBlock(stream.ReadInt64(), ref cache, blockX * 4, (ref PixelColor pixel, float value) =>
 				{
 					pixel.G = value;
 				});*/
 			}
 		}
+
+		// BC7 (DXGI_FORMAT_BC7_UNORM) 解码 —— 借 BCnEncoder.Net(2.2.0, MIT) 全模式解码器 (仅 net6.0 target)
+		private class BC7Reader : PipelineReader
+		{
+			public BC7Reader(byte[] dataSource, TextureFormat format, int width, int height) : base(dataSource, format, width, height)
+			{
+			}
+
+			public override void Read(PipelineWriter output)
+			{
+				var pixels = new BCnEncoder.Decoder.BcDecoder().DecodeRaw(dataSource, width, height, BCnEncoder.Shared.CompressionFormat.Bc7);
+				if (pixels == null)
+					throw new FormatException("BC7 decode returned null");
+				byte[] row = new byte[width * 4];
+				for (int y = 0; y < height; y++)
+				{
+					Array.Clear(row, 0, row.Length);
+					for (int x = 0; x < width; x++)
+					{
+						var c = pixels[y * width + x];
+						var i = x * 4;
+						row[i] = c.r;
+						row[i + 1] = c.g;
+						row[i + 2] = c.b;
+						row[i + 3] = c.a;
+					}
+					output.WriteLine(row, true);
+				}
+			}
+		}
+#else
+			/*DXT5Reader.ReadBC3AlphaBlock(stream.ReadInt64(), ref cache, blockX * 4, (ref PixelColor pixel, float value) =>
+				{
+					pixel.G = value;
+				});*/
+			}
+		}
+#endif
 
 		public abstract class PipelineWriter
 		{

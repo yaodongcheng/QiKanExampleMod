@@ -13,6 +13,7 @@
     <ProjectReference Include="..\TpacTool.Lib\TpacTool.Lib.csproj" />
     <ProjectReference Include="..\TpacTool.IO\TpacTool.IO.csproj" />
     <ProjectReference Include="..\TpacTool.IO.Assimp\TpacTool.IO.Assimp.csproj" />
+    <PackageReference Include="BCnEncoder.Net" Version="2.1.2" />
   </ItemGroup>
 
 </Project>

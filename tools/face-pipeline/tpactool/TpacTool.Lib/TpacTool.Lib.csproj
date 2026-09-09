@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>netstandard1.3;netstandard2.0;net462;net472;net6.0</TargetFrameworks>
+		<TargetFrameworks>netstandard2.0;net462;net472;net6.0</TargetFrameworks>
 		<PackageId>TpacTool.Lib</PackageId>
 		<AssemblyName>TpacTool.Lib</AssemblyName>
 	</PropertyGroup>
@@ -12,6 +12,11 @@
 	
 	<ItemGroup>
 		<PackageReference Include="lz4net" Version="1.0.15.93" />
+	</ItemGroup>
+
+	<!-- BC7 解码仅 net6.0 (BCnEncoder.Net 2.2.0 仅支持 netstandard2.1+) -->
+	<ItemGroup Condition="'$(TargetFramework)'=='net6.0'">
+		<PackageReference Include="BCnEncoder.Net" Version="2.2.0" />
 	</ItemGroup>
 
 	<!--

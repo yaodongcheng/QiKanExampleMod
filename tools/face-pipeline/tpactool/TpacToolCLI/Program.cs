@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using TpacCli;
 using TpacTool.Lib;
 using TpacTool.IO;
@@ -19,6 +20,7 @@ string filter = null;
 string outDir = null;
 string format = "png";
 string mapping = null;
+bool mapsonly = false;
 
 string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -36,6 +38,7 @@ if (command != "assetclone")
             case "--out": outDir = args[++i]; break;
             case "--format": format = args[++i]; break;
             case "--mapping": mapping = args[++i]; break;
+            case "--mapsonly": mapsonly = true; break;
             default: Console.Error.WriteLine("unknown arg: " + args[i]); break;
         }
     }
@@ -269,14 +272,17 @@ switch (command)
             Console.Error.WriteLine("dump requires --filter");
             return 1;
         }
+        // --filter 支持逗号分隔多值(OR): "beards_c,rock_1" = 名字含任一
+        var filters = filter.Split(',').Select(f => f.Trim()).Where(f => f.Length > 0).ToList();
         var items = assets
-            .Where(a => a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .Where(a => filters.Any(f => a.Name.Contains(f, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(a => a.Name)
             .ToList();
         Console.WriteLine($"dump: {items.Count} matches");
         foreach (var item in items)
         {
             if (outDir == null) outDir = "./export_" + filter;
+            if (mapsonly && item is not Metamesh) continue;
             if (item is Texture && format != "png" && format != "dds")
             {
                 // 纹理仅在 png/dds 模式下导出, 避免 fbx/obj 模式下产出假后缀垃圾
@@ -308,7 +314,19 @@ switch (command)
                 }
                 else if (item is Metamesh meta)
                 {
+                    if (mapsonly)
+                    {
+                        // 仅写 mesh→材质→贴图 映射(不改动已有 meshes//materials/ 产物)
+                        var mapDir = Path.Combine(outDir, "mesh_maps", SubDirOf(item));
+                        Directory.CreateDirectory(mapDir);
+                        var mapPath = Path.Combine(mapDir, SafeName(meta.Name) + ".mat_map.json");
+                        WriteMatMap(mapPath, meta, assets);
+                        Console.WriteLine($"OK  matmap {item.Name} -> {mapPath}");
+                        continue;
+                    }
                     var path = Path.Combine(targetDir, SafeName(meta.Name));
+                    // mesh→材质→贴图 全链映射（formats 无关，obj/fbx 模式都写）
+                    WriteMatMap(path + ".mat_map.json", meta, assets);
                     if (format == "obj")
                     {
                         ExportObj(path + ".obj", meta);
@@ -442,6 +460,48 @@ static void ExportObj(string path, Metamesh meta)
         vOffset += vs.Positions.Length;
     }
     File.WriteAllText(path, sb.ToString());
+}
+
+// mesh→材质→贴图 全链映射 JSON：submesh(Mesh.Material/SecondMaterial GUID→材质名) → 材质 Textures 槽位(k→纹理名)
+static void WriteMatMap(string path, Metamesh meta, IReadOnlyList<AssetItem> assets)
+{
+    string MatName(Guid g) => assets.OfType<Material>().FirstOrDefault(m => m.Guid == g)?.Name
+        ?? (g == Guid.Empty ? null : "missing_" + g.ToString("N").Substring(0, 8)); // 仅 submesh 材质用(材质域)
+    string TexName(Guid g) => assets.OfType<Texture>().FirstOrDefault(t => t.Guid == g)?.Name
+        ?? "missing_" + g.ToString("N").Substring(0, 8);
+    var submeshes = new System.Collections.Generic.List<object>();
+    foreach (var m in meta.Meshes)
+    {
+        var mainMat = m.Material;                // AssetDependence<Material>
+        var secMat = m.SecondMaterial;
+        var mainObj = mainMat == null || mainMat.IsEmpty() ? null
+            : assets.OfType<Material>().FirstOrDefault(x => x.Guid == mainMat.Guid);
+        var secObj = secMat == null || secMat.IsEmpty() ? null
+            : assets.OfType<Material>().FirstOrDefault(x => x.Guid == secMat.Guid);
+        var slots = new System.Collections.Generic.SortedDictionary<int, string>();
+        if (mainObj != null)
+            foreach (var kv in mainObj.Textures)
+                slots[kv.Key] = TexName(kv.Value.Guid);
+        submeshes.Add(new
+        {
+            name = m.Name,
+            lod = m.Lod,
+            material = mainObj?.Name,
+            second_material = secObj?.Name,
+            textures = slots,
+        });
+    }
+    var doc = new
+    {
+        mesh = meta.Name,
+        guid = meta.Guid.ToString(),
+        // Metamesh.Material 可能指向非 Material 资产(如 billboard 纹理, 引擎注释 "billboard texture will ref the same guid"), 故查任意类型
+        default_material = assets.FirstOrDefault(a => a.Guid == meta.Material)?.Name,
+        default_material_type = assets.FirstOrDefault(a => a.Guid == meta.Material)?.GetType().Name,
+        submeshes,
+    };
+    var json = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
+    File.WriteAllText(path, json);
 }
 
 static string GroupOf(AssetItem item)

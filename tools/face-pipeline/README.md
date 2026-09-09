@@ -35,6 +35,7 @@ tools/face-pipeline/
 ```bash
 tpaccli list     --packdir <dir> [,<dir2>] [--filter s]      # 列出包内资源
 tpaccli dump     --packdir <dir> --filter s --out d [--format obj|fbx|png|dds]
+tpaccli dump     --packdir <dir> --filter "" --out d --mapsonly       # 仅写 mesh→材质→贴图 映射(mesh_maps/<prefix>/<name>.mat_map.json, 不动其它产物)
 tpaccli inspect  --packdir <dir> --filter s                  # 纹理全字段(模板提取用)
 tpaccli roundtrip --packdir <dir> --filter pack0.tpac --out d  # 解包→原样重打包(md5/解出对照)
 tpaccli makepack --manifest <json> --out <dir>               # PNG→DXT5→tpac

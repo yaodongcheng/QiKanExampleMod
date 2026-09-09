@@ -362,6 +362,11 @@
     <Compile Include="Debug\MapBorderDiagnosticPatch.cs" />
     <Compile Include="Debug\LordIntroConditionGuardPatch.cs" />
     <Compile Include="Debug\BattlePowerCalculationGuardPatch.cs" />
+    <Compile Include="Debug\NavMeshProbeCommands.cs" />
+    <Compile Include="Debug\ClickDiagPatch.cs" />
+    <Compile Include="Debug\EncounterDiagPatches.cs" />
+    <Compile Include="Debug\PartyVisualCircleDiag.cs" />
+    <Compile Include="Debug\TownEntryDiagPatch.cs" />
     <Compile Include="Core\CampaignMode\LivingWorldSaveableTypeDefiner.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
