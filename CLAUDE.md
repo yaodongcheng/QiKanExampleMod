@@ -308,6 +308,8 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 
 **[Knowledge/](Knowledge/)** 存放对原版骑砍2引擎和 API 的反编译分析文档。**规划新系统或理解原版行为时，先查这里。**
 
+**🔴 外部文档站快照 = 重要知识来源（2026-09-09 新增）** — [`Knowledge/bannerlordmodding_lt/`](Knowledge/bannerlordmodding_lt/README.md)（社区站 162 页）+ [`Knowledge/bannerlord_official_docs/`](Knowledge/bannerlord_official_docs/README.md)（TaleWorlds 官方站 86 页）是骑砍2 mod 开发外网文档的本地快照（英文原文，README 有中文速览）。**遇到「API 怎么用 / 编辑器怎么操作 / XML 与 XSLT 规范 / 场景与地形制作 / 3D 资产管线」类问题，先查这两库**（用 Grep 在对应目录下搜关键字），查不到再走 反编译 → 猜 API 的路线。注意：官方站内容偏早期版本，**API 签名一律以项目反编译为准**（文档只作流程/规范参考）。快照为生成物（`tools/fetch_bannerlord_docs.py` 刷新），内容勿手改。
+
 | 文档 | 主题 | 适用场景 |
 |------|------|---------|
 | [原版骑砍2战略层分析](Knowledge/原版骑砍2战略层分析.md) | 🔴 **王国→家族→军团→部队 四层决策金字塔**，含 500 行战争评分公式分解、KingdomDecision 提案系统、Army 状态机、MobilePartyAi.GetBehaviors 决策流、60 个 Action 类全览 | 规划王国层外交/军团扩展、理解原版 AI 与本 mod 的边界 |
@@ -325,11 +327,14 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 | [🔴 原版过场动画系统完整参考](Knowledge/vanilla_cutscenes/README.md) | 🔴 **25 个 SceneNotification 过场动画完整列举**：每个场景的 SceneID、角色槽位、可替换的 CharacterObject/Equipment、文本 ID 与变量、触发事件。含婚礼/加冕/死亡/建国/新生儿/处决/龙旗任务等 | **新增过场动画或替换场景角色时的第一站** — 查可用场景模板、复用引擎 SceneID |
 | [骑砍2大地图联机技术原理](Knowledge/骑砍2大地图联机技术原理.md) | 🔴 **Campaign 联机架构全览**：Server-Authoritative 模型、ProtoBuf 序列化、Harmony Transpiler 注入、时间流逝同步（TickMapTime/IsMainPartyWaiting）、场景切换矛盾（强制同队 vs 世界不暂停 vs 冻结）、坐镇 vs 亲自战斗收益平衡、BannerlordCoop 与希绝 Online 技术对比 | 规划联机功能、理解 Campaign/Mission 并行化矛盾、未来 LLM-NPC 联机行为同步 |
 | [🔴 原版沙盒模式高级开局选项系统分析](Knowledge/原版沙盒模式高级开局选项系统分析.md) | 🔴 **1.5.1 新增「时代背景开局」机制**：沙盒模式开局自定义四分类（worldscenarios 世界剧本/scenarios 开局身份/globalmodifiers/种子）、`[StartOptionsProvider]` 反射注册扩展点（mod 零 UI 注入）、AdvancedStartOptionsData 存档持久化、`ApplyWorldScenarios()` 生效链路（unitedempire 合并帝国范本、Seed^scenarioSeed 确定性随机）、开局身份结算（king/vassal/mercenary/trader/outlaw/beggar）、本地化三文本机制；1.4.8 对比实证为新增 | **规划三国/日本战国多时代入口剧本**（用官方扩展点做时代选择器）、给沙盒开局面板注入自定义选项 |
+| 🔴 **自定义世界内容包从零起步必备清单**（[Knowledge/自定义世界内容包从零起步必备清单.md](Knowledge/自定义世界内容包从零起步必备清单.md)） | 🔴 **再做一个新世界观照这份清单从阶段 0 勾到阶段 3**（Taikou 雷 1~36 + 织丰经验全量沉淀）：阶段 0 起手式 = 拷贝 Taikou 整套 ModuleData 当**样张**（含「样张文件映射表」：清单条目→Taikou 样例文件→新世界动作，生成物/官方拷贝类禁手改）+ 骨架（SubModule 19+ 段/MBGlobals/SaveableTypeDefiner/CC 链）→ 阶段 1 数据最小自洽集（文化必备组 8 项/势力链/据点 owner/物品+兵种/🔴地图场景 border_min/border_max + 12 脚本实体/🔴 SandBox 9 个 GameText 段全量拷贝）→ 阶段 2 流程纪律（parse+checker+生成器唯一真源+MB2_PATH=1.2.12 编译）→ 阶段 3 启动链验证顺序 + 运行日志巡查清单 + 雷 1~36 对照总表；含「LWN 已内置通用兜底表」（新内容包 0 代码免费获得） | **新内容包立项第一站**——按清单勾完再开写；排查坑位用 pitfalls.md 按需查 |
 | [🔴 存档机制深度解析](Knowledge/存档机制深度解析.md) | 🔴 **SaveableField/SaveableProperty/SyncData/SaveableTypeDefiner 四件套**：field ID 作用域（类级别非全局）、步进编号惯例、SyncData JSON 模式、InitQuestOnGameLoad 读档重建、支持/不支持类型清单、8 个常见坑点、本项目存档架构总览 | 新增需要持久化的字段/子系统前必读、排查存档损坏/字段丢失、理解为什么不同 mod 用同样的 ID 不冲突 |
 | [🔴 太阁5剧本初始化机制与Snr解码](Knowledge/太阁5/太阁立志传5剧本初始化机制与Snr解码分析.md) | 🔴 **TK5 年代剧本初始化全链路**：6 剧本 = 6 份 Snr 世界快照（1554乱麻/1560日轮/1568升龙/1575霸道/1582转变/1598太平）、加载器反编译、**加密 = 每年代一张 256 字节 S-box**（表=剑阁编辑器 En/DeCode.rtg，6×256 置换对）、已解出`_analysis/decoded/Snr0-5.plain` | 剧本工程时代初始化设计（快照式 vs 增量式）参考、参照量级、存档对位法地图 |
 | [🔴 击晕机制 — 引擎能力与实现踩坑](Knowledge/击晕机制_引擎能力与实现踩坑.md) | 🔴 **背后击晕完整实现**：action_set 继承链陷阱、ForcePlayAction 绕过方案、human/human_child 骨骼差异、Brain auto-Resume 竞争、IsUsingGameObject vs InConversation、动画 ID 验证、完整调用链 | 新增击晕/强制动画相关功能前必读 |
 | [🔴 原版对话流引擎逆向分析](Knowledge/原版对话流引擎逆向分析.md) | 🔴 **DialogFlow 底层token状态机逆向 + 动态化方案**：`ConversationManager._sentences` 大表模型、`DialogFlow` 只是建造者（非必需品）、`AddPlayerLine`/`AddDialogLineMultiAgent` 直接操作引擎、`PersuasionTask` 嵌入机制（`HasPersuasion` 标记）、LLM JSON → DynamicDialogueTurn 完整链路、与原版对话共存机制（`RemoveRelatedLines` 按归属清理） | 设计自定义 Quest 对话流、LLM 驱动动态对话、理解说服/技能检定挂接方式、实现"JSON/LLM输出直接变成游戏对话" |
 | [Ollama 本地模型接入](Knowledge/Ollama本地模型接入.md) | ✅ **代码零改动支持本地模型**：Ollama OpenAI 兼容端点逐字段实测验证（json_object/max_tokens/Bearer 全通）、**玩家配置两处与 Reddit 教程不同（BaseUrl 必须带 `/v1`、API Key 必须填占位符）**、小模型质量边界（3b~7b 计划生成锚定示范 → 建议 ≥14b 或云端）、冷启动延迟预算、Windows 部署速查 | 玩家问"能不能用本地模型"时的标准答复、排查本地端点 404/配置问题 |
+| [🔴 BannerlordModding.LT 社区文档库（162 页快照）](Knowledge/bannerlordmodding_lt/README.md) | 🔴 **`docs.bannerlordmodding.lt` 全站快照**（2026-09-09）：引擎 API/实体操作（modding/ 56 页）、GauntletUI（10 页）、编辑器（28 页）、3D 管线（20 页）、配方型教程（guides/ 35 页）、版本变更速记。英文原文，README 有中文速览 | 查「引擎能力边界/编辑器流程/API 用法」类问题先翻这里；刷新：`python tools/fetch_bannerlord_docs.py lt`（生成物，勿手改） |
+| [🔴 官方 Mod 文档库（86 页快照）](Knowledge/bannerlord_official_docs/README.md) | 🔴 **`moddocs.bannerlord.com` 源仓（TaleWorlds/Documentations）english 版快照**（2026-09-09）：资产管理/XSLT 合并/场景制作（Mission Scenes）/编辑器/音频/联机。**与 .lt 站互补：偏资产与编辑器规范，代码 API 少**。中文版源仓有：`fetch ... official --lang schinese` | XSLT 合并 XML、场景 tag/出生点规范、地形编辑器；刷新：`python tools/fetch_bannerlord_docs.py official`（生成物，勿手改） |
 
 ## 工作流约定
 
@@ -342,6 +347,16 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 - 判断标准：本次是否产生了可复用的基础设施、新的引擎扩展点、或值得固化的模式。
 - 若用户同意 → 在 `plans/rules/wheels.d/` 对应域文件增补条目（解决什么问题 + 关键签名 + 调用范例 + 文件路径），与现有格式一致。
 - 即使本次只是用了已有轮子、没产出新轮子，也简短说明一句"无新轮子"，不要跳过这一步。
+
+**🔴 自定义世界坑点沉淀纪律（2026-09-09 用户裁定，最高优先级）——遇坑即登记，不用等问。**
+
+凡自定义世界/内容包（Taikou、未来三国/任何新世界观）相关的新坑点、新雷——**无论排没排完**——本次会话结束前必须把「症状 → 根因 → 修法 → 归属」总结进 [Knowledge/自定义世界内容包从零起步必备清单.md](Knowledge/自定义世界内容包从零起步必备清单.md)：
+
+- 动作：①「雷 N~M 对照总表」追加一行（症状一句/根因一句/修法归属）②命中对应阶段清单的条目 → 补「症状信号」或勾选项（清单跟着经验升级，不让坑重复踩第二遍）。
+- 证据/过程细节 → `plans/太阁数据加载taikou-campaign-boot-20260907.md` 雷档（本会话若在该工程内排雷）；疑难杂症 → `plans/rules/pitfalls.md`；工具/成品 → 按上条问询 wheels。**本清单 = 坑位地图，三者不重复维护但互相引用。**
+- 检测标准：本会话动了自定义世界数据/DLL，或触发了 `[MapBorder]`/`[LordIntroGuard]`/`[BattlePowerGuard]` 等自定义世界专用兜底日志 = 本次必登记。
+- 已用清单核查新世界 = 新坑点必须能挂到清单某一条上（挂不上 = 清单有缺口 = 先补清单再写代码）。
+
 
 ## 🔴 三单元架构原则（2026-09-07 用户裁定，最高优先级）
 

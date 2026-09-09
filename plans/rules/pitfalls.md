@@ -1039,6 +1039,45 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 
 ---
 
+## 进战斗部署即崩 KeyNotFoundException（CalculateTeamPowers 字典缺键）→ 引擎「先全量登记、后按键查」模式 + 队关系未成立（2026-09-09 实机）
+
+**症状**（Taikou 遭遇 Oda 部队 → 菜单「攻击！」）：进战斗部署 Phase 即 `System.Collections.Generic.KeyNotFoundException`（栈：`BattlePowerCalculationLogic.CalculateTeamPowers` → `TeamQuerySystem` 惰性 Evaluate → `TacticCharge.GetTacticWeight`），玩家卡死在战斗加载。
+
+**根因**（反编译 1.2.12 `TaleWorlds.MountAndBlade.dll` + `[BattlePowerGuard]` 实测日志实锤）
+- `BattlePowerCalculationLogic.CalculateTeamPowers` 的模式：**第一遍**把 `Mission.Teams` 全队按**队伍自身 Side** `Add(team, 0f)` 进字典（team 落进 `dicts[team.Side]`）→ **第二遍**按**循环侧 i** 取 `dicts[i]` 当桶，对每个兵源 `Mission.GetAgentTeam(...)` → `dictionary[agentTeam]`。
+- **键桶错位 = 崩溃条件**：当兵源归属的队与"循环侧桶"不一致 → `Dictionary.get_Item` 抛 KeyNotFound。
+- **实测日志（Taikou 攻击 Oda 部队，10:54）**：`team=Mission Team: 1 side=0 playerSide=False playerEnemy=Mission Team: 0 playerTeam=Mission Team: 1 missionTeamCount=2` ——
+  - 缺键 = **玩家队（Team 1）出现在敌方侧（side=0）枚举**；`PlayerEnemyTeam` **非 null**（=Team 0，排除"空键"方向）
+  - 链路：`Mission.GetAgentTeam(origin, isPlayerSide=false)` **首分支 `origin.IsUnderPlayersCommand == true` → 直接返回 `PlayerTeam`（玩家队）** → 而查表桶是敌方侧 `dicts[0]`，玩家队登记在 `dicts[1]` → KeyNotFound
+  - 即：**敌方侧兵源池里混入了 `IsUnderPlayersCommand=true` 的 origin**（自定义世界兵源组建/两军构造顺序不同导致；vanilla 同条件不触发=顺序天然成立）。该兵源的具体身份（哪类 origin）留待 T4 自建兵种数据时复核，现象与兜底已实锤。
+- 触发链：部署侧完成 → `DeployFormationsOfTeam` → `Team.ResetTactic` → 战术权重查询 → 惰性 Evaluate——"看似随机"的字典错误，实为固定的键桶错位。
+
+**规避**
+1. **LWN 通用兜底**（已落地）：`Debug/BattlePowerCalculationGuardPatch.cs` —— `CalculateTeamPowers` 前缀替换（完整重实现 + 空键兜底：`GetAgentTeam` 拿不到/字典没登记 → 补登记 0 战力，战斗照常；同时打 `[BattlePowerGuard]` 诊断日志确认缺失键身份）。类型+方法名双字符串运行期解析；1.5.x 若抽走该类 = 静默跳过。
+2. **真根因修复**：让玩家阵营与敌队的关系正常成立（数据/时点修复）——先看 `[BattlePowerGuard]` 日志确认空键是 null 还是缺队，再定数据动作（参考织丰 player_faction `is_minor_faction="true"`、玩家开局王国归属等）。
+3. **排查口诀**：**"进图/进战斗一部署就崩 + 字典 KeyNotFound + 栈尾是引擎惰性查询" = 有查询键依赖的运行时状态（队关系/登记表）没成立**——查"谁填键、键从哪来"，别在异常帧上找原因。
+4. ⚠️ **编译验证版本坑（2026-09-09 自踩）**：`dotnet build` 环境变量取的是 **Bash 进程快照**（=主环境 Steam 1.5.2），而真目标 = 1.2.12 —— 曾静默对着 1.5.2 DLL"编译通过"（`MissionAgentSpawnLogic` 类在 1.5.2 已不存在，`IMissionAgentSpawnLogic` 接口两版同构、`GetAllTroopsForSide` 不在公共接口 → 该类要用**反射调用**）。验证必须显式 `MB2_PATH="…MB2_1.2.12…" dotnet build`；跨版本类型一律走"接口存在性验证 + 反射"（本例 = `GetMissionBehavior<IMissionAgentSpawnLogic>()` + 反射调 GetAllTroopsForSide）。
+
+---
+
+## 自定义 GameType 下某说话/文本"消失了"或对话崩溃 → SandBox 文本段带 GameType 白名单被过滤（2026-09-09 实机）
+
+**症状**（Taikou 找织田信长对话）：玩家开场台词正常显示 → 玩家一开口（进领主介绍句）即 `NullReferenceException`（栈在 `LordConversationsCampaignBehavior.conversation_lord_introduction_on_condition`），对话无法继续。
+
+**根因**（反编译实锤 + SubModule.xml 实锤）
+- `FindMatchingTextOrNull(id, character)`（1.2.12 ConversationManager 反编译）：**文本键不存在 → 返回 null**（无空保护）。
+- 领主介绍句用的 `str_comment_*` 文本定义在 **SandBox `ModuleData/comment_strings.xml`**，其在 SandBox SubModule.xml 注册段带 `IncludedGameTypes` 白名单 = `Campaign` / `CampaignStoryMode`（SandBox SubModule.xml:227-231）——**自定义 GameType（TaikouCampaign 等）不在白名单 → 整个文件被过滤 → 文本缺失 → null → NRE**。
+- 玩家开场台词"正常"是因为它们属于 module_strings 系（不同文件/加载路径），属"半通半堵"的迷惑观感。
+- 织丰对照：织丰自备全套文本（自家行为类 + 自家 str_comment_*），故无此坑。
+
+**规避**
+1. **内容包自备文本（织丰做派）**：把官方 copy 进 `Modules/<mod>/ModuleData/<文件>.xml` + 在包 SubModule.xml 注册 `<XmlName id="GameText" path="..."/>`（挂自己 GameType 段）。Taikou 落地 = 拷贝官方 `comment_strings.xml`（155KB，322 条 str_comment_*）。
+2. **LWN 通用兜底**：`LordIntroConditionGuardPatch`（该条件前缀：文本/Clan/城镇 OwnerClan 任一缺失 → 跳过该句不崩 + `[LordIntroGuard]` 日志）——任何内容包都能被兜住。
+3. **排查口诀**：自定义战役里"某引擎功能缺数据就该崩溃/某句话没了"——先反查**该对象/文本所在文件的 SubModule `<XmlName>` 段是否带 GameType 白名单**，再谈数据自洽。
+4. 🔴 **全量盘底（2026-09-09 二次实锤）**：**SandBox 的 9 个 GameText 文本段全部**带白名单（`module_strings` / `world_lore_strings` / `companion_strings` / `wanderer_strings` / `comment_strings` / `comment_on_action_strings` / `trait_strings` / `voice_strings` / `action_strings` —— SandBox SubModule.xml 扫描实锤，Native 侧仅 multiplayer_strings 白名单、其余全量放行）。自定义 GameType 下**缺任何一个 = 对应 str_* 查询报错/NRE**（开战新闻 = action_strings、领主介绍 = comment_strings、对话台词 = module_strings…）。**内容包修法 = 9 文件官方原样拷贝 + 自家 SubModule GameText 段注册**（Taikou 已全量落地）；**排查方法**：扫描 SubModule.xml 里 `XmlName id="GameText"` 且带 `IncludedGameTypes` 的 path 列表，逐一拷贝。**NEW GAME 前必跑清单**：新建战役后看一眼运行日志末段（Text id 报错是运行期才炸，启动不报）。
+
+---
+
 ## 自定义地图相机"空气墙"：到某条坐标线就动不了 → 场景缺 border_min/border_max 实体（2026-09-08 实机）
 
 **症状**（日本图，实机复现）

@@ -360,6 +360,8 @@
     <Compile Include="Debug\CharacterCreationCultureVisualFallbackPatch.cs" />
     <Compile Include="Debug\MapScreenCameraPatch.cs" />
     <Compile Include="Debug\MapBorderDiagnosticPatch.cs" />
+    <Compile Include="Debug\LordIntroConditionGuardPatch.cs" />
+    <Compile Include="Debug\BattlePowerCalculationGuardPatch.cs" />
     <Compile Include="Core\CampaignMode\LivingWorldSaveableTypeDefiner.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />

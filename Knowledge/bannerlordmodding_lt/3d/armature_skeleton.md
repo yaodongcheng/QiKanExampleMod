@@ -1,0 +1,92 @@
+# Armature/Skeleton
+
+<!-- 源: https://docs.bannerlordmodding.lt/3d/armature_skeleton/ | 抓取日期: 2026-09-09 -->
+
+* [How to import a new skeleton to Bannerlord](https://www.youtube.com/watch?v=gL0ZfNhnrn0)
+* [Download skeletons from here](https://drive.google.com/drive/folders/1mi2y_sO-ctpqScMlT5zvU1r01L2810_V)
+* [FULL Skeleton/Race Tutorial](https://www.youtube.com/watch?v=eXHd8yjoxk0)
+
+![](https://docs.bannerlordmodding.lt/pics/2410021050.png)
+
+Skeleton is necessary for all the rigged items (body armors/helmets/shoulder coverings/gloves/shoes/horse armors).
+
+Usually model comes without the skeleton.
+
+## Bones
+
+Human Bones
+
+![](https://docs.bannerlordmodding.lt/pics/2503191018.png)
+
+## Import
+
+[Import this FBX](https://drive.google.com/file/d/1Pasf8ZmngJGP5eKlTIG_JS8LlFG7u42Q/view?usp=drive_link) to get the skeleton and male body at once.
+
+(More models [here](https://drive.google.com/drive/folders/1mi2y_sO-ctpqScMlT5zvU1r01L2810_V?usp=drive_link))
+
+## Rename
+
+Rename the `human_skeleton_notused.00x` to `human_skeleton_notused` and hide the body for now:
+
+![](https://docs.bannerlordmodding.lt/pics/2410021056.png)
+
+## Assign
+
+Move (select + drag&drop) all `human_skeleton_notused` to the `Collection`:
+
+[
+
+Your browser does not support the video tag.
+](https://docs.bannerlordmodding.lt/pics/skeleton_to_collection.webm)
+
+Assign your mesh to the skeleton:
+
+1. Select the mesh with LMB (Left Mouse Button)
+2. Select the skeleton with CTRL+LMB
+3. Move mouse to the working area ant press CTLR+P
+4. Select `With Empty Groups`
+
+[
+
+Your browser does not support the video tag.
+](https://docs.bannerlordmodding.lt/pics/assign_mesh_to_skeleton.webm)
+
+To be sure that mesh is assigned to the skeleton properly:
+
+1. Select your mesh
+2. Go to `Modifier Properties`
+3. Make sure Armature - Object is `human_skeleton_notused`
+
+![](https://docs.bannerlordmodding.lt/pics/2410021220.png)
+
+## Bones
+
+![](https://docs.bannerlordmodding.lt/pics/2509061900.png)
+
+## Problems
+
+### Missing/bad Armature
+
+This in the [Model Viewer](/3d/model_viewer/):
+
+[
+
+Your browser does not support the video tag.
+](https://docs.bannerlordmodding.lt/pics/fbx_armature_problem.webm)
+
+Cause #1: missing armature or wrong armature assigned:
+
+![](https://docs.bannerlordmodding.lt/pics/2409281050.png)
+
+Cause #2: FBX exported without skeleton:
+
+![](https://docs.bannerlordmodding.lt/pics/2509061922.png)
+
+## Add your own skeleton
+
+* [How to a import new skeleton to Bannerlord](https://www.youtube.com/watch?v=gL0ZfNhnrn0)
+  + [File backup](https://drive.google.com/file/d/1Z3hqrIQCfJ3JGvi2Niw-6AHrMwKEONEK/view?usp=drive_link)
+
+Shawmuscle:
+
+You can add your own by creating a non human model, import the vanilla skeleton,rename it, edit it to align with your new base mesh, rig it. Import with armature settings X axis, -Y axis. Import the model as morph anim, and the skeleton also checked (be sure to remove the "notused" tag from skele) double click your new skele in editor. Find and selext it, change from "other" to "human" Assign/copy bones information same as human\_skeleton *do for all bones. Go to file generate joints, then save. Now in xmls action sets and skins change the skeleton reference to* your newly imported skeleton name. Also add monsters and reference accordingly.
