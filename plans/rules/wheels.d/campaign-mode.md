@@ -73,5 +73,21 @@ python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Tai
 | `AgentDamageModelCultureNullFix` | 运行时 Transpiler（伤害模型 `.Culture.IsBandit` 裸解引用） | `Debug/AgentDamageModelCultureNullFix.cs` |
 | `CharacterCultureBackfill` | 生成期 MissionLogic（角色缺 culture 按生成地点补全） | `Debug/CharacterCultureBackfill.cs` |
 | 本卷 `CultureTemplateNullFix` | 加载期（文化模板列表 null→空）+ 数据侧 `check_taikou_xml_references.py` 根治 | 见上 |
+| `HorseSpawnNullGuardPatch` | 场景消费兜底（`SpawnHorses` 前缀替换：Tags 缺项/物品未装载 → 跳过该出生点 + `[HorseSpawnGuard]` 日志，马匹降级缺失不崩） | `Debug/HorseSpawnNullGuardPatch.cs` |
 
 **联动**：改内容包发现新的"半成品对象"NRE = 先查 `check` 脚本有没有抓到同型悬空 → 数据根治为主、LWN 兜底为辅。
+
+## 四、🔴 官方场景消费清单（2026-09-09 登记，雷 40/41 总根）
+
+**解决什么问题**：用官方城市场景的代价——场景文件不受 GameType 过滤（可直接用），**但场景内 prefab 实例引用的原版物品/角色/兵种全部被过滤**；引擎硬编码消费（`SpawnHorses`/`DefaultAlleyModel` 等）→ GetObject null → NRE。**症状信号**：进城场景刚加载就崩（`TroopRoster.AddToCountsAtIndex` / `ItemRosterElement`）。
+
+**排查三步法**（一次补齐，不欠第二颗雷）：
+1. `grep -o 'prefab="sp_[a-z]*"' <官方场景>.xscene`（场景用了哪些 spawn prefab）
+2. `Modules/Native/Prefabs/editor_spawnpoints.xml`（+ `Modules/SandBox/Prefabs/sp_editor_spawnpoints.xml`）找 `<game_entity name="sp_xxx">` 的 `<tags>`——**Tags[1] = 被引用对象 id**
+3. 对象 id → 查自家物品/角色库 → 缺失 = 拷官方定义入自家库（culture 洗 ikoku）+ 跑 `check_taikou_xml_references.py` 0 悬空
+
+**已知消费面**（新内容包直接勾）：黑巷地痞 `gangster_1/2/3`（`DefaultAlleyModel`，Level 6/11/16 + 升级链 + 民用套装）· 马 `sp_horse_*`（6 种：aserai/battania/empire/khuzait/sturgia/vlandia_horse）· 动物 5 只（sp_sheep/sp_cow/sp_hog/sp_goose/sp_chicken → sheep/cow/hog/goose/chicken 物品）。
+
+**织丰对照**：织丰从不用官方城市场景（自有 sho_* 场景 + 自有 sp_horse_kiso prefab + 自家物品）→ 天然免疫；不想补清单就学织丰做自有场景（成本高，v0 建议白名单补齐）。
+
+**详细记录**：`Knowledge/自定义世界内容包从零起步必备清单.md` §1.4 / §1.4b（+ 雷 40/41）；`plans/太阁数据加载…md` 排雷链 37/38。

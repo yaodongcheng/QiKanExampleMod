@@ -225,7 +225,7 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 
 ## 版本兼容与发布
 
-🔴 **禁止交叉编译。** 两台电脑各装一个目标版本，同一份源码分别编译。踩过坑，不要重犯。
+🔴 **禁止交叉编译。** 本机双客户端各装一个目标版本（1.2.12 备份客户端 + 1.5.2 Steam 主目录，**模块目录 junction 同源**），同一份源码按当前 `MB2_PATH` 分别编译、分别测试。踩过坑，不要重犯。
 
 ### 三锚点编译策略
 
@@ -235,12 +235,14 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 本仓库没有「主环境」概念：换一台电脑（改 `MB2_PATH` 指向另一份游戏），编出来的就是那份游戏的版本。
 查看某台电脑当前版本：`cat "$MB2_PATH/bin/Win64_Shipping_Client/Version.xml"`。
 
-| 机器 | 游戏版本 | 产出 |
-|------|---------|------|
-| 1.2.12 电脑 | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
-| Latest 电脑 | v1.5.x | `LivingWorldNpcs.dll`（Latest 版） |
+| 客户端 | 版本 | 路径 | 角色 |
+|------|---------|------|------|
+| 备份客户端（固定） | v1.2.12 | `H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord` | 🔴 当前主环境（Taikou 实机验证/编译，2026-09-09 实测） |
+| Steam 主目录（随官方更新） | v1.5.x | `H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord` | 对照环境（实测：2026-09-08 = v1.5.2） |
 
-> 本仓库当前开发机（H: 盘）：🔴 **版本号不写死**——以 `Version.xml` 实测为准（Steam 官方随更新，数字随时会变，别按文档里的数字下结论；实测：2026-09-08 = v1.5.2）。1.4.x ~ 1.5.x 签名一致，编译验证通过——2026-08-23 升级后 `dotnet build` 0 错误 0 警告，27 个 Harmony 字符串补丁目标二进制 grep 全存活，见下方 VersionCompat 章节。
+> 🔴 **版本切换 = `set_mb2_path.py`（仓库根，2026-09-09 整改）**：`setx` 写注册表 User 级 MB2_PATH（铁律 19——判定一律读注册表，禁看 shell 进程快照）。改 `DEFAULT_VERSION` 变量点运行 = 切换；无参运行 = 只查询当前值；**改完必须重启 VS2022**（启动时捕获环境变量）。当前激活值：v1.2.12（2026-09-09）。
+> 🔴 **Taikou / LivingWorldNpcs 模块 = 双客户端 junction 同源**（`Get-Item ... | fl LinkType,Target` 验证，均指向 `...\Mount & Blade II Bannerlord\Modules\<mod>`）——数据/代码改动落一处 = 两个客户端同时生效，**不需要**两份拷贝、无同步问题。
+> 1.4.x ~ 1.5.x 签名一致，编译验证通过——27 个 Harmony 字符串补丁目标二进制 grep 全存活，见下方 VersionCompat 章节。
 
 ### 累积阈值宏体系
 
