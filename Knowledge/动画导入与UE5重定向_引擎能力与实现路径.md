@@ -36,7 +36,8 @@
 | 资源 | 说明 |
 |---|---|
 | `human_skeleton` | 人类主流骨架（`human_low_skeleton` 实测是同一资源重复条目） |
-| `human_lod_4` / `human_shadow_mesh` | 模型（Metamesh），含蒙皮 |
+| `human_lod_4` / `human_shadow_mesh` | 独立远景/影子网格（Metamesh）；**角色的 LOD 链主体不在 `human_*` 命名里** |
+| `body_male_a` / `body_female_a` | 🔴 **角色身体主网格（=LOD0）**：一个 Metamesh 资源内含 `body_male_a` + `.lod1`~`.lod5` 六档子网格（mat_map.json 实证）；另有 `_kid`/`_teen`/`_sh` 变体 |
 | `anim_human` / `anim_human_stand` / `anim_human_02` | 通用人类动画源资源 |
 | `anim_1h_without_shield_stand_idle_1~6`（含 `_left_stance`） | 待机动画按武器类别分：持盾/单剑/双手/徒手 |
 | `human_low_anim` / `human_low_skeleton` | 远景低配旁路资源（千人战场降级用） |
@@ -61,6 +62,8 @@ $out = "<输出目录>"
 - 产物二进制核查：FBX 内含骨架（骨名 `spine / neck / head / clavicle / l_upperarm / r_upperarm /
   l_forearm / r_forearm / l_thigh / r_thigh / l_calf / r_calf / l_foot / r_foot` 实测命中）+
   动画栈（AnimStack/AnimCurve 节点齐全）。
+  - 导出器限制：**每个 FBX 只带主网格**（Metamesh 的 LOD0 子网格；FBX 内无 `.lodN` 节点，实测 `body_male_a.fbx` 内 `lod1~5` 字符串 0 命中）——LOD 子网格链不单独导出，对重定向无影响（骨架才是关键）。
+  - OK 日志格式：`OK  mesh <name> -> <path> (skel=<骨架资源名>, anim=<配对动画资源名>)`——可直接确认带出的骨架/动画。
 - **用途**：该 FBX 即重定向目标骨架模板；网格留着当动画对照预览（别删）。
 
 ## 4. FBX 导入规格（官方文档要点 = 导入门槛）

@@ -363,10 +363,12 @@
     <Compile Include="Debug\LordIntroConditionGuardPatch.cs" />
     <Compile Include="Debug\BattlePowerCalculationGuardPatch.cs" />
     <Compile Include="Debug\NavMeshProbeCommands.cs" />
+    <!-- 🔴 2026-09-09 读档崩二分（20:20 会话 save035+此三补丁 → Settlement.All=0）：
+         临时移除 TownEntryDiagPatch/AreaMarkerTagGuard/IssuesSettlementGuardPatch 验证是否补丁侧问题；
+         定案后恢复。 -->
     <Compile Include="Debug\ClickDiagPatch.cs" />
     <Compile Include="Debug\EncounterDiagPatches.cs" />
     <Compile Include="Debug\PartyVisualCircleDiag.cs" />
-    <Compile Include="Debug\TownEntryDiagPatch.cs" />
     <Compile Include="Core\CampaignMode\LivingWorldSaveableTypeDefiner.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
