@@ -61,6 +61,8 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 
 **解决什么问题**：克隆/新建战役大地图（Main_map）时**忘记抄这两个实体** → 相机"空气墙"（v1.2.12 静默降级）/ 进图即崩（v1.5.x）——不崩不报错、纯行为异常，曾误判成"操作习惯"。
 
+> 🔴 **同域姊妹篇（2026-09-09 京交互链实锤，雷 37）——定居点实体组 4 娃**：`bo_town` **只碰射线碰撞体**（bo_sphere_collider + `body_flag name="only_collide_with_raycast"`，地图拾取唯一入口——`SelectEntitiesCollidedWith` 掩码 79617 只认它，普通 mesh/贴花不作为拾取目标）+ `town_circle_decal`（tag map_settlement_circle，黄圈视觉+CircleLocalFrame）+ `gate_position`（tag main_map_city_gate）+ `banner_pos`（tag map_banner_placeholder，墙级门旗组）。**缺 = 无黄圈/无 hover 卡/点击无反应/进不了城**；且探针/寻路/可通行性全绿极具迷惑性（京实机 4 轮误判实录）。参 `Knowledge/自定义世界内容包从零起步必备清单.md` 1.5。
+
 **关键事实**（全反编译实锤）：
 - **地图边界 = 两个普通场景实体的坐标**，没有配置文件、没有属性：`SandBox.MapScene.GetMapBorders`（SandBox.dll）按名字硬查 `GetFirstEntityWithName("border_min"/"border_max")`；`MapCamera.ComputeMapCamera`（SandBox.View.dll）**每帧**把相机目标钳进矩形 [min,max]
 - 🔴 **版本分岔（同一缺实体两种死法）**：**v1.2.12 有兜底**——缺实体 → min=(0,0) / max=**(900,900)** / height=670（静默，零提示）→ 相机墙在 x=900/y=900；**v1.5.x 无兜底**——直接解引用 null → 进图崩。任何内容包造图都必须在两个版本都检查

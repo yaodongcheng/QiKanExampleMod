@@ -1039,6 +1039,23 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 
 ---
 
+## 地图拾取只认「only_collide_with_raycast 碰撞体」——定居点交互链（黄圈/hover/点击/进城）的统一入口（2026-09-09 京实机）
+
+**症状**（四轮误判实录）：新地图上定居点**无黄圈、hover 不弹卡、点击图标无反应**；点地面可移动部队；而**探针/寻路/门可通行性全部正常运行**——即"世界一切正常，唯独玩家跟城隔着一层看不见的膜"。甚至往场景里加圈贴花实体后引擎能识别（`CircleLocalFrame=True`），点击依旧无效。
+
+**根因**（反编译 1.2.12 实锤链）
+- 地图射线拾取 `SelectEntitiesCollidedWith` / `GetCursorIntersectionPoint`（掩码 79617）**只命中带 `only_collide_with_raycast` body flag 的 physics 碰撞体**；普通 mesh / 贴花**不参与拾取**。
+- 交互链全程走这一条入口：hover 信息卡（`OnHover`）/ 点击移动（`OnMapClick`）/ 移动目标黄圈（`TickCircles` 读 CircleLocalFrame）——**一处不命中 = 三处同时失效**。
+- 官方定居点实体组必带：**`bo_town`**（`<physics shape="bo_sphere_collider"><body_flags><body_flag name="only_collide_with_raycast"/>`）+ `town_circle_decal`（tag map_settlement_circle）+ `gate_position`（main_map_city_gate）+ `banner_pos`（map_banner_placeholder）——织丰 Main_map 同款（bo_town ×8）。
+- 我们在 v0 只摆了 capsule+tower mesh，**0 个 physics** → 0 命中。误判教训：先误判遭遇链/导航链/圈贴花 tag……四轮后才落到"拾取先决条件"——**排查顺序应反推：先确认"射线拾取是否命中"，再查数据链**。
+
+**规避**
+1. 场景造图对照表加「每定居点：bo_town 只碰射线碰撞体（尺寸≈城footprint）+ 圈/门/旗 4 娃」；拷贝官方场景时**逐字段抄**（包括 physics/body_flags/additional_features），不要只抄 tag/transform。
+2. 排查口诀：**"探针全绿+实体编辑器能看到+但交互全无" = 拾取层没入口**——先 grep 场景 `only_collide_with_raycast` 是否存在于该定居点组（1.2.12/1.5.x 同机制）。
+3. 该坑与 border/border_max、12 脚本实体同属「地图场景克隆必备实体清单」（`Knowledge/自定义世界内容包从零起步必备清单.md` 1.5）——新世界造图三条一起查。
+
+---
+
 ## 进战斗部署即崩 KeyNotFoundException（CalculateTeamPowers 字典缺键）→ 引擎「先全量登记、后按键查」模式 + 队关系未成立（2026-09-09 实机）
 
 **症状**（Taikou 遭遇 Oda 部队 → 菜单「攻击！」）：进战斗部署 Phase 即 `System.Collections.Generic.KeyNotFoundException`（栈：`BattlePowerCalculationLogic.CalculateTeamPowers` → `TeamQuerySystem` 惰性 Evaluate → `TacticCharge.GetTacticWeight`），玩家卡死在战斗加载。
