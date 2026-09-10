@@ -322,6 +322,13 @@
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
+    <!-- 🔴 通用修复（与太阁无关，2026-09-10 从 CampaignMode/ 移入 Core/ 并订正定位）：
+         无文化角色的生成期补全——服务对象是**织丰**等"模板漏写 culture"的内容包（织丰至今仍缺 24 个）。 -->
+    <Compile Include="Core\CharacterCultureBackfill.cs" />
+    <!-- 🔴 通用修复（与太阁无关，2026-09-10 从 CampaignMode/ 移入 Core/ 并订正定位）：
+         伤害模型 Culture-null 空保护——枚举**所有已加载程序集**的 AgentApplyDamageModel 子类打 Transpiler，
+         原版战役（纯功能包模式）同样生效；出处 = 2026-09-02 织丰实机崩溃（织丰伤害模型 `.Culture.IsBandit` 裸解引用）。 -->
+    <Compile Include="Core\AgentDamageModelCultureNullFix.cs" />
     <!-- CampaignMode：通用自定义战役（GameType）层——内容包加载时激活（三单元架构） -->
     <Compile Include="CampaignMode\CampaignModeActivator.cs" />
     <Compile Include="CampaignMode\LivingWorldCampaign.cs" />
@@ -356,13 +363,9 @@
     <!-- <Compile Include="Debug\ShowInquiryLoggerPatch.cs" /> -->
     <!-- <Compile Include="Debug\SceneNotificationLoggerPatch.cs" /> -->
     <Compile Include="Debug\SaveGuard.cs" />
-    <Compile Include="CampaignMode\AgentDamageModelCultureNullFix.cs" />
-    <!-- 🔴 2026-09-10 **已退役删除**（文件已删，实机验证通过；恢复 = git 历史捞回原文件后去掉本行注释）：
-         CharacterCultureBackfill.cs（无文化角色按生成地点补全）——它「按地点猜一个文化写进去」会**掩盖数据错**
-         （与"不编造文化"原则冲突），且本包 233/233 角色模板全带文化、运行期长期 0 次触发。
-         不变量已由离线防线接管：`Scripts/check_culture_references.py` 的「角色模板文化属性体检」
-         （缺属性 / 指向未定义文化 / 值形状异常 三态全抓，已用故意坏数据做过负面测试）。 -->
-    <!-- <Compile Include="CampaignMode\CharacterCultureBackfill.cs" /> -->
+    <!-- 🔴 2026-09-10 注记：`AgentDamageModelCultureNullFix` 与 `CharacterCultureBackfill` 两个**通用修复**
+         （与太阁无关，服务织丰等模板漏写 culture 的内容包）已从本区段移入 Core\——见上方 Core 区段。
+         教训：评审兜底补丁先问「它原本为谁写的」，别看"在我们自己的世界里触发了没有"。 -->
     <Compile Include="CampaignMode\BackstoryCampaignBehaviorPatch.cs" />
     <Compile Include="CampaignMode\CharacterCreationCultureStageSortPatch.cs" />
     <Compile Include="CampaignMode\CharacterCreationCultureVisualFallbackPatch.cs" />
