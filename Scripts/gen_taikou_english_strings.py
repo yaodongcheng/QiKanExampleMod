@@ -35,8 +35,11 @@ STRINGS_NAME = "std_Taikou_strings.xml"
 REF = re.compile(r"\{=(" + PREFIX + r"[A-Za-z0-9_]+)\}([^{}\"]*)")
 
 XML_HEADER = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-GENERATED_NOTE = ("<!-- 【生成物·禁止手改】由 Scripts/gen_taikou_english_strings.py 从数据 XML 的\n"
-                  "     {=TAIKOU_KEY}English fallback 全量抽取生成——改英文请改数据 XML 的 fallback 再重跑本脚本（铁律 22）。 -->\n")
+# 🔴 注释必须写在根元素**里面**（雷 50）：引擎语言加载器按 `xmlDocument.ChildNodes[1].FirstChild` 取 strings——
+#    ChildNodes[0] 是 XML 声明、[1] 必须是根元素；声明与根元素之间夹注释 → [1] 变注释 → FirstChild 为 null
+#    → 整个文件静默不加载（玩家看到全英文，控制台零报错）。2026-09-10 实机踩过。
+GENERATED_NOTE = ("  <!-- 【生成物·禁止手改】由 Scripts/gen_taikou_english_strings.py 从数据 XML 的\n"
+                  "       {=TAIKOU_KEY}English fallback 全量抽取生成——改英文请改数据 XML 的 fallback 再重跑（铁律 22）。 -->\n")
 
 
 def collect():
@@ -56,7 +59,7 @@ def collect():
 
 
 def build_strings_xml(pairs):
-    out = [XML_HEADER, GENERATED_NOTE, "<base type=\"string\">\n",
+    out = [XML_HEADER, "<base type=\"string\">\n", GENERATED_NOTE,
            "  <tags>\n    <tag language=\"English\" />\n  </tags>\n",
            "  <strings>\n"]
     for key in sorted(pairs):
@@ -67,11 +70,12 @@ def build_strings_xml(pairs):
 
 
 def build_manifest():
-    return (XML_HEADER + GENERATED_NOTE +
+    return (XML_HEADER +
             "<LanguageData id=\"English\" name=\"English\" subtitle_extension=\"en-GB\" "
             "supported_iso=\"en-GB,en-US,en,eng,en-us,en-gb,en-au,en-bz,en-ca,en-ie,en-jm,en-nz,en-za,en-tt\" "
             "text_processor=\"TaleWorlds.Localization.TextProcessor.LanguageProcessors.EnglishTextProcessor\" "
             "under_development=\"false\">\n"
+            + GENERATED_NOTE.replace("  <!--", "  <!--") +
             f"  <LanguageFile xml_path=\"{STRINGS_NAME}\" />\n"
             "</LanguageData>\n")
 

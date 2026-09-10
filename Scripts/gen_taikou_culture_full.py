@@ -3,6 +3,12 @@
 """
 gen_taikou_culture_full.py — 织丰/原版字段交集全量一次性补全（2026-09-08 用户裁定：不要挤牙膏）
 =====================================================================
+⚠️ 来源与授权（2026-09-10 查明并标注）：本生成器内嵌的文化**名字池 622 条**
+   （clan/male/female 三段，含 8 位键）**逐字取自织丰 Shokuho 的
+   `Modules/Shokuho/ModuleData/spcultures/shokuho_main_cultures.xml`**（键与值 622/622 一致，实证比对）；
+   其中文译文取自织丰中文包 `Shokuho_CNs`。自用无碍，**对外发布须标注出处并取得授权**
+   （或改为自造名池 —— 见 plans 待办 C 路线）。其余字段值均为自有资源/官方拷贝，无此问题。
+
 依据（实测）：
   原版 Culture 全集 77 字段；织丰主文化 = 76/77（仅差 militia_bonus）；
   →「最小字段交集」= 织丰全集 ≈ 原版全集。本生成器把 ikoku + neutral 按该全集补齐，
@@ -183,6 +189,17 @@ def main():
 		</basic_mercenary_troops>
 		<cultural_feats></cultural_feats>
 		<default_policies></default_policies>
+		<!-- 名字池来源标注（用户裁定 2026-09-10「先 A：保留 + 标出处」）：
+		     本池（clan/male/female 三段共 622 条，含 8 位键）**逐字取自织丰 Shokuho 的
+		     Modules/Shokuho/ModuleData/spcultures/shokuho_main_cultures.xml**（键与罗马字值 622/622 完全一致，实证比对）。
+		     中文译文取自织丰中文包 Modules/Shokuho_CNs/.../module_localization_strings_CNs.xml（见 Taikou 的 CN 语言文件）。
+		     → 自用无碍；**对外发布/分享时须标注出处并取得织丰作者授权**（或按 C 路线改为自造名池，见 plan 待办）。
+		     注：名字与译文都是**内嵌**在本包里的（不依赖织丰是否安装），运行时自洽。
+		     ⚠️ 本注释必须留在 <Culture> 直接子节点层（雷 52）：引擎读名字池是**盲读所有子节点**的
+		        （`foreach (child in clan_names.ChildNodes) ... child.Attributes["name"].Value`），
+		        注释一旦塞进 <clan_names>/<male_names>/<female_names> 里面 → Attributes["name"] 为 null
+		        → 反序列化中途 NRE → 该文化的三个模板列表**保持 null** → OnNewGameCreated 时
+		        CompanionsCampaignBehavior.InitializeCompanionTemplateList NRE（雷 11 复发，2026-09-10 14:50 实录）。 -->
 		<clan_names>
 <name name="{{=ZdBXMo7L}}Akizuki"/>
 			<name name="{{=46fsk7gw}}Asou"/>

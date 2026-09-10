@@ -875,7 +875,7 @@ namespace LivingWorldNpcs
             // 惩罚：扣除声望 (-10)
             GainRenownAction.Apply(Hero.MainHero, -10);
 
-            AddLog(new TextObject("{=q_failed}You have failed the mission disgracefully."));
+            AddLog(new TextObject("{=LWN_q_failed}You have failed the mission disgracefully."));
         }
 
 
