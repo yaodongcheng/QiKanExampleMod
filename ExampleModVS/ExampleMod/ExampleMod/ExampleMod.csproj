@@ -334,6 +334,10 @@
     <Compile Include="CampaignMode\EraCatalog.cs" />
     <Compile Include="CampaignMode\ScenarioSelectVM.cs" />
     <Compile Include="CampaignMode\ScenarioSelectScreen.cs" />
+    <Compile Include="CampaignMode\HeroSelectData.cs" />
+    <Compile Include="CampaignMode\HeroSelectVM.cs" />
+    <Compile Include="CampaignMode\HeroSelectOverlay.cs" />
+    <Compile Include="CampaignMode\StartingHero.cs" />
     <Compile Include="CampaignMode\LivingWorldCampaign.cs" />
     <Compile Include="CampaignMode\LivingWorldCampaignGameManager.cs" />
     <Compile Include="CampaignMode\LivingWorldCharacterCreationContent.cs" />

@@ -4426,6 +4426,18 @@
     <string id="LWN_scenario_select_back" text="Back" />
     <string id="LWN_scenario_1560" text="The Wheel of Fate" />
     <string id="LWN_scenario_1582" text="The Turning Point" />
+    <string id="LWN_hero_select_title" text="Choose Your Lord" />
+    <string id="LWN_hero_select_back" text="Back" />
+    <string id="LWN_hero_select_custom" text="Custom Hero" />
+    <string id="LWN_hero_select_confirm" text="Start as This Lord" />
+    <string id="LWN_hero_select_kingdom" text="Realm" />
+    <string id="LWN_hero_select_clan" text="House" />
+    <string id="LWN_hero_select_hero" text="Lords" />
+    <string id="LWN_hero_select_will_be" text="You will play as: {NAME}" />
+    <string id="LWN_hero_select_none" text="No selectable lord in this house" />
+    <string id="LWN_hero_select_role_king" text="Ruler" />
+    <string id="LWN_hero_select_role_clan_leader" text="Clan Leader" />
+    <string id="LWN_hero_select_role_member" text="Lord" />
     <string id="LWN_campaign_continue" text="Continue Campaign" />
     <string id="LWN_campaign_continue_disabled" text="Save-loading is not implemented yet." />
     <string id="LWN_q_failed" text="You have failed the mission disgracefully." />
