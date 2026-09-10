@@ -66,7 +66,10 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>$(MB2_PATH)\Modules\LivingWorldNpcs\bin\Win64_Shipping_Client\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;$(MB2_VersionDefines)</DefineConstants>
+    <!-- 🔴 _RGL_KEEP_ASSERTS：启用 MBDebug.RenderDebug* 调试绘制通道（NavMeshDebugMissionView 用）。
+         官方这些方法全带 [Conditional("_RGL_KEEP_ASSERTS")]，不定义此符号 = 调用点被编译器静默剥离
+         （代码编译通过但画面什么都不显示，2026-09-10 NavMesh 调试可视化实锤）。 -->
+    <DefineConstants>DEBUG;TRACE;_RGL_KEEP_ASSERTS;$(MB2_VersionDefines)</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x64</PlatformTarget>
@@ -76,7 +79,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;$(MB2_VersionDefines)</DefineConstants>
+    <DefineConstants>TRACE;_RGL_KEEP_ASSERTS;$(MB2_VersionDefines)</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -363,6 +366,10 @@
     <Compile Include="Debug\LordIntroConditionGuardPatch.cs" />
     <Compile Include="Debug\BattlePowerCalculationGuardPatch.cs" />
     <Compile Include="Debug\NavMeshProbeCommands.cs" />
+    <Compile Include="Debug\NavMeshDebugCommands.cs" />
+    <Compile Include="Debug\NavMeshDebugRenderer.cs" />
+    <Compile Include="Debug\NavMeshDebugMissionView.cs" />
+    <Compile Include="Debug\NavMeshDebugMapTickPatch.cs" />
     <!-- 🔴 2026-09-09 读档崩二分（20:20 会话 save035+此三补丁 → Settlement.All=0）：
          临时移除 TownEntryDiagPatch/AreaMarkerTagGuard/IssuesSettlementGuardPatch 验证是否补丁侧问题；
          定案后恢复。 -->
