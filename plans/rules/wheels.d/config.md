@@ -288,4 +288,4 @@ ilspycmd <dll> -t <全名> | grep "<方法名>"
 
 **正确判据**：`TaleWorlds.Engine.Utilities.GetModulesNames()` = `IUtil.GetModulesCode().Split('*')`——launcher 传入的启用列表，引擎 `LoadSubModules` 装配 DLL 同一来源；**1.2.12~1.5.1 四版本同签名，无版本分支**。
 
-**落地**：`ModuleActivationHelper.IsModuleEnabled(string moduleId)`（Any 忽略大小写；任何异常保守判 false + `[ModuleActivation]` 日志）。**已统一替换的 4 个调用点**（禁止再出现第二套判据）：`Core/SplashVideoReplacePatch` / `Core/MenuSoundtrackPatch` / `Data/DesignDataLoad` / `Core/CampaignMode/CampaignModeActivator.IsModuleLoaded`；新文件 `Core/ModuleActivationHelper.cs`。
+**落地**：`ModuleActivationHelper.IsModuleEnabled(string moduleId)`（Any 忽略大小写；任何异常保守判 false + `[ModuleActivation]` 日志）。**已统一替换的 4 个调用点**（禁止再出现第二套判据）：`Core/SplashVideoReplacePatch` / `Core/MenuSoundtrackPatch` / `Data/DesignDataLoad` / `CampaignMode/CampaignModeActivator.IsModuleLoaded`；新文件 `Core/ModuleActivationHelper.cs`。

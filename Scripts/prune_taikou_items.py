@@ -46,10 +46,20 @@ ENGINE_ROSTER_IDS = {
     "player_char_creation_default",
     "npc_disguised_hero_equipment_template",
     "conspirator_cutscene_template",
+    # 2026-09-10 补：官方拷入、当年反编译清单未收录——潜行/劫狱（stealth）场景疑似硬查；
+    # 全 ModuleData 0 引用，但剪掉省 1 条目、剪错崩潜行 → 保守保留
+    "default_stealth_equipment_roster",
 }
 
 # Item 注册的 XML 根元素 = <Item id="x">（id 通常不带 Item. 前缀，剥前缀归一）
 ITEM_PREFIX = "Item."
+
+# 🔴 场景消费物品（2026-09-10 补）：官方场景 sp_* 出生点点名的物品——不在"装备引用链"里，
+# 但进场景时引擎硬查（SpawnHorses 等）；漏保留 = 重跑后被剪 = 进城崩（雷 40/41 族）。
+# 与 Scripts/check_scene_consumables.py 的体检对象保持同步（该脚本报 satisfied/missing 即此处依据）。
+SCENE_CONSUMED_ITEMS = {
+    "aserai_horse", "battania_horse", "empire_horse", "khuzait_horse", "sturgia_horse",
+}
 
 
 def collect_usage(module_data):
@@ -62,13 +72,26 @@ def collect_usage(module_data):
     keep_items = set()
     keep_rosters = set()
 
-    npc_char = module_data / "spnpccharacters.xml"
-    if npc_char.exists():
-        root = ET.parse(str(npc_char)).getroot()
+    # 规则①内联装备（2026-09-10 泛化）：扫 ModuleData 下所有 NPCCharacters 根文件的
+    #   <equipment id="Item.x">（原只扫 spnpccharacters.xml——漏了 taikou_gangsters.xml）
+    #   同时收集 <EquipmentSet id="X"/> 引用 → keep_rosters（原漏：地痞民用套装被剪）
+    for path in sorted(module_data.glob("*.xml")):
+        try:
+            root = ET.parse(str(path)).getroot()
+        except Exception:
+            continue
+        if root.tag != "NPCCharacters":
+            continue
         for eq in root.iter("equipment"):
             iid = eq.get("id") or ""
             if iid.startswith(ITEM_PREFIX):
                 keep_items.add(iid[len(ITEM_PREFIX):])
+        for eq_set in root.iter("EquipmentSet"):
+            sid = eq_set.get("id") or ""
+            if sid.startswith("EquipmentRoster."):
+                sid = sid[len("EquipmentRoster."):]
+            if sid:
+                keep_rosters.add(sid)
 
     # culture 引用的 roster（对全部 spcultures.xml cell 的 default_*_equipment_roster 属性）
     cultures = module_data / "spcultures.xml"
@@ -110,7 +133,7 @@ def main():
     module_data = Path(args.module) / "ModuleData"
 
     keep_items, keep_rosters = collect_usage(module_data)
-    keep_items = keep_items | ENGINE_ITEMS
+    keep_items = keep_items | ENGINE_ITEMS | SCENE_CONSUMED_ITEMS
     keep_rosters = keep_rosters | ENGINE_ROSTER_IDS   # 引擎硬编码 roster 必须存在（织丰同款做法）
 
     def prune_into(path, keep_set, tag, dry):

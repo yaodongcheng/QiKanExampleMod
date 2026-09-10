@@ -2,7 +2,13 @@
 
 > 本文件 = 会话交接。**下个 session 从这里开始**，不用重跑任何反编译（结论全部实锤并附出处）。
 >
-> 🔴 **本 plan 的雷 1~36 已沉淀为可复用的「自定义世界从零起步必备清单」**：`Knowledge/自定义世界内容包从零起步必备清单.md`——新内容包立项直接照那份清单勾选，本文件只保留 Taikou 上下文与排雷实录。
+> 🔴 **本 plan 的雷 1~43 已沉淀为可复用的「自定义世界从零起步必备清单」**：`Knowledge/自定义世界内容包从零起步必备清单.md`——新内容包立项直接照那份清单勾选，本文件只保留 Taikou 上下文与排雷实录。
+>
+> 🔴🔴 **执行纪律（2026-09-10 用户裁定）——每执行完一步，必须停下来对照三处，考虑是否修正「必备清单」：**
+> ① **雷表**要不要加行/改行（症状 / 根因 / 修法归属）——凡本次产出"新症状→根因→修法"链条，即登记；
+> ② **命中阶段清单的条目**（阶段 0/1/1.4b/1.5/1.6/2/3）→ 补勾选项或"症状信号"；
+> ③ **兜底台账表**（清单「LWN 内置兜底 + 运行期补丁台账」节）→ 新增/退役/状态变更的运行期补丁。
+> **判断标准**：这一步的结论，**如果新内容包不知道会再踩一次 → 必须回填清单**；只影响 Taikou 自身的（进度、临时验证、待办）→ 留在 plan 即可。清单是坑位地图（给下一个世界看），plan 是执行流水（给自己看）——两者不可互换。
 
 ## 🔴 TODO（下一步从这里开始，2026-09-10 更新）
 
@@ -10,18 +16,26 @@
 - [x] **T3（基本完成，2026-09-10）**：**大地图 + 城镇场景双通**——进图不崩（雷 28）✓ / 地图 tick（雷 29）✓ / 相机对准京（雷 30/33）✓ / 京图标可见可点（雷 37）✓ / **进城场景链（雷 40 地痞 + 雷 41 马）✓ 实机顺利进城镇中心** / **黄圈与拾取范围手感调好（雷 39：圈 0.936 / bo_town 1.0，纯 XML）✓**
 - [ ] **T3 尾项（三项确认，不阻塞 T4）**：①存档 F5（雷 32 定义器——若仍报缺类型 → OnSubModuleLoad 加 `new LivingWorldSaveableTypeDefiner();`）②相机"东移"全图走一遍（雷 34 border 修复复测）③MCM 主菜单页定位（去勾 Taikou 对照组）
 
+## 🔴 本轮实机验证（2026-09-10 待跑，3 项——本会话改了 DLL 与 XML）
+
+> DLL 状态：诊断补丁下线后已 `dotnet build -c Debug`（产物直出游戏目录，可直接跑验证）；正式发布再走 VS2022 编译（铁律 19）。
+
+- [ ] **① 启动 + 读档正常**：9 个诊断补丁摘除后的新 DLL 无异常（它们只打印日志，理论上零影响——一次启动确认）
+- [ ] **② 大地图手感**：京黄圈大小（scale 0.936）+ 鼠标拾取范围（bo_town scale 1.0）——圈与塔齐、触发不"隔空"即通过；不合报比例再调（纯 XML）
+- [ ] **③ 点「交易」按钮**：市场界面打开不崩（雷 18/43 结案点——反编译已证路径健康，此步为最终实机确认）
+
 ## 🔴 兜底退役 · 第一步 TODO（2026-09-10 复盘产物，逐项勾）
 
-> 台账 = [复盘文档第三节](../Knowledge/自定义世界排雷复盘-数据优先与兜底台账-20260910.md)。验证成本三档：🟢 日志观察 / 🟡 现有档复测 / 🔴 重开档（**本批全部无需重开档**）。
+> 台账 = [必备清单「LWN 内置兜底 + 运行期补丁台账」节](../Knowledge/自定义世界内容包从零起步必备清单.md)。验证成本三档：🟢 日志观察 / 🟡 现有档复测 / 🔴 重开档（**本批全部无需重开档**）。
 > 原则：**先建防线（防新增雷）→ 再清旧账（退役补丁）**；每项退役 = csproj 摘除登记行 + 台账行更新状态。
 
 **第 1 批（本步就做，3 项）**
-- [ ] **① 场景消费脚本（新防线）** —— **是什么**：一个新的离线体检脚本 `Scripts/check_scene_consumables.py`。**体检什么**：太阁进城用的官方场景（如 `empire_town_a`）里藏着各种"出生点"（马厩、动物圈、货摊），每个出生点都**点名要某个物品**（例如马厩点名要 `aserai_horse` 这匹马——点名清单写在场景 prefab 文件里）；太阁的物品库有没有这些东西，引擎**直到进场景那一刻才检查，缺了就崩**（雷 41 马崩就是这样来的）。脚本把这道检查**提前到离线**：扫场景里所有出生点 → 读它们点名的物品/角色 → 对照太阁自己的清单 → 缺谁报谁（exit 1 阻断）。**完成标准**：对当前 Taikou 跑出 0 缺失，并写进「数据改动必跑三件套」。**收益**：今后新内容包/新场景再缺东西，保存数据时就报红，不进游戏崩。
-- [ ] **② 马兜底补丁定案（建议删）** —— **是哪个**：`Debug/HorseSpawnNullGuardPatch.cs`（2026-09-09 进城马崩当天写的"临时保险"：拦住游戏原生的刷马方法，碰到"这匹马物品不存在"就跳过该出生点、不崩）。**现状（两件事）**：a) 根因已用**数据**治好——5 匹马已补进太阁物品库，实机进城通过；b) 它**从未生效**——压根没被编译（csproj 漏登记，见排雷链 40）。**动作二选一**：**(建议) 删文件**——问题已根治，将来新包缺马由 ① 脚本离线抓；**或**登记进 csproj 当保险（防第三方场景缺物品时运行期不崩）。**判断依据**：数据优先原则——能离线抓的，不留运行期代码。
-- [ ] **③ 诊断补丁归档** —— **是什么**：排雷期写的一批"临时侦察兵"（约 15 个文件：`*Logger*`×6 打印消息/菜单日志、`*Diag*`×3 打印点击/遭遇诊断、NavMesh×5 调试绘制、`ClickDiag` 等）——只打印、不改行为，供当时定位崩溃用。**动作**：排查已结束的，从 csproj 注释掉并移到 `Debug/_archive/`，让正式 DLL 保持干净；**保留** `MapBorderDiagnosticPatch`（造地图必用的长期工具）。**完成标准**：csproj 生产清单只剩"功能 + 常驻兜底 + 保留工具"。
+- [x] **① 场景消费脚本（新防线）** ✅ 2026-09-10 —— **是什么**：一个新的离线体检脚本 `Scripts/check_scene_consumables.py`。**体检什么**：太阁进城用的官方场景（如 `empire_town_a`）里藏着各种"出生点"（马厩、动物圈、货摊），每个出生点都**点名要某个物品**（例如马厩点名要 `aserai_horse` 这匹马——点名清单写在场景 prefab 文件里）；太阁的物品库有没有这些东西，引擎**直到进场景那一刻才检查，缺了就崩**（雷 41 马崩就是这样来的）。脚本把这道检查**提前到离线**：扫场景里所有出生点 → 读它们点名的物品/角色 → 对照太阁自己的清单 → 缺谁报谁（exit 1 阻断）。**实测（2026-09-10）**：Taikou 跑出 **missing=0 / satisfied=9**（9 处马消费全命中本包，反向验证 5 匹马修复）；顺带报出 4 个"找不到的场景名"（empire_hippodrome_a 等）= **官方自己也这么写**（官方场景文件实际叫 arena_empire_a，引擎侧有容错）→ 非问题。**已知边界**：只查静态可读的 prefab tags（运行时动态 tags 的情形查不到）。已列入「数据改动必跑」。
+- [x] **② 马兜底补丁定案** ✅ 2026-09-10 —— **是哪个**：`Debug/HorseSpawnNullGuardPatch.cs`（2026-09-09 进城马崩当天写的"临时保险"）。**处置：已删**（数据已治本 + 从未编译生效；将来新包缺马交给 ① 脚本离线抓）。
+- [x] **③ 诊断补丁归档** ✅ 2026-09-10 —— **下线 9 个**（文件直接删 + csproj 注释；恢复 = git 历史捞回 `git checkout HEAD -- 原路径`——git 本身就是归档，不留工作区副本）：AddQuickInformationLogger / DisplayMessageLogger / ShowInquiryLogger / SceneNotificationLogger / AgentSetTeamLogger / ClickDiag / EncounterDiag / PartyVisualCircleDiag / TownEntryDiag。**保留 6 个（未下线）**（其中 2 个是当时已移出又被编译错误抓回来的）：`GameMenuLogger`（**不是诊断**——是 `UiFullScreenHelper.IsGameMenuOpen` 的状态源，生产依赖）+ NavMesh 五件套（**未结案**的调试工具，memory 记"下一步=最小复现"，需要时再议）。编译 0 错 0 警。
 
 **第 2 批（紧接第 1 批，2 项，各 ≤ 半小时）**
-- [ ] **④ `CultureTemplateNullFix` 退役**（🟢 只跑日志） —— **是什么**：战役启动时自动修"文化缺模板清单"的半成品对象（防一启动就 NRE 的保险，雷 11 遗留）。**为什么能退**：根因已在**数据层**洗掉——当初拷贝官方文件残留的 1835 处原版文化引用，已由 `sanitize_taikou_cultures.py` 全部替换成自家文化（治本完成）。**动作与验证**：跑一轮（新旧档均可）→ 日志里**没有**「模板列表修复」字样 = 数据干净 → 摘掉 `LivingWorldCampaign.OnInitialize` 里的调用 + 文件归档。
+- [ ] **④ `CultureTemplateNullFix` 退役**（🟢 只跑日志） —— **是什么**：战役启动时自动修"文化缺模板清单"的半成品对象（防一启动就 NRE 的保险，雷 11 遗留）。**为什么能退**：根因已在**数据层**洗掉——当初拷贝官方文件残留的 1835 处原版文化引用，已由 `sanitize_taikou_cultures.py` 全部替换成自家文化（治本完成）。**动作与验证**：跑一轮（新旧档均可）→ 日志里**没有**「模板列表修复」字样 = 数据干净 → 摘掉 `LivingWorldCampaign.OnInitialize` 里的调用 + 文件删除（恢复 = git 历史捞回）。
 - [ ] **⑤ `LordIntroConditionGuardPatch` 退役**（🟡 现有档复测一次） —— **是什么**：找领主对话时，游戏要念一句"领主自我介绍"，**文本缺失就崩**；这个补丁的兜底 = 文本缺失就把那句跳过（不崩，少一句话，雷 35 遗留）。**为什么能退**：那批文本（SandBox 的 9 个文本文件）已原样拷进太阁包并注册（数据治本）。**动作与验证**：现有档找织田信长对话一次 → 日志无 `[LordIntroGuard]` 跳过记录 = 文本已齐 → 摘除补丁。
 
 **暂缓（写清等什么，不占本步）**
@@ -33,14 +47,17 @@
 
 ## 一句话现状（2026-09-10 —— 交接口）
 
-> 🔴 **本次复盘**（2026-09-10 用户提议）：全雷解决层次分类 + 运行期补丁兜底台账 + 优化清单 → [Knowledge/自定义世界排雷复盘-数据优先与兜底台账-20260910.md](../Knowledge/自定义世界排雷复盘-数据优先与兜底台账-20260910.md)。**待办优化第 1 项**：官方场景消费清单脚本化（`check_scene_consumables.py`，把雷 40/41 这类运行期雷提前到离线）。
+> 🔴 **本次复盘**（2026-09-10 用户提议）：数据优先三原则 + 全雷层次统计 + 运行期补丁台账（已合并进主清单）→ [Knowledge/自定义世界内容包从零起步必备清单.md](../Knowledge/自定义世界内容包从零起步必备清单.md) 阶段 2 总纪律 + 「LWN 内置兜底 + 运行期补丁台账」节。
 
-**T1-T3 主线全通**：`建世界（雷 1-22）→ 建号 CC（雷 23-27）→ 进大地图（雷 28-34）→ 城镇交互+进城场景（雷 37-41）→ 圈/拾取手感（雷 39）` 全部实机验证。**当前可玩状态 = 开局 → 建号 → 日本图 → 点京 → 进城中心（有地痞/有马）**。剩三项收尾确认（存档 F5 / 相机全图 / MCM 页）不阻塞 T4。**下一站 = T4 全量数据**（布局表批量出城 + 自建兵种/物品体系）。
+**T1-T3 主线全通**：`建世界（雷 1-22）→ 建号 CC（雷 23-27）→ 进大地图（雷 28-34）→ 城镇交互+进城场景（雷 37-41）→ 圈/拾取手感（雷 39）` 全部实机验证。**当前可玩状态 = 开局 → 建号 → 日本图 → 点京 → 进城中心（有地痞/有马）**。剩三项收尾确认（存档 F5 / 相机全图 / MCM 页）不阻塞 T4。
+
+**2026-09-10 增量（复盘 + 兜底治理第一批）**：数据优先三原则定案；兜底退役第一批完成（马补丁删除 / 9 诊断归档 / 场景消费脚本 `check_scene_consumables.py` 上线入四件套）；僵尸修复清理（`taikou_produce_items.xml` + 生成器删除，merchandise 误诊经反编译更正——真根因是文化匹配）；`prune_taikou_items.py` 判据补齐（重跑不再剪场景消费物品/地痞套装，dry-run 全绿）；两份 Knowledge 合并为一份。**下一步 = 本轮实机验证 3 项 → 兜底退役第 2 批（④⑤）→ T4 全量数据**。
 
 **⚠️ 雷区备忘（已修但需知）**：
-- 生成器重跑会覆盖手改（铁律 22 现场教训——**改数据必须改生成器**；`gen_taikou_culture_full.py` 幂等已修；`gen_taikou_workshop_items.py` 是一次性脚本（重跑会重复插入——用前先看代码）
-- `gen_taikou_workshop_items.py` 输出 bug（2026-09-09 雷 37 同场查处）：模板函数拼 `${group(1)}` 缺空格 → 产出 `<Itemid=`（XML 非法，checker FILE-ERROR）；**脚本已修（补空格），未重跑**（防重复插入）；`taikou_produce_items.xml` 未注册 SubModule（暂无害），T4 工坊线前「删旧重跑」或重审
-- 数据改动后必跑：`python Scripts/check_taikou_xml_references.py`（0 悬空）+ `check_taikou_field_coverage.py`（七类交集，跑完后人工甄别误报/特例——见 Knowledge/内容包最小字段交集.md）
+- 生成器重跑会覆盖手改（铁律 22 现场教训——**改数据必须改生成器**；`gen_taikou_culture_full.py` 幂等已修；`gen_taikou_workshop_items.py` 已删（见下条）
+- `gen_taikou_workshop_items.py` 输出 bug（2026-09-09 雷 37 同场查处）：模板函数拼 `${group(1)}` 缺空格 → 产出 `<Itemid=`（XML 非法，checker FILE-ERROR）；**2026-09-10 结案**：该生成器与产物 `taikou_produce_items.xml` 一并**已删**（详情见排雷链 41——方案被更省的路线取代后成僵尸，且"merch"路线经反编译证实从来不需要）。原"重跑会重复插入"的警告**不成立**（脚本是整体覆盖），已作废。
+- 🔴 **`prune_taikou_items.py` 重跑安全（2026-09-10 修判据后）**：原判据只认"装备引用链/引擎必留"，**漏了场景消费物品（5 匹马）与 EquipmentSet 引用（地痞民用套装）** → 重跑会剪掉进场景所需物品。已补：`SCENE_CONSUMED_ITEMS` 常量（与 `check_scene_consumables.py` 体检对象同步）+ 泛化扫描（所有 NPCCharacters 文件的 `<equipment>` 与 `<EquipmentSet>` 引用）。**dry-run 全绿（43→43 / 11→11, deleted=0）**。今后加物品/套装：先 dry-run 看 deleted=0 再实跑。
+- 数据改动后必跑（**四件套**）：`python Scripts/check_taikou_xml_references.py`（0 悬空）+ `check_taikou_field_coverage.py`（七类交集，跑完后人工甄别误报/特例——见 Knowledge/内容包最小字段交集.md）+ **`check_scene_consumables.py`（官方场景消费体检，2026-09-10 新增：场景 prefab 点名的物品本包齐不齐，雷 40/41 族离线防线）** + 改过的 XML 全 parse
 
 ## T1 结案（2026-09-07 深夜，三颗雷合一）
 
@@ -119,7 +136,7 @@
 
 ## 已落盘改动清单（全部完成）
 
-**A. LWN（ExampleModVS/ExampleMod/ExampleMod/Core/CampaignMode/）**：
+**A. LWN（ExampleModVS/ExampleMod/ExampleMod/CampaignMode/）**：
 `CampaignModeActivator.cs`（双模式开关+主菜单接线）/ `LivingWorldCampaign.cs`（:Campaign，含 dump 诊断）/ `LivingWorldCampaignGameManager.cs`（:MBGameManager，DoLoadingForGameManager 全链）/ `LivingWorldCharacterCreationContent.cs`（CC 2 阶段 + OnCharacterCreationFinalized 出生点）/ `TaikouCampaign.cs`（thin，`TaikouStartingPosition=(973,421)`）——csproj 已加 Compile；MySubModule.cs 已调 TryActivateCampaignMode。
 
 **B. Taikou 数据包（1.2.12 机 Modules/Taikou/）**：
@@ -165,7 +182,7 @@
 29. **进图后解除 pause 即崩 `PartyVisual.RefreshPartyIcon` KeyNotFound**（2026-09-08）：`gateBannerEntitiesWithLevels[wallLevel]`——`GetWallLevel()` = 城防建筑（Fortifications）**当前等级**（1.2.12 `Town.GetWallLevel` 实锤；官方场景门旗组（`banner_pos` placeholder + `banner_l1/l2/l3` 墙旗实体）按 {1,2,3} 建组）——**京 town_comp 配了 `level="4"` 超出官方体系上限 3** → wallLevel=4 → dict[4] 缺 key 崩。**修法**：`town_comp_kyoto level 4→3`（数据；checker pass）。织丰对照：织丰场景只有 banner_pos（无 l1/2/3——他们城墙等级天生 ≤3 且未触发 4 级城）。**教训**：官方城墙等级体系上界 = 3；内容包"4 级城"需要自己做第 4 层门旗实体（T4 布局表时决定要不要）
 30. **进图后相机看不到角色**（2026-09-08 用户实测）：CC 完成落场时大地图默认机位 = 官方地图坐标（camera_top/默认锚点），与玩家出生点脱节。织丰母本实锤做法 = `OnCharacterCreationFinalized` 里 `MapState.Handler.ResetCamera(true,true) + TeleportCameraToMainParty()`（Shokuho.dll 反编译实锤；织丰场景无 camera_top 实体——他们"看得见角色"靠的就是这段）。**修法**：LivingWorldCharacterCreationContent.OnCharacterCreationFinalized Taikou 分支出生点设置后照抄（编译 0 错）
 31. **进图每小时 tick 崩 `RetirementCampaignBehavior.CheckRetirementSettlementVisibility` NRE**（2026-09-08）：`_retirementSettlement = Settlement.Find("retirement_retreat")`（SandBox.dll 硬编码）——官方退休据点 `retirement_retreat`（RetirementSettlementComponent + map_icon bandit_hideout_b + gui_bg_village_battania + retreat_complex + scn_retirement 全官方资源）我们世界没有 → null → tick NRE（相机 WASD 失灵 = 崩在每 tick 的连带效果）。织丰做派 = 自建整套退休体系（ShokuhoRetirementCampaignBehavior+RetirementEncounter+OpenRetirementMission——KCD 水准）。**修法（v0 选 A：补数据，不屏蔽）**：官方最小条目追加进 settlements.xml（position 放京边 1090/500；culture 洗 ikoku；checker 0 悬空）——退休菜单/对话随组件自动注册；T4 布局表再统一管位置
-32. **无法存档 `SaveFailed: Could not find type definition of type: LivingWorldNpcs.CampaignMode.TaikouCampaign`**（2026-09-08）：战役类（Campaign 子类）进存档必须有类型注册——机制实锤 = `SaveableTypeDefiner` 派生类由引擎启动自动发现实例化（StoryMode `SaveableStoryModeTypeDefiner` base=320000 注册 CampaignStoryMode id=1；织丰 `ShokuhoSaveableTypeDefiner` base=3564814 注册 ShokuhoCampaign id=69——两者均无显式 new 调用点 = 自动发现实证）。**修法**：新增 `Core/CampaignMode/LivingWorldSaveableTypeDefiner.cs`（base=4455667；注册 TaikouCampaign=1 + LivingWorldCampaign=2——通用战役同样需要）
+32. **无法存档 `SaveFailed: Could not find type definition of type: LivingWorldNpcs.CampaignMode.TaikouCampaign`**（2026-09-08）：战役类（Campaign 子类）进存档必须有类型注册——机制实锤 = `SaveableTypeDefiner` 派生类由引擎启动自动发现实例化（StoryMode `SaveableStoryModeTypeDefiner` base=320000 注册 CampaignStoryMode id=1；织丰 `ShokuhoSaveableTypeDefiner` base=3564814 注册 ShokuhoCampaign id=69——两者均无显式 new 调用点 = 自动发现实证）。**修法**：新增 `CampaignMode/LivingWorldSaveableTypeDefiner.cs`（base=4455667；注册 TaikouCampaign=1 + LivingWorldCampaign=2——通用战役同样需要）
 33. **相机不框住玩家**（2026-09-08 用户实测三轮）：OnCharacterCreationFinalized 里 teleport 时序不生效——CC 完成回调时 ActiveState 仍为建号状态、MapState 未推入 → 织丰同款代码被 `if (val != null)` 空检查跳过。织丰等效做法 = 自建 MapView（`ShokuhoMapView`，AddMapView 注入）初始化后再拉相机。**修法（轻量等价）**：`Debug/MapScreenCameraPatch.cs`——`MapScreen.OnInitialize` Postfix（地图就绪时刻，即织丰 MapView 初始化时机）→ `Handler.ResetCamera(true,true)+TeleportCameraToMainParty`。出生点同步外移（973,421→985,428：原坐标落城圈内贴塔，视线遮挡；新坐标 = 京门前一箭地）
 34. **日本图相机「空气墙」：到京都（x≈969）以东就动不了**（2026-09-08 用户实测，T3 TODO②反转实锤）：相机目标位置每帧被钳进 `[Campaign.MapMinimumPosition, MapMaximumPosition]`（SandBox.View.dll `ComputeMapCamera` 反编译实锤），而这两个值来自 `SandBox.MapScene.GetMapBorders` = **读场景里 border_min / border_max 两个命名实体**。Taikou Main_map 克隆时主体地形+脚本实体都搬了、但**两个边界实体没带**：
    - **v1.2.12**：引擎对缺失**有兜底**——min=(0,0)、max=(**900,900**)、height=670（SandBox.dll 反编译实锤）→ 相机墙在 x=900 / y=900；京都(969,421) 恰好落在墙外一点 → 症状 100% 吻合
@@ -180,6 +197,7 @@
 38. **进城（TownCenter）第二颗：`MissionAgentHandler.SpawnHorses` NRE（`ItemRosterElement(null)`）**（2026-09-09 用户实测 1.2.12 机，雷 41 对位）：`TownCenterMissionController.AfterStart` 第 24 行 → SpawnHorses 扫 `FindEntitiesWithTag("sp_horse")` → `item.Tags[1]` = 物品 id → `GetObject<ItemObject>` → null → 构造 ItemRosterElement NRE。**根因同族（引擎硬编码消费的原版资源不在自定义世界）**：官方 town 场景（`empire_town_a`，Taikou town_complex center 直接引用官方场景——太阁无自有城市场景）内 sp_horse_merchant 实例 → prefab 定义（Native/Prefabs/editor_spawnpoints.xml，1.2.12 本机实锤 7 个 sp_horse prefab = aserai/khuzait/empire/vlandia/battania/sturgia 马 + 重复）Tags[1] 引用马物品 → GameType 过滤未装载（太阁物品 38 件，仅 vlandia_horse/charger/mule/sumpter_horse）→ null → NRE。织丰对照：织丰自有场景 + 自有 sp_horse_kiso prefab + 自家马物品 → 从不踩。**修法两层**：①数据（治本）——1.2.12 官方 5 匹马定义（aserai/battania/empire/khuzait/sturgia_horse）原样拷贝入 `taikou_items/horses_and_others.xml`，culture 洗 ikoku（checker 0 悬空 ✓）②代码（LWN 通用兜底）`Debug/HorseSpawnNullGuardPatch.cs`——前缀替换 SpawnHorses：Tags 缺项/物品 null → 跳过 + `[HorseSpawnGuard]` 日志（不崩，马匹降级缺失）；类型+方法名字符串双目标（1.2.12 `SandBox.Missions.MissionLogics.MissionAgentHandler` + 1.5.2 `SandBox.SandBoxHelpers.MissionHelper`，后者 1.5.2 SpawnMonster 5 参 `#if MB2_GE_140` 分支）。**环境实锤（本次更正）**：1.2.12 完整客户端就在本机 `H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\...`（注册表 MB2_PATH 当前指向它，2026-09-09）；Taikou/LWN 模块 = 双客户端 junction 同源，数据改动一处双端生效。✅ 2026-09-09 实机：顺利进城镇中心
 39. **黄圈尺寸 / 拾取范围手感（2026-09-09~10 用户实测两轮，纯 XML 调）**：①**圈太大**（截图目测）→ 手动缩 3/5：`town_circle_decal` scale 1.56 → 0.936（世界 1.87m）；②**圈外很远就触发 tooltip**（截图红点）——**根因：拾取与视觉是两个独立组件**——`bo_town`（bo_sphere_collider，仅碰射线碰撞体，雷 37 加）控制鼠标拾取，`map_settlement_circle` tag 的 decal 控制视觉圈；bo_town 原 scale 3.5（×父 2.0 = 世界 7.0）远大于圈 → 收到 1.0 与圈同量级。**官方惯例实锤**（SandBox Main_map 50 城抽样）：两个值的 local scale 各配各的（bo 1.7~7.2 / decal 2.6~9.1，无固定比例）——**官方也是场景作者手调的**。**智能方案否决记录**：曾写 `MapSettlementCircleAutoSizer`（运行时按模型包围盒自动调圈）——用户裁定「纯 XML 静态值不需要代码实时调整」→ 代码已删（同批删掉的还有只读诊断 `MapSettlementMetricsDiag`）。**教训**：场景实体尺寸类问题先查「哪些实体参与该行为」（拾取=bo_*、视觉=decal/mesh）再动手，别只调看得见的那个。
 40. **流程雷：csproj 显式 Compile 清单——新增 .cs 不登记 = 静默不编译（2026-09-10 查处）**：本项目 csproj 为旧式显式清单（无通配），`dotnet build` **成功 ≠ 新文件被编译**——9-09 新增的 `HorseSpawnNullGuardPatch.cs` 与 `MapSettlementCircleAutoSizer.cs` 均漏登记，所谓「编译 0 错」是假象（编译器根本没看这两个文件；进城成功全靠数据修复，兜底从未生效）。**纪律**：新增 .cs 文件后第一件事 = 在 csproj `<Compile Include="..."/>` 登记 + build 一次看真编译产物；文件删除时同步删登记行。`HorseSpawnNullGuardPatch` 现保持未登记（数据已治本，待读档二分定案后决定启用）。
+41. **僵尸修复遗留 + merchandise 误诊更正（2026-09-10 用户追问查处）**：`taikou_produce_items.xml`（雷 18 的"方案 A"产物：造 ikoku_* 商品）——状态 = **三重死亡**（11 个 `<Itemid=` 全坏 / 未注册 SubModule / 对着旧 23 分类生成）；游戏跑通靠的是"方案 B"（转 ikoku 文化 + 裁工坊分类）。**深入反编译后更正**：①`ItemObject.is_merchandise` **缺省即商品**（`NotMerchandise` auto-property 默认 false；XML 只显式 false 才排除）——雷 18 记录里"merchandise=0"是误诊，**真根因 = 文化不匹配**（`TownMarketData.IsItemPreferredForTown`：`item.Culture == town.Culture` 才可用；官方拷入物品带 empire 等文化）→"转 ikoku"那半是唯一有效修复；②市场分类表筛选 = `!NotMerchandise` + 文化匹配 → 本包 43 件（除 5 件显式 false）**天然都是商品**，市场/工坊路径本来就健康。**处置**：僵尸文件 + 生成器 `gen_taikou_workshop_items.py` **已删**；**连带真隐患补救**：`prune_taikou_items.py` 判据漏"场景消费物品/EquipmentSet 引用"（重跑会剪掉 5 马与地痞套装）→ 已补（`SCENE_CONSUMED_ITEMS` + 泛化扫描）+ `default_stealth_equipment_roster` 保守保留；dry-run 全绿（43→43/11→11）。**教训**：①生成物判据必须跟着"新消费面"升级（场景消费/装备集引用都要进保留集）②改生成物前先 `--dry-run`③"当年诊断"要经反编译复核再用（merchandise 误诊传了三轮）。
 
 28. **进大地图首步崩 `MapScreen.OnInitialize` NRE**（2026-09-08，CC 全链通过后的下一站=T3 第一雷）：`PrefabEntityCache = _mapScene.GetFirstEntityWithScriptComponent<CampaignMapSiegePrefabEntityCache>().GetFirstScriptOfType(...)` 无 null 守卫——**我们的 Main_map 缺官方 12 个地图脚本实体（官方 37906 实体：CampaignMapSiegePrefabEntityCache/MapColorGradeManager/SceneLeveler/SettlementPositionScript/Town Entity Manager/Town Scene Manager/river_generator/water_body/path_converger/sound_emitter/VolumeBox——我们只保住了 ReflectionCapturer）。修法（v0 一次补基建 5 + 京胶囊）**：①`CampaignMapSiegePrefabEntityCache`（引擎硬查询无守卫——NRE 元凶）②`MapColorGradeManager` ③`SettlementPositionScript`（地图锚点）④`Town Scene Manager` ⑤`SceneLeveler`——全部以官方原样空对象块插入 Taikou Main_map xscene；⑥京 = 官方 capsule 结构重拼：`campaign_icon_capsule_1`（Z=20 + Town Entity Manager，与官方 capsule_36 同构）→ children `town_kyoto`（转相对坐标 0/0/-15.399）。**未搬（刻意）**：river_generator/water_body（卡拉迪亚河/水，日本图上出现=出戏）、path_converger（路网）、sound_emitter（卡拉迪亚声）、VolumeBox——留 T3 配日本风。**教训**：地图场景 = 实体+脚本的"内容原型"，从 bigmap 基底克隆地形图时必须带官方脚本实体清单（写进 knowledge——地图场景脚本实体清单是内容包造图的必查表）；xscene 实体插入后 XML parse 必验（已过）。⚠️ navmesh 未受影响（地形未动，实体变化不要求重生成）
 

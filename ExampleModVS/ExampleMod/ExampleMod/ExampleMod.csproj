@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -323,11 +323,11 @@
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
     <!-- CampaignMode：通用自定义战役（GameType）层——内容包加载时激活（三单元架构） -->
-    <Compile Include="Core\CampaignMode\CampaignModeActivator.cs" />
-    <Compile Include="Core\CampaignMode\LivingWorldCampaign.cs" />
-    <Compile Include="Core\CampaignMode\LivingWorldCampaignGameManager.cs" />
-    <Compile Include="Core\CampaignMode\LivingWorldCharacterCreationContent.cs" />
-    <Compile Include="Core\CampaignMode\TaikouCampaign.cs" />
+    <Compile Include="CampaignMode\CampaignModeActivator.cs" />
+    <Compile Include="CampaignMode\LivingWorldCampaign.cs" />
+    <Compile Include="CampaignMode\LivingWorldCampaignGameManager.cs" />
+    <Compile Include="CampaignMode\LivingWorldCharacterCreationContent.cs" />
+    <Compile Include="CampaignMode\TaikouCampaign.cs" />
     <Compile Include="Core\MyBehavior.cs" />
     <Compile Include="Core\NameDisplayRules.cs" />
     <Compile Include="Core\MySubModule.cs" />
@@ -346,14 +346,15 @@
     <Compile Include="Data\DesignDataLoad.cs" />
     <Compile Include="Data\PortraitRegistry.cs" />
     <!-- Debug -->
-    <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" />
+    <!-- 🔴 2026-09-10 诊断补丁下线（文件已删，排查结束；恢复 = git checkout 自 HEAD 取原路径 后去掉本行注释）——以下为下线项： -->
+    <!-- <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" /> -->
     <Compile Include="Debug\AiPatrollingNullFix.cs" />
     <Compile Include="Debug\CrashLogHook.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
-    <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
+    <!-- <Compile Include="Debug\DisplayMessageLoggerPatch.cs" /> -->
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
-    <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
-    <Compile Include="Debug\SceneNotificationLoggerPatch.cs" />
+    <!-- <Compile Include="Debug\ShowInquiryLoggerPatch.cs" /> -->
+    <!-- <Compile Include="Debug\SceneNotificationLoggerPatch.cs" /> -->
     <Compile Include="Debug\SaveGuard.cs" />
     <Compile Include="Debug\AgentDamageModelCultureNullFix.cs" />
     <Compile Include="Debug\CharacterCultureBackfill.cs" />
@@ -373,10 +374,10 @@
     <!-- 🔴 2026-09-09 读档崩二分（20:20 会话 save035+此三补丁 → Settlement.All=0）：
          临时移除 TownEntryDiagPatch/AreaMarkerTagGuard/IssuesSettlementGuardPatch 验证是否补丁侧问题；
          定案后恢复。 -->
-    <Compile Include="Debug\ClickDiagPatch.cs" />
-    <Compile Include="Debug\EncounterDiagPatches.cs" />
-    <Compile Include="Debug\PartyVisualCircleDiag.cs" />
-    <Compile Include="Core\CampaignMode\LivingWorldSaveableTypeDefiner.cs" />
+    <!-- <Compile Include="Debug\ClickDiagPatch.cs" /> -->
+    <!-- <Compile Include="Debug\EncounterDiagPatches.cs" /> -->
+    <!-- <Compile Include="Debug\PartyVisualCircleDiag.cs" /> -->
+    <Compile Include="CampaignMode\LivingWorldSaveableTypeDefiner.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <Compile Include="Debug\TerrainExportCommands.cs" />
