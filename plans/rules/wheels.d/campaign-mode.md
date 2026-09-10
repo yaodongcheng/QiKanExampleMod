@@ -75,7 +75,8 @@ python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Tai
 文化类 NRE 已有三层战线，本卷只持新轮子：
 | 轮子 | 层 | 文件 |
 |---|---|---|
-| `AgentDamageModelCultureNullFix` | 运行时 Transpiler（伤害模型 `.Culture.IsBandit` 裸解引用） | `CampaignMode/AgentDamageModelCultureNullFix.cs` |
+| `AgentDamageModelCultureNullFix`（**通用修复**，2026-09-10 移入 `Core/`） | 运行时 Transpiler（伤害模型 `.Culture.IsBandit` 裸解引用）——**与太阁无关**：出处是织丰（其模板漏写 culture），且在"纯功能包"模式跑原版战役时同样生效 | `Core/AgentDamageModelCultureNullFix.cs` |
+| `CharacterCultureBackfill`（**通用修复**，2026-09-10 恢复并移入 `Core/`） | 生成期补数据（给漏写 culture 的角色按生成地点补全）——与上行是**配套两半，缺一不可** | `Core/CharacterCultureBackfill.cs` |
 | `CharacterCultureBackfill` | 生成期 MissionLogic（角色缺 culture 按生成地点补全） | `CampaignMode/CharacterCultureBackfill.cs` |
 | ~~本卷 `CultureTemplateNullFix`~~（**已退役** 2026-09-10） | ~~加载期（文化模板列表 null→空）~~ → 数据侧 `check_taikou_xml_references.py` + `check_culture_references.py` 常驻守不变量 | 见上（第二节） |
 | `HorseSpawnNullGuardPatch`（**已删** 2026-09-10） | 场景消费兜底（`SpawnHorses` 前缀替换：Tags 缺项/物品未装载 → 跳过该出生点）——**数据优先原则下退役**：缺失改由 `Scripts/check_scene_consumables.py` 离线抓（见第四节） | ~~Debug/HorseSpawnNullGuardPatch.cs~~ |

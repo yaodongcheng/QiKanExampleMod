@@ -7,17 +7,21 @@ using HarmonyLib;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade.ComponentInterfaces;
 
-namespace LivingWorldNpcs.CampaignMode
+namespace LivingWorldNpcs
 {
     /// <summary>
-    /// 伤害模型 Culture-null 空保护（通用方案 X3，2026-09-02 用户裁定）。
+    /// 伤害模型 Culture-null 空保护 —— 🔴 **通用修复，与太阁无关**（放 Core/ = 通用层；不需要自定义战役，
+    /// 在"纯功能包"模式跑原版战役时同样生效）。
     ///
-    /// 崩溃现场（实机 2026-09-02）：织丰 Shokuho.CustomCampaign.CustomLocations.models.ShokuhoSandboxAgentApplyDamageModel
-    ///   .CalculateDamage 第 288 行 `if (characterObject.Culture.IsBandit)` —— Culture 为 null → NRE 炸穿近战。
-    ///   起因：CharacterObject.Culture 在 XML 加载期按 `culture="id"` 字符串解析（ReadObjectReferenceFromXml），
-    ///   引用的文化 id 未注册（自定义文化 + 多 mod 加载序/屏蔽）→ null。
-    ///   原版 SandBox.SandboxAgentApplyDamageModel 同段代码同款裸解引用（原版世界观下 Culture 恒定非空，
+    /// 崩溃现场（实机 2026-09-02，**织丰 Shokuho**）：`Shokuho.CustomCampaign.CustomLocations.models.ShokuhoSandboxAgentApplyDamageModel`
+    ///   `.CalculateDamage` 第 288 行 `if (characterObject.Culture.IsBandit)` —— Culture 为 null → NRE 炸穿近战。
+    ///   起因：`CharacterObject.Culture` 在 XML 加载期按 `culture="id"` 字符串解析（ReadObjectReferenceFromXml），
+    ///   引用的文化 id 未注册（模板漏写属性 / 自定义文化 / 多 mod 加载序或屏蔽）→ null。
+    ///   原版 `SandBox.SandboxAgentApplyDamageModel` 同段代码同款裸解引用（原版世界观下 Culture 恒定非空，
     ///   从不触发）——「文化必非空」假设被任何替换世界观/多 mod 环境打破即是隐患，不是织丰一家的问题。
+    ///   ⚠️ 2026-09-10 实测：**织丰至今仍有 24 个模板漏写 culture**（`*_saikai` 系列 + 2 个 Special）。
+    ///   同族防线 = `Core/CharacterCultureBackfill.cs`（那一半是"生成期补数据"，本类这一半是"防崩"）——
+    ///   两半配套，缺一不可。
     ///
     /// 方案（为什么不是「补 get_Culture 回兜底文化」）：崩溃点所需的唯一知识是「角色是不是流寇」，
     ///   不是「他具体属于哪个文化」。回一个文化没有依据（每个 mod 世界观不同，任意兜底 = 隐蔽错配），

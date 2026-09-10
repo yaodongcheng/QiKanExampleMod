@@ -23,7 +23,7 @@
 - [x] ⑦ 新档日志（雷 46）✅ 13:01 已验：`Clan clan_oda HomeSettlement 置位为 town_kyoto` 只出现 **1 次**（修前 100 次）
 - [x] ⑧ **中文复核（雷 47/48/50/51）** ✅ 2026-09-10 15:04 实机通过：① 城镇菜单 `京都 被 织田 的 大名，织田信长 统治着`（全中文）② 对白 `我是日本正统之主 织田信长。我是 京都 的领主。` ③ 名字全中文（织田信长×23 / 京都×11 / 织田家×8 / 柴田胜家×2，**英文残留 0 处**）④ 系统选项/词条也中文（如「你愿意玩一局塞伽棋来打发时间吗？」）
 - [x] ⑨ **相机线实机验证** ✅ 2026-09-10 16:19 实机通过（镜头进图即对准玩家、缩放正常、往东可拖全图）——**T3 尾项②同批验完**，`MapScreenCameraPatch` 已删
-- [x] ⑩ **第 4 批实机确认** ✅ 2026-09-10 用户确认：文化回填退役无碍（进城镇/村庄正常）→ 两个补丁文件（文化回填 / 边界诊断）均已删除，各由离线防线接管；**本批无遗留**
+- [x] ⑩ **第 4 批实机确认** ✅ 2026-09-10 用户确认：进城镇/村庄正常 → 边界诊断文件已删（离线体检接管）；文化回填经用户指出**判定有误已恢复**（通用修复，移入 `Core/`）；**本批无遗留**
 
 > DLL 状态：`dotnet build -c Debug` 产物已直出游戏目录，可直接跑验证；正式发布再走 VS2022 编译（铁律 19）。
 
@@ -38,7 +38,6 @@
 
 | 待定项 | 等什么 | 等到了怎么做 |
 |---|---|---|
-| 🔴 **`AgentDamageModelCultureNullFix`（伤害模型 Culture-null 兜底）去留** | **等用户拍板**（唯一需要人决定的） | 数据侧我们自己的包已 100% 达标（233/233 角色模板带文化 + 离线体检守不变量），**退役对我们零风险**；保留的意义 = 继续给**第三方 mod** 的不合格数据兜底。二选一：①退役（严格数据优先）②保留（当跨包安全网）。详见下方 2026-09-10 评审表 |
 | 🔴 **雷 53 收尾：距离缓存 + 家宅反射置位退役** | 等 **T4 据点批量进场景**（≥2 个「有场景实体」的据点） | ①给新据点补地图实体 ②**重生成 `settlements_distance_cache.bin`**（删 bin 让引擎重建 / ModKit 编辑器变量）③新档复验日志不再出现 `InitialHomeLand 置位` / `HomeSettlement 置位` → 删 `LivingWorldCampaign` 里的反射置位段。**离线防线已就位**：`check_settlement_distance_cache`（现在正红 = 真问题，据点对 0） |
 | `BattlePowerCalculationGuardPatch` | 等 **T4 自建兵种数据**做完 | 复核兵源来源，定退役 |
 | `CharacterCreationCultureVisualFallbackPatch` | 等**建号「仿太阁直接选人」改版**（用户已裁定先留着） | 选文化界面整个会重做，此补丁去留跟那次一起定（**不需**单独做 T4/T5 文化图）。退役路线已取证备好：内容包加 2 个数据文件（brush 自指克隆 + SpriteData，`SubModule.xml` 不用动），同机三国 mod `YiGuThreeKingdoms/GUI/Brushes/Override_CharacterCreation.xml` 是现成范本 |
@@ -64,6 +63,8 @@
 - 🔴 **两个等你拍板/裁定的**：①**伤害模型 Culture-null 兜底去留**（保留=给第三方 mod 兜底 / 退役=严格数据优先，二选一）②**剧本中文文件处置**（未裁定前不动）
 
 **补丁清理战果（2026-09-10 全线评审 + 三批退役）**：`CampaignMode/` 从 9 个 Harmony 补丁 + 1 个运行期类，清到 **3 个在役补丁**（`BackstoryCampaignBehaviorPatch` 拦卡拉迪亚前史 / `CharacterCreationCultureStageSortPatch` 拦原版文化排序 / `CharacterCreationCultureVisualFallbackPatch` 建号大图）—— 退役的每一条都有**离线防线接管**（见必备清单「清单条目 ↔ 脚本对照表」），全部实机验证后删文件。
+🔴 **另有 2 个「通用修复」归位 `Core/`**（2026-09-10 用户裁定）：`CharacterCultureBackfill` + `AgentDamageModelCultureNullFix` —— 二者**与太阁无关**（服务织丰等模板漏写 culture 的内容包，后者在原版战役下也生效），本不该待在战役层。
+⚠️ **一次误判（已纠正）**：`CharacterCultureBackfill` 曾被我按"太阁侧 0 触发"误判退役，实为通用修复 → 已恢复。**教训：评审兜底补丁先问「它原本为谁写的」。**
 
 **2026-09-10 增量（复盘 + 兜底治理两批全清 + 实机复验 + 文本/语言线全通 + 雷 11 复发当场定位）**：数据优先三原则定案；**兜底退役两批**（马补丁 / 9 诊断 / `CultureTemplateNullFix` / `LordIntroConditionGuardPatch`，改用离线证据退役，揪出「读旧档看日志 = 假绿」坑，**12:47 实机复验通过**）；**新雷 45~52**：45 城镇菜单印 ERROR 文本（17 族一次补齐）、46 `Clan.HomeSettlement` 置位空转（改反射直写，13:01 验该行只 1 次）、47 语言文件清单式加载（补两层 `language_data.xml`）、48 自有键中文覆盖（Taikou 84/84）、49 官方拷贝与自家串分离（新增 `taikou_strings.xml` 段）、50 语言文件声明与根元素间夹注释（整文件静默不加载）、51 C# 专有键从未进语言文件（建号「出身」界面整屏英文，LWN 62/62）、**52 雷 11 复发**（14:50——「出处注释塞进 `<clan_names>` 元素」导致文化反序列化 NRE、模板列表留 null）；**四条新防线**（`check_scene_consumables` / `check_culture_references` / `check_culture_text_variants` / `check_language_registration`，后三者含「列表污染体检」「C# 双源覆盖」等，配套**必跑七件套**）；**名字池线**：622 条中文从织丰中文包补齐（键值与织丰 622/622 一致 → 用户裁定「先 A 保留 + 标出处」，发布前需授权，自造替换见四·C）。**下一步 = 实机复核 ⓪（建新档不崩）与 ⑧（中文是否全中文）→ T4 全量数据**。
 
@@ -129,10 +130,11 @@
 **第 4 批（2026-09-10 数据化收口，3 项停用 + 1 块诊断清理 + 1 条新防线）** —— 🟡 已落盘，待实机一轮确认后删文件
 - [x] **⑦ 新防线 `Scripts/check_scene_entities.py`（离线地图场景体检）** —— 替代运行期 `[MapBorder]` 日志，进游戏前就能查，覆盖更广：border 与地形规格对账 + 5 个引擎硬查询脚本实体 + navmesh + **据点同名场景实体** + 城镇交互链三件套。已进「数据改动必跑」清单（七件套 → **八件套**）。
   - ⚠️ **首跑差点误判（价值与教训各一）**：脚本第一版报 `retirement_retreat` 无场景实体 = 红线。**追查后推翻**——官方 493 据点实测：Town 120 / Village 273 / Hideout 99 **全有实体**，唯一无实体者就是 `retirement_retreat`（官方 Main_map 同样 0 命中）⇒ **服务性据点不在地图上是官方设计，不是缺陷**。规则已改为「只对带 `Town`/`Village`/`Castle`/`Hideout` 组件的据点要求实体，服务性据点打印理由后豁免」，脚本复绿（errors=0）。**教训：写检查规则前先拿官方数据跑一遍**——否则会把官方设计当缺陷，把"已知债"的错误结论写进清单（本轮已同步修正雷 53 的根因表述）。
-- [x] **⑧ `CharacterCultureBackfill` 退役删除** ✅ 2026-09-10 用户实机验证通过 —— 它「按生成地点猜一个文化写进去」会**掩盖数据错**（与本项目"不编造文化"原则冲突），且本包 233/233 模板全带文化、运行期长期 0 次触发。**动作**：删 `CampaignMode/CharacterCultureBackfill.cs` + csproj 摘登记 + `MySubModule` 注册行改墓碑注释；编译 0 错 0 警。**替代防线 = `check_culture_references.py` 新增「角色模板文化属性体检」**（缺属性 / 指向未定义文化 / 值形状异常三态全抓；**已用故意坏数据做负面测试**：三种坏法全中、exit 1）。
+- [x] **⑧ `CharacterCultureBackfill` —— ⚠️ 退役判定被推翻，已恢复并移入 `Core/`**（2026-09-10 用户纠正）—— 我按"太阁 233/233 模板全带文化、运行期 0 次触发"判它可退役并删除，**判定错了**：本类服务的是**织丰**（织丰 `spnpccharacters.xml` 漏写 culture 的模板，**实测至今仍缺 24 个**：`*_saikai` 系列 + 2 个 Special），太阁侧 0 触发恰恰说明它工作正常。**动作**：从 `a0f94a4^` 取回文件 → 移到 `Core/CharacterCultureBackfill.cs`（通用层，namespace 改 `LivingWorldNpcs`）→ 头注释写明「**通用修复，与太阁无关**」+ 附退役评审教训 → csproj 按 Core 区段登记 → `MySubModule` 重新挂载。编译 0 错 0 警；DLL 字节级搜到日志字串（`已按生成地点`）✓。**教训（已进必备清单台账）**：评审兜底补丁先问「**它原本为谁写的**」，别看"在我们自己的世界里触发了没有"。
 - [x] **⑨ `MapBorderDiagnosticPatch` 退役删除** ✅ 2026-09-10 —— 纯日志补丁，被 ⑦ 的离线场景体检完全取代（离线查得更早、覆盖更广）。**动作**：删 `CampaignMode/MapBorderDiagnosticPatch.cs` + csproj 墓碑注释；DLL 串搜 `MapBorderDiagnosticPatch`=0 / `[MapBorder]`=0，编译 0 错 0 警。
 - [x] **⑩ 战役启动链诊断块清理** —— 删 `LivingWorldCampaign.cs` 的 **`[LWN-dump]` 世界规模 dump（约 120 行）** + **「京名流兜底生成」**（根因已在数据侧治本、日志 0 次触发）。文件 314 → ~155 行。**保留的真修复（勿当遗留删）**：`EquipmentRosters` 补载、partial-follow-up 注册、家宅/王国家园反射置位、出生点置位。DLL 串搜验证：`LWN-dump`=0 / `京名流兜底生成`=0，保留项均 ≥1；编译 0 错 0 警。
-- **本批已全部收口 ✅**：⑦ 新防线进「必跑十三件套」· ⑧⑨ 两个补丁文件已删（各由离线防线接管）· ⑩ 诊断块清理完成。**无遗留待办。**
+- [x] **⑪ 两个「通用修复」移入 `Core/`**（2026-09-10 用户裁定）—— `CharacterCultureBackfill` + `AgentDamageModelCultureNullFix` 的共同特征：**与太阁无关**（服务对象是织丰等模板漏写 culture 的内容包），且后者在"纯功能包"模式跑原版战役时同样生效 → 从 `CampaignMode/`（战役层）移入 `Core/`（通用层），namespace 改 `LivingWorldNpcs`，头注释写明「🔴 通用修复，与太阁无关」+ 出处 + 评审教训。csproj 按 Core 区段登记 + 旧路径行清理；编译 0 错 0 警，DLL 字节级搜到两类的日志字串 ✓。
+- **本批收口状态**：⑦ 新防线进「必跑十三件套」· ⑧ **已恢复**（通用修复移入 `Core/`）· ⑨ 边界诊断已删（离线体检接管）· ⑩ 诊断块清理完成 · ⑪ 通用修复归位 `Core/`。**无遗留待办。**
 
 **暂缓（写清等什么，不占本步）**
 - `BattlePowerCalculationGuardPatch`（打法：战斗部署时战力查询缺键崩溃；等 **T4 自建兵种数据**做完后复核兵源来源，再定退役） · `CharacterCreationCultureVisualFallbackPatch`（打法：建号选文化时文化大图缺失空屏；等 **T4 文化图素材**配齐） · `AreaMarkerTagGuard` / `IssuesSettlementGuardPatch`（等**读档崩二分排查定案**——这两个补丁目前被临时注释着，定案后决定恢复还是退役）

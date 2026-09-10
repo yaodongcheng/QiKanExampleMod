@@ -166,13 +166,11 @@ namespace LivingWorldNpcs
             //🔴 2026-09-02（用户裁定）：是否挂载由上方总闸（IsInteractionDisabled）统一决定，
             // 战场等场景不跑本 mod 玩法逻辑；入口内部 gate 保留作纵深防御。
             mission.AddMissionBehavior(new AttackTriggerMissionLogic());
-            // 🔴 2026-09-10 **已退役删除**（`CampaignMode/CharacterCultureBackfill.cs` 文件已删，实机验证通过）：
-            //   「无文化模板按生成地点补全」——它"按地点猜一个文化写进去"的做法会把数据错**掩盖掉**
-            //   （与本项目"不编造文化"原则冲突），且本包 233/233 角色模板全部自带文化、运行期长期 0 次触发。
-            //   不变量已由离线防线接管：`Scripts/check_culture_references.py` 的「角色模板文化属性体检」
-            //   （缺属性 / 指向未定义文化 / 值形状异常 三态全抓，已用故意坏数据做过负面测试）。
-            //   恢复 = git 历史捞回原文件 + csproj 补登记行 + 取消本行注释（**禁止无故恢复**）。
-            //mission.AddMissionBehavior(new CharacterCultureBackfill());
+            // 🔴 无文化模板补全（通用修复，与太阁无关 —— 出处是**织丰**：其 spnpccharacters.xml 有 24 个
+            //   「镇民/乞丐/匠人」模板漏写 culture 属性 → Culture null → 织丰伤害模型裸解引用 NRE。
+            //   2026-09-10 曾按"太阁数据全带 culture、运行期 0 触发"误判退役并删除，用户纠正后恢复，
+            //   并从 CampaignMode/ 移入 Core/（通用层）。**评审此类补丁先问「它原本为谁写的」**。
+            mission.AddMissionBehavior(new CharacterCultureBackfill());
             //AI
             mission.AddMissionBehavior(new AgentAIController());
             //IM 传讯（Mission 侧 tick 驱动 + 热键）
