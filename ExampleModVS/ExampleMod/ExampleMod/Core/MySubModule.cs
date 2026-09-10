@@ -126,6 +126,10 @@ namespace LivingWorldNpcs
             if (Campaign.Current == null)
                 return;
 
+            // navmesh 可视化调试（控制台 custom.nav_debug / nav_path / nav_face）——
+            // 🔴 置于玩法闸门之前：战场 / 攻城场景调试也需要挂载；无命令请求时每帧只做一次 bool 判断，零开销。
+            mission.AddMissionBehavior(new NavMeshDebugMissionView());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——

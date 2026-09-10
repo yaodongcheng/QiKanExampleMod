@@ -11,6 +11,10 @@ namespace LivingWorldNpcs
 	/// <summary>
 	/// 马出生点空物品兜底（通用基座，2026-09-09 雷 41 —— 太阁世界进城 TownCenter 崩溃）。
 	///
+	/// 🔴 状态（2026-09-10）：**csproj 未登记 = 本文件当前不参与编译**（显式 Compile 清单；
+	///   2026-09-10 核对发现 2026-09-09 新增的两个补丁文件都漏登记——数据修复（5 匹马入物品库）
+	///   已治本、实机进城通过；本兜底留作未来内容包保险，待「读档崩二分」定案后再决定是否登记启用）。
+	///
 	/// 机制（反编译 1.2.12 SandBox.dll MissionAgentHandler.SpawnHorses + 场景/prefab 实锤）：
 	///   SpawnHorses 扫任务场景 FindEntitiesWithTag("sp_horse")，取实体 Tags[1]（= 物品 id）
 	///   → MBObjectManager.GetObject&lt;ItemObject&gt; → new ItemRosterElement(...)。自定义世界
