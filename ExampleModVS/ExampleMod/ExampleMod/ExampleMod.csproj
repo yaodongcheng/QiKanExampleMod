@@ -386,11 +386,17 @@
     <Compile Include="CampaignMode\Tools\NavMeshDebugRenderer.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugMissionView.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugMapTickPatch.cs" />
-    <!-- 🔴 2026-09-09 读档崩二分（20:20 会话 save035+此三补丁 → Settlement.All=0）：
-         临时移除 TownEntryDiagPatch/AreaMarkerTagGuard/IssuesSettlementGuardPatch 验证是否补丁侧问题；
-         定案后恢复。
-         ⚠️ 2026-09-10 归位提示：AreaMarkerTagGuard.cs / IssuesSettlementGuardPatch.cs 已随战役补丁挪到
-         CampaignMode\（恢复时写 CampaignMode\XXX.cs，别照抄老 Debug\ 路径——未登记的 .cs = 静默不编译）。 -->
+    <!-- 🔴 2026-09-09 读档崩二分（20:20 会话 save035 → Settlement.All=0）：当时摘掉的是
+         `Debug\TownEntryDiagPatch.cs`（**只有它真在编译清单里**，见其下方的摘除记录）。
+         ⚠️ **勘误（2026-09-10 核 git 全历史）**：`AreaMarkerTagGuard.cs` / `IssuesSettlementGuardPatch.cs`
+         **从来没有 Compile 行**——从写下那天起就没编译过（雷 40：新增 .cs 不登记 = 静默不编译），
+         原始注释把它们与 TownEntryDiagPatch 并列写成"临时移除"是**不准确的**。
+         **用户裁定（2026-09-10）：这两个不处理，保留在磁盘不编译**，仅此记录：
+           · AreaMarkerTagGuard：防"进城时区域标记与存档巷子配对失败 → Tag null → NRE"（雷 38）；
+             现数据满足（京 CommonAreas 3 = 场景区域标记 3），旧档残留场景才需要它。
+           · IssuesSettlementGuardPatch：防"委托系统启动时据点列表为空 → `% 0`"（雷 39）；
+             **根因至今未查明**（原记录"数据侧待日志确认"从未确认）——可能不是数据问题，故不转 XML 检查。
+         两者已挪到 CampaignMode\（恢复 = 加 Compile 行 `CampaignMode\XXX.cs`）。 -->
     <!-- <Compile Include="Debug\ClickDiagPatch.cs" /> -->
     <!-- <Compile Include="Debug\EncounterDiagPatches.cs" /> -->
     <!-- <Compile Include="Debug\PartyVisualCircleDiag.cs" /> -->

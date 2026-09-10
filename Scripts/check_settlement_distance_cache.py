@@ -14,7 +14,9 @@ Settlement-distance-cache checker (自定义世界「距离缓存与据点数据
   1. 缓存文件存在（缺 = 引擎当场重建但**当次启动内存里是空的** → 那一局的家宅仍是 null）
   2. 缓存里的据点 id 集合 == 期望集合（settlements.xml ∩ 有同名场景实体，服务性据点除外）
      —— 少了 = 缓存过期（改完据点没重生成）；多了 = 缓存里有世界里已删的据点
-  3. 据点对 ≥ 1（= 至少有 2 个据点进缓存，否则最大据点距必为 0 → 家宅 NaN）
+  3. **最大据点距 > 0**（不是"据点对 ≥1"就够）——引擎的判据是
+     `if (distance > MaximumDistanceBetweenSettlements)` 且初值 0：只有「**≥2 个据点且两两距离算得出 > 0**」
+     才会把它抬起来；据点对为 0、或唯一那对距离是 0（位置重合 / 城门点不在导航面上）→ 仍是 0 → 家宅选不中
 
 缓存文件格式（反编译 DefaultMapDistanceModel.LoadCacheFromFile 实锤）：
   int32 count
@@ -29,6 +31,7 @@ Exit: 0 无问题 / 1 有问题 / 2 fatal。
 """
 import argparse
 import io
+import struct
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -54,18 +57,23 @@ def read_dotnet_string(f):
 
 
 def parse_cache(path):
-    """→ (据点 id 列表, 据点对数)。导航面缓存段不解析（不校验）。"""
+    """→ (据点 id 列表, 据点对数, 最大据点距)。
+
+    导航面缓存段不解析（不校验）。**距离必须读出来**：引擎的判据是
+    `if (distance > MaximumDistanceBetweenTwoSettlements)`，而该值从 0 起
+    → 只有「存在至少一对距离 > 0」时它才会被抬起来；否则仍是 0 → 家宅打分除零出 NaN。
+    """
     data = path.read_bytes()
     f = io.BytesIO(data)
     count = int.from_bytes(f.read(4), "little", signed=True)
-    ids, pairs = [], 0
+    ids, pairs, distances = [], 0, []
     for l in range(count):
         ids.append(read_dotnet_string(f))
         for _m in range(l + 1, count):
-            read_dotnet_string(f)          # id_m
-            f.read(4)                      # float32 距离
+            read_dotnet_string(f)                                    # id_m
+            distances.append(struct.unpack("<f", f.read(4))[0])     # float32 距离
             pairs += 1
-    return ids, pairs
+    return ids, pairs, (max(distances) if distances else 0.0)
 
 
 def scene_entity_names(scene_file):
@@ -133,9 +141,9 @@ def main():
         print(f"\nSummary: expected={len(expected)} errors=1")
         return 1
 
-    ids, pairs = parse_cache(cache)
+    ids, pairs, max_dist = parse_cache(cache)
     print(f"== 缓存内容 ==")
-    print(f"  缓存据点 {len(ids)} 个 / 据点对 {pairs} 对：{ids}")
+    print(f"  缓存据点 {len(ids)} 个 / 据点对 {pairs} 对 / 最大据点距 {max_dist:.1f}：{ids}")
 
     missing = sorted(expected - set(ids))
     extra = sorted(set(ids) - expected)
@@ -148,16 +156,21 @@ def main():
         warns.append(f"缓存多出据点 {extra}")
         print(f"  [WARN]  缓存多出 {extra} —— 世界里已无此据点（或它没有场景实体），缓存偏旧")
 
-    print("\n== 据点对（决定全局最大据点距） ==")
+    print("\n== 最大据点距（决定家宅打分是否除零） ==")
     if pairs == 0:
         errors.append("据点对为 0")
         print("  [ERROR] 据点对 = 0 → 全局最大据点距恒 0 → 家宅打分 `1 − 0/0` = NaN"
-              " → 家宅/王国家园永远选不中（雷 53：需要 ≥2 个「有场景实体」的据点）")
+              " → 家宅/王国家园永远选不中（雷 53：需要 **≥2 个「有场景实体」的据点**）")
+    elif max_dist <= 0:
+        errors.append("最大据点距为 0")
+        print(f"  [ERROR] 有 {pairs} 对据点，但**距离全是 0** → 引擎判据 `distance > 0` 不成立"
+              f" → 最大据点距仍是 0 → 家宅同样选不中（雷 53）")
+        print( "          → 排查：两个据点是否位置重合 / 城门点是否落在导航面上（距离由导航面路径算出，算不出即 0）")
     else:
-        print(f"  [ OK ] {pairs} 对")
+        print(f"  [ OK ] 最大据点距 {max_dist:.1f} > 0（引擎会据此把最大值抬起来 → 家宅可算）")
 
     print(f"\nSummary: expected={len(expected)} cached={len(ids)} pairs={pairs} "
-          f"errors={len(errors)} warnings={len(warns)}")
+          f"max_distance={max_dist:.1f} errors={len(errors)} warnings={len(warns)}")
     return 1 if errors else 0
 
 
