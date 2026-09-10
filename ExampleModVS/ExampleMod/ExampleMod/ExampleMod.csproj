@@ -361,7 +361,12 @@
     <Compile Include="CampaignMode\BackstoryCampaignBehaviorPatch.cs" />
     <Compile Include="CampaignMode\CharacterCreationCultureStageSortPatch.cs" />
     <Compile Include="CampaignMode\CharacterCreationCultureVisualFallbackPatch.cs" />
-    <Compile Include="CampaignMode\MapScreenCameraPatch.cs" />
+    <!-- 🔴 2026-09-10 **已退役删除**（文件已删，实机验证通过；恢复 = git 历史捞回原文件后去掉本行注释）：
+         MapScreenCameraPatch.cs（建号完成后拉相机对准玩家）——它做的事与建号内容里的 teleport 完全重复，
+         而相机看不见玩家的**真凶是场景缺 border_min/border_max**（雷 34，数据已修）。
+         现行做法 = 世界创建期写出生点（LivingWorldCampaign.StartingPosition + OnNewGameCreatedPartialFollowUp），
+         地图相机初始化时读到的就是玩家坐标 → 相机天然对准，不再需要任何事后补丁。 -->
+    <!-- <Compile Include="CampaignMode\MapScreenCameraPatch.cs" /> -->
     <Compile Include="CampaignMode\MapBorderDiagnosticPatch.cs" />
     <Compile Include="CampaignMode\BattlePowerCalculationGuardPatch.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshProbeCommands.cs" />

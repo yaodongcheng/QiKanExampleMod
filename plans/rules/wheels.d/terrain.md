@@ -85,6 +85,11 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 
 **配套纪律**：地图场景克隆必备实体清单 = **border_min/border_max + 12 个官方地图脚本实体**（完整清单与排雷实录见 `plans/太阁数据加载taikou-campaign-boot-20260907.md` 雷 28/34）；出图前 `grep scene.xscene border_min` 必查；坑点格式全文见 `plans/rules/pitfalls.md`「自定义地图相机"空气墙"」
 
+**🔴 2026-09-10 补充（相机到底怎么定位的 —— 别再去场景里找"相机锚点"）**：
+- 相机**初始目标 = 主队运行时坐标**（`MapCameraView.Initialize` 读 `MobileParty.MainParty.Position2D` + 地形高度），**不是**场景实体；`camera_top`（官方 Main_map 里有）是**死实体**，全游戏 2 万个文件 0 引用。
+- 所以「进图看不见玩家」有两种病因，**先分诊再动手**：①**border 缺实体** → 相机被钳在兜底盒 `900×900`，玩家在盒外（真凶，数据修）；②**出生点写晚了** → 相机读坐标时玩家还在引擎默认坐标（治本 = 世界创建期写，见 `wheels.d/campaign-mode.md` 卷七）。
+- 原 `MapScreenCameraPatch`（Harmony 补丁，事后拉相机）**已退役删除**——它与建号内容的 teleport 重复，且掩盖了 ① 这个真因。
+
 ## OpenTrf — .trf 网格 Blender 导入/导出器
 
 **解决什么问题**：Bannerlord `.trf`（Text Resource Files，纯文本网格：顶点/法线/UV/顶点色/三角面/材质）可直接用 Blender 读取、编辑、导回——素材网格资产的 Blender 化修改链路。

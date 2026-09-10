@@ -133,3 +133,42 @@ python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Tai
 
 **详细记录**：必备清单雷 52 + 排雷链；同族陷阱（语言文件版，机理同为"引擎按固定位置取节点"）= 雷 50。
 
+## 七、🔴 出生点与地图相机（2026-09-10 登记；实机验证通过）
+
+**解决什么问题**：自定义战役里「进图看不见玩家 / 相机在错误位置 / 空气墙」这一族症状——2026-09-08 曾误判为「teleport 时序问题」并加了 Harmony 补丁，2026-09-10 查明真凶是**数据缺口**（border 实体），补丁属重复劳动已删。
+
+**机制（反编译实锤，1.2.12；1.5.1 同构）**：
+1. **相机初始目标 = 主队运行时坐标**——`MapCameraView.Initialize()`：`IdealCameraTarget = new Vec3(MobileParty.MainParty.Position2D, 地形高度+1, -1)`；构造默认 `CameraDistance = 2.5f`。场景**不参与**（`camera_top` 是死实体，全游戏 2 万个文件 0 引用）。
+2. **读取时点早于建号完成回调**——`CharacterCreationState.FinalizeCharacterCreation()` 顺序：`ApplyFinalEffects` → **`CleanAndPushState(MapState)`（MapScreen 构造 + OnInitialize → 相机读坐标）** → `_handler?.OnCharacterCreationFinalized()` → `Content.OnCharacterCreationFinalized()`（我们的钩子）。所以**在回调里写坐标已经晚了**（只能靠事后 teleport 补救）。
+3. **场景唯一的相机输入 = `border_min`/`border_max`**——只**钳制**相机目标盒（`ComputeMapCamera`），不设定位置；缺实体 1.2.12 静默兜底 `900×900`（= 玩家在盒外时"怎么拉都拉不过去"的真相）、1.5.x 直接崩。
+4. **`ResetCamera(resetDistance: true, …)` 兼管缩放复位**——`TargetCameraDistance = 15f; CameraDistance = 15f`（构造默认 2.5 = 贴脸）→ 这条**不能删**。
+
+**正解（零 Harmony）**：出生点改到**世界创建期**写。
+- 时点安全性（`Campaign.DoLoadingForGameType` NewCampaign 分支顺序实锤）：`LoadMapScene()`（更早的 LoadVisualsThirdState）→ `InitializeMainParty()`（引擎放默认坐标 685.3,410.9）→ **`OnNewGameCreated(gameStarter)`（我们在这里写）** → 建号。写入时地图已加载 → `Position2D` setter 里的导航面能正常算出。
+- 基类不引 `Campaign.DefaultStartingPosition`：该属性 **1.3.15 起已移除**（1.2.12 = 1 命中 / 1.3.15、1.4.6、1.5.1 = 0 命中），引用它会挂 1.5.x 编译 → 用可空虚属性让内容包自己声明。
+
+**关键签名 / 调用范例**：
+```csharp
+// 基类（ExampleModVS/ExampleMod/ExampleMod/CampaignMode/LivingWorldCampaign.cs）
+public virtual Vec2? StartingPosition => null;      // null = 不改（保持引擎默认）；1.5.x 也能编译
+
+private void OnNewGameCreatedPartialFollowUp(CampaignGameStarter starter, int i)   // 已注册于 OnInitialize
+{
+    if (i == 0 && MobileParty.MainParty != null)     // i==0 = 本事件最早一次（引擎循环 100 次）
+    {
+        Vec2? spawn = StartingPosition;
+        if (spawn.HasValue) { MobileParty.MainParty.Position2D = spawn.Value; /* 打 [LWN-campaign] 日志 */ }
+    }
+    ...
+}
+
+// 内容包 thin 子类（TaikouCampaign.cs）——只需一行
+public override Vec2? StartingPosition => TaikouStartingPosition;   // new Vec2(985f, 428f)
+```
+
+**保留项（别跟着删）**：`LivingWorldCharacterCreationContent.OnCharacterCreationFinalized` 里的 `ResetCamera(true,true) + TeleportCameraToMainParty` —— 缩放复位必需，原版同款。
+
+**已退役**：~~`CampaignMode/MapScreenCameraPatch.cs`~~（2026-09-10 删；它的动作与建号内容里的 teleport 完全重复）。恢复 = git 历史捞回 + csproj 补登记行。
+
+**记录**：必备清单雷 30/33 更正 + 雷 34 + §1.5；台账「出生点（世界创建期置位）」「地图相机对准（已退役）」行。
+
