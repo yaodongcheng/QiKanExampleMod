@@ -1,5 +1,6 @@
 using System;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -30,6 +31,19 @@ namespace LivingWorldNpcs.CampaignMode
 #endif
 		{
 		}
+
+		/// <summary>
+		/// 内容包出生点（thin 子类覆写；null = 不改，保持引擎默认位置）。
+		/// 🔴 为什么必须由内容包声明、且在**世界创建期**就写入：大地图相机的初始目标 =
+		///   主队运行时坐标（反编译实锤：MapCameraView.Initialize 读 MobileParty.MainParty.Position2D），
+		///   而这次读取发生在「建号完成 → 推入地图状态」那一步——比建号完成回调更早。
+		///   所以坐标只要在创世界时就写好，相机天然对准玩家，不需要任何事后 teleport。
+		///   时点安全性（Campaign.DoLoadingForGameType 的 NewCampaign 分支顺序实锤）：
+		///   InitializeMainParty（引擎把主队放到默认坐标）→ … → OnNewGameCreated（本类写入）→ 建号。
+		/// 不引引擎默认值 Campaign.DefaultStartingPosition 的原因：该属性 1.3.15 起已被移除
+		///   （1.2.12 = 1 命中 / 1.3.15、1.4.6、1.5.1 = 0 命中），基类引用它会挂掉 1.5.x 编译。
+		/// </summary>
+		public virtual Vec2? StartingPosition => null;
 
 #if MB2_V1212
 		protected override void OnInitialize()
@@ -187,6 +201,20 @@ namespace LivingWorldNpcs.CampaignMode
 		{
 			try
 			{
+				// 🔴 出生点提前置位（2026-09-10）——相机正确性的正解，替代 MapScreenCameraPatch（已删）：
+				//   地图相机的初始目标 = 主队坐标（MapCameraView.Initialize 读 MainParty.Position2D），
+				//   而它的读取时点早于建号完成回调 → 只有在这里（世界创建期）写好才赶得上。
+				//   i == 0 = 本事件的最早一次（引擎对本事件循环调用 100 次）。
+				if (i == 0 && MobileParty.MainParty != null)
+				{
+					Vec2? spawn = StartingPosition;
+					if (spawn.HasValue)
+					{
+						MobileParty.MainParty.Position2D = spawn.Value;
+						DebugLogger.Log($"[LWN-campaign] 出生点置位 MainParty.Position2D=({spawn.Value.X:F1},{spawn.Value.Y:F1})" +
+							"（世界创建期写入 → 早于地图相机初始化，相机天然对准玩家）");
+					}
+				}
 				// 🔴 第 12 雷探针：GetObjectTypeList<ItemObject>() 在 partial 时点的状态（i==10 FillItemsInAllCategories 依赖它）
 				if (i <= 1 || i == 10)
 				{
