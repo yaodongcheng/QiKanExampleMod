@@ -143,13 +143,16 @@ namespace LivingWorldNpcs.CampaignMode
 		/// 建号完成 → 重设主队出生位置。
 		/// 🔴 引擎 Campaign.DefaultStartingPosition 非 virtual（InitializeMainParty / CC finalize 兜底
 		/// 都锁定基类实现）→ 出生点在本处写入（织丰母本同法：shokuho.txt:164613）。
+		/// 🔴 时代无关（2026-09-10）：坐标读**当前战役**的 StartingPosition（基类按内容包覆写），
+		///   不再硬编码某个时代的常量——加时代时本方法不用动。
 		/// </summary>
 		public override void OnCharacterCreationFinalized()
 		{
 			base.OnCharacterCreationFinalized();
-			if (_contentPack == "Taikou" && MobileParty.MainParty != null)
+			var taikouCampaign = Campaign.Current as TaikouCampaign;
+			if (taikouCampaign != null && MobileParty.MainParty != null)
 			{
-				MobileParty.MainParty.Position2D = TaikouCampaign.TaikouStartingPosition;
+				MobileParty.MainParty.Position2D = taikouCampaign.StartingPosition.GetValueOrDefault();
 				// 🔴 相机拉回玩家（织丰母本同款：ShokuhoCharacterCreationContent.OnCharacterCreationFinalized 实锤）——
 				// CC 完成落场时地图默认机位停在官方地图坐标（camera_top/默认），不拉回 = 开局看不见角色（2026-09-08 用户实测）。
 				if (GameStateManager.Current.ActiveState is MapState mapState && mapState.Handler != null)

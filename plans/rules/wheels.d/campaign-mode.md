@@ -237,3 +237,25 @@ python Scripts/check_scene_entities.py --module <路径> --scene Main_map
 
 **⚠️ 一条踩过的表述坑**：csproj 注释里写的"临时移除 XXX/YYY/ZZZ"，**未必三个都真登记过**——2026-09-10 核 git 全历史发现 `AreaMarkerTagGuard`/`IssuesSettlementGuardPatch` **从来没有 Compile 行**（雷 40 同族：新增 .cs 不登记 = 静默不编译）。**转述历史结论前先查证据**（这条同时坑了我两次：此处 + 伤害模型兜底的出处）。
 
+## 🔴 一模块多 GameType（时代切换协议）— 2026-09-10 登记
+
+**解决什么问题**：同一内容包要出多个时代/剧本（1560/1582…），世界数据整套跟着变，且互不污染。
+
+**机制**：引擎按 SubModule.xml 的 `<IncludedGameTypes>` 过滤段，**过滤键 = 战役类名**
+（`GameType.GameTypeStringId => GetType().Name`）→ **每个时代必须有自己的战役类**（类名 = 该时代 GameType）。
+
+**三条硬规则**（各有离线检查器兜底）：
+1. **差异段 GameType 必须互斥**——同名 XmlName 注册多段时引擎是**合并加载**（官方 SandBox 自己就注册 7 份 NPCCharacters）；
+   两套段同时命中同一 GameType = 同名据点/家族/英雄**被定义两遍**。→ `check_era_segments.py`
+2. **据点 id 跨时代稳定**（只换归属，id/坐标/组件全同）→ 距离缓存（按据点 id 存据点对）天然可共用。→ 同检查器
+3. **每个英雄都要有同名 NPCCharacter 模板**（缺 = 英雄被静默吞掉 → 家族无领主 → 新战役崩，雷 54）。→ `check_hero_templates.py`
+
+**数据做派**：**基线套 + 时代差异由生成器派生**（`Scripts/gen_taikou_era_diff.py`，改差异改生成器重跑，铁律 22）；
+共用段不复制文件，只在 SubModule 追加新 GameType。
+
+**检查脚本必须跟着多时代化**：`--game-type` 缺省推断原为「模块名+Campaign」，
+多时代后改为**自动枚举 SubModule 里全部「模块名+四位年份」的 GameType 各跑一遍**
+（不改 = 只查一个时代 = 另一个时代静默假绿）。
+
+**参考实现与设计全文**：LWN `CampaignMode/{EraCatalog,TaikouCampaign,TaikouCampaign1560,TaikouCampaign1582}.cs` +
+Taikou `SubModule.xml` + `plans/时代剧本切换-验证.md`。

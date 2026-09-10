@@ -21,6 +21,7 @@ Usage:
 Exit: 0 全部存在 / 1 有缺失 / 2 fatal。
 """
 import argparse
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -190,12 +191,38 @@ def collect_ids(files):
     return found
 
 
+
+def inferred_game_types(mod_path, explicit=None):
+    """本模块要体检的 GameType 列表。
+    显式 --game-type → 只跑那一个（单跑语义不变）。
+    缺省 = SubModule.xml 里所有「<模块名> + 数字年份」的 GameType（时代切换后一模块多 GameType：
+    Taikou → TaikouCampaign1560 / TaikouCampaign1582 …），**每个都要跑**——
+    只跑一个 = 另一个时代的段查不到 = 静默假绿（时代切换 spike 的核心风险点）。
+    """
+    if explicit:
+        return [explicit]
+    out = []
+    sm = mod_path / "SubModule.xml"
+    if sm.is_file():
+        try:
+            root = ET.parse(str(sm)).getroot()
+        except Exception:
+            root = None
+        if root is not None:
+            pat = re.compile(re.escape(mod_path.name) + r"Campaign\d{4}$")
+            for g in root.iter("GameType"):
+                v = g.get("value")
+                if v and pat.fullmatch(v) and v not in out:
+                    out.append(v)
+    return out or [mod_path.name + "Campaign"]
+
+
 def main():
     ap = argparse.ArgumentParser(description="Engine-hardcoded-id checker")
     ap.add_argument("--module",
                     default=r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\Taikou")
     ap.add_argument("--official-root", default=None, help="游戏根（缺省=注册表 MB2_PATH）")
-    ap.add_argument("--game-type", default=None, help="缺省由模块目录名推断")
+    ap.add_argument("--game-type", default=None, help="缺省=SubModule.xml 里本模块全部时代 GameType，各跑一遍")
     args = ap.parse_args()
 
     mod_path = Path(args.module)
@@ -214,57 +241,61 @@ def main():
         print(f"[FATAL] Modules root not found: {mod_root}")
         return 2
 
-    game_type = args.game_type or (mod_path.name + "Campaign")
-    print(f"Module   : {mod_path}")
-    print(f"GameType : {game_type}")
+    exit_codes = []
+    for game_type in inferred_game_types(mod_path, args.game_type):
+        print(f"Module   : {mod_path}")
+        print(f"GameType : {game_type}")
 
-    # ① 目标 GameType 下真正会被加载的文件（判定基准）
-    closure = module_closure(mod_root, mod_path.name)
-    loaded_files, section_count = [], 0
-    for mod_id in closure:
-        for _sec_id, path in loaded_sections(mod_root, mod_id, game_type):
-            section_count += 1
-            loaded_files.extend(section_files(mod_root, mod_id, path))
-    print(f"加载闭包 : {' → '.join(closure)}")
-    print(f"扫描     : {len(closure)} 模块 / {section_count} 段 / {len(loaded_files)} 文件（仅**已加载**段）\n")
+        # ① 目标 GameType 下真正会被加载的文件（判定基准）
+        closure = module_closure(mod_root, mod_path.name)
+        loaded_files, section_count = [], 0
+        for mod_id in closure:
+            for _sec_id, path in loaded_sections(mod_root, mod_id, game_type):
+                section_count += 1
+                loaded_files.extend(section_files(mod_root, mod_id, path))
+        print(f"加载闭包 : {' → '.join(closure)}")
+        print(f"扫描     : {len(closure)} 模块 / {section_count} 段 / {len(loaded_files)} 文件（仅**已加载**段）\n")
 
-    loaded_ids = collect_ids(loaded_files)
-    # ② 兜底对照：包内全部 XML（用来区分「完全缺失」与「在未加载的段里」）
-    all_pack_files = sorted((mod_path / "ModuleData").rglob("*.xml")) if (mod_path / "ModuleData").is_dir() else []
-    all_ids = collect_ids(all_pack_files)
+        loaded_ids = collect_ids(loaded_files)
+        # ② 兜底对照：包内全部 XML（用来区分「完全缺失」与「在未加载的段里」）
+        all_pack_files = sorted((mod_path / "ModuleData").rglob("*.xml")) if (mod_path / "ModuleData").is_dir() else []
+        all_ids = collect_ids(all_pack_files)
 
-    missing, unloaded, mismatch = [], [], []
-    for eid, etype, who, lei in REQUIRED:
-        src = loaded_ids.get((etype, eid))
-        if src:
-            continue
-        src_any = all_ids.get((etype, eid))
-        if src_any:
-            unloaded.append((eid, etype, src_any, who, lei))
-        else:
-            # 类型对但标签不匹配？再宽松找一次（同 id 不同类型 = 定义错了类型）
-            other = [t for (t, i) in all_ids if i == eid]
-            if other:
-                mismatch.append((eid, etype, other[0], all_ids[(other[0], eid)], who, lei))
+        missing, unloaded, mismatch = [], [], []
+        for eid, etype, who, lei in REQUIRED:
+            src = loaded_ids.get((etype, eid))
+            if src:
+                continue
+            src_any = all_ids.get((etype, eid))
+            if src_any:
+                unloaded.append((eid, etype, src_any, who, lei))
             else:
-                missing.append((eid, etype, who, lei))
+                # 类型对但标签不匹配？再宽松找一次（同 id 不同类型 = 定义错了类型）
+                other = [t for (t, i) in all_ids if i == eid]
+                if other:
+                    mismatch.append((eid, etype, other[0], all_ids[(other[0], eid)], who, lei))
+                else:
+                    missing.append((eid, etype, who, lei))
 
-    print(f"== 引擎硬编码点名 id 体检（共 {len(REQUIRED)} 条） ==")
-    if not (missing or unloaded or mismatch):
-        print("  （全部存在 ✓）")
-    for eid, etype, who, lei in missing:
-        print(f"  [缺失] {etype} {eid} —— {who}（{lei}）")
-    for eid, etype, src, who, lei in unloaded:
-        print(f"  [未加载] {etype} {eid} 定义在 {src}，但该段在 {game_type} 下**不会被加载**"
-              f"（= 运行时照样 GetObject null）—— {who}（{lei}）")
-    for eid, etype, got, src, who, lei in mismatch:
-        print(f"  [类型不符] {eid} 期望 {etype}，实得 {got}（{src}）—— {who}（{lei}）")
+        print(f"== 引擎硬编码点名 id 体检（共 {len(REQUIRED)} 条） ==")
+        if not (missing or unloaded or mismatch):
+            print("  （全部存在 ✓）")
+        for eid, etype, who, lei in missing:
+            print(f"  [缺失] {etype} {eid} —— {who}（{lei}）")
+        for eid, etype, src, who, lei in unloaded:
+            print(f"  [未加载] {etype} {eid} 定义在 {src}，但该段在 {game_type} 下**不会被加载**"
+                  f"（= 运行时照样 GetObject null）—— {who}（{lei}）")
+        for eid, etype, got, src, who, lei in mismatch:
+            print(f"  [类型不符] {eid} 期望 {etype}，实得 {got}（{src}）—— {who}（{lei}）")
 
-    bad = len(missing) + len(unloaded) + len(mismatch)
-    print(f"\nSummary: required={len(REQUIRED)} missing={len(missing)} "
-          f"unloaded={len(unloaded)} type_mismatch={len(mismatch)}")
-    return 1 if bad else 0
+        bad = len(missing) + len(unloaded) + len(mismatch)
+        print(f"\nSummary: required={len(REQUIRED)} missing={len(missing)} "
+              f"unloaded={len(unloaded)} type_mismatch={len(mismatch)}")
+    exit_codes.append(1) if bad else 0
 
+
+
+    return max(exit_codes) if exit_codes else 0
 
 if __name__ == "__main__":
     sys.exit(main())

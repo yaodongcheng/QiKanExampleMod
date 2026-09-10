@@ -536,6 +536,31 @@ PortraitRegistry 扫**所有模块**的 `ModuleData/AssetRegistry/*.csv`（列�
 
 ---
 
+## 🔴 主菜单数据源 + 自建全屏界面（ScreenBase + prefab + VM）— 2026-09-10 时代切换 spike 登记
+
+**解决什么问题**：要在主菜单加东西（按钮/多级菜单/选剧本界面）时，别乱试——机制已实锤。
+
+**主菜单 = `Module.CurrentModule` 的 `InitialStateOption` 列表**（按 `OrderIndex` 排序渲染）。
+官方刷新通道：改列表 → `InitialState.RefreshContentState()` → `OnGameContentUpdated` →
+`GauntletInitialScreen.OnGameContentUpdated` → `InitialMenuVM.RefreshMenuOptions()` 重建按钮。
+
+**🔴 致命坑：MCM 的 Harmony postfix 按固定下标往那个列表插「Mod 选项」按钮**
+→ 我们自己清空列表塞短的 = **它下标越界崩**（`ArgumentOutOfRangeException @ MCM.UI...RefreshMenuOptionsPostfix`，实机 2026-09-10）。
+**⇒ 做子菜单/多级界面一律自建 Screen，绝不动列表长度。**
+
+**自建界面三件套**（本仓库已验证可用）：
+| 文件 | 关键点 |
+|---|---|
+| `GUI/Prefabs/<名>.xml` | 框架自带 prefab 加载，**无需注册**；名字与 `LoadMovie` 第一参数一致 |
+| `<名>VM : ViewModel` | `Command.Click="ExecuteXxx"` / `Command.HoverBegin` 绑同名公开方法；**列表属性必须单实例**（构造里 new 一次，每次 get 新建会割断绑定） |
+| `<名>Screen : ScreenBase` | `ScreenManager.PushScreen/PopScreen`；层用 `V.NewLayer`（版本签名差异）+ `V.LoadMov`；`InputRestrictions.SetInputRestrictions(true, InputUsageMask.All)` 屏蔽下层 |
+
+**开战役顺序**：先 `PopScreen()` 关界面，再 `MBGameManager.StartNewGame(...)`
+（`StartNewGame` 会替换主菜单屏，界面不先退会挂到将销毁的屏上）。
+
+**参考实现**：`CampaignMode/ScenarioSelect{Screen,VM}.cs` + `GUI/Prefabs/ScenarioSelect.xml` + `CampaignMode/EraCatalog.cs`（时代清单单一真源）。
+完整机制与证据 → [Knowledge/骑砍2主菜单与自定义UI层.md](../../../Knowledge/骑砍2主菜单与自定义UI层.md)。
+
 ## tpac 打包链：任意 PNG → 引擎原生纹理包 — TpacToolCLI makepack/inspect（2026-08-31 登记）
 
 **解决**：无官方 TPAC 编译器，第三方 `TpacTool`（MIT, szszss）能读写但不含打包命令。本项目扩了 CLI 两个命令（`TpacToolCLI/Program.cs` + `MakePack.cs` + `Bc3Encoder.cs`）：

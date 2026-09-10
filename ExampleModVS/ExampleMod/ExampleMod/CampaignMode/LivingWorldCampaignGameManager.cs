@@ -17,8 +17,18 @@ namespace LivingWorldNpcs.CampaignMode
 	{
 		private bool _loadingSavedGame;
 
-		public LivingWorldCampaignGameManager()
+		/// <summary>
+		/// 玩家在主菜单选的**时代**（该时代的 GameType 字符串，如 "TaikouCampaign1560"）。
+		/// 🔴 时代必须在**主菜单**决定（时序硬约束，见 plans/时代剧本切换-验证.md）：
+		///   引擎在「new 出战役类」时才按类名过滤 XML 段 → 主菜单之后没有改的余地。
+		///   「选角色」则相反，留在建号流程内（只改运行期身份，不决定加载哪套数据）。
+		/// </summary>
+		public string Era { get; private set; }
+
+		/// <summary>主菜单入口用：选好时代再启动。</summary>
+		public LivingWorldCampaignGameManager(string era)
 		{
+			Era = era;
 		}
 
 		public LivingWorldCampaignGameManager(int seed)
@@ -65,7 +75,7 @@ namespace LivingWorldNpcs.CampaignMode
 					if (!_loadingSavedGame)
 					{
 						// 新建：战役世界出生（内容包的 thin 类在这里被实例化——由此确定 GameType 身份）
-						LivingWorldCampaign campaign = CreateCampaignForActiveContentPack();
+						LivingWorldCampaign campaign = CreateCampaignForActiveContentPack(Era);
 						Game.CreateGame(campaign, this);
 						campaign.SetLoadingParameters((Campaign.GameLoadingType)1); // 1 = NewCampaign（织丰母本同款；GameLoadingType 是 Campaign 嵌套枚举）
 					}
@@ -94,13 +104,21 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 		}
 
-		/// <summary>按已加载的内容包创建对应 thin 战役类；无内容包 = 默认通用战役（此路径防呆，按钮只在内容包模式下出现）。</summary>
-		private static LivingWorldCampaign CreateCampaignForActiveContentPack()
+		/// <summary>
+		/// 按主菜单选定的时代创建对应的 thin 战役类。
+		/// 🔴 这里 new 出的类决定了 GameType = 类名 → 决定引擎加载哪一套 XML 段。
+		/// 未知/缺失时代 = 退回基类（防呆：按钮只在内容包模式下出现，正常走不到）。
+		/// </summary>
+		private static LivingWorldCampaign CreateCampaignForActiveContentPack(string era)
 		{
 			string pack = CampaignModeActivator.ActiveContentPack;
 			if (pack == "Taikou")
 			{
-				return new TaikouCampaign(CampaignGameMode.Campaign);
+				switch (era)
+				{
+					case "TaikouCampaign1560": return new TaikouCampaign1560(CampaignGameMode.Campaign);
+					case "TaikouCampaign1582": return new TaikouCampaign1582(CampaignGameMode.Campaign);
+				}
 			}
 			return new LivingWorldCampaign(CampaignGameMode.Campaign);
 		}

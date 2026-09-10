@@ -67,14 +67,16 @@ namespace LivingWorldNpcs.CampaignMode
 				Module.CurrentModule.AddInitialStateOption(item);
 			}
 
-			// 2) 新游戏按钮 → 启动通用战役 GameManager
-			Module.CurrentModule.AddInitialStateOption(new InitialStateOption(
-				"LivingWorldNewGame",
-				new TextObject("{=LWN_campaign_new_game}New Game"),
-				2,
-				() => MBGameManager.StartNewGame(new LivingWorldCampaignGameManager()),
-				() => new ValueTuple<bool, TextObject>(false, null),
-				null));
+			// 2) 「剧本」入口 → 打开**自建选剧本界面**（ScenarioSelectScreen）。
+			// 🔴 时代必须在**主菜单层**决定（时序硬约束，见 plans/时代剧本切换-验证.md）：
+			//   引擎在「new 出战役类」时才按类名过滤 XML 段，主菜单之后没有改的余地。
+			//   界面而不是改主菜单选项列表：列表被 MCM 等 mod 的 Harmony 盯着（实机崩溃教训，
+			//   见 ScenarioSelectScreen 类注释）。时代清单在 EraCatalog（加时代只改那一个文件）。
+			InitialStateOption scenarioEntry = EraCatalog.BuildEntryOption();
+			if (scenarioEntry != null)
+			{
+				Module.CurrentModule.AddInitialStateOption(scenarioEntry);
+			}
 
 			// 3) 继续战役：v0 读档路径未实现，禁用
 			Module.CurrentModule.AddInitialStateOption(new InitialStateOption(

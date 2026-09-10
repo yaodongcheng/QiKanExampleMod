@@ -4421,6 +4421,11 @@
     <string id="LWN_charc_review" text="You are a traveler of a new world." />
     <string id="LWN_charc_review_taikou" text="You are a samurai of the Sengoku period of Japan." />
     <string id="LWN_campaign_new_game" text="New Game" />
+    <string id="LWN_scenario_menu_entry" text="Scenarios" />
+    <string id="LWN_scenario_select_title" text="Choose a Scenario" />
+    <string id="LWN_scenario_select_back" text="Back" />
+    <string id="LWN_scenario_1560" text="The Wheel of Fate" />
+    <string id="LWN_scenario_1582" text="The Turning Point" />
     <string id="LWN_campaign_continue" text="Continue Campaign" />
     <string id="LWN_campaign_continue_disabled" text="Save-loading is not implemented yet." />
     <string id="LWN_q_failed" text="You have failed the mission disgracefully." />

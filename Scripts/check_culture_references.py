@@ -114,13 +114,39 @@ def section_files(mod_root, mod_id, path):
     return []
 
 
+
+def inferred_game_types(mod_path, explicit=None):
+    """本模块要体检的 GameType 列表。
+    显式 --game-type → 只跑那一个（单跑语义不变）。
+    缺省 = SubModule.xml 里所有「<模块名> + 数字年份」的 GameType（时代切换后一模块多 GameType：
+    Taikou → TaikouCampaign1560 / TaikouCampaign1582 …），**每个都要跑**——
+    只跑一个 = 另一个时代的段查不到 = 静默假绿（时代切换 spike 的核心风险点）。
+    """
+    if explicit:
+        return [explicit]
+    out = []
+    sm = mod_path / "SubModule.xml"
+    if sm.is_file():
+        try:
+            root = ET.parse(str(sm)).getroot()
+        except Exception:
+            root = None
+        if root is not None:
+            pat = re.compile(re.escape(mod_path.name) + r"Campaign\d{4}$")
+            for g in root.iter("GameType"):
+                v = g.get("value")
+                if v and pat.fullmatch(v) and v not in out:
+                    out.append(v)
+    return out or [mod_path.name + "Campaign"]
+
+
 def main():
     ap = argparse.ArgumentParser(description="Content-pack culture reference checker")
     ap.add_argument("--module",
                     default=r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\Taikou")
     ap.add_argument("--official-root", default=None,
                     help="游戏根（缺省=注册表 MB2_PATH）；内容包所在 <root>/Modules 下")
-    ap.add_argument("--game-type", default=None, help="缺省由模块目录名推断（Taikou→TaikouCampaign）")
+    ap.add_argument("--game-type", default=None, help="缺省=SubModule.xml 里本模块全部时代 GameType，各跑一遍")
     args = ap.parse_args()
 
     mod_path = Path(args.module)
@@ -139,90 +165,94 @@ def main():
         print(f"[FATAL] Modules root not found: {mod_root}")
         return 2
 
-    game_type = args.game_type or (mod_path.name + "Campaign")
-    print(f"Module   : {mod_path}")
-    print(f"Modules根: {mod_root}")
-    print(f"GameType : {game_type}")
+    exit_codes = []
+    for game_type in inferred_game_types(mod_path, args.game_type):
+        print(f"Module   : {mod_path}")
+        print(f"Modules根: {mod_root}")
+        print(f"GameType : {game_type}")
 
-    closure = module_closure(mod_root, mod_path.name)
-    print(f"加载模块闭包: {' → '.join(closure)}\n")
+        closure = module_closure(mod_root, mod_path.name)
+        print(f"加载模块闭包: {' → '.join(closure)}\n")
 
-    defined = {}      # 文化 id -> 定义处
-    refs = {}         # 文化 id -> 引用处集合
-    missing_culture = []   # (来源, 模板 id, 原因) —— 文化属性体检
-    scanned = 0
-    section_count = 0
+        defined = {}      # 文化 id -> 定义处
+        refs = {}         # 文化 id -> 引用处集合
+        missing_culture = []   # (来源, 模板 id, 原因) —— 文化属性体检
+        scanned = 0
+        section_count = 0
 
-    for mod_id in closure:
-        for sec_id, path in loaded_sections(mod_root, mod_id, game_type):
-            section_count += 1
-            for f in section_files(mod_root, mod_id, path):
-                scanned += 1
-                try:
-                    txt = f.read_text(encoding="utf-8", errors="replace")
-                except Exception:
-                    continue
-                # 🔴 先剥 XML 注释再扫：注释里举例写的 `Culture.xxx`（文档/反编译摘录）也会被正则命中 = 假悬空
-                #   （2026-09-10 现场：taikou_module_strings.xml 的说明注释写了 "*.Culture.StringId" → 报假缺）
-                txt = re.sub(r"<!--.*?-->", "", txt, flags=re.S)
-                if sec_id == "SPCultures":
+        for mod_id in closure:
+            for sec_id, path in loaded_sections(mod_root, mod_id, game_type):
+                section_count += 1
+                for f in section_files(mod_root, mod_id, path):
+                    scanned += 1
                     try:
-                        for c in ET.fromstring(txt).iter("Culture"):
-                            if c.get("id"):
-                                defined[c.get("id")] = f"{mod_id}/{f.name}"
+                        txt = f.read_text(encoding="utf-8", errors="replace")
                     except Exception:
-                        pass
-                # 🔴 文化属性体检（2026-09-10 新增，守 CharacterCultureBackfill 退役后的不变量）：
-                #   每个 NPCCharacter 必须带 culture 属性、且指向已定义的文化——缺任一条 =
-                #   CharacterObject.Culture 为 null → 伤害模型 `.Culture.IsBandit` 裸解引用 NRE
-                #   （运行时旧兜底会"按生成地点猜一个文化"补进去 = 掩盖数据错，已退役；本规则是它的替代防线）
-                if sec_id == "NPCCharacters":
-                    try:
-                        for el in ET.fromstring(txt).iter("NPCCharacter"):
-                            cid = el.get("id") or "<无 id>"
-                            cult = el.get("culture")
-                            if not cult:
-                                missing_culture.append((f"{mod_id}/{f.name}", cid, "缺少 culture 属性"))
-                            else:
-                                m = re.match(r"\s*(?:Culture\.)?([A-Za-z_][A-Za-z0-9_]*)\s*$", cult)
-                                if not m:
-                                    missing_culture.append((f"{mod_id}/{f.name}", cid, f"culture 值形状异常: {cult}"))
-                                elif m.group(1) not in defined:
-                                    missing_culture.append((f"{mod_id}/{f.name}", cid, f"culture 指向未定义文化: {cult}"))
-                    except Exception as e:
-                        print(f"  [WARN] {mod_id}/{f.name} NPCCharacters 解析失败: {e}")
-                for m in REF_RE.finditer(txt):
-                    refs.setdefault(m.group(1), set()).add(f"{mod_id}/{f.name}")
+                        continue
+                    # 🔴 先剥 XML 注释再扫：注释里举例写的 `Culture.xxx`（文档/反编译摘录）也会被正则命中 = 假悬空
+                    #   （2026-09-10 现场：taikou_module_strings.xml 的说明注释写了 "*.Culture.StringId" → 报假缺）
+                    txt = re.sub(r"<!--.*?-->", "", txt, flags=re.S)
+                    if sec_id == "SPCultures":
+                        try:
+                            for c in ET.fromstring(txt).iter("Culture"):
+                                if c.get("id"):
+                                    defined[c.get("id")] = f"{mod_id}/{f.name}"
+                        except Exception:
+                            pass
+                    # 🔴 文化属性体检（2026-09-10 新增，守 CharacterCultureBackfill 退役后的不变量）：
+                    #   每个 NPCCharacter 必须带 culture 属性、且指向已定义的文化——缺任一条 =
+                    #   CharacterObject.Culture 为 null → 伤害模型 `.Culture.IsBandit` 裸解引用 NRE
+                    #   （运行时旧兜底会"按生成地点猜一个文化"补进去 = 掩盖数据错，已退役；本规则是它的替代防线）
+                    if sec_id == "NPCCharacters":
+                        try:
+                            for el in ET.fromstring(txt).iter("NPCCharacter"):
+                                cid = el.get("id") or "<无 id>"
+                                cult = el.get("culture")
+                                if not cult:
+                                    missing_culture.append((f"{mod_id}/{f.name}", cid, "缺少 culture 属性"))
+                                else:
+                                    m = re.match(r"\s*(?:Culture\.)?([A-Za-z_][A-Za-z0-9_]*)\s*$", cult)
+                                    if not m:
+                                        missing_culture.append((f"{mod_id}/{f.name}", cid, f"culture 值形状异常: {cult}"))
+                                    elif m.group(1) not in defined:
+                                        missing_culture.append((f"{mod_id}/{f.name}", cid, f"culture 指向未定义文化: {cult}"))
+                        except Exception as e:
+                            print(f"  [WARN] {mod_id}/{f.name} NPCCharacters 解析失败: {e}")
+                    for m in REF_RE.finditer(txt):
+                        refs.setdefault(m.group(1), set()).add(f"{mod_id}/{f.name}")
 
-    print(f"扫描：{len(closure)} 模块 / {section_count} 段 / {scanned} 文件")
-    print(f"文化定义（{len(defined)}）: " + ", ".join(f"{k}({v})" for k, v in sorted(defined.items())) or "（无）")
+        print(f"扫描：{len(closure)} 模块 / {section_count} 段 / {scanned} 文件")
+        print(f"文化定义（{len(defined)}）: " + ", ".join(f"{k}({v})" for k, v in sorted(defined.items())) or "（无）")
 
-    dangling = {c: v for c, v in refs.items() if c not in defined}
-    print(f"\n== 悬空文化引用（引用 ⊄ 定义 → 运行时会造裸文化桩 → NRE） ==")
-    if not dangling:
-        print("  （无）")
-    else:
-        for c in sorted(dangling):
-            print(f"  [悬空] Culture.{c}  ← {len(dangling[c])} 文件: {sorted(dangling[c])[:6]}")
+        dangling = {c: v for c, v in refs.items() if c not in defined}
+        print(f"\n== 悬空文化引用（引用 ⊄ 定义 → 运行时会造裸文化桩 → NRE） ==")
+        if not dangling:
+            print("  （无）")
+        else:
+            for c in sorted(dangling):
+                print(f"  [悬空] Culture.{c}  ← {len(dangling[c])} 文件: {sorted(dangling[c])[:6]}")
 
-    # 文化属性体检：只看"我们自己"的模块（官方模块的数据我们改不了，单独作为提示列出）
-    ours = [x for x in missing_culture if x[0].startswith(mod_path.name + "/")]
-    others = [x for x in missing_culture if not x[0].startswith(mod_path.name + "/")]
-    print(f"\n== 角色模板文化属性体检（缺 = 运行时 Culture null → 伤害模型 NRE） ==")
-    if not missing_culture:
-        print("  （无）")
-    else:
-        for src, cid, why in ours:
-            print(f"  [缺失] {src} :: {cid} —— {why}")
-        for src, cid, why in others[:20]:
-            print(f"  [提示·官方模块] {src} :: {cid} —— {why}")
-        if len(others) > 20:
-            print(f"  [提示·官方模块] …另有 {len(others) - 20} 条")
+        # 文化属性体检：只看"我们自己"的模块（官方模块的数据我们改不了，单独作为提示列出）
+        ours = [x for x in missing_culture if x[0].startswith(mod_path.name + "/")]
+        others = [x for x in missing_culture if not x[0].startswith(mod_path.name + "/")]
+        print(f"\n== 角色模板文化属性体检（缺 = 运行时 Culture null → 伤害模型 NRE） ==")
+        if not missing_culture:
+            print("  （无）")
+        else:
+            for src, cid, why in ours:
+                print(f"  [缺失] {src} :: {cid} —— {why}")
+            for src, cid, why in others[:20]:
+                print(f"  [提示·官方模块] {src} :: {cid} —— {why}")
+            if len(others) > 20:
+                print(f"  [提示·官方模块] …另有 {len(others) - 20} 条")
 
-    print(f"\nSummary: defined={len(defined)} referenced={len(refs)} dangling={len(dangling)} "
-          f"missing_culture(ours)={len(ours)} missing_culture(official)={len(others)}")
-    return 1 if (dangling or ours) else 0
+        print(f"\nSummary: defined={len(defined)} referenced={len(refs)} dangling={len(dangling)} "
+              f"missing_culture(ours)={len(ours)} missing_culture(official)={len(others)}")
+    exit_codes.append(1) if (dangling or ours) else 0
 
+
+
+    return max(exit_codes) if exit_codes else 0
 
 if __name__ == "__main__":
     sys.exit(main())
