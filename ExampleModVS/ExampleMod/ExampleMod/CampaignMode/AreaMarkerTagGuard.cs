@@ -3,7 +3,7 @@ using HarmonyLib;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.Objects;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// 城镇区标记 Tag 空值兜底（通用基座，2026-09-09 雷 38 —— 老存档进城 NRE 收尾）。

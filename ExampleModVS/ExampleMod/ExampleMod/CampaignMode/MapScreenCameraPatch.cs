@@ -3,7 +3,7 @@ using SandBox.View.Map;
 using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.Core;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// 大地图相机对准玩家（2026-09-08 用户实测：Finalize 时 teleport 的时序不生效——CC 完成回调时

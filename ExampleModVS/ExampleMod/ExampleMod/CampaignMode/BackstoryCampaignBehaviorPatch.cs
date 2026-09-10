@@ -1,7 +1,7 @@
 using HarmonyLib;
 using TaleWorlds.CampaignSystem.CampaignBehaviors;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// 卡拉迪亚前史注入屏蔽（通用，2026-09-08 排雷第 4 颗雷）。

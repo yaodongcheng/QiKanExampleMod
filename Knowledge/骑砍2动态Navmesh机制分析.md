@@ -3,7 +3,7 @@
 > 来源：**1.2.12 DLL 反编译实证**（2026-09-10）。行号缩写对照：
 > `mb:` = TaleWorlds.MountAndBlade.dll ｜ `engine:` = TaleWorlds.Engine.dll ｜ `lib:` = TaleWorlds.Library.dll ｜ `sandbox:` = SandBox.dll
 > 复现方式：`ilspycmd Modules/1.2.12DLL/<DLL> > 文件` 后按行号查（见 CLAUDE.md「API 探索」章节流程）。
-> 关联：本 mod 调试工具 `Debug/NavMeshDebugCommands.cs` + `Debug/NavMeshDebugMissionView.cs`；大地图侧探针 `Debug/NavMeshProbeCommands.cs`。
+> 关联：本 mod 调试工具 `CampaignMode/Tools/NavMeshDebugCommands.cs` + `CampaignMode/Tools/NavMeshDebugMissionView.cs`；大地图侧探针 `CampaignMode/Tools/NavMeshProbeCommands.cs`。
 
 ---
 
@@ -172,7 +172,7 @@ NavMesh Inspector（官方文档：`Knowledge/bannerlord_official_docs/Editor/Sc
   🔴 **这些方法全部带 `[Conditional("_RGL_KEEP_ASSERTS")]`——csproj 的 DefineConstants 必须定义 `_RGL_KEEP_ASSERTS`，否则调用点被编译器静默剥离**（代码编译通过但画面什么都不显示）。本 mod 已在 `ExampleMod.csproj` Debug/Release 两配置中定义。
 - **颜色打包** = `0xAARRGGBB`（默认 `uint.MaxValue` = 不透明白）。若实机色相异常（红蓝互换）改色表即可。
 
-**本 mod 工具**（`Debug/NavMeshDebug*.cs`，2026-09-10）——**双世界自动分派**：
+**本 mod 工具**（`CampaignMode/Tools/NavMeshDebug*.cs`，2026-09-10）——**双世界自动分派**：
 
 > 骑砍2 的 Campaign 与 Mission 是两个宿主：场景有 Agent（无 MobileParty），大地图有 MobileParty（无 Agent）；两边是**同一套引擎 navmesh**（`MapSceneWrapper` 内部转调同一 `Scene` API，`SandBox.MapScene.Scene` 即大地图 scene），仅载体不同。
 > 绘制触发：场景 = `NavMeshDebugMissionView`（MissionBehavior.OnMissionTick）；大地图 = `NavMeshDebugMapTickPatch`（Harmony 补丁 `ScreenBase.OnFrameTick`——暂停也触发，理由同 ImScreenFrameTickPatch）。
@@ -191,7 +191,7 @@ NavMesh Inspector（官方文档：`Knowledge/bannerlord_official_docs/Editor/Sc
 > 🔴 agent/party 路线口径：内部路径在 native 不暴露 —— 青线画的是「脚下 → 当前目标」的实时寻路结果，同起终点下引擎寻路确定性，即"它接下来最可能走的路线"。
 > 🔴 **实机结果（2026-09-10）：未显示** —— 游戏内执行命令后画面无任何调试图元。排查清单、已排除证据与备选通道见 **§7.4（归档，未排查完）**。
 
-另有大地图侧探针 `custom.probe_face`（`Debug/NavMeshProbeCommands.cs`，2026-09-09）——地图点击寻路三环验证（面有效/玩家面/同岛）。
+另有大地图侧探针 `custom.probe_face`（`CampaignMode/Tools/NavMeshProbeCommands.cs`，2026-09-09）——地图点击寻路三环验证（面有效/玩家面/同岛）。
 
 ### 7.4 实机归档（2026-09-10）：调试渲染未显示 —— 未排查完
 
@@ -223,7 +223,7 @@ NavMesh Inspector（官方文档：`Knowledge/bannerlord_official_docs/Editor/Sc
 - **动态实体方案（首选备选）**：`Scene.AddItemEntity / AddEntityWithMultiMesh` + 现成小球/标记模型（MetaMesh，查 `Prefabs/editor_*` 类编辑器辅助模型）→ 走**正常渲染管线**，必定可见；代价 = 每个标记一个实体（量大需控制）+ 模型资源。上层 `NavMeshDebugRenderer` 架构不用动（DrawXxx 内部换成实体池）。
 - GauntletUI 3D→2D 投影自绘（成本最高，最后选择）。
 
-**代码状态**：`Debug/NavMeshDebug{Commands,Renderer,MissionView,MapTickPatch}.cs` 四文件的功能逻辑（命令解析 / 双世界分派 / 面数据与寻路查询 / 监视对象解析）**全部有效可复用**——只有"最后一步画到屏幕"存疑。
+**代码状态**：`CampaignMode/Tools/NavMeshDebug{Commands,Renderer,MissionView,MapTickPatch}.cs` 四文件的功能逻辑（命令解析 / 双世界分派 / 面数据与寻路查询 / 监视对象解析）**全部有效可复用**——只有"最后一步画到屏幕"存疑。
 
 **续接入口**：本文档 §7.3 + §7.4 + 上述四文件 + memory `navmesh-debug-overlay-unresolved`。
 

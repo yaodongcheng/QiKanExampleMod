@@ -53,9 +53,14 @@ python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Tai
 **验收话术**：`check ... = dangling 0 / unknown 0` = 数据改动达标（"引用的任何东西都必须在自我体系内"）。
 **铁则**：新内容包数据 = 手写或生成器产出后先过本检查；**拷贝官方文件 = 默认带原版引用尾巴，必须清洗**。
 
-## 二、CultureTemplateNullFix —— 引擎默认行为的"文化模板列表"null 兜底
+## 二、~~CultureTemplateNullFix~~ —— 文化模板列表 null 兜底（✅ 已退役 2026-09-10）
 
-**解决什么问题**：即使数据自给到位，第三方引用/历史档案仍可能产生裸文化桩；引擎 `CompanionsCampaignBehavior.InitializeCompanionTemplateList`（及 LordTemplates/RebelliousHeroTemplates 的消费点）无 null 保护。LWN 作为通用基座兜底：战役启动（`LivingWorldCampaign.OnInitialize`）把每个文化的三个模板列表修复为非空、剔除 null 条目。
+**退役结论（先看这条）**：该兜底**已删除**（文件 + `LivingWorldCampaign.OnInitialize` 调用 + csproj 行全清）。理由 = 数据侧已治本，且离线证明它不可能再触发：TaikouCampaign 下**实际加载的 42 段零悬空 `Culture.*` 引用**（裸文化桩只由悬空引用产生）＋ 反编译证 `CultureObject.Deserialize` 对三个模板列表**必赋非 null**（`new MBList<>()` → 末尾整体赋值）。不变量由 `Scripts/check_culture_references.py` 常驻守（数据改动必跑）。
+⚠️ **退役时踩到的坑（别再踩）**：原验证法「跑旧档看日志无修复行」= **假绿**——调用点在 `SavedCampaign` 早退**之后**，读档根本不执行那段代码。验证任何兜底补丁前，先确认「调用点在不在你的验证路径上」。
+
+**以下为原始轮子记录（模式仍有参考价值：新内容包若确需加载期兜底，照此实现）**：
+
+**解决什么问题**：即使数据自给到位，第三方引用/历史档案仍可能产生裸文化桩；引擎 `CompanionsCampaignBehavior.InitializeCompanionTemplateList`（及 LordTemplates/RebelliousHeroTemplates 的消费点）无 null 保护。
 
 **关键点**：
 - 反射**按属性名存在性**修复（`GetProperty` null 即跳过）——🔴 1.5.x 属性名/归属已变（`NotableAndWandererTemplates` 字符串在 1.5.1 DLL 0 命中），硬编码 Harmony 属性补丁会静默失败；反射 + 日志为跨版本安全解
@@ -63,16 +68,16 @@ python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Tai
 - 空列表构造用 `new MBReadOnlyList<CharacterObject>(new List<CharacterObject>())`（公开构造，已验证 1.2.12）
 - 日志：`[CultureTemplateNullFix]`（null→空 / 剔除 null 条目 / 属性不存在的版本差异提示）
 
-**文件**：`ExampleModVS/ExampleMod/ExampleMod/Debug/CultureTemplateNullFix.cs`（csproj 显式 Compile，新增文件必须登记——旧式 csproj 无通配）。
+**文件**：`~~ExampleModVS/ExampleMod/ExampleMod/Debug/CultureTemplateNullFix.cs~~`（已删；恢复 = `git checkout <退役前 commit> -- 原路径` + csproj 补登记行）。
 
 ## 三、同族兜底索引（别重复造）
 
 文化类 NRE 已有三层战线，本卷只持新轮子：
 | 轮子 | 层 | 文件 |
 |---|---|---|
-| `AgentDamageModelCultureNullFix` | 运行时 Transpiler（伤害模型 `.Culture.IsBandit` 裸解引用） | `Debug/AgentDamageModelCultureNullFix.cs` |
-| `CharacterCultureBackfill` | 生成期 MissionLogic（角色缺 culture 按生成地点补全） | `Debug/CharacterCultureBackfill.cs` |
-| 本卷 `CultureTemplateNullFix` | 加载期（文化模板列表 null→空）+ 数据侧 `check_taikou_xml_references.py` 根治 | 见上 |
+| `AgentDamageModelCultureNullFix` | 运行时 Transpiler（伤害模型 `.Culture.IsBandit` 裸解引用） | `CampaignMode/AgentDamageModelCultureNullFix.cs` |
+| `CharacterCultureBackfill` | 生成期 MissionLogic（角色缺 culture 按生成地点补全） | `CampaignMode/CharacterCultureBackfill.cs` |
+| ~~本卷 `CultureTemplateNullFix`~~（**已退役** 2026-09-10） | ~~加载期（文化模板列表 null→空）~~ → 数据侧 `check_taikou_xml_references.py` + `check_culture_references.py` 常驻守不变量 | 见上（第二节） |
 | `HorseSpawnNullGuardPatch`（**已删** 2026-09-10） | 场景消费兜底（`SpawnHorses` 前缀替换：Tags 缺项/物品未装载 → 跳过该出生点）——**数据优先原则下退役**：缺失改由 `Scripts/check_scene_consumables.py` 离线抓（见第四节） | ~~Debug/HorseSpawnNullGuardPatch.cs~~ |
 
 **联动**：改内容包发现新的"半成品对象"NRE = 先查 `check` 脚本有没有抓到同型悬空 → 数据根治为主、LWN 兜底为辅。

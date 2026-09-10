@@ -5,7 +5,7 @@ using TaleWorlds.Engine;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.ScreenSystem;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
     /// <summary>
     /// navmesh 可视化绘制循环 · Campaign 大地图侧（2026-09-10）。

@@ -2,7 +2,7 @@ using HarmonyLib;
 using System.Linq;
 using TaleWorlds.MountAndBlade.GauntletUI.Widgets.CharacterCreation.Culture;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// CC 文化阶段"大图/按钮小图"空屏兜底（通用，2026-09-08 第 23 颗雷）。

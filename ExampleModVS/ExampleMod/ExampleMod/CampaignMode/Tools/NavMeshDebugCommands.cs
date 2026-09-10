@@ -7,7 +7,7 @@ using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
     /// <summary>
     /// Mission 场景内 navmesh 可视化调试（2026-09-10）。

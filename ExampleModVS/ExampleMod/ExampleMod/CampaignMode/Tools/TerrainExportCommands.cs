@@ -16,7 +16,7 @@ using SysFile = System.IO.File;
 using SysDirectory = System.IO.Directory;
 using SysFileStream = System.IO.FileStream;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
     /// <summary>
     /// 实机地形高度图导出命令（2026-09-07）。

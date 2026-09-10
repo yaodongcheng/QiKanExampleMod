@@ -7,7 +7,7 @@ using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.Core;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// 战斗兵力战力计算（BattlePowerCalculationLogic.CalculateTeamPowers）空键防护（通用基座，

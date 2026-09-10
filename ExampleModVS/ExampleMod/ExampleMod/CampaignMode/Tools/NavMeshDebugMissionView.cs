@@ -3,7 +3,7 @@ using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
     /// <summary>
     /// navmesh 可视化绘制循环 · Mission（场景）侧（2026-09-10）。

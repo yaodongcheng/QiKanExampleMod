@@ -4,7 +4,7 @@ using HarmonyLib;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// Issues（问题委托）系统启动空列表兜底（通用基座，2026-09-09 雷 39 —— 新开档 OnSessionStart 崩）。

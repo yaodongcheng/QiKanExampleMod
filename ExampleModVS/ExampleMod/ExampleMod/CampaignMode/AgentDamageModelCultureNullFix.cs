@@ -7,7 +7,7 @@ using HarmonyLib;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade.ComponentInterfaces;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
     /// <summary>
     /// 伤害模型 Culture-null 空保护（通用方案 X3，2026-09-02 用户裁定）。

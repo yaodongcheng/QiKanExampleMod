@@ -1,7 +1,7 @@
 using HarmonyLib;
 using TaleWorlds.CampaignSystem.ViewModelCollection.CharacterCreation;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// CC 文化阶段"摆拍排序"跳过（通用，2026-09-08 第 14 颗雷）。

@@ -6,7 +6,7 @@ using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
     /// <summary>
     /// 无文化角色的「生成期补全」（通用，2026-09-02 用户裁定：Code 方案替代织丰专用 XSLT 数据补丁）。

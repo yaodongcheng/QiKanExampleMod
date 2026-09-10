@@ -1,7 +1,7 @@
 using HarmonyLib;
 using TaleWorlds.Library;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// 大地图边界诊断日志（通用基座，2026-09-08 日本图相机「空气墙」排雷）。

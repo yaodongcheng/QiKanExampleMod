@@ -5,7 +5,7 @@ using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs
+namespace LivingWorldNpcs.CampaignMode
 {
     /// <summary>
     /// navmesh 可视化共享绘制核心（2026-09-10）——Mission（场景）与 Campaign（大地图）两宿主共用。
