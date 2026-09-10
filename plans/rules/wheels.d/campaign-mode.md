@@ -172,3 +172,45 @@ public override Vec2? StartingPosition => TaikouStartingPosition;   // new Vec2(
 
 **记录**：必备清单雷 30/33 更正 + 雷 34 + §1.5；台账「出生点（世界创建期置位）」「地图相机对准（已退役）」行。
 
+## 八、🔴 离线地图场景体检 `check_scene_entities.py`（2026-09-10 登记）
+
+**解决什么问题**：地图场景是**最容易静默出错**的地方——缺实体不报错、不崩，只是"玩法悄悄没了"。本脚本把这些检查从"进游戏才发现"提前到离线（替代已停用的运行期 `[MapBorder]` 诊断补丁）。
+
+**查六项**（`errors=0` 才过；`banner_pos` 缺失只 WARN）：
+1. `border_min`/`border_max` 在位**且与 `<terrain>` 规格对账**（期望 `max = node_dimension_x×node_size, node_dimension_y×node_size`）——缺/错 = 空气墙 900×900（1.2.12）或进图崩（1.5.x），雷 34
+2. 引擎硬查询的 5 个脚本实体：`CampaignMapSiegePrefabEntityCache`（缺 = MapScreen.OnInitialize NRE）/`MapColorGradeManager`/`SettlementPositionScript`/`Town Scene Manager`/`SceneLeveler`，雷 28
+3. navmesh：`navmesh.bin` 存在 或 `nav_mesh_auto_generated_=true`
+4. **有地图组件的据点必须有同名 `game_entity`**——判定 = 组件含 `Town`/`Village`/`Castle`/`Hideout`；缺 = 不进距离缓存 → 据点对变少 → 全局最大据点距可能恒 0 → 家宅选不中，雷 53。**服务性据点豁免**（如 `retirement_retreat`＝只有 `RetirementSettlementComponent`）：官方 493 据点实测 Town 120/Village 273/Hideout 99 **全有实体**，唯一无实体者就是退休据点 ⇒ **不在地图上是官方设计，别去给它补实体**（脚本打印理由后跳过）
+5. 城镇（含 `<Town>` 组件）实体子树要有交互链三件套：`bo_town`（拾取碰撞体）/`map_settlement_circle`（黄圈）/`main_map_city_gate`（门），雷 37
+6. （WARN）`map_banner_placeholder`（旗帜占位，纯视觉）
+
+**关键实现点**（写脚本时踩过的结构坑）：
+- 场景 XML 结构：`<entities>` → `game_entity` → **子实体包在 `<children>` 里**（不是直接嵌套）、标签是 `<tags><tag name=.../>`、脚本是 `<scripts><script name=.../>`——`e.iter()` 会把后代的标签一起捞上来，要按**直接子路径**取
+- `<Town>` 组件判定：`s.find("Components")` 可能为 None，**别写 `find(...) or []`**（Element 真值判断在新版 py 会报 DeprecationWarning，且空元素为假）
+
+**调用**：
+```bash
+python Scripts/check_scene_entities.py                 # 默认 1.2.12 机 Taikou / Main_map
+python Scripts/check_scene_entities.py --module <路径> --scene Main_map
+```
+**首跑价值实证 + 一条教训**：写完第一次跑就报 `retirement_retreat` 无实体 = 红线——**追查后推翻**：那是官方设计（见上第 4 条）。所以**写检查规则前先拿官方数据跑一遍**，否则会把官方设计当缺陷、把错误结论写进清单。修正后 errors=0。
+
+## 九、🔴 离线体检全家桶（2026-09-10 登记；「每条检查必须有脚本」纪律的产物）
+
+**解决什么问题**：必备清单里曾有一批条目**只有文字、没有脚本**（引擎硬编码 id、必填字段、段注册、距离缓存、官方拷贝原样）——全靠人背，忘了就运行期崩或静默失效。本卷登记 2026-09-10 补齐的脚本 + 一键入口。
+
+**一键跑**：`python Scripts/run_all_checks.py`（13 项，约 5 秒；`--quick` 跳慢检查；`--module` 换内容包；红的当场打印输出尾巴）。清单侧逐条对照见 `Knowledge/自定义世界内容包从零起步必备清单.md`「清单条目 ↔ 脚本对照表」。
+
+| 脚本 | 查什么 | 关键设计点（照抄时别踩） |
+|---|---|---|
+| `check_required_ids.py` | 引擎硬编码点名的 38 条 id（含退休据点 / 地痞三档 / 捏脸模板 0-9 / 主队模板 / 5 马 5 动物） | **判定基准 = 目标 GameType 下真正会加载的段**（闭包 + 白名单）——定义在未加载段里要报「未加载」（雷 3/4/5 形态），只有这样才能防假绿 |
+| `check_data_fields.py` | 据点必填（按组件类型分档）/ 城防 level≤3 / occupation 枚举 / 文化必备 / **商队护卫引擎硬查询** / 势力 owner 链 | 🔴 **每条规则的边界都先拿官方数据验过**（493 据点 / 16 文化 / 94 家族）：owner 只有城镇要、CommonAreas 只有城镇要、Locations 巢穴不要、Faction 字段只对「拥有据点的家族」要（官方 94 个里 21 个缺）；`--module <SandBox> --game-type Campaign` = 负面对照，应 0 错 |
+| `check_module_registration.py` | 必需段注册 / 段 path 可解析 / 孤儿数据文件 / **csproj 漏登记 .cs** | 「有意未登记」的判别 = **csproj 注释里提过这个名字**（含不带 `.cs` 的写法）→ INFO；完全没提 → ERROR |
+| `check_settlement_distance_cache.py` | 距离缓存 id 集合与 settlements.xml 一致 + 据点对 ≥1 | .NET `BinaryWriter` 格式解析（7-bit 变长长度前缀 + UTF-8，不是 int32 长度）；「期望集合」= 有地图组件的据点 ∩ 有同名场景实体（引擎生成缓存时的真实口径） |
+| `check_official_copies.py` | 9 个 GameText 段与本包同名文件逐行比对（差异应为 0） | 🔴 **源头模块必须声明**：Native 与 SandBox 有同名但内容完全不同的 `module_strings.xml`（6887 行 vs 663 行），自动挑源头 = 必然误报 |
+
+**三条纪律（写新 checker 时照做）**：
+1. **先拿官方数据跑一遍**再定规则（否则把官方设计当缺陷——退休据点误判实录，见卷八）。
+2. **必须做负面测试**：故意造坏数据，确认脚本真抓到且 exit 1（本轮 5 个脚本全部做过：三种坏法全中才算过）。
+3. **规则实现坑**：`e.iter()` 会把后代标签一起捞（要按直接子路径取）；`find(...) or []` 在 Element 上有 DeprecationWarning（用 `is not None`）；元数据类名字符串在 DLL 里是 UTF-8、字面量是 UTF-16LE（串搜验证要分两种编码各搜一次）。
+
