@@ -357,7 +357,12 @@
     <!-- <Compile Include="Debug\SceneNotificationLoggerPatch.cs" /> -->
     <Compile Include="Debug\SaveGuard.cs" />
     <Compile Include="CampaignMode\AgentDamageModelCultureNullFix.cs" />
-    <Compile Include="CampaignMode\CharacterCultureBackfill.cs" />
+    <!-- 🔴 2026-09-10 **已退役删除**（文件已删，实机验证通过；恢复 = git 历史捞回原文件后去掉本行注释）：
+         CharacterCultureBackfill.cs（无文化角色按生成地点补全）——它「按地点猜一个文化写进去」会**掩盖数据错**
+         （与"不编造文化"原则冲突），且本包 233/233 角色模板全带文化、运行期长期 0 次触发。
+         不变量已由离线防线接管：`Scripts/check_culture_references.py` 的「角色模板文化属性体检」
+         （缺属性 / 指向未定义文化 / 值形状异常 三态全抓，已用故意坏数据做过负面测试）。 -->
+    <!-- <Compile Include="CampaignMode\CharacterCultureBackfill.cs" /> -->
     <Compile Include="CampaignMode\BackstoryCampaignBehaviorPatch.cs" />
     <Compile Include="CampaignMode\CharacterCreationCultureStageSortPatch.cs" />
     <Compile Include="CampaignMode\CharacterCreationCultureVisualFallbackPatch.cs" />
@@ -367,7 +372,11 @@
          现行做法 = 世界创建期写出生点（LivingWorldCampaign.StartingPosition + OnNewGameCreatedPartialFollowUp），
          地图相机初始化时读到的就是玩家坐标 → 相机天然对准，不再需要任何事后补丁。 -->
     <!-- <Compile Include="CampaignMode\MapScreenCameraPatch.cs" /> -->
-    <Compile Include="CampaignMode\MapBorderDiagnosticPatch.cs" />
+    <!-- 🔴 2026-09-10 **已退役删除**（文件已删，离线防线经负面测试验证；恢复 = git 历史捞回原文件后去掉本行注释）：
+         MapBorderDiagnosticPatch.cs（[MapBorder] 一行日志）——纯诊断，已被**离线**场景体检完全取代：
+         `Scripts/check_scene_entities.py`（border 与地形规格对账 + 5 个引擎脚本实体 + navmesh +
+         据点实体/城镇交互链三件套），进游戏前就能查，且覆盖更广（雷 28/34/37/42/53 族）。 -->
+    <!-- <Compile Include="CampaignMode\MapBorderDiagnosticPatch.cs" /> -->
     <Compile Include="CampaignMode\BattlePowerCalculationGuardPatch.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshProbeCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugCommands.cs" />

@@ -166,8 +166,13 @@ namespace LivingWorldNpcs
             //🔴 2026-09-02（用户裁定）：是否挂载由上方总闸（IsInteractionDisabled）统一决定，
             // 战场等场景不跑本 mod 玩法逻辑；入口内部 gate 保留作纵深防御。
             mission.AddMissionBehavior(new AttackTriggerMissionLogic());
-            //无文化模板补全（Townsfolk 只在 settlement 场景生成 → 用定居点文化补；野战无 settlement 自动跳过）
-            mission.AddMissionBehavior(new CharacterCultureBackfill());
+            // 🔴 2026-09-10 **已退役删除**（`CampaignMode/CharacterCultureBackfill.cs` 文件已删，实机验证通过）：
+            //   「无文化模板按生成地点补全」——它"按地点猜一个文化写进去"的做法会把数据错**掩盖掉**
+            //   （与本项目"不编造文化"原则冲突），且本包 233/233 角色模板全部自带文化、运行期长期 0 次触发。
+            //   不变量已由离线防线接管：`Scripts/check_culture_references.py` 的「角色模板文化属性体检」
+            //   （缺属性 / 指向未定义文化 / 值形状异常 三态全抓，已用故意坏数据做过负面测试）。
+            //   恢复 = git 历史捞回原文件 + csproj 补登记行 + 取消本行注释（**禁止无故恢复**）。
+            //mission.AddMissionBehavior(new CharacterCultureBackfill());
             //AI
             mission.AddMissionBehavior(new AgentAIController());
             //IM 传讯（Mission 侧 tick 驱动 + 热键）

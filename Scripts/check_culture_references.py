@@ -149,6 +149,7 @@ def main():
 
     defined = {}      # 文化 id -> 定义处
     refs = {}         # 文化 id -> 引用处集合
+    missing_culture = []   # (来源, 模板 id, 原因) —— 文化属性体检
     scanned = 0
     section_count = 0
 
@@ -171,6 +172,25 @@ def main():
                                 defined[c.get("id")] = f"{mod_id}/{f.name}"
                     except Exception:
                         pass
+                # 🔴 文化属性体检（2026-09-10 新增，守 CharacterCultureBackfill 退役后的不变量）：
+                #   每个 NPCCharacter 必须带 culture 属性、且指向已定义的文化——缺任一条 =
+                #   CharacterObject.Culture 为 null → 伤害模型 `.Culture.IsBandit` 裸解引用 NRE
+                #   （运行时旧兜底会"按生成地点猜一个文化"补进去 = 掩盖数据错，已退役；本规则是它的替代防线）
+                if sec_id == "NPCCharacters":
+                    try:
+                        for el in ET.fromstring(txt).iter("NPCCharacter"):
+                            cid = el.get("id") or "<无 id>"
+                            cult = el.get("culture")
+                            if not cult:
+                                missing_culture.append((f"{mod_id}/{f.name}", cid, "缺少 culture 属性"))
+                            else:
+                                m = re.match(r"\s*(?:Culture\.)?([A-Za-z_][A-Za-z0-9_]*)\s*$", cult)
+                                if not m:
+                                    missing_culture.append((f"{mod_id}/{f.name}", cid, f"culture 值形状异常: {cult}"))
+                                elif m.group(1) not in defined:
+                                    missing_culture.append((f"{mod_id}/{f.name}", cid, f"culture 指向未定义文化: {cult}"))
+                    except Exception as e:
+                        print(f"  [WARN] {mod_id}/{f.name} NPCCharacters 解析失败: {e}")
                 for m in REF_RE.finditer(txt):
                     refs.setdefault(m.group(1), set()).add(f"{mod_id}/{f.name}")
 
@@ -185,8 +205,23 @@ def main():
         for c in sorted(dangling):
             print(f"  [悬空] Culture.{c}  ← {len(dangling[c])} 文件: {sorted(dangling[c])[:6]}")
 
-    print(f"\nSummary: defined={len(defined)} referenced={len(refs)} dangling={len(dangling)}")
-    return 1 if dangling else 0
+    # 文化属性体检：只看"我们自己"的模块（官方模块的数据我们改不了，单独作为提示列出）
+    ours = [x for x in missing_culture if x[0].startswith(mod_path.name + "/")]
+    others = [x for x in missing_culture if not x[0].startswith(mod_path.name + "/")]
+    print(f"\n== 角色模板文化属性体检（缺 = 运行时 Culture null → 伤害模型 NRE） ==")
+    if not missing_culture:
+        print("  （无）")
+    else:
+        for src, cid, why in ours:
+            print(f"  [缺失] {src} :: {cid} —— {why}")
+        for src, cid, why in others[:20]:
+            print(f"  [提示·官方模块] {src} :: {cid} —— {why}")
+        if len(others) > 20:
+            print(f"  [提示·官方模块] …另有 {len(others) - 20} 条")
+
+    print(f"\nSummary: defined={len(defined)} referenced={len(refs)} dangling={len(dangling)} "
+          f"missing_culture(ours)={len(ours)} missing_culture(official)={len(others)}")
+    return 1 if (dangling or ours) else 0
 
 
 if __name__ == "__main__":
