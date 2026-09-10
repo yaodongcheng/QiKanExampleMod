@@ -1,0 +1,102 @@
+<Prefab>
+  <Window Id="LWN_ScenarioSelect">
+    <!-- 选剧本界面（对标太阁5「开始新游戏」）：
+         左列剧本按钮 / 右侧大图 / 右下返回 / 左上标题。
+         🔴 为什么自建界面而不是改主菜单选项列表：主菜单列表被 MCM 等 mod 用 Harmony 盯着
+           （MCM 的 RefreshMenuOptions postfix 按固定下标插按钮）→ 换短列表 = 它下标越界崩
+           （实机 2026-09-10 ArgumentOutOfRangeException）。自建 Screen 完全绕开那条链。
+         点击/悬停走 VM 命令：Command.Click / Command.HoverBegin → ScenarioItemVM.ExecuteClick/ExecuteHover。 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+            Sprite="BlankWhiteSquare_9" Color="#0A0A12E6"
+            DoNotAcceptEvents="false">
+      <Children>
+
+        <!-- 标题（左上，金框条） -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="360" SuggestedHeight="56"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="70" MarginTop="46"
+                Sprite="StdAssets\Popup\canvas_dark" DoNotAcceptEvents="true">
+          <Children>
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                        Text="@TitleText" Brush="Popup.Title.Text" Brush.TextHorizontalAlignment="Center"
+                        Brush.FontSize="30" VerticalAlignment="Center"
+                        DoNotAcceptEvents="true"/>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="frame_9" ExtendLeft="14" ExtendTop="14" ExtendRight="14" ExtendBottom="14"
+                    IsEnabled="false" DoNotAcceptEvents="true"/>
+          </Children>
+        </Widget>
+
+        <!-- ============ 左：剧本按钮列 ============ -->
+        <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="470"
+                   HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="130"
+                   StackLayout.LayoutMethod="VerticalBottomToTop"
+                   DataSource="{Items}">
+          <ItemTemplate>
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="470" SuggestedHeight="76"
+                          Brush="Test.Button3" MarginBottom="16"
+                          Command.Click="ExecuteClick"
+                          Command.HoverBegin="ExecuteHover">
+              <Children>
+                <!-- 年份（大字）+ 卷名（小字）横排居中 -->
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           DoNotAcceptEvents="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@Year" Brush="MyBrush_24" Brush.FontSize="30"
+                                Brush.FontColor="@TextColor" VerticalAlignment="Center" MarginRight="22"
+                                DoNotAcceptEvents="true"/>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@Name" Brush="MyBrush_18_White" Brush.FontSize="22"
+                                Brush.FontColor="@TextColor" VerticalAlignment="Center"
+                                DoNotAcceptEvents="true"/>
+                  </Children>
+                </ListPanel>
+                <!-- 选中态：外描金框（无 Extend 属性时整图拉伸，故用 Extend 四边） -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                        Sprite="frame_9" ExtendLeft="10" ExtendTop="10" ExtendRight="10" ExtendBottom="10"
+                        IsVisible="@IsSelected" IsEnabled="false" DoNotAcceptEvents="true"/>
+              </Children>
+            </ButtonWidget>
+          </ItemTemplate>
+        </ListPanel>
+
+        <!-- ============ 右：大图（占位 = 金棕底块；配图后由 PreviewSprite 顶替） ============ -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="560" SuggestedHeight="600"
+                HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="140"
+                Sprite="StdAssets\Popup\canvas_dark" DoNotAcceptEvents="true">
+          <Children>
+            <!-- 大图本体（ImageWidget：Sprite 名走 VM）。未配图时 sprite 为空 → 底下这块深色占位底透出来 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="BlankWhiteSquare_9" Color="#2A2418FF"
+                    MarginLeft="26" MarginTop="26" MarginRight="26" MarginBottom="26"
+                    DoNotAcceptEvents="true"/>
+            <ImageWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                         Sprite="@PreviewSprite" IsVisible="@HasPreview"
+                         MarginLeft="26" MarginTop="26" MarginRight="26" MarginBottom="26"
+                         DoNotAcceptEvents="true"/>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="frame_9" ExtendLeft="18" ExtendTop="18" ExtendRight="18" ExtendBottom="18"
+                    IsEnabled="false" DoNotAcceptEvents="true"/>
+          </Children>
+        </Widget>
+
+        <!-- ============ 右下：返回 ============ -->
+        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="56"
+                      HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginRight="90" MarginBottom="50"
+                      Brush="Test.Button3"
+                      Command.Click="ExecuteBack">
+          <Children>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        Text="@BackText" Brush="MyBrush_24" Brush.FontSize="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        DoNotAcceptEvents="true"/>
+          </Children>
+        </ButtonWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

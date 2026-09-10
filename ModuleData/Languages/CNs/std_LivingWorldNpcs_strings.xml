@@ -4526,6 +4526,11 @@
     <string id="LWN_charc_review" text="你是这个新世界的旅人。" />
     <string id="LWN_charc_review_taikou" text="你是日本战国时代的一名武士。" />
     <string id="LWN_campaign_new_game" text="新的游戏" />
+    <string id="LWN_scenario_menu_entry" text="剧本" />
+    <string id="LWN_scenario_select_title" text="选择剧本" />
+    <string id="LWN_scenario_select_back" text="返回" />
+    <string id="LWN_scenario_1560" text="日轮之卷" />
+    <string id="LWN_scenario_1582" text="转变之卷" />
     <string id="LWN_campaign_continue" text="继续战役" />
     <string id="LWN_campaign_continue_disabled" text="读档功能尚未实装。" />
     <string id="LWN_q_failed" text="你耻辱地失败了这项任务。" />

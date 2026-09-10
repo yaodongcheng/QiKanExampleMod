@@ -24,20 +24,23 @@ if hasattr(sys.stdout, "reconfigure"):
 
 HERE = Path(__file__).resolve().parent
 
-# (脚本, 说明, 是否算「慢」)
+# (脚本, 说明, 是否算「慢」, 自定义参数 or None=默认 --module)
 CHECKS = [
-    ("check_taikou_xml_references.py", "交叉引用完整性 + 列表污染（雷 11/52）", False),
-    ("check_taikou_field_coverage.py", "最小字段交集覆盖", False),
-    ("check_required_ids.py", "引擎硬编码点名 id 必须存在（雷 6/7/15/16/19/27/31/40/41）", False),
-    ("check_data_fields.py", "据点必填字段 / 城防 level≤3 / occupation 枚举 / 文化必备（雷 19/22/29/16）", False),
-    ("check_culture_references.py", "文化引用悬空 + 角色模板文化属性（雷 11/30）", False),
-    ("check_culture_text_variants.py", "文化 variation 文本族（雷 45）", False),
-    ("check_language_registration.py", "语言文件登记 / 自有键中文 / emoji（雷 47/48/50/51 + 铁律 14）", False),
-    ("check_scene_consumables.py", "官方场景消费物品（雷 40/41）", False),
-    ("check_scene_entities.py", "地图场景必备实体（雷 28/34/37/42/53）", False),
-    ("check_module_registration.py", "段注册 / 孤儿数据文件 / csproj 漏登记（雷 3/4/5/35/40）", False),
-    ("check_settlement_distance_cache.py", "距离缓存与据点一致（雷 53）", True),
-    ("check_official_copies.py", "官方拷贝保持原样（雷 49）", True),
+    ("check_taikou_xml_references.py", "交叉引用完整性 + 列表污染（雷 11/52）", False, None),
+    ("check_taikou_field_coverage.py", "最小字段交集覆盖", False, None),
+    ("check_required_ids.py", "引擎硬编码点名 id 必须存在（雷 6/7/15/16/19/27/31/40/41）", False, None),
+    ("check_data_fields.py", "据点必填字段 / 城防 level≤3 / occupation 枚举 / 文化必备（雷 19/22/29/16）", False, None),
+    ("check_culture_references.py", "文化引用悬空 + 角色模板文化属性（雷 11/30）", False, None),
+    ("check_culture_text_variants.py", "文化 variation 文本族（雷 45）", False, None),
+    ("check_language_registration.py", "语言文件登记 / 自有键中文 / emoji（雷 47/48/50/51 + 铁律 14）", False, None),
+    ("check_scene_consumables.py", "官方场景消费物品（雷 40/41）", False, None),
+    ("check_scene_entities.py", "地图场景必备实体（雷 28/34/37/42/53）", False, None),
+    ("check_module_registration.py", "段注册 / 孤儿数据文件 / csproj 漏登记（雷 3/4/5/35/40）", False, None),
+    ("check_era_segments.py", "时代段注册互斥 + 据点 id 跨时代稳定（时代切换 spike）", False, None),
+    ("check_hero_templates.py", "英雄必须配同名 CharacterObject 模板（缺 = 静默被吞 → 新战役崩）", False, None),
+    ("gen_taikou_era_diff.py", "时代差异段产物与生成器一致（铁律 22：生成物禁手改）", False, ["--check"]),
+    ("check_settlement_distance_cache.py", "距离缓存与据点一致（雷 53）", True, None),
+    ("check_official_copies.py", "官方拷贝保持原样（雷 49）", True, None),
 ]
 
 
@@ -49,7 +52,7 @@ def main():
     args = ap.parse_args()
 
     results = []
-    for script, desc, slow in CHECKS:
+    for script, desc, slow, extra in CHECKS:
         path = HERE / script
         if not path.is_file():
             results.append((script, desc, None, "脚本缺失"))
@@ -57,9 +60,11 @@ def main():
         if slow and args.quick:
             results.append((script, desc, None, "已跳过(--quick)"))
             continue
+        cmd = [sys.executable, str(path)] + (extra if extra else ["--module", args.module])
+        if extra and "--module" not in extra:
+            cmd += ["--module", args.module]      # 生成器既有 --check 也接受 --module
         t0 = time.time()
-        r = subprocess.run([sys.executable, str(path), "--module", args.module],
-                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         dt = time.time() - t0
         results.append((script, desc, r.returncode, f"{dt:.1f}s"))
         # 红的把输出尾巴打出来，便于当场定位

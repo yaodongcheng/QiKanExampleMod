@@ -331,10 +331,15 @@
     <Compile Include="Core\AgentDamageModelCultureNullFix.cs" />
     <!-- CampaignMode：通用自定义战役（GameType）层——内容包加载时激活（三单元架构） -->
     <Compile Include="CampaignMode\CampaignModeActivator.cs" />
+    <Compile Include="CampaignMode\EraCatalog.cs" />
+    <Compile Include="CampaignMode\ScenarioSelectVM.cs" />
+    <Compile Include="CampaignMode\ScenarioSelectScreen.cs" />
     <Compile Include="CampaignMode\LivingWorldCampaign.cs" />
     <Compile Include="CampaignMode\LivingWorldCampaignGameManager.cs" />
     <Compile Include="CampaignMode\LivingWorldCharacterCreationContent.cs" />
     <Compile Include="CampaignMode\TaikouCampaign.cs" />
+    <Compile Include="CampaignMode\TaikouCampaign1560.cs" />
+    <Compile Include="CampaignMode\TaikouCampaign1582.cs" />
     <Compile Include="Core\MyBehavior.cs" />
     <Compile Include="Core\NameDisplayRules.cs" />
     <Compile Include="Core\MySubModule.cs" />
@@ -381,6 +386,7 @@
          据点实体/城镇交互链三件套），进游戏前就能查，且覆盖更广（雷 28/34/37/42/53 族）。 -->
     <!-- <Compile Include="CampaignMode\MapBorderDiagnosticPatch.cs" /> -->
     <Compile Include="CampaignMode\BattlePowerCalculationGuardPatch.cs" />
+    <Compile Include="CampaignMode\KingdomOnNewGameCreatedGuardPatch.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshProbeCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugRenderer.cs" />

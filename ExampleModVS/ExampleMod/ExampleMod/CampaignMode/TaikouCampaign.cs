@@ -4,13 +4,18 @@ using TaleWorlds.Library;
 namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
-	/// 日本战国内容包的 thin 战役适配类（三单元架构铁则 3：每内容包 = LWN 里 3 行）。
-	/// 存在的意义 = 类名与 Taikou 数据包 SubModule.xml 的 <GameType value="TaikouCampaign"/> 匹配
-	/// （引擎 IncludedGameTypes 按战役类名过滤 XML 数据）；骨架全部来自父类 LivingWorldCampaign。
+	/// 太阁内容包的 thin 战役**基类**（时代无关；三单元架构铁则 3）。
+	/// 🔴 时代切换模型（2026-09-10 spike，见 plans/时代剧本切换-验证.md）：
+	///   引擎的 XML 段过滤键 = **战役类名**（`GameType.GameTypeStringId => GetType().Name`）→
+	///   **每个时代必须有自己的具体类**（类名即该时代的 GameType 字符串）：
+	///     TaikouCampaign1560 → SubModule.xml 里 &lt;GameType value="TaikouCampaign1560"/&gt;
+	///     TaikouCampaign1582 → <GameType value="TaikouCampaign1582"/>
+	///   本类**不是**任何时代的 GameType（无 SubModule 段引用它，仅作具体类的父类）——
+	///   有意保留原名：老存档里的对象类型仍能对上，且两时代共享的字段/出生点只写一份。
 	/// </summary>
-	public class TaikouCampaign : LivingWorldCampaign
+	public abstract class TaikouCampaign : LivingWorldCampaign
 	{
-		public TaikouCampaign(CampaignGameMode gameMode)
+		protected TaikouCampaign(CampaignGameMode gameMode)
 			: base(gameMode)
 		{
 		}
