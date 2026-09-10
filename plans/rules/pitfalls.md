@@ -1070,7 +1070,7 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 - 触发链：部署侧完成 → `DeployFormationsOfTeam` → `Team.ResetTactic` → 战术权重查询 → 惰性 Evaluate——"看似随机"的字典错误，实为固定的键桶错位。
 
 **规避**
-1. **LWN 通用兜底**（已落地）：`Debug/BattlePowerCalculationGuardPatch.cs` —— `CalculateTeamPowers` 前缀替换（完整重实现 + 空键兜底：`GetAgentTeam` 拿不到/字典没登记 → 补登记 0 战力，战斗照常；同时打 `[BattlePowerGuard]` 诊断日志确认缺失键身份）。类型+方法名双字符串运行期解析；1.5.x 若抽走该类 = 静默跳过。
+1. **LWN 通用兜底**（已落地）：`CampaignMode/BattlePowerCalculationGuardPatch.cs` —— `CalculateTeamPowers` 前缀替换（完整重实现 + 空键兜底：`GetAgentTeam` 拿不到/字典没登记 → 补登记 0 战力，战斗照常；同时打 `[BattlePowerGuard]` 诊断日志确认缺失键身份）。类型+方法名双字符串运行期解析；1.5.x 若抽走该类 = 静默跳过。
 2. **真根因修复**：让玩家阵营与敌队的关系正常成立（数据/时点修复）——先看 `[BattlePowerGuard]` 日志确认空键是 null 还是缺队，再定数据动作（参考织丰 player_faction `is_minor_faction="true"`、玩家开局王国归属等）。
 3. **排查口诀**：**"进图/进战斗一部署就崩 + 字典 KeyNotFound + 栈尾是引擎惰性查询" = 有查询键依赖的运行时状态（队关系/登记表）没成立**——查"谁填键、键从哪来"，别在异常帧上找原因。
 4. ⚠️ **编译验证版本坑（2026-09-09 自踩）**：`dotnet build` 环境变量取的是 **Bash 进程快照**（=主环境 Steam 1.5.2），而真目标 = 1.2.12 —— 曾静默对着 1.5.2 DLL"编译通过"（`MissionAgentSpawnLogic` 类在 1.5.2 已不存在，`IMissionAgentSpawnLogic` 接口两版同构、`GetAllTroopsForSide` 不在公共接口 → 该类要用**反射调用**）。验证必须显式 `MB2_PATH="…MB2_1.2.12…" dotnet build`；跨版本类型一律走"接口存在性验证 + 反射"（本例 = `GetMissionBehavior<IMissionAgentSpawnLogic>()` + 反射调 GetAllTroopsForSide）。
@@ -1125,5 +1125,5 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
    - "相机沿一个正交矩形边界停住、零报错" = 缺 border 实体（1.2.12 引擎兜底 900×900）；
    - "进图就崩、栈在引擎侧" = 同因的 1.5.x 表现。
    - 一听到"空气墙/走不出去"先查场景 grep `border_min`，再去查输入/操作。
-4. **实装防线**：`Debug/MapBorderDiagnosticPatch.cs`（`GetMapBorders` Postfix，进图打一行 `[MapBorder]` min/max/height；命中引擎兜底值 (0,0)/(900,900)/670 时打警示）——重建地图后看一眼日志即知边界是否健全。
+4. **实装防线**：`CampaignMode/MapBorderDiagnosticPatch.cs`（`GetMapBorders` Postfix，进图打一行 `[MapBorder]` min/max/height；命中引擎兜底值 (0,0)/(900,900)/670 时打警示）——重建地图后看一眼日志即知边界是否健全。
 5. 边界实体只是坐标标记，**不动 navmesh**：加/删实体无需重新生成 navmesh（与雷 28 实体插入同结论）。

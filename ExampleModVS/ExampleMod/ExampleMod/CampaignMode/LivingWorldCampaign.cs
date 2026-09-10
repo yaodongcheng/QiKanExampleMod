@@ -57,7 +57,7 @@ namespace LivingWorldNpcs.CampaignMode
 			// 🔴 诊断 + 加固（2026-09-07 排雷 T1 结案）：
 			//   自定义 GameType 下官方段被过滤 → Taikou 拷贝文件的文化引用经 GetPresumedObject
 			//   创建「裸文化桩」（模板列表 null）→ 引擎 InitializeCompanionTemplateList NRE。
-			//   ① 诊断：世界规模摘要（T2/T3 排雷仍要）；② 加固：CultureTemplateNullFix（通用基座兜底）。
+			//   ① 诊断：世界规模摘要（T2/T3 排雷仍要）；② 加固：文化模板列表兜底 2026-09-10 退役（数据治本）。
 			try
 			{
 				// 🔴 第 5 颗雷继续：LoadXML("Heroes") 静默失败（内部 try/catch 吞异常）→ 分离式重载（GetMerged+LoadXml 不吞，真相现形）
@@ -131,7 +131,7 @@ namespace LivingWorldNpcs.CampaignMode
 				// 🔴 第 8 颗雷（Kingdom.InitialPosition NRE）：引擎 Kingdom.OnNewGameCreated 会把 InitialHomeLand 洗成
 				//   Leader.HomeSettlement（=null，织田无家——GovernorOf 链全空）——置位必须在 partial-follow-up 时点
 				//   （引擎洗白之后、HeroSpawn 之前）；OnInitialize 置位会被洗掉（上一轮教训）。
-				//   InitialHomeLand private setter → 反射（CultureTemplateNullFix 同款手法，跨版本安全）。
+				//   InitialHomeLand private setter → 反射置位（跨版本安全）。
 				try
 				{
 					CampaignEvents.OnNewGameCreatedPartialFollowUpEvent.AddNonSerializedListener(this, OnNewGameCreatedPartialFollowUp);
@@ -140,8 +140,11 @@ namespace LivingWorldNpcs.CampaignMode
 				{
 					DebugLogger.Log($"[LWN-dump] partial-followup 注册 FAILED: {exReg.Message}");
 				}
-				// 加固：文化模板列表 null → 空（NRE 兜底；数据侧根治见 Scripts/check_taikou_xml_references.py）
-				CultureTemplateNullFix.Apply();
+				// 🔴 文化模板列表 null→空 的加固（CultureTemplateNullFix）已 2026-09-10 退役——
+				//   数据侧已治本（拷贝文件 1835 处原版文化引用 → 自家文化，见 Scripts/sanitize_taikou_cultures.py；
+				//   引用完整性由 Scripts/check_taikou_xml_references.py 守住），离线证明该兜底不可能再触发
+				//   （加载段枚举 42 段零悬空 Culture 引用 + 反编译证 CultureObject.Deserialize 必赋非 null 列表）。
+				//   若此 NRE（CompanionTemplateNullFix / InitializeCompanionTemplateList）再现 → 见必备清单台账。
 				// 🔴 第 10 雷探针：CharacterObject.All 全貌（总数 + 前 12 个 id——确定 46 模板在不在 record）
 				try
 				{
@@ -199,12 +202,20 @@ namespace LivingWorldNpcs.CampaignMode
 						DebugLogger.Log($"[LWN-dump] Kingdom {k3.StringId} InitialHomeLand 置位为王都（partial-followup）");
 					}
 				}
+				// 🔴 2026-09-10 修正（实机日志实锤 + 反编译定位）：原写法 `c4.UpdateHomeSettlement(c4.Settlements[0])`
+				//   是**空转**——`Clan.UpdateHomeSettlement(据点)` 在 HomeSettlement == null 时**忽略传入值**，改为遍历
+				//   所有要塞按 FindSettlementScoreForBeingHomeSettlement 打分挑一个；建世界早期该打分一个都挑不中
+				//   → 函数直接 return，什么都没做（症状：100 步 partial-followup 打 100 行日志 = 一次都没生效）。
+				//   改法同 Kingdom 段：反射直写 HomeSettlement 私有 setter（值 = 该家族第一个据点；家族单城时与引擎打分同解）。
+				//   英雄侧不必补循环：Hero.HomeSettlement 的 getter 在 _homeSettlement == null 时会自行惰性重算。
+				var clanHomeProp = typeof(Clan).GetProperty("HomeSettlement");
+				var clanHomeSetter = clanHomeProp?.GetSetMethod(true);
 				foreach (var c4 in Campaign.Current.Clans)
 				{
-					if (c4.HomeSettlement == null && c4.Settlements.Count > 0)
+					if (clanHomeSetter != null && c4.HomeSettlement == null && c4.Settlements.Count > 0)
 					{
-						c4.UpdateHomeSettlement(c4.Settlements[0]);
-						DebugLogger.Log($"[LWN-dump] Clan {c4.StringId} HomeSettlement 置位（partial-followup）");
+						clanHomeSetter.Invoke(c4, new object[] { c4.Settlements[0] });
+						DebugLogger.Log($"[LWN-dump] Clan {c4.StringId} HomeSettlement 置位为 {c4.Settlements[0].StringId}（partial-followup）");
 					}
 				}
 				// 🔴 第 9 颗雷（BuildWorkshopsAtGameStart NRE：城镇无 Notables → GetNotableOwnerForWorkshop 返回 null）

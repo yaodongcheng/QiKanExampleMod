@@ -21,7 +21,7 @@
 **验证过的关键事实（三锚点一致）**：
 - `Mission.MissionBehaviors` = `public List<MissionBehavior> { get; }`（1.2.12:1229 / 1.5.1:1346）——mission 场景枚举全部 mod 行为实例。
 - **B 层 campaign 侧不能包 behaviors**：`CampaignBehaviorBase` 无 OnTick（反射实锤，基类只是 ICampaignBehavior）；每帧 campaign 逻辑走 `CampaignEvents.TickEvent` **委托分发，无法按 DLL 归因**——如实标注局限。可归因的 campaign 每帧入口 = `Module.GetInstance().SubModules` 的 `OnApplicationTick` override（每个 mod 一个钩子，反射验证 public virtual）+ `CampaignEntityComponent.OnTick`（引擎兜底，低覆盖）。
-- 动态 patch 先例：`Debug/AgentDamageModelCultureNullFix.TryInstallPatches`（运行时反射枚举 + Harmony 2.x Patch，同款模式）。
+- 动态 patch 先例：`CampaignMode/AgentDamageModelCultureNullFix.TryInstallPatches`（运行时反射枚举 + Harmony 2.x Patch，同款模式）。
 - `Mission.OnTick` 方法确实存在（三锚点签名一致）但**不需要 patch**——mission 驱动由 MissionView 生命周期承接。
 
 **已否决的方案**：20Hz StackTrace 栈采样——托管层抓不到「当帧任意执行点」（只能看钩子自己的调用链），且单次抓栈 ~300μs、20Hz 即 0.6%+ 常驻开销。动态包裹是**更精确、零性能风险**的替代（真耗时而非占比）。

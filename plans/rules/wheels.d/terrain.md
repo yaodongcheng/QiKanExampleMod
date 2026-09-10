@@ -81,7 +81,7 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 ```
 参考值：官方 bigmap (62,30,0)/(790,640,620)；织丰 (87.4,105.4,-7.98)/(2100,2100,1000)
 
-**文件**：场景 = `Modules/<mod>/SceneObj/Main_map/scene.xscene`；诊断日志 = `Debug/MapBorderDiagnosticPatch.cs`（`GetMapBorders` Postfix，`[MapBorder]` 打一行 min/max/height，命中引擎兜底值 (0,0)/(900,900)/670 自动警示——重建地图后的验证入口）
+**文件**：场景 = `Modules/<mod>/SceneObj/Main_map/scene.xscene`；诊断日志 = `CampaignMode/MapBorderDiagnosticPatch.cs`（`GetMapBorders` Postfix，`[MapBorder]` 打一行 min/max/height，命中引擎兜底值 (0,0)/(900,900)/670 自动警示——重建地图后的验证入口）
 
 **配套纪律**：地图场景克隆必备实体清单 = **border_min/border_max + 12 个官方地图脚本实体**（完整清单与排雷实录见 `plans/太阁数据加载taikou-campaign-boot-20260907.md` 雷 28/34）；出图前 `grep scene.xscene border_min` 必查；坑点格式全文见 `plans/rules/pitfalls.md`「自定义地图相机"空气墙"」
 
@@ -100,7 +100,7 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 
 **解决什么问题**：ModKit 打不开的场景（织丰 Main_map 依赖 ButterLib/Harmony/MCM/UIExtenderEx 四前置，编辑器加载即失败）或客户端黑盒数据，如何拿到**地形高度图 16bit PNG + 真实规格五元组（X/Y/Size/Dim/Scale）**——游戏运行中一条命令搞定。
 
-**文件**：`Debug/TerrainExportCommands.cs`（namespace LivingWorldNpcs；命令组 `custom`，参数一律忽略）。产物 `Debug/HeightmapExport/`（`heightmap_16bit.png` + `info.txt` + `tracelog.txt`），**该目录已 gitignore**。
+**文件**：`CampaignMode/Tools/TerrainExportCommands.cs`（namespace LivingWorldNpcs；命令组 `custom`，参数一律忽略）。产物 `Debug/HeightmapExport/`（`heightmap_16bit.png` + `info.txt` + `tracelog.txt`），**该目录已 gitignore**。
 
 **调用**：游戏内 `~` → `custom.export_heightmap`（横在战役大地图或任意 Mission；同步执行，4096² 采样数十秒内完成，进度写日志）。
 
