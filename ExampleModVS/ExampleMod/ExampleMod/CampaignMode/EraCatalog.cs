@@ -55,6 +55,12 @@ namespace LivingWorldNpcs.CampaignMode
 		public static int Count => All.Count;
 
 		/// <summary>
+		/// 玩家在选剧本界面定下的时代（后续步骤——选人界面/建号——都从它取）。
+		/// 时序：选剧本界面写入 → 选人界面消费（开局或走自定义建号）。
+		/// </summary>
+		public static string SelectedEraId { get; set; }
+
+		/// <summary>
 		/// 主菜单上的入口按钮（点它 = 打开选剧本界面，**不动主菜单选项列表**）。
 		/// 时代为空时返回 null（调用方据此不加入口）。
 		/// </summary>
@@ -86,14 +92,25 @@ namespace LivingWorldNpcs.CampaignMode
 			ScenarioSelectScreen.Open();
 		}
 
-		/// <summary>开一局该时代的战役（界面点选后调用）。</summary>
-		public static void StartCampaign(Era era)
+		/// <summary>
+		/// 开一局该时代的战役（**选人开局**路径：世界建好后由 GameManager 把玩家换成所选英雄，不走建号）。
+		/// </summary>
+		public static void StartCampaign(string eraId)
 		{
-			if (era == null)
+			if (string.IsNullOrEmpty(eraId))
 			{
+				DebugLogger.Log("[EraCatalog] StartCampaign 拿到空时代 id —— 不开局");
 				return;
 			}
-			MBGameManager.StartNewGame(new LivingWorldCampaignGameManager(era.Id));
+			MBGameManager.StartNewGame(new LivingWorldCampaignGameManager(eraId));
+		}
+
+		/// <summary>
+		/// 开一局该时代的战役，并**保留原建号流程**（「自定义英雄」路径：捏脸/出身/加点那一套）。
+		/// </summary>
+		public static void StartCampaignWithCharacterCreation(string eraId)
+		{
+			StartCampaign(eraId);
 		}
 	}
 }

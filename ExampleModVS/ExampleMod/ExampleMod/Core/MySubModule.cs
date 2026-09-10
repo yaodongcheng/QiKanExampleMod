@@ -331,6 +331,10 @@ namespace LivingWorldNpcs
             // 🔴 性能面板驱动（单点 = 应用层：主菜单/创角/全屏 UI/读档/Mission/Campaign 全场景
             // 每帧都到，包括暂停；层挂 TopScreen、层序见 PerfHudManager（ImChatOpenButton 范本））
             PerfHudManager.Tick(dt);
+            // 🔴 选人界面挂层重试（应用层每帧单点）：世界建好那一刻引擎屏栈正在换代，
+            //   一次性挂层会挂空（静默失败）→ 改为"待办 + 每帧重试"，屏一就绪就挂上。
+            //   见 CampaignMode/HeroSelectOverlay.cs 类注释。
+            HeroSelectOverlay.Tick();
 
             // 只有当 StoryEngine 实例存在时才尝试更新
             if (StoryEngine.Instance != null)

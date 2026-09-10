@@ -67,14 +67,21 @@ namespace LivingWorldNpcs.CampaignMode
 		}
 
 		/// <summary>
-		/// 选中剧本 → 先关界面再开战役。
-		/// 顺序要紧：StartNewGame 会推入 GameLoadingState 并替换掉主菜单屏，
-		/// 我们的界面必须先退出，否则会挂在一个正在销毁的屏上。
+		/// 选中剧本 → 直接开这一局。
+		/// 🔴 **不是立刻进游戏**：世界开始加载 → 建好后由 <c>LivingWorldCampaignGameManager.OnLoadFinished</c>
+		///   弹出**选人界面**（那里才有 `Campaign.Current` 可查王国/家族/英雄）。
+		/// 顺序要紧：StartNewGame 会替换主菜单屏，本界面必须先退出。
 		/// </summary>
 		private void OnEraPicked(EraCatalog.Era era)
 		{
+			if (era == null)
+			{
+				return;
+			}
+			EraCatalog.SelectedEraId = era.Id;
+			DebugLogger.Log($"[EraCatalog] 已选剧本：{era.Id}（{era.Year}）→ 加载世界（建好后弹选人界面）");
 			Close();
-			EraCatalog.StartCampaign(era);
+			EraCatalog.StartCampaign(era.Id);
 		}
 	}
 }

@@ -4531,6 +4531,18 @@
     <string id="LWN_scenario_select_back" text="返回" />
     <string id="LWN_scenario_1560" text="日轮之卷" />
     <string id="LWN_scenario_1582" text="转变之卷" />
+    <string id="LWN_hero_select_title" text="选择人物" />
+    <string id="LWN_hero_select_back" text="返回" />
+    <string id="LWN_hero_select_custom" text="自定义人物" />
+    <string id="LWN_hero_select_confirm" text="以此人开局" />
+    <string id="LWN_hero_select_kingdom" text="势力" />
+    <string id="LWN_hero_select_clan" text="家族" />
+    <string id="LWN_hero_select_hero" text="人物" />
+    <string id="LWN_hero_select_will_be" text="你将扮演：{NAME}" />
+    <string id="LWN_hero_select_none" text="此家族暂无可选人物" />
+    <string id="LWN_hero_select_role_king" text="大名" />
+    <string id="LWN_hero_select_role_clan_leader" text="家主" />
+    <string id="LWN_hero_select_role_member" text="领主" />
     <string id="LWN_campaign_continue" text="继续战役" />
     <string id="LWN_campaign_continue_disabled" text="读档功能尚未实装。" />
     <string id="LWN_q_failed" text="你耻辱地失败了这项任务。" />
