@@ -207,11 +207,33 @@ python Scripts/check_scene_entities.py --module <路径> --scene Main_map
 | `check_required_ids.py` | 引擎硬编码点名的 38 条 id（含退休据点 / 地痞三档 / 捏脸模板 0-9 / 主队模板 / 5 马 5 动物） | **判定基准 = 目标 GameType 下真正会加载的段**（闭包 + 白名单）——定义在未加载段里要报「未加载」（雷 3/4/5 形态），只有这样才能防假绿 |
 | `check_data_fields.py` | 据点必填（按组件类型分档）/ 城防 level≤3 / occupation 枚举 / 文化必备 / **商队护卫引擎硬查询** / 势力 owner 链 | 🔴 **每条规则的边界都先拿官方数据验过**（493 据点 / 16 文化 / 94 家族）：owner 只有城镇要、CommonAreas 只有城镇要、Locations 巢穴不要、Faction 字段只对「拥有据点的家族」要（官方 94 个里 21 个缺）；`--module <SandBox> --game-type Campaign` = 负面对照，应 0 错 |
 | `check_module_registration.py` | 必需段注册 / 段 path 可解析 / 孤儿数据文件 / **csproj 漏登记 .cs** | 「有意未登记」的判别 = **csproj 注释里提过这个名字**（含不带 `.cs` 的写法）→ INFO；完全没提 → ERROR |
-| `check_settlement_distance_cache.py` | 距离缓存 id 集合与 settlements.xml 一致 + 据点对 ≥1 | .NET `BinaryWriter` 格式解析（7-bit 变长长度前缀 + UTF-8，不是 int32 长度）；「期望集合」= 有地图组件的据点 ∩ 有同名场景实体（引擎生成缓存时的真实口径） |
+| `check_settlement_distance_cache.py` | 距离缓存 id 集合与 settlements.xml 一致 + **最大据点距 > 0** | .NET `BinaryWriter` 格式解析（7-bit 变长长度前缀 + UTF-8，不是 int32 长度；**每对后的 float32 距离要读出来用**——引擎判据是 `distance > 最大值` 且初值 0，「有 2 个据点」不等于「最大距离 > 0」：位置重合/城门点不在导航面上会算出 0）；「期望集合」= 有地图组件的据点 ∩ 有同名场景实体（引擎生成缓存时的真实口径） |
 | `check_official_copies.py` | 9 个 GameText 段与本包同名文件逐行比对（差异应为 0） | 🔴 **源头模块必须声明**：Native 与 SandBox 有同名但内容完全不同的 `module_strings.xml`（6887 行 vs 663 行），自动挑源头 = 必然误报 |
 
 **三条纪律（写新 checker 时照做）**：
 1. **先拿官方数据跑一遍**再定规则（否则把官方设计当缺陷——退休据点误判实录，见卷八）。
 2. **必须做负面测试**：故意造坏数据，确认脚本真抓到且 exit 1（本轮 5 个脚本全部做过：三种坏法全中才算过）。
 3. **规则实现坑**：`e.iter()` 会把后代标签一起捞（要按直接子路径取）；`find(...) or []` 在 Element 上有 DeprecationWarning（用 `is not None`）；元数据类名字符串在 DLL 里是 UTF-8、字面量是 UTF-16LE（串搜验证要分两种编码各搜一次）。
+
+## 十、🔴 运行期护栏 ↔ 数据化：已逐条排除（2026-09-10 收官，**别再重复论证**）
+
+**结论先行**：`CampaignMode/` 全部补丁逐条过完 —— **「能靠 XML + 离线检查替代的运行期补丁已清零」**。
+
+**判定标准（一句话）**：离线检查只能查「**我们自己包里的数据文件**」。护栏防的东西不在这个范围内 → 转不了。
+
+| 转不了的类型 | 补丁 | 为什么 |
+|---|---|---|
+| **给别人 mod 的数据兜底** | `Core/CharacterCultureBackfill`、`Core/AgentDamageModelCultureNullFix` | 防的是**织丰**模板漏写 culture —— 我们不改别人的文件；且要通用于**任何** mod（不能只针对织丰写检查）。两半配套（补数据 / 防崩），缺一不可 |
+| **拦引擎硬编码的原版内容** | `BackstoryCampaignBehaviorPatch`、`CharacterCreationCultureStageSortPatch` | 引擎里写死了 8 个原版领主 / 一座原版城 / 六个原版文化名；数据无解（除非把原版内容编进本世界 = 内容不对味） |
+| **引擎自身 bug / 时序** | `Debug/AiPatrollingNullFix`（原版 leader null）、`BattlePowerCalculationGuardPatch`（战力字典键错位）、`AreaMarkerTagGuard` / `IssuesSettlementGuardPatch`（存档↔场景配对 / 启动时点空列表，**根因未明**） | 与"数据是否配齐"无关 |
+
+**唯一仍可数据化的**：`CharacterCreationCultureVisualFallbackPatch`（建号文化大图）—— 内容包加 2 个数据文件（brush 自指克隆 + SpriteData）即可，`SubModule.xml` 不用动，同机三国 mod `YiGuThreeKingdoms/GUI/Brushes/Override_CharacterCreation.xml` 是现成范本。**当前不做 = 用户裁定等"仿太阁直接选人"改版一起定**，不是技术障碍。
+
+**方法论（新护栏出现时按顺序问三句）**：①它防的东西**在我们自己的数据文件里**吗？→ 是：写 checker，**别写补丁**；②不在我们数据里，但**是我们能改的数据**吗？→ 是：改数据；③都不是 → 才写代码护栏，并登记必备清单台账（治本侧 + 退役条件）。
+
+**退役节奏（用户裁定，2026-09-10）**：**先注释停用（文件留着）→ 用户实机验证 → 通过才删文件**。同一轮别留"保险"代码——保险会吃掉验证信号（=假绿）。
+
+**已退役清单**（恢复 = git 历史捞回 + csproj 补登记行）：`MapScreenCameraPatch`（相机；正解 = 创世界期写出生点，卷七）· `MapBorderDiagnosticPatch`（边界日志；正解 = `check_scene_entities`，卷八）· `HorseSpawnNullGuardPatch` · `CultureTemplateNullFix` · `LordIntroConditionGuardPatch` · 9 个一次性诊断。
+
+**⚠️ 一条踩过的表述坑**：csproj 注释里写的"临时移除 XXX/YYY/ZZZ"，**未必三个都真登记过**——2026-09-10 核 git 全历史发现 `AreaMarkerTagGuard`/`IssuesSettlementGuardPatch` **从来没有 Compile 行**（雷 40 同族：新增 .cs 不登记 = 静默不编译）。**转述历史结论前先查证据**（这条同时坑了我两次：此处 + 伤害模型兜底的出处）。
 

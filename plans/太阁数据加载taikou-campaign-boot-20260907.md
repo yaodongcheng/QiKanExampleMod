@@ -1,8 +1,8 @@
-# TaikouCampaign 启动链排雷交接（2026-09-07 深夜）
+# 太阁战役 — 项目主交接（2026-09-10 更新）
 
-> 本文件 = 会话交接。**下个 session 从这里开始**，不用重跑任何反编译（结论全部实锤并附出处）。
+> 文件名保留原样（`太阁数据加载taikou-campaign-boot-20260907.md`，历史链接不破）；内容已从"启动链排雷"长成**项目主交接**。
 >
-> 🔴 **本 plan 的雷 1~43 已沉淀为可复用的「自定义世界从零起步必备清单」**：`Knowledge/自定义世界内容包从零起步必备清单.md`——新内容包立项直接照那份清单勾选，本文件只保留 Taikou 上下文与排雷实录。
+> 🔴 **本 plan 的雷 1~53 已沉淀为可复用的「自定义世界从零起步必备清单」**：`Knowledge/自定义世界内容包从零起步必备清单.md`——新内容包立项直接照那份清单勾选，本文件只保留 Taikou 上下文与排雷实录。
 >
 > 🔴🔴 **执行纪律（2026-09-10 用户裁定）——每执行完一步，必须停下来对照三处，考虑是否修正「必备清单」：**
 > ① **雷表**要不要加行/改行（症状 / 根因 / 修法归属）——凡本次产出"新症状→根因→修法"链条，即登记；
@@ -10,69 +10,83 @@
 > ③ **兜底台账表**（清单「LWN 内置兜底 + 运行期补丁台账」节）→ 新增/退役/状态变更的运行期补丁。
 > **判断标准**：这一步的结论，**如果新内容包不知道会再踩一次 → 必须回填清单**；只影响 Taikou 自身的（进度、临时验证、待办）→ 留在 plan 即可。清单是坑位地图（给下一个世界看），plan 是执行流水（给自己看）——两者不可互换。
 
-## 🔴 当前 TODO（下一步从这里开始；做完的都已挪到文末「📦 归档」节）
+---
 
-**一、实机确认（改过 DLL / XML / 数据，跑一次游戏把这些一起验了）**
-- [x] ⓪ 🔴 **建新档不崩（最重要）** ✅ 2026-09-10 15:04 实机通过 —— **雷 11 复发 / 雷 52**：14:50 崩溃的真因 = 名字池"出处标注"注释被塞进了 `<clan_names>` **元素里面**（引擎盲读该元素所有子节点取 `Attributes["name"].Value` → 注释节点无该属性 → 反序列化中途 NRE → 该文化三个模板列表**保持 null** → OnNewGameCreated 时 `InitializeCompanionTemplateList` NRE）。**修法纯数据**：注释挪到 `<Culture>` 直接子节点层（与已提交版本对比只差注释、数据零改动）。**验证证据**：日志 `[CultureDiag] ikoku | N&W列表null=False 条数=6 含null条目=0 | LordTemplatesNull=False | IsReady=True` + `neutral_culture` 同款健康 + 全程零异常；只读诊断已按纪律归档（DLL 串搜 `[CultureDiag]`=0）
-- [x] ① 启动 + 读档正常 ✅ 12:46~12:48 实机（诊断补丁摘除后的新 DLL）
-- [x] ② 大地图手感 ✅ 2026-09-10 用户实机确认：京黄圈大小 + 鼠标拾取范围没问题（圈与塔齐、触发不"隔空"）
-- [x] ③ 点「交易」按钮 ✅ 2026-09-10 用户实机确认：市场界面打开正常
-- [x] ④ **新开档一次** ✅ 12:47:20 世界建成、无崩 —— `CultureTemplateNullFix` 退役验证通过
-- [x] ⑤ **找领主对话一次** ✅ 12:47:41 遭遇织田信长，领主介绍句正常显示（文本命中、无崩）—— `LordIntroConditionGuardPatch` 退役验证通过
-- [x] ⑥ 城镇菜单正文（雷 45）✅ 13:01 已验：`被 Oda 的 Daimyo，Oda Nobunaga 统治着`（原 `ERROR: Text with id str_faction_ruler doesn't exist!` 消失）
-- [x] ⑦ 新档日志（雷 46）✅ 13:01 已验：`Clan clan_oda HomeSettlement 置位为 town_kyoto` 只出现 **1 次**（修前 100 次）
-- [x] ⑧ **中文复核（雷 47/48/50/51）** ✅ 2026-09-10 15:04 实机通过：① 城镇菜单 `京都 被 织田 的 大名，织田信长 统治着`（全中文）② 对白 `我是日本正统之主 织田信长。我是 京都 的领主。` ③ 名字全中文（织田信长×23 / 京都×11 / 织田家×8 / 柴田胜家×2，**英文残留 0 处**）④ 系统选项/词条也中文（如「你愿意玩一局塞伽棋来打发时间吗？」）
-- [x] ⑨ **相机线实机验证** ✅ 2026-09-10 16:19 实机通过（镜头进图即对准玩家、缩放正常、往东可拖全图）——**T3 尾项②同批验完**，`MapScreenCameraPatch` 已删
-- [x] ⑩ **第 4 批实机确认** ✅ 2026-09-10 用户确认：进城镇/村庄正常 → 边界诊断文件已删（离线体检接管）；文化回填经用户指出**判定有误已恢复**（通用修复，移入 `Core/`）；**本批无遗留**
+## 🔴 当前 TODO（下一步从这里开始；已完成项见下方「实机验证记录」与文末「📦 归档」）
 
-> DLL 状态：`dotnet build -c Debug` 产物已直出游戏目录，可直接跑验证；正式发布再走 VS2022 编译（铁律 19）。
+**现状一句话**：T1–T3 全通（建世界 → 建号 → 日本图 → 点京 → 进城中心），收尾全清；**补丁与防线战线收官**（能靠 XML + 离线检查替代的运行期补丁已清零）。**下一步 = 时代切换先行验证；验通了再铺 T4 全量数据。**
 
-**二、T3 尾项（收尾，全部不阻塞 T4）**
-- [x] ① 存档 F5 ✅ 13:01 日志 `SaveManager … successful=True, captured=0 exceptions`（存 + 读均正常）
-- [x] ③ MCM 主菜单页定位 ✅ 2026-09-10 用户实机确认没问题
-- [x] ② 相机"东移"全图走一遍（雷 34 border 修复复测）✅ 2026-09-10 16:19 实机：镜头进图即对准玩家、缩放正常、往东可拖全图 → **T3 尾项全清**
+### 一、🔴 下一件事：时代剧本切换先行验证（spike）
 
-**三、🔴 下一批待定（写清等什么，不占本步）**
+> **设计全文见 → [plans/时代剧本切换-验证.md](时代剧本切换-验证.md)**（机制/时序/命名/数据源结构/步骤/未知点/验收/分叉，全在那份）
 
-> 本节的每一条都是「**等一个具体的东西**」——等到了就做，不用再想。
+- **为什么先验**：T4 要铺几百据点、上千人物；万一"多时代"这条路走不通，数据结构要**推倒重来** = 最大返工。
+- **验什么**：换时代后 **据点归属 / 家族 / 王国 / 英雄** 四样能不能整套跟着变，且**两时代互不污染**。
+- **怎么做**（5 步）：4 份差异 XML + SubModule 注册（差异段各两份、共用段追加新 GameType）+ thin 类（现有改名 + 新增）+ 主菜单第二入口 + **检查脚本的 game-type 推断改对**（不改 = 十三件套静默查错段）。
+- **命名**：`TaikouCampaign<年份>`；本 spike 取 `TaikouCampaign1560`（现有 v0 改名）与 `TaikouCampaign1582`（新增对照）。
+- ⚠️ **读档链尚未打通**（"继续战役"按钮是禁用状态）——本 spike 先验 U1–U4，读档（U5）随后单独补。
+
+### 二、其余待定（写清等什么，不占本步）
 
 | 待定项 | 等什么 | 等到了怎么做 |
 |---|---|---|
-| 🔴 **雷 53 收尾：距离缓存 + 家宅反射置位退役** | 等 **T4 据点批量进场景**（≥2 个「有场景实体」的据点） | ①给新据点补地图实体 ②**重生成 `settlements_distance_cache.bin`**（删 bin 让引擎重建 / ModKit 编辑器变量）③新档复验日志不再出现 `InitialHomeLand 置位` / `HomeSettlement 置位` → 删 `LivingWorldCampaign` 里的反射置位段。**离线防线已就位**：`check_settlement_distance_cache`（现在正红 = 真问题，据点对 0） |
-| `BattlePowerCalculationGuardPatch` | 等 **T4 自建兵种数据**做完 | 复核兵源来源，定退役 |
-| `CharacterCreationCultureVisualFallbackPatch` | 等**建号「仿太阁直接选人」改版**（用户已裁定先留着） | 选文化界面整个会重做，此补丁去留跟那次一起定（**不需**单独做 T4/T5 文化图）。退役路线已取证备好：内容包加 2 个数据文件（brush 自指克隆 + SpriteData，`SubModule.xml` 不用动），同机三国 mod `YiGuThreeKingdoms/GUI/Brushes/Override_CharacterCreation.xml` 是现成范本 |
-| `AreaMarkerTagGuard` / `IssuesSettlementGuardPatch` | 等**读档崩二分排查定案** | ⚠️ 这两个补丁目前被临时注释、未编译；定案后决定恢复还是退役 |
-| 🔴 **剧本中文文件 `LivingWorldNpcs/ModuleData/Languages/CNs/std_scn_okehazama.xml` 处置** | 等**用户裁定**（未裁定前不动） | 它是**桶狭间剧本**的对白翻译（575 条，繁体，键 `LWN_SCN_okehazama_*`，引用方 = `ModuleData/ScenarioData/story/okehazama_*.jsonc`）。三处不合规：① 未登记在 `CNs/language_data.xml`（从未加载）② 结构是 `<strings>` 直接当根（引擎要 `<base><tags/><strings/></base>`）③ 键名不符 `LWN_` 约定（`validate_localization.py` 段 F 报 574 条）。**建议**：先挪出 `Languages/`（如 `ModuleData/ScenarioData/Languages/`），等剧本工程真正接入时按规范放回（登记 + 改结构 + 键名统一小写） |
-| ~~`[CultureDiag]` 只读诊断~~ | — | ✅ 已归档（⓪ 通过后按纪律下线，DLL 串搜 0；**禁止恢复已退役的兜底补丁**） |
+| 🔴 **雷 53 收尾**：距离缓存 + 家宅反射置位退役 | **T4 据点批量进场景**（需 ≥2 个「有场景实体」的据点**且距离算得出 > 0**） | ①补地图实体 ②重生成 `settlements_distance_cache.bin` ③复验日志不再出现置位行 → 删 `LivingWorldCampaign` 里的反射置位段。**离线防线已就位**（`check_settlement_distance_cache`，现正红 = 真问题） |
+| `BattlePowerCalculationGuardPatch` | T4 自建兵种数据 | 复核兵源来源，定退役 |
+| `CharacterCreationCultureVisualFallbackPatch` | 建号「仿太阁直接选人」改版 | 那时一起定（退役路线已取证备好：内容包加 2 个数据文件） |
+| `AreaMarkerTagGuard` / `IssuesSettlementGuardPatch` | — | 🔴 **用户裁定不处理**（保留在磁盘、不编译；勘误：两者**从未编译过**） |
+| 🔴 **剧本中文文件 `LivingWorldNpcs/ModuleData/Languages/CNs/std_scn_okehazama.xml` 处置** | **用户裁定**（未裁定前不动） | 三处不合规（未登记/结构错/键名不符）；建议先挪出 `Languages/`，等剧本工程接入时按规范放回 |
 
-**四、主线**
-- [ ] T4：全量数据（TK5 布局表 → place_settlements.py 批量 + settlements.xml 同步 + **兵种树/日式物品自建**——原料已备 112 SkillSet/43 物品/25 BodyProperty；**日式马/地痞外观**留 T5 素材档）
-- [ ] T5：日式素材（先 Native mi_*，织丰 sho_* 不可用——后续决断来源）
-- [ ] **C 路线（新，2026-09-10 用户裁定「先 A」后遗留）**：**自造名字池替换织丰借用品**——现名字池 622 条（clan/male/female）逐字取自织丰 Shokuho（键与值 622/622 一致），中文取自其中文包 `Shokuho_CNs`；已按 A 标注出处（生成器 + CN 文件 + 必备清单）。发布前须取得织丰授权，彻底解法 = 自造 `TAIKOU_name_*` 键 + 自有汉字/罗马字名表，排 T4/T5 内容化同期做
+### 三、主线
+
+- [ ] **T4：全量数据**（TK5 布局表 → `place_settlements.py` 批量 + `settlements.xml` 同步 + **兵种树/日式物品自建**——原料已备 112 SkillSet / 43 物品 / 25 BodyProperty；日式马/地痞外观留 T5）
+- [ ] **T5：日式素材**（先 Native `mi_*`，织丰 `sho_*` 不可用——后续决断来源）
+- [ ] **C 路线**：**自造名字池**替换织丰借用品（现 622 条逐字取自织丰、已标出处；发布前须取得授权）
+
+> DLL 状态：`dotnet build -c Debug` 产物已直出游戏目录，可直接跑验证；正式发布再走 VS2022 编译（铁律 19）。
 
 ## 一句话现状（2026-09-10 —— 交接口）
 
 > 🔴 **本次复盘**（2026-09-10 用户提议）：数据优先三原则 + 全雷层次统计 + 运行期补丁台账（已合并进主清单）→ [Knowledge/自定义世界内容包从零起步必备清单.md](../Knowledge/自定义世界内容包从零起步必备清单.md) 阶段 2 总纪律 + 「LWN 内置兜底 + 运行期补丁台账」节。
 
-**T1-T3 主线全通**：`建世界（雷 1-22）→ 建号 CC（雷 23-27）→ 进大地图（雷 28-34）→ 城镇交互+进城场景（雷 37-41）→ 圈/拾取手感（雷 39）` 全部实机验证。**当前可玩状态 = 开局 → 建号 → 日本图 → 点京 → 进城中心（有地痞/有马）**。收尾全清：存档 F5 ✅、相机全图 ✅（2026-09-10 16:19）、MCM 页 ✅。
+**T1-T3 主线全通**：`建世界（雷 1-22）→ 建号 CC（雷 23-27）→ 进大地图（雷 28-34）→ 城镇交互+进城场景（雷 37-41）→ 圈/拾取手感（雷 39）` 全部实机验证。**当前可玩状态 = 开局 → 建号 → 日本图 → 点京 → 进城中心（有地痞/有马）**。收尾全清：存档 F5 ✅、相机全图 ✅、MCM 页 ✅、全中文 ✅。
 
-🔴 **收尾清单已清空**：⓪ 建新档不崩 ✅、⑧ 全中文 ✅、② 黄圈手感 ✅、③ 交易 ✅、存档 F5 ✅、MCM 页 ✅、**相机东移全图 ✅（2026-09-10 16:19 实机）** —— **T3 全部收尾完成**。
+🔴 **补丁与防线战线收官（2026-09-10）**：`CampaignMode/` 全部补丁逐条过完，结论 = **「能靠 XML + 离线检查替代的运行期补丁已清零」**：
 
-**下一步 = T4 全量数据**（主线）。开工前先看两条：
-- 🔴 **T4 顺带把雷 53 收尾**（另一个据点进场景 + 重生成距离缓存 → 退役家宅反射置位，见「三、下一批待定」）
-- 🔴 **两个等你拍板/裁定的**：①**伤害模型 Culture-null 兜底去留**（保留=给第三方 mod 兜底 / 退役=严格数据优先，二选一）②**剧本中文文件处置**（未裁定前不动）
+| 处置 | 补丁 |
+|---|---|
+| **退役删除 2** | `MapScreenCameraPatch`（相机；正解 = 创建世界期写出生点）· `MapBorderDiagnosticPatch`（边界日志；被 `check_scene_entities` 取代） |
+| **归位 `Core/` 2**（通用修复，**与太阁无关**） | `CharacterCultureBackfill` + `AgentDamageModelCultureNullFix`（服务织丰等"模板漏写 culture"的内容包，配套两半缺一不可） |
+| **在役 3**（数据无解，必留） | `BackstoryCampaignBehaviorPatch`（拦卡拉迪亚前史）· `CharacterCreationCultureStageSortPatch`（拦原版文化排序）· `CharacterCreationCultureVisualFallbackPatch`（建号大图，等改版） |
+| **不处理 2**（用户裁定，保留在磁盘不编译） | `AreaMarkerTagGuard` · `IssuesSettlementGuardPatch` |
+| **等 T4 1** | `BattlePowerCalculationGuardPatch` |
 
-**补丁清理战果（2026-09-10 全线评审 + 三批退役）**：`CampaignMode/` 从 9 个 Harmony 补丁 + 1 个运行期类，清到 **3 个在役补丁**（`BackstoryCampaignBehaviorPatch` 拦卡拉迪亚前史 / `CharacterCreationCultureStageSortPatch` 拦原版文化排序 / `CharacterCreationCultureVisualFallbackPatch` 建号大图）—— 退役的每一条都有**离线防线接管**（见必备清单「清单条目 ↔ 脚本对照表」），全部实机验证后删文件。
-🔴 **另有 2 个「通用修复」归位 `Core/`**（2026-09-10 用户裁定）：`CharacterCultureBackfill` + `AgentDamageModelCultureNullFix` —— 二者**与太阁无关**（服务织丰等模板漏写 culture 的内容包，后者在原版战役下也生效），本不该待在战役层。
-⚠️ **一次误判（已纠正）**：`CharacterCultureBackfill` 曾被我按"太阁侧 0 触发"误判退役，实为通用修复 → 已恢复。**教训：评审兜底补丁先问「它原本为谁写的」。**
+逐条"为什么转不了"的论证 → `plans/rules/wheels.d/campaign-mode.md` **卷十**（**别再重复论证**）。
+⚠️ **一次误判（已纠正）**：`CharacterCultureBackfill` 曾被我按"太阁侧 0 触发"误判退役，实为**通用修复** → 已恢复并移入 `Core/`。**教训：评审兜底补丁先问「它原本为谁写的」。**
 
-**2026-09-10 增量（复盘 + 兜底治理两批全清 + 实机复验 + 文本/语言线全通 + 雷 11 复发当场定位）**：数据优先三原则定案；**兜底退役两批**（马补丁 / 9 诊断 / `CultureTemplateNullFix` / `LordIntroConditionGuardPatch`，改用离线证据退役，揪出「读旧档看日志 = 假绿」坑，**12:47 实机复验通过**）；**新雷 45~52**：45 城镇菜单印 ERROR 文本（17 族一次补齐）、46 `Clan.HomeSettlement` 置位空转（改反射直写，13:01 验该行只 1 次）、47 语言文件清单式加载（补两层 `language_data.xml`）、48 自有键中文覆盖（Taikou 84/84）、49 官方拷贝与自家串分离（新增 `taikou_strings.xml` 段）、50 语言文件声明与根元素间夹注释（整文件静默不加载）、51 C# 专有键从未进语言文件（建号「出身」界面整屏英文，LWN 62/62）、**52 雷 11 复发**（14:50——「出处注释塞进 `<clan_names>` 元素」导致文化反序列化 NRE、模板列表留 null）；**四条新防线**（`check_scene_consumables` / `check_culture_references` / `check_culture_text_variants` / `check_language_registration`，后三者含「列表污染体检」「C# 双源覆盖」等，配套**必跑七件套**）；**名字池线**：622 条中文从织丰中文包补齐（键值与织丰 622/622 一致 → 用户裁定「先 A 保留 + 标出处」，发布前需授权，自造替换见四·C）。**下一步 = 实机复核 ⓪（建新档不崩）与 ⑧（中文是否全中文）→ T4 全量数据**。
+**2026-09-10 当日增量（历史速览；细节见「📦 归档」与雷表）**：数据优先三原则定案；**兜底退役两批**（马补丁 / 9 诊断 / `CultureTemplateNullFix` / `LordIntroConditionGuardPatch`，全部改用**离线证据**退役——并揪出「读旧档看日志 = 假绿」这个坑）；**新雷 45~53**（城镇菜单印 ERROR 文本 / `Clan.HomeSettlement` 置位空转 / 语言文件清单式加载 / 自有键中文覆盖 / 官方拷贝与自家串分离 / 语言文件声明后夹注释 / C# 专有键从未进语言文件 / 雷 11 复发【名字池注释塞进元素里】/ **雷 53 距离缓存过期**）；**防线从四条扩到十三项**（`run_all_checks.py` 一键跑）；**名字池线**：622 条中文从织丰中文包补齐（键值与织丰 622/622 一致 → 用户裁定「先 A 保留 + 标出处」，发布前需授权，自造替换见「三、主线 C 路线」）。
 
 **⚠️ 雷区备忘（已修但需知）**：
-- 生成器重跑会覆盖手改（铁律 22 现场教训——**改数据必须改生成器**；`gen_taikou_culture_full.py` 幂等已修；`gen_taikou_workshop_items.py` 已删（见下条）
+- **生成器重跑会覆盖手改**（铁律 22 现场教训——**改数据必须改生成器**；`gen_taikou_culture_full.py` 幂等已修）
 - `gen_taikou_workshop_items.py` 输出 bug（2026-09-09 雷 37 同场查处）：模板函数拼 `${group(1)}` 缺空格 → 产出 `<Itemid=`（XML 非法，checker FILE-ERROR）；**2026-09-10 结案**：该生成器与产物 `taikou_produce_items.xml` 一并**已删**（详情见排雷链 41——方案被更省的路线取代后成僵尸，且"merch"路线经反编译证实从来不需要）。原"重跑会重复插入"的警告**不成立**（脚本是整体覆盖），已作废。
 - 🔴 **`prune_taikou_items.py` 重跑安全（2026-09-10 修判据后）**：原判据只认"装备引用链/引擎必留"，**漏了场景消费物品（5 匹马）与 EquipmentSet 引用（地痞民用套装）** → 重跑会剪掉进场景所需物品。已补：`SCENE_CONSUMED_ITEMS` 常量（与 `check_scene_consumables.py` 体检对象同步）+ 泛化扫描（所有 NPCCharacters 文件的 `<equipment>` 与 `<EquipmentSet>` 引用）。**dry-run 全绿（43→43 / 11→11, deleted=0）**。今后加物品/套装：先 dry-run 看 deleted=0 再实跑。
 - 数据改动后必跑（**一键：`python Scripts/run_all_checks.py`**，13 项 + 汇总约 5 秒）：交叉引用/列表污染 + 字段交集 + **引擎硬编码 38 条 id** + **必填字段/城防 level≤3/occupation 枚举/文化必备/商队护卫硬查询/势力 owner 链** + 文化悬空+角色模板文化属性 + 文化 variation 文本族 + 语言登记/自有键中文 + 官方场景消费 + **地图场景必备实体** + **段注册/孤儿数据文件/csproj 漏登记** + **距离缓存一致性** + **官方拷贝原样** + 改过的 XML 全 parse。逐项规则见 [必备清单「清单条目 ↔ 脚本对照表」](../Knowledge/自定义世界内容包从零起步必备清单.md)（**纪律：每条检查必须有脚本兜底，禁止只有文字**）
+
+### 实机验证记录（2026-09-10 全清；证据已并入雷表 / 各批次记录）
+
+| 项 | 结果 |
+|---|---|
+| ⓪ **建新档不崩**（最重要） | ✅ 15:04 —— 雷 52（名字池注释塞进 `<clan_names>` 元素）当场定位，**纯数据修** |
+| ① 启动 + 读档 | ✅ 12:46 |
+| ② 大地图手感（黄圈 / 鼠标拾取） | ✅ 用户确认 |
+| ③ 交易界面 | ✅ 用户确认 |
+| ④ 新开档一次 | ✅ 12:47 世界建成、无崩 |
+| ⑤ 找领主对话 | ✅ 12:47 织田信长介绍句正常 |
+| ⑥ 城镇菜单正文（雷 45） | ✅ 13:01 `ERROR: Text with id …` 消失 |
+| ⑦ 新档日志（雷 46） | ✅ 13:01 置位行只出现 **1 次**（修前 100 次） |
+| ⑧ 中文复核（雷 47/48/50/51） | ✅ 15:04 菜单/对白/名字/词条全中文，**英文残留 0** |
+| ⑨ 相机线 | ✅ 16:19 镜头对准玩家、缩放正常、往东可拖全图 |
+| ⑩ 第 4 批停用项 | ✅ 进城镇/村庄正常 |
+| T3 尾项（存档 F5 / MCM 页 / 相机东移全图） | ✅ 全清 |
 
 ## T1 结案（2026-09-07 深夜，三颗雷合一）
 
@@ -197,7 +211,9 @@
 | navmesh | 战役图必须 `navmesh.bin`（RNM1 v3）或 `nav_mesh_auto_generated_="true"`；缺失 = native AccessViolation | |
 | 场景实体绑定 | 实体 name=settlement StringId + `<tags><tag name="town"/></tags>`（子标签非属性）+ 世界坐标=XML posX/posY（0.02m 实证）+ 外层 `campaign_icon_capsule_NN` 惯例（Z=20 哨兵，93 组 261 据点）| |
 
-## 已落盘改动清单（全部完成）
+## 📦 已落盘改动清单（**T1 时代快照，2026-09-07**——现状看开头 TODO；本节仅留作演进轨迹）
+
+> ⚠️ 本节描述的是**T1 阶段**的落盘状态（当时只有 19 个段、只 town_kyoto 一个据点）。**现行状态**：段 30 个（含 9 个 GameText 文本段）、据点 2 个（京 + 退休据点）、`CampaignMode/` 补丁已清到 3 个在役 + 2 个通用修复在 `Core/`。别拿本节当现状读。
 
 **A. LWN（ExampleModVS/ExampleMod/ExampleMod/CampaignMode/）**：
 `CampaignModeActivator.cs`（双模式开关+主菜单接线）/ `LivingWorldCampaign.cs`（:Campaign，含 dump 诊断）/ `LivingWorldCampaignGameManager.cs`（:MBGameManager，DoLoadingForGameManager 全链）/ `LivingWorldCharacterCreationContent.cs`（CC 2 阶段 + OnCharacterCreationFinalized 出生点）/ `TaikouCampaign.cs`（thin，`TaikouStartingPosition=(973,421)`）——csproj 已加 Compile；MySubModule.cs 已调 TryActivateCampaignMode。
