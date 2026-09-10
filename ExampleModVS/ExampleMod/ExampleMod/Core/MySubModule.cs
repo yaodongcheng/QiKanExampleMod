@@ -82,7 +82,7 @@ namespace LivingWorldNpcs
             }
 
             // ── 双模式开关：内容包（Taikou）已加载 → 激活通用战役模式（主菜单接线）；
-            //    未加载 → 纯功能包（玩原版战役），LWN 行为层照常。见 Core/CampaignMode/。
+            //    未加载 → 纯功能包（玩原版战役），LWN 行为层照常。见 CampaignMode/。
             try
             {
                 CampaignModeActivator.TryActivateCampaignMode();
