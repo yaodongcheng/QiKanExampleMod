@@ -63,6 +63,15 @@ ENGINE_BASIC_PREFIXES = {
 # Alias: Faction in XML = Clan reference (engine alias, 织丰/Native 同款)
 TYPE_ALIASES = {"Faction": "Clan"}
 
+# 引擎「盲读子节点」的文化列表元素（雷 52）：这些元素里出现注释/裸文本 = NRE 或 null 条目
+# （clan_names 读 child.Attributes["name"].Value；模板表走 ReadObjectReferenceFromXml → 缺属性返回 null）
+BLIND_READ_LISTS = {
+    "clan_names", "male_names", "female_names",
+    "notable_and_wanderer_templates", "lord_templates", "rebellion_hero_templates",
+    "basic_mercenary_troops", "banner_bearer_replacement_weapons", "vassal_reward_items",
+    "cultural_feats", "default_policies", "possible_clan_banner_icon_ids",
+}
+
 # Token shapes that are not object references (ignore silently)
 IGNORE_PATTERN_END = (".dll", ".xml", ".xslt", ".wav", ".ogg", ".flac",
                       ".ttf", ".png", ".jpg", ".json", ".txt")
@@ -154,6 +163,37 @@ def main():
         locs = refs[(pfx, rid)]
         print(f"  [DANGLING] {pfx}.{rid}  ({len(locs)} refs)  {locs[:6]}")
 
+    print("\n== 文化列表元素「注释/文本污染」体检（雷 52） ==")
+    # 引擎读这些列表是**盲读所有子节点**的（clan_names：child.Attributes["name"].Value；模板表：
+    # ReadObjectReferenceFromXml → 缺属性返回 null）→ 夹一个注释就 NRE/null 条目 → 该文化的模板列表
+    # 保持 null → OnNewGameCreated 时 InitializeCompanionTemplateList NRE（雷 11 复发，2026-09-10 14:50 实录）
+    # ⚠️ 必须用**保留注释的解析器**（insert_comments=True）：ET 默认丢注释查不出来，
+    #    而改用正则又会把注释里写的字面标签（如说明文字里的 <clan_names>）当成真标签（两次踩过）
+    import re as _re
+    poisoned = 0
+    for path in xml_files:
+        if "spcultures" not in path.name:
+            continue
+        try:
+            parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+            root = ET.fromstring(path.read_text(encoding="utf-8", errors="replace"), parser=parser)
+        except Exception as e:
+            print(f"  [FILE-ERROR] {path.name}: {e}")
+            poisoned += 1
+            continue
+        for lst in root.iter():
+            if not isinstance(lst.tag, str) or lst.tag not in BLIND_READ_LISTS:
+                continue
+            for child in list(lst):
+                if not isinstance(child.tag, str):          # 注释 / PI 节点
+                    poisoned += 1
+                    print(f"  [LIST-POLLUTED] {path.name} <{lst.tag}> 里夹了注释/PI → 引擎盲读会 NRE")
+            if (lst.text or "").strip() or any((c.tail or "").strip() for c in list(lst)):
+                poisoned += 1
+                print(f"  [LIST-POLLUTED] {path.name} <{lst.tag}> 里有裸文本 → 引擎盲读会 NRE")
+    if poisoned == 0:
+        print("  （无）")
+
     print("\n== Refs to engine-basic (OK by contract) ==")
     pfx_count = {}
     for (pfx, rid) in refs:
@@ -171,8 +211,8 @@ def main():
     else:
         print("  none")
 
-    print(f"\nSummary: dangling={dangling} unknown_prefixes={len(unknown)}")
-    sys.exit(1 if dangling else 0)
+    print(f"\nSummary: dangling={dangling} unknown_prefixes={len(unknown)} list_polluted={poisoned}")
+    sys.exit(1 if (dangling or poisoned) else 0)
 
 
 if __name__ == "__main__":

@@ -4403,5 +4403,26 @@
     <string id="LWN_perf_modshare" text="mod {MOD}ms/frame ({PCT}% of frame)" />
     <string id="LWN_perf_detail_prefix" text="[d] " />
     <string id="LWN_perf_unattributed" text="engine/unattributed" />
+
+    <!-- CC origins / campaign entry (2026-09-10: these keys were only used in C#, never added to the language files) -->
+    <string id="LWN_cc_bg_title" text="Your Origins" />
+    <string id="LWN_cc_bg_intro" text="Before you took to the road, you were born into..." />
+    <string id="LWN_cc_bg_intro_taikou" text="Before your fate carried you toward the capital, you were born into..." />
+    <string id="LWN_cc_bg_soldier" text="A Soldier" />
+    <string id="LWN_cc_bg_soldier_desc" text="You served in several wars and learned to survive on the march and in the melee." />
+    <string id="LWN_cc_bg_trader" text="A Merchant" />
+    <string id="LWN_cc_bg_trader_desc" text="You carried goods along the trade roads and learned to sell a word as well as a ware." />
+    <string id="LWN_cc_bg_taikou_retainer" text="A Samurai Retainer" />
+    <string id="LWN_cc_bg_taikou_retainer_desc" text="Your family has served the clan for generations, carrying the sword and bearing the honor of their lord." />
+    <string id="LWN_cc_bg_taikou_merchant" text="A Merchant's Child" />
+    <string id="LWN_cc_bg_taikou_merchant_desc" text="You grew up counting coins in a town by the river; the ledger and the road are your inheritance." />
+    <string id="LWN_cc_bg_taikou_ronin" text="A Wandering Ronin" />
+    <string id="LWN_cc_bg_taikou_ronin_desc" text="You lost your master and your purpose, so you drift between the provinces, taking work where it is offered." />
+    <string id="LWN_charc_review" text="You are a traveler of a new world." />
+    <string id="LWN_charc_review_taikou" text="You are a samurai of the Sengoku period of Japan." />
+    <string id="LWN_campaign_new_game" text="New Game" />
+    <string id="LWN_campaign_continue" text="Continue Campaign" />
+    <string id="LWN_campaign_continue_disabled" text="Save-loading is not implemented yet." />
+    <string id="LWN_q_failed" text="You have failed the mission disgracefully." />
 </strings>
 </base>

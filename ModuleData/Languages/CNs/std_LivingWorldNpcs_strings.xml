@@ -4506,5 +4506,28 @@
     <string id="LWN_perf_modshare" text="本 mod {MOD}ms/帧（占帧 {PCT}%）" />
     <string id="LWN_perf_detail_prefix" text="[细] " />
     <string id="LWN_perf_unattributed" text="引擎/未归因" />
+
+    <!-- 注意：CC 出身/战役入口这批键只在 C# 里用、从没进过语言文件，导致 CC「Your Origins」整屏英文（2026-09-10 实机）。
+         house 校验器（validate_localization.py 段 C）只比对「XML 里已有的键」的中英一致性，看不到这类，
+         故新防线 = check_language_registration.py 第④项扫描 C#（已剥注释）。详见清单雷 51。 -->
+    <string id="LWN_cc_bg_title" text="出身" />
+    <string id="LWN_cc_bg_intro" text="踏上旅途之前，你出身于……" />
+    <string id="LWN_cc_bg_intro_taikou" text="命运将你带往京都之前，你出身于……" />
+    <string id="LWN_cc_bg_soldier" text="士兵" />
+    <string id="LWN_cc_bg_soldier_desc" text="你历经数场战事，学会了在行军与混战中活下来。" />
+    <string id="LWN_cc_bg_trader" text="商人" />
+    <string id="LWN_cc_bg_trader_desc" text="你沿商路贩运货物，学会了既卖货、也卖嘴皮子。" />
+    <string id="LWN_cc_bg_taikou_retainer" text="武士家臣" />
+    <string id="LWN_cc_bg_taikou_retainer_desc" text="你的家族世代侍奉本家，执剑而立，肩负主君的荣誉。" />
+    <string id="LWN_cc_bg_taikou_merchant" text="商贾之子" />
+    <string id="LWN_cc_bg_taikou_merchant_desc" text="你在河畔市镇里数着铜钱长大；账簿与商路便是你的家业。" />
+    <string id="LWN_cc_bg_taikou_ronin" text="浪人" />
+    <string id="LWN_cc_bg_taikou_ronin_desc" text="你失去了主君与目标，只能辗转诸国，靠受雇为生。" />
+    <string id="LWN_charc_review" text="你是这个新世界的旅人。" />
+    <string id="LWN_charc_review_taikou" text="你是日本战国时代的一名武士。" />
+    <string id="LWN_campaign_new_game" text="新的游戏" />
+    <string id="LWN_campaign_continue" text="继续战役" />
+    <string id="LWN_campaign_continue_disabled" text="读档功能尚未实装。" />
+    <string id="LWN_q_failed" text="你耻辱地失败了这项任务。" />
 </strings>
 </base>

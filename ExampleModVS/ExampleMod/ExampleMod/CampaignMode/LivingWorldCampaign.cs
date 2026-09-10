@@ -142,9 +142,12 @@ namespace LivingWorldNpcs.CampaignMode
 				}
 				// 🔴 文化模板列表 null→空 的加固（CultureTemplateNullFix）已 2026-09-10 退役——
 				//   数据侧已治本（拷贝文件 1835 处原版文化引用 → 自家文化，见 Scripts/sanitize_taikou_cultures.py；
-				//   引用完整性由 Scripts/check_taikou_xml_references.py 守住），离线证明该兜底不可能再触发
-				//   （加载段枚举 42 段零悬空 Culture 引用 + 反编译证 CultureObject.Deserialize 必赋非 null 列表）。
-				//   若此 NRE（CompanionTemplateNullFix / InitializeCompanionTemplateList）再现 → 见必备清单台账。
+				//   引用完整性由 Scripts/check_taikou_xml_references.py 守住）。
+				//   2026-09-10 14:50 曾复发（`InitializeCompanionTemplateList` NRE）→ 真因 = 雷 52：
+				//   名字池出处注释被塞进 `<clan_names>` 元素（引擎盲读子节点取 Attributes["name"].Value → NRE
+				//   → 该文化模板列表保持 null）；纯数据修（注释挪到 <Culture> 直接子节点层）即解决。
+				//   当时的 [CultureDiag] 只读诊断已按纪律归档（15:04 实机复验：ikoku/neutral_culture 两个文化
+				//   N&W 列表均非 null、零 null 条目、零异常 → 修复确认 ✓）。**禁止恢复已退役的兜底补丁**。
 				// 🔴 第 10 雷探针：CharacterObject.All 全貌（总数 + 前 12 个 id——确定 46 模板在不在 record）
 				try
 				{

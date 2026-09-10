@@ -96,3 +96,40 @@ python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Tai
 **织丰对照**：织丰从不用官方城市场景（自有 sho_* 场景 + 自有 sp_horse_kiso prefab + 自家物品）→ 天然免疫；不想补清单就学织丰做自有场景（成本高，v0 建议白名单补齐）。
 
 **详细记录**：`Knowledge/自定义世界内容包从零起步必备清单.md` §1.4 / §1.4b（+ 雷 40/41）；`plans/太阁数据加载…md` 排雷链 37/38。
+
+## 五、🔴 文本与语言线体检（2026-09-10 登记；雷 45/47/48/50/51 一天的产物）
+
+**解决什么问题**：自定义 GameType 下文本/语言有五种**静默失效**——都不崩、控制台零报错，玩家只看到英文或 ERROR 文本：
+1. 官方文本段被 GameType 白名单过滤（雷 35 → 9 段原样拷贝 + 自家段注册）
+2. 「按文化取 variation」的文本族（`GameTexts.FindText(id, Culture.StringId)`）官方只给八文化变体、**无 `.default`** → 自定义文化不自备就把 `ERROR: Text with id … doesn't exist!` 印进玩家可见正文（雷 45）
+3. 语言文件是**清单式**加载：`Languages/<lang>/language_data.xml` 没登记该文件 = **整文件不加载**（雷 47）
+4. 语言文件 XML 声明与根元素之间**夹注释** → 引擎按 `xmlDocument.ChildNodes[1].FirstChild` 取 `<strings>` 取到 null → 整文件静默不加载（雷 50）
+5. **自有键从没进过语言文件**（C# 里写死的 `{=LWN_cc_bg_*}` 那种，house 校验器看不见）→ 回落英文 fallback（雷 51）
+
+**三件套（`Scripts/`，进「数据改动必跑七件套」）**：
+
+| 脚本 | 查什么 | 判据 |
+|---|---|---|
+| `check_culture_text_variants.py` | 「无 `.default` 的文化变体族」全集 → 本包是否自备 `<族名>.<自家文化>`（族有 `_f` 约定则一并要） | missing=0 |
+| `check_language_registration.py` | ①每个 `Languages/<lang>/` 有 `language_data.xml` ②目录↔清单**双向**对齐 ③铁律 14 emoji/超 BMP ④**自有键中文覆盖（扫数据 XML + C# 双源，剥注释；排除官方键与反编译副本）** ⑤声明后紧跟注释 | problems=0 |
+| `gen_taikou_english_strings.py` | 英文层**生成器**：扫数据 XML 的 `{=KEY}English fallback` → 产出 `Languages/std_<包>_strings.xml` + 根级 `language_data.xml`（生成物禁手改，`--check` 校验最新） | `--check` 通过 |
+
+**语言目录两层结构**（照 LWN/官方）：根级 = 默认语言（英文）+ `CNs/` = 中文；**每层各带一份 `language_data.xml`**，`xml_path` 一律相对 `Languages/` 写（`CNs/std_X_strings.xml`）。
+
+**详细记录**：必备清单 §1.6 + 雷 45/47/48/50/51。
+
+## 六、🔴 引擎「盲读子节点」的元素 —— 注释/裸文本都禁止塞（2026-09-10 雷 52；雷 11 当场复发）
+
+**踩坑实录**：给 `spcultures.xml` 加"名字池来源标注"时把 8 行注释塞进 `<clan_names>` **元素里面** → 建新档 → `CompanionsCampaignBehavior.InitializeCompanionTemplateList` NRE（正是退役兜底所防的雷 11 表象；真因是这条注释）。
+
+**机理**（引擎读这些列表是**盲读所有子节点**的）：
+- `clan_names` / `male_names` / `female_names`：`foreach (child in X.ChildNodes) new TextObject(child.Attributes["name"].Value)` → 注释节点没有 `name` 属性 → **NRE**
+- `notable_and_wanderer_templates` / `lord_templates` / `rebellion_hero_templates` / `basic_mercenary_troops` / `banner_bearer_replacement_weapons` 等模板表：`ReadObjectReferenceFromXml` 缺属性返回 **null** → 列表混入 null 条目 → 消费侧 `.Occupation` **NRE**
+- 关键放大效应：反序列化**中途抛出** → 方法末尾「把列表赋给文化对象」**不执行** → 该文化三个模板列表**保持 null** → 所有消费点全炸（表象与"裸文化桩"一模一样，极具误导性）
+
+**纪律**：注释只能放在**引擎按子节点名字分支处理**的层（如 `<Culture>` 的直接子节点）——判定标准＝引擎读该元素时是"按名字 switch"（安全）还是"盲读所有子节点取属性"（禁止注释/裸文本）。
+
+**防线**：`check_taikou_xml_references.py` 的「列表污染体检」。⚠️ 实现坑（当天各踩一次）：**必须用 `ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))`** —— ET 默认丢弃注释节点（查不出来），改用正则又会把**注释里写的字面标签**（如说明文字里的 `<clan_names>`）当成真标签（假报）。
+
+**详细记录**：必备清单雷 52 + 排雷链；同族陷阱（语言文件版，机理同为"引擎按固定位置取节点"）= 雷 50。
+
