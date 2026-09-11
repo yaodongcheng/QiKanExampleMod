@@ -50,7 +50,12 @@ CONVENTIONAL_FILES = {
     "item_holsters", "module_sounds", "native_parameters", "physics_materials", "skins", "items",
 }
 # Languages/ 由语言系统按清单加载，不走段注册
-CONVENTIONAL_DIRS = {"Languages"}
+# AssetRegistry/ = **运行期自读目录**（不经 MBObjectManager）：立绘表 ProfileStages.csv、
+#   ProfileEmotion.csv，以及选人详情页的画像表 HeroProfiles.xml 都放这里——
+#   这些文件由 C# 直接读盘（PortraitRegistry / HeroProfileRegistry），
+#   **故意不注册**（注册了反而要求配套一个 MBObjectManager 类，徒增负担）。
+#   见 plans/选人流程复刻太阁5-设计.md §五·补。
+CONVENTIONAL_DIRS = {"Languages", "AssetRegistry"}
 
 
 def registry_mb2_path():

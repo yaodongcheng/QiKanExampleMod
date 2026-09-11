@@ -336,6 +336,8 @@
     <Compile Include="CampaignMode\ScenarioSelectScreen.cs" />
     <Compile Include="CampaignMode\HeroSelectData.cs" />
     <Compile Include="CampaignMode\HeroSelectVM.cs" />
+    <Compile Include="CampaignMode\HeroDetailVM.cs" />
+    <Compile Include="CampaignMode\HeroProfileRegistry.cs" />
     <Compile Include="CampaignMode\HeroSelectOverlay.cs" />
     <Compile Include="CampaignMode\StartingHero.cs" />
     <Compile Include="CampaignMode\LivingWorldCampaign.cs" />

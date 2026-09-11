@@ -45,6 +45,11 @@ TEMP_OWNER = "Faction.clan_oda"          # 🔴 临时：全体同一主人（�
 #    1560 套有 clan_oda；1582 套只有 clan_g / player_faction → 1582 用 clan_g
 TEMP_OWNER_BY_ERA = {"1582": "Faction.clan_g"}
 CULTURE = "Culture.ikoku"
+# 🔴 排除：4 个「外国港」（釜山/宁波/吕宋/那霸）——太阁地图左上角的装饰港口，
+#    mod 的真实地理日本图上没有对应陆地 → 落海里会破坏导航/可点性。
+#    数据仍保留在 Settlements.csv（列齐全），只是不进世界。
+EXCLUDE_IDS = {"village_tk242", "village_tk243", "village_tk244", "village_tk245"}
+
 BASELINE_ERA = "1560"                    # 基线文件 settlements.xml 用哪一代
 ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]
 
@@ -88,7 +93,7 @@ def registry_mb2_path():
 def read_csv(path):
     rows = list(csv.DictReader(io.open(path, encoding="utf-8-sig")))
     assert len(rows) == 274, "Settlements.csv 应 274 行，实际 %d" % len(rows)
-    return rows
+    return [r for r in rows if r["id"] not in EXCLUDE_IDS]
 
 
 def era_name_key(row, era):

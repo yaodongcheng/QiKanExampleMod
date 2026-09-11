@@ -55,10 +55,45 @@ namespace LivingWorldNpcs.CampaignMode
 		public static int Count => All.Count;
 
 		/// <summary>
+		/// 「推荐」入口固定的时代 = **1560**（太阁5 的推荐人名单绑 1560 年；2026-09-10 用户裁定
+		/// 「点推荐固定进 1560，不论在选剧本界面选中的是哪个剧本」）。
+		/// 按年份找、找不到就退回第一档（**不硬编码类名**——加时代时不用改这里）。
+		/// </summary>
+		public static Era RecommendedEra
+		{
+			get
+			{
+				foreach (Era e in All)
+				{
+					if (e.Year == "1560")
+					{
+						return e;
+					}
+				}
+				return Count > 0 ? All[0] : null;
+			}
+		}
+
+		/// <summary>
 		/// 玩家在选剧本界面定下的时代（后续步骤——选人界面/建号——都从它取）。
 		/// 时序：选剧本界面写入 → 选人界面消费（开局或走自定义建号）。
 		/// </summary>
 		public static string SelectedEraId { get; set; }
+
+		/// <summary>
+		/// 当前时代的**年份**（1560 之类；时代未选定 = 0）。
+		/// 🔴 为什么不用 `CampaignTime.Now.GetYear`：那个是**开局以来经过的年数**
+		///   （反编译实锤：`_numTicks / 72576000000L`，全新存档 = 0），
+		///   不是历史年份。界面要显示「25 岁」这类**史实年龄**，必须用时代年份算。
+		/// 写入点：<see cref="StartCampaign"/>（选剧本与「推荐」两条路都经过它）。
+		/// </summary>
+		public static int SelectedEraYear { get; private set; }
+
+		/// <summary>时代的年份（"1560" → 1560；解析失败 = 0）。</summary>
+		private static int ParseYear(string year)
+		{
+			return int.TryParse(year, out int v) ? v : 0;
+		}
 
 		/// <summary>
 		/// 主菜单上的入口按钮（点它 = 打开选剧本界面，**不动主菜单选项列表**）。
@@ -101,6 +136,15 @@ namespace LivingWorldNpcs.CampaignMode
 			{
 				DebugLogger.Log("[EraCatalog] StartCampaign 拿到空时代 id —— 不开局");
 				return;
+			}
+			// 记下年份供界面算史实年龄（见 SelectedEraYear 注释）
+			foreach (Era e in All)
+			{
+				if (e.Id == eraId)
+				{
+					SelectedEraYear = ParseYear(e.Year);
+					break;
+				}
 			}
 			MBGameManager.StartNewGame(new LivingWorldCampaignGameManager(eraId));
 		}

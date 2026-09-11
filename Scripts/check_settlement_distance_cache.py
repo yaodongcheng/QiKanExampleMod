@@ -115,7 +115,13 @@ def main():
     errors, warns = [], []
 
     if not sett.is_file():
+        # 🔴 硬失败，**不跳过**（2026-09-11 用户裁定）：基线时代用无后缀名 settlements.xml 是本仓库
+        #   约定（生成器 BASELINE_ERA=1560）；约定漂移 = 本检查整块失效 + 距离缓存过期 = 雷 53
+        #   （家宅打分 NaN → 家宅永远选不中）。改名/换基线要同步本检查 + SubModule 的 path。
+        #   另注：官方地图编辑器也按固定名读写 settlements.xml（Knowledge/bannerlordmodding_lt/editor/editor.md）。
         print(f"[FATAL] settlements.xml 不存在: {sett}")
+        print("        约定：基线时代（BASELINE_ERA）走无后缀名；改名要同步本检查 + SubModule path，"
+              "且会让地图编辑器保存地图时崩")
         return 2
 
     # 期望集合 = 有地图组件的据点 ∩ 有同名场景实体（引擎生成缓存时的实际口径）

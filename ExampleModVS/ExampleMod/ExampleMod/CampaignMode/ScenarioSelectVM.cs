@@ -15,13 +15,15 @@ namespace LivingWorldNpcs.CampaignMode
 	{
 		private readonly Action _onBack;
 		private readonly Action<EraCatalog.Era> _onPick;
+		private readonly Action _onRecommended;
 		private readonly List<ScenarioItemVM> _items = new List<ScenarioItemVM>();
 		private ScenarioItemVM _selected;
 
-		public ScenarioSelectVM(Action onBack, Action<EraCatalog.Era> onPick)
+		public ScenarioSelectVM(Action onBack, Action<EraCatalog.Era> onPick, Action onRecommended = null)
 		{
 			_onBack = onBack;
 			_onPick = onPick;
+			_onRecommended = onRecommended;
 			Items = new MBBindingList<ScenarioItemVM>();
 			foreach (EraCatalog.Era era in EraCatalog.All)
 			{
@@ -42,6 +44,9 @@ namespace LivingWorldNpcs.CampaignMode
 
 		/// <summary>返回按钮文字。</summary>
 		public string BackText => new TextObject("{=LWN_scenario_select_back}Back").ToString();
+
+		/// <summary>「推荐」按钮文字（太阁5 原版就在剧本页底部居中）。</summary>
+		public string RecommendedText => new TextObject("{=LWN_scenario_select_recommended}Recommended").ToString();
 
 		/// <summary>剧本按钮列表（prefab 里 DataSource="{Items}"）。
 		/// 🔴 必须是**同一个实例**——每次 get 新建列表会割断 Gauntlet 绑定。</summary>
@@ -87,11 +92,18 @@ namespace LivingWorldNpcs.CampaignMode
 			_onBack?.Invoke();
 		}
 
+		/// <summary>「推荐」→ 进该时代的推荐人物列表（固定 1560，不跟随当前选中项）。</summary>
+		public void ExecuteRecommended()
+		{
+			_onRecommended?.Invoke();
+		}
+
 		public override void RefreshValues()
 		{
 			base.RefreshValues();
 			OnPropertyChanged(nameof(TitleText));
 			OnPropertyChanged(nameof(BackText));
+			OnPropertyChanged(nameof(RecommendedText));
 		}
 
 		/// <summary>一个剧本按钮。</summary>

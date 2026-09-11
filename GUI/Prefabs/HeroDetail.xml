@@ -1,0 +1,287 @@
+<Prefab>
+  <Window Id="LWN_HeroDetail">
+    <!-- 角色详情页（配 CampaignMode/HeroDetailVM.cs）——复刻太阁5「选择角色 → 角色详情」第二步：
+         先看人，再决定。版式照 §3.3：左栏 姓名/立绘/生卒+列传，右栏 基本情报/能力情报/技能情报，
+         底部 [返回] 左 · [决定] 右。
+         🔴 根底色必须**全不透明**（FF）——本层底下压着引擎的建号屏，半透明会让它透出来
+            （同 HeroSelect.xml 的口径，2026-09-10 用户裁定走「完全遮住」方案）。
+         🔴 与 HeroSelect 是**同一个覆盖层的两个 prefab**（HeroSelectOverlay 按状态 LoadMovie 互切）——
+            不新增层，避免层序/焦点问题（plan §3.5 方案 A）。 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+            Sprite="BlankWhiteSquare_9" Color="#0A0A12FF"
+            DoNotAcceptEvents="false">
+      <Children>
+
+        <!-- ============ 主体：左栏 + 右栏 ============ -->
+        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   StackLayout.LayoutMethod="HorizontalLeftToRight"
+                   DoNotAcceptEvents="true">
+          <Children>
+
+            <!-- ────────── 左栏（460）：姓名 / 立绘 / 生卒 + 列传 ────────── -->
+            <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="440" SuggestedHeight="672"
+                       StackLayout.LayoutMethod="VerticalTopToBottom" MarginRight="24"
+                       DoNotAcceptEvents="true">
+              <Children>
+
+                <!-- 姓名（大字） -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="64"
+                        Sprite="StdAssets\Popup\canvas_dark" DoNotAcceptEvents="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                Text="@NameText" Brush="Popup.Title.Text" Brush.TextHorizontalAlignment="Center"
+                                Brush.FontSize="32" VerticalAlignment="Center"
+                                DoNotAcceptEvents="true"/>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Sprite="frame_9" ExtendLeft="14" ExtendTop="14" ExtendRight="14" ExtendBottom="14"
+                            IsEnabled="false" DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+
+                <!-- 立绘（半身像）——画像表与立绘表同键，取首张卡 -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="300"
+                        Sprite="StdAssets\Popup\canvas_dark" MarginTop="10" DoNotAcceptEvents="true">
+                  <Children>
+                    <ImageWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                 Sprite="@BustupSprite" IsVisible="@HasBustup"
+                                 DoNotAcceptEvents="true"/>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@NoRecordText" IsVisible="@HasNoBustup"
+                                Brush="MyBrush_18_White" Brush.FontSize="18"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                DoNotAcceptEvents="true"/>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Sprite="frame_9" ExtendLeft="14" ExtendTop="14" ExtendRight="14" ExtendBottom="14"
+                            IsEnabled="false" DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+
+                <!-- 生卒 + 列传 -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                        Sprite="StdAssets\Popup\canvas_dark" MarginTop="10" DoNotAcceptEvents="true">
+                  <Children>
+                    <!-- 年龄（左）· 生卒（右） -->
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@AgeText" Brush="MyBrush_18_White" Brush.FontSize="20"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="16" MarginTop="12"
+                                DoNotAcceptEvents="true"/>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@LifespanText" IsVisible="@HasLifespan"
+                                Brush="MyBrush_18_White" Brush.FontSize="18"
+                                HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="16" MarginTop="14"
+                                DoNotAcceptEvents="true"/>
+
+                    <!-- 型别 / 目标描述（推荐人专属；普通人隐藏） -->
+                    <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="380"
+                                Text="@StoryType" IsVisible="@HasStory"
+                                Brush="MyBrush_18_White" Brush.FontSize="19" Brush.FontColor="#F0CE7AFF"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="16" MarginTop="44"
+                                DoNotAcceptEvents="true"/>
+                    <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="380"
+                                Text="@StoryGoal" IsVisible="@HasStory"
+                                Brush="MyBrush_18_White" Brush.FontSize="17"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="16" MarginTop="72"
+                                DoNotAcceptEvents="true"/>
+
+                    <!-- 列传 -->
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                                Text="@BioHeader" Brush="Popup.Title.Text" Brush.FontSize="20"
+                                HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="16" MarginBottom="104"
+                                DoNotAcceptEvents="true"/>
+                    <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                SuggestedWidth="404" SuggestedHeight="88"
+                                Text="@BiographyText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="12"
+                                DoNotAcceptEvents="true"/>
+
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Sprite="frame_9" ExtendLeft="14" ExtendTop="14" ExtendRight="14" ExtendBottom="14"
+                            IsEnabled="false" DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+
+              </Children>
+            </ListPanel>
+
+            <!-- ────────── 右栏（900）：基本情报 / 能力情报 / 技能情报 ────────── -->
+            <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="880" SuggestedHeight="672"
+                       StackLayout.LayoutMethod="VerticalTopToBottom"
+                       DoNotAcceptEvents="true">
+              <Children>
+
+                <!-- ① 基本情报 -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="188"
+                        Sprite="StdAssets\Popup\canvas_dark" DoNotAcceptEvents="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34"
+                                Text="@BasicHeader" Brush="Popup.Title.Text" Brush.FontSize="22"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="18" MarginTop="10"
+                                DoNotAcceptEvents="true"/>
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="132"
+                               VerticalAlignment="Bottom" MarginBottom="12" MarginLeft="18" MarginRight="18"
+                               StackLayout.LayoutMethod="VerticalTopToBottom"
+                               DataSource="{BasicRows}" DoNotAcceptEvents="true">
+                      <ItemTemplate>
+                        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                                   StackLayout.LayoutMethod="HorizontalLeftToRight" MarginTop="4"
+                                   DoNotAcceptEvents="true">
+                          <Children>
+                            <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="130"
+                                        Text="@Label" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                        VerticalAlignment="Center" Brush.FontColor="#A8B4C8FF"
+                                        DoNotAcceptEvents="true"/>
+                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        Text="@Value" Brush="MyBrush_18_White" Brush.FontSize="18"
+                                        VerticalAlignment="Center"
+                                        DoNotAcceptEvents="true"/>
+                          </Children>
+                        </ListPanel>
+                      </ItemTemplate>
+                    </ListPanel>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Sprite="frame_9" ExtendLeft="14" ExtendTop="14" ExtendRight="14" ExtendBottom="14"
+                            IsEnabled="false" DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+
+                <!-- ② 能力情报（五维：条形图 + 数值） -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="196"
+                        Sprite="StdAssets\Popup\canvas_dark" MarginTop="10" DoNotAcceptEvents="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34"
+                                Text="@AbilityHeader" Brush="Popup.Title.Text" Brush.FontSize="22"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="18" MarginTop="10"
+                                DoNotAcceptEvents="true"/>
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="140"
+                               VerticalAlignment="Bottom" MarginBottom="12" MarginLeft="18" MarginRight="18"
+                               StackLayout.LayoutMethod="VerticalTopToBottom"
+                               DataSource="{Abilities}" DoNotAcceptEvents="true">
+                      <ItemTemplate>
+                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                   StackLayout.LayoutMethod="HorizontalLeftToRight" MarginTop="2"
+                                   DoNotAcceptEvents="true">
+                          <Children>
+                            <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="72"
+                                        Text="@Name" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                        VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                            <!-- 底槽 + 填充（填充宽 = 值/100 × 150） -->
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                    SuggestedWidth="150" SuggestedHeight="14"
+                                    Sprite="BlankWhiteSquare_9" Color="#232A38FF"
+                                    VerticalAlignment="Center" MarginRight="12" DoNotAcceptEvents="true">
+                              <Children>
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                        SuggestedWidth="@FillWidth"
+                                        Sprite="BlankWhiteSquare_9" Color="#5B8FD6FF"
+                                        HorizontalAlignment="Left" DoNotAcceptEvents="true"/>
+                              </Children>
+                            </Widget>
+                            <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="52"
+                                        Text="@ValueText" Brush="MyBrush_18_White" Brush.FontSize="18"
+                                        VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                          </Children>
+                        </ListPanel>
+                      </ItemTemplate>
+                    </ListPanel>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Sprite="frame_9" ExtendLeft="14" ExtendTop="14" ExtendRight="14" ExtendBottom="14"
+                            IsEnabled="false" DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+
+                <!-- ③ 技能情报（16 项，两列 × 8 行；点阵 + 数值） -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                        Sprite="StdAssets\Popup\canvas_dark" MarginTop="10" DoNotAcceptEvents="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34"
+                                Text="@SkillHeader" Brush="Popup.Title.Text" Brush.FontSize="22"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="18" MarginTop="10"
+                                DoNotAcceptEvents="true"/>
+                    <!-- 两列 × 8 行：外层横排套两个竖排 ListPanel（各绑一个 DataSource） -->
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                               VerticalAlignment="Bottom" MarginBottom="14" MarginLeft="18" MarginRight="18"
+                               StackLayout.LayoutMethod="HorizontalLeftToRight"
+                               DoNotAcceptEvents="true">
+                      <Children>
+                        <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="420"
+                                   StackLayout.LayoutMethod="VerticalTopToBottom"
+                                   DataSource="{SkillsLeft}" DoNotAcceptEvents="true">
+                          <ItemTemplate>
+                            <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                                       StackLayout.LayoutMethod="HorizontalLeftToRight" DoNotAcceptEvents="true">
+                              <Children>
+                                <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="76"
+                                            Text="@Name" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                            VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                                <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="92"
+                                            Text="@Dots" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                            VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                                <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="52"
+                                            Text="@ValueText" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                            VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                              </Children>
+                            </ListPanel>
+                          </ItemTemplate>
+                        </ListPanel>
+                        <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="420"
+                                   StackLayout.LayoutMethod="VerticalTopToBottom"
+                                   DataSource="{SkillsRight}" DoNotAcceptEvents="true">
+                          <ItemTemplate>
+                            <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                                       StackLayout.LayoutMethod="HorizontalLeftToRight" DoNotAcceptEvents="true">
+                              <Children>
+                                <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="76"
+                                            Text="@Name" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                            VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                                <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="92"
+                                            Text="@Dots" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                            VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                                <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="52"
+                                            Text="@ValueText" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                            VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                              </Children>
+                            </ListPanel>
+                          </ItemTemplate>
+                        </ListPanel>
+                      </Children>
+                    </ListPanel>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Sprite="frame_9" ExtendLeft="14" ExtendTop="14" ExtendRight="14" ExtendBottom="14"
+                            IsEnabled="false" DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+
+              </Children>
+            </ListPanel>
+
+          </Children>
+        </ListPanel>
+
+        <!-- ============ 底部：返回（左）/ 决定（右）============ -->
+        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="56"
+                      HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="90" MarginBottom="46"
+                      Brush="Test.Button3" Command.Click="ExecuteBack">
+          <Children>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        Text="@BackText" Brush="MyBrush_24" Brush.FontSize="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        DoNotAcceptEvents="true"/>
+          </Children>
+        </ButtonWidget>
+
+        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="240" SuggestedHeight="56"
+                      HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginRight="90" MarginBottom="46"
+                      Brush="Test.Button3" Command.Click="ExecuteConfirm">
+          <Children>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        Text="@ConfirmText" Brush="MyBrush_24" Brush.FontSize="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        DoNotAcceptEvents="true"/>
+          </Children>
+        </ButtonWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

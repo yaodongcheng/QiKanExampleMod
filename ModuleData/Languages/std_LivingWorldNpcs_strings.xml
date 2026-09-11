@@ -4438,6 +4438,24 @@
     <string id="LWN_hero_select_role_king" text="Ruler" />
     <string id="LWN_hero_select_role_clan_leader" text="Clan Leader" />
     <string id="LWN_hero_select_role_member" text="Lord" />
+    <!-- 推荐入口 + 角色详情页（选人流程复刻太阁5，2026-09-11） -->
+    <string id="LWN_scenario_select_recommended" text="Recommended" />
+    <string id="LWN_hero_select_title_recommended" text="Recommended Lords" />
+    <string id="LWN_hero_select_not_arrived" text="Not yet in this world" />
+    <string id="LWN_hero_detail_basic" text="Profile" />
+    <string id="LWN_hero_detail_ability" text="Attributes" />
+    <string id="LWN_hero_detail_skills" text="Skills" />
+    <string id="LWN_hero_detail_identity" text="Station" />
+    <string id="LWN_hero_detail_allegiance" text="Allegiance" />
+    <string id="LWN_hero_detail_seat" text="Seat" />
+    <string id="LWN_hero_detail_renown" text="Renown" />
+    <string id="LWN_hero_detail_weapon" text="Weapon" />
+    <string id="LWN_hero_detail_armor" text="Armour" />
+    <string id="LWN_hero_detail_biography" text="Biography" />
+    <string id="LWN_hero_detail_no_record" text="No record of this one survives." />
+    <string id="LWN_hero_detail_back" text="Back" />
+    <string id="LWN_hero_detail_confirm" text="Decide" />
+    <string id="LWN_hero_detail_age" text="{AGE} years old" />
     <string id="LWN_campaign_continue" text="Continue Campaign" />
     <string id="LWN_campaign_continue_disabled" text="Save-loading is not implemented yet." />
     <string id="LWN_q_failed" text="You have failed the mission disgracefully." />

@@ -8,8 +8,13 @@ namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// 选人**界面覆盖层**（不是自建 Screen——见下方"为什么"）。
-	/// 流程：主菜单 →「剧本」→ 选剧本 → 建世界 → 世界建好后挂上本层 → 玩家选人 →
-	///   选了英雄 = 魂穿 + 走完建号收尾（进图）；点「自定义人物」= 走原建号流程。
+	/// 流程：主菜单 →「剧本」→ 选剧本（或点「推荐」）→ 建世界 → 世界建好后挂上本层 →
+	///   **选人列表**（树模式 / 推荐模式）→ 点人名 → **角色详情页** → [决定] 才魂穿开局。
+	///
+	/// 🔴 **一个层、两个 prefab 互切**（2026-09-11，plan §3.5 方案 A）：
+	///   列表 = <c>HeroSelect</c>，详情 = <c>HeroDetail</c>，同一 GauntletLayer 上
+	///   <c>LoadMovie</c> 换片。**不新增层**——层序/焦点在加载期本来就敏感，
+	///   能不加层就不加（本仓库前几次踩坑都在层上）。
 	///
 	/// 🔴 **为什么不用 ScreenBase + PushScreen（2026-09-10 实机两次踩坑）**：
 	///   推入的屏在这个时点（世界刚建好、引擎的 GameLoadingState 仍活着）**画不出来**——
@@ -19,14 +24,24 @@ namespace LivingWorldNpcs.CampaignMode
 	///   故本类采用同一做法。
 	///
 	/// 🔴 **时点硬约束**：必须等世界建好（`Campaign.Current` 就绪）才能显示——
-	///   界面要读 `Kingdom.All` / `Clan.Heroes`，世界之前读 = `Kingdom.get_All()` NRE（已踩）。
+	///   界面要读 `Kingdom.All` / `Clan.Heroes` / 英雄画像，世界之前读 = NRE（已踩）。
 	///   所以由 <c>LivingWorldCampaignGameManager.OnLoadFinished</c> 调 <see cref="Request"/>，再由 Tick 挂层。
 	/// </summary>
 	public static class HeroSelectOverlay
 	{
+		/// <summary>本层正在显示哪一页。</summary>
+		private enum ViewState
+		{
+			List,
+			Detail,
+		}
+
 		private static GauntletLayer _layer;
 		private static ScreenBase _host;      // 层挂在哪个屏上（ScreenLayer 没有公开的 owner 属性，自己记）
-		private static HeroSelectVM _vm;
+		private static HeroSelectVM _listVm;
+		private static HeroDetailVM _detailVm;
+		private static ViewState _state = ViewState.List;
+		private static bool _recommended;
 		private static bool _shown;
 		private static bool _pending;         // 已请求显示、还没挂上（等屏就绪）
 		private static int _retryTicks;
@@ -34,16 +49,43 @@ namespace LivingWorldNpcs.CampaignMode
 		/// <summary>本层是否正在显示。</summary>
 		public static bool IsShown => _shown;
 
-		/// <summary>请求显示选人界面（世界建好后调用，幂等）。真正的挂层在 <see cref="Tick"/> 里完成。</summary>
-		public static void Request()
+		/// <summary>「推荐」标记：由「推荐」按钮在**世界加载之前**置位，世界建好后由 GameManager 消费一次。</summary>
+		private static bool _recommendedNext;
+
+		/// <summary>
+		/// 「推荐」按钮 → 标记「这次开局的选人界面用推荐模式」。
+		/// 🔴 必须在 <c>StartCampaign</c> **之前**调（世界加载完 GameManager 就会读它）；
+		///   消费即复位，不会残留到下一次开局。
+		/// </summary>
+		public static void RequestRecommended()
+		{
+			_recommendedNext = true;
+		}
+
+		/// <summary>世界建好后由 <c>LivingWorldCampaignGameManager.OnLoadFinished</c> 调（消费并复位推荐标记）。</summary>
+		public static void RequestFromGameManager()
+		{
+			bool recommended = _recommendedNext;
+			_recommendedNext = false;
+			Request(recommended);
+		}
+
+		/// <summary>
+		/// 请求显示选人界面（世界建好后调用，幂等）。
+		/// <paramref name="recommended"/> = true → 只列内容包配的「推荐」五人（「推荐」按钮进来的路径）。
+		/// 真正的挂层在 <see cref="Tick"/> 里完成。
+		/// </summary>
+		public static void Request(bool recommended = false)
 		{
 			if (_shown || _pending)
 			{
 				return;
 			}
+			_recommended = recommended;
+			_state = ViewState.List;
 			_pending = true;
 			_retryTicks = 0;
-			DebugLogger.Log("[HeroSelect] 已请求显示选人界面（等屏就绪后挂层）");
+			DebugLogger.Log($"[HeroSelect] 已请求显示选人界面（{(recommended ? "推荐模式" : "树模式")}，等屏就绪后挂层）");
 		}
 
 		/// <summary>
@@ -73,9 +115,9 @@ namespace LivingWorldNpcs.CampaignMode
 
 			try
 			{
-				_vm = new HeroSelectVM(OnBack, OnHeroPicked, OnCustomHero);
+				_listVm = new HeroSelectVM(OnBack, OnHeroPicked, OnCustomHero, _recommended);
 				_layer = V.NewLayer(200, "LWN_HeroSelect");
-				V.LoadMov(_layer, "HeroSelect", _vm);
+				V.LoadMov(_layer, "HeroSelect", _listVm);
 				_layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
 				host.AddLayer(_layer);
 				_host = host;
@@ -83,6 +125,7 @@ namespace LivingWorldNpcs.CampaignMode
 				//   抢焦点反而会和引擎当前的焦点管理（loading/地图屏）打架。
 				_shown = true;
 				_pending = false;
+				_state = ViewState.List;
 				DebugLogger.Log($"[HeroSelect] 选人层已挂到 {host.GetType().Name}（层数={host.Layers.Count}，等待 {_retryTicks} 帧）");
 			}
 			catch (Exception ex)
@@ -94,11 +137,12 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 		}
 
-		/// <summary>摘层（换人收尾 / 走建号前调用；幂等）。</summary>
+		/// <summary>摘层（收尾 / 走建号前调用；幂等）。</summary>
 		public static void Teardown()
 		{
 			_shown = false;
 			_pending = false;
+			_state = ViewState.List;
 			if (_layer != null)
 			{
 				// 摘层守卫：RemoveLayer 会连带 Finalize 层，禁止二次
@@ -116,7 +160,8 @@ namespace LivingWorldNpcs.CampaignMode
 				_layer = null;
 			}
 			_host = null;
-			_vm = null;
+			_listVm = null;
+			_detailVm = null;
 		}
 
 		/// <summary>返回 → 改走建号流程（想自己捏人就从这里走）。</summary>
@@ -126,10 +171,58 @@ namespace LivingWorldNpcs.CampaignMode
 		}
 
 		/// <summary>
-		/// 选中英雄 → 就地换人（魂穿）+ 走完引擎的建号收尾（推入大地图等）。
-		/// 🔴 先摘层再落地：收尾会 `CleanAndPushState(MapState)` 清掉屏栈，留着旧层会挂到已销毁的屏上。
+		/// 点人名 → **换片到角色详情页**（不再直接开局）。
+		/// 🔴 这一步是「先看人、再决定」的关键：太阁5 也是两步，防误触。
 		/// </summary>
 		private static void OnHeroPicked(Hero hero)
+		{
+			if (hero == null || _layer == null)
+			{
+				return;
+			}
+			if (_state == ViewState.Detail)
+			{
+				return;                     // 已在详情页（连点两下）→ 不重复换片
+			}
+			try
+			{
+				_detailVm = new HeroDetailVM(hero, OnDetailBack, () => OnDetailConfirm(hero));
+				V.LoadMov(_layer, "HeroDetail", _detailVm);
+				_state = ViewState.Detail;
+				DebugLogger.Log($"[HeroSelect] 打开角色详情页：{hero.StringId}（{HeroSelectData.GetDisplayName(hero)}）");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[HeroSelect] 详情页打开失败（留在列表）：{ex.GetType().Name} {ex.Message}");
+				_detailVm = null;
+			}
+		}
+
+		/// <summary>详情页 [返回] → 换片回选人列表（保留刚才的选中态——列表 VM 没重建）。</summary>
+		private static void OnDetailBack()
+		{
+			if (_layer == null || _listVm == null)
+			{
+				return;
+			}
+			try
+			{
+				V.LoadMov(_layer, "HeroSelect", _listVm);
+				_state = ViewState.List;
+				_detailVm = null;
+				DebugLogger.Log("[HeroSelect] 从详情页返回列表");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[HeroSelect] 返回列表失败：{ex.GetType().Name} {ex.Message}");
+			}
+		}
+
+		/// <summary>
+		/// 详情页 [决定] → 就地换人（魂穿）+ 走完引擎的建号收尾（推入大地图等）。
+		/// 🔴 先摘层再落地：收尾会 `CleanAndPushState(MapState)` 清掉屏栈，留着旧层会挂到已销毁的屏上。
+		/// </summary>
+		private static void OnDetailConfirm(Hero hero)
 		{
 			Teardown();
 			if (hero != null && StartingHero.ApplyPending(hero))
