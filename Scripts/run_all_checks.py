@@ -38,6 +38,7 @@ CHECKS = [
     ("check_module_registration.py", "段注册 / 孤儿数据文件 / csproj 漏登记（雷 3/4/5/35/40）", False, None),
     ("check_era_segments.py", "时代段注册互斥 + 据点 id 跨时代稳定（时代切换 spike）", False, None),
     ("check_hero_templates.py", "英雄必须配同名 CharacterObject 模板（缺 = 静默被吞 → 新战役崩）", False, None),
+    ("check_englishname_clan_prefix.py", "EnglishName 家族名前缀 ↔ ClanID 一致（前缀生成家族 id，错了会造出假家族）", False, None),
     ("check_hero_profile_keys.py", "英雄 id 三处同键：模板 ↔ 画像表 ↔ 立绘表（选人详情页取数）", False, None),
     ("gen_taikou_era_diff.py", "时代差异段产物与生成器一致（铁律 22：生成物禁手改）", False, ["--check"]),
     ("gen_taikou_hero_profiles.py", "英雄画像表产物与生成器一致（铁律 22：生成物禁手改）", False, ["--check"]),
