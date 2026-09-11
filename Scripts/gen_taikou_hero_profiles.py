@@ -19,9 +19,10 @@
 产出（内容包 ModuleData）
 ------------------------
   `ModuleData/AssetRegistry/HeroProfiles.xml`   ← 生成物·禁止手改
-     <HeroProfile id="lord_1_oda" birth="1534" die="1582" clan="clan_oda_1" culture="kinai"
-                  command="96" force="87" … soldier="90" … />
-     <Recommended order="1" id="lord_1_kinoshita"
+     <HeroProfile id="lord_tk5_195" birth="1534" die="1582" clan="clan_oda_1" culture="kinai"
+                  command="96" force="87" … soldier="90" …
+                  bio="{=TAIKOU_bio_195}尾张国出生。…" />
+     <Recommended order="1" id="lord_tk5_517"
                   storyType="{=TAIKOU_story_type_bushi}Samurai Story"
                   storyGoal="{=TAIKOU_story_goal_kinoshita}…" />
 
@@ -74,19 +75,19 @@ SKILLS = [("SoldierSkill", "soldier"), ("MountSkill", "mount"), ("GunSkill", "gu
 # 🔴 型别与目标描述是玩家可见文本 → 走 {=TAIKOU_KEY}fallback（铁律 13），英文层由
 #    gen_taikou_english_strings.py 自动抽取，中文层人工补在 Languages/CNs/。
 RECOMMENDED = [
-    ("lord_1_kinoshita", "TAIKOU_story_type_bushi", "Samurai Story",
+    ("lord_tk5_517", "TAIKOU_story_type_bushi", "Samurai Story",
      "TAIKOU_story_goal_kinoshita",
      "Rise from the ranks and unite the realm. Governance, arms and diplomacy must all be mastered."),
-    ("lord_1_hattori_hanzo", "TAIKOU_story_type_ninja", "Ninja Story",
+    ("lord_tk5_587", "TAIKOU_story_type_ninja", "Ninja Story",
      "TAIKOU_story_goal_hanzo",
      "Unite the realm under the lord you serve. Your work is espionage, seizure and sabotage."),
-    ("lord_1_yagyuu_sekishuusai", "TAIKOU_story_type_kenkou", "Swordmaster Story",
+    ("lord_tk5_740", "TAIKOU_story_type_kenkou", "Swordmaster Story",
      "TAIKOU_story_goal_yagyuu",
      "Perfect your sword and become the finest blade in the land. To that end, revive your school and gather disciples."),
-    ("lord_1_kuki", "TAIKOU_story_type_suigun", "Sea Lord Story",
+    ("lord_tk5_279", "TAIKOU_story_type_suigun", "Sea Lord Story",
      "TAIKOU_story_goal_kuki",
      "Unite the realm under the lord you serve. Subdue the rival sea lords and pacify the waters."),
-    ("lord_1_ruzon_sukezaemon", "TAIKOU_story_type_shounin", "Merchant Story",
+    ("lord_tk5_549", "TAIKOU_story_type_shounin", "Merchant Story",
      "TAIKOU_story_goal_ruzon",
      "Dominate the markets of the realm. Raise your fortune by trade and by every means at hand."),
 ]
@@ -123,6 +124,21 @@ HEADER = ('<?xml version="1.0" encoding="utf-8"?>\n'
           '     改数据 = 改上游 CSV（或生成器的 RECOMMENDED 表）后重跑，不要直接编辑本文件。\n'
           '     键 = 英雄 StringId，与 spnpccharacters.xml 的 NPCCharacter id、\n'
           '     ModuleData/AssetRegistry/ProfileStages.csv 的 StringId **三处同键**（否则详情页取不到数据/立绘）。 -->\n')
+
+
+def _to_simplified(s):
+    """繁体 → 简体（列传原文落 XML 用）。
+
+    🔴 2026-09-11：CSV 的 `列传简体` 列已删，转换点挪到生成期。opencc 缺失时 FATAL，
+       不静默把繁体当简体写进产物（那样英文层与中文层都会是繁体且没人发现）。
+    """
+    if not s:
+        return ""
+    try:
+        import opencc
+    except Exception as exc:                                 # noqa: BLE001
+        raise SystemExit(f"[FATAL] 需要 opencc 转简体（列传）：{exc}")
+    return opencc.OpenCC("t2s").convert(s)
 
 
 def registry_mb2_path():
@@ -193,7 +209,21 @@ def build(rows):
         head = " ".join(f'{k}="{esc(v)}"' for k, v in attrs[:5])
         body = " ".join(f'{k}="{esc(v)}"' for k, v in attrs[5:13])
         tail = " ".join(f'{k}="{esc(v)}"' for k, v in attrs[13:])
-        lines.append(f'  <HeroProfile {head}\n               {body}\n               {tail} />')
+
+        # 🔴 列传（= 原版 `<Hero text=…>` 的百科传记字段，见 Hero.Deserialize：
+        #    `EncyclopediaText = node.Attributes["text"]`）。
+        #    源 = 太阁5 实机导出的列传**繁体原文**（CSV 的 列传/列传原文 两列，由
+        #    Scripts/import_taikou_hero_bios.py 落库）。
+        #    🔴 2026-09-11：CSV 的 `列传简体` 列已删（用户裁定：列传只留繁体原文，
+        #       简体/英文在生成本地化产物时再走正式流程）→ 这里自己转简体。
+        bio_key = (r.get("列传") or "").strip()
+        bio_raw = (r.get("列传原文") or "").strip()
+        bio_simp = _to_simplified(bio_raw) if bio_raw else ""
+        if bio_key and bio_simp:
+            lines.append(f'  <HeroProfile {head}\n               {body}\n               {tail}\n'
+                         f'               bio="{{={bio_key}}}{esc(bio_simp)}" />')
+        else:
+            lines.append(f'  <HeroProfile {head}\n               {body}\n               {tail} />')
 
     rec = []
     for order, (hid, type_key, type_en, goal_key, goal_en) in enumerate(RECOMMENDED, start=1):

@@ -14,7 +14,7 @@
       <Realm id="kingdom_oda" name="{=TAIKOU_kingdom_oda}Oda Clan" order="1"/>
       <Realm id=""            name="{=LWN_hero_select_no_realm}Masterless" order="99"/>
       <House id="clan_oda" realm="kingdom_oda" name="{=TAIKOU_clan_oda}Oda Nobunaga" order="1"/>
-      <Lord  id="lord_1_oda" house="clan_oda" order="1"
+      <Lord  id="lord_tk5_195" house="clan_oda" order="1"
              name="{=TAIKOU_hero_nobunaga}Oda Nobunaga"
              identity="{=TAIKOU_identity_daimyo}Daimyo"
              seat="{=TAIKOU_sett_town_tk080}Kiyosu Castle"

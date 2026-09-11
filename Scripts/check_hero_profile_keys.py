@@ -9,7 +9,7 @@ Hero three-way key checker (英雄 id 三处同键：模板 ↔ 画像表 ↔ �
     AssetRegistry/HeroProfiles.xml 的 <HeroProfile id="X">  ← 详情页的五维/16 技能/生卒
     AssetRegistry/ProfileStages.csv 的 StringId 列          ← 立绘/小头像 sprite
 
-  三处**必须同键**（CSV 制式，如 lord_1_oda）。任一处不同 = 详情页那一块静默空白：
+  三处**必须同键**（CSV 制式，如 lord_tk5_195）。任一处不同 = 详情页那一块静默空白：
     · 模板 id 改了、另两处没改 → 英雄还在，但**画像与立绘都查不到**（界面画「暂无史料」占位）
     · 这正是「步 0」要修的历史问题（旧 id `lord_oda_nobunaga` ↔ 表制式 `lord_1_oda`）
 
