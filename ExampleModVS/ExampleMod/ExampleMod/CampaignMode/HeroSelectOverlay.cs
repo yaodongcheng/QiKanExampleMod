@@ -60,14 +60,6 @@ namespace LivingWorldNpcs.CampaignMode
 				return;
 			}
 			_retryTicks++;
-			// 🔴 诊断（2026-09-10 排查"界面不出现"）：每 60 帧报一次重试状态，看 TopScreen 到底有没有。
-			//   定位完即删。
-			if (_retryTicks % 60 == 1)
-			{
-				DebugLogger.Log($"[HeroSelect-diag] Tick 第 {_retryTicks} 次：TopScreen="
-					+ $"{ScreenManager.TopScreen?.GetType().Name ?? "(null)"}"
-					+ $" 本层已挂={_shown} 待办={_pending}");
-			}
 			if (_retryTicks > 600 && _retryTicks % 30 != 0)
 			{
 				return;                     // 低频重试档
@@ -149,7 +141,7 @@ namespace LivingWorldNpcs.CampaignMode
 			FallbackToCharacterCreation();
 		}
 
-		/// <summary>「自定义人物」→ 走原建号流程（建号状态已由 GameManager 建好）。</summary>
+		/// <summary>「自定义人物」→ 走原建号流程（玩家自己捏脸/选出身/加点）。</summary>
 		private static void OnCustomHero()
 		{
 			Teardown();
@@ -158,8 +150,8 @@ namespace LivingWorldNpcs.CampaignMode
 
 		/// <summary>
 		/// 进原建号流程（「自定义人物」/ 返回 / 换人失败都走这里）。
-		/// 🔴 建号状态此刻**还没被推过**（GameManager 刻意不预推——预推会让玩家先看到选文化界面，
-		///   且它的禁止其它状态激活请求会挡住后续状态）。这里现推即可。
+		/// 🔴 推的是**全新**的建号状态（CleanAndPushState 清栈后重建）——
+		///   底下那个给选人层当宿主用的建号屏已被 Teardown 摘层、随清栈销毁，不会留下两份。
 		/// </summary>
 		private static void FallbackToCharacterCreation()
 		{

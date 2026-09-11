@@ -62,9 +62,77 @@ System.ArgumentOutOfRangeException: Index must be within the bounds of the List.
 
 ---
 
-## 三、✅ 正解：自建 ScreenBase 界面
+## 二·补、🔴 深坑：**自建 ScreenBase + PushScreen 会在某些时点画不出来**
 
-### 3.1 骨架（本仓库已验证可用的组合）
+**症状**（2026-09-10 实机，选人界面）：屏明明在栈顶，状态全对，**但屏幕上一个像素都没有**——
+诊断实测：`ScreenManager.TopScreen == 本屏`、`IsActive=True`、层 `IsActive=True`、焦点也拿到了，全绿。
+
+**根因**：引擎的屏栈在**换代空档期**（世界刚建好 / GameState 正在切换）时，新推入的屏不进渲染。
+本仓库**所有能正常显示的界面**（AgentHud / IM 面板 / 相机调试 / 切磋条）
+**无一例外**都是同一个写法——**挂到引擎现成的屏上，不自己造屏**：
+
+```csharp
+GauntletLayer layer = V.NewLayer(order, "MyLayer");
+V.LoadMov(layer, "MyPrefab", vm);
+layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
+ScreenManager.TopScreen.AddLayer(layer);      // ← 关键：宿主用引擎现成的屏
+// 🔴 不要设 IsFocusLayer / 不要 TrySetFocus——能工作的范本都不抢焦点，抢了会和引擎的焦点管理打架
+```
+
+**推论**：需要"全屏覆盖式界面"时，**优先找当前 TopScreen 挂层**，而不是 `PushScreen` 自建屏。
+（自建屏在 MissionScreen / MapScreen 之外自成一套时仍可用，但**不要在 GameState 切换期用**。）
+
+### 🔴 挂层时机：必须"待办 + 重试"，不能一次性挂
+
+`OnLoadFinished` 那一刻可能**没有屏可挂**（`ScreenManager.TopScreen == null`，屏栈正在换代）。
+一次性挂 = **静默挂空**（界面不出现、日志一片空白，排查极难——实机踩过）。
+
+**做法**：请求 + 每帧重试（驱动点用应用层 `OnApplicationTick` 单点）：
+
+```csharp
+public static void Request() { _pending = true; }                 // 只登记
+public static void Tick() {                                       // 每帧试
+    if (!_pending || _shown) return;
+    if (++_retryTicks > 600 && _retryTicks % 30 != 0) return;      // 前 10 秒每帧，之后低频
+    ScreenBase host = ScreenManager.TopScreen;
+    if (host == null) return;                                      // 空档 → 下帧再试
+    /* 挂层…… */
+}
+```
+
+---
+
+## 二·补2、🔴 `OnLoadFinished` 会被**反复调用**（引擎没守卫）
+
+```csharp
+// TaleWorlds.MountAndBlade.GameLoadingState.OnTick（反编译实锤）
+protected override void OnTick(float dt) {
+    base.OnTick(dt);
+    if (!_loadingFinished) { _loadingFinished = _gameLoader.DoLoadingForGameManager(); return; }
+    GameStateManager.Current = Game.Current.GameStateManager;
+    _gameLoader.OnLoadFinished();        // ← 无条件，每帧都调
+}
+```
+
+**只对 `DoLoadingForGameManager` 有"完成"守卫，对 `OnLoadFinished` 没有。**
+原版没暴露问题，是因为建号状态 / 地图状态随即接管、`GameLoadingState` 随即退出。
+
+⇒ **在 `OnLoadFinished` 里做任何"一次性"的事（弹界面 / 建对象 / 注册）都必须自己加幂等守卫**，
+否则 = 每帧重建 → 玩家的点击永远被下一次重建吞掉（症状：看着像卡死在 loading）。
+
+## 三、两种界面形态：什么时候挂层、什么时候自建屏
+
+> ⚠️ **先读二·补**：自建 `ScreenBase` 在 GameState 切换期（世界刚建好 / 加载中）**画不出来**。
+> 所以选形态之前先问一句：**这个界面出现的时点，引擎的屏栈稳不稳？**
+
+| 形态 | 什么时候用 | 范本 |
+|---|---|---|
+| **挂层到现成屏**（`ScreenManager.TopScreen.AddLayer`） | **首选**。界面出现在游戏进行中（地图屏 / MissionScreen 已在），或时点可能撞上屏栈换代 | `AgentHudMissionView` / IM 面板 / `HeroSelectOverlay` |
+| **自建 `ScreenBase` + `PushScreen`** | 界面**自己就是一个独立场景**（如主菜单里点开的全屏界面），且时点**不在** GameState 切换期 | `ScenarioSelectScreen`（主菜单 → 选剧本，已验证可用） |
+
+**判别口诀**：时点在**主菜单**（屏栈静止）→ 自建屏没问题；时点在**进图/加载/状态切换**中 → 一律挂层。
+
+### 3.1 自建 Screen 的骨架（仅在上表第二种场景用）
 
 ```csharp
 public class MyScreen : ScreenBase
@@ -139,6 +207,44 @@ private void OnPicked(Era era)
 
 ---
 
+## 四·前、🔴🔴 跳过引擎标准流程时，**必须手动镜像它的收尾**（2026-09-10 实机卡死）
+
+**场景**：我们不走官方建号（直接"选一位现成领主"开局），于是跳过了
+`CharacterCreationState.FinalizeCharacterCreation()`。**那一整套收尾不能省**——省一步就是静默卡死。
+
+### 引擎原版收尾（反编译实锤，**逐步照做，一步不落**）
+
+```csharp
+public void FinalizeCharacterCreation() {
+    CharacterCreation.ApplyFinalEffects();                                        // ① 应用建号结果
+    Game.Current.GameStateManager.UnregisterActiveStateDisableRequest(this);      // ② 🔴 最易漏
+    Game.Current.GameStateManager.CleanAndPushState(CreateState<MapState>());      // ③ 推入大地图
+    PartyBase.MainParty.SetVisualAsDirty();                                       // ④ 视觉刷新
+    _handler?.OnCharacterCreationFinalized();
+    CurrentCharacterCreationContent.OnCharacterCreationFinalized();               // ⑤ 通知建号内容
+    CampaignEventDispatcher.Instance.OnCharacterCreationIsOver();                 // ⑥ 广播事件
+}
+```
+
+### 🔴 第 ② 步为什么是"卡死"的元凶
+
+`GameStateManager.ActiveStateDisabledByUser => _activeStateDisableRequests.Count > 0`。
+建号状态在 `OnInitialize` 里 `RegisterActiveStateDisableRequest(this)`——
+**不撤销就永远为真 → 地图状态永不激活 → 画面在、但无法操作**（日志表现为一直 `scene=CampaignPaused`，不崩）。
+
+### 哪一步可以省：只有 ①
+
+`ApplyFinalEffects()` 的第一句是 `Clan.PlayerClan.Renown = 0f;`（**把玩家家族声望清零**）——
+对"捏脸开局"是对的，对"魂穿一位现成领主"是**错的**（会把所选领主家族声望清零）。
+所以：**① 按语义决定省不省，②~⑥ 一步不能省。**
+
+### 另一条：宿主屏要自己造
+
+若界面要挂在建号屏上（覆盖官方建号流程），**先把建号状态推起来**（`PushCharacterCreation`），
+它既提供可挂的屏、又把玩家看到的第一层遮住；它的禁用请求由上面第 ② 步撤销。
+
+---
+
 ## 四、顺带记录：引擎的两处脆弱链（排雷时撞到）
 
 ### 4.1 `Kingdom.RulingClan` / `Leader` 的赋值时机
@@ -165,6 +271,6 @@ private void OnPicked(Era era)
 ## 五、Reusability 小结（下次要动主菜单时照着走）
 
 1. **只是想加按钮** → `Module.CurrentModule.AddInitialStateOption(...)`（本仓库 `CampaignModeActivator` 已在做）。
-2. **想加"点进去看更多"** → **自建 ScreenBase + prefab + VM**（本文档第三节），**别动列表长度**。
+2. **想加"点进去看更多"** → 按本文档第三节判别形态：**主菜单里点开** = 自建 Screen；**游戏进行中/加载期** = 挂层到 TopScreen。**两者都别动主菜单列表长度**。
 3. **需要程序化刷新主菜单**（如禁用一个已存在的按钮）→ `InitialState.RefreshContentState()`；但注意 MCM 会跟着跑它的 postfix。
 4. **绝对不要**为了做子菜单而"清空列表再塞短的"——MCM 会崩。

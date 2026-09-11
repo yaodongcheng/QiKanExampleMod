@@ -1,12 +1,14 @@
 <Prefab>
   <Window Id="LWN_HeroSelect">
     <!-- 选人界面（对标 StartAsAnyone 的选人思路，但用我们自己的布局，不用它的 GUI）：
+         🔴 根底色必须**全不透明**（FF）——见下方布局说明：底下压着引擎的建号屏（选文化界面），
+            半透明会让它透出来（2026-09-10 用户裁定走"完全遮住"方案，而不是"不推建号状态"）。
          左列王国 → 中列家族 → 右列英雄（点上级刷新下级）；右上「自定义英雄」走现有建号；
          右下「返回」回选剧本、「确认」用当前选中英雄开局。
          命令绑定：Command.Click / Command.HoverBegin → 各 ItemVM 的 ExecutePick。
          🔴 与选剧本界面同款自建 Screen 方案（不改主菜单列表——MCM 会崩，见 Knowledge/骑砍2主菜单与自定义UI层.md）。 -->
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-            Sprite="BlankWhiteSquare_9" Color="#0A0A12E6"
+            Sprite="BlankWhiteSquare_9" Color="#0A0A12FF"
             DoNotAcceptEvents="false">
       <Children>
 

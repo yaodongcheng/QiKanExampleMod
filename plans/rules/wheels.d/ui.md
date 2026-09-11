@@ -559,6 +559,11 @@ PortraitRegistry 扫**所有模块**的 `ModuleData/AssetRegistry/*.csv`（列�
 （`StartNewGame` 会替换主菜单屏，界面不先退会挂到将销毁的屏上）。
 
 **参考实现**：`CampaignMode/ScenarioSelect{Screen,VM}.cs` + `GUI/Prefabs/ScenarioSelect.xml` + `CampaignMode/EraCatalog.cs`（时代清单单一真源）。
+**🔴 两条补充（2026-09-10 实机补）：① 自建 Screen 在 GameState 切换期画不出来**——屏在栈顶/IsActive/层活跃全 True 也没一个像素，
+**游戏进行中或加载期的界面一律"挂层到 `ScreenManager.TopScreen`"**（自建屏只在主菜单那种屏栈静止时用）。
+**② 挂层要"待办 + 每帧重试"**：`OnLoadFinished` 那一刻可能没有屏可挂（一次性挂 = 静默挂空）。
+**③ 跳过引擎标准流程（如跳过建号）必须手动镜像它的收尾**——漏 `UnregisterActiveStateDisableRequest` = 地图永不激活 = 卡死（详见 Knowledge 文档第四节前）。
+
 完整机制与证据 → [Knowledge/骑砍2主菜单与自定义UI层.md](../../../Knowledge/骑砍2主菜单与自定义UI层.md)。
 
 ## tpac 打包链：任意 PNG → 引擎原生纹理包 — TpacToolCLI makepack/inspect（2026-08-31 登记）

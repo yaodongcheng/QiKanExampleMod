@@ -110,21 +110,21 @@
 
 | facility | TK5 设施 | 次数 | 场景落点 | 状态 |
 |---|---|---|---|---|
-| house | 自宅 | 229（🔴 口径注 2026-08-26：229 = 自宅设施出现**总次数**；01/README 的 211 = 「室內畫面表示後(主人公據點,自宅)」**组合契機数**——两个口径不同，非矛盾） | 🔴 原版无玩家住宅（实测 scn_player_house 0 命中）→ 织丰御殿/城主间顶替（09b opening 已用 sho_meeting_castle_a） | 🔴 07 素材表确认织丰住宅场景 |
+| house | 自宅 | 229（🔴 口径注 2026-08-26：229 = 自宅设施出现**总次数**；01/README 的 211 = 「室內畫面表示後(主人公據點,自宅)」**组合契機数**——两个口径不同，非矛盾） | 🔴 原版无玩家住宅（实测 scn_player_house 0 命中）→ 日式御殿（Taikou 素材）/城主间顶替（09b opening 已用 sho_meeting_castle_a） | 🔴 07 素材表确认Taikou 住宅场景 |
 | tavern | 酒場 | 45 | 原版 scn_*_tavern_a/b | ✅ |
-| castle_hall | 城主間 | 15 | 原版 scn_*_lords_hall / 织丰御殿 | ✅ |
-| council_room | 評定間 | — | 织丰御殿（09b 评定会已用） | ✅ |
-| za | 座 | 15 | 织丰？无 → 就近映射/降级 | ⏳ 07 |
-| clinic | 主人公診療所 | 14 | 织丰诊疗所？无 → 降级 | ⏳ 07 |
-| dojo | 主人公道場 | 13 | 织丰道场？无 → 降级 | ⏳ 07 |
-| house_min | 民家 | 12 | 原版村落民家 / 织丰 | ⏳ 07 |
-| shop | 商家 | 11 | 织丰？无 → 降级 | ⏳ 07 |
-| nanban_trade | 南蠻商館 | 10 | 🔴 织丰大概率无 → 降级 menu_dialogue | ⏳ 07 |
-| smithy | 主人公鍛冶屋 | 10 | 织丰？无 → 降级 | ⏳ 07 |
-| tea_room | 主人公茶室 | 9 | 织丰茶室？无 → 降级 | ⏳ 07 |
-| temple | 寺 | 5 | 织丰寺社？无 → 降级 | ⏳ 07 |
+| castle_hall | 城主間 | 15 | 原版 scn_*_lords_hall / 日式御殿（Taikou 素材） | ✅ |
+| council_room | 評定間 | — | 日式御殿（Taikou 素材）（09b 评定会已用） | ✅ |
+| za | 座 | 15 | Taikou？无 → 就近映射/降级 | ⏳ 07 |
+| clinic | 主人公診療所 | 14 | 日式诊疗所（Taikou 素材）？无 → 降级 | ⏳ 07 |
+| dojo | 主人公道場 | 13 | 日式道场（Taikou 素材）？无 → 降级 | ⏳ 07 |
+| house_min | 民家 | 12 | 原版村落民家 / Taikou | ⏳ 07 |
+| shop | 商家 | 11 | Taikou？无 → 降级 | ⏳ 07 |
+| nanban_trade | 南蠻商館 | 10 | 🔴 Taikou 大概率无 → 降级 menu_dialogue | ⏳ 07 |
+| smithy | 主人公鍛冶屋 | 10 | Taikou？无 → 降级 | ⏳ 07 |
+| tea_room | 主人公茶室 | 9 | Taikou 茶室？无 → 降级 | ⏳ 07 |
+| temple | 寺 | 5 | Taikou 寺社？无 → 降级 | ⏳ 07 |
 | dojo_town | 道場 | 9 | 城里的公用道场（≠ 主人公道場 = dojo） | ⏳ 07 |
-| doctor_house | 醫師宅 | 4 | 织丰？无 → 降级 | 🔴 降级 |
+| doctor_house | 醫師宅 | 4 | Taikou？无 → 降级 | 🔴 降级 |
 | artisan_house | 職人宅 | 4 | 同上 | 🔴 降级 |
 | kuge_house | 公家宅 | 4 | 公家 = 朝廷贵族宅邸 | 🔴 降级 |
 | samurai_house | 武家宅 | 3 | 同上 | 🔴 降级 |
@@ -152,7 +152,7 @@
 > 🔴 **场所词汇单一来源**：上面所有 token 由 `tools/gen_registry_tables.py` 的 `PLACE_TOKENS`（52 条）统一定义，`設施`/`背景`/`場面`/`決鬥場地` 四个域共用同一张表（域前缀不同、token 相同）。改设施名 = 改 `PLACE_TOKENS` 重跑，禁止在本文档或 16a CSV 里单改（铁律 22）。
 > 🔴 **两处口径归一**（2026-08-27）：`城主間` 以本文档为准 = `castle_hall`（原 `場面`/`決鬥場地` 表写的 `lord_room` 作废）；`評定間` = `council_room`（原 `場面` 表写的 `council` 作废）。孪生词表检测（`twin_divergences()`）已把这类分叉列为生成期错误。
 
-纪律：①边缘设施不假装有场景——翻译时降级 menu_dialogue；②house 自宅 = 织丰御殿/城主间顶替是既定方案（09b opening 先例），07 素材表确认后登记正式映射；③映射表两轮策略（预设场景名 → predicate 兜底，铁律 5）；④翻译对照：`室內畫面表示後(無效,酒場)` → `"trigger": "house_enter", "facility": "tavern"`。
+纪律：①边缘设施不假装有场景——翻译时降级 menu_dialogue；②house 自宅 = 日式御殿（Taikou 素材）/城主间顶替是既定方案（09b opening 先例），07 素材表确认后登记正式映射；③映射表两轮策略（预设场景名 → predicate 兜底，铁律 5）；④翻译对照：`室內畫面表示後(無效,酒場)` → `"trigger": "house_enter", "facility": "tavern"`。
 
 ## 三、函数注册表（单所有权，2026-08-26 起）
 
