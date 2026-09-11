@@ -47,7 +47,7 @@ kamei,359,龟井家,,Warrior,-,-,-,-,-,lord_1_kamei_korenori
 kamiizumi,416,上泉家,,Warrior,-,-,-,-,-,-
 kanamori,355,金森家,,Warrior,-,-,-,-,-,lord_1_kanamori_nagachika
 kasai,339,葛西家,,Warrior,lord_1_kasai,lord_1_kasai,lord_1_kasai,lord_1_kasai,lord_1_kasai,-
-katō,350|351|352|353,加藤家,,Warrior,-,-,-,-,-,lord_1_katoo_yoshiaki
+katoo,350|351|352|353,加藤家,,Warrior,-,-,-,-,-,lord_1_katoo_yoshiaki
 kawajiri,367,河尻家,,Warrior,-,-,-,-,-,-
 kawano,420|421,河野家,,Warrior,lord_1_kawano,lord_1_kawano,lord_1_kawano,lord_1_kawano,lord_1_kawano_masashige,-
 kii,372,城井家,,Warrior,-,-,-,-,lord_1_kii,-
@@ -63,7 +63,7 @@ konohe,405,九户家,,Warrior,-,-,-,-,-,-
 kuki,397|398|399,九鬼家,,Warrior,-,-,-,-,-,lord_1_kuki_moritaka
 kuroda,412|413|414,黑田家,,Warrior,-,-,-,-,-,lord_1_kuroda_4
 kyouzaka,913,胁坂家,,Warrior,-,-,-,-,-,lord_1_kyouzaka_yasuharu
-kyōgoku,391|392|393,京极家,,Warrior,-,-,-,-,-,lord_1_kyoogoku_takachika
+kyoogoku,391|392|393,京极家,,Warrior,-,-,-,-,-,lord_1_kyoogoku_takachika
 maeda,777|778|779|780|781,前田家,,Warrior,-,-,-,-,-,lord_1_maeda
 matsudaira,797,松平家,,Warrior,-,-,-,-,-,-
 matsuura,803|804,松浦家,,Warrior,lord_1_matsuura,lord_1_matsuura,lord_1_matsuura,lord_1_matsuura,lord_1_matsuura,lord_1_matsuura_2
@@ -97,7 +97,7 @@ rokkaku,910|911,六角家,,Warrior,lord_1_rokkaku_shou,lord_1_rokkaku_shou,-,-,-
 ryuzoji,904|905|906|907|908,龙造寺家,,Warrior,lord_1_ryuzoji,lord_1_ryuzoji,lord_1_ryuzoji,lord_1_ryuzoji,lord_1_ryuzoji,-
 sagara,457|458,相良家,,Warrior,lord_1_sagara,lord_1_sagara,lord_1_sagara,lord_1_sagara,lord_1_sagara_yorifusa,lord_1_sagara_yorifusa
 saionji,440,西园寺家,,Warrior,-,-,-,-,-,-
-saitō,442|443|444|445|446|447,斋藤家,,Warrior,lord_1_saitoo_doosan,lord_1_saitoo_yoshitatsu,-,-,-,-
+saitoo,442|443|444|445|446|447,斋藤家,,Warrior,lord_1_saitoo_doosan,lord_1_saitoo_yoshitatsu,-,-,-,-
 sanada,476|477|478|479|480|481,真田家,,Warrior,-,-,-,-,-,lord_1_sanada_6
 sassa,471,佐佐家,,Warrior,-,-,-,-,-,-
 satake,466|467|468|469,佐竹家,,Warrior,dead_lord_1_satake_2,dead_lord_1_satake_2,lord_1_satake,lord_1_satake,lord_1_satake,lord_1_satake_yoshinobu
@@ -105,7 +105,7 @@ satomi,472|473|474|475,里见家,,Warrior,lord_1_satomi_2,lord_1_satomi_2,lord_1
 sen,546,千家,,Warrior,-,-,-,-,-,-
 shiba,497|498,斯波家,,Warrior,lord_1_shiba,lord_1_shiba,lord_1_shiba,lord_1_shiba,lord_1_shiba_2,-
 shibata,501|502,新发田家,,Warrior,-,-,-,-,-,-
-shichijō,494,七条家,,Warrior,-,-,-,-,-,-
+shichijoo,494,七条家,,Warrior,-,-,-,-,-,-
 shiina,487,椎名家,,Warrior,-,-,lord_1_shiina_yasuyuki,lord_1_shiina_yasuyuki,-,-
 shimazu,507|508|509|510|511|512|513|514|515,岛津家,,Warrior,lord_1_shimazu_11,lord_1_shimazu_11,lord_1_shimazu_11,lord_1_shimazu,lord_1_shimazu,lord_1_shimazu_4
 shimotsuma,519|520|521,下间家,,Warrior,-,-,-,-,-,-
@@ -114,7 +114,7 @@ shouni,,少贰家,,Warrior,-,-,-,-,-,-
 sogo,551|552,十河家,,Warrior,-,-,-,-,lord_1_sogo,-
 soma,547|548,相马家,,Warrior,lord_1_soma,lord_1_soma,lord_1_soma,lord_1_soma,lord_1_soma,lord_1_soma_2
 suzukii,534|536,铃木家,,Warrior,-,-,-,-,lord_1_suzuki_satao,-
-sō,549|550,宗家,,Warrior,lord_1_soo_yoshitoshi,lord_1_soo_yoshitoshi,lord_1_soo_yoshitoshi,lord_1_soo_yoshitoshi,lord_1_soo_yoshitoshi,lord_1_soo_yoshitomo
+soo,549|550,宗家,,Warrior,lord_1_soo_yoshitoshi,lord_1_soo_yoshitoshi,lord_1_soo_yoshitoshi,lord_1_soo_yoshitoshi,lord_1_soo_yoshitoshi,lord_1_soo_yoshitomo
 tachibana,576|577|578,立花家,,Warrior,-,-,-,-,-,lord_1_tachibana_muneshige
 takeda,567|568|569|570|571|572|573,武田家,,Warrior,lord_1_takeda,lord_1_takeda,lord_1_takeda,lord_1_takeda_4,lord_1_sanada_6,-
 tanaka,587|588,田中家,,Warrior,-,-,-,-,-,lord_1_tanaka_yoshimasa
