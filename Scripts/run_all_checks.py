@@ -41,6 +41,7 @@ CHECKS = [
     ("check_hero_profile_keys.py", "英雄 id 三处同键：模板 ↔ 画像表 ↔ 立绘表（选人详情页取数）", False, None),
     ("gen_taikou_era_diff.py", "时代差异段产物与生成器一致（铁律 22：生成物禁手改）", False, ["--check"]),
     ("gen_taikou_hero_profiles.py", "英雄画像表产物与生成器一致（铁律 22：生成物禁手改）", False, ["--check"]),
+    ("gen_taikou_hero_catalog.py", "选人目录产物与生成器一致（建世界之前选人的唯一取数源）", False, ["--check"]),
     ("check_settlement_distance_cache.py", "距离缓存与据点一致（雷 53）", True, None),
     ("check_official_copies.py", "官方拷贝保持原样（雷 49）", True, None),
 ]

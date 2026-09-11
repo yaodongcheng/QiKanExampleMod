@@ -31,11 +31,15 @@ namespace LivingWorldNpcs.CampaignMode
 		/// <summary>是否已选了要扮演的英雄。</summary>
 		public static bool HasPending => !string.IsNullOrEmpty(_pendingHeroId);
 
-		/// <summary>选人界面点定英雄时调用（随后启动战役）。</summary>
-		public static void SetPending(Hero hero)
+		/// <summary>
+		/// 选人界面按下 [决定] 时调用（**世界还没建**，所以只能给 id——这是 2026-09-11 改造的关键：
+		/// 选人挪到了建世界之前，那会儿还没有 Hero 对象可拿）。世界建好后由
+		/// <c>LivingWorldCampaignGameManager.OnLoadFinished</c> 按这个 id 找到英雄再落地。
+		/// </summary>
+		public static void SetPending(string heroId)
 		{
-			_pendingHeroId = hero?.StringId;
-			DebugLogger.Log($"[StartingHero] 已选开局英雄：{_pendingHeroId ?? "(null)"}");
+			_pendingHeroId = string.IsNullOrEmpty(heroId) ? null : heroId;
+			DebugLogger.Log($"[StartingHero] 已选开局英雄：{_pendingHeroId ?? "(null)"}（等世界建好后落地）");
 		}
 
 		/// <summary>待选英雄的 StringId（GameManager 用它解析；无 = null）。</summary>

@@ -146,18 +146,19 @@ namespace LivingWorldNpcs.CampaignMode
 
 #if MB2_V1212
 		/// <summary>
-		/// 加载完成 → 弹**选人界面**（世界此时已建好，`Campaign.Current` / `Kingdom.All` 才可用）。
+		/// 加载完成 → **落地**（2026-09-11 改造：选人已挪到建世界**之前**）。
+		///
+		/// 两条路：
+		///   · 玩家在选人屏按过 [决定] → 这里按 id 找到英雄，直接魂穿 + 走完引擎的建号收尾 → 进图。
+		///   · 玩家走的是「自定义人物」→ 推建号状态，走原建号流程（不变）。
 		///
 		/// 🔴 **本方法会被引擎反复调用**（2026-09-10 实机「卡 loading」根因）：
-		///   引擎 `GameLoadingState.OnTick` = `if (!_loadingFinished) { ...; return; }` 之后**无条件**
-		///   `GameStateManager.Current = Game.Current.GameStateManager; _gameLoader.OnLoadFinished();`
-		///   —— 它只对 `DoLoadingForGameManager` 有"完成"守卫，**对 OnLoadFinished 没有**，
-		///   只要 GameLoadingState 还活着就每帧都调。原版没事的原因：建号状态 / 地图状态随即接管，
-		///   GameLoadingState 随即退出。⇒ 本方法**必须幂等**（`_heroSelectOpened` 守卫）。
+		///   引擎 `GameLoadingState.OnTick` 对 `OnLoadFinished` **没有"完成"守卫**，只要它活着就每帧都调。
+		///   ⇒ 本方法**必须幂等**（`_heroSelectOpened` 守卫，语义 = "本局已处理过起始流程"）。
 		///
-		/// 🔴 弹界面的时点硬约束：界面要读 `Kingdom.All` / `Clan.Heroes`，这些需要 `Campaign.Current`
-		///   （世界创建期才赋值）。在世界之前弹 = `Kingdom.get_All()` 直接 NRE（实机踩过）。
-		///   这也是 StartAsAnyone 把选人放进建号流程内部的同一个原因。
+		/// 🔴 **不再需要 `PushCharacterCreation()` 给选人界面当宿主屏**——选人屏在主菜单阶段就已经
+		///   选完并退场了（它只读静态表，不依赖 `Campaign.Current`，见 CampaignMode/HeroSelectScreen.cs）。
+		///   这条改动砍掉了原实现里最脆的一段（挂层挂空 / 屏栈换代 / 静默失败都出在这里）。
 		/// </summary>
 		public override void OnLoadFinished()
 		{
@@ -166,21 +167,26 @@ namespace LivingWorldNpcs.CampaignMode
 			{
 				return;
 			}
+			_heroSelectOpened = true;      // 先置位：落地/推建号过程中若被重入也不会做第二遍
 
-			// 🔴 **必须先推建号状态**（2026-09-10 实机三次迭代后的定论）：
-			//   ① 它给选人层提供了**可挂的屏**（引擎的 CharacterCreationScreen）——
-			//      实测：不推它时那个时点 `ScreenManager.TopScreen` 拿不到屏，选人层挂空、界面不出现
-			//      （"一次性挂层挂空"就是这么来的）。挂到它上面 = 界面正常显示。
-			//   ② 建号屏在**下层**、选人层在**上层** → 玩家只会看到选人界面（选文化界面被挡住），
-			//      这正好满足"先选人、不要先看到选文化"。
-			//   ③ 它带来的副作用（`RegisterActiveStateDisableRequest` 导致地图不激活）
-			//      由 <c>StartingHero.FinalizeCampaignStart</c> 的撤销步骤处理。
+			// ── 路径 A：选人开局（选人屏已经把 id 交给 StartingHero）──
+			if (StartingHero.HasPending)
+			{
+				string heroId = StartingHero.PendingHeroId;
+				Hero hero = HeroSelectData.FindHero(heroId);
+				if (hero != null && StartingHero.ApplyPending(hero))
+				{
+					DebugLogger.Log($"[LWN-campaign] 世界已加载（{GetType().Name}）→ 直接落地为 {heroId}，收尾完成");
+					return;
+				}
+				// 落地失败（世界里的英雄与目录不一致 / 收尾抛异常）→ 记日志并回退建号，不让玩家卡住
+				DebugLogger.Log($"[LWN-campaign] 落地失败（{heroId}，world hero={(hero == null ? "未找到" : "找到但落地失败")}）→ 回退建号流程");
+				StartingHero.ClearPending();
+			}
+
+			// ── 路径 B：自定义人物 → 推建号状态，走原建号流程 ──
 			PushCharacterCreation();
-
-			_heroSelectOpened = true;      // 先置位再开界面：开界面过程中若被重入也不会弹第二遍
-			// 消费「推荐」标记（「推荐」按钮在世界加载**之前**置的位，见 HeroSelectOverlay.RequestRecommended）
-			HeroSelectOverlay.RequestFromGameManager();
-			DebugLogger.Log($"[LWN-campaign] 世界已加载 GameType={GetType().Name} 时代={Era} → 已弹选人界面（只弹一次）");
+			DebugLogger.Log($"[LWN-campaign] 世界已加载 GameType={GetType().Name} 时代={Era} → 进入建号流程");
 		}
 #else
 		/// <summary>1.5.x：建号 = CharacterCreationManager 新体系（本类在该版本不接入，v1 TODO）。</summary>

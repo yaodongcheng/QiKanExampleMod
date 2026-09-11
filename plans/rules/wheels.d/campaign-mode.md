@@ -259,3 +259,63 @@ python Scripts/check_scene_entities.py --module <路径> --scene Main_map
 
 **参考实现与设计全文**：LWN `CampaignMode/{EraCatalog,TaikouCampaign,TaikouCampaign1560,TaikouCampaign1582}.cs` +
 Taikou `SubModule.xml` + `plans/时代剧本切换-验证.md`。
+
+## `AssetRegistry/` 内容包运行期数据契约 — 生成器 → 表 → 通用读取器（2026-09-11 登记）
+
+**解决**：内容包要给基座（LWN）喂「世界无关的静态数据表」（画像、选人目录、立绘索引），
+但**不想走 MBObjectManager 注册**——那要求配套一个 `MBObjectManager` 类 + SubModule 段注册，
+为一个只读表不值当。**约定 = 放 `ModuleData/AssetRegistry/`，由 C# 直接读盘，引擎不加载。**
+
+| 件 | 路径 | 说明 |
+|---|---|---|
+| 目录 | `<内容包>/ModuleData/AssetRegistry/` | 🔴 **通用契约名，不叫 `taikou_*`**（铁律 3：LWN 不认识内容包名） |
+| 现有实例 | `HeroProfiles.xml`（五维/16 技能/生卒/标签）、`HeroCatalog.xml`（选人目录）、`ProfileStages.csv` + `ProfileEmotion.csv`（立绘索引） | 键一律 = 实体 StringId |
+| 读取器（**LWN 侧，通用**） | `CampaignMode/HeroProfileRegistry.cs`、`CampaignMode/HeroCatalogRegistry.cs`、`Data/PortraitRegistry.cs` | 懒加载（首次查询才扫 `ModuleHelper.GetModules()` + 读盘）＋ 文件缺失/损坏 → 空表 + 一条日志，**不抛**（铁律 1） |
+| 生成器（内容包侧） | `Scripts/gen_taikou_hero_profiles.py`、`Scripts/gen_taikou_hero_catalog.py` | 生成物禁手改（铁律 22）；`--check` 已进 `run_all_checks` |
+
+**四条硬纪律**：
+
+1. **显示文本一律 `{=KEY}fallback` 原样串**——读取器存原文，界面交给 `TextObject` 走引擎本地化；
+   读取器**不认识任何具体词汇**（铁律 3：LWN 里不出现「足轻/茶道/统率」这类内容包词汇）。
+   标签也由内容包在表里给（如 `<SkillLabels>`/`<DimensionLabels>`）。
+2. **键 = StringId，且跨表同键**（画像表 ↔ 立绘表 ↔ 英雄模板 ↔ 选人目录）——守卫见下方「三处同键检查器」。
+3. **键前缀归本包**：内容包数据里**禁止出现基座的键**（`{=LWN_*}`）——语言检查器按**模块归属**核对自有键的中文覆盖，
+   跨模块引用永远报缺（雷 57）。哪怕是「无所属」这种看似通用的词，也由内容包自己定义。
+4. **孤儿数据文件检查要豁免本目录**：`check_module_registration.py` 的 `CONVENTIONAL_DIRS` 需含 `"AssetRegistry"`，
+   否则「有定义但没段加载」会被误报成 ERROR（这些文件**本就不该被段加载**）。
+
+**调用范例**：
+```csharp
+var p    = HeroProfileRegistry.GetProfile(heroId);        // 画像（null = 查无此人 → 界面显示占位）
+var lord = HeroSelectData.FindLord(year, heroId);         // 选人目录（按**年份**取时代，见下）
+icon.Sprite = SpriteAssetsManager.GetOrLoad(lord.MiniSprite);
+```
+
+🔴 **时代用「年份」做键**（`<Era id="1560">`），不用战役类名——年份是世界无关的数字，
+LWN 侧因此不必知道任何内容包的类名/文件名。年份来自 `EraCatalog.SelectedEraYear`。
+
+## 「三处同键」检查器 — 一个 id 走通全链（2026-09-11 登记）
+
+**解决**：一个实体在内容包里同时出现在**多张表**里，键不一致时**每张表各自都语法合法、交叉引用也都解析得了**
+——现有的「引用悬空」检查器**查不出**这种「同一实体两套命名」的静默错位。症状是界面某块**静默空白**，不是报错。
+
+**键链**（缺一处 = 该处静默失效）：
+
+```
+spnpccharacters.xml 的 <NPCCharacter id>            ← 引擎建英雄的模板
+AssetRegistry/HeroProfiles.xml 的 <HeroProfile id>  ← 详情页的五维/16 技能/生卒
+AssetRegistry/ProfileStages.csv 的 StringId         ← 立绘/小头像 sprite
+AssetRegistry/HeroCatalog.xml 的 <Lord id>          ← 建世界**之前**的选人列表
+```
+
+**检查项**（`Scripts/check_hero_profile_keys.py`，已进 `run_all_checks`）：
+
+1. 每个 `<Hero>` 有同名 `<NPCCharacter>`（与 `check_hero_templates.py` 同口径）
+2. 🔴 **选人目录 `Era N` 的 `<Lord>` 集合 == `taikou_heroes[_N].xml` 的 `<Hero>` 集合**（逐时代**相等**，多一个少一个都报）
+3. 推荐人必须有画像 + 立绘（推荐卡没头像是硬伤）
+4. 普通英雄缺画像/立绘只 WARN（占位期正常；全量数据到位后应清零）
+
+**为什么用「集合同源」而不是「单向包含」**：目录的 id 集合**从英雄段派生**（同源）→ 漂移**不可能发生**；
+若改成「从全量 CSV 里挑」，就必须靠检查器兜住，且永远有漏网。
+
+**扩展点**：任何「一个 id + 多张表」的内容包照此加检查（立绘、语音、称号、列传…）。

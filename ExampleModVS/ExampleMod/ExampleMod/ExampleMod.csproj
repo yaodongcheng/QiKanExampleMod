@@ -338,7 +338,12 @@
     <Compile Include="CampaignMode\HeroSelectVM.cs" />
     <Compile Include="CampaignMode\HeroDetailVM.cs" />
     <Compile Include="CampaignMode\HeroProfileRegistry.cs" />
-    <Compile Include="CampaignMode\HeroSelectOverlay.cs" />
+    <Compile Include="CampaignMode\HeroCatalogRegistry.cs" />
+    <Compile Include="CampaignMode\HeroSelectScreen.cs" />
+    <!-- 🔴 HeroSelectOverlay.cs 已停用（2026-09-11）：选人挪到建世界之前，改走 HeroSelectScreen。
+         文件留在磁盘上不参与编译（里面的踩坑注释先留着），实机验证新流程通过后再决定删不删。
+         见 plans/选人流程复刻太阁5-设计.md §十。恢复 = 把下面这行取消注释并同步改回调用点。 -->
+    <!-- <Compile Include="CampaignMode\HeroSelectOverlay.cs" /> -->
     <Compile Include="CampaignMode\StartingHero.cs" />
     <Compile Include="CampaignMode\LivingWorldCampaign.cs" />
     <Compile Include="CampaignMode\LivingWorldCampaignGameManager.cs" />

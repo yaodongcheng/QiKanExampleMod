@@ -1,8 +1,5 @@
 using System;
 using System.Text;
-using TaleWorlds.CampaignSystem;
-using TaleWorlds.CampaignSystem.Settlements;
-using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
@@ -13,12 +10,15 @@ namespace LivingWorldNpcs.CampaignMode
 	/// 复刻太阁5「选择角色 → 角色详情」那一步：**先看人，再决定**。
 	///
 	/// 三块数据面板：
-	///   ① 基本情报 —— 读**游戏内实时数据**（身份/所属/据点/名声/装备），永远有
+	///   ① 基本情报 —— 身份 / 所属 / 据点，**全部来自选人目录（静态）**
 	///   ② 能力情报 —— 五维，读画像表（<see cref="HeroProfileRegistry"/>）
 	///   ③ 技能情报 —— 16 项，同源
 	/// 画像表查无此人（占位期英雄 / 未进全量数据）→ ② ③ 显示「暂无史料」占位，① 照常。
 	///
-	/// 🔴 [决定] 才真正开局——开局那段代码一行不动，本页只负责把它往后挪一步（防误触）。
+	/// 🔴 **本页不依赖活世界**（2026-09-11 改造）：只用 heroId + 时代年份，
+	///   所以可以在**建世界之前**显示（见 plans/选人流程复刻太阁5-设计.md §十）。
+	///   原「名声 / 装备武器 / 防具」三行**已删**——那是游戏内实时状态，选人阶段本就不该有。
+	/// 🔴 [决定] 才真正开局——本页只把开局往后挪一步（防误触）。
 	/// </summary>
 	public class HeroDetailVM : ViewModel
 	{
@@ -94,66 +94,59 @@ namespace LivingWorldNpcs.CampaignMode
 		private readonly Action _onBack;
 		private readonly Action _onConfirm;
 
-		public HeroDetailVM(Hero hero, Action onBack, Action onConfirm)
+		public HeroDetailVM(string heroId, int year, Action onBack, Action onConfirm)
 		{
 			_onBack = onBack;
 			_onConfirm = onConfirm;
+			HeroId = heroId ?? string.Empty;
 
 			Abilities = new MBBindingList<AbilityItemVM>();
 			SkillsLeft = new MBBindingList<SkillItemVM>();
 			SkillsRight = new MBBindingList<SkillItemVM>();
 			BasicRows = new MBBindingList<InfoRowVM>();
 
-			if (hero == null)
+			HeroCatalogRegistry.Lord lord = HeroSelectData.FindLord(year, HeroId);
+			if (lord != null)
 			{
-				return;
+				NameText = HeroSelectData.Resolve(lord.NameRaw);
+				AddRow(IdentityLabel, HeroSelectData.Resolve(lord.IdentityRaw));
+				AddRow(AllegianceLabel, HeroSelectData.GetHouseName(year, lord.HouseId));
+				AddRow(SeatLabel, HeroSelectData.Resolve(lord.SeatRaw));
 			}
-			Hero = hero;
+			else
+			{
+				// 目录里没有（不该发生——目录与英雄集合同源）→ 至少把 id 显示出来便于排查
+				NameText = HeroId;
+			}
 
-			// ── ① 基本情报（游戏内实时数据；**只列有值的行**——没有的字段不摆空行糊弄）──
-			NameText = HeroSelectData.GetDisplayName(hero);
-			AddRow(IdentityLabel, HeroSelectData.GetHeroRoleText(hero));
-			AddRow(AllegianceLabel, Safe(() => hero.Clan?.Name?.ToString()));
-			AddRow(SeatLabel, ResolveSeat(hero));
-			AddRow(RenownLabel, Safe(() => ((int)(hero.Clan?.Renown ?? 0f)).ToString()));
-			AddRow(WeaponLabel, ResolveEquipment(hero, EquipmentIndex.Weapon0));
-			AddRow(ArmorLabel, ResolveEquipment(hero, EquipmentIndex.Body));
-
-			// ── ② ③ 画像表（内容包数据；查无此人 = 占位）──
-			HeroProfileRegistry.Profile profile = HeroProfileRegistry.GetProfile(hero.StringId);
+			// ── 生卒 / 年龄（时代年份 − 生年；史实口径）
+			// 🔴 不能用 `CampaignTime.Now.GetYear`——那是"开局以来经过的年数"（新档 = 0）
+			HeroProfileRegistry.Profile profile = HeroProfileRegistry.GetProfile(HeroId);
 			HasProfile = profile != null;
-
-			// 生卒：画像表没有就用游戏内的年龄兜底（**不编造生年**）
-			// 🔴 年龄 = 时代年份 − 生年（史实口径）。**不能用 `CampaignTime.Now.GetYear`**——
-			//   那个是"开局以来经过的年数"，全新存档为 0（见 EraCatalog.SelectedEraYear 注释）。
 			if (profile != null && profile.HasLifespan)
 			{
-				int eraYear = EraCatalog.SelectedEraYear;
-				int age = eraYear > 0 ? eraYear - profile.Birth : (int)hero.Age;
+				int age = year > 0 ? year - profile.Birth : 0;
 				AgeText = new TextObject("{=LWN_hero_detail_age}{AGE} years old")
 					.SetTextVariable("AGE", age.ToString()).ToString();
 				LifespanText = $"{profile.Birth} – {profile.Die}";
 			}
-			else
-			{
-				AgeText = new TextObject("{=LWN_hero_detail_age}{AGE} years old")
-					.SetTextVariable("AGE", ((int)hero.Age).ToString()).ToString();
-				LifespanText = string.Empty;
-			}
 
-			// 立绘：画像表与立绘表**同键**，有画像基本就有立绘；查不到 = 界面画占位框
-			BustupSprite = HeroProfileRegistry.GetBustupSpriteName(hero.StringId) ?? string.Empty;
+			// 立绘：优先用**目录按时代挑好的那张卡**（如木下在 1560 用「藤吉郎」那张，
+			// 而不是立绘表首张的「羽柴」）；目录没给 = 回落立绘表首张；都没有 = 界面画占位框
+			BustupSprite = !string.IsNullOrEmpty(lord?.BustupSprite)
+				? lord.BustupSprite
+				: (HeroProfileRegistry.GetBustupSpriteName(HeroId) ?? string.Empty);
 			HasBustup = !string.IsNullOrEmpty(BustupSprite);
 
 			// 型别 / 目标描述：仅「推荐」人配了（普通人物留空 → 界面隐藏那一行）
-			HeroProfileRegistry.Recommendation rec = FindRecommendation(hero.StringId);
+			HeroProfileRegistry.Recommendation rec = FindRecommendation(HeroId);
 			StoryType = rec != null ? new TextObject(rec.StoryTypeRaw).ToString() : string.Empty;
 			StoryGoal = rec != null ? new TextObject(rec.StoryGoalRaw).ToString() : string.Empty;
 			HasStory = !string.IsNullOrEmpty(StoryType) || !string.IsNullOrEmpty(StoryGoal);
 
 			if (profile != null)
 			{
-				// 标签由**内容包**给（铁律 3：LWN 不认识「统率/足轻」这类具体词汇）——
+				// 标签由**内容包**给（铁律 3：LWN 不认识「统率/足轻」这类具体词汇）
 				// 读到的就是 {=KEY}fallback 原样串，交给 TextObject 走引擎本地化。
 				string[] dims = HeroProfileRegistry.DimensionLabels;
 				Abilities.Add(new AbilityItemVM(dims[0], profile.Command));
@@ -179,7 +172,8 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 		}
 
-		internal Hero Hero { get; }
+		/// <summary>本页展示的英雄 StringId（[决定] 时用它落地）。</summary>
+		public string HeroId { get; }
 
 		// ── 文本 ──
 		[DataSourceProperty] public string NameText { get; private set; } = string.Empty;
@@ -194,16 +188,12 @@ namespace LivingWorldNpcs.CampaignMode
 
 		/// <summary>
 		/// 列传正文。🔴 **太阁5 的列传不在 TaikouHero.csv 里**（129 列无此字段），
-		/// 在 tg5msg 文本包里（已破解 XOR A5，见 Knowledge/太阁5/太阁5_破解总索引.md）——
-		/// 抽出来之前一律显示「暂无史料」占位，**不编造**。
+		/// 在 tg5msg 文本包里（已破解 XOR A5）——抽出来之前一律显示「暂无史料」占位，**不编造**。
 		/// </summary>
 		[DataSourceProperty] public string BiographyText => NoRecordText;
 
 		/// <summary>是否查到了画像（false = 太阁专属面板显示「暂无史料」）。</summary>
 		[DataSourceProperty] public bool HasProfile { get; private set; }
-
-		/// <summary>反过来：是否要显示「暂无史料」提示。</summary>
-		[DataSourceProperty] public bool HasNoRecord => !HasProfile;
 
 		[DataSourceProperty] public bool HasBustup { get; private set; }
 
@@ -231,9 +221,6 @@ namespace LivingWorldNpcs.CampaignMode
 		[DataSourceProperty] public string IdentityLabel => new TextObject("{=LWN_hero_detail_identity}Station").ToString();
 		[DataSourceProperty] public string AllegianceLabel => new TextObject("{=LWN_hero_detail_allegiance}Allegiance").ToString();
 		[DataSourceProperty] public string SeatLabel => new TextObject("{=LWN_hero_detail_seat}Seat").ToString();
-		[DataSourceProperty] public string RenownLabel => new TextObject("{=LWN_hero_detail_renown}Renown").ToString();
-		[DataSourceProperty] public string WeaponLabel => new TextObject("{=LWN_hero_detail_weapon}Weapon").ToString();
-		[DataSourceProperty] public string ArmorLabel => new TextObject("{=LWN_hero_detail_armor}Armour").ToString();
 		[DataSourceProperty] public string BioHeader => new TextObject("{=LWN_hero_detail_biography}Biography").ToString();
 		[DataSourceProperty] public string NoRecordText => new TextObject("{=LWN_hero_detail_no_record}No record of this one survives.").ToString();
 		[DataSourceProperty] public string BackText => new TextObject("{=LWN_hero_detail_back}Back").ToString();
@@ -245,7 +232,7 @@ namespace LivingWorldNpcs.CampaignMode
 			_onBack?.Invoke();
 		}
 
-		/// <summary>[决定] → 用这个人开局（走原有魂穿落地，一行不动）。</summary>
+		/// <summary>[决定] → 用这个人开局（记下 id，建世界后落地）。</summary>
 		public void ExecuteConfirm()
 		{
 			_onConfirm?.Invoke();
@@ -262,7 +249,7 @@ namespace LivingWorldNpcs.CampaignMode
 			OnPropertyChanged(nameof(ConfirmText));
 		}
 
-		// ───────────────────────── 取值助手（全部 null 安全）─────────────────────────
+		// ───────────────────────── 取值助手 ─────────────────────────
 
 		/// <summary>加一行基本情报；**值为空就不加**（列不出来 = 数据确实没有，不摆空行）。</summary>
 		private void AddRow(string label, string value)
@@ -283,55 +270,6 @@ namespace LivingWorldNpcs.CampaignMode
 				}
 			}
 			return null;
-		}
-
-		private static string Safe(Func<string> get)
-		{
-			try
-			{
-				return get() ?? string.Empty;
-			}
-			catch (Exception)
-			{
-				return string.Empty;
-			}
-		}
-
-		/// <summary>「据点」= 家族首府 → 英雄当前所在定居点 → 空（不编造）。</summary>
-		private static string ResolveSeat(Hero hero)
-		{
-			try
-			{
-				if (hero.Clan != null)
-				{
-					foreach (Town t in hero.Clan.Fiefs)
-					{
-						if (t?.Settlement?.Name != null)
-						{
-							return t.Settlement.Name.ToString();
-						}
-					}
-				}
-				return hero.CurrentSettlement?.Name?.ToString() ?? string.Empty;
-			}
-			catch (Exception)
-			{
-				return string.Empty;
-			}
-		}
-
-		/// <summary>按装备槽取物品名（空槽 = 空串，界面隐藏该行）。</summary>
-		private static string ResolveEquipment(Hero hero, EquipmentIndex slot)
-		{
-			try
-			{
-				ItemObject item = hero.BattleEquipment?[slot].Item;
-				return item?.Name?.ToString() ?? string.Empty;
-			}
-			catch (Exception)
-			{
-				return string.Empty;
-			}
 		}
 	}
 }

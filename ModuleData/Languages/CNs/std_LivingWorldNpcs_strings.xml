@@ -4546,6 +4546,7 @@
     <!-- 推荐入口 + 角色详情页（选人流程复刻太阁5，2026-09-11） -->
     <string id="LWN_scenario_select_recommended" text="推荐" />
     <string id="LWN_hero_select_title_recommended" text="推荐人物" />
+    <string id="LWN_hero_select_empty" text="该时代没有可扮演的人物。" />
     <string id="LWN_hero_select_not_arrived" text="未登场" />
     <string id="LWN_hero_detail_basic" text="基本情报" />
     <string id="LWN_hero_detail_ability" text="能力情报" />

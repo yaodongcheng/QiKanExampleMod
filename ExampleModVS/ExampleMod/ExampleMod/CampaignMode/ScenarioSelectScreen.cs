@@ -20,6 +20,9 @@ namespace LivingWorldNpcs.CampaignMode
 		private GauntletLayer _layer;
 		private ScenarioSelectVM _vm;
 
+		/// <summary>本屏代表哪个时代（选人屏 [决定] 后要用它开战役）。</summary>
+		private EraCatalog.Era _pendingEra;
+
 		private ScenarioSelectScreen()
 		{
 		}
@@ -37,7 +40,7 @@ namespace LivingWorldNpcs.CampaignMode
 		protected override void OnInitialize()
 		{
 			base.OnInitialize();
-			_vm = new ScenarioSelectVM(Close, OnEraPicked, OnRecommended);
+			_vm = new ScenarioSelectVM(Close, OnEraPicked, OnRecommended, OnCustomHero);
 			_layer = V.NewLayer(200, "LWN_ScenarioSelect");
 			V.LoadMov(_layer, "ScenarioSelect", _vm);
 			// 全遮罩：界面打开期间屏蔽游戏输入（主菜单屏在栈下，别让它同时响应）
@@ -67,10 +70,9 @@ namespace LivingWorldNpcs.CampaignMode
 		}
 
 		/// <summary>
-		/// 选中剧本 → 直接开这一局。
-		/// 🔴 **不是立刻进游戏**：世界开始加载 → 建好后由 <c>LivingWorldCampaignGameManager.OnLoadFinished</c>
-		///   弹出**选人界面**（那里才有 `Campaign.Current` 可查王国/家族/英雄）。
-		/// 顺序要紧：StartNewGame 会替换主菜单屏，本界面必须先退出。
+		/// 选中剧本 → **先选人**（2026-09-11 改造：选人提到建世界之前）。
+		/// 选完人按 [决定] 才开战役 —— 于是 loading 变成"加载我选好的这一局"，
+		/// 而不是"先干等 loading，完了才弹选人框"。
 		/// </summary>
 		private void OnEraPicked(EraCatalog.Era era)
 		{
@@ -78,17 +80,16 @@ namespace LivingWorldNpcs.CampaignMode
 			{
 				return;
 			}
+			_pendingEra = era;
 			EraCatalog.SelectedEraId = era.Id;
-			DebugLogger.Log($"[EraCatalog] 已选剧本：{era.Id}（{era.Year}）→ 加载世界（建好后弹选人界面）");
-			Close();
-			EraCatalog.StartCampaign(era.Id);
+			DebugLogger.Log($"[EraCatalog] 已选剧本：{era.Id}（{era.Year}）→ 先选人（建世界之前）");
+			HeroSelectScreen.Open(ParseYear(era.Year), false, OnHeroDecided);
 		}
 
 		/// <summary>
-		/// 「推荐」→ 直接进该时代的推荐人物列表（太阁5 原版流程：剧本页底部按钮，一步到位）。
+		/// 「推荐」→ 该时代的推荐人物列表（太阁5 原版流程：剧本页底部按钮，一步到位）。
 		/// 🔴 **固定 1560**（<see cref="EraCatalog.RecommendedEra"/>），不跟随左侧当前选中的剧本——
 		///   推荐人名单是 1560 那五个人（用户 2026-09-10 裁定）。
-		/// 世界建好后由 <c>LivingWorldCampaignGameManager</c> 弹**推荐模式**的选人界面（只列那 5 人）。
 		/// </summary>
 		private void OnRecommended()
 		{
@@ -97,11 +98,50 @@ namespace LivingWorldNpcs.CampaignMode
 			{
 				return;
 			}
+			_pendingEra = era;
 			EraCatalog.SelectedEraId = era.Id;
-			HeroSelectOverlay.RequestRecommended();
 			DebugLogger.Log($"[EraCatalog] 已点「推荐」→ {era.Id}（{era.Year}）· 推荐人物列表");
+			HeroSelectScreen.Open(ParseYear(era.Year), true, OnHeroDecided);
+		}
+
+		/// <summary>
+		/// 「自定义人物」→ 不走选人，直接用**当前选中的剧本**开世界（世界建好后照旧走建号流程）。
+		/// 入口从选人界面上挪到这里——建号本来就不需要选人。
+		/// </summary>
+		private void OnCustomHero()
+		{
+			EraCatalog.Era era = _vm?.GetSelectedEra() ?? EraCatalog.RecommendedEra;
+			if (era == null)
+			{
+				return;
+			}
+			StartingHero.ClearPending();      // 防上一局的待选残留
+			EraCatalog.SelectedEraId = era.Id;
+			DebugLogger.Log($"[EraCatalog] 「自定义人物」→ {era.Id}（{era.Year}）· 走建号流程");
 			Close();
 			EraCatalog.StartCampaign(era.Id);
+		}
+
+		/// <summary>
+		/// 选人屏按了 [决定] → 关掉本屏（选人屏已自退）→ 开战役。
+		/// 🔴 顺序要紧：<c>StartNewGame</c> 会替换主菜单屏，两个界面都必须先退出。
+		/// </summary>
+		private void OnHeroDecided(string heroId)
+		{
+			EraCatalog.Era era = _pendingEra;
+			if (era == null)
+			{
+				DebugLogger.Log("[EraCatalog] [决定] 回调时没有待开时代——不开局（异常路径）");
+				return;
+			}
+			DebugLogger.Log($"[EraCatalog] 已定人（{heroId}）→ 开战役 {era.Id}（世界建好后直接落地）");
+			Close();
+			EraCatalog.StartCampaign(era.Id);
+		}
+
+		private static int ParseYear(string year)
+		{
+			return int.TryParse(year, out int v) ? v : 0;
 		}
 	}
 }
