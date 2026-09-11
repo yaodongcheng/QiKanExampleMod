@@ -37,7 +37,7 @@ namespace LivingWorldNpcs.CampaignMode
 		protected override void OnInitialize()
 		{
 			base.OnInitialize();
-			_vm = new ScenarioSelectVM(Close, OnEraPicked);
+			_vm = new ScenarioSelectVM(Close, OnEraPicked, OnRecommended);
 			_layer = V.NewLayer(200, "LWN_ScenarioSelect");
 			V.LoadMov(_layer, "ScenarioSelect", _vm);
 			// 全遮罩：界面打开期间屏蔽游戏输入（主菜单屏在栈下，别让它同时响应）
@@ -80,6 +80,26 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 			EraCatalog.SelectedEraId = era.Id;
 			DebugLogger.Log($"[EraCatalog] 已选剧本：{era.Id}（{era.Year}）→ 加载世界（建好后弹选人界面）");
+			Close();
+			EraCatalog.StartCampaign(era.Id);
+		}
+
+		/// <summary>
+		/// 「推荐」→ 直接进该时代的推荐人物列表（太阁5 原版流程：剧本页底部按钮，一步到位）。
+		/// 🔴 **固定 1560**（<see cref="EraCatalog.RecommendedEra"/>），不跟随左侧当前选中的剧本——
+		///   推荐人名单是 1560 那五个人（用户 2026-09-10 裁定）。
+		/// 世界建好后由 <c>LivingWorldCampaignGameManager</c> 弹**推荐模式**的选人界面（只列那 5 人）。
+		/// </summary>
+		private void OnRecommended()
+		{
+			EraCatalog.Era era = EraCatalog.RecommendedEra;
+			if (era == null)
+			{
+				return;
+			}
+			EraCatalog.SelectedEraId = era.Id;
+			HeroSelectOverlay.RequestRecommended();
+			DebugLogger.Log($"[EraCatalog] 已点「推荐」→ {era.Id}（{era.Year}）· 推荐人物列表");
 			Close();
 			EraCatalog.StartCampaign(era.Id);
 		}

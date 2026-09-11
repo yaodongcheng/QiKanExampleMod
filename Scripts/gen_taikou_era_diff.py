@@ -7,13 +7,18 @@ Taikou 时代差异段生成器（时代剧本切换 spike）
 引擎按 SubModule.xml 的 `<GameType value="…">` 过滤 XML 段，过滤键 = 战役类名
 （`GameType.GameTypeStringId => GetType().Name`）。所以「同一个世界、不同时代」= 注册两套段。
 
-本脚本产出**时代差异段**（只有 4 个段有时代差异；其余段跨时代共用，在 SubModule.xml 里
+本脚本产出**时代差异段**（只有 3 个段有时代差异；其余段跨时代共用，在 SubModule.xml 里
 追加新 GameType 即可，不复制文件）：
 
-    ModuleData/settlements_1582.xml    ← 据点（差异：京的归属）
     ModuleData/spclans_1582.xml        ← 家族（差异：织田家 → G 家）
     ModuleData/spkingdoms_1582.xml     ← 王国（差异：织田家 → G 家）
     ModuleData/taikou_heroes_1582.xml  ← 英雄（差异：织田 2 领主 → lord_g）
+
+🔴 **据点不归本脚本**（2026-09-11 修冲突）：`settlements.xml` / `settlements_*.xml` 的**唯一产出方**
+   是 `gen_taikou_settlements_xml.py`（从 Settlements.csv 生成，含各剧本名字差异与各剧本临时主人）。
+   本脚本原先也写 `settlements_1582.xml`，两个生成器抢同一个文件 → `run_all_checks.py` 的两条
+   一致性检查互相打架（跑完一个必让另一个报过期）。据点的时代差异由据点生成器按
+   `TEMP_OWNER_BY_ERA` 处理，本脚本不再涉及。
 
 🔴 生成物·禁止手改（铁律 22）——改差异请改下方 ERA_DIFF / 基线段，再重跑本脚本。
 
@@ -68,9 +73,10 @@ DATA = MODULE / "ModuleData"
 ERA = "1582"
 
 # 时代 A（基线）里有、时代 B 没有的家族 / 王国 / 英雄
-DROP_CLANS = ["clan_oda"]
+DROP_CLANS = ["clan_oda", "clan_hattori_1", "clan_yagyuu_1", "clan_kuki_1", "clan_ruzon_1"]
 DROP_KINGDOMS = ["kingdom_oda"]
-DROP_HEROES = ["lord_oda_nobunaga", "lord_oda_shibata_katsuie"]
+DROP_HEROES = ["lord_1_oda", "lord_1_shibata", "lord_1_kinoshita", "lord_1_hattori_hanzo",
+               "lord_1_yagyuu_sekishuusai", "lord_1_kuki", "lord_1_ruzon_sukezaemon"]
 
 # 时代 B 新增的家族（新增 id → 各字段；banner/颜色沿用基线织田款式，spike 不考究美术）
 NEW_CLANS = [{
@@ -91,9 +97,6 @@ NEW_HEROES = [{
     "faction": "Faction.clan_g",
     "text": "Lord G (spike placeholder)",
 }]
-
-# 据点归属改写：据点 id → 新 owner
-SETTLEMENT_OWNER_OVERRIDE = {"town_kyoto": "Faction.clan_g"}
 
 # 颜色/旗标（沿用基线织田款式；spike 占位）
 BANNER_KEY_CLAN = "11.80.84.864.864.763.762.1.0.0.671.18.103.483.483.764.729.0.0.0"
@@ -118,42 +121,6 @@ def esc(s):
 def attr_str(attrs):
     """(name, value) 列表 → `a="1" b="2"`（保持传入顺序）。"""
     return " ".join(f'{k}="{esc(v)}"' for k, v in attrs)
-
-
-def build_settlements(data):
-    """据点：基线照抄，按 SETTLEMENT_OWNER_OVERRIDE 改 owner。"""
-    root = ET.parse(str(data / "settlements.xml")).getroot()
-    out = []
-    for s in root.findall("Settlement"):
-        sid = s.get("id")
-        attrs = [(k, v) for k, v in s.attrib.items()]
-        if sid in SETTLEMENT_OWNER_OVERRIDE:
-            attrs = [(k, SETTLEMENT_OWNER_OVERRIDE[sid] if k == "owner" else v) for k, v in attrs]
-            if not any(k == "owner" for k, _ in attrs):
-                attrs.insert(2, ("owner", SETTLEMENT_OWNER_OVERRIDE[sid]))
-        out.append(f'  <Settlement {attr_str(attrs)}>')
-        comps = s.find("Components")
-        if comps is not None:
-            out.append("    <Components>")
-            for c in comps:
-                out.append(f'      <{c.tag} {attr_str(list(c.attrib.items()))} />')
-            out.append("    </Components>")
-        locs = s.find("Locations")
-        if locs is not None:
-            out.append(f'    <Locations {attr_str(list(locs.attrib.items()))}>')
-            for loc in locs:
-                out.append(f'      <Location {attr_str(list(loc.attrib.items()))} />')
-            out.append("    </Locations>")
-        areas = s.find("CommonAreas")
-        if areas is not None:
-            out.append("    <CommonAreas>")
-            for a in areas:
-                out.append(f'      <Area {attr_str(list(a.attrib.items()))} />')
-            out.append("    </CommonAreas>")
-        out.append("  </Settlement>")
-    header = HEADER.format(base="settlements.xml", self=f"settlements_{ERA}.xml",
-                           era=ERA, family="Settlements/settlements*")
-    return header + "<Settlements>\n" + "\n".join(out) + "\n</Settlements>\n"
 
 
 def build_clans(data):
@@ -244,7 +211,6 @@ def build_heroes(data):
 
 
 TARGETS = [
-    (f"settlements_{ERA}.xml", build_settlements),
     (f"spclans_{ERA}.xml", build_clans),
     (f"spkingdoms_{ERA}.xml", build_kingdoms),
     (f"taikou_heroes_{ERA}.xml", build_heroes),

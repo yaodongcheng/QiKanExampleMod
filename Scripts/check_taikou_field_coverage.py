@@ -40,6 +40,10 @@ def main():
     ap.add_argument("--module", default=r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\Taikou")
     args = ap.parse_args()
     md = Path(args.module)
+    # 🔴 我们自己的文件缺失 = 硬报错，**不能只印一行然后 continue**（2026-09-11 用户裁定）。
+    #   理由同 check_scene_entities：文件名是约定（如基线时代走无后缀名 settlements.xml），
+    #   约定漂移时"印一行就跳过"会让整类对象静默不检查，而脚本仍然 exit 0（假绿）。
+    errors = []
     for cls, (opath, tag) in OFFICIAL.items():
         try:
             oa, os_ = attrs_and_subs(opath, tag)
@@ -63,7 +67,8 @@ def main():
         }
         p = ours_files[cls]
         if not p.exists():
-            print(f"[{cls}] 我们文件缺失: {p}")
+            errors.append(f"{cls}: 我们的文件不存在 {p}")
+            print(f"  [ERROR] [{cls}] 我们文件缺失: {p}")
             continue
         aa, ss = attrs_and_subs(str(p), tag)
         missing = inter - aa
@@ -74,7 +79,12 @@ def main():
             print("   缺失: 无 ✓")
     print("\n提示: 子节(interior elements)单独看法——`name/feat/policy/template` 等多为内容节，值空可接受；"
           "属性(attributes)缺失 = 运行风险，优先看上面清单。")
+    if errors:
+        print(f"\nSummary: errors={len(errors)}（文件缺失 = 该类对象整块没查，属硬错误）")
+        return 1
+    print("\nSummary: errors=0")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

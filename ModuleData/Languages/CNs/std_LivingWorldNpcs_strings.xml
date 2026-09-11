@@ -4543,6 +4543,24 @@
     <string id="LWN_hero_select_role_king" text="大名" />
     <string id="LWN_hero_select_role_clan_leader" text="家主" />
     <string id="LWN_hero_select_role_member" text="领主" />
+    <!-- 推荐入口 + 角色详情页（选人流程复刻太阁5，2026-09-11） -->
+    <string id="LWN_scenario_select_recommended" text="推荐" />
+    <string id="LWN_hero_select_title_recommended" text="推荐人物" />
+    <string id="LWN_hero_select_not_arrived" text="未登场" />
+    <string id="LWN_hero_detail_basic" text="基本情报" />
+    <string id="LWN_hero_detail_ability" text="能力情报" />
+    <string id="LWN_hero_detail_skills" text="技能情报" />
+    <string id="LWN_hero_detail_identity" text="身份" />
+    <string id="LWN_hero_detail_allegiance" text="所属" />
+    <string id="LWN_hero_detail_seat" text="据点" />
+    <string id="LWN_hero_detail_renown" text="名声" />
+    <string id="LWN_hero_detail_weapon" text="武器" />
+    <string id="LWN_hero_detail_armor" text="防具" />
+    <string id="LWN_hero_detail_biography" text="列传" />
+    <string id="LWN_hero_detail_no_record" text="暂无史料" />
+    <string id="LWN_hero_detail_back" text="返回" />
+    <string id="LWN_hero_detail_confirm" text="决定" />
+    <string id="LWN_hero_detail_age" text="{AGE} 岁" />
     <string id="LWN_campaign_continue" text="继续战役" />
     <string id="LWN_campaign_continue_disabled" text="读档功能尚未实装。" />
     <string id="LWN_q_failed" text="你耻辱地失败了这项任务。" />

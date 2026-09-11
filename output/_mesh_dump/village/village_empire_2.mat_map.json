@@ -1,0 +1,798 @@
+{
+  "mesh": "village_empire_2",
+  "guid": "1588fe1f-275e-4577-8e5e-e209d9d9fd1e",
+  "default_material": null,
+  "default_material_type": null,
+  "submeshes": [
+    {
+      "name": "village_empire_2.0",
+      "lod": 0,
+      "material": "map_icon_empire_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_empire_city_01_d",
+        "2": "map_icon_empire_city_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.1",
+      "lod": 0,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.2",
+      "lod": 0,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.3",
+      "lod": 0,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.4",
+      "lod": 0,
+      "material": "map_icons_siege_camp",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_siege_camp_d",
+        "2": "map_icon_siege_camp_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.5",
+      "lod": 0,
+      "material": "arab_map_icons",
+      "second_material": null,
+      "textures": {
+        "0": "arab_mapicons_d",
+        "1": "arab_mapicons_d",
+        "2": "arab_mapicons_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.0",
+      "lod": 1,
+      "material": "map_icon_empire_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_empire_city_01_d",
+        "2": "map_icon_empire_city_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.1",
+      "lod": 1,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.2",
+      "lod": 1,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.3",
+      "lod": 1,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.4",
+      "lod": 1,
+      "material": "map_icons_siege_camp",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_siege_camp_d",
+        "2": "map_icon_siege_camp_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.5",
+      "lod": 1,
+      "material": "arab_map_icons",
+      "second_material": null,
+      "textures": {
+        "0": "arab_mapicons_d",
+        "1": "arab_mapicons_d",
+        "2": "arab_mapicons_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.0",
+      "lod": 2,
+      "material": "map_icon_empire_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_empire_city_01_d",
+        "2": "map_icon_empire_city_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.1",
+      "lod": 2,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.2",
+      "lod": 2,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.3",
+      "lod": 2,
+      "material": "map_icons_siege_camp",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_siege_camp_d",
+        "2": "map_icon_siege_camp_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.4",
+      "lod": 2,
+      "material": "arab_map_icons",
+      "second_material": null,
+      "textures": {
+        "0": "arab_mapicons_d",
+        "1": "arab_mapicons_d",
+        "2": "arab_mapicons_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.5",
+      "lod": 2,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.0",
+      "lod": 3,
+      "material": "map_icon_empire_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_empire_city_01_d",
+        "2": "map_icon_empire_city_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.1",
+      "lod": 3,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.2",
+      "lod": 3,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.3",
+      "lod": 3,
+      "material": "map_icons_siege_camp",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_siege_camp_d",
+        "2": "map_icon_siege_camp_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.4",
+      "lod": 3,
+      "material": "arab_map_icons",
+      "second_material": null,
+      "textures": {
+        "0": "arab_mapicons_d",
+        "1": "arab_mapicons_d",
+        "2": "arab_mapicons_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.5",
+      "lod": 3,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.lod4.0",
+      "lod": 4,
+      "material": "map_icon_empire_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_empire_city_01_d",
+        "2": "map_icon_empire_city_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod4.1",
+      "lod": 4,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod4.2",
+      "lod": 4,
+      "material": "map_icons_siege_camp",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_siege_camp_d",
+        "2": "map_icon_siege_camp_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod4.3",
+      "lod": 4,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.lod5.0",
+      "lod": 5,
+      "material": "map_icon_empire_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_empire_city_01_d",
+        "2": "map_icon_empire_city_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod5.1",
+      "lod": 5,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod5.2",
+      "lod": 5,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.6",
+      "lod": 0,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.7",
+      "lod": 0,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.8",
+      "lod": 0,
+      "material": "arab_map_icons",
+      "second_material": null,
+      "textures": {
+        "0": "arab_mapicons_d",
+        "1": "arab_mapicons_d",
+        "2": "arab_mapicons_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.9",
+      "lod": 0,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.10",
+      "lod": 0,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.11",
+      "lod": 0,
+      "material": "map_icons_03",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_03_d",
+        "1": "map_icons_03_d",
+        "2": "map_icons_03_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.12",
+      "lod": 0,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.13",
+      "lod": 0,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.6",
+      "lod": 1,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.7",
+      "lod": 1,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.8",
+      "lod": 1,
+      "material": "arab_map_icons",
+      "second_material": null,
+      "textures": {
+        "0": "arab_mapicons_d",
+        "1": "arab_mapicons_d",
+        "2": "arab_mapicons_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.9",
+      "lod": 1,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.10",
+      "lod": 1,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.11",
+      "lod": 1,
+      "material": "map_icons_03",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_03_d",
+        "1": "map_icons_03_d",
+        "2": "map_icons_03_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.12",
+      "lod": 1,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod1.13",
+      "lod": 1,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.6",
+      "lod": 2,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.7",
+      "lod": 2,
+      "material": "arab_map_icons",
+      "second_material": null,
+      "textures": {
+        "0": "arab_mapicons_d",
+        "1": "arab_mapicons_d",
+        "2": "arab_mapicons_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.8",
+      "lod": 2,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.9",
+      "lod": 2,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.10",
+      "lod": 2,
+      "material": "map_icons_03",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_03_d",
+        "1": "map_icons_03_d",
+        "2": "map_icons_03_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.11",
+      "lod": 2,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.12",
+      "lod": 2,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.6",
+      "lod": 3,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.7",
+      "lod": 3,
+      "material": "arab_map_icons",
+      "second_material": null,
+      "textures": {
+        "0": "arab_mapicons_d",
+        "1": "arab_mapicons_d",
+        "2": "arab_mapicons_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.8",
+      "lod": 3,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod4.4",
+      "lod": 4,
+      "material": "map_icons_02",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_d",
+        "1": "map_icons_02_d",
+        "2": "map_icons_02_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod4.5",
+      "lod": 4,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.lod4.6",
+      "lod": 4,
+      "material": "map_icons_03",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_03_d",
+        "1": "map_icons_03_d",
+        "2": "map_icons_03_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod4.7",
+      "lod": 4,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod2.13",
+      "lod": 2,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.9",
+      "lod": 3,
+      "material": "map_icon_hideouts",
+      "second_material": null,
+      "textures": {
+        "0": "map_icon_hideouts",
+        "2": "map_icon_hideouts_n",
+        "3": "adobe_stone_wall_a_d"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.10",
+      "lod": 3,
+      "material": "map_icons_03",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_03_d",
+        "1": "map_icons_03_d",
+        "2": "map_icons_03_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.11",
+      "lod": 3,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_2.lod3.12",
+      "lod": 3,
+      "material": "map_icons_01",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_d",
+        "1": "map_icons_01_d",
+        "2": "map_icons_01_n",
+        "3": "main_map_snow_flowmap",
+        "8": "main_map_snow_flowmap"
+      }
+    }
+  ]
+}

@@ -83,6 +83,20 @@
           </Children>
         </Widget>
 
+        <!-- ============ 底部居中：推荐（太阁5 原版位置；点了进「推荐人物」列表）============
+             🔴 固定进 1560（不跟随左侧当前选中的剧本）——推荐名单绑 1560 年，见 EraCatalog.RecommendedEra。 -->
+        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="260" SuggestedHeight="54"
+                      HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="50"
+                      Brush="Test.Button3"
+                      Command.Click="ExecuteRecommended">
+          <Children>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        Text="@RecommendedText" Brush="MyBrush_24" Brush.FontSize="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        DoNotAcceptEvents="true"/>
+          </Children>
+        </ButtonWidget>
+
         <!-- ============ 右下：返回 ============ -->
         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="56"
                       HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginRight="90" MarginBottom="50"

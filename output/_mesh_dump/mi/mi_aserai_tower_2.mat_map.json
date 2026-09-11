@@ -1,0 +1,74 @@
+{
+  "mesh": "mi_aserai_tower_2",
+  "guid": "9354799f-42a4-4c60-a3de-c5bfd318b51f",
+  "default_material": null,
+  "default_material_type": null,
+  "submeshes": [
+    {
+      "name": "mi_aserai_tower_2",
+      "lod": 0,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "mi_aserai_tower_2.lod4",
+      "lod": 4,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "mi_aserai_tower_2.lod1",
+      "lod": 1,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "mi_aserai_tower_2.lod2",
+      "lod": 2,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "mi_aserai_tower_2.lod3",
+      "lod": 3,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "mi_aserai_tower_2.lod5",
+      "lod": 5,
+      "material": "map_icon_aserai_city_01",
+      "second_material": null,
+      "textures": {
+        "0": "aserai_city_01_d",
+        "2": "aserai_city_01_n",
+        "8": "main_map_snow_flowmap"
+      }
+    }
+  ]
+}

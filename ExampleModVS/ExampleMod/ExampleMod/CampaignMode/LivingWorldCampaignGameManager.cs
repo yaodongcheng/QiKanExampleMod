@@ -178,7 +178,8 @@ namespace LivingWorldNpcs.CampaignMode
 			PushCharacterCreation();
 
 			_heroSelectOpened = true;      // 先置位再开界面：开界面过程中若被重入也不会弹第二遍
-			HeroSelectOverlay.Request();
+			// 消费「推荐」标记（「推荐」按钮在世界加载**之前**置的位，见 HeroSelectOverlay.RequestRecommended）
+			HeroSelectOverlay.RequestFromGameManager();
 			DebugLogger.Log($"[LWN-campaign] 世界已加载 GameType={GetType().Name} 时代={Era} → 已弹选人界面（只弹一次）");
 		}
 #else

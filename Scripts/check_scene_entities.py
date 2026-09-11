@@ -213,8 +213,18 @@ def main():
     sett_file = mod_path / "ModuleData" / "settlements.xml"
     print("\n== 据点实体 + 城镇交互链（缺 = 家宅选不中/点不动城，雷 53 & 37） ==")
     if not sett_file.is_file():
-        warns.append("settlements.xml 不存在——据点检查跳过")
-        print("  [WARN] settlements.xml 不存在，跳过")
+        # 🔴 这里**必须报错，不能跳过**（2026-09-11 用户裁定）。理由：
+        #   基线文件名 settlements.xml 是本仓库的**约定**（BASELINE_ERA=1560 走无后缀名），
+        #   约定写在生成器里、检查器却当固定名用——一旦约定漂移（换基线年份 / 有人给基线加
+        #   `_1560` 后缀），本检查会**静默跳过**，看起来仍然全绿，而据点实体这块根本没人查。
+        #   改成硬报错：文件不在 = 约定漂移 = 要先对齐生成器的 BASELINE_ERA 与 SubModule 的 path。
+        #   （另注：官方地图编辑器也按固定名读写 settlements.xml，见
+        #    Knowledge/bannerlordmodding_lt/editor/editor.md——基线名不是说改就能改的。）
+        errors.append(f"settlements.xml 不存在（{sett_file}）——据点实体检查无法进行。"
+                      f"本仓库约定「基线时代（BASELINE_ERA=1560）用无后缀名 settlements.xml」，"
+                      f"改名/换基线必须同步改本检查；改名还会让官方地图编辑器保存地图时崩。")
+        print(f"  [ERROR] settlements.xml 不存在：{sett_file}")
+        print("          约定：基线时代走无后缀名（生成器 BASELINE_ERA）；改名要同步本检查 + SubModule path")
     else:
         try:
             sroot = ET.parse(str(sett_file)).getroot()

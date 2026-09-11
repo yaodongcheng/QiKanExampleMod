@@ -1,0 +1,56 @@
+{
+  "mesh": "village_empire_burned",
+  "guid": "efe47bcd-c9f9-46c9-9280-7038489ce86c",
+  "default_material": null,
+  "default_material_type": null,
+  "submeshes": [
+    {
+      "name": "village_empire_burned.0",
+      "lod": 0,
+      "material": "map_icons_02_burned",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_burned",
+        "1": "map_icons_02_burned",
+        "2": "map_icons_02_burned_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_burned.1",
+      "lod": 0,
+      "material": "map_icons_01_burned",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_burned",
+        "1": "map_icons_01_burned",
+        "2": "map_icons_01_burned_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_burned.lod4.0",
+      "lod": 4,
+      "material": "map_icons_02_burned",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_02_burned",
+        "1": "map_icons_02_burned",
+        "2": "map_icons_02_burned_n",
+        "8": "main_map_snow_flowmap"
+      }
+    },
+    {
+      "name": "village_empire_burned.lod4.1",
+      "lod": 4,
+      "material": "map_icons_01_burned",
+      "second_material": null,
+      "textures": {
+        "0": "map_icons_01_burned",
+        "1": "map_icons_01_burned",
+        "2": "map_icons_01_burned_n",
+        "8": "main_map_snow_flowmap"
+      }
+    }
+  ]
+}
