@@ -5,7 +5,7 @@ r"""T4-b 世界四表体检（Culture / Kingdom / Clan / Settlements ↔ TaikouH
 **体检对象**：`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/` 下四张表
   · `Culture.csv`     —— 文化（10 个地域 + neutral + 非武家群体）
   · `TaikouForce.csv` —— 势力（**Kingdom.csv × ForceTaikou.csv 合并，185 条，2026-09-11 用户裁定**）
-  · `Clan.csv`        —— 家族（605 条，id 规则 = EnglishName 姓氏首块）
+  · `Clan.csv`        —— 家族（278 条，**按侍奉关系重建**，id 规则 = 家头苗字罗马音 + 序号）
   · `Settlements.csv` —— 据点 274 条 × 六年代（名字/别名/当主/家族/兵员）
 **权威参照**：`TaikouHero.csv`（1111 行英雄总表，2026-09-11 定稿）
            + `TaikouForce.csv`（势力名 + 别名权威 + 六年代存在性；原 ForceTaikou.csv 已并入）
@@ -22,7 +22,18 @@ r"""T4-b 世界四表体检（Culture / Kingdom / Clan / Settlements ↔ TaikouH
   ① **自身定义是否自洽** —— 必填字段、枚举取值、id 唯一
   ② **两两交叉引用是否闭合** —— 引用方指向的 id 在不在；被引用的有没有孤儿
 
-🔴 **本次新增的核心闸门：id 体系不许分叉**
+🔴 **2026-09-11 家族重建纪要（用户裁定：家族 = 家臣团）**
+  规则：**谁有人侍奉谁就是一家之主**；没部下的人并入其直接上司的家；妻子并入丈夫的家；
+  既没上司也没部下的亲人并入该人的家；浪人/无所属**无家**。
+  落地（生成器 `Scripts/gen_taikou_clan_csv.py`，六年代各一套）：
+    · `Clan.csv` 整表重建 → 列 = `ID | ScriptName | ChineseName | LocozationName | Surname | Culture |
+      Is_Shokuho | Owner_<年> ×6 | Kingdom_<年> ×6`（`-` = 该年代此家不存在）
+    · `TaikouHero.csv` 的 `ClanID` 单列 → `ClanID_<年>` ×6
+    · `Settlements.csv` 的 `Clan_<年>` = 城主（`Owner_<年>`）的家族
+  随之作废的旧检查：`Clan.csv.Kingdom`（单列）、`Clan.csv.Owner`（单列）、
+    `TaikouHero.ClanID`（单列）、「家族归属分歧」（新规则下同族成员必然同一势力，不可能分歧）。
+
+🔴 **核心闸门：id 体系不许分叉**
   TaikouHero 的主编号 = `lord_tk5_<DX号>`（2026-09-11 裁定），但四表的 Owner 列
   当年是从**织丰**（`lord_1_nanbu` / `dead_lord_1_*` / `spc_*`）结转的，两者不是一套编号
   —— 这类引用**谁都解析不出来**（既不在英雄表、也不在世界里），是硬错误不是警告。
@@ -208,17 +219,25 @@ def main():
              ["%s → %s（Culture.csv 无此文化）" % (r["ID"], r["Culture"]) for r in kingdom
               if r.get("Culture") and r["Culture"] not in cult_set])
 
-    hard_err("Clan.csv.Kingdom → TaikouForce.csv",
-             ["%s → %s" % (r["ID"], r["Kingdom"]) for r in clan
-              if r.get("Kingdom") and r["Kingdom"] not in kd_set])
+    bad = []
+    for r in clan:
+        for e in ERAS:
+            v = r.get("Kingdom_" + e, "")
+            if v and v != "-" and v not in kd_set:
+                bad.append("%s Kingdom_%s → %s" % (r["ID"], e, v))
+    hard_err("Clan.csv.Kingdom_<年> → TaikouForce.csv（`-` = 该年此家不存在）", bad)
 
     hard_err("Clan.csv.Culture → Culture.csv",
              ["%s → %s" % (r["ID"], r["Culture"]) for r in clan
               if r.get("Culture") and r["Culture"] not in cult_set])
 
-    hard_err("TaikouHero.ClanID → Clan.csv（人物行）",
-             ["%s %s → %s" % (r["ID"], r.get("CNName", ""), r["ClanID"]) for r in people
-              if r.get("ClanID") and r["ClanID"] not in clan_set])
+    bad = []
+    for r in people:
+        for e in HERO_ERAS:
+            v = r.get("ClanID_" + e, "")
+            if v and v not in clan_set:
+                bad.append("%s %s ClanID_%s → %s" % (r["ID"], r.get("CNName", ""), e, v))
+    hard_err("TaikouHero.ClanID_<年> → Clan.csv（人物行；空 = 该年无家＝浪人）", bad)
 
     hard_err("TaikouHero.CultureID → Culture.csv（人物行）",
              ["%s %s → %s" % (r["ID"], r.get("CNName", ""), r["CultureID"]) for r in people
@@ -264,18 +283,52 @@ def main():
     # 🔴 家族表自己的 Owner 列同一闸门
     #    （势力表那条已随 2026-09-11 合并删除——TaikouForce 没有单列 Owner，
     #      织丰编号只剩 Owner_<年> 六列，其闸门见上「Settlements.Owner_<年>」同款 + 下方势力名对账）
-    bad = ["%s Owner = %s" % (r["ID"], r["Owner"]) for r in clan if is_shokuho_id(r.get("Owner", ""))]
-    hard_err("Clan.csv.Owner 不得使用织丰编号", bad)
+    bad = []
+    for r in clan:
+        for e in ERAS:
+            v = r.get("Owner_" + e, "")
+            if not v or v == "-":
+                continue
+            if is_shokuho_id(v):
+                bad.append("%s Owner_%s = %s（织丰编号，本项目不认）" % (r["ID"], e, v))
+            elif v not in hero_ids:
+                bad.append("%s Owner_%s = %s（英雄表无此人）" % (r["ID"], e, v))
+    hard_err("Clan.csv.Owner_<年> 只能是 - / lord_tk5_*（且存在于英雄表）", bad)
+
+    # 🔴 互证：Owner_<年> 那位英雄，自己那一年的 ClanID 必须就是本行
+    bad = []
+    hrow = {r["ID"]: r for r in hero}
+    for r in clan:
+        for e in ERAS:
+            v = r.get("Owner_" + e, "")
+            if not v or v == "-":
+                continue
+            own = (hrow.get(v) or {}).get("ClanID_" + e, "")
+            if own != r["ID"]:
+                bad.append("%s %s：当主 %s 自己的 ClanID_%s = %r" % (r["ID"], e, v, e, own))
+    hard_err("Clan.csv.Owner_<年> ↔ TaikouHero.ClanID_<年> 必须互证", bad)
 
     # 据点：当主的家族必须与 Clan_<年> 一致（自相矛盾 = 硬错误）
-    hc = {r["ID"]: r.get("ClanID", "") for r in hero}
-    bad = []
+    hc = {r["ID"]: r for r in hero}
+    bad, soft = [], []
     for r in sett:
         for e in ERAS:
             o, c = r.get("Owner_" + e, ""), r.get("Clan_" + e, "")
-            if o and c and o in hc and hc[o] and hc[o] != c:
-                bad.append("%s %s：当主 %s 属 %s，但 Clan_%s = %s" % (r["id"], e, o, hc[o], e, c))
-    hard_err("Settlements：Owner_<年> 的家族必须等于 Clan_<年>", bad)
+            h = hc.get(o)
+            if not (o and c and h):
+                continue
+            own = h.get("ClanID_" + e, "")
+            if own == c:
+                continue
+            # 城主当年无家（浪人当着城主）→ 生成器沿用他最近有家的那家；这里只警告
+            ever = {h.get("ClanID_" + x, "") for x in HERO_ERAS} - {""}
+            if not own and c in ever:
+                soft.append("%s %s：当主 %s 当年无家，Clan_%s = %s（沿用其有家的年代）"
+                            % (r["id"], e, h.get("CNName", o), e, c))
+            else:
+                bad.append("%s %s：当主 %s 属 %r，但 Clan_%s = %s" % (r["id"], e, o, own, e, c))
+    hard_err("Settlements.Clan_<年> 必须等于城主当年的 ClanID_<年>", bad)
+    warn_err("Settlements：城主当年无家但据点仍有家族（沿用最近年代）", soft)
 
     # ───────────────── ③ 名字对账（警告：数据缺口）─────────────────
     # 查名三级回落（用户 2026-09-11 裁定「按 alias 宽匹配」）：
@@ -379,7 +432,7 @@ def main():
              ["%s（%d 个年代）" % (k, n) for k, n in sorted(miss.items(), key=lambda kv: -kv[1])])
 
     # ───────────────── ④ 孤儿（警告：数据缺口）─────────────────
-    used_clan = set(r.get("ClanID", "") for r in people)
+    used_clan = {r.get("ClanID_" + e, "") for r in people for e in HERO_ERAS}
     for r in sett:
         for e in ERAS:
             used_clan.add(r.get("Clan_" + e, ""))
@@ -394,7 +447,7 @@ def main():
                 kd_cn[n].add(r["ID"])
                 if n.endswith("家"):
                     kd_cn[n[:-1]].add(r["ID"])
-    used_kd = set(r.get("Kingdom", "") for r in clan)
+    used_kd = {r.get("Kingdom_" + e, "") for r in clan for e in ERAS} - {"-"}
     for e in HERO_ERAS:
         for r in people:
             v = r.get("Kingdom_" + e, "")
@@ -405,15 +458,38 @@ def main():
 
     # 无家族的势力：建国时会是空国（宗族一个没有）—— T4-c 铺数据前必须补家族或降级为 minor faction
     # ⚠️ 只查 Warrior：商家/忍者/海贼（org_*）本就不该有武家家族，把它们算进来是噪声
-    withclan = set(r.get("Kingdom", "") for r in clan)
-    warn_err("TaikouForce.csv 武家有定义但家族表里一个家族都没有归属（建国 = 空国）",
-             sorted(k for k in kd_set if k and k not in withclan
-                    and next((r.get("势力类型") for r in kingdom if r["ID"] == k), "") == "Warrior"))
+    # 🔴 只在「该年代此势力确实存在」的格上查：`-` = 该年不建国 → 本来就不需要家族
+    #    （TaikouForce 里 33 个武家六个年代全 `-`（赤松/松平/池田…＝国主家，不是独立大名），
+    #      它们永远不建国，旧口径把它们一律算成「空国」是噪声）
+    withclan = collections.defaultdict(set)
+    for r in clan:
+        for e in ERAS:
+            v = r.get("Kingdom_" + e, "")
+            if v and v != "-":
+                withclan[v].add(e)
+    warn_err("武家在某年代存在、但该年代没有任何家族挂它（建国 = 空国）",
+             ["%s（%s）%s" % (r.get("势力名"), r["ID"], e) for r in kingdom
+              if r.get("势力类型") == "Warrior"
+              for e in ERAS
+              if (r.get("Owner_" + e) or "-").strip() not in ("", "-")
+              and e not in withclan.get(r["ID"], set())])
 
     used_cult = set(r.get("CultureID", "") for r in people) | set(r.get("Culture", "") for r in clan) \
         | set(r.get("Culture", "") for r in kingdom)
     warn_err("Culture.csv 定义但无任何引用",
              sorted(c for c in cult_set if c and c not in used_cult))
+
+    # 🔴 「家族归属分歧」检查已作废（2026-09-11 家族重建）：
+    #    新规则下家族 = 家头 + 他的部下，全员必然同属家头的势力，
+    #    「同族成员同年效力不同势力」在结构上不可能出现——旧检查的 40 格裁决一并作废。
+    #    取而代之：无家者画像（浪人/无所属 → 骑砍侧当游侠）与「一家多主」互证（见上）。
+    nocl = collections.Counter()
+    for r in people:
+        for e in HERO_ERAS:
+            if not r.get("ClanID_" + e, "") and r.get("Appear_" + e, "") not in HERO_SENTINELS:
+                nocl[e] += 1
+    warn_err("无家的英雄（浪人/无所属，骑砍侧当游荡者）",
+             ["%s：%d 人" % (e, nocl[e]) for e in HERO_ERAS])
 
     # 据点无指定当主（数据缺口，T4-c 接真实归属时才补）
     no_owner = [r["id"] for r in sett

@@ -10,7 +10,10 @@
 ----
   `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/TaikouHero.csv`
     （**只读镜像**，禁止手改——见 wheels.d/data-registry.md「织丰表数据源纪律」）
-    取用列：ID / BirthYear / DieYear / ClanID / CultureID
+    取用列：ID / BirthYear / DieYear / ClanID_<年> / CultureID
+    🔴 家族自 2026-09-11 起重建成**每年代一套**（`ClanID_1554…1598`，见 `gen_taikou_clan_csv.py`）：
+       本表只出一个 `clan` 值给选人详情页 → 取 **1560**（基准年代）；1560 无家（当年是浪人）
+       则退到**他最早有家的那个年代**，全无 → 空（浪人，骑砍侧当游荡者）。
             五维 CommandValue ForceValue GovernValue WisdomValue CharmValue
             16 技能 SoldierSkill MountSkill GunSkill NavySkill ArcherSkill CombatSkill
                    MilitarySkill NinjaSkill BuildSkill FarmSkill MineSkill ArthmeticSkill
@@ -161,6 +164,18 @@ def esc(s):
             .replace(">", "&gt;").replace('"', "&quot;"))
 
 
+CLAN_ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]
+
+
+def pick_clan(r):
+    """详情页用的单一家族值：1560 优先 → 退到最早有家的年代（浪人 = 空）"""
+    for e in ("1560",) + tuple(x for x in CLAN_ERAS if x != "1560"):
+        v = (r.get("ClanID_" + e) or "").strip()
+        if v:
+            return v
+    return ""
+
+
 def int_or_zero(raw):
     """CSV 数值列 → 非负整数（空/脏值按 0；越界由 check() 报错，不在此处悄悄夹紧）。"""
     try:
@@ -192,7 +207,7 @@ def build(rows):
         attrs = [("id", hid),
                  ("birth", int_or_zero(r.get("BirthYear"))),
                  ("die", int_or_zero(r.get("DieYear"))),
-                 ("clan", (r.get("ClanID") or "").strip()),
+                 ("clan", pick_clan(r)),
                  ("culture", (r.get("CultureID") or "").strip())]
         for col, name in FIVE:
             v = int_or_zero(r.get(col))
