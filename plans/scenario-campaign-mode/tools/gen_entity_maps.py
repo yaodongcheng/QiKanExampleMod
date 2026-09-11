@@ -82,29 +82,30 @@ except Exception:                                                      # pragma:
 # 人工覆盖：太阁原文里的写法 ≠ 织丰表里的写法（生成期一次性对齐，运行时无中文参与）
 # ---------------------------------------------------------------------------
 # 🔴 NAME_ALIAS = 人物双向别名表（2026-08-31 迁移：数据在 TaikouHero.csv 的 Alias 列，禁止写死 py —— 铁律 25）
-#   ① 数据侧规则：每行 Alias 列 = 该织丰人物的全部可用名（含 Name_1549…Name_1598/dream1560 所有年代名，| 分隔），
-#      查询契约见 CLAUDE.md 铁律 25：GetStringIdByName 只查 CNName + ScriptName + Alias，禁止查 Name_YYYY；
-#   ② 本函数按「别名 → 主名(CNName 优先)」构建单向 dict（左=别名键，右=织丰 CNName）；
+#   ① 数据侧规则：每行 Alias 列 = 该人物的全部可用名（**繁体主名** + 全部年代名 Name_1549…Name_1598/dream1560
+#      + 异体字/别号，| 分隔），查询契约见 CLAUDE.md 铁律 25；
+#   ② 本函数按「别名 → 主名(CNName)」构建单向 dict（左=别名键，右=CNName）；
 #   ③ 反向查询由调用方构建 ALIAS_REV(右键→[左键们])，一对多支持；
 #   ④ 防呆（BUSTUP 目录名类别名仍由 build_refs_full 侧处理，键在 alias 列即可命中）。
+#   ⑤ 🔴 2026-09-11 用户裁定：删掉 ScriptName 列（原本只作 CNName 为空时的兜底，而 CNName 从不为空
+#      = 该兜底永不触发，实测 1117 行 0 行命中），繁体主名并入 Alias —— 于是繁体引用
+#      （剧本里 `更新:(人物::織田信長.205)`）才真正查得到。
 def _load_hero_aliases():
-    """铁律 25：别名数据 = TaikouHero.csv（Alias/CNName/ScriptName），py 不写死。"""
+    """铁律 25：别名数据 = TaikouHero.csv（Alias/CNName 列），py 不写死。"""
     path = os.path.join(CSV_DIR, 'TaikouHero.csv')
     name_alias = {}
     with open(path, encoding='utf-8-sig') as f:
         for row in csv.DictReader(f):
             cn = (row.get('CNName') or '').strip()
-            sn = (row.get('ScriptName') or '').strip()
             al = (row.get('Alias') or '').strip()
-            main = cn if cn else sn
-            if not main:
+            if not cn:
                 continue
             for key in al.split('|'):
                 key = key.strip()
-                if not key or key == main:
+                if not key or key == cn:
                     continue
                 if key not in name_alias:          # 保持旧语义：左唯一键
-                    name_alias[key] = main
+                    name_alias[key] = cn
     return name_alias
 
 NAME_ALIAS = _load_hero_aliases()
@@ -421,7 +422,9 @@ def main():
         tid = r.get('ID')
         if not tid:
             continue
-        for n in (r.get('ScriptName', ''), r.get('CNName', '')):
+        # 🔴 2026-09-11：ScriptName 列已删（繁体名并入 Alias）→ 改成「CNName + Alias 全部名字」
+        #    都作键，等价于原来的 (ScriptName, CNName)
+        for n in [r.get('CNName', '')] + (r.get('Alias') or '').split('|'):
             if n:
                 agent_map[n] = tid        # 表行真 ID 优先（织丰现成 CharacterObject，铁律 5）
     hero_rows = [r for r in hero_rows if (r.get('模板NPC') or '').strip() != '1']   # 🔴 模板行进 HERO_MAP

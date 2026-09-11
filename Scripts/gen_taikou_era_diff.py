@@ -75,8 +75,8 @@ ERA = "1582"
 # 时代 A（基线）里有、时代 B 没有的家族 / 王国 / 英雄
 DROP_CLANS = ["clan_oda", "clan_hattori_1", "clan_yagyuu_1", "clan_kuki_1", "clan_ruzon_1"]
 DROP_KINGDOMS = ["kingdom_oda"]
-DROP_HEROES = ["lord_1_oda", "lord_1_shibata", "lord_1_kinoshita", "lord_1_hattori_hanzo",
-               "lord_1_yagyuu_sekishuusai", "lord_1_kuki", "lord_1_ruzon_sukezaemon"]
+DROP_HEROES = ["lord_tk5_195", "lord_tk5_379", "lord_tk5_517", "lord_tk5_587",
+               "lord_tk5_740", "lord_tk5_279", "lord_tk5_549"]
 
 # 时代 B 新增的家族（新增 id → 各字段；banner/颜色沿用基线织田款式，spike 不考究美术）
 NEW_CLANS = [{

@@ -204,7 +204,11 @@ def process_data():
             'is_female_str': is_female_str,
             'alive': alive_str,
             'face_key': face_key,
-            'is_shokuho': (row.get('GenerateType') or '').strip() == '精确匹配织丰',
+            # 🔴 2026-09-11：英雄侧 is_shokuho 已废止（原 = `GenerateType == '精确匹配织丰'`）。
+            #    GenerateType 是「本行当初怎么从织丰数据推出来」的**来源列**，列传/编号落库后
+            #    已无消费价值，整列删除（用户裁定）。而「跳过织丰已有的英雄」这个语义随
+            #    Taikou 成为独立内容包而失效 —— 不再跳过任何人。
+            #    ⚠️ 家族/王国侧的 is_shokuho 来自 Clan/Kingdom 表的 `IsShokuho` 列，**不在此列**。
             'stats': {
                 'Commander': get_trait_level(ld_stat),
                 'Valor': get_trait_level(war_stat),
@@ -312,8 +316,6 @@ def process_data():
 def generate_heroes_xml():
     xml = "<Heroes>\n"
     for h in heroes:
-        if h['is_shokuho']:
-            continue
         xml += f'    <Hero id="{h["id"]}"\n'
         xml += f'          name="{{={h["name_key"]}}}{h["engname_text"]}"\n'
         xml += f'          faction="Faction.{h["clan_id"]}"\n'
@@ -329,8 +331,6 @@ def generate_heroes_xml():
 def generate_lords_xml():
     xml = '<?xml version="1.0" encoding="utf-8"?>\n<NPCCharacters>\n'
     for h in heroes:
-        if h['is_shokuho']:
-            continue
         xml += f'  <NPCCharacter id="{h["id"]}" name="{{={h["name_key"]}}}{h["engname_text"]}" age="{h["age"]}"  voice="curt" default_group="Cavalry" is_female="{h["is_female_str"]}"  is_hero="true" culture="Culture.{h["culture_id"]}" occupation="Lord" face_mesh_cache="true">\n'
         xml += f'    <face>\n'
         xml += f'      <BodyProperties version="4" age="{h["age"]}.00" weight="0.5" build="0.5" key="{h["face_key"]}"/>\n'
