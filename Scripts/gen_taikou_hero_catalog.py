@@ -185,21 +185,36 @@ def settlement_display(md, era_id):
     return out
 
 
-# 🔴 两张 CSV 对同一据点的写法不同：`TaikouHero.csv` 的 City_<年> 带**类型后缀**
-#    （奈良之町 / 鸟羽之砦），而据点自己的名字不带（奈良 / 鸟羽）。
-#    故查名时先精确匹配，不中再**去掉类型后缀**匹配；仍不中就留空（数据缺口，不是生成器 bug）。
-_CITY_SUFFIXES = ("之町", "之砦", "之里")
+# 🔴 据点名一律**精确全名**（用户 2026-09-11 裁定：「城和町共同前缀，一定得写全」）
+#    曾经这里有个「查不到就剥掉 之町/之砦/之里 再查」的兜底 —— 已拆除，别再写回来：
+#    剥后缀 = 拿两个不同的地方当同一个（冈崎城 / 冈崎 町 同前缀）。
+#    英雄表用的全名（京之町 / 鸟羽之砦 / 伊贺之里）由 `gen_settlements_csv.py` 的
+#    `add_full_names` 在**构建期**写进 Settlements.csv 的 Name_All，本脚本按全名精确查。
+def settlement_alias_index(csv_dir, seats):
+    """Settlements.csv 的 Name_All 各段 → 该据点的显示串（取自引擎要读的那份 XML）
+
+    `seats`（settlement_display）只有据点的一个规范名；英雄表还会用全名/改名/异写
+    （京之町、上田城、堺之町…），这些都在 Name_All 里。按全名把它们指到同一个显示串。
+    """
+    path = csv_dir / "Settlements.csv"
+    if not path.is_file():
+        return {}
+    out = {}
+    with io.open(path, encoding="utf-8-sig", newline="") as f:
+        for r in csv.DictReader(f):
+            sid = (r.get("id") or "").strip()
+            if sid not in seats:
+                continue
+            for n in (r.get("Name_All") or "").split("|"):
+                n = n.strip()
+                if n and n not in out:
+                    out[n] = seats[sid]
+    return out
 
 
 def lookup_seat(seats, city):
-    if not city:
-        return ""
-    if city in seats:
-        return seats[city]
-    for suf in _CITY_SUFFIXES:
-        if city.endswith(suf) and city[:-len(suf)] in seats:
-            return seats[city[:-len(suf)]]
-    return ""
+    """点名人 → 据点显示串。**只精确匹配**（见上）。查不到留空 = 数据缺口，不是生成器 bug。"""
+    return seats.get(city, "") if city else ""
 
 
 def portrait_cards(md):
@@ -251,6 +266,7 @@ def build(md, csv_dir):
         clans = clan_table(md, era)
         kingdoms = kingdom_name_table(md, era)
         seats = settlement_display(md, era)
+        seats.update(settlement_alias_index(csv_dir, seats))
 
         realms, houses, lords = {}, {}, []
         for hid, h in heroes.items():
