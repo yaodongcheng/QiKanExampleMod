@@ -576,3 +576,34 @@ PortraitRegistry 扫**所有模块**的 `ModuleData/AssetRegistry/*.csv`（列�
 - 纹理格式定版：**DXT5（BC3）无 mipmap**（织丰官方 UI 同款；原版部分 UI 是 BC7 也兼容，但 TpacTool 回解链只解 DXT1-5，选 DXT5 保离线验证）。
 
 **关键文件**：`tools/face-pipeline/tpactool/TpacToolCLI/`（Program.cs/MakePack.cs/Bc3Encoder.cs）、`TpacTool.Lib`（AssetPackage/Texture/TexturePixelData，仅只读使用）、`ShokuhoTaikouExpansionPack/ArtSource/scripts/build_profile_pack.py`（生成 manifest + SpriteData XML + 内容包 CSV 的完整链路）。参考：`Knowledge/tpac资源替换打包指南.md`（换脸场景 + 五个坑）。
+
+## 「一个屏、两个 prefab 互切」— 列表/详情同层换片（2026-09-11 登记）
+
+**解决**：同一功能要「列表 → 详情 → 返回列表」两级界面。再叠一层是坑（层序/焦点/时点，本仓库在层上踩过多次），
+**同层换 prefab** 只占一个层、与现有实现同构。
+
+**做法**：`ScreenBase` 持一个 `GauntletLayer`，按状态 `V.LoadMov(layer, "PrefabA"|"PrefabB", vm)` 换片；
+`OnFinalize` 里摘层（守卫三件套见本卷摘层条目）。
+
+```csharp
+// CampaignMode/HeroSelectScreen.cs
+_listVm = new HeroSelectVM(year, Close, OnHeroChosen, recommended);
+V.LoadMov(_layer, "HeroSelect", _listVm);
+// 点人名 →
+_detailVm = new HeroDetailVM(heroId, year, OnDetailBack, () => OnDetailConfirm(heroId));
+V.LoadMov(_layer, "HeroDetail", _detailVm);          // 同层换片
+// [返回] → V.LoadMov(_layer, "HeroSelect", _listVm);  ← 列表 VM 没重建，选中态自然保留
+```
+
+**为什么不在详情页新建一层**：层序/焦点在引擎里是敏感资源（本卷「GauntletLayer 层序表」「摘层守卫三件套」都是踩出来的）；
+同层换片把状态收在一个 VM 里，返回时连选中态都免费保留。
+
+🔴 **承载时点决定用哪种写法——别混**：
+
+| 界面要不要读 `Campaign.Current` | 写法 | 范本 |
+|---|---|---|
+| **不读**（纯静态表）→ 可以放**主菜单阶段** | 自建 `ScreenBase` + `ScreenManager.PushScreen` | `ScenarioSelectScreen` / `HeroSelectScreen` |
+| **要读**（王国/家族/英雄等活世界对象）→ 只能等世界建好 | 拿 `ScreenManager.TopScreen` + `AddLayer` + **待办每帧重试**（推入的屏在加载期**画不出来**） | `AgentHud`；教训见 `CampaignMode/HeroSelectOverlay.cs` 类注释 |
+
+**推论（2026-09-11 实践）**：把界面的取数从活世界搬到**内容包预生成的静态表**（见 campaign-mode.md「AssetRegistry 契约」），
+就能把界面**从世界之后提到主菜单阶段**——玩家不用先干等一个长 loading 才轮到选人。选人流程就是这么改的。

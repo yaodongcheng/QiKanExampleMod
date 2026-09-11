@@ -4441,6 +4441,7 @@
     <!-- 推荐入口 + 角色详情页（选人流程复刻太阁5，2026-09-11） -->
     <string id="LWN_scenario_select_recommended" text="Recommended" />
     <string id="LWN_hero_select_title_recommended" text="Recommended Lords" />
+    <string id="LWN_hero_select_empty" text="No playable lord in this era." />
     <string id="LWN_hero_select_not_arrived" text="Not yet in this world" />
     <string id="LWN_hero_detail_basic" text="Profile" />
     <string id="LWN_hero_detail_ability" text="Attributes" />

@@ -1,5 +1,5 @@
 using System;
-using TaleWorlds.CampaignSystem;
+using System.Collections.Generic;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
@@ -7,31 +7,30 @@ namespace LivingWorldNpcs.CampaignMode
 {
 	/// <summary>
 	/// 选人界面 ViewModel（配 <c>GUI/Prefabs/HeroSelect.xml</c>）。两种罗列模式：
-	///   · **树模式**（默认）：选王国 → 刷新家族列 → 选家族 → 刷新英雄列
+	///   · **树模式**（默认）：选王国 → 刷新家族列 → 选家族 → 刷新领主列
 	///   · **推荐模式**：只列「推荐」五人（内容包配的名单，见 HeroProfileRegistry.Recommendations）
 	///
-	/// 🔴 **点人名不再直接开局**（2026-09-11 复刻太阁5 两步流程）：
-	///   点行 → 开**角色详情页**（HeroDetailVM）→ 详情页 [决定] 才真正魂穿。
-	///   故本 VM 不再有「确认」按钮——它的职责移交给详情页的 [决定]。
-	/// 另有并行路：「自定义英雄」按钮 → 走现有建号流程（本界面不参与）。
+	/// 🔴 **数据源 = 选人目录（静态）**，不是活世界（2026-09-11 改造）——
+	///   所以本界面可以在**建世界之前**（长 loading 之前）显示。见 <see cref="HeroSelectData"/>。
+	/// 🔴 **点人名不再直接开局**：点行 → 开**角色详情页**（HeroDetailVM）→ 详情页 [决定] 才真正魂穿。
+	///   故本 VM 没有「确认」按钮——它的职责移交给详情页的 [决定]。
 	/// </summary>
 	public class HeroSelectVM : ViewModel
 	{
-		/// <summary>左侧王国项。</summary>
-		public class KingdomItemVM : ViewModel
+		/// <summary>左侧王国项（含「无所属」那一档）。</summary>
+		public class RealmItemVM : ViewModel
 		{
-			internal Kingdom Kingdom { get; }
+			internal HeroCatalogRegistry.Realm Realm { get; }
 			private bool _isSelected;
 			private readonly HeroSelectVM _owner;
 
-			public KingdomItemVM(Kingdom kingdom, HeroSelectVM owner)
+			public RealmItemVM(HeroCatalogRegistry.Realm realm, HeroSelectVM owner)
 			{
-				Kingdom = kingdom;
+				Realm = realm;
 				_owner = owner;
 			}
 
-			[DataSourceProperty]
-			public string Name => Kingdom?.Name?.ToString() ?? "?";
+			[DataSourceProperty] public string Name => HeroSelectData.Resolve(Realm?.NameRaw);
 
 			[DataSourceProperty]
 			public bool IsSelected
@@ -48,27 +47,25 @@ namespace LivingWorldNpcs.CampaignMode
 				}
 			}
 
-			[DataSourceProperty]
-			public string TextColor => IsSelected ? "#F0CE7AFF" : "#F2F2F2FF";
+			[DataSourceProperty] public string TextColor => IsSelected ? "#F0CE7AFF" : "#F2F2F2FF";
 
-			public void ExecutePick() => _owner.SelectKingdom(this);
+			public void ExecutePick() => _owner.SelectRealm(this);
 		}
 
 		/// <summary>中间家族项。</summary>
-		public class ClanItemVM : ViewModel
+		public class HouseItemVM : ViewModel
 		{
-			internal Clan Clan { get; }
+			internal HeroCatalogRegistry.House House { get; }
 			private bool _isSelected;
 			private readonly HeroSelectVM _owner;
 
-			public ClanItemVM(Clan clan, HeroSelectVM owner)
+			public HouseItemVM(HeroCatalogRegistry.House house, HeroSelectVM owner)
 			{
-				Clan = clan;
+				House = house;
 				_owner = owner;
 			}
 
-			[DataSourceProperty]
-			public string Name => Clan?.Name?.ToString() ?? "?";
+			[DataSourceProperty] public string Name => HeroSelectData.Resolve(House?.NameRaw);
 
 			[DataSourceProperty]
 			public bool IsSelected
@@ -85,37 +82,36 @@ namespace LivingWorldNpcs.CampaignMode
 				}
 			}
 
-			[DataSourceProperty]
-			public string TextColor => IsSelected ? "#F0CE7AFF" : "#F2F2F2FF";
+			[DataSourceProperty] public string TextColor => IsSelected ? "#F0CE7AFF" : "#F2F2F2FF";
 
-			public void ExecutePick() => _owner.SelectClan(this);
+			public void ExecutePick() => _owner.SelectHouse(this);
 		}
 
-		/// <summary>右侧英雄项（树模式）。点它 = 开详情页，不直接开局。</summary>
-		public class HeroItemVM : ViewModel
+		/// <summary>右侧领主项。点它 = 开详情页，不直接开局。</summary>
+		public class LordItemVM : ViewModel
 		{
-			internal Hero Hero { get; }
+			internal HeroCatalogRegistry.Lord Lord { get; }
 			private bool _isSelected;
 			private readonly HeroSelectVM _owner;
 
-			public HeroItemVM(Hero hero, HeroSelectVM owner)
+			public LordItemVM(HeroCatalogRegistry.Lord lord, HeroSelectVM owner)
 			{
-				Hero = hero;
+				Lord = lord;
 				_owner = owner;
 			}
 
-			[DataSourceProperty]
-			public string Name => HeroSelectData.GetDisplayName(Hero);
+			[DataSourceProperty] public string Name => HeroSelectData.Resolve(Lord?.NameRaw);
 
-			[DataSourceProperty]
-			public string Role => HeroSelectData.GetHeroRoleText(Hero);
+			/// <summary>身份（太阁5 原文，如「足轻组头」）；数据没有 = 空串。</summary>
+			[DataSourceProperty] public string Role => HeroSelectData.Resolve(Lord?.IdentityRaw);
 
-			/// <summary>行内小头像 sprite 名（无 = 空串，界面画占位）。</summary>
+			/// <summary>行内小头像 sprite 名（**目录按时代挑好的那张卡**；目录没给 = 回落立绘表首张）。</summary>
 			[DataSourceProperty]
-			public string MiniSprite => HeroProfileRegistry.GetMiniheadSpriteName(Hero?.StringId) ?? string.Empty;
+			public string MiniSprite => !string.IsNullOrEmpty(Lord?.MiniSprite)
+				? Lord.MiniSprite
+				: (HeroProfileRegistry.GetMiniheadSpriteName(Lord?.Id) ?? string.Empty);
 
-			[DataSourceProperty]
-			public bool HasMini => !string.IsNullOrEmpty(MiniSprite);
+			[DataSourceProperty] public bool HasMini => !string.IsNullOrEmpty(MiniSprite);
 
 			[DataSourceProperty]
 			public bool IsSelected
@@ -132,28 +128,23 @@ namespace LivingWorldNpcs.CampaignMode
 				}
 			}
 
-			[DataSourceProperty]
-			public string TextColor => IsSelected ? "#F0CE7AFF" : "#F2F2F2FF";
+			[DataSourceProperty] public string TextColor => IsSelected ? "#F0CE7AFF" : "#F2F2F2FF";
 
-			public void ExecutePick() => _owner.OnHeroClicked(Hero);
+			public void ExecutePick() => _owner.OnLordClicked(Lord);
 		}
 
 		/// <summary>推荐人列表项（推荐模式）——头像 + 姓名/年龄 + 型别 + 目标描述。</summary>
 		public class RecommendedItemVM : ViewModel
 		{
-			internal Hero Hero { get; }
-
-			/// <summary>名单里的英雄 id（世界里查不到人时 Hero 为 null，靠它取立绘/占位）。</summary>
-			internal string ProfileId { get; }
-
+			internal string HeroId { get; }
 			private readonly HeroSelectVM _owner;
 			private bool _isSelected;
 
-			internal RecommendedItemVM(string profileId, Hero hero, string name, string ageText,
-				string storyType, string storyGoal, bool missing, HeroSelectVM owner)
+			internal RecommendedItemVM(string heroId, string name, string ageText, string storyType,
+				string storyGoal, bool missing, string miniSprite, HeroSelectVM owner)
 			{
-				ProfileId = profileId;
-				Hero = hero;
+				HeroId = heroId;
+				_miniSprite = miniSprite;
 				Name = name;
 				AgeText = ageText;
 				StoryType = storyType;
@@ -173,13 +164,15 @@ namespace LivingWorldNpcs.CampaignMode
 			/// <summary>目标描述（两行小字）。</summary>
 			[DataSourceProperty] public string StoryGoal { get; }
 
-			/// <summary>true = 这个人还没在世界里（占位期/未进全量数据）→ 灰显且点了没反应。</summary>
+			/// <summary>true = 该时代目录里没有这个人（占位期/未进全量数据）→ 灰显且点了没反应。</summary>
 			[DataSourceProperty] public bool IsMissing { get; }
 
-			[DataSourceProperty] public bool IsAvailable => !IsMissing;
+			private readonly string _miniSprite;
 
 			[DataSourceProperty]
-			public string MiniSprite => HeroProfileRegistry.GetMiniheadSpriteName(ProfileId) ?? string.Empty;
+			public string MiniSprite => !string.IsNullOrEmpty(_miniSprite)
+				? _miniSprite
+				: (HeroProfileRegistry.GetMiniheadSpriteName(HeroId) ?? string.Empty);
 
 			[DataSourceProperty] public bool HasMini => !string.IsNullOrEmpty(MiniSprite);
 
@@ -205,19 +198,19 @@ namespace LivingWorldNpcs.CampaignMode
 		}
 
 		private readonly Action _onBack;
-		private readonly Action<Hero> _onHeroChosen;      // → 开详情页（不是开局）
-		private readonly Action _onCustomHero;
+		private readonly Action<string> _onHeroChosen;    // → 开详情页（不是开局）
+		private readonly int _year;
 
-		public HeroSelectVM(Action onBack, Action<Hero> onHeroChosen, Action onCustomHero, bool recommended = false)
+		public HeroSelectVM(int year, Action onBack, Action<string> onHeroChosen, bool recommended = false)
 		{
+			_year = year;
 			_onBack = onBack;
 			_onHeroChosen = onHeroChosen;
-			_onCustomHero = onCustomHero;
 			IsRecommendedMode = recommended;
 
-			Kingdoms = new MBBindingList<KingdomItemVM>();
-			Clans = new MBBindingList<ClanItemVM>();
-			Heroes = new MBBindingList<HeroItemVM>();
+			Realms = new MBBindingList<RealmItemVM>();
+			Houses = new MBBindingList<HouseItemVM>();
+			Lords = new MBBindingList<LordItemVM>();
 			RecommendedItems = new MBBindingList<RecommendedItemVM>();
 
 			if (recommended)
@@ -226,22 +219,22 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 			else
 			{
-				foreach (Kingdom k in HeroSelectData.GetSelectableKingdoms())
+				foreach (HeroCatalogRegistry.Realm r in HeroSelectData.GetRealms(year))
 				{
-					Kingdoms.Add(new KingdomItemVM(k, this));
+					Realms.Add(new RealmItemVM(r, this));
 				}
-				if (Kingdoms.Count > 0)
+				if (Realms.Count > 0)
 				{
-					SelectKingdom(Kingdoms[0]);      // 默认选第一个王国，界面一打开就有内容
+					SelectRealm(Realms[0]);      // 默认选第一个王国，界面一打开就有内容
 				}
 			}
 			RefreshValues();
 		}
 
 		// ── 列表属性（🔴 单实例，构造里 new 一次）──
-		[DataSourceProperty] public MBBindingList<KingdomItemVM> Kingdoms { get; }
-		[DataSourceProperty] public MBBindingList<ClanItemVM> Clans { get; }
-		[DataSourceProperty] public MBBindingList<HeroItemVM> Heroes { get; }
+		[DataSourceProperty] public MBBindingList<RealmItemVM> Realms { get; }
+		[DataSourceProperty] public MBBindingList<HouseItemVM> Houses { get; }
+		[DataSourceProperty] public MBBindingList<LordItemVM> Lords { get; }
 
 		/// <summary>推荐人列表（推荐模式用）。</summary>
 		[DataSourceProperty] public MBBindingList<RecommendedItemVM> RecommendedItems { get; }
@@ -256,29 +249,36 @@ namespace LivingWorldNpcs.CampaignMode
 			? new TextObject("{=LWN_hero_select_title_recommended}Recommended Lords").ToString()
 			: new TextObject("{=LWN_hero_select_title}Choose Your Lord").ToString();
 		[DataSourceProperty] public string BackText => new TextObject("{=LWN_hero_select_back}Back").ToString();
-		[DataSourceProperty] public string CustomHeroText => new TextObject("{=LWN_hero_select_custom}Custom Hero").ToString();
 		[DataSourceProperty] public string KingdomHeader => new TextObject("{=LWN_hero_select_kingdom}Realm").ToString();
 		[DataSourceProperty] public string ClanHeader => new TextObject("{=LWN_hero_select_clan}House").ToString();
 		[DataSourceProperty] public string HeroHeader => new TextObject("{=LWN_hero_select_hero}Lords").ToString();
 
-		/// <summary>点英雄行 → 交给覆盖层开详情页（**不在这里落地**）。</summary>
-		internal void OnHeroClicked(Hero hero)
+		/// <summary>该时代没有任何可选的人（内容包没配目录）——界面显示提示而不是空列表。</summary>
+		[DataSourceProperty] public bool IsEmpty => IsRecommendedMode
+			? RecommendedItems.Count == 0
+			: Realms.Count == 0;
+
+		[DataSourceProperty] public string EmptyText =>
+			new TextObject("{=LWN_hero_select_empty}No playable lord in this era.").ToString();
+
+		/// <summary>点领主行 → 交给外层开详情页（**不在这里落地**）。</summary>
+		internal void OnLordClicked(HeroCatalogRegistry.Lord lord)
 		{
-			if (hero == null)
+			if (lord == null)
 			{
 				return;
 			}
-			foreach (HeroItemVM h in Heroes)
+			foreach (LordItemVM l in Lords)
 			{
-				h.IsSelected = h.Hero == hero;
+				l.IsSelected = l.Lord == lord;
 			}
-			_onHeroChosen?.Invoke(hero);
+			_onHeroChosen?.Invoke(lord.Id);
 		}
 
-		/// <summary>点推荐人行 → 同上；未登场的人点了没反应。</summary>
+		/// <summary>点推荐人行 → 同上；该时代没有这个人则点了没反应。</summary>
 		internal void OnRecommendedClicked(RecommendedItemVM item)
 		{
-			if (item == null || item.IsMissing || item.Hero == null)
+			if (item == null || item.IsMissing)
 			{
 				return;
 			}
@@ -286,97 +286,81 @@ namespace LivingWorldNpcs.CampaignMode
 			{
 				r.IsSelected = r == item;
 			}
-			_onHeroChosen?.Invoke(item.Hero);
+			_onHeroChosen?.Invoke(item.HeroId);
 		}
 
 		/// <summary>
-		/// 用内容包的「推荐」名单（<see cref="HeroProfileRegistry.Recommendations"/>）铺列表。
-		/// 🔴 名单里的 id 要在**世界里真找得到人**才能选——找不到就灰显「未登场」
-		///   （占位期 / 全量数据未接入时的正常情况；T4 到位后自然全亮）。
-		/// 年龄按 **开局年 − 生年** 现算（不抄太阁5 截图的数字）。
+		/// 用内容包的「推荐」名单铺列表：名单里的 id 要在**该时代的目录**里找得到人。
+		/// 找不到就灰显「未登场」（占位期/该时代还没这个人，属正常）。
+		/// 年龄按 **时代年份 − 生年** 现算（史实口径）。
 		/// </summary>
 		private void BuildRecommended()
 		{
 			foreach (HeroProfileRegistry.Recommendation rec in HeroProfileRegistry.Recommendations)
 			{
-				Hero hero = HeroSelectData.FindHero(rec.HeroId);
-				bool missing = hero == null || !HeroSelectData.IsSelectable(hero);
+				HeroCatalogRegistry.Lord lord = HeroSelectData.FindLord(_year, rec.HeroId);
+				bool missing = lord == null;
 
-				HeroProfileRegistry.Profile profile = HeroProfileRegistry.GetProfile(rec.HeroId);
-				string name = hero != null
-					? HeroSelectData.GetDisplayName(hero)
-					: new TextObject("{=LWN_hero_select_not_arrived}Not yet in this world").ToString();
+				string name = missing
+					? new TextObject("{=LWN_hero_select_not_arrived}Not yet in this world").ToString()
+					: HeroSelectData.Resolve(lord.NameRaw);
 
 				string ageText = string.Empty;
+				HeroProfileRegistry.Profile profile = HeroProfileRegistry.GetProfile(rec.HeroId);
 				if (profile != null && profile.HasLifespan)
 				{
-					// 年龄 = 时代年份 − 生年（史实口径；**不是** CampaignTime.Now.GetYear，
-					// 那个是"开局以来经过的年数"，见 EraCatalog.SelectedEraYear 注释）
-					int eraYear = EraCatalog.SelectedEraYear;
-					int age = eraYear > 0 ? eraYear - profile.Birth : (int)(hero?.Age ?? 0f);
+					int age = _year > 0 ? _year - profile.Birth : 0;
 					ageText = new TextObject("{=LWN_hero_detail_age}{AGE} years old")
 						.SetTextVariable("AGE", age.ToString()).ToString();
 				}
-				else if (hero != null)
-				{
-					ageText = new TextObject("{=LWN_hero_detail_age}{AGE} years old")
-						.SetTextVariable("AGE", ((int)hero.Age).ToString()).ToString();
-				}
 
-				var item = new RecommendedItemVM(
-					rec.HeroId, hero, name, ageText,
+				RecommendedItems.Add(new RecommendedItemVM(
+					rec.HeroId, name, ageText,
 					new TextObject(rec.StoryTypeRaw).ToString(),
 					new TextObject(rec.StoryGoalRaw).ToString(),
-					missing, this);
-				RecommendedItems.Add(item);
+					missing, lord?.MiniSprite, this));
 			}
 		}
 
 		/// <summary>点王国 → 刷新家族列（并自动选第一个家族，省一次点击）。</summary>
-		internal void SelectKingdom(KingdomItemVM item)
+		internal void SelectRealm(RealmItemVM item)
 		{
 			if (item == null)
 			{
 				return;
 			}
-			foreach (KingdomItemVM k in Kingdoms)
+			foreach (RealmItemVM r in Realms)
 			{
-				k.IsSelected = k == item;
+				r.IsSelected = r == item;
 			}
-			Clans.Clear();
-			foreach (Clan c in HeroSelectData.GetSelectableClans(item.Kingdom))
+			Houses.Clear();
+			foreach (HeroCatalogRegistry.House h in HeroSelectData.GetHouses(_year, item.Realm?.Id))
 			{
-				Clans.Add(new ClanItemVM(c, this));
+				Houses.Add(new HouseItemVM(h, this));
 			}
-			SelectClan(Clans.Count > 0 ? Clans[0] : null);
+			SelectHouse(Houses.Count > 0 ? Houses[0] : null);
 		}
 
-		/// <summary>点家族 → 刷新英雄列（同样自动选第一个，让行高亮直接落在人身上）。</summary>
-		internal void SelectClan(ClanItemVM item)
+		/// <summary>点家族 → 刷新领主列（同样自动选第一个，让行高亮直接落在人身上）。</summary>
+		internal void SelectHouse(HouseItemVM item)
 		{
-			foreach (ClanItemVM c in Clans)
+			foreach (HouseItemVM h in Houses)
 			{
-				c.IsSelected = c == item;
+				h.IsSelected = h == item;
 			}
-			Heroes.Clear();
+			Lords.Clear();
 			if (item != null)
 			{
-				foreach (Hero h in HeroSelectData.GetSelectableHeroes(item.Clan))
+				foreach (HeroCatalogRegistry.Lord l in HeroSelectData.GetLords(_year, item.House?.Id))
 				{
-					Heroes.Add(new HeroItemVM(h, this));
+					Lords.Add(new LordItemVM(l, this));
 				}
 			}
 			// 只做高亮，**不开详情页**（换列不该把人推进下一步）
-			foreach (HeroItemVM h in Heroes)
+			foreach (LordItemVM l in Lords)
 			{
-				h.IsSelected = h == (Heroes.Count > 0 ? Heroes[0] : null);
+				l.IsSelected = l == (Lords.Count > 0 ? Lords[0] : null);
 			}
-		}
-
-		/// <summary>「自定义英雄」→ 走现有建号流程。</summary>
-		public void ExecuteCustomHero()
-		{
-			_onCustomHero?.Invoke();
 		}
 
 		/// <summary>返回上一层（回选剧本）。</summary>
@@ -390,12 +374,13 @@ namespace LivingWorldNpcs.CampaignMode
 			base.RefreshValues();
 			OnPropertyChanged(nameof(TitleText));
 			OnPropertyChanged(nameof(BackText));
-			OnPropertyChanged(nameof(CustomHeroText));
 			OnPropertyChanged(nameof(KingdomHeader));
 			OnPropertyChanged(nameof(ClanHeader));
 			OnPropertyChanged(nameof(HeroHeader));
 			OnPropertyChanged(nameof(IsRecommendedMode));
 			OnPropertyChanged(nameof(IsTreeMode));
+			OnPropertyChanged(nameof(IsEmpty));
+			OnPropertyChanged(nameof(EmptyText));
 		}
 	}
 }

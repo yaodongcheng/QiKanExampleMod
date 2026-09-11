@@ -16,14 +16,17 @@ namespace LivingWorldNpcs.CampaignMode
 		private readonly Action _onBack;
 		private readonly Action<EraCatalog.Era> _onPick;
 		private readonly Action _onRecommended;
+		private readonly Action _onCustomHero;
 		private readonly List<ScenarioItemVM> _items = new List<ScenarioItemVM>();
 		private ScenarioItemVM _selected;
 
-		public ScenarioSelectVM(Action onBack, Action<EraCatalog.Era> onPick, Action onRecommended = null)
+		public ScenarioSelectVM(Action onBack, Action<EraCatalog.Era> onPick,
+			Action onRecommended = null, Action onCustomHero = null)
 		{
 			_onBack = onBack;
 			_onPick = onPick;
 			_onRecommended = onRecommended;
+			_onCustomHero = onCustomHero;
 			Items = new MBBindingList<ScenarioItemVM>();
 			foreach (EraCatalog.Era era in EraCatalog.All)
 			{
@@ -47,6 +50,12 @@ namespace LivingWorldNpcs.CampaignMode
 
 		/// <summary>「推荐」按钮文字（太阁5 原版就在剧本页底部居中）。</summary>
 		public string RecommendedText => new TextObject("{=LWN_scenario_select_recommended}Recommended").ToString();
+
+		/// <summary>「自定义人物」按钮文字——入口从选人界面挪到这里（建号本来就不需要选人）。</summary>
+		public string CustomHeroText => new TextObject("{=LWN_hero_select_custom}Custom Hero").ToString();
+
+		/// <summary>当前选中的剧本（「自定义人物」用它决定开哪个时代）。</summary>
+		internal EraCatalog.Era GetSelectedEra() => _selected?.Era;
 
 		/// <summary>剧本按钮列表（prefab 里 DataSource="{Items}"）。
 		/// 🔴 必须是**同一个实例**——每次 get 新建列表会割断 Gauntlet 绑定。</summary>
@@ -98,12 +107,19 @@ namespace LivingWorldNpcs.CampaignMode
 			_onRecommended?.Invoke();
 		}
 
+		/// <summary>「自定义人物」→ 用当前选中的剧本开世界，走原建号流程（不选人）。</summary>
+		public void ExecuteCustomHero()
+		{
+			_onCustomHero?.Invoke();
+		}
+
 		public override void RefreshValues()
 		{
 			base.RefreshValues();
 			OnPropertyChanged(nameof(TitleText));
 			OnPropertyChanged(nameof(BackText));
 			OnPropertyChanged(nameof(RecommendedText));
+			OnPropertyChanged(nameof(CustomHeroText));
 		}
 
 		/// <summary>一个剧本按钮。</summary>

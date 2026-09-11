@@ -152,6 +152,44 @@ def main():
             if miss:
                 warns.append(f"[{stem}] {hid} 缺 {'/'.join(miss)}（占位期正常；详情页该块显示占位）")
 
+    # ── ⑤ 选人目录 ↔ 世界英雄集合（2026-09-11 加）──
+    #   HeroCatalog.xml 是**建世界之前**选人界面唯一的取数来源（不读 Campaign.Current）。
+    #   它的 id 集合必须与该时代真会建出来的英雄集合**逐个相等**——
+    #   少了 = 该人不可选（静默消失）；多了 = 选了之后世界里找不到人（落地失败，回退建号）。
+    #   口径：时代 1560 → taikou_heroes.xml（基线无后缀）；时代 <N> → taikou_heroes_<N>.xml
+    #   （与据点文件同一条命名约定；改约定要同时改生成器 ERAS 表与本处）。
+    catalog = reg / "HeroCatalog.xml"
+    if not catalog.is_file():
+        warns.append("HeroCatalog.xml 不存在——选人目录检查跳过（建世界之前的选人界面会没数据）")
+    else:
+        for era_node in ET.parse(str(catalog)).getroot().iter("Era"):
+            era_id = era_node.get("id") or ""
+            lords = {el.get("id") for el in era_node.iter("Lord") if el.get("id")}
+            heroes_fn = data / ("taikou_heroes.xml" if era_id == "1560"
+                                else "taikou_heroes_%s.xml" % era_id)
+            if not heroes_fn.is_file():
+                errors.append(f"选人目录有 Era {era_id}，但找不到对应英雄段 {heroes_fn.name}")
+                continue
+            world = ids_from(heroes_fn, "Hero") - EXEMPT_HERO_IDS
+            # 目录里不含"建号占位家族"的人（内容包有权剔除），故只查「世界有而目录无」
+            missing = sorted(world - lords)
+            extra = sorted(lords - world)
+            if missing:
+                errors.append(f"[Era {era_id}] 世界有这些英雄但选人目录里没有（会不可选）：{missing}")
+            if extra:
+                errors.append(f"[Era {era_id}] 选人目录有这些但世界英雄段里没有（选了会落地失败）：{extra}")
+            if not missing and not extra:
+                print(f"  [OK] Era {era_id}：目录 {len(lords)} 人 == 世界英雄 {len(world)} 人")
+
+        # 推荐人必须在 1560 那份目录里（推荐入口固定进 1560）
+        era1560 = next((e for e in ET.parse(str(catalog)).getroot().iter("Era")
+                        if e.get("id") == "1560"), None)
+        lords1560 = {el.get("id") for el in era1560.iter("Lord")} if era1560 is not None else set()
+        for order, hid in recommended:
+            if hid not in lords1560:
+                errors.append(f"推荐人 #{order} {hid} 不在 Era 1560 的选人目录里"
+                              f"（推荐列表会显示「未登场」）")
+
     # ── 反向：立绘表覆盖了多少世界英雄（信息项）──
     all_world = set().union(*era_heroes.values()) if era_heroes else set()
     covered = len(all_world & stage_ids)
