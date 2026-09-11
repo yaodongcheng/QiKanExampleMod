@@ -158,11 +158,17 @@ def town_table(plain, city_head):
 
 
 def ri_fort_table(plain, city_head):
-    """里/砦表：城表头+0x48C0 起 24B×28（里 246..257 + 砦 258..273）"""
+    """里/砦表：城表头+0x48C0 起 —— 里 246..257 = 24B×12，紧接 砦 258..273 = 28B×16。
+
+    🔴 2026-09-10 修正：整段一律按 24B 读会从砦段第 2 条起错位（砦 16 条里 11 条的
+    「首领号」读到隔壁字段的垃圾值，如 44000/18000/30775）——扫描证实砦步长 = 28B
+    （判据：首领号∈[1,1400) 且兵员∈[100,40000]，16/16 命中）。字段偏移与里段相同。
+    """
     base = city_head + 0x48C0
     out = []
     for k in range(28):
-        r = plain[base + 24*k : base + 24*(k+1)]
+        off = base + (24 * k if k < 12 else 24 * 12 + 28 * (k - 12))
+        r = plain[off:off + 28]
         out.append({
             'idx': 246 + k,
             'gold': int.from_bytes(r[6:8], 'little'),
