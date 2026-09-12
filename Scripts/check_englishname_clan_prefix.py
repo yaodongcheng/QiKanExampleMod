@@ -10,9 +10,12 @@ r"""家族 id ↔ 家头罗马音 一致性检查（2026-09-11 家族重建后�
 **新规则（本检查查的就是它）**：
   1. **家族 id 的罗马音块 = 家头（`Owner_<年>`）EnglishName 的首块**——
      id 由家头派生，两边必须一致（历史教训：前缀写错会造出假家族，如 `clan_yagyūū_1`）。
-  2. **`LocozationName` 的罗马音 = 同一个值**（它是给本地化用的英文名）。
-  3. 家头 EnglishName 为空 → 走生成器的苗字罗马音兜底表（旧家族表存档），
+  2. 家头 EnglishName 为空 → 走生成器的苗字罗马音兜底表（旧家族表存档），
      本检查对它**只报不计**（列出来供人核）。
+
+  ~~旧规则②「`LocozationName` 的罗马音 = 同一个值」~~ **已于 2026-09-12 删除**：该列随家族表列裁剪
+  一起退役（它是 `{=TAIKOU_<id>}<罗马音>` 的机械拼接、282/283 的键在 Taikou 语言包根本不存在，
+  罗马音本就从 id 派生）→ 那条检查成了同义反复。罗马音与家头的对应由规则①把守。
 
 **罗马音写法约定**（2026-09-11 用户裁定，别当错误）：
   长音符在 `EnglishName` 里**一律写作双写**——`ō→oo` / `ū→uu` / `â→aa`。
@@ -20,8 +23,8 @@ r"""家族 id ↔ 家头罗马音 一致性检查（2026-09-11 家族重建后�
   （例：佐藤 Satō 与 佐東 Sato 必须能区分）。所以 `clan_katoo_1` ↔ `Katoo Kiyomasa` **是合法的**。
   归一化 = 把 clan id 的**长音符展开成双写** → 两边都变成 `katoo` → 精确比对。
   🔴 **禁止**「连续相同字母压成一个」那种归一化：它会把刻意区分的 `oo`/`o` 合并掉。
-  🔴 旧表的 `-shi`（=「氏」）后缀**已随重建退役**——新 `LocozationName` 不带它，
-     别再对它做 `[- ]?shi$` 剥离（会把 Konishi/Miyoshi/Takahashi 这类苗字吃掉尾巴）。
+  🔴 旧表的 `-shi`（=「氏」）后缀**已随重建退役**——别再对它做 `[- ]?shi$` 剥离
+     （会把 Konishi/Miyoshi/Takahashi 这类苗字吃掉尾巴）。
 
 Usage:
   python Scripts/check_englishname_clan_prefix.py            # 独立跑
@@ -74,7 +77,7 @@ def main():
         heroes = list(csv.DictReader(fh))
     byid = {r["ID"]: r for r in heroes}
 
-    bad_id, bad_loc, nogap, checked = [], [], [], 0
+    bad_id, nogap, checked = [], [], 0
     for c in clans:
         cid = (c.get("ID") or "").strip()
         if not cid.startswith("clan_"):
@@ -85,7 +88,7 @@ def main():
         heads = [c.get("Owner_" + e, "") for e in ERAS]
         heads = [h for h in heads if h and h != "-"]
         if not heads:
-            bad_id.append((cid, c.get("ScriptName"), "（没有家头）"))
+            bad_id.append((cid, c.get("Name"), "（没有家头）"))
             continue
         ok_head, gaps = False, []
         for h in heads:
@@ -99,33 +102,28 @@ def main():
         checked += 1
         if not ok_head:
             if gaps and len(gaps) == len(heads):
-                nogap.append((cid, c.get("ScriptName"), "、".join(n for _i, n in gaps)))
+                nogap.append((cid, c.get("Name"), "、".join(n for _i, n in gaps)))
             else:
-                bad_id.append((cid, c.get("ScriptName"),
+                bad_id.append((cid, c.get("Name"),
                                " / ".join("%s=%s" % (h, ((byid.get(h) or {}).get("EnglishName") or "（空）"))
                                           for h in heads)))
 
-        # ② LocozationName 的罗马音 ↔ id
-        m = re.match(r"^\{=[^}]*\}(.*)$", (c.get("LocozationName") or "").strip())
-        if m and norm_clan(m.group(1)) != norm_clan(rid):
-            bad_loc.append((cid, m.group(1)))
+        # ② 已退役（2026-09-12）：原查 `LocozationName` 的罗马音 ↔ id。该列已删——
+        #    它是 `{=TAIKOU_<id>}<罗马音>` 的机械拼接（282/283 的键在 Taikou 语言包根本不存在），
+        #    罗马音本就从 id 派生 → 这条检查成了同义反复。罗马音与家头的对应由 ① 把守。
 
     print("家族 id ↔ 家头罗马音：受检 %d 个家族" % checked)
     if nogap:
         print("\n[?] 家头全无 EnglishName（走苗字罗马音兜底，列出来供核）%d 条" % len(nogap))
         for cid, sc, who in nogap:
             print("    %-24s 名=%s  家头=%s" % (cid, sc, who))
-    if bad_loc:
-        print("\n[X] LocozationName 罗马音与 id 不符 %d 条" % len(bad_loc))
-        for cid, rom in bad_loc:
-            print("    %-24s 罗马音=%s" % (cid, rom))
     if bad_id:
         print("\n[X] id 与家头英文名对不上 %d 条" % len(bad_id))
         for cid, sc, why in bad_id:
             print("    %-24s 名=%-6s  %s" % (cid, sc, why))
 
-    if bad_id or bad_loc:
-        print("\n结果：红（id↔家头 %d + id↔罗马音 %d）" % (len(bad_id), len(bad_loc)))
+    if bad_id:
+        print("\n结果：红（id↔家头 %d）" % len(bad_id))
         return 1
     print("\n结果：绿")
     return 0
