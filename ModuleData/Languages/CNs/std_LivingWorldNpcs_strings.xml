@@ -4542,6 +4542,8 @@
     <string id="LWN_hero_select_kingdom" text="势力" />
     <string id="LWN_hero_select_clan" text="家族" />
     <string id="LWN_hero_select_hero" text="人物" />
+    <string id="LWN_hero_select_identity" text="身份" />
+    <string id="LWN_hero_select_identity_all" text="全部" />
     <string id="LWN_hero_select_will_be" text="你将扮演：{NAME}" />
     <string id="LWN_hero_select_none" text="此家族暂无可选人物" />
     <string id="LWN_hero_select_role_king" text="大名" />
@@ -4551,6 +4553,7 @@
     <string id="LWN_scenario_select_recommended" text="推荐" />
     <string id="LWN_hero_select_title_recommended" text="推荐人物" />
     <string id="LWN_hero_select_empty" text="该时代没有可扮演的人物。" />
+    <string id="LWN_hero_select_empty_identity" text="该身份下没有可扮演的人物。" />
     <string id="LWN_hero_select_not_arrived" text="未登场" />
     <string id="LWN_hero_detail_basic" text="基本情报" />
     <string id="LWN_hero_detail_ability" text="能力情报" />

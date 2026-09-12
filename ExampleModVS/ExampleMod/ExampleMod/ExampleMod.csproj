@@ -402,6 +402,10 @@
     <!-- <Compile Include="CampaignMode\MapBorderDiagnosticPatch.cs" /> -->
     <Compile Include="CampaignMode\BattlePowerCalculationGuardPatch.cs" />
     <Compile Include="CampaignMode\KingdomOnNewGameCreatedGuardPatch.cs" />
+    <!-- 无地势力（商家/浪人/被灭族的残党）的领主对会让 vanilla 距离模型裸解引用 null：
+         UpdateFriendshipAndEnemies 传 FactionMidSettlement（无地 = null）→ null.Id NRE（雷 107）。
+         用户 2026-09-12 裁定「允许无地家族有 lord 成员（灭族后仍要看到野队）」→ 兜底落在距离模型入口。 -->
+    <Compile Include="CampaignMode\MapDistanceNullSettlementGuardPatch.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshProbeCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugRenderer.cs" />

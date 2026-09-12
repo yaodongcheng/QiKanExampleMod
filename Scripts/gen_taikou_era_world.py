@@ -478,20 +478,39 @@ def sync_cn(md, block):
     raw = io.open(path, "rb").read()
     text = raw.decode("utf-8-sig")
     eol = "\r\n" if "\r\n" in text else "\n"
-    # 1) 删掉旧块
-    text = re.sub(re.escape(CN_BLOCK_MARK) + r".*?\n(?=  <string|</base>)", "", text, flags=re.S)
+    # 1) 删掉旧块（标记行 + 紧随其后的 <string> 行）。
+    #    🔴 必须连行删干净：块的**位置**是本文件的头号坑（见第 3 步），旧产物散在两种位置，
+    #    按「标记行 + 后面连续的 string 行」扫，两种都能吃。
+    lines, removed = text.split("\n"), 0
+    out, i = [], 0
+    while i < len(lines):
+        if CN_BLOCK_MARK in lines[i]:
+            i += 1
+            while i < len(lines) and "<string " in lines[i]:
+                removed += 1
+                i += 1
+            continue
+        out.append(lines[i])
+        i += 1
     # 2) 删掉三个键族的散条目（不管在文件哪一处）
-    out, removed = [], 0
-    for line in text.split("\n"):
+    kept = []
+    for line in out:
         m = re.search(r'<string id="([^"]+)"', line)
         if m and any(m.group(1).startswith(f) for f in CN_KEY_FAMILIES):
             removed += 1
             continue
-        out.append(line)
-    text = "\n".join(out)
-    # 3) 插到 </base> 前
-    idx = text.rfind("</base>")
+        kept.append(line)
+    text = "\n".join(kept)
+    # 3) 插到 </strings> **之内**
+    #    🔴🔴 位置铁律（2026-09-12 实机事故）：引擎 LocalizedTextManager.LoadLanguage 只遍历
+    #    `<strings>` 的子节点，写在 `</strings>` 之后的 string 一律**静默不加载**（不报错、不崩）。
+    #    旧版这里插在 `</base>` 前 = 全在 `</strings>` 之后 → 势力/家族/英雄 4985 条中文全部失效，
+    #    玩家的选人界面看到的是数据 XML 里的英文 fallback。改动此处前先读
+    #    `plans/rules/wheels.d/campaign-mode.md` 文本线体检三件套。
+    idx = text.rfind("</strings>")
     if idx < 0:
+        print("  [FATAL] CN 文件里找不到 </strings> 锚点——结构变了？本块不写（玩家会看到英文名）",
+              file=sys.stderr)
         return None, removed
     new = text[:idx] + block + text[idx:]
     data = new.replace("\r\n", "\n").replace("\n", eol).encode("utf-8-sig")

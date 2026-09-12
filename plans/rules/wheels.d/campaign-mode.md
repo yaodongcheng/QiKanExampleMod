@@ -112,8 +112,15 @@ python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Tai
 | 脚本 | 查什么 | 判据 |
 |---|---|---|
 | `check_culture_text_variants.py` | 「无 `.default` 的文化变体族」全集 → 本包是否自备 `<族名>.<自家文化>`（族有 `_f` 约定则一并要） | missing=0 |
-| `check_language_registration.py` | ①每个 `Languages/<lang>/` 有 `language_data.xml` ②目录↔清单**双向**对齐 ③铁律 14 emoji/超 BMP ④**自有键中文覆盖（扫数据 XML + C# 双源，剥注释；排除官方键与反编译副本）** ⑤声明后紧跟注释 | problems=0 |
+| `check_language_registration.py` | ①每个 `Languages/<lang>/` 有 `language_data.xml` ②目录↔清单**双向**对齐 ③铁律 14 emoji/超 BMP ④**自有键中文覆盖（扫数据 XML + C# 双源，剥注释；排除官方键与反编译副本）** ⑤声明后紧跟注释 ⑥🔴 **每条 `<string>` 必须在 `<strings>` 之内**（含根元素形状检查） | problems=0 |
 | `gen_taikou_english_strings.py` | 英文层**生成器**：扫数据 XML 的 `{=KEY}English fallback` → 产出 `Languages/std_<包>_strings.xml` + 根级 `language_data.xml`（生成物禁手改，`--check` 校验最新） | `--check` 通过 |
+
+🔴 **`<strings>` 位置铁律（2026-09-12 登记，雷 106）**：引擎 `LocalizedTextManager.LoadLanguage` 只遍历 **`<strings>` 的直接子节点**——写在 `</strings>` 之后（哪怕还在根元素 `<base>` 里）的条目**一条都不加载、零报错、零崩溃**，玩家只看到数据 XML 里的英文 fallback。
+
+- **症状长这样**：中文游戏里**只有某几类词**是英文（实测选人界面「势力/家族/英雄」三列全罗马字，同界面列传/身份却正常）——因为同文件里块内的条目照常生效。
+- **追加式生成器的插入锚点一律取 `</strings>`，绝不取 `</base>`**（范本 `Scripts/gen_taikou_era_world.py::sync_cn`：按行删旧块 + 插到 `</strings>` 前 + 取不到锚点就 FATAL 不写；幂等复跑验证）。
+- **检查器假绿同族**：`check_language_registration.py` 原先只认 `--module <模块名>`，而 `run_all_checks.py` 传的是**路径** → 该模块仍能查，但 ④中文覆盖被跳过；已改为两种形态都吃（`targets = [(名, 根, 前缀)]`）。**给脚本加参数化入口时，先确认套件传进来的形态能被解析**。
+- **负面测试常驻**：`Scripts/test_negative_checks.py` 有「`<strings>` 块外条目必须报红」用例（写坏 → exit 1 → 还原）。
 
 **语言目录两层结构**（照 LWN/官方）：根级 = 默认语言（英文）+ `CNs/` = 中文；**每层各带一份 `language_data.xml`**，`xml_path` 一律相对 `Languages/` 写（`CNs/std_X_strings.xml`）。
 

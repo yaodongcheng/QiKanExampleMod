@@ -10,16 +10,21 @@
 ------------------------
   `ModuleData/AssetRegistry/HeroCatalog.xml`   ← 生成物·禁止手改
 
+    <RealmType id="warrior" name="{=TAIKOU_forcetype_warrior}Warrior" order="1"/>   ← 左列筛档标签（全时代共用）
     <Era id="1560">
-      <Realm id="kingdom_oda" name="{=TAIKOU_kingdom_oda}Oda Clan" order="1"/>
-      <Realm id=""            name="{=LWN_hero_select_no_realm}Masterless" order="99"/>
-      <House id="clan_oda" realm="kingdom_oda" name="{=TAIKOU_clan_oda}Oda Nobunaga" order="1"/>
+      <Realm id="kingdom_oda" name="{=TAIKOU_kingdom_oda}Oda Clan" type="warrior" order="1"/>
+      <Realm id=""            name="{=TAIKOU_realm_masterless}Masterless" order="99"/>  ← 无所属档不带 type
+      <House id="clan_oda" realm="kingdom_oda" name="{=TAIKOU_clan_oda}Oda Nobunaga" type="warrior" order="1"/>
       <Lord  id="lord_tk5_195" house="clan_oda" order="1"
              name="{=TAIKOU_hero_nobunaga}Oda Nobunaga"
              identity="{=TAIKOU_identity_daimyo}Daimyo"
              seat="{=TAIKOU_sett_town_tk080}Kiyosu Castle"
              bustup="lwnprof_bustup_195" mini="lwnprof_mini_195"/>
     </Era>
+
+🔴 `type` = 势力类型（选人界面最左列的筛档）：王国取其势力的 `ForceType`；家族取其**当年**
+   势力 id 的 `ForceType`（`Clan.csv` 的 `Kingdom_<年>`），立国家族跟王国同档；
+    查不到 → `others`。取值见 `REALM_TYPES`。
 
 🔴 **目录的 id 集合 = `taikou_heroes*.xml` 的 id 集合**（同源）——不是从 CSV 全量挑，
    所以「目录里有、世界里没有」这种漂移**不可能发生**。守卫见 Scripts/check_hero_profile_keys.py。
@@ -105,6 +110,55 @@ IDENTITY_KEYS = {
     "船大将": ("funadaishou", "Fleet Captain"),
     "锻冶匠": ("kajishi", "Smith"),
 }
+
+# ─────────────────────── 势力类型（选人界面左列筛选）───────────────────────
+# 选人界面最左列的筛选档：**全部（LWN 侧）** + 下面五档。档位 = 上游 `TaikouForce.csv`
+# 的 `ForceType` 列（实测取值：Warrior / Trader / Ninja / Pirate / Neutral）+ 兜底档。
+# 🔴 标签走**内容包自有键**（铁律 3：LWN 不认识「忍者/海贼」这类具体词汇）——
+#    中文在 `Languages/CNs/std_Taikou_strings.xml` 里人工维护，英文 fallback 由
+#    `gen_taikou_english_strings.py` 从本表自动抽取。
+REALM_TYPES = [
+    ("warrior", "Warrior", 1),      # 武将（大名家 / 国人 / 剑豪等武士势力）
+    ("trader", "Trader", 2),        # 商人（商家——不立国，落在「无所属」档里）
+    ("ninja", "Ninja", 3),          # 忍者（忍者众，各自立国）
+    ("pirate", "Pirate", 4),        # 海贼（水军，各自立国）
+    ("others", "Others", 5),        # 其他（浪人众等无势力归属的收容家族）
+]
+FORCE_TYPE_TO_KEY = {"Warrior": "warrior", "Trader": "trader",
+                     "Ninja": "ninja", "Pirate": "pirate"}
+REALM_TYPE_KEY = "TAIKOU_forcetype_%s"      # 标签键（中文在 CN 语言文件里人工维护）
+DEFAULT_TYPE = "others"             # 查不到 / Neutral → 其他（不猜）
+
+
+def force_type_table(csv_dir):
+    """`TaikouForce.csv` → {势力 id: ForceType}。"""
+    out = {}
+    for r in read_csv(csv_dir / "TaikouForce.csv"):
+        fid = (r.get("ID") or "").strip()
+        if fid:
+            out[fid] = (r.get("ForceType") or "").strip()
+    return out
+
+
+def clan_force_table(csv_dir, era_id):
+    """`Clan.csv` → {家族 id: 该族**当年的势力 id**（`Kingdom_<年>`；'-' = 当年无势力）}。"""
+    out = {}
+    for r in read_csv(csv_dir / "Clan.csv"):
+        cid = (r.get("ID") or "").strip()
+        if cid:
+            out[cid] = (r.get("Kingdom_" + era_id) or "").strip()
+    return out
+
+
+def type_key_of_force(fid, ftypes):
+    """势力 id → 筛选档 key（查不到 = 'others'，不猜）。"""
+    return FORCE_TYPE_TO_KEY.get(ftypes.get(fid, ""), DEFAULT_TYPE)
+
+
+def force_id_of_realm(realm_id):
+    """目录里的王国 id（`kingdom_oda`）→ 势力表里的势力 id（`oda`）。"""
+    return realm_id[len("kingdom_"):] if realm_id.startswith("kingdom_") else realm_id
+
 
 HEADER = ('<?xml version="1.0" encoding="utf-8"?>\n'
           '<!-- 🔴 生成物·禁止手改（铁律 22）——由 Scripts/gen_taikou_hero_catalog.py 生成。\n'
@@ -259,6 +313,8 @@ def build(md, csv_dir):
     problems, warns = [], []
     taikou = {r["ID"]: r for r in read_csv(csv_dir / "TaikouHero.csv")}
     cards = portrait_cards(md)
+    ftypes = force_type_table(csv_dir)          # 势力 id → ForceType（左列筛选用）
+    _warned_forces = set()                      # 缺类型的势力只报一次（英雄循环里会重复命中）
 
     eras = []
     for e in ERAS:
@@ -268,6 +324,7 @@ def build(md, csv_dir):
         kingdoms = kingdom_name_table(md, era)
         seats = settlement_display(md, era)
         seats.update(settlement_alias_index(csv_dir, seats))
+        cforce = clan_force_table(csv_dir, era)      # 家族 id → 当年的势力 id
 
         realms, houses, lords = {}, {}, []
         for hid, h in heroes.items():
@@ -281,9 +338,25 @@ def build(md, csv_dir):
                 continue                      # 玩家占位家族（无名字、无内容）不进目录
             kd = cl["super_faction"].split(".", 1)[-1] if "." in cl["super_faction"] else ""
             realm_id = kd if kd in kingdoms else ""
-            realms.setdefault(realm_id, kingdoms.get(kd, NO_REALM_NAME) if realm_id else NO_REALM_NAME)
+            # 势力类型（左列筛选）：立国的按王国自己的势力类型（王国 id 去掉 `kingdom_`
+            # 前缀才是势力表里的 id）；不立国的（商家/浪人众）按该族**当年**的势力 id 查
+            # （如 clan_chaya_1 的 org_merchant_chaya = Trader）
+            realm_type = type_key_of_force(force_id_of_realm(realm_id), ftypes) if realm_id else ""
+            if realm_id and force_id_of_realm(realm_id) not in ftypes:
+                key = (era, realm_id)
+                if key not in _warned_forces:
+                    _warned_forces.add(key)
+                    warns.append(f"[{era}] 王国 {realm_id} 的势力 {force_id_of_realm(realm_id)!r} "
+                                 f"不在 TaikouForce.csv 里 → 类型记 {DEFAULT_TYPE}")
+            cid_force = cforce.get(fac, "")
+            house_type = type_key_of_force(cid_force, ftypes) if cid_force else DEFAULT_TYPE
+            if realm_id:
+                house_type = realm_type            # 立国家族跟王国同档（免得两处口径打架）
+            realms.setdefault(realm_id, {"name": kingdoms.get(kd, NO_REALM_NAME) if realm_id else NO_REALM_NAME,
+                                         "type": realm_type})
             # 家族显示名优先用 short_name（列表里「Oda」比「Oda Nobunaga」合适）
-            houses.setdefault(fac, {"realm": realm_id, "name": cl["short_name"] or cl["name"]})
+            houses.setdefault(fac, {"realm": realm_id, "name": cl["short_name"] or cl["name"],
+                                    "type": house_type})
 
             row = taikou.get(hid, {})
             identity_raw = (row.get("Identity_" + era) or "").strip()
@@ -313,9 +386,11 @@ def build(md, csv_dir):
         realm_order = [r for r in realms if r] + ([""] if "" in realms else [])
         out_realms = []
         for i, r in enumerate(realm_order, start=1):
-            out_realms.append((r, realms[r], i if r else 99))
+            info = realms[r]
+            out_realms.append((r, info["name"], info["type"], i if r else 99))
         house_order = sorted(houses.items(), key=lambda kv: (kv[1]["realm"] == "", kv[0]))
-        out_houses = [(hid_, h["realm"], h["name"], i) for i, (hid_, h) in enumerate(house_order, start=1)]
+        out_houses = [(hid_, h["realm"], h["name"], h["type"], i)
+                      for i, (hid_, h) in enumerate(house_order, start=1)]
         lords.sort(key=lambda l: (l["house"], not l["leader"], l["birth"]))
         out_lords = []
         counter = {}
@@ -326,14 +401,22 @@ def build(md, csv_dir):
         eras.append((era, out_realms, out_houses, out_lords))
 
     text = [HEADER, "<HeroCatalog>\n"]
+    # 筛档标签（全时代共用一份；选人界面最左列按 order 排。界面自己再加「全部」档）
+    for key, en, order in REALM_TYPES:
+        text.append('  <RealmType id="%s" name="{=%s}%s" order="%d" />\n'
+                    % (key, REALM_TYPE_KEY % key, en, order))
     for era, out_realms, out_houses, out_lords in eras:
         text.append('  <Era id="%s">\n' % era)
-        for rid, name, order in out_realms:
-            text.append('    <Realm id="%s" name="%s" order="%d" />\n'
-                        % (esc(rid), esc(name), order))
-        for hid_, realm, name, order in out_houses:
-            text.append('    <House id="%s" realm="%s" name="%s" order="%d" />\n'
-                        % (esc(hid_), esc(realm), esc(name), order))
+        for rid, name, rtype, order in out_realms:
+            attrs = 'id="%s" name="%s"' % (esc(rid), esc(name))
+            if rtype:
+                attrs += ' type="%s"' % esc(rtype)         # 无所属档不带类型（由家族决定）
+            text.append('    <Realm %s order="%d" />\n' % (attrs, order))
+        for hid_, realm, name, htype, order in out_houses:
+            attrs = 'id="%s" realm="%s" name="%s"' % (esc(hid_), esc(realm), esc(name))
+            if htype:
+                attrs += ' type="%s"' % esc(htype)
+            text.append('    <House %s order="%d" />\n' % (attrs, order))
         for l, order in out_lords:
             attrs = ['id="%s"' % esc(l["id"]), 'house="%s"' % esc(l["house"]),
                      'order="%d"' % order, 'name="%s"' % esc(l["name"])]

@@ -21,7 +21,7 @@
 
             <!-- ────────── 左栏（460）：姓名 / 立绘 / 生卒 + 列传 ────────── -->
             <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="440" SuggestedHeight="672"
-                       StackLayout.LayoutMethod="VerticalTopToBottom" MarginRight="24"
+                       StackLayout.LayoutMethod="VerticalBottomToTop" MarginRight="24"
                        DoNotAcceptEvents="true">
               <Children>
 
@@ -106,7 +106,7 @@
 
             <!-- ────────── 右栏（900）：基本情报 / 能力情报 / 技能情报 ────────── -->
             <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="880" SuggestedHeight="672"
-                       StackLayout.LayoutMethod="VerticalTopToBottom"
+                       StackLayout.LayoutMethod="VerticalBottomToTop"
                        DoNotAcceptEvents="true">
               <Children>
 
@@ -120,7 +120,7 @@
                                 DoNotAcceptEvents="true"/>
                     <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="132"
                                VerticalAlignment="Bottom" MarginBottom="12" MarginLeft="18" MarginRight="18"
-                               StackLayout.LayoutMethod="VerticalTopToBottom"
+                               StackLayout.LayoutMethod="VerticalBottomToTop"
                                DataSource="{BasicRows}" DoNotAcceptEvents="true">
                       <ItemTemplate>
                         <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
@@ -155,7 +155,7 @@
                                 DoNotAcceptEvents="true"/>
                     <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="140"
                                VerticalAlignment="Bottom" MarginBottom="12" MarginLeft="18" MarginRight="18"
-                               StackLayout.LayoutMethod="VerticalTopToBottom"
+                               StackLayout.LayoutMethod="VerticalBottomToTop"
                                DataSource="{Abilities}" DoNotAcceptEvents="true">
                       <ItemTemplate>
                         <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="26"
@@ -205,7 +205,7 @@
                                DoNotAcceptEvents="true">
                       <Children>
                         <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="420"
-                                   StackLayout.LayoutMethod="VerticalTopToBottom"
+                                   StackLayout.LayoutMethod="VerticalBottomToTop"
                                    DataSource="{SkillsLeft}" DoNotAcceptEvents="true">
                           <ItemTemplate>
                             <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
@@ -225,7 +225,7 @@
                           </ItemTemplate>
                         </ListPanel>
                         <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="420"
-                                   StackLayout.LayoutMethod="VerticalTopToBottom"
+                                   StackLayout.LayoutMethod="VerticalBottomToTop"
                                    DataSource="{SkillsRight}" DoNotAcceptEvents="true">
                           <ItemTemplate>
                             <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"

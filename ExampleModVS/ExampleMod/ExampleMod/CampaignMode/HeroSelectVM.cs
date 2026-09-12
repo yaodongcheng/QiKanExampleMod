@@ -17,6 +17,44 @@ namespace LivingWorldNpcs.CampaignMode
 	/// </summary>
 	public class HeroSelectVM : ViewModel
 	{
+		/// <summary>最左列的一个身份筛档（第一档永远是「全部」，之后是内容包配的各档）。</summary>
+		public class FilterItemVM : ViewModel
+		{
+			/// <summary>筛档 id（空串 = 「全部」）；与目录里 Realm/House 的 <c>type</c> 同一套取值。</summary>
+			internal string TypeKey { get; }
+
+			private bool _isSelected;
+			private readonly HeroSelectVM _owner;
+
+			internal FilterItemVM(string typeKey, string name, HeroSelectVM owner)
+			{
+				TypeKey = typeKey;
+				Name = name;
+				_owner = owner;
+			}
+
+			[DataSourceProperty] public string Name { get; }
+
+			[DataSourceProperty]
+			public bool IsSelected
+			{
+				get => _isSelected;
+				set
+				{
+					if (_isSelected != value)
+					{
+						_isSelected = value;
+						OnPropertyChangedWithValue(value, nameof(IsSelected));
+						OnPropertyChanged(nameof(TextColor));
+					}
+				}
+			}
+
+			[DataSourceProperty] public string TextColor => IsSelected ? "#F0CE7AFF" : "#F2F2F2FF";
+
+			public void ExecutePick() => _owner.SelectFilter(this);
+		}
+
 		/// <summary>左侧王国项（含「无所属」那一档）。</summary>
 		public class RealmItemVM : ViewModel
 		{
@@ -200,6 +238,8 @@ namespace LivingWorldNpcs.CampaignMode
 		private readonly Action _onBack;
 		private readonly Action<string> _onHeroChosen;    // → 开详情页（不是开局）
 		private readonly int _year;
+		/// <summary>当前身份筛档（空串 = 「全部」）。</summary>
+		private string _activeType = string.Empty;
 
 		public HeroSelectVM(int year, Action onBack, Action<string> onHeroChosen, bool recommended = false)
 		{
@@ -211,6 +251,7 @@ namespace LivingWorldNpcs.CampaignMode
 			Realms = new MBBindingList<RealmItemVM>();
 			Houses = new MBBindingList<HouseItemVM>();
 			Lords = new MBBindingList<LordItemVM>();
+			Filters = new MBBindingList<FilterItemVM>();
 			RecommendedItems = new MBBindingList<RecommendedItemVM>();
 
 			if (recommended)
@@ -219,14 +260,8 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 			else
 			{
-				foreach (HeroCatalogRegistry.Realm r in HeroSelectData.GetRealms(year))
-				{
-					Realms.Add(new RealmItemVM(r, this));
-				}
-				if (Realms.Count > 0)
-				{
-					SelectRealm(Realms[0]);      // 默认选第一个王国，界面一打开就有内容
-				}
+				BuildFilters();
+				RefreshRealms();     // 默认「全部」档；内部会自动选第一个王国/家族
 			}
 			RefreshValues();
 		}
@@ -235,6 +270,9 @@ namespace LivingWorldNpcs.CampaignMode
 		[DataSourceProperty] public MBBindingList<RealmItemVM> Realms { get; }
 		[DataSourceProperty] public MBBindingList<HouseItemVM> Houses { get; }
 		[DataSourceProperty] public MBBindingList<LordItemVM> Lords { get; }
+
+		/// <summary>最左列的筛档（第一档 = 「全部」）。</summary>
+		[DataSourceProperty] public MBBindingList<FilterItemVM> Filters { get; }
 
 		/// <summary>推荐人列表（推荐模式用）。</summary>
 		[DataSourceProperty] public MBBindingList<RecommendedItemVM> RecommendedItems { get; }
@@ -253,13 +291,91 @@ namespace LivingWorldNpcs.CampaignMode
 		[DataSourceProperty] public string ClanHeader => new TextObject("{=LWN_hero_select_clan}House").ToString();
 		[DataSourceProperty] public string HeroHeader => new TextObject("{=LWN_hero_select_hero}Lords").ToString();
 
+		/// <summary>最左列（身份筛档）的标题。</summary>
+		[DataSourceProperty] public string IdentityHeader => new TextObject("{=LWN_hero_select_identity}Station").ToString();
+
 		/// <summary>该时代没有任何可选的人（内容包没配目录）——界面显示提示而不是空列表。</summary>
 		[DataSourceProperty] public bool IsEmpty => IsRecommendedMode
 			? RecommendedItems.Count == 0
 			: Realms.Count == 0;
 
-		[DataSourceProperty] public string EmptyText =>
-			new TextObject("{=LWN_hero_select_empty}No playable lord in this era.").ToString();
+		/// <summary>空列表文案：筛档筛空的 ≠ 该时代本来就没人的（反馈要说清是哪一种）。</summary>
+		[DataSourceProperty] public string EmptyText => string.IsNullOrEmpty(_activeType)
+			? new TextObject("{=LWN_hero_select_empty}No playable lord in this era.").ToString()
+			: new TextObject("{=LWN_hero_select_empty_identity}No playable lord with this station.").ToString();
+
+		/// <summary>
+		/// 左列筛档：「全部」打头，之后按目录 <c>&lt;RealmType&gt;</c> 的 order（内容包没配 = 只有「全部」）。
+		/// </summary>
+		private void BuildFilters()
+		{
+			Filters.Add(new FilterItemVM(string.Empty,
+				new TextObject("{=LWN_hero_select_identity_all}All").ToString(), this));
+			foreach (HeroCatalogRegistry.RealmType t in HeroCatalogRegistry.GetRealmTypes())
+			{
+				Filters.Add(new FilterItemVM(t.Id, HeroSelectData.Resolve(t.NameRaw), this));
+			}
+			Filters[0].IsSelected = true;
+		}
+
+		/// <summary>按当前筛档重铺王国列，并自动选第一个王国（→ 家族 → 领主），让界面一打开就有内容。</summary>
+		private void RefreshRealms()
+		{
+			Realms.Clear();
+			foreach (HeroCatalogRegistry.Realm r in HeroSelectData.GetRealms(_year))
+			{
+				if (PassRealm(r))
+				{
+					Realms.Add(new RealmItemVM(r, this));
+				}
+			}
+			SelectRealm(Realms.Count > 0 ? Realms[0] : null);
+			OnPropertyChanged(nameof(IsEmpty));
+			OnPropertyChanged(nameof(EmptyText));
+		}
+
+		/// <summary>该王国在当前筛档下留不留。王国自己的 type 命中就留；否则看它旗下有没有该档的家族
+		/// （「无所属」那一档自己不带 type，全靠这条：商人/浪人众都在里面）。</summary>
+		private bool PassRealm(HeroCatalogRegistry.Realm realm)
+		{
+			if (string.IsNullOrEmpty(_activeType) || realm == null)
+			{
+				return true;
+			}
+			if (realm.Type == _activeType)
+			{
+				return true;
+			}
+			foreach (HeroCatalogRegistry.House h in HeroSelectData.GetHouses(_year, realm.Id))
+			{
+				if (PassHouse(h))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/// <summary>该家族在当前筛档下留不留（家族没标 type = 只在「全部」档出现）。</summary>
+		private bool PassHouse(HeroCatalogRegistry.House house)
+		{
+			return string.IsNullOrEmpty(_activeType) || (house != null && house.Type == _activeType);
+		}
+
+		/// <summary>点左列筛档 → 重铺王国列（级联仍自动落到第一个人）。</summary>
+		internal void SelectFilter(FilterItemVM item)
+		{
+			if (item == null)
+			{
+				return;
+			}
+			foreach (FilterItemVM f in Filters)
+			{
+				f.IsSelected = f == item;
+			}
+			_activeType = item.TypeKey ?? string.Empty;
+			RefreshRealms();
+		}
 
 		/// <summary>点领主行 → 交给外层开详情页（**不在这里落地**）。</summary>
 		internal void OnLordClicked(HeroCatalogRegistry.Lord lord)
@@ -322,21 +438,23 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 		}
 
-		/// <summary>点王国 → 刷新家族列（并自动选第一个家族，省一次点击）。</summary>
+		/// <summary>点王国 → 刷新家族列（按当前筛档过滤；并自动选第一个家族，省一次点击）。</summary>
 		internal void SelectRealm(RealmItemVM item)
 		{
-			if (item == null)
-			{
-				return;
-			}
 			foreach (RealmItemVM r in Realms)
 			{
 				r.IsSelected = r == item;
 			}
 			Houses.Clear();
-			foreach (HeroCatalogRegistry.House h in HeroSelectData.GetHouses(_year, item.Realm?.Id))
+			if (item != null)
 			{
-				Houses.Add(new HouseItemVM(h, this));
+				foreach (HeroCatalogRegistry.House h in HeroSelectData.GetHouses(_year, item.Realm?.Id))
+				{
+					if (PassHouse(h))
+					{
+						Houses.Add(new HouseItemVM(h, this));
+					}
+				}
 			}
 			SelectHouse(Houses.Count > 0 ? Houses[0] : null);
 		}
@@ -377,6 +495,7 @@ namespace LivingWorldNpcs.CampaignMode
 			OnPropertyChanged(nameof(KingdomHeader));
 			OnPropertyChanged(nameof(ClanHeader));
 			OnPropertyChanged(nameof(HeroHeader));
+			OnPropertyChanged(nameof(IdentityHeader));
 			OnPropertyChanged(nameof(IsRecommendedMode));
 			OnPropertyChanged(nameof(IsTreeMode));
 			OnPropertyChanged(nameof(IsEmpty));

@@ -47,6 +47,8 @@ TAKES_OFFICIAL_ROOT = {"check_data_fields.py", "check_required_ids.py",
                        "check_culture_references.py", "check_module_registration.py",
                        "check_era_segments.py", "check_scene_entities.py",
                        "check_scene_consumables.py"}
+# 认 `--modules-root <根>/Modules --module <名>`（不是路径）的 checker：语言登记类
+TAKES_MODULES_ROOT = {"check_language_registration.py"}
 
 
 def run(script, *args):
@@ -127,6 +129,19 @@ case("私用区：可直接还原的码点 = 警告（exit 0）", "check_taikou_
 case("私用区：已登记待补的码点必须静默（exit 0）", "check_taikou_world_tables.py",
      lambda m, c: patch_cell(c / "TaikouHero.csv", "ID", "lord_tk5_195", "CNName", "\uE413兵卫"),
      0, "已知待补·不告警")           # 必须落进「已知待补」段（= 不告警），而不是警告段
+
+# 语言：<strings> 块外的条目 = 引擎一条都不加载（2026-09-12 实机：势力/家族/英雄全英文）
+case("语言：<strings> 块外的 <string> 必须抓到", "check_language_registration.py",
+     lambda m, c: patch_text(m / "ModuleData" / "Languages" / "CNs" / "std_Taikou_strings.xml",
+                             "</strings>",
+                             "</strings>\n  <string id=\"TAIKOU_out_of_block\" text=\"块外条目\" />", 1),
+     1, "在 <strings> 之外")
+
+# 选人目录：Realm/House 的类型引用了不存在的筛档（左列点它会筛出空）
+case("选人目录：悬空的势力类型必须抓到", "check_hero_profile_keys.py",
+     lambda m, c: patch_text(m / "ModuleData" / "AssetRegistry" / "HeroCatalog.xml",
+                             'type="warrior"', 'type="warriorXX"', 1),
+     1, "不在 <RealmType> 档位表里")
 
 # ── C# 源码用例：用合成仓库（不碰真源码）──
 SRC_OK = """using System;
@@ -219,7 +234,11 @@ def main():
             shutil.copytree(str(pristine_csv), str(sandbox_csv))
 
             action(sandbox_mod, sandbox_csv)
-            extra = ["--module", sandbox_mod]
+            if script in TAKES_MODULES_ROOT:
+                # 语言登记类：吃「模块根 + 模块名」，不是模块路径
+                extra = ["--modules-root", sandbox_root / "Modules", "--module", "Taikou"]
+            else:
+                extra = ["--module", sandbox_mod]
             if script in TAKES_OFFICIAL_ROOT:
                 extra += ["--official-root", sandbox_root]
             if script == "check_taikou_world_tables.py":

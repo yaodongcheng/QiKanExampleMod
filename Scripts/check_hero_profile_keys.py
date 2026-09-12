@@ -197,6 +197,32 @@ def main():
                 errors.append(f"推荐人 #{order} {hid} 不在 Era 1560 的选人目录里"
                               f"（推荐列表会显示「未登场」）")
 
+    # ── ⑥ 选人目录的势力类型（左列筛档）自洽（2026-09-12 加）──
+    #   档位由目录 <RealmType> 定义，<Realm>/<House> 的 type 引用它（选人界面最左列用它筛人）。
+    #   引用悬空 = 点那一档筛出来是空的（静默、看不出是数据错）；档位没人用 = 界面多一个空按钮。
+    if catalog.is_file():
+        root = ET.parse(str(catalog)).getroot()
+        type_ids = [el.get("id") for el in root.iter("RealmType") if el.get("id")]
+        dup = sorted({t for t in type_ids if type_ids.count(t) > 1})
+        if dup:
+            errors.append(f"选人目录 <RealmType> 有重复档位 id：{dup}")
+        known = set(type_ids)
+        used = set()
+        for era_node in root.iter("Era"):
+            era_id = era_node.get("id") or ""
+            for tag in ("Realm", "House"):
+                for el in era_node.iter(tag):
+                    ty = el.get("type")
+                    if not ty:
+                        continue        # 空 = 「无所属」那一档（不带类型，由旗下家族决定）
+                    used.add(ty)
+                    if ty not in known:
+                        errors.append(f"[Era {era_id}] <{tag} id={el.get('id')}> 的类型 {ty!r} "
+                                      f"不在 <RealmType> 档位表里（该档筛不出东西）")
+        for t in sorted(known - used):
+            warns.append(f"档位 {t!r} 没有任何 Realm/House 使用（会多出一个永远空的筛档）")
+        print(f"  筛档 {len(known)} 个（{', '.join(sorted(known))}），被用到的 {len(used)} 个")
+
     # ── 反向：立绘表覆盖了多少世界英雄（信息项）──
     all_world = set().union(*era_heroes.values()) if era_heroes else set()
     covered = len(all_world & stage_ids)
