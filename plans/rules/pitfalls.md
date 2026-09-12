@@ -1127,3 +1127,43 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
    - 一听到"空气墙/走不出去"先查场景 grep `border_min`，再去查输入/操作。
 4. **实装防线**：`CampaignMode/MapBorderDiagnosticPatch.cs`（`GetMapBorders` Postfix，进图打一行 `[MapBorder]` min/max/height；命中引擎兜底值 (0,0)/(900,900)/670 时打警示）——重建地图后看一眼日志即知边界是否健全。
 5. 边界实体只是坐标标记，**不动 navmesh**：加/删实体无需重新生成 navmesh（与雷 28 实体插入同结论）。
+
+---
+
+## 🔴 内容包资产"全部就位"却一个纹理都取不到 → 模块下多了个空 `Assets/`
+
+**症状**（2026-09-12 实机，Taikou 立绘）
+- 立绘/头像全部空白，但**所有中间层都"正常"**：sprite 名在 `GUI/*SpriteData.xml` 里查得到、`SpritePart` 的 SheetID/尺寸对得上、`cat.IsLoaded=true`、`SpriteSheets[i] != null`、`[SpriteAssets] 加载 sheet ...` 日志照打。
+- **零 C# 异常**。唯一的线索在**引擎自己的日志**里（`C:\ProgramData\Mount and Blade II Bannerlord\logs\rgl_log_*.txt`）：`Cannot find texture: lwnprof_bustup_517`。
+- 运行期拿到的纹理对象非 null，但**引擎纹理名 = `material_error`**、尺寸 512×512、像素全 0 —— 是引擎"找不到纹理"的占位图。
+
+**根因**（引擎原生字符串实证）
+- 引擎在模块目录下找资产目录，候选名字是**有序清单**：`Assets` → `AssetPackages` → `DsAssetPackages` → `EmAssetPackages` → `AssetsBackups` → `AssetSources`，**取第一个存在的**。
+- `Modules/Taikou/` 下同时有 ModKit 编辑器建的**空 `Assets/`** 和放 tpac 的 `AssetPackages/` → 空 `Assets/` 占住第一位，4 个 tpac **永远不被加载**。
+- 判据（一眼看穿）：引擎日志里该模块那行 —— `Loading packages $BASE/Modules/Taikou/Assets...` ❌ 应为 `.../AssetPackages...`。
+
+**规避**
+1. **内容包的资产目录只留一个**：`AssetPackages/`。编辑器的 `Assets/` / `EmAssetPackages/` / `AssetSources/` 空目录**一律改名或删除**（改名 `Assets_disabled` 更稳，可随时退回）。
+2. ⚠️ **ModKit 编辑器会重建 `Assets/`** → 此坑会复发。复发信号固定：立绘空白 → 查引擎日志 `Loading packages` 那行。
+3. **诊断动作**：`custom.texprobe <spriteName>`（导出运行期真实纹理 + 打印纹理指针链）——对象/日志全绿时的唯一出路，见 [wheels.d/ui.md](wheels.d/ui.md)「立绘/任意 Sprite 上屏」。
+
+---
+
+## 🔴 UI 控件"值都设对了"却什么都不画 → 尺寸算成了 0
+
+**症状**（2026-09-12 实机，立绘面板）
+- `ImageWidget` 的 `Sprite` 已赋值（打出来就是那个 sprite 对象）、`IsVisible=true`、`IsEnabled=true`、父容器在渲染、同容器的**另一个同类控件画得出来**——就是不显示。
+- 零异常、零日志。
+
+**根因**：**0 宽的控件什么都不画**。等比缩放写成「以高为准反推宽，再 `if (w > boxW)` 改以宽为准」，当 `boxW/boxH` 恰好等于 sprite 宽高比时（立绘 2:3 撞目标框 560:840）边界擦边走进分支，**把宽压成 0**。
+- 同类控件没事是因为它撞不到这个边界（正方形）。
+- 症状极具迷惑性：看起来像"资源没加载"，实际跟纹理毫无关系。
+
+**规避**
+1. **等比缩放永远用「两方向各算系数取小值」**，不要写"先定一边再修正另一边"：
+   ```csharp
+   float k = Math.Min(boxW / sw, boxH / sh);   // 塞得进且不变形，数学上不可能出 0
+   w = sw * k;  h = sh * k;
+   ```
+2. **控件体检日志**（排查任何"设了值但不画"）：打 `SuggestedWidth/SuggestedHeight`（**任何一个是 0 就是它**）+ 两个同名 `Sprite` 属性（`ImageWidget` 的 `Sprite` 是 `new` 出来的，基类 `Widget.Sprite` 是另一个）+ `IsVisible/IsEnabled`。
+3. 判别口诀：**"另一个同类控件能画，这个不能" → 先比两者的建议尺寸，再去怀疑资源。** 先查资源是南辕北辙（本次就是这么绕了一大圈）。

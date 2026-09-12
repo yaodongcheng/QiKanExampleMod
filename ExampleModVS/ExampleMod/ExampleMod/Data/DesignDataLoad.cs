@@ -231,6 +231,11 @@ namespace LivingWorldNpcs
 
         public static DataTable Emotion { get; private set; }
 
+        /// <summary>英雄扩展属性表（2026-09-12 加）：LWN 给骑砍2英雄的通用扩展列 ——
+        /// 每行一个英雄，`ID` 之外的列全是扩展属性（当前代表 = `Spawn_&lt;年&gt;` 开局落点）。
+        /// 内容包提供数据（`ModuleData/DesignData/HeroExtraInfo.csv`），加属性 = 加列。</summary>
+        public static DataTable HeroExtraInfo { get; private set; }
+
         // Narrative/NpcSpeech/Dialogue/CommissionNarrative 已迁移到 XML 本地化系统
         // 不再通过 CSV 加载，直接走 LWNTextHelper + Language XML
 
@@ -251,6 +256,7 @@ namespace LivingWorldNpcs
             Music  = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "Music.csv"), "Music");
             TagPoint = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "TagPoint.csv"), "TagPoint");
             Emotion = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "Emotion.csv"), "Emotion");
+            HeroExtraInfo = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "HeroExtraInfo.csv"), "HeroExtraInfo");
 
             // Narrative.csv / NpcSpeech.csv 已废弃，文本迁移到 XML 本地化系统
         }
@@ -267,6 +273,7 @@ namespace LivingWorldNpcs
             Heroes   = new DataTable("Heroes");
             Music    = new DataTable("Music");
             TagPoint = new DataTable("TagPoint");
+            HeroExtraInfo = new DataTable("HeroExtraInfo");
             Emotion  = CsvLoader.LoadTable(Path.Combine(directoryPath, "Emotion.csv"), "Emotion");
 
             // 内容包注入（通用）：config.json "DesignDataModuleId" 指定内容包模块 Id（如 Taikou），
