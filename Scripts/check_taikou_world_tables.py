@@ -166,7 +166,7 @@ def is_shokuho_id(v):
 
 
 def is_person(r, cols):
-    return r.get("模板NPC", "") == ""
+    return r.get("TemplateNPC", "") == ""
 
 
 def main():
@@ -188,7 +188,7 @@ def main():
     # TaikouForce：双行表头，读者暂用第 1 行（中文键）——待迁移到第 2 行（英文键）
     kingdom = load("TaikouForce.csv", head=1)[1]
     # TaikouHero 尚未转双行表头（见 CLAUDE.md CSV 表头规范）
-    hero = load("TaikouHero.csv", head=0)[1]
+    hero = load("TaikouHero.csv")[1]
 
     cult_ids = [r["ID"] for r in culture]
     kd_ids = [r["ID"] for r in kingdom]

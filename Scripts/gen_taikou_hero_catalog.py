@@ -132,9 +132,10 @@ def esc(s):
             .replace(">", "&gt;").replace('"', "&quot;"))
 
 
-def read_csv(path):
-    with io.open(path, encoding="utf-8-sig", newline="") as f:
-        return list(csv.DictReader(f))
+def read_csv(path, head=2):
+    """读 CSV → [dict]。`head`：2=双行表头取英文键（默认）/ 1=中文键 / 0=单行表头。"""
+    from csv_dual import dict_rows
+    return dict_rows(path, head=head)
 
 
 def hero_rows(md, era_id):
@@ -200,15 +201,15 @@ def settlement_alias_index(csv_dir, seats):
     if not path.is_file():
         return {}
     out = {}
-    with io.open(path, encoding="utf-8-sig", newline="") as f:
-        for r in csv.DictReader(f):
-            sid = (r.get("id") or "").strip()
-            if sid not in seats:
-                continue
-            for n in (r.get("Name_All") or "").split("|"):
-                n = n.strip()
-                if n and n not in out:
-                    out[n] = seats[sid]
+    from csv_dual import dict_rows
+    for r in dict_rows(path):                    # Settlements.csv：双行表头取英文键
+        sid = (r.get("id") or "").strip()
+        if sid not in seats:
+            continue
+        for n in (r.get("Name_All") or "").split("|"):
+            n = n.strip()
+            if n and n not in out:
+                out[n] = seats[sid]
     return out
 
 

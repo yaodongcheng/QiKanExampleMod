@@ -184,9 +184,10 @@ def int_or_zero(raw):
         return 0
 
 
-def read_csv(path):
-    with io.open(path, encoding="utf-8-sig", newline="") as f:
-        return list(csv.DictReader(f))
+def read_csv(path, head=2):
+    """读 CSV → [dict]。`head`：2=双行表头取英文键（默认）/ 1=中文键 / 0=单行表头。"""
+    from csv_dual import dict_rows
+    return dict_rows(path, head=head)
 
 
 def build(rows):
@@ -231,8 +232,8 @@ def build(rows):
         #    Scripts/import_taikou_hero_bios.py 落库）。
         #    🔴 2026-09-11：CSV 的 `列传简体` 列已删（用户裁定：列传只留繁体原文，
         #       简体/英文在生成本地化产物时再走正式流程）→ 这里自己转简体。
-        bio_key = (r.get("列传") or "").strip()
-        bio_raw = (r.get("列传原文") or "").strip()
+        bio_key = (r.get("Biography") or "").strip()
+        bio_raw = (r.get("BiographyRaw") or "").strip()
         bio_simp = _to_simplified(bio_raw) if bio_raw else ""
         if bio_key and bio_simp:
             lines.append(f'  <HeroProfile {head}\n               {body}\n               {tail}\n'

@@ -275,7 +275,7 @@ def build():
                     o2f.setdefault((key, r["势力类型"]), r["ID"])
 
     _, heroes = load_dict(HERO)
-    hero_ids = {h["ID"] for h in heroes if not h.get("模板NPC")}
+    hero_ids = {h["ID"] for h in heroes if not h.get("TemplateNPC")}
     rows_by_era = parse_sup(SUP_LOG)
     n_exist = n_sub = n_norep = 0
     subs, norep = [], []

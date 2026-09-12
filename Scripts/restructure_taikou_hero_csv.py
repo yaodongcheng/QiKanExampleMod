@@ -34,8 +34,8 @@ BIO_LOG = r"E:\TKHACK\log\太阁出生年、列传信息.log"
 
 DROP_COLS = ["GenerateType", "模板", "列传简体"]
 KINS_COLS = ["FatherName", "GrandFatherName", "KinsName"]
-COL_APPEAR_DESC = "外观描述_光荣"
-COL_STAGE = "立绘阶段"
+COL_APPEAR_DESC = "KoeiAppearanceDesc"
+COL_STAGE = "ProfileStages"
 BIO_RE = re.compile(r"Log: (BIO\|.*)$")
 
 

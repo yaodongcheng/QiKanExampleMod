@@ -36,7 +36,7 @@ CSV_PATH = os.path.join(REPO, "Knowledge", "太阁5", "骑砍2织丰角色ID对�
 # 前段固定列（其余列保持 CSV 里的原序，不重排）
 # 🔴 2026-09-11 用户裁定：`Alias` 提前到 `CNName` 之后 —— 名字的三种形态（主名/别名/年代名）
 #    紧挨着看，查名字时不用横跨整表（表有 128 列宽）。
-CANONICAL_HEAD = ["ID", "原版编号", "外观ID", "模板NPC", "CNName", "Alias"]
+CANONICAL_HEAD = ["ID", "OriginalID", "AppearanceID", "TemplateNPC", "CNName", "Alias"]
 
 
 def reorder(cols):

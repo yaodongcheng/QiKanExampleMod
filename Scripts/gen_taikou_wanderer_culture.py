@@ -103,7 +103,7 @@ def template_culture(tid):
 def is_person(rec):
     """人物行判据（与 check_taikou_world_tables 一致）：`模板NPC` 非空 = 非人物行
     （通用 NPC 模板 `template_*` / 变量行 `pronoun_*`）。"""
-    return not (rec.get("模板NPC") or "").strip()
+    return not (rec.get("TemplateNPC") or "").strip()
 
 
 def want_culture(rec):
@@ -123,7 +123,9 @@ def want_culture(rec):
 def build():
     with io.open(HERO, encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.reader(fh))
-    hdr, body = rows[0], [r for r in rows[1:] if r and any(x.strip() for x in r)]
+    # TaikouHero.csv 双行表头（中文行 + 英文行）→ 键取第 2 行、数据从第 3 行起
+    cn_hdr, hdr = rows[0], rows[1]
+    body = [r for r in rows[2:] if r and any(x.strip() for x in r)]
     ic, ik = hdr.index("CultureID"), hdr.index("ID")
     wand, changes = [], []
     for r in body:
@@ -135,7 +137,7 @@ def build():
             wand.append(r[ik])
         if r[ic].strip() != want:
             changes.append((r[ik], rec.get("CNName", ""), r[ic].strip(), want))
-    return {"hdr": hdr, "body": body, "idx": ic, "wand": wand, "changes": changes}
+    return {"cn_hdr": cn_hdr, "hdr": hdr, "body": body, "idx": ic, "wand": wand, "changes": changes}
 
 
 def main():
@@ -177,11 +179,11 @@ def main():
             n += 1
     with io.open(HERO, "w", encoding="utf-8-sig", newline="") as fh:
         w = csv.writer(fh, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
-        for r in [d["hdr"]] + d["body"]:
+        for r in [d["cn_hdr"], d["hdr"]] + d["body"]:
             w.writerow(r)
     back = list(csv.reader(io.open(HERO, encoding="utf-8-sig", newline="")))
     print("\n✅ 已写出 TaikouHero.csv（改 %d 行；往返读回 %d 行 / %d 列）"
-          % (n, len(back) - 1, len(back[0])))
+          % (n, len(back) - 2, len(back[1])))
     again = build()
     print("   幂等复跑：剩余应改 %d 行（应为 0）" % len(again["changes"]))
     return 1 if again["changes"] else 0

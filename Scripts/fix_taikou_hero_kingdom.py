@@ -118,7 +118,7 @@ def main():
         print("[FATAL] 缺文件 %s" % CSV_PATH, file=sys.stderr)
         return 2
     cols, rows = load_csv(CSV_PATH)
-    for need in ("CNName", "原版编号"):
+    for need in ("CNName", "OriginalID"):
         if need not in cols:
             print("[FATAL] CSV 缺列 %s（列结构变了，本脚本需同步）" % need, file=sys.stderr)
             return 2
@@ -144,7 +144,7 @@ def main():
             problems.append("%s：表里没有列 %s" % (who, col))
             continue
         cur = (r.get(col) or "").strip()
-        pid = (r.get("原版编号") or "").strip()
+        pid = (r.get("OriginalID") or "").strip()
         deviation = KNOWN_DEVIATIONS.get((who, era))
         if deviation:
             # 登记格：快照在这一点上是错的，跳过快照核对，只做「现值==目标值」幂等判定
