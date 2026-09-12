@@ -170,10 +170,10 @@ def build():
     if missing:
         return None, ["上级日志缺年代：%s（先跑 tkhack 导出脚本）" % ",".join(missing)]
 
-    _, hero_rows = load_dict(HERO, head=0)     # TaikouHero 尚未转双行表头
+    _, hero_rows = load_dict(HERO)
     _, sett_rows = load_dict(SETT)
     force = load_force(FORCE)
-    people = [r for r in hero_rows if not r.get("模板NPC")]
+    people = [r for r in hero_rows if not r.get("TemplateNPC")]
     by_dx = {}
     for r in people:
         m = DXRE.match(r["ID"] or "")
@@ -710,18 +710,20 @@ def apply_hero(data, hero_cols):
     """TaikouHero.csv：ClanID 单列 → ClanID_<年> ×6（原位替换）"""
     with io.open(HERO, encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.reader(fh))
-    hdr = rows[0]
-    if "ClanID" not in hdr:
-        if all(c in hdr for c in HERO_CLAN_COLS):
-            pos = hdr.index(HERO_CLAN_COLS[0])
-            new_hdr = hdr
-        else:
-            raise SystemExit("[FATAL] TaikouHero.csv 既没有 ClanID 也没有 ClanID_<年>")
-    else:
+    cn_hdr, hdr = rows[0], rows[1]          # 双行表头：键取第 2 行，数据第 3 行起
+    # 🔴 按**列名定位**改值，不假设 6 个 ClanID 列连续（2026-09-12 列序归位后它们
+    #    分散在各年代的块里：`…Kingdom_<年>, ClanID_<年>, City_<年>…`）
+    if all(c in hdr for c in HERO_CLAN_COLS):
+        pos = [hdr.index(c) for c in HERO_CLAN_COLS]
+        new_hdr = hdr
+    elif "ClanID" in hdr:
         pos = hdr.index("ClanID")
         new_hdr = hdr[:pos] + HERO_CLAN_COLS + hdr[pos + 1:]
-    out = [new_hdr]
-    for r in rows[1:]:
+        pos = list(range(pos, pos + len(ERAS)))
+    else:
+        raise SystemExit("[FATAL] TaikouHero.csv 既没有 ClanID 也没有 ClanID_<年>")
+    out = [cn_hdr, new_hdr]                 # 写回双行表头
+    for r in rows[2:]:                      # 数据从第 3 行起
         if not r:
             continue
         r = list(r) + [""] * (len(hdr) - len(r))
@@ -732,14 +734,14 @@ def apply_hero(data, hero_cols):
         vals = data["hero_clan"].get(key) if key else None
         if vals is None:
             vals = [""] * len(ERAS)
-        if "ClanID" in hdr:
-            out.append(r[:pos] + vals + r[pos + 1:])
-        else:
-            out.append(r[:pos] + vals + r[pos + len(ERAS):])
+        rr = list(r)
+        for k, ix in enumerate(pos):
+            rr[ix] = vals[k]
+        out.append(rr)
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
     w.writerows(out)
-    return buf.getvalue(), hdr, new_hdr
+    return buf.getvalue(), hdr, new_hdr, cn_hdr
 
 
 def render_sett(data):
@@ -844,7 +846,7 @@ def main():
           % "  ".join("%s:%d" % (e, data["stat"][e]["独立"]) for e in ERAS))
 
     clan_text = render_clan(data)
-    hero_text, hero_hdr, hero_new = apply_hero(data, None)
+    hero_text, hero_hdr, hero_new, hero_cn = apply_hero(data, None)
     sett_text, sett_changed = render_sett(data)
     print("  据点 Clan_<年> 将改 %d 格" % sett_changed)
     for x in data["sett_fix"]:
@@ -903,7 +905,7 @@ def main():
 
     # ── 往返校验（写盘 == 读回；本次因缺此校验写坏过 960 格）──
     _, clan_back = load_dict(CLAN)
-    _, hero_back = load_dict(HERO, head=0)     # TaikouHero 尚未转双行表头
+    _, hero_back = load_dict(HERO)
     errs = []
     if len(clan_back) != len(data["groups"]):
         errs.append("Clan.csv 行数 %d ≠ %d" % (len(clan_back), len(data["groups"])))

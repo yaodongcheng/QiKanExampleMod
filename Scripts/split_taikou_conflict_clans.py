@@ -79,7 +79,7 @@ def compute(ccols, crows, hrows):
     """返回 [(原 clan id, [ [成员ID…] 组 … ])] —— 只含真分歧的家族。"""
     byc = collections.defaultdict(list)
     for h in hrows:
-        if not h.get("模板NPC"):
+        if not h.get("TemplateNPC"):
             byc[h["ClanID"]].append(h)
     plan = []
     for r in crows:

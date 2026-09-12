@@ -81,8 +81,8 @@ def bio_entries():
     out = []
     with io.open(CSV_PATH, encoding="utf-8-sig", newline="") as fh:
         for r in csv.DictReader(fh):
-            key = (r.get("列传") or "").strip()
-            text = (r.get("列传原文") or "").strip()
+            key = (r.get("Biography") or "").strip()
+            text = (r.get("BiographyRaw") or "").strip()
             if key and text:
                 out.append((key, cc.convert(text)))
     return out

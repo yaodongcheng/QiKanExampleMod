@@ -57,8 +57,8 @@ POOL_LO, POOL_HI = 0, 799
 LINE_RE = re.compile(r"Log: (BIO\|.*)$")
 
 BIO_KEY = "TAIKOU_bio_%d"
-COL_KEY = "列传"
-COL_TEXT = "列传原文"
+COL_KEY = "Biography"
+COL_TEXT = "BiographyRaw"
 COL_SIMP = "列传简体"
 
 try:

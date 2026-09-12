@@ -109,9 +109,9 @@ FEMALE_NAMES = {"吹雪", "枣", "枫", "红叶", "多津", "泷", "鹤"}
 
 def load_pools():
     """5 个模板的立绘槽池（从模板行现读，单一来源）。"""
-    with io.open(HERO, encoding="utf-8-sig", newline="") as fh:
-        rows = {r["ID"]: r for r in csv.DictReader(fh) if r.get("ID")}
-    return {k: [x.strip() for x in rows[v]["外观ID"].split("|") if x.strip()]
+    from csv_dual import dict_rows
+    rows = {r["ID"]: r for r in dict_rows(HERO) if r.get("ID")}
+    return {k: [x.strip() for x in rows[v]["AppearanceID"].split("|") if x.strip()]
             for k, v in POOL_TEMPLATE.items() if v in rows}
 
 
@@ -194,8 +194,9 @@ def main():
 
     with io.open(HERO, encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.reader(fh))
-    hdr = rows[0]
-    body = [r for r in rows[1:] if r and any(x.strip() for x in r)]
+    # TaikouHero.csv 双行表头（中文行 + 英文行）→ 键取第 2 行、数据从第 3 行起
+    cn_hdr, hdr = rows[0], rows[1]
+    body = [r for r in rows[2:] if r and any(x.strip() for x in r)]
     have = {r[hdr.index("ID")] for r in body}
 
     with io.open(ALIGN, encoding="utf-8-sig", newline="") as fh:
@@ -228,7 +229,7 @@ def main():
         row["ID"] = hid
         row["CNName"] = a["名前"]
         row["CultureID"] = a["职业"]      # 身份文化：ninja/pirate/trader（见文件头）
-        row["外观ID"] = appear.get(hid, "")   # 立绘槽（按职业+性别从模板池轮转，见文件头）
+        row["AppearanceID"] = appear.get(hid, "")   # 立绘槽（按职业+性别从模板池轮转，见文件头）
         row["EnglishName"] = it["罗马音"].capitalize() if not it["罗马音"].startswith("x") else ""
         tp = {"ninja": "忍者众", "pirate": "海贼众", "trader": "商家"}[a["职业"]]
         owner_org = ""
@@ -263,7 +264,7 @@ def main():
             new_rows.append([row.get(c, "") for c in hdr])
         else:
             # 已存在的行**只更新本脚本负责的派生列**（其余列归别的生成器/来源，不覆盖）
-            for c in ("FirstName", "EnglishName", "CultureID", "外观ID"):
+            for c in ("FirstName", "EnglishName", "CultureID", "AppearanceID"):
                 k = hdr.index(c)
                 if cur[k] != row[c]:
                     changes.append((hid, c, cur[k], row[c]))
@@ -322,7 +323,7 @@ def main():
     with io.open(HERO, encoding="utf-8-sig", newline="") as fh:
         back = [r for r in csv.reader(fh) if r and any(x.strip() for x in r)]
     print("  往返校验：%d 行（应为 %d）；列数 %d（应为 %d）"
-          % (len(back) - 1, len(body) + len(new_rows), len(back[0]), len(hdr)))
+          % (len(back) - 2, len(body) + len(new_rows), len(back[1]), len(hdr)))
     return 0
 
 

@@ -74,7 +74,7 @@ def main():
         print(f"   原版编号   {r['原版编号']!r}  →  "
               f"{(str(300) if idx == FATHER else '')!r}")
         print(f"   外观ID     {r['外观ID']!r}  →  {APPEAR_SPLIT[idx]!r}")
-        st = r.get("立绘阶段") or ""
+        st = r.get("ProfileStages") or ""
         ents = []
         try:
             import json
@@ -92,14 +92,14 @@ def main():
 
     import json
     rows[FATHER]["ID"] = "lord_tk5_%d" % FATHER
-    rows[SON]["原版编号"] = ""
-    rows[FATHER]["原版编号"] = str(300)
+    rows[SON]["OriginalID"] = ""
+    rows[FATHER]["OriginalID"] = str(300)
     for idx in (SON, FATHER):
-        rows[idx]["外观ID"] = APPEAR_SPLIT[idx]
+        rows[idx]["AppearanceID"] = APPEAR_SPLIT[idx]
         try:
-            ents = [e for e in json.loads(rows[idx].get("立绘阶段") or "[]")
+            ents = [e for e in json.loads(rows[idx].get("ProfileStages") or "[]")
                     if str(e.get("ref")) == APPEAR_SPLIT[idx]]
-            rows[idx]["立绘阶段"] = json.dumps(ents, ensure_ascii=False,
+            rows[idx]["ProfileStages"] = json.dumps(ents, ensure_ascii=False,
                                               separators=(",", ":"))
         except Exception:                                    # noqa: BLE001
             pass

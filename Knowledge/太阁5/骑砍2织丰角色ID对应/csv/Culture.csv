@@ -1,11 +1,11 @@
 ﻿ID,名称,别名
 ID,Name,Alias
-saikai,西海,九州
-nankai,南海,四国
-sanyo,山阳,中国
-kinai,畿内,近畿
+saikai,九州,西海
+nankai,四国,南海
+sanyo,中国,山阳
+kinai,近畿,畿内
 hokuriku,北陆,
-tosan,东山,甲信
+tosan,甲信,东山
 tokai,东海,
 kanto,关东,
 ou,奥羽,东北

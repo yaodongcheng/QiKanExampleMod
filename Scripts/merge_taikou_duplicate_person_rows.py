@@ -87,11 +87,11 @@ def main():
 
         # ② 立绘阶段
         try:
-            ms = json.loads(m.get("立绘阶段") or "[]")
+            ms = json.loads(m.get("ProfileStages") or "[]")
         except ValueError:
             ms = []
         try:
-            ds = json.loads(d.get("立绘阶段") or "[]")
+            ds = json.loads(d.get("ProfileStages") or "[]")
         except ValueError:
             ds = []
         have = {str(e.get("tkid")) for e in ms}
@@ -101,7 +101,7 @@ def main():
             e = dict(e)
             e["stage"] = d["CNName"]          # 用被并行的名字当阶段标签
             ms.append(e)
-        m["立绘阶段"] = json.dumps(ms, ensure_ascii=False, separators=(",", ":"))
+        m["ProfileStages"] = json.dumps(ms, ensure_ascii=False, separators=(",", ":"))
         say(f"- 立绘阶段：并入 {len(ds)} 张（stage 标为「{d['CNName']}」）")
 
         # ③ 引用改指
@@ -122,7 +122,7 @@ def main():
             if not (m.get(c) or "").strip() and (d.get(c) or "").strip():
                 m[c] = d[c]
                 say(f"- 主行空字段补齐：{c} = {d[c]}")
-        for c in ("原版编号", "外观ID"):
+        for c in ("OriginalID", "AppearanceID"):
             if not (m.get(c) or "").strip() and (d.get(c) or "").strip():
                 m[c] = d[c]
         drop.add(dup)

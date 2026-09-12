@@ -103,7 +103,7 @@ ROW_EQ_ORIG_MAX = 799
 # 非人物前缀
 NON_PERSON = ("template_", "pronoun_", "prounon")
 
-COL_ID, COL_ORIG, COL_APPEAR = "ID", "原版编号", "外观ID"
+COL_ID, COL_ORIG, COL_APPEAR = "ID", "OriginalID", "AppearanceID"
 
 
 def norm(s):
@@ -149,7 +149,7 @@ def check_dup_pairs(rows):
         return [(v, idxs) for v, idxs in d.items() if len(idxs) > 1]
 
     out, seen = [], set()
-    for label, col in (("原版编号相同", "原版编号"), ("外观ID相同", "外观ID")):
+    for label, col in (("原版编号相同", "OriginalID"), ("外观ID相同", "AppearanceID")):
         for v, idxs in grouped(col):
             key = tuple(sorted(idxs))
             if key in seen:

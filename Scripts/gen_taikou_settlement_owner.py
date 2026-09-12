@@ -82,8 +82,8 @@ def load_log():
 
 
 def load_heroes():
-    with io.open(HERO, encoding="utf-8-sig", newline="") as fh:
-        return [r for r in csv.DictReader(fh) if r.get("ID")]
+    from csv_dual import dict_rows
+    return [r for r in dict_rows(HERO) if r.get("ID")]      # TaikouHero：双行表头
 
 
 def tk_no(sid):
