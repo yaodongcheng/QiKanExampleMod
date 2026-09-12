@@ -143,6 +143,13 @@ case("选人目录：悬空的势力类型必须抓到", "check_hero_profile_key
                              'type="warrior"', 'type="warriorXX"', 1),
      1, "不在 <RealmType> 档位表里")
 
+# 选人目录：某人的名字键串成了别人的（实测事故：全目录英雄名变成家族名）
+case("选人目录：Lord 名字键张冠李戴必须抓到", "check_hero_profile_keys.py",
+     lambda m, c: patch_text(m / "ModuleData" / "AssetRegistry" / "HeroCatalog.xml",
+                             'name="{=TAIKOU_hero_195_1560}Oda Nobunaga"',
+                             'name="{=TAIKOU_clan_oda_1}Oda"', 1),
+     1, "的名字键是")
+
 # ── C# 源码用例：用合成仓库（不碰真源码）──
 SRC_OK = """using System;
 namespace X {

@@ -104,6 +104,30 @@ namespace LivingWorldNpcs.CampaignMode
 			return (list != null && list.Count > 0) ? list[0].MiniheadSpriteName : null;
 		}
 
+		/// <summary>
+		/// 🔴 **显示点必调**：把这张立绘的纹理按需加载进显存（幂等）。
+		/// 立绘内容包用的是**按需单张加载**（SpriteCategory 不是整分类驻流，`SpriteAssetsManager` 的
+		/// `GetOrLoad` 是唯一入口）——**只把 sprite 名绑到 prefab = 纹理没加载 = 画不出来**
+		/// （2026-09-12 实机症状：选好人进详情页，立绘位置空白；同因还会让列表小头像不显示）。
+		/// 配额由 SpriteAssetsManager 内部 LRU 管（bustup 12 张 / mini 64 张）。
+		/// </summary>
+		public static void EnsurePortraitLoaded(string spriteName)
+		{
+			if (string.IsNullOrEmpty(spriteName))
+			{
+				return;
+			}
+			try
+			{
+				SpriteAssetsManager.GetOrLoad(spriteName);
+			}
+			catch (Exception ex)
+			{
+				// 立绘加载失败不该拦住房界面（铁律 1 精神）
+				DebugLogger.Log($"[HeroProfile] 立绘加载失败 {spriteName}：{ex.GetType().Name} {ex.Message}");
+			}
+		}
+
 		// ───────────────────────── 加载 ─────────────────────────
 
 		private static void EnsureLoaded()

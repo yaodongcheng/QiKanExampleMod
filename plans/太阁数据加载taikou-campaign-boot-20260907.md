@@ -12,6 +12,51 @@
 
 ---
 
+## 🔴🔴 2026-09-12 实机排雷交接（**新 session 从这里开始**）
+
+**一句话现状**：世界已经能建起来了，但**一次跑出四个建世界崩点，连过三关、卡在第四关**。当前一键体检 **31 绿 / 0 红**。
+（下方「当前 TODO」里「30 绿 / 一次游戏都没进过」的说法已过期——本次会话已实机跑了四轮。）
+
+### 四个崩点（按暴露顺序）
+
+| # | 崩在哪 | 根因 | 状态 |
+|---|---|---|---|
+| 1 | `AccessViolationException` @ `MapScene.GetPathDistanceBetweenAIFaces`（native 寻路）；触发者是 ButterLib 距离矩阵（默认开） | `太阁补全` 给全部据点新加 `gate_posY = 中心 Y − 4`，而据点按项目自己的规则只离海岸线 3 米 → **21 个门位落海** → `CurrentNavigationFace.FaceIndex = -1` → vanilla 距离模型**零 `IsValid` 守卫**直送 native | ✅ **已修（数据）**：回生成器重跑、去掉 gate_pos（208 个据点受影响）。**雷 105** |
+| 2 | `NullReferenceException` @ `CharacterRelationCampaignBehavior.UpdateFriendshipAndEnemies` → `DefaultMapDistanceModel.GetDistance(据点, 据点)` | 无地势力的 `FactionMidSettlement` 恒 null，vanilla 那行零守卫；本包有 **20 个无地家族带 122 个 Lord**（19 商家 + 1 浪人桶） | ✅ **已修（代码兜底）**：`CampaignMode/MapDistanceNullSettlementGuardPatch.cs`（null → 返回 `float.MaxValue`）。**用户裁定：允许无地家族带 lord 成员**（灭族后要能看到野队）→ 台账登记「不退役」。**雷 107** |
+| 3 | `NullReferenceException` @ `Village.GetWerehouseCapacity` ← 村庄初次产出 | 村型产出物被 prune 剪掉（`grape`/`cotton`）+ **两个村型 id 不存在**（`fishing`/`horse_ranch`，引擎是 `fisherman`/`europe_horse_ranch`）→ 产出表塞 null → `item.IsMountable` 裸解引用 | ✅ **已修（数据）**：生成器村型换合法 id；重拷官方物品文件 → sanitize → prune keep 集加村型产出物 → 重跑；新检查器 `check_village_types_and_items.py`。**雷 108** |
+| 4 | `NullReferenceException` @ `LordPartyComponent.InitializeLordPartyProperties`（栈顶是内联帧，真凶在被内联的子函数），来自 `HeroSpawnCampaignBehavior` 建世界刷领主部队 | **未定** —— 见下方「第 4 关」 | 🔴 **未解** |
+
+### 第 4 关（交接重点，下次从这里接着查）
+
+**已排除**（都查过，别重查）：
+- `Owner.Clan` 非空（由 `clan.GetBestAvailableCommander` 给出）✓
+- 196 个家族 / 805 个领主模板的 culture **全有效**（0 缺失、0 悬空）✓
+- `Clan.DefaultPartyTemplate` 链 = `_defaultPartyTemplate ?? Culture.DefaultPartyTemplate`；家族段没有该属性 → 落到文化的 `default_party_template`，17 个文化全写 `PartyTemplate.main_hero_party_template`（**存在** ✓，且玩家主队用同一模板已成功初始化 ✓）→ 非空 ✓
+
+**剩两个嫌疑**：
+1. 🔴 **领主部队用错了模板**：17 个文化全指向 `main_hero_party_template`（占位值，内容只有 1×main_hero）；官方是逐家族写 `default_party_template="PartyTemplate.looters_template"` 这类专用模板。`partyTemplates.xml` 目前只有 2 个模板（`main_hero_party_template` + `militia_template`）。
+2. 新部队的 roster / `ItemRoster` 时序（同一条内联链）。
+
+**下一步（建议乙先行，一次编译定案）**：
+- **乙（先定位）**：在 LWN 加 `HeroSpawnCampaignBehavior.SpawnLordParty` 的**前置日志/守卫**，打出家族 id + 模板 id → 一次实机即可确定"是谁、哪个模板为空"。
+- **甲（数据，正规）**：给 17 个文化补 `lord_party_template`，并在 `partyTemplates.xml` 里补领主部队模板（改生成器 + 重跑）。
+
+⚠️ 这条链与「**灭族后要能看到野队**」是**同一条**（用户明确要保留的世界状态）→ 值得一次修透，不要逐个打补丁。
+
+### 本次会话其它待办（未动）
+
+- **距离缓存**：仍是 14:39 的旧文件（早于今天 16:44/16:46 的 navmesh + 坐标改动）→ 删掉 `settlements_distance_cache.bin` 让引擎重建（雷 53/104；**第二局才回填内存生效**）。
+- **`castle_tk272`**：按 09-11 导出的高度图，中心离水面只剩 3cm、离岸 0.5m；地形今天改过（`min_height` 0 → −3.058）→ 建议重导高度图复核，必要时往内陆挪几米。
+- **据点文化**：271 个据点仍是 `Culture.ikoku`（旧占坑，**不在 `Culture.csv` 的 16 个里**）→ 待裁定是否迁到地域文化（迁完 ikoku 可退役；来源 = `gen_taikou_settlements_xml.py:47` 的硬编码常量）。
+- **实机验证**：需要 VS2022 手动编译（Claude 侧 `dotnet build` 只验语法，不作交付）+ 开新档。
+
+### 本次改动清单（未提交；铁律 23 = git 由用户自己来）
+
+- **LWN**：新增 `ExampleModVS/.../CampaignMode/MapDistanceNullSettlementGuardPatch.cs`（+ csproj 登记）、新增 `Scripts/check_village_types_and_items.py`（+ 挂进 `run_all_checks.py`）；改 `Scripts/gen_taikou_settlements_xml.py`（村型 id）、`Scripts/prune_taikou_items.py`（keep 集）、`Scripts/sanitize_taikou_cultures.py`（剔过时的 `neutral_culture` + 用法纪律）；`Knowledge/自定义世界内容包从零起步必备清单.md`（雷 105~109 + 台账 + 脚本表）
+- **Taikou**：`settlements.xml` 及 5 个年代档（村型修正 + 去 gate_pos）、`taikou_items/*.xml`（重拷官方 + 重剪）
+
+---
+
 ## 🔴 当前 TODO（新 session 从这里开始；已完成项见下方「实机验证记录」与文末「📦 归档」）
 
 **一句话现状（2026-09-12 收工）**：**六代世界数据已经铺进内容包、C# 编译通过、一键体检 30 绿 / 0 红**

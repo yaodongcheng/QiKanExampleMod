@@ -7,7 +7,11 @@ sanitize_taikou_cultures.py — 把 Taikou 数据包内所有指向外部文化�
 Culture.ikoku；但拷贝来的官方物品/工艺件/音乐/装备模板带 2800+ 处 Culture.<原版八文化> 引用，
 运行时 GetPresumedObject 以引用创建裸文化桩（模板列表为 null）→ Companion NRE。
 
-被替换的文化（全部为非自给）：empire aserai battania khuzait sturgia vlandia looters neutral_culture
+被替换的文化（全部为非自给）：empire aserai battania khuzait sturgia vlandia looters
+# 🔴 2026-09-12 剔除 neutral_culture：本包自己定义了 Culture.neutral_culture（spcultures.xml），
+#    再替换会把生成物里合法的 neutral_culture 引用改掉（实测：taikou_lords.xml 51 处 → 产物≠生成器，铁律 22 违规）。
+# 🔴 用法纪律：**只对「刚拷入的官方文件」跑**（物品/装备模板/工艺件那批）；对生成物跑 = 改生成物，
+#    正确的顺序是 拷贝官方 → 本脚本 → prune/生成器；若已误跑，重跑对应生成器即可还原。
 替换目标：Culture.ikoku（唯一自给文化；替换后引用恒有效，任何文化语义后续由生成器统一裁决）
 
 纪律：脚本改 XML 必 parse 验证（替换前后 minidom.parse）；输出被改文件清单与替换数。
@@ -20,7 +24,7 @@ import xml.dom.minidom as minidom
 from pathlib import Path
 
 BAD_CULTURES = re.compile(
-    r"Culture\.(empire|aserai|battania|khuzait|sturgia|vlandia|looters|neutral_culture)"
+    r"Culture\.(empire|aserai|battania|khuzait|sturgia|vlandia|looters)"
 )
 
 

@@ -519,6 +519,13 @@ var cur = PortraitRegistry.GetStagePortrait("lord_1_kinoshita", "藤吉郎");
 string emoSprite = PortraitRegistry.GetEmotionSpriteName("361", "happy", isBustup: true);
 ```
 
+🔴 **只把 sprite 名绑到 prefab = 画不出来（2026-09-12 实机踩到）**：立绘分类是**按需单张加载**的，
+`GetOrLoad` 才把那张 sheet 推进显存——**没调 = 立绘位置空白，且零报错**（日志里连 `[SpriteAssets] 加载 sheet` 都没有，
+可直接用它判断"到底调没调"）。走 MVVM 绑名字的路子（`Sprite="@X"`，X 是 VM 给的**名字串**）时，
+**在 VM 里把名字算出来的地方顺手调一次加载**即可（范本：`HeroProfileRegistry.EnsurePortraitLoaded(name)`
+← 选人列表小头像 / 推荐卡 / 详情页立绘三处构造时调用）。⚠️ 配额是 LRU（bustup 12 / mini 64 张），
+一次铺 >64 行的列表会有几行被挤掉（列表越长越靠后的行越安全，靠前的反而先被驱逐——数量级到不了就先不管）。
+
 **内存纪律（LRU 已内建）**：bustup 桶 12 张 / minihead 桶 64 张（按字节分档）；驱逐 = `PartialUnloadAtIndex` + 250ms（≈2 帧）宽限 + 只逐最近未用；跨场景/读档引擎卸载后会自动重建 partial 状态。全程 try/catch → null 降级（铁律 1）。
 
 **内容包契约（数据怎么喂进来）**：内容包自备三件（由 `ArtSource/scripts/build_profile_pack.py` 生成，禁手改）——
