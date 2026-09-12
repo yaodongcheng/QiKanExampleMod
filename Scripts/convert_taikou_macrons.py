@@ -67,7 +67,8 @@ ID_REMAP = {
     "clan_yagyūūū_1": "clan_yagyuu_1",
 }
 # 合并后留存行的字段覆盖（名字取家名「柳生」——另两行是个人名）
-ROW_MERGE_FILL = {"Clan.csv": {"clan_yagyuu_1": {"ScriptName": "柳生", "ChineseName": "柳生"}}}
+#   ⚠️ 2026-09-12 起 Clan.csv 的列换成 `Name`（原 `ScriptName`/`ChineseName` 是逐字相同的两列，已合并）
+ROW_MERGE_FILL = {"Clan.csv": {"clan_yagyuu_1": {"Name": "柳生"}}}
 # 英雄名退化后缀修正（同源问题：靠重复 u 凑唯一名）——**在 macron 转换之后**按键匹配
 #   TaikouHero 与 BaseInfo 是同一批人的两份表，写法略有出入（Hyoogo/Hyougo），各一条
 HERO_NAME_FIX = {
@@ -77,7 +78,9 @@ HERO_NAME_FIX = {
 }
 
 # 要处理的表（TaikouForce.csv 是产物，排除）
-TABLES = ["Clan.csv", "Kingdom.csv", "ForceTaikou.csv", "TaikouHero.csv",
+#   ⚠️ 2026-09-12：Kingdom.csv 已归档（`csv/_archive/`）——它的 Culture/noKingdom 收编进 ForceTaikou.csv，
+#      本表不再处理它（留着会报缺文件）。
+TABLES = ["Clan.csv", "ForceTaikou.csv", "TaikouHero.csv",
           "Settlements.csv", "BaseInfo.csv"]
 
 # 🔴 允许「按首列 id 去重」的表 —— **只放 Clan.csv**（柳生三合一是唯一需要合并的场景）。

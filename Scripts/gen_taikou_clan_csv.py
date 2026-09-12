@@ -27,6 +27,21 @@ r"""Clan.csv 生成器 —— 按「侍奉关系」重建家族表（2026-09-11 
   · id = `clan_<苗字罗马音>_<序号>`；序号按「首次出现年代 → 规模降序 → 家头编号」排
   · 名字 = 苗字（5 个「北条家」= `clan_hojo_1..5`，靠骑砍 UI 的当主名区分）
 
+**列**（2026-09-12 用户裁定裁掉 4 个织丰遗留列）：
+
+    ID | Name | Alias | Culture | Owner_1554 | Kingdom_1554 | … | Owner_1598 | Kingdom_1598
+
+  · `Name` = 苗字（原 `ChineseName`；原 `ScriptName` 与它**逐字相同**，已删）
+  · `Alias` = **历代异名**，`|` 分隔（铁律 24），**不重复主名**。口径同 `TaikouForce.别名`。
+    来源①各年代家头的苗字（按年代先后，改名家如 长尾→上杉 这里就是「长尾」）；
+    来源②旧织丰表存档的 `OtherName`（如 木下 → `羽柴|丰臣`，这类靠首列名字推不出来）
+  · `Culture` = 该家成员多数文化
+  · 删掉的 4 列及实测依据：`ScriptName`（与 Name 逐字相同 283/283）、
+    `Surname`（= id 的罗马音块 283/283，机械可推）、
+    `LocozationName`（机械拼 `{=TAIKOU_<id>}<罗马音>`，且 **282/283 的键在 Taikou 语言包不存在**）、
+    `Is_Shokuho`（283/283 恒为 "0"）
+    ⚠️ 势力英文名/本地化键将来做本地化时再起，别把这 4 列当"删错了"加回来
+
 **跨年代同一个家的认定**（否则「织田信长 1554-1582 / 织田秀信 1598」会被拆成两个 id）：
   同一个家 = 家头同一个人，或 两个家头是**直系血缘**（父/母链）且**从未在同一年代同时当家头**。
   ⚠️ 北条氏康与北条氏政是父子、但 1554~1582 同时当家头 → **不并**（数据上他们各有家臣团）。
@@ -76,6 +91,8 @@ HERO = os.path.join(CSV_DIR, "TaikouHero.csv")
 FORCE = os.path.join(CSV_DIR, "TaikouForce.csv")
 SETT = os.path.join(CSV_DIR, "Settlements.csv")
 CLAN = os.path.join(CSV_DIR, "Clan.csv")
+# 泛用 hero 槽位对齐表（gen_generic_hero_ids.py 产出）：合成号 ↔ 真 ID ↔ 各年代槽号
+GEN_ALIGN = os.path.join(os.path.dirname(CSV_DIR), "泛用hero槽位对齐_20260912.csv")
 
 ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]
 DXRE = re.compile(r"lord_tk5_(\d+)$")
@@ -85,7 +102,9 @@ ROMAN_CLEAN = re.compile(r"[^A-Za-z]")
 # 无家的势力类型（用户裁定：浪人无家；无所属同理——他们连势力都没有）
 CLANLESS_FACTION = {"浪人", "?", "", "无"}
 # Clan.csv 列序（Owner/Kingdom 成对相邻，便于人读）
-CLAN_COLS = (["ID", "ScriptName", "ChineseName", "LocozationName", "Surname", "Culture", "Is_Shokuho"]
+# 🔴 2026-09-12 用户裁定裁掉 4 个织丰遗留列（实测全是冗余/常量，见文件头「列」节）：
+#    ScriptName（与 Name 逐字相同）/ Surname（= id 的罗马音块）/ LocozationName（机械拼 + 282/283 键悬空）/ Is_Shokuho（恒 0）
+CLAN_COLS = (["ID", "Name", "Alias", "Culture"]
              + [c for e in ERAS for c in ("Owner_" + e, "Kingdom_" + e)])
 HERO_CLAN_COLS = ["ClanID_" + e for e in ERAS]
 
@@ -155,6 +174,40 @@ def build():
         if m:
             by_dx[m.group(1)] = r
     keep = set(by_dx)
+
+    # 🔴 泛用 hero（2026-09-12 用户裁定）：ID 是名字式的（`lord_tk5_ninja_rokurooji`），
+    #    **每年占的槽号还不同**（仙左卫门 = 1108/1120）——所以不能靠 ID 里的 DX 号认人。
+    #    对齐表给每人一个**合成号**当内部键（9000 起，与真实号段不撞），本函数把
+    #    日志行的键从「槽号」换成「合成号」，下游（resolve/keep/clan）全部不用改。
+    #    ⚠️ 输出边界必须换回真 ID：`OUT_ID[键]`，别写 `"lord_tk5_" + 键`（那条只对真 DX 号成立）。
+    OUT_ID = {}
+    GEN_ERAS = {}          # 合成号 → 他该出现的年代集合（其余年代不在日志里是**正常**的）
+    if os.path.isfile(GEN_ALIGN):
+        with io.open(GEN_ALIGN, encoding="utf-8-sig", newline="") as fh:
+            for gr in csv.DictReader(fh):
+                syn, hid = (gr.get("合成号") or "").strip(), (gr.get("hero_id") or "").strip()
+                if not syn or not hid:
+                    continue
+                OUT_ID[syn] = hid
+                row = by_dx.get(syn)
+                if row is None:
+                    row = next((p for p in people if (p.get("ID") or "") == hid), None)
+                    if row is None:
+                        problems.append("对齐表 %s 在英雄表里查无（先跑 promote_generic_npcs.py）" % hid)
+                        continue
+                    by_dx[syn] = row
+                keep.add(syn)
+                GEN_ERAS.setdefault(syn, set())
+                for e in ERAS:
+                    slot = (gr.get("槽号_" + e) or "").strip()
+                    if not slot:
+                        continue
+                    GEN_ERAS[syn].add(e)
+                    if slot in sup.get(e, {}):
+                        sup[e][syn] = sup[e].pop(slot)
+    for dx in by_dx:
+        OUT_ID.setdefault(dx, "lord_tk5_" + dx)
+
     name2dx = {r.get("CNName", ""): dx for dx, r in by_dx.items() if r.get("CNName")}
 
     # 组织名 → 势力 id（含别名 / 去「家」）
@@ -196,6 +249,10 @@ def build():
     # 苗字 → 罗马音兜底表：旧 Clan.csv（织丰口径存档，2026-09-11 落档）的 ScriptName→Surname。
     # 用途：家头 EnglishName 为空时（如 lord_tk5_176 冈部贞纲，织丰侧就没有罗马音）也能出 id。
     zok2roman = {}
+    # 任一名字 → 该家的**全部名字**（本名在前 + OtherName 异名按原序）——给 Alias 列找历代异名。
+    # 🔴 必须按「全部名字」反查，不能只按本名：如丰臣家现名「丰臣」，而旧表那行记的是
+    #    本名「木下」+ 异名「羽柴|丰臣」，只按本名查会漏掉这个最典型的改名家。
+    zok2names = {}
     arch = os.path.join(ARCHIVE, "Clan_织丰口径_20260911.csv")
     if os.path.isfile(arch):
         _, arows = load_dict(arch)
@@ -203,6 +260,13 @@ def build():
             for k in ("ScriptName", "ChineseName"):
                 if r.get(k) and r.get("Surname"):
                     zok2roman.setdefault(r[k], r["Surname"].lower())
+                allnm = []
+                for n in [r.get(k, "")] + [x.strip() for x in (r.get("OtherName") or "").split("|")]:
+                    if n and n not in allnm:
+                        allnm.append(n)
+                if len(allnm) > 1:
+                    for n in allnm:
+                        zok2names.setdefault(n, allnm)
 
     def rel_pids(r, col):
         """亲属列 → pid 列表（值可能是 lord_tk5_N，也可能是人名——如 北条氏政.Grand=北条氏纲）"""
@@ -257,7 +321,7 @@ def build():
 
         clan = {pid: resolve(pid) for pid in sorted(keep, key=int) if pid in rows}
         for pid in sorted(keep, key=int):
-            if pid not in rows:
+            if pid not in rows and (pid not in GEN_ERAS or e in GEN_ERAS[pid]):
                 problems.append("[%s] %s（%s）在上级日志里没有行" % (e, by_dx[pid]["CNName"], pid))
 
         # R4 妻子 → 丈夫
@@ -306,32 +370,20 @@ def build():
             clan[p] = clan[h]
             r5 += 1
 
-        # R6 势力代表兜底（2026-09-11 用户裁定：势力该年存在就必须有家挂它）
-        #    某势力该年存在、却没有任何家族挂它 → 取势力表里的**代表**（`Owner_<年>`）立为家头；
-        #    「组织=该势力」而本来无家的人 → 并入他家。
-        #    典型 = 忍者村/水军：首领是泛用 NPC（「六郎次」「仙左卫门」），势力表已换成实名替补
-        #    （高坂甚内/海雷丁），他们的部下在 R2 走不到家头（上司不在英雄表）→ 这里兜住。
+        # R6 势力代表兜底 —— 🔴 **已删除（2026-09-12 用户裁定）**
+        #    原规则：「某势力该年存在、却没有任何家族挂它 → 取势力表里的代表（`Owner_<年>`）立为家头」。
+        #    ⚠️ **它与 R1「谁有人侍奉谁就是一家之主」直接冲突**：这些势力的当主在日志里是**泛用 NPC**
+        #    （「仙左卫门」「六郎次」「道闲」「甚五兵卫」「白云斋」，都不在英雄表），而势力表换的
+        #    **实名替补**（海雷丁/高坂甚内/加藤段藏/猿飞佐助/金光文右卫门）在日志里全是
+        #    **`立场=直臣` 且 `部下=0`** —— 是被别人侍奉的对象的家臣，**不是家头**。
+        #    原规则把家臣提升成家头，造出 5 个假家族：`clan_hairedin_1` / `clan_kanemitsu_1` /
+        #    `clan_katoo_1` / `clan_koosaka_1` / `clan_sarutobi_1`（实测 15 格，六年代分布）。
+        #    **用户裁定：按日志为准，这 5 人不该有家。**
+        #    代价（已知并接受）：安东水军 / 土佐水军 / 轩猿众 / 透波众 / 甲贺众 在这些年代
+        #    **没有家族挂它**（骑砍侧无 RulingClan）——由 `check_taikou_world_tables.py` 的
+        #    「武家在某年代存在、但该年没有任何家族挂它」警告常驻盯着，不静默。
+        #    ⚠️ 别把这条兜底写回来：它解决的是引擎需求，代价是违反家族定义。
         r6 = 0
-        for (fid, fe) in sorted(force_owner):
-            if fe != e:
-                continue
-            m = DXRE.match(force_owner[(fid, fe)])
-            owner_pid = m.group(1) if m else None
-            if not owner_pid or owner_pid not in rows or owner_pid not in keep:
-                continue
-            covered = any(h == pid and pid in rows and
-                          force_of(rows[pid]["组织"], rows[pid]["势力"]) == fid
-                          for pid, h in clan.items() if h is not None)
-            if covered:
-                continue
-            if clan.get(owner_pid) != owner_pid:
-                clan[owner_pid] = owner_pid
-                r6 += 1
-            for q in sorted(keep, key=int):
-                if q in rows and clan.get(q) is None and                         force_of(rows[q]["组织"], rows[q]["势力"]) == fid:
-                    clan[q] = owner_pid
-                    r6 += 1
-
         era_clan[e] = clan
         era_head[e] = {pid for pid, h in clan.items() if h == pid}
         n_indep = 0
@@ -467,6 +519,23 @@ def build():
         if len(names) > 1:
             renames.append("%s：家头苗字历代不一（%s）→ 取名用最大那年（%s）"
                            % (g["zok"], "/".join(sorted(names)), g["zok"]))
+        # ── 历代异名 → Alias 列（2026-09-12 用户裁定；口径同 TaikouForce.别名：`|` 分隔、不重复主名）──
+        #    来源①：各年代家头的苗字（按年代先后；改名家如 长尾→上杉，主名取最大那年，异名就是长尾）
+        #    来源②：旧织丰表的 OtherName（如 木下 → 羽柴|丰臣，这类靠首列名字推不出来，必须从旧表继承）
+        alts, seen = [], {g["zok"]}
+        for e in sorted(g["eras"]):
+            h = head_at(g, e)
+            if not h:
+                continue
+            nm = (by_dx[h].get("FirstName") or by_dx[h].get("CNName") or "").strip()
+            if nm and nm not in seen:
+                seen.add(nm)
+                alts.append(nm)
+        for nm in (zok2names.get(g["zok"]) or []):
+            if nm and nm not in seen:
+                seen.add(nm)
+                alts.append(nm)
+        g["alt_names"] = alts
 
     by_rom = collections.defaultdict(list)
     for g in groups:
@@ -586,7 +655,9 @@ def build():
         "groups": groups, "stat": stat, "hero_clan": hero_clan, "sett_clan": sett_clan,
         "hero_cols": None, "sett_fix": sett_fix, "org2force": org2force, "warns": warns,
         "n_orphan": n_orphan, "n_shift": n_shift, "rom_gap": rom_gap,
-        "force_exists": force_exists, "force_of": force_of,
+        "force_exists": force_exists, "force_of": force_of, "out_id": OUT_ID,
+        "gen_eras": GEN_ERAS,
+        "id2key": {v: k for k, v in OUT_ID.items()},
         "by_dx": by_dx, "sup": sup, "era_clan": era_clan, "head2id": head2id,
     }, problems
 
@@ -602,17 +673,18 @@ def render_clan(data):
     w = csv.writer(buf, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
     w.writerow(CLAN_COLS)
     sup, org2force = data["sup"], data["org2force"]
+    OUT_ID = data.get("out_id") or {}
+    GEN_ERAS = data.get("gen_eras") or {}
     force_exists = data["force_exists"]
     force_of = data["force_of"]
     for g in sorted(data["groups"], key=lambda g: g["id"]):
-        row = {"ID": g["id"], "ScriptName": g["zok"], "ChineseName": g["zok"],
-               "LocozationName": "{=TAIKOU_%s}%s" % (g["id"], g["rom"].capitalize()),
-               "Surname": g["rom"].capitalize(), "Culture": g["culture"], "Is_Shokuho": "0"}
+        row = {"ID": g["id"], "Name": g["zok"], "Alias": "|".join(g.get("alt_names") or []),
+               "Culture": g["culture"]}
         for e in ERAS:
             if e in g["eras"]:
                 h = next(x for x in g["heads"] if x in data["era_clan"][e] and
                          data["era_clan"][e][x] == x)
-                row["Owner_" + e] = "lord_tk5_" + h
+                row["Owner_" + e] = OUT_ID.get(h, "lord_tk5_" + h)
                 fid = force_of(sup[e][h]["组织"], sup[e][h]["势力"])
                 row["Kingdom_" + e] = fid if (fid, e) in force_exists else "-"
             else:
@@ -640,8 +712,11 @@ def apply_hero(data, hero_cols):
         if not r:
             continue
         r = list(r) + [""] * (len(hdr) - len(r))
-        m = DXRE.match((r[0] or "").strip())
-        vals = data["hero_clan"].get(m.group(1)) if m else None
+        hid = (r[0] or "").strip()
+        m = DXRE.match(hid)
+        # 🔴 泛用 hero 的 ID 是名字式的（DXRE 匹配不到）→ 走 真ID→内部键 反查表
+        key = m.group(1) if m else (data.get("id2key") or {}).get(hid)
+        vals = data["hero_clan"].get(key) if key else None
         if vals is None:
             vals = [""] * len(ERAS)
         if "ClanID" in hdr:
@@ -795,6 +870,11 @@ def main():
     if not os.path.isfile(arch) and os.path.isfile(CLAN):
         shutil.copy2(CLAN, arch)
         print("  旧 Clan.csv 已存档 → %s" % os.path.relpath(arch, REPO))
+    # 🔴 现版 Clan.csv（19 列，织丰遗留列尚未裁）存档 —— 2026-09-12 列裁剪，留档供人回查
+    arch19 = os.path.join(ARCHIVE, "Clan_19列_20260912.csv")
+    if not os.path.isfile(arch19) and os.path.isfile(CLAN):
+        shutil.copy2(CLAN, arch19)
+        print("  现版 Clan.csv（19 列）已存档 → %s" % os.path.relpath(arch19, REPO))
     for p in (CLAN, HERO, SETT):
         if os.path.isfile(p):
             shutil.copy2(p, p + ".bak_clan_" + stamp)
@@ -815,7 +895,7 @@ def main():
     if len(clan_back) != len(data["groups"]):
         errs.append("Clan.csv 行数 %d ≠ %d" % (len(clan_back), len(data["groups"])))
     for r in clan_back:
-        if not all(r.get(c) for c in ("ID", "ScriptName", "ChineseName")):
+        if not all(r.get(c) for c in ("ID", "Name")):
             errs.append("Clan.csv %s 有空格" % r.get("ID"))
     if "ClanID" in hero_back[0]:
         errs.append("TaikouHero.csv 旧 ClanID 列没删干净")

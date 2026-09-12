@@ -12,11 +12,19 @@ r"""T4-b 世界四表体检（Culture / Kingdom / Clan / Settlements ↔ TaikouH
 
 🔴 **2026-09-11 合并纪要**：`Kingdom.csv`（织丰口径 135 条）与 `ForceTaikou.csv`（TK5 官方口径 184 条）
    合并为 `TaikouForce.csv`（生成器 `Scripts/gen_taikou_force_csv.py`），同时
-   ①`ikko_shu`（一向宗）归并进 `honganji`（本愿寺）——Clan.csv 7 行引用已同步改写
+   ①`ikko_shu`（一向宗）归并进 `honganji`（本愿寺）
    ②丢弃四列：Kingdom 单列 `Owner`（与 `Owner_<年>` 重复，且是织丰编号那条红的根源）、
      `Is_1568`（语义待考、无人消费）、`IsShokuho`（消费者在已冻结的剧本工程，且读 Clan/Kingdom 表）
-   ③列序 = `势力类型 | ID | 太阁编号 | 势力名 | 短名 | 别名 | LocozationName | Culture | Owner_<年>×6`，
+   ③列序 = `势力类型 | ID | 势力名 | 短名 | 别名 | Culture | Owner_<年>×6 | 太阁编号`，
      **势力类型是第一列并作主排序键**（Warrior → Trader → Ninja → Pirate → Neutral），次排序 = ID
+     ⚠️ 2026-09-11 的纪要曾把 `LocozationName` 与 `太阁编号` 的位次写错（列早已删/已移到末位），
+        2026-09-12 更正为现行列序。
+
+🔴 **2026-09-12 源表收编纪要**：`Kingdom.csv` 的独有贡献实测只有 `Culture` 一列 + `noKingdom` 一行
+   → 已由 `Scripts/migrate_taikou_force_source.py` 收编进 `ForceTaikou.csv`（后者成为**唯一势力源表**），
+   **Kingdom.csv 归档**至 `csv/_archive/Kingdom_织丰口径_20260912.csv`；
+   同时删掉 `ForceTaikou.csv` 的 `Owner_<年>` ×6（**死输入**：全被上级日志重算覆盖，原值是织丰编号）。
+   `Clan.csv` 同步裁掉 4 个织丰遗留列 → 列 = `ID | Name | Alias | Culture | Owner_<年>×6 | Kingdom_<年>×6`。
 
 查两件事（plan T4-b 原话）：
   ① **自身定义是否自洽** —— 必填字段、枚举取值、id 唯一
@@ -26,8 +34,9 @@ r"""T4-b 世界四表体检（Culture / Kingdom / Clan / Settlements ↔ TaikouH
   规则：**谁有人侍奉谁就是一家之主**；没部下的人并入其直接上司的家；妻子并入丈夫的家；
   既没上司也没部下的亲人并入该人的家；浪人/无所属**无家**。
   落地（生成器 `Scripts/gen_taikou_clan_csv.py`，六年代各一套）：
-    · `Clan.csv` 整表重建 → 列 = `ID | ScriptName | ChineseName | LocozationName | Surname | Culture |
-      Is_Shokuho | Owner_<年> ×6 | Kingdom_<年> ×6`（`-` = 该年代此家不存在）
+    · `Clan.csv` 整表重建 → 列 = `ID | Name | Alias | Culture | Owner_<年> ×6 | Kingdom_<年> ×6`
+      （`-` = 该年代此家不存在）。建表时原为 19 列（含 `ScriptName`/`ChineseName`/`LocozationName`/
+      `Surname`/`Is_Shokuho` 五个织丰遗留列），2026-09-12 裁掉其中 4 个（详见上方「源表收编纪要」）。
     · `TaikouHero.csv` 的 `ClanID` 单列 → `ClanID_<年>` ×6
     · `Settlements.csv` 的 `Clan_<年>` = 城主（`Owner_<年>`）的家族
   随之作废的旧检查：`Clan.csv.Kingdom`（单列）、`Clan.csv.Owner`（单列）、
@@ -85,6 +94,10 @@ HERO_ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]
 EXTRA_ERAS = ["1549", "1584", "dream1560"]
 
 TK5_TYPE = ("城", "町", "里", "砦")
+
+# 势力类型的合法取值与固定次序（2026-09-11 用户裁定：第一列并作主排序键）——
+# 与生成器 `gen_taikou_force_csv.py` 的 TYPE_ORDER 必须一致（那边是排序，这边是闸门）
+TYPE_ORDER = ["Warrior", "Trader", "Ninja", "Pirate", "Neutral"]
 
 # 🔴 名字匹配一律**精确全名**（用户 2026-09-11 裁定：城和町会共用前缀，名字必须写全）。
 #    禁止剥「城/町/之町」后缀再比 —— 冈崎城 与 冈崎 町 是两个据点。
@@ -218,6 +231,32 @@ def main():
     hard_err("TaikouForce.Culture → Culture.csv",
              ["%s → %s（Culture.csv 无此文化）" % (r["ID"], r["Culture"]) for r in kingdom
               if r.get("Culture") and r["Culture"] not in cult_set])
+
+    # 🔴 势力类型枚举（2026-09-12 补）：写错一个值**不会报任何错**——
+    #    生成器的排序会把它静默丢到末尾（`sort_key` 的 len(TYPE_ORDER) 兜底），
+    #    下面那条「空国」警告也会跳过它（按 `== "Warrior"` 筛）。所以必须显式闸门。
+    hard_err("TaikouForce.势力类型 必须是 %s 之一" % " / ".join(TYPE_ORDER),
+             ["%s = %r" % (r["ID"], r.get("势力类型")) for r in kingdom
+              if r.get("势力类型") not in TYPE_ORDER])
+
+    # 🔴 太阁编号（2026-09-12 补）：格式 = `N` 或 `N|N|N`（多值 = 一门全集）；
+    #    **全库唯一**（跨行不得重复，这是「对回 TK5 官方数据的稳定键」的前提）。
+    #    ⚠️ 允许为空：6 个织丰补造的家（本庄/一宫/三木/二阶堂/少贰/noKingdom）本就不在 TK5 势力表里。
+    bad = []
+    tkg_seen = {}
+    for r in kingdom:
+        v = (r.get("太阁编号") or "").strip()
+        if not v:
+            continue
+        if not re.fullmatch(r"\d+(\|\d+)*", v):
+            bad.append("%s 太阁编号 = %r（格式应为 N 或 N|N|N）" % (r["ID"], v))
+            continue
+        for n in v.split("|"):
+            if n in tkg_seen:
+                bad.append("编号 %s 被两家占用：%s 与 %s" % (n, tkg_seen[n], r["ID"]))
+            else:
+                tkg_seen[n] = r["ID"]
+    hard_err("TaikouForce.太阁编号 格式合法且跨行唯一", bad)
 
     bad = []
     for r in clan:
@@ -428,7 +467,7 @@ def main():
                 continue          # 「无」= 该年此人无主家 → 对应 Kingdom.csv 的 noKingdom，不是缺口
             if v not in f_name:
                 miss[v] += 1
-    warn_err("TaikouHero.Kingdom_<年> 在 ForceTaikou.csv 查无（%d 个不同势力名）" % len(miss),
+    warn_err("TaikouHero.Kingdom_<年> 在 TaikouForce.csv 查无（%d 个不同势力名）" % len(miss),
              ["%s（%d 个年代）" % (k, n) for k, n in sorted(miss.items(), key=lambda kv: -kv[1])])
 
     # ───────────────── ④ 孤儿（警告：数据缺口）─────────────────
@@ -491,10 +530,14 @@ def main():
     warn_err("无家的英雄（浪人/无所属，骑砍侧当游荡者）",
              ["%s：%d 人" % (e, nocl[e]) for e in HERO_ERAS])
 
-    # 据点无指定当主（数据缺口，T4-c 接真实归属时才补）
+    # 据点六年代全无指定当主（数据缺口，T4-c 接真实归属时才补）
+    #   🔴 2026-09-12 改口径：原先只查 1560（年份写死的遗留），实测 1554 无当主 77 个、1560 74 个
+    #      ——只报 1560 会让人以为那是 1560 独有的问题。改查「六年代全无当主」才是真缺口
+    #      （74 个里 68 个六代全无主，且多为町：太阁5 的町本就不设城主）。
     no_owner = [r["id"] for r in sett
-                if r["id"] not in EXCLUDED_SETTLEMENTS and not r.get("Owner_1560", "")]
-    warn_err("Settlements 在 1560 无指定当主（%d 个）" % len(no_owner), no_owner)
+                if r["id"] not in EXCLUDED_SETTLEMENTS
+                and not any((r.get("Owner_" + e) or "").strip() for e in ERAS)]
+    warn_err("Settlements 六年代全无指定当主（%d 个）" % len(no_owner), no_owner)
 
     # ───────────────── 报告 ─────────────────
     print("世界四表体检（Culture %d / Kingdom %d / Clan %d / Settlements %d；英雄 %d）"

@@ -1,34 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-r"""TaikouForce.csv 生成器 —— Kingdom.csv × ForceTaikou.csv 合并（2026-09-11 用户裁定）
+r"""TaikouForce.csv 生成器 —— ForceTaikou.csv（唯一源表）→ TaikouForce.csv
 ============================================================================
-**为什么合并**：两张表本来是同一件事（太阁5 势力清单）的两半——
-  · `Kingdom.csv`（135 条）= 织丰口径：文化/本地化键/是否织丰原生 + 单列 Owner
-  · `ForceTaikou.csv`（184 条）= TK5 官方口径：太阁编号/势力名/别名/4 类型分类 + **六年代当主**
-  各查一半、互相打架（如「建国 = 空国」警告的根因之一），合并成一张 **TaikouForce.csv** 作唯一势力表。
+**本脚本现在干什么**：源表 `ForceTaikou.csv` 进来，补两样、重算一样、排个序，出 `TaikouForce.csv`：
+  · 补 `短名`（= 势力名去掉尾部「家」，实测 0/185 例外）
+  · 重算 `Owner_<年>` ×6（**完全按上级日志**，见下方专节）
+  · 排序（势力类型 → ID）
 
-**合并规则（外连接 + 一条归并）**
-  1. 行 = 两表 ID 并集（133 共有 + 2 只在 Kingdom + 51 只在 ForceTaikou = 186，再减 1 条归并 = **185**）
-  2. 🔴 **`ikko_shu` 归并进 `honganji`**（用户裁定）：同一势力两条记录——
-     `ikko_shu`（一向宗，Kingdom.csv，**织丰 XML 用的就是这个 id**）
-     `honganji`（本愿寺，Kingdom.csv + ForceTaikou，别名=一向宗）
-     归并方向 = 保留 `honganji`。
-     🔴 **`Clan.csv` 同步改写已退役**（2026-09-11 家族重建）：Clan.csv 整表由
-        `Scripts/gen_taikou_clan_csv.py` 从零重建，不再有单列 `Kingdom`，也不再引用 `ikko_shu`；
-        本次归并只影响 TaikouForce.csv 自己（`honganji` 的别名已含「一向宗」）。
-     ⚠️ 因此**丢掉织丰 XML 的王国 id `ikko_shu`**；备用本地化键 `{=bVqyvzea}Ikko-shu no Ryogoku`
-     记录在此以备将来要兼容织丰时用。
-  3. **列**：`势力类型` 放**第一列并作主排序键**（2026-09-11 用户裁定），次排序 = ID 字母序。
-     列序 = `势力类型 | ID | 势力名 | 短名 | 别名 | Culture | Owner_<年>×6 | 太阁编号`。
-     `太阁编号` 放**最后一列**（用户裁定：现行管线零消费，不占前排）——它的含义与用途：
-       = 太阁5 `database.xml` 的「統一勢力番号」= 该家门众人物番号 + 120（多值 `|` = 一门全集，
-         全库唯一）。段位编码类型：大名 120-919 / 商家 920-944 / 忍者 950-961 / 海贼 965-978。
-       ⚠️ 它记的是**家门身份**，不是当年效力对象——所以「编号−120 落在英雄表里的人」与英雄表的
-         `Kingdom_<年>` 大量不同名（实测 331 条里 173 条），**这是口径差不是错**。
-       用途：对回 TK5 官方数据的唯一稳定键（Snr 快照 force_id 每时代重排会漂移，不能当身份）。
-     留 ForceTaikou 的 `势力名/别名/势力类型/Owner_<年>`；
-     留 Kingdom 的 `短名(ChineseName)/Culture`。
-     🔴 **丢弃五列**：
+**🔴 源的来历（2026-09-12 用户裁定）**：本表原先是两表外连接——
+  · `Kingdom.csv`（135 条）= 织丰口径：Culture/本地化键/是否织丰原生 + 单列 Owner
+  · `ForceTaikou.csv`（184 条）= TK5 官方口径：太阁编号/势力名/别名/4 类型分类
+  实测 Kingdom 的**独有贡献只有 `Culture` 一列 + `noKingdom` 一行**（`短名` 机械可推；
+  `ScriptName` 与 `ChineseName` 逐字相同；`Owner`/`Is_1568`/`IsShokuho`/`LocozationName` 早已报废）
+  → 已由 `Scripts/migrate_taikou_force_source.py` 收编进 `ForceTaikou.csv`，**Kingdom.csv 归档**。
+  本脚本因此只读一张源表，合并逻辑整段删除（下方「历史归并」留档）。
+
+**历史归并（只是记录，已无代码）**
+  🔴 **`ikko_shu`（一向宗）→ `honganji`（本愿寺）**：同一势力两条记录，保留 `honganji`。
+     `ikko_shu` 是**织丰 XML 用的 id**，随 Kingdom.csv 归档而消失；备用本地化键
+     `{=bVqyvzea}Ikko-shu no Ryogoku` 记在此以备将来要兼容织丰时用。
+
+**列**：`势力类型` 放**第一列并作主排序键**（2026-09-11 用户裁定），次排序 = ID 字母序。
+  列序 = `势力类型 | ID | 势力名 | 短名 | 别名 | Culture | Owner_<年>×6 | 太阁编号`。
+  `太阁编号` 放**最后一列**（用户裁定：现行管线零消费，不占前排）——它的含义与用途：
+    = 太阁5 `database.xml` 的「統一勢力番号」= 该家门众人物番号 + 120（多值 `|` = 一门全集，
+      全库唯一）。段位编码类型：大名 120-919 / 商家 920-944 / 忍者 950-961 / 海贼 965-978。
+    ⚠️ 它记的是**家门身份**，不是当年效力对象——所以「编号−120 落在英雄表里的人」与英雄表的
+      `Kingdom_<年>` 大量不同名（实测 331 条里 173 条），**这是口径差不是错**。
+    用途：对回 TK5 官方数据的唯一稳定键（Snr 快照 force_id 每时代重排会漂移，不能当身份）。
+  `Culture` = 势力所在地域（源自文化表 10 个地域；51 个 `org_*` 与 `noKingdom` 一律 `neutral_culture`）。
+  **历史丢弃列（都已不在任何表里，留档免得后人问"这列去哪了"）**：
        · Kingdom 单列 `Owner` —— 与 `Owner_<年>` 重复，且 40 条是织丰编号（那条红的根源）
        · `Is_1568` —— 语义待考（与 `Owner_1568` 有 38 条不一致；试过「当主换人」106/133、
          「1568 新出现」117/133 两个假设都不成立），**无人消费**，用户裁定去掉
@@ -36,11 +37,15 @@ r"""TaikouForce.csv 生成器 —— Kingdom.csv × ForceTaikou.csv 合并（202
          剧本工程**里，且读的是 Clan.csv / Kingdom.csv；**Clan.csv 与 Culture.csv 各自保留自己的
          `IsShokuho` 列**，不受影响）
        · `LocozationName` + 一度派生的 `EnglishName` —— 见下方「英文名」节
-  4. **只在 ForceTaikou 的 51 个 `org_*`**（商家/忍者/海贼）：`Culture` 统一填 `neutral_culture`（用户裁定）；
-     `短名` = 势力名（它们本就不带「家」）。
-  5. **只在 Kingdom 的 `noKingdom`**（无主家占位）：保留（用户裁定）；`Owner_<年>` 全 `-`；
-     `势力类型` = `Neutral`（4 类型之外）。
-  6. **排序**：`势力类型`（Warrior → Trader → Ninja → Pirate → Neutral，见 TYPE_ORDER）→ ID 字母序。
+       · **`ForceTaikou` 的 `Owner_<年>` ×6（2026-09-12）** —— 曾以「死输入」为由删除，
+         **当天即按用户裁定恢复**。理由：它虽对产物零贡献（每格都被日志重算覆盖），却是**势力槽
+         快照口径的唯一逐格记录**（`_analysis/` 下的派生表只是中间状态文件，不作留档依据；
+         实测另有 42 个取值别处无留档）。
+         🔴 **列名保持 `Owner_<年>` 不动** —— 与本产物同名**不是问题**：两张表记的是同一概念的
+         两种口径，区分靠**文件名**。（一度改名为 `快照当主_<年>`，属未获授权的自作主张，已撤回。）
+         🔴 **两套口径留着互相对照** → 常驻检查 `Scripts/check_force_owner_crossval.py`（已挂一键体检）。
+  `noKingdom`（无主家占位）：`Owner_<年>` 全 `-`、`势力类型` = `Neutral`（4 类型之外）。
+  **排序**：`势力类型`（Warrior → Trader → Ninja → Pirate → Neutral，见 TYPE_ORDER）→ ID 字母序。
 
 **🔴 Owner_<年> = 存在性 + 当主，口径 = 上级日志（2026-09-11 用户裁定）**
   规则只有一条：**某势力某年存在 ⟺ 上级日志里该年有人的「组织」= 该势力、且「立场」= 当主**。
@@ -68,9 +73,9 @@ r"""TaikouForce.csv 生成器 —— Kingdom.csv × ForceTaikou.csv 合并（202
     · **同名不同实体**：`chaya`（茶屋**家**，武家，编号 599|600）vs `org_merchant_chaya`
       （茶屋，商家，编号 929，别名正是「茶屋家」）——靠 ID + 势力类型 区分，名称有意同形。
 
-**纪律**：生成物·禁手改（铁律 22）——改内容改本脚本重跑。
+**纪律**：生成物·禁手改（铁律 22）——改内容改**源表**（`ForceTaikou.csv`，手维护）或本脚本，再重跑。
   `--apply` 只写 TaikouForce.csv（带备份）。
-  写入前做闭合校验：输出 id 唯一 + 两表 id 全覆盖。
+  写入前做闭合校验：输出 185 行 + id 唯一 + 每行有 势力名/Culture。
   幂等两跑：第二次必须 0 改动。
 
 Usage:
@@ -98,12 +103,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 CSV_DIR = os.path.join(REPO, "Knowledge", "太阁5", "骑砍2织丰角色ID对应", "csv")
 
-KINGDOM = os.path.join(CSV_DIR, "Kingdom.csv")
 FORCE = os.path.join(CSV_DIR, "ForceTaikou.csv")
 CLAN = os.path.join(CSV_DIR, "Clan.csv")
 HERO = os.path.join(CSV_DIR, "TaikouHero.csv")
 SUP_LOG = os.path.join(REPO, "Knowledge", "太阁5", "太阁日志", "上级日志.md")
 OUT = os.path.join(CSV_DIR, "TaikouForce.csv")
+# 泛用 hero 槽位对齐表（gen_generic_hero_ids.py 产出）：(年, 槽号) → 真 ID
+GEN_ALIGN = os.path.join(os.path.dirname(CSV_DIR), "泛用hero槽位对齐_20260912.csv")
 
 ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]
 SUP_LINE = re.compile(r"Log: SUP\|(.*)$")
@@ -143,8 +149,14 @@ COLS_EN = (["ForceType", "ID", "ForceName", "ShortName", "Alias", "Culture"]
            + ["Owner_" + e for e in ERAS]
            + ["TK5_ID"])
 
-# 归并：被并入者 → 保留者（Clan.csv 引用同步改写）
-MERGE_INTO = {"ikko_shu": "honganji"}
+# 🔴 归并记录（2026-09-12 起**只是历史**，不再有代码）：
+#    `ikko_shu`（一向宗，曾经只在 Kingdom.csv 里）→ 并入 `honganji`（本愿寺，别名含「一向宗」）。
+#    Kingdom.csv 归档后这一行随之消失，归并自然完成；`honganji` 的本地化键
+#    `{=bVqyvzea}Ikko-shu no Ryogoku` 记在此以备将来要兼容织丰时用。
+#
+# 🔴 源的来历（2026-09-12）：本表原先是 `Kingdom.csv`（织丰口径）× `ForceTaikou.csv`（TK5 官方口径）
+#    两表外连接。实测 Kingdom 的独有贡献只有 `Culture` 一列 + `noKingdom` 一行 → 已收编进
+#    `ForceTaikou.csv`（迁移脚本 `migrate_taikou_force_source.py`），本脚本因此**只读一张源表**。
 
 ORG_CULTURE = "neutral_culture"     # 51 个 org_* 的文化（用户裁定）
 NO_KINGDOM = "noKingdom"
@@ -195,48 +207,51 @@ def load_force(path):
 
 
 def build():
-    _, kingdom = load_dict(KINGDOM)
+    # 🔴 泛用 hero（2026-09-12 用户裁定）：ID 是名字式的，且**每年槽号不同** →
+    #    用对齐表把 (年, 槽号) 映射到真 ID；没命中的按老规矩拼 `lord_tk5_<槽号>`。
+    align = {}
+    if os.path.isfile(GEN_ALIGN):
+        with io.open(GEN_ALIGN, encoding="utf-8-sig", newline="") as fh:
+            for gr in csv.DictReader(fh):
+                hid = (gr.get("hero_id") or "").strip()
+                if not hid:
+                    continue
+                for e in ERAS:
+                    slot = (gr.get("槽号_" + e) or "").strip()
+                    if slot:
+                        align[(e, slot)] = hid
+
+    def hid_of(e, pid):
+        return align.get((e, pid), "lord_tk5_" + pid)
+
     force = load_force(FORCE)
-    kd = {r["ID"]: r for r in kingdom}
     ft = {r["ID"]: r for r in force}
 
     out, problems = {}, []
-    for i in sorted(set(kd) | set(ft)):
-        if i in MERGE_INTO:
-            continue                        # 被归并者不单独出行
-        k, f = kd.get(i), ft.get(i)
+    for i in sorted(ft):
+        f = ft[i]
         row = {c: "" for c in COLS_CN}
         row["ID"] = i
-        if f:
-            row["太阁编号"] = f.get("太阁编号", "")
-            row["势力名"] = f.get("势力名", "")
-            row["别名"] = f.get("别名", "")
-            row["势力类型"] = f.get("势力类型", "")
-            for e in ERAS:
-                row["Owner_" + e] = f.get("Owner_" + e, "-") or "-"
-        if k:
-            row["短名"] = k.get("ChineseName", "")
-            row["Culture"] = k.get("Culture", "")
-        # ── 补全规则 ──
-        if not f:                           # noKingdom：只在 Kingdom 里
-            row["势力名"] = row["短名"]
-            row["势力类型"] = "Neutral"
-            for e in ERAS:
-                row["Owner_" + e] = "-"
-        if not k:                           # org_*：只在 ForceTaikou 里
-            row["短名"] = row["势力名"]
-            row["Culture"] = ORG_CULTURE
+        row["太阁编号"] = f.get("太阁编号", "")
+        row["势力名"] = f.get("势力名", "")
+        row["别名"] = f.get("别名", "")
+        row["势力类型"] = f.get("势力类型", "")
+        row["Culture"] = f.get("Culture", "")
+        # 短名 = 势力名去掉尾部「家」（实测 0/185 例外；org_*/noKingdom 本就不带「家」，原样）
+        nm = row["势力名"]
+        row["短名"] = nm[:-1] if nm.endswith("家") else nm
+        for e in ERAS:
+            row["Owner_" + e] = "-"         # 占位；下面按上级日志**全部重算覆盖**
         out[i] = row
 
     # ── 闭合校验 ──
-    if len(out) != 186 - len(MERGE_INTO):
-        problems.append("输出行数 %d，预期 %d" % (len(out), 186 - len(MERGE_INTO)))
-    for i in set(kd) | set(ft):
-        if i not in out and i not in MERGE_INTO:
-            problems.append("两表有 %s，输出里没有" % i)
+    if len(out) != 185:
+        problems.append("输出行数 %d，预期 185" % len(out))
     for i, r in out.items():
         if not r["势力名"]:
             problems.append("%s 缺势力名" % i)
+        if not r["Culture"]:
+            problems.append("%s 缺 Culture" % i)
 
     # ── Owner_<年>：存在性 + 当主 = 完全按上级日志（见文件头）──
     # 组织名 → 势力 id：**带类型**（武家「茶屋家」vs 商家「茶屋」同名不同家）
@@ -267,12 +282,12 @@ def build():
                 r[col] = "-"
                 continue
             h = heads[0]
-            hid = "lord_tk5_" + h["pid"]
+            hid = hid_of(e, h["pid"])
             if hid in hero_ids:
                 r[col] = hid
             else:
                 # 首领是泛用 NPC → 同组织里找实名替补（部下多的优先）
-                cand = sorted([x for x in mem if ("lord_tk5_" + x["pid"]) in hero_ids and x["名"]],
+                cand = sorted([x for x in mem if hid_of(e, x["pid"]) in hero_ids and x["名"]],
                               key=lambda x: -x["部下"])
                 if not cand:
                     # 该组织在英雄表里一个人都没有 → 世界里没这家人，不能建国（空国 = 引擎侧无 RulingClan）
@@ -281,7 +296,7 @@ def build():
                     n_norep += 1
                     norep.append("%s %s（当主「%s」，同僚全是泛用 NPC）" % (r["势力名"], e, h["名"]))
                     continue
-                r[col] = "lord_tk5_" + cand[0]["pid"]
+                r[col] = hid_of(e, cand[0]["pid"])
                 n_sub += 1
                 subs.append((r["势力名"], e, h["名"], cand[0]["名"]))
             n_exist += 1
@@ -291,7 +306,7 @@ def build():
     print("  该年在英雄表里无人、因而不出势力的格：%d" % n_norep)
     for x in norep:
         print("     %s" % x)
-    return out, kd, problems
+    return out, problems
 
 
 def sort_key(row):
@@ -314,15 +329,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true", help="写盘（默认只报告）")
     ap.add_argument("--check", action="store_true", help="只校验磁盘产物是否最新")
+    ap.add_argument("--module", default=None, help="兼容 run_all_checks 接口（本脚本不读模块）")
     args = ap.parse_args()
 
-    for p in (KINGDOM, FORCE, CLAN):
+    for p in (FORCE, CLAN):
         if not os.path.isfile(p):
             print("[FATAL] 缺文件 %s" % p, file=sys.stderr)
             return 2
 
     _, clan = load_dict(CLAN)
-    out, kd, problems = build()
+    out, problems = build()
 
     n_w = sum(1 for r in out.values() if r["势力类型"] == "Warrior")
     n_t = sum(1 for r in out.values() if r["势力类型"] == "Trader")
@@ -331,12 +347,8 @@ def main():
     n_other = len(out) - n_w - n_t - n_n - n_p
     print("TaikouForce = %d 行（Warrior %d / Trader %d / Ninja %d / Pirate %d / 其他 %d）"
           % (len(out), n_w, n_t, n_n, n_p, n_other))
-    print("  来源：Kingdom.csv %d + ForceTaikou.csv %d − 归并 %d = %d"
-          % (len(kd), sum(1 for _ in out), len(MERGE_INTO), len(out)))
-    for a, b in MERGE_INTO.items():
-        print("  归并：%s（%s）→ %s（%s）"
-              % (a, (out.get(a) or kd.get(a, {})).get("势力名") or (kd.get(a, {}).get("ChineseName") or "?"), b,
-                 out[b]["势力名"] if b in out else "?"))
+    print("  来源：ForceTaikou.csv %d 行（唯一源表；Kingdom.csv 已归档，Culture/noKingdom 已收编）"
+          % len(out))
 
     # 🔴 Clan.csv 侧的引用已随家族重建退役（2026-09-11）：Clan.csv 现由
     #    gen_taikou_clan_csv.py 从零产出，没有单列 `Kingdom`，也不再引用 ikko_shu。
@@ -344,7 +356,7 @@ def main():
     for e in ERAS:
         bad = sorted({r.get("Kingdom_" + e, "") for r in clan
                       if r.get("Kingdom_" + e, "") not in ("", "-")
-                      and r["Kingdom_" + e] not in out and r["Kingdom_" + e] not in MERGE_INTO})
+                      and r["Kingdom_" + e] not in out})
         if bad:
             problems.append("Clan.csv.Kingdom_%s 有 %d 个值在 TaikouForce 里不存在：%s"
                             % (e, len(bad), " ".join(bad[:10])))
