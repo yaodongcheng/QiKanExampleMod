@@ -118,6 +118,12 @@ case("必填：Hero 缺 faction 必须抓到", "check_data_fields.py",
                              '<Hero id="lord_tk5_195"', 1),
      1, "faction")
 
+# 雷 110：文化缺部队模板属性 = 该文化的领主部队刷兵 NRE（2026-09-12 实机崩溃根因）
+case("必填：文化缺 default_party_template 必须抓到（雷 110）", "check_data_fields.py",
+     lambda m, c: patch_text(m / "ModuleData" / "spcultures.xml",
+                             'default_party_template="PartyTemplate.main_hero_party_template"\n', "", 1),
+     1, "default_party_template")
+
 case("私用区：还原表里没有的码点 = 硬错误", "check_taikou_world_tables.py",
      lambda m, c: patch_cell(c / "TaikouHero.csv", "ID", "lord_tk5_195", "CNName", "织田\uE7FF信长"),
      1, "U+E7FF")

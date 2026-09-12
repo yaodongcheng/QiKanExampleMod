@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
+using TaleWorlds.TwoDimension;
 
 namespace LivingWorldNpcs.CampaignMode
 {
@@ -136,7 +137,11 @@ namespace LivingWorldNpcs.CampaignMode
 			{
 				Lord = lord;
 				_owner = owner;
-				HeroProfileRegistry.EnsurePortraitLoaded(MiniSprite);   // 🔴 显示点：纹理按需加载
+				// 🔴 显示点：名字 → Sprite 对象（顺带按需加载纹理；名字串绑给 Sprite= 是静默无效的）
+				string miniName = !string.IsNullOrEmpty(lord?.MiniSprite)
+					? lord.MiniSprite
+					: HeroProfileRegistry.GetMiniheadSpriteName(lord?.Id);
+				MiniSprite = HeroProfileRegistry.LoadPortraitSprite(miniName);
 			}
 
 			[DataSourceProperty] public string Name => HeroSelectData.Resolve(Lord?.NameRaw);
@@ -144,13 +149,15 @@ namespace LivingWorldNpcs.CampaignMode
 			/// <summary>身份（太阁5 原文，如「足轻组头」）；数据没有 = 空串。</summary>
 			[DataSourceProperty] public string Role => HeroSelectData.Resolve(Lord?.IdentityRaw);
 
-			/// <summary>行内小头像 sprite 名（**目录按时代挑好的那张卡**；目录没给 = 回落立绘表首张）。</summary>
-			[DataSourceProperty]
-			public string MiniSprite => !string.IsNullOrEmpty(Lord?.MiniSprite)
-				? Lord.MiniSprite
-				: (HeroProfileRegistry.GetMiniheadSpriteName(Lord?.Id) ?? string.Empty);
+			/// <summary>
+			/// 行内小头像（**目录按时代挑好的那张卡**；目录没给 = 回落立绘表首张）。
+			/// 🔴 类型必须是 <see cref="Sprite"/> **对象**、不能是名字串——绑名字给 `Sprite=` 在 VM 绑定
+			/// 路径下静默无效（引擎只对 prefab 字面量做名字解析）→ 立绘/头像永远空白。
+			/// 构造时算一次（GetOrLoad 顺手把纹理按需加载进显存）。
+			/// </summary>
+			[DataSourceProperty] public Sprite MiniSprite { get; }
 
-			[DataSourceProperty] public bool HasMini => !string.IsNullOrEmpty(MiniSprite);
+			[DataSourceProperty] public bool HasMini => MiniSprite != null;
 
 			[DataSourceProperty]
 			public bool IsSelected
@@ -190,7 +197,9 @@ namespace LivingWorldNpcs.CampaignMode
 				StoryGoal = storyGoal;
 				IsMissing = missing;
 				_owner = owner;
-				HeroProfileRegistry.EnsurePortraitLoaded(MiniSprite);   // 🔴 显示点：纹理按需加载
+				// 🔴 显示点：名字 → Sprite 对象（顺带按需加载纹理）
+				MiniSprite = HeroProfileRegistry.LoadPortraitSprite(
+					!string.IsNullOrEmpty(_miniSprite) ? _miniSprite : HeroProfileRegistry.GetMiniheadSpriteName(heroId));
 			}
 
 			[DataSourceProperty] public string Name { get; }
@@ -209,12 +218,10 @@ namespace LivingWorldNpcs.CampaignMode
 
 			private readonly string _miniSprite;
 
-			[DataSourceProperty]
-			public string MiniSprite => !string.IsNullOrEmpty(_miniSprite)
-				? _miniSprite
-				: (HeroProfileRegistry.GetMiniheadSpriteName(HeroId) ?? string.Empty);
+			/// <summary>头像（`Sprite` 对象——见 <see cref="LordItemVM.MiniSprite"/> 的类型说明）。</summary>
+			[DataSourceProperty] public Sprite MiniSprite { get; }
 
-			[DataSourceProperty] public bool HasMini => !string.IsNullOrEmpty(MiniSprite);
+			[DataSourceProperty] public bool HasMini => MiniSprite != null;
 
 			[DataSourceProperty]
 			public bool IsSelected

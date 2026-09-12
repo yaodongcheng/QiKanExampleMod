@@ -511,7 +511,7 @@ else if (IsMessageAtBottom()) _pinnedToBottom = true;
 ```csharp
 // ① 显示一张：唯一入口，每次显示时调用，**不要缓存返回的 Sprite 对象**
 Sprite s = SpriteAssetsManager.GetOrLoad("lwnprof_bustup_517");
-if (s != null) { icon.Sprite = s; icon.IsVisible = true; }   // 先例：SecretLetterButtonInjector 的 ImageWidget
+if (s != null) { icon.Sprite = s; icon.IsVisible = true; }   // ⚠️ 值必须是 **Sprite 对象**（名字串绑上去无效），见下方红字
 
 // ② 角色→哪张卡（阶段数据）：StringId → 阶段列表（含 stage/tkid/sprite 名）
 var stages = PortraitRegistry.GetStagePortraits("lord_1_kinoshita");   // 秀吉 4 阶段
@@ -519,12 +519,24 @@ var cur = PortraitRegistry.GetStagePortrait("lord_1_kinoshita", "藤吉郎");
 string emoSprite = PortraitRegistry.GetEmotionSpriteName("361", "happy", isBustup: true);
 ```
 
-🔴 **只把 sprite 名绑到 prefab = 画不出来（2026-09-12 实机踩到）**：立绘分类是**按需单张加载**的，
-`GetOrLoad` 才把那张 sheet 推进显存——**没调 = 立绘位置空白，且零报错**（日志里连 `[SpriteAssets] 加载 sheet` 都没有，
-可直接用它判断"到底调没调"）。走 MVVM 绑名字的路子（`Sprite="@X"`，X 是 VM 给的**名字串**）时，
-**在 VM 里把名字算出来的地方顺手调一次加载**即可（范本：`HeroProfileRegistry.EnsurePortraitLoaded(name)`
-← 选人列表小头像 / 推荐卡 / 详情页立绘三处构造时调用）。⚠️ 配额是 LRU（bustup 12 / mini 64 张），
-一次铺 >64 行的列表会有几行被挤掉（列表越长越靠后的行越安全，靠前的反而先被驱逐——数量级到不了就先不管）。
+🔴 **立绘/头像空白的两条独立原因（2026-09-12 实机踩到，两条都满足才出图）**：
+1. **纹理没加载**：立绘分类是**按需单张加载**的，`GetOrLoad` 才把那张 sheet 推进显存——
+   没调 = 空白，且零报错（日志里连 `[SpriteAssets] 加载 sheet` 都没有，可直接用它判断"到底调没调"）。
+2. 🔴 **VM 必须给 `Sprite` 对象，不能给名字串**：`Sprite="@X"` 的 X 若是 VM 里的 **string**，
+   **绑定路径不会做「名字 → Sprite」的转换**（引擎只对 prefab 里的**字面量**属性查 `SpriteData`）→ 静默无效、
+   永远空白；而此时日志里 `加载 sheet` **照样在打**（第 1 条已经满足）——极具误导，别被它骗过去。
+   **正确写法 = 一个 `Sprite` 类型的 `[DataSourceProperty]`**，值来自 `GetOrLoad`（一步同时解决两条）：
+   ```csharp
+   [DataSourceProperty] public Sprite PortraitLeft { get => _v; set { _v = value; OnPropertyChangedWithValue(value, "PortraitLeft"); } }
+   PortraitLeft = SpriteAssetsManager.GetOrLoad(name);   // 范本：Scenario/PlaybackDialogVM.cs（实机验证过）
+   ```
+   `ImageWidget` **可以用**（它是 `BrushWidget`，`public new Sprite Sprite` 把值写进 Brush 的 Default 层 →
+   `BrushRenderer` 照常渲染）。⚠️ **别像我一样 grep `public Sprite Sprite` 就下"ImageWidget 不画 Sprite"的结论——
+   那个属性带 `new` 关键字，会漏**；本仓三个反例（选人列表小头像/推荐卡/详情页立绘）全是**绑了名字串**才空白的。
+   **本仓封装**：`HeroProfileRegistry.LoadPortraitSprite(名字) → Sprite`（名字查表 + `GetOrLoad` + null 兜底）。
+
+⚠️ 配额是 LRU（bustup 12 / mini 64 张），一次铺 >64 行的列表会有几行被挤掉（列表越长越靠后的行越安全，
+靠前的反而先被驱逐——数量级到不了就先不管）。比例：立绘本卡 512×768（2:3，界面给 200×300）、小头像 256×256。
 
 **内存纪律（LRU 已内建）**：bustup 桶 12 张 / minihead 桶 64 张（按字节分档）；驱逐 = `PartialUnloadAtIndex` + 250ms（≈2 帧）宽限 + 只逐最近未用；跨场景/读档引擎卸载后会自动重建 partial 状态。全程 try/catch → null 降级（铁律 1）。
 

@@ -256,6 +256,30 @@ def main():
         else:
             print("  [ OK ] neutral_culture")
 
+        # ── 0b. 文化部队模板属性完整性（🔴 雷 110：2026-09-12 实机建世界崩溃根因） ──
+        #   引擎 CultureObject 反编译实证（1.2.12）：8 个 *_party_template 属性全部**无 null 兜底**；
+        #   而 Clan.DefaultPartyTemplate 取值 = `_defaultPartyTemplate ?? Culture.DefaultPartyTemplate`
+        #   → 文化缺 default_party_template = 该文化的领主部队刷兵时 pt=null = FillPartyStacks NRE。
+        #   实测：neutral_culture 独缺 default_party_template，宇佐美家（clan_usami_1 文化 = 它）建世界即崩。
+        print("== 文化部队模板属性（引擎无 null 兜底，缺一即崩） ==")
+        PT_REQUIRED = ("default_party_template", "militia_party_template", "villager_party_template",
+                       "caravan_party_template", "elite_caravan_party_template",
+                       "rebels_party_template", "vassal_reward_party_template")
+        bad_pt = 0
+        for cid, (cel, csrc) in sorted(cultures.items()):
+            miss = [a for a in PT_REQUIRED if not cel.get(a)]
+            if miss:
+                bad_pt += 1
+                errors.append(f"文化 {cid} 缺部队模板属性 {','.join(miss)}")
+                print(f"  [ERROR] 文化 {cid} 缺 {','.join(miss)} —— 刷兵即崩（雷 110） ← {csrc}")
+        if not bad_pt:
+            print(f"  [ OK ] {len(cultures)} 个文化 × {len(PT_REQUIRED)} 个模板属性齐备")
+        pt_pending = [cid for cid, (cel, _s) in cultures.items() if not cel.get("bandit_boss_party_template")]
+        if pt_pending:
+            warns.append(f"{len(pt_pending)} 个文化缺 bandit_boss_party_template")
+            print(f"  [WARN] {len(pt_pending)}/{len(cultures)} 个文化缺 bandit_boss_party_template"
+                  f"（匪首部队模板，同样无 null 兜底；需先有匪兵兵种模板 → 属内容决策，待补）")
+
         # ── 1. 据点字段 ──
         print("== 据点必填字段 / 取值（官方 493 据点边界验证） ==")
         by_kind = {}

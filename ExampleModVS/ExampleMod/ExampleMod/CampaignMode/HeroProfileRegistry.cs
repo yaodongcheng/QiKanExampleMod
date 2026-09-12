@@ -105,26 +105,28 @@ namespace LivingWorldNpcs.CampaignMode
 		}
 
 		/// <summary>
-		/// 🔴 **显示点必调**：把这张立绘的纹理按需加载进显存（幂等）。
-		/// 立绘内容包用的是**按需单张加载**（SpriteCategory 不是整分类驻流，`SpriteAssetsManager` 的
-		/// `GetOrLoad` 是唯一入口）——**只把 sprite 名绑到 prefab = 纹理没加载 = 画不出来**
-		/// （2026-09-12 实机症状：选好人进详情页，立绘位置空白；同因还会让列表小头像不显示）。
-		/// 配额由 SpriteAssetsManager 内部 LRU 管（bustup 12 张 / mini 64 张）。
+		/// 🔴 **显示点唯一入口**：sprite 名 → `Sprite` 对象（顺手把纹理按需加载进显存，幂等）。
+		/// 为什么必须走这里而不是把**名字**绑给 prefab：
+		/// ① 立绘分类是**按需单张加载**的——只绑名字、不 GetOrLoad，纹理不进显存 = 画不出来；
+		/// ② 🔴 更狠的一条：**绑定路径不会把名字串转成 Sprite**（引擎只对 prefab 里的**字面量**
+		///    属性做 `SpriteData` 查表）→ 把 string 绑给 `Sprite=` 是静默无效，**永远空白**。
+		///    范本 = `PlaybackDialogVM.PortraitLeft`（`Sprite` 对象属性 + prefab `Sprite="@…"`，实机验证过）。
+		/// 无名字/查不到 → null（界面按 IsVisible 隐藏，铁律 1：不抛）。
 		/// </summary>
-		public static void EnsurePortraitLoaded(string spriteName)
+		public static TaleWorlds.TwoDimension.Sprite LoadPortraitSprite(string spriteName)
 		{
 			if (string.IsNullOrEmpty(spriteName))
 			{
-				return;
+				return null;
 			}
 			try
 			{
-				SpriteAssetsManager.GetOrLoad(spriteName);
+				return SpriteAssetsManager.GetOrLoad(spriteName);
 			}
 			catch (Exception ex)
 			{
-				// 立绘加载失败不该拦住房界面（铁律 1 精神）
 				DebugLogger.Log($"[HeroProfile] 立绘加载失败 {spriteName}：{ex.GetType().Name} {ex.Message}");
+				return null;
 			}
 		}
 
