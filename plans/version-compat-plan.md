@@ -177,6 +177,18 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 | structural | `MyCommands.cs:1619` | stealth_debug 命令（`DisguiseMissionLogic` 等 1.3.15 已存在，同 1.4.6） |
 | namespace | `MyCommands.cs:30` | `SandBox.Missions` 命名空间三版本都存在，仅 1.2.12 用不上 |
 
+### 🔴 数据层跨版本差异（XML 属性名，不是 C# —— 2026-09-12 新增）
+
+数据文件（内容包 XML）两个客户端**共用同一份**（junction 同源），所以凡「引擎两版本读不同属性名」的地方，**两个属性都得写**，否则某个版本静默语义错：
+
+| 位置 | v1.2.12 读 | v1.5.x 读 | 写法（两边都对） | 错写的后果 |
+|------|-----------|-----------|------------------|-----------|
+| `EquipmentSet`（NPC `<Equipments>` 里 / 装备集定义里）的民用标记 | `civilian="true"`（bool） | `equipmentType="Civilian"`（枚举） | `equipmentType="Civilian" civilian="true"` | 只写一个 → 另一版本把民用装备当**战斗**装备收下（城镇里穿甲带刀） |
+
+反编译出处（两版各自实证）：`MBEquipmentRoster.InitEquipment` + `BasicCharacterObject.Deserialize` 的 `EquipmentSet` 分支。
+Taikou 实例：`taikou_equipment_sets.xml` 的 `taikou_civil_common` / `taikou_civil_bandit`（两个属性都写 ✓）；
+既有的 `taikou_civil_gangster_t1..3` 只写了 `equipmentType`（在 1.2.12 上当战斗变体用，效果正确）——**同一份数据两版本语义不同，待统一**（改时要连 `<EquipmentSet id=…>` 引用一起改）。
+
 ## Modules/ 目录：仅用于 ilspycmd，不参与编译
 
 | 目录 | 版本 | 用途 |

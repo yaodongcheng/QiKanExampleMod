@@ -24,7 +24,11 @@ import xml.dom.minidom as minidom
 from pathlib import Path
 
 BAD_CULTURES = re.compile(
-    r"Culture\.(empire|aserai|battania|khuzait|sturgia|vlandia|looters)"
+    # 🔴 2026-09-12 复核（雷 109 纪律：清洗表随数据演进复核）：补 `nord`——重拷官方
+    #    `items/shields.xml` 后，一件引擎必留盾牌带 `culture="Culture.nord"`，而 nord 是官方
+    #    孤岛文化（本包不定义）→ 运行期裸桩，且 `check_taikou_xml_references.py` 报 DANGLING。
+    #    `vakken`/`darshi` 是同类官方孤岛文化，一并列入（当前 0 命中，纯预防）。
+    r"Culture\.(empire|aserai|battania|khuzait|sturgia|vlandia|looters|nord|vakken|darshi)"
 )
 
 

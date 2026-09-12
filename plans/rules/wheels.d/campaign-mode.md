@@ -465,3 +465,59 @@ face 段是纯预计算，游戏运行时未命中会**现算并缓存于内存*
 `check_hero_templates.py`（逐 GameType 英雄↔模板配对）· `test_negative_checks.py`（模块级负面测试 11 用例）。
 
 **扩展点**：新内容包 = 换 CSV + 改生成器的 era 列表与 id 前缀 + 跑迁移器；三国的「多时代/多剧本」照这条走。
+
+---
+
+## 卷十二 部队模板与兵种最小集 —— 「部队里没有兵」的标准解法（2026-09-13 登记；实机验证通过）
+
+**解决什么问题**：新内容包建起来后，地图上部队**人数正常但队伍界面一个兵都没有**（或满编却只有领主 + 一个同名怪人）。
+根因永远在**数据**——文化上的部队模板指向了不合适的模板，不是代码问题。
+
+### 一、文化上的 8 个部队模板属性（`CultureObject` 反编译实证；**8 个都无 null 兜底**）
+
+| 属性 | 引擎什么时候用 | 缺了会怎样 |
+|---|---|---|
+| `default_party_template` | 领主部队（家族没写自己的模板时兜底：`Clan.DefaultPartyTemplate` = 家族 ?? 文化） | 建世界刷领主部队 `FillPartyStacks` NRE（雷 110） |
+| `militia_party_template` | 城镇/村庄民兵队 | `SpawnMilitiaParty` NRE |
+| `villager_party_template` | 村民运货队 | 村民队刷不出来 |
+| `caravan_party_template` / `elite_caravan_party_template` | 商队 / 精锐商队 | 商队刷不出来 |
+| `rebels_party_template` | 叛军（灭国残党、起义队） | 同上 |
+| `bandit_boss_party_template` | 匪首部队 | 山贼头目队刷不出来 |
+| `vassal_reward_party_template` | 受封附庸时拨给的随从兵 | 受封拿不到兵 |
+
+🔴 **占位值 = 隐形炸弹**（雷 115）：为了"先别 NRE"把属性指到现成模板（当时指了 `main_hero_party_template`），
+引擎**照填不误**——而「玩家占位模板」的内容 = `1 × NPCCharacter.main_hero`（中文名「主角」，`is_hero=true`）
+→ **全世界每支部队被填成 100 多个「主角」副本**：地图显示 100+ 人、队伍界面只有领主 + 一行「主角」、零士兵行。
+判据 = **模板的每个 stack 都应是 `is_hero="false"` 的兵种**（已常驻：`check_data_fields.py` 第 0c 段 + 两条负面用例）。
+
+### 二、兵种最小集生成段（范本：`Scripts/gen_taikou_culture_full.py` 的 `TROOPS`）
+
+- **表驱动**：`(id, 英文名, level, 兵种组, 技能集, 战斗装备变体, 额外属性, 升级目标)` → `troop_cell()` 渲染成完整 `NPCCharacter`。
+- **装备内联**在兵种模板里（多套 `<EquipmentRoster>` = 引擎每人生成时随机挑一套，外观有变化）；民用装备引用装备集定义。
+- 技能集按 level 同档取：官方 `SkillSet.<兵种线>_level<N>_template_skills`（Taikou 已全量拷入 `taikou_skill_sets.xml`，228 条）。
+- `is_basic_troop="true"` **只标征募档**（官方语义：recruit/youth/tier-1 佣兵才标，37/549 实证）；
+  `elite_basic_troop` = 「更好的新兵」（官方 `imperial_vigla_recruit`，**不是**最高档兵）。
+- **幂等/可改**：按 id **整块替换**（改表重跑即更新产物），不存在的才追加——生成器不能只"跳过已存在"，否则改兵种数据得手工删旧块。
+
+### 三、三条工具链约束（跟引擎无关，踩过才知道）
+
+1. 🔴 **NPC 内联装备必须写小写 `<equipment>`**：引擎两种拼写都读（`Equipment.Deserialize` 按属性取值、不看标签名），
+   但 `prune_taikou_items.py` 的引用收集是 `root.iter("equipment")`（**只认小写**）→ 写大写 = 引用收集不到 = 物品被剪 = 兵种裸装。
+2. 🔴 **民用装备集两个属性都写**（`equipmentType="Civilian" civilian="true"`）：1.2.12 读 `civilian`、1.5.x 读 `equipmentType`
+   （两侧 DLL 各自反编译实证）；只写一个 = 另一个版本把民用装备当**战斗**装备收下。
+3. 🔴 **「官方拷贝」的源 = 目标版本客户端**：1.2.12 与 1.5.x 的物品名键/定义不同——拷错 = 官方键被语言检查器判成
+   「自有键无中文」（第 ④ 条是**唯一**哨兵，运行期不报错）。物品管线顺序 = **引用先落盘** → 拷贝官方 → `sanitize_taikou_cultures.py`
+   → `prune_taikou_items.py`（先 `--dry-run` 看 delta）→ `check_taikou_xml_references`（悬空必须 0；**裁剪只删不增**，剪错只能重拷）。
+
+### 四、验收信号（一眼判断修没修好）
+
+- 地图上部队人数 **=** 队伍界面人数（不再是一堆同名）；
+- 队伍界面有**士兵行**（枪足轻/弓足轻/武士…），领主之外另有其人；
+- 进战斗能看到普通士兵，不是一堆同名英雄；
+- 体检第 0c 段 `[ OK ] N 个部队模板：引用可解析、非空、无英雄占位` + 两条负面用例 exit 1。
+
+**文件**：`Taikou/ModuleData/partyTemplates.xml`（8 个模板）· 生成器 `Scripts/gen_taikou_culture_full.py`（`TROOPS` + 文化 8 属性）·
+`Scripts/fix_neutral_culture_templates.py`（手写兜底文化的属性组对齐，幂等复跑）· `Taikou/ModuleData/taikou_equipment_sets.xml`（民用集）·
+`Scripts/check_data_fields.py`（0c 段）· `Scripts/test_negative_checks.py`（负面用例）。
+**扩展点**：新内容包 = 换兵种表（地域/时代差异）+ 8 个模板的栈配比 + 文化属性组；Taikou 的地域兵种差异见 T4 计划。
+

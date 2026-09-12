@@ -326,6 +326,29 @@ if (agent.Team != null && agent.Team.IsValid   // IsValid => MBTeam.Index >= 0�
 
 ---
 
+## PowerShell 正则替换串 `$1`/`$2` 没展开 → XML 里被写成字面量 `$1`
+
+**症状**
+- 用 `[regex]::Replace($txt, $pat, '…$1…$2…', 6)` 做「回退一处改动」后，文件里出现字面量 `$1equipmentType="Civilian"$2 id="Item.…"`
+  —— 6 行 `<EquipmentSet>` 的标签头被吃掉、属性行成垃圾 → **整份 XML parse 失败**（`mismatched tag: line 62`）。
+- 表面看是"替换没生效"，实际是**替换生效了但替换串本身是脏的**——文件比改前更坏。
+
+**根因**
+- `$` 在 PowerShell 里有多层解释者（PS 自己的变量展开 / .NET `Regex.Replace` 的分组引用）：
+  双引号串里 PS 先吃一遍；即使写单引号"原样传给 .NET"，经方法参数绑定后也可能没按 .NET 分组语法生效——
+  实测就是**原样写进了文件**。这类"谁在解释 `$`"的问题不值得现场推理。
+
+**规避**
+- 🔴 **改数据文件（XML/CSV/JSON）一律用 Python 小脚本，不用命令行字符串替换**：`re.sub` 的 `\1` 语义确定，
+  且能**写盘前** `minidom.parseString(out)` 验证 + 幂等复跑（范本 `Scripts/fix_neutral_culture_templates.py`）。
+- 已经用 PowerShell 做过批量替换的：**改完立刻 parse + `git diff` 对账**——`git diff` 是唯一能证明
+  「只改了我以为的那几行」的手段（本次就是靠它定位到 6 行、并复核复原后只剩预期改动）。
+- **损坏后的正确复原姿势**：`git diff` 定位坏行 → 按 `git show HEAD:<file>` 的原内容 `Write`/`Edit` 精确复原
+  → parse 通过 + `git diff` 只剩预期改动 才算完（**别**再用一次字符串替换去"反向修"）。
+- 2026-09-13 实踩：改 `taikou_equipment_sets.xml` 回退一步 → 6 行写坏 → parse 报错 → 按上述复原，全程 3 分钟。
+
+---
+
 ## `ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker)` 模板 NPC 为 null → NRE
 
 **症状**

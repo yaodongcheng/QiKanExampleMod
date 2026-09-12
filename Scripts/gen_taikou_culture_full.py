@@ -22,7 +22,11 @@ gen_taikou_culture_full.py — 织丰/原版字段交集全量一次性补全（
 
 产物：
   1) spcultures.xml：上述文化的完整 76 字段块（值全部指向自有资源）
-  2) spnpccharacters.xml：新增 40 个 NPCCharacter 最小模板（occupation/culture/face/skill_template/空装备）
+     —— 含 8 个部队模板属性 + 6 个兵种属性（**指向 `taikou_*_party_template` / 兵种 id**，
+     不再用占位模板；2026-09-12 治本：占位模板 = 全世界部队被填成「主角」副本）
+  2) spnpccharacters.xml：新增 40 个 NPCCharacter 场景模板（occupation/culture/face/skill_template/空装备）
+     + 每地域一个商队护卫 + **6 个兵种模板**（`TROOPS` 表：枪足轻/弓足轻/精锐足轻/武士/骑马武士/匪兵；
+     装备内联、民用集引用 `taikou_equipment_sets.xml`）
 纪律：生成物禁止手改（铁律 22）——改表 = 改本脚本重跑；跑完必过 check_taikou_xml_references.py。
 
 用法：python Scripts/gen_taikou_culture_full.py [--module PATH]
@@ -83,6 +87,101 @@ NPC_TEMPLATES = [
 ]
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 兵种模板（v0 最小日本兵种集；2026-09-12 用户裁定「C 档 = 最小日本兵种」）
+# ═══════════════════════════════════════════════════════════════════════════════
+# 为什么必须有这一段（症状 → 根因）：
+#   文化里的 8 个部队模板属性此前全指向占位模板（`main_hero_party_template` = 1×
+#   `NPCCharacter.main_hero`，中文名「主角」；`militia_template` = 1× guard）——那是雷 110
+#   为了止住建世界 NRE 填的**占位值**。后果：引擎刷领主部队时按模板填 roster，填进去的
+#   全是「主角」副本（`is_hero=true` 的模板英雄，不算士兵）→ 地图显示 100+ 人、队伍界面
+#   只有领主 + 主角、没有一兵一卒。本段 = 补真正能打的兵种（并让文化改指真模板）。
+#
+# 口径（C 档最小集）：**全文化共用一套通用兵**，不做地域差异（地域兵种 = T4）；
+#   装备取官方拷贝物品（`taikou_items/`，无日式外观——外观资产是后续工程）。
+# 字段含义：level 决定战力档，skill_template 与 level 同档（引擎按 level 分档给的技能集）；
+#   battle 多套 = 引擎每人生成时随机挑一套（外观有变化）；cold = 民用装备集 id（城镇里穿）。
+TROOPS = [
+    # (id, 英文名, level, 兵种组, 技能集, 战斗装备变体, 民用集, 额外属性, 升级目标)
+    ("yari_ashigaru", "Ashigaru Spearman", 6, "Infantry",
+     "SkillSet.infantry_heavyinfantry_level6_template_skills",
+     [[("Item0", "Item.western_spear_1_t2"), ("Head", "Item.kettle_hat_over_padded_cloth"),
+       ("Body", "Item.short_padded_robe"), ("Leg", "Item.leather_shoes")],
+      [("Item0", "Item.western_spear_1_t2"), ("Head", "Item.fur_hat"),
+       ("Body", "Item.short_padded_robe"), ("Leg", "Item.leather_shoes")]],
+     'is_basic_troop="true"', ["veteran_ashigaru"]),
+    ("yumi_ashigaru", "Ashigaru Archer", 6, "Ranged",
+     "SkillSet.ranged_skirmisher_level6_template_skills",
+     [[("Item0", "Item.hunting_bow"), ("Item1", "Item.steppe_arrows"),
+       ("Head", "Item.kettle_hat_over_padded_cloth"), ("Body", "Item.short_padded_robe"),
+       ("Leg", "Item.leather_shoes")],
+      [("Item0", "Item.hunting_bow"), ("Item1", "Item.steppe_arrows"), ("Head", "Item.fur_hat"),
+       ("Body", "Item.short_padded_robe"), ("Leg", "Item.leather_shoes")]],
+     'is_basic_troop="true"', []),
+    ("veteran_ashigaru", "Veteran Ashigaru", 11, "Infantry",
+     "SkillSet.infantry_heavyinfantry_level11_template_skills",
+     [[("Item0", "Item.western_spear_3_t3"), ("Head", "Item.kettle_hat_over_mail_coif"),
+       ("Body", "Item.padded_leather_shirt"), ("Leg", "Item.wrapped_leather_boots")]],
+     'is_basic_troop="true"', ["samurai"]),
+    ("samurai", "Samurai", 16, "Infantry",
+     "SkillSet.infantry_heavyinfantry_level16_template_skills",
+     [[("Item0", "Item.ridged_sabre_sword_t4"), ("Head", "Item.nasal_helmet_with_mail"),
+       ("Body", "Item.leather_lamellar_armor"), ("Leg", "Item.leather_cavalier_boots")]],
+     "", []),
+    ("mounted_samurai", "Mounted Samurai", 21, "Cavalry",
+     "SkillSet.cavalry_lightcavalry_heavycavalry_level21_template_skills",
+     [[("Item0", "Item.vlandia_lance_2_t4"), ("Item1", "Item.ridged_sabre_sword_t4"),
+       ("Head", "Item.nasal_helmet_with_mail"), ("Body", "Item.eastern_lamellar_armor"),
+       ("Leg", "Item.leather_cavalier_boots"), ("Horse", "Item.t2_empire_horse"),
+       ("HorseHarness", "Item.light_harness")]],
+     "", []),
+    # 匪兵（供 `bandit_boss_party_template` / looters 文化用；破衣烂衫 + 木刀/锄头）
+    ("bandit_looter", "Bandit", 4, "Infantry",
+     "SkillSet.infantry_heavyinfantry_level1_template_skills",
+     [[("Item0", "Item.wooden_sword_t1"), ("Body", "Item.tattered_rags"), ("Leg", "Item.wrapped_shoes")],
+      [("Item0", "Item.peasant_pickaxe_1_t1"), ("Body", "Item.tattered_rags"), ("Leg", "Item.wrapped_shoes")]],
+     None, []),
+]
+
+# 兵种用的装备集（写进 taikou_equipment_sets.xml 的定义见该文件；此处只引用 id）
+#   · 民用集：🔴 **两个属性都要写**（跨版本差异，1.2.12 与 1.5.1 DLL 各自反编译实证）——
+#       v1.2.12：`MBEquipmentRoster.InitEquipment` / `BasicCharacterObject.Deserialize` 只读
+#                `civilian="true"`（bool）；
+#       v1.5.x ：同一处改读 `equipmentType="Civilian"`（枚举）。
+#     只写一个 = 另一个版本上这套装备被当战斗装备收下（城镇里穿甲带刀）。
+#   · 战斗集：直接内联在兵种模板里（官方兵种同款），不新增定义。
+CIVIL_ROSTER = "taikou_civil_common"                 # 百姓装（全部兵种在城镇里都穿它）
+CIVIL_ROSTER_BANDIT = "taikou_civil_bandit"          # 匪兵在城镇里仍穿破衣
+
+
+def troop_cell(tp):
+    """渲染一个兵种模板。装备走官方同款结构：多套内联 `<EquipmentRoster>`（随机挑一套）
+    + 一条 `<EquipmentSet id=… civilian="true"/>`（民用）。"""
+    tid, en, lvl, group, skill, variants, extra, upgrades = tp
+    is_bandit = tid == "bandit_looter"
+    civil = CIVIL_ROSTER_BANDIT if is_bandit else CIVIL_ROSTER
+    eq = []
+    for v in variants:
+        slots = "\n".join(
+            '\t\t\t\t<equipment slot="%s" id="%s" />' % (s, i) for s, i in v)
+        eq.append('\t\t\t<EquipmentRoster>\n%s\n\t\t\t</EquipmentRoster>' % slots)
+    eq.append('\t\t\t<EquipmentSet id="%s" equipmentType="Civilian" civilian="true" />' % civil)
+    upgrad = "\n".join('\t\t\t\t<upgrade_target id="NPCCharacter.%s" />' % u for u in upgrades)
+    occup = "Bandit" if is_bandit else "Soldier"
+    attrs = (" " + extra) if extra else ""
+    return f'''	<NPCCharacter id="{tid}" default_group="{group}" formation_position_preference="Front" level="{lvl}" is_hero="false" is_female="false" culture="Culture.ikoku" name="{{=TAIKOU_troop_{tid}}}{en}" occupation="{occup}"{attrs} skill_template="{skill}">
+		<face>
+			<face_key_template value="BodyProperty.fighter_empire"/>
+		</face>
+		<upgrade_targets>
+{upgrad}
+		</upgrade_targets>
+		<Equipments>
+{chr(10).join(eq)}
+		</Equipments>
+	</NPCCharacter>'''
+
+
 def npc_cell(nt, culture="ikoku", name_key=None):
     """渲染一个场景 NPC 模板。`culture` = 文化 id（默认 ikoku）；
     `name_key` = 覆盖名字本地化键（默认按 id 拼）——地区版兵种复用通用键时不新增文案。"""
@@ -115,12 +214,12 @@ def main():
 			 name="{{=__CKEY__}}__CEN__"
 			 color="__COLOR__"
 			 color2="__COLOR2__"
-			 basic_troop="NPCCharacter.peasant_farmer"
-			 elite_basic_troop="NPCCharacter.guard"
-			 melee_militia_troop="NPCCharacter.guard"
-			 ranged_militia_troop="NPCCharacter.guard"
-			 melee_elite_militia_troop="NPCCharacter.guard"
-			 ranged_elite_militia_troop="NPCCharacter.guard"
+			 basic_troop="NPCCharacter.yari_ashigaru"
+			 elite_basic_troop="NPCCharacter.veteran_ashigaru"
+			 melee_militia_troop="NPCCharacter.peasant_farmer"
+			 ranged_militia_troop="NPCCharacter.yumi_ashigaru"
+			 melee_elite_militia_troop="NPCCharacter.yari_ashigaru"
+			 ranged_elite_militia_troop="NPCCharacter.yumi_ashigaru"
 			 is_main_culture="__ISMAIN__"
 			 can_have_settlement="true"
 			 town_edge_number="16"
@@ -128,13 +227,14 @@ def main():
 			 faction_banner_key="11.0.0.4345.4345.764.764.1.0.0.463.1.1.466.466.764.764.1.0.0"
 			 default_face_key="000fa92e90004202aced5d976886573d5d679585a376fdd605877a7764b8987c00000000000007520000037f0000000f00000037049140010000000000000000"
 			 encounter_background_mesh="encounter_empire"
-			 default_party_template="PartyTemplate.main_hero_party_template"
-			 militia_party_template="PartyTemplate.militia_template"
-			 villager_party_template="PartyTemplate.militia_template"
-			 caravan_party_template="PartyTemplate.militia_template"
-			 elite_caravan_party_template="PartyTemplate.militia_template"
-			 rebels_party_template="PartyTemplate.militia_template"
-			 vassal_reward_party_template="PartyTemplate.militia_template"
+			 default_party_template="PartyTemplate.taikou_lord_party_template"
+			 militia_party_template="PartyTemplate.taikou_militia_party_template"
+			 villager_party_template="PartyTemplate.taikou_villager_party_template"
+			 caravan_party_template="PartyTemplate.taikou_caravan_party_template"
+			 elite_caravan_party_template="PartyTemplate.taikou_elite_caravan_party_template"
+			 rebels_party_template="PartyTemplate.taikou_rebels_party_template"
+			 bandit_boss_party_template="PartyTemplate.taikou_bandit_party_template"
+			 vassal_reward_party_template="PartyTemplate.taikou_vassal_reward_party_template"
 			 default_battle_equipment_roster="EquipmentRoster.neutral_battle_template"
 			 default_civilian_equipment_roster="EquipmentRoster.neutral_civilian_template"
 			 duel_preset_equipment_roster="EquipmentRoster.neutral_battle_template"
@@ -898,6 +998,15 @@ def main():
     # 逐个：本包已有 → 整块替换；本包没有 → 插到 </SPCultures> 前（幂等：重跑走替换分支）
     for c in CULTURES:
         blk = render(*c)
+        # 匪帮（looters 文化）例外：该文化的家族/部队就是山贼，领主部队与基础兵都用匪兵模板，
+        # 不然会刷出「山贼头目带一队正规足轻」。其余 15 个文化共用通用模板（C 档口径：不做地域差异）。
+        if c[0] == "looters":
+            blk = (blk.replace("PartyTemplate.taikou_lord_party_template",
+                               "PartyTemplate.taikou_bandit_party_template")
+                      .replace('basic_troop="NPCCharacter.yari_ashigaru"',
+                               'basic_troop="NPCCharacter.bandit_looter"')
+                      .replace('elite_basic_troop="NPCCharacter.veteran_ashigaru"',
+                               'elite_basic_troop="NPCCharacter.bandit_looter"'))
         if re.search(r'\t<Culture id="%s".*?</Culture>' % c[0], txt, flags=re.S):
             txt = re.sub(r'\t<Culture id="%s".*?</Culture>' % c[0], blk, txt, count=1, flags=re.S)
         else:
@@ -943,6 +1052,32 @@ def main():
         t = t.replace("</NPCCharacters>", "\n\n".join(cells) + "\n\n</NPCCharacters>", 1)
         npc.write_text(t, encoding="utf-8-sig")
     print("spnpccharacters.xml: 地域商队护卫 +%d（%s）" % (len(added), " ".join(added) or "无（幂等）"))
+
+    # 2c) 兵种模板（2026-09-12，C 档最小日本兵种集）：领主/村民/商队/民兵/匪兵部队的填充来源。
+    #     🔴 为什么必须存在：文化部队模板此前指向占位模板（1× main_hero「主角」）→ 所有部队被
+    #        填成主角副本（地图 100+ 人、队伍界面无一兵）。改指真模板 + 补兵种 = 一次治本。
+    #     🔴 装备槽一律写**小写 `<equipment>`**（官方 NPC 写法）：`prune_taikou_items.py` 收集
+    #        「谁在用这件物品」时只认小写（`root.iter("equipment")`，2026-09-12 踩坑：写成大写 =
+    #        引用不被识别 = 物品被剪掉 = 运行期裸装/悬空），故兵种装备必须小写。
+    #     幂等/可改：按 id 整块替换（改本表重跑即更新产物；不存在则追加）。
+    t = npc.read_text(encoding="utf-8-sig", errors="replace")
+    added_troops, replaced_troops = [], []
+    for tp in TROOPS:
+        cell = troop_cell(tp)
+        pat = re.compile(r'\t<NPCCharacter id="%s".*?</NPCCharacter>' % tp[0], re.S)
+        if pat.search(t):
+            t = pat.sub(lambda _m: cell, t, count=1)
+            replaced_troops.append(tp[0])
+        else:
+            added_troops.append(tp[0])
+    if added_troops:
+        cells = "\n\n".join(troop_cell(tp) for tp in TROOPS if tp[0] in added_troops)
+        t = t.replace("</NPCCharacters>", cells + "\n\n</NPCCharacters>", 1)
+    if added_troops or replaced_troops:
+        npc.write_text(t, encoding="utf-8-sig")
+    print("spnpccharacters.xml: 兵种模板 新增 %d（%s）/ 更新 %d（%s）"
+          % (len(added_troops), " ".join(added_troops) or "无",
+             len(replaced_troops), " ".join(replaced_troops) or "无"))
 
     # 3) self-check：parse
     import xml.dom.minidom as m
