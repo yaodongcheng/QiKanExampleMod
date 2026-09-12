@@ -106,21 +106,27 @@ CLANLESS_FACTION = {"浪人", "?", "", "无"}
 #    ScriptName（与 Name 逐字相同）/ Surname（= id 的罗马音块）/ LocozationName（机械拼 + 282/283 键悬空）/ Is_Shokuho（恒 0）
 CLAN_COLS = (["ID", "Name", "Alias", "Culture"]
              + [c for e in ERAS for c in ("Owner_" + e, "Kingdom_" + e)])
+# 🔴 双行表头（CLAUDE.md「CSV 表头规范」）：第 1 行中文标签、第 2 行英文键，机器按第 2 行取键
+CLAN_COLS_CN = (["ID", "名称", "别名", "文化"]
+                + [c for e in ERAS for c in ("当主_" + e, "所属势力_" + e)])
 HERO_CLAN_COLS = ["ClanID_" + e for e in ERAS]
 
 
-def load_dict(path):
-    with io.open(path, encoding="utf-8-sig", newline="") as fh:
-        rd = csv.DictReader(fh)
-        cols = [(c or "").strip() for c in (rd.fieldnames or [])]
-        return cols, [{(k or "").strip(): (v or "").strip() for k, v in r.items()} for r in rd]
+def load_dict(path, head=2):
+    """读表 → (列名, 行 dict)。`head`：2=双行表头取英文键（默认）/ 1=中文键 / 0=单行表头。"""
+    from csv_dual import read_table
+    cn, en, raw = read_table(path, head=head)
+    cols = cn if head == 1 else en
+    rows = [{(k or "").strip(): (r[i] if i < len(r) else "").strip() for i, k in enumerate(cols)}
+            for r in raw if any((x or "").strip() for x in r)]
+    return cols, rows
 
 
 def load_force(path):
     """TaikouForce.csv 是双行表头（中文 + 英文），数据从第 3 行起。"""
     with io.open(path, encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.reader(fh))
-    hdr, data = rows[0], rows[2:]
+    hdr, data = rows[0], rows[2:]          # TaikouForce：中文键（head=1 语义，暂不迁）
     return [dict(zip(hdr, r)) for r in data if r and r[0].strip()]
 
 
@@ -164,7 +170,7 @@ def build():
     if missing:
         return None, ["上级日志缺年代：%s（先跑 tkhack 导出脚本）" % ",".join(missing)]
 
-    _, hero_rows = load_dict(HERO)
+    _, hero_rows = load_dict(HERO, head=0)     # TaikouHero 尚未转双行表头
     _, sett_rows = load_dict(SETT)
     force = load_force(FORCE)
     people = [r for r in hero_rows if not r.get("模板NPC")]
@@ -224,7 +230,7 @@ def build():
         for e in ERAS:
             if (f.get("Owner_" + e) or "-").strip() not in ("", "-"):
                 force_exists.add((f["ID"], e))
-        for n in [f.get("势力名", ""), f.get("短名", "")] + cells(f.get("别名", "")):
+        for n in [f.get("势力名", "")] + cells(f.get("别名", "")):
             if n:
                 for key in ([n, n[:-1]] if n.endswith("家") else [n]):
                     org2force.setdefault(key, f["ID"])
@@ -255,7 +261,7 @@ def build():
     zok2names = {}
     arch = os.path.join(ARCHIVE, "Clan_织丰口径_20260911.csv")
     if os.path.isfile(arch):
-        _, arows = load_dict(arch)
+        _, arows = load_dict(arch, head=0)      # 存档是单行表头（旧 Clan.csv）
         for r in arows:
             for k in ("ScriptName", "ChineseName"):
                 if r.get(k) and r.get("Surname"):
@@ -677,6 +683,7 @@ def roman(r):
 def render_clan(data):
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
+    w.writerow(CLAN_COLS_CN)
     w.writerow(CLAN_COLS)
     sup, org2force = data["sup"], data["org2force"]
     OUT_ID = data.get("out_id") or {}
@@ -896,7 +903,7 @@ def main():
 
     # ── 往返校验（写盘 == 读回；本次因缺此校验写坏过 960 格）──
     _, clan_back = load_dict(CLAN)
-    _, hero_back = load_dict(HERO)
+    _, hero_back = load_dict(HERO, head=0)     # TaikouHero 尚未转双行表头
     errs = []
     if len(clan_back) != len(data["groups"]):
         errs.append("Clan.csv 行数 %d ≠ %d" % (len(clan_back), len(data["groups"])))

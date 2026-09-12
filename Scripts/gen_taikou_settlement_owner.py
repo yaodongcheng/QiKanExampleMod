@@ -123,7 +123,9 @@ def build():
     resolve = resolver(heroes)
     with io.open(SETT, encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.reader(fh))
-    hdr, body = rows[0], [r for r in rows[1:] if r and any(x.strip() for x in r)]
+    # Settlements.csv = 双行表头（中文行 + 英文行，见 CLAUDE.md CSV 表头规范）→ 键取第 2 行
+    cn_hdr, hdr = rows[0], rows[1]
+    body = [r for r in rows[2:] if r and any(x.strip() for x in r)]
     problems, changes, warns = [], [], []
     seen = collections.Counter()
     for r in body:
@@ -158,7 +160,7 @@ def build():
                                 % (sid, e, rec["名"], r[hdr.index("Name_" + e)]))
     if len(sett) != len(ERAS) * len(body):
         problems.append("日志格数 %d ≠ 表 %d 行 × %d 代" % (len(sett), len(body), len(ERAS)))
-    return {"hdr": hdr, "body": body, "changes": changes,
+    return {"cn_hdr": cn_hdr, "hdr": hdr, "body": body, "changes": changes,
             "problems": problems, "warns": warns}
 
 
@@ -211,7 +213,7 @@ def main():
     shutil.copy2(SETT, SETT + ".bak_owner_" + stamp)
     with io.open(SETT, "w", encoding="utf-8-sig", newline="") as fh:
         w = csv.writer(fh, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
-        for r in [data["hdr"]] + data["body"]:
+        for r in [data["cn_hdr"], data["hdr"]] + data["body"]:
             w.writerow(r)
     back = list(csv.reader(io.open(SETT, encoding="utf-8-sig", newline="")))
     print("\n✅ 已写出 Settlements.csv（改 %d 格；%d 行 / %d 列）；往返读回 %d 行 / %d 列"

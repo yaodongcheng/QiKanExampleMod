@@ -30,6 +30,12 @@ r"""泛用 NPC 提升为 hero —— 写进 TaikouHero.csv（2026-09-12 用户�
     不另造读音）——家族 id 由它派生，于是 id ↔ 家名一致（`clan_suppa_1` ↔ 透波家）。
     非当主**不填**（他们不命名家族；苗字沿用其主家）。
   · `EnglishName` = 名字罗马音（家族 id 由它派生 → `check_englishname_clan_prefix` 要它非空）
+  · 🔴 **`外观ID` = 从 5 个模板的立绘槽池里按 (职业, 性别) 轮转分配**（2026-09-12 用户裁定）：
+    池子 = `template_ninja_male_01`（55 槽）/ `template_kunoichi_01`（2）/ `template_kaizoku_01`（55）/
+    `template_kaizoku_female_01`（2）/ `template_merchant_01`（63）——**池子从模板行现读**（单一来源，不写死）。
+    ⚠️ **槽池只有 177 个而人有 329** → 必然复用：按 id 排序**轮转**分配（均匀，不堆在同一个槽上），分布见脚本报告。
+    ⚠️ **性别数据里没有**（`Gender` 列全空、日志也没有该字段）→ 女性池只按**名字判据** `FEMALE_NAMES` 分配，
+    该名单是人工判断、逐条可改（报告里会列出谁被判成女性）。
   · 🔴 **`CultureID` = 职业对应的身份文化**（2026-09-12 用户裁定）：
     `ninja`→`ninja`（忍者文化）/ `pirate`→`pirate`（海贼文化）/ `trader`→`trader`（商人文化）。
     为什么必须填：家族文化取「成员多数文化」，成员没文化 → **家文化空**（实测 69 家：
@@ -89,6 +95,48 @@ RENAME = {
     "lord_tk5_trader_xE413_右卫门": "lord_tk5_trader_xe413uemon",
     "lord_tk5_ninja_senzuiboo": "lord_tk5_ninja_senshikiboo",
 }
+
+
+# 🔴 立绘槽池来源模板（按职业 + 性别）与女性名字判据（人工判断，逐条可改）
+POOL_TEMPLATE = {"ninja": "template_ninja_male_01", "kunoichi": "template_kunoichi_01",
+                 "pirate": "template_kaizoku_01", "kaizoku_female": "template_kaizoku_female_01",
+                 "trader": "template_merchant_01"}
+# ⚠️ 数据里没有性别字段，这一批是**按名字判的**（日语中偏女性用名）：
+#    吹雪/枣/枫/红叶（忍者系）· 多津/泷/鹤（海贼系）。
+#    未收「鹤千代/虎千代/百千代」= 〜千代在江户commoner名里男女都用（同列表里虎千代/百千代是男名）。
+FEMALE_NAMES = {"吹雪", "枣", "枫", "红叶", "多津", "泷", "鹤"}
+
+
+def load_pools():
+    """5 个模板的立绘槽池（从模板行现读，单一来源）。"""
+    with io.open(HERO, encoding="utf-8-sig", newline="") as fh:
+        rows = {r["ID"]: r for r in csv.DictReader(fh) if r.get("ID")}
+    return {k: [x.strip() for x in rows[v]["外观ID"].split("|") if x.strip()]
+            for k, v in POOL_TEMPLATE.items() if v in rows}
+
+
+def assign_appearance(align, pools):
+    """按 (职业, 性别) 轮转分配外观槽 → {hero_id: 槽号}。
+
+    确定性：**按 hero_id 排序后依次取池子里的下一个**（第 n 个人拿 池[n % len(池)]）。
+    """
+    groups = collections.defaultdict(list)
+    for a in sorted(align, key=lambda x: x["hero_id"]):
+        tp = a["职业"]
+        female = a["名前"] in FEMALE_NAMES
+        if tp == "ninja":
+            key = "kunoichi" if female else "ninja"
+        elif tp == "pirate":
+            key = "kaizoku_female" if female else "pirate"
+        else:
+            key = "trader"          # 商家没有女性模板（女商人→商人池）
+        groups[key].append(a["hero_id"])
+    out = {}
+    for key, ids in groups.items():
+        pool = pools[key]
+        for n, hid in enumerate(ids):
+            out[hid] = pool[n % len(pool)]
+    return out, groups
 
 
 def load_org_zok():
@@ -156,6 +204,8 @@ def main():
         idtab = {r["ID"]: r for r in csv.DictReader(fh)}
     sup = load_sup()
     org2zok = load_org_zok()
+    pools = load_pools()
+    appear, groups = assign_appearance(align, pools)
 
     # 一次性 id 迁移（见文件头 RENAME）
     by_id = {r[hdr.index("ID")]: r for r in body}
@@ -178,6 +228,7 @@ def main():
         row["ID"] = hid
         row["CNName"] = a["名前"]
         row["CultureID"] = a["职业"]      # 身份文化：ninja/pirate/trader（见文件头）
+        row["外观ID"] = appear.get(hid, "")   # 立绘槽（按职业+性别从模板池轮转，见文件头）
         row["EnglishName"] = it["罗马音"].capitalize() if not it["罗马音"].startswith("x") else ""
         tp = {"ninja": "忍者众", "pirate": "海贼众", "trader": "商家"}[a["职业"]]
         owner_org = ""
@@ -212,7 +263,7 @@ def main():
             new_rows.append([row.get(c, "") for c in hdr])
         else:
             # 已存在的行**只更新本脚本负责的派生列**（其余列归别的生成器/来源，不覆盖）
-            for c in ("FirstName", "EnglishName", "CultureID"):
+            for c in ("FirstName", "EnglishName", "CultureID", "外观ID"):
                 k = hdr.index(c)
                 if cur[k] != row[c]:
                     changes.append((hid, c, cur[k], row[c]))
@@ -228,6 +279,20 @@ def main():
             print("   %-34s %-12s %r → %r" % (hid, c, a_, b_))
         if len(changes) > 20:
             print("   …（其余 %d 格同类）" % (len(changes) - 20))
+    print("立绘槽分配（池 %s）：" % " / ".join("%s=%d" % (k, len(pools[k])) for k in pools))
+    for key in sorted(groups):
+        ids = groups[key]
+        n_slot = len(pools[key])
+        cnt = collections.Counter(appear[h] for h in ids)
+        dist = collections.Counter(cnt.values())
+        print("   %-15s %3d 人 / %2d 槽 → %s；最多一个槽 %d 人"
+              % (key, len(ids), n_slot,
+                 " · ".join("%d 人槽 × %d" % (k, v) for k, v in sorted(dist.items())),
+                 max(cnt.values())))
+    fem = [h for h in appear if any(a["hero_id"] == h and a["名前"] in FEMALE_NAMES for a in align)]
+    print("   判成女性（名字判据，可改）：%s"
+          % " ".join("%s(%s)" % (next(a["名前"] for a in align if a["hero_id"] == h), h.split("_")[-1])
+                     for h in sorted(fem)))
     if new_rows:
         i = {c: k for k, c in enumerate(hdr)}
         print("\n样例 3 行（截关键列）：")

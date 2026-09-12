@@ -93,6 +93,23 @@
 24. 🔴**CSV 编辑纪律：值内禁止半角逗号，多值列统一用 `|` 分隔**（2026-08-31 用户裁定）— 半角逗号 `,` 是 CSV 单元格分隔符，出现在值里 = 静默裂列（Excel 打开即拆，脚本读表错位，**禁止**）。**多值列**（别名/技能/卡等一列多个值）统一用**半角竖线 `\|`** 分隔（`丰臣秀吉|木下秀吉|羽柴秀吉`），全表一致。**生成/读取脚本必须校验**：值内出现 `,`（半角）或 `|` 均报错停止，防手滑。**旧列例外**（现状保留，不裂列，仅记录）：TaikouHero.csv `WarCard` 列现用全角逗号 `，` 分隔（全角不裂列但与新约定不一致），迁移归一新约定一并处理。适用：所有 `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/*.csv`、剧本数据表等手维护数据表。
 25. 🔴**基于名字查 StringId 必须同时过别名列（双向）**（2026-08-31 用户裁定）— 凡按名字查找实体 StringId（`GetStringIdByName` 及一切 `Xxx_MAP` 查询）：**查询源 = `CNName` + `ScriptName` + `Alias` 列**；查不到再查别名（别名 → 主名反向命中），**禁止查 `Name_YYYY` 等年代列**（年代列是数据碎片，非可查询身份）。**数据规则**：`Alias` 列内容**必须覆盖该实体所有年代的名字**（`Name_1549…Name_1598/dream1560` 全部并入 Alias，数据准备期完成，运行时无中文参与）。别名数据 = CSV（TaikouHero.csv `Alias` / CityTaikou.csv `Alias`），**禁止在 py 里写死别名表**（tools/ 下为临时产物）。落地：`gen_entity_maps.py` 从 CSV 读别名构建 `NAME_ALIAS`/`ALIAS_REV`，生成物 `entity_maps.py` 提供双向查询。
 
+## 🔴 CSV 表头规范（2026-09-12 用户裁定，最高优先级）
+
+**`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/` 下的数据表一律两行表头**：
+
+| 行 | 内容 | 谁读 |
+|---|---|---|
+| 第 1 行 | **中文标签**（给人看的；纯技术列如 `ID`/`Culture`/`Owner_1554` 保持原样） | 人 |
+| 第 2 行 | **英文键**（给机器看的） | 🔴 **脚本一律按第 2 行取键** |
+| 第 3 行起 | 数据 | — |
+
+**为什么**：中文标签会随内容改（`追剥`→`强盗`、`短名`→并入`别名`），**代码的键不能跟着动**——把「人读的那行」与「机器读的那行」分开，改标签不碰代码。
+
+**落地方式**：读用 `Scripts/csv_dual.py`（`dict_rows(path)` / `read_table(path)`），写用 `write_table(path, cn, en, rows)`（保留原换行风格）。**禁止**再裸写 `csv.DictReader(io.open(...))` 读这些表——那会按第 1 行（中文）取键。
+
+**已合规**：`TaikouForce.csv`（`势力类型,ID,势力名,别名,Culture,…` / `ForceType,ID,ForceName,Alias,Culture,…`）· `Appearance.csv` · `Facility.csv` · `School.csv`。
+**参考转储**（`BaseInfo`/`Card`/`item`/`ProfileImage`/`Animation`/`Camera`/`Music`/`TagPoint`…）是从上游导入的原样文件，**不在本规范内**（没有脚本读它们；加表头行会与导入源分叉）。
+
 ## 双配置体系 — `Core/MCMSettings.cs`（小白 UI） vs `Core/Settings.cs`（config.json 高级配置）
 
 **新增可配置项时先想清楚它属于哪一边，两边禁止交叉。**

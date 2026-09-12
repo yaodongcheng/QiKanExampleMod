@@ -15,7 +15,7 @@ r"""T4-b 世界四表体检（Culture / Kingdom / Clan / Settlements ↔ TaikouH
    ①`ikko_shu`（一向宗）归并进 `honganji`（本愿寺）
    ②丢弃四列：Kingdom 单列 `Owner`（与 `Owner_<年>` 重复，且是织丰编号那条红的根源）、
      `Is_1568`（语义待考、无人消费）、`IsShokuho`（消费者在已冻结的剧本工程，且读 Clan/Kingdom 表）
-   ③列序 = `势力类型 | ID | 势力名 | 短名 | 别名 | Culture | Owner_<年>×6 | 太阁编号`，
+   ③列序 = `势力类型 | ID | 势力名 | 别名 | Culture | Owner_<年>×6 | 太阁编号`（`短名` 2026-09-12 并入 `别名`），
      **势力类型是第一列并作主排序键**（Warrior → Trader → Ninja → Pirate → Neutral），次排序 = ID
      ⚠️ 2026-09-11 的纪要曾把 `LocozationName` 与 `太阁编号` 的位次写错（列早已删/已移到末位），
         2026-09-12 更正为现行列序。
@@ -135,15 +135,16 @@ hard = []          # (标题, 明细行列表)
 warn = []
 
 
-def load(name):
-    with io.open(os.path.join(CSV_DIR, name), encoding="utf-8-sig", newline="") as fh:
-        rd = csv.DictReader(fh)
-        cols = [(c or "").strip() for c in (rd.fieldnames or [])]
-        rows = []
-        for r in rd:
-            if any((v or "").strip() for v in r.values()):
-                rows.append({(k or "").strip(): (v or "").strip() for k, v in r.items()})
-        return cols, rows
+def load(name, head=2):
+    """读表 → (列名, 行 dict)。`head`：2=双行表头取英文键（默认）/ 1=取中文键 / 0=单行表头。"""
+    from csv_dual import read_table
+    cn, en, raw = read_table(os.path.join(CSV_DIR, name), head=head)
+    cols = en if head != 1 else cn
+    rows = []
+    for r in raw:
+        if any((x or "").strip() for x in r):
+            rows.append({k: (r[i] if i < len(r) else "").strip() for i, k in enumerate(cols)})
+    return cols, rows
 
 
 def col(rows, name):
@@ -183,9 +184,11 @@ def main():
     _, culture = load("Culture.csv")
     _, clan = load("Clan.csv")
     _, sett = load("Settlements.csv")
-    _, hero = load("TaikouHero.csv")
-    # TaikouForce 是**双行表头**（中文 + 英文），DictReader 会把英文表头那一行当数据 → 按 ID 剔掉
-    kingdom = [r for r in load("TaikouForce.csv")[1] if r.get("ID") != "ID"]
+
+    # TaikouForce：双行表头，读者暂用第 1 行（中文键）——待迁移到第 2 行（英文键）
+    kingdom = load("TaikouForce.csv", head=1)[1]
+    # TaikouHero 尚未转双行表头（见 CLAUDE.md CSV 表头规范）
+    hero = load("TaikouHero.csv", head=0)[1]
 
     cult_ids = [r["ID"] for r in culture]
     kd_ids = [r["ID"] for r in kingdom]
@@ -214,6 +217,23 @@ def main():
     #   `IsShokuho` 删（所有文化已自建，无来源之分）、`IsMainCulture` 删（该信息在生成器 `CULTURES` 里）。
     hard_err("Culture.csv：必填 Name",
              ["%s 缺 Name" % r["ID"] for r in culture if not r.get("Name")])
+
+    # 🔴 势力「别名」里不得出现英雄表的人名（2026-09-12 用户抓出）——
+    #   别名 = **门户名的异写**（`田山家` = `畠山家`），**不是门众名单**。
+    #   实测 `hatakeyama` 的别名曾是 `田山家|田山高政|田山義續|田山義綱`：后三个 = 该家一门众
+    #   （与 `太阁编号` 698|699|700 = lord_tk5_578/579/580 同一批人）→ 上游把两样东西塞进了一格。
+    #   查成硬错误（不是警告）：人名当作势力别名**定义上就是错的**，且这是跨表一致性（同 id 体系闸门一族）。
+    hero_names = set()
+    for r in hero:
+        for n in [r.get("CNName", "")] + (r.get("Alias") or "").split("|"):
+            n = n.strip()
+            if len(n) >= 3:            # 少于 3 字容易与门户名撞（如「织田」）
+                hero_names.add(n)
+    hard_err("TaikouForce.别名 里出现英雄表的人名（别名只放门户异写，不放门众名单）",
+             ["%s（%s）：%s" % (r["ID"], r["势力名"], "|".join(x for x in (r.get("别名") or "").split("|")
+                                                              if x.strip() in hero_names))
+              for r in kingdom
+              if any(x.strip() in hero_names for x in (r.get("别名") or "").split("|"))])
 
     hard_err("Settlements.csv：TK5Type 必须是 %s 之一" % "/".join(TK5_TYPE),
              ["%s = %r" % (r["id"], r.get("TK5Type")) for r in sett
@@ -484,7 +504,7 @@ def main():
     # 势力表自己有没有被用到（合并后 Kingdom.csv 那套「旧口径」对照已并入同一张表）
     kd_cn = collections.defaultdict(set)
     for r in kingdom:
-        for n in (r.get("势力名", ""), r.get("短名", ""), r.get("别名", "")):
+        for n in (r.get("势力名", ""), r.get("别名", "")):
             if n:
                 kd_cn[n].add(r["ID"])
                 if n.endswith("家"):
