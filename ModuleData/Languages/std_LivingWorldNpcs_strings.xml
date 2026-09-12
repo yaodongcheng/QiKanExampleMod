@@ -4437,6 +4437,8 @@
     <string id="LWN_hero_select_kingdom" text="Realm" />
     <string id="LWN_hero_select_clan" text="House" />
     <string id="LWN_hero_select_hero" text="Lords" />
+    <string id="LWN_hero_select_identity" text="Station" />
+    <string id="LWN_hero_select_identity_all" text="All" />
     <string id="LWN_hero_select_will_be" text="You will play as: {NAME}" />
     <string id="LWN_hero_select_none" text="No selectable lord in this house" />
     <string id="LWN_hero_select_role_king" text="Ruler" />
@@ -4446,6 +4448,7 @@
     <string id="LWN_scenario_select_recommended" text="Recommended" />
     <string id="LWN_hero_select_title_recommended" text="Recommended Lords" />
     <string id="LWN_hero_select_empty" text="No playable lord in this era." />
+    <string id="LWN_hero_select_empty_identity" text="No playable lord with this station." />
     <string id="LWN_hero_select_not_arrived" text="Not yet in this world" />
     <string id="LWN_hero_detail_basic" text="Profile" />
     <string id="LWN_hero_detail_ability" text="Attributes" />

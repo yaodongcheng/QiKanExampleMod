@@ -14,10 +14,11 @@ namespace LivingWorldNpcs.CampaignMode
 	/// 就必须有一份静态的「该时代有哪些可扮演的人、他们归谁、显示成什么」。
 	///
 	/// 数据在哪：任何模块（内容包）的 <c>ModuleData/AssetRegistry/HeroCatalog.xml</c>：
+	///   &lt;RealmType id="warrior" name="{=KEY}fallback" order="1"/&gt;   ← 筛档标签（全时代共用；界面最左列）
 	///   &lt;Era id="1560"&gt;
-	///     &lt;Realm id="kingdom_oda" name="{=KEY}fallback" order="1"/&gt;
-	///     &lt;Realm id=""            name="{=KEY}fallback" order="99"/&gt;   ← 无所属那一档
-	///     &lt;House id="clan_oda" realm="kingdom_oda" name="{=KEY}…" order="1"/&gt;
+	///     &lt;Realm id="kingdom_oda" name="{=KEY}fallback" type="warrior" order="1"/&gt;
+	///     &lt;Realm id="" name="{=KEY}fallback" order="99"/&gt;   ← 无所属那一档（不带 type，由家族决定）
+	///     &lt;House id="clan_oda" realm="kingdom_oda" name="{=KEY}…" type="warrior" order="1"/&gt;
 	///     &lt;Lord id="lord_1_oda" house="clan_oda" order="1" name="{=KEY}…"
 	///           identity="{=KEY}…" seat="{=KEY}…"
 	///           bustup="lwnprof_bustup_195" mini="lwnprof_mini_195"/&gt;
@@ -40,6 +41,7 @@ namespace LivingWorldNpcs.CampaignMode
 		private static bool _loaded;
 		private static readonly object _lock = new object();
 		private static readonly Dictionary<int, EraData> _byYear = new Dictionary<int, EraData>();
+		private static readonly List<RealmType> _realmTypes = new List<RealmType>();
 
 		/// <summary>一个可选王国（含「无所属」那一档，其 <see cref="Id"/> 为空串）。</summary>
 		public sealed class Realm
@@ -48,6 +50,8 @@ namespace LivingWorldNpcs.CampaignMode
 			public int Order;
 			/// <summary>显示名原样串（<c>{=KEY}fallback</c>）。</summary>
 			public string NameRaw;
+			/// <summary>势力类型（筛档 id，如 <c>warrior</c>）；无所属那一档为空串（由家族决定）。</summary>
+			public string Type;
 		}
 
 		/// <summary>一个家族（挂在某个 <see cref="Realm"/> 下）。</summary>
@@ -55,6 +59,20 @@ namespace LivingWorldNpcs.CampaignMode
 		{
 			public string Id;
 			public string RealmId;
+			public int Order;
+			public string NameRaw;
+			/// <summary>势力类型（筛档 id，如 <c>trader</c>）。</summary>
+			public string Type;
+		}
+
+		/// <summary>
+		/// 一个筛档（选人界面最左列的一档，如 warrior/trader/ninja/pirate/others）。
+		/// 🔴 档位由**内容包**定义（<c>&lt;RealmType&gt;</c>），标签也是内容包的键——
+		///   基座不认识「忍者/海贼」这类具体词汇（铁律 3）。「全部」那一档由界面自己加。
+		/// </summary>
+		public sealed class RealmType
+		{
+			public string Id;
 			public int Order;
 			public string NameRaw;
 		}
@@ -143,6 +161,16 @@ namespace LivingWorldNpcs.CampaignMode
 			return _byYear.TryGetValue(year, out EraData d) ? d : null;
 		}
 
+		/// <summary>
+		/// 全部筛档（按目录 order；内容包没配 = 空表，界面只显示「全部」那一档）。
+		/// 各时代共用一份（档位是世界观级概念，不随年代变）。
+		/// </summary>
+		public static List<RealmType> GetRealmTypes()
+		{
+			EnsureLoaded();
+			return _realmTypes;
+		}
+
 		/// <summary>该年份是否有可扮演的人（菜单入口是否可用的判据）。</summary>
 		public static bool HasEra(int year)
 		{
@@ -187,12 +215,14 @@ namespace LivingWorldNpcs.CampaignMode
 					d.Lords.Sort((a, b) => a.Order.CompareTo(b.Order));
 					d.Index();
 				}
+				_realmTypes.Sort((a, b) => a.Order.CompareTo(b.Order));
 				var summary = new List<string>();
 				foreach (KeyValuePair<int, EraData> kv in _byYear)
 				{
 					summary.Add($"{kv.Key}:{kv.Value.Lords.Count}人");
 				}
-				DebugLogger.Log($"[HeroCatalog] 选人目录就绪：{(summary.Count > 0 ? string.Join(" / ", summary) : "（空）")}");
+				DebugLogger.Log($"[HeroCatalog] 选人目录就绪：{(summary.Count > 0 ? string.Join(" / ", summary) : "（空）")}"
+					+ $"；筛档 {_realmTypes.Count} 个");
 				_loaded = true;
 			}
 		}
@@ -216,6 +246,19 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 			foreach (XmlNode eraNode in root.ChildNodes)
 			{
+				if (eraNode.Name == "RealmType")
+				{
+					// 筛档（全时代共用；界面左列按 order 排）
+					string tid = Attr(eraNode, "id");
+					if (!string.IsNullOrEmpty(tid) && _realmTypes.FindIndex(t => t.Id == tid) < 0)
+					{
+						_realmTypes.Add(new RealmType
+						{
+							Id = tid, Order = IntAttr(eraNode, "order"), NameRaw = Attr(eraNode, "name"),
+						});
+					}
+					continue;
+				}
 				if (eraNode.Name != "Era")
 				{
 					continue;
@@ -240,7 +283,7 @@ namespace LivingWorldNpcs.CampaignMode
 								data.Realms.Add(new Realm
 								{
 									Id = Attr(n, "id"), Order = IntAttr(n, "order"),
-									NameRaw = Attr(n, "name"),
+									NameRaw = Attr(n, "name"), Type = Attr(n, "type"),
 								});
 								break;
 							case "House":
@@ -248,6 +291,7 @@ namespace LivingWorldNpcs.CampaignMode
 								{
 									Id = Attr(n, "id"), RealmId = Attr(n, "realm"),
 									Order = IntAttr(n, "order"), NameRaw = Attr(n, "name"),
+									Type = Attr(n, "type"),
 								});
 								break;
 							case "Lord":
