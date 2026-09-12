@@ -360,3 +360,80 @@ AssetRegistry/HeroCatalog.xml 的 <Lord id>          ← 建世界**之前**的�
 检查 `check_taikou_world_tables.py`（四表闭合 + 当主↔家族互证）· `check_englishname_clan_prefix.py`（id ↔ 家头罗马音）。
 
 **扩展点**：换世界只换「日志字段名 + 家名→id 映射表」；三国等新内容包照这条管线走，**别再去抄快照或上游表的标记**。
+
+---
+
+## 卷十一 六代世界段生成 + 时代段注册 + 距离缓存（2026-09-12 登记）
+
+> **解决什么问题**：把 CSV 数据铺成**多个年代**的世界段（英雄/模板/家族/王国/据点各一套，GameType 互斥），
+> 并让「距离缓存」这个由 **ModKit 编辑器按钮**生成的二进制产物能落地、能续传。
+
+### 一、六代世界段生成器 `Scripts/gen_taikou_era_world.py`
+
+**唯一产出方**（雷 60）四个段族 × 6 代：`taikou_heroes_<年>`（`<Hero id faction text>`）·
+`taikou_lords_<年>`（同名 NPCCharacter 模板）· `spclans_<年>` · `spkingdoms_<年>`；
+**1560 那份走无后缀名**（`taikou_heroes.xml`，兼容现有注册与旧存档）。据点段不归它（归 `gen_taikou_settlements_xml.py`）。
+
+**五条口径（都有出处，改口径改这里）**：
+1. **在场判据** = `Appear_<年> == 已登场`，**或**（`Appear` 空 且 `ClanID_<年>` 非空 = 推定在场）。
+   后半条是**女的救命条款**：33 位女性（宁宁/阿市/淀夫人…）有逐代家族归属却缺 `Appear` 列，
+   只看 Appear 会把她们全漏掉（每代 14~22 人）。⚠️ **只对 Appear 为空时回落**——
+   `已死亡`/`未登场` 即使挂家族也不进（实测"已死亡却仍挂家族"12~149 格脏数据，回落会让死人复活）。
+2. **立国**：武家 + 忍者 + 海贼立国；**商家不立国**（落独立家族 `is_minor_faction="true"`）。`Owner_<年> == "-"` = 该年不建国 → 该代段里根本不出现。
+3. **家族该年家头不在场 → 该代不初始化这个家族**（同款口径：该年没当主就不必初始化）。
+4. **名字按「英雄 × 年代」建键**（`TAIKOU_hero_<id>_<年>`）：名字随元服改名变（实测 49 人六代里改过名，木下藤吉郎→羽柴秀吉→丰臣秀吉），一个键装不下六个名字；`main_hero` 例外（手维护键 `TAIKOU_main_hero`）。
+5. **模板也必须按代切段**：模板上的 `age` 是按该代算的（1560 的秀吉 24 岁、1598 的 62 岁），共用一份 = 五个年代年龄全错。
+
+**🔴 两条硬纪律**：
+- **每个 `<Hero>` 必须有 `faction`**：骑砍里每个英雄都属某家族（原版零例外），"无家英雄"没有先例 →
+  给一个 **landless 收容家族**（`clan_ronin_<年>`，`is_minor_faction=true`），**不要**留空（铁律 1：别拿新档试）。
+- **语言层名字键族由生成器接管**（`TAIKOU_hero_*` / `TAIKOU_clan_*` / `TAIKOU_kingdom_*`）：
+  幂等整块替换 + 清掉三个族里的旧键——否则英文层（由 `gen_taikou_english_strings` 从数据 XML 重生成）
+  与中文层的键集不相等，`check_language_registration` 会红。
+
+**下游级联**（改了世界段必须按序重跑，漏一个就红）：
+`gen_taikou_hero_profiles`（含 **ProfileStages.csv**）→ `gen_taikou_hero_catalog` → `gen_taikou_english_strings`。
+
+### 二、SubModule 时代段注册迁移器 `Scripts/migrate_era_registration.py`
+
+2 代 → 6 代的两类改动：**共用段**补 GameType、**独占段**新增节点（Kingdoms/Factions/Settlements/Heroes/NPCCharacters 五族 ×4 代）。
+🔴 **三个坑（全踩过）**：
+1. **判"共用段"不能用「GameType 条目数 > 1」**——**基数段**（`spclans`/`spkingdoms`/`settlements`/`taikou_heroes`）
+   为了兼容 `Campaign`/`TaikouCampaign` 本身就列 4 个 → 会被误判成共用段补完就与新时代段撞车（一次报 8 条互斥冲突）。
+   **正解 = 按 path 判**（`is_era_owned()`：路径 == 或 startswith `spkingdoms`/`spclans`/`settlements`/`taikou_heroes`/`taikou_lords`）。
+2. **幂等判据用「文件路径」而不是「GameType 值」**——共用段补完 GameType 后值一定已存在，拿值判会把"独占段还没建"误判成已注册。
+3. **找当前节点的 XmlName 必须取窗口里最后一个**（`re.findall(...)[-1]`）：`re.search` 取第一个，
+   会在"上一个节点的 XmlName 也在 10 行窗口内"时认错节点 → 3 个共用段被漏补（`check_module_registration` 报「缺段」）。
+4. 新增段族别忘了**基数段**（`taikou_lords.xml` 与 `taikou_lords_1582.xml` 原先谁都没注册 → 该代英雄全都没模板）。
+
+### 三、距离缓存 `settlements_distance_cache.bin`（雷 53 / 雷 104）
+
+**谁生成**（反编译 `SandBox.View.dll` 的 `SettlementPositionScript`，挂在场景实体上——本包叫 `__empty_object middle`）：
+| 路径 | 触发 | 写盘 |
+|---|---|---|
+| **ModKit 编辑器**（正规） | 选中实体 → 属性面板按钮 `ComputeAndSaveSettlementDistanceCache` | ✅ |
+| 运行期引擎（兜底） | 开档 `OnInit` 读不出文件 → `SaveSettlementDistanceCache()` 现算 | ✅ |
+| 场景保存 | `OnSceneSave` | ❌ 只反写 `settlements.xml` 坐标 |
+
+**文件格式**（`DefaultMapDistanceModel.LoadCacheFromFile` 实锤）：`[int32 据点总数][据点两两距离…][faceIndex+据点id …][-1]`；
+字符串 = 7-bit 变长长度前缀 + UTF-8；**face 段读到负数即止**。
+
+🔴 **断点续传技巧（实测省 6 小时）**：这份缓存 **85~95% 是"据点两两距离"**（织丰 1021 据点占 95%、三国 703 占 87%），
+face 段只有 ~3 万条。所以**第一段写完就能救**：在它结束处截断 + 补 `int32(-1)` = **格式合法、引擎可读**的完整缓存；
+face 段是纯预计算，游戏运行时未命中会**现算并缓存于内存**（`GetClosestSettlementForNavigationMesh` 的 TryGetValue 未命中分支）。
+⚠️ 教训：**别按文件大小×比例硬推总量**（我先估"70 万网格面 → 6 小时"，实测同类地图只有 3 万条 face 记录）。
+
+🔴 **体检必须防哨兵**（雷 104）：判据不能只查「最大距离 > 0」——引擎对**走不通的据点对**写 `1e30`，
+最大值因此变成 1e30，老判据照样通过但那个数没有意义（家宅打分 `1 − d/1e30` ≈ 1 全平）。
+`check_settlement_distance_cache.py` 已补：**>1e6 视为哨兵 → WARN 点名「走不通的对数 + 完全孤立的据点」**。
+
+🔴 **`CheckPositions` 不是可选项**：它是「据点位置不在可走网格上 / 网格不连通」的**唯一定位手段**
+（点了会自动跳到有问题的据点）。铺完据点就该点一次。**修网格或挪据点后必须重跑缓存**。
+⚠️ 缓存用的是**场景实体坐标**（`LoadSettlementData`：按 id 找实体 → 取实体 origin + 带 `main_map_city_gate` 标签的子实体作城门点），
+**不是** XML 里的 posX/posY → 挪实体不重烤网格 = 那些据点全对不可达。
+
+**文件**：生成器 `Scripts/gen_taikou_era_world.py` · 迁移器 `Scripts/migrate_era_registration.py` ·
+检查 `check_settlement_distance_cache.py`（哨兵+孤立据点）· `check_era_segments.py`（互斥 + 据点 id 跨代稳定）·
+`check_hero_templates.py`（逐 GameType 英雄↔模板配对）· `test_negative_checks.py`（模块级负面测试 11 用例）。
+
+**扩展点**：新内容包 = 换 CSV + 改生成器的 era 列表与 id 前缀 + 跑迁移器；三国的「多时代/多剧本」照这条走。
