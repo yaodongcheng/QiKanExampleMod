@@ -53,6 +53,7 @@ CHECKS = [
     ("gen_taikou_wanderer_culture.py", "英雄身份文化一致（游荡者=ronin / 大航海联动=pirate；依赖 ClanID，须在家族生成器之后）", False, ["--check"]),
     ("gen_taikou_force_csv.py", "势力表产物与生成器一致（TaikouForce.csv 读自己原地刷新，铁律 22）", False, ["--check"]),
     ("gen_taikou_settlement_owner.py", "据点归属与据点日志一致（Owner_<年> = 该城当年当主，铁律 22）", False, ["--check"]),
+    ("import_settlement_kuni_chi.py", "据点「国/地」列与太阁日志一致（Kuni/Chi 回填，铁律 22）", False, ["--check"]),
     ("gen_taikou_english_strings.py", "英文语言层与数据 XML 内联 fallback 一致（铁律 22）", False, ["--check"]),
     ("gen_taikou_era_world.py", "六代世界段（英雄/领主模板/家族/王国）与生成器一致（铁律 22）", False, ["--check"]),
     ("check_settlement_distance_cache.py", "距离缓存与据点一致（雷 53）", True, None),

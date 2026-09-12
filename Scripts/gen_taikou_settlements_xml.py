@@ -44,7 +44,15 @@ TEMP_OWNER = "Faction.clan_oda"          # 🔴 临时：全体同一主人（�
 # ⚠️ 各剧本的家族段互斥（spclans.xml ↔ spclans_1582.xml），临时主人必须是**该剧本已定义**的家族：
 #    1560 套有 clan_oda；1582 套只有 clan_g / player_faction → 1582 用 clan_g
 TEMP_OWNER_BY_ERA = {"1582": "Faction.clan_g"}
-CULTURE = "Culture.ikoku"
+CULTURE = "Culture.ikoku"                # 兜底：服务性据点等**非日本据点**（普通据点一律走下面的映射）
+# 🔴 据点文化 = 太阁5 的「地」→ 地域文化（2026-09-12 用户裁定）。
+#    数据源 = `Settlements.csv` 的 `Chi` 列（由 `Scripts/import_settlement_kuni_chi.py` 从
+#    `太阁日志/据点日志.md` 回填）。10 个「地」里 9 个日本地域 ↔ Taikou 9 个地域文化；
+#    「海外」4 町（釜山/宁波/那霸/吕宋）在 EXCLUDE_IDS 里、不进世界，故不参与映射。
+CHI2CULT = {
+    "九州": "saikai", "四国": "nankai", "中部": "sanyo", "近畿": "kinai",
+    "东北": "ou", "关东": "kanto", "东海": "tokai", "北陆": "hokuriku", "甲信": "tosan",
+}
 # 🔴 排除：4 个「外国港」（釜山/宁波/吕宋/那霸）——太阁地图左上角的装饰港口，
 #    mod 的真实地理日本图上没有对应陆地 → 落海里会破坏导航/可点性。
 #    数据仍保留在 Settlements.csv（列齐全），只是不进世界。
@@ -138,6 +146,15 @@ def suffix(sid):
     return sid
 
 
+def chi_to_culture(row):
+    """据点文化 =「地」→ 地域文化。缺 Chi 列或该「地」无映射 → 硬错误（不静默落到 ikoku）。"""
+    chi = (row.get("Chi") or "").strip()
+    if chi not in CHI2CULT:
+        raise SystemExit("[FATAL] 据点 %s 的「地」=%r 无文化映射"
+                         "（先跑 Scripts/import_settlement_kuni_chi.py 回填 Chi 列）" % (row.get("id"), chi))
+    return CHI2CULT[chi]
+
+
 def build_settlement(row, era, parent_id, seq, owner_clan):
     key, fallback = era_name_key(row, era)
     s = ET.Element("Settlement", {
@@ -148,7 +165,7 @@ def build_settlement(row, era, parent_id, seq, owner_clan):
         #    「继承最近有主据点（町 = 其 bound 城）的家族」传入，保证链不断。
         "owner": "Faction." + owner_clan,
         "posX": row["MOD_X"], "posY": row["MOD_Y"],
-        "culture": CULTURE,
+        "culture": "Culture." + chi_to_culture(row),
     })
     comps = ET.SubElement(s, "Components")
     kind = row["TK5Type"]

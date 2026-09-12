@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
+using TaleWorlds.TwoDimension;
 
 namespace LivingWorldNpcs.CampaignMode
 {
@@ -133,11 +134,13 @@ namespace LivingWorldNpcs.CampaignMode
 
 			// 立绘：优先用**目录按时代挑好的那张卡**（如木下在 1560 用「藤吉郎」那张，
 			// 而不是立绘表首张的「羽柴」）；目录没给 = 回落立绘表首张；都没有 = 界面画占位框
-			BustupSprite = !string.IsNullOrEmpty(lord?.BustupSprite)
+			// 🔴 显示点：名字 → `Sprite` 对象（顺带按需加载纹理）。**名字串绑给 `Sprite=` 静默无效**
+			//    ——引擎只对 prefab 里的字面量属性做名字解析，VM 绑定不做转换（范本 PlaybackDialogVM）。
+			string bustupName = !string.IsNullOrEmpty(lord?.BustupSprite)
 				? lord.BustupSprite
-				: (HeroProfileRegistry.GetBustupSpriteName(HeroId) ?? string.Empty);
-			HasBustup = !string.IsNullOrEmpty(BustupSprite);
-			HeroProfileRegistry.EnsurePortraitLoaded(BustupSprite);   // 🔴 显示点：纹理按需加载（否则空白）
+				: HeroProfileRegistry.GetBustupSpriteName(HeroId);
+			BustupSprite = HeroProfileRegistry.LoadPortraitSprite(bustupName);
+			HasBustup = BustupSprite != null;
 
 			// 型别 / 目标描述：仅「推荐」人配了（普通人物留空 → 界面隐藏那一行）
 			HeroProfileRegistry.Recommendation rec = FindRecommendation(HeroId);
@@ -182,7 +185,9 @@ namespace LivingWorldNpcs.CampaignMode
 		[DataSourceProperty] public string LifespanText { get; private set; } = string.Empty;
 		[DataSourceProperty] public string StoryType { get; private set; } = string.Empty;
 		[DataSourceProperty] public string StoryGoal { get; private set; } = string.Empty;
-		[DataSourceProperty] public string BustupSprite { get; private set; } = string.Empty;
+
+		/// <summary>半身立绘（`Sprite` 对象；名字串绑给 `Sprite=` 无效，见构造里注释）。null = 无立绘。</summary>
+		[DataSourceProperty] public Sprite BustupSprite { get; private set; }
 
 		/// <summary>基本情报各行的「标签 + 值」（空值的行不入列）。</summary>
 		[DataSourceProperty] public MBBindingList<InfoRowVM> BasicRows { get; }

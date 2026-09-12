@@ -42,11 +42,100 @@ if hasattr(sys.stdout, "reconfigure"):
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+from csv_dual import read_table  # noqa: E402
+
 CSV_DIR = os.path.join(REPO, "Knowledge", "太阁5", "骑砍2织丰角色ID对应", "csv")
 HERO = os.path.join(CSV_DIR, "TaikouHero.csv")
+SETT = os.path.join(CSV_DIR, "Settlements.csv")
 
 ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]
 RONIN, PIRATE = "ronin", "pirate"
+
+# 🔴 规则四（2026-09-12 用户裁定「全员按驻在城改」）：
+#    英雄文化 = 该英雄**驻在城**（`City_<年>`，取最后一个查得到的年代）的「地」→ 地域文化；
+#    驻在城查不到 → 退回**据点归属**（他是城主的城，`Settlements.csv` 的 `Owner_<年>`）。
+#    为什么覆盖身份文化：武士被分封到哪儿就是哪儿的人（属地口径 = 引擎文化语义，管兵种/名字池/城镇 NPC）；
+#    唯独两条**点名裁定**不参与覆盖：大航海联动（→ pirate）、南蛮（→ namban）。
+CHI2CULT = {
+    "九州": "saikai", "四国": "nankai", "中部": "sanyo", "近畿": "kinai",
+    "东北": "ou", "关东": "kanto", "东海": "tokai", "北陆": "hokuriku", "甲信": "tosan",
+}
+
+_CACHE = {}
+
+
+def name_culture_map():
+    """{(年, 城名): 地域文化} —— 从 `Settlements.csv` 的 `Name_<年>` + `Chi`（同年代的名字对同年代的城）。"""
+    if "name" in _CACHE:
+        return _CACHE["name"]
+    m = {}
+    if os.path.isfile(SETT):
+        cn, en, raw = read_table(SETT, head=2)
+        ci = en.index("Chi") if "Chi" in en else None
+        if ci is not None:
+            for r in raw:
+                c = CHI2CULT.get((r[ci] or "").strip() if len(r) > ci else "")
+                if not c:
+                    continue
+                for e in ERAS:
+                    k = "Name_" + e
+                    if k in en:
+                        i = en.index(k)
+                        nm = (r[i] or "").strip() if len(r) > i else ""
+                        if nm:
+                            m.setdefault((e, nm), c)
+    _CACHE["name"] = m
+    return m
+
+
+def owner_culture_map():
+    """{英雄id: 地域文化} —— **据点归属**口径（`Owner_<年>`，取最后当城主的年代）；兜底用。"""
+    if "owner" in _CACHE:
+        return _CACHE["owner"]
+    out = {}
+    if os.path.isfile(SETT):
+        cn, en, raw = read_table(SETT, head=2)
+        oi = {e: en.index("Owner_" + e) for e in ERAS if "Owner_" + e in en}
+        ci = en.index("Chi") if "Chi" in en else None
+        if ci is not None:
+            for r in raw:
+                c = CHI2CULT.get((r[ci] or "").strip() if len(r) > ci else "")
+                if not c:
+                    continue
+                for e in ERAS:                    # 时间顺序 → 后者覆盖前者 = 最后当城主的年代
+                    i = oi.get(e)
+                    if i is not None and len(r) > i and (r[i] or "").strip():
+                        out[(r[i] or "").strip()] = c
+    _CACHE["owner"] = out
+    return out
+
+
+def hero_culture_map():
+    """{英雄id: 地域文化}：**驻在城优先**（`City_<年>`，取最后一个查得到的年代），据点归属兜底。"""
+    if "hero" in _CACHE:
+        return _CACHE["hero"]
+    m = dict(owner_culture_map())
+    n2c = name_culture_map()
+    with io.open(HERO, encoding="utf-8-sig", newline="") as fh:
+        rows = list(csv.reader(fh))
+    hdr = rows[1]
+    ii = hdr.index("ID")
+    cix = {e: hdr.index("City_" + e) for e in ERAS if "City_" + e in hdr}
+    for r in rows[2:]:
+        if len(r) <= ii or not (r[ii] or "").strip():
+            continue
+        c = None
+        for e in ERAS:                            # 时间顺序 → 最后查得到的年代
+            i = cix.get(e)
+            nm = (r[i] or "").strip() if i is not None and len(r) > i else ""
+            x = n2c.get((e, nm))
+            if x:
+                c = x
+        if c:
+            m[r[ii].strip()] = c
+    _CACHE["hero"] = m
+    return m
 
 # 规则二：大航海时代联动角色（证据见文件头）
 COLLAB = {
@@ -107,7 +196,15 @@ def is_person(rec):
 
 
 def want_culture(rec):
-    """本脚本对某英雄的期望 CultureID；None = 不管（保持原值）。"""
+    """本脚本对某英雄的期望 CultureID；None = 不管（保持原值）。
+
+    优先级（2026-09-12 用户裁定「全员按驻在城改」）：
+      ① 非人物行（模板/变量行）→ 身份模板文化 / neutral_culture
+      ② 两条点名裁定不参与覆盖：大航海联动 → pirate；南蛮 → namban
+      ③ **驻在城/据点文化** → `hero_culture_map()`（主规则，覆盖身份文化）
+      ④ 六代无家（游荡者）→ ronin
+      ⑤ 其余 → None（保持）
+    """
     if not is_person(rec):
         # 非人物行：身份明确的模板给身份文化，其余（含全部变量行）→ neutral_culture
         return template_culture(rec.get("ID", ""))
@@ -115,6 +212,9 @@ def want_culture(rec):
         return PIRATE
     if rec.get("ID") in NANBAN:
         return "namban"
+    lc = hero_culture_map().get(rec.get("ID"))
+    if lc:
+        return lc
     if is_wanderer(rec):
         return RONIN
     return None
@@ -127,17 +227,22 @@ def build():
     cn_hdr, hdr = rows[0], rows[1]
     body = [r for r in rows[2:] if r and any(x.strip() for x in r)]
     ic, ik = hdr.index("CultureID"), hdr.index("ID")
-    wand, changes = [], []
+    hmap = hero_culture_map()
+    wand, lords, changes = [], [], []
     for r in body:
         rec = dict(zip(hdr, r))
         want = want_culture(rec)
         if want is None:
             continue
-        if want == RONIN:
-            wand.append(r[ik])
+        hid = r[ik]
+        if want == hmap.get(hid):
+            lords.append(hid)                      # 规则四命中（驻地/据点文化）
+        elif want == RONIN:
+            wand.append(hid)                       # 规则一命中（游荡者）
         if r[ic].strip() != want:
-            changes.append((r[ik], rec.get("CNName", ""), r[ic].strip(), want))
-    return {"cn_hdr": cn_hdr, "hdr": hdr, "body": body, "idx": ic, "wand": wand, "changes": changes}
+            changes.append((hid, rec.get("CNName", ""), r[ic].strip(), want))
+    return {"cn_hdr": cn_hdr, "hdr": hdr, "body": body, "idx": ic,
+            "wand": wand, "lords": lords, "changes": changes}
 
 
 def main():
@@ -150,17 +255,19 @@ def main():
         print("[FATAL] 缺 %s" % HERO, file=sys.stderr)
         return 2
     d = build()
-    print("游荡者（六代全程无家）：%d 人；其中 CultureID 需改为 %s 的 %d 人"
-          % (len(d["wand"]), RONIN, len(d["changes"])))
+    print("规则四·有据点（文化 = 最后当城主年代的据点「地」）：%d 人" % len(d["lords"]))
+    print("规则一·游荡者（六代全程无家）：%d 人" % len(d["wand"]))
+    print("其中 CultureID 需改的共 %d 人：" % len(d["changes"]))
     for hid, cn, a, b in d["changes"][:15]:
         print("   %-24s %-8s %s → %s" % (hid, cn, a or "(空)", b))
     if len(d["changes"]) > 15:
         print("   …（其余 %d 人同类）" % (len(d["changes"]) - 15))
     if args.check:
         if d["changes"]:
-            print("[CHECK] ❌ 有 %d 人的游荡者文化未落（跑 --apply）" % len(d["changes"]))
+            print("[CHECK] ❌ 有 %d 人的英雄文化未落（跑 --apply）" % len(d["changes"]))
             return 1
-        print("[CHECK] ✅ 游荡者文化一致（%d 人）" % len(d["wand"]))
+        print("[CHECK] ✅ 英雄文化一致（据点 %d 人 + 游荡者 %d 人）"
+              % (len(d["lords"]), len(d["wand"])))
         return 0
     if not args.apply:
         print("\n（未加 --apply，只报告不写盘）")

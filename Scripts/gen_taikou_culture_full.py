@@ -83,9 +83,12 @@ NPC_TEMPLATES = [
 ]
 
 
-def npc_cell(nt):
+def npc_cell(nt, culture="ikoku", name_key=None):
+    """渲染一个场景 NPC 模板。`culture` = 文化 id（默认 ikoku）；
+    `name_key` = 覆盖名字本地化键（默认按 id 拼）——地区版兵种复用通用键时不新增文案。"""
     nid, occ, name, female, lvl = nt
-    return f'''	<NPCCharacter id="{nid}" default_group="Infantry" level="{lvl}" is_female="{'true' if female else 'false'}" culture="Culture.ikoku" name="{{=TAIKOU_npc_{nid}}}{name}" occupation="{occ}">
+    key = name_key or ("TAIKOU_npc_" + nid)
+    return f'''	<NPCCharacter id="{nid}" default_group="Infantry" level="{lvl}" is_female="{'true' if female else 'false'}" culture="Culture.{culture}" name="{{={key}}}{name}" occupation="{occ}">
 		<face>
 			<face_key_template value="{FACE}"/>
 		</face>
@@ -919,6 +922,27 @@ def main():
         t = t.replace("</NPCCharacters>", cells + "\n\n</NPCCharacters>", 1)
         npc.write_text(t, encoding="utf-8-sig")
         print(f"spnpccharacters.xml: +{len(NPC_TEMPLATES)} 个场景 NPC 模板")
+
+    # 2b) 每地域文化一个 caravan_guard（🔴 引擎硬查询，2026-09-12 据点文化分地域后暴露）：
+    #     `InitializeCaravanOnCreation` 取 `Occupation==CaravanGuard ∧ DefaultFormationGroup==Infantry
+    #     ∧ Level==26 ∧ Culture==**该文化**` 的 `First(...)` —— 通用那份是 ikoku 文化，
+    #     9 个地域文化各有据点（有据点 = 商会建商队）→ 各需一份，否则组商队即抛（雷 16 同族）。
+    #     幂等：逐个按 id 判断；名字键复用通用的 `TAIKOU_npc_caravan_guard`（同一兵种的地区版，不新增文案）。
+    t = npc.read_text(encoding="utf-8-sig", errors="replace")
+    cells, added = [], []
+    for cid, _k, _en, _c1, _c2, _m in CULTURES:
+        if cid == "ikoku":
+            continue                             # ikoku 用通用那份（id=caravan_guard）
+        tid = "caravan_guard_" + cid
+        if 'id="%s"' % tid in t:
+            continue
+        cells.append(npc_cell((tid, "CaravanGuard", "Caravan Guard", False, 26),
+                              culture=cid, name_key="TAIKOU_npc_caravan_guard"))
+        added.append(tid)
+    if cells:
+        t = t.replace("</NPCCharacters>", "\n\n".join(cells) + "\n\n</NPCCharacters>", 1)
+        npc.write_text(t, encoding="utf-8-sig")
+    print("spnpccharacters.xml: 地域商队护卫 +%d（%s）" % (len(added), " ".join(added) or "无（幂等）"))
 
     # 3) self-check：parse
     import xml.dom.minidom as m

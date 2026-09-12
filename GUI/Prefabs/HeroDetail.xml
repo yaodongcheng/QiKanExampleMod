@@ -43,7 +43,12 @@
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="300"
                         Sprite="StdAssets\Popup\canvas_dark" MarginTop="10" DoNotAcceptEvents="true">
                   <Children>
-                    <ImageWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    <!-- 🔴 VM 侧给的是 `Sprite` **对象**（`HeroProfileRegistry.LoadPortraitSprite`），
+                         不是名字串——绑名字给 `Sprite=` 在 VM 绑定路径下静默无效（范本 PlaybackDialog.xml）。
+                         尺寸按原图等比：立绘本卡 512×768（2:3）→ 200×300。 -->
+                    <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                 SuggestedWidth="200" SuggestedHeight="300"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                  Sprite="@BustupSprite" IsVisible="@HasBustup"
                                  DoNotAcceptEvents="true"/>
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"

@@ -301,7 +301,8 @@
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                            DoNotAcceptEvents="true">
                                   <Children>
-                                    <!-- 行内小头像（立绘表按 StringId 查；无图 = 不画） -->
+                                    <!-- 行内小头像（立绘表按 StringId 查；无图 = 不画）
+                                         🔴 VM 给的是 `Sprite` **对象**，不是名字串（绑名字给 Sprite= 静默无效） -->
                                     <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                                                  SuggestedWidth="40" SuggestedHeight="40"
                                                  Sprite="@MiniSprite" IsVisible="@HasMini"
@@ -379,7 +380,7 @@
                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14"
                                DoNotAcceptEvents="true">
                       <Children>
-                        <!-- 头像 -->
+                        <!-- 头像（🔴 VM 给的是 `Sprite` 对象，不是名字串） -->
                         <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                                      SuggestedWidth="84" SuggestedHeight="84"
                                      Sprite="@MiniSprite" IsVisible="@HasMini"

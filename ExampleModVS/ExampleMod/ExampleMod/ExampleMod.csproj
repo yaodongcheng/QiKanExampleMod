@@ -406,6 +406,8 @@
          UpdateFriendshipAndEnemies 传 FactionMidSettlement（无地 = null）→ null.Id NRE（雷 107）。
          用户 2026-09-12 裁定「允许无地家族有 lord 成员（灭族后仍要看到野队）」→ 兜底落在距离模型入口。 -->
     <Compile Include="CampaignMode\MapDistanceNullSettlementGuardPatch.cs" />
+    <!-- 🔴 临时定位日志（第 4 关：领主刷部队 NRE）——定案并修复后立即删除本行与该文件 -->
+    <Compile Include="CampaignMode\LordPartySpawnDiagPatch.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshProbeCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugRenderer.cs" />
