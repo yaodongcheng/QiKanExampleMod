@@ -280,6 +280,65 @@ def main():
             print(f"  [WARN] {len(pt_pending)}/{len(cultures)} 个文化缺 bandit_boss_party_template"
                   f"（匪首部队模板，同样无 null 兜底；需先有匪兵兵种模板 → 属内容决策，待补）")
 
+        # ── 0c. 文化部队模板「内容」体检（🔴 2026-09-12 实机症状：全世界部队被填成「主角」副本） ──
+        #   症状：大地图上部队显示 100+ 人，进队伍界面只有领主本人 + 一个叫「主角」的人，没有一兵一卒。
+        #   根因：文化 8 个模板属性指向**占位模板** `main_hero_party_template`（内容 = 1×
+        #        `NPCCharacter.main_hero`，中文名「主角」，`is_hero="true"` 的**玩家占位模板**）
+        #        → 引擎 `FillPartyStacks` 按模板把整支部队填满 → 全是被填进去的「主角」副本。
+        #        （占位值是雷 110 止血时填的：当时只为「别 NRE」，没管内容。）
+        #   三条判据：①模板必须定义得出来（悬空 = 刷兵 NRE 同族）②栈不得引用 is_hero 模板 ③栈不得为空。
+        print("== 文化部队模板内容（占位/英雄模板 = 部队被填成假英雄） ==")
+        pt_defs = {}
+        for f in files:
+            try:
+                r = ET.parse(str(f)).getroot()
+            except Exception:
+                continue
+            for el in r.iter("MBPartyTemplate"):
+                if el.get("id"):
+                    pt_defs.setdefault(el.get("id"), (el, f"{f.parent.name}/{f.name}"))
+        PT_ALL = PT_REQUIRED + ("bandit_boss_party_template",)
+        bad_ref, bad_stack, bad_hero = 0, 0, 0
+        for cid, (cel, csrc) in sorted(cultures.items()):
+            for attr in PT_ALL:
+                val = (cel.get(attr) or "").strip()
+                if not val:
+                    continue
+                tid = val.split(".")[-1]
+                got = pt_defs.get(tid)
+                if got is None:
+                    bad_ref += 1
+                    errors.append(f"文化 {cid} 的 {attr} 指向未定义的模板 {val}")
+                    print(f"  [ERROR] 文化 {cid} {attr}={val} —— 模板未定义（刷兵 NRE 同族） ← {csrc}")
+                    continue
+                tel, tsrc = got
+                stacks = list(tel.iter("PartyTemplateStack"))
+                if not stacks:
+                    bad_stack += 1
+                    errors.append(f"部队模板 {tid}（文化 {cid} 的 {attr}）没有任何 stack")
+                    print(f"  [ERROR] 模板 {tid} 是空壳（文化 {cid} 的 {attr}）← {tsrc}")
+                for st in stacks:
+                    troop = (st.get("troop") or "").split(".")[-1]
+                    if not troop:
+                        bad_ref += 1
+                        errors.append(f"部队模板 {tid} 有 stack 没写 troop")
+                        print(f"  [ERROR] 模板 {tid} 有 stack 没写 troop ← {tsrc}")
+                        continue
+                    ch = chars.get(troop)
+                    if ch is None:
+                        bad_ref += 1
+                        errors.append(f"部队模板 {tid} 引用未定义兵种 {st.get('troop')}")
+                        print(f"  [ERROR] 模板 {tid} 引用未定义兵种 {st.get('troop')} ← {tsrc}")
+                        continue
+                    if (ch[0].get("is_hero") or "").lower() == "true":
+                        bad_hero += 1
+                        errors.append(f"部队模板 {tid} 用英雄模板当兵（{troop}）——部队会被填成该英雄的副本")
+                        print(f"  [ERROR] 模板 {tid} 的 stack 是英雄模板 {troop}（is_hero=true）"
+                              f"—— 填进去的是「{ch[0].get('name')}」副本、不是士兵"
+                              f"（文化 {cid} 的 {attr}）← {tsrc}")
+        if not (bad_ref or bad_stack or bad_hero):
+            print(f"  [ OK ] {len(pt_defs)} 个部队模板：引用可解析、非空、无英雄占位")
+
         # ── 1. 据点字段 ──
         print("== 据点必填字段 / 取值（官方 493 据点边界验证） ==")
         by_kind = {}

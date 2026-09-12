@@ -121,8 +121,23 @@ case("必填：Hero 缺 faction 必须抓到", "check_data_fields.py",
 # 雷 110：文化缺部队模板属性 = 该文化的领主部队刷兵 NRE（2026-09-12 实机崩溃根因）
 case("必填：文化缺 default_party_template 必须抓到（雷 110）", "check_data_fields.py",
      lambda m, c: patch_text(m / "ModuleData" / "spcultures.xml",
-                             'default_party_template="PartyTemplate.main_hero_party_template"\n', "", 1),
+                             'default_party_template="PartyTemplate.taikou_lord_party_template"\n', "", 1),
      1, "default_party_template")
+
+# 雷 115：文化部队模板指向**占位模板**（内容 = 1× main_hero「主角」，is_hero=true）
+#   = 全世界部队被填成「主角」副本（实机症状：地图 100+ 人、队伍界面无一兵）
+case("部队模板：指向英雄占位模板必须抓到（雷 115）", "check_data_fields.py",
+     lambda m, c: patch_text(m / "ModuleData" / "spcultures.xml",
+                             'default_party_template="PartyTemplate.taikou_lord_party_template"',
+                             'default_party_template="PartyTemplate.main_hero_party_template"', 1),
+     1, "is_hero=true")
+
+# 雷 115 同族：部队模板引用不存在的兵种（改 id 忘改模板）= 刷兵悬空
+case("部队模板：引用未定义兵种必须抓到（雷 115）", "check_data_fields.py",
+     lambda m, c: patch_text(m / "ModuleData" / "partyTemplates.xml",
+                             'troop="NPCCharacter.yari_ashigaru"',
+                             'troop="NPCCharacter.yari_ashigaru_XX"', 1),
+     1, "引用未定义兵种")
 
 case("私用区：还原表里没有的码点 = 硬错误", "check_taikou_world_tables.py",
      lambda m, c: patch_cell(c / "TaikouHero.csv", "ID", "lord_tk5_195", "CNName", "织田\uE7FF信长"),
