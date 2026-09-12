@@ -74,7 +74,7 @@
 9072,lord_tk5_ninja_sanjiroo,三次郎,ninja,1104,1074,1104,1104,,,羽黑众,羽黑众,羽黑众,羽黑众,,
 9073,lord_tk5_ninja_sashichi,佐七,ninja,,1043,1072,,1106,,,户隐众,轩猿众,,羽黑众,
 9074,lord_tk5_ninja_sazen,左膳,ninja,,,,1091,1067,1123,,,,根来众,风魔众,伊贺众
-9075,lord_tk5_ninja_senzuiboo,泉识坊,ninja,1088,1070,1082,,,1151,根来众,根来众,甲贺众,,,根来众
+9075,lord_tk5_ninja_senshikiboo,泉识坊,ninja,1088,1070,1082,,,1151,根来众,根来众,甲贺众,,,根来众
 9076,lord_tk5_ninja_shiroobee,四郎兵卫,ninja,,,,,,1132,,,,,,外闻众
 9077,lord_tk5_ninja_shizuma,静马,ninja,1087,,1076,1083,,1125,伊贺众,,透波众,伊贺众,,羽黑众
 9078,lord_tk5_ninja_shunkai,俊海,ninja,,,,,1104,1127,,,,,羽黑众,羽黑众
@@ -314,8 +314,8 @@
 9312,lord_tk5_trader_umekichi,梅吉,trader,1044,1153,,1044,1036,,天王寺屋,越后屋,,组屋,角仓屋,
 9313,lord_tk5_trader_ushimatsu,丑松,trader,,1026,1055,1015,,,,组屋,神屋,越后屋,,
 9314,lord_tk5_trader_uuemon,宇右卫门,trader,,,,1045,1002,1062,,,,川舟屋,角屋,角屋
-9315,lord_tk5_trader_xE413_兵卫,兵卫,trader,,1149,1033,1043,,,,越后屋,下关屋,组屋,,
-9316,lord_tk5_trader_xE413_右卫门,右卫门,trader,1041,,,,1004,1090,天王寺屋,,,,伊藤屋,茶屋
+9315,lord_tk5_trader_xe413bee,兵卫,trader,,1149,1033,1043,,,,越后屋,下关屋,组屋,,
+9316,lord_tk5_trader_xe413uemon,右卫门,trader,1041,,,,1004,1090,天王寺屋,,,,伊藤屋,茶屋
 9317,lord_tk5_trader_yasujiroo,安二郎,trader,1031,,,,1001,1077,博多屋,,,,角屋,神屋
 9318,lord_tk5_trader_yasukichi,安吉,trader,1043,1069,1039,,,,天王寺屋,坂田屋,友野屋,,,
 9319,lord_tk5_trader_yasuzoo,安藏,trader,,1083,,1037,1025,,,天王寺屋,,角仓屋,博多屋,

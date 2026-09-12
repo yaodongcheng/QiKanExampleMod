@@ -11,11 +11,17 @@ gen_taikou_culture_full.py — 织丰/原版字段交集全量一次性补全（
 
 依据（实测）：
   原版 Culture 全集 77 字段；织丰主文化 = 76/77（仅差 militia_bonus）；
-  →「最小字段交集」= 织丰全集 ≈ 原版全集。本生成器把 ikoku + neutral 按该全集补齐，
+  →「最小字段交集」= 织丰全集 ≈ 原版全集。本生成器按该全集产出**本包的全部文化**，
     同时生成 40 个场景 NPC 模板（每职业最小模板，全字段引用 Taikou 自有资源）。
 
+🔴 文化清单（2026-09-12 用户裁定「Taikou 与织丰零依赖 → 所有文化都自创」）：
+  **17 个** = ikoku（主）+ 9 地域（saikai/nankai/sanyo/kinai/hokuriku/tosan/tokai/kanto/ou）
+           + 6 身份（ninja/pirate/trader/looters/ronin/namban 南蛮）
+           + neutral_culture（本文件原有、不由此生成）。
+  改清单 = 改 main() 里的 `CULTURES` 重跑（铁律 22：生成物禁手改）。
+
 产物：
-  1) spcultures.xml：完整 Culture.ikoku（全集 76 字段）——值全部指向自有资源（guard/peasant 复用做派）
+  1) spcultures.xml：上述文化的完整 76 字段块（值全部指向自有资源）
   2) spnpccharacters.xml：新增 40 个 NPCCharacter 最小模板（occupation/culture/face/skill_template/空装备）
 纪律：生成物禁止手改（铁律 22）——改表 = 改本脚本重跑；跑完必过 check_taikou_xml_references.py。
 
@@ -99,18 +105,20 @@ def main():
     if not md.is_dir():
         sys.exit(2)
 
-    # 1) spcultures：完整 Culture.ikoku 属性块（76 全集——空节默认/复用做派）
-    ikoku = f'''	<Culture id="ikoku"
-			 name="{{=TAIKOU_culture_ikoku}}Japanese"
-			 color="0xff9e1b32"
-			 color2="0xffFCDE90"
+    # 1) spcultures：完整 Culture 属性块（76 全集——空节默认/复用做派）
+    #    🔴 本串是**模板**：`__CID__/__CKEY__/__CEN__/__COLOR__/__COLOR2__/__ISMAIN__` 六处占位，
+    #       main() 里按文化逐个替换（ikoku + 4 个身份文化；名字池与 76 字段全套共用）。
+    tmpl = f'''	<Culture id="__CID__"
+			 name="{{=__CKEY__}}__CEN__"
+			 color="__COLOR__"
+			 color2="__COLOR2__"
 			 basic_troop="NPCCharacter.peasant_farmer"
 			 elite_basic_troop="NPCCharacter.guard"
 			 melee_militia_troop="NPCCharacter.guard"
 			 ranged_militia_troop="NPCCharacter.guard"
 			 melee_elite_militia_troop="NPCCharacter.guard"
 			 ranged_elite_militia_troop="NPCCharacter.guard"
-			 is_main_culture="true"
+			 is_main_culture="__ISMAIN__"
 			 can_have_settlement="true"
 			 town_edge_number="16"
 			 prosperity_bonus="1"
@@ -175,8 +183,13 @@ def main():
 			 weapon_practice_stage_3="NPCCharacter.guard"
 			 weaponsmith="NPCCharacter.weaponsmith">
 		<notable_and_wanderer_templates>
-			<template name="NPCCharacter.lord_oda_nobunaga"/>
-			<template name="NPCCharacter.lord_oda_shibata_katsuie"/>
+			<template name="NPCCharacter.lord_tk5_195"/>
+			<template name="NPCCharacter.lord_tk5_379"/>
+			<template name="NPCCharacter.lord_tk5_517"/>
+			<template name="NPCCharacter.lord_tk5_587"/>
+			<template name="NPCCharacter.lord_tk5_740"/>
+			<template name="NPCCharacter.lord_tk5_279"/>
+			<template name="NPCCharacter.lord_tk5_549"/>
 			<template name="NPCCharacter.main_hero"/>
 			<template name="NPCCharacter.merchant"/>
 			<template name="NPCCharacter.artisan"/>
@@ -842,13 +855,60 @@ def main():
 	</Culture>'''
 
     sc = md / "spcultures.xml"
-    txt = sc.read_text(encoding="utf-8-sig", errors="replace")
-    # 用完整版替换第一个 Culture.ikoku（保留 neutral_culture）
-    txt = re.sub(r'\t<Culture id="ikoku".*?</Culture>', ikoku, txt, count=1, flags=re.S)
+    raw = sc.read_bytes()
+    # 🔴 保留原文件的换行风格（2026-09-12 踩坑：本文件是 LF，生成器按 Windows 默认写成 CRLF
+    #    → 整份文件逐行"变化"，diff 不可读、也误导体检）
+    eol = "\r\n" if b"\r\n" in raw else "\n"
+    txt = raw.decode("utf-8-sig", errors="replace")
+
+    def render(cid, key, en, color, color2, is_main):
+        return (tmpl.replace("__CID__", cid).replace("__CKEY__", key).replace("__CEN__", en)
+                .replace("__COLOR2__", color2).replace("__COLOR__", color)
+                .replace("__ISMAIN__", "true" if is_main else "false"))
+
+    # 🔴🔴 文化清单（2026-09-12 用户裁定：**与织丰零依赖 → 全部文化都定义在本包**）
+    #    16 个 = ikoku（主文化）+ neutral_culture（本文件原有、不在此生成）+ 9 地域 + 5 身份文化。
+    #    为什么必须全建：原先 21 个文化里 **19 个的定义在织丰**（Taikou 只定义 2 个），
+    #    引用闭合检查因为"跨模块命中"而全绿 → 隐式依赖（见 CLAUDE.md 三单元架构铁则 6 / 必备清单雷 96）。
+    CULTURES = [
+        # (id, 本地化键, 英文名, color, color2, is_main_culture)
+        ("ikoku", "TAIKOU_culture_ikoku", "Japanese", "0xff9e1b32", "0xffFCDE90", True),
+        # ── 9 地域文化 ──
+        ("saikai", "TAIKOU_culture_saikai", "Saikai", "0xff2e6d6d", "0xffa8d8d8", True),
+        ("nankai", "TAIKOU_culture_nankai", "Nankai", "0xff2e5a6d", "0xffa8c8dc", True),
+        ("sanyo", "TAIKOU_culture_sanyo", "Sanyo", "0xff5a6d2e", "0xffc8dc9e", True),
+        ("kinai", "TAIKOU_culture_kinai", "Kinai", "0xff6d2e5a", "0xffdc9ec8", True),
+        ("hokuriku", "TAIKOU_culture_hokuriku", "Hokuriku", "0xff2e3d6d", "0xff9ea8dc", True),
+        ("tosan", "TAIKOU_culture_tosan", "Tosan", "0xff4a6d2e", "0xffb4dc9e", True),
+        ("tokai", "TAIKOU_culture_tokai", "Tokai", "0xff6d4a2e", "0xffdcb49e", True),
+        ("kanto", "TAIKOU_culture_kanto", "Kanto", "0xff6d2e2e", "0xffdc9e9e", True),
+        ("ou", "TAIKOU_culture_ou", "Ou", "0xff2e6d4a", "0xff9edcb4", True),
+        # ── 5 身份文化（忍者/海贼/商人 = 泛用 hero 与三类组织；强盗 = 吸收 8 个旧文化；浪人 = 游荡者）──
+        ("ninja", "TAIKOU_culture_ninja", "Ninja", "0xff2f4f4f", "0xffb0c4de", False),
+        ("pirate", "TAIKOU_culture_pirate", "Pirate", "0xff1f3d5c", "0xff9ec5e8", False),
+        ("trader", "TAIKOU_culture_trader", "Merchant", "0xff6b4f1d", "0xffe8d8a0", False),
+        ("looters", "TAIKOU_culture_looters", "Bandits", "0xff4a3a2a", "0xffc8b49e", False),
+        ("ronin", "TAIKOU_culture_ronin", "Ronin", "0xff4a4a4a", "0xffc8c8c8", False),
+        # ── 南蛮（2026-09-12 用户裁定：标记西洋/外国人——佛罗伊斯/阿鲁梅达/弥助/三浦按针）──
+        ("namban", "TAIKOU_culture_namban", "Namban", "0xff7a5c2e", "0xffe8cfa8", False),
+    ]
+
+    # 逐个：本包已有 → 整块替换；本包没有 → 插到 </SPCultures> 前（幂等：重跑走替换分支）
+    for c in CULTURES:
+        blk = render(*c)
+        if re.search(r'\t<Culture id="%s".*?</Culture>' % c[0], txt, flags=re.S):
+            txt = re.sub(r'\t<Culture id="%s".*?</Culture>' % c[0], blk, txt, count=1, flags=re.S)
+        else:
+            txt = txt.replace("</SPCultures>", blk + "\n</SPCultures>", 1)
+
     # 🔴 原文件已含 XML 声明（utf-8-sig），只插生成物注释，不得重复写声明（2026-09-08 踩坑：重复声明 parse 失败）
     body = txt.split("?>", 1)[1]
-    sc.write_text('<?xml version="1.0" encoding="utf-8"?>\n<!-- 生成物（2026-09-08 gen_taikou_culture_full.py）：织丰/原版字段交集 76 字段全量；值全引用自有资源；禁止手改（铁律 22） -->\n' + body, encoding="utf-8-sig")
-    print("spcultures.xml: Culture.ikoku 已补全集")
+    out = ('<?xml version="1.0" encoding="utf-8"?>\n'
+           '<!-- 生成物（2026-09-08 gen_taikou_culture_full.py）：织丰/原版字段交集 76 字段全量；'
+           '值全引用自有资源；禁止手改（铁律 22） -->\n' + body)
+    sc.write_bytes(out.replace("\n", eol).encode("utf-8-sig"))
+    print("spcultures.xml: 本包自建文化 %d 个（%s）+ 原有 neutral_culture"
+          % (len(CULTURES), " ".join(c[0] for c in CULTURES)))
 
     # 2) spnpccharacters：40 模板追加（🔴 幂等：已含 townsman = 已生成过，跳过——重跑不重复追加）
     npc = md / "spnpccharacters.xml"

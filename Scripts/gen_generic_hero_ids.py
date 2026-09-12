@@ -15,6 +15,17 @@ r"""泛用 NPC → hero 的 ID 表（职业 + 名字罗马音）
     兵衛=bee、右衛門=uemon、左衛門=zaemon（2026-09-12 用户裁定；
     既有 1037 条的写法有三套漂移（Rokuro/Rokuroo/Rokurou），**本次不动它们**）。
 
+**低置信 9 条的定案（2026-09-12，依据 = 本表内部一致性，不引外部词典）**：
+  「〜三」= ぞう（同表 `祯三 teizoo`）→ 实三 sanezoo；「〜太」= た（同表 `平太 heita`/
+  `小弥太 koyata`/`六平太 rokuheita`）→ 闻太 kikuta；「〜七」= しち（同表 `佐七 sashichi`/
+  `龟七 kameshichi`/`孙七 magoshichi`）→ 鸢七 tobishichi；「〜坊」= ぼう（同表 `坊 boo`）
+  → 传林坊 denrinboo、**泉识坊 senzuiboo → 改 senshikiboo**（音读名：泉=せん、識=しき；
+  旧读 senzui 的「ずい」在「識」上无依据）；岩蓦 ganbaku（山伏名走音读 がん+ばく）；
+  专次 senji（専=せん + 次=じ）。
+  ⚠️ 2 条私用区前缀（`兵卫`/`右卫门` 前一字 = U+E413）**读不出**——词库无同长度候选，
+  见 `tk5_pua_names.UNRESOLVED`；现用码点占位 `xe413bee` / `xe413uemon`（纯 ASCII），
+  待字体码表破解后改一处即可全表重跑。
+
 **为什么不用 pykakasi**：实测对这些名字不可用——327 个里 45 个直接输出空/截断
   （军兵卫/孙兵卫/传助/德藏…），抽样 25 个里至少 8 个读错
   （与平次→yoheitsugi、三郎左→saburouhidari、一贯→ichi）。
@@ -77,12 +88,12 @@ SUFFIX = [
 STEM = {
     "一": "ichi", "一若": "ichiwaka", "一角": "ikkaku", "一贯": "ikkan", "七郎": "shichiroo",
     "万": "man", "万千代": "manchiyo", "三": "san", "三郎": "saburoo", "三郎太": "saburoota",
-    "与": "yo", "与三": "yoso", "与平": "yohei", "丑": "ushi", "专": "sen?",
+    "与": "yo", "与三": "yoso", "与平": "yohei", "丑": "ushi", "专": "sen",
     "中三": "chuuzan", "中八": "nakahachi", "丹": "tan", "为": "tame", "久": "hisa",
     "义": "yoshi", "九": "ku", "九郎": "kuroo", "二十八": "nijuuhachi", "五": "go",
     "仁": "jin", "仁八": "jinpachi", "仙": "sen", "仙造": "senzoo", "仪": "gi",
     "伊三": "izo", "伊作": "isaku", "伊势男": "iseo", "传": "den", "传六": "denroku",
-    "传林": "denrin?", "佐": "sa", "佐七": "sashichi", "佐市": "saichi", "佐平": "sahei",
+    "传林": "denrin", "佐": "sa", "佐七": "sashichi", "佐市": "saichi", "佐平": "sahei",
     "余": "yo", "余市": "yoichi", "作": "saku", "俊海": "shunkai", "修罗": "shura",
     "光": "mitsu", "八": "hachi", "八十": "yaso", "六": "roku", "六平太": "rokuheita",
     "六郎": "rokuroo", "兵太": "hyouta", "军": "gun", "军荼利": "gundari", "准": "jun",
@@ -95,10 +106,10 @@ STEM = {
     "国之辅": "kuninosuke", "圆": "en", "外记": "geki", "多": "ta", "多津": "tazu",
     "夜叉": "yasha", "大": "dai", "大八": "daihachi", "天元": "tengen", "太郎": "taroo",
     "孙": "mago", "孙七": "magoshichi", "孙作": "magosaku", "宇": "u", "安": "yasu",
-    "安二": "yasuji", "定": "sada", "实三": "sanezoo?", "宫": "miya", "宽": "kan",
+    "安二": "yasuji", "定": "sada", "实三": "sanezoo", "宫": "miya", "宽": "kan",
     "寅": "tora", "富": "tomi", "富士": "fuji", "小": "ko", "小平": "kohei",
     "小弥太": "koyata", "小忠太": "kochuuta", "小源太": "kogenta", "小金": "kogane",
-    "尚": "nao", "岩蓦": "ganbaku?", "峰": "mine", "左内": "sanai", "左膳": "sazen",
+    "尚": "nao", "岩蓦": "ganbaku", "峰": "mine", "左内": "sanai", "左膳": "sazen",
     "左近": "sakon", "市之允": "ichinosuke", "带刀": "tatewaki", "平": "taira",
     "平太": "heita", "幸": "sachi", "幸作": "koosaku", "幻妖": "gennyoo", "庄": "shoo",
     "弁": "ben", "弘庵": "koan", "弥": "ya", "弥二": "yaji", "弥市": "yaichi",
@@ -108,7 +119,7 @@ STEM = {
     "新八": "shinpachi", "无天": "muten", "明岳": "meigaku", "晋": "shin", "权": "gon",
     "权八": "gonpachi", "松": "matsu", "林": "hayashi", "枣": "natsume", "枫": "kaede",
     "柳": "yanagi", "梅": "ume", "梦": "yume", "梶": "kaji", "次郎": "jiroo",
-    "正": "masa", "段": "dan", "治": "ji", "泉识": "senzui?", "法海": "hokkai",
+    "正": "masa", "段": "dan", "治": "ji", "泉识": "senshiki", "法海": "hokkai",
     "泷": "taki", "清": "kiyo", "源": "gen", "源五": "gengo", "源内": "gennai",
     "源吾": "gengo", "源阿弥": "gennami", "满作": "mansaku", "濑": "se", "熊": "kuma",
     "猪": "i", "玄": "gen", "玄龙": "genryuu", "玉": "tama", "理": "osamu",
@@ -120,20 +131,33 @@ STEM = {
     "角": "kaku", "谦": "ken", "贞": "sada", "贯": "kan", "贯一": "kanichi",
     "辰": "tatsu", "道由": "dooyu", "道空": "dookuu", "道贤": "dooken", "道闲": "dookan",
     "道阿弥": "dooami", "修": "osamu", "金": "kin", "铁": "tetsu", "银": "gin", "长": "chou",
-    "闻太": "kikuta?", "隆玄": "ryuugen", "隼人": "hayato", "雷": "rai", "静": "shizu",
-    "马": "ma", "驹": "koma", "鬼七": "onishichi", "鸠": "kyuu", "鸢七": "tobishichi?",
+    "闻太": "kikuta", "隆玄": "ryuugen", "隼人": "hayato", "雷": "rai", "静": "shizu",
+    "马": "ma", "驹": "koma", "鬼七": "onishichi", "鸠": "kyuu", "鸢七": "tobishichi",
     "鹤": "tsuru", "鹤千代": "tsuruchiyo", "黑": "kuro", "龟": "kame", "龟七": "kameshichi",
 }
 
 
-UNRESOLVED_PUA = {"": "xE413"}   # 项目已记 UNRESOLVED，词库无对应，占位待解
+UNRESOLVED_PUA = {"": "xe413"}   # 私用区前缀（DX 中文版映射表缺字）→ 用码点占位；尾部照常读，id 保持纯 ASCII
+
+
+def romaji_tail(tail):
+    """只读私用区占位后面剩下的那截（如 兵卫→bee / 右卫门→uemon）。"""
+    for s, r in SUFFIX:
+        if tail == s:
+            return r
+        if tail.endswith(s) and len(tail) > len(s) and tail[:-len(s)] in STEM:
+            return STEM[tail[:-len(s)]].rstrip("?") + r
+    return STEM.get(tail, "").rstrip("?")
 
 
 def romaji(nm):
     """名字 → 罗马音：先按后缀切，再查词干表。返回 (读音, 置信度)。"""
     for pua, tag in UNRESOLVED_PUA.items():
         if pua in nm:
-            return (tag + "_" + nm.replace(pua, ""), "待解")
+            # 🔴 前缀读不出（词库无同长度候选，见 tk5_pua_names.UNRESOLVED）。
+            #    绝不允许把中文写进 id（铁律 20）——前缀用码点占位，尾部照常读。
+            return (tag + romaji_tail(nm.replace(pua, "")), "待解")
+
     for s, r in SUFFIX:
         if nm == s:                      # 整个名字就是一个后缀（如「兵卫」）
             return (r, "高")

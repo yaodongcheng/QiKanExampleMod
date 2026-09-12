@@ -74,7 +74,7 @@ r"""TaikouForce.csv 生成器 —— ForceTaikou.csv（唯一源表）→ Taikou
       （茶屋，商家，编号 929，别名正是「茶屋家」）——靠 ID + 势力类型 区分，名称有意同形。
 
 **纪律**：生成物·禁手改（铁律 22）——改内容改**源表**（`ForceTaikou.csv`，手维护）或本脚本，再重跑。
-  `--apply` 只写 TaikouForce.csv（带备份）。
+  `--apply` 只写 TaikouForce.csv（带备份）——读自己、原地刷新。
   写入前做闭合校验：输出 185 行 + id 唯一 + 每行有 势力名/Culture。
   幂等两跑：第二次必须 0 改动。
 
@@ -103,7 +103,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 CSV_DIR = os.path.join(REPO, "Knowledge", "太阁5", "骑砍2织丰角色ID对应", "csv")
 
-FORCE = os.path.join(CSV_DIR, "ForceTaikou.csv")
+# 🔴 2026-09-12 用户裁定：**ForceTaikou.csv 退役删除**（快照口径是错误数据，日志口径为准）。
+#    本表改为**读自己、原地刷新**——`TaikouForce.csv` 的 6 列静态值（ID/太阁编号/势力名/别名/势力类型/Culture）
+#    是唯一真源，`Owner_<年>` 每次按上级日志重算覆盖。幂等：第二次跑必须 0 改动。
+FORCE = os.path.join(CSV_DIR, "TaikouForce.csv")      # ← 读自己（原地刷新源表）
 CLAN = os.path.join(CSV_DIR, "Clan.csv")
 HERO = os.path.join(CSV_DIR, "TaikouHero.csv")
 SUP_LOG = os.path.join(REPO, "Knowledge", "太阁5", "太阁日志", "上级日志.md")
@@ -347,8 +350,7 @@ def main():
     n_other = len(out) - n_w - n_t - n_n - n_p
     print("TaikouForce = %d 行（Warrior %d / Trader %d / Ninja %d / Pirate %d / 其他 %d）"
           % (len(out), n_w, n_t, n_n, n_p, n_other))
-    print("  来源：ForceTaikou.csv %d 行（唯一源表；Kingdom.csv 已归档，Culture/noKingdom 已收编）"
-          % len(out))
+    print("  来源：TaikouForce.csv 自己的 6 列静态值（读自己、原地刷新；ForceTaikou.csv 已退役）")
 
     # 🔴 Clan.csv 侧的引用已随家族重建退役（2026-09-11）：Clan.csv 现由
     #    gen_taikou_clan_csv.py 从零产出，没有单列 `Kingdom`，也不再引用 ikko_shu。
