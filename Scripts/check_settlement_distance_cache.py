@@ -30,6 +30,7 @@ Usage:
 Exit: 0 无问题 / 1 有问题 / 2 fatal。
 """
 import argparse
+import collections
 import io
 import struct
 import sys
@@ -73,7 +74,8 @@ def parse_cache(path):
             read_dotnet_string(f)                                    # id_m
             distances.append(struct.unpack("<f", f.read(4))[0])     # float32 距离
             pairs += 1
-    return ids, pairs, (max(distances) if distances else 0.0)
+    sentinel = sum(1 for d in distances if d > 1e6)   # 引擎的"无通路"哨兵（真实距离都几千米内）
+    return ids, pairs, (max(distances) if distances else 0.0), (distances, sentinel)
 
 
 def scene_entity_names(scene_file):
@@ -147,7 +149,7 @@ def main():
         print(f"\nSummary: expected={len(expected)} errors=1")
         return 1
 
-    ids, pairs, max_dist = parse_cache(cache)
+    ids, pairs, max_dist, (dists, n_sentinel) = parse_cache(cache)
     print(f"== 缓存内容 ==")
     print(f"  缓存据点 {len(ids)} 个 / 据点对 {pairs} 对 / 最大据点距 {max_dist:.1f}：{ids}")
 
@@ -174,6 +176,34 @@ def main():
         print( "          → 排查：两个据点是否位置重合 / 城门点是否落在导航面上（距离由导航面路径算出，算不出即 0）")
     else:
         print(f"  [ OK ] 最大据点距 {max_dist:.1f} > 0（引擎会据此把最大值抬起来 → 家宅可算）")
+
+    # 🔴 2026-09-12 补强：**"最大距离 > 0" 这个判据太弱**——实测本包跑出的缓存里
+    #    有 21.6% 的据点对是 `1e30`（引擎的"走不通"哨兵值），最大值因此变成 1e30，
+    #    判据照样通过，但那个数没有意义（家宅打分 `1 − d/1e30` ≈ 1 全平）。
+    #    对照：织丰/三国/官方三个包的缓存里**一个哨兵都没有**（最大 1772/2072/828 米）。
+    #    → 这里把「走不通的据点对」与「完全孤立的据点」报出来（**警告**：它是地图
+    #      导航网格的问题、不是缓存文件的问题；但必须让人看见，否则世界是瘸的）。
+    n_sentinel = sum(1 for d in dists if d > 1e6)
+    if n_sentinel:
+        total_pairs = len(ids) * (len(ids) - 1) // 2
+        deg = collections.Counter()
+        k = 0
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                if dists[k] > 1e6:
+                    deg[ids[i]] += 1
+                    deg[ids[j]] += 1
+                k += 1
+        isolated = sorted(x for x in ids if deg.get(x, 0) == len(ids) - 1)
+        warns.append("%d 对据点之间**走不通**（%.1f%%；引擎写 1e30 哨兵）——地图导航网格有断裂："
+                     "部队 AI 寻路到不了这些城、距离类打分被 1e30 压平。%s"
+                     "建议：编辑器里点 CheckPositions 定位，再修网格或挪据点"
+                     % (n_sentinel, n_sentinel * 100.0 / max(total_pairs, 1),
+                        ("完全孤立的据点 %d 个：%s。" % (len(isolated), ", ".join(isolated[:12])))
+                        if isolated else "（无完全孤立者，但成片不互通）。"))
+        print("  [WARN] %d 对走不通（%.1f%%）%s"
+              % (n_sentinel, n_sentinel * 100.0 / max(total_pairs, 1),
+                 ("· 完全孤立 %d 个：%s" % (len(isolated), ", ".join(isolated[:8]))) if isolated else ""))
 
     print(f"\nSummary: expected={len(expected)} cached={len(ids)} pairs={pairs} "
           f"max_distance={max_dist:.1f} errors={len(errors)} warnings={len(warns)}")

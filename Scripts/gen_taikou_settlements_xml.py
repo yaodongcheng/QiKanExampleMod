@@ -91,7 +91,19 @@ def registry_mb2_path():
 
 
 def read_csv(path):
-    rows = list(csv.DictReader(io.open(path, encoding="utf-8-sig")))
+    """读据点表 —— 🔴 **必须走 csv_dual（两行表头取第 2 行英文键）**。
+
+    2026-09-12 修：本函数原先裸用 `csv.DictReader`（按**第 1 行中文标签**取键）。
+    0.15 「CSV 两行表头」迁移时**漏了本脚本** → 中文标签行被当成表头、英文键行被当成一条数据
+    → 行数 275 ≠ 274，断言当场崩（也就是说：这次迁移之后本生成器**一直是坏的**，只是没人重跑）。
+    纪律：本仓读 `csv/` 下的表一律用 `csv_dual.read_table/dict_rows`，禁止裸写 DictReader。
+    """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from csv_dual import read_table
+    _cn, _en, raw = read_table(path, head=2)
+    cols = _en
+    rows = [{k: (r[i] if i < len(r) else "").strip() for i, k in enumerate(cols)}
+            for r in raw if any((x or "").strip() for x in r)]
     assert len(rows) == 274, "Settlements.csv 应 274 行，实际 %d" % len(rows)
     return [r for r in rows if r["id"] not in EXCLUDE_IDS]
 
@@ -117,13 +129,15 @@ def suffix(sid):
     return sid
 
 
-def build_settlement(row, era, parent_id, seq):
-    temp_owner = TEMP_OWNER_BY_ERA.get(era, TEMP_OWNER)
+def build_settlement(row, era, parent_id, seq, owner_clan):
     key, fallback = era_name_key(row, era)
     s = ET.Element("Settlement", {
         "id": row["id"],
         "name": "{=%s}%s" % (key, fallback),
-        "owner": temp_owner,
+        # 🔴 2026-09-12 接真实归属：`owner` = 该代 `Clan_<年>`（XML 里 owner 收的是**家族**，
+        #    不是城主本人——骑砍的 Settlement.OwnerClan 是 Clan）。无主据点由调用方按
+        #    「继承最近有主据点（町 = 其 bound 城）的家族」传入，保证链不断。
+        "owner": "Faction." + owner_clan,
         "posX": row["MOD_X"], "posY": row["MOD_Y"],
         "culture": CULTURE,
     })
@@ -166,15 +180,51 @@ def build_settlement(row, era, parent_id, seq):
     return s
 
 
+def owner_of(row, era, rows, towns):
+    """该据点在 `era` 年的 owner 家族 id。
+
+    规则（2026-09-12 接真实归属）：
+      ① 有 `Clan_<年>` → 直接用（实测有主据点的家族 100% 在该代家族表里，0 例外）
+      ② 无主（66 个町 + 墨俣城）→ **继承最近有主据点**的家族：
+         町 = 它 bound 的那座城（骑砍惯例：村归其所属城）；其余 = 欧氏距离最近的有主据点。
+         为什么必须给一个家族：骑砍的 `Settlement.OwnerClan` 是**非空**语义，缺 = 一串 NRE。
+    """
+    cl = (row.get("Clan_" + era) or "").strip()
+    if cl:
+        return cl
+    if row["TK5Type"] == "町":
+        cand = nearest_town(row, towns)
+    else:
+        cand = nearest_with_owner(row, rows, era)
+    if cand is None:
+        return "player_faction"                  # 极兜底（理论上到不了）
+    cl = (cand.get("Clan_" + era) or "").strip()
+    return cl or "player_faction"
+
+
+def nearest_with_owner(row, rows, era):
+    """欧氏距离最近、且该代有 Clan 的据点（同代、逐格确定性）。"""
+    x, y = float(row["MOD_X"]), float(row["MOD_Y"])
+    best, bd = None, None
+    for r in rows:
+        if r["id"] == row["id"] or not (r.get("Clan_" + era) or "").strip():
+            continue
+        d = (float(r["MOD_X"]) - x) ** 2 + (float(r["MOD_Y"]) - y) ** 2
+        if bd is None or d < bd or (d == bd and r["id"] < best["id"]):
+            best, bd = r, d
+    return best
+
+
 def build_file(rows, era):
     root = ET.Element("Settlements")
     root.append(ET.Comment(
         " Taikou 据点总表（%s 剧本）——生成物（铁律 22）：由 Scripts/gen_taikou_settlements_xml.py "
-        "从 csv/Settlements.csv 生成，禁止手改。临时口径：owner 全体 = %s。 " % (era, TEMP_OWNER)))
+        "从 csv/Settlements.csv 生成，禁止手改。归属 = 该代 Clan_<年>；无主据点继承最近有主据点 "
+        "（町 = 其所属城）的家族。 " % era))
     towns = [r for r in rows if r["TK5Type"] == "城"]
     for seq, row in enumerate(rows):
         parent = nearest_town(row, towns)["id"] if row["TK5Type"] == "町" else ""
-        root.append(build_settlement(row, era, parent, seq))
+        root.append(build_settlement(row, era, parent, seq, owner_of(row, era, rows, towns)))
     # 退休据点（引擎硬编码 Settlement.Find("retirement_retreat")，缺 = 每小时 tick NRE；雷 31）
     root.append(ET.Comment(" 服务性据点：官方 RetirementCampaignBehavior 硬编码查找（雷 31） "))
     ret = ET.SubElement(root, "Settlement", {

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Taikou 时代差异段生成器（时代剧本切换 spike）
+"""🔴 **已退役（2026-09-12）**——三件套 `spclans_1582`/`spkingdoms_1582`/`taikou_heroes_1582`
+已由 `Scripts/gen_taikou_era_world.py`（六代全量生成）接管，本脚本不再进一键体检。
+保留在磁盘仅供回看差异 spike 的做法；**不要重跑**（重跑会把真实 1582 数据打回 spike 占位）。
+
+Taikou 时代差异段生成器（时代剧本切换 spike，历史）
 ========================================================================
 时代切换机制：**一模块多 GameType + 每时代一套数据段**——
 引擎按 SubModule.xml 的 `<GameType value="…">` 过滤 XML 段，过滤键 = 战役类名

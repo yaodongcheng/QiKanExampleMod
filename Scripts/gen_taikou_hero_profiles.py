@@ -267,6 +267,47 @@ def build(rows):
     return text, problems
 
 
+def build_profile_stages(rows):
+    """立绘表 `AssetRegistry/ProfileStages.csv`（同域第二个产物）。
+
+    🔴 2026-09-12 补产出方（铁律 22 / 雷 60）：这张表原先**没有任何生成脚本**
+    （早期一次性脚本留下的产物），英雄铺开后没人补行。
+
+    **口径（用户 2026-09-12 明确）：立绘表要的就是一个数字——`AppearanceID`。**
+      · 实测 `TaikouHero.csv` **1366 个人物行 100% 有 `AppearanceID`**（空 0 行；
+        33 行是「一人两槽」如 `1154|195`；74 个样板行也都有，6 个代词行是 `-`），
+        槽值全是纯数字 → **它就是唯一来源**，不需要别的列兜底。
+      · `ProfileStages` 那段 JSON **不是必须的**，只用来给同号的槽配一个 `stage` 标签
+        （有则填、无则留空）；JSON 缺了、坏了、或与槽号对不上，都不影响出行。
+    一行 = 一个槽：`StringId,stage,tkid,bustupSprite,miniheadSprite`（一人多槽 = 多行）。
+    sprite 名 = `lwnprof_bustup_<tkid>` / `lwnprof_mini_<tkid>`（定义在内容包
+    `GUI/LWProfilesSpriteData.xml`，`gen_taikou_hero_catalog.py` 读同一套约定）。
+    """
+    import json
+    out = ["StringId,stage,tkid,bustupSprite,miniheadSprite"]
+    for r in rows:
+        hid = (r.get("ID") or "").strip()
+        if not hid:
+            continue
+        slots = [s.strip() for s in (r.get("AppearanceID") or "").split("|") if s.strip()]
+        label = {}                                    # tkid → stage（可选装饰）
+        raw = (r.get("ProfileStages") or "").strip()
+        if raw:
+            try:
+                for st in json.loads(raw):
+                    tk = str(st.get("tkid", "")).strip()
+                    if tk.isdigit():
+                        label.setdefault(tk, (st.get("stage") or "").strip())
+            except ValueError:
+                pass                                  # JSON 坏了不影响（数字才是必须的）
+        for tk in slots:
+            if not tk.isdigit():
+                continue                              # `-` 之类的占位值跳过
+            out.append("%s,%s,%s,lwnprof_bustup_%s,lwnprof_mini_%s"
+                       % (hid, label.get(tk, ""), tk, tk, tk))
+    return "\n".join(out) + "\n"
+
+
 def main():
     ap = argparse.ArgumentParser(description="Taikou hero profile table generator")
     ap.add_argument("--check", action="store_true", help="只校验产物是否最新")
@@ -289,6 +330,7 @@ def main():
 
     rows = read_csv(csv_path)
     text, problems = build(rows)
+    stages_text = build_profile_stages(rows)          # 同域第二个产物（立绘表）
 
     # 生成即 parse（防产出非法 XML）
     try:
@@ -306,17 +348,24 @@ def main():
         return 1
 
     path = os.path.join(module, "ModuleData", OUT_SUBDIR, OUT_NAME)
+    stages_path = os.path.join(module, "ModuleData", OUT_SUBDIR, "ProfileStages.csv")
     old = io.open(path, encoding="utf-8").read() if os.path.isfile(path) else None
+    old_st = io.open(stages_path, encoding="utf-8").read() if os.path.isfile(stages_path) else None
     if args.check:
-        if old == text:
-            print(f"OK：{OUT_NAME} 已最新（英雄 {len(rows)} 名 / 推荐 {len(RECOMMENDED)} 名）")
+        if old == text and old_st == stages_text:
+            print(f"OK：{OUT_NAME} + ProfileStages.csv 已最新"
+                  f"（英雄 {len(rows)} 名 / 推荐 {len(RECOMMENDED)} 名）")
             return 0
-        print(f"产物与生成器不一致（需重跑）：{OUT_NAME}")
+        print("产物与生成器不一致（需重跑）：%s"
+              % (OUT_NAME if old != text else "ProfileStages.csv"))
         return 1
 
     io.open(path, "w", encoding="utf-8", newline="\n").write(text)
+    io.open(stages_path, "w", encoding="utf-8", newline="\n").write(stages_text)
     print(f"{'写入' if old != text else '未变'} {OUT_NAME}"
           f"（英雄 {len(rows)} 名 / 推荐 {len(RECOMMENDED)} 名）")
+    print(f"{'写入' if old_st != stages_text else '未变'} ProfileStages.csv"
+          f"（{stages_text.count(chr(10)) - 1} 行立绘）")
     return 0
 
 

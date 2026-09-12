@@ -1,0 +1,814 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- 🔴 生成物·禁止手改（铁律 22）——由 Scripts/gen_taikou_era_world.py 从 csv/ 生成。
+     数据来源：TaikouHero.csv / Clan.csv / TaikouForce.csv（1560 年）。
+     改内容 = 改 CSV 或改生成器，然后重跑；check 模式守一致性。
+     ⚠️ 本段与其它年代的同名段 GameType 互斥（SubModule.xml），不得同时命中同一 GameType。
+     ⚠️ 注释里禁止出现连续两个减号（XML 规范不允许），改本字符串时注意。 -->
+<Heroes>
+	<Hero id="main_hero" faction="Faction.player_faction" text="{=TAIKOU_main_hero}Eren"/>
+	<Hero id="lord_tk5_1" faction="Faction.clan_sagara_2" text="{=TAIKOU_hero_1_1560}Akaike Nagatomo"/>
+	<Hero id="lord_tk5_10" faction="Faction.clan_aki_1" text="{=TAIKOU_hero_10_1560}Aki Kunitora"/>
+	<Hero id="lord_tk5_101" faction="Faction.clan_inaba_1" text="{=TAIKOU_hero_101_1560}Inaba Ittetsu"/>
+	<Hero id="lord_tk5_102" faction="Faction.clan_inaba_1" text="{=TAIKOU_hero_102_1560}Inaba Sadamichi"/>
+	<Hero id="lord_tk5_104" faction="Faction.clan_ashina_1" text="{=TAIKOU_hero_104_1560}Inawashiro Morikuni"/>
+	<Hero id="lord_tk5_105" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_105_1560}Inoko Hyosuke"/>
+	<Hero id="lord_tk5_106" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_106_1560}Inomata Kuninori"/>
+	<Hero id="lord_tk5_107" faction="Faction.clan_imai_1" text="{=TAIKOU_hero_107_1560}Imai Sokyu"/>
+	<Hero id="lord_tk5_109" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_109_1560}Imagawa Ujizane"/>
+	<Hero id="lord_tk5_110" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_110_1560}Imagawa Katsumoto"/>
+	<Hero id="lord_tk5_111" faction="Faction.clan_uno_1" text="{=TAIKOU_hero_111_1560}Uno Fujiemon"/>
+	<Hero id="lord_tk5_112" faction="Faction.clan_irobe_1" text="{=TAIKOU_hero_112_1560}Irobe Katsunaga"/>
+	<Hero id="lord_tk5_114" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_114_1560}Iwanari Tomomichi"/>
+	<Hero id="lord_tk5_115" faction="Faction.clan_sagara_2" text="{=TAIKOU_hero_115_1560}Indo Yoriyasu"/>
+	<Hero id="lord_tk5_1160" faction="Faction.clan_antou_1" text="{=TAIKOU_hero_1160_1560}HaireDin"/>
+	<Hero id="lord_tk5_1161" faction="Faction.clan_shimae_1" text="{=TAIKOU_hero_1161_1560}佐伯杏太郎"/>
+	<Hero id="lord_tk5_1178" faction="Faction.clan_kinoshita_1" text="{=TAIKOU_hero_1178_1560}Yodogimi"/>
+	<Hero id="lord_tk5_1179" faction="Faction.clan_kinoshita_1" text="{=TAIKOU_hero_1179_1560}Kinoshita Nene"/>
+	<Hero id="lord_tk5_118" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_118_1560}Uesugi Yoshiaki"/>
+	<Hero id="lord_tk5_1180" faction="Faction.clan_kinoshita_1" text="{=TAIKOU_hero_1180_1560}Anaka"/>
+	<Hero id="lord_tk5_1181" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_1181_1560}Azai Ichi"/>
+	<Hero id="lord_tk5_1182" faction="Faction.clan_maeda_1" text="{=TAIKOU_hero_1182_1560}Maeda Matsu"/>
+	<Hero id="lord_tk5_1183" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_1183_1560}Uesugi Kiku Hime"/>
+	<Hero id="lord_tk5_1184" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_1184_1560}Imagawa Fujin"/>
+	<Hero id="lord_tk5_1185" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_1185_1560}Takeda Sagami"/>
+	<Hero id="lord_tk5_1188" faction="Faction.clan_hojo_2" text="{=TAIKOU_hero_1188_1560}Hojo Ume"/>
+	<Hero id="lord_tk5_1189" faction="Faction.clan_takahashi_1" text="{=TAIKOU_hero_1189_1560}Bekki Ginchiyo"/>
+	<Hero id="lord_tk5_119" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_119_1560}Uesugi Kenshin"/>
+	<Hero id="lord_tk5_1190" faction="Faction.clan_date_2" text="{=TAIKOU_hero_1190_1560}爱姬"/>
+	<Hero id="lord_tk5_1191" faction="Faction.clan_date_2" text="{=TAIKOU_hero_1191_1560}义姬"/>
+	<Hero id="lord_tk5_1192" faction="Faction.clan_ukita_1" text="{=TAIKOU_hero_1192_1560}豪姬"/>
+	<Hero id="lord_tk5_1193" faction="Faction.clan_hosokawa_1" text="{=TAIKOU_hero_1193_1560}Hosokawa Tama"/>
+	<Hero id="lord_tk5_1194" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_1194_1560}Oda Kicho"/>
+	<Hero id="lord_tk5_1195" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_1195_1560}Tokugawa Sena Fuji"/>
+	<Hero id="lord_tk5_1196" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_1196_1560}Tokugawa Toku Hime"/>
+	<Hero id="lord_tk5_1197" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_1197_1560}Yamauchi Chiyo"/>
+	<Hero id="lord_tk5_1198" faction="Faction.clan_sanada_2" text="{=TAIKOU_hero_1198_1560}Sanada Komatsu"/>
+	<Hero id="lord_tk5_12" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_12_1560}Akiyama Torashige"/>
+	<Hero id="lord_tk5_1200" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_1200_1560}三条"/>
+	<Hero id="lord_tk5_1201" faction="Faction.clan_kyoogoku_1" text="{=TAIKOU_hero_1201_1560}初姬"/>
+	<Hero id="lord_tk5_1202" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_1202_1560}小督"/>
+	<Hero id="lord_tk5_1203" faction="Faction.clan_nabeshima_1" text="{=TAIKOU_hero_1203_1560}彦鹤"/>
+	<Hero id="lord_tk5_121" faction="Faction.clan_sakata_1" text="{=TAIKOU_hero_121_1560}Sakata Genemon"/>
+	<Hero id="lord_tk5_122" faction="Faction.clan_tarou_1" text="{=TAIKOU_hero_122_1560}Ukai Magoroku"/>
+	<Hero id="lord_tk5_123" faction="Faction.clan_ukita_2" text="{=TAIKOU_hero_123_1560}Ukita Tadaie"/>
+	<Hero id="lord_tk5_1232" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_1232_1560}Shiro"/>
+	<Hero id="lord_tk5_1234" faction="Faction.clan_sanada_2" text="{=TAIKOU_hero_1234_1560}山手"/>
+	<Hero id="lord_tk5_1236" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_1236_1560}Imagawa Minami-hime"/>
+	<Hero id="lord_tk5_124" faction="Faction.clan_ukita_1" text="{=TAIKOU_hero_124_1560}Ukita Naoie"/>
+	<Hero id="lord_tk5_126" faction="Faction.clan_uku_1" text="{=TAIKOU_hero_126_1560}Uku Sumisada"/>
+	<Hero id="lord_tk5_128" faction="Faction.clan_usami_1" text="{=TAIKOU_hero_128_1560}Usami Sadamitsu"/>
+	<Hero id="lord_tk5_129" faction="Faction.clan_inaba_1" text="{=TAIKOU_hero_129_1560}Ujiie Suehisa"/>
+	<Hero id="lord_tk5_13" faction="Faction.clan_akechi_1" text="{=TAIKOU_hero_13_1560}Akechi Hidemitsu"/>
+	<Hero id="lord_tk5_131" faction="Faction.clan_mogami_1" text="{=TAIKOU_hero_131_1560}Ujiie Morimune"/>
+	<Hero id="lord_tk5_132" faction="Faction.clan_inaba_1" text="{=TAIKOU_hero_132_1560}Ujiie Takakazu"/>
+	<Hero id="lord_tk5_133" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_133_1560}Ushio Yukikiyo"/>
+	<Hero id="lord_tk5_134" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_134_1560}Usuki Kagetoshi"/>
+	<Hero id="lord_tk5_136" faction="Faction.clan_utsunomiya_1" text="{=TAIKOU_hero_136_1560}Utsunomiya Hirotsuna"/>
+	<Hero id="lord_tk5_137" faction="Faction.clan_utono_1" text="{=TAIKOU_hero_137_1560}Utono Ujinaga"/>
+	<Hero id="lord_tk5_138" faction="Faction.clan_utono_1" text="{=TAIKOU_hero_138_1560}Utono Nagateru"/>
+	<Hero id="lord_tk5_139" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_139_1560}Uyama Hisakane"/>
+	<Hero id="lord_tk5_14" faction="Faction.clan_akechi_1" text="{=TAIKOU_hero_14_1560}Akechi Mitsuhide"/>
+	<Hero id="lord_tk5_140" faction="Faction.clan_uragami_1" text="{=TAIKOU_hero_140_1560}Uragami Munekage"/>
+	<Hero id="lord_tk5_141" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_141_1560}Uwai Kakuken"/>
+	<Hero id="lord_tk5_144" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_144_1560}Emura Oyakataka"/>
+	<Hero id="lord_tk5_145" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_145_1560}Eriguchi Nobutsune"/>
+	<Hero id="lord_tk5_146" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_146_1560}Enjoji Nobutane"/>
+	<Hero id="lord_tk5_147" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_147_1560}Endo Naokiyo"/>
+	<Hero id="lord_tk5_148" faction="Faction.clan_date_1" text="{=TAIKOU_hero_148_1560}Endo Motonobu"/>
+	<Hero id="lord_tk5_149" faction="Faction.clan_soo_1" text="{=TAIKOU_hero_149_1560}Oishi Tomohisa"/>
+	<Hero id="lord_tk5_150" faction="Faction.clan_ashina_1" text="{=TAIKOU_hero_150_1560}Ouchi Tetsuna"/>
+	<Hero id="lord_tk5_151" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_151_1560}Ouchi Teruhiro"/>
+	<Hero id="lord_tk5_153" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_153_1560}Okubo Tadasuke"/>
+	<Hero id="lord_tk5_156" faction="Faction.clan_okubo_1" text="{=TAIKOU_hero_156_1560}Okubo Tadayo"/>
+	<Hero id="lord_tk5_157" text="{=TAIKOU_hero_157_1560}Okubo Nagayasu"/>
+	<Hero id="lord_tk5_158" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_158_1560}Okuma Tomohide"/>
+	<Hero id="lord_tk5_159" faction="Faction.clan_osaki_1" text="{=TAIKOU_hero_159_1560}Osaki Yoshitaka"/>
+	<Hero id="lord_tk5_16" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_16_1560}Azai Nagamasa"/>
+	<Hero id="lord_tk5_160" faction="Faction.clan_osaki_1" text="{=TAIKOU_hero_160_1560}Osaki Yoshinao"/>
+	<Hero id="lord_tk5_161" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_161_1560}Ota Ujiyasu"/>
+	<Hero id="lord_tk5_162" faction="Faction.clan_otaa_1" text="{=TAIKOU_hero_162_1560}Otaa Gyuichi"/>
+	<Hero id="lord_tk5_163" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_163_1560}Otaa Sanrakusai"/>
+	<Hero id="lord_tk5_164" faction="Faction.clan_otaa_1" text="{=TAIKOU_hero_164_1560}Otaa Sanzesai"/>
+	<Hero id="lord_tk5_166" text="{=TAIKOU_hero_166_1560}Ogasawara Shozai"/>
+	<Hero id="lord_tk5_167" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_167_1560}Otomo Sorin"/>
+	<Hero id="lord_tk5_17" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_17_1560}Azai Hisamasa"/>
+	<Hero id="lord_tk5_172" faction="Faction.clan_omura_1" text="{=TAIKOU_hero_172_1560}Omura Sumitada"/>
+	<Hero id="lord_tk5_173" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_173_1560}Okamoto Zuiensai"/>
+	<Hero id="lord_tk5_175" faction="Faction.clan_ukita_1" text="{=TAIKOU_hero_175_1560}Okudaira Nobumasa"/>
+	<Hero id="lord_tk5_176" faction="Faction.clan_okabe_1" text="{=TAIKOU_hero_176_1560}冈部贞纲"/>
+	<Hero id="lord_tk5_177" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_177_1560}Okabe Masatsuna"/>
+	<Hero id="lord_tk5_178" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_178_1560}Okabe Motonobu"/>
+	<Hero id="lord_tk5_179" faction="Faction.clan_okumura_1" text="{=TAIKOU_hero_179_1560}Okumura Eifuku"/>
+	<Hero id="lord_tk5_18" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_18_1560}Asakura Kageakira"/>
+	<Hero id="lord_tk5_180" faction="Faction.clan_satake_1" text="{=TAIKOU_hero_180_1560}Okumura Tsunanao"/>
+	<Hero id="lord_tk5_181" faction="Faction.clan_sagara_2" text="{=TAIKOU_hero_181_1560}Okumura Kagemichi"/>
+	<Hero id="lord_tk5_182" faction="Faction.clan_suzuki_1" text="{=TAIKOU_hero_182_1560}Okudaira Kagetaka"/>
+	<Hero id="lord_tk5_184" faction="Faction.clan_maeda_1" text="{=TAIKOU_hero_184_1560}Kaibara Tsunachika"/>
+	<Hero id="lord_tk5_185" faction="Faction.clan_osafune_1" text="{=TAIKOU_hero_185_1560}Osafune Sadachika"/>
+	<Hero id="lord_tk5_188" faction="Faction.clan_oda_4" text="{=TAIKOU_hero_188_1560}Oda Ujiharu"/>
+	<Hero id="lord_tk5_19" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_19_1560}Asakura Morinari"/>
+	<Hero id="lord_tk5_192" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_192_1560}Oda Nobukane"/>
+	<Hero id="lord_tk5_195" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_195_1560}Oda Nobunaga"/>
+	<Hero id="lord_tk5_197" faction="Faction.clan_kodera_1" text="{=TAIKOU_hero_197_1560}Kodera Masamoto"/>
+	<Hero id="lord_tk5_198" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_198_1560}Jingu Motomichi"/>
+	<Hero id="lord_tk5_199" faction="Faction.clan_oniniwa_1" text="{=TAIKOU_hero_199_1560}Oniniwa Tsunemasa"/>
+	<Hero id="lord_tk5_2" faction="Faction.clan_kiku_1" text="{=TAIKOU_hero_2_1560}Akai Naomasa"/>
+	<Hero id="lord_tk5_20" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_20_1560}Asakura Ryosei"/>
+	<Hero id="lord_tk5_200" faction="Faction.clan_oniniwa_1" text="{=TAIKOU_hero_200_1560}Oniniwa Tsunamoto"/>
+	<Hero id="lord_tk5_201" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_201_1560}Sugiya Zenjubou"/>
+	<Hero id="lord_tk5_204" faction="Faction.clan_sugiya_1" text="{=TAIKOU_hero_204_1560}Sugiya Kagemune"/>
+	<Hero id="lord_tk5_207" faction="Faction.clan_kashin_1" text="{=TAIKOU_hero_207_1560}Kashin Koji"/>
+	<Hero id="lord_tk5_208" faction="Faction.clan_sako_1" text="{=TAIKOU_hero_208_1560}Sako Toutarou"/>
+	<Hero id="lord_tk5_209" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_209_1560}Oyamada Nobushige"/>
+	<Hero id="lord_tk5_21" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_21_1560}Asakura Tadamasa"/>
+	<Hero id="lord_tk5_210" faction="Faction.clan_aso_1" text="{=TAIKOU_hero_210_1560}Kai Soun"/>
+	<Hero id="lord_tk5_211" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_211_1560}Kazuyama Ujimoto"/>
+	<Hero id="lord_tk5_213" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_213_1560}Kagawa Saizou"/>
+	<Hero id="lord_tk5_214" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_214_1560}Kakizaki Kageie"/>
+	<Hero id="lord_tk5_215" faction="Faction.clan_kakizaki_1" text="{=TAIKOU_hero_215_1560}Kakizaki Suehiro"/>
+	<Hero id="lord_tk5_216" faction="Faction.clan_kakizaki_1" text="{=TAIKOU_hero_216_1560}Kakizaki Yoshihiro"/>
+	<Hero id="lord_tk5_217" faction="Faction.clan_yamana_1" text="{=TAIKOU_hero_217_1560}Kane Makoto"/>
+	<Hero id="lord_tk5_219" faction="Faction.clan_kasai_1" text="{=TAIKOU_hero_219_1560}Kasai Harunobu"/>
+	<Hero id="lord_tk5_220" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_220_1560}Kasahara Masayoshi"/>
+	<Hero id="lord_tk5_221" faction="Faction.clan_ganshojii_1" text="{=TAIKOU_hero_221_1560}Ganshojii Shoei"/>
+	<Hero id="lord_tk5_222" text="{=TAIKOU_hero_222_1560}Kanbe Tomomori"/>
+	<Hero id="lord_tk5_228" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_228_1560}Katsura Yoshizumi"/>
+	<Hero id="lord_tk5_229" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_229_1560}Kazayama Moto"/>
+	<Hero id="lord_tk5_23" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_23_1560}Asakura Yoshikage"/>
+	<Hero id="lord_tk5_231" faction="Faction.clan_nokizaru_1" text="{=TAIKOU_hero_231_1560}Katoo Dankuroo"/>
+	<Hero id="lord_tk5_232" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_232_1560}Katoo Mitsuyasu"/>
+	<Hero id="lord_tk5_234" faction="Faction.clan_ashina_1" text="{=TAIKOU_hero_234_1560}Kanakami Morinari"/>
+	<Hero id="lord_tk5_235" text="{=TAIKOU_hero_235_1560}Kanamori Nagachika"/>
+	<Hero id="lord_tk5_237" text="{=TAIKOU_hero_237_1560}Kanee Tsumura Jisai"/>
+	<Hero id="lord_tk5_238" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_238_1560}Kamachi Akimori"/>
+	<Hero id="lord_tk5_241" faction="Faction.clan_gamou_2" text="{=TAIKOU_hero_241_1560}Gamou Katahide"/>
+	<Hero id="lord_tk5_242" faction="Faction.clan_gamou_2" text="{=TAIKOU_hero_242_1560}Gamou Sadahide"/>
+	<Hero id="lord_tk5_245" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_245_1560}Kawakami Tadatomo"/>
+	<Hero id="lord_tk5_246" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_246_1560}Kawakami Hisaaki"/>
+	<Hero id="lord_tk5_247" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_247_1560}Kawajiri Hidetaka"/>
+	<Hero id="lord_tk5_248" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_248_1560}Kawada Nagachika"/>
+	<Hero id="lord_tk5_249" faction="Faction.clan_honganji_1" text="{=TAIKOU_hero_249_1560}Ganshoji Shooe"/>
+	<Hero id="lord_tk5_25" faction="Faction.clan_asano_1" text="{=TAIKOU_hero_25_1560}Asano Nagamasa"/>
+	<Hero id="lord_tk5_250" faction="Faction.clan_koobe_1" text="{=TAIKOU_hero_250_1560}Koobe Tomomori"/>
+	<Hero id="lord_tk5_251" faction="Faction.clan_atagi_1" text="{=TAIKOU_hero_251_1560}Sugata Nagatake"/>
+	<Hero id="lord_tk5_252" faction="Faction.clan_kii_1" text="{=TAIKOU_hero_252_1560}Kii Shigefusa"/>
+	<Hero id="lord_tk5_253" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_253_1560}Kiriu Suenaga"/>
+	<Hero id="lord_tk5_254" faction="Faction.clan_kiso_1" text="{=TAIKOU_hero_254_1560}Kiso Yoshimasa"/>
+	<Hero id="lord_tk5_255" faction="Faction.clan_kiso_1" text="{=TAIKOU_hero_255_1560}Kiso Yoshiyasu"/>
+	<Hero id="lord_tk5_256" faction="Faction.clan_hojo_3" text="{=TAIKOU_hero_256_1560}Hojo Kagehiro"/>
+	<Hero id="lord_tk5_257" faction="Faction.clan_hojo_3" text="{=TAIKOU_hero_257_1560}Hojo Takahiro"/>
+	<Hero id="lord_tk5_258" faction="Faction.clan_nanbu_1" text="{=TAIKOU_hero_258_1560}Kita Nobuchika"/>
+	<Hero id="lord_tk5_259" faction="Faction.clan_kitabatake_2" text="{=TAIKOU_hero_259_1560}Kitabatake Tomonori"/>
+	<Hero id="lord_tk5_260" faction="Faction.clan_kitabatake_2" text="{=TAIKOU_hero_260_1560}Kitabatake Tomofusa"/>
+	<Hero id="lord_tk5_261" faction="Faction.clan_kitabatake_2" text="{=TAIKOU_hero_261_1560}Kitabatake Harutomo"/>
+	<Hero id="lord_tk5_262" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_262_1560}Kikkawa Tuneie"/>
+	<Hero id="lord_tk5_264" faction="Faction.clan_kikkawa_1" text="{=TAIKOU_hero_264_1560}Kikkawa Motonaga"/>
+	<Hero id="lord_tk5_265" faction="Faction.clan_kikkawa_1" text="{=TAIKOU_hero_265_1560}Kikkawa Motoharu"/>
+	<Hero id="lord_tk5_266" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_266_1560}Kinoshita Masanao"/>
+	<Hero id="lord_tk5_268" faction="Faction.clan_kimotsuki_1" text="{=TAIKOU_hero_268_1560}Kimotsuki Kanetsugu"/>
+	<Hero id="lord_tk5_27" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_27_1560}Asahina Yasutomo"/>
+	<Hero id="lord_tk5_270" faction="Faction.clan_kimotsuki_1" text="{=TAIKOU_hero_270_1560}Kimotsuki Yoshikane"/>
+	<Hero id="lord_tk5_273" faction="Faction.clan_kyoogoku_1" text="{=TAIKOU_hero_273_1560}Kyoogoku Takayoshi"/>
+	<Hero id="lord_tk5_274" faction="Faction.clan_kira_1" text="{=TAIKOU_hero_274_1560}Kira Chikasada"/>
+	<Hero id="lord_tk5_279" faction="Faction.clan_kuki_2" text="{=TAIKOU_hero_279_1560}Kuki Yoshitaka"/>
+	<Hero id="lord_tk5_28" faction="Faction.clan_ando_1" text="{=TAIKOU_hero_28_1560}Asari Katsuyori"/>
+	<Hero id="lord_tk5_280" faction="Faction.clan_matsunaga_1" text="{=TAIKOU_hero_280_1560}Kusunoki Nagauji"/>
+	<Hero id="lord_tk5_281" faction="Faction.clan_kikkawa_1" text="{=TAIKOU_hero_281_1560}Kuchiba Michiyoshi"/>
+	<Hero id="lord_tk5_282" faction="Faction.clan_rokkaku_1" text="{=TAIKOU_hero_282_1560}Kuchiki Mototsuna"/>
+	<Hero id="lord_tk5_283" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_283_1560}Kokushi Motoai"/>
+	<Hero id="lord_tk5_284" text="{=TAIKOU_hero_284_1560}Kuniyoshi Zenbei"/>
+	<Hero id="lord_tk5_285" faction="Faction.clan_nanbu_1" text="{=TAIKOU_hero_285_1560}Konohe Masazane"/>
+	<Hero id="lord_tk5_286" faction="Faction.clan_kikkawa_1" text="{=TAIKOU_hero_286_1560}Kumagai Nobunao"/>
+	<Hero id="lord_tk5_287" faction="Faction.clan_kumaya_1" text="{=TAIKOU_hero_287_1560}Kumaya Genshiroo"/>
+	<Hero id="lord_tk5_289" faction="Faction.clan_kurada_1" text="{=TAIKOU_hero_289_1560}Kurada Gorooza"/>
+	<Hero id="lord_tk5_291" faction="Faction.clan_murakami_3" text="{=TAIKOU_hero_291_1560}Murakami Munekatsu"/>
+	<Hero id="lord_tk5_292" faction="Faction.clan_kodera_1" text="{=TAIKOU_hero_292_1560}Kuroda Iekata"/>
+	<Hero id="lord_tk5_294" faction="Faction.clan_kodera_1" text="{=TAIKOU_hero_294_1560}Kuroda Mototaka"/>
+	<Hero id="lord_tk5_295" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_295_1560}Kuwana Yoshinari"/>
+	<Hero id="lord_tk5_296" faction="Faction.clan_kamiizumi_1" text="{=TAIKOU_hero_296_1560}Kamiizumi Nobutsuna"/>
+	<Hero id="lord_tk5_297" faction="Faction.clan_suppa_1" text="{=TAIKOU_hero_297_1560}Koosaka Jinnai"/>
+	<Hero id="lord_tk5_298" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_298_1560}Koosaka Masanobu"/>
+	<Hero id="lord_tk5_299" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_299_1560}Kosokabe Chikayasu"/>
+	<Hero id="lord_tk5_30" text="{=TAIKOU_hero_30_1560}Koga-Kubo Yoshiuji"/>
+	<Hero id="lord_tk5_301" faction="Faction.clan_kawano_1" text="{=TAIKOU_hero_301_1560}Kawano Michinobu"/>
+	<Hero id="lord_tk5_302" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_302_1560}Koori Kiyonaga"/>
+	<Hero id="lord_tk5_303" faction="Faction.clan_jinbo_1" text="{=TAIKOU_hero_303_1560}Jingu Norishige"/>
+	<Hero id="lord_tk5_304" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_304_1560}Godai Tomoyoshi"/>
+	<Hero id="lord_tk5_305" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_305_1560}Kodama Toshihide"/>
+	<Hero id="lord_tk5_306" faction="Faction.clan_kitabatake_1" text="{=TAIKOU_hero_306_1560}Kitabatake Tomomasa"/>
+	<Hero id="lord_tk5_308" faction="Faction.clan_koteida_1" text="{=TAIKOU_hero_308_1560}Koteida Yasuyuki"/>
+	<Hero id="lord_tk5_309" faction="Faction.clan_rokkaku_1" text="{=TAIKOU_hero_309_1560}Goto Masatoyo"/>
+	<Hero id="lord_tk5_31" faction="Faction.clan_ashikaga_1" text="{=TAIKOU_hero_31_1560}Ashikaga Yoshiteru"/>
+	<Hero id="lord_tk5_313" faction="Faction.clan_konishi_1" text="{=TAIKOU_hero_313_1560}Konishi Ryuusa"/>
+	<Hero id="lord_tk5_314" faction="Faction.clan_kobayakawa_1" text="{=TAIKOU_hero_314_1560}Kobayakawa Takakage"/>
+	<Hero id="lord_tk5_318" faction="Faction.clan_date_1" text="{=TAIKOU_hero_318_1560}Koyanagawa Morimune"/>
+	<Hero id="lord_tk5_32" faction="Faction.clan_ashina_1" text="{=TAIKOU_hero_32_1560}Ashina Moriuji"/>
+	<Hero id="lord_tk5_320" faction="Faction.clan_saionji_1" text="{=TAIKOU_hero_320_1560}Saionji Kinhiro"/>
+	<Hero id="lord_tk5_321" faction="Faction.clan_suzuki_1" text="{=TAIKOU_hero_321_1560}Saika Magoichi"/>
+	<Hero id="lord_tk5_322" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_322_1560}Saitoo Tatsutaka"/>
+	<Hero id="lord_tk5_325" faction="Faction.clan_inaba_1" text="{=TAIKOU_hero_325_1560}Saitoo Toshimitsu"/>
+	<Hero id="lord_tk5_326" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_326_1560}Saitoo Tomonobu"/>
+	<Hero id="lord_tk5_327" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_327_1560}Saitoo Yoshitatsu"/>
+	<Hero id="lord_tk5_33" faction="Faction.clan_ashina_1" text="{=TAIKOU_hero_33_1560}Ashina Morioki"/>
+	<Hero id="lord_tk5_332" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_332_1560}Sakai Tadatsugu"/>
+	<Hero id="lord_tk5_334" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_334_1560}Sakaii Masanao"/>
+	<Hero id="lord_tk5_335" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_335_1560}Sakakibara Yasumasa"/>
+	<Hero id="lord_tk5_337" faction="Faction.clan_sagara_2" text="{=TAIKOU_hero_337_1560}Sagara Yoshihi"/>
+	<Hero id="lord_tk5_339" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_339_1560}Sakuma Nobumori"/>
+	<Hero id="lord_tk5_340" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_340_1560}Sakuma Morishige"/>
+	<Hero id="lord_tk5_344" faction="Faction.clan_uragami_1" text="{=TAIKOU_hero_344_1560}Sasabe Kanjiro"/>
+	<Hero id="lord_tk5_345" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_345_1560}Sase Motoyoshi"/>
+	<Hero id="lord_tk5_346" faction="Faction.clan_satake_1" text="{=TAIKOU_hero_346_1560}Satake Yoshiaki"/>
+	<Hero id="lord_tk5_347" faction="Faction.clan_satake_2" text="{=TAIKOU_hero_347_1560}Satake Yoshishige"/>
+	<Hero id="lord_tk5_349" faction="Faction.clan_satake_1" text="{=TAIKOU_hero_349_1560}Satake Yoshihisa"/>
+	<Hero id="lord_tk5_350" faction="Faction.clan_seiki_1" text="{=TAIKOU_hero_350_1560}Sada Hikosaburoo"/>
+	<Hero id="lord_tk5_351" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_351_1560}Sassa Narimasa"/>
+	<Hero id="lord_tk5_352" faction="Faction.clan_satomi_1" text="{=TAIKOU_hero_352_1560}Satomi Yoshitaka"/>
+	<Hero id="lord_tk5_353" faction="Faction.clan_satomi_1" text="{=TAIKOU_hero_353_1560}Satomi Yoshihiro"/>
+	<Hero id="lord_tk5_355" faction="Faction.clan_satomi_2" text="{=TAIKOU_hero_355_1560}Satomi Yoshiyori"/>
+	<Hero id="lord_tk5_356" faction="Faction.clan_sanada_1" text="{=TAIKOU_hero_356_1560}Sanada Nobutsuna"/>
+	<Hero id="lord_tk5_358" faction="Faction.clan_sanada_1" text="{=TAIKOU_hero_358_1560}Sanada Masateru"/>
+	<Hero id="lord_tk5_359" faction="Faction.clan_sanada_2" text="{=TAIKOU_hero_359_1560}Sanada Masayuki"/>
+	<Hero id="lord_tk5_36" faction="Faction.clan_aso_1" text="{=TAIKOU_hero_36_1560}Aso Koremasa"/>
+	<Hero id="lord_tk5_360" faction="Faction.clan_sanada_1" text="{=TAIKOU_hero_360_1560}Sanada Yukitaka"/>
+	<Hero id="lord_tk5_365" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_365_1560}Saruwatari Nobumitsu"/>
+	<Hero id="lord_tk5_366" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_366_1560}Yamamotoji Sadanaga"/>
+	<Hero id="lord_tk5_367" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_367_1560}Shiina Yasuyuki"/>
+	<Hero id="lord_tk5_369" faction="Faction.clan_shiga_1" text="{=TAIKOU_hero_369_1560}Shiga Chikamori"/>
+	<Hero id="lord_tk5_37" faction="Faction.clan_atagi_1" text="{=TAIKOU_hero_37_1560}Atagi Nobuyasu"/>
+	<Hero id="lord_tk5_371" faction="Faction.clan_shishido_1" text="{=TAIKOU_hero_371_1560}Shishido Takayoshi"/>
+	<Hero id="lord_tk5_374" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_374_1560}Shichijoo Kanenaka"/>
+	<Hero id="lord_tk5_375" faction="Faction.clan_honganji_1" text="{=TAIKOU_hero_375_1560}Shichiri Yorichika"/>
+	<Hero id="lord_tk5_376" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_376_1560}Shinohara Nagafusa"/>
+	<Hero id="lord_tk5_377" faction="Faction.clan_shiba_1" text="{=TAIKOU_hero_377_1560}Shiba Akinao"/>
+	<Hero id="lord_tk5_378" faction="Faction.clan_shiba_1" text="{=TAIKOU_hero_378_1560}Shiba Akizane"/>
+	<Hero id="lord_tk5_379" faction="Faction.clan_shibata_1" text="{=TAIKOU_hero_379_1560}Shibata Katsuie"/>
+	<Hero id="lord_tk5_38" faction="Faction.clan_atagi_1" text="{=TAIKOU_hero_38_1560}Atagi Fuyuyasu"/>
+	<Hero id="lord_tk5_381" faction="Faction.clan_shibata_2" text="{=TAIKOU_hero_381_1560}Shibata Shigeie"/>
+	<Hero id="lord_tk5_382" faction="Faction.clan_shibata_2" text="{=TAIKOU_hero_382_1560}Shibata Nagaatsu"/>
+	<Hero id="lord_tk5_383" text="{=TAIKOU_hero_383_1560}Shibatsuji Kiyouemon"/>
+	<Hero id="lord_tk5_384" faction="Faction.clan_shibuya_1" text="{=TAIKOU_hero_384_1560}Shibuya Yuurooemon"/>
+	<Hero id="lord_tk5_385" faction="Faction.clan_shimae_1" text="{=TAIKOU_hero_385_1560}Shimae Sooshitsu"/>
+	<Hero id="lord_tk5_386" faction="Faction.clan_tsutsui_1" text="{=TAIKOU_hero_386_1560}Shima Sakon"/>
+	<Hero id="lord_tk5_387" faction="Faction.clan_shimazu_3" text="{=TAIKOU_hero_387_1560}Shimazu Iehisa"/>
+	<Hero id="lord_tk5_388" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_388_1560}Shimazu Hyoogo-no-suke"/>
+	<Hero id="lord_tk5_389" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_389_1560}Shimazu Takahisa"/>
+	<Hero id="lord_tk5_39" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_39_1560}Atobe Katsusuke"/>
+	<Hero id="lord_tk5_391" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_391_1560}Shimazu Toshihisa"/>
+	<Hero id="lord_tk5_393" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_393_1560}Shimazu Kagerai"/>
+	<Hero id="lord_tk5_394" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_394_1560}Shimazu Yoshihisa"/>
+	<Hero id="lord_tk5_395" faction="Faction.clan_shimazu_2" text="{=TAIKOU_hero_395_1560}Shimazu Yoshihiro"/>
+	<Hero id="lord_tk5_396" faction="Faction.clan_shimizu_1" text="{=TAIKOU_hero_396_1560}Shimizu Muneharu"/>
+	<Hero id="lord_tk5_397" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_397_1560}Shimizu Yasuhide"/>
+	<Hero id="lord_tk5_399" faction="Faction.clan_honganji_1" text="{=TAIKOU_hero_399_1560}Shimotsuma Nakataka"/>
+	<Hero id="lord_tk5_4" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_4_1560}Akao Kiyotsuna"/>
+	<Hero id="lord_tk5_400" faction="Faction.clan_honganji_1" text="{=TAIKOU_hero_400_1560}Shimotsuma Raisho"/>
+	<Hero id="lord_tk5_401" faction="Faction.clan_honganji_1" text="{=TAIKOU_hero_401_1560}Shimotsuma Rairen"/>
+	<Hero id="lord_tk5_404" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_404_1560}Jinzai Motomichi"/>
+	<Hero id="lord_tk5_405" faction="Faction.clan_jinbo_1" text="{=TAIKOU_hero_405_1560}Jinbo Kagesuke"/>
+	<Hero id="lord_tk5_406" faction="Faction.clan_jinbo_1" text="{=TAIKOU_hero_406_1560}Jinbo Nagazumi"/>
+	<Hero id="lord_tk5_408" faction="Faction.clan_jinbo_1" text="{=TAIKOU_hero_408_1560}Jinbo Nagamoto"/>
+	<Hero id="lord_tk5_41" faction="Faction.clan_anayama_1" text="{=TAIKOU_hero_41_1560}Anayama Akisane"/>
+	<Hero id="lord_tk5_410" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_410_1560}Suganuma Sadatada"/>
+	<Hero id="lord_tk5_411" faction="Faction.clan_tarou_1" text="{=TAIKOU_hero_411_1560}Sugaya Zenjuuboo"/>
+	<Hero id="lord_tk5_412" faction="Faction.clan_tsuda_1" text="{=TAIKOU_hero_412_1560}Suginoboo Terusai"/>
+	<Hero id="lord_tk5_413" faction="Faction.clan_suzuki_1" text="{=TAIKOU_hero_413_1560}Suzuki Satao"/>
+	<Hero id="lord_tk5_418" faction="Faction.clan_tsuda_3" text="{=TAIKOU_hero_418_1560}Tsuda Sookyuu"/>
+	<Hero id="lord_tk5_42" faction="Faction.clan_anekouji_1" text="{=TAIKOU_hero_42_1560}Anekouji Yoritsuna"/>
+	<Hero id="lord_tk5_422" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_422_1560}Sekiguchi Munihiro"/>
+	<Hero id="lord_tk5_423" faction="Faction.clan_seiki_1" text="{=TAIKOU_hero_423_1560}Seiki Masatoki"/>
+	<Hero id="lord_tk5_424" faction="Faction.clan_seki_1" text="{=TAIKOU_hero_424_1560}Seki Morinobu"/>
+	<Hero id="lord_tk5_426" text="{=TAIKOU_hero_426_1560}Sen Rikyuu"/>
+	<Hero id="lord_tk5_427" faction="Faction.clan_soma_1" text="{=TAIKOU_hero_427_1560}Soma Moritane"/>
+	<Hero id="lord_tk5_428" faction="Faction.clan_soma_1" text="{=TAIKOU_hero_428_1560}Soma Yoshitane"/>
+	<Hero id="lord_tk5_429" faction="Faction.clan_soo_1" text="{=TAIKOU_hero_429_1560}Soo Yoshitoshi"/>
+	<Hero id="lord_tk5_431" faction="Faction.clan_sogo_1" text="{=TAIKOU_hero_431_1560}Sogo Kazumasa"/>
+	<Hero id="lord_tk5_434" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_434_1560}Daidoji Masashige"/>
+	<Hero id="lord_tk5_437" faction="Faction.clan_takanashi_1" text="{=TAIKOU_hero_437_1560}Takanashi Masayori"/>
+	<Hero id="lord_tk5_438" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_438_1560}Takahashi Hiroyoshi"/>
+	<Hero id="lord_tk5_439" faction="Faction.clan_takahashi_1" text="{=TAIKOU_hero_439_1560}Takahashi Shoun"/>
+	<Hero id="lord_tk5_441" faction="Faction.clan_matsunaga_1" text="{=TAIKOU_hero_441_1560}Takayama Tomoteru"/>
+	<Hero id="lord_tk5_442" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_442_1560}Takigawa Kazumasu"/>
+	<Hero id="lord_tk5_443" faction="Faction.clan_kitabatake_1" text="{=TAIKOU_hero_443_1560}Takigawa Yasumasa"/>
+	<Hero id="lord_tk5_444" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_444_1560}Takakita Tamechika"/>
+	<Hero id="lord_tk5_445" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_445_1560}Takimotoji Hiyu"/>
+	<Hero id="lord_tk5_446" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_446_1560}Takei Yuuan"/>
+	<Hero id="lord_tk5_447" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_447_1560}Takeda Katsuyori"/>
+	<Hero id="lord_tk5_448" faction="Faction.clan_takeda_3" text="{=TAIKOU_hero_448_1560}Takeda Harufusa"/>
+	<Hero id="lord_tk5_449" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_449_1560}Takeda Shingen"/>
+	<Hero id="lord_tk5_45" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_45_1560}Amago Haruhisa"/>
+	<Hero id="lord_tk5_450" faction="Faction.clan_takeda_2" text="{=TAIKOU_hero_450_1560}Takeda Nobumaki"/>
+	<Hero id="lord_tk5_451" faction="Faction.clan_takeda_2" text="{=TAIKOU_hero_451_1560}Takeda Shigemasa"/>
+	<Hero id="lord_tk5_453" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_453_1560}Takeda Nobuyuki"/>
+	<Hero id="lord_tk5_455" faction="Faction.clan_takenaka_1" text="{=TAIKOU_hero_455_1560}Takenaka Hanbee"/>
+	<Hero id="lord_tk5_456" faction="Faction.clan_tachibana_1" text="{=TAIKOU_hero_456_1560}Tachibana Dosetsu"/>
+	<Hero id="lord_tk5_459" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_459_1560}Tachihara Hisatsuna"/>
+	<Hero id="lord_tk5_46" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_46_1560}Amago Yoshihisa"/>
+	<Hero id="lord_tk5_460" faction="Faction.clan_mogami_1" text="{=TAIKOU_hero_460_1560}Tateoka Mitsushige"/>
+	<Hero id="lord_tk5_461" faction="Faction.clan_date_3" text="{=TAIKOU_hero_461_1560}Date Sanemoto"/>
+	<Hero id="lord_tk5_463" faction="Faction.clan_date_1" text="{=TAIKOU_hero_463_1560}Date Tanemune"/>
+	<Hero id="lord_tk5_464" faction="Faction.clan_date_2" text="{=TAIKOU_hero_464_1560}Date Terumune"/>
+	<Hero id="lord_tk5_465" faction="Faction.clan_date_1" text="{=TAIKOU_hero_465_1560}Date Harumune"/>
+	<Hero id="lord_tk5_469" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_469_1560}Tani Tadamasa"/>
+	<Hero id="lord_tk5_47" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_47_1560}Amano Takashige"/>
+	<Hero id="lord_tk5_470" faction="Faction.clan_tanegashima_1" text="{=TAIKOU_hero_470_1560}Tanegashima Tokitaka"/>
+	<Hero id="lord_tk5_472" faction="Faction.clan_ashina_1" text="{=TAIKOU_hero_472_1560}Tamura Kiyoaki"/>
+	<Hero id="lord_tk5_473" faction="Faction.clan_tarou_1" text="{=TAIKOU_hero_473_1560}Tarou Mitsutoshi"/>
+	<Hero id="lord_tk5_474" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_474_1560}Tahara Chikayoshi"/>
+	<Hero id="lord_tk5_475" faction="Faction.clan_okabe_1" text="{=TAIKOU_hero_475_1560}Chika Sonbee"/>
+	<Hero id="lord_tk5_476" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_476_1560}Chisaka Kagechika"/>
+	<Hero id="lord_tk5_478" faction="Faction.clan_chiba_1" text="{=TAIKOU_hero_478_1560}Chiba Tanetomi"/>
+	<Hero id="lord_tk5_48" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_48_1560}Amano Yasukage"/>
+	<Hero id="lord_tk5_480" faction="Faction.clan_chaya_1" text="{=TAIKOU_hero_480_1560}Chaya Shiroujiro"/>
+	<Hero id="lord_tk5_483" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_483_1560}Chosokabe Motochika"/>
+	<Hero id="lord_tk5_485" faction="Faction.clan_notohatakeyama_1" text="{=TAIKOU_hero_485_1560}Cho Tsugutsura"/>
+	<Hero id="lord_tk5_486" faction="Faction.clan_notohatakeyama_1" text="{=TAIKOU_hero_486_1560}Cho Turatatsu"/>
+	<Hero id="lord_tk5_487" text="{=TAIKOU_hero_487_1560}Tsukahara Bokuden"/>
+	<Hero id="lord_tk5_488" faction="Faction.clan_tsugaru_1" text="{=TAIKOU_hero_488_1560}Tsugaru Tamenobu"/>
+	<Hero id="lord_tk5_489" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_489_1560}Tsuge Sannojou"/>
+	<Hero id="lord_tk5_49" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_49_1560}Amamori Yahei"/>
+	<Hero id="lord_tk5_493" faction="Faction.clan_tsutsui_1" text="{=TAIKOU_hero_493_1560}Tsutsui Junkei"/>
+	<Hero id="lord_tk5_494" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_494_1560}Tsunokuma Sekisyu"/>
+	<Hero id="lord_tk5_496" faction="Faction.clan_ichijo_1" text="{=TAIKOU_hero_496_1560}Doi Sozan"/>
+	<Hero id="lord_tk5_500" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_500_1560}Toyama Takuma"/>
+	<Hero id="lord_tk5_501" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_501_1560}Toyama Tsunakage"/>
+	<Hero id="lord_tk5_502" faction="Faction.clan_togawa_1" text="{=TAIKOU_hero_502_1560}Togawa Hideyasu"/>
+	<Hero id="lord_tk5_504" faction="Faction.clan_matsunaga_1" text="{=TAIKOU_hero_504_1560}Toki Yoritsugu"/>
+	<Hero id="lord_tk5_505" faction="Faction.clan_kawano_1" text="{=TAIKOU_hero_505_1560}Tokuitsu Michiyuki"/>
+	<Hero id="lord_tk5_506" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_506_1560}Tokugawa Ieyasu"/>
+	<Hero id="lord_tk5_51" faction="Faction.clan_kiku_1" text="{=TAIKOU_hero_51_1560}Araki Ujitsuna"/>
+	<Hero id="lord_tk5_510" faction="Faction.clan_tomita_1" text="{=TAIKOU_hero_510_1560}Tomita Kagemasa"/>
+	<Hero id="lord_tk5_512" faction="Faction.clan_tomita_1" text="{=TAIKOU_hero_512_1560}Tomita Seigen"/>
+	<Hero id="lord_tk5_514" faction="Faction.clan_ganshojii_1" text="{=TAIKOU_hero_514_1560}Tominaga Sanzui"/>
+	<Hero id="lord_tk5_516" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_516_1560}Kinoshita Hidenaga"/>
+	<Hero id="lord_tk5_517" faction="Faction.clan_kinoshita_1" text="{=TAIKOU_hero_517_1560}Kinoshita Hideyoshi"/>
+	<Hero id="lord_tk5_519" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_519_1560}Torii Suneemon"/>
+	<Hero id="lord_tk5_52" faction="Faction.clan_araki_1" text="{=TAIKOU_hero_52_1560}Araki Murashige"/>
+	<Hero id="lord_tk5_520" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_520_1560}Torii Tadakichi"/>
+	<Hero id="lord_tk5_521" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_521_1560}Torii Mototada"/>
+	<Hero id="lord_tk5_522" faction="Faction.clan_matsunaga_1" text="{=TAIKOU_hero_522_1560}Naito Joan"/>
+	<Hero id="lord_tk5_523" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_523_1560}Naito Masatoyo"/>
+	<Hero id="lord_tk5_524" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_524_1560}Naito Masashige"/>
+	<Hero id="lord_tk5_525" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_525_1560}Naoe Kagetsuna"/>
+	<Hero id="lord_tk5_527" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_527_1560}Nagai Michitoshi"/>
+	<Hero id="lord_tk5_528" faction="Faction.clan_usami_1" text="{=TAIKOU_hero_528_1560}Uesugi Masakage"/>
+	<Hero id="lord_tk5_529" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_529_1560}Nakagawa Kiyohide"/>
+	<Hero id="lord_tk5_530" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_530_1560}Nagasaka Tookan"/>
+	<Hero id="lord_tk5_532" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_532_1560}Nakajima Kanonosuke"/>
+	<Hero id="lord_tk5_533" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_533_1560}Chujou Kagetai"/>
+	<Hero id="lord_tk5_534" text="{=TAIKOU_hero_534_1560}Nagata Tokumoto"/>
+	<Hero id="lord_tk5_536" faction="Faction.clan_gyo_1" text="{=TAIKOU_hero_536_1560}Gyo shounin"/>
+	<Hero id="lord_tk5_537" faction="Faction.clan_gyo_1" text="{=TAIKOU_hero_537_1560}Gyo"/>
+	<Hero id="lord_tk5_538" faction="Faction.clan_date_1" text="{=TAIKOU_hero_538_1560}Noumin onna"/>
+	<Hero id="lord_tk5_539" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_539_1560}Nakamura Kazuuji"/>
+	<Hero id="lord_tk5_54" text="{=TAIKOU_hero_54_1560}Ankokuji Ekei"/>
+	<Hero id="lord_tk5_540" faction="Faction.clan_michikawa_1" text="{=TAIKOU_hero_540_1560}Michikawa Hyooebee"/>
+	<Hero id="lord_tk5_541" faction="Faction.clan_mogami_1" text="{=TAIKOU_hero_541_1560}Nakayama Tomomasa"/>
+	<Hero id="lord_tk5_543" faction="Faction.clan_nasa_1" text="{=TAIKOU_hero_543_1560}Nasa Nihonsuke"/>
+	<Hero id="lord_tk5_546" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_546_1560}Natsume Yoshinobu"/>
+	<Hero id="lord_tk5_548" faction="Faction.clan_nabeshima_1" text="{=TAIKOU_hero_548_1560}Nabeshima Naoshige"/>
+	<Hero id="lord_tk5_549" faction="Faction.clan_imai_1" text="{=TAIKOU_hero_549_1560}Ruzon Sukezaemon"/>
+	<Hero id="lord_tk5_550" faction="Faction.clan_narita_2" text="{=TAIKOU_hero_550_1560}Narita Ujinaga"/>
+	<Hero id="lord_tk5_552" faction="Faction.clan_narita_2" text="{=TAIKOU_hero_552_1560}Narita Nagayasu"/>
+	<Hero id="lord_tk5_553" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_553_1560}Narinatsu Nobukatsu"/>
+	<Hero id="lord_tk5_556" faction="Faction.clan_nanbu_2" text="{=TAIKOU_hero_556_1560}Nanbu Nobunao"/>
+	<Hero id="lord_tk5_557" faction="Faction.clan_nanbu_1" text="{=TAIKOU_hero_557_1560}Nanbu Harumasa"/>
+	<Hero id="lord_tk5_558" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_558_1560}Niro Tadamoto"/>
+	<Hero id="lord_tk5_559" text="{=TAIKOU_hero_559_1560}Nishikawa Jin-emon"/>
+	<Hero id="lord_tk5_56" faction="Faction.clan_ando_1" text="{=TAIKOU_hero_56_1560}Ando Chikasue"/>
+	<Hero id="lord_tk5_561" faction="Faction.clan_fuuma_1" text="{=TAIKOU_hero_561_1560}Nikyokurin Inosuke"/>
+	<Hero id="lord_tk5_562" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_562_1560}Ninomiya Narutoki"/>
+	<Hero id="lord_tk5_565" faction="Faction.clan_niwa_1" text="{=TAIKOU_hero_565_1560}Niwa Nagahide"/>
+	<Hero id="lord_tk5_566" faction="Faction.clan_notohatakeyama_1" text="{=TAIKOU_hero_566_1560}Nukui Kagetaka"/>
+	<Hero id="lord_tk5_567" text="{=TAIKOU_hero_567_1560}Numata Sukemitsu"/>
+	<Hero id="lord_tk5_569" faction="Faction.clan_kimotsuki_1" text="{=TAIKOU_hero_569_1560}Nenei Shigenaga"/>
+	<Hero id="lord_tk5_571" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_571_1560}Nomi Munemasa"/>
+	<Hero id="lord_tk5_572" text="{=TAIKOU_hero_572_1560}Haikan Ieie"/>
+	<Hero id="lord_tk5_573" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_573_1560}Hegawa Ujisoku"/>
+	<Hero id="lord_tk5_574" faction="Faction.clan_utsunomiya_1" text="{=TAIKOU_hero_574_1560}Haga Takasada"/>
+	<Hero id="lord_tk5_575" faction="Faction.clan_utsunomiya_1" text="{=TAIKOU_hero_575_1560}Haga Takatsugu"/>
+	<Hero id="lord_tk5_576" faction="Faction.clan_tomono_1" text="{=TAIKOU_hero_576_1560}Tomono Jiroubei"/>
+	<Hero id="lord_tk5_578" faction="Faction.clan_hatakeyama_1" text="{=TAIKOU_hero_578_1560}Hatakeyama Takamasa"/>
+	<Hero id="lord_tk5_579" faction="Faction.clan_notohatakeyama_1" text="{=TAIKOU_hero_579_1560}HatakeyamaYoshitsugu"/>
+	<Hero id="lord_tk5_58" faction="Faction.clan_andoo_1" text="{=TAIKOU_hero_58_1560}Andoo Morinari"/>
+	<Hero id="lord_tk5_580" faction="Faction.clan_notohatakeyama_1" text="{=TAIKOU_hero_580_1560}Noto-Hatakeyama Yoshitsuna"/>
+	<Hero id="lord_tk5_582" faction="Faction.clan_kiku_1" text="{=TAIKOU_hero_582_1560}Kiku Hidenari"/>
+	<Hero id="lord_tk5_583" faction="Faction.clan_kiku_1" text="{=TAIKOU_hero_583_1560}Kiku"/>
+	<Hero id="lord_tk5_585" text="{=TAIKOU_hero_585_1560}Hachisuka Koroku"/>
+	<Hero id="lord_tk5_586" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_586_1560}Hachiya Yoritaka"/>
+	<Hero id="lord_tk5_587" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_587_1560}Hattori Hanzo"/>
+	<Hero id="lord_tk5_588" faction="Faction.clan_hori_1" text="{=TAIKOU_hero_588_1560}Hori Tatsuaki"/>
+	<Hero id="lord_tk5_59" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_59_1560}Andoo Yoshinari"/>
+	<Hero id="lord_tk5_590" faction="Faction.clan_hanafusa_1" text="{=TAIKOU_hero_590_1560}Hanafusa Masayuki"/>
+	<Hero id="lord_tk5_592" faction="Faction.clan_baba_1" text="{=TAIKOU_hero_592_1560}Baba Nobuharu"/>
+	<Hero id="lord_tk5_593" text="{=TAIKOU_hero_593_1560}Hayashizaki Jinsuke"/>
+	<Hero id="lord_tk5_594" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_594_1560}Hayashi Hidezane"/>
+	<Hero id="lord_tk5_596" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_596_1560}Hara Toratane"/>
+	<Hero id="lord_tk5_597" faction="Faction.clan_baba_1" text="{=TAIKOU_hero_597_1560}Hara Masatane"/>
+	<Hero id="lord_tk5_599" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_599_1560}Hanawa Naomasa"/>
+	<Hero id="lord_tk5_6" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_6_1560}Akana Sanekiyo"/>
+	<Hero id="lord_tk5_60" faction="Faction.clan_iio_1" text="{=TAIKOU_hero_60_1560}Iio Tsuratatsu"/>
+	<Hero id="lord_tk5_601" faction="Faction.clan_kamiizumi_1" text="{=TAIKOU_hero_601_1560}Hikita Hyogoro"/>
+	<Hero id="lord_tk5_602" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_602_1560}Hisatake Chikanao"/>
+	<Hero id="lord_tk5_603" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_603_1560}Hisatake Chikanobu"/>
+	<Hero id="lord_tk5_605" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_605_1560}Hineno Hiromune"/>
+	<Hero id="lord_tk5_606" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_606_1560}Hyakutake Kagekane"/>
+	<Hero id="lord_tk5_607" faction="Faction.clan_arima_1" text="{=TAIKOU_hero_607_1560}Hirai Keiji"/>
+	<Hero id="lord_tk5_608" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_608_1560}Hiraiwa Chikayoshi"/>
+	<Hero id="lord_tk5_609" faction="Faction.clan_kawano_1" text="{=TAIKOU_hero_609_1560}Hiraoka Fusami"/>
+	<Hero id="lord_tk5_610" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_610_1560}Hiraga Motomasa"/>
+	<Hero id="lord_tk5_611" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_611_1560}Hirate Hanyu"/>
+	<Hero id="lord_tk5_613" faction="Faction.clan_fuuma_1" text="{=TAIKOU_hero_613_1560}Fuuma Kotaroo"/>
+	<Hero id="lord_tk5_614" faction="Faction.clan_sagara_2" text="{=TAIKOU_hero_614_1560}Fukamizu Nagatomo"/>
+	<Hero id="lord_tk5_616" faction="Faction.clan_fukudome_1" text="{=TAIKOU_hero_616_1560}Fukudome Chikamasa"/>
+	<Hero id="lord_tk5_617" faction="Faction.clan_fukudome_1" text="{=TAIKOU_hero_617_1560}Fukudome Yoshishige"/>
+	<Hero id="lord_tk5_618" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_618_1560}Fukuhara Sadatoshi"/>
+	<Hero id="lord_tk5_619" faction="Faction.clan_araki_1" text="{=TAIKOU_hero_619_1560}Furuta Oribe"/>
+	<Hero id="lord_tk5_620" faction="Faction.clan_saitoo_2" text="{=TAIKOU_hero_620_1560}Fuwa Mitsuji"/>
+	<Hero id="lord_tk5_624" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_624_1560}Hojo Ujikuni"/>
+	<Hero id="lord_tk5_625" faction="Faction.clan_hojo_5" text="{=TAIKOU_hero_625_1560}Hojo Ujishige"/>
+	<Hero id="lord_tk5_626" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_626_1560}Hojo Ujiteru"/>
+	<Hero id="lord_tk5_628" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_628_1560}Hojo Ujinori"/>
+	<Hero id="lord_tk5_629" faction="Faction.clan_hojo_2" text="{=TAIKOU_hero_629_1560}Hojo Ujimasa"/>
+	<Hero id="lord_tk5_63" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_63_1560}Igasaki Doshun"/>
+	<Hero id="lord_tk5_630" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_630_1560}Hojo Ujiyasu"/>
+	<Hero id="lord_tk5_631" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_631_1560}Hojo Gen-an"/>
+	<Hero id="lord_tk5_632" faction="Faction.clan_hojo_6" text="{=TAIKOU_hero_632_1560}Hojo Tsunashige"/>
+	<Hero id="lord_tk5_633" text="{=TAIKOU_hero_633_1560}Hoozooin Inei"/>
+	<Hero id="lord_tk5_634" faction="Faction.clan_takeda_3" text="{=TAIKOU_hero_634_1560}Hoshina Masatoshi"/>
+	<Hero id="lord_tk5_635" text="{=TAIKOU_hero_635_1560}Yasui Doton"/>
+	<Hero id="lord_tk5_637" faction="Faction.clan_ashikaga_1" text="{=TAIKOU_hero_637_1560}Hosokawa Harumoto"/>
+	<Hero id="lord_tk5_638" faction="Faction.clan_hosokawa_1" text="{=TAIKOU_hero_638_1560}Hosokawa Yuu"/>
+	<Hero id="lord_tk5_640" text="{=TAIKOU_hero_640_1560}Horio Yoshiharu"/>
+	<Hero id="lord_tk5_642" faction="Faction.clan_hatakeyama_1" text="{=TAIKOU_hero_642_1560}Horiuchi Shizen"/>
+	<Hero id="lord_tk5_647" faction="Faction.clan_honganji_1" text="{=TAIKOU_hero_647_1560}Honganji Kennyo"/>
+	<Hero id="lord_tk5_649" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_649_1560}Hongo Tokihisa"/>
+	<Hero id="lord_tk5_65" faction="Faction.clan_ikeda_2" text="{=TAIKOU_hero_65_1560}Ikeda Nagai"/>
+	<Hero id="lord_tk5_650" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_650_1560}Honjo Sigenaga"/>
+	<Hero id="lord_tk5_651" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_651_1560}Honda Shigetsugu"/>
+	<Hero id="lord_tk5_652" faction="Faction.clan_honda_1" text="{=TAIKOU_hero_652_1560}Honda Tadakatsu"/>
+	<Hero id="lord_tk5_656" faction="Faction.clan_honda_2" text="{=TAIKOU_hero_656_1560}Honda Masanobu"/>
+	<Hero id="lord_tk5_658" text="{=TAIKOU_hero_658_1560}Maeda Geni"/>
+	<Hero id="lord_tk5_659" faction="Faction.clan_maeda_1" text="{=TAIKOU_hero_659_1560}Maeda Toshiie"/>
+	<Hero id="lord_tk5_66" faction="Faction.clan_ikeda_1" text="{=TAIKOU_hero_66_1560}Ikeda Tsuneoki"/>
+	<Hero id="lord_tk5_662" text="{=TAIKOU_hero_662_1560}Maeno Nagayasu"/>
+	<Hero id="lord_tk5_663" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_663_1560}Maeba Yoshitsugu"/>
+	<Hero id="lord_tk5_665" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_665_1560}Magara Naosumi"/>
+	<Hero id="lord_tk5_666" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_666_1560}Magara Naotaka"/>
+	<Hero id="lord_tk5_667" faction="Faction.clan_satomi_1" text="{=TAIKOU_hero_667_1560}Masaki Tokishige"/>
+	<Hero id="lord_tk5_668" faction="Faction.clan_masaki_1" text="{=TAIKOU_hero_668_1560}Masaki Tokitada"/>
+	<Hero id="lord_tk5_669" faction="Faction.clan_masaki_1" text="{=TAIKOU_hero_669_1560}Masaki Yoritada"/>
+	<Hero id="lord_tk5_670" text="{=TAIKOU_hero_670_1560}Masuda Nagamori"/>
+	<Hero id="lord_tk5_673" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_673_1560}Matsui Tomoyasu"/>
+	<Hero id="lord_tk5_674" faction="Faction.clan_matsukura_1" text="{=TAIKOU_hero_674_1560}Matsukura Shigenobu"/>
+	<Hero id="lord_tk5_676" faction="Faction.clan_iio_1" text="{=TAIKOU_hero_676_1560}Matsushita Kahei"/>
+	<Hero id="lord_tk5_678" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_678_1560}Matsuda Norihide"/>
+	<Hero id="lord_tk5_679" faction="Faction.clan_matsunaga_1" text="{=TAIKOU_hero_679_1560}Matsunaga Hisahide"/>
+	<Hero id="lord_tk5_680" faction="Faction.clan_matsunaga_1" text="{=TAIKOU_hero_680_1560}Matsunaga Hisamichi"/>
+	<Hero id="lord_tk5_682" faction="Faction.clan_sumiya_1" text="{=TAIKOU_hero_682_1560}Sumiya Shichirojiro"/>
+	<Hero id="lord_tk5_683" faction="Faction.clan_matsuura_1" text="{=TAIKOU_hero_683_1560}Matsuura Shigenobu"/>
+	<Hero id="lord_tk5_684" faction="Faction.clan_matsuura_1" text="{=TAIKOU_hero_684_1560}Matsuura Takanobu"/>
+	<Hero id="lord_tk5_685" text="{=TAIKOU_hero_685_1560}Manase Doosan"/>
+	<Hero id="lord_tk5_686" faction="Faction.clan_sagara_2" text="{=TAIKOU_hero_686_1560}Marume Nagayoshi"/>
+	<Hero id="lord_tk5_687" faction="Faction.clan_rokkaku_1" text="{=TAIKOU_hero_687_1560}Mikumo Narumochi"/>
+	<Hero id="lord_tk5_689" faction="Faction.clan_soma_1" text="{=TAIKOU_hero_689_1560}Mizutani Taneshige"/>
+	<Hero id="lord_tk5_69" faction="Faction.clan_ike_1" text="{=TAIKOU_hero_69_1560}Ike Yorikazu"/>
+	<Hero id="lord_tk5_691" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_691_1560}Mizuno Tadashige"/>
+	<Hero id="lord_tk5_692" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_692_1560}Mizuno Nobumoto"/>
+	<Hero id="lord_tk5_693" faction="Faction.clan_akechi_1" text="{=TAIKOU_hero_693_1560}Mizuo Shoubei"/>
+	<Hero id="lord_tk5_695" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_695_1560}Mitoya Hisayasu"/>
+	<Hero id="lord_tk5_696" faction="Faction.clan_mimura_1" text="{=TAIKOU_hero_696_1560}Mimura Ienaga"/>
+	<Hero id="lord_tk5_697" faction="Faction.clan_mimura_1" text="{=TAIKOU_hero_697_1560}Mimura Motochika"/>
+	<Hero id="lord_tk5_698" faction="Faction.clan_miyabe_1" text="{=TAIKOU_hero_698_1560}Miyabe Keijun"/>
+	<Hero id="lord_tk5_699" faction="Faction.clan_miyamoto_1" text="{=TAIKOU_hero_699_1560}Miyamoto Denta no jo"/>
+	<Hero id="lord_tk5_7" faction="Faction.clan_akamatsu_2" text="{=TAIKOU_hero_7_1560}Akamatsu Torashige"/>
+	<Hero id="lord_tk5_70" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_70_1560}Ikoma Chikamasa"/>
+	<Hero id="lord_tk5_701" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_701_1560}Miyoshi Shougan"/>
+	<Hero id="lord_tk5_703" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_703_1560}Miyoshi Nagaatsu"/>
+	<Hero id="lord_tk5_704" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_704_1560}Miyoshi Nagayoshi"/>
+	<Hero id="lord_tk5_705" faction="Faction.clan_miyoshi_3" text="{=TAIKOU_hero_705_1560}Miyoshi Korezane"/>
+	<Hero id="lord_tk5_706" faction="Faction.clan_miyoshi_3" text="{=TAIKOU_hero_706_1560}Miyoshi Shuui"/>
+	<Hero id="lord_tk5_707" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_707_1560}Miyoshi Yoshiyuki"/>
+	<Hero id="lord_tk5_708" faction="Faction.clan_miyoshi_2" text="{=TAIKOU_hero_708_1560}Miyoshi Jikkyu"/>
+	<Hero id="lord_tk5_71" faction="Faction.clan_date_1" text="{=TAIKOU_hero_71_1560}Ishikawa Akimitsu"/>
+	<Hero id="lord_tk5_711" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_711_1560}Murai Sadakatsu"/>
+	<Hero id="lord_tk5_712" faction="Faction.clan_maeda_1" text="{=TAIKOU_hero_712_1560}Murai Nagayori"/>
+	<Hero id="lord_tk5_713" faction="Faction.clan_murakami_2" text="{=TAIKOU_hero_713_1560}Murakami Kunikiyo"/>
+	<Hero id="lord_tk5_714" faction="Faction.clan_murakami_1" text="{=TAIKOU_hero_714_1560}Murakami Takeyoshi"/>
+	<Hero id="lord_tk5_716" faction="Faction.clan_murakami_2" text="{=TAIKOU_hero_716_1560}Murakami Yoshikiyo"/>
+	<Hero id="lord_tk5_72" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_72_1560}Ishikawa Kazumasa"/>
+	<Hero id="lord_tk5_720" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_720_1560}Mori Takamoto"/>
+	<Hero id="lord_tk5_722" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_722_1560}Mori Motonari"/>
+	<Hero id="lord_tk5_723" faction="Faction.clan_mogami_2" text="{=TAIKOU_hero_723_1560}Mogami Yoshiaki"/>
+	<Hero id="lord_tk5_724" faction="Faction.clan_mogami_1" text="{=TAIKOU_hero_724_1560}Mogami Yoshitoki"/>
+	<Hero id="lord_tk5_725" faction="Faction.clan_mogami_1" text="{=TAIKOU_hero_725_1560}Mogami Yoshimori"/>
+	<Hero id="lord_tk5_727" faction="Faction.clan_aki_1" text="{=TAIKOU_hero_727_1560}Motoyama Shigemune"/>
+	<Hero id="lord_tk5_728" faction="Faction.clan_kiku_1" text="{=TAIKOU_hero_728_1560}Momi Kyonari"/>
+	<Hero id="lord_tk5_729" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_729_1560}Momochi Sandayuu"/>
+	<Hero id="lord_tk5_73" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_73_1560}Ishikawa Goemon"/>
+	<Hero id="lord_tk5_730" faction="Faction.clan_yamana_1" text="{=TAIKOU_hero_730_1560}Morishita Dooyo"/>
+	<Hero id="lord_tk5_734" faction="Faction.clan_atagi_1" text="{=TAIKOU_hero_734_1560}Morii Haru"/>
+	<Hero id="lord_tk5_735" faction="Faction.clan_morii_1" text="{=TAIKOU_hero_735_1560}Morii Kanenari"/>
+	<Hero id="lord_tk5_737" text="{=TAIKOU_hero_737_1560}Shioka Ichiwa"/>
+	<Hero id="lord_tk5_738" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_738_1560}Monchusho Tokikage"/>
+	<Hero id="lord_tk5_739" text="{=TAIKOU_hero_739_1560}Yaita Kinbei"/>
+	<Hero id="lord_tk5_74" faction="Faction.clan_nanbu_1" text="{=TAIKOU_hero_74_1560}Ishikawa Takanobu"/>
+	<Hero id="lord_tk5_740" faction="Faction.clan_tsutsui_1" text="{=TAIKOU_hero_740_1560}Yagyuu Sekishuusai"/>
+	<Hero id="lord_tk5_743" text="{=TAIKOU_hero_743_1560}Shoyakuin Zenshuu"/>
+	<Hero id="lord_tk5_744" faction="Faction.clan_sanada_1" text="{=TAIKOU_hero_744_1560}Yazawa Yoritsuna"/>
+	<Hero id="lord_tk5_747" faction="Faction.clan_takanashi_1" text="{=TAIKOU_hero_747_1560}Yasuda Akimoto"/>
+	<Hero id="lord_tk5_748" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_748_1560}Yasuda Nagahide"/>
+	<Hero id="lord_tk5_749" faction="Faction.clan_yanagihara_1" text="{=TAIKOU_hero_749_1560}Yanagihara Hyoe"/>
+	<Hero id="lord_tk5_750" faction="Faction.clan_sako_1" text="{=TAIKOU_hero_750_1560}Yamagata Masakage"/>
+	<Hero id="lord_tk5_751" faction="Faction.clan_rokkaku_1" text="{=TAIKOU_hero_751_1560}Yamazaki Henie"/>
+	<Hero id="lord_tk5_753" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_753_1560}Yamada Arinobu"/>
+	<Hero id="lord_tk5_755" faction="Faction.clan_ito_1" text="{=TAIKOU_hero_755_1560}Yamada Sooshoo"/>
+	<Hero id="lord_tk5_756" faction="Faction.clan_yamanaka_1" text="{=TAIKOU_hero_756_1560}Yamanaka Shikanosuke"/>
+	<Hero id="lord_tk5_757" faction="Faction.clan_rokkaku_1" text="{=TAIKOU_hero_757_1560}Yamanaka Shunkou"/>
+	<Hero id="lord_tk5_758" faction="Faction.clan_yamana_1" text="{=TAIKOU_hero_758_1560}Yamana Yuu"/>
+	<Hero id="lord_tk5_759" faction="Faction.clan_yamana_1" text="{=TAIKOU_hero_759_1560}Yamana Zentaka"/>
+	<Hero id="lord_tk5_76" faction="Faction.clan_date_1" text="{=TAIKOU_hero_76_1560}Ishimoda Kagenori"/>
+	<Hero id="lord_tk5_760" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_760_1560}Yamauchi Kazutoyo"/>
+	<Hero id="lord_tk5_761" faction="Faction.clan_yamamoto_1" text="{=TAIKOU_hero_761_1560}Yamamoto Kansuke"/>
+	<Hero id="lord_tk5_763" faction="Faction.clan_yuki_2" text="{=TAIKOU_hero_763_1560}Yuki Harutomo"/>
+	<Hero id="lord_tk5_766" faction="Faction.clan_notohatakeyama_1" text="{=TAIKOU_hero_766_1560}Yusa Tsugumitsu"/>
+	<Hero id="lord_tk5_768" faction="Faction.clan_deura_1" text="{=TAIKOU_hero_768_1560}Yokoya Sakon"/>
+	<Hero id="lord_tk5_769" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_769_1560}Yoshie Kagekatsu"/>
+	<Hero id="lord_tk5_77" faction="Faction.clan_ijuin_1" text="{=TAIKOU_hero_77_1560}Ijuin Tadaao"/>
+	<Hero id="lord_tk5_770" text="{=TAIKOU_hero_770_1560}Yoshioka Kenpoo"/>
+	<Hero id="lord_tk5_773" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_773_1560}Yoshioka Nagazane"/>
+	<Hero id="lord_tk5_774" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_774_1560}Yoshida Shigetoshi"/>
+	<Hero id="lord_tk5_775" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_775_1560}Yoshida Takayori"/>
+	<Hero id="lord_tk5_778" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_778_1560}Yoshihiro Akitada"/>
+	<Hero id="lord_tk5_779" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_779_1560}Yoshimi Masayori"/>
+	<Hero id="lord_tk5_780" faction="Faction.clan_yanagihara_1" text="{=TAIKOU_hero_780_1560}Yose Kurando"/>
+	<Hero id="lord_tk5_782" faction="Faction.clan_yanada_1" text="{=TAIKOU_hero_782_1560}Yanada Toozaemon"/>
+	<Hero id="lord_tk5_783" faction="Faction.clan_ichijo_1" text="{=TAIKOU_hero_783_1560}Yorika Sakyo"/>
+	<Hero id="lord_tk5_784" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_784_1560}Ryuzoji Chikaie"/>
+	<Hero id="lord_tk5_785" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_785_1560}Ryuzoji Takanobu"/>
+	<Hero id="lord_tk5_786" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_786_1560}Ryuzoji Naganobu"/>
+	<Hero id="lord_tk5_787" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_787_1560}Ryuzoji Nobukane"/>
+	<Hero id="lord_tk5_789" faction="Faction.clan_date_1" text="{=TAIKOU_hero_789_1560}Rusu Masakage"/>
+	<Hero id="lord_tk5_790" faction="Faction.clan_rokkaku_1" text="{=TAIKOU_hero_790_1560}Rokkaku Shou"/>
+	<Hero id="lord_tk5_791" faction="Faction.clan_rokkaku_1" text="{=TAIKOU_hero_791_1560}Rokkaku Yoshiharu"/>
+	<Hero id="lord_tk5_792" faction="Faction.clan_wakabayashi_1" text="{=TAIKOU_hero_792_1560}Wakabayashi Shigeoki"/>
+	<Hero id="lord_tk5_795" faction="Faction.clan_satake_1" text="{=TAIKOU_hero_795_1560}Wada Akira"/>
+	<Hero id="lord_tk5_796" faction="Faction.clan_ashikaga_1" text="{=TAIKOU_hero_796_1560}Wada Koremasa"/>
+	<Hero id="lord_tk5_798" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_798_1560}Watanabe Moritsuna"/>
+	<Hero id="lord_tk5_799" faction="Faction.clan_date_1" text="{=TAIKOU_hero_799_1560}Watari Motomune"/>
+	<Hero id="lord_tk5_8" faction="Faction.clan_akamatsu_1" text="{=TAIKOU_hero_8_1560}Akamatsu Yoshisuke"/>
+	<Hero id="lord_tk5_80" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_80_1560}Isono Kazumasa"/>
+	<Hero id="lord_tk5_800" text="{=TAIKOU_hero_800_1560}Uesugi Norimasa"/>
+	<Hero id="lord_tk5_801" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_801_1560}Takeda Nobutora"/>
+	<Hero id="lord_tk5_807" faction="Faction.clan_hatakeyama_1" text="{=TAIKOU_hero_807_1560}Hatakeyama Akitaka"/>
+	<Hero id="lord_tk5_81" faction="Faction.clan_tokugawa_1" text="{=TAIKOU_hero_81_1560}Itakura Katsushige"/>
+	<Hero id="lord_tk5_810" faction="Faction.clan_arima_1" text="{=TAIKOU_hero_810_1560}Arima Yoshisada"/>
+	<Hero id="lord_tk5_813" faction="Faction.clan_daihoji_1" text="{=TAIKOU_hero_813_1560}Daihoji Yoshimasu"/>
+	<Hero id="lord_tk5_816" faction="Faction.clan_miyoshi_1" text="{=TAIKOU_hero_816_1560}Hosokawa Shi"/>
+	<Hero id="lord_tk5_818" text="{=TAIKOU_hero_818_1560}Shimazu Katsuhisa"/>
+	<Hero id="lord_tk5_82" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_82_1560}Itabeoka Ekketsusai"/>
+	<Hero id="lord_tk5_820" faction="Faction.clan_ashina_1" text="{=TAIKOU_hero_820_1560}Nikaido Moriyoshi"/>
+	<Hero id="lord_tk5_821" faction="Faction.clan_ashikaga_1" text="{=TAIKOU_hero_821_1560}Ichinomiya Zuibasai"/>
+	<Hero id="lord_tk5_822" faction="Faction.clan_arima_1" text="{=TAIKOU_hero_822_1560}Arima Sei"/>
+	<Hero id="lord_tk5_824" faction="Faction.clan_murakami_1" text="{=TAIKOU_hero_824_1560}Murakami Yoshimitsu"/>
+	<Hero id="lord_tk5_826" faction="Faction.clan_otaa_1" text="{=TAIKOU_hero_826_1560}Ganshojii Masakage"/>
+	<Hero id="lord_tk5_827" faction="Faction.clan_matsunaga_1" text="{=TAIKOU_hero_827_1560}Matsunaga Nagayori"/>
+	<Hero id="lord_tk5_829" text="{=TAIKOU_hero_829_1560}Otsuki Kyuuhaku"/>
+	<Hero id="lord_tk5_83" faction="Faction.clan_okabe_1" text="{=TAIKOU_hero_83_1560}Itami Yasunao"/>
+	<Hero id="lord_tk5_830" faction="Faction.clan_hatakeyama_1" text="{=TAIKOU_hero_830_1560}Yusa Shinkyou"/>
+	<Hero id="lord_tk5_831" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_831_1560}Takakita Shotetsu"/>
+	<Hero id="lord_tk5_835" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_835_1560}Kodama Narikata"/>
+	<Hero id="lord_tk5_836" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_836_1560}Shirai Katahide"/>
+	<Hero id="lord_tk5_84" faction="Faction.clan_mori_1" text="{=TAIKOU_hero_84_1560}Ichikawa Tsuneyoshi"/>
+	<Hero id="lord_tk5_842" faction="Faction.clan_bessho_1" text="{=TAIKOU_hero_842_1560}Bessho Nariharu"/>
+	<Hero id="lord_tk5_844" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_844_1560}Nabeshima Kiyofusa"/>
+	<Hero id="lord_tk5_845" faction="Faction.clan_kamiya_1" text="{=TAIKOU_hero_845_1560}Kamiya Shoosaku"/>
+	<Hero id="lord_tk5_849" faction="Faction.clan_tsuda_2" text="{=TAIKOU_hero_849_1560}Tsuda Sootatsu"/>
+	<Hero id="lord_tk5_85" faction="Faction.clan_osaki_1" text="{=TAIKOU_hero_85_1560}Ichikuri Bangyu"/>
+	<Hero id="lord_tk5_851" faction="Faction.clan_tsuda_1" text="{=TAIKOU_hero_851_1560}Tsuda Sancho"/>
+	<Hero id="lord_tk5_853" faction="Faction.clan_kii_1" text="{=TAIKOU_hero_853_1560}Kii Nagafusa"/>
+	<Hero id="lord_tk5_855" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_855_1560}Ryuzojii Takeshi"/>
+	<Hero id="lord_tk5_856" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_856_1560}Saeki Koreyori"/>
+	<Hero id="lord_tk5_858" faction="Faction.clan_takeda_3" text="{=TAIKOU_hero_858_1560}Futatsugi Jutaka"/>
+	<Hero id="lord_tk5_86" faction="Faction.clan_ichijo_1" text="{=TAIKOU_hero_86_1560}Ichijo Kanesada"/>
+	<Hero id="lord_tk5_862" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_862_1560}Mizuhara Chikayoshi"/>
+	<Hero id="lord_tk5_868" faction="Faction.clan_narita_2" text="{=TAIKOU_hero_868_1560}Narita Nagachika"/>
+	<Hero id="lord_tk5_87" faction="Faction.clan_yamamoto_1" text="{=TAIKOU_hero_87_1560}Ichijo Nagatoki"/>
+	<Hero id="lord_tk5_871" faction="Faction.clan_date_1" text="{=TAIKOU_hero_871_1560}Koyanagawa Muneasa"/>
+	<Hero id="lord_tk5_874" faction="Faction.clan_ashikaga_1" text="{=TAIKOU_hero_874_1560}Mibuchi Fuji hide"/>
+	<Hero id="lord_tk5_877" faction="Faction.clan_yuki_2" text="{=TAIKOU_hero_877_1560}Tsutsuii Tanimatsurigotogen"/>
+	<Hero id="lord_tk5_878" faction="Faction.clan_satomi_1" text="{=TAIKOU_hero_878_1560}Toki Tomoyori"/>
+	<Hero id="lord_tk5_88" faction="Faction.clan_kimotsuki_1" text="{=TAIKOU_hero_88_1560}Iichiji Shigeoki"/>
+	<Hero id="lord_tk5_880" faction="Faction.clan_gyo_1" text="{=TAIKOU_hero_880_1560}Yamagami Michiyuki"/>
+	<Hero id="lord_tk5_885" faction="Faction.clan_imagawa_1" text="{=TAIKOU_hero_885_1560}Asahina Nobuoki"/>
+	<Hero id="lord_tk5_887" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_887_1560}Shiba Yoshigane"/>
+	<Hero id="lord_tk5_888" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_888_1560}Mori Shuu"/>
+	<Hero id="lord_tk5_889" faction="Faction.clan_oda_1" text="{=TAIKOU_hero_889_1560}Tsugawa Yoshifuyu"/>
+	<Hero id="lord_tk5_89" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_89_1560}Iichiji Shigehide"/>
+	<Hero id="lord_tk5_890" faction="Faction.clan_date_1" text="{=TAIKOU_hero_890_1560}Rusu Akimune"/>
+	<Hero id="lord_tk5_891" faction="Faction.clan_shibata_1" text="{=TAIKOU_hero_891_1560}Hara Nagayori"/>
+	<Hero id="lord_tk5_893" faction="Faction.clan_akechi_1" text="{=TAIKOU_hero_893_1560}Tsumaki Hirotada"/>
+	<Hero id="lord_tk5_894" faction="Faction.clan_kitabatake_2" text="{=TAIKOU_hero_894_1560}Toyao Mitsunaga"/>
+	<Hero id="lord_tk5_895" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_895_1560}Nomura Naotaka"/>
+	<Hero id="lord_tk5_896" faction="Faction.clan_saionji_1" text="{=TAIKOU_hero_896_1560}Doi Kiyoyoshi"/>
+	<Hero id="lord_tk5_897" text="{=TAIKOU_hero_897_1560}Shimazu Tadanao"/>
+	<Hero id="lord_tk5_9" faction="Faction.clan_amago_1" text="{=TAIKOU_hero_9_1560}Akiue Hisaya"/>
+	<Hero id="lord_tk5_90" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_90_1560}Ichimada Akizane"/>
+	<Hero id="lord_tk5_900" faction="Faction.clan_honganji_1" text="{=TAIKOU_hero_900_1560}Sugiura Gennin"/>
+	<Hero id="lord_tk5_902" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_902_1560}Chujou Fujisuke"/>
+	<Hero id="lord_tk5_906" faction="Faction.clan_kawano_1" text="{=TAIKOU_hero_906_1560}Kawano Michinao"/>
+	<Hero id="lord_tk5_907" faction="Faction.clan_anekouji_1" text="{=TAIKOU_hero_907_1560}Anekouji Yoshiyori"/>
+	<Hero id="lord_tk5_908" faction="Faction.clan_andoo_1" text="{=TAIKOU_hero_908_1560}Takenaka Kyusaku"/>
+	<Hero id="lord_tk5_909" faction="Faction.clan_azai_2" text="{=TAIKOU_hero_909_1560}Abee Sadayuki"/>
+	<Hero id="lord_tk5_91" faction="Faction.clan_issiki_1" text="{=TAIKOU_hero_91_1560}Issiki Yoshikiyo"/>
+	<Hero id="lord_tk5_910" text="{=TAIKOU_hero_910_1560}Morita Joun"/>
+	<Hero id="lord_tk5_913" faction="Faction.clan_bessho_1" text="{=TAIKOU_hero_913_1560}Bessho Juu"/>
+	<Hero id="lord_tk5_915" faction="Faction.clan_otomo_1" text="{=TAIKOU_hero_915_1560}Yoshihiro Shigenobu"/>
+	<Hero id="lord_tk5_919" text="{=TAIKOU_hero_919_1560}Jindai Katsutaka"/>
+	<Hero id="lord_tk5_920" faction="Faction.clan_ryuzoji_1" text="{=TAIKOU_hero_920_1560}Akaboshi Munie"/>
+	<Hero id="lord_tk5_921" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_921_1560}Ijuin Tadaaki"/>
+	<Hero id="lord_tk5_924" faction="Faction.clan_ganshojii_1" text="{=TAIKOU_hero_924_1560}Mamiya Yasutoshi"/>
+	<Hero id="lord_tk5_925" faction="Faction.clan_tachibana_1" text="{=TAIKOU_hero_925_1560}Yufu Koreyuki"/>
+	<Hero id="lord_tk5_928" faction="Faction.clan_atagi_1" text="{=TAIKOU_hero_928_1560}Funakoshi Keinao"/>
+	<Hero id="lord_tk5_93" faction="Faction.clan_issiki_1" text="{=TAIKOU_hero_93_1560}Issiki Yoshimichi"/>
+	<Hero id="lord_tk5_931" faction="Faction.clan_tomono_1" text="{=TAIKOU_hero_931_1560}Tomono Sozen"/>
+	<Hero id="lord_tk5_932" faction="Faction.clan_hojo_1" text="{=TAIKOU_hero_932_1560}Satomii Mototada"/>
+	<Hero id="lord_tk5_935" faction="Faction.clan_shimae_1" text="{=TAIKOU_hero_935_1560}Suetsugu Heizo"/>
+	<Hero id="lord_tk5_936" faction="Faction.clan_uesugi_1" text="{=TAIKOU_hero_936_1560}Amakasu Kagemochi"/>
+	<Hero id="lord_tk5_937" faction="Faction.clan_asakura_1" text="{=TAIKOU_hero_937_1560}Yamazaki Yoshiie"/>
+	<Hero id="lord_tk5_938" faction="Faction.clan_deura_1" text="{=TAIKOU_hero_938_1560}Karasawa Genba"/>
+	<Hero id="lord_tk5_939" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_939_1560}Uedaa Koji"/>
+	<Hero id="lord_tk5_94" faction="Faction.clan_deura_1" text="{=TAIKOU_hero_94_1560}Deura Morikiyo"/>
+	<Hero id="lord_tk5_941" text="{=TAIKOU_hero_941_1560}Uchida Toma"/>
+	<Hero id="lord_tk5_943" faction="Faction.clan_chosokabe_2" text="{=TAIKOU_hero_943_1560}Jinzenji Bungo"/>
+	<Hero id="lord_tk5_944" text="{=TAIKOU_hero_944_1560}Goto Shuuin"/>
+	<Hero id="lord_tk5_945" text="{=TAIKOU_hero_945_1560}Aisu Motokosai"/>
+	<Hero id="lord_tk5_947" text="{=TAIKOU_hero_947_1560}Seto Hokyu"/>
+	<Hero id="lord_tk5_95" text="{=TAIKOU_hero_95_1560}Itoo Ittosai"/>
+	<Hero id="lord_tk5_951" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_951_1560}Saegusa Masatada"/>
+	<Hero id="lord_tk5_954" faction="Faction.clan_takeda_1" text="{=TAIKOU_hero_954_1560}Komai Takushiro"/>
+	<Hero id="lord_tk5_955" faction="Faction.clan_shimazu_1" text="{=TAIKOU_hero_955_1560}Kamada Masatoshi"/>
+	<Hero id="lord_tk5_97" faction="Faction.clan_itoo_1" text="{=TAIKOU_hero_97_1560}Itoo Sojuro"/>
+	<Hero id="lord_tk5_98" faction="Faction.clan_ito_1" text="{=TAIKOU_hero_98_1560}Ito Hoan"/>
+	<Hero id="lord_tk5_99" text="{=TAIKOU_hero_99_1560}Ina Tadatsugu"/>
+	<Hero id="lord_tk5_ninja_chiyomatsu" faction="Faction.clan_yanagihara_1" text="{=TAIKOU_hero_ninja_chiyomatsu_1560}Chiyomatsu"/>
+	<Hero id="lord_tk5_ninja_choukichi" faction="Faction.clan_tarou_1" text="{=TAIKOU_hero_ninja_choukichi_1560}Choukichi"/>
+	<Hero id="lord_tk5_ninja_chuuzan" faction="Faction.clan_seiki_1" text="{=TAIKOU_hero_ninja_chuuzan_1560}Chuuzan"/>
+	<Hero id="lord_tk5_ninja_denrinboo" faction="Faction.clan_yamasen_1" text="{=TAIKOU_hero_ninja_denrinboo_1560}Denrinboo"/>
+	<Hero id="lord_tk5_ninja_dookan" faction="Faction.clan_nokizaru_1" text="{=TAIKOU_hero_ninja_dookan_1560}Nokizaru Dookan"/>
+	<Hero id="lord_tk5_ninja_dooyu" faction="Faction.clan_tsuda_1" text="{=TAIKOU_hero_ninja_dooyu_1560}Dooyu"/>
+	<Hero id="lord_tk5_ninja_fujima" faction="Faction.clan_tsuda_1" text="{=TAIKOU_hero_ninja_fujima_1560}Fujima"/>
+	<Hero id="lord_tk5_ninja_ganbaku" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_ninja_ganbaku_1560}Ganbaku"/>
+	<Hero id="lord_tk5_ninja_gendayuu" faction="Faction.clan_yamasen_1" text="{=TAIKOU_hero_ninja_gendayuu_1560}Yamasen Gendayuu"/>
+	<Hero id="lord_tk5_ninja_gennami" faction="Faction.clan_fuuma_1" text="{=TAIKOU_hero_ninja_gennami_1560}Gennami"/>
+	<Hero id="lord_tk5_ninja_gennojo" faction="Faction.clan_tarou_1" text="{=TAIKOU_hero_ninja_gennojo_1560}Gennojo"/>
+	<Hero id="lord_tk5_ninja_gensai" faction="Faction.clan_fuuma_1" text="{=TAIKOU_hero_ninja_gensai_1560}Gensai"/>
+	<Hero id="lord_tk5_ninja_hannyamaru" faction="Faction.clan_hachiya_1" text="{=TAIKOU_hero_ninja_hannyamaru_1560}Hannyamaru"/>
+	<Hero id="lord_tk5_ninja_hikojuu" faction="Faction.clan_deura_1" text="{=TAIKOU_hero_ninja_hikojuu_1560}Hikojuu"/>
+	<Hero id="lord_tk5_ninja_ichiwaka" faction="Faction.clan_yamasen_1" text="{=TAIKOU_hero_ninja_ichiwaka_1560}Ichiwaka"/>
+	<Hero id="lord_tk5_ninja_ikkaku" faction="Faction.clan_yamasen_1" text="{=TAIKOU_hero_ninja_ikkaku_1560}Ikkaku"/>
+	<Hero id="lord_tk5_ninja_isaku" faction="Faction.clan_seiki_1" text="{=TAIKOU_hero_ninja_isaku_1560}Isaku"/>
+	<Hero id="lord_tk5_ninja_ishimatsu" faction="Faction.clan_seiki_1" text="{=TAIKOU_hero_ninja_ishimatsu_1560}Ishimatsu"/>
+	<Hero id="lord_tk5_ninja_izoji" faction="Faction.clan_hachiya_1" text="{=TAIKOU_hero_ninja_izoji_1560}Izoji"/>
+	<Hero id="lord_tk5_ninja_jinnai" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_ninja_jinnai_1560}Jinnai"/>
+	<Hero id="lord_tk5_ninja_jinroku" faction="Faction.clan_nokizaru_1" text="{=TAIKOU_hero_ninja_jinroku_1560}Jinroku"/>
+	<Hero id="lord_tk5_ninja_jinza" faction="Faction.clan_tarou_1" text="{=TAIKOU_hero_ninja_jinza_1560}Jinza"/>
+	<Hero id="lord_tk5_ninja_juuhei" faction="Faction.clan_hachiya_1" text="{=TAIKOU_hero_ninja_juuhei_1560}Juuhei"/>
+	<Hero id="lord_tk5_ninja_kaede" faction="Faction.clan_deura_1" text="{=TAIKOU_hero_ninja_kaede_1560}Kaede"/>
+	<Hero id="lord_tk5_ninja_kajisuke" faction="Faction.clan_nokizaru_1" text="{=TAIKOU_hero_ninja_kajisuke_1560}Kajisuke"/>
+	<Hero id="lord_tk5_ninja_kanroku" faction="Faction.clan_fuuma_1" text="{=TAIKOU_hero_ninja_kanroku_1560}Kanroku"/>
+	<Hero id="lord_tk5_ninja_kikunosuke" faction="Faction.clan_seiki_1" text="{=TAIKOU_hero_ninja_kikunosuke_1560}Kikunosuke"/>
+	<Hero id="lord_tk5_ninja_magosaku" faction="Faction.clan_suppa_1" text="{=TAIKOU_hero_ninja_magosaku_1560}Magosaku"/>
+	<Hero id="lord_tk5_ninja_manhei" faction="Faction.clan_yanagihara_1" text="{=TAIKOU_hero_ninja_manhei_1560}Manhei"/>
+	<Hero id="lord_tk5_ninja_mansaku" faction="Faction.clan_suppa_1" text="{=TAIKOU_hero_ninja_mansaku_1560}Mansaku"/>
+	<Hero id="lord_tk5_ninja_mutenboo" faction="Faction.clan_tsuda_1" text="{=TAIKOU_hero_ninja_mutenboo_1560}Mutenboo"/>
+	<Hero id="lord_tk5_ninja_natsume" faction="Faction.clan_yanagihara_1" text="{=TAIKOU_hero_ninja_natsume_1560}Natsume"/>
+	<Hero id="lord_tk5_ninja_nijuuhachi" faction="Faction.clan_haguro_1" text="{=TAIKOU_hero_ninja_nijuuhachi_1560}Nijuuhachi"/>
+	<Hero id="lord_tk5_ninja_raisuke" faction="Faction.clan_yamasen_1" text="{=TAIKOU_hero_ninja_raisuke_1560}Raisuke"/>
+	<Hero id="lord_tk5_ninja_rokurooji" faction="Faction.clan_suppa_1" text="{=TAIKOU_hero_ninja_rokurooji_1560}Suppa Rokurooji"/>
+	<Hero id="lord_tk5_ninja_rokusuke" faction="Faction.clan_suppa_1" text="{=TAIKOU_hero_ninja_rokusuke_1560}Rokusuke"/>
+	<Hero id="lord_tk5_ninja_sadakuroo" faction="Faction.clan_fuuma_1" text="{=TAIKOU_hero_ninja_sadakuroo_1560}Sadakuroo"/>
+	<Hero id="lord_tk5_ninja_saheiji" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_ninja_saheiji_1560}Saheiji"/>
+	<Hero id="lord_tk5_ninja_sanai" faction="Faction.clan_tarou_1" text="{=TAIKOU_hero_ninja_sanai_1560}Sanai"/>
+	<Hero id="lord_tk5_ninja_sanjiroo" faction="Faction.clan_haguro_1" text="{=TAIKOU_hero_ninja_sanjiroo_1560}Haguro Sanjiroo"/>
+	<Hero id="lord_tk5_ninja_sashichi" faction="Faction.clan_deura_1" text="{=TAIKOU_hero_ninja_sashichi_1560}Sashichi"/>
+	<Hero id="lord_tk5_ninja_senshikiboo" faction="Faction.clan_tsuda_1" text="{=TAIKOU_hero_ninja_senshikiboo_1560}Senshikiboo"/>
+	<Hero id="lord_tk5_ninja_soonoshin" faction="Faction.clan_yamasen_1" text="{=TAIKOU_hero_ninja_soonoshin_1560}Soonoshin"/>
+	<Hero id="lord_tk5_ninja_tairaza" faction="Faction.clan_haguro_1" text="{=TAIKOU_hero_ninja_tairaza_1560}Tairaza"/>
+	<Hero id="lord_tk5_ninja_taroomatsu" faction="Faction.clan_hachiya_1" text="{=TAIKOU_hero_ninja_taroomatsu_1560}Taroomatsu"/>
+	<Hero id="lord_tk5_ninja_tobishichi" faction="Faction.clan_deura_1" text="{=TAIKOU_hero_ninja_tobishichi_1560}Tobishichi"/>
+	<Hero id="lord_tk5_ninja_ukichi" faction="Faction.clan_suppa_1" text="{=TAIKOU_hero_ninja_ukichi_1560}Ukichi"/>
+	<Hero id="lord_tk5_ninja_yagenji" faction="Faction.clan_deura_1" text="{=TAIKOU_hero_ninja_yagenji_1560}Yagenji"/>
+	<Hero id="lord_tk5_ninja_yasaburoo" faction="Faction.clan_hachiya_1" text="{=TAIKOU_hero_ninja_yasaburoo_1560}Hachiya Yasaburoo"/>
+	<Hero id="lord_tk5_ninja_yasubee" faction="Faction.clan_momochi_1" text="{=TAIKOU_hero_ninja_yasubee_1560}Yasubee"/>
+	<Hero id="lord_tk5_ninja_yoichi" faction="Faction.clan_nokizaru_1" text="{=TAIKOU_hero_ninja_yoichi_1560}Yoichi"/>
+	<Hero id="lord_tk5_pirate_benzoo" faction="Faction.clan_okumura_1" text="{=TAIKOU_hero_pirate_benzoo_1560}Benzoo"/>
+	<Hero id="lord_tk5_pirate_chougoroo" faction="Faction.clan_okabe_1" text="{=TAIKOU_hero_pirate_chougoroo_1560}Chougoroo"/>
+	<Hero id="lord_tk5_pirate_chousaburoo" faction="Faction.clan_atagi_1" text="{=TAIKOU_hero_pirate_chousaburoo_1560}Chousaburoo"/>
+	<Hero id="lord_tk5_pirate_chousuke" faction="Faction.clan_nasa_1" text="{=TAIKOU_hero_pirate_chousuke_1560}Chousuke"/>
+	<Hero id="lord_tk5_pirate_daimaru" faction="Faction.clan_okumura_1" text="{=TAIKOU_hero_pirate_daimaru_1560}Daimaru"/>
+	<Hero id="lord_tk5_pirate_densuke" faction="Faction.clan_wakabayashi_1" text="{=TAIKOU_hero_pirate_densuke_1560}Densuke"/>
+	<Hero id="lord_tk5_pirate_gennai" faction="Faction.clan_kuki_2" text="{=TAIKOU_hero_pirate_gennai_1560}Gennai"/>
+	<Hero id="lord_tk5_pirate_gisuke" faction="Faction.clan_ike_1" text="{=TAIKOU_hero_pirate_gisuke_1560}Gisuke"/>
+	<Hero id="lord_tk5_pirate_gonbee" faction="Faction.clan_wakabayashi_1" text="{=TAIKOU_hero_pirate_gonbee_1560}Gonbee"/>
+	<Hero id="lord_tk5_pirate_gonshichiroo" faction="Faction.clan_antou_1" text="{=TAIKOU_hero_pirate_gonshichiroo_1560}Gonshichiroo"/>
+	<Hero id="lord_tk5_pirate_hachiroo" faction="Faction.clan_okumura_1" text="{=TAIKOU_hero_pirate_hachiroo_1560}Hachiroo"/>
+	<Hero id="lord_tk5_pirate_hachizaemon" faction="Faction.clan_atagi_1" text="{=TAIKOU_hero_pirate_hachizaemon_1560}Hachizaemon"/>
+	<Hero id="lord_tk5_pirate_hansaburoo" faction="Faction.clan_bounotsu_1" text="{=TAIKOU_hero_pirate_hansaburoo_1560}Bounotsu Hansaburoo"/>
+	<Hero id="lord_tk5_pirate_hayashizoo" faction="Faction.clan_nasa_1" text="{=TAIKOU_hero_pirate_hayashizoo_1560}Hayashizoo"/>
+	<Hero id="lord_tk5_pirate_hayato" faction="Faction.clan_murakami_1" text="{=TAIKOU_hero_pirate_hayato_1560}Hayato"/>
+	<Hero id="lord_tk5_pirate_heita" faction="Faction.clan_okumura_1" text="{=TAIKOU_hero_pirate_heita_1560}Heita"/>
+	<Hero id="lord_tk5_pirate_hisadayuu" faction="Faction.clan_wakabayashi_1" text="{=TAIKOU_hero_pirate_hisadayuu_1560}Hisadayuu"/>
+	<Hero id="lord_tk5_pirate_hyouta" faction="Faction.clan_miyamoto_1" text="{=TAIKOU_hero_pirate_hyouta_1560}Hyouta"/>
+	<Hero id="lord_tk5_pirate_isaburoo" faction="Faction.clan_miyamoto_1" text="{=TAIKOU_hero_pirate_isaburoo_1560}Isaburoo"/>
+	<Hero id="lord_tk5_pirate_jibee" faction="Faction.clan_murakami_1" text="{=TAIKOU_hero_pirate_jibee_1560}Jibee"/>
+	<Hero id="lord_tk5_pirate_kinzaemon" faction="Faction.clan_okabe_1" text="{=TAIKOU_hero_pirate_kinzaemon_1560}Kinzaemon"/>
+	<Hero id="lord_tk5_pirate_kisanta" faction="Faction.clan_kuki_2" text="{=TAIKOU_hero_pirate_kisanta_1560}Kisanta"/>
+	<Hero id="lord_tk5_pirate_kojuuroo" faction="Faction.clan_ike_1" text="{=TAIKOU_hero_pirate_kojuuroo_1560}Kojuuroo"/>
+	<Hero id="lord_tk5_pirate_kokichi" faction="Faction.clan_miyamoto_1" text="{=TAIKOU_hero_pirate_kokichi_1560}Kokichi"/>
+	<Hero id="lord_tk5_pirate_kuroobee" faction="Faction.clan_atagi_1" text="{=TAIKOU_hero_pirate_kuroobee_1560}Kuroobee"/>
+	<Hero id="lord_tk5_pirate_magobee" faction="Faction.clan_nasa_1" text="{=TAIKOU_hero_pirate_magobee_1560}Tango Magobee"/>
+	<Hero id="lord_tk5_pirate_manosuke" faction="Faction.clan_nasa_1" text="{=TAIKOU_hero_pirate_manosuke_1560}Manosuke"/>
+	<Hero id="lord_tk5_pirate_matahachi" faction="Faction.clan_ganshojii_1" text="{=TAIKOU_hero_pirate_matahachi_1560}Matahachi"/>
+	<Hero id="lord_tk5_pirate_matasuke" faction="Faction.clan_bounotsu_1" text="{=TAIKOU_hero_pirate_matasuke_1560}Matasuke"/>
+	<Hero id="lord_tk5_pirate_rikimaru" faction="Faction.clan_ganshojii_1" text="{=TAIKOU_hero_pirate_rikimaru_1560}Rikimaru"/>
+	<Hero id="lord_tk5_pirate_rikiya" faction="Faction.clan_bounotsu_1" text="{=TAIKOU_hero_pirate_rikiya_1560}Rikiya"/>
+	<Hero id="lord_tk5_pirate_sanhei" faction="Faction.clan_miyamoto_1" text="{=TAIKOU_hero_pirate_sanhei_1560}Sanhei"/>
+	<Hero id="lord_tk5_pirate_senzaemon" faction="Faction.clan_antou_1" text="{=TAIKOU_hero_pirate_senzaemon_1560}Antou Senzaemon"/>
+	<Hero id="lord_tk5_pirate_shingoroo" faction="Faction.clan_ike_1" text="{=TAIKOU_hero_pirate_shingoroo_1560}Shingoroo"/>
+	<Hero id="lord_tk5_pirate_shinpachi" faction="Faction.clan_antou_1" text="{=TAIKOU_hero_pirate_shinpachi_1560}Shinpachi"/>
+	<Hero id="lord_tk5_pirate_tairama" faction="Faction.clan_kuki_2" text="{=TAIKOU_hero_pirate_tairama_1560}Tairama"/>
+	<Hero id="lord_tk5_pirate_tairashiroo" faction="Faction.clan_bounotsu_1" text="{=TAIKOU_hero_pirate_tairashiroo_1560}Tairashiroo"/>
+	<Hero id="lord_tk5_pirate_tairazoo" faction="Faction.clan_antou_1" text="{=TAIKOU_hero_pirate_tairazoo_1560}Tairazoo"/>
+	<Hero id="lord_tk5_pirate_taki" faction="Faction.clan_uku_1" text="{=TAIKOU_hero_pirate_taki_1560}Taki"/>
+	<Hero id="lord_tk5_pirate_tamegoroo" faction="Faction.clan_uku_1" text="{=TAIKOU_hero_pirate_tamegoroo_1560}Tamegoroo"/>
+	<Hero id="lord_tk5_pirate_tatsugoroo" faction="Faction.clan_antou_1" text="{=TAIKOU_hero_pirate_tatsugoroo_1560}Tatsugoroo"/>
+	<Hero id="lord_tk5_pirate_teizoo" faction="Faction.clan_uku_1" text="{=TAIKOU_hero_pirate_teizoo_1560}Teizoo"/>
+	<Hero id="lord_tk5_pirate_torazoo" faction="Faction.clan_murakami_1" text="{=TAIKOU_hero_pirate_torazoo_1560}Torazoo"/>
+	<Hero id="lord_tk5_pirate_tsuru" faction="Faction.clan_murakami_1" text="{=TAIKOU_hero_pirate_tsuru_1560}Tsuru"/>
+	<Hero id="lord_tk5_pirate_tsuruchiyo" faction="Faction.clan_ganshojii_1" text="{=TAIKOU_hero_pirate_tsuruchiyo_1560}Tsuruchiyo"/>
+	<Hero id="lord_tk5_pirate_ushibee" faction="Faction.clan_ike_1" text="{=TAIKOU_hero_pirate_ushibee_1560}Ushibee"/>
+	<Hero id="lord_tk5_pirate_yajiroo" faction="Faction.clan_wakabayashi_1" text="{=TAIKOU_hero_pirate_yajiroo_1560}Yajiroo"/>
+	<Hero id="lord_tk5_pirate_yakichi" faction="Faction.clan_uku_1" text="{=TAIKOU_hero_pirate_yakichi_1560}Yakichi"/>
+	<Hero id="lord_tk5_pirate_yosoji" faction="Faction.clan_kuki_2" text="{=TAIKOU_hero_pirate_yosoji_1560}Yosoji"/>
+	<Hero id="lord_tk5_pirate_zenzoo" faction="Faction.clan_kuki_2" text="{=TAIKOU_hero_pirate_zenzoo_1560}Zenzoo"/>
+	<Hero id="lord_tk5_trader_fujigoroo" faction="Faction.clan_chaya_1" text="{=TAIKOU_hero_trader_fujigoroo_1560}Fujigoroo"/>
+	<Hero id="lord_tk5_trader_gobee" faction="Faction.clan_shimae_1" text="{=TAIKOU_hero_trader_gobee_1560}Gobee"/>
+	<Hero id="lord_tk5_trader_hansuke" faction="Faction.clan_shimae_1" text="{=TAIKOU_hero_trader_hansuke_1560}Hansuke"/>
+	<Hero id="lord_tk5_trader_hikoma" faction="Faction.clan_yanada_1" text="{=TAIKOU_hero_trader_hikoma_1560}Hikoma"/>
+	<Hero id="lord_tk5_trader_ichinosuke" faction="Faction.clan_shibuya_1" text="{=TAIKOU_hero_trader_ichinosuke_1560}Ichinosuke"/>
+	<Hero id="lord_tk5_trader_jinuemon" faction="Faction.clan_itoo_1" text="{=TAIKOU_hero_trader_jinuemon_1560}Jinuemon"/>
+	<Hero id="lord_tk5_trader_jirookichi" faction="Faction.clan_michikawa_1" text="{=TAIKOU_hero_trader_jirookichi_1560}Jirookichi"/>
+	<Hero id="lord_tk5_trader_kakubee" faction="Faction.clan_tomono_1" text="{=TAIKOU_hero_trader_kakubee_1560}Kakubee"/>
+	<Hero id="lord_tk5_trader_kametaroo" faction="Faction.clan_chaya_1" text="{=TAIKOU_hero_trader_kametaroo_1560}Kametaroo"/>
+	<Hero id="lord_tk5_trader_kandayuu" faction="Faction.clan_kurada_1" text="{=TAIKOU_hero_trader_kandayuu_1560}Kandayuu"/>
+	<Hero id="lord_tk5_trader_kankichi" faction="Faction.clan_sakata_1" text="{=TAIKOU_hero_trader_kankichi_1560}Kankichi"/>
+	<Hero id="lord_tk5_trader_kansaburoo" faction="Faction.clan_konishi_1" text="{=TAIKOU_hero_trader_kansaburoo_1560}Kansaburoo"/>
+	<Hero id="lord_tk5_trader_kanuemon" faction="Faction.clan_uno_1" text="{=TAIKOU_hero_trader_kanuemon_1560}Kanuemon"/>
+	<Hero id="lord_tk5_trader_katsuzoo" faction="Faction.clan_konishi_1" text="{=TAIKOU_hero_trader_katsuzoo_1560}Katsuzoo"/>
+	<Hero id="lord_tk5_trader_kichibee" faction="Faction.clan_tomono_1" text="{=TAIKOU_hero_trader_kichibee_1560}Kichibee"/>
+	<Hero id="lord_tk5_trader_kingoroo" faction="Faction.clan_chaya_1" text="{=TAIKOU_hero_trader_kingoroo_1560}Kingoroo"/>
+	<Hero id="lord_tk5_trader_kinnosuke" faction="Faction.clan_tsuda_2" text="{=TAIKOU_hero_trader_kinnosuke_1560}Kinnosuke"/>
+	<Hero id="lord_tk5_trader_kisuke" faction="Faction.clan_konishi_1" text="{=TAIKOU_hero_trader_kisuke_1560}Kisuke"/>
+	<Hero id="lord_tk5_trader_kiyobee" faction="Faction.clan_shibuya_1" text="{=TAIKOU_hero_trader_kiyobee_1560}Kiyobee"/>
+	<Hero id="lord_tk5_trader_kiyokuroo" faction="Faction.clan_tsuda_2" text="{=TAIKOU_hero_trader_kiyokuroo_1560}Kiyokuroo"/>
+	<Hero id="lord_tk5_trader_koheiji" faction="Faction.clan_konishi_1" text="{=TAIKOU_hero_trader_koheiji_1560}Koheiji"/>
+	<Hero id="lord_tk5_trader_kubee" faction="Faction.clan_ikeda_2" text="{=TAIKOU_hero_trader_kubee_1560}Kubee"/>
+	<Hero id="lord_tk5_trader_kumakichi" faction="Faction.clan_imai_1" text="{=TAIKOU_hero_trader_kumakichi_1560}Kumakichi"/>
+	<Hero id="lord_tk5_trader_kyuusaburoo" faction="Faction.clan_itoo_1" text="{=TAIKOU_hero_trader_kyuusaburoo_1560}Kyuusaburoo"/>
+	<Hero id="lord_tk5_trader_magoshiroo" faction="Faction.clan_hori_1" text="{=TAIKOU_hero_trader_magoshiroo_1560}Magoshiroo"/>
+	<Hero id="lord_tk5_trader_matashiroo" faction="Faction.clan_itoo_1" text="{=TAIKOU_hero_trader_matashiroo_1560}Matashiroo"/>
+	<Hero id="lord_tk5_trader_minekichi" faction="Faction.clan_yanada_1" text="{=TAIKOU_hero_trader_minekichi_1560}Minekichi"/>
+	<Hero id="lord_tk5_trader_rihachi" faction="Faction.clan_imai_1" text="{=TAIKOU_hero_trader_rihachi_1560}Rihachi"/>
+	<Hero id="lord_tk5_trader_rokuzaemon" faction="Faction.clan_sumiya_1" text="{=TAIKOU_hero_trader_rokuzaemon_1560}Rokuzaemon"/>
+	<Hero id="lord_tk5_trader_sadakichi" faction="Faction.clan_sakata_1" text="{=TAIKOU_hero_trader_sadakichi_1560}Sadakichi"/>
+	<Hero id="lord_tk5_trader_sakubee" faction="Faction.clan_kumaya_1" text="{=TAIKOU_hero_trader_sakubee_1560}Sakubee"/>
+	<Hero id="lord_tk5_trader_sebee" faction="Faction.clan_uno_1" text="{=TAIKOU_hero_trader_sebee_1560}Sebee"/>
+	<Hero id="lord_tk5_trader_senji" faction="Faction.clan_sumiya_1" text="{=TAIKOU_hero_trader_senji_1560}Senji"/>
+	<Hero id="lord_tk5_trader_senzoo" faction="Faction.clan_shimae_1" text="{=TAIKOU_hero_trader_senzoo_1560}Senzoo"/>
+	<Hero id="lord_tk5_trader_shichiroobee" faction="Faction.clan_shibuya_1" text="{=TAIKOU_hero_trader_shichiroobee_1560}Shichiroobee"/>
+	<Hero id="lord_tk5_trader_shigebee" faction="Faction.clan_itoo_1" text="{=TAIKOU_hero_trader_shigebee_1560}Shigebee"/>
+	<Hero id="lord_tk5_trader_shinbee" faction="Faction.clan_sumiya_1" text="{=TAIKOU_hero_trader_shinbee_1560}Shinbee"/>
+	<Hero id="lord_tk5_trader_shinsuke" faction="Faction.clan_hori_1" text="{=TAIKOU_hero_trader_shinsuke_1560}Shinsuke"/>
+	<Hero id="lord_tk5_trader_shinuemon" faction="Faction.clan_imai_1" text="{=TAIKOU_hero_trader_shinuemon_1560}Shinuemon"/>
+	<Hero id="lord_tk5_trader_shuuhei" faction="Faction.clan_tsuda_2" text="{=TAIKOU_hero_trader_shuuhei_1560}Shuuhei"/>
+	<Hero id="lord_tk5_trader_sooji" faction="Faction.clan_sakata_1" text="{=TAIKOU_hero_trader_sooji_1560}Sooji"/>
+	<Hero id="lord_tk5_trader_sukejiroo" faction="Faction.clan_shibuya_1" text="{=TAIKOU_hero_trader_sukejiroo_1560}Sukejiroo"/>
+	<Hero id="lord_tk5_trader_sukesaburoo" faction="Faction.clan_ikeda_2" text="{=TAIKOU_hero_trader_sukesaburoo_1560}Sukesaburoo"/>
+	<Hero id="lord_tk5_trader_tairasuke" faction="Faction.clan_shimae_1" text="{=TAIKOU_hero_trader_tairasuke_1560}Tairasuke"/>
+	<Hero id="lord_tk5_trader_takezoo" faction="Faction.clan_uno_1" text="{=TAIKOU_hero_trader_takezoo_1560}Takezoo"/>
+	<Hero id="lord_tk5_trader_tatsunosuke" faction="Faction.clan_tomono_1" text="{=TAIKOU_hero_trader_tatsunosuke_1560}Tatsunosuke"/>
+	<Hero id="lord_tk5_trader_tokuzoo" faction="Faction.clan_kurada_1" text="{=TAIKOU_hero_trader_tokuzoo_1560}Tokuzoo"/>
+	<Hero id="lord_tk5_trader_tomimatsu" faction="Faction.clan_yanada_1" text="{=TAIKOU_hero_trader_tomimatsu_1560}Tomimatsu"/>
+	<Hero id="lord_tk5_trader_torakichi" faction="Faction.clan_yanada_1" text="{=TAIKOU_hero_trader_torakichi_1560}Torakichi"/>
+	<Hero id="lord_tk5_trader_umekichi" faction="Faction.clan_kurada_1" text="{=TAIKOU_hero_trader_umekichi_1560}Umekichi"/>
+	<Hero id="lord_tk5_trader_ushimatsu" faction="Faction.clan_kumaya_1" text="{=TAIKOU_hero_trader_ushimatsu_1560}Ushimatsu"/>
+	<Hero id="lord_tk5_trader_xe413bee" faction="Faction.clan_kurada_1" text="{=TAIKOU_hero_trader_xe413bee_1560}Trader Xe413Bee"/>
+	<Hero id="lord_tk5_trader_yasukichi" faction="Faction.clan_sakata_1" text="{=TAIKOU_hero_trader_yasukichi_1560}Yasukichi"/>
+	<Hero id="lord_tk5_trader_yasuzoo" faction="Faction.clan_tsuda_2" text="{=TAIKOU_hero_trader_yasuzoo_1560}Yasuzoo"/>
+	<Hero id="lord_tk5_trader_yosaburoo" faction="Faction.clan_imai_1" text="{=TAIKOU_hero_trader_yosaburoo_1560}Yosaburoo"/>
+	<Hero id="lord_tk5_trader_yoshibee" faction="Faction.clan_hori_1" text="{=TAIKOU_hero_trader_yoshibee_1560}Yoshibee"/>
+	<Hero id="lord_tk5_trader_yoshichiroo" faction="Faction.clan_michikawa_1" text="{=TAIKOU_hero_trader_yoshichiroo_1560}Yoshichiroo"/>
+	<Hero id="lord_tk5_trader_yoshiuemon" faction="Faction.clan_chaya_1" text="{=TAIKOU_hero_trader_yoshiuemon_1560}Yoshiuemon"/>
+	<Hero id="lord_tk5_trader_zenuemon" faction="Faction.clan_sumiya_1" text="{=TAIKOU_hero_trader_zenuemon_1560}Zenuemon"/>
+</Heroes>

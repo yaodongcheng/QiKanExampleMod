@@ -241,7 +241,7 @@ def main():
                 print("  （无漏登记 ✓）")
 
         print(f"\nSummary: sections={len(sections)} errors={len(errors)} warnings={len(warns)}")
-    exit_codes.append(1) if errors else 0
+        exit_codes.append(1) if errors else 0    # <- 必须在循环内：循环外只剩最后一趟的 errors（假绿，2026-09-12 修）
 
 
 

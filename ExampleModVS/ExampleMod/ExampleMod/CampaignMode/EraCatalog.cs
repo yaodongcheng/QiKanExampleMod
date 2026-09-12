@@ -47,8 +47,12 @@ namespace LivingWorldNpcs.CampaignMode
 		public static readonly IReadOnlyList<Era> All = new List<Era>
 		{
 			// fallback 写**要显示的文字**：本地化查不到时引擎回落显示它（写成键名 = 界面上印键名，实机踩过）
+			new Era("TaikouCampaign1554", "1554", "{=LWN_scenario_1554}The Tangled Thread"),
 			new Era("TaikouCampaign1560", "1560", "{=LWN_scenario_1560}The Wheel of Fate"),
+			new Era("TaikouCampaign1568", "1568", "{=LWN_scenario_1568}The Rising Dragon"),
+			new Era("TaikouCampaign1575", "1575", "{=LWN_scenario_1575}The Way of Supremacy"),
 			new Era("TaikouCampaign1582", "1582", "{=LWN_scenario_1582}The Turning Point"),
+			new Era("TaikouCampaign1598", "1598", "{=LWN_scenario_1598}The Great Peace"),
 		};
 
 		/// <summary>时代数量（菜单入口是否出现的判据）。</summary>

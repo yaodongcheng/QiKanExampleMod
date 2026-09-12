@@ -1,0 +1,978 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- 🔴 生成物·禁止手改（铁律 22）——由 Scripts/gen_taikou_era_world.py 从 csv/ 生成。
+     数据来源：TaikouHero.csv / Clan.csv / TaikouForce.csv（1560 年）。
+     改内容 = 改 CSV 或改生成器，然后重跑；check 模式守一致性。
+     ⚠️ 本段与其它年代的同名段 GameType 互斥（SubModule.xml），不得同时命中同一 GameType。
+     ⚠️ 注释里禁止出现连续两个减号（XML 规范不允许），改本字符串时注意。 -->
+<Factions>
+	<Faction id="clan_akamatsu_1" is_noble="true" owner="Hero.lord_tk5_8" banner_key="11.146.146.1536.1536.764.764.1.0.0.111.150.155.483.483.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.akamatsu" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_akamatsu_1}Akamatsu" short_name="{=TAIKOU_clan_akamatsu_1}Akamatsu" title="{=TAIKOU_clan_akamatsu_1}Akamatsu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_akamatsu_2" is_noble="true" owner="Hero.lord_tk5_7" banner_key="11.147.147.1536.1536.764.764.1.0.0.215.155.155.442.442.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.akamatsu" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_akamatsu_2}Akamatsu" short_name="{=TAIKOU_clan_akamatsu_2}Akamatsu" title="{=TAIKOU_clan_akamatsu_2}Akamatsu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_akechi_1" is_noble="true" owner="Hero.lord_tk5_14" banner_key="11.147.147.1536.1536.764.764.1.0.0.342.155.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.asakura" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_akechi_1}Akechi" short_name="{=TAIKOU_clan_akechi_1}Akechi" title="{=TAIKOU_clan_akechi_1}Akechi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_aki_1" is_noble="true" owner="Hero.lord_tk5_10" banner_key="11.148.148.1536.1536.764.764.1.0.0.517.155.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.ichijo" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_aki_1}Aki" short_name="{=TAIKOU_clan_aki_1}Aki" title="{=TAIKOU_clan_aki_1}Aki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_amago_1" is_noble="true" owner="Hero.lord_tk5_45" banner_key="11.148.148.1536.1536.768.768.1.0.0.151.0.155.522.522.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.amago" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_amago_1}Amago" short_name="{=TAIKOU_clan_amago_1}Amago" title="{=TAIKOU_clan_amago_1}Amago" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_anayama_1" is_noble="true" owner="Hero.lord_tk5_41" banner_key="11.154.154.1536.1536.764.764.1.0.0.108.150.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_anayama_1}Anayama" short_name="{=TAIKOU_clan_anayama_1}Anayama" title="{=TAIKOU_clan_anayama_1}Anayama" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ando_1" is_noble="true" owner="Hero.lord_tk5_56" banner_key="11.154.154.1536.1536.764.764.1.0.0.222.150.155.483.483.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.ando" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ando_1}Ando" short_name="{=TAIKOU_clan_ando_1}Ando" title="{=TAIKOU_clan_ando_1}Ando" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_andoo_1" is_noble="true" owner="Hero.lord_tk5_58" banner_key="11.154.154.1536.1536.764.764.1.0.0.401.155.155.488.488.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.saitoo" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_andoo_1}Andoo" short_name="{=TAIKOU_clan_andoo_1}Andoo" title="{=TAIKOU_clan_andoo_1}Andoo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_anekouji_1" is_noble="true" owner="Hero.lord_tk5_907" banner_key="11.156.75.4345.4345.764.764.1.0.0.212.1.0.454.454.764.764.0.0.359" is_minor_faction="false" super_faction="Kingdom.miki" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_anekouji_1}Anekouji" short_name="{=TAIKOU_clan_anekouji_1}Anekouji" title="{=TAIKOU_clan_anekouji_1}Anekouji" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_antou_1" is_noble="true" owner="Hero.lord_tk5_pirate_senzaemon" banner_key="11.156.75.4345.4345.764.764.1.0.0.222.1.0.454.454.764.764.0.0.359.411.1.0.220.220.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_antousuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_antou_1}Antou" short_name="{=TAIKOU_clan_antou_1}Antou" title="{=TAIKOU_clan_antou_1}Antou" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_araki_1" is_noble="true" owner="Hero.lord_tk5_52" banner_key="11.156.75.4345.4345.764.764.1.0.0.223.1.0.454.454.764.764.0.0.359.515.1.0.177.177.764.764.0.0.0.500.1.0.358.358.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.miyoshi" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_araki_1}Araki" short_name="{=TAIKOU_clan_araki_1}Araki" title="{=TAIKOU_clan_araki_1}Araki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_arima_1" is_noble="true" owner="Hero.lord_tk5_810" banner_key="11.156.75.4345.4345.764.764.1.0.0.425.1.0.416.416.764.782.0.0.359.400.1.0.120.120.764.937.0.0.0.411.1.0.120.120.764.614.0.0.0" is_minor_faction="false" super_faction="Kingdom.arima" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_arima_1}Arima" short_name="{=TAIKOU_clan_arima_1}Arima" title="{=TAIKOU_clan_arima_1}Arima" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_asakura_1" is_noble="true" owner="Hero.lord_tk5_23" banner_key="11.156.75.4345.4345.764.764.1.0.0.426.1.0.397.397.764.688.0.0.270.208.1.0.332.332.764.873.0.0.0" is_minor_faction="false" super_faction="Kingdom.asakura" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_asakura_1}Asakura" short_name="{=TAIKOU_clan_asakura_1}Asakura" title="{=TAIKOU_clan_asakura_1}Asakura" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_asano_1" is_noble="true" owner="Hero.lord_tk5_25" banner_key="11.156.75.4345.4345.764.764.1.0.0.427.1.0.415.388.695.764.0.0.270.521.1.0.293.298.822.764.0.0.324" is_minor_faction="false" super_faction="Kingdom.oda" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_asano_1}Asano" short_name="{=TAIKOU_clan_asano_1}Asano" title="{=TAIKOU_clan_asano_1}Asano" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ashikaga_1" is_noble="true" owner="Hero.lord_tk5_31" banner_key="11.156.75.4345.4345.764.764.1.0.0.428.1.0.454.454.764.764.0.0.359.321.1.0.354.354.764.721.0.0.359" is_minor_faction="false" super_faction="Kingdom.ashikaga" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ashikaga_1}Ashikaga" short_name="{=TAIKOU_clan_ashikaga_1}Ashikaga" title="{=TAIKOU_clan_ashikaga_1}Ashikaga" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ashina_1" is_noble="true" owner="Hero.lord_tk5_32" banner_key="11.156.75.4345.4345.764.764.1.0.0.446.1.0.381.381.764.764.0.0.359.309.1.0.325.325.627.764.0.0.320.309.1.0.323.323.901.764.0.0.146" is_minor_faction="false" super_faction="Kingdom.ashina" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ashina_1}Ashina" short_name="{=TAIKOU_clan_ashina_1}Ashina" title="{=TAIKOU_clan_ashina_1}Ashina" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_aso_1" is_noble="true" owner="Hero.lord_tk5_36" banner_key="11.156.75.4345.4345.776.777.1.0.0.427.1.0.415.388.764.811.0.0.0.436.1.0.359.366.764.706.0.0.0" is_minor_faction="false" super_faction="Kingdom.aso" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_aso_1}Aso" short_name="{=TAIKOU_clan_aso_1}Aso" title="{=TAIKOU_clan_aso_1}Aso" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_atagi_1" is_noble="true" owner="Hero.lord_tk5_38" banner_key="11.163.166.1528.1528.764.764.1.0.0.133.171.171.483.483.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_awajisuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_atagi_1}Atagi" short_name="{=TAIKOU_clan_atagi_1}Atagi" title="{=TAIKOU_clan_atagi_1}Atagi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_azai_2" is_noble="true" owner="Hero.lord_tk5_16" banner_key="11.167.12.4922.4922.764.764.1.0.0.138.111.0.509.509.764.764.0.0.359" is_minor_faction="false" super_faction="Kingdom.azai" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_azai_2}Azai" short_name="{=TAIKOU_clan_azai_2}Azai" title="{=TAIKOU_clan_azai_2}Azai" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_baba_1" is_noble="true" owner="Hero.lord_tk5_592" banner_key="11.167.12.4922.4922.764.764.1.0.0.142.29.149.331.331.764.665.0.0.0.146.29.149.311.311.764.863.0.1.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_baba_1}Baba" short_name="{=TAIKOU_clan_baba_1}Baba" title="{=TAIKOU_clan_baba_1}Baba" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_bessho_1" is_noble="true" owner="Hero.lord_tk5_842" banner_key="11.167.12.4922.4922.764.764.1.0.0.307.111.0.350.350.758.813.0.0.180.307.111.0.350.350.768.715.0.0.0.442.111.0.261.261.667.819.0.0.180.442.111.0.261.261.859.708.0.0.0" is_minor_faction="false" super_faction="Kingdom.akamatsu" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_bessho_1}Bessho" short_name="{=TAIKOU_clan_bessho_1}Bessho" title="{=TAIKOU_clan_bessho_1}Bessho" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_bounotsu_1" is_noble="true" owner="Hero.lord_tk5_pirate_hansaburoo" banner_key="11.167.12.4922.4922.764.764.1.0.0.332.111.0.471.471.764.687.0.0.0.406.111.0.202.202.764.974.0.0.1" is_minor_faction="false" super_faction="Kingdom.org_pirate_bounotsusuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_bounotsu_1}Bounotsu" short_name="{=TAIKOU_clan_bounotsu_1}Bounotsu" title="{=TAIKOU_clan_bounotsu_1}Bounotsu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_chaya_1" is_noble="true" owner="Hero.lord_tk5_480" banner_key="11.167.12.4922.4922.764.764.1.0.0.333.111.0.454.454.764.764.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_chaya_1}Chaya" short_name="{=TAIKOU_clan_chaya_1}Chaya" title="{=TAIKOU_clan_chaya_1}Chaya" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_chiba_1" is_noble="true" owner="Hero.lord_tk5_478" banner_key="11.167.12.4922.4922.764.764.1.0.0.347.111.0.325.325.764.685.0.0.0.302.111.0.408.408.669.890.0.0.60.302.111.0.408.408.859.890.0.0.300" is_minor_faction="false" super_faction="Kingdom.hojo" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_chiba_1}Chiba" short_name="{=TAIKOU_clan_chiba_1}Chiba" title="{=TAIKOU_clan_chiba_1}Chiba" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_chosokabe_2" is_noble="true" owner="Hero.lord_tk5_483" banner_key="11.167.12.4922.4922.764.764.1.0.0.421.111.0.455.455.764.764.0.0.0.458.111.0.116.116.742.765.0.0.0" is_minor_faction="false" super_faction="Kingdom.chosokabe" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_chosokabe_2}Chosokabe" short_name="{=TAIKOU_clan_chosokabe_2}Chosokabe" title="{=TAIKOU_clan_chosokabe_2}Chosokabe" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_daihoji_1" is_noble="true" owner="Hero.lord_tk5_813" banner_key="11.167.12.4922.4922.764.764.1.0.0.441.111.0.454.454.764.764.0.0.359" is_minor_faction="false" super_faction="Kingdom.daihoji" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_daihoji_1}Daihoji" short_name="{=TAIKOU_clan_daihoji_1}Daihoji" title="{=TAIKOU_clan_daihoji_1}Daihoji" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_date_1" is_noble="true" owner="Hero.lord_tk5_465" banner_key="11.167.12.4922.4922.764.764.1.0.0.456.111.0.443.443.764.728.0.0.359.444.111.0.102.102.764.972.0.0.179.454.111.0.102.102.868.972.0.0.179.454.111.0.102.102.659.972.0.0.359" is_minor_faction="false" super_faction="Kingdom.date" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_date_1}Date" short_name="{=TAIKOU_clan_date_1}Date" title="{=TAIKOU_clan_date_1}Date" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_date_2" is_noble="true" owner="Hero.lord_tk5_464" banner_key="11.184.14.4922.4922.764.764.1.0.0.141.15.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.date" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_date_2}Date" short_name="{=TAIKOU_clan_date_2}Date" title="{=TAIKOU_clan_date_2}Date" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_date_3" is_noble="true" owner="Hero.lord_tk5_461" banner_key="11.184.14.4922.4922.764.764.1.0.0.159.15.0.452.452.764.644.0.0.0.418.15.0.270.270.764.864.0.0.0" is_minor_faction="false" super_faction="Kingdom.date" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_date_3}Date" short_name="{=TAIKOU_clan_date_3}Date" title="{=TAIKOU_clan_date_3}Date" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_deura_1" is_noble="true" owner="Hero.lord_tk5_94" banner_key="11.184.14.4922.4922.764.764.1.0.0.207.15.0.267.238.863.918.0.1.332.207.15.0.238.238.651.918.0.0.28.220.15.0.408.408.757.646.0.0.0.512.15.0.111.111.757.879.0.0.1" is_minor_faction="false" super_faction="Kingdom.org_ninja_togakushi" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_deura_1}Deura" short_name="{=TAIKOU_clan_deura_1}Deura" title="{=TAIKOU_clan_deura_1}Deura" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_fukudome_1" is_noble="true" owner="Hero.lord_tk5_616" banner_key="11.184.14.4922.4922.764.764.1.0.0.305.15.0.444.444.764.764.0.0.0.206.15.0.480.480.658.764.0.0.17.206.15.0.480.480.870.764.0.0.194" is_minor_faction="false" super_faction="Kingdom.chosokabe" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_fukudome_1}Fukudome" short_name="{=TAIKOU_clan_fukudome_1}Fukudome" title="{=TAIKOU_clan_fukudome_1}Fukudome" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_fuuma_1" is_noble="true" owner="Hero.lord_tk5_613" banner_key="11.184.14.4922.4922.764.764.1.0.0.315.15.0.462.462.790.771.0.0.311.315.15.0.462.462.740.758.0.0.49.424.15.0.144.144.753.650.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_fuuma" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_fuuma_1}Fuuma" short_name="{=TAIKOU_clan_fuuma_1}Fuuma" title="{=TAIKOU_clan_fuuma_1}Fuuma" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_gamou_2" is_noble="true" owner="Hero.lord_tk5_242" banner_key="11.184.14.4922.4922.764.764.1.0.0.335.15.0.499.499.764.764.0.0.0.336.15.0.186.186.764.744.0.0.0" is_minor_faction="false" super_faction="Kingdom.rokkaku" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_gamou_2}Gamou" short_name="{=TAIKOU_clan_gamou_2}Gamou" title="{=TAIKOU_clan_gamou_2}Gamou" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ganshojii_1" is_noble="true" owner="Hero.lord_tk5_221" banner_key="11.184.14.4922.4922.764.764.1.0.0.336.15.0.382.382.763.764.0.0.0.424.15.0.183.183.903.774.0.0.0.424.15.0.183.183.624.774.0.0.0.424.15.0.183.183.763.904.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_sagamisuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ganshojii_1}Ganshojii" short_name="{=TAIKOU_clan_ganshojii_1}Ganshojii" title="{=TAIKOU_clan_ganshojii_1}Ganshojii" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_gyo_1" is_noble="true" owner="Hero.lord_tk5_536" banner_key="11.184.14.4922.4922.764.764.1.0.0.346.15.0.208.208.764.764.0.0.0.424.15.0.213.213.585.764.0.0.0.424.15.0.213.213.943.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.gyo" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_gyo_1}Gyo" short_name="{=TAIKOU_clan_gyo_1}Gyo" title="{=TAIKOU_clan_gyo_1}Gyo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hachiya_1" is_noble="true" owner="Hero.lord_tk5_ninja_yasaburoo" banner_key="11.184.14.4922.4922.764.764.1.0.0.419.15.0.454.454.764.764.0.0.0.512.15.0.125.125.653.887.0.0.0.512.15.0.125.125.875.641.0.0.0.512.15.0.125.125.869.887.0.0.0.512.15.0.125.125.653.641.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_hachiya" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hachiya_1}Hachiya" short_name="{=TAIKOU_clan_hachiya_1}Hachiya" title="{=TAIKOU_clan_hachiya_1}Hachiya" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_haguro_1" is_noble="true" owner="Hero.lord_tk5_ninja_sanjiroo" banner_key="11.184.14.4922.4922.764.764.1.0.0.424.15.0.377.377.764.764.0.0.0.220.15.0.138.132.884.939.0.0.0.220.15.0.138.138.644.939.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_haguro" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_haguro_1}Haguro" short_name="{=TAIKOU_clan_haguro_1}Haguro" title="{=TAIKOU_clan_haguro_1}Haguro" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hanafusa_1" is_noble="true" owner="Hero.lord_tk5_590" banner_key="11.184.14.4922.4922.764.764.1.0.0.505.15.0.60.60.583.911.0.0.134.505.15.0.60.60.668.909.0.0.134.505.15.0.60.60.666.827.0.0.134.505.15.0.60.60.751.827.0.0.134.505.15.0.60.60.751.744.0.0.134.505.15.0.60.60.833.745.0.0.134.505.15.0.60.60.833.663.0.0.134.505.15.0.60.60.916.663.0.0.134.505.15.0.60.60.916.580.0.0.134.102.15.0.188.188.638.664.0.0.0.102.15.0.188.188.894.898.0.1.0" is_minor_faction="false" super_faction="Kingdom.uragami" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hanafusa_1}Hanafusa" short_name="{=TAIKOU_clan_hanafusa_1}Hanafusa" title="{=TAIKOU_clan_hanafusa_1}Hanafusa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hatakeyama_1" is_noble="true" owner="Hero.lord_tk5_578" banner_key="11.2.2.1536.1536.764.764.1.0.0.204.153.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.hatakeyama" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hatakeyama_1}Hatakeyama" short_name="{=TAIKOU_clan_hatakeyama_1}Hatakeyama" title="{=TAIKOU_clan_hatakeyama_1}Hatakeyama" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hojo_1" is_noble="true" owner="Hero.lord_tk5_630" banner_key="11.2.2.1536.1536.764.764.1.0.0.219.155.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.hojo" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hojo_1}Hojo" short_name="{=TAIKOU_clan_hojo_1}Hojo" title="{=TAIKOU_clan_hojo_1}Hojo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hojo_2" is_noble="true" owner="Hero.lord_tk5_629" banner_key="11.23.75.4345.4345.764.764.1.0.0.132.39.0.438.438.764.814.0.0.0.302.39.0.438.438.764.714.0.0.0" is_minor_faction="false" super_faction="Kingdom.hojo" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hojo_2}Hojo" short_name="{=TAIKOU_clan_hojo_2}Hojo" title="{=TAIKOU_clan_hojo_2}Hojo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hojo_3" is_noble="true" owner="Hero.lord_tk5_257" banner_key="11.23.75.4345.4345.764.764.1.0.0.412.39.0.454.454.764.764.0.0.180" is_minor_faction="false" super_faction="Kingdom.uesugi" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hojo_3}Hojo" short_name="{=TAIKOU_clan_hojo_3}Hojo" title="{=TAIKOU_clan_hojo_3}Hojo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hojo_5" is_noble="true" owner="Hero.lord_tk5_625" banner_key="11.23.75.4345.4345.764.764.1.0.0.415.39.0.391.391.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.hojo" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hojo_5}Hojo" short_name="{=TAIKOU_clan_hojo_5}Hojo" title="{=TAIKOU_clan_hojo_5}Hojo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hojo_6" is_noble="true" owner="Hero.lord_tk5_632" banner_key="11.23.75.4345.4345.764.764.1.0.0.427.39.0.261.261.764.869.0.0.359.133.39.0.380.380.764.696.0.0.0" is_minor_faction="false" super_faction="Kingdom.hojo" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hojo_6}Hojo" short_name="{=TAIKOU_clan_hojo_6}Hojo" title="{=TAIKOU_clan_hojo_6}Hojo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_honda_1" is_noble="true" owner="Hero.lord_tk5_652" banner_key="11.23.75.4345.4345.764.764.1.0.0.456.39.0.382.382.764.834.0.0.180.413.39.0.224.224.764.614.0.0.0" is_minor_faction="false" super_faction="Kingdom.imagawa" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_honda_1}Honda" short_name="{=TAIKOU_clan_honda_1}Honda" title="{=TAIKOU_clan_honda_1}Honda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_honda_2" is_noble="true" owner="Hero.lord_tk5_656" banner_key="11.23.75.4345.4345.764.764.1.0.0.504.39.0.90.90.764.942.0.0.180.503.39.0.84.84.764.760.0.0.0.406.39.0.455.455.764.764.0.0.0.504.39.0.90.90.764.587.0.0.0" is_minor_faction="false" super_faction="Kingdom.imagawa" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_honda_2}Honda" short_name="{=TAIKOU_clan_honda_2}Honda" title="{=TAIKOU_clan_honda_2}Honda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_honganji_1" is_noble="true" owner="Hero.lord_tk5_647" banner_key="11.23.75.4345.4345.764.764.1.0.0.504.39.96.80.80.764.978.1.0.180.407.39.0.368.368.764.757.0.0.0.504.39.96.110.110.764.535.1.0.180" is_minor_faction="false" super_faction="Kingdom.honganji" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_honganji_1}Honganji" short_name="{=TAIKOU_clan_honganji_1}Honganji" title="{=TAIKOU_clan_honganji_1}Honganji" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hori_1" is_noble="true" owner="Hero.lord_tk5_588" banner_key="11.23.75.4345.4345.764.764.1.0.0.535.39.0.189.178.814.920.0.1.0.535.39.0.178.178.692.919.0.0.0.151.39.0.425.425.764.732.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hori_1}Hori" short_name="{=TAIKOU_clan_hori_1}Hori" title="{=TAIKOU_clan_hori_1}Hori" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_hosokawa_1" is_noble="true" owner="Hero.lord_tk5_638" banner_key="11.24.4.4345.4345.764.764.1.0.0.302.5.0.294.294.802.604.0.0.327.302.5.0.294.294.726.604.0.0.32.202.5.0.366.366.854.864.0.0.47.202.5.0.371.382.674.864.0.1.316.320.5.0.315.315.764.715.0.0.0" is_minor_faction="false" super_faction="Kingdom.ashikaga" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_hosokawa_1}Hosokawa" short_name="{=TAIKOU_clan_hosokawa_1}Hosokawa" title="{=TAIKOU_clan_hosokawa_1}Hosokawa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ichijo_1" is_noble="true" owner="Hero.lord_tk5_86" banner_key="11.24.4.4345.4345.764.764.1.0.0.304.5.0.454.454.914.764.0.0.0.443.5.0.510.510.764.764.0.0.0.304.5.0.426.426.614.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.ichijo" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ichijo_1}Ichijo" short_name="{=TAIKOU_clan_ichijo_1}Ichijo" title="{=TAIKOU_clan_ichijo_1}Ichijo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_iio_1" is_noble="true" owner="Hero.lord_tk5_60" banner_key="11.24.4.4345.4345.764.764.1.0.0.423.5.0.506.506.764.764.0.0.0.529.5.0.261.261.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.imagawa" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_iio_1}Iio" short_name="{=TAIKOU_clan_iio_1}Iio" title="{=TAIKOU_clan_iio_1}Iio" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ijuin_1" is_noble="true" owner="Hero.lord_tk5_77" banner_key="11.24.4.4345.4345.764.764.1.0.0.502.5.0.487.487.764.764.0.0.0.300.5.0.447.447.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.shimazu" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ijuin_1}Ijuin" short_name="{=TAIKOU_clan_ijuin_1}Ijuin" title="{=TAIKOU_clan_ijuin_1}Ijuin" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ike_1" is_noble="true" owner="Hero.lord_tk5_69" banner_key="11.24.4.4345.4345.764.764.1.0.0.502.5.0.510.510.764.764.0.0.0.338.5.0.487.487.764.764.0.0.0.503.5.0.109.109.764.624.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_tosasuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ike_1}Ike" short_name="{=TAIKOU_clan_ike_1}Ike" title="{=TAIKOU_clan_ike_1}Ike" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ikeda_1" is_noble="true" owner="Hero.lord_tk5_66" banner_key="11.24.4.4922.4922.764.764.1.0.0.103.5.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.oda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ikeda_1}Ikeda" short_name="{=TAIKOU_clan_ikeda_1}Ikeda" title="{=TAIKOU_clan_ikeda_1}Ikeda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ikeda_2" is_noble="true" owner="Hero.lord_tk5_65" banner_key="11.24.4.4922.4922.764.764.1.0.0.108.5.0.485.485.764.644.0.0.0.325.5.0.454.454.764.844.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ikeda_2}Ikeda" short_name="{=TAIKOU_clan_ikeda_2}Ikeda" title="{=TAIKOU_clan_ikeda_2}Ikeda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_imagawa_1" is_noble="true" owner="Hero.lord_tk5_110" banner_key="11.24.4.4922.4922.764.764.1.0.0.119.5.0.344.344.764.658.0.0.0.217.5.0.303.303.764.924.0.0.0.510.5.0.243.505.774.787.0.0.0" is_minor_faction="false" super_faction="Kingdom.imagawa" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_imagawa_1}Imagawa" short_name="{=TAIKOU_clan_imagawa_1}Imagawa" title="{=TAIKOU_clan_imagawa_1}Imagawa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_imai_1" is_noble="true" owner="Hero.lord_tk5_107" banner_key="11.24.4.4922.4922.764.764.1.0.0.142.5.0.502.502.764.676.0.0.1.142.5.0.502.502.764.852.0.0.179" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_imai_1}Imai" short_name="{=TAIKOU_clan_imai_1}Imai" title="{=TAIKOU_clan_imai_1}Imai" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_inaba_1" is_noble="true" owner="Hero.lord_tk5_101" banner_key="11.24.4.4922.4922.764.764.1.0.0.147.5.0.454.454.764.765.0.0.0" is_minor_faction="false" super_faction="Kingdom.saitoo" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_inaba_1}Inaba" short_name="{=TAIKOU_clan_inaba_1}Inaba" title="{=TAIKOU_clan_inaba_1}Inaba" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_irobe_1" is_noble="true" owner="Hero.lord_tk5_112" banner_key="11.24.4.4922.4922.764.764.1.0.0.200.5.0.237.237.683.905.0.0.0.200.5.0.247.237.844.906.0.1.0.326.5.0.215.206.764.714.0.1.0" is_minor_faction="false" super_faction="Kingdom.uesugi" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_irobe_1}Irobe" short_name="{=TAIKOU_clan_irobe_1}Irobe" title="{=TAIKOU_clan_irobe_1}Irobe" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_issiki_1" is_noble="true" owner="Hero.lord_tk5_93" banner_key="11.24.4.4922.4922.764.764.1.0.0.201.5.0.454.454.914.764.0.0.180.201.5.0.454.454.764.764.0.0.0.201.5.0.454.454.614.764.0.0.180" is_minor_faction="false" super_faction="Kingdom.issiki" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_issiki_1}Issiki" short_name="{=TAIKOU_clan_issiki_1}Issiki" title="{=TAIKOU_clan_issiki_1}Issiki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ito_1" is_noble="true" owner="Hero.lord_tk5_98" banner_key="11.24.4.4922.4922.764.764.1.0.0.214.5.0.463.463.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.ito" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ito_1}Ito" short_name="{=TAIKOU_clan_ito_1}Ito" title="{=TAIKOU_clan_ito_1}Ito" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_itoo_1" is_noble="true" owner="Hero.lord_tk5_97" banner_key="11.24.4.4922.4922.764.764.1.0.0.304.5.0.366.366.763.844.0.0.0.423.5.0.420.420.763.764.0.1.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_itoo_1}Itoo" short_name="{=TAIKOU_clan_itoo_1}Itoo" title="{=TAIKOU_clan_itoo_1}Itoo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_jinbo_1" is_noble="true" owner="Hero.lord_tk5_408" banner_key="11.24.4.4922.4922.764.764.1.0.0.336.5.0.454.454.764.764.0.1.180.340.5.0.171.171.764.564.0.0.0" is_minor_faction="false" super_faction="Kingdom.jinbo" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_jinbo_1}Jinbo" short_name="{=TAIKOU_clan_jinbo_1}Jinbo" title="{=TAIKOU_clan_jinbo_1}Jinbo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kakizaki_1" is_noble="true" owner="Hero.lord_tk5_215" banner_key="11.24.4.4922.4922.764.764.1.0.0.337.5.0.272.272.764.672.0.0.0.301.5.0.292.292.764.916.0.0.90.301.5.0.292.292.764.844.0.0.270" is_minor_faction="false" super_faction="Kingdom.ando" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kakizaki_1}Kakizaki" short_name="{=TAIKOU_clan_kakizaki_1}Kakizaki" title="{=TAIKOU_clan_kakizaki_1}Kakizaki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kamiizumi_1" is_noble="true" owner="Hero.lord_tk5_296" banner_key="11.24.4.4922.4922.764.764.1.0.0.418.5.0.147.147.604.882.0.0.0.107.5.0.454.454.764.764.0.0.0.418.5.0.147.147.924.882.0.0.0" is_minor_faction="false" super_faction="Kingdom.gyo" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kamiizumi_1}Kamiizumi" short_name="{=TAIKOU_clan_kamiizumi_1}Kamiizumi" title="{=TAIKOU_clan_kamiizumi_1}Kamiizumi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kamiya_1" is_noble="true" owner="Hero.lord_tk5_845" banner_key="11.24.4.4922.4922.764.764.1.0.0.419.5.0.454.454.764.764.0.0.0.335.5.0.143.143.873.642.0.0.325.335.5.0.143.143.655.642.0.0.42.335.5.0.143.143.651.882.0.0.134.335.5.0.143.143.877.882.0.0.214" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kamiya_1}Kamiya" short_name="{=TAIKOU_clan_kamiya_1}Kamiya" title="{=TAIKOU_clan_kamiya_1}Kamiya" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kasai_1" is_noble="true" owner="Hero.lord_tk5_219" banner_key="11.24.4.4922.4922.764.764.1.0.0.423.5.0.454.454.764.764.0.0.1.340.5.0.300.300.764.754.0.0.0" is_minor_faction="false" super_faction="Kingdom.kasai" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kasai_1}Kasai" short_name="{=TAIKOU_clan_kasai_1}Kasai" title="{=TAIKOU_clan_kasai_1}Kasai" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kashin_1" is_noble="true" owner="Hero.lord_tk5_207" banner_key="11.24.4.4922.4922.764.764.1.0.0.505.5.0.460.50.764.764.0.0.0.459.5.0.150.150.660.658.0.0.0.459.5.0.150.150.871.658.0.0.0.459.5.0.150.150.871.870.0.0.0.459.5.0.150.150.660.870.0.0.0.505.5.0.460.50.765.764.0.0.10" is_minor_faction="false" super_faction="Kingdom.org_pirate_surugasuigun" culture="Culture.neutral_culture" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kashin_1}Kashin" short_name="{=TAIKOU_clan_kashin_1}Kashin" title="{=TAIKOU_clan_kashin_1}Kashin" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kawano_1" is_noble="true" owner="Hero.lord_tk5_301" banner_key="11.24.4.4922.4922.764.764.1.0.0.510.5.0.507.55.764.1025.0.0.0.459.5.0.507.507.764.764.0.0.0.510.5.0.507.171.764.997.0.0.0.510.5.0.507.171.764.532.0.0.0.510.5.0.507.55.764.501.0.0.0" is_minor_faction="false" super_faction="Kingdom.kawano" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kawano_1}Kawano" short_name="{=TAIKOU_clan_kawano_1}Kawano" title="{=TAIKOU_clan_kawano_1}Kawano" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kii_1" is_noble="true" owner="Hero.lord_tk5_252" banner_key="11.24.4.4922.4922.764.764.1.0.0.529.5.0.152.152.872.873.0.0.0.419.5.0.510.510.764.764.0.0.0.526.5.0.152.152.656.873.0.0.0.527.5.0.152.152.651.654.0.0.0.528.5.0.152.152.877.654.0.0.0" is_minor_faction="false" super_faction="Kingdom.otomo" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kii_1}Kii" short_name="{=TAIKOU_clan_kii_1}Kii" title="{=TAIKOU_clan_kii_1}Kii" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kikkawa_1" is_noble="true" owner="Hero.lord_tk5_265" banner_key="11.24.4.4922.4922.776.777.1.0.0.203.5.0.305.305.764.774.0.0.0.323.5.0.509.509.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.mori" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kikkawa_1}Kikkawa" short_name="{=TAIKOU_clan_kikkawa_1}Kikkawa" title="{=TAIKOU_clan_kikkawa_1}Kikkawa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kiku_1" is_noble="true" owner="Hero.lord_tk5_583" banner_key="11.24.4.4922.4922.776.777.1.0.0.343.5.0.419.348.764.910.0.0.0.106.5.0.422.411.764.651.0.0.0.505.5.0.87.47.764.805.0.0.0" is_minor_faction="false" super_faction="Kingdom.kiku" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kiku_1}Kiku" short_name="{=TAIKOU_clan_kiku_1}Kiku" title="{=TAIKOU_clan_kiku_1}Kiku" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kimotsuki_1" is_noble="true" owner="Hero.lord_tk5_268" banner_key="11.24.4.4922.4922.776.777.1.0.0.418.5.0.285.285.764.764.0.0.0.500.5.0.454.454.764.764.0.0.0.500.5.0.380.380.764.762.0.0.0" is_minor_faction="false" super_faction="Kingdom.kimotsuki" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kimotsuki_1}Kimotsuki" short_name="{=TAIKOU_clan_kimotsuki_1}Kimotsuki" title="{=TAIKOU_clan_kimotsuki_1}Kimotsuki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kinoshita_1" is_noble="true" owner="Hero.lord_tk5_517" banner_key="11.24.4.8690.8690.590.796.1.0.0.202.5.0.368.368.854.864.0.0.55.202.5.0.370.389.674.864.0.1.303.331.5.0.368.368.764.699.0.0.0" is_minor_faction="false" super_faction="Kingdom.oda" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kinoshita_1}Kinoshita" short_name="{=TAIKOU_clan_kinoshita_1}Kinoshita" title="{=TAIKOU_clan_kinoshita_1}Kinoshita" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kira_1" is_noble="true" owner="Hero.lord_tk5_274" banner_key="11.24.4.8690.8690.764.764.1.0.0.401.5.0.287.287.764.764.0.0.15.401.5.0.145.145.764.764.0.0.29.503.5.0.50.48.764.764.0.0.15.423.5.0.428.438.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.chosokabe" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kira_1}Kira" short_name="{=TAIKOU_clan_kira_1}Kira" title="{=TAIKOU_clan_kira_1}Kira" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kiso_1" is_noble="true" owner="Hero.lord_tk5_255" banner_key="11.25.10.4345.4345.764.764.1.0.0.117.11.0.346.346.841.838.0.0.179.508.11.0.110.110.638.876.0.0.0.117.11.0.342.342.692.687.0.0.0.508.11.0.108.108.890.648.0.0.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kiso_1}Kiso" short_name="{=TAIKOU_clan_kiso_1}Kiso" title="{=TAIKOU_clan_kiso_1}Kiso" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kitabatake_1" is_noble="true" owner="Hero.lord_tk5_306" banner_key="11.25.10.4345.4345.764.764.1.0.0.128.11.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.kitabatake" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kitabatake_1}Kitabatake" short_name="{=TAIKOU_clan_kitabatake_1}Kitabatake" title="{=TAIKOU_clan_kitabatake_1}Kitabatake" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kitabatake_2" is_noble="true" owner="Hero.lord_tk5_259" banner_key="11.25.10.4345.4345.764.764.1.0.0.218.11.0.194.194.807.631.0.0.359.150.11.0.444.444.764.775.0.0.0" is_minor_faction="false" super_faction="Kingdom.kitabatake" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kitabatake_2}Kitabatake" short_name="{=TAIKOU_clan_kitabatake_2}Kitabatake" title="{=TAIKOU_clan_kitabatake_2}Kitabatake" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kobayakawa_1" is_noble="true" owner="Hero.lord_tk5_314" banner_key="11.25.10.4345.4345.764.764.1.0.0.427.11.0.206.176.764.667.0.0.0.503.11.0.92.87.764.642.0.0.0.218.11.0.109.90.764.572.0.0.0.510.11.0.250.300.641.862.0.0.90.504.11.0.155.92.764.769.0.0.180.510.11.0.249.300.887.862.0.0.90.504.11.0.155.92.764.957.0.0.180.503.11.0.92.87.764.859.0.0.0.510.11.0.136.131.764.814.0.0.0.510.11.0.136.131.764.907.0.0.0" is_minor_faction="false" super_faction="Kingdom.mori" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kobayakawa_1}Kobayakawa" short_name="{=TAIKOU_clan_kobayakawa_1}Kobayakawa" title="{=TAIKOU_clan_kobayakawa_1}Kobayakawa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kodera_1" is_noble="true" owner="Hero.lord_tk5_197" banner_key="11.25.10.4345.4345.764.764.1.0.0.427.11.0.236.236.726.768.0.0.273.427.11.0.236.236.802.760.0.0.93.503.11.0.80.80.764.764.0.0.0.510.11.0.236.165.869.644.0.0.0.510.11.0.236.165.869.884.0.0.0.510.11.0.236.165.656.884.0.0.0.510.11.0.236.165.656.644.0.0.0" is_minor_faction="false" super_faction="Kingdom.akamatsu" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kodera_1}Kodera" short_name="{=TAIKOU_clan_kodera_1}Kodera" title="{=TAIKOU_clan_kodera_1}Kodera" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_konishi_1" is_noble="true" owner="Hero.lord_tk5_313" banner_key="11.25.10.4345.4345.764.764.1.0.0.446.11.0.438.438.764.764.0.0.269.503.11.0.164.164.754.767.0.0.315.509.11.0.133.133.767.915.0.0.315.503.11.0.95.95.948.760.0.0.315.503.11.0.95.95.581.763.0.0.315.509.11.0.133.133.762.613.0.0.315" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_konishi_1}Konishi" short_name="{=TAIKOU_clan_konishi_1}Konishi" title="{=TAIKOU_clan_konishi_1}Konishi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_koobe_1" is_noble="true" owner="Hero.lord_tk5_250" banner_key="11.25.10.4345.4345.764.764.1.0.0.449.11.0.327.349.764.649.0.0.0.449.11.0.319.339.764.879.0.0.180.510.11.0.351.240.634.764.0.0.180.510.11.0.351.240.894.764.0.0.180" is_minor_faction="false" super_faction="Kingdom.kitabatake" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_koobe_1}Koobe" short_name="{=TAIKOU_clan_koobe_1}Koobe" title="{=TAIKOU_clan_koobe_1}Koobe" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_koteida_1" is_noble="true" owner="Hero.lord_tk5_308" banner_key="11.25.10.4345.4345.780.802.1.0.0.427.11.0.401.401.764.822.0.0.359.503.11.0.193.193.764.781.0.0.358.218.11.0.222.222.764.612.0.0.0" is_minor_faction="false" super_faction="Kingdom.matsuura" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_koteida_1}Koteida" short_name="{=TAIKOU_clan_koteida_1}Koteida" title="{=TAIKOU_clan_koteida_1}Koteida" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kuki_2" is_noble="true" owner="Hero.lord_tk5_279" banner_key="11.25.10.4345.4345.780.802.1.0.0.503.11.0.164.164.904.913.0.0.0.314.11.0.508.508.764.764.0.0.0.503.11.0.164.164.624.913.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_kumanosuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kuki_2}Kuki" short_name="{=TAIKOU_clan_kuki_2}Kuki" title="{=TAIKOU_clan_kuki_2}Kuki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kumaya_1" is_noble="true" owner="Hero.lord_tk5_287" banner_key="14.12.105.1536.1536.764.764.1.0.0.307.41.0.454.454.764.764.0.0.359" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kumaya_1}Kumaya" short_name="{=TAIKOU_clan_kumaya_1}Kumaya" title="{=TAIKOU_clan_kumaya_1}Kumaya" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kurada_1" is_noble="true" owner="Hero.lord_tk5_289" banner_key="14.2.95.1536.1536.764.764.1.0.0.148.41.0.454.454.764.764.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kurada_1}Kurada" short_name="{=TAIKOU_clan_kurada_1}Kurada" title="{=TAIKOU_clan_kurada_1}Kurada" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_kyoogoku_1" is_noble="true" owner="Hero.lord_tk5_273" banner_key="20.101.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.ashikaga" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_kyoogoku_1}Kyoogoku" short_name="{=TAIKOU_clan_kyoogoku_1}Kyoogoku" title="{=TAIKOU_clan_kyoogoku_1}Kyoogoku" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_maeda_1" is_noble="true" owner="Hero.lord_tk5_659" banner_key="20.189.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.oda" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_maeda_1}Maeda" short_name="{=TAIKOU_clan_maeda_1}Maeda" title="{=TAIKOU_clan_maeda_1}Maeda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_masaki_1" is_noble="true" owner="Hero.lord_tk5_668" banner_key="20.190.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.satomi" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_masaki_1}Masaki" short_name="{=TAIKOU_clan_masaki_1}Masaki" title="{=TAIKOU_clan_masaki_1}Masaki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_matsukura_1" is_noble="true" owner="Hero.lord_tk5_674" banner_key="20.191.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.tsutsui" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_matsukura_1}Matsukura" short_name="{=TAIKOU_clan_matsukura_1}Matsukura" title="{=TAIKOU_clan_matsukura_1}Matsukura" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_matsunaga_1" is_noble="true" owner="Hero.lord_tk5_679" banner_key="20.192.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.miyoshi" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_matsunaga_1}Matsunaga" short_name="{=TAIKOU_clan_matsunaga_1}Matsunaga" title="{=TAIKOU_clan_matsunaga_1}Matsunaga" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_matsuura_1" is_noble="true" owner="Hero.lord_tk5_684" banner_key="24.193.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.matsuura" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_matsuura_1}Matsuura" short_name="{=TAIKOU_clan_matsuura_1}Matsuura" title="{=TAIKOU_clan_matsuura_1}Matsuura" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_michikawa_1" is_noble="true" owner="Hero.lord_tk5_540" banner_key="34.154.154.1536.1536.764.764.1.0.0.411.155.0.454.454.764.764.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_michikawa_1}Michikawa" short_name="{=TAIKOU_clan_michikawa_1}Michikawa" title="{=TAIKOU_clan_michikawa_1}Michikawa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_mimura_1" is_noble="true" owner="Hero.lord_tk5_696" banner_key="34.25.10.1536.1536.764.764.1.0.0.314.22.35.444.444.764.764.0.0.270" is_minor_faction="false" super_faction="Kingdom.mimura" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_mimura_1}Mimura" short_name="{=TAIKOU_clan_mimura_1}Mimura" title="{=TAIKOU_clan_mimura_1}Mimura" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_miyabe_1" is_noble="true" owner="Hero.lord_tk5_698" banner_key="11.146.146.1536.1536.764.764.1.0.0.111.150.155.483.483.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.azai" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_miyabe_1}Miyabe" short_name="{=TAIKOU_clan_miyabe_1}Miyabe" title="{=TAIKOU_clan_miyabe_1}Miyabe" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_miyamoto_1" is_noble="true" owner="Hero.lord_tk5_699" banner_key="11.147.147.1536.1536.764.764.1.0.0.215.155.155.442.442.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_shiwakusuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_miyamoto_1}Miyamoto" short_name="{=TAIKOU_clan_miyamoto_1}Miyamoto" title="{=TAIKOU_clan_miyamoto_1}Miyamoto" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_miyoshi_1" is_noble="true" owner="Hero.lord_tk5_704" banner_key="11.147.147.1536.1536.764.764.1.0.0.342.155.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.miyoshi" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_miyoshi_1}Miyoshi" short_name="{=TAIKOU_clan_miyoshi_1}Miyoshi" title="{=TAIKOU_clan_miyoshi_1}Miyoshi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_miyoshi_2" is_noble="true" owner="Hero.lord_tk5_708" banner_key="11.148.148.1536.1536.764.764.1.0.0.517.155.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.miyoshi" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_miyoshi_2}Miyoshi" short_name="{=TAIKOU_clan_miyoshi_2}Miyoshi" title="{=TAIKOU_clan_miyoshi_2}Miyoshi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_miyoshi_3" is_noble="true" owner="Hero.lord_tk5_706" banner_key="11.148.148.1536.1536.768.768.1.0.0.151.0.155.522.522.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.miyoshi" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_miyoshi_3}Miyoshi" short_name="{=TAIKOU_clan_miyoshi_3}Miyoshi" title="{=TAIKOU_clan_miyoshi_3}Miyoshi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_mogami_1" is_noble="true" owner="Hero.lord_tk5_725" banner_key="11.154.154.1536.1536.764.764.1.0.0.108.150.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.mogami" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_mogami_1}Mogami" short_name="{=TAIKOU_clan_mogami_1}Mogami" title="{=TAIKOU_clan_mogami_1}Mogami" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_mogami_2" is_noble="true" owner="Hero.lord_tk5_723" banner_key="11.154.154.1536.1536.764.764.1.0.0.222.150.155.483.483.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.mogami" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_mogami_2}Mogami" short_name="{=TAIKOU_clan_mogami_2}Mogami" title="{=TAIKOU_clan_mogami_2}Mogami" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_momochi_1" is_noble="true" owner="Hero.lord_tk5_729" banner_key="11.154.154.1536.1536.764.764.1.0.0.401.155.155.488.488.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_iga" culture="Culture.neutral_culture" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_momochi_1}Momochi" short_name="{=TAIKOU_clan_momochi_1}Momochi" title="{=TAIKOU_clan_momochi_1}Momochi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_mori_1" is_noble="true" owner="Hero.lord_tk5_722" banner_key="11.156.75.4345.4345.764.764.1.0.0.212.1.0.454.454.764.764.0.0.359" is_minor_faction="false" super_faction="Kingdom.mori" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_mori_1}Mori" short_name="{=TAIKOU_clan_mori_1}Mori" title="{=TAIKOU_clan_mori_1}Mori" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_morii_1" is_noble="true" owner="Hero.lord_tk5_735" banner_key="11.156.75.4345.4345.764.764.1.0.0.222.1.0.454.454.764.764.0.0.359.411.1.0.220.220.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.oda" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_morii_1}Morii" short_name="{=TAIKOU_clan_morii_1}Morii" title="{=TAIKOU_clan_morii_1}Morii" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_murakami_1" is_noble="true" owner="Hero.lord_tk5_714" banner_key="11.156.75.4345.4345.764.764.1.0.0.223.1.0.454.454.764.764.0.0.359.515.1.0.177.177.764.764.0.0.0.500.1.0.358.358.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_murakamisuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_murakami_1}Murakami" short_name="{=TAIKOU_clan_murakami_1}Murakami" title="{=TAIKOU_clan_murakami_1}Murakami" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_murakami_2" is_noble="true" owner="Hero.lord_tk5_716" banner_key="11.156.75.4345.4345.764.764.1.0.0.425.1.0.416.416.764.782.0.0.359.400.1.0.120.120.764.937.0.0.0.411.1.0.120.120.764.614.0.0.0" is_minor_faction="false" super_faction="Kingdom.uesugi" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_murakami_2}Murakami" short_name="{=TAIKOU_clan_murakami_2}Murakami" title="{=TAIKOU_clan_murakami_2}Murakami" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_murakami_3" is_noble="true" owner="Hero.lord_tk5_291" banner_key="11.156.75.4345.4345.764.764.1.0.0.426.1.0.397.397.764.688.0.0.270.208.1.0.332.332.764.873.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_murakamisuigun" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_murakami_3}Murakami" short_name="{=TAIKOU_clan_murakami_3}Murakami" title="{=TAIKOU_clan_murakami_3}Murakami" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_nabeshima_1" is_noble="true" owner="Hero.lord_tk5_548" banner_key="11.156.75.4345.4345.764.764.1.0.0.427.1.0.415.388.695.764.0.0.270.521.1.0.293.298.822.764.0.0.324" is_minor_faction="false" super_faction="Kingdom.ryuzoji" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_nabeshima_1}Nabeshima" short_name="{=TAIKOU_clan_nabeshima_1}Nabeshima" title="{=TAIKOU_clan_nabeshima_1}Nabeshima" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_nanbu_1" is_noble="true" owner="Hero.lord_tk5_557" banner_key="11.156.75.4345.4345.764.764.1.0.0.428.1.0.454.454.764.764.0.0.359.321.1.0.354.354.764.721.0.0.359" is_minor_faction="false" super_faction="Kingdom.nanbu" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_nanbu_1}Nanbu" short_name="{=TAIKOU_clan_nanbu_1}Nanbu" title="{=TAIKOU_clan_nanbu_1}Nanbu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_nanbu_2" is_noble="true" owner="Hero.lord_tk5_556" banner_key="11.156.75.4345.4345.764.764.1.0.0.446.1.0.381.381.764.764.0.0.359.309.1.0.325.325.627.764.0.0.320.309.1.0.323.323.901.764.0.0.146" is_minor_faction="false" super_faction="Kingdom.nanbu" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_nanbu_2}Nanbu" short_name="{=TAIKOU_clan_nanbu_2}Nanbu" title="{=TAIKOU_clan_nanbu_2}Nanbu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_narita_2" is_noble="true" owner="Hero.lord_tk5_552" banner_key="11.156.75.4345.4345.776.777.1.0.0.427.1.0.415.388.764.811.0.0.0.436.1.0.359.366.764.706.0.0.0" is_minor_faction="false" super_faction="Kingdom.uesugi" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_narita_2}Narita" short_name="{=TAIKOU_clan_narita_2}Narita" title="{=TAIKOU_clan_narita_2}Narita" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_nasa_1" is_noble="true" owner="Hero.lord_tk5_543" banner_key="11.163.166.1528.1528.764.764.1.0.0.133.171.171.483.483.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_tangosuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_nasa_1}Nasa" short_name="{=TAIKOU_clan_nasa_1}Nasa" title="{=TAIKOU_clan_nasa_1}Nasa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_niwa_1" is_noble="true" owner="Hero.lord_tk5_565" banner_key="11.167.12.4922.4922.764.764.1.0.0.138.111.0.509.509.764.764.0.0.359" is_minor_faction="false" super_faction="Kingdom.oda" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_niwa_1}Niwa" short_name="{=TAIKOU_clan_niwa_1}Niwa" title="{=TAIKOU_clan_niwa_1}Niwa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_nokizaru_1" is_noble="true" owner="Hero.lord_tk5_ninja_dookan" banner_key="11.167.12.4922.4922.764.764.1.0.0.142.29.149.331.331.764.665.0.0.0.146.29.149.311.311.764.863.0.1.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_nokizaru" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_nokizaru_1}Nokizaru" short_name="{=TAIKOU_clan_nokizaru_1}Nokizaru" title="{=TAIKOU_clan_nokizaru_1}Nokizaru" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_notohatakeyama_1" is_noble="true" owner="Hero.lord_tk5_580" banner_key="11.167.12.4922.4922.764.764.1.0.0.307.111.0.350.350.758.813.0.0.180.307.111.0.350.350.768.715.0.0.0.442.111.0.261.261.667.819.0.0.180.442.111.0.261.261.859.708.0.0.0" is_minor_faction="false" super_faction="Kingdom.hatakeyama" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_notohatakeyama_1}Notohatakeyama" short_name="{=TAIKOU_clan_notohatakeyama_1}Notohatakeyama" title="{=TAIKOU_clan_notohatakeyama_1}Notohatakeyama" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_oda_1" is_noble="true" owner="Hero.lord_tk5_195" banner_key="11.167.12.4922.4922.764.764.1.0.0.332.111.0.471.471.764.687.0.0.0.406.111.0.202.202.764.974.0.0.1" is_minor_faction="false" super_faction="Kingdom.oda" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_oda_1}Oda" short_name="{=TAIKOU_clan_oda_1}Oda" title="{=TAIKOU_clan_oda_1}Oda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_oda_4" is_noble="true" owner="Hero.lord_tk5_188" banner_key="11.167.12.4922.4922.764.764.1.0.0.333.111.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.oda2" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_oda_4}Oda" short_name="{=TAIKOU_clan_oda_4}Oda" title="{=TAIKOU_clan_oda_4}Oda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_okabe_1" is_noble="true" owner="Hero.lord_tk5_176" banner_key="11.167.12.4922.4922.764.764.1.0.0.347.111.0.325.325.764.685.0.0.0.302.111.0.408.408.669.890.0.0.60.302.111.0.408.408.859.890.0.0.300" is_minor_faction="false" super_faction="Kingdom.org_pirate_surugasuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_okabe_1}Okabe" short_name="{=TAIKOU_clan_okabe_1}Okabe" title="{=TAIKOU_clan_okabe_1}Okabe" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_okubo_1" is_noble="true" owner="Hero.lord_tk5_156" banner_key="11.167.12.4922.4922.764.764.1.0.0.421.111.0.455.455.764.764.0.0.0.458.111.0.116.116.742.765.0.0.0" is_minor_faction="false" super_faction="Kingdom.imagawa" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_okubo_1}Okubo" short_name="{=TAIKOU_clan_okubo_1}Okubo" title="{=TAIKOU_clan_okubo_1}Okubo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_okumura_1" is_noble="true" owner="Hero.lord_tk5_179" banner_key="11.167.12.4922.4922.764.764.1.0.0.441.111.0.454.454.764.764.0.0.359" is_minor_faction="false" super_faction="Kingdom.org_pirate_bousousuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_okumura_1}Okumura" short_name="{=TAIKOU_clan_okumura_1}Okumura" title="{=TAIKOU_clan_okumura_1}Okumura" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_omura_1" is_noble="true" owner="Hero.lord_tk5_172" banner_key="11.167.12.4922.4922.764.764.1.0.0.456.111.0.443.443.764.728.0.0.359.444.111.0.102.102.764.972.0.0.179.454.111.0.102.102.868.972.0.0.179.454.111.0.102.102.659.972.0.0.359" is_minor_faction="false" super_faction="Kingdom.ryuzoji" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_omura_1}Omura" short_name="{=TAIKOU_clan_omura_1}Omura" title="{=TAIKOU_clan_omura_1}Omura" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_oniniwa_1" is_noble="true" owner="Hero.lord_tk5_199" banner_key="11.184.14.4922.4922.764.764.1.0.0.141.15.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.date" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_oniniwa_1}Oniniwa" short_name="{=TAIKOU_clan_oniniwa_1}Oniniwa" title="{=TAIKOU_clan_oniniwa_1}Oniniwa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_osafune_1" is_noble="true" owner="Hero.lord_tk5_185" banner_key="11.184.14.4922.4922.764.764.1.0.0.159.15.0.452.452.764.644.0.0.0.418.15.0.270.270.764.864.0.0.0" is_minor_faction="false" super_faction="Kingdom.uragami" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_osafune_1}Osafune" short_name="{=TAIKOU_clan_osafune_1}Osafune" title="{=TAIKOU_clan_osafune_1}Osafune" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_osaki_1" is_noble="true" owner="Hero.lord_tk5_160" banner_key="11.184.14.4922.4922.764.764.1.0.0.207.15.0.267.238.863.918.0.1.332.207.15.0.238.238.651.918.0.0.28.220.15.0.408.408.757.646.0.0.0.512.15.0.111.111.757.879.0.0.1" is_minor_faction="false" super_faction="Kingdom.osaki" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_osaki_1}Osaki" short_name="{=TAIKOU_clan_osaki_1}Osaki" title="{=TAIKOU_clan_osaki_1}Osaki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_otaa_1" is_noble="true" owner="Hero.lord_tk5_164" banner_key="11.184.14.4922.4922.764.764.1.0.0.305.15.0.444.444.764.764.0.0.0.206.15.0.480.480.658.764.0.0.17.206.15.0.480.480.870.764.0.0.194" is_minor_faction="false" super_faction="Kingdom.otaa" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_otaa_1}Otaa" short_name="{=TAIKOU_clan_otaa_1}Otaa" title="{=TAIKOU_clan_otaa_1}Otaa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_otomo_1" is_noble="true" owner="Hero.lord_tk5_167" banner_key="11.184.14.4922.4922.764.764.1.0.0.315.15.0.462.462.790.771.0.0.311.315.15.0.462.462.740.758.0.0.49.424.15.0.144.144.753.650.0.0.0" is_minor_faction="false" super_faction="Kingdom.otomo" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_otomo_1}Otomo" short_name="{=TAIKOU_clan_otomo_1}Otomo" title="{=TAIKOU_clan_otomo_1}Otomo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_rokkaku_1" is_noble="true" owner="Hero.lord_tk5_790" banner_key="11.184.14.4922.4922.764.764.1.0.0.335.15.0.499.499.764.764.0.0.0.336.15.0.186.186.764.744.0.0.0" is_minor_faction="false" super_faction="Kingdom.rokkaku" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_rokkaku_1}Rokkaku" short_name="{=TAIKOU_clan_rokkaku_1}Rokkaku" title="{=TAIKOU_clan_rokkaku_1}Rokkaku" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ryuzoji_1" is_noble="true" owner="Hero.lord_tk5_785" banner_key="11.184.14.4922.4922.764.764.1.0.0.336.15.0.382.382.763.764.0.0.0.424.15.0.183.183.903.774.0.0.0.424.15.0.183.183.624.774.0.0.0.424.15.0.183.183.763.904.0.0.0" is_minor_faction="false" super_faction="Kingdom.ryuzoji" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ryuzoji_1}Ryuzoji" short_name="{=TAIKOU_clan_ryuzoji_1}Ryuzoji" title="{=TAIKOU_clan_ryuzoji_1}Ryuzoji" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_sagara_2" is_noble="true" owner="Hero.lord_tk5_337" banner_key="11.184.14.4922.4922.764.764.1.0.0.346.15.0.208.208.764.764.0.0.0.424.15.0.213.213.585.764.0.0.0.424.15.0.213.213.943.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.sagara" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_sagara_2}Sagara" short_name="{=TAIKOU_clan_sagara_2}Sagara" title="{=TAIKOU_clan_sagara_2}Sagara" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_saionji_1" is_noble="true" owner="Hero.lord_tk5_320" banner_key="11.184.14.4922.4922.764.764.1.0.0.419.15.0.454.454.764.764.0.0.0.512.15.0.125.125.653.887.0.0.0.512.15.0.125.125.875.641.0.0.0.512.15.0.125.125.869.887.0.0.0.512.15.0.125.125.653.641.0.0.0" is_minor_faction="false" super_faction="Kingdom.kawano" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_saionji_1}Saionji" short_name="{=TAIKOU_clan_saionji_1}Saionji" title="{=TAIKOU_clan_saionji_1}Saionji" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_saitoo_2" is_noble="true" owner="Hero.lord_tk5_327" banner_key="11.184.14.4922.4922.764.764.1.0.0.424.15.0.377.377.764.764.0.0.0.220.15.0.138.132.884.939.0.0.0.220.15.0.138.138.644.939.0.0.0" is_minor_faction="false" super_faction="Kingdom.saitoo" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_saitoo_2}Saitoo" short_name="{=TAIKOU_clan_saitoo_2}Saitoo" title="{=TAIKOU_clan_saitoo_2}Saitoo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_sakata_1" is_noble="true" owner="Hero.lord_tk5_121" banner_key="11.184.14.4922.4922.764.764.1.0.0.505.15.0.60.60.583.911.0.0.134.505.15.0.60.60.668.909.0.0.134.505.15.0.60.60.666.827.0.0.134.505.15.0.60.60.751.827.0.0.134.505.15.0.60.60.751.744.0.0.134.505.15.0.60.60.833.745.0.0.134.505.15.0.60.60.833.663.0.0.134.505.15.0.60.60.916.663.0.0.134.505.15.0.60.60.916.580.0.0.134.102.15.0.188.188.638.664.0.0.0.102.15.0.188.188.894.898.0.1.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_sakata_1}Sakata" short_name="{=TAIKOU_clan_sakata_1}Sakata" title="{=TAIKOU_clan_sakata_1}Sakata" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_sako_1" is_noble="true" owner="Hero.lord_tk5_208" banner_key="11.2.2.1536.1536.764.764.1.0.0.204.153.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_sako_1}Sako" short_name="{=TAIKOU_clan_sako_1}Sako" title="{=TAIKOU_clan_sako_1}Sako" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_sanada_1" is_noble="true" owner="Hero.lord_tk5_360" banner_key="11.2.2.1536.1536.764.764.1.0.0.219.155.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_sanada_1}Sanada" short_name="{=TAIKOU_clan_sanada_1}Sanada" title="{=TAIKOU_clan_sanada_1}Sanada" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_sanada_2" is_noble="true" owner="Hero.lord_tk5_359" banner_key="11.23.75.4345.4345.764.764.1.0.0.132.39.0.438.438.764.814.0.0.0.302.39.0.438.438.764.714.0.0.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_sanada_2}Sanada" short_name="{=TAIKOU_clan_sanada_2}Sanada" title="{=TAIKOU_clan_sanada_2}Sanada" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_satake_1" is_noble="true" owner="Hero.lord_tk5_346" banner_key="11.23.75.4345.4345.764.764.1.0.0.412.39.0.454.454.764.764.0.0.180" is_minor_faction="false" super_faction="Kingdom.satake" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_satake_1}Satake" short_name="{=TAIKOU_clan_satake_1}Satake" title="{=TAIKOU_clan_satake_1}Satake" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_satake_2" is_noble="true" owner="Hero.lord_tk5_347" banner_key="11.23.75.4345.4345.764.764.1.0.0.415.39.0.391.391.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.satake" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_satake_2}Satake" short_name="{=TAIKOU_clan_satake_2}Satake" title="{=TAIKOU_clan_satake_2}Satake" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_satomi_1" is_noble="true" owner="Hero.lord_tk5_352" banner_key="11.23.75.4345.4345.764.764.1.0.0.427.39.0.261.261.764.869.0.0.359.133.39.0.380.380.764.696.0.0.0" is_minor_faction="false" super_faction="Kingdom.satomi" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_satomi_1}Satomi" short_name="{=TAIKOU_clan_satomi_1}Satomi" title="{=TAIKOU_clan_satomi_1}Satomi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_satomi_2" is_noble="true" owner="Hero.lord_tk5_355" banner_key="11.23.75.4345.4345.764.764.1.0.0.456.39.0.382.382.764.834.0.0.180.413.39.0.224.224.764.614.0.0.0" is_minor_faction="false" super_faction="Kingdom.satomi" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_satomi_2}Satomi" short_name="{=TAIKOU_clan_satomi_2}Satomi" title="{=TAIKOU_clan_satomi_2}Satomi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_seiki_1" is_noble="true" owner="Hero.lord_tk5_423" banner_key="11.23.75.4345.4345.764.764.1.0.0.504.39.0.90.90.764.942.0.0.180.503.39.0.84.84.764.760.0.0.0.406.39.0.455.455.764.764.0.0.0.504.39.0.90.90.764.587.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_gaibun" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_seiki_1}Seiki" short_name="{=TAIKOU_clan_seiki_1}Seiki" title="{=TAIKOU_clan_seiki_1}Seiki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_seki_1" is_noble="true" owner="Hero.lord_tk5_424" banner_key="11.23.75.4345.4345.764.764.1.0.0.504.39.96.80.80.764.978.1.0.180.407.39.0.368.368.764.757.0.0.0.504.39.96.110.110.764.535.1.0.180" is_minor_faction="false" super_faction="Kingdom.kitabatake" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_seki_1}Seki" short_name="{=TAIKOU_clan_seki_1}Seki" title="{=TAIKOU_clan_seki_1}Seki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shiba_1" is_noble="true" owner="Hero.lord_tk5_378" banner_key="11.23.75.4345.4345.764.764.1.0.0.535.39.0.189.178.814.920.0.1.0.535.39.0.178.178.692.919.0.0.0.151.39.0.425.425.764.732.0.0.0" is_minor_faction="false" super_faction="Kingdom.shiba" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shiba_1}Shiba" short_name="{=TAIKOU_clan_shiba_1}Shiba" title="{=TAIKOU_clan_shiba_1}Shiba" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shibata_1" is_noble="true" owner="Hero.lord_tk5_379" banner_key="11.24.4.4345.4345.764.764.1.0.0.302.5.0.294.294.802.604.0.0.327.302.5.0.294.294.726.604.0.0.32.202.5.0.366.366.854.864.0.0.47.202.5.0.371.382.674.864.0.1.316.320.5.0.315.315.764.715.0.0.0" is_minor_faction="false" super_faction="Kingdom.oda" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shibata_1}Shibata" short_name="{=TAIKOU_clan_shibata_1}Shibata" title="{=TAIKOU_clan_shibata_1}Shibata" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shibata_2" is_noble="true" owner="Hero.lord_tk5_382" banner_key="11.24.4.4345.4345.764.764.1.0.0.304.5.0.454.454.914.764.0.0.0.443.5.0.510.510.764.764.0.0.0.304.5.0.426.426.614.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.uesugi" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shibata_2}Shibata" short_name="{=TAIKOU_clan_shibata_2}Shibata" title="{=TAIKOU_clan_shibata_2}Shibata" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shibuya_1" is_noble="true" owner="Hero.lord_tk5_384" banner_key="11.24.4.4345.4345.764.764.1.0.0.423.5.0.506.506.764.764.0.0.0.529.5.0.261.261.764.764.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shibuya_1}Shibuya" short_name="{=TAIKOU_clan_shibuya_1}Shibuya" title="{=TAIKOU_clan_shibuya_1}Shibuya" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shiga_1" is_noble="true" owner="Hero.lord_tk5_369" banner_key="11.24.4.4345.4345.764.764.1.0.0.502.5.0.487.487.764.764.0.0.0.300.5.0.447.447.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.otomo" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shiga_1}Shiga" short_name="{=TAIKOU_clan_shiga_1}Shiga" title="{=TAIKOU_clan_shiga_1}Shiga" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shimae_1" is_noble="true" owner="Hero.lord_tk5_385" banner_key="11.24.4.4345.4345.764.764.1.0.0.502.5.0.510.510.764.764.0.0.0.338.5.0.487.487.764.764.0.0.0.503.5.0.109.109.764.624.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shimae_1}Shimae" short_name="{=TAIKOU_clan_shimae_1}Shimae" title="{=TAIKOU_clan_shimae_1}Shimae" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shimazu_1" is_noble="true" owner="Hero.lord_tk5_389" banner_key="11.24.4.4922.4922.764.764.1.0.0.103.5.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.shimazu" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shimazu_1}Shimazu" short_name="{=TAIKOU_clan_shimazu_1}Shimazu" title="{=TAIKOU_clan_shimazu_1}Shimazu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shimazu_2" is_noble="true" owner="Hero.lord_tk5_395" banner_key="11.24.4.4922.4922.764.764.1.0.0.108.5.0.485.485.764.644.0.0.0.325.5.0.454.454.764.844.0.0.0" is_minor_faction="false" super_faction="Kingdom.shimazu" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shimazu_2}Shimazu" short_name="{=TAIKOU_clan_shimazu_2}Shimazu" title="{=TAIKOU_clan_shimazu_2}Shimazu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shimazu_3" is_noble="true" owner="Hero.lord_tk5_387" banner_key="11.24.4.4922.4922.764.764.1.0.0.119.5.0.344.344.764.658.0.0.0.217.5.0.303.303.764.924.0.0.0.510.5.0.243.505.774.787.0.0.0" is_minor_faction="false" super_faction="Kingdom.shimazu" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shimazu_3}Shimazu" short_name="{=TAIKOU_clan_shimazu_3}Shimazu" title="{=TAIKOU_clan_shimazu_3}Shimazu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shimizu_1" is_noble="true" owner="Hero.lord_tk5_396" banner_key="11.24.4.4922.4922.764.764.1.0.0.142.5.0.502.502.764.676.0.0.1.142.5.0.502.502.764.852.0.0.179" is_minor_faction="false" super_faction="Kingdom.mori" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shimizu_1}Shimizu" short_name="{=TAIKOU_clan_shimizu_1}Shimizu" title="{=TAIKOU_clan_shimizu_1}Shimizu" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_shishido_1" is_noble="true" owner="Hero.lord_tk5_371" banner_key="11.24.4.4922.4922.764.764.1.0.0.147.5.0.454.454.764.765.0.0.0" is_minor_faction="false" super_faction="Kingdom.mori" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_shishido_1}Shishido" short_name="{=TAIKOU_clan_shishido_1}Shishido" title="{=TAIKOU_clan_shishido_1}Shishido" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_sogo_1" is_noble="true" owner="Hero.lord_tk5_431" banner_key="11.24.4.4922.4922.764.764.1.0.0.200.5.0.237.237.683.905.0.0.0.200.5.0.247.237.844.906.0.1.0.326.5.0.215.206.764.714.0.1.0" is_minor_faction="false" super_faction="Kingdom.miyoshi" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_sogo_1}Sogo" short_name="{=TAIKOU_clan_sogo_1}Sogo" title="{=TAIKOU_clan_sogo_1}Sogo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_soma_1" is_noble="true" owner="Hero.lord_tk5_427" banner_key="11.24.4.4922.4922.764.764.1.0.0.201.5.0.454.454.914.764.0.0.180.201.5.0.454.454.764.764.0.0.0.201.5.0.454.454.614.764.0.0.180" is_minor_faction="false" super_faction="Kingdom.soma" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_soma_1}Soma" short_name="{=TAIKOU_clan_soma_1}Soma" title="{=TAIKOU_clan_soma_1}Soma" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_soo_1" is_noble="true" owner="Hero.lord_tk5_429" banner_key="11.24.4.4922.4922.764.764.1.0.0.214.5.0.463.463.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.soo" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_soo_1}Soo" short_name="{=TAIKOU_clan_soo_1}Soo" title="{=TAIKOU_clan_soo_1}Soo" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_sugiya_1" is_noble="true" owner="Hero.lord_tk5_204" banner_key="11.24.4.4922.4922.764.764.1.0.0.304.5.0.366.366.763.844.0.0.0.423.5.0.420.420.763.764.0.1.0" is_minor_faction="false" super_faction="Kingdom.onodera" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_sugiya_1}Sugiya" short_name="{=TAIKOU_clan_sugiya_1}Sugiya" title="{=TAIKOU_clan_sugiya_1}Sugiya" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_sumiya_1" is_noble="true" owner="Hero.lord_tk5_682" banner_key="11.24.4.4922.4922.764.764.1.0.0.336.5.0.454.454.764.764.0.1.180.340.5.0.171.171.764.564.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_sumiya_1}Sumiya" short_name="{=TAIKOU_clan_sumiya_1}Sumiya" title="{=TAIKOU_clan_sumiya_1}Sumiya" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_suppa_1" is_noble="true" owner="Hero.lord_tk5_ninja_rokurooji" banner_key="11.24.4.4922.4922.764.764.1.0.0.337.5.0.272.272.764.672.0.0.0.301.5.0.292.292.764.916.0.0.90.301.5.0.292.292.764.844.0.0.270" is_minor_faction="false" super_faction="Kingdom.org_ninja_suppa" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_suppa_1}Suppa" short_name="{=TAIKOU_clan_suppa_1}Suppa" title="{=TAIKOU_clan_suppa_1}Suppa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_suzuki_1" is_noble="true" owner="Hero.lord_tk5_413" banner_key="11.24.4.4922.4922.764.764.1.0.0.418.5.0.147.147.604.882.0.0.0.107.5.0.454.454.764.764.0.0.0.418.5.0.147.147.924.882.0.0.0" is_minor_faction="false" super_faction="Kingdom.honganji" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_suzuki_1}Suzuki" short_name="{=TAIKOU_clan_suzuki_1}Suzuki" title="{=TAIKOU_clan_suzuki_1}Suzuki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tachibana_1" is_noble="true" owner="Hero.lord_tk5_456" banner_key="11.24.4.4922.4922.764.764.1.0.0.419.5.0.454.454.764.764.0.0.0.335.5.0.143.143.873.642.0.0.325.335.5.0.143.143.655.642.0.0.42.335.5.0.143.143.651.882.0.0.134.335.5.0.143.143.877.882.0.0.214" is_minor_faction="false" super_faction="Kingdom.otomo" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tachibana_1}Tachibana" short_name="{=TAIKOU_clan_tachibana_1}Tachibana" title="{=TAIKOU_clan_tachibana_1}Tachibana" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_takahashi_1" is_noble="true" owner="Hero.lord_tk5_439" banner_key="11.24.4.4922.4922.764.764.1.0.0.423.5.0.454.454.764.764.0.0.1.340.5.0.300.300.764.754.0.0.0" is_minor_faction="false" super_faction="Kingdom.otomo" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_takahashi_1}Takahashi" short_name="{=TAIKOU_clan_takahashi_1}Takahashi" title="{=TAIKOU_clan_takahashi_1}Takahashi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_takanashi_1" is_noble="true" owner="Hero.lord_tk5_437" banner_key="11.24.4.4922.4922.764.764.1.0.0.505.5.0.460.50.764.764.0.0.0.459.5.0.150.150.660.658.0.0.0.459.5.0.150.150.871.658.0.0.0.459.5.0.150.150.871.870.0.0.0.459.5.0.150.150.660.870.0.0.0.505.5.0.460.50.765.764.0.0.10" is_minor_faction="false" super_faction="Kingdom.uesugi" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_takanashi_1}Takanashi" short_name="{=TAIKOU_clan_takanashi_1}Takanashi" title="{=TAIKOU_clan_takanashi_1}Takanashi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_takeda_1" is_noble="true" owner="Hero.lord_tk5_449" banner_key="11.24.4.4922.4922.764.764.1.0.0.510.5.0.507.55.764.1025.0.0.0.459.5.0.507.507.764.764.0.0.0.510.5.0.507.171.764.997.0.0.0.510.5.0.507.171.764.532.0.0.0.510.5.0.507.55.764.501.0.0.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_takeda_1}Takeda" short_name="{=TAIKOU_clan_takeda_1}Takeda" title="{=TAIKOU_clan_takeda_1}Takeda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_takeda_2" is_noble="true" owner="Hero.lord_tk5_450" banner_key="11.24.4.4922.4922.764.764.1.0.0.529.5.0.152.152.872.873.0.0.0.419.5.0.510.510.764.764.0.0.0.526.5.0.152.152.656.873.0.0.0.527.5.0.152.152.651.654.0.0.0.528.5.0.152.152.877.654.0.0.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_takeda_2}Takeda" short_name="{=TAIKOU_clan_takeda_2}Takeda" title="{=TAIKOU_clan_takeda_2}Takeda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_takeda_3" is_noble="true" owner="Hero.lord_tk5_448" banner_key="11.24.4.4922.4922.776.777.1.0.0.203.5.0.305.305.764.774.0.0.0.323.5.0.509.509.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_takeda_3}Takeda" short_name="{=TAIKOU_clan_takeda_3}Takeda" title="{=TAIKOU_clan_takeda_3}Takeda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_takenaka_1" is_noble="true" owner="Hero.lord_tk5_455" banner_key="11.24.4.4922.4922.776.777.1.0.0.343.5.0.419.348.764.910.0.0.0.106.5.0.422.411.764.651.0.0.0.505.5.0.87.47.764.805.0.0.0" is_minor_faction="false" super_faction="Kingdom.saitoo" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_takenaka_1}Takenaka" short_name="{=TAIKOU_clan_takenaka_1}Takenaka" title="{=TAIKOU_clan_takenaka_1}Takenaka" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tanegashima_1" is_noble="true" owner="Hero.lord_tk5_470" banner_key="11.24.4.4922.4922.776.777.1.0.0.418.5.0.285.285.764.764.0.0.0.500.5.0.454.454.764.764.0.0.0.500.5.0.380.380.764.762.0.0.0" is_minor_faction="false" super_faction="Kingdom.shimazu" culture="Culture.saikai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tanegashima_1}Tanegashima" short_name="{=TAIKOU_clan_tanegashima_1}Tanegashima" title="{=TAIKOU_clan_tanegashima_1}Tanegashima" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tarou_1" is_noble="true" owner="Hero.lord_tk5_473" banner_key="11.24.4.8690.8690.590.796.1.0.0.202.5.0.368.368.854.864.0.0.55.202.5.0.370.389.674.864.0.1.303.331.5.0.368.368.764.699.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_kouka" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tarou_1}Tarou" short_name="{=TAIKOU_clan_tarou_1}Tarou" title="{=TAIKOU_clan_tarou_1}Tarou" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_togawa_1" is_noble="true" owner="Hero.lord_tk5_502" banner_key="11.24.4.8690.8690.764.764.1.0.0.401.5.0.287.287.764.764.0.0.15.401.5.0.145.145.764.764.0.0.29.503.5.0.50.48.764.764.0.0.15.423.5.0.428.438.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.uragami" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_togawa_1}Togawa" short_name="{=TAIKOU_clan_togawa_1}Togawa" title="{=TAIKOU_clan_togawa_1}Togawa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tokugawa_1" is_noble="true" owner="Hero.lord_tk5_506" banner_key="11.25.10.4345.4345.764.764.1.0.0.117.11.0.346.346.841.838.0.0.179.508.11.0.110.110.638.876.0.0.0.117.11.0.342.342.692.687.0.0.0.508.11.0.108.108.890.648.0.0.0" is_minor_faction="false" super_faction="Kingdom.imagawa" culture="Culture.tokai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tokugawa_1}Tokugawa" short_name="{=TAIKOU_clan_tokugawa_1}Tokugawa" title="{=TAIKOU_clan_tokugawa_1}Tokugawa" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tomita_1" is_noble="true" owner="Hero.lord_tk5_510" banner_key="11.25.10.4345.4345.764.764.1.0.0.128.11.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.asakura" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tomita_1}Tomita" short_name="{=TAIKOU_clan_tomita_1}Tomita" title="{=TAIKOU_clan_tomita_1}Tomita" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tomono_1" is_noble="true" owner="Hero.lord_tk5_576" banner_key="11.25.10.4345.4345.764.764.1.0.0.218.11.0.194.194.807.631.0.0.359.150.11.0.444.444.764.775.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tomono_1}Tomono" short_name="{=TAIKOU_clan_tomono_1}Tomono" title="{=TAIKOU_clan_tomono_1}Tomono" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tsuda_1" is_noble="true" owner="Hero.lord_tk5_851" banner_key="11.25.10.4345.4345.764.764.1.0.0.427.11.0.206.176.764.667.0.0.0.503.11.0.92.87.764.642.0.0.0.218.11.0.109.90.764.572.0.0.0.510.11.0.250.300.641.862.0.0.90.504.11.0.155.92.764.769.0.0.180.510.11.0.249.300.887.862.0.0.90.504.11.0.155.92.764.957.0.0.180.503.11.0.92.87.764.859.0.0.0.510.11.0.136.131.764.814.0.0.0.510.11.0.136.131.764.907.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_negoro" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tsuda_1}Tsuda" short_name="{=TAIKOU_clan_tsuda_1}Tsuda" title="{=TAIKOU_clan_tsuda_1}Tsuda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tsuda_2" is_noble="true" owner="Hero.lord_tk5_849" banner_key="11.25.10.4345.4345.764.764.1.0.0.427.11.0.236.236.726.768.0.0.273.427.11.0.236.236.802.760.0.0.93.503.11.0.80.80.764.764.0.0.0.510.11.0.236.165.869.644.0.0.0.510.11.0.236.165.869.884.0.0.0.510.11.0.236.165.656.884.0.0.0.510.11.0.236.165.656.644.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tsuda_2}Tsuda" short_name="{=TAIKOU_clan_tsuda_2}Tsuda" title="{=TAIKOU_clan_tsuda_2}Tsuda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tsuda_3" is_noble="true" owner="Hero.lord_tk5_418" banner_key="11.25.10.4345.4345.764.764.1.0.0.446.11.0.438.438.764.764.0.0.269.503.11.0.164.164.754.767.0.0.315.509.11.0.133.133.767.915.0.0.315.503.11.0.95.95.948.760.0.0.315.503.11.0.95.95.581.763.0.0.315.509.11.0.133.133.762.613.0.0.315" is_minor_faction="true" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tsuda_3}Tsuda" short_name="{=TAIKOU_clan_tsuda_3}Tsuda" title="{=TAIKOU_clan_tsuda_3}Tsuda" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tsugaru_1" is_noble="true" owner="Hero.lord_tk5_488" banner_key="11.25.10.4345.4345.764.764.1.0.0.449.11.0.327.349.764.649.0.0.0.449.11.0.319.339.764.879.0.0.180.510.11.0.351.240.634.764.0.0.180.510.11.0.351.240.894.764.0.0.180" is_minor_faction="false" super_faction="Kingdom.nanbu" culture="Culture.ou" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tsugaru_1}Tsugaru" short_name="{=TAIKOU_clan_tsugaru_1}Tsugaru" title="{=TAIKOU_clan_tsugaru_1}Tsugaru" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_tsutsui_1" is_noble="true" owner="Hero.lord_tk5_493" banner_key="11.25.10.4345.4345.780.802.1.0.0.427.11.0.401.401.764.822.0.0.359.503.11.0.193.193.764.781.0.0.358.218.11.0.222.222.764.612.0.0.0" is_minor_faction="false" super_faction="Kingdom.tsutsui" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_tsutsui_1}Tsutsui" short_name="{=TAIKOU_clan_tsutsui_1}Tsutsui" title="{=TAIKOU_clan_tsutsui_1}Tsutsui" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_uesugi_1" is_noble="true" owner="Hero.lord_tk5_119" banner_key="11.25.10.4345.4345.780.802.1.0.0.503.11.0.164.164.904.913.0.0.0.314.11.0.508.508.764.764.0.0.0.503.11.0.164.164.624.913.0.0.0" is_minor_faction="false" super_faction="Kingdom.uesugi" culture="Culture.hokuriku" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_uesugi_1}Uesugi" short_name="{=TAIKOU_clan_uesugi_1}Uesugi" title="{=TAIKOU_clan_uesugi_1}Uesugi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ukita_1" is_noble="true" owner="Hero.lord_tk5_124" banner_key="14.12.105.1536.1536.764.764.1.0.0.307.41.0.454.454.764.764.0.0.359" is_minor_faction="false" super_faction="Kingdom.uragami" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ukita_1}Ukita" short_name="{=TAIKOU_clan_ukita_1}Ukita" title="{=TAIKOU_clan_ukita_1}Ukita" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_ukita_2" is_noble="true" owner="Hero.lord_tk5_123" banner_key="14.2.95.1536.1536.764.764.1.0.0.148.41.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.uragami" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_ukita_2}Ukita" short_name="{=TAIKOU_clan_ukita_2}Ukita" title="{=TAIKOU_clan_ukita_2}Ukita" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_uku_1" is_noble="true" owner="Hero.lord_tk5_126" banner_key="20.101.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_gotousuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_uku_1}Uku" short_name="{=TAIKOU_clan_uku_1}Uku" title="{=TAIKOU_clan_uku_1}Uku" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_uno_1" is_noble="true" owner="Hero.lord_tk5_111" banner_key="20.189.116.1536.1536.768.768.1.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_uno_1}Uno" short_name="{=TAIKOU_clan_uno_1}Uno" title="{=TAIKOU_clan_uno_1}Uno" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_uragami_1" is_noble="true" owner="Hero.lord_tk5_140" banner_key="20.190.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.uragami" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_uragami_1}Uragami" short_name="{=TAIKOU_clan_uragami_1}Uragami" title="{=TAIKOU_clan_uragami_1}Uragami" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_usami_1" is_noble="true" owner="Hero.lord_tk5_128" banner_key="20.191.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.uesugi" culture="Culture.neutral_culture" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_usami_1}Usami" short_name="{=TAIKOU_clan_usami_1}Usami" title="{=TAIKOU_clan_usami_1}Usami" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_utono_1" is_noble="true" owner="Hero.lord_tk5_138" banner_key="20.192.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.imagawa" culture="Culture.tosan" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_utono_1}Utono" short_name="{=TAIKOU_clan_utono_1}Utono" title="{=TAIKOU_clan_utono_1}Utono" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_utsunomiya_1" is_noble="true" owner="Hero.lord_tk5_136" banner_key="24.193.116.1536.1536.768.768.1.0.0" is_minor_faction="false" super_faction="Kingdom.utsunomiya" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_utsunomiya_1}Utsunomiya" short_name="{=TAIKOU_clan_utsunomiya_1}Utsunomiya" title="{=TAIKOU_clan_utsunomiya_1}Utsunomiya" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_wakabayashi_1" is_noble="true" owner="Hero.lord_tk5_792" banner_key="34.154.154.1536.1536.764.764.1.0.0.411.155.0.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_pirate_bungosuigun" culture="Culture.pirate" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_wakabayashi_1}Wakabayashi" short_name="{=TAIKOU_clan_wakabayashi_1}Wakabayashi" title="{=TAIKOU_clan_wakabayashi_1}Wakabayashi" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_yamamoto_1" is_noble="true" owner="Hero.lord_tk5_761" banner_key="34.25.10.1536.1536.764.764.1.0.0.314.22.35.444.444.764.764.0.0.270" is_minor_faction="false" super_faction="Kingdom.takeda" culture="Culture.nankai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_yamamoto_1}Yamamoto" short_name="{=TAIKOU_clan_yamamoto_1}Yamamoto" title="{=TAIKOU_clan_yamamoto_1}Yamamoto" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_yamana_1" is_noble="true" owner="Hero.lord_tk5_758" banner_key="11.146.146.1536.1536.764.764.1.0.0.111.150.155.483.483.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.yamana" culture="Culture.kinai" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_yamana_1}Yamana" short_name="{=TAIKOU_clan_yamana_1}Yamana" title="{=TAIKOU_clan_yamana_1}Yamana" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_yamanaka_1" is_noble="true" owner="Hero.lord_tk5_756" banner_key="11.147.147.1536.1536.764.764.1.0.0.215.155.155.442.442.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.amago" culture="Culture.sanyo" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_yamanaka_1}Yamanaka" short_name="{=TAIKOU_clan_yamanaka_1}Yamanaka" title="{=TAIKOU_clan_yamanaka_1}Yamanaka" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_yamasen_1" is_noble="true" owner="Hero.lord_tk5_ninja_gendayuu" banner_key="11.147.147.1536.1536.764.764.1.0.0.342.155.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_yamasen" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_yamasen_1}Yamasen" short_name="{=TAIKOU_clan_yamasen_1}Yamasen" title="{=TAIKOU_clan_yamasen_1}Yamasen" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_yanada_1" is_noble="true" owner="Hero.lord_tk5_782" banner_key="11.148.148.1536.1536.764.764.1.0.0.517.155.155.454.454.764.764.0.0.0" is_minor_faction="true" culture="Culture.trader" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_yanada_1}Yanada" short_name="{=TAIKOU_clan_yanada_1}Yanada" title="{=TAIKOU_clan_yanada_1}Yanada" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_yanagihara_1" is_noble="true" owner="Hero.lord_tk5_749" banner_key="11.148.148.1536.1536.768.768.1.0.0.151.0.155.522.522.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.org_ninja_kurohabaki" culture="Culture.ninja" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_yanagihara_1}Yanagihara" short_name="{=TAIKOU_clan_yanagihara_1}Yanagihara" title="{=TAIKOU_clan_yanagihara_1}Yanagihara" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+	<Faction id="clan_yuki_2" is_noble="true" owner="Hero.lord_tk5_763" banner_key="11.154.154.1536.1536.764.764.1.0.0.108.150.155.454.454.764.764.0.0.0" is_minor_faction="false" super_faction="Kingdom.yuki" culture="Culture.kanto" settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_clan_yuki_2}Yuki" short_name="{=TAIKOU_clan_yuki_2}Yuki" title="{=TAIKOU_clan_yuki_2}Yuki" tier="3">
+		<Influence>
+			<base_influence value="60.0"/>
+		</Influence>
+	</Faction>
+</Factions>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData id="简体中文" name="简体中文" subtitle_extension="zh-HANS" supported_iso="zh-HANS,zh,zho,chi,zh-cn,zh-sg" under_development="false">
+  <!-- 注意：本目录禁止 emoji 等 U+FFFF 以上字符（铁律 14）。
+       注意：注释必须写在根元素**里面**（雷 50）——引擎语言加载器按 `ChildNodes[1].FirstChild` 取 strings，
+       声明与根元素之间夹注释会让整份字符串文件静默不加载。
+       引擎只加载本清单登记过的字符串文件（LocalizedTextManager.LoadLocalizationXmls → LanguageData.Deserialize）；
+       xml_path 一律相对 Languages/ 写（雷 47）。 -->
+  <LanguageFile xml_path="CNs/std_Taikou_strings.xml" />
+</LanguageData>

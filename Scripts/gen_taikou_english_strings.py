@@ -83,6 +83,9 @@ def build_manifest():
 def main():
     ap = argparse.ArgumentParser(description="Taikou English language files generator")
     ap.add_argument("--check", action="store_true", help="只校验是否已最新")
+    # 兼容 run_all_checks 的接口（它给每个脚本追加 --module <内容包路径>）——
+    # 🔴 不接这个参数 = argparse exit 2，体检里只看到红（雷 92 实录），一律加上。
+    ap.add_argument("--module", default=None, help="兼容 run_all_checks 的接口（本生成器不用）")
     args = ap.parse_args()
 
     pairs, dup = collect()
