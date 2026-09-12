@@ -65,6 +65,26 @@ REQUIRED_SCRIPTS = [
     "SceneLeveler",
 ]
 
+# 官方大地图有、但**纯环境/地形**的地图脚本实体（缺 = 观感差异，不是缺陷）——
+# 官方 SandBox/Main_map 实测计数：sound_emitter 773 / VolumeBox 1145 / path_converger 18 /
+# water_body 10 / river_generator 1；我们导入的日本图这五件全无，实测不影响进图与玩法。
+# 🔴 判据出处：清单 1.5 把 12 个脚本实体并列，但**只有 5 个是引擎硬查询**——
+#    照 12 个全红 = 拿官方设计当缺陷（写规则前先拿官方数据跑一遍）。
+AMBIENT_SCRIPTS = {
+    "river_generator": "河道生成器——地图无河即可无（官方 1 个）",
+    "water_body": "水面——无水面地形即可无（官方 10 个）",
+    "path_converger": "路径收敛（河/路）——同上（官方 18 个）",
+    "sound_emitter": "环境音源——**缺 = 大地图没有环境音**（官方 773 个，观感差异，要复刻官方氛围时补）",
+    "VolumeBox": "环境体积盒（天气/氛围区域，官方 1145 个）——缺 = 无区域化环境表现",
+}
+
+# 地图交付物（scene.xscene 之外）——缺 = 图根本打不开/地形丢失
+MAP_DELIVERABLES = {
+    "terrain.bin": "地形网格（缺 = 场景无地形，进图即黑/崩）",
+    "atmosphere.xml": "大气（缺 = 光照/天空异常）",
+    "flora.bin": "植被（缺 = 无植被，纯观感）",
+}
+
 # 城镇交互链三件套（缺任一 = 黄圈/点击/进城断链，雷 37）+ 旗帜占位（纯视觉，只提示）
 REQUIRED_TOWN_TAGS = {
     "bo_town": "拾取碰撞体（only_collide_with_raycast）——缺 = 黄圈不显示/点不动/进不了城",
@@ -183,6 +203,14 @@ def main():
         warns.append("terrain 节点缺失或规格不可读——border_max 无法对账")
 
     # ── 2. 引擎硬查询脚本实体（雷 28）──
+    # 🔴 2026-09-12 补差集报告（对照官方 Main_map 实测）：
+    #    清单 1.5 的「12 个官方地图脚本实体」里，只有 5 个是**引擎硬查询无守卫**的（缺 = 崩/链断，下方硬红）；
+    #    其余 5 个（river_generator / water_body / path_converger / sound_emitter / VolumeBox）是
+    #    **地形与环境脚本**——官方大地图有（sound_emitter 773 个、VolumeBox 1145 个），
+    #    但**我们的图没有也不影响进图与玩法**（实测玩家已能正常进图点城）。
+    #    ⚠️ 为什么不当硬错误：官方设计本身允许无河无水的图（river_generator = 河道生成器）；
+    #       把它们做成硬红 = 拿官方设计当缺陷（清单纪律：「写规则前先拿官方数据跑一遍」）。
+    #       但**要报出来**——缺 sound_emitter 意味着大地图**没有环境音**（观感差异，KCD2 水准要求下值得知道）。
     print("\n== 引擎硬查询的地图脚本实体（缺 = 进图崩/玩法链断，雷 28） ==")
     present = scene_scripts(root)
     for s in REQUIRED_SCRIPTS:
@@ -191,6 +219,26 @@ def main():
         else:
             errors.append(f"缺脚本实体 {s}")
             print(f"  [ERROR] 缺 {s}")
+
+    # ── 2b. 环境/地形脚本实体差集（提示，不阻断）──
+    print("\n== 环境/地形脚本实体（官方有、本图无 → 只提示） ==")
+    missing_env = [s for s in AMBIENT_SCRIPTS if s not in present]
+    if not missing_env:
+        print("  [ OK ] 官方那几件都在")
+    else:
+        for s in missing_env:
+            print(f"  [WARN] 无 {s} —— {AMBIENT_SCRIPTS[s]}")
+        warns.append("缺环境/地形脚本实体 %d 个（观感类，非阻断）" % len(missing_env))
+
+    # ── 2c. 地图交付物在位（缺 = 图根本打不开）──
+    print("\n== 地图交付物在位 ==")
+    for fn, why in MAP_DELIVERABLES.items():
+        p = scene_dir / fn
+        if p.is_file():
+            print(f"  [ OK ] {fn}（{p.stat().st_size:,} bytes）")
+        else:
+            errors.append(f"缺地图交付物 {fn}（{why}）")
+            print(f"  [ERROR] 缺 {fn} —— {why}")
 
     # ── 3. navmesh ──
     print("\n== navmesh（缺 = native AccessViolation） ==")

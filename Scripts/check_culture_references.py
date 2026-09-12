@@ -248,7 +248,7 @@ def main():
 
         print(f"\nSummary: defined={len(defined)} referenced={len(refs)} dangling={len(dangling)} "
               f"missing_culture(ours)={len(ours)} missing_culture(official)={len(others)}")
-    exit_codes.append(1) if (dangling or ours) else 0
+        exit_codes.append(1) if (dangling or ours) else 0    # ← 必须在循环**内**：循环外只剩最后一趟的 errors（假绿，2026-09-12 修）
 
 
 

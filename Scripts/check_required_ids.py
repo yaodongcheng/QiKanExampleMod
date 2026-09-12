@@ -291,7 +291,7 @@ def main():
         bad = len(missing) + len(unloaded) + len(mismatch)
         print(f"\nSummary: required={len(REQUIRED)} missing={len(missing)} "
               f"unloaded={len(unloaded)} type_mismatch={len(mismatch)}")
-    exit_codes.append(1) if bad else 0
+        exit_codes.append(1) if bad else 0    # <- 必须在循环内：循环外只剩最后一趟的 errors（假绿，2026-09-12 修）
 
 
 

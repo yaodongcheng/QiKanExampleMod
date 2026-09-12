@@ -379,7 +379,9 @@ def main():
                 owner_clans.add(o.split(".")[-1])
 
         for kid, (kel, ksrc) in sorted(kingdoms.items()):
-            for fld in ("owner", "culture", "name"):
+            # banner_key 2026-09-12 补：Kingdom 节点缺它 = 旗帜渲染链取不到 key（官方 8/8 全带 →
+            # 无条件要求）。同理 owner/culture/name 是引擎建王国时就读的字段。
+            for fld in ("owner", "culture", "name", "banner_key"):
                 if not kel.get(fld):
                     errors.append(f"Kingdom {kid} 缺 {fld}")
                     print(f"  [ERROR] Kingdom {kid} 缺 {fld}  ← {ksrc}")
@@ -414,9 +416,33 @@ def main():
         if kingdoms or owner_clans:
             print(f"  （检查 {len(kingdoms)} 个王国 / {len(owner_clans)} 个拥有据点的家族）")
 
+        # ── 5. Hero 段必填（2026-09-12 补）──
+        # Hero 节点本身**不带 culture/occupation**——那两样由同名 NPCCharacter 模板提供
+        # （实测 lord_tk5_195：Hero 段无、spnpccharacters 段有 culture=Culture.ikoku/occupation=Lord）。
+        # 所以这里只查**引擎建英雄时就要读的 faction**（缺 = 英雄无家族 → RulingClan/领主链断）。
+        print("\n== Hero 段必填（faction = 建英雄时就读的字段） ==")
+        bad_faction = [hid for hid, (hel, _s) in heroes.items() if not hel.get("faction")]
+        for hid in sorted(bad_faction):
+            errors.append(f"Hero {hid} 缺 faction")
+            print(f"  [ERROR] Hero {hid} 缺 faction（faction 缺失 = 英雄无家族，RulingClan/领主链断）")
+        if not bad_faction:
+            print(f"  [ OK ] {len(heroes)} 个 Hero 全带 faction")
+
+        # ── 6. 玩家族形态对照项（雷 36；**只提示不阻断**，属设计待定）──
+        # 清单 1.2：「玩家族参考织丰 is_minor_faction="true"（独立势力形态）」；
+        # 本包现值 false（与官方 SandBox 玩家族同款）。两者都能跑，差别在「玩家族算不算独立势力」
+        # → 属设计选择，不是数据缺陷，所以只报出当前值让人核，别做成硬红。
+        player_clans = [cid for cid in clans if cid.startswith("player")]
+        for cid in sorted(player_clans):
+            v = (clans[cid][0].get("is_minor_faction") or "").strip().lower()
+            if v != "true":
+                warns.append(f"玩家族 {cid} is_minor_faction={v or '未写'}（清单 1.2 对照 织丰 = true）")
+                print(f"  [WARN] 玩家族 {cid} is_minor_faction={v or '未写'} —— "
+                      f"清单 1.2 的对照项是 true（独立势力形态）；属设计待定，见雷 36")
+
         print(f"\nSummary: settlements={len(settlements)} cultures_checked={len(check_cultures)} "
               f"characters={len(chars)} errors={len(errors)} warnings={len(warns)}")
-    exit_codes.append(1) if errors else 0
+        exit_codes.append(1) if errors else 0    # <- 必须在循环内：循环外只剩最后一趟的 errors（假绿，2026-09-12 修）
 
 
 

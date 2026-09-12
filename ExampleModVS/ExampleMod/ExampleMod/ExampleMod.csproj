@@ -350,6 +350,10 @@
     <Compile Include="CampaignMode\LivingWorldCharacterCreationContent.cs" />
     <Compile Include="CampaignMode\TaikouCampaign.cs" />
     <Compile Include="CampaignMode\TaikouCampaign1560.cs" />
+    <Compile Include="CampaignMode\TaikouCampaign1554.cs" />
+    <Compile Include="CampaignMode\TaikouCampaign1568.cs" />
+    <Compile Include="CampaignMode\TaikouCampaign1575.cs" />
+    <Compile Include="CampaignMode\TaikouCampaign1598.cs" />
     <Compile Include="CampaignMode\TaikouCampaign1582.cs" />
     <Compile Include="Core\MyBehavior.cs" />
     <Compile Include="Core\NameDisplayRules.cs" />

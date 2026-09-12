@@ -124,8 +124,12 @@ namespace LivingWorldNpcs.CampaignMode
 			{
 				switch (era)
 				{
+					case "TaikouCampaign1554": return new TaikouCampaign1554(CampaignGameMode.Campaign);
 					case "TaikouCampaign1560": return new TaikouCampaign1560(CampaignGameMode.Campaign);
+					case "TaikouCampaign1568": return new TaikouCampaign1568(CampaignGameMode.Campaign);
+					case "TaikouCampaign1575": return new TaikouCampaign1575(CampaignGameMode.Campaign);
 					case "TaikouCampaign1582": return new TaikouCampaign1582(CampaignGameMode.Campaign);
+					case "TaikouCampaign1598": return new TaikouCampaign1598(CampaignGameMode.Campaign);
 				}
 			}
 			return new LivingWorldCampaign(CampaignGameMode.Campaign);

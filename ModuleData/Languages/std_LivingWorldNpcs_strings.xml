@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <base type="string">
   <tags>
     <tag language="English" />
@@ -4426,6 +4426,10 @@
     <string id="LWN_scenario_select_back" text="Back" />
     <string id="LWN_scenario_1560" text="The Wheel of Fate" />
     <string id="LWN_scenario_1582" text="The Turning Point" />
+  <string id="LWN_scenario_1554" text="The Tangled Thread" />
+  <string id="LWN_scenario_1568" text="The Rising Dragon" />
+  <string id="LWN_scenario_1575" text="The Way of Supremacy" />
+  <string id="LWN_scenario_1598" text="The Great Peace" />
     <string id="LWN_hero_select_title" text="Choose Your Lord" />
     <string id="LWN_hero_select_back" text="Back" />
     <string id="LWN_hero_select_custom" text="Custom Hero" />

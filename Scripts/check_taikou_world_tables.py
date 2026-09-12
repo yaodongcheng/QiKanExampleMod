@@ -28,7 +28,13 @@ r"""T4-b 世界四表体检（Culture / Kingdom / Clan / Settlements ↔ TaikouH
 
 查两件事（plan T4-b 原话）：
   ① **自身定义是否自洽** —— 必填字段、枚举取值、id 唯一
-  ② **两两交叉引用是否闭合** —— 引用方指向的 id 在不在；被引用的有没有孤儿
+  ② **语义不变量** —— 互证（当主 ↔ 家族）、据点名字唯一、身份→据点类型、空国
+
+🔴 **2026-09-12 分工调整（一条规则一个所有者）**：原先分散在本文件里的**边闭包**检查
+   （CSV→CSV 悬空、织丰编号闸门、三态 Owner 闸门、三张表的孤儿统计）**已全部迁至
+   `Scripts/check_reference_edges.py`** 的声明式边台账——那边加一条边 = 加一行，
+   且孤儿口径与引用边共用同一批边（不会一边说孤儿、一边说有人引用）。
+   **本文件此后只留语义不变量与数据缺口警告，别再往这里加边。**
 
 🔴 **2026-09-11 家族重建纪要（用户裁定：家族 = 家臣团）**
   规则：**谁有人侍奉谁就是一家之主**；没部下的人并入其直接上司的家；妻子并入丈夫的家；
@@ -60,7 +66,9 @@ r"""T4-b 世界四表体检（Culture / Kingdom / Clan / Settlements ↔ TaikouH
 两级口径（纪律：硬错误 = 生成器/编号 bug；警告 = 数据缺口，别把缺口当 bug 报）：
   ❌ 硬错误：id 重复/空、枚举非法、引用悬空、id 体系分叉、当主与家族自相矛盾、据点名重名
   ⚠️ 警告：孤儿（定义但无人引用）、名字对不上（据点表没有这个地名）、无指定当主、
-           英雄表里的名字含未还原的私用区码点
+           **五张表全列**的私用区（PUA）码点**三档扫描**（2026-09-12 扩，原只扫 City_<年> 一列）：
+           码点不在还原表 = 硬错误（先补 `tk5_pua_names`）；在 `PUA_TO_CHAR` = 警告（该还原没过）；
+           在 `UNRESOLVED` = 已知待补，只列不告警（字体码表未破解）
 
 跳过（既有约定，见 check_englishname_clan_prefix）：模板行 `template_*` / 变量行 `pronoun_*`
 —— 这两列在模板行里本就是错位用法（`SecondName/EnglishName/ClanID/CultureID` 依次右移一格，
@@ -106,6 +114,8 @@ TYPE_ORDER = ["Warrior", "Trader", "Ninja", "Pirate", "Neutral"]
 #    英雄表用的全名（京之町 / 鸟羽之砦 / 伊贺之里）由生成器构建期写进 Name_All。
 
 # 🔴 id 体系闸门：这些前缀 = 织丰（Shokuho）编号，本项目一律不用
+#    （执行点**已迁至** `check_reference_edges.py` 的边台账：`forbid=` 逐条声明；
+#      这里保留清单，供读本文件时对照口径）
 SHOKUHO_ID_PREFIXES = ("lord_1_", "lord_2_", "lord_3_", "dead_lord_", "spc_", "sho_")
 
 # 🔴 身份 → 据点类型（用户 2026-09-11 裁定：「浪人在町，武将在城」）
@@ -162,18 +172,28 @@ def warn_err(title, items):
 
 
 def is_shokuho_id(v):
+    """织丰编号判据（口径保留；**执行点在 check_reference_edges.py 的 `forbid=`**）。"""
     return any(v.startswith(p) for p in SHOKUHO_ID_PREFIXES)
 
 
-def is_person(r, cols):
-    return r.get("TemplateNPC", "") == ""
+def is_person(r, cols=None):
+    """🔴 非人物行判据（口径与 `check_reference_edges.is_person` 同源）：
+    `TemplateNPC` 非空 = 样板/代词行（74 行），不参与人物边。"""
+    return r.get(PERSON_FLAG, "") == ""
+
+
+PERSON_FLAG = "TemplateNPC"
 
 
 def main():
+    global CSV_DIR
     ap = argparse.ArgumentParser()
     ap.add_argument("--module", default=None, help="兼容 run_all_checks 的接口（本检查不用）")
+    ap.add_argument("--csv-dir", default=CSV_DIR,
+                    help="数据表目录（缺省=仓库自带；换内容包/负面测试沙箱时覆盖）")
     ap.add_argument("-v", "--verbose", action="store_true", help="打印警告明细")
     args = ap.parse_args()
+    CSV_DIR = args.csv_dir
 
     for fn in ("Culture.csv", "TaikouForce.csv", "Clan.csv", "Settlements.csv",
                "TaikouHero.csv"):
@@ -194,10 +214,9 @@ def main():
     kd_ids = [r["ID"] for r in kingdom]
     clan_ids = [r["ID"] for r in clan]
     sett_ids = [r["id"] for r in sett]
-    hero_ids = set(r["ID"] for r in hero)
 
-    cult_set, kd_set, clan_set = set(cult_ids), set(kd_ids), set(clan_ids)
-    people = [r for r in hero if is_person(r, None)]
+    # 🔴 非人物行（`TemplateNPC` 非空，74 行）不参与人物侧规则——判据见 is_person
+    people = [r for r in hero if is_person(r)]
 
     # ───────────────── ① 自身自洽 ─────────────────
     def dup_empty(label, ids):
@@ -251,9 +270,10 @@ def main():
     hard_err("Settlements.csv：MOD 坐标必须是 0..2048 / 0..1280 内的数", bad_xy)
 
     # ───────────────── ② 交叉引用闭合 ─────────────────
-    hard_err("TaikouForce.Culture → Culture.csv",
-             ["%s → %s（Culture.csv 无此文化）" % (r["ID"], r["Culture"]) for r in kingdom
-              if r.get("Culture") and r["Culture"] not in cult_set])
+    # 🔴 2026-09-12 迁出：**全部边闭包**（CSV→CSV 悬空 + 全表孤儿 + XML 世界输出↔CSV 注册表）
+    #    已由 `Scripts/check_reference_edges.py` 的**声明式边台账**统一负责
+    #    （一条规则一个所有者——别在这里再抄一份，两边一旦分叉就没人知道信谁）。
+    #    本脚本此后只留**语义不变量**：自洽 / 互证 / 名字唯一 / 身份→据点类型 / 空国 / 数据缺口警告。
 
     # 🔴 势力类型枚举（2026-09-12 补）：写错一个值**不会报任何错**——
     #    生成器的排序会把它静默丢到末尾（`sort_key` 的 len(TYPE_ORDER) 兜底），
@@ -281,81 +301,10 @@ def main():
                 tkg_seen[n] = r["ID"]
     hard_err("TaikouForce.太阁编号 格式合法且跨行唯一", bad)
 
-    bad = []
-    for r in clan:
-        for e in ERAS:
-            v = r.get("Kingdom_" + e, "")
-            if v and v != "-" and v not in kd_set:
-                bad.append("%s Kingdom_%s → %s" % (r["ID"], e, v))
-    hard_err("Clan.csv.Kingdom_<年> → TaikouForce.csv（`-` = 该年此家不存在）", bad)
-
-    hard_err("Clan.csv.Culture → Culture.csv",
-             ["%s → %s" % (r["ID"], r["Culture"]) for r in clan
-              if r.get("Culture") and r["Culture"] not in cult_set])
-
-    bad = []
-    for r in people:
-        for e in HERO_ERAS:
-            v = r.get("ClanID_" + e, "")
-            if v and v not in clan_set:
-                bad.append("%s %s ClanID_%s → %s" % (r["ID"], r.get("CNName", ""), e, v))
-    hard_err("TaikouHero.ClanID_<年> → Clan.csv（人物行；空 = 该年无家＝浪人）", bad)
-
-    hard_err("TaikouHero.CultureID → Culture.csv（人物行）",
-             ["%s %s → %s" % (r["ID"], r.get("CNName", ""), r["CultureID"]) for r in people
-              if r.get("CultureID") and r["CultureID"] not in cult_set])
-
-    # 据点：家族列 → Clan.csv
-    bad = []
-    for r in sett:
-        for e in ERAS:
-            v = r.get("Clan_" + e, "")
-            if v and v not in clan_set:
-                bad.append("%s Clan_%s → %s" % (r["id"], e, v))
-    hard_err("Settlements.Clan_<年> → Clan.csv", bad)
-
-    # 🔴 据点：当主列 id 体系闸门 + 必须在英雄表里
-    bad = []
-    for r in sett:
-        for e in ERAS:
-            v = r.get("Owner_" + e, "")
-            if not v:
-                continue
-            if is_shokuho_id(v):
-                bad.append("%s Owner_%s = %s（织丰编号，本项目不认）" % (r["id"], e, v))
-            elif v not in hero_ids:
-                bad.append("%s Owner_%s = %s（英雄表无此人）" % (r["id"], e, v))
-    hard_err("Settlements.Owner_<年> 必须是 lord_tk5_* 且存在于英雄表", bad)
-
-    # 🔴 O 列闸门：TaikouForce.Owner_<年> 只允许三态 —— `-` / `@商人|@忍者|@海贼` / `lord_tk5_*`（且在英雄表）
-    #    （2026-09-11 重建后新增；重建前这里 386 格全是织丰 `lord_1_*`，其中 103 个 id 连织丰 XML 都没有）
-    _tpl_ok = {"@商人", "@忍者", "@海贼"}
-    bad = []
-    for r in kingdom:
-        for e in ERAS:
-            v = r.get("Owner_" + e, "")
-            if not v or v == "-" or v in _tpl_ok:
-                continue
-            if v.startswith(("lord_1_", "lord_2_", "dead_lord_", "spc_")):
-                bad.append("%s Owner_%s = %s（织丰编号，本项目不认）" % (r["ID"], e, v))
-            elif v not in hero_ids:
-                bad.append("%s Owner_%s = %s（英雄表无此人）" % (r["ID"], e, v))
-    hard_err("TaikouForce.Owner_<年> 只能是 - / @模板标记 / lord_tk5_*（且存在于英雄表）", bad)
-
-    # 🔴 家族表自己的 Owner 列同一闸门
-    #    （势力表那条已随 2026-09-11 合并删除——TaikouForce 没有单列 Owner，
-    #      织丰编号只剩 Owner_<年> 六列，其闸门见上「Settlements.Owner_<年>」同款 + 下方势力名对账）
-    bad = []
-    for r in clan:
-        for e in ERAS:
-            v = r.get("Owner_" + e, "")
-            if not v or v == "-":
-                continue
-            if is_shokuho_id(v):
-                bad.append("%s Owner_%s = %s（织丰编号，本项目不认）" % (r["ID"], e, v))
-            elif v not in hero_ids:
-                bad.append("%s Owner_%s = %s（英雄表无此人）" % (r["ID"], e, v))
-    hard_err("Clan.csv.Owner_<年> 只能是 - / lord_tk5_*（且存在于英雄表）", bad)
+    # 🔴 以下边的闭包检查已迁至 check_reference_edges.py（见上）：
+    #    Clan.Kingdom_<年>→Force · Clan.Culture · Hero.ClanID_<年>→Clan · Hero.CultureID ·
+    #    Settlements.Clan_<年>→Clan · Settlements/Clan/TaikouForce 的 Owner_<年> 闸门
+    #    （织丰编号前缀 / `-` / `@商人|@忍者|@海贼` 三态口径都在那张台账里逐条声明）
 
     # 🔴 互证：Owner_<年> 那位英雄，自己那一年的 ClanID 必须就是本行
     bad = []
@@ -451,27 +400,63 @@ def main():
              sorted(set(bad_type)))
 
     miss = collections.Counter()
-    pua = collections.Counter()
     extra_only = collections.Counter()
     for e in HERO_ERAS + EXTRA_ERAS:
         for r in people:
             v = r.get("City_" + e, "")
             if not v or v in HERO_SENTINELS:
                 continue
-            if any(ord(ch) > 0xE000 for ch in v):      # 私用区码点：还原表没覆盖到
-                if e in HERO_ERAS:
-                    pua[v] += 1
-            elif not city_ok(v):
+            if any(0xE000 <= ord(ch) <= 0xF8FF for ch in v):
+                continue                               # 真·私用区：归下面的「PUA 全表扫描」报
+            if not city_ok(v):
                 (miss if e in HERO_ERAS else extra_only)[v] += 1
     warn_err("TaikouHero.City_<年> 在地名总表里查无（%d 个不同地名）" % len(miss),
              ["%s（%d 个年代）" % (k, n) for k, n in sorted(miss.items(), key=lambda kv: -kv[1])])
-    warn_err("TaikouHero.City_<年> 含未还原的私用区字符（%d 个值）——先补 "
-             "Scripts/tk5_pua_names.PUA_TO_CHAR 再谈匹配" % len(pua),
-             ["%s（%d 个年代，码点 %s）" % (k, n, " ".join("U+%04X" % ord(c) for c in k if ord(c) > 0xE000))
-              for k, n in sorted(pua.items(), key=lambda kv: -kv[1])])
     warn_err("TaikouHero.City_<年>：只在 %s 出现、据点表没有（**不交付的剧本，不计缺口**）"
              % "/".join(EXTRA_ERAS),
              ["%s（%d 个年代）" % (k, n) for k, n in sorted(extra_only.items(), key=lambda kv: -kv[1])])
+
+    # 🔴 私用区（PUA）**全表全列**扫描（2026-09-12 扩，原只扫 City_<年> 一列）：
+    #    太阁5 DX 日志把 JIS 表外汉字写成私用区码点（U+E000–U+F8FF），**不过还原表就用不了**
+    #    （按名字做任何对齐/比对都会在这几条上对不上）。还原表 = `Scripts/tk5_pua_names.py`
+    #    （**单一来源**，本检查直接读它，不另抄一份）。
+    #    三档判定（此前只扫一列，实测漏掉了 CNName 里的 2 格）：
+    #      ❌ 码点**不在还原表里**（连 UNRESOLVED 都没有）= 表有缺口 → 硬错误（先补表再谈别的）
+    #      ⚠️ 码点在 `PUA_TO_CHAR` 里 = 该走 restore 没过 → 警告（可直接按表还原）
+    #      ℹ️ 码点在 `UNRESOLVED` 里 = 已登记待补（字体码表 F_FONTT.tr5 未破解）→ 只列不告警
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from tk5_pua_names import PUA_TO_CHAR, UNRESOLVED
+    except Exception as e:                             # 还原表读不到 = 本检查失效，必须喊出来
+        hard_err("PUA 还原表（Scripts/tk5_pua_names.py）不可用", ["import 失败：%s" % e])
+        PUA_TO_CHAR, UNRESOLVED = {}, {}
+
+    def pua_cps(v):
+        return sorted({ord(c) for c in v if 0xE000 <= ord(c) <= 0xF8FF})
+
+    unknown_cp, restorable_cp, pending_cp = collections.Counter(), collections.Counter(), collections.Counter()
+    for label, rows in (("Culture", culture), ("TaikouForce", kingdom), ("Clan", clan),
+                        ("Settlements", sett), ("TaikouHero", hero)):
+        for r in rows:
+            for col, v in r.items():
+                for cp in pua_cps(v or ""):
+                    key = "%s.%s U+%04X" % (label, col, cp)
+                    if cp in PUA_TO_CHAR:
+                        restorable_cp[key] += 1
+                    elif cp in UNRESOLVED:
+                        pending_cp[key] += 1
+                    else:
+                        unknown_cp[key] += 1
+    hard_err("私用区码点不在还原表里（tk5_pua_names 有缺口——先补表，否则这些值永远对不上）",
+             ["%s（%d 格）" % (k, n) for k, n in sorted(unknown_cp.items())])
+    warn_err("私用区码点可直接还原（该过 tk5_pua_names.restore() 而没过）",
+             ["%s → 正字「%s」（%d 格）" % (k, PUA_TO_CHAR[int(k.rsplit("U+", 1)[1], 16)], n)
+              for k, n in sorted(restorable_cp.items())])
+    if pending_cp:
+        print("  [已知待补·不告警] 私用区码点已登记 UNRESOLVED（字体码表未破解，原样保留）：")
+        for k, n in sorted(pending_cp.items()):
+            cp = int(k.rsplit("U+", 1)[1], 16)
+            print("      %s（%d 格）—— %s" % (k, n, UNRESOLVED[cp]))
 
     # 势力名对账：权威 = TaikouForce.csv（185 条合并表，势力名 + 别名）
     #   （合并前的对照：旧口径 Kingdom.csv 查无 68 个；ForceTaikou 查无仅 17 个
@@ -493,30 +478,10 @@ def main():
     warn_err("TaikouHero.Kingdom_<年> 在 TaikouForce.csv 查无（%d 个不同势力名）" % len(miss),
              ["%s（%d 个年代）" % (k, n) for k, n in sorted(miss.items(), key=lambda kv: -kv[1])])
 
-    # ───────────────── ④ 孤儿（警告：数据缺口）─────────────────
-    used_clan = {r.get("ClanID_" + e, "") for r in people for e in HERO_ERAS}
-    for r in sett:
-        for e in ERAS:
-            used_clan.add(r.get("Clan_" + e, ""))
-    warn_err("Clan.csv 定义但无任何英雄/据点引用",
-             sorted(c for c in clan_set if c and c not in used_clan))
-
-    # 势力表自己有没有被用到（合并后 Kingdom.csv 那套「旧口径」对照已并入同一张表）
-    kd_cn = collections.defaultdict(set)
-    for r in kingdom:
-        for n in (r.get("势力名", ""), r.get("别名", "")):
-            if n:
-                kd_cn[n].add(r["ID"])
-                if n.endswith("家"):
-                    kd_cn[n[:-1]].add(r["ID"])
-    used_kd = {r.get("Kingdom_" + e, "") for r in clan for e in ERAS} - {"-"}
-    for e in HERO_ERAS:
-        for r in people:
-            v = r.get("Kingdom_" + e, "")
-            if v not in HERO_SENTINELS and v:
-                used_kd |= kd_cn.get(v[:-1] if v.endswith("家") else v, set())
-    warn_err("TaikouForce.csv 定义但无任何家族/英雄引用",
-             sorted(k for k in kd_set if k and k not in used_kd))
+    # ───────────────── ④ 数据缺口（警告：不阻断）─────────────────
+    # 🔴 2026-09-12 迁出：「孤儿（定义了但无人引用）」三条（Clan / TaikouForce / Culture）
+    #    已并入 check_reference_edges.py —— 孤儿口径必须与引用边共用同一批边，
+    #    否则引用面改了会出现「一边说孤儿、一边说有人引用」。此处不再重复统计。
 
     # 无家族的势力：建国时会是空国（宗族一个没有）—— T4-c 铺数据前必须补家族或降级为 minor faction
     # ⚠️ 只查 Warrior：商家/忍者/海贼（org_*）本就不该有武家家族，把它们算进来是噪声
@@ -536,10 +501,7 @@ def main():
               if (r.get("Owner_" + e) or "-").strip() not in ("", "-")
               and e not in withclan.get(r["ID"], set())])
 
-    used_cult = set(r.get("CultureID", "") for r in people) | set(r.get("Culture", "") for r in clan) \
-        | set(r.get("Culture", "") for r in kingdom)
-    warn_err("Culture.csv 定义但无任何引用",
-             sorted(c for c in cult_set if c and c not in used_cult))
+    # 🔴 家族归属分歧 / 孤儿（Culture 那条）已迁出，见 ④ 节说明。
 
     # 🔴 「家族归属分歧」检查已作废（2026-09-11 家族重建）：
     #    新规则下家族 = 家头 + 他的部下，全员必然同属家头的势力，

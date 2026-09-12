@@ -24,8 +24,12 @@ namespace LivingWorldNpcs.CampaignMode
 			// 🔴 每个时代的具体战役类都要注册（漏一个 = 该时代的档存不出来，
 			//   报 "Could not find type definition of type: TaikouCampaign15xx"，雷 32 原样复发）。
 			// 加新时代 = 这里加一行（class ID 递增）。
+			AddClassDefinition(typeof(TaikouCampaign1554), 5, (IObjectResolver)null);
 			AddClassDefinition(typeof(TaikouCampaign1560), 1, (IObjectResolver)null);
+			AddClassDefinition(typeof(TaikouCampaign1568), 6, (IObjectResolver)null);
+			AddClassDefinition(typeof(TaikouCampaign1575), 7, (IObjectResolver)null);
 			AddClassDefinition(typeof(TaikouCampaign1582), 3, (IObjectResolver)null);
+			AddClassDefinition(typeof(TaikouCampaign1598), 8, (IObjectResolver)null);
 			AddClassDefinition(typeof(TaikouCampaign), 4, (IObjectResolver)null);   // 时代基类
 			AddClassDefinition(typeof(LivingWorldCampaign), 2, (IObjectResolver)null);
 		}

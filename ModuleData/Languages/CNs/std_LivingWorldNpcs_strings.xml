@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
   <tags>
     <tag language="简体中文" />
@@ -4531,6 +4531,10 @@
     <string id="LWN_scenario_select_back" text="返回" />
     <string id="LWN_scenario_1560" text="日轮之卷" />
     <string id="LWN_scenario_1582" text="转变之卷" />
+  <string id="LWN_scenario_1554" text="乱麻之卷" />
+  <string id="LWN_scenario_1568" text="升龙之卷" />
+  <string id="LWN_scenario_1575" text="霸道之卷" />
+  <string id="LWN_scenario_1598" text="太平之卷" />
     <string id="LWN_hero_select_title" text="选择人物" />
     <string id="LWN_hero_select_back" text="返回" />
     <string id="LWN_hero_select_custom" text="自定义人物" />

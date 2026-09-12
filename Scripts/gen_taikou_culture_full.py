@@ -182,14 +182,13 @@ def main():
 			 weapon_practice_stage_2="NPCCharacter.guard"
 			 weapon_practice_stage_3="NPCCharacter.guard"
 			 weaponsmith="NPCCharacter.weaponsmith">
+		<!-- 🔴 2026-09-12 去掉了原先列在这里的 7 个领主模板（lord_tk5_195/379/517/587/740/279/549）：
+		     领主模板现在**按年代切段**（taikou_lords_<年>.xml，GameType 互斥），
+		     而本表所在的 spcultures 段是**六代共用**的——信长 1598 年那份里根本不存在，
+		     写在这里 = 该代引用悬空（雷 11 同族的裸桩/NRE 链）。
+		     另：领主本来也不该进「名人/游荡者」池（会让酒馆刷出历史大名）。
+		     ⚠️ 注意（雷 52）：下面这个元素是**盲读列表**，注释只能写在这里、不能写进元素里面。 -->
 		<notable_and_wanderer_templates>
-			<template name="NPCCharacter.lord_tk5_195"/>
-			<template name="NPCCharacter.lord_tk5_379"/>
-			<template name="NPCCharacter.lord_tk5_517"/>
-			<template name="NPCCharacter.lord_tk5_587"/>
-			<template name="NPCCharacter.lord_tk5_740"/>
-			<template name="NPCCharacter.lord_tk5_279"/>
-			<template name="NPCCharacter.lord_tk5_549"/>
 			<template name="NPCCharacter.main_hero"/>
 			<template name="NPCCharacter.merchant"/>
 			<template name="NPCCharacter.artisan"/>

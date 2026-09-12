@@ -198,7 +198,7 @@ def main():
                 print(f"  [{base}] 需要补: {', '.join(sorted(missing[base]))}")
 
         print(f"\nSummary: families={len(families)} no_default={len(no_default)} missing={len(missing)}")
-    exit_codes.append(1) if missing else 0
+        exit_codes.append(1) if missing else 0    # <- 必须在循环内：循环外只剩最后一趟的 errors（假绿，2026-09-12 修）
 
 
 

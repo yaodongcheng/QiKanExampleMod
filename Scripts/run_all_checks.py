@@ -26,6 +26,7 @@ HERE = Path(__file__).resolve().parent
 
 # (脚本, 说明, 是否算「慢」, 自定义参数 or None=默认 --module)
 CHECKS = [
+    ("check_xml_parse.py", "XML 全量 parse 门（雷 8：任一文件坏 = exit 1）", False, None),
     ("check_taikou_xml_references.py", "交叉引用完整性 + 列表污染（雷 11/52）", False, None),
     ("check_taikou_field_coverage.py", "最小字段交集覆盖", False, None),
     ("check_required_ids.py", "引擎硬编码点名 id 必须存在（雷 6/7/15/16/19/27/31/40/41）", False, None),
@@ -39,15 +40,21 @@ CHECKS = [
     ("check_era_segments.py", "时代段注册互斥 + 据点 id 跨时代稳定（时代切换 spike）", False, None),
     ("check_hero_templates.py", "英雄必须配同名 CharacterObject 模板（缺 = 静默被吞 → 新战役崩）", False, None),
     ("check_englishname_clan_prefix.py", "家族 id ↔ 家头罗马音一致（id 由家头派生，错了会造出假家族）", False, None),
-    ("check_taikou_world_tables.py", "世界四表体检：自洽 + 交叉闭合 + id 体系闸门 + 据点名唯一（T4-b）", False, None),
+    ("check_taikou_world_tables.py", "世界四表体检：自洽 + 语义不变量 + 据点名唯一（T4-b）", False, None),
+    ("check_reference_edges.py", "CSV 交叉引用全量边台账（悬空 + 全表孤儿 + XML 世界输出）", False, None),
+    ("test_negative_edges.py", "边台账负面测试（故意造坏数据必须抓到；含非人物行豁免反向验证）", False, None),
+    ("test_negative_checks.py", "模块级检查负面测试（XML parse/场景/必填字段/PUA 造坏必须抓到）", False, None),
+    ("check_source_invariants.py", "C# 源码不变量（相机复位/出生点时点/停用类不得被引用）", False, None),
     ("check_hero_profile_keys.py", "英雄 id 三处同键：模板 ↔ 画像表 ↔ 立绘表（选人详情页取数）", False, None),
-    ("gen_taikou_era_diff.py", "时代差异段产物与生成器一致（铁律 22：生成物禁手改）", False, ["--check"]),
+    # ("gen_taikou_era_diff.py", …) 🔴 2026-09-12 退役：三件套 _1582 已由 gen_taikou_era_world.py 接管
     ("gen_taikou_hero_profiles.py", "英雄画像表产物与生成器一致（铁律 22：生成物禁手改）", False, ["--check"]),
     ("gen_taikou_hero_catalog.py", "选人目录产物与生成器一致（建世界之前选人的唯一取数源）", False, ["--check"]),
     ("gen_taikou_clan_csv.py", "家族三表产物与生成器一致（Clan.csv / ClanID_<年> / 据点 Clan_<年>，铁律 22）", False, ["--check"]),
     ("gen_taikou_wanderer_culture.py", "英雄身份文化一致（游荡者=ronin / 大航海联动=pirate；依赖 ClanID，须在家族生成器之后）", False, ["--check"]),
     ("gen_taikou_force_csv.py", "势力表产物与生成器一致（TaikouForce.csv 读自己原地刷新，铁律 22）", False, ["--check"]),
     ("gen_taikou_settlement_owner.py", "据点归属与据点日志一致（Owner_<年> = 该城当年当主，铁律 22）", False, ["--check"]),
+    ("gen_taikou_english_strings.py", "英文语言层与数据 XML 内联 fallback 一致（铁律 22）", False, ["--check"]),
+    ("gen_taikou_era_world.py", "六代世界段（英雄/领主模板/家族/王国）与生成器一致（铁律 22）", False, ["--check"]),
     ("check_settlement_distance_cache.py", "距离缓存与据点一致（雷 53）", True, None),
     ("check_official_copies.py", "官方拷贝保持原样（雷 49）", True, None),
 ]

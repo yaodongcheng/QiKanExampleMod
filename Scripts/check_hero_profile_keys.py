@@ -90,7 +90,14 @@ def main():
     errors, warns = [], []
 
     # ── 输入表 ──
-    template_ids = ids_from(data / "spnpccharacters.xml", "NPCCharacter")
+    # 🔴 角色模板**不止 spnpccharacters.xml 一个文件**（2026-09-12 修）：
+    #    领主模板按年代切到了 `taikou_lords_<年>.xml`（模板要按代算年龄/装备），
+    #    只扫 spnpccharacters 会把 4000+ 条英雄报成「无模板」（假红）。
+    #    这里取**所有 NPCCharacters 段文件**的并集；GameType 级别的配对由 `check_hero_templates` 负责。
+    template_ids = set()
+    for tpl_file in sorted(data.glob("spnpccharacters*.xml")) + sorted(data.glob("taikou_lords*.xml")) \
+            + sorted(data.glob("taikou_gangsters*.xml")):
+        template_ids |= ids_from(tpl_file, "NPCCharacter")
     profile_ids = ids_from(reg / "HeroProfiles.xml", "HeroProfile")
     recommended = []
     hp = reg / "HeroProfiles.xml"
