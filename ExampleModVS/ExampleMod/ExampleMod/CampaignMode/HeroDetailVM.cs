@@ -137,6 +137,7 @@ namespace LivingWorldNpcs.CampaignMode
 				? lord.BustupSprite
 				: (HeroProfileRegistry.GetBustupSpriteName(HeroId) ?? string.Empty);
 			HasBustup = !string.IsNullOrEmpty(BustupSprite);
+			HeroProfileRegistry.EnsurePortraitLoaded(BustupSprite);   // 🔴 显示点：纹理按需加载（否则空白）
 
 			// 型别 / 目标描述：仅「推荐」人配了（普通人物留空 → 界面隐藏那一行）
 			HeroProfileRegistry.Recommendation rec = FindRecommendation(HeroId);

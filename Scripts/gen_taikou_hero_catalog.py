@@ -60,12 +60,15 @@ OUT_NAME = "HeroCatalog.xml"
 OUT_SUBDIR = "AssetRegistry"
 
 # 时代 → 该时代的四个数据段（内容包自己的结构；LWN 侧不认识这些文件名——铁律 3）
-ERAS = [
-    {"id": "1560", "heroes": "taikou_heroes.xml", "clans": "spclans.xml",
-     "kingdoms": "spkingdoms.xml", "settlements": "settlements.xml"},
-    {"id": "1582", "heroes": "taikou_heroes_1582.xml", "clans": "spclans_1582.xml",
-     "kingdoms": "spkingdoms_1582.xml", "settlements": "settlements_1582.xml"},
-]
+# 🔴 **六代全量**（2026-09-12 扩：此前只做了 1560/1582，另外四个剧本的选人界面是空的）。
+#    文件名约定与 `gen_taikou_era_world.py::era_suffix` 一致：1560 = 基线（无后缀），其余 `_<年>`。
+BASELINE_ERA = "1560"
+ERAS = [{"id": e,
+         "heroes": "taikou_heroes%s.xml" % ("" if e == BASELINE_ERA else "_" + e),
+         "clans": "spclans%s.xml" % ("" if e == BASELINE_ERA else "_" + e),
+         "kingdoms": "spkingdoms%s.xml" % ("" if e == BASELINE_ERA else "_" + e),
+         "settlements": "settlements%s.xml" % ("" if e == BASELINE_ERA else "_" + e)}
+        for e in ("1554", "1560", "1568", "1575", "1582", "1598")]
 
 # 无王国那一档的显示名。
 # 🔴 必须是**本内容包自己的键**（TAIKOU_*）——本表是内容包的数据文件，而语言检查器按模块归属：
@@ -141,12 +144,23 @@ def force_type_table(csv_dir):
 
 
 def clan_force_table(csv_dir, era_id):
-    """`Clan.csv` → {家族 id: 该族**当年的势力 id**（`Kingdom_<年>`；'-' = 当年无势力）}。"""
+    """`Clan.csv` → {家族 id: (该族**当年的势力 id**, 该族**当年的家头 hero id**)}（'-' = 无）。"""
     out = {}
     for r in read_csv(csv_dir / "Clan.csv"):
         cid = (r.get("ID") or "").strip()
         if cid:
-            out[cid] = (r.get("Kingdom_" + era_id) or "").strip()
+            out[cid] = ((r.get("Kingdom_" + era_id) or "").strip(),
+                        (r.get("Owner_" + era_id) or "").strip().replace("-", ""))
+    return out
+
+
+def force_owner_table(csv_dir, era_id):
+    """`TaikouForce.csv` → {势力 id: 当年的当主 hero id}（`-` → 空串）。"""
+    out = {}
+    for r in read_csv(csv_dir / "TaikouForce.csv"):
+        fid = (r.get("ID") or "").strip()
+        if fid:
+            out[fid] = (r.get("Owner_" + era_id) or "").strip().replace("-", "")
     return out
 
 
@@ -324,7 +338,8 @@ def build(md, csv_dir):
         kingdoms = kingdom_name_table(md, era)
         seats = settlement_display(md, era)
         seats.update(settlement_alias_index(csv_dir, seats))
-        cforce = clan_force_table(csv_dir, era)      # 家族 id → 当年的势力 id
+        cforce = clan_force_table(csv_dir, era)      # 家族 id → (当年的势力 id, 当年家头)
+        fowners = force_owner_table(csv_dir, era)    # 势力 id → 当年当主（判「大名家」用）
 
         realms, houses, lords = {}, {}, []
         for hid, h in heroes.items():
@@ -348,15 +363,20 @@ def build(md, csv_dir):
                     _warned_forces.add(key)
                     warns.append(f"[{era}] 王国 {realm_id} 的势力 {force_id_of_realm(realm_id)!r} "
                                  f"不在 TaikouForce.csv 里 → 类型记 {DEFAULT_TYPE}")
-            cid_force = cforce.get(fac, "")
+            cid_force, cid_head = cforce.get(fac, ("", ""))
             house_type = type_key_of_force(cid_force, ftypes) if cid_force else DEFAULT_TYPE
+            # 「大名家」= 该族当主就是该国当主（同一个 hero）→ 排序时排在其他家臣团前面
+            is_ruling = bool(cid_head) and cid_head == fowners.get(force_id_of_realm(realm_id), "")
             if realm_id:
                 house_type = realm_type            # 立国家族跟王国同档（免得两处口径打架）
             realms.setdefault(realm_id, {"name": kingdoms.get(kd, NO_REALM_NAME) if realm_id else NO_REALM_NAME,
                                          "type": realm_type})
             # 家族显示名优先用 short_name（列表里「Oda」比「Oda Nobunaga」合适）
-            houses.setdefault(fac, {"realm": realm_id, "name": cl["short_name"] or cl["name"],
-                                    "type": house_type})
+            # 🔴 变量名**不能叫 h**——循环变量 h 是英雄记录，覆盖它会让下面 Lord 的
+            #    `h["name"]` 取到家族名（2026-09-12 实测：整个目录的英雄名全变成家族名）
+            hrec = houses.setdefault(fac, {"realm": realm_id, "name": cl["short_name"] or cl["name"],
+                                           "type": house_type, "ruling": is_ruling, "members": 0})
+            hrec["members"] += 1                   # 人数（排序用；同族多人各算一次）
 
             row = taikou.get(hid, {})
             identity_raw = (row.get("Identity_" + era) or "").strip()
@@ -382,13 +402,23 @@ def build(md, csv_dir):
                           "leader": cl["owner"] == "Hero." + hid,
                           "birth": int(row.get("BirthYear") or 0)})
 
-        # 排序：王国按出现序（无所属最后）；家族按出现序；英雄 = 族长优先，其余年长者在前
-        realm_order = [r for r in realms if r] + ([""] if "" in realms else [])
+        # 排序（用户 2026-09-12 裁定：**按势力大小排，强的在前**）
+        #   王国：英雄人数降序（「无所属」那一档永远最后）
+        #   家族：先「大名家」= 当主就是该国当主的那一家，其余按人数降序；同数按 id（确定性）
+        realm_members = {}
+        for hh in houses.values():
+            realm_members[hh["realm"]] = realm_members.get(hh["realm"], 0) + hh["members"]
+        realm_order = sorted((r for r in realms if r),
+                             key=lambda r: (-realm_members.get(r, 0), r)) + ([""] if "" in realms else [])
         out_realms = []
         for i, r in enumerate(realm_order, start=1):
             info = realms[r]
             out_realms.append((r, info["name"], info["type"], i if r else 99))
-        house_order = sorted(houses.items(), key=lambda kv: (kv[1]["realm"] == "", kv[0]))
+        house_order = sorted(houses.items(),
+                             key=lambda kv: (kv[1]["realm"] == "",           # 无所属排最后
+                                             0 if kv[1]["ruling"] else 1,    # 大名家第一
+                                             -kv[1]["members"],              # 其余按人数
+                                             kv[0]))
         out_houses = [(hid_, h["realm"], h["name"], h["type"], i)
                       for i, (hid_, h) in enumerate(house_order, start=1)]
         lords.sort(key=lambda l: (l["house"], not l["leader"], l["birth"]))

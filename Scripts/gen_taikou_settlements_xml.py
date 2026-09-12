@@ -58,8 +58,17 @@ MESH_TOWN = ("menu_empire_4", "wait_empire_town")
 MESH_CASTLE = ("menu_empire_1", "wait_empire_town")
 MESH_VILLAGE = ("gui_bg_village_empire", "wait_empire_village", "gui_bg_castle_empire")
 VILLAGE_SCENES = ["empire_village_%03d" % i for i in (1, 2, 3, 4, 5, 6, 7, 8)]
+# 🔴 村型 id 必须 ∈ 引擎 1.2.12 `DefaultVillageTypes.RegisterAll()` 的 22 个 id（反编译实测，2026-09-12）：
+#   wheat_farm / europe_horse_ranch / steppe_horse_ranch / desert_horse_ranch / battanian_horse_ranch /
+#   sturgian_horse_ranch / vlandian_horse_ranch / lumberjack / clay_mine / salt_mine / iron_mine / fisherman /
+#   cattle_farm / sheep_farm / swine_farm / vineyard / flax_plant / date_farm / olive_trees / silk_plant /
+#   silver_mine / trapper
+# 写错 id 不报错：`RegisterPresumedObject` 会造**推测桩村型**，其产出表为 null → 建世界初次产出时
+# `CalculateDailyProductionAmount` 里 `item.IsMountable` 裸解引用 → NRE（雷 108 实测：原写 fishing / horse_ranch 两个都不存在）。
+# 另：每个村型的 XML 产出物（`AddProductions` 按字符串 id 查）必须在世界物品集里，否则同样塞 null —— 见
+# `Scripts/check_village_types_and_items.py`。
 VILLAGE_TYPES = ["VillageType.silk_plant", "VillageType.vineyard", "VillageType.wheat_farm",
-                 "VillageType.fishing", "VillageType.iron_mine", "VillageType.horse_ranch"]
+                 "VillageType.fisherman", "VillageType.iron_mine", "VillageType.europe_horse_ranch"]
 TOWN_LOCATIONS = [("center", "empire_town_g", 4), ("arena", "arena_empire_a", 1),
                   ("tavern", "empire_house_c_tavern_a", 1)]
 CASTLE_LOCATIONS = [("center", "empire_siege_001", 4),

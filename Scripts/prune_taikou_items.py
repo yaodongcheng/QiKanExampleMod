@@ -37,6 +37,19 @@ ENGINE_ITEMS = {
     "ironIngot4", "ironIngot5", "ironIngot6", "trash",
 }
 
+# 🔴 村型产出物（2026-09-12 补，雷 108）：`DefaultVillageTypes.AddProductions` 按**字符串 id** 查物品塞进产出表，
+#   查不到就是 null → 建世界初次产出时 `CalculateDailyProductionAmount` 里 `item.IsMountable` 裸解引用 → NRE。
+#   本包村子用到的 6 个村型（见 `gen_taikou_settlements_xml.py::VILLAGE_TYPES`）的全部 XML 产出物列在这里；
+#   ⚠️ `grain/meat/hides/tools/iron/hardwood/charcoal/ironIngot1~6/trash` **不在本表**——它们不是 XML 物品，
+#   是引擎 `DefaultItems.Create`（`RegisterPresumedObject(new ItemObject(id))` + `InitializeTradeGood`）**在 C# 里现造**的，任何战役都有（上方 ENGINE_ITEMS 列它们属史物存留空转，无害）。
+#   反汇编 `DefaultVillageTypes.AddProductions()` 实测：wheat_farm→cow/sheep/hog ｜ vineyard→grape ｜ silk_plant→cotton ｜
+#   iron_mine→iron(引擎造) ｜ fisherman→fish ｜ europe_horse_ranch→empire_horse/t2/t3/sumpter/mule/saddle/old/hunter/charger。
+VILLAGE_PRODUCTION_ITEMS = {
+    "cow", "sheep", "hog", "grape", "cotton", "fish",
+    "empire_horse", "t2_empire_horse", "t3_empire_horse", "sumpter_horse", "mule",
+    "saddle_horse", "old_horse", "hunter", "charger",
+}
+
 # 引擎硬编码 MBEquipmentRoster 引用集（Campaign.InitializeDefaultEquipments 等，2026-09-08 反编译实锤全集：
 #   default_*_neutral = 死装备；player_char_creation_default = CC 建号预览；npc_disguised_hero = 乔装；
 #   conspirator_cutscene = 剧情过场——缺一即 NRE）
@@ -133,7 +146,7 @@ def main():
     module_data = Path(args.module) / "ModuleData"
 
     keep_items, keep_rosters = collect_usage(module_data)
-    keep_items = keep_items | ENGINE_ITEMS | SCENE_CONSUMED_ITEMS
+    keep_items = keep_items | ENGINE_ITEMS | SCENE_CONSUMED_ITEMS | VILLAGE_PRODUCTION_ITEMS
     keep_rosters = keep_rosters | ENGINE_ROSTER_IDS   # 引擎硬编码 roster 必须存在（织丰同款做法）
 
     def prune_into(path, keep_set, tag, dry):

@@ -136,6 +136,7 @@ namespace LivingWorldNpcs.CampaignMode
 			{
 				Lord = lord;
 				_owner = owner;
+				HeroProfileRegistry.EnsurePortraitLoaded(MiniSprite);   // 🔴 显示点：纹理按需加载
 			}
 
 			[DataSourceProperty] public string Name => HeroSelectData.Resolve(Lord?.NameRaw);
@@ -189,6 +190,7 @@ namespace LivingWorldNpcs.CampaignMode
 				StoryGoal = storyGoal;
 				IsMissing = missing;
 				_owner = owner;
+				HeroProfileRegistry.EnsurePortraitLoaded(MiniSprite);   // 🔴 显示点：纹理按需加载
 			}
 
 			[DataSourceProperty] public string Name { get; }

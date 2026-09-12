@@ -34,6 +34,7 @@ Exit: 0 clean / 1 problem found / 2 fatal.
 import argparse
 import csv
 import io
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -222,6 +223,21 @@ def main():
         for t in sorted(known - used):
             warns.append(f"档位 {t!r} 没有任何 Realm/House 使用（会多出一个永远空的筛档）")
         print(f"  筛档 {len(known)} 个（{', '.join(sorted(known))}），被用到的 {len(used)} 个")
+
+        # ── ⑦ 目录里 Lord 的名字键必须是**本人的**名字键（`TAIKOU_hero_<id>_<年>`）──
+        #   防「生成器变量取错 / 键拼错」这类静默错线：2026-09-12 实测一次——生成器里循环变量
+        #   被家族记录覆盖，**整个目录的英雄名变成了家族名**，而当时所有检查照样全绿
+        #   （键存在、中文也有，只是张冠李戴）。名字串错 = 界面上人人都叫「织田家」。
+        for era_node in root.iter("Era"):
+            era_id = era_node.get("id") or ""
+            for el in era_node.iter("Lord"):
+                hid = el.get("id") or ""
+                m = re.match(r"\{=([A-Za-z0-9_]+)\}", el.get("name") or "")
+                want = "TAIKOU_hero_%s_%s" % (hid.replace("lord_tk5_", ""), era_id)
+                got = m.group(1) if m else "(缺 {=键})"
+                if got != want:
+                    errors.append(f"[Era {era_id}] <Lord id={hid}> 的名字键是 {got}，应为 {want}"
+                                  f"（名字键串错 = 界面显示别人的名字）")
 
     # ── 反向：立绘表覆盖了多少世界英雄（信息项）──
     all_world = set().union(*era_heroes.values()) if era_heroes else set()
