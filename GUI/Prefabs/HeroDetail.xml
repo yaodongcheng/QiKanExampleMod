@@ -43,14 +43,16 @@
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="300"
                         Sprite="StdAssets\Popup\canvas_dark" MarginTop="10" DoNotAcceptEvents="true">
                   <Children>
-                    <!-- 🔴 VM 侧给的是 `Sprite` **对象**（`HeroProfileRegistry.LoadPortraitSprite`），
-                         不是名字串——绑名字给 `Sprite=` 在 VM 绑定路径下静默无效（范本 PlaybackDialog.xml）。
+                    <!-- 🔴 普通 `Widget`：绘制走的正是 `Widget.Sprite` 本身（`Widget.OnRender` → DrawSprite），
+                         绑定无论按名字还是按对象都命中同一个属性——`ImageWidget` 有两个同名 Sprite
+                         （基类 + `BrushWidget` 用 `new` 藏的那个），绑定命中哪个不确定（2026-09-12 排查）。
+                         VM 侧给的是 `Sprite` **对象**（`HeroProfileRegistry.LoadPortraitSprite`）。
                          尺寸按原图等比：立绘本卡 512×768（2:3）→ 200×300。 -->
-                    <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                                 SuggestedWidth="200" SuggestedHeight="300"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                 Sprite="@BustupSprite" IsVisible="@HasBustup"
-                                 DoNotAcceptEvents="true"/>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                            SuggestedWidth="200" SuggestedHeight="300"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Sprite="@BustupSprite" IsVisible="@HasBustup"
+                            DoNotAcceptEvents="true"/>
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                 Text="@NoRecordText" IsVisible="@HasNoBustup"
                                 Brush="MyBrush_18_White" Brush.FontSize="18"

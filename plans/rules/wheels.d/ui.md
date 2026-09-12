@@ -519,21 +519,11 @@ var cur = PortraitRegistry.GetStagePortrait("lord_1_kinoshita", "藤吉郎");
 string emoSprite = PortraitRegistry.GetEmotionSpriteName("361", "happy", isBustup: true);
 ```
 
-🔴 **立绘/头像空白的两条独立原因（2026-09-12 实机踩到，两条都满足才出图）**：
-1. **纹理没加载**：立绘分类是**按需单张加载**的，`GetOrLoad` 才把那张 sheet 推进显存——
-   没调 = 空白，且零报错（日志里连 `[SpriteAssets] 加载 sheet` 都没有，可直接用它判断"到底调没调"）。
-2. 🔴 **VM 必须给 `Sprite` 对象，不能给名字串**：`Sprite="@X"` 的 X 若是 VM 里的 **string**，
-   **绑定路径不会做「名字 → Sprite」的转换**（引擎只对 prefab 里的**字面量**属性查 `SpriteData`）→ 静默无效、
-   永远空白；而此时日志里 `加载 sheet` **照样在打**（第 1 条已经满足）——极具误导，别被它骗过去。
-   **正确写法 = 一个 `Sprite` 类型的 `[DataSourceProperty]`**，值来自 `GetOrLoad`（一步同时解决两条）：
-   ```csharp
-   [DataSourceProperty] public Sprite PortraitLeft { get => _v; set { _v = value; OnPropertyChangedWithValue(value, "PortraitLeft"); } }
-   PortraitLeft = SpriteAssetsManager.GetOrLoad(name);   // 范本：Scenario/PlaybackDialogVM.cs（实机验证过）
-   ```
-   `ImageWidget` **可以用**（它是 `BrushWidget`，`public new Sprite Sprite` 把值写进 Brush 的 Default 层 →
-   `BrushRenderer` 照常渲染）。⚠️ **别像我一样 grep `public Sprite Sprite` 就下"ImageWidget 不画 Sprite"的结论——
-   那个属性带 `new` 关键字，会漏**；本仓三个反例（选人列表小头像/推荐卡/详情页立绘）全是**绑了名字串**才空白的。
-   **本仓封装**：`HeroProfileRegistry.LoadPortraitSprite(名字) → Sprite`（名字查表 + `GetOrLoad` + null 兜底）。
+🔴 **立绘/头像空白的排查顺序**（2026-09-12 实机绕了一大圈；完整版见下文〈立绘/任意 Sprite 上屏：prefab + VM 绑定（正道）〉一节）：
+1. **先查内容包资产目录**——空 `Assets/` 会顶掉 `AssetPackages/`，纹理全变成 `material_error` 占位，**这种状态下改多少代码都不出图**（判据：引擎日志 `rgl_log_*.txt` 的 `Loading packages` 行）；
+2. 再查 **VM 给的是不是 `Sprite` 对象**——给名字串静默无效（绑定不做「名字 → Sprite」转换）：本仓封装 `HeroProfileRegistry.LoadPortraitSprite(名字) → Sprite`（名字查表 + `GetOrLoad` + null 兜底）；
+3. 最后查**控件尺寸**——0 宽什么都不画。
+🔴 **教训（本段作者踩的）**：三条已知缺陷都没解释通时，**不要升级成「机制不成立」**——我曾据此写下"prefab 绑定这条路不画"并绕道直插控件，**是错的**；先穷尽已知缺陷，或做对照实验。
 
 ⚠️ 配额是 LRU（bustup 12 / mini 64 张），一次铺 >64 行的列表会有几行被挤掉（列表越长越靠后的行越安全，
 靠前的反而先被驱逐——数量级到不了就先不管）。比例：立绘本卡 512×768（2:3，界面给 200×300）、小头像 256×256。
@@ -552,6 +542,94 @@ PortraitRegistry 扫**所有模块**的 `ModuleData/AssetRegistry/*.csv`（列�
 - 内容包没装/tpac 名打错 → 返回 null + `[SpriteAssets]` 日志，不崩（铁律 1）。
 
 **关键文件**：`GUI/SpriteAssetsManager.cs`（GetSprite/GetOrLoad/EnsureLoaded/Release/ReleaseAll + LRU）、`Data/PortraitRegistry.cs`（GetStagePortraits/GetStagePortrait/GetEmotionSpriteName + CSV 扫描）、`Core/VersionCompat.cs`（`V.UIResourceDepot()`/`V.GetSpriteCategory()`——1.2.12 与 1.3+ 差异适配）。生产工具：`tools/face-pipeline/tpactool/TpacToolCLI`（makepack/inspect 命令，`TpacToolCLI/Bc3Encoder.cs` 内嵌 DXT5/BC3 编码器），产物生成器 `ShokuhoTaikouExpansionPack/ArtSource/scripts/build_profile_pack.py`。完整计划：`plans/scenario-campaign-mode/附录-立绘显示接入与分发方案.md`。
+
+---
+
+## 🔴 立绘/任意 Sprite 上屏：prefab + VM 绑定（正道）+ 三道静默失败闸 — `GUI/PortraitPreviewOverlay.cs` + `GUI/TextureProbe.cs`（2026-09-12 实机验证通过后登记）
+
+**解决**：把一张 sprite 打到屏幕上（开发/验收工具，主菜单也能用）。
+
+> 🔴 **两条路都实测通过，以 prefab + VM 为准**（2026-09-12 用户在选人界面亲眼确认 prefab 路线出图）。
+> 同日早些时候我曾写下"prefab 绑定这条路不画"的结论 —— **那是错的**：当时屏幕空白是
+> **① 内容包资产没加载 + ② 垫底 `Widget.Color` 写错** 两个已修缺陷造成的，我却额外编了第三条原因。
+> **教训：不要把"当前证据解释不了"升级成"机制不成立"**，先穷尽已知缺陷，或做对照实验。
+> 代码里保留 `direct` 模式（`custom.portrait_mode direct`）仅作对照与降级手段，**不是主路径**。
+
+### 🔴 临时验证工具（已按「验证完即删」纪律收尾，2026-09-12）
+
+本节沉淀的是**永久结论**（正确写法 + 三道闸 + 诊断手段）。用于得出这些结论的**临时工具已全部删除**——
+和 2026-08-31 那次同一处置方式（`lwn.profile` 也一并删了）。需要重做验证时：
+
+- 从 git 历史捞回：`git show <删除前的 commit>:ExampleModVS/.../GUI/PortraitPreviewOverlay.cs`
+  （删除前最后版本含：prefab 主路径 + direct 对照 + `PreviewVM` + 体检日志 + 5 条指令）
+- 骨架照抄上面「正确写法」两段代码块即可重建，不用考古。
+- **保留**：`GUI/TextureProbe.cs`（`TextureProbe.ProbeSprite(名字)`）——独立诊断工具，无调用方时不参与运行；
+  要恢复 `custom.texprobe` 指令就在 `Debug/MyCommands.cs` 里加 3 行包一层（见该文件其它指令的写法）。
+
+### 正确写法（prefab + VM，照抄）
+
+```xml
+<!-- GUI/Prefabs/PortraitPreview.xml —— prefab 名 = **本文件名**（WidgetFactory 按文件名注册，不是 Window Id） -->
+<Prefab><Window Id="LWN_Xxx">
+  <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+    <Children>
+      <!-- 🔴 垫底必须用 <BrushWidget>：`Brush.Color` 是它的属性，挂 <Widget> 上引擎不认 -->
+      <BrushWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                   Sprite="BlankWhiteSquare_9" Brush.Color="#212129EB" DoNotAcceptEvents="true"/>
+      <!-- 🔴 尺寸走 VM 的 float 属性；Sprite 走 VM 的 **Sprite 对象**属性 -->
+      <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+              SuggestedWidth="@BustupWidth" SuggestedHeight="@BustupHeight"
+              HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="@BustupSprite"/>
+    </Children>
+  </Widget>
+</Window></Prefab>
+```
+
+```csharp
+var layer = V.NewLayer(200, "LWN_Xxx");
+V.LoadMov(layer, "PortraitPreview", vm);          // 第二参 = prefab 文件名
+layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
+host.AddLayer(layer);                             // host = ScreenManager.TopScreen，不自己造屏
+
+// VM：Sprite 类型必须是 TaleWorlds.TwoDimension.Sprite **对象**（给 string 静默无效）
+[DataSourceProperty] public Sprite BustupSprite { get; private set; }
+[DataSourceProperty] public float BustupWidth { get; private set; }
+```
+
+### 🔴 三道静默失败闸（全都表现为"面板在、图是空的"，且零报错）
+
+| # | 闸门 | 判据 |
+|---|---|---|
+| 1 | **内容包资产目录被空目录顶掉**（见 pitfalls：空 `Assets/` 挡住 `AssetPackages/`） | 引擎日志 `rgl_log_*.txt` 搜 `Loading packages`，看该模块那行是 `Assets` 还是 `AssetPackages` |
+| 2 | **`Sprite=` 绑到 string 而非 Sprite 对象**（绑定不做「名字串 → Sprite」转换） | VM 属性类型 + 挂层日志里的 `prefab '名' 已注册/❌未注册`（`LoadMovie` 找不到 prefab 时**静默不建树**） |
+| 3 | **控件尺寸算成 0**（0 宽的控件什么都不画） | 打 `SuggestedWidth/SuggestedHeight`，**任何一个是 0 就是它**；直插模式另有 `控件体检` 日志 |
+
+第 3 道闸的实机踩法（2026-09-12）：等比缩放写成「以高为准反推宽，再 `if (w > boxW)` 改以宽为准」——当 `boxW/boxH` 恰好等于 sprite 宽高比（立绘 2:3 撞 560:840）时边界擦边，**把宽压成 0**（正方形的小头像撞不到，所以只有立绘塌）。正确写法 = 两个方向各算系数取小值：
+
+```csharp
+float k = Math.Min(boxW / sw, boxH / sh);   // 塞得进且不变形，数学上不可能出 0
+w = sw * k;  h = sh * k;
+```
+
+### 诊断：拿像素说话（对象/日志全绿时的唯一出路）
+
+`GUI/TextureProbe.cs` 的 `TextureProbe.ProbeSprite(spriteName)` 打印类型链并**把运行期真实纹理导出成文件**（落到 `Modules/LivingWorldNpcs/Debug/TextureProbe/`）：
+
+```
+SpritePart.Texture (TwoDimension.Texture) → .PlatformTexture (ITexture)
+  → 实际实现 EngineTexture → .Texture (TaleWorlds.Engine.Texture) → SaveToFile(path)
+```
+
+- 判据 = 导出 PNG 的**非零像素占比** + **引擎纹理名**。名字是 `material_error` = 资源没命中（引擎找不到纹理时的占位图，512×512 全透明）。
+- 🔴 **1.2.12 没有 `Texture.GetPixelData`（1.5.2+ 才有）**——反编译查 API 必须先确认版本（本项目按 `MB2_PATH` 编译）。`SaveToFile` 两版都有。
+- `SaveToFile` **忽略后缀**，给 `.dds` 也写成 PNG。
+- 同名类坑：`TaleWorlds.Engine.Texture` 与 `TaleWorlds.TwoDimension.Texture` 同名——**别同时 `using` 两个命名空间**，否则每个 `Texture` 都成二义引用。
+
+### 相关：`SpriteAssetsManager.EnsureLoaded` 的槽位闸
+
+分类 `IsLoaded=true` **不代表**该 sheet 的槽位存在（整量 Load 过、或被别的路径初始化成空表时）→ `PartialLoadAtIndex` 内部的 `SpriteSheets[idx-1] == null` 短路，一张都不加载。已加固为「槽位不存在 → 重建按需模式；仍不足 → 返回 false + `⚠ 槽位仍不足` 日志」。
+
+**关键文件**：`GUI/PortraitPreviewOverlay.cs`（prefab+VM 主路径 + direct 对照 + sprite/控件体检日志）、`GUI/TextureProbe.cs`（像素探针）、`Debug/MyCommands.cs`（六条指令）。
 
 ---
 

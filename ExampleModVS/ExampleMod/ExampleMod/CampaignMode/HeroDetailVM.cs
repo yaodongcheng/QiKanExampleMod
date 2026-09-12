@@ -141,6 +141,9 @@ namespace LivingWorldNpcs.CampaignMode
 				: HeroProfileRegistry.GetBustupSpriteName(HeroId);
 			BustupSprite = HeroProfileRegistry.LoadPortraitSprite(bustupName);
 			HasBustup = BustupSprite != null;
+			// 排查用（一次一行、有界）：立绘是"名字查不到"还是"纹理没进显存"，看这行就能分
+			DebugLogger.Log($"[HeroDetail] 立绘：{(string.IsNullOrEmpty(bustupName) ? "(无名字)" : bustupName)}"
+				+ $" → {(BustupSprite != null ? "已就绪" : "null")}");
 
 			// 型别 / 目标描述：仅「推荐」人配了（普通人物留空 → 界面隐藏那一行）
 			HeroProfileRegistry.Recommendation rec = FindRecommendation(HeroId);

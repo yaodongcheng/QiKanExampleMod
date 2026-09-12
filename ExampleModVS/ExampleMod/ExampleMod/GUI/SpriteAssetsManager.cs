@@ -96,9 +96,20 @@ namespace LivingWorldNpcs
                     // 引擎卸载（跨屏/读档）后重建按需模式
                     cat.InitializePartialLoad();
                 }
+                // 🔴 2026-09-12：`IsLoaded` 不足以证明「本 sheet 的槽位存在」——分类被整量 Load 过
+                //   （或被别的路径初始化成空表）时 IsLoaded=true 但 SpriteSheets 里没有对应槽，
+                //   于是 PartialLoadAtIndex 的 `SpriteSheets[idx-1] == null` 越界/无操作 → 一张都不加载，
+                //   上层拿到的是 Texture==null 的 sprite 对象：**不抛异常、日志只报"要加载"**，
+                //   而 Widget.OnRender 的绘制闸正是 `_sprite?.Texture != null` → 静默什么都不画。
+                //   故这里做成「槽位不存在就重建按需模式」，让加载必然生效。
                 if (cat.SpriteSheets == null || cat.SpriteSheets.Count < sheetIndex)
                 {
                     cat.InitializePartialLoad();
+                }
+                if (cat.SpriteSheets == null || cat.SpriteSheets.Count < sheetIndex)
+                {
+                    DebugLogger.Log($"[SpriteAssets] ⚠ {cat.Name} 槽位仍不足（需 #{sheetIndex}，实有 {cat.SpriteSheets?.Count ?? 0}）——sprite {sprite.Name} 无法加载");
+                    return false;
                 }
                 if (cat.SpriteSheets[sheetIndex - 1] == null)
                 {

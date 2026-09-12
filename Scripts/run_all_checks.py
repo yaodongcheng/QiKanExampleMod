@@ -56,6 +56,7 @@ CHECKS = [
     ("import_settlement_kuni_chi.py", "据点「国/地」列与太阁日志一致（Kuni/Chi 回填，铁律 22）", False, ["--check"]),
     ("gen_taikou_english_strings.py", "英文语言层与数据 XML 内联 fallback 一致（铁律 22）", False, ["--check"]),
     ("gen_taikou_era_world.py", "六代世界段（英雄/领主模板/家族/王国）与生成器一致（铁律 22）", False, ["--check"]),
+    ("gen_hero_extra_info.py", "英雄扩展属性表（DesignData/HeroExtraInfo.csv：落点等）与生成器一致（铁律 22）", False, ["--check"]),
     ("check_settlement_distance_cache.py", "距离缓存与据点一致（雷 53）", True, None),
     ("check_village_types_and_items.py", "村型 id 合法 + 村型产出物在世界物品集（雷 108）", False, None),
     ("check_official_copies.py", "官方拷贝保持原样（雷 49）", True, None),

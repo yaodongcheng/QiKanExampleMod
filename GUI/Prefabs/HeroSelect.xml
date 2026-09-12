@@ -303,11 +303,11 @@
                                   <Children>
                                     <!-- 行内小头像（立绘表按 StringId 查；无图 = 不画）
                                          🔴 VM 给的是 `Sprite` **对象**，不是名字串（绑名字给 Sprite= 静默无效） -->
-                                    <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                                                 SuggestedWidth="40" SuggestedHeight="40"
-                                                 Sprite="@MiniSprite" IsVisible="@HasMini"
-                                                 VerticalAlignment="Center" MarginRight="12"
-                                                 DoNotAcceptEvents="true"/>
+                                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                            SuggestedWidth="40" SuggestedHeight="40"
+                                            Sprite="@MiniSprite" IsVisible="@HasMini"
+                                            VerticalAlignment="Center" MarginRight="12"
+                                            DoNotAcceptEvents="true"/>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                 Text="@Name" Brush="MyBrush_18_White" Brush.FontSize="20"
                                                 Brush.FontColor="@TextColor" VerticalAlignment="Center" MarginRight="14"
@@ -381,11 +381,11 @@
                                DoNotAcceptEvents="true">
                       <Children>
                         <!-- 头像（🔴 VM 给的是 `Sprite` 对象，不是名字串） -->
-                        <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                                     SuggestedWidth="84" SuggestedHeight="84"
-                                     Sprite="@MiniSprite" IsVisible="@HasMini"
-                                     VerticalAlignment="Center" MarginRight="16"
-                                     DoNotAcceptEvents="true"/>
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                SuggestedWidth="84" SuggestedHeight="84"
+                                Sprite="@MiniSprite" IsVisible="@HasMini"
+                                VerticalAlignment="Center" MarginRight="16"
+                                DoNotAcceptEvents="true"/>
                         <!-- 姓名 / 年龄 -->
                         <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="190"
                                    StackLayout.LayoutMethod="VerticalBottomToTop"
