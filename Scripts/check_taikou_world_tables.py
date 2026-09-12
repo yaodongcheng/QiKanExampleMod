@@ -3,7 +3,7 @@
 r"""T4-b 世界四表体检（Culture / Kingdom / Clan / Settlements ↔ TaikouHero）
 ============================================================================
 **体检对象**：`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/` 下四张表
-  · `Culture.csv`     —— 文化（10 个地域 + neutral + 非武家群体）
+  · `Culture.csv`     —— 文化（`ID/Name/Alias` 三列；9 地域 + neutral_culture + 6 身份文化：忍者/海贼/商人/强盗/浪人/南蛮）
   · `TaikouForce.csv` —— 势力（**Kingdom.csv × ForceTaikou.csv 合并，185 条，2026-09-11 用户裁定**）
   · `Clan.csv`        —— 家族（278 条，**按侍奉关系重建**，id 规则 = 家头苗字罗马音 + 序号）
   · `Settlements.csv` —— 据点 274 条 × 六年代（名字/别名/当主/家族/兵员）
@@ -208,9 +208,12 @@ def main():
     dup_empty("Clan.csv", clan_ids)
     dup_empty("Settlements.csv", sett_ids)
 
-    hard_err("Culture.csv：必填 ScriptName/ChineseName",
-             ["%s 缺 %s" % (r["ID"], k) for r in culture for k in ("ScriptName", "ChineseName")
-              if not r.get(k)])
+    # 2026-09-12 用户裁定：文化表列收敛为 `ID / Name / Alias`——
+    #   三名（ScriptName/ChineseName/OtherName）合并后再拆：**主名进 `Name`，其余进 `Alias`**（`|` 分隔）；
+    #   `LocozationName` 删（本地化键在 spcultures.xml 的 name="{=…}" 里，表里不重复记 → 零信息损失）、
+    #   `IsShokuho` 删（所有文化已自建，无来源之分）、`IsMainCulture` 删（该信息在生成器 `CULTURES` 里）。
+    hard_err("Culture.csv：必填 Name",
+             ["%s 缺 Name" % r["ID"] for r in culture if not r.get("Name")])
 
     hard_err("Settlements.csv：TK5Type 必须是 %s 之一" % "/".join(TK5_TYPE),
              ["%s = %r" % (r["id"], r.get("TK5Type")) for r in sett

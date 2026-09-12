@@ -566,27 +566,33 @@ def build():
     hero_clan = {dx: [(head2id.get(era_clan[e].get(dx)) or "") for e in ERAS] for dx in by_dx}
 
     # ── 据点 Clan_<年> ──
+    #    🔴 城主的 id 有**两种形态**：数码式（`lord_tk5_379`）与**名字式**
+    #    （`lord_tk5_ninja_rokurooji`——0.8 提升的泛用 hero；2026-09-12 起忍者里/海贼砦也有城主了）。
+    #    统一先换成内部键（真 DX 号 / 合成号）再查，别只认数字。
+    key_of = {v: k for k, v in OUT_ID.items()}
     sett_clan, sett_fix = {}, []
     for r in sett_rows:
         for e in ERAS:
             ow = (r.get("Owner_" + e) or "").strip()
             m = DXRE.match(ow) if ow else None
+            key = m.group(1) if m else key_of.get(ow)
             cid = ""
-            if m:
-                cid = head2id.get(era_clan[e].get(m.group(1))) or ""
-                if not cid and m.group(1) in keep:
+            if key:
+                cid = head2id.get(era_clan[e].get(key)) or ""
+                if not cid and key in keep:
                     # 城主该年无家（浪人当着城主，实机只 2 格：河野通直 1582）
                     # → 用他最近年代有家的那个家（保住「他的城还是他的」）
                     for e2 in sorted(ERAS, key=lambda x: abs(int(x) - int(e))):
-                        c2 = head2id.get(era_clan[e2].get(m.group(1))) or ""
+                        c2 = head2id.get(era_clan[e2].get(key)) or ""
                         if c2:
                             cid = c2
                             sett_fix.append("%s %s：城主 %s 当年无家 → 沿用 %s 年的 %s"
-                                            % (r.get("id"), e, by_dx[m.group(1)]["CNName"], e2, c2))
+                                            % (r.get("id"), e, by_dx[key]["CNName"], e2, c2))
                             break
             sett_clan[(r.get("id"), e)] = cid
             if ow and not cid and not m:
-                problems.append("据点 %s %s：Owner 不是 lord_tk5 编号（%s）" % (r.get("id"), e, ow))
+                problems.append("据点 %s %s：Owner 既非 lord_tk5 数字编号、也不在泛用 hero 键表里（%s）"
+                                % (r.get("id"), e, ow))
 
     # ── 闭合校验 ──
     ids = [g["id"] for g in groups]

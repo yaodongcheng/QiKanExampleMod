@@ -369,7 +369,7 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 | 单元 | 角色 | 内容 | 状态 |
 |---|---|---|---|
 | **LivingWorldNpcs** | 🔴 **通用基座**——所有内容包共享的玩法引擎（战役模式/LLM 戏剧/IM 叙事/行为层） | 代码（LWN.dll）：`LivingWorldCampaign : Campaign` 通用自定义战役 + `LivingWorldCampaignGameManager` + 通用建号管线 + 全部玩法行为 | 施工中（2026-09-07 起承担「通用自定义战役 GameType」职责） |
-| **Taikou**（`MB2_Version/MB2_1.2.12/.../Modules/Taikou`） | 日本战国**数据包**（1.2.12 机；**不依赖织丰**） | 纯数据：spcultures/settlements/spkingdoms/spclans/spnpccharacters + 日本图（SceneObj/Main_map 已导入）+ SubModule.xml 注册 `<GameType value="TaikouCampaign"/>` | 施工中：数据层 + 场景层 |
+| **Taikou**（`MB2_Version/MB2_1.2.12/.../Modules/Taikou`） | 日本战国**数据包**（1.2.12 机；🔴 **完全不依赖织丰 Shokuho**，见下方铁则 6） | 纯数据：spcultures/settlements/spkingdoms/spclans/spnpccharacters + 日本图（SceneObj/Main_map 已导入）+ SubModule.xml 注册 `<GameType value="TaikouCampaign"/>` | 施工中：数据层 + 场景层 |
 | **ShokuhoTaikouExpansionPack** | 曾作为织丰思路剧本包 | 织丰城池不符合要求 | 🔴 **已归档**（2026-09-07），不再投入 |
 | （未来）三国扩展 | 数据包 | 同 Taikou 通路 | 预设 |
 
@@ -379,5 +379,10 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 3. **每内容包 = LWN 里一个 thin 适配类**（如 `TaikouCampaign : LivingWorldCampaign`，几行）——引擎 `IncludedGameTypes` 按战役类名匹配（官方 `Campaign`、织丰 `ShokuhoCampaign` 两例实证），thin 类就是数据包与引擎的接插点；新内容包 = 加一个数据包 + LWN 加 3 行。
 4. **世界观参数化**：世界观指纹机制（[worldview.md](plans/rules/worldview.md)）是内容包接入点，内容包禁止硬编码进 LWN。
 5. 🔴 **LWN 双模式开关（2026-09-07 用户裁定）**——LWN 启动时检查**数据包模块是否加载**（`ModuleHelper.GetModuleInfo("Taikou")` 非 null = 已加载）：**已加载 → 接通用战役模式**（主菜单接线/自定义 GameManager/建号管线）；**未加载 → 纯功能包**（现状，原版战役上跑 LLM/戏剧/IM/玩法扩展）。检查点 = `OnSubModuleLoad`，运行时判断（**非编译分叉**），同一个 dll 服务两种玩家。
+6. 🔴🔴 **内容包与织丰（Shokuho）零依赖——所有内容自创**（2026-09-12 用户裁定）：
+   - **铁律**：Taikou 与 Shokuho **完全不依赖**（不是"暂时能用"，是**禁止任何形式的依赖**）。SubModule 不列它当 `DependedModule` ✓，**运行时也不得靠它提供任何对象**。
+   - **所有定义都在自己包里**：文化（`spcultures.xml`，**全部 16 个**：ikoku + neutral_culture + 9 地域 + 5 身份文化）、名字池、物品、模板、文本段——**一律自建/自带**，不引用织丰的任何 id。
+   - 🔴 **"引用闭合检查通过" ≠ "定义在本包"**：检查器扫的是**所有已加载段**，跨模块命中就"通过"了——实测踩过：21 个文化里 19 个的定义在织丰，Taikou 自己只定义 2 个，而检查全绿。**新增任何引用前，先 `grep -rn 'id="X"' <各模块>/ModuleData/` 全 Modules 扫一遍，确认定义在不在本包**（见必备清单雷 96）。
+   - **自建 = 自备全套配套**：文化要多 17 个文本变体族（缺 = 玩家可见 `ERROR: Text ... doesn't exist`，`check_culture_text_variants.py` 常驻把守）+ 名字键中英双语 + 76 字段定义块。
 
 **历史遗留**：旧「TaikouContent（Mod B，已删除）」——原通过覆盖 Settings.Instance 注入日本 flavor，该注入方式已随 WorldDescription/EraDescription 删除而失效（2026-08-17），勿复活。完整剧本计划：`plans/ai-2mod-2-zippy-puppy.md`（剧本层内容已在归档包，不含本架构）。

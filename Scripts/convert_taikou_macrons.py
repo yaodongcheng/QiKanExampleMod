@@ -80,8 +80,8 @@ HERO_NAME_FIX = {
 # 要处理的表（TaikouForce.csv 是产物，排除）
 #   ⚠️ 2026-09-12：Kingdom.csv 已归档（`csv/_archive/`）——它的 Culture/noKingdom 收编进 ForceTaikou.csv，
 #      本表不再处理它（留着会报缺文件）。
-TABLES = ["Clan.csv", "ForceTaikou.csv", "TaikouHero.csv",
-          "Settlements.csv", "BaseInfo.csv"]
+TABLES = ["Clan.csv", "TaikouHero.csv", "Settlements.csv", "BaseInfo.csv"]
+#   ⚠️ 2026-09-12：ForceTaikou.csv 已退役删除（快照口径是错误数据，以日志口径为准）
 
 # 🔴 允许「按首列 id 去重」的表 —— **只放 Clan.csv**（柳生三合一是唯一需要合并的场景）。
 #    BaseInfo.csv 的首列「内置番号」天然不唯一（1506 行 → 1047 个号），去重会误删 459 行。

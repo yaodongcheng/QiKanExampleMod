@@ -22,10 +22,21 @@ r"""泛用 NPC 提升为 hero —— 写进 TaikouHero.csv（2026-09-12 用户�
 
 **不填的列**（不知道，不编）：
   · `原版编号` / `外观ID` / `模板NPC` / `Gender` / 生卒年 / 亲属 / 能力值 / 卡片
-  · `FirstName` —— ⚠️ 家族生成器用 `FirstName or CNName` 当家族名：留空 → 这 16 个当主
-    立的家会以**人名**命名（如「六郎次」家）。若你要「透波」「安东」这种村名/水军名家名，
-    说一声改这里。
+  · 🔴 **`FirstName`（苗字）= 组织名 —— 只给 16 个当主填**（2026-09-12 裁定）：
+    家族生成器用家头的 `FirstName or CNName` 当家族名，留空 → 立出来的家叫「六郎次」
+    「仙左卫门」（人名当家名）。现按当主的**组织名去掉类型尾缀**填（`透波众`→`透波`、
+    `安东水军`→`安东`），家名即「透波家」「安东家」。
+    连带 `EnglishName` 写成 `<苗字罗马音> <名罗马音>`（罗马音取自 `TaikouForce` 的组织 id，
+    不另造读音）——家族 id 由它派生，于是 id ↔ 家名一致（`clan_suppa_1` ↔ 透波家）。
+    非当主**不填**（他们不命名家族；苗字沿用其主家）。
   · `EnglishName` = 名字罗马音（家族 id 由它派生 → `check_englishname_clan_prefix` 要它非空）
+  · 🔴 **`CultureID` = 职业对应的身份文化**（2026-09-12 用户裁定）：
+    `ninja`→`ninja`（忍者文化）/ `pirate`→`pirate`（海贼文化）/ `trader`→`trader`（商人文化）。
+    为什么必须填：家族文化取「成员多数文化」，成员没文化 → **家文化空**（实测 69 家：
+    忍者 20 / 海贼 24 / 商家 25）；而骑砍里 Hero/Clan 的 Culture 为 null 有踩雷史。
+    三个文化 id 与 `lord_tk5_<职业>_*` 同词，见 `Culture.csv`（`Is_Shokuho=0` 的自家文化，
+    定义在 `Taikou/ModuleData/spcultures.xml`，由 `gen_taikou_culture_full.py` 产出）。
+
 
 **纪律**：备份 + 往返校验 + 幂等（已存在的 hero_id 跳过，不重复写）。
 
@@ -56,6 +67,7 @@ CSV_DIR = os.path.join(REPO, "Knowledge", "太阁5", "骑砍2织丰角色ID对�
 IDS = os.path.join(os.path.dirname(CSV_DIR), "泛用heroID表_20260912.csv")
 ALIGN = os.path.join(os.path.dirname(CSV_DIR), "泛用hero槽位对齐_20260912.csv")
 HERO = os.path.join(CSV_DIR, "TaikouHero.csv")
+FORCE = os.path.join(CSV_DIR, "TaikouForce.csv")
 LOG = os.path.join(REPO, "Knowledge", "太阁5", "太阁日志", "上级日志.md")
 
 ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]
@@ -64,6 +76,42 @@ IDENT = {
     "海贼众": {"当主": "头领", "直臣": "船头", "陪臣": "水夫", "其他": "水夫"},
     "商家": {"当主": "当家", "直臣": "掌柜", "陪臣": "伙计", "其他": "伙计"},
 }
+# 组织名的类型尾缀（去掉 = 苗字）：透波众→透波 / 安东水军→安东
+ZOK_TAIL = ("众", "水军")
+
+# 一次性 id 迁移（2026-09-12）：本轮修定了 3 个读音 → 旧 id 作废，改到新 id。
+#  ①`lord_tk5_trader_xE413_兵卫` / `..._xE413_右卫门`：旧 id 前缀是私用区码点占位、
+#    尾部带中文——中文进 id 违反铁律 20 → 换成纯 ASCII（前缀读不出，见 ID 表）
+#  ②`lord_tk5_ninja_senzuiboo` → `senshikiboo`：音读名改正（泉識坊 = せんしきぼう）
+# 三行迁完即可删掉本表。
+RENAME = {
+    "lord_tk5_trader_xE413_兵卫": "lord_tk5_trader_xe413bee",
+    "lord_tk5_trader_xE413_右卫门": "lord_tk5_trader_xe413uemon",
+    "lord_tk5_ninja_senzuiboo": "lord_tk5_ninja_senshikiboo",
+}
+
+
+def load_org_zok():
+    """组织名 → (苗字, 苗字罗马音)。
+
+    苗字 = 组织名去掉类型尾缀；罗马音**直接取 `TaikouForce` 的组织 id**
+    （`org_ninja_suppa`→suppa、`org_pirate_antousuigun`→antou）——不另造读音，与势力表同源。
+    """
+    out = {}
+    with io.open(FORCE, encoding="utf-8-sig", newline="") as fh:
+        for r in csv.DictReader(fh):
+            fid, nm = r.get("ID", ""), r.get("势力名", "")
+            if not fid.startswith(("org_ninja_", "org_pirate_")):
+                continue
+            slug = fid.split("_", 2)[2]
+            if slug.endswith("suigun"):
+                slug = slug[:-len("suigun")]
+            for t in ZOK_TAIL:
+                if nm.endswith(t):
+                    out[nm] = (nm[:-len(t)], slug)
+                    break
+    return out
+
 
 
 def load_sup():
@@ -107,12 +155,21 @@ def main():
     with io.open(IDS, encoding="utf-8-sig", newline="") as fh:
         idtab = {r["ID"]: r for r in csv.DictReader(fh)}
     sup = load_sup()
+    org2zok = load_org_zok()
 
-    new_rows, problems = [], []
+    # 一次性 id 迁移（见文件头 RENAME）
+    by_id = {r[hdr.index("ID")]: r for r in body}
+    renamed = []
+    for old, new in RENAME.items():
+        if old in by_id and new not in by_id:
+            r = by_id.pop(old)
+            r[hdr.index("ID")] = new
+            by_id[new] = r
+            renamed.append("%s → %s" % (old, new))
+
+    new_rows, changes, problems = [], [], []
     for a in align:
         hid = a["hero_id"]
-        if hid in have:
-            continue
         it = idtab.get(hid)
         if it is None:
             problems.append("%s 不在 ID 表里" % hid)
@@ -120,8 +177,10 @@ def main():
         row = {c: "" for c in hdr}
         row["ID"] = hid
         row["CNName"] = a["名前"]
+        row["CultureID"] = a["职业"]      # 身份文化：ninja/pirate/trader（见文件头）
         row["EnglishName"] = it["罗马音"].capitalize() if not it["罗马音"].startswith("x") else ""
         tp = {"ninja": "忍者众", "pirate": "海贼众", "trader": "商家"}[a["职业"]]
+        owner_org = ""
         for e in ERAS:
             slot = a.get("槽号_" + e, "").strip()
             if not slot:
@@ -134,20 +193,46 @@ def main():
             if ident is None:
                 problems.append("%s %s 立场 %r 无对应职名" % (hid, e, rec["立场"]))
                 continue
+            if rec["立场"] == "当主":
+                owner_org = rec["组织"] or owner_org
             row["Appear_" + e] = "已登场"
             row["Identity_" + e] = ident
             row["CareerStance_" + e] = rec["立场"]
             row["Kingdom_" + e] = rec["组织"]
             row["City_" + e] = rec["据点"]
             row["School_" + e] = "无"
-        new_rows.append([row.get(c, "") for c in hdr])
+        # 当主 → 苗字 = 组织名（家族名），EnglishName 带上苗字（家族 id 由它派生）
+        zok = org2zok.get(owner_org)
+        if zok:
+            row["FirstName"] = zok[0]
+            row["EnglishName"] = zok[1].capitalize() + " " + it["罗马音"].capitalize()
 
-    print("待写入：%d 行（已有 %d 行，其中英雄 %d 个）" % (len(new_rows), len(body), len(have)))
+        cur = by_id.get(hid)
+        if cur is None:
+            new_rows.append([row.get(c, "") for c in hdr])
+        else:
+            # 已存在的行**只更新本脚本负责的派生列**（其余列归别的生成器/来源，不覆盖）
+            for c in ("FirstName", "EnglishName", "CultureID"):
+                k = hdr.index(c)
+                if cur[k] != row[c]:
+                    changes.append((hid, c, cur[k], row[c]))
+                    cur[k] = row[c]
+
+    print("新增 %d 行 · 更新 %d 格 · 迁移 id %d 个（现有 %d 行 / 英雄 %d 个）"
+          % (len(new_rows), len(changes), len(renamed), len(body), len(have)))
+    for x in renamed:
+        print("   ↪ %s" % x)
+    if changes:
+        print("   更新明细：")
+        for hid, c, a_, b_ in changes[:20]:
+            print("   %-34s %-12s %r → %r" % (hid, c, a_, b_))
+        if len(changes) > 20:
+            print("   …（其余 %d 格同类）" % (len(changes) - 20))
     if new_rows:
         i = {c: k for k, c in enumerate(hdr)}
         print("\n样例 3 行（截关键列）：")
         for r in new_rows[:3]:
-            print("   %-34s %-8s EN=%-14s | 1554: %s/%s/%s/%s"
+            print("   %-34s %-8s EN=%-18s | 1554: %s/%s/%s/%s"
                   % (r[i["ID"]], r[i["CNName"]], r[i["EnglishName"]],
                      r[i["Appear_1554"]], r[i["Identity_1554"]], r[i["Kingdom_1554"]], r[i["City_1554"]]))
     if problems:
