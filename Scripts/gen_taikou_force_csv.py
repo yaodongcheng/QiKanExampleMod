@@ -3,7 +3,7 @@
 r"""TaikouForce.csv 生成器 —— ForceTaikou.csv（唯一源表）→ TaikouForce.csv
 ============================================================================
 **本脚本现在干什么**：源表 `ForceTaikou.csv` 进来，补两样、重算一样、排个序，出 `TaikouForce.csv`：
-  · 补 `短名`（= 势力名去掉尾部「家」，实测 0/185 例外）
+  · `短名`（= 势力名去掉尾部「家」，实测 0/185 例外）**并入 `别名`**（2026-09-12 用户裁定）
   · 重算 `Owner_<年>` ×6（**完全按上级日志**，见下方专节）
   · 排序（势力类型 → ID）
 
@@ -21,7 +21,7 @@ r"""TaikouForce.csv 生成器 —— ForceTaikou.csv（唯一源表）→ Taikou
      `{=bVqyvzea}Ikko-shu no Ryogoku` 记在此以备将来要兼容织丰时用。
 
 **列**：`势力类型` 放**第一列并作主排序键**（2026-09-11 用户裁定），次排序 = ID 字母序。
-  列序 = `势力类型 | ID | 势力名 | 短名 | 别名 | Culture | Owner_<年>×6 | 太阁编号`。
+  列序 = `势力类型 | ID | 势力名 | 别名 | Culture | Owner_<年>×6 | 太阁编号`（`短名` 已于 2026-09-12 并入 `别名`）。
   `太阁编号` 放**最后一列**（用户裁定：现行管线零消费，不占前排）——它的含义与用途：
     = 太阁5 `database.xml` 的「統一勢力番号」= 该家门众人物番号 + 120（多值 `|` = 一门全集，
       全库唯一）。段位编码类型：大名 120-919 / 商家 920-944 / 忍者 950-961 / 海贼 965-978。
@@ -145,10 +145,13 @@ TYPE_ORDER = ["Warrior", "Trader", "Ninja", "Pirate", "Neutral"]
 # 列：中文表头（第 1 行）+ 英文表头（第 2 行）——沿用 ForceTaikou 的双行表头约定
 # 🔴 势力类型放第一列并作主排序键（2026-09-11 用户裁定）
 # 🔴 太阁编号（TK5_ID）放**最后一列**（2026-09-11 用户裁定：现行管线零消费，不占前排）
-COLS_CN = (["势力类型", "ID", "势力名", "短名", "别名", "Culture"]
+# 🔴 2026-09-12 用户裁定：`短名` 列去掉，值**并入 `别名`**——
+#   它 = 势力名去掉尾部「家」（0/185 例外，机械可推），但**是名字→id 映射的查找键之一**
+#   （`gen_taikou_clan_csv.py` 的组织名解析），所以不能丢，放别名里。
+COLS_CN = (["势力类型", "ID", "势力名", "别名", "Culture"]
            + ["Owner_" + e for e in ERAS]
            + ["太阁编号"])
-COLS_EN = (["ForceType", "ID", "ForceName", "ShortName", "Alias", "Culture"]
+COLS_EN = (["ForceType", "ID", "ForceName", "Alias", "Culture"]
            + ["Owner_" + e for e in ERAS]
            + ["TK5_ID"])
 
@@ -237,12 +240,17 @@ def build():
         row["ID"] = i
         row["太阁编号"] = f.get("太阁编号", "")
         row["势力名"] = f.get("势力名", "")
-        row["别名"] = f.get("别名", "")
         row["势力类型"] = f.get("势力类型", "")
         row["Culture"] = f.get("Culture", "")
-        # 短名 = 势力名去掉尾部「家」（实测 0/185 例外；org_*/noKingdom 本就不带「家」，原样）
+        # 别名 = 原别名 + 「短名」（势力名去掉尾部「家」；0/185 例外）——去重保序、幂等
         nm = row["势力名"]
-        row["短名"] = nm[:-1] if nm.endswith("家") else nm
+        short = nm[:-1] if nm.endswith("家") else nm
+        # 别名 = 源别名 + 短名；**且过滤掉与势力名相同的项**（纪律同 Clan.csv：别名不重复主名）。
+        #   过滤是有意做成"规则"而非一次性清理——静态列的真源是 CSV 自己，光靠"不加"清不掉历史写入。
+        al = [x.strip() for x in (f.get("别名") or "").split("|") if x.strip() and x.strip() != nm]
+        if short and short != nm and short not in al:
+            al.append(short)
+        row["别名"] = "|".join(al)
         for e in ERAS:
             row["Owner_" + e] = "-"         # 占位；下面按上级日志**全部重算覆盖**
         out[i] = row
@@ -261,7 +269,7 @@ def build():
     FType = {"大名家": "Warrior", "商家": "Trader", "忍者众": "Ninja", "海贼众": "Pirate"}
     o2f = {}
     for r in out.values():
-        for n in [r["势力名"], r["短名"]] + [x.strip() for x in (r.get("别名") or "").split("|") if x.strip()]:
+        for n in [r["势力名"]] + [x.strip() for x in (r.get("别名") or "").split("|") if x.strip()]:
             if n:
                 for key in ([n, n[:-1]] if n.endswith("家") else [n]):
                     o2f.setdefault((key, r["势力类型"]), r["ID"])

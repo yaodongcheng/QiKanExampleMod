@@ -71,8 +71,8 @@ def main():
         if not os.path.isfile(p):
             print("[FATAL] 找不到 %s" % p)
             return 2
-    with io.open(CLAN_CSV, encoding="utf-8-sig", newline="") as fh:
-        clans = list(csv.DictReader(fh))
+    from csv_dual import dict_rows          # 双行表头：键取第 2 行（英文）
+    clans = dict_rows(CLAN_CSV)
     with io.open(HERO_CSV, encoding="utf-8-sig", newline="") as fh:
         heroes = list(csv.DictReader(fh))
     byid = {r["ID"]: r for r in heroes}
