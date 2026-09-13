@@ -102,6 +102,27 @@ namespace TpacTool.Lib
 			stream.Write(array);
 		}
 
+		/// <summary>
+		/// 无计数前缀版：只写裸字节数组。
+		/// VertexStreamData 的 ReadData 走 ReadStructArray&lt;T&gt;(stream, count)（长度取自 sizes 表、不读前缀），
+		/// 若写入端用带前缀的 WriteStructArray 就会多出 N×4 字节 → 后续数组整体错位（骨骼/UV 全毁）。
+		/// 该不对称是 TpacTool 原版就有的 bug——只写网格元数据时不触发，一旦重写顶点流即中招。
+		/// </summary>
+		protected static void WriteStructArrayNoCount<T>(BinaryWriter stream, T[] data) where T : struct
+		{
+			int unitSize = GetStructSize<T>();
+			int size = data.Length * unitSize;
+			var array = new byte[size];
+			if (size > 0)
+			{
+				var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+				IntPtr ptr = handle.AddrOfPinnedObject();
+				Marshal.Copy(ptr, array, 0, size);
+				handle.Free();
+			}
+			stream.Write(array);
+		}
+
 		protected static int GetStructSize<T>()
 		{
 #if NET40 || NET45

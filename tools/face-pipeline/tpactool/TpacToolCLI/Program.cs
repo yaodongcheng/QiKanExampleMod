@@ -26,8 +26,8 @@ string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
 string command = cmdLine.Length > 0 ? cmdLine[0] : "help";
 
-// assetclone 有自己完整参数集——顶层解析只认命令名,参数原样透传
-if (command != "assetclone")
+// assetclone / morphinfo / morphfix 有自己完整参数集——顶层解析只认命令名,参数原样透传
+if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "meshdiff"))
 {
     for (int i = 1; i < cmdLine.Length; i++)
     {
@@ -48,6 +48,35 @@ if (command is "help" or "-h" or "--help")
 {
     Console.WriteLine("tpaccli <list|dump|roundtrip> --packdir <dir> [--filter s] [--out dir] [--format png|dds|obj|fbx|dae]");
     return 1;
+}
+
+// morphinfo / morphfix / skinfix 自带参数集且自己做加载——放在全局 preload 之前，避免被无关 tpac 拖累/拖崩
+if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff")
+{
+    string mDir = null, mFilter = null, mOut = null;
+    int mTarget = 101, mBone = 13;
+    bool mClearMat = false, mFullMat = false, mForce = false;
+    for (int i = 1; i < cmdLine.Length; i++)
+    {
+        switch (cmdLine[i])
+        {
+            case "--packdir": mDir = cmdLine[++i]; break;
+            case "--filter": mFilter = cmdLine[++i]; break;
+            case "--out": mOut = cmdLine[++i]; break;
+            case "--target": mTarget = int.Parse(cmdLine[++i]); break;
+            case "--bone": mBone = int.Parse(cmdLine[++i]); break;
+            case "--clearmat": mClearMat = true; break;
+            case "--fullmat": mFullMat = true; break;
+            case "--force": mForce = true; break;
+        }
+    }
+    return command switch
+    {
+        "morphinfo" => MorphFix.Info(mDir, mFilter),
+        "morphfix" => MorphFix.Fix(mDir, mFilter, mOut, mTarget, mClearMat),
+        "meshdiff" => MeshDiff.Run(mDir, mFilter, mOut),
+        _ => MorphFix.SkinFix(mDir, mFilter, mOut, mBone, mFullMat, mForce),
+    };
 }
 
 var mgr = new AssetManager();

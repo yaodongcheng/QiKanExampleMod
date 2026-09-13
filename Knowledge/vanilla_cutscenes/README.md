@@ -589,7 +589,7 @@ CampaignSceneNotificationHelper.GetMilitaryAudienceForKingdom(Kingdom kingdom, .
 
 ## 本 mod 调试观察（2026-08-30 登记）
 
-`Debug/SceneNotificationLoggerPatch.cs`（`[HarmonyPatch]`，PatchAll 自动注册）在两个站点打日志到 `Debug/StoryEngine_RuntimeLog.txt`：
+⚠️ **补丁已移除（2026-09-10）**：`Debug/SceneNotificationLoggerPatch.cs`（2026-08-30 落位）已随提交 `deed8dc6 太阁战役瘦身` 与另外 9 个调试补丁一起批量删除 —— **当前源码无此补丁，`Debug/StoryEngine_RuntimeLog.txt` 里也不会再有下表标签**。下表保留作**历史标签对照**（查旧日志、或需要时临时重加补丁用）。该补丁原在两个站点打日志：
 
 | 标签 | 补丁点 | 含义 |
 |---|---|---|

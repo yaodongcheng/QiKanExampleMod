@@ -23,8 +23,13 @@ namespace LivingWorldNpcs.CampaignMode
     /// 游戏内 `~` 控制台调用（参数一律忽略）：
     ///   custom.export_heightmap            # 导出到 <模块根>/Debug/HeightmapExport/
     ///
-    /// 产物 = 16bit 灰度 PNG（引擎 Import Heightmap / 编辑器 Export Heightmap 同规格）
-    ///   + info.txt（真实四件套 X/Y/Size/Dim/Scale + 模式说明，人读摘要）。
+    /// 🔴 产物文件名带**场景标识**（2026-09-13 起），一次导出一个场景、多场景互不覆盖：
+    ///   heightmap_&lt;场景标识&gt;_16bit.png   16bit 灰度 PNG（引擎 Import Heightmap / 编辑器 Export Heightmap 同规格）
+    ///   info_&lt;场景标识&gt;.txt              真实四件套 X/Y/Size/Dim/Scale + 模式说明（人读摘要）
+    ///   场景标识取 `Mission.SceneName`（模组内既有惯例）；战役大地图无该 API（1.2.12 的 Scene 是
+    ///   NativeObject，无 GetName）→ 固定标签 `campaign_map`；两者都取不到 → `unknown_scene`。
+    ///   标识做过文件名净化（只留 ASCII 字母数字与 `_`/`-`），保证控制台回显纯英文、路径跨平台可用。
+    /// 🔴 tracelog.txt 保持**不带标识、跨次追加**——它的用途是崩溃冻结行定位，必须是一条连续轨迹。
     /// 数据来源（🔴 2026-09-07 实机定案：客户端一律 sampling）：
     ///   GetTerrainHeightData（编辑器式整格导出）对原版=空壳、对织丰=direct native crash（托管 catch 不住、
     ///   引擎 crash handler 都不弹，tracelog 冻结于调用行）→ 永久禁用；
@@ -78,6 +83,10 @@ namespace LivingWorldNpcs.CampaignMode
                 TraceLog("scene resolved: " + (scene != null ? "ok" : "null"));
                 if (scene == null)
                     return "error: no scene available (run in a mission or in campaign map)";
+
+                // 🔴 场景标识先解析（早于任何耗时采样）——崩溃时 tracelog 冻结行前也能看到导的是哪个场景
+                string sceneTag = ResolveSceneTag(scene);
+                TraceLog("scene tag: " + sceneTag);
 
                 bool containsTerrain = scene.ContainsTerrain;
                 TraceLog("ContainsTerrain=" + containsTerrain);
@@ -174,15 +183,17 @@ namespace LivingWorldNpcs.CampaignMode
 
                 SysDirectory.CreateDirectory(outDir);
 
-                string pngPath = SysPath.Combine(outDir, "heightmap_16bit.png");
-                string infoPath = SysPath.Combine(outDir, "info.txt");
+                string pngPath = SysPath.Combine(outDir, "heightmap_" + sceneTag + "_16bit.png");
+                string infoPath = SysPath.Combine(outDir, "info_" + sceneTag + ".txt");
 
                 WritePng16Gray(pngPath, pixels, totalW, totalH);
+                DebugLogger.Log("[TerrainExport] 导出完成 → " + pngPath);
 
-                // ── info.txt：人读摘要（命令产物文本一律英文）──
+                // ── info_<场景标识>.txt：人读摘要（命令产物文本一律英文）──
                 var info = new StringBuilder();
                 info.AppendLine("Live terrain heightmap export info");
                 info.AppendLine("================================");
+                info.AppendLine(string.Format("Scene         : {0}", sceneTag));
                 info.AppendLine(string.Format("Mode          : {0} (per-pixel GetTerrainHeight sampling; grid API GetTerrainHeightData disabled — native crash on Shokuho map, 2026-09-07)", mode));
                 info.AppendLine(string.Format("IMPORT PARAMS (real engine values)  "));
                 info.AppendLine(string.Format("  X     = {0} (nodes along X)", nodeDim.X));
@@ -354,6 +365,59 @@ namespace LivingWorldNpcs.CampaignMode
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// 场景标识（进产物文件名）：Mission 场景取 `Mission.SceneName`（模组内既有惯例，
+        /// MyCommands/Settings 均如此判竞技场）；战役大地图取不到真名 → 固定 `campaign_map`。
+        /// 🔴 `Mission.SceneName` 裸解引用 `InitializerRecord`（非空才安全）——Mission 拆除途中可能为 null，
+        ///    故整段 try/catch 兜底，绝不因取名失败连累导出。
+        /// </summary>
+        private static string ResolveSceneTag(Scene scene)
+        {
+            try
+            {
+                Mission mission = Mission.Current;
+                if (mission != null && mission.Scene == scene && !string.IsNullOrEmpty(mission.SceneName))
+                    return SanitizeFileTag(mission.SceneName);
+            }
+            catch (Exception ex)
+            {
+                TraceLog("scene tag: mission SceneName unavailable (" + ex.GetType().Name + ")");
+            }
+
+            try
+            {
+                if (Campaign.Current != null && Campaign.Current.MapSceneWrapper is SandBox.MapScene mapScene && mapScene.Scene == scene)
+                    return "campaign_map";
+            }
+            catch { }
+
+            return "unknown_scene";
+        }
+
+        /// <summary>
+        /// 文件名净化：只保留 ASCII 字母数字与 `_`/`-`，其余一律换成 `_`（点号也换掉，顺带堵死 `..` 路径花样）。
+        /// 目的有二：① 控制台回显/路径跨平台安全 ② 杜绝中文进命令返回文本（命令返回文本必须纯英文纪律）。
+        /// 净化后为空（如原名全是符号）→ `unknown_scene`。
+        /// </summary>
+        private static string SanitizeFileTag(string raw)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return "unknown_scene";
+
+            var sb = new StringBuilder(raw.Length);
+            foreach (char c in raw)
+            {
+                bool keep = (c >= 'a' && c <= 'z')
+                         || (c >= 'A' && c <= 'Z')
+                         || (c >= '0' && c <= '9')
+                         || c == '_' || c == '-';
+                sb.Append(keep ? c : '_');
+            }
+
+            string s = sb.ToString().Trim('_', '-');
+            return s.Length == 0 ? "unknown_scene" : s;
         }
 
         /// <summary>

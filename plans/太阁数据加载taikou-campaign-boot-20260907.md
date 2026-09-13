@@ -625,7 +625,7 @@ ID, Name, Alias, Culture, Owner_1554, Kingdom_1554, …, Owner_1598, Kingdom_159
   = 对回官方数据的稳定键），与 `Owner_<年>` 那条**要删的理由不同**：那六列装的是**错的**数据
 - `Culture.csv` 同一个毛病（21 行 `ScriptName ≡ ChineseName`、带 `LocozationName` + 恒 1 的 `IsShokuho`、
   表尾一串无名空列）—— 口径与 Clan.csv 相同，**待裁定**是否同批清
-- `Debug/xlsx_dump/Kingdom.csv`、`ForceTaikou.csv` 是 gitignore 的孤儿转储，无人读取
+- `Debug/offline/xlsx_dump/Kingdom.csv`、`ForceTaikou.csv` 是 gitignore 的孤儿转储，无人读取
 
 #### 0.8 ✅ 泛用 NPC 提升为 hero + 日志口径纠错（2026-09-12 下半场）
 
@@ -806,7 +806,7 @@ ID, Name, Alias, Culture, Owner_1554, Kingdom_1554, …, Owner_1598, Kingdom_159
 按反编译的读取代码 `for (i = ReadInt32(); i >= 0; ...)` —— 读到负数即止，
 所以在第一段末尾截断 + 补 `int32(-1)` 就是**格式合法、引擎可读**的完整缓存。
 第二段是纯预计算，游戏运行时未命中会**现算并缓存于内存**（`GetClosestSettlementForNavigationMesh`
-的 TryGetValue 未命中分支），不影响正确性。备份在同目录 `output/settlements_distance_cache.partial.bak`。
+的 TryGetValue 未命中分支），不影响正确性。备份在同目录 `Debug/offline/settlements_distance_cache.partial.bak`（2026-09-13 产物目录整合时随 offline 归档）。
 ⚠️ 教训：**别在大文件上按"文件大小×比例"硬推总量**——我先按 navmesh 大小估"70 万网格面 → 6 小时"，
 实测同类地图（织丰 1021 据点 / 三国 703 据点）的文件 **85~95% 是据点两两距离**，网格面段只有 ~3 万条。
 

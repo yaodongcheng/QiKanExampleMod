@@ -142,21 +142,23 @@ namespace TpacTool.Lib
 				length += (ulong) size;
 			}
 
-			WriteStructArray(stream, Colors1);
-			WriteStructArray(stream, Colors2);
-			WriteStructArray(stream, Uv1);
-			WriteStructArray(stream, Uv2);
-			WriteStructArray(stream, Positions);
-			WriteStructArray(stream, UnknownAnotherPositions);
-			WriteStructArray(stream, Normals);
-			WriteStructArray(stream, Tangents);
-			WriteStructArray(stream, BoneWeights);
-			WriteStructArray(stream, BoneIndices);
-			WriteStructArray(stream, CompressedNormals);
-			WriteStructArray(stream, CompressedPositions);
-			WriteStructArray(stream, CompressedTangents);
+			// 🔴 必须用 NoCount 版：ReadData 按 sizes 表的长度读、不读计数前缀，
+			//    用带前缀的 WriteStructArray 会每个数组多 4 字节 → 后续全部错位。
+			WriteStructArrayNoCount(stream, Colors1);
+			WriteStructArrayNoCount(stream, Colors2);
+			WriteStructArrayNoCount(stream, Uv1);
+			WriteStructArrayNoCount(stream, Uv2);
+			WriteStructArrayNoCount(stream, Positions);
+			WriteStructArrayNoCount(stream, UnknownAnotherPositions);
+			WriteStructArrayNoCount(stream, Normals);
+			WriteStructArrayNoCount(stream, Tangents);
+			WriteStructArrayNoCount(stream, BoneWeights);
+			WriteStructArrayNoCount(stream, BoneIndices);
+			WriteStructArrayNoCount(stream, CompressedNormals);
+			WriteStructArrayNoCount(stream, CompressedPositions);
+			WriteStructArrayNoCount(stream, CompressedTangents);
 			if (hasQTangent)
-				WriteStructArray(stream, TangentTransform);
+				WriteStructArrayNoCount(stream, TangentTransform);
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
