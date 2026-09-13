@@ -18,6 +18,12 @@ import shutil
 import subprocess
 import sys
 
+# 控制台可能是 GBK，中文/符号会 UnicodeEncodeError；统一兜底成可替换
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))     # LivingWorldNpcs 模块根
 TPACCLI = os.path.join(REPO, "tools", "face-pipeline", "tpactool", "TpacToolCLI",
                        "bin", "Release", "net9.0", "tpaccli.exe")
@@ -79,7 +85,7 @@ def main():
           % (f"{size:,}", size / 1048576.0,
              __import__("datetime").datetime.fromtimestamp(os.path.getmtime(pack)).strftime("%m-%d %H:%M:%S")))
     if size < RAW_WARN_BYTES:
-        print("  ⚠️  小于 %.0f MB —— 很可能是【白编译包】（没打补丁），继续跑补丁即可（这正是本脚本的目的）"
+        print("  [!] 小于 %.0f MB —— 很可能是【白编译包】（没打补丁），继续跑补丁即可（这正是本脚本的目的）"
               % (RAW_WARN_BYTES / 1048576.0))
     else:
         print("  （尺寸看着像已打过补丁的成品；补丁脚本幂等，重跑无害）")
@@ -97,24 +103,30 @@ def main():
     shutil.copy2(pack, os.path.join(d_in, "pack0.tpac"))
 
     # 2) morphfix：补 morph 帧到 101 + 同步 VertexKeyCount
-    out1 = run([TPACCLI, "morphfix", "--packdir", d_in, "--filter", args.filter, "--out", os.path.join(WORK, "m1")],
-               "morphfix")
-    d_m1 = stage_dir("m1")
-    if "没有需要修改的子网格" in out1:
-        print("   （无需补帧，用输入包继续）")
-        shutil.copy2(os.path.join(d_in, "pack0.tpac"), os.path.join(d_m1, "pack0.tpac"))
+    # 🔴 这里【不能】再调 stage_dir("m1")：它 rmtree 清空目录，会把 morphfix 刚写出的包删掉
+    #    （实测踩过：m1 变空 → 下面 copy 抛 FileNotFoundError）。stage_dir 只用于"给外部工具腾输出目录"。
+    m1 = os.path.join(WORK, "m1")
+    out1 = run([TPACCLI, "morphfix", "--packdir", d_in, "--filter", args.filter, "--out", m1], "morphfix")
+    src1 = os.path.join(m1, "pack0.tpac")
+    d_m1 = os.path.join(WORK, "s1")
+    stage_dir("s1")
+    if os.path.exists(src1) and os.path.getsize(src1) > 0:
+        shutil.copy2(src1, os.path.join(d_m1, "pack0.tpac"))
     else:
-        shutil.copy2(os.path.join(WORK, "m1", "pack0.tpac"), os.path.join(d_m1, "pack0.tpac"))
+        print("   （morphfix 未产出，用输入包继续 —— 帧数可能不足，实机会崩）")
+        shutil.copy2(os.path.join(d_in, "pack0.tpac"), os.path.join(d_m1, "pack0.tpac"))
 
     # 3) skinfix --fullmat：四角色材质配方 + MaterialFlags
-    out2 = run([TPACCLI, "skinfix", "--packdir", d_m1, "--filter", args.filter, "--out", os.path.join(WORK, "m2"),
+    m2 = os.path.join(WORK, "m2")
+    out2 = run([TPACCLI, "skinfix", "--packdir", d_m1, "--filter", args.filter, "--out", m2,
                 "--fullmat"], "skinfix")
-    d_m2 = stage_dir("m2")
-    src2 = os.path.join(WORK, "m2", "pack0.tpac")
-    if os.path.exists(src2):
+    d_m2 = os.path.join(WORK, "s2")
+    stage_dir("s2")
+    src2 = os.path.join(m2, "pack0.tpac")
+    if os.path.exists(src2) and os.path.getsize(src2) > 0:
         shutil.copy2(src2, os.path.join(d_m2, "pack0.tpac"))
     else:
-        print("   （skinfix 无输出，用上一步的包继续）")
+        print("   （skinfix 无输出，用上一步的包继续 —— 材质会是白编译状态）")
         shutil.copy2(os.path.join(d_m1, "pack0.tpac"), os.path.join(d_m2, "pack0.tpac"))
 
     # 4) 关卡 2：编译产物落点

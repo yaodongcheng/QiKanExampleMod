@@ -103,7 +103,7 @@ Clip 关键属性：`blend_in_period`（融合时间）、`blend_out_period`（�
 | ② Blender 确认骨架 + 建 UE5→骑砍骨名映射表 | 一次性的活 | ⏳ 待做 |
 | ③ Blender 自动重定向脚本 | 导入 UE5 动画 → 映射改名/对齐 rest pose → 逐帧采样烘焙到骑砍骨架 → 导出 | ⏳ 待做 |
 | ④ ModKit 导入建 Clip | 只导骨骼动画 → Create override 建 clip | ⏳ 待做 |
-| ⑤ 接入游戏 | 不动全局 action_sets（全局映射=所有角色都换）；**代码 `Agent.SetActionChannel` 播新 clip**（LWN AgentBrain 空闲态接入；社区已验 cheer 例子） | ⏳ 待做 |
+| ⑤ 接入游戏 | 不动全局 action_sets（全局映射=所有角色都换）；**代码 `Agent.SetActionChannel` 播新 clip**（LWN AgentBrain 空闲态接入；社区已验 cheer 例子） | ✅ **已探明，见 [自定义战斗.md](自定义战斗.md)**（三个实机 mod 逆向：注册三件套 + 关键 API + 坑点清单） |
 
 重定向脚本自动化边界：映射表建一次后批处理通吃；骑砍骨架里有 UE 没有的骨（武器槽/头发等）保持 rest pose；
 调质量（踩地/手贴合）无法全自动。
