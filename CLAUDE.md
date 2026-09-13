@@ -92,6 +92,7 @@
 23. 🔴**git 写操作由用户亲手执行，禁止擅自提交** — 任何改动 git 仓库状态/历史的操作（`commit`/`push`/`reset`/`merge`/`revert`/`checkout`/`stash`/`clean`/`rm` 等），**一律不主动执行**。工作标准 = 改动落盘 + 改动清单，交付后用户自己选时机提交。只读的 `status`/`diff`/`log` 和只暂存的 `add` 可做；**用户说「帮我提交」也回复改动清单与建议命令，不亲手执行**（2026-08-28 用户裁定：git 只能用户自己来）。
 24. 🔴**CSV 编辑纪律：值内禁止半角逗号，多值列统一用 `|` 分隔**（2026-08-31 用户裁定）— 半角逗号 `,` 是 CSV 单元格分隔符，出现在值里 = 静默裂列（Excel 打开即拆，脚本读表错位，**禁止**）。**多值列**（别名/技能/卡等一列多个值）统一用**半角竖线 `\|`** 分隔（`丰臣秀吉|木下秀吉|羽柴秀吉`），全表一致。**生成/读取脚本必须校验**：值内出现 `,`（半角）或 `|` 均报错停止，防手滑。**旧列例外**（现状保留，不裂列，仅记录）：TaikouHero.csv `WarCard` 列现用全角逗号 `，` 分隔（全角不裂列但与新约定不一致），迁移归一新约定一并处理。适用：所有 `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/*.csv`、剧本数据表等手维护数据表。
 25. 🔴**基于名字查 StringId 必须同时过别名列（双向）**（2026-08-31 用户裁定）— 凡按名字查找实体 StringId（`GetStringIdByName` 及一切 `Xxx_MAP` 查询）：**查询源 = `CNName` + `ScriptName` + `Alias` 列**；查不到再查别名（别名 → 主名反向命中），**禁止查 `Name_YYYY` 等年代列**（年代列是数据碎片，非可查询身份）。**数据规则**：`Alias` 列内容**必须覆盖该实体所有年代的名字**（`Name_1549…Name_1598/dream1560` 全部并入 Alias，数据准备期完成，运行时无中文参与）。别名数据 = CSV（TaikouHero.csv `Alias` / CityTaikou.csv `Alias`），**禁止在 py 里写死别名表**（tools/ 下为临时产物）。落地：`gen_entity_maps.py` 从 CSV 读别名构建 `NAME_ALIAS`/`ALIAS_REV`，生成物 `entity_maps.py` 提供双向查询。
+26. 🔴**禁止自行新建目录，新东西一律按归口表放**（2026-09-13 用户裁定）— 新建**任何**文件夹前，必须先在下方的「新东西该放哪」判定表里找到归属；**表里没有 = 停下来问用户**，不许自行开目录、不挪用、不"顺手建一个"。要点：运行时产物 → `Debug/`；离线/一次性产物 → `Debug/offline/`；工具产物 → `tools/<工具链>/out/`；日常数据脚本 → `Scripts/`；重资产工具链 → `tools/<工具链>/`；单工程专属工具 → `plans/<工程>/tools/`。进 git 的只有「源 + 文档 + 校验基准」，`Debug/` 下除 `PlanExamples/` 夹具外一律不进库；`.gitignore` 一律用**整目录或通配**，**禁止写死单个文件名**（点名 = 漏网，已有实测教训）。完整表 + 两个 `Debug/` 辨析见下方「目录归口与 git 收纳政策」章节。
 
 ## 🔴 CSV 表头规范（2026-09-12 用户裁定，最高优先级）
 
@@ -377,6 +378,60 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 - 证据/过程细节 → `plans/太阁数据加载taikou-campaign-boot-20260907.md` 雷档（本会话若在该工程内排雷）；疑难杂症 → `plans/rules/pitfalls.md`；工具/成品 → 按上条问询 wheels。**本清单 = 坑位地图，三者不重复维护但互相引用。**
 - 检测标准：本会话动了自定义世界数据/DLL，或触发了 `[MapBorder]`/`[LordIntroGuard]`/`[BattlePowerGuard]` 等自定义世界专用兜底日志 = 本次必登记。
 - 已用清单核查新世界 = 新坑点必须能挂到清单某一条上（挂不上 = 清单有缺口 = 先补清单再写代码）。
+
+
+## 🔴 目录归口与 git 收纳政策（2026-09-13 用户裁定）
+
+**一句话**：模块根只有一个产物根 `Debug/`；进 git 的只有「源 + 文档 + 校验基准」。**新建任何文件夹之前，必须先在下表找到它的归属 —— 表里没有 = 停下来问用户，不许自行开目录。**
+
+```
+LivingWorldNpcs/
+├── SubModule.xml / config.json / CLAUDE.md / package_mod.py 等   交付清单与配置
+├── ModuleData/  GUI/                          交付内容（游戏读）
+├── ExampleModVS/                              C# 源码（其 CampaignMode/Tools/ = 命令实现）
+├── Scripts/                                   日常数据脚本（跨工程复用）
+├── tools/<工具链>/                             重资产独立工具链
+├── plans/<工程>/tools/                         单工程专属工具（随该工程文档共存亡）
+├── Knowledge/  plans/  Modules/               文档 / 计划 / 各版本参考 DLL
+├── bin/  release/                             编译与打包产物 → .gitignore
+└── Debug/                                     🔴 唯一产物根
+    ├── StoryEngine_RuntimeLog.txt / crash/ / HeightmapExport/ / TextureProbe/   运行时产物
+    ├── PlanExamples/    开发夹具（C# PlanDebugCommands.cs 读）→ 唯一进 git 的例外
+    ├── residue_scan/    活工具默认工作目录（registry_residue_scan.py）
+    └── offline/         离线与一次性产物（探针脚本 / dump / 快照 / 临时模块）
+```
+
+**「新东西该放哪」判定表**：
+
+| 要放的东西 | 放哪 | 进 git？ |
+|---|---|---|
+| 游戏运行时产物（日志 / 崩溃转储 / 导出） | `Debug/`（**5 处 C# 硬编码，不许改**） | ❌ |
+| 离线脚本 / 手工分析产物 | `Debug/offline/` | ❌ |
+| 工具管线产物 | `tools/<工具链>/out/`（各自整目录忽略） | ❌ |
+| C# 要读的开发夹具 | `Debug/PlanExamples/` | ✅ 白名单 |
+| 数据检查基准（如 `names_180.txt`） | 放脚本同目录 + `!` 白名单放行 | ✅ |
+| **日常数据脚本**（跑在 mod 数据/知识表上、跨工程复用） | `Scripts/` | ✅ |
+| **重资产工具链**（带大体量二进制素材或产物） | `tools/<工具链>/`（源码入库、产物整目录忽略） | ✅ 源码 |
+| **单工程专属工具**（只服务一个工程） | `plans/<工程>/tools/` | ✅ |
+| **C# 命令实现** | `ExampleModVS/.../CampaignMode/Tools/`（是源码，不属脚本） | ✅ |
+| 工程文档 / 研究文档 | `plans/<工程>/` / `Knowledge/` | ✅ |
+
+**🔴 三条硬纪律**：
+1. **禁止自行新建目录。** 上表能覆盖的照表放；覆盖不到的（新工具链、新工程、新产物类型）→ **先问用户**。不新建、不挪用、不"顺手建一个"。
+2. **`_` 前缀 = 改完即弃的临时物**，不进 git（`.gitignore` 已用整目录兜底）。
+3. **`.gitignore` 一律「整目录」或「通配」，禁止写死单个文件名。**
+   理由 = 实测教训：旧规则点名了 `Debug/StoryEngine_RuntimeLog.txt` 却漏了同目录的 `prompt_dump_*.txt`，于是 `Debug/prompt_dump_143150.txt`、`Debug/prompt_dump_143231.txt`、`Debug/compat_log_20260825.txt` 全部漏进库；点名 `_patch16b*.py` 却漏了 `_probe_*.txt`，**21 个**探针产物漏进库。**点名 = 漏网。**
+
+**⚠️ 仓库里有两个 `Debug/`，写文档时必须分清 —— 否则改错就是文档失真**：
+
+| 文档里的写法 | 实际指谁 | 处置 |
+|---|---|---|
+| 模块根 `Debug/`（如 `Debug/StoryEngine_RuntimeLog.txt`、`Debug/HeightmapExport/`） | **产物目录** | 路径固定，引用有效 |
+| `Debug/MyCommands.cs`、`Debug/SaveGuard.cs`、`Debug/DebugLogger.cs` 式写法（约 40 处） | **C# 源码目录** `ExampleModVS/ExampleMod/ExampleMod/Debug/` | 与产物目录无关，**不要跟着产物目录改动而改** |
+
+**已知欠账**（规则已写但文件仍在库里，需 `git rm --cached` 才生效）：`ExampleModVS/ExampleMod/packages/`（21 个 NuGet）、`tools/face-pipeline/data/`（7 个）。
+
+**打包影响**：`package_mod.py:121-123` 的白名单只放行 `Debug/StoryEngine_RuntimeLog.txt`，`Debug/` 下其余内容（含 `offline/`）**不会进发布包** —— 所以离线产物放 `Debug/` 下是安全的。
 
 
 ## 🔴 三单元架构原则（2026-09-07 用户裁定，最高优先级）

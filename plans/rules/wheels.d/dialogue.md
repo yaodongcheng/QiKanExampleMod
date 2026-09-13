@@ -165,9 +165,9 @@ MBInformationManager.AddQuickInformation(new TextObject("潜行检定成功"));
 
 **适用场景**：任务进度更新、技能检定成功/失败、瞬间反馈通知。**不适用**：需要玩家回顾查阅的长文本、历史记录。
 
-**调试日志**：所有 `AddQuickInformation` 调用已通过 `AddQuickInformationLoggerPatch`（Harmony Prefix）自动写入 `DebugLogger`，搜 `[AddQuickInformation]` 即可追踪。
+**调试日志**：🔴 **当前无反应该补丁** —— `AddQuickInformationLoggerPatch`（Harmony Prefix，原 `Debug/AddQuickInformationLoggerPatch.cs`，2026-07-15 落位）已于 **2026-09-10 随提交 `deed8dc6 太阁战役瘦身` 与另外 9 个调试补丁一起批量删除**。所以现在**日志里搜不到 `[AddQuickInformation]` 标签**，别去翻源码找那个文件。
 
-**文件位置**：`Debug/AddQuickInformationLoggerPatch.cs`（Harmony 日志补丁）
+**需要时临时重加**：`[HarmonyPatch(typeof(MBInformationManager), "AddQuickInformation")]` Prefix 里 `DebugLogger.Log("[AddQuickInformation] " + __0)`，即恢复原能力（原补丁只做这件事）。
 
 ---
 

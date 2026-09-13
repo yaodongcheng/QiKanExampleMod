@@ -105,7 +105,9 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 
 **解决什么问题**：ModKit 打不开的场景（织丰 Main_map 依赖 ButterLib/Harmony/MCM/UIExtenderEx 四前置，编辑器加载即失败）或客户端黑盒数据，如何拿到**地形高度图 16bit PNG + 真实规格五元组（X/Y/Size/Dim/Scale）**——游戏运行中一条命令搞定。
 
-**文件**：`CampaignMode/Tools/TerrainExportCommands.cs`（namespace LivingWorldNpcs；命令组 `custom`，参数一律忽略）。产物 `Debug/HeightmapExport/`（`heightmap_16bit.png` + `info.txt` + `tracelog.txt`），**该目录已 gitignore**。
+**文件**：`CampaignMode/Tools/TerrainExportCommands.cs`（namespace LivingWorldNpcs；命令组 `custom`，参数一律忽略）。产物 `Debug/HeightmapExport/`（`heightmap_<场景标识>_16bit.png` + `info_<场景标识>.txt` + `tracelog.txt`），**该目录已 gitignore**。
+
+**产物命名带场景标识（2026-09-13）**：一次导出一个场景、多场景互不覆盖。标识 = `Mission.SceneName`（模组内既有惯例）；战役大地图无该 API（1.2.12 的 `Scene : NativeObject`，**没有** `GetName()`，1.5.1 才有）→ 固定 `campaign_map`；取不到 → `unknown_scene`。标识过文件名净化（只留 ASCII 字母数字 + `_`/`-`，点号也换掉），保证控制台回显纯英文（命令返回文本纪律）。`tracelog.txt` **不带标识、跨次追加**——它的用途是崩溃冻结行定位，必须是一条连续轨迹。
 
 **调用**：游戏内 `~` → `custom.export_heightmap`（横在战役大地图或任意 Mission；同步执行，4096² 采样数十秒内完成，进度写日志）。
 

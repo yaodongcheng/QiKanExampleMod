@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""⚠️ 已废弃主链路（2026-09-07）：custom.export_heightmap 已直接产出 16bit PNG（heightmap_16bit.png），
+"""⚠️ 已废弃主链路（2026-09-07）：custom.export_heightmap 已直接产出 16bit PNG（heightmap_<场景标识>_16bit.png），
 本脚本原产物 terrain_heights.bin 不再生成——脚本保留仅供已有旧 bin 文件校验/转图使用。
 
 历史说明：实机导出 terrain_heights.bin → 16bit 灰度 PNG（+ 与 NativeExample 对照检验）
 
-对应 C# 侧命令：custom.export_heightmap（Debug/TerrainExportCommands.cs）
+对应 C# 侧命令：custom.export_heightmap（CampaignMode/Tools/TerrainExportCommands.cs）
 产物格式：魔数 "LWNHM1" + 头部元数据 + 逐节点原始 float32 高度（见下），
 数据与编辑器「Export Heightmap」同源（同一 native 路径）。
 

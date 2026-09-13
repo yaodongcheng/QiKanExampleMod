@@ -2,7 +2,7 @@
 
 > **状态**：✅ 阶段二（修复）完成 —— 8 类 + 1 struct + 6 枚举已注册（issue 路径已验证）；✅ 对峙 NRE 崩溃根因已定位并修复（`CommissionIssueContext.PrimaryCategory` 的 Nullable 字段，见 1.6/2.5）；✅ 存-读-存循环 + 读档 issue 标题还原（_context 往返）验证通过；✅ SaveErrorReporter 决定**保留为常驻诊断工具**（玩家可见文本已正式化走 LWN key，英文条目）；剩余：2.2 全路径验证 → 双版本发布
 > **来源**：外网玩家反馈"无法存档"（弹窗 `str_save_unsuccessful_title` / `str_game_save_result.GeneralFailure` = "无法创建存档数据"）+ 本地复现（含对峙阶段 NRE 崩溃）
-> **相关代码**：`Debug/SaveErrorReporter.cs`（诊断补丁）、`Story/StoryContext.cs`（SaveDefiner）、`Quests/Commissions/CommissionHubIssue.cs`（_context 存档 + Nullable 修复）、`WorldEvent/`、`Core/SafeLordPartyComponent.cs`、`Core/CustomPartyComponent.cs`
+> **相关代码**：`Debug/SaveGuard.cs`（存档三合一，含诊断补丁；原 `Debug/SaveErrorReporter.cs`，2026-08-18 并入）、`Story/StoryContext.cs`（SaveDefiner）、`Quests/Commissions/CommissionHubIssue.cs`（_context 存档 + Nullable 修复）、`WorldEvent/`、`Core/SafeLordPartyComponent.cs`、`Core/CustomPartyComponent.cs`
 
 ---
 
@@ -11,8 +11,8 @@
 **已改动的文件（git 未提交）**：
 1. `ExampleModVS/ExampleMod/ExampleMod/Story/StoryContext.cs` — SaveDefiner 注册 8 类 + 1 struct + 6 枚举（`CommissionHubIssue`=15、`QuestData`=11、`GenericQuest`=12、`CommissionQuest`=13、`CommissionData`=14、`SafeLordPartyComponent`=16、`CustomPartyComponent`=17、`CommissionIssueContext` struct=18、枚举 20-25）；Obsolete 类型行包 `#pragma warning disable CS0618`
 2. `ExampleModVS/ExampleMod/ExampleMod/Quests/Commissions/CommissionHubIssue.cs` — `_context` 加 `[SaveableField(1)]`；`CommissionIssueContext` struct 12 字段加 `[SaveableField(1-12)]`；补 `using TaleWorlds.SaveSystem`
-3. `ExampleModVS/ExampleMod/ExampleMod/Debug/SaveErrorReporter.cs` — 弹窗 Reporter + `SaveSerializeDiagPatch`（序列化 NRE 定位：ObjectSaveData.SaveTo Prefix 记录对象类型、VariableSaveData.SaveTo Prefix 打 `[SaveReporter-Null]`；⚠️ TargetMethod 必须 public static）
-4. `ExampleModVS/ExampleMod/ExampleMod/ExampleMod.csproj` — 加 `Debug\SaveErrorReporter.cs` Compile Include
+3. `ExampleModVS/ExampleMod/ExampleMod/Debug/SaveGuard.cs` — 弹窗 Reporter + `SaveSerializeDiagPatch`（序列化 NRE 定位：ObjectSaveData.SaveTo Prefix 记录对象类型、VariableSaveData.SaveTo Prefix 打 `[SaveReporter-Null]`；⚠️ TargetMethod 必须 public static）　〔当时文件名为 `SaveErrorReporter.cs`，2026-08-18 三合一后并入 `SaveGuard.cs`〕
+4. `ExampleModVS/ExampleMod/ExampleMod/ExampleMod.csproj` — 加 `Debug\SaveGuard.cs` Compile Include（当时登记的是 `Debug\SaveErrorReporter.cs`，2026-08-18 三合一后改名）
 
 **编译状态**：`dotnet msbuild ExampleMod.csproj -p:Configuration=Debug` 已通过，DLL 已输出到游戏目录（`Modules/LivingWorldNpcs/bin/Win64_Shipping_Client/`），带诊断补丁的版本可直接进游戏复现。
 
@@ -141,7 +141,7 @@
 
 ### 1.4 弹窗 Reporter（已完成，阶段一取证工具）
 
-**文件**：`Debug/SaveErrorReporter.cs`（已加入 csproj，`PatchAll()` 自动注册；v1.2.12 与 Latest 签名一致，已对比 `Modules/1.2.12DLL`）
+**文件**：`Debug/SaveGuard.cs`（原 `SaveErrorReporter.cs`，2026-08-18 三合一并入；已加入 csproj，`PatchAll()` 自动注册；v1.2.12 与 Latest 签名一致，已对比 `Modules/1.2.12DLL`）
 
 两个 Harmony 补丁：
 1. `SaveManager.Save` Postfix — 缓存存档失败的底层错误详情（`SaveOutput.Errors`，含 `"Could not find type definition of type: X"` / `"SaveContext Error: ..."` / SaveId 冲突信息）
@@ -231,7 +231,7 @@ Could not find type definition of type: LivingWorldNpcs.CustomPartyComponent
 - 存档兼容：struct 在修复前从未成功存过档（存了就崩），无旧档包袱；`_context` 修复前丢字段的旧档问题见 2.1
 
 **诊断工具经验（留存）**：
-- `SaveSerializeDiagPatch`（SaveErrorReporter.cs 内）已就位：`ObjectSaveData.SaveTo` Prefix 记录当前保存对象类型 + `VariableSaveData.SaveTo` Prefix 在 `Value==null` 时打印 `[SaveReporter-Null] 对象=X MemberType=Y SaveId=Z`
+- `SaveSerializeDiagPatch`（`Debug/SaveGuard.cs` 内，原 SaveErrorReporter.cs）已就位：`ObjectSaveData.SaveTo` Prefix 记录当前保存对象类型 + `VariableSaveData.SaveTo` Prefix 在 `Value==null` 时打印 `[SaveReporter-Null] 对象=X MemberType=Y SaveId=Z`
 - ⚠️ 踩坑记录：① Harmony `TargetMethod()` 必须 **public static**（private 会被静默跳过，补丁不生效）——已修复并加 `[SaveReporter-Bind]` 绑定验证日志；② `_currentSavingType` 共享 static 在 TWParallel 并行下竞态污染，对象名仅供参考——**SaveId 与 MemberType 从 __instance 反射读取，始终准确**；③ `MemberType=String` 的 null 是合法 null 字符串（`(string)Value` 不崩），只有 Object/Container/CustomStruct 的 null 才是崩溃点——诊断过滤条件应排除 String
 
 **后续嫌疑排查**（走人路径新增对象）：新 CommissionHubIssue 的 `_context`（已实证是崩溃源）、完成旧 quest 的残留状态、报复部队相关——修复后复现若仍有崩溃/弹窗按同样流程取证。

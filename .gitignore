@@ -1,83 +1,66 @@
-# Visual Studio 编译输出
-ExampleModVS/bin/
-ExampleModVS/obj/
+# ============================================================
+# LivingWorldNpcs .gitignore
+#
+# 🔴 书写纪律：一律用「整目录」或「通配」，禁止写死单个文件名。
+#    点名 = 新产物漏网（实测教训：Debug/prompt_dump_*.txt、compat_log_*.txt、
+#    plans/**/tools/_probe_*.txt 21 个，全因规则写死了别的文件名而漏进库）。
+#    详见 CLAUDE.md「目录归口与 git 收纳政策」。
+# ============================================================
 
-# 用户特定的项目文件
-*.csproj.user
-*.user
-
-# Visual Studio 临时文件
+# ── Visual Studio ──
 .vs/
 *.suo
 *.userosscache
 *.sln.docstates
+*.user
 
-# 构建输出
+# ── 构建输出（任意深度）──
 [Bb]in/
 [Oo]bj/
 
-# NuGet
+# ── NuGet ──
 packages/
 *.nupkg
 
-# 日志文件
-*.log
-Debug/StoryEngine_RuntimeLog.txt
-
-# 临时文件
-*.tmp
-*.temp
-
-# 发布打包输出
+# ── 发布打包输出 ──
 release/
 
-# 不同步 AIInfluence 子项目
-ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
-
-# LLM 密谋回归测试产物（迭代样本，不进 git；v12 = 定稿样本可另行提交）
-Debug/llm_samples*/
-Debug/_archive_old_samples/
-Debug/regress_*.log
-
-# Python 字节码（tools/ 下所有 py 工具通用）
+# ── Python ──
 __pycache__/
 *.pyc
 
-# loading 打包管线生成物（tools/loading_pipeline/ 脚本可重跑再生成；脚本本体入库）
-tools/loading_pipeline/gen/
-tools/loading_pipeline/__pycache__/
-
-# 开场视频转换产物（tools/video_tools/ 脚本可重跑再生成；脚本本体入库）
-tools/video_tools/out/
-
-# Python 缓存
-__pycache__/
-*.pyc
-
-# Debug 运行时产物（PlanExamples/*.json 开发夹具保留在 git）
-Debug/crash/
-Debug/dump_theft_ledger.txt
-Debug/save_report.txt
+# ── 通用临时/日志/备份 ──
+*.log
+*.tmp
+*.temp
 *.sav
-# 转化器生成产物（tk5_to_json.py / stage_inject.py 随时可重生成，不跟踪）
-# 跟踪的只有 plan 文档 + py 脚本；审核记录.md 是文档，保留跟踪
-plans/scenario-campaign-mode/story_event_json/*
-!plans/scenario-campaign-mode/story_event_json/审核记录.md
+*.bak
+*.bak_*
 
-# 立绘生成的接口测试图（生成物，不进 git；流水线见 plans/scenario-campaign-mode/附录-角色立绘生成流水线.md）
-Debug/*.png
-Debug/*.jpg
-Debug/*.jpeg
+# ============================================================
+# 🔴 Debug/ = 模块根唯一产物根（运行时 + 离线），默认全忽略
+#    白名单只留 C# 读的开发夹具 PlanExamples/（PlanDebugCommands.cs）
+#    离线/一次性产物统一放 Debug/offline/，被本兜底规则覆盖，无需单独写规则
+# ============================================================
+Debug/*
+!Debug/PlanExamples/
+!Debug/PlanExamples/**
 
-# 16b 落点裁定表一次性补丁脚本（_ 前缀 = 改完即弃的临时脚本，不进 git；正式脚本无 _ 前缀）
-plans/scenario-campaign-mode/tools/_patch16b*.py
+# ── `_` 前缀 = 改完即弃的临时物（项目政策，全局生效）──
+#    Scripts/_*                        ：_tmp_* 等临时脚本
+#    plans/**/tools/_*                 ：_patch16b*（16b 落点裁定表补丁）+ _probe_*.txt 等
+Scripts/_*
+plans/scenario-campaign-mode/tools/_*
 
-# 调试探查/dump 产物（heroes_probe、织丰表 xlsx dump）
-Debug/heroes_probe.json
-Debug/xlsx_dump/
+# ── 规则空档补漏 ──
+.codemaker/
 
-# tools/ 管线目录：源代码入库（2026-09-02 用户裁定：管线代码禁止 gitignore）；
-# 仅忽略构建产物与实验数据产出（大文件/中间产物不入库）
+# ── 工具目录：源码入库 + 产物整目录忽略（本仓库的正确范例）──
+tools/loading_pipeline/gen/
+tools/video_tools/out/
+tools/ExportHeightMatMap/SourceMap/
+tools/ExportHeightMatMap/Output/
+tools/ExportHeightMatMap/NativeExample/
 tools/face-pipeline/**/bin/
 tools/face-pipeline/**/obj/
 tools/face-pipeline/data/
@@ -86,8 +69,20 @@ tools/face-pipeline/*.png
 # FreeUV 外部依赖（内嵌 git 仓库）：管线已改为 LLM 生成 UV 图，不再需要，整目录不进库
 tools/face-pipeline/external/FreeUV/
 
-# 数据表临时备份（迁移/修改前快照，一律不进库）
-*.bak_*
+# ── 不同步 AIInfluence 子项目 ──
+ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
+
+# ── 音频资产（太阁 BGM / 菜单主题——2026-09-06 已迁往内容包 Modules\Taikou，勿再入库）──
+music/
+ModuleSounds/
+
+# ── 参考素材与研究工作区（太阁5 图片素材、地图研究中间产物，不入库）──
+refs_koei/
+
+# ── 剧本工程：转化器生成产物（tk5_to_json.py / stage_inject.py 随时可重生成）──
+#    跟踪的只有 plan 文档 + py 脚本；审核记录.md 是文档，保留跟踪
+plans/scenario-campaign-mode/story_event_json/*
+!plans/scenario-campaign-mode/story_event_json/审核记录.md
 
 # ===== TK5 分析工程（_analysis）：只保留最终成果 csv + 关键解析脚本，中间产物不入库 =====
 Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/*
@@ -111,20 +106,3 @@ Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/editor124/*
 Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/decoded/*
 !Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/decoded/era_v2/
 !Knowledge/太阁5/骑砍2织丰角色ID对应/_analysis/decoded/era_v2/**
-
-# 参考素材与研究工作区（太阁5 图片素材、地图研究中间产物，不入库）
-refs_koei/
-
-# 地形管线：素材与产物均为大文件/可重跑生成物（脚本 tools/ExportHeightMatMap/make_heightmap.py）
-tools/ExportHeightMatMap/SourceMap/
-tools/ExportHeightMatMap/Output/
-
-# 原版地形导出样本（NativeExample：原版高度图 + 8 层权重，16bit 4097x4097，实验对照数据，不入库）
-tools/ExportHeightMatMap/NativeExample/
-
-# 音频资产（太阁 BGM / 菜单主题——2026-09-06 已迁往内容包 Modules\Taikou，勿再入库）
-music/
-ModuleSounds/
-
-# 实机地形导出产物（custom.export_heightmap → Debug/HeightmapExport/：PNG/info/tracelog，2026-09-07 追加）
-Debug/HeightmapExport/
