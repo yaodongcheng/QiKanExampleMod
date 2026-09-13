@@ -50,10 +50,10 @@ if (command is "help" or "-h" or "--help")
     return 1;
 }
 
-// morphinfo / morphfix / skinfix 自带参数集且自己做加载——放在全局 preload 之前，避免被无关 tpac 拖累/拖崩
-if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff")
+// morphinfo / morphfix / skinfix / metaparts 自带参数集且自己做加载——放在全局 preload 之前，避免被无关 tpac 拖累/拖崩
+if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metaparts")
 {
-    string mDir = null, mFilter = null, mOut = null;
+    string mDir = null, mFilter = null, mOut = null, mOrder = null;
     int mTarget = 101, mBone = 13;
     bool mClearMat = false, mFullMat = false, mForce = false;
     for (int i = 1; i < cmdLine.Length; i++)
@@ -63,6 +63,7 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff")
             case "--packdir": mDir = cmdLine[++i]; break;
             case "--filter": mFilter = cmdLine[++i]; break;
             case "--out": mOut = cmdLine[++i]; break;
+            case "--order": mOrder = cmdLine[++i]; break;
             case "--target": mTarget = int.Parse(cmdLine[++i]); break;
             case "--bone": mBone = int.Parse(cmdLine[++i]); break;
             case "--clearmat": mClearMat = true; break;
@@ -75,6 +76,7 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff")
         "morphinfo" => MorphFix.Info(mDir, mFilter),
         "morphfix" => MorphFix.Fix(mDir, mFilter, mOut, mTarget, mClearMat),
         "meshdiff" => MeshDiff.Run(mDir, mFilter, mOut),
+        "metaparts" => MetaParts.Run(mDir, mFilter, mOut, mOrder),
         _ => MorphFix.SkinFix(mDir, mFilter, mOut, mBone, mFullMat, mForce),
     };
 }

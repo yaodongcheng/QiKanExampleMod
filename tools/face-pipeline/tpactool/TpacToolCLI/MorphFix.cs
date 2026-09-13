@@ -86,28 +86,57 @@ namespace TpacCli
                     }
                     int need = Math.Max(target, byIdx.Count == 0 ? 0 : byIdx.Keys.Max() + 1);
 
+                    // 🔴🔴 VertexFrame.Positions 是【绝对位置】，不是位移增量！
+                    //   铁证（morphinfo 的 [MORPH] 诊断行）：正常包里帧 0（Basis，语义上"不形变"）的
+                    //   三个采样点 (0.032,0.11,1.595)/(0.022,0.141,1.605)/(0.031,0.111,1.595) 与基础网格
+                    //   Positions 逐点吻合（差 0.0002）；xxFemale 每一帧也都是头部坐标量级。
+                    //   ⇒ 「不形变」的正确填法 = **复制基础网格的位置**。
+                    //   ❌ 早期版本填 new Vector4[n]（全 0）= 绝对位置 (0,0,0) = 把整块网格拉向原点。
+                    //      实机症状 = 「面部持续下坠」：脸壳参与 morph 混合所以掉，眼球不吃权重所以不掉。
+                    var fillPos = new Vector4[posLen];
+                    for (int i = 0; i < posLen && i < data.Positions.Length; i++) fillPos[i] = data.Positions[i];
+                    var fillNrm = new Vector4[nrmLen];
+                    for (int i = 0; i < nrmLen && i < data.Vertices.Length; i++) fillNrm[i] = data.Vertices[i].Normal;
+                    bool IsBroken(MeshEditData.VertexFrame f) =>
+                        f.Positions.Length > 0 && f.Positions.All(p => p.X == 0f && p.Y == 0f && p.Z == 0f);
+
                     var rebuilt = new List<MeshEditData.VertexFrame>(need);
-                    int added = 0;
+                    int added = 0, repaired = 0;
                     for (int t = 0; t < need; t++)
                     {
-                        if (byIdx.TryGetValue(t, out var keep)) { rebuilt.Add(keep); continue; }
-                        // 缺失帧 = 零位移（蒂法没有该通道的形状数据，零位移 = 不形变）
+                        if (byIdx.TryGetValue(t, out var keep))
+                        {
+                            // 修掉早期补丁留下的"整帧全零"坏帧（幂等：修好后重跑不再命中）
+                            if (IsBroken(keep))
+                            {
+                                rebuilt.Add(new MeshEditData.VertexFrame
+                                {
+                                    Time = BitConverter.SingleToInt32Bits((float)t),
+                                    Positions = (Vector4[])fillPos.Clone(),
+                                    Normals = (Vector4[])fillNrm.Clone(),
+                                });
+                                repaired++;
+                                continue;
+                            }
+                            rebuilt.Add(keep);
+                            continue;
+                        }
                         rebuilt.Add(new MeshEditData.VertexFrame
                         {
                             Time = BitConverter.SingleToInt32Bits((float)t),
-                            Positions = new Vector4[posLen],
-                            Normals = new Vector4[nrmLen],
+                            Positions = (Vector4[])fillPos.Clone(),
+                            Normals = (Vector4[])fillNrm.Clone(),
                         });
                         added++;
                     }
                     bool keyOk = mesh.VertexKeyCount == need;
-                    if (added == 0 && keyOk)
+                    if (added == 0 && repaired == 0 && keyOk)
                     {
                         Console.WriteLine($"  [ok]   {mesh.Name}: {data.MorphFrames.Count} 帧 + VertexKeyCount={mesh.VertexKeyCount}，一致，跳过");
                         continue;
                     }
 
-                    if (added > 0)
+                    if (added > 0 || repaired > 0)
                     {
                         data.MorphFrames.Clear();
                         data.MorphFrames.AddRange(rebuilt);
@@ -125,7 +154,7 @@ namespace TpacCli
                     meta.RawMeta = null;   // 该字段在 metamess 元数据里，不清 RawMeta 写不进去
 
                     touched++;
-                    Console.WriteLine($"  [fix]  {mesh.Name}: {rebuilt.Count - added} -> {rebuilt.Count} 帧（补 {added}），VertexKeyCount {oldKey} -> {need}");
+                    Console.WriteLine($"  [fix]  {mesh.Name}: {rebuilt.Count - added} -> {rebuilt.Count} 帧（补 {added}，修坏帧 {repaired}），VertexKeyCount {oldKey} -> {need}");
                 }
             }
 
@@ -528,6 +557,22 @@ namespace TpacCli
                             foreach (var b in vs.BoneIndices) { allB.Add(b.B1); allB.Add(b.B2); allB.Add(b.B3); allB.Add(b.B4); }
                             Console.WriteLine($"        骨骼: 索引非零 {nzIdx}/{vs.BoneIndices.Length}  权重非零 {nzW}/{vs.BoneWeights?.Length ?? -1}  "
                                             + $"B1 去重 {b1.Count} 个 范围 {b1.First()}..{b1.Last()}  |  B1~B4 去重 {allB.Count} 个 [{string.Join(",", allB.Take(12))}{((allB.Count > 12) ? "..." : "")}]  UnknownInt2={mesh.UnknownInt2}");
+                            // 次级槽非零 = 顶点被分摊到第二/三/四根骨上 → 头不会刚性跟随头骨（会漂移/被拉到别处）
+                            if (vs.BoneWeights != null && vs.BoneWeights.Length == vs.BoneIndices.Length)
+                            {
+                                var sb = new System.Text.StringBuilder();
+                                for (int i = 0; i < Math.Min(5, vs.BoneIndices.Length); i++)
+                                {
+                                    var bi = vs.BoneIndices[i];
+                                    var bw = vs.BoneWeights[i];
+                                    sb.Append($"[{bi.B1},{bi.B2},{bi.B3},{bi.B4} | {bw.W1},{bw.W2},{bw.W3},{bw.W4}] ");
+                                }
+                                Console.WriteLine($"        前5顶点 B1..B4 | W1..W4: {sb}");
+                                int w234 = vs.BoneWeights.Count(w => w.W2 != 0 || w.W3 != 0 || w.W4 != 0);
+                                int b234 = vs.BoneIndices.Count(b => b.B2 != 0 || b.B3 != 0 || b.B4 != 0);
+                                Console.WriteLine($"        🔴 次级槽非零: 权重 W2~W4 = {w234}/{vs.BoneWeights.Length}   索引 B2~B4 = {b234}/{vs.BoneIndices.Length}"
+                                                + (w234 > 0 ? "   <== 顶点被分到多根骨，头不会刚性跟随" : "   (刚性单骨，正常)"));
+                            }
                         }
                     }
                     else Console.WriteLine($"        stream: (无 VertexStream)  Lod={mesh.Lod}");
@@ -547,9 +592,56 @@ namespace TpacCli
                         Console.WriteLine($"        整数索引缺(0..100): {(missing.Count == 0 ? "无" : string.Join(",", missing))}");
                     }
                     // 采样帧幅：全零 = 该通道不形变
-                    var mag = data.MorphFrames.Select(f => f.Positions.Select(p => Math.Abs(p.X) + Math.Abs(p.Y) + Math.Abs(p.Z)).DefaultIfEmpty(0f).Max()).ToList();
-                    var zeroFrames = Enumerable.Range(0, mag.Count).Where(i => mag[i] < 1e-6f).ToList();
-                    Console.WriteLine($"        零位移帧索引: {(zeroFrames.Count == 0 ? "无" : string.Join(",", zeroFrames.Take(20)) + (zeroFrames.Count > 20 ? " ..." : ""))}  共 {zeroFrames.Count}/{mag.Count}");
+                    // 「未形变帧」= 位置与基础网格一致（不是"全零"——全零是坏帧）
+                    var zeroFrames = Enumerable.Range(0, data.MorphFrames.Count)
+                        .Where(i => data.MorphFrames[i].Positions.Length > 0 && data.MorphFrames[i].Positions
+                            .Select((pp, k) => k < data.Positions.Length
+                                ? Math.Abs(pp.X - data.Positions[k].X) + Math.Abs(pp.Y - data.Positions[k].Y) + Math.Abs(pp.Z - data.Positions[k].Z) : 0f)
+                            .DefaultIfEmpty(0f).Max() < 1e-4f)
+                        .ToList();
+                    var brokenFrames = Enumerable.Range(0, data.MorphFrames.Count)
+                        .Where(i => data.MorphFrames[i].Positions.Length > 0 && data.MorphFrames[i].Positions.All(pp => pp.X == 0f && pp.Y == 0f && pp.Z == 0f))
+                        .ToList();
+                    Console.WriteLine($"        未形变帧: {(zeroFrames.Count == 0 ? "无" : zeroFrames.Count + " 个")}   🔴坏帧(全零): {(brokenFrames.Count == 0 ? "无" : brokenFrames.Count + " 个 ← 必须跑 morphfix 修掉")}");
+                    // 🔴 逐帧位移签名：帧 i 的（位置 − 基础网格）包围盒，单位 mm。
+                    //    用途：与 FBX 里各 KeyTime_N 的几何包围盒对号（`fbx_probe.py` 能打出来），
+                    //    判断"帧索引 ↔ 通道编号"有没有错位一格——皮肤的 deform_keys 用 key_time_point=N
+                    //    取帧，若帧 0 装的是 KeyTime_1，则 N=1 会取到 KeyTime_2，整体错一格。
+                    {
+                        int nsig = Math.Min(8, data.MorphFrames.Count);
+                        var sig = new System.Text.StringBuilder();
+                        for (int i = 0; i < nsig; i++)
+                        {
+                            var fr = data.MorphFrames[i];
+                            int m = Math.Min(fr.Positions.Length, data.Positions.Length);
+                            if (m == 0) { sig.Append($"f{i}:空 "); continue; }
+                            float x0 = float.MaxValue, x1 = float.MinValue, y0 = float.MaxValue,
+                                  y1 = float.MinValue, z0 = float.MaxValue, z1 = float.MinValue;
+                            for (int k = 0; k < m; k++)
+                            {
+                                var d = fr.Positions[k] - data.Positions[k];
+                                x0 = Math.Min(x0, d.X); x1 = Math.Max(x1, d.X);
+                                y0 = Math.Min(y0, d.Y); y1 = Math.Max(y1, d.Y);
+                                z0 = Math.Min(z0, d.Z); z1 = Math.Max(z1, d.Z);
+                            }
+                            sig.Append($"f{i}[x{x0 * 1000:0.#},{x1 * 1000:0.#} y{y0 * 1000:0.#},{y1 * 1000:0.#} z{z0 * 1000:0.#},{z1 * 1000:0.#}] ");
+                        }
+                        Console.WriteLine($"        [MORPH] 逐帧位移签名(前{nsig}帧, mm): {sig}");
+                    }
+                    // 🔴 诊断：VertexFrame.Positions 是【绝对位置】还是【位移】——决定补帧该填什么。
+                    //    若帧 0（Basis，语义上应"不形变"）的数值 ≈ 基础网格 Positions，则为绝对位置，
+                    //    补帧必须填基础位置；填 0 会让该帧把整块网格拉向原点（实机表现为"面部下坠"）。
+                    if (data.MorphFrames.Count > 0 && data.Positions.Length > 0)
+                    {
+                        var f0 = data.MorphFrames[0];
+                        var fLast = data.MorphFrames[data.MorphFrames.Count - 1];
+                        string V(Vector4 v) => $"({v.X:0.###},{v.Y:0.###},{v.Z:0.###})";
+                        Console.WriteLine($"        [MORPH] 帧0 前3位置   : {V(f0.Positions[0])} {V(f0.Positions[1])} {V(f0.Positions[2])}");
+                        Console.WriteLine($"        [MORPH] 基础网格前3位置: {V(data.Positions[0])} {V(data.Positions[1])} {V(data.Positions[2])}");
+                        Console.WriteLine($"        [MORPH] 末帧 前3位置  : {V(fLast.Positions[0])} {V(fLast.Positions[1])} {V(fLast.Positions[2])}");
+                        float d0 = Math.Abs(f0.Positions[0].X - data.Positions[0].X) + Math.Abs(f0.Positions[0].Y - data.Positions[0].Y) + Math.Abs(f0.Positions[0].Z - data.Positions[0].Z);
+                        Console.WriteLine($"        [MORPH] 帧0 与基础网格差 = {d0:0.####}  → {(d0 < 0.01 ? "【绝对位置】补帧必须填基础位置" : "【位移】补帧应填 0")}");
+                    }
                 }
             }
         }
