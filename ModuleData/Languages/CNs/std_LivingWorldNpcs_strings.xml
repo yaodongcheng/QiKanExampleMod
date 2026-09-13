@@ -4191,6 +4191,9 @@
     <string id="LWN_plan_detail_contingencies" text="应急安排：" />
     <string id="LWN_plan_detail_contingency_line" text="    若 {COND} 则 {THEN}" />
     <string id="LWN_plan_detail_guardrail" text="    安全网：意外威胁会暂停战术；停止键随时召回随从。" />
+    <string id="LWN_plan_target_line" text="目标：{TARGETS}" />
+    <string id="LWN_plan_target_player" text="主公本人（您自己）" />
+    <string id="LWN_plan_target_self" text="（随从）自己" />
     <string id="LWN_plan_step_memory" text="按主公吩咐，{ACTION} {TARGET}，已完成。" />
     <!--  2026-08-20（实机：偷窃被目击中断却记成「已完成」）：判定型步骤按 result 路由的记忆文案 -->
     <string id="LWN_plan_step_memory_interrupted" text="按主公吩咐，{ACTION} {TARGET}，被人看见没得手。" />
@@ -4495,6 +4498,8 @@
     <string id="LWN_mcm_perf_fps_hint" text="开启后，左上角显示帧率辅助行（每秒帧数 / 帧时间 / 当前场景），本 mod 与大地图上均可见。" />
     <string id="LWN_mcm_perf_details" text="模块耗时详情" />
     <string id="LWN_mcm_perf_details_hint" text="开启后，帧率面板追加本 mod 各子系统与其他已安装 mod 的每帧方法耗时（运行时按 DLL 名自动包裹，无需对方配合）。每个模块显示：每帧毫秒、占帧时间比例、峰值耗时，按耗时降序排列。" />
+    <string id="LWN_mcm_group_follow_up" text="群聊：允许其他人插话" />
+    <string id="LWN_mcm_group_follow_up_hint" text="开启后，队伍/家族频道里主回复者答完后，可能再有第二个人跟一句（两人还可能拌起嘴来）。关闭 = 群里严格一人一句，只跟你正在说话的那个人答。默认开启；跟话的频率在 config.json 的 ImGroupFollowUpChance 里调。" />
     <string id="LWN_perf_scene_mission" text="场景" />
     <string id="LWN_perf_scene_campaign" text="大地图" />
     <string id="LWN_perf_scene_campaign_paused" text="大地图(暂停)" />

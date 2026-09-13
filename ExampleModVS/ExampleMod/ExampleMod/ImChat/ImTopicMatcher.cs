@@ -191,12 +191,17 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 挑群聊回复者：score = Σ(命中主题 × 职业亲和) + @提及(5) + 相似度(0~3) + 热度(0~2.5) + 沉寂(0~2.5) + 随机抖动(0~2)。
-        /// 返回 (主回复者, 跟随回复者)。跟随回复者仅当 <see cref="Settings.ImGroupFollowUpChance"/>
-        /// 掷中且成员 ≥ 2 时非 null（10% 概率其他人跟着回复，用户决策 1，概率可调）。
+        /// 返回 (主回复者, 跟随回复者)。跟随回复者仅当 <see cref="Settings.ImGroupFollowUpEnabled"/>
+        /// 开启、<see cref="Settings.ImGroupFollowUpChance"/> 掷中（或复数称呼强制）且成员 ≥ 2 时非 null。
         /// 纯规则、零 LLM；全部成员不可用时返回 (null, null)。
         /// 🔴 打分明细落日志（[ImTopic]）：玩家问"为什么总是他回"时直接看日志定位。
+        ///
+        /// 🔴 2026-09-13（对话连续性，用户裁定）：**玩家没点名且已知「上一个跟我说话的人」→ 直接沿用他
+        /// 当主回复者，不跑打分**（"你不用选了"）。旧行为每条消息都重新海选——措辞一换主题就变，
+        /// 主答人跟着换，"跟 A 聊着聊着变成 B 答"。点名（@提及）永远优先；上一位已不在频道 → 回落打分。
         /// </summary>
-        public static (Hero primary, Hero followUp) PickRepliers(List<Hero> members, string playerText)
+        /// <param name="preferredPrimary">上一个跟玩家说话的人（调用方从频道消息史取；null = 无 → 照常打分）。</param>
+        public static (Hero primary, Hero followUp) PickRepliers(List<Hero> members, string playerText, Hero preferredPrimary = null)
         {
             if (members == null || members.Count == 0) return (null, null);
 
@@ -204,6 +209,7 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[ImTopic] 挑人 text=\"{playerText}\" 候选={string.Join(",", members.Select(m => m?.Name?.ToString() ?? "?"))} topics=[{string.Join(",", topics)}]");
 
             var scored = new List<(Hero hero, float score, string detail)>();
+            bool anyMentioned = false;
             foreach (var h in members)
             {
                 if (h == null || h == Hero.MainHero) continue;
@@ -224,6 +230,7 @@ namespace LivingWorldNpcs
                         break;
                     }
                 }
+                if (mention > 0f) anyMentioned = true;
                 // 字符串相似度（个体指纹 bigram 重叠率，×3 封顶）
                 float similarity = BigramSimilarity(playerText, GetFingerprint(h)) * 3f;
                 float heat = ImHeatTracker.ReplyBonus(h.StringId);
@@ -242,23 +249,41 @@ namespace LivingWorldNpcs
             if (scored.Count == 0) return (null, null);
 
             scored.Sort((a, b) => b.score.CompareTo(a.score));
-            var primary = scored[0].hero;
+
+            // 🔴 2026-09-13（对话连续性，用户裁定）：没点名 + 有「上一个跟我说话的人」→ 直接沿用，
+            // **跳过打分海选**。点名（@提及 > 0）永远优先——玩家明确点了谁就听谁的。
+            // 上一位不在候选里（退队/离场/换频道）→ 回落打分第一。
+            Hero primary = null;
+            if (!anyMentioned && preferredPrimary != null)
+            {
+                primary = scored.FirstOrDefault(s => s.hero == preferredPrimary).hero;
+                if (primary != null)
+                    DebugLogger.Log($"[ImTopic] → 主回复={primary.Name}（未点名，沿用上一位；跳过打分海选）");
+            }
+            if (primary == null) primary = scored[0].hero;
 
             // 🔴 跟随回复 = 纯随机（2026-08-13 用户裁定：去掉保底）。
             // 2026-08-10 曾加"满 N 条必触发"保底（0.75^7≈13% 的 7 连不中实机出现过），
             // 但保底让跟随变成可预测的固定节拍（玩家发 N 句必然看到一句），假随机比真随机更出戏。
             // 保留纯随机：跟随 = 真正的偶尔惊喜，频道冷清由主回复者兜底（玩家消息必有回应）。
             // 🔴 复数称呼例外（2026-08-13）：玩家说"你们/两位/大家" = 明确对多人喊话，
-            // 此时跟随不掷随机，必然触发（scored[1] 第二位）——否则"你们俩"只有一人应答（日志实锤）。
+            // 此时跟随不掷随机，必然触发（主回复者之外打分第一）——否则"你们俩"只有一人应答（日志实锤）。
             Hero followUp = null;
-            bool pluralAddress = scored.Count >= 2
+            // 跟随者 = 主回复者之外的**打分第一**（主回复者被连续性强占时，第二名顶上，不是固定 scored[1]）
+            var rest = scored.Where(s => s.hero != primary).ToList();
+            bool pluralAddress = rest.Count >= 1
                 && !string.IsNullOrWhiteSpace(playerText)
                 && PluralAddressWords.Any(w => playerText.IndexOf(w, StringComparison.OrdinalIgnoreCase) >= 0);
-            if (scored.Count >= 2
+            // 🔴 2026-09-13（MCM 总开关，玩家反馈「和一个人说话时其他人插话很烦」）：关闭则队伍/家族
+            // 频道不再有第二人插话——概率跟随与复数称呼强制一并停（玩家要的是「只跟我正在说话的人答」）。
+            // 斗嘴往返（bounce，ImBounceChance）只挂在**跟随者的回复**上，无跟随者即无 bounce，无需另加闸门。
+            bool followUpEnabled = Settings.Instance.ImGroupFollowUpEnabled;
+            if (followUpEnabled && rest.Count >= 1
                 && (pluralAddress || MBRandom.RandomFloat < Settings.Instance.ImGroupFollowUpChance))
-                followUp = scored[1].hero;
+                followUp = rest[0].hero;
 
-            DebugLogger.Log($"[ImTopic] → 主回复={primary?.Name} 跟随={followUp?.Name?.ToString() ?? "无"}{(pluralAddress ? "（复数称呼强制）" : "")}");
+            DebugLogger.Log($"[ImTopic] → 主回复={primary?.Name} 跟随={followUp?.Name?.ToString() ?? "无"}"
+                + (!followUpEnabled ? "（跟随开关关闭）" : (pluralAddress ? "（复数称呼强制）" : "")));
             return (primary, followUp);
         }
     }

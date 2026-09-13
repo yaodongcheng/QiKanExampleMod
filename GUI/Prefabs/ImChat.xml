@@ -386,6 +386,19 @@
                                                                 WordWrapping="Wrap"
                                                                 MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
                                                                 DoNotAcceptEvents="true"/>
+                                                    <!-- 真实目标行（🔴 2026-09-13 实机事故修复）：计划真正要动的人，C# 确定性解析
+                                                         （ImCommandFlow.BuildPlanTargetLine），**不信任 LLM 文案**。事故：卡片正文写
+                                                         「您身旁的目标」、结构化步骤 target=player（主公本人）→ 玩家批准后随从打晕了主公。
+                                                         只列人目标；无非人目标时 IsVisible=false 不占行。金色 = 安全关键信息，
+                                                         与「修改版」徽标同色系。位置在正文与按钮行之间——批准前必看。 -->
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                MaxWidth="600"
+                                                                Text="@PlanTargetLine" Brush="MyBrush_16_Left" Brush.FontSize="17" Brush.FontColor="#E8C55AFF"
+                                                                Brush.TextHorizontalAlignment="Left"
+                                                                WordWrapping="Wrap"
+                                                                MarginLeft="12" MarginRight="12" MarginBottom="6"
+                                                                IsVisible="@HasPlanTargetLine"
+                                                                DoNotAcceptEvents="true"/>
                                                     <!-- 通用按钮行·横排（🔴 2026-08-13：短文本默认；仅锚点消息 IsCardAnchor && 非竖排显示；
                                                          数据驱动：DataSource="{CardButtons}"，ItemTemplate 每按钮 Command.Click="Execute"
                                                          绑 ImButtonVM.Execute。按钮集随卡片种类/状态由 VM 重建——计划卡片 = 自审/重拟?/同意/拒绝

@@ -65,6 +65,8 @@
   // IM 传讯系统（聊天面板，热键 M，2026-08-23 O→M）数值配置
   //
   // ImGroupFollowUpChance  群聊跟随回复概率（0~1）：主回复者之外第二人跟一句的概率，默认 0.06
+  //   🔴 2026-09-13：受 MCM 总开关「群聊：允许其他人插话」管辖（默认开启）——总开关关闭时本项失效，
+  //   且斗嘴往返（ImBounceChance）随之一并消失（bounce 只挂在跟随者的回复上）。
   // ImBounceChance         斗嘴往返概率（0~1）：跟随者回应后主回复者再回一句的概率，默认 0.25
   // ImReplyCooldownSeconds 单 NPC 回复冷却（墙钟秒）：防连发刷爆 LLM 限流，默认 5
   // ImHeatHotThreshold     互动热度分档阈值：热度 ≥ 此值 = 高频互动 → 该 NPC 记忆容量最大档

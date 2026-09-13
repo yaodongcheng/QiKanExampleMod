@@ -229,18 +229,20 @@ namespace TpacCli
                     var vs2 = mesh.VertexStream?.Data;
                     bool dirty = false;
 
-                    // UnknownInt2 = B1~B4 去重骨骼数（原生逐格验证：9/2/2/2/9/8… 完全吻合）。
-                    // 0 = 骨骼调色板空 → 绑骨越界 → native AccessViolation。
-                    if (vs2?.BoneIndices != null && vs2.BoneIndices.Length > 0)
+                    // UnknownInt2：只在为 0 时兜底。
+                    // 🔴 编辑器导入带骨架的 FBX 时会自己算出正确值（实测 = 28，与 xxFemale 一致）；
+                    //    此时**绝不能覆盖**——按"B1~B4 去重骨骼数"推出来的 2 是错的（早期补丁踩过）。
+                    if (mesh.UnknownInt2 == 0 && vs2?.BoneIndices != null && vs2.BoneIndices.Length > 0)
                     {
                         var set = new SortedSet<int>();
                         foreach (var b in vs2.BoneIndices) { set.Add(b.B1); set.Add(b.B2); set.Add(b.B3); set.Add(b.B4); }
-                        if (mesh.UnknownInt2 != set.Count)
-                        {
-                            Console.WriteLine($"  [meta] {mesh.Name}: UnknownInt2 {mesh.UnknownInt2} -> {set.Count}（用到骨骼数）");
-                            mesh.UnknownInt2 = set.Count;
-                            dirty = true;
-                        }
+                        Console.WriteLine($"  [meta] {mesh.Name}: UnknownInt2 0 -> {set.Count}（兜底值；编辑器未算时才用）");
+                        mesh.UnknownInt2 = set.Count;
+                        dirty = true;
+                    }
+                    else if (mesh.UnknownInt2 != 0)
+                    {
+                        Console.WriteLine($"  [meta] {mesh.Name}: UnknownInt2={mesh.UnknownInt2}（编辑器已算，保留）");
                     }
 
                     // MaterialFlags：脸部生成器靠 face_base/mouth/eye/eyelash_mesh 认「哪格是脸/嘴/眼/睫」。

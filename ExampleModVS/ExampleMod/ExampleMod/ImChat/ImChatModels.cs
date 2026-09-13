@@ -80,6 +80,18 @@ namespace LivingWorldNpcs
         [JsonProperty("pd")]
         public string PlanDetailText;    // 卡片详情（§3.2）：C# 确定性渲染的步骤/应急/安全网文本（不信任 LLM 文案）
 
+        // 🔴 2026-09-13（计划真实目标行，实机事故修复）：批准卡片上确定性渲染「这个计划真正要动谁」。
+        // 背景：卡片正文（Content）= LLM 自由文本，LLM 可以写「您身旁的目标」而结构化步骤里
+        // target=player（= 主公本人）——玩家批准时看不见真实目标，确认门形同虚设
+        //（实机：随从「遵命」把主公本人打晕了）。只列**人目标**（快照解析成功者 + player/self 特判），
+        // 地点/物件/查询类不占行——批准界面怕长，风险只在打错人。
+        [JsonProperty("pt")]
+        public string PlanTargetLine;
+
+        /// <summary>真实目标行是否显示（非空才显——无非人目标计划不占行）。</summary>
+        [JsonIgnore]
+        public bool HasPlanTargetLine => IsPlanCard && !string.IsNullOrWhiteSpace(PlanTargetLine);
+
         // 🔴 2026-08-12：生成中占位行（Generating 消息专用；文案 = 输入栏「正在输入」同款。
         // 新格式：Content 直接承载思考中文案（NPC 气泡渲染走 Content）；本字段保留给旧存档/旧渲染兜底）
         [JsonProperty("gt")]

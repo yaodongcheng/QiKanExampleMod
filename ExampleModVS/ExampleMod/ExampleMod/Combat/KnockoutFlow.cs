@@ -93,7 +93,9 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-16（方案 G3①/K2）：犯罪感知（同场景随从记忆照写——亲历者，无第三方目击
             // 只影响世界层反应不影响随从亲历）+ 犯罪当场关切（有目击者 → 概率冒泡，延迟确认在
             // PlayerMissionEventLogic tick）。成功击晕 = Knockout 罪，失败反击 = AttackAlly 罪。
-            AttackTriggerMissionLogic.ReportPlayerMisconduct(r.Success ? "Knockout" : "AttackAlly");
+            // 🔴 2026-09-13（播报口径修复，实机事故）：**传 attacker**——本方法是玩家/随从共享管线
+            //（铁律 18），不传执行者会写死「主公作案」（实机：随从击晕主公播报成「主公刚刚把人打晕了」）。
+            AttackTriggerMissionLogic.ReportPlayerMisconduct(r.Success ? "Knockout" : "AttackAlly", attacker);
 
             if (r.Success && AgentControlHelper.SafeIsActive(target))
             {

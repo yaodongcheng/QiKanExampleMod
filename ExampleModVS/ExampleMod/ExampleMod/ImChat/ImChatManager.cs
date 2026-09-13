@@ -305,7 +305,10 @@ namespace LivingWorldNpcs
                 // 热度只给被挑中的回复者（防全频道成员批量加分集体升 Hot 档——「互动多者容量大」应指实际互动者）
                 var members = GetChannelMembers(conv.Type);
                 // 🔴 跟随保底已移除（2026-08-13 用户裁定）：跟随回复纯随机，不做"满 N 条必跟随"
-                var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed);
+                // 🔴 2026-09-13（对话连续性，用户裁定）：没点名 → 沿用「上一个跟我说话的人」当主回复者，
+                // 不重新海选（旧行为：措辞一换主题就变，主答人跟着换，"跟 A 聊着聊着变成 B 答"）。
+                var lastSpeaker = FindLastChannelSpeaker(conv, members);
+                var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed, lastSpeaker);
                 // 🔴 NPC 自主行动提议（2026-08-13 门控移走）：群聊提议改由回复管线投递点触发
                 //（ImReplyService.Tick）——只允许「话题主回复者 + 纯寒暄回复」提议；玩家点名/问话
                 // 时旁观者不插嘴；玩家下令时（回复带动作/计划）不提议。
@@ -329,6 +332,37 @@ namespace LivingWorldNpcs
 
             // 反馈：玩家自己的消息也触发一次刷新（UI 轮询即可，这里保证会话存在）
             RaiseMessageArrived(conv);
+        }
+
+        /// <summary>🔴 2026-09-13（对话连续性，用户裁定）：该频道里**最近一条 NPC 发言**的发送者 Hero；
+        /// 无 → null（回落打分海选）。
+        /// 只认普通发言（Kind = Text）——系统行 / 计划卡 / 提议卡 / 生成中占位都不算「跟我说话」。
+        /// 玩家自己的消息在调用本方法前刚入 store（SenderHeroId = PlayerId）→ 天然被跳过。
+        /// 结果必须仍在 `members` 里：退队 / 离场 / 换频道 → 视为没有上一位（不能选一个不在频道的人）。
+        /// 取不到时返回 null 而不是抛——挑人失败退回 Sea 选，不影响回复。</summary>
+        private static Hero FindLastChannelSpeaker(ImConversation conv, List<Hero> members)
+        {
+            try
+            {
+                if (conv == null || members == null || members.Count == 0) return null;
+                var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                if (msgs == null) return null;
+                for (int i = msgs.Count - 1; i >= 0; i--)
+                {
+                    var m = msgs[i];
+                    if (m == null || m.Kind != ImMessageKind.Text) continue;
+                    if (string.IsNullOrEmpty(m.SenderHeroId) || m.SenderHeroId == PlayerId) continue;
+                    foreach (var h in members)
+                        if (h != null && h.StringId == m.SenderHeroId) return h;
+                    return null;   // 上一位已不在频道（退队/离场）→ 不沿用
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImTopic] 上一位说话人解析失败: {ex.Message}");
+                return null;
+            }
         }
 
         // ───────────────────────── 群聊 → 个体记忆（方案 B：统一记忆流 + 参与度过滤） ─────────────────────────
