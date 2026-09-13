@@ -1217,3 +1217,67 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 **工具链自己的坑（本轮修）**：`TpacTool.Lib` 的 `VertexStreamData.WriteData` **读写不对称**（读端不读计数前缀、写端写）→ 任何重写顶点流都会整体错位；已修。另：改 `MeshEditData`/`VertexStreamData` 内容必须**新建 ExternalLoader 顶替数据段**（就地改不被写回）。
 
 **完整交接**：[Knowledge/蒂法换头工程.md](../../Knowledge/蒂法换头工程.md) §11。
+
+---
+
+## 悬空 junction 让游戏启动即崩 `DirectoryNotFoundException @ ModuleHelper.GetModulePaths`（2026-09-13 实机）
+
+**症状**
+- 游戏启动瞬间抛 `System.IO.DirectoryNotFoundException`，栈顶是 `ModuleHelper.GetModulePaths → GetPhysicalModules → GetModules → GetModuleInfo` → `Module.Initialize()`。
+- 报错路径指向一个**明明"存在"的模块目录**（例：`Modules\TifaHead`）。
+
+**根因**
+- 该目录是 **junction（目录联接）**，**它的目标已被删除** → 悬空链接。
+- 🔴 **`Test-Path` 对悬空 junction 返回 `True`**（链接本身在），但任何**枚举目录内容**的操作（`Directory.GetFiles`）直接抛 `DirectoryNotFoundException`。
+- 引擎启动时要遍历 `Modules\*` 找模块 → 撞上断链 → 崩。
+
+**规避**
+- **删 junction 的目标时，必须连链接一起删。** 用 `cmd /c rmdir "<链接路径>"`（只删链接、不碰目标）。
+- 排查悬空链接（一条命令扫全部）：
+  ```powershell
+  Get-ChildItem <Modules目录> -Force | Where-Object { $_.LinkType } | ForEach-Object {
+    $ok=$true; foreach ($t in $_.Target) { if (-not (Test-Path $t)) { $ok=$false } }
+    if (-not $ok) { Write-Output "悬空: $($_.FullName) -> $($_.Target -join ';')" }
+  }
+  ```
+- **判定目录是否存在，对 junction 要用 `Get-Item -Force | fl LinkType,Target` 看目标存活**，`Test-Path` 不可信。
+
+---
+
+## Blender FBX ⇄ 骑砍2 资产管线四坑（坐标 100 倍 / 翻转 / 不蒙皮 / 重导入刷材质）
+
+**症状**（2026-09-13 蒂法换头工程实测，连续卡了三轮）
+1. 网格**完全看不见**（飞到模型外 150 米处）；
+2. 或**大小位置都对，但完全不跟骨架动**；
+3. 或**脸朝向反了**（朝后、或翻到地面以下）；
+4. 重新导入 FBX 后，编辑器里手工配的**材质设置全丢**（shader/flags/VertexLayout/纹理槽全变默认）。
+5. **游戏里眼球像贴了脸皮、眼睛周围是个皮肤色肉球，而 ModKit 里看着完全正常**（2026-09-13 晚实测）。
+
+**根因**（逐条实锤，详见 `Knowledge/蒂法换头工程.md` §13）
+1. **引擎会把 FBX 的 Model 节点变换烘进顶点**。`apply_scale_options='FBX_SCALE_NONE'` 会把「1米=100厘米」烘成节点 `scale=100` 而声明 `UnitScaleFactor=1` → **顶点放大 100 倍**。
+2. **引擎还会按文件声明的 `UpAxis` 再做一次轴转换**。文件里节点已转过一次、引擎又转一次 = **转两遍 = 绕 X 翻 180°**。用 `axis_forward='-Y'`（而非 `'Y'`）就会触发。
+3. **`skinning` 是"材质"上的 `VertexLayoutFlags`，不是网格属性**。缺它 → 引擎按无蒙皮渲染 → 网格钉死在绑定姿势。**FBX 不携带该 flag，换新工程/重导入后必须重新在编辑器里勾**。
+4. **FBX 重导入只还原 FBX 自己带的材质槽**，编辑器里手工配的一切都会没。"材质是独立资产、同名会复用"这个直觉是**错的**。
+5. **morph 帧（`MeshEditData.VertexFrame.Positions`）存的是【绝对位置】，不是位移增量**。补"不形变的帧"必须**复制基础网格的位置**；填全 0 在绝对位置语义下 = **把整块网格拉向原点** —— 实机症状是"**面部持续下坠，但眼睛正常**"（眼睛不吃 morph 权重所以不受影响）。判据：正常包的帧 0（Basis）数值应 ≈ 基础网格 `Positions`。
+
+**规避**
+- **Blender 导出固定用这套**（实测 5×5 参数矩阵得出）：`apply_scale_options='FBX_SCALE_UNITS'` + `axis_forward='Y'` + `axis_up='Z'`。
+- **导出前重设场景单位**：`scene.unit_settings.scale_length = 1.0`。🔴 **Blender 的 FBX 导入器会按文件里的 `UnitScaleFactor` 改写场景单位**（官方骨架声明厘米 → 场景被悄悄改成 0.01），所以必须在**所有导入之后**再设一次。
+- **导出后先过门禁再进编辑器**：`tools/face-pipeline/scripts/fbx_probe.py <f.fbx> --full`，期望 `UnitScaleFactor=100` / `UpAxis=2` / **网格节点无任何非单位变换（含纯平移）**。
+- **编译后、启动前再过第二道**：`check_head_space.py --pack <AssetPackages>`，和参照物量包围盒。
+- **别用"烧一次实机启动"当排查手段**；也别信编辑器预览的尺度（自动取景，放大 100 倍看着和正常一样）。
+6. **ModKit 删除 mesh 资产会【连带删掉 AssetSources 里创建它的源 FBX】**（删除框里的 `Geometry file xxx.fbx` 就是磁盘文件，点确定后真删）。迭代几轮源文件就空了。**应对**：备份目录当权威副本、生成脚本的输入读备份不读 AssetSources、每轮进编辑器前跑一次回填（本项目：`tools/face-pipeline/scripts/restore_fbx.py`）。
+7. 🔴 **编辑器 Publish 出来的包是"白编译"——材质设置全按 FBX 默认值写，必须再打两道补丁才进游戏**（`morphfix` 补 morph 帧到 101 + `skinfix --fullmat` 刷四角色材质配方 / `MaterialFlags` / `VertexKeyCount`）。漏打的后果：`MaterialFlags` 空 → 脸部生成器认不出部件、**把脸皮合成贴到眼球上**；材质 shader 全变默认 → **睫毛/眉/眼影三个透明件按不透明渲染**（这三块几何正好盖在眼睛上方，合起来就是个皮肤色肉球）；缺 `skinning` → 部件不跟骨架动。
+   - **一眼判据 = 包体大小**：本项目原始产物 **≈9.0 MB**（坏）／打过补丁的成品 **≈25.8 MB**（好）。**装机前先看大小。**
+   - 🔴 **别拿 ModKit 的观感当发布包验收**：编辑器读工程 `Assets\`（材质设置在），游戏读 `AssetPackages\pack0.tpac`（材质被刷默认）——**两边不是同一份东西**，ModKit 正常 ≠ 游戏正常。判据细节见 `Knowledge/蒂法换头工程.md` §15。
+8. 🔴🔴 **换头时脸部件的子网格【顺序 / 数量】必须与目标游戏一致——贴图是按位置分配的，不是按 `MaterialFlags`**（2026-09-13 深夜实测结论）。
+   - 原版 `head_female_a` 与能跑的参照 mod `xxFemaleHead` 都是 **4 件、顺序 = 脸→嘴→眼→睫**；我们做成了 **6 件（脸→嘴→睫→眼影→眼→眉）**，眼排第 5 → 超范围部件回落到**脸皮材质**。
+   - **症状极具辨识度**：眼球上贴着一张脸、整张脸"像糊了一层皮、鼻子嘴巴往前凸"——**因为那几件在渲染脸的贴图**。判据：把包里的脸皮贴图抠出来（`tpaccli dump --format png`），与实机截图上的"小脸"对比，同源即坐实。
+   - **别去折腾材质**：flags / shader / alphaTest 全设对了也没用（本项目为此白跑两轮实机）。先数子网格件数与顺序。
+   - **零成本验证**：`tpaccli metaparts --packdir <dir> --filter <名> --out <outdir> --order 0,1,4,2`（只重排元数据，不碰几何）——改完装机直接看，不必重导 FBX。
+9. 🔴🔴 **自建头：附属件必须带形变通道 + 形状键顺序必须是"Number 序且带占位键"**（2026-09-13 实机验证后总结，完整版见 `Knowledge/蒂法换头工程.md` §13.7）。
+   - **附属件无 morph 数据 → 脸动它不动**。脸壳的 50+ 条形变通道是位移场（单条最大 ±2cm），角色脸形参数会把脸壳拉走，五官留在原地 → **眼球跑到眼眶上方、眉毛与画上去的眉影错开、鼻子比"底下的脸"更凸**。编辑器预览（basis 状态）永远看不到这个。
+     **做法**：按**最近邻 3 点反距离加权**把脸壳的位移场搬到附属件顶点（1 近邻会起皱）。**判据**：`morphinfo` 里附属件的"未形变帧"不该等于总帧数。
+   - **形状键顺序 = 帧号**：编辑器**按位置**把非 Basis 键编成帧 0,1,2…（名字里的编号不影响帧号），而皮肤 `deform_keys` 用 `key_time_point=N` 取帧 N。所以 FBX 里必须是 `Basis → 占位键 → KeyTime_1…59` 数字序，**占位键还要非零位移**（零位移通道会被 FBX 压成 1 个顶点、可能被编辑器跳过）。诊断：`morphinfo` 的「逐帧位移签名」——帧 1 应为纯 X、帧 2 应为纯 Y。
+   - **标定别拿不对位的参照物**：拿原版的**扁平眼贴片**当我方**完整眼球**的基准 → 眼球被拉回去还缩小，编辑器里看就是"陷进眼窝"。正解是**从源模型自身反解变换**，并留一件**没被动过的配件当锚点**验证换算（本工程用"嘴"，折算目标与当前值逐位吻合 → 换算对，那偏离的几件就是被错改的）。
+
