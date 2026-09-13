@@ -216,6 +216,17 @@ namespace LivingWorldNpcs
         // 斗嘴往返概率（2026-08-10 v4）：跟随者回应后，主回复者再回一句的概率（0~1；0 = 关闭）
         // 🔴 2026-08-13 50%→25%：bounce 是"一条消息三条回复"链的放大器（主回复+跟随+bounce），减半
         public float ImBounceChance { get; set; } = 0.25f;
+
+        // ── 群聊跟随回复总开关（默认开启，MCM Mod 选项可关）──
+        // 关闭 = 队伍/家族频道里不再有「第二人插话」：主回复者之外的人不跟一句，
+        // 复数称呼（「你们/两位/大家」）也不再强制第二人应答 → 跟随与斗嘴往返（bounce）一并消失
+        // （bounce 只挂在跟随者的回复上，无跟随者即无 bounce）。
+        // 🔴 2026-09-13 玩家反馈（「和一个人说话的过程中其他人会插话，很烦」）→ 加此开关。
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
+        // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。
+        // 频率细则 ImGroupFollowUpChance 仍留 config.json（高级配置，受本开关管辖）。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ImGroupFollowUpEnabled { get; set; } = true;
         // 单 NPC 回复冷却（墙钟秒）：防玩家连发刷爆 LLM 限流。
         public float ImReplyCooldownSeconds { get; set; } = 5f;
         // 互动热度分档阈值（决定 NPC 记忆容量，Phase 5 生效）：heat >= Hot → 大容量；>= Normal → 现状；否则冷门小容量。

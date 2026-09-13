@@ -635,6 +635,18 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public string PlanSummary => _msg?.PlanSummary ?? "";
 
+        // 🔴 2026-09-13（计划真实目标行，实机事故修复）：批准前必须让玩家看见「这个计划真正要动谁」——
+        // 卡片正文是 LLM 自由文本，与结构化步骤可以不一致（事故：正文「您身旁的目标」vs 步骤
+        // target=player=主公本人 → 批准后随从打晕了主公）。内容由 C# 确定性解析（ImCommandFlow.
+        // BuildPlanTargetLine），随卡片消息持久化；读 _msg（卡片自身）而非 AnchorCard——
+        // 目标行属于卡片本体，不随链锚点漂移。
+        [DataSourceProperty]
+        public string PlanTargetLine => _msg?.PlanTargetLine ?? "";
+
+        /// <summary>真实目标行可见性（无非人目标 → 不占行）。</summary>
+        [DataSourceProperty]
+        public bool HasPlanTargetLine => _msg?.HasPlanTargetLine == true;
+
         // ── 🔴 2026-08-10（im-command-action-upgrade.md Q2/Q3/§3.3）：生成中占位 / 修改版 / 详情 ──
         // 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 按钮锚点跟随）：所有按钮状态改读 AnchorCard——
         // 计划卡片消息 = 自身；讲解消息 = 所属卡片（按钮渲染在锚点消息下方，数据仍在卡片上）。

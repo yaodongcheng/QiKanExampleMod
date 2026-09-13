@@ -157,6 +157,44 @@ namespace LivingWorldNpcs
             return false;
         }
 
+        /// <summary>
+        /// 🔴 友方保护统一判据（2026-09-13 实机事故修复）：OnAgentHit（伤害无效化）与
+        /// OnRegisterBlow（事件广播拦截）**共用这一份**——原先两处各抄一份，两份都漏了场景闸门，
+        /// 结果战场里拦截照常生效 → 敌人被判「自己人」，玩家打不动
+        ///（实机：守戴瑞城时打攻城方佛雷家族领主，弹出「XX 是自己人——你不能这么做」）。
+        ///
+        /// 🔴 必须带 IsInteractionDisabled 场景闸门：本拦截是**和平场景**的互动保护
+        ///（对标击晕/扒窃），战场/竞技场/对话等场景的战斗由引擎结算，mod 侧一律让位。
+        ///
+        /// 为什么不能只靠 MySubModule 的总闸（那个只决定挂不挂本 behavior）：
+        /// 引擎 Mission.AfterStart() 的顺序 = OnBehaviorInitialize → OnMissionBehaviorInitialize
+        ///（总闸在这里）→ EarlyStart → AfterStart，而 MissionMode 恰恰是 AfterStart 阶段才设的
+        ///（反编译：SandBox 的 SetMissionMode 调用全在 AfterStart / 更晚的事件回调里；CampaignSystem
+        /// 只设 Barter/Conversation，从不设 Battle）→ 总闸读到的 Mode 还没就绪。
+        /// 实测：玩家日志里 8 场攻城 + 4 场野战全部误挂。**此处是运行时判定，才算数。**
+        /// </summary>
+        private static bool ShouldBlockFriendlyAttack(Agent attacker, Agent victim)
+        {
+            if (attacker?.IsMainAgent != true) return false;              // 只拦玩家出手
+            if (victim == null || victim.IsMainAgent) return false;
+            if (Settings.Instance.AllowHostileOnAllies) return false;     // MCM 开关打开 = 允许对友方动手
+            if (Settings.Instance.IsInteractionDisabled()) return false;  // 🆕 战场/竞技场/对话 → 让位引擎
+            if (IsArenaCombat()) return false;                            // 竞技场队伍按轮次重组，社交友方 = 场上对手
+            if (IsEnemyTeam(attacker, victim)) return false;              // 🆕 引擎已判敌对 → 不拦
+            return FriendlinessHelper.IsFriendlyToPlayer(victim);
+        }
+
+        /// <summary>引擎层已判敌对（双方 Team 有效且互为敌队）。战场与 mod 自办的镇内打斗都走这条——
+        /// 后者 CombatManager.SetEnemy 会给双方设敌队，光靠场景闸门盖不住。
+        /// 和平场景不受影响：村民/守卫的 Team 是 Team.Invalid（IsValid=false），不算敌队，照常受保护。</summary>
+        private static bool IsEnemyTeam(Agent attacker, Agent victim)
+        {
+            // Team.Invalid 是单例非 null，IsEnemyOf 内部解引用 null mission 会 NRE → IsValid 前置短路
+            return attacker.Team != null && victim.Team != null
+                && attacker.Team.IsValid && victim.Team.IsValid
+                && attacker.Team.IsEnemyOf(victim.Team);
+        }
+
         /// <summary>友方保护拦截提示（反馈明确，铁律 13 本地化）：{NAME} 是自己人——你不能这么做。</summary>
         private static void ShowFriendlyBlockedHint(Agent target)
         {
@@ -373,15 +411,10 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 🆕 友方保护（主动攻击拦截）：MCM 开关关闭（默认）且目标是玩家友方 →
-            // 伤害无效化（镜像切磋虚拟血回血手法：引擎 HandleBlow 内 OnAgentHit 早于死亡判定，
-            // 写回能吃掉致命一击）+ 冷却提示；不进入死亡登记/犯罪广播链。
-            // 开关打开（允许对友方动手）→ 不拦，正常结算与后果。
-            // 竞技场（IsArenaCombat）→ 不拦：竞技场队伍按轮次随机重组，社交友方 = 场上的对手。
-            if (attackerAgent?.IsMainAgent == true && affectedAgent != null && !affectedAgent.IsMainAgent
-                && !Settings.Instance.AllowHostileOnAllies
-                && !IsArenaCombat()
-                && FriendlinessHelper.IsFriendlyToPlayer(affectedAgent))
+            // 🆕 友方保护（主动攻击拦截）：命中即把伤害写回去吃掉（镜像切磋虚拟血回血手法——
+            // 引擎 HandleBlow 内 OnAgentHit 早于死亡判定，写回能吃掉致命一击）+ 冷却提示；
+            // 不进入死亡登记/犯罪广播链。完整条件（场景/竞技场/敌队豁免）见 ShouldBlockFriendlyAttack。
+            if (ShouldBlockFriendlyAttack(attackerAgent, affectedAgent))
             {
                 affectedAgent.Health = MathF.Min(affectedAgent.Health + blow.InflictedDamage, affectedAgent.HealthLimit);
                 ShowFriendlyBlockedHint(affectedAgent);
@@ -687,13 +720,9 @@ namespace LivingWorldNpcs
                  //   InformationManager.DisplayMessage(new InformationMessage(                       LWNTextHelper.ResolveCompound("LWN_combat_damage_log",                            "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",                            ("ATTACKER", attacker.Name?.ToString() ?? ""),                            ("VICTIM", victim.Name?.ToString() ?? ""),                            ("DAMAGE", b.InflictedDamage.ToString())),                        Colors.Yellow));
             }
 
-            // 🆕 友方保护：玩家攻击友方 → 不广播 event_agent_damaged
-            // （NPC 攻击者不适用，条件自带 IsMainAgent；伤害无效化在 OnAgentHit）。
-            // 开关打开（允许对友方动手）→ 广播照常（友方受害者/旁观者正常反应）。
-            // 竞技场（IsArenaCombat）→ 不拦：社交友方 = 场上对手（脑在 IsInteractionDisabled 下
-            // 不处理事件，广播无接收者消费，无害）。
-            if (attacker.IsMainAgent && !Settings.Instance.AllowHostileOnAllies
-                && !IsArenaCombat() && FriendlinessHelper.IsFriendlyToPlayer(victim))
+            // 🆕 友方保护：玩家攻击友方 → 不广播 event_agent_damaged（伤害无效化在 OnAgentHit）。
+            // 完整条件（场景/竞技场/敌队豁免）见 ShouldBlockFriendlyAttack——两处共用一份，勿再各写各的。
+            if (ShouldBlockFriendlyAttack(attacker, victim))
             {
                 ShowFriendlyBlockedHint(victim);   // 反馈明确：拦截提示（2s 冷却，与 OnAgentHit 共享防刷屏）
                 return;
@@ -1063,12 +1092,21 @@ namespace LivingWorldNpcs
         /// <see cref="CheckPendingCrimeCare"/>（记账后下一帧查）。
         /// 罪行词 = 记账 ActionType 既有词（Steal/AttackAlly/Knockout → 复用 LWN_crime_witness_act_*
         /// 描述模板，不新造罪行文案）。
+        ///
+        /// 🔴 2026-09-13（播报口径修复，实机事故）：**主语按实际执行者走**。本方法是玩家/NPC 共享管线
+        ///（铁律 18：KnockoutFlow.Resolve 玩家与随从同一条）里的调用点，原先写死「主公刚刚…」——
+        /// 随从作案会播报成主公作案（实机：孙娴淑击晕朱祁心 → 日志「主公刚刚把人打晕了」，与实际相反，
+        /// 且给玩家记了一笔犯罪画像）。actor 缺省 null 保持旧语义（调用方未传 = 玩家本人）。
         /// </summary>
-        public static void ReportPlayerMisconduct(string actionTypeWord)
+        public static void ReportPlayerMisconduct(string actionTypeWord, Agent actor = null)
         {
             try
             {
                 if (Hero.MainHero == null || Mission.Current == null) return;
+                // 执行者判定：只有玩家本人出手才算「主公作案」（差异只在主语与犯罪画像计数，
+                // 感知写入/关切链两者共用——铁律 18：共享管线只留必要分化）。
+                bool byPlayer = actor == null || actor.IsMainAgent;
+                string actorName = byPlayer ? null : actor.Name?.ToString();
                 // 罪行描述（复用 WorldEvent 域既有描述模板）
                 string crimeDesc = actionTypeWord switch
                 {
@@ -1083,10 +1121,14 @@ namespace LivingWorldNpcs
                 };
                 // 地点锚点（方案 A helper 复用）
                 string near = WorldFactProvider.NearestSettlementName(15f);
-                string desc = near != null ? $"主公刚刚{crimeDesc}（{near}附近）" : $"主公刚刚{crimeDesc}";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
+                // 主语：玩家本人 → 「主公刚刚…」；随从 → 「{NAME}刚刚…」（随从作案不得播报成主公作案）
+                string subject = byPlayer ? "主公刚刚" : $"{actorName}刚刚";
+                string desc = near != null ? $"{subject}{crimeDesc}（{near}附近）" : $"{subject}{crimeDesc}";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
                 // 🔴 2026-08-16（方案 Q 补漏，P2）：犯罪计数（画像统计【主公的成色】）——
-                // 确定性聚合，与 battle_win/lose、imprison 同款挂钩（之前 RecordCrime 是死代码）
-                PlayerImageStore.RecordCrime();
+                // 确定性聚合，与 battle_win/lose、imprison 同款挂钩（之前 RecordCrime 是死代码）。
+                // 🔴 2026-09-13：只记**玩家本人**的罪——随从作的案不算主公的成色（实机事故：
+                // 随从打晕主公那一下给玩家记了一笔犯罪画像）。
+                if (byPlayer) PlayerImageStore.RecordCrime();
                 // G3① 感知（总是，同场景随从——亲历者）
                 var members = ImChatManager.GetChannelMembers(ImConversationType.Party);
                 int written = 0;

@@ -230,8 +230,18 @@ namespace LivingWorldNpcs
                     Agent target = explicitTarget;
                     if (target == null && defender != null && defender != Hero.MainHero)
                         target = ActionHandler.FindAgentByHeroId(defender.StringId);
-                    if (target == null) target = Agent.Main;   // 兜底（InScene 空间前提 = defender 在场）
-                    if (agent != null && target != null && AgentControlHelper.SafeIsActive(agent) && AgentControlHelper.SafeIsActive(target))
+                    // 🔴 2026-09-13（默认靶子修复，实机事故）：解析不到 → **中止**，不再静默拿玩家当靶子。
+                    // 旧写法 `if (target == null) target = Agent.Main;` 把「目标没解析出来」变成「打主公本人」。
+                    // 2026-08-13 已踩过一次（action_target=帝国新兵 但 defender 兜底成玩家 → 打了玩家），
+                    // 2026-09-13 以「LLM 填 target=player」的形式复发（随从打晕主公）。
+                    // 唯一合法的玩家目标 = defender 本来就是玩家本人（NPC 对玩家出手的路径）。
+                    if (target == null && defender == Hero.MainHero) target = Agent.Main;
+                    if (target == null)
+                    {
+                        DebugLogger.Log($"[ActionRegistry] order_attack 目标解析失败 → 中止（不做玩家兜底）defender={defender?.StringId ?? "null"} agent={agent?.Name?.ToString() ?? "null"} targetText={t ?? "null"}");
+                        return;
+                    }
+                    if (agent != null && AgentControlHelper.SafeIsActive(agent) && AgentControlHelper.SafeIsActive(target))
                         AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
                 },
                 Execute = (attacker, defender, agent, l, t, s) =>
@@ -483,8 +493,16 @@ namespace LivingWorldNpcs
                     Agent target = explicitTarget;
                     if (target == null && defender != null && defender != Hero.MainHero)
                         target = ActionHandler.FindAgentByHeroId(defender.StringId);
-                    if (target == null) target = Agent.Main;
-                    if (agent != null && target != null && AgentControlHelper.SafeIsActive(agent) && AgentControlHelper.SafeIsActive(target))
+                    // 🔴 2026-09-13（默认靶子修复）：同 order_attack——解析不到就中止，不拿玩家当默认靶子。
+                    // （切磋是玩家主动要求的合法路径，但「解析失败」不等于「玩家要切磋」；玩家主动时
+                    //   defender 就是玩家本人，走下一行显式判定。）
+                    if (target == null && defender == Hero.MainHero) target = Agent.Main;
+                    if (target == null)
+                    {
+                        DebugLogger.Log($"[ActionRegistry] duel 目标解析失败 → 中止（不做玩家兜底）defender={defender?.StringId ?? "null"} agent={agent?.Name?.ToString() ?? "null"} targetText={t ?? "null"}");
+                        return;
+                    }
+                    if (agent != null && AgentControlHelper.SafeIsActive(agent) && AgentControlHelper.SafeIsActive(target))
                         AgentAIController.Instance?.SendEventToAgent(agent, "duel", target);
                 },
                 Execute = (attacker, defender, agent, l, t, s) =>

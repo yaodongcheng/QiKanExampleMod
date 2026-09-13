@@ -109,6 +109,43 @@ public static class AgentStatsHelper
 
 **顺带修复**：NPC 击晕儿童免疫（原可击晕儿童）、已晕目标不再误发反击事件、随机源统一 MBRandom（原 NPC 用 Random）。**新增 NPC 动作范本**：按此结构抽共享管线（判定+结算进管线，壳留节奏与播报），对齐铁律 18。
 
+## 🔴 共享管线的差异点必须参数化，禁止写死一侧语义（2026-09-13 实机事故）— 承接「击晕单管线」，铁律 18 补强
+
+**解决什么问题**：`KnockoutFlow.Resolve` 是玩家/NPC 共享管线（写法正确，铁律 18 范本），但它内部调用的 `AttackTriggerMissionLogic.ReportPlayerMisconduct(...)` 把「主公作案」**写死了**，不问谁动的手。随从击晕主公时：① 播报「主公刚刚把人打晕了」（与实际**完全相反**）② `PlayerImageStore.RecordCrime()` 给玩家记了一笔犯罪画像 ③ 这句错的描述写进随从记忆，持久污染 prompt 材料。
+
+**纪律（铁律 18 补强）**：共享管线里凡「**谁做的**」这类主语语义，必须由调用方传入的 actor 决定，**不允许在管线内部写死**。差异点只有两类可留壳——**主语/视角** 与 **计数归属**——且必须参数化。
+
+```csharp
+// ✅ 正确：actor 缺省 null = 旧语义（调用方未传 = 玩家本人）——向后兼容，不必改所有调用点
+public static void ReportPlayerMisconduct(string actionTypeWord, Agent actor = null)
+{
+    bool byPlayer = actor == null || actor.IsMainAgent;
+    string subject = byPlayer ? "主公刚刚" : $"{actorName}刚刚";
+    if (byPlayer) PlayerImageStore.RecordCrime();   // 计数归属：只记玩家本人的罪
+}
+```
+
+**自检**：写/改共享管线时逐条问两问——「这一步的**主语**是谁？」「这一步的**计数/记账**记在谁头上？」。两问中任何一问在管线内写死了一侧 = 下一个 bug。
+
+## 🔴 目标解析失败必须中止，禁止向玩家回落（2026-09-13 实机事故）— `Planner/ActionRegistry.cs` ExecuteCore
+
+**解决什么问题**：`order_attack` / `duel` 的 `ExecuteCore` 里有 `if (target == null) target = Agent.Main;`——**把「目标没解析出来」静默变成「打主公本人」**。
+
+历史是**同一条链的两端**：2026-08-13 踩过一次（`action_target=帝国新兵` 但 defender 兜底成玩家 → 打了玩家，当时修法是"目标文本优先"）；2026-09-13 以「LLM 填 `target=player`」的形式复发（随从打晕主公）。
+
+**修法**：唯一合法的玩家目标 = **defender 本来就是玩家本人**（NPC 对玩家出手的路径）；其余解析失败一律中止 + 日志。
+
+```csharp
+if (target == null && defender == Hero.MainHero) target = Agent.Main;   // 唯一合法回落
+if (target == null)
+{
+    DebugLogger.Log($"[ActionRegistry] {code} 目标解析失败 → 中止（不做玩家兜底）defender=... agent=... targetText=...");
+    return;
+}
+```
+
+**纪律**：「解析失败 → 回落玩家」这类兜底是**把失败伪装成成功**，比直接失败更危险——失败被记成"玩家自己要求的"，后果全落在玩家头上。安全默认只能是"什么都不做"（中止 + 日志），不能是"拿玩家顶替"。
+
 ## 执行期目标解析（快照匹配口径）— `Planner/SceneSnapshot.cs` FindAgent
 
 `TryResolveAgent` 解析链：self/player 特判 → `RoleAgents`（explicitTarget 注册的 "target"）→ 快照 `FindAgent`。快照匹配五层：① Role 精确 ② 显示名精确 ③ StringId/Character.Name 精确 ④ 职业关键词子串 ⑤ **显示名子串**（2026-08-13 加——与 defender 解析 `NameMatchesHero` 同口径；"那弥斯" ⊂ "卡诺洛斯的那弥斯"，多匹配取最近）。**纪律**：卡片阶段能解析的目标，执行期必须同口径解析——否则"卡片发出、执行瞬死"（实机 44.510→44.512）。

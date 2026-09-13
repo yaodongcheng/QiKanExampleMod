@@ -380,6 +380,34 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 - 已用清单核查新世界 = 新坑点必须能挂到清单某一条上（挂不上 = 清单有缺口 = 先补清单再写代码）。
 
 
+## 🔴 模块资产目录的「编辑器模式 / 游戏模式」切换（bat 化，TifaHead 已落地）
+
+**背景**：引擎挑资产目录是**按固定顺序取第一个存在的** —— `Assets` → `AssetPackages` → `DsAssetPackages` → `EmAssetPackages` → …（详见 [pitfalls.md](plans/rules/pitfalls.md) 那条"空 `Assets/` 遮蔽"）。而 ModKit 编辑器**必须**用 `Assets/` 当工程目录，里面存的是**编译中间产物**：没有 `VertexStreamData`（运行时 GPU 顶点流）、贴图只有导入设置没有像素、网格缺一堆脸部元数据。**引擎跑游戏时读到它 = 读半成品 → 崩。**
+
+**所以凡是「编辑器工程 + 运行期资产包」分离的模块，天然存在两种互斥状态：**
+
+| 状态 | `Assets/` | 模块的接管文件（TifaHead = `skins.xslt`） |
+|---|---|---|
+| **游戏模式** | 必须**不叫这个名字**（改名 `Assets_disabled`）→ 引擎读 `AssetPackages/*.tpac` | 必须**生效** |
+| **编辑器模式** | 必须叫 `Assets` | 必须**停用**（否则引擎拿半成品做脸部处理 → `face_generator.cpp:864` 断言 `non-tested code execution!`） |
+
+**TifaHead 已做成一键切换**（`Modules/TifaHead/`）：
+
+```
+to_game_mode.bat      启用 skins.xslt（从 master 复制） + Assets → Assets_disabled
+to_editor_mode.bat    Assets_disabled → Assets            + 删掉 skins.xslt（master 保留）
+```
+
+- **唯一真源** = `ModuleData/skins.xslt.master`。bat 只复制/删除 `skins.xslt`，**从不碰 master**。
+- **幂等**：重复跑没事；两个目录都存在时报警但**不乱动**。
+
+**两个已踩的坑**：
+
+1. 🔴 **bat 里必须写 `set "MOD=%~dp0"`，引号不能省** —— 路径含 `&`（Mount **&** Blade）会把 `set MOD=<半截路径>` 整行截断，后续所有路径全错（实测症状：报 `'Blade' is not recognized as an internal or external command`）。同理 **PowerShell 里调 bat 要用 `Start-Process -FilePath`**，`& "…\x.bat"` 也会被路径里的 `&` 截断。
+2. 🔴 **`AssetPackages/` 是编辑器 Publish 的目标目录，Publish 会清空它** —— 备份别放那儿（实测放在里面的 4 个 `.bak` 被清掉）。
+
+**新模块照此办理**：凡是编辑器工程与运行期资产包分离的模块，都做一对同名 bat，**别靠人肉改名**。
+
 ## 🔴 目录归口与 git 收纳政策（2026-09-13 用户裁定）
 
 **一句话**：模块根只有一个产物根 `Debug/`；进 git 的只有「源 + 文档 + 校验基准」。**新建任何文件夹之前，必须先在下表找到它的归属 —— 表里没有 = 停下来问用户，不许自行开目录。**

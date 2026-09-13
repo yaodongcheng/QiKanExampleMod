@@ -1190,3 +1190,30 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
    ```
 2. **控件体检日志**（排查任何"设了值但不画"）：打 `SuggestedWidth/SuggestedHeight`（**任何一个是 0 就是它**）+ 两个同名 `Sprite` 属性（`ImageWidget` 的 `Sprite` 是 `new` 出来的，基类 `Widget.Sprite` 是另一个）+ `IsVisible/IsEnabled`。
 3. 判别口诀：**"另一个同类控件能画，这个不能" → 先比两者的建议尺寸，再去怀疑资源。** 先查资源是南辕北辙（本次就是这么绕了一大圈）。
+
+---
+
+## 自建头部网格 → `face_generator.cpp:864` 断言 / `AddSkinMeshes` AccessViolation（2026-09-13，TifaHead）
+
+**症状**：换上自建头网格后 —— wEditor 版启动即断言 `face_generator.cpp:864 Expression: non-tested code execution!`；release 版进捏脸界面时 native `AccessViolationException`（栈顶 `AgentVisuals.AddSkinMeshesToEntity`，托管栈丢失）。
+
+**根因是一串"声明值 vs 实际数据"对不上**，逐个修才逐个露头（前 8 轮打补丁全失败的原因：**在替编辑器伪造它本该自己算的数据**）：
+
+| # | 缺什么 | 后果 |
+|---|---|---|
+| 1 | **FBX 没带骨架** → 编辑器算不出 `SkinDataSize=0` / `UnknownInt2=0` / `VertexStreamData` 内容错 | 引擎拿"声明 0 根骨"的网格去绑骨架 → 越界 |
+| 2 | `Assets/` 是编辑器半成品（无 `VertexStreamData`、贴图无像素）却因"第一个存在的目录"被引擎优先读 | 读到半成品 |
+| 3 | `Mesh.VertexKeyCount`（**引擎分配 morph 缓冲的键数**）与实际 morph 帧数不符（声明 59 装 101） | 缓冲越界 |
+| 4 | `Mesh.MaterialFlags` 缺 `face_base_mesh`/`face_mouth_mesh`/`face_eye_mesh`/`face_eyelash_mesh` 角色标记 | 生成器认不出哪个子网格是脸/嘴/眼/睫 |
+| 5 | 材质配方偏离（缺 `skinning`/`doubleuv` 顶点布局、shader 用错） | 顶点布局与蒙皮数据对不上 |
+
+**规避**：
+- 🔴 **正解 = 让编辑器自己算**：给 FBX **绑上官方骨架**（`modding_resources\skeletons\human_skeleton.fbx`）再导入。编辑器一次算对全部字段（实测 `UnknownInt2=28` 与能跑的参考 mod `xxFemaleHead` 完全一致）。
+- 🔴 **官方骨架 FBX 单位标 `centimeter`、数值其实是米** → Blender 导入后头骨落在 **1.57 厘米**，与 1.57 **米**的网格差 **100 倍**。绑骨前必须把骨架缩放到与网格同空间（`k = 网格中心z / 头骨z`）。骨骼名自带引擎编号：`bip01_head_13` = 骨骼 13。
+- **跑游戏前让 `Assets` 改名让位**（编辑器要用它，游戏不能读它）——做成一对 bat，见 [CLAUDE.md](../../CLAUDE.md)「模块资产目录的编辑器/游戏模式切换」。
+- **诊断工具**（`tools/face-pipeline/tpactool/`）：`tpaccli morphinfo`（网格诊断）/ `morphfix`（补 morph 帧+键数）/ `skinfix --fullmat`（补蒙皮+角色标记+四角色材质配方）/ **`meshdiff`（全字段反射差分，和能跑的参照物逐行对比）**。
+- **排查口诀**：**"自建资产 + 引擎启动断言/捏脸崩" → 先和能跑的同类 mod 做全字段差分，别逐个猜**（本轮逐个猜烧了 8 次实机启动，换成差分后一轮定位）。
+
+**工具链自己的坑（本轮修）**：`TpacTool.Lib` 的 `VertexStreamData.WriteData` **读写不对称**（读端不读计数前缀、写端写）→ 任何重写顶点流都会整体错位；已修。另：改 `MeshEditData`/`VertexStreamData` 内容必须**新建 ExternalLoader 顶替数据段**（就地改不被写回）。
+
+**完整交接**：[Knowledge/蒂法换头工程.md](../../Knowledge/蒂法换头工程.md) §11。

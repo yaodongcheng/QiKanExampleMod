@@ -518,7 +518,15 @@ namespace LivingWorldNpcs
                         PostTargetClarify(conv, clarifyCandidates, multi: true);
                         return;
                     }
-                    if (clarifyCandidates.Count == 0 && _lastTargetClaimed)
+                    // 🔴 2026-09-13（假阴性澄清修复，实机事故）：LLM 已声明目标且**能在快照里解析出来**
+                    // → 不是「找不到」，放行计划（真相由卡片「目标」行呈现，玩家批准前可见）。
+                    // 旧行为只拿**玩家原话**采候选（_lastTargetCheckCommand）：玩家用代词时（「把他打晕」
+                    // 「你旁边的就是」）原话里没有人名，FindAgentCandidates 必然 0 命中 → 判「无人匹配」投澄清卡，
+                    // 而文案却引用 LLM 的目标（「场上没找到「大明卫所刀牌手#49」这样的人」——系统从没拿这个
+                    // 名字查过快照，纯假话）。代价（实机）：玩家被逼手打「你旁边的就是」→ LLM 抓场景名册里的
+                    // [player] 当目标 → 随从把主公本人打晕，整条犯罪链又把主公同时记成受害者和被告。
+                    if (clarifyCandidates.Count == 0 && _lastTargetClaimed
+                        && !IsTargetResolvable(_lastTargetClaimedText))
                     {
                         if (clarifyRound >= 2)
                         {
@@ -571,6 +579,10 @@ namespace LivingWorldNpcs
                     PlanModifyCount = modifyCount,
                     Narration = narration,
                     PlanDetailText = BuildPlanDetail(response.Plan),
+                    // 🔴 2026-09-13（真实目标行）：批准前必须让玩家看见「这个计划真正要动谁」——
+                    // 卡片正文是 LLM 自由文本，与结构化步骤可以不一致（事故：正文「您身旁的目标」
+                    // vs 步骤 target=player=主公本人 → 批准后随从打晕了主公）。见 BuildPlanTargetLine。
+                    PlanTargetLine = BuildPlanTargetLine(response.Plan),
                     // 🔴 2026-08-12：计划链锚点（按钮跟随链最新消息；讲解消息复制同 id）
                     ChainId = Guid.NewGuid().ToString(),
                 };
@@ -601,6 +613,23 @@ namespace LivingWorldNpcs
 
         // 🔴 2026-08-19（目标纪律硬兜底三件套）：IsPersonTargetingIntent（意图白名单）/
         // CollectTargetCandidates（全量快照候选采集）/ PostTargetClarify（澄清卡投递，复用澄清轮卡片管线）
+        /// <summary>🔴 2026-09-13（假阴性澄清修复）：LLM 声明的目标能否在本场景解析出**具体的人**。
+        /// 判据与执行期同源——player/self 是 DSL 实体关键字（PlanGrammar.EntityKeywords），恒可解析；
+        /// 其余走 SceneSnapshot.FindAgent（#N 精确指认 / 显示名 / 角色 / 职业 / 子串五层）。
+        /// any/all = 批量语义（LLM 未指定具体人）→ false，保持既有澄清行为。
+        /// 只读 Agents、不需要物件 → includeObjects:false（省一次物件分类）。</summary>
+        private static bool IsTargetResolvable(string targetText)
+        {
+            if (string.IsNullOrWhiteSpace(targetText)) return false;
+            if (string.Equals(targetText, "player", StringComparison.OrdinalIgnoreCase)) return Agent.Main != null;
+            if (string.Equals(targetText, "self", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(targetText, "any", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetText, "all", StringComparison.OrdinalIgnoreCase)) return false;
+            if (Mission.Current == null) return false;
+            try { return SceneSnapshot.Build(Mission.Current, 0, false).FindAgent(targetText)?.Agent != null; }
+            catch { return false; }
+        }
+
         /// <summary>意图是否以「具体的人」为目标（目标纪律兜底只拦人目标——物件/区域/批量语义不适用）。
         /// 词表外/CUSTOM/物件类（FETCH/INTERACT/COMMOTION/ANNIHILATE 等）不拦截。</summary>
         private static bool IsPersonTargetingIntent(string intentType)
@@ -1320,6 +1349,63 @@ namespace LivingWorldNpcs
             if (s.Target.Type == Newtonsoft.Json.Linq.JTokenType.Object && s.Target["query"] != null)
                 return (string)s.Target["query"] ?? "";
             return "";
+        }
+        /// <summary>🔴 2026-09-13（计划真实目标行，实机事故修复）：把计划里的**人目标**渲染成一行
+        /// 「目标：主公本人（您自己）」，挂在批准卡片上（PlanTargetLine）。
+        ///
+        /// 解决什么问题：批准卡片的正文 = LLM 自由文本（narration），结构化步骤里的 target 玩家看不见。
+        /// LLM 写「您身旁的目标」而步骤填 target=player 时，玩家以为要打旁边那个，批准后随从打的是主公本人
+        ///（实机：孙娴淑把朱祁心击晕，随后整条犯罪链把主公同时记成受害者和被告）。
+        ///
+        /// 显示范围（用户裁定：只显示人目标）：快照解析成功的人 + player/self 特判；地点/物件/查询类不占行
+        ///——批准界面怕长，风险只在打错人。解析口径与执行期同源（SceneSnapshot.FindAgent，含 #N 精确指认）。
+        /// </summary>
+        private static string BuildPlanTargetLine(Plan plan)
+        {
+            if (plan?.Steps == null || plan.Steps.Count == 0) return "";
+            SceneSnapshot snap = null;
+            var names = new List<string>();
+            foreach (var s in plan.Steps)
+            {
+                if (s == null) continue;
+                string display = ResolveTargetDisplayName(RenderStepTargetText(s), ref snap);
+                if (display == null) continue;          // 非人目标 → 不占行
+                if (!names.Contains(display)) names.Add(display);
+            }
+            if (names.Count == 0) return "";
+            // 本地化：计划真实目标行（玩家可见文本）
+            return LWNTextHelper.ResolveCompound("LWN_plan_target_line",
+                "Target: {TARGETS}", ("TARGETS", string.Join("、", names)));
+        }
+
+        /// <summary>步骤目标 token → 玩家可读目标名；**非人目标或解析失败 → null**（不占行）。
+        /// player/self 是 DSL 实体关键字（PlanGrammar.EntityKeywords），先特判再走快照解析。
+        /// snap 懒建一次（同卡片多步复用；与 CollectTargetCandidates 同款全量快照）。</summary>
+        private static string ResolveTargetDisplayName(string token, ref SceneSnapshot snap)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return null;
+            if (string.Equals(token, "player", StringComparison.OrdinalIgnoreCase))
+                // 本地化：目标是主公本人（玩家可见文本）
+                return LWNTextHelper.ResolveText("LWN_plan_target_player", "you (your lord)");
+            if (string.Equals(token, "self", StringComparison.OrdinalIgnoreCase))
+                // 本地化：目标是随从自己（玩家可见文本）
+                return LWNTextHelper.ResolveText("LWN_plan_target_self", "the companion themself");
+            if (string.Equals(token, "any", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(token, "all", StringComparison.OrdinalIgnoreCase))
+                return null;                            // 批量语义，不是具体某个人
+            if (Mission.Current == null) return null;
+            try
+            {
+                if (snap == null) snap = SceneSnapshot.Build(Mission.Current, 0, false);   // 只读 Agents，不需物件
+                var info = snap.FindAgent(token);
+                if (info?.Agent == null) return null;   // 解析不到 → 当非人目标处理（不冒充"人要打谁"）
+                string label = AgentControlHelper.GetDisplayName(info.Agent); // lwn-ignore: A
+                if (string.IsNullOrWhiteSpace(label)) label = info.DisplayName;
+                if (string.IsNullOrWhiteSpace(label)) return null;
+                if (!string.IsNullOrWhiteSpace(info.PositionDesc)) label += $"（{info.PositionDesc}）";   // lwn-ignore: A
+                return label;
+            }
+            catch { return null; }
         }
         private static string RenderCondition(Condition c)
         {

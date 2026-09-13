@@ -187,6 +187,44 @@ ResolveSpace(attacker, defender)：双方 IsPresentInMission → (in,in)=InScene
 
 **纪律**：defender 解析与执行期目标解析必须同一匹配口径（子串）；模板 NPC（无 Hero）走 `FindTemplateNpcCandidates` 不经过 Hero 匹配。
 
+## 🔴 计划卡片必须显示「真实目标」— C# 确定性解析，不信任 LLM 文案（2026-09-13 实机事故）— `ImCommandFlow.BuildPlanTargetLine` + `ImChatVM.PlanTargetLine` + `GUI/Prefabs/ImChat.xml`
+
+**解决什么问题**：批准卡片正文 = `@Content` = LLM 自由文本（`narration`），**结构化步骤里的 target 玩家看不见**。实机：LLM 写「您身旁的目标」而计划步骤填 `target=player`，玩家以为要打旁边那个，点「同意」后**随从把主公本人打晕了**——确认门形同虚设，随后整条犯罪链把主公同时记成受害者和被告。
+
+**纪律**：**批准界面必须渲染 C# 解析后的真实目标**，不能只信 LLM 的措辞。凡 LLM 结构化输出与自然语言描述可能不一致处，批准面上以结构化为准——玩家看到的 = 执行器跑的。
+
+**关键签名**：
+```csharp
+private static string BuildPlanTargetLine(Plan plan);                                  // 只列「人目标」
+private static string ResolveTargetDisplayName(string token, ref SceneSnapshot snap);  // null = 非人目标 → 不占行
+```
+- `ImMessage.PlanTargetLine`（`[JsonProperty("pt")]` 随卡片持久化）+ `HasPlanTargetLine`（非空才显）
+- `ImChatVM.PlanTargetLine` / `HasPlanTargetLine`：**读 `_msg` 不读 `AnchorCard`**——目标行属卡片本体，不随链锚点漂移
+- `GUI/Prefabs/ImChat.xml`：正文与按钮行之间插 TextWidget（金色 `#E8C55AFF`），`IsVisible="@HasPlanTargetLine"`
+
+**解析口径与执行期同源**：`SceneSnapshot.FindAgent`（含 `#N` 精确指认）。`player`/`self` 是 DSL 实体关键字（`PlanGrammar.EntityKeywords`）先特判；`any`/`all` 批量语义返回 null。快照用 `Build(mission, 0, false)`（只读 Agents，省一次物件分类）。
+
+**🔴 配套关系（别只做一半）**：本条与下条的「澄清放行」**必须成对**——澄清放宽后，玩家判断"要不要批"的唯一依据就是这张卡。只放宽澄清不加目标行 = 把危险计划直接送到批准，比原来更糟。
+
+## 🔴 澄清判定口径：用 LLM 声明的目标，不用玩家原话（2026-09-13 实机事故）— `ImCommandFlow.IsTargetResolvable` + 目标纪律兜底
+
+**解决什么问题（假阴性澄清）**：目标纪律兜底的"场上无人匹配"判定，用的是**玩家原话**（`_lastTargetCheckCommand = req.Command`）去采候选，而报错文案引用的是 **LLM 的目标**（`_lastTargetClaimedText`）——两者错位。玩家用代词时（「把他打晕」「你旁边的就是」）原话里没有人名 → `FindAgentCandidates` 必然 0 命中 → 判"无人匹配"投澄清卡，文案却说「场上没找到「大明卫所刀牌手#49」这样的人」——**系统从没拿这个名字查过快照，纯假话**。
+
+**代价（实机）**：玩家被逼手打「你旁边的就是」→ LLM 从场景名册抓 `[player]` 当目标 → 随从打晕主公。
+
+**修法**：澄清前先拿 **LLM 声明的目标**判可解析性，能解析（含 `#N`）→ 放行计划，不出澄清卡。
+
+```csharp
+// 与执行期同源：player/self 恒可解析；其余走 SceneSnapshot.FindAgent；
+// any/all = 批量语义（LLM 未指定具体人）→ false，保持既有澄清行为
+private static bool IsTargetResolvable(string targetText);
+```
+```csharp
+if (clarifyCandidates.Count == 0 && _lastTargetClaimed && !IsTargetResolvable(_lastTargetClaimedText))
+```
+
+**纪律**：判定对象与报错文案必须指同一个东西。**代词命令（他/那个/旁边的）走原话匹配必然 0 命中**——任何"从玩家原话提取实体"的检查都要先想一句"玩家用代词怎么办"。
+
 ## 🔴 多消息分时投递（说话节奏，2026-08-15 实机）— `ImChat/ImChatManager.cs` 延迟队列
 
 **问题**：回复链多条消息（npc_reply + risk_analysis + 告知/决策卡）同帧同步投递 → 11ms 三句齐发，像机关枪（实机 08:40）。

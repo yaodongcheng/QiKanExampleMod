@@ -223,5 +223,16 @@ namespace LivingWorldNpcs
             get => Settings.Instance.ShowPerfDetails;
             set => Settings.Instance.ShowPerfDetails = value;
         }
+
+        // ── 群聊跟随回复（透传核心 Settings）──
+        // Order = -7：继续按显示倒序下沉到列表最底部（IM 频道玩法开关，非诊断工具）
+        [SettingPropertyBool("{=LWN_mcm_group_follow_up}Group Chat: Others May Chime In", Order = -7, RequireRestart = false,
+            HintText = "{=LWN_mcm_group_follow_up_hint}When enabled, a second member of the party/clan channel may occasionally follow up after the main replier answers (and the two can bicker back and forth). Disable to keep group chat strictly one reply per message — only the person you are talking to answers. Enabled by default; the follow-up frequency lives in config.json (`ImGroupFollowUpChance`).")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool ImGroupFollowUpEnabled
+        {
+            get => Settings.Instance.ImGroupFollowUpEnabled;
+            set => Settings.Instance.ImGroupFollowUpEnabled = value;
+        }
     }
 }
