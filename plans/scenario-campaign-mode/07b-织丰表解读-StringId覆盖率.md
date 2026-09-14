@@ -156,17 +156,20 @@
 > 只有人物/据点/音乐等，无 Item），TK5 物品/交易品数据以此表为第 1 手来源——**141 词条**
 > （101 物品 + 40 交易品；槽行物品Ａ/Ｂ、交易品Ａ/Ｅ 已剔除），**ID 列 = 规则 ID**：
 > `tk5_item_/tk5_trade_` + 罗马字语义词（同织丰物品 ID 风格 `fire_arrow`/`sho_fukinuki_banner`；
-> 词表 = `gen_entity_maps.py` 的 `ITEM_SLUG`，词表外 md5 占位 + 报告点名）；
-> **Taikou 创建物品时，把骑砍 ItemObject StringId 覆盖进 ID 列**（覆盖后重跑 gen_entity_maps
-> 即替换规则 ID）；人可编辑列 = ID / CNName / TK5Type / Remark，TK5Name/Kind/SourceCount 由生成器
+> 词表 = ~~`gen_entity_maps.py` 的 `ITEM_SLUG`~~（**2026-09-14 起**：ID 直接填在 `item.csv` 的 ID 列，不再由脚本推），词表外 md5 占位 + 报告点名）；
+> **Taikou 创建物品时，把骑砍 ItemObject StringId 覆盖进 ID 列**（**2026-09-14 起直接生效**——不再需要重跑生成器）；人可编辑列 = ID / CNName / TK5Type / Remark，TK5Name/Kind/SourceCount 由生成器
 > 维护（only-append 补行，人填行不覆盖）。
 
 ```bash
 cd plans/scenario-campaign-mode
 export PYTHONIOENCODING=utf-8      # Windows 必须，否则中文输出直接崩
 python tools/xlsx_to_csv.py        # 上游 xlsx 更新后刷新镜像 CSV（15/15 自检）
-python tools/gen_entity_maps.py    # 重建名字→StringId 表并打印统计与缺口清单
-python tools/gen_entity_maps.py --report   # 只看统计，不写文件
+
+# 🔴 2026-09-14 改：实体查找表不再落盘（旧 gen_entity_maps.py + entity_maps.py 已删）。
+#   现在每次运行从 CSV 现读现建，两个入口：
+python tools/entity_source.py              # 体检：行数/键数/冲突/私用区码点
+python tools/check_entity_source.py --corpus   # 语料解析率 + 仍查无清单（数据待办）
+# 改实体 → 改 csv/ 的列（Alias / Name_All / ID），不写 py 映射表（铁律 25）
 ```
 
 覆盖率数字来自对 `Knowledge/太阁事件包/TK5AllEvents_merged.txt` 的实测扫描：按 `域::名字` 抽取全部具名引用，剔除槽位变量（`人物Ａ`/`大名家Ｂ` 这类）后逐个查表。

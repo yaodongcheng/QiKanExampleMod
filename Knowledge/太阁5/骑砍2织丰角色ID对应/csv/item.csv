@@ -1,4 +1,5 @@
-﻿ID,TK5Name,CNName,TK5Type,Kind,SourceCount,Remark
+﻿ID,太阁名,中文名,太阁类型,种类,语料出现次数,备注
+ID,TK5Name,CNName,TK5Type,Kind,SourceCount,Remark
 tk5_item_manyoshu,万葉集,,,item,4,2026-08-30 语料扫描（07 数据包补 ID/类型）
 tk5_item_mankin_tan,万金丹,,,item,8,2026-08-30 语料扫描（07 数据包补 ID/类型）
 tk5_trade_shamisen,三味線,,,trade_good,1,2026-08-30 语料扫描（07 数据包补 ID/类型）

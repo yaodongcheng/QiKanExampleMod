@@ -124,7 +124,7 @@ def extract_block(src, tag, id_attr, id_val):
     return src[start:end]
 
 
-def build_skins(face_mesh, face_tex, min_scale=None, mouth_tex=None, freeze_face=False):
+def build_skins(face_mesh, face_tex, min_scale=None, mouth_tex=None, freeze_face=False, no_hair=False):
     native = read(os.path.join(NATIVE, "skins.xml"))
     human_block = extract_block(native, "race", "id", "human")
     # 取 human race 里的「男性成年」skin（整块）
@@ -151,7 +151,14 @@ def build_skins(face_mesh, face_tex, min_scale=None, mouth_tex=None, freeze_face
     seq = iter(names)
 
     def swap_face_tex(m):
-        return re.sub(r'name="[^"]*"', 'name="%s"' % next(seq), m.group(0), count=1)
+        blk = re.sub(r'name="[^"]*"', 'name="%s"' % next(seq), m.group(0), count=1)
+        # 🔴 lod_material 也要一起换。原版写的是 `head_male_a.lod`（**原版材质**）——
+        #    不换 = 引擎在 LOD 路径上拿原版脸贴图渲染（实机症状：头顶露出一块原版头皮/肤色）。
+        #    两个实机通过的自定义头（蒂法/萨菲罗斯）这里写的都是**自己的名字**（与 name 同值）；
+        #    还原原版时保持原样不动。
+        if face_mesh != "head_male_a":
+            blk = re.sub(r'lod_material="[^"]*"', 'lod_material="%s"' % face_mesh, blk, count=1)
+        return blk
     new_skin, n = sub_outside_comments(new_skin, r'<face_texture\b.*?</face_texture>', swap_face_tex, re.S)
     if n != 4:
         raise SystemExit("FATAL: face_texture 条数 = %d (原版为 4, 条数必须一致)" % n)
@@ -193,11 +200,42 @@ def build_skins(face_mesh, face_tex, min_scale=None, mouth_tex=None, freeze_face
             raise SystemExit("FATAL: 冻脸只命中 %d 条（应 ≥59）——deform_key 结构变了？" % n_frozen)
         print("  [freeze-face] 冻结 %d 条脸形通道（key_min=key_max=0）" % n_frozen)
 
+    # ⑥ 可选：只留"光头"一条发型 —— 我们的头**自带头发**（头发和脸壳在同一个 .0 子网格里），
+    #    但角色的 body properties 是按 `face_key_template`（原版模板，如 BodyProperty.fighter_empire）
+    #    随机生成的，**里面带一个原版发型索引** → 引擎会按它从 hair_meshes 里取一个**原版发型网格**
+    #    挂到头上渲染。原版发型是照原版头（z→1.81）做的、我们更高（z→1.95），两者只会互相打架
+    #    （实机症状：头顶露出一块肤色）——我们的头不需要引擎再给发型。
+    #    做法：把 <hair_meshes> 里的条目砍到只剩第一条（无 name 属性 = Bald = 不渲染任何网格）。
+    if no_hair:
+        m = re.search(r'(<hair_meshes\b[^>]*>)(.*?)(</hair_meshes>)', new_skin, re.S)
+        if not m:
+            raise SystemExit("FATAL: skin 里没找到 <hair_meshes>")
+        # 🔴 做法：**保留条目、只摘掉网格**（删 name / cover_type 属性），**不是删条目**。
+        #    为什么：引擎按 body properties 里的发型索引去取列表项，删条目 = 存档里的旧索引越界
+        #    （这引擎缺定义从不兜底，怪物后缀族就是活例子）。摘掉属性后条目还在、位置不变，
+        #    但没有任何网格可渲染 = 等于光头。原版那条 Bald 本来就是"无 name + 只有 style_tags"，
+        #    所以这种写法本身合法、有先例。
+        #    ⚠️ 与老版本（删条目只留 Bald）的区别：那个会让列表长度从 29 变 1，老档索引必越界。
+        def strip_mesh(mm):
+            blk = re.sub(r'\s+name="[^"]*"', '', mm.group(0), count=1)
+            blk = re.sub(r'\s+cover_type\d="[^"]*"', '', blk)
+            return blk
+        new_body, n_strip = sub_outside_comments(m.group(2), r'<hair_mesh\b[^>]*>', strip_mesh)
+        left = re.findall(r'<hair_mesh\b[^>]*\sname=', re.sub(r'<!--.*?-->', '', new_body, flags=re.S))
+        if left:
+            raise SystemExit("FATAL: 还有 %d 条发型带 name（摘网格没摘干净）" % len(left))
+        n_eff = len(re.findall(r'<hair_mesh\b', re.sub(r'<!--.*?-->', '', new_body, flags=re.S)))
+        if n_eff < 29:
+            raise SystemExit("FATAL: 条目数 %d < 29 —— 摘网格不该减少条目（越界风险就在这）" % n_eff)
+        new_skin = new_skin[:m.start(2)] + new_body + new_skin[m.end(2):]
+        print("  [no-hair] %d 条发型全部摘掉网格（条目保留 %d 条，索引不越界；引擎不再挂原版发型）"
+              % (n_strip, n_eff))
+
     # 缩进：把整块右移一层（race 之下）
     body = "".join(("\t" + ln if ln.strip() else ln) for ln in new_skin.splitlines(True))
     return ('<?xml version="1.0" encoding="utf-8"?>\n<skins>\n'
-            + header("face_mesh=%s face_tex=%s min_scale=%s"
-                     % (face_mesh, face_tex, min_scale or "(none)"))
+            + header("face_mesh=%s face_tex=%s min_scale=%s no_hair=%s"
+                     % (face_mesh, face_tex, min_scale or "(none)", "1" if no_hair else "0"))
             + '\t<race\n\t\tid="%s">\n' % RACE_ID
             + body
             + "\t</race>\n</skins>\n")
@@ -256,6 +294,7 @@ def main():
 
     min_scale = opt("--min-scale", None)
     mouth_tex = opt("--mouth-tex", None)
+    no_hair = "--no-hair" in a
 
     def derive_freeze():
         return ("--no-freeze-face" not in a) and ("--freeze-face" in a or face_mesh != "head_male_a")
@@ -264,19 +303,20 @@ def main():
     #   🔴 顺序要紧：回填必须在 mouth_tex / freeze_face 【派生之前】——
     #      否则重建时那两项还是按默认 face_mesh(head_male_a) 算的（嘴不覆盖、脸不冻结）
     #      → 产物与落盘不符，`--check` 误报 OUT OF SYNC（2026-09-14 实测踩到）。
-    if check and not any(k in a for k in ("--face-mesh", "--face-tex", "--min-scale")):
+    if check and not any(k in a for k in ("--face-mesh", "--face-tex", "--min-scale", "--no-hair")):
         rec = read_params(out_skins)
         if rec:
             face_mesh = rec.get("face_mesh") or face_mesh
             face_tex = rec.get("face_tex") or face_tex
             min_scale = rec.get("min_scale")
+            no_hair = rec.get("no_hair") == "1"
             print("(check 按文件里记的参数重建)")
 
     # 嘴材质默认跟着 face_mesh 走（`<face_mesh>_mouth`）；换回原版头时不覆盖
     if mouth_tex is None and face_mesh != "head_male_a":
         mouth_tex = face_mesh + "_mouth"
     freeze_face = derive_freeze()
-    skins = build_skins(face_mesh, face_tex, min_scale, mouth_tex, freeze_face)
+    skins = build_skins(face_mesh, face_tex, min_scale, mouth_tex, freeze_face, no_hair)
     monsters = build_monsters()
 
     print("race      = %s" % RACE_ID)
@@ -284,6 +324,7 @@ def main():
     print("face_mesh = %s" % face_mesh)
     print("face_tex  = %s" % face_tex)
     print("min_scale = %s" % (min_scale if min_scale else "(vanilla, unchanged)"))
+    print("no_hair   = %s" % ("yes (只留 Bald，引擎不挂原版发型)" if no_hair else "no (保留原版发型表)"))
     print("skins.xml    -> %s  (%d bytes)" % (out_skins, len(skins.encode("utf-8"))))
     print("monsters.xml -> %s  (%d bytes)" % (out_monsters, len(monsters.encode("utf-8"))))
 

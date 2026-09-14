@@ -123,3 +123,68 @@ T_bl[b] = Translate(骑砍骨头) · Rot(仅手臂) · S · Translate(-(MIRROR �
 
 **未根治**：上臂中段露身体（源件那里本来是布袖子，源件着物紧贴胳膊而骑砍身体更粗）。
 撑到能盖住手臂就变香肠、不撑就露。干净解法 = 程序生成一段布袖（绕上臂骨的筒）。
+
+---
+
+## 七、换「默认脸」：xslt 覆盖 Native 皮肤（2026-09-14 登记，实机验证）
+
+**要解决的问题**：让**一整类角色**（所有男性 / 所有女性）用上自定义头 —— 跟"给某一个人换头"（走**专属 race**，见 [campaign-mode.md](campaign-mode.md) 卷十三 §三）**分层共存**：
+**默认脸改一类人、专属 race 改一个人**，专属 race 优先（不被默认脸覆盖 —— 前提是下面纪律 1 那条）。
+
+**机制**：引擎**按文件名自动读**各模块的 `ModuleData/skins.xslt`，对**全模块合并后的 skins 文档**做 XSLT 变换。
+**不需要**在 `SubModule.xml` 注册（TifaHead2 的 `<Xmls>` 是空的，照样生效）。
+
+**最小可用写法**（`Modules/Taikou/ModuleData/skins.xslt`，把 human 男脸换掉）：
+
+```xml
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="@*|node()">                <!-- identity：其余全部原样 -->
+    <xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy>
+  </xsl:template>
+  <xsl:template match="race[@id='human']/skin[@gender='0'][@mesh_maturity_type='adult']/@face_meta_mesh">
+    <xsl:attribute name="face_meta_mesh">head_xxx_a</xsl:attribute>
+  </xsl:template>
+  <xsl:template match="race[@id='human']/skin[@gender='0'][@mesh_maturity_type='adult']/face_textures">
+    <face_textures group_id="1">
+      <face_texture name="head_xxx_a" lod_material="head_xxx_a" color="0xFFFFFFFF" tags="face_texture1,face_texture2"></face_texture>
+      <!-- 条数 4、tag 分布照抄原版 man，一条不能少 -->
+    </face_textures>
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+**六条纪律（每条都踩过）**：
+
+1. 🔴 **匹配必须锚定 race**：`match="skin[@name='man']"` 这种"按名字匹配"在**合并文档里是跨 race 的** —— 它会把专属 race（如信长的 `lwn_nobunaga`，它的 skin 也叫 `man`）一起改掉，**"特殊人物用自己的脸"当场失效**。必须写 `race[@id='human']/skin[@name='man']`。加新专属 race 后**回头复查这条**。
+2. 🔴 **改头网格必须同时改 `face_textures`**，且**条数 / tag 分布照抄原版**（条数变了 → 引擎按索引取 → 越界）。
+3. **`mouth_textures` / `eyebrow_meshes` 照原版不动**（蒂法工程实机验证过）。女脸那边额外要处理 `deform_keys` + `constraints`（蒂法头的形变通道与原版女头不同），照 `TifaHead2\ModuleData\skins.xslt.master` 抄。
+   🔴 **`deform_keys` 男女都要换**：它的 `key_min/key_max` 是**幅度乘数，必须与位移场来源同源**。原版男/女两套**不一样**（实测 63 条里 **56 条不同**）—— 只换女不换男 → **男脸被拉坏、动画不对**（2026-09-14 实机踩到）。模板用 `|` 同时匹配男女即可，不必复制那 500 行：
+   ```xml
+   <xsl:template match='race[@id="human"]/skin[@name="woman"]/deform_keys | race[@id="human"]/skin[@name="man"]/deform_keys'>
+   ```
+   **教训**：判断"两套参数能不能互用"，只比"条目在不在"不够，**必须比条目的值** —— 当年就是只对了通道号（序列 62 条全同）就下了"可直接对齐"的结论。
+4. **切换 bat 化，`skins.xslt.master` 是唯一真源**：`to_game_mode.bat` = 复制成 `skins.xslt`（生效）+ `Assets`→`Assets_disabled`；`to_editor_mode.bat` = 反向。**删掉 `skins.xslt` 即完全还原**，无副作用。
+5. 🔴 **配置必须放在「模块加载列表里一定有的模块」**（2026-09-14 栽在这）：游戏加载哪些模块由**启动参数**决定 ——
+   `/singleplayer _MODULES_*A*B*C*_MODULES_`，**启动器里的 `IsSelected` 会被它覆盖**。
+   实测：启动器里 `TifaHead2` 明明勾着，但启动参数列表里没有它 → 放在那边的 `skins.xslt` **永远不加载**，查了半天"改了没生效"。
+   → 承载模块优先选**双端 junction 同源**的（本工程是 `Taikou`）—— 改一处，两个客户端都生效；
+   **非 junction 的模块（如 `TifaHead2`）是两份独立拷贝**，改一边另一边不动。
+6. 🔴 **后处理（`install_pack.py`）是终点，"白编译 ≠ 可用"**：ModKit publish 出来的包必须再跑
+   `morphfix`（补 morph 帧 **60 → 101** + 同步 VertexKeyCount）+ `skinfix --fullmat` + 关卡 2 才叫成品。
+   **判定有没有跑过**：`morphinfo` 的 `VertexKeyCount` 应为 **101**、`metaparts` 的 flags 非空（白编译 = 60 / 空）。
+   ⚠️ 但**UV 沿用源模型布局的自定义头必须把 flags 清掉**（带 flags 时引擎按原版画布重生成脸贴图 → 错位）——
+   **不同头的正确状态可能相反**（蒂法/萨菲罗斯要 flags、织田信长要空），别一刀切。
+
+**离线回归验证**（改完必跑；加新专属 race 后也建议跑 —— 用 lxml 模拟"引擎视角的合并文档"）：
+
+```python
+doc = etree.parse('Native/ModuleData/skins.xml')
+for rc in etree.parse('Taikou/ModuleData/skins.xml').getroot().xpath('//race'):
+    doc.getroot().append(rc)                       # 合并
+res = etree.XSLT(etree.parse('<模块>/ModuleData/skins.xslt'))(doc)
+# 断言：human 男/女 = 目标头；lwn_nobunaga 等专属 race = 各自的头
+```
+
+**已用实例**：`TifaHead2\ModuleData\skins.xslt`（男萨菲罗斯 + 女蒂法）、`Taikou\ModuleData\skins.xslt`（男脸兜底，不依赖玩家勾选模块）。
+
+**配套规格**：FBX 侧要求**材质名 ↔ 贴图名对应**（见 [蒂法换头工程.md](../../../Knowledge/蒂法换头工程.md) §13.7 第⑤条）；材质命名格式见 CLAUDE.md 铁律 27。
