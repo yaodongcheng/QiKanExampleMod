@@ -18,8 +18,9 @@
 lord_tk5_195 加 race="lwn_nobunaga"——其他人仍走 Native 的 race="human"，零影响。
 
 用法：
-    python Scripts/gen_taikou_nobunaga_head.py                    # 默认：指向原版网格（跑机制验证）
+    python Scripts/gen_taikou_nobunaga_head.py                    # 还原成原版外观（网格+4 条脸池+身高全回原版）
     python Scripts/gen_taikou_nobunaga_head.py --face-mesh head_nobunaga_a --face-tex head_nobunaga_a
+    python Scripts/gen_taikou_nobunaga_head.py --min-scale 1.35   # 临时放大，用来肉眼验证 race 生效
     python Scripts/gen_taikou_nobunaga_head.py --check            # 只比对现状，不写盘
 """
 import io
@@ -51,13 +52,38 @@ TAIKOU = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__))
 RACE_ID = "lwn_nobunaga"
 MONSTER_ID = "lwn_nobunaga"
 
-HEADER = (
-    "<!-- \U0001f534 生成物\u00b7\u7981\u6b62\u624b\u6539\uff08\u94c1\u5f8b 22\uff09\u2014\u2014"
-    "\u7531 Scripts/gen_taikou_nobunaga_head.py \u4ece Native \u540c\u540d\u8282\u70b9\u6574\u5757\u590d\u5236\u751f\u6210\u3002\n"
-    "     \u6539\u5185\u5bb9 = \u6539\u811a\u672c\u91cd\u8dd1\u3002\n"
-    "     \u7528\u9014\uff1a\u7ec7\u7530\u4fe1\u957f\uff08lord_tk5_195\uff09\u4e13\u7528 race \u2014\u2014"
-    "\u53ea\u6709\u4ed6\u5728 taikou_lords*.xml \u91cc\u5e26 race=\"%s\"\uff0c\u5176\u4ed6\u4eba\u4ecd\u8d70 race=\"human\"\u3002 -->\n"
-) % RACE_ID
+PARAM_MARK = "gen-params:"
+
+
+def header(extra=None):
+    """生成物文件头。extra = 本次生成参数，写进文件；--check 靠它自描述读回（见 read_params）。"""
+    s = ("<!-- 生成物·禁止手改（铁律 22）——由 Scripts/gen_taikou_nobunaga_head.py "
+         "从 Native 同名节点整块复制生成。\n"
+         "     改内容 = 改脚本重跑。\n"
+         "     用途：织田信长（lord_tk5_195）专用 race，只有他在 taikou_lords*.xml 里带 "
+         "race=\"%s\"，其他人仍走 race=\"human\"。\n" % RACE_ID)
+    if extra:
+        s += "     %s %s\n" % (PARAM_MARK, extra)
+    return s + " -->\n"
+
+
+def read_params(path):
+    """从已生成的文件里读回上次用的参数。
+
+    为什么要它：`--check` 若拿**当前命令行参数**去比对，忘了照抄参数就会误报 OUT OF SYNC
+    （pitfalls.md 已登记这条）。改成自描述——`--check` 优先按文件里记的参数重建再比。
+    """
+    if not os.path.exists(path):
+        return None
+    m = re.search(re.escape(PARAM_MARK) + r"\s*(.*?)\s*-->", read(path), re.S)
+    if not m:
+        return None
+    d = {}
+    for kv in m.group(1).split():
+        if "=" in kv:
+            k, v = kv.split("=", 1)
+            d[k] = None if v == "(none)" else v
+    return d
 
 
 def read(path):
@@ -98,7 +124,7 @@ def extract_block(src, tag, id_attr, id_val):
     return src[start:end]
 
 
-def build_skins(face_mesh, face_tex, min_scale=None):
+def build_skins(face_mesh, face_tex, min_scale=None, mouth_tex=None, freeze_face=False):
     native = read(os.path.join(NATIVE, "skins.xml"))
     human_block = extract_block(native, "race", "id", "human")
     # 取 human race 里的「男性成年」skin（整块）
@@ -113,21 +139,65 @@ def build_skins(face_mesh, face_tex, min_scale=None):
     if n != 1:
         raise SystemExit("FATAL: skin 里没找到 face_meta_mesh 属性")
     # ② face_textures：条数保持 4（引擎按索引取，条数变了会越界 —— 蒂法工程 §11.2 根因 C）
+    #    --face-tex 给 1 个名字 = 4 条全指它（自定义头，照抄蒂法/萨菲罗斯的做法）；
+    #               给 4 个（逗号分隔）= 逐条替换（🔴 还原原版必须走这条：原版是 a/b/c/d 四种脸池，
+    #               全指同一个不等于原版，是"永远用同一个池"）
+    names = [x.strip() for x in face_tex.split(",") if x.strip()]
+    if len(names) == 1:
+        names = names * 4
+    if len(names) != 4:
+        raise SystemExit("FATAL: --face-tex 需要 1 个或 4 个名字（逗号分隔），收到 %d 个" % len(names))
+
+    seq = iter(names)
+
     def swap_face_tex(m):
-        return re.sub(r'name="[^"]*"', 'name="%s"' % face_tex, m.group(0), count=1)
+        return re.sub(r'name="[^"]*"', 'name="%s"' % next(seq), m.group(0), count=1)
     new_skin, n = sub_outside_comments(new_skin, r'<face_texture\b.*?</face_texture>', swap_face_tex, re.S)
     if n != 4:
         raise SystemExit("FATAL: face_texture 条数 = %d (原版为 4, 条数必须一致)" % n)
-    # ③ 可选：改 min_scale —— 只用来做「race 到底生效没有」的肉眼标记（原版男=1.07）
+    # ③ 可选：mouth_textures 覆盖 —— 🔴 与 face_textures 同一个机制（引擎按索引把皮肤里的
+    #    嘴材质盖到嘴子网格上）。不覆盖 = 用**原版粉唇贴图**配我们的 UV → 实机 2026-09-14
+    #    看到"嘴开花"（一块粉色糊斑）。条数不动、只换名字（块是整块复制的，条数天然一致）。
+    if mouth_tex:
+        def swap_mouth_tex(m):
+            return re.sub(r'name="[^"]*"', 'name="%s"' % mouth_tex, m.group(0), count=1)
+        new_skin, n_mouth = sub_outside_comments(
+            new_skin, r'<mouth_texture\b.*?</mouth_texture>', swap_mouth_tex, re.S)
+        if n_mouth == 0:
+            raise SystemExit("FATAL: skin 里没找到 <mouth_texture>（原版应有若干条）")
+
+    # ④ 可选：改 min_scale —— 只用来做「race 到底生效没有」的肉眼标记（原版男=1.07）
     if min_scale is not None:
         new_skin, n = re.subn(r'min_scale="[^"]*"', 'min_scale="%s"' % min_scale, new_skin, count=1)
         if n != 1:
             raise SystemExit("FATAL: skin 里没找到 min_scale 属性")
 
+    # ⑤ 可选：冻结脸形通道 —— 把 1..59 号（脸形键）的 key_min/key_max 全设 0。
+    #    原理：morph 值 = key_min + w×(key_max−key_min)；min=max=0 → 恒为 0 → 网格永远停在 Basis
+    #    （Basis = 战无2 原脸）。**不冻的后果**（2026-09-14 实机）：角色自己的 facekey 权重是按
+    #    **原版头**调的，套到我们搬来的 59 条位移场上会被放大 → "整张脸被拉宽"；
+    #    而 ModKit 显示的是 Basis（不套权重），所以编辑器里看着正常、进游戏才变形。
+    #    🔴 **只冻 1..59**：0(skinkey_post_edit) 与 60..63(weight/build/height/age) 是身体键，
+    #       冻了会坏体格/身高。
+    if freeze_face:
+        def _freeze(m):
+            blk = m.group(0)
+            t = re.search(r'key_time_point="(\d+)"', blk)
+            if not t or not (1 <= int(t.group(1)) <= 59):
+                return blk
+            blk = re.sub(r'key_min="[^"]*"', 'key_min="0"', blk)
+            blk = re.sub(r'key_max="[^"]*"', 'key_max="0"', blk)
+            return blk
+        new_skin, n_frozen = sub_outside_comments(new_skin, r'<deform_key\b.*?/>', _freeze, re.S)
+        if n_frozen < 59:
+            raise SystemExit("FATAL: 冻脸只命中 %d 条（应 ≥59）——deform_key 结构变了？" % n_frozen)
+        print("  [freeze-face] 冻结 %d 条脸形通道（key_min=key_max=0）" % n_frozen)
+
     # 缩进：把整块右移一层（race 之下）
     body = "".join(("\t" + ln if ln.strip() else ln) for ln in new_skin.splitlines(True))
     return ('<?xml version="1.0" encoding="utf-8"?>\n<skins>\n'
-            + HEADER
+            + header("face_mesh=%s face_tex=%s min_scale=%s"
+                     % (face_mesh, face_tex, min_scale or "(none)"))
             + '\t<race\n\t\tid="%s">\n' % RACE_ID
             + body
             + "\t</race>\n</skins>\n")
@@ -164,7 +234,7 @@ def build_monsters():
         body += "".join(("\t" + ln if ln.strip() else ln) for ln in new_block.splitlines(True))
 
     return ('<?xml version="1.0" encoding="utf-8"?>\n<Monsters>\n'
-            + HEADER
+            + header()
             + body
             + "</Monsters>\n")
 
@@ -177,14 +247,37 @@ def main():
         return a[a.index(key) + 1] if key in a else default
 
     face_mesh = opt("--face-mesh", "head_male_a")
-    face_tex = opt("--face-tex", face_mesh)
-    min_scale = opt("--min-scale", None)
-
-    skins = build_skins(face_mesh, face_tex, min_scale)
-    monsters = build_monsters()
-
+    # 默认 = 原版那 4 条脸池（a/b/c/d）逐条还原；换自定义头时**必须**显式给 --face-tex
+    face_tex = opt("--face-tex", "head_male_a,head_male_b,head_male_c,head_male_d")
+    if face_mesh != "head_male_a" and "--face-tex" not in a:
+        raise SystemExit("FATAL: 换了 --face-mesh 却没给 --face-tex —— 会把脸池留在原版，脸和网格对不上")
     out_skins = os.path.join(TAIKOU, "skins.xml")
     out_monsters = os.path.join(TAIKOU, "monsters.xml")
+
+    min_scale = opt("--min-scale", None)
+    mouth_tex = opt("--mouth-tex", None)
+
+    def derive_freeze():
+        return ("--no-freeze-face" not in a) and ("--freeze-face" in a or face_mesh != "head_male_a")
+
+    # --check 且没显式给参数 → 先按【文件里记着的参数】回填。
+    #   🔴 顺序要紧：回填必须在 mouth_tex / freeze_face 【派生之前】——
+    #      否则重建时那两项还是按默认 face_mesh(head_male_a) 算的（嘴不覆盖、脸不冻结）
+    #      → 产物与落盘不符，`--check` 误报 OUT OF SYNC（2026-09-14 实测踩到）。
+    if check and not any(k in a for k in ("--face-mesh", "--face-tex", "--min-scale")):
+        rec = read_params(out_skins)
+        if rec:
+            face_mesh = rec.get("face_mesh") or face_mesh
+            face_tex = rec.get("face_tex") or face_tex
+            min_scale = rec.get("min_scale")
+            print("(check 按文件里记的参数重建)")
+
+    # 嘴材质默认跟着 face_mesh 走（`<face_mesh>_mouth`）；换回原版头时不覆盖
+    if mouth_tex is None and face_mesh != "head_male_a":
+        mouth_tex = face_mesh + "_mouth"
+    freeze_face = derive_freeze()
+    skins = build_skins(face_mesh, face_tex, min_scale, mouth_tex, freeze_face)
+    monsters = build_monsters()
 
     print("race      = %s" % RACE_ID)
     print("monster   = %s (+ _child/_settlement/_settlement_fast/_settlement_slow)" % MONSTER_ID)
