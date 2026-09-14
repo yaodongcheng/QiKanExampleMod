@@ -70,6 +70,9 @@ def main():
     ap.add_argument("--module", default=CLIENTS[0], help="模块目录（默认 1.2.12 客户端）")
     ap.add_argument("--filter", default="head_tifa_a", help="网格名子串")
     ap.add_argument("--clients", nargs="*", default=CLIENTS, help="要装机的模块目录列表")
+    ap.add_argument("--check-ref", default=None, help="关卡 2 的参照头（默认脚本自带；男头传 head_male_a）")
+    ap.add_argument("--check-ref-pack", default=None, help="关卡 2 参照头所在 AssetPackages（男头传 core_game 硬链接目录）")
+    ap.add_argument("--check-window", default=None, help='关卡 2 着陆窗口 "x0,x1,y0,y1,z0,z1"')
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -131,8 +134,17 @@ def main():
 
     # 4) 关卡 2：编译产物落点
     print("\n---- 关卡 2（编译产物落点）----")
-    p = subprocess.run([sys.executable, os.path.join(REPO, "tools", "face-pipeline", "scripts", "check_head_space.py"),
-                        "--pack", d_m2], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    chk = [sys.executable, os.path.join(REPO, "tools", "face-pipeline", "scripts", "check_head_space.py"),
+           "--pack", d_m2, "--mesh", args.filter]
+    if args.check_ref:
+        chk += ["--ref", args.check_ref]
+    if args.check_ref_pack:
+        chk += ["--ref-pack", args.check_ref_pack]
+    if args.check_window:
+        # 🔴 必须拼成 "--window=-0.12,0.12,..." 单个 token：窗口值以 '-' 开头，
+        #    拆成两个 argv 元素时 argparse 会把它当成选项 → "expected one argument"（实测踩到）
+        chk.append("--window=" + args.check_window)
+    p = subprocess.run(chk, capture_output=True, text=True, encoding="utf-8", errors="replace")
     print((p.stdout or "") + (p.stderr or ""))
     if p.returncode != 0:
         print("FAIL: 关卡 2 未通过，不装机")

@@ -364,6 +364,10 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 
 **🔴 控制台命令返回文本必须纯英文** — `CommandLineArgumentFunction` 命令的返回字符串（显示在游戏内 `~` 控制台）**禁止中文**，一律英文（2026-09-07 用户裁定）。C# 注释 / `DebugLogger.Log` 不受限；命令写出的数据文件（如 info.txt）同样用英文。
 
+**🔴 控制台命令的首参必须"可弃（占位容忍）"，禁止解析不出就报错** — 骑砍2 的 `CommandLineArgumentFunction` 在**完全不填任何参数**时可能根本不触发，所以用户/调试时习惯随手补个占位（`1` 或任意串）。因此所有 `custom.*` 命令的**第一个参数**一律做成可弃占位：给了解析不出来 → **回落到默认目标**（一般是主角）并在返回里注明，例如
+`OK (basis). ... [note: '1' is not a hero id -> using main hero]`；
+**禁止**直接回 `Hero '1' not found.`（2026-09-14 用户裁定，实测踩过 `custom.face_basis 1`）。范本：`MyCommands.GetFaceTarget(args, out hero, out note)`。
+
 **每完成一个功能后，必须主动询问用户：是否要把本次产出提炼成新的轮子并登记进 [wheels.d/](plans/rules/wheels.d/) 对应域文件（[wheels.md](plans/rules/wheels.md) 是索引）。**
 
 - 判断标准：本次是否产生了可复用的基础设施、新的引擎扩展点、或值得固化的模式。
