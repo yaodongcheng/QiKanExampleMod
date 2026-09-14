@@ -1,9 +1,12 @@
 # neck_gradient.py —— 从脖子往下做肤色渐变（把脸贴图的领口段逐渐拉向身体的色调）
 #
 # 症状（2026-09-14 用户实测，男女都有）：脖子/领口一段的肤色与身体接不上 ——
-#   脖子偏红、偏暗、偏饱和，身体偏中性、偏亮。实测两者的比值：
-#     male   身体÷脖子 = (1.09, 1.32, 1.42)
-#     female 身体÷脖子 = (1.07, 1.32, 1.36)   ← 两个角色几乎一致 = 系统性偏移
+#   脖子偏暗、偏饱和，身体偏亮。
+#   🔴 2026-09-14 重测（从 `AssetSources/color_compare/男-有光对比.png` 的取样框直接量）：
+#     male   身体÷脖子 = (1.107, 1.110, 1.105)  ← **几乎是均匀提亮 11%，色相基本不变**
+#     female 身体÷脖子 ≈ (1.11, 1.11, 1.10)     （女-有光对比 同法量）
+#   ⚠️ 早先记在这里的 (1.09, 1.32, 1.42) **与截图实测对不上**（按它上色 → 领口发灰"漂白"，
+#      渲染预览一眼假）。以本次实测值为准。
 #
 # 🔴 为什么不能"按 UV 矩形刷"：
 #   蒂法的领口 UV 是连续的一条（z↔v 相关 +0.87），但**萨菲罗斯的不是**（相关 −0.55，
@@ -15,7 +18,7 @@
 # 用法（Blender 跑，因为要读 FBX 的网格）：
 #   blender --background --python neck_gradient.py -- \
 #       --fbx <头部FBX> --tex <脸皮diffuse.png> --out <输出.png> \
-#       [--z-top 1.58] [--z-bottom 1.42] [--ratio "1.08,1.32,1.39"] [--strength 1.0] [--suffix .0]
+#       [--z-top 1.62] [--ramp 0.10] [--ratio "1.11,1.11,1.10"] [--strength 1.0] [--suffix .0]
 #
 # 参数含义：
 #   --z-top     这个高度以上完全不动（= 脸，保持原样）
@@ -40,18 +43,50 @@ def fail(m):
     print("FATAL: " + m); sys.stdout.flush(); sys.exit(1)
 
 
+# 原版身体【领口内沿】轮廓：角度 → (半径, 高度)。与 build_head.py 的 RIM_TABLE["male"] 同源
+# （当初就是用它把领口"收进身体"的）。👈 用它当渐变的基准高度。
+#
+# 🔴 为什么渐变必须【按角度取基准高度】，不能用固定 z：
+#   --fit-rim 把领口收进了身体内侧 → 我们网格自己的边缘是看不见的，
+#   玩家肉眼看到的接缝 = **我们的面从身体里钻出来的那条交线**，而这条线**随角度起伏**
+#   （正面低、侧面高）。用固定 z 当起点，只有量过的那个角度对，其它角度全错位
+#   —— 实测踩过：色带在某个视角量到 z≈1.53，按它做渐变，换角度看就完全对不上。
+RIM_MALE = [(0.0, 0.0870, 1.5271), (15.0, 0.0974, 1.4986), (30.0, 0.1020, 1.4930),
+            (45.0, 0.1068, 1.4883), (60.0, 0.1113, 1.4555), (75.0, 0.1180, 1.4350),
+            (90.0, 0.1232, 1.4144), (105.0, 0.1113, 1.4555), (120.0, 0.1068, 1.4883),
+            (135.0, 0.1020, 1.4930), (150.0, 0.0974, 1.4986), (165.0, 0.0870, 1.5271),
+            (180.0, 0.0849, 1.5444), (195.0, 0.0896, 1.5410), (210.0, 0.0808, 1.5364),
+            (225.0, 0.0750, 1.5340), (240.0, 0.0711, 1.5326), (255.0, 0.0710, 1.5325),
+            (270.0, 0.0710, 1.5324), (285.0, 0.0711, 1.5326), (300.0, 0.0750, 1.5340),
+            (315.0, 0.0808, 1.5364), (330.0, 0.0896, 1.5410), (345.0, 0.0849, 1.5444)]
+
+
+def rim_z_at(adeg):
+    """按角度插值出该处口沿的高度（度，0=+X 侧，90=+Y 正前）"""
+    a = adeg % 360.0
+    for k in range(len(RIM_MALE)):
+        a0, _, z0 = RIM_MALE[k]
+        a1, _, z1 = RIM_MALE[(k + 1) % len(RIM_MALE)]
+        if a1 <= a0:
+            a1 += 360.0
+        if a0 <= a <= a1:
+            t = (a - a0) / (a1 - a0)
+            return z0 + (z1 - z0) * t
+    return RIM_MALE[0][2]
+
+
 def main():
     a = args_after_ddash()
     fbx = get(a, "--fbx"); tex = get(a, "--tex"); out = get(a, "--out")
     if not fbx or not tex or not out:
         fail("需要 --fbx / --tex / --out")
-    z_top = float(get(a, "--z-top", "1.58"))
-    z_bot = float(get(a, "--z-bottom", "1.42"))
-    ratio = [float(x) for x in get(a, "--ratio", "1.08,1.32,1.39").split(",")]
+    z_top = float(get(a, "--z-top", "1.62"))     # 这个高度以上一律不碰（保护脸）
+    ramp = float(get(a, "--ramp", "0.10"))       # 从"该角度的口沿高度"往上多少米渐弱到 0
     strength = float(get(a, "--strength", "1.0"))
     suffix = get(a, "--suffix", ".0")
-    if z_top <= z_bot:
-        fail("--z-top 必须大于 --z-bottom")
+    ratio = [float(x) for x in get(a, "--ratio", "1.11,1.11,1.10").split(",")]
+    if ramp <= 0:
+        fail("--ramp 必须 > 0")
 
     # ---------- 1) 读网格：领口段的三角形（UV + z） ----------
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -66,18 +101,31 @@ def main():
         fail("%s 没有 UV 层" % ob.name)
     mw = ob.matrix_world
     vs = [mw @ v.co for v in me.vertices]
+    import math as _m
+
+    def t_of(p):
+        """权值 t：以【该角度处的口沿高度】为基准 —— 交线处 = 1，往上 ramp 米渐弱到 0。
+        🔴 不能用固定 z：`--fit-rim` 把领口收进了身体内侧，**我们网格自己的边缘看不见**，
+           玩家肉眼看到的接缝 = 【我们的面从身体里钻出来的那条交线】，而这条线**随角度起伏**
+           （正面低、侧面高）。用固定 z 当基准，只有量过的那个角度对得上（实测踩过）。"""
+        if p.z > z_top:
+            return 0.0
+        rz = rim_z_at(_m.degrees(_m.atan2(p.y, p.x)))
+        return max(0.0, min(1.0, 1.0 - (p.z - rz) / ramp))
+
+    tv = [t_of(p) for p in vs]
     tris = []
     for p in me.polygons:
         ids = list(p.vertices)
-        zs = [vs[i].z for i in ids]
-        if max(zs) > z_top:                      # 只要有顶点在 z_top 之上就不碰（保护脸）
+        ts = [tv[i] for i in ids]
+        if max(ts) <= 1e-4:
             continue
         uvs = [tuple(uvl.data[li].uv) for li in p.loop_indices]
-        for k in range(1, len(ids) - 1):         # 扇形三角化
-            tris.append(((uvs[0], uvs[k], uvs[k + 1]), (zs[0], zs[k], zs[k + 1])))
-    print("领口段三角面：%d 个（z ≤ %.3f）" % (len(tris), z_top))
+        for k in range(1, len(ids) - 1):
+            tris.append(((uvs[0], uvs[k], uvs[k + 1]), (ts[0], ts[k], ts[k + 1])))
+    print("上色三角面：%d（基准=各角度口沿高度，渐变带 %.0fmm）" % (len(tris), ramp * 1000))
     if not tris:
-        fail("没找到 z ≤ %.3f 的面 —— 检查 --suffix / --z-top" % z_top)
+        fail("没有需要上色的面")
 
     # ---------- 2) 读贴图 ----------
     img = bpy.data.images.load(os.path.abspath(tex))
@@ -88,9 +136,9 @@ def main():
 
     # ---------- 3) 光栅化：把每个像素对应的 z 烘进一张权重图 ----------
     blend = np.zeros((H, W), dtype=np.float32)   # 0 = 不动，1 = 满强度
-    for uvs, zs in tris:
+    for uvs, ts in tris:
         P = np.array([[u * W, v * H] for (u, v) in uvs], dtype=np.float64)
-        Z = np.array(zs, dtype=np.float64)
+        T = np.array(ts, dtype=np.float64)
         x0 = max(int(np.floor(P[:, 0].min())), 0); x1 = min(int(np.ceil(P[:, 0].max())), W - 1)
         y0 = max(int(np.floor(P[:, 1].min())), 0); y1 = min(int(np.ceil(P[:, 1].max())), H - 1)
         if x1 < x0 or y1 < y0:
@@ -107,11 +155,9 @@ def main():
         inside = (w0 >= -1e-6) & (w1 >= -1e-6) & (w2 >= -1e-6)
         if not inside.any():
             continue
-        zmap = w0 * Z[0] + w1 * Z[1] + w2 * Z[2]
-        t = (z_top - zmap) / (z_top - z_bot)     # z 越低 → t 越大
-        t = np.clip(t, 0.0, 1.0) * strength
+        tt = (w0 * T[0] + w1 * T[1] + w2 * T[2]) * strength
         sub = blend[y0:y1 + 1, x0:x1 + 1]
-        np.maximum(sub, np.where(inside, t, 0.0), out=sub)
+        np.maximum(sub, np.where(inside, np.clip(tt, 0.0, 1.0), 0.0), out=sub)
 
     cov = int((blend > 1e-4).sum())
     print("被渐变覆盖的像素：%d / %d（%.1f%%）" % (cov, W * H, 100.0 * cov / (W * H)))
@@ -132,7 +178,7 @@ def main():
     out_img.file_format = 'PNG'
     out_img.save()
     print("EXPORTED -> %s" % out_abs)
-    print("参数：z_top=%.3f z_bot=%.3f ratio=%s strength=%.2f" % (z_top, z_bot, ratio, strength))
+    print("参数：z_top=%.3f ramp=%.0fmm ratio=%s strength=%.2f" % (z_top, ramp * 1000, ratio, strength))
 
 
 main()

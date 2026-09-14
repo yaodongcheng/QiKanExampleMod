@@ -4,6 +4,10 @@
 
 > 🔴 **知识文档在 [`Knowledge/蒂法换头工程.md`](../../Knowledge/蒂法换头工程.md)**：
 > **§13.7 自建头部的四条硬规格**（做任何新头先照这四条）、**§19 拓展新脸模的完整管线**、§15~§18 三轮排查史。
+>
+> 🔗 **本工具链的通用部分（`fbx_probe.py` 关卡 1、`tpaccli` 各命令、硬链接单文件加载、两态 bat、备份纪律）
+> 同样服务盔甲工程** —— 见 [`Knowledge/骑砍2盔甲资产工程.md`](../../Knowledge/骑砍2盔甲资产工程.md) §6。
+> ⚠️ 反过来：`morphfix` / `skinfix --fullmat` / `transfer_channels.py` / `check_head_space.py` 是**脸部专用**，盔甲不用。
 
 ## 归口（按 CLAUDE.md 铁律 26，别在别处开新目录）
 

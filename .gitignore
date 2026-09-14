@@ -69,6 +69,9 @@ tools/face-pipeline/*.png
 # FreeUV 外部依赖（内嵌 git 仓库）：管线已改为 LLM 生成 UV 图，不再需要，整目录不进库
 tools/face-pipeline/external/FreeUV/
 
+# armor-pipeline（盔甲构建工具链；产物整目录忽略，规则用整目录不用文件名——铁律 26）
+tools/armor-pipeline/out/
+
 # ── 不同步 AIInfluence 子项目 ──
 ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
 
