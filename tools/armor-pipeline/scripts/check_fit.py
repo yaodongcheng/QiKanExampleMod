@@ -19,10 +19,14 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 
 # --- 甲（含骨架）---
 bpy.ops.import_scene.fbx(filepath=armor_path)
-armor_meshes = [o for o in bpy.data.objects if o.type == 'MESH']
-for o in armor_meshes:
-    o.hide_render = False
-print("甲:", [o.name for o in armor_meshes])
+allm = [o for o in bpy.data.objects if o.type == 'MESH']
+# 🔴 6 个 LOD 网格位置完全重合。只留 LOD0，其余 hide_render —— 否则它们在同一个位置抢像素。
+lod0 = [o for o in allm if '.lod' not in o.name]
+lod0.sort(key=lambda o: -len(o.data.vertices))
+armor_meshes = lod0[:1] if lod0 else allm
+for o in allm:
+    o.hide_render = (o not in armor_meshes)
+print("甲:", [o.name for o in armor_meshes], " 已藏起其余 LOD:", len(allm) - len(armor_meshes))
 
 # --- 原版身体（只要网格，骨架丢掉——两边共用 human_skeleton，同空间）---
 body_main = None
@@ -72,7 +76,7 @@ for eng in ('BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE'):
 scn.view_settings.view_transform = 'Standard'
 scn.render.image_settings.file_format = 'PNG'
 scn.render.film_transparent = False
-W, H = 480, 760
+W, H = 1080, 900
 scn.render.resolution_x = W
 scn.render.resolution_y = H
 
@@ -90,14 +94,37 @@ for name, rot, en in (('k', (0.85, 0.0, 0.45), 3.4), ('f', (1.35, 0.0, -1.0), 2.
     lo.rotation_euler = rot
     scn.collection.objects.link(lo)
 
+# 🔴 取景必须从**可见网格的包围盒**自动算，不能写死。
+#    踩过（2026-09-14）：写死 ortho_scale=1.95 时，A-pose 伸出去的小臂/籠手落到画框外，
+#    看起来像"只有上臂、没有小臂"，其实是被裁掉了。
+def autoframe(scn, cam_data, objs, margin=1.12):
+    from mathutils import Vector as _V
+    mn = _V((1e9, 1e9, 1e9)); mx = _V((-1e9, -1e9, -1e9))
+    for o in objs:
+        if o.hide_render or o.type != 'MESH':
+            continue
+        for v in o.data.vertices:
+            w = o.matrix_world @ v.co
+            for i in range(3):
+                mn[i] = min(mn[i], w[i]); mx[i] = max(mx[i], w[i])
+    ctr = (mn + mx) * 0.5
+    w = (mx.x - mn.x) * margin
+    h = (mx.z - mn.z) * margin
+    rx, ry = scn.render.resolution_x, scn.render.resolution_y
+    # 相机 sensor_fit='VERTICAL' -> ortho_scale 是**竖直**取景高度
+    cam_data.ortho_scale = max(h, w * ry / rx)
+    return ctr
+
+
 cam_data = bpy.data.cameras.new('C')
 cam_data.type = 'ORTHO'
 cam_data.sensor_fit = 'VERTICAL'
-cam_data.ortho_scale = 1.95
 cam = bpy.data.objects.new('C', cam_data)
 scn.collection.objects.link(cam)
 scn.camera = cam
-ctr = Vector((0.0, 0.0, 0.85))
+VIS = [o for o in bpy.data.objects if o.type == 'MESH' and not o.hide_render]
+ctr = autoframe(scn, cam_data, VIS)
+print('   自动取景 ortho_scale=%.3f 中心 z=%.3f' % ((cd if 'cd' in dir() else cam_data).ortho_scale, ctr.z))
 
 VIEWS = (('F', (0.0, 1.0, 0.0)), ('side', (1.0, 0.0, 0.0)), ('B', (0.0, -1.0, 0.0)))
 cols = []
