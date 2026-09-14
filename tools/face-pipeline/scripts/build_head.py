@@ -64,6 +64,8 @@ RIM_TABLE = {
 }
 RIM_BAND = 0.030      # 领口上方留 3cm 过渡带（带外不再收，免得把下巴/颧骨压扁）
 RIM_SLOPE = -0.35     # 过渡带内半径随 z 递减的斜率（越往上越细 → 接到脖子）
+RIM_BURY = 0.008      # 🔴 口沿再往里收 8mm：收到"恰好等于口沿半径"会贴边穿出（实机见过孤立色块），
+                      #    多收这 8mm 让整圈藏进身体内侧，边缘不外露
 ROLE_RULES = [                       # 顺序敏感：lash 必须在 eye 之前判（eyelash 含 eye 子串）
     ("lash",  ("eyelash", "lash", "cilia")),
     ("eye",   ("eyeball", "eyeball", "eye")),
@@ -348,9 +350,9 @@ def main():
                 continue
             rr, rz = rim_at(math.degrees(math.atan2(v.co.y, v.co.x)))
             if v.co.z <= rz:
-                rmax = rr
+                rmax = rr - RIM_BURY
             elif v.co.z < rz + RIM_BAND:
-                rmax = rr + (v.co.z - rz) * RIM_SLOPE
+                rmax = rr - RIM_BURY + (v.co.z - rz) * RIM_SLOPE
             else:
                 continue
             if r > rmax:
