@@ -48,6 +48,9 @@ OUTDIR = get(A, "--out")
 NAME = get(A, "--name", "armor")
 PARTS = get(A, "--parts", "body")
 R = float(get(A, "--r", "0.01"))
+# 手臂链的径向缩放（默认跟 R 一样）。原版身体的胳膊比源件粗，躯干调够之后手臂仍会顶穿，
+# 这里单独放一点。实测 0.0120 → 0.0145 才把上臂那圈身体盖住。
+R_ARMS = float(get(A, "--r-arms", str(R)))
 CUT_Z = float(get(A, "--cut-z", "0.0"))
 LOD_RATIOS = [float(x) for x in get(A, "--lod", "0.834,0.563,0.249,0.140,0.072").split(",")]
 DO_LOD = "--no-lod" not in A
@@ -70,10 +73,11 @@ MIRROR_Y3 = MIRROR_Y.to_3x3()
 # ---------------------------------------------------------------- 部位 -> 子网格号
 # 号来自 SW2 角色 FBX 的 model_0_submesh_N（判定依据见 plans/rules 与工程文档）
 PART_SETS = {
-    "body":        [2, 7, 8, 9],      # 胴(含袴/佩楯/脛当/靴) + 草摺前/后/环
-    "body_kimono": [1, 2, 7, 8, 9],   # 再加内衬着物
-    "head":        [10, 0],           # 兜 + 系带
-    "arms":        [3, 4],            # 袖 + 籠手（両腕）
+    "body":             [2, 7, 8, 9],            # 胴(含袴/佩楯/脛当/靴) + 草摺前/后/环
+    "body_kimono":      [1, 2, 7, 8, 9],         # 再加内衬着物
+    "arms":             [3, 4],                  # 袖(sode) + 籠手(kote)，両腕
+    "body_kimono_arms": [1, 2, 3, 4, 7, 8, 9],   # 主体 + 内衬 + 両腕（配 --no-hands）
+    "head":             [10, 0],                 # 兜 + 系带
 }
 
 # ---------------------------------------------------------------- SW2 骨 -> 骑砍骨
@@ -296,6 +300,61 @@ for o in dups:
     o.parent = None
     o.matrix_world = Matrix.Identity(4)   # 顶点已在 armature 空间（≈世界），清掉残留变换
 
+# 着物瘦身（可选）：submesh_1 的"着物"把**头和手的皮**也包在里面（头 68 顶点 + 右手手指约 200 顶点），
+# 直接带上会出现"头顶飘块 + 袖子变形"。按**主骨**删（不用 z 高度——袖子与躯干在 z 上重叠）。
+# 🔴 这一条**只能作用于着物那一件**。踩过（2026-09-14）：早先把它作用在**合并后的整块甲**上，
+#    而保留列表里没有锁骨骨 bone_12/bone_13 -> **胴的肩帯（正好由锁骨驱动的那 42 个顶点）被一起删掉**，
+#    成品肩部一个大缺口。
+import bmesh
+
+
+def drop_verts(o, idxs):
+    if not idxs:
+        return
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in idxs], context='VERTS')
+    bm.to_mesh(o.data)
+    bm.free()
+    o.data.update()
+
+
+def dominant_bones(o):
+    """每顶点权重最大的那根骨（名字）"""
+    vgn = [g.name for g in o.vertex_groups]
+    out = []
+    for v in o.data.vertices:
+        out.append(vgn[max(v.groups, key=lambda g: g.weight).group] if v.groups else None)
+    return out
+
+
+# 手/手指骨（源件名）。籠手应当止于手腕——手留给骑砍身体的手，
+# 否则甲的"手"会和身体的手打架（实机症状：拳头被甲整个包住）。
+HAND_SW = {"bone_18", "bone_19"} | {"bone_%d" % i for i in range(26, 46)}
+# 着物要留的部分：躯干 + 腿 + **手臂（袖子）**。
+# 🔴 手臂段必须留：源件上臂中段本来就是**着物的布袖子**盖的，不是袖/籠手盖的。
+#    早先只留躯干+腿 -> 上臂中段露身体（试过用拉伸硬撑，副作用是籠手盖住拳头）。
+#    手/手指不在内（由 --no-hands 单独切），头也不在内。
+KEEP_SW = {"bone_1", "bone_8", "bone_9", "bone_2", "bone_3", "bone_4",
+           "bone_5", "bone_6", "bone_7", "bone_24", "bone_25",
+           "bone_12", "bone_13", "bone_14", "bone_15", "bone_16", "bone_17"}
+
+for o in dups:
+    sm = parse_submesh(o.name)
+    dom = dominant_bones(o)
+    n0 = len(o.data.vertices)
+    if "--no-hands" in A:
+        drop_verts(o, [i for i, b in enumerate(dom) if b in HAND_SW])
+        if len(o.data.vertices) != n0:
+            print("   去手部：%s 删 %d 顶点" % (o.name, n0 - len(o.data.vertices)))
+            dom = dominant_bones(o)
+    if "--kimono-torso-only" in A and sm == 1:
+        # 🔴 只滤着物。作用到整块甲上会误删胴的肩帯（由锁骨驱动）
+        k = len(o.data.vertices)
+        drop_verts(o, [i for i, b in enumerate(dom) if b not in KEEP_SW])
+        print("   着物瘦身：%s 删 %d 顶点，余 %d" % (o.name, k - len(o.data.vertices), len(o.data.vertices)))
+
 # ---------------------------------------------------------------- 重定向
 print("== 5/6 骨架重定向（rest retarget）==")
 by_name = {o.name: o for o in dups}
@@ -306,6 +365,42 @@ if len(dup_list) != len(picked):
     dup_list = dups
 
 # 逐骨预计算重定向矩阵： T = Translate(bl头) · Rot(仅手臂) · Scale(R) · Translate(-sw头)
+# 🔴 手臂的缩放必须拆成两个方向，不能用一个 Matrix.Scale 各向同性地放。
+#    踩过（2026-09-14 实机）：把 --r-arms 从 0.0120 提到 0.0165，径向确实盖住了身体，
+#    但**沿骨轴也被拉了 65%** —— 前臂 25.97cm × 0.0165 = 0.429m，而骑砍肘到手腕只有 0.267m，
+#    于是籠手末端超出拳头 16cm（用户截图："手腕没有伸出袖子"）。
+#    修法：沿骨轴按**解剖段长**对齐（源件肘→腕 与 骑砍肘→腕 的比值），径向才用 R_ARMS。
+#    段长比值直接由两边关节坐标算，不写死。
+
+
+def seg_ratio(sw_a, sw_b, bl_a, bl_b):
+    """两对关节之间的距离比（米/厘米）= 沿骨轴的缩放"""
+    ds = (SW.data.bones[sw_b].head_local - SW.data.bones[sw_a].head_local).length
+    db = (BL.data.bones[bl_b].head_local - BL.data.bones[bl_a].head_local).length
+    return db / ds if ds > 1e-9 else 0.01
+
+
+# SW2 骨 -> 沿骨轴缩放（未列出的骨用 R）
+ARM_ALONG = {
+    "bone_14": seg_ratio("bone_14", "bone_16", "bip01_l_upperarm_twist_15", "bip01_l_foretwist_17"),
+    "bone_15": seg_ratio("bone_15", "bone_17", "bip01_r_upperarm_twist_22", "bip01_r_foretwist_24"),
+    "bone_16": seg_ratio("bone_16", "bone_18", "bip01_l_foretwist_17", "bip01_l_hand_19"),
+    "bone_17": seg_ratio("bone_17", "bone_19", "bip01_r_foretwist_24", "bip01_r_hand_26"),
+}
+
+
+def frame_from_dir(d):
+    """造一个 Y 轴 = d 的正交基（列向量）"""
+    y = d.normalized()
+    up = Vector((0.0, 0.0, 1.0)) if abs(y.z) < 0.9 else Vector((1.0, 0.0, 0.0))
+    x = y.cross(up).normalized()
+    z = x.cross(y).normalized()
+    return Matrix(((x.x, y.x, z.x, 0.0),
+                   (x.y, y.y, z.y, 0.0),
+                   (x.z, y.z, z.z, 0.0),
+                   (0.0, 0.0, 0.0, 1.0)))
+
+
 T_BONE = {}
 T_ANGLE = {}
 for bn_sw, bn_bl in BMAP.items():
@@ -324,9 +419,17 @@ for bn_sw, bn_bl in BMAP.items():
             ang = math.degrees(d_sw.angle(d_bl))
             rot = d_sw.rotation_difference(d_bl).to_matrix().to_4x4()
     T_ANGLE[bn_sw] = ang
-    T_BONE[bn_sw] = (Matrix.Translation(b_bl.head_local) @ rot
-                     @ Matrix.Scale(R, 4)
-                     @ Matrix.Translation(-(MIRROR_Y @ b_sw.head_local)))
+    h_sw_f = MIRROR_Y @ b_sw.head_local
+    if bn_sw in ARM_ALONG:
+        # 手臂：径向 R_ARMS、沿骨轴按解剖段长 —— 见上面那段说明
+        d_sw = chain_dir(b_sw)
+        d_sw = (MIRROR_Y3 @ d_sw).normalized() if d_sw else Vector((0.0, 0.0, -1.0))
+        F = frame_from_dir(d_sw)
+        S = F @ Matrix.Diagonal((R_ARMS, ARM_ALONG[bn_sw], R_ARMS, 1.0)) @ F.inverted()
+    else:
+        S = Matrix.Scale(R, 4)
+    T_BONE[bn_sw] = (Matrix.Translation(b_bl.head_local) @ rot @ S
+                     @ Matrix.Translation(-h_sw_f))
 
 bpy.ops.object.select_all(action='DESELECT')
 for o in dup_list:
@@ -337,6 +440,33 @@ if len(dup_list) > 1:
 ARM = dup_list[0]
 ARM.name = NAME
 ARM.data.name = NAME          # 网格**数据**名也要改：FBX 的 Geometry 节点取数据名，编辑器按它命名资源
+
+# 🔴 材质必须换成一张干净的、名字对得上的空材质。源件带过来的是 `mat_L00_yukimura`
+#    外加指向 **不存在文件** 的贴图节点，实测后果（2026-09-14）：
+#      ① 编辑器按名字找项目里的材质资产 -> 找不到 -> 每个 LOD 弹一次
+#         "RGL CONTENT WARNING: Unable to find material for mesh <名字>"（6 个 LOD 弹 6 次）
+#      ② 编辑器去加载那个不存在的贴图 -> **崩溃**，之后进编辑器一直报同样的错
+#    修法：名字用**编辑器里那个材质资产的内部名**，并且**一个贴图节点都不挂**
+#    （贴图由编辑器里的材质资产去接，FBX 只要交出网格就行）。
+#
+#    🔴 名称关系（tpaccli list 实测，2026-09-14）：
+#       编辑器给**文件名**加后缀 `<名>_geo.tpac` / `<名>_mtl.tpac` / `<名>_d_tex.tpac`，
+#       而**资产内部名就是你输入的那个名字**，不加后缀。
+#       而且网格与材质**本来就同名**（靠类型 GUID 区分）——范本：蒂法头
+#       文件名 `head_tifa_a_v11_geo.tpac` 与 `head_tifa_a_mtl.tpac`，内部名都是 `head_tifa_a`。
+#       ⇒ 默认材质名 = 网格名 = NAME。**别自作聪明加 `_mtl`**。
+MATNAME = get(A, "--mat-name", NAME)
+_mat = bpy.data.materials.new(MATNAME)
+_mat.use_nodes = True
+# 把节点树清空重建：只留 输出 + Principled，**不加任何 TexImage 节点**
+_nt = _mat.node_tree
+_nt.nodes.clear()
+_out = _nt.nodes.new('ShaderNodeOutputMaterial')
+_bsdf = _nt.nodes.new('ShaderNodeBsdfPrincipled')
+_nt.links.new(_bsdf.outputs['BSDF'], _out.inputs['Surface'])
+ARM.data.materials.clear()
+ARM.data.materials.append(_mat)
+print("   材质 -> %s（无贴图引用）" % MATNAME)
 
 if "--debug" in A:
     print("   --- 逐骨重定向：旋转角（只有手臂链非零）+ 平移偏移 ---")
@@ -419,36 +549,7 @@ print("   顶点组 %d 个" % len(ARM.vertex_groups))
 badv = sum(1 for v in ARM.data.vertices if not v.groups)
 print("   未绑定顶点 %d" % badv)
 
-# 按主骨过滤（可选）：把某件里不属于本部位的顶点删掉。
-# 典型用途：submesh_1 的"着物"网格把头和手的皮也包在里面（头 68 顶点 / 右手手指约 200 顶点），
-# 直接带上会出现"头顶飘块 + 袖子变形"。判据用**主骨**（权重最大的那根）而不是 z 高度——
-# 因为袖子与躯干在 z 上重叠。
-if "--kimono-torso-only" in A:
-    import bmesh
-    KEEP_SW = {"bone_1", "bone_8", "bone_9", "bone_2", "bone_3",
-               "bone_4", "bone_5", "bone_6", "bone_7", "bone_24", "bone_25"}
-    vg = [g.name for g in ARM.vertex_groups]
-    # 反查：骑砍骨名 -> 该顶点是否允许保留
-    ok_bl = set()
-    for k, v in BMAP.items():
-        if k in KEEP_SW:
-            ok_bl.add(v)
-    drop = []
-    for v in ARM.data.vertices:
-        if not v.groups:
-            continue
-        best = max(v.groups, key=lambda g: g.weight)
-        if vg[best.group] not in ok_bl:
-            drop.append(v.index)
-    if drop:
-        bm = bmesh.new()
-        bm.from_mesh(ARM.data)
-        bm.verts.ensure_lookup_table()
-        bmesh.ops.delete(bm, geom=[bm.verts[i] for i in drop], context='VERTS')
-        bm.to_mesh(ARM.data)
-        bm.free()
-        ARM.data.update()
-    print("   主骨过滤：删 %d 顶点，余 %d" % (len(drop), len(ARM.data.vertices)))
+# （主骨过滤已移到合并**之前**、且只作用于着物 —— 见上面 dup 循环里那段）
 
 # 挂到骑砍骨架
 ARM.parent = BL
@@ -533,4 +634,15 @@ except TypeError as e:
     kw.pop('apply_scale_options', None)
     bpy.ops.export_scene.fbx(**kw)
 print("   导出 FBX ->", fbx_path)
+
+# 导出后自检：FBX 里不许留贴图引用，材质名必须是我们指定的那个
+import re as _re
+_blob = open(fbx_path, 'rb').read()
+_tex = sorted(set(m.decode('latin1') for m in
+                  _re.findall(rb'[ -~]{4,120}\.(?:png|tga|dds|jpg|jpeg)', _blob)))
+_mats = sorted(set(m.decode('latin1') for m in _re.findall(rb'mat_[A-Za-z0-9_]+', _blob)))
+print("   自检 贴图引用:", _tex if _tex else "无 ✓")
+print("   自检 材质名  :", _mats if _mats else "无（用 %s）✓" % MATNAME)
+if _tex:
+    print("   !! FBX 里仍有贴图引用，编辑器导入时可能去加载不存在的文件而崩溃")
 print("DONE", NAME)

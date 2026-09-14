@@ -521,3 +521,83 @@ face 段是纯预计算，游戏运行时未命中会**现算并缓存于内存*
 `Scripts/check_data_fields.py`（0c 段）· `Scripts/test_negative_checks.py`（负面用例）。
 **扩展点**：新内容包 = 换兵种表（地域/时代差异）+ 8 个模板的栈配比 + 文化属性组；Taikou 的地域兵种差异见 T4 计划。
 
+---
+
+## 卷十三 引擎按「规则 / 后缀」查定义 —— 缺一个就在该路径上崩（2026-09-14 登记）
+
+**本卷两个坑同一个形状**：引擎取数据/传值时不判空、**也不兜底**，缺一个就在**那条**路径上炸，
+而症状（崩在哪）跟根因（缺了哪个）隔得很远。判据都是「**凑齐引擎会问的全部问法**」，不是「补上被点名的那一个」。
+（与卷十二同源：文化 8 个模板属性、这里 5 个 Monster 变体，都是「引擎按固定规则查，缺一即崩」。）
+
+### 一、🔴 自建 race 必须**整族复刻** Monster —— 换头/换脸开新 race 的必读项（雷 120）
+
+**症状**：给某个角色开了独有 race（换头/换脸的标准做法）之后，**一进据点主楼 / 领主大厅就 `NullReferenceException`**，
+栈顶 `TaleWorlds.MountAndBlade.Mission.SpawnAgent`（`Mission.cs:3860`），**没有下层帧**。
+
+**引擎取 Monster 有两种问法，只满足一种就会崩**：
+
+| 问法 | 出处 | 缺了会怎样 |
+|---|---|---|
+| `FaceGen.GetBaseMonsterFromRace(race)` | `TaleWorlds.Core.AgentData` 构造函数（`AgentMonster = ...`） | 基础 id 缺失才走这条 |
+| `FaceGen.GetMonsterWithSuffix(race, "_settlement")` 等 | `LocationCharacter` / `LocationComplex.AddHeroToDecidedLocation` / `Hero` 多处 | **取到 null 且不回落** → 崩 |
+
+- Native 给 `human` 定义的是**一族 5 个** id：`human` · `human_child` · `human_settlement` · `human_settlement_fast` · `human_settlement_slow`。
+  **自建 race 必须整族照搬**（逐块复制、只改 id）。
+- 后缀用量实测（1.2.12 全 DLL 反编译计数）：`_settlement` **46** · `_child` 12 · `_settlement_slow` 5 · `_settlement_fast` 1 —— 一个都不能少。
+- 🔴 **兜底规则**：`GetRaceOrDefault` 只在 **race 本身不存在**时回落 human；**Monster 变体缺失不回落**。
+- 🔴 **触发路径躲不掉**：`AddHeroToDecidedLocation` 判 `Occupation == Lord → LordsHall`，紧接着就取 `_settlement` 变体 —— 领主进领主大厅必走。
+- 🔴 **崩的指纹**：`Mission.SpawnAgent` 里 `CreateAgent(agentBuildData.AgentMonster, …, agentBuildData.AgentMonster.Weight, …)`
+  按 C# 从左到右求值，`AgentMonster.Weight` 先炸 → `CreateAgent` 根本没进去 → **栈顶就是 SpawnAgent、无下层帧**。见到这个形状先查 Monster 变体族。
+
+**修法 / 范本**：生成器 `Scripts/gen_taikou_nobunaga_head.py` 的 `build_monsters()` —— **从 Native 动态取整族**
+（`re.findall` 出所有 `human` / `human_*` 的 id）逐块复制、只改**开标签**里的 id（`human_child → lwn_nobunaga_child`）。
+这样 Native 以后加变体会自动跟上；块内若还有同名字串不会被误伤。
+（改生成器重跑，禁手改产物 = 铁律 22；重跑参数必须与落盘一致，否则会把肉眼标记改回去 —— 该脚本 `--check` 要求参数一致才算 IN SYNC。）
+
+**扩展点**：任何新 race（下一个人物换头、新种族）都照这条 —— 先 `grep` Native 的 `<race名>` 前缀全族 id，再整族复制。
+
+### 二、🔴 引擎「零守卫直送原生」→ 在**唯一收口处**封堵（雷 119；雷 105 复发）
+
+**症状**：大地图走时间时 `System.AccessViolationException`（段错误），
+**日志无任何异常直接断**（原生 AV 不走 C# 异常通道，日志停在崩溃前最后一条正常记录）。
+
+**根因**：`DefaultMapDistanceModel` 全类**零 `IsValid` 守卫**。据点城门点不在导航网格上时
+`Settlement.CurrentNavigationFace = GetFaceIndex(GatePosition)` 返回 `(-1,-1,-1)`，而
+`GetClosestSettlementForNavigationMesh(face)` 的内存缓存按 `FaceIndex` 建键、**缓存文件格式以负数终止**
+（引擎 `for (i = ReadInt32(); i >= 0; …)`）⇒ 键恒 ≥0 ⇒ **-1 永远查不到** ⇒ 必然走「取面中心」分支
+⇒ 原生 `GetNavMeshCenterPosition(-1)` 越界读 ⇒ AV。
+**触发者是引擎自己的每日结算**（与 mod 代码无关）：`DailyTickClan` → `UpdateGovernorsOfClan`（给 AI 家族封地派总督，
+挑「手上没带兵」的领主）→ `ChangeGovernorAction.Apply` → `TeleportHeroAction.…AsGovernor`
+→ `GetTeleportationDelayAsHours` → `GetDistance(IMapPoint, Settlement, …)` → 两面不等 → 本方法。
+
+🔴 **定位法（这套比补丁值钱，下次原生越界崩照这个走）**：
+
+1. **完整反编译**目标类型，把调那个原生函数的地方**全列出来**（本例只有 2 处：缓存重建循环恒用合法下标 + 本方法）；
+2. **全 DLL 二进制 grep** 那个原生函数名，确认只有「**调用方 + 声明方**」两个程序集出现它
+   （本例 = `TaleWorlds.CampaignSystem.dll` + `SandBox.dll`）→ 无第三方调用者；
+3. 两条独立实证都指向同一点 ⇒ **封住它 = 全部入口封住**，不用再去补下层那一圈。
+
+**范本**：`CampaignMode/MapDistanceInvalidFaceGuardPatch.cs`（Harmony Prefix，挂
+`DefaultMapDistanceModel.GetClosestSettlementForNavigationMesh`）。非法面 → 不进原生，返回真实存在的兜底据点
+（优先「面主」= 自身 `CurrentNavigationFace` 等于该面的据点，多主取离玩家最近者）。
+**姊妹补丁**：`MapDistanceNullSettlementGuardPatch.cs`（同一模型、另一个裸解引用，雷 107）。
+同域第三类判定见卷十「新护栏出现时按顺序问三句」。
+
+**两条纪律**：
+
+- **日志即清单**：非法面没有位置信息，唯一能定位的就是「谁的面是这个」——日志要打
+  **面下标 / 非法原因 / 面主据点清单 / 本次兜底给了谁**，每个面下标只报一次 + 上限条数（防刷屏）。
+  这样**不用复现崩溃**就能拿到改地图的清单。
+- **兜底值可以"猜"，但必须有界**：非法面拿不到坐标，兜底值在几何上必然是猜的；本例下游算式
+  `from.Position2D.Distance(to) − closest.GatePosition.Distance(to) + GetDistance(closest, to)` 后两项近似抵消
+  ⇒ 结果 ≈ 两地直线距离，**有界、不崩、不夸张**（代价是 AI 距离判断在坏点上略偏，远好过段错误）。
+  **别返回 null** —— 调用方紧接着就 `.GatePosition`，等于把 AV 换成 NRE。
+
+**版本**：1.2.12 实证该方法存在；**1.3.15 起引擎已删除它**（二进制 grep 0 命中，模型重构成 navigation-capability 式）
+→ 字符串式 Harmony 补丁在 1.3+ **静默跳过**，无害，也无需版本宏。
+
+**退役条件（两步法）**：地图网格修好、日志不再出 `[MapFaceGuard]` 后 → 先注释特性停用 → 验一轮 → 再删文件。
+
+**文件**：`CampaignMode/MapDistanceInvalidFaceGuardPatch.cs` · `CampaignMode/MapDistanceNullSettlementGuardPatch.cs` ·
+根因数据侧待办（14 个据点门位回网格 + 重烤 `settlements_distance_cache.bin`）见必备清单雷 104/105/119。
+

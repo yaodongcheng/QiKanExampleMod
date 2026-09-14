@@ -406,6 +406,11 @@
          UpdateFriendshipAndEnemies 传 FactionMidSettlement（无地 = null）→ null.Id NRE（雷 107）。
          用户 2026-09-12 裁定「允许无地家族有 lord 成员（灭族后仍要看到野队）」→ 兜底落在距离模型入口。 -->
     <Compile Include="CampaignMode\MapDistanceNullSettlementGuardPatch.cs" />
+    <!-- 🔴 非法导航面 → 原生 GetNavMeshCenterPosition(-1) → AccessViolation 段错误（2026-09-14 实机，
+         触发链：大地图每日 tick 给 AI 家族封地派总督 → 传送 → 算传送耗时 → 距离模型拿非法面调原生）。
+         根因 = 太阁地图有据点的城门点不在导航网格上（雷 104），与 mod 代码无关。
+         退役条件（两步法）：地图网格修好、全据点门点回到网格上后 → 先注释特性停用 → 验一轮 → 再删。 -->
+    <Compile Include="CampaignMode\MapDistanceInvalidFaceGuardPatch.cs" />
     <!-- 🔴 临时定位日志（第 4 关：领主刷部队 NRE）——定案并修复后立即删除本行与该文件 -->
     <Compile Include="CampaignMode\LordPartySpawnDiagPatch.cs" />
     <!-- 开局落点：领主部队刷到数据指定的城（taikou_lords*.xml 的 initial_settlement 属性，雷 110 同批） -->

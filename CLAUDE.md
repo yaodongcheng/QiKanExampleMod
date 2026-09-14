@@ -409,6 +409,10 @@ to_editor_mode.bat    Assets_disabled → Assets            + 删掉 skins.xslt�
 
 1. 🔴 **bat 里必须写 `set "MOD=%~dp0"`，引号不能省** —— 路径含 `&`（Mount **&** Blade）会把 `set MOD=<半截路径>` 整行截断，后续所有路径全错（实测症状：报 `'Blade' is not recognized as an internal or external command`）。同理 **PowerShell 里调 bat 要用 `Start-Process -FilePath`**，`& "…\x.bat"` 也会被路径里的 `&` 截断。
 2. 🔴 **`AssetPackages/` 是编辑器 Publish 的目标目录，Publish 会清空它** —— 备份别放那儿（实测放在里面的 4 个 `.bak` 被清掉）。
+3. 🔴 **`echo` 行里的 `>` 必须转义成 `^>`** —— cmd 会把裸 `>` 当重定向符：那行字被吞掉，**还会在当前工作目录生成一个以重定向目标的头一个词命名的垃圾文件**。实测（2026-09-14）：`echo   => Set the Publish target...` 生成了 `LivingWorldNpcs\Set`、`echo [2/2] AssetSources -> AssetSources_disabled` 生成了 `LivingWorldNpcs\AssetSources_disabled`。范本：TifaHead2 的 bat 通篇写 `-^>`。**自查**：正则 `(?<!\^)>` 扫所有 `echo` 行。
+
+**已接入的模块**（客户端根 `to_editor_mode.bat` / `to_game_mode.bat` 里 `for %%T in (...)` 列表）：`TifaHead TifaHead2 Taikou`。
+加新模块 = ①在模块下建同名一对 bat（管 `Assets` ↔ `Assets_disabled`、`AssetSources` ↔ `AssetSources_disabled`）②把模块名加进客户端根那两个 bat 的列表。全程纯 ASCII。
 
 **新模块照此办理**：凡是编辑器工程与运行期资产包分离的模块，都做一对同名 bat，**别靠人肉改名**。
 

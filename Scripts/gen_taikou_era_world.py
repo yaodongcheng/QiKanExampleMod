@@ -102,6 +102,15 @@ EQUIP_DEFAULT = (["short_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE)
 VOICE_BY_IDENTITY_FEMALE = "calm"
 VOICE_DEFAULT = "curt"
 
+# 🔴 专用 race（2026-09-14）：列在这里的角色才会在 NPCCharacter 上带 race= 属性。
+#    骑砍2 的头网格由 skin 决定，skin 按 (race × 性别 × 年龄段) 选 —— 所以要「只有某人换头」，
+#    就给他一个独有 race，其他人不带该属性 = 继续走 Native 的 race="human"，零影响。
+#    接线文件（Taikou/ModuleData/skins.xml 的 <race id="lwn_nobunaga">、monsters.xml）由
+#    Scripts/gen_taikou_nobunaga_head.py 生成，禁手改（铁律 22）。
+SPECIAL_RACE = {
+    "lord_tk5_195": "lwn_nobunaga",        # 织田信长 —— 战国无双2 头模
+}
+
 
 def load(csv_dir, name, head=2):
     sys.path.insert(0, os.path.join(REPO, "Scripts"))
@@ -330,11 +339,12 @@ def write_lords(w, path):
         weapons, armor, civil = EQUIP_BY_IDENTITY.get(ident, EQUIP_DEFAULT)
         fem = w.is_female(r)
         cul = (r.get("CultureID") or "").strip() or CULTURE_FALLBACK
+        race_attr = ' race="%s"' % SPECIAL_RACE[r["ID"]] if r["ID"] in SPECIAL_RACE else ""
         L.append('\t<NPCCharacter id="%s" default_group="Infantry" age="%d" voice="%s" '
-                 'is_hero="true" is_female="%s" culture="Culture.%s" name="{=%s}%s" occupation="Lord" '
+                 'is_hero="true" is_female="%s" culture="Culture.%s"%s name="{=%s}%s" occupation="Lord" '
                  'banner_symbol_mesh_name="test_symbol_a" banner_symbol_color="FF000000">\n'
                  % (r["ID"], w.age_of(r), VOICE_BY_IDENTITY_FEMALE if fem else VOICE_DEFAULT,
-                    "true" if fem else "false", cul, name_key(r["ID"], w.era), esc(en_name_of(r))))
+                    "true" if fem else "false", cul, race_attr, name_key(r["ID"], w.era), esc(en_name_of(r))))
         L.append('\t\t<face>\n\t\t\t<face_key_template value="BodyProperty.fighter_empire"/>\n\t\t</face>\n')
         L.append('\t\t<Equipments>\n\t\t\t<EquipmentRoster>\n')
         for i, it in enumerate(weapons):
