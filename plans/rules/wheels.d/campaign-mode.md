@@ -552,9 +552,12 @@ face 段是纯预计算，游戏运行时未命中会**现算并缓存于内存*
 **修法 / 范本**：生成器 `Scripts/gen_taikou_nobunaga_head.py` 的 `build_monsters()` —— **从 Native 动态取整族**
 （`re.findall` 出所有 `human` / `human_*` 的 id）逐块复制、只改**开标签**里的 id（`human_child → lwn_nobunaga_child`）。
 这样 Native 以后加变体会自动跟上；块内若还有同名字串不会被误伤。
-（改生成器重跑，禁手改产物 = 铁律 22；重跑参数必须与落盘一致，否则会把肉眼标记改回去 —— 该脚本 `--check` 要求参数一致才算 IN SYNC。）
+（改生成器重跑，禁手改产物 = 铁律 22。
+🔴 **`--check` 已改成自描述**（2026-09-14 修）：生成时把参数写进产物文件头 `gen-params:` 行，`--check` 先读它重建再比对 ——
+**忘了照抄参数不再误报 OUT OF SYNC**。此前这条写的是"参数必须与落盘一致"，那是假阴性来源，已废。）
 
 **扩展点**：任何新 race（下一个人物换头、新种族）都照这条 —— 先 `grep` Native 的 `<race名>` 前缀全族 id，再整族复制。
+**完整清单见本卷 §三**（除 Monster 族外还有 7 件事，缺哪件都不行）。
 
 ### 二、🔴 引擎「零守卫直送原生」→ 在**唯一收口处**封堵（雷 119；雷 105 复发）
 
@@ -582,6 +585,67 @@ face 段是纯预计算，游戏运行时未命中会**现算并缓存于内存*
 （优先「面主」= 自身 `CurrentNavigationFace` 等于该面的据点，多主取离玩家最近者）。
 **姊妹补丁**：`MapDistanceNullSettlementGuardPatch.cs`（同一模型、另一个裸解引用，雷 107）。
 同域第三类判定见卷十「新护栏出现时按顺序问三句」。
+
+### 三、🔴 自建 race 开新人物外观 —— 完整清单（8 件事，缺一件就是"崩"或"静默失效"）（2026-09-14）
+
+**什么时候要开新 race**：骑砍2 的头网格 `face_meta_mesh` **写在 skin 上**，skin 按 **(race × 性别 × 年龄段)** 选 —— 
+**没有"按角色"的口子**。所以凡是要**换头型网格**，就绕不开给这个人一个独有 race。
+⚠️ **一个 skin 只能有一个 `face_meta_mesh`** ⇒ **一个头型 = 一个 race**，不能多人共用一个 race 换不同的头。
+（反过来：只换**脸池贴图 / 发型 / 胡子 / 捏脸参数 / 装备**都**不需要**新 race，见 §四。）
+
+#### A. 四处接线，一处不能少
+
+| # | 写在哪 | 写什么 | 🔴 走哪套加载体系 |
+|---|---|---|---|
+| 1 | `ModuleData/skins.xml` | `<race id="X">` + 一份完整 skin（性别×年龄段） | **`project.mbproj` 的 `<file … type="skin"/>` 行** |
+| 2 | `ModuleData/monsters.xml` | `<Monster id="X">` **+ 整族后缀变体**（见 §一） | **SubModule 的 `<XmlNode><XmlName id="Monsters"/>`** |
+| 3 | NPCCharacter | `race="X"` | 数据本身 |
+| 4 | `SubModule.xml` | 注册 `Monsters` 段 | — |
+
+🔴 **两套体系别搞混**：全装模块搜遍**没有任何人**注册 `id="Skins"` —— skins 只认 `project.mbproj` 的 soln 体系，
+`Monsters`/`NPCCharacters` 那套 XmlNode 体系**管不到它**。
+（实证：Native 自己是 `<file id="soln_skins" name="ModuleData/skins.xml" type="skin"/>`；
+TifaHead2 / xxFemaleHead 两个能用的换头 mod 也都是这一行。）
+⚠️ `project.mbproj` 里**同 soln id 的合并是"追加"**：本 race 用新 id → 纯追加、安全；
+**同 id 合并出重复定义会 `KeyNotFoundException`**（Taikou 2026-09-08 就栽在这，把整个 mbproj 清空了）。
+
+#### B. 四个"不崩但会坏"的坑
+
+| 坑 | 症状 | 修法 |
+|---|---|---|
+| **skin 的 (性别 × 年龄段) 没覆盖全** | 该 race 落到没定义的年龄段 = 无 skin | 只做「男性成年」**是隐含假设**（前提：只有成年男性用这个 race）——换人/换用途必须重审（Monster 有 `_child` 变体，skin 却按年龄段选） |
+| **`face_textures` 条数 ≠ 参照物** | 引擎按索引取 `face_textures[i]`（**索引来自角色 `BodyProperties`，0~5**）→ **越界 → native AccessViolation** | 条数照抄参照物（原版男=4 条），只换名字 |
+| **换网格没连 `deform_keys` 一起换** | 脸被拉歪 / 表情错位 | 网格配自己的变形口径；**不换网格时可原样抄**（男/女的 `key_time_point` 序列逐位相同） |
+| **和别人的 `skins.xslt` 打架** | race 被删掉 → 静默回落 | `skins.xslt` 改的是**前载模块合并后的文档**；织丰开头就是 `<xsl:template match="race"/>`（把所有 race 删光）→ **加载顺序决定生死** |
+
+#### C. 怎么验（我这次做对了一半，漏的那一半才是关键）
+
+1. 🔴 **先留肉眼标记再验机制** —— 否则"没崩"和"静默回落"分不清。
+   范本：`min_scale` 1.07→**1.35**（信长明显比别人高一截）+ `face_textures` 四条全指同一个池（五官会变）。
+2. 🔴 **症状二分法**：
+   - **静默回落**（长相没变、**但不崩**）= race 没解析 / `skins.xml` 没加载 → 查 A 表第 1、4 行；
+   - **进场景刷人时崩**（`SpawnAgent` NRE、栈无下层帧）= **Monster 变体族缺** → 见 §一。
+3. 🔴 **验证场景要覆盖所有会刷人的路径** —— **大地图对话不够**！
+   这次就是只在大地图看了信长、没进据点，才让 §一 那颗雷漏网。清单：大地图 / **据点领主大厅** / 村庄 / 战斗。
+4. 🔴 **撤标记要撤对** —— `face_textures` 把 4 条全指同一个名字**不等于**原版（原版是 a/b/c/d 四条 = 四种脸）。
+   生成器要能"逐条还原"，否则重跑永远回不到原版。
+
+#### D. 成本模型（决定"50 个角色要不要 50 个 race"）
+
+- **race 的 XML 成本 ≈ 0**：`<race>` + 整族 `<Monster>` 全是从 Native 复制的，一个循环就能生成 50 个，零人工。
+- 🔴 **真正的成本 = 每个自定义头网格一次 ModKit 编辑器编译**（GUI 手工活）。
+- 所以省的地方不在 XML，在**减少"需要自定义头网格"的角色数**：只换脸池/捏脸/装备的角色**根本不需要 race**。
+
+#### E. 本条的现成实现（照抄）
+
+`Scripts/gen_taikou_nobunaga_head.py` —— 两个产物全自动、幂等、自描述：
+```bash
+python Scripts/gen_taikou_nobunaga_head.py                    # 还原原版外观
+python Scripts/gen_taikou_nobunaga_head.py --face-mesh head_X --face-tex head_X   # 换自定义头
+python Scripts/gen_taikou_nobunaga_head.py --check            # 自描述比对（读文件头 gen-params）
+```
+配套：`Scripts/gen_taikou_era_world.py` 里的 `SPECIAL_RACE = {"lord_tk5_195": "lwn_nobunaga"}`
+（加人只改这张表）；完整工程记录见 [Knowledge/战国无双换装工程.md](../../../Knowledge/战国无双换装工程.md)（总纲：战无2 全武将换头 + 兵种换甲）。
 
 **两条纪律**：
 

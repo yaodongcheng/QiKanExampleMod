@@ -1318,3 +1318,84 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 3. **`0x0A` 是真换行、字节上无法区分** → 用**行首残片**反查：扫 `^\s*(ative|ifa_export|ools|aikou|ew_)` 之类（分别对应 `\Native` / `\tifa_export` / `\tools` / `\taikou` / `\new_`）。
 4. **修复**：`0x08 → \b`（反斜杠 + 字母 b）、`0x09 → \t`。替换串**必须用字节值构造**（`bytes([92, 98])`），别写 `b'\\b'`（会被上层 shell 折掉）。
 5. **验证闭环**：修完再扫一遍应全 0，并 `git diff --stat` 看改动行数是否 = 发现问题数（本工程 6 个 0x08 + 5 个 0x09 = 5 行受影响）。
+
+---
+
+## 进据点领主大厅/主楼 → `Mission.SpawnAgent` NullReferenceException（**栈里没有下层帧**）（2026-09-14，战国无双换装·织田信长换头）
+
+**症状**
+- 大地图能走、菜单能点，**一进据点主楼 / 领主大厅就崩**：`System.NullReferenceException`，栈顶
+  `TaleWorlds.MountAndBlade.Mission.SpawnAgent`（`Mission.cs` 第 3860 行），下一帧直接是
+  `SandBox...MissionAgentHandler.SpawnWanderingAgentWithInitialFrame`。
+- 🔴 **指纹 = 崩在 `SpawnAgent` 自己体内、栈里没有它调用的下层帧**（不是 `CreateAgent` 崩的）。
+- 崩之前日志一切正常，就停在点菜单那一行。
+
+**根因：自建 race 只复刻了 Monster 的**基础 id**，没复刻「后缀变体族」**
+
+引擎取 `Monster` 有**两种问法**，只满足第一种就会崩：
+
+| 问法 | 出处 | 缺了会怎样 |
+|---|---|---|
+| `FaceGen.GetBaseMonsterFromRace(race)` | `TaleWorlds.Core.AgentData` 构造函数 | 基础 id 缺失才走这条 |
+| `FaceGen.GetMonsterWithSuffix(race, "_settlement")` 等 | `LocationCharacter` / `LocationComplex.AddHeroToDecidedLocation` / `Hero` 多处 | **取到 null 且不回落** → 崩 |
+
+- Native 给 `human` 定义的是**一族 5 个** id：`human` · `human_child` · `human_settlement` ·
+  `human_settlement_fast` · `human_settlement_slow`。**自建 race 必须整族照搬。**
+- 后缀用量实测（1.2.12 全 DLL 反编译计数）：`_settlement` **46** · `_child` 12 · `_settlement_slow` 5 · `_settlement_fast` 1。
+- 🔴 **兜底规则**：`GetRaceOrDefault` 只在 **race 本身不存在**时回落 human；**Monster 变体缺失不回落**。
+- 🔴 **触发路径躲不掉**：`AddHeroToDecidedLocation` 判 `Occupation == Lord → LordsHall`，紧接着就取 `_settlement` 变体
+  —— 领主进领主大厅必走这条。
+- 🔴 **为什么栈里没有下层帧**：`Mission.SpawnAgent` 里
+  `CreateAgent(agentBuildData.AgentMonster, …, agentBuildData.AgentMonster.Weight, …)`
+  按 C# **从左到右**求值，`AgentMonster.Weight` 先炸 → `CreateAgent` 根本没进去。
+
+**规避**
+1. **整族复刻**：`grep` Native `monsters.xml` 里该 race 名的**全部** `前缀` / `前缀_*` id，逐块复制、只改**开标签**里的 id。
+   范本 = `Scripts/gen_taikou_nobunaga_head.py` 的 `build_monsters()`（从 Native **动态取整族**，Native 以后加变体会自动跟上）。
+2. **改生成器重跑，禁手改产物**（铁律 22）；重跑参数必须与落盘一致，否则 `--check` 报 OUT OF SYNC（该脚本要求参数一致）。
+3. **排查口诀**：**"自建 race / 换头之后，进场景刷人时崩" → 先数 Monster 变体族齐不齐，别去查 skin 和资产**。
+   反过来，`skins.xml` / race 本身的症状是**静默回落**（角色长相没变但游戏不崩），**不会崩**——崩了就说明 race 已生效、缺的是 Monster 变体。
+
+**完整交接**：[Knowledge/战国无双换装工程.md](../../Knowledge/战国无双换装工程.md) §5 末两行 · 必备清单雷 120 · 轮子
+[wheels.d/campaign-mode.md](wheels.d/campaign-mode.md) 卷十三。
+
+---
+
+## 大地图走时间突然 `AccessViolationException`，**日志戛然而止**（2026-09-14 实机，Taikou；雷 105 复发）
+
+**症状**
+- 在大地图上走时间（不一定是玩家动作触发的）**突然段错误**，调试器显示
+  `System.AccessViolationException` / `Attempted to read or write protected memory`，**`Source` 显示"无法计算异常源"、托管栈丢失**。
+- 🔴 **指纹 = 日志没有任何异常直接断**：`Debug/StoryEngine_RuntimeLog.txt` 停在崩溃前最后一条**正常**记录
+  （原生 AV 不走 C# 异常通道，`[Crash]` 之类都来不及打）。
+- 崩溃栈（VS 附加时能看到）：`SandBox.MapScene.GetNavigationMeshCenterPosition`（`SandBox.dll:339`
+  `_scene.GetNavMeshCenterPosition`）← `DefaultMapDistanceModel.GetClosestSettlementForNavigationMesh`
+  ← `GetDistance` ← `DefaultDelayedTeleportationModel.GetTeleportationDelayAsHours` ←
+  `TeleportHeroAction` ← `ChangeGovernorAction.Apply` ← `ClanVariablesCampaignBehavior.UpdateGovernorsOfClan`
+  ← `DailyTickClan`。
+
+**根因：引擎零守卫，把非法导航面索引直送原生**
+
+- `Settlement.CurrentNavigationFace = MapSceneWrapper.GetFaceIndex(GatePosition)`（`Settlement.OnGameInitialized`）。
+  **城门点不在导航网格上** → 返回 `PathFaceRecord.NullFaceRecord` = `(-1,-1,-1)`。
+- `GetClosestSettlementForNavigationMesh(face)` 的缓存 `_navigationMeshClosestSettlementCache` **按 `FaceIndex` 建键**，
+  而缓存文件 face 段的格式**以负数终止**（引擎 `for (i = ReadInt32(); i >= 0; …)`）⇒ **键恒 ≥0 ⇒ -1 永远查不到**
+  ⇒ 必然走「取面中心」分支 ⇒ 原生 `GetNavMeshCenterPosition(-1)` 越界读 ⇒ AV。
+- 🔴 **`DefaultMapDistanceModel` 全类零 `IsValid` 守卫**（反编译实证）。
+- **触发者是引擎自己的每日结算**（与 mod 代码无关）：`DailyTickClan` → 给 AI 家族封地派总督（挑「手上没带兵」的领主）
+  → `ChangeGovernorAction.Apply` → 延迟传送 → 算传送耗时 → `GetDistance(IMapPoint, Settlement, …)` → 两面不等 → 本方法。
+- 根的根在**地图**：据点门位不在网格上。离线体检能看出征兆 = `check_settlement_distance_cache.py` 报
+  「N 对据点走不通（1e30 哨兵）+ 完全孤立的据点」。
+
+**规避 / 定位法（下次原生越界崩照这个走）**
+1. **完整反编译**目标类型，把调那个原生函数的地方**全列出来**（本例只有 2 处：缓存重建循环恒用合法下标 + 本方法）。
+2. **全 DLL 二进制 grep** 那个原生函数名，确认只有「**调用方 + 声明方**」两个程序集出现它
+   （本例 = `TaleWorlds.CampaignSystem.dll` + `SandBox.dll`）→ 无第三方调用者。
+3. 两条独立实证都指向同一点 ⇒ **封住它 = 全部入口封住**，不必再去补下层那一圈。
+4. 范本 = `CampaignMode/MapDistanceInvalidFaceGuardPatch.cs`（Harmony Prefix）。**两条纪律**：
+   - **日志即清单**：非法面没有坐标，唯一定位途径就是「谁的面是这个」→ 打 **面下标 / 原因 / 面主据点清单 / 兜底给了谁**，
+     每面下标只报一次 + 上限条数。这样**不用复现崩溃**就能拿到改地图的清单。
+   - **兜底值可以猜但必须有界、禁返回 null**（返回 null 等于把 AV 换成 NRE）。
+5. **治本在地图不在代码**：编辑器 `CheckPositions` 定位 → 门位挪回网格 → **删 `settlements_distance_cache.bin` 重烤**。
+
+**完整交接**：必备清单雷 104/105/119 · 轮子 [wheels.d/campaign-mode.md](wheels.d/campaign-mode.md) 卷十三。

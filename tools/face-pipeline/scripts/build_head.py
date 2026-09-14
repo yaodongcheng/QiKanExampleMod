@@ -526,14 +526,19 @@ def main():
         ob.name = new
         ob.data.name = new
         mat_name = name if role == "face" else "%s_%s" % (name, role)
-        for m in list(ob.data.materials):
-            pass
-        if not ob.data.materials:
-            ob.data.materials.append(bpy.data.materials.new(mat_name))
-        else:
-            ob.data.materials[0].name = mat_name
+        # 🔴 必须 copy 一份再改名（2026-09-14 修）：源模型常常**整身共用一张材质**
+        #    （战国无双2 的 L02 就是：全身 12 个子网格同指 `mat_L02_nobunaga`）。
+        #    直接 `materials[0].name = mat_name` 改的是**那个共享 datablock** —— 三个件轮流改名，
+        #    最后只剩最后一个名字（实测：三件全是 `head_nobunaga_a_mouth`），编辑器里就是一个材质。
+        #    蒂法/萨菲罗斯的源恰好每件自带材质，所以这个坑一直没暴露。
+        if ob.data.materials:
+            m = ob.data.materials[0].copy()
+            m.name = mat_name
+            ob.data.materials[0] = m
             while len(ob.data.materials) > 1:
                 ob.data.materials.pop(index=len(ob.data.materials) - 1)
+        else:
+            ob.data.materials.append(bpy.data.materials.new(mat_name))
         for p in ob.data.polygons:
             p.material_index = 0
         print("  %-16s -> %s   材质 %s（面 %d）" % (role, new, mat_name, len(ob.data.polygons)))
