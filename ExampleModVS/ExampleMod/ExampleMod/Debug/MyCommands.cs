@@ -2899,6 +2899,173 @@ namespace LivingWorldNpcs
             return msg;
         }
 
+        // ================= 脸形参数实验：归零 / 置 basis / 套用指定 key / 还原 =================
+        // 为什么需要：骑砍的脸形参数（BodyProperties 的 128 hex key → 320 个权重）会驱动我们网格的
+        //   59 条形变通道。把权重调到「形变恰好为 0」就能看到网格的**基础形状**（= 源模型原样），
+        //   用来判断「鼻子怪 / 脸被拉歪」到底是几何问题还是形变问题。
+        //
+        // 🔴 权重 0 ≠ 无形变：引擎的映射是 value = key_min + w×(key_max−key_min)（见 §2），
+        //    所以 w=0 时形变 = key_min（多数通道非 0）。要真·basis 必须解 w = −key_min/(key_max−key_min)。
+        //    → face_basis 走真·basis，face_zero 走「权重归零」那版（文档 §18.3 的原方案），两条都留着对比。
+        //
+        // 🔴 只对【主角】生效：CharacterObject.UpdatePlayerCharacterBodyProperties 内部判 IsPlayerCharacter。
+        // 返回文本一律英文（控制台纪律）；详细权重表写 Debug/StoryEngine_RuntimeLog.txt。
+
+        private const int FaceKeyWeightCount = 59;   // 0..58 = 脸形键；59..62 = weight/build/height/age（身体，不动）
+        private static string _faceBackupHex = null; // face_restore 的原始 key（首次跑任一 face_* 时自动备份）
+        private static string _faceBackupHero = null;
+
+        private static string GetFaceTarget(List<string> args, out Hero hero, out string note)
+        {
+            hero = null;
+            note = null;
+            if (Campaign.Current == null || Hero.MainHero == null)
+                return "Error: Campaign not loaded.";
+            hero = Hero.MainHero;
+            if (args != null && args.Count >= 1 && !string.IsNullOrWhiteSpace(args[0]))
+            {
+                // 🔴 第一个参数做成【可弃占位】：骑砍2 的 CommandLineArgumentFunction 在完全不填参数时
+                //    可能根本不触发，所以玩家/调试时会随手给个 "1"。解析不出英雄就【回落到主角】并说明，
+                //    绝不能报 not found 就完事（实测踩过：custom.face_basis 1 → "Hero '1' not found."）。
+                Hero found = Campaign.Current.CampaignObjectManager.Find<Hero>(args[0]);
+                if (found != null)
+                    hero = found;
+                else
+                    note = $" [note: '{args[0]}' is not a hero id -> using main hero]";
+            }
+            CharacterObject co = hero.CharacterObject;
+            if (co == null || co.BodyPropertyRange == null)
+                return $"Error: {hero.Name} has no BodyPropertyRange.";
+            if (!co.IsPlayerCharacter)
+                return "Error: only the player character can be written back "
+                     + "(UpdatePlayerCharacterBodyProperties requires IsPlayerCharacter).";
+            return null;
+        }
+
+        /// <summary>按给定的 per-key 权重函数重算并写回主角的脸。</summary>
+        private static string ApplyFaceWeights(Hero hero, Func<int, DeformKeyData, float, float> weightFor, string tag, string note)
+        {
+            CharacterObject co = hero.CharacterObject;
+            BodyProperties cur = co.BodyPropertyRange.BodyPropertyMin;
+            FaceGenerationParams fgp = new FaceGenerationParams();
+            MBBodyProperties.GetParamsFromKey(ref fgp, cur, false, false);
+            float[] w = fgp.KeyWeights;
+            if (w == null || w.Length < FaceKeyWeightCount)
+                return $"Error: KeyWeights unavailable (len={(w == null ? -1 : w.Length)}).";
+
+            if (_faceBackupHex == null)                  // 第一次实验前先备份，供 face_restore
+            {
+                _faceBackupHex = cur.ToString();
+                _faceBackupHero = hero.StringId;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"=== Face {tag}: {hero.Name} ({hero.StringId}) ===");
+            sb.AppendLine($"key before : {cur}");
+            sb.AppendLine("idx  key_min   key_max    tp     before -> after");
+            for (int i = 0; i < FaceKeyWeightCount; i++)
+            {
+                DeformKeyData dkd = MBBodyProperties.GetDeformKeyData(i, fgp.CurrentRace, fgp.CurrentGender, (int)fgp.CurrentAge);
+                float target = weightFor(i, dkd, w[i]);
+                if (float.IsNaN(target) || float.IsInfinity(target))
+                    target = w[i];                        // 算不出来就保持原样（防御）
+                sb.AppendLine($"{i,3}  {dkd.KeyMin,8:F3}  {dkd.KeyMax,8:F3}  {dkd.KeyTimePoint,3}   {w[i]:F4} -> {target:F4}");
+                w[i] = target;
+            }
+
+            BodyProperties np = cur;                      // 从原值起步：保留 weight/build/age 等动态属性
+            MBBodyProperties.ProduceNumericKeyWithParams(fgp, false, false, ref np);
+            co.UpdatePlayerCharacterBodyProperties(np, co.Race, co.IsFemale);
+            sb.AppendLine($"key after  : {np}");
+            DebugLogger.Log(sb.ToString());
+            return $"OK ({tag}). before={cur} after={np}{note ?? ""} (full table in StoryEngine_RuntimeLog.txt)";
+        }
+
+        /// <summary>
+        /// 把脸形权重调到「形变恰好 = 0」→ 看到网格的基础形状（= 源模型原样，不受任何拉杆影响）。
+        /// 用法: custom.face_basis [heroStringId]   (不传 = 主角)
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("face_basis", "custom")]
+        public static string FaceBasis(List<string> args)
+        {
+            Hero hero; string note; string err = GetFaceTarget(args, out hero, out note);
+            if (err != null)
+                return err;
+            // value = key_min + w*(key_max-key_min) = 0  →  w = -key_min/(key_max-key_min)
+            return ApplyFaceWeights(hero, (i, d, cur) =>
+            {
+                float span = d.KeyMax - d.KeyMin;
+                if (Math.Abs(span) < 1e-6f)
+                    return cur;                           // 该通道固定（min==max），不参与
+                return -d.KeyMin / span;
+            }, "basis", note);
+        }
+
+        /// <summary>
+        /// 把脸形权重（0..58）直接归零 —— 文档 §18.3 记录的原始方案，与 face_basis 对比用。
+        /// （注意：权重 0 时形变 = key_min，未必等于 0，所以未必是"原脸"。）
+        /// 用法: custom.face_zero [heroStringId]
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("face_zero", "custom")]
+        public static string FaceZero(List<string> args)
+        {
+            Hero hero; string note; string err = GetFaceTarget(args, out hero, out note);
+            if (err != null)
+                return err;
+            return ApplyFaceWeights(hero, (i, d, cur) => 0f, "zero", note);
+        }
+
+        /// <summary>
+        /// 直接套用一串 128 hex 的 key（存满意的脸 / 复现别人的脸 / 贴回备份）。
+        /// 用法: custom.face_key &lt;128hex&gt; [heroStringId]
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("face_key", "custom")]
+        public static string FaceKey(List<string> args)
+        {
+            if (args == null || args.Count < 1 || string.IsNullOrWhiteSpace(args[0]))
+                return "Usage: custom.face_key <128-hex key> [heroStringId]";
+            Hero hero;
+            string note;
+            string err = GetFaceTarget(args.Count >= 2 ? new List<string> { args[1] } : null, out hero, out note);
+            if (err != null)
+                return err;
+            BodyProperties target;
+            if (!BodyProperties.FromString(args[0], out target))
+                return $"Error: cannot parse key '{args[0]}'.";
+            CharacterObject co = hero.CharacterObject;
+            if (_faceBackupHex == null)
+            {
+                _faceBackupHex = co.BodyPropertyRange.BodyPropertyMin.ToString();
+                _faceBackupHero = hero.StringId;
+            }
+            co.UpdatePlayerCharacterBodyProperties(target, co.Race, co.IsFemale);
+            DebugLogger.Log($"=== Face key applied: {hero.Name} ({hero.StringId}) ===\n{target}");
+            return $"OK. key applied = {target}{note ?? ""}";
+        }
+
+        /// <summary>
+        /// 还原成跑任一 face_* 命令之前的 key（本次游戏进程内有效；跨进程请用 face_key 贴回备份 hex）。
+        /// 用法: custom.face_restore
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("face_restore", "custom")]
+        public static string FaceRestore(List<string> args)
+        {
+            if (_faceBackupHex == null)
+                return "Error: no backup in this session (a backup is taken automatically on the first face_* command).";
+            Hero hero;
+            string note;
+            string err = GetFaceTarget(_faceBackupHero == null ? null : new List<string> { _faceBackupHero }, out hero, out note);
+            if (err != null)
+                return err;
+            BodyProperties target;
+            if (!BodyProperties.FromString(_faceBackupHex, out target))
+                return $"Error: cannot parse backup '{_faceBackupHex}'.";
+            CharacterObject co = hero.CharacterObject;
+            co.UpdatePlayerCharacterBodyProperties(target, co.Race, co.IsFemale);
+            DebugLogger.Log($"=== Face restored: {hero.Name} ({hero.StringId}) -> {target} ===");
+            return $"OK. restored to {target}{note ?? ""}";
+        }
+
 
     }
 

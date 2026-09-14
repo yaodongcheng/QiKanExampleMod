@@ -85,7 +85,20 @@ def main():
     ap.add_argument('--mesh', default='head_tifa_a')
     ap.add_argument('--ref-pack', default=DEFAULT_REF_PACK)
     ap.add_argument('--ref', default='head_xxfemale_a')
+    ap.add_argument('--window', default=None,
+                    help='着陆窗口，格式 "x0,x1,y0,y1,z0,z1"（默认用 REF_WINDOW = 女头的量值）。'
+                         '男头比女头大：实测 head_male_a 是 x±0.093 y[-0.071,0.172] z[1.414,1.811]，'
+                         '跑男头时要给 --window "-0.12,0.12,-0.09,0.19,1.40,1.83"')
     a = ap.parse_args()
+
+    if a.window:
+        v = [float(t) for t in a.window.split(',')]
+        if len(v) != 6:
+            sys.exit('--window 需要 6 个数：x0,x1,y0,y1,z0,z1')
+        REF_WINDOW['x'] = (v[0], v[1])
+        REF_WINDOW['y'] = (v[2], v[3])
+        REF_WINDOW['z'] = (v[4], v[5])
+        print('=== window override: x%s y%s z%s ===' % (REF_WINDOW['x'], REF_WINDOW['y'], REF_WINDOW['z']))
 
     tmp = tempfile.mkdtemp(prefix='headspace_')
 
