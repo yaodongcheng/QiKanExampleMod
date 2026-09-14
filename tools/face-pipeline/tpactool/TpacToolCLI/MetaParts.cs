@@ -26,7 +26,7 @@ namespace TpacCli
     /// </summary>
     public static class MetaParts
     {
-        public static int Run(string dir, string filter, string outDir, string order)
+        public static int Run(string dir, string filter, string outDir, string order, bool clearFlags = false)
         {
             var pkg = MorphFix.LoadPackages(dir, filter, out var metas);
             if (pkg == null) return 1;
@@ -43,42 +43,70 @@ namespace TpacCli
             foreach (var meta in metas)
                 ListOne(meta, MatName);
 
-            if (order == null)
+            if (order == null && !clearFlags)
             {
-                Console.WriteLine("（未给 --order，仅列出。加 --order 0,1,4,2 才会改并输出新包）");
+                Console.WriteLine("（未给 --order / --clearflags，仅列出。加 --order 0,1,4,2 或 --clearflags 才会改并输出新包）");
                 return 0;
             }
 
-            int[] idx;
-            try { idx = order.Split(',').Select(s => int.Parse(s.Trim())).ToArray(); }
-            catch { Console.Error.WriteLine("--order 解析失败，应形如 0,1,4,2"); return 1; }
-
             int touched = 0;
-            foreach (var meta in metas)
-            {
-                var old = meta.Meshes.ToList();
-                foreach (var i in idx)
-                    if (i < 0 || i >= old.Count)
-                    {
-                        Console.Error.WriteLine($"--order 下标 {i} 超出范围 0..{old.Count - 1}（{meta.Name} 只有 {old.Count} 件）");
-                        return 1;
-                    }
-                var kept = idx.Select(i => old[i]).ToList();
-                if (kept.Count == old.Count && kept.SequenceEqual(old))
-                {
-                    Console.WriteLine($"  [skip] {meta.Name}: 顺序未变，无需改动");
-                    continue;
-                }
-                Console.WriteLine($"  [reorder] {meta.Name}: 原 [{string.Join(",", Enumerable.Range(0, old.Count))}]"
-                                + $" -> 新 [{string.Join(",", idx)}]，移除 {old.Count - kept.Count} 件");
-                for (int n = 0; n < kept.Count; n++)
-                    Console.WriteLine($"        新[{n}] = 原[{idx[n]}] {kept[n].Name}");
 
-                meta.Meshes.Clear();
-                meta.Meshes.AddRange(kept);
-                // 子网格列表存在 metamess 元数据里：不清 RawMeta 就写不回去（同 morphfix 的教训）
-                meta.RawMeta = null;
-                touched++;
+            // ---- 清空 MaterialFlags ----
+            // 为什么需要：`face_base_mesh` 等标记是给【引擎生成脸部贴图】用的 —— 引擎会按**原版画布布局**
+            // 把五官画到脸贴图上。自定义头若沿用源模型自带的 UV 布局（战无2 头挤在贴图左上 1/8 区域），
+            // 两边就对不上 → 实机症状：眼睛/嘴糊成一片、头发那块被涂成肤色（2026-09-14 织田信长实机）。
+            // 两个实机通过的自定义头（蒂法/萨菲罗斯）MaterialFlags **都是空的**（引擎不生成、直接用自带贴图）。
+            if (clearFlags)
+            {
+                int n = 0;
+                foreach (var meta in metas)
+                {
+                    bool dirty = false;
+                    foreach (var mesh in meta.Meshes)
+                    {
+                        if (mesh.MaterialFlags == null || mesh.MaterialFlags.Count == 0) continue;
+                        Console.WriteLine($"  [clearflags] {mesh.Name}: [{string.Join("|", mesh.MaterialFlags)}] -> []");
+                        mesh.MaterialFlags.Clear();
+                        dirty = true;
+                        n++;
+                    }
+                    if (dirty) { meta.RawMeta = null; touched++; }   // 标记存在元数据里，不清 RawMeta 写不回去
+                }
+                Console.WriteLine($"clearflags: 清空 {n} 格材质标记");
+            }
+
+            if (order != null)
+            {
+                int[] idx;
+                try { idx = order.Split(',').Select(s => int.Parse(s.Trim())).ToArray(); }
+                catch { Console.Error.WriteLine("--order 解析失败，应形如 0,1,4,2"); return 1; }
+
+                foreach (var meta in metas)
+                {
+                    var old = meta.Meshes.ToList();
+                    foreach (var i in idx)
+                        if (i < 0 || i >= old.Count)
+                        {
+                            Console.Error.WriteLine($"--order 下标 {i} 超出范围 0..{old.Count - 1}（{meta.Name} 只有 {old.Count} 件）");
+                            return 1;
+                        }
+                    var kept = idx.Select(i => old[i]).ToList();
+                    if (kept.Count == old.Count && kept.SequenceEqual(old))
+                    {
+                        Console.WriteLine($"  [skip] {meta.Name}: 顺序未变，无需改动");
+                        continue;
+                    }
+                    Console.WriteLine($"  [reorder] {meta.Name}: 原 [{string.Join(",", Enumerable.Range(0, old.Count))}]"
+                                    + $" -> 新 [{string.Join(",", idx)}]，移除 {old.Count - kept.Count} 件");
+                    for (int n = 0; n < kept.Count; n++)
+                        Console.WriteLine($"        新[{n}] = 原[{idx[n]}] {kept[n].Name}");
+
+                    meta.Meshes.Clear();
+                    meta.Meshes.AddRange(kept);
+                    // 子网格列表存在 metamess 元数据里：不清 RawMeta 就写不回去（同 morphfix 的教训）
+                    meta.RawMeta = null;
+                    touched++;
+                }
             }
 
             if (touched == 0)

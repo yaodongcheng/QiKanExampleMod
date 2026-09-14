@@ -23,7 +23,7 @@ GenerateXml.py —— 织丰额外人物/家族 XML 生成器（迁移改造版�
     cd plans/scenario-campaign-mode/tools
     python GenerateXml.py        # 在当前目录生成 heroes/lords/clans/output_strings2.xml
 
-与其他生成器关系：`gen_entity_maps.py`（名字→StringId 表）是翻译层；
+与其他生成器关系：`entity_source.py`（名字→StringId 表，现读 CSV）是翻译层；
 本脚本是「织丰增补人物 XML」层（07c 步骤 3 生成器的雏形——按 07c 裁定 1
 作废旧管线后，新管线在本脚本基础上补 Charm/性格/装备拟合等缺失项）。
 """

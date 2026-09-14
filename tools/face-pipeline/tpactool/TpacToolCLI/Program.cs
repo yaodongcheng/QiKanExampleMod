@@ -55,7 +55,7 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metapart
 {
     string mDir = null, mFilter = null, mOut = null, mOrder = null;
     int mTarget = 101, mBone = 13;
-    bool mClearMat = false, mFullMat = false, mForce = false;
+    bool mClearMat = false, mFullMat = false, mForce = false, mClearFlags = false;
     for (int i = 1; i < cmdLine.Length; i++)
     {
         switch (cmdLine[i])
@@ -69,6 +69,7 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metapart
             case "--clearmat": mClearMat = true; break;
             case "--fullmat": mFullMat = true; break;
             case "--force": mForce = true; break;
+            case "--clearflags": mClearFlags = true; break;
         }
     }
     return command switch
@@ -76,7 +77,7 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metapart
         "morphinfo" => MorphFix.Info(mDir, mFilter),
         "morphfix" => MorphFix.Fix(mDir, mFilter, mOut, mTarget, mClearMat),
         "meshdiff" => MeshDiff.Run(mDir, mFilter, mOut),
-        "metaparts" => MetaParts.Run(mDir, mFilter, mOut, mOrder),
+        "metaparts" => MetaParts.Run(mDir, mFilter, mOut, mOrder, mClearFlags),
         _ => MorphFix.SkinFix(mDir, mFilter, mOut, mBone, mFullMat, mForce),
     };
 }

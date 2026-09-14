@@ -127,13 +127,13 @@ python plans/scenario-campaign-mode/tools/registry_residue_scan.py    # 扣除�
 
 | 动作 | 用这个 | 禁止 |
 |---|---|---|
-| 找/读数据 | `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/*.csv`（一张 sheet 一个 csv，UTF-8 BOM，Excel 可开） | 直接读 xlsx 找数据 |
-| 上游数据本身要改 | 改 xlsx → 重跑 `python tools/xlsx_to_csv.py` | 手改镜像 CSV（重跑即覆盖，铁律 22） |
-| 人填映射（StringId 补列/地方名对照/别名） | `gen_entity_maps.py` 映射表（`NAME_ALIAS` / `TK5_ONLY_HERO` / `SAME_AS_NEAR` 范式）或独立文件 | 写进镜像 CSV |
+| 找/读数据 | `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/*.csv`（两行表头，UTF-8 BOM，Excel 可开） | 直接读 xlsx 找数据 · 读年代列当身份（见下「九」） |
+| 织丰上游数据要改 | 改 xlsx → 重跑 `Scripts/xlsx_to_csv.py` | 手改镜像 CSV（重跑即覆盖，铁律 22） |
+| **太阁侧数据要改** | **改源头**（`Knowledge/太阁5/太阁日志/*.md`）→ 重跑对应生成器（`Scripts/gen_taikou_*.py`） | 直接手改生成型 CSV |
+| 手维护源表要改 | `item.csv` / `Culture.csv` / `School.csv` / `Facility.csv`——**它们自己就是源**，直接编辑 | — |
+| 人填映射（StringId / 别名 / 对照） | **写进数据表的对应列**（`Alias` / `Name_All` / `ID`） | 写进 py 映射表（铁律 25：py 不写死别名）；见下「九」 |
 
-**关键文件**：`plans/scenario-campaign-mode/tools/xlsx_to_csv.py` = **唯一**允许解析 xlsx 的脚本（转换 + 逐行回读自检 15/15）；`gen_entity_maps.py` 只读 CSV 镜像（zip 解析段已删）。15 张 sheet = 15 个 csv：TaikouHero（1049×123）/ Clan（605×10）/ Kingdom（135×8）/ Settlements（764×7）/ CityTaikou（180×7，含 MatchSettlement/NearSettlement 两列，语义别混）/ ForceTaikou（204×2，07b §五-2 要补 StringId 列）/ Culture（21×29，地方对照）/ BaseInfo / 演出层 6 张（Appearance/Emotion/Animation/Camera/TagPoint/Music）/ ReadMe。
-
-**回归证据**：新旧管线（xlsx 直读 vs CSV 镜像）产出的 `entity_maps.py` 全部 12 张表逐字典一致、`--report` 输出一字不差——镜像可信，放心读。
+**关键文件**：`Scripts/xlsx_to_csv.py` = **唯一**允许解析织丰 xlsx 的脚本（转换 + 逐行回读自检）。表清单与来历见本卷「九、数据管线三层」（已随 2026-09-12/14 重建更新——旧记的 `Kingdom.csv` / `ForceTaikou.csv` / `CityTaikou.csv` 三表已退役，`Settlements.csv` 是合并后的据点表）。
 
 **留意**：① TaikouHero.csv 末尾第 123 列「外观描述_光荣」（立绘描述）当前仅 3 行非空（信长/幸村/秀吉样本）；② `ArtSource/update_appearance.py` 是例外路径——它要**写回** xlsx 的外观列（另一条立绘流水线，维持现状），它更新后记得重跑 xlsx_to_csv 刷镜像。
 
@@ -211,3 +211,56 @@ if city and not lookup_seat(seats, city):
 | ⚠️ **年代名跨行重名** | 同一个名字是两行的**年代名** | 只警告 —— 这是数据本身的歧义（袭名），别名表管不了**也不该管**；消费方按 `[主名] + 别名 + Name_<该年>` 组键，年代名自带上下文 |
 
 **同族教训**：Python 里循环变量别起名 `owner` —— 会遮蔽外层变量（本次真实崩过）。
+
+---
+
+## 九、实体查找管线 —— 现读 CSV、不落中间产物（2026-09-14 登记）
+
+**解决什么问题**：翻译器原来靠一份 625KB 的生成物 `entity_maps.py`（生成器写盘 → 工具 import）。
+实测它**冻结在 08-31** 而 CSV 已更新到 09-12，且生成器本身在目录迁移后**路径失配根本跑不动**
+——最坏的组合：数据在走、产物不动、没人发现。**已整个拆掉**，改成现读。
+
+**三层链路**（改数据只改第 1 层）：
+
+```
+① 源        ② 生成器                ③ CSV（离场层）       ④ 离线工具
+太阁日志    Scripts/gen_taikou_*.py  csv/*.csv            tools/entity_source.py 现读现建
+织丰 xlsx   Scripts/xlsx_to_csv.py                        tools/tk5_to_json.py 翻译
+手维护表    （item/Culture/School/Facility = 自己就是源）
+```
+
+**关键文件**：
+
+| 文件 | 作用 |
+|---|---|
+| `plans/scenario-campaign-mode/tools/entity_source.py` | **具名实体查找表的唯一入口**。每次运行从 CSV 现读现建，无生成物、无中间文件。导出 `HERO_MAP`/`AGENT_MAP`/`CLAN_BY_HERO`/`KINGDOM_BY_NAME`/`SETTLEMENT_MAP`/`REGION_MAP`/`ORG_NAMES`/`ITEM_MAP` + 起源分层 `*_ORIGIN`/`MISSING_IN_XML` |
+| `plans/scenario-campaign-mode/tools/check_entity_source.py` | 对账器（两种口径：新表 vs 冻结产物逐键 / 语料具名引用的解析率） |
+| `Scripts/gen_region_kuni_csv.py` | `Kuni.csv`（76 令制国）+ `Region.csv`（10 地方）生成器，源 = 据点日志的 `国:`/`地:` 列 |
+
+**四条纪律**：
+
+1. **查询一律走 `entity_source.lookup(table, name)` / `lookup_settlement(name)`，禁止裸 `dict.get()`**
+   ——两个函数会把「简繁互转 + 字形变体 + 据点后缀变体」展开后再查。裸 get 会漏掉每一个
+   带变体字的名字（实测：`姫路之町` / `雑賀` / `那覇` / `厩橋` 一批全漏）。
+2. **字形变体归「编码层」，不归数据**——`姫↔姬` `雑↔杂` `覇↔霸` `乗↔乘` `藝↔艺` `國↔国`
+   登记在 `entity_source.VARIANTS`（加一行即可）；`◯公主 ↔ ◯姬` 这类**称呼差**登记在
+   `HIME_TITLES`。理由：这是同一个字/同一个人在两套文字系统里的写法，塞进 CSV 别名列
+   等于把同一条约定抄几百遍。**反向原则**：真正的**异体名**（`安芸` vs `安艺`——日本地名用字）
+   属数据，进 `Kuni.csv` 的 `Alias` 列（生成器 `KUNI_ALT`）。
+3. **据点键注册 = 显式名优先，派生名撞车即弃**——`仙台城` 与 `仙台之町` 都会展开出裸名
+   `仙台`，谁先注册谁赢 = 另一座城被静默写成错 ID（**实测踩过**）。落地：两遍注册，
+   显式名（含简繁/变体）唯一 → 写；多条显式名撞车 → 进 `SETTLEMENT_AMBIGUOUS` **不写**；
+   派生名只在「显式归属唯一」时写。**宁缺勿错**：查无好过一个错误的城。
+4. **异常字常驻守卫**——`python entity_source.py` 会扫全部键里的 Unicode 私用区码点并报红。
+   太阁5 DX 用自绘字形槽渲染 JIS 表外汉字，dump 出来是 `U+E000–U+F8FF`（看着像掉字：
+   `岩<E426>城` 实为岩槻城）。还原表 = `Scripts/tk5_pua_names.py`；**数据侧应在写表之前
+   过一遍它**，读取器只负责把问题喊出来，不替数据擦屁股。
+
+**实测收益**（对 1111 个语料具名引用）：解析率 **81.5% → 98.0%**；`国` 21.6%→100%、
+`地方` 0%→100%、`砦` 12.5%→100%；表内冲突 558 → 4；翻译器产出从「织丰死 ID
+（`town_CHUB10`）+ 中文 ID（`Kingdom.今川家`）」变成「Taikou 真 StringId
+（`town_tk077` / `Kingdom.kingdom_imagawa`）」。
+
+**同族教训**：**「生成器产物」这种东西一旦没人跑，就是定时炸弹**——它静默、会分叉、
+还会掩盖生成器已损坏。**能现算就别落盘**；真需要落盘的（如 `Kuni.csv`/`Region.csv`
+的 ID 分配）就落成**数据**并登记生成器。

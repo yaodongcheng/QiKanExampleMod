@@ -9,7 +9,7 @@ check_base_coverage.py —— 【检查用】太阁5 事件具名对象 ÷ 织�
     python tools/check_base_coverage.py          # 摘要 + 缺失清单
     python tools/check_base_coverage.py --people  # 只打人物域
 
-依赖：tools/entity_maps.py（gen_entity_maps.py 产物）。
+依赖：tools/entity_source.py（CSV 实体表读取器，无生成物）。
 """
 from __future__ import unicode_literals
 import io
@@ -31,10 +31,10 @@ REPO = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 GAME = os.path.abspath(os.path.join(REPO, '..', '..'))
 BASE = os.path.join(GAME, 'Modules', 'Shokuho', 'ModuleData')
 EXP = os.path.join(GAME, 'Modules', 'ShokuhoTaikouExpansionPack', 'ModuleData')
-SRC = os.path.join(REPO, 'Knowledge', '太阁事件包', 'TK5AllEvents_merged.txt')
+SRC = os.path.join(REPO, 'Knowledge', '太阁5', '太阁事件包', 'TK5AllEvents_merged.txt')
 
 sys.path.insert(0, HERE)
-import entity_maps as EM  # noqa: E402
+import entity_source as EM  # noqa: E402
 
 
 def xml_ids(root, pats):

@@ -11,7 +11,7 @@ tk5_to_json.py — 太阁5 事件 → 01 DSL 事件 JSON 机械翻译器（v6 �
 
 双信源架构（§15.1.5）：
   信源 A = 16a-DSL翻译总表.csv（一切名词：命令/域/属性/函数/枚举值/语法/文本变量/域值）
-  信源 B = tools/entity_maps.py（具名实体：人名/城名/家族/势力/据点 StringId；生成物，禁手改）
+  信源 B = tools/entity_source.py（具名实体：人名/城名/家族/势力/据点 StringId；每次运行从 csv/ 现读现建）
   选择规则 = 值类型/类别标注驱动（标注来自 CSV 参数列/值类型列/域值区），禁止硬编码。
 
 v6 相对 v5 的变更：
@@ -50,13 +50,14 @@ DEFAULT_REGISTRY = os.path.join(REPO_ROOT, "plans", "scenario-campaign-mode", "1
 DEFAULT_OUT = os.path.join(REPO_ROOT, "plans", "scenario-campaign-mode", "story_event_json")
 
 # ---------------------------------------------------------------------------
-# 信源 B：实体归一表（生成物，禁止手改——要改映射改 gen_entity_maps.py 重跑，铁律 22）
+# 信源 B：具名实体查找表（**每次运行从 CSV 现读现建**，无生成物、无中间文件）
+#   数据落点见 entity_source.py 头部；要加/改实体 → 改 csv/ 下的表，不改代码。
 # ---------------------------------------------------------------------------
 try:
-    import entity_maps as _EM
+    import entity_source as _EM
 except ImportError:                                    # pragma: no cover
     raise SystemExit(
-        "缺 tools/entity_maps.py —— 先跑 `python tools/gen_entity_maps.py` 生成实体归一表")
+        "缺 tools/entity_source.py —— 它是 CSV 实体表的读取器（同目录，随仓库走）")
 
 # 🔴 v6：以下 = 信源 B 的读取器/接口适配（非翻译知识，A7 裁定保留——前缀注入属 DSL 语法层）。
 #   值 = 完整 DSL 引用（带域前缀）；实体查无 = 停机报错（零兜底，见 lookup_entity）。
@@ -85,7 +86,7 @@ _ENTITY_TABLES = {
     "町": (SETTLEMENT_MAP,), "里": (SETTLEMENT_MAP,),
     "國": (REGION_MAP,),
     "忍者衆": (ORG_MAP,), "商家": (ORG_MAP,), "海賊衆": (ORG_MAP,),
-    "物品": (ITEM_MAP,), "交易品": (MERC_T_MAP,),   # 语料闭包占位（gen_entity_maps.py ITEM_MAP）
+    "物品": (ITEM_MAP,), "交易品": (MERC_T_MAP,),   # 语料闭包占位（源表 csv/item.csv 的 ID 列）
 }
 
 # ---------------------------------------------------------------------------
@@ -736,18 +737,20 @@ class Translator:
     def lookup_entity(self, dom_word, subject):
         """具名实体 → DSL 引用（按域词查信源 B 实体表）。查无 = RegistryGapError。
         🔴 2026-08-30 v6：TK5 源文域词宽泛（`勢力::伊賀衆`=组织、`勢力::今川氏真`=大名家）——
-        本域表查无 → 跨表扫描，唯一命中才采用（值驱动查的仍是注册表，非兜底；0/多重命中 = 停机）。"""
+        本域表查无 → 跨表扫描，唯一命中才采用（值驱动查的仍是注册表，非兜底；0/多重命中 = 停机）。
+        🔴 2026-09-14：查表走 `_EM.lookup`（展开简繁 + 日文字形变体）——裸 `.get()` 会漏掉
+        每一个带变体字的名字（`姫路之町` / `雑賀` / `那覇` 一批），那是**查询侧**的展开。"""
         hits = []
         if dom_word in _ENTITY_TABLES:
             for t in _ENTITY_TABLES[dom_word]:
-                v = t.get(subject)
+                v = _EM.lookup_settlement(subject) if t is SETTLEMENT_MAP else _EM.lookup(t, subject)
                 if v:
                     hits.append((dom_word, v))
         if not hits:
             seen = set()
             for d, tables in _ENTITY_TABLES.items():
                 for t in tables:
-                    v = t.get(subject)
+                    v = _EM.lookup_settlement(subject) if t is SETTLEMENT_MAP else _EM.lookup(t, subject)
                     if v and v not in seen:
                         seen.add(v)
                         hits.append((d, v))
@@ -758,7 +761,7 @@ class Translator:
         name = f"{dom_word}::{subject}" if dom_word else subject
         raise RegistryGapError(
             f"信源 B 查无实体/歧义: {name}（跨表命中 {len(hits)} {[(d, v) for d, v in hits][:3]}）——"
-            "回填 gen_entity_maps.py（CLOSURE 闭包登记，纪律 21）或补齐 07 数据包；禁止脚本兜底")
+            "回填 csv/ 下的实体表（entity_source.py 现读现建）或补齐数据包；禁止脚本兜底")
 
     # ---------- 引用翻译 ----------
     def translate_ref(self, ref_str):
@@ -1037,7 +1040,7 @@ class Translator:
         if v in REGION_MAP:
             return REGION_MAP[v]
         raise RegistryGapError(
-            f"值表外: {v}——16a 域值区/枚举值区与信源 B 均无此值（回填映射表或 gen_entity_maps.py CLOSURE）")
+            f"值表外: {v}——16a 域值区/枚举值区与信源 B 均无此值（回填映射表或 csv/ 实体表）")
 
     # ---------- 参数值翻译（值类型驱动分流，§15.1.5） ----------
     def _slot_value(self, v):
@@ -1841,7 +1844,7 @@ class Translator:
             return AGENT_MAP[s]
         if re.match(r"^(人物|據點|城|大名家|勢力|忍者衆|商家|海賊衆|國)[Ａ-Ｅ]$", s):
             return self.translate_subject(None if False else self._dom_of_slot(s), s)
-        raise RegistryGapError(f"说话人表外: {s}——信源 B 实体表无此" + "（回填 gen_entity_maps.py；模板 NPC 登记 AGENT_MAP）")
+        raise RegistryGapError(f"说话人表外: {s}——信源 B 实体表无此" + "（回填 csv/TaikouHero.csv 的模板行：TemplateNPC=1；或检查别名列）")
 
     def _dom_of_slot(self, s):
         """说话人槽位（人物Ｄ）→ 域词 —— 与域值区表键一致：人物/據點/城/大名家/勢力/國…
@@ -2014,7 +2017,7 @@ def main():
                 continue
             print(f"[FAIL] {ev_id}: {e}")
             print("❌ 表外词条 = 16a CSV 生成器/信源 B 实体表缺陷："
-                  "回填映射表 → 重跑 build_registry_csv.py / gen_entity_maps.py → 重跑本脚本")
+                  "回填映射表或 csv/ 实体表 → 重跑本脚本")
             sys.exit(1)
         results.append((ev_id, ev, comments, tr))
 

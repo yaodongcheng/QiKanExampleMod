@@ -40,7 +40,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file_
 os.chdir(REPO_ROOT)                       # gen_registry_tables 用相对路径读语料
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-DEFAULT_SOURCE = os.path.join('Knowledge', '太阁事件包', 'TK5AllEvents_merged.txt')
+DEFAULT_SOURCE = os.path.join('Knowledge', '太阁5', '太阁事件包', 'TK5AllEvents_merged.txt')
 DEFAULT_WORKDIR = os.path.join('Debug', 'residue_scan')
 
 import gen_registry_tables as G           # noqa: E402  域/属性/域值/命令/函数/参数位 解析规则
