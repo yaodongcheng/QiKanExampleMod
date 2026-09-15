@@ -131,7 +131,60 @@ def classify(name, drop):
     return None
 
 
-def prune_far(ob, k=4.0):
+def keep_neck_frag(ob, r_max, z0):
+    """【从身体件里只抠出脖子】—— 战无2 把脖子画在身体件里，脸壳件只到下巴下面一点。
+
+    判据（源坐标）分两步：
+      ① **选碎片**：连通域「最宽 ≤ r_max」且「最高 ≥ z0」= 细而伸到头部的一条 = 脖子。
+         雑賀实测 submesh_0：脖子 = 两块 bone_9 碎片（33 顶点 / z 129~171 / |x| ≤ 9.7）
+         同件的肩甲 |x|=20、手臂 |x|=93、腿裙 z=47~113 —— 都被排除。
+      ② **裁高度**：选中碎片里 z < z0 的顶点**删掉**（留下一个开口筒）。
+         🔴 必须有这一步：源模型的脖子一直画到胸口（z=129），不裁的话头会拖出一条
+         0.5 米长的脖子**穿进身体**。原版头的脖子底大约在目标空间 z=1.44（= 眼下方 0.24 米），
+         身体领口正好盖住它。`neck_z0` 就是"目标 z=1.44"换算回源坐标的值。
+    🔴 为什么不用骨骼判：脖子和胸/肩共用 bone_9，按骨分不开。
+    返回留下的顶点数。
+    """
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    mw = ob.matrix_world
+    keep = set()
+    seen = [False] * len(bm.verts)
+    for v in bm.verts:
+        if seen[v.index]:
+            continue
+        st, comp = [v], []
+        seen[v.index] = True
+        while st:
+            cur = st.pop()
+            comp.append(cur.index)
+            for e in cur.link_edges:
+                o2 = e.other_vert(cur)
+                if not seen[o2.index]:
+                    seen[o2.index] = True
+                    st.append(o2)
+        pts = [mw @ bm.verts[i].co for i in comp]
+        xm = max(abs(q.x) for q in pts)
+        zm = max(q.z for q in pts)
+        if xm <= r_max and zm >= z0:
+            keep.update(comp)
+    kill = [v for v in bm.verts
+            if v.index not in keep or (mw @ v.co).z < z0]      # ② 裁高度
+    n = len(bm.verts) - len(kill)
+    if n and kill:
+        bmesh.ops.delete(bm, geom=kill, context='VERTS')
+        bm.to_mesh(me)
+        me.update()
+    elif not n:
+        bm.free()
+        return 0
+    bm.free()
+    return n
+
+
+def prune_far(ob, k=4.0, arm=None, keep_bones=("bone_10", "bone_11")):
     """【清理飞出去的碎片】—— 战无2 源模型的零件里常混着离主体很远的零星碎块。
 
     为什么必须做：包围盒被碎片撑大 → 后面全靠包围盒的两步一起崩：
@@ -178,7 +231,21 @@ def prune_far(ob, k=4.0):
         bm.free()
         return 0
     keep = set()
+    kbone = set(keep_bones or ())
     for comp in comps:
+        # 🔴 头骨上的碎片一律留（2026-09-15 深夜）：战无2 的「脸壳件」里常混着**整头头发**
+        #    （脸 + 发同一块），头发离脸远得很，正好落进这条"离群"判据 → 被当飞出去的碎片清掉。
+        #    实测风魔小太郎：脸壳件 submesh_2 在这里被删 **152/595 顶点**，他的头发就是这么没的。
+        #    「绑在头骨上的东西就是头的一部分」是确定的事实，不需要靠距离去猜。
+        if arm is not None and kbone:
+            w = {}
+            for i in comp:
+                for g in ob.data.vertices[i].groups:
+                    nm = ob.vertex_groups[g.group].name
+                    w[nm] = w.get(nm, 0.0) + g.weight
+            if w and max(w, key=w.get) in kbone:
+                keep.update(comp)
+                continue
         cc = Vector((0, 0, 0))
         for i in comp:
             cc += co[i]
@@ -221,7 +288,8 @@ def head_cluster(ob, arm, face_re):
     return c, max((q - c).length for q in pts)
 
 
-def keep_head_only(ob, arm, face_re, cluster=None, radius_k=1.6, gate_k=4.0):
+def keep_head_only(ob, arm, face_re, cluster=None, radius_k=1.6, gate_k=4.0,
+                   keep_bones=("bone_10", "bone_11")):
     """【按骨骼剔掉非头部的碎片】—— 复合件（脸件里连着兜帽/外套/手臂）的解法。
 
     战无2 的骨名是 `bone_N`（纯数字、无语义），但**有位置**：头部各骨挤在头上，
@@ -233,6 +301,17 @@ def keep_head_only(ob, arm, face_re, cluster=None, radius_k=1.6, gate_k=4.0):
        （实测信长那次削掉 349/387 个顶点，头直接变秃 + 后续切嘴失败）。空间距离则天然包含它。
 
     实测（28 人）：不做这步有 18 个人的头是坏的 —— 归蝶那个包围盒从 z=−0.389 到 1.873、宽 1.78 米。
+
+    🔴 2026-09-15 深夜两处修改（用户报"头发残缺/半张脸消失"，视觉验收实锤）：
+      · **逐【碎片】判，不再逐顶点判** —— 源模型是"碎片云"（不焊顶点），逐顶点删会在
+        一整片头发中间开出洞（光秀实测：头发碎成互不相连的板条）。改成整域留/整域删。
+        归蝶那验证过：bone_11 的域全留、躯干四肢的域全删，干净。
+      · **`keep_bones` 里的骨，其碎片一律留**（默认 = 头骨 bone_10/bone_11）。
+        半藏实测：他的**布头罩整个绑 bone_11**，而 bone_11 距面部骨簇心 **12.1**、阈值 **11.8**
+        —— 只差 0.3 就被判成"非头部"，111 个顶点全削掉，脸壳只剩 202 面（用户报"半张脸消失"）。
+        🔴 别用「把阈值整体放宽」来治（试过：把 bone_10/11 并进簇 → 簇半径 7→15、阈值 11→25）
+        —— 治好了半藏，却把訚千代的**籠手**、阿市的**肩衣**、宁宁的甲片一起放回头上（实测出图）。
+        「绑在头骨上的东西就是头的一部分」是确定的事实，不需要靠距离去猜。
     返回丢掉的顶点数。
     """
     me = ob.data
@@ -261,7 +340,10 @@ def keep_head_only(ob, arm, face_re, cluster=None, radius_k=1.6, gate_k=4.0):
         if d_obj <= gate_k * (2.0 * r):
             print("  [keep-head] %s：判为「非复合」跳过（件对角 %.1f ≤ %.1f）" % (ob.name, d_obj, 5.0 * 2.0 * r))
             return 0
-    lim = max(radius_k * r, 1e-6)
+    # 删除阈值用哪个簇：默认与闸门同簇（面部骨簇）
+    kc, kr = cluster
+    lim = max(radius_k * kr, 1e-6)
+    kbone = set(keep_bones or ())
     bone_pos = {}
     for nm in wsum:
         b = arm.data.bones.get(nm)
@@ -270,24 +352,53 @@ def keep_head_only(ob, arm, face_re, cluster=None, radius_k=1.6, gate_k=4.0):
     bm = bmesh.new()
     bm.from_mesh(me)
     bm.verts.ensure_lookup_table()
+    # ---- 连通域（碎片）：整域留 / 整域删 ----
+    seen = [False] * len(bm.verts)
     kill = []
+    protected = 0
     for v in bm.verts:
-        best, bestw = None, -1.0
-        for g in me.vertices[v.index].groups:
-            if g.weight > bestw:
-                bestw, best = g.weight, ob.vertex_groups[g.group].name
+        if seen[v.index]:
+            continue
+        st, comp = [v], []
+        seen[v.index] = True
+        while st:
+            cur = st.pop()
+            comp.append(cur.index)
+            for e in cur.link_edges:
+                o2 = e.other_vert(cur)
+                if not seen[o2.index]:
+                    seen[o2.index] = True
+                    st.append(o2)
+        # 该域的主导骨 = 域内【合计权重】最大的骨（不是逐顶点投票 —— 大顶点的那根说了算）
+        wdom = {}
+        for i in comp:
+            for g in me.vertices[i].groups:
+                nm = ob.vertex_groups[g.group].name
+                wdom[nm] = wdom.get(nm, 0.0) + g.weight
+        best = max(wdom, key=wdom.get) if wdom else None
+        if best in kbone:
+            protected += 1
+            continue                       # 🔴 绑在头骨上的碎片 = 头的一部分，一律留（见 docstring）
         pp = bone_pos.get(best)
-        if pp is not None and (pp - c).length > lim:
-            kill.append(v)
+        if pp is not None and (pp - kc).length > lim:
+            kill.extend(bm.verts[i] for i in comp)
     n = len(kill)
     # 🔴 安全网：一刀切掉 ≥90% 说明这条判据不适合这块件（前田庆次的长发就是这样被判成"杂质"
     #    全削光的 → 空网格 → 导出时多出一个没名字的对象 → transfer_channels 崩）。
     #    宁可不清，也不能清光。
-    if n >= 0.9 * len(bm.verts):
+    # 🔴 但**有头骨保护碎片时跳过安全网**（2026-09-15 深夜）：安全网是给"距离判据不可靠"设的，
+    #    而"绑在头骨上就是头"是确定的事实，不该被一个比例阈值挡掉。
+    #    实测稻姬的发绳件 idx4：302 顶点里 **只有 16 个绑 bone_11（发绳）**，其余 286 是手臂+手 ——
+    #    判据想删 184/200（92% ≥ 90%）→ 整块跳过 → **手被一起搬到头上了**（用户实机截图）。
+    #    同一件里 idx5：129 顶点里 36 个是额环，其余肩甲，同样被挡住。
+    if protected == 0 and n >= 0.9 * len(bm.verts):
         print("  [keep-head] %s：判据要削掉 %d/%d（≥90%%）→ 判为误伤，跳过"
               % (ob.name, n, len(bm.verts)))
         bm.free()
         return 0
+    if protected:
+        print("  [keep-head] %s：头骨保护 %d 块碎片，按骨骼照删 %d/%d"
+              % (ob.name, protected, n, len(bm.verts)))
     if n:
         bmesh.ops.delete(bm, geom=kill, context='VERTS')
         bm.to_mesh(me)
@@ -485,6 +596,58 @@ def strap_uv_box(ob, frags):
     if not us:
         return None
     return (min(us), max(us), min(vs), max(vs))
+
+
+def make_sheets_double_sided(ob, open_ratio=0.5):
+    """【把薄片复制一份并翻面】—— 单面板在引擎里背面被剔除，从另一侧看就是"没有"。
+
+    🔴 为什么必须做（2026-09-15 深夜，用户实机发现）：战无2 的**布条/发带/飘带/头绳**
+       大量是**单个平面**（没有厚度）。而 Bannerlord **材质层没有双面开关** ——
+       `TaleWorlds.Engine.Material.MBMaterialShaderFlags` 全部 21 个标志里
+       **没有** TwoSided / NoCull 之类（已反编译核对），所以只能靠几何补：
+       复制一份、把面绕序翻过来。
+       症状：头发上那条布条从一侧看得见，转到另一侧就没了。
+
+    判据用「边界边比例」区分**薄片**和**壳**：
+      · 平面/布条：绝大多数边只挂 1 个面 → 比例接近 1 → 复制
+      · 脸壳：只有脖子那一圈是边界 → 比例很低 → **不复制**
+        （复制了面数翻倍、两个面还互相打架）
+    返回复制的面数。
+    """
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.faces.ensure_lookup_table()
+    seen = [False] * len(bm.faces)
+    dup = []
+    for f0 in bm.faces:
+        if seen[f0.index]:
+            continue
+        stack, comp = [f0], []
+        seen[f0.index] = True
+        while stack:
+            cur = stack.pop()
+            comp.append(cur)
+            for e in cur.edges:
+                for nf in e.link_faces:
+                    if nf is not cur and not seen[nf.index]:
+                        seen[nf.index] = True
+                        stack.append(nf)
+        be = sum(1 for c in comp for e in c.edges if len(e.link_faces) == 1)
+        te = sum(len(c.edges) for c in comp)
+        if te and be / float(te) >= open_ratio:
+            dup.extend(comp)
+    n = len(dup)
+    if n:
+        geom = (list({v for f in dup for v in f.verts})
+                + list({e for f in dup for e in f.edges}) + dup)
+        ret = bmesh.ops.duplicate(bm, geom=geom)
+        newf = [g for g in ret["geom"] if isinstance(g, bmesh.types.BMFace)]
+        bmesh.ops.reverse_faces(bm, faces=newf)
+        bm.to_mesh(me)
+        me.update()
+    bm.free()
+    return n
 
 
 def seal_open_bottom(ob, min_gap=1.0, atlas=None):
@@ -690,15 +853,33 @@ def main():
         bpy.data.objects.remove(ob, do_unlink=True)
     bpy.context.view_layer.update()
 
+    # ---------- 1.1) --neck：从身体件里只抠出脖子那一段，并进脸壳（见 keep_neck_frag） ----------
+    #   🔴 必须跑在 1.2 之前：身体件整块进 prune_far 会被当"离群碎片"清掉（它本来就大而散）。
+    if picked.get("neck"):
+        _nr = float(get(a, "--neck-r", "0") or 0)
+        _nz = float(get(a, "--neck-z0", "0") or 0)
+        _kept = []
+        for ob in picked.pop("neck"):
+            _n = keep_neck_frag(ob, _nr, _nz)
+            if _n:
+                print("  抠脖子：%s 留 %d/%d 顶点（最宽 ≤%.1f 且最低 ≥%.1f）"
+                      % (ob.name, _n, len(ob.data.vertices), _nr, _nz))
+                _kept.append(ob)
+            else:
+                print("  ⚠️ 抠脖子：%s 一个碎片都没命中（检查 neck_r/neck_z0）" % ob.name)
+                bpy.data.objects.remove(ob, do_unlink=True)
+        picked.setdefault("face", []).extend(_kept)
+
     # ---------- 1.2) 清理飞出去的碎片（战无2 源模型的通病，见 prune_far 注释） ----------
     #   必须跑在【切嘴之前】：嘴位是靠脸壳包围盒估的，包围盒被碎片撑歪就全废。
     if "--no-prune" not in a:
         kk = float(get(a, "--prune-k", "4.0"))
+        _arm0 = next((o for o in bpy.data.objects if o.type == 'ARMATURE'), None)
         for role, objs in list(picked.items()):
             for ob in objs:
-                d = prune_far(ob, kk)
+                d = prune_far(ob, kk, arm=_arm0)
                 if d:
-                    print("  清碎片：%s 丢掉 %d/%d 个顶点（重心离主体 > %.1f×主体半径）"
+                    print("  清碎片：%s 丢掉 %d/%d 个顶点（重心离主体 > %.1f×主体半径，头骨碎片除外）"
                           % (ob.name, d, len(ob.data.vertices) + d, kk))
 
     # ---------- 1.3) 按骨骼剔掉非头部的碎片（复合件；见 keep_head_only 注释） ----------
@@ -720,11 +901,16 @@ def main():
                     _best, _cl = _w, _c2
             # 🔴 2026-09-15：**hair 也要过**（战无2 有角色的头发件里混着甲饰 —— 庆次 idx6 =
             #    长发 + 金色前立/胸前绳结；不滤 → 头旁边飘着甲片；滤太狠 → 长发没了）
+            # ⚠️ 但【走了 hard 路线】的角色（picked 里有 "hair" 角色）例外：
+            #    他们的头发归 1.4b 的硬判据管，1.3 一律不碰 —— 前田庆次是这条的
+            #    第一个用户验收先例，改判据不能动他。
             for _role in ("face", "eye", "mouth", "hair"):
+                if _role == "hair" and picked.get("hair"):
+                    continue
                 for _ob in picked.get(_role, []):
                     _d = keep_head_only(_ob, _arm, _fr, _cl, _hk, _gk)
                     if _d:
-                        print("  剔非头部：%s 丢掉 %d/%d 个顶点（主导骨离面部骨族中心过远）"
+                        print("  剔非头部：%s 丢掉 %d/%d 个顶点（主导骨离面部骨簇过远，不含头骨碎片）"
                               % (_ob.name, _d, len(_ob.data.vertices) + _d))
 
     # ---------- 1.4b) 头发件：只留【主导骨 = 头骨】的碎片（确定性判据，2026-09-15 加） ----------
@@ -780,20 +966,23 @@ def main():
                     _bm2.to_mesh(_ob.data); _bm2.free(); _ob.data.update()
                     print("  头发去非头碎片：%s 丢 %d/%d 顶点" % (_ob.name, _n0 - len(_ob.data.vertices), _n0))
 
-    # ---------- 1.3c) 摘颏带：把头盔的颏带碎片从脸壳里整块删掉 ----------
+    # ---------- 1.3c) 摘颏带：把头盔的颏带从脸壳里摘掉 ----------
     if strap_seeds or strap_bones:
         for _ob in picked.get("face", []):
             if len(_ob.data.vertices) == 0:
                 continue
-            # 🔴 顺序要紧：UV 包围盒必须【删碎片之前】算 —— 删完那些碎片就不在了。
-            # 🔴 一个顶点都不删（2026-09-15 实机反馈定稿）：耳侧那几块看着像"飘在外面的碎片"，
-            #    实测是**脸颊皮面的一部分**；删 ⇒ 脸上开洞、露出内表面的占位 UV（棋盘格）。
-            #    整条带子统一走"只改 UV"。
-            # 耳侧那几块 = 独立碎片：摘掉（安全，且盔要用同一批 → 顶点数能对上）
+            # 耳侧那几块 = 独立碎片：按种子点整块摘掉
             n = drop_frag_by_seed(_ob, strap_seeds) if strap_seeds else 0
             if n:
                 print("  摘颏带（耳侧碎片）：%s 删 %d 顶点" % (_ob.name, n))
-            # 下巴那一横条 = 下颌皮面本身：绝不能删（删=镂空），只把 UV 指到邻近的肤色区
+            # 🔴 下巴那一横条：**只改 UV，绝不删几何**。
+            #    2026-09-15 深夜试过"整条剪掉并进兜"（用户当时选的方案），**实测失败已回退**：
+            #      ① 剪掉当场在下巴开一个黑腔（`holes_fill` 补不上 —— 那是下颌壳的背面开口，
+            #         不是闭合环，实测 36 条边界边补完洞还在）；
+            #      ② 并进兜的那批顶点是**下颌皮肤**（渲染出来是块肉色），不是带子 ——
+            #         即 `bone_59` 覆盖的是下颌皮面本身，原注释是对的。
+            #    ⇒ 结论：这条带子是**画在下颌皮面上的贴图**，几何上它就是下巴。
+            #       要它"消失"只能改 UV（改色），要它"搬到兜上"则无解（那等于把下巴搬走）。
             if strap_bones:
                 m = retarget_uv_region(_ob, strap_bones)
                 if m:
@@ -934,6 +1123,16 @@ def main():
             n = seal_open_bottom(_ob, gap, atlas=get(a, "--seal-atlas"))
             print("  封发块底口：%s 补 %d 面（余 %d 顶点）"
                   % (_ob.name, n, len(_ob.data.vertices)))
+
+    # ---------- 1.7) 薄片补背面：单面板复制+翻面（布条/发带/飘带，见函数注释） ----------
+    if "--no-double-sided" not in a:
+        for _role in ("face", "eye", "mouth"):
+            for _ob in picked.get(_role, []):
+                _n0 = len(_ob.data.polygons)
+                _n = make_sheets_double_sided(_ob)
+                if _n:
+                    print("  薄片补背面：%s 复制 %d/%d 面并翻面（引擎材质无双面开关，只能靠几何）"
+                          % (_ob.name, _n, _n0))
 
     # ---------- 2) 归并同角色多件（如 eyelashes + eyelashes.2） ----------
     joined = {}
