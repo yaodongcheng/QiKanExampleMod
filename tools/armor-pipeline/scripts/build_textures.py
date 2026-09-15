@@ -72,6 +72,9 @@ PART_SETS = {
 _idx = (get(A, "--parts-idx", "") or "").strip()
 WANT = [int(x) for x in _idx.split(",") if x.strip().lstrip("-").isdigit()] or \
        PART_SETS.get(PARTS, PART_SETS["body_kimono"])
+# 🔴 `--parts-name`（2026-09-15 深夜）：按【精确对象名】选件，`|` 分隔 —— 与 build_armor.py 同一套。
+#    为什么：`submesh_0` 与 `submesh_0.001` 按号解析是同一个号，选件会多带一块（谦信的兜就是这情况）。
+WANT_NAMES = [x.strip() for x in (get(A, "--parts-name", "") or "").split("|") if x.strip()]
 KIMONO = [int(x) for x in (get(A, "--kimono-idx", "1") or "1").split(",") if x.strip().isdigit()]
 LBL_KIMONO, LBL_ARMOR = 1, 2
 
@@ -84,6 +87,17 @@ def parse_submesh(name):
     while k < len(name) and name[k].isdigit():
         k += 1
     return int(name[j:k]) if k > j else None
+
+
+def want_piece(o):
+    """这块源件是不是"我们要的件"。有 --parts-name 时按名字，否则按号。
+
+    🔴 按名字时**不再叠 is_junk**（2026-09-15 深夜）：点名 = 人已确认，优先于启发式。
+       实测上杉谦信的兜件材质名带 `mat_w_`，被 is_junk 排掉过。
+    """
+    if WANT_NAMES:
+        return o.name in WANT_NAMES
+    return parse_submesh(o.name) in WANT
 
 
 def is_junk(o):
@@ -123,7 +137,7 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=SRC)
 su, sv = [], []
 for o in bpy.data.objects:
-    if o.type != 'MESH' or is_junk(o) or parse_submesh(o.name) not in WANT:
+    if o.type != 'MESH' or not want_piece(o) or (not WANT_NAMES and is_junk(o)):
         continue
     for d in o.data.uv_layers[0].data:
         su.append(d.uv[0]); sv.append(d.uv[1])
@@ -246,10 +260,12 @@ def rasterize(objs, lbl):
 
 
 km = [o for o in bpy.data.objects
-      if o.type == 'MESH' and parse_submesh(o.name) in KIMONO and not is_junk(o)]
+      if o.type == 'MESH' and not WANT_NAMES
+      and parse_submesh(o.name) in KIMONO and not is_junk(o)]
 ar = [o for o in bpy.data.objects
-      if o.type == 'MESH' and parse_submesh(o.name) in WANT
-      and parse_submesh(o.name) not in KIMONO and not is_junk(o)]
+      if o.type == 'MESH' and want_piece(o)
+      and (WANT_NAMES or parse_submesh(o.name) not in KIMONO)
+      and (WANT_NAMES or not is_junk(o))]
 n1 = rasterize(km, LBL_KIMONO)
 n2 = rasterize(ar, LBL_ARMOR)
 print("   着物 %d 像素 / 甲 %d 像素 / 空白 %d 像素" % (

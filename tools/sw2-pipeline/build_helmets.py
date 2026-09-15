@@ -37,7 +37,12 @@ OUT = os.path.join(REPO, "tools", "armor-pipeline", "out")
 
 
 def helmet_subs(key):
-    """挑件表的兜件 idx → 子网格号（读该角色的零件表）。"""
+    """挑件表的兜件 idx → 【精确网格名】列表（读该角色的零件表）。
+
+    🔴 返回名字而不是号（2026-09-15 深夜修）：`submesh_0` 与 `submesh_0.001` 解析出同一个号，
+       按号选件会把兜的"兄弟件"一起选中，再被 --prune-far 当碎片剔掉。
+       实测上杉谦信：兜是 `submesh_0..._0000.001`（242 顶点），按号选 → 输出只剩 **18 顶点**。
+    """
     idxs = TABLE[key].get("helmet") or []
     if not idxs:
         return []
@@ -45,18 +50,36 @@ def helmet_subs(key):
     if not os.path.isfile(p):
         return []
     r = list(csv.reader(io.open(p, encoding="utf-8-sig")))
-    h = r[0]
     out = []
-    for d in (dict(zip(h, x)) for x in r[1:]):
+    for d in (dict(zip(r[0], x)) for x in r[1:]):
         try:
             i = int(d.get("idx") or -1)
         except ValueError:
             continue
         if i in idxs:
-            m = re.search(r'submesh_(\d+)', d.get("name") or "")
-            if m:
-                out.append(int(m.group(1)))
-    return sorted(set(out))
+            nm = (d.get("name") or "").strip()
+            if nm and nm not in out:
+                out.append(nm)
+    return out
+
+
+def face_sub_name(key):
+    """挑件表的 face idx → 【精确网格名】（颏带的来源件就是脸壳件）。"""
+    idxs = TABLE[key].get("face") or []
+    p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
+    if not idxs or not os.path.isfile(p):
+        return None
+    r = list(csv.reader(io.open(p, encoding="utf-8-sig")))
+    for d in (dict(zip(r[0], x)) for x in r[1:]):
+        try:
+            i = int(d.get("idx") or -1)
+        except ValueError:
+            continue
+        if i in idxs:
+            nm = (d.get("name") or "").strip()
+            if nm:
+                return nm
+    return None
 
 
 def face_sub(key):
@@ -79,13 +102,17 @@ def face_sub(key):
 
 
 def helm_strap_args(key):
-    """🔴 颏带并入头盔：来源件 = 脸壳件，碎片 = parts_table 的 strap 种子点（2026-09-15）。"""
+    """🔴 颏带并入头盔：来源件 = 脸壳件，碎片 = parts_table 的 `strap` 种子点。
+
+    🔴 **只并【耳侧那几块碎片】，不并 `strap_bone`**（2026-09-15 深夜实测回退）：
+       把 `strap_bone`（下巴那一横条）也并进来试过 —— 渲染出来兜上挂着一块**肉色**，
+       因为那批顶点是**下颌皮肤本身**（`bone_59` 覆盖的是下巴，不是带子）。
+       且头那边一剪就开黑腔。⇒ 这条带子是画在下颌皮面上的贴图，几何上就是下巴。
+    """
     st = list(TABLE[key].get("strap") or [])
     fs = face_sub(key)
     if not st or fs is None:
         return []
-    # 🔴 只并【耳侧那几块碎片】。下巴那一横条是**下颌皮面本身**（头那边靠改 UV 让它不显示），
-    #    并进盔会跟头重叠打架（2026-09-15 用户实机反馈后修正）。
     return ["--strap-from", str(fs),
             "--strap-seed", ";".join(",".join("%.2f" % v for v in sd) for sd in st)]
 
@@ -109,13 +136,13 @@ def main():
             print("  [跳过] %-16s 已有" % key); continue
         subs = helmet_subs(key)
         if not subs:
-            print("  ❌ %-16s 兜件 idx 翻不出子网格号（%s）" % (key, TABLE[key].get("helmet")))
+            print("  ❌ %-16s 兜件 idx 翻不出网格名（%s）" % (key, TABLE[key].get("helmet")))
             fail.append(key); continue
         src = os.path.join(A.SRC_DIR, key + ".fbx")
-        print("  ▶ %-16s 兜件 sub%s" % (key, subs))
+        print("  ▶ %-16s 兜件 %d 块" % (key, len(subs)))
         rc, out = A.run([A.BLENDER, "-b", "--python", BUILD, "--",
                          "--src", src, "--skel", skel, "--out", OUT, "--name", name,
-                         "--parts-idx", ",".join(map(str, subs)),
+                         "--parts-name", "|".join(subs),
                          "--r", A.R_TORSO, "--r-arms", A.R_ARMS,
                          # 🔴 兜里混着飞出去的碎片（幸村那件有 2 片飞在 x=±44.6cm）→ 包围盒被撑到 103cm，
                          #    缩完就是 0.8 米的盖子。剔碎片后兜主体 ~25cm。判据同 build_head.prune_far。
@@ -127,9 +154,14 @@ def main():
             fail.append(key); continue
         dif = A.find_diffuse(key)
         if dif:
+            # 🔴 贴图的 UV 范围要把【脸壳件】也算进来（2026-09-15 深夜）：颏带的 UV 画在
+            #    **脸壳的图集区**，只按兜件的范围裁图 → 带子采样落空 → 渲染成一块肤色。
+            #    （这就是老计划里挂着的「兜的贴图告警」那条。）
+            fs_nm = face_sub_name(key)
+            tex_names = list(subs) + ([fs_nm] if fs_nm else [])
             A.run([A.BLENDER, "-b", "--python", TEX, "--",
                    "--armor", out_fbx, "--src", src, "--diffuse", dif,
-                   "--out", OUT, "--name", name, "--parts-idx", ",".join(map(str, subs)),
+                   "--out", OUT, "--name", name, "--parts-name", "|".join(tex_names),
                    "--ao", "0.35"], "helm_tex")
         _st = [l.strip() for l in out.splitlines() if "颏带并入" in l]
         print("     ✅ %s（%.0f KB）%s" % (name, os.path.getsize(out_fbx) / 1024.0,

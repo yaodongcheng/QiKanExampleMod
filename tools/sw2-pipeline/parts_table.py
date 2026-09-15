@@ -57,7 +57,16 @@ TABLE = {
                                "过一遍「剔非头部」正好剩这 108 顶点、裙子全被剔掉。不并 → 前面刘海和两侧垂发整块没有"),
     "L05_kenshin": dict(cn="上杉谦信", taikou="lord_tk5_119", asset="head_kenshin_a", gender="male",
                         face=[11], eye=[12], hair=[], helmet=[], weapons=[4, 7],
-                        note="idx15 是两条长布垂带（无发丝纹理）——按披发读也可算头发，先不并"),
+                        note="🔴 2026-09-15 深夜：兜件已指认出来（idx4 = submesh_0..._0000.001，242 顶点，"
+                             "碗 + 双角 + 耳庇 + 两条垂带），**但这一轮做不出来，暂时留空** —— "
+                             "该件是**无蒙皮的静态网格（一个顶点组都没有）**，走兜管线会连踩三坑："
+                             "① `--keep-head-frags` 按主导骨留件 → 主导骨为空 → 整块删光（实测余 0）；"
+                             "② `build_armor.py` 假设「顶点已在骨架空间」直接清 `matrix_world` → 兜散架；"
+                             "③ 补 bone_11 权重 + 烘到骨架空间后不再散架，**但重定向把它压成尖刺状**（形状错）。"
+                             "⇒ 下一轮：查 retarget 对「整件单骨」的处理，或改走 head 管线（build_head.py 有完整的"
+                             "标定/绑骨路径）。**别在没解决 ③ 之前把 helmet 填上** —— 会产出坏资产。"
+                             "idx10（submesh_4，288 顶点）= 复合件（额头金前立 + 胸/肩甲片）。"
+                             "idx15 是两条长布垂带（无发丝纹理）——按披发读也可算头发，先不并"),
     "L06_oichi": dict(cn="阿市", taikou="lord_tk5_1181", asset="head_oichi_a", gender="female",
                       face=[4], eye=[5], hair=[6, 7], helmet=[], weapons=[1, 3],
                       note="idx6 = 发髻 + 带金流苏的浅蓝肩衣（复合件，要按骨骼筛）"),
@@ -68,7 +77,18 @@ TABLE = {
     # ---- 组 2 ----
     "L09_magoichi": dict(cn="杂贺孙一", taikou="lord_tk5_321", asset="head_magoichi_a", gender="male",
                          face=[5], eye=[6], hair=[8, 9], helmet=[], weapons=[1, 3],
-                         note="idx8 = 头发 + 长外套（复合件，要按骨骼筛）；idx9 是脑后发尾"),
+                         neck=[0], neck_r=12.0, neck_z0=154.0,
+                         # 🔴 脖子从身体件补（2026-09-15 深夜，用户实机："杂贺只有头没有颈部"）：
+                         #    他的脸壳件（idx5/submesh_3）在眼睛以下只延伸 12.2 单位（28 人里最短），
+                         #    做出来就是个悬空的头。脖子画在身体件 idx0/submesh_0 里 ——
+                         #    实测是两块 bone_9 碎片：33 顶点 / z 129~171 / |x| ≤ 9.7。
+                         #    `neck_r=12` 排除肩甲（|x|=20）和手臂（|x|=93）。
+                         #    `neck_z0=154` = **目标空间 z=1.44 换算回源坐标**的值
+                         #      （眼源 z=175.40、缩放 0.011256 → 175.40 − (1.6839−1.44)/0.011256 = 153.7）。
+                         #    源模型的脖子一直画到胸口（z=129），不裁的话头会拖出 0.5 米长的脖子穿进身体。
+                         note="idx8 = 头发 + 长外套（复合件，按骨骼筛）；idx9 是脑后发尾。"
+                              "🔴 他没有「发绳」——那个绿的是**束马尾的绿色头绳**，画在发尾根上，"
+                              "属于 idx8/idx9 里的一小撮顶点，不是独立件（2026-09-15 深夜逐件扫过）"),
     "L10_shingen": dict(cn="武田信玄", taikou="lord_tk5_449", asset="head_shingen_a", gender="male",
                         face=[7], eye=[8], hair=[10, 9], helmet=[6], weapons=[2, 4],
                         note="idx6=金角+额甲+盔侧圆环（金属兜）；idx9 是白色长毛帘；idx10=红发+腰间红披（复合件）"),
@@ -79,8 +99,10 @@ TABLE = {
                              [-3.4,-9.7,162.3],[8.0,0.6,163.2]],   # 🔴 头盔颏带（美术画在脸壳件里，原模型靠兜的吹返挡着）：种子点=碎片重心，由逐碎片渲染人工确认（2026-09-15）。头里摘掉（build_head --strap-seed），做兜时加回去（见 build_helmets 的 STRAP）
                          note="头发在脸壳里；idx7=身甲+大金月牙前立（复合件）；idx11=口部小月牙片"),
     "L12_nouhime": dict(cn="归蝶", taikou="lord_tk5_1194", asset="head_nouhime_a", gender="female",
-                        face=[8], eye=[9], hair=[6], helmet=[], weapons=[3, 5],
-                        note="idx6=身体+发髻（复合件）；idx11=蝴蝶+珠串+耳饰（头饰，不是头发）"),
+                        face=[8], eye=[9], hair=[6, 11], helmet=[], weapons=[3, 5],
+                        note="idx6=身体+发髻（复合件）；🔴 idx11=蝴蝶+珠串+耳饰（头饰，不是头发）——"
+                             "2026-09-15 深夜用户报「头饰消失」，漏件图实锤它在未挑中的件里，已补进 hair。"
+                             "该件 44 顶点，进 1.3 会被判「非复合」整块放过，不会被误删"),
     "L13_hanzo": dict(cn="服部半藏", taikou="lord_tk5_587", asset="head_hanzo_a", gender="male",
                       face=[10], eye=[11], hair=[], helmet=[12], weapons=[2, 5, 7],
                       note="idx10=脸+布质头罩（复合件）；🔴 idx12 看图是「双角+顶刺」像兜，"
@@ -100,10 +122,17 @@ TABLE = {
                           strap=[[3.7,-8.8,186.3],[-3.7,-8.8,186.3],[3.8,-7.5,186.3],[-3.8,-7.5,186.3],[3.4,-9.7,190.6],[-3.4,-9.7,190.6]],   # 🔴 头盔颏带（美术画在脸壳件里，原模型靠兜的吹返挡着）：种子点=碎片重心，由逐碎片渲染人工确认（2026-09-15）。头里摘掉（build_head --strap-seed），做兜时加回去（见 build_helmets 的 STRAP）
                           note="戴盔，头发被遮/并进脸壳"),
     "L39_inahime": dict(cn="稻姬", taikou="lord_tk5_1198", asset="head_inahime_a", gender="female",
-                        face=[6], eye=[7], hair=[8], helmet=[], weapons=[1, 3],
+                        face=[6], eye=[7], hair=[8, 4, 5], helmet=[], weapons=[1, 3],
                         note="🔴 表里名是「小松」（EnglishName=Sanada Komatsu，父=本多忠胜 lord_tk5_652，"
                              "夫=真田信之 lord_tk5_357）——2026-09-15 查明，**不需要新增行**；"
-                             "她的 Alias 列已补「稻姬|稲姫|小松姬」。idx10 是头后深色锥形条"),
+                             "她的 Alias 列已补「稻姬|稲姫|小松姬」。"
+                             "🔴 发绳/额环的定位过程（两次才找对，别再猜）："
+                             "idx10（submesh_8，54 顶点）**看错了** —— 那是一根从胸口垂到头顶的长锥"
+                             "（源 z 114→170，比头本身还高 3 倍），加进去让整个头变成 0.70 米高、"
+                             "和头断开飘着（用户实机看出来的）。"
+                             "**粉发绳在 idx4（submesh_2，302 顶点）**、**金色额环在 idx5（submesh_3，129 顶点）** "
+                             "—— 逐块单独渲染确认。两块都是复合件（发绳混着身体皮、额环混着甲片），"
+                             "靠 1.2/1.3 的判据筛（头骨碎片豁免那两条正好管它们）"),
     "L40_ieyasu": dict(cn="德川家康", taikou="lord_tk5_506", asset="head_ieyasu_a", gender="male",
                        face=[10], eye=[11], hair=[], helmet=[9], weapons=[2, 4, 6, 8],
                        strap_bone="bone_59",  # 下巴那一横条（并进脸壳主网格，按碎片摘不掉）
@@ -135,15 +164,23 @@ TABLE = {
                      face=[4], eye=[6], hair=[10], helmet=[], weapons=[1, 3, 5, 7],
                      note="idx2 是金属环+两片大翼，主导骨是胸骨不是头骨 → 判为颈/肩饰"),
     "L48_kotaro": dict(cn="风魔小太郎", taikou="lord_tk5_613", asset="head_kotaro_a", gender="male",
-                       face=[13], eye=[17], hair=[1, 4], helmet=[], weapons=[2, 12, 14, 16, 18],
-                       note="idx1 含头顶小发髻（与袴同网格）；idx4 是罩住头的深色蓬松团（兜帽或乱发）"),
+                       face=[13], eye=[17], hair=[1, 4, 10], helmet=[], weapons=[2, 12, 14, 16, 18],
+                       note="idx1 含头顶小发髻（与袴同网格）；idx4 是罩住头的深色蓬松团（兜帽或乱发）；"
+                            "🔴 idx10（submesh_17，48 顶点）=【双耳金耳环钩】——2026-09-15 深夜用户报"
+                            "「耳环挂坠消失」，按子网格着色的漏件图实锤（两个黄绿钩子坐在橙色甲上），已补进 hair"),
     "L49_musashi": dict(cn="宫本武藏", taikou="lord_tk5_700", asset="head_musashi_a", gender="male",
                         face=[4], eye=[5, 6], hair=[7], helmet=[], weapons=[1, 3],
                         note="🔴 唯一没有 38/60 眼球的：眼球是 idx5/idx6 两块（各 19顶点30面，bone_61/62 各 100%）；"
                              "idx7 是背心+头顶乱发同网格（复合件）"),
     "L100_kojiro": dict(cn="佐佐木小次郎", taikou="lord_tk5_343", asset="head_kojiro_a", gender="male",
-                        face=[7], eye=[8], hair=[9], helmet=[], weapons=[1, 3, 5],
-                        note="idx9 是黑发帽+一条长垂发（另含 2 个小金件）；idx11 是背后黑色长筒（非 mat_w_）"),
+                        face=[7], eye=[8], hair=[9, 11, 4], helmet=[], weapons=[1, 3, 5],
+                        note="idx9 是黑发帽+一条长垂发（另含 2 个小金件）；"
+                             "🔴 idx11（submesh_8，98 顶点）= 束发筒（发髻外面那个黑筒）；"
+                             "🔴 **idx4（submesh_2，302 顶点）= 金色花纹发环本身** —— "
+                             "2026-09-15 深夜用户报「发绳消失」，按「哪块件里有绑 bone_11 的小碎片」"
+                             "全件扫了一遍才定位（它是一块 **z=193、眼在 182** 的独立小环，"
+                             "混在 302 顶点的复合件里；同一件里其余是手臂/身体）。"
+                             "⚠️ 别再靠『漏件图里看着像』来挑件 —— 那个方法在稻姬和佐佐木身上各错了一次"),
     "L101_katsuie": dict(cn="柴田胜家", taikou="lord_tk5_379", asset="head_katsuie_a", gender="male",
                          face=[7], eye=[8], hair=[10], helmet=[], weapons=[2],
                          note="idx10 顶部小件是发髻（与髋部毛裙同网格）；全模型无金属盔"),
@@ -169,6 +206,14 @@ def build_head_args(key):
         （碎片主导骨 ∉ {bone_10, bone_11, bone_46..62} → 丢），过滤完再并进脸壳。
         🔴 用在「1.3 会把整块头发判成杂质」的角色上 —— 慶次的 submesh_9 是 100% 绑头骨的头发，
         1.3 要删 153/153（靠 90% 安全网才没删），submesh_11 要删 419/457。
+
+    🔴 `neck` / `neck_r` / `neck_z0`（2026-09-15 深夜加）—— **从身体件里给头补脖子**：
+      战无2 把**脖子画在身体件里**，脸壳件只到下巴下面一点点（实测 28 人的脸壳件
+      在眼睛以下的延伸：雑賀 12.2 最短 / 信長 19.2 / 島津 36.2 最长）。
+      延伸不够的角色做出来就是个"悬空的头"（雑賀最明显）。
+      用法：`neck=[身体件idx]` + `neck_r`/`neck_z0`（源坐标）→ build_head 只留
+      「最宽 ≤ neck_r 且最低 ≥ neck_z0」的连通域（细而高 = 脖子；肩甲 |x| 20、手臂 |x| 93 都排除）。
+      实测雑賀：脖子 = submesh_0 里两个 bone_9 碎片，33 顶点 / z 129~171 / |x| ≤ 9.7。
     """
     r = TABLE[key]
     hair = list(r.get("hair") or [])
@@ -180,6 +225,9 @@ def build_head_args(key):
     else:
         face = list(r["face"]) + hair                            # 头发并进脸壳
         pick = "face=%s,eye=%s" % ("+".join(str(i) for i in face), "+".join(str(i) for i in r["eye"]))
+    neck = list(r.get("neck") or [])
+    if neck:
+        pick += ",neck=%s" % "+".join(str(i) for i in neck)
     # 🔴 一律 3 件（脸/眼/嘴）—— 战无2 的源模型**没有睫毛件**（男女人物都没有），
     #    而「4 件」那套是蒂法/原版女头的东西。3 件正好对上原版女头布局的前三格
     #    （原版女头 = 脸/嘴/眼/睫，前三个就是脸/嘴/眼），第 4 格空着 = 不渲染睫毛。

@@ -285,18 +285,42 @@ STRAP_SEEDS = [Vector([float(v) for v in t.split(",")])
 STRAP_BONES = set(x.strip() for x in (get(A, "--strap-bone", "") or "").split(",") if x.strip())
 
 idx_arg = get(A, "--parts-idx", "") or ""
-if idx_arg.strip():
+# 🔴 `--parts-name`（2026-09-15 深夜加）：按【精确对象名】选件，用 `|` 分隔。
+#    为什么需要：`parse_submesh` 只取数字，`submesh_0` 与 `submesh_0.001` **解析成同一个号** ——
+#    上杉谦信的兜是 `submesh_0..._0000.001`（242 顶点），按号选会把同号的 25 顶点身体件一起选中，
+#    再叠上 --prune-far 就把真兜当碎片剔干净了（实测输出只剩 18 顶点）。
+#    凡"某块件的 .001 兄弟不是同一件东西"的角色，一律走这个参数。
+name_arg = get(A, "--parts-name", "") or ""
+if name_arg.strip():
+    want_names = [x.strip() for x in name_arg.split("|") if x.strip()]
+    # 🔴 精确点名的件**不过 is_junk**（2026-09-15 深夜）：挑件表的 helmet 列是**人工标注**的，
+    #    优先级高于启发式判据。实测上杉谦信：兜件（碗+双角+耳庇+垂带，242 顶点）的材质名带
+    #    `mat_w_`（普查因此判它 "weapon"，置信 0.99）→ 被 is_junk 当武器排掉 → 兜整个没做出来。
+    #    点名 = 人已经确认过这是什么，不要再让机器否决。
+    picked = [o for o in sw_meshes if o.name in want_names]
+    miss = [n for n in want_names if not any(o.name == n for o in sw_meshes)]
+    if miss:
+        print("!! --parts-name 没匹配到的网格：%s" % ", ".join(miss))
+    # 颏带来源（脸壳件）也要进来，稍后只留颏带碎片 —— 这里按号加即可
+    # （脸壳件的 `.001` 兄弟是碎屑，加进来无害；按名加反而要为每个角色维护第二个名字）
+    if STRAP_FROM.isdigit():
+        picked = picked + [o for o in sw_meshes
+                           if parse_submesh(o.name) == int(STRAP_FROM)
+                           and not is_junk(o) and o not in picked]
+elif idx_arg.strip():
     want = [int(x) for x in idx_arg.split(",") if x.strip().lstrip("-").isdigit()]
 else:
     want = PART_SETS.get(PARTS)
     if want is None:
         print("!! 未知 --parts %s" % PARTS); sys.exit(2)
-if STRAP_FROM.isdigit() and int(STRAP_FROM) not in want:
+if not name_arg.strip() and STRAP_FROM.isdigit() and int(STRAP_FROM) not in want:
     want = list(want) + [int(STRAP_FROM)]          # 颏带来源（脸壳件）也要进来，稍后只留颏带碎片
-picked = [o for o in sw_meshes
-          if parse_submesh(o.name) in want and not is_junk(o)]
+if not name_arg.strip():
+    picked = [o for o in sw_meshes
+              if parse_submesh(o.name) in want and not is_junk(o)]
 if not picked:
-    print("!! 没选到任何网格（--parts %s）" % PARTS); sys.exit(3)
+    print("!! 没选到任何网格（--parts %s / --parts-idx %s / --parts-name %s）"
+          % (PARTS, idx_arg, name_arg)); sys.exit(3)
 print("== 4/6 选件 ==")
 for o in picked:
     print("   [%s] %s  v=%d f=%d" % (parse_submesh(o.name), o.name,
@@ -311,7 +335,25 @@ bpy.ops.object.duplicate()
 dups = [o for o in bpy.context.selected_objects if o.type == 'MESH']
 for o in dups:
     o.modifiers.clear()
+    mw = o.matrix_world.copy()      # 🔴 必须在 parent=None **之前**取 —— 解父会改写 matrix_world
     o.parent = None
+    # 🔴 无蒙皮的件：**先把物体变换烘进顶点，再补头骨权重**（2026-09-15 深夜）。
+    #    实测上杉谦信的兜（submesh_0..._0000.001，242 顶点）一个顶点组都没有 —— 静态网格。
+    #    下面那句「顶点已在 armature 空间」对**有蒙皮**的件成立，对无蒙皮的件**不成立**
+    #    （顶点在物体局部空间，靠 matrix_world 摆到位）。不烘就清矩阵 → 兜散架：
+    #    实测 bbox 从 0.18 米炸到 x[-0.203,1.685] z[-0.607,1.789]，烘了但取在解父之后同样散
+    #    （x[-2.675,0.091]）。补 bone_11（SW2_MAP → bip01_head_13）则让它跟头走，
+    #    并让 --keep-head-frags 认得出它（否则主导骨为空 → 被判非头部 → 整块删光，实测余 0 顶点）。
+    if len(o.vertex_groups) == 0 and len(o.data.vertices):
+        # 🔴 烘到【骨架空间】而不是世界空间 —— 源骨架自己可能带变换（谦信的 Armature 把整机
+        #    放在 x≈-145 处）。下面的重定向是按骨架空间算的，烘成世界空间会整体偏出去
+        #    （实测 bbox x[-2.675,0.091]，正确值应落在头附近）。
+        _am = next((x for x in bpy.data.objects if x.type == 'ARMATURE'), None)
+        _tgt = (_am.matrix_world.inverted() @ mw) if _am is not None else mw
+        o.data.transform(_tgt)
+        gg = o.vertex_groups.new(name="bone_11")
+        gg.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+        print("   补头骨权重（源件无蒙皮）：%s → bone_11 ×%d" % (o.name, len(o.data.vertices)))
     o.matrix_world = Matrix.Identity(4)   # 顶点已在 armature 空间（≈世界），清掉残留变换
 
 # 着物瘦身（可选）：submesh_1 的"着物"把**头和手的皮**也包在里面（头 68 顶点 + 右手手指约 200 顶点），
