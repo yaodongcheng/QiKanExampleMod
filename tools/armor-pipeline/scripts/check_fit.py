@@ -13,6 +13,10 @@ from mathutils import Vector
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 armor_path, body_path, outdir = argv[0], argv[1], argv[2]
 tag = argv[3] if len(argv) > 3 else "fit"
+# 🔴 输出目录必须转绝对路径（2026-09-15 踩）：Blender 的 `render.filepath` / `image.save()`
+#    对相对路径是按 **blend 文件位置**（无 blend 时行为不可靠）解析的 —— 症状是打印了
+#    "SAVED ..." 但磁盘上没有文件（同 tools/sw2-pipeline/README 坑表第 2 条）。
+outdir = os.path.abspath(outdir)
 os.makedirs(outdir, exist_ok=True)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)

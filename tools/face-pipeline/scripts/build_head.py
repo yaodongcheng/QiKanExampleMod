@@ -29,7 +29,7 @@
 #
 # 输出：按 --parts 给序命名 `<name>.0/.1/.2…`，材质同名（脸=裸名，其余加 `_<role>` 后缀），
 #       已刚性绑定官方骨架 `bip01_head_13`，导出规格 = USF 100 / UpAxis 2 / 节点零变换。
-import bpy, bmesh, sys, os, math, mathutils
+import bpy, bmesh, sys, os, re, math, mathutils
 from mathutils import Vector, Matrix, kdtree
 
 SKEL = r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\modding_resources\skeletons\human_skeleton.fbx"
@@ -131,6 +131,170 @@ def classify(name, drop):
     return None
 
 
+def prune_far(ob, k=4.0):
+    """【清理飞出去的碎片】—— 战无2 源模型的零件里常混着离主体很远的零星碎块。
+
+    为什么必须做：包围盒被碎片撑大 → 后面全靠包围盒的两步一起崩：
+      · `--cut-mouth` 的嘴位估到胸口/腿上去 → 「一个面都没选中」直接失败
+      · `--fit-rim` 把碎片当领口猛收 → 实测最大收进 1057mm
+    实测（28 人）：不做这步有 11 个人的「收领口」超过 100mm（干净的应该 <30mm），3 个人直接失败。
+
+    判据用**稳健离群**，不写死绝对尺寸（零件大小差异太大）：
+      锚点 = 全体顶点的中位数位置（碎片是少数，中位数落在主体上）
+      尺度 = 各顶点到锚点距离的中位数（≈ 主体半径）
+      丢掉「重心离锚点 > k × 尺度」的连通域
+    返回丢掉的顶点数。
+    """
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    n0 = len(bm.verts)
+    if n0 == 0:
+        bm.free()
+        return 0
+    seen = [False] * n0
+    comps = []
+    for v in bm.verts:
+        if seen[v.index]:
+            continue
+        stack = [v]; seen[v.index] = True; comp = []
+        while stack:
+            cur = stack.pop(); comp.append(cur.index)
+            for e in cur.link_edges:
+                o2 = e.other_vert(cur)
+                if not seen[o2.index]:
+                    seen[o2.index] = True
+                    stack.append(o2)
+        comps.append(comp)
+    co = [v.co.copy() for v in bm.verts]
+    ax = sorted(c.x for c in co)[n0 // 2]
+    ay = sorted(c.y for c in co)[n0 // 2]
+    az = sorted(c.z for c in co)[n0 // 2]
+    anchor = Vector((ax, ay, az))
+    dists = sorted((c - anchor).length for c in co)
+    scale = dists[n0 // 2]
+    if scale <= 1e-9:
+        bm.free()
+        return 0
+    keep = set()
+    for comp in comps:
+        cc = Vector((0, 0, 0))
+        for i in comp:
+            cc += co[i]
+        cc /= len(comp)
+        if (cc - anchor).length <= k * scale:
+            keep.update(comp)
+    if not keep:                                   # 兜底：一个都不留时保最大的那一块
+        keep = set(max(comps, key=len))
+    drop = n0 - len(keep)
+    if drop:
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.index not in keep], context='VERTS')
+        bm.to_mesh(me)
+        me.update()
+    bm.free()
+    return drop
+
+
+def head_cluster(ob, arm, face_re):
+    """算一件的【面部骨族中心与半径】。
+    🔴 必须由【脸壳】算一次、全体共用 —— 每块件各自算会不稳：
+       头发件只沾 2 根面部骨，簇极小 → 半径过小 → 连头骨 bone_11 都被判成"太远"、整个头发被削掉
+       （实测信长：削掉 349/387 个顶点）。
+    """
+    wsum = {}
+    for v in ob.data.vertices:
+        for g in v.groups:
+            nm = ob.vertex_groups[g.group].name
+            wsum[nm] = wsum.get(nm, 0.0) + g.weight
+    pts = []
+    for nm in wsum:
+        b = arm.data.bones.get(nm)
+        if b is not None and face_re.match(nm):
+            pts.append(arm.matrix_world @ b.head_local)
+    if len(pts) < 2:
+        return None
+    c = Vector((0.0, 0.0, 0.0))
+    for q in pts:
+        c = c + q
+    c = c / len(pts)
+    return c, max((q - c).length for q in pts)
+
+
+def keep_head_only(ob, arm, face_re, cluster=None, radius_k=1.6, gate_k=4.0):
+    """【按骨骼剔掉非头部的碎片】—— 复合件（脸件里连着兜帽/外套/手臂）的解法。
+
+    战无2 的骨名是 `bone_N`（纯数字、无语义），但**有位置**：头部各骨挤在头上，
+    脊柱/手臂/腿的骨在下面。所以判据 = **顶点的主导骨离"面部骨族中心"多远**：
+      · 取该件用到的面部骨族（bone_46~bone_62），算它们的中心 c 与最大半径 r
+      · 保留「主导骨位置在 c 的 radius_k×r 之内」的顶点，其余连面一起删
+
+    🔴 别用 z 阈值：头发绑的是**头骨 bone_11，它不在面部骨族里**，一刀切会把整个头发削掉
+       （实测信长那次削掉 349/387 个顶点，头直接变秃 + 后续切嘴失败）。空间距离则天然包含它。
+
+    实测（28 人）：不做这步有 18 个人的头是坏的 —— 归蝶那个包围盒从 z=−0.389 到 1.873、宽 1.78 米。
+    返回丢掉的顶点数。
+    """
+    me = ob.data
+    wsum = {}
+    for v in me.vertices:
+        for g in v.groups:
+            nm = ob.vertex_groups[g.group].name
+            wsum[nm] = wsum.get(nm, 0.0) + g.weight
+    if cluster is None:
+        cluster = head_cluster(ob, arm, face_re)
+    if cluster is None:
+        print("  [keep-head] %s：面部骨族不足 2 根，跳过（不能安全判定）" % ob.name)
+        return 0
+    c, r = cluster
+    # 🔴 只有【确实复合】的件才清：件本身的尺度跟头簇差不多 → 它本来就是块头，别动它。
+    #    不加这道闸会误伤：信长的脸壳本来是干净的，硬清会削掉他 6cm 的下巴/脖子
+    #    （实测：底部从 z=1.4644 抬到 1.5383，回归闸门当场抓出来）。
+    #  🔴 判"确实复合"要用【包围盒对角线】，不能用顶点距中位数 ——
+    #     中位数对离群不敏感，恰恰把"拖着外套/手臂"的件判成正常（实测岛津义弘：
+    #     该清没清，头宽 1.61 米）。包围盒对离群敏感，正好是这里要的性质。
+    co = [v.co for v in me.vertices]
+    if co:
+        lo = [min(q[i] for q in co) for i in range(3)]
+        hi = [max(q[i] for q in co) for i in range(3)]
+        d_obj = math.sqrt(sum((hi[i] - lo[i]) ** 2 for i in range(3)))
+        if d_obj <= gate_k * (2.0 * r):
+            print("  [keep-head] %s：判为「非复合」跳过（件对角 %.1f ≤ %.1f）" % (ob.name, d_obj, 5.0 * 2.0 * r))
+            return 0
+    lim = max(radius_k * r, 1e-6)
+    bone_pos = {}
+    for nm in wsum:
+        b = arm.data.bones.get(nm)
+        if b is not None:
+            bone_pos[nm] = arm.matrix_world @ b.head_local
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    kill = []
+    for v in bm.verts:
+        best, bestw = None, -1.0
+        for g in me.vertices[v.index].groups:
+            if g.weight > bestw:
+                bestw, best = g.weight, ob.vertex_groups[g.group].name
+        pp = bone_pos.get(best)
+        if pp is not None and (pp - c).length > lim:
+            kill.append(v)
+    n = len(kill)
+    # 🔴 安全网：一刀切掉 ≥90% 说明这条判据不适合这块件（前田庆次的长发就是这样被判成"杂质"
+    #    全削光的 → 空网格 → 导出时多出一个没名字的对象 → transfer_channels 崩）。
+    #    宁可不清，也不能清光。
+    if n >= 0.9 * len(bm.verts):
+        print("  [keep-head] %s：判据要削掉 %d/%d（≥90%%）→ 判为误伤，跳过"
+              % (ob.name, n, len(bm.verts)))
+        bm.free()
+        return 0
+    if n:
+        bmesh.ops.delete(bm, geom=kill, context='VERTS')
+        bm.to_mesh(me)
+        me.update()
+    bm.free()
+    return n
+
 def main():
     a = args_after_ddash()
     src = get(a, "--src")
@@ -155,6 +319,7 @@ def main():
     TARGET_EYE, TARGET_EYE_MOUTH_DZ = tgt["eye"], tgt["dz"]
     parts = [p.strip() for p in get(a, "--parts", ",".join(ROLE_ORDER)).split(",") if p.strip()]
     pick_spec = get(a, "--pick")                     # "face=body.cut,eye=Eyeballs,mouth=mouth"
+    pick_idx = get(a, "--pick-idx")                  # "face=11,eye=12,hair=5"（序号 = 对象名排序行号）
     cut_spec = get(a, "--cut-z")                     # "1.4144"（只裁 face）或 "face=1.4144,mouth=1.3"
 
     # ---------- 1) 导入源模型（FBX 或 .blend） + 挑件 ----------
@@ -168,20 +333,42 @@ def main():
     print("导入 %d 个网格（源类型 %s）" % (len(meshes), "blend" if src.lower().endswith(".blend") else "fbx"))
 
     picked = {}
-    if pick_spec:
-        # 显式挑件：role=名字子串[+名字子串...]，多个名字的同角色件会被归并
-        wanted = {}
-        for item in pick_spec.split(","):
-            if "=" not in item:
-                fail("--pick 格式应为 role=名字[+名字]，收到 %r" % item)
-            role, val = item.split("=", 1)
-            wanted[role.strip()] = [x.strip() for x in val.split("+") if x.strip()]
-        for role, keys in wanted.items():
-            hit = [o for o in meshes if any(k.lower() in o.name.lower() for k in keys)]
-            if not hit:
-                fail("--pick 的「%s」没匹配到网格（关键字 %s）；现有网格：%s"
-                     % (role, keys, [o.name for o in meshes]))
-            picked[role] = hit
+    if pick_spec or pick_idx:
+        # 🔴 两套挑件方式，选一个：
+        #   --pick     "role=名字子串[+名字子串]"  —— 源模型零件名有意义时用（蒂法/萨菲罗斯）
+        #   --pick-idx "role=序号[+序号]"          —— 源模型零件名全是 `model_0_submesh_N_...` 时用。
+        #        序号 = 按【对象名排序】的行号，正是零件识别工具 `sw2-pipeline` 产出的零件表行序。
+        #        为什么不用子串挑：`submesh_1` 是 `submesh_10`/`submesh_11` 的子串，会误命中一串。
+        if pick_idx:
+            ordered = sorted(meshes, key=lambda o: o.name)
+            wanted = {}
+            for item in pick_idx.split(","):
+                if "=" not in item:
+                    fail("--pick-idx 格式应为 role=序号[+序号]，收到 %r" % item)
+                role, val = item.split("=", 1)
+                wanted[role.strip()] = [int(x) for x in val.split("+") if x.strip()]
+            for role, idxs in wanted.items():
+                hit = []
+                for ix in idxs:
+                    if ix < 0 or ix >= len(ordered):
+                        fail("--pick-idx 的「%s」给了序号 %d，但源模型只有 %d 块零件"
+                             % (role, ix, len(ordered)))
+                    hit.append(ordered[ix])
+                picked[role] = hit
+        else:
+            # 显式挑件：role=名字子串[+名字子串...]，多个名字的同角色件会被归并
+            wanted = {}
+            for item in pick_spec.split(","):
+                if "=" not in item:
+                    fail("--pick 格式应为 role=名字[+名字]，收到 %r" % item)
+                role, val = item.split("=", 1)
+                wanted[role.strip()] = [x.strip() for x in val.split("+") if x.strip()]
+            for role, keys in wanted.items():
+                hit = [o for o in meshes if any(k.lower() in o.name.lower() for k in keys)]
+                if not hit:
+                    fail("--pick 的「%s」没匹配到网格（关键字 %s）；现有网格：%s"
+                         % (role, keys, [o.name for o in meshes]))
+                picked[role] = hit
         used = sum(picked.values(), [])
         dropped = [o.name for o in meshes if o not in used]
     else:
@@ -196,6 +383,9 @@ def main():
     print("丢弃：%s" % dropped)
     for r in parts:
         if r not in picked:
+            # mouth 件源模型通常没有 —— 给了 --cut-mouth 就由第 2.5 步从脸壳切出来，不算缺件
+            if r == "mouth" and "--cut-mouth" in a:
+                continue
             fail("没挑到「%s」件 —— 用 --pick/--drop 调整，或看上面的「保留/丢弃」清单" % r)
     for r in picked:
         if r not in parts:
@@ -203,6 +393,158 @@ def main():
     for ob in [o for o in meshes if o not in sum(picked.values(), [])]:
         bpy.data.objects.remove(ob, do_unlink=True)
     bpy.context.view_layer.update()
+
+    # ---------- 1.2) 清理飞出去的碎片（战无2 源模型的通病，见 prune_far 注释） ----------
+    #   必须跑在【切嘴之前】：嘴位是靠脸壳包围盒估的，包围盒被碎片撑歪就全废。
+    if "--no-prune" not in a:
+        kk = float(get(a, "--prune-k", "4.0"))
+        for role, objs in list(picked.items()):
+            for ob in objs:
+                d = prune_far(ob, kk)
+                if d:
+                    print("  清碎片：%s 丢掉 %d/%d 个顶点（重心离主体 > %.1f×主体半径）"
+                          % (ob.name, d, len(ob.data.vertices) + d, kk))
+
+    # ---------- 1.3) 按骨骼剔掉非头部的碎片（复合件；见 keep_head_only 注释） ----------
+    if "--no-head-only" not in a:
+        _arm = next((o for o in bpy.data.objects if o.type == 'ARMATURE'), None)
+        _fr = re.compile(r"^bone_(4[6-9]|5[0-9]|6[0-2])$")
+        _hk = float(get(a, "--head-k", "1.6"))    # 清理半径系数：越小越狠（复合件重的角色调小）
+        _gk = float(get(a, "--head-gate", "4.0"))  # 「确实复合」闸门系数：越小越容易触发清理
+        if _arm is not None:
+            # 簇心/半径由【脸壳】算一次（面部骨族权重最高的那块），全体共用 —— 见 head_cluster 注释
+            _cl, _best = None, -1.0
+            for _ob in picked.get("face", []):
+                _c2 = head_cluster(_ob, _arm, _fr)
+                if _c2 is None:
+                    continue
+                _w = sum(g.weight for v in _ob.data.vertices for g in v.groups
+                         if _fr.match(_ob.vertex_groups[g.group].name))
+                if _w > _best:
+                    _best, _cl = _w, _c2
+            for _role in ("face", "eye", "mouth"):
+                for _ob in picked.get(_role, []):
+                    _d = keep_head_only(_ob, _arm, _fr, _cl, _hk, _gk)
+                    if _d:
+                        print("  剔非头部：%s 丢掉 %d/%d 个顶点（主导骨离面部骨族中心过远）"
+                              % (_ob.name, _d, len(_ob.data.vertices) + _d))
+
+    # ---------- 1.5) --cut-mouth：源模型没有「嘴」件时，从脸壳上切出唇周 ----------
+    #   🔴 必须跑在【归并之前】：脸壳和头发常常是两块，并起来之后包围盒会被头发拉高，
+    #      切嘴的估算基准（脸高）跟着变大 → 嘴位估偏 → 眼↔嘴距离偏大 → **缩放算错，头小一圈**
+    #      （实测信长：正确脸高 34.1，并了头发变 42.5，缩放从 0.01144 掉到 0.00976）。
+    #   为什么要有这一步：标定要用「眼↔嘴」的竖直距离算缩放，而战无2 的源模型只有
+    #   脸/眼/发——嘴是脸壳上的一块。信长当年是手工切的（|x|<=3.2, z∈[170.6,174.4], y<0），
+    #   27 个角色不能手工切，所以按几何自动切。
+    #   切盒的三条比例都是从信长那次实测反推的（见 Knowledge/战国无双换装工程.md §7.1）：
+    #     嘴中心  = 眼球中心往下 0.20 × 脸壳高度（眼 179.33 / 嘴 172.5 / 脸高 34.1 → 6.83/34.1）
+    #     宽度    = 0.175 × 脸宽（信长 |x|<=3.2，脸宽 17.87 → 3.2/17.87 = 0.179）
+    #     半高    = 0.056 × 脸高（信长 z 跨度 3.8 / 34.1 = 0.111 → 半高 0.056）
+    # 🔴 只认【面部骨族】（bone_46~bone_62）—— 战无2 全角色共用同一套面部骨架
+    #    （实测信长/幸村逐根只差一个常数）。用来①选哪块是脸壳 ②定嘴位。
+    FACE_BONE = re.compile(r"^bone_(4[6-9]|5[0-9]|6[0-2])$")
+    if "--cut-mouth" in a and "mouth" not in picked:
+        eyev0 = center(picked["eye"])
+        # 脸件可能有多块（脸壳 + 头发 + 兜）——选【面部骨族权重占比最高】的那一块当脸壳。
+        #  🔴 别用「包围盒中心离眼球最近」：岛津义弘的脸件含双臂把中心拉低，而头发件
+        #     正好盖在眼上、中心更近 → 会选错件（实测嘴位算到 183、一个面都选不中）。
+        #     面部骨族占比这条与我们已验证的「脸 = bone_46 占比最高」是同一条规则。
+        def _face_share(o):
+            tot_ = 0.0
+            tot_face = 0.0
+            for v in o.data.vertices:
+                for g in v.groups:
+                    nm = o.vertex_groups[g.group].name
+                    tot_ += g.weight
+                    if FACE_BONE.match(nm):
+                        tot_face += g.weight
+            return tot_face / tot_ if tot_ > 0 else 0.0
+        fac = max(picked["face"], key=_face_share)
+        lo, hi = bbox([fac])
+        fh, fw = hi.z - lo.z, hi.x - lo.x
+
+        # 嘴中心估计 —— 🔴 优先用【面部骨族】当锚点，不要用「脸壳包围盒高度 × 0.20」。
+        #   为什么换：那条比例是从信长一个人反推的，而脸壳包围盒随角色差很多
+        #   （信长脸壳高 34.1，幸村只有 20.4）→ 幸村那次嘴位估偏一半，缩放算错一倍（0.0203 vs 0.0114）。
+        #   为什么骨骼可以跨角色：实测信长与幸村的面部骨族（bone_46~60）**逐根只差一个常数 5.9**
+        #   —— 同一套面部骨架，相对位置完全一致。所以「眼睛往下 0.83 ×（眼睛到最低面部骨）」
+        #   是可迁移的（信长实测：眼 179.33、最低面部骨 170.95、真嘴中心 172.38 → 0.829）。
+        arm = next((o for o in bpy.data.objects if o.type == 'ARMATURE'), None)
+        jawz = None
+        if arm is not None:
+            wsum = {}
+            for v in fac.data.vertices:
+                for g in v.groups:
+                    nm = fac.vertex_groups[g.group].name
+                    wsum[nm] = wsum.get(nm, 0.0) + g.weight
+            tot = sum(wsum.values()) or 1.0
+            # （FACE_BONE 过滤见上面：不加的话脸件里连着兜帽的角色会把
+            #   头骨→颈骨→脊柱骨一路走通，嘴位算到胸口）
+            zs = []
+            for nm, w in wsum.items():
+                if w / tot < 0.03:          # 忽略零星权重
+                    continue
+                if not FACE_BONE.match(nm):
+                    continue
+                b = arm.data.bones.get(nm)
+                if b is not None:
+                    zs.append((arm.matrix_world @ b.head_local).z)
+            # 🔴 沿脸部骨链【从眼睛往下走，断开就停】——不要用"脸壳包围盒内"当范围：
+            #    脸件上常连着兜帽/披风（服部半藏、岛津义弘那种），它们的骨在胸口高度，
+            #    但只要用包围盒当前界就会混进来，嘴位算到胸口 → 一个面都选不中。
+            #    脸部骨族在空间上是连续的（实测信长：182.4/181.7/179.7/…/171.0/170.9），
+            #    而兜帽骨离最近的面部骨差 20+ → 用「3×中位间距」当断链阈值，自动分开。
+            if len(zs) >= 2:
+                zs.sort(reverse=True)
+                gaps = sorted(zs[i] - zs[i + 1] for i in range(len(zs) - 1))
+                med_gap = gaps[len(gaps) // 2]
+                i0 = min(range(len(zs)), key=lambda i: abs(zs[i] - eyev0.z))
+                run = [zs[i0]]
+                for i in range(i0 + 1, len(zs)):
+                    if zs[i - 1] - zs[i] > 3.0 * med_gap:
+                        break
+                    run.append(zs[i])
+                low = [z for z in run if z < eyev0.z]
+                if low:
+                    jawz = min(low)
+        if jawz is not None and (eyev0.z - jawz) > 1e-6:
+            mz = eyev0.z - 0.83 * (eyev0.z - jawz)
+            how = "面部骨锚点（眼 %.2f − 最低面部骨 %.2f）" % (eyev0.z, jawz)
+        else:
+            mz = eyev0.z - 0.20 * fh        # 兜底：没有骨架时退回旧比例
+            how = "脸壳高度比例（兜底：没找到合格的面部骨——该件可能是复合件）"
+
+        ymid = (lo.y + hi.y) / 2.0
+        for o in bpy.data.objects:
+            o.select_set(False)
+        bpy.context.view_layer.objects.active = fac
+        fac.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bm = bmesh.from_edit_mesh(fac.data)
+        bm.faces.ensure_lookup_table()
+        sel = 0
+        for f in bm.faces:
+            c = f.calc_center_median()
+            ok = (abs(c.x) <= 0.175 * fw and abs(c.z - mz) <= 0.056 * fh and c.y <= ymid)
+            f.select_set(ok)
+            sel += 1 if ok else 0
+        bmesh.update_edit_mesh(fac.data)
+        if sel == 0:
+            bpy.ops.object.mode_set(mode='OBJECT')
+            fail("--cut-mouth 一个面都没选中（脸壳 %s bbox z=%.3f~%.3f，估计嘴中心 z=%.3f）—— "
+                 "源模型可能本来就有嘴件，或脸壳朝向与预期不同" % (fac.name, lo.z, hi.z, mz))
+        before = {o.name for o in bpy.data.objects}
+        bpy.ops.mesh.separate(type='SELECTED')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        new = [o for o in bpy.data.objects if o.name not in before]
+        if not new:
+            fail("--cut-mouth：separate 之后没拿到新对象")
+        mouth_ob = new[0]
+        mouth_ob.name = fac.name.rsplit(".", 1)[0] + ".mouth"
+        picked["mouth"] = [mouth_ob]
+        print("  切嘴：从 %s 选中 %d 面（%s → 嘴中心 z=%.3f）"
+              % (fac.name, sel, how, mz))
+        bpy.context.view_layer.update()
 
     # ---------- 2) 归并同角色多件（如 eyelashes + eyelashes.2） ----------
     joined = {}

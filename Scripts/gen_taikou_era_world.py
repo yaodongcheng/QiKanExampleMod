@@ -102,14 +102,8 @@ EQUIP_DEFAULT = (["short_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE)
 VOICE_BY_IDENTITY_FEMALE = "calm"
 VOICE_DEFAULT = "curt"
 
-# 🔴 专用 race（2026-09-14）：列在这里的角色才会在 NPCCharacter 上带 race= 属性。
-#    骑砍2 的头网格由 skin 决定，skin 按 (race × 性别 × 年龄段) 选 —— 所以要「只有某人换头」，
-#    就给他一个独有 race，其他人不带该属性 = 继续走 Native 的 race="human"，零影响。
-#    接线文件（Taikou/ModuleData/skins.xml 的 <race id="lwn_nobunaga">、monsters.xml）由
-#    Scripts/gen_taikou_nobunaga_head.py 生成，禁手改（铁律 22）。
-SPECIAL_RACE = {
-    "lord_tk5_195": "lwn_nobunaga",        # 织田信长 —— 战国无双2 头模
-}
+# 🔴 专用 race 的**代码表已删除**（2026-09-15）：映射搬进了 `TaikouHero.csv` 的「头」列（键 `Race`）。
+#    搬移工具 = tools/sw2-pipeline/gen_hero_wiring_cols.py；生成器只读表，不再有第二处真源。
 
 
 def load(csv_dir, name, head=2):
@@ -337,9 +331,20 @@ def write_lords(w, path):
         if ident in ("", "无效"):
             ident = ""                                  # 无身份（女性/推定在场那批）→ 用默认档
         weapons, armor, civil = EQUIP_BY_IDENTITY.get(ident, EQUIP_DEFAULT)
+        # 🔴 专属甲（2026-09-15 用户裁定）：来源 = `TaikouHero.csv` 的「甲」列（键 `Armor`）——
+        #    哪位武将穿哪件甲写**数据**里，不写代码表（改人只改表）。
+        #    ① 只覆盖**战斗装**的 Body 槽，民用装（进城便服）不动；
+        #    ② 甲是**普通物品**（`taikou_items/body_armors.xml` 里定义的），这里只决定他出场穿什么，
+        #       之后可以被扒 / 被偷 / 当战利品拿走 —— 这是用户明确要的效果。
+        body_armor = (r.get("Armor") or "").strip()
+        if body_armor:
+            armor = dict(armor, Body=body_armor)
         fem = w.is_female(r)
         cul = (r.get("CultureID") or "").strip() or CULTURE_FALLBACK
-        race_attr = ' race="%s"' % SPECIAL_RACE[r["ID"]] if r["ID"] in SPECIAL_RACE else ""
+        # 🔴 专属 race 的来源 = `TaikouHero.csv` 的「头」列（键 `Race`）—— 2026-09-15 用户裁定：
+        #    "谁长什么脸"是**数据**，不写死在生成器里（与「甲」列同口径）。
+        race_id = (r.get("Race") or "").strip()
+        race_attr = ' race="%s"' % race_id if race_id else ""
         L.append('\t<NPCCharacter id="%s" default_group="Infantry" age="%d" voice="%s" '
                  'is_hero="true" is_female="%s" culture="Culture.%s"%s name="{=%s}%s" occupation="Lord" '
                  'banner_symbol_mesh_name="test_symbol_a" banner_symbol_color="FF000000">\n'
