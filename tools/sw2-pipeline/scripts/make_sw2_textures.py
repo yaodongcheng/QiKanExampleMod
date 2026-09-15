@@ -52,6 +52,11 @@ def main():
     ap.add_argument("--name", required=True, help="资源名前缀，如 head_yukimura_a")
     ap.add_argument("--long-edge", type=int, default=2048,
                     help="输出长边（默认 2048，与已实机通过的信长那版一致；源图是 512x1024）")
+    ap.add_argument("--kind", default="head", choices=["head", "weapon"],
+                    help="head = 5 张（脸/眼/嘴三 diffuse + _n/_s）；weapon = 3 张（_d + _n/_s）")
+    ap.add_argument("--no-upscale", action="store_true",
+                    help="只缩不放 —— 武器贴图很小（实测 128×32 ~ 256×512，多在 256×64），"
+                         "放大到 2048 只是插值变糊 + 体积涨 20 倍（28 张 25.4MB vs 1MB），细节一点不增")
     a = ap.parse_args()
 
     if not os.path.isfile(a.atlas):
@@ -63,14 +68,18 @@ def main():
     if w == 0 or h == 0:
         sys.exit("FAIL: 源图集尺寸非法 %s" % (im.size,))
     scale = a.long_edge / float(max(w, h))
+    if a.no_upscale:
+        scale = min(scale, 1.0)          # 只缩不放（武器贴图小，放大 = 白涨体积）
     nw, nh = max(1, int(round(w * scale))), max(1, int(round(h * scale)))
     if (nw, nh) != (w, h):
         im = im.resize((nw, nh), Image.LANCZOS)
     arr = __import__("numpy").asarray(im)
 
     # 三张 diffuse：同一张图集（战无2 的脸/眼/嘴本来就在同一张图上）
+    # 武器只要一张（`_d`）——武器没有独立的眼/嘴 UV 区
+    suffixes = ("_d",) if a.kind == "weapon" else ("_d", "_eye_d", "_mouth_d")
     tmp = []
-    for suffix in ("_d", "_eye_d", "_mouth_d"):
+    for suffix in suffixes:
         p = os.path.join(a.out, a.name + suffix + ".png")
         save_rgb(arr, p)
         tmp.append(p)

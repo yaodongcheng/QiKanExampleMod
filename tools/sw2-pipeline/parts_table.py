@@ -33,19 +33,28 @@ gender 决定 `--parts`：
 TABLE = {
     # ---- 组 1 ----
     "L00_yukimura": dict(cn="真田幸村", taikou="lord_tk5_361", asset="head_yukimura_a", gender="male",
-                         face=[11], eye=[12], hair=[], helmet=[], weapons=[4, 7],   # 2026-09-15 用户裁定：头顶那块是头发，不是盔（曾误解为兜）
+                         face=[11], eye=[12], hair=[5], helmet=[], weapons=[4, 7],   # 2026-09-15 用户裁定：这块是头发/头饰（不是盔）→ 挪进 hair 并进脸壳
                          note="idx3 是六文銭头巾的两条垂带（bone_11）；🔴 idx5 看图是深色盔内衬 + "
                               "两片飞到两侧的碎片（碎片把包围盒撑到 ±51cm → 并进脸壳会让『收领口』狂收 543mm），"
                               "判为兜/内衬，**不并**。脸壳 idx11 自带发带，本身就是完整的头"),
     "L01_keiji": dict(cn="前田庆次", taikou="lord_tk5_657", asset="head_keiji_a", gender="male",
-                      face=[14], eye=[15], hair=[17], helmet=[], weapons=[4, 9],   # 2026-09-15 用户裁定：头顶那块是头发，不是盔（曾误解为兜）
-                      note="idx6 只见金色花形前立+胸前绳结，按「有前立」算兜"),
+                      face=[14], eye=[15], hair=[17, 6], hard=True, helmet=[], weapons=[4, 9],
+                      note="🔴 2026-09-15：idx6（sub11，491 顶点）是【长发 + 整套衣服】混装件 —— "
+                           "绑头骨 bone_11 的 254 顶点是头发（源 z188.7~235.2），"
+                           "其余是衣服（手臂 bone_16/17 在 x±85、躯干 bone_1/2/4、胸口 bone_9 在 z134~187）"
+                           "—— 两边 z 完全不重叠，所以走 hard 硬判据能干净切开。"
+                           "不加 hard 的后果（用户实机截图）：头旁边飘着一堆虎纹甲片，头包围盒 1.83 米宽"),
     "L02_nobunaga": dict(cn="织田信长", taikou="lord_tk5_195", asset="head_nobunaga_a", gender="male",
                          face=[11], eye=[12], hair=[5], helmet=[], weapons=[3],
                          note="🔴 已完成（race lwn_nobunaga）。头顶黑发已在脸壳里，idx5 是后发/刺发团"),
     "L03_mitsuhide": dict(cn="明智光秀", taikou="lord_tk5_14", asset="head_mitsuhide_a", gender="male",
-                          face=[10], eye=[11], hair=[5], helmet=[], weapons=[3],   # 2026-09-15 用户裁定：头顶那块是头发，不是盔（曾误解为兜）
-                          note="idx6 是「整套衣服」一块（盔/头巾夹在里面），要按骨骼筛"),
+                          face=[10], eye=[11], hair=[5, 6, 13], helmet=[], weapons=[3],
+                          seal=[6],   # 🔴 idx6 的发块底边有个【方口】（源 z157~161），原模型靠和服立领挡着；
+                                      #    头里没有领子 → 剪影上一条 16cm→3cm 的缺口。seal 把它补上。
+                          note="idx6 是「整套衣服」一块（盔/头巾夹在里面），要按骨骼筛；"
+                               "🔴 idx13 接触图上是一整条裙子（机器判 head_area，人眼看成裙子漏掉了）——"
+                               "实际裙子只占它 2/3，另藏着【前刘海框】：绑 bone_11 的 70 顶点 + 绑面部骨的 38 顶点，"
+                               "过一遍「剔非头部」正好剩这 108 顶点、裙子全被剔掉。不并 → 前面刘海和两侧垂发整块没有"),
     "L05_kenshin": dict(cn="上杉谦信", taikou="lord_tk5_119", asset="head_kenshin_a", gender="male",
                         face=[11], eye=[12], hair=[], helmet=[], weapons=[4, 7],
                         note="idx15 是两条长布垂带（无发丝纹理）——按披发读也可算头发，先不并"),
@@ -53,7 +62,7 @@ TABLE = {
                       face=[4], eye=[5], hair=[6, 7], helmet=[], weapons=[1, 3],
                       note="idx6 = 发髻 + 带金流苏的浅蓝肩衣（复合件，要按骨骼筛）"),
     "L07_okuni": dict(cn="出云阿国", taikou="lord_tk5_1208", asset="head_okuni_a", gender="female",
-                      face=[4], eye=[6], hair=[9], helmet=[], weapons=[1, 3, 5, 7],   # 2026-09-15 用户裁定：头顶那块是头发，不是盔（曾误解为兜）
+                      face=[4], eye=[6], hair=[9, 8], helmet=[], weapons=[1, 3, 5, 7],   # 2026-09-15 用户裁定：这块是头发/头饰（不是盔）→ 挪进 hair 并进脸壳
                       note="idx8 是金色前立+两侧笄的金饰组（不是金属盔）"),
 
     # ---- 组 2 ----
@@ -65,6 +74,9 @@ TABLE = {
                         note="idx6=金角+额甲+盔侧圆环（金属兜）；idx9 是白色长毛帘；idx10=红发+腰间红披（复合件）"),
     "L11_masamune": dict(cn="伊达政宗", taikou="lord_tk5_466", asset="head_masamune_a", gender="male",
                          face=[9], eye=[10], hair=[], helmet=[12, 7], weapons=[3, 5],
+                         strap_bone="bone_59",  # 下巴那一横条（并进脸壳主网格，按碎片摘不掉）
+                         strap=[[4.6,-5.7,156.1],[-4.6,-5.7,156.1],[-5.8,-6.6,160.3],[0.1,-10.6,165.0],
+                             [-3.4,-9.7,162.3],[8.0,0.6,163.2]],   # 🔴 头盔颏带（美术画在脸壳件里，原模型靠兜的吹返挡着）：种子点=碎片重心，由逐碎片渲染人工确认（2026-09-15）。头里摘掉（build_head --strap-seed），做兜时加回去（见 build_helmets 的 STRAP）
                          note="头发在脸壳里；idx7=身甲+大金月牙前立（复合件）；idx11=口部小月牙片"),
     "L12_nouhime": dict(cn="归蝶", taikou="lord_tk5_1194", asset="head_nouhime_a", gender="female",
                         face=[8], eye=[9], hair=[6], helmet=[], weapons=[3, 5],
@@ -84,6 +96,8 @@ TABLE = {
     # ---- 组 3 ----
     "L38_tadakatsu": dict(cn="本多忠胜", taikou="lord_tk5_652", asset="head_tadakatsu_a", gender="male",
                           face=[5], eye=[6], hair=[], helmet=[4], weapons=[1],
+                          strap_bone="bone_59",  # 下巴那一横条（并进脸壳主网格，按碎片摘不掉）
+                          strap=[[3.7,-8.8,186.3],[-3.7,-8.8,186.3],[3.8,-7.5,186.3],[-3.8,-7.5,186.3],[3.4,-9.7,190.6],[-3.4,-9.7,190.6]],   # 🔴 头盔颏带（美术画在脸壳件里，原模型靠兜的吹返挡着）：种子点=碎片重心，由逐碎片渲染人工确认（2026-09-15）。头里摘掉（build_head --strap-seed），做兜时加回去（见 build_helmets 的 STRAP）
                           note="戴盔，头发被遮/并进脸壳"),
     "L39_inahime": dict(cn="稻姬", taikou="lord_tk5_1198", asset="head_inahime_a", gender="female",
                         face=[6], eye=[7], hair=[8], helmet=[], weapons=[1, 3],
@@ -92,11 +106,15 @@ TABLE = {
                              "她的 Alias 列已补「稻姬|稲姫|小松姬」。idx10 是头后深色锥形条"),
     "L40_ieyasu": dict(cn="德川家康", taikou="lord_tk5_506", asset="head_ieyasu_a", gender="male",
                        face=[10], eye=[11], hair=[], helmet=[9], weapons=[2, 4, 6, 8],
+                       strap_bone="bone_59",  # 下巴那一横条（并进脸壳主网格，按碎片摘不掉）
+                       strap=[[3.5,-10.5,141.0],[3.2,-9.2,138.6],[-3.5,-10.5,141.0],[-3.2,-9.2,138.6],[7.6,-6.0,146.3],[-7.6,-6.0,146.3]],   # 🔴 头盔颏带（美术画在脸壳件里，原模型靠兜的吹返挡着）：种子点=碎片重心，由逐碎片渲染人工确认（2026-09-15）。头里摘掉（build_head --strap-seed），做兜时加回去（见 build_helmets 的 STRAP）
                        note="戴盔"),
     "L41_mitsunari": dict(cn="石田三成", taikou="lord_tk5_75", asset="head_mitsunari_a", gender="male",
-                          face=[7], eye=[8], hair=[9], helmet=[], weapons=[1, 3, 5], note=""),   # 2026-09-15 用户裁定：头顶那块是头发，不是盔（曾误解为兜）
+                          face=[7], eye=[8], hair=[9, 6], helmet=[], weapons=[1, 3, 5], note=""),   # 2026-09-15 用户裁定：这块是头发/头饰（不是盔）→ 挪进 hair 并进脸壳
     "L42_nagamasa": dict(cn="浅井长政", taikou="lord_tk5_16", asset="head_nagamasa_a", gender="male",
-                         face=[8], eye=[9], hair=[], helmet=[7], weapons=[2, 4], note="戴盔"),
+                         face=[8], eye=[9], hair=[], helmet=[7], weapons=[2, 4], strap_bone="bone_59",  # 下巴那一横条（并进脸壳主网格，按碎片摘不掉）
+                                                                                 strap=[[2.8,-6.4,154.7],[-2.8,-6.4,154.7]],   # 🔴 头盔颏带（美术画在脸壳件里，原模型靠兜的吹返挡着）：种子点=碎片重心，由逐碎片渲染人工确认（2026-09-15）。头里摘掉（build_head --strap-seed），做兜时加回去（见 build_helmets 的 STRAP）
+                                                                                 note="戴盔"),
     "L43_sakon": dict(cn="岛左近", taikou="lord_tk5_386", asset="head_sakon_a", gender="male",
                       face=[8], eye=[9], hair=[11], helmet=[], weapons=[2, 4],
                       note="idx7 是腰间刀（材质非 mat_w_，别当武器件）；idx10 头顶小环=发髻环"),
@@ -106,10 +124,12 @@ TABLE = {
 
     # ---- 组 4 ----
     "L45_ginchiyo": dict(cn="訚千代", taikou="lord_tk5_1189", asset="head_ginchiyo_a", gender="female",
-                         face=[8], eye=[9], hair=[11], helmet=[], weapons=[2, 4],   # 2026-09-15 用户裁定：头顶那块是头发，不是盔（曾误解为兜）
+                         face=[8], eye=[9], hair=[11, 10], helmet=[], weapons=[2, 4],   # 2026-09-15 用户裁定：这块是头发/头饰（不是盔）→ 挪进 hair 并进脸壳
                          note="idx10 是金属冠饰（上翘双角=前立）但同块混了籠手+颈环，要按骨骼筛"),
     "L46_kanetsugu": dict(cn="直江兼续", taikou="lord_tk5_526", asset="head_kanetsugu_a", gender="male",
                           face=[7], eye=[8], hair=[], helmet=[6], weapons=[3],
+                          strap_bone="bone_59",  # 下巴那一横条（并进脸壳主网格，按碎片摘不掉）
+                          strap=[[5.7,-3.9,165.7],[-5.7,-3.9,165.7],[-7.8,0.5,169.7],[7.7,0.2,171.0],[-7.7,0.2,171.0]],   # 🔴 头盔颏带（美术画在脸壳件里，原模型靠兜的吹返挡着）：种子点=碎片重心，由逐碎片渲染人工确认（2026-09-15）。头里摘掉（build_head --strap-seed），做兜时加回去（见 build_helmets 的 STRAP）
                           note="短发烘在脸壳上，没有独立发件"),
     "L47_nene": dict(cn="宁宁", taikou="lord_tk5_1179", asset="head_nene_a", gender="female",
                      face=[4], eye=[6], hair=[10], helmet=[], weapons=[1, 3, 5, 7],
@@ -135,16 +155,50 @@ SKIP = ["L05_kenshin_ghost"]
 
 
 def build_head_args(key):
-    """把一行配方拼成 build_head.py 的命令行参数。"""
+    """把一行配方拼成 build_head.py 的命令行参数。
+
+    返回 (parts, pick, seal)：
+      parts  --parts 的件位
+      pick   --pick-idx 的参数
+      seal   --seal-bottom 的行号（底边带方形缺口的发块，见 build_head.py seal_open_bottom）
+
+    🔴 头发的两种走法（`hard` 字段决定，2026-09-15）：
+      · 默认：头发**并进 face 角色** → 过 1.3「离面部骨族远就删」的离群判据。
+        适合「头发和衣服同块、衣服绑的是胸/腿骨」的角色（光秀）。
+      · `hard=True`：头发**单独走 hair 角色** → 过 1.4b 的硬判据
+        （碎片主导骨 ∉ {bone_10, bone_11, bone_46..62} → 丢），过滤完再并进脸壳。
+        🔴 用在「1.3 会把整块头发判成杂质」的角色上 —— 慶次的 submesh_9 是 100% 绑头骨的头发，
+        1.3 要删 153/153（靠 90% 安全网才没删），submesh_11 要删 419/457。
+    """
     r = TABLE[key]
-    face = list(r["face"]) + list(r.get("hair") or [])       # 头发并进脸壳
-    pick = "face=%s,eye=%s" % ("+".join(str(i) for i in face), "+".join(str(i) for i in r["eye"]))
+    hair = list(r.get("hair") or [])
+    if hair and r.get("hard"):
+        face = list(r["face"])
+        pick = "face=%s,eye=%s,hair=%s" % ("+".join(str(i) for i in face),
+                                           "+".join(str(i) for i in r["eye"]),
+                                           "+".join(str(i) for i in hair))
+    else:
+        face = list(r["face"]) + hair                            # 头发并进脸壳
+        pick = "face=%s,eye=%s" % ("+".join(str(i) for i in face), "+".join(str(i) for i in r["eye"]))
     # 🔴 一律 3 件（脸/眼/嘴）—— 战无2 的源模型**没有睫毛件**（男女人物都没有），
     #    而「4 件」那套是蒂法/原版女头的东西。3 件正好对上原版女头布局的前三格
     #    （原版女头 = 脸/嘴/眼/睫，前三个就是脸/嘴/眼），第 4 格空着 = 不渲染睫毛。
     #    ⚠️ 待实机验证：女性角色的脸如果不正常，第一件事是回来查这里。
     parts = "face,eye,mouth"
-    return parts, pick
+    seal = list(r.get("seal") or [])
+    return parts, pick, seal
+
+
+def strap_bones(key):
+    """颏带里"按骨骼"才能切掉的那部分（下巴横条），见 build_head.drop_verts_by_bone。"""
+    b = TABLE[key].get("strap_bone")
+    return [b] if b else []
+
+
+def strap_seeds(key):
+    """该角色的【头盔颏带】种子点（源坐标），见 build_head.py drop_frag_by_seed。
+    每颗种子选中"重心离它最近的碎片"；种子由人眼在逐碎片渲染图上定（2026-09-15）。"""
+    return list(TABLE[key].get("strap") or [])
 
 
 def weapon_ids(key):
@@ -159,7 +213,8 @@ if __name__ == "__main__":
     except Exception:
         pass
     for k, v in TABLE.items():
-        parts, pick = build_head_args(k)
-        print("%-16s %-10s %-8s parts=%-18s cut=%s  pick-idx=%s%s"
+        parts, pick, seal = build_head_args(k)
+        print("%-16s %-10s %-8s parts=%-18s cut=%s  pick-idx=%s%s%s"
               % (k, v["cn"], v["asset"], parts, bool(v["eye"]) and bool(v["face"]), pick,
-                 ("  兜=" + str(v["helmet"])) if v["helmet"] else ""))
+                 ("  兜=" + str(v["helmet"])) if v["helmet"] else "",
+                 ("  封底=" + str(seal)) if seal else ""))

@@ -295,6 +295,287 @@ def keep_head_only(ob, arm, face_re, cluster=None, radius_k=1.6, gate_k=4.0):
     bm.free()
     return n
 
+
+def drop_frag_by_seed(ob, seeds, max_d=12.0):
+    """【按碎片重心最近】整块删掉 —— 用来把"头盔颏带"从脸壳件里摘出去。
+
+    🔴 为什么需要（2026-09-15）：战无2 里**戴盔的角色**，把头盔的**颏带**画在了【脸壳】这一块里
+       （不是兜件里；实测家康的兜 submesh_4 里没有带子）。原模型里它被兜的吹返挡着看不见，
+       换头只取"头" → 带子就横在脸上（用户实机截图：下巴到耳朵一条编织带）。
+    🔴 判据不能用盒子：带子碎片和第 3 号"嘴部"碎片的包围盒**互相重叠**（盒选会连带选错），
+       而按【碎片重心】选是干净的 —— 种子点由人眼在渲染图上定（每块料单独渲出来看过）。
+    返回删掉的顶点数。
+    """
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    seen = [False] * len(bm.verts)
+    comps = []
+    for v in bm.verts:
+        if seen[v.index]:
+            continue
+        st = [v]
+        seen[v.index] = True
+        c = []
+        while st:
+            cur = st.pop()
+            c.append(cur.index)
+            for e in cur.link_edges:
+                o2 = e.other_vert(cur)
+                if not seen[o2.index]:
+                    seen[o2.index] = True
+                    st.append(o2)
+        comps.append(c)
+    kill = set()
+    for sd in seeds:
+        sv = Vector(sd)
+        best, bd = None, 1e18
+        for c in comps:
+            ce = Vector((0, 0, 0))
+            for i in c:
+                ce += bm.verts[i].co
+            ce /= len(c)
+            d = (ce - sv).length
+            if d < bd:
+                bd, best = d, c
+        if best is not None and bd <= max_d:
+            kill.update(best)
+        else:
+            print("    ⚠️ 颏带种子 (%.1f,%.1f,%.1f) 附近没有碎片（最近 %.2f），跳过" % (sd[0], sd[1], sd[2], bd))
+    if kill:
+        bmesh.ops.delete(bm, geom=[bm.verts[i] for i in sorted(kill)], context='VERTS')
+        bm.to_mesh(me)
+        me.update()
+    bm.free()
+    return len(kill)
+
+
+def strap_uv_seed_idx(ob, seeds, max_d=12.0):
+    """种子点 → 带子碎片的顶点索引（不删，只用来算 UV 包围盒）。"""
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    seen = [False] * len(bm.verts)
+    comps = []
+    for v in bm.verts:
+        if seen[v.index]:
+            continue
+        st = [v]
+        seen[v.index] = True
+        c = []
+        while st:
+            cur = st.pop()
+            c.append(cur.index)
+            for e in cur.link_edges:
+                o2 = e.other_vert(cur)
+                if not seen[o2.index]:
+                    seen[o2.index] = True
+                    st.append(o2)
+        comps.append(c)
+    out = []
+    for sd in seeds:
+        sv = Vector(sd)
+        best, bd = None, 1e18
+        for c in comps:
+            ce = Vector((0, 0, 0))
+            for i in c:
+                ce += bm.verts[i].co
+            ce /= len(c)
+            d = (ce - sv).length
+            if d < bd:
+                bd, best = d, c
+        if best is not None and bd <= max_d:
+            out += best
+    bm.free()
+    return out
+
+
+def retarget_uv_region(ob, bones, skin_bone="bone_46", extra_idx=()):
+    """把【主导骨属于 bones】的顶点所带的 loop，UV 逐个改成【离该顶点最近的肤色顶点】的 UV。
+
+    🔴 为什么不删几何（2026-09-15 用户实机两轮反馈）：
+       颏带的**下巴那一横条就是下颌皮面本身**（美术把带子纹理画在下颌上，不是贴上去的独立条）。
+       删 ⇒ 下颌镂空（用户："你把下巴都镂空了"）；删完补洞 ⇒ 补不干净。
+       ⇒ 只能改 UV，几何一个不动。
+    🔴 为什么逐 loop 取最近点的 UV、不整片一个色：整片一个色 ⇒ 下颌一块死板色块，和周围皮肤接不上
+       （用户："皮肤出现较多不自然情况"）。逐个取最近肤色顶点的 UV ⇒ UV 跟着邻居走，纹理自然过渡。
+    🔴 定位只用【骨骼】，不用 UV 区域：实测下巴条的 UV 跨度覆盖大半个图集，按 UV 区域会误伤整张脸
+       （试过：改了 976 个 loop = 半张脸）。
+    返回改动的 loop 数。
+    """
+    me = ob.data
+    uvl = me.uv_layers.active
+    if uvl is None or (not bones and not extra_idx):
+        return 0
+    extra = set(extra_idx)
+    dom_of = []
+    for v in me.vertices:
+        best, bw = None, -1.0
+        for g in v.groups:
+            if g.weight > bw:
+                bw, best = g.weight, ob.vertex_groups[g.group].name
+        dom_of.append(best)
+    # 🔴 候选只取【目标附近 NEAR_R 以内的肤色顶点】—— 取"全脸最近的"会跨 UV 缝挑到后脑/头顶，
+    #    那些地方的 UV 落在图集的占位区（棋盘格），改完脸上会出现一块棋盘（实测踩到）。
+    NEAR_R = 3.0
+    skin = []
+    for poly in me.polygons:
+        for k, vi in enumerate(poly.vertices):
+            if dom_of[vi] == skin_bone:
+                skin.append((me.vertices[vi].co.copy(), uvl.data[poly.loop_start + k].uv.copy()))
+    if not skin:
+        return 0
+    n = 0
+    for poly in me.polygons:
+        for k, vi in enumerate(poly.vertices):
+            if dom_of[vi] not in bones and vi not in extra:
+                continue
+            co = me.vertices[vi].co
+            best, bd = None, 1e18
+            for sco, suv in skin:
+                d = (co - sco).length_squared
+                if d < bd:
+                    bd, best = d, suv
+            if best is not None and bd <= NEAR_R * NEAR_R:
+                uvl.data[poly.loop_start + k].uv = best
+                n += 1
+    me.update()
+    return n
+
+
+def strap_uv_box_bone(ob, bones):
+    """从【主导骨属于 bones 的顶点】算出 UV 包围盒（下巴那条带子用这个）。"""
+    me = ob.data
+    uvl = me.uv_layers.active
+    if uvl is None or not bones:
+        return None
+    us, vs = [], []
+    for poly in me.polygons:
+        for k, vi in enumerate(poly.vertices):
+            v = me.vertices[vi]
+            best, bw = None, -1.0
+            for g in v.groups:
+                if g.weight > bw:
+                    bw, best = g.weight, ob.vertex_groups[g.group].name
+            if best in bones:
+                uv = uvl.data[poly.loop_start + k].uv
+                us.append(uv.x)
+                vs.append(uv.y)
+    if not us:
+        return None
+    return (min(us), max(us), min(vs), max(vs))
+
+
+def strap_uv_box(ob, frags):
+    """从【已知的带子碎片顶点索引】算出它在图集里的 UV 包围盒。"""
+    me = ob.data
+    uvl = me.uv_layers.active
+    if uvl is None or not frags:
+        return None
+    fs = set(frags)
+    us, vs = [], []
+    for poly in me.polygons:
+        for k, vi in enumerate(poly.vertices):
+            if vi in fs:
+                uv = uvl.data[poly.loop_start + k].uv
+                us.append(uv.x)
+                vs.append(uv.y)
+    if not us:
+        return None
+    return (min(us), max(us), min(vs), max(vs))
+
+
+def seal_open_bottom(ob, min_gap=1.0, atlas=None):
+    """【把开口的底边竖直补到该件最低点】—— 用于底边带方形缺口的发块。
+
+    🔴 为什么需要（2026-09-15，光秀）：战无2 有些角色的**发块底边天生是一个方口**
+       （光秀：源 z157~161 一段空着），这个口子在原模型里由**和服立领**挡着，所以看不出来。
+       但换头只取「头」——领子是身上的衣服，不该进头网格 → 头上就露出一条方形缺口，
+       剪影从 16cm 突然缩到 3cm，看着像"头发被横切了一刀"。
+       实测数据：缺口 = 世界 z 1.554~1.609，领子顶边 = 1.6038（源 157.8 × 标定 0.013）。
+
+    做法：只动**【边界边】**（只有一个面的边）。把高于「最低点 + min_gap」的边界顶点，
+       在它正下方最低点处复制一个点，与相邻边桥成四边形。UV 沿用上方顶点的 ——
+       深色头发上等于把发丝纹理往下拉一小段，肉眼可接受。
+
+    🔴 阈值 min_gap 的作用：正常发梢的底边是一条**平滑曲线**（最低点和相邻点只差几毫米），
+       不会被压平；只有真正的"方口"（高出 1cm 以上）才会被补上。
+    返回新增的面数。
+    """
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    bnd = [e for e in bm.edges if len(e.link_faces) == 1]
+    if not bnd:
+        bm.free()
+        return 0
+    zmin = min(v.co.z for v in bm.verts)
+    zfloor = zmin + min_gap
+    up = [v for v in bm.verts if v.co.z > zfloor and any(e in bnd for e in v.link_edges)]
+    if not up:
+        bm.free()
+        return 0
+    uv_lay = bm.loops.layers.uv.active
+    # 🔴 补出来的面的 UV 必须落在【头发区】—— 踩过两次：
+    #    ① 沿用边界顶点自己的 UV → 边界 UV 常落在图集的亮区（脸/衣服），补的面成了亮带；
+    #    ② 取包围盒中心最近的顶点 → 那个点常在头壳【内表面】，UV 也可能是肤色区 → 正面一大块肉色。
+    #    现在改为：**拿图集采样，在边界顶点里挑最暗的那个 UV**（头发是近黑，最暗 = 一定有头发）。
+    uv_src = None
+    if uv_lay:
+        cands = []
+        for e in bnd:
+            for l in e.link_loops:
+                if l.vert.co.z > zfloor:
+                    cands.append(l[uv_lay].uv.copy())
+        if atlas and os.path.isfile(atlas) and cands:
+            try:
+                img = bpy.data.images.load(atlas)
+                w, h = img.size
+                px = list(img.pixels)
+                def lum(u):
+                    x = min(w - 1, max(0, int(u.x % 1.0 * w)))
+                    y = min(h - 1, max(0, int(u.y % 1.0 * h)))
+                    i = (y * w + x) * 4
+                    return 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]
+                cands.sort(key=lum)
+                uv_src = cands[len(cands) // 8] if len(cands) >= 8 else cands[0]   # 取最暗的 1/8 里偏上的那个
+                print("    封底 UV：图集采样取最暗（%d 个候选）" % len(cands))
+            except Exception as ex:
+                print("    ⚠️ 图集采样失败（%s）→ 退回边界 UV" % ex)
+        if uv_src is None and cands:
+            uv_src = cands[0]
+    down = {}
+    for v in up:
+        down[v] = bm.verts.new((v.co.x, v.co.y, zmin))
+    bm.verts.ensure_lookup_table()
+    made = 0
+    for e in bnd:
+        v1, v2 = e.verts
+        a1, a2 = down.get(v1), down.get(v2)
+        if a1 is None and a2 is None:
+            continue
+        if a1 is None:                      # 只一端高：连到它自己的正下方
+            a1 = down[v1] = bm.verts.new((v1.co.x, v1.co.y, zmin))
+        if a2 is None:
+            a2 = down[v2] = bm.verts.new((v2.co.x, v2.co.y, zmin))
+        try:
+            f = bm.faces.new((v1, v2, a2, a1))
+        except ValueError:
+            continue
+        if uv_lay:
+            for l in f.loops:
+                l[uv_lay].uv = uv_src.copy() if uv_src is not None else mathutils.Vector((0.0, 0.0))
+        made += 1
+    if made:
+        bm.to_mesh(me)
+        me.update()
+    bm.free()
+    return made
+
+
 def main():
     a = args_after_ddash()
     src = get(a, "--src")
@@ -320,6 +601,15 @@ def main():
     parts = [p.strip() for p in get(a, "--parts", ",".join(ROLE_ORDER)).split(",") if p.strip()]
     pick_spec = get(a, "--pick")                     # "face=body.cut,eye=Eyeballs,mouth=mouth"
     pick_idx = get(a, "--pick-idx")                  # "face=11,eye=12,hair=5"（序号 = 对象名排序行号）
+    # --seal-bottom：这几件（同样按对象名排序行号）跑「封发块底口」——底边有方形缺口时补上
+    seal_idx = [int(x) for x in (get(a, "--seal-bottom", "") or "").split(",") if x.strip().isdigit()]
+    # --strap-seed：这几颗种子点所在的【碎片】从脸壳里整块摘掉（头盔颏带，见 drop_frag_by_seed）
+    strap_bones = set(x.strip() for x in (get(a, "--strap-bone", "") or "").split(",") if x.strip())
+    strap_seeds = []
+    for _s in (get(a, "--strap-seed", "") or "").split(";"):
+        _s = _s.strip()
+        if _s:
+            strap_seeds.append(Vector([float(v) for v in _s.split(",")]))
     cut_spec = get(a, "--cut-z")                     # "1.4144"（只裁 face）或 "face=1.4144,mouth=1.3"
 
     # ---------- 1) 导入源模型（FBX 或 .blend） + 挑件 ----------
@@ -333,6 +623,7 @@ def main():
     print("导入 %d 个网格（源类型 %s）" % (len(meshes), "blend" if src.lower().endswith(".blend") else "fbx"))
 
     picked = {}
+    seal_targets = []
     if pick_spec or pick_idx:
         # 🔴 两套挑件方式，选一个：
         #   --pick     "role=名字子串[+名字子串]"  —— 源模型零件名有意义时用（蒂法/萨菲罗斯）
@@ -355,6 +646,11 @@ def main():
                              % (role, ix, len(ordered)))
                     hit.append(ordered[ix])
                 picked[role] = hit
+            # 封底目标：按与 --pick-idx 相同的行号取件（封底跑在 1.3 剔头之后，只补留下来的净发块）
+            if seal_idx:
+                for ix in seal_idx:
+                    if 0 <= ix < len(ordered) and ordered[ix] not in seal_targets:
+                        seal_targets.append(ordered[ix])
         else:
             # 显式挑件：role=名字子串[+名字子串...]，多个名字的同角色件会被归并
             wanted = {}
@@ -388,7 +684,7 @@ def main():
                 continue
             fail("没挑到「%s」件 —— 用 --pick/--drop 调整，或看上面的「保留/丢弃」清单" % r)
     for r in picked:
-        if r not in parts:
+        if r not in parts and r != "hair":
             print("  · 「%s」不在 --parts 里，稍后丢弃" % r)
     for ob in [o for o in meshes if o not in sum(picked.values(), [])]:
         bpy.data.objects.remove(ob, do_unlink=True)
@@ -422,12 +718,95 @@ def main():
                          if _fr.match(_ob.vertex_groups[g.group].name))
                 if _w > _best:
                     _best, _cl = _w, _c2
-            for _role in ("face", "eye", "mouth"):
+            # 🔴 2026-09-15：**hair 也要过**（战无2 有角色的头发件里混着甲饰 —— 庆次 idx6 =
+            #    长发 + 金色前立/胸前绳结；不滤 → 头旁边飘着甲片；滤太狠 → 长发没了）
+            for _role in ("face", "eye", "mouth", "hair"):
                 for _ob in picked.get(_role, []):
                     _d = keep_head_only(_ob, _arm, _fr, _cl, _hk, _gk)
                     if _d:
                         print("  剔非头部：%s 丢掉 %d/%d 个顶点（主导骨离面部骨族中心过远）"
                               % (_ob.name, _d, len(_ob.data.vertices) + _d))
+
+    # ---------- 1.4b) 头发件：只留【主导骨 = 头骨】的碎片（确定性判据，2026-09-15 加） ----------
+    #  🔴 为什么不能靠 1.3 的 keep_head_only：它是**离群判据**（半径比值 + 闸门系数），
+    #     实测对"长发 + 甲饰混件"（庆次 idx6 / sub11：53% 头骨 + 47% 脊柱/手臂）**不触发**，
+    #     结果甲饰跟着头发一起并进头，头旁边飘着金色甲片。
+    #  这里用**硬判据**：碎片的主导骨落在 {bone_10, bone_11, bone_46..62} 之外 → 丢。
+    #     · 头发绑 bone_11（头骨）；甲饰/前立/绳结绑脊柱或手臂 → 一刀两断
+    #     · 布料驱动骨（nuno*）不在白名单里 → 连同它的碎片一起丢（那是披风/外套的布，不是头发）
+    if "--no-head-only" not in a:
+        _arm2 = next((o for o in bpy.data.objects if o.type == 'ARMATURE'), None)
+        if _arm2 is not None:
+            # 🔴 白名单只认【头骨】：bone_10/bone_11。
+            #    不收面部骨族（bone_46..62）—— 脸是【脸壳】的责任，混装件里绑面部骨的碎块
+            #    通常是别人的嘴里那点东西（实测慶次 sub11 有 38 顶点绑 bone_46/59，
+            #    并进头以后脸上多出一块扁条，与 --cut-mouth 切出来的嘴重复）。
+            #    ⚠️ 将来若有人「刘海框」也走 hard 路线（像光秀 idx13 那样绑 bone_11 + 面部骨），
+            #       要在这里按那个角色放开面部骨族。
+            _HEAD_BONES = {"bone_10", "bone_11"}
+            for _ob in picked.get("hair", []):
+                _n0 = len(_ob.data.vertices)
+                _dom = {}
+                for _v in _ob.data.vertices:
+                    for _g in _v.groups:
+                        _nm = _ob.vertex_groups[_g.group].name
+                        _dom[_nm] = _dom.get(_nm, 0.0) + _g.weight
+                # 逐碎片判（用 bmesh 连通域）
+                _bm = bmesh.new(); _bm.from_mesh(_ob.data); _bm.verts.ensure_lookup_table()
+                _seen = [False] * len(_bm.verts); _kill = []
+                for _v in _bm.verts:
+                    if _seen[_v.index]:
+                        continue
+                    _st, _comp = [_v], []
+                    _seen[_v.index] = True
+                    while _st:
+                        _c = _st.pop(); _comp.append(_c.index)
+                        for _e in _c.link_edges:
+                            _o2 = _e.other_vert(_c)
+                            if not _seen[_o2.index]:
+                                _seen[_o2.index] = True; _st.append(_o2)
+                    _tot = {}
+                    for _vi in _comp:
+                        for _g in _ob.data.vertices[_vi].groups:
+                            _nm = _ob.vertex_groups[_g.group].name
+                            _tot[_nm] = _tot.get(_nm, 0.0) + _g.weight
+                    _b = max(_tot.items(), key=lambda kv: kv[1])[0] if _tot else None
+                    if _b not in _HEAD_BONES:
+                        _kill += _comp
+                _bm.free()
+                if _kill:
+                    _bm2 = bmesh.new(); _bm2.from_mesh(_ob.data); _bm2.verts.ensure_lookup_table()
+                    bmesh.ops.delete(_bm2, geom=[_bm2.verts[i] for i in _kill], context='VERTS')
+                    _bm2.to_mesh(_ob.data); _bm2.free(); _ob.data.update()
+                    print("  头发去非头碎片：%s 丢 %d/%d 顶点" % (_ob.name, _n0 - len(_ob.data.vertices), _n0))
+
+    # ---------- 1.3c) 摘颏带：把头盔的颏带碎片从脸壳里整块删掉 ----------
+    if strap_seeds or strap_bones:
+        for _ob in picked.get("face", []):
+            if len(_ob.data.vertices) == 0:
+                continue
+            # 🔴 顺序要紧：UV 包围盒必须【删碎片之前】算 —— 删完那些碎片就不在了。
+            # 🔴 一个顶点都不删（2026-09-15 实机反馈定稿）：耳侧那几块看着像"飘在外面的碎片"，
+            #    实测是**脸颊皮面的一部分**；删 ⇒ 脸上开洞、露出内表面的占位 UV（棋盘格）。
+            #    整条带子统一走"只改 UV"。
+            # 耳侧那几块 = 独立碎片：摘掉（安全，且盔要用同一批 → 顶点数能对上）
+            n = drop_frag_by_seed(_ob, strap_seeds) if strap_seeds else 0
+            if n:
+                print("  摘颏带（耳侧碎片）：%s 删 %d 顶点" % (_ob.name, n))
+            # 下巴那一横条 = 下颌皮面本身：绝不能删（删=镂空），只把 UV 指到邻近的肤色区
+            if strap_bones:
+                m = retarget_uv_region(_ob, strap_bones)
+                if m:
+                    print("  下巴条改 UV：%s 把 %d 个 loop 指到最近的肤色区（几何不动）" % (_ob.name, m))
+
+    # ---------- 1.4c) 头发件并进脸壳 ----------
+    #  🔴 头网格只有 3 件（脸/眼/嘴）—— 头发必须【并进脸壳】。但并的时机很关键：
+    #     必须在 1.3 之后（1.3 是「离面部骨族远就删」的离群判据，会把整块头发判成杂质 ——
+    #     实测慶次：submesh_9 是 100% 绑头骨的头发，1.3 要删 153/153，靠 90% 安全网才没出事）
+    #     且必须在 1.4b 之后（1.4b 的硬判据就是冲 `picked["hair"]` 去的）。
+    if picked.get("hair"):
+        print("  头发并进脸壳：%s" % [o.name for o in picked["hair"]])
+        picked.setdefault("face", []).extend(picked.pop("hair"))
 
     # ---------- 1.5) --cut-mouth：源模型没有「嘴」件时，从脸壳上切出唇周 ----------
     #   🔴 必须跑在【归并之前】：脸壳和头发常常是两块，并起来之后包围盒会被头发拉高，
@@ -545,6 +924,16 @@ def main():
         print("  切嘴：从 %s 选中 %d 面（%s → 嘴中心 z=%.3f）"
               % (fac.name, sel, how, mz))
         bpy.context.view_layer.update()
+
+    # ---------- 1.6) --seal-bottom：把发块的方形底口封上（见 seal_open_bottom 注释） ----------
+    if seal_targets:
+        gap = float(get(a, "--seal-gap", "1.0"))
+        for _ob in seal_targets:
+            if not _ob.name or len(_ob.data.vertices) == 0:
+                continue
+            n = seal_open_bottom(_ob, gap, atlas=get(a, "--seal-atlas"))
+            print("  封发块底口：%s 补 %d 面（余 %d 顶点）"
+                  % (_ob.name, n, len(_ob.data.vertices)))
 
     # ---------- 2) 归并同角色多件（如 eyelashes + eyelashes.2） ----------
     joined = {}

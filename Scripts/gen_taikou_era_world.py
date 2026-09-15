@@ -339,6 +339,19 @@ def write_lords(w, path):
         body_armor = (r.get("Armor") or "").strip()
         if body_armor:
             armor = dict(armor, Body=body_armor)
+        # 专属头盔（「头盔」列）→ Head 槽。同甲：普通物品，只是出场戴着，可摘可偷。
+        helmet = (r.get("Helmet") or "").strip()
+        if helmet:
+            armor = dict(armor, Head=helmet)
+        # 🔴 专属武器（2026-09-15）：来源 = `TaikouHero.csv` 的「武器」列，同甲/盔口径（写数据不写代码表）。
+        #    ① 替换 **Item0（主武器）**，保留原副武器（盾之类）；
+        #    ② 远程武器（弓/铁炮）**必须带弹药**，否则拿着射不出去 —— 弹药 id 在「弹药」列，
+        #       插在 Item1/Item2（原版弓手布局就是 Item0=弓 Item1=箭）；
+        #    ③ 同甲：普通物品，出场只决定初始装备，可被扒/被偷/作战利品。
+        weapon = (r.get("Weapon") or "").strip()
+        if weapon:
+            ammo = (r.get("Ammo") or "").strip()
+            weapons = [weapon] + ([ammo, ammo] if ammo else []) + list(weapons)[1:]
         fem = w.is_female(r)
         cul = (r.get("CultureID") or "").strip() or CULTURE_FALLBACK
         # 🔴 专属 race 的来源 = `TaikouHero.csv` 的「头」列（键 `Race`）—— 2026-09-15 用户裁定：
