@@ -276,6 +276,14 @@ def is_junk(o):
     return False
 
 
+# 🔴 颏带（2026-09-15）：头盔的颏带被美术画在【脸壳件】里（不是兜件）。做兜时用这两个参数
+#    把脸壳件里"种子点所在的那几块碎片"并进来 —— 头那边 build_head.py --strap-seed 摘掉的是同一批。
+STRAP_FROM = get(A, "--strap-from", "")
+STRAP_SEEDS = [Vector([float(v) for v in t.split(",")])
+               for t in (get(A, "--strap-seed", "") or "").split(";") if t.strip()]
+# 下巴那一横条并进了脸壳主网格（不是独立碎片）→ 只能按【主导骨】认（见 build_head.drop_verts_by_bone）
+STRAP_BONES = set(x.strip() for x in (get(A, "--strap-bone", "") or "").split(",") if x.strip())
+
 idx_arg = get(A, "--parts-idx", "") or ""
 if idx_arg.strip():
     want = [int(x) for x in idx_arg.split(",") if x.strip().lstrip("-").isdigit()]
@@ -283,6 +291,8 @@ else:
     want = PART_SETS.get(PARTS)
     if want is None:
         print("!! 未知 --parts %s" % PARTS); sys.exit(2)
+if STRAP_FROM.isdigit() and int(STRAP_FROM) not in want:
+    want = list(want) + [int(STRAP_FROM)]          # 颏带来源（脸壳件）也要进来，稍后只留颏带碎片
 picked = [o for o in sw_meshes
           if parse_submesh(o.name) in want and not is_junk(o)]
 if not picked:
@@ -444,6 +454,7 @@ KEEP_SW = {"bone_1", "bone_8", "bone_9", "bone_2", "bone_3", "bone_4",
 KIMONO_IDX = [int(x) for x in (get(A, "--kimono-idx", "1") or "1").split(",") if x.strip().isdigit()]
 DROP_HEAD_IDX = [int(x) for x in (get(A, "--drop-head-idx", "") or "").split(",") if x.strip().isdigit()]
 
+
 PRUNE_K = get(A, "--prune-far", "") or ""
 for o in dups:
     sm = parse_submesh(o.name)
@@ -454,6 +465,50 @@ for o in dups:
         if d:
             print("   剔飞散碎片：%s 删 %d 顶点" % (o.name, d))
             dom = dominant_bones(o)
+        n0 = len(o.data.vertices)
+    if STRAP_FROM and sm == int(STRAP_FROM) and (STRAP_SEEDS or STRAP_BONES):
+        # 脸壳件只留【颏带碎片】：按碎片重心离种子最近选（判据同 build_head.drop_frag_by_seed）
+        import bmesh as _bm
+        b = _bm.new(); b.from_mesh(o.data); b.verts.ensure_lookup_table()
+        seen = [False] * len(b.verts); comps = []
+        for v in b.verts:
+            if seen[v.index]:
+                continue
+            st = [v]; seen[v.index] = True; c = []
+            while st:
+                cur = st.pop(); c.append(cur.index)
+                for e in cur.link_edges:
+                    o2 = e.other_vert(cur)
+                    if not seen[o2.index]:
+                        seen[o2.index] = True; st.append(o2)
+            comps.append(c)
+        keep = set()
+        for sd in STRAP_SEEDS:
+            best, bd = None, 1e18
+            for c in comps:
+                ce = Vector((0, 0, 0))
+                for i in c:
+                    ce += b.verts[i].co
+                ce /= len(c)
+                d = (ce - sd).length
+                if d < bd:
+                    bd, best = d, c
+            if best is not None and bd <= 12.0:
+                keep.update(best)
+        for i in range(len(b.verts)):
+            best, bw = None, -1.0
+            for g in o.data.vertices[i].groups:
+                if g.weight > bw:
+                    bw, best = g.weight, o.vertex_groups[g.group].name
+            if best in STRAP_BONES:
+                keep.add(i)
+        kill = [i for i in range(len(b.verts)) if i not in keep]
+        if not keep:
+            print("   !! 颏带种子一个都没命中，整件丢掉")
+        _bm.ops.delete(b, geom=[b.verts[i] for i in kill], context='VERTS')
+        b.to_mesh(o.data); b.free(); o.data.update()
+        print("   颏带并入：%s 只留 %d 顶点" % (o.name, len(o.data.vertices)))
+        dom = dominant_bones(o)
         n0 = len(o.data.vertices)
     if "--keep-head-frags" in A:
         # 🔴 头盔专用：**只留头部碎片**（2026-09-15）。

@@ -141,39 +141,87 @@ tk5_item_kuro_raku_chawan,黑樂茶碗,,,item,3,2026-08-30 语料扫描（07 数
 tk5_item_kuroashi_odoshi_doumaru,黑葦威胴丸,,,item,10,2026-08-30 语料扫描（07 数据包补 ID/类型）
 tk5_item_kurogumo,黑雲,,,item,3,2026-08-30 语料扫描（07 数据包补 ID/类型）
 tk5_trade_longxia,龍蝦,,,trade_good,10,2026-08-30 语料扫描（07 数据包补 ID/类型）
-taikou_yukimura_do_a,,真田幸村 当世具足,,item,0,战无2 换装新品（真田幸村的甲，2026-09-15 登记）
-taikou_keiji_do_a,,前田庆次 当世具足,,item,0,战无2 换装新品（前田庆次的甲，2026-09-15 登记）
-taikou_nobunaga_do_a,,织田信长 当世具足,,item,0,战无2 换装新品（织田信长的甲，2026-09-15 登记）
-taikou_mitsuhide_do_a,,明智光秀 当世具足,,item,0,战无2 换装新品（明智光秀的甲，2026-09-15 登记）
-taikou_kenshin_do_a,,上杉谦信 当世具足,,item,0,战无2 换装新品（上杉谦信的甲，2026-09-15 登记）
-taikou_oichi_do_a,,阿市 当世具足,,item,0,战无2 换装新品（阿市的甲，2026-09-15 登记）
-taikou_okuni_do_a,,出云阿国 当世具足,,item,0,战无2 换装新品（出云阿国的甲，2026-09-15 登记）
-taikou_magoichi_do_a,,杂贺孙一 当世具足,,item,0,战无2 换装新品（杂贺孙一的甲，2026-09-15 登记）
-taikou_kojiro_do_a,,佐佐木小次郎 当世具足,,item,0,战无2 换装新品（佐佐木小次郎的甲，2026-09-15 登记）
-taikou_katsuie_do_a,,柴田胜家 当世具足,,item,0,战无2 换装新品（柴田胜家的甲，2026-09-15 登记）
-taikou_shingen_do_a,,武田信玄 当世具足,,item,0,战无2 换装新品（武田信玄的甲，2026-09-15 登记）
-taikou_masamune_do_a,,伊达政宗 当世具足,,item,0,战无2 换装新品（伊达政宗的甲，2026-09-15 登记）
-taikou_nouhime_do_a,,归蝶 当世具足,,item,0,战无2 换装新品（归蝶的甲，2026-09-15 登记）
-taikou_hanzo_do_a,,服部半藏 当世具足,,item,0,战无2 换装新品（服部半藏的甲，2026-09-15 登记）
-taikou_rammaru_do_a,,森兰丸 当世具足,,item,0,战无2 换装新品（森兰丸的甲，2026-09-15 登记）
-taikou_hideyoshi_do_a,,丰臣秀吉 当世具足,,item,0,战无2 换装新品（丰臣秀吉的甲，2026-09-15 登记）
-taikou_tadakatsu_do_a,,本多忠胜 当世具足,,item,0,战无2 换装新品（本多忠胜的甲，2026-09-15 登记）
-taikou_inahime_do_a,,稻姬 当世具足,,item,0,战无2 换装新品（稻姬的甲，2026-09-15 登记）
-taikou_ieyasu_do_a,,德川家康 当世具足,,item,0,战无2 换装新品（德川家康的甲，2026-09-15 登记）
-taikou_mitsunari_do_a,,石田三成 当世具足,,item,0,战无2 换装新品（石田三成的甲，2026-09-15 登记）
-taikou_nagamasa_do_a,,浅井长政 当世具足,,item,0,战无2 换装新品（浅井长政的甲，2026-09-15 登记）
-taikou_sakon_do_a,,岛左近 当世具足,,item,0,战无2 换装新品（岛左近的甲，2026-09-15 登记）
-taikou_yoshihiro_do_a,,岛津义弘 当世具足,,item,0,战无2 换装新品（岛津义弘的甲，2026-09-15 登记）
-taikou_ginchiyo_do_a,,訚千代 当世具足,,item,0,战无2 换装新品（訚千代的甲，2026-09-15 登记）
-taikou_kanetsugu_do_a,,直江兼续 当世具足,,item,0,战无2 换装新品（直江兼续的甲，2026-09-15 登记）
-taikou_nene_do_a,,宁宁 当世具足,,item,0,战无2 换装新品（宁宁的甲，2026-09-15 登记）
-taikou_kotaro_do_a,,风魔小太郎 当世具足,,item,0,战无2 换装新品（风魔小太郎的甲，2026-09-15 登记）
-taikou_musashi_do_a,,宫本武藏 当世具足,,item,0,战无2 换装新品（宫本武藏的甲，2026-09-15 登记）
-taikou_shingen_helmet_a,,武田信玄 兜,,item,0,战无2 换装新品（武田信玄的兜，2026-09-15 登记）
-taikou_masamune_helmet_a,,伊达政宗 兜,,item,0,战无2 换装新品（伊达政宗的兜，2026-09-15 登记）
-taikou_hanzo_helmet_a,,服部半藏 兜,,item,0,战无2 换装新品（服部半藏的兜，2026-09-15 登记）
-taikou_hideyoshi_helmet_a,,丰臣秀吉 兜,,item,0,战无2 换装新品（丰臣秀吉的兜，2026-09-15 登记）
-taikou_tadakatsu_helmet_a,,本多忠胜 兜,,item,0,战无2 换装新品（本多忠胜的兜，2026-09-15 登记）
-taikou_ieyasu_helmet_a,,德川家康 兜,,item,0,战无2 换装新品（德川家康的兜，2026-09-15 登记）
-taikou_nagamasa_helmet_a,,浅井长政 兜,,item,0,战无2 换装新品（浅井长政的兜，2026-09-15 登记）
-taikou_kanetsugu_helmet_a,,直江兼续 兜,,item,0,战无2 换装新品（直江兼续的兜，2026-09-15 登记）
+taikou_yukimura_do_a,,绯威赤备具足,,item,0,战无2 换装新品（绯威赤备具足，2026-09-15 登记）
+taikou_keiji_do_a,,朱威大袖具足,,item,0,战无2 换装新品（朱威大袖具足，2026-09-15 登记）
+taikou_nobunaga_do_a,,南蛮胴具足,,item,0,战无2 换装新品（南蛮胴具足，2026-09-15 登记）
+taikou_mitsuhide_do_a,,水色桔梗威具足,,item,0,战无2 换装新品（水色桔梗威具足，2026-09-15 登记）
+taikou_kenshin_do_a,,绀威胴丸,,item,0,战无2 换装新品（绀威胴丸，2026-09-15 登记）
+taikou_oichi_do_a,,绯地打挂,,item,0,战无2 换装新品（绯地打挂，2026-09-15 登记）
+taikou_okuni_do_a,,巫女装束,,item,0,战无2 换装新品（巫女装束，2026-09-15 登记）
+taikou_magoichi_do_a,,八咫乌火绳具足,,item,0,战无2 换装新品（八咫乌火绳具足，2026-09-15 登记）
+taikou_kojiro_do_a,,剑客装束,,item,0,战无2 换装新品（剑客装束，2026-09-15 登记）
+taikou_katsuie_do_a,,赤威具足,,item,0,战无2 换装新品（赤威具足，2026-09-15 登记）
+taikou_shingen_do_a,,白威胴丸,,item,0,战无2 换装新品（白威胴丸，2026-09-15 登记）
+taikou_masamune_do_a,,黑漆五枚胴具足,,item,0,战无2 换装新品（黑漆五枚胴具足，2026-09-15 登记）
+taikou_nouhime_do_a,,抚子纹打挂,,item,0,战无2 换装新品（抚子纹打挂，2026-09-15 登记）
+taikou_hanzo_do_a,,伊贺忍装束,,item,0,战无2 换装新品（伊贺忍装束，2026-09-15 登记）
+taikou_rammaru_do_a,,白纶子小袖,,item,0,战无2 换装新品（白纶子小袖，2026-09-15 登记）
+taikou_hideyoshi_do_a,,金小札桐纹具足,,item,0,战无2 换装新品（金小札桐纹具足，2026-09-15 登记）
+taikou_tadakatsu_do_a,,黑威具足,,item,0,战无2 换装新品（黑威具足，2026-09-15 登记）
+taikou_inahime_do_a,,红威女具足,,item,0,战无2 换装新品（红威女具足，2026-09-15 登记）
+taikou_ieyasu_do_a,,金陀美具足,,item,0,战无2 换装新品（金陀美具足，2026-09-15 登记）
+taikou_mitsunari_do_a,,白威九曜纹具足,,item,0,战无2 换装新品（白威九曜纹具足，2026-09-15 登记）
+taikou_nagamasa_do_a,,龟甲纹具足,,item,0,战无2 换装新品（龟甲纹具足，2026-09-15 登记）
+taikou_sakon_do_a,,黑漆大袖具足,,item,0,战无2 换装新品（黑漆大袖具足，2026-09-15 登记）
+taikou_yoshihiro_do_a,,黑漆岛津具足,,item,0,战无2 换装新品（黑漆岛津具足，2026-09-15 登记）
+taikou_ginchiyo_do_a,,白威女具足,,item,0,战无2 换装新品（白威女具足，2026-09-15 登记）
+taikou_kanetsugu_do_a,,黑威当世具足,,item,0,战无2 换装新品（黑威当世具足，2026-09-15 登记）
+taikou_nene_do_a,,桐纹打挂,,item,0,战无2 换装新品（桐纹打挂，2026-09-15 登记）
+taikou_kotaro_do_a,,风魔忍装束,,item,0,战无2 换装新品（风魔忍装束，2026-09-15 登记）
+taikou_musashi_do_a,,野袴道服,,item,0,战无2 换装新品（野袴道服，2026-09-15 登记）
+taikou_shingen_helmet_a,,诹访法性兜,,item,0,战无2 换装新品（诹访法性兜，2026-09-15 登记）
+taikou_masamune_helmet_a,,俱利伽罗龙前立兜,,item,0,战无2 换装新品（俱利伽罗龙前立兜，2026-09-15 登记）
+taikou_hanzo_helmet_a,,伊贺黑头巾,,item,0,战无2 换装新品（伊贺黑头巾，2026-09-15 登记）
+taikou_hideyoshi_helmet_a,,马蔺后立兜,,item,0,战无2 换装新品（马蔺后立兜，2026-09-15 登记）
+taikou_tadakatsu_helmet_a,,鹿角胁立兜,,item,0,战无2 换装新品（鹿角胁立兜，2026-09-15 登记）
+taikou_ieyasu_helmet_a,,金陀美具足附属兜,,item,0,战无2 换装新品（金陀美具足附属兜，2026-09-15 登记）
+taikou_nagamasa_helmet_a,,三盛龟甲前立兜,,item,0,战无2 换装新品（三盛龟甲前立兜，2026-09-15 登记）
+taikou_kanetsugu_helmet_a,,爱染明王前立兜,,item,0,战无2 换装新品（爱染明王前立兜，2026-09-15 登记）
+taikou_yukimura_weapon_a,,十文字枪,,item,0,战无2 换装新品（十文字枪，2026-09-15 登记）
+taikou_keiji_weapon_a,,二又矛,,item,0,战无2 换装新品（二又矛，2026-09-15 登记）
+taikou_nobunaga_weapon_a,,鬼切,,item,0,战无2 换装新品（鬼切，2026-09-15 登记）
+taikou_mitsuhide_weapon_a,,业物,,item,0,战无2 换装新品（业物，2026-09-15 登记）
+taikou_kenshin_weapon_a,,七握刀,,item,0,战无2 换装新品（七握刀，2026-09-15 登记）
+taikou_oichi_weapon_a,,剑玉·梅,,item,0,战无2 换装新品（剑玉·梅，2026-09-15 登记）
+taikou_okuni_weapon_a,,番伞,,item,0,战无2 换装新品（番伞，2026-09-15 登记）
+taikou_magoichi_weapon_a,,种子岛,,item,0,战无2 换装新品（种子岛，2026-09-15 登记）
+taikou_kojiro_weapon_a,,子暗丸,,item,0,战无2 换装新品（子暗丸，2026-09-15 登记）
+taikou_katsuie_weapon_a,,二丁斧,,item,0,战无2 换装新品（二丁斧，2026-09-15 登记）
+taikou_shingen_weapon_a,,将配,,item,0,战无2 换装新品（将配，2026-09-15 登记）
+taikou_masamune_weapon_a,,阵太刀,,item,0,战无2 换装新品（阵太刀，2026-09-15 登记）
+taikou_nouhime_weapon_a,,蜘蛛,,item,0,战无2 换装新品（蜘蛛，2026-09-15 登记）
+taikou_hanzo_weapon_a,,锁镰,,item,0,战无2 换装新品（锁镰，2026-09-15 登记）
+taikou_rammaru_weapon_a,,野太刀,,item,0,战无2 换装新品（野太刀，2026-09-15 登记）
+taikou_hideyoshi_weapon_a,,三筋杖,,item,0,战无2 换装新品（三筋杖，2026-09-15 登记）
+taikou_tadakatsu_weapon_a,,豪枪,,item,0,战无2 换装新品（豪枪，2026-09-15 登记）
+taikou_inahime_weapon_a,,长弓,,item,0,战无2 换装新品（长弓，2026-09-15 登记）
+taikou_ieyasu_weapon_a,,筒枪,,item,0,战无2 换装新品（筒枪，2026-09-15 登记）
+taikou_mitsunari_weapon_a,,义扇,,item,0,战无2 换装新品（义扇，2026-09-15 登记）
+taikou_nagamasa_weapon_a,,锥矛,,item,0,战无2 换装新品（锥矛，2026-09-15 登记）
+taikou_sakon_weapon_a,,战场刀,,item,0,战无2 换装新品（战场刀，2026-09-15 登记）
+taikou_yoshihiro_weapon_a,,丸太槌,,item,0,战无2 换装新品（丸太槌，2026-09-15 登记）
+taikou_ginchiyo_weapon_a,,稻妻刀,,item,0,战无2 换装新品（稻妻刀，2026-09-15 登记）
+taikou_kanetsugu_weapon_a,,宝剑,,item,0,战无2 换装新品（宝剑，2026-09-15 登记）
+taikou_nene_weapon_a,,飞刀,,item,0,战无2 换装新品（飞刀，2026-09-15 登记）
+taikou_kotaro_weapon_a,,铁笼手,,item,0,战无2 换装新品（铁笼手，2026-09-15 登记）
+taikou_musashi_weapon_a,,双剑,,item,0,战无2 换装新品（双剑，2026-09-15 登记）
+taikou_yukimura_helmet_a,,六文钱前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_keiji_helmet_a,,梅钵前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_nobunaga_helmet_a,,唐冠形兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_mitsuhide_helmet_a,,桔梗前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_kenshin_helmet_a,,白头巾,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_oichi_helmet_a,,木瓜前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_okuni_helmet_a,,巫女头巾,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_magoichi_helmet_a,,八咫乌前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_kojiro_helmet_a,,阵笠,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_katsuie_helmet_a,,雁金前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_nouhime_helmet_a,,抚子前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_rammaru_helmet_a,,鹤丸前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_inahime_helmet_a,,红威鹿角胁立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_mitsunari_helmet_a,,大一大万大吉前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_sakon_helmet_a,,黑漆筋兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_yoshihiro_helmet_a,,丸十前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_ginchiyo_helmet_a,,祇园守前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_nene_helmet_a,,桐纹前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_kotaro_helmet_a,,风魔黑头巾,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_musashi_helmet_a,,阵笠,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）

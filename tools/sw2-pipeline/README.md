@@ -92,6 +92,10 @@ tools/sw2-pipeline/
 ├── README.md                 本文件
 ├── run_identify.py           批量驱动（系统 python）
 ├── build_heads.py            一条命令出 28 张脸（挑件→切嘴→标定→通道→贴图→关卡 1）
+├── build_armors.py           一条命令出 28 套甲（读骨普查选件 → 甲管线）
+├── build_helmets.py          挑件表 helmet 列出头盔（9 人戴盔，8 人已做）
+├── build_weapons.py          一条命令出 28 件武器（挑件 → 规范化 → 贴图 → 尺寸表）
+├── gen_weapon_items.py       武器物品定义 + 中文名 + 两张 CSV 登记 + 弹药自给
 ├── check_materials.py        🔴 导入编辑器之前的闸门（材质名三件互不相同，秒级，纯 python）
 ├── check_regression.py       信长回归闸门（改任何几何步骤后必跑）
 ├── verify_table.py           挑件表 × 零件表 逐项核对（381 项）
@@ -99,7 +103,9 @@ tools/sw2-pipeline/
 └── scripts/
     ├── identify_parts.py     零件识别（Blender，测量 + 初判 + 出接触图）
     ├── count_islands.py      数每块件的连通域数（排查"一块里混了几样东西"）
-    ├── make_sw2_textures.py  源图集 → 5 张头部贴图（三张 diffuse 同图 + 纯色 _n/_s）
+    ├── make_sw2_textures.py  源图集 → 头部贴图（5 张）/ 武器贴图（3 张，--kind weapon）
+    ├── build_weapon.py       单件武器核心：挑件 → 握持点/长轴规范化 → 出 FBX
+    ├── render_weapons.py     武器对照图（--side 看侧面 / --textures 带贴图渲染）
     └── render_heads.py       批量产物排成对照图（⚠️ 见下方"已知问题"）
 ```
 
@@ -174,7 +180,63 @@ python tools/sw2-pipeline/check_materials.py --self-test  # 自证：造坏数�
 
 ---
 
-## 八、已知问题
+## 八、武器（阶段 3.5，2026-09-15）
+
+### 为什么不能直接拿源件：源模型是 T-pose，武器**横躺在手上**
+
+实测 28 人：武器件长轴几乎全是 **±X**（水平横放，穿过手掌），而骑砍2 的武器网格约定是
+**原点=握持点、长轴 +Z、刃宽沿 X、刃厚沿 Y**（依据：原版 `sturgian_blade_9` 拼件、
+`torch_g` 整体武器、织丰 `sho_bokken_katana` / `sho_new_yumi_1` 三处实测一致）。
+所以必须做一次刚体变换。
+
+### 规范化怎么算（`scripts/build_weapon.py`，全自动）
+
+| 步 | 判据 | 实测 |
+|---|---|---|
+| **握持点** | 离武器最近的**手骨**（战无2 手骨族 `bone_18/19/26~45`）在长轴上的投影 | 手骨到武器表面 0.2~40cm（多数 <3cm） |
+| **长轴** | 武器顶点 PCA 第一主成分 | 28/28 都是 ±X |
+| **刀尖朝哪端** | 长轴上离握持点**更远**的那一端 | |
+| **旋转** | 长轴(刀尖向)→+Z、次轴→+X、第三轴→+Y（三轴正交，det=+1） | 与原版 blade 逐轴一致 |
+| **平移/缩放** | 握持点→原点；源件是厘米，×0.01 | 握把跨原点（原版 torch 也是） |
+
+**⚠️ 37cm 那次虚惊**：幸村的手骨离武器"最近顶点"40cm —— 不是握持点错了，是**网格稀疏**
+（枪杆只有 3 个截面 x=-230/-132/-34，手骨落在长面中间）。判据看的是"手骨在长轴上投影落不落在武器范围内"。
+
+### 类型与数值（`gen_weapon_items.py`）
+
+武器类型**按形态指定**（`WEAPON_OF` 表，不按长度自动分——军配/弓/铁炮的长度和用法不成比例）：
+
+| 类型 | Type | weapon_class | item_usage | 谁 |
+|---|---|---|---|---|
+| `polearm` | TwoHandedWeapon | TwoHandedPolearm | `polearm_block_thrust` | 12 人（枪/薙刀/伞柄） |
+| `sword2h` | TwoHandedWeapon | TwoHandedSword | `twohanded_block_swing_thrust` | 8 人（太刀） |
+| `sword1h` | OneHandedWeapon | OneHandedSword | `onehanded_block_swing_thrust` | 6 人（短刀/军配/镰/忍具） |
+| `bow` | Bow | Bow | `bow` | 稻姬 |
+| `gun` | Crossbow | Crossbow | `crossbow` | 杂贺孙一（铁炮） |
+
+🔴 `weapon_class` 取值必须 ∈ 引擎 `WeaponClass` 枚举、`item_usage` 必须 ∈ 原版
+`Native/ModuleData/item_usage_sets.xml`（**织丰的 `musket` 是它自定义的 usage，不能用** —— 铁则 6 零依赖）。
+
+**`weapon_length`** = 近战取「握持点→刀尖」（`above_m`），远程取全长；下限 40cm。
+
+**远程必须配弹药**：弓/铁炮挂进装备栏时 `Item1/Item2` 放箭/弩矢（原版弓手就是 `Item0=弓 Item1=箭`），
+否则拿着射不出去。弹药 id 写在 `TaikouHero.csv` 的「弹药」列。
+
+### 坑
+
+| # | 坑 | 症状 | 修法 |
+|---|---|---|---|
+| 1 | **`Item.` 引用必须自给** | 接完线 `check_taikou_xml_references.py` 报 `Item.piercing_arrows` / `Item.bolt_e` 悬空 | Taikou 虽依赖 SandBoxCore，但按内容包自给纪律原版物品**不算**可用 → 从 SandBoxCore 拷定义进 Taikou（`gen_weapon_items.ensure_ammo()`，culture 改 `ikoku`） |
+| 2 | 🔴 **缺 UV 的小件会拖垮整件** | 小次郎/政宗/归蝶的武器导出来没 UV（贴图不生效） | 这 3 件各有一个**无 UV 的子件**；合并时按环逐个取、缺的补 (0,0)，**不能整件放弃 UV** |
+| 3 | **加中文名后英文层过期** | `run_all_checks` 报 `gen_taikou_english_strings.py` 红 | 英文层从 XML 内联 fallback 抽取 → 加完键要重跑它 |
+| 4 | 🔴🔴 **武器贴图 ≠ 角色图集** | 庆次的枪杆渲染成**金色**、枪头**丢金属银**（查看器里是深色杆 + 银灰枪头） | 战无2 给**每把武器配了独立贴图**（28/28）：读 `web/weapons/manifest.json` 的 `models[<角色>].tex` → `web/weapons/tex/<tex>.png`。武器的 UV 是**相对那张贴图**画的，拿角色图集去采 = 采到不相干区域。**甲的贴图仍旧用角色图集**（甲与角色共用图集，那条是对的） |
+| 5 | **武器贴图不要放大** | 28 张 diffuse 占 **25.4 MB** | 源图实测只有 128×32 ~ 256×512（19 张是 256×64），放大到 2048 只是插值变糊 + 体积涨 20 倍 → `make_sw2_textures.py --no-upscale`（只缩不放）→ **0.98 MB** |
+
+**验收图**：`render_weapons.py --dir tools/armor-pipeline/out --out <目录>`（`--side` 看侧面、`--textures` 带贴图）。
+
+---
+
+## 九、已知问题
 
 | # | 问题 | 现状 |
 |---|---|---|

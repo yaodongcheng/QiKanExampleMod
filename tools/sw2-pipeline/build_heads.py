@@ -31,7 +31,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from parts_table import TABLE, build_head_args  # noqa: E402
+from parts_table import TABLE, build_head_args, strap_seeds, strap_bones  # noqa: E402
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -72,12 +72,6 @@ def run(cmd, logf, keep=()):
     return p.returncode, lines
 
 
-def pick_of(key):
-    r = TABLE[key]
-    face = list(r["face"]) + list(r.get("hair") or [])
-    return "face=%s,eye=%s" % ("+".join(str(i) for i in face), "+".join(str(i) for i in r["eye"]))
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None, help="只做这几个角色（parts_table 的键）")
@@ -98,13 +92,21 @@ def main():
         d = os.path.join(a.out, key)
         v1 = os.path.join(d, r["asset"] + "_v1.fbx")
         v2 = os.path.join(d, r["asset"] + "_v2.fbx")
-        parts, _ = build_head_args(key)
-        pick = pick_of(key)
+        parts, pick, seal = build_head_args(key)   # 🔴 挑件串只有这一个来源，别再抄一份
 
         c1 = [BLENDER, "-b", "--python", os.path.join(FACE, "build_head.py"), "--",
               "--src", src, "--out", v1, "--name", r["asset"],
               "--gender", r["gender"], "--parts", parts,
               "--pick-idx", pick, "--cut-mouth"]
+        if seal:
+            c1 += ["--seal-bottom", ",".join(str(i) for i in seal),
+                   "--seal-atlas", tex]     # 补面的 UV 从这张图集里采最暗的发色点
+        _st = strap_seeds(key)
+        if _st:
+            c1 += ["--strap-seed", ";".join(",".join("%.2f" % v for v in sd) for sd in _st)]
+        _sb = strap_bones(key)
+        if _sb:
+            c1 += ["--strap-bone", ",".join(_sb)]
         # 🔴 战无2 **不加** --fit-rim：信长那版实测只动 2~4 个顶点（等于没用），
         #    而脸件里混着兜帽/披风的角色（半藏、义弘、杂贺…）会被它当成领口猛收，
         #    实测最大收进 1057mm —— 有害无益。（RIM_TABLE 也只有 male 的轮廓。）

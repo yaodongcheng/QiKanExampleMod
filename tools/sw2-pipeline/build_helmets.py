@@ -59,6 +59,37 @@ def helmet_subs(key):
     return sorted(set(out))
 
 
+def face_sub(key):
+    """挑件表的 face idx → 子网格号（颏带的来源件就是脸壳件）。"""
+    idxs = TABLE[key].get("face") or []
+    p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
+    if not idxs or not os.path.isfile(p):
+        return None
+    r = list(csv.reader(io.open(p, encoding="utf-8-sig")))
+    for d in (dict(zip(r[0], x)) for x in r[1:]):
+        try:
+            i = int(d.get("idx") or -1)
+        except ValueError:
+            continue
+        if i in idxs:
+            m = re.search(r'submesh_(\d+)', d.get("name") or "")
+            if m:
+                return int(m.group(1))
+    return None
+
+
+def helm_strap_args(key):
+    """🔴 颏带并入头盔：来源件 = 脸壳件，碎片 = parts_table 的 strap 种子点（2026-09-15）。"""
+    st = list(TABLE[key].get("strap") or [])
+    fs = face_sub(key)
+    if not st or fs is None:
+        return []
+    # 🔴 只并【耳侧那几块碎片】。下巴那一横条是**下颌皮面本身**（头那边靠改 UV 让它不显示），
+    #    并进盔会跟头重叠打架（2026-09-15 用户实机反馈后修正）。
+    return ["--strap-from", str(fs),
+            "--strap-seed", ";".join(",".join("%.2f" % v for v in sd) for sd in st)]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None)
@@ -88,7 +119,7 @@ def main():
                          "--r", A.R_TORSO, "--r-arms", A.R_ARMS,
                          # 🔴 兜里混着飞出去的碎片（幸村那件有 2 片飞在 x=±44.6cm）→ 包围盒被撑到 103cm，
                          #    缩完就是 0.8 米的盖子。剔碎片后兜主体 ~25cm。判据同 build_head.prune_far。
-                         "--prune-far", "4.0", "--keep-head-frags"], "build_helmet")
+                         "--prune-far", "4.0", "--keep-head-frags"] + helm_strap_args(key), "build_helmet")
         if rc != 0 or not os.path.isfile(out_fbx):
             print("     ❌ 失败（exit %d）" % rc)
             for l in [x for x in out.splitlines() if x.strip()][-5:]:
@@ -100,7 +131,9 @@ def main():
                    "--armor", out_fbx, "--src", src, "--diffuse", dif,
                    "--out", OUT, "--name", name, "--parts-idx", ",".join(map(str, subs)),
                    "--ao", "0.35"], "helm_tex")
-        print("     ✅ %s（%.0f KB）" % (name, os.path.getsize(out_fbx) / 1024.0))
+        _st = [l.strip() for l in out.splitlines() if "颏带并入" in l]
+        print("     ✅ %s（%.0f KB）%s" % (name, os.path.getsize(out_fbx) / 1024.0,
+                                          ("  " + _st[0]) if _st else ""))
         done.append(key)
     print("\n完成 %d · 失败 %d%s" % (len(done), len(fail), ("（" + " ".join(fail) + "）") if fail else ""))
     return 1 if fail else 0

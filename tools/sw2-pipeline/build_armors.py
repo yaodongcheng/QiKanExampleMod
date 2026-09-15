@@ -55,6 +55,16 @@ OVERRIDE = {}
 EXCLUDE = {
     "L36_hideyoshi": [0],    # 日轮冠（真身是兜件，见 parts_table.helmet=[0,7]）
     "L46_kanetsugu": [3],    # 兜件（parts_table.helmet=[6] → sub3）
+    # 🔴 2026-09-15：普查把**马尾件**（sub1，115 顶点，92% 绑胸骨 bone_9）判成了「甲件」
+    #    ——它是头发，整块不要（它绑的不是头骨族，剔头开关管不到它，只能整件排除）
+    "L03_mitsuhide": [5],
+}
+
+# 🔴 普查漏标的「混装件」→ 强制按【碎片】剔头（头发+衣服同块时，只剔绑头骨族的碎片）。
+#    判据必须逐人看：普查的 verdict 是「甲件」，但它里面混着头发。
+#    光秀：sub2 = 整套和服 + 头顶头发（bone_11 114 顶点）；sub9 = 裙子 + 前刘海框（bone_11 70 + 面部骨 38）
+DROPHEAD_EXTRA = {
+    "L03_mitsuhide": [2, 9],
 }
 
 
@@ -105,6 +115,7 @@ def plan_for(key):
         if "剔头碎片" in v:
             drophead.append(sub)
     armor = [s for s in armor if s not in EXCLUDE.get(key, [])]
+    drophead = sorted(set(drophead) | set(DROPHEAD_EXTRA.get(key, [])))
     if not armor:
         return None, "普查里一件甲都没认出来（人工看接触图）"
     return dict(parts=armor, kimono=kimono, drophead=drophead), ""
