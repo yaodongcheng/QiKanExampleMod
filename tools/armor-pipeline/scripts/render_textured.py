@@ -18,6 +18,8 @@ armor_path, texdir, outdir, name = argv[0], argv[1], argv[2], argv[3]
 body_path = argv[4] if len(argv) > 4 else "none"
 SIMPLE = "--simple" in argv          # 只挂漫反射，用于隔离 法线/高光 的问题
 TAG = "simple" if SIMPLE else "pbr"
+# 🔴 输出目录转绝对路径（同 check_fit.py，2026-09-15）：相对路径下 Blender 会打印"写出"但磁盘无文件
+outdir = os.path.abspath(outdir)
 os.makedirs(outdir, exist_ok=True)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)

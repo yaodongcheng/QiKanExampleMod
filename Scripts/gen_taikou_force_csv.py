@@ -94,6 +94,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from csv_dual import dict_rows  # noqa: E402  （CSV 双行表头：键一律取第 2 行）
 from tk5_pua_names import restore  # noqa: E402  （太阁5 自绘字形槽还原：畠 等）
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -348,7 +349,11 @@ def main():
             print("[FATAL] 缺文件 %s" % p, file=sys.stderr)
             return 2
 
-    _, clan = load_dict(CLAN)
+    # 🔴 Clan.csv 按**双行表头的第 2 行（英文键）**读（CLAUDE.md CSV 表头规范）。
+    #    曾经这里用 `load_dict`（按第 1 行中文键取键）读，于是 `r.get("Kingdom_<年>")`
+    #    永远是空 → 下面那条闭合校验**从未生效过**（2026-09-14 修：势力 id 归一那轮，
+    #    全 191 家的 `Kingdom_<年>` 悬空，本校验没响，是 check_reference_edges 抓到的）。
+    clan = dict_rows(CLAN)
     out, problems = build()
 
     n_w = sum(1 for r in out.values() if r["势力类型"] == "Warrior")

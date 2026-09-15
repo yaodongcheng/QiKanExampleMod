@@ -276,9 +276,13 @@ def is_junk(o):
     return False
 
 
-want = PART_SETS.get(PARTS)
-if want is None:
-    print("!! 未知 --parts %s" % PARTS); sys.exit(2)
+idx_arg = get(A, "--parts-idx", "") or ""
+if idx_arg.strip():
+    want = [int(x) for x in idx_arg.split(",") if x.strip().lstrip("-").isdigit()]
+else:
+    want = PART_SETS.get(PARTS)
+    if want is None:
+        print("!! 未知 --parts %s" % PARTS); sys.exit(2)
 picked = [o for o in sw_meshes
           if parse_submesh(o.name) in want and not is_junk(o)]
 if not picked:
@@ -329,9 +333,101 @@ def dominant_bones(o):
     return out
 
 
+
+def prune_far(o, k=4.0):
+    """【清理飞出去的碎片】—— 与 tools/face-pipeline/scripts/build_head.py 的 prune_far 同一套判据。
+
+    为什么头盔必须做（2026-09-15 实测）：幸村那件兜（sub10，380 顶点 / 44 片碎片）里有 **2 片飞在
+    x=±44.6cm（肩高）**，把包围盒撑到 **103cm 宽** → 缩到骑砍空间后头盔 0.8 米宽，戴上就是个大盖子。
+    兜主体其实只有 ~25cm 宽。判据用**稳健离群**（不写死尺寸）：锚点 = 全体顶点中位数，
+    尺度 = 到锚点距离的中位数，丢掉「重心离锚点 > k × 尺度」的连通域。
+    """
+    me = o.data
+    bm = bmesh.new(); bm.from_mesh(me); bm.verts.ensure_lookup_table()
+    n0 = len(bm.verts)
+    if n0 == 0:
+        bm.free(); return 0
+    seen = [False] * n0
+    comps = []
+    for v in bm.verts:
+        if seen[v.index]:
+            continue
+        stack = [v]; seen[v.index] = True; comp = []
+        while stack:
+            cur = stack.pop(); comp.append(cur.index)
+            for e in cur.link_edges:
+                o2 = e.other_vert(cur)
+                if not seen[o2.index]:
+                    seen[o2.index] = True; stack.append(o2)
+        comps.append(comp)
+    co = [v.co.copy() for v in bm.verts]
+    ax = sorted(c.x for c in co)[n0 // 2]
+    ay = sorted(c.y for c in co)[n0 // 2]
+    az = sorted(c.z for c in co)[n0 // 2]
+    anchor = Vector((ax, ay, az))
+    dists = sorted((c - anchor).length for c in co)
+    scale = dists[n0 // 2]
+    if scale <= 1e-9:
+        bm.free(); return 0
+    keep = set()
+    for comp in comps:
+        cc = Vector((0, 0, 0))
+        for i in comp:
+            cc += co[i]
+        cc /= len(comp)
+        if (cc - anchor).length <= k * scale:
+            keep.update(comp)
+    if not keep:
+        keep = set(max(comps, key=len))
+    drop = n0 - len(keep)
+    if drop:
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.index not in keep], context='VERTS')
+        bm.to_mesh(me); me.update()
+    bm.free()
+    return drop
+
+
+def frag_dominant_verts(o):
+    """→ [(碎片顶点列表, 该片主骨)]。碎片 = 连通域；主骨 = 全片权重求和后最大。
+
+    与 tools/sw2-pipeline/scripts/part_census.py 同一套判据（那份是"量"，这份是"改"）。
+    """
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bm.verts.ensure_lookup_table()
+    seen = [False] * len(bm.verts)
+    frags = []
+    for v in bm.verts:
+        if seen[v.index]:
+            continue
+        stack, comp = [v], []
+        seen[v.index] = True
+        while stack:
+            cur = stack.pop()
+            comp.append(cur.index)
+            for e in cur.link_edges:
+                o2 = e.other_vert(cur)
+                if not seen[o2.index]:
+                    seen[o2.index] = True
+                    stack.append(o2)
+        frags.append(comp)
+    bm.free()
+    out = []
+    for comp in frags:
+        tot = {}
+        for vi in comp:
+            for g in o.data.vertices[vi].groups:
+                nm = o.vertex_groups[g.group].name
+                tot[nm] = tot.get(nm, 0.0) + g.weight
+        out.append((comp, max(tot.items(), key=lambda kv: kv[1])[0] if tot else None))
+    return out
+
+
 # 手/手指骨（源件名）。籠手应当止于手腕——手留给骑砍身体的手，
 # 否则甲的"手"会和身体的手打架（实机症状：拳头被甲整个包住）。
 HAND_SW = {"bone_18", "bone_19"} | {"bone_%d" % i for i in range(26, 46)}
+# 头骨族（含脸/眼/颈）：兜、头发、脸皮绑的这些。混装件（头发+披风）要按碎片把这组剔掉。
+HEAD_SW = {"bone_10", "bone_11"} | {"bone_%d" % i for i in range(46, 63)}
 # 着物要留的部分：躯干 + 腿 + **手臂（袖子）**。
 # 🔴 手臂段必须留：源件上臂中段本来就是**着物的布袖子**盖的，不是袖/籠手盖的。
 #    早先只留躯干+腿 -> 上臂中段露身体（试过用拉伸硬撑，副作用是籠手盖住拳头）。
@@ -340,16 +436,48 @@ KEEP_SW = {"bone_1", "bone_8", "bone_9", "bone_2", "bone_3", "bone_4",
            "bone_5", "bone_6", "bone_7", "bone_24", "bone_25",
            "bone_12", "bone_13", "bone_14", "bone_15", "bone_16", "bone_17"}
 
+# 🔴 通用化（2026-09-15，为其余 27 人）：`--parts` 的预设号是**幸村的**，别人各不相同。
+#    新增两个按号直选的开关，配套数据 = tools/sw2-pipeline 的骨普查（part_census.py）：
+#      · `--parts-idx 1,2,3,4,7,8,9`  直接给子网格号（覆盖 --parts）
+#      · `--kimono-idx 1`            指定哪一件是内衬着物（默认 1 = 幸村，向后兼容）
+#      · `--drop-head-idx 3,7`       这几件按**碎片**剔掉头骨族的碎片（头发+披风那类混装件）
+KIMONO_IDX = [int(x) for x in (get(A, "--kimono-idx", "1") or "1").split(",") if x.strip().isdigit()]
+DROP_HEAD_IDX = [int(x) for x in (get(A, "--drop-head-idx", "") or "").split(",") if x.strip().isdigit()]
+
+PRUNE_K = get(A, "--prune-far", "") or ""
 for o in dups:
     sm = parse_submesh(o.name)
     dom = dominant_bones(o)
     n0 = len(o.data.vertices)
+    if PRUNE_K:
+        d = prune_far(o, float(PRUNE_K))
+        if d:
+            print("   剔飞散碎片：%s 删 %d 顶点" % (o.name, d))
+            dom = dominant_bones(o)
+        n0 = len(o.data.vertices)
+    if "--keep-head-frags" in A:
+        # 🔴 头盔专用：**只留头部碎片**（2026-09-15）。
+        #    多数角色的兜和身体甲是**同一块**（挑件表的 helmet 只标"哪块里有兜"），
+        #    整块拿来当头盔 = 把身体甲也带上 → 头盔 1.5 米宽。按主导骨只留头骨族的碎片。
+        kill = [vi for comp, b in frag_dominant_verts(o) if b not in HEAD_SW for vi in comp]
+        if kill:
+            drop_verts(o, kill)
+            print("   只留头部碎片：%s 删 %d 顶点（余 %d）" % (o.name, n0 - len(o.data.vertices), len(o.data.vertices)))
+            dom = dominant_bones(o)
+        n0 = len(o.data.vertices)
+    if DROP_HEAD_IDX and sm in DROP_HEAD_IDX:
+        kill = [vi for comp, b in frag_dominant_verts(o) if b in HEAD_SW for vi in comp]
+        if kill:
+            drop_verts(o, kill)
+            print("   剔头碎片：%s 删 %d 顶点（%d 片）" % (o.name, n0 - len(o.data.vertices), 0))
+            dom = dominant_bones(o)
+        n0 = len(o.data.vertices)
     if "--no-hands" in A:
         drop_verts(o, [i for i, b in enumerate(dom) if b in HAND_SW])
         if len(o.data.vertices) != n0:
             print("   去手部：%s 删 %d 顶点" % (o.name, n0 - len(o.data.vertices)))
             dom = dominant_bones(o)
-    if "--kimono-torso-only" in A and sm == 1:
+    if "--kimono-torso-only" in A and sm in KIMONO_IDX:
         # 🔴 只滤着物。作用到整块甲上会误删胴的肩帯（由锁骨驱动）
         k = len(o.data.vertices)
         drop_verts(o, [i for i, b in enumerate(dom) if b not in KEEP_SW])
@@ -432,6 +560,17 @@ for bn_sw, bn_bl in BMAP.items():
                      @ Matrix.Translation(-h_sw_f))
 
 bpy.ops.object.select_all(action='DESELECT')
+if "--dbg-parts" in A:
+    # 逐件打印重定向后的世界包围盒（定位"某一件被撑爆"用；正常躯干件宽 ≈0.4~0.6 米）
+    print("   [dbg] 逐件包围盒（重定向后）：")
+    for o in sorted(dup_list, key=lambda x: x.name):
+        ws = [o.matrix_world @ v.co for v in o.data.vertices]
+        if not ws:
+            print("      %-46s （空网格）" % o.name[:46]); continue
+        xs = [w.x for w in ws]; ys = [w.y for w in ws]; zs = [w.z for w in ws]
+        print("      sub%-3s v=%-5d x[%7.3f,%7.3f] y[%7.3f,%7.3f] z[%6.3f,%6.3f]  宽%.3f 深%.3f 高%.3f"
+              % (parse_submesh(o.name), len(ws), min(xs), max(xs), min(ys), max(ys), min(zs), max(zs),
+                 max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)))
 for o in dup_list:
     o.select_set(True)
 bpy.context.view_layer.objects.active = dup_list[0]

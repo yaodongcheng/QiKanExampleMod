@@ -67,7 +67,12 @@ PART_SETS = {
     "body":        [2, 7, 8, 9],
     "body_kimono": [1, 2, 7, 8, 9],
 }
-WANT = PART_SETS.get(PARTS, PART_SETS["body_kimono"])
+# 🔴 通用化（2026-09-15）：预设号是**幸村的**，别人各不相同。按号直选（与 build_armor.py 同一套参数）：
+#    `--parts-idx 1,2,3,4,7,8,9` + `--kimono-idx 1`（哪几件算"布"，金属度/粗糙度按布给）
+_idx = (get(A, "--parts-idx", "") or "").strip()
+WANT = [int(x) for x in _idx.split(",") if x.strip().lstrip("-").isdigit()] or \
+       PART_SETS.get(PARTS, PART_SETS["body_kimono"])
+KIMONO = [int(x) for x in (get(A, "--kimono-idx", "1") or "1").split(",") if x.strip().isdigit()]
 LBL_KIMONO, LBL_ARMOR = 1, 2
 
 
@@ -241,9 +246,10 @@ def rasterize(objs, lbl):
 
 
 km = [o for o in bpy.data.objects
-      if o.type == 'MESH' and parse_submesh(o.name) == 1 and not is_junk(o)]
+      if o.type == 'MESH' and parse_submesh(o.name) in KIMONO and not is_junk(o)]
 ar = [o for o in bpy.data.objects
-      if o.type == 'MESH' and parse_submesh(o.name) in (2, 7, 8, 9) and not is_junk(o)]
+      if o.type == 'MESH' and parse_submesh(o.name) in WANT
+      and parse_submesh(o.name) not in KIMONO and not is_junk(o)]
 n1 = rasterize(km, LBL_KIMONO)
 n2 = rasterize(ar, LBL_ARMOR)
 print("   着物 %d 像素 / 甲 %d 像素 / 空白 %d 像素" % (
