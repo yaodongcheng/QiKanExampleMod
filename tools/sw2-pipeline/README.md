@@ -94,8 +94,9 @@ tools/sw2-pipeline/
 ├── build_heads.py            一条命令出 28 张脸（挑件→切嘴→标定→通道→贴图→关卡 1）
 ├── build_armors.py           一条命令出 28 套甲（读骨普查选件 → 甲管线）
 ├── build_helmets.py          挑件表 helmet 列出头盔（9 人戴盔，8 人已做）
-├── build_weapons.py          一条命令出 28 件武器（挑件 → 规范化 → 贴图 → 尺寸表）
-├── gen_weapon_items.py       武器物品定义 + 中文名 + 两张 CSV 登记 + 弹药自给
+├── build_weapons.py          28 件武将武器（`--set troops` = 6 件兵种通用武器）
+├── gen_weapon_items.py       武将武器物品定义 + 中文名 + 两张 CSV 登记 + 弹药自给
+├── gen_troop_weapon_items.py 兵种通用武器物品定义（独立文件 troop_weapons.xml）
 ├── check_materials.py        🔴 导入编辑器之前的闸门（材质名三件互不相同，秒级，纯 python）
 ├── check_regression.py       信长回归闸门（改任何几何步骤后必跑）
 ├── verify_table.py           挑件表 × 零件表 逐项核对（381 项）
@@ -233,6 +234,69 @@ python tools/sw2-pipeline/check_materials.py --self-test  # 自证：造坏数�
 | 5 | **武器贴图不要放大** | 28 张 diffuse 占 **25.4 MB** | 源图实测只有 128×32 ~ 256×512（19 张是 256×64），放大到 2048 只是插值变糊 + 体积涨 20 倍 → `make_sw2_textures.py --no-upscale`（只缩不放）→ **0.98 MB** |
 
 **验收图**：`render_weapons.py --dir tools/armor-pipeline/out --out <目录>`（`--side` 看侧面、`--textures` 带贴图）。
+
+---
+
+## 八之二、兵种通用武器（阶段 3.6，2026-09-15）
+
+### 为什么要挑：源资产的通用武器有 10 件，只有 6 件能融进骑砍的武器体系
+
+战无2 的兵种模型里嵌着 10 件通用武器（材质名 `mat_w_*`）。逐件建出来看形态后，
+**4 件不能用**——骑砍没有对应的物品类型或碰撞形状：
+
+| 砍掉的 | 实际形态 | 为什么不行 |
+|---|---|---|
+| `w_ironball` | 直径 32cm 的**球** | 无柄无刃；近战要网格有握持点+长轴，投掷要飞镖/飞刀形状 |
+| `w_bombA` | 带引信的**陶壶** | 骑砍没有爆炸物物品类型 |
+| `w_rolling` | 0.55m 弯粗棍 | 形态不明、与打刀价值重叠 |
+| `w_pcB0` | 与 `w_longspear` **同一把枪** | 包围盒 x/y 完全相同，只长度差 → 纯重复 |
+
+保留的 6 件（`build_weapons.TROOP_WEAPONS` 是唯一真源）：
+
+| mesh | 形态 | 长度 | 类型 | 谁在用 |
+|---|---|---|---|---|
+| `taikou_troop_yari_weapon_a` | 长枪 | 285cm | TwoHandedPolearm | 枪足轻/刀足轻/侍/农民/九州兵×2 |
+| `taikou_troop_naginata_weapon_a` | 薙刀 | 193cm | TwoHandedPolearm | 头目 |
+| `taikou_troop_uchigatana_weapon_a` | 打刀 | 90cm | OneHandedSword | 精锐足轻/侍大将/护卫×6 |
+| `taikou_troop_shinobigatana_weapon_a` | 忍刀 | 78cm | OneHandedSword | 下忍/中忍/飞忍/上忍 |
+| `taikou_troop_yumi_weapon_a` | 弓 | 196cm | Bow | 弓足轻 |
+| `taikou_troop_teppo_weapon_a` | 铁炮 | 138cm | Crossbow | 铁炮足轻 |
+
+### 🔴 兵种武器**必须**单开文件和单开生成器
+
+`gen_weapon_items.py` 的 `prune()` 会**删掉所有不在 28 武将名单里**的 `taikou_*_weapon_a`
+条目 —— 兵种武器写进同一个文件，下次跑武将生成器就被清掉。
+
+⇒ 兵种武器落 `taikou_items/troop_weapons.xml`，中文名走自己的哨兵。
+
+✅ **不需要改 SubModule**：引擎按**目录**加载物品表
+（`SubModule.xml` 只有 `<XmlName id="Items" path="taikou_items"/>`），新文件丢进去自动生效。
+
+### 数值口径：沿用武将那张 `KINDS` 表，**不按兵种分档**
+
+同一个 mod 里同一类武器只能有一套数。兵种强弱由 `spnpccharacters.xml` 的
+level + skill_template 区分 —— 骑砍的伤害 = 武器伤害 × 技能倍率，
+同一把枪在 Lv6 足轻和 Lv25 武将手里差得很远，不需要靠武器数值分层。
+
+### 命名口径：兵种是**通用装备（无归属者）**，直接给裸名
+
+不加 `[xx之武]` 归属结构（依据 `全角色武器甲胄兜名表.md` §三）。
+所以英文 fallback 也是裸名（"Long Spear" 而非 "X's Spear"）——
+`gen_weapon_items.item_block()` 为此多了 `fb_name` / `label` 两个可选参数（向后兼容）。
+
+### 跑法
+
+```bash
+python tools/sw2-pipeline/build_weapons.py --set troops          # 建 6 件网格 + 贴图 + 尺寸表
+python tools/sw2-pipeline/gen_troop_weapon_items.py              # 物品定义 + 中文名 + item.csv
+python tools/sw2-pipeline/gen_troop_weapon_items.py --check      # 幂等校验
+python Scripts/gen_taikou_english_strings.py                     # 🔴 加了中文键必须重跑，否则体检红
+python tools/sw2-pipeline/stage_for_import.py --set troops       # 归拢到 TifaHead2/AssetSources/sw2/troop/
+```
+
+**已知欠账**：`gen_troop_weapon_items.py --check` **没接进** `Scripts/run_all_checks.py` ——
+同类的那三个 sw2 生成器（`gen_armor_items` / `gen_weapon_items` / `gen_helmet_items`）也没接，
+要接就四个一起接（runner 要求脚本在 `Scripts/` 下且认 `--module` 参数）。
 
 ---
 

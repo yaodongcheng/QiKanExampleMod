@@ -24,6 +24,7 @@ REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(REPO, "Scripts"))
 from parts_table import TABLE  # noqa: E402
+from troop_parts_table import TROOP_TABLE, row_of  # noqa: E402
 import build_armors as A  # noqa: E402  （复用骨架/图集查找与 run()）
 
 try:
@@ -43,7 +44,7 @@ def helmet_subs(key):
        按号选件会把兜的"兄弟件"一起选中，再被 --prune-far 当碎片剔掉。
        实测上杉谦信：兜是 `submesh_0..._0000.001`（242 顶点），按号选 → 输出只剩 **18 顶点**。
     """
-    idxs = TABLE[key].get("helmet") or []
+    idxs = row_of(key, TABLE).get("helmet") or []
     if not idxs:
         return []
     p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
@@ -63,9 +64,15 @@ def helmet_subs(key):
     return out
 
 
+def slug_of(key):
+    """资产 slug：武将表从 `asset` 名推（head_yukimura_a → yukimura）；兵种表自带。"""
+    r = row_of(key, TABLE)
+    return r["slug"] if "slug" in r else r["asset"][len("head_"):-len("_a")]
+
+
 def face_sub_name(key):
     """挑件表的 face idx → 【精确网格名】（颏带的来源件就是脸壳件）。"""
-    idxs = TABLE[key].get("face") or []
+    idxs = row_of(key, TABLE).get("face") or []
     p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
     if not idxs or not os.path.isfile(p):
         return None
@@ -84,7 +91,7 @@ def face_sub_name(key):
 
 def face_sub(key):
     """挑件表的 face idx → 子网格号（颏带的来源件就是脸壳件）。"""
-    idxs = TABLE[key].get("face") or []
+    idxs = row_of(key, TABLE).get("face") or []
     p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
     if not idxs or not os.path.isfile(p):
         return None
@@ -101,6 +108,29 @@ def face_sub(key):
     return None
 
 
+def helm_whole_subs(key):
+    """`helmet_whole` 列 → 子网格号集合（整块要的纯兜件，见 build_armor 里 `--helmet-whole`）。"""
+    r = row_of(key, TABLE)
+    idxs = r.get("helmet_whole") or []
+    if not idxs:
+        return []
+    p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
+    if not os.path.isfile(p):
+        return []
+    i2n, out = {}, []
+    for row in csv.DictReader(io.open(p, encoding="utf-8-sig")):
+        try:
+            i2n[int(row["idx"])] = (row.get("name") or "").strip()
+        except (TypeError, ValueError):
+            pass
+    for i in idxs:
+        nm = i2n.get(i)
+        m = re.search(r"submesh_(\d+)", nm or "")
+        if m and int(m.group(1)) not in out:
+            out.append(int(m.group(1)))
+    return out
+
+
 def helm_strap_args(key):
     """🔴 颏带并入头盔：来源件 = 脸壳件，碎片 = parts_table 的 `strap` 种子点。
 
@@ -109,7 +139,7 @@ def helm_strap_args(key):
        因为那批顶点是**下颌皮肤本身**（`bone_59` 覆盖的是下巴，不是带子）。
        且头那边一剪就开黑腔。⇒ 这条带子是画在下颌皮面上的贴图，几何上就是下巴。
     """
-    st = list(TABLE[key].get("strap") or [])
+    st = list(row_of(key, TABLE).get("strap") or [])
     fs = face_sub(key)
     if not st or fs is None:
         return []
@@ -121,22 +151,24 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--set", default="lords", choices=["lords", "troops"])
     args = ap.parse_args()
     skel = A.find_skel()
     if not skel:
         print("[FATAL] 找不到 human_skeleton.fbx")
         return 2
-    keys = [k for k in (args.only or sorted(TABLE)) if TABLE[k].get("helmet")]
+    src = TROOP_TABLE if args.set == "troops" else TABLE
+    keys = [k for k in (args.only or sorted(src)) if row_of(k, TABLE).get("helmet")]
     done, fail = [], []
     for key in keys:
-        slug = A.TABLE[key]["asset"][len("head_"):-len("_a")]
+        slug = slug_of(key)
         name = "taikou_%s_helmet_a" % slug
         out_fbx = os.path.join(OUT, name + ".fbx")
         if os.path.isfile(out_fbx) and not args.force:
             print("  [跳过] %-16s 已有" % key); continue
         subs = helmet_subs(key)
         if not subs:
-            print("  ❌ %-16s 兜件 idx 翻不出网格名（%s）" % (key, TABLE[key].get("helmet")))
+            print("  ❌ %-16s 兜件 idx 翻不出网格名（%s）" % (key, row_of(key, TABLE).get("helmet")))
             fail.append(key); continue
         src = os.path.join(A.SRC_DIR, key + ".fbx")
         print("  ▶ %-16s 兜件 %d 块" % (key, len(subs)))
@@ -146,7 +178,17 @@ def main():
                          "--r", A.R_TORSO, "--r-arms", A.R_ARMS,
                          # 🔴 兜里混着飞出去的碎片（幸村那件有 2 片飞在 x=±44.6cm）→ 包围盒被撑到 103cm，
                          #    缩完就是 0.8 米的盖子。剔碎片后兜主体 ~25cm。判据同 build_head.prune_far。
-                         "--prune-far", "4.0", "--keep-head-frags"] + helm_strap_args(key), "build_helmet")
+                         # 🔴 `--rigid`：兜是刚体，整顶（含剪来的颏带）必须吃同一个重定向矩阵，
+                         #    否则绑不同源骨的部件会被按各自的矩阵拉开（实机：政宗颏带跑到后脑、
+                         #    忠胜钵侧被甩到 ±40cm）。见 build_armor.py 里 `--rigid` 的长注释。
+                         # 🔴 `--double-sided-all`：兜上的**前立/月牙/小饰件是单面板**，
+                         #    引擎材质层没有双面开关 → 背面被剔除，从另一侧看"什么都没有"
+                         #    （实测长政金前立：开剔除后背面整个消失，见 Debug/offline/_hB_cull.png）。
+                         #    兜件面数小（150~400 面），全量复制+翻面代价可忽略。
+                         "--prune-far", "4.0", "--keep-head-frags", "--double-sided-all"]
+                         + (["--helmet-whole", ",".join(str(x) for x in helm_whole_subs(key))]
+                            if helm_whole_subs(key) else [])
+                         + helm_strap_args(key), "build_helmet")
         if rc != 0 or not os.path.isfile(out_fbx):
             print("     ❌ 失败（exit %d）" % rc)
             for l in [x for x in out.splitlines() if x.strip()][-5:]:

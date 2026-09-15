@@ -14,6 +14,7 @@
     python tools/sw2-pipeline/build_weapons.py --only L00_yukimura
     python tools/sw2-pipeline/build_weapons.py                 # 全部 28 人
     python tools/sw2-pipeline/build_weapons.py --force          # 已存在的也重做
+    python tools/sw2-pipeline/build_weapons.py --set troops     # 6 件兵种通用武器
 """
 import argparse
 import io
@@ -53,6 +54,26 @@ def _load_weapon_tex():
 
 WEAPON_TEX = _load_weapon_tex()
 
+# ---------- 兵种通用武器（2026-09-15 用户裁定：只留能融进骑砍体系的 6 件）----------
+# 源模型 = 该武器**嵌在哪个兵种模型里**（战无2 的兵种武器不是独立资产，是模型里材质名带
+# `mat_w_` 的件）。同一把武器在多个模型里是**同一份网格**（顶点数逐一核对过：长枪 6 个模型
+# 都是 168v / 打刀 8 个都是 149v / 忍刀 4 个都是 99v），所以每件只取一个源。
+#
+# 🔴 砍掉的 4 件及理由（想加回来先看这里）：
+#   w_pcB0      与 w_longspear 是同一把枪（包围盒 x/y 完全相同，只长度差）→ 重复
+#   w_rolling   弯粗棍 0.55m，形态不明、与打刀价值重叠
+#   w_ironball  直径 32cm 的球，无柄无刃 → 骑砍没有对应物
+#   w_bombA     带引信的陶壶 → 骑砍没有爆炸物物品类型
+TROOP_WEAPONS = [
+    # (源模型, mesh slug, 中文, 英文 fallback, 类型键)
+    ("L250_SOLDIER1", "troop_yari",          "长枪", "Long Spear",   "polearm"),
+    ("L253_SOLDIER4", "troop_uchigatana",    "打刀", "Uchigatana",   "sword1h"),
+    ("L255_ARCHER",   "troop_yumi",          "弓",   "Bow",          "bow"),
+    ("L256_GUNNER",   "troop_teppo",         "铁炮", "Matchlock",    "gun"),
+    ("L257_NINJA1",   "troop_shinobigatana", "忍刀", "Shinobi Blade", "sword1h"),
+    ("L200_boss1",    "troop_naginata",      "薙刀", "Naginata",     "polearm"),
+]
+
 
 def parse_dims(out, name):
     """从 Blender 输出里抠 [OUT ] 变换后包围盒行 → (总长, 柄侧, 尖侧, 最宽, 最高点) 米。"""
@@ -91,16 +112,27 @@ def run(cmd):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None)
+    ap.add_argument("--set", default="lords", choices=["lords", "troops"],
+                    help="lords=28 名武将 / troops=6 件兵种通用武器")
     ap.add_argument("--force", action="store_true", help="已存在的也重做")
     ap.add_argument("--tex-only", action="store_true",
                     help="只重出贴图（网格不动）——换了贴图源之后用这个，省 28 次 Blender 建模")
     args = ap.parse_args()
 
-    keys = args.only or sorted(TABLE)
+    # (源模型, mesh slug) 对。武将的 slug 从挑件表的 asset 名推；兵种的写在 TROOP_WEAPONS 里
+    if args.set == "troops":
+        items = [(k, s) for k, s, _, _, _ in TROOP_WEAPONS]
+    else:
+        items = [(k, TABLE[k]["asset"][len("head_"):-len("_a")]) for k in sorted(TABLE)]
+    if args.only:
+        want = set(args.only)
+        items = [it for it in items if it[0] in want or it[1] in want]
+        if not items:
+            sys.exit("FAIL: --only 没匹配到任何条目：%s" % sorted(want))
+
     done, fail, skip = [], [], []
     dims = []
-    for key in keys:
-        slug = TABLE[key]["asset"][len("head_"):-len("_a")]
+    for key, slug in items:
         name = "taikou_%s_weapon_a" % slug
         out_fbx = os.path.join(OUT_DIR, name + ".fbx")
         if args.tex_only and os.path.isfile(out_fbx):

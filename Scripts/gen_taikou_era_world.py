@@ -102,6 +102,11 @@ EQUIP_DEFAULT = (["short_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE)
 VOICE_BY_IDENTITY_FEMALE = "calm"
 VOICE_DEFAULT = "curt"
 
+# 🔴 测试开关（2026-09-15 用户要求）：把专属甲/盔/武器也写进**平民装**那一档，
+#    好在城里直接看到这些自制外观（否则只有战斗装穿、进城换便服就看不见）。
+#    恢复正常表现 = 改 False 后重跑本脚本（产物唯一真源仍是 TaikouHero.csv）。
+MIRROR_DEDICATED_TO_CIVILIAN = True
+
 # 🔴 专用 race 的**代码表已删除**（2026-09-15）：映射搬进了 `TaikouHero.csv` 的「头」列（键 `Race`）。
 #    搬移工具 = tools/sw2-pipeline/gen_hero_wiring_cols.py；生成器只读表，不再有第二处真源。
 
@@ -370,7 +375,23 @@ def write_lords(w, path):
         for slot, it in sorted(armor.items()):
             L.append('\t\t\t\t<equipment slot="%s" id="Item.%s" />\n' % (slot, it))
         L.append("\t\t\t</EquipmentRoster>\n\t\t\t<EquipmentRoster civilian=\"true\">\n")
-        for slot, it in sorted(civil.items()):
+        # 🔴 平民装也穿专属装备（2026-09-15 用户要求，**测试开关**）：
+        #    默认专属甲/盔/武器只进「战斗装」，进城/进堡一换便服就看不见自制外观。
+        #    打开后平民装那一档**覆盖**上专属的 Body / Head / Item0，
+        #    这样开局进城就能直接看到每个人长什么样、穿什么。
+        #    ⚠️ 恢复"城里穿便服"的正常表现 = 把 MIRROR_DEDICATED_TO_CIVILIAN 改回 False 重跑本脚本。
+        civil_final = dict(civil)
+        civil_weapons = []
+        if MIRROR_DEDICATED_TO_CIVILIAN:
+            if body_armor:
+                civil_final["Body"] = body_armor
+            if helmet:
+                civil_final["Head"] = helmet
+            if weapon:
+                civil_weapons = [weapon] + ([ammo, ammo] if ammo else [])
+        for i, it in enumerate(civil_weapons):
+            L.append('\t\t\t\t<equipment slot="Item%d" id="Item.%s" />\n' % (i, it))
+        for slot, it in sorted(civil_final.items()):
             L.append('\t\t\t\t<equipment slot="%s" id="Item.%s" />\n' % (slot, it))
         L.append("\t\t\t</EquipmentRoster>\n\t\t</Equipments>\n\t</NPCCharacter>\n")
     L.append("</NPCCharacters>\n")
