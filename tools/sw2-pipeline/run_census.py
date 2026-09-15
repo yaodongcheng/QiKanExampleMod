@@ -2,9 +2,10 @@
 """run_census.py —— 批量跑 part_census.py（28 人一次跑完）。
 
 用法：
-    python tools/sw2-pipeline/run_census.py                 # 全部
+    python tools/sw2-pipeline/run_census.py                 # 28 名武将
+    python tools/sw2-pipeline/run_census.py --set troops    # 17 兵种 + 6 护卫
     python tools/sw2-pipeline/run_census.py --only L02_nobunaga L10_shingen
-产出：Debug/offline/sw2_census/<角色>_census.csv（离线产物，不进 git）
+产出：Debug/offline/sw2_census/<模型>_census.csv（离线产物，不进 git）
 """
 import argparse
 import os
@@ -15,6 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 from parts_table import TABLE  # noqa: E402
+from run_identify import TROOPS  # noqa: E402  兵种名单的唯一真源
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -30,8 +32,9 @@ SCRIPT = os.path.join(HERE, "scripts", "part_census.py")
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None)
+    ap.add_argument("--set", default="lords", choices=["lords", "troops"])
     args = ap.parse_args()
-    keys = args.only or sorted(TABLE)
+    keys = args.only or (TROOPS if args.set == "troops" else sorted(TABLE))
     os.makedirs(OUT_DIR, exist_ok=True)
     ok, bad = [], []
     for key in keys:

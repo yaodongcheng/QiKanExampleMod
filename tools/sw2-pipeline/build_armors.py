@@ -32,6 +32,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 from parts_table import TABLE  # noqa: E402
+from troop_parts_table import TROOP_TABLE, row_of  # noqa: E402
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -50,21 +51,33 @@ R_TORSO = "0.0120"
 R_ARMS = "0.0160"
 # 每人可覆盖（键=角色 key，值=dict(r=..., r_arms=...)）——只在实测需要时加
 OVERRIDE = {}
-# 🔴 甲里**不要**的件（2026-09-15）：有两人的兜件被普查误判成甲件，混进了甲网格，
-#    做头盔时要从甲里剔掉（否则头顶会挂一块兜）。头盔另见 build_helmets.py。
-EXCLUDE = {
-    "L36_hideyoshi": [0],    # 日轮冠（真身是兜件，见 parts_table.helmet=[0,7]）
-    "L46_kanetsugu": [3],    # 兜件（parts_table.helmet=[6] → sub3）
-    # 🔴 2026-09-15：普查把**马尾件**（sub1，115 顶点，92% 绑胸骨 bone_9）判成了「甲件」
-    #    ——它是头发，整块不要（它绑的不是头骨族，剔头开关管不到它，只能整件排除）
-    "L03_mitsuhide": [5],
-}
 
-# 🔴 普查漏标的「混装件」→ 强制按【碎片】剔头（头发+衣服同块时，只剔绑头骨族的碎片）。
-#    判据必须逐人看：普查的 verdict 是「甲件」，但它里面混着头发。
-#    光秀：sub2 = 整套和服 + 头顶头发（bone_11 114 顶点）；sub9 = 裙子 + 前刘海框（bone_11 70 + 面部骨 38）
-DROPHEAD_EXTRA = {
-    "L03_mitsuhide": [2, 9],
+# 🔴 甲 = 所有已加载件 − 绑头骨族的碎片（2026-09-15 T3）。
+#
+#   原则（用户裁定）：源模型是**一整块**，脸 / 眼 / 头发 / 兜 / 武器 / 甲 之间
+#   **不允许有共用的面**——每个碎片只能归一个部位，甲 = 前面几个部位拿走之后的**补集**。
+#
+#   所以判据不能是「逐件点名」（点谁是谁、漏一个就漏一份），只能是「碎片级切一刀」：
+#   · 兜那一刀 = `--keep-head-frags`（只留绑头骨的碎片）
+#   · 甲那一刀 = `--drop-head-idx`（剔掉绑头骨的碎片）—— **两边同一判据，天然互补**
+#
+#   ⚠️ 为什么必须对【每一件】都切，不能只切挑件表 helmet/hair 列点到的件：
+#      实测政宗那块 1026 顶点的「身甲 + 大金月牙」里有 13 个顶点绑 `bip01_head_13`，
+#      位置在头顶上方 1.81m —— 它所在的件既不在 helmet 列也不在 hair 列，
+#      按件点名永远漏它（渲出来就是甲上方飘着一小片）。
+#
+#   ⚠️ 也不能改成「查普查 verdict」：普查恰恰把这些件标成「甲件」
+#      （秀吉 idx0/idx7、政宗 idx7、半藏 idx12、长政 idx7），关键词一条都匹配不到；
+#      全 28 人里更没有任何一件带「剔头碎片」verdict → 那条自动通道一直是空转的。
+PARTITION_HEAD_FRAGS = True
+
+
+# 🔴 人已确认是【甲】、但普查没认出来的件（verdict「待看（碎片分散）」等）——按子网格号补进来。
+#    2026-09-15：谦信 idx15（sub9，84 顶点）= **两片大布片/袍**（z 69.5~180.5 ≈ 1.3 米长，
+#    披在身上），不是头盔垂带（按件渲图 `_hL_kenshin_sub9.png` 确认）。
+#    普查判「待看」→ 从来没人加载 → 归属检查报「漏」。按归属完备性裁定它归【甲】。
+FORCE_ARMOR = {
+    "L05_kenshin": [9],
 }
 
 
@@ -114,11 +127,37 @@ def plan_for(key):
             kimono.append(sub)
         if "剔头碎片" in v:
             drophead.append(sub)
-    armor = [s for s in armor if s not in EXCLUDE.get(key, [])]
-    drophead = sorted(set(drophead) | set(DROPHEAD_EXTRA.get(key, [])))
+    # 🔴 兵种：普查把「身体件」判成了「甲件」（武将那边判的是「内衬着物」），
+    #    于是 `--kimono-torso-only` 从不生效 → 裸手臂/裸腿皮肤被一起收进甲。
+    #    实测 L250 idx2（778 顶点）arm=18% leg=40%，就是躯干皮肤+脚絆。
+    #    兵种的着物件由 troop_parts_table 直接点名（普查判据对兵种不适用）。
+    # 🔴 兵种：**身体件必须排除**（2026-09-15 实测）。
+    #    普查把兵种的身体件判成「甲件」→ 收进甲；它带着**裸手臂 / 裸腿 / 脚**的皮肤，
+    #    进游戏会叠在骑砍自己的身体上（两套肢体）。实测 L250：`--kimono-torso-only`
+    #    只删掉 6 个顶点（KEEP_SW 把大腿/肩也算作躯干），**过滤不掉**；
+    #    直接从选件里去掉身体件才干净（渲染对比 Debug/offline/_pilot_render{,3}/）。
+    #    代价：内衬着物（躯干那层布）也没了 —— 但胴丸本来就盖住躯干，看不出来。
+    for _s in (row_of(key, TABLE).get("body") or []):
+        while _s in armor:
+            armor.remove(_s)
+    for _s in (row_of(key, TABLE).get("kimono") or []):
+        if _s not in kimono:
+            kimono.append(_s)
+    for _s in FORCE_ARMOR.get(key, []):
+        if _s not in armor:
+            armor.append(_s)
+    if PARTITION_HEAD_FRAGS:
+        # 每一件都切（不只 helmet/hair 列点到的件）——理由见文件头长注释
+        drophead = sorted(set(armor))
     if not armor:
         return None, "普查里一件甲都没认出来（人工看接触图）"
     return dict(parts=armor, kimono=kimono, drophead=drophead), ""
+
+
+def slug_of(key):
+    """资产 slug：武将表从 `asset` 名推（head_yukimura_a → yukimura）；兵种表自带。"""
+    r = row_of(key, TABLE)
+    return r["slug"] if "slug" in r else r["asset"][len("head_"):-len("_a")]
 
 
 def run(cmd, tag):
@@ -131,16 +170,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--force", action="store_true", help="已存在的也重做")
+    ap.add_argument("--set", default="lords", choices=["lords", "troops"])
     args = ap.parse_args()
 
     skel = find_skel()
     if not skel:
         print("[FATAL] 找不到 human_skeleton.fbx —— 先看 build_armor_chain.py 用的是哪份")
         return 2
-    keys = args.only or sorted(TABLE)
+    keys = args.only or sorted(TROOP_TABLE if args.set == "troops" else TABLE)
     done, fail, skip = [], [], []
     for key in keys:
-        slug = TABLE[key]["asset"][len("head_"):-len("_a")]
+        slug = slug_of(key)
         name = "taikou_%s_do_a" % slug
         out_fbx = os.path.join(OUT_DIR, name + ".fbx")
         if os.path.isfile(out_fbx) and not args.force:

@@ -478,7 +478,7 @@ def frag_dominant_verts(o):
 # 手/手指骨（源件名）。籠手应当止于手腕——手留给骑砍身体的手，
 # 否则甲的"手"会和身体的手打架（实机症状：拳头被甲整个包住）。
 HAND_SW = {"bone_18", "bone_19"} | {"bone_%d" % i for i in range(26, 46)}
-# 头骨族（含脸/眼/颈）：兜、头发、脸皮绑的这些。混装件（头发+披风）要按碎片把这组剔掉。
+# 头骨族（脸/眼/头发）：混装件（头发+披风）要按碎片把这组剔掉。
 HEAD_SW = {"bone_10", "bone_11"} | {"bone_%d" % i for i in range(46, 63)}
 # 着物要留的部分：躯干 + 腿 + **手臂（袖子）**。
 # 🔴 手臂段必须留：源件上臂中段本来就是**着物的布袖子**盖的，不是袖/籠手盖的。
@@ -495,6 +495,11 @@ KEEP_SW = {"bone_1", "bone_8", "bone_9", "bone_2", "bone_3", "bone_4",
 #      · `--drop-head-idx 3,7`       这几件按**碎片**剔掉头骨族的碎片（头发+披风那类混装件）
 KIMONO_IDX = [int(x) for x in (get(A, "--kimono-idx", "1") or "1").split(",") if x.strip().isdigit()]
 DROP_HEAD_IDX = [int(x) for x in (get(A, "--drop-head-idx", "") or "").split(",") if x.strip().isdigit()]
+# 🔴 `--helmet-whole <子网格号>`：这些件**整块要** —— 既不过 `--prune-far`，也不过
+#    `--keep-head-frags` 的骨判据。用在「纯兜件但绑的不是头骨」上：实测谦信 idx15
+#    （两条长布垂带，84 顶点）绑脊椎骨 bone_1，两个判据都会把它整块滤掉 →「谁都不属于」。
+#    按归属完备性裁定（每个部件必须恰好属于 头/武器/甲/兜/四肢 之一）它归【兜】。
+HELM_WHOLE = [int(x) for x in (get(A, "--helmet-whole", "") or "").split(",") if x.strip().isdigit()]
 
 
 PRUNE_K = get(A, "--prune-far", "") or ""
@@ -502,7 +507,7 @@ for o in dups:
     sm = parse_submesh(o.name)
     dom = dominant_bones(o)
     n0 = len(o.data.vertices)
-    if PRUNE_K:
+    if PRUNE_K and sm not in HELM_WHOLE:
         d = prune_far(o, float(PRUNE_K))
         if d:
             print("   剔飞散碎片：%s 删 %d 顶点" % (o.name, d))
@@ -552,7 +557,7 @@ for o in dups:
         print("   颏带并入：%s 只留 %d 顶点" % (o.name, len(o.data.vertices)))
         dom = dominant_bones(o)
         n0 = len(o.data.vertices)
-    if "--keep-head-frags" in A:
+    if "--keep-head-frags" in A and sm not in HELM_WHOLE:
         # 🔴 头盔专用：**只留头部碎片**（2026-09-15）。
         #    多数角色的兜和身体甲是**同一块**（挑件表的 helmet 只标"哪块里有兜"），
         #    整块拿来当头盔 = 把身体甲也带上 → 头盔 1.5 米宽。按主导骨只留头骨族的碎片。
@@ -579,6 +584,43 @@ for o in dups:
         k = len(o.data.vertices)
         drop_verts(o, [i for i, b in enumerate(dom) if b not in KEEP_SW])
         print("   着物瘦身：%s 删 %d 顶点，余 %d" % (o.name, k - len(o.data.vertices), len(o.data.vertices)))
+
+# 🔴 颏带并进来之后必须【改成和兜同一根骨】（2026-09-15 实机实测 + 定位）。
+#
+#    症状：政宗的兜，下巴那条带子跑到**后脑**去了（用户实机截图）。
+#    实测位移：y 后移 0.15~0.25m、z 下沉 0.06~0.09m。
+#
+#    根因：重定向是**按每根源骨各自**算修正矩阵的 ——
+#        T[bone_46] = rider_rest[head_13] @ sw2_rest[bone_46]⁻¹
+#        T[bone_11] = rider_rest[head_13] @ sw2_rest[bone_11]⁻¹     ← 两者不等
+#    兜主体（碗/月牙/錣）绑 `bone_11`，颏带是从**脸壳件**剪来的、绑 `bone_46`/`bone_59`
+#    —— 最后虽然都归到同一根骑砍骨（`bip01_head_13`），位移却各走各的矩阵，
+#    于是整条带子被从兜上"拽"了下来。
+#
+#    修法：颏带是**刚性的挂件**，权重整批改写成【兜的主体骨】，跟兜刚性走。
+#    ⚠️ 2026-09-15 深夜：把它扩成「整顶兜都改绑主体骨」（`--rigid`）后实机**更坏**
+#       （忠胜兜被打散成飘着的碎片）—— 已回退，只保留颏带这一处。
+if STRAP_FROM and (STRAP_SEEDS or STRAP_BONES):
+    _strap_objs = [o for o in dups if parse_submesh(o.name) == int(STRAP_FROM)]
+    _strap_objs = [o for o in _strap_objs if len(o.data.vertices)]
+    if _strap_objs:
+        _tot = {}
+        for _o in dups:
+            if _o in _strap_objs:
+                continue
+            for _v in _o.data.vertices:
+                for _g in _v.groups:
+                    _nm = _o.vertex_groups[_g.group].name
+                    _tot[_nm] = _tot.get(_nm, 0.0) + _g.weight
+        if _tot:
+            _main = max(_tot.items(), key=lambda kv: kv[1])[0]
+            for _o in _strap_objs:
+                for _g in list(_o.vertex_groups):
+                    _o.vertex_groups.remove(_g)
+                _g = _o.vertex_groups.new(name=_main)
+                _g.add([_v.index for _v in _o.data.vertices], 1.0, 'ADD')
+            print("   颏带定骨：%d 顶点改绑 %s（跟随兜主体，防重定向拉走）"
+                  % (sum(len(_o.data.vertices) for _o in _strap_objs), _main))
 
 # ---------------------------------------------------------------- 重定向
 print("== 5/6 骨架重定向（rest retarget）==")
@@ -611,6 +653,18 @@ ARM_ALONG = {
     "bone_15": seg_ratio("bone_15", "bone_17", "bip01_r_upperarm_twist_22", "bip01_r_foretwist_24"),
     "bone_16": seg_ratio("bone_16", "bone_18", "bip01_l_foretwist_17", "bip01_l_hand_19"),
     "bone_17": seg_ratio("bone_17", "bone_19", "bip01_r_foretwist_24", "bip01_r_hand_26"),
+}
+
+# 🔴 腿链也要按解剖段长对齐（2026-09-15 实机：下半身像小矮人）。
+#    上面第 14 行早就写着「比例差（SW2 腿偏长）—— 由 λ 逐骨承担」，但代码里
+#    **只有手臂真的承担了**；腿走 `Matrix.Scale(R, 4)` 各向同性 ——
+#    大腿长度变成 源长 × R = 45.63cm × 0.0120 = 0.548m，而骑砍大腿只有 0.417m，差 31%。
+#    径向仍用 R（腿的粗细本来就该用 R），只把**沿骨轴**换成段长比。
+LEG_ALONG = {
+    "bone_2": seg_ratio("bone_2", "bone_4", "bip01_l_thigh_1", "bip01_l_calf_2"),
+    "bone_3": seg_ratio("bone_3", "bone_5", "bip01_r_thigh_5", "bip01_r_calf_6"),
+    "bone_4": seg_ratio("bone_4", "bone_6", "bip01_l_calf_2", "bip01_l_foot_3"),
+    "bone_5": seg_ratio("bone_5", "bone_7", "bip01_r_calf_6", "bip01_r_foot_7"),
 }
 
 
@@ -651,6 +705,12 @@ for bn_sw, bn_bl in BMAP.items():
         d_sw = (MIRROR_Y3 @ d_sw).normalized() if d_sw else Vector((0.0, 0.0, -1.0))
         F = frame_from_dir(d_sw)
         S = F @ Matrix.Diagonal((R_ARMS, ARM_ALONG[bn_sw], R_ARMS, 1.0)) @ F.inverted()
+    elif bn_sw in LEG_ALONG:
+        # 腿：径向 R、沿骨轴按解剖段长（同手臂一套，只是径向用 R 不用 R_ARMS）
+        d_sw = chain_dir(b_sw)
+        d_sw = (MIRROR_Y3 @ d_sw).normalized() if d_sw else Vector((0.0, 0.0, -1.0))
+        F = frame_from_dir(d_sw)
+        S = F @ Matrix.Diagonal((R, LEG_ALONG[bn_sw], R, 1.0)) @ F.inverted()
     else:
         S = Matrix.Scale(R, 4)
     T_BONE[bn_sw] = (Matrix.Translation(b_bl.head_local) @ rot @ S
@@ -812,6 +872,74 @@ print("   甲 bbox  x[%.3f,%.3f] y[%.3f,%.3f] z[%.3f,%.3f]" % (mn.x, mx.x, mn.y,
 print("   原版身体  x[-0.599,0.599] z[0.379,1.544]   （对照）")
 
 # ---------------------------------------------------------------- LOD
+def make_sheets_double_sided(ob, open_ratio=0.5):
+    """【把薄片复制一份并翻面】—— 单面板在引擎里背面被剔除，从另一侧看就是"没有"。
+
+    🔴 为什么必须做（2026-09-15 用户实机发现，兜侧）：甲/兜里大量零件是**单个平面**
+       （前立 / 月牙 / 飘带 / 小饰件）。而 Bannerlord **材质层没有双面开关** ——
+       `TaleWorlds.Engine.Material.MBMaterialShaderFlags` 全部 21 个标志里
+       **没有** TwoSided / NoCull 之类（已反编译核对），所以只能靠几何补：复制一份、翻面绕序。
+       症状：浅井长政的金前立只有正面，转到背面就"没有"了。
+
+    判据用「边界边比例」区分**薄片**和**壳**：
+      · 平面/布条：绝大多数边只挂 1 个面 → 比例接近 1 → 复制
+      · 兜钵/甲壳：只有开口那圈是边界 → 比例很低 → **不复制**
+        （复制了面数翻倍、两个面还互相打架）
+
+    与 `tools/face-pipeline/scripts/build_head.py` 的同名函数是**同一套判据**
+    （那份给头用，这份给甲/兜用）。返回复制的面数。
+    """
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.faces.ensure_lookup_table()
+    seen = [False] * len(bm.faces)
+    dup = []
+    for f0 in bm.faces:
+        if seen[f0.index]:
+            continue
+        stack, comp = [f0], []
+        seen[f0.index] = True
+        while stack:
+            cur = stack.pop()
+            comp.append(cur)
+            for e in cur.edges:
+                for nf in e.link_faces:
+                    if nf is not cur and not seen[nf.index]:
+                        seen[nf.index] = True
+                        stack.append(nf)
+        be = sum(1 for c in comp for e in c.edges if len(e.link_faces) == 1)
+        te = sum(len(c.edges) for c in comp)
+        if te and be / float(te) >= open_ratio:
+            dup.extend(comp)
+    n = len(dup)
+    if n:
+        geom = (list({v for f in dup for v in f.verts})
+                + list({e for f in dup for e in f.edges}) + dup)
+        ret = bmesh.ops.duplicate(bm, geom=geom)
+        newf = [g for g in ret["geom"] if isinstance(g, bmesh.types.BMFace)]
+        bmesh.ops.reverse_faces(bm, faces=newf)
+        bm.to_mesh(me)
+        me.update()
+    bm.free()
+    return n
+
+
+# ---------- 薄片补背面：单面板复制+翻面 ----------
+# 判据/理由见上面 make_sheets_double_sided 的 docstring（与 build_head.py 同一套）。
+if "--no-double-sided" not in A:
+    # ⚠️ 必须作用在**合并后的 ARM** 上：`dups` 那批对象在重定向阶段已经被并掉/删除了，
+    #    再访问会 `ReferenceError: StructRNA of type Object has been removed`（实测踩过）。
+    if len(ARM.data.polygons):
+        _n0 = len(ARM.data.polygons)
+        # `--double-sided-all`：不做判据，**每个碎片都复制+翻面**。
+        # 用在「单面判据（边界边比 ≥0.5）漏判」的兜上 —— 实测长政的金前立
+        # 边界边比只有 0.18（拓扑看着闭合），开背面剔除后整个月牙从背面消失。
+        _n = make_sheets_double_sided(ARM, 0.0 if "--double-sided-all" in A else 0.5)
+        if _n:
+            print("  薄片补背面：复制 %d/%d 面并翻面（引擎材质无双面开关，只能靠几何）"
+                  % (_n, _n0))
+
 print("== 6/6 LOD + 导出 ==")
 lods = [ARM]
 if DO_LOD:

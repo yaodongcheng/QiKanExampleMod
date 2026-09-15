@@ -175,15 +175,23 @@ def weapon_length(K, d):
     return int(round(max(v * 100.0, 40.0)))
 
 
-def item_block(slug, cn_name, en_name, K, d, body):
-    """照织丰整体网格武器的写法（`sho_bokken_katana` / `sho_new_yumi_1` / `sho_tanegashima_musket`）。"""
+def item_block(slug, cn_name, en_name, K, d, body, fb_name=None, label=None):
+    """照织丰整体网格武器的写法（`sho_bokken_katana` / `sho_new_yumi_1` / `sho_tanegashima_musket`）。
+
+    `fb_name` = 英文 fallback 全名。缺省是「<角色>的<武器>」（武将件）；
+    兵种通用武器传「打刀」这类**无归属**的裸名（名表规则：兵种/护卫是通用装备，不加 [xx之武]）。
+    `label` = 生成注释开头的那句（缺省「<角色> 的<类>」，兵种件传裸名免得写成「长枪 的枪」）。"""
     iid = "taikou_%s%s" % (slug, SUFFIX)
     ln = weapon_length(K, d)
     swing = (' swing_damage="%d" swing_damage_type="Cut"' % K["swing"]) if K["swing"] else ""
+    if fb_name is None:
+        fb_name = "%s's %s" % (en_name, K["en_word"])
+    if label is None:
+        label = "%s 的%s" % (cn_name, K["cn_word"])
     return (
-        '\t<!-- %s 的%s（战无2 解包件重定向；网格 tools/armor-pipeline/out/%s.fbx）\n'
+        '\t<!-- %s（战无2 解包件重定向；网格 tools/armor-pipeline/out/%s.fbx）\n'
         '\t     普通物品：挂进 EquipmentRoster 只决定初始装备，可被扒/被偷/作战利品。 -->\n'
-        '\t<Item id="%s" name="{=TAIKOU_%s%s}%s\'s %s" body_name="%s" mesh="%s" '
+        '\t<Item id="%s" name="{=TAIKOU_%s%s}%s" body_name="%s" mesh="%s" '
         'culture="Culture.ikoku" weight="%s" value="%d" difficulty="0" appearance="1.0" '
         'Type="%s" item_holsters="%s">\n'
         '\t\t<ItemComponent>\n'
@@ -195,8 +203,8 @@ def item_block(slug, cn_name, en_name, K, d, body):
         '\t\t</ItemComponent>\n'
         '\t\t<Flags%s />\n'
         '\t</Item>\n'
-        % (cn_name, K["cn_word"], iid,
-           iid, slug, SUFFIX, en_name, K["en_word"],
+        % (label, iid,
+           iid, slug, SUFFIX, fb_name,
            body, iid, K["weight"], K["value"], K["itype"], K["holster"],
            K["wclass"], K["extra_head"], K["speed"] + 5, K["speed"],
            ln, swing, K["thrust"], K["usage"], K["phys"], K["extra_tail"],
