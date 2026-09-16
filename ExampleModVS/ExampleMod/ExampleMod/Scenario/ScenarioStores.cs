@@ -473,9 +473,20 @@ namespace LivingWorldNpcs
                     return;
                 case "認識標誌":
                 case "Recognized":
-                    bool targetRecognized = value == "已認識" ? true : false;
-                    hero.SetHasMet();
-                    //一般来说这个是不可逆的，所以这里不做处理                    
+                    // 🔴 2026-09-16 修正：旧实现忽略 value（无条件 SetHasMet）——剧本里写「未認識」也会把人置成已认识。
+                    //    HasMet 是单向的：引擎只暴露 SetHasMet()，setter 为 private，没有公开 API 能撤销
+                    //    → 写「未認識」时**不置位**；若此人当前已是已认识，留一条日志（想还原只能读档）。
+                    bool recognized = value == "已認識" || value == "已认识" || value == "認識" || value == "认识"
+                                   || value == "True" || value == "true" || value == "1";
+                    if (recognized)
+                    {
+                        hero.SetHasMet();
+                    }
+                    else if (hero.HasMet)
+                    {
+                        DebugLogger.Log($"[ScenarioStore] 認識標誌='{value}' 无法撤销 {hero.StringId} 的 HasMet（引擎无公开重置 API，只能读档还原）");
+                    }
+                    //（认识状态单向：已置位就撤不掉，见上方 2026-09-16 注）
                     return;
                 case "出現標誌":
                 case "Appeared":

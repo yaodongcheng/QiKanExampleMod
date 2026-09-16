@@ -61,6 +61,19 @@ RIM_TABLE = {
              (225.0, 0.0750, 1.5340), (240.0, 0.0711, 1.5326), (255.0, 0.0710, 1.5325),
              (270.0, 0.0710, 1.5324), (285.0, 0.0711, 1.5326), (300.0, 0.0750, 1.5340),
              (315.0, 0.0808, 1.5364), (330.0, 0.0896, 1.5410), (345.0, 0.0849, 1.5444)],
+    # 🔴 女表 = 2026-09-16 现测（`Debug/offline/_rim_table.py` 跑 `body_female_a.fbx` 的自由边环，
+    #    口径与男表相同）。实测三点与 `Knowledge/蒂法换头工程.md` §20.2 记录一致：
+    #    正前 z=1.4066 / 肩侧 z=1.5059 / 背后 z=1.4734。
+    #    ⚠️ 0°/15°/165°/180° 四档原始测量混进了**斜方肌**（15° 量到 r=0.16），已按邻档趋势手工压平；
+    #    60/120/255/285 四档原测量没有自由边，取邻档插值。
+    "female": [(0.0, 0.1091, 1.4921), (15.0, 0.1020, 1.4880), (30.0, 0.0952, 1.4813),
+               (45.0, 0.0895, 1.4643), (60.0, 0.0900, 1.4520), (75.0, 0.0914, 1.4399),
+               (90.0, 0.1006, 1.4066), (105.0, 0.0913, 1.4399), (120.0, 0.0900, 1.4520),
+               (135.0, 0.0895, 1.4643), (150.0, 0.0952, 1.4813), (165.0, 0.1020, 1.4880),
+               (180.0, 0.1091, 1.4921), (195.0, 0.1142, 1.5059), (210.0, 0.1203, 1.5009),
+               (225.0, 0.1163, 1.4752), (240.0, 0.0901, 1.4737), (255.0, 0.0820, 1.4735),
+               (270.0, 0.0781, 1.4734), (285.0, 0.0820, 1.4735), (300.0, 0.0901, 1.4737),
+               (315.0, 0.1163, 1.4752), (330.0, 0.1203, 1.5010), (345.0, 0.1142, 1.5059)],
 }
 RIM_BAND = 0.030      # 领口上方留 3cm 过渡带（带外不再收，免得把下巴/颧骨压扁）
 RIM_SLOPE = -0.35     # 过渡带内半径随 z 递减的斜率（越往上越细 → 接到脖子）
@@ -596,6 +609,117 @@ def strap_uv_box(ob, frags):
     if not us:
         return None
     return (min(us), max(us), min(vs), max(vs))
+
+
+def rim_lookup(gender):
+    """RIM_TABLE 的插值器：角度（度）→ (领口半径, 领口高度)。
+    没有该性别的轮廓时返回 None（调用方自己兜底）。"""
+    tab = RIM_TABLE.get(gender)
+    if not tab:
+        return None
+
+    def rim_at(adeg):
+        adeg = adeg % 360.0
+        for k in range(len(tab)):
+            a0, r0, z0 = tab[k]
+            a1, r1, z1 = tab[(k + 1) % len(tab)]
+            if a1 <= a0:
+                a1 += 360.0
+            if a0 <= adeg <= a1:
+                t = (adeg - a0) / (a1 - a0)
+                return r0 + (r1 - r0) * t, z0 + (z1 - z0) * t
+        return tab[0][1], tab[0][2]
+    return rim_at
+
+
+def fill_neck_to_rim(ob, rim_at, z_top=1.545, r_max=0.14, k=1.0, bury=RIM_BURY,
+                     flat_z=None, grow_max=1.25):
+    """【补脖子下摆】—— 头网格的脖子够不到身体领口时，从脖子的自由边往下铺一圈"下摆"。
+
+    🔴 为什么需要（2026-09-16 用户实机报「所有人颈部都没有贴合肩部，往上抬了一点」）：
+       骑砍2 的身体**只有一个大 V 领口**，「脖子 + 胸兜」整块**是头网格给的**
+       （见 RIM_TABLE 上面那段注释）。原版头因此一直长到世界 z=1.4144（V 领口最低处），
+       而**战无2 的脸壳件只到下巴下面一点点**（实测：雑賀 12.2 源单位 = 最短，
+       信長 19.2；换算到目标空间都比原版头**短 5cm 左右**，目标空间里脖子底下是断的）。
+       实机表现 = 头看着像"往上抬了一点、架在肩上"，领口一圈能看见里面的空腔。
+
+    做法：取脸壳**颈部区域里的自由边**（只挂 1 个面的边 —— 就是脖子那个断口），
+       每一条自由边 (a,b) 与它在领口轮廓上的落点 (a',b') 桥成一个四边形，
+       得到一片从脖子铺到领口内沿的「下摆」。
+       · 落点 = `RIM_TABLE` 的 (半径×k − 埋深, z) —— 与 3c 的 `--fit-rim` **同一条轮廓**：
+         3c 是把宽出来的肩膀**收进去**，这一步是把缺的脖子**铺下去**，两者互补。
+       · UV 沿用上方顶点的（脖子那一段是近似均匀的肤色，拉伸看不出来）。
+       · 下摆铺到口沿以下 → 下端藏在身体/甲里面，外面只看得到"脖子接到领口"。
+
+    `flat_z` 给了就改成**竖直下摆**（落点 z 一律 = flat_z、半径沿用原轮廓半径）——
+       用于领口轮廓不适用的情况（战无2 的甲是立领和服，领口比原版 V 领高）。
+
+    返回新建的面数。
+    """
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    uvl = bm.loops.layers.uv.active
+
+    def in_neck(v):
+        c = v.co
+        return c.z < z_top and math.hypot(c.x, c.y) < r_max
+
+    edges = [e for e in bm.edges if len(e.link_faces) == 1
+             and in_neck(e.verts[0]) and in_neck(e.verts[1])]
+    if not edges:
+        bm.free()
+        return 0
+
+    nv = {}
+    for e in edges:
+        for v in e.verts:
+            if v in nv:
+                continue
+            c = v.co
+            ang = math.atan2(c.y, c.x)
+            rr, rz = rim_at(math.degrees(ang))
+            rt = max((rr - bury) * k, 1e-4)
+            # 🔴 半径上限：不许把下摆往外撑过原半径的 grow_max 倍。
+            #    原因：RIM_TABLE 是**原版身体**的领口，而我们的人穿的是战无2 的甲（立领和服），
+            #    两者的领口轮廓并不重合 —— 不设上限时，正前方那一段会顶到甲领口外面去。
+            rt = min(rt, max(math.hypot(c.x, c.y), 1e-4) * grow_max)
+            zt = flat_z if flat_z is not None else rz
+            nv[v] = bm.verts.new((rt * math.cos(ang), rt * math.sin(ang), zt))
+    bm.verts.ensure_lookup_table()
+
+    made = 0
+    for e in edges:
+        f0 = e.link_faces[0]
+        lp = next((l for l in f0.loops if l.edge is e), None)
+        if lp is None:
+            continue
+        a = lp.vert
+        b = e.other_vert(a)
+        na, nb = nv.get(a), nv.get(b)
+        if na is None or nb is None:
+            continue
+        try:
+            nf = bm.faces.new((a, b, nb, na))
+        except ValueError:
+            continue
+        made += 1
+        if uvl is not None:
+            src = {}
+            for l in f0.loops:
+                src[l.vert] = l[uvl].uv.copy()
+            for l in nf.loops:
+                u = src.get(l.vert)
+                if u is None:                 # 新顶点：沿用它在老边上的那一端
+                    u = src.get(a if l.vert is na else b)
+                if u is not None:
+                    l[uvl].uv = u
+    if made:
+        bm.to_mesh(me)
+        me.update()
+    bm.free()
+    return made
 
 
 def make_sheets_double_sided(ob, open_ratio=0.5):
@@ -1259,18 +1383,7 @@ def main():
         tab = RIM_TABLE.get(gender)
         if not tab:
             fail("RIM_TABLE 里没有 %s 的领口轮廓" % gender)
-
-        def rim_at(adeg):
-            adeg = adeg % 360.0
-            for k in range(len(tab)):
-                a0, r0, z0 = tab[k]
-                a1, r1, z1 = tab[(k + 1) % len(tab)]
-                if a1 <= a0:
-                    a1 += 360.0
-                if a0 <= adeg <= a1:
-                    t = (adeg - a0) / (a1 - a0)
-                    return r0 + (r1 - r0) * t, z0 + (z1 - z0) * t
-            return tab[0][1], tab[0][2]
+        rim_at = rim_lookup(gender)
 
         ob = joined["face"]
         moved, worst = 0, 0.0
@@ -1294,6 +1407,27 @@ def main():
         ob.data.update()
         bpy.context.view_layer.update()
         print("  收领口：收进 %d 个顶点（最大收进 %.1fmm）" % (moved, worst * 1000))
+
+    # ---------- 3c-bis) 补脖子下摆（--neck-fill） ----------
+    # 🔴 与 3c 互补：3c 是把宽出来的肩膀**收进**领口，这一步是把**短掉的脖子铺到**领口。
+    #    战无2 的脸壳件比原版头短约 5cm（见 fill_neck_to_rim 注释），不补的话颈部有个断口，
+    #    实机表现 = 「颈部没有贴合肩部，往上抬了一点」（2026-09-16 用户报，28 人全中）。
+    if "--neck-fill" in a:
+        rim_at = rim_lookup(gender)
+        if rim_at is None:
+            fail("--neck-fill 需要 RIM_TABLE 里 %s 的领口轮廓" % gender)
+        _top = float(get(a, "--neck-fill-top", "1.545"))
+        _rm = float(get(a, "--neck-fill-rmax", "0.14"))
+        _kk = float(get(a, "--neck-fill-k", "1.0"))
+        _fz = get(a, "--neck-fill-flat-z")
+        _fz = float(_fz) if _fz else None
+        _n = fill_neck_to_rim(joined["face"], rim_at, z_top=_top, r_max=_rm, k=_kk, flat_z=_fz)
+        if _n:
+            print("  补脖子下摆：%s 铺 %d 个面（自由边 → 领口内沿，k=%.2f%s）"
+                  % (joined["face"].name, _n, _kk, "，竖直 z=%.2f" % _fz if _fz else ""))
+        else:
+            print("  ⚠️ 补脖子下摆：%s 颈部一条自由边都没有（该件可能已长到领口以下）"
+                  % joined["face"].name)
 
     # ---------- 3d) UV 折回 [0,1) ----------
     # 源模型的嘴件用的是负 V（v[-0.989,-0.007]，靠纹理 wrap 采样）。引擎与贴图工具对负 UV

@@ -48,8 +48,10 @@ CHECKS = [
     ("test_negative_equip_tables.py", "两张装备表的负面测试（故意造坏必须抓到；含正向对照）", False, None),
     ("test_negative_equip_item_defs.py", "物品定义校验的负面测试（含「可锻造武器/引擎硬编码不许误报」反向验证）", False, None),
     ("test_negative_checks.py", "模块级检查负面测试（XML parse/场景/必填字段/PUA 造坏必须抓到）", False, None),
+    ("test_negative_banner_icons.py", "家纹体检负面测试（注释错位/段位/材质缺失/几何分裂造坏必须抓到）", False, None),
     ("check_source_invariants.py", "C# 源码不变量（相机复位/出生点时点/停用类不得被引用）", False, None),
     ("check_hero_profile_keys.py", "英雄 id 三处同键：模板 ↔ 画像表 ↔ 立绘表（选人详情页取数）", False, None),
+    ("check_taikou_banner_icons.py", "旗帜与家纹体检：结构(雷 130)/图标段位/材质存在/几何统一(雷 131)", False, None),
     # ("gen_taikou_era_diff.py", …) 🔴 2026-09-12 退役：三件套 _1582 已由 gen_taikou_era_world.py 接管
     ("gen_taikou_hero_profiles.py", "英雄画像表产物与生成器一致（铁律 22：生成物禁手改）", False, ["--check"]),
     ("gen_taikou_hero_catalog.py", "选人目录产物与生成器一致（建世界之前选人的唯一取数源）", False, ["--check"]),
