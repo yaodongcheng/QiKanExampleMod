@@ -130,6 +130,12 @@ namespace LivingWorldNpcs
             // 🔴 置于玩法闸门之前：战场 / 攻城场景调试也需要挂载；无命令请求时每帧只做一次 bool 判断，零开销。
             mission.AddMissionBehavior(new NavMeshDebugMissionView());
 
+            // 🔴 火器开火表现（枪声三档 + 枪口烟；数据来自内容包 AssetRegistry/FirearmFx.xml）——
+            //    与 NavMeshDebug 同理：**必须置于玩法闸门之前**。火器音效正是要在战场/攻城里响，
+            //    被「战场不跑玩法逻辑」的闸门拦掉就白做了；它本身是纯表现层（不改数值、不碰战役 API），
+            //    场上无火器时每发弹只做一次「查表未命中」判定，零开销。
+            mission.AddMissionBehavior(new FirearmFxLogic());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——

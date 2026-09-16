@@ -21,7 +21,13 @@
       --diffuse <源漫反射.png> \\
       --out     <输出目录> \\
       --name    taikou_yukimura_do_a \\
-      [--parts body_kimono] [--pad 0.012] [--nrm 0.30] [--ao 0.6] [--debug]
+      [--parts body_kimono] [--tex-scale 2] [--nrm 0.30] [--ao 0.6] [--debug]
+
+`--tex-scale` = **图集相对基准（512 宽的原图集）放大了几倍**（默认 1）。
+  用途：消掉「留边」的尺寸效应 —— 图集放大 N 倍，同一个 UV 留边对应的像素数是 N 倍，
+  不除掉就会裁到没用的图集区域（实测：信长甲该裁 1024×1560，却裁成了 1024×2048 顶到边界，
+  多出来的那条是脸，既白涨体积又让法线把脸当表面细节提出来）。
+  配合 `--diffuse` 给源工程超分图（`work/tex_batch/<键>_d.png`，2 倍）→ 传 2。
 """
 import bpy
 import sys
@@ -47,9 +53,16 @@ DIFF = get(A, "--diffuse")
 OUTDIR = get(A, "--out")
 NAME = get(A, "--name", "armor")
 PARTS = get(A, "--parts", "body_kimono")
-PAD = float(get(A, "--pad", "0.012"))       # 裁切时四周留边（UV 单位）
+PAD_PX_TARGET = 6                            # 裁切留边（**像素**，在源图集自己的尺度上量）
 NRM = float(get(A, "--nrm", "0.30"))        # 法线细节强度，0 = 纯平坦法线
 AO_STRENGTH = float(get(A, "--ao", "0.6"))  # AO 强度 0~1
+# 🔴 输出放大倍数（2026-09-16 加）：把整个裁切/输出按比例放大。
+#    UV 重映射（u'=(u-cu0)/mu）是**用 UV 算的，与像素尺寸无关** → 放大不会让贴图错位。
+#    前提：--diffuse 要给**同等倍数放大过的图**，否则放大只是插值、白涨体积。
+#    现状：给的是源工程超分 2 倍的图（work/tex_batch/<键>_d.png）→ 传 2。
+TEX_SCALE = float(get(A, "--tex-scale", "1.0"))
+if TEX_SCALE <= 0:
+    TEX_SCALE = 1.0
 DEBUG = "--debug" in A
 if not (ARMOR and SRC and DIFF and OUTDIR):
     print("!! 缺 --armor / --src / --diffuse / --out"); sys.exit(2)
@@ -159,16 +172,29 @@ src_img = Image.open(DIFF).convert("RGBA")
 SW_, SH_ = src_img.size
 print("   源图集 %dx%d" % (SW_, SH_))
 
+# 🔴 留边按**像素**定，不按 UV 定（2026-09-16）。
+#    原因：--tex-scale 放大后图集也放大，UV 单位的留边会跟着变大 ——
+#    实测信长甲 1× 裁 1024x1560，2× 却裁到 1024x2048（顶到图集边界），
+#    多出来的那条**是没用的图集区域（脸）**：既白涨体积，又让法线把脸当表面细节提出来。
+#    PAD 折算的换算基数 = **基准图集尺寸**（512×1024）—— 所以 1× 的留边与旧版逐像素一致。
+PAD = PAD_PX_TARGET / (512.0 * TEX_SCALE)
+print("   留边 PAD=%.4f (UV)  [%d px @ 源图集尺度]" % (PAD, PAD_PX_TARGET))
+
 # 留边 + 对齐像素
 cu0 = max(0.0, u0 - PAD); cu1 = min(1.0, u1 + PAD)
 cv0 = max(0.0, v0 - PAD); cv1 = min(1.0, v1 + PAD)
+# 🔴 TEX_SCALE 是「图集相对基准（512 宽的原图集）放大了几倍」，用来消掉留边的尺寸效应：
+#    图集放大 N 倍时，同一个 UV 留边对应的像素数是 N 倍 —— 不除掉就会**裁到没用的区域**。
+#    像素坐标本身**不乘** TEX_SCALE（--diffuse 的图已经是放大过的，SW_/SH_ 就是它的真实尺寸）。
 x0 = int(math.floor(cu0 * SW_)); x1 = int(math.ceil(cu1 * SW_))
 # 图集行 0 在**上**（PNG），UV 的 v 从**下**起 —— 要翻
 y0 = int(math.floor((1.0 - cv1) * SH_)); y1 = int(math.ceil((1.0 - cv0) * SH_))
+x1 = min(x1, SW_); y1 = min(y1, SH_)        # 钳到图像内（留边会让矩形出界）
 crop_w, crop_h = x1 - x0, y1 - y0
-print("   裁切矩形 px  x[%d,%d) y[%d,%d)  ->  %dx%d  (省 %.0f%%)" % (
+print("   裁切矩形 px  x[%d,%d) y[%d,%d)  ->  %dx%d  (省 %.0f%%)%s" % (
     x0, x1, y0, y1, crop_w, crop_h,
-    100 * (1 - crop_w * crop_h / (SW_ * SH_))))
+    100 * (1 - crop_w * crop_h / float(SW_ * SH_)),
+    "  [图集 ×%.2f]" % TEX_SCALE if TEX_SCALE != 1.0 else ""))
 
 
 def pot_le(n):

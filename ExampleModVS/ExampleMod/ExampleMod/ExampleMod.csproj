@@ -318,6 +318,8 @@
     <Compile Include="Combat\CombatManager.cs" />
     <Compile Include="Combat\DuelMissionView.cs" />
     <Compile Include="Combat\DuelVM.cs" />
+    <Compile Include="Combat\FirearmFxLogic.cs" />
+    <Compile Include="Combat\FirearmFxRegistry.cs" />
     <Compile Include="Combat\KnockoutFlow.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
@@ -329,6 +331,13 @@
          伤害模型 Culture-null 空保护——枚举**所有已加载程序集**的 AgentApplyDamageModel 子类打 Transpiler，
          原版战役（纯功能包模式）同样生效；出处 = 2026-09-02 织丰实机崩溃（织丰伤害模型 `.Culture.IsBandit` 裸解引用）。 -->
     <Compile Include="Core\AgentDamageModelCultureNullFix.cs" />
+    <!-- 🔴 通用修复（与太阁无关，2026-09-16）：火器射击的技能映射补漏 ——
+         引擎 WeaponComponentData.GetRelevantSkillFromWeaponClass 漏了它自己定义的
+         Cartridge/Musket/Pistol 三个火器类 → DefaultSkillLevelingManager.OnCombatHit
+         拿 null 直接 AddSkillXp → NRE（命中即崩）。只在 __result 为 null 时补 Crossbow 技能，
+         原版既有映射逐字节不变；四版本参考 DLL（1.2.12/1.3.15/1.4.6/1.5.1）均确认方法存在且官方未补。
+         出处 = 2026-09-16 太阁火器实机（铁炮打中商队护卫）。 -->
+    <Compile Include="Core\FirearmSkillMappingPatch.cs" />
     <!-- CampaignMode：通用自定义战役（GameType）层——内容包加载时激活（三单元架构） -->
     <Compile Include="CampaignMode\CampaignModeActivator.cs" />
     <Compile Include="CampaignMode\EraCatalog.cs" />

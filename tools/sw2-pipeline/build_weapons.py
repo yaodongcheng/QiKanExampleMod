@@ -39,6 +39,9 @@ SRC_DIR = os.path.join(SRC_ROOT, "export", "fbx")
 OUT_DIR = os.path.join(REPO, "tools", "armor-pipeline", "out")
 BUILD = os.path.join(HERE, "scripts", "build_weapon.py")
 TEX = os.path.join(HERE, "scripts", "make_sw2_textures.py")
+# 源工程 2026-09-16 贴图升级产物（<键>_d.png = 超分漫反射，2 倍于原图）
+TEX_BATCH = os.path.join(SRC_ROOT, "work", "tex_batch")
+USE_TEX_UPGRADE = True          # 由 --no-tex-upgrade 关闭（main 里赋值）
 # 尺寸表：build_weapon.py 打印的包围盒汇总出来，给物品生成器定 weapon_length 用
 DIMS = os.path.join(OUT_DIR, "weapon_dims.csv")
 
@@ -92,11 +95,19 @@ def find_diffuse(key):
     （28/28 实测，manifest 的 `models[<角色>].tex`），武器的 UV 是**相对那张贴图**画的。
     用角色图集 → UV 采到的是图集上完全不相干的区域。实测症状：庆次的枪杆渲染成金色、
     枪头丢掉金属银（正确贴图 `w_keiji0.png` 里杆是深色、枪头是银灰）。
-    甲的贴图**仍旧用角色图集**（甲穿在身上、与角色共用图集，那条是对的）。
+    甲的贴图**仍旧用角色图集**（甲穿在身上、与角色共用角色图集，那条是对的）。
+
+    🔴 2026-09-16 起默认走**升级路线**：源工程超分 2 倍的图（`work/tex_batch/<tex>_d.png`）。
+    武器 UV 是**直接用整张贴图**（不像甲要裁切），所以换图零风险，输出尺寸自动 ×2
+    （实测源 256×64 → 输出 512×128）。个别武器源工程没收进去（如 `weapon_low_2`）→ 回落原图。
     """
     tex = WEAPON_TEX.get(key)
     if not tex:
         return None
+    if USE_TEX_UPGRADE:
+        p = os.path.join(TEX_BATCH, tex + "_d.png")
+        if os.path.isfile(p):
+            return p
     for c in (os.path.join(SRC_ROOT, "web", "weapons", "tex", tex + ".png"),):
         if os.path.isfile(c):
             return c
@@ -109,6 +120,23 @@ def run(cmd):
                           p.stderr.decode("utf-8", errors="replace"))
 
 
+def tex_cmd(key, dif, name):
+    """拼出武器贴图的生成命令。
+
+    升级路线（默认）：`--src-dir <tex_batch> --key <武器贴图名>` —— 读超分的 `_d.png` +
+    真法线 `_n.png`，`--no-upscale` 保留源尺寸（= 原图的 2 倍）。
+    回退路线：`--atlas <原图>` + 平法线纯色。
+    """
+    cmd = [sys.executable, TEX, "--out", OUT_DIR, "--name", name,
+           "--kind", "weapon", "--no-upscale"]
+    tkey = WEAPON_TEX.get(key)
+    if USE_TEX_UPGRADE and tkey and os.path.isfile(os.path.join(TEX_BATCH, tkey + "_d.png")):
+        cmd += ["--src-dir", TEX_BATCH, "--key", tkey]
+    else:
+        cmd += ["--atlas", dif]
+    return cmd
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None)
@@ -117,7 +145,11 @@ def main():
     ap.add_argument("--force", action="store_true", help="已存在的也重做")
     ap.add_argument("--tex-only", action="store_true",
                     help="只重出贴图（网格不动）——换了贴图源之后用这个，省 28 次 Blender 建模")
+    ap.add_argument("--no-tex-upgrade", action="store_true",
+                    help="武器贴图用原图（256×64）。默认走超分图，出 512×128")
     args = ap.parse_args()
+    global USE_TEX_UPGRADE
+    USE_TEX_UPGRADE = not args.no_tex_upgrade
 
     # (源模型, mesh slug) 对。武将的 slug 从挑件表的 asset 名推；兵种的写在 TROOP_WEAPONS 里
     if args.set == "troops":
@@ -139,8 +171,7 @@ def main():
             dif = find_diffuse(key)
             if not dif:
                 print("  ❌ %-16s 找不到武器贴图" % key); fail.append(key); continue
-            rc2, out2 = run([sys.executable, TEX, "--atlas", dif, "--out", OUT_DIR,
-                             "--name", name, "--kind", "weapon", "--no-upscale"])
+            rc2, out2 = run(tex_cmd(key, dif, name))
             print("  %s %-16s ← %s" % ("✅" if rc2 == 0 else "❌", key, os.path.basename(dif)))
             (done if rc2 == 0 else fail).append(key)
             continue
@@ -164,8 +195,7 @@ def main():
         # 贴图（3 张：_d 图集 + _n/_s 纯色）
         dif = find_diffuse(key)
         if dif:
-            rc2, out2 = run([sys.executable, TEX, "--atlas", dif, "--out", OUT_DIR,
-                             "--name", name, "--kind", "weapon", "--no-upscale"])
+            rc2, out2 = run(tex_cmd(key, dif, name))
             tex_ok = rc2 == 0
             if not tex_ok:
                 print("     ⚠️ 贴图失败：" + out2.strip().splitlines()[-1][:120])

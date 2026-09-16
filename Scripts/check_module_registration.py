@@ -47,8 +47,16 @@ REQUIRED_GAMETEXT_PATHS = [
 # ③ 引擎按**惯例文件名**加载、不经 XmlNode 段注册的文件（官方模块同款；实测 Native/SandBox 里存在）
 CONVENTIONAL_FILES = {
     "action_sets", "action_types", "collision_infos", "combat_parameters", "face_animations",
-    "item_holsters", "module_sounds", "native_parameters", "physics_materials", "skins", "items",
+    "item_holsters", "module_sounds", "native_parameters", "physics_materials",
+    "skins", "items",
 }
+# 🔴 `item_usage_sets` / `monster_usage_sets` **故意不在**上面这张表里（2026-09-16 实机教训，勿再加回）：
+#   这两个文件**只由 Native 模块加载**——引擎硬编码，字符串只存在于 TaleWorlds.Native.dll，
+#   托管层没有对应 XmlName，内容包在 SubModule.xml 里也注册不了。
+#   ⇒ 内容包写 `ModuleData/item_usage_sets.xml` 是**死文件**（运行时不存在），本检查报它是**对的**。
+#   踩坑实录：太阁火器工程曾把这条告警当成误报驳回，给铁炮写了自定义 usage 名 `tk_firearm`，
+#   结果掏出火枪时 native 取到无效 usage 索引 → `AccessViolationException`（MissionState.TickMission）。
+#   引擎日志判据：`opening .../Modules/Native/ModuleData/item_usage_sets.xml` 只会出现 Native 一条。
 # Languages/ 由语言系统按清单加载，不走段注册
 # AssetRegistry/ = **运行期自读目录**（不经 MBObjectManager）：立绘表 ProfileStages.csv、
 #   ProfileEmotion.csv，以及选人详情页的画像表 HeroProfiles.xml 都放这里——
