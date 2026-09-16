@@ -42,6 +42,9 @@ except Exception:
 BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 SRC_ROOT = r"D:\BrainMaker\战国无双2资产解包分析"
 SRC_DIR = os.path.join(SRC_ROOT, "export", "fbx")
+# 源工程 2026-09-16 贴图升级产物（<键>_d.png = 超分漫反射，2 倍于原图集）
+TEX_BATCH = os.path.join(SRC_ROOT, "work", "tex_batch")
+USE_TEX_UPGRADE = True          # 由 --no-tex-upgrade 关闭（main 里赋值）
 CENSUS_DIR = os.path.join(REPO, "Debug", "offline", "sw2_census")
 OUT_DIR = os.path.join(REPO, "tools", "armor-pipeline", "out")
 BUILD = os.path.join(REPO, "tools", "armor-pipeline", "scripts", "build_armor.py")
@@ -50,7 +53,22 @@ TEX = os.path.join(REPO, "tools", "armor-pipeline", "scripts", "build_textures.p
 R_TORSO = "0.0120"
 R_ARMS = "0.0160"
 # 每人可覆盖（键=角色 key，值=dict(r=..., r_arms=...)）——只在实测需要时加
-OVERRIDE = {}
+OVERRIDE = {
+    # 🔴 2026-09-16 浓姬：她手臂上没有籠手，`bone_16/17` 驱动的**只有两片大振袖**。
+    #    `R_ARMS=0.0160` 是为「籠手要盖住骑砍更粗的胳膊」调的；套到袖子上 =
+    #    把 53cm 的袖幅放到 53×0.0160 = **0.85 米**（甲总进深炸到 1.14 米，幸村甲只有 0.48）。
+    #    实机表现就是两片巨大硬翅膀。袖子是**离身布**不是贴身甲，径向该用躯干那一档 R。
+    #    另配 `cloth_drop`：源件是 T-pose，这两片布是斜挂在水平手臂上的，
+    #    重定向到骑砍 A-pose 会变成"向后戳出去的板" → 绕肘→腕轴放平（见 build_armor 那段长注释）。
+    "L12_nouhime": dict(r_arms=R_TORSO, cloth_drop="0,1"),
+    # 🔴 2026-09-16 第二批（布料「垂挂」）：源件是 T-pose，这两人腰/背上的**长衣尾**被描成
+    #    「迎风向后甩出去」的姿势（长政 idx1 从腰部向后伸 66cm），骨轴是竖直的脊椎
+    #    → `--cloth-drop`（绕骨轴）对它无效，必须走 `--cloth-hang`（绕水平轴扫到正下方）。
+    #    判据来源：驱动件↔渲染件按包围盒重合配对（8/8 命中），配对结果见
+    #    Debug/offline/cloth_probe/audit_cloth.txt。
+    "L42_nagamasa": dict(cloth_hang="0"),
+    "L40_ieyasu":   dict(cloth_hang="0"),
+}
 
 # 🔴 甲 = 所有已加载件 − 绑头骨族的碎片（2026-09-15 T3）。
 #
@@ -95,7 +113,21 @@ def find_skel():
 
 
 def find_diffuse(key):
-    """源图集：`web/textures/<角色>.png`（幸村那件的 --diffuse 就是这个位置）。"""
+    """甲贴图来源。
+
+    🔴 2026-09-16 起默认走**升级路线**：源工程超分 2 倍的图（`work/tex_batch/<键>_d.png`）。
+    它比原图集锐利（实测清晰度 2456 vs 1878，而原图集纯放大只有 172.5），
+    配合 `--tex-scale 2` 出 1024×1560 的甲贴图（原来 512×780）。
+    回退：`--no-tex-upgrade` 走原图集（512×1024，输出 512×780）。
+
+    甲**不共用武器贴图**：甲穿在身上、与角色共用图集（这条是对的）；
+    武器相反，有独立贴图（见 build_weapons.py 的说明）。
+    """
+    if USE_TEX_UPGRADE:
+        p = os.path.join(TEX_BATCH, key + "_d.png")
+        if os.path.isfile(p):
+            return p
+        print("     ⚠️ 升级图缺 %s → 回退原图集" % p)
     cands = [os.path.join(SRC_ROOT, "web", "textures", key + ".png"),
              os.path.join(SRC_DIR, key + ".png")]
     for c in cands:
@@ -171,7 +203,13 @@ def main():
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--force", action="store_true", help="已存在的也重做")
     ap.add_argument("--set", default="lords", choices=["lords", "troops"])
+    ap.add_argument("--no-tex-upgrade", action="store_true",
+                    help="甲贴图用原图集（512×780）。默认走超分图，出 1024×1560")
     args = ap.parse_args()
+    global USE_TEX_UPGRADE
+    USE_TEX_UPGRADE = not args.no_tex_upgrade
+    # 升级图的像素尺寸是原图集的 2 倍 → 裁切与输出同倍放大（UV 重映射与尺寸无关，不会错位）
+    tex_scale = "2" if USE_TEX_UPGRADE else "1"
 
     skel = find_skel()
     if not skel:
@@ -198,6 +236,10 @@ def main():
                "--no-hands", "--kimono-torso-only"]
         if plan["drophead"]:
             cmd += ["--drop-head-idx", ",".join(str(x) for x in plan["drophead"])]
+        if own.get("cloth_drop"):
+            cmd += ["--cloth-drop", own["cloth_drop"]]
+        if own.get("cloth_hang"):
+            cmd += ["--cloth-hang", own["cloth_hang"]]
         print("  ▶ %-16s 甲件 %s%s%s" % (key, plan["parts"],
               " 着物%s" % plan["kimono"] if plan["kimono"] else "",
               " 剔头%s" % plan["drophead"] if plan["drophead"] else ""))
@@ -213,6 +255,7 @@ def main():
             rc2, out2 = run([BLENDER, "-b", "--python", TEX, "--",
                              "--armor", out_fbx, "--src", src, "--diffuse", dif,
                              "--out", OUT_DIR, "--name", name,
+                             "--tex-scale", tex_scale,
                              "--parts-idx", ",".join(str(x) for x in plan["parts"]), "--ao", "0.35"], "build_textures")
             tex_ok = rc2 == 0
         else:

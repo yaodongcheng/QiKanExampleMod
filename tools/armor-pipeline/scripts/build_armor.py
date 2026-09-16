@@ -52,6 +52,15 @@ R = float(get(A, "--r", "0.01"))
 # 这里单独放一点。实测 0.0120 → 0.0145 才把上臂那圈身体盖住。
 R_ARMS = float(get(A, "--r-arms", str(R)))
 CUT_Z = float(get(A, "--cut-z", "0.0"))
+# 🔴 布料件「放下来」（2026-09-16）：列出子网格号，这些件会绕**自己的手臂轴**转到
+#    「重心正对轴下方」。用于源件里的**悬垂布**（振袖/袍摆）——源模型是 T-pose，
+#    布是斜挂在水平手臂上的，直接重定向到骑砍 A-pose 会变成"向后戳出去的一块板"。
+CLOTH_DROP = [int(x) for x in get(A, "--cloth-drop", "").split(",") if x.strip()]
+# 🔴 布料件「垂挂」（2026-09-16）：同上，但转轴**不是骨轴**，而是「重心→正下方」这条弧对应的
+#    水平轴。用在**挂在腰/背上**的布片（长衣尾/后垂）—— 源件描成"迎风向后甩"的姿势，
+#    骨轴是竖直的（脊椎），绕它转等于没转。实测：浅井长政 idx1（driven by nuno1_p_9）从腰部
+#    向后伸 66cm，绕骨轴这条路走不通，必须用这个。
+CLOTH_HANG = [int(x) for x in get(A, "--cloth-hang", "").split(",") if x.strip()]
 LOD_RATIOS = [float(x) for x in get(A, "--lod", "0.834,0.563,0.249,0.140,0.072").split(",")]
 DO_LOD = "--no-lod" not in A
 
@@ -716,6 +725,38 @@ for bn_sw, bn_bl in BMAP.items():
     T_BONE[bn_sw] = (Matrix.Translation(b_bl.head_local) @ rot @ S
                      @ Matrix.Translation(-h_sw_f))
 
+# ---------------------------------------------------------------- 布料件「放下来」· 第 1 步：打标记
+# 🔴 为什么需要（2026-09-16 实机症状："浓姬的衣服像奇怪形状的硬纸板"）：
+#    源模型是 **T-pose**（手臂水平：肩 x=±13.6 / 肘 x=±39.9 / 腕 x=±63.0，全在 z=138.8），
+#    两片振袖是**沿水平手臂横着伸出去的大布片**（源件里 x 24.5→63.7，同时向后下各挂 ~50cm）。
+#    重定向到骑砍 A-pose 时，手臂骨绕 **y 轴**转 ~33°，**布片的垂坠方向跟着一起转**
+#    —— 本来是"垂下"的布变成"朝外斜戳出去"，实机就是两片硬翅膀。
+#    物理上不对：重力不跟着手臂转。
+#
+#    修法：**在重定向之后**、在骑砍空间里，绕**骑砍这条手臂自己的轴**（foretwist→hand，
+#    即肘→腕）把那片布转到"重心正对轴的正下方"，让它按重力垂下来。
+#    ⚠️ 不能在源空间先转 —— 试过，会被随后的手臂旋转再转歪（2026-09-16 实测）。
+#    这一步纯几何、离线可验证、不依赖引擎布料；做完它再上布料才是"在正确姿态上飘"。
+#
+#    轴的取法不写死人名：第 1 步按子网格号打标记 → 第 2 步（重定向之后）用这些顶点
+#    **重定向后的主导骨**当轴，所以换角色不用改代码。
+CLOTH_MARK = {}
+if CLOTH_DROP or CLOTH_HANG:
+    _by_sub = {}
+    for _o in dup_list:
+        _s = parse_submesh(_o.name)
+        if _s is not None:
+            _by_sub[_s] = _o
+    for _mode, _subs in (("drop", CLOTH_DROP), ("hang", CLOTH_HANG)):
+        for _s in _subs:
+            _o = _by_sub.get(_s)
+            if _o is None:
+                print("   !! --cloth-%s %d：选件里没有这个子网格" % (_mode, _s)); continue
+            _g = _o.vertex_groups.new(name="__cloth_%s_%d__" % (_mode, _s))
+            _g.add(list(range(len(_o.data.vertices))), 1.0, 'REPLACE')
+            CLOTH_MARK["__cloth_%s_%d__" % (_mode, _s)] = None
+    print("   布料件标记：%s" % sorted(CLOTH_MARK))
+
 bpy.ops.object.select_all(action='DESELECT')
 if "--dbg-parts" in A:
     # 逐件打印重定向后的世界包围盒（定位"某一件被撑爆"用；正常躯干件宽 ≈0.4~0.6 米）
@@ -736,6 +777,20 @@ if len(dup_list) > 1:
 ARM = dup_list[0]
 ARM.name = NAME
 ARM.data.name = NAME          # 网格**数据**名也要改：FBX 的 Geometry 节点取数据名，编辑器按它命名资源
+
+# 布料件：把标记组里的顶点号抓出来，然后**删掉标记组**（否则会被当骨名导出）
+CLOTH_IDX = {}
+if CLOTH_MARK:
+    for _nm in list(CLOTH_MARK):
+        _g = ARM.vertex_groups.get(_nm)
+        if _g is None:
+            continue
+        _gi = _g.index
+        _ids = [v.index for v in ARM.data.vertices
+                if any(x.group == _gi and x.weight > 0.5 for x in v.groups)]
+        CLOTH_IDX[_nm] = _ids
+        ARM.vertex_groups.remove(_g)
+    print("   布料件顶点：%s" % {k: len(v) for k, v in CLOTH_IDX.items()})
 
 # 🔴 材质必须换成一张干净的、名字对得上的空材质。源件带过来的是 `mat_L00_yukimura`
 #    外加指向 **不存在文件** 的贴图节点，实测后果（2026-09-14）：
@@ -844,6 +899,79 @@ print("   顶点 %d：移动 %d，跳过 %d" % (len(ARM.data.vertices), n_moved,
 print("   顶点组 %d 个" % len(ARM.vertex_groups))
 badv = sum(1 for v in ARM.data.vertices if not v.groups)
 print("   未绑定顶点 %d" % badv)
+
+# ---------------------------------------------------------------- 布料件「放下来」· 第 2 步：转
+# 到这一步顶点已经在**骑砍空间**、权重已换成骑砍骨名，所以"向下"就是世界 -Z。
+# 轴 = 该件重定向后的主导骨（袖子 → bip01_?_foretwist_*）→ 它的 hand 子骨，即肘→腕。
+if CLOTH_IDX:
+    _vgname = {g.index: g.name for g in ARM.vertex_groups}
+    for _nm, _ids in CLOTH_IDX.items():
+        if not _ids:
+            print("   !! %s：0 个顶点，跳过" % _nm); continue
+        _mode = "hang" if "_hang_" in _nm else "drop"
+        _ctr = Vector((0.0, 0.0, 0.0))
+        for _i in _ids:
+            _ctr += ARM.data.vertices[_i].co
+        _ctr /= len(_ids)
+        _dn = Vector((0.0, 0.0, -1.0))
+        if _mode == "hang":
+            # 挂件（长衣尾/后垂）：以**该件最高点**为悬点（布挂在最上面），
+            # 绕「悬点→重心」扫到正下方所对应的水平轴转过去。
+            # 悬挂点 = **顶部那一圈的重心**，不是"最高的单个顶点"。
+            # 🔴 踩过（2026-09-16）：用单个最高顶点当悬点时，那片布的最高的顶点总在**某一侧边角**上，
+            #    悬点一带 x 偏移，转轴 `cross(v, 下)` 就不再是水平横轴 → 整片布被**甩到身体一侧**，
+            #    渲出来是一块悬空斜挂的大布（长政实测）。对称的布件必须用对称的悬点。
+            _zs = sorted(ARM.data.vertices[i].co.z for i in _ids)
+            _cut = _zs[max(0, int(len(_zs) * 0.9))]
+            _top_ids = [i for i in _ids if ARM.data.vertices[i].co.z >= _cut]
+            _apt = Vector((0.0, 0.0, 0.0))
+            for _i in _top_ids:
+                _apt += ARM.data.vertices[_i].co
+            _apt /= len(_top_ids)
+            _v = _ctr - _apt
+            _ax = _v.cross(_dn)
+            if _v.length < 1e-6 or _ax.length < 1e-6:
+                print("   -- %s：已经是竖直的，无需转" % _nm); continue
+            _adir = _ax.normalized()
+            _ang = _v.angle(_dn)
+            _M = (Matrix.Translation(_apt) @ Matrix.Rotation(_ang, 4, _adir)
+                  @ Matrix.Translation(-_apt))
+            _label = "悬点 z=%.3f" % _apt.z
+        else:
+            _cnt = {}
+            for _i in _ids:
+                _gs = ARM.data.vertices[_i].groups
+                if not _gs:
+                    continue
+                _bn = _vgname.get(max(_gs, key=lambda g: g.weight).group)
+                if _bn:
+                    _cnt[_bn] = _cnt.get(_bn, 0) + 1
+            if not _cnt:
+                print("   !! %s：定不出重定向后的主导骨，跳过" % _nm); continue
+            _bone = max(_cnt, key=_cnt.get)
+            _b = BL.data.bones.get(_bone)
+            if _b is None or not _b.children:
+                print("   !! %s：%s 没有子骨，定不出手臂轴，跳过" % (_nm, _bone)); continue
+            _hand = next((c for c in _b.children if "hand" in c.name), None)
+            _c = _hand or max(_b.children, key=lambda x: x.length)
+            _apt = _b.head_local.copy()
+            _adir = (_c.head_local - _b.head_local).normalized()
+            _rel = _ctr - _apt
+            _perp = _rel - _adir * _rel.dot(_adir)
+            _tgt = _dn - _adir * _dn.dot(_adir)
+            if _perp.length < 1e-6 or _tgt.length < 1e-6:
+                print("   -- %s：重心已在轴下方附近，无需转" % _nm); continue
+            _ang = _perp.normalized().angle(_tgt.normalized())
+            _sign = 1.0 if _adir.dot(_perp.cross(_tgt)) >= 0.0 else -1.0
+            _ang = _sign * _ang
+            _M = (Matrix.Translation(_apt) @ Matrix.Rotation(_ang, 4, _adir)
+                  @ Matrix.Translation(-_apt))
+            _label = "%s→%s" % (_bone, _c.name)
+        for _i in _ids:
+            ARM.data.vertices[_i].co = _M @ ARM.data.vertices[_i].co
+        ARM.data.update()
+        print("   cloth-%s %s：绕 %s 转 %+.1f°，让布垂下"
+              % (_mode, _nm, _label, math.degrees(_ang)))
 
 # （主骨过滤已移到合并**之前**、且只作用于着物 —— 见上面 dup 循环里那段）
 

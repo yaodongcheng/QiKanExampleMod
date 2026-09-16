@@ -45,6 +45,8 @@ BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 
 SRC_FBX = r"D:\BrainMaker\战国无双2资产解包分析\export\fbx"
 SRC_TEX = r"D:\BrainMaker\战国无双2资产解包分析\web\textures"
+# 源工程 2026-09-16 贴图升级产物：<源角色键>_d.png（超分漫反射）/ _n.png（真法线）/ _mr.png（不用）
+TEX_BATCH = r"D:\BrainMaker\战国无双2资产解包分析\work\tex_batch"
 # 59 条脸形位移场的权威来源（build_head_chain.py 同款；通道与脸型无关，新头模一律从这里搬）
 CHAN_SRC = r"D:\BrainMaker\blend_projects\tifa_export\backup_20260913\head_tifa_a_v10.fbx"
 CHAN_OBJ = "head_tifa_a.0"
@@ -78,6 +80,8 @@ def main():
     ap.add_argument("--out", default=OUT_ROOT)
     ap.add_argument("--stage", default=None, help="把这些产物拷到该目录（编辑器工程的 AssetSources）")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--no-tex-upgrade", action="store_true",
+                    help="用原版图集 + 平法线（旧路线）。默认走源工程超分图 + 真法线")
     a = ap.parse_args()
 
     keys = a.only or list(TABLE.keys())
@@ -127,6 +131,9 @@ def main():
               "--src", CHAN_SRC, "--src-object", CHAN_OBJ, "--dst", v1, "--out", v2]
         c3 = [sys.executable, os.path.join(HERE, "scripts", "make_sw2_textures.py"),
               "--atlas", tex, "--out", d, "--name", r["asset"]]
+        if not a.no_tex_upgrade:
+            # 升级路线：漫反射读超分图、法线读真法线（见 make_sw2_textures.py 文档头 B 路线）
+            c3 += ["--src-dir", TEX_BATCH, "--key", key]
         c4 = [sys.executable, os.path.join(FACE, "fbx_probe.py"), v2]
 
         tag = "[%2d/%d] %-16s %s" % (n, len(keys), key, r["cn"])

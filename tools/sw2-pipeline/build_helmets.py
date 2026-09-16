@@ -152,7 +152,12 @@ def main():
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--set", default="lords", choices=["lords", "troops"])
+    ap.add_argument("--no-tex-upgrade", action="store_true",
+                    help="头盔贴图用原图集。默认走超分图（同 build_armors.py）")
     args = ap.parse_args()
+    # 复用 build_armors 的贴图来源开关（find_diffuse 在这个模块里读它）
+    A.USE_TEX_UPGRADE = not args.no_tex_upgrade
+    tex_scale = "2" if A.USE_TEX_UPGRADE else "1"
     skel = A.find_skel()
     if not skel:
         print("[FATAL] 找不到 human_skeleton.fbx")
@@ -204,6 +209,7 @@ def main():
             A.run([A.BLENDER, "-b", "--python", TEX, "--",
                    "--armor", out_fbx, "--src", src, "--diffuse", dif,
                    "--out", OUT, "--name", name, "--parts-name", "|".join(tex_names),
+                   "--tex-scale", tex_scale,
                    "--ao", "0.35"], "helm_tex")
         _st = [l.strip() for l in out.splitlines() if "颏带并入" in l]
         print("     ✅ %s（%.0f KB）%s" % (name, os.path.getsize(out_fbx) / 1024.0,

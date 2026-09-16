@@ -356,7 +356,14 @@ def write_lords(w, path):
         weapon = (r.get("Weapon") or "").strip()
         if weapon:
             ammo = (r.get("Ammo") or "").strip()
-            weapons = [weapon] + ([ammo, ammo] if ammo else []) + list(weapons)[1:]
+            rest = list(weapons)[1:]
+            # 🔴 远程武器不收盾（2026-09-15 火器工程）：弓 / 弩 / 火器的 item_usage_set 都带
+            #    `requires_no_shield` flag（原版弓弩均如此；原版全库没有一个带盾的弩兵）。
+            #    填了「弹药」列 = 明确是远程武器 —— 此时若保留身份默认装备里的盾，
+            #    武器 usage 会被引擎跳过（拿着枪射不出去）。故此时丢弃盾。
+            if ammo:
+                rest = [x for x in rest if "shield" not in x]
+            weapons = [weapon] + ([ammo, ammo] if ammo else []) + rest
         fem = w.is_female(r)
         cul = (r.get("CultureID") or "").strip() or CULTURE_FALLBACK
         # 🔴 专属 race 的来源 = `TaikouHero.csv` 的「头」列（键 `Race`）—— 2026-09-15 用户裁定：
