@@ -21,6 +21,17 @@
    即不给它出头盔物品、甲件里保留兜（`--keep-head-frags` 不生效时兜留在甲上，视觉仍然正确）。
    详见 `plans/战国无双换装批量落地.md` 的兵种段。
 
+🔴 **哪个模型是哪个游戏兵种、穿什么 —— 不在本表**（2026-09-16 用户裁定：数据驱动）
+------------------------------------------------------------------------------------
+兵种的定义与装备一律在 `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/TaikouTroop.csv`
+（等级/兵种组/技能组/文化/各槽装备/升级链），武将在 `HeroEquip.csv`。
+本表只管 **3D 管线的事**：`slug`（资产命名）+ `helmet`（兜件切出来了没）。
+两个物品生成器按「CSV 里有人穿这个 slug」决定该出哪些物品定义 —— 见
+`Scripts/taikou_equip_tables.py`。
+
+⚠️ 名字（铠甲/头盔正式名）也不在本表，从 `Sw2OfficialNames.csv` 取 —— 那张表由
+   `extract_official_names.py` 从上游 `web/armor.html` 提取（铁律 28：源 → 生成器 → CSV）。
+
 数据来源（都在 `Debug/offline/`，离线产物不进 git）
   · `sw2_parts/<模型>_parts.csv`   —— 零件表（`build_helmets.helmet_subs` 靠它把 idx 翻成网格名）
   · `sw2_census/<模型>_census.csv` —— 骨普查（甲管线 `plan_for` 靠它挑甲件）
@@ -42,7 +53,7 @@ TROOP_TABLE = {
     "L264_SENNIN":   dict(slug="troop_sennin", body=[],          helmet=[2], face_shared=False),  # 旋忍：银白大盔 + 身甲同件
     "L265_HAZENIN":  dict(slug="troop_hazenin", body=[],         helmet=[5], face_shared=False),  # 破忍：黑漆筋兜 + 胸甲同件
     "L266_NINJA3":   dict(slug="troop_jonin", body=[],           helmet=[2], face_shared=False),  # 上忍：额当 + 前立（头罩在 idx0，与脸同件）
-    # ── 其它兵种 ──────────────────────────────────────────────────
+    # ── 其它兵种（**没有对应兵种**；九州兵那套已给武将穿，其余暂无人穿）─────────
     "L259_NOUMIN":   dict(slug="troop_noumin", body=[],          helmet=[],  face_shared=False),  # 农民：裸头（素肌 + 作务衣）
     "L260_KYUSHU1":  dict(slug="troop_kyushu", body=[],          helmet=[2], face_shared=False),  # 九州兵：阵笠 + 大袖同件
     "L261_KYUSHU2":  dict(pending_helmet=[0], slug="troop_kyushu_elite", body=[],    helmet=[], face_shared=True),   # 九州兵精锐：尖顶兜 + 身体同件

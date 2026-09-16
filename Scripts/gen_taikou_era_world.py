@@ -46,10 +46,14 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, os.path.join(REPO, "Scripts"))
+import taikou_equip_tables as EQ      # noqa: E402  兵种表 / 武将装备档表
 DEFAULT_CSV = os.path.join(REPO, "Knowledge", "太阁5", "骑砍2织丰角色ID对应", "csv")
 DEFAULT_MODULE = (r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12"
                   r"\Mount & Blade II Bannerlord\Modules\Taikou")
@@ -59,45 +63,33 @@ BASELINE_ERA = "1560"                      # 无后缀文件 = 这一代
 KINGDOM_TYPES = ("Warrior", "Ninja", "Pirate")   # 立国的势力类型（用户裁定）
 CULTURE_FALLBACK = "ikoku"                 # CSV 没给文化时的兜底（现有最小集同款）
 
-# ── 装备分档（只能用 taikou_items/ 里这 43 件；槽位名 = 引擎枚举）──
-# 🔴 不配马：马要配 default_group=Cavalry，而 Cavalry 无马会不会炸没验证过 → 一律 Infantry（零风险）。
-ARMOR_HEAVY = dict(Head="nasal_helmet_with_mail", Body="desert_lamellar",
-                   Gloves="reinforced_mail_mitten", Leg="leather_cavalier_boots")
-ARMOR_LIGHT = dict(Body="battania_civil_b", Leg="leather_shoes")
-ARMOR_ROBE = dict(Body="short_padded_robe", Leg="leather_shoes")
+# ── 武将装备：**数据在 CSV，不在这里**（2026-09-16 用户裁定）──
+# 🔴 读 `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/HeroEquip.csv`（源表，手维护）：
+#    一行一个**身份**，**铠甲 / 头盔 / 武器各占一列**（另有女将专用的甲/盔两列）。
+#    候选写竖线分隔的**兵种 slug**；甲与盔**各自独立挑**。
+#    🔴 **女将专用列有值 = 覆盖**（「女将统一穿女甲」）：樱色女具足是照女性身形做的，
+#       而那些具足是按男性身形做的 —— 女将穿会偏大。头盔留空 = 走通用池（笠/头巾不分男女）。
+#    **改武将穿什么 = 改那张表再重跑本脚本。**
+#    读取器：`Scripts/taikou_equip_tables.py`（列口径/多值分隔/自检都在那里）。
+#
+# 三条口径（表本身表达不了的、属于渲染规则，所以留在这里）：
+#  ① **同一个武将固定穿池子里的一对**（按 id 挑，六代一致）→ 同身份档内长相各异，1300 多人不撞衫。
+#  ② **不挂 Leg / Gloves**（2026-09-16 用户裁定）：「腿甲基本上被铠甲覆盖了」——
+#     甲件本来就盖到脚踝、自带籠手，再挂原版靴子/铁手套反而穿帮。
+#     腿 / 臂防护由甲自己的 `leg_armor` / `arm_armor` 提供，不吃亏。
+#  ③ **不配马**：马要配 default_group=Cavalry，而 Cavalry 无马会不会炸没验证过 → 一律 Infantry（零风险）。
+HERO_EQUIP, HERO_EQUIP_DEFAULT = EQ.hero_equip()
 
-EQUIP_BY_IDENTITY = {
-    # 身份 → (武器列表, 甲, 民用甲)
-    "大名": (["ridged_sabre_sword_t4", "leather_round_shield"], ARMOR_HEAVY, ARMOR_LIGHT),
-    "国主": (["ridged_sabre_sword_t4", "leather_round_shield"], ARMOR_HEAVY, ARMOR_LIGHT),
-    "城主": (["ridged_sabre_sword_t4", "leather_round_shield"], ARMOR_HEAVY, ARMOR_LIGHT),
-    "当家": (["ridged_sabre_sword_t4"], ARMOR_LIGHT, ARMOR_ROBE),
-    "家老": (["short_sword_t3", "leather_round_shield"], ARMOR_HEAVY, ARMOR_LIGHT),
-    "部将": (["short_sword_t3", "leather_round_shield"], ARMOR_HEAVY, ARMOR_LIGHT),
-    "侍大将": (["short_sword_t3"], ARMOR_HEAVY, ARMOR_LIGHT),
-    "足轻大将": (["short_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE),
-    "足轻组头": (["cleaver_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE),
-    "上忍": (["pugio"], ARMOR_ROBE, ARMOR_ROBE),
-    "中忍": (["pugio"], ARMOR_ROBE, ARMOR_ROBE),
-    "下忍": (["leafblade_throwing_knife"], ARMOR_ROBE, ARMOR_ROBE),
-    "头目": (["pugio"], ARMOR_ROBE, ARMOR_ROBE),
-    "头领": (["cleaver_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE),
-    "船大将": (["cleaver_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE),
-    "船头": (["cleaver_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE),
-    "水夫头": (["falchion_sword_t2"], ARMOR_LIGHT, ARMOR_ROBE),
-    "水夫": (["falchion_sword_t2"], ARMOR_ROBE, ARMOR_ROBE),
-    "掌柜": (["pugio"], ARMOR_ROBE, ARMOR_ROBE),
-    "伙计": (["pugio"], ARMOR_ROBE, ARMOR_ROBE),
-    "浪人": (["battania_mace_1_t2"], ARMOR_LIGHT, ARMOR_ROBE),
-    "师范": (["wooden_sword_t1"], ARMOR_ROBE, ARMOR_ROBE),
-    "师范代": (["wooden_sword_t1"], ARMOR_ROBE, ARMOR_ROBE),
-    "见习": (["wooden_sword_t1"], ARMOR_ROBE, ARMOR_ROBE),
-    "医师": (["pugio"], ARMOR_ROBE, ARMOR_ROBE),
-    "锻冶匠": (["battania_mace_1_t2"], ARMOR_ROBE, ARMOR_ROBE),
-    "僧侣": ([], ARMOR_ROBE, ARMOR_ROBE),
-    "茶人": ([], ARMOR_ROBE, ARMOR_ROBE),
-}
-EQUIP_DEFAULT = (["short_sword_t3"], ARMOR_LIGHT, ARMOR_ROBE)
+
+def pick_armor(row, hero_id, female):
+    """身份行 + 武将 id + 性别 → (甲 id, 兜 id)。**按 id 定，不看年代**（同一个人六代穿同一套）。
+
+    甲与盔**各自独立挑**（表里是两列独立候选池，见 `HeroEquip.csv`）——
+    所以「侍的具足配阵笠」这种组合也会出现，比原来「甲兜成对」的组合数多得多。
+    女将走「女将专用甲」池（覆盖语义），头盔仍走通用池。
+    """
+    return EQ.pick_hero_equip(row, hero_id, female)
+
 
 VOICE_BY_IDENTITY_FEMALE = "calm"
 VOICE_DEFAULT = "curt"
@@ -335,7 +327,12 @@ def write_lords(w, path):
         ident = (r.get("Identity_" + w.era) or "").strip()
         if ident in ("", "无效"):
             ident = ""                                  # 无身份（女性/推定在场那批）→ 用默认档
-        weapons, armor, civil = EQUIP_BY_IDENTITY.get(ident, EQUIP_DEFAULT)
+        row = HERO_EQUIP.get(ident) or HERO_EQUIP_DEFAULT     # 身份没登记 → 表的「none」行
+        weapons = list(row["Weapons"])
+        fem = w.is_female(r)
+        # 甲 / 兜：按身份行 + 武将 id 从候选池挑一对（六代一致）→ 同档内长相各异。
+        body_id, head_id = pick_armor(row, r["ID"], fem)
+        armor = dict(Body=body_id, Head=head_id)
         # 🔴 专属甲（2026-09-15 用户裁定）：来源 = `TaikouHero.csv` 的「甲」列（键 `Armor`）——
         #    哪位武将穿哪件甲写**数据**里，不写代码表（改人只改表）。
         #    ① 只覆盖**战斗装**的 Body 槽，民用装（进城便服）不动；
@@ -346,7 +343,14 @@ def write_lords(w, path):
             armor = dict(armor, Body=body_armor)
         # 专属头盔（「头盔」列）→ Head 槽。同甲：普通物品，只是出场戴着，可摘可偷。
         helmet = (r.get("Helmet") or "").strip()
-        if helmet:
+        # 🔴 **有专属头模的人不戴档位兜**（2026-09-16 踩到）：战无2 那 28 个专属 race 的头模里
+        #    **已经长着头饰了** —— 其中 19 人的兜与头部连体、根本切不出独立网格（所以「头盔」列是空的，
+        #    见 `parts_table` 与 item 的「占位·无真实模型」标记）。给这 19 人再戴一顶档位兜
+        #    = **头上套两层**（实机没验也知道穿帮）。有专属头模 + 有专属兜的那 9 人才该戴。
+        race_id = (r.get("Race") or "").strip()
+        if race_id and not helmet:
+            armor = {k: v for k, v in armor.items() if k != "Head"}
+        elif helmet:
             armor = dict(armor, Head=helmet)
         # 🔴 专属武器（2026-09-15）：来源 = `TaikouHero.csv` 的「武器」列，同甲/盔口径（写数据不写代码表）。
         #    ① 替换 **Item0（主武器）**，保留原副武器（盾之类）；
@@ -364,11 +368,10 @@ def write_lords(w, path):
             if ammo:
                 rest = [x for x in rest if "shield" not in x]
             weapons = [weapon] + ([ammo, ammo] if ammo else []) + rest
-        fem = w.is_female(r)
         cul = (r.get("CultureID") or "").strip() or CULTURE_FALLBACK
         # 🔴 专属 race 的来源 = `TaikouHero.csv` 的「头」列（键 `Race`）—— 2026-09-15 用户裁定：
         #    "谁长什么脸"是**数据**，不写死在生成器里（与「甲」列同口径）。
-        race_id = (r.get("Race") or "").strip()
+        #    （`race_id` 在上面判「要不要戴档位兜」时已经读过一次。）
         race_attr = ' race="%s"' % race_id if race_id else ""
         L.append('\t<NPCCharacter id="%s" default_group="Infantry" age="%d" voice="%s" '
                  'is_hero="true" is_female="%s" culture="Culture.%s"%s name="{=%s}%s" occupation="Lord" '
@@ -382,12 +385,13 @@ def write_lords(w, path):
         for slot, it in sorted(armor.items()):
             L.append('\t\t\t\t<equipment slot="%s" id="Item.%s" />\n' % (slot, it))
         L.append("\t\t\t</EquipmentRoster>\n\t\t\t<EquipmentRoster civilian=\"true\">\n")
-        # 🔴 平民装也穿专属装备（2026-09-15 用户要求，**测试开关**）：
-        #    默认专属甲/盔/武器只进「战斗装」，进城/进堡一换便服就看不见自制外观。
-        #    打开后平民装那一档**覆盖**上专属的 Body / Head / Item0，
-        #    这样开局进城就能直接看到每个人长什么样、穿什么。
-        #    ⚠️ 恢复"城里穿便服"的正常表现 = 把 MIRROR_DEDICATED_TO_CIVILIAN 改回 False 重跑本脚本。
-        civil_final = dict(civil)
+        # 🔴 民用装（2026-09-16 起）= **最终确定的 `armor`**（不是中途那份）——
+        #    原来"城里穿便服"那套是**原版衣服**，与用户裁定「武将不穿原版甲」冲突。
+        #    ⚠️ 必须用 `armor` 而非中途快照：专属甲/兜覆盖、以及「有专属头模就不戴兜」
+        #       这两步都在后面做，用旧快照会让平民装**穿回**战斗装已经去掉的头盔。
+        #    下面这个开关现在**只管武器**：把专属武器也写进平民装，好在城里直接看到自制外观。
+        #    ⚠️ 恢复"城里只带随身武器"= 改 False 后重跑本脚本（产物唯一真源仍是 TaikouHero.csv）。
+        civil_final = dict(armor)
         civil_weapons = []
         if MIRROR_DEDICATED_TO_CIVILIAN:
             if body_armor:

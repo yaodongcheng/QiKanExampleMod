@@ -36,6 +36,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import taikou_equip_tables as EQ      # noqa: E402  兵种表 / 武将装备档表的统一读取器
+
 FACE = "BodyProperty.villager_empire"
 SKILL = "SkillSet.infantry_heavyinfantry_level1_template_skills"
 
@@ -97,51 +100,33 @@ NPC_TEMPLATES = [
 #   全是「主角」副本（`is_hero=true` 的模板英雄，不算士兵）→ 地图显示 100+ 人、队伍界面
 #   只有领主 + 主角、没有一兵一卒。本段 = 补真正能打的兵种（并让文化改指真模板）。
 #
-# 口径（C 档最小集）：**全文化共用一套通用兵**，不做地域差异（地域兵种 = T4）；
-#   装备取官方拷贝物品（`taikou_items/`，无日式外观——外观资产是后续工程）。
+# 口径（C 档最小集）：**全文化共用一套通用兵**，不做地域差异（地域兵种 = T4）。
 # 字段含义：level 决定战力档，skill_template 与 level 同档（引擎按 level 分档给的技能集）；
 #   battle 多套 = 引擎每人生成时随机挑一套（外观有变化）；cold = 民用装备集 id（城镇里穿）。
-TROOPS = [
-    # (id, 英文名, level, 兵种组, 技能集, 战斗装备变体, 民用集, 额外属性, 升级目标)
-    ("yari_ashigaru", "Ashigaru Spearman", 6, "Infantry",
-     "SkillSet.infantry_heavyinfantry_level6_template_skills",
-     [[("Item0", "Item.western_spear_1_t2"), ("Head", "Item.kettle_hat_over_padded_cloth"),
-       ("Body", "Item.short_padded_robe"), ("Leg", "Item.leather_shoes")],
-      [("Item0", "Item.western_spear_1_t2"), ("Head", "Item.fur_hat"),
-       ("Body", "Item.short_padded_robe"), ("Leg", "Item.leather_shoes")]],
-     'is_basic_troop="true"', ["veteran_ashigaru"]),
-    ("yumi_ashigaru", "Ashigaru Archer", 6, "Ranged",
-     "SkillSet.ranged_skirmisher_level6_template_skills",
-     [[("Item0", "Item.hunting_bow"), ("Item1", "Item.steppe_arrows"),
-       ("Head", "Item.kettle_hat_over_padded_cloth"), ("Body", "Item.short_padded_robe"),
-       ("Leg", "Item.leather_shoes")],
-      [("Item0", "Item.hunting_bow"), ("Item1", "Item.steppe_arrows"), ("Head", "Item.fur_hat"),
-       ("Body", "Item.short_padded_robe"), ("Leg", "Item.leather_shoes")]],
-     'is_basic_troop="true"', []),
-    ("veteran_ashigaru", "Veteran Ashigaru", 11, "Infantry",
-     "SkillSet.infantry_heavyinfantry_level11_template_skills",
-     [[("Item0", "Item.western_spear_3_t3"), ("Head", "Item.kettle_hat_over_mail_coif"),
-       ("Body", "Item.padded_leather_shirt"), ("Leg", "Item.wrapped_leather_boots")]],
-     'is_basic_troop="true"', ["samurai"]),
-    ("samurai", "Samurai", 16, "Infantry",
-     "SkillSet.infantry_heavyinfantry_level16_template_skills",
-     [[("Item0", "Item.ridged_sabre_sword_t4"), ("Head", "Item.nasal_helmet_with_mail"),
-       ("Body", "Item.leather_lamellar_armor"), ("Leg", "Item.leather_cavalier_boots")]],
-     "", []),
-    ("mounted_samurai", "Mounted Samurai", 21, "Cavalry",
-     "SkillSet.cavalry_lightcavalry_heavycavalry_level21_template_skills",
-     [[("Item0", "Item.vlandia_lance_2_t4"), ("Item1", "Item.ridged_sabre_sword_t4"),
-       ("Head", "Item.nasal_helmet_with_mail"), ("Body", "Item.eastern_lamellar_armor"),
-       ("Leg", "Item.leather_cavalier_boots"), ("Horse", "Item.t2_empire_horse"),
-       ("HorseHarness", "Item.light_harness")]],
-     "", []),
-    # 匪兵（供 `bandit_boss_party_template` / looters 文化用；破衣烂衫 + 木刀/锄头）
-    ("bandit_looter", "Bandit", 4, "Infantry",
-     "SkillSet.infantry_heavyinfantry_level1_template_skills",
-     [[("Item0", "Item.wooden_sword_t1"), ("Body", "Item.tattered_rags"), ("Leg", "Item.wrapped_shoes")],
-      [("Item0", "Item.peasant_pickaxe_1_t1"), ("Body", "Item.tattered_rags"), ("Leg", "Item.wrapped_shoes")]],
-     None, []),
-]
+#
+# 🔴 2026-09-16：装备换成**战无2 换装工程的日式甲/兜/武器**（原来借官方欧洲装备顶替）。
+#   物品 id 由 `tools/sw2-pipeline/gen_troop_armor_items.py`（甲/兜）与
+#   `gen_troop_weapon_items.py`（武器）产出；本表是**接线处**——改装备就改这里再重跑本脚本。
+#   ⚠️ 别再写回 `Item.short_padded_robe` 那批官方物品：兵种装备一换，那些引用就没人用了
+#      （`prune_taikou_items.py` 会按引用闭包把它们剪掉）。
+#
+# 🔴 **腿甲不挂**（2026-09-16 用户裁定）：「腿甲基本上被铠甲覆盖了，留空吧」——
+#   战无2 的甲件本来就盖到脚踝，再挂一双原版欧洲靴反而穿帮。所以 14 个换装兵种的
+#   **Leg 槽一律留空**（腿的防护值由甲自己的 `leg_armor` 属性提供，不吃亏）。
+#   ⚠️ 骑马武士 / 山贼仍是我方保留的原版装备，它们照旧带 Leg。
+#
+# 🔴 忍者 7 兵（树形，2026-09-16 用户裁定）：
+#   下忍 6 → 中忍 11 → 上忍 16 ─┐
+#                    ├ 突忍 16 ─┼→ 破忍 21（线顶）
+#                    └ 飞忍 16 ─┘
+#   上忍 16 另分出 旋忍 21。文化 = `Culture.ninja`（忍者众家族也改挂这个文化，见 Clan.csv 生成器）。
+# ───────── 兵种表：**数据在 CSV，不在这里**（2026-09-16 用户裁定）─────────
+# 🔴 装备/等级/技能/升级链一律读 `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/TaikouTroop.csv`
+#    （源表，手维护）。**改兵种 = 改那张表再重跑本脚本**，不要往这里加 Python 字面量。
+#    本文件只负责「把表渲染成 XML」，渲染规则见 `troop_cell()`。
+#    读取器：`Scripts/taikou_equip_tables.py`（列口径/多值分隔/自检都在那里）。
+TROOPS = []          # main() 里从 CSV 装填（模块导入时读盘会让 --check 变慢/变脆）
+
 
 # 兵种用的装备集（写进 taikou_equipment_sets.xml 的定义见该文件；此处只引用 id）
 #   · 民用集：🔴 **两个属性都要写**（跨版本差异，1.2.12 与 1.5.1 DLL 各自反编译实证）——
@@ -154,22 +139,25 @@ CIVIL_ROSTER = "taikou_civil_common"                 # 百姓装（全部兵种�
 CIVIL_ROSTER_BANDIT = "taikou_civil_bandit"          # 匪兵在城镇里仍穿破衣
 
 
-def troop_cell(tp):
-    """渲染一个兵种模板。装备走官方同款结构：多套内联 `<EquipmentRoster>`（随机挑一套）
-    + 一条 `<EquipmentSet id=… civilian="true"/>`（民用）。"""
-    tid, en, lvl, group, skill, variants, extra, upgrades = tp
+def troop_cell(d):
+    """渲染一个兵种模板。参数 `d` = `taikou_equip_tables.troops()` 的一行（来自 TaikouTroop.csv）。
+
+    装备走官方同款结构：**多套内联 `<EquipmentRoster>`**（引擎每人生成时随机挑一套，
+    表里用 `;` 分隔多套）+ 一条 `<EquipmentSet id=… civilian="true"/>`（民用，城镇里穿）。
+    """
+    tid = d["ID"]
     is_bandit = tid == "bandit_looter"
-    civil = CIVIL_ROSTER_BANDIT if is_bandit else CIVIL_ROSTER
+    civil = (d.get("CivilSet") or "").strip() or (CIVIL_ROSTER_BANDIT if is_bandit else CIVIL_ROSTER)
     eq = []
-    for v in variants:
+    for v in d["variants"]:
         slots = "\n".join(
-            '\t\t\t\t<equipment slot="%s" id="%s" />' % (s, i) for s, i in v)
+            '\t\t\t\t<equipment slot="%s" id="Item.%s" />' % (s, i) for s, i in v)
         eq.append('\t\t\t<EquipmentRoster>\n%s\n\t\t\t</EquipmentRoster>' % slots)
     eq.append('\t\t\t<EquipmentSet id="%s" equipmentType="Civilian" civilian="true" />' % civil)
-    upgrad = "\n".join('\t\t\t\t<upgrade_target id="NPCCharacter.%s" />' % u for u in upgrades)
+    upgrad = "\n".join('\t\t\t\t<upgrade_target id="NPCCharacter.%s" />' % u for u in d["upgrades"])
     occup = "Bandit" if is_bandit else "Soldier"
-    attrs = (" " + extra) if extra else ""
-    return f'''	<NPCCharacter id="{tid}" default_group="{group}" formation_position_preference="Front" level="{lvl}" is_hero="false" is_female="false" culture="Culture.ikoku" name="{{=TAIKOU_troop_{tid}}}{en}" occupation="{occup}"{attrs} skill_template="{skill}">
+    attrs = ' is_basic_troop="true"' if d["is_basic"] else ""
+    return f'''	<NPCCharacter id="{tid}" default_group="{d["Group"]}" formation_position_preference="Front" level="{d["Level"]}" is_hero="false" is_female="false" culture="Culture.{d["Culture"]}" name="{{=TAIKOU_troop_{tid}}}{d["EnName"]}" occupation="{occup}"{attrs} skill_template="{d["Skill"]}">
 		<face>
 			<face_key_template value="BodyProperty.fighter_empire"/>
 		</face>
@@ -206,6 +194,11 @@ def main():
     md = Path(args.module) / "ModuleData"
     if not md.is_dir():
         sys.exit(2)
+
+    # 0) 兵种表：**从 CSV 装填**（2026-09-16 用户裁定：兵种装备数据驱动）。
+    #    显式在 main() 里读盘、不放模块级 —— `--check` 与别的脚本 import 本模块时都不该读盘。
+    global TROOPS
+    TROOPS = EQ.troops()
 
     # 1) spcultures：完整 Culture 属性块（76 全集——空节默认/复用做派）
     #    🔴 本串是**模板**：`__CID__/__CKEY__/__CEN__/__COLOR__/__COLOR2__/__ISMAIN__` 六处占位，
@@ -1007,6 +1000,16 @@ def main():
                                'basic_troop="NPCCharacter.bandit_looter"')
                       .replace('elite_basic_troop="NPCCharacter.veteran_ashigaru"',
                                'elite_basic_troop="NPCCharacter.bandit_looter"'))
+        # 🔴 忍者（2026-09-16 用户裁定）：忍者众家族改挂本文化（见 gen_taikou_clan_csv.py 的
+        #    身份文化规则），领主部队换忍者编制、基础兵换忍者线，不然会刷出「忍者头目带一队足轻」。
+        #    ⚠️ 民兵/商队/村民**不动**：忍者里也有农户与商队，那几套留在通用模板上是对的。
+        if c[0] == "ninja":
+            blk = (blk.replace("PartyTemplate.taikou_lord_party_template",
+                               "PartyTemplate.taikou_ninja_party_template")
+                      .replace('basic_troop="NPCCharacter.yari_ashigaru"',
+                               'basic_troop="NPCCharacter.genin"')
+                      .replace('elite_basic_troop="NPCCharacter.veteran_ashigaru"',
+                               'elite_basic_troop="NPCCharacter.jonin"'))
         if re.search(r'\t<Culture id="%s".*?</Culture>' % c[0], txt, flags=re.S):
             txt = re.sub(r'\t<Culture id="%s".*?</Culture>' % c[0], blk, txt, count=1, flags=re.S)
         else:
@@ -1062,16 +1065,16 @@ def main():
     #     幂等/可改：按 id 整块替换（改本表重跑即更新产物；不存在则追加）。
     t = npc.read_text(encoding="utf-8-sig", errors="replace")
     added_troops, replaced_troops = [], []
-    for tp in TROOPS:
-        cell = troop_cell(tp)
-        pat = re.compile(r'\t<NPCCharacter id="%s".*?</NPCCharacter>' % tp[0], re.S)
+    for d in TROOPS:
+        cell = troop_cell(d)
+        pat = re.compile(r'\t<NPCCharacter id="%s".*?</NPCCharacter>' % d["ID"], re.S)
         if pat.search(t):
             t = pat.sub(lambda _m: cell, t, count=1)
-            replaced_troops.append(tp[0])
+            replaced_troops.append(d["ID"])
         else:
-            added_troops.append(tp[0])
+            added_troops.append(d["ID"])
     if added_troops:
-        cells = "\n\n".join(troop_cell(tp) for tp in TROOPS if tp[0] in added_troops)
+        cells = "\n\n".join(troop_cell(d) for d in TROOPS if d["ID"] in added_troops)
         t = t.replace("</NPCCharacters>", cells + "\n\n</NPCCharacters>", 1)
     if added_troops or replaced_troops:
         npc.write_text(t, encoding="utf-8-sig")

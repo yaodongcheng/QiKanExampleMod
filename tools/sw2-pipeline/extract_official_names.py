@@ -31,6 +31,7 @@ REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(REPO, "Scripts"))
 from parts_table import TABLE                       # noqa: E402
+from troop_parts_table import TROOP_TABLE           # noqa: E402
 from csv_dual import write_table                    # noqa: E402
 
 try:
@@ -101,6 +102,23 @@ def main():
     if miss_name:
         sys.exit("FAIL: 这些角色在源表里找不到（模型号对不上）：%s" % miss_name)
 
+    # ── 兵种 / 护卫（2026-09-16 补）────────────────────────────────────────────
+    # 源表里**也有**它们的正式名（「茶革赤缀胴丸」「茶革阵笠」这一批），原来只提取武将那 28 行。
+    # 兵种是**通用装备（无归属者）**：源表只给铠甲/头盔两列，没有武器列、没有 Lv1~5、没有日文原表记。
+    # 🔴 名字口径见 `全角色武器甲胄兜名表.md` §三「通用装备逐个区分命名，全表无重名」——
+    #    所以每套甲/每顶笠都有独立名，不拼「XX 的甲」。
+    miss_troop = []
+    for key in sorted(TROOP_TABLE):
+        m = model_of(key)
+        o = src.get(m)
+        if not o:
+            miss_troop.append(key)
+            continue
+        rows.append([key, m, "", o["armor"], o["helmet"],
+                     "", "", "", "", "", "", o["note"]])
+    if miss_troop:
+        sys.exit("FAIL: 这些兵种/护卫在源表里找不到（模型号对不上）：%s" % miss_troop)
+
     old = io.open(OUT, encoding="utf-8-sig").read() if os.path.isfile(OUT) else ""
     tmp = OUT + ".tmp"
     write_table(tmp, CN, EN, rows)          # 双行表头（CLAUDE.md CSV 规范）
@@ -117,10 +135,11 @@ def main():
     else:
         os.remove(tmp)
         print("[名字] 已最新，未动盘")
-    # 空名自检（源表里 weapon/armor/helmet 三列任一为空 = 解析错位）
-    bad = [r[0] for r in rows if not (r[2] and r[3] and r[4])]
+    # 空名自检（解析错位检测）：甲/盔两列**所有行**都必须有；武器列只有武将那 28 行要求
+    # （兵种/护卫是通用装备，源表本来就没有武器列）。
+    bad = [r[0] for r in rows if not (r[3] and r[4]) or (r[0] in TABLE and not r[2])]
     if bad:
-        print("   ❌ 三列有空的：%s" % bad)
+        print("   ❌ 有空的（甲/盔必有，武器仅武将要求）：%s" % bad)
         return 1
     for r in rows[:3]:
         print("   %-16s 武=%-10s 甲=%-12s 盔=%-12s Lv5=%s" % (r[0], r[2], r[3], r[4], r[9]))
