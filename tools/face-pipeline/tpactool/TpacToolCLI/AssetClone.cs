@@ -16,14 +16,23 @@ namespace TpacCli
     ///   lwn_head_male_a(新头网格) + 配套材质 + 贴图(参考值=源内容,后续由 gen 管线重画)
     /// 用法: tpaccli assetclone --packdir <d1[,d2]> --src <name> --newname <lwn_name>
     ///                          [--extra <name> ...] --out <dir>
+    ///                          [--srctype material|metamesh|texture] [--depprefix <p>]
+    ///
+    /// --srctype: 同名歧义时强制按类型取源(如 sho_cl_mon_x 既是 Material 又是 Texture)。
+    ///            不给 = 沿用旧口径(Metamesh 优先, 其余先到先得)。
+    /// --depprefix: 依赖资产(材质/贴图)改名用的前缀, 默认 "lwn_"。
+    /// --rename <旧名>=<新名>: 指定某个(批量的)资产的产物名, 可重复。
+    ///            同名材质+贴图会同时命中, 贴图自动落到 "<新名>_Texture"。
     /// </summary>
     public static class AssetClone
     {
         public static int Run(string[] args)
         {
             string srcName = null, newName = null, outDir = ".", packName = "lwn_face.tpac";
+            string srcType = null, depPrefix = "lwn_";
             var packDirs = new List<string>();
             var extras = new List<string>();
+            var renameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])
@@ -34,9 +43,24 @@ namespace TpacCli
                     case "--extra": extras.Add(args[++i]); break;
                     case "--out": outDir = args[++i]; break;
                     case "--packname": packName = args[++i]; break;
+                    case "--srctype": srcType = args[++i].ToLowerInvariant(); break;
+                    case "--depprefix": depPrefix = args[++i]; break;
+                    case "--rename":
+                    {
+                        var kv = args[++i].Split(new[] { '=' }, 2);
+                        if (kv.Length != 2) { Console.Error.WriteLine("--rename wants old=new, got: " + args[i]); return 1; }
+                        renameMap[kv[0]] = kv[1];
+                        break;
+                    }
                     default: Console.Error.WriteLine("unknown arg: " + args[i]); break;
                 }
             }
+            Func<AssetItem, bool> typeFilter =
+                srcType == "material" ? (it => it is Material)
+                : srcType == "metamesh" ? (it => it is Metamesh)
+                : srcType == "texture" ? (it => it is Texture)
+                : srcType == null ? (Func<AssetItem, bool>)null
+                : throw new ArgumentException("--srctype must be material|metamesh|texture");
             if (string.IsNullOrEmpty(srcName) || packDirs.Count == 0)
             {
                 Console.Error.WriteLine("assetclone requires --src <name> and --packdir <dir>");
@@ -48,6 +72,7 @@ namespace TpacCli
             // 1) 全量加载: guid -> item 索引 (跨包查依赖)
             var byGuid = new Dictionary<Guid, AssetItem>();
             var byName = new Dictionary<string, AssetItem>(StringComparer.OrdinalIgnoreCase);
+            var byNameAll = new Dictionary<string, List<AssetItem>>(StringComparer.OrdinalIgnoreCase);
             foreach (var dir in packDirs)
             {
                 if (!Directory.Exists(dir)) { Console.Error.WriteLine("missing dir: " + dir); return 1; }
@@ -58,6 +83,8 @@ namespace TpacCli
                     foreach (var it in pkg.Items)
                     {
                         byGuid[it.Guid] = it;
+                        if (!byNameAll.TryGetValue(it.Name, out var lst)) byNameAll[it.Name] = lst = new List<AssetItem>();
+                        lst.Add(it);
                         // 同名歧义(如 head_female_a 既是材质也是网格): Metamesh 优先(源码常指网格)
                         if (!byName.TryGetValue(it.Name, out var exist) || (exist is Material && it is Metamesh))
                             byName[it.Name] = it;
@@ -68,6 +95,19 @@ namespace TpacCli
             SetFinder(g => byGuid.TryGetValue(g, out var it) ? it : null);
 
             var src = byName.TryGetValue(srcName, out var s) ? s : null;
+            if (typeFilter != null)
+            {
+                // 显式类型: 先按类型找(避开同名歧义), 再退回全局唯一命中
+                var cands = byNameAll.TryGetValue(srcName, out var lst) ? lst : new List<AssetItem>();
+                src = cands.FirstOrDefault(typeFilter) ?? src;
+                if (src == null || !typeFilter(src))
+                {
+                    Console.Error.WriteLine($"src not found as {srcType}: {srcName} (候选: " +
+                        string.Join(", ", cands.Select(c => c.GetType().Name)) + ")");
+                    return 1;
+                }
+                Console.WriteLine($"src = {src.Name} ({src.GetType().Name})");
+            }
             if (src == null) { Console.Error.WriteLine("src not found: " + srcName); return 1; }
 
             // 2) 收集依赖图: metamesh -> material -> texture (+ extra 独立资产)
@@ -89,8 +129,11 @@ namespace TpacCli
             }
             foreach (var ex in extras)
             {
-                if (byName.TryGetValue(ex, out var ei)) { toClone.Add(ei); queue.Enqueue(ei); }
-                else Console.Error.WriteLine("warning: extra not found: " + ex);
+                var cands = byNameAll.TryGetValue(ex, out var exList) ? exList : new List<AssetItem>();
+                var ei = typeFilter != null ? cands.FirstOrDefault(typeFilter) : (cands.Count > 0 ? cands[0] : null);
+                if (ei == null)
+                    Console.Error.WriteLine($"warning: extra not found{(typeFilter != null ? " as " + srcType : "")}: {ex}");
+                else { toClone.Add(ei); queue.Enqueue(ei); }
                 while (queue.Count > 0)
                 {
                     var item = queue.Dequeue();
@@ -105,7 +148,9 @@ namespace TpacCli
             var nameMap = new Dictionary<string, string>();
             foreach (var item in toClone)
             {
-                var nn = item == src ? newName : "lwn_" + CleanName(item.Name);
+                var nn = item == src ? newName
+                       : renameMap.TryGetValue(item.Name, out var rn) ? rn
+                       : depPrefix + CleanName(item.Name);
                 if (nameMap.TryGetValue(nn, out _)) nn = nn + "_" + (item.GetType().Name);
                 nameMap[nn] = nn;
                 cloneOf[item] = CloneItem(item, nn, byGuid, (dep) => ResolveClone(dep, cloneOf, toClone));
@@ -236,7 +281,7 @@ namespace TpacCli
                     }
                     foreach (var seg in meta.TypelessDataSegments)
                     {
-                        var segC = CloneSegment(seg);
+                        var segC = CloneSegment(seg, guid);
                         if (segC != null) m.TypelessDataSegments.Add(segC);
                         else Console.Error.WriteLine($"  warn: skip segment {seg.OwnerGuid} {seg.GetType().Name}");
                     }
@@ -291,7 +336,7 @@ namespace TpacCli
                     // 像素: ① 原始段直拷(保字节+mip,织丰原版零损失) → ② IO导出重编码 → ③ 末尾兜底1x1
                     foreach (var seg in tex.TypelessDataSegments)
                     {
-                        var segC = CloneSegment(seg);
+                        var segC = CloneSegment(seg, guid);
                         if (segC != null) t.TypelessDataSegments.Add(segC);
                     }
                     if (t.TypelessDataSegments.Count == 0)
@@ -342,8 +387,15 @@ namespace TpacCli
                 default:
                     throw new NotSupportedException(item.GetType().Name);
             }
-            // raw 元数据整段随克隆(3b 再打 guid 补丁) —— Save 时 raw 直写, 引擎读到与原版逐字节相同结构
-            clone.RawMeta = (byte[])item.RawMeta?.Clone();
+            // raw 元数据：**只对 Texture 丢弃**，其余整段随克隆(3b 再打 guid 补丁)。
+            //   🔴 为什么 Texture 必须丢（2026-09-16 实测）：Save 是 `RawMeta ?? WriteMetadata()`，
+            //      只要 RawMeta 在，类型化字段上设的 `Source = ""` 就是废的——raw 里带着源模块的
+            //      Source 路径（如 `$BASE/Modules/Shokuho/AssetSources/...`），在自家包里是死外链。
+            //      ReplaceTex.cs 早有同款结论（`RawMeta = null` 救花屏/错 mip 越界）。
+            //   ⚠️ Material **不能**丢：材质与其贴图的克隆顺序不固定，类型化 `Textures` 的 guid
+            //      重指会踩「贴图还没进 cloneOf」的顺序依赖；而 3b 的 PatchGuids 是**收尾统一打补丁**，
+            //      没这个问题。实测丢 Material 的 RawMeta → tex[0] 指回源包 guid（包内解析不到）。
+            clone.RawMeta = (item is Texture) ? null : (byte[])item.RawMeta?.Clone();
             return clone;
         }
 
@@ -414,7 +466,7 @@ namespace TpacCli
             return true;
         }
 
-        static AbstractExternalLoader CloneSegment(object seg)
+        static AbstractExternalLoader CloneSegment(object seg, Guid ownerGuid)
         {
             // ExternalLoader<T> 深拷贝: 共享 Data 字节(只读), 新 OwnerGuid/UserData 副本
             var t = seg.GetType();
@@ -427,8 +479,10 @@ namespace TpacCli
                     // 未解析占位段 = 裸 ExternalData（PrimaryRawImage=null）→ 跳过，写回必崩
                     if (data == null || data.GetType() == typeof(ExternalData)) return null;
                     var clone = Activator.CreateInstance(t, new[] { data });
-                    var og = (Guid)t.GetProperty("OwnerGuid").GetValue(seg);
-                    t.GetProperty("OwnerGuid").SetValue(clone, og);
+                    // 🔴 段归属必须是**克隆体自己的** guid（2026-09-16 实测）：
+                    //    原实现把源 guid 原样带过来 → 引擎按 OwnerGuid 找宿主贴图，找不到 →
+                    //    贴图无像素 → 家纹/贴图整块画不出来（实机症状：旗子只有底色没纹章）。
+                    t.GetProperty("OwnerGuid").SetValue(clone, ownerGuid);
                     var srcUd = (System.Collections.IDictionary)t.GetProperty("UserData").GetValue(seg);
                     var dstUd = (System.Collections.IDictionary)t.GetProperty("UserData").GetValue(clone);
                     if (srcUd != null && dstUd != null)

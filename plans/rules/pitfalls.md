@@ -1399,3 +1399,42 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 5. **治本在地图不在代码**：编辑器 `CheckPositions` 定位 → 门位挪回网格 → **删 `settlements_distance_cache.bin` 重烤**。
 
 **完整交接**：必备清单雷 104/105/119 · 轮子 [wheels.d/campaign-mode.md](wheels.d/campaign-mode.md) 卷十三。
+
+---
+
+## 自定义头的脸部贴图糊成一片（眼睛/嘴/头发错乱）→ `MaterialFlags` 没清
+
+**症状**（实机 2026-09-14 织田信长首次、2026-09-16 全 28 人复现，用户报「眼睛不对 + 嘴开花」）
+- 自定义头的**眼睛/嘴糊成一片**；眼睛上像是贴了脸皮、嘴的位置纹理错乱；**头发那块被涂成肤色**。
+- 用的明明是自己的贴图，看着却像"被引擎重新画过一遍"。
+- ⚠️ 诡异点：**同一颗头昨天还是好的，今天装机之后就糊了** —— 因为标记是**装机时被补上的**。
+
+**根因**（工具链实证，不是引擎反编译）
+- 子网格上的 `face_base_mesh` / `face_mouth_mesh` / `face_eye_mesh` / `face_eyelash_mesh`
+  是给**引擎的脸部贴图生成器**看的：**带标记 = 引擎按原版画布布局把五官画到脸贴上**。
+- 自定义头用的是**源模型自带的 UV 布局**（战无2 的头挤在图集角落），和原版画布对不上
+  → 生成出来的五官糊在错误的地方。
+- **两个已实机验收的自定义头（蒂法 / 萨菲罗斯）验收时标记都是空的**（引擎不生成，直接用 FBX 自带的贴图引用）。
+- 🔴 **标记是装机脚本主动补的**：`install_pack.py` → `morphfix` 有一段「为空就按材质名补标记」
+  （当年为防脸部生成器空指针加的），`skinfix --fullmat` 也会刷 ⇒ **每次装机都会补回来**。
+  2026-09-16 那次装机就是这么把已经验收通过的信长弄糊的。
+
+**规避**
+1. **自定义头（UV 不走原版画布）必须让 `MaterialFlags` 为空**。装机链里**在 morphfix/skinfix 之后**
+   加一步清空 —— 已落进 `tools/face-pipeline/scripts/install_pack.py` 第 3.5 步（`metaparts --clearflags`）。
+   ⚠️ 顺序不能倒：清在补之前 = 白清。
+2. **零成本验证/应急修**：`tpaccli metaparts --packdir <包目录> --filter <头名> --out <新目录> --clearflags`
+   —— 只动元数据，不重导 FBX、不开编辑器、不用等 ModKit，拷回 `AssetPackages/pack0.tpac` 重启即可。
+3. **诊断顺序纪律**（这次绕远的教训）：**先 dump 产物真身，再谈理论**。
+   `tpaccli metaparts --filter <mesh名>` 一条命令就能看到「子网格顺序 + 每格的 flags + 材质 + 顶点数」——
+   比渲一堆对照图快得多，而且那是**引擎真正读到的东西**。
+
+**顺带记住的两个事实**（同一次排查查实，写在 [wheels.d/assets.md](wheels.d/assets.md) 换头那节）
+- **子网格顺序分性别**：女头 = 脸→嘴→眼→睫；**男头 = 脸→眼→嘴**。
+  实证：原版 `head_male_a`（`.1`=eye_mat/`.2`=mouth_mat）、在售的织丰 `sho_head_male_japanese`、
+  以及**本工程已验收的萨菲罗斯**（实测 `[0]脸 [1]眼(458v) [2]嘴(3698v)`）。
+- **形状键污染离线渲染**：产物 FBX 里 `KeyTime_0..59` 的 value 全写着 1.0，Blender 直接渲 =
+  59 条形变全叠加的变形头（实测信长 x ±0.132 被压到 ±0.083）。**做几何判断前先归零**。
+
+**完整来龙去脉**：`Knowledge/蒂法换头工程.md` §16（引擎按顺序/数量认部件、flags 不参与分配）
++ §13.7①（4 件顺序）+ `tools/face-pipeline/tpactool/TpacToolCLI/MetaParts.cs` 的类注释。

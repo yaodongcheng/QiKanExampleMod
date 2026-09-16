@@ -132,6 +132,31 @@ def main():
         print("   （skinfix 无输出，用上一步的包继续 —— 材质会是白编译状态）")
         shutil.copy2(os.path.join(d_m1, "pack0.tpac"), os.path.join(d_m2, "pack0.tpac"))
 
+    # 3.5) metaparts --clearflags：**清空脸部角色标记（custom head 必须为空）**
+    #
+    # 🔴 这一步不能省（2026-09-16 实机踩实，用户报「眼睛不对 + 嘴开花」）：
+    #    `face_base_mesh` / `face_mouth_mesh` / `face_eye_mesh` 是给**引擎的脸部贴图生成器**看的——
+    #    带标记 = 引擎会按**原版画布布局**把五官画到脸贴上。而自定义头用的是**源模型自带的 UV 布局**
+    #    （战无2 的头挤在图集角落），两边对不上 → 实机症状：**眼睛/嘴糊成一片、头发那块被涂成肤色**。
+    #    两个已实机验收的自定义头（蒂法 / 萨菲罗斯）在验收时 MaterialFlags **都是空的**（引擎不生成、
+    #    直接用 FBX 自带的贴图引用）。
+    #    ⚠️ 标记是被上面两步**主动补上**的：morphfix 有「为空就按材质名补标记」的兜底（当年为防
+    #    脸部生成器空指针加），skinfix --fullmat 也会刷。所以必须**在它们之后**清，否则下次装机又补回来
+    #    （09-16 那次就是这么把已经验收通过的信长弄糊的）。
+    #    完整来龙去脉：Knowledge/蒂法换头工程.md §16 + tools/face-pipeline/tpactool/.../MetaParts.cs 注释。
+    m3 = os.path.join(WORK, "m3")
+    out3 = run([TPACCLI, "metaparts", "--packdir", d_m2, "--filter", args.filter,
+                "--out", m3, "--clearflags"], "metaparts --clearflags")
+    d_m3 = os.path.join(WORK, "s3")
+    stage_dir("s3")
+    src3 = os.path.join(m3, "pack0.tpac")
+    if os.path.exists(src3) and os.path.getsize(src3) > 0:
+        shutil.copy2(src3, os.path.join(d_m3, "pack0.tpac"))
+    else:
+        print("   ⚠️ metaparts 无输出，用上一步的包继续 —— 脸部标记没清，实机会眼睛/嘴糊成一片")
+        shutil.copy2(os.path.join(d_m2, "pack0.tpac"), os.path.join(d_m3, "pack0.tpac"))
+    d_m2 = d_m3          # 后续步骤（关卡 2 / 装机）都接在清完标记的包上
+
     # 4) 关卡 2：编译产物落点
     print("\n---- 关卡 2（编译产物落点）----")
     chk = [sys.executable, os.path.join(REPO, "tools", "face-pipeline", "scripts", "check_head_space.py"),

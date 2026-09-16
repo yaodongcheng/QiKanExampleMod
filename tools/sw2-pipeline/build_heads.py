@@ -1,10 +1,22 @@
 # -*- coding: utf-8 -*-
 """build_heads.py —— 战无2 28 人：源模型 → 可进编辑器的头部 FBX + 贴图（一条命令）。
 
-【模板 = 织田信长那版】不是萨菲罗斯那版 —— 两条重要区别：
-  · **不加** `--weld-seam`（合缝）和 `--weights-from`（抄原版权重）：那是萨菲罗斯的毛病，战无2 的头没有
-  · `--fit-rim` 照跑，但战无2 只沾 4 个顶点/1.7cm（萨菲罗斯是 118 个顶点/6.2cm）
-  信长那版的手工日志在 `work/out/build_head_L02.txt`，本脚本已复现到逐位一致。
+【模板 = 织田信长那版】+ **2026-09-16 补的两步（脖子）**：
+  · 🔴 `--neck-fill`：**补脖子下摆**。战无2 的脸壳件比原版头短约 5cm（信长 1.4653 vs 原版 1.4144），
+    底下是个断口 —— 实机表现「颈部没有贴合肩部，往上抬了一点」（用户 2026-09-16 报，28 人全中）。
+    本步把脖子那个断口沿着 RIM_TABLE 的领口轮廓往下铺一层，头底落到 1.4146 ≈ 原版 1.4144。
+  · 🔴 `--weights-from <原版同类头>`：**抄原版头的颈部权重**。原来 28 张脸是**整体刚性绑 bone_13**，
+    脖子不跟脊柱/锁骨动 → 待机呼吸时脖子从肩里冒出来。这正是萨菲罗斯那轮修过的同一个毛病
+    （`Knowledge/蒂法换头工程.md` §21.7 问题 3 / §21.8），本脚本早先的判断「那是萨菲罗斯的毛病、
+    战无2 的头没有」**是错的**，2026-09-16 更正。男头抄男基准、女头抄女基准。
+  · **不加** `--weld-seam`（合缝）：战无2 的脸壳是整块，没有萨菲罗斯那种前后两壳裂缝。
+  · `--fit-rim` 仍不加：战无2 只沾 4 个顶点/1.7cm（萨菲罗斯是 118 个顶点/6.2cm），
+    而脸件里混着兜帽/披风的角色会被它当成领口猛收（实测最大收进 1057mm）。
+  信长那版的手工日志在 `work/out/build_head_L02.txt`。
+
+🔴 **渲染产物做视觉判断前必须先把形状键归零**：产物 FBX 里 `KeyTime_0..59` 的 value 都写着 1.0，
+   Blender 直接渲 = 59 条形变全叠加的变形头（实测信长 x ±0.132 被压到 ±0.083）。
+   `Debug/offline/_render_fit.py` 已内置归零。
 
 每个人跑四步：
   ① build_head.py        挑件 → 切嘴 → 定向标定 → 收领口 → 绑官方骨架 → 导出
@@ -50,6 +62,9 @@ TEX_BATCH = r"D:\BrainMaker\战国无双2资产解包分析\work\tex_batch"
 # 59 条脸形位移场的权威来源（build_head_chain.py 同款；通道与脸型无关，新头模一律从这里搬）
 CHAN_SRC = r"D:\BrainMaker\blend_projects\tifa_export\backup_20260913\head_tifa_a_v10.fbx"
 CHAN_OBJ = "head_tifa_a.0"
+# 原版头的 FBX（抄颈部权重用）：男头抄 head_male_a、女头抄 head_female_a。
+# 与 build_head_chain.py 给萨菲罗斯用的是同一份（extracted_sho 的 tpac dump）。
+VANILLA_HEAD_DIR = r"D:\BrainMaker\extracted_sho\fbx\head"
 OUT_ROOT = os.path.join(REPO, "Debug", "offline", "sw2_build")
 
 
@@ -126,7 +141,13 @@ def main():
         # 🔴 战无2 **不加** --fit-rim：信长那版实测只动 2~4 个顶点（等于没用），
         #    而脸件里混着兜帽/披风的角色（半藏、义弘、杂贺…）会被它当成领口猛收，
         #    实测最大收进 1057mm —— 有害无益。（RIM_TABLE 也只有 male 的轮廓。）
-        pass
+        #
+        # 🔴 2026-09-16 两步（脖子，见文件头）：补下摆 + 抄原版颈部权重。
+        #    权重来源必须**同性别**：男头抄 head_male_a，女头抄 head_female_a。
+        c1 += ["--neck-fill",
+               "--weights-from", os.path.join(VANILLA_HEAD_DIR,
+                                              "head_%s_a.fbx" % r["gender"]),
+               "--neck-z", "1.600", "--neck-band", "0.05"]
         c2 = [BLENDER, "-b", "--python", os.path.join(FACE, "transfer_channels.py"), "--",
               "--src", CHAN_SRC, "--src-object", CHAN_OBJ, "--dst", v1, "--out", v2]
         c3 = [sys.executable, os.path.join(HERE, "scripts", "make_sw2_textures.py"),

@@ -665,3 +665,125 @@ python Scripts/gen_taikou_nobunaga_head.py --check            # 自描述比对�
 **文件**：`CampaignMode/MapDistanceInvalidFaceGuardPatch.cs` · `CampaignMode/MapDistanceNullSettlementGuardPatch.cs` ·
 根因数据侧待办（14 个据点门位回网格 + 重烤 `settlements_distance_cache.bin`）见必备清单雷 104/105/119。
 
+
+## 卷十四 旗帜与家纹 —— 让城池地图名牌挂出家族纹章（2026-09-16 登记；实机验证通过）
+
+### 一、城池那面旗到底听谁的（反编译实证，问「和家族有关还是和势力有关」就答这条）
+
+```
+地图名牌 SettlementBannerWidget      ← SandBox/GUI/Prefabs/Nameplate/SettlementNameplateItemLarge.xml:73
+  └ SettlementNameplateVM.Banner     ← Settlement.Banner
+      └ Settlement.Banner = 队伍自定义旗 ?? 组件默认旗 ?? OwnerClan.Banner
+          └ Clan.Banner = 若「本家 == 所属王国的统治家族」→ Kingdom.Banner
+                          否则                    → 本家自己的旗
+```
+
+- **城主是普通家臣** → 挂**城主家族**的旗；**城主是大名本人（统治家族）** → 挂**王国旗**。
+  ⇒ **家族表与势力表都要配家纹**，缺一张就有一半城池是纯色（大名居城正是最显眼的那批）。
+- `Settlement.OwnerClan`：城/堡取 `Town.OwnerClan`；**村取 `Village.Bound.OwnerClan`**（村旗 = 所属城的城主旗）。
+- 「没有第三条路」：`SettlementComponent.GetDefaultComponentBanner()` 基类 `return null`；
+  全部 7 个 override 都是 **PartyComponent** 子类（守军/村民/商队/民兵/巡逻），没有一个是城池组件。**家族旗是唯一生效路径**。
+- **转封自动换旗**：`OwnerClan` 一变旗就变，引擎运行时自己处理，我们只提供静态 `banner_key`。
+
+### 二、`banner_key` 串格式（定长，改之前先数段）
+
+```
+<背景网格id>.<色1>.<色2>.<背景7参数>.<图标id>.<图标9参数>
+  背景7参数 = posx posy sizex sizey mirror rotation drawStroke
+  图标9参数 = colorId colorId2 posx posy sizex sizey mirror rotation drawStroke
+```
+- **10 段 = 纯色旗**（无图标）；**20 段 = 带一个图标**。数段就能判断一条键有没有纹章。
+- 几何换算（`BannerVisualExtensions.GetMeshMatrix`）：`scale = Size/1528/网格bbox`、`origin = Position/1528`。
+
+### 三、🔴 `banner_icons.xml` 的三条硬检查（少一条就是模块加载期崩）
+
+`BannerManager.LoadFromXml`（1.2.12 在 `TaleWorlds.Core`，1.5.x 在 `LoadBannerIconsFromXml`）开头三句：
+```csharp
+if (doc.ChildNodes[1].Name != "base") throw;            // ChildNodes[0]=XML声明，[1] 必须是 <base>
+XmlNode n = doc.ChildNodes[1].ChildNodes[0];
+if (n.Name != "BannerIconData") throw;                  // <base> 第一个子节点必须是 <BannerIconData>
+```
+⇒ **XML 声明与 `<base>` 之间、`<base>` 与 `<BannerIconData>` 之间都不许夹注释**。
+这是 **雷 50 同款**（那次栽在语言文件上，这次栽在 banner_icons.xml 上，实机症状 = `TWXmlLoadException:
+Incorrect XML document format` → 开局崩）。**注释只能写在 `<BannerIconData>` 里面**（织丰那份就是这么放的）。
+
+**权威校验**：`<游戏根>/XmlSchemas/BannerIcons.xsd`（1.5.x 自带；**1.2.12 的 XmlSchemas/ 里没有这份**）。
+该 XSD 有 `Icon/@id` 唯一约束 —— 织丰的 `banner_icons.xml` 就死在 **817 重复**上（1.2.12 不校验所以照跑，1.5.x 会当场抛）。
+
+### 四、🔴 图标 id 段位：先到先得，必须避开别人的段
+
+`BannerIconGroup.Deserialize` 对已被前面组占用的 id **直接跳过**（`previouslyAddedGroups.Any(x => x.AllIcons.ContainsKey(id))`）。
+现状：**原版 Native 占 1..535**、**织丰声明 536..839**（Taikou 取 **840 起**，共 320 个 → 840..1159）。
+两个内容包同时开时，段位重叠 = 后加载的那个整段静默失效。
+
+### 五、🔴 1.2.12 与 1.5.x 的加载路径**完全不同**（别拿一个版本的结论套另一个）
+
+| | 1.2.12 | 1.5.x |
+|---|---|---|
+| 入口 | `ViewSubModule.InitializeBannerVisualManager()` | 同名前缀，但调**无参** `LoadBannerIcons()` |
+| 取文件 | **遍历 `Utilities.GetModulesNames()`，按文件名找每个模块的 `ModuleData/banner_icons.xml`** | `GetMergedXmlForManaged("BannerIcons")` → 走 **SubModule.xml 的 `<XmlNode>` 注册表** |
+| 合并 | 无（逐文件 `LoadFromXml`，组 id 相同则 `Merge`） | 有（`MergeElements` + XSD 唯一属性） |
+| 校验 | **无**（裸 `LoadXml`） | **有**（`skipValidation: false` → 不合 XSD 直接抛） |
+| 结论 | **不需要注册** | **必须注册**（`<XmlName id="BannerIcons" path="banner_icons"/>`） |
+
+⇒ 模块要**双端可用**就**照注册**（1.2.12 上多余但无害）。注册**故意不写 `IncludedGameTypes`**：
+`LoadBannerIcons` 发生在 `OnSubModuleLoad`，那一刻 `Game.Current` 还是 null → gameType 传空串，
+写了 IncludedGameTypes 反而被 `GetMergedXmlForManaged` 整段 `continue` 掉（原版 Native 也不写）。
+
+### 六、资产侧：图标**不需要网格**，只需要「材质 + 4×4 图集」
+
+```csharp
+Material m = Material.GetFromResource(iconData.MaterialName);   // 材质必须存在于已加载的 tpac
+if (m == null) continue;                                        // ← 解析不到就整块跳过（旗只剩底色）
+Mesh quad = Mesh.CreateMeshWithMaterial(m);                     // 运行时拼 2 个三角形的方块
+u = (textureIndex % 4) * 0.25;  v = 1 - (textureIndex / 4) * 0.25;   // 4×4 硬编码，**不可改序**
+```
+- 图集 = 2048×2048、**4×4 = 16 格**；编码 = **绿=纹样主体、红=描边、透明=空**（遮罩，不是直出色）——
+  贴图色号由 `banner_key` 的 colorId/colorId2 决定，所以**同一张图集能出任意配色的家纹**。
+- 材质配方（与原版 `custom_banner_icons_*` **逐字段一致**，照抄即可）：
+  `typeGuid=1db01393-…` / `shader=b96efd31-7166-…`（以实测 dump 为准）/ `blend=modulate` /
+  `flags=[two_sided]` / `shaderFlags=[alpha_test]` / `alphaTest≈0.498`。
+- 家纹图集来源与授权见 `Scripts/taikou_mon_atlas.py` 顶部 docstring（**借织丰的图 = 发布前需授权**，同名字池口径）。
+
+### 七、🔴 几何必须**固定模板**，不要继承借来的底旗（实机踩中）
+
+「底旗从官方家族池借 + 只换图标 id」的写法**会翻车**：官方每个键的图标位置/尺寸都是为自己那个图标调的，
+照抄过来 → 全局 **55 种不同几何**，实机症状 =「有的城池家纹巨大、织田的却小到看不见」。
+极端例：某键背景画在 `(4922,4922)` 而图标在 `(471,471)`，两者相距极远；名牌是 `MaskedTextureWidget`
+（按旗形裁剪）→ **图标落到旗形外被裁掉，只剩边缘一丝**。
+
+**正解**：几何一律用固定模板（本包实证值 `背景 11.1536.1536.764.764.1.0.0` / `图标 483.483.764.764.0.0.0`），
+底旗**只贡献底色两个色号**（保住各家颜色变化）。
+**图标配色**按底色亮度二选一（深底配金 `171`、浅底配近黑 `116`）。
+⚠️ 调色板 hex 是 **`0xAARRGGBB`** —— 算亮度必须跳前两位 alpha，否则把 alpha 当 R 读、亮度恒 ≈255、
+**全被判成浅底**（实测踩过）。
+
+### 八、本条的现成实现（照抄）
+
+```bash
+python Scripts/import_shokuho_mon_column.py --dry-run   # 家纹列初始填充：统计覆盖（一次性迁移，重跑需 --force）
+python Scripts/gen_taikou_banner_icons.py               # 生成 ModuleData/banner_icons.xml（含结构+XSD 双闸自检）
+python Scripts/gen_taikou_era_world.py                  # 把 Mon 列翻成 spclans/spkingdoms 的 banner_key
+```
+| 文件 | 作用 |
+|---|---|
+| `Scripts/taikou_mon_atlas.py` | **图集单一事实源**：20 张图集 / 16 格 / icon id 换算 / `Mon` 键解析 |
+| `Scripts/gen_taikou_banner_icons.py` | 出 `banner_icons.xml`；**自检闸** = 引擎三条硬检查 + `BannerIcons.xsd` 校验（两条都做过负面测试） |
+| `Scripts/import_shokuho_mon_column.py` | 往 `Clan.csv`/`TaikouForce.csv` 补 `Mon` 列（同名家族 → 同家分家 → 当主所领家族） |
+| `Clan.csv` / `TaikouForce.csv` 的 `Mon` 列 | **人手维护工作层**（值 = `图集_格位`，如 `kinki_1_5`），改归属只改这里 |
+
+**纪律**：
+- `Mon` 列的值用**图集_格位**而不是裸 icon id —— 段位/图集顺序变了，表里的值不用动。
+- 生成器**自检闸必须做负面测试**：我第一版用 `documentElement` 取根，它会自动跳过注释 →
+  对「注释错位」这个 bug **完全免疫**（等于没写）。正确口径：**.NET 的 `ChildNodes[1]` == minidom 的 `childNodes[0]`**
+  （minidom 不把 XML 声明算作子节点）。
+- 加图集 = 改 `taikou_mon_atlas.py` 的 `ATLASES` → 重跑两个生成器（**顺序即段位分配，非必要勿动**）。
+
+### 九、已知欠账
+
+- **覆盖率**：家族 159/296（同名 108 + 同家分家 51）、势力 76/185；**定居点口径 80%**。
+  未配到的走**纯色旗**（故意剥图标，不混欧洲纹章）。补齐要逐格辨认图集。
+- **旗形统一代价**：固定几何后所有旗都是同一个矩形 mesh；要恢复形状变化得另设映射（几何需重新对齐）。
+- **继承来的归属是未逐一目视核对的**（来自织丰的配比）；已知 赤松/明智/尼子/朝仓/足利/浅井/伊达/岛津/武田/德川 十个
+  一眼可辨为史实家纹；本愿寺、今川 存疑。
+

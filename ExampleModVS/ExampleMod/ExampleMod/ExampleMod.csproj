@@ -429,6 +429,8 @@
     <Compile Include="CampaignMode\Tools\NavMeshDebugRenderer.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugMissionView.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugMapTickPatch.cs" />
+    <!-- 🔴 2026-09-16 认知状态批量命令 custom.meet_all（原版无对应指令；HasMet 单向、消息清空副作用见文件头） -->
+    <Compile Include="CampaignMode\Tools\HeroMeetCommands.cs" />
     <!-- 🔴 2026-09-09 读档崩二分（20:20 会话 save035 → Settlement.All=0）：当时摘掉的是
          `Debug\TownEntryDiagPatch.cs`（**只有它真在编译清单里**，见其下方的摘除记录）。
          ⚠️ **勘误（2026-09-10 核 git 全历史）**：`AreaMarkerTagGuard.cs` / `IssuesSettlementGuardPatch.cs`

@@ -83,6 +83,25 @@ T_bl[b] = Translate(骑砍骨头) · Rot(仅手臂) · S · Translate(-(MIRROR �
 | 硬链接单文件加载 | `AssetManager.Load(dir)` 会载入目录下**所有** tpac → 用只含目标包的硬链接目录当 `--packdir`（2.3GB 包加载 0.2 秒） |
 | `png_for_editor.py` | 进工程源的 PNG 必须 **8bit RGB + 只有 IHDR/IDAT/IEND**；带附加块/alpha 会被编辑器**连源图带产物一起删** |
 
+### 🔴 `tpaccli assetclone` 的两个致命缺陷（2026-09-16 修，实机踩中）
+
+**背景**：用 `assetclone` 把别的包的材质+贴图整体克隆改名、落进自家包 —— 适合「借一套现成贴图」。
+但原实现克隆出来的包**游戏加载不了**，症状 = **贴图整块画不出来**（实机：旗帜只剩底色、没有纹章）。
+
+| # | 缺陷 | 后果 | 修法 |
+|---|---|---|---|
+| 1 | `CloneSegment` 把段复制了却**原样保留源 `OwnerGuid`** | 引擎按 `OwnerGuid` 找宿主资产 → 找不到 → **贴图没有像素** | 段归属 = **克隆体自己的 guid**（多传一个 guid 参数进去） |
+| 2 | 类型化字段上设的 `t.Source = ""` **是废码** | raw 里带着源模块的 `Source` 路径（如 `$BASE/Modules/<别人的mod>/AssetSources/…`），在自家包里是死外链 | **Texture 丢弃 `RawMeta`**，让 `Save` 从类型化字段重生成 |
+
+- 根因（2）：`Save` 的取数是 **`RawMeta ?? WriteMetadata()`** —— 只要 `RawMeta` 在，类型化属性就被忽略。
+  `ReplaceTex.cs` 早有同款注释（`RawMeta = null` 救花屏/错 mip 越界），**照它对齐**。
+- ⚠️ **Material 不能丢 `RawMeta`**：材质与其贴图的克隆顺序不固定，类型化 `Textures` 的 guid 重指会踩
+  「贴图还没进 `cloneOf`」的顺序依赖；而收尾的 `PatchGuids`（打 RawMeta）没这个问题。
+  实测：把 Material 的 RawMeta 也丢掉 → `tex[0]` 指回源包 guid（包内解析不到）。**收窄改动范围**。
+- 🔴 **验证纪律**：`assetclone` 的「回解验证」（用同一个工具 `dump` 回读自己的产物）**读得回来 ≠ 游戏加载得了**。
+  过硬的判据是 `inspect` 三个字段：
+  `Source = ""` · `[segment]...owner == 资产自己的 guid` · 材质 `tex[0]` 指向的贴图名**能解析出名字**（不是 `(?)`）。
+
 ---
 
 ## 四、验证手法（省时间的关键）
@@ -318,3 +337,61 @@ parts_table.py ──► build_heads.py ──► build_head.py      （头：1.
 
 **相邻先例**：本轮全程照 **織田信长**（头）与 **真田幸村**（甲）两个已验收先例的参数；
 判据改动后**必须自己先渲染验一遍再交付**（用户明令："你搞完之后自己用视觉模型识别没问题了再给我"）。
+
+### 🔴 自建头/换头的**装包后处理三件套**（2026-09-16 登记，实机验证通过）
+
+**问题**：FBX 做完、编辑器 Publish 完，**包还不是成品** —— 还要在 tpac 上补三样，少一样就出诡异症状。
+三者**顺序不能倒**：`morphfix → skinfix --fullmat → metaparts --clearflags`。
+
+| # | 步骤 | 不做的症状 | 命令 |
+|---|---|---|---|
+| 1 | **`morphfix`** 补形变帧到 101 | 帧数不足 → 实机崩 / 捏脸滑块乱拉 | `tpaccli morphfix --packdir <dir> --filter <mesh名> --out <dir>` |
+| 2 | **`skinfix --fullmat`** 刷四角色材质配方 | 白编译：材质是 FBX 默认值，脸/嘴/眼 shader 全不对 | `tpaccli skinfix --packdir <dir> --filter <mesh名> --out <dir> --fullmat` |
+| 3 | 🔴 **`metaparts --clearflags`** 清脸部角色标记 | **眼睛/嘴糊成一片、头发涂成肤色**（引擎按原版画布重画五官，而自建头用源模型自带 UV） | `tpaccli metaparts --packdir <dir> --filter <mesh名> --out <dir> --clearflags` |
+
+🔴 **为什么清 flag 必须排在最后**：第 1、2 步**都会主动补标记** ——
+`morphfix` 有一段「`MaterialFlags` 为空就按材质名补」（当年为防脸部生成器空指针加的），
+`skinfix --fullmat` 也刷。**清在补之前 = 白清**，而且症状会"隔一次装机"才冒出来（极难归因）。
+已固化进 `tools/face-pipeline/scripts/install_pack.py` 第 3.5 步。
+
+🔴 **两个已验收的自定义头（蒂法 / 萨菲罗斯）验收时标记都是空的** —— 这是"该不该清"的判据：
+**UV 走原版画布的头可以带标记；用源模型自带 UV 的自建头必须为空。**
+
+**零成本验证通道（强烈推荐先用它，再决定要不要重导）**
+
+```bash
+TP=tools/face-pipeline/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe
+"$TP" metaparts --packdir <包目录> --filter <网格名子串>                      # ① 只列出（诊断第一步）
+"$TP" metaparts --packdir <包目录> --filter <名> --out <新目录> --order 0,2,1   # ② 重排子网格
+"$TP" metaparts --packdir <包目录> --filter <名> --out <新目录> --clearflags   # ③ 清标记
+```
+- **只动元数据**：不重导 FBX、不开编辑器、不等 ModKit；产物拷回 `AssetPackages/pack0.tpac` **重启即生效**。
+- 用例一（2026-09-13 蒂法）：6 件子网格眼排第 5 → `--order 0,1,4,2` 验证"引擎按顺序/数量认部件"。
+- 用例二（2026-09-16 战无2）：28 头全带 flag → `--clearflags` 当场修好用户报的「眼睛不对 + 嘴开花」。
+- ⚠️ **改包前先备份**，且备份**放模块外**（编辑器 Publish 会清 `AssetPackages/`）。
+
+### 🔴 引擎认脸部件的两条规则（同批查实，2026-09-16）
+
+| 规则 | 内容 | 实证 |
+|---|---|---|
+| **按【顺序/数量】认，不按 `MaterialFlags`** | 第 1 件=脸、第 2 件=嘴、第 3 件=眼、第 4 件=睫；多一件或眼不在第 3 位就出问题 | 蒂法文档 §16：flags 全设对了症状依旧 |
+| 🔴 **顺序分性别** | **女头 = 脸→嘴→眼→睫（4 件）；男头 = 脸→眼→嘴（3 件）** | 原版 `head_male_a`（`.1`=eye_mat/`.2`=mouth_mat）· 织丰在售 `sho_head_male_japanese` · **本工程已验收的萨菲罗斯**（`metaparts` 实测 `[0]脸 [1]眼(458v) [2]嘴(3698v)`）；女头侧 = 原版 `head_female_a` + 蒂法 |
+| **`MaterialFlags` 只管"引擎要不要重画五官"** | 带标记 = 按原版画布重画（见上一条三件套第 3 步）；`skinfix --fullmat` 按**材质名**判角色（名字含 mouth/eye/lash，不看子网格顺序） | 铁律 27（材质名规范）+ `FaceFlagFor()` |
+
+⚠️ **踩过的坑：不要拿一个性别的先例去推另一个性别**。09-15 那次照女头（+蒂法）把 28 人统一改成
+`face,mouth,eye`，女角色对了、**22 个男角色装反**（症状同样是"眼睛/嘴不对"，与 flags 那条**极容易混**）。
+
+### 🔴 离线渲染做几何/外观判断的三个前提（2026-09-16 登记）
+
+不满足这三条 = 拿"假东西"当证据（本轮为此白跑了好几轮对照图）：
+
+1. **形状键必须归零**：产物 FBX 里 `KeyTime_0..59` 的 value **全写着 1.0**（Blender 导出形变通道的副产物），
+   不归零 = 渲染的是"59 条形变全叠加"的变形头（实测信长 x ±0.132 被压到 ±0.083）。
+2. **骨架对象别删**：蒙皮网格挂在骨架下面，删掉骨架 = 网格丢父变换 → **同一份几何渲出两种大小/位置**。
+   只要摘掉 `Armature` 修改器即可（网格就停在绑定姿态）。
+3. **只信"某块几何在不在"**：比例/美观/像不像人**必须实机**（已验收的信长/慶次离线渲出来一样是鬼样）。
+4. **拿源模型同机位对照**：且注意源模型**面朝 -Y**（build_head 标定时会转 ~180°），视角要自己翻。
+
+范本脚本：`Debug/offline/_render_fit.py`（甲+头合渲，已内置形状键归零/不删骨架）、
+`_render_eye.py`（贴图自发光特写，判"贴图坏没坏"）、`_cmp_two.py`（**同一会话**并排渲两份产物，
+避免"两次进程环境不同"造成的假差异）。

@@ -29,7 +29,10 @@ r"""太阁六代世界段生成器（英雄 / 领主模板 / 家族 / 王国）
   · **无家的英雄不写 faction**（143 人：浪人/师范/医师/锻冶匠/僧侣/茶人）——
     既有口径「浪人/无所属无家，骑砍侧当游荡者」（见 `gen_taikou_wanderer_culture.py`）。
   · **装备只能用本包 43 件物品**（`taikou_items/`）——官方物品在本 GameType 下被过滤，引了 = null。
-  · **旗号从官方 SandBox 家族池借**（94 个可用键，按序轮转）——不瞎编 banner_key（引擎解析格式，编错风险高）。
+  · **旗号 = 官方 SandBox 家族池借来的「底旗」+ 自家家纹图标**（2026-09-16 改）——
+    底色/配色/几何仍借官方键（官方调好的对比度，不瞎编）；只在第 11 段换成
+    `Clan.csv`/`TaikouForce.csv` 的 `Mon` 列所指定家纹（见 `taikou_mon_atlas.py`）。
+    `Mon` 为空 → 输出**纯色旗**（剥掉图标），免得混进欧洲纹章。
 
 Usage:
   python Scripts/gen_taikou_era_world.py --dry-run          # 只算不写：逐代条目数 + 链完整性 + 异常
@@ -54,6 +57,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.insert(0, os.path.join(REPO, "Scripts"))
 import taikou_equip_tables as EQ      # noqa: E402  兵种表 / 武将装备档表
+import taikou_mon_atlas as MON        # noqa: E402  家纹图集表（Mon 列 → 引擎图标 id）
 DEFAULT_CSV = os.path.join(REPO, "Knowledge", "太阁5", "骑砍2织丰角色ID对应", "csv")
 DEFAULT_MODULE = (r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12"
                   r"\Mount & Blade II Bannerlord\Modules\Taikou")
@@ -164,6 +168,63 @@ def banner_pool(official_root):
         return []
     txt = io.open(p, encoding="utf-8", errors="replace").read()
     return sorted(set(re.findall(r'banner_key="([^"]+)"', txt)))
+
+
+# ── 旗号几何：**固定模板，不再从借来的底旗继承**（2026-09-16 实机修）────────────────
+# 背景 = banner_background_test_11（原版 is_base_background 那条矩形旗），图标居中铺满。
+# 🔴 为什么必须固定：原来照抄借来的底旗几何 → 全局出现 **55 种不同的图标位置/尺寸**
+#    （原版每个键都是为自己那个图标调的），实机症状 = 「有的城池家纹巨大、织田的却小到看不见」。
+#    极端例：某键背景画在 (4922,4922) 而图标在 (471,471)，两者相距极远，
+#    名牌又是 MaskedTextureWidget（按旗形裁剪）→ 图标落到旗形外被裁掉。
+#    这组数字是本包**原来自证可用**的那套（实机里长篠城的风车就是这么渲染出来的）。
+CANON_BG_GEOM = ["1536", "1536", "764", "764", "1", "0", "0"]
+CANON_ICON_GEOM = ["483", "483", "764", "764", "0", "0", "0"]
+BG_MESH = "11"
+
+# 图标配色：按底色亮度二选一（都取自原版调色板，见 banner_icons.xml 的 BannerColors）
+ICON_COLOR_ON_DARK = "171"     # ffFFB53E 金——深底上醒目
+ICON_COLOR_ON_LIGHT = "116"    # ff0B0C11 近黑——浅底上醒目
+_PALETTE = {}                  # {id: "0xRRGGBB"}，main() 里从官方 banner_icons.xml 读
+
+
+def load_palette(official_root):
+    """读官方 banner_icons.xml 的 <BannerColors> → {id: hex}（选图标色要算亮度）。"""
+    p = os.path.join(official_root, "Modules", "Native", "ModuleData", "banner_icons.xml")
+    if not os.path.isfile(p):
+        return {}
+    txt = io.open(p, encoding="utf-8", errors="replace").read()
+    out = {}
+    for m in re.finditer(r'<Color\s+id="(\d+)"\s+hex="0x([0-9a-fA-F]+)"', txt):
+        out[int(m.group(1))] = m.group(2)
+    return out
+
+
+def _bg_luminance(color_id):
+    """底色亮度。⚠️ 调色板 hex 是 `0xAARRGGBB` —— 必须跳过前两位 alpha，
+    否则把 alpha(ff) 当成 R 读，亮度恒 ≈255，全被误判成「浅底」（实测踩过）。"""
+    h = _PALETTE.get(color_id)
+    if not h or len(h) < 8:
+        return 128.0                       # 查不到就当中等亮度 → 走金色
+    return 0.299 * int(h[2:4], 16) + 0.587 * int(h[4:6], 16) + 0.114 * int(h[6:8], 16)
+
+
+def apply_mon(base_key, mon_key):
+    """底旗（只取它的**配色**）+ 家纹键 → 最终 banner_key。
+
+    banner_key 定长串：`背景10段.图标id.图标9段`。
+      · mon_key 有效 → 换成本包家纹图标 id；几何一律用 CANON_*（不再继承底旗的）
+      · mon_key 为空 → 只留背景 = **纯色旗**（不配家纹的家族，也别留官方图标）
+    底旗只贡献**底色两个色号**（保证各家族颜色有变化），几何全部固定。
+    """
+    p = base_key.split(".")
+    c1 = p[1] if len(p) > 2 else "163"
+    c2 = p[2] if len(p) > 2 else "166"
+    head = [BG_MESH, c1, c2] + CANON_BG_GEOM
+    icon_id = MON.mon_key_to_icon_id(mon_key)
+    if icon_id is None:
+        return ".".join(head)
+    ic = ICON_COLOR_ON_DARK if _bg_luminance(int(c1)) < 140 else ICON_COLOR_ON_LIGHT
+    return ".".join(head + [str(icon_id), ic, ic] + CANON_ICON_GEOM)
 
 
 class World:
@@ -422,8 +483,10 @@ def ronin_clan_id(era):
 
 # 玩家族（建号结束主角加入）——**每代都要写**：原手写 spclans.xml 里有它，
 # 段一旦交给生成器接管就得继续提供（否则 main_hero 的 faction 悬空）。
+# 🔴 家纹留空 = **纯色旗**（2026-09-16）：原值是官方图标 609（欧洲纹章），与本包家纹体系不搭；
+#    主角反正要在建号捏旗界面自己选，而那里现在能选到本包 320 个家纹。
 PLAYER_FACTION = ('\t<Faction id="player_faction" is_noble="true" owner="Hero.main_hero" '
-                  'banner_key="11.154.116.1536.1536.768.768.1.0.0.609.15.155.483.483.773.729.0.0.0" '
+                  'banner_key="11.154.116.1536.1536.768.768.1.0.0" '
                   'is_minor_faction="false" label_color="FFD2C0AA" color="FF8D5C44" color2="FFE9A74D" '
                   'alternative_color="FF6C5749" alternative_color2="FFB3A491" culture="Culture.ikoku" '
                   'settlement_banner_mesh="encounter_flag_a" name="{=TAIKOU_player_faction}Player" tier="0">\n'
@@ -440,7 +503,7 @@ def write_clans(w, path):
         super_fac = (' super_faction="Kingdom.kingdom_%s"' % kd
                      if kd in w.kingdom_ids else "")
         minor = "false" if super_fac else "true"     # 独立家族 = minor faction（纳屋先例）
-        bkey = w.banners[i % len(w.banners)]
+        bkey = apply_mon(w.banners[i % len(w.banners)], c.get("Mon"))
         key = clan_key(c["ID"])
         nm = esc(slug_title(c["ID"]))
         L.append('\t<Faction id="%s" is_noble="true" owner="Hero.%s" banner_key="%s" '
@@ -459,7 +522,9 @@ def write_clans(w, path):
                  'is_minor_faction="true" culture="Culture.ronin" settlement_banner_mesh="encounter_flag_a" '
                  'name="{=%s}Ronin" short_name="{=%s}Ronin" title="{=%s}Ronin" tier="1">\n'
                  '\t\t<Influence>\n\t\t\t<base_influence value="10.0"/>\n\t\t</Influence>\n'
-                 '\t</Faction>\n' % (ronin_clan_id(w.era), ronin[0], w.banners[5 % len(w.banners)],
+                 '\t</Faction>\n' % (ronin_clan_id(w.era), ronin[0],
+                                     # 浪人众不是家系 → 纯色旗（不配家纹，也别留官方图标）
+                                     apply_mon(w.banners[5 % len(w.banners)], None),
                                      key, key, key))
     L.append("</Factions>\n")
     return "".join(L)
@@ -468,7 +533,8 @@ def write_clans(w, path):
 def write_kingdoms(w, path):
     L = [HEADER % w.era, "<Kingdoms>\n"]
     for i, k in enumerate(sorted(w.kingdoms, key=lambda x: x["ID"])):
-        bkey = w.banners[(i * 7 + 3) % len(w.banners)]
+        # 王国旗 = 该势力的家纹（大名的居城挂的是王国旗，见 Clan.Banner 的统治家族特例）
+        bkey = apply_mon(w.banners[(i * 7 + 3) % len(w.banners)], k.get("Mon"))
         key = kingdom_key(k["ID"])
         nm = esc(slug_title_from_slug(k["ID"]))
         L.append('\t<Kingdom\n\t\tid="kingdom_%s"\n\t\towner="Hero.%s"\n\t\tbanner_key="%s"\n'
@@ -613,6 +679,10 @@ def main():
     if not banners:
         print("[FATAL] 借不到官方旗号池（--official-root / 注册表 MB2_PATH）", file=sys.stderr)
         return 2
+    # 调色板：选图标配色要算底色亮度（apply_mon 用）
+    _PALETTE.update(load_palette(official) if official else {})
+    if not _PALETTE:
+        print("[warn] 读不到官方调色板，图标配色一律走金色", file=sys.stderr)
 
     eras = [args.era] if args.era else ERAS
     worlds = build_worlds(args.csv_dir)
