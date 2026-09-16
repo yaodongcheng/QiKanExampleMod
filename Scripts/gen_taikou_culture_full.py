@@ -969,15 +969,17 @@ def main():
         # (id, 本地化键, 英文名, color, color2, is_main_culture)
         ("ikoku", "TAIKOU_culture_ikoku", "Japanese", "0xff9e1b32", "0xffFCDE90", True),
         # ── 9 地域文化 ──
-        ("saikai", "TAIKOU_culture_saikai", "Saikai", "0xff2e6d6d", "0xffa8d8d8", True),
-        ("nankai", "TAIKOU_culture_nankai", "Nankai", "0xff2e5a6d", "0xffa8c8dc", True),
-        ("sanyo", "TAIKOU_culture_sanyo", "Sanyo", "0xff5a6d2e", "0xffc8dc9e", True),
-        ("kinai", "TAIKOU_culture_kinai", "Kinai", "0xff6d2e5a", "0xffdc9ec8", True),
+        # 🔴 英文名 = 地域通称（2026-09-16 用户裁定：照太阁日志 Region.csv 口径，
+        #    不用「西海/畿内/山阳」这类律令制古名 —— 中文名见 CNs 语言表，两者口径必须一致）。
+        ("saikai", "TAIKOU_culture_saikai", "Kyushu", "0xff2e6d6d", "0xffa8d8d8", True),
+        ("nankai", "TAIKOU_culture_nankai", "Shikoku", "0xff2e5a6d", "0xffa8c8dc", True),
+        ("sanyo", "TAIKOU_culture_sanyo", "Chubu", "0xff5a6d2e", "0xffc8dc9e", True),
+        ("kinai", "TAIKOU_culture_kinai", "Kinki", "0xff6d2e5a", "0xffdc9ec8", True),
         ("hokuriku", "TAIKOU_culture_hokuriku", "Hokuriku", "0xff2e3d6d", "0xff9ea8dc", True),
-        ("tosan", "TAIKOU_culture_tosan", "Tosan", "0xff4a6d2e", "0xffb4dc9e", True),
+        ("tosan", "TAIKOU_culture_tosan", "Koshin", "0xff4a6d2e", "0xffb4dc9e", True),
         ("tokai", "TAIKOU_culture_tokai", "Tokai", "0xff6d4a2e", "0xffdcb49e", True),
         ("kanto", "TAIKOU_culture_kanto", "Kanto", "0xff6d2e2e", "0xffdc9e9e", True),
-        ("ou", "TAIKOU_culture_ou", "Ou", "0xff2e6d4a", "0xff9edcb4", True),
+        ("ou", "TAIKOU_culture_ou", "Tohoku", "0xff2e6d4a", "0xff9edcb4", True),
         # ── 5 身份文化（忍者/海贼/商人 = 泛用 hero 与三类组织；强盗 = 吸收 8 个旧文化；浪人 = 游荡者）──
         ("ninja", "TAIKOU_culture_ninja", "Ninja", "0xff2f4f4f", "0xffb0c4de", False),
         ("pirate", "TAIKOU_culture_pirate", "Pirate", "0xff1f3d5c", "0xff9ec5e8", False),
@@ -1017,6 +1019,11 @@ def main():
 
     # 🔴 原文件已含 XML 声明（utf-8-sig），只插生成物注释，不得重复写声明（2026-09-08 踩坑：重复声明 parse 失败）
     body = txt.split("?>", 1)[1]
+    # 🔴 幂等修复（2026-09-16）：body 里带着**上次写入的**生成物注释，再拼一行 = 每重跑一次累积一行
+    #    （实测 HEAD 已累积 27 行同名注释）。写前先剥掉文件头连续的「生成物注释 + 空行」块，再统一写一行。
+    body = re.sub(
+        r'^(?:\s*<!-- 生成物（2026-09-08 gen_taikou_culture_full\.py）[^\n]*-->[ \t]*\n(?:[ \t]*\n)*)+',
+        '', body)
     out = ('<?xml version="1.0" encoding="utf-8"?>\n'
            '<!-- 生成物（2026-09-08 gen_taikou_culture_full.py）：织丰/原版字段交集 76 字段全量；'
            '值全引用自有资源；禁止手改（铁律 22） -->\n' + body)

@@ -2,13 +2,13 @@
 ID,Name,Alias
 saikai,九州,西海
 nankai,四国,南海
-sanyo,中国,山阳
+sanyo,中部,山阳|中国
 kinai,近畿,畿内
 hokuriku,北陆,
 tosan,甲信,东山
 tokai,东海,
 kanto,关东,
-ou,奥羽,东北
+ou,东北,奥羽
 looters,强盗,追剥|贼寇|野盗|倭寇|山贼|落武者狩|决斗者|僧侣|足轻
 neutral_culture,日本,
 ninja,忍者,

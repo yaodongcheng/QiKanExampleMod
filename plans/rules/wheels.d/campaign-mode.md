@@ -122,6 +122,26 @@ python Scripts/check_taikou_xml_references.py            # 默认 1.2.12 机 Tai
 - **检查器假绿同族**：`check_language_registration.py` 原先只认 `--module <模块名>`，而 `run_all_checks.py` 传的是**路径** → 该模块仍能查，但 ④中文覆盖被跳过；已改为两种形态都吃（`targets = [(名, 根, 前缀)]`）。**给脚本加参数化入口时，先确认套件传进来的形态能被解析**。
 - **负面测试常驻**：`Scripts/test_negative_checks.py` 有「`<strings>` 块外条目必须报红」用例（写坏 → exit 1 → 还原）。
 
+🔴 **文化「显示名」是两层——卡片读 GameText，世界读 `Culture.Name`（2026-09-16 登记，雷 132/134）**：建号选文化那一屏的卡片，标题与描述**不读** `Culture.Name`——引擎 `CharacterCreationCultureVM`（`TaleWorlds.CampaignSystem.ViewModelCollection.dll`，1.2.12 反编译实证）写死：
+
+```csharp
+NameText        = GameTexts.FindText("str_culture_rich_name",  Culture.StringId).ToString();
+DescriptionText = GameTexts.FindText("str_culture_description", Culture.StringId).ToString();
+```
+
+→ **卡片文本 = GameText `str_culture_rich_name.<文化id>` / `str_culture_description.<文化id>`，每文化必须一条独立键**。症状：10 张文化卡全写同一个名字（= 16 条 variation 全指向同一个 `{=TAIKOU_culture_rich_name_ikoku}`；当初为消雷 45 的「缺 variation = ERROR 文本」机械补条目、文本没跟着变）。
+世界内显示的文化名是**另一层** = `spcultures.xml` 的 `name="{=TAIKOU_culture_<id>}…"`（即 `Culture.Name`），口径跟数据表 `Culture.csv` 的 **Name 列**走。
+🔴 **配套纪律：改数据表 Name 列 = 必须同步改语言层的 `TAIKOU_culture_<id>`** —— 两张表之间没有任何自动同步（雷 134：表里早已是「九州/四国/近畿/甲信」并已把旧名挪进 Alias 列，游戏里却仍显示「西海/南海/畿内/东山」）。
+**影响面**（全 DLL 二进制扫，UTF-16 + UTF-8 双编码）：这两族 GameText **只在建号选文化界面被引用**，进游戏后不再出现——所以修它只需动语言层，不涉及代码。
+
+🔴 **生成器「头注释」必须幂等（2026-09-16 登记，雷 133）**：`gen_taikou_culture_full.py` 写 `spcultures.xml` 时 `body = txt.split("?>", 1)[1]` 里**带着上次写入的那行生成物注释**，再拼一行 = 每重跑一次累积一行（实测 HEAD 已积到 **27 行**同名注释）。修法 = 写前先剥掉文件头连续的「注释 + 空行」块再统一写一行：
+
+```python
+body = re.sub(r'^(?:\s*<!-- 生成物（…）[^\n]*-->[ \t]*\n(?:[ \t]*\n)*)+', '', body)
+```
+
+⚠️ **必须写 `^(?:\s*<!--`，`^<!--` 匹配不上**——`split("?>")` 后的 body 以换行开头（第一版就栽在这，注释照旧累积）。**验收 = 连跑三次 `git diff --numstat` 数字不变**（雷 93「幂等复跑是唯一防线」同族）。
+
 **语言目录两层结构**（照 LWN/官方）：根级 = 默认语言（英文）+ `CNs/` = 中文；**每层各带一份 `language_data.xml`**，`xml_path` 一律相对 `Languages/` 写（`CNs/std_X_strings.xml`）。
 
 **详细记录**：必备清单 §1.6 + 雷 45/47/48/50/51。

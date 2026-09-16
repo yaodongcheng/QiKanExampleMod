@@ -657,6 +657,8 @@ def seg_ratio(sw_a, sw_b, bl_a, bl_b):
 
 
 # SW2 骨 -> 沿骨轴缩放（未列出的骨用 R）
+R_RADIAL = float(get(A, "--r-radial", "0") or 0) or None   # 径向单独给值（0/缺省 = 与 R 相同，即旧行为）
+
 ARM_ALONG = {
     "bone_14": seg_ratio("bone_14", "bone_16", "bip01_l_upperarm_twist_15", "bip01_l_foretwist_17"),
     "bone_15": seg_ratio("bone_15", "bone_17", "bip01_r_upperarm_twist_22", "bip01_r_foretwist_24"),
@@ -721,7 +723,20 @@ for bn_sw, bn_bl in BMAP.items():
         F = frame_from_dir(d_sw)
         S = F @ Matrix.Diagonal((R, LEG_ALONG[bn_sw], R, 1.0)) @ F.inverted()
     else:
-        S = Matrix.Scale(R, 4)
+        # 🔴 2026-09-16：**径向与沿骨轴分开**（--r-radial）。
+        #    动机：R 是"一个数管两件事" —— 它同时定**粗细**和**纵向尺度**（脊椎骨各向同性缩放），
+        #    于是"躯干太粗"和"领口对上脖子"两件事被绑死了：想细一点就得连领口一起压下去
+        #    （实测 R 0.0120→0.0094 时甲的顶从 1.762 掉到 1.644，脖子缝反而更大）。
+        #    按骨轴拆开后：沿骨轴仍用 R（保持纵向对位），径向用实测拟合值。
+        #    判据（怎么定 R_RADIAL 的值）：源模型按"身高对齐比例"缩放后的剪影宽度
+        #    = 源 1.903m 高时躯干宽 xx m，与我们产物同高度处的宽度比 —— 见 Debug/offline/_cmp_h.py。
+        d_sw = chain_dir(b_sw)
+        if R_RADIAL is not None and d_sw is not None:
+            d_sw = (MIRROR_Y3 @ d_sw).normalized()
+            F = frame_from_dir(d_sw)
+            S = F @ Matrix.Diagonal((R_RADIAL, R, R_RADIAL, 1.0)) @ F.inverted()
+        else:
+            S = Matrix.Scale(R, 4)
     T_BONE[bn_sw] = (Matrix.Translation(b_bl.head_local) @ rot @ S
                      @ Matrix.Translation(-h_sw_f))
 

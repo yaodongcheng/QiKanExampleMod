@@ -8,6 +8,8 @@
 # 用法（系统 python，不需要 Blender）：
 #   python install_pack.py                 # 默认：TifaHead2 模块 + head_tifa_a
 #   python install_pack.py --module <模块目录> --filter <网格名子串>
+#   python install_pack.py --clear-flags   # ⚠️ 只在装「UV 沿用源模型布局」的头时才加（战无2 的 28 张脸 /
+#                                          #    织田信长）；蒂法 / 萨菲罗斯务必**不加**，加了眼睛糊掉（见第 3.5 步）
 #   python install_pack.py --dry-run       # 只体检报告，不写任何文件
 #
 # 退出码：0 = 全部通过并装机；1 = 中途失败（不装机）
@@ -74,6 +76,10 @@ def main():
     ap.add_argument("--check-ref-pack", default=None, help="关卡 2 参照头所在 AssetPackages（男头传 core_game 硬链接目录）")
     ap.add_argument("--check-window", default=None, help='关卡 2 着陆窗口 "x0,x1,y0,y1,z0,z1"')
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--clear-flags", action="store_true",
+                    help="清空脸部角色标记（MaterialFlags）—— **只对「UV 沿用源模型布局」的头用**"
+                         "（战无2 的 28 张脸 / 织田信长）；蒂法 / 萨菲罗斯（UV 对齐原版画布）"
+                         "必须保留标记，加了此开关会把他们的眼睛弄糊。详见第 3.5 步注释")
     args = ap.parse_args()
 
     pack = os.path.join(args.module, "AssetPackages", "pack0.tpac")
@@ -132,30 +138,45 @@ def main():
         print("   （skinfix 无输出，用上一步的包继续 —— 材质会是白编译状态）")
         shutil.copy2(os.path.join(d_m1, "pack0.tpac"), os.path.join(d_m2, "pack0.tpac"))
 
-    # 3.5) metaparts --clearflags：**清空脸部角色标记（custom head 必须为空）**
+    # 3.5) metaparts --clearflags：清脸部角色标记 —— **默认不做，必须显式加 --clear-flags**
     #
-    # 🔴 这一步不能省（2026-09-16 实机踩实，用户报「眼睛不对 + 嘴开花」）：
-    #    `face_base_mesh` / `face_mouth_mesh` / `face_eye_mesh` 是给**引擎的脸部贴图生成器**看的——
-    #    带标记 = 引擎会按**原版画布布局**把五官画到脸贴上。而自定义头用的是**源模型自带的 UV 布局**
-    #    （战无2 的头挤在图集角落），两边对不上 → 实机症状：**眼睛/嘴糊成一片、头发那块被涂成肤色**。
-    #    两个已实机验收的自定义头（蒂法 / 萨菲罗斯）在验收时 MaterialFlags **都是空的**（引擎不生成、
-    #    直接用 FBX 自带的贴图引用）。
-    #    ⚠️ 标记是被上面两步**主动补上**的：morphfix 有「为空就按材质名补标记」的兜底（当年为防
-    #    脸部生成器空指针加），skinfix --fullmat 也会刷。所以必须**在它们之后**清，否则下次装机又补回来
-    #    （09-16 那次就是这么把已经验收通过的信长弄糊的）。
-    #    完整来龙去脉：Knowledge/蒂法换头工程.md §16 + tools/face-pipeline/tpactool/.../MetaParts.cs 注释。
-    m3 = os.path.join(WORK, "m3")
-    out3 = run([TPACCLI, "metaparts", "--packdir", d_m2, "--filter", args.filter,
-                "--out", m3, "--clearflags"], "metaparts --clearflags")
-    d_m3 = os.path.join(WORK, "s3")
-    stage_dir("s3")
-    src3 = os.path.join(m3, "pack0.tpac")
-    if os.path.exists(src3) and os.path.getsize(src3) > 0:
-        shutil.copy2(src3, os.path.join(d_m3, "pack0.tpac"))
+    # 🔴 清不清，看这个头的 **UV 走哪套布局**（2026-09-16 晚修正；此前这里写反过，把蒂法弄糊了）：
+    #
+    #   ① UV 沿用**源模型自带布局**的头（战无2 那 28 张脸、织田信长）→ **必须清空**。
+    #      带标记 = 引擎按**原版画布布局**把五官画到脸贴上；这类头的贴图是源模型图集（战无2 的脸
+    #      挤在图集角落），两边对不上 → 实机症状「眼睛/嘴糊成一片、头发那块被涂成肤色」。
+    #   ② UV **对齐原版画布**的头（蒂法 / 萨菲罗斯——当年专门做过对齐）→ **必须保留**。
+    #      清掉 = 脸部贴图生成器认不出哪块是脸/嘴/眼/睫 → **把脸皮合成贴到了眼球上** → 同样是
+    #      「眼睛糊掉」，症状与①一模一样，所以两条一起发作时极难归因。
+    #
+    #   ⇒ 「自定义头必须清标记」这句话**对①成立、对②正好相反**，不能一刀切。
+    #     🔴 09-16 按①一刀切跑了一遍全包 → 把蒂法 / 萨菲罗斯的标记一起扫了（用户报「蒂法眼睛不对」）。
+    #        当时的注释还错写成「蒂法 / 萨菲罗斯验收时 MaterialFlags 都是空的」——**历史包实测证伪**
+    #        （Debug/offline/tifa_flag_repair/backup、Debug/offline/neck_tint/pack0_before.tpac 里
+    #        两人四个/三个标记齐全）。误判来源 = 把 SW2 侧的**件位顺序**结论（`[0]脸[1]嘴[2]眼`，
+    #        见 tools/sw2-pipeline/parts_table.py）当成了「标记为空」。
+    #        修复命令（窄 filter 逐个补回）：`skinfix --fullmat`，见 Debug/offline/tifa_flag_repair/。
+    #
+    #   ⚠️ 标记是被上面两步**主动补上**的：`morphfix` 与 `skinfix --fullmat` 都有「为空就按材质名补标记」
+    #      的兜底（当年为防脸部生成器空指针加的）。所以清必须**在它们之后**，否则下次装机又补回来。
+    #   完整来龙去脉：Knowledge/蒂法换头工程.md §16 + plans/rules/pitfalls.md「脸部贴图糊成一片」条。
+    if args.clear_flags:
+        m3 = os.path.join(WORK, "m3")
+        out3 = run([TPACCLI, "metaparts", "--packdir", d_m2, "--filter", args.filter,
+                    "--out", m3, "--clearflags"], "metaparts --clearflags")
+        d_m3 = os.path.join(WORK, "s3")
+        stage_dir("s3")
+        src3 = os.path.join(m3, "pack0.tpac")
+        if os.path.exists(src3) and os.path.getsize(src3) > 0:
+            shutil.copy2(src3, os.path.join(d_m3, "pack0.tpac"))
+        else:
+            print("   ⚠️ metaparts 无输出，用上一步的包继续 —— 脸部标记没清，实机会眼睛/嘴糊成一片")
+            shutil.copy2(os.path.join(d_m2, "pack0.tpac"), os.path.join(d_m3, "pack0.tpac"))
+        d_m2 = d_m3          # 后续步骤（关卡 2 / 装机）都接在清完标记的包上
     else:
-        print("   ⚠️ metaparts 无输出，用上一步的包继续 —— 脸部标记没清，实机会眼睛/嘴糊成一片")
-        shutil.copy2(os.path.join(d_m2, "pack0.tpac"), os.path.join(d_m3, "pack0.tpac"))
-    d_m2 = d_m3          # 后续步骤（关卡 2 / 装机）都接在清完标记的包上
+        print("\n[3.5] 跳过 clearflags（默认）：MaterialFlags 保留原样。")
+        print("      只有「UV 沿用源模型布局」的头才需要清（战无2 的 28 张脸 / 织田信长）→ 那种情况加 --clear-flags；")
+        print("      蒂法 / 萨菲罗斯的 UV 对齐原版画布，**清了眼睛会糊**，别加。")
 
     # 4) 关卡 2：编译产物落点
     print("\n---- 关卡 2（编译产物落点）----")
