@@ -98,9 +98,17 @@
 27. 🔴 **自建头/脸 FBX 的材质名 = `<头名>` + `<头名>_<角色>`，角色词固定 `eye`/`mouth`/`lash`**（2026-09-14 用户裁定，防止再犯）— **脸壳用裸名**（`head_nobunaga_a`），其余件加后缀（`head_nobunaga_a_eye` / `_mouth` / `_lash`）；例：`head_sephiroth_a` / `head_sephiroth_a_eye` / `head_sephiroth_a_mouth`（拿已编译可用的参照 mod 逐字核对过）。**为什么是硬的**：① 编译后的后处理 `install_pack.py` 的 `skinfix --fullmat` **按材质名判角色**（名字含 mouth/lash/eye，**不看子网格顺序**）刷配方 —— 名字错或重名 = 每件都刷成同一个配方 = **眼睛和嘴糊上脸皮**；② 编辑器编译会把材质设置**全部刷回 FBX 默认值**（shader / flags / VertexLayout 全丢，蒂法 §12.10 实锤），材质名是唯一还能认出"这件是谁"的线索。**两个高发错法**：① **源模型整身共用一张材质时，直接改名 = 三件指向同一个 datablock、最后只剩最后一个名字**（2026-09-14 实机前抓到：三件全成了 `_mouth`）→ 必须 `copy()` 一份再改名（范本 `tools/face-pipeline/scripts/build_head.py` 第 4 步）；② **导出前跑预览渲染 = 交付物里材质名变成预览材质名** → 预览一律放导出之后。⚠️ **别照抄原版的 `eye_mat`/`mouth_mat`** —— 那是原版自己的约定，自建头照抄参照 mod 的「裸名 + 后缀」。**判据**：`blender -b --python probe_uv.py -- <fbx>` 应打出**三个互不相同**的材质名。
 
 
-28. 🔴**数据管线三层：源 → 生成器 → CSV；CSV 是「离场层」，不是源头**（2026-09-14 用户裁定）— 语料/日志**不直接进代码**，也**不直接手改进管线消费的 CSV**。链路 = **源**（`Knowledge/太阁5/太阁日志/*.md`、织丰 xlsx、少量手维护表）→ **生成器**（`Scripts/gen_taikou_*.py` / `xlsx_to_csv.py`）→ **CSV**（`csv/` 下的表）→ **离线工具现读**。所以：**改数据 = 改源头 → 重跑生成器**；只有 `item.csv` / `Culture.csv` / `School.csv` / `Facility.csv` 是**手维护源表**，直接编辑。**禁止在管线里加中间产物文件**（旧 `entity_maps.py` 那类「生成器→625KB py 文件→工具再读」的做法已废止：它会冻结、会分叉、还会掩盖生成器已损坏的事实）。
+28. 🔴**数据管线三层：源 → 生成器 → CSV；CSV 是「离场层」，不是源头**（2026-09-14 用户裁定）— 语料/日志**不直接进代码**，也**不直接手改进管线消费的 CSV**。链路 = **源**（`Knowledge/太阁5/太阁日志/*.md`、织丰 xlsx、少量手维护表）→ **生成器**（`Scripts/gen_taikou_*.py` / `xlsx_to_csv.py`）→ **CSV**（`csv/` 下的表）→ **离线工具现读**。所以：**改数据 = 改源头 → 重跑生成器**；只有 `item.csv` / `Culture.csv` / `School.csv` / `Facility.csv`，以及**装备两张表** `TaikouTroop.csv`（兵种表）/ `HeroEquip.csv`（武将装备档表，见铁律 30）是**手维护源表**，直接编辑。**禁止在管线里加中间产物文件**（旧 `entity_maps.py` 那类「生成器→625KB py 文件→工具再读」的做法已废止：它会冻结、会分叉、还会掩盖生成器已损坏的事实）。
 
 29. 🔴**DSL 引用里 `域::` 后是完整 StringId，不额外拼前缀**（2026-09-14 反编译实证）— 引擎解析见 `AttributeResolver.FindKingdom`：剥掉 `Faction::` / `Kingdom::` 后**整段直接喂 `MBObjectManager.GetObject<Kingdom>()`**。因此 `Faction::Kingdom.kingdom_imagawa` 要求游戏内真有 StringId `kingdom_imagawa`；而 `Faction::Kingdom.oda` 只有在真有 `oda` 时才成立。**写法 = `Faction::Kingdom.<游戏内 StringId 原文>`**（Taikou 包 = `kingdom_<罗马字>`）。计划文档里 `Kingdom.oda` 一类是 Taikou 数据定型前的 stub 名，属**待更新的文档**，不是要迁就的约定。
+30. 🔴**装备数据是「表驱动」——改装备改表，不改代码**（2026-09-16 用户裁定）— 兵种与武将的装备一律在两张**手维护源表**里（`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/`）：
+    · **`TaikouTroop.csv`** —— **兵种表**（16 行）：等级 / 兵种组 / 技能组 / 文化 / 各槽装备 / 升级链 / 民用套装。**加兵种、改装备、改升级 = 改这张表**（武器列可用 `;` 分隔多套随机装备）。
+    · **`HeroEquip.csv`** —— **武将装备档表**（29 行）：一行一个**身份**（大名/城主/上忍/中忍…），给「铠甲候选 / 头盔候选 / 武器」三列 + **女将专用甲/盔**两列（有值则女将**只**穿它 = **覆盖，不是追加**）。**没指名专属装备的武将**按身份查这张表；查不到的走 `none` 行（**真兜底**：1560 段有 35 个武将身份栏是空的）。
+    · **武将的「专属」装备**仍写在 `TaikouHero.csv` 的 `Armor` / `Helmet` / `Weapon` / `Ammo` / `Race` 列（原有机制）。
+    读取器 = `Scripts/taikou_equip_tables.py`（列口径 / 多值 `|` / 逗号自检都在那）；体检 = `check_taikou_equip_tables.py` + `check_equip_item_defs.py`（**三张表引用的物品必须全部有定义**，认 `<Item>` **和** `<CraftedItem>`）+ 两个负面测试，**都已进一键体检**。
+    ⚠️ 「谁穿了什么 → 该出哪些物品」是**自动推**的：两个物品生成器读表决定出哪些物品定义 —— **别手工列物品名单**（会与 `prune_taikou_items.py` 的引用闭包打架：剪了又生成、生成了又剪）。
+    详见 [plans/兵种装备接线.md](plans/兵种装备接线.md)（已完成·已归档）+ 必备清单**雷 125~129**。
+
 ## 🔴 CSV 表头规范（2026-09-12 用户裁定，最高优先级）
 
 **`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/` 下的数据表一律两行表头**：
@@ -115,7 +123,7 @@
 
 **落地方式**：读用 `Scripts/csv_dual.py`（`dict_rows(path)` / `read_table(path)`），写用 `write_table(path, cn, en, rows)`（保留原换行风格）。**禁止**再裸写 `csv.DictReader(io.open(...))` 读这些表——那会按第 1 行（中文）取键。
 
-**已合规**：`TaikouForce.csv`（`势力类型,ID,势力名,别名,Culture,…` / `ForceType,ID,ForceName,Alias,Culture,…`）· `Appearance.csv` · `Facility.csv` · `School.csv`。
+**已合规**：`TaikouForce.csv`（`势力类型,ID,势力名,别名,Culture,…` / `ForceType,ID,ForceName,Alias,Culture,…`）· `Appearance.csv` · `Facility.csv` · `School.csv` · **`TaikouTroop.csv`**（`兵种ID,中文名,…,装备槽…` / `ID,CNName,…,Armor,Helmet,…`）· **`HeroEquip.csv`**（`档位,身份,铠甲候选,头盔候选,女将专用甲,女将专用盔,武器` / `Tier,Identity,Armors,Helmets,FemaleArmors,FemaleHelmets,Weapons`）。
 **参考转储**（`BaseInfo`/`Card`/`item`/`ProfileImage`/`Animation`/`Camera`/`Music`/`TagPoint`…）是从上游导入的原样文件，**不在本规范内**（没有脚本读它们；加表头行会与导入源分叉）。
 
 ## 双配置体系 — `Core/MCMSettings.cs`（小白 UI） vs `Core/Settings.cs`（config.json 高级配置）

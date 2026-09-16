@@ -560,6 +560,27 @@ def build():
             head2id[h] = g["id"]
 
     # ── 文化（成员多数）──
+    # 🔴 **身份组织优先**（2026-09-16 用户裁定）：忍者众是**身份组织**、不是地域家族 ——
+    #    成员的 `CultureID` 记的是驻地文化（伊贺→kinai、风魔→kanto、轩猿→hokuriku…），
+    #    按「成员多数」算出来的必然是地域文化。后果：忍者众家族挂地域文化 → 部队模板来自
+    #    地域文化 → **忍者头目带一队正规足轻**。所以凡所属势力是 `org_ninja_*` 的家，
+    #    文化一律改判 `ninja`（`Culture.ninja` 本来就为此存在，此前全世界没一家在用）。
+    #    ⚠️ 海贼(`org_pirate_*`)/商人(`org_trader_*`) 同理可加，但**本轮只做忍者**
+    #    （用户裁定范围）；要加就在下表加一行。
+    IDENTITY_CULTURE = {"ninja": "ninja"}      # 势力 id 前缀 → 该身份文化
+
+    def identity_culture(g):
+        """家的势力落在身份组织前缀里 → 该身份文化；都不是则 None。"""
+        for e in sorted(g["eras"]):
+            h = head_at(g, e)
+            if not h or h not in (sup.get(e) or {}):
+                continue
+            fid = force_of(sup[e][h].get("组织"), sup[e][h].get("势力")) or ""
+            for prefix, cult in IDENTITY_CULTURE.items():
+                if fid.startswith("org_%s_" % prefix):
+                    return cult
+        return None
+
     for g in groups:
         cult = collections.Counter()
         for e in sorted(g["eras"]):
@@ -567,6 +588,9 @@ def build():
                 if h in g["heads"]:
                     cult[by_dx[pid].get("CultureID", "")] += 1
         g["culture"] = sorted(cult.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] if cult else ""
+        ident = identity_culture(g)
+        if ident:
+            g["culture"] = ident
 
     # ── TaikouHero 六年代 clan 格 ──
     hero_clan = {dx: [(head2id.get(era_clan[e].get(dx)) or "") for e in ERAS] for dx in by_dx}

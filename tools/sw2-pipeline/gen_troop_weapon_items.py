@@ -49,6 +49,7 @@ from csv_dual import read_table, write_table   # noqa: E402
 import gen_armor_items as G                    # noqa: E402  upsert / 哨兵 / 通用工具
 import gen_weapon_items as W                   # noqa: E402  KINDS / item_block / read_dims
 from build_weapons import TROOP_WEAPONS        # noqa: E402  源模型 ↔ mesh slug 的唯一真源
+import taikou_equip_tables as EQ               # noqa: E402  兵种表（谁穿了什么 → 该出哪些物品）
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -77,10 +78,35 @@ BODY = {
 }
 
 
+def wired_slugs():
+    """真正被兵种穿在身上的兵种武器 → {slug}。**生成物品 ⟺ 有人穿。**
+
+    数据来源 = `TaikouTroop.csv`（兵种表，见 `Scripts/taikou_equip_tables.py`）——
+    2026-09-16 用户裁定后装备一律走 CSV，这里不再 import 生成器的 Python 表。
+
+    🔴 为什么要有这道过滤：网格全建了 6 把，但游戏里暂时只接得上 4 把 ——
+        · **薙刀**：战无2 里是 BOSS(L200) 的武器，我们还没有 BOSS 兵种；
+        · **铁炮**：兵种用的是**火器版** `taikou_teppo`（`firearms.xml` 原话：「标准款，
+          兵种与常规武将用」——它带 `ammo_class="Cartridge"`，才吃得到铁炮的枪声/枪口烟）。
+          战无2 铁炮足轻那把独立网格（`ammo_class="Bolt"`）等将来替换标准款时再登记。
+       没登记物品的网格**留在资产包里不碍事**，只是没有物品定义（不会出现在商店/战利品里）。
+       反过来说：**没兵的武器若登记了物品**，就是「孤儿物品」——
+       `prune_taikou_items.py` 按引用闭包会把它剪掉，剪完 `--check` 又报过期，来回打架。
+    """
+    used = set()
+    for iid in EQ.equip_item_ids():
+        if iid.startswith("taikou_troop_") and iid.endswith(SUFFIX):
+            used.add(iid[len("taikou_"):-len(SUFFIX)])
+    return used
+
+
 def entries():
-    """→ [(slug, cn, en, K, iid)]，顺序同 TROOP_WEAPONS。"""
+    """→ [(slug, cn, en, K, iid)]，顺序同 TROOP_WEAPONS（只收有兵种在用的）。"""
+    wired = wired_slugs()
     out = []
     for _src, slug, cn, en, kind in TROOP_WEAPONS:
+        if slug not in wired:
+            continue
         out.append((slug, cn, en, W.KINDS[kind], "taikou_%s%s" % (slug, SUFFIX)))
     return out
 
@@ -124,9 +150,26 @@ def prune(txt, items):
     return txt, n
 
 
+def prune_cn(txt, want_keys):
+    """语言文件里**本工具前缀**的旧键：不在名单里的删掉（物品剪了，名字要跟着走）。"""
+    n = 0
+    pat = re.compile(r'[ \t]*<string id="(TAIKOU_troop_[a-z_]+%s)"[^>]*/>\r?\n' % re.escape(SUFFIX))
+    for key in set(pat.findall(txt)):
+        if key in want_keys:
+            continue
+        txt = pat.sub(lambda m: "" if m.group(1) == key else m.group(0), txt)
+        n += 1
+    return txt, n
+
+
 def register_item_csv(items):
-    """item.csv 追加/更新（纯新增；列不变）。列 = ID, TK5Name, CNName, TK5Type, Kind, SourceCount, Remark。"""
+    """item.csv 追加/更新（纯新增；列不变）。列 = ID, TK5Name, CNName, TK5Type, Kind, SourceCount, Remark。
+    顺带清掉**本工具前缀**下不在名单里的旧行（物品剪了，登记行要跟着走）。"""
     cn, en, rows = read_table(G.ITEM_CSV, head=2)
+    want = {iid for _s, _c, _e, _K, iid in items}
+    rows = [r for r in rows
+            if not (r and r[0].startswith("taikou_troop_") and r[0].endswith(SUFFIX)
+                    and r[0] not in want)]
     by_id = {r[0]: i for i, r in enumerate(rows) if r}
     added = 0
     for _slug, cn_name, _en, _K, iid in items:
@@ -210,6 +253,7 @@ def main():
     for slug, cn_name, _en, _K, iid in items:
         new_cn = G.upsert_str(new_cn, "TAIKOU_%s%s" % (slug, SUFFIX),
                               cn_line(slug, cn_name), after_mark=MARK)
+    new_cn, n_cn_pruned = prune_cn(new_cn, {"TAIKOU_%s%s" % (s, SUFFIX) for s, _c, _e, _K, _i in items})
 
     if args.check:
         cn_o, en_o, rows_o = read_table(G.ITEM_CSV, head=2)
@@ -242,8 +286,9 @@ def main():
     miss_cn = [iid for slug, _c, _e, _K, iid in items
                if 'TAIKOU_%s%s"' % (slug, SUFFIX) not in cnt]
     miss_reg = [iid for _s, _c, _e, _K, iid in items if iid not in ids]
-    print("[兵种武器] 写 %d 文件 · %d 件 · 清旧 %d · item.csv 新增 %d · 自检缺 %d/%d/%d"
-          % (wrote, len(items), n_pruned, added, len(miss), len(miss_cn), len(miss_reg)))
+    print("[兵种武器] 写 %d 文件 · %d 件 · 清旧 %d / 名字 %d · item.csv 新增 %d · 自检缺 %d/%d/%d"
+          % (wrote, len(items), n_pruned, n_cn_pruned, added,
+             len(miss), len(miss_cn), len(miss_reg)))
     for name, lst in (("物品", miss), ("中文", miss_cn), ("item.csv", miss_reg)):
         if lst:
             print("   ❌ %s 缺：%s" % (name, lst))

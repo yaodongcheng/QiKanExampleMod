@@ -225,3 +225,41 @@ taikou_ginchiyo_helmet_a,,祇园守前立兜,,item,0,⚠️ 占位·无真实模
 taikou_nene_helmet_a,,桐纹前立兜,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
 taikou_kotaro_helmet_a,,风魔黑头巾,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
 taikou_musashi_helmet_a,,阵笠,,item,0,⚠️ 占位·无真实模型（战无2 原模型里与头部连体，待补；2026-09-15 登记）
+taikou_troop_yari_weapon_a,,长枪,,item,0,战无2 兵种通用武器（tools/sw2-pipeline/gen_troop_weapon_items.py，2026-09-15 登记）
+taikou_troop_uchigatana_weapon_a,,打刀,,item,0,战无2 兵种通用武器（tools/sw2-pipeline/gen_troop_weapon_items.py，2026-09-15 登记）
+taikou_troop_yumi_weapon_a,,弓,,item,0,战无2 兵种通用武器（tools/sw2-pipeline/gen_troop_weapon_items.py，2026-09-15 登记）
+taikou_troop_shinobigatana_weapon_a,,忍刀,,item,0,战无2 兵种通用武器（tools/sw2-pipeline/gen_troop_weapon_items.py，2026-09-15 登记）
+taikou_troop_chunin_do_a,,茶革忍装束,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_genin_do_a,,藏青女忍装束,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_hazenin_do_a,,黑漆重具足,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_hazenin_helmet_a,,黑漆筋兜,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_jonin_do_a,,黑忍装束,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_jonin_helmet_a,,黑覆面,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_katana_ashigaru_do_a,,钢青锁帷子,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_katana_ashigaru_helmet_a,,钢青阵笠,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_samurai_do_a,,茶青金具足,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_samurai_helmet_a,,蓝铁筋兜,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_sennin_do_a,,白布忍装束（樱纹）,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_sennin_helmet_a,,白布头巾,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_taisho_do_a,,樱色女具足,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_taisho_helmet_a,,樱色大兜,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_teppo_ashigaru_do_a,,赤茶火药胴丸,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_teppo_ashigaru_helmet_a,,菅笠,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_tobinin_do_a,,暗赤忍装束,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_totsunin_do_a,,赤茶重革胴丸,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_totsunin_helmet_a,,赤茶筋兜,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_elite_ashigaru_do_a,,朱革赤缀胴丸,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_elite_ashigaru_helmet_a,,朱革阵笠,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_yari_ashigaru_do_a,,茶革赤缀胴丸,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_yari_ashigaru_helmet_a,,茶革阵笠,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_yumi_ashigaru_do_a,,轻革弓胴丸,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_guard1_do_a,,茶革赤缀亲卫具足,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_guard1_helmet_a,,茶革护卫兜,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_guard3_do_a,,茶革密钉亲卫具足,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_guard3_helmet_a,,茶革护卫筋兜,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_guard4_do_a,,萌黄金漆亲卫具足,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_guard4_helmet_a,,金漆顶缨大兜,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_guard5_do_a,,赤茶轻装亲卫具足,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_guard5_helmet_a,,赤茶护卫小兜,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_kyushu_do_a,,赤茶革胴丸,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
+taikou_troop_kyushu_helmet_a,,赤茶阵笠,,item,0,战无2 兵种装备（tools/sw2-pipeline/gen_troop_armor_items.py，2026-09-16 登记）
