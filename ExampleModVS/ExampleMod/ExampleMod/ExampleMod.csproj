@@ -398,6 +398,15 @@
     <Compile Include="CampaignMode\BackstoryCampaignBehaviorPatch.cs" />
     <Compile Include="CampaignMode\CharacterCreationCultureStageSortPatch.cs" />
     <Compile Include="CampaignMode\CharacterCreationCultureVisualFallbackPatch.cs" />
+    <!-- 捏脸「种族」下拉按性别置灰（2026-09-16）：角色专属 race 一个头一个性别，
+         选错性别 = 引擎按 (race, gender) 找不到皮肤 → 落兜底皮肤（身体/头对不上）。
+         不删条目、不重排（条目下标仍是引擎 race 索引），只关 SelectorItemVM.CanBeSelected
+         （原版下拉 XML 里就是条目按钮的 IsEnabled）→ 变灰点不动。性别来源 = 扫 CharacterObject
+         （taikou_lords*.xml 的 race= 与 is_female= 本来就写在同一行）。 -->
+    <Compile Include="CampaignMode\FaceGenRaceGenderFilterPatch.cs" />
+    <!-- 上面那个补丁的性别数据源：读各内容包 ModuleData/AssetRegistry/RaceGenders.xml（通用契约，
+         生成器 = Scripts/gen_taikou_sw2_heads.py）。查不到的 race 不限制。 -->
+    <Compile Include="CampaignMode\RaceGenderRegistry.cs" />
     <!-- 🔴 2026-09-10 **已退役删除**（文件已删，实机验证通过；恢复 = git 历史捞回原文件后去掉本行注释）：
          MapScreenCameraPatch.cs（建号完成后拉相机对准玩家）——它做的事与建号内容里的 teleport 完全重复，
          而相机看不见玩家的**真凶是场景缺 border_min/border_max**（雷 34，数据已修）。
@@ -431,6 +440,7 @@
     <Compile Include="CampaignMode\Tools\NavMeshDebugMapTickPatch.cs" />
     <!-- 🔴 2026-09-16 认知状态批量命令 custom.meet_all（原版无对应指令；HasMet 单向、消息清空副作用见文件头） -->
     <Compile Include="CampaignMode\Tools\HeroMeetCommands.cs" />
+    <Compile Include="CampaignMode\Tools\HeightReportCommands.cs" />
     <!-- 🔴 2026-09-09 读档崩二分（20:20 会话 save035 → Settlement.All=0）：当时摘掉的是
          `Debug\TownEntryDiagPatch.cs`（**只有它真在编译清单里**，见其下方的摘除记录）。
          ⚠️ **勘误（2026-09-10 核 git 全历史）**：`AreaMarkerTagGuard.cs` / `IssuesSettlementGuardPatch.cs`

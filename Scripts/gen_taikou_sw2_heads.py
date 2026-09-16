@@ -7,6 +7,8 @@ Knowledge/战国无双换装工程.md §2。
 
 本脚本 = `gen_taikou_nobunaga_head.py`（只做信长一个人）的**多角色版**：
     · 28 个 race（男 22 / 女 6）一次生成到 Taikou\\ModuleData\\skins.xml
+    · 同时产出 Taikou\\ModuleData\\AssetRegistry\\RaceGenders.xml（race → 允许性别）——
+      LWN 捏脸「种族」下拉按性别置灰的唯一依据；**不能**改成运行时从角色反推（见 OUT_RACEGENDERS 注释）
     · 每个 race 的 Monster **整族 5 个**（human/human_child/human_settlement/... 的复刻）
       —— 少一个 = 进据点领主大厅 `Mission.SpawnAgent` 直接 NRE（信长那次实机踩过）
     · 每个 race 的皮肤照抄 Native 对应性别的**全部 5 档年龄段**，每块只换这几处：
@@ -24,7 +26,7 @@ Knowledge/战国无双换装工程.md §2。
 用法：
     python Scripts/gen_taikou_sw2_heads.py              # 生成
     python Scripts/gen_taikou_sw2_heads.py --check      # 只校验是否最新
-    python Scripts/gen_taikou_sw2_heads.py --selfcheck  # 语义自检（C2 四条，见 selfcheck()）
+    python Scripts/gen_taikou_sw2_heads.py --selfcheck  # 语义自检（C2 六条，见 selfcheck()）
 """
 import os
 import re
@@ -51,6 +53,12 @@ def race_id(key):
 
 OUT_SKINS = os.path.join(G.MB2, "Modules", "Taikou", "ModuleData", "skins.xml")
 OUT_MONSTERS = os.path.join(G.MB2, "Modules", "Taikou", "ModuleData", "monsters.xml")
+# 🔴 种族 → 允许性别（LWN 捏脸「种族」下拉按性别置灰用）。**必须是这张离线表**：
+#    运行时从角色反推不行 —— 六代领主是**按时代互斥加载**的，某一代没有的 race 就查不到使用者，
+#    表里缺项 = 过滤失效 = 玩家能点到性别不符的 race = native AV（2026-09-16 实机 1598 代踩过：
+#    该代只有 18 个带 lwn_ race 的领主，另外 10 个男 race 漏网）。
+RACEGENDERS_REL = os.path.join("AssetRegistry", "RaceGenders.xml")
+OUT_RACEGENDERS = os.path.join(G.MB2, "Modules", "Taikou", "ModuleData", RACEGENDERS_REL)
 
 
 def skin_blocks(native, gender):
@@ -204,9 +212,11 @@ def _skins_of(text, race=None):
 
 
 def selfcheck(skins_text, monsters_text, module_data_dir, native_skins):
-    """C2 四条语义自检（**建 50 个 race 靠人记这四条必出错**，所以做成脚本）：
+    """C2 六条语义自检（**建 50 个 race 靠人记这几条必出错**，所以做成脚本）：
 
     ① Monster 整族齐不齐 ② skin 的性别×年龄段覆盖 ③ face_textures 条数 ④ race/monster/NPC 三处 id 一致
+    ⑤ 领主性别 ⊆ 该 race 的 skin 性别（对不上 = 运行期取不到皮肤，落兜底皮肤）
+    ⑥ 捏脸过滤表 AssetRegistry/RaceGenders.xml 与 skin 性别逐条一致（错一条 = 玩家点得到 = native AV）
     → (是否全过, 报告行列表)
     """
     ok = True
@@ -227,14 +237,20 @@ def selfcheck(skins_text, monsters_text, module_data_dir, native_skins):
             if mid == rid or mid.startswith(rid + "_"):
                 mon_family.setdefault(rid, set()).add(mid)
 
-    # ④ 领主文件里真正用到的 race= 属性
-    used = set()
+    # ④ 领主文件里真正用到的 race= 属性（**按人记账**：记下每个 race 被哪个性别的领主用了，给 ⑤ 用）
+    users = {}          # race id -> 使用者性别的集合（"m"/"f"）
     md = module_data_dir
     if os.path.isdir(md):
         for fn in sorted(os.listdir(md)):
             if re.match(r'taikou_lords.*\.xml$', fn):
-                used |= set(re.findall(r'race="([^"]+)"',
-                                       G.read(os.path.join(md, fn)), re.S))
+                for tag in re.findall(r'<NPCCharacter\b[^>]*>',
+                                      G.read(os.path.join(md, fn)), re.S):
+                    m_race = re.search(r'race="([^"]+)"', tag)
+                    if not m_race:
+                        continue
+                    users.setdefault(m_race.group(1), set()).add(
+                        "f" if 'is_female="true"' in tag else "m")
+    used = set(users)
     if not used:
         ok = False
         out.append("❌ 六代领主文件里一个 race= 都没读到（路径不对？%s）" % md)
@@ -261,6 +277,17 @@ def selfcheck(skins_text, monsters_text, module_data_dir, native_skins):
             ok = False
             out.append("❌ %s 的 Monster 族不齐：缺 %s"
                        % (rid, sorted(want_ids - mon_family.get(rid, set()))))
+        # ⑤ 用这个 race 的领主，性别必须落在该 race 的 skin 性别里
+        #    （skin 按 race × 性别 选：性别对不上 = 引擎取不到皮肤 → 落兜底皮肤，身体/头对不上。
+        #     运行期那道防线 = 捏脸「种族」下拉按性别置灰 FaceGenRaceGenderFilterPatch，本条是数据侧同一条不变量）
+        #    ⚠️ 两个域要归一：skin 的 gender 是 "0"/"1"，使用者记的是 "m"/"f"
+        skin_genders = {"f" if g == "1" else "m" for g in genders}
+        bad = sorted(g for g in users.get(rid, ()) if g not in skin_genders)
+        if bad:
+            ok = False
+            out.append("❌ %s 只做了 gender=%s 的 skin，却有%s领主在用（性别不匹配 → 兜底皮肤）"
+                       % (rid, "/".join(sorted(genders)),
+                          "、".join("女" if g == "f" else "男" for g in bad)))
 
     # ④ 三处 id 一致：领主文件用到的都在 skins 里有定义；定义了但没人用也报出来（多半是漏接）
     missing = sorted(used - races)
@@ -270,6 +297,27 @@ def selfcheck(skins_text, monsters_text, module_data_dir, native_skins):
         out.append("❌ 领主文件用了但 skins.xml 没定义的 race：%s" % " ".join(missing))
     if unused:
         out.append("⚠️ 定义了但六代领主文件都没用（多半是没接上 SPECIAL_RACE）：%s" % " ".join(unused))
+
+    # ⑥ 捏脸过滤表（AssetRegistry/RaceGenders.xml）必须与 skins 的 skin 性别逐条一致 ——
+    #    这张表是 LWN「种族」下拉按性别置灰的**唯一**依据，错一条 = 玩家能点到性别不符的 race = native AV
+    rg_path = os.path.join(module_data_dir, "AssetRegistry", "RaceGenders.xml")
+    if not os.path.exists(rg_path):
+        ok = False
+        out.append("❌ 缺 AssetRegistry/RaceGenders.xml（捏脸「种族」下拉按性别过滤要用它）")
+    else:
+        declared = dict(re.findall(r'<Race\s+id="([^"]+)"\s+gender="([^"]+)"', G.read(rg_path)))
+        for rid in sorted(races):
+            mine = {g for (r_, g, mt) in got if r_ == rid}
+            want = ({"0"} if declared.get(rid) == "male" else
+                    {"1"} if declared.get(rid) == "female" else None)
+            if want is None or mine != want:
+                ok = False
+                out.append("❌ %s 的性别声明与 skin 不符：表说 %s，skin 是 gender=%s"
+                           % (rid, declared.get(rid, "（缺这行）"), "/".join(sorted(mine))))
+        extra = sorted(set(declared) - races)
+        if extra:
+            ok = False
+            out.append("❌ RaceGenders.xml 里有 skins.xml 没定义的 race：%s" % " ".join(extra))
 
     out.append("统计：race %d 个 · skin %d 块 · Monster %d 个 · 领主文件用到 %d 个 race"
                % (len(races), len(got), sum(len(v) for v in mon_family.values()), len(used)))
@@ -284,13 +332,31 @@ def main():
 
     # ---- skins.xml ----
     races = []
+    race_rows = []                      # (race id, 性别) —— 给 AssetRegistry/RaceGenders.xml
     for key, r in TABLE.items():
         rid, body, n_hair = build_race_block(r["asset"], r["gender"], native_skins)
         races.append(body)
+        race_rows.append((rid, r["gender"]))
         print("  %-16s %-8s race=%-18s 发型条目摘名 %d 条" % (key, r["gender"], rid, n_hair))
     skins = ('<?xml version="1.0" encoding="utf-8"?>\n<skins>\n'
              + G.header("SW2 28 人专属 race（男 22 / 女 6）")
              + "".join(races) + "</skins>\n")
+
+    # ---- AssetRegistry/RaceGenders.xml：race → 允许性别（与 skins.xml 同源，同一个循环产出） ----
+    racegenders = ('<?xml version="1.0" encoding="utf-8"?>\n'
+                   '<!-- 生成物·禁止手改（铁律 22）——由 Scripts/gen_taikou_sw2_heads.py '
+                   '从挑件表（tools/sw2-pipeline/parts_table.py）生成。\n'
+                   '     改内容 = 改挑件表后重跑本脚本。\n'
+                   '     用途：LWN 捏脸/建号的「种族」下拉**按性别过滤**——每个换头角色一个 race，\n'
+                   '           而一个 race 只做单一性别的 skin（性别不符 = 引擎取不到皮肤 = native AV）。\n'
+                   '     消费方：LWN CampaignMode/RaceGenderRegistry.cs（读盘，不走 MBObjectManager）。\n'
+                   '     键 = race StringId（与 skins.xml 的 <race id> 同键）；gender = male / female。\n'
+                   '     🔴 这张表**不能**改成运行时从角色反推：六代领主按时代互斥加载，\n'
+                   '        某一代没有的 race 查不到使用者 = 过滤失效（2026-09-16 实机崩过一次）。\n'
+                   ' -->\n'
+                   '<RaceGenders>\n'
+                   + "".join('\t<Race id="%s" gender="%s" />\n' % (rid, g) for rid, g in race_rows)
+                   + '</RaceGenders>\n')
 
     # ---- monsters.xml：每个 race 整族 5 个 ----
     native_ids = re.findall(r'<Monster\b[^>]*?\bid="([^"]+)"', native_mon, re.S)
@@ -322,7 +388,7 @@ def main():
 
     if check:
         ok = True
-        for path, want in ((OUT_SKINS, skins), (OUT_MONSTERS, mon)):
+        for path, want in ((OUT_SKINS, skins), (OUT_MONSTERS, mon), (OUT_RACEGENDERS, racegenders)):
             cur = G.read(path) if os.path.exists(path) else ""
             same = cur == want
             ok = ok and same
@@ -333,12 +399,13 @@ def main():
     if self_check:
         # 语义自检跑在**磁盘上的产物**上（不只跑在内存里的新文本上）——
         # 这样它同时能查出"产物是旧的"以外的结构问题。不一致时先提示重跑。
-        disk = {p: (G.read(p) if os.path.exists(p) else "") for p in (OUT_SKINS, OUT_MONSTERS)}
-        if disk[OUT_SKINS] != skins or disk[OUT_MONSTERS] != mon:
+        want = {OUT_SKINS: skins, OUT_MONSTERS: mon, OUT_RACEGENDERS: racegenders}
+        disk = {p: (G.read(p) if os.path.exists(p) else "") for p in want}
+        if disk != want:
             print("❌ 磁盘产物与生成器不一致 —— 先不加 --selfcheck 重跑一次")
             return 1
         ok, report = selfcheck(skins, mon, os.path.dirname(OUT_SKINS), native_skins)
-        print("\n== 语义自检（C2 四条）==")
+        print("\n== 语义自检（C2 六条）==")
         for ln in report:
             print("   " + ln)
         print("结果：%s" % ("✅ 全过" if ok else "❌ 有问题（上面逐条）"))
@@ -346,7 +413,8 @@ def main():
 
     G.write(OUT_SKINS, skins)
     G.write(OUT_MONSTERS, mon)
-    print("\n写出：\n  %s\n  %s" % (OUT_SKINS, OUT_MONSTERS))
+    G.write(OUT_RACEGENDERS, racegenders)
+    print("\n写出：\n  %s\n  %s\n  %s" % (OUT_SKINS, OUT_MONSTERS, OUT_RACEGENDERS))
     print("\n下一步：把 race= 接到 NPCCharacter 上（Scripts/gen_taikou_era_world.py 的 SPECIAL_RACE 表）")
     return 0
 
