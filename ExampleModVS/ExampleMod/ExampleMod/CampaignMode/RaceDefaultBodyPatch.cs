@@ -160,8 +160,8 @@ namespace LivingWorldNpcs.CampaignMode
 	/// </summary>
 	internal static class RaceDefaultBodySource
 	{
-		/// <summary>本 mod 给「按角色做的 race」的统一前缀（内容包自建 race 都从这里起名）。</summary>
-		private const string RacePrefix = "lwn_";
+		/// <summary>本 mod 给「按角色做的 race」的统一前缀（唯一来源见 <see cref="CustomRaceHelper.RacePrefix"/>）。</summary>
+		private const string RacePrefix = CustomRaceHelper.RacePrefix;
 
 		private static Dictionary<string, CharacterObject> _byRace;
 		private static bool _built;

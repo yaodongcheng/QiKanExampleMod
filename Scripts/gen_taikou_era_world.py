@@ -632,7 +632,13 @@ def write_lords(w, md):
         # 甲 / 兜：按身份行 + 武将 id 从候选池挑一对（六代一致）→ 同档内长相各异。
         body_id, head_id = pick_armor(row, r["ID"], fem)
         armor = dict(Body=body_id, Head=head_id)
-        # 🔴 专属甲（2026-09-15 用户裁定）：来源 = `TaikouHero.csv` 的「甲」列（键 `Armor`）——
+        # 🔴 **「专属武将」的识别 = 「头」列有值**（键 `Race` —— 战无2 那 28 个专属头模；
+        #    2026-09-17 用户裁定：这一批人一律看 `Race` 认，不再一处一个判法）。
+        #    ⚠️ 与「武器」列今天正好是同一批 28 人（实测 Race 28 行 = Weapon 28 行、无单边），
+        #    但**判据以 Race 为准** ——「有没有专属头模」才是这批人的身份，「有没有专属武器」不是。
+        #    这一个判据统管两件事：① 不戴档位兜（本段下面）② 身上只带自己那套（武器段）。
+        race_id = (r.get("Race") or "").strip()
+        # 专属甲（2026-09-15 用户裁定）：来源 = `TaikouHero.csv` 的「甲」列（键 `Armor`）——
         #    哪位武将穿哪件甲写**数据**里，不写代码表（改人只改表）。
         #    ① 只覆盖**战斗装**的 Body 槽，民用装（进城便服）不动；
         #    ② 甲是**普通物品**（`taikou_items/body_armors.xml` 里定义的），这里只决定他出场穿什么，
@@ -646,31 +652,34 @@ def write_lords(w, md):
         #    **已经长着头饰了** —— 其中 19 人的兜与头部连体、根本切不出独立网格（所以「头盔」列是空的，
         #    见 `parts_table` 与 item 的「占位·无真实模型」标记）。给这 19 人再戴一顶档位兜
         #    = **头上套两层**（实机没验也知道穿帮）。有专属头模 + 有专属兜的那 9 人才该戴。
-        race_id = (r.get("Race") or "").strip()
         if race_id and not helmet:
             armor = {k: v for k, v in armor.items() if k != "Head"}
         elif helmet:
             armor = dict(armor, Head=helmet)
-        # 🔴 专属武器（2026-09-15）：来源 = `TaikouHero.csv` 的「武器」列，同甲/盔口径（写数据不写代码表）。
-        #    ① 替换 **Item0（主武器）**，保留原副武器（盾之类）；
+        # 🔴 专属武器（2026-09-15；2026-09-17 收紧）：来源 = `TaikouHero.csv` 的「武器」列。
+        #    ① **专属武将身上只带这一套** —— 主武器 +（远程则带）弹药，**不从身份档表补任何东西**
+        #       （2026-09-17 用户裁定：「不要擅自派发盾牌；如果有装备那么身上就只带那装备」。
+        #        原来这里把身份档的其余武器顺进 Item1 —— 大名/国主/城主/家老/部将 5 档写着
+        #        `刀|leather_round_shield`，于是这 28 人平白多出一面盾，且是欧洲圆盾）；
         #    ② 远程武器（弓/铁炮）**必须带弹药**，否则拿着射不出去 —— 弹药 id 在「弹药」列，
-        #       插在 Item1/Item2（原版弓手布局就是 Item0=弓 Item1=箭）；
+        #       插在 Item1/Item2（原版弓手布局就是 Item0=弓 Item1=箭）。弹药算他这套的一部分，
+        #       不是"补的东西"；顺带也就不会再出现「带盾拿枪射不出去」（`requires_no_shield`）；
         #    ③ 同甲：普通物品，出场只决定初始装备，可被扒/被偷/作战利品。
         weapon = (r.get("Weapon") or "").strip()
-        if weapon:
-            ammo = (r.get("Ammo") or "").strip()
-            rest = list(weapons)[1:]
-            # 🔴 远程武器不收盾（2026-09-15 火器工程）：弓 / 弩 / 火器的 item_usage_set 都带
-            #    `requires_no_shield` flag（原版弓弩均如此；原版全库没有一个带盾的弩兵）。
-            #    填了「弹药」列 = 明确是远程武器 —— 此时若保留身份默认装备里的盾，
-            #    武器 usage 会被引擎跳过（拿着枪射不出去）。故此时丢弃盾。
-            if ammo:
-                rest = [x for x in rest if "shield" not in x]
-            weapons = [weapon] + ([ammo, ammo] if ammo else []) + rest
+        ammo = (r.get("Ammo") or "").strip()
+        dedicated = bool(race_id and weapon)
+        if dedicated:
+            weapons = [weapon] + ([ammo, ammo] if ammo else [])
+        elif race_id:
+            print("[WARN] %s 有专属头模却没有专属武器（「武器」列空）→ 仍按身份档表拿武器"
+                  % r["ID"], file=sys.stderr)
+        elif weapon:
+            print("[WARN] %s 填了专属武器却没有专属头模（「头」列空）→ 「武器」列被忽略，"
+                  "按身份档表拿武器" % r["ID"], file=sys.stderr)
         cul = (r.get("CultureID") or "").strip() or CULTURE_FALLBACK
         # 🔴 专属 race 的来源 = `TaikouHero.csv` 的「头」列（键 `Race`）—— 2026-09-15 用户裁定：
         #    "谁长什么脸"是**数据**，不写死在生成器里（与「甲」列同口径）。
-        #    （`race_id` 在上面判「要不要戴档位兜」时已经读过一次。）
+        #    （`race_id` 上面已经读过：它既是「戴不戴档位兜」的判据，也是「只带自己那套」的判据。）
         race_attr = ' race="%s"' % race_id if race_id else ""
         L.append('\t<NPCCharacter id="%s" default_group="Infantry" age="%d" voice="%s" '
                  'is_hero="true" is_female="%s" culture="Culture.%s"%s name="{=%s}%s" occupation="Lord" '
@@ -697,7 +706,7 @@ def write_lords(w, md):
                 civil_final["Body"] = body_armor
             if helmet:
                 civil_final["Head"] = helmet
-            if weapon:
+            if dedicated:
                 civil_weapons = [weapon] + ([ammo, ammo] if ammo else [])
         for i, it in enumerate(civil_weapons):
             L.append('\t\t\t\t<equipment slot="Item%d" id="Item.%s" />\n' % (i, it))
