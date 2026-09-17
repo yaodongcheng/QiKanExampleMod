@@ -33,6 +33,19 @@ r"""太阁六代世界段生成器（英雄 / 领主模板 / 家族 / 王国）
     底色/配色/几何仍借官方键（官方调好的对比度，不瞎编）；只在第 11 段换成
     `Clan.csv`/`TaikouForce.csv` 的 `Mon` 列所指定家纹（见 `taikou_mon_atlas.py`）。
     `Mon` 为空 → 输出**纯色旗**（剥掉图标），免得混进欧洲纹章。
+  · **逐角色身高**（2026-09-17，第 4 步）：领主 `<face>` 里**内联** `<BodyProperties>`，
+    身高 = 脸键 `KeyPart8` 的 6 bit（位 19..24）。有名武将取 `tools/sw2-pipeline/out/srcT.json`
+    的 `height_ratio`（网格管线量出来的「相对原版等高」倍数）；其余 1300+ 人按 StringId
+    确定性落在自然带内（同一个人六代同高、重跑同高，但彼此有高低差）。
+    **改身高 = 改 `HEIGHT_BAND` / 网格管线的 ratio 再重跑**；证据与标定实验见
+    `Debug/offline/_step4_prereq.md`。
+  · **逐角色体重 / 体型**（2026-09-17）：同一条 `<BodyProperties>` 的 `weight=` / `build=` 属性。
+    **不在脸键里**（脸键只有身高那 6 bit），且实现是**骨架骨缩放**（`skins.xml` 的 `<bone_scales>`）
+    → 我们的甲/头会跟着被拉伸，且甲本来就是按本人身形做的（双重计入）。
+    ⇒ **已打开**（`APPLY_BODY_SHAPE = True`，2026-09-17 用户裁定「都要」）：只有 28 个有名武将
+    有逐人体型，其余 1300+ 人仍写模板值；逐人真实体型与量法见
+    `Debug/offline/_bodyprops_table.md`（含量法、证据链、逐人一行）。
+    **一键关回去 = 改 `APPLY_BODY_SHAPE = False` 后重跑本脚本**（六代一起回到模板值）。
 
 Usage:
   python Scripts/gen_taikou_era_world.py --dry-run          # 只算不写：逐代条目数 + 链完整性 + 异常
@@ -43,7 +56,9 @@ Exit: 0 成功 / 1 --check 不一致或有硬错误 / 2 fatal。
 """
 import argparse
 import collections
+import hashlib
 import io
+import json
 import os
 import re
 import sys
@@ -66,6 +81,58 @@ ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]
 BASELINE_ERA = "1560"                      # 无后缀文件 = 这一代
 KINGDOM_TYPES = ("Warrior", "Ninja", "Pirate")   # 立国的势力类型（用户裁定）
 CULTURE_FALLBACK = "ikoku"                 # CSV 没给文化时的兜底（现有最小集同款）
+
+# ── 身高（第 4 步：逐角色身高交给游戏自身的缩放，不做进网格）──────────────────
+# 为什么在这里：骑砍2 的角色身高 = `BodyProperties` 脸键里 KeyPart8 的 6 bit（位 19..24），
+#   由 native 换算成一个**均匀缩放标量**乘在整个人（含装备）上。**英雄取的是模板的 min 那份**
+#   （`CharacterObject.GetBodyPropertiesMin()`）——所以「某个人多高」= 他 min 键里的那 6 bit。
+# 数据源：`tools/sw2-pipeline/out/srcT.json`（网格管线产出）的 `height_ratio`
+#   = 该角色净身高 ÷ 原版等高基准（1.0 = 与网格侧统一后的原版身高）。
+# 落点：领主 `<face>` 里的**内联** `<BodyProperties>`。
+#   🔴 不能与 `<face_key_template>` 并存：C# 侧只要读到 face_key_template 就用模板，
+#      内联那条会被整个丢掉（`TaleWorlds.Core.BasicCharacterObject.Deserialize`）。
+# 改法：键串 = 8 段各 16 个十六进制字符；**只改最后一段（KeyPart8）的 bit 19..24**，
+#   其余 7 段与全部其它位一字不动 —— 脸形/体格特征完全沿用基准键，与网格侧互不干扰。
+SW2_SRC_T = os.path.join(REPO, "tools", "sw2-pipeline", "out", "srcT.json")
+BASE_BODY_PROPERTY = "fighter_empire"      # 基准键（除身高外的一切特征取自它）
+# 身高带：bit 0..63 ↔ 身高倍数 1±HEIGHT_BAND（对称带，中心 = 原版等高基准）。
+# 🔴 **已定标（2026-09-17，反汇编 native 实证，别再猜）**：`TaleWorlds.Native.dll`
+#    · `get_scale`（0x18060cad0）：`rax = [BodyProperties+0x48]`（= KeyPart8）；`shr rax,0x13`；
+#      `and eax,0x3f`；`× 0.015873`（= 1/63）→ 得到 h = bits/63 ∈ [0,1]。
+#    · 核心（0x1804bbc19）：`h × 0.2 + 0.9`，再乘上「(race, 性别, 年龄段) 的基础缩放」。
+#    ⇒ **AgentScale = (0.9 + 0.2 × bits/63) × min_scale(该 skin)**；
+#      成年男 min_scale = 1.07 → bits 0/32/63 ↔ AgentScale 0.963 / 1.070 / 1.177。
+#      **bits 31.5 = 1.0×基准**，全量程只有 ±10% —— 倍数超出 [0.9, 1.1] 的会被钳到端点。
+#    证据与复现命令：`Debug/offline/_step4_prereq.md`「落地实施」一节。
+HEIGHT_BAND = 0.10
+# 无名武将（1300+ 人，没有自建网格）：按 StringId 确定性落在自然带里 —— 同一个人怎么看都是
+#   同一个身高（六代一致、重跑一致），但人与人之间有自然的高低差，不是一刀切一个值。
+NPC_HEIGHT_BAND = (0.92, 1.08)
+
+# ── 体重 / 体型（逐人默认值；2026-09-17）──────────────────────────────────────
+# 🔴 **前提复核结论（与最初的假设不同，别再按旧假设办）**：
+#   · `weight` / `build` **不在 128 位脸键里** —— 它们是 `BodyProperties` 上的两个**动态浮点**，
+#     走 XML 的 `weight=` / `build=` 属性（`TaleWorlds.Core.BodyProperties`：3 个 float 动态段
+#     (Age/Weight/Build) + 8 个 ulong 静态键；键里没有这两项的位）。
+#   · 它们的实现 = **骨架骨缩放**（`skins.xml` 里那两个 deform_key 挂的是 `<bone_scales>`
+#     → `biped_abdomen` / `biped_thorax` / 大腿 / 肩臂，逐轴给区间）。
+#     **不是网格形变**：原版身体网格 `body_male_a` 的 `VertexKeyCount=0`（`tpaccli morphinfo` 实测），
+#     根本没有 morph 帧可用。
+#   · ⇒ **我们的甲与头会跟着变**（都蒙在同一副骨架上）→ 不是「穿模/空隙」，而是
+#     「硬质甲片被拉宽拉厚」+「双重计入」（甲本来就是按本人身形做的）。
+#     量级：weight 全程只动腹部厚度 ±12%、build 动胸腔宽度 ±22%；逐人偏置最多 ±0.10 → ±2.3%。
+# 完整证据链 / 逐人核对表 / 量法：`Debug/offline/_bodyprops_table.md`（生成器 `_gen_bodyprops_table.py`）。
+#
+# 🔴 **已打开**（2026-09-17 用户裁定「都要，我只看最终最好的效果」）：28 个有名武将写逐人体型，
+#   其余人（无名武将/兵种）写模板值。**风险已知并接受 A/B 复核**：甲/头会跟着骨缩放一起被拉伸，
+#   而甲本来就是按本人身形做的 → **双重计入**（详见 `plans/逐角色共用变换与拼装闸门.md` §10.7）。
+#   **一键关回去 = 改 False 后重跑本脚本**（六代一起回到模板值；产物字节随之复原）。
+APPLY_BODY_SHAPE = True
+BODY_SHAPE_GAIN = 0.5                 # 比值偏离中位数 10% → 滑条走 0.05
+BODY_SHAPE_CLAMP = (0.80, 1.30)       # 量测有噪声；带外的换算成滑条没有意义（会饱和）
+# 逐人体型量测（Blender 产出，见 `Debug/offline/_measure_src_body.py`）；**只在开关打开时才读**，
+#   所以关着的时候本脚本对 `Debug/offline/` 零依赖（离线产物不进 git，不该卡住生成器）。
+BODY_SHAPE_SRC = os.path.join(REPO, "Debug", "offline", "_src_body.json")
 
 # ── 武将装备：**数据在 CSV，不在这里**（2026-09-16 用户裁定）──
 # 🔴 读 `Knowledge/太阁5/骑砍2织丰角色ID对应/csv/HeroEquip.csv`（源表，手维护）：
@@ -368,6 +435,177 @@ def esc(s):
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+# ── 身高：脸键拼装（第 4 步，见文件顶部的说明块）────────────────────────────
+_HEIGHT_CTX = None          # 懒加载：{"base": (age, weight, build, key), "ratio": {StringId: ratio}}
+_HEIGHT_SEEN = []           # [(StringId, "sw2"/"npc", ratio, bits)]，六代累加，生成后打印分布
+_BODY_SHAPE_CTX = None      # 懒加载：{StringId: 逐人体型量测行}（只在 APPLY_BODY_SHAPE 打开时读）
+_BODY_SHAPE_BASE = None     # (模板 weight, 模板 build)，由 _height_ctx 设好
+
+
+def _height_ctx(md):
+    """读基准键 + 28 个有名武将的 height_ratio（都只读一次）。读不到 = 硬错，不静默跳过。"""
+    global _HEIGHT_CTX, _BODY_SHAPE_BASE
+    if _HEIGHT_CTX is not None:
+        return _HEIGHT_CTX
+    bp_path = os.path.join(md, "taikou_bodyproperties.xml")
+    if not os.path.isfile(bp_path):
+        print("[FATAL] 找不到基准身体属性文件：%s" % bp_path, file=sys.stderr)
+        raise SystemExit(2)
+    root = ET.parse(bp_path).getroot()
+    base = None
+    for bp in root.findall("BodyProperty"):
+        if bp.get("id") != BASE_BODY_PROPERTY:
+            continue
+        mn = bp.find("BodyPropertiesMin")
+        base = (mn.get("age"), mn.get("weight"), mn.get("build"), mn.get("key"))
+    if not base or not base[3] or len(base[3]) != 128:
+        print("[FATAL] %s 里读不到 %s 的 min 键（128 位十六进制）"
+              % (bp_path, BASE_BODY_PROPERTY), file=sys.stderr)
+        raise SystemExit(2)
+    # 28 个有名武将：SW2 挑件表（StringId 口径的唯一真源）→ srcT.json 的 height_ratio
+    sys.path.insert(0, os.path.join(REPO, "tools", "sw2-pipeline"))
+    from parts_table import TABLE as SW2_PARTS        # noqa: E402
+    if not os.path.isfile(SW2_SRC_T):
+        print("[FATAL] 找不到网格管线产出：%s（先跑 tools/sw2-pipeline 的变换导出）" % SW2_SRC_T,
+              file=sys.stderr)
+        raise SystemExit(2)
+    src = json.load(io.open(SW2_SRC_T, encoding="utf-8"))["chars"]
+    # srcT.json 里还有兵种条目（`L250_SOLDIER1` 之类，挑件表里没有）——本脚本只用武将，
+    # 挑件表里没有的条目直接忽略；**挑件表里有的（= 我们要用的 28 人）必须有 ratio**，
+    # 缺了就是网格管线还没算完 → 硬错，不许静默回落到随机值。
+    ratio, pending = {}, []
+    for key, row in src.items():
+        if key not in SW2_PARTS:
+            continue
+        sid = (SW2_PARTS[key] or {}).get("taikou")
+        hr = row.get("height_ratio")
+        if not sid or hr is None:
+            pending.append(key)
+            continue
+        ratio[sid] = float(hr)
+    if pending:
+        print("[FATAL] 网格管线还没给这些武将 height_ratio：%s（等 srcT.json 算完再重跑）"
+              % ", ".join(sorted(pending)), file=sys.stderr)
+        raise SystemExit(2)
+    _HEIGHT_CTX = {"base": base, "ratio": ratio}
+    _BODY_SHAPE_BASE = (float(base[1]), float(base[2]))   # 模板的 weight / build（逐人换算的基准）
+    return _HEIGHT_CTX
+
+
+def height_bits(ratio):
+    """身高倍数 → 6 bit（0..63）。bits 31/32 = 原版等高基准，±HEIGHT_BAND 打满 0 / 63。"""
+    bits = int(round(31.5 + (ratio - 1.0) * (31.5 / HEIGHT_BAND)))
+    return max(0, min(63, bits))
+
+
+def set_height_bits(key, bits):
+    """键串（128 个十六进制字符）→ 只换 KeyPart8 的 bit 19..24，其余一字不动。"""
+    kp8 = int(key[112:128], 16)
+    kp8 = (kp8 & ~(0x3F << 19)) | (bits << 19)
+    return key[:112] + ("%016X" % kp8)
+
+
+def npc_height_ratio(sid):
+    """无名武将：StringId → 确定性身高倍数（两次抽样取均值 = 中间多两端少）。"""
+    lo, hi = NPC_HEIGHT_BAND
+    h = hashlib.sha256(sid.encode("utf-8")).digest()
+    u1 = int.from_bytes(h[0:4], "big") / 0xFFFFFFFF
+    u2 = int.from_bytes(h[4:8], "big") / 0xFFFFFFFF
+    return lo + (hi - lo) * (u1 + u2) / 2.0
+
+
+def height_summary():
+    """打印身高地图（验收用）：唯一人数 / 有名 / 无名 / bits 分布；并守六代一致。"""
+    uniq = {}
+    for sid, src, ratio, bits in _HEIGHT_SEEN:
+        prev = uniq.get(sid)
+        if prev and prev != (src, ratio, bits):
+            print("[FATAL] %s 六代身高不一致：%s vs %s" % (sid, prev, (src, ratio, bits)),
+                  file=sys.stderr)
+            raise SystemExit(2)
+        uniq[sid] = (src, ratio, bits)
+    sw2 = sorted([(s, v) for s, v in uniq.items() if v[0] == "sw2"], key=lambda x: -x[1][1])
+    npc = [v for v in uniq.values() if v[0] == "npc"]
+    hist = collections.Counter(v[2] for v in uniq.values())
+    print("── 身高（脸键 KeyPart8 位 19..24；bits 31/32 = 原版等高基准，带 1±%.2f）──" % HEIGHT_BAND)
+    for sid, (_s, ratio, bits) in sw2:
+        print("   有名 %-16s ×%.4f → bits %2d" % (sid, ratio, bits))
+    if npc:
+        rs = sorted(v[1] for v in npc)
+        print("   无名 %d 人：×%.3f~%.3f（中位 ×%.3f）→ bits %d~%d"
+              % (len(npc), rs[0], rs[-1], rs[len(rs) // 2],
+                 min(v[2] for v in npc), max(v[2] for v in npc)))
+    print("   合计 %d 人 · bits 分布 %s" % (len(uniq), dict(sorted(hist.items()))))
+
+
+def body_shape(sid, md):
+    """逐人 (weight, build)。**开关关着 = 返回 None**（调用方回落模板值 → 产物字节不变）。
+
+    数据源 = `Debug/offline/_src_body.json`（Blender 量的逐人「腰腹厚比 / 胸背宽比」，口径与
+    量法见 `Debug/offline/_measure_src_body.py` 与 `_bodyprops_table.md` §七）。
+    映射：`模板值 + GAIN × (夹到 CLAMP 的比值 − 1)`；有名 28 人以外（无名武将/兵种）一律 None。
+    """
+    if not APPLY_BODY_SHAPE:
+        return None
+    _height_ctx(md)                # 顺带把模板的 weight/build 基准设好（幂等，只读一次）
+    global _BODY_SHAPE_CTX
+    if _BODY_SHAPE_CTX is None:
+        if not os.path.isfile(BODY_SHAPE_SRC):
+            print("[FATAL] APPLY_BODY_SHAPE 已打开但读不到逐人体型量测：%s\n"
+                  "        （先跑 Debug/offline/_measure_src_body.py 产出它）" % BODY_SHAPE_SRC,
+                  file=sys.stderr)
+            raise SystemExit(2)
+        sys.path.insert(0, os.path.join(REPO, "tools", "sw2-pipeline"))
+        from parts_table import TABLE as SW2_PARTS        # noqa: E402
+        raw = json.load(io.open(BODY_SHAPE_SRC, encoding="utf-8"))["chars"]
+        by_key = {}
+        for k, v in SW2_PARTS.items():
+            tid = (v or {}).get("taikou")
+            if tid and k in raw:
+                by_key[tid] = raw[k]
+        _BODY_SHAPE_CTX = by_key
+    row = _BODY_SHAPE_CTX.get(sid)
+    if not row:
+        return None
+
+    def to_slider(ratio, base):
+        lo, hi = BODY_SHAPE_CLAMP
+        r = max(lo, min(hi, float(ratio)))
+        return "%.4f" % max(0.0, min(1.0, float(base) + BODY_SHAPE_GAIN * (r - 1.0)))
+
+    # 基准值由 `_height_ctx` 一并设好（上面已调过）
+    base_w, base_b = _BODY_SHAPE_BASE
+    wr = (row.get("waist") or {}).get("torso_d_robust_ratio")
+    br = (row.get("chest") or {}).get("torso_w_robust_ratio")
+    return (to_slider(wr, base_w) if wr else None,
+            to_slider(br, base_b) if br else None)
+
+
+def body_props_block(w, r, md, seen):
+    """领主的 <face> 块：内联 <BodyProperties>（英雄取 min → 这条就是他的身高 + 体重/体型）。"""
+    ctx = _height_ctx(md)
+    age_b, weight, build, base_key = ctx["base"]
+    sid = r["ID"]
+    ratio = ctx["ratio"].get(sid)
+    if ratio is None:
+        if (r.get("Race") or "").strip():
+            print("[FATAL] %s 有专属头模（Race）却没有 height_ratio —— 网格管线漏了他？" % sid,
+                  file=sys.stderr)
+            raise SystemExit(2)
+        ratio = npc_height_ratio(sid)
+        src = "npc"
+    else:
+        src = "sw2"
+    seen.append((sid, src, ratio, height_bits(ratio)))
+    key = set_height_bits(base_key, height_bits(ratio))
+    shape = body_shape(sid, md)                  # 默认 None = 保持模板值（现状）
+    if shape and shape[0] and shape[1]:
+        weight, build = shape
+    return ('\t\t<face>\n'
+            '\t\t\t<BodyProperties version="4" age="%s" weight="%s" build="%s" key="%s" />\n'
+            '\t\t</face>\n' % (age_b, weight, build, key))
+
+
 def write_heroes(w, path):
     L = [HEADER % w.era, "<Heroes>\n"]
     L.append('\t<Hero id="main_hero" faction="Faction.player_faction" text="{=TAIKOU_main_hero}Eren"/>\n')
@@ -382,7 +620,7 @@ def write_heroes(w, path):
     return "".join(L)
 
 
-def write_lords(w, path):
+def write_lords(w, md):
     L = [HEADER % w.era, "<NPCCharacters>\n"]
     for r in sorted(w.heroes, key=lambda x: x["ID"]):
         ident = (r.get("Identity_" + w.era) or "").strip()
@@ -439,7 +677,7 @@ def write_lords(w, path):
                  'banner_symbol_mesh_name="test_symbol_a" banner_symbol_color="FF000000">\n'
                  % (r["ID"], w.age_of(r), VOICE_BY_IDENTITY_FEMALE if fem else VOICE_DEFAULT,
                     "true" if fem else "false", cul, race_attr, name_key(r["ID"], w.era), esc(en_name_of(r))))
-        L.append('\t\t<face>\n\t\t\t<face_key_template value="BodyProperty.fighter_empire"/>\n\t\t</face>\n')
+        L.append(body_props_block(w, r, md, _HEIGHT_SEEN))
         L.append('\t\t<Equipments>\n\t\t\t<EquipmentRoster>\n')
         for i, it in enumerate(weapons):
             L.append('\t\t\t\t<equipment slot="Item%d" id="Item.%s" />\n' % (i, it))
@@ -732,7 +970,7 @@ def main():
         w = worlds[e]
         sfx = era_suffix(e)
         plan += [(os.path.join(md, "taikou_heroes%s.xml" % sfx), write_heroes(w, None)),
-                 (os.path.join(md, "taikou_lords%s.xml" % sfx), write_lords(w, None)),
+                 (os.path.join(md, "taikou_lords%s.xml" % sfx), write_lords(w, md)),
                  (os.path.join(md, "spclans%s.xml" % sfx), write_clans(w, None)),
                  (os.path.join(md, "spkingdoms%s.xml" % sfx), write_kingdoms(w, None))]
 
@@ -743,6 +981,9 @@ def main():
         except ET.ParseError as ex:
             print("[FATAL] 生成的 XML 解析不过：%s —— %s" % (os.path.basename(path), ex), file=sys.stderr)
             return 2
+
+    # ── 身高地图（六代一并打印；顺带校验同一个人六代一致）──
+    height_summary()
 
     if args.check:
         stale = [(p, t) for p, t in plan

@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
-"""stage_for_import.py —— 把甲/头盔的网格+贴图**归拢到导入根**（和脸放一起，按名字区分）。
+"""stage_for_import.py —— 把甲/头盔/武器的网格+贴图**归拢到导入根**（和脸放一起，按名字区分）。
 
 为什么（2026-09-15 用户裁定）
 ------------------------------
 编辑器导入只认一个地方最省事：`TifaHead2\\AssetSources\\sw2\\<角色>\\`（TifaHead2 的定位就是
 "编辑器导入 + tpac 导出"，见 plans/战国无双换装批量落地.md 核心原则①）。所以每个角色一个文件夹，
-里面三样东西**靠文件名区分**：
+里面靠文件名区分：
 
-    head_<名>_a_v2.fbx      + _d/_n/_s/_eye_d/_mouth_d     ← 脸（build_heads 产出，本来就在这）
+    head_<名>_a_v2.fbx  + _d/_n/_s/_eye_d/_mouth_d/_neck_d/_neck_n/_neck_s   ← 脸 + 脖子
     taikou_<名>_do_a.fbx    + _d/_n/_s                     ← 甲（本条脚本搬进来）
     taikou_<名>_helmet_a.fbx + _d/_n/_s                    ← 头盔（同上；只有 9 人戴盔）
     taikou_<名>_weapon_a.fbx + _d/_n/_s                    ← 武器（同上；每人一件）
+
+🔴 **头（脸 + 脖子那三张 `_neck_*.png`）不经过本脚本** —— 头由 `build_heads.py --stage`
+   按 `f.endswith(".png")` **通配**整体拷进 `sw2\\<角色>\\`（含 `make_sw2_textures.py` 新写的
+   脖子三张），所以本脚本的 `EXTS` 固定后缀清单**够不着也管不着**头。这里只搬下面三样（甲/盔/武器）。
 
 兵种通用武器（6 件，`--set troops`）
 ------------------------------------

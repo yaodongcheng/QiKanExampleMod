@@ -181,9 +181,12 @@ def check_asset(d, base, kind, legacy):
     else:
         bad.append("缺 %s_s.png" % base)
 
-    # ---- 4. 脸的三张 diffuse 必须逐像素相同 ----
+    # ---- 4. 脸的多张 diffuse 必须逐像素相同 ----
+    # 🔴 2026-09-16 加 `_neck_d`：脖子件（「脖子归头」裁定后头资产的第 4 个 part）的 UV 仍在
+    #    源模型那张**全身图集**上 → 贴图就是脸那三张的副本（见 make_sw2_textures.py）。
+    #    它必须与 _d 逐像素相同 —— 不同就说明脖子被指到了别的图，实机表现是脖子颜色/花纹错位。
     if kind == "head":
-        for suf in ("_eye_d.png", "_mouth_d.png"):
+        for suf in ("_eye_d.png", "_mouth_d.png", "_neck_d.png"):
             q = core + suf
             if not os.path.isfile(q):
                 bad.append("缺 %s%s" % (base, suf))
@@ -213,7 +216,10 @@ def main():
         if not names:
             continue
         for base in sorted(names):
-            if base.endswith("_eye") or base.endswith("_mouth"):
+            # `_eye` / `_mouth` / `_neck` 是**同一件资产的配套贴图**（同名后缀），不是独立资产 ——
+            # 2026-09-16 加 `_neck`：不加这条，`head_xxx_neck` 会被当成一个"头资产"去查它自己的
+            # eye/mouth/neck 贴图 → 满屏假报错（实测）。
+            if (base.endswith("_eye") or base.endswith("_mouth") or base.endswith("_neck")):
                 continue          # 脸的副 diffuse，跟着主件查
             kind = classify(base)
             bad, ok = check_asset(d, base, kind, a.legacy)

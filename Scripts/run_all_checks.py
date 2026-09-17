@@ -23,8 +23,13 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
+# Blender 侧检查（拼装闸门要 Blender 导 FBX/量几何）——路径写死，找不到就报"脚本缺失"
+BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 
-# (脚本, 说明, 是否算「慢」, 自定义参数 or None=默认 --module)
+# (脚本, 说明, 是否算「慢」, 自定义参数 or None=默认 --module, 解释器 or None=python)
+# 脚本名可以带相对仓库根的路径（例：tools/sw2-pipeline/check_assembly.py）；解释器="blender" 时
+# 用 Blender 跑、且**不**追加 --module（Blender 脚本不认那个参数）。
 CHECKS = [
     ("check_xml_parse.py", "XML 全量 parse 门（雷 8：任一文件坏 = exit 1）", False, None),
     ("check_taikou_xml_references.py", "交叉引用完整性 + 列表污染（雷 11/52）", False, None),
@@ -68,6 +73,11 @@ CHECKS = [
     ("check_settlement_distance_cache.py", "距离缓存与据点一致（雷 53）", True, None),
     ("check_village_types_and_items.py", "村型 id 合法 + 村型产出物在世界物品集（雷 108）", False, None),
     ("check_official_copies.py", "官方拷贝保持原样（雷 49）", True, None),
+    # Blender 侧：拼装闸门（头/甲/兜 按共用 T 拼回原角色）——28 人挨个跑，任一不过 exit 1
+    #   三条硬判 = ① 最长连续露缝弧 ≤60° ①' 单档 gap ≤30mm ③ 不穿模 ④ 无孤立浮片（>50mm）
+    ("tools/sw2-pipeline/check_assembly.py",
+     "拼装闸门：三件共用 T 的 露缝弧/单档gap/不穿模/浮片（28 人）",
+     False, ["--all"], "blender"),
 ]
 
 
@@ -79,24 +89,39 @@ def main():
     args = ap.parse_args()
 
     results = []
-    for script, desc, slow, extra in CHECKS:
-        path = HERE / script
+    for entry in CHECKS:
+        script, desc, slow, extra = entry[:4]
+        runner = entry[4] if len(entry) > 4 else None
+        # 带路径的条目按仓库根解析（例：tools/sw2-pipeline/check_assembly.py），否则按 Scripts/
+        path = (REPO / script) if "/" in script else (HERE / script)
         if not path.is_file():
             results.append((script, desc, None, "脚本缺失"))
             continue
         if slow and args.quick:
             results.append((script, desc, None, "已跳过(--quick)"))
             continue
-        cmd = [sys.executable, str(path)] + (extra if extra else ["--module", args.module])
-        if extra and "--module" not in extra:
-            cmd += ["--module", args.module]      # 生成器既有 --check 也接受 --module
+        if runner == "blender":
+            if not Path(BLENDER).is_file():
+                results.append((script, desc, None, "缺 Blender"))
+                continue
+            cmd = [BLENDER, "-b", "--python", str(path), "--"] + (extra or [])
+        else:
+            cmd = [sys.executable, str(path)] + (extra if extra else ["--module", args.module])
+            if extra and "--module" not in extra:
+                cmd += ["--module", args.module]      # 生成器既有 --check 也接受 --module
         t0 = time.time()
         r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         dt = time.time() - t0
-        results.append((script, desc, r.returncode, f"{dt:.1f}s"))
+        code = r.returncode
+        # 🔴 Blender 侧脚本出错（语法错/未捕获异常）时 **blender 自己仍然 exit 0**（实测 2026-09-16：
+        #    闸门里一个 SyntaxError，体检表照样打 ✅）。所以这里额外看 stderr 有没有 Traceback，
+        #    有就按失败算 —— 否则"脚本坏了"会被当成"数据全过"。
+        if runner == "blender" and code == 0 and "Traceback (most recent call last)" in (r.stderr or ""):
+            code = 1
+        results.append((script, desc, code, f"{dt:.1f}s"))
         # 红的把输出尾巴打出来，便于当场定位
-        if r.returncode != 0:
-            print(f"\n{'=' * 78}\n▼ {script}（exit {r.returncode}）—— {desc}\n{'=' * 78}")
+        if code != 0:
+            print(f"\n{'=' * 78}\n▼ {script}（exit {code}）—— {desc}\n{'=' * 78}")
             tail = [l for l in r.stdout.splitlines() if l.strip()][-14:]
             print("\n".join(tail))
             if r.stderr.strip():

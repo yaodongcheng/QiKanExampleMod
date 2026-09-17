@@ -97,8 +97,18 @@ tools/sw2-pipeline/
 ├── build_weapons.py          28 件武将武器（`--set troops` = 6 件兵种通用武器）
 ├── gen_weapon_items.py       武将武器物品定义 + 中文名 + 两张 CSV 登记 + 弹药自给
 ├── gen_troop_weapon_items.py 兵种通用武器物品定义（独立文件 troop_weapons.xml）
-├── check_materials.py        🔴 导入编辑器之前的闸门（材质名三件互不相同，秒级，纯 python）
+├── check_materials.py        🔴 导入编辑器之前的闸门（材质名三件齐 + 可选脖子，秒级，纯 python）
 ├── check_regression.py       信长回归闸门（改任何几何步骤后必跑）
+├── check_assembly.py         🔴 拼装闸门：三件按**共用源变换 T** 拼回一个整体，量三条硬判
+│                             ① 脖子一圈「最长连续露缝弧」≤ `--max-arc`（默认 60°）
+│                             ①' 任何**单档** gap ≤ `--gap-max`（默认 30mm，弧判据之外独立生效）
+│                             ③ 不穿模（领口上沿 +5mm 之上，头/兜/脖子与甲不得互相插入）
+│                             ④ 无孤立浮片（碎片到其它任何片的最小距离 ≤ `--float-tol`，默认 50mm）
+│                             （逐档 gap 表 / 头壳开口沿旧口径对照 = 诊断，不参与总判；
+│                              `--key` 单人细表 / `--all` 28 人汇总；已接进 `Scripts/run_all_checks.py`）
+│                             🔴 两个"量法"要点：①头侧下沿 = `parts_table.neck_args(key)` 抠出来的
+│                             那截脖子（抠到就只认它）；②领口环从「甲件 + **待看**件」里长
+│                             （待看 = 普查没定论，不是"不是甲"；实测武藏领口缺的半圈就在待看件里）
 ├── verify_table.py           挑件表 × 零件表 逐项核对（381 项）
 ├── parts_table.py            28 人的挑件表
 └── scripts/
@@ -117,10 +127,12 @@ python tools/sw2-pipeline/check_materials.py              # 28/28 合规才动�
 python tools/sw2-pipeline/check_materials.py --self-test  # 自证：造坏数据必须被拒
 ```
 
-它查两件事：**7 个文件齐**（`head_*_a_v{1,2}.fbx` + 5 张贴图）与
-**材质名恰好是 `<裸名>` / `<裸名>_eye` / `<裸名>_mouth` 三个且互不相同**。
-第二条是铁律 27 的闸门：后处理 `skinfix --fullmat` 按材质名判角色，
-名字重复 = 三件刷成同一个配方 = **眼睛和嘴糊上脸皮**，且要到实机才看得出来。
+它查两件事：**必备文件齐**（`head_*_a_v2.fbx` + `_d/_n/_s/_eye_d/_mouth_d` 5 张贴图；脖子那三张
+`_neck_*.png` 可选，但要么齐要么都没有）与
+**材质名 `<裸名>` / `<裸名>_eye` / `<裸名>_mouth` 必须齐、每个恰好出现一次，可选多一个 `<裸名>_neck`**。
+第二条是铁律 27 的闸门：后处理 `skinfix --fullmat` 按材质名判角色（`MatRole()` 只认 mouth/lash/brow/shadow/eye，
+其余一律当 face），名字重复 = 几件刷成同一个配方 = **眼睛和嘴糊上脸皮**，且要到实机才看得出来。
+🔴 2026-09-16 起角色词扩到含 **neck**（脖子 = 头的第 4 个部件，材质名 `<裸名>_neck` 会自动拿到脸壳配方）。
 
 产出落 `Debug/offline/sw2_parts/`（模块根唯一产物根下，见 CLAUDE.md 铁律 26）。
 

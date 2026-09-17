@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""make_sw2_textures.py —— 战无2 角色源图集 → 骑砍2 头部要的 5 张贴图。
+"""make_sw2_textures.py —— 战无2 角色源图集 → 骑砍2 头部要的 5 / 8 张贴图（脖子纳入后 = 8 张）。
 
 和 `face-pipeline/scripts/make_head_textures.py` 的区别（**战无2 不能用那个**）：
   · 战无2 是**一张全身图集**（512×1024），没有独立的 normal / 金属度 / 粗糙度图
@@ -29,6 +29,19 @@
      与骑砍的 R=金属/G=光泽/B=AO **通道顺序相反**，且它的金属度**刻意置 0**
      （见源工程 README §7.5.2）——那个 `_s` 我们不用，仍走旧路线的纯色值。
 
+🔴 **脖子三张贴图**（2026-09-16 晚加；`--no-neck` 可关）
+    脖子 = 头资产的**第 4 个部件**（网格名 `<头名>.<序>`，材质名 `<头名>_neck`，几何由 `build_head.py` 抠）。
+    引擎/编辑器是**按材质名 + `_d`/`_n`/`_s`** 找贴图的 ⇒ 没有 `<名>_neck_d.png` 这张文件，
+    实机/编辑器里脖子就是一块**无贴图的裸面**。
+    **为什么不用另裁一张图集**：战无2 一件模型一张全身图集，脖子那块 UV 本来就画在
+    **同一张图集**里（和脸/眼/嘴同一张）——所以三张 neck 贴图 = 同批次 `_d`/`_n`/`_s` 的
+    **逐像素副本（md5 与 `_d`/`_n`/`_s` 相同是正常的）**，既不缺料、也没法另裁。
+    后处理链按材质名判角色（`tools/face-pipeline/tpactool/TpacToolCLI/MorphFix.cs` 的 `MatRole()`：
+    含 mouth/lash/brow/shadow/eye 才是对应角色，**其余一律当 face**）⇒ `<名>_neck` 会**自动**拿到
+    **脸壳配方**（脖子与脸同一套皮肤着色，正是我们要的）；角色标记在装机时由
+    `install_pack.py --clear-flags` 清掉（战无2 的 28 张头**必须清**，见该脚本第 3.5 步）。
+    `--no-neck` = 只写老的 5 张，给老调用方留退路。
+
 用法（系统 python，不需要 Blender）:
     # A. 旧路线
     python make_sw2_textures.py --atlas <源图集.png> --out <输出目录> --name head_yukimura_a
@@ -40,13 +53,16 @@
     python make_sw2_textures.py --src-dir <tex_batch目录> --key w_yukimura0 \
         --out <输出目录> --name taikou_yukimura_weapon_a --kind weapon --no-upscale
 
-产出 5 张（资源名即文件名，进 AssetSources）:
+产出（资源名即文件名，进 AssetSources）:
+    head 默认 8 张（`--no-neck` 时 5 张，`--kind weapon` 3 张）:
     <name>_d.png  <name>_eye_d.png  <name>_mouth_d.png   ← 图集
     <name>_n.png  <name>_s.png                            ← 法线 + 高光
+    <name>_neck_d.png  <name>_neck_n.png  <name>_neck_s.png   ← 脖子（= 上面三张的逐像素副本）
 全部经 `png_for_editor.py` 规范化（8bit RGB、无附加块）——Blender 直出的 PNG 会被编辑器清掉。
 """
 import argparse
 import os
+import shutil
 import sys
 
 try:
@@ -98,7 +114,11 @@ def main():
     ap.add_argument("--long-edge", type=int, default=2048,
                     help="输出长边（默认 2048，与已实机通过的信长那版一致；源图是 512x1024）")
     ap.add_argument("--kind", default="head", choices=["head", "weapon"],
-                    help="head = 5 张（脸/眼/嘴三 diffuse + _n/_s）；weapon = 3 张（_d + _n/_s）")
+                    help="head = 8 张（脸/眼/嘴/脖子四张 diffuse + _n/_s + 脖子 _n/_s；--no-neck 时 5 张）；"
+                         "weapon = 3 张（_d + _n/_s）")
+    ap.add_argument("--no-neck", action="store_true",
+                    help="不写脖子那三张（<名>_neck_d/_n/_s）—— 只给老调用方留退路，"
+                         "新头一律要写（脖子是头的第 4 个部件，见文件头）")
     ap.add_argument("--no-upscale", action="store_true",
                     help="只缩不放 —— 武器贴图很小（实测 128×32 ~ 256×512，多在 256×64），"
                          "放大到 2048 只是插值变糊 + 体积涨 20 倍（28 张 25.4MB vs 1MB），细节一点不增")
@@ -159,8 +179,19 @@ def main():
     save_rgb(s_flat, p)
     tmp.append(p)
 
-    print("生成 %d 张贴图 @ %dx%d（漫反射=%s，%s）：%s" % (
-        len(tmp), nw, nh, "升级图" if use_upgrade else "原版图集", src_note, a.out))
+    # ---- 脖子三张：与 _d/_n/_s **逐像素相同**的副本（见文件头「脖子三张贴图」）----
+    # 直接按字节复制刚写好的文件，而不是"再算一遍纯色/再存一次图"：md5 必然相同，
+    # 也不会因为两条路线（升级图 / 平法线）各存一次而出现细微差异。
+    neck_note = ""
+    if a.kind == "head" and not a.no_neck:
+        for src_sfx, dst_sfx in (("_d", "_neck_d"), ("_n", "_neck_n"), ("_s", "_neck_s")):
+            dst = os.path.join(a.out, a.name + dst_sfx + ".png")
+            shutil.copyfile(os.path.join(a.out, a.name + src_sfx + ".png"), dst)
+            tmp.append(dst)
+        neck_note = "（含脖子 _neck_d/_n/_s = 前三张的副本）"
+
+    print("生成 %d 张贴图%s @ %dx%d（漫反射=%s，%s）：%s" % (
+        len(tmp), neck_note, nw, nh, "升级图" if use_upgrade else "原版图集", src_note, a.out))
     # 过一遍编辑器格式关（8bit RGB / 无附加块），就地重写
     for p in tmp:
         png_for_editor.convert(p, p)
