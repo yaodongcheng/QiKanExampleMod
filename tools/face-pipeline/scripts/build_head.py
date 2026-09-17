@@ -29,7 +29,8 @@
 #
 # 输出：按 --parts 给序命名 `<name>.0/.1/.2…`，材质同名（脸=裸名，其余加 `_<role>` 后缀），
 #       已刚性绑定官方骨架 `bip01_head_13`，导出规格 = USF 100 / UpAxis 2 / 节点零变换。
-import bpy, bmesh, sys, os, re, math, mathutils
+import bpy
+import json, bmesh, sys, os, re, math, mathutils
 from mathutils import Vector, Matrix, kdtree
 
 SKEL = r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\modding_resources\skeletons\human_skeleton.fbx"
@@ -323,7 +324,7 @@ def carve_neck_part(objs, s, z_sole, r_max=0.10, y_max=0.13, z_top=1.49,
       参照色 ≈ (0.10,0.10,0.10) 近黑，反而把真脖子判成"非肤色"）；颧骨/鼻梁带是唯一胡子
       长不到、面罩盖不住的位置。两个兜底顺序：手部 → 下巴带。
       ⚠️ **不是每个人都有脖子件**（脸壳自带颈部的角色抠不出来，属正常；实测 28 人里 6 人有）。
-      ⑤ 的容差可按角色覆盖（`skin_tol`），标定依据见 `plans/逐角色共用变换与拼装闸门.md` §10.3/§10.8。
+      ⑤ 的容差可按角色覆盖（`skin_tol`），标定依据见 `plans/战国无双换装批量落地.md` §10.3/§10.8。
       ⑤ 🔴 **肤色判据**：碎片 UV 在源图集上的平均色必须与**脸壳下巴一带**的平均色接近
          （容差 skin_tol）。**为什么必须有这条**：实测宁宁的几何判据选中的是**甲领口那个
          金铜色箍**（源 submesh_1 的领圈，45 顶点、|x|≤0.072、11 扇区 —— 几何上完全像脖子），
@@ -496,6 +497,122 @@ def carve_neck_part(objs, s, z_sole, r_max=0.10, y_max=0.13, z_top=1.49,
     return _neck_make(picked_v, tag), picked_v
 
 
+def carve_skin_region(objs, s, z_sole, r_max, z0, z1, skin=True, atlas=None,
+                      face_objs=(), skin_tol=0.16, tag="neck_src", ref_override=None,
+                      bones=None, ratio=None):
+    """【区域裁剪】从**大片段**里逐顶点裁出「脖子/胸口那片皮肤」（2026-09-17 晚新增）。
+
+    为什么必须有它（用户实机实锤两例）：
+      · 稻姬：那片胸口皮**和长发同一连通域**；小太郎：那块领口/皮肤**连着锁子甲肩片**
+        （138 顶点、z 1.097~1.600）。`carve_neck_part` 的判据是**整块连通域取舍** ——
+        要么连甲/头发一起搬进来、要么整块不要，拿不到"只要里面那一小块"。
+    本通道改成**逐顶点**：
+      · **留**：位置落在「近轴圆柱（水平半径 ≤ r_max）+ z ∈ [z0, z1]」内，且
+        （`skin=1` 时）该顶点 UV 的平均色与脸壳参照色差 ≤ `skin_tol`；
+      · **面**：**顶点全留才留**（不留半边面 = 不出破洞）；只保留被保留面用到的顶点（不留孤立点）；
+      · **不再做 z_cut**（z0 就是底切）；**UV 原样保留**（那片皮本来就在皮肤贴图上，
+        塌点会拍成一块平色 —— 调用方负责不要在后面再调 neck_uv_to_skin）。
+    与甲侧配套：同一区域由 `build_armor.py --skin-drop-region` 从**甲**里剔掉，
+    两头共用 parts_table 里同一行的一份参数（防"分界不一致"）。
+    """
+    ref = None
+    img = w = h = px = None
+    if ref_override:
+        # 🔴 逐人显式参照色（`--skin-ref-color "r,g,b"`）：脸壳颧骨带被**头发**污染的角色
+        #    （实测稻姬：她那带长发 → 取到暗色 → 真皮全被拒）。值写在 parts_table 那一行。
+        ref = tuple(ref_override)
+        print("  区域裁剪：参照肤色 = **显式指定** %s" % (tuple(round(c, 3) for c in ref),))
+    if atlas and os.path.isfile(atlas) and skin:
+        try:
+            img = bpy.data.images.load(atlas, check_existing=True)   # 🔴 图集总是要读（逐顶点采样要用）
+            w, h = img.size
+            px = img.pixels[:]
+            _per = [] if not ref_override else None
+            if _per is None:
+                raise StopIteration
+            for _fo in face_objs:
+                if _fo.data.uv_layers.active is None:
+                    continue
+                _ls = [li for _p in _fo.data.polygons for li in _p.loop_indices
+                       if 1.56 <= (((_fo.matrix_world @ _fo.data.vertices[
+                           _fo.data.loops[li].vertex_index].co).z - z_sole) * s) <= 1.65]
+                _c = _uv_mean_color(_fo, _ls, img, w, h, px)
+                if _c:
+                    _per.append((_c, max(1, len(_ls))))
+            if _per:
+                _tot = sum(n for _, n in _per)
+                ref = tuple(sum(c[i] * n for c, n in _per) / _tot for i in range(3))
+                print("  区域裁剪：参照肤色（脸壳颧骨/鼻梁带 %d 件）= %s"
+                      % (len(_per), tuple(round(c, 3) for c in ref)))
+        except StopIteration:
+            pass
+        except Exception as _e:                                        # noqa
+            print("  ⚠️ 区域裁剪：读源图集失败（%s）→ 肤色判据跳过" % _e)
+            ref = None
+    picked_v = []
+    for ob in objs:
+        me = ob.data
+        mw = ob.matrix_world
+        uvl = me.uv_layers.active
+        vloops = {}
+        for _p in me.polygons:
+            for li in _p.loop_indices:
+                vloops.setdefault(me.loops[li].vertex_index, []).append(li)
+        ok = set()
+        for vi in range(len(me.vertices)):
+            p = mw @ me.vertices[vi].co
+            q = Vector((p.x * s, -p.y * s, (p.z - z_sole) * s))
+            if math.hypot(q.x, q.y) > r_max or not (z0 <= q.z <= z1):
+                continue
+            if bones:      # 🔴 主导骨白名单（不给 = 不管骨骼）：只有脖子/胸那一族才算"脖子那块"
+                #    —— 区域是圆柱，肩甲片也落在里面（实测小太郎：肩甲被一起收进头）。
+                #    衣领/脖子绑 bone_9/10（胸颈族），肩甲绑手臂骨（12~19）→ 按主导骨分得开。
+                _g = me.vertices[vi].groups
+                if not _g:
+                    continue
+                _bn = ob.vertex_groups[max(_g, key=lambda x: x.weight).group].name
+                if _bn not in bones:
+                    continue
+            if ref is not None and uvl is not None:
+                # 🔴 逐**loop** 判（不是"所有相邻面的平均色"）：一个顶点会粘着好几张面
+                #    （皮肤面 + 衣服面），取平均会把真皮也拉出容差（实测稻姬：平均口径 0 命中）。
+                #    改成「只要粘到**任一张**肤色面就算」——顶点落在皮肤面上就留。
+                _hit_skin = False
+                for li in (vloops.get(vi) or [])[:16]:
+                    u, v = uvl.data[li].uv
+                    xx = min(w - 1, max(0, int((u % 1.0) * w)))
+                    yy = min(h - 1, max(0, int((v % 1.0) * h)))
+                    ii = (yy * w + xx) * 4
+                    if ratio:
+                        # 🔴 色比口径（2026-09-17 晚加）：皮肤 R/G≈1.36 / 灰布 R/G≈1.06 ——
+                        #    "通道最大差 ≤ 容差"分不开这两类（实测只差 0.10，被 0.16 容差吞掉）。
+                        #    判据：R >= rg·G 且 R >= rb·B 才算皮肤（不看绝对明暗）。
+                        _c = (px[ii], px[ii + 1], px[ii + 2])
+                        if _c[0] >= ratio[0] * _c[1] and _c[0] >= ratio[1] * _c[2]:
+                            _hit_skin = True
+                            break
+                    elif max(abs(px[ii + j] - ref[j]) for j in range(3)) <= skin_tol:
+                        _hit_skin = True
+                        break
+                if not _hit_skin:
+                    continue
+            ok.add(vi)
+        keep = set()
+        for _p in me.polygons:
+            if all(v in ok for v in _p.vertices):
+                keep.update(_p.vertices)
+        print("  区域裁剪：%s —— 圆柱内 %d 顶点 → 成面保留 %d 顶点（%d 面）%s"
+              % (ob.name, len(ok), len(keep),
+                 sum(1 for _p in me.polygons if all(v in keep for v in _p.vertices)),
+                 "" if ref is not None else "（⚠️ 未过肤色）"))
+        if keep:
+            picked_v.append((ob, keep))
+    if not picked_v:
+        print("  ⚠️ 区域裁剪：一块都没命中 —— 检查 --skin-region 的 r/z 与肤色判据")
+        return None, []
+    return _neck_make(picked_v, tag), picked_v
+
+
 def _neck_make(picked_v, tag):
 
     # 合成一个新网格：顶点 + UV + 顶点组（源骨名，后面会被原版头的权重替换）
@@ -521,6 +638,12 @@ def _neck_make(picked_v, tag):
     nob = bpy.data.meshes.new(tag)
     nob.from_pydata(co, [], faces)
     nob.update()
+    # 🔴 平滑着色（2026-09-17 晚加）：这件是**新建的网格**（从源件摘顶点重建），
+    #    `from_pydata` 出来的面默认 `use_smooth=False` = **逐面法线** → 导出到实机就是
+    #    "硬棱大三角"（用户实机截图：脖子上一块明显多边形的板）。
+    #    源模型那片皮本身是**平滑着色**的曲面，所以这里必须跟着平滑，否则形状对、观感错。
+    for _p in nob.polygons:
+        _p.use_smooth = True
     obj = bpy.data.objects.new(tag, nob)
     bpy.context.scene.collection.objects.link(obj)
     if uvs:
@@ -1511,18 +1634,48 @@ def main():
         #    吃默认值抠不出来）。--neck-skin-tol 是 carve 的 ⑤ 肤色容差，默认 0.16 不变。
         #    --neck-excl-head 是 carve 的 ⑦ 主导骨排除（1=开，默认；0=关，给"脖子整圈都是头骨"
         #    的极端角色留的退路）。逐人开关写在 parts_table 的 neck_args（与闸门同一份）。
-        _nb, _moved = carve_neck_part(_srcs, t_s, t_zsole,
-                                      r_max=float(get(a, "--neck-r-max", "0.10")),
-                                      y_max=float(get(a, "--neck-y-max", "0.13")),
-                                      z_top=float(get(a, "--neck-z-top", "1.49")),
-                                      n_sect=int(get(a, "--neck-sect", "6")),
-                                      z_cut=float(get(a, "--neck-z-cut", "1.41")),
-                                      skin_tol=float(get(a, "--neck-skin-tol", "0.16")),
-                                      excl_head=str(get(a, "--neck-excl-head", "1")) not in
-                                      ("0", "false", "False", "no"),
-                                      atlas=get(a, "--neck-atlas"),
-                                      face_objs=picked.get("face", []),
-                                      tag="neck_src")
+        # 🔴 `--skin-region "r,z0,z1[,skin]"`（2026-09-17 晚加）：**区域裁剪模式** ——
+        #    改用 carve_skin_region（逐顶点），不再用 carve_neck_part（整块连通域）。
+        #    给「皮肤/衣领长在大片段里」的角色用（稻姬胸口那片皮、小太郎那块领口…）。
+        _sr = get(a, "--skin-region")
+        if _sr:
+            _f = [float(x) for x in _sr.split(",")[:3]]
+            _sk = str(get(a, "--skin-region-skin", "1")) not in ("0", "false", "False", "no")
+            _rc = get(a, "--skin-ref-color")
+            _nb, _moved = carve_skin_region(_srcs, t_s, t_zsole, _f[0], _f[1], _f[2], skin=_sk,
+                                            atlas=get(a, "--neck-atlas"),
+                                            face_objs=picked.get("face", []),
+                                            skin_tol=float(get(a, "--neck-skin-tol", "0.16")),
+                                            tag="neck_src",
+                                            ref_override=[float(x) for x in _rc.split(",")] if _rc else None,
+                                            bones=(["bone_%s" % b for b in get(a, "--skin-region-bones").split(",")]
+                                                   if get(a, "--skin-region-bones") else None),
+                                            ratio=([float(x) for x in get(a, "--skin-ratio").split(",")]
+                                                   if get(a, "--skin-ratio") else None))
+        else:
+            _nb, _moved = carve_neck_part(_srcs, t_s, t_zsole,
+                                          r_max=float(get(a, "--neck-r-max", "0.10")),
+                                          y_max=float(get(a, "--neck-y-max", "0.13")),
+                                          z_top=float(get(a, "--neck-z-top", "1.49")),
+                                          n_sect=int(get(a, "--neck-sect", "6")),
+                                          z_cut=float(get(a, "--neck-z-cut", "1.41")),
+                                          skin_tol=float(get(a, "--neck-skin-tol", "0.16")),
+                                          excl_head=str(get(a, "--neck-excl-head", "1")) not in
+                                          ("0", "false", "False", "no"),
+                                          atlas=get(a, "--neck-atlas"),
+                                          face_objs=picked.get("face", []),
+                                          tag="neck_src")
+        _dump = get(a, "--dump-neck-src")
+        if _dump:
+            _pts = []
+            for _ob, _vs in _moved:
+                _mw = _ob.matrix_world
+                for _vi in _vs:
+                    _q = _mw @ _ob.data.vertices[_vi].co
+                    _pts.append([round(_q.x, 6), round(_q.y, 6), round(_q.z, 6)])
+            with open(_dump, "w") as _fh:
+                json.dump({"tol": 0.0005, "n": len(_pts), "pts": _pts}, _fh)
+            print("  脖子源顶点清单：%d 个 → %s" % (len(_pts), _dump))
         for _ob, _vs in _moved:
             _shared = any(_ob in _lst for _r2, _lst in picked.items())
             if _shared:
@@ -2073,7 +2226,7 @@ def main():
         _neck_fill()
 
     # ---------- 3c-bis-2) T 模式：把颈部【法线朝里】的面翻过来（无条件跑一次） ----------
-    # 🔴 2026-09-17 实锤（`plans/逐角色共用变换与拼装闸门.md` §10.12）：这一步原来只长在
+    # 🔴 2026-09-17 实锤（`plans/战国无双换装批量落地.md` §10.12）：这一步原来只长在
     #    `_neck_fill()` 里，而 T 模式下 `--neck-fill` 已退役、不再传 ⇒ 它**根本不执行**。
     #    后果：战无2 源模型颈部那圈壳一大半是朝里的面（宁宁颈部 144 面里 **87 面朝内**），
     #    骑砍材质**单面 + 背面剔除** → 朝里的面实机里看不见 → 直接透出背景 =
@@ -2292,8 +2445,17 @@ def main():
             ob.data.materials.append(bpy.data.materials.new(mat_name))
         for p in ob.data.polygons:
             p.material_index = 0
-        if role == "neck":          # 脖子 UV 全落到脸壳的肤色点（详见 neck_uv_to_skin 的说明）
+        # 🔴 `--neck-keep-uv`（2026-09-17 晚加）：**保留脖子件的原 UV**，不塌到肤色点。
+        #    为什么：脖子件有两种来源 ——
+        #      ① 从**身体/甲件**抠出来的那圈皮：它的 UV 会跨到图集的衣服/非头区（实测 u[0.002,0.955]）
+        #         → 必须塌点（neck_uv_to_skin），否则采样发暗（这是原修法）。
+        #      ② 从**头部件的皮肤层**（如战无2 稻姬 sub6「头发+脖子胸口皮」）抠出来的：它本来就是
+        #         真皮肤几何、UV 落在图集的皮肤区 → **塌点反而把它拍成一块平色**（用户实机对比源模型：
+        #         "精细度能一样吗"）。这一类要**保留原 UV**。
+        if role == "neck" and "--neck-keep-uv" not in a:
             neck_uv_to_skin(ob, joined.get("face"), get(a, "--neck-atlas"))
+        elif role == "neck":
+            print("  脖子 UV：**保留原 UV**（--neck-keep-uv）")
         print("  %-16s -> %s   材质 %s（面 %d）" % (role, new, mat_name, len(ob.data.polygons)))
 
     # ---------- 5) 绑官方骨架（脸壳刚性 bone 13；脖子/领口段从原版头抄权重） ----------

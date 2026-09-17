@@ -698,6 +698,39 @@ if STRAP_FROM and (STRAP_SEEDS or STRAP_BONES):
             print("   颏带定骨：%d 顶点改绑 %s（跟随兜主体，防重定向拉走）"
                   % (sum(len(_o.data.vertices) for _o in _strap_objs), _main))
 
+# ---------------------------------------------------------------- 🔴 与头「分界一致」：按同一批源顶点删（2026-09-17 晚）
+#   为什么：区域剔除（--skin-drop-region）是"两头各判一次空间区域"，甲侧会剔多/剔少
+#   （实测小太郎：r13cm 剔出洞、r10cm 头上只剩 5 顶点）。正解 = 头侧抠取时把**取走的源顶点**
+#   落盘（`--dump-neck-src`），甲侧按**同一批点**删面 —— 头拿多少，甲就正好少多少。
+DROP_HEAD = get(A, "--drop-from-head")
+if DROP_HEAD and os.path.isfile(DROP_HEAD):
+    import json as _json
+    from mathutils import kdtree as _kdt
+    _d = _json.load(open(DROP_HEAD, encoding="utf-8"))
+    _pts = _d.get("pts") or []
+    _tol = float(_d.get("tol", 0.0005))
+    if _pts:
+        _kt = _kdt.KDTree(len(_pts))
+        for _i, _pp in enumerate(_pts):
+            _kt.insert(Vector(_pp), _i)
+        _kt.balance()
+        _nf = 0
+        for _o in dups:
+            _mw = _o.matrix_world
+            _near = set(_vi for _vi, _v in enumerate(_o.data.vertices)
+                        if _kt.find(_mw @ _v.co)[2] <= _tol)
+            _kill = [pp for pp in _o.data.polygons if all(v in _near for v in pp.vertices)]
+            if _kill:
+                import bmesh as _bm_mod
+                _bm = _bm_mod.new(); _bm.from_mesh(_o.data); _bm.faces.ensure_lookup_table()
+                _bm_mod.ops.delete(_bm, geom=[_bm.faces[pp.index] for pp in _kill], context='FACES')
+                _orph = [v for v in _bm.verts if not v.link_faces]
+                if _orph:
+                    _bm_mod.ops.delete(_bm, geom=_orph, context='VERTS')
+                _bm.to_mesh(_o.data); _bm.free()
+                _nf += len(_kill)
+        print("   与头分界一致：按源顶点清单 %d 点（≤%.1fmm）删面 %d" % (len(_pts), _tol * 1000, _nf))
+
 # ---------------------------------------------------------------- 重定向
 print("== 5/6 骨架重定向（%s）==" % ("T 模式：整装按源变换 T 重排" if T_MODE else "rest retarget"))
 if T_MODE:
@@ -1393,6 +1426,36 @@ if COINC_FBX:
                   " → 本件删掉 %d 顶点（%.1f%%，距离 ≤ %.0fmm，余 %d）"
                   % (len(_pts), COINC_BAND[0], COINC_BAND[1], _z0, _z1, len(_hit), _ratio * 100,
                      COINC_TOL * 1000, len(ARM.data.vertices)))
+
+# 🔴 区域剔除（`--skin-drop-region "r,z0,z1"`，2026-09-17 晚加）：
+#    把「脖子/胸口那片皮肤所在的区域」**从甲里剔掉** —— 与头侧 `build_head.py --skin-region`
+#    **同一份参数**（都写在 parts_table 那一行的 `skin_region`），两头一致才不会出现
+#    「甲占着皮肤区（实机=领口里一块灰）」或「两边重叠打架」。
+#    只删**整个面都落在区域内**的面（保守：不撕开甲、边界留一圈过渡面）。
+SKIN_DROP = get(A, "--skin-drop-region")
+if SKIN_DROP:
+    import bmesh
+    _sr, _sz0, _sz1 = [float(x) for x in SKIN_DROP.split(",")[:3]]
+    bm = bmesh.new()
+    bm.from_mesh(ARM.data)
+    _bn_ok = None
+    _sb = get(A, "--skin-drop-region-bones")
+    if _sb:
+        _want = set("bone_%s" % b for b in _sb.split(","))
+        _bn_ok = {}
+        for v in ARM.data.vertices:
+            if v.groups:
+                _bn_ok[v.index] = (ARM.vertex_groups[max(v.groups, key=lambda x: x.weight).group].name in _want)
+    _kill = [f for f in bm.faces
+             if all((v.co.x ** 2 + v.co.y ** 2) ** 0.5 <= _sr and _sz0 <= v.co.z <= _sz1
+                    and (_bn_ok is None or _bn_ok.get(v.index, False))
+                    for v in f.verts)]
+    _n0 = len(bm.faces)
+    bmesh.ops.delete(bm, geom=_kill, context='FACES')
+    bm.to_mesh(ARM.data)
+    bm.free()
+    print("   区域剔除（r%.0fcm z%.2f~%.2f）：删面 %d/%d → v=%d f=%d"
+          % (_sr * 100, _sz0, _sz1, len(_kill), _n0, len(ARM.data.vertices), len(ARM.data.polygons)))
 
 # 挂到骑砍骨架ARM.parent = BL
 mod = ARM.modifiers.new("Armature", 'ARMATURE')

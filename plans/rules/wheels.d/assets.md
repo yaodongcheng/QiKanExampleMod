@@ -2,7 +2,7 @@
 
 > **场景**：把外部资产（别的游戏解包的角色/甲/武器、自己建的模型）做成骑砍能用的 tpac；
 > 或排查「网格不跟骨架动 / 编辑器一导入就崩 / 材质找不到 / 穿反了」。
-> **来源**：换头工程（[Knowledge/蒂法换头工程.md](../../../Knowledge/蒂法换头工程.md)）+ 盔甲工程（[Knowledge/骑砍2盔甲资产工程.md](../../../Knowledge/骑砍2盔甲资产工程.md)）+ 战国无双换装（[../逐角色共用变换与拼装闸门.md](../逐角色共用变换与拼装闸门.md)）三轮实战。
+> **来源**：换头工程（[Knowledge/蒂法换头工程.md](../../../Knowledge/蒂法换头工程.md)）+ 盔甲工程（[Knowledge/骑砍2盔甲资产工程.md](../../../Knowledge/骑砍2盔甲资产工程.md)）+ 战国无双换装（[../战国无双换装批量落地.md](../战国无双换装批量落地.md)）三轮实战。
 > **操作手册**：[tools/armor-pipeline/README.md](../../../tools/armor-pipeline/README.md)（一条命令 + 参数表 + 17 条坑表）。
 > **工具**：[tools/armor-pipeline/](../../../tools/armor-pipeline/)（甲）、[tools/face-pipeline/](../../../tools/face-pipeline/)（头/通用）。
 

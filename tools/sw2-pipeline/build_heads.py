@@ -168,6 +168,27 @@ def main():
         # 🔴 ⑦ 主导骨排除（默认开；见 build_head.carve_neck_part）：别把「戴在头上的东西」当脖子。
         #    显示传 = 逐人覆写的通道也打开（`neck_args=dict(excl_head=False)`）。
         c1 += ["--neck-excl-head", "1" if _na["excl_head"] else "0"]
+        # 🔴 `neck_keep_uv=True`（逐人，parts_table）：脖子件**保留原 UV**、不塌到肤色点。
+        #    给「皮肤层」来源的人用（战无2 稻姬 sub6 = 头发+脖子胸口皮，UV 本来就在皮肤上）；
+        #    从身体/甲件抠的那类（UV 跨到衣服区）**不要**加，会发暗。见 build_head.py 该分支的注释。
+        if TABLE[key].get("neck_keep_uv"):
+            c1 += ["--neck-keep-uv"]
+        # 🔴 `skin_region=dict(r=…, z0=…, z1=…, skin=True/False)`（逐人，parts_table）：
+        #    **区域裁剪**（逐顶点）取代整块连通域抠取 —— 给「皮肤/衣领长在大片段里」的角色用。
+        #    甲侧由 build_armors 用**同一份参数** `--skin-drop-region` 剔掉同一区域（两头一致）。
+        _skr = TABLE[key].get("skin_region")
+        if _skr:
+            _nd = os.path.join(d, r["asset"] + "_necksrc.json")
+            c1 += ["--dump-neck-src", _nd]
+            c1 += ["--skin-region", "%.3f,%.3f,%.3f" % (_skr["r"], _skr["z0"], _skr["z1"]),
+                   "--skin-region-skin", "1" if _skr.get("skin", True) else "0"]
+            c1 += ["--neck-keep-uv"]     # 区域裁剪本来就该保留原 UV（那片皮在皮肤贴图上）
+            if _skr.get("ratio"):        # 色比口径（皮肤 R/G≈1.36 vs 灰布 ≈1.06）
+                c1 += ["--skin-ratio", ",".join("%.3f" % c for c in _skr["ratio"])]
+            if _skr.get("bones"):        # 主导骨白名单（不给 = 不管）
+                c1 += ["--skin-region-bones", ",".join(str(b) for b in _skr["bones"])]
+            if _skr.get("ref_color"):    # 逐人显式参照色（脸壳颧骨带被头发污染时用）
+                c1 += ["--skin-ref-color", ",".join("%.3f" % c for c in _skr["ref_color"])]
         if seal:
             c1 += ["--seal-bottom", ",".join(str(i) for i in seal),
                    "--seal-atlas", tex]     # 补面的 UV 从这张图集里采最暗的发色点
