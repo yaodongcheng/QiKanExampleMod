@@ -667,6 +667,32 @@ python Scripts/gen_taikou_nobunaga_head.py --check            # 自描述比对�
 配套：`Scripts/gen_taikou_era_world.py` 里的 `SPECIAL_RACE = {"lord_tk5_195": "lwn_nobunaga"}`
 （加人只改这张表）；完整工程记录见 [Knowledge/战国无双换装工程.md](../../../Knowledge/战国无双换装工程.md)（总纲：战无2 全武将换头 + 兵种换甲）。
 
+#### F. 🔴 「这个人是不是自建 race」= **一个判据、一处实现**（`CampaignMode/CustomRaceHelper.cs`，2026-09-17 登记）
+
+**解决什么问题**：凡「只对**有专属形象**的人做某件事」的功能，都要先回答「他的 race 是不是我们给单独做的」。
+散着写必然分叉 —— 这里判 `race != human`、那里判名字前缀、第三处列名单 → 加人时漏改一处 = 功能悄悄失效。
+
+**唯一实现**（`LivingWorldNpcs.CampaignMode.CustomRaceHelper`，internal static）：
+
+| 成员 | 语义 |
+|---|---|
+| `RacePrefix`（`const string = "lwn_"`） | 自建 race 的统一前缀；**内容包生成器按它起名**（`gen_taikou_sw2_heads.py` / `gen_taikou_nobunaga_head.py`），**代码里不列名单** |
+| `IsCustomRace(CharacterObject)` | 是不是「给某一个人做的 race」；拿不到 race 名一律 `false` |
+| `RaceIdOf(CharacterObject)` | race **int 索引** → race 名（`FaceGen.GetRaceNames()[i]`）；越界 / 索引表没就绪 = `null` |
+
+🔴 **两个易错点**：① `CharacterObject.Race` 是 **int 索引、不是字符串**（反序列化时 `FaceGen.GetRaceOrDefault(race名)` 算好的）
+—— 想按名字判必须先换名，别写 `character.Race == "lwn_x"`；② 前缀判 `lwn_` **含** `_child` / `_settlement*` 后缀变体
+（它们本来就是同一个人的 Monster 变体族，见 §一）；原版 `human` 族 5 个 id 一律**不算**（上万个使用者，不属"给某一个人做的"）。
+
+**调用方（目前两处）**：
+- `CampaignMode/RaceDefaultBodyPatch.cs` —— 捏人「种族」下拉选到自建 race → 套该角色的默认身型（雷 139）；
+- `CampaignMode/EncyclopediaHelmetPatch.cs` —— 百科角色页 3D 立绘给自建 race 的人**戴回头盔**
+  （原版 `EncyclopediaHeroPageVM.Refresh()` 里 `SetEquipment(EquipmentIndex.NumAllWeaponSlots, default)`
+  写错了枚举 —— 该名数值 = 5 = `Head`，本想清武器实际摘了兜；1.2.12/1.5.2 逐字一致，雷 142）。
+
+**新内容包要做什么**：什么都不用做 —— 只要它的自建 race 按 `lwn_` 起名，上面两处自动生效
+（这正是「前缀约定」相对「名单」的价值）。
+
 **两条纪律**：
 
 - **日志即清单**：非法面没有位置信息，唯一能定位的就是「谁的面是这个」——日志要打
@@ -806,4 +832,66 @@ python Scripts/gen_taikou_era_world.py                  # 把 Mon 列翻成 spcl
 - **旗形统一代价**：固定几何后所有旗都是同一个矩形 mesh；要恢复形状变化得另设映射（几何需重新对齐）。
 - **继承来的归属是未逐一目视核对的**（来自织丰的配比）；已知 赤松/明智/尼子/朝仓/足利/浅井/伊达/岛津/武田/德川 十个
   一眼可辨为史实家纹；本愿寺、今川 存疑。
+
+---
+
+## 卷十五 武将装备接线 —— 谁穿什么、拿什么全是数据；「专属武将」的判据 = `Race` 列（2026-09-17 登记）
+
+**解决什么问题**：给新内容包的**有名武将**派甲 / 兜 / 武器。三处数据各有归属（写错地方 = 改不动或改了就丢）；
+另外「有自建头模的那批人」（Taikou = 战无2 的 28 人）**不能按普通武将的档位表补装备**，否则凭空多出不属于他的东西。
+
+### 一、三个落点（改装备改表，不改代码 —— 铁律 30）
+
+| 谁 | 写在哪 | 谁读 |
+|---|---|---|
+| **没指名专属装备的武将**穿什么 | `csv/HeroEquip.csv`：一行一个**身份**（大名/城主/上忍…），铠甲候选 / 头盔候选 / 武器三列 + 女将专用甲/盔两列 | `Scripts/gen_taikou_era_world.py` 的 `write_lords()` |
+| **某个武将**的专属甲 / 兜 / 武器 / 弹药 / 头模 | `csv/TaikouHero.csv` 的 `Armor` / `Helmet` / `Weapon` / `Ammo` / `Race` 列 | 同上 |
+| **兵种**装备 | `csv/TaikouTroop.csv` | `Scripts/gen_taikou_culture_full.py`（见卷十二） |
+
+读取器 = `Scripts/taikou_equip_tables.py`（列口径 / 多值 `|` / 逗号自检都在那）。
+🔴 「谁穿了什么 → 该出哪些物品定义」是**自动推**的（两个物品生成器读表决定），**别手工列物品名单**
+（会和 `prune_taikou_items.py` 的引用闭包打架：剪了又生成、生成了又剪）。
+
+### 二、三条口径（照抄，别自己发明）
+
+1. 🔴 **「专属武将」= `TaikouHero.csv` 的 `Race` 列有值**（= 有专属头模）。判据**一律看 `Race`**，
+   不按 `Weapon` 列判 —— 两列今天正好是同一批 28 行（实测无单边），但身份是「有没有专属头模」。
+2. 🔴 **专属武将身上只带自己那套** —— 专属甲 / 专属兜 / 专属武器 +（远程则带）弹药，
+   **不从身份档表补任何东西**。踩过的：旧逻辑把他身份行的其余武器顺进 Item1，而 大名/国主/城主/家老/部将
+   5 档身份行写着 `刀|leather_round_shield` → 这 28 人平白多一面欧洲圆盾
+   （2026-09-17 用户裁定：「不要擅自派发盾牌；如果有装备那么身上就只带那装备」）。
+   **没有专属头模的武将照旧按身份档表拿全套**（约 850 人，刀 + 盾）。
+3. 🔴 **远程武器必须带弹药**（弓 / 铁炮）—— 弹药写在 `Ammo` 列，渲染进 Item1/Item2
+   （原版弓手布局 = Item0 弓 / Item1 箭）。不带 = 拿着射不出去；顺带也不会出现「带盾的枪手」
+   （远程武器的 usage 带 `requires_no_shield`，带着盾引擎会把武器 usage 跳过）。
+
+另两条更早的裁定，一起记着：**女将专用甲/盔两列是「覆盖」不是「追加」**（有值 → 女将只从该池挑）；
+**有专属头模就不戴档位兜**（那 28 人的头模里已经长着头饰，其中 19 人的兜与头部连体、切不出独立网格）。
+
+### 三、调用范例（渲染端 `Scripts/gen_taikou_era_world.py` → `write_lords()`）
+
+```python
+race_id = (r.get("Race") or "").strip()      # ① 专属武将判据（同一个判据也管「不戴档位兜」）
+if race_id and not helmet:                   #    有头模 + 「头盔」列空 = 头上已长着头饰
+    armor = {k: v for k, v in armor.items() if k != "Head"}
+weapon = (r.get("Weapon") or "").strip()
+ammo   = (r.get("Ammo") or "").strip()
+dedicated = bool(race_id and weapon)
+if dedicated:                                # ② 只带自己那套，不补身份档表的武器/盾
+    weapons = [weapon] + ([ammo, ammo] if ammo else [])
+```
+
+数据将来走偏（有头模没武器 / 有武器没头模）会在 stderr 打 `[WARN]`，不静默吞掉。
+
+### 四、验收信号
+
+- 专属武将的战斗装 = 专属武器（+ 弹药），**没有身份档表的刀 / 盾**：
+  `grep -A6 'NPCCharacter id="lord_tk5_195"' Taikou/ModuleData/taikou_lords.xml` → `Item0` 是
+  `taikou_nobunaga_weapon_a`、块内无 `shield`；
+- 非专属武将不变（`short_sword_t3` + `leather_round_shield`）；
+- 体检 `check_taikou_equip_tables.py` / `check_equip_item_defs.py` 绿（三张表引用的物品必须有定义）。
+
+**文件**：`Scripts/gen_taikou_era_world.py`（`write_lords()`）· `Scripts/taikou_equip_tables.py` ·
+`csv/TaikouTroop.csv` + `csv/HeroEquip.csv`（手维护源表）· `TaikouHero.csv` 的五个专属列 ·
+工程文档 `plans/兵种装备接线.md` §三之二「三条硬规矩」。
 

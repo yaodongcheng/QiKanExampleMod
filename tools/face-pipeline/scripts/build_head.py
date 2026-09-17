@@ -225,10 +225,67 @@ def _uv_mean_color(ob, loops, img, w, h, px, maxn=400):
     return (acc[0] / n, acc[1] / n, acc[2] / n)
 
 
+def neck_uv_to_skin(neck_ob, face_ob, atlas):
+    """把**脖子件的 UV 全部重设到「脸壳上的肤色点」**（2026-09-17 用户裁定）。
+
+    为什么：脖子件的 UV 是从源模型原样搬来的，实测跨度 u[0.002,0.955]（脸壳只到 0.53）——
+    跨到了图集**非头区**（右半边是身体/衣服），采样均值偏暗；而且它的材质是独立名
+    `<头名>_neck`，编辑器工程里**没有这个材质资源**（材质是首次导入时按当时的件数建的）
+    → 编辑器用默认白材质渲染 = 实机外看到的「脖子白板」。
+    于是：① 材质名改用脸壳的（见步骤 4）② UV 全部落到脸壳的肤色点（本函数）。
+
+    取点口径与 carve 的 ⑤ 参照肤色**同一套**：脸壳 z∈[1.56,1.65]（颧骨/鼻梁带）的 UV 采样均值 = 参照色，
+    再在脸壳里挑**最接近参照色且最亮**的那个顶点，用它一个 UV 铺满脖子件（单一肤色点）。
+
+    为什么用「单一点」而不是逐顶点吸最近肤色点：后者会把贴图上鼻子/眼睛的纹素也带进来
+    （颅骨填充那轮实测：从背后看是一张「脸」的图案）。脖子是简单柱面，单点最稳。
+    """
+    if neck_ob is None or face_ob is None or not neck_ob.data.uv_layers:
+        return False
+    if not (atlas and os.path.isfile(atlas)) or not face_ob.data.uv_layers:
+        return False
+    try:
+        img = bpy.data.images.load(atlas, check_existing=True)
+        w, h = img.size
+        px = img.pixels[:]
+    except Exception:
+        return False
+
+    def _col(u, v):
+        x = min(w - 1, max(0, int((u % 1.0) * w)))
+        y = min(h - 1, max(0, int((v % 1.0) * h)))
+        i = (y * w + x) * 4
+        return (px[i], px[i + 1], px[i + 2])
+
+    fu = face_ob.data.uv_layers.active
+    band, allv = [], []
+    for li, lp in enumerate(face_ob.data.loops):
+        p = face_ob.matrix_world @ face_ob.data.vertices[lp.vertex_index].co
+        u, v = fu.data[li].uv
+        c = _col(u, v)
+        allv.append((c, (u, v)))
+        if 1.56 <= p.z <= 1.65:
+            band.append(c)
+    if not allv:
+        return False
+    if band:
+        ref = tuple(sum(c[i] for c in band) / len(band) for i in range(3))
+    else:
+        ref = tuple(sum(c[i] for c, _ in allv) / len(allv) for i in range(3))
+    # 最接近参照色（容差内）里挑最亮的
+    cand = [t for t in allv if max(abs(t[0][i] - ref[i]) for i in range(3)) <= 0.07]
+    if not cand:
+        cand = allv
+    best = max(cand, key=lambda t: 0.30 * t[0][0] + 0.59 * t[0][1] + 0.11 * t[0][2])
+    for d in neck_ob.data.uv_layers.active.data:
+        d.uv = best[1]
+    print("  脖子 UV → 肤色点 (%.3f, %.3f)  参照色 (%.3f, %.3f, %.3f)  候选 %d/%d"
+          % (best[1][0], best[1][1], ref[0], ref[1], ref[2], len(cand), len(allv)))
+    return True
+
+
 def frag_dominant_bone(ob, comp):
     """一个碎片的**主导骨** = 全片权重求和后最大的那条骨。
-
-    🔴 口径必须与 `build_armor.frag_dominant_verts`（那边用来按 `HEAD_SW` 剔头骨族碎片）**同一套**：
        都是「连通域 + 权重求和取最大」，不是「逐顶点取最大组再投票」——两套算法在混合权重处
        会给出不同的名字，用错就在头/甲两侧对不上账。返回 None = 该片一个顶点组都没有。
     """
@@ -2208,13 +2265,24 @@ def main():
         new = "%s.%d" % (name, i)
         ob.name = new
         ob.data.name = new
-        mat_name = name if role == "face" else "%s_%s" % (name, role)
+        # 🔴 脖子件用**脸壳的材质名**（2026-09-17 用户裁定「用头部贴图」）：
+        #    编辑器工程里没有 `<头名>_neck` 这个材质资源（材质是首次导入时按当时的件数建的，
+        #    后来件数变 4 却没建）→ 编辑器拿默认白材质渲染 = 实机外看到的「脖子白板」。
+        #    运行时本来就是脸壳配方（MatRole 兜底），改成同名 = 编辑器能解析、语义不变、少一个 ⚠。
+        mat_name = name if role in ("face", "neck") else "%s_%s" % (name, role)
         # 🔴 必须 copy 一份再改名（2026-09-14 修）：源模型常常**整身共用一张材质**
         #    （战国无双2 的 L02 就是：全身 12 个子网格同指 `mat_L02_nobunaga`）。
         #    直接 `materials[0].name = mat_name` 改的是**那个共享 datablock** —— 三个件轮流改名，
         #    最后只剩最后一个名字（实测：三件全是 `head_nobunaga_a_mouth`），编辑器里就是一个材质。
         #    蒂法/萨菲罗斯的源恰好每件自带材质，所以这个坑一直没暴露。
-        if ob.data.materials:
+        if role == "neck" and joined.get("face") is not None and joined["face"].data.materials:
+            # 🔴 脖子**直接引用脸壳的材质 datablock**（不 copy、不改名）：
+            #    若各自 new/copy 一个同名材质，Blender 会去重成 `head_<名>_a.001`
+            #    → 导出写的就是带 `.001` 的名字 → 编辑器照样找不到 = 白板没修掉（实测踩过）。
+            #    共用同一个 datablock 才会导出成**同一个材质名**（件也随材质的合并而合并）。
+            ob.data.materials.clear()
+            ob.data.materials.append(joined["face"].data.materials[0])
+        elif ob.data.materials:
             m = ob.data.materials[0].copy()
             m.name = mat_name
             ob.data.materials[0] = m
@@ -2224,6 +2292,8 @@ def main():
             ob.data.materials.append(bpy.data.materials.new(mat_name))
         for p in ob.data.polygons:
             p.material_index = 0
+        if role == "neck":          # 脖子 UV 全落到脸壳的肤色点（详见 neck_uv_to_skin 的说明）
+            neck_uv_to_skin(ob, joined.get("face"), get(a, "--neck-atlas"))
         print("  %-16s -> %s   材质 %s（面 %d）" % (role, new, mat_name, len(ob.data.polygons)))
 
     # ---------- 5) 绑官方骨架（脸壳刚性 bone 13；脖子/领口段从原版头抄权重） ----------
