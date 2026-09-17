@@ -342,6 +342,23 @@ def main():
         _neckf = head_fbx(key)
         if _neckf:
             cmd += ["--drop-coincident", _neckf]
+        # 🔴 区域剔除（2026-09-17 晚）：与头侧 `--skin-region` **同一份参数**（parts_table 那一行）
+        #    —— 把「脖子/胸口皮肤区」从甲里剔掉，免得甲占着皮肤区（实机=领口里一块灰）。
+        _skr = TABLE[key].get("skin_region")
+        if _skr:
+            # 🔴 优先「与头同一批源顶点」（头产物旁边有 <asset>_necksrc.json 就用它）：
+            #    头拿多少、甲正好少多少；没有那份清单才退回"同区域各判一次"（旧做法，会剔偏）。
+            _hjson = None
+            if _neckf:
+                _cand = os.path.join(os.path.dirname(_neckf), TABLE[key]["asset"] + "_necksrc.json")
+                if os.path.isfile(_cand):
+                    _hjson = _cand
+            if _hjson:
+                cmd += ["--drop-from-head", _hjson]
+            else:
+                cmd += ["--skin-drop-region", "%.3f,%.3f,%.3f" % (_skr["r"], _skr["z0"], _skr["z1"])]
+            if _skr.get("bones"):
+                cmd += ["--skin-drop-region-bones", ",".join(str(b) for b in _skr["bones"])]
         print("  ▶ %-16s 甲件 %s%s%s  T.s=%s%s" % (key, plan["parts"],
               " 着物%s" % plan["kimono"] if plan["kimono"] else "",
               " 剔头%s" % plan["drophead"] if plan["drophead"] else "",
