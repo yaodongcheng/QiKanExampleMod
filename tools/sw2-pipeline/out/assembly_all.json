@@ -1,0 +1,4128 @@
+{
+ "margin": 0.005,
+ "max_arc": 60.0,
+ "gap_tol": 0.0,
+ "gap_max": 0.03,
+ "float_tol": 0.05,
+ "n": 28,
+ "passed": 27,
+ "failed": 1,
+ "chars": {
+  "L38_tadakatsu": {
+   "key": "L38_tadakatsu",
+   "cn": "本多忠胜",
+   "s": 0.008334218876985188,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5406501293182373,
+     "collar_top": 1.5818121433258057,
+     "gap": -0.04116201400756836,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.531028151512146,
+     "collar_top": 1.5593055486679077,
+     "gap": -0.02827739715576172,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.5218466520309448,
+     "collar_top": 1.5290775299072266,
+     "gap": -0.007230877876281738,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.517333984375,
+     "collar_top": 1.5389325618743896,
+     "gap": -0.02159857749938965,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.5218467712402344,
+     "collar_top": 1.5290775299072266,
+     "gap": -0.0072307586669921875,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.531028151512146,
+     "collar_top": 1.5592988729476929,
+     "gap": -0.028270721435546875,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5406502485275269,
+     "collar_top": 1.5818064212799072,
+     "gap": -0.04115617275238037,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5399374961853027,
+     "collar_top": 1.539937138557434,
+     "gap": 3.5762786865234375e-07,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "8": {
+     "head_bottom": 1.6613482236862183,
+     "collar_top": 1.509346842765808,
+     "gap": 0.15200138092041016,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "9": {
+     "head_bottom": 1.5356035232543945,
+     "collar_top": 1.535603404045105,
+     "gap": 1.1920928955078125e-07,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "10": {
+     "head_bottom": 1.6613574028015137,
+     "collar_top": 1.509346842765808,
+     "gap": 0.15201056003570557,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "11": {
+     "head_bottom": 1.539937138557434,
+     "collar_top": 1.539937138557434,
+     "gap": 0.0,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": false,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 120.0,
+    "n": 4,
+    "span": "210°~300°",
+    "max_deg": 60.0,
+    "pass_": false,
+    "buckets": [
+     7,
+     8,
+     9,
+     10
+    ]
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 10,
+    "worst_angle": "300°",
+    "worst_gap": 0.15201056003570557,
+    "n": 12,
+    "pass_": false
+   },
+   "worst": {
+    "bucket": 10,
+    "angle": "300°",
+    "gap": 0.15201056003570557,
+    "collar_top": 1.509346842765808,
+    "head_bottom": 1.6613574028015137,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 10,
+    "angle": "300°",
+    "gap": 0.15201056003570557,
+    "head_shell_bottom": 1.6613574028015137,
+    "collar_all_free": 1.509346842765808
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L05_kenshin": {
+   "key": "L05_kenshin",
+   "cn": "上杉谦信",
+   "s": 0.008840504383240473,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.557761788368225,
+     "collar_top": 1.6004136800765991,
+     "gap": -0.04265189170837402,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.5054731369018555,
+     "collar_top": 1.6426067352294922,
+     "gap": -0.13713359832763672,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.5268621444702148,
+     "collar_top": 1.5268619060516357,
+     "gap": 2.384185791015625e-07,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "3": {
+     "head_bottom": 1.4546093940734863,
+     "collar_top": 1.4954395294189453,
+     "gap": -0.040830135345458984,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.5268621444702148,
+     "collar_top": 1.5268619060516357,
+     "gap": 2.384185791015625e-07,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "5": {
+     "head_bottom": 1.5054731369018555,
+     "collar_top": 1.5447232723236084,
+     "gap": -0.03925013542175293,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.557761788368225,
+     "collar_top": 1.5587453842163086,
+     "gap": -0.000983595848083496,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "7": {
+     "head_bottom": 1.5649504661560059,
+     "collar_top": 1.5649502277374268,
+     "gap": 2.384185791015625e-07,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "8": {
+     "head_bottom": 1.570837140083313,
+     "collar_top": 1.5708367824554443,
+     "gap": 3.5762786865234375e-07,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "9": {
+     "head_bottom": 1.4547652006149292,
+     "collar_top": 1.6334450244903564,
+     "gap": -0.17867982387542725,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.570837140083313,
+     "collar_top": 1.633264183998108,
+     "gap": -0.06242704391479492,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5649504661560059,
+     "collar_top": 1.637821078300476,
+     "gap": -0.07287061214447021,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 60.0,
+    "n": 2,
+    "span": "210°~240°",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": [
+     2,
+     4,
+     7,
+     8
+    ]
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 8,
+    "worst_angle": "240°",
+    "worst_gap": 3.5762786865234375e-07,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 8,
+    "angle": "240°",
+    "gap": 3.5762786865234375e-07,
+    "collar_top": 1.5708367824554443,
+    "head_bottom": 1.570837140083313,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 6,
+    "angle": "左180°",
+    "gap": 0.04166889190673828,
+    "head_shell_bottom": 1.6004142761230469,
+    "collar_all_free": 1.5587453842163086
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L42_nagamasa": {
+   "key": "L42_nagamasa",
+   "cn": "浅井长政",
+   "s": 0.010052430905290828,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5022151470184326,
+     "collar_top": 1.5866001844406128,
+     "gap": -0.08438503742218018,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4943753480911255,
+     "collar_top": 1.5590509176254272,
+     "gap": -0.06467556953430176,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.5374027490615845,
+     "collar_top": 1.5385299921035767,
+     "gap": -0.0011272430419921875,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "3": {
+     "head_bottom": 1.4894814491271973,
+     "collar_top": 1.5188562870025635,
+     "gap": -0.02937483787536621,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.5374027490615845,
+     "collar_top": 1.5385299921035767,
+     "gap": -0.0011272430419921875,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "5": {
+     "head_bottom": 1.4943753480911255,
+     "collar_top": 1.5590509176254272,
+     "gap": -0.06467556953430176,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5022151470184326,
+     "collar_top": 1.5866001844406128,
+     "gap": -0.08438503742218018,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5071074962615967,
+     "collar_top": 1.5870682001113892,
+     "gap": -0.07996070384979248,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.5276386737823486,
+     "collar_top": 1.499485969543457,
+     "gap": 0.0281527042388916,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "9": {
+     "head_bottom": 1.5211278200149536,
+     "collar_top": 1.5904897451400757,
+     "gap": -0.06936192512512207,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.5276386737823486,
+     "collar_top": 1.499485969543457,
+     "gap": 0.0281527042388916,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "11": {
+     "head_bottom": 1.5071076154708862,
+     "collar_top": 1.5870682001113892,
+     "gap": -0.07996058464050293,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 30.0,
+    "n": 1,
+    "span": "240°~240°",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": [
+     8,
+     10
+    ]
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 8,
+    "worst_angle": "240°",
+    "worst_gap": 0.0281527042388916,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 8,
+    "angle": "240°",
+    "gap": 0.0281527042388916,
+    "collar_top": 1.499485969543457,
+    "head_bottom": 1.5276386737823486,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 8,
+    "angle": "240°",
+    "gap": 0.06409609317779541,
+    "head_shell_bottom": 1.5635820627212524,
+    "collar_all_free": 1.499485969543457
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L101_katsuie": {
+   "key": "L101_katsuie",
+   "cn": "柴田胜家",
+   "s": 0.00999930411538537,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.516710877418518,
+     "collar_top": 1.540307879447937,
+     "gap": -0.023597002029418945,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.5458972454071045,
+     "collar_top": 1.5227299928665161,
+     "gap": 0.02316725254058838,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "2": {
+     "head_bottom": 1.4859627485275269,
+     "collar_top": 1.5102663040161133,
+     "gap": -0.024303555488586426,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4723435640335083,
+     "collar_top": 1.5065220594406128,
+     "gap": -0.03417849540710449,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.48594069480896,
+     "collar_top": 1.5102663040161133,
+     "gap": -0.02432560920715332,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.5458972454071045,
+     "collar_top": 1.5388423204421997,
+     "gap": 0.007054924964904785,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "6": {
+     "head_bottom": 1.516710877418518,
+     "collar_top": 1.5724620819091797,
+     "gap": -0.05575120449066162,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5324766635894775,
+     "collar_top": 1.5324766635894775,
+     "gap": 0.0,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "8": {
+     "head_bottom": 1.5261955261230469,
+     "collar_top": 1.55154550075531,
+     "gap": -0.025349974632263184,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.5257983207702637,
+     "collar_top": 1.5257983207702637,
+     "gap": 0.0,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "10": {
+     "head_bottom": 1.5261955261230469,
+     "collar_top": 1.5261955261230469,
+     "gap": 0.0,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "11": {
+     "head_bottom": 1.5324766635894775,
+     "collar_top": 1.540278673171997,
+     "gap": -0.007802009582519531,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 30.0,
+    "n": 1,
+    "span": "30°~30°",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": [
+     1,
+     5
+    ]
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 1,
+    "worst_angle": "30°",
+    "worst_gap": 0.02316725254058838,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 1,
+    "angle": "30°",
+    "gap": 0.02316725254058838,
+    "collar_top": 1.5227299928665161,
+    "head_bottom": 1.5458972454071045,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 1,
+    "angle": "30°",
+    "gap": 0.03441464900970459,
+    "head_shell_bottom": 1.5571446418762207,
+    "collar_all_free": 1.5227299928665161
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L41_mitsunari": {
+   "key": "L41_mitsunari",
+   "cn": "石田三成",
+   "s": 0.00988436808275086,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.4471848011016846,
+     "collar_top": 1.551414132118225,
+     "gap": -0.10422933101654053,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.5109789371490479,
+     "collar_top": 1.4993308782577515,
+     "gap": 0.011648058891296387,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "2": {
+     "head_bottom": 1.438651204109192,
+     "collar_top": 1.4993308782577515,
+     "gap": -0.06067967414855957,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.435965895652771,
+     "collar_top": 1.4993308782577515,
+     "gap": -0.06336498260498047,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.438651204109192,
+     "collar_top": 1.4993308782577515,
+     "gap": -0.06067967414855957,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.5109788179397583,
+     "collar_top": 1.4993308782577515,
+     "gap": 0.011647939682006836,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "6": {
+     "head_bottom": 1.4471848011016846,
+     "collar_top": 1.551414132118225,
+     "gap": -0.10422933101654053,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4588860273361206,
+     "collar_top": 1.5552654266357422,
+     "gap": -0.09637939929962158,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.446502685546875,
+     "collar_top": 1.5552654266357422,
+     "gap": -0.10876274108886719,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.436446189880371,
+     "collar_top": 1.5469762086868286,
+     "gap": -0.11053001880645752,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.446502685546875,
+     "collar_top": 1.5552654266357422,
+     "gap": -0.10876274108886719,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4588860273361206,
+     "collar_top": 1.551414132118225,
+     "gap": -0.09252810478210449,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 30.0,
+    "n": 1,
+    "span": "30°~30°",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": [
+     1,
+     5
+    ]
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 1,
+    "worst_angle": "30°",
+    "worst_gap": 0.011648058891296387,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 1,
+    "angle": "30°",
+    "gap": 0.011648058891296387,
+    "collar_top": 1.4993308782577515,
+    "head_bottom": 1.5109789371490479,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 11,
+    "angle": "330°",
+    "gap": 1.272107481956482,
+    "head_shell_bottom": 1.4588860273361206,
+    "collar_all_free": 0.18677854537963867
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L02_nobunaga": {
+   "key": "L02_nobunaga",
+   "cn": "织田信长",
+   "s": 0.009210651702124687,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5817561149597168,
+     "collar_top": 1.5726172924041748,
+     "gap": 0.009138822555541992,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "1": {
+     "head_bottom": 1.531096339225769,
+     "collar_top": 1.556137204170227,
+     "gap": -0.025040864944458008,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4877245426177979,
+     "collar_top": 1.5409619808197021,
+     "gap": -0.0532374382019043,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4749375581741333,
+     "collar_top": 1.5315899848937988,
+     "gap": -0.05665242671966553,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4877245426177979,
+     "collar_top": 1.5409619808197021,
+     "gap": -0.0532374382019043,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.531096339225769,
+     "collar_top": 1.5561370849609375,
+     "gap": -0.025040745735168457,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5817561149597168,
+     "collar_top": 1.5726172924041748,
+     "gap": 0.009138822555541992,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "7": {
+     "head_bottom": 1.5392783880233765,
+     "collar_top": 1.5782140493392944,
+     "gap": -0.03893566131591797,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.5071232318878174,
+     "collar_top": 1.6580448150634766,
+     "gap": -0.15092158317565918,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.5072211027145386,
+     "collar_top": 1.608108401298523,
+     "gap": -0.10088729858398438,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.5071232318878174,
+     "collar_top": 1.6580448150634766,
+     "gap": -0.15092158317565918,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5392783880233765,
+     "collar_top": 1.5782140493392944,
+     "gap": -0.03893566131591797,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 30.0,
+    "n": 1,
+    "span": "180°~180°",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": [
+     0,
+     6
+    ]
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 0,
+    "worst_angle": "右0°",
+    "worst_gap": 0.009138822555541992,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 0,
+    "angle": "右0°",
+    "gap": 0.009138822555541992,
+    "collar_top": 1.5726172924041748,
+    "head_bottom": 1.5817561149597168,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 6,
+    "angle": "左180°",
+    "gap": 0.059998273849487305,
+    "head_shell_bottom": 1.632615566253662,
+    "collar_all_free": 1.5726172924041748
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L46_kanetsugu": {
+   "key": "L46_kanetsugu",
+   "cn": "直江兼续",
+   "s": 0.009613151956184078,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": null,
+     "collar_top": 1.5721813440322876,
+     "gap": null,
+     "overlap": false,
+     "missing": true,
+     "pass_": false
+    },
+    "1": {
+     "head_bottom": 1.4802578687667847,
+     "collar_top": 1.5491396188735962,
+     "gap": -0.06888175010681152,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4802578687667847,
+     "collar_top": 1.519498348236084,
+     "gap": -0.039240479469299316,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4802578687667847,
+     "collar_top": 1.4802578687667847,
+     "gap": 0.0,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "4": {
+     "head_bottom": 1.519498348236084,
+     "collar_top": 1.519498348236084,
+     "gap": 0.0,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "5": {
+     "head_bottom": 1.5508023500442505,
+     "collar_top": 1.5491396188735962,
+     "gap": 0.0016627311706542969,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "6": {
+     "head_bottom": 1.5508023500442505,
+     "collar_top": 1.5721813440322876,
+     "gap": -0.02137899398803711,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5643516778945923,
+     "collar_top": 1.5643516778945923,
+     "gap": 0.0,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "8": {
+     "head_bottom": 1.56907320022583,
+     "collar_top": 1.583033800125122,
+     "gap": -0.013960599899291992,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.491625189781189,
+     "collar_top": 1.5839307308197021,
+     "gap": -0.09230554103851318,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.491625189781189,
+     "collar_top": 1.583033800125122,
+     "gap": -0.0914086103439331,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.491625189781189,
+     "collar_top": 1.5643516778945923,
+     "gap": -0.07272648811340332,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 30.0,
+    "n": 1,
+    "span": "150°~150°",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": [
+     0,
+     5
+    ]
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 5,
+    "worst_angle": "150°",
+    "worst_gap": 0.0016627311706542969,
+    "n": 11,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 5,
+    "angle": "150°",
+    "gap": 0.0016627311706542969,
+    "collar_top": 1.5491396188735962,
+    "head_bottom": 1.5508023500442505,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 1,
+    "angle": "30°",
+    "gap": 0.0032799243927001953,
+    "head_shell_bottom": 1.5524195432662964,
+    "collar_all_free": 1.5491396188735962
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L45_ginchiyo": {
+   "key": "L45_ginchiyo",
+   "cn": "訚千代",
+   "s": 0.010212283762609306,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.506683349609375,
+     "collar_top": 1.5611212253570557,
+     "gap": -0.054437875747680664,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4619672298431396,
+     "collar_top": 1.5402278900146484,
+     "gap": -0.07826066017150879,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.5023605823516846,
+     "collar_top": 1.501632809638977,
+     "gap": 0.0007277727127075195,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "3": {
+     "head_bottom": 1.4574137926101685,
+     "collar_top": 1.4988701343536377,
+     "gap": -0.04145634174346924,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.5023607015609741,
+     "collar_top": 1.501632809638977,
+     "gap": 0.0007278919219970703,
+     "overlap": false,
+     "missing": false,
+     "pass_": false
+    },
+    "5": {
+     "head_bottom": 1.4619672298431396,
+     "collar_top": 1.5402281284332275,
+     "gap": -0.07826089859008789,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.506683349609375,
+     "collar_top": 1.5611213445663452,
+     "gap": -0.054437994956970215,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.473622441291809,
+     "collar_top": 1.5308438539505005,
+     "gap": -0.057221412658691406,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4794304370880127,
+     "collar_top": 1.5333189964294434,
+     "gap": -0.053888559341430664,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4771502017974854,
+     "collar_top": 1.5325498580932617,
+     "gap": -0.05539965629577637,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4794304370880127,
+     "collar_top": 1.5333188772201538,
+     "gap": -0.05388844013214111,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4736301898956299,
+     "collar_top": 1.5308438539505005,
+     "gap": -0.057213664054870605,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 30.0,
+    "n": 1,
+    "span": "60°~60°",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": [
+     2,
+     4
+    ]
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 4,
+    "worst_angle": "120°",
+    "worst_gap": 0.0007278919219970703,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 4,
+    "angle": "120°",
+    "gap": 0.0007278919219970703,
+    "collar_top": 1.501632809638977,
+    "head_bottom": 1.5023607015609741,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 2,
+    "angle": "60°",
+    "gap": 0.026723027229309082,
+    "head_shell_bottom": 1.5283558368682861,
+    "collar_all_free": 1.501632809638977
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L09_magoichi": {
+   "key": "L09_magoichi",
+   "cn": "杂贺孙一",
+   "s": 0.009356417827006061,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5901192426681519,
+     "collar_top": 1.5963191986083984,
+     "gap": -0.006199955940246582,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.5558558702468872,
+     "collar_top": 1.593220829963684,
+     "gap": -0.037364959716796875,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.5337351560592651,
+     "collar_top": 1.53402578830719,
+     "gap": -0.0002906322479248047,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "3": {
+     "head_bottom": 1.5268572568893433,
+     "collar_top": 1.5268908739089966,
+     "gap": -3.361701965332031e-05,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "4": {
+     "head_bottom": 1.5337351560592651,
+     "collar_top": 1.53402578830719,
+     "gap": -0.0002906322479248047,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "5": {
+     "head_bottom": 1.5558558702468872,
+     "collar_top": 1.593220829963684,
+     "gap": -0.037364959716796875,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5901192426681519,
+     "collar_top": 1.5963191986083984,
+     "gap": -0.006199955940246582,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5921673774719238,
+     "collar_top": 1.59744131565094,
+     "gap": -0.005273938179016113,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.5730866193771362,
+     "collar_top": 1.596556305885315,
+     "gap": -0.02346968650817871,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.5534677505493164,
+     "collar_top": 1.6930179595947266,
+     "gap": -0.13955020904541016,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.5730866193771362,
+     "collar_top": 1.596556305885315,
+     "gap": -0.02346968650817871,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5921673774719238,
+     "collar_top": 1.59744131565094,
+     "gap": -0.005273938179016113,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 3,
+    "worst_angle": "前90°",
+    "worst_gap": -3.361701965332031e-05,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -3.361701965332031e-05,
+    "collar_top": 1.5268908739089966,
+    "head_bottom": 1.5268572568893433,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 2,
+    "angle": "60°",
+    "gap": 1.1920928955078125e-07,
+    "head_shell_bottom": 1.5340259075164795,
+    "collar_all_free": 1.53402578830719
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L11_masamune": {
+   "key": "L11_masamune",
+   "cn": "伊达政宗",
+   "s": 0.010052430905290828,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.4784756898880005,
+     "collar_top": 1.5570449829101562,
+     "gap": -0.07856929302215576,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.473822832107544,
+     "collar_top": 1.50999915599823,
+     "gap": -0.036176323890686035,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4651610851287842,
+     "collar_top": 1.4880837202072144,
+     "gap": -0.022922635078430176,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.464691162109375,
+     "collar_top": 1.4673570394515991,
+     "gap": -0.002665877342224121,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "4": {
+     "head_bottom": 1.4651610851287842,
+     "collar_top": 1.4880836009979248,
+     "gap": -0.022922515869140625,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.473822832107544,
+     "collar_top": 1.509999394416809,
+     "gap": -0.03617656230926514,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.4784756898880005,
+     "collar_top": 1.5570449829101562,
+     "gap": -0.07856929302215576,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4827466011047363,
+     "collar_top": 1.5461924076080322,
+     "gap": -0.0634458065032959,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4830958843231201,
+     "collar_top": 1.5598706007003784,
+     "gap": -0.0767747163772583,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4832019805908203,
+     "collar_top": 1.5576003789901733,
+     "gap": -0.07439839839935303,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4830958843231201,
+     "collar_top": 1.5598708391189575,
+     "gap": -0.0767749547958374,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4827466011047363,
+     "collar_top": 1.5461926460266113,
+     "gap": -0.063446044921875,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 3,
+    "worst_angle": "前90°",
+    "worst_gap": -0.002665877342224121,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -0.002665877342224121,
+    "collar_top": 1.4673570394515991,
+    "head_bottom": 1.464691162109375,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -0.002665877342224121,
+    "head_shell_bottom": 1.464691162109375,
+    "collar_all_free": 1.4673570394515991
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L14_rammaru": {
+   "key": "L14_rammaru",
+   "cn": "森兰丸",
+   "s": 0.009841611533751068,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.4783265590667725,
+     "collar_top": 1.50321626663208,
+     "gap": -0.024889707565307617,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.469627857208252,
+     "collar_top": 1.4925953149795532,
+     "gap": -0.02296745777130127,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.379844069480896,
+     "collar_top": 1.3838796615600586,
+     "gap": -0.004035592079162598,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "3": {
+     "head_bottom": 1.3798441886901855,
+     "collar_top": 1.4880014657974243,
+     "gap": -0.10815727710723877,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.379844069480896,
+     "collar_top": 1.3838796615600586,
+     "gap": -0.004035592079162598,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "5": {
+     "head_bottom": 1.469628095626831,
+     "collar_top": 1.4925953149795532,
+     "gap": -0.022967219352722168,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.4783265590667725,
+     "collar_top": 1.50321626663208,
+     "gap": -0.024889707565307617,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4805909395217896,
+     "collar_top": 1.500140905380249,
+     "gap": -0.019549965858459473,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4805909395217896,
+     "collar_top": 1.5197278261184692,
+     "gap": -0.03913688659667969,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4708545207977295,
+     "collar_top": 1.7328534126281738,
+     "gap": -0.26199889183044434,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4805909395217896,
+     "collar_top": 1.5197278261184692,
+     "gap": -0.03913688659667969,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4783265590667725,
+     "collar_top": 1.50014066696167,
+     "gap": -0.02181410789489746,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 2,
+    "worst_angle": "60°",
+    "worst_gap": -0.004035592079162598,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 2,
+    "angle": "60°",
+    "gap": -0.004035592079162598,
+    "collar_top": 1.3838796615600586,
+    "head_bottom": 1.379844069480896,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 7,
+    "angle": "210°",
+    "gap": 0.3842654228210449,
+    "head_shell_bottom": 1.4754996299743652,
+    "collar_all_free": 1.0912342071533203
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L07_okuni": {
+   "key": "L07_okuni",
+   "cn": "出云阿国",
+   "s": 0.010211155032698224,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.4852052927017212,
+     "collar_top": 1.5276148319244385,
+     "gap": -0.042409539222717285,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4776477813720703,
+     "collar_top": 1.508604645729065,
+     "gap": -0.03095686435699463,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4695590734481812,
+     "collar_top": 1.4773131608963013,
+     "gap": -0.007754087448120117,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4040839672088623,
+     "collar_top": 1.4130494594573975,
+     "gap": -0.008965492248535156,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4695590734481812,
+     "collar_top": 1.4773131608963013,
+     "gap": -0.007754087448120117,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4776477813720703,
+     "collar_top": 1.508604645729065,
+     "gap": -0.03095686435699463,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.4852052927017212,
+     "collar_top": 1.527614712715149,
+     "gap": -0.042409420013427734,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.492199182510376,
+     "collar_top": 1.4970139265060425,
+     "gap": -0.004814743995666504,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    },
+    "8": {
+     "head_bottom": 1.4998079538345337,
+     "collar_top": 1.5309897661209106,
+     "gap": -0.031181812286376953,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4814590215682983,
+     "collar_top": 1.5290677547454834,
+     "gap": -0.04760873317718506,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4998080730438232,
+     "collar_top": 1.5309895277023315,
+     "gap": -0.0311814546585083,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.492199182510376,
+     "collar_top": 1.4970141649246216,
+     "gap": -0.0048149824142456055,
+     "overlap": true,
+     "missing": false,
+     "pass_": false
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 7,
+    "worst_angle": "210°",
+    "worst_gap": -0.004814743995666504,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 7,
+    "angle": "210°",
+    "gap": -0.004814743995666504,
+    "collar_top": 1.4970139265060425,
+    "head_bottom": 1.492199182510376,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 7,
+    "angle": "210°",
+    "gap": -0.004814743995666504,
+    "head_shell_bottom": 1.492199182510376,
+    "collar_all_free": 1.4970139265060425
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L06_oichi": {
+   "key": "L06_oichi",
+   "cn": "阿市",
+   "s": 0.01050052310639315,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.484196424484253,
+     "collar_top": 1.5162063837051392,
+     "gap": -0.03200995922088623,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4507349729537964,
+     "collar_top": 1.4599566459655762,
+     "gap": -0.009221673011779785,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4410700798034668,
+     "collar_top": 1.4599566459655762,
+     "gap": -0.018886566162109375,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4402194023132324,
+     "collar_top": 1.4599566459655762,
+     "gap": -0.01973724365234375,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4410700798034668,
+     "collar_top": 1.4599566459655762,
+     "gap": -0.018886566162109375,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4507349729537964,
+     "collar_top": 1.4599566459655762,
+     "gap": -0.009221673011779785,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.484196424484253,
+     "collar_top": 1.5162066221237183,
+     "gap": -0.03201019763946533,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4822399616241455,
+     "collar_top": 1.5162066221237183,
+     "gap": -0.033966660499572754,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4754458665847778,
+     "collar_top": 1.74354887008667,
+     "gap": -0.2681030035018921,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4638357162475586,
+     "collar_top": 1.7821329832077026,
+     "gap": -0.31829726696014404,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4754458665847778,
+     "collar_top": 1.7821329832077026,
+     "gap": -0.3066871166229248,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4822399616241455,
+     "collar_top": 1.5162063837051392,
+     "gap": -0.03396642208099365,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 1,
+    "worst_angle": "30°",
+    "worst_gap": -0.009221673011779785,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 1,
+    "angle": "30°",
+    "gap": -0.009221673011779785,
+    "collar_top": 1.4599566459655762,
+    "head_bottom": 1.4507349729537964,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 0,
+    "angle": "右0°",
+    "gap": 0.3642098903656006,
+    "head_shell_bottom": 1.484196424484253,
+    "collar_all_free": 1.1199865341186523
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L00_yukimura": {
+   "key": "L00_yukimura",
+   "cn": "真田幸村",
+   "s": 0.009459340633461119,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5188215970993042,
+     "collar_top": 1.585526943206787,
+     "gap": -0.06670534610748291,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.5025948286056519,
+     "collar_top": 1.577162504196167,
+     "gap": -0.07456767559051514,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4322483539581299,
+     "collar_top": 1.577162504196167,
+     "gap": -0.1449141502380371,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.417567253112793,
+     "collar_top": 1.577162265777588,
+     "gap": -0.15959501266479492,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4322483539581299,
+     "collar_top": 1.577162265777588,
+     "gap": -0.144913911819458,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.5025949478149414,
+     "collar_top": 1.577162265777588,
+     "gap": -0.07456731796264648,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5188215970993042,
+     "collar_top": 1.5855268239974976,
+     "gap": -0.06670522689819336,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5167032480239868,
+     "collar_top": 1.5781711339950562,
+     "gap": -0.061467885971069336,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.5643947124481201,
+     "collar_top": 1.5745954513549805,
+     "gap": -0.010200738906860352,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.5160168409347534,
+     "collar_top": 1.5745954513549805,
+     "gap": -0.05857861042022705,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.5643947124481201,
+     "collar_top": 1.5781711339950562,
+     "gap": -0.013776421546936035,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5167032480239868,
+     "collar_top": 1.5781711339950562,
+     "gap": -0.061467885971069336,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 8,
+    "worst_angle": "240°",
+    "worst_gap": -0.010200738906860352,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 8,
+    "angle": "240°",
+    "gap": -0.010200738906860352,
+    "collar_top": 1.5745954513549805,
+    "head_bottom": 1.5643947124481201,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 4,
+    "angle": "120°",
+    "gap": 0.9733501076698303,
+    "head_shell_bottom": 1.555889368057251,
+    "collar_all_free": 0.5825392603874207
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L36_hideyoshi": {
+   "key": "L36_hideyoshi",
+   "cn": "丰臣秀吉",
+   "s": 0.00972183057410583,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.4900070428848267,
+     "collar_top": 1.5632350444793701,
+     "gap": -0.07322800159454346,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4386528730392456,
+     "collar_top": 1.4884434938430786,
+     "gap": -0.04979062080383301,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4120752811431885,
+     "collar_top": 1.4598995447158813,
+     "gap": -0.04782426357269287,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.442491888999939,
+     "collar_top": 1.459899663925171,
+     "gap": -0.017407774925231934,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4120752811431885,
+     "collar_top": 1.459899663925171,
+     "gap": -0.04782438278198242,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.438652753829956,
+     "collar_top": 1.4884434938430786,
+     "gap": -0.04979074001312256,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.4900070428848267,
+     "collar_top": 1.5632352828979492,
+     "gap": -0.07322824001312256,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4834046363830566,
+     "collar_top": 1.569742202758789,
+     "gap": -0.08633756637573242,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4188541173934937,
+     "collar_top": 1.5704545974731445,
+     "gap": -0.15160048007965088,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4207792282104492,
+     "collar_top": 1.5704545974731445,
+     "gap": -0.1496753692626953,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4188542366027832,
+     "collar_top": 1.569742202758789,
+     "gap": -0.15088796615600586,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4834046363830566,
+     "collar_top": 1.569742202758789,
+     "gap": -0.08633756637573242,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 3,
+    "worst_angle": "前90°",
+    "worst_gap": -0.017407774925231934,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -0.017407774925231934,
+    "collar_top": 1.459899663925171,
+    "head_bottom": 1.442491888999939,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": 0.62824946641922,
+    "head_shell_bottom": 1.4282879829406738,
+    "collar_all_free": 0.8000385165214539
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L13_hanzo": {
+   "key": "L13_hanzo",
+   "cn": "服部半藏",
+   "s": 0.00999930411538537,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5319442749023438,
+     "collar_top": 1.549832820892334,
+     "gap": -0.017888545989990234,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.386063814163208,
+     "collar_top": 1.5196129083633423,
+     "gap": -0.13354909420013428,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.400771141052246,
+     "collar_top": 1.5196129083633423,
+     "gap": -0.11884176731109619,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.3999651670455933,
+     "collar_top": 1.5196129083633423,
+     "gap": -0.11964774131774902,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.400771141052246,
+     "collar_top": 1.5196129083633423,
+     "gap": -0.11884176731109619,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.386063814163208,
+     "collar_top": 1.5196129083633423,
+     "gap": -0.13354909420013428,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5319446325302124,
+     "collar_top": 1.5498324632644653,
+     "gap": -0.01788783073425293,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.3852180242538452,
+     "collar_top": 1.5348539352416992,
+     "gap": -0.149635910987854,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.3918001651763916,
+     "collar_top": 1.5348539352416992,
+     "gap": -0.14305377006530762,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.3918001651763916,
+     "collar_top": 1.5348542928695679,
+     "gap": -0.14305412769317627,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.3852180242538452,
+     "collar_top": 1.5348542928695679,
+     "gap": -0.14963626861572266,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.3852180242538452,
+     "collar_top": 1.5348542928695679,
+     "gap": -0.14963626861572266,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 6,
+    "worst_angle": "左180°",
+    "worst_gap": -0.01788783073425293,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 6,
+    "angle": "左180°",
+    "gap": -0.01788783073425293,
+    "collar_top": 1.5498324632644653,
+    "head_bottom": 1.5319446325302124,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 2,
+    "angle": "60°",
+    "gap": 0.7522306442260742,
+    "head_shell_bottom": 1.5581265687942505,
+    "collar_all_free": 0.8058959245681763
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L48_kotaro": {
+   "key": "L48_kotaro",
+   "cn": "风魔小太郎",
+   "s": 0.008334218876985188,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5436923503875732,
+     "collar_top": 1.599712610244751,
+     "gap": -0.056020259857177734,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.5128120183944702,
+     "collar_top": 1.5971436500549316,
+     "gap": -0.08433163166046143,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4735060930252075,
+     "collar_top": 1.5413013696670532,
+     "gap": -0.0677952766418457,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.5073362588882446,
+     "collar_top": 1.533524751663208,
+     "gap": -0.02618849277496338,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4735060930252075,
+     "collar_top": 1.5413013696670532,
+     "gap": -0.0677952766418457,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.5128120183944702,
+     "collar_top": 1.5971436500549316,
+     "gap": -0.08433163166046143,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5436923503875732,
+     "collar_top": 1.599712610244751,
+     "gap": -0.056020259857177734,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5553240776062012,
+     "collar_top": 1.5748101472854614,
+     "gap": -0.019486069679260254,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.5273405313491821,
+     "collar_top": 1.5687222480773926,
+     "gap": -0.04138171672821045,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.5282940864562988,
+     "collar_top": 1.567875862121582,
+     "gap": -0.0395817756652832,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.5273405313491821,
+     "collar_top": 1.5708129405975342,
+     "gap": -0.04347240924835205,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5553239583969116,
+     "collar_top": 1.587009310722351,
+     "gap": -0.03168535232543945,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 7,
+    "worst_angle": "210°",
+    "worst_gap": -0.019486069679260254,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 7,
+    "angle": "210°",
+    "gap": -0.019486069679260254,
+    "collar_top": 1.5748101472854614,
+    "head_bottom": 1.5553240776062012,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 7,
+    "angle": "210°",
+    "gap": -0.019486069679260254,
+    "head_shell_bottom": 1.5553240776062012,
+    "collar_all_free": 1.5748101472854614
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L03_mitsuhide": {
+   "key": "L03_mitsuhide",
+   "cn": "明智光秀",
+   "s": 0.009999302170622783,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.47663152217865,
+     "collar_top": 1.5669258832931519,
+     "gap": -0.09029436111450195,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.471956491470337,
+     "collar_top": 1.558946132659912,
+     "gap": -0.0869896411895752,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4677914381027222,
+     "collar_top": 1.547344446182251,
+     "gap": -0.07955300807952881,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.466012954711914,
+     "collar_top": 1.488593339920044,
+     "gap": -0.022580385208129883,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4677914381027222,
+     "collar_top": 1.5473442077636719,
+     "gap": -0.07955276966094971,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.471956491470337,
+     "collar_top": 1.558946132659912,
+     "gap": -0.0869896411895752,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.47663152217865,
+     "collar_top": 1.5669257640838623,
+     "gap": -0.0902942419052124,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4855502843856812,
+     "collar_top": 1.5724292993545532,
+     "gap": -0.08687901496887207,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4908636808395386,
+     "collar_top": 1.577559232711792,
+     "gap": -0.08669555187225342,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4910542964935303,
+     "collar_top": 1.5778712034225464,
+     "gap": -0.08681690692901611,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4908636808395386,
+     "collar_top": 1.577559232711792,
+     "gap": -0.08669555187225342,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4855502843856812,
+     "collar_top": 1.5724292993545532,
+     "gap": -0.08687901496887207,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 3,
+    "worst_angle": "前90°",
+    "worst_gap": -0.022580385208129883,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -0.022580385208129883,
+    "collar_top": 1.488593339920044,
+    "head_bottom": 1.466012954711914,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -0.022580385208129883,
+    "head_shell_bottom": 1.466012954711914,
+    "collar_all_free": 1.488593339920044
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L40_ieyasu": {
+   "key": "L40_ieyasu",
+   "cn": "德川家康",
+   "s": 0.01070685986346164,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.4528239965438843,
+     "collar_top": 1.5836286544799805,
+     "gap": -0.1308046579360962,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4970670938491821,
+     "collar_top": 1.519893765449524,
+     "gap": -0.022826671600341797,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.443328857421875,
+     "collar_top": 1.5077799558639526,
+     "gap": -0.06445109844207764,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4370664358139038,
+     "collar_top": 1.5077799558639526,
+     "gap": -0.07071352005004883,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.443328857421875,
+     "collar_top": 1.5077799558639526,
+     "gap": -0.06445109844207764,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4970670938491821,
+     "collar_top": 1.519893765449524,
+     "gap": -0.022826671600341797,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.4528237581253052,
+     "collar_top": 1.58362877368927,
+     "gap": -0.13080501556396484,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.463474154472351,
+     "collar_top": 1.58409583568573,
+     "gap": -0.1206216812133789,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4654638767242432,
+     "collar_top": 1.5772193670272827,
+     "gap": -0.11175549030303955,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4655804634094238,
+     "collar_top": 1.5772193670272827,
+     "gap": -0.11163890361785889,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4654638767242432,
+     "collar_top": 1.58409583568573,
+     "gap": -0.11863195896148682,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.463474154472351,
+     "collar_top": 1.58409583568573,
+     "gap": -0.1206216812133789,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 1,
+    "worst_angle": "30°",
+    "worst_gap": -0.022826671600341797,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 1,
+    "angle": "30°",
+    "gap": -0.022826671600341797,
+    "collar_top": 1.519893765449524,
+    "head_bottom": 1.4970670938491821,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 8,
+    "angle": "240°",
+    "gap": 0.7907732129096985,
+    "head_shell_bottom": 1.4654638767242432,
+    "collar_all_free": 0.6746906638145447
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L49_musashi": {
+   "key": "L49_musashi",
+   "cn": "宫本武藏",
+   "s": 0.009999305087766948,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5101513862609863,
+     "collar_top": 1.5448867082595825,
+     "gap": -0.03473532199859619,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4718440771102905,
+     "collar_top": 1.5358860492706299,
+     "gap": -0.06404197216033936,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4601303339004517,
+     "collar_top": 1.5246186256408691,
+     "gap": -0.06448829174041748,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4451754093170166,
+     "collar_top": 1.5156245231628418,
+     "gap": -0.0704491138458252,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4601303339004517,
+     "collar_top": 1.5246186256408691,
+     "gap": -0.06448829174041748,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4718440771102905,
+     "collar_top": 1.5358860492706299,
+     "gap": -0.06404197216033936,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5101513862609863,
+     "collar_top": 1.5448867082595825,
+     "gap": -0.03473532199859619,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.525512933731079,
+     "collar_top": 1.5504380464553833,
+     "gap": -0.0249251127243042,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.5060173273086548,
+     "collar_top": 1.5549721717834473,
+     "gap": -0.04895484447479248,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.489417552947998,
+     "collar_top": 1.5544335842132568,
+     "gap": -0.06501603126525879,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.5060173273086548,
+     "collar_top": 1.5549721717834473,
+     "gap": -0.04895484447479248,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5255028009414673,
+     "collar_top": 1.5504380464553833,
+     "gap": -0.024935245513916016,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 7,
+    "worst_angle": "210°",
+    "worst_gap": -0.0249251127243042,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 7,
+    "angle": "210°",
+    "gap": -0.0249251127243042,
+    "collar_top": 1.5504380464553833,
+    "head_bottom": 1.525512933731079,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 11,
+    "angle": "330°",
+    "gap": 1.3969656825065613,
+    "head_shell_bottom": 1.5477867126464844,
+    "collar_all_free": 0.1508210301399231
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L01_keiji": {
+   "key": "L01_keiji",
+   "cn": "前田庆次",
+   "s": 0.008334218876985188,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5814660787582397,
+     "collar_top": 1.608094573020935,
+     "gap": -0.026628494262695312,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.5109331607818604,
+     "collar_top": 1.6576926708221436,
+     "gap": -0.1467595100402832,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.497765302658081,
+     "collar_top": 1.5334330797195435,
+     "gap": -0.0356677770614624,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4906258583068848,
+     "collar_top": 1.519421100616455,
+     "gap": -0.028795242309570312,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.497765302658081,
+     "collar_top": 1.5334330797195435,
+     "gap": -0.0356677770614624,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.5109331607818604,
+     "collar_top": 1.6576926708221436,
+     "gap": -0.1467595100402832,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5814660787582397,
+     "collar_top": 1.608094573020935,
+     "gap": -0.026628494262695312,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5361624956130981,
+     "collar_top": 1.6192246675491333,
+     "gap": -0.08306217193603516,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4175533056259155,
+     "collar_top": 1.572635531425476,
+     "gap": -0.15508222579956055,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.3331849575042725,
+     "collar_top": 1.6192327737808228,
+     "gap": -0.2860478162765503,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4763280153274536,
+     "collar_top": 1.572635531425476,
+     "gap": -0.09630751609802246,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5361623764038086,
+     "collar_top": 1.6192246675491333,
+     "gap": -0.08306229114532471,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 0,
+    "worst_angle": "右0°",
+    "worst_gap": -0.026628494262695312,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 0,
+    "angle": "右0°",
+    "gap": -0.026628494262695312,
+    "collar_top": 1.608094573020935,
+    "head_bottom": 1.5814660787582397,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 4,
+    "angle": "120°",
+    "gap": 1.3610364943742752,
+    "head_shell_bottom": 1.497765302658081,
+    "collar_all_free": 0.13672880828380585
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L39_inahime": {
+   "key": "L39_inahime",
+   "cn": "稻姬",
+   "s": 0.010642317236445651,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5041381120681763,
+     "collar_top": 1.5347166061401367,
+     "gap": -0.03057849407196045,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4475548267364502,
+     "collar_top": 1.4759904146194458,
+     "gap": -0.028435587882995605,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4142749309539795,
+     "collar_top": 1.5229429006576538,
+     "gap": -0.10866796970367432,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.402783989906311,
+     "collar_top": 1.5163848400115967,
+     "gap": -0.11360085010528564,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4142749309539795,
+     "collar_top": 1.5229429006576538,
+     "gap": -0.10866796970367432,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4475548267364502,
+     "collar_top": 1.5098564624786377,
+     "gap": -0.0623016357421875,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5040571689605713,
+     "collar_top": 1.5347168445587158,
+     "gap": -0.03065967559814453,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4731277227401733,
+     "collar_top": 1.545382022857666,
+     "gap": -0.07225430011749268,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4507243633270264,
+     "collar_top": 1.5497599840164185,
+     "gap": -0.09903562068939209,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.446669578552246,
+     "collar_top": 1.5500266551971436,
+     "gap": -0.10335707664489746,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4504450559616089,
+     "collar_top": 1.5497599840164185,
+     "gap": -0.09931492805480957,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4617129564285278,
+     "collar_top": 1.545381784439087,
+     "gap": -0.08366882801055908,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 1,
+    "worst_angle": "30°",
+    "worst_gap": -0.028435587882995605,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 1,
+    "angle": "30°",
+    "gap": -0.028435587882995605,
+    "collar_top": 1.4759904146194458,
+    "head_bottom": 1.4475548267364502,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 2,
+    "angle": "60°",
+    "gap": 0.5872923135757446,
+    "head_shell_bottom": 1.454408884048462,
+    "collar_all_free": 0.8671165704727173
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L100_kojiro": {
+   "key": "L100_kojiro",
+   "cn": "佐佐木小次郎",
+   "s": 0.00901748414906765,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.4648126363754272,
+     "collar_top": 1.5708779096603394,
+     "gap": -0.10606527328491211,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4860622882843018,
+     "collar_top": 1.557327151298523,
+     "gap": -0.07126486301422119,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4567056894302368,
+     "collar_top": 1.4910356998443604,
+     "gap": -0.034330010414123535,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4562188386917114,
+     "collar_top": 1.4867751598358154,
+     "gap": -0.030556321144104004,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4567056894302368,
+     "collar_top": 1.4910356998443604,
+     "gap": -0.034330010414123535,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4860622882843018,
+     "collar_top": 1.557327151298523,
+     "gap": -0.07126486301422119,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.4648126363754272,
+     "collar_top": 1.5708779096603394,
+     "gap": -0.10606527328491211,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4743218421936035,
+     "collar_top": 1.522091031074524,
+     "gap": -0.04776918888092041,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4812260866165161,
+     "collar_top": 1.5749907493591309,
+     "gap": -0.09376466274261475,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4813288450241089,
+     "collar_top": 1.57285475730896,
+     "gap": -0.09152591228485107,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4812260866165161,
+     "collar_top": 1.5749907493591309,
+     "gap": -0.09376466274261475,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4743218421936035,
+     "collar_top": 1.522091031074524,
+     "gap": -0.04776918888092041,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 3,
+    "worst_angle": "前90°",
+    "worst_gap": -0.030556321144104004,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -0.030556321144104004,
+    "collar_top": 1.4867751598358154,
+    "head_bottom": 1.4562188386917114,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -0.030556321144104004,
+    "head_shell_bottom": 1.4562188386917114,
+    "collar_all_free": 1.4867751598358154
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L44_yoshihiro": {
+   "key": "L44_yoshihiro",
+   "cn": "岛津义弘",
+   "s": 0.008957846645746495,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5525013208389282,
+     "collar_top": 1.5835009813308716,
+     "gap": -0.03099966049194336,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.5219014883041382,
+     "collar_top": 1.5823825597763062,
+     "gap": -0.06048107147216797,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4916366338729858,
+     "collar_top": 1.5955793857574463,
+     "gap": -0.10394275188446045,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.467506766319275,
+     "collar_top": 1.514936089515686,
+     "gap": -0.04742932319641113,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4916366338729858,
+     "collar_top": 1.5955793857574463,
+     "gap": -0.10394275188446045,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.5219014883041382,
+     "collar_top": 1.5823825597763062,
+     "gap": -0.06048107147216797,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5525013208389282,
+     "collar_top": 1.5835009813308716,
+     "gap": -0.03099966049194336,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5594149827957153,
+     "collar_top": 1.6347798109054565,
+     "gap": -0.07536482810974121,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.556739091873169,
+     "collar_top": 1.6110848188400269,
+     "gap": -0.05434572696685791,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.5557180643081665,
+     "collar_top": 1.6112194061279297,
+     "gap": -0.055501341819763184,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.556739091873169,
+     "collar_top": 1.6110848188400269,
+     "gap": -0.05434572696685791,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5594149827957153,
+     "collar_top": 1.6347798109054565,
+     "gap": -0.07536482810974121,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 0,
+    "worst_angle": "右0°",
+    "worst_gap": -0.03099966049194336,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 0,
+    "angle": "右0°",
+    "gap": -0.03099966049194336,
+    "collar_top": 1.5835009813308716,
+    "head_bottom": 1.5525013208389282,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 3,
+    "angle": "前90°",
+    "gap": -0.03813529014587402,
+    "head_shell_bottom": 1.476800799369812,
+    "collar_all_free": 1.514936089515686
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L43_sakon": {
+   "key": "L43_sakon",
+   "cn": "岛左近",
+   "s": 0.009356417827006061,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.5318318605422974,
+     "collar_top": 1.6447217464447021,
+     "gap": -0.11288988590240479,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4456450939178467,
+     "collar_top": 1.4846006631851196,
+     "gap": -0.03895556926727295,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4156720638275146,
+     "collar_top": 1.5332919359207153,
+     "gap": -0.11761987209320068,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4156720638275146,
+     "collar_top": 1.524544358253479,
+     "gap": -0.10887229442596436,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4156720638275146,
+     "collar_top": 1.5332918167114258,
+     "gap": -0.11761975288391113,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4456450939178467,
+     "collar_top": 1.4846006631851196,
+     "gap": -0.03895556926727295,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.5318318605422974,
+     "collar_top": 1.6447217464447021,
+     "gap": -0.11288988590240479,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5148422718048096,
+     "collar_top": 1.597904920578003,
+     "gap": -0.08306264877319336,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.5455114841461182,
+     "collar_top": 1.638279676437378,
+     "gap": -0.09276819229125977,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.5455114841461182,
+     "collar_top": 1.6645148992538452,
+     "gap": -0.11900341510772705,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.5455114841461182,
+     "collar_top": 1.638279676437378,
+     "gap": -0.09276819229125977,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5148422718048096,
+     "collar_top": 1.597904920578003,
+     "gap": -0.08306264877319336,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脖子件",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 1,
+    "worst_angle": "30°",
+    "worst_gap": -0.03895556926727295,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 1,
+    "angle": "30°",
+    "gap": -0.03895556926727295,
+    "collar_top": 1.4846006631851196,
+    "head_bottom": 1.4456450939178467,
+    "head_bottom_from": "脖子件"
+   },
+   "old": {
+    "bucket": 11,
+    "angle": "330°",
+    "gap": 1.1756374835968018,
+    "head_shell_bottom": 1.6425868272781372,
+    "collar_all_free": 0.46694934368133545
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L12_nouhime": {
+   "key": "L12_nouhime",
+   "cn": "归蝶",
+   "s": 0.010642317236445651,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.498341679573059,
+     "collar_top": 1.5520774126052856,
+     "gap": -0.05373573303222656,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4894804954528809,
+     "collar_top": 1.533998727798462,
+     "gap": -0.044518232345581055,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.4802601337432861,
+     "collar_top": 1.5257599353790283,
+     "gap": -0.04549980163574219,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.470194935798645,
+     "collar_top": 1.520300030708313,
+     "gap": -0.05010509490966797,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.4802601337432861,
+     "collar_top": 1.5257599353790283,
+     "gap": -0.04549980163574219,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4894804954528809,
+     "collar_top": 1.533998727798462,
+     "gap": -0.044518232345581055,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.498341679573059,
+     "collar_top": 1.5520774126052856,
+     "gap": -0.05373573303222656,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.5084781646728516,
+     "collar_top": 1.5689550638198853,
+     "gap": -0.06047689914703369,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.511178731918335,
+     "collar_top": 1.5531487464904785,
+     "gap": -0.041970014572143555,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.511514663696289,
+     "collar_top": 1.5926179885864258,
+     "gap": -0.08110332489013672,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.511178731918335,
+     "collar_top": 1.553148627281189,
+     "gap": -0.041969895362854004,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.5084781646728516,
+     "collar_top": 1.5689550638198853,
+     "gap": -0.06047689914703369,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 10,
+    "worst_angle": "300°",
+    "worst_gap": -0.041969895362854004,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 10,
+    "angle": "300°",
+    "gap": -0.041969895362854004,
+    "collar_top": 1.553148627281189,
+    "head_bottom": 1.511178731918335,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 10,
+    "angle": "300°",
+    "gap": -0.041969895362854004,
+    "head_shell_bottom": 1.511178731918335,
+    "collar_all_free": 1.553148627281189
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L47_nene": {
+   "key": "L47_nene",
+   "cn": "宁宁",
+   "s": 0.010642317236445651,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.4644711017608643,
+     "collar_top": 1.5149465799331665,
+     "gap": -0.050475478172302246,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.4582126140594482,
+     "collar_top": 1.5195567607879639,
+     "gap": -0.061344146728515625,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.454289436340332,
+     "collar_top": 1.509727954864502,
+     "gap": -0.05543851852416992,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4534186124801636,
+     "collar_top": 1.50509512424469,
+     "gap": -0.05167651176452637,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.454289436340332,
+     "collar_top": 1.5097085237503052,
+     "gap": -0.055419087409973145,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.4582126140594482,
+     "collar_top": 1.5195225477218628,
+     "gap": -0.06130993366241455,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.4644711017608643,
+     "collar_top": 1.514946699142456,
+     "gap": -0.0504755973815918,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4704879522323608,
+     "collar_top": 1.5319498777389526,
+     "gap": -0.0614619255065918,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.4765987396240234,
+     "collar_top": 1.5371391773223877,
+     "gap": -0.06054043769836426,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.4741979837417603,
+     "collar_top": 1.5378811359405518,
+     "gap": -0.0636831521987915,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.4765987396240234,
+     "collar_top": 1.5371593236923218,
+     "gap": -0.06056058406829834,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4704879522323608,
+     "collar_top": 1.5319863557815552,
+     "gap": -0.061498403549194336,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 0,
+    "worst_angle": "右0°",
+    "worst_gap": -0.050475478172302246,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 0,
+    "angle": "右0°",
+    "gap": -0.050475478172302246,
+    "collar_top": 1.5149465799331665,
+    "head_bottom": 1.4644711017608643,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 0,
+    "angle": "右0°",
+    "gap": -0.050475478172302246,
+    "head_shell_bottom": 1.4644711017608643,
+    "collar_all_free": 1.5149465799331665
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  },
+  "L10_shingen": {
+   "key": "L10_shingen",
+   "cn": "武田信玄",
+   "s": 0.009721827816613241,
+   "s_from": "srcT.json(锚 bone_11)",
+   "joint": {
+    "0": {
+     "head_bottom": 1.454500436782837,
+     "collar_top": 1.510034441947937,
+     "gap": -0.0555340051651001,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "1": {
+     "head_bottom": 1.3951432704925537,
+     "collar_top": 1.510034441947937,
+     "gap": -0.1148911714553833,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "2": {
+     "head_bottom": 1.5284940004348755,
+     "collar_top": 1.7380563020706177,
+     "gap": -0.2095623016357422,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "3": {
+     "head_bottom": 1.4445950984954834,
+     "collar_top": 1.5022661685943604,
+     "gap": -0.05767107009887695,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "4": {
+     "head_bottom": 1.5284937620162964,
+     "collar_top": 1.7380563020706177,
+     "gap": -0.2095625400543213,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "5": {
+     "head_bottom": 1.426914095878601,
+     "collar_top": 1.5045493841171265,
+     "gap": -0.07763528823852539,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "6": {
+     "head_bottom": 1.4545003175735474,
+     "collar_top": 1.5357435941696167,
+     "gap": -0.08124327659606934,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "7": {
+     "head_bottom": 1.4524801969528198,
+     "collar_top": 1.5357435941696167,
+     "gap": -0.08326339721679688,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "8": {
+     "head_bottom": 1.376400113105774,
+     "collar_top": 1.5530933141708374,
+     "gap": -0.17669320106506348,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "9": {
+     "head_bottom": 1.3256497383117676,
+     "collar_top": 1.5530933141708374,
+     "gap": -0.22744357585906982,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "10": {
+     "head_bottom": 1.3651360273361206,
+     "collar_top": 1.5467779636383057,
+     "gap": -0.18164193630218506,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    },
+    "11": {
+     "head_bottom": 1.4129548072814941,
+     "collar_top": 1.5467779636383057,
+     "gap": -0.13382315635681152,
+     "overlap": true,
+     "missing": false,
+     "pass_": true
+    }
+   },
+   "drift": null,
+   "penetration": 0,
+   "pass_": true,
+   "error": null,
+   "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）",
+   "arc": {
+    "deg": 0.0,
+    "n": 0,
+    "span": "—",
+    "max_deg": 60.0,
+    "pass_": true,
+    "buckets": []
+   },
+   "gap_max": {
+    "tol": 0.03,
+    "worst_bucket": 0,
+    "worst_angle": "右0°",
+    "worst_gap": -0.0555340051651001,
+    "n": 12,
+    "pass_": true
+   },
+   "worst": {
+    "bucket": 0,
+    "angle": "右0°",
+    "gap": -0.0555340051651001,
+    "collar_top": 1.510034441947937,
+    "head_bottom": 1.454500436782837,
+    "head_bottom_from": "脸壳/头件（没抠到脖子件，回落）"
+   },
+   "old": {
+    "bucket": 2,
+    "angle": "60°",
+    "gap": 1.4997431114315987,
+    "head_shell_bottom": 1.5791071653366089,
+    "collar_all_free": 0.07936405390501022
+   },
+   "float": {
+    "tol": 0.05,
+    "n": 0,
+    "pass_": true,
+    "items": []
+   }
+  }
+ }
+}

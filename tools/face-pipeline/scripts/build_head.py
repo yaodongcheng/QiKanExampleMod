@@ -48,6 +48,12 @@ DROP_DEFAULT = ("hair", "beard", "body", "dress", "cloth", "armor", "shoe", "soc
 
 ROLE_ORDER = ["face", "mouth", "eye", "lash"]
 
+# 🔴 抠脖子要排除的**头骨族**（与 tools/armor-pipeline/scripts/build_armor.py 的 `HEAD_SW` 同一口径）：
+#   bone_10/11（头/颈）+ 面部骨 bone_46..62。**戴在头上的东西**（兜/头巾/面罩）主导骨都落在这族里，
+#   而脖子皮肤的主导骨是 **bone_9**（胸/颈族）—— 所以按主导骨能把「兜」和「脖子」分开。
+#   2026-09-17 用户裁定：抠脖子时整块丢掉这族碎片（原因见 carve_neck_part 的 ⑦）。
+NECK_EXCL_BONES = set(["bone_10", "bone_11"] + ["bone_%d" % i for i in range(46, 63)])
+
 # 原版身体的【领口内沿】轮廓（角度 → (半径, z)），从 core_game dump 的 body_*_a.obj 的
 # 自由边环实测。骑砍2 的身体只有个大 V 领口，"脖子+胸兜"是头网格给的；源模型的脸
 # 常连着一截肩膀，比这个口沿宽 → 会从肩膀里穿出来。fit-rim 步骤按这张表把它收进去。
@@ -195,6 +201,285 @@ def keep_neck_frag(ob, r_max, z0):
         return 0
     bm.free()
     return n
+
+
+def _uv_mean_color(ob, loops, img, w, h, px, maxn=400):
+    """取一个对象若干 loop 的 UV 在源图集上的平均色（RGBA→RGB，0~1）。"""
+    if img is None or not loops:
+        return None
+    step = max(1, len(loops) // maxn)
+    uvl = ob.data.uv_layers.active
+    if uvl is None:
+        return None
+    acc = [0.0, 0.0, 0.0]
+    n = 0
+    for li in loops[::step]:
+        u, v = uvl.data[li].uv
+        x = min(w - 1, max(0, int((u % 1.0) * w)))
+        y = min(h - 1, max(0, int((v % 1.0) * h)))          # Blender 的像素是自下而上存的
+        i = (y * w + x) * 4
+        acc[0] += px[i]; acc[1] += px[i + 1]; acc[2] += px[i + 2]
+        n += 1
+    if not n:
+        return None
+    return (acc[0] / n, acc[1] / n, acc[2] / n)
+
+
+def frag_dominant_bone(ob, comp):
+    """一个碎片的**主导骨** = 全片权重求和后最大的那条骨。
+
+    🔴 口径必须与 `build_armor.frag_dominant_verts`（那边用来按 `HEAD_SW` 剔头骨族碎片）**同一套**：
+       都是「连通域 + 权重求和取最大」，不是「逐顶点取最大组再投票」——两套算法在混合权重处
+       会给出不同的名字，用错就在头/甲两侧对不上账。返回 None = 该片一个顶点组都没有。
+    """
+    tot = {}
+    for vi in comp:
+        for g in ob.data.vertices[vi].groups:
+            nm = ob.vertex_groups[g.group].name
+            tot[nm] = tot.get(nm, 0.0) + g.weight
+    return max(tot.items(), key=lambda kv: kv[1])[0] if tot else None
+
+
+def carve_neck_part(objs, s, z_sole, r_max=0.10, y_max=0.13, z_top=1.49,
+                    n_sect=6, z_cut=1.41, tag="neck", atlas=None, face_objs=(),
+                    skin_tol=0.16, excl_head=True):
+    """【从身体/甲件里抠出脖子那一段】作为头的**独立 part**（2026-09-16 用户裁定「脖子归头」）。
+
+    为什么要有这一步：战无2 把**脖子画在身体件里**，脸壳件只画到下巴下面一点（底下是断口）。
+    实机表现 = 穿甲时颈圈整圈停在甲领口上方、中间那段谁都没有几何 → 「脖子悬空」
+    （2026-09-16 用户报，28 人全中）。原来的补法是在脸壳上人工铺一圈"脖子管"（--neck-fill /
+    --neck-tube-to），那是权宜；治本是**把源模型自己的脖子捡起来**——它和源模型的甲领口
+    本来就是配套的，同一个 T 切出来天然对得上（「拼得上」从补丁变成构造上成立）。
+
+    🔴 不许把这段并进脸壳件：它的 UV 在**身体图集**上，脸壳的材质按脸图集采样 → 会花。
+       所以单独一件、单独材质（`<头名>_neck`），UV 保持原样（战无2 是**一张全身图集**，
+       脸/眼/嘴/脖子本来就在同一张图上，贴图不用另裁，见 make_sw2_textures.py）。
+
+    判据（全部在 **T 空间**量，米）——六条，缺一不可：
+      ① 薄：碎片 max|x| ≤ r_max；② 不深：max|y| ≤ y_max（挡掉前后垂下的衣片）
+      ③ 够高：max z ≥ z_top（伸到下颌附近）
+      ④ **绕轴有角向覆盖**：≥ n_sect 个 24 分扇区（平贴的衣服片只占 1~2 个）
+      ⚠️ **①②③④ 的阈值必须与 `tools/sw2-pipeline/check_assembly.py` 里调本函数时传的一致**
+      （闸门要复现同一套选取），改这里就要同步改那里 —— 优先做法是**两边都不传、用默认**。
+      🔴 **⑤ 的参照色锚点 = 脸壳「颧骨/鼻梁带」（T 空间 z ∈ [1.56,1.65]），这是试出来的**：
+      锚「下巴一带」会被**胡子/覆面**污染、锚「手部」会被**籠手**污染（实测信长/半藏的手部
+      参照色 ≈ (0.10,0.10,0.10) 近黑，反而把真脖子判成"非肤色"）；颧骨/鼻梁带是唯一胡子
+      长不到、面罩盖不住的位置。两个兜底顺序：手部 → 下巴带。
+      ⚠️ **不是每个人都有脖子件**（脸壳自带颈部的角色抠不出来，属正常；实测 28 人里 6 人有）。
+      ⑤ 的容差可按角色覆盖（`skin_tol`），标定依据见 `plans/逐角色共用变换与拼装闸门.md` §10.3/§10.8。
+      ⑤ 🔴 **肤色判据**：碎片 UV 在源图集上的平均色必须与**脸壳下巴一带**的平均色接近
+         （容差 skin_tol）。**为什么必须有这条**：实测宁宁的几何判据选中的是**甲领口那个
+         金铜色箍**（源 submesh_1 的领圈，45 顶点、|x|≤0.072、11 扇区 —— 几何上完全像脖子），
+         它若进头资产就会与甲自己的领口**重复**、且不穿甲时露出一圈金箍。
+         绝对肤色阈值挡不住金铜色（也是 R>G>B），所以参照色取**脸自己**。
+      ⑥ **底切在「原版身体领口线」上**（z_cut ≈ 1.41）：只留露在身体外的部分。
+         留多了会与**原版身体自己的皮**打架（两块皮贴在同一位置 = z-fighting，实测宁宁
+         躯干皮肤碎片一直延伸到 z 1.235）；留少了则在领口上方留缝。
+    然后 z_cut 以下全删（藏进甲/身体里）。
+      ⑦ **主导骨排除**（`excl_head`，默认开）：碎片的**主导骨 ∈ bone_10/11 ∪ bone_46..62**
+         （= 甲侧 `HEAD_SW` 那一族）→ 整块丢掉。**为什么必须有这条**：脖子件是按**连通域**抠的，
+         戴在头上的东西（兜/头巾/面罩）主导骨是 **bone_11**（头骨），几何上又细又绕轴（|x| 小、
+         绕满扇区），①②③④ 全部通过、⑤ 肤色判据也拦不住（白布/金饰的 RGB 也满足容差）——
+         实测谦信 39 / 秀吉 68 / 半藏 31 个顶点**与兜资产完全重合**（渲图实锤：藏掉 `_neck`
+         件，兜的顶刺/双角跟着消失），两边都穿上 = 同深度打架（2026-09-17）。
+         **为什么按骨分得开**：脖子皮肤绑 **bone_9**（胸/颈共用），兜绑 **bone_11**（头）——
+         这两族不重叠（老注释里"按骨分不开"说的是 `bone_9` vs `bone_10`，那是脖子与肩膀）。
+
+    ⚠️ 判据**不按骨骼挑「是不是头」**：实测宁宁/信长/兰丸的脖子皮肤**全部绑 bone_9**（胸/颈共用，
+    bone_10 权重是 0）—— ⑦ 用的是**反向**判据（是头骨族就丢），它不负责认出脖子。
+
+    返回 (新网格对象或 None, [(源对象, [被抠走的顶点下标])])。
+    """
+    # ---- 参照色：脸壳【下巴一带】（z_T ∈ [1.45, 1.62]）的 UV 平均色
+    # ---- 参照色：**手部**（纯肤色、无毛发/面罩）----
+    #   🔴 2026-09-17 改：原来取「脸壳下巴一带」，被**胡子（信长）/覆面（半藏）**污染 → 把真脖子
+    #      也一起拒掉（实测：把 --neck-atlas 指到不存在的路径 = 关掉肤色判据，信长/兰丸立刻
+    #      各抠出 26 顶点）。手是纯肤色，且源模型一定带手部件（普查里那批「+去手」）。
+    #   兜底：一个手部顶点都找不到时，退回原来的「脸壳下巴一带」。
+    HAND_BONES = set(["bone_18", "bone_19"] + ["bone_%d" % i for i in
+                     (26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45)])
+    img = w = h = px = None
+    ref = None
+    ref_src = "手部"
+    if atlas and os.path.isfile(atlas):
+        try:
+            img = bpy.data.images.load(atlas, check_existing=True)
+            w, h = img.size
+            px = img.pixels[:]
+            # 🔴 参照色必须**逐件**算再平均：loop 下标只对**它自己那个对象**的 UV 层有效，
+            #    把多个件的 loop 下标混在一个对象上查会越界
+            #    （实测光秀/归蝶：`bpy_prop_collection[index]: index 2033 out of range, size 2028`）。
+            # 首选：脸壳的**颧骨/鼻梁带**（T 空间 z ∈ [1.56,1.65]）—— 胡子长不到、
+            # 面罩通常也只盖下半脸，比"下巴一带"和"手部"都干净（实测：下巴带被信长的胡子污染、
+            # 手部被**籠手**污染成近黑色 0.10；而颧骨带取到的是真肤色）。
+            def _nose_band(_fo, _vi):
+                _z = (_fo.matrix_world @ _fo.data.vertices[_vi].co).z
+                return 1.56 <= (_z - z_sole) * s <= 1.65
+
+            def _gather(objs_, pick):
+                out_ = []
+                for _fo in objs_:
+                    if _fo.data.uv_layers.active is None:
+                        continue
+                    _loops = []
+                    for _p in _fo.data.polygons:
+                        for _li in _p.loop_indices:
+                            if pick(_fo, _fo.data.loops[_li].vertex_index):
+                                _loops.append(_li)
+                    _c = _uv_mean_color(_fo, _loops, img, w, h, px)
+                    if _c:
+                        out_.append((_c, len(_loops)))
+                return out_
+
+            def _is_hand(_fo, _vi):
+                _v = _fo.data.vertices[_vi]
+                if not _v.groups:
+                    return False
+                _g = max(_v.groups, key=lambda x: x.weight)
+                return _fo.vertex_groups[_g.group].name in HAND_BONES
+            _per = _gather(face_objs, _nose_band)
+            if _per:
+                ref_src = "脸壳颧骨/鼻梁带"
+            else:                              # 兜底 1：手部（纯肤色，但**有籠手/手甲的角色会被污染**）
+                _per = _gather(list(objs) + list(face_objs), _is_hand)
+                ref_src = "手部（兜底：颧骨带没取到）"
+            if not _per:                       # 兜底 2：脸壳下巴一带
+                def _z_band(_fo, _vi):
+                    _z = (_fo.matrix_world @ _fo.data.vertices[_vi].co).z
+                    return 1.45 <= (_z - z_sole) * s <= 1.62
+                _per = _gather(face_objs, _z_band)
+                ref_src = "脸壳下巴一带（兜底 2）"
+            if _per:
+                _tot = sum(n for _, n in _per)
+                ref = tuple(sum(c[i] * n for c, n in _per) / _tot for i in range(3))
+            print("  抠脖子：参照肤色（%s %d 件 / %d 个 loop）= %s"
+                  % (ref_src, len(_per), sum(n for _, n in _per),
+                     tuple(round(c, 3) for c in ref) if ref else "取不到"))
+        except Exception as _e:                                        # noqa
+            print("  ⚠️ 抠脖子：读源图集失败（%s）→ 肤色判据跳过" % _e)
+            ref = None
+
+    picked_v = []          # [(源对象, [顶点下标])]
+    for ob in objs:
+        me = ob.data
+        mw = ob.matrix_world
+
+        def T(p):
+            return Vector((p.x * s, -p.y * s, (p.z - z_sole) * s))
+
+        # 连通域（碎片）
+        n = len(me.vertices)
+        par = list(range(n))
+
+        def find(x):
+            while par[x] != x:
+                par[x] = par[par[x]]
+                x = par[x]
+            return x
+        for e in me.edges:
+            a, b = find(e.vertices[0]), find(e.vertices[1])
+            if a != b:
+                par[a] = b
+        grp = {}
+        for vi in range(n):
+            grp.setdefault(find(vi), []).append(vi)
+
+        keep = set()
+        for vs in grp.values():
+            q = [T(mw @ me.vertices[vi].co) for vi in vs]
+            xm = max(abs(p.x) for p in q)
+            ym = max(abs(p.y) for p in q)
+            z1 = max(p.z for p in q)
+            if xm > r_max or ym > y_max or z1 < z_top:
+                continue
+            sect = set()
+            for p in q:
+                sect.add(int((math.degrees(math.atan2(p.y, p.x)) % 360.0) // 15.0) % 24)
+            _why = ""
+            if len(sect) < n_sect:
+                _why = "扇区 %d<%d" % (len(sect), n_sect)
+            # ⑦ 主导骨排除：戴在头上的东西（兜/头巾/面罩）主导骨是头骨族 → 整块丢掉
+            #    （必须先算，别等到肤色判据之后：白布/金饰也能过肤色容差，实测踩过）
+            _dom = frag_dominant_bone(ob, vs) if excl_head else None
+            if not _why and _dom in NECK_EXCL_BONES:
+                _why = "主导骨 %s ∈ 头骨族（兜/头巾，不是脖子）" % _dom
+            # ⑤ 肤色判据：与脸同色才算皮肤（挡掉甲领口/衣领那种"几何上像脖子"的东西）
+            col = None
+            if not _why and ref is not None and img is not None:
+                _vs = set(vs)
+                # 取「有任何顶点落在这块碎片里」的面的 UV —— 下标只对本对象有效（同上）
+                _loops = [li for _p in me.polygons if any(v in _vs for v in _p.vertices)
+                          for li in _p.loop_indices]
+                col = _uv_mean_color(ob, _loops, img, w, h, px)
+                if col is not None:
+                    _d = max(abs(col[i] - ref[i]) for i in range(3))
+                    _why = "" if _d <= skin_tol else ("肤色差 %.2f>%.2f（%s vs 参照 %s）"
+                                                      % (_d, skin_tol,
+                                                         tuple(round(c, 2) for c in col),
+                                                         tuple(round(c, 2) for c in ref)))
+            if not _why:
+                # ⑥ 只在「原版身体领口线」以上留（以下的藏进身体，留着会与身体自己的皮 z-fighting）
+                for vi in vs:
+                    if T(mw @ me.vertices[vi].co).z >= z_cut:
+                        keep.add(vi)
+            # 候选级诊断（判据①~③已过、被④⑤否掉的都打出来）—— 排查"这个人为什么没脖子"看这行
+            print("      · 候选 %s n=%-4d |x|=%.3f |y|=%.3f z1=%.3f 扇区%-3d %s"
+                  % (ob.name.split("_")[-1][:6], len(vs), xm, ym, z1, len(sect),
+                     "取" if not _why else ("丢：" + _why)))
+        if keep:
+            picked_v.append((ob, keep))
+        print("  抠脖子：%s 命中 %d 顶点（|x|≤%.3f |y|≤%.3f 顶≥%.2f 扇区≥%d 底切 %.2f%s）"
+              % (ob.name, len(keep), r_max, y_max, z_top, n_sect, z_cut,
+                 "，肤色 ✓" if (ref is not None and keep) else
+                 ("，⚠️ 肤色判据不可用" if ref is None else "")))
+
+    if not picked_v:
+        print("  ⚠️ 抠脖子：一块都没命中 —— 检查 --neck-src 序号与判据")
+        return None, []
+    return _neck_make(picked_v, tag), picked_v
+
+
+def _neck_make(picked_v, tag):
+
+    # 合成一个新网格：顶点 + UV + 顶点组（源骨名，后面会被原版头的权重替换）
+    co, faces, uvs, vgs = [], [], [], {}
+    for ob, keep in picked_v:
+        me = ob.data
+        base = len(co)
+        remap = {}
+        uvl = me.uv_layers.active
+        gname = [g.name for g in ob.vertex_groups]
+        for vi in sorted(keep):
+            remap[vi] = base + len(remap)
+            co.append(me.vertices[vi].co.copy())
+            for g in me.vertices[vi].groups:
+                if g.weight > 1e-4:
+                    vgs.setdefault(gname[g.group], {})[base + len(remap) - 1] = g.weight
+        for poly in me.polygons:
+            vv = [remap[v] for v in poly.vertices if v in remap]
+            if len(vv) == len(poly.vertices):
+                faces.append(vv)
+                if uvl is not None:
+                    uvs.append([tuple(uvl.data[li].uv) for li in poly.loop_indices])
+    nob = bpy.data.meshes.new(tag)
+    nob.from_pydata(co, [], faces)
+    nob.update()
+    obj = bpy.data.objects.new(tag, nob)
+    bpy.context.scene.collection.objects.link(obj)
+    if uvs:
+        ul = nob.uv_layers.new(name="UVMap")
+        k = 0
+        for poly in nob.polygons:
+            for li in poly.loop_indices:
+                ul.data[li].uv = uvs[k][li - poly.loop_start]
+            k += 1
+    for bn, d in vgs.items():
+        g = obj.vertex_groups.new(name=bn)
+        for vi, w in d.items():
+            g.add([vi], min(1.0, w), 'REPLACE')
+    print("  抠脖子：合成 %s —— %d 顶点 %d 面 %d 个顶点组"
+          % (tag, len(co), len(faces), len(obj.vertex_groups)))
+    return obj
 
 
 def prune_far(ob, k=4.0, arm=None, keep_bones=("bone_10", "bone_11")):
@@ -633,7 +918,7 @@ def rim_lookup(gender):
 
 
 def fill_neck_to_rim(ob, rim_at, z_top=1.545, r_max=0.14, k=1.0, bury=RIM_BURY,
-                     flat_z=None, grow_max=1.25):
+                     flat_z=None, grow_max=1.25, tube_to=None):
     """【补脖子下摆】—— 头网格的脖子够不到身体领口时，从脖子的自由边往下铺一圈"下摆"。
 
     🔴 为什么需要（2026-09-16 用户实机报「所有人颈部都没有贴合肩部，往上抬了一点」）：
@@ -653,6 +938,16 @@ def fill_neck_to_rim(ob, rim_at, z_top=1.545, r_max=0.14, k=1.0, bury=RIM_BURY,
 
     `flat_z` 给了就改成**竖直下摆**（落点 z 一律 = flat_z、半径沿用原轮廓半径）——
        用于领口轮廓不适用的情况（战无2 的甲是立领和服，领口比原版 V 领高）。
+
+    🔴 `tube_to`（2026-09-16 晚加，实机「脖子悬空」的正解）：**从落点环再直着往下拉一圈"脖子管"**
+       伸到 z=tube_to。为什么光有下摆不够：
+       · `RIM_TABLE` 是**原版身体**的 V 领轮廓 —— 正前低(1.4066)、两侧高(1.5059)。
+         所以下摆在前侧能把脖子拉下来 6cm，**在两侧等于没做**（落点本来就贴着原版领口）。
+       · 而我们的人穿的是战无2 的甲：甲的**领口上沿两侧只有 1.415**（比原版领口低 9cm）
+         → 两侧脖子在 1.502 就断了，底下 9cm 谁都没有几何 = **露空腔 = 脖子悬空**。
+       · 管子半径取落点半径（≈脖子自己的半径，`grow_max` 已经卡过），所以它是**插进甲领口里面**，
+         不是罩在甲外面；不穿甲时又整段藏在身体里（正前 z<1.4066 处身体是闭合的）。
+       · 走竖直而不是跟着甲的轮廓：甲是按角色换的，头不能对某一件甲写死。
 
     返回新建的面数。
     """
@@ -689,7 +984,7 @@ def fill_neck_to_rim(ob, rim_at, z_top=1.545, r_max=0.14, k=1.0, bury=RIM_BURY,
             nv[v] = bm.verts.new((rt * math.cos(ang), rt * math.sin(ang), zt))
     bm.verts.ensure_lookup_table()
 
-    made = 0
+    pairs = []
     for e in edges:
         f0 = e.link_faces[0]
         lp = next((l for l in f0.loops if l.edge is e), None)
@@ -697,11 +992,18 @@ def fill_neck_to_rim(ob, rim_at, z_top=1.545, r_max=0.14, k=1.0, bury=RIM_BURY,
             continue
         a = lp.vert
         b = e.other_vert(a)
-        na, nb = nv.get(a), nv.get(b)
-        if na is None or nb is None:
-            continue
+        if a in nv and b in nv:
+            pairs.append((a, b, f0))
+
+    made = 0
+    land_uv = {}                      # 落点顶点 -> 它继承到的 UV（给下面那圈管子用）
+    for a, b, f0 in pairs:
+        na, nb = nv[a], nv[b]
+        # 🔴 绕序：必须与 f0 **反向**走共用边 (a,b)（f0 走 a→b），新面才和脖子同朝向。
+        #    2026-09-16 实测：原来的 (a, b, nb, na) 是同向 → 整片下摆法线朝里
+        #    （z<1.40 段 外1/里13），而骑砍材质是单面的 → 实机里这一片根本看不见。
         try:
-            nf = bm.faces.new((a, b, nb, na))
+            nf = bm.faces.new((na, nb, b, a))
         except ValueError:
             continue
         made += 1
@@ -715,11 +1017,159 @@ def fill_neck_to_rim(ob, rim_at, z_top=1.545, r_max=0.14, k=1.0, bury=RIM_BURY,
                     u = src.get(a if l.vert is na else b)
                 if u is not None:
                     l[uvl].uv = u
+                    land_uv[l.vert] = u       # 落点顶点继承到的 UV，管子照抄
+
+    # ---------- 第二段：从落点环直着往下拉"脖子管"（伸进甲领口） ----------
+    if tube_to is not None and made:
+        lo = {}
+        for v, nvp in nv.items():
+            lo[v] = bm.verts.new((nvp.co.x, nvp.co.y, float(tube_to)))
+        bm.verts.ensure_lookup_table()
+        for a, b, _f0 in pairs:
+            na, nb = nv[a], nv[b]
+            # 与下摆面在共用边 (na,nb) 上反向：下摆走 na→nb，管子走 nb→na
+            try:
+                nf = bm.faces.new((nb, na, lo[a], lo[b]))
+            except ValueError:
+                continue
+            made += 1
+            if uvl is not None:
+                for l in nf.loops:
+                    u = land_uv.get(na if l.vert in (na, lo[a]) else nb)
+                    if u is not None:
+                        l[uvl].uv = u
+
     if made:
         bm.to_mesh(me)
         me.update()
     bm.free()
     return made
+
+
+def close_neck_slit(ob, z_top=1.56, r_max=0.13, lim=0.020):
+    """【闭脖子正中的竖缝】—— 战无2 的脸是**前后两片壳**，在脖子正前方根本没接上。
+
+    实测（宁宁，2026-09-16 晚）：两片壳的底边在正中相距 **17mm**（右壳 x=+0.0071 / 左壳 x=-0.0102），
+    各自往下补出来的下摆/脖子管之间就一直留着一道竖缝 —— 实机表现 = 脖子正面一条黑缝
+    （用户 2026-09-16 报的"接缝"）。
+
+    做法：取颈部一带（z < z_top、r < r_max）的**边界顶点**，按距离贪心配对（<lim、且不共边），
+    每对都移到中点再焊。环上相邻点的间距实测 ~30mm > lim，所以不会误焊正常环。
+    返回焊掉的顶点对数。
+    """
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.verts.ensure_lookup_table()
+
+    def region(v):
+        return v.co.z < z_top and math.hypot(v.co.x, v.co.y) < r_max
+
+    # 🔴 第一趟必须先焊**重合点**：两片壳在颈部一带各自带一份 0.0mm 的重复点，
+    #    贪心配对会被这些 0mm 对吃光名额，跨缝的 ~18mm 对就永远轮不到（2026-09-16 实测踩到）。
+    r0 = [v for v in bm.verts if region(v)]
+    if r0:
+        bmesh.ops.remove_doubles(bm, verts=r0, dist=1e-4)
+    bm.verts.ensure_lookup_table()
+
+    def is_bnd(v):
+        return any(len(e.link_faces) == 1 for e in v.link_edges)
+
+    vs = [v for v in bm.verts if region(v) and is_bnd(v)]
+    cand = []
+    for i in range(len(vs)):
+        for j in range(i + 1, len(vs)):
+            a, b = vs[i], vs[j]
+            if any(e for e in a.link_edges if e.other_vert(a) is b):
+                continue                      # 共边 = 同一条折线上的邻居，别焊
+            # 🔴 只配**跨正中线**的点对（x 异号）：这条缝就是"左右两片壳在正前没接上"，
+            #    不设这条，同侧相隔 15mm 的点会先把名额占掉，跨缝的反而配不上（实测踩到）。
+            if a.co.x * b.co.x >= 0 or abs(a.co.x) > 0.045 or abs(b.co.x) > 0.045:
+                continue
+            d = (a.co - b.co).length
+            if d <= lim:
+                cand.append((d, a, b))
+    cand.sort(key=lambda t: t[0])
+    print("  闭正中缝：颈部边界顶点 %d 个，≤%.0fmm 候选对 %d（最近 %s）"
+          % (len(vs), lim * 1000, len(cand),
+             "%.1fmm" % (cand[0][0] * 1000) if cand else "-"))
+    used, pairs = set(), []
+    for d, a, b in cand:
+        if a in used or b in used:
+            continue
+        used.add(a); used.add(b)
+        pairs.append((a, b))
+    if pairs:
+        for a, b in pairs:
+            mid = (a.co + b.co) / 2.0
+            a.co = mid
+            b.co = mid
+        verts = []
+        for pr in pairs:
+            for v in pr:
+                if v not in verts:
+                    verts.append(v)
+        bmesh.ops.remove_doubles(bm, verts=verts, dist=1e-4)
+        bm.to_mesh(ob.data)
+        ob.data.update()
+    bm.free()
+    return len(pairs)
+
+
+def flip_inward_neck_faces(ob, z_top=1.56, r_max=0.14, twin_tol=3e-4):
+    """【把颈部区法线朝里的面翻过来】—— 实机"脖子正面一条黑缝"的正解。
+
+    实测（宁宁，2026-09-16 晚，用**洋红背景**渲图判定）：脖子正前方那条黑带**不是洞**
+    （洞会露背景色，实测不露），而是 13 个**法线朝里**的面：它们填在前后两片壳之间的缝里，
+    法线反了 → 离线渲成黑的；实机单面材质下被背剔 → 露内腔。翻过来即可，几何一点不动。
+
+    判据：面中心在颈部区域（z < z_top、r < r_max）且 `法线·径向 < 0`。
+    返回翻转的面数。
+
+    🔴 **孪生面豁免（2026-09-17 补，实锤）**：`make_sheets_double_sided`（薄片补背面 1.7）
+       会把单面板**复制一份并翻面** —— 副本**天生朝内，是设计如此**（引擎材质没有双面开关，
+       只能靠几何补）。所以「朝内的面」里有一大类根本不是缺陷。
+       **判据**：面心 0.3mm 内有另一个面且 `法线·法线 < -0.5`（反平行）= 一对双面副本 → **跳过不翻**。
+       🔴 **不加这道守卫的实测后果**（宁宁，2026-09-17）：副本被翻正 → 一对「一正一反」变成
+       **两片同向重合**（实测 6 组 `n·n = +1.000`，z 1.543~1.551）→ **z-fighting**，
+       且薄片**丢掉背面**（从另一侧看直接透过去）—— 把 1.7「补背面」的成果就地毁掉。
+    """
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.faces.ensure_lookup_table()
+
+    # 孪生面索引（KDTree：面心 → 面序号）
+    cents = [f.calc_center_median() for f in bm.faces]
+    kd = kdtree.KDTree(len(cents))
+    for i, c in enumerate(cents):
+        kd.insert(c, i)
+    kd.balance()
+
+    def has_antiparallel_twin(f, c):
+        for _co, idx, _d in kd.find_range(c, twin_tol):
+            g = bm.faces[idx]
+            if g is f:
+                continue
+            if f.normal.dot(g.normal) < -0.5:
+                return True
+        return False
+
+    n = 0
+    skipped = 0
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if c.z > z_top or math.hypot(c.x, c.y) > r_max:
+            continue
+        if f.normal.x * c.x + f.normal.y * c.y < 0:
+            if has_antiparallel_twin(f, c):
+                skipped += 1
+                continue
+            f.normal_flip()
+            n += 1
+    if n:
+        bm.to_mesh(ob.data)
+        ob.data.update()
+    bm.free()
+    return n, skipped
 
 
 def make_sheets_double_sided(ob, open_ratio=0.5):
@@ -899,6 +1349,15 @@ def main():
             strap_seeds.append(Vector([float(v) for v in _s.split(",")]))
     cut_spec = get(a, "--cut-z")                     # "1.4144"（只裁 face）或 "face=1.4144,mouth=1.3"
 
+    # ---------- 0) 源变换 T（2026-09-16，三件共用一把尺；见 src_transform.py） ----------
+    # 🔴 给了 --t-s 就走 T 模式：定向/缩放/落位全部改成「Y 轴镜像 + 等比缩放（源原点=地面）」，
+    #    不再用下面的「偏航 + 眼↔嘴标定 + 眼球送眼位」。理由：三件（头/甲/兜）必须共用同一份变换，
+    #    否则拼不回原角色（实测宁宁脖子比甲领口高 8.7cm）。
+    #    没给 = 老行为（蒂法/萨菲罗斯那条线一行不变）。
+    t_s = float(get(a, "--t-s", "0") or 0)
+    t_zsole = float(get(a, "--t-z-sole", "0") or 0)
+    t_mode = t_s > 0
+
     # ---------- 1) 导入源模型（FBX 或 .blend） + 挑件 ----------
     bpy.ops.wm.read_factory_settings(use_empty=True)
     if src.lower().endswith(".blend"):
@@ -908,6 +1367,12 @@ def main():
     bpy.context.view_layer.update()
     meshes = [o for o in bpy.data.objects if o.type == 'MESH']
     print("导入 %d 个网格（源类型 %s）" % (len(meshes), "blend" if src.lower().endswith(".blend") else "fbx"))
+    # 源骨架的头骨（bone_11）世界 z —— T 自检要用：第 2 步末尾会把源骨架整个删掉（换官方骨架），
+    # 所以在这里先记下来（s 的定义就是「让头骨落到原版 1.569」，落不上说明 --t-s 传错了）。
+    _src_arm = next((o for o in bpy.data.objects if o.type == 'ARMATURE'), None)
+    src_head_z = None
+    if _src_arm is not None and _src_arm.data.bones.get("bone_11") is not None:
+        src_head_z = (_src_arm.matrix_world @ _src_arm.data.bones["bone_11"].head_local).z
 
     picked = {}
     seal_targets = []
@@ -977,9 +1442,78 @@ def main():
         bpy.data.objects.remove(ob, do_unlink=True)
     bpy.context.view_layer.update()
 
+    # ---------- 1.1a) T 模式：从身体件里抠脖子，作为头的**独立 part**（用户裁定「脖子归头」） ----------
+    #   `--pick-idx "…,neck=<身体/甲件的序号>"` 把身体件带进 picked（第 1 步会把没挑中的件全删掉，
+    #   所以必须靠 pick 保住它）；这里把它的**细而绕轴**的那几块抠出来，其余丢弃。
+    #   🔴 抠出来的脖子**不再过 1.2/1.3**（那两步是给脸/发用的离群判据，会把脖子整块判成杂质）。
+    if t_mode and picked.get("neck"):
+        _srcs = picked.pop("neck")
+        # 🔴 判据参数一律**显式传**（值来自 tools/sw2-pipeline/parts_table.neck_args(key)，
+        #    闸门 check_assembly.py 传的是同一份）——默认值与原版一字未改，这里只是把
+        #    「逐人覆写」这条通道打开（2026-09-17 收尾轮：有人脖子那圈是布料色/比 10cm 粗一点，
+        #    吃默认值抠不出来）。--neck-skin-tol 是 carve 的 ⑤ 肤色容差，默认 0.16 不变。
+        #    --neck-excl-head 是 carve 的 ⑦ 主导骨排除（1=开，默认；0=关，给"脖子整圈都是头骨"
+        #    的极端角色留的退路）。逐人开关写在 parts_table 的 neck_args（与闸门同一份）。
+        _nb, _moved = carve_neck_part(_srcs, t_s, t_zsole,
+                                      r_max=float(get(a, "--neck-r-max", "0.10")),
+                                      y_max=float(get(a, "--neck-y-max", "0.13")),
+                                      z_top=float(get(a, "--neck-z-top", "1.49")),
+                                      n_sect=int(get(a, "--neck-sect", "6")),
+                                      z_cut=float(get(a, "--neck-z-cut", "1.41")),
+                                      skin_tol=float(get(a, "--neck-skin-tol", "0.16")),
+                                      excl_head=str(get(a, "--neck-excl-head", "1")) not in
+                                      ("0", "false", "False", "no"),
+                                      atlas=get(a, "--neck-atlas"),
+                                      face_objs=picked.get("face", []),
+                                      tag="neck_src")
+        for _ob, _vs in _moved:
+            _shared = any(_ob in _lst for _r2, _lst in picked.items())
+            if _shared:
+                # 🔴 该件**同时是脸件/发件**（实测光秀：源 submesh 5/6/13 既在 face 又在 neck 序号里）
+                #    → 脖子那几块从原件里**搬走**（不是复制），否则同一块几何在头资产里出现两遍、
+                #    实机 z-fighting。
+                _bm = bmesh.new(); _bm.from_mesh(_ob.data); _bm.verts.ensure_lookup_table()
+                bmesh.ops.delete(_bm, geom=[_bm.verts[i] for i in _vs if i < len(_bm.verts)],
+                                 context='VERTS')
+                _bm.to_mesh(_ob.data); _bm.free(); _ob.data.update()
+                print("  抠脖子：%s 里搬走 %d 顶点（该件同时是脸/发件，避免重复几何）"
+                      % (_ob.name, len(_vs)))
+            else:
+                bpy.data.objects.remove(_ob, do_unlink=True)     # 纯身体件：整块用完就丢
+        # 🔴🔴 兜底清理：把「被 pop 出来、但没被上面那圈处理到」的源对象删掉。
+        #    2026-09-17 实锤 —— **28/28 人全中**：每人 5~9 件 `model_0_submesh_*`
+        #    （材质 `mat_<角色>`、坐标还在**源空间** z 0~186 厘米）原样进了产出 FBX。
+        #    用户在编辑器里一眼看到一排带感叹号的脏资产。
+        #    为什么会有这个漏：`carve_neck_part` 的返回值 `picked_v` **只收集「抠到顶点的」源对象**；
+        #    抠到 0 个时直接 `return None, []`（宁宁就是这样）→ 调用处一个都不删；
+        #    抠到一些时，**没被抠中的那些源对象同样不在 `_moved` 里**（信长泄漏 9 件）。
+        #    而导出是 `export_scene.fbx(use_selection=False)`（**整场景**）→ 谁没删谁就进包。
+        #    根因是「脖子归头」这个功能：在那之前身体件没被 `--pick-idx` 挑中，
+        #    会被上面「删掉没挑中的件」那一步清掉；现在被挑中了，就得自己负责删干净。
+        #    判据：**仍被别的角色（face/hair…）引用的一律留下**（实测光秀：源 submesh 5/6/13
+        #    既在 face 又在 neck 序号里，它们是脸件，删了脸就没了）；新抠出来的 `_nb` 也在 picked 里。
+        _live = set()
+        for _r3, _lst in picked.items():
+            for _o3 in _lst:
+                _live.add(id(_o3))
+        _dropped = 0
+        for _ob in _srcs:
+            if id(_ob) in _live:
+                continue
+            try:
+                bpy.data.objects.remove(_ob, do_unlink=True)
+                _dropped += 1
+            except ReferenceError:
+                pass          # 已被上面那圈删掉了（对已删对象取 .name 会抛，别拿它当判据）
+        if _dropped:
+            print("  抠脖子：清掉 %d 件没用上的源身体件（不删会原样导出成脏资产）" % _dropped)
+        if _nb is not None:
+            picked.setdefault("neck", []).append(_nb)
     # ---------- 1.1) --neck：从身体件里只抠出脖子那一段，并进脸壳（见 keep_neck_frag） ----------
     #   🔴 必须跑在 1.2 之前：身体件整块进 prune_far 会被当"离群碎片"清掉（它本来就大而散）。
-    if picked.get("neck"):
+    #   ⚠️ 老路径（并进脸壳）：UV 在身体图集上、脸壳材质按脸图集采样，只对「整身一张图集」的战无2 成立。
+    #      T 模式下走 1.1a 的独立 part 路线，这条不再用。
+    elif picked.get("neck"):
         _nr = float(get(a, "--neck-r", "0") or 0)
         _nz = float(get(a, "--neck-z0", "0") or 0)
         _kept = []
@@ -1000,6 +1534,8 @@ def main():
         kk = float(get(a, "--prune-k", "4.0"))
         _arm0 = next((o for o in bpy.data.objects if o.type == 'ARMATURE'), None)
         for role, objs in list(picked.items()):
+            if role == "neck":          # 脖子是刚精挑出来的，别再当碎片清一遍
+                continue
             for ob in objs:
                 d = prune_far(ob, kk, arm=_arm0)
                 if d:
@@ -1288,52 +1824,64 @@ def main():
         return
 
     # ---------- 3) 定向 + 标定（对全部保留件统一施加） ----------
-    E = center([joined["eye"]])
-    M = center([joined["mouth"]])
-    # 🔴 头壳中心 C 只用【头部】顶点算：源模型的"脸"对象通常连着一截脖子/胸/领口，
-    #    把它整个算进来会把 C 拉低拉后 → C→E 的水平方向偏掉。实测萨菲罗斯源偏 7.8°
-    #    （症状：标定后 x 不对称，一侧凸出 7cm）。取 E 以下 band 米以内的顶点即为头部。
-    band = float(get(a, "--head-band", "0.12"))
-    fac = joined["face"]
-    cand = [v.co for v in fac.data.vertices if v.co.z >= E.z - band]
-    if len(cand) < 10:
-        print("  ⚠️ 头部带内只有 %d 个顶点，退回用整个 face 对象求 C" % len(cand))
-        cand = [v.co for v in fac.data.vertices]
-    lo_c = Vector((min(c.x for c in cand), min(c.y for c in cand), min(c.z for c in cand)))
-    hi_c = Vector((max(c.x for c in cand), max(c.y for c in cand), max(c.z for c in cand)))
-    C = (lo_c + hi_c) / 2.0
-    print("头壳中心 C %s（用 %d/%d 个头部顶点，带高 %.3f）"
-          % (tuple(round(v, 4) for v in C), len(cand), len(fac.data.vertices), band))
-    print("源锚点：头壳中心 %s  眼球中心 %s  嘴中心 %s"
-          % (tuple(round(v, 4) for v in C), tuple(round(v, 4) for v in E), tuple(round(v, 4) for v in M)))
+    if t_mode:
+        # 🔴 T 模式（2026-09-16）：定向 = **Y 轴镜像**（源脸 −Y → 骑砍 +Y，翻前后不翻左右；
+        #    绕 Z 转 180° 会把左右一起翻，实测源左腿会被甩到 +x），缩放 = s（源原点=地面），
+        #    不做器官对眼位的平移。三件（头/甲/兜）共用这一份 T。
+        k = t_s
+        R = None
+        print("定向/标定：T 模式 —— Y 轴镜像 + 等比缩放 s=%.6f（源原点=地面，不平移）；"
+              "不用眼↔嘴标定" % t_s)
 
-    # 定向：只做【偏航 yaw】——把"头壳中心 → 眼球中心"的水平投影转到 +Y。
-    #   🔴 不要用三维的 C→E 当朝向：那个向量天生带一点上仰（眼球在头壳包围盒中心之上），
-    #      拿它当"前方"会多转几度、顺带把尺度也带偏（本脚本实测：算出 1.264，而正确值是 1.238）。
-    #      上方向保留模型自己的 +Z（Blender 的 FBX 导入器已把 Y-up 文件转成 Z-up）。
-    f = Vector((E.x - C.x, E.y - C.y, 0.0))
-    if f.length < 1e-6:
-        fail("眼球中心与头壳中心的水平投影重合，无法定向")
-    yaw = -math.atan2(f.x, f.y)                       # 使 f 转到 +Y
-    R = Matrix.Rotation(yaw, 3, 'Z')
-    print("定向：源脸朝 %s（水平 %s）→ 绕 Z 转 %.1f°"
-          % (v3((E - C).normalized()), v3(f.normalized()), math.degrees(yaw)))
-
-    # 🔴 缩放用【竖直】距离（z 向），不是三维距离 —— 原版 0.0728 本身就是"眼中心 z − 嘴中心 z"。
-    #    用三维距离会把"眼球比嘴靠前"那一段也算进去 → 头会偏小约 5%（本脚本实测踩到过）。
-    up = Vector((0.0, 0.0, 1.0))                       # 偏航旋转不动 z，上方向恒为 +Z
-    d_em = abs((E - M).dot(up))
-    if d_em < 1e-6:
-        fail("眼球与嘴在竖直方向重合，无法标定")
-    if scale_opt == "auto":
-        k = TARGET_EYE_MOUTH_DZ / d_em
+        def xform(p):
+            return (p.x * t_s, -p.y * t_s, (p.z - t_zsole) * t_s)
     else:
-        k = float(scale_opt)
-    print("标定：源眼↔嘴竖直距离 %.4f（源单位）→ 缩放 %.5f（自动）；眼球送到 %s"
-          % (d_em, k, v3(TARGET_EYE)))
+        E = center([joined["eye"]])
+        M = center([joined["mouth"]])
+        # 🔴 头壳中心 C 只用【头部】顶点算：源模型的"脸"对象通常连着一截脖子/胸/领口，
+        #    把它整个算进来会把 C 拉低拉后 → C→E 的水平方向偏掉。实测萨菲罗斯源偏 7.8°
+        #    （症状：标定后 x 不对称，一侧凸出 7cm）。取 E 以下 band 米以内的顶点即为头部。
+        band = float(get(a, "--head-band", "0.12"))
+        fac = joined["face"]
+        cand = [v.co for v in fac.data.vertices if v.co.z >= E.z - band]
+        if len(cand) < 10:
+            print("  ⚠️ 头部带内只有 %d 个顶点，退回用整个 face 对象求 C" % len(cand))
+            cand = [v.co for v in fac.data.vertices]
+        lo_c = Vector((min(c.x for c in cand), min(c.y for c in cand), min(c.z for c in cand)))
+        hi_c = Vector((max(c.x for c in cand), max(c.y for c in cand), max(c.z for c in cand)))
+        C = (lo_c + hi_c) / 2.0
+        print("头壳中心 C %s（用 %d/%d 个头部顶点，带高 %.3f）"
+              % (tuple(round(v, 4) for v in C), len(cand), len(fac.data.vertices), band))
+        print("源锚点：头壳中心 %s  眼球中心 %s  嘴中心 %s"
+              % (tuple(round(v, 4) for v in C), tuple(round(v, 4) for v in E), tuple(round(v, 4) for v in M)))
 
-    def xform(p):
-        return (R @ (p - E)) * k + TARGET_EYE
+        # 定向：只做【偏航 yaw】——把"头壳中心 → 眼球中心"的水平投影转到 +Y。
+        #   🔴 不要用三维的 C→E 当朝向：那个向量天生带一点上仰（眼球在头壳包围盒中心之上），
+        #      拿它当"前方"会多转几度、顺带把尺度也带偏（本脚本实测：算出 1.264，而正确值是 1.238）。
+        #      上方向保留模型自己的 +Z（Blender 的 FBX 导入器已把 Y-up 文件转成 Z-up）。
+        f = Vector((E.x - C.x, E.y - C.y, 0.0))
+        if f.length < 1e-6:
+            fail("眼球中心与头壳中心的水平投影重合，无法定向")
+        yaw = -math.atan2(f.x, f.y)                       # 使 f 转到 +Y
+        R = Matrix.Rotation(yaw, 3, 'Z')
+        print("定向：源脸朝 %s（水平 %s）→ 绕 Z 转 %.1f°"
+              % (v3((E - C).normalized()), v3(f.normalized()), math.degrees(yaw)))
+
+        # 🔴 缩放用【竖直】距离（z 向），不是三维距离 —— 原版 0.0728 本身就是"眼中心 z − 嘴中心 z"。
+        #    用三维距离会把"眼球比嘴靠前"那一段也算进去 → 头会偏小约 5%（本脚本实测踩到过）。
+        up = Vector((0.0, 0.0, 1.0))                       # 偏航旋转不动 z，上方向恒为 +Z
+        d_em = abs((E - M).dot(up))
+        if d_em < 1e-6:
+            fail("眼球与嘴在竖直方向重合，无法标定")
+        if scale_opt == "auto":
+            k = TARGET_EYE_MOUTH_DZ / d_em
+        else:
+            k = float(scale_opt)
+        print("标定：源眼↔嘴竖直距离 %.4f（源单位）→ 缩放 %.5f（自动）；眼球送到 %s"
+              % (d_em, k, v3(TARGET_EYE)))
+
+        def xform(p):
+            return (R @ (p - E)) * k + TARGET_EYE
 
     for role, ob in joined.items():
         for v in ob.data.vertices:
@@ -1345,6 +1893,18 @@ def main():
                     pt.co = xform(pt.co)
         ob.data.update()
     bpy.context.view_layer.update()
+
+    if t_mode:
+        # 🔴 镜像是反射（行列式 −1）→ 每个件的面绕序都反了，必须翻回来，否则法线朝里、
+        #    实机整片不可见（骑砍材质单面）。与 build_armor.py 的处理同款。
+        for role, ob in joined.items():
+            _bm = bmesh.new()
+            _bm.from_mesh(ob.data)
+            bmesh.ops.reverse_faces(_bm, faces=_bm.faces[:])
+            _bm.to_mesh(ob.data)
+            _bm.free()
+            ob.data.update()
+        print("  已反转面绕序（镜像补偿）：%d 件" % len(joined))
 
     # ---------- 3b) 按【目标空间】的 z 裁掉下半 ----------
     # 用途：源模型的"脸"常常连着一大截身体（胸/领口），引擎的头只需到脖子。
@@ -1412,7 +1972,7 @@ def main():
     # 🔴 与 3c 互补：3c 是把宽出来的肩膀**收进**领口，这一步是把**短掉的脖子铺到**领口。
     #    战无2 的脸壳件比原版头短约 5cm（见 fill_neck_to_rim 注释），不补的话颈部有个断口，
     #    实机表现 = 「颈部没有贴合肩部，往上抬了一点」（2026-09-16 用户报，28 人全中）。
-    if "--neck-fill" in a:
+    def _neck_fill():
         rim_at = rim_lookup(gender)
         if rim_at is None:
             fail("--neck-fill 需要 RIM_TABLE 里 %s 的领口轮廓" % gender)
@@ -1421,13 +1981,53 @@ def main():
         _kk = float(get(a, "--neck-fill-k", "1.0"))
         _fz = get(a, "--neck-fill-flat-z")
         _fz = float(_fz) if _fz else None
-        _n = fill_neck_to_rim(joined["face"], rim_at, z_top=_top, r_max=_rm, k=_kk, flat_z=_fz)
+        _tube = get(a, "--neck-tube-to")
+        _tube = float(_tube) if _tube else None
+        _n = fill_neck_to_rim(joined["face"], rim_at, z_top=_top, r_max=_rm, k=_kk,
+                              flat_z=_fz, tube_to=_tube)
         if _n:
-            print("  补脖子下摆：%s 铺 %d 个面（自由边 → 领口内沿，k=%.2f%s）"
-                  % (joined["face"].name, _n, _kk, "，竖直 z=%.2f" % _fz if _fz else ""))
+            print("  补脖子下摆：%s 铺 %d 个面（自由边 → 领口内沿，k=%.2f%s%s）"
+                  % (joined["face"].name, _n, _kk,
+                     "，竖直 z=%.2f" % _fz if _fz else "",
+                     "，再往下拉脖子管到 z=%.2f" % _tube if _tube else ""))
+            _w = close_neck_slit(joined["face"])
+            print("  闭正中缝：焊掉 %d 对顶点（前后两片壳在脖子正前方的断口）" % _w)
+            # 🔴 老模式（--neck-fill，非 T）专用的一份：T 模式不走进来，它的那一份在 3c-bis-2
+            #    **无条件**跑（别再把这行当"只在补下摆时才需要"而跟着退役 —— 2026-09-17 踩过）。
+            _f, _sk = flip_inward_neck_faces(joined["face"])
+            print("  翻颈部朝里面：%d 个（不翻的话实机=脖子正面一条黑缝）；孪生面豁免 %d 个"
+                  "（双面副本朝内是设计如此，翻了会把薄片毁成单面）" % (_f, _sk))
         else:
             print("  ⚠️ 补脖子下摆：%s 颈部一条自由边都没有（该件可能已长到领口以下）"
                   % joined["face"].name)
+        return _n
+
+    # 🔴 顺序（2026-09-16 晚）：开了 `--weld-seam` 时，补下摆**推迟到合缝之后**跑。
+    #    原因：合缝靠"点数相同的最近环对"认缝，而补下摆会先在那道缝的两侧铺出新边 ——
+    #    实测 nene 就挑到了 4/7 号环（补出来的落点环）→ 正前那道壳缝反而永远焊不上。
+    #
+    # 🔴🔴 退役（2026-09-16 用户裁定「脖子归头」）：**T 模式下不再补脖子下摆、不再拉脖子管**。
+    #    脖子改从源模型身体件里抠（1.1a 的 carve_neck_part）——那是源模型自己的脖子，
+    #    与源模型的甲领口本来就配套；而这圈人造几何的落点跟的是**原版身体**的 V 领轮廓，
+    #    留着只会多出一截藏在甲里的皮肤，把"治本了没有"这个判断盖住。
+    #    按退役两步走：先停用（代码保留）→ 实机验证 → 通过才删函数。
+    _legacy_neck_fill = ("--neck-fill" in a) and not t_mode
+    if _legacy_neck_fill and not weld_seam:
+        _neck_fill()
+
+    # ---------- 3c-bis-2) T 模式：把颈部【法线朝里】的面翻过来（无条件跑一次） ----------
+    # 🔴 2026-09-17 实锤（`plans/逐角色共用变换与拼装闸门.md` §10.12）：这一步原来只长在
+    #    `_neck_fill()` 里，而 T 模式下 `--neck-fill` 已退役、不再传 ⇒ 它**根本不执行**。
+    #    后果：战无2 源模型颈部那圈壳一大半是朝里的面（宁宁颈部 144 面里 **87 面朝内**），
+    #    骑砍材质**单面 + 背面剔除** → 朝里的面实机里看不见 → 直接透出背景 =
+    #    用户报的「穿甲时领口与下巴之间一圈看得见的缝」。
+    #    翻的只是**面绕序**（几何一个顶点都不动），判据不变：面心 z<1.56、离轴 r<0.14、
+    #    `法线·径向 < 0`（沿用 flip_inward_neck_faces 的默认值）。
+    #    放在这里 = 3c 收领口 / 3b 切一刀之后（这两步会删面/移点），量到的是**最终几何**。
+    if t_mode:
+        _f, _sk = flip_inward_neck_faces(joined["face"])
+        print("  翻颈部朝里面：%d 个（不翻的话实机=脖子正面一条黑缝/透背景）；孪生面豁免 %d 个"
+              "（双面副本朝内是设计如此，翻了会把薄片毁成单面）" % (_f, _sk))
 
     # ---------- 3d) UV 折回 [0,1) ----------
     # 源模型的嘴件用的是负 V（v[-0.989,-0.007]，靠纹理 wrap 采样）。引擎与贴图工具对负 UV
@@ -1481,6 +2081,29 @@ def main():
                             stack.append(y)
             loops.append(lp)
         loops = [lp for lp in loops if len(lp) >= 12]
+        if "--weld-debug" in a:
+            _lv = []
+            for lp in loops:
+                s = set()
+                for e in lp:
+                    s.update(e.verts)
+                _lv.append(list(s))
+            print("  [weld-debug] 自由边环（≥12 边）共 %d 个：" % len(loops))
+            for k, vs in enumerate(_lv):
+                zs = [v.co.z for v in vs]; ys = [v.co.y for v in vs]
+                near = []
+                for m2, ws in enumerate(_lv):
+                    if m2 == k:
+                        continue
+                    kd = kdtree.KDTree(len(ws))
+                    for q, v in enumerate(ws):
+                        kd.insert(v.co, q)
+                    kd.balance()
+                    near.append((min(kd.find(v.co)[2] for v in vs), m2, len(ws)))
+                near.sort()
+                print("     #%d 边%-4d 点%-4d z %.3f..%.3f y %+.3f..%+.3f  最近: %s"
+                      % (k, len(loops[k]), len(vs), min(zs), max(zs), min(ys), max(ys),
+                         " / ".join("→#%d(%d点) %.1fmm" % (b, c, a * 1000) for a, b, c in near[:3])))
         if len(loops) < 2:
             print("  [warn] 合缝：自由边环不足 2 个（%d），跳过" % len(loops))
         else:
@@ -1492,11 +2115,11 @@ def main():
 
             lv = [loop_verts(lp) for lp in loops]
             # 2) 找彼此最近的一对环（= 那道缝）
+            #    🔴 2026-09-16 放宽：不再要求「点数相同」—— 战无2 的壳缝实测 77 vs 78 点，
+            #    老条件直接跳过、挑到无关环（nene 挑到 4/7 号：两组发片边）。
             best = None
             for i in range(len(lv)):
                 for j in range(i + 1, len(lv)):
-                    if len(lv[i]) != len(lv[j]):
-                        continue
                     kd = kdtree.KDTree(len(lv[j]))
                     for k, v in enumerate(lv[j]):
                         kd.insert(v.co, k)
@@ -1505,52 +2128,34 @@ def main():
                     if best is None or d < best[0]:
                         best = (d, i, j)
             if best is None:
-                print("  [warn] 合缝：没找到点数相同的候选环对，跳过")
+                print("  [warn] 合缝：没有可选环对，跳过")
             else:
                 d0, i0, j0 = best
                 va, vb = lv[i0], lv[j0]
                 print("  合缝：候选环对 %d/%d，各 %d 点，最近距离 %.2fmm" % (i0, j0, len(va), d0 * 1000))
 
-                # 3) 按网格邻接走成有序环
-                def walk(lp):
-                    nb = {}
-                    for e in lp:
-                        nb.setdefault(e.verts[0], []).append(e.verts[1])
-                        nb.setdefault(e.verts[1], []).append(e.verts[0])
-                    if any(len(v) != 2 for v in nb.values()):
-                        return None
-                    start = lp[0].verts[0]
-                    order, prev, cur = [start], None, start
-                    while True:
-                        nxt = [v for v in nb[cur] if v is not prev][0]
-                        if nxt is start:
-                            break
-                        order.append(nxt)
-                        prev, cur = cur, nxt
-                    return order if len(order) == len(nb) else None
-
-                oa, ob_ = walk(loops[i0]), walk(loops[j0])
-                if oa is None or ob_ is None:
-                    print("  [warn] 合缝：环不是简单闭合圈（有分叉），跳过")
+                # 3) 逐点就近配对（🔴 不要求环是有序简单闭合圈）：
+                #    战无2 的壳缝实测有分叉（77 点/85 边），原来那套「走环 + 旋转对齐」直接判死。
+                #    两环本来就是同一条缝的两侧、多数点已经重合（最近 0.00mm），
+                #    所以「各自找对面最近点、双双移到中点、再焊」既简单又不会错配。
+                LIM = 0.025
+                pairs, far = [], 0
+                for v in va:
+                    w = min(vb, key=lambda q: (v.co - q.co).length)
+                    if (v.co - w.co).length <= LIM:
+                        pairs.append((v, w))
+                    else:
+                        far += 1
+                if not pairs:
+                    print("  [warn] 合缝：两环没有 ≤%.0fmm 的配对，跳过" % (LIM * 1000))
                 else:
-                    # 4) 旋转 + 反向对齐，取总距离最小
-                    n = len(oa)
-                    bestal = None
-                    for rev in (False, True):
-                        bl = list(reversed(ob_)) if rev else ob_
-                        for off in range(n):
-                            tot = sum((oa[k].co - bl[(k + off) % n].co).length for k in range(n))
-                            if bestal is None or tot < bestal[0]:
-                                bestal = (tot, rev, off)
-                    tot, rev, off = bestal
-                    bl = list(reversed(ob_)) if rev else ob_
-                    pairs = [(oa[k], bl[(k + off) % n]) for k in range(n)]
-                    mx = max((a.co - b.co).length for a, b in pairs)
-                    avg = tot / n
-                    print("  合缝：对齐后 平均间距 %.2fmm 最大 %.2fmm（%s）"
-                          % (avg * 1000, mx * 1000, "反向" if rev else "同向"))
-                    if mx > 0.030:
-                        print("  [warn] 合缝：对齐后最大间距 >30mm，疑非对应环，跳过（不动几何）")
+                    ds = [(a.co - b.co).length for a, b in pairs]
+                    mx, avg = max(ds), sum(ds) / len(ds)
+                    print("  合缝：配对 %d 对（%d 点超过 %.0fmm 未配），平均间距 %.2fmm 最大 %.2fmm"
+                          % (len(pairs), far, LIM * 1000, avg * 1000, mx * 1000))
+                    if mx > LIM:
+                        print("  [warn] 合缝：最大间距 >%.0fmm，疑非对应环，跳过（不动几何）"
+                              % (LIM * 1000))
                     else:
                         for a, b in pairs:                 # 两端都移到中点 → 再焊
                             mid = (a.co + b.co) / 2.0
@@ -1561,20 +2166,34 @@ def main():
                         bm.to_mesh(ob.data); bm.free(); ob.data.update()
                         bpy.context.view_layer.update()
                         print("  合缝：焊掉 %d 个顶点 → 脸壳剩 %d 顶点 %d 面"
-                              % (n, len(ob.data.vertices), len(ob.data.polygons)))
+                              % (len(pairs), len(ob.data.vertices), len(ob.data.polygons)))
                         bm = None
         if bm is not None:
             bm.free()
         bpy.context.view_layer.update()
+        # 合缝做完再补下摆（顺序理由见 3c-bis 的注释；T 模式下已停用，见那里的退役说明）
+        if _legacy_neck_fill:
+            _neck_fill()
 
-    # 自检：三个锚点必须落位
+    # 自检：三个锚点必须落位（T 模式没有"眼位"这个锚，改判「脸朝 +Y」+ 头骨高度）
     E2 = center([joined["eye"]]); M2 = center([joined["mouth"]])
     lo, hi = bbox(list(joined.values()))
-    print("落位：眼球 %s（目标 %s）" % (tuple(round(v, 4) for v in E2), tuple(round(v, 4) for v in TARGET_EYE)))
-    print("      嘴   %s（目标 z %.4f）" % (tuple(round(v, 4) for v in M2), TARGET_EYE.z - TARGET_EYE_MOUTH_DZ))
+    print("落位：眼球 %s（%s）" % (tuple(round(v, 4) for v in E2),
+                                 ("目标 %s" % tuple(round(v, 4) for v in TARGET_EYE)) if not t_mode else "T 模式不对眼位"))
+    print("      嘴   %s" % (tuple(round(v, 4) for v in M2),))
     print("      全头包围盒 x[%.4f,%.4f] y[%.4f,%.4f] z[%.4f,%.4f]" % (lo.x, hi.x, lo.y, hi.y, lo.z, hi.z))
-    if abs(E2.z - TARGET_EYE.z) > 0.003 or abs(E2.y - TARGET_EYE.y) > 0.003:
-        fail("眼球落位偏差过大：%s" % (tuple(round(v, 4) for v in E2),))
+    if not t_mode:
+        if abs(E2.z - TARGET_EYE.z) > 0.003 or abs(E2.y - TARGET_EYE.y) > 0.003:
+            fail("眼球落位偏差过大：%s" % (tuple(round(v, 4) for v in E2),))
+    else:
+        # T 模式：头骨（源 bone_11）应当正好落在原版头骨高度 1.569 —— 这是 s 的定义，落不上说明 T 传错了
+        if src_head_z is None:
+            print("      ⚠️ T 自检跳过：源模型没有骨架 / 没有 bone_11")
+        else:
+            _hz = src_head_z * t_s - t_zsole * t_s
+            print("      T 自检：源头骨 %.3f → 骑砍空间 z = %.4f（应 ≈ 1.569）" % (src_head_z, _hz))
+            if abs(_hz - 1.569) > 0.01:
+                fail("T 缩放不对：源头骨落在 %.4f，应为 1.569" % _hz)
     if hi.y <= 0:
         fail("脸朝反了（+Y 最大 %.4f ≤ 0）" % hi.y)
 
@@ -1690,9 +2309,11 @@ def main():
             vg = ob.vertex_groups.get(HEAD_BONE) or ob.vertex_groups.new(name=HEAD_BONE)
             vg.add([v.index for v in ob.data.vertices], 1.0, 'REPLACE')
 
-            # 5c) 脸壳下半（脖子/领口）改抄原版权重：整体刚性绑 13 = 脖子不跟脊柱/锁骨动，
+            # 5c) 脸壳下半 + **脖子件**改抄原版权重：整体刚性绑 13 = 脖子不跟脊柱/锁骨动，
             #     身体呼吸时胸廓扩张而领口不动 → 皮从身体里穿出来（实机 2026-09-14 实测）。
-            if vkd is not None and role == "face":
+            #     🔴 脖子件（1.1a 抠出来的）**整件**都在颈部高度 → t 恒为 1 → 全部抄原版头颈权重，
+            #        这就是「几何 + 权重两件套」里的权重那一半（只做几何 = 呼吸时脖子从肩里冒出来）。
+            if vkd is not None and role in ("face", "neck"):
                 fixed = 0
                 grp = {}
                 for vn, bn in bone_by_key.items():

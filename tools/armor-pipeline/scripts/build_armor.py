@@ -20,10 +20,34 @@
       --out  <输出目录> \\
       --name taikou_yukimura_do_a \\
       [--parts body]      # body | body_kimono | head | arms | legs
-      [--r 0.01]          # 径向缩放（厘米→米）
+      [--r 0.01]          # 🔴 老模式：径向缩放（厘米→米）——T 模式下退役，不参与计算
+      [--t-s 0.01064]     # 🔴 走【T 模式】：逐角色源变换的缩放 s（来自 out/srcT.json）
+      [--t-z-sole 0.0]    # T 模式的源脚底 z（实测恒 0，见 src_transform.py 文件头第 3 条）
       [--cut-z 0.0]       # 只保留高于该高度（米，骑砍空间）的面；0 = 不裁
+      [--drop-coincident <头 FBX>]         # 删掉与头重合（≤1mm）的甲顶点（见正文那段）
+      [--drop-coincident-tol 0.001]       # 重合阈值（米），默认 1mm
+      [--drop-coincident-band 1.25,1.70]  # 只拿这个 z 带内的头顶点当靶子（兜侧要另给，见正文）
+      [--drop-coincident-max-ratio 0.15]  # 安全闸：命中占比超它就报错退出、一个都不删
       [--lod 0.834,0.563,0.249,0.140,0.072]
       [--no-lod]
+
+两种定标模式（2026-09-16 第 2 步）：
+  · **T 模式**（给了 `--t-s`）= 整装按**逐角色源变换 T** 重排，只保留手臂链姿态修正。
+    头/甲/兜三件共用同一份 T（唯一来源 `tools/sw2-pipeline/src_transform.py` + `out/srcT.json`），
+    所以拼得回原角色。sw2 批量（build_armors.py / build_helmets.py）走这条。
+    🔴 T 模式下甲片走【**碎片主导骨刚性归属**】（2026-09-17，治跨肘弯折，见下面那段长注释）。
+  · **老模式**（没给 `--t-s`）= 逐骨 rest 重定向 + 全局径向系数 R（本文档开头那套原理）。
+    🔴 真田幸村甲工程（`build_armor_chain.py`）走这条，**行为一行都没变**，别顺手改它。
+
+🔴 T 模式的刚性归属（2026-09-17）——为什么甲要刚性、布要混合：
+  · 症状（用户实机前看图）：真田幸村的籠手**跨肘那一段是弯的**。骑砍 A-pose 的肘带一点弯、
+    源模型（战无2）是 T-pose 直臂，于是**上臂骨与前臂骨的修正旋转不相等**；老的逐顶点
+    权重混合把两个旋转**平均**出来 → 一块**刚性甲片被弯进去**。
+  · 修法：甲/兜按**连通域（碎片）**分组，每片取**主导骨**（全片权重求和最大那根），
+    该片所有顶点**只吃这一根骨的旋转矩阵** —— 甲是硬片，整片跟着同一根骨转才不弯。
+  · 例外（保持原来的逐顶点混合）：① `--cloth-drop` / `--cloth-hang` 标记的**布料件**；
+    ② `--kimono-idx` 指定的**内衬着物**（也是布）。理由：布要软，混合正是它该有的行为。
+  · 老模式（无 `--t-s`）不启用这条，一行行为不变。
 """
 import bpy
 import sys
@@ -47,10 +71,42 @@ SKEL = get(A, "--skel")
 OUTDIR = get(A, "--out")
 NAME = get(A, "--name", "armor")
 PARTS = get(A, "--parts", "body")
+# 🔴 退役（2026-09-16 第 2 步）：R / R_ARMS / R_RADIAL 只服务**老模式**（逐骨重定向 + 全局径向系数）。
+#    T 模式下这三者一行都不参与计算，取代者 = 逐角色源变换 T（它的 s 同时承担缩放与落位）。
+#    保留定义 = 真田幸村甲工程（build_armor_chain.py）还走老模式（按"退役两步走"：实机验证通过才删）。
 R = float(get(A, "--r", "0.01"))
 # 手臂链的径向缩放（默认跟 R 一样）。原版身体的胳膊比源件粗，躯干调够之后手臂仍会顶穿，
 # 这里单独放一点。实测 0.0120 → 0.0145 才把上臂那圈身体盖住。
 R_ARMS = float(get(A, "--r-arms", str(R)))
+# ---------------------------------------------------------------- 🔴 逐角色源变换 T（第 2 步）
+# 给了 `--t-s` 就走【T 模式】：整装顶点按**逐角色源变换 T** 重排
+#     T(v) = ( s·x,  −s·y,  s·(z − z_sole) )        # Y 轴镜像（保 x）+ 等比缩放 + 落位
+# 没给 = 老模式，行为一行不变（真田工程还靠它）。
+#
+# 为什么换（2026-09-16 实测）：改之前头按"源模型眼↔嘴距离"定标、甲按"全局 R=0.0120 + 逐骨钉到骑砍
+# 骨架"定标 —— 两个基准**不同源**，拼不回原角色：实测宁宁的脖子下沿比甲领口上沿**高 8.7cm**
+# （整圈断在甲上方），甲还比人粗 28%（R 0.0120 vs 身高对齐的 0.0094）。三件共用一份 T 之后，
+# 宁宁 12/12 个角度过闸（脖子伸进领口）。
+# 🔴 T 的定义只有一处实现 = `tools/sw2-pipeline/src_transform.py`（`T_of` / 逐角色表 `out/srcT.json`），
+#    本文件**从那里导入**，不在自己这儿再抄一份公式 —— 抄一份 = 以后改 T 要改两处。
+T_S_RAW = get(A, "--t-s")
+T_Z_SOLE = float(get(A, "--t-z-sole", "0.0") or 0.0)
+T_MODE = T_S_RAW not in (None, "")
+T_FN = None
+if T_MODE:
+    T_S = float(T_S_RAW)
+    _SW2_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "sw2-pipeline")
+    if _SW2_DIR not in sys.path:
+        sys.path.insert(0, _SW2_DIR)
+    try:
+        from src_transform import T_of
+    except ImportError as _e:
+        print("!! T 模式需要 %s\\src_transform.py：%s" % (_SW2_DIR, _e)); sys.exit(2)
+    T_FN = T_of(T_S, T_Z_SOLE)
+    for _k in ("--r", "--r-arms", "--r-radial"):
+        if _k in A:
+            print("   ⚠️ T 模式：%s 不参与计算（缩放由 T 的 s 承担，见 --t-s 那段注释）" % _k)
 CUT_Z = float(get(A, "--cut-z", "0.0"))
 # 🔴 布料件「放下来」（2026-09-16）：列出子网格号，这些件会绕**自己的手臂轴**转到
 #    「重心正对轴下方」。用于源件里的**悬垂布**（振袖/袍摆）——源模型是 T-pose，
@@ -61,6 +117,13 @@ CLOTH_DROP = [int(x) for x in get(A, "--cloth-drop", "").split(",") if x.strip()
 #    骨轴是竖直的（脊椎），绕它转等于没转。实测：浅井长政 idx1（driven by nuno1_p_9）从腰部
 #    向后伸 66cm，绕骨轴这条路走不通，必须用这个。
 CLOTH_HANG = [int(x) for x in get(A, "--cloth-hang", "").split(",") if x.strip()]
+# 🔴 刚性归属的诊断开关（T 模式）：逐碎片打印「主导骨 / 走刚性还是混合 / 位移」。
+#    平常只打一行统计，要查"某一片为什么被弯/被挪"时加它。
+RIGID_REPORT = "--rigid-report" in A
+# 🔴 关掉刚性归属（T 模式，**诊断用**）：整装回到"逐顶点混合"那条路 —— 用来做 A/B，
+#    把"刚性归属带来的位移"与"手臂链旋转本来就有的位移"分开。默认不关（行为一行不变）。
+#    用法：blender -b --python build_armor.py -- ... --no-rigid --out <临时目录>
+NO_RIGID = "--no-rigid" in A
 LOD_RATIOS = [float(x) for x in get(A, "--lod", "0.834,0.563,0.249,0.140,0.072").split(",")]
 DO_LOD = "--no-lod" not in A
 
@@ -232,14 +295,18 @@ print("   骨映射 %d 根（父链兜底 %d 根）" % (len(BMAP), len(BMAP) - l
 if UNMAPPED:
     print("   !! 未映射（会被丢弃）: %s" % UNMAPPED[:12])
 if "--debug" in A:
-    print("   --- 直接映射表（SW2骨 -> 骑砍骨 | 骨长cm -> m | λ | 锚点差）---")
+    # 🔴 这两列（λ / 锚点差）是老模式的量。T 模式下把折算系数从 R 换成本角色的 T 缩放 s，
+    #    否则打出来的数是"另一把尺子"上的，看的人会被误导（不是崩，是错）。
+    _CAL = T_S if T_MODE else R
+    print("   --- 直接映射表（SW2骨 -> 骑砍骨 | 骨长cm -> m | λ | 锚点差）折算系数 %s=%.6f ---"
+          % ("T.s" if T_MODE else "R", _CAL))
     for k, v in sorted(SW2_MAP.items()):
         if k not in sw_local or v not in bl_local:
             print("   %-22s -> %-30s  (缺骨)" % (k, v)); continue
         sl, bl = sw_len[k], bl_len[v]
-        lam = 1.0 if (sl < 1.0 or bl < 0.005) else max(0.5, min(2.0, bl / (R * sl)))
-        # 锚点差：SW2 骨 head 的 z（cm）按 R 缩放 与 骑砍骨 head 的 z（m）之差
-        d_anchor = (sw_local[k].translation.z * R) - bl_local[v].translation.z
+        lam = 1.0 if (sl < 1.0 or bl < 0.005) else max(0.5, min(2.0, bl / (_CAL * sl)))
+        # 锚点差：SW2 骨 head 的 z（cm）按上面的系数缩放 与 骑砍骨 head 的 z（m）之差
+        d_anchor = (sw_local[k].translation.z * _CAL) - bl_local[v].translation.z
         print("   %-22s -> %-30s  %7.2f -> %6.4f  λ=%.3f  锚点Δz=%+.3f m" % (
             k, v, sl, bl, lam, d_anchor))
 
@@ -632,14 +699,15 @@ if STRAP_FROM and (STRAP_SEEDS or STRAP_BONES):
                   % (sum(len(_o.data.vertices) for _o in _strap_objs), _main))
 
 # ---------------------------------------------------------------- 重定向
-print("== 5/6 骨架重定向（rest retarget）==")
-by_name = {o.name: o for o in dups}
-picked_names = [o.name for o in picked]
-dup_list = [by_name[n] for n in picked_names if n in by_name]
-if len(dup_list) != len(picked):
-    # 名字可能被加了后缀，退回按数量取
-    dup_list = dups
+print("== 5/6 骨架重定向（%s）==" % ("T 模式：整装按源变换 T 重排" if T_MODE else "rest retarget"))
+if T_MODE:
+    print("   T：s=%.6f z_sole=%.3f（T(v) = s·x, −s·y, s·(z−z_sole)）；"
+          "只保留手臂链旋转，R/λ/逐骨锚定退役" % (T_S, T_Z_SOLE))
 
+# 🔴 下面这一大段（T_BONE 的老路径 + 布料轴）是**老模式**的定标：
+#    逐骨 rest 重定向 = Translate(骑砍骨head) · Rot(仅手臂) · Scale(R) · Translate(−源骨head)。
+#    T 模式下**整段退役**，取代者 = 逐角色源变换 T（见文件头 args 区那段注释）。
+#    本段只服务真田幸村甲工程（build_armor_chain.py 不带 --t-s），按"退役两步走"保留。
 # 逐骨预计算重定向矩阵： T = Translate(bl头) · Rot(仅手臂) · Scale(R) · Translate(-sw头)
 # 🔴 手臂的缩放必须拆成两个方向，不能用一个 Matrix.Scale 各向同性地放。
 #    踩过（2026-09-14 实机）：把 --r-arms 从 0.0120 提到 0.0165，径向确实盖住了身体，
@@ -647,6 +715,12 @@ if len(dup_list) != len(picked):
 #    于是籠手末端超出拳头 16cm（用户截图："手腕没有伸出袖子"）。
 #    修法：沿骨轴按**解剖段长**对齐（源件肘→腕 与 骑砍肘→腕 的比值），径向才用 R_ARMS。
 #    段长比值直接由两边关节坐标算，不写死。
+by_name = {o.name: o for o in dups}
+picked_names = [o.name for o in picked]
+dup_list = [by_name[n] for n in picked_names if n in by_name]
+if len(dup_list) != len(picked):
+    # 名字可能被加了后缀，退回按数量取
+    dup_list = dups
 
 
 def seg_ratio(sw_a, sw_b, bl_a, bl_b):
@@ -657,6 +731,9 @@ def seg_ratio(sw_a, sw_b, bl_a, bl_b):
 
 
 # SW2 骨 -> 沿骨轴缩放（未列出的骨用 R）
+# 🔴 退役（T 模式）：R_RADIAL / ARM_ALONG / LEG_ALONG 三个都是"补偿 R 的错"的补丁
+#    （R 同时管粗细和纵向尺度，于是把它们拆开各自调）。T 是整装等比缩放，本来就没有这个错，
+#    三者在 T 模式下**一行都不参与计算**；保留 = 老模式（真田工程）还走。取代者 = T。
 R_RADIAL = float(get(A, "--r-radial", "0") or 0) or None   # 径向单独给值（0/缺省 = 与 R 相同，即旧行为）
 
 ARM_ALONG = {
@@ -680,7 +757,7 @@ LEG_ALONG = {
 
 
 def frame_from_dir(d):
-    """造一个 Y 轴 = d 的正交基（列向量）"""
+    """造一个 Y 轴 = d 的正交基（列向量）。🔴 只服务**老模式**的径向/沿骨轴拆分（T 模式不用）"""
     y = d.normalized()
     up = Vector((0.0, 0.0, 1.0)) if abs(y.z) < 0.9 else Vector((1.0, 0.0, 0.0))
     x = y.cross(up).normalized()
@@ -693,6 +770,52 @@ def frame_from_dir(d):
 
 T_BONE = {}
 T_ANGLE = {}
+A_ROT = {}       # 手臂链：各骨的【绝对】姿态修正旋转（T 模式用，见下面第二遍）
+A_PIV = {}       # 手臂链：关节（T 空间的源骨头部）
+
+# 🔴🔴 T 模式·第三遍（2026-09-17 实机修）：**四肢按骨锚定**。
+#    症状（用户实机·宁宁）：**四肢和甲整体错开**，手臂/腿看着像"战无的站姿"。
+#    实测（重心对齐，左侧）：原版身体 / 老模式甲 / T 模式甲 ——
+#      · 小腿 x 中心：−0.1375 / **−0.1325（差 5mm）** / **−0.0765（差 61mm）**
+#      · 上臂 x 中心：−0.257  / **−0.256（差 1mm）**   / **−0.296（差 39mm）**
+#    根因：T 只是**整装等比缩放 + 只锚头骨**，它**不知道骑砍骨架的四肢长在哪** ——
+#      源模型是**窄站姿**（脚 x=±7.34 源单位 × s = **±0.078m**，与实测 −0.076 吻合），
+#      而骑砍身体是**宽站姿** ⇒ 甲整体偏内 6cm。**老模式没这问题，因为它有这一项。**
+#    修法：四肢骨（臂链 + 腿链）把几何**搬到骑砍骨头**上；旋转照旧（手臂姿态修正不丢）。
+#      **躯干 / 头颈一律不动** —— T 在那里已经对上（领口 vs 身体颈顶只差 16.6mm），动了反而坏。
+#    公式：`M_b = Trans(bl_head_b) ∘ rot_b ∘ Trans(-p_b)`，p_b = T(源骨头部)
+#      · 性质① 源骨头部 p_b 恰好落到骑砍骨头部 → 锚定成立；
+#      · 性质② 旋转部分不变 → 手臂该斜 33° 还是 33°（姿态修正不被这次改动破坏）；
+#      · 腿的 rot_b = 单位 → 退化成**纯平移**。
+#    `--no-anchor-limb` = 关掉（诊断 A/B 用，关掉即回到"只有 T"的旧行为）。
+ANCHOR_LIMB = "--no-anchor-limb" not in A
+LIMB_TAG = ("thigh", "calf", "foot", "toe", "upperarm", "forearm", "foretwist", "hand")
+
+
+def _limb_scale(bn_sw):
+    """四肢「沿骨轴」缩放 —— 把源骨段拉到**骑砍骨段长**。
+
+    🔴 为什么还要这一项（第三遍补）：只把骨**头部**锚过去还不够 —— 源的骨段长度与骑砍不同
+      （老模式的 `ARM_ALONG`/`LEG_ALONG` 就是干这个的，T 轮一起取消了）。
+      实例：大腿源 45.63 单位 → 骑砍 0.417m；T 的 s 给 0.01064 → 得到 0.486m，**长了 14%**
+      ⇒ 末端（膝/腕/踝）仍然落不到骑砍关节上。
+    本项把沿骨轴的长度从 `s·ds` 拉到 `db`：λ = db/(s·ds) = seg_ratio / s。
+    **只动沿骨轴**：径向不缩放（v_src 已经被 T 的 s 缩放过了，两边粗细本就一致）。
+    """
+    _r = ARM_ALONG.get(bn_sw) or LEG_ALONG.get(bn_sw)
+    if not _r or T_S <= 0:
+        return Matrix.Identity(4)
+    _lam = _r / T_S
+    if abs(_lam - 1.0) < 1e-6:
+        return Matrix.Identity(4)
+    _b = SW.data.bones.get(bn_sw)
+    _d = chain_dir(_b) if _b is not None else None
+    if _d is None:
+        return Matrix.Identity(4)
+    _F = frame_from_dir((MIRROR_Y3 @ _d).normalized())
+    return _F @ Matrix.Diagonal((1.0, _lam, 1.0, 1.0)) @ _F.inverted()
+
+
 for bn_sw, bn_bl in BMAP.items():
     if bn_sw not in sw_local or bn_bl not in bl_local:
         continue
@@ -709,6 +832,29 @@ for bn_sw, bn_bl in BMAP.items():
             ang = math.degrees(d_sw.angle(d_bl))
             rot = d_sw.rotation_difference(d_bl).to_matrix().to_4x4()
     T_ANGLE[bn_sw] = ang
+    # 🔴 T 模式（2026-09-16 第 2 步）：整装按源变换 T 重排，逐骨只保留**手臂链的姿态修正**。
+    #    · 为什么要修正：源是 T-pose（手臂水平）、骑砍是 A-pose → 不转的话袖子/籠手会横着伸出去，
+    #      这是**姿态差**，不是定标差，T 管不着它（老模式里也一样，见上面 ARM_ROT 那段实测）。
+    #    · 为什么只留手臂：其余骨两边都朝竖直方向，T 是等比缩放 + 镜像、不改变任何骨的朝向，
+    #      再套 rot 只会制造剪切（老模式里非手臂骨 rot 本来就是单位矩阵 —— 两边一致）。
+    #    · 绕哪转：**T 空间里的源骨头部**（pivot = T(源骨 head)）。关节为轴 = 姿势修正，
+    #      不会把整条手臂平移走（平移该由 T 承担，逐骨平移在老模式里是"把源骨钉到骑砍骨"，
+    #      正是 T 要取代的那个错）。
+    if T_MODE:
+        # 手臂链先只记「绝对旋转 A」与「关节」（T 空间的源骨头部），矩阵留到下面第二遍算 ——
+        # 因为链式累积必须**父先于子**（见 T_BONE 第二遍那段）。
+        # 🔴 第三遍补充：**四肢骨走「按骨锚定」**（见上面 ANCHOR_LIMB 那段），
+        #    非四肢骨（躯干/头颈）才是单位矩阵 —— 那两处 T 已经对上，不许动。
+        if bn_sw in ARM_ROT:
+            A_ROT[bn_sw] = rot.copy()
+            A_PIV[bn_sw] = Vector(T_FN(b_sw.head_local))
+        elif ANCHOR_LIMB and any(_t in bn_bl for _t in LIMB_TAG):
+            _p = Vector(T_FN(b_sw.head_local))
+            T_BONE[bn_sw] = (Matrix.Translation(b_bl.head_local)
+                             @ _limb_scale(bn_sw) @ Matrix.Translation(-_p))
+        else:
+            T_BONE[bn_sw] = Matrix.Identity(4)
+        continue
     h_sw_f = MIRROR_Y @ b_sw.head_local
     if bn_sw in ARM_ALONG:
         # 手臂：径向 R_ARMS、沿骨轴按解剖段长 —— 见上面那段说明
@@ -739,6 +885,55 @@ for bn_sw, bn_bl in BMAP.items():
             S = Matrix.Scale(R, 4)
     T_BONE[bn_sw] = (Matrix.Translation(b_bl.head_local) @ rot @ S
                      @ Matrix.Translation(-h_sw_f))
+
+# 🔴 T 模式·第二遍：手臂链**按父子累积**（2026-09-17 实测修，治"前臂甲不跟肩走"）。
+#    症状：只把"每片甲刚性归到主导骨"改完，笼手的**上臂片与前臂片在肘部脱开**，比改前还难看。
+#    根因：老的算法给每根骨一个**绝对**旋转、各自绕**自己的关节**转 —— 前臂骨绕**源肘**转，
+#      源肘是它的不动点（原地不动）；而上臂骨绕肩转、把肘搬到了下面 → 两段对不上。
+#    正确做法（标准链式重定向）：子骨的旋转是**相对父**的，绕的是**父变换之后的关节**：
+#        local_b = A_parent⁻¹ · A_b                    （A = 各骨的绝对姿态修正旋转）
+#        M_b     = M_parent ∘ Trans(p_b) ∘ local_b ∘ Trans(-p_b)
+#    两个性质同时成立：① 朝向 —— M_b 的线性部分仍是 A_b（绝对角不变，手臂该斜 33° 还是 33°）；
+#      ② 关节 —— 肘/腕跟着父骨走，甲片在关节处**接得上**。
+#    ⚠️ 父骨要跳过源模型里那批**长度 0 的空节点**（bone_80/82/84… 朝向是噪声），
+#       往上找到第一根真正在手臂链上的骨（bone_12→14→16→18→手指，实测已验证）。
+if T_MODE:
+    _armparent = {}
+    for _bn in A_ROT:
+        _p = SW.data.bones[_bn].parent
+        while _p is not None and _p.name not in A_ROT:
+            _p = _p.parent
+        _armparent[_bn] = _p.name if _p is not None else None
+    _accm = {}
+
+    def _chain_mat(_bn):
+        if _bn in _accm:
+            return _accm[_bn]
+        _pv = A_PIV[_bn]
+        _par = _armparent.get(_bn)
+        if _par is None:
+            _m = Matrix.Translation(_pv) @ A_ROT[_bn] @ Matrix.Translation(-_pv)
+        else:
+            _loc = A_ROT[_par].inverted() @ A_ROT[_bn]
+            _m = (_chain_mat(_par) @ Matrix.Translation(_pv) @ _loc
+                  @ Matrix.Translation(-_pv))
+        _accm[_bn] = _m
+        return _m
+
+    _n_anch = 0
+    for _bn in A_ROT:
+        _m = _chain_mat(_bn)
+        if ANCHOR_LIMB and any(_t in BMAP[_bn] for _t in LIMB_TAG):
+            # 第三遍：把这条臂骨的**源关节** p_b 搬到骑砍骨的头部，旋转照旧（姿态修正不丢）。
+            #   M_b = Trans(bl_head) ∘ rot(chain) ∘ Trans(−p_b)
+            _bl_head = BL.data.bones[BMAP[_bn]].head_local
+            T_BONE[_bn] = (Matrix.Translation(_bl_head) @ _m.to_3x3().to_4x4()
+                           @ _limb_scale(_bn) @ Matrix.Translation(-A_PIV[_bn]))
+            _n_anch += 1
+        else:
+            T_BONE[_bn] = _m
+    print("   手臂链累积：%d 根骨（父 → 子，跳过源模型的 0 长空节点）；其中按骨锚定 %d 根"
+          % (len(A_ROT), _n_anch))
 
 # ---------------------------------------------------------------- 布料件「放下来」· 第 1 步：打标记
 # 🔴 为什么需要（2026-09-16 实机症状："浓姬的衣服像奇怪形状的硬纸板"）：
@@ -771,6 +966,18 @@ if CLOTH_DROP or CLOTH_HANG:
             _g.add(list(range(len(_o.data.vertices))), 1.0, 'REPLACE')
             CLOTH_MARK["__cloth_%s_%d__" % (_mode, _s)] = None
     print("   布料件标记：%s" % sorted(CLOTH_MARK))
+
+# 🔴 着物（内衬布）也要在**合并前**打标记（2026-09-17）：`bpy.ops.object.join()` 之后
+#    子网格号就没了，再想认"哪块顶点是着物"只能靠当前这个标记组。着物是**布**，
+#    刚性归属要放过它（跟 --cloth-drop/--cloth-hang 一个道理，见文件头那段）。
+#    标记组用完即删（留着会被当成骨名导出）。
+KIMONO_MARKED = False
+if T_MODE and KIMONO_IDX:
+    for _o in dup_list:
+        if parse_submesh(_o.name) in KIMONO_IDX:
+            _g = _o.vertex_groups.new(name="__kimono__")
+            _g.add(list(range(len(_o.data.vertices))), 1.0, 'REPLACE')
+            KIMONO_MARKED = True
 
 bpy.ops.object.select_all(action='DESELECT')
 if "--dbg-parts" in A:
@@ -807,6 +1014,17 @@ if CLOTH_MARK:
         ARM.vertex_groups.remove(_g)
     print("   布料件顶点：%s" % {k: len(v) for k, v in CLOTH_IDX.items()})
 
+# 着物标记 → 顶点号集合，然后删掉标记组（同 CLOTH_IDX 的处理）
+KIMONO_V = set()
+if KIMONO_MARKED:
+    _g = ARM.vertex_groups.get("__kimono__")
+    if _g is not None:
+        _gi = _g.index
+        KIMONO_V = set(v.index for v in ARM.data.vertices
+                       if any(x.group == _gi and x.weight > 0.5 for x in v.groups))
+        ARM.vertex_groups.remove(_g)
+    print("   着物件顶点：%d（布，走混合）" % len(KIMONO_V))
+
 # 🔴 材质必须换成一张干净的、名字对得上的空材质。源件带过来的是 `mat_L00_yukimura`
 #    外加指向 **不存在文件** 的贴图节点，实测后果（2026-09-14）：
 #      ① 编辑器按名字找项目里的材质资产 -> 找不到 -> 每个 LOD 弹一次
@@ -835,19 +1053,74 @@ ARM.data.materials.append(_mat)
 print("   材质 -> %s（无贴图引用）" % MATNAME)
 
 if "--debug" in A:
-    print("   --- 逐骨重定向：旋转角（只有手臂链非零）+ 平移偏移 ---")
+    # 🔴 T 模式下 R 不参与计算：第四列换成「T 空间的源骨头部 − 骑砍骨头部」＝这套尺子下的锚点差。
+    #    老模式那一列才是 R 折算的平移偏移。两者都是**只打不改**的诊断量。
+    _lbl = "枢轴Δ" if T_MODE else "平移Δ"
+    print("   --- 逐骨：旋转角（只有手臂链非零）+ %s（%s）---"
+          % (_lbl, "T 空间源骨头部 − 骑砍骨头部" if T_MODE else "R 折算偏移"))
     rows = []
     for bn_sw, T in T_BONE.items():
         b_sw = SW.data.bones.get(bn_sw); b_bl = BL.data.bones.get(BMAP[bn_sw])
-        off = (b_bl.head_local - R * b_sw.head_local)
+        if T_MODE:
+            off = Vector(T_FN(b_sw.head_local)) - b_bl.head_local
+        else:
+            off = (b_bl.head_local - R * b_sw.head_local)
         rows.append((T_ANGLE.get(bn_sw, 0.0), bn_sw, BMAP[bn_sw], off))
     for ang, bn_sw, bn_bl, off in sorted(rows, key=lambda r: -r[0]):
-        print("   %6.1f°  %-20s -> %-28s 平移Δ=(%+.3f,%+.3f,%+.3f)" % (
-            ang, bn_sw, bn_bl, off.x, off.y, off.z))
+        print("   %6.1f°  %-20s -> %-28s %s=(%+.3f,%+.3f,%+.3f)" % (
+            ang, bn_sw, bn_bl, _lbl, off.x, off.y, off.z))
+
+# ---------------------------------------------------------------- 🔴 刚性归属（T 模式，2026-09-17）
+# 一整段理由见文件头「T 模式的刚性归属」。这里只说实现：
+#   · 碎片 = 网格**连通域**（`frag_dominant_verts`，与 part_census / --drop-head-idx 同一套判据）。
+#     合并（join）不会把两块拓扑连起来 → 一个碎片必然只属于**一个源子网格**。
+#   · 主导骨 = 全片**权重求和**最大的那根源骨（不是"每顶点各自最大"）。
+#   · 该片所有顶点改用**主导骨那一根**的 T_BONE 矩阵（T_BONE 里只有手臂链非单位矩阵，
+#     所以只有手臂上的片会真的变；躯干/腿本来是单位矩阵，刚性与混合结果相同）。
+#   · 放过（继续逐顶点混合）：布料件（--cloth-drop/--cloth-hang）、着物（--kimono-idx）、
+#     主导骨没有矩阵的片（没映射上 / 骨不在表里）。
+#   · 权重（顶点组）**原样不动** —— 这一步只定"顶点摆在哪"，不动"游戏里怎么跟骨动画"。
+CLOTH_V = set()
+for _ids in CLOTH_IDX.values():
+    CLOTH_V.update(_ids)
+RIGID_OF = {}          # 顶点号 -> 骨名（走刚性）；不在表里 = 走混合
+_report_rows = []      # --rigid-report 用：[(顶点数, 主导骨, 顶点号列表)]
+if NO_RIGID and T_MODE:
+    print("   ⚠️ --no-rigid：刚性归属整体关闭（诊断 A/B 用），整装走逐顶点混合")
+if T_MODE and not NO_RIGID:
+    _frags = frag_dominant_verts(ARM)
+    _n_rig_f = _n_rig_v = _n_cloth_f = _n_nomat_f = _n_nodom_f = 0
+    _dis_mx = 0.0
+    _report_rows = []
+    for _comp, _dom in _frags:
+        if _dom is None:
+            _n_nodom_f += 1
+            continue
+        if T_BONE.get(_dom) is None:
+            _n_nomat_f += 1
+            continue
+        if any(i in CLOTH_V for i in _comp):
+            _n_cloth_f += 1
+            continue
+        if any(i in KIMONO_V for i in _comp):
+            _n_cloth_f += 1
+            continue
+        for _i in _comp:
+            RIGID_OF[_i] = _dom
+        _n_rig_f += 1
+        _n_rig_v += len(_comp)
+        if RIGID_REPORT:
+            _report_rows.append((len(_comp), _dom, _comp))
+    print("   刚性归属：碎片 %d/%d（顶点 %d）、走混合 %d 碎片（布 %d / 无矩阵 %d / 无主导骨 %d）"
+          % (_n_rig_f, len(_frags), _n_rig_v, _n_cloth_f + _n_nomat_f + _n_nodom_f,
+             _n_cloth_f, _n_nomat_f, _n_nodom_f))
 
 # 统计
 n_moved = 0
 n_skipped = 0
+n_rigid = 0
+_dis_of = {}           # 顶点号 -> 刚性位置 vs 老混合位置的位移（只诊断用）
+_dis_mx = 0.0
 vg_names = [g.name for g in ARM.vertex_groups]
 new_weights = {}          # 新骨名 -> {顶点下标: 权重}
 
@@ -861,7 +1134,12 @@ for v in ARM.data.vertices:
     if not w:
         n_skipped += 1
         continue
-    v_src = MIRROR_Y @ v.co          # 先镜像到骑砍朝向，再重定向
+    if T_MODE:
+        # T 模式：先整装按 T 重排（T 自带 Y 轴镜像 + 等比缩放 + 落位），再按权重混合逐骨矩阵
+        # （逐骨矩阵只有手臂链非单位 = 姿态修正，见上面 T_BONE 那段）
+        v_src = Vector(T_FN(v.co))
+    else:
+        v_src = MIRROR_Y @ v.co      # 先镜像到骑砍朝向，再重定向
     acc = Vector((0.0, 0.0, 0.0))
     tot = 0.0
     for bn_sw, wt in w.items():
@@ -873,11 +1151,23 @@ for v in ARM.data.vertices:
         tot += wt
         new_weights.setdefault(bn_bl, {})
         new_weights[bn_bl][v.index] = new_weights[bn_bl].get(v.index, 0.0) + wt
-    if tot > 1e-6:
-        v.co = acc / tot
-        n_moved += 1
-    else:
+    if tot <= 1e-6:
         n_skipped += 1
+        continue
+    # 🔴 刚性归属（只有 T 模式会填 RIGID_OF）：整片甲只吃**主导骨**那一根矩阵。
+    #    权重照旧累计（上面那圈已做完），这里只决定顶点摆在哪 —— 甲是硬片，不参与混合。
+    _rig = RIGID_OF.get(v.index)
+    if _rig is not None:
+        v.co = T_BONE[_rig] @ v_src
+        n_rigid += 1
+        if RIGID_REPORT:
+            _d = (v.co - acc / tot).length
+            if _d > _dis_mx:
+                _dis_mx = _d
+            _dis_of[v.index] = _d
+        continue
+    v.co = acc / tot
+    n_moved += 1
 
 
 # 镜像是反射 -> 面绕序反了，法线朝里，必须翻回来
@@ -911,6 +1201,24 @@ for bn, d in new_weights.items():
             g.add([idx], wt / s, 'REPLACE')
 
 print("   顶点 %d：移动 %d，跳过 %d" % (len(ARM.data.vertices), n_moved, n_skipped))
+if T_MODE:
+    print("   刚性归属：%d 顶点只吃主导骨那一根矩阵；仍在混合 %d 顶点"
+          % (n_rigid, len(ARM.data.vertices) - n_rigid))
+if RIGID_REPORT and _report_rows:
+    # 逐碎片：主导骨 / 顶点数 / **刚性位置相对老混合位置**的最大位移（改前改后的差就是这个数）
+    _report_rows.sort(key=lambda r: -max(_dis_of.get(i, 0.0) for i in r[2]))
+    print("   [rigid] 逐碎片（按位移排序，只列位移 > 1mm 的；重心 = 该片刚性后位置均值）：")
+    for _n, _d, _c in _report_rows:
+        _mx = max(_dis_of.get(i, 0.0) for i in _c)
+        if _mx <= 0.001:
+            continue
+        _ctr = Vector((0.0, 0.0, 0.0))
+        for _i in _c:
+            _ctr += ARM.data.vertices[_i].co
+        _ctr /= len(_c)
+        print("   [rigid]   v=%-5d 主导=%-26s 最大位移 %6.1f mm  重心 (%+.3f,%+.3f,%+.3f)"
+              % (_n, _d, _mx * 1000.0, _ctr.x, _ctr.y, _ctr.z))
+    print("   [rigid] 全件最大位移 %.1f mm" % (_dis_mx * 1000.0))
 print("   顶点组 %d 个" % len(ARM.vertex_groups))
 badv = sum(1 for v in ARM.data.vertices if not v.groups)
 print("   未绑定顶点 %d" % badv)
@@ -990,8 +1298,103 @@ if CLOTH_IDX:
 
 # （主骨过滤已移到合并**之前**、且只作用于着物 —— 见上面 dup 循环里那段）
 
-# 挂到骑砍骨架
-ARM.parent = BL
+# ---------------------------------------------------------------- 🔴 去重复：与头重合的甲/兜顶点
+# 症状（2026-09-17 实测）：甲剔头骨族用的是**骨骼**判据（HEAD_SW = bone_10/11 + 面部骨 46..62，
+#   见 `--drop-head-idx`），而**脖子皮肤绑的是胸骨 bone_9**（见 build_head.carve_neck_part 文档里的
+#   实测），**不在**那一族里 → 脖子的那圈几何被甲**留着**；头侧也有同一份顶点（脖子件 / 脸壳下沿）、
+#   两边共用同一个源变换 T → 位置**完全重合**（实机 z-fighting：皮肤与甲皮同深度打架）。
+#   实测中招：光秀 91 / 归蝶 76 / 小太郎 20 / 胜家 13 / 小次郎……（共 6 人 207 顶点 @≤1.5mm）。
+#
+# 修法：把**头 FBX 的顶点**读进来，甲侧凡是**距离 ≤ 阈值**（默认 1mm）的顶点删掉。
+#   为什么是「≤1mm」而不是「相等」：两边走同一个 T，同一批源顶点的理论偏差为 0，
+#   1mm 只是吸收浮点误差（实测是整批命中 91/76/20 这种，不是零星蹭到）。
+#
+# 🔴 判据一般化（2026-09-17 第二版）—— 靶子从「只认 `_neck` 件」改成「头 FBX 的**所有件**」：
+#   旧版只认**材质名以 `_neck` 结尾**的那件，于是**没有独立脖子件的头**（脸壳自带颈部）一个顶点
+#   都看不见 —— 实测光秀 91 / 小太郎 20 个顶点正是「**脸壳下沿 vs 甲领口**」重合，旧判据报 0。
+#   代价是多认了几件当靶子 ⇒ 用**领口带**把它圈住（见下），远处本来就不该重合的区域不参与。
+#
+#   `--drop-coincident-band z0,z1`（默认 `1.25,1.70`）：**只拿带内的头顶点当靶子**。
+#     为什么必须限带：头资产里还挂着头发/头饰/长马尾一类几何，它们在 z 1.25 以下或 1.70 以上
+#     与甲本来就不该重合（隔着衣服/悬在体外），拿来当靶子会变成误删。领口那一圈实测就在
+#     1.31~1.60（光秀脸壳下沿 1.312、甲领口顶 1.570），1.25~1.70 把整圈包住还留了余量。
+#     ⚠️ 兜侧要另给带（兜顶到 2.25，见 `build_helmets.py`），默认值只服务甲。
+#
+#   🔴 安全闸 `--drop-coincident-max-ratio`（默认 0.15）：**匹配到的顶点数占本件总顶点比例
+#     超过它就报错退出、一个都不删**。为什么要有：判据一旦跑歪（比如传错了头、带给宽了），
+#     删的就不是"重复的那一圈"而是整件甲 —— 甲被剪空是不可逆的（`--force` 重跑才会回来，
+#     而人不会注意到）。实测正常的命中率：光秀 91/1463 = 6.2%、小太郎 20/1172 = 1.7%；
+#     兜侧半藏 62/62 = 100%（头侧把整顶兜吞进了脖子件）就是该被这条挡下来的样子。
+#
+# 谁传：`build_armors.py`（武将只要有头产物就传）/ `build_helmets.py`（同上，带另给）。
+#   头 FBX 里混着**源空间残留**（z 0~210 厘米的源子网格）—— 按「整件最高点 > 5 米」整件排除，
+#   否则那些顶点会以"游戏空间里的近距离"混进靶子（实测不筛时 15 顶兜里 7 顶报假重合）。
+#
+# 放这一步之前做过什么：顶点位置（重定向 + 权重）、布料旋转都已算完 → 这里删的坐标就是最终坐标。
+COINC_FBX = get(A, "--drop-coincident")
+COINC_TOL = float(get(A, "--drop-coincident-tol", "0.001"))
+COINC_BAND = [float(x) for x in (get(A, "--drop-coincident-band", "") or "1.25,1.70").split(",")]
+COINC_MAX_RATIO = float(get(A, "--drop-coincident-max-ratio", "0.15"))
+COINC_Z_GAME = 5.0          # 整件最高点超它 = 源空间残留（游戏空间最高件是兜 ~2.3 米）
+if COINC_FBX:
+    if not os.path.isfile(COINC_FBX):
+        print("   !! --drop-coincident 的文件不存在：%s（跳过，甲按原样导出）" % COINC_FBX)
+    else:
+        # 🔴 必须先快照再导入：`bpy.ops.wm.read_factory_settings` 会把正在做的甲一起清掉
+        #    （这个函数在本文件别处用得很顺手，但那是"从零开场景"时）。读法 = 导入 → 抓坐标 → 删新增对象。
+        _before = set(bpy.data.objects)
+        _pts = []
+        _skipped = []
+        try:
+            bpy.ops.import_scene.fbx(filepath=COINC_FBX)
+            bpy.context.view_layer.update()
+            _new = [o for o in bpy.data.objects if o not in _before]
+            for _o in _new:
+                if _o.type != 'MESH' or not len(_o.data.vertices):
+                    continue
+                _mw = _o.matrix_world
+                _co = [_mw @ v.co for v in _o.data.vertices]
+                if max(p.z for p in _co) > COINC_Z_GAME:      # 源空间残留 → 整件不参与
+                    _skipped.append(_o.name)
+                    continue
+                _pts += [p for p in _co if COINC_BAND[0] <= p.z <= COINC_BAND[1]]
+        finally:
+            # 读完即删（含导入进来的骨架，否则会被后面的清场/导出带上）
+            for _o in [o for o in bpy.data.objects if o not in _before]:
+                bpy.data.objects.remove(_o, do_unlink=True)
+        if _skipped:
+            print("   去重复：头 FBX 里 %d 件源空间残留已排除（%s）"
+                  % (len(_skipped), ", ".join(n[:28] for n in _skipped[:3])))
+        if not _pts:
+            print("   !! --drop-coincident：%s 在 z %.2f~%.2f 带内没有头顶点（没删任何顶点）"
+                  % (os.path.basename(COINC_FBX), COINC_BAND[0], COINC_BAND[1]))
+        else:
+            import mathutils.kdtree as _kd
+            _kt = _kd.KDTree(len(_pts))
+            for _i, _q in enumerate(_pts):
+                _kt.insert(_q, _i)
+            _kt.balance()
+            _amw = ARM.matrix_world
+            _hit = [v.index for v in ARM.data.vertices if _kt.find(_amw @ v.co)[2] <= COINC_TOL]
+            _ratio = len(_hit) / float(len(ARM.data.vertices)) if len(ARM.data.vertices) else 0.0
+            _z0 = min(p.z for p in _pts)
+            _z1 = max(p.z for p in _pts)
+            if _ratio > COINC_MAX_RATIO:
+                # 🔴 安全闸：不删、报错退出、**不覆盖产物**（本文件的导出在最后一步，这里退出 =
+                #    目标 FBX 保持原样）。宁可留着重合，也不能把一件甲剪空。
+                print("   !! 去重复安全闸触发：头靶子 %d 顶点（带 %.2f~%.2f z %.3f~%.3f）命中本件 %d/%d = %.1f%%"
+                      " > 上限 %.1f%% ⇒ 一个都不删，退出（判据跑歪了：传错头 / 带给宽了 / 这件本来就与头同一批几何）"
+                      % (len(_pts), COINC_BAND[0], COINC_BAND[1], _z0, _z1,
+                         len(_hit), len(ARM.data.vertices), _ratio * 100, COINC_MAX_RATIO * 100))
+                sys.exit(4)
+            if _hit:
+                drop_verts(ARM, _hit)
+            print("   去重复：头靶子 %d 顶点（全件去源空间残留后、限带 z %.2f~%.2f，实际 z %.3f~%.3f）"
+                  " → 本件删掉 %d 顶点（%.1f%%，距离 ≤ %.0fmm，余 %d）"
+                  % (len(_pts), COINC_BAND[0], COINC_BAND[1], _z0, _z1, len(_hit), _ratio * 100,
+                     COINC_TOL * 1000, len(ARM.data.vertices)))
+
+# 挂到骑砍骨架ARM.parent = BL
 mod = ARM.modifiers.new("Armature", 'ARMATURE')
 mod.object = BL
 

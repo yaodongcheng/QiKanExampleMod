@@ -5,11 +5,15 @@
 独立件 + `head_armor` 物品）。挑件表 `parts_table.py` 的 `helmet` 列**已人工标注**每个角色的兜件（idx），
 本脚本把 idx 翻成子网格号，走同一条甲管线（选件 → Y 镜像 → 骨架重定向 → 6 级 LOD → 贴图）。
 
+定标（2026-09-16 第 2 步起）：**逐角色源变换 T** —— 与甲/头共用同一份 `out/srcT.json`，
+  `T` 取不到 = 报错退出（禁止退回旧的 `--r` 系数）。理由见 `src_transform.py` 文件头。
+
 命名：`taikou_<slug>_helmet_a`（物品/网格/材质同名，同甲的制式）。
 
 用法：
     python tools/sw2-pipeline/build_helmets.py --only L00_yukimura
     python tools/sw2-pipeline/build_helmets.py            # 14 人全做
+    python tools/sw2-pipeline/build_helmets.py --only L00_yukimura --dry-run   # 只看命令
 """
 import argparse
 import csv
@@ -152,15 +156,28 @@ def main():
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--set", default="lords", choices=["lords", "troops"])
+    ap.add_argument("--out", default=OUT, help="产物目录（默认 tools/armor-pipeline/out）")
+    ap.add_argument("--dry-run", action="store_true", help="只打印要跑的命令，不执行")
+    ap.add_argument("--log", action="store_true",
+                    help="把网格步的完整输出打出来（看 bbox / 顶点数 / 未绑定顶点）")
     ap.add_argument("--no-tex-upgrade", action="store_true",
                     help="头盔贴图用原图集。默认走超分图（同 build_armors.py）")
     args = ap.parse_args()
     # 复用 build_armors 的贴图来源开关（find_diffuse 在这个模块里读它）
     A.USE_TEX_UPGRADE = not args.no_tex_upgrade
     tex_scale = "2" if A.USE_TEX_UPGRADE else "1"
+    outdir = os.path.abspath(args.out)
+    os.makedirs(outdir, exist_ok=True)
     skel = A.find_skel()
     if not skel:
         print("[FATAL] 找不到 human_skeleton.fbx")
+        return 2
+    # 🔴 逐角色源变换表（甲/兜/头共用一把尺）。读不到直接停 —— 兜比甲更显眼，
+    #    用错尺子的兜会扣不到头上（见 build_armors.py 顶部"定标"段）。
+    try:
+        A.load_t()
+    except Exception as e:
+        print("[FATAL] 读不到逐角色源变换表（out/srcT.json）：%s" % e)
         return 2
     src = TROOP_TABLE if args.set == "troops" else TABLE
     keys = [k for k in (args.only or sorted(src)) if row_of(k, TABLE).get("helmet")]
@@ -168,32 +185,54 @@ def main():
     for key in keys:
         slug = slug_of(key)
         name = "taikou_%s_helmet_a" % slug
-        out_fbx = os.path.join(OUT, name + ".fbx")
-        if os.path.isfile(out_fbx) and not args.force:
+        out_fbx = os.path.join(outdir, name + ".fbx")
+        if os.path.isfile(out_fbx) and not args.force and not args.dry_run:
             print("  [跳过] %-16s 已有" % key); continue
         subs = helmet_subs(key)
         if not subs:
             print("  ❌ %-16s 兜件 idx 翻不出网格名（%s）" % (key, row_of(key, TABLE).get("helmet")))
             fail.append(key); continue
+        # 🔴 拿不到 T 就停（禁止退回旧 R 系数）——同 build_armors.py
+        try:
+            tflag = A.t_args(key)
+        except KeyError as e:
+            print("  ❌ %-16s %s" % (key, e))
+            fail.append(key); continue
         src = os.path.join(A.SRC_DIR, key + ".fbx")
-        print("  ▶ %-16s 兜件 %d 块" % (key, len(subs)))
-        rc, out = A.run([A.BLENDER, "-b", "--python", BUILD, "--",
-                         "--src", src, "--skel", skel, "--out", OUT, "--name", name,
-                         "--parts-name", "|".join(subs),
-                         "--r", A.R_TORSO, "--r-arms", A.R_ARMS,
-                         # 🔴 兜里混着飞出去的碎片（幸村那件有 2 片飞在 x=±44.6cm）→ 包围盒被撑到 103cm，
-                         #    缩完就是 0.8 米的盖子。剔碎片后兜主体 ~25cm。判据同 build_head.prune_far。
-                         # 🔴 `--rigid`：兜是刚体，整顶（含剪来的颏带）必须吃同一个重定向矩阵，
-                         #    否则绑不同源骨的部件会被按各自的矩阵拉开（实机：政宗颏带跑到后脑、
-                         #    忠胜钵侧被甩到 ±40cm）。见 build_armor.py 里 `--rigid` 的长注释。
-                         # 🔴 `--double-sided-all`：兜上的**前立/月牙/小饰件是单面板**，
-                         #    引擎材质层没有双面开关 → 背面被剔除，从另一侧看"什么都没有"
-                         #    （实测长政金前立：开剔除后背面整个消失，见 Debug/offline/_hB_cull.png）。
-                         #    兜件面数小（150~400 面），全量复制+翻面代价可忽略。
-                         "--prune-far", "4.0", "--keep-head-frags", "--double-sided-all"]
-                         + (["--helmet-whole", ",".join(str(x) for x in helm_whole_subs(key))]
-                            if helm_whole_subs(key) else [])
-                         + helm_strap_args(key), "build_helmet")
+        print("  ▶ %-16s 兜件 %d 块  T.s=%s" % (key, len(subs), tflag[1]))
+        cmd = ([A.BLENDER, "-b", "--python", BUILD, "--",
+                "--src", src, "--skel", skel, "--out", outdir, "--name", name,
+                "--parts-name", "|".join(subs)]
+               # 定标 = 本角色的 T（第 2 步起）；旧的 --r / --r-arms 不再传（已退役）
+               + tflag
+               # 🔴 兜里混着飞出去的碎片（幸村那件有 2 片飞在 x=±44.6cm）→ 包围盒被撑到 103cm，
+               #    缩完就是 0.8 米的盖子。剔碎片后兜主体 ~25cm。判据同 build_head.prune_far。
+               # 🔴 `--double-sided-all`：兜上的**前立/月牙/小饰件是单面板**，
+               #    引擎材质层没有双面开关 → 背面被剔除，从另一侧看"什么都没有"
+               #    （实测长政金前立：开剔除后背面整个消失，见 Debug/offline/_hB_cull.png）。
+               #    兜件面数小（150~400 面），全量复制+翻面代价可忽略。
+               + ["--prune-far", "4.0", "--keep-head-frags", "--double-sided-all"]
+               + (["--helmet-whole", ",".join(str(x) for x in helm_whole_subs(key))]
+                  if helm_whole_subs(key) else [])
+               + helm_strap_args(key))
+        # 🔴 兜 vs 头 去重复（2026-09-17）：量出来的**同一类重合**——头侧 `_neck` 件里带着整顶兜/
+        #    头罩（脖子件是从复合件按**连通域**抠的，抠中一截下摆就把整块兜一起带进来；实测半藏
+        #    62/62、秀吉 168/466、谦信 94/506 顶点与兜**完全重合**，渲图实锤：把头的 `_neck` 件
+        #    藏掉，兜的顶刺/双角跟着一起消失 = 那顶兜本来就在头里）。两边都穿上 = 同深度打架
+        #    ⇒ 兜侧删掉重合顶点（头侧永远带着这份几何，删了不会少东西）。
+        #    🔴 **带给到 2.30**：默认的 1.25~1.70 是甲领口带，兜顶到 2.25（秀吉），带太窄只会
+        #      删掉兜的下半截、上半截留着 ⇒ 接缝处反而裂开。安全闸（命中占比 > 15% 报错退出）照旧生效。
+        _headf = A.head_fbx(key)
+        if _headf:
+            cmd += ["--drop-coincident", _headf, "--drop-coincident-band", "1.25,2.30"]
+        if args.dry_run:
+            print("     [dry-run] %s" % " ".join('"%s"' % c if " " in str(c) else str(c) for c in cmd))
+            done.append(key); continue
+        rc, out = A.run(cmd, "build_helmet")
+        if args.log:
+            for l in out.splitlines():
+                if l.strip():
+                    print("        " + l[:200])
         if rc != 0 or not os.path.isfile(out_fbx):
             print("     ❌ 失败（exit %d）" % rc)
             for l in [x for x in out.splitlines() if x.strip()][-5:]:
@@ -208,7 +247,7 @@ def main():
             tex_names = list(subs) + ([fs_nm] if fs_nm else [])
             A.run([A.BLENDER, "-b", "--python", TEX, "--",
                    "--armor", out_fbx, "--src", src, "--diffuse", dif,
-                   "--out", OUT, "--name", name, "--parts-name", "|".join(tex_names),
+                   "--out", outdir, "--name", name, "--parts-name", "|".join(tex_names),
                    "--tex-scale", tex_scale,
                    "--ao", "0.35"], "helm_tex")
         _st = [l.strip() for l in out.splitlines() if "颏带并入" in l]

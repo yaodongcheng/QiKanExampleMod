@@ -407,6 +407,11 @@
     <!-- 上面那个补丁的性别数据源：读各内容包 ModuleData/AssetRegistry/RaceGenders.xml（通用契约，
          生成器 = Scripts/gen_taikou_sw2_heads.py）。查不到的 race 不限制。 -->
     <Compile Include="CampaignMode\RaceGenderRegistry.cs" />
+    <!-- 捏脸「种族」下拉选到「按角色做的 race」（lwn_*）时，把滑条/预览套成该角色的默认身型
+         （身高/体重/体型 = 他 BodyProperties 里的三项；引擎没有 race 级默认值这个读取点，见雷 138）。
+         值不另造表 —— 运行时扫已加载的 CharacterObject 反查该 race 的角色，读它自己的
+         GetBodyPropertiesMin()（与内容包 XML 一份真相）。台账见雷 139。 -->
+    <Compile Include="CampaignMode\RaceDefaultBodyPatch.cs" />
     <!-- 🔴 2026-09-10 **已退役删除**（文件已删，实机验证通过；恢复 = git 历史捞回原文件后去掉本行注释）：
          MapScreenCameraPatch.cs（建号完成后拉相机对准玩家）——它做的事与建号内容里的 teleport 完全重复，
          而相机看不见玩家的**真凶是场景缺 border_min/border_max**（雷 34，数据已修）。
