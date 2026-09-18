@@ -51,6 +51,24 @@ def race_id(key):
     return "lwn_" + key.split("_", 1)[1].lower()
 
 
+# 🔴 颅骨版优先（2026-09-18 用户裁定）
+#    规则：`TifaHead2\AssetSources\head\<名>\fullhead\` **存在** → 用颅骨版（网格/贴图名加 `_skull` 后缀）；
+#          不存在 → 沿用原 mesh。
+#    ⚠️ **race id 不受影响**（仍由原 asset 派生）—— `taikou_lords*.xml` 里的 `race="lwn_xx"` 引用照旧，
+#       所以这条规则只换"头长什么样"，不动任何角色接线。
+#    为什么放编辑器工程路径上判：`fullhead\` 就是"这个人的颅骨版做完了"的唯一权威标记
+#    （交付目录 = `AssetSources\head\<名>\fullhead\`，见 总纲 §4.15.0 第 5 步）。
+EDITOR_HEADS = os.path.join(G.MB2, "Modules", "TifaHead2", "AssetSources", "head")
+
+
+def head_asset(r):
+    """返回 (实际要写进 skins.xml 的头资产名, 是不是颅骨版)。"""
+    slug = r["asset"][len("head_"):-len("_a")]
+    if os.path.isdir(os.path.join(EDITOR_HEADS, slug, "fullhead")):
+        return r["asset"] + "_skull", True
+    return r["asset"], False
+
+
 OUT_SKINS = os.path.join(G.MB2, "Modules", "Taikou", "ModuleData", "skins.xml")
 OUT_MONSTERS = os.path.join(G.MB2, "Modules", "Taikou", "ModuleData", "monsters.xml")
 # 🔴 种族 → 允许性别（LWN 捏脸「种族」下拉按性别置灰用）。**必须是这张离线表**：
@@ -138,11 +156,16 @@ def build_skin(native, asset, gender):
     return out
 
 
-def build_race_block(asset, gender, native):
+def build_race_block(asset, gender, native, mesh=None):
+    """asset = **原资产名**（race id 由它派生，永远不带后缀）；
+    mesh  = 实际写进网格/贴图字段的名字（默认 = asset；颅骨版 = asset + "_skull"）。
+    🔴 race id 必须由**原资产名**派生 —— 它挂在 `taikou_lords*.xml` 的 `race="lwn_xx"` 上，
+       带上 `_skull` 会让全部引用失配（2026-09-18 差点写进去）。"""
+    mesh = mesh or asset
     rid = "lwn_" + asset[len("head_"):-len("_a")]
     body = '\t<race\n\t\t\tid="%s">\n' % rid
     n_hair = 0
-    for _maturity, skin, nh in build_skin(native, asset, gender):
+    for _maturity, skin, nh in build_skin(native, mesh, gender):
         n_hair = nh                                    # 各档摘掉的条数一致，取一份打印即可
         body += "".join(("\t\t" + ln if ln.strip() else ln) for ln in skin.splitlines(True))
     body += "\t</race>\n"
@@ -334,10 +357,12 @@ def main():
     races = []
     race_rows = []                      # (race id, 性别) —— 给 AssetRegistry/RaceGenders.xml
     for key, r in TABLE.items():
-        rid, body, n_hair = build_race_block(r["asset"], r["gender"], native_skins)
+        hm, is_skull = head_asset(r)
+        rid, body, n_hair = build_race_block(r["asset"], r["gender"], native_skins, mesh=hm)
         races.append(body)
         race_rows.append((rid, r["gender"]))
-        print("  %-16s %-8s race=%-18s 发型条目摘名 %d 条" % (key, r["gender"], rid, n_hair))
+        print("  %-16s %-8s race=%-18s 头=%-26s 发型条目摘名 %d 条"
+              % (key, r["gender"], rid, hm + ("（颅骨版）" if is_skull else ""), n_hair))
     skins = ('<?xml version="1.0" encoding="utf-8"?>\n<skins>\n'
              + G.header("SW2 28 人专属 race（男 22 / 女 6）")
              + "".join(races) + "</skins>\n")
