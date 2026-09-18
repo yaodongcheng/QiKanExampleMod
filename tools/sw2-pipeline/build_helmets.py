@@ -51,7 +51,7 @@ def helmet_subs(key):
     idxs = row_of(key, TABLE).get("helmet") or []
     if not idxs:
         return []
-    p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
+    p = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_parts", "%s_parts.csv" % key)
     if not os.path.isfile(p):
         return []
     r = list(csv.reader(io.open(p, encoding="utf-8-sig")))
@@ -77,7 +77,7 @@ def slug_of(key):
 def face_sub_name(key):
     """挑件表的 face idx → 【精确网格名】（颏带的来源件就是脸壳件）。"""
     idxs = row_of(key, TABLE).get("face") or []
-    p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
+    p = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_parts", "%s_parts.csv" % key)
     if not idxs or not os.path.isfile(p):
         return None
     r = list(csv.reader(io.open(p, encoding="utf-8-sig")))
@@ -96,7 +96,7 @@ def face_sub_name(key):
 def face_sub(key):
     """挑件表的 face idx → 子网格号（颏带的来源件就是脸壳件）。"""
     idxs = row_of(key, TABLE).get("face") or []
-    p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
+    p = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_parts", "%s_parts.csv" % key)
     if not idxs or not os.path.isfile(p):
         return None
     r = list(csv.reader(io.open(p, encoding="utf-8-sig")))
@@ -118,7 +118,7 @@ def helm_whole_subs(key):
     idxs = r.get("helmet_whole") or []
     if not idxs:
         return []
-    p = os.path.join(REPO, "Debug", "offline", "sw2_parts", "%s_parts.csv" % key)
+    p = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_parts", "%s_parts.csv" % key)
     if not os.path.isfile(p):
         return []
     i2n, out = {}, []

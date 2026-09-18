@@ -625,7 +625,7 @@ ID, Name, Alias, Culture, Owner_1554, Kingdom_1554, …, Owner_1598, Kingdom_159
   = 对回官方数据的稳定键），与 `Owner_<年>` 那条**要删的理由不同**：那六列装的是**错的**数据
 - `Culture.csv` 同一个毛病（21 行 `ScriptName ≡ ChineseName`、带 `LocozationName` + 恒 1 的 `IsShokuho`、
   表尾一串无名空列）—— 口径与 Clan.csv 相同，**待裁定**是否同批清
-- `Debug/offline/xlsx_dump/Kingdom.csv`、`ForceTaikou.csv` 是 gitignore 的孤儿转储，无人读取
+- `Debug/offline/杂项/xlsx_dump/Kingdom.csv`、`ForceTaikou.csv` 是 gitignore 的孤儿转储，无人读取
 
 #### 0.8 ✅ 泛用 NPC 提升为 hero + 日志口径纠错（2026-09-12 下半场）
 

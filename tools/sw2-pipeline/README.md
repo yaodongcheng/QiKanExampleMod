@@ -32,7 +32,7 @@ model_0_submesh_6_noesis_meshnode_0006
 "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b \
     --python tools/sw2-pipeline/scripts/identify_parts.py -- \
     --src "D:/BrainMaker/战国无双2资产解包分析/export/fbx/L02_nobunaga.fbx" \
-    --out "Debug/offline/sw2_parts"
+    --out "Debug/offline/外观批量导入/sw2_parts"
 
 # 2) 批量（28 个有名武将 / 23 个兵种与护卫）
 python tools/sw2-pipeline/run_identify.py                # 武将
@@ -40,7 +40,7 @@ python tools/sw2-pipeline/run_identify.py --set troops   # 兵种 + 护卫
 python tools/sw2-pipeline/run_identify.py --only L02_nobunaga L00_yukimura
 ```
 
-**产出**（`Debug/offline/sw2_parts/`，离线产物不进 git）：
+**产出**（`Debug/offline/外观批量导入/sw2_parts/`，离线产物不进 git）：
 
 | 文件 | 内容 |
 |---|---|
@@ -134,7 +134,7 @@ python tools/sw2-pipeline/check_materials.py --self-test  # 自证：造坏数�
 其余一律当 face），名字重复 = 几件刷成同一个配方 = **眼睛和嘴糊上脸皮**，且要到实机才看得出来。
 🔴 2026-09-16 起角色词扩到含 **neck**（脖子 = 头的第 4 个部件，材质名 `<裸名>_neck` 会自动拿到脸壳配方）。
 
-产出落 `Debug/offline/sw2_parts/`（模块根唯一产物根下，见 CLAUDE.md 铁律 26）。
+产出落 `Debug/offline/外观批量导入/sw2_parts/`（模块根唯一产物根下，见 CLAUDE.md 铁律 26）。
 
 ---
 

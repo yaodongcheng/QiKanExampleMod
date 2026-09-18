@@ -2,10 +2,10 @@
 import bpy, os, math, inspect
 from mathutils import Vector
 
-OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\neck_probe"
+OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\neck_probe"
 os.makedirs(OUT, exist_ok=True)
 
-B = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline"
+B = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头"
 TIFA = r"F:\下载\Tifa lockhart In Drees - FBX\Tifa.fbx"
 OURS = r"D:/BrainMaker/blend_projects/tifa_export/backup_20260913/head_tifa_a_v10.fbx"
 VANH = B + r"\core_game\fbx\head\head_female_a.fbx"

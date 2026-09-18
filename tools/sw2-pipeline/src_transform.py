@@ -69,7 +69,7 @@ ANCHOR_BONE = "bone_11"      # 源模型的头骨（脖子以上第一节）
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 SRC_DIR = r"D:\BrainMaker\战国无双2资产解包分析\export\fbx"
-CENSUS = os.path.join(REPO, "Debug", "offline", "sw2_census")
+CENSUS = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_census")
 DEFAULT_OUT = os.path.join(HERE, "out", "srcT.json")
 
 

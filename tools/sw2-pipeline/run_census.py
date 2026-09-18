@@ -5,7 +5,7 @@
     python tools/sw2-pipeline/run_census.py                 # 28 名武将
     python tools/sw2-pipeline/run_census.py --set troops    # 17 兵种 + 6 护卫
     python tools/sw2-pipeline/run_census.py --only L02_nobunaga L10_shingen
-产出：Debug/offline/sw2_census/<模型>_census.csv（离线产物，不进 git）
+产出：Debug/offline/外观批量导入/sw2_census/<模型>_census.csv（离线产物，不进 git）
 """
 import argparse
 import os
@@ -25,7 +25,7 @@ except Exception:
 
 BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 SRC_DIR = r"D:\BrainMaker\战国无双2资产解包分析\export\fbx"
-OUT_DIR = os.path.join(REPO, "Debug", "offline", "sw2_census")
+OUT_DIR = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_census")
 SCRIPT = os.path.join(HERE, "scripts", "part_census.py")
 
 

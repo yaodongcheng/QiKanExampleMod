@@ -2,10 +2,10 @@
 import bpy, bmesh, os, math, inspect
 from mathutils import Vector
 
-OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\neck_probe"
+OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\neck_probe"
 TIFA = r"F:\下载\Tifa lockhart In Drees - FBX\Tifa.fbx"
 OURS = r"D:/BrainMaker/blend_projects/tifa_export/backup_20260913/head_tifa_a_v10.fbx"
-VANH = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\core_game\fbx\head\head_female_a.fbx"
+VANH = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\core_game\fbx\head\head_female_a.fbx"
 S, BY, BZ = 1.238, 0.01685, -0.2678
 CUT = 1.505     # 脖子下沿先随便切一刀看效果
 

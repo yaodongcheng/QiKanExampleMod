@@ -28,7 +28,7 @@ except Exception:
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))   # LivingWorldNpcs 模块根
 SCRIPTS = os.path.join(REPO, "tools", "face-pipeline", "scripts")
-WORK = os.path.join(REPO, "Debug", "offline", "seph_build")
+WORK = os.path.join(REPO, "Debug", "offline", "自定义头", "seph_build")
 BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 
 # 搬通道用的源（蒂法 v10：59 条脸形位移场的**权威来源**，两性通用 —— 通道本身是"拉杆驱动"，
@@ -48,7 +48,7 @@ RECIPES = {
         cut_z="1.4144",                               # 裁到原版男头的最低点
         fit_rim=True,                                 # 收进男身体的 V 领口（源模型肩膀宽 6cm）
         weld_seam=True,                               # 合上源模型"前后两块壳"的缝（0.66~10mm）
-        weights_from=os.path.join(REPO, "Debug", "offline", "core_game", "fbx", "head", "head",
+        weights_from=os.path.join(REPO, "Debug", "offline", "自定义头", "core_game", "fbx", "head", "head",
                                   "head_male_a.fbx"),  # 🔴 男性头，别用女性
         neck_z="1.600",
         neck_band="0.05",

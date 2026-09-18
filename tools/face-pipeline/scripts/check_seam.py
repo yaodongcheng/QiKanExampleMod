@@ -8,7 +8,7 @@ import bpy, bmesh, sys, math
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
-B = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline"
+B = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头"
 BODY_OBJ = B + r"\core_game\out\body\body_female_a.obj"
 VAN_FBX = B + r"\core_game\fbx\head\head_female_a.fbx"
 OURS = r"D:/BrainMaker/blend_projects/tifa_export/backup_20260913/head_tifa_a_v11.fbx"

@@ -98,7 +98,7 @@ patch_importer = BUILD_HEAD["patch_importer"]
 SRC_DIR = r"D:\BrainMaker\战国无双2资产解包分析\export\fbx"
 SRC_TEX = r"D:\BrainMaker\战国无双2资产解包分析\web\textures"
 TEX_BATCH = r"D:\BrainMaker\战国无双2资产解包分析\work\tex_batch"   # 贴图升级产物 <key>_d.png（管线优先用它）
-CENSUS = os.path.join(REPO, "Debug", "offline", "sw2_census")
+CENSUS = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_census")
 SRCT_JSON = os.path.join(HERE, "out", "srcT.json")
 HEAD_SW = set(["bone_10", "bone_11"] + ["bone_%d" % i for i in range(46, 63)])
 NB = 12
@@ -448,7 +448,7 @@ def built_collar_loops(path):
 
 
 def auto_built(key):
-    """按角色 key 推**成品**路径（存在就用）：头 = `Debug/offline/sw2_build/<key>/<asset>_v1.fbx`，
+    """按角色 key 推**成品**路径（存在就用）：头 = `Debug/offline/外观批量导入/sw2_build/<key>/<asset>_v1.fbx`，
     甲 = `tools/armor-pipeline/out/taikou_<slug>_do_a.fbx`。
 
     🔴 为什么要有（`--built-auto`）：口径要"以成品为准"就必须**逐角色**把成品找出来，
@@ -458,7 +458,7 @@ def auto_built(key):
     r = TABLE.get(key)
     if not r:
         return None, None
-    hd = os.path.join(REPO, "Debug", "offline", "sw2_build", key, r["asset"] + "_v1.fbx")
+    hd = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_build", key, r["asset"] + "_v1.fbx")
     slug = r["asset"][len("head_"):-len("_a")]
     ar = os.path.join(REPO, "tools", "armor-pipeline", "out", "taikou_%s_do_a.fbx" % slug)
     return (hd if os.path.isfile(hd) else None), (ar if os.path.isfile(ar) else None)

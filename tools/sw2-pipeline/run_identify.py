@@ -7,7 +7,7 @@
   python run_identify.py --only L00_yukimura L01_keiji
   python run_identify.py --list
 
-产出（Debug/offline/sw2_parts/，离线产物不进 git）:
+产出（Debug/offline/外观批量导入/sw2_parts/，离线产物不进 git）:
   <角色>_parts.csv    零件表
   <角色>_sheet.png    接触图（带编号，行优先；格子→CSV 行序）
   <角色>_sheet_B.png  接触图（背面）
@@ -25,7 +25,7 @@ except Exception:
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 SRC = r"D:\BrainMaker\战国无双2资产解包分析\export\fbx"
-OUT = os.path.join(REPO, "Debug", "offline", "sw2_parts")
+OUT = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_parts")
 SCRIPT = os.path.join(HERE, "scripts", "identify_parts.py")
 BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 

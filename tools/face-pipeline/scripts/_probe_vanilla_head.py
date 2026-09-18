@@ -14,7 +14,7 @@ def patch_fbx_importer():
         print("[patch] 未找到断言（版本可能已改）")
 patch_fbx_importer()
 
-SRC = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\core_game\fbx\head\head_female_a.fbx"
+SRC = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\core_game\fbx\head\head_female_a.fbx"
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=SRC)
 bpy.context.view_layer.update()

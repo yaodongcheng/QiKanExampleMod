@@ -28,7 +28,7 @@ except Exception:
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 KEY = "L02_nobunaga"
-BUILD = os.path.join(REPO, "Debug", "offline", "sw2_build", KEY)
+BUILD = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_build", KEY)
 PROBE = os.path.join(REPO, "tools", "face-pipeline", "scripts", "fbx_probe.py")
 
 # 基准 = 手工版的构建日志（允许的偏差见注释）

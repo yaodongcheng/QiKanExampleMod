@@ -14,7 +14,7 @@ def patch():
         exec(compile(src, mod.__file__, "exec"), mod.__dict__)
 patch()
 
-B = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline"
+B = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头"
 TIFA = r"F:\下载\Tifa lockhart In Drees - FBX\Tifa.fbx"
 OURS = r"D:/BrainMaker/blend_projects/tifa_export/backup_20260913/head_tifa_a_v10.fbx"
 VANB = B + r"\core_game\out\body\body_female_a.obj"

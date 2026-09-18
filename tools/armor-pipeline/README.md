@@ -64,12 +64,12 @@ OUT="tools/armor-pipeline/out"
 ```bash
 # 合身（平色，一眼看轮廓）
 "$BLENDER" -b --python tools/armor-pipeline/scripts/check_fit.py -- \
-    "$OUT/<name>.fbx" "Debug/offline/core_game/fbx/body/body/body_male_a.fbx" "$OUT" v1
+    "$OUT/<name>.fbx" "Debug/offline/自定义头/core_game/fbx/body/body/body_male_a.fbx" "$OUT" v1
 
 # 贴图（PBR：_d 挂底色、_n 挂法线、_s 的 R→金属度 / G→1−粗糙度）
 "$BLENDER" -b --python tools/armor-pipeline/scripts/render_textured.py -- \
     "$OUT/<name>.fbx" "$OUT" "$OUT" "<name>" \
-    "Debug/offline/core_game/fbx/body/body/body_male_a.fbx"
+    "Debug/offline/自定义头/core_game/fbx/body/body/body_male_a.fbx"
 ```
 
 **进编辑器之前体检**（验导出规格）：
@@ -138,7 +138,7 @@ T_bl[b] = Translate(骑砍骨头) · Rot(仅手臂) · Scale(R) · Translate(-(M
 | 武器件混进选件 | `submesh_1`（着物）与 `submesh_1.001`（矛柄）解析出同一个号 | 按材质 `mat_w_*` + 有无 UV 排掉 |
 | 到处露白（身体顶穿甲） | 甲的半径小于身体 | 调大 `--r`（实测 0.010 → 0.0120）；**手臂要单独调 `--r-arms`**（躯干够了两条胳膊仍会露一大条） |
 | 🔴 **肩帯（胴的过肩带）整条消失** | 着物瘦身过滤**作用在了合并后的整块甲上**，而保留列表里没有锁骨骨 `bone_12/bone_13` —— 而肩帯正好由锁骨驱动 | 过滤**只能作用于着物那一件**（已改到合并之前、按子网格号只挑 submesh_1） |
-| 🔴 **上臂外侧露出一大条身体** | 原版身体的胳膊比源件粗；`--r` 是按躯干调的，手臂不够 | `--r-arms` 单独放（0.0120 → **0.0160**）。判定法：`Debug/offline/armor_probe/_armzoom.py` 怼近左臂渲一张"甲单独 vs 甲+身体（身体染红）"对比 |
+| 🔴 **上臂外侧露出一大条身体** | 原版身体的胳膊比源件粗；`--r` 是按躯干调的，手臂不够 | `--r-arms` 单独放（0.0120 → **0.0160**）。判定法：`Debug/offline/甲胄/armor_probe/_armzoom.py` 怼近左臂渲一张"甲单独 vs 甲+身体（身体染红）"对比 |
 | 🔴 **拳头被甲整个包住** | 收进来的源件网格带**手和手指**的几何（`submesh_3` 263 顶点里 230 个在左手/手指骨上；`submesh_1` 也带手）。籠手该止于手腕，手留给骑砍身体 | `--no-hands`：按**主骨**判断，落在 `bone_18/19`（手）或 `bone_26~45`（手指）上就删。🔴 **别整件丢 `submesh_3`** —— 它除了手还带上臂的袖子，丢了会导致上臂露白（两头都要） |
 | 🔴 **籠手盖住拳头（手腕没伸出来）** | 手臂缩放各向同性 → 沿骨轴也被拉长，籠手末端越过手腕 | 拆成径向/沿轴两个方向（见参数表）。**判定法**：`_armzoom.py` 怼近看 |
 | ⚠️ **上臂中段露身体（未根治，两难点）** | 源件那里本来是**着物的布袖子**盖的；而着物是紧贴胳膊的，骑砍身体更粗 → 着物陷在身体里。想靠袖/籠手盖住只能**径向猛撑**，但撑到能盖住（≈0.0185）手臂就变香肠；不撑（≈0.0130）露一大块。**当前取中间值 0.0160** | 干净的解法是**加一段程序生成的布袖**（绕上臂骨的筒，权重给 `upperarm_twist_15`，UV 抄最近着物顶点）。尚未做 |
@@ -172,7 +172,7 @@ T_bl[b] = Translate(骑砍骨头) · Rot(仅手臂) · Scale(R) · Translate(-(M
 | 项 | 位置 |
 |---|---|
 | 官方骨架 | `<游戏根>/modding_resources/skeletons/human_skeleton.fbx`（28 骨，名字自带索引） |
-| 原版身体（含权重） | `tpaccli dump --packdir Debug/offline/core_game --filter body_male_a --format fbx --out Debug/offline/core_game/fbx/body` |
+| 原版身体（含权重） | `tpaccli dump --packdir Debug/offline/自定义头/core_game --filter body_male_a --format fbx --out Debug/offline/自定义头/core_game/fbx/body` |
 | tpaccli | `tools/face-pipeline/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe` |
 | Blender | `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`（自带 numpy，KD-tree 用 `mathutils.kdtree`） |
 | 源件（本例） | `D:\BrainMaker\战国无双2资产解包分析\export\fbx\L00_yukimura.fbx` |

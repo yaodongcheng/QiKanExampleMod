@@ -18,7 +18,7 @@ def patch_fbx_importer():
         print("[patch] 未找到断言（版本可能已改）")
 patch_fbx_importer()
 
-VANILLA = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\core_game\fbx\head\head_female_a.fbx"
+VANILLA = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\core_game\fbx\head\head_female_a.fbx"
 OURS    = r"D:/BrainMaker/blend_projects/tifa_export/backup_20260913/head_tifa_a_v9.fbx"
 
 EYE_X = 0.075      # 眼窝区域：|x| 上限

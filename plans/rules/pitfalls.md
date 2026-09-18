@@ -1480,7 +1480,7 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 2. **修包（把被清掉的标记补回来）**：`tpaccli skinfix --packdir <包目录> --filter <头名> --out <新目录> --fullmat`
    —— 标记为空的子网格会**按材质名**补回、材质配方幂等重刷；**filter 窄 = 只动那一颗头**（不碰同包其它头）。
    零成本：不重导 FBX、不开编辑器，拷回 `AssetPackages/pack0.tpac` 重启即生效。
-   范本：`Debug/offline/tifa_flag_repair/`（2026-09-16 修蒂法 + 萨菲罗斯，含修复前备份包 + 逐字段对账转储）。
+   范本：`Debug/offline/自定义头/tifa_flag_repair/`（2026-09-16 修蒂法 + 萨菲罗斯，含修复前备份包 + 逐字段对账转储）。
 3. **清标记（应急/验证）**：`tpaccli metaparts --packdir <包目录> --filter <头名> --out <新目录> --clearflags`
    —— 同样只动元数据。
 4. **诊断顺序纪律**（这次绕远的教训）：**先 dump 产物真身，再谈理论**。
