@@ -103,6 +103,39 @@ def fit_target(im, long_edge, no_upscale):
     return resize_to(im, max(1, int(round(w * scale))), max(1, int(round(h * scale))))
 
 
+def uv_rect_px(rect, nw, nh):
+    """UV 矩形 "u0,v0,u1,v1"（v 向上）→ PIL 像素矩形 (x, y, w, h)（行号向下）。"""
+    try:
+        u0, v0, u1, v1 = [float(x) for x in rect.split(",")]
+    except Exception:
+        sys.exit("FAIL: UV 矩形要写 u0,v0,u1,v1（v 向上），收到 %r" % rect)
+    if not (0.0 <= u0 < u1 <= 1.0 and 0.0 <= v0 < v1 <= 1.0):
+        sys.exit("FAIL: UV 矩形越界或反了：%r" % rect)
+    x0, x1 = int(round(u0 * nw)), int(round(u1 * nw))
+    y0, y1 = int(round((1.0 - v1) * nh)), int(round((1.0 - v0) * nh))
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def cover_region(arr, box_rect, src_rect):
+    """把 arr 上 box_rect 那块**逐像素换成** src_rect 那块（同尺寸）。
+
+    用途 = 「颏带改色」：头盔颏带的 UV 区在整张图上是**独占**的（实测外扩 2px 与别人的
+    三角形 0 重叠），所以把它的贴图换成旁边干净皮肤，几何不动 —— 不删几何就不会在下颌
+    与脖子的交界处露缝（删了会露，见 Debug/offline/_band_owner.py 的绿背板对照）。
+    """
+    nh, nw = arr.shape[:2]
+    bx, by, bw, bh = uv_rect_px(box_rect, nw, nh)
+    sx, sy, sw, sh = uv_rect_px(src_rect, nw, nh)
+    if (bw, bh) != (sw, sh):
+        sys.exit("FAIL: --cover 与 --cover-src 的像素尺寸不一致：%dx%d vs %dx%d（UV 矩形按同一张图取值）"
+                 % (bw, bh, sw, sh))
+    if bx < 0 or by < 0 or bx + bw > nw or by + bh > nh:
+        sys.exit("FAIL: --cover 超出图范围：x[%d,%d] y[%d,%d] 图 %dx%d" % (bx, bx + bw, by, by + bh, nw, nh))
+    out = arr.copy()
+    out[by:by + bh, bx:bx + bw] = arr[sy:sy + sh, sx:sx + sw]
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--atlas", help="A 路线：源图集 PNG（web/textures/<角色>.png）")
@@ -122,7 +155,11 @@ def main():
     ap.add_argument("--no-upscale", action="store_true",
                     help="只缩不放 —— 武器贴图很小（实测 128×32 ~ 256×512，多在 256×64），"
                          "放大到 2048 只是插值变糊 + 体积涨 20 倍（28 张 25.4MB vs 1MB），细节一点不增")
+    ap.add_argument("--cover", help="要盖掉的 UV 矩形 u0,v0,u1,v1（v 向上）—— 头盔颏带的独占 UV 区")
+    ap.add_argument("--cover-src", help="盖上去的源 UV 矩形 u0,v0,u1,v1（与 --cover 同像素尺寸）")
     a = ap.parse_args()
+    if bool(a.cover) != bool(a.cover_src):
+        sys.exit("FAIL: --cover 与 --cover-src 必须成对给")
 
     use_upgrade = bool(a.src_dir)
     if use_upgrade:
@@ -143,6 +180,10 @@ def main():
     im = fit_target(Image.open(d_path).convert("RGB"), a.long_edge, a.no_upscale)
     nw, nh = im.size
     arr = __import__("numpy").asarray(im)
+    if a.cover:
+        # 颏带改色：把它的独占 UV 区换成旁边干净皮肤（几何不动 → 不会在下颌/脖子交界露缝）
+        arr = cover_region(arr, a.cover, a.cover_src)
+        print("颏带改色：UV 区 %s ← 皮肤块 %s" % (a.cover, a.cover_src))
 
     tmp = []
     # 三张 diffuse：同一张图（战无2 的脸/眼/嘴本来就在同一张图上）
@@ -154,21 +195,21 @@ def main():
         tmp.append(p)
 
     # ---- 法线 ----
+    _np = __import__("numpy")
     if use_upgrade and os.path.isfile(n_path):
         # B 路线：真法线。定到与 diffuse 同一尺寸（图上 UV 一致，尺寸必须逐一对应）
-        n_im = resize_to(Image.open(n_path).convert("RGB"), nw, nh)
-        p = os.path.join(a.out, a.name + "_n.png")
-        n_im.save(p, format="PNG", optimize=False)
-        tmp.append(p)
+        n_arr = _np.asarray(resize_to(Image.open(n_path).convert("RGB"), nw, nh))
         src_note = "真法线"
     else:
         # A 路线（或 B 路线缺法线图）：纯色平法线
-        n_flat = __import__("numpy").tile(
-            __import__("numpy").array(N_FLAT, dtype="uint8"), (nh, nw, 1))
-        p = os.path.join(a.out, a.name + "_n.png")
-        save_rgb(n_flat, p)
-        tmp.append(p)
+        n_arr = _np.tile(_np.array(N_FLAT, dtype="uint8"), (nh, nw, 1))
         src_note = "平法线（%s）" % ("源缺 _n" if use_upgrade else "A 路线")
+    if a.cover:
+        # 法线也要换：只改漫反射的话，颏带的斜纹凹凸还在，实机仍认得出那条带子
+        n_arr = cover_region(n_arr, a.cover, a.cover_src)
+    p = os.path.join(a.out, a.name + "_n.png")
+    save_rgb(n_arr, p)
+    tmp.append(p)
 
     # ---- 高光：两条路线都写纯色 ----
     # 源工程的 _mr 是 R=AO/G=粗糙/B=金属，与骑砍的 R=金属/G=光泽/B=AO 顺序相反，

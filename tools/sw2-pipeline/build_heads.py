@@ -60,7 +60,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from parts_table import (TABLE, build_head_args, strap_seeds, strap_bones,  # noqa: E402
-                         neck_src_idx, neck_args, head_junk_seeds, head_cut_z)
+                         neck_src_idx, neck_args, head_junk_seeds, head_cut_z, strap_cover)
 from src_transform import load as load_srcT, lookup as srcT_lookup                       # noqa: E402
 
 try:
@@ -242,6 +242,12 @@ def main():
               "--src", CHAN_SRC, "--src-object", CHAN_OBJ, "--dst", v1, "--out", v2]
         c3 = [sys.executable, os.path.join(HERE, "scripts", "make_sw2_textures.py"),
               "--atlas", tex, "--out", d, "--name", r["asset"]]
+        # 🔴 颏带**改色**（不删几何，只换贴图）：给"颏带兼着堵下颌缝、摘了就露"的角色用
+        #    （秀吉）。数据在 parts_table 的 `strap_cover`（两个 UV 矩形），理由见该行注释。
+        _scv = strap_cover(key)
+        if _scv:
+            print("        颏带改色：UV 区 %s ← 皮肤块 %s" % (_scv["box"], _scv["src"]))
+            c3 += ["--cover", _scv["box"], "--cover-src", _scv["src"]]
         if not a.no_tex_upgrade:
             # 升级路线：漫反射读超分图、法线读真法线（见 make_sw2_textures.py 文档头 B 路线）
             c3 += ["--src-dir", TEX_BATCH, "--key", key]
