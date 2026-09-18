@@ -80,11 +80,14 @@ HERO_NAME_FIX = {
 # 要处理的表（TaikouForce.csv 是产物，排除）
 #   ⚠️ 2026-09-12：Kingdom.csv 已归档（`csv/_archive/`）——它的 Culture/noKingdom 收编进 ForceTaikou.csv，
 #      本表不再处理它（留着会报缺文件）。
-TABLES = ["Clan.csv", "TaikouHero.csv", "Settlements.csv", "BaseInfo.csv"]
+#   ⚠️ 2026-09-18：BaseInfo.csv 已删除（上游导入转储，数据已全量并入 TaikouHero.csv——
+#      六维 / 20 项技能 / 三类卡 / 8 组年代列 TaikouHero 都有且更多）。留着会报缺文件。
+TABLES = ["Clan.csv", "TaikouHero.csv", "Settlements.csv"]
 #   ⚠️ 2026-09-12：ForceTaikou.csv 已退役删除（快照口径是错误数据，以日志口径为准）
 
 # 🔴 允许「按首列 id 去重」的表 —— **只放 Clan.csv**（柳生三合一是唯一需要合并的场景）。
-#    BaseInfo.csv 的首列「内置番号」天然不唯一（1506 行 → 1047 个号），去重会误删 459 行。
+#    （该限制的由来：BaseInfo.csv 的首列「内置番号」天然不唯一（1506 行 → 1047 个号），
+#      去重会误删 459 行；BaseInfo 已于 2026-09-18 删除，此条留作历史依据。）
 ROW_DEDUP_TABLES = {"Clan.csv"}
 
 ERAS = ["1554", "1560", "1568", "1575", "1582", "1598"]

@@ -2,7 +2,7 @@
 import bpy, os, math, inspect
 from mathutils import Vector
 
-OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\neck_probe"
+OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\neck_probe"
 P = r"H:/SteamLibrary/steamapps/common/MB2_Version/MB2_1.2.12/Mount & Blade II Bannerlord/Modules/TifaHead2/AssetSources/head_tifa_a_v11.fbx"
 TDIR = r"H:/SteamLibrary/steamapps/common/MB2_Version/MB2_1.2.12/Mount & Blade II Bannerlord/Modules/TifaHead2/AssetSources/import_ready"
 TEX = {"head_tifa_a": "head_tifa_a_d.png", "head_tifa_a_mouth": "head_tifa_a_mouth_d.png",

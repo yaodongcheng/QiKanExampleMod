@@ -29,7 +29,7 @@ except Exception:
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))     # LivingWorldNpcs 模块根
 TPACCLI = os.path.join(REPO, "tools", "face-pipeline", "tpactool", "TpacToolCLI",
                        "bin", "Release", "net9.0", "tpaccli.exe")
-WORK = os.path.join(REPO, "Debug", "offline", "tifa_postpublish")
+WORK = os.path.join(REPO, "Debug", "offline", "自定义头", "tifa_postpublish")
 
 # 两个客户端（模块目录；发布版本按本机实际路径改这里）
 CLIENTS = [
@@ -73,7 +73,7 @@ def main():
     ap.add_argument("--filter", default="head_tifa_a", help="网格名子串")
     ap.add_argument("--clients", nargs="*", default=CLIENTS, help="要装机的模块目录列表")
     ap.add_argument("--check-ref", default=None, help="关卡 2 的参照头（默认脚本自带；男头传 head_male_a）")
-    ap.add_argument("--check-ref-pack", default=None, help="关卡 2 参照头所在 AssetPackages（男头传 core_game 硬链接目录）")
+    ap.add_argument("--check-ref-pack", default=None, help="关卡 2 参照头所在 AssetPackages（男头传 `Debug/offline/自定义头/core_game` 硬链接目录）")
     ap.add_argument("--check-window", default=None, help='关卡 2 着陆窗口 "x0,x1,y0,y1,z0,z1"')
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--clear-flags", action="store_true",
@@ -152,10 +152,10 @@ def main():
     #   ⇒ 「自定义头必须清标记」这句话**对①成立、对②正好相反**，不能一刀切。
     #     🔴 09-16 按①一刀切跑了一遍全包 → 把蒂法 / 萨菲罗斯的标记一起扫了（用户报「蒂法眼睛不对」）。
     #        当时的注释还错写成「蒂法 / 萨菲罗斯验收时 MaterialFlags 都是空的」——**历史包实测证伪**
-    #        （Debug/offline/tifa_flag_repair/backup、Debug/offline/neck_tint/pack0_before.tpac 里
+    #        （Debug/offline/自定义头/tifa_flag_repair/backup、Debug/offline/自定义头/neck_tint/pack0_before.tpac 里
     #        两人四个/三个标记齐全）。误判来源 = 把 SW2 侧的**件位顺序**结论（`[0]脸[1]嘴[2]眼`，
     #        见 tools/sw2-pipeline/parts_table.py）当成了「标记为空」。
-    #        修复命令（窄 filter 逐个补回）：`skinfix --fullmat`，见 Debug/offline/tifa_flag_repair/。
+    #        修复命令（窄 filter 逐个补回）：`skinfix --fullmat`，见 Debug/offline/自定义头/tifa_flag_repair/。
     #
     #   ⚠️ 标记是被上面两步**主动补上**的：`morphfix` 与 `skinfix --fullmat` 都有「为空就按材质名补标记」
     #      的兜底（当年为防脸部生成器空指针加的）。所以清必须**在它们之后**，否则下次装机又补回来。

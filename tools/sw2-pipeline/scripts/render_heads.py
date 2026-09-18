@@ -8,7 +8,7 @@
    取景会各向异性 —— 实测头被纵向拉伸了 2~3 倍，看图完全没法判断好坏（踩过）。
 
 用法:
-  blender -b --python render_heads.py -- --dir <Debug/offline/sw2_build> --out <对照图.png>
+  blender -b --python render_heads.py -- --dir <Debug/offline/外观批量导入/sw2_build> --out <对照图.png>
                                             [--view front|side|back] [--cell 420]
 """
 import bpy, sys, os, math

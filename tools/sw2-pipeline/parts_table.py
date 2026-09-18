@@ -13,7 +13,7 @@
 怎么来的：`identify_parts.py` 量出每块零件的骨骼/高度/主色 → 机器按硬规则初判
     （眼球=38顶点60面、武器=材质名带 mat_w_、脸=主导骨 bone_46 占比最高），
     头发/兜 由接触图 + 逐件单独渲染人工确认。
-    逐条核对记录见 `Debug/offline/sw2_parts/`（离线产物）。
+    逐条核对记录见 `Debug/offline/外观批量导入/sw2_parts/`（离线产物）。
 
 三个身份字段：
     face     脸壳（**必须**）
@@ -228,7 +228,7 @@ TABLE = {
                           #    病根：背后 240°/300° 两档他**脸壳一块顶点都没有**，闸门的头侧下沿
                           #    只能拿到钵顶 1.6613 → 报 +152mm。真正包住后颈的是**錣（颈甲）**，
                           #    但它的碎片主导骨是 bone_9（胸/颈族）→ 被判"不是头"挡在头侧之外
-                          #    （同一块在 `Debug/offline/_neckdiag/L38_tadakatsu_asm_back.png`
+                          #    （同一块在 `Debug/offline/外观批量导入/_neckdiag/L38_tadakatsu_asm_back.png`
                           #    里是那顶粉色梯形——几何明明在，是量法看不见）。
                           #    试过放 r_max=0.24/y_max=0.24/skin_tol=0.30 硬抠：闸门确实过，
                           #    但抠进来的 226 顶点是**兜角/肩刺/肩甲片**（渲图实锤：绿的爬满鹿角），
@@ -498,7 +498,7 @@ def neck_src_idx(key):
     extra = set(r.get("neck_src_extra") or [])
     excl = set(r.get("neck_src_exclude") or [])   # 🔴 逐人**排除**：这些件里的几何属于别处（如兜）
     p = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
-                                      "Debug", "offline", "sw2_census", key + "_census.csv"))
+                                      "Debug", "offline", "外观批量导入", "sw2_census", key + "_census.csv"))
     if not os.path.isfile(p):
         return []
     out = []

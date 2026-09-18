@@ -19,7 +19,7 @@ patch_fbx_importer()
 
 TIFA  = r"F:\下载\Tifa lockhart In Drees - FBX\Tifa.fbx"
 OURS  = r"D:/BrainMaker/blend_projects/tifa_export/backup_20260913/head_tifa_a_v10.fbx"
-VAN   = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\core_game\fbx\head\head_female_a.fbx"
+VAN   = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\core_game\fbx\head\head_female_a.fbx"
 XX    = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\face_probe\xx_fbx\head\head_xxfemale_a.fbx"
 
 

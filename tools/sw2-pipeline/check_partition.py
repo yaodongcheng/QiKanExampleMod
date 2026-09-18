@@ -61,7 +61,7 @@ except Exception:
     FORCE_ARMOR = {}
 
 SRC = r"D:\BrainMaker\战国无双2资产解包分析\export\fbx"
-CENSUS = os.path.join(REPO, "Debug", "offline", "sw2_census")
+CENSUS = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_census")
 
 # 🔴 必须与 build_armor.HEAD_SW / part_census.bone_group 保持一致（改了要三处同改）
 HEAD_BONES = {"bone_10", "bone_11"} | {"bone_%d" % i for i in range(46, 63)}
@@ -132,7 +132,7 @@ def idx2name(key):
        `..._0002.001` 会解析出同一个号（实测秀吉 sub2 同时是脸件和武器件），
        按号对位会凭空造出「一张脸同时属于脸和武器」这种假重复。
     """
-    p = os.path.join(REPO, "Debug", "offline", "sw2_parts", key + "_parts.csv")
+    p = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_parts", key + "_parts.csv")
     if not os.path.isfile(p):
         return {}
     out = {}

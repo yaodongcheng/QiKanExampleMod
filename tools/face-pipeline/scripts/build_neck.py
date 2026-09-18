@@ -21,14 +21,14 @@ BK = r"D:/BrainMaker/blend_projects/tifa_export/backup_20260913"
 HEAD_FBX = BK + "/head_tifa_a_v10.fbx"                      # 输入：当前能用的头（4 件 + 骨架）
 SRC_FBX = r"F:/下载/Tifa lockhart In Drees - FBX/Tifa.fbx"   # 蒂法源模型（取脖子）
 VAN_FBX = (r"H:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/"
-           r"LivingWorldNpcs/Debug/offline/core_game/fbx/head/head_female_a.fbx")   # 原版权重来源
+           r"LivingWorldNpcs/Debug/offline/自定义头/core_game/fbx/head/head_female_a.fbx")   # 原版权重来源
 BODY_OBJ = (r"H:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/"
-            r"LivingWorldNpcs/Debug/offline/core_game/out/body/body_female_a.obj")   # 骑砍2 女子身体
+            r"LivingWorldNpcs/Debug/offline/自定义头/core_game/out/body/body_female_a.obj")   # 骑砍2 女子身体
 OUT_FBX = (r"H:/SteamLibrary/steamapps/common/MB2_Version/MB2_1.2.12/Mount & Blade II Bannerlord/"
            r"Modules/TifaHead2/AssetSources/head_tifa_a_v11.fbx")
 OUT_BAK = BK + "/head_tifa_a_v11.fbx"
 RENDER_DIR = (r"H:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/"
-              r"LivingWorldNpcs/Debug/offline/neck_probe")
+              r"LivingWorldNpcs/Debug/offline/自定义头/neck_probe")
 
 # ---------------- 参数 ----------------
 Z_CUT = 1.522        # 脖子下沿（提上去试过 1.536：形状略好但会漏 6 处极小的缝，退回）

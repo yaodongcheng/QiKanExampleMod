@@ -30,7 +30,7 @@ except Exception:
     pass
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-PARTS = os.path.join(REPO, "Debug", "offline", "sw2_parts")
+PARTS = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_parts")
 EYE_EXC = {"L49_musashi": (19, 30)}
 
 ok_n = bad_n = 0

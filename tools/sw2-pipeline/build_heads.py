@@ -46,7 +46,7 @@
   python tools/sw2-pipeline/build_heads.py --dry-run            # 只打印要跑什么
   python tools/sw2-pipeline/build_heads.py --stage <AssetSources 目录>   # 顺手拷进编辑器工程
 
-产出（Debug/offline/sw2_build/<角色>/）:
+产出（Debug/offline/外观批量导入/sw2_build/<角色>/）:
   <asset>_v1.fbx      几何版（无通道）
   <asset>_v2.fbx      ★ 成品（含 59 条形变通道）
   <asset>_*.png       8 张贴图
@@ -83,7 +83,7 @@ CHAN_OBJ = "head_tifa_a.0"
 # 原版头的 FBX（抄颈部权重用）：男头抄 head_male_a、女头抄 head_female_a。
 # 与 build_head_chain.py 给萨菲罗斯用的是同一份（extracted_sho 的 tpac dump）。
 VANILLA_HEAD_DIR = r"D:\BrainMaker\extracted_sho\fbx\head"
-OUT_ROOT = os.path.join(REPO, "Debug", "offline", "sw2_build")
+OUT_ROOT = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_build")
 
 
 def run(cmd, logf, keep=()):

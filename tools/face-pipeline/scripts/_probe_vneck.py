@@ -4,7 +4,7 @@
 import bpy, bmesh, os, math, collections
 from mathutils import Vector
 
-OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\neck_probe"
+OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\neck_probe"
 B = OUT.replace("\\neck_probe", "")
 BODY = B + r"\core_game\out\body\body_female_a.obj"
 HEADV = B + r"\core_game\fbx\head\head_female_a.fbx"

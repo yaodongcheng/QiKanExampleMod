@@ -32,7 +32,7 @@
 ⚠️ 名字（铠甲/头盔正式名）也不在本表，从 `Sw2OfficialNames.csv` 取 —— 那张表由
    `extract_official_names.py` 从上游 `web/armor.html` 提取（铁律 28：源 → 生成器 → CSV）。
 
-数据来源（都在 `Debug/offline/`，离线产物不进 git）
+数据来源（都在 `Debug/offline/外观批量导入/`，离线产物不进 git）
   · `sw2_parts/<模型>_parts.csv`   —— 零件表（`build_helmets.helmet_subs` 靠它把 idx 翻成网格名）
   · `sw2_census/<模型>_census.csv` —— 骨普查（甲管线 `plan_for` 靠它挑甲件）
 """

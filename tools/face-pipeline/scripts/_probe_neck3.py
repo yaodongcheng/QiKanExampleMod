@@ -12,7 +12,7 @@ def patch():
         exec(compile(src, mod.__file__, "exec"), mod.__dict__)
 patch()
 
-B = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline"
+B = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头"
 TIFA = r"F:\下载\Tifa lockhart In Drees - FBX\Tifa.fbx"
 VANH = B + r"\core_game\fbx\head\head_female_a.fbx"
 SKEL = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\bin\Win64_Shipping_wEditor\modding_resources\skeletons\human_skeleton.fbx"

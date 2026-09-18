@@ -2,7 +2,7 @@
 import bpy, bmesh, os, math, inspect
 from mathutils import Vector, Matrix
 
-OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\neck_probe"
+OUT = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline\自定义头\neck_probe"
 TIFA = r"F:\下载\Tifa lockhart In Drees - FBX\Tifa.fbx"
 OURS = r"D:/BrainMaker/blend_projects/tifa_export/backup_20260913/head_tifa_a_v10.fbx"
 S, BY, BZ = 1.238, 0.01685, -0.2678

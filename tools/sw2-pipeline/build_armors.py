@@ -3,7 +3,7 @@
 
 依赖
 ----
-  · `Debug/offline/sw2_census/<角色>_census.csv`（先跑 `run_census.py`）
+  · `Debug/offline/外观批量导入/sw2_census/<角色>_census.csv`（先跑 `run_census.py`）
   · `tools/armor-pipeline/scripts/build_armor.py` + `build_textures.py`
   · 骑砍骨架 `human_skeleton.fbx`（build_armor_chain.py 里那份）
 
@@ -37,7 +37,7 @@
     python tools/sw2-pipeline/build_armors.py --only L02_nobunaga     # 单人
     python tools/sw2-pipeline/build_armors.py                         # 全部
     python tools/sw2-pipeline/build_armors.py --only L47_nene --dry-run   # 只看命令
-    python tools/sw2-pipeline/build_armors.py --only L47_nene --out Debug/offline/t_armor_test --log
+    python tools/sw2-pipeline/build_armors.py --only L47_nene --out Debug/offline/外观批量导入/t_armor_test --log
 """
 import argparse
 import csv
@@ -66,7 +66,7 @@ SRC_DIR = os.path.join(SRC_ROOT, "export", "fbx")
 # 源工程 2026-09-16 贴图升级产物（<键>_d.png = 超分漫反射，2 倍于原图集）
 TEX_BATCH = os.path.join(SRC_ROOT, "work", "tex_batch")
 USE_TEX_UPGRADE = True          # 由 --no-tex-upgrade 关闭（main 里赋值）
-CENSUS_DIR = os.path.join(REPO, "Debug", "offline", "sw2_census")
+CENSUS_DIR = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_census")
 OUT_DIR = os.path.join(REPO, "tools", "armor-pipeline", "out")
 BUILD = os.path.join(REPO, "tools", "armor-pipeline", "scripts", "build_armor.py")
 TEX = os.path.join(REPO, "tools", "armor-pipeline", "scripts", "build_textures.py")
@@ -92,7 +92,7 @@ OVERRIDE = {
     #    「迎风向后甩出去」的姿势（长政 idx1 从腰部向后伸 66cm），骨轴是竖直的脊椎
     #    → `--cloth-drop`（绕骨轴）对它无效，必须走 `--cloth-hang`（绕水平轴扫到正下方）。
     #    判据来源：驱动件↔渲染件按包围盒重合配对（8/8 命中），配对结果见
-    #    Debug/offline/cloth_probe/audit_cloth.txt。
+    #    Debug/offline/外观批量导入/cloth_probe/audit_cloth.txt。
     "L42_nagamasa": dict(cloth_hang="0"),
     "L40_ieyasu":   dict(cloth_hang="0"),
 }
@@ -215,7 +215,7 @@ def plan_for(key):
     #    普查把兵种的身体件判成「甲件」→ 收进甲；它带着**裸手臂 / 裸腿 / 脚**的皮肤，
     #    进游戏会叠在骑砍自己的身体上（两套肢体）。实测 L250：`--kimono-torso-only`
     #    只删掉 6 个顶点（KEEP_SW 把大腿/肩也算作躯干），**过滤不掉**；
-    #    直接从选件里去掉身体件才干净（渲染对比 Debug/offline/_pilot_render{,3}/）。
+    #    直接从选件里去掉身体件才干净（渲染对比 Debug/offline/外观批量导入/_pilot_render{,3}/）。
     #    代价：内衬着物（躯干那层布）也没了 —— 但胴丸本来就盖住躯干，看不出来。
     for _s in (row_of(key, TABLE).get("body") or []):
         while _s in armor:
@@ -267,7 +267,7 @@ def head_fbx(key):
     r = row_of(key, TABLE)
     if "slug" in r:                      # 兵种：build_heads.py 不给它们出头
         return None
-    p = os.path.join(REPO, "Debug", "offline", "sw2_build", key, r["asset"] + "_v1.fbx")
+    p = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_build", key, r["asset"] + "_v1.fbx")
     return p if os.path.isfile(p) else None
 
 
@@ -344,13 +344,13 @@ def main():
             cmd += ["--drop-coincident", _neckf]
         # 🔴 区域剔除（2026-09-17 晚）：与头侧 `--skin-region` **同一份参数**（parts_table 那一行）
         #    —— 把「脖子/胸口皮肤区」从甲里剔掉，免得甲占着皮肤区（实机=领口里一块灰）。
-        _skr = TABLE[key].get("skin_region")
+        _skr = row_of(key, TABLE).get("skin_region")
         if _skr:
             # 🔴 优先「与头同一批源顶点」（头产物旁边有 <asset>_necksrc.json 就用它）：
             #    头拿多少、甲正好少多少；没有那份清单才退回"同区域各判一次"（旧做法，会剔偏）。
             _hjson = None
             if _neckf:
-                _cand = os.path.join(os.path.dirname(_neckf), TABLE[key]["asset"] + "_necksrc.json")
+                _cand = os.path.join(os.path.dirname(_neckf), row_of(key, TABLE)["asset"] + "_necksrc.json")
                 if os.path.isfile(_cand):
                     _hjson = _cand
             if _hjson:
