@@ -136,6 +136,15 @@ namespace LivingWorldNpcs
             //    场上无火器时每发弹只做一次「查表未命中」判定，零开销。
             mission.AddMissionBehavior(new FirearmFxLogic());
 
+            // 🔴 飞天 spike（2026-09-18，custom.fly）：同上，**必须置于玩法闸门之前**——
+            //    飞天要在战场/城镇/野外全场景可测；纯按帧写玩家高度、不碰战役 API，
+            //    未开命令时每帧只做一次 bool 判断，零开销。验完即整对删。
+            mission.AddMissionBehavior(new FlySpikeMissionView());
+
+            // 导航件升降板验证（2026-09-18，custom.plate）：同上置于闸门之前；
+            // 未建板时每帧只做一次 null 判断，零开销。验完即删。
+            mission.AddMissionBehavior(new PlateSpikeMissionView());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——
