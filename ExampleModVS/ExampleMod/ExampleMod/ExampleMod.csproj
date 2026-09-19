@@ -453,6 +453,9 @@
     <Compile Include="CampaignMode\Tools\NavMeshDebugRenderer.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugMissionView.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugMapTickPatch.cs" />
+    <!-- 飞天实验合集（fly / flytest / plate + 实验指令 vlift·lift·airhold·airjump·mount_scale·chair*）——
+         全部飞行尝试都在这一个文件里；结论已归档 Knowledge/骑砍2Agent运动与位置机制.md §6，用完可整文件删 -->
+    <Compile Include="CampaignMode\Tools\FlySpike.cs" />
     <!-- 🔴 2026-09-16 认知状态批量命令 custom.meet_all（原版无对应指令；HasMet 单向、消息清空副作用见文件头） -->
     <Compile Include="CampaignMode\Tools\HeroMeetCommands.cs" />
     <Compile Include="CampaignMode\Tools\HeightReportCommands.cs" />

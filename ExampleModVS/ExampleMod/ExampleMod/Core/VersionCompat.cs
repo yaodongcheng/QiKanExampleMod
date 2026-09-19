@@ -568,6 +568,25 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // ── 完全放开控制（飞天 spike，2026-09-18）────────────────────
+        // 与 SetPlayerControlFrozen(frozen:true)（→ AI）的区别：
+        //   AI   = 交给引擎 AI，`Agent.Tick` 的 `if (AllowAiTicking && IsAIControlled) TickAsAI(dt)`
+        //          会把 agent 当 AI 单位驱动 → 实机 2026-09-18 它自己跑去了 z=15.06 的别处。
+        //   None = 引擎 AI 完全退场，没人驱动位置 → 外部按帧写位置才成立（脚本/演出用）。
+        // 版本差异同 SetAgentAI：嵌套枚举 Agent.ControllerType → 顶级 AgentControllerType。
+
+        public static void SetAgentControllerNone(Agent agent)
+        {
+            if (agent == null) return;
+#if MB2_GE_130
+            if (agent.Controller != AgentControllerType.None)
+                agent.Controller = AgentControllerType.None;
+#else
+            if (agent.Controller != Agent.ControllerType.None)
+                agent.Controller = Agent.ControllerType.None;
+#endif
+        }
+
         // ── Map weather ──────────────────────────────────────────────
         // 天气（方案 G1，2026-08-16）：Campaign.Current.Models.MapWeatherModel.GetWeatherEventInPosition
         // ✅ 反编译实锤三版本均有；MapWeatherModel = ComponentInterfaces 命名空间，

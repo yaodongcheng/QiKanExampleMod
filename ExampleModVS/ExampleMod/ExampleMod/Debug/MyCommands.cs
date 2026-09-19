@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -3064,6 +3065,190 @@ namespace LivingWorldNpcs
             co.UpdatePlayerCharacterBodyProperties(target, co.Race, co.IsFemale);
             DebugLogger.Log($"=== Face restored: {hero.Name} ({hero.StringId}) -> {target} ===");
             return $"OK. restored to {target}{note ?? ""}";
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 飞天实验用最小指令（2026-09-18）
+        // 两个正交的拨杆，交给人在游戏里人肉试：① 写高度  ② 改控制权。
+        // 刻意做成"一次一发、不驻留状态"——目的是让每一次观察只对应一个动作。
+        // 返回文本纯英文（铁律）；详情进 DebugLogger。
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 设置玩家 agent 的高度（绝对 Z，米）。**只写一次**，返回写入前后的坐标。
+        /// 用法：
+        ///   custom.set_height 20    # 抬到绝对高度 20
+        ///   custom.set_height +5    # 当前高度 +5（相对）
+        ///   custom.set_height -5    # 当前高度 -5
+        ///   custom.set_height       # 只报当前高度
+        /// 注：readback 是**同一帧**读完的结果；后面帧会不会被引擎拉回去，看画面/再看一次本命令。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("set_height", "custom")]
+        public static string SetPlayerHeight(List<string> args)
+        {
+            try
+            {
+                Agent player = Agent.Main;
+                if (player == null)
+                    return "[Height] no player agent (enter a mission first)";
+
+                if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
+                    return $"[Height] current pos=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F2}) - usage: custom.set_height <z> | +d | -d";
+
+                string raw = args[0].Trim();
+                bool relative = raw.StartsWith("+") || raw.StartsWith("-");
+                if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
+                    return $"[Height] '{raw}' is not a number -> ignored. current z={player.Position.z:F2} (usage: custom.set_height <z> | +d | -d)";
+
+                Vec3 before = player.Position;
+                float targetZ = relative ? before.z + v : v;
+                player.TeleportToPosition(new Vec3(before.x, before.y, targetZ));
+                Vec3 after = player.Position;
+                string mountInfo2 = DescribeMount(player);
+
+                DebugLogger.Log(
+                    $"[HeightSpike] set z: target={targetZ:F2} before=({before.x:F1},{before.y:F1},{before.z:F2}) " +
+                    $"readback=({after.x:F1},{after.y:F1},{after.z:F2}) onLand={player.IsOnLand()}{mountInfo2}");
+
+                return $"[Height] target={targetZ:F2} readback z={after.z:F2} (same-frame; engine may pull it back later){mountInfo2}";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[HeightSpike] failed: {ex}");
+                return $"[Height] failed: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 骑乘状态描述（飞天实验用）：骑手和马**分别**报坐标——不然只看骑手看不出马跟没跟。
+        /// 🔴 TeleportToPosition 的实现是先搬坐骑再搬骑手，两者可能不一致。
+        /// </summary>
+        private static string DescribeMount(Agent player)
+        {
+            try
+            {
+                Agent mount = player.MountAgent;
+                if (mount == null)
+                    return " (on foot)";
+                Vec3 mp = mount.Position;
+                return $" [MOUNTED riderZ={player.Position.z:F2} mount=({mp.x:F2},{mp.y:F2},{mp.z:F2}) mountOnLand={mount.IsOnLand()}]";
+            }
+            catch
+            {
+                return " [mount?]";
+            }
+        }
+
+        /// <summary>
+        /// 按**增量向量**移动玩家（一次一发）：x/y/z 各加一个偏移。
+        /// 用法：
+        ///   custom.move 10 0 0     # X +10
+        ///   custom.move 0 0 5      # Z +5（抬升）
+        ///   custom.move 0 -3 0     # Y -3
+        ///   custom.move            # 只报当前坐标
+        /// 省掉的参数按 0 算（custom.move 0 0 5 = 只抬 5 米）。
+        /// 返回同帧 readback——立刻能看出引擎收没收。
+        /// 🔴 与 custom.teleport 的区别：teleport 是绝对坐标（要自己算目标点），本条是增量。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("move", "custom")]
+        public static string MovePlayerByDelta(List<string> args)
+        {
+            try
+            {
+                Agent player = Agent.Main;
+                if (player == null)
+                    return "[Move] no player agent (enter a mission first)";
+
+                Vec3 before = player.Position;
+                if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
+                    return $"[Move] current pos=({before.x:F2},{before.y:F2},{before.z:F2}) - usage: custom.move <dx> <dy> <dz> (missing = 0)";
+
+                float[] d = new float[3];
+                for (int i = 0; i < 3; i++)
+                {
+                    if (i >= args.Count || string.IsNullOrWhiteSpace(args[i]))
+                    {
+                        d[i] = 0f;
+                        continue;
+                    }
+                    if (!float.TryParse(args[i].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out d[i]))
+                    {
+                        // 首参可弃：第一个参数就认不出 → 当占位符，回落成"只报坐标"
+                        if (i == 0)
+                            return $"[Move] '{args[i]}' is not a number -> ignored. current pos=({before.x:F2},{before.y:F2},{before.z:F2}) (usage: custom.move <dx> <dy> <dz>)";
+                        d[i] = 0f;
+                    }
+                }
+
+                Vec3 target = new Vec3(before.x + d[0], before.y + d[1], before.z + d[2]);
+                player.TeleportToPosition(target);
+                Vec3 after = player.Position;
+                string mountInfo = DescribeMount(player);
+
+                DebugLogger.Log(
+                    $"[MoveSpike] d=({d[0]:F2},{d[1]:F2},{d[2]:F2}) from=({before.x:F1},{before.y:F1},{before.z:F2}) " +
+                    $"target=({target.x:F1},{target.y:F1},{target.z:F2}) readback=({after.x:F1},{after.y:F1},{after.z:F2}) " +
+                    $"onLand={player.IsOnLand()}{mountInfo}");
+
+                return $"[Move] d=({d[0]:F2},{d[1]:F2},{d[2]:F2}) readback=({after.x:F2},{after.y:F2},{after.z:F2}) " +
+                       $"(same-frame; engine may pull it back later){mountInfo}";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[MoveSpike] failed: {ex}");
+                return $"[Move] failed: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 设置玩家 agent 的控制权。**只拨一次**，返回拨完的坐标与状态。
+        /// 用法：
+        ///   custom.set_controller player   # 还给玩家（恢复了控制就靠这条）
+        ///   custom.set_controller ai       # 交给引擎 AI
+        ///   custom.set_controller none     # 引擎 AI 完全退场（没人控制）
+        ///   custom.set_controller          # 只报当前状态
+        /// 🔴 一律走 V.* 版本兼容封装（Agent.ControllerType 在 1.3+ 改名为顶级 AgentControllerType）。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("set_controller", "custom")]
+        public static string SetPlayerController(List<string> args)
+        {
+            try
+            {
+                Agent player = Agent.Main;
+                if (player == null)
+                    return "[Ctrl] no player agent (enter a mission first)";
+
+                if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
+                    return $"[Ctrl] playerControlled={V.IsAgentPlayer(player)} pos=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F2}) - usage: custom.set_controller player|ai|none";
+
+                string mode = args[0].Trim().ToLowerInvariant();
+                switch (mode)
+                {
+                    case "player":
+                        V.SetPlayerControlFrozen(player, false);
+                        break;
+                    case "ai":
+                        V.SetPlayerControlFrozen(player, true);
+                        break;
+                    case "none":
+                        V.SetAgentControllerNone(player);
+                        break;
+                    default:
+                        return $"[Ctrl] '{args[0]}' unknown -> ignored. use player | ai | none (current playerControlled={V.IsAgentPlayer(player)})";
+                }
+
+                Vec3 p = player.Position;
+                DebugLogger.Log(
+                    $"[CtrlSpike] controller -> {mode}; pos=({p.x:F1},{p.y:F1},{p.z:F2}) " +
+                    $"playerControlled={V.IsAgentPlayer(player)} onLand={player.IsOnLand()}");
+
+                return $"[Ctrl] -> {mode}; playerControlled={V.IsAgentPlayer(player)} pos=({p.x:F1},{p.y:F1},{p.z:F2})";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CtrlSpike] failed: {ex}");
+                return $"[Ctrl] failed: {ex.Message}";
+            }
         }
 
 
