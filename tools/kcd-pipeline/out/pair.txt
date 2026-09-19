@@ -1,0 +1,143 @@
+﻿[KCDPATCH] morph assert patched
+[KCDPATCH] armature_setup lookup patched
+== 映射表 h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\tools\kcd-pipeline\map_kcd_henry.json（94 条，flip=z180）==
+FBX version: 7500
+Error, could not find any file path in  FBXElem(id=b'Texture', props=[2869155120, b'Map #205\x00\x01Texture', b''], props_type=bytearray(b'LSS'), elems=[FBXElem(id=b'Type', props=[b'TextureVideoClip'], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'Version', props=[202], props_type=bytearray(b'I'), elems=[]), FBXElem(id=b'TextureName', props=[b'Map #205\x00\x01Texture'], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'Properties70', props=[], props_type=bytearray(b''), elems=[FBXElem(id=b'P', props=[b'3dsMax', b'Compound', b'', b''], props_type=bytearray(b'SSSS'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|ClassIDa', b'int', b'Integer', b'', 548], props_type=bytearray(b'SSSSI'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|ClassIDb', b'int', b'Integer', b'', 0], props_type=bytearray(b'SSSSI'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|SuperClassID', b'int', b'Integer', b'', 3088], props_type=bytearray(b'SSSSI'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters', b'Compound', b'', b''], props_type=bytearray(b'SSSS'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|red', b'Color', b'', b'A', 1.0, 1.0, 1.0], props_type=bytearray(b'SSSSDDD'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|green', b'Color', b'', b'A', 0.0, 0.0, 0.0], props_type=bytearray(b'SSSSDDD'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|blue', b'Color', b'', b'A', 1.0, 1.0, 1.0], props_type=bytearray(b'SSSSDDD'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|map1', b'Reference', b'', b'A'], props_type=bytearray(b'SSSS'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|map1Enabled', b'Bool', b'', b'A', 1], props_type=bytearray(b'SSSSI'), elems=[])]), FBXElem(id=b'Media', props=[b''], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'FileName', props=[b''], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'RelativeFilename', props=[b''], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'ModelUVTranslation', props=[0.0, 0.0], props_type=bytearray(b'DD'), elems=[]), FBXElem(id=b'ModelUVScaling', props=[1.0, 1.0], props_type=bytearray(b'DD'), elems=[]), FBXElem(id=b'Texture_Alpha_Source', props=[b'None'], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'Cropping', props=[0, 0, 0, 0], props_type=bytearray(b'IIII'), elems=[])])
+       Falling back to:  Map #205
+== KCD 骨架 Armature：484 骨（丢弃叶骨）  对象变换 [0.01, 0.01, 0.01] ==
+FBX version: 7400
+== 骑砍骨架 bip01_notused：31 骨（global_scale=100）==
+
+---- 1) 映射表逐关节残差（米）----
+KCD 骨                                  KCD 翻面后(m)                 骑砍骨                            骑砍(m)                            原始      去盆骨
+Hips                                   ( 0.0000, 0.0427, 0.9308) bip01_pelvis_0                 ( 0.0000, 0.0000, 0.9150)   0.0455   0.0000
+Spine                                  ( 0.0000, 0.0039, 0.9897) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.0196   0.0523
+Spine1                                 ( 0.0000, 0.0103, 1.0427) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.0352   0.0370
+Spine2                                 ( 0.0000, 0.0081, 1.0988) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.0902   0.0817
+Spine3                                 ( 0.0000,-0.0046, 1.1793) bip01_spine1_10                ( 0.0000,-0.0050, 1.1660)   0.0133   0.0423
+Spine4                                 ( 0.0000,-0.0300, 1.3054) bip01_spine2_11                ( 0.0000,-0.0090, 1.3050)   0.0210   0.0655
+Neck                                   ( 0.0000,-0.0212, 1.4977) bip01_neck_12                  ( 0.0000,-0.0130, 1.4660)   0.0327   0.0533
+Neck1                                  ( 0.0000,-0.0043, 1.5472) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.0268   0.0650
+Head                                   ( 0.0000, 0.0040, 1.6008) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.0278   0.0433
+FacialRoot                             ( 0.0000, 0.0040, 1.6008) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.0278   0.0433
+mhenry_jawRoot                         ( 0.0000, 0.0380, 1.6311) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.0678   0.0429
+mhenry_jaw                             ( 0.0000, 0.0380, 1.6311) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.0678   0.0429
+mhenry_tongue_01                       ( 0.0000, 0.0621, 1.5978) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.0641   0.0187
+mhenry_tongue_02                       ( 0.0000, 0.0621, 1.5978) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.0641   0.0187
+mhenry_tongue_03                       ( 0.0000, 0.0899, 1.5978) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.0904   0.0451
+mhenry_tongue_04                       ( 0.0000, 0.1054, 1.5978) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.1053   0.0604
+mhenry_eye_left_ext                    (-0.0333, 0.1026, 1.6703) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.1432   0.1048
+mhenry_eye_right_ext                   ( 0.0314, 0.1038, 1.6705) bip01_head_13                  ( 0.0000, 0.0030, 1.5730)   0.1437   0.1050
+LeftShoulder                           (-0.0668,-0.0117, 1.4567) bip01_l_clavicle_14            (-0.0460,-0.0340, 1.4140)   0.0525   0.0397
+LeftArm                                (-0.1917,-0.0150, 1.4281) bip01_l_upperarm_twist_15      (-0.1860,-0.0340, 1.4140)   0.0243   0.0245
+LeftArmRoll                            (-0.2531,-0.0237, 1.3609) bip01_l_upperarm_twist_15      (-0.1860,-0.0340, 1.4140)   0.0862   0.1015
+LeftArmRoll1                           (-0.3146,-0.0323, 1.2938) bip01_l_upperarm_twist1_16     (-0.3060,-0.0390, 1.3340)   0.0417   0.0671
+LeftForeArm                            (-0.3760,-0.0409, 1.2266) bip01_l_foretwist_17           (-0.4270,-0.0440, 1.2550)   0.0584   0.0782
+LeftForeArmRoll                        (-0.4203,-0.0278, 1.1776) bip01_l_foretwist_17           (-0.4270,-0.0440, 1.2550)   0.0793   0.0971
+LeftForeArmRoll1                       (-0.4646,-0.0147, 1.1286) bip01_l_foretwist1_18          (-0.5380,-0.0370, 1.1820)   0.0934   0.1029
+LeftForeArmRoll2                       (-0.5089,-0.0016, 1.0796) bip01_l_foretwist1_18          (-0.5380,-0.0370, 1.1820)   0.1121   0.1219
+LeftHand                               (-0.5532, 0.0115, 1.0307) bip01_l_hand_19                (-0.6500,-0.0290, 1.1080)   0.1303   0.1343
+LeftHandIndex1                         (-0.6100, 0.0489, 0.9741) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1316   0.1202
+LeftHandIndex2                         (-0.6301, 0.0600, 0.9365) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1508   0.1418
+LeftHandIndex3                         (-0.6409, 0.0663, 0.9131) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1677   0.1603
+LeftHandMiddle1                        (-0.6160, 0.0250, 0.9739) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1143   0.1107
+LeftHandMiddle2                        (-0.6411, 0.0264, 0.9324) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1315   0.1329
+LeftHandMiddle3                        (-0.6544, 0.0272, 0.9075) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1490   0.1526
+LeftInHandRing                         (-0.5733, 0.0099, 1.0252) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1251   0.1204
+LeftHandRing1                          (-0.6132, 0.0034, 0.9738) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1072   0.1119
+LeftHandRing2                          (-0.6344,-0.0078, 0.9350) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1206   0.1333
+LeftHandRing3                          (-0.6452,-0.0139, 0.9123) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1358   0.1513
+LeftInHandPinky                        (-0.5706,-0.0019, 1.0246) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1242   0.1237
+LeftHandPinky1                         (-0.6005,-0.0154, 0.9761) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1108   0.1218
+LeftHandPinky2                         (-0.6152,-0.0319, 0.9454) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1198   0.1389
+LeftHandPinky3                         (-0.6227,-0.0410, 0.9274) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1306   0.1528
+LeftHandThumb1                         (-0.5524, 0.0323, 1.0142) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1543   0.1452
+LeftHandThumb2                         (-0.5579, 0.0699, 0.9825) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1767   0.1622
+LeftHandThumb3                         (-0.5617, 0.0878, 0.9551) bip01_l_finger0_20             (-0.6900,-0.0330, 1.0390)   0.1952   0.1803
+RightShoulder                          ( 0.0668,-0.0117, 1.4567) bip01_r_clavicle_21            ( 0.0460,-0.0340, 1.4140)   0.0525   0.0397
+RightArm                               ( 0.1917,-0.0150, 1.4281) bip01_r_upperarm_twist_22      ( 0.1860,-0.0340, 1.4140)   0.0243   0.0245
+RightArmRoll                           ( 0.2531,-0.0237, 1.3609) bip01_r_upperarm_twist_22      ( 0.1860,-0.0340, 1.4140)   0.0862   0.1015
+RightArmRoll1                          ( 0.3146,-0.0323, 1.2938) bip01_r_upperarm_twist1_23     ( 0.3060,-0.0390, 1.3340)   0.0417   0.0671
+RightForeArm                           ( 0.3760,-0.0409, 1.2267) bip01_r_foretwist_24           ( 0.4270,-0.0440, 1.2550)   0.0584   0.0782
+RightForeArmRoll                       ( 0.4203,-0.0278, 1.1777) bip01_r_foretwist_24           ( 0.4270,-0.0440, 1.2550)   0.0793   0.0971
+RightForeArmRoll1                      ( 0.4646,-0.0147, 1.1287) bip01_r_foretwist1_25          ( 0.5380,-0.0370, 1.1820)   0.0934   0.1029
+RightForeArmRoll2                      ( 0.5089,-0.0016, 1.0797) bip01_r_foretwist1_25          ( 0.5380,-0.0370, 1.1820)   0.1121   0.1219
+RightHand                              ( 0.5532, 0.0115, 1.0307) bip01_r_hand_26                ( 0.6500,-0.0290, 1.1080)   0.1303   0.1343
+RightHandIndex1                        ( 0.6100, 0.0489, 0.9741) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1316   0.1202
+RightHandIndex2                        ( 0.6301, 0.0600, 0.9365) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1508   0.1418
+RightHandIndex3                        ( 0.6409, 0.0663, 0.9131) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1677   0.1603
+RightHandMiddle1                       ( 0.6160, 0.0250, 0.9739) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1143   0.1107
+RightHandMiddle2                       ( 0.6411, 0.0264, 0.9324) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1315   0.1329
+RightHandMiddle3                       ( 0.6544, 0.0272, 0.9075) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1490   0.1526
+RightInHandRing                        ( 0.5733, 0.0099, 1.0252) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1251   0.1204
+RightHandRing1                         ( 0.6132, 0.0034, 0.9738) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1072   0.1119
+RightHandRing2                         ( 0.6344,-0.0078, 0.9350) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1206   0.1333
+RightHandRing3                         ( 0.6452,-0.0139, 0.9123) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1358   0.1513
+RightInHandPinky                       ( 0.5706,-0.0019, 1.0246) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1242   0.1237
+RightHandPinky1                        ( 0.6005,-0.0154, 0.9761) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1108   0.1218
+RightHandPinky2                        ( 0.6152,-0.0319, 0.9454) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1198   0.1389
+RightHandPinky3                        ( 0.6227,-0.0410, 0.9274) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1306   0.1528
+RightHandThumb1                        ( 0.5524, 0.0323, 1.0142) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1543   0.1452
+RightHandThumb2                        ( 0.5579, 0.0699, 0.9825) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1767   0.1622
+RightHandThumb3                        ( 0.5617, 0.0878, 0.9551) bip01_r_finger0_27             ( 0.6900,-0.0330, 1.0390)   0.1952   0.1803
+LeftUpLeg                              (-0.1062, 0.0427, 0.9308) bip01_l_thigh_1                (-0.1000, 0.0000, 0.9150)   0.0460   0.0062
+LeftUpLegRoll                          (-0.1185, 0.0389, 0.7283) bip01_l_thigh_1                (-0.1000, 0.0000, 0.9150)   0.1916   0.2034
+LeftLeg                                (-0.1317, 0.0349, 0.5116) bip01_l_calf_2                 (-0.1340,-0.0270, 0.4990)   0.0632   0.0196
+LeftLegRoll                            (-0.1426, 0.0074, 0.3172) bip01_l_calf_2                 (-0.1340,-0.0270, 0.4990)   0.1852   0.1980
+LeftFoot                               (-0.1553,-0.0248, 0.0906) bip01_l_foot_3                 (-0.1660,-0.0760, 0.0930)   0.0524   0.0228
+LeftToeBase                            (-0.1652, 0.1267, 0.0237) bip01_l_toe0_4                 (-0.1790, 0.0400,-0.0020)   0.0915   0.0472
+RightUpLeg                             ( 0.1062, 0.0427, 0.9308) bip01_r_thigh_5                ( 0.1000, 0.0000, 0.9150)   0.0460   0.0062
+RightUpLegRoll                         ( 0.1185, 0.0389, 0.7283) bip01_r_thigh_5                ( 0.1000, 0.0000, 0.9150)   0.1916   0.2034
+RightLeg                               ( 0.1317, 0.0349, 0.5116) bip01_r_calf_6                 ( 0.1340,-0.0270, 0.4990)   0.0632   0.0196
+RightLegRoll                           ( 0.1426, 0.0074, 0.3172) bip01_r_calf_6                 ( 0.1340,-0.0270, 0.4990)   0.1852   0.1980
+RightFoot                              ( 0.1553,-0.0248, 0.0906) bip01_r_foot_7                 ( 0.1660,-0.0760, 0.0930)   0.0524   0.0228
+RightToeBase                           ( 0.1652, 0.1267, 0.0237) bip01_r_toe0_8                 ( 0.1790, 0.0400,-0.0020)   0.0915   0.0472
+legsplate03_KneePlate_l                (-0.1317, 0.0349, 0.5116) bip01_l_calf_2                 (-0.1340,-0.0270, 0.4990)   0.0632   0.0196
+legsplate03_KneePlate_r                ( 0.1317, 0.0349, 0.5116) bip01_r_calf_6                 ( 0.1340,-0.0270, 0.4990)   0.0632   0.0196
+hood06_liripipe_01                     ( 0.0162,-0.1776, 1.3506) bip01_spine2_11                ( 0.0000,-0.0090, 1.3050)   0.1754   0.2140
+BackSlot_shield                        (-0.0021,-0.1314, 1.3420) bip01_spine2_11                ( 0.0000,-0.0090, 1.3050)   0.1279   0.1665
+mainBelt_cuirass07_torso_01            ( 0.0489, 0.2003, 1.0365) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.2080   0.1654
+satchel_cuirass07_torso_01             ( 0.1467,-0.0549, 0.9811) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.1591   0.1816
+cuirass07_torso_pouch_01               ( 0.1057, 0.1726, 1.0278) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.2033   0.1675
+scabbard_longswordcapon_mainbelt_01    (-0.0402, 0.1994, 1.0120) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.2034   0.1622
+scabbard_longswordcapon_mainbelt_02    (-0.0376, 0.2119, 0.9148) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.2349   0.2053
+LeftWeaponSecondaryBelt                (-0.2066, 0.0610, 0.9834) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.2169   0.2115
+LeftWeaponSheath                       (-0.2146, 0.1330, 0.8936) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.2776   0.2672
+LeftWeaponSlot                         (-0.1840, 0.2043, 1.0131) bip01_spine_9                  (-0.0000, 0.0000, 1.0090)   0.2750   0.2452
+  原始统计：n=94  中位 0.114  均值 0.113  最大 0.278  (>0.05m 有 79 条)
+  去盆骨平移统计：n=94  中位 0.120  均值 0.108  最大 0.267  (>0.05m 有 70 条)
+
+---- 1b) 全骨覆盖（显式 94 / 父链兜底 388 / 丢弃 2 / 共 484）----
+  bip01_pelvis_0           <- Hips (前缀 vcloth_joint_gambesonlong03_waist_geo*)   169 根
+  bip01_head_13            <- FacialRoot (前缀 mhenry_SSDR_R_joint*)       100 根
+  bip01_head_13            <- FacialRoot (前缀 mhenry_SSDR_L_joint*)        99 根
+  bip01_head_13            <- FacialRoot (前缀 mhenry_SSDR_C_joint*)        19 根
+  bip01_pelvis_0           <- Hips (前缀 vcloth_root_joint_gambesonlong03_waist_geo_Hips*)     1 根
+  丢弃（无映射祖先，权重会被丢掉）：['Armature', 'Human_Male']
+
+---- 2) 解剖段长比（标定缩放；比 = 骑砍段长 / 源段长）----
+段                          侧                       源长(m)         骑砍长(m)          比     方向夹角°
+L 大腿 髋->膝                  LeftUpLeg->LeftLeg         0.4201         0.4183     0.9956      2.90
+L 小腿 膝->踝                  LeftLeg->LeftFoot         0.4259         0.4102     0.9632      1.76
+L 足 踝->趾                   LeftFoot->LeftToeBase         0.1659         0.1505     0.9072     15.55
+R 大腿 髋->膝                  RightUpLeg->RightLeg         0.4201         0.4183     0.9956      2.90
+R 小腿 膝->踝                  RightLeg->RightFoot         0.4259         0.4102     0.9632      1.76
+R 足 踝->趾                   RightFoot->RightToeBase         0.1659         0.1505     0.9072     15.55
+L 锁骨                       LeftShoulder->LeftArm         0.1282         0.1400     1.0923     13.01   (定义不同,不进统计)
+L 上臂 肩->肘                  LeftArm->LeftForeArm         0.2743         0.2889     1.0533     14.49
+L 前臂 肘->腕                  LeftForeArm->LeftHand         0.2694         0.2675     0.9931     16.44
+R 锁骨                       RightShoulder->RightArm         0.1282         0.1400     1.0923     13.01   (定义不同,不进统计)
+R 上臂 肩->肘                  RightArm->RightForeArm         0.2743         0.2889     1.0534     14.49
+R 前臂 肘->腕                  RightForeArm->RightHand         0.2694         0.2675     0.9931     16.44
+躯干下 髋->腰                   Hips->Spine            0.0705         0.0940     1.3324     33.36   (定义不同,不进统计)
+躯干中 髋->胸下                  Hips->Spine3           0.2530         0.2510     0.9924      9.63
+躯干上 髋->胸顶                  Hips->Spine4           0.3815         0.3901     1.0224      9.66
+全身 髋->头(总高)                Hips->Head             0.6711         0.6580     0.9805      3.56
+肩位 髋->锁骨                   Hips->LeftShoulder         0.5329         0.5023     0.9425      2.79
+腿根->肩                      LeftUpLeg->LeftShoulder         0.5302         0.5031     0.9489      2.76
+颈链 胸顶->头                   Spine4->Head           0.2974         0.2683     0.9021      4.01
+  段长比统计：n=16  最小 0.9021  中位 0.9924  最大 1.0534  离散(极差/中位) 15.2%
+  方向夹角统计：n=16  最小 1.7583  中位 9.6270  最大 16.4409  离散(极差/中位) 152.5%
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+
+Blender quit

@@ -34,30 +34,83 @@ def get(a, k, d=None):
     return a[a.index(k) + 1] if k in a else d
 
 def patch_importer():
-    """战无2 FBX 的 morph 通道缺 FullWeights，Blender 导入器会断言崩溃 → 内存级补丁。"""
+    """导入器内存补丁（两种源格式各踩过一个坑）：
+    ① 战无2 FBX 的 morph 通道缺 FullWeights → 断言崩溃。
+    ② KCD（3ds Max 导出）的武器/盾蒙皮到的骨头不在骨架子树下 → `mesh.armature_setup`
+       里没有对应登记 → `link_hierarchy` 抛 KeyError: None。只在会崩的场合兜底。
+    """
     import inspect
     import io_scene_fbx.import_fbx as mod
     src = inspect.getsource(mod)
+    orig = src
     bad = "assert len(full_weights) >= num_shapes_assigned_to_channel"
     if bad in src:
         src = src.replace(bad, "pass  # patched: TWT morph without FullWeights")
+    bad2 = "                    (mmat, amat) = mesh.armature_setup[self]"
+    if bad2 in src:
+        src = src.replace(bad2, (
+            "                    if self not in mesh.armature_setup:\n"
+            "                        mesh.armature_setup[self] = (mesh.bind_matrix, self.bind_matrix)\n"
+            + bad2))
+    if src != orig:
         exec(compile(src, mod.__file__, "exec"), mod.__dict__)
 
-def bone_group(name):
-    m = re.fullmatch(r"bone_(\d+)", name or "")
-    if not m:
-        return "other"
-    n = int(m.group(1))
-    return "hand" if (n in (18, 19) or 26 <= n <= 45) else "other"
+def make_hand_matcher(spec):
+    """把手骨规格编译成判定函数。spec = 逗号分隔的 token，每个 token 是：
+         · 精确骨名            `RightHand`
+         · 前缀+编号范围       `bone_26-45`  → bone_26..bone_45
+       默认值 `bone_18,bone_19,bone_26-45` 与战无2 原行为逐字等价。
+    """
+    exact, ranges = set(), []
+    for tok in (t.strip() for t in spec.split(",")):
+        if not tok:
+            continue
+        m = re.fullmatch(r"(.+)_(\d+)-(\d+)", tok)
+        if m:
+            ranges.append((m.group(1) + "_", int(m.group(2)), int(m.group(3))))
+        else:
+            exact.add(tok)
+
+    def is_hand(name):
+        if not name:
+            return False
+        if name in exact:
+            return True
+        for pre, lo, hi in ranges:
+            if name.startswith(pre) and name[len(pre):].isdigit() \
+                    and lo <= int(name[len(pre):]) <= hi:
+                return True
+        return False
+    return is_hand
 
 # ---------------- 参数 ----------------
+# 三个参数化开关（默认值 = 战无2 原行为，逐字不变；换源只改这三个）
+#   --pick-mat    按【材质名子串】挑武器件（战无2 约定 mat_w_）
+#   --pick-name   按【对象名子串】挑武器件（给了就优先用它；KCD 用这个）
+#   --hand-bones  手骨规格（定握持点用）
+#   --scale       源单位 → 米（战无2 是厘米给 0.01；KCD 是米给 1.0）
 a = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 SRC = get(a, "--src")
 OUTDIR = os.path.abspath(get(a, "--out"))
 NAME = get(a, "--name")
+PICK_MAT = (get(a, "--pick-mat", "mat_w_") or "").lower()
+PICK_NAME = get(a, "--pick-name") or ""
+HAND_SPEC = get(a, "--hand-bones", "bone_18,bone_19,bone_26-45")
+# 握持点怎么定：
+#   hand  = 找离武器最近的手骨（战无2：武器握在手里，T-pose 横躺）
+#   guard = 找**最宽的横截面（十字护手）**，握持点 = 护手与近端（配重端）的中点
+#           —— 给"武器摆在原点的道具散件"用（KCD 就是），手骨启发式在那里必然失效
+GRIP_MODE = get(a, "--grip-mode", "hand")
+SCALE = float(get(a, "--scale", "0.01"))
 if not (SRC and OUTDIR and NAME):
-    sys.exit("用法: --src <源.fbx> --out <目录> --name <资源名>")
+    sys.exit("用法: --src <源.fbx> --out <目录> --name <资源名>\n"
+             "      [--pick-mat mat_w_] [--pick-name <对象名子串>]\n"
+             "      [--hand-bones bone_18,bone_19,bone_26-45] [--grip-mode hand|guard] [--scale 0.01]")
+if GRIP_MODE not in ("hand", "guard"):
+    sys.exit("!! --grip-mode 只能是 hand 或 guard，收到 %r" % GRIP_MODE)
 os.makedirs(OUTDIR, exist_ok=True)
+CM = SCALE * 100.0          # 1 源单位 = CM 厘米（打印用）
+IS_HAND = make_hand_matcher(HAND_SPEC)
 
 # ---------------- 导入 + 挑武器件 ----------------
 patch_importer()
@@ -69,36 +122,22 @@ weapon_obs = []
 for ob in bpy.data.objects:
     if ob.type != "MESH":
         continue
-    mats = " ".join((m.name if m else "") for m in ob.data.materials).lower()
-    if "mat_w_" in mats:
+    if PICK_NAME:
+        hit = PICK_NAME.lower() in ob.name.lower()
+    else:
+        mats = " ".join((m.name if m else "") for m in ob.data.materials).lower()
+        hit = PICK_MAT in mats
+    if hit:
         weapon_obs.append(ob)
 if not weapon_obs:
-    sys.exit("!! 源模型里没有材质名带 mat_w_ 的武器件")
+    sys.exit("!! 源模型里没有命中挑件条件的武器件（--pick-name=%r / --pick-mat=%r）"
+             % (PICK_NAME, PICK_MAT))
 print("[WEAP] 武器件 %d 个：%s" % (len(weapon_obs), [o.name for o in weapon_obs]))
 
 W = np.array([list(ob.matrix_world @ v.co) for ob in weapon_obs for v in ob.data.vertices])
-print("[WEAP] 顶点 %d，包围盒 x[%.1f,%.1f] y[%.1f,%.1f] z[%.1f,%.1f]"
+print("[WEAP] 顶点 %d，包围盒（源单位）x[%.3f,%.3f] y[%.3f,%.3f] z[%.3f,%.3f]"
       % (len(W), W[:, 0].min(), W[:, 0].max(), W[:, 1].min(), W[:, 1].max(),
          W[:, 2].min(), W[:, 2].max()))
-
-# ---------------- 手骨（握持点）----------------
-hands = []
-for arm in bpy.data.objects:
-    if arm.type != "ARMATURE":
-        continue
-    for b in arm.data.bones:
-        if bone_group(b.name) == "hand":
-            hands.append((b.name, np.array(list(arm.matrix_world @ b.head_local))))
-if not hands:
-    sys.exit("!! 骨架里没有手骨（bone_18/19/26~45），无法定握持点")
-P, dmin, pname = None, 1e9, ""
-for nm, p in hands:
-    d = float(np.linalg.norm(W - p, axis=1).min())
-    if d < dmin:
-        P, dmin, pname = p, d, nm
-print("[HAND] 握持手 %s，到手表面最近 %.1fcm" % (pname, dmin))
-if dmin > 25.0:
-    print("   !! 手离武器 %.0fcm —— 握持点可疑，务必渲染核对" % dmin)
 
 # ---------------- PCA 定长轴 / 次轴 ----------------
 c = W.mean(axis=0)
@@ -107,13 +146,59 @@ ev, evec = np.linalg.eigh(np.cov(X.T))
 order = np.argsort(ev)[::-1]
 u, v = evec[:, order[0]], evec[:, order[1]]
 t = X @ u
-th = float((P - c) @ u)
-# 刀尖朝离握持点更远的那端
-u_tip = u if (t.max() - th) >= (th - t.min()) else -u
+
+# ---------------- 握持点 + 刀尖向 ----------------
+if GRIP_MODE == "guard":
+    NB = 40
+    edges = np.linspace(t.min(), t.max(), NB + 1)
+    sp = []
+    for i in range(NB):
+        m = (t >= edges[i]) & (t <= edges[i + 1] if i == NB - 1 else t < edges[i + 1])
+        if m.sum() < 4:
+            sp.append(-1.0)
+            continue
+        Q = X[m] - np.outer(X[m] @ u, u)
+        sp.append(float(np.percentile(np.linalg.norm(Q, axis=1), 90)))
+    gi = int(np.argmax(sp))
+    if sp[gi] <= 0:
+        sys.exit("!! 找不到有效横截面，--grip-mode guard 不适用这个源")
+    tg = 0.5 * (edges[gi] + edges[gi + 1])
+    print("[GRIP] 最宽横截面 t=%+.1fcm（侧向半径 %.1fcm）→ 判为护手" % (tg * CM, sp[gi] * CM))
+    far_up = (t.max() - tg) >= (tg - t.min())
+    u_tip = u if far_up else -u
+    th = 0.5 * (tg + (t.min() if far_up else t.max()))
+    print("[GRIP] 刀尖朝%s端 · 握持点 t=%+.1fcm（护手与配重端的中点）"
+          % ("上(+)" if far_up else "下(-)", th * CM))
+    print("[GRIP] 护手→握持点 %.1fcm / 握持点→配重端 %.1fcm"
+          % (abs(tg - th) * CM, abs(th - (t.min() if far_up else t.max())) * CM))
+    P = c + u * th              # 与 hand 模式口径一致：P 在长轴上、投影 = th
+    dmin = 0.0
+else:
+    hands = []
+    for arm in bpy.data.objects:
+        if arm.type != "ARMATURE":
+            continue
+        for b in arm.data.bones:
+            if IS_HAND(b.name):
+                hands.append((b.name, np.array(list(arm.matrix_world @ b.head_local))))
+    if not hands:
+        sys.exit("!! 骨架里没有手骨（--hand-bones=%s），无法定握持点" % HAND_SPEC)
+    P, dmin, pname = None, 1e9, ""
+    for nm, p in hands:
+        d = float(np.linalg.norm(W - p, axis=1).min())
+        if d < dmin:
+            P, dmin, pname = p, d, nm
+    print("[HAND] 握持手 %s，到手表面最近 %.1fcm" % (pname, dmin * CM))
+    if dmin * CM > 25.0:
+        print("   !! 手离武器 %.0fcm —— 握持点可疑，务必渲染核对" % (dmin * CM))
+    th = float((P - c) @ u)
+    # 刀尖朝离握持点更远的那端
+    u_tip = u if (t.max() - th) >= (th - t.min()) else -u
+
 print("[AXIS] 长轴 %.3f/%.3f/%.3f（刀尖向）· 次轴 %.3f/%.3f/%.3f · 全长 %.1fcm"
-      % (u_tip[0], u_tip[1], u_tip[2], v[0], v[1], v[2], t.max() - t.min()))
+      % (u_tip[0], u_tip[1], u_tip[2], v[0], v[1], v[2], (t.max() - t.min()) * CM))
 print("[AXIS] 握持点两侧杆长：柄侧 %.0fcm / 尖侧 %.0fcm"
-      % (min(th - t.min(), t.max() - th), max(th - t.min(), t.max() - th)))
+      % (min(th - t.min(), t.max() - th) * CM, max(th - t.min(), t.max() - th) * CM))
 
 # ---------------- 构造旋转 R ----------------
 e1 = u_tip
@@ -126,8 +211,9 @@ e3 = np.cross(e1, e2)                    # 右手系
 R = np.array([e2, e3, e1])               # 行 = e2/e3/e1 ⇒ R·e2=x̂, R·e3=ŷ, R·e1=ẑ
 print("[XFORM] det(R) = %.6f（应为 +1）" % np.linalg.det(R))
 
-# 握持点 = P 在长轴上的投影（让武器轴线穿过原点）
-hold = c + e1 * th
+# 握持点 = 长轴上参数为 th 的那个点（让武器轴线穿过原点）
+# 🔴 必须用 u 不能用 e1(=u_tip)：th 是沿 +u 量的，u_tip 反向时用 e1 会把握持点算到另一头
+hold = c + u * th
 M = Matrix([list(R[0]), list(R[1]), list(R[2])]).to_4x4()
 
 # ---------------- 变换顶点 + 合并成一件 ----------------
@@ -139,7 +225,7 @@ for ob in weapon_obs:
     base = len(all_v)
     for vt in me.vertices:
         w = np.array(list(mw @ vt.co))
-        q = R @ (w - hold) * 0.01          # 厘米 → 米
+        q = R @ (w - hold) * SCALE        # 源单位 → 米
         all_v.append(q)
     uvl = me.uv_layers.active
     for poly in me.polygons:

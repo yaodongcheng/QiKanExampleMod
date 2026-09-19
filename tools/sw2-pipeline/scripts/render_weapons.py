@@ -11,6 +11,7 @@ import bpy
 import sys
 import os
 import math
+import fnmatch
 from mathutils import Vector
 
 def get(a, k, d=None):
@@ -45,11 +46,13 @@ keys = [x for x in a[a.index("--keys") + 1:] if not x.startswith("--")] if "--ke
 SIDE = "--side" in a
 # --textures：给每件挂上同目录的 `<名>_d.png`（验证 UV/贴图有没有跟出来；否则是白模）
 TEX = "--textures" in a
+# --glob：目录里怎么找武器文件（默认战无2 命名；KCD 给 "kcd_*.fbx"）
+PATTERN = get(a, "--glob", "*_weapon_a.fbx")
 os.makedirs(OUT, exist_ok=True)
 
 names = keys or sorted(f[:-4] for f in os.listdir(WDIR)
-                       if f.endswith("_weapon_a.fbx"))
-# --keys 允许三种写法：完整资源名 / slug（yukimura）/ 角色 key（L00_yukimura）
+                       if fnmatch.fnmatch(f, PATTERN))
+# --keys 允许四种写法：完整资源名 / slug（yukimura）/ 角色 key（L00_yukimura）/ 目录里真实存在的文件名
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 try:
@@ -58,6 +61,9 @@ try:
 except Exception:
     _by_key = {}
 def _full(n):
+    # 目录里已有同名 fbx ⇒ 就是完整资源名，原样用（KCD 等非战无2 命名走这条）
+    if os.path.isfile(os.path.join(WDIR, n + ".fbx")):
+        return n
     if n.endswith("_weapon_a"):
         return n
     slug = _by_key.get(n, n)
@@ -68,7 +74,7 @@ names = [n for n, p in zip(names, paths) if os.path.isfile(p)]
 paths = [p for p in paths if os.path.isfile(p)]
 print("[SHEET] %d 件武器" % len(paths))
 if not paths:
-    sys.exit("!! 没有可渲染的武器（--dir 下没有 *_weapon_a.fbx）")
+    sys.exit("!! 没有可渲染的武器（--dir 下没有匹配 %s 的 fbx）" % PATTERN)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 CELL_W, CELL_H = 300, 420

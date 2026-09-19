@@ -112,13 +112,13 @@ KINDS = {
         extra_head=' ammo_class="Arrow" ammo_limit="1" missile_speed="78" accuracy="94"',
         extra_tail=' center_of_mass="0.15,0,0"'),
     "gun": dict(
-        itype="Crossbow", wclass="Crossbow", usage="crossbow", holster="crossbow_back",
+        itype="Crossbow", wclass="Crossbow", usage="tk_firearm", holster="crossbow_back",   # 🔴 tk_firearm = Taikou 自定义 usage（换装填动作），定义见 Taikou/ModuleData/item_usage_sets.xml
         phys="wood_weapon", body_name="bo_composite_crossbows",
         swing=0, thrust=200, speed=88, weight=4.5, value=50000,
         cn_word="铁炮", en_word="Matchlock",
         flags='RangedWeapon="true" HasString="true" UseHandAsThrowBase="true" '
               'NotUsableWithOneHand="true" TwoHandIdleOnMount="true" BonusAgainstShield="true"',
-        extra_head=' ammo_class="Bolt" ammo_limit="1" missile_speed="600" accuracy="40"',
+        extra_head=' ammo_class="Cartridge" ammo_limit="1" reload_phase_count="2" missile_speed="600" accuracy="40"',   # 🔴 Cartridge 不是 Bolt（火器身份，2026-09-16 实机定）；reload_phase_count=2 照原版弩（9 把全有）
         extra_tail=' center_of_mass="0,0,0.4"'),
 }
 SUFFIX = "_weapon_a"
@@ -209,7 +209,7 @@ def item_block(slug, cn_name, en_name, K, d, body, fb_name=None, label=None):
            K["wclass"], K["extra_head"], K["speed"] + 5, K["speed"],
            ln, swing, K["thrust"], K["usage"], K["phys"], K["extra_tail"],
            K["flags"],
-           ' ForceAttachOffHandPrimaryItemBone="true"' if K["itype"] == "Bow" else ""))
+           (' ForceAttachOffHandPrimaryItemBone="true"' if K["itype"] == "Bow" else "") + ' Civilian="true"'))
 
 
 def slug_of(key):

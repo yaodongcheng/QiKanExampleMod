@@ -1,0 +1,453 @@
+﻿FBX version: 7500
+Error, could not find any file path in  FBXElem(id=b'Texture', props=[2869155120, b'Map #205\x00\x01Texture', b''], props_type=bytearray(b'LSS'), elems=[FBXElem(id=b'Type', props=[b'TextureVideoClip'], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'Version', props=[202], props_type=bytearray(b'I'), elems=[]), FBXElem(id=b'TextureName', props=[b'Map #205\x00\x01Texture'], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'Properties70', props=[], props_type=bytearray(b''), elems=[FBXElem(id=b'P', props=[b'3dsMax', b'Compound', b'', b''], props_type=bytearray(b'SSSS'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|ClassIDa', b'int', b'Integer', b'', 548], props_type=bytearray(b'SSSSI'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|ClassIDb', b'int', b'Integer', b'', 0], props_type=bytearray(b'SSSSI'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|SuperClassID', b'int', b'Integer', b'', 3088], props_type=bytearray(b'SSSSI'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters', b'Compound', b'', b''], props_type=bytearray(b'SSSS'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|red', b'Color', b'', b'A', 1.0, 1.0, 1.0], props_type=bytearray(b'SSSSDDD'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|green', b'Color', b'', b'A', 0.0, 0.0, 0.0], props_type=bytearray(b'SSSSDDD'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|blue', b'Color', b'', b'A', 1.0, 1.0, 1.0], props_type=bytearray(b'SSSSDDD'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|map1', b'Reference', b'', b'A'], props_type=bytearray(b'SSSS'), elems=[]), FBXElem(id=b'P', props=[b'3dsMax|parameters|map1Enabled', b'Bool', b'', b'A', 1], props_type=bytearray(b'SSSSI'), elems=[])]), FBXElem(id=b'Media', props=[b''], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'FileName', props=[b''], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'RelativeFilename', props=[b''], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'ModelUVTranslation', props=[0.0, 0.0], props_type=bytearray(b'DD'), elems=[]), FBXElem(id=b'ModelUVScaling', props=[1.0, 1.0], props_type=bytearray(b'DD'), elems=[]), FBXElem(id=b'Texture_Alpha_Source', props=[b'None'], props_type=bytearray(b'S'), elems=[]), FBXElem(id=b'Cropping', props=[0, 0, 0, 0], props_type=bytearray(b'IIII'), elems=[])])
+       Falling back to:  Map #205
+
+=== 0000_long_sword_henry_mesh         verts=2627   骨=1    权重和=2627
+     LeftWeaponSlot                             100.00%
+
+=== 0000_shield_kite_blank_mesh        verts=3374   骨=1    权重和=3374
+     BackSlot_shield                            100.00%
+
+=== 0001_long_sword_henry_mesh         verts=20     骨=1    权重和=20
+     LeftWeaponSlot                             100.00%
+
+=== 0001_shield_kite_blank_mesh        verts=455    骨=1    权重和=455
+     BackSlot_shield                            100.00%
+
+=== 0002_long_sword_henry_mesh         verts=20     骨=1    权重和=20
+     LeftWeaponSlot                             100.00%
+
+=== _EyeLBall_Shader_Mesh              verts=498    骨=1    权重和=498
+     mhenry_eye_left_ext                        100.00%
+
+=== _EyeLIris_Shader_Mesh              verts=202    骨=1    权重和=202
+     mhenry_eye_left_ext                        100.00%
+
+=== _EyeRBall_Shader_Mesh              verts=498    骨=1    权重和=498
+     mhenry_eye_right_ext                       100.00%
+
+=== _EyeRIris_Shader_Mesh              verts=202    骨=1    权重和=202
+     mhenry_eye_right_ext                       100.00%
+
+=== cuirass07_torso                    verts=5237   骨=16   权重和=5237
+     Spine4                                      23.63%
+     Spine1                                      19.77%
+     satchel_cuirass07_torso_01                  14.07%
+     Spine2                                       8.57%
+     Hips                                         6.39%
+     Spine3                                       5.16%
+     cuirass07_torso_pouch_01                     5.11%
+     RightShoulder                                3.70%
+     LeftShoulder                                 3.51%
+     Spine                                        3.13%
+     Neck                                         3.05%
+     LeftArmRoll                                  1.20%
+     RightArmRoll                                 1.19%
+     mainBelt_cuirass07_torso_01                  0.56%
+     LeftUpLeg                                    0.51%
+     RightUpLeg                                   0.45%
+
+=== gambesonlong03_arms                verts=2983   骨=20   权重和=2983
+     LeftArmRoll                                 12.17%
+     RightArmRoll                                11.59%
+     LeftArmRoll1                                11.11%
+     RightArmRoll1                               10.71%
+     RightForeArm                                 6.84%
+     LeftForeArm                                  6.82%
+     Spine4                                       6.74%
+     LeftForeArmRoll1                             4.64%
+     RightForeArmRoll1                            4.50%
+     RightForeArmRoll2                            3.99%
+     LeftForeArmRoll2                             3.71%
+     RightShoulder                                2.94%
+     LeftShoulder                                 2.72%
+     LeftArm                                      2.70%
+     RightArm                                     2.66%
+     LeftForeArmRoll                              1.88%
+     RightForeArmRoll                             1.88%
+     LeftHand                                     1.26%
+     RightHand                                    1.13%
+     Spine3                                       0.00%
+
+=== gambesonlong03_waist002_FINAL      verts=659    骨=163  权重和=659
+     Spine1                                      10.37%
+     Spine2                                       3.69%
+     vcloth_joint_gambesonlong03_waist_geo_139    1.12%
+     vcloth_joint_gambesonlong03_waist_geo_134    1.12%
+     vcloth_joint_gambesonlong03_waist_geo_140    1.11%
+     vcloth_joint_gambesonlong03_waist_geo_135    1.11%
+     vcloth_joint_gambesonlong03_waist_geo_138    1.09%
+     vcloth_joint_gambesonlong03_waist_geo_133    1.06%
+     vcloth_joint_gambesonlong03_waist_geo_136    0.98%
+     vcloth_joint_gambesonlong03_waist_geo_141    0.98%
+     vcloth_joint_gambesonlong03_waist_geo_109    0.97%
+     vcloth_joint_gambesonlong03_waist_geo_110    0.97%
+     vcloth_joint_gambesonlong03_waist_geo_132    0.95%
+     vcloth_joint_gambesonlong03_waist_geo_143    0.95%
+     vcloth_joint_gambesonlong03_waist_geo_137    0.95%
+     vcloth_joint_gambesonlong03_waist_geo_116    0.95%
+     vcloth_joint_gambesonlong03_waist_geo_142    0.94%
+     vcloth_joint_gambesonlong03_waist_geo_111    0.94%
+     vcloth_joint_gambesonlong03_waist_geo_115    0.93%
+     vcloth_joint_gambesonlong03_waist_geo_114    0.92%
+     vcloth_joint_gambesonlong03_waist_geo_146    0.90%
+     vcloth_joint_gambesonlong03_waist_geo_92     0.89%
+     vcloth_joint_gambesonlong03_waist_geo_147    0.89%
+     vcloth_joint_gambesonlong03_waist_geo_117    0.86%
+     vcloth_joint_gambesonlong03_waist_geo_131    0.85%
+     vcloth_joint_gambesonlong03_waist_geo_93     0.85%
+     vcloth_joint_gambesonlong03_waist_geo_112    0.84%
+     vcloth_joint_gambesonlong03_waist_geo_145    0.82%
+     vcloth_joint_gambesonlong03_waist_geo_144    0.81%
+     vcloth_joint_gambesonlong03_waist_geo_91     0.80%
+     vcloth_joint_gambesonlong03_waist_geo_113    0.80%
+     vcloth_joint_gambesonlong03_waist_geo_96     0.80%
+     vcloth_joint_gambesonlong03_waist_geo_122    0.79%
+     vcloth_joint_gambesonlong03_waist_geo_130    0.79%
+     vcloth_joint_gambesonlong03_waist_geo_128    0.78%
+     vcloth_joint_gambesonlong03_waist_geo_95     0.78%
+     vcloth_joint_gambesonlong03_waist_geo_129    0.77%
+     vcloth_joint_gambesonlong03_waist_geo_123    0.77%
+     vcloth_joint_gambesonlong03_waist_geo_40     0.77%
+     vcloth_joint_gambesonlong03_waist_geo_119    0.77%
+
+=== gambesonlong03_waist_mat_mtl_mater verts=725    骨=173  权重和=725
+     Spine1                                       7.16%
+     vcloth_joint_gambesonlong03_waist_geo_147    5.85%
+     vcloth_joint_gambesonlong03_waist_geo_167    5.49%
+     vcloth_joint_gambesonlong03_waist_geo_123    4.13%
+     vcloth_joint_gambesonlong03_waist_geo_166    3.62%
+     vcloth_joint_gambesonlong03_waist_geo_124    3.32%
+     Spine2                                       2.40%
+     vcloth_joint_gambesonlong03_waist_geo_148    2.29%
+     vcloth_joint_gambesonlong03_waist_geo_146    1.70%
+     vcloth_joint_gambesonlong03_waist_geo_41     1.56%
+     vcloth_joint_gambesonlong03_waist_geo_27     1.56%
+     vcloth_joint_gambesonlong03_waist_geo_4      1.51%
+     vcloth_joint_gambesonlong03_waist_geo_108    1.50%
+     vcloth_joint_gambesonlong03_waist_geo_22     1.33%
+     vcloth_joint_gambesonlong03_waist_geo_71     1.26%
+     vcloth_joint_gambesonlong03_waist_geo_74     0.88%
+     vcloth_joint_gambesonlong03_waist_geo_73     0.85%
+     vcloth_joint_gambesonlong03_waist_geo_25     0.83%
+     vcloth_joint_gambesonlong03_waist_geo_75     0.82%
+     vcloth_joint_gambesonlong03_waist_geo_58     0.82%
+     vcloth_joint_gambesonlong03_waist_geo_107    0.81%
+     vcloth_joint_gambesonlong03_waist_geo_99     0.80%
+     vcloth_joint_gambesonlong03_waist_geo_17     0.73%
+     vcloth_joint_gambesonlong03_waist_geo_90     0.73%
+     vcloth_joint_gambesonlong03_waist_geo_100    0.69%
+     vcloth_joint_gambesonlong03_waist_geo_106    0.69%
+     vcloth_joint_gambesonlong03_waist_geo_98     0.67%
+     vcloth_joint_gambesonlong03_waist_geo_18     0.64%
+     vcloth_joint_gambesonlong03_waist_geo_82     0.64%
+     vcloth_joint_gambesonlong03_waist_geo_24     0.63%
+     vcloth_joint_gambesonlong03_waist_geo_48     0.63%
+     vcloth_joint_gambesonlong03_waist_geo_76     0.62%
+     vcloth_joint_gambesonlong03_waist_geo_47     0.59%
+     vcloth_joint_gambesonlong03_waist_geo_72     0.58%
+     vcloth_joint_gambesonlong03_waist_geo_9      0.57%
+     vcloth_joint_gambesonlong03_waist_geo_43     0.57%
+     vcloth_joint_gambesonlong03_waist_geo_89     0.56%
+     vcloth_joint_gambesonlong03_waist_geo_81     0.54%
+     vcloth_joint_gambesonlong03_waist_geo_84     0.52%
+     vcloth_joint_gambesonlong03_waist_geo_83     0.51%
+
+=== gauntlets05                        verts=3213   骨=40   权重和=3213
+     RightHand                                    6.21%
+     LeftHand                                     6.18%
+     LeftForeArmRoll2                             6.14%
+     RightForeArmRoll2                            6.05%
+     LeftHandThumb3                               3.97%
+     RightHandThumb3                              3.50%
+     RightHandMiddle1                             3.45%
+     LeftHandMiddle1                              3.01%
+     RightHandIndex1                              2.76%
+     RightHandRing1                               2.71%
+     RightHandPinky1                              2.57%
+     LeftHandMiddle3                              2.56%
+     LeftHandPinky3                               2.53%
+     LeftHandIndex1                               2.51%
+     LeftHandThumb1                               2.42%
+     LeftHandIndex3                               2.37%
+     RightHandPinky3                              2.35%
+     LeftHandPinky1                               2.34%
+     LeftHandRing3                                2.34%
+     LeftHandRing1                                2.33%
+     RightHandThumb1                              2.25%
+     RightHandIndex2                              2.22%
+     RightHandMiddle3                             2.21%
+     LeftInHandPinky                              2.14%
+     RightHandRing3                               2.12%
+     RightHandIndex3                              2.11%
+     RightInHandPinky                             2.10%
+     RightHandRing2                               1.96%
+     RightHandPinky2                              1.79%
+     LeftHandIndex2                               1.58%
+     LeftHandRing2                                1.58%
+     RightHandMiddle2                             1.39%
+     LeftHandPinky2                               1.39%
+     LeftHandThumb2                               1.32%
+     RightHandThumb2                              1.25%
+     LeftHandMiddle2                              1.12%
+     LeftInHandRing                               0.93%
+     RightInHandRing                              0.80%
+     RightForeArm                                 0.74%
+     LeftForeArm                                  0.71%
+
+=== hood06                             verts=1255   骨=13   权重和=1255
+     Spine4                                      52.28%
+     hood06_liripipe_01                          11.52%
+     Neck                                        10.07%
+     RightShoulder                                7.71%
+     LeftShoulder                                 6.09%
+     Neck1                                        5.64%
+     RightArmRoll                                 3.38%
+     LeftArmRoll                                  2.50%
+     Spine3                                       0.43%
+     RightArmRoll1                                0.21%
+     LeftArmRoll1                                 0.14%
+     LeftArm                                      0.01%
+     RightArm                                     0.01%
+
+=== legsplate03                        verts=3775   骨=18   权重和=3775
+     RightFoot                                   11.92%
+     LeftFoot                                    11.76%
+     LeftLeg                                      9.69%
+     RightLeg                                     9.43%
+     Hips                                         8.71%
+     RightLegRoll                                 8.35%
+     LeftLegRoll                                  8.29%
+     LeftUpLegRoll                                6.51%
+     RightUpLegRoll                               6.42%
+     RightUpLeg                                   6.11%
+     LeftUpLeg                                    5.91%
+     legsplate03_KneePlate_l                      1.53%
+     legsplate03_KneePlate_r                      1.22%
+     LeftToeBase                                  1.18%
+     RightToeBase                                 1.15%
+     Spine2                                       1.02%
+     Spine                                        0.78%
+     Spine1                                       0.03%
+
+=== m_hair_henry_Cap                   verts=474    骨=4    权重和=474
+     Head                                        87.84%
+     Neck1                                        7.68%
+     Neck                                         4.47%
+     Spine4                                       0.01%
+
+=== m_hair_henry_Cards                 verts=8991   骨=3    权重和=8991
+     Head                                        99.93%
+     Neck1                                        0.05%
+     Neck                                         0.02%
+
+=== m_head_henry                       verts=8323   骨=226  权重和=8323
+     Head                                        28.71%
+     Neck                                         4.71%
+     Spine4                                       4.05%
+     Neck1                                        1.91%
+     mhenry_SSDR_L_joint_71                       0.87%
+     mhenry_SSDR_C_joint_2                        0.71%
+     mhenry_SSDR_L_joint_65                       0.71%
+     mhenry_SSDR_L_joint_87                       0.67%
+     mhenry_SSDR_R_joint_68                       0.66%
+     mhenry_SSDR_R_joint_70                       0.65%
+     mhenry_SSDR_L_joint_69                       0.64%
+     mhenry_SSDR_R_joint_69                       0.62%
+     mhenry_SSDR_L_joint_59                       0.60%
+     mhenry_SSDR_R_joint_73                       0.58%
+     mhenry_SSDR_R_joint_59                       0.58%
+     mhenry_SSDR_R_joint_90                       0.56%
+     mhenry_SSDR_C_joint_3                        0.56%
+     mhenry_SSDR_L_joint_104                      0.55%
+     mhenry_SSDR_R_joint_104                      0.51%
+     mhenry_SSDR_R_joint_57                       0.51%
+     mhenry_SSDR_R_joint_83                       0.50%
+     mhenry_SSDR_L_joint_12                       0.49%
+     mhenry_SSDR_R_joint_62                       0.48%
+     mhenry_SSDR_L_joint_57                       0.48%
+     mhenry_SSDR_L_joint_58                       0.47%
+     mhenry_SSDR_L_joint_62                       0.46%
+     mhenry_SSDR_R_joint_12                       0.46%
+     mhenry_SSDR_L_joint_7                        0.45%
+     mhenry_SSDR_L_joint_67                       0.44%
+     mhenry_SSDR_R_joint_67                       0.44%
+     mhenry_SSDR_L_joint_105                      0.43%
+     LeftShoulder                                 0.43%
+     RightShoulder                                0.42%
+     mhenry_SSDR_R_joint_76                       0.42%
+     mhenry_SSDR_R_joint_106                      0.41%
+     mhenry_SSDR_L_joint_19                       0.40%
+     mhenry_SSDR_R_joint_32                       0.40%
+     mhenry_SSDR_R_joint_55                       0.40%
+     mhenry_SSDR_L_joint_16                       0.39%
+     mhenry_SSDR_L_joint_66                       0.39%
+
+=== m_head_henry_Eyelashes             verts=912    骨=37   权重和=912
+     mhenry_SSDR_R_joint_76                      14.54%
+     mhenry_SSDR_L_joint_76                      13.50%
+     mhenry_SSDR_L_joint_70                       9.38%
+     mhenry_SSDR_R_joint_71                       7.78%
+     mhenry_SSDR_L_joint_72                       7.66%
+     mhenry_SSDR_R_joint_75                       7.35%
+     mhenry_SSDR_R_joint_77                       3.73%
+     mhenry_SSDR_L_joint_67                       3.58%
+     mhenry_SSDR_R_joint_67                       3.46%
+     mhenry_SSDR_L_joint_66                       3.38%
+     mhenry_SSDR_R_joint_66                       3.04%
+     mhenry_SSDR_L_joint_69                       2.79%
+     mhenry_SSDR_R_joint_65                       2.36%
+     mhenry_SSDR_L_joint_74                       2.20%
+     mhenry_SSDR_L_joint_77                       2.09%
+     mhenry_SSDR_R_joint_72                       2.02%
+     mhenry_SSDR_R_joint_69                       1.83%
+     mhenry_SSDR_L_joint_73                       1.69%
+     mhenry_SSDR_L_joint_68                       1.49%
+     mhenry_SSDR_R_joint_70                       1.18%
+     mhenry_SSDR_L_joint_78                       0.72%
+     mhenry_SSDR_R_joint_62                       0.67%
+     mhenry_SSDR_L_joint_61                       0.60%
+     mhenry_SSDR_R_joint_74                       0.59%
+     mhenry_SSDR_R_joint_64                       0.43%
+     mhenry_SSDR_L_joint_62                       0.34%
+     mhenry_SSDR_R_joint_68                       0.24%
+     mhenry_SSDR_R_joint_73                       0.23%
+     mhenry_SSDR_L_joint_75                       0.22%
+     mhenry_SSDR_R_joint_23                       0.19%
+     mhenry_SSDR_R_joint_79                       0.13%
+     mhenry_SSDR_L_joint_60                       0.13%
+     mhenry_SSDR_L_joint_64                       0.12%
+     mhenry_SSDR_R_joint_78                       0.11%
+     mhenry_SSDR_R_joint_61                       0.10%
+     mhenry_SSDR_L_joint_79                       0.05%
+     mhenry_SSDR_L_joint_65                       0.03%
+
+=== m_head_henry_Eyeshadows            verts=186    骨=29   权重和=186
+     mhenry_SSDR_R_joint_76                       9.72%
+     mhenry_SSDR_L_joint_70                       8.01%
+     mhenry_SSDR_L_joint_67                       7.67%
+     mhenry_SSDR_R_joint_67                       7.38%
+     mhenry_SSDR_R_joint_71                       7.03%
+     mhenry_SSDR_L_joint_72                       6.61%
+     mhenry_SSDR_L_joint_66                       6.49%
+     mhenry_SSDR_R_joint_69                       6.35%
+     mhenry_SSDR_R_joint_66                       6.25%
+     mhenry_SSDR_L_joint_69                       6.12%
+     mhenry_SSDR_R_joint_65                       5.73%
+     mhenry_SSDR_L_joint_76                       5.40%
+     mhenry_SSDR_L_joint_68                       4.23%
+     mhenry_SSDR_R_joint_72                       3.39%
+     mhenry_SSDR_L_joint_73                       2.74%
+     mhenry_SSDR_R_joint_75                       1.94%
+     mhenry_SSDR_R_joint_70                       1.73%
+     mhenry_SSDR_L_joint_74                       0.70%
+     mhenry_SSDR_R_joint_68                       0.68%
+     mhenry_SSDR_L_joint_61                       0.62%
+     mhenry_SSDR_R_joint_74                       0.36%
+     mhenry_SSDR_R_joint_73                       0.28%
+     mhenry_SSDR_R_joint_77                       0.19%
+     mhenry_SSDR_L_joint_65                       0.16%
+     mhenry_SSDR_L_joint_78                       0.11%
+     mhenry_SSDR_L_joint_77                       0.05%
+     mhenry_SSDR_R_joint_79                       0.03%
+     mhenry_SSDR_L_joint_60                       0.02%
+     mhenry_SSDR_R_joint_62                       0.02%
+
+=== m_head_henry_Tearline              verts=263    骨=30   权重和=263
+     mhenry_SSDR_R_joint_76                       7.93%
+     mhenry_SSDR_R_joint_69                       7.92%
+     mhenry_SSDR_L_joint_69                       7.62%
+     mhenry_SSDR_L_joint_72                       7.62%
+     mhenry_SSDR_L_joint_67                       7.20%
+     mhenry_SSDR_L_joint_70                       6.63%
+     mhenry_SSDR_R_joint_67                       6.62%
+     mhenry_SSDR_R_joint_71                       6.33%
+     mhenry_SSDR_L_joint_66                       5.46%
+     mhenry_SSDR_L_joint_68                       5.20%
+     mhenry_SSDR_R_joint_66                       5.04%
+     mhenry_SSDR_R_joint_65                       4.70%
+     mhenry_SSDR_L_joint_76                       4.10%
+     mhenry_SSDR_R_joint_72                       3.45%
+     mhenry_SSDR_R_joint_70                       3.21%
+     mhenry_SSDR_L_joint_73                       2.68%
+     mhenry_SSDR_R_joint_68                       2.11%
+     mhenry_SSDR_R_joint_75                       1.69%
+     mhenry_SSDR_L_joint_74                       0.99%
+     mhenry_SSDR_R_joint_73                       0.75%
+     mhenry_SSDR_R_joint_74                       0.62%
+     mhenry_SSDR_L_joint_61                       0.61%
+     mhenry_SSDR_L_joint_71                       0.54%
+     mhenry_SSDR_L_joint_65                       0.53%
+     mhenry_SSDR_L_joint_78                       0.18%
+     mhenry_SSDR_R_joint_77                       0.16%
+     mhenry_SSDR_L_joint_77                       0.03%
+     mhenry_SSDR_R_joint_79                       0.02%
+     mhenry_SSDR_R_joint_62                       0.02%
+     mhenry_SSDR_L_joint_60                       0.02%
+
+=== m_head_henry_Teeth                 verts=1336   骨=6    权重和=1336
+     Head                                        50.12%
+     mhenry_jaw                                  39.28%
+     mhenry_tongue_04                             4.20%
+     mhenry_tongue_01                             4.12%
+     mhenry_tongue_03                             2.11%
+     mhenry_tongue_02                             0.17%
+
+=== male_body                          verts=9243   骨=71   权重和=9243
+     Spine4                                       5.02%
+     RightFoot                                    4.88%
+     LeftFoot                                     4.88%
+     Hips                                         4.10%
+     Spine2                                       3.31%
+     RightToeBase                                 3.02%
+     LeftToeBase                                  3.02%
+     LeftArmRoll                                  2.41%
+     RightArmRoll                                 2.41%
+     RightHand                                    2.32%
+     LeftHand                                     2.32%
+     Spine3                                       2.29%
+     LeftUpLegRoll                                2.12%
+     RightUpLegRoll                               2.12%
+     RightHandThumb3                              1.84%
+     LeftHandThumb3                               1.84%
+     RightLegRoll                                 1.82%
+     LeftLegRoll                                  1.82%
+     RightLeg                                     1.62%
+     LeftLeg                                      1.62%
+     RightForeArmRoll2                            1.53%
+     LeftForeArmRoll2                             1.53%
+     LeftShoulder                                 1.46%
+     RightShoulder                                1.46%
+     RightForeArm                                 1.38%
+     LeftForeArm                                  1.38%
+     RightHandIndex3                              1.29%
+     LeftHandIndex3                               1.29%
+     RightUpLeg                                   1.28%
+     LeftUpLeg                                    1.28%
+     RightArm                                     1.21%
+     LeftArm                                      1.21%
+     RightHandMiddle3                             1.18%
+     LeftHandMiddle3                              1.18%
+     RightArmRoll1                                1.16%
+     LeftArmRoll1                                 1.16%
+     RightForeArmRoll1                            1.10%
+     LeftForeArmRoll1                             1.10%
+     RightHandRing1                               1.04%
+     LeftHandRing1                                1.04%
+
+=== scabbard_longswordcapon            verts=2197   骨=6    权重和=2197
+     LeftWeaponSheath                            49.82%
+     Hips                                        17.94%
+     Spine1                                      13.49%
+     Spine                                       13.40%
+     scabbard_longswordcapon_mainbelt_02          5.34%
+     scabbard_longswordcapon_mainbelt_01          0.01%
+
+=== 全件合计：被用到的骨 478 / 骨架 484 ===
+=== 权重为 0（骨架里有、网格没引用）的骨 6 根 ===
+   Armature                               | FacialRoot                             | Human_Male                             | LeftWeaponSecondaryBelt               
+   mhenry_jawRoot                         | vcloth_root_joint_gambesonlong03_waist_geo_Hips_0
+-> h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\tools\kcd-pipeline\out\bone_usage.csv
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+
+Blender quit
