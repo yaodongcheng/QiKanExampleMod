@@ -873,7 +873,10 @@ namespace LivingWorldNpcs
                 var transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     // 玩家答应赔钱（不标价，由 NPC 开价）
-                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_retaliation_pay", "I'll pay! Name your price."), Action = "NONE", NextNodeOnSuccess = "restitution_detail" },
+                    // 🔴 节点名必须是 restitution_demand（BuildRestitutionSubtree 建的就是这个 id）。
+                    // 曾误写 restitution_detail → 注入器判为悬空引用改走 close_window，
+                    // 玩家点"我赔钱"＝直接关窗，对峙阶段唯一的赔钱出口死掉（实机 2026-09-19）。
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_retaliation_pay", "I'll pay! Name your price."), Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     // 玩家硬走（承担后果）
                     new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave", "I'm leaving."), Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 };
