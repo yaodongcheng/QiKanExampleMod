@@ -7,6 +7,105 @@
 
 ---
 
+# ★ 交接（2026-09-19 收工）—— 下一轮从这里开始
+
+## 一句话现状
+
+亨利（KCD）已做成**独立模块 `KCD`**，**头和 4 件甲在实机跑通**（脸是亨利的、眼睛/嘴已修好、甲有物品定义）；
+**剑没编译**；**自建 race 没做**（所以现在全大陆男性都是亨利的脸 —— 这是当前的已知副作用，见 TODO P0-2）。
+
+## 已完成
+
+| 阶段 | 产出 |
+|---|---|
+| 0 勘察 | 源包 25 网格认件 / 8 连通域 / 贴图规格 / Blender 导入器补丁 |
+| 1 认件 | 零件表 + 接触图（`Debug/offline/KCD/kcd_parts/`） |
+| 2 武器 | 长剑网格 + 3 贴图（`Debug/offline/KCD/kcd_build/`） |
+| 3 甲 | **4 件**（身/腿/手/披风），各 6 级 LOD + 图集贴图 |
+| 4 脸 | 3 子网格男头 + 5 张贴图（睫毛/眉毛已烘进脸贴图）+ 61 条通道 |
+| 5 装机 | **KCD 独立模块**（junction 双端）+ 后处理 + 物品定义 + 注册 |
+
+## 🔴 KCD 模块的现状（这是交付主体）
+
+```
+H:\...\MB2_1.2.12\...\Modules\KCD\          （junction → Steam 客户端同源）
+├── SubModule.xml                 Id=KCD；Xmls 注册了 <XmlName id="Items" path="kcd_items"/>
+├── AssetPackages\pack0.tpac      77.7 MB / 29 项 = 头 + 4 件甲（含材质贴图）
+├── ModuleData│   ├── skins.xslt               ✅ 重写过的 KCD 专用版（只动 human 男皮肤 → head_henry_a）
+│   ├── skins.xslt.master        同上（编辑模式回滚真源）
+│   ├── skins.xml                59 B 合法最小文件（🔴 空的会崩，见坑 1）
+│   └── kcd_itemsrmor.xml      4 件甲的物品定义（is_merchandise=true，商店可买）
+├── Assets_disabled\             编辑器工程（游戏模式=改名）
+└── AssetSources\                源（head/armor/weapon 三类的 henry 子目录）
+```
+
+## TODO
+
+### P0（下一轮必须先做）
+
+1. **用户验收**：重进游戏看**甲能不能穿上**（商店买 → 四个槽位分别穿）。物品定义是本轮新写的，**数值是按原版量级估的、不是实测**。
+2. **自建 race `lwn_henry`** —— 用户诉求：**只有玩家能用、开局捏人选**，不要全大陆都是亨利。详见下方「race 交接」。
+3. **剑**：把 `KCD\AssetSources\weapon\henry\` 的源在 ModKit 里导入编译 → 进包 → 放开 `kcd_itemsrmor.xml` 末尾注释块里的剑物品定义。
+   （剑是**静态网格**，**不走 morphfix/skinfix**，只需进包 + 放物品定义。）
+
+### P1
+
+4. **眼睛"瞪"的诊断** —— 眼球的**位置和大小都已实测正确**（中心 `(0,0.128,1.684)` 误差 0、直径 ≈24mm）。所以"瞪"来自**眼睑开合**，两个可能：① 源件几何如此 ② **脸形权重的形变**（位移场来自蒂法/xxFemale，权重却是引擎按 BodyParameters 给的 → 可能把眼皮拉开）。**照 §21.9 的办法诊断**：从 `Debug/StoryEngine_RuntimeLog.txt` 解出该角色的真实脸形权重 → 在 Blender 里套到形状键 → 渲两组（basis / 真实权重）对比。
+5. **清 Taikou 里的残留**（我留下的，用户未确认删除）：
+   - `Taikou\AssetPackages\kcd_henry.tpac`（77.7 MB，**与 KCD 里那份重复**）
+   - `Taikou\ModuleData	aikou_items\kcd_henry_items.xml`（**悬空** —— 引用的 mesh 不存在）
+   - ⚠️ 同目录 `kcd_henry_items.xml.bak_civilian_20260919_1432` **不是我建的**，别动
+6. ~~§4.2 / §八 风险 8 的 `--clear-flags` 结论要改~~ → ✅ **本轮已改**（"清空"→"保留"，旧推导已折叠留档）。
+7. **补轮子库**（见下方「经验」）。
+
+## race 交接（P0-2 展开）
+
+**用户诉求**：给亨利注册一个 race，**只有玩家能用**（不给任何 NPCCharacter 挂 `race=`），**开局捏人能选**。
+
+**✅ 好消息**：这个诉求**本来就成立** —— 总纲 323 行记着「**一人一 race**；副作用 = 建号捏脸的「种族」下拉里会堆一排 `lwn_*`」。所以自建 race **会自动出现在捏人下拉里**，且不挂 NPC 就不会影响路人。
+
+**要做的 5 项接线**（照织田信长 `lwn_nobunaga`）：
+
+| # | 项 | 关键点 |
+|---|---|---|
+| 1 | `skins.xml` 加 `<race id="lwn_henry">` | man 皮肤 → `head_henry_a`；**deform_keys 非零**（脸才可捏） |
+| 2 | `monsters.xml` **整族复刻** | 🔴 引擎按后缀查定义、缺一个就在该路径崩：`lwn_henry` + `_child` + `_settlement` + `_settlement_fast` + `_settlement_slow` 共 **5 个 id**（照 Native 的 `human` 一族） |
+| 3 | `SubModule.xml` 注册 monsters | `<XmlName id="Monsters" path="..."/>` |
+| 4 | 🔴 **性别表离线表** | `RaceGenders.xml`（**雷 135：性别不符的 race 不置灰 → AV 崩**，实测踩过） |
+| 5 | 过滤补丁 | `CampaignMode/FaceGenRaceGenderFilterPatch.cs`（**已存在、通用**，在 LWN 里） |
+
+**🔴 开工前必须先解决一个耦合问题**：上面这套机器**全是 Taikou 专属的** ——
+生成器 = `Scripts/gen_taikou_sw2_heads.py`；性别表路径 = `Taikou\ModuleData\AssetRegistry\RaceGenders.xml`；过滤补丁从那个路径读表。
+而 **KCD 是独立模块（无 Taikou）** → 照搬的话补丁读不到性别表 → **雷 135 的 AV 崩会复现**。
+**先定**：性别表路径怎么给 KCD 用（放同一个路径=依赖 Taikou 目录；还是把补丁改成"扫所有已加载模块"）。
+
+## 经验（要进轮子库 `plans/rules/wheels.d/assets.md`）
+
+| # | 教训 | 症状 → 根因 → 修法 |
+|---|---|---|
+| 1 | **空 XML 文件 = 崩** | `Root element is missing` @ `CreateProcessedSkinsXMLForNative` → `ModuleData\skins.xml` 只有 3 字节 → 写合法最小文件（`<?xml?>` + `<skins></skins>`）。🔴 **别用文件大小的 KB 取整判断空不空**（`xxFemaleHead` 那份显示 "0 KB" 实际是 83 B 的合法文件） |
+| 2 | **`--clear-flags` 判反** | 眼睛/嘴变成脸的贴图（"脸皮合成贴到了眼球上"）→ 清掉了不该清的 → **亨利必须【保留】flags**。🔴 **判据不能靠离线量 UV 落点**（8×8 覆盖两套都填满、区分不出来），**以实机症状为准** |
+| 3 | **`install_pack.py` 的 `s3` 会静默给你陈旧产物** | 不带 `--clear-flags` 时脚本**跳过 metaparts** → `s3` 不重新生成 → 拿到的还是上一轮清过 flags 的包（不报错、不提示）→ **取产物要认阶段：带 clearflags 取 s3，不带取 s2** |
+| 4 | **照抄别的模块的 `skins.xslt` 会带进它的副作用** | 无声 native 崩（无托管栈）→ KCD 的 xslt 是从 **Taikou 的**复制改的，连"改女皮肤→`head_tifa_a`"的模板一起搬了 → 女性头指向**不存在的资产** → **应照 `xxFemaleHead`（纯资源替换参照 mod）的路子重写，只留目标性别的模板** |
+| 5 | **换新源时"源网格对象的变换"必须烘进顶点** | 单位换算与转轴只写在对象矩阵里，顶点本身是「源单位+源朝上轴」→ 谁把矩阵当单位阵丢掉就错 100 倍（`build_armor.py` 甲 bbox 从 ±0.49m 炸到 x±66.8；`build_head.py` 头壳中心算到 y=161）。**战无2 的 FBX 恰好是单位阵，所以这个假设藏了几个月** |
+| 6 | **`assetclone` 出来的包几何是空的** | 顶点数 0（`metaparts` 仍能报 `verts=8603` —— 那是**元数据**不是几何）→ **`missingrefs`/`Source`/`segment owner` 三验全过也没用** → 判据必须是**从克隆包 dump 出 OBJ 跟源包对顶点数** |
+| 7 | **图集两个坑** | ① 源件可能用**平铺 UV**（KCD 武装衣主槽 `u∈[1.0,2.0]`）→ 重排前必须 `u%1` 折回，否则整片采到隔壁格子 ② **空占位材质槽是真几何**（`Empty_col.png`=纯黑，武装衣 1379 面 / 腿甲靴子处 782 面）→ 也要占一格填黑，不能不管 |
+
+## 关键路径速查
+
+| 东西 | 路径 |
+|---|---|
+| **KCD 模块（交付主体）** | `H:\...\MB2_1.2.12\...\Modules\KCD\` |
+| 源包解包 | `LivingWorldNpcs\Debug\offline\_kcd_recon\` |
+| 认件产物 | `LivingWorldNpcs\Debug\offline\KCD\kcd_parts\` |
+| 甲/武器 FBX + 贴图 | `LivingWorldNpcs\Debug\offline\KCD\kcd_build\` |
+| 脸的工程 | `LivingWorldNpcs\Debug\offline\自定义头\henry_build\` |
+| KCD 工具链 | `LivingWorldNpcs	ools\kcd-pipeline\`（`split_rma.py` / `build_shield.py` / `bake_face_overlays.py` / `map_kcd_henry.json` / `dump_skeletons.py`） |
+| 后处理工作目录 | `LivingWorldNpcs\Debug\offline\自定义头	ifa_postpublish\`（m1/m2/m3/s1/s2/s3） |
+| **盾** | 未做（要面积对齐 + 出贴图；朝向的映射已定：`v_new = (−z, y, x)`） |
+
+---
+
 ## 一、源包里有什么（已勘察，数字都是实测）
 
 | 项 | 值 |
@@ -139,7 +238,15 @@ make_head_textures.py 源贴图 → 5 张引擎槽位贴图（_d/_n/_s/_mouth_d/
   ▼ install_pack.py：morphfix（补帧 60→101）→ skinfix --fullmat（四角色材质配方）→ 装机
 ```
 
-✅ **`install_pack.py --clear-flags` 已裁定：清空**（用户 2026-09-19：「先清空看看效果」）。
+🔴🔴 **`install_pack.py --clear-flags` 已裁定：`--clear-flags` 必须【不加】（保留 flags）** —— 2026-09-19 实机验证推翻了当天早些时候的"清空"裁定。
+
+**经过**：先按"清空"跑了一版 → 实机**眼睛和嘴变成脸的贴图**（正是 `install_pack.py:143-160` 注释里写的"清掉 = 脸部贴图生成器认不出哪块是脸/嘴/眼/睫 → **把脸皮合成贴到了眼球上**"）→ 重跑一版**不加** `--clear-flags` → 标记齐全（`face_base_mesh` / `face_eye_mesh` / `face_mouth_mesh`）→ 实机眼睛正常。
+
+🔴 **下面的推导过程全部作废**（拿 UV 落点离线量来判断属于哪一类 —— 8×8 覆盖两套都填满、区分不出来，那个量法**不够格当判据**）。**硬判据只有实机症状。**
+
+<details><summary>（作废的推导，留档）</summary>
+
+
 
 判据出处 = `install_pack.py:143-160` 的注释，分两类：**① UV 沿用源模型自带布局**（战无2 那 28 张脸、织田信长）→ **必须清空**；**② UV 对齐原版画布**（蒂法/萨菲罗斯 —— 注释原文「**当年专门做过对齐**」）→ **必须保留**。两类症状**一模一样**（眼睛糊成一片），判错极难归因（09-16 按①一刀切把蒂法/萨菲罗斯一起扫过，是事故记录）。
 
@@ -150,6 +257,10 @@ make_head_textures.py 源贴图 → 5 张引擎槽位贴图（_d/_n/_s/_mouth_d/
 
 **代价知情**：清空 = 引擎的 FaceGen 不会给亨利自动适配肤色/年龄（贴图是我们自己出的，视觉上不依赖它）。
 **若以后要走②**：需要额外做一步「把亨利的 UV 重排成原版画布」—— 独立的活，不难但要专门做。
+
+</details>
+
+**现任结论：亨利属②（保留 flags）。**
 
 ### 4.3 亨利的脸要按 3 件重做（男头规则）
 
@@ -273,7 +384,7 @@ make_head_textures.py 源贴图 → 5 张引擎槽位贴图（_d/_n/_s/_mouth_d/
 5. **z180 轴向没有实机验证** —— 坐标证据 5 条一致，但第一次出甲要先验：甲背朝前 = 判断反了。
 6. **径向粗细（`--r-arms`）完全没测** —— 骨骼量不出粗细，起步 0.99，靠渲染核。
 7. **脸的 8 个连通域归类** + **睫毛/眼影/泪线去留**（男头只有 3 件）。
-8. ~~`--clear-flags` 判据未定~~ → ✅ **已裁定：清空**（判据① 源布局，见 §4.2；依据 = 没做过 UV 对齐 + 五官落点与原版完全对不上）。
+8. ~~`--clear-flags` 判据未定~~ → ✅ **已裁定：【不加】`--clear-flags`（保留 flags）** —— 2026-09-19 实机验证；此前"清空"的裁定已作废。见 §4.2。
 9. **皮肤颜色接不上** —— 萨菲罗斯的遗留问题（§21.9）。
 10. **亨利怎么在捏人界面被选到** —— 自建 race 进捏人的接线。
 11. **🆕 成品进哪个模块（§六阶段 5 之前必须定）** —— 用户答的是 `TifaHead2`，但按工程记录 **TifaHead2 不在游戏启动参数里**（它的 `SubModule.xml` 是空 `<SubModules/>` + 空 `<Xmls/>`），`skins.xslt` 当初就是因为这个才挪到 Taikou 的。**按既有做法：制作工程 = TifaHead2，运行期资产与 XML = Taikou**。本次已按这条把长剑的物品定义写进 `Taikou/ModuleData/taikou_items/kcd_henry_items.xml`（**新文件，不碰生成物**）—— 若你要改，说一声就搬。
@@ -335,10 +446,52 @@ python tools/face-pipeline/scripts/build_head_chain.py --recipe henry
 
 1. **睫毛 / 眼影 / 泪线 = 直接丢弃**（没烘进脸贴图）。男头没有第 4/5/6 个槽位，留着会糊眼睛。**睫毛要不要烘进贴图仍待定**（用户裁定）。
 2. **正前 V 领口最低处（z=1.4144）比头的下沿（1.4300）低 1.6cm** —— 理论上会露出一条 1.6cm 的缝。试过 `--neck-fill`（铺下摆）补救，**结果更差**（铺出硬棱面 + 拉伸 UV + 颈后一道竖缝，对比图在 `henry_build\render_neckfill\`）→ 先按"不收下摆"出。**是否看得见要实机定**。
-3. ~~`install_pack.py --clear-flags` 判据未定~~ → ✅ **已裁定：清空**（见 §4.2）。阶段 5 跑 `install_pack.py` 时带上 `--clear-flags` 即可 —— 本次它被定为必做项，不再是可选。
+3. ~~`install_pack.py --clear-flags` 判据未定~~ → ✅ **已裁定：【不加】`--clear-flags`（保留 flags）**（见 §4.2，实机验证）。⚠️ 取产物时注意：不加 clearflags 时脚本**跳过 metaparts**，`s3` 是陈旧产物 —— **要拿 `s2`**。
 
 ### 10.4 顺带确认的机制事实
 
 - KCD 源（FBX + 对象矩阵）的顶点是**厘米 + Y-up**，"米制"只在对象矩阵里 —— 凡 KCD 源进 `build_head.py` 都必须 `--apply-src-xform`。
 - 亨利的脸壳是**一整块连通壳**（不像萨菲罗斯分前后两块）→ **不用 `--weld-seam`**，强行合缝有把眼窝焊死的风险。
 - 嘴件（牙齿+舌头）**与脸共用同一张图集** → `_mouth_d` 必须是**整张脸图**（给 512 会把牙缩糊）；眼球有独立图（1024²）。
+
+---
+
+## 十、🔴 导入核对表（材质名 + 贴图 + 编辑器设置）—— 开编辑器前照着核
+
+> **为什么材质名是硬的（铁律 27）**：编译后的后处理 `install_pack.py` 的 `skinfix --fullmat` **按材质名判角色**
+> （`MatRole()` 只看名字里含不含 `mouth`/`lash`/`eye`，**不看子网格顺序**）。
+> 名字错或重名 = 几件刷成同一个配方 = **眼睛和嘴糊上脸皮**，而且要到实机才看得出来。
+> 自建头的命名规则：**脸壳用裸名，其余件加角色后缀**，角色词固定 `eye`/`mouth`/`lash`/`neck`。
+
+### 10.1 脸 —— `head_henry_a_v2.fbx`（3 件，男头顺序 脸→眼→嘴）
+
+| 子网格序号 | 网格 | 顶点 | **材质名（必须逐字一致）** | 挂哪些贴图 |
+|---|---|---|---|---|
+| 0（第 1 件） | `head_henry_a.0` | 8323 | **`head_henry_a`** | `head_henry_a_d.png` / `_n.png` / `_s.png` |
+| 1（第 2 件） | `head_henry_a.1` | 1400 | **`head_henry_a_eye`** | `head_henry_a_eye_d.png` |
+| 2（第 3 件） | `head_henry_a.2` | 1346 | **`head_henry_a_mouth`** | `head_henry_a_mouth_d.png` |
+
+- 亨利是**男头**，只有 3 件 → **没有 `_lash`**（睫毛已烘进脸贴图）
+- 脖子长在脸壳里，**没有 `_neck`**
+- 眼/嘴**只有 `_d`**（`make_head_textures.py` 不产那两件的 n/s）
+
+### 10.2 甲 ×4 / 武器 / 盾 —— 每件 1 个材质，材质名 = 资源裸名
+
+| FBX | **材质名** | 贴图 | LOD |
+|---|---|---|---|
+| `kcd_henry_body_a.fbx` | `kcd_henry_body_a` | `_d` / `_n` / `_s` | 0~5（6 级） |
+| `kcd_henry_legs_a.fbx` | `kcd_henry_legs_a` | `_d` / `_n` / `_s` | 0~5（6 级） |
+| `kcd_henry_arms_a.fbx` | `kcd_henry_arms_a` | `_d` / `_n` / `_s` | 0~5（6 级） |
+| `kcd_henry_cape_a.fbx` | `kcd_henry_cape_a` | `_d` / `_n` / `_s` | 0~5（6 级） |
+| `kcd_henry_sword_a.fbx` | `kcd_henry_sword_a` | `_d` / `_n` / `_s` | 单件（**武器不要骨架/不勾 Skinning**） |
+| `kcd_henry_shield_a.fbx` | `kcd_henry_shield_a` | 待出 | 单件 |
+
+### 10.3 编辑器设置（照 [骑砍2盔甲资产工程.md](../Knowledge/骑砍2盔甲资产工程.md) §0.3）
+
+- 导入 FBX：**unit = m** / **不勾 Z-up** / **只勾 Import meshes**
+- 材质勾 **`Bumpmap` + `Skinning`**
+  🔴 **`skinning` 在材质上、FBX 不携带** —— 漏了 = 网格钉死在绑定姿势、完全不跟骨架动
+  （武器**不要**勾 Skinning —— 它是静态网格）
+- 贴图挂到 `tex[0]` / `tex[2]` / `tex[4]`（= `_d` / `_n` / `_s`）
+- Publish **目标选模块外**（选模块内会得到 `Modules/X/X/` 嵌套）
+- 🔴 每次重导 FBX，材质的 shader/flags/VertexLayout **会被刷回默认** → 导完回看三样还在不在
