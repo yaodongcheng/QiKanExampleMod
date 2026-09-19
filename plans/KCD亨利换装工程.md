@@ -9,6 +9,118 @@
 
 # ★ 交接（2026-09-19 收工）—— 下一轮从这里开始
 
+## 🔴🔴 2026-09-19 追加二：**表情/口型通道（f60..100）从来没搬过 → 亨利没表情**（已修，**待重编译**）
+
+**用户报告**：捏脸界面「试听声音」时，原版头嘴会动，**亨利头嘴不动、整张脸零表情**。
+
+**根因**：头顶点通道是 **101 条**，分两段 ——
+`1..59` = 捏脸拉杆用（`deform_keys` 驱动，一直在搬）；**`60..100` = 表情/口型用**
+（引擎 `morph_anims` 片段 `Speak`/`JawDrop`/`CloseEyes`… 驱动，**从来没搬过**）。
+编译后 `morphfix` 把缺的帧补成"原地不动" —— 帧数够了（不崩），**但不会有任何动作**。
+**三颗头（蒂法/萨菲罗斯/亨利）全中**（同一个管线产物）。
+
+**已修**（改的是生成器，不是产物 —— 铁律 22）：
+
+| 改了什么 | 文件 |
+|---|---|
+| 通道上限 59 → **100**；新增 `--anim-src` / `--anim-objects`（**表情段按件对位搬**：眼球转动在眼球件、牙齿跟下颌在嘴件） | `tools/face-pipeline/scripts/transfer_channels.py` |
+| 常驻闸门扩到 **101 条全覆盖** + 表情段 7 个地标 + 件级两条（"要有件能转眼球""要有件跟下颌"） | `check_chan_anatomy.py`（**负面测试过**：旧装机包必挂，原版男头与 xxFemale 必过） |
+| 配方里加表情源（脸形段仍用 xxFemale；**表情段用原版同性别头**，男头按件对位 `head_male_a,.1,.2`） | `build_head_chain.py` 的 `RECIPES` |
+
+**三个新产物**（都已过关卡 1 + 备份）：
+
+| 头 | 新产物 | 上一版 |
+|---|---|---|
+| 亨利 | `Debug/offline/自定义头/henry_build/head_henry_a_v5.fbx`（10.3 MB，102 形状键） | v3 |
+| 萨菲罗斯 | `Debug/offline/自定义头/seph_build/head_sephiroth_a_v9.fbx` | v7 |
+| 蒂法 | `D:\BrainMaker\blend_projects\tifa_export\backup_20260913\head_tifa_a_v13.fbx` | v12 |
+
+**核验过的**：三件的形状键都是 **102 个**（Basis + KeyTime_0..100，顺序对）；脸形段数值与上一版**逐帧一致**（没动过）；
+表情段实测落位正确（JawDrop 最大点在 y+0.148/z1.556 下颌、CloseRightEye 最大点在 +x、EyebrowRaise 在眉高 z1.705）。
+
+**⚠️ 还没生效** —— 按 [铁律 31](../../CLAUDE.md) 流程（**分发进 AssetSources 必须等你把 ModKit 开起来之后**）：
+把下面三个文件的**内容**换掉（**文件名一字不改**）：
+
+```
+KCD\AssetSources\head\henry\head_henry_a_v3.fbx          ← head_henry_a_v5.fbx 的内容
+KCD\AssetSources\KCD\head_henry\head_henry_a_v3.fbx      ← 同上
+TifaHead2\AssetSources\head\sephiroth\head_sephiroth_a_v6.fbx  ← head_sephiroth_a_v9.fbx
+TifaHead2\AssetSources\head\tifa\head_tifa_a_v11.fbx     ← head_tifa_a_v13.fbx
+```
+然后：ModKit 重编该头 → Publish → `python install_pack.py --filter head_xxx` → 实机验收。
+🔴 **验收判据 = `check_chan_anatomy.py` 必须过**（`--packdir <模块>\AssetPackages --filter head_henry_a`），
+它现在会查表情段；再实机捏脸「试听声音」看嘴动不动。
+
+## 🔴🔴 2026-09-19 追加一：59 条脸形位移场「前后镜像」已修（**同上，待重编译**）
+
+**问题**：用户实机发现**拉鼻子、后脑勺动**。查下来不是界面问题，是**网格里的位移场被前后（Y 轴）镜像过**
+（详见 [蒂法换头工程.md §21.12](../Knowledge/蒂法换头工程.md)）。**亨利是继承的**，源头在蒂法 v10，
+三个头（蒂法/萨菲罗斯/亨利）全中。
+
+**已做**（只重建形状键，**几何一个顶点没动**）：
+
+| 头 | 新产物 | md5 |
+|---|---|---|
+| 亨利 | `Debug/offline/自定义头/henry_build/head_henry_a_v3.fbx` | `f1f8c359d16b1fac901f7e9095968dfa` |
+| 萨菲罗斯 | `Debug/offline/自定义头/seph_build/head_sephiroth_a_v7.fbx` | `360eee2d310bc87d3815267bdd6b5930` |
+| 蒂法 | `D:\BrainMaker\blend_projects\tifa_export\backup_20260913\head_tifa_a_v12.fbx` | `99b8adcbe222ce181fd572a53d8926f2` |
+
+**验收**：鼻帧质心从 y=−0.014~−0.036 回到 **y=+0.146~+0.162（鼻尖方向）**；
+`check_chan_anatomy.py` 对原版/源头过、对旧装机包全挂（两面验证过）。
+
+**⚠️ 还没生效** —— 要按 [铁律 31](../../CLAUDE.md) 的流程走（**分发进 AssetSources 必须等你把 ModKit 开起来之后**）。
+🔴 **替换清单以上方【追加二】那张表为准**（那是最新版号 v5/v9/v13；本条原来列的 v3/v7/v12 已被取代），
+**文件名保持不变**，否则 metamesh 名变了要重新接线。
+然后：ModKit 重编该头 → Publish → `python install_pack.py --filter head_xxx` → 实机拉杆验收。
+
+**🔴 顺带要重估的**：TODO P1-4「眼睛瞪」的候选②就是"脸形权重的形变" —— 那正是被镜像的那批场。
+修完先看眼睛还瞪不瞪，再决定要不要继续按 §21.9 折腾离线对比。
+
+**🔴 全线 TODO（上面两条对所有自建头都成立）**：蒂法 / 萨菲罗斯 / 亨利 **+ 战无2 的 28 个头**（同一个管线产物，
+同样只有 59 条通道、没有表情段）全部重编译；脸贴图统一"洗底" → 见 [蒂法换头工程.md §23.5](../Knowledge/蒂法换头工程.md)。
+
+## 🔴 调脸贴图参数的循环 = `tpaccli texreplace`（**不需要 ModKit**）
+
+**一句话**：改脸贴图（洗底 / 调明暗 / 调冷暖）**不用开编辑器、不用重 Publish、不用重打补丁** ——
+直接改**已编译好**的 `pack0.tpac` 里那张贴图的**数据段**。一轮约 1 分钟（代价 = 要重启游戏）。
+
+```bash
+# 1) 出图：把源贴图按增益洗一版（--level 0=不动 / 1=完全对齐参照；带高光滚降不削顶）
+python tools\face-pipeline\scripts\tint_face_texture.py \
+  --src "<模块>\AssetSources\head\henry\head_henry_a_d.png" \
+  --out "Debug\offline\_texref\out\new.png" \
+  --ref "Debug\offline\_texref\(unparsed)\head_female_x20_d.png" --level 0.75
+# 2) 规范格式（进包/进工程源都要 8bit RGB + 只有 IHDR/IDAT/IEND）
+python tools\face-pipeline\scripts\png_for_editor.py "Debug\offline\_texref\out\new.png"
+# 3) 替换（manifest 里 name = 贴图资产名，png = 第 2 步产物，width/height 必填）
+tpaccli texreplace --packdir "<模块>\AssetPackages" --filter pack0 --mapping <manifest.json> --out <临时目录>
+# 4) 备份旧包 → 新包拷进 <模块>\AssetPackages\pack0.tpac → 重启游戏
+```
+
+**保住了什么**：贴图 **GUID 不变**（材质接线不断）、101 帧形变与四角色材质配方**原样保留**。
+**代价**：输出 **DXT1 + 单级 mip**（工具写死）→ 远景没有 mipmap、**理论上会闪**。
+⇒ 🔴 **它只适合调参；定版必须回 ModKit 重编**（那样才带完整 mipmap），并把最终 PNG 落进 `AssetSources`
+（铁律 31：落镜像这一步要等 ModKit 开着）。
+
+**回滚**：每轮前把旧包备份到 `Debug\offline\自定义头\henry_build\backup\`，说一声就能换回来。
+**备好的档位**：`Debug\face_tint\henry_tint_0.50 ~ 0.90.png`（8 档，皮肤亮度 143~178；原始未调 = 97）。
+
+> 原始记录与配套手法（色带定位法等）见 [蒂法换头工程.md §22.3](../Knowledge/蒂法换头工程.md)。
+> 🔴 **在线换贴图的 `custom.face_tex` 指令已实测不可信**（任何档位只把脸变蓝）—— 别用，只走上面这条离线路。
+
+### 🔴 顺序警告：**先定贴图档位，再重编译**
+
+`texreplace` 改的是**已编译包**；而 **ModKit 重编译 + Publish 会从工程源重出包 → 把调好的贴图覆盖回原图**。
+所以顺序必须是：
+
+```
+① texreplace 离线定档（改的是编译产物，见上）
+② 把选定 PNG 落进 AssetSources\head\<角色>\<头>_a_d.png   ← 铁律 31：要等 ModKit 开着
+③ 再用带表情段的新 FBX 重编 + Publish                    ← 一次把「表情段 + 形变修复 + 贴图」全带上
+```
+
+**先重编译 = 贴图那轮的功夫白费。**
+
 ## 一句话现状
 
 亨利（KCD）已做成**独立模块 `KCD`**，**头和 4 件甲在实机跑通**（脸是亨利的、眼睛/嘴已修好、甲有物品定义）；
@@ -50,7 +162,7 @@ H:\...\MB2_1.2.12\...\Modules\KCD\          （junction → Steam 客户端同�
 
 ### P1
 
-4. **眼睛"瞪"的诊断** —— 眼球的**位置和大小都已实测正确**（中心 `(0,0.128,1.684)` 误差 0、直径 ≈24mm）。所以"瞪"来自**眼睑开合**，两个可能：① 源件几何如此 ② **脸形权重的形变**（位移场来自蒂法/xxFemale，权重却是引擎按 BodyParameters 给的 → 可能把眼皮拉开）。**照 §21.9 的办法诊断**：从 `Debug/StoryEngine_RuntimeLog.txt` 解出该角色的真实脸形权重 → 在 Blender 里套到形状键 → 渲两组（basis / 真实权重）对比。
+4. **眼睛"瞪"的诊断** —— 眼球的位置和大小都已实测正确（中心 `(0,0.128,1.684)` 误差 0、直径 ≈24mm）。所以"瞪"来自**眼睑开合**，两个可能：① 源件几何如此 ② **脸形权重的形变**（位移场来自蒂法/xxFemale，权重却是引擎按 BodyParameters 给的 → 可能把眼皮拉开）。**🔴 2026-09-19 更新：候选②的原因已确认并修复（位移场被前后镜像，见 §23.2）→ 先看修完后还瞪不瞪，再决定要不要走 §21.9 的离线对比。**
 5. **清 Taikou 里的残留**（我留下的，用户未确认删除）：
    - `Taikou\AssetPackages\kcd_henry.tpac`（77.7 MB，**与 KCD 里那份重复**）
    - `Taikou\ModuleData	aikou_items\kcd_henry_items.xml`（**悬空** —— 引用的 mesh 不存在）

@@ -384,6 +384,26 @@ TP=tools/face-pipeline/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe
 - 用例二（2026-09-16 战无2）：28 头全带 flag → `--clearflags` 当场修好用户报的「眼睛不对 + 嘴开花」。
 - ⚠️ **改包前先备份**，且备份**放模块外**（编辑器 Publish 会清 `AssetPackages/`）。
 
+### 🔴 自建头的顶点通道是【101 条】，分两段搬 —— 只搬前 59 条 = **没表情、说话不张嘴**
+（2026-09-19 登记，实机症状来自用户报「亨利没表情」）
+
+| 段 | 帧号 | 谁来驱动 | 不搬的症状 |
+|---|---|---|---|
+| **脸形段** | `KeyTime_1..59` | 皮肤 `deform_keys` 的 `key_time_point`（捏脸拉杆） | 拉杆不动 / 拉错部位（镜像事故那类） |
+| **表情段** | `KeyTime_60..100` | 引擎 `morph_anims` 片段：`face_01..12` / `Speak` / `JawDrop` / `CloseEyes` … | 🔴 **说话时嘴不动、整张脸零表情**（捏脸界面"试听声音"最直观） |
+
+- 帧号↔语义全表 = `tpactool/TpacTool.IO/Model/MorphNameMapping.cs`（f60 EyesRight … f71 JawDrop … f88 CloseEyes … f99 Speak / f100 Yell）。
+- 🔴 **`morphfix` 补帧是"填空"，不是"补内容"**：它把缺的帧填成"原地不动"，帧数够了（引擎缓冲不越界）但**不会有任何动作**。所以"包能跑、不崩"完全不能证明表情段在位。
+- 🔴 **表情段必须按件对位搬**（原版每个子网格各带自己的场）：**眼球转动（f60..63）在眼球件里、牙齿跟下颌走在嘴件里**。
+  把脸壳的场无脑套到眼球件上 → 眼球只会被眼睑蹭 ~1mm，**转不起来**（原版整颗转 ~10mm）。
+  件序：**男 脸/眼/嘴 · 女 脸/嘴/眼/睫**（别串性别照抄，同 §"引擎认脸部件的两条规则"）。
+- **两个源不能合并**：脸形段 = `xxFemale` dump（两性通用，拉杆场几乎一样，且 deform_keys 幅度按它调）；
+  表情段 = **原版同性别头** dump（解剖动作按性别不同：JawDrop 原版男 27mm / xxFemale 16mm；男头又按男表标定）。
+- **常驻闸门** `check_chan_anatomy.py`（已扩）：脸形段 8 个地标 + 表情段 7 个地标 + 全覆盖（`f90/f92` 原版就是空帧，豁免）
+  + **件级两条**（"除脸壳外要有件能转眼球""除脸壳外要有件跟下颌"）。负面测试过：旧装机包必挂、原版男头与 xxFemale 必过。
+- **一条命令重跑**：`python build_head_chain.py --recipe henry`（源与按件对位都写在配方里）。
+- ⚠️ **同一缺陷曾在蒂法/萨菲罗斯/亨利三颗头上同时存在**（同一个管线产物），修一颗 ≠ 修全部，各自重跑各自的配方。
+
 ### 🔴 引擎认脸部件的两条规则（同批查实，2026-09-16）
 
 | 规则 | 内容 | 实证 |
@@ -811,3 +831,70 @@ FBX 导入后**单位换算与转轴只写在对象矩阵里**，顶点本身是
 谁把矩阵当单位阵丢掉，谁就错 100 倍 —— 实测两个脚本各踩一次：
 `build_armor.py`（甲 bbox 从 ±0.49m 炸到 x±66.8 / y−160）、`build_head.py`（头壳中心算到 y=161、
 "眼↔嘴"标定按厘米缩 100 倍）。战无2 的 FBX 恰好是单位阵，所以这个假设藏了几个月。
+
+---
+
+## 十七、捏脸系统两件套：拉杆落点 + 脸贴图底色（2026-09-19 登记，亨利实机）
+
+### 一句话
+
+自建头的脸部有**两个独立**的坑：**拉杆错位**（位移场被前后镜像）与**脸比身体更吃色**（贴图底色太"成品"）。
+各有工具与判据，详见 [Knowledge/蒂法换头工程.md](../../../Knowledge/蒂法换头工程.md) §21.12 + §23。
+
+### 17.1 界面机制（反编译结论，别再猜）
+
+`FaceGenVM.Refresh`：拉杆**完全由皮肤 `deform_keys` 驱动** ——
+名字取 `str_facegen_skin.<id>`、页签取 `group_id`（0身/1脸/2眼/3鼻/4嘴）、**驱动帧取 `key_time_point`**、
+权重下标 = 列表序号。C# 里没写死任何映射。
+🔴 `group_id = -1` 的 5 条（头缩放/藏耳/老年脸/幼年脸/眼球凸）**没有滑杆，但权重照样生效**。
+可复现脚本：`Debug/offline/_facegen_slider_map.py`。
+
+### 17.2 拉杆错位 = 位移场被前后（Y 轴）镜像
+
+- **症状**：拉"鼻子"→ 鼻子不变、**后脑勺变**；默认权重非零时脸本身被拉歪。
+- **判据**：`tpaccli morphmap` 看**帧质心的 y**。头朝 +Y、鼻尖 y≈+0.15、后脑 y≈−0.06。
+  错的场：鼻帧质心 y≈−0.02~−0.04；对的场：y≈+0.14。
+- **闸门**：`tools/face-pipeline/scripts/check_chan_anatomy.py`（8 地标帧 + 帧 1..59 全覆盖，两面验证过）。
+- **根因**：通道源 `head_tifa_a_v10.fbx` **本身就是错的**（编译无损、transfer 无损）。
+  源头 `head_xxfemale_a` 才对 —— **dump 它当源，别再信任何 `_v10`**。
+- 🔴 **凡是"从 v10 搬通道"做出的头全部中招**（蒂法/萨菲罗斯/亨利/战无2 的 28 人）。
+  修法 = 换源重跑 `transfer_channels.py`（**只重建形状键，几何不动**）。
+
+### 17.3 脸比身体更吃色 = 贴图底色太"成品"
+
+- **机制**：`渲染色 = 贴图 × 肤色乘子 + 环境光`（`forward_face_functions.rsh` 的 `calculate_albedo_face`）。
+  原版/xxFemale 的脸是**很淡的底图**（皮肤中位亮度 ≈188），肤色几乎全靠乘子给；
+  源模型的成品脸（亨利 ≈97）等于**乘两遍**，蓝通道被压两次 → 白档发黄、黑档变"黑人"。
+- 🔴 **结构性限制**：「摆动幅度」与「整体明暗」是**同一个旋钮** ——
+  贴图越亮摆动越大、越暗越被环境光托住。**一张固定贴图不可能让白档和黑档同时对上。**
+- **工具**：`tint_face_texture.py`（`--level 0~1` 朝参照洗底，带高光滚降）+ `custom.face_tex`（运行时换贴图）。
+- **已排除**（别再重查）：材质配置（与原生逐字段相同）、贴图格式/色彩空间（DXT1/flags 空，与原生一致）、
+  `deform_keys` 数据（逐位相同）、"引擎生成脸贴图"（实测脸确实跟着肤色变 = 乘子路线）。
+
+### 17.4 `custom.face_tex` —— 运行时换贴图（🔴 **实测不可信，别用**）
+
+**结论：这条路当前是坏的。** 指令能跑通（返回 `ok … via CreateFromMemory`），但**任何档位都把脸变成蓝色**，
+完全不是"变亮/变暗"（用户实机 2026-09-19）。
+**判断**：蓝 ≈ 引擎拿默认/错误格式兜底 → `Texture.CreateFromMemory(裸 PNG 字节)` **没把像素喂对**。
+**要接着修**：别再试 `CreateFromMemory`；改走「把档位预编译进包 + `Texture.GetFromResource` 切」
+（`reset` 已验证那条路通）。**在此之前调档一律走离线 `texreplace` 循环**（§22.3，已验证可用）。
+
+实现（`ExampleModVS/.../Debug/FaceTintCommands.cs`，逻辑没被推翻，只是加载环节不可信）：
+`Material.GetFromResource` 拿共享材质 → 加载贴图 → `Material.SetTexture(DiffuseMap, tex)`。
+
+🔴 **两个 API 坑**（真踩到了，值得单独记）：
+1. `PlatformDirectoryPath(type, path).ToString()` 是**相对路径**，`Directory.Exists` 会拿**进程工作目录**解析
+   （骑砍的工作目录不是游戏根）→ 永远找不到。游戏根只有 **`BasePath.Name`** 拿得到。
+2. `PlatformFileType.Application` **不是游戏安装根** —— 它解析到 `C:\ProgramData\Mount and Blade II Bannerlord\`；
+   而 `PlatformFilePath` 只接受 `(类型, 相对路径)`，**没有"绝对路径"那一档** → 这条路根本走不通。
+
+### 17.5 新增工具
+
+| 工具 | 位置 | 用途 |
+|---|---|---|
+| `tpaccli morphmap` | `tools/face-pipeline/tpactool/` | **逐帧位移质心 + 帧名** —— 查"拉杆推的是哪一块"的主力（`morphinfo` 只打前 8 帧、看不出部位） |
+| `tpaccli texinfo` | 同上 | 贴图格式/尺寸/mips/flags 速查 |
+| `check_chan_anatomy.py` | `tools/face-pipeline/scripts/` | 位移场落点闸门，**换通道源后必跑** |
+| `tint_face_texture.py` | 同上 | 脸贴图「洗底」 |
+| `custom.face_tex` | `ExampleModVS/.../Debug/FaceTintCommands.cs` | 运行时换脸贴图 |
+| `_facegen_slider_map.py` | `Debug/offline/` | 拉杆 ↔ deform_key ↔ morph 帧 全表提取 |

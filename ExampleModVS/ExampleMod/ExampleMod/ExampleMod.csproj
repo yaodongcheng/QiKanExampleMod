@@ -386,6 +386,7 @@
     <!-- <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" /> -->
     <Compile Include="Debug\AiPatrollingNullFix.cs" />
     <Compile Include="Debug\CrashLogHook.cs" />
+    <Compile Include="Debug\FaceTintCommands.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
     <!-- <Compile Include="Debug\DisplayMessageLoggerPatch.cs" /> -->
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
