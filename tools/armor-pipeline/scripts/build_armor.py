@@ -108,6 +108,23 @@ if T_MODE:
         if _k in A:
             print("   ⚠️ T 模式：%s 不参与计算（缩放由 T 的 s 承担，见 --t-s 那段注释）" % _k)
 CUT_Z = float(get(A, "--cut-z", "0.0"))
+# ---------------------------------------------------------------- 🔴 图集方案（`--atlas-plan`）
+# 一件甲 = 1 个材质（合原版范式）。源件各片各有自己的贴图，所以要：
+#   ① 把每片的 UV 缩放进图集的某一格（**本脚本做**）② 把源贴图拼进同一张图（`make_armor_atlas.py` 做）
+# 两边共用同一份 plan JSON（键 = **材质名**，不是网格名 —— 一个网格可能带多个材质）。
+ATLAS_PLAN = get(A, "--atlas-plan", "")
+ATLAS = None
+if ATLAS_PLAN:
+    import json as _jsonA
+    with open(ATLAS_PLAN, encoding="utf-8") as _fh:
+        _adoc = _jsonA.load(_fh)
+    ATLAS = _adoc.get("pieces", {}).get(NAME)
+    if ATLAS is None:
+        print("   ⚠️ --atlas-plan 里没有 %r 这一件 → 跳过 UV 重排" % NAME)
+    else:
+        print("   图集：%dx%d 格 · 每格 %dpx · %d 个材质位 ← %s"
+              % (ATLAS["grid"][0], ATLAS["grid"][1], ATLAS["cell"], len(ATLAS["map"]),
+                 os.path.basename(ATLAS_PLAN)))
 # 🔴 布料件「放下来」（2026-09-16）：列出子网格号，这些件会绕**自己的手臂轴**转到
 #    「重心正对轴下方」。用于源件里的**悬垂布**（振袖/袍摆）——源模型是 T-pose，
 #    布是斜挂在水平手臂上的，直接重定向到骑砍 A-pose 会变成"向后戳出去的一块板"。
@@ -134,13 +151,34 @@ os.makedirs(OUTDIR, exist_ok=True)
 
 HEAD_BONE_Z = 1.569          # 官方骨架校准验收值（换头工程 §11.3）
 
-# 🔴 SW2 与骑砍的"正面"相反，必须镜像：
-#    SW2  : 正面 = -Y（脚趾 y=-13.8、面部骨 y=-10.35、前垂草摺 y=-17.4 全在负侧）
-#    骑砍  : 正面 = +Y（脚趾 y=+0.04 在脚踝 y=-0.076 的正侧；身体渲染可见胸肌面朝 +Y）
-#    ⇒ 用 **Y 轴镜像** (x,y,z)->(x,-y,z)，不能用 180° 绕 Z 旋转（那会连左右一起翻）。
-#    镜像是反射（行列式 -1），做完必须**反转面绕序**否则法线朝里。
-MIRROR_Y = Matrix.Diagonal((1.0, -1.0, 1.0, 1.0))
+# ---------------------------------------------------------------- 🔴 源件→骑砍 的「翻面」（两种情形，别搞混）
+# 两边都是「正面 = −Y」，区别在**左手在 x 的哪一侧**：
+#    · **镜像件**（战无2：前 −Y / 左 −X）→ 骑砍（前 +Y / 左 −X）差一个**反射**
+#      ⇒ **Y 轴镜像** (x,y,z)->(x,-y,z)。镜像是反射（行列式 −1），做完**必须反转面绕序**，
+#        否则法线朝里、甲渲染成内翻。
+#    · **正常人形**（KCD：前 −Y / 左 **+X**）→ 骑砍（前 +Y / 左 −X）只差**半圈**
+#      ⇒ **绕 Z 转 180°**（刚体旋转，行列式 +1），**不用**反绕序。
+#        ⚠️ 这里千万别照抄战无2 的镜像 —— 那会把左右手对调。
+# 判据（拿源件自己量）：找一根 `*Left*` 的骨或件，看它在 x 的正侧还是负侧。
+MAP_JSON = get(A, "--map-json", "")
+MAP_DOC = None
+if MAP_JSON:
+    import json as _json0
+    with open(MAP_JSON, encoding="utf-8") as _fh:
+        MAP_DOC = _json0.load(_fh)
+
+FLIP_MODE = get(A, "--flip", (MAP_DOC or {}).get("flip", "mirror"))
+if FLIP_MODE == "mirror":
+    MIRROR_Y = Matrix.Diagonal((1.0, -1.0, 1.0, 1.0))
+    NEED_REVERSE = True
+elif FLIP_MODE in ("rot180", "z180"):
+    MIRROR_Y = Matrix.Rotation(math.pi, 4, 'Z')
+    NEED_REVERSE = False
+else:
+    print("!! --flip 只能是 mirror / rot180，收到 %r" % FLIP_MODE)
+    sys.exit(2)
 MIRROR_Y3 = MIRROR_Y.to_3x3()
+print("   翻面 = %s（%s）" % (FLIP_MODE, "反射→要反绕序" if NEED_REVERSE else "刚体旋转→不反绕序"))
 
 # ---------------------------------------------------------------- 部位 -> 子网格号
 # 号来自 SW2 角色 FBX 的 model_0_submesh_N（判定依据见 plans/rules 与工程文档）
@@ -193,6 +231,18 @@ SW2_MAP.update({b: "bip01_r_finger0_27" for b in
 SW2_MAP.update({b: "bip01_head_13" for b in
                 ("bone_46", "bone_59", "bone_60", "bone_61", "bone_62",
                  "bone_68", "bone_69")})
+
+# ---------------------------------------------------------------- 换源：外部映射表（`--map-json`）
+# 给一份 `{源骨名: 骑砍骨名}` 的表就整体替换 SW2_MAP —— 键的形状完全一样，
+# 下面的 build_map() / --debug 打印 / 重定向全都照旧走，不需要第二套代码。
+# 表由 `tools/kcd-pipeline/scripts/dump_skeletons.py -- pair` 量出来、`map_<角色>.json` 落盘。
+# ⚠️ 父链兜底（build_map 里那段）仍然生效 —— 表里只写"有明确对应"的骨即可。
+if MAP_DOC:
+    _m = MAP_DOC.get("map", MAP_DOC)
+    if not isinstance(_m, dict) or not _m:
+        print("!! --map-json 里没有可用的 map"); sys.exit(2)
+    SW2_MAP = dict(_m)
+    print("   骨映射表 ← %s（%d 条显式映射）" % (os.path.basename(MAP_JSON), len(SW2_MAP)))
 
 
 def parse_submesh(name):
@@ -249,7 +299,34 @@ bl_len = {b.name: b.length for b in BL.data.bones}
 
 
 # ---------------------------------------------------------------- 导 SW2（叠加，保留 BL）
+def patch_importer():
+    """导入器内存补丁（不碰 Blender 安装文件）。两种源格式各踩过一个坑：
+
+    ① morph 通道缺 FullWeights → 导入器断言崩溃（战无2 的带 morph 的角色 FBX）。
+    ② 网格蒙皮到的骨头**不在骨架子树下**（在武器槽位骨那一支）→ `mesh.armature_setup`
+       里没有对应登记 → `link_hierarchy` 抛 `KeyError: None`（KCD 的剑/盾/角色件都会触发）。
+
+    两道补丁都只在"本来就会崩"的场合兜底，正常文件行为一行不变。
+    """
+    import inspect
+    import io_scene_fbx.import_fbx as mod
+    src = inspect.getsource(mod)
+    orig = src
+    bad = "assert len(full_weights) >= num_shapes_assigned_to_channel"
+    if bad in src:
+        src = src.replace(bad, "pass  # patched: morph without FullWeights")
+    bad2 = "                    (mmat, amat) = mesh.armature_setup[self]"
+    if bad2 in src:
+        src = src.replace(bad2, (
+            "                    if self not in mesh.armature_setup:\n"
+            "                        mesh.armature_setup[self] = (mesh.bind_matrix, self.bind_matrix)\n"
+            + bad2))
+    if src != orig:
+        exec(compile(src, mod.__file__, "exec"), mod.__dict__)
+
+
 def import_sw2(path):
+    patch_importer()
     before = set(o.name for o in bpy.data.objects)
     bpy.ops.import_scene.fbx(filepath=path)
     return [o for o in bpy.data.objects if o.name not in before]
@@ -326,6 +403,12 @@ ARM_ROT = {
     "bone_18", "bone_19",            # 手
 }
 ARM_ROT |= {"bone_%d" % i for i in range(26, 46)}      # 手指（26..45）
+# 换源：`--arm-rot` 给一串源骨名（逗号分隔）就整体替换上表。
+# 只列**真的需要转角**的 —— 躯干/腿两边都是竖直的，加了反而产生剪切。
+_arm_rot_arg = get(A, "--arm-rot")
+if _arm_rot_arg is not None:
+    ARM_ROT = set(x.strip() for x in _arm_rot_arg.split(",") if x.strip())
+    print("   手臂链骨 ← --arm-rot（%d 根）" % len(ARM_ROT))
 
 
 def chain_dir(bone):
@@ -413,24 +496,68 @@ for o in dups:
     o.modifiers.clear()
     mw = o.matrix_world.copy()      # 🔴 必须在 parent=None **之前**取 —— 解父会改写 matrix_world
     o.parent = None
-    # 🔴 无蒙皮的件：**先把物体变换烘进顶点，再补头骨权重**（2026-09-15 深夜）。
+    _am = next((x for x in bpy.data.objects if x.type == 'ARMATURE'), None)
+    # 🔴🔴 统一口径第一步：把网格对象的变换**烘进顶点**，烘到【骨架空间】（2026-09-19 补）。
+    #    下面那句「顶点已在 armature 空间」只对**对象变换是单位阵**的源成立 —— 战无2 就是
+    #    （它的网格对象没带变换，所以当年一直没暴露）。**KCD 不是**：它的网格对象继承了
+    #    FBX 的 `0.01 缩放 + 绕 X 90°`（顶点是 cm / Y-up），而骨架已经被 apply_all 烘平成
+    #    m / Z-up ⇒ 顶点与骨头**不在同一个空间**，重定向整块错位（实测甲 bbox 从 ±0.49 米
+    #    炸到 x±66.8 / y−160）。
+    #    烘到骨架空间（不是世界空间）是原脚本的既有口径 —— 源骨架自己可能带位移（谦信的
+    #    Armature 把整机放在 x≈−145 处），烘成世界空间会整体偏出去。
+    #    单位阵时 `_tgt` = 单位阵 ⇒ 一行都不动，战无2 行为不变。
+    _tgt = (_am.matrix_world.inverted() @ mw) if _am is not None else mw
+    _idm = Matrix.Identity(4)
+    if max(abs(_tgt[r][c] - _idm[r][c]) for r in range(4) for c in range(4)) > 1e-6:
+        o.data.transform(_tgt)
+        print("   烘物体变换进顶点（源网格对象非单位变换）：%s" % o.name)
+    # 🔴 无蒙皮的件：**补头骨权重**（2026-09-15 深夜）。
     #    实测上杉谦信的兜（submesh_0..._0000.001，242 顶点）一个顶点组都没有 —— 静态网格。
-    #    下面那句「顶点已在 armature 空间」对**有蒙皮**的件成立，对无蒙皮的件**不成立**
-    #    （顶点在物体局部空间，靠 matrix_world 摆到位）。不烘就清矩阵 → 兜散架：
-    #    实测 bbox 从 0.18 米炸到 x[-0.203,1.685] z[-0.607,1.789]，烘了但取在解父之后同样散
-    #    （x[-2.675,0.091]）。补 bone_11（SW2_MAP → bip01_head_13）则让它跟头走，
+    #    补 bone_11（SW2_MAP → bip01_head_13）则让它跟头走，
     #    并让 --keep-head-frags 认得出它（否则主导骨为空 → 被判非头部 → 整块删光，实测余 0 顶点）。
     if len(o.vertex_groups) == 0 and len(o.data.vertices):
-        # 🔴 烘到【骨架空间】而不是世界空间 —— 源骨架自己可能带变换（谦信的 Armature 把整机
-        #    放在 x≈-145 处）。下面的重定向是按骨架空间算的，烘成世界空间会整体偏出去
-        #    （实测 bbox x[-2.675,0.091]，正确值应落在头附近）。
-        _am = next((x for x in bpy.data.objects if x.type == 'ARMATURE'), None)
-        _tgt = (_am.matrix_world.inverted() @ mw) if _am is not None else mw
-        o.data.transform(_tgt)
-        gg = o.vertex_groups.new(name="bone_11")
-        gg.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
-        print("   补头骨权重（源件无蒙皮）：%s → bone_11 ×%d" % (o.name, len(o.data.vertices)))
-    o.matrix_world = Matrix.Identity(4)   # 顶点已在 armature 空间（≈世界），清掉残留变换
+        _nb = next((b for b in ("bone_11", "Head", "head") if b in SW2_MAP), None)
+        if _nb is None:
+            print("   !! 无蒙皮件 %s 找不到可用的头骨名（SW2_MAP 里没有 bone_11/Head），跳过补权重" % o.name)
+        else:
+            gg = o.vertex_groups.new(name=_nb)
+            gg.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+            print("   补头骨权重（源件无蒙皮）：%s → %s ×%d" % (o.name, _nb, len(o.data.vertices)))
+    o.matrix_world = Matrix.Identity(4)   # 顶点已烘到 armature 空间，清掉残留变换
+    # 🔴 图集 UV 重排（2026-09-19）：按**面**查它用的材质 → 落到哪一格 → 把该面的 UV 缩进格子。
+    #    必须在这里做（**合并成一件之前**）—— 合并后材质被统一成一个，就再也分不出哪片面原来是谁的了。
+    if ATLAS:
+        _cols, _rows = ATLAS["grid"]
+        _mp = ATLAS["map"]
+        _slot_cell = {}
+        for _i, _ms in enumerate(o.material_slots):
+            _mn = _ms.material.name if _ms.material else ""
+            _slot_cell[_i] = _mp.get(_mn)
+        _uvl = o.data.uv_layers.active
+        _nface, _miss = 0, set()
+        if _uvl is None:
+            print("   !! 图集：%s 没有 UV 层，跳过" % o.name)
+        else:
+            for _poly in o.data.polygons:
+                _cell = _slot_cell.get(_poly.material_index)
+                if _cell is None:
+                    _mn = (o.material_slots[_poly.material_index].material.name
+                           if _poly.material_index < len(o.material_slots)
+                           and o.material_slots[_poly.material_index].material else "?")
+                    _miss.add(_mn)
+                    continue
+                _cx, _cy = _cell["cell"]
+                for _li in _poly.loop_indices:
+                    _u, _v = _uvl.data[_li].uv
+                    # 🔴 源件可能用**平铺 UV**（实测 KCD 的武装衣主槽 u∈[1.001,1.996]，贴图横向重复
+                    #    两次）。不先折回 [0,1) 就直接加偏移 = 整片采到隔壁格子（错得很隐蔽）。
+                    _u -= math.floor(_u)
+                    _v -= math.floor(_v)
+                    _uvl.data[_li].uv = ((_u + _cx) / _cols, (_v + _cy) / _rows)
+                _nface += 1
+            print("   图集 UV 重排：%s 的 %d 个面（格 %dx%d）" % (o.name, _nface, _cols, _rows))
+            if _miss:
+                print("   ⚠️ 这些材质没排格子（其 UV 保持原样，会取到图集别的区域）：%s" % sorted(_miss))
 
 # 着物瘦身（可选）：submesh_1 的"着物"把**头和手的皮**也包在里面（头 68 顶点 + 右手手指约 200 顶点），
 # 直接带上会出现"头顶飘块 + 袖子变形"。按**主骨**删（不用 z 高度——袖子与躯干在 z 上重叠）。
@@ -757,9 +884,14 @@ if len(dup_list) != len(picked):
 
 
 def seg_ratio(sw_a, sw_b, bl_a, bl_b):
-    """两对关节之间的距离比（米/厘米）= 沿骨轴的缩放"""
-    ds = (SW.data.bones[sw_b].head_local - SW.data.bones[sw_a].head_local).length
-    db = (BL.data.bones[bl_b].head_local - BL.data.bones[bl_a].head_local).length
+    """两对关节之间的距离比（米/厘米）= 沿骨轴的缩放。
+    🔴 换源（`--map-json`）时下面那两张表里写死的战无2 骨名**一根都对不上** ——
+       那不是错，是"这张表对本源不适用"，返回 None 由调用处滤掉即可（别让它 KeyError）。"""
+    if (sw_a not in SW.data.bones or sw_b not in SW.data.bones
+            or bl_a not in BL.data.bones or bl_b not in BL.data.bones):
+        return None
+    ds = (SW.data.bones[sw_a].head_local - SW.data.bones[sw_b].head_local).length
+    db = (BL.data.bones[bl_a].head_local - BL.data.bones[bl_b].head_local).length
     return db / ds if ds > 1e-9 else 0.01
 
 
@@ -769,24 +901,46 @@ def seg_ratio(sw_a, sw_b, bl_a, bl_b):
 #    三者在 T 模式下**一行都不参与计算**；保留 = 老模式（真田工程）还走。取代者 = T。
 R_RADIAL = float(get(A, "--r-radial", "0") or 0) or None   # 径向单独给值（0/缺省 = 与 R 相同，即旧行为）
 
-ARM_ALONG = {
-    "bone_14": seg_ratio("bone_14", "bone_16", "bip01_l_upperarm_twist_15", "bip01_l_foretwist_17"),
-    "bone_15": seg_ratio("bone_15", "bone_17", "bip01_r_upperarm_twist_22", "bip01_r_foretwist_24"),
-    "bone_16": seg_ratio("bone_16", "bone_18", "bip01_l_foretwist_17", "bip01_l_hand_19"),
-    "bone_17": seg_ratio("bone_17", "bone_19", "bip01_r_foretwist_24", "bip01_r_hand_26"),
-}
+ARM_ALONG = {k: v for k, v in {
+        "bone_14": seg_ratio("bone_14", "bone_16", "bip01_l_upperarm_twist_15", "bip01_l_foretwist_17"),
+        "bone_15": seg_ratio("bone_15", "bone_17", "bip01_r_upperarm_twist_22", "bip01_r_foretwist_24"),
+        "bone_16": seg_ratio("bone_16", "bone_18", "bip01_l_foretwist_17", "bip01_l_hand_19"),
+        "bone_17": seg_ratio("bone_17", "bone_19", "bip01_r_foretwist_24", "bip01_r_hand_26"),
+}.items() if v is not None}
 
 # 🔴 腿链也要按解剖段长对齐（2026-09-15 实机：下半身像小矮人）。
 #    上面第 14 行早就写着「比例差（SW2 腿偏长）—— 由 λ 逐骨承担」，但代码里
 #    **只有手臂真的承担了**；腿走 `Matrix.Scale(R, 4)` 各向同性 ——
 #    大腿长度变成 源长 × R = 45.63cm × 0.0120 = 0.548m，而骑砍大腿只有 0.417m，差 31%。
 #    径向仍用 R（腿的粗细本来就该用 R），只把**沿骨轴**换成段长比。
-LEG_ALONG = {
-    "bone_2": seg_ratio("bone_2", "bone_4", "bip01_l_thigh_1", "bip01_l_calf_2"),
-    "bone_3": seg_ratio("bone_3", "bone_5", "bip01_r_thigh_5", "bip01_r_calf_6"),
-    "bone_4": seg_ratio("bone_4", "bone_6", "bip01_l_calf_2", "bip01_l_foot_3"),
-    "bone_5": seg_ratio("bone_5", "bone_7", "bip01_r_calf_6", "bip01_r_foot_7"),
-}
+LEG_ALONG = {k: v for k, v in {
+        "bone_2": seg_ratio("bone_2", "bone_4", "bip01_l_thigh_1", "bip01_l_calf_2"),
+        "bone_3": seg_ratio("bone_3", "bone_5", "bip01_r_thigh_5", "bip01_r_calf_6"),
+        "bone_4": seg_ratio("bone_4", "bone_6", "bip01_l_calf_2", "bip01_l_foot_3"),
+        "bone_5": seg_ratio("bone_5", "bone_7", "bip01_r_calf_6", "bip01_r_foot_7"),
+}.items() if v is not None}
+
+# ---------------------------------------------------------------- 换源：沿骨轴段长比
+# `--map-json` 里的 `segments` 就是为这件事准备的，格式 = [源起点骨, 源终点骨, 骑砍起点骨, 骑砍终点骨, 说明]。
+# 沿骨轴缩放挂在**段的起点骨**上（与上面 ARM_ALONG / LEG_ALONG 同口径），所以一个 dict 就够 ——
+# 换源后不再分"手臂表/腿表"，两张都指同一份。
+#
+# 为什么必须有：老模式的 `--r` 是**各向同性**的，它同时管粗细和纵向尺度。
+# 骑砍大腿 0.417m、源件按 R 缩完可能差 30% → 腿变矮人或变竹竿。段长比把"沿骨轴"那一维单独校正。
+# 🔴 KCD 的账：段长比中位 0.992（≈1），所以这一项在 KCD 上本来就接近 1 —— 但**不能省**，
+#    因为它是逐段的（实测上臂 1.053 / 小腿 0.963，正负 5% 的差别肉眼看得出来）。
+if MAP_DOC and MAP_DOC.get("segments"):
+    _ALONG = {}
+    for _sg in MAP_DOC["segments"]:
+        _a, _b, _ba, _bb = _sg[0], _sg[1], _sg[2], _sg[3]
+        if (_a in SW.data.bones and _b in SW.data.bones
+                and _ba in BL.data.bones and _bb in BL.data.bones):
+            _ALONG[_a] = seg_ratio(_a, _b, _ba, _bb)
+        else:
+            print("   !! segments 缺骨，跳过: %s" % (_sg,))
+    ARM_ALONG = dict(_ALONG)
+    LEG_ALONG = dict(_ALONG)
+    print("   沿骨轴段长比 ← segments（%d 段）" % len(_ALONG))
 
 
 def frame_from_dir(d):
@@ -1203,15 +1357,19 @@ for v in ARM.data.vertices:
     n_moved += 1
 
 
-# 镜像是反射 -> 面绕序反了，法线朝里，必须翻回来
-import bmesh
-_bm = bmesh.new()
-_bm.from_mesh(ARM.data)
-bmesh.ops.reverse_faces(_bm, faces=_bm.faces[:])
-_bm.to_mesh(ARM.data)
-_bm.free()
-ARM.data.update()
-print("   已反转面绕序（镜像补偿）")
+# 只有【镜像】才需要反绕序（反射把面绕序翻反了 → 法线朝里）；
+# 【绕 Z 转 180°】是刚体旋转，绕序本来就对，再翻一次反而全部朝里。
+if NEED_REVERSE:
+    import bmesh
+    _bm = bmesh.new()
+    _bm.from_mesh(ARM.data)
+    bmesh.ops.reverse_faces(_bm, faces=_bm.faces[:])
+    _bm.to_mesh(ARM.data)
+    _bm.free()
+    ARM.data.update()
+    print("   已反转面绕序（镜像补偿）")
+else:
+    print("   跳过反绕序（刚体旋转，无需补偿）")
 
 # 换顶点组：清空，按新骨名重建
 for g in list(ARM.vertex_groups):

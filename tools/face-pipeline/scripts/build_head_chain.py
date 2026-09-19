@@ -52,7 +52,51 @@ RECIPES = {
                                   "head_male_a.fbx"),  # 🔴 男性头，别用女性
         neck_z="1.600",
         neck_band="0.05",
+        work=WORK,                                    # 不写 = 用默认的 seph_build
         backup=r"D:\BrainMaker\blend_projects\sephiroth_export\backup_20260914",
+    ),
+
+    # ---------------- KCD 亨利（2026-09-19） ----------------
+    # 源 = `Debug\offline\_kcd_recon\NPC_Henry.fbx`（《天国拯救》亨利，米制、脸朝 −Y、头网格 8323 顶点）
+    # 与萨菲罗斯那条链的**四处差异**（照抄会翻车）：
+    #   ① `--pick` 用**精确匹配**（关键字前缀 `=`）—— `m_head_henry` 是 `m_head_henry_Teeth`/
+    #      `_Eyelashes`/`_Eyeshadows`/`_Tearline` 的子串，子串匹配会把后三件并进脸壳；
+    #      而男头只有 3 个子网格位（脸/眼/嘴），多出来的件会被引擎回落到脸皮材质 → 眼睛嘴全糊。
+    #   ② `--no-prune` —— `prune_far` 的免死白名单是战无2 的 `bone_10/bone_11`，KCD 骨名是
+    #      `Head`/`Neck`，白名单永不命中 → 远端几何会被当"离群碎片"清掉。
+    #   ③ `--no-head-only` —— 1.3/1.4b 的判据同样建立在战无2 骨名上；本条是保险，
+    #      实际对 KCD 是空转（1.3 找不到 bone_46..62 会自己跳过；1.4b 只冲 hair 件，本配方不挑 hair）。
+    #   ④ **不用 `--weld-seam`** —— 那是给"前后两块不相连的壳"用的（萨菲罗斯），
+    #      亨利的脸壳是**一整块**（8323 顶点 = 8 个连通域，最大那块 6328 自己就是连通的）；
+    #      强行合缝只会去配"最近的一对自由边环"（= 两个眼窝 / 领口），有把眼窝焊死的风险。
+    #   ⑤ 也不用 `--t-s`（T 模式）—— 它的锚骨 `bone_11` 对 KCD 取不到。
+    "henry": dict(
+        name="head_henry_a",
+        src=os.path.join(REPO, "Debug", "offline", "_kcd_recon", "NPC_Henry.fbx"),
+        gender="male",
+        parts="face,eye,mouth",
+        pick=("face==m_head_henry,"
+              "eye==_EyeLBall_Shader_Mesh+_EyeRBall_Shader_Mesh"
+              "+_EyeLIris_Shader_Mesh+_EyeRIris_Shader_Mesh,"
+              "mouth==m_head_henry_Teeth"),
+        cut_z="1.4144",                               # 原版男头最低点（亨利最低的"肩"在 1.429，切不到）
+        fit_rim=True,                                 # 🔴 必需：源模型的"肩/胸口"那块宽 ±0.146m，
+                                                      #    远超男身体 V 领口（±0.085~0.123）→ 不收会从肩膀穿出来
+        no_prune=True,
+        no_head_only=True,
+        apply_src_xform=True,                         # 🔴 必需：FBX 源的顶点是**厘米 + Y-up**，
+                                                      #    对象矩阵里带着 0.01 缩放 + 90° 转轴，不烘进网格就全错
+        # ⚠️ 没开 `--neck-fill`：源模型自带"脖子 + 肩/胸口"（比战无2 的只到下巴强），
+        #    被 `--fit-rim` 收进领口后**颈部剪影是平滑的**；铺下摆反而铺出一圈**硬棱面 + 拉伸的 UV**，
+        #    还会在颈后正中留一道竖缝。实测对比图见 henry_build\render_neckfill\（变体产物在
+        #    `variant_neckfill\`）。唯一残留：正前 V 领口最低处（z=1.4144）比头的下沿（1.4300）低 1.6cm
+        #    —— 是否看得见待实机确认，**这条要用户拍板**。
+        weights_from=os.path.join(REPO, "Debug", "offline", "自定义头", "core_game", "fbx", "head", "head",
+                                  "head_male_a.fbx"),
+        neck_z="1.600",
+        neck_band="0.05",
+        work=os.path.join(REPO, "Debug", "offline", "自定义头", "henry_build"),
+        backup=os.path.join(REPO, "Debug", "offline", "自定义头", "henry_build", "backup"),
     ),
 }
 
@@ -84,7 +128,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--recipe", default="sephiroth")
     ap.add_argument("--ver", type=int, default=None, help="版本号（默认自动 +1）")
-    ap.add_argument("--work", default=WORK)
+    ap.add_argument("--work", default=None, help="覆盖配方里的产物目录（默认取配方的 work）")
     ap.add_argument("--backup", default=None, help="覆盖配方里的备份目录")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--list", action="store_true")
@@ -92,19 +136,23 @@ def main():
 
     if a.list:
         for k, v in RECIPES.items():
-            print("%-12s name=%s  gender=%s  parts=%s" % (k, v["name"], v["gender"], v["parts"]))
+            print("%-12s name=%-18s gender=%s  parts=%s\n             工作目录 %s"
+                  % (k, v["name"], v["gender"], v["parts"], v.get("work") or WORK))
         return 0
     if a.recipe not in RECIPES:
         print("未知配方 %r；可用：%s" % (a.recipe, list(RECIPES)))
         return 1
     r = RECIPES[a.recipe]
     name = r["name"]
-    ver = a.ver if a.ver else next_version(a.work, name)
+    # 🔴 每个配方有**自己的产物目录**（配方里没写才回落到默认的 seph_build）——
+    #    别把新角色的产物混进萨菲罗斯的目录，否则「哪一版是谁的」立刻变成糊涂账。
+    work = a.work or r.get("work") or WORK
+    ver = a.ver if a.ver else next_version(work, name)
     backup = a.backup or r["backup"]
 
-    os.makedirs(a.work, exist_ok=True)
-    v_stage1 = os.path.join(a.work, "%s_v%d.fbx" % (name, ver))          # 几何（无通道）
-    v_final = os.path.join(a.work, "%s_v%d.fbx" % (name, ver + 1))       # 成品（含通道）
+    os.makedirs(work, exist_ok=True)
+    v_stage1 = os.path.join(work, "%s_v%d.fbx" % (name, ver))          # 几何（无通道）
+    v_final = os.path.join(work, "%s_v%d.fbx" % (name, ver + 1))       # 成品（含通道）
 
     # 不许覆盖：产物必须是新版本号
     for p in (v_stage1, v_final):
@@ -120,6 +168,18 @@ def main():
         cmd1.append("--fit-rim")
     if r.get("weld_seam"):
         cmd1.append("--weld-seam")
+    # 🔴 这两条是给「骨名不是战无2 那套」的源模型用的（KCD）：判据里的白名单是 bone_10/11，
+    #    对 KCD 的 `Head`/`Neck` 永不命中 → 不关掉会把远端几何当离群碎片清掉。
+    if r.get("no_prune"):
+        cmd1.append("--no-prune")
+    if r.get("no_head_only"):
+        cmd1.append("--no-head-only")
+    if r.get("neck_fill"):
+        cmd1.append("--neck-fill")
+    # 🔴 把对象世界矩阵烘进网格数据 —— FBX 源必需（导入器把「单位换算 + Y-up→Z-up」放在对象矩阵里，
+    #    KCD 源的顶点是厘米 + Y-up）。默认不开，见 build_head.py 那段注释。
+    if r.get("apply_src_xform"):
+        cmd1.append("--apply-src-xform")
     if r.get("weights_from"):
         cmd1 += ["--weights-from", r["weights_from"],
                  "--neck-z", r["neck_z"], "--neck-band", r["neck_band"]]

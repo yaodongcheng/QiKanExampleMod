@@ -1,0 +1,125 @@
+{
+  "_doc": "KCD 亨利甲的图集方案：把各件的源贴图拼进一张，UV 按格子重排 —— 这样一件甲 = 1 个材质（合原版范式）。build_armor.py --atlas-plan 与 make_armor_atlas.py 共用本文件，两边必须同源。",
+  "_why": "骑砍原版甲是「1 材质贯穿 6 级 LOD」（见 Knowledge/骑砍2盔甲资产工程.md §2.2/§2.3）；多材质还有个实打实的代价 —— 编辑器的材质配置在每次重导 FBX 后会被刷回默认（同文档 §7 坑 5），7 个材质每轮迭代都要重挂一次。",
+  "_key": "键 = 【材质名】（不是网格名）—— 一个网格可能带多个材质，按材质分格子才切得干净（gambesonlong03_arms 同时用武装衣和锁子甲两张图）。",
+  "_cell": "每格像素边长。源图 2048/4096，落到 1024 的格子里仍是高密度（对照：战无2 那件甲成品贴图只有 512×780）。",
+  "_grid": "[列数, 行数]；格子按行优先从左下角开始编号 [列, 行]。",
+  "pieces": {
+    "kcd_henry_body_a": {
+      "grid": [
+        3,
+        2
+      ],
+      "cell": 1024,
+      "map": {
+        "cuirass07_torso_m01_mtl_cuirass07_torso_submat0": {
+          "cell": [
+            0,
+            0
+          ],
+          "tex": "cuirass07_m01_torso"
+        },
+        "gambesonlong03_arms_mat_mtl_material0": {
+          "cell": [
+            1,
+            0
+          ],
+          "tex": "gambesonlong03_m01_arms"
+        },
+        "gambesonlong03_arms_mat_mtl_material3": {
+          "cell": [
+            2,
+            0
+          ],
+          "tex": "mailshort01_m01_arms"
+        },
+        "gambesonlong03_waist_mat_mtl_material0": {
+          "cell": [
+            0,
+            1
+          ],
+          "tex": "gambesonlong03_m01_torso"
+        },
+        "Standardmaterial": {
+          "cell": [
+            1,
+            1
+          ],
+          "tex": "mailshort01_m01_skirt"
+        },
+        "gambesonlong03_arms_mat_mtl_material1": {
+          "cell": [
+            2,
+            1
+          ],
+          "tex": "__black"
+        },
+        "gambesonlong03_arms_mat_mtl_material2": {
+          "cell": [
+            2,
+            1
+          ],
+          "tex": "__black"
+        }
+      }
+    },
+    "kcd_henry_arms_a": {
+      "grid": [
+        1,
+        1
+      ],
+      "cell": 2048,
+      "map": {
+        "gauntlets05_m01_mtl_gauntlets05_submat0": {
+          "cell": [
+            0,
+            0
+          ],
+          "tex": "gauntlets05_m01_hands"
+        }
+      }
+    },
+    "kcd_henry_legs_a": {
+      "grid": [
+        2,
+        1
+      ],
+      "cell": 2048,
+      "map": {
+        "legsplate03_mat_mtl_material0": {
+          "cell": [
+            0,
+            0
+          ],
+          "tex": "legsplate03_m01_legs"
+        },
+        "legsplate03_mat_mtl_material1": {
+          "cell": [
+            1,
+            0
+          ],
+          "tex": "__black"
+        }
+      }
+    },
+    "kcd_henry_cape_a": {
+      "grid": [
+        1,
+        1
+      ],
+      "cell": 2048,
+      "map": {
+        "hood06_mat_mtl_material0": {
+          "cell": [
+            0,
+            0
+          ],
+          "tex": "hood06_m01_neck"
+        }
+      }
+    }
+  },
+  "_unused": "空占位材质槽（Empty_col.png = 纯黑）**也要占一格**填黑 —— 它们的面是真几何（武装衣 1379 面 / 腿甲靴子处 782 面），不排格子会去采图集别的区域。",
+  "_black": "tex=\"__black\" 的格子填纯黑 —— 对应源件的 Empty_col.png（实测就是纯黑）。这些槽的面是真几何（武装衣 1379 面 / 腿甲靴子处 782 面），不能不管。",
+  "_tile": "🔴 gambesonlong03_arms 主槽的 UV 是 u∈[1.0,2.0]（源件平铺两次）—— 重排前必须先 u%1 折回，否则整片采到隔壁格子。"
+}

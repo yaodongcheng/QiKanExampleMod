@@ -23,7 +23,9 @@
 #   blender --background --python build_head.py -- \
 #       --src <源FBX 或 .blend> --out <输出FBX> --name head_tifa_a \
 #       [--gender female|male] [--parts face,mouth,eye,lash] \
-#       [--pick "face=body.cut,eye=Eyeballs,mouth=mouth"]   # 显式挑件（.blend 常用；给了就不走关键字分类）\
+#       [--pick "face=body.cut,eye=Eyeballs,mouth=mouth"]   # 显式挑件（.blend 常用；给了就不走关键字分类）
+#                                                          # 关键字前缀 `=` = 整名精确匹配（见 pick_match）。\
+#                                                          # 例："face==m_head_henry"（KCD：子串会连睫毛一起捞进来）\
 #       [--cut-z 1.4144]                                    # 变换后按目标空间 z 裁掉下半（去胸/领口）
 #       [--drop "hair,body,dress,..."] [--scale auto|<k>] [--no-skeleton] [--list-only]
 #
@@ -113,14 +115,37 @@ def v3(v):
 
 
 def patch_importer():
-    """原版头 FBX 的 TWT morph 缺 FullWeights，Blender 导入器会断言崩溃 → 内存级补丁（不落盘）。
-    范本来自 build_neck.py / _probe_vanilla_head.py。"""
+    """Blender FBX 导入器的内存级补丁（不落盘）—— 源模型各踩过一个坑，两道都要打。
+
+    ① 原版头 / 战无2 源的 TWT morph 缺 FullWeights → 导入器断言崩溃。
+       范本来自 build_neck.py / _probe_vanilla_head.py。
+    ② 🔴 KCD（3ds Max 导出）的**武器/盾等件蒙皮到的骨头不在骨架子树下**（在
+       `RightWeaponRoot` 那一支）→ 导入器给它们建的登记表键是 `None`，之后按骨架对象
+       去查就抛 `KeyError: None @ link_hierarchy` —— **整个文件导不进来**。
+       修法照抄 `tools/sw2-pipeline/scripts/identify_parts.py` 的同一道（两处保持一字不差）。
+       ⚠️ 两道补丁都只在该崩的情况下兜底，正常文件一行都不变；
+          `inspect.getsource` 读的是**磁盘原文**（补丁只在内存），所以重复调用是幂等的。
+    """
     import inspect
     import io_scene_fbx.import_fbx as mod
     src = inspect.getsource(mod)
+    orig = src
     bad = "assert len(full_weights) >= num_shapes_assigned_to_channel"
     if bad in src:
         src = src.replace(bad, "pass  # patched: TWT morph without FullWeights")
+    bad2 = "                    (mmat, amat) = mesh.armature_setup[self]"
+    if bad2 in src:
+        src = src.replace(bad2, (
+            "                    if self not in mesh.armature_setup:\n"
+            "                        print('[IMPATCH] no armature_setup: mesh=%s arm=%s keys=%s'\n"
+            "                              % (mesh.fbx_name, getattr(self, 'fbx_name', '?'),\n"
+            "                                 [getattr(k, 'fbx_name', k) for k in mesh.armature_setup]))\n"
+            "                        mesh.armature_setup[self] = (mesh.bind_matrix, self.bind_matrix)\n"
+            + bad2))
+    elif "armature_setup[self]" in src:
+        print("[IMPATCH] ⚠️ 没匹配到 armature_setup 那行（Blender 导入器源码变了？）"
+              "—— KCD 一类源模型会导不进来")
+    if src != orig:
         exec(compile(src, mod.__file__, "exec"), mod.__dict__)
 
 
@@ -149,6 +174,26 @@ def classify(name, drop):
             if k in n:
                 return role
     return None
+
+
+def pick_match(name, keys):
+    """`--pick` 的关键字匹配。
+    · 关键字以 `=` 开头 → **整名精确匹配**（`=m_head_henry` 只命中 `m_head_henry`）
+    · 否则 → 子串匹配（老行为，战无2/蒂法/萨菲罗斯的配方一字未改）
+    🔴 为什么要精确匹配（2026-09-19）：KCD 亨利的 `m_head_henry` 是 `m_head_henry_Teeth` /
+       `_Eyelashes` / `_Eyeshadows` / `_Tearline` 的**子串** —— 子串匹配会把睫毛/眼影/泪线
+       一起并进脸壳，而男头只有 3 个子网格位（脸/眼/嘴），多出来的件会回落到脸皮材质 → 眼睛嘴全糊。
+    写法：`--pick "face==m_head_henry,mouth==m_head_henry_Teeth"`（role 与关键字之间多一个 `=`）。
+    """
+    n = name.lower()
+    for k in keys:
+        k = k.strip().lower()
+        if k.startswith("="):
+            if n == k[1:]:
+                return True
+        elif k and k in n:
+            return True
+    return False
 
 
 def keep_neck_frag(ob, r_max, z0):
@@ -1539,6 +1584,10 @@ def main():
     t_mode = t_s > 0
 
     # ---------- 1) 导入源模型（FBX 或 .blend） + 挑件 ----------
+    # 🔴 先打导入器补丁再导源模型（2026-09-19）：KCD 源**必须**这道补丁才导得进来
+    #    （缺则 `KeyError: None @ link_hierarchy` 直接崩）。以前只在导 --weights-from 时打，
+    #    对蒂法/萨菲罗斯那种"只有 morph 断言"的源够用，对 KCD 不够。
+    patch_importer()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     if src.lower().endswith(".blend"):
         bpy.ops.wm.open_mainfile(filepath=src)
@@ -1592,7 +1641,7 @@ def main():
                 role, val = item.split("=", 1)
                 wanted[role.strip()] = [x.strip() for x in val.split("+") if x.strip()]
             for role, keys in wanted.items():
-                hit = [o for o in meshes if any(k.lower() in o.name.lower() for k in keys)]
+                hit = [o for o in meshes if pick_match(o.name, keys)]
                 if not hit:
                     fail("--pick 的「%s」没匹配到网格（关键字 %s）；现有网格：%s"
                          % (role, keys, [o.name for o in meshes]))
@@ -2019,11 +2068,27 @@ def main():
     bpy.context.view_layer.update()
 
     # 落地对象级变换 + 清悬空修改器/父级（源骨架不要，我们用官方骨架重新绑）
+    # 🔴 `--apply-src-xform`（2026-09-19）：把**对象的世界矩阵烘进网格数据**，而不是丢掉。
+    #    为什么需要：Blender 的 FBX 导入器把「单位换算 + 轴转换（Y-up → Z-up）」放在**对象矩阵**里，
+    #    网格顶点还是 FBX 原生空间（KCD 源 = **厘米 + Y-up**）。下面这行 `matrix_world = Identity`
+    #    对 .blend 源（矩阵本来就是单位阵）毫无影响，对 KCD 这种 FBX 却等于把 0.01 缩放和 90° 转轴
+    #    一起扔了 —— 结果「头壳中心」算到 y=161（厘米）、"眼↔嘴"标定算出 0.00968（当成厘米制缩小 100 倍）。
+    #    ⚠️ 默认不开：战无2 那条线一直是在"丢掉对象矩阵"的前提下调通的（它按源空间的厘米调参），
+    #       改默认会把它整套判据打乱。KCD 一类源在配方里显式传这个开关。
+    _apply_xf = "--apply-src-xform" in a
     for ob in joined.values():
+        _w = ob.matrix_world.copy()                 # 🔴 必须在清 parent 之前取（清了 parent，matrix_world 就退回 matrix_basis）
         ob.parent = None
+        if _apply_xf:
+            try:
+                ob.data.transform(_w, shape_keys=True)   # 形状键一起搬（源自带 blendshape 时不丢信息）
+            except TypeError:
+                ob.data.transform(_w)
         ob.matrix_world = Matrix.Identity(4)
         for md in [m for m in ob.modifiers if m.type == 'ARMATURE']:
             ob.modifiers.remove(md)
+    if _apply_xf:
+        print("  已把对象世界矩阵烘进网格数据（%d 件）：源空间 → 米级 Z-up" % len(joined))
     for ob in [o for o in bpy.data.objects if o.type != 'MESH']:
         bpy.data.objects.remove(ob, do_unlink=True)
     bpy.context.view_layer.update()
@@ -2371,7 +2436,11 @@ def main():
                             mid = (a.co + b.co) / 2.0
                             a.co = mid
                             b.co = mid
-                        verts = [v for pr in pairs for v in pr]
+                        # 🔴 去重（2026-09-19）：两个 va 点可能配到**同一个** vb 点（就近配对的必然结果），
+                        #    直接喂 remove_doubles 会 `ValueError: verts: found the same (BMVert) used
+                        #    multiple times` 整脚本崩掉。萨菲罗斯那条链 `--weld-seam` 实测 72 对里就有
+                        #    重配 → 崩溃是**既有**问题（拿 HEAD 版单跑同样崩），不是本轮引入的。
+                        verts = list({v for pr in pairs for v in pr})
                         res = bmesh.ops.remove_doubles(bm, verts=verts, dist=1e-4)
                         bm.to_mesh(ob.data); bm.free(); ob.data.update()
                         bpy.context.view_layer.update()
@@ -2389,7 +2458,7 @@ def main():
     E2 = center([joined["eye"]]); M2 = center([joined["mouth"]])
     lo, hi = bbox(list(joined.values()))
     print("落位：眼球 %s（%s）" % (tuple(round(v, 4) for v in E2),
-                                 ("目标 %s" % tuple(round(v, 4) for v in TARGET_EYE)) if not t_mode else "T 模式不对眼位"))
+                                 ("目标 %s" % (tuple(round(v, 4) for v in TARGET_EYE),)) if not t_mode else "T 模式不对眼位"))
     print("      嘴   %s" % (tuple(round(v, 4) for v in M2),))
     print("      全头包围盒 x[%.4f,%.4f] y[%.4f,%.4f] z[%.4f,%.4f]" % (lo.x, hi.x, lo.y, hi.y, lo.z, hi.z))
     if not t_mode:

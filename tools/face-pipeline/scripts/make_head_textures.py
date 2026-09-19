@@ -11,7 +11,8 @@
 # 用法（系统 python，不需要 Blender）：
 #   python make_head_textures.py --src <源素材目录> --out <输出目录> --name head_sephiroth_a \
 #       --face-d Body.D.jpg --face-n Body.N.jpg --face-m Body.M.jpg --face-r Body.R.jpg \
-#       --mouth Clive_Mouth_D.jpg --eye "Eye_D (1).jpg" [--face-size 4096] [--normal-size 2048]
+#       --mouth Clive_Mouth_D.jpg --eye "Eye_D (1).jpg" [--face-size 4096] [--normal-size 2048] \
+#       [--small-size 512] [--eye-size 1024]     # 嘴/眼可分别定尺寸（源里嘴与脸共用图集时必须分开给）
 #
 # 说明：
 #   · --face-m / --face-r 是合成 _s 用的【输入】，不是输出槽位（引擎没有 _m/_r 槽）
@@ -61,6 +62,11 @@ def main():
     ap.add_argument("--face-size", type=int, default=4096, help="脸 _d 边长（默认 4096）")
     ap.add_argument("--normal-size", type=int, default=2048, help="脸 _n 与 _s 边长（默认 2048）")
     ap.add_argument("--small-size", type=int, default=512, help="嘴/眼贴图边长（默认 512）")
+    # 🔴 `--eye-size`（2026-09-19 加）：眼部单独定尺寸，默认 = --small-size（默认行为不变）。
+    #    为什么需要：有些源模型（KCD 亨利）的**嘴件和脸共用同一张图集** —— 嘴的 UV 铺在整张
+    #    脸图集上，贴图给 512 等于把 2048 的脸图缩到 1/4，牙齿直接糊掉；而眼球有自己的一张
+    #    独立图（1024²），给 2048 只是白白放大。两者该给不同尺寸。
+    ap.add_argument("--eye-size", type=int, default=None, help="眼贴图边长（默认 = --small-size）")
     a = ap.parse_args()
 
     os.makedirs(a.out, exist_ok=True)
@@ -77,7 +83,7 @@ def main():
     save(s, a.out, "%s_s.png" % a.name)
     # 4) 嘴 / 5) 眼
     save(square(load(a.src, a.mouth), a.small_size), a.out, "%s_mouth_d.png" % a.name)
-    save(square(load(a.src, a.eye), a.small_size), a.out, "%s_eye_d.png" % a.name)
+    save(square(load(a.src, a.eye), a.eye_size or a.small_size), a.out, "%s_eye_d.png" % a.name)
 
     print("完成。下一步：编辑器里按材质名接槽（脸 d/n/s、眼 _eye_d、嘴 _mouth_d），")
     print("        Publish 后跑 tools/face-pipeline/scripts/install_pack.py")

@@ -207,7 +207,7 @@ def item_block(iid, cn, en, kind, st):
         '\t\t<ItemComponent>\n'
         '\t\t\t%s\n'
         '\t\t</ItemComponent>\n'
-        '\t\t<Flags UseTeamColor="true" />\n'
+        '\t\t<Flags UseTeamColor="true" Civilian="true" />\n'
         '\t</Item>\n'
         % (iid, key_of(iid), en, subtype, iid, CULTURE, weight, appearance, itype, attr))
 

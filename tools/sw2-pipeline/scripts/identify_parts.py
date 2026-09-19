@@ -31,13 +31,30 @@ def get(a, k, d=None):
     return a[a.index(k) + 1] if k in a else d
 
 def patch_importer():
-    """战无2 FBX 的 morph 通道缺 FullWeights，Blender 导入器会断言崩溃 → 内存级补丁。"""
+    """导入器内存补丁（两种源格式各踩过一个坑）：
+
+    ① 战无2 FBX 的 morph 通道缺 FullWeights → Blender 导入器断言崩溃。
+    ② KCD（3ds Max 导出）的武器/盾等件蒙皮到的骨头**不在骨架子树下** →
+       `mesh.armature_setup` 里没有对应登记 → `link_hierarchy` 抛 KeyError: None。
+       补丁只在这种「该崩的情况」下兜底，正常文件一行都不变。
+    """
     import inspect
     import io_scene_fbx.import_fbx as mod
     src = inspect.getsource(mod)
+    orig = src
     bad = "assert len(full_weights) >= num_shapes_assigned_to_channel"
     if bad in src:
         src = src.replace(bad, "pass  # patched: TWT morph without FullWeights")
+    bad2 = "                    (mmat, amat) = mesh.armature_setup[self]"
+    if bad2 in src:
+        src = src.replace(bad2, (
+            "                    if self not in mesh.armature_setup:\n"
+            "                        print('[IMPATCH] no armature_setup: mesh=%s arm=%s keys=%s'\n"
+            "                              % (mesh.fbx_name, getattr(self, 'fbx_name', '?'),\n"
+            "                                 [getattr(k, 'fbx_name', k) for k in mesh.armature_setup]))\n"
+            "                        mesh.armature_setup[self] = (mesh.bind_matrix, self.bind_matrix)\n"
+            + bad2))
+    if src != orig:
         exec(compile(src, mod.__file__, "exec"), mod.__dict__)
 
 # ---------------- 判定规则 ----------------

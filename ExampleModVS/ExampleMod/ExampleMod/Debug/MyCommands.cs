@@ -141,45 +141,51 @@ namespace LivingWorldNpcs
                 return "error: must be in a scene/mission to use this command.";
             }
 
-            // 2. 检查是否有参数输入
-            if (args.Count == 0)
+            // 2. 参数：args[0] = 动作名（必填），args[1] = 可选角色 id（缺省 = 主角）
+            if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
             {
-                return "Please Enter AnimType.For example : custom.do_anim act_sit_down_on_floor_2 or act_stand_up_to_front";
+                return "usage: custom.do_anim <actionName> [agentId]   e.g. custom.do_anim act_gun_reload";
             }
 
             string actionName = args[0];
             Agent executeAgent = Agent.Main;
-            if (args.Count == 2)
+            string note = string.Empty;
+            if (args.Count >= 2 && !string.IsNullOrWhiteSpace(args[1]))
             {
-                string agentId = args[1];
-                var targetAgent = Mission.Current.Agents.FirstOrDefault(a => a.Character?.StringId == agentId);
-                if (targetAgent != null)
-                {
-                    executeAgent = targetAgent;
-                }
+                // 首参约定：解析不出目标就【回落主角】并注明，不报 not found
+                var namedAgent = Mission.Current.Agents.FirstOrDefault(a => a.Character?.StringId == args[1]);
+                if (namedAgent != null)
+                    executeAgent = namedAgent;
+                else
+                    note = $" [note: no agent with id '{args[1]}' -> using main agent]";
             }
 
+            // 3. 动作名 → 引擎索引。
+            //    🔴 ActionIndexCache.Create 解析失败时【静默返回 act_none】（不抛异常）——
+            //       必须显式判掉：动作没注册（action_types / action_sets / project.mbproj 三件套缺一）
+            //       和"播不出来"在游戏里长得一模一样，不报出来就没法排查。
+            ActionIndexCache actionIndex = ActionIndexCache.Create(actionName);
+            if (actionIndex == ActionIndexCache.act_none)
+            {
+                return $"FAILED: action '{actionName}' is NOT registered (resolved to act_none). check: "
+                     + "action_types.xml declares it + action_sets.xml binds it + project.mbproj registers both files.";
+            }
+
+            // 4. 动作时长 —— 引擎事实：装填时长 = 动画时长，这个数就是装填节奏本身。
+            //    0.00s 通常意味着 action_sets 里那条 animation= 的 clip 名没解析上。
+            float duration = MBActionSet.GetActionAnimationDuration(executeAgent.ActionSet, actionIndex);
+            string durNote = duration > 0f ? string.Empty
+                : " [note: duration 0.00s -> the clip name in action_sets.xml may not resolve]";
 
             try
             {
-
-                
-                // 3. 将字符串ID转换为游戏引擎可识别的 Index
-                // 这里的 actionName 就是你在 XML 文件里找到的那个 id="xxx"
-                ActionIndexCache actionIndex = ActionIndexCache.Create(actionName);
-
-                // 4. 执行动作
-                // 参数说明: 
-                // channel 0 = 全身/下半身 (通常用于移动或全身动作)
-                // channel 1 = 上半身 (通常用于攻击、格挡)
-                // 这里我们使用 Channel 0 以获得最高优先级
                 executeAgent.SetActionChannel(0, actionIndex, false, 0UL, 0f, 1f, -0.2f, 0.4f, 0f, false, -0.2f, 0, true);
 
-                return $"Success：{executeAgent.Name} is trying to do anim {actionName} ";
+                return $"OK: {executeAgent.Name} plays '{actionName}' (duration {duration:0.00}s){durNote}{note}";
             }
             catch (System.Exception e)
             {
-                return "Error：" + e.Message;
+                return "Error: " + e.Message;
             }
         }
 
