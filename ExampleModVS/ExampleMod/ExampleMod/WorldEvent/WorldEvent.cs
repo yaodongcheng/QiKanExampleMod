@@ -1485,12 +1485,20 @@ namespace LivingWorldNpcs
         {
             if (!evt.RetaliationSpawned)
             {
-                // 🔴 复仇队开关关闭：SpawnRetaliationParty 守卫拦截派队，此处不再触发
-                // CheckBudgetAndRespawn（否则 budget 不扣减、每日重复调派 → 死循环）。
-                // 事件保留在 Confrontation 等玩家主动解决——对话赔钱/自首/坐牢均有结案出口
-                // （OnPlayerPaidRestitution / OnPlayerDetained 等），且涨价格局不变，
-                // 拖延不处理的代价仍在，不产生零成本最优解（铁律 12）。
-                if (!Settings.Instance.EnableRevengeParty) return;
+                // 🔴 复仇队开关关闭 → 直接结案（2026-09-19 用户裁定）。
+                // 关掉复仇队的玩家不会被人追捕，也就没有"被抓/自首/坐牢"这些出口；
+                // 早先这里只 return 保留事件，而 Confrontation 阶段既无超时也无冷案路径
+                // （对比 ProcessEmerging 有 InvestigationWindowDays 兜底转 Unsolved），
+                // 事件永久卡死 → FindOnGoing 每天命中 → 该定居点内任何 NPC 的每一次对话
+                // 都被案件对话劫持（外网玩家实测：三个案子卡 48 天，所有对话只剩"赔钱/离开"）。
+                // ⚠️ ResolvedBy 必须先于 TransitionStage 赋值：TransitionStage 内部会调
+                // RollbackCrimeRating 按 ResolvedBy 判定案底去留，赋值晚了守卫读不到本原因。
+                if (!Settings.Instance.EnableRevengeParty)
+                {
+                    evt.ResolvedBy = "revenge_party_disabled";
+                    TransitionStage(evt, EventStage.Resolved);
+                    return;
+                }
                 if (evt.RetaliationBudget > 0 && !evt.PermanentEnemy)
                     InvestigationEngine.CheckBudgetAndRespawn(evt);
                 else
@@ -1648,7 +1656,8 @@ namespace LivingWorldNpcs
         private static void RollbackCrimeRating(WorldEvent evt)
         {
             if (evt == null || evt.CrimeRatingDelta <= 0f) return;
-            if (evt.ResolvedBy == "budget_depleted" || evt.ResolvedBy == "timeout" || evt.ResolvedBy == "expired")
+            if (evt.ResolvedBy == "budget_depleted" || evt.ResolvedBy == "timeout" || evt.ResolvedBy == "expired"
+                || evt.ResolvedBy == "revenge_party_disabled")
             {
                 DebugLogger.Log($"[WorldEvent] {evt.EventId} 犯罪等级保留（未付出代价结案 resolvedBy={evt.ResolvedBy}）");
                 return;

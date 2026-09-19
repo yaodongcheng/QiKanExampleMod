@@ -76,6 +76,9 @@ def main():
     ap.add_argument("--check-ref-pack", default=None, help="关卡 2 参照头所在 AssetPackages（男头传 `Debug/offline/自定义头/core_game` 硬链接目录）")
     ap.add_argument("--check-window", default=None, help='关卡 2 着陆窗口 "x0,x1,y0,y1,z0,z1"')
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--gate", action="store_true",
+                    help="装机后跑 check_chan_anatomy 闸门（**装头部必加**；甲/武器不要加）"
+                         "—— 防「装进去的其实不是本轮产物」这类事故（2026-09-19 陈旧 m1 实录）")
     ap.add_argument("--clear-flags", action="store_true",
                     help="清空脸部角色标记（MaterialFlags）—— **只对「UV 沿用源模型布局」的头用**"
                          "（战无2 的 28 张脸 / 织田信长）；蒂法 / 萨菲罗斯（UV 对齐原版画布）"
@@ -112,9 +115,14 @@ def main():
     shutil.copy2(pack, os.path.join(d_in, "pack0.tpac"))
 
     # 2) morphfix：补 morph 帧到 101 + 同步 VertexKeyCount
-    # 🔴 这里【不能】再调 stage_dir("m1")：它 rmtree 清空目录，会把 morphfix 刚写出的包删掉
+    # 🔴 这里【不能】在 morphfix 之后再调 stage_dir("m1")：它 rmtree 清空目录，会把刚写出的包删掉
     #    （实测踩过：m1 变空 → 下面 copy 抛 FileNotFoundError）。stage_dir 只用于"给外部工具腾输出目录"。
+    # 🔴🔴 必须**在跑之前**清空 m1/m2：工具"跳过"时（例如 morphfix 判定"已对齐"就不产出）
+    #    脚本会回落到 `os.path.exists(src1)` 判断 —— 若 m1 里躺着**上一轮**的包，它会静默把陈旧包
+    #    当成本轮产物一路带下去。2026-09-19 实锤：Publish 出来的新包（含表情帧）全程没被用上，
+    #    最终装进模块的是 19:51 那轮的旧头（表情帧全空）。与"经验 #3（s3 会静默给陈旧产物）"同一类坑。
     m1 = os.path.join(WORK, "m1")
+    stage_dir("m1")
     out1 = run([TPACCLI, "morphfix", "--packdir", d_in, "--filter", args.filter, "--out", m1], "morphfix")
     src1 = os.path.join(m1, "pack0.tpac")
     d_m1 = os.path.join(WORK, "s1")
@@ -122,11 +130,12 @@ def main():
     if os.path.exists(src1) and os.path.getsize(src1) > 0:
         shutil.copy2(src1, os.path.join(d_m1, "pack0.tpac"))
     else:
-        print("   （morphfix 未产出，用输入包继续 —— 帧数可能不足，实机会崩）")
+        print("   （morphfix 未产出 = 判定已对齐，用输入包继续）")
         shutil.copy2(os.path.join(d_in, "pack0.tpac"), os.path.join(d_m1, "pack0.tpac"))
 
     # 3) skinfix --fullmat：四角色材质配方 + MaterialFlags
     m2 = os.path.join(WORK, "m2")
+    stage_dir("m2")          # 同上：必须在跑之前清，否则"跳过"时会捡到上一轮的陈旧包
     out2 = run([TPACCLI, "skinfix", "--packdir", d_m1, "--filter", args.filter, "--out", m2,
                 "--fullmat"], "skinfix")
     d_m2 = os.path.join(WORK, "s2")
@@ -221,6 +230,18 @@ def main():
         flag = "OK" if got == digest else "MD5 不一致！"
         print("  -> %-70s %s" % (dst, flag))
         ok = ok and (got == digest)
+
+    # 7) 闸门：装完直接在**装机后的包**上验位移场落点（可选，头部必加）
+    if args.gate:
+        print("\n---- 闸门（101 条通道落点，验装机后的包）----")
+        g = [sys.executable, os.path.join(REPO, "tools", "face-pipeline", "scripts", "check_chan_anatomy.py"),
+             "--packdir", os.path.join(args.clients[0], "AssetPackages"), "--filter", args.filter]
+        p = subprocess.run(g, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        print((p.stdout or "") + (p.stderr or ""))
+        if p.returncode != 0:
+            print("\nFAIL: 闸门未通过 —— 包已装进模块但**先别进游戏**（说明装的可能不是本轮产物，"
+                  "或位移场有问题）；旧包在各阶段目录里可回滚")
+            return 1
 
     print("\n---- 收尾 ----")
     print("  1) 若模块在编辑模式（有 Assets\\、没有 ModuleData\\skins.xslt）：跑 to_game_mode.bat")
