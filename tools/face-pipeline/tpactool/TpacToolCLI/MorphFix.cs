@@ -34,6 +34,83 @@ namespace TpacCli
             return 0;
         }
 
+        /// <summary>
+        /// morphmap —— 逐帧位移「落在哪个部位」的诊断。
+        ///
+        /// morphinfo 的「逐帧位移签名」只打前 8 帧、且只有位移包围盒，看不出**动的是哪一块**。
+        /// 本命令打**每一帧**：移动点数 + 最大位移 + **移动点质心（绝对坐标）**，
+        /// 并带上 MorphNameMapping 的帧名 —— 一眼可判「拉鼻子动的却是后脑勺」这类错位。
+        ///
+        /// 判读基准（human 头，原点在脚底、+Y 朝前、Z 朝上）：
+        ///   鼻尖 ≈ y +0.09 z 1.70   后脑 ≈ y −0.06 z 1.75   下巴 ≈ y +0.06 z 1.47
+        /// 帧名 ↔ 皮肤 deform_keys 的 key_time_point 一一对应（MorphNameMapping._headMapping）。
+        ///
+        /// 用法：tpaccli morphmap --packdir &lt;dir&gt; --filter &lt;mesh名子串&gt; [--minmm 0.05]
+        /// </summary>
+        public static int MorphMap(string dir, string filter, float minMm, int maxFrames)
+        {
+            var pkg = LoadPackages(dir, filter, out var metas);
+            if (pkg == null) return 1;
+            float minM = minMm / 1000f;
+            foreach (var meta in metas)
+            {
+                Console.WriteLine($"== {meta.Name}  子网格 {meta.Meshes.Count} ==");
+                foreach (var mesh in meta.Meshes)
+                {
+                    var data = mesh.EditData?.Data;
+                    if (data == null) { Console.WriteLine($"   {mesh.Name,-32} (无 EditData)"); continue; }
+                    if (mesh.Lod != 0) continue;
+                    int n = data.Positions.Length;
+                    float bx0 = float.MaxValue, bx1 = float.MinValue, by0 = float.MaxValue,
+                          by1 = float.MinValue, bz0 = float.MaxValue, bz1 = float.MinValue;
+                    for (int k = 0; k < n; k++)
+                    {
+                        var p = data.Positions[k];
+                        bx0 = Math.Min(bx0, p.X); bx1 = Math.Max(bx1, p.X);
+                        by0 = Math.Min(by0, p.Y); by1 = Math.Max(by1, p.Y);
+                        bz0 = Math.Min(bz0, p.Z); bz1 = Math.Max(bz1, p.Z);
+                    }
+                    Console.WriteLine($"   {mesh.Name,-32} 帧={data.MorphFrames.Count,4} 基础顶点={n,6}  "
+                                    + $"bbox x[{bx0:0.000},{bx1:0.000}] y[{by0:0.000},{by1:0.000}] z[{bz0:0.000},{bz1:0.000}]");
+                    if (data.MorphFrames.Count == 0 || n == 0) continue;
+                    Console.WriteLine($"      {"帧",-5}{"帧名",-24}{"移动点",-9}{"最大位移mm",-12}质心(x,y,z)  ← 绝对坐标");
+                    int lim = maxFrames > 0 ? Math.Min(maxFrames, data.MorphFrames.Count) : data.MorphFrames.Count;
+                    for (int f = 0; f < lim; f++)
+                    {
+                        var fr = data.MorphFrames[f];
+                        int m = Math.Min(fr.Positions.Length, n);
+                        if (m == 0) { Console.WriteLine($"      f{f,-4}{"(空帧)"}"); continue; }
+                        double sx = 0, sy = 0, sz = 0; int cnt = 0; float mx = 0f;
+                        int mxK = -1;
+                        for (int k = 0; k < m; k++)
+                        {
+                            var d = fr.Positions[k] - data.Positions[k];
+                            float mag = MathF.Sqrt(d.X * d.X + d.Y * d.Y + d.Z * d.Z);
+                            if (mag > mx) { mx = mag; mxK = k; }
+                            if (mag >= minM)
+                            {
+                                cnt++;
+                                sx += data.Positions[k].X; sy += data.Positions[k].Y; sz += data.Positions[k].Z;
+                            }
+                        }
+                        if (cnt == 0)
+                        {
+                            Console.WriteLine($"      f{f,-4}{MorphNameMapping.GetHumanHeadMorphName(f),-24}"
+                                            + $"{"0",-9}{mx * 1000,-12:0.##}(未形变)");
+                            continue;
+                        }
+                        var c = mxK >= 0 ? data.Positions[mxK] : default;
+                        Console.WriteLine($"      f{f,-4}{MorphNameMapping.GetHumanHeadMorphName(f),-24}"
+                                        + $"{cnt,-9}{mx * 1000,-12:0.##}"
+                                        + $"({sx / cnt:0.000},{sy / cnt:0.000},{sz / cnt:0.000})"
+                                        + $"   位移最大点=({c.X:0.000},{c.Y:0.000},{c.Z:0.000})");
+                    }
+                    Console.WriteLine();
+                }
+            }
+            return 0;
+        }
+
         public static int Fix(string dir, string filter, string outDir, int target, bool clearMat)
         {
             var pkg = LoadPackages(dir, filter, out var metas);

@@ -31,10 +31,36 @@ SCRIPTS = os.path.join(REPO, "tools", "face-pipeline", "scripts")
 WORK = os.path.join(REPO, "Debug", "offline", "自定义头", "seph_build")
 BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 
-# 搬通道用的源（蒂法 v10：59 条脸形位移场的**权威来源**，两性通用 —— 通道本身是"拉杆驱动"，
-# 与脸型无关，新头模一律从这个文件搬，别从别的版本搬）
-CHAN_SRC = r"D:\BrainMaker\blend_projects\tifa_export\backup_20260913\head_tifa_a_v10.fbx"
-CHAN_SRC_OBJ = "head_tifa_a.0"
+# 搬【脸形段】通道（1..59）用的源：**xxFemale 原版头**（拉杆位移场的真正源头，两性通用 ——
+# 通道是"拉杆驱动"，与脸型无关，新头模一律从这个文件搬）。表情段（60..100）另有其源，见下方 ANIM_SRC_MALE。
+#
+# 🔴🔴 2026-09-19 换源：旧源 `head_tifa_a_v10.fbx`（D:\BrainMaker\...\backup_20260913\）
+#     的 59 条位移场**被前后（Y 轴）镜像过** —— 拉"鼻子"动的其实是后脑勺。
+#     实测：装机态鼻帧质心 y=−0.024，而源头/原版都在 y=+0.14（鼻尖方向）；
+#     镜像假设残差 0.025 m vs 不镜像 0.111 m。v10 之后的所有头（蒂法/萨菲罗斯/亨利）全部继承，
+#     蒂法文档 §21.9「额头/颅顶被拉变形、鼻子上凸出一块」就是它。**旧源已退役，别再指回去。**
+#
+# 源的重新生成（离线产物，不进 git；tpac 里的是权威数据）：
+#   tpaccli dump --packdir "<游戏>\Modules\xxFemaleHead\AssetPackages" \
+#                --filter head_xxfemale --format fbx --out "Debug\offline\自定义头\_chansrc"
+# 🔴 该 dump 的 morph 缺 FullWeights，Blender 5.2 导入器会断言崩 —— 已由 transfer_channels.py
+#    内置的 `patch_fbx_importer()` 内存级兜住。
+# 验收判据（换源后必须过）：`_probe_chan_src.py` 看 KeyTime_31 的位移质心 y ≈ +0.14（鼻尖方向）。
+CHAN_SRC = os.path.join(REPO, "Debug", "offline", "自定义头", "_chansrc", "head", "head_xxfemale_a.fbx")
+CHAN_SRC_OBJ = "head_xxfemale_a.002.0"
+
+# 表情/口型段（通道 60..100）的源：**原版同性别头**。
+# 🔴 为什么表情段不像脸形段那样也用 xxFemale：
+#   · 脸形段（1..59）是"拉杆场"，两性几乎一样（原版男/xxFemale 的地标值重合到 0.002m），
+#     且整套 deform_keys 幅度是按它调的 → 沿用 xxFemale（别动，动了要重验拉杆）。
+#   · 表情段（60..100）是**解剖动作**（张嘴/闭眼/抬眉），量级按性别不同（JawDrop 原版男 27mm / xxFemale 16mm）；
+#     我们的男头是按**男表**标定的（眼球 (0,0.128,1.6839)、眼↔嘴 0.0795），所以男头用男头源。
+#   · 且表情段必须**按件对位**：原版每个子网格各带自己的场（眼球转动在眼球件、牙齿跟下颌在嘴件），
+#     把脸壳的场无脑套到眼球件上 = 眼球只能被眼睑蹭 1mm、转不起来。
+#   男头件序 = 脸/眼/嘴（女头是 脸/嘴/眼/睫，别照抄）。
+ANIM_SRC_MALE = os.path.join(REPO, "Debug", "offline", "自定义头", "core_game", "fbx", "head", "head",
+                             "head_male_a.fbx")
+ANIM_OBJS_MALE = "head_male_a,head_male_a.1,head_male_a.2"
 
 # ---------------- 每角色参数配方 ----------------
 # 字段说明见文件头与 Knowledge/蒂法换头工程.md §21
@@ -45,6 +71,8 @@ RECIPES = {
         gender="male",
         parts="face,eye,mouth",                       # 男头 3 件（原版 head_male_a 同构）
         pick="face=body.cut,eye=Eyeballs,mouth=mouth",  # 头藏在 body.cut 里
+        anim_src=ANIM_SRC_MALE,                       # 表情/口型段（60..100）→ 原版男头，按件对位
+        anim_objects=ANIM_OBJS_MALE,
         cut_z="1.4144",                               # 裁到原版男头的最低点
         fit_rim=True,                                 # 收进男身体的 V 领口（源模型肩膀宽 6cm）
         weld_seam=True,                               # 合上源模型"前后两块壳"的缝（0.66~10mm）
@@ -75,6 +103,8 @@ RECIPES = {
         src=os.path.join(REPO, "Debug", "offline", "_kcd_recon", "NPC_Henry.fbx"),
         gender="male",
         parts="face,eye,mouth",
+        anim_src=ANIM_SRC_MALE,                       # 表情/口型段（60..100）→ 原版男头，按件对位
+        anim_objects=ANIM_OBJS_MALE,
         pick=("face==m_head_henry,"
               "eye==_EyeLBall_Shader_Mesh+_EyeRBall_Shader_Mesh"
               "+_EyeLIris_Shader_Mesh+_EyeRIris_Shader_Mesh,"
@@ -108,7 +138,8 @@ def run(cmd, tag):
     for ln in out.splitlines():
         if any(k in ln for k in ("头壳中心", "标定", "裁 ", "收领口", "合缝", "权重来源",
                                  "权重组映射", "脖子/领口权重", "落位", "全头包围盒",
-                                 "材质", "[OK]", "EXPORTED", "顶点", "FATAL", "Error")):
+                                 "材质", "[OK]", "EXPORTED", "顶点", "FATAL", "Error",
+                                 "脸形源", "表情源", "对位")):
             print("   " + ln.strip())
     if p.returncode != 0:
         print("   [!] %s 退出码 %d" % (tag, p.returncode))
@@ -187,6 +218,9 @@ def main():
     cmd2 = [BLENDER, "--background", "--python", os.path.join(SCRIPTS, "transfer_channels.py"), "--",
             "--src", CHAN_SRC, "--src-object", CHAN_SRC_OBJ,
             "--dst", v_stage1, "--out", v_final]
+    # 表情/口型段（60..100）的源：不指定 = 用脸形源那一件套到所有件（旧行为，= 表情是空的）
+    if r.get("anim_src"):
+        cmd2 += ["--anim-src", r["anim_src"], "--anim-objects", r["anim_objects"]]
 
     cmd3 = [sys.executable, os.path.join(SCRIPTS, "fbx_probe.py"), v_final]
 

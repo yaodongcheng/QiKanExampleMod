@@ -51,10 +51,11 @@ if (command is "help" or "-h" or "--help")
 }
 
 // morphinfo / morphfix / skinfix / metaparts 自带参数集且自己做加载——放在全局 preload 之前，避免被无关 tpac 拖累/拖崩
-if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metaparts")
+if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metaparts" or "morphmap")
 {
     string mDir = null, mFilter = null, mOut = null, mOrder = null;
-    int mTarget = 101, mBone = 13;
+    int mTarget = 101, mBone = 13, mMaxFrames = 0;
+    float mMinMm = 0.05f;
     bool mClearMat = false, mFullMat = false, mForce = false, mClearFlags = false;
     for (int i = 1; i < cmdLine.Length; i++)
     {
@@ -66,6 +67,8 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metapart
             case "--order": mOrder = cmdLine[++i]; break;
             case "--target": mTarget = int.Parse(cmdLine[++i]); break;
             case "--bone": mBone = int.Parse(cmdLine[++i]); break;
+            case "--minmm": mMinMm = float.Parse(cmdLine[++i]); break;
+            case "--maxframes": mMaxFrames = int.Parse(cmdLine[++i]); break;
             case "--clearmat": mClearMat = true; break;
             case "--fullmat": mFullMat = true; break;
             case "--force": mForce = true; break;
@@ -75,6 +78,7 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metapart
     return command switch
     {
         "morphinfo" => MorphFix.Info(mDir, mFilter),
+        "morphmap" => MorphFix.MorphMap(mDir, mFilter, mMinMm, mMaxFrames),
         "morphfix" => MorphFix.Fix(mDir, mFilter, mOut, mTarget, mClearMat),
         "meshdiff" => MeshDiff.Run(mDir, mFilter, mOut),
         "metaparts" => MetaParts.Run(mDir, mFilter, mOut, mOrder, mClearFlags),
@@ -258,6 +262,21 @@ switch (command)
             }
         }
         Console.WriteLine($"missing material refs: {missing}");
+        return 0;
+    }
+    case "texinfo":
+    {
+        // 贴图导入设置速查：色彩空间/格式/标记。用途 = 比对「我们的贴图 vs 原版贴图」的 sRGB 标记
+        // （脸部 shader 只对 tex[1] 做 INPUT_TEX_GAMMA，tex[0] 期望硬件按贴图标记转换 → 标记错 = 整体偏暗）
+        var texs = assets.OfType<Texture>()
+            .Where(a => filter == null || a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(a => a.Name);
+        foreach (var t in texs)
+        {
+            Console.WriteLine($"{t.Name,-40} fmt={t.Format,-14} {t.Width}x{t.Height} mips={t.MipmapCount} "
+                            + $"flags=[{string.Join(",", t.Flags ?? new List<string>())}] "
+                            + $"sys=[{string.Join(",", t.SystemFlags ?? new List<string>())}]");
+        }
         return 0;
     }
     case "list":
