@@ -116,11 +116,19 @@ RECIPES = {
         no_head_only=True,
         apply_src_xform=True,                         # 🔴 必需：FBX 源的顶点是**厘米 + Y-up**，
                                                       #    对象矩阵里带着 0.01 缩放 + 90° 转轴，不烘进网格就全错
-        # ⚠️ 没开 `--neck-fill`：源模型自带"脖子 + 肩/胸口"（比战无2 的只到下巴强），
-        #    被 `--fit-rim` 收进领口后**颈部剪影是平滑的**；铺下摆反而铺出一圈**硬棱面 + 拉伸的 UV**，
-        #    还会在颈后正中留一道竖缝。实测对比图见 henry_build\render_neckfill\（变体产物在
-        #    `variant_neckfill\`）。唯一残留：正前 V 领口最低处（z=1.4144）比头的下沿（1.4300）低 1.6cm
-        #    —— 是否看得见待实机确认，**这条要用户拍板**。
+        # 🔴 2026-09-20 第二轮：**删胸兜板 + 从脖子底环铺**（蒂法那条路）。
+        #    实机症状（用户截图）：头的"胸兜"像围兜**平贴在胸口上**，边缘一刀切 → 硬"袖口边"；
+        #    两侧比身体领口低 4.5~8cm（趴在身体外面），正前又短 1.56cm。
+        #    第一轮只加 Hermite 多环放样（不算差但不对）：fill_neck_to_rim 铺的是**整块板的自由边**，
+        #    于是从板的外沿继续往外散 → 一圈外翻的硬板（"衬衫领"，render_v10）。
+        #    ⇒ 本轮先 `--drop-lower-plate` 删掉那块 488 顶点的独立岛（判据 z<1.56 且 r>0.09），
+        #      脖子（469 顶点，半径只有颈粗 ≈0.06）不命中 → 铺下摆就从**脖子真正的底环**起。
+        drop_lower_plate=True,
+        drop_plate_z="1.560",
+        drop_plate_r="0.090",
+        neck_fill=True,
+        neck_fill_top="1.545",                        # 起铺高度（脖子自由边所在）
+        neck_loft_rings="6",                          # Hermite 中间环数（1=老直线桥接）
         weights_from=os.path.join(REPO, "Debug", "offline", "自定义头", "core_game", "fbx", "head", "head",
                                   "head_male_a.fbx"),
         neck_z="1.600",
@@ -205,8 +213,19 @@ def main():
         cmd1.append("--no-prune")
     if r.get("no_head_only"):
         cmd1.append("--no-head-only")
+    if r.get("drop_lower_plate"):
+        cmd1.append("--drop-lower-plate")
+        for k, cli in (("drop_plate_z", "--drop-plate-z"), ("drop_plate_r", "--drop-plate-r")):
+            if r.get(k):
+                cmd1 += [cli, str(r[k])]
     if r.get("neck_fill"):
         cmd1.append("--neck-fill")
+        # 🔴 2026-09-20：补下摆的两个旋钮 —— 起铺高度 + 放样中间环数。
+        #    环数 ≥2 走三次 Hermite（两端相切），消掉「一圈硬棱面」。
+        if r.get("neck_fill_top"):
+            cmd1 += ["--neck-fill-top", str(r["neck_fill_top"])]
+        if r.get("neck_loft_rings"):
+            cmd1 += ["--neck-loft-rings", str(r["neck_loft_rings"])]
     # 🔴 把对象世界矩阵烘进网格数据 —— FBX 源必需（导入器把「单位换算 + Y-up→Z-up」放在对象矩阵里，
     #    KCD 源的顶点是厘米 + Y-up）。默认不开，见 build_head.py 那段注释。
     if r.get("apply_src_xform"):
@@ -221,6 +240,18 @@ def main():
     # 表情/口型段（60..100）的源：不指定 = 用脸形源那一件套到所有件（旧行为，= 表情是空的）
     if r.get("anim_src"):
         cmd2 += ["--anim-src", r["anim_src"], "--anim-objects", r["anim_objects"]]
+        # 🔴 搬法：法线投影 + 18mm 门限 + 2 轮轻平滑（2026-09-19 实测定型）——
+        #    · 只用最近邻 3 点加权：**唇线那道折线被抹平** → 嘴张不开（唇线位移只有源头的一半；
+        #      实测 唇/下巴比 0.34，原版 0.77）
+        #    · 投影：把源三角形内的线性场原样复制 → 唇线保住（唇/下巴比回到 0.52，唇线位移 −2.13mm vs 原版 −3.02）
+        #    · 18mm：两颗头的表面在嘴部相距 7~13mm（亨利下半脸比原版男头前突 1cm+），
+        #      6mm 门限会让嘴部几乎全回退 = 白改
+        #    · 2 轮平滑：投影会在上下唇分界处让相邻顶点落到源头不同三角形 → 唇缘撕尖刺，平滑抹掉
+        #    ⚠️ 换别的头要先量 `_probe_registration.py` 的"最近距中位"，按它定 --proj-max
+        cmd2 += ["--anim-map", "proj", "--proj-max", "18", "--anim-smooth", "1"]
+        # 🔴 下颌**直接算**（绕颌关节旋转），不再靠搬运 —— 搬运来的下颌要过"源粗→抹平→撕裂→平滑→又钝掉"
+        #    一串，而"张嘴"本质就是下颌绕关节转一下。增益 2.0 = 小幅度时也看得出嘴在动（实机 clip 权重小）。
+        cmd2 += ["--anim-jaw", "--anim-jaw-gain", "2.2"]  # 唇缝切开 + 分7段沿唇线切
 
     cmd3 = [sys.executable, os.path.join(SCRIPTS, "fbx_probe.py"), v_final]
 

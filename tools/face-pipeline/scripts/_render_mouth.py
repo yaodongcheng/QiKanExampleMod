@@ -11,6 +11,7 @@ from mathutils import Vector
 args = sys.argv[sys.argv.index("--") + 1:]
 FBX, FRAME, OUT = args[0], int(args[1]), args[2]
 HINT = args[3] if len(args) > 3 else None
+SCALE = float(args[4]) if len(args) > 4 else 1.0   # 形变强度（看"小幅张嘴"时用 0.3 之类）
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
@@ -42,18 +43,45 @@ for o in meshes:
     for kb in o.data.shape_keys.key_blocks:
         tail = kb.name.rsplit("_", 1)
         if len(tail) == 2 and tail[1].isdigit() and int(tail[1]) == FRAME:
-            kb.value = 1.0
+            kb.value = SCALE
             hit += 1
-            print("  帧 %d -> %s = 1.0" % (FRAME, kb.name))
+            print("  帧 %d -> %s = %.2f" % (FRAME, kb.name, SCALE))
 print("命中 %d 个网格" % hit)
 bpy.context.view_layer.update()
 
 # 只留嘴附近可见：把非目标件隐藏（眼睛/嘴件留着，牙也看得见）
 scene = bpy.context.scene
-scene.render.engine = 'BLENDER_WORKBENCH'
-scene.display.shading.light = 'STUDIO'
-scene.display.shading.color_type = 'SINGLE'
-scene.display.shading.single_color = (0.75, 0.72, 0.70)
+# 引擎：EEVEE（有阴影，才有"口腔凹进去变暗"这回事；Workbench 无阴影 → 浅腔也发亮，会看错）
+for eng in ('BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'):
+    try:
+        scene.render.engine = eng
+        break
+    except TypeError:
+        continue
+print("渲染引擎:", scene.render.engine)
+if scene.render.engine != 'BLENDER_WORKBENCH':
+    scene.eevee.taa_render_samples = 16
+    # 材质：简单漫反射（不依赖贴图），保证阴影对比清楚
+    mat = bpy.data.materials.new("mouthcheck")
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (0.78, 0.72, 0.68, 1.0)
+        if "Roughness" in bsdf.inputs:
+            bsdf.inputs["Roughness"].default_value = 0.6
+    for o in meshes:
+        o.data.materials.clear()
+        o.data.materials.append(mat)
+    sun = bpy.data.objects.new("sun", bpy.data.lights.new("sun", 'SUN'))
+    sun.data.energy = 4.0
+    sun.data.angle = 0.2
+    scene.collection.objects.link(sun)
+    world = bpy.data.worlds.new("w")
+    world.use_nodes = True
+    if world.node_tree.nodes.get("Background"):
+        world.node_tree.nodes["Background"].inputs[0].default_value = (0.5, 0.5, 0.55, 1)
+        world.node_tree.nodes["Background"].inputs[1].default_value = 1.0
+    scene.world = world
 scene.render.resolution_x = 640
 scene.render.resolution_y = 640
 scene.render.film_transparent = False
@@ -74,6 +102,12 @@ def shoot(name, ang_deg, out):
     cam.location = TARGET + Vector((math.sin(a) * dist, math.cos(a) * dist, 0.02))
     d = (TARGET - cam.location)
     cam.rotation_euler = d.to_track_quat('-Z', 'Y').to_euler()
+    for o in scene.objects:
+        if o.type == 'LIGHT':
+            # 🔴 光要**斜上方**（贴近游戏日照）。顺着镜头打会把口腔内壁照亮 → 明明开着也看着像闭着
+            e = cam.rotation_euler.copy()
+            e.x -= 0.55          # 抬高约 32°
+            o.rotation_euler = e
     scene.render.filepath = out
     bpy.ops.render.render(write_still=True)
     print("  渲染 -> %s" % out)
