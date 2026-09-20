@@ -1142,8 +1142,59 @@ def rim_lookup(gender):
     return rim_at
 
 
+def drop_wide_lower_islands(ob, z_cut=1.56, r_min=0.090, min_verts=100):
+    """删掉「整块都在 z_cut 以下、且横向半径超过 r_min」的连通域。
+
+    = 源模型脸壳带下来的**肩/胸口板**（实机里像围兜，边缘一刀切的硬边）。
+    判据出处：亨利脸壳的 8 连通域实测（`plans/KCD亨利换装工程.md` §一）——
+    肩/胸口 488 顶点 z 1.444~1.540（源里宽 ±0.146m）；脖子 469 顶点 z 1.498~1.592
+    （半径只有颈粗 ≈0.06）→ 不命中。返回 (删掉的连通域数, 删掉的面数)。
+    """
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
+
+    seen = set()
+    drop_faces = []
+    n_comp = 0
+    for f0 in bm.faces:
+        if f0.index in seen:
+            continue
+        stack = [f0]
+        seen.add(f0.index)
+        comp = []
+        while stack:
+            f = stack.pop()
+            comp.append(f)
+            for e in f.edges:
+                for g in e.link_faces:
+                    if g.index not in seen:
+                        seen.add(g.index)
+                        stack.append(g)
+        vs = {v for f in comp for v in f.verts}
+        if len(vs) < min_verts:
+            continue
+        zs = [v.co.z for v in vs]
+        rs = [math.hypot(v.co.x, v.co.y) for v in vs]
+        if max(zs) <= z_cut and max(rs) >= r_min:
+            drop_faces.extend(comp)
+            n_comp += 1
+            print("    · 删连通域：%d 顶点 z %.3f~%.3f r_max %.3f"
+                  % (len(vs), min(zs), max(zs), max(rs)))
+
+    if drop_faces:
+        bmesh.ops.delete(bm, geom=drop_faces, context="FACES")
+        bm.to_mesh(me)
+        me.update()
+    n = len(drop_faces)
+    bm.free()
+    return n_comp, n
+
+
 def fill_neck_to_rim(ob, rim_at, z_top=1.545, r_max=0.14, k=1.0, bury=RIM_BURY,
-                     flat_z=None, grow_max=1.25, tube_to=None):
+                     flat_z=None, grow_max=1.25, tube_to=None, rings=1):
     """【补脖子下摆】—— 头网格的脖子够不到身体领口时，从脖子的自由边往下铺一圈"下摆"。
 
     🔴 为什么需要（2026-09-16 用户实机报「所有人颈部都没有贴合肩部，往上抬了一点」）：
@@ -1222,27 +1273,70 @@ def fill_neck_to_rim(ob, rim_at, z_top=1.545, r_max=0.14, k=1.0, bury=RIM_BURY,
 
     made = 0
     land_uv = {}                      # 落点顶点 -> 它继承到的 UV（给下面那圈管子用）
+    # ---------- 中间环：三次 Hermite 放样（rings>1 时启用） ----------
+    # 🔴 为什么需要（2026-09-20，亨利领口重建）：单段直线桥接 = **一圏硬棱面** + 拉伸 UV
+    #    （实机/离线渲染都是一圈折棱，§20.4 坑 3「直线放样必折棱」）。蒂法那边已用
+    #    「三次 Hermite + 两端取真实表面切向」解决：起点切向取颈壁（竖直），
+    #    终点切向取身体表面（水平），两端相切 ⇒ C1 连续，数学上不折棱。
+    #    切向长度取 0.5×弦长（蒂法实测：更大过冲、插进身体）。
+    #    rings=1（默认）= 老的单段直线桥接，逐字节保持原行为。
+    mid = {}                          # mid[(v,i)] = 第 i 个中间环上属于 v 的顶点（i=1..rings-1）
+    if rings > 1:
+        for v, nvp in nv.items():
+            c = v.co
+            r0 = math.hypot(c.x, c.y)
+            z0 = c.z
+            r1 = math.hypot(nvp.co.x, nvp.co.y)
+            z1 = nvp.co.z
+            ang = math.atan2(c.y, c.x)
+            chord = math.hypot(r1 - r0, z1 - z0)
+            L = 0.5 * chord
+            m0 = (0.0, math.copysign(L, z1 - z0) if abs(z1 - z0) > 1e-9 else -L)
+            m1 = (math.copysign(L, r1 - r0) if abs(r1 - r0) > 1e-9 else L, 0.0)
+            for i in range(1, rings):
+                t = i / float(rings)
+                t2, t3 = t * t, t * t * t
+                h00 = 2 * t3 - 3 * t2 + 1
+                h10 = t3 - 2 * t2 + t
+                h01 = -2 * t3 + 3 * t2
+                h11 = t3 - t2
+                rr = h00 * r0 + h10 * m0[0] + h01 * r1 + h11 * m1[0]
+                zz = h00 * z0 + h10 * m0[1] + h01 * z1 + h11 * m1[1]
+                rr = max(rr, 1e-4)
+                mid[(v, i)] = bm.verts.new((rr * math.cos(ang), rr * math.sin(ang), zz))
+        bm.verts.ensure_lookup_table()
+
     for a, b, f0 in pairs:
         na, nb = nv[a], nv[b]
-        # 🔴 绕序：必须与 f0 **反向**走共用边 (a,b)（f0 走 a→b），新面才和脖子同朝向。
-        #    2026-09-16 实测：原来的 (a, b, nb, na) 是同向 → 整片下摆法线朝里
-        #    （z<1.40 段 外1/里13），而骑砍材质是单面的 → 实机里这一片根本看不见。
-        try:
-            nf = bm.faces.new((na, nb, b, a))
-        except ValueError:
-            continue
-        made += 1
+        src_uv = {}
         if uvl is not None:
-            src = {}
             for l in f0.loops:
-                src[l.vert] = l[uvl].uv.copy()
-            for l in nf.loops:
-                u = src.get(l.vert)
-                if u is None:                 # 新顶点：沿用它在老边上的那一端
-                    u = src.get(a if l.vert is na else b)
-                if u is not None:
-                    l[uvl].uv = u
-                    land_uv[l.vert] = u       # 落点顶点继承到的 UV，管子照抄
+                src_uv[l.vert] = l[uvl].uv.copy()
+        uva = src_uv.get(a)
+        uvb = src_uv.get(b)
+        # 环链：ring[0] = 原边 (a,b)，ring[rings] = 落点 (na,nb)
+        chain = [a] + [mid[(a, i)] for i in range(1, rings)] + [na]
+        chainb = [b] + [mid[(b, i)] for i in range(1, rings)] + [nb]
+        for i in range(rings):
+            va0, va1 = chain[i], chain[i + 1]
+            vb0, vb1 = chainb[i], chainb[i + 1]
+            # 🔴 绕序：与 f0 **反向**走共用边 (a,b)（f0 走 a→b），新面才和脖子同朝向。
+            #    2026-09-16 实测：同向 → 整片下摆法线朝里（骑砍单面材质 → 实机看不见）。
+            try:
+                nf = bm.faces.new((va1, vb1, vb0, va0))
+            except ValueError:
+                continue
+            made += 1
+            if uvl is not None:
+                # 整列沿用原顶点的 UV（a 列用 a 的、b 列用 b 的）—— 与原实现的意图一致：
+                # 领口那一段是近似均匀的肤色，纵向拉伸看不出来。
+                col = {va0: uva, va1: uva, vb0: uvb, vb1: uvb}
+                for l in nf.loops:
+                    u = src_uv.get(l.vert) or col.get(l.vert)
+                    if u is not None:
+                        l[uvl].uv = u
+                        if i == rings - 1:
+                            land_uv[l.vert] = u
 
     # ---------- 第二段：从落点环直着往下拉"脖子管"（伸进甲领口） ----------
     if tube_to is not None and made:
@@ -1550,6 +1644,8 @@ def main():
     list_only = "--list-only" in a
     no_skel = "--no-skeleton" in a
     fit_rim = "--fit-rim" in a
+    # 删「肩/胸口板」（源模型带下来的那块围兜）—— 见 3b-bis 注释
+    drop_lower_plate = "--drop-lower-plate" in a
     weld_seam = "--weld-seam" in a
     weights_from = get(a, "--weights-from")          # 原版同类头 FBX：抄它的骨骼权重
     neck_z = float(get(a, "--neck-z", "1.60"))       # 低于这个 z 的顶点改抄原版权重
@@ -2210,6 +2306,23 @@ def main():
                   % (role, z, len(kill), len(ob.data.vertices), len(ob.data.polygons)))
         bpy.context.view_layer.update()
 
+    # ---------- 3b-bis) 删掉源模型带下来的「肩/胸口板」 ----------
+    # 🔴 2026-09-20（亨利领口重建）：源模型的脸壳常带一块**平贴在胸口上的板**，是独立连通域，
+    #    在实机里像**围兜**——边缘一刀切出硬边（"袖口边"），两侧趴在身体外面 4.5~8cm，
+    #    正前又够不到身体 V 领口最低点（短 1.56cm）。留着它，fill_neck_to_rim 就会从
+    #    **这块板的外沿**继续往外铺 → 越铺越宽 = 一圈外翻的硬板（"衬衫领"，见 render_v10）。
+    #    判据（KCD亨利换装工程.md §一 的 8 连通域实测）：整块都在 z_cut 以下、且横向半径
+    #    超过 r_min 的连通域 = 肩/胸口（488 顶点，z 1.444~1.540，源里宽 ±0.146m）。
+    #    脖子那块（469 顶点，z 1.498~1.592，半径只有颈粗 ≈0.06）不会命中。
+    #    删掉后脖子成为最低件，fill_neck_to_rim 就从**脖子真正的底环**铺 —— 蒂法那条路。
+    if drop_lower_plate:
+        _zcut = float(get(a, "--drop-plate-z", "1.560"))
+        _rmin = float(get(a, "--drop-plate-r", "0.090"))
+        _minv = int(get(a, "--drop-plate-min", "100"))
+        n_drop, n_face = drop_wide_lower_islands(joined["face"], _zcut, _rmin, _minv)
+        print("  删肩/胸口板：掉 %d 个连通域 / %d 个面（判据 z<%.3f 且 r>%.3f）"
+              % (n_drop, n_face, _zcut, _rmin))
+
     # ---------- 3c) 把源模型带下来的肩膀收进原版身体的领口 ----------
     # 源模型的"脸"对象常连着一截肩膀/斜方肌，比原版身体那个 V 领口宽 → 实机里会从肩膀穿出来。
     # 按 RIM_TABLE 的实测口沿逐顶点收半径：口沿以下收到口沿半径（藏进身体里），
@@ -2258,11 +2371,14 @@ def main():
         _fz = float(_fz) if _fz else None
         _tube = get(a, "--neck-tube-to")
         _tube = float(_tube) if _tube else None
+        # 🔴 2026-09-20 加：放样中间环数。默认 1 = 老的单段直线桥接（逐字节保持原行为）；
+        #    ≥2 走三次 Hermite（两端相切）→ 消除「一圈硬棱面」，见 fill_neck_to_rim 注释。
+        _rings = int(get(a, "--neck-loft-rings", "1"))
         _n = fill_neck_to_rim(joined["face"], rim_at, z_top=_top, r_max=_rm, k=_kk,
-                              flat_z=_fz, tube_to=_tube)
+                              flat_z=_fz, tube_to=_tube, rings=_rings)
         if _n:
-            print("  补脖子下摆：%s 铺 %d 个面（自由边 → 领口内沿，k=%.2f%s%s）"
-                  % (joined["face"].name, _n, _kk,
+            print("  补脖子下摆：%s 铺 %d 个面（自由边 → 领口内沿，k=%.2f，环数 %d%s%s）"
+                  % (joined["face"].name, _n, _kk, _rings,
                      "，竖直 z=%.2f" % _fz if _fz else "",
                      "，再往下拉脖子管到 z=%.2f" % _tube if _tube else ""))
             _w = close_neck_slit(joined["face"])
