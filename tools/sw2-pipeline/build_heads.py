@@ -77,9 +77,16 @@ SRC_FBX = r"D:\BrainMaker\战国无双2资产解包分析\export\fbx"
 SRC_TEX = r"D:\BrainMaker\战国无双2资产解包分析\web\textures"
 # 源工程 2026-09-16 贴图升级产物：<源角色键>_d.png（超分漫反射）/ _n.png（真法线）/ _mr.png（不用）
 TEX_BATCH = r"D:\BrainMaker\战国无双2资产解包分析\work\tex_batch"
-# 59 条脸形位移场的权威来源（build_head_chain.py 同款；通道与脸型无关，新头模一律从这里搬）
-CHAN_SRC = r"D:\BrainMaker\blend_projects\tifa_export\backup_20260913\head_tifa_a_v10.fbx"
-CHAN_OBJ = "head_tifa_a.0"
+# 100 条位移场的权威来源（build_head_chain.py 同款）。
+# 🔴 2026-09-20 换源：旧源 `...\tifa_export\backup_20260913\head_tifa_a_v10.fbx` **本身就是错的**
+#    —— 它的位移场被前后（Y 轴）镜像（拉"鼻子"→后脑勺动；判据 `tpaccli morphmap` 看帧质心 y），
+#    凡是"从 v10 搬通道"做的头**全部中招**（蒂法/萨菲罗斯/亨利/战无2 的 28 人），见 wheels §17.2。
+#    新源 = 原版 `head_xxfemale_a` 的 dump（tpaccli dump，离线产物）：
+#      `tpaccli dump --packdir "<游戏>\Modules\xxFemaleHead\AssetPackages" \
+#                    --filter head_xxfemale --format fbx --out "Debug\offline\自定义头\_chansrc"`
+#    ⚠️ 旧源 obj 名 `head_tifa_a.0` 也一并换掉（新源是 `head_xxfemale_a.002.0`）。
+CHAN_SRC = os.path.join(REPO, "Debug", "offline", "自定义头", "_chansrc", "head", "head_xxfemale_a.fbx")
+CHAN_OBJ = "head_xxfemale_a.002.0"
 # 原版头的 FBX（抄颈部权重用）：男头抄 head_male_a、女头抄 head_female_a。
 # 与 build_head_chain.py 给萨菲罗斯用的是同一份（extracted_sho 的 tpac dump）。
 VANILLA_HEAD_DIR = r"D:\BrainMaker\extracted_sho\fbx\head"

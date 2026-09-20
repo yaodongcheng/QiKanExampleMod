@@ -145,6 +145,10 @@ namespace LivingWorldNpcs
             // 未建板时每帧只做一次 null 判断，零开销。验完即删。
             mission.AddMissionBehavior(new PlateSpikeMissionView());
 
+            // 舞台道具匀速移动（2026-09-20，custom.prop speed）：同上；没生成过道具时
+            // 每帧只做一次 Count 判断，零开销。验完即整对删。
+            mission.AddMissionBehavior(new PropSpikeMissionView());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——

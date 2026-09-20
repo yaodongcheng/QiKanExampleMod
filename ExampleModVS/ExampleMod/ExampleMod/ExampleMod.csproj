@@ -385,6 +385,7 @@
     <!-- 🔴 2026-09-10 诊断补丁下线（文件已删，排查结束；恢复 = git checkout 自 HEAD 取原路径 后去掉本行注释）——以下为下线项： -->
     <!-- <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" /> -->
     <Compile Include="Debug\AiPatrollingNullFix.cs" />
+    <Compile Include="Debug\CommandLineLoggerPatch.cs" />
     <Compile Include="Debug\CrashLogHook.cs" />
     <Compile Include="Debug\FaceTintCommands.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
