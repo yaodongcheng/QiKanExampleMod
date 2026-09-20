@@ -1,6 +1,8 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text.Json;
 using TpacCli;
 using TpacTool.Lib;
@@ -11,6 +13,7 @@ using TpacTool.IO.Assimp;
 //   list     --packdir <dir> [--filter <substr>]
 //   dump     --packdir <dir> --filter <substr> [--out <dir>] [--format png|dds|raw]
 //   inspect  --packdir <dir> --filter <substr>        (打印 texture 全字段，提取模板用)
+//   clipinfo --packdir <dir> [--filter <substr>]      (打印 AnimationClip 全字段：Flags / ClipUsages / displacement 向量)
 //   makepack --manifest <json> --out <dir>            (manifest 描述 -> 全新 tpac 包)
 //
 // Uses TpacTool.Lib to read TaleWorlds AssetPackages and export named assets.
@@ -21,6 +24,8 @@ string outDir = null;
 string format = "png";
 string mapping = null;
 bool mapsonly = false;
+string dispArg = null;   // clipset: "X,Y,Z"
+string endArg = null;    // clipset: endProgress（可省）
 
 string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -39,6 +44,8 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--format": format = args[++i]; break;
             case "--mapping": mapping = args[++i]; break;
             case "--mapsonly": mapsonly = true; break;
+            case "--disp": dispArg = cmdLine[++i]; break;
+            case "--end": endArg = cmdLine[++i]; break;
             default: Console.Error.WriteLine("unknown arg: " + args[i]); break;
         }
     }
@@ -278,6 +285,214 @@ switch (command)
                             + $"sys=[{string.Join(",", t.SystemFlags ?? new List<string>())}]");
         }
         return 0;
+    }
+    case "clipinfo":
+    {
+        // AnimationClip 全字段速查：Duration / Source 区间 / Flags / ClipUsages（含 displacement 向量）
+        // 用途 = 不开 ModKit 就能核对两件事：① 这条 clip 有没有带位移数据 ② 它绑的是哪条骨架动画
+        var clips = assets.OfType<AnimationClip>()
+            .Where(a => filter == null || a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(a => a.Name)
+            .ToList();
+        foreach (var c in clips)
+        {
+            string skel = "(unresolved)";
+            if (!c.Animation.Equals(Guid.Empty) && byGuid.TryGetValue(c.Animation, out var sk))
+                skel = $"{sk.Name} [{sk.GetType().Name}]";
+            Console.WriteLine($"== {c.Name} ==");
+            Console.WriteLine($"  Duration        = {c.Duration}");
+            Console.WriteLine($"  Source1 / 2     = {c.Source1} / {c.Source2}");
+            Console.WriteLine($"  SkeletalAnim    = {skel}   (guid {c.Animation})");
+            Console.WriteLine($"  Flags           = [{(c.Flags == null ? "" : string.Join(", ", c.Flags))}]");
+            Console.WriteLine($"  Priority={c.Priority} Param1={c.Param1} Param2={c.Param2} Param3={c.Param3}");
+            Console.WriteLine($"  BlendIn={c.BlendInPeriod} BlendOut={c.BlendOutPeriod} DoNotInterpolate={c.DoNotInterpolate}");
+            Console.WriteLine($"  ContinueWith    = {(string.IsNullOrEmpty(c.ContinueWithAction) ? "(empty)" : "\"" + c.ContinueWithAction + "\"")}");
+            Console.WriteLine($"  BlendsWith      = {(string.IsNullOrEmpty(c.BlendsWithAction) ? "(empty)" : "\"" + c.BlendsWithAction + "\"")}");
+            Console.WriteLine($"  HandPose L/R    = {c.LeftHandPose} / {c.RightHandPose}");
+            Console.WriteLine($"  ClipUsages      = {c.ClipUsages.Count}");
+            foreach (var u in c.ClipUsages)
+            {
+                if (u is AnimationClip.DisplacementUsage d)
+                    Console.WriteLine($"    [displacement] vector=({d.DisplacementVector.X:0.####}, {d.DisplacementVector.Y:0.####}, "
+                                    + $"{d.DisplacementVector.Z:0.####}) |v|={d.DisplacementVector.Length():0.####} "
+                                    + $"endProgress={d.DisplacementEndProgress} rawUInt={d.UnknownUInt}");
+                else
+                    Console.WriteLine($"    [{u.Type}] rawUInt={u.UnknownUInt}");
+            }
+        }
+        if (clips.Count == 0)
+        {
+            Console.WriteLine("no animation clip matched");
+            return 1;
+        }
+        return 0;
+    }
+    case "clipset":
+    {
+        // 改 AnimationClip 的 displacement 用法（骑砍2 引擎靠这栏推动画角色位移；TRF 里那条位置轨引擎不认）。
+        // 用法：clipset --packdir <含该 clip 的 tpac 目录> --filter <clip 名> --disp X,Y,Z [--end 0.4] --out <目录>
+        if (filter == null || dispArg == null)
+        {
+            Console.Error.WriteLine("clipset requires --filter <clipName> --disp X,Y,Z [--end <endProgress>] [--out dir]");
+            return 1;
+        }
+        var parts = dispArg.Split(',');
+        if (parts.Length != 3)
+        {
+            Console.Error.WriteLine("--disp must be three comma-separated numbers, e.g. 0.2462,3.6734,0");
+            return 1;
+        }
+        float[] v;
+        try
+        {
+            v = parts.Select(s => float.Parse(s.Trim(), CultureInfo.InvariantCulture)).ToArray();
+        }
+        catch (FormatException)
+        {
+            Console.Error.WriteLine("--disp 里有解析不出的数字: " + dispArg);
+            return 1;
+        }
+        float endP = float.NaN;
+        if (endArg != null && !float.TryParse(endArg.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out endP))
+        {
+            Console.Error.WriteLine("--end 解析不出: " + endArg);
+            return 1;
+        }
+
+        // ① 先只读头(便宜)，定位含该 clip 的那个 .tpac —— 避免把几百 MB 的包整个读进内存
+        string target = null;
+        var scanDirs = (dir ?? ".").Split(',').Select(d => d.Trim()).Where(d => d.Length > 0).ToArray();
+        foreach (var pd in scanDirs)
+        {
+            if (!Directory.Exists(pd)) continue;
+            foreach (var f in Directory.EnumerateFiles(pd, "*.tpac", SearchOption.AllDirectories))
+            {
+                if (new AssetPackage(f, true, false).Items.Any(i =>
+                        i.Type.Equals(AnimationClip.TYPE_GUID) &&
+                        i.Name.Equals(filter, StringComparison.OrdinalIgnoreCase)))
+                {
+                    target = f;
+                    break;
+                }
+            }
+            if (target != null) break;
+        }
+        if (target == null)
+        {
+            Console.Error.WriteLine($"没有哪个 .tpac 里含名为 '{filter}' 的 AnimationClip");
+            return 1;
+        }
+        Console.WriteLine($"目标包: {target}");
+
+        // ② 只读头（🔴 **故意不读数据段**）—— 两个理由：
+        //    ① `loadDataNow:true` 会去解析每个数据段，而库里 OptimizedAnimation.ReadData 与真实数据不兼容
+        //       （实测抛 `Frames not equal: 102 - -1863246975`）→ 整包加载直接崩；
+        //    ② `AssetPackage.Save` 对**未加载**的数据段是原样搬运（`roundtrip` 命令走的同一条路，实测
+        //       存出来的包字节数与原件完全相同）。我们要改的只有元数据，数据段本就不该被重新编码。
+        var pkg = new AssetPackage(target, true, false);
+        AnimationClip targetClip = null;
+        foreach (var it in pkg.Items)
+            if (it.Type.Equals(AnimationClip.TYPE_GUID) && it.Name.Equals(filter, StringComparison.OrdinalIgnoreCase))
+                targetClip = (AnimationClip) it;
+        if (targetClip == null)
+        {
+            Console.Error.WriteLine("二遍扫描没找到该 clip（加载模式不一致？）");
+            return 1;
+        }
+
+        // ③ 定位 displacement 用法在【原始元数字节】里的偏移
+        //    🔴 为什么不改对象再序列化：库的 AnimationClip.WriteMetadata 有两处与真实数据不符，
+        //    只有走"重新序列化"这条路才会暴露（实测 15 字节差异里混着 3 处非预期改动）：
+        //      · 硬写 `stream.Write(5)`，而原文件 metadata version = **6**（版本字节被降级）
+        //      · `WriteVec3AsVec4` 把 vec4 的第 4 分量写成 0，原文件是 **1.0**
+        //    ⇒ 只就地改那 16 个字节（x/y/z + endProgress），其余字节一个不碰。
+        var raw = targetClip.RawMeta;
+        if (raw == null)
+        {
+            Console.Error.WriteLine("该 clip 没有 RawMeta（不是从文件读来的），拒绝走字节替换路径");
+            return 1;
+        }
+        string marker = "displacement";
+        int at = -1;
+        for (int i = 0; i + marker.Length <= raw.Length; i++)
+        {
+            bool hit = true;
+            for (int k = 0; k < marker.Length; k++)
+                if (raw[i + k] != (byte) marker[k]) { hit = false; break; }
+            if (hit) { at = i; break; }
+        }
+        if (at < 0)
+        {
+            Console.Error.WriteLine($"该 clip 的 ClipUsages 里没有 '{marker}' 用法 —— 本命令只会改【已存在】的位移用法，"
+                                  + "新增得在 ModKit 里加（或另写插入路径）");
+            return 1;
+        }
+        var usage0 = targetClip.ClipUsages.OfType<AnimationClip.DisplacementUsage>().FirstOrDefault();
+        if (usage0 == null)
+        {
+            Console.Error.WriteLine($"字节流里有 '{marker}' 但对象模型里没有 —— 两边对不上，拒绝改");
+            return 1;
+        }
+        // 布局（实测文件字节）：[4B 串长 = 12][12B "displacement"][4B UnknownUInt][16B vec4(x,y,z,w=1.0)][4B endProgress]
+        //   🔴 `at` 指向的是**串内容起点**（不是长度前缀）→ 只需 skip 串本身 + 一个 u32
+        int pVec = at + marker.Length + 4;
+        // ④ 自校验：就地读出的三个 float 必须与对象模型解析出来的一致，否则说明偏移算错了
+        float rx = BitConverter.ToSingle(raw, pVec);
+        float ry = BitConverter.ToSingle(raw, pVec + 4);
+        float rz = BitConverter.ToSingle(raw, pVec + 8);
+        float rend = BitConverter.ToSingle(raw, pVec + 16);
+        if (Math.Abs(rx - usage0.DisplacementVector.X) > 1e-5 ||
+            Math.Abs(ry - usage0.DisplacementVector.Y) > 1e-5 ||
+            Math.Abs(rz - usage0.DisplacementVector.Z) > 1e-5 ||
+            Math.Abs(rend - usage0.DisplacementEndProgress) > 1e-5)
+        {
+            Console.Error.WriteLine($"偏移自校验失败：字节流里读到 ({rx}, {ry}, {rz}) end={rend}，"
+                                  + $"对象模型却是 ({usage0.DisplacementVector.X}, {usage0.DisplacementVector.Y}, "
+                                  + $"{usage0.DisplacementVector.Z}) end={usage0.DisplacementEndProgress} —— 拒绝改");
+            return 1;
+        }
+        Console.WriteLine($"  改前: vector=({rx}, {ry}, {rz}) endProgress={rend}  @ 元数据偏移 {pVec}");
+
+        // ⑤ 就地替换那 16 个字节
+        BitConverter.GetBytes(v[0]).CopyTo(raw, pVec);
+        BitConverter.GetBytes(v[1]).CopyTo(raw, pVec + 4);
+        BitConverter.GetBytes(v[2]).CopyTo(raw, pVec + 8);
+        if (!float.IsNaN(endP)) BitConverter.GetBytes(endP).CopyTo(raw, pVec + 16);
+        // 同步对象模型，便于回读比对时两口径一致（Save 走 RawMeta，改不改它都不影响写盘）
+        usage0.DisplacementVector = new Vector3(v[0], v[1], v[2]);
+        if (!float.IsNaN(endP)) usage0.DisplacementEndProgress = endP;
+
+        // ⑥ 存到独立目录（绝不原地覆盖）
+        var outRoot = outDir ?? ".";
+        Directory.CreateDirectory(outRoot);
+        var outPath = Path.Combine(outRoot, Path.GetFileName(target));
+        pkg.Save(outPath);
+        Console.WriteLine($"  已写出: {outPath} ({new FileInfo(outPath).Length} bytes, 原 {new FileInfo(target).Length} bytes)");
+
+        // ⑥ 回读验证：包级 + clip 级两道
+        var back = new AssetPackage(outPath, true, false);
+        bool sameGuid = back.Guid.Equals(pkg.Guid);
+        bool sameCount = back.Items.Count == pkg.Items.Count;
+        AnimationClip backClip = null;
+        foreach (var it in back.Items)
+            if (it.Type.Equals(AnimationClip.TYPE_GUID) && it.Name.Equals(filter, StringComparison.OrdinalIgnoreCase))
+                backClip = (AnimationClip) it;
+        Console.WriteLine($"  回读: items {back.Items.Count}/{pkg.Items.Count} · 包 guid 一致={sameGuid}");
+        if (backClip == null)
+        {
+            Console.Error.WriteLine("  ❌ 回读找不到该 clip —— 产物不可用");
+            return 1;
+        }
+        var bd = backClip.ClipUsages.OfType<AnimationClip.DisplacementUsage>().FirstOrDefault();
+        Console.WriteLine($"  改后: Duration={backClip.Duration} Source={backClip.Source1}/{backClip.Source2} "
+                        + $"flags=[{string.Join(", ", backClip.Flags ?? new List<string>())}]");
+        Console.WriteLine($"        vector={(bd == null ? "(无 displacement)" : $"({bd.DisplacementVector.X}, {bd.DisplacementVector.Y}, {bd.DisplacementVector.Z}) endProgress={bd.DisplacementEndProgress}")}");
+        bool ok = sameGuid && sameCount && bd != null
+                  && Math.Abs(bd.DisplacementVector.X - v[0]) < 1e-4
+                  && Math.Abs(bd.DisplacementVector.Y - v[1]) < 1e-4
+                  && Math.Abs(bd.DisplacementVector.Z - v[2]) < 1e-4;
+        Console.WriteLine(ok ? "  ✅ 写入生效且包结构完整" : "  ❌ 校验不过 —— 别用这个产物");
+        return ok ? 0 : 1;
     }
     case "list":
     {

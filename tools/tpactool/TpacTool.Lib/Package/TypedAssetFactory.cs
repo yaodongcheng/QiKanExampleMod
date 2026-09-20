@@ -26,6 +26,10 @@ namespace TpacTool.Lib
 			RegisterType(typeof(Skeleton));
 			RegisterType(typeof(SkeletalAnimation));
 			RegisterType(typeof(Texture));
+			// 🔴 AnimationClip 原先漏注册 → 包里的 clip 退化成泛型 AssetItem，`OfType<AnimationClip>()` 永远为空
+			//    （症状：clipinfo 报 "no animation clip matched"，而 `list` 明明列出了那些名字）。
+			//    注册后 ClipUsages / Flags / Source1-2 才读得到。
+			RegisterType(typeof(AnimationClip));
 #endif
 		}
 

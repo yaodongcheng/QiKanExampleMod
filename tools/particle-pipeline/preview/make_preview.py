@@ -79,6 +79,91 @@ def xml_text(root):
     return '<?xml version="1.0" encoding="utf-8"?>\n' + body + "\n"
 
 # ---------------------------------------------------------------- 贴图
+def _sheet_grid(im, size=256):
+    """判断这张粒子贴图是不是「图集 / 序列帧」→ 返回 (cols, rows)；不是就 (1,1)。
+
+    🔴 为什么必须判：着色器是 `texture2D(uTex, gl_PointCoord)` —— **整张贴图当一颗粒子画**。
+       而原版 `smoke_d` 是 **2×2 图集**（四个不同的烟团），UE 的 `T_Fire_01` 更是 **8×8 序列帧**。
+       整张喂进去 = 一个粒子画出 4 个 / 64 个（2026-09-20 用户实测截图：四个白烟团）。
+       正确做法与引擎同口径：按 `texture_sprite_count` 切格，每颗取一格 —— 这里在内嵌前**先切出一格**。
+
+    判据（两条都要过）：
+      ① **分隔线上没墨** —— 真图集的分隔线走在帧与帧的空隙里，单帧图的分隔线会**穿过内容**
+         （中心那块最亮）。🔴 第一版只用「各格墨量接近」，结果**居中对称的单帧图**（径向光晕、
+         居中烟团）被四等分后墨量天然相等 → 全被误判成图集（连 T_Glow 都判成 2×2），已废。
+      ② 各格墨量接近（每格一帧，长得像）。
+    从细到粗试（8→4→3→2），取第一个通过的 —— 8×8 的序列帧不会被误判成 2×2。
+    """
+    import numpy as np
+    a = np.asarray(im.convert("RGBA").resize((size, size))).astype(np.float32)
+    al = a[..., 3]
+    if al.mean() > 250:                    # 无有效 alpha（UE 贴图常态）→ 用亮度当形状
+        al = a[..., :3].max(axis=2)
+    total = float(al.mean())
+    if total < 1.0:                        # 整张几乎是空的
+        return 1, 1
+    for k in (8, 4, 3, 2):
+        step = size // k
+        if step < 8:
+            continue
+        lines = []
+        for c in range(1, k):
+            x = c * step
+            lines.append(al[:, max(0, x - 1):x + 2].mean())     # 竖分隔线
+            lines.append(al[max(0, x - 1):x + 2, :].mean())     # 横分隔线
+        li = float(sum(lines)) / len(lines)
+        if li > 0.30 * total:              # 分隔线穿过内容 → 不是图集
+            continue
+        ink = [al[r * step:(r + 1) * step, c * step:(c + 1) * step].mean()
+               for r in range(k) for c in range(k)]
+        m = float(sum(ink)) / len(ink)
+        if m < 1.0:
+            continue
+        var = (sum((x - m) ** 2 for x in ink) / len(ink)) ** 0.5
+        if var / (m + 1e-6) < 0.5:         # 各格墨量接近 → 是图集
+            return k, k
+    return 1, 1
+
+
+def _pick_cell(im, cols, rows):
+    """从图集里挑「墨最多」的那一格（避开空帧 / 全黑首帧）。"""
+    if cols <= 1 and rows <= 1:
+        return im
+    import numpy as np
+    w, h = im.size
+    cw, ch = w // cols, h // rows
+    best, best_ink = None, -1.0
+    for r in range(rows):
+        for c in range(cols):
+            cell = im.crop((c * cw, r * ch, (c + 1) * cw, (r + 1) * ch))
+            a = np.asarray(cell.convert("RGBA")).astype(np.float32)
+            ink = float(a[..., 3].mean())
+            if a[..., 3].mean() > 250:     # 无 alpha → 用亮度
+                ink = float(a[..., :3].max(axis=2).mean())
+            if ink > best_ink:
+                best_ink, best = ink, cell
+    return best or im
+
+
+def crop_sheet(im, tag=""):
+    """图集 → 切出一格；单帧原样返回。返回 (图, 说明文字)。"""
+    g = _sheet_grid(im)
+    if g == (1, 1):
+        return im, ""
+    return _pick_cell(im, *g), "%s×%s 图集 → 取其中一格" % (g[0], g[1])
+
+
+def _tex_b64_cropped(path):
+    """默认贴图：先按图集切一格，再编成 base64（默认贴图已是 RGB白+alpha 约定，不做形状转换）。"""
+    import io as _io
+    from PIL import Image
+    im = Image.open(path).convert("RGBA")
+    im, note = crop_sheet(im)
+    buf = _io.BytesIO()
+    im.save(buf, "PNG", optimize=True)
+    return base64.b64encode(buf.getvalue()).decode("ascii"), note
+
+
 def b64_of(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("ascii")
@@ -177,10 +262,13 @@ def build_mat_tex_map(tex_dir, size=256):
         if not pick: continue
         try:
             im = Image.open(os.path.join(tex_dir, pick)).convert("RGBA")
+            im, note = crop_sheet(im, pick)          # 图集先切一格，否则一个粒子画出 N 帧
             im = _to_alpha_shape(im)
             im.thumbnail((size, size), Image.LANCZOS)
             buf = _io.BytesIO(); im.save(buf, "PNG", optimize=True)
             out[mat] = (pick, "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii"))
+            if note:
+                log("     %-30s %s" % (pick, note))
         except Exception as e:
             log("  !! 贴图读取失败 %s: %s" % (pick, e))
     return out
@@ -217,17 +305,26 @@ def gen_js(n_eff, cols, spacing, dur, auto, only, human=True, mtm=None, ground=T
     need_h = (rows * spacing + 2.0) / k
     need_w = (cols * spacing + 2.0) / (k * aspect)
     dist = max(9.0, need_h, need_w) * 1.10
+    # 单特效取景（solo 模式）：按 1×1 算 —— 构图与「只发一个 XML」时一致
+    solo_dist = max(6.5, (spacing + 2.0) / k, (spacing + 2.0) / (k * aspect)) * 1.10
+    # 🔴 默认就是 solo（只跑一个 effect）。9 个同屏 = 上千粒子 + 685 张 emitter 卡片，
+    #    浏览器顶不住（2026-09-20 用户实测反馈「太卡了」）→ 改成一次一个 + 随时切换。
+    solo0 = 0
     only_js = ("null" if only is None else str(int(only)))
-    return gen_mat_tex_js(mtm) + """
+    # 🔴 用 raw 字符串：块里有 JS 正则转义（\b \s \S \/），非 raw 会被 Python 当成
+    #    无效转义序列报警告并原样保留 —— 结果碰巧一样，但太脆。
+    return gen_mat_tex_js(mtm) + r"""
 /* ================================================================
    LWN 迁移预览 —— 自动注入（make_preview.py 生成，勿手改）
    ----------------------------------------------------------------
-   1) 时间线：每个 <effect> 一个槽位，全部同时发射（原模板只亮当前阶段）
-   2) 锚点：按网格摆放，避免多特效叠在一起
+   1) 时间线：每个 <effect> 一个槽位；**默认只跑一个**（solo），可切换 / 可切回网格
+   2) 锚点：solo 时摆在原点；网格模式按槽位摆放，避免多特效叠在一起
    3) 轴向：XML 是 Z-up，three.js 场景是 Y-up —— xml(x,y,z) -> scene(x, z, -y)
    ================================================================ */
 var __N__ = %(n)d, __COLS__ = %(cols)d, __SP__ = %(sp).3f, __DUR__ = %(dur).3f;
 var __ONLY__ = %(only)s;
+var __GRID_DIST__ = %(dist).2f, __SOLO_DIST__ = %(solo_dist).2f;
+var __SOLO__ = %(solo0)d;   /* 当前单独显示的 effect 下标；-1 = 网格模式（全部一起跑）*/
 
 function __slotPos(i){
   var c = i %% __COLS__, r = Math.floor(i / __COLS__);
@@ -253,64 +350,183 @@ function __remapAll(){
     });
   });
 }
+/* ---- 懒解析：只把「当前这一个」effect 那段 XML 交给 DOMParser ----
+   🔴 原版 build() 是 `FXS = parseXml(xmlText)` —— 一页装 99 个 effect 时，等于
+      DOMParser 吃 5.4MB XML + 约 5 万次 querySelectorAll（685 emitter × 76 次查询），
+      主线程直接堵死（用户实测「进入就卡死」）。切换时重解析只花几毫秒。
+   做法：先把原文按 <effect> 切成段，再按需喂给原 parseXml。*/
+var __CHUNKS__ = (function(){
+  var out = [], re = /<effect\b[\s\S]*?<\/effect>/g, m;
+  while ((m = re.exec(xmlText)) !== null) out.push(m[0]);
+  return out;
+})();
+var __NAMES__ = __CHUNKS__.map(function(c){
+  var m = c.match(/<effect[^>]*\bname="([^"]*)"/);
+  return m ? m[1] : "?";
+});
+function __parseOne(fi){
+  var c = __CHUNKS__[fi];
+  if (!c) return [];
+  return parseXml('<?xml version="1.0" encoding="utf-8"?>' + String.fromCharCode(10)
+                  + '<particle_effects>' + String.fromCharCode(10) + c
+                  + String.fromCharCode(10) + '</particle_effects>');
+}
+/* 只把当前 effect 放进 FXS（下标保持原序号，下游 FXS[pl.fx] 才不会错位）。
+   Array.forEach 会跳过空槽 → __remapAll / __buildSystems 天然只处理当前这一个。*/
+function __loadFx(){
+  if (__SOLO__ < 0){ FXS = parseXml(xmlText); return; }   // 网格模式：全部解析（慢，用户自己点的）
+  var r = __parseOne(__SOLO__);
+  FXS = [];
+  if (r[0]) FXS[__SOLO__] = r[0];
+}
+function __loadFxInit(){
+  if (__SOLO__ < 0) return parseXml(xmlText);
+  var r = __parseOne(__SOLO__), arr = [];
+  if (r[0]) arr[__SOLO__] = r[0];
+  return arr;
+}
+
 var __origBuild = build;
 build = function(){
-  __origBuild();          // 解析 XML -> FXS / systems
+  __origBuild();          // 解析 XML -> FXS / systems（两行都被本脚本打了补丁：懒解析 + 懒建系统）
   __remapAll();           // XML 是 Z-up，场景是 Y-up
   __buildPL();            // PL 必须在 FXS 填好后建
   renderUI();             // 重建 emitter 卡片（renderUI 自带 innerHTML=""，可重复调）
-  __renderPhases();       // 重建胶囊（原版用的是旧 PL）
+  __renderPhases();       // 重建切换条（原版用的是旧 PL）
+};
+
+/* ---- 只给当前 effect 建粒子系统 ----
+   🔴 原版是「把全部 effect 的 emitter 一次全建成 Points」：一页装 99 个 effect =
+      685 个 BufferGeometry + 685 个 Points 常驻显存与绘制队列，浏览器直接卡死
+      （用户实测反馈「太卡了」）。
+   改成按需建 + 切换时销毁上一个：无论一页装多少个 effect，常驻的永远只有当前这一个。
+   代价：切换时重建（几毫秒），换来加载与帧率与「一个 effect」等量级。*/
+function __buildSystems(){
+  systems.forEach(function(S){
+    scene.remove(S.points);
+    if (S.geo && S.geo.dispose) S.geo.dispose();
+    if (S.mat && S.mat.dispose) S.mat.dispose();
+  });
+  systems.length = 0;
+  FXS.forEach(function(E, ei){
+    if (__SOLO__ >= 0 && ei !== __SOLO__) return;      // 网格模式才建全部
+    E.emitters.forEach(function(em){ var s = makeSystem(em); s.fxIdx = ei; systems.push(s); });
+  });
+}
+
+/* ---- 只给「当前这一个 effect」建卡片 ----
+   同一个原因：99 个 effect 的卡片一次全建出来，DOM 就够卡一会儿。
+   做法：临时把 PL 换成只含当前 effect 的子集喂给原 renderUI，建完换回来。*/
+var __origRenderUI = renderUI;
+renderUI = function(){
+  var full = PL.slice();
+  if (__SOLO__ >= 0 && PL[__SOLO__]) PL = [PL[__SOLO__]];
+  __origRenderUI();
+  PL = full;
+  var fx = document.getElementById("fxid");
+  if (fx){
+    fx.textContent = (__SOLO__ >= 0 && FXS[__SOLO__])
+      ? ((__SOLO__ + 1) + "/" + __N__ + " · " + FXS[__SOLO__].name + " · "
+         + FXS[__SOLO__].emitters.length + " emitters")
+      : (__N__ + " 个 effect · " + systems.length + " emitters");
+  }
 };
 
 /* ---- 时间线 / 激活 ----
    🔴 必须在 build() 之后才能建 PL：FXS 是 build() 里才填的，
       在 build() 之前跑 FXS.forEach 会遍历空数组 → PL 为空 →
       右侧 emitter 卡片全没了（本轮踩过）。所以统一放进 build 包装里。*/
-var __SOLO__ = -1;
 function __buildPL(){
   PL.length = 0;
-  FXS.forEach(function(E, i){ PL.push({ key:"fx"+i, label:E.name, from:0, to:__DUR__, fx:i }); });
+  /* 名字从切好的 XML 段里取，不从 FXS 取 —— FXS 现在只装当前这一个 effect */
+  for (var i = 0; i < __NAMES__.length; i++)
+    PL.push({ key:"fx"+i, label:__NAMES__[i], from:0, to:__DUR__, fx:i });
   T.total = __DUR__;
 }
 
-/* ---- 阶段胶囊：原版在注入点【之前】就用旧 PL 建好了，这里重建 ----
-   多 effect 时胶囊改成「点击 = 只显示这一个」（再点一次恢复全部）*/
+/* ---- 切换条：一次只跑一个 effect，可自由切 ----
+   ◀ / 下拉列表 / ▶  （键盘 ← → 同效）+「全部」切回网格模式。
+   原版是「阶段胶囊」（每段一个）；多 effect 场景下改成这个切换器。*/
+function __switch(i){
+  if (__N__ <= 0) return;
+  if (i < 0) i = __N__ - 1;
+  if (i >= __N__) i = 0;
+  __SOLO__ = i;
+  T.t = 0;
+  systems.forEach(function(s){ s.live.length = 0; s.acc = 0; });   // 清干净再播
+  __loadFx();            // 换 effect = 解析新的一段（只这一段）
+  __buildSystems();      // 换 effect = 换系统（旧的销毁，新的建起来）
+  __renderPhases();
+  renderUI();
+}
 function __renderPhases(){
   var h = document.getElementById("phases"); if (!h) return;
   h.innerHTML = "";
+  if (__N__ <= 1) return;                       // 只有一个 effect 就不用切换器
+  var bar = document.createElement("div");
+  bar.style.cssText = "display:flex;align-items:center;gap:6px;flex-wrap:wrap;"
+    + "background:rgba(10,9,18,.74);border:1px solid var(--line);border-radius:10px;"
+    + "padding:6px 9px;backdrop-filter:blur(6px)";
+  function mkbtn(txt, tip, fn){
+    var b = document.createElement("button");
+    b.textContent = txt; b.title = tip;
+    b.style.cssText = "padding:4px 10px;cursor:pointer";
+    b.addEventListener("click", fn);
+    return b;
+  }
+  bar.appendChild(mkbtn("◀", "上一个（键盘 ←）",
+    function(){ __switch((__SOLO__ < 0 ? 0 : __SOLO__) - 1); }));
+  var sel = document.createElement("select");
+  sel.style.cssText = "max-width:330px;background:var(--panel-2);color:var(--ink);"
+    + "border:1px solid var(--line);border-radius:5px;padding:4px 6px;"
+    + "font-family:var(--mono);font-size:12px";
   PL.forEach(function(p, i){
-    var d = document.createElement("div");
-    d.className = "ph"; d.setAttribute("data-k", p.key);
-    d.setAttribute("role","button"); d.setAttribute("tabindex","0");
-    d.style.cursor = "pointer";
-    d.innerHTML = p.label + '<span class="t">' + p.from.toFixed(1) + 's</span>';
-    function pick(){
-      __SOLO__ = (__SOLO__ === i) ? -1 : i;
-      T.t = 0; systems.forEach(function(s){ s.live.length = 0; s.acc = 0; });
-      Array.prototype.forEach.call(h.querySelectorAll(".ph"), function(el, k){
-        el.classList.toggle("on", __SOLO__ < 0 || k === __SOLO__);
-      });
-    }
-    d.addEventListener("click", pick);
-    d.addEventListener("keydown", function(e){
-      if (e.key === "Enter" || e.key === " "){ e.preventDefault(); pick(); }
-    });
-    h.appendChild(d);
+    var o = document.createElement("option");
+    o.value = i; o.textContent = (i + 1) + "/" + __N__ + "  " + p.label;
+    if (i === __SOLO__) o.selected = true;
+    sel.appendChild(o);
   });
-  Array.prototype.forEach.call(h.querySelectorAll(".ph"), function(el){ el.classList.add("on"); });
+  sel.addEventListener("change", function(){ __switch(parseInt(this.value, 10)); });
+  bar.appendChild(sel);
+  bar.appendChild(mkbtn("▶", "下一个（键盘 →）",
+    function(){ __switch((__SOLO__ < 0 ? -1 : __SOLO__) + 1); }));
+  bar.appendChild(mkbtn(__SOLO__ < 0 ? "单个" : "全部",
+    "单个 = 只跑一个 effect；全部 = 网格同屏（粒子多，会卡）",
+    function(){
+      __SOLO__ = (__SOLO__ < 0) ? 0 : -1;
+      T.t = 0;
+      systems.forEach(function(s){ s.live.length = 0; s.acc = 0; });
+      __loadFx();                /* 网格模式要把全部 effect 解析进来（慢，用户自己点的） */
+      __buildSystems();          /* 网格模式要把全部 effect 的系统建起来 */
+      __renderPhases(); renderUI();
+    }));
+  h.appendChild(bar);
 }
+/* 页内切换的快捷键：只在「一页多个 effect」时注册 —— 一页一个时左右键留给
+   build_preview_set.py 注入的【跨页翻页】导航条，否则两边会抢同一个键。*/
+if (__N__ > 1) document.addEventListener("keydown", function(e){
+  if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (e.key === "ArrowLeft"){  e.preventDefault(); __switch((__SOLO__ < 0 ? 0 : __SOLO__) - 1); }
+  if (e.key === "ArrowRight"){ e.preventDefault(); __switch((__SOLO__ < 0 ? -1 : __SOLO__) + 1); }
+});
 
 phaseAt = function(t){ return (t < __DUR__) ? { key:"all", label:"全部", from:0, to:__DUR__, fx:null } : null; };
-anchorOf = function(i, t){ return __slotPos(i); };
+/* solo 模式把当前 effect 摆到原点（相机也按单特效取景）；网格模式摆到各自槽位 */
+anchorOf = function(i, t){ return (__SOLO__ < 0) ? __slotPos(i) : new THREE.Vector3(0, 0, 0); };
 emitterVelocity = function(i, t){ return new THREE.Vector3(); };
 
 /* ---- 替身网格：原 demo 的法阵/球壳/暗晕/月牙都按 yinmo 的【绝对时间】硬编码，
         换 XML 后它们完全不讲道理 —— 一律停掉。人形只留作 1.8m 尺度基准。---- */
 stepMeshes = function(){
-  if (typeof figure !== "undefined" && figure){ figure.visible = %(human)s; figure.position.y = 0; }
-  /* 🔴 地面在 y=-2.2 且不透明；网格排到 y=-5.5 那一行会整行被它挡掉
-     （踩过：视觉模型报「最下一行整行是空的，只有地面网格」）→ 多特效时必须关地面 */
-  if (!%(ground)s){
+  var solo = (__SOLO__ >= 0);        /* solo = 只跑一个，构图等同单特效 */
+  if (typeof figure !== "undefined" && figure){
+    figure.visible = (solo || %(human)s);    /* 人形 = 1.8m 尺度基准：单特效时给出来 */
+    figure.position.y = 0;
+  }
+  /* 🔴 地面在 y=-2.2 且不透明；网格模式排到 y=-5.5 那一行会整行被它挡掉
+     （踩过：视觉模型报「最下一行整行是空的，只有地面网格」）→ 网格模式关地面；
+     solo 模式只有一个特效摆在原点，地面留着才看得出尺度 */
+  if (!%(ground)s && !solo){
     if (typeof groundMesh !== "undefined" && groundMesh) groundMesh.visible = false;
     if (typeof grid !== "undefined" && grid) grid.visible = false;
   }
@@ -321,7 +537,7 @@ stepMeshes = function(){
   if (typeof crescent !== "undefined" && crescent) crescent.visible = false;
 };
 
-/* ---- 相机：把整片网格框进来（固定机位，便于截图逐张对比）---- */
+/* ---- 相机：网格模式框住整片墙；solo 模式按单特效取景（固定机位，便于截图比对）---- */
 orbit.auto = %(auto)s;
 orbit.dist = %(dist).2f;
 orbit.phi  = Math.PI/2;      /* 正对：相机在 +Z 轴上，直接看 XY 平面 */
@@ -329,6 +545,7 @@ orbit.theta = Math.PI/2;
 if (orbit.target) orbit.target.set(%(cx).3f, %(cy).3f, %(cz).3f);
 updateCamera = function(dt){
   if (orbit.auto) orbit.theta += dt * 0.06;
+  orbit.dist = (__SOLO__ < 0) ? __GRID_DIST__ : __SOLO_DIST__;   /* 每帧按模式取景 */
   look.set(%(cx).3f, %(cy).3f, %(cz).3f);
   var sp = Math.sin(orbit.phi), cp = Math.cos(orbit.phi);
   camera.position.set(look.x + orbit.dist*sp*Math.cos(orbit.theta),
@@ -337,6 +554,7 @@ updateCamera = function(dt){
   camera.lookAt(look);
 };
 """ % dict(n=n_eff, cols=cols, sp=spacing, dur=dur, rows=rows, dist=dist,
+           solo_dist=solo_dist, solo0=solo0,
            cx=cx, cy=cy, cz=cz, auto=("true" if auto else "false"), only=only_js,
            human=("true" if human else "false"),
            ground=("true" if ground else "false"))
@@ -363,6 +581,14 @@ ANCHOR_OLD = 'buildEnv();' + chr(10) + 'build();'
 U_TEX_OLD = "uTex:{value:smokeTex}"
 U_TEX_NEW = "uTex:{value:(MAT_TEX[em.num.material]||smokeTex)}"
 LATIN_RE = r'<span class="latin">.*?</span>'
+# 🔴 build() 里的这两行「全量」操作，是「一页装很多 effect」时卡死主线程的元凶：
+#    前者 DOMParser 吃整份 XML + 约 5 万次 querySelectorAll，后者一次建几百个粒子系统。
+#    都换成只处理「当前这一个 effect」的懒加载版（函数体在注入块里）。
+FXS_OLD = 'FXS = parseXml(xmlText);'
+FXS_NEW = 'FXS = __loadFxInit();   /* make_preview 注入：懒解析，只解析当前这一个 effect */'
+SYS_OLD = ('FXS.forEach(function(E, ei){ E.emitters.forEach(function(em){ '
+           'var s=makeSystem(em); s.fxIdx=ei; systems.push(s); }); });')
+SYS_NEW = '__buildSystems();   /* make_preview 注入：懒建系统，只建当前这一个 effect 的 */'
 
 
 def _must_replace(t, old, new, what):
@@ -396,6 +622,9 @@ def build_html(tpl, xml_s, smoke_b64, three_js, js_block, title, latin="LWN 粒�
     t = _must_replace(t, U_TEX_OLD, U_TEX_NEW, "uTex 贴图选择")
     # 多 effect 同时发射（原逻辑只亮「当前阶段」）
     t = _must_replace(t, ACTIVE_OLD, ACTIVE_NEW, "active 判定行")
+    # 懒解析 + 懒建系统（必须在注入 js_block 之前换：这两行在文档里比注入点靠前）
+    t = _must_replace(t, FXS_OLD, FXS_NEW, "build(): FXS = parseXml(xmlText)")
+    t = _must_replace(t, SYS_OLD, SYS_NEW, "build(): 粒子系统构建循环")
     # 注入通用化块（必须在 build() 之前）
     t = _must_replace(t, ANCHOR_OLD, js_block + "\n" + ANCHOR_OLD, "buildEnv() 注入点")
     # 标题：文档标题 / 大标题 / 拉丁副标题（模板里写死的是「阴魔斩 · 3-phase」）
@@ -444,7 +673,11 @@ def main():
     if not os.path.exists(smoke):
         raise SystemExit("默认贴图不存在：%s\n  （它跟预览器放在一起：preview/smoke_d_256.png；"
                          "也可以用 --texture 指定别的 PNG）" % smoke)
-    smoke_b64 = b64_of(smoke)
+    # 🔴 默认贴图同样要先「图集切一格」：原版 smoke_d 是 2×2 图集（四个不同的烟团），
+    #    整张贴上去 = 每颗粒子画出 4 个（用户实测截图就是这个）。
+    smoke_b64, _note = _tex_b64_cropped(smoke)
+    if _note:
+        log("默认贴图 %s: %s" % (os.path.basename(smoke), _note))
     three_js, src = three_js_inline(a.three)
     log("three.js: %s (%s)" % ("内联" if three_js else "CDN", src))
 

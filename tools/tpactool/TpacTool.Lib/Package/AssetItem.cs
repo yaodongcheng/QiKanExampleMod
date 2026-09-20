@@ -50,6 +50,11 @@ namespace TpacTool.Lib
 
 		/// <summary>加载时捕获的元数据原始字节(与引擎写入字节一致; Save 时 RawMeta 优先直写)。</summary>
 		public byte[] RawMeta { set; get; }
+
+		/// <summary>🔴 元数据后面那个 8 字节字段（库作者注释写作 "wtf checksum"）。
+		/// 原先 Load 读出来就丢、Save 硬写 0 → **任何 Save 过的包，每个资产都有 8 字节被清零**
+		/// （实测 roundtrip 一个 6 资产小包 = 48 字节被改）。原样搬运才谈得上"保真保存"。</summary>
+		public long UnknownMetadataChecksum { set; get; }
 		public virtual void ReadMetadata([NotNull] BinaryReader stream, int totalSize)
 		{
 			// skip metadata without processing

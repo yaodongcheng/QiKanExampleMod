@@ -13,10 +13,10 @@
 
 ```
 D:\BrainMaker\骑砍2动画重定向\
-├─ pipeline   ->  junction，指向本目录的 pipeline/   ← 同一份代码，改哪边都是改同一份
+├─ pipeline   ->  junction，指向本目录的 pipeline/   ← 同一份文件，改哪边都是改同一份
 ├─ docs       ->  junction，指向本目录的 docs/
 ├─ viewer     ->  junction，指向本目录的 viewer/
-├─ README.md      ★ 项目总纲：27 条硬约束、事故记录、算法结论 —— 动手前先读它
+├─ README.md  ->  符号链接，指向本目录的 项目总纲.md  （junction 只支持目录，文件跨盘符要用符号链接）
 ├─ UEAnims\       8.0 GB  六个原始素材包（CMU / 3583 / GhostSamurai / SuperheroFlight …）—— 不可再生
 ├─ input\         2.2 GB  源 FBX + 盘点表 + 骑砍目标骨架
 ├─ output\        238 MB  产物：fbx/ trf/ glb/ verify/
@@ -83,7 +83,8 @@ loc = rest.to_3x3() @ pb.location                          # 平移：纯增量�
 
 ```
 tools/anim-retarget/
-├─ README.md                      本文件
+├─ README.md                      本文件（工具怎么跑）
+├─ 项目总纲.md                     ★ 整个工程的总纲：27 条硬约束、事故记录、算法结论 —— 动手前先读
 ├─ pipeline/                      ★ 代码真身
 │   ├─ common/                    【通用层】与「哪套骨架」无关
 │   │   ├─ fbx_to_trf.py          ★ TRF 导出器（唯一的，引擎语义见上一节）
@@ -114,7 +115,7 @@ tools/anim-retarget/
 
 | | 内容 | 为什么 |
 |---|---|---|
-| ✅ 进 | `pipeline/**`、`docs/**`（除教学视频）、`viewer/{viewer.html,serve.py,*.bat,lib/}`、`viewer/datasets/**/*.json` | 代码 + 文档 + 数据集元数据。**🔴 成对动画那 11 组手调站位参数就在 `viewer/datasets/ue_exec_pair/dataset.json` 里**，它是纯手工产出、重建不了，是全仓库最该保的东西之一 |
+| ✅ 进 | `项目总纲.md`、`README.md`、`pipeline/**`、`docs/**`（除教学视频）、`viewer/{viewer.html,serve.py,*.bat,lib/}`、`viewer/datasets/**/*.json` | 代码 + 文档 + 数据集元数据。**🔴 成对动画那 11 组手调站位参数就在 `viewer/datasets/ue_exec_pair/dataset.json` 里**，它是纯手工产出、重建不了，是全仓库最该保的东西之一 |
 | ❌ 不进 | `viewer/datasets/*/assets/`（137MB GLB） | 烘焙产物，可由 `input/source/*.fbx` 重生成 |
 | ❌ 不进 | `viewer/datasets/*/_backup/` | `serve.py` 保存时自动滚动的备份。**`dataset.json` 进 git 后，版本历史取代了它的作用** |
 | ❌ 不进 | `docs/教程存档/*.mp4`（24MB） | 教学视频，不算源 |
@@ -139,7 +140,7 @@ tools/anim-retarget/
 
 | 要什么 | 去哪 |
 |---|---|
-| **27 条硬约束 / 事故记录 / 算法结论** | `D:\BrainMaker\骑砍2动画重定向\README.md`（项目总纲） |
+| **27 条硬约束 / 事故记录 / 算法结论** | [项目总纲.md](项目总纲.md)（= `D:\BrainMaker\骑砍2动画重定向\README.md`，同一份文件） |
 | 骨骼映射与报错速查 | `docs/README_骨骼经验.md` |
 | TRF 格式与语义 | `docs/TRF规范.md` |
 | 查看器（看动画/调成对站位） | `D:\BrainMaker\骑砍2动画重定向\viewer\启动查看器.bat`，或本仓库的 `tools/anim-retarget/viewer/启动查看器.bat`——两边同一份。**别用 `python -m http.server`**，它不带 `no-store` 也没有保存接口 |

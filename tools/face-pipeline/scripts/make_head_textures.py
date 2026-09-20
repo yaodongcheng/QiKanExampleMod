@@ -19,6 +19,9 @@
 #   · 源图尺寸与目标不一致时按 LANCZOS 缩放；长宽比差异会被拉到正方形（源贴图是 8201x8192
 #     这类非 2 次幂，差 0.01% 量级，UV 偏移 <0.5px，可忽略）
 #   · 只写 _d/_n/_s/mouth_d/eye_d 这 5 张——男头是 3 件（脸/眼/嘴），没有睫毛/眉毛/眼影件
+#   · `--tint-level`（2026-09-21 加）：脸 _d 可选「洗底」——源模型的成品肤色再被引擎的肤色
+#     乘子乘一遍 = 白档发黄、黑档变黑人（机制见 plans/rules/wheels.d/assets.md §17.3）。
+#     ⚠️ 档位是**逐脸定**的，别全局一个数；0 = 不动（默认，行为不变）。
 import argparse
 import os
 import sys
@@ -27,6 +30,27 @@ try:
     from PIL import Image, ImageOps
 except ImportError:
     sys.exit("需要 Pillow：pip install pillow")
+import numpy as np
+
+# 洗底的公式只有一份实现（tint_face_texture.py）—— 这里 import 复用，别抄第二份
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tint_face_texture as _tint
+
+
+def tint(im, ref_path, level):
+    """把脸 _d 朝参照（原版/xxFemale 那种「淡底图」）洗一档。"""
+    A = np.asarray(im.convert("RGB")).astype(float)
+    R = np.asarray(Image.open(ref_path).convert("RGB")).astype(float)
+    cur, tgt = _tint.skin_median(A), _tint.skin_median(R)
+    gain = (tgt / np.maximum(cur, 1e-6)) ** level
+    s = 1.0
+    for _ in range(6):                       # 高光滚降会吃掉一点，迭代补回（同 tint_face_texture）
+        got = _tint.skin_median(_tint.apply_curve(A, gain, s))
+        s *= float(np.mean((cur + (tgt - cur) * level) / np.maximum(got, 1e-6)))
+    O = np.clip(_tint.apply_curve(A, gain, s), 0, 255)
+    print("  洗底 level=%.2f：亮度 %.1f → %.1f（参照 %.1f）"
+          % (level, cur.mean(), _tint.skin_median(O).mean(), tgt.mean()))
+    return Image.fromarray(O.astype(np.uint8))
 
 
 def load(src_dir, name):
@@ -67,13 +91,23 @@ def main():
     #    脸图集上，贴图给 512 等于把 2048 的脸图缩到 1/4，牙齿直接糊掉；而眼球有自己的一张
     #    独立图（1024²），给 2048 只是白白放大。两者该给不同尺寸。
     ap.add_argument("--eye-size", type=int, default=None, help="眼贴图边长（默认 = --small-size）")
+    # 🔴 洗底（2026-09-21 加）：脸 _d 的肤色底太"成品" → 引擎再乘一遍肤色 = 整体偏暗偏黄。
+    #    档位 0~1（0=不动）。参照固定用 xxFemale 的 `head_female_x*_d.png`（= 能正常工作的淡底图）。
+    ap.add_argument("--tint-level", type=float, default=0.0, help="脸 _d 洗底档位 0~1（默认 0=不动）")
+    ap.add_argument("--tint-ref", default=None,
+                    help="洗底参照贴图；--tint-level > 0 时必填（xxFemale 的 head_female_x*_d.png）")
     a = ap.parse_args()
 
     os.makedirs(a.out, exist_ok=True)
     print("源: %s\n目标: %s\n前缀: %s" % (a.src, a.out, a.name))
 
-    # 1) 脸 diffuse
-    save(square(load(a.src, a.face_d), a.face_size), a.out, "%s_d.png" % a.name)
+    # 1) 脸 diffuse（可选洗底；档位逐脸定，见文件头 --tint-level）
+    face_d = square(load(a.src, a.face_d), a.face_size)
+    if a.tint_level > 0:
+        if not a.tint_ref:
+            sys.exit("--tint-level > 0 时必须同时给 --tint-ref")
+        face_d = tint(face_d, a.tint_ref, a.tint_level)
+    save(face_d, a.out, "%s_d.png" % a.name)
     # 2) 脸 normal
     save(square(load(a.src, a.face_n), a.normal_size), a.out, "%s_n.png" % a.name)
     # 3) 脸 _s = R 金属度 / G 1−粗糙度 / B AO(255)
