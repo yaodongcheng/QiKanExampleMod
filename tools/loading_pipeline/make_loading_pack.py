@@ -28,7 +28,7 @@ import sys
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TPACCLI = os.path.join(HERE, "..", "face-pipeline", "tpactool", "TpacToolCLI", "bin", "Release", "net9.0", "tpaccli.exe")
+TPACCLI = os.path.join(HERE, "..", "tpactool", "TpacToolCLI", "bin", "Release", "net9.0", "tpaccli.exe")
 
 CAT = "taikou_loading"           # SpriteCategory 名（纹理键名 = {CAT}_{N} 短名）
 HILITE_W, HILITE_H = 1920, 1080  # loading 窗口显示尺寸（渲染按 widget 拉伸）

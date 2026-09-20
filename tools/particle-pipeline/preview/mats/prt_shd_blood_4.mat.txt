@@ -1,0 +1,15 @@
+﻿material prt_shd_blood_4
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = [dont_draw_to_gbuffer,no_modify_depth_buffer]
+  vertexLayoutFlags = [bumpmap]
+  blend = add_modulate_combined
+  shader = bd782b1a-c085-4cdb-bbe6-d023658ef5a7
+  shaderFlags = [use_specular,use_sunlight,use_normalmap]
+  alphaTest = 0
+  extra: ao=1 spec=0.1 gloss=0.4
+  tex[0] = 6c48b5bf-de31-42ce-a3c0-14a76c27edc7 (blood19_sprite_horizontal)
+  tex[1] = c0ae82a5-caba-4165-a776-fdfe8fe14491 (physically_based_chrome_s)
+  tex[2] = 90a1733f-d650-4b75-9cbb-7f990314cea2 (blood19_sprite_horizontal_n)
+  tex[4] = a65a3227-0d5c-40b0-81b7-212353380da3 (physically_based_chrome)

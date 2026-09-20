@@ -1,0 +1,24 @@
+{
+  "_说明": "阴魔斩样张的『视图配置』—— XML 里根本没有的那几个演出参数：阶段划分 / 发射点路径 / 相机 / 是否画替身网格。这三个值原来是写死在 render_still.py 里的，2026-09-20 抽到这里，好让别的 XML 也能用同一个渲染器。用法：python preview/render_still.py --xml <生成的 yinmo_slash.xml> --view examples/yinmo.view.json --t 3.20 --out out.png",
+
+  "meshes": true,
+
+  "camera": { "look": [0.0, -0.15, 0.0], "dist": 8.6 },
+
+  "phases": [
+    {
+      "label": "蓄力", "fx": 0, "from": 0.00, "to": 1.50,
+      "anchor": [0.36, 0.60, 0.0]
+    },
+    {
+      "label": "爆开", "fx": 1, "from": 1.50, "to": 2.40,
+      "anchor": [0.0, -0.35, 0.0]
+    },
+    {
+      "label": "残迹", "fx": 2, "from": 1.72, "to": 5.40,
+      "anchor": [-1.2, -0.2, 0.0],
+      "anchor_to": [11.8, -0.2, 0.0],
+      "camera": { "look": [3.4, 0.15, 0.0], "dist": 11.0 }
+    }
+  ]
+}

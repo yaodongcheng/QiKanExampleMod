@@ -58,7 +58,7 @@
 ## 关键文件速查
 
 - CLI 全部命令：`tools/face-pipeline/README.md`
-- makeface 源代码骨架：`tpactool/TpacToolCLI/Program.cs`（MakeFace/ParseDds/roundtrip）
+- makeface 源代码骨架：`tools/tpactool/TpacToolCLI/Program.cs`（MakeFace/ParseDds/roundtrip）
 - 有效参考包：`Modules/GT_Face/AssetPackages/pack0.tpac`（换脸 mod 卡，模板纹理来源）
 - 打包产物示例：见 `ShokuhoTaikouExpansionPack/AssetPackages/`（lwn_femhead_copy.tpac 等；旧 dist/FaceCustomLWN 已删除——贴图替换路线判废，见脸部系统分析 §十）
 - 系统知识：`Knowledge/脸部系统分析.md`

@@ -27,7 +27,7 @@ except Exception:
     pass
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))     # LivingWorldNpcs 模块根
-TPACCLI = os.path.join(REPO, "tools", "face-pipeline", "tpactool", "TpacToolCLI",
+TPACCLI = os.path.join(REPO, "tools", "tpactool", "TpacToolCLI",
                        "bin", "Release", "net9.0", "tpaccli.exe")
 WORK = os.path.join(REPO, "Debug", "offline", "自定义头", "tifa_postpublish")
 

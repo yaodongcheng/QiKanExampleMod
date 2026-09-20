@@ -86,6 +86,13 @@ tools/anim-retarget/output/
 tools/anim-retarget/UEAnims/
 tools/anim-retarget/_legacy/
 
+# particle-pipeline（粒子特效工具链：UE/手写 spec -> 骑砍 XML -> 离线自包含预览页）
+#   同样的两根设计：代码进库、数据在 D:\BrainMaker\骑砍2粒子特效复刻\（见 tools/particle-pipeline/README.md §1），
+#   两边用 junction 连成一份。所有产物（XML / 预览页 / 静帧）都落数据根，本目录本不该有产物。
+tools/particle-pipeline/out/
+#   下面是【防御性兜底】：防的是将来有人在工具目录里误跑出产物、或把数据拷进来
+tools/particle-pipeline/**/out/
+
 # ── 不同步 AIInfluence 子项目 ──
 ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
 

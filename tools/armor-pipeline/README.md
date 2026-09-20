@@ -173,7 +173,7 @@ T_bl[b] = Translate(骑砍骨头) · Rot(仅手臂) · Scale(R) · Translate(-(M
 |---|---|
 | 官方骨架 | `<游戏根>/modding_resources/skeletons/human_skeleton.fbx`（28 骨，名字自带索引） |
 | 原版身体（含权重） | `tpaccli dump --packdir Debug/offline/自定义头/core_game --filter body_male_a --format fbx --out Debug/offline/自定义头/core_game/fbx/body` |
-| tpaccli | `tools/face-pipeline/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe` |
+| tpaccli | `tools/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe` |
 | Blender | `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`（自带 numpy，KD-tree 用 `mathutils.kdtree`） |
 | 源件（本例） | `D:\BrainMaker\战国无双2资产解包分析\export\fbx\L00_yukimura.fbx` |
 

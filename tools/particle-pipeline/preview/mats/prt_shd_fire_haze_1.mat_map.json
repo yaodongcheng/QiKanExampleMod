@@ -1,0 +1,17 @@
+{
+  "mesh": "prt_shd_fire_haze_1",
+  "guid": "a83c6bcf-ecf1-4baf-b20f-af96459f7970",
+  "default_material": null,
+  "default_material_type": null,
+  "submeshes": [
+    {
+      "name": "prt_shd_fire_haze_1",
+      "lod": 0,
+      "material": "prt_shd_fire_haze_1",
+      "second_material": null,
+      "textures": {
+        "0": "default_random_blurred"
+      }
+    }
+  ]
+}

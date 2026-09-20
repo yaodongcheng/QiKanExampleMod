@@ -1,0 +1,13 @@
+﻿material prt_shd_dust_2
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = [dont_draw_to_gbuffer,no_modify_depth_buffer,needs_forward_rendering]
+  vertexLayoutFlags = []
+  blend = add_modulate_combined
+  shader = bd782b1a-c085-4cdb-bbe6-d023658ef5a7
+  shaderFlags = [use_sunlight]
+  alphaTest = 0
+  extra: ao=1 spec=1 gloss=1
+  tex[0] = 19e8b4ed-ca8e-4d7b-b34e-2c83e3a071b7 (dust2_d)
+  tex[2] = 3c78c8e2-7754-42ec-8f73-68a85461f1cc (dust_n)

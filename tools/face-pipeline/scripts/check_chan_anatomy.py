@@ -58,7 +58,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-TPACCLI = os.path.join(REPO, "tools", "face-pipeline", "tpactool", "TpacToolCLI",
+TPACCLI = os.path.join(REPO, "tools", "tpactool", "TpacToolCLI",
                        "bin", "Release", "net9.0", "tpaccli.exe")
 
 # 判据表：帧号 → (帧名, 检查类型, 阈值)

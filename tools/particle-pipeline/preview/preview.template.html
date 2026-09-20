@@ -1,0 +1,946 @@
+<title>阴魔斩 · 粒子台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --void:#07060d; --panel:#100e1a; --panel-2:#161327;
+    --line:#241f3a; --line-soft:#1b1730;
+    --ink:#e9e5f7; --muted:#837da0; --dim:#5d5878;
+    --jade:#5eead4; --violet:#8b6cff; --ember:#ffb066; --rose:#ff6b8a;
+    --cjk:"Songti SC","Noto Serif CJK SC","Source Han Serif SC",SimSun,serif;
+    --ui:"IBM Plex Sans",system-ui,-apple-system,"Microsoft YaHei",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    --rail:330px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--void);color:var(--ink);font-family:var(--ui);
+       font-size:14px;line-height:1.5;overflow:hidden}
+  .app{position:relative;height:100%;width:100%}
+
+  #gl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+  #gl:active{cursor:grabbing}
+
+  header{
+    position:absolute;top:0;left:0;right:var(--rail);
+    padding:calc(env(safe-area-inset-top,0px) + 16px) 20px 14px;
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;pointer-events:none;
+  }
+  header h1{font-family:var(--cjk);font-size:30px;font-weight:600;margin:0;
+    letter-spacing:.14em;text-shadow:0 1px 24px rgba(0,0,0,.55)}
+  header .latin{font-family:var(--mono);font-size:11px;font-weight:500;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--rose);opacity:.9}
+  header .id{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:auto}
+
+  /* 阶段指示 */
+  .phases{position:absolute;left:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
+    display:flex;gap:8px;flex-wrap:wrap}
+  .ph{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+    padding:5px 11px;border-radius:99px;border:1px solid var(--line);
+    color:var(--dim);background:rgba(10,9,18,.6);backdrop-filter:blur(6px);
+    transition:color .18s,border-color .18s,background .18s}
+  .ph.on{color:var(--ink);border-color:var(--rose);background:rgba(255,107,138,.16)}
+  .ph .t{opacity:.55;margin-left:6px}
+
+  .rail{position:absolute;top:0;right:0;bottom:0;width:var(--rail);
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border-left:1px solid var(--line);display:flex;flex-direction:column;
+    overflow-y:auto;overscroll-behavior:contain;
+    padding:calc(env(safe-area-inset-top,0px) + 16px) 0 calc(env(safe-area-inset-bottom,0px) + 16px)}
+  .rail-head{padding:0 18px 12px;border-bottom:1px solid var(--line-soft);
+    display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .rail-head .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--dim)}
+  .total{font-family:var(--mono);font-size:12px;color:var(--jade);font-variant-numeric:tabular-nums}
+
+  .controls{display:flex;gap:6px;padding:12px 18px 4px;flex-wrap:wrap}
+  button{font-family:var(--ui);font-size:12px;font-weight:500;color:var(--ink);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:5px;
+    padding:6px 12px;cursor:pointer;transition:border-color .14s,color .14s,background .14s}
+  button:hover{border-color:var(--jade);color:var(--jade)}
+  button:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+  button[aria-pressed="true"]{border-color:var(--jade);color:var(--jade);background:rgba(94,234,212,.09)}
+
+  .grp{padding:14px 18px 0}
+  .grp .gh{font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--rose);margin-bottom:8px;opacity:.85}
+  .em{border:1px solid var(--line-soft);border-radius:7px;background:rgba(10,9,18,.55);
+    padding:10px 12px 11px;margin-bottom:8px}
+  .em[data-off="1"]{opacity:.4}
+  .em-top{display:flex;align-items:center;gap:8px}
+  .swatch{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+  .em-name{font-family:var(--mono);font-size:11.5px;font-weight:500}
+  .em-n{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:auto;
+    font-variant-numeric:tabular-nums}
+  .em-sub{font-size:11px;color:var(--muted);margin:3px 0 7px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .blend{font-family:var(--mono);font-size:9.5px;padding:1px 6px;border-radius:3px;
+    border:1px solid var(--line);color:var(--dim)}
+  .blend[data-b="modulate"]{color:var(--violet);border-color:rgba(139,108,255,.45)}
+  .blend[data-b="add"]{color:var(--jade);border-color:rgba(94,234,212,.35)}
+  .em button.mini{padding:2px 8px;font-size:11px;margin-bottom:7px}
+
+  .sl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin-top:7px}
+  .sl label{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .sl output{font-family:var(--mono);font-size:10.5px;color:var(--jade);font-variant-numeric:tabular-nums}
+  .sl input[type=range]{grid-column:1/-1;width:100%;height:15px;margin:0;
+    -webkit-appearance:none;appearance:none;background:transparent;cursor:pointer}
+  .sl input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line);border-radius:2px}
+  .sl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;
+    border-radius:50%;background:var(--jade);margin-top:-4px;box-shadow:0 0 8px rgba(94,234,212,.5)}
+  .sl input[type=range]::-moz-range-track{height:3px;background:var(--line);border-radius:2px}
+  .sl input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;background:var(--jade)}
+  .sl input[type=range]:focus-visible{outline:2px solid var(--jade);outline-offset:4px}
+
+  .note{margin:16px 18px 0;padding-top:14px;border-top:1px solid var(--line-soft);
+    font-size:11.5px;color:var(--muted);line-height:1.62}
+  .note b{color:var(--ink);font-weight:500}
+  .note code{font-family:var(--mono);font-size:10.5px;color:var(--jade)}
+
+  .drawer{position:absolute;left:0;right:var(--rail);bottom:0;max-height:60%;
+    background:rgba(9,8,16,.95);border-top:1px solid var(--line);backdrop-filter:blur(8px);
+    transform:translateY(100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column}
+  .drawer[data-open="1"]{transform:translateY(0)}
+  .drawer-bar{display:flex;align-items:center;gap:10px;padding:9px 18px;
+    border-bottom:1px solid var(--line-soft);flex:0 0 auto}
+  .drawer-bar .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--dim)}
+  .drawer-bar .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto}
+  .drawer pre{margin:0;overflow:auto;flex:1 1 auto;padding:12px 18px 20px;
+    font-family:var(--mono);font-size:11px;line-height:1.6;color:#b8b1d4;white-space:pre}
+  .drawer pre .k{color:var(--violet)} .drawer pre .v{color:var(--jade)}
+
+  @media (max-width:880px){
+    :root{--rail:0px}
+    header{right:0;padding-left:16px;padding-right:16px}
+    header h1{font-size:22px} header .id{display:none}
+    .phases{left:16px;right:16px;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 58px)}
+    .rail{top:auto;left:0;right:0;bottom:0;width:auto;height:auto;max-height:54%;
+      border-left:0;border-top:1px solid var(--line);border-radius:14px 14px 0 0;padding-top:14px;
+      transform:translateY(calc(100% - 46px));transition:transform .22s cubic-bezier(.4,0,.2,1)}
+    .rail[data-open="1"]{transform:translateY(0)}
+    .rail-head{cursor:pointer}
+    .rail-head::after{content:"⌃";font-size:13px;color:var(--dim);transition:transform .2s}
+    .rail[data-open="1"] .rail-head::after{transform:rotate(180deg)}
+    .drawer{right:0;max-height:44%}
+    .drawer:not([data-open="1"]){display:none}
+  }
+  @media (prefers-reduced-motion:reduce){ .drawer,.rail,.ph{transition:none} }
+</style>
+
+<div class="app">
+  <canvas id="gl"></canvas>
+
+  <header>
+    <h1>阴魔斩</h1>
+    <span class="latin">Yinmo Slash · 3-phase</span>
+    <span class="id" id="fxid">—</span>
+  </header>
+
+  <div class="phases" id="phases"></div>
+
+  <aside class="rail" id="rail">
+    <div class="rail-head" id="railHead">
+      <span class="lbl">Emitters</span><span class="total" id="total">0</span>
+    </div>
+    <div class="controls">
+      <button id="btnReplay">重播</button>
+      <button id="btnPause" aria-pressed="false">暂停</button>
+      <button id="btnOrbit" aria-pressed="true">环绕</button>
+      <button id="btnBg" aria-pressed="true">亮背景</button>
+      <button id="btnXml" aria-pressed="false">XML</button>
+    </div>
+    <div id="groups"></div>
+    <p class="note">
+      <b>混合模式是成败关键</b><br>
+      <code>prt_shd_smoke_1</code> = 叠加（发光）；<code>prt_shd_haze_1</code> = <b>乘法压暗</b> ——
+      同一张 <code>smoke_d</code> 贴图，换个材质名就从「发光」变「黑烟」。<br><br>
+      压暗类元素<b>只在亮背景看得见</b>。点「亮背景 / 暗背景」自己对比 —— 这就是参考图用白天场景的原因。<br><br>
+      <b>拖拽旋转 · 滚轮缩放</b>
+    </p>
+  </aside>
+
+  <section class="drawer" id="drawer" data-open="0">
+    <div class="drawer-bar"><span class="lbl">Source</span><span class="meta" id="xmlMeta"></span></div>
+    <pre id="xmlView"></pre>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="text/plain" id="fx-xml">
+__FX_XML__
+</script>
+<script>
+(function(){
+"use strict";
+var NL = String.fromCharCode(10);   // 行分隔符常量（见 CLAUDE 注：补丁工具会吃掉转义序列，一律用它）
+// (removed) ，一律用 NL
+
+/* ============================================================
+   0. 材质 → 混合模式表
+   2026-09-18 对 Native 41 个 prt_shd_* 材质全量实测：
+     add_modulate_combined × 28 → 叠加（发光）
+     modulate              ×  9 → 乘法压暗（黑烟的来源）
+     add_alpha             ×  4 → 常规半透明
+   引擎那边混合模式写在材质上，预览器读不到材质资产，所以在这里查表。
+   ============================================================ */
+var MAT_BLEND = {
+  "prt_shd_smoke_1":"add",
+  "prt_shd_dust_1":"modulate", "prt_shd_fire_haze_1":"modulate", "prt_shd_fire_nm":"modulate",
+  "prt_shd_haze_1":"modulate", "prt_shd_rain_mud_1":"modulate", "prt_shd_rose_a":"modulate",
+  "prt_shd_snow_dust_1":"modulate", "prt_shd_waterfall_dust":"modulate", "prt_shd_water_wave_1":"modulate",
+  "prt_shd_fire_2":"alpha", "prt_shd_fire_3":"alpha", "prt_shd_steam_1":"alpha", "prt_shd_water_splash2":"alpha"
+};
+function blendOf(mat){ return MAT_BLEND[mat] || "add"; }
+
+/* ============================================================
+   1. 解析粒子 XML（支持一个文件里多个 <effect>）
+   ============================================================ */
+function readKeys(c){
+  if (!c) return null;
+  var arr = [], ks = c.querySelectorAll("keys > key");
+  Array.prototype.forEach.call(ks, function(k){
+    arr.push({ t: parseFloat(k.getAttribute("time")), v: k.getAttribute("value") });
+  });
+  return arr.length ? arr : null;
+}
+function decode(s, v3){
+  if (!v3) return parseFloat(s) || 0;
+  var p = String(s).split(",").map(Number);
+  return [p[0]||0, p[1]||0, p[2]||0];
+}
+function sample(keys, t, v3){
+  if (!keys || !keys.length) return v3 ? [1,1,1] : 1;
+  if (t <= keys[0].t) return decode(keys[0].v, v3);
+  var last = keys[keys.length-1];
+  if (t >= last.t) return decode(last.v, v3);
+  for (var i=0;i<keys.length-1;i++){
+    var a=keys[i], b=keys[i+1];
+    if (t>=a.t && t<=b.t){
+      var span=b.t-a.t, u=span<=0?0:(t-a.t)/span;
+      u = u*u*(3-2*u);                                  // smoothstep（引擎用切线 Hermite，此处近似）
+      var va=decode(a.v,v3), vb=decode(b.v,v3);
+      if (v3) return [va[0]+(vb[0]-va[0])*u, va[1]+(vb[1]-va[1])*u, va[2]+(vb[2]-va[2])*u];
+      return va+(vb-va)*u;
+    }
+  }
+  return decode(last.v, v3);
+}
+function parseXml(text){
+  var doc = new DOMParser().parseFromString(text, "application/xml");
+  if (doc.querySelector("parsererror")) throw new Error("XML 解析失败");
+  var effs = [];
+  Array.prototype.forEach.call(doc.querySelectorAll("particle_effects > effect"), function(ef){
+    var E = { name: ef.getAttribute("name"), emitters: [] };
+    Array.prototype.forEach.call(ef.querySelectorAll("emitters > emitter"), function(em, i){
+      var o = { name: em.getAttribute("name"), idx: i, flags:{}, num:{}, rnd:{}, curves:{}, color:null, alpha:null };
+      Array.prototype.forEach.call(em.querySelectorAll("flags > flag"), function(f){
+        o.flags[f.getAttribute("name")] = (f.getAttribute("value")==="true");
+      });
+      Array.prototype.forEach.call(em.querySelectorAll("parameters > parameter"), function(p){
+        var n = p.getAttribute("name");
+        if (n === "particle_color"){ o.color = readKeys(p.querySelector("color")); o.alpha = readKeys(p.querySelector("alpha")); return; }
+        var cu = p.querySelector("curve");
+        if (p.hasAttribute("base")){
+          var base = parseFloat(p.getAttribute("base"))||0, bias = parseFloat(p.getAttribute("bias"))||0;
+          if (cu) o.curves[n] = { base:base, bias:bias,
+              mult: parseFloat(cu.getAttribute("curve_multiplier"))||1, keys: readKeys(cu.querySelector("keys")) };
+          else o.rnd[n] = { base:base, bias:bias };
+        } else if (p.hasAttribute("value")) o.num[n] = p.getAttribute("value");
+      });
+      o.gravity = (o.num.gravity||"0,0,0").split(",").map(Number);
+      o.radius  = parseFloat(o.num.emit_sphere_radius)||0;
+      o.volume  = (o.num.emit_volume||"0,0,0").split(",").map(Number);
+      o.box     = (o.num.emit_volume_type||"box") === "box";
+      var ma    = parseInt(o.num.max_alive_particle_count,10);
+      o.maxAlive = (isFinite(ma)&&ma>0)?ma:1500;
+      o.inherit = parseFloat(o.num.inherit_emitter_velocity)||0;
+      o.damping = o.rnd.damping ? o.rnd.damping.base : 0;
+      o.angDamp = o.rnd.angular_damping ? o.rnd.angular_damping.base : 0;
+      o.ribbon  = (o.num.billboard_type === "turn_to_velocity_side");
+      o.blend   = blendOf(o.num.material);
+      E.emitters.push(o);
+    });
+    effs.push(E);
+  });
+  return effs;
+}
+function rr(a,b){ return a+Math.random()*(b-a); }
+function rnd(o){ return o.base + (Math.random()*2-1)*o.bias; }
+
+/* ============================================================
+   2. 渲染器 / 场景 / 环境（亮暗两套）
+   ============================================================ */
+var canvas = document.getElementById("gl");
+var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(46, 1, 0.05, 400);
+
+var BG = {
+  bright:{ sky:new THREE.Color(0x7d95ad), ground:new THREE.Color(0x93a1ac), grid1:0x5f7284, grid2:0x71889b, fog:0.020 },
+  dark:  { sky:new THREE.Color(0x0a0912), ground:new THREE.Color(0x101018), grid1:0x241f3a, grid2:0x161327, fog:0.030 }
+};
+var bgMode = "bright";
+var groundMesh, grid;
+function buildEnv(){
+  var c = BG[bgMode];
+  renderer.setClearColor(c.sky, 1);
+  scene.fog = new THREE.FogExp2(c.sky.getHex(), c.fog);
+  if (groundMesh){ scene.remove(groundMesh); groundMesh.geometry.dispose(); groundMesh.material.dispose(); }
+  if (grid){ scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+  groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(240,240),
+    new THREE.MeshBasicMaterial({color:c.ground}));
+  groundMesh.rotation.x = -Math.PI/2; groundMesh.position.y = -2.2;
+  scene.add(groundMesh);
+  grid = new THREE.GridHelper(80, 80, c.grid1, c.grid2);
+  grid.material.transparent = true; grid.material.opacity = 0.55;
+  grid.position.y = -2.19;
+  scene.add(grid);
+}
+
+/* 贴图 —— 原版 smoke_d（alpha 承载形状，RGB 恒白） */
+var smokeTex = new THREE.TextureLoader().load("data:image/png;base64,__SMOKE_TEX_B64__");
+smokeTex.minFilter = THREE.LinearFilter; smokeTex.magFilter = THREE.LinearFilter;
+
+/* ============================================================
+   2b. 泛光后处理（自己实现 —— r128 的 UMD 包不含 EffectComposer）
+   ------------------------------------------------------------
+   游戏 VFX 的「发光/外溢/柔和」有一半来自 bloom。没有它，粒子就是贴纸。
+   三趟：亮部提取 → 三级降采样高斯模糊 → 加法合成。
+   ============================================================ */
+var bloomScene = new THREE.Scene();
+var bloomCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+var bloomQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null);
+bloomQuad.frustumCulled = false;
+bloomScene.add(bloomQuad);
+
+var VS_QUAD = "varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }";
+
+var FS_BRIGHT = [
+  "uniform sampler2D tDiffuse; uniform float uThreshold; varying vec2 vUv;",
+  "void main(){ vec4 c=texture2D(tDiffuse,vUv);",
+  "  float l=dot(c.rgb, vec3(0.2126,0.7152,0.0722));",
+  "  float k=max(0.0, l-uThreshold)/max(0.0001, 1.0-uThreshold);",
+  "  gl_FragColor=vec4(c.rgb*k, 1.0); }"
+].join(NL);
+
+var FS_BLUR = [
+  "uniform sampler2D tDiffuse; uniform vec2 uDir; varying vec2 vUv;",
+  "void main(){ vec4 s=texture2D(tDiffuse,vUv)*0.2270270270;",
+  "  s+=texture2D(tDiffuse,vUv+uDir*1.3846153846)*0.3162162162;",
+  "  s+=texture2D(tDiffuse,vUv-uDir*1.3846153846)*0.3162162162;",
+  "  s+=texture2D(tDiffuse,vUv+uDir*3.2307692308)*0.0702702703;",
+  "  s+=texture2D(tDiffuse,vUv-uDir*3.2307692308)*0.0702702703;",
+  "  gl_FragColor=s; }"
+].join(NL);
+
+var FS_COMP = [
+  "uniform sampler2D tScene; uniform sampler2D tB0; uniform sampler2D tB1; uniform sampler2D tB2;",
+  "uniform float uStrength; uniform vec2 uRes; varying vec2 vUv;",
+  "void main(){",
+  "  vec3 c = texture2D(tScene, vUv).rgb;",
+  "  vec3 b = texture2D(tB0,vUv).rgb*0.55 + texture2D(tB1,vUv).rgb*0.85 + texture2D(tB2,vUv).rgb*1.20;",
+  "  c += b * uStrength;",
+  "  c = c / (c + vec3(0.95)) * 1.22;",           // 软性色调映射：只做压缩，不提亮
+  "  gl_FragColor = vec4(c, 1.0); }"
+].join(NL);
+
+var matBright = new THREE.ShaderMaterial({ uniforms:{ tDiffuse:{value:null}, uThreshold:{value:0.86} },
+  vertexShader:VS_QUAD, fragmentShader:FS_BRIGHT, depthTest:false, depthWrite:false });
+var matBlur = new THREE.ShaderMaterial({ uniforms:{ tDiffuse:{value:null}, uDir:{value:new THREE.Vector2()} },
+  vertexShader:VS_QUAD, fragmentShader:FS_BLUR, depthTest:false, depthWrite:false });
+var matComp = new THREE.ShaderMaterial({
+  uniforms:{ tScene:{value:null}, tB0:{value:null}, tB1:{value:null}, tB2:{value:null},
+             uStrength:{value:0.30}, uRes:{value:new THREE.Vector2()} },
+  vertexShader:VS_QUAD, fragmentShader:FS_COMP, depthTest:false, depthWrite:false });
+
+var rtScene = null, rtLv = [];
+function mkRT(w, h, depth){
+  return new THREE.WebGLRenderTarget(Math.max(2, w), Math.max(2, h),
+    { minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat,
+      depthBuffer:!!depth, stencilBuffer:false });
+}
+function setupBloom(w, h){
+  if (rtScene) { rtScene.dispose(); rtLv.forEach(function(p){ p.a.dispose(); p.b.dispose(); }); }
+  rtScene = mkRT(w, h, true);
+  rtLv = [];
+  var lw = w, lh = h;
+  for (var i = 0; i < 3; i++){
+    lw = Math.floor(lw / 2); lh = Math.floor(lh / 2);
+    rtLv.push({ a: mkRT(lw, lh, false), b: mkRT(lw, lh, false), w: Math.max(2, lw), h: Math.max(2, lh) });
+  }
+  matComp.uniforms.uRes.value.set(w, h);
+}
+function postProcess(){
+  bloomQuad.material = matBright;
+  matBright.uniforms.tDiffuse.value = rtScene.texture;
+  renderer.setRenderTarget(rtLv[0].a); renderer.render(bloomScene, bloomCam);
+
+  for (var i = 0; i < 3; i++){
+    var lv = rtLv[i];
+    if (i > 0){                                   // 上一级降采样进来
+      bloomQuad.material = matBlur;
+      matBlur.uniforms.tDiffuse.value = rtLv[i-1].a.texture;
+      matBlur.uniforms.uDir.value.set(0, 0);
+      renderer.setRenderTarget(lv.a); renderer.render(bloomScene, bloomCam);
+    }
+    bloomQuad.material = matBlur;
+    matBlur.uniforms.tDiffuse.value = lv.a.texture;
+    matBlur.uniforms.uDir.value.set(1 / lv.w, 0);
+    renderer.setRenderTarget(lv.b); renderer.render(bloomScene, bloomCam);
+    matBlur.uniforms.tDiffuse.value = lv.b.texture;
+    matBlur.uniforms.uDir.value.set(0, 1 / lv.h);
+    renderer.setRenderTarget(lv.a); renderer.render(bloomScene, bloomCam);
+  }
+  bloomQuad.material = matComp;
+  matComp.uniforms.tScene.value = rtScene.texture;
+  matComp.uniforms.tB0.value = rtLv[0].a.texture;
+  matComp.uniforms.tB1.value = rtLv[1].a.texture;
+  matComp.uniforms.tB2.value = rtLv[2].a.texture;
+  renderer.setRenderTarget(null);
+  renderer.render(bloomScene, bloomCam);
+}
+
+/* ============================================================
+   3. 粒子系统（一个 emitter 一个 Points）
+   ============================================================ */
+var VS = [
+  "attribute float aSize;","attribute float aAlpha;","attribute vec3 aColor;",
+  "varying float vA;","varying vec3 vC;","varying vec2 vUv2;",
+  "uniform float uScale; uniform float uRibbon;",
+  "void main(){",
+  "  vA=aAlpha; vC=aColor; vUv2=uv;",
+  "  vec4 mv = modelViewMatrix * vec4(position,1.0);",
+  "  gl_PointSize = max(1.0, aSize*uScale/max(0.001,-mv.z));",
+  "  gl_Position = projectionMatrix * mv;",
+  "}"
+].join(NL);
+
+// 叠加 / 半透明：直接加色
+var FS_ADD = [
+  "uniform sampler2D uTex;","varying float vA;","varying vec3 vC;",
+  "void main(){ vec4 t=texture2D(uTex,gl_PointCoord); float m=t.a;",
+  "  if(m<0.004) discard; gl_FragColor=vec4(vC, m*vA); }"
+].join(NL);
+
+// 🔴 乘法压暗：alpha=0 处输出纯白（乘 1 = 不改），alpha=1 处输出颜色（压暗）
+var FS_MOD = [
+  "uniform sampler2D uTex;","varying float vA;","varying vec3 vC;",
+  "void main(){ vec4 t=texture2D(uTex,gl_PointCoord); float m=t.a;",
+  "  if(m<0.004) discard; gl_FragColor=vec4(mix(vec3(1.0), vC, m*vA), 1.0); }"
+].join(NL);
+
+function makeSystem(em){
+  var N = Math.min(em.maxAlive, 2600);
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N*3),3));
+  geo.setAttribute("aSize",    new THREE.BufferAttribute(new Float32Array(N),1));
+  geo.setAttribute("aAlpha",   new THREE.BufferAttribute(new Float32Array(N),1));
+  geo.setAttribute("aColor",   new THREE.BufferAttribute(new Float32Array(N*3),3));
+  geo.setDrawRange(0,0);
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+
+  var mat;
+  if (em.blend === "modulate"){
+    mat = new THREE.ShaderMaterial({
+      uniforms:{ uTex:{value:smokeTex}, uScale:{value:600}, uRibbon:{value:0} },
+      vertexShader:VS, fragmentShader:FS_MOD,
+      transparent:true, depthWrite:false, depthTest:true,
+      blending:THREE.CustomBlending,
+      blendSrc:THREE.ZeroFactor, blendDst:THREE.SrcColorFactor,
+      blendSrcAlpha:THREE.ZeroFactor, blendDstAlpha:THREE.OneFactor
+    });
+  } else {
+    mat = new THREE.ShaderMaterial({
+      uniforms:{ uTex:{value:smokeTex}, uScale:{value:600}, uRibbon:{value:0} },
+      vertexShader:VS, fragmentShader:FS_ADD,
+      transparent:true, depthWrite:false,
+      blending: em.blend === "alpha" ? THREE.NormalBlending : THREE.AdditiveBlending
+    });
+  }
+  var pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  scene.add(pts);
+  return { em:em, N:N, geo:geo, points:pts, mat:mat, live:[], acc:0, visible:true,
+           rateMul:1, lifeMul:1, sizeMul:1 };
+}
+
+/* ============================================================
+   4. 替身网格（XML 表达不了的那几样）
+   ============================================================ */
+// 4a. 人形剪影 —— 只提供尺度感，不是美术
+function buildFigure(color){
+  var g = new THREE.Group();
+  var m = new THREE.MeshBasicMaterial({color:color});
+  function add(geo, x,y,z, rx,ry,rz){ var e=new THREE.Mesh(geo,m); e.position.set(x,y,z);
+    if(rx||ry||rz) e.rotation.set(rx||0,ry||0,rz||0); g.add(e); return e; }
+  add(new THREE.CylinderGeometry(0.10,0.09,0.85,8), -0.11,-1.62,0);
+  add(new THREE.CylinderGeometry(0.10,0.09,0.85,8),  0.11,-1.62,0);
+  add(new THREE.CylinderGeometry(0.19,0.16,0.72,10), 0,-0.85,0);
+  add(new THREE.SphereGeometry(0.135,12,10),         0,-0.33,0);
+  // 举起的右臂
+  add(new THREE.CylinderGeometry(0.065,0.055,0.74,8), 0.20,0.02,0, 0,0,-0.42);
+  var hand = add(new THREE.SphereGeometry(0.075,10,8), 0.36,0.60,0);
+  return g;
+}
+var figure = buildFigure(0x5c6675);
+scene.add(figure);
+
+// 4b. 地面法阵环 —— 引擎里应走贴花/网格，粒子排不出干净的环
+var ringMat = new THREE.MeshBasicMaterial({color:0x2a1a22, transparent:true, opacity:0.0,
+  side:THREE.DoubleSide, depthWrite:false, blending:THREE.NormalBlending});
+var runeRing = new THREE.Mesh(new THREE.RingGeometry(3.6, 3.75, 96), ringMat);
+runeRing.rotation.x = -Math.PI/2; runeRing.position.y = -2.16;
+scene.add(runeRing);
+var ring2 = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.26, 80),
+  new THREE.MeshBasicMaterial({color:0x2a1a22, transparent:true, opacity:0, side:THREE.DoubleSide, depthWrite:false}));
+ring2.rotation.x = -Math.PI/2; ring2.position.y = -2.16; scene.add(ring2);
+
+// 4c. 体积球壳 —— 菲涅尔边缘光 + 经线纹 + 3D 噪声体积感
+//     （旧版用「环 + 射线」糊弄，和参考图的半透明体积球差得远）
+var SHELL_VS = [
+  "varying vec3 vN; varying vec3 vV; varying vec3 vP; varying vec2 vUv;",
+  "void main(){ vUv=uv; vN=normalize(normalMatrix*normal);",
+  "  vec4 mv=modelViewMatrix*vec4(position,1.0); vV=normalize(-mv.xyz); vP=position;",
+  "  gl_Position=projectionMatrix*mv; }"
+].join(NL);
+var SHELL_FS = [
+  "uniform vec3 uCore; uniform vec3 uEdge; uniform float uOpacity;",
+  "uniform float uTime; uniform float uStreak;",
+  "varying vec3 vN; varying vec3 vV; varying vec3 vP; varying vec2 vUv;",
+  "float h31(vec3 p){ return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453); }",
+  "float n31(vec3 p){ vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);",
+  "  return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x), mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x), f.y),",
+  "             mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x), mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x), f.y), f.z); }",
+  "void main(){",
+  "  float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0);",
+  "  float lon = atan(vP.z, vP.x);",
+  "  float streak = pow(0.5+0.5*sin(lon*uStreak + uTime*0.6), 8.0);",
+  "  streak *= smoothstep(0.95, 0.15, abs(vP.y));",
+  "  float vol = 0.30 + 0.70*n31(vP*3.2 + vec3(0.0, uTime*0.35, 0.0));",
+  "  vec3 col = mix(uEdge, uCore, clamp(fres*0.75 + streak*0.7, 0.0, 1.0));",
+  "  float a = (fres*0.55 + streak*0.55*vol + vol*0.16) * uOpacity;",
+  "  if (a < 0.004) discard;",
+  "  gl_FragColor = vec4(col, a); }"
+].join(NL);
+var shellUniforms = {
+  uCore:{value:new THREE.Color(0xffd9d2)}, uEdge:{value:new THREE.Color(0xd8233f)},
+  uOpacity:{value:0.0}, uTime:{value:0.0}, uStreak:{value:9.0}
+};
+var shell = new THREE.Mesh(new THREE.SphereGeometry(1, 72, 48), new THREE.ShaderMaterial({
+  uniforms: shellUniforms, vertexShader: SHELL_VS, fragmentShader: SHELL_FS,
+  transparent:true, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending
+}));
+shell.visible = false; scene.add(shell);
+
+// 4c-b. 暗色日冕 —— 🔴 是**朝向相机的径向渐变贴片**，不是球。
+//   踩过两版：①「外面裹一层黑烟粒子」= 蓬松上飘，不是日冕；
+//              ②「球 + 菲涅尔」= 巨大实心灰球，把能量球整个吞掉。
+//   参考图里它就是一个柔和的暗色光晕，中间浓、边缘化开。
+var AURA_FS = [
+  "uniform vec3 uColor; uniform float uOpacity; uniform float uTime;",
+  "varying vec2 vUv;",
+  "void main(){",
+  "  float r = length(vUv - vec2(0.5)) * 2.0;",              // 0=中心 1=边缘
+  "  float core = 1.0 - smoothstep(0.15, 1.0, r);",          // 中间浓、边缘化开
+  "  float wob  = 0.86 + 0.14*sin(atan(vUv.y-0.5, vUv.x-0.5)*3.0 + uTime*1.8);",
+  "  float a = core * core * uOpacity * wob;",
+  "  if (a < 0.004) discard;",
+  "  gl_FragColor = vec4(uColor, a); }"
+].join(NL);
+var auraUniforms = {
+  uColor:{value:new THREE.Color(0x140a18)}, uOpacity:{value:0.0}, uTime:{value:0.0}
+};
+var aura = new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.ShaderMaterial({
+  uniforms: auraUniforms,
+  vertexShader: "varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
+  fragmentShader: AURA_FS,
+  transparent:true, depthWrite:false, side:THREE.DoubleSide, blending:THREE.NormalBlending
+}));
+aura.visible = false; scene.add(aura);
+
+// 4d. 月牙弧（残迹阶段）—— 每个采样点两个顶点（内缘/外缘），厚度两端收成尖
+function crescentGeometry(R, thick, segs, arc){
+  var g=new THREE.BufferGeometry(), v=[], idx=[], uv=[];
+  for (var i=0;i<=segs;i++){
+    var u=i/segs, a=-arc/2+arc*u, w=thick*Math.sin(Math.PI*u);
+    v.push(Math.cos(a)*(R-w), Math.sin(a)*(R-w), 0);   // 内缘
+    v.push(Math.cos(a)*(R+w), Math.sin(a)*(R+w), 0);   // 外缘
+    uv.push(u, 0.0, u, 1.0);                           // u=沿弧，v=跨厚度
+  }
+  for (var j=0;j<segs;j++){ var b=j*2; idx.push(b, b+1, b+2,  b+1, b+3, b+2); }
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv,2));
+  g.setAttribute("position", new THREE.Float32BufferAttribute(v,3));
+  g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+var CRES_FS = [
+  "uniform vec3 uCore; uniform vec3 uEdge; uniform float uOpacity; uniform float uTime;",
+  "varying vec2 vUv;",
+  "void main(){",
+  "  float across = abs(vUv.y*2.0-1.0);",              // 0=中线 1=边缘
+  "  float body = pow(max(0.0,1.0-across), 1.5);",     // 跨厚度软边
+  "  float head = smoothstep(0.42, 1.0, vUv.x);",      // 前端尖锋更亮
+  "  float tail = smoothstep(0.0, 0.22, vUv.x);",      // 尾端收细
+  "  float a = body*head*tail*uOpacity;",
+  "  if (a < 0.004) discard;",
+  "  vec3 c = mix(uEdge, uCore, pow(max(0.0,1.0-across), 3.0));",
+  "  gl_FragColor = vec4(c*(0.65 + head*1.15), a); }"
+].join(NL);
+var cresUniforms = { uCore:{value:new THREE.Color(0xffe6e0)}, uEdge:{value:new THREE.Color(0xd4103a)},
+                     uOpacity:{value:0.0}, uTime:{value:0.0} };
+var crescent = new THREE.Mesh(crescentGeometry(1.0,0.032,120,Math.PI*0.88),
+  new THREE.ShaderMaterial({ uniforms:cresUniforms, vertexShader:SHELL_VS, fragmentShader:CRES_FS,
+    transparent:true, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending }));
+crescent.visible=false; scene.add(crescent);
+
+/* ============================================================
+   5. 时间线：蓄力 → 爆开 → 残迹
+   ============================================================ */
+var T = { t:0, total:5.6, playing:true };
+var PL = [
+  { key:"charge", label:"蓄力", from:0.00, to:1.50, fx:0 },
+  { key:"burst",  label:"爆开", from:1.50, to:2.40, fx:1 },
+  { key:"trail",  label:"残迹", from:1.72, to:5.40, fx:2 }
+];
+function phaseAt(t){ for (var i=0;i<PL.length;i++) if (t>=PL[i].from && t<PL[i].to) return PL[i]; return null; }
+
+var HAND = new THREE.Vector3(0.36, 0.60, 0);      // 举起的手（人形局部坐标）
+var CENTER = new THREE.Vector3(0, -0.35, 0);
+var travelFrom = new THREE.Vector3(-1.2, -0.2, 0);
+function trailPos(t){
+  var u = Math.max(0, Math.min(1, (t-1.72)/(5.40-1.72)));
+  return new THREE.Vector3(
+    travelFrom.x + 13*u,
+    travelFrom.y,                       // 直线 —— 剑气不受重力
+    0.0
+  );
+}
+function anchorOf(fxIdx, t){
+  if (fxIdx===0) return HAND.clone();
+  if (fxIdx===1) return CENTER.clone();
+  return trailPos(t);
+}
+function emitterVelocity(fxIdx, t){
+  if (fxIdx===2){ var a=trailPos(t-0.02), b=trailPos(t+0.02); return b.sub(a).divideScalar(0.04); }
+  return new THREE.Vector3();
+}
+
+/* ============================================================
+   6. 装配
+   ============================================================ */
+var FXS = [], systems = [];
+var xmlText = document.getElementById("fx-xml").textContent.trim();
+
+function build(){
+  systems.forEach(function(s){ scene.remove(s.points); s.geo.dispose(); s.mat.dispose(); });
+  systems = [];
+  FXS = parseXml(xmlText);
+  FXS.forEach(function(E, ei){ E.emitters.forEach(function(em){ var s=makeSystem(em); s.fxIdx=ei; systems.push(s); }); });
+  renderUI();
+}
+
+/* ============================================================
+   7. 模拟
+   ============================================================ */
+function spawn(S, origin, ev){
+  var em=S.em;
+  var dx=rr(-1,1), dy=rr(-1,1), dz=rr(-1,1);
+  var l=Math.sqrt(dx*dx+dy*dy+dz*dz)||1, rad=em.radius*Math.cbrt(Math.random());
+  var px,py,pz;
+  if (em.box){
+    px=origin.x+rr(-em.volume[0],em.volume[0]);
+    py=origin.y+rr(-em.volume[1],em.volume[1]);
+    pz=origin.z+rr(-em.volume[2],em.volume[2]);
+  } else {
+    px=origin.x+dx/l*rad; py=origin.y+dy/l*rad; pz=origin.z+dz/l*rad;
+  }
+  var vx=em.rnd.emit_velocity_x?rnd(em.rnd.emit_velocity_x):0;
+  var vy=em.rnd.emit_velocity_y?rnd(em.rnd.emit_velocity_y):0;
+  var vz=em.rnd.emit_velocity_z?rnd(em.rnd.emit_velocity_z):0;
+  vx+=ev.x*em.inherit; vy+=ev.y*em.inherit; vz+=ev.z*em.inherit;
+  var life=(em.rnd.particle_life?rnd(em.rnd.particle_life):1)*S.lifeMul;
+  if (life<0.02) life=0.02;
+  var psz=em.rnd.particle_size||em.curves.particle_size;
+  S.live.push({x:px,y:py,z:pz,vx:vx,vy:vy,vz:vz,age:0,life:life,
+               s0:psz?rnd(psz):0.2,
+               rs:em.rnd.emit_rotation_speed?rr(-em.rnd.emit_rotation_speed.bias,em.rnd.emit_rotation_speed.bias):0});
+}
+function stepSystems(dt){
+  var ph = phaseAt(T.t);
+  for (var k=0;k<systems.length;k++){
+    var S=systems[k], em=S.em, active = ph && ph.fx===S.fxIdx;
+    if (!S.visible || !active){ S.geo.setDrawRange(0,0); if(!active && S.fxIdx!==2){ S.live.length=0; S.acc=0; } continue; }
+    var origin = anchorOf(S.fxIdx, T.t), ev = emitterVelocity(S.fxIdx, T.t);
+
+    var rate=(em.rnd.emission_rate?rnd(em.rnd.emission_rate):0)*S.rateMul;
+    S.acc += rate*dt;
+    var guard=0;
+    while (S.acc>=1 && S.live.length<S.N && guard++<600){ S.acc-=1; spawn(S,origin,ev); }
+    if (S.acc>6) S.acc=6;
+
+    for (var i=S.live.length-1;i>=0;i--){
+      var p=S.live[i], damp=Math.exp(-em.damping*dt);
+      p.vx*=damp; p.vy*=damp; p.vz*=damp;
+      p.vx+=em.gravity[0]*dt; p.vy+=em.gravity[1]*dt; p.vz+=em.gravity[2]*dt;
+      p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt;
+      p.age+=dt; p.rot+=p.rs*Math.exp(-em.angDamp*dt)*dt;
+      if (p.age>=p.life) S.live.splice(i,1);
+    }
+    var pos=S.geo.attributes.position.array, sz=S.geo.attributes.aSize.array,
+        al=S.geo.attributes.aAlpha.array, co=S.geo.attributes.aColor.array, n=S.live.length;
+    for (var q=0;q<n;q++){
+      var o=S.live[q], u=o.age/o.life;
+      var size=o.s0, cv=em.curves.particle_size;
+      if (cv) size += sample(cv.keys,u,false)*cv.mult;
+      size*=S.sizeMul;
+      var c=em.color?sample(em.color,u,true):[1,1,1];
+      var a=em.alpha?sample(em.alpha,u,false):1;
+      pos[q*3]=o.x; pos[q*3+1]=o.y; pos[q*3+2]=o.z;
+      sz[q]=size; al[q]=a; co[q*3]=c[0]; co[q*3+1]=c[1]; co[q*3+2]=c[2];
+    }
+    S.geo.setDrawRange(0,n);
+    S.geo.attributes.position.needsUpdate=true; S.geo.attributes.aSize.needsUpdate=true;
+    S.geo.attributes.aAlpha.needsUpdate=true; S.geo.attributes.aColor.needsUpdate=true;
+  }
+}
+
+/* ============================================================
+   8. 替身网格的动画
+   ============================================================ */
+function stepMeshes(){
+  var t=T.t;
+  // 人形：蓄力阶段微微后仰
+  var chg = Math.max(0, Math.min(1,(t-0.2)/1.2));
+  figure.position.y = -0.03*Math.sin(t*3.0)*(t<1.6?1:0);
+  // 地面法阵：蓄力期间浮现并旋转，爆开瞬间消失
+  var ringA = t<1.5 ? Math.min(1,t/0.7)*0.85 : Math.max(0, 1-(t-1.5)/0.35)*0.85;
+  runeRing.material.opacity = ringA;
+  ring2.material.opacity = ringA*0.7;
+  runeRing.rotation.z = t*0.5;  ring2.rotation.z = -t*0.8;
+  // 球壳：爆开阶段 0.55s 内从 0.4 扩到 6.5，然后快速淡出
+  if (t>=1.5 && t<=2.4){
+    var u=(t-1.5)/0.9, r=0.4+6.6*Math.pow(u,0.55);
+    shell.visible=true; shell.scale.setScalar(r);
+    shellUniforms.uOpacity.value = Math.max(0, 1-Math.pow(u,1.5))*1.15;
+    shellUniforms.uTime.value = t;
+  } else { shell.visible=false; }
+  // 暗晕球：蓄力阶段贴身裹在能量球外（球心 = 举起的右手）
+  if (t < 1.62){
+    var hu = Math.min(1, t/0.8);
+    aura.visible = true;
+    aura.position.set(HAND.x, HAND.y, HAND.z);
+    aura.scale.setScalar(0.55 + 0.75*hu);          // 从 0.55m 涨到 1.3m
+    auraUniforms.uOpacity.value = hu*0.92 * (t<1.5 ? 1 : Math.max(0,1-(t-1.5)/0.12));
+    auraUniforms.uTime.value = t;
+  } else { aura.visible = false; }
+  // 月牙：残迹阶段跟着飞
+  // 🔴 不要 lookAt！几何体躺在 XY 平面（法线 = 局部 +Z），含飞行方向 +X 与上方向 +Y。
+  //    一旦 lookAt 让 +Z 对准飞行方向，法线就与视线平行 → 刃面侧对镜头 → 只剩一条线。
+  //    （实机同理：刀光面片的法线必须垂直于飞行方向，不是沿飞行方向。）
+  if (t>=1.72 && t<=5.40){
+    var p=trailPos(t);
+    crescent.visible=true; crescent.position.copy(p);
+    crescent.quaternion.identity();
+    crescent.scale.setScalar(2.0);
+    var u2=(t-1.72)/(5.40-1.72);
+    var fade = Math.min(1,u2*6) * Math.max(0, 1-Math.pow(u2,2.2));
+    cresUniforms.uOpacity.value = fade;
+    cresUniforms.uTime.value = t;
+  } else { crescent.visible=false; }
+}
+
+/* ============================================================
+   9. 相机
+   ============================================================ */
+var orbit = { theta:0.85, phi:1.40, dist:8.6, auto:true, target:new THREE.Vector3(0,-0.3,0) };
+var look = new THREE.Vector3(0,-0.3,0);
+var drag=null;
+canvas.addEventListener("pointerdown", function(e){ drag={x:e.clientX,y:e.clientY};
+  canvas.setPointerCapture(e.pointerId); orbit.auto=false; syncOrbit(); });
+canvas.addEventListener("pointermove", function(e){ if(!drag) return;
+  orbit.theta-=(e.clientX-drag.x)*0.008; orbit.phi-=(e.clientY-drag.y)*0.006;
+  orbit.phi=Math.max(0.42, Math.min(Math.PI-0.42, orbit.phi));
+  drag.x=e.clientX; drag.y=e.clientY; });
+canvas.addEventListener("pointerup", function(){ drag=null; });
+canvas.addEventListener("wheel", function(e){ e.preventDefault();
+  orbit.dist=Math.max(2.5, Math.min(40, orbit.dist*(1+Math.sign(e.deltaY)*0.09))); }, {passive:false});
+
+function updateCamera(dt){
+  if (orbit.auto) orbit.theta += dt*0.10;
+  // 目标跟着当前阶段的重心走 —— 但只跟 0.35，保证人和特效同框（参考图就是这个构图）
+  // 🔴 残迹阶段固定取景 —— 跟着飞行物跑会让它整段飞出画面（与离屏渲染器同因）
+  var want = new THREE.Vector3(0,-0.3,0);
+  if (T.t>=1.72 && T.t<=5.40) want.set(3.4, 0.15, 0);
+  look.lerp(want, 1-Math.pow(0.02, dt));
+  var sp=Math.sin(orbit.phi), cp=Math.cos(orbit.phi);
+  camera.position.set(look.x+orbit.dist*sp*Math.cos(orbit.theta),
+                      look.y+orbit.dist*cp, look.z+orbit.dist*sp*Math.sin(orbit.theta));
+  camera.lookAt(look);
+}
+
+/* ============================================================
+   10. 主循环
+   ============================================================ */
+var last=performance.now(), lastTotal=-1;
+function frame(now){
+  requestAnimationFrame(frame);
+  var dt=Math.min((now-last)/1000, 0.05); last=now;
+  if (T.playing){ T.t+=dt; if (T.t>T.total){ T.t=0; systems.forEach(function(s){s.live.length=0;s.acc=0;}); } }
+  stepSystems(dt);
+  stepMeshes();
+  updateCamera(dt);
+  // 先渲到离屏 RT，再走泛光合成 —— 否则粒子和背景之间没有"外溢"的辉光
+  renderer.setRenderTarget(rtScene);
+  renderer.clear();
+  renderer.render(scene, camera);
+  postProcess();
+  var n=0; for (var i=0;i<systems.length;i++) n+=systems[i].live.length;
+  for (var j=0;j<systems.length;j++){ var el=document.getElementById("cnt"+j); if(el) el.textContent=systems[j].live.length; }
+  if (Math.abs(n-lastTotal)>3){ document.getElementById("total").textContent=n; lastTotal=n; }
+  var ph=phaseAt(T.t);
+  Array.prototype.forEach.call(document.querySelectorAll(".ph"), function(el){
+    el.classList.toggle("on", !!ph && el.getAttribute("data-k")===ph.key);
+  });
+}
+
+/* ============================================================
+   11. UI
+   ============================================================ */
+var ACC=[0xffb066,0xff6b8a,0x8b6cff,0x5eead4,0xffd166,0x9ae66e];
+function colorCss(c){ return "rgb("+Math.round(c[0]*255)+","+Math.round(c[1]*255)+","+Math.round(c[2]*255)+")"; }
+
+function renderUI(){
+  var box=document.getElementById("groups"); box.innerHTML="";
+  document.getElementById("fxid").textContent =
+    FXS.map(function(e){return e.name;}).join(" · ") + " · " + systems.length + " emitters";
+
+  PL.forEach(function(pl){
+    var E=FXS[pl.fx]; if(!E) return;
+    var g=document.createElement("div"); g.className="grp";
+    g.innerHTML='<div class="gh">'+pl.label+' &nbsp;'+pl.from.toFixed(2)+'–'+pl.to.toFixed(2)+'s'+
+                ' &nbsp;·&nbsp; <span style="color:var(--dim)">'+E.name+'</span></div>';
+    E.emitters.forEach(function(em, k){
+      var gi=systems.findIndex(function(s){return s.fxIdx===pl.fx && s.em===em;});
+      var S=systems[gi];
+      var c=em.color?sample(em.color,0.15,true):[1,1,1];
+      var css=colorCss(c);
+      var card=document.createElement("div"); card.className="em";
+      card.innerHTML=
+        '<div class="em-top"><span class="swatch" style="background:'+css+';box-shadow:0 0 8px '+css+'"></span>'+
+        '<span class="em-name">'+em.name+'</span><span class="em-n" id="cnt'+gi+'">0</span></div>'+
+        '<div class="em-sub"><span class="blend" data-b="'+em.blend+'">'+em.blend+'</span>'+
+        '<span>'+(em.num.material||"")+'</span>'+
+        (em.ribbon?'<span>· 丝带</span>':'')+'</div>'+
+        '<button class="mini" data-tog="'+gi+'" aria-pressed="true">启用</button>'+
+        slider(gi,"rate","发射率",0,1400,5,(em.rnd.emission_rate&&em.rnd.emission_rate.base)||0)+
+        slider(gi,"life","寿命",0.15,3,0.05,1)+
+        slider(gi,"size","尺寸",0.2,3,0.05,1);
+      g.appendChild(card);
+    });
+    box.appendChild(g);
+  });
+
+  box.querySelectorAll("[data-tog]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var i=+b.getAttribute("data-tog"); systems[i].visible=!systems[i].visible;
+      b.setAttribute("aria-pressed", systems[i].visible?"true":"false");
+      b.textContent = systems[i].visible?"启用":"已关";
+      b.closest(".em").setAttribute("data-off", systems[i].visible?"0":"1");
+    });
+  });
+  box.querySelectorAll("input[type=range]").forEach(function(inp){
+    inp.addEventListener("input", function(){
+      var i=+inp.getAttribute("data-i"), kind=inp.getAttribute("data-k"), v=parseFloat(inp.value);
+      var base=(systems[i].em.rnd.emission_rate&&systems[i].em.rnd.emission_rate.base)||1;
+      if (kind==="rate") systems[i].rateMul = v/Math.max(1,base);
+      if (kind==="life") systems[i].lifeMul = v;
+      if (kind==="size") systems[i].sizeMul = v;
+      document.getElementById("out"+i+kind).textContent = kind==="rate"?Math.round(v):v.toFixed(2)+"×";
+    });
+  });
+  document.getElementById("xmlMeta").textContent =
+    xmlText.split("\n").length+" 行 · "+(xmlText.length/1024).toFixed(1)+" KB";
+}
+function slider(i,kind,label,min,max,step,val){
+  return '<div class="sl"><label for="s'+i+kind+'">'+label+'</label>'+
+    '<output id="out'+i+kind+'">'+(kind==="rate"?Math.round(val):(+val).toFixed(2)+"×")+'</output>'+
+    '<input type="range" id="s'+i+kind+'" data-i="'+i+'" data-k="'+kind+'" min="'+min+'" max="'+max+
+    '" step="'+step+'" value="'+val+'"></div>';
+}
+
+/* 阶段胶囊 —— 点击跳到该阶段起点（方便逐段验证，不用等） */
+(function(){
+  var h=document.getElementById("phases");
+  PL.forEach(function(p){
+    var d=document.createElement("div"); d.className="ph"; d.setAttribute("data-k",p.key);
+    d.setAttribute("role","button"); d.setAttribute("tabindex","0");
+    d.style.cursor="pointer";
+    d.innerHTML=p.label+'<span class="t">'+p.from.toFixed(1)+'s</span>';
+    function jump(){ T.t=p.from; systems.forEach(function(s){ s.live.length=0; s.acc=0; }); }
+    d.addEventListener("click", jump);
+    d.addEventListener("keydown", function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); jump(); } });
+    h.appendChild(d);
+  });
+})();
+
+document.getElementById("btnReplay").addEventListener("click", function(){
+  T.t=0; systems.forEach(function(s){ s.live.length=0; s.acc=0; });
+});
+document.getElementById("btnPause").addEventListener("click", function(){
+  T.playing=!T.playing; this.setAttribute("aria-pressed", T.playing?"false":"true");
+  this.textContent=T.playing?"暂停":"继续";
+});
+function syncOrbit(){ document.getElementById("btnOrbit").setAttribute("aria-pressed", orbit.auto?"true":"false"); }
+document.getElementById("btnOrbit").addEventListener("click", function(){ orbit.auto=!orbit.auto; syncOrbit(); });
+document.getElementById("btnBg").addEventListener("click", function(){
+  bgMode = bgMode==="bright" ? "dark" : "bright";
+  this.setAttribute("aria-pressed", bgMode==="bright"?"true":"false");
+  this.textContent = bgMode==="bright" ? "亮背景" : "暗背景";
+  buildEnv();
+});
+var drawer=document.getElementById("drawer");
+document.getElementById("btnXml").addEventListener("click", function(){
+  var open=drawer.getAttribute("data-open")==="1";
+  drawer.setAttribute("data-open", open?"0":"1");
+  this.setAttribute("aria-pressed", open?"false":"true");
+});
+document.getElementById("railHead").addEventListener("click", function(){
+  if (window.innerWidth>880) return;
+  var r=document.getElementById("rail");
+  r.setAttribute("data-open", r.getAttribute("data-open")==="1"?"0":"1");
+});
+
+document.getElementById("xmlView").innerHTML = xmlText
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/(&lt;\/?[a-zA-Z_]+)|([a-zA-Z_]+)(?==)/g, function(m,tag,attr){
+    return tag ? '<span class="k">'+tag+'</span>' : '<span class="v">'+attr+'</span>';
+  });
+
+function resize(){
+  var w=window.innerWidth, h=window.innerHeight;
+  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  var u=(h*0.5)/Math.tan(camera.fov*0.5*Math.PI/180);
+  for (var i=0;i<systems.length;i++) systems[i].mat.uniforms.uScale.value=u;
+  setupBloom(w,h);
+}
+window.addEventListener("resize", resize);
+
+buildEnv();
+build();
+resize();
+// ?t=3.4 → 快进到该时刻并暂停（截图 / 逐段核对用；headless 的虚拟时间推不快）
+(function(){
+  var m = /[?&]t=([0-9.]+)/.exec(location.search);
+  if (!m) return;
+  var target = parseFloat(m[1]) || 0, dt = 1/60, guard = 0;
+  while (T.t < target && guard++ < 2000){ T.t += dt; stepSystems(dt); stepMeshes(); }
+  T.playing = false;
+  var pb = document.getElementById("btnPause");
+  if (pb){ pb.setAttribute("aria-pressed","true"); pb.textContent = "继续"; }
+})();
+requestAnimationFrame(frame);
+
+})();
+</script>

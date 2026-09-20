@@ -24,7 +24,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TPACCLI = os.path.normpath(os.path.join(
-    HERE, '..', 'tpactool', 'TpacToolCLI', 'bin', 'Release', 'net9.0', 'tpaccli.exe'))
+    HERE, '..', '..', 'tpactool', 'TpacToolCLI', 'bin', 'Release', 'net9.0', 'tpaccli.exe'))
 DEFAULT_REF_PACK = (r'H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord'
                     r'\Modules\xxFemaleHead\AssetPackages')
 
@@ -40,7 +40,7 @@ SIZE_TOL = 2.0  # 尺寸允许误差倍数
 
 def tpaccli_dump(pack_dir, mesh, out_dir):
     if not os.path.exists(TPACCLI):
-        sys.exit('tpaccli not found: %s (run: dotnet build -c Release in tools/face-pipeline/tpactool/TpacToolCLI)' % TPACCLI)
+        sys.exit('tpaccli not found: %s (run: dotnet build -c Release in tools/tpactool)' % TPACCLI)
     subprocess.run([TPACCLI, 'dump', '--packdir', pack_dir, '--filter', mesh,
                     '--format', 'obj', '--out', out_dir],
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

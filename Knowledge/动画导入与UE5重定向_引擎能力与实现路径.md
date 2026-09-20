@@ -44,11 +44,11 @@
 
 ## 3. 导出骨架（第一步，已实测跑通）
 
-用仓库本地 fork 的 tpaccli（`tools/face-pipeline/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe`，
+用仓库本地 fork 的 tpaccli（`tools/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe`，
 即社区流程说的 "TpacTools"）：
 
 ```powershell
-$exe = "H:\...\tools\face-pipeline\tpactool\TpacToolCLI\bin\Release\net9.0\tpaccli.exe"
+$exe = "H:\...\tools\tpactool\TpacToolCLI\bin\Release\net9.0\tpaccli.exe"
 $pk  = "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\Native\AssetPackages"
 $out = "<输出目录>"
 & $exe dump --packdir $pk --filter human_lod_4 --format fbx --out $out

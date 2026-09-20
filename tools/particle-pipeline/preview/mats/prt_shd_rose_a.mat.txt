@@ -1,0 +1,12 @@
+﻿material prt_shd_rose_a
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = []
+  vertexLayoutFlags = []
+  blend = modulate
+  shader = 02d6046d-1a0a-4463-a3eb-2cc4e1c1757f
+  shaderFlags = []
+  alphaTest = 0
+  extra: ao=1 spec=1 gloss=1
+  tex[0] = 5d3bc24f-f095-4bec-8c93-01f8f32d4f2f (prt_rose_a)

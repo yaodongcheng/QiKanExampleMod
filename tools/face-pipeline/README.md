@@ -15,7 +15,7 @@
 |---|---|
 | 本工具链（源码入库、产物整目录忽略） | `tools/face-pipeline/` |
 | 脚本 | `tools/face-pipeline/scripts/` |
-| tpac 读写 CLI（TpacToolCLI + TpacTool.Lib/IO） | `tools/face-pipeline/tpactool/` |
+| tpac 读写 CLI（TpacToolCLI + TpacTool.Lib/IO） | `tools/tpactool/` |
 | 跑出来的离线产物 / dump / 探针输出 | 模块根 `Debug/offline/`（不进库） |
 | 权威备份（源 FBX 链 + 编辑器工程） | 模块外，如 `D:\BrainMaker\blend_projects\tifa_export\backup_<日期>\` |
 
@@ -95,7 +95,10 @@ head_tifa_a_v10.fbx ──► build_neck.py ──► head_tifa_a_v11.fbx
 `_export_axes.py` / `_export_matrix.py` / `_probe_appendages.py` / `_probe_neck.py` /
 `_probe_tifa_body.py` / `_probe_vanilla_head.py`（后者含 Blender FBX 导入器内存补丁范本）
 
-## tpaccli 子命令（`tpactool/TpacToolCLI`，`dotnet build -c Release` 后可用）
+## tpaccli 子命令（`tools/tpactool/TpacToolCLI`）
+
+构建：在 `tools/tpactool/` 下跑一条 `dotnet build -c Release` → `TpacToolCLI/bin/Release/net9.0/tpaccli.exe`
+（该目录的上游 GUI 工程默认不编，详见 `tools/tpactool/README.md` 顶部的 fork 说明）。
 
 | 命令 | 用途 |
 |---|---|

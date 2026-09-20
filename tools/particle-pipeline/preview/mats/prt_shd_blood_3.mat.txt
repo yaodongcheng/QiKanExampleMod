@@ -1,0 +1,15 @@
+﻿material prt_shd_blood_3
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = [dont_draw_to_gbuffer,no_modify_depth_buffer,needs_forward_rendering]
+  vertexLayoutFlags = [bumpmap]
+  blend = add_modulate_combined
+  shader = bd782b1a-c085-4cdb-bbe6-d023658ef5a7
+  shaderFlags = [use_sunlight,use_normalmap]
+  alphaTest = 0
+  extra: ao=1 spec=0.2 gloss=0.8
+  tex[0] = 21280775-5d89-4e92-88a1-a8f3db351aff (prt_tex_blood_5)
+  tex[1] = d39d1002-f478-4e9d-8e10-299ef0470bce (physically_based_bronze_s)
+  tex[2] = f4ba9c69-9bf9-46df-b53c-4ef8f2ea417c (prt_tex_blood_5_n)
+  tex[4] = eeb43cac-f4fd-4ec9-ab0d-c649e41eeee4 (blood_test_s)
