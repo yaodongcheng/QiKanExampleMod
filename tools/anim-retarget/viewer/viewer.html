@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>骑砍2 动画重定向 · 通用对比查看器</title>
+<style>
+  :root{ --bg:#14161a; --panel:#1c2029; --line:#2b3340; --fg:#dfe6f0; --dim:#8b98ab; --acc:#6cc0ff; --warm:#f0c674; --p0:#ff9d6b; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
+    font:13px/1.5 "Microsoft YaHei",system-ui,sans-serif;overflow:hidden}
+  #app{display:grid;grid-template-columns:230px 1fr;grid-template-rows:1fr auto;height:100%}
+  #side{grid-row:1/3;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;overflow:auto}
+  #side h1{font-size:13px;margin:0;padding:12px 12px 6px}
+  #side h1 small{display:block;color:var(--dim);font-weight:400;font-size:11px;margin-top:3px;line-height:1.5}
+  #side .sec{padding:9px 12px;border-top:1px solid var(--line)}
+  #side .sec>b{display:block;font-size:11px;color:var(--dim);font-weight:600;margin-bottom:6px}
+  .ch{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:6px;font-size:12px;background:#1a1f27;border:1px solid var(--line)}
+  .ch+.ch{margin-top:6px}
+  .ch i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .ch div{min-width:0}.ch span{display:block;color:var(--dim);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  label.tg{display:flex;gap:7px;align-items:center;font-size:12px;color:#c3ccdb;cursor:pointer;padding:3px 0}
+  #main{position:relative;min-height:0;background:#181b21}
+  #cv{display:block;width:100%;height:100%}
+  #hud{position:absolute;left:12px;top:10px;font-size:12px;color:var(--dim);pointer-events:none;line-height:1.8;max-width:54%}
+  #hud b{color:var(--fg)}
+  #hud .k{color:var(--warm)}
+  #hud .desc{color:#9fb0c6;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tag{display:inline-block;padding:0 6px;border-radius:4px;font-size:10.5px;line-height:17px;margin-left:5px;vertical-align:1px}
+  .t-p0{background:#5a2f1c;color:#ffbe93}.t-p1{background:#2c3a4a;color:#a9c6e6}
+  .t-gnd{background:#243a2c;color:#9ee0b4}.t-src{background:#3d3050;color:#cbb4f0}
+  .t-w{background:#2a2f3a;color:#b9c6d8}
+  #load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:#181b21;color:var(--dim);font-size:14px;z-index:9;text-align:center;line-height:2;padding:0 40px}
+  #load.hide{display:none}
+  #bar{grid-column:2;background:var(--panel);border-top:1px solid var(--line);padding:8px 12px 10px}
+  #ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  button{background:#232b37;color:var(--fg);border:1px solid var(--line);border-radius:6px;
+    padding:5px 11px;cursor:pointer;font-size:12px}
+  button:hover{border-color:var(--acc)}
+  input[type=range]{accent-color:var(--acc);width:96px}
+  .pg{display:flex;align-items:center;gap:6px;padding:3px 0}
+  .pg .pl{font-size:11.5px;color:#c3ccdb;width:34px;flex:0 0 auto}
+  .pg input[type=range]{flex:1 1 auto;width:auto;min-width:40px}
+  .pg input[type=text]{width:50px;flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums;padding:3px 5px}
+  .pg2{display:flex;align-items:center;gap:5px;padding:2px 0}
+  .pg2 .pl2{font-size:11.5px;color:#c3ccdb;width:42px;flex:0 0 auto}
+  .fc{display:flex;align-items:center;gap:2px;font-size:10px;color:var(--dim)}
+  .fc input{width:42px;padding:2px 3px;font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
+  .pbtn{background:#232b37;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11.5px}
+  select,input[type=text]{background:#161a21;border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:5px 9px;font-size:12px}
+  #search{width:128px}
+  #time{font-variant-numeric:tabular-nums;color:var(--dim);min-width:132px}
+  #anims{display:flex;flex-wrap:wrap;gap:5px;max-height:118px;overflow:auto}
+  .an{font-size:11px;padding:3px 7px;border-radius:5px;background:#20262f;border:1px solid transparent;
+    cursor:pointer;color:#a9b6c8;font-variant-numeric:tabular-nums}
+  .an:hover{background:#2b3542}
+  .an.on{background:#20415c;border-color:var(--acc);color:#cfeeff}
+  .an .p0{color:var(--p0)}
+  .flt{font-size:11px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="side">
+    <h1 id="dsTitle">骑砍2 动画重定向<small id="dsSub">通用对比查看器 · 正在载入…</small></h1>
+    <div class="sec"><b>数据集</b><select id="dsSel" style="width:100%"></select></div>
+    <div class="sec"><b>角色</b><div id="chBox"></div></div>
+    <div class="sec" id="pairSec" style="display:none"><b>成对动画 · 站位 + 时间参数</b>
+      <div class="pg2"><span class="pl2">攻击方</span>
+        <label class="fc">X<input type="text" id="pSx" value="0.000"></label>
+        <label class="fc">Y<input type="text" id="pSy" value="0.000"></label>
+        <label class="fc">Z<input type="text" id="pSz" value="0.000"></label>
+      </div>
+      <div class="pg"><span class="pl">时间</span><input type="range" id="offA" min="-1.5" max="2.5" step="0.01" value="0"><input type="text" id="offAt" value="0.000"></div>
+      <div class="pg2" style="margin-top:6px"><span class="pl2">受击方</span>
+        <label class="fc">X<input type="text" id="pDx" value="0.000"></label>
+        <label class="fc">Y<input type="text" id="pDy" value="0.000"></label>
+        <label class="fc">Z<input type="text" id="pDz" value="0.000"></label>
+      </div>
+      <div class="pg"><span class="pl">时间</span><input type="range" id="offB" min="-1.5" max="2.5" step="0.01" value="0"><input type="text" id="offBt" value="0.000"></div>
+      <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">
+        <button class="pbtn" id="offReset">重置为默认</button>
+        <button class="pbtn" id="offReplay">⟲ 重放</button>
+        <button class="pbtn" id="offSave">保存到 dataset.json</button>
+        <button class="pbtn" id="offDump">导出 JSON</button>
+      </div>
+      <div id="pairMsg" style="font-size:10.5px;color:#8b98ab;margin-top:4px;min-height:14px;line-height:1.5"></div>
+      <textarea id="pairJson" readonly style="display:none;width:100%;height:110px;margin-top:6px;background:#161a21;border:1px solid var(--line);color:#9fb0c6;border-radius:6px;font-size:10px;padding:5px;box-sizing:border-box"></textarea>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.7">
+        X/Y/Z = group 世界坐标（米）；时间：正=跳过开头，负=首帧等待<br>
+        播放轴：<span id="offHead">0.00</span> s ／ 循环长 <span id="offLoop">0.00</span> s
+      </div>
+    </div>
+    <div class="sec"><b>显示</b>
+      <label class="tg"><input type="checkbox" id="cd" checked>区分材质配色</label>
+      <label class="tg"><input type="checkbox" id="cx">显示骨架线</label>
+      <label class="tg"><input type="checkbox" id="cn" checked>显示地面网格</label>
+      <label class="tg"><input type="checkbox" id="ch" checked>显示高度参考网格</label>
+      <label class="tg"><input type="checkbox" id="cax" checked>显示世界坐标轴 + 角色前向箭头</label>
+      <label class="tg"><input type="checkbox" id="cmk">显示期望站位标记（成对动画）</label>
+    </div>
+    <div class="sec"><b>视角</b>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="vFront">正面</button><button id="vSide">侧面</button>
+        <button id="vTop">俯视</button><button id="vFit">复位</button>
+      </div>
+    </div>
+    <div class="sec"><b>当前动作信息</b>
+      <div id="meta" style="font-size:11px;color:#9fb0c6;line-height:1.9;word-break:break-all">—</div>
+    </div>
+    <div class="sec"><b>操作</b>
+      <div style="color:var(--dim);font-size:11px;line-height:1.8">
+        左键拖拽=旋转 · 右键拖拽=平移<br>滚轮=缩放 · 空格=播放/暂停
+      </div>
+    </div>
+  </div>
+  <div id="main">
+    <canvas id="cv"></canvas>
+    <div id="hud">
+      <div>当前动作：<b id="hudAn">—</b><span id="hudTag"></span></div>
+      <div class="desc" id="hudDesc"></div>
+      <div>时长：<span class="k" id="hudDur">—</span> · 当前帧：<span class="k" id="hudFr">—</span> · 同步：<span class="k" id="hudSync">—</span></div>
+    </div>
+    <div id="load">正在载入数据集…<br><span style="font-size:11px">（需要本地 http 服务，不能用 file:// 直接打开）</span></div>
+  </div>
+  <div id="bar">
+    <div id="ctl">
+      <button id="bPlay">▶ 播放</button>
+      <button id="bPrev">◀ 上一个</button>
+      <button id="bNext">下一个 ▶</button>
+      <span id="time">— / —</span>
+      <label class="flt">速度 <input type="range" id="spd" min="0.1" max="2" step="0.1" value="1"></label>
+      <span id="spdV" class="flt" style="min-width:30px">1.0×</span>
+      <label class="tg" style="color:var(--dim)"><input type="checkbox" id="loop" checked>循环</label>
+      <select id="fPrio" title="优先级"></select>
+      <select id="fWeapon" title="武器来源"></select>
+      <select id="fFunc" title="动作功能"></select>
+      <input id="search" type="text" placeholder="搜动作名 / 描述…">
+      <span id="cnt" class="flt"></span>
+    </div>
+    <div id="anims"></div>
+  </div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.js", "three/addons/": "./lib/addons/" } }
+</script>
+<script type="module">
+/* 通用对比查看器：左侧=源（src），右侧=目标/重定向（dst）。
+   所有数据集差异都写在 datasets/<名称>/dataset.json 里，本文件不含任何硬编码文件名。 */
+window.addEventListener('error', e => {
+  const d=document.getElementById('load');
+  if(d){ d.classList.remove('hide'); d.innerHTML='<div style="color:#e4675f;max-width:900px">JS 错误：'+String(e.message)+'<br>'
+    +'<span style="font-size:11px">'+(e.filename||'').split('/').pop()+':'+e.lineno+'</span></div>'; }
+});
+window.addEventListener('unhandledrejection', e => {
+  const d=document.getElementById('load');
+  if(d){ d.classList.remove('hide'); d.innerHTML='<div style="color:#e4675f">Promise 错误：'+String(e.reason)+'</div>'; }
+});
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let DS_CFG=null, DS_NAME='', ALL_FILES=[], SIDE={}, SRC_KEY='src', DST_KEY='dst';
+let MANIFEST={ clips:{}, groups:{prio:[],weapon:[],func:[]}, P0:0, P1:0 };
+let NAMES=[], FNAMES=[], __ready=false;
+let GROUP_REPS = [];                     // 成对动画里"受击方"那半边的名字（列表里不单列）
+// 成对动画的组名：GhostSamurai_Ambush03 -> 伏击 03；GhostSamurai_Execution03 -> 处决 03
+function labelOf(n){
+  const m = /(Execution|Ambush)(\d+)$/.exec(n);
+  if(!m) return n;
+  return (m[1] === 'Ambush' ? '伏击 ' : '处决 ') + m[2];
+}
+function pairTag(n){
+  const m = /(Execution|Ambush)(\d+)$/.exec(n);
+  return m ? (m[1] === 'Ambush' ? '(背后偷袭)' : '(面对面)') + ' · ' : '';
+}
+// 成对动画的站位模式：伏击=攻击方在背后，处决=面对面
+function pairModeOf(name){ return /ambush/i.test(name) ? 'behind' : 'front'; }
+const TARGET_H = 1.75;
+
+const cv = document.getElementById('cv');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x181b21);
+scene.fog = new THREE.Fog(0x181b21, 12, 34);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60),
+  new THREE.MeshStandardMaterial({ color:0x2a3038, roughness:0.95, metalness:0.0 }));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(40, 40, 0x3a4353, 0x252b34);
+grid.position.y = 0.002; scene.add(grid);
+const hiGrids = [];
+for (let h = 1; h <= 3; h++){
+  const g2 = new THREE.GridHelper(40, 40, 0x2f3a4a, 0x222a35);
+  g2.position.y = h; g2.material.opacity = 0.5; g2.material.transparent = true;
+  scene.add(g2); hiGrids.push(g2);
+}
+scene.add(new THREE.HemisphereLight(0xffffff, 0x3a4457, 1.6));
+const key = new THREE.DirectionalLight(0xffffff, 2.1);
+key.position.set(3.2, 6, 4.4); key.castShadow = true;
+key.shadow.mapSize.set(1024,1024);
+key.shadow.camera.left=-4; key.shadow.camera.right=4;
+key.shadow.camera.top=4; key.shadow.camera.bottom=-4; key.shadow.camera.far=20;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xbcd4ff, 0.9); fill.position.set(-4, 2.5, 2); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0xffe9c4, 0.7); rim.position.set(0, 3, -5);  scene.add(rim);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 200);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.target.set(0, 0.9, 0);
+
+function resize(){
+  const w = cv.clientWidth || 1, h = cv.clientHeight || 1;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+const loader = new GLTFLoader();
+const loaded = {};
+const clock = new THREE.Clock();
+
+const clipMeta = n => (MANIFEST.clips && MANIFEST.clips[n]) || {};
+const durOf = n => {
+  for(const id in loaded){ const L=loaded[id]; if(L.side===DST_KEY && L.clips.get(n)) return L.clips.get(n).duration; }
+  for(const id in loaded){ const L=loaded[id]; if(L.clips.get(n)) return L.clips.get(n).duration; }
+  return 0;
+};
+
+function bindBox(root){
+  // 用骨骼静止位置量身高（蒙皮网格的 geometry.boundingBox 不含 bind 矩阵，量不准）
+  const box = new THREE.Box3();
+  root.updateWorldMatrix(true, true);
+  root.traverse(o=>{ if(o.isBone){ const v=new THREE.Vector3(); o.getWorldPosition(v); box.expandByPoint(v); } });
+  return box;
+}
+
+function loadModel(cfg){
+  return new Promise((res, rej)=>{
+    loader.load(cfg.url, gltf=>{
+      const model = gltf.scene;
+      const group = new THREE.Group();
+      group.rotation.y = cfg.rotY || 0;
+      group.add(model);
+      group.visible = false;
+      scene.add(group);
+      const meshes = [];
+      model.traverse(o=>{
+        if(o.isMesh || o.isSkinnedMesh){
+          o.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(cfg.color || '#9aa4b2'), roughness: 0.72, metalness: 0.06, side: THREE.DoubleSide });
+          o.castShadow = true; o.receiveShadow = true;
+          o.frustumCulled = false;
+          meshes.push(o);
+        }
+      });
+      const box = bindBox(model);
+      const h = Math.max(box.max.y - box.min.y, 1e-6);
+      const s = TARGET_H / h;
+      model.scale.setScalar(s);
+      model.position.y = -box.min.y * s;
+      model.updateWorldMatrix(true, true);
+      // 起始偏移：成对动画（伏击/处决）的「相对站位」不在动画数据里，
+      // 需按原始场景的 Actor 摆放补上（offsetX/offsetZ 为世界单位，offsetY 为高度）
+      const _ox = cfg.offsetX || 0, _oz = cfg.offsetZ || 0, _oy = cfg.offsetY || 0;
+      group.position.set((cfg.slot || 0) + _ox, (cfg.rootFixY || 0) * s + _oy, _oz);
+      const footBones = [], bones = {};
+      let rootBone = null;
+      model.traverse(o=>{ if(o.isBone){ bones[o.name]=o;
+        if(cfg.footBones && cfg.footBones.indexOf(o.name)>=0) footBones.push(o);
+        if(cfg.rootBone && o.name===cfg.rootBone) rootBone = o; } });
+
+      // 头部「脸朝前」标定：绑定姿态下用几何正面（脚踝→脚尖）反推出【头部局部空间】里的前向向量。
+      // 之后每帧 head.matrixWorld × 这个局部向量 = 真正的「两眼之间的垂线」，即角色正前方。
+      // 与骨盆 / 肩线的朝向解耦 —— 正面以【头（眼）】为准，不以骨盆或肩线为准。
+      let headLocalFwd = null;
+      (function(){
+        const h = bones['head']; if(!h) return;
+        const fb = cfg.facingBones;
+        if(!(fb && fb.length === 4 && bones[fb[0]] && bones[fb[1]] && bones[fb[2]] && bones[fb[3]])) return;
+        model.updateWorldMatrix(true, true);
+        const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
+        bones[fb[1]].getWorldPosition(A); bones[fb[0]].getWorldPosition(C); A.sub(C); A.y = 0;
+        bones[fb[3]].getWorldPosition(B); bones[fb[2]].getWorldPosition(C); B.sub(C); B.y = 0;
+        if(A.lengthSq() < 1e-8 || B.lengthSq() < 1e-8) return;
+        const rest = A.normalize().add(B.normalize());
+        if(rest.lengthSq() < 1e-8) return;
+        const inv = new THREE.Matrix4().copy(h.matrixWorld).invert();
+        headLocalFwd = rest.normalize().transformDirection(inv).normalize();
+      })();
+      const clips = new Map();
+      (gltf.animations||[]).forEach(c=>{
+        if(cfg.stripPositionTracks){ c.tracks = c.tracks.filter(t=>!/\.position$/.test(t.name)); }
+        // 两侧朝向差 180°：被旋转的一侧其根位移也被翻向，导致两人走向相反（"一前一后"）。
+        // 实测该 clip 位移达 4.4m，方向一旦相反就一个冲进画面、一个冲出画面。
+        // 这里把【未被旋转侧】的根位移水平反向，使两人位移同向、保持并排。
+        if(Math.abs(cfg.rotY||0) < 0.01 && c.tracks){
+          c.tracks.forEach(t=>{
+            if(/\.position$/i.test(t.name) && /(pelvis|root|bone_0)/i.test(t.name)){
+              for(let k=0;k<t.values.length;k+=3){ t.values[k] = -t.values[k]; t.values[k+2] = -t.values[k+2]; }
+            }
+          });
+        }
+        // freezeRootH：把根骨 position 轨的【水平分量归零】（保留竖直下落），角色水平位置完全交给
+        // pairAnchor / group.position 决定。成对动画的根位移在导出时被整体取反（方向不可信），
+        // 用它当站位只会把两人摆错；竖直分量（倒地/下蹲）仍然保留。
+        if(cfg.freezeRootH && c.tracks){
+          const _rx = cfg.freezeRootRe ? new RegExp(cfg.freezeRootRe, 'i') : /(pelvis|root|bone_0)/i;
+          c.tracks.forEach(t=>{
+            if(!/\.position$/i.test(t.name)) return;
+            const _bone = t.name.replace(/\.position$/i, '');
+            if(!_rx.test(_bone) && _bone !== cfg.rootBone) return;
+            const v = t.values; if(!v || v.length < 3) return;
+            for(let k=0;k<v.length;k+=3){ v[k]=0; v[k+2]=0; }
+          });
+        }
+        clips.set(c.name.replace(/^RT_/,''), c);
+      });
+      const mixer = new THREE.AnimationMixer(model); cfg._h=h; cfg._s=s; cfg._miny=box.min.y; cfg._maxy=box.max.y; cfg._nbone=(function(n){model.traverse(o=>{if(o.isBone)n++;});return n;})(0);
+      loaded[cfg.id] = { cfg, group, model, meshes, mixer, clips, footBones, bones, rootBone, headLocalFwd, side: cfg.side };
+      res(cfg.id);
+    }, undefined, e=>{ rej(new Error(cfg.url+' 载入失败: '+e)); });
+  });
+}
+
+/* ---------- 数据集载入 ---------- */
+function findHolder(sideKey, mode, name){
+  const files = ((SIDE[sideKey]||{}).files||[]).filter(f=>!f.mode || f.mode===mode);
+  for(const f of files){ const L=loaded[f.id]; if(L && L.clips.has(name)) return L; }
+  for(const f of files){ const L=loaded[f.id]; if(L) return L; }
+  return null;
+}
+
+async function boot(){
+  const qs = new URLSearchParams(location.search);
+  let idx = null;
+  try { idx = await fetch('datasets/index.json').then(r=>r.json()); } catch(e){}
+  DS_NAME = qs.get('ds') || (idx && (idx.default || (idx.datasets[0]||{}).id)) || 'ue_slim';
+
+  const sel = document.getElementById('dsSel');
+  if(idx && idx.datasets){
+    sel.innerHTML = idx.datasets.map(d=>'<option value="'+d.id+'"'+(d.id===DS_NAME?' selected':'')+'>'+d.name+'</option>').join('');
+    sel.onchange = ()=>{ const u=new URL(location); u.searchParams.set('ds', sel.value); u.searchParams.delete('clip'); location.href=u.toString(); };
+  } else { sel.style.display='none'; }
+
+  DS_CFG = await fetch('datasets/'+DS_NAME+'/dataset.json').then(r=>r.json());
+  SIDE = DS_CFG.sides || {};
+  const keys = Object.keys(SIDE);
+  SRC_KEY = SIDE.src ? 'src' : keys[0];
+  DST_KEY = SIDE.dst ? 'dst' : (keys[1] || keys[0]);
+
+  document.title = (DS_CFG.title || DS_CFG.name || DS_NAME);
+  document.getElementById('dsTitle').firstChild.nodeValue = DS_CFG.title || DS_CFG.name || DS_NAME;
+  document.getElementById('dsSub').innerHTML = (DS_CFG.subtitle || '双人并排对比') + '<br>数据集：' + DS_NAME;
+  document.getElementById('chBox').innerHTML = keys.map(k=>{
+    const s = SIDE[k];
+    return '<div class="ch"><i style="background:'+(s.color||'#888')+'"></i><div>'+(s.label||k)
+      + '<div><span id="info_'+k+'">—</span></div></div></div>';
+  }).join('');
+
+  // 成对动画面板：数据集声明了 pairAnchor / fixedClipReplace / clipStart 才显示
+  PAIRMODE = keys.some(k=>{ const s = SIDE[k] || {}; return !!(s.pairAnchor || s.fixedClipReplace || s.clipStart); });
+  STORE = loadStore();   // localStorage + dataset.json 的 pairs（文件优先）
+  (function(){
+    const ps = document.getElementById('pairSec');
+    if(ps) ps.style.display = PAIRMODE ? '' : 'none';
+    if(!PAIRMODE) return;
+    const g = id => document.getElementById(id);
+    const cur = () => PAIRD[current];
+    // 时间：滑杆 + 文本框（不要用 oninput，输入"-"时会被立刻归零）
+    const bindT = (rid, tid, key) => {
+      const r = g(rid), t = g(tid);
+      const set = v => {
+        const vv = Math.round((isFinite(v) ? v : 0) * 100) / 100;
+        OFF[key] = vv;
+        const p = cur(); if(p) p[key === 'A' ? 'src' : 'dst'][3] = vv;
+        syncOffUI(); persistCurrentPair();
+      };
+      if(r) r.oninput = ()=> set(parseFloat(r.value));
+      if(t) t.onchange = ()=> set(parseFloat(t.value));
+    };
+    bindT('offA','offAt','A'); bindT('offB','offBt','B');
+    // 位置：X/Y/Z 三个数字框（每个 pair 独立）
+    const bindXYZ = (id, side, idx) => {
+      const e = g(id); if(!e) return;
+      e.onchange = () => {
+        const p = cur(); if(!p) return;
+        const v = parseFloat(e.value);
+        p[side][idx] = isFinite(v) ? v : null;      // 清空 = 回到自动默认
+        applyPairParams(p, holderFor(SRC_KEY), holderFor(DST_KEY));
+        syncPairUI(); persistCurrentPair();
+      };
+    };
+    [['pSx','src',0],['pSy','src',1],['pSz','src',2],
+     ['pDx','dst',0],['pDy','dst',1],['pDz','dst',2]].forEach(a=>bindXYZ(a[0],a[1],a[2]));
+
+    if(g('offReset')) g('offReset').onclick = ()=>{
+      const p = cur(); if(!p) return;
+      p.src = [null,null,null, DEFOFF.A]; p.dst = [null,null,null, DEFOFF.B];
+      const a = holderFor(SRC_KEY), b = holderFor(DST_KEY);
+      if(a) a.group.position.set(PAIRP_DEF.src[0], PAIRP_DEF.src[1], PAIRP_DEF.src[2]);
+      if(b) b.group.position.set(PAIRP_DEF.dst[0], PAIRP_DEF.dst[1], PAIRP_DEF.dst[2]);
+      applyPairParams(p, a, b); syncPairUI(); persistCurrentPair();
+    };
+    if(g('offSave')) g('offSave').onclick = ()=>{ savePairsToFile(); };
+    if(g('offReplay')) g('offReplay').onclick = ()=>{ if(current) play(current); };
+    if(g('offDump')) g('offDump').onclick = ()=>{
+      const out = {};
+      for(const k in PAIRD){
+        const p = PAIRD[k];
+        if([p.src[0],p.src[1],p.src[2],p.dst[0],p.dst[1],p.dst[2]].some(v=>v!==null)) out[k] = { src:p.src, dst:p.dst };
+      }
+      if(!out[current] && PAIRD[current]) out[current] = { src: PAIRD[current].src, dst: PAIRD[current].dst };
+      const ta = g('pairJson');
+      ta.value = JSON.stringify({ pairs: out }, null, 1);
+      ta.style.display = 'block'; ta.select();
+      try{ if(navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(()=>{}); }catch(e){}
+    };
+  })();
+
+  // clips 元数据：内联 clips 或外部 clipsFile
+  if(DS_CFG.clipsFile){
+    try { MANIFEST = await fetch('datasets/'+DS_NAME+'/'+DS_CFG.clipsFile).then(r=>r.json()); } catch(e){ console.warn('clipsFile 载入失败', e); }
+  }
+  if(DS_CFG.clips) MANIFEST.clips = DS_CFG.clips;
+  if(!MANIFEST.clips) MANIFEST.clips = {};
+  if(!MANIFEST.groups) MANIFEST.groups = {prio:[],weapon:[],func:[]};
+  const g = MANIFEST.groups;
+  if(!g.prio || !g.prio.length)   g.prio   = [...new Set(Object.values(MANIFEST.clips).map(m=>m.prio).filter(Boolean))];
+  if(!g.weapon || !g.weapon.length) g.weapon = [...new Set(Object.values(MANIFEST.clips).map(m=>m.weapon).filter(Boolean))];
+  if(!g.func || !g.func.length)   g.func   = [...new Set(Object.values(MANIFEST.clips).map(m=>m.func).filter(Boolean))];
+
+  // 展开 sides → ALL_FILES（sides 级默认值可被 file 级覆盖）
+  ALL_FILES = [];
+  keys.forEach(k=>{
+    const s = SIDE[k];
+    (s.files||[]).forEach((f,i)=>{
+      ALL_FILES.push(Object.assign({}, f, {
+        id: f.id || (k+'_'+i), side: k, url: 'datasets/'+DS_NAME+'/'+f.url,
+        rotY: (f.rotY!==undefined ? f.rotY : (s.rotY||0)),
+        slot: (f.slot!==undefined ? f.slot : (s.slot||0)),
+        color: f.color || s.color || '#9aa4b2',
+        footBones: f.footBones || s.footBones || [], mode: f.mode || '',
+        rootBone: f.rootBone || s.rootBone || null,
+        offsetX: (f.offsetX!==undefined ? f.offsetX : (s.offsetX||0)),
+        offsetY: (f.offsetY!==undefined ? f.offsetY : (s.offsetY||0)),
+        offsetZ: (f.offsetZ!==undefined ? f.offsetZ : (s.offsetZ||0)),
+        rootFixY: (f.rootFixY!==undefined ? f.rootFixY : (s.rootFixY||0)),
+        stripPositionTracks: (f.stripPositionTracks!==undefined ? f.stripPositionTracks : !!s.stripPositionTracks),
+        facingBones: f.facingBones || s.facingBones || null,
+        freezeRootH: (f.freezeRootH!==undefined ? f.freezeRootH : !!s.freezeRootH),
+        freezeRootRe: f.freezeRootRe || s.freezeRootRe || null,
+        pairAnchor:  (f.pairAnchor!==undefined ? f.pairAnchor : (s.pairAnchor||null))
+      }));
+    });
+  });
+
+  const settled = await Promise.allSettled(ALL_FILES.map(loadModel));
+  const bad = settled.map((r,i)=>[r, ALL_FILES[i].url]).filter(x=>x[0].status!=='fulfilled').map(x=>x[1]);
+  if(bad.length) console.warn('以下 GLB 未载入（已跳过）: '+bad.join(', '));
+
+  const pool = new Set();
+  for(const id in loaded) for(const n of loaded[id].clips.keys()) pool.add(n);
+  const metaNames = Object.keys(MANIFEST.clips);
+  if(metaNames.length){
+    NAMES = metaNames.filter(n=>pool.has(n)).sort((a,b)=>{
+      const pa = clipMeta(a).prio, pb = clipMeta(b).prio;
+      if(pa!==pb) return pa<pb ? -1 : 1;
+      return a.localeCompare(b);
+    });
+    const miss = metaNames.filter(n=>!pool.has(n));
+    if(miss.length) console.warn('manifest 里有但 GLB 中没有的片段('+miss.length+'):', miss);
+  } else {
+    NAMES = [...pool].sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}));
+  }
+
+  // 成对动画（处决/伏击）本来就是配套的，没必要把 Executed*/Ambushed* 也列一条：
+  // 只保留攻击方那条作为【动画组】入口，选中后两侧各播自己的配对 clip（见 play 的 fixedClipReplace）。
+  GROUP_REPS = [];
+  for(const k of keys){
+    const r = (SIDE[k] || {}).fixedClipReplace;
+    if(r) for(const pr of r) GROUP_REPS.push(pr[1]);
+  }
+  if(GROUP_REPS.length) NAMES = NAMES.filter(n => !GROUP_REPS.some(t => n.indexOf(t) >= 0));
+
+  keys.forEach(k=>{
+    const ids = (SIDE[k].files||[]).map(f=>f.id);
+    const n = ids.reduce((a,id)=>a+(loaded[id]?loaded[id].clips.size:0), 0);
+    const el = document.getElementById('info_'+k);
+    if(el){ el.textContent = n + ' 段 · ' + ids.filter(id=>loaded[id]).length + '/' + ids.length + ' 个文件已载入'; el.title = ids.map(id=>loaded[id]? (id+': 实测身高probe='+loaded[id].cfg._h.toFixed(1)+' 缩放='+loaded[id].cfg._s.toFixed(5)+' 血count='+loaded[id].cfg._nbone) : id+': MISSING').join(' | '); }
+  });
+
+  initFilters();
+  buildHelpers();
+  applyColors();
+  document.getElementById('load').classList.add('hide');
+  __ready = true;
+  const want = (qs.get('clip')||'').trim();
+  const t = parseFloat(qs.get('t')||'');
+  const pick = (want && NAMES.indexOf(want)>=0) ? want : NAMES[0];
+  if(pick && qs.get('noplay')!=='1') play(pick);
+  if(qs.get('pause')==='1'){ paused = true; const _bp=document.getElementById('bPlay'); if(_bp) _bp.textContent='\u25b6 播放'; }
+  // ?probe=1：把两侧角色的世界坐标写入 DOM，便于精确核对站位（无头 dump 可读）
+  if (qs.get('probe') === '1') {
+    setTimeout(() => {
+      const out = [];
+      out.push('TIMING|A: name=' + (actA ? actA.getClip().name : '-')
+             + ' dur=' + (actA ? actA.getClip().duration.toFixed(3) : '-')
+             + ' time=' + (actA ? actA.time.toFixed(3) : '-')
+             + ' speed=' + (actA ? actA.timeScale.toFixed(3) : '-')
+             + ' off=' + OFF.A.toFixed(3)
+             + ' || B: name=' + (actB ? actB.getClip().name : '-')
+             + ' dur=' + (actB ? actB.getClip().duration.toFixed(3) : '-')
+             + ' time=' + (actB ? actB.time.toFixed(3) : '-')
+             + ' speed=' + (actB ? actB.timeScale.toFixed(3) : '-')
+             + ' off=' + OFF.B.toFixed(3)
+             + ' | playHead=' + playHead.toFixed(3) + ' pairMode=' + PAIRMODE);
+      for (const id in loaded) {
+        const L = loaded[id];
+        if (!L.group.visible) continue;
+        const v = new THREE.Vector3();
+        L.group.getWorldPosition(v);
+        const yaw = L.group.rotation.y;
+        let extra = '';
+        const pb = (L.bones || {})['pelvis'];
+        if (pb) { const p = new THREE.Vector3(); pb.getWorldPosition(p);
+          extra += '|pelvis=(' + p.x.toFixed(3) + ',' + p.y.toFixed(3) + ',' + p.z.toFixed(3) + ')'; }
+        const fh = facingOf(L, 'head'), f = facingOf(L, 'torso'), ft = facingOf(L, 'feet');
+        const deg = g => (Math.atan2(-g.z, g.x) * 180 / Math.PI).toFixed(1);
+        if (fh) extra += '|HEAD=' + fh.x.toFixed(3) + ',' + fh.z.toFixed(3) + '@' + deg(fh) + 'deg';
+        if (f)  extra += '|torso=' + f.x.toFixed(3) + ',' + f.z.toFixed(3) + '@' + deg(f) + 'deg';
+        if (ft) extra += '|toe=' + deg(ft) + 'deg';
+        out.push(L.side + '|' + id + '|x=' + v.x.toFixed(3) + '|y=' + v.y.toFixed(3) + '|z=' + v.z.toFixed(3) + '|rotY=' + yaw.toFixed(3) + extra);
+      }
+      const d = document.createElement('div');
+      d.id = 'probeout'; d.style.display = 'none';
+      d.textContent = out.join(' ;; ');
+      document.body.appendChild(d);
+    }, 1200);
+  }
+  window.__pendingT = isFinite(t) ? t : null;
+}
+
+/* ---------- 三级筛选（优先级 × 武器来源 × 动作功能 + 搜索）；无元数据时自动隐藏 ---------- */
+const isCode = v => !!v && 'ABCD'.indexOf(v[0])>=0 && v.length>1 && !isNaN(parseInt(v[1],10));
+
+function initFilters(){
+  const g = MANIFEST.groups;
+  const opt = (v,label)=>'<option value="'+v+'">'+label+'</option>';
+  const elP=document.getElementById('fPrio'), elW=document.getElementById('fWeapon'), elF=document.getElementById('fFunc');
+  if(g.prio.length){ elP.style.display=''; elP.innerHTML = opt('','优先级：全部')+g.prio.map(v=>opt(v,'优先级 '+v)).join(''); }
+  else elP.style.display='none';
+  if(g.weapon.length){ elW.style.display=''; elW.innerHTML = opt('','武器来源：全部')+g.weapon.map(v=>opt(v,v)).join(''); }
+  else elW.style.display='none';
+  if(g.func.length){
+    elF.style.display='';
+    const codes=g.func.filter(isCode), cn=g.func.filter(v=>!isCode(v));
+    elF.innerHTML = opt('','动作功能：全部')
+      + (codes.length?'<optgroup label="标准动作码（'+codes.length+'）">'+codes.map(v=>opt(v,v)).join('')+'</optgroup>':'')
+      + (cn.length?'<optgroup label="语义类（'+cn.length+'）">'+cn.map(v=>opt(v,v)).join('')+'</optgroup>':'');
+  } else elF.style.display='none';
+  const kick = ()=>render();
+  elP.onchange = elW.onchange = elF.onchange = kick;
+  document.getElementById('search').oninput = kick;
+}
+
+function render(){
+  const q  = (document.getElementById('search').value||'').trim().toLowerCase();
+  const fp = document.getElementById('fPrio').value;
+  const fw = document.getElementById('fWeapon').value;
+  const ff = document.getElementById('fFunc').value;
+  const box = document.getElementById('anims'); box.innerHTML='';
+  FNAMES = [];
+  NAMES.forEach(n=>{
+    const m = clipMeta(n);
+    if(fp && m.prio!==fp) return;
+    if(fw && m.weapon!==fw) return;
+    if(ff && m.func!==ff) return;
+    if(q && (n+' '+(m.desc||'')+' '+(m.pack||'')+' '+(m.func||'')).toLowerCase().indexOf(q)<0) return;
+    FNAMES.push(n);
+    const b = document.createElement('div');
+    b.className = 'an' + (n===current ? ' on':'');
+    b.innerHTML = (m.prio==='P0' ? '<span class="p0">●</span> ' : '') + labelOf(n)
+      + '<span style="color:#6b7686">  ' + pairTag(n) + durOf(n).toFixed(2) + 's</span>';
+    b.title = n + (m.prio||m.weapon||m.func ? '   ['+(m.prio||'')+' / '+(m.weapon||'')+' / '+(m.func||'')+']' : '') + '\n' + (m.desc||'');
+    b.onclick = ()=>play(n);
+    box.appendChild(b);
+  });
+  document.getElementById('cnt').textContent =
+    FNAMES.length + ' / ' + NAMES.length + ' 段' + (MANIFEST.P0 ? '（P0 '+MANIFEST.P0+' · P1 '+MANIFEST.P1+'）' : '');
+}
+
+/* ---------- 播放 ---------- */
+let current=null, actA=null, actB=null, paused=false, speed=1, activeMode='ground';
+/* ---------- 成对动画：播放轴 + 两侧起点偏移（可在面板实时拖） ---------- */
+let playHead = 0, PAIRMODE = false, _lastClip = null;
+let EXTRAS = [];      // 【额外展示侧】(如"重定向前的源")：与攻击方播同一条 clip，只做参照对比
+const OFF = { A: 0, B: 0 }, DEFOFF = { A: 0, B: 0 };
+/* 每个成对动作（execute / ambush 各一条）独立的 8 个参数：
+   PAIRD[clip] = { src:[x,y,z,t], dst:[x,y,z,t] }；x/y/z 为 null = 用 pairAnchor 自动算出的默认值 */
+const PAIRD = {};
+let PAIRP_DEF = { src: [0,0,0,0], dst: [0,0,0,0] };
+
+/* 参数持久化：① 每次改动自动写 localStorage（切 clip / 切数据集 / 刷新都还在）
+               ② 「保存到 dataset.json」写回文件（经 serve.py 的 /api/save-pairs，带时间戳备份） */
+const LS_KEY = 'bm_pair_params_v1';
+let STORE = {};              // { "<数据集>::<clip名>": {src:[x,y,z,t], dst:[x,y,z,t]} }
+let _msgTimer = 0;
+function setSaveMsg(txt, color){
+  const e = document.getElementById('pairMsg'); if(!e) return;
+  e.textContent = txt; e.style.color = color || '#8b98ab';
+  clearTimeout(_msgTimer); _msgTimer = setTimeout(()=>{ e.textContent = ''; }, 5000);
+}
+function loadStore(){
+  let s = {};
+  try{ const t = localStorage.getItem(LS_KEY); if(t) s = JSON.parse(t) || {}; }catch(e){ s = {}; }
+  // dataset.json 里的 pairs 是"文件基准"，优先于 localStorage
+  try{
+    if(DS_CFG && DS_CFG.pairs) for(const k in DS_CFG.pairs){
+      const v = DS_CFG.pairs[k];
+      if(v && v.src && v.dst) s[DS_NAME + '::' + k] = { src: v.src.slice(0,4), dst: v.dst.slice(0,4) };
+    }
+  }catch(e){}
+  return s;
+}
+function persistCurrentPair(){
+  const P = PAIRD[current]; if(!P || !PAIRMODE) return;
+  STORE[DS_NAME + '::' + current] = { src: P.src.slice(), dst: P.dst.slice() };
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); }catch(e){}
+  setSaveMsg('已自动保存到本地（localStorage）');
+}
+function collectPairsForSave(){
+  const out = {};
+  for(const key in STORE){                       // localStorage 里该数据集的历史记录
+    const i = key.indexOf('::'); if(i < 0) continue;
+    if(key.slice(0, i) !== DS_NAME) continue;
+    out[key.slice(i + 2)] = { src: STORE[key].src.slice(), dst: STORE[key].dst.slice() };
+  }
+  for(const k in PAIRD){                         // 当前会话里改过的
+    const P = PAIRD[k]; if(!P) continue;
+    out[k] = { src: P.src.slice(), dst: P.dst.slice() };
+  }
+  return out;
+}
+async function savePairsToFile(){
+  const pairs = collectPairsForSave();
+  try{
+    const r = await fetch('api/save-pairs?ds=' + encodeURIComponent(DS_NAME),
+      { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ pairs }) });
+    const j = await r.json();
+    if(j && j.ok){ setSaveMsg('✅ 已写入 dataset.json（'+j.saved+' 条，备份 '+j.backup+'）', '#3ddc84'); return j; }
+    setSaveMsg('❌ 保存失败：' + ((j && j.err) || 'unknown'), '#e4675f'); return j;
+  }catch(e){
+    setSaveMsg('❌ 保存失败：' + e + '（需用 serve.py 起服务）', '#e4675f');
+    return { ok:false, err:String(e) };
+  }
+}
+function syncOffUI(){
+  const rows = [['A','offA','offAt'], ['B','offB','offBt']];
+  for(const [k, rid, tid] of rows){
+    const r = document.getElementById(rid), t = document.getElementById(tid);
+    if(r && document.activeElement !== r) r.value = OFF[k];
+    if(t && document.activeElement !== t) t.value = OFF[k].toFixed(3);
+  }
+}
+function syncPairUI(){
+  const P = PAIRD[current]; if(!P) return;
+  const A = holderFor(SRC_KEY), B = holderFor(DST_KEY);
+  const put = (id, over, live) => {
+    const e = document.getElementById(id);
+    if(e && document.activeElement !== e) e.value = (over === null || over === undefined ? live : over).toFixed(3);
+  };
+  put('pSx', P.src[0], A ? A.group.position.x : 0);
+  put('pSy', P.src[1], A ? A.group.position.y : 0);
+  put('pSz', P.src[2], A ? A.group.position.z : 0);
+  put('pDx', P.dst[0], B ? B.group.position.x : 0);
+  put('pDy', P.dst[1], B ? B.group.position.y : 0);
+  put('pDz', P.dst[2], B ? B.group.position.z : 0);
+  syncOffUI();
+}
+// 只覆盖非 null 的分量，null 保留自动值
+function applyPairParams(P, A, B){
+  const one = (L, p) => {
+    if(!L || !p) return;
+    if(p[0] !== null && p[0] !== undefined) L.group.position.x = p[0];
+    if(p[1] !== null && p[1] !== undefined) L.group.position.y = p[1];
+    if(p[2] !== null && p[2] !== undefined) L.group.position.z = p[2];
+    L.group.updateMatrixWorld(true);
+  };
+  one(A, P.src); one(B, P.dst);
+  OFF.A = P.src[3] || 0; OFF.B = P.dst[3] || 0;
+}
+// off > 0：跳过开头 off 秒（动作提前）；off < 0：保持首帧等待 |off| 秒（动作延后）
+function clipTimeFor(head, off, dur){
+  return Math.min(Math.max(head + off, 0), Math.max(0, dur - 1e-4));
+}
+// 把播放轴映射到两侧 clip 时间。关键：clip 播完后【冻在末帧】而不是让 mixer 自己回卷 ——
+// 成对动画两条 clip 时长不同（如 3.33s vs 4.17s），短的那条若回卷就会在对方还在演时反复重播开头。
+function setActTime(act, off){
+  if(!act) return;
+  const d = act.getClip().duration || 1;
+  const want = playHead + off;
+  if(want <= 0){ act.time = 0; act.paused = true; }                                  // 延迟等待中
+  else if(want >= d - 1e-4){ act.time = Math.max(0, d - 1e-4); act.paused = true; }  // 已播完 → 钳住末帧
+  else { act.time = want; act.paused = false; }
+}
+function applyPlayheadTo(actA_, actB_){
+  setActTime(actA_, OFF.A); setActTime(actB_, OFF.B);
+  for(const e of EXTRAS) setActTime(e.act, OFF.A);   // 额外侧跟随【攻击方】的时间轴
+}
+function loopLenNow(){
+  const dA = actA ? actA.getClip().duration : 0;
+  const dB = actB ? actB.getClip().duration : 0;
+  return Math.max(dA, dB, 1e-6);
+}
+const loopOn = ()=>document.getElementById('loop').checked;
+
+function pickRig(name){
+  const m = clipMeta(name);
+  let mode = (m.mode==='src') ? 'src' : 'ground';
+  let A = findHolder(SRC_KEY, mode, name);
+  let B = findHolder(DST_KEY, mode, name);
+  if(!B || !B.clips.has(name)){
+    const alt = (mode==='src') ? 'ground' : 'src';
+    const B2 = findHolder(DST_KEY, alt, name);
+    if(B2 && B2.clips.has(name)){ mode = alt; A = findHolder(SRC_KEY, mode, name); B = B2; }
+  }
+  return { mode, A, B };
+}
+
+function play(name){
+  if(!__ready || !name) return;
+  const r = pickRig(name);
+  activeMode = r.mode;
+  const A = r.A, B = r.B;
+  for(const id in loaded) loaded[id].group.visible = false;
+  if(B) B.group.visible = true;
+  if(A) A.group.visible = true;
+  // 成对动画（处决/被处决）：两侧可分别锁定各自的 clip 名，实现「攻击方 + 受击方」同屏配对演示
+  const _fxA = (SIDE[SRC_KEY] || {}).fixedClip, _fxB = (SIDE[DST_KEY] || {}).fixedClip;
+  const _nameA = _fxA || name;
+  // 成对动画自动配对：右侧按左侧选中的名字做替换（如 Execution03 -> Executed03）
+  let _nameB = _fxB || name;
+  if (!_fxB) {
+    const _rep = (SIDE[DST_KEY] || {}).fixedClipReplace;
+    if (_rep) { for (const pair of _rep) { if (name.indexOf(pair[0]) >= 0) { _nameB = name.replace(pair[0], pair[1]); break; } } }
+  }
+  const ca = A ? A.clips.get(_nameA) : null, cb = B ? B.clips.get(_nameB) : null;
+  if(A) A.mixer.stopAllAction();
+  if(B) B.mixer.stopAllAction();
+  actA = actB = null;
+  const loop = loopOn()?THREE.LoopRepeat:THREE.LoopOnce;
+  if(ca){ actA=A.mixer.clipAction(ca); actA.reset(); actA.setLoop(loop, Infinity);
+    actA.clampWhenFinished=!loopOn(); actA.timeScale=speed; actA.play(); }
+  if(cb){ actB=B.mixer.clipAction(cb); actB.reset(); actB.setLoop(loop, Infinity);
+    actB.clampWhenFinished=!loopOn(); actB.timeScale=speed; actB.play(); }
+
+  // 【额外展示侧】：src/dst 之外的侧（如"重定向前的 UE 源"），与攻击方播同一条 clip
+  EXTRAS = [];
+  for(const k of Object.keys(SIDE)){
+    if(k === SRC_KEY || k === DST_KEY) continue;
+    const H = findHolder(k, activeMode, _nameA) || findHolder(k, '', _nameA) || holderFor(k);
+    if(!H) continue;
+    H.group.visible = true;
+    const cc = H.clips.get(_nameA);
+    if(!cc) continue;
+    H.mixer.stopAllAction();
+    const ea = H.mixer.clipAction(cc); ea.reset(); ea.setLoop(loop, Infinity);
+    ea.clampWhenFinished = !loopOn(); ea.timeScale = speed; ea.play();
+    EXTRAS.push({ H, act: ea });
+  }
+  // 相位锁定：按两边时长比缩放目标侧，保证同一动作相位。
+  // 【例外】成对动画（处决/伏击：两侧各播不同 clip）必须保持各自原始速度，
+  // 否则会被强行对齐总时长，把受击方的事件整体提前（实测 Ambush04 被压成 1.429x →
+  // 受击方 0.86s 的动作提前到 0.60s，"攻击者还没发力受击者就倒下"）。
+  // 判据：任一侧声明了成对动画相关配置即视为成对（fixedClip / fixedClipReplace / pairAnchor）。
+  const _sideOf = k => SIDE[k] || {};
+  const _isPair = !!(_fxA || _fxB
+    || _sideOf(SRC_KEY).fixedClipReplace || _sideOf(DST_KEY).fixedClipReplace
+    || _sideOf(SRC_KEY).pairAnchor        || _sideOf(DST_KEY).pairAnchor);
+  if(!_isPair && actA && actB && cb.duration>0) actB.timeScale = speed*(cb.duration/ca.duration);
+  else { if(actA) actA.timeScale = speed; if(actB) actB.timeScale = speed; }
+
+  // 【有效动作窗口对齐】不做倍速，只平移起点。默认值来自 dataset.json 的 clipStart（离线实测），
+  // 面板滑杆可实时覆盖：每帧 act.time = clamp(playHead + off, 0, dur)，两侧都保持原速。
+  DEFOFF.A = ((SIDE[SRC_KEY] || {}).clipStart || {})[_nameA] || 0;
+  DEFOFF.B = ((SIDE[DST_KEY] || {}).clipStart || {})[_nameB] || 0;
+  // 每个 pair 一条参数记录，会话内保留用户手调值；换 clip 才新建（重放不丢）
+  if(!PAIRD[name]){
+    const S = STORE[DS_NAME + '::' + name];
+    PAIRD[name] = S ? { src: S.src.slice(), dst: S.dst.slice() }
+                    : { src:[null,null,null, DEFOFF.A], dst:[null,null,null, DEFOFF.B] };
+  }
+  OFF.A = PAIRD[name].src[3] || 0;
+  OFF.B = PAIRD[name].dst[3] || 0;
+  playHead = 0;
+  if(actA) actA.paused = false; if(actB) actB.paused = false;
+  for(const e of EXTRAS) if(e.act) e.act.paused = false;
+
+  current = name; paused = false;
+  const m = clipMeta(name);
+  document.getElementById('bPlay').textContent = '\u23f8 暂停';
+  document.getElementById('hudAn').textContent = name;
+  document.getElementById('hudTag').innerHTML =
+      (m.prio ? '<span class="tag '+(m.prio==='P0'?'t-p0':'t-p1')+'">'+m.prio+'</span>' : '')
+    + (m.weapon ? '<span class="tag t-w">'+String(m.weapon).replace('/','\u00b7')+'</span>' : '')
+    + (m.mode ? '<span class="tag '+(activeMode==='src'?'t-src':'t-gnd')+'">'
+        + (activeMode==='src'?'跟随源位移 src':'逐帧贴地 ground')+'</span>' : '');
+  document.getElementById('hudDesc').textContent =
+    (m.func? '\u3010'+m.func+'\u3011 ':'') + (m.desc||'') + (m.pack? '   \u00b7 来源包 '+m.pack : '');
+  const d = cb ? cb.duration : 0;
+  document.getElementById('hudDur').textContent = d.toFixed(2)+' s ('+Math.round(d*30)+' 帧 @30fps)';
+  // HUD：直接显示【两侧实际播放速度】，而不是"时长比"（时长比数字上像倍速，容易误判成有人在快放）
+  document.getElementById('hudSync').textContent =
+      '时长 ' + (ca?ca.duration:0).toFixed(3) + 's / ' + d.toFixed(3) + 's'
+    + '   实际速度 ' + (actA?actA.timeScale:1).toFixed(2) + 'x / ' + (actB?actB.timeScale:1).toFixed(2) + 'x'
+    + (_isPair ? '   [成对动画：两侧各自原速]'
+               : '   [相位锁定：目标侧按时长比 x' + (ca&&ca.duration>0?(d/ca.duration).toFixed(2):'-') + ' 缩放]');
+  document.getElementById('time').textContent = '0.00 / '+d.toFixed(2)+' s';
+  document.getElementById('meta').innerHTML =
+      '<b style="color:#dfe6f0">'+name+'</b><br>'
+    + (m.prio?'优先级：'+((m.prio==='P0')?'<span style="color:#ff9d6b">P0</span>':m.prio)+'<br>':'')
+    + (m.weapon?'武器来源：'+m.weapon+'<br>':'')
+    + (m.func?'动作功能：'+m.func+'<br>':'')
+    + (m.pack?'来源包：'+m.pack+'<br>':'')
+    + (m.desc?'语义描述：'+m.desc+'<br>':'')
+    + (m.mode?'烘焙模式：'+(activeMode==='src'?'src（跟随源骨盆位移）':'ground（逐帧贴地）'):'');
+  // 相对定位：切 clip 后必须在【首帧姿态】下重算一次站位（此刻 actA.time = 0，
+  // 先用 mixer.update(0) 把骨骼求值到第 0 帧，再对齐；之后整段不再重算）
+  for(const id in loaded){
+    if(!loaded[id]) continue;
+    try{ loaded[id].mixer.update(0); }catch(e){}
+    loaded[id].__anchorDoneClip = null;
+  }
+  applyPairAnchors();                       // ① 先算 pairAnchor 的自动默认站位
+  PAIRP_DEF = {                             // 记下默认值，供「重置为默认」用
+    src: [A ? A.group.position.x : 0, A ? A.group.position.y : 0, A ? A.group.position.z : 0, DEFOFF.A],
+    dst: [B ? B.group.position.x : 0, B ? B.group.position.y : 0, B ? B.group.position.z : 0, DEFOFF.B],
+  };
+  applyPairParams(PAIRD[name], A, B);       // ② 再叠加用户显式参数（x/y/z 为 null 就不覆盖）
+  syncPairUI();
+  render();
+}
+
+/* ---------- 控件 ---------- */
+document.getElementById('bPlay').onclick = ()=>{
+  paused = !paused;
+  document.getElementById('bPlay').textContent = paused ? '\u25b6 播放' : '\u23f8 暂停';
+};
+document.getElementById('bPrev').onclick = ()=>{ if(!FNAMES.length) return;
+  const i = FNAMES.indexOf(current); play(FNAMES[(i-1+FNAMES.length)%FNAMES.length]); };
+document.getElementById('bNext').onclick = ()=>{ if(!FNAMES.length) return;
+  const i = FNAMES.indexOf(current); play(FNAMES[(i+1)%FNAMES.length]); };
+document.getElementById('spd').oninput = e=>{
+  speed = parseFloat(e.target.value);
+  document.getElementById('spdV').textContent = speed.toFixed(1)+'\u00d7';
+  if(actA) actA.timeScale = speed;
+  if(actB && actA && current){
+    const r = pickRig(current);
+    const ca = r.A ? r.A.clips.get(current) : null;
+    const cb = r.B ? r.B.clips.get(current) : null;
+    if(actB) actB.timeScale = (ca && cb && cb.duration>0) ? speed*(cb.duration/ca.duration) : speed;
+  }
+};
+document.getElementById('loop').onchange = ()=>{ if(current) play(current); };
+document.getElementById('cn').onchange = e=>{ grid.visible = e.target.checked; };
+document.getElementById('ch').onchange = e=>{ hiGrids.forEach(g=>g.visible = e.target.checked); };
+
+function setView(p){
+  controls.target.set(0, 0.88, 0);
+  // 'top' 必须是【正俯视】：up=(0,0,-1) → 屏幕向右 = +X，屏幕向上 = −Z（即 +Z 朝屏幕下方）
+  // 这样 3D 俯视与 2D 平面图是同一套约定，可以直接对账。
+  camera.up.set(0, 1, 0);
+  if(p==='front') camera.position.set(0, 1.35, 4.6);
+  if(p==='side')  camera.position.set(4.9, 1.35, 0.0);
+  if(p==='top'){  camera.up.set(0, 0, -1); camera.position.set(0, 9.0, 0.0); }
+  if(p==='fit')   camera.position.set(1.9, 1.9, 4.3);
+  controls.update();
+}
+document.getElementById('vFront').onclick=()=>setView('front');
+document.getElementById('vSide').onclick =()=>setView('side');
+document.getElementById('vTop').onclick  =()=>setView('top');
+document.getElementById('vFit').onclick  =()=>setView('fit');
+addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); document.getElementById('bPlay').click(); } });
+
+/* ---------- 主循环 ---------- */
+let helpers = [], __fc = 0;
+const SHOT = location.search.indexOf('shot') >= 0;   // 无头截图：渲染 30 帧后把画布塞进 #shotdata 并停住 RAF
+
+function buildHelpers(){
+  helpers.forEach(h=>scene.remove(h)); helpers = [];
+  for(const id in loaded){
+    const h = new THREE.SkeletonHelper(loaded[id].model);
+    h.material.color.set(0x66d4a0); h.visible = document.getElementById('cx').checked;
+    scene.add(h); helpers.push(h);
+  }
+}
+document.getElementById('cx').onchange = e=>{ helpers.forEach(h=>h.visible = e.target.checked); };
+function applyColors(){
+  const unify = !document.getElementById('cd').checked;
+  const base = new THREE.Color(0x9aa4b2);
+  for(const id in loaded){
+    const L = loaded[id];
+    L.meshes.forEach(m=> m.material.color.set(unify ? base : new THREE.Color(L.cfg.color)));
+  }
+}
+document.getElementById('cd').onchange = applyColors;
+
+/* ---------- 成对动画「相对定位」：把被锚定的一侧摆到锚点角色的【正后方】 ----------
+   为什么不用 offset 试数值：成对两者的根位移在导出时被整体取反，方向不可信；
+   横向站位只能由「受击方骨盆世界坐标 + 几何求出的背向 × 间距」显式算出来。        */
+const _vA = new THREE.Vector3(), _vB = new THREE.Vector3(), _vC = new THREE.Vector3();
+const _UP = new THREE.Vector3(0,1,0);
+
+// 几何法求【角色正前方】（水平化，不看骨骼自身的局部轴约定）：
+//   head  = 头部世界姿态 × 绑定姿态标定出的"脸朝前"局部向量
+//           ← ★ 权威口径：等价于「两只眼睛之间的垂线」，头转哪就朝哪
+//   torso = up × (clavicle_r − clavicle_l)  ← 肩线垂线（躯干朝向；头转开时与 head 不一致）
+//   feet  = 左右「脚踝→脚尖」平均             ← README §8.4 的判据，姿态大改时会抖，仅作校验
+function facingOf(L, kind){
+  kind = kind || 'head';
+  const b = (L && L.bones) || {}, cfg = (L && L.cfg) || {};
+  const head = () => {
+    const h = b['head'], lf = L && L.headLocalFwd;
+    if(!h || !lf) return null;
+    h.updateWorldMatrix(true, false);
+    const v = new THREE.Vector3().copy(lf).transformDirection(h.matrixWorld);
+    v.y = 0;
+    return v.lengthSq() > 1e-8 ? v.normalize() : null;
+  };
+  const torso = () => {
+    if(!(b['r_clavicle'] && b['l_clavicle'])) return null;
+    const A = new THREE.Vector3(), B = new THREE.Vector3();
+    b['r_clavicle'].getWorldPosition(A); b['l_clavicle'].getWorldPosition(B);
+    A.sub(B); A.y = 0;
+    return A.lengthSq() > 1e-8 ? new THREE.Vector3().crossVectors(_UP, A.normalize()) : null; // up × 右 = 前
+  };
+  const feet = () => {
+    const fb = cfg.facingBones;
+    if(!(fb && fb.length === 4 && b[fb[0]] && b[fb[1]] && b[fb[2]] && b[fb[3]])) return null;
+    const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
+    b[fb[1]].getWorldPosition(A); b[fb[0]].getWorldPosition(C); A.sub(C); A.y = 0;
+    b[fb[3]].getWorldPosition(B); b[fb[2]].getWorldPosition(C); B.sub(C); B.y = 0;
+    if(A.lengthSq() < 1e-8 || B.lengthSq() < 1e-8) return null;
+    const r = A.normalize().add(B.normalize());
+    return r.lengthSq() > 1e-8 ? r.normalize() : null;
+  };
+  const order = (kind === 'torso') ? [torso, head, feet]
+              : (kind === 'feet')  ? [feet, torso, head]
+              :                      [head, torso, feet];
+  for(const fn of order){ const r = fn(); if(r) return r; }
+  return null;
+}
+
+function holderFor(sideKey){
+  for(const id in loaded){
+    const L = loaded[id];
+    if(L.side === sideKey && L.group.visible) return L;
+  }
+  for(const id in loaded){ if(loaded[id].side === sideKey) return loaded[id]; }
+  return null;
+}
+
+// 【只对齐首帧】：整段动画里只算【一次】站位——把本侧平移一段，使其**首帧骨盆世界坐标**
+// 正好落在锚点角色**首帧骨盆世界坐标**的正后方 gap 米处。
+// 对齐完成后立即停手：之后的位移全部交给动画自己的 root motion，不再逐帧干预。
+// （所以间距只在首帧严格 = gap；后续两人怎么走、怎么转，是动画本身的表现。）
+function applyPairAnchors(){
+  if(!current || !actA) return;
+  for(const id in loaded){
+    const L = loaded[id], c = L.cfg.pairAnchor;
+    if(!c) continue;
+    if(L.__anchorDoneClip === current) continue;          // 同一 clip 只对齐一次
+    const A = holderFor(c.anchor); if(!A || A === L) continue;
+    const boneName = c.pelvisBone || 'pelvis';
+    const bp = (A.bones || {})[boneName], sp = (L.bones || {})[boneName];
+    if(!bp || !sp) continue;
+    const f = facingOf(A); if(!f) continue;               // 锚点【首帧】几何正面（头/眼线口径）
+    const behind = (c.mode || pairModeOf(current)) === 'behind';
+    const gap = (c.gap !== undefined ? c.gap : (behind ? 1.5 : 1.2));
+    const dir = behind ? -1 : 1;                          // 伏击：受击方【背后】；处决：受击方【面前】
+    const pv = new THREE.Vector3(); bp.getWorldPosition(pv);   // 锚点首帧骨盆世界坐标
+    // 目标 = 锚点骨盆 ± 锚点正面 × gap（伏击在背后，处决在面前）
+    const tx = pv.x + dir * f.x * gap, tz = pv.z + dir * f.z * gap;
+    L.group.rotation.y = A.group.rotation.y + (behind ? 0 : Math.PI);   // 处决要转身面对面
+    L.group.updateMatrixWorld(true);
+    // 闭环放位：先摆一次，量本侧骨盆实际落点，按差值补正（迭代 2 次）。
+    // 这样不依赖 root 位移轨的正负号约定 —— 局部偏移在 group 平移下不变，一次补正即精确。
+    const _c = new THREE.Vector3(), _n = new THREE.Vector3();
+    for(let it = 0; it < 2; it++){
+      sp.getWorldPosition(_n);
+      L.group.position.x += tx - _n.x;
+      L.group.position.z += tz - _n.z;
+      L.group.updateMatrixWorld(true);
+    }
+    L.__anchorFacing = f.clone();                         // 供 ?marks=1 覆盖层复用（首帧锁定的背向基准）
+    L.__anchorDoneClip = current;
+  }
+}
+
+/* ---------- 调试覆盖层：世界坐标轴 + 角色「胸口前向箭头」（?axes=1） ----------
+   X=红  Y=绿(高)  Z=蓝      角色箭头：起点=左右锁骨中点(胸口)，方向=该角色的几何正面   */
+let _axG = null;
+function _mkArrow3(from, dir, len, color, headR){
+  const g = new THREE.Group();
+  const d = dir.clone().normalize();
+  const to = from.clone().addScaledVector(d, len);
+  const geo = new THREE.BufferGeometry().setFromPoints([from, to.clone().addScaledVector(d, -headR*2.6)]);
+  const ln = new THREE.Line(geo, new THREE.LineBasicMaterial({ color, depthTest:false }));
+  ln.renderOrder = 997; g.add(ln);
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(headR, headR*2.6, 14),
+    new THREE.MeshBasicMaterial({ color, depthTest:false }));
+  cone.renderOrder = 997;
+  cone.position.copy(to).addScaledVector(d, -headR*1.3);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d);
+  g.add(cone);
+  return g;
+}
+function chestOf(L){
+  const b = (L && L.bones) || {};
+  if(b['l_clavicle'] && b['r_clavicle']){
+    const a=new THREE.Vector3(), c=new THREE.Vector3();
+    b['l_clavicle'].getWorldPosition(a); b['r_clavicle'].getWorldPosition(c);
+    return a.add(c).multiplyScalar(0.5);
+  }
+  return null;
+}
+function updateAxes(){
+  const cb = document.getElementById('cax');
+  const on = cb ? cb.checked : (location.search.indexOf('axes=1') >= 0);
+  if(_axG) _axG.visible = on;
+  if(!on) return;
+  if(!_axG){ _axG = new THREE.Group(); _axG.name='__axes'; scene.add(_axG); }
+  for(let i=_axG.children.length-1;i>=0;i--){ const ch=_axG.children[i]; _axG.remove(ch);
+    ch.traverse && ch.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); }
+  const O = new THREE.Vector3(0,0,0);
+  _axG.add(_mkArrow3(O, new THREE.Vector3(1,0,0), 1.0, 0xff4d4d, 0.05));  // X 红
+  _axG.add(_mkArrow3(O, new THREE.Vector3(0,1,0), 1.0, 0x3ddc84, 0.05));  // Y 绿
+  _axG.add(_mkArrow3(O, new THREE.Vector3(0,0,1), 1.0, 0x4d7dff, 0.05));  // Z 蓝
+  for(const id in loaded){
+    const L = loaded[id];
+    if(!L.group.visible) continue;
+    const ch = chestOf(L); if(!ch) continue;
+    const f = facingOf(L); if(!f) continue;
+    const col = new THREE.Color(L.cfg.color || '#9aa4b2').getHex();
+    _axG.add(_mkArrow3(ch, f, 0.9, col, 0.045));
+  }
+}
+
+/* ---------- 调试覆盖层：把「应该在的位置」画到场景里（?marks=1） ----------
+   黄=受击方骨盆  绿=期望的攻击方位置(受击方+背向×gap)  红=攻击方骨盆实际位置
+   蓝线=受击方朝向(前 1 m)  绿线=黄→绿(应为正后方)  红线=黄→红(实际偏移)          */
+let _mk = null;
+function _mkRing(color, r){
+  const g = new THREE.RingGeometry(r*0.86, r, 48); g.rotateX(-Math.PI/2);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color, side:THREE.DoubleSide, depthTest:false}));
+  m.renderOrder = 999; return m;
+}
+function _mkSeg(a, b, color, y){
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a.x, y, a.z), new THREE.Vector3(b.x, y, b.z)]);
+  const l = new THREE.Line(g, new THREE.LineBasicMaterial({color, depthTest:false}));
+  l.renderOrder = 999; return l;
+}
+function updateMarks(){
+  const cb = document.getElementById('cmk');
+  const on = cb ? cb.checked : (location.search.indexOf('marks=1') >= 0);
+  if(_mk) _mk.visible = on;
+  if(!on) return;
+  if(!_mk){ _mk = new THREE.Group(); _mk.name='__marks'; scene.add(_mk); }
+  for(let i=_mk.children.length-1;i>=0;i--){ const ch=_mk.children[i]; _mk.remove(ch);
+    if(ch.geometry) ch.geometry.dispose(); if(ch.material) ch.material.dispose(); }
+  for(const id in loaded){
+    const L = loaded[id], c = L.cfg.pairAnchor;
+    if(!c || !L.group.visible) continue;
+    const A = holderFor(c.anchor); if(!A || A === L) continue;
+    const bn = c.pelvisBone || 'pelvis';
+    const bp = (A.bones||{})[bn], sp = (L.bones||{})[bn];
+    if(!bp || !sp) continue;
+    const f = L.__anchorFacing; if(!f) continue;
+    const gap = (c.gap !== undefined ? c.gap : 1.5);
+    const pv = new THREE.Vector3(), pa = new THREE.Vector3();
+    bp.getWorldPosition(pv); sp.getWorldPosition(pa);
+    const exp = {x: pv.x - f.x*gap, z: pv.z - f.z*gap};
+    const rY=_mkRing(0xffd166,0.22); rY.position.set(pv.x,0.03,pv.z); _mk.add(rY);   // 黄 r=0.22
+    const rG=_mkRing(0x3ddc84,0.34); rG.position.set(exp.x,0.03,exp.z); _mk.add(rG);  // 绿 r=0.34（大圈，期望点）
+    const rR=_mkRing(0xff4d4d,0.13); rR.position.set(pa.x,0.03,pa.z); _mk.add(rR);    // 红 r=0.13（小圈，实际点）
+    _mk.add(_mkSeg(pv, exp, 0x3ddc84, 0.02));
+    _mk.add(_mkSeg(pv, pa,  0xff4d4d, 0.05));
+    _mk.add(_mkSeg(pv, {x:pv.x+f.x*1.0, z:pv.z+f.z*1.0}, 0x4da3ff, 0.07));   // 受击方朝向
+  }
+}
+
+function tick(){
+  if(!SHOT || !__ready || __fc < 30) requestAnimationFrame(tick);
+  if(__ready) __fc++;
+  const dt = clock.getDelta();
+  if(!paused){
+    // 成对动画：自己驱动播放轴 playHead，两侧 clip 时间 = clamp(playHead + off, 0, dur)。
+    // 这样"起点偏移"能实时拖、能重放，且两侧始终保持 1.00x 原速（不缩放）。
+    if(PAIRMODE && (actA || actB)){
+      playHead += dt;
+      const L = loopLenNow();
+      if(loopOn()){ if(playHead >= L) playHead = 0; }
+      else if(playHead > L) playHead = L;
+      applyPlayheadTo(actA, actB);
+      const hEl = document.getElementById('offHead'); if(hEl) hEl.textContent = playHead.toFixed(2);
+      const lEl = document.getElementById('offLoop'); if(lEl) lEl.textContent = L.toFixed(2);
+    }
+    for(const id in loaded) loaded[id].mixer.update(dt);
+  }
+  if(current && actA){
+    const d = durOf(current) || 1;
+    const t = actA.time % d;
+    document.getElementById('time').textContent = t.toFixed(2)+' / '+d.toFixed(2)+' s';
+    document.getElementById('hudFr').textContent = Math.round(t*30);
+  }
+  if(SHOT && __ready && __pendingT !== null && actA && __fc >= 2){
+    // ?t= 语义 = 【播放轴时间】，与正常播放一致
+    if(PAIRMODE && (actA || actB)){
+      playHead = __pendingT;
+      applyPlayheadTo(actA, actB);
+    } else {
+      actA.time = __pendingT % (actA.getClip().duration || 1);
+      if(actB) actB.time = __pendingT % (actB.getClip().duration || 1);
+    }
+    for(const id in loaded) loaded[id].mixer.update(0.0001);
+    __pendingT = null;
+  }
+  if(SHOT && __ready && __fc === 30 && !document.getElementById('shotdata')){
+    try{ const d=document.createElement('div'); d.id='shotdata'; d.style.display='none';
+      d.textContent = renderer.domElement.toDataURL('image/png'); document.body.appendChild(d); }catch(e){}
+  }
+  applyPairAnchors();
+  updateMarks();
+  updateAxes();
+  if(helpers.length){
+    for(const id in loaded) if(loaded[id].group.visible) loaded[id].group.updateMatrixWorld(true);
+    helpers.forEach(h=>h.update&&h.update());
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+resize();
+setView('fit');
+// 支持 URL 指定初始视角：?view=side|front|top|fit（必须在 setView('fit') 之后，否则被覆盖）
+try {
+  const _q = new URLSearchParams(location.search);
+  const _v = _q.get('view');
+  if (_v) setView(_v);
+  // URL 参数只用来覆盖这两个开关的初始状态（默认：坐标轴/前向箭头 = 开，站位标记 = 关）
+  if (_q.get('axes')  === '1') document.getElementById('cax').checked = true;
+  if (_q.get('axes')  === '0') document.getElementById('cax').checked = false;
+  if (_q.get('marks') === '1') document.getElementById('cmk').checked = true;
+} catch (e) {}
+tick();
+boot().catch(e=>{
+  console.error(e);
+  document.getElementById('load').innerHTML =
+    '<div style="color:#e4675f">载入失败：'+(e && e.message || e)+'<br>'
+    +'<span style="font-size:11px;color:#8b98ab">请确认通过本地 http 服务打开（不能用 file://），'
+    +'且 datasets/&lt;数据集&gt;/dataset.json 与其 assets/ 齐全。</span></div>';
+});
+
+/* 自动化验收钩子 */
+window.__viewer = {
+  THREE, renderer, scene, camera, controls, loaded,
+  manifest: ()=>MANIFEST,
+  params: ()=>({ cur: current, def: PAIRP_DEF, all: PAIRD, store: STORE, lsKey: LS_KEY }),
+  savePairs: ()=>savePairsToFile(),
+  pair: ()=>({ pairMode: PAIRMODE, playHead, offA: OFF.A, offB: OFF.B,
+               defA: DEFOFF.A, defB: DEFOFF.B,
+               timeA: actA && actA.time, timeB: actB && actB.time,
+               durA: actA && actA.getClip().duration, durB: actB && actB.getClip().duration,
+               speedA: actA && actA.timeScale, speedB: actB && actB.timeScale }),
+  dataset: ()=>({ name: DS_NAME, cfg: DS_CFG }),
+  play,
+  state: ()=>({ current, activeMode, total:NAMES.length, filtered:FNAMES.length, paused, speed, ready:__ready,
+    clipCounts: Object.fromEntries(Object.entries(loaded).map(([k,v])=>[k, v.clips.size])),
+    visible: Object.fromEntries(Object.entries(loaded).map(([k,v])=>[k, v.group.visible])) }),
+  setFilter: (o)=>{ o=o||{};
+    for(const k of ['fPrio','fWeapon','fFunc']) document.getElementById(k).value = o[k]||'';
+    document.getElementById('search').value = o.q||''; render(); return FNAMES.length; },
+  step: (dt)=>{ for(const id in loaded) loaded[id].mixer.update(dt); },
+  renderOnce: ()=>{ renderer.render(scene, camera); },
+  sample: ()=>{
+    renderer.render(scene, camera);
+    const gl = renderer.getContext();
+    const w = renderer.domElement.width, h = renderer.domElement.height;
+    const bg = [0x18,0x1b,0x21];
+    let left=0, right=0; const g=[];
+    const N=9;
+    for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+      const fx=(i+0.5)/N, fy=(j+0.5)/N;
+      const b=new Uint8Array(4);
+      gl.readPixels(Math.floor(w*fx), Math.floor(h*(1-fy)), 1,1, gl.RGBA, gl.UNSIGNED_BYTE, b);
+      const d=Math.abs(b[0]-bg[0])+Math.abs(b[1]-bg[1])+Math.abs(b[2]-bg[2]);
+      g.push(d>24?1:0);
+      if(d>24){ if(fx<0.5) left++; else right++; }
+    }
+    return { w, h, left, right, grid:g.join('') };
+  }
+};
+</script>
+</body>
+</html>

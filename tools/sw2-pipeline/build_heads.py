@@ -54,6 +54,7 @@
 """
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -90,6 +91,15 @@ CHAN_OBJ = "head_xxfemale_a.002.0"
 # 原版头的 FBX（抄颈部权重用）：男头抄 head_male_a、女头抄 head_female_a。
 # 与 build_head_chain.py 给萨菲罗斯用的是同一份（extracted_sho 的 tpac dump）。
 VANILLA_HEAD_DIR = r"D:\BrainMaker\extracted_sho\fbx\head"
+# 表情/口型段（通道 60..100）的源 = **原版同性别头**（按件对位）。与 build_head_chain.py 同一套：
+#   男 3 件 = 脸 / 眼(.1) / 嘴(.2)；女 4 件 = 脸 / 嘴(.2) / 眼(.6) / 睫(.7)。
+#   ⚠️ 顺序必须与目标件序一致（transfer_channels 按名字排序取件 → 男 脸/眼/嘴、女 脸/嘴/眼/睫）。
+#   🔴 件数必须**相等**（逐件对位）：战无2 的头一律 3 件（脸/眼/嘴；女头没有独立睫毛件，
+#      睫毛走脸皮贴图）→ 女头源只取 3 件（**去掉 `.7` 睫毛**），否则 transfer_channels 直接 FATAL。
+ANIM_MALE = (os.path.join(VANILLA_HEAD_DIR, "head_male_a.fbx"),
+             "head_male_a,head_male_a.1,head_male_a.2")
+ANIM_FEMALE = (os.path.join(VANILLA_HEAD_DIR, "head_female_a.fbx"),
+               "head_female_a,head_female_a.2,head_female_a.6")
 OUT_ROOT = os.path.join(REPO, "Debug", "offline", "外观批量导入", "sw2_build")
 
 
@@ -247,6 +257,20 @@ def main():
                "--neck-z", "1.600", "--neck-band", "0.05"]
         c2 = [BLENDER, "-b", "--python", os.path.join(FACE, "transfer_channels.py"), "--",
               "--src", CHAN_SRC, "--src-object", CHAN_OBJ, "--dst", v1, "--out", v2]
+        # 🔴 2026-09-20：接上**表情/口型段（通道 60..100）** —— 与亨利/萨菲罗斯同一条链路
+        #    （wheels §17 与 plans/KCD亨利换装工程.md 追加二/三实测定型的那套参数）。
+        #    不接的话走 transfer_channels 的"旧行为"（用脸形源那一件套到所有件）：
+        #    表情虽然不为空，但**不按件对位**（眼球转动该在眼球件、牙齿/下颌该在嘴件）、
+        #    也没有下颌增强 → 实机"试听声音"时嘴几乎不动。
+        #    · 表情源 = **原版同性别头**（男 head_male_a / 女 head_female_a），按件对位；
+        #      脸形段（1..59）仍用 xxfemale（别动 —— deform_keys 的幅度是按它标定的）。
+        #    · `--anim-map proj`（法线投影，保住唇线折线）+ `--anim-smooth 1`。
+        #    · 🔴 `--proj-max` 是**按头实测的**，不能照抄亨利的 18：
+        #      `_probe_registration.py` 实测 SW2 的信长 ↔ 原版男头，唇区最近距中位 19~25mm、
+        #      P90 到 28mm（亨利只有 7~13mm）→ 18 会让嘴部几乎全回退（白改）。取 **30**。
+        #      换别的角色要重量（尤其是脸型更夸张的）。
+        # 🔴 表情/口型段（通道 60..100）的参数在 **c1 跑完之后**才拼（要先知道头是 3 件还是 4 件，
+        #    见下面 `rc1, l1 = run(c1, logf)` 那段）。
         c3 = [sys.executable, os.path.join(HERE, "scripts", "make_sw2_textures.py"),
               "--atlas", tex, "--out", d, "--name", r["asset"]]
         # 🔴 颏带**改色**（不删几何，只换贴图）：给"颏带兼着堵下颌缝、摘了就露"的角色用
@@ -286,6 +310,28 @@ def main():
                     print("        " + (l1[-1] if l1 else ""))
                     bad.append((key, "build_head"))
                     continue
+                # 🔴 2026-09-20：表情/口型段（通道 60..100）—— 与亨利/萨菲罗斯同一条链路。
+                #    · 表情源 = **原版同性别头**，**按件对位**（眼球转动在眼球件、牙齿/下颌在嘴件）；
+                #    · `--proj-max 30`：`_probe_registration.py` 实测 SW2 头 ↔ 原版头唇区
+                #      最近距中位 19~25mm、P90 到 28mm（亨利只有 7~13mm）→ 照抄 18 会让嘴部几乎全回退；
+                #    · `--anim-jaw --anim-jaw-gain 2.2` = 下颌绕关节直接算 + 唇线切开。
+                #    🔴 件数必须**相等**：有脖子的角色头是 **4 件**（第 4 件 = 抠出来的脖子，排最后）
+                #       → 表情源补一件，脖子 ← **脸形源那一件**（原版脸壳本来就盖到领口，场是对的）。
+                #       判据 = c1 日志的 `[OK] N 件（face,eye,mouth,neck）`（比"抠脖子命中"硬：
+                #       脖子件还有第二种来源 = 区域裁剪 `skin_region`，那条不打"命中"行，稻姬/小太郎就栽在这）。
+                _anim = ANIM_FEMALE if r.get("gender") == "female" else ANIM_MALE
+                _nparts = 3
+                for _l in l1:
+                    _m = re.search(r"\[OK\]\s*(\d+)\s*件", _l)
+                    if _m:
+                        _nparts = int(_m.group(1))
+                _objs = _anim[1] + ("," + _anim[1].split(",")[0]) * max(0, _nparts - 3)
+                if _nparts > 3:
+                    print("        表情段：头 %d 件（含脖子件）→ 表情源补 %d 件（脖子←脸形源）"
+                          % (_nparts, _nparts - 3))
+                c2 += ["--anim-src", _anim[0], "--anim-objects", _objs,
+                       "--anim-map", "proj", "--proj-max", "30", "--anim-smooth", "1",
+                       "--anim-jaw", "--anim-jaw-gain", "2.2"]
                 rc2, l2 = run(c2, logf)
                 if rc2 != 0 or not os.path.isfile(v2):
                     print("%s  ❌ transfer_channels 失败（看 %s.log）" % (tag, key))

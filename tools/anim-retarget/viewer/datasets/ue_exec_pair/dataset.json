@@ -1,0 +1,319 @@
+{
+  "name": "ue_exec_pair",
+  "title": "成对动画演示 · 处决 7 对 + 伏击 4 对",
+  "subtitle": "成对即一个【动画组】。左=攻击方(骑砍2)，中=受击方(骑砍2)，右=【重定向前】的 UE 源攻击方（同一条 clip，就地比姿态）。伏击=背后偷袭，处决=面对面。开始时间延迟默认 0；每组站位在面板调，点「保存到 dataset.json」落盘。",
+  "sides": {
+    "src": {
+      "label": "Execution01（攻击方）",
+      "color": "#7fa8d8",
+      "rotY": 0,
+      "slot": 0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
+      ],
+      "pairAnchor": {
+        "anchor": "dst",
+        "pelvisBone": "pelvis",
+        "gap": 1.5
+      },
+      "fixedClip": null,
+      "files": [
+        {
+          "id": "src_p7",
+          "url": "assets/bl_pair7.glb"
+        },
+        {
+          "id": "src_ab",
+          "url": "assets/bl_ambush.glb"
+        }
+      ]
+    },
+    "dst": {
+      "label": "Executed01（受击方）",
+      "color": "#e0b070",
+      "rotY": 0,
+      "slot": 0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
+      ],
+      "fixedClip": null,
+      "files": [
+        {
+          "id": "dst_p7",
+          "url": "assets/bl_pair7.glb"
+        },
+        {
+          "id": "dst_ab",
+          "url": "assets/bl_ambush.glb"
+        }
+      ],
+      "fixedClipReplace": [
+        [
+          "Execution",
+          "Executed"
+        ],
+        [
+          "Ambush",
+          "Ambushed"
+        ]
+      ]
+    },
+    "ref": {
+      "label": "重定向前（UE 源 · 攻击方）",
+      "color": "#e6ecf5",
+      "rotY": 0,
+      "slot": -2.6,
+      "footBones": [
+        "ball_l",
+        "ball_r",
+        "foot_l",
+        "foot_r"
+      ],
+      "facingBones": [
+        "foot_l",
+        "ball_l",
+        "foot_r",
+        "ball_r"
+      ],
+      "freezeRootH": true,
+      "fixedClip": null,
+      "files": [
+        {
+          "id": "ref_executed01",
+          "url": "assets/ueExec/GhostSamurai_Executed01.glb"
+        },
+        {
+          "id": "ref_executed02",
+          "url": "assets/ueExec/GhostSamurai_Executed02.glb"
+        },
+        {
+          "id": "ref_executed03",
+          "url": "assets/ueExec/GhostSamurai_Executed03.glb"
+        },
+        {
+          "id": "ref_executed04",
+          "url": "assets/ueExec/GhostSamurai_Executed04.glb"
+        },
+        {
+          "id": "ref_executed05",
+          "url": "assets/ueExec/GhostSamurai_Executed05.glb"
+        },
+        {
+          "id": "ref_executed06",
+          "url": "assets/ueExec/GhostSamurai_Executed06.glb"
+        },
+        {
+          "id": "ref_executed07",
+          "url": "assets/ueExec/GhostSamurai_Executed07.glb"
+        },
+        {
+          "id": "ref_execution01",
+          "url": "assets/ueExec/GhostSamurai_Execution01.glb"
+        },
+        {
+          "id": "ref_execution02",
+          "url": "assets/ueExec/GhostSamurai_Execution02.glb"
+        },
+        {
+          "id": "ref_execution03",
+          "url": "assets/ueExec/GhostSamurai_Execution03.glb"
+        },
+        {
+          "id": "ref_execution04",
+          "url": "assets/ueExec/GhostSamurai_Execution04.glb"
+        },
+        {
+          "id": "ref_execution05",
+          "url": "assets/ueExec/GhostSamurai_Execution05.glb"
+        },
+        {
+          "id": "ref_execution06",
+          "url": "assets/ueExec/GhostSamurai_Execution06.glb"
+        },
+        {
+          "id": "ref_execution07",
+          "url": "assets/ueExec/GhostSamurai_Execution07.glb"
+        },
+        {
+          "id": "ref_ab",
+          "url": "assets/ue_ambush.glb"
+        }
+      ],
+      "freezeRootRe": "GhostSamurai_"
+    }
+  },
+  "pairs": {
+    "GhostSamurai_Ambush04": {
+      "src": [
+        null,
+        null,
+        2.5,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Ambush01": {
+      "src": [
+        null,
+        null,
+        -1.3,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Ambush02": {
+      "src": [
+        null,
+        null,
+        2.5,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Ambush03": {
+      "src": [
+        null,
+        null,
+        1.5,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Execution02": {
+      "src": [
+        -0.8,
+        null,
+        2.5,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Execution01": {
+      "src": [
+        null,
+        null,
+        -1.5,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Execution03": {
+      "src": [
+        null,
+        null,
+        -0.5,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Execution04": {
+      "src": [
+        null,
+        null,
+        1,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Execution05": {
+      "src": [
+        -2.2,
+        null,
+        null,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Execution06": {
+      "src": [
+        null,
+        null,
+        -2.3,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Execution07": {
+      "src": [
+        null,
+        null,
+        -3,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    }
+  }
+}

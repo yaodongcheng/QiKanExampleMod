@@ -1,0 +1,2589 @@
+{
+ "meta": {
+  "total": 280,
+  "source_csv": "UEAnims/anim_inventory/骑砍2动作精简清单.csv",
+  "generated": "2026-09-18 22:40",
+  "note": "mode=ground 为逐帧贴地烘焙；mode=src 为复制源骨盆位移烘焙（跳跃/翻越/倒地等）"
+ },
+ "P0": 132,
+ "P1": 148,
+ "groups": {
+  "prio": [
+   "P0",
+   "P1"
+  ],
+  "weapon": [
+   "CMU",
+   "剑/单手",
+   "弓",
+   "掩体",
+   "特殊技",
+   "通用",
+   "通用·徒手"
+  ],
+  "func": [
+   "A10_攀爬/潜行",
+   "A1_行走",
+   "A2_奔跑/冲刺",
+   "A3_转向/横移",
+   "A5_跳跃/腾空",
+   "A6_闪避/翻滚",
+   "A8_起身/站起",
+   "B1_待机",
+   "B2_对话交谈",
+   "B3_表情情绪",
+   "B4_日常交互",
+   "B5_坐/躺/跪",
+   "B6_舞蹈/表演",
+   "B7_体育运动",
+   "B8_儿童游戏",
+   "C1_剑/单手武器",
+   "C2_弓/远程",
+   "C3_徒手格斗",
+   "D2_死亡/倒地",
+   "其它",
+   "受击死亡倒地",
+   "坠落",
+   "弓箭流程",
+   "待机姿态",
+   "攻击",
+   "特殊技",
+   "社交交互",
+   "移动",
+   "装备收起",
+   "跳跃翻越",
+   "转身",
+   "闪避位移特技"
+  ],
+  "pack": [
+   "1-CMU动捕",
+   "2-3583官方动作集"
+  ],
+  "mode": [
+   "ground",
+   "src"
+  ]
+ },
+ "clips": {
+  "079_49": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A10_攀爬/潜行",
+   "pack": "1-CMU动捕",
+   "desc": "monkey",
+   "path": "/Game/MocapCMU-InPlace/079_49",
+   "mode": "src"
+  },
+  "143_41": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A10_攀爬/潜行",
+   "pack": "1-CMU动捕",
+   "desc": "Sneak",
+   "path": "/Game/MocapCMU-InPlace/143_41",
+   "mode": "src"
+  },
+  "002_01": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A1_行走",
+   "pack": "1-CMU动捕",
+   "desc": "walk",
+   "path": "/Game/MocapCMU-InPlace/002_01",
+   "mode": "ground"
+  },
+  "002_02": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A1_行走",
+   "pack": "1-CMU动捕",
+   "desc": "walk",
+   "path": "/Game/MocapCMU-InPlace/002_02",
+   "mode": "ground"
+  },
+  "009_01": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A2_奔跑/冲刺",
+   "pack": "1-CMU动捕",
+   "desc": "run",
+   "path": "/Game/MocapCMU-InPlace/009_01",
+   "mode": "ground"
+  },
+  "009_02": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A2_奔跑/冲刺",
+   "pack": "1-CMU动捕",
+   "desc": "run",
+   "path": "/Game/MocapCMU-InPlace/009_02",
+   "mode": "ground"
+  },
+  "076_10": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A3_转向/横移",
+   "pack": "1-CMU动捕",
+   "desc": "turning",
+   "path": "/Game/MocapCMU-InPlace/076_10",
+   "mode": "ground"
+  },
+  "102_29": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A3_转向/横移",
+   "pack": "1-CMU动捕",
+   "desc": "Pivoting",
+   "path": "/Game/MocapCMU-InPlace/102_29",
+   "mode": "ground"
+  },
+  "013_39": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A5_跳跃/腾空",
+   "pack": "1-CMU动捕",
+   "desc": "jump",
+   "path": "/Game/MocapCMU-InPlace/013_39",
+   "mode": "src"
+  },
+  "013_40": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A5_跳跃/腾空",
+   "pack": "1-CMU动捕",
+   "desc": "jump",
+   "path": "/Game/MocapCMU-InPlace/013_40",
+   "mode": "src"
+  },
+  "079_02": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A6_闪避/翻滚",
+   "pack": "1-CMU动捕",
+   "desc": "swimming",
+   "path": "/Game/MocapCMU-InPlace/079_02",
+   "mode": "src"
+  },
+  "079_03": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A6_闪避/翻滚",
+   "pack": "1-CMU动捕",
+   "desc": "swimming",
+   "path": "/Game/MocapCMU-InPlace/079_03",
+   "mode": "src"
+  },
+  "120_15": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A8_起身/站起",
+   "pack": "1-CMU动捕",
+   "desc": "Mickey Surprised",
+   "path": "/Game/MocapCMU-InPlace/120_15",
+   "mode": "src"
+  },
+  "120_16": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "A8_起身/站起",
+   "pack": "1-CMU动捕",
+   "desc": "Mickey Surprised",
+   "path": "/Game/MocapCMU-InPlace/120_16",
+   "mode": "src"
+  },
+  "111_38": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B1_待机",
+   "pack": "1-CMU动捕",
+   "desc": "Yoga",
+   "path": "/Game/MocapCMU-InPlace/111_38",
+   "mode": "ground"
+  },
+  "111_39": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B1_待机",
+   "pack": "1-CMU动捕",
+   "desc": "Yoga",
+   "path": "/Game/MocapCMU-InPlace/111_39",
+   "mode": "ground"
+  },
+  "111_37": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B2_对话交谈",
+   "pack": "1-CMU动捕",
+   "desc": "Wave",
+   "path": "/Game/MocapCMU-InPlace/111_37",
+   "mode": "ground"
+  },
+  "113_27": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B2_对话交谈",
+   "pack": "1-CMU动捕",
+   "desc": "Wave",
+   "path": "/Game/MocapCMU-InPlace/113_27",
+   "mode": "ground"
+  },
+  "079_71": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B3_表情情绪",
+   "pack": "1-CMU动捕",
+   "desc": "sad",
+   "path": "/Game/MocapCMU-InPlace/079_71",
+   "mode": "ground"
+  },
+  "142_15": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B3_表情情绪",
+   "pack": "1-CMU动捕",
+   "desc": "Sad",
+   "path": "/Game/MocapCMU-InPlace/142_15",
+   "mode": "ground"
+  },
+  "111_14": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B4_日常交互",
+   "pack": "1-CMU动捕",
+   "desc": "Mope",
+   "path": "/Game/MocapCMU-InPlace/111_14",
+   "mode": "ground"
+  },
+  "141_27": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B4_日常交互",
+   "pack": "1-CMU动捕",
+   "desc": "Mope",
+   "path": "/Game/MocapCMU-InPlace/141_27",
+   "mode": "ground"
+  },
+  "075_18": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B5_坐/躺/跪",
+   "pack": "1-CMU动捕",
+   "desc": "high sit",
+   "path": "/Game/MocapCMU-InPlace/075_18",
+   "mode": "ground"
+  },
+  "075_20": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "B5_坐/躺/跪",
+   "pack": "1-CMU动捕",
+   "desc": "low sit",
+   "path": "/Game/MocapCMU-InPlace/075_20",
+   "mode": "ground"
+  },
+  "002_07": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "C1_剑/单手武器",
+   "pack": "1-CMU动捕",
+   "desc": "swordplay",
+   "path": "/Game/MocapCMU-InPlace/002_07",
+   "mode": "ground"
+  },
+  "002_08": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "C1_剑/单手武器",
+   "pack": "1-CMU动捕",
+   "desc": "swordplay",
+   "path": "/Game/MocapCMU-InPlace/002_08",
+   "mode": "ground"
+  },
+  "111_02": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "C2_弓/远程",
+   "pack": "1-CMU动捕",
+   "desc": "Bow",
+   "path": "/Game/MocapCMU-InPlace/111_02",
+   "mode": "ground"
+  },
+  "113_02": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "C2_弓/远程",
+   "pack": "1-CMU动捕",
+   "desc": "Bow",
+   "path": "/Game/MocapCMU-InPlace/113_02",
+   "mode": "ground"
+  },
+  "074_03": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "C3_徒手格斗",
+   "pack": "1-CMU动捕",
+   "desc": "kick",
+   "path": "/Game/MocapCMU-InPlace/074_03",
+   "mode": "ground"
+  },
+  "074_04": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "C3_徒手格斗",
+   "pack": "1-CMU动捕",
+   "desc": "kick",
+   "path": "/Game/MocapCMU-InPlace/074_04",
+   "mode": "ground"
+  },
+  "090_16": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "D2_死亡/倒地",
+   "pack": "1-CMU动捕",
+   "desc": "fall on face",
+   "path": "/Game/MocapCMU-InPlace/090_16",
+   "mode": "src"
+  },
+  "090_18": {
+   "prio": "P0",
+   "weapon": "CMU",
+   "func": "D2_死亡/倒地",
+   "pack": "1-CMU动捕",
+   "desc": "RugPullFall",
+   "path": "/Game/MocapCMU-InPlace/090_18",
+   "mode": "src"
+  },
+  "Anim_CS_SP": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_SP",
+   "mode": "ground"
+  },
+  "Anim_CS_GH_B_01": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_GH_B_01",
+   "mode": "src"
+  },
+  "Anim_CS_KD_F": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_KD_F",
+   "mode": "src"
+  },
+  "Anim_CS_KD_getB": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_KD_getB",
+   "mode": "src"
+  },
+  "Anim_CSST": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSST",
+   "mode": "ground"
+  },
+  "Anim_CS_cLEse_ST": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_cLEse_ST",
+   "mode": "ground"
+  },
+  "Anim_CSATLI_01_DE": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSATLI_01_DE",
+   "mode": "ground"
+  },
+  "Anim_CSATLI_02_DE": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSATLI_02_DE",
+   "mode": "ground"
+  },
+  "Anim_CSATLI_03_DE": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSATLI_03_DE",
+   "mode": "ground"
+  },
+  "Anim_IN_SW_floor_ST": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_IN_SW_floor_ST",
+   "mode": "ground"
+  },
+  "Anim_IN_cut_TR_E": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_IN_cut_TR_E",
+   "mode": "ground"
+  },
+  "Anim_CSBLST": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSBLST",
+   "mode": "ground"
+  },
+  "Anim_CSST_to_SP": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSST_to_SP",
+   "mode": "ground"
+  },
+  "Anim_CS_CR_W": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_CR_W",
+   "mode": "ground"
+  },
+  "Anim_CS_EQ": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "装备收起",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_EQ",
+   "mode": "ground"
+  },
+  "Anim_CS_unEQ": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "装备收起",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_unEQ",
+   "mode": "ground"
+  },
+  "Anim_CS_JU_in_PL": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_JU_in_PL",
+   "mode": "src"
+  },
+  "Anim_CS_JU_land": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_JU_land",
+   "mode": "src"
+  },
+  "Anim_CS_JU_land_hard": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_JU_land_hard",
+   "mode": "src"
+  },
+  "Anim_CS_R_TURN_180_L": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_R_TURN_180_L",
+   "mode": "ground"
+  },
+  "Anim_CS_R_TURN_180_R": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_R_TURN_180_R",
+   "mode": "ground"
+  },
+  "Anim_CS_DODGE_B": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_DODGE_B",
+   "mode": "src"
+  },
+  "Anim_CS_DODGE_F": {
+   "prio": "P0",
+   "weapon": "剑/单手",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_DODGE_F",
+   "mode": "src"
+  },
+  "Anim_BOW_SP": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_SP",
+   "mode": "ground"
+  },
+  "Anim_BOW_GH_B_01": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_GH_B_01",
+   "mode": "src"
+  },
+  "Anim_BOW_KD_F": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_KD_F",
+   "mode": "src"
+  },
+  "Anim_BOW_KD_get_up": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_KD_get_up",
+   "mode": "src"
+  },
+  "Anim_BOW_aim_ST_up": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "弓箭流程",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_aim_ST_up",
+   "mode": "ground"
+  },
+  "Anim_BOW_draw_DWN": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "弓箭流程",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_draw_DWN",
+   "mode": "ground"
+  },
+  "Anim_BOW_draw_up": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "弓箭流程",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_draw_up",
+   "mode": "ground"
+  },
+  "Anim_BOW_cLEse_ST": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_cLEse_ST",
+   "mode": "ground"
+  },
+  "Anim_CR_BOWST_toST_BOW": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_CR_BOWST_toST_BOW",
+   "mode": "ground"
+  },
+  "Anim_EM_BOW_PT_01": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_EM_BOW_PT_01",
+   "mode": "ground"
+  },
+  "Anim_EM_BOW_call_01": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_EM_BOW_call_01",
+   "mode": "ground"
+  },
+  "Anim_BOWST": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOWST",
+   "mode": "ground"
+  },
+  "Anim_BOWST_to_SP": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOWST_to_SP",
+   "mode": "ground"
+  },
+  "Anim_CR_BOW_W": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_CR_BOW_W",
+   "mode": "ground"
+  },
+  "Anim_BOW_EQ": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "装备收起",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_EQ",
+   "mode": "ground"
+  },
+  "Anim_BOW_unEQ": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "装备收起",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_unEQ",
+   "mode": "ground"
+  },
+  "Anim_BOW_JU_in_PL": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_JU_in_PL",
+   "mode": "src"
+  },
+  "Anim_BOW_JU_land": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_JU_land",
+   "mode": "src"
+  },
+  "Anim_BOW_JU_land_hard": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_JU_land_hard",
+   "mode": "src"
+  },
+  "Anim_BOW_R_TURN_180_L": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_R_TURN_180_L",
+   "mode": "ground"
+  },
+  "Anim_BOW_R_TURN_180_R": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_R_TURN_180_R",
+   "mode": "ground"
+  },
+  "Anim_BOW_DODGE_B": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_DODGE_B",
+   "mode": "src"
+  },
+  "Anim_BOW_DODGE_F": {
+   "prio": "P0",
+   "weapon": "弓",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_DODGE_F",
+   "mode": "src"
+  },
+  "Anim_RA_IDL_01": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RA_IDL_01",
+   "mode": "ground"
+  },
+  "Anim_RA_IDL_02": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RA_IDL_02",
+   "mode": "ground"
+  },
+  "Anim_RAST": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RAST",
+   "mode": "ground"
+  },
+  "Anim_RAST_to_W": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RAST_to_W",
+   "mode": "ground"
+  },
+  "Anim_RA_W": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RA_W",
+   "mode": "ground"
+  },
+  "Anim_RA_W_FWD_toST_L": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RA_W_FWD_toST_L",
+   "mode": "ground"
+  },
+  "Anim_RA_W_FWD_toST_R": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RA_W_FWD_toST_R",
+   "mode": "ground"
+  },
+  "Anim_RA_W_TURN_180_L": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RA_W_TURN_180_L",
+   "mode": "ground"
+  },
+  "Anim_RA_W_TURN_180_R": {
+   "prio": "P0",
+   "weapon": "掩体",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RA_W_TURN_180_R",
+   "mode": "ground"
+  },
+  "Anim_OFail": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_OFail",
+   "mode": "ground"
+  },
+  "Anim_BileCh_KO": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_BileCh_KO",
+   "mode": "src"
+  },
+  "Anim_DeathPL": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_DeathPL",
+   "mode": "src"
+  },
+  "Anim_Fwd_KO": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_Fwd_KO",
+   "mode": "src"
+  },
+  "Anim_Bl_ST": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_Bl_ST",
+   "mode": "ground"
+  },
+  "Anim_Bl__ST": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_Bl__ST",
+   "mode": "ground"
+  },
+  "Anim_BallKick_1": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_BallKick_1",
+   "mode": "ground"
+  },
+  "Anim_DH_Attack": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_DH_Attack",
+   "mode": "ground"
+  },
+  "Anim_T_Attack_1": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_T_Attack_1",
+   "mode": "ground"
+  },
+  "Anim_BP": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "特殊技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_BP",
+   "mode": "src"
+  },
+  "Anim_BPAIR_W": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_BPAIR_W",
+   "mode": "ground"
+  },
+  "Anim_L_Run": {
+   "prio": "P0",
+   "weapon": "特殊技",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_L_Run",
+   "mode": "ground"
+  },
+  "Anim_CR_E": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_CR_E",
+   "mode": "ground"
+  },
+  "Anim_DU_E_GR": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Death/Anim_DU_E_GR",
+   "mode": "src"
+  },
+  "Anim_KD_get_up": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/GetUp/Anim_KD_get_up",
+   "mode": "src"
+  },
+  "Anim_dEAh_CO": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_dEAh_CO",
+   "mode": "src"
+  },
+  "Anim_Fall_1": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "坠落",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_Fall_1",
+   "mode": "src"
+  },
+  "Anim_CR_ST": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_CR_ST",
+   "mode": "ground"
+  },
+  "Anim_Idle1": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_Idle1",
+   "mode": "ground"
+  },
+  "Anim_CR_COAttack_Anim": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_CR_COAttack_Anim",
+   "mode": "ground"
+  },
+  "Anim_T_": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "特殊技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_T_",
+   "mode": "src"
+  },
+  "Anim_EM_CO": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_EM_CO",
+   "mode": "ground"
+  },
+  "Anim_EM_FL": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_EM_FL",
+   "mode": "ground"
+  },
+  "Anim_Run1": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_Run1",
+   "mode": "ground"
+  },
+  "Anim_W1": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_W1",
+   "mode": "ground"
+  },
+  "Anim_WS": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_WS",
+   "mode": "ground"
+  },
+  "Anim_H": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_H",
+   "mode": "src"
+  },
+  "Anim_J2": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_J2",
+   "mode": "src"
+  },
+  "Anim_JUB": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_JUB",
+   "mode": "src"
+  },
+  "Anim_TA_N_L_TURN_body_L": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_TA_N_L_TURN_body_L",
+   "mode": "ground"
+  },
+  "Anim_TA_N_L_TURN_body_R": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_TA_N_L_TURN_body_R",
+   "mode": "ground"
+  },
+  "Anim_Sw": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_Sw",
+   "mode": "src"
+  },
+  "Anim_VUp": {
+   "prio": "P0",
+   "weapon": "通用",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_VUp",
+   "mode": "src"
+  },
+  "Anim_TH_E": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_TH_E",
+   "mode": "ground"
+  },
+  "Anim_CRST_toST": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_CRST_toST",
+   "mode": "ground"
+  },
+  "Anim_TH_ST": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_TH_ST",
+   "mode": "ground"
+  },
+  "Anim_IN_FI_EX_E": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_IN_FI_EX_E",
+   "mode": "ground"
+  },
+  "Anim_IN_FI_EX_ST": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_IN_FI_EX_ST",
+   "mode": "ground"
+  },
+  "Anim_CR_W": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_CR_W",
+   "mode": "ground"
+  },
+  "Anim_SP": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_SP",
+   "mode": "ground"
+  },
+  "Anim_W": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_W",
+   "mode": "ground"
+  },
+  "Anim_R_TURN_180_L": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_R_TURN_180_L",
+   "mode": "ground"
+  },
+  "Anim_R_TURN_180_R": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_R_TURN_180_R",
+   "mode": "ground"
+  },
+  "Anim_DODGE_B": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_DODGE_B",
+   "mode": "src"
+  },
+  "Anim_DODGE_F": {
+   "prio": "P0",
+   "weapon": "通用·徒手",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_DODGE_F",
+   "mode": "src"
+  },
+  "080_54": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A10_攀爬/潜行",
+   "pack": "1-CMU动捕",
+   "desc": "monkey",
+   "path": "/Game/MocapCMU-InPlace/080_54",
+   "mode": "src"
+  },
+  "111_03": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A10_攀爬/潜行",
+   "pack": "1-CMU动捕",
+   "desc": "Crawling",
+   "path": "/Game/MocapCMU-InPlace/111_03",
+   "mode": "src"
+  },
+  "139_29": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A10_攀爬/潜行",
+   "pack": "1-CMU动捕",
+   "desc": "Sneaking",
+   "path": "/Game/MocapCMU-InPlace/139_29",
+   "mode": "src"
+  },
+  "142_22": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A10_攀爬/潜行",
+   "pack": "1-CMU动捕",
+   "desc": "Sneaky",
+   "path": "/Game/MocapCMU-InPlace/142_22",
+   "mode": "src"
+  },
+  "005_01": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A1_行走",
+   "pack": "1-CMU动捕",
+   "desc": "walk",
+   "path": "/Game/MocapCMU-InPlace/005_01",
+   "mode": "ground"
+  },
+  "006_01": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A1_行走",
+   "pack": "1-CMU动捕",
+   "desc": "walk",
+   "path": "/Game/MocapCMU-InPlace/006_01",
+   "mode": "ground"
+  },
+  "007_01": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A1_行走",
+   "pack": "1-CMU动捕",
+   "desc": "walk",
+   "path": "/Game/MocapCMU-InPlace/007_01",
+   "mode": "ground"
+  },
+  "007_02": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A1_行走",
+   "pack": "1-CMU动捕",
+   "desc": "walk",
+   "path": "/Game/MocapCMU-InPlace/007_02",
+   "mode": "ground"
+  },
+  "009_03": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A2_奔跑/冲刺",
+   "pack": "1-CMU动捕",
+   "desc": "run",
+   "path": "/Game/MocapCMU-InPlace/009_03",
+   "mode": "ground"
+  },
+  "009_04": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A2_奔跑/冲刺",
+   "pack": "1-CMU动捕",
+   "desc": "run",
+   "path": "/Game/MocapCMU-InPlace/009_04",
+   "mode": "ground"
+  },
+  "009_05": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A2_奔跑/冲刺",
+   "pack": "1-CMU动捕",
+   "desc": "run",
+   "path": "/Game/MocapCMU-InPlace/009_05",
+   "mode": "ground"
+  },
+  "009_06": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A2_奔跑/冲刺",
+   "pack": "1-CMU动捕",
+   "desc": "run",
+   "path": "/Game/MocapCMU-InPlace/009_06",
+   "mode": "ground"
+  },
+  "085_15": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A3_转向/横移",
+   "pack": "1-CMU动捕",
+   "desc": "90TwistsFall",
+   "path": "/Game/MocapCMU-InPlace/085_15",
+   "mode": "ground"
+  },
+  "102_02": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A3_转向/横移",
+   "pack": "1-CMU动捕",
+   "desc": "LeftWideTurn",
+   "path": "/Game/MocapCMU-InPlace/102_02",
+   "mode": "ground"
+  },
+  "120_01": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A3_转向/横移",
+   "pack": "1-CMU动捕",
+   "desc": "Alien Turn",
+   "path": "/Game/MocapCMU-InPlace/120_01",
+   "mode": "ground"
+  },
+  "141_12": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A3_转向/横移",
+   "pack": "1-CMU动捕",
+   "desc": "Dance, Twist",
+   "path": "/Game/MocapCMU-InPlace/141_12",
+   "mode": "ground"
+  },
+  "013_41": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A5_跳跃/腾空",
+   "pack": "1-CMU动捕",
+   "desc": "jump",
+   "path": "/Game/MocapCMU-InPlace/013_41",
+   "mode": "src"
+  },
+  "013_42": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A5_跳跃/腾空",
+   "pack": "1-CMU动捕",
+   "desc": "jump",
+   "path": "/Game/MocapCMU-InPlace/013_42",
+   "mode": "src"
+  },
+  "016_01": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A5_跳跃/腾空",
+   "pack": "1-CMU动捕",
+   "desc": "jump",
+   "path": "/Game/MocapCMU-InPlace/016_01",
+   "mode": "src"
+  },
+  "016_02": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A5_跳跃/腾空",
+   "pack": "1-CMU动捕",
+   "desc": "jump",
+   "path": "/Game/MocapCMU-InPlace/016_02",
+   "mode": "src"
+  },
+  "080_72": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A6_闪避/翻滚",
+   "pack": "1-CMU动捕",
+   "desc": "swimming",
+   "path": "/Game/MocapCMU-InPlace/080_72",
+   "mode": "src"
+  },
+  "090_08": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A6_闪避/翻滚",
+   "pack": "1-CMU动捕",
+   "desc": "side flip",
+   "path": "/Game/MocapCMU-InPlace/090_08",
+   "mode": "src"
+  },
+  "090_34": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A6_闪避/翻滚",
+   "pack": "1-CMU动捕",
+   "desc": "wide leg roll",
+   "path": "/Game/MocapCMU-InPlace/090_34",
+   "mode": "src"
+  },
+  "111_21": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A6_闪避/翻滚",
+   "pack": "1-CMU动捕",
+   "desc": "Roll over",
+   "path": "/Game/MocapCMU-InPlace/111_21",
+   "mode": "src"
+  },
+  "111_09": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A8_起身/站起",
+   "pack": "1-CMU动捕",
+   "desc": "Get up from chair",
+   "path": "/Game/MocapCMU-InPlace/111_09",
+   "mode": "src"
+  },
+  "111_10": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A8_起身/站起",
+   "pack": "1-CMU动捕",
+   "desc": "get up from chair",
+   "path": "/Game/MocapCMU-InPlace/111_10",
+   "mode": "src"
+  },
+  "140_01": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A8_起身/站起",
+   "pack": "1-CMU动捕",
+   "desc": "Get Up Face Down",
+   "path": "/Game/MocapCMU-InPlace/140_01",
+   "mode": "src"
+  },
+  "140_02": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "A8_起身/站起",
+   "pack": "1-CMU动捕",
+   "desc": "Get Up Face Down",
+   "path": "/Game/MocapCMU-InPlace/140_02",
+   "mode": "src"
+  },
+  "111_40": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B1_待机",
+   "pack": "1-CMU动捕",
+   "desc": "Yoga",
+   "path": "/Game/MocapCMU-InPlace/111_40",
+   "mode": "ground"
+  },
+  "111_41": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B1_待机",
+   "pack": "1-CMU动捕",
+   "desc": "Yoga",
+   "path": "/Game/MocapCMU-InPlace/111_41",
+   "mode": "ground"
+  },
+  "113_28": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B1_待机",
+   "pack": "1-CMU动捕",
+   "desc": "Yoga",
+   "path": "/Game/MocapCMU-InPlace/113_28",
+   "mode": "ground"
+  },
+  "113_29": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B1_待机",
+   "pack": "1-CMU动捕",
+   "desc": "Yoga",
+   "path": "/Game/MocapCMU-InPlace/113_29",
+   "mode": "ground"
+  },
+  "111_25": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B2_对话交谈",
+   "pack": "1-CMU动捕",
+   "desc": "Shrug",
+   "path": "/Game/MocapCMU-InPlace/111_25",
+   "mode": "ground"
+  },
+  "113_16": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B2_对话交谈",
+   "pack": "1-CMU动捕",
+   "desc": "Shrug",
+   "path": "/Game/MocapCMU-InPlace/113_16",
+   "mode": "ground"
+  },
+  "138_11": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B2_对话交谈",
+   "pack": "1-CMU动捕",
+   "desc": "Story",
+   "path": "/Game/MocapCMU-InPlace/138_11",
+   "mode": "ground"
+  },
+  "138_12": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B2_对话交谈",
+   "pack": "1-CMU动捕",
+   "desc": "Story",
+   "path": "/Game/MocapCMU-InPlace/138_12",
+   "mode": "ground"
+  },
+  "013_14": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B3_表情情绪",
+   "pack": "1-CMU动捕",
+   "desc": "laugh",
+   "path": "/Game/MocapCMU-InPlace/013_14",
+   "mode": "ground"
+  },
+  "013_15": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B3_表情情绪",
+   "pack": "1-CMU动捕",
+   "desc": "laugh",
+   "path": "/Game/MocapCMU-InPlace/013_15",
+   "mode": "ground"
+  },
+  "013_16": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B3_表情情绪",
+   "pack": "1-CMU动捕",
+   "desc": "laugh",
+   "path": "/Game/MocapCMU-InPlace/013_16",
+   "mode": "ground"
+  },
+  "014_17": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B3_表情情绪",
+   "pack": "1-CMU动捕",
+   "desc": "laugh",
+   "path": "/Game/MocapCMU-InPlace/014_17",
+   "mode": "ground"
+  },
+  "106_01": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B4_日常交互",
+   "pack": "1-CMU动捕",
+   "desc": "clean",
+   "path": "/Game/MocapCMU-InPlace/106_01",
+   "mode": "ground"
+  },
+  "106_02": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B4_日常交互",
+   "pack": "1-CMU动捕",
+   "desc": "clean",
+   "path": "/Game/MocapCMU-InPlace/106_02",
+   "mode": "ground"
+  },
+  "106_03": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B4_日常交互",
+   "pack": "1-CMU动捕",
+   "desc": "clean",
+   "path": "/Game/MocapCMU-InPlace/106_03",
+   "mode": "ground"
+  },
+  "106_04": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B4_日常交互",
+   "pack": "1-CMU动捕",
+   "desc": "clean",
+   "path": "/Game/MocapCMU-InPlace/106_04",
+   "mode": "ground"
+  },
+  "014_13": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B5_坐/躺/跪",
+   "pack": "1-CMU动捕",
+   "desc": "mop floor",
+   "path": "/Game/MocapCMU-InPlace/014_13",
+   "mode": "ground"
+  },
+  "014_15": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B5_坐/躺/跪",
+   "pack": "1-CMU动捕",
+   "desc": "mop floor",
+   "path": "/Game/MocapCMU-InPlace/014_15",
+   "mode": "ground"
+  },
+  "075_17": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B5_坐/躺/跪",
+   "pack": "1-CMU动捕",
+   "desc": "medium sit",
+   "path": "/Game/MocapCMU-InPlace/075_17",
+   "mode": "ground"
+  },
+  "075_19": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B5_坐/躺/跪",
+   "pack": "1-CMU动捕",
+   "desc": "medium sit",
+   "path": "/Game/MocapCMU-InPlace/075_19",
+   "mode": "ground"
+  },
+  "111_05": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B6_舞蹈/表演",
+   "pack": "1-CMU动捕",
+   "desc": "Dance",
+   "path": "/Game/MocapCMU-InPlace/111_05",
+   "mode": "ground"
+  },
+  "113_04": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B6_舞蹈/表演",
+   "pack": "1-CMU动捕",
+   "desc": "Dance",
+   "path": "/Game/MocapCMU-InPlace/113_04",
+   "mode": "ground"
+  },
+  "079_91": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B7_体育运动",
+   "pack": "1-CMU动捕",
+   "desc": "football",
+   "path": "/Game/MocapCMU-InPlace/079_91",
+   "mode": "ground"
+  },
+  "090_24": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B7_体育运动",
+   "pack": "1-CMU动捕",
+   "desc": "ball mount",
+   "path": "/Game/MocapCMU-InPlace/090_24",
+   "mode": "ground"
+  },
+  "079_18": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B8_儿童游戏",
+   "pack": "1-CMU动捕",
+   "desc": "playing drums",
+   "path": "/Game/MocapCMU-InPlace/079_18",
+   "mode": "ground"
+  },
+  "142_01": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "B8_儿童游戏",
+   "pack": "1-CMU动捕",
+   "desc": "Childish",
+   "path": "/Game/MocapCMU-InPlace/142_01",
+   "mode": "ground"
+  },
+  "002_09": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C1_剑/单手武器",
+   "pack": "1-CMU动捕",
+   "desc": "swordplay",
+   "path": "/Game/MocapCMU-InPlace/002_09",
+   "mode": "ground"
+  },
+  "063_02": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C2_弓/远程",
+   "pack": "1-CMU动捕",
+   "desc": "[subject] golf",
+   "path": "/Game/MocapCMU-InPlace/063_02",
+   "mode": "ground"
+  },
+  "063_03": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C2_弓/远程",
+   "pack": "1-CMU动捕",
+   "desc": "[subject] golf",
+   "path": "/Game/MocapCMU-InPlace/063_03",
+   "mode": "ground"
+  },
+  "111_33": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C2_弓/远程",
+   "pack": "1-CMU动捕",
+   "desc": "Throwing",
+   "path": "/Game/MocapCMU-InPlace/111_33",
+   "mode": "ground"
+  },
+  "139_05": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C2_弓/远程",
+   "pack": "1-CMU动捕",
+   "desc": "Pulling a Gun",
+   "path": "/Game/MocapCMU-InPlace/139_05",
+   "mode": "ground"
+  },
+  "013_17": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C3_徒手格斗",
+   "pack": "1-CMU动捕",
+   "desc": "boxing",
+   "path": "/Game/MocapCMU-InPlace/013_17",
+   "mode": "ground"
+  },
+  "013_18": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C3_徒手格斗",
+   "pack": "1-CMU动捕",
+   "desc": "boxing",
+   "path": "/Game/MocapCMU-InPlace/013_18",
+   "mode": "ground"
+  },
+  "074_05": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C3_徒手格斗",
+   "pack": "1-CMU动捕",
+   "desc": "kick",
+   "path": "/Game/MocapCMU-InPlace/074_05",
+   "mode": "ground"
+  },
+  "074_06": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "C3_徒手格斗",
+   "pack": "1-CMU动捕",
+   "desc": "kick",
+   "path": "/Game/MocapCMU-InPlace/074_06",
+   "mode": "ground"
+  },
+  "002_06": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "D2_死亡/倒地",
+   "pack": "1-CMU动捕",
+   "desc": "bend over, scoop up, rise, lift arm",
+   "path": "/Game/MocapCMU-InPlace/002_06",
+   "mode": "src"
+  },
+  "090_12": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "D2_死亡/倒地",
+   "pack": "1-CMU动捕",
+   "desc": "bck flp twst fall",
+   "path": "/Game/MocapCMU-InPlace/090_12",
+   "mode": "src"
+  },
+  "090_13": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "D2_死亡/倒地",
+   "pack": "1-CMU动捕",
+   "desc": "bck flp twst fall",
+   "path": "/Game/MocapCMU-InPlace/090_13",
+   "mode": "src"
+  },
+  "090_17": {
+   "prio": "P1",
+   "weapon": "CMU",
+   "func": "D2_死亡/倒地",
+   "pack": "1-CMU动捕",
+   "desc": "BannanaPeelSlip",
+   "path": "/Game/MocapCMU-InPlace/090_17",
+   "mode": "src"
+  },
+  "Anim_CS_spit": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_spit",
+   "mode": "ground"
+  },
+  "Anim_CS_GH_F_01": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_GH_F_01",
+   "mode": "src"
+  },
+  "Anim_CS_GH_F_L_01": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_GH_F_L_01",
+   "mode": "src"
+  },
+  "Anim_CS_GH_L_01": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_GH_L_01",
+   "mode": "src"
+  },
+  "Anim_CS_GH_R_01": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_GH_R_01",
+   "mode": "src"
+  },
+  "Anim_CS_KD_F_01": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_KD_F_01",
+   "mode": "src"
+  },
+  "Anim_CSST_to_CRST": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSST_to_CRST",
+   "mode": "ground"
+  },
+  "Anim_CS_CRST_toST": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_CRST_toST",
+   "mode": "ground"
+  },
+  "Anim_CSATLI_01": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSATLI_01",
+   "mode": "ground"
+  },
+  "Anim_CSATLI_04_DE": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "攻击",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSATLI_04_DE",
+   "mode": "ground"
+  },
+  "Anim_IN_TR_SAT_1": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_IN_TR_SAT_1",
+   "mode": "ground"
+  },
+  "Anim_IN_TR_SAT_2": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_IN_TR_SAT_2",
+   "mode": "ground"
+  },
+  "Anim_IN_TR_SAT_3": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_IN_TR_SAT_3",
+   "mode": "ground"
+  },
+  "Anim_CSBL_break_01": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CSBL_break_01",
+   "mode": "ground"
+  },
+  "Anim_CS_CRST_to_W": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_CRST_to_W",
+   "mode": "ground"
+  },
+  "Anim_IN_TR_S_EQ": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "装备收起",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_IN_TR_S_EQ",
+   "mode": "ground"
+  },
+  "Anim_CS_R_JU_L": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_R_JU_L",
+   "mode": "src"
+  },
+  "Anim_CS_R_JU_R": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_R_JU_R",
+   "mode": "src"
+  },
+  "Anim_CS_W_TURN_180_L": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_W_TURN_180_L",
+   "mode": "ground"
+  },
+  "Anim_CS_DODGE_L": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_DODGE_L",
+   "mode": "src"
+  },
+  "Anim_CS_DODGE_R": {
+   "prio": "P1",
+   "weapon": "剑/单手",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Sword/Anim_CS_DODGE_R",
+   "mode": "src"
+  },
+  "Anim_BOW_cLEse_E": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_cLEse_E",
+   "mode": "ground"
+  },
+  "Anim_BOW_GH_F_01": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_GH_F_01",
+   "mode": "src"
+  },
+  "Anim_BOW_GH_F_L_01": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_GH_F_L_01",
+   "mode": "src"
+  },
+  "Anim_BOW_GH_F_R_01": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_GH_F_R_01",
+   "mode": "src"
+  },
+  "Anim_BOW_GH_L_01": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_GH_L_01",
+   "mode": "src"
+  },
+  "Anim_BOW_GH_R_01": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_GH_R_01",
+   "mode": "src"
+  },
+  "Anim_BOW_aim_IDL_up": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "弓箭流程",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_aim_IDL_up",
+   "mode": "ground"
+  },
+  "Anim_BOW_IDL_01": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_IDL_01",
+   "mode": "ground"
+  },
+  "Anim_CR_BOWST_01": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_CR_BOWST_01",
+   "mode": "ground"
+  },
+  "Anim_EM_BOW_victory_01": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_EM_BOW_victory_01",
+   "mode": "ground"
+  },
+  "Anim_EM_BOW_victory_02": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_EM_BOW_victory_02",
+   "mode": "ground"
+  },
+  "Anim_BOWST_to_CR_BOWST": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOWST_to_CR_BOWST",
+   "mode": "ground"
+  },
+  "Anim_CR_BOWST_to_W": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_CR_BOWST_to_W",
+   "mode": "ground"
+  },
+  "Anim_BOW_unEQ_to_S_EQ": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "装备收起",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_unEQ_to_S_EQ",
+   "mode": "ground"
+  },
+  "Anim_BOW_R_JU_L": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_R_JU_L",
+   "mode": "src"
+  },
+  "Anim_BOW_R_JU_R": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_R_JU_R",
+   "mode": "src"
+  },
+  "Anim_BOW_W_TURN_180_L": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_W_TURN_180_L",
+   "mode": "ground"
+  },
+  "Anim_BOW_DODGE_L": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_DODGE_L",
+   "mode": "src"
+  },
+  "Anim_BOW_DODGE_R": {
+   "prio": "P1",
+   "weapon": "弓",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Bow/Anim_BOW_DODGE_R",
+   "mode": "src"
+  },
+  "Anim_RA_IDL_03": {
+   "prio": "P1",
+   "weapon": "掩体",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RA_IDL_03",
+   "mode": "ground"
+  },
+  "Anim_RAST_to_W_90_L": {
+   "prio": "P1",
+   "weapon": "掩体",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RAST_to_W_90_L",
+   "mode": "ground"
+  },
+  "Anim_RAST_to_W_90_R": {
+   "prio": "P1",
+   "weapon": "掩体",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RAST_to_W_90_R",
+   "mode": "ground"
+  },
+  "Anim_RAST_to_W_L": {
+   "prio": "P1",
+   "weapon": "掩体",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/CoverEyes/Anim_RAST_to_W_L",
+   "mode": "ground"
+  },
+  "Anim_CO_Tag": {
+   "prio": "P1",
+   "weapon": "特殊技",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_CO_Tag",
+   "mode": "ground"
+  },
+  "Anim_Death_1": {
+   "prio": "P1",
+   "weapon": "特殊技",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_Death_1",
+   "mode": "src"
+  },
+  "Anim_Fwd_KO_L_1": {
+   "prio": "P1",
+   "weapon": "特殊技",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_Fwd_KO_L_1",
+   "mode": "src"
+  },
+  "Anim_KO_FromAir": {
+   "prio": "P1",
+   "weapon": "特殊技",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_KO_FromAir",
+   "mode": "src"
+  },
+  "Anim_BPAIR_ST": {
+   "prio": "P1",
+   "weapon": "特殊技",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_BPAIR_ST",
+   "mode": "ground"
+  },
+  "Anim_L_Idle": {
+   "prio": "P1",
+   "weapon": "特殊技",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_L_Idle",
+   "mode": "ground"
+  },
+  "Anim_DH": {
+   "prio": "P1",
+   "weapon": "特殊技",
+   "func": "特殊技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_DH",
+   "mode": "src"
+  },
+  "Anim_NU": {
+   "prio": "P1",
+   "weapon": "特殊技",
+   "func": "特殊技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeCombat/Anim_NU",
+   "mode": "src"
+  },
+  "Anim_ME_E": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_ME_E",
+   "mode": "ground"
+  },
+  "Anim_Flinch_1": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_Flinch_1",
+   "mode": "src"
+  },
+  "Anim_GH_B_01": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/GetHit/Anim_GH_B_01",
+   "mode": "src"
+  },
+  "Anim_GH_F_01": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/GetHit/Anim_GH_F_01",
+   "mode": "src"
+  },
+  "Anim_GH_L_01": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/GetHit/Anim_GH_L_01",
+   "mode": "src"
+  },
+  "Anim_KD_F": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "受击死亡倒地",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Death/Anim_KD_F",
+   "mode": "src"
+  },
+  "Anim_Fall_2": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "坠落",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_Fall_2",
+   "mode": "src"
+  },
+  "Anim_HIdle1": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_HIdle1",
+   "mode": "ground"
+  },
+  "Anim_ME_ST": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_ME_ST",
+   "mode": "ground"
+  },
+  "Anim_T_1": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "特殊技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_T_1",
+   "mode": "src"
+  },
+  "Anim_T_2": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "特殊技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_T_2",
+   "mode": "src"
+  },
+  "Anim_CR_LP_E": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_CR_LP_E",
+   "mode": "ground"
+  },
+  "Anim_TA_N_P": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_TA_N_P",
+   "mode": "ground"
+  },
+  "Anim_TA_S_P": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/NPC/Anim_TA_S_P",
+   "mode": "ground"
+  },
+  "Anim_RunFwd_1": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_RunFwd_1",
+   "mode": "ground"
+  },
+  "Anim_WFwd_1": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_WFwd_1",
+   "mode": "ground"
+  },
+  "Anim_H_Land": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_H_Land",
+   "mode": "src"
+  },
+  "Anim_PR_Up": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "跳跃翻越",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_PR_Up",
+   "mode": "src"
+  },
+  "Anim_Dash": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_Dash",
+   "mode": "src"
+  },
+  "Anim_SlideL1": {
+   "prio": "P1",
+   "weapon": "通用",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/ExtremeLocomotion/Anim_SlideL1",
+   "mode": "src"
+  },
+  "Anim_recover_01": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "其它",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_recover_01",
+   "mode": "ground"
+  },
+  "Anim_IDL_01": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_IDL_01",
+   "mode": "ground"
+  },
+  "Anim_ST_to_CRST": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "待机姿态",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_ST_to_CRST",
+   "mode": "ground"
+  },
+  "Anim_IN_FI_EX_loop": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "社交交互",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_IN_FI_EX_loop",
+   "mode": "ground"
+  },
+  "Anim_ST_to_SP": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_ST_to_SP",
+   "mode": "ground"
+  },
+  "Anim_ST_to_W": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "移动",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_ST_to_W",
+   "mode": "ground"
+  },
+  "Anim_W_TURN_180_L": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "转身",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_W_TURN_180_L",
+   "mode": "ground"
+  },
+  "Anim_DODGE_L": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_DODGE_L",
+   "mode": "src"
+  },
+  "Anim_DODGE_R": {
+   "prio": "P1",
+   "weapon": "通用·徒手",
+   "func": "闪避位移特技",
+   "pack": "2-3583官方动作集",
+   "desc": "",
+   "path": "/Game/AdventureAnimset/Animations/Unarmed/Anim_DODGE_R",
+   "mode": "src"
+  }
+ }
+}

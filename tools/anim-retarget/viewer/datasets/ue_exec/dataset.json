@@ -1,0 +1,17 @@
+{
+  "name": "ue_exec",
+  "title": "GhostSamurai SPAttack06 ↔ 骑砍2 重定向",
+  "subtitle": "UE 小白人同骨架 · 处决/攻击06（源 120fps 385帧 → 30fps 97帧 / 3.2s）",
+  "sides": {
+    "src": {
+      "label": "UE 小白人（源）", "color": "#7fa8d8", "rotY": 0, "slot": -0.62,
+      "footBones": ["foot_l","foot_r","ball_l","ball_r"],
+      "files": [ { "id": "src_e", "url": "assets/ue_spattack06_src.glb" } ]
+    },
+    "dst": {
+      "label": "骑砍2（重定向）", "color": "#e0b070", "rotY": 3.141592653589793, "slot": 0.62,
+      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
+      "files": [ { "id": "dst_e", "url": "assets/bannerlord_spattack06.glb" } ]
+    }
+  }
+}

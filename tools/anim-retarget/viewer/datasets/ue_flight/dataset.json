@@ -1,0 +1,17 @@
+{
+  "name": "ue_flight",
+  "title": "UE5 小白人 ↔ 骑砍2 重定向 · 飞行 130 段",
+  "subtitle": "130 段飞行动画（离地类，用 src 骨盆策略烘焙）",
+  "sides": {
+    "src": {
+      "label": "UE5 小白人（源）", "color": "#7fa8d8", "rotY": 0, "slot": -0.62,
+      "footBones": ["foot_l","foot_r","ball_l","ball_r"],
+      "files": [ { "id": "src_f", "url": "assets/ue_mannequin_flight.glb" } ]
+    },
+    "dst": {
+      "label": "骑砍2（重定向）", "color": "#e0b070", "rotY": 3.141592653589793, "slot": 0.62,
+      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
+      "files": [ { "id": "dst_f", "url": "assets/bannerlord_flight.glb" } ]
+    }
+  }
+}

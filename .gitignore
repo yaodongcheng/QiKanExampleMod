@@ -72,6 +72,20 @@ tools/face-pipeline/external/FreeUV/
 # armor-pipeline（盔甲构建工具链；产物整目录忽略，规则用整目录不用文件名——铁律 26）
 tools/armor-pipeline/out/
 
+# anim-retarget（Blender 动画重定向工具链）
+#   代码 / 文档 / 数据集元数据进库；大数据面在 D:\BrainMaker\骑砍2动画重定向\（见 tools/anim-retarget/README.md）。
+tools/anim-retarget/docs/**/*.mp4
+#   viewer：页面与脚本、dataset.json（含手调的 11 组站位参数）进库；
+#   烘出来的 GLB（137MB，可由 input/source 的 FBX 重生成）与 serve.py 的滚动备份不进库
+tools/anim-retarget/viewer/datasets/*/assets/
+tools/anim-retarget/viewer/datasets/*/_backup/
+#   下面几条是【防御性兜底】：这些目录本不该出现在工具目录里（数据都在 D 盘），
+#   防的是将来有人在工具目录里跑出产物、或误把数据拷进来。
+tools/anim-retarget/input/
+tools/anim-retarget/output/
+tools/anim-retarget/UEAnims/
+tools/anim-retarget/_legacy/
+
 # ── 不同步 AIInfluence 子项目 ──
 ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
 

@@ -1,0 +1,138 @@
+{
+  "name": "ue_exec_pair",
+  "title": "成对动画演示 · 处决 7 对 + 伏击 4 对",
+  "subtitle": "站位由【相对定位】决定：攻击方每帧被摆到受击方骨盆正后方，间距由 gapStart→gapEnd 收敛；两侧骨盆朝向一致（同 rotY）。不再使用手调的 offsetX/offsetZ。",
+  "sides": {
+    "src": {
+      "label": "Execution01（攻击方）",
+      "color": "#7fa8d8",
+      "rotY": 0,
+      "slot": 0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
+      ],
+      "pairAnchor": {
+        "anchor": "dst",
+        "pelvisBone": "pelvis",
+        "gap": 1.5
+      },
+      "fixedClip": null,
+      "files": [
+        {
+          "id": "src_p7",
+          "url": "assets/bl_pair7.glb"
+        },
+        {
+          "id": "src_ab",
+          "url": "assets/bl_ambush.glb"
+        }
+      ]
+    },
+    "dst": {
+      "label": "Executed01（受击方）",
+      "color": "#e0b070",
+      "rotY": 0,
+      "slot": 0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
+      ],
+      "fixedClip": null,
+      "files": [
+        {
+          "id": "dst_p7",
+          "url": "assets/bl_pair7.glb"
+        },
+        {
+          "id": "dst_ab",
+          "url": "assets/bl_ambush.glb"
+        }
+      ],
+      "fixedClipReplace": [
+        [
+          "Execution",
+          "Executed"
+        ],
+        [
+          "Ambush",
+          "Ambushed"
+        ]
+      ],
+      "clipStart": {
+        "GhostSamurai_Ambushed01": 0.09,
+        "GhostSamurai_Ambushed02": 0.16,
+        "GhostSamurai_Ambushed03": 0.16,
+        "GhostSamurai_Ambushed04": 0.51,
+        "GhostSamurai_Executed01": 0.3,
+        "GhostSamurai_Executed02": 0.33,
+        "GhostSamurai_Executed03": 0.4,
+        "GhostSamurai_Executed04": 0.5,
+        "GhostSamurai_Executed05": 0.56,
+        "GhostSamurai_Executed06": 0.3,
+        "GhostSamurai_Executed07": 0.6
+      },
+      "clipStartNote": "有效动作窗口对齐（不倍速）：受击方起手前的死时间，单位 s。由骨骼逐帧位移能量 >15% 峰值的第一帧离线实测"
+    }
+  },
+  "pairs": {
+    "GhostSamurai_Ambush04": {
+      "src": [
+        null,
+        null,
+        null,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0.51
+      ]
+    },
+    "GhostSamurai_Ambush01": {
+      "src": [
+        null,
+        null,
+        null,
+        0.05
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    },
+    "GhostSamurai_Ambush02": {
+      "src": [
+        null,
+        null,
+        2.5,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0.03
+      ]
+    }
+  }
+}

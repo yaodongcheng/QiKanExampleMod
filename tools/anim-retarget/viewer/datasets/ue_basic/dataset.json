@@ -1,0 +1,17 @@
+{
+  "name": "ue_basic",
+  "title": "UE5 小白人 ↔ 骑砍2 重定向 · 基础 29 段",
+  "subtitle": "29 段特色动作（剑舞/拳击/待机/死亡/跳跃/胜利…）",
+  "sides": {
+    "src": {
+      "label": "UE5 小白人（源）", "color": "#7fa8d8", "rotY": 0, "slot": -0.62,
+      "footBones": ["foot_l","foot_r","ball_l","ball_r"],
+      "files": [ { "id": "src_a", "url": "assets/ue_mannequin_src.glb" } ]
+    },
+    "dst": {
+      "label": "骑砍2（重定向）", "color": "#e0b070", "rotY": 3.141592653589793, "slot": 0.62,
+      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
+      "files": [ { "id": "dst_a", "url": "assets/bannerlord_from_ue.glb" } ]
+    }
+  }
+}

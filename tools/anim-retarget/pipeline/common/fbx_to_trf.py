@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-fbx_to_trf_fixed.py —— 从 FBX 导出 Bannerlord TRF（skeleton_anim），修掉「增量当绝对」的错。
+fbx_to_trf.py —— 从 FBX 导出 Bannerlord TRF（skeleton_anim）。
+
+🔴 全工程唯一的 TRF 骨骼动画导出器（原 tools/OpenTrf/fbx_to_trf_fixed.py 已并入本文件）。
 
 【为什么有这份】
 D:\\BrainMaker\\OpenTrf\\fbx_to_trf.py 写出去的是 Blender 的
@@ -9,14 +11,25 @@ D:\\BrainMaker\\OpenTrf\\fbx_to_trf.py 写出去的是 Blender 的
 骑砍 human_skeleton 是 A-pose，每根骨的静止朝向都不同 —— 增量当绝对用，
 等于把每根骨强行摆到「零旋转」，实机表现 = 人趴在地上、四肢乱折。
 
-本脚本把两条轨道都改成「绝对」：
-    旋转 = rest_local ∘ delta                    （rest_local = 该骨相对父骨的静止矩阵）
-    平移 = rest_local.translation + rest_rot @ delta_loc
-根骨同理（相对骨架原点）。
+【🔴 两条轨道的语义不一样，别写成一样】
+引擎读 TRF 时：**旋转按「绝对局部变换」读，平移按「相对静止姿势的增量」读**。
 
-【判据】重新生成后，位置轨首帧应 ≈ 0（**不是** 0.915 —— 那是骨盆绝对高度，本格式不存那个）。
+    旋转 = rest_local ∘ delta            （rest_local = 该骨相对父骨的静止矩阵）
+    平移 = rest_rot @ delta_loc          ← 只有根骨一条轨，**不叠加** rest_local.translation
 
-【输出格式】与 fbx_to_trf.py 逐字节同构：
+写错的两种方式、以及各自的实机后果（都踩过）：
+
+  · 旋转写增量（直接用 pose_bone.rotation_quaternion）→ 把每根骨强行摆到「零旋转」
+    → 人趴在地上、四肢乱折。human_skeleton 是 A-pose，每根骨静止朝向都不同，
+    所以增量 ≠ 绝对，必须补 rest_local。      （plans/rules/wheels.d/assets.md §15.2 雷 1）
+  · 平移写绝对（rest_local.translation + rest_rot @ delta_loc）→ 人整体被抬高约 6cm。
+    根因：引擎自带的动画要适配不同身高的角色，位置轨必然存「相对该骨架静止姿势的增量」，
+    不可能是绝对骨盆高度。                    （plans/rules/wheels.d/assets.md §15.3 雷 2）
+
+【判据】重新生成后，位置轨首帧应 ≈ 0（纯增量）。
+       若量级是米（≈0.86）⇒ 误用了绝对语义，产物作废。
+
+【输出格式】（引擎的 skeleton_anim）：
     rfver 4
     skeleton_anim 1
     <name> 1
@@ -29,18 +42,23 @@ D:\\BrainMaker\\OpenTrf\\fbx_to_trf.py 写出去的是 Blender 的
     end
 
 【用法】
-  blender --background --factory-startup --python fbx_to_trf_fixed.py -- ^
+  blender --background --factory-startup --python fbx_to_trf.py -- ^
       --fbx <in.fbx> --out <out.trf> [--skeleton 名] [--start N] [--end N] ^
       [--name 动画名] [--root 骨名]
 
   --start/--end   采样帧范围，--end **含**最后一帧（内部 range(start, end+1)）。
                   缺省取动作自身的 frame_range。
-  --name          TRF 里的动画名，缺省用骨架物体名（不是动作名 —— 引擎侧认的是骨架）。
+  --name          TRF 第 3 行的【动画名】。缺省 = 输入 FBX 的文件名（去扩展）
+                  —— 本工程的 FBX 就叫 <输出名>.fbx（如 fly_A_Flight_Idle_A.fbx），
+                  所以缺省值天然等于动画名。
+                  🔴 绝不要用骨架名。骨架对象必须叫 human_skeleton_notused（引擎硬要求），
+                     那是【FBX 侧】的事，与【TRF 的动画名】是两回事；用骨架名会让
+                     ModKit 里所有导入的动画资源撞同一个名字。
 
 【脚本自己会做的核对（都会打印）】
   · 骨数 / 帧范围 / 每骨帧数 / 骨序逐行
   · 位置轨首帧数值（验收判据）
-  · 绝对公式 vs Blender 自带 pose_bone.matrix 的交叉核对，偏差 > 0.01° 打 CHECK_WARN
+  · 旋转的绝对公式 vs Blender 自带 pose_bone.matrix 的交叉核对，偏差 > 0.5° 打 CHECK_WARN
 """
 
 import bpy
@@ -148,7 +166,7 @@ def sample(arm, start, end_loop, root_index):
             if deg > worst_deg:
                 worst_deg, worst_at = deg, "%s@f%d" % (pb.name, frame)
 
-        # 根骨平移 = 「相对静止姿势的增量」，**不叠加**静止头部偏移。
+        # 根骨平移 = 静止朝向 ∘ 增量，🔴 **不叠加** rest.translation
         # 🔴 2026-09-19 实机教训：曾经写成 `rest.translation + rest_rot @ location`（绝对值，≈0.86m），
         #    实机表现 = 人物整体被抬高约 6cm。原因：引擎自带的动画必须适配不同身高的角色，
         #    所以它存的是「相对该骨架静止姿势的增量」，不是绝对高度。
@@ -231,8 +249,17 @@ def main():
 
     rots, pos, worst_deg, worst_at = sample(arm, start, end_loop, root_index)
 
-    name = args.get('name') or arm.name
+    # 🔴 TRF 第 3 行是【动画名】，不是骨架名。
+    #    骨架对象必须叫 human_skeleton_notused（引擎硬要求）—— 那是 FBX 侧的事。
+    #    TRF 侧缺省取「输入 FBX 的文件名（去扩展）」：本工程的 FBX 就叫 <输出名>.fbx，
+    #    所以缺省值天然就是动画名（如 fly_A_Flight_Idle_A），不会沾上骨架名。
+    name = args.get('name') or os.path.splitext(os.path.basename(fbx))[0]
+    if name == arm.name or name.startswith("human_skeleton") or name.endswith("_notused"):
+        print("CONVERT_WARN: TRF 动画名 '%s' 看起来是【骨架名】—— 请用 --name <动画名>。"
+              "骨架对象名(%s)与 TRF 动画名是两回事，同名会让 ModKit 里所有动画资源撞名。"
+              % (name, arm.name))
     write_trf(name, rots, pos, out_trf)
+    print("TRF_NAME: 动画名 = '%s'   （骨架对象名 = '%s'，两者已解耦）" % (name, arm.name))
 
     if worst_deg > 0.5:                     # 0.5° 以上才算真错；实测噪音约 0.05°（四元数归一化误差）
         print("CHECK_WARN: 绝对公式与 Blender pose 矩阵最大偏差 %.4f° (%s) —— 偏差大说明手算有误"
@@ -241,7 +268,8 @@ def main():
         print("CHECK_OK: 绝对公式与 Blender pose 矩阵一致（最大偏差 %.4f°，属数值噪音）" % worst_deg)
 
     head_pos = pos[0]
-    print("CHECK_POS: 位置轨首帧 = (%.4f, %.4f, %.4f)   判定线: 应 ≈ 0（纯增量）"
+    print("CHECK_POS: 位置轨首帧 = (%.4f, %.4f, %.4f)   判定线: 应 ≈ 0（纯增量）；"
+          "若量级是米（~0.86）则是误用了绝对语义，产物作废"
           % (head_pos[1], head_pos[2], head_pos[3]))
 
     summary = {

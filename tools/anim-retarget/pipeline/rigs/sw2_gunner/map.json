@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "source_skeleton": "SW2 G1M/G1MS 铁炮兵 L256_GUNNER (47骨, 21变形骨) — Blender 5.2 实测",
+    "target_skeleton": "Bannerlord human_skeleton (human_lod_4.fbx, 28骨) — Blender 5.2 实测",
+    "source_frame": {
+      "up": "+Z",
+      "face": "-Y",
+      "right": "-X",
+      "unit": "cm"
+    },
+    "target_frame": {
+      "up": "+Z",
+      "face": "+Y",
+      "right": "+X",
+      "unit": "m"
+    },
+    "frame_transform": "Rot(Z,180deg)  # 源右(-X)->目标右(+X), 源前(-Y)->目标前(+Y)",
+    "root_bone_source": "bone_0",
+    "root_bone_target": "pelvis",
+    "unit_scale_root_translation": 0.01,
+    "generated": "2026-09-18",
+    "note": "SW2 只有 20 根变形骨可映射；骑砍的 spine1/neck/twist1/finger0 无对应源骨，保持 rest 由父级刚性继承。",
+    "root_rotation_source": "bone_8",
+    "root_rotation_note": "SW2 的 bone_0 是总根(仅承载根位移)，其下分两支：腿支 bone_26->bone_1，躯干支 bone_33->bone_8->bone_34->bone_9。骑砍 pelvis 同时是腿与脊柱的唯一共同父骨，只能取一支的朝向；取躯干支 bone_8 (脊柱链更长更显眼)，腿根朝向的固有偏差在报告中说明。"
+  },
+  "bone_map": {
+    "bone_0": "pelvis",
+    "bone_9": "spine",
+    "bone_10": "spine2",
+    "bone_11": "head",
+    "bone_3": "l_thigh",
+    "bone_5": "l_calf",
+    "bone_7": "l_foot",
+    "bone_25": "l_toe0",
+    "bone_13": "l_clavicle",
+    "bone_15": "l_upperarm_twist",
+    "bone_17": "l_foretwist",
+    "bone_19": "l_hand",
+    "bone_2": "r_thigh",
+    "bone_4": "r_calf",
+    "bone_6": "r_foot",
+    "bone_24": "r_toe0",
+    "bone_12": "r_clavicle",
+    "bone_14": "r_upperarm_twist",
+    "bone_16": "r_foretwist",
+    "bone_18": "r_hand"
+  },
+  "target_keep_rest": [
+    "spine1",
+    "neck",
+    "l_upperarm_twist1",
+    "r_upperarm_twist1",
+    "l_foretwist1",
+    "r_foretwist1",
+    "l_finger0",
+    "r_finger0"
+  ],
+  "source_unmapped": [
+    "bone_1"
+  ],
+  "side_note": "SW2 右侧=-X(bone_2/4/6/24/12/14/16/18)，左侧=+X(bone_3/5/7/25/13/15/17/19)；骑砍右侧=+X(r_*)。经 Rot(Z,180) 帧变换后右->右、左->左，无需额外镜像。"
+}
