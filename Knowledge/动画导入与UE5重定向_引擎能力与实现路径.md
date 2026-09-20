@@ -97,13 +97,17 @@ Clip 关键属性：`blend_in_period`（融合时间）、`blend_out_period`（�
 
 ## 6. 重定向路线图与当前进度
 
+> 🔴 **②③④ 已于 2026-09-19/20 全部跑通**，工具入库在 [`tools/anim-retarget/`](../tools/anim-retarget/README.md)。
+> 实测质量：UE 小白人 mean **3.30°** / max 23.06°；SW2 铁炮兵肢段方向误差 mean **10.93°**。
+> 数据面（源动画/产物/素材包）在 `D:\BrainMaker\骑砍2动画重定向\`，不在仓库里。
+
 | 步骤 | 内容 | 状态 |
 |---|---|---|
 | ① 从游戏导人形骨架 FBX | 见 §3 | ✅ 已完成 |
-| ② Blender 确认骨架 + 建 UE5→骑砍骨名映射表 | 一次性的活 | ⏳ 待做 |
-| ③ Blender 自动重定向脚本 | 导入 UE5 动画 → 映射改名/对齐 rest pose → 逐帧采样烘焙到骑砍骨架 → 导出 | ⏳ 待做 |
-| ④ ModKit 导入建 Clip | 只导骨骼动画 → Create override 建 clip | ⏳ 待做 |
-| ⑤ 接入游戏 | 不动全局 action_sets（全局映射=所有角色都换）；**代码 `Agent.SetActionChannel` 播新 clip**（LWN AgentBrain 空闲态接入；社区已验 cheer 例子） | ✅ **已探明，见 [自定义战斗.md](自定义战斗.md)**（三个实机 mod 逆向：注册三件套 + 关键 API + 坑点清单） |
+| ② Blender 确认骨架 + 建 UE5→骑砍骨名映射表 | 一次性的活 | ✅ **已完成** —— `tools/anim-retarget/pipeline/rigs/ue_mannequin/map.json`（22 标准骨 + 扭骨规则） |
+| ③ Blender 自动重定向脚本 | 导入 UE5 动画 → 映射改名/对齐 rest pose → 逐帧采样烘焙到骑砍骨架 → 导出 | ✅ **已完成** —— `pipeline/rigs/<骨架>/retarget.py`，`align` 模式；一次产 ModKit 规格 FBX + `.trf` |
+| ④ ModKit 导入建 Clip | 只导骨骼动画 → Create override 建 clip | ✅ **已跑通** —— 装填动画已实机生效。🔴 裸导只填 `Source 1/2` 不够，**元数据要整组抄原版同类 clip**，见 [骨骼动画TRF格式与增量陷阱.md](骨骼动画TRF格式与增量陷阱.md) §九 |
+| ⑤ 接入游戏 | 不动全局 action_sets（全局映射=所有角色都换）；**代码 `Agent.SetActionChannel` 播新 clip**（LWN AgentBrain 空闲态接入；社区已验 cheer 例子） | ✅ **已探明，见 [自定义战斗.md](自定义战斗.md)**（三个实机 mod 逆向：注册三件套 + 关键 API + 坑点清单）；接线实操见 [../plans/自定义移动管线.md](../plans/自定义移动管线.md) |
 
 重定向脚本自动化边界：映射表建一次后批处理通吃；骑砍骨架里有 UE 没有的骨（武器槽/头发等）保持 rest pose；
 调质量（踩地/手贴合）无法全自动。

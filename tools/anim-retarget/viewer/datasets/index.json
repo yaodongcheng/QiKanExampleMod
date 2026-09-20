@@ -1,0 +1,37 @@
+{
+  "default": "ue_slim",
+  "datasets": [
+    {
+      "id": "ue_slim",
+      "name": "UE5 小白人 ↔ 骑砍2 · 精简清单 280 段"
+    },
+    {
+      "id": "ue_exec_srccmp",
+      "name": "源(UE) ↔ 目标(骑砍2) · 同 clip 对照（查重定向畸变用）"
+    },
+    {
+      "id": "ue_exec_pair",
+      "name": "处决配对演示（攻击方+受击方）"
+    },
+    {
+      "id": "ue_flight_demo",
+      "name": "UE 飞行悬停 HoverMove ↔ 骑砍2"
+    },
+    {
+      "id": "ue_exec",
+      "name": "GhostSamurai SPAttack06 ↔ 骑砍2（处决/攻击）"
+    },
+    {
+      "id": "ue_basic",
+      "name": "UE5 小白人 ↔ 骑砍2 · 基础 29 段"
+    },
+    {
+      "id": "ue_flight",
+      "name": "UE5 小白人 ↔ 骑砍2 · 飞行 130 段"
+    },
+    {
+      "id": "sw2_gunner",
+      "name": "战国无双2 铁炮兵 p006 ↔ 骑砍2"
+    }
+  ]
+}

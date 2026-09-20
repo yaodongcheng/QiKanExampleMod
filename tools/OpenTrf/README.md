@@ -6,6 +6,22 @@ Bannerlord（《骑马与砍杀2：霸主》）`.trf` 文本资源文件的 **Bl
 
 ---
 
+## ⚠️ 本目录只管「网格」，动画在别处（2026-09-20 分工调整）
+
+`.trf` 有两种内容，工具也分两处，别走错门：
+
+| 你要处理的 | 去哪 | 说明 |
+|---|---|---|
+| **静态网格**（地图 / 建筑 / 船…） | **本目录** | `trf_meta_mesh_importer.py` + `trf_meta_mesh_exporter.py`。属**地形 / 地图域**，登记在 [plans/rules/wheels.d/terrain.md](../../plans/rules/wheels.d/terrain.md) |
+| **骨骼动画**（`skeleton_anim`，角色动作） | [`tools/anim-retarget/`](../anim-retarget/) | `pipeline/common/fbx_to_trf.py` —— **全工程唯一的 TRF 骨骼动画导出器**。原在本目录的 `fbx_to_trf_fixed.py` 已于 2026-09-20 并入它 |
+
+> 🔴 **`out/sw2_gunner_p006_alig_abs.trf` 别删**：它是**实机验证通过的黄金样本**
+> （md5 `b78076e31c1e5f38…`，位置轨首帧 `(0,0,0)` = 纯增量语义），现在全工程只有这一份和
+> `TaikouAnim/AssetSources/animations/gun/` 里那份。
+> 动画那边的语义说明见 [tools/anim-retarget/README.md](../anim-retarget/README.md) §三。
+
+---
+
 ## 📁 目录 / 文件
 
 | 文件 | 作用 |

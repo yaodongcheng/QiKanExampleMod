@@ -1,19 +1,22 @@
 # 骨骼动画 TRF（skeleton_anim）格式与「增量当绝对」陷阱
 
-> 日期：2026-09-19 · 场景：把重定向好的骑砍骨骼动画导进 ModKit，模型预览里人物趴在地上、四肢乱折
-> 结论状态：**方法已确认**（2026-09-19 用户确认）。修法见 §四，脚本 = [tools/OpenTrf/fbx_to_trf_fixed.py](../tools/OpenTrf/fbx_to_trf_fixed.py)
+> 日期：2026-09-19（2026-09-20 修正平移那一节）· 场景：把重定向好的骑砍骨骼动画导进 ModKit，模型预览里人物趴在地上、四肢乱折
+> 结论状态：**方法已确认**（2026-09-19 用户确认；平移部分 2026-09-20 修正）。修法见 §四，脚本 = [tools/anim-retarget/pipeline/common/fbx_to_trf.py](../tools/anim-retarget/pipeline/common/fbx_to_trf.py)
 
 ---
 
 ## 〇、一句话结论
 
-**TRF 的骨骼旋转/平移必须写「绝对局部变换」，不能写 Blender 的 `pose_bone.rotation_quaternion` / `location`（那两个是相对静止姿势的增量）。**
+**TRF 的两条轨道语义【不一样】，别写成一样的**：旋转写「绝对局部变换」，平移写「相对静止姿势的增量」。
 
-| | 写增量（错） | 写绝对（对） |
+| 轨道 | 正确写法 | 写反的后果（都实机踩过） |
 |---|---|---|
-| 旋转 | `pose_bone.rotation_quaternion` | `rest_local.to_quaternion() @ pose_bone.rotation_quaternion` |
-| 平移 | `pose_bone.location` | `rest_local.translation + rest_local.to_3x3() @ pose_bone.location` |
-| 实机表现 | 人趴在地上、四肢乱折 | 正常 |
+| **旋转** | `rest_local.to_quaternion() @ pb.rotation_quaternion`（绝对） | 直接用 `pb.rotation_quaternion`（增量）→ 每根骨被摆到「零旋转」→ **人趴在地上、四肢乱折** |
+| **平移** | `rest_local.to_3x3() @ pb.location`（**纯增量，不叠加** `rest_local.translation`） | 多叠了 `rest_local.translation`（绝对）→ **人整体被抬高约 6cm** |
+
+> 两条的出处：`plans/rules/wheels.d/assets.md` §15.2（雷 1 旋转）/ §15.3（雷 2 平移）。
+> **平移为什么不能写绝对**：引擎自带的动画要适配不同身高的角色，位置轨必然存「相对该骨架静止姿势的增量」，
+> 不可能是绝对骨盆高度。**旋转为什么必须写绝对**：见 §一。
 
 ---
 
@@ -21,10 +24,12 @@
 
 **症状**：自制/重定向的动画导进 ModKit，模型预览里人物趴在地上、腿折到背后，但**不报任何错**。
 
-**根因**：导出脚本把 Blender 的 pose 通道值直接写进了 trf。
-`pose_bone.rotation_quaternion` 与 `pose_bone.location` 在 Blender 里的语义都是「**相对静止姿势的增量**」——
-没动过的骨头 = `(0,0,0,1)` 和 `(0,0,0)`。引擎按「绝对局部变换」解读这份数据，
+**根因（旋转这一轨）**：导出脚本把 Blender 的 pose 通道值直接写进了 trf。
+`pose_bone.rotation_quaternion` 在 Blender 里的语义是「**相对静止姿势的增量**」——
+没动过的骨头 = `(0,0,0,1)`。引擎按「绝对局部变换」解读**旋转轨**，
 等于把每根骨强行摆到「零旋转」，于是全部错位。
+
+> 平移轨是另一回事：它**本来就要写增量**，写成绝对反而错（抬高 6cm）。见 §〇 的对照表。
 
 **为什么这条特别隐蔽**：文件格式完全合法、导入零报错、Kit 的 clip 也能保存，**只有模型预览是错的**。
 
@@ -60,9 +65,10 @@ end
 |---|---|---|
 | **首帧逐骨角度** | **28 根骨整齐地全是 0.00°**（= 单位四元数） | 每根骨是**它自己的静止朝向**，各不相同 |
 | **没动过的骨** | 全程恒定 0.00° | 恒定在**它的静止值**（实测例：79.6° / 163.0° / 165.5°，不是 0） |
-| **位置轨首帧** | ≈ `0.00`（人沉到地上） | 真实骨盆高度（本例 **0.86 m**） |
+| **位置轨首帧** | 量级是**米**（本例 **0.86 m**）= 误用了绝对语义 | **≈ `0.00`**（纯增量） |
 
-🔴 **最快的一条**：看位置轨首帧。`0.00` = 增量写法，直接判死。
+🔴 **最快的一条**：看位置轨首帧。**量级是米（0.86）= 绝对语义 = 错**；`0.00` 才对。
+（2026-09-20 修正：本行原先把两者写反了，与 `plans/rules/wheels.d/assets.md` §15.3 冲突。以上为实测结论。）
 
 为什么这三条能定性：绝对值的文件里，每根骨的首帧**必然**是它自己的静止朝向，
 28 根不可能整齐划一；而增量的文件里，没动的骨**必然**是精确的 0。
@@ -85,10 +91,11 @@ q = rest.to_quaternion() @ pb.rotation_quaternion            # 绝对局部旋�
 
 # 位置轨道（只写根骨）
 rest = rest_local(root_pb)
-loc = rest.translation + rest.to_3x3() @ root_pb.location    # 绝对局部平移
+loc = rest.to_3x3() @ root_pb.location                       # 纯增量，🔴 不叠加 rest.translation
 ```
 
-**脚本**：[tools/OpenTrf/fbx_to_trf_fixed.py](../tools/OpenTrf/fbx_to_trf_fixed.py)（用法与旧的 `fbx_to_trf.py` 一致，可直接换用）。
+**脚本**：[tools/anim-retarget/pipeline/common/fbx_to_trf.py](../tools/anim-retarget/pipeline/common/fbx_to_trf.py)
+—— 全工程唯一的 TRF 骨骼动画导出器（原 `tools/OpenTrf/fbx_to_trf_fixed.py` 已于 2026-09-20 并入）。
 
 **脚本自带三条自检**（每次运行都打印）：
 
@@ -104,7 +111,7 @@ loc = rest.translation + rest.to_3x3() @ root_pb.location    # 绝对局部平�
 | 改了什么 | 没改什么（全部冻结） |
 |---|---|
 | 旋转：`pose_bone.rotation_quaternion` → `rest ∘ delta` | 帧范围（2–42） |
-| 平移：`pose_bone.location` → `rest.translation + rest_rot @ delta` | 骨数（28） |
+| 平移：`pose_bone.location` → `rest_rot @ delta`（**纯增量**，不叠加 `rest.translation`） | 骨数（28） |
 | — | 骨序（`pose.bones` 顺序） |
 | — | 动画名（`human_skeleton_notused\|Scene`） |
 | — | 文件格式、缩进、四元数分量序、小数位、`end` 不带换行 |
@@ -168,7 +175,9 @@ TRF 这套写法出自一个教程（`ModdingKit + OpenTrf 导入导出 Skeleton
 ## 七、工艺纪律
 
 1. 🔴 **trf 是生成物 —— 改脚本重跑，禁止手改 trf**（铁律 22）。手改 = 与生成器分叉，下次重跑即丢。
-2. **导出脚本的输出去哪，跟着工作副本走。** 本工具链的工作副本在 `D:\BrainMaker\OpenTrf\`（含教程视频与各版 trf），仓库 [tools/OpenTrf/](../tools/OpenTrf/) 是入库副本。改哪份要说一声，别让两份分叉。
+2. **代码只有一份，别复制第二份。** TRF 骨骼动画导出器 = [tools/anim-retarget/pipeline/common/fbx_to_trf.py](../tools/anim-retarget/pipeline/common/fbx_to_trf.py)；
+   它的数据面在 `D:\BrainMaker\骑砍2动画重定向\`，那边用 **junction** 指回仓库 —— 改哪边都是同一份文件，不存在分叉。
+   （2026-09-20 更正：本行原文说工作副本在 `D:\BrainMaker\OpenTrf\`，该目录已不存在。）
 3. **A/B 用新文件名，不覆盖旧产物**（本例：`sw2_gunner_p006_alig_abs.trf` 对 `sw2_gunner_p006_alig.trf`）。Kit 里会生成一条新资源，能和旧的并排对照；覆盖了就没得比了。
 4. **一次只改一处，其余冻结**（清单见 §四）。A/B 成立的前提是"只有目标那一处不同" —— 所以改管线时先把不打算动的东西明确列出来，再动手。
 5. **分发进 `AssetSources` 要在 ModKit 开着的时候做**（铁律 31：它是文件监视，开之前的改动不会被补拉）。
@@ -177,7 +186,7 @@ TRF 这套写法出自一个教程（`ModdingKit + OpenTrf 导入导出 Skeleton
 
 ## 八、还没验 / 留档
 
-- **平移轨的参考原点**：本页按「相对骨架根」写（根骨 = 骨架空间的静止头位 + 旋转后的增量）。本例按此写法导出后姿势正常（2026-09-19 用户确认），但引擎是否可能要求别的原点，未做对照实验。
+- **平移轨的参考原点**：本页按「相对静止姿势的增量」写（`rest_rot @ pb.location`，**不含** `rest.translation`）。实测此写法姿势正常（2026-09-19 实机确认，装填动画即用它跑通），但引擎是否可能接受别的原点，未做对照实验。
 - **`UnitScaleFactor`**：本机 Blender 导出为 `1.0`，官方骨架 FBX 是 `100`
   （见 [蒂法换头工程.md](蒂法换头工程.md) §11.3）。对旋转无影响，尺度上是否有影响未验。
 - 本页的 `human_skeleton` 相关数字（28 骨、骨盆高度）来自本机 v1.2.12 资产。

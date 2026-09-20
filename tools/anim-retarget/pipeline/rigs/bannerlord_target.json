@@ -1,0 +1,44 @@
+{
+  "name": "bannerlord_human_skeleton",
+  "game": "Mount & Blade II: Bannerlord",
+  "role": "target",
+  "bone_count": 28,
+  "root_name": "human_skeleton_notused",
+  "leaf_bones": ["head", "l_toe0", "r_toe0", "l_finger0", "r_finger0"],
+  "rest_pose": "A-pose",
+  "up_axis": "Z",
+  "unit": "cm",
+  "unit_scale_length": 0.01,
+  "facing": "+Y",
+  "right": "+X",
+  "facing_after_gltf": "-Z",
+  "skeleton_fbx": "input/target/bannerlord/human_lod_4.fbx",
+  "official_skeleton_fbx": "input/target/bannerlord/human_lod_4.fbx",
+  "export_spec": {
+    "object_types": ["ARMATURE"],
+    "add_leaf_bones": false,
+    "axis_up": "Z",
+    "axis_forward": "-Y",
+    "primary_bone_axis": "Y",
+    "secondary_bone_axis": "X",
+    "apply_unit_scale": true,
+    "global_scale": 1.0,
+    "bake_anim": true,
+    "bake_anim_use_all_bones": true,
+    "bake_anim_force_startend_keying": true,
+    "bake_anim_step": 1.0,
+    "bake_anim_simplify_factor": 0.0
+  },
+  "modkit": {
+    "source1_source2": "填该 TRF 的帧范围（如导出 1-41 则填 1 / 41）",
+    "duration": "必须 > 0",
+    "note": "报错 pos ipo[2,42] does not fit sources 0.00 and 0.00 就是这两个字段没填"
+  },
+  "hard_rules": [
+    "骨数必须 = 28（Blender 默认 add_leaf_bones=True 会补 5 根 *_end 变成 33）",
+    "根节点名必须 human_skeleton_notused",
+    "只导骨架，不带 mesh",
+    "TRF 存【绝对局部变换】不是增量；骨序 = 唯一契约（文件不存骨名，按索引对号）",
+    "TRF 位移块只写 bones[0]（根骨）"
+  ]
+}

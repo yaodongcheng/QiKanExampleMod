@@ -1,0 +1,46 @@
+{
+  "name": "sw2_gunner",
+  "title": "战国无双2 铁炮兵 p006 ↔ 骑砍2 重定向",
+  "subtitle": "SW2 铁炮兵 40 段（源为 glTF，目标为 align 模式重定向产物）",
+  "sides": {
+    "src": {
+      "label": "战国无双2 铁炮兵（源）",
+      "color": "#d88f7f",
+      "rotY": 0,
+      "slot": -0.62,
+      "files": [
+        {
+          "id": "src_w",
+          "url": "assets/L256_GUNNER_anim.gltf"
+        }
+      ],
+      "note": "glTF 根骨位移写成‘相对首帧的髋空间增量’，静止位移 114.3 被丢掉；rootFixY 每帧补回，避免整体下沉",
+      "rootBone": "bone_0",
+      "rootFixY": 114.3,
+      "footBones": [
+        "bone_24",
+        "bone_25",
+        "bone_6",
+        "bone_7"
+      ]
+    },
+    "dst": {
+      "label": "骑砍2（重定向）",
+      "color": "#e0b070",
+      "rotY": 3.141592653589793,
+      "slot": 0.62,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst_w",
+          "url": "assets/bannerlord_from_sw2.glb"
+        }
+      ]
+    }
+  }
+}

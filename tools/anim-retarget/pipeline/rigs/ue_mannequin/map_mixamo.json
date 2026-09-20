@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "source_skeleton": "Mixamo Y Bot / standard humanoid rig",
+    "target_skeleton": "Bannerlord human_skeleton (human_lod_4.fbx, Blender 5.2 measured)",
+    "generated": "2026-09-09",
+    "root_bone": "pelvis",
+    "unit_scale_target_m": 1.0,
+    "face_axis_target": "Y",
+    "note": "Mixamo and Bannerlord both use meters. Only rotation is baked except pelvis location. Twist sub-bones stay at rest inherited from parent. Download Mixamo anim with 'Without Skin' (skeleton+anim only), 30 FPS preferred."
+  },
+  "bone_map": {
+    "Hips":          "pelvis",
+    "Spine":         "spine",
+    "Spine1":        "spine1",
+    "Spine2":        "spine2",
+    "Neck":          "neck",
+    "Head":          "head",
+    "LeftShoulder":  "l_clavicle",
+    "RightShoulder": "r_clavicle",
+    "LeftArm":       "l_upperarm_twist",
+    "RightArm":      "r_upperarm_twist",
+    "LeftForeArm":   "l_foretwist",
+    "RightForeArm":  "r_foretwist",
+    "LeftHand":      "l_hand",
+    "RightHand":     "r_hand",
+    "LeftUpLeg":     "l_thigh",
+    "RightUpLeg":    "r_thigh",
+    "LeftLeg":       "l_calf",
+    "RightLeg":      "r_calf",
+    "LeftFoot":      "l_foot",
+    "RightFoot":     "r_foot",
+    "LeftToeBase":   "l_toe0",
+    "RightToeBase":  "r_toe0"
+  },
+  "target_keep_rest": [
+    "l_upperarm_twist1",
+    "r_upperarm_twist1",
+    "l_foretwist1",
+    "r_foretwist1",
+    "l_finger0",
+    "r_finger0"
+  ],
+  "ignore_source": [
+    "Hips" 
+  ]
+}

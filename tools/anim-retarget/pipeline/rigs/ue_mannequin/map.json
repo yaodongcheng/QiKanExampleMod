@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "source_skeleton": "UE5 Manny (SK_Mannequin)",
+    "target_skeleton": "Bannerlord human_skeleton (human_lod_4.fbx, Blender 5.2 measured)",
+    "generated": "2026-09-09",
+    "root_bone": "pelvis",
+    "unit_scale_target_m": 1.0,
+    "face_axis_target": "Y",
+    "note": "Only rotation is baked except pelvis location. Twist sub-bones stay at rest (inherited from parent)."
+  },
+  "bone_map": {
+    "pelvis":     "pelvis",
+    "spine_01":   "spine",
+    "spine_02":   "spine1",
+    "spine_03":   "spine2",
+    "neck_01":    "neck",
+    "head":       "head",
+    "clavicle_l": "l_clavicle",
+    "clavicle_r": "r_clavicle",
+    "upperarm_l": "l_upperarm_twist",
+    "upperarm_r": "r_upperarm_twist",
+    "lowerarm_l": "l_foretwist",
+    "lowerarm_r": "r_foretwist",
+    "hand_l":     "l_hand",
+    "hand_r":     "r_hand",
+    "thigh_l":    "l_thigh",
+    "thigh_r":    "r_thigh",
+    "calf_l":     "l_calf",
+    "calf_r":     "r_calf",
+    "foot_l":     "l_foot",
+    "foot_r":     "r_foot",
+    "ball_l":     "l_toe0",
+    "ball_r":     "r_toe0"
+  },
+  "target_keep_rest": [
+    "l_upperarm_twist1",
+    "r_upperarm_twist1",
+    "l_foretwist1",
+    "r_foretwist1",
+    "l_finger0",
+    "r_finger0"
+  ],
+  "ignore_source": [
+    "root"
+  ]
+}
