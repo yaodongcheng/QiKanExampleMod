@@ -171,7 +171,8 @@ namespace TpacTool.Lib
                     stream.BaseStream.Seek(expectedPos, SeekOrigin.Begin);
                 }
 
-                var unknownMetadataChecknum = stream.ReadInt64();
+                // 🔴 原先读出来就丢 → Save 只能硬写 0（每个资产 8 字节被清零）。存下来才能原样搬回去。
+                assetItem.UnknownMetadataChecksum = stream.ReadInt64();
 
 				var dataSegmentNum = stream.ReadInt32();
 				var segments = new AbstractExternalLoader[dataSegmentNum];
@@ -343,7 +344,7 @@ namespace TpacTool.Lib
 				var metadata = metadataQueue.Dequeue();
 				stream.Write((ulong) metadata.Length);
 				stream.Write(metadata);
-				stream.Write((ulong) 0); // wtf checksum
+				stream.Write(asset.UnknownMetadataChecksum); // 原值搬回（新建对象为 0）
 
 				stream.Write((uint) asset.TypelessDataSegments.Count);
 				for (int j = 0; j < asset.TypelessDataSegments.Count; j++)

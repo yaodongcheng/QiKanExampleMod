@@ -320,11 +320,20 @@ def main():
                 #       判据 = c1 日志的 `[OK] N 件（face,eye,mouth,neck）`（比"抠脖子命中"硬：
                 #       脖子件还有第二种来源 = 区域裁剪 `skin_region`，那条不打"命中"行，稻姬/小太郎就栽在这）。
                 _anim = ANIM_FEMALE if r.get("gender") == "female" else ANIM_MALE
-                _nparts = 3
+                # 🔴 2026-09-20 修：件数必须数**实际出品的件**，不能信 `--parts` 里的请求 ——
+                #    `[OK] N 件（face,mouth,eye,neck）` 打的是**请求件位**，抠不到脖子时
+                #    它照样写 4，而实际只有 3 件 → 表情源 4 ≠ 目标 3 直接 FATAL
+                #    （实测宁宁：脖子抠 0 顶点时整个头重建失败在 channels 这一步）。
+                #    数法 = build_head 落位段打的逐件映射行 ` face  -> head_x.0 `。
+                _nparts = 0
                 for _l in l1:
-                    _m = re.search(r"\[OK\]\s*(\d+)\s*件", _l)
-                    if _m:
-                        _nparts = int(_m.group(1))
+                    if re.match(r"^\s*(face|mouth|eye|lash|neck)\s+->\s+", _l):
+                        _nparts += 1
+                if _nparts == 0:                     # 兜底：解析不到就退回旧口径
+                    for _l in l1:
+                        _m = re.search(r"\[OK\]\s*(\d+)\s*件", _l)
+                        if _m:
+                            _nparts = int(_m.group(1))
                 _objs = _anim[1] + ("," + _anim[1].split(",")[0]) * max(0, _nparts - 3)
                 if _nparts > 3:
                     print("        表情段：头 %d 件（含脖子件）→ 表情源补 %d 件（脖子←脸形源）"

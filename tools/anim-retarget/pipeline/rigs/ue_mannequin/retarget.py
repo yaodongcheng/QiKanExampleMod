@@ -30,8 +30,10 @@ def parse():
                     help="源 FBX 所在目录（clips_basic / clips_flight / clips_slim / clips_ghost ...）")
     ap.add_argument("--name", default=None); ap.add_argument("--outdir", default=None)
     ap.add_argument("--no_trf", default="false")
-    ap.add_argument("--pelvis", default="ground", choices=["ground", "none"],
-                    help="ground=逐帧贴地（站立/地面动作）；none=保持源骨盆高度（飞行/离地动作）")
+    ap.add_argument("--pelvis", default="ground", choices=["ground", "none", "src"],
+                    help="ground=逐帧贴地、丢弃源水平位移（站立/地面动作）；"
+                         "src=逐帧贴地【并保留源根位移】的水平分量（带位移动画，如处决/冲锋）；"
+                         "none=保持源骨盆高度（飞行/离地动作）")
     ns = ap.parse_args(a)
     if not ns.name: ns.name = ns.clip
     if not ns.outdir: ns.outdir = OUTDIR
@@ -158,18 +160,60 @@ for _i in range(N_OUT):
         pb.keyframe_insert(data_path="rotation_quaternion", frame=_of)
 
 gb=[b for b in ("l_toe0","r_toe0","l_foot","r_foot") if b in tgt.pose.bones]
-if args.pelvis == "ground":
+
+# ---------- 源根位移：这一批 UE FBX 把它挂在【骨架对象】上，不在 root/pelvis 骨上 ----------
+# 依据：docs/README_骨骼经验.md 硬约束 23（Root 变体的根位移 = ARM_OBJ.loc）。
+# 旧逻辑只做"逐帧贴地"，水平位移被整段丢掉 → 实机里动画演完角色又回到原点。
+# 实测（GhostSamurai_Execution02 Root）：骨架对象 (0,0,0) -> (-0.246,-3.673,0)，
+# 即 3.68 m 纯水平行程；同一 clip 的 Inplace 变体该值为 0 —— 正好是 A/B 对照。
+def _src_root_world():
+    return src.matrix_world.translation.copy()
+
+sc.frame_set(fs); bpy.context.view_layer.update()
+_src_root0 = _src_root_world()
+sc.frame_set(fe); bpy.context.view_layer.update()
+_src_delta = _src_root_world() - _src_root0
+_src_h = math.hypot(_src_delta.x, _src_delta.y)
+log("源根位移: 首帧 %s -> 末帧 %s   净 %s m（水平 %.4f / 竖直 %.4f）"
+    % ([round(v,4) for v in _src_root0], [round(v,4) for v in (_src_root0 + _src_delta)],
+       round(_src_delta.length,4), round(_src_h,4), round(_src_delta.z,4)))
+if args.pelvis != "src" and _src_h > 1e-3:
+    log("!! 源侧有 %.3f m 水平位移，但 --pelvis %s 会【丢弃】它 —— 要带位移请用 --pelvis src"
+        % (_src_h, args.pelvis))
+
+if args.pelvis in ("ground", "src"):
+    PB = tgt.pose.bones["pelvis"]
+    rest_head = PB.bone.matrix_local.translation.copy()      # 骨架空间里的静止骨盆头位置
+    w2a = tgt.matrix_world.inverted().to_3x3()               # 世界 -> 骨架空间（含缩放，硬约束 11）
+    trk = []
     for _i in range(N_OUT):
         _of = 1 + _i
         sc.frame_set(int(round(fs + _i * SRC_STEP))); bpy.context.view_layer.update()
-        mz=min((tgt.matrix_world @ tgt.pose.bones[b].head).z for b in gb)
-        pb=tgt.pose.bones["pelvis"]; m=pb.matrix.copy(); m.translation.z-=mz
-        pb.matrix=m; bpy.context.view_layer.update()
-        pb.keyframe_insert(data_path="location", frame=_of)
-    log("贴地完成（--pelvis ground）")
+        m = PB.matrix.copy()
+        if args.pelvis == "src":
+            # 源位移在世界空间算完，再用与旋转同一套帧变换 F 转过去（硬约束 11）
+            _d = F @ (_src_root_world() - _src_root0)
+            m.translation = rest_head + (w2a @ _d)
+        else:
+            m.translation = rest_head
+        PB.matrix = m; bpy.context.view_layer.update()
+        # 贴地：只动竖直分量，水平位移不受影响
+        mz = min((tgt.matrix_world @ tgt.pose.bones[b].head).z for b in gb)
+        m = PB.matrix.copy(); m.translation.z -= mz
+        PB.matrix = m; bpy.context.view_layer.update()
+        PB.keyframe_insert(data_path="location", frame=_of)
+        trk.append((PB.matrix.translation - rest_head).copy())
+    _tgt_delta = trk[-1] - trk[0]
+    _tgt_h = math.hypot(_tgt_delta.x, _tgt_delta.y)
+    log("骨盆位移轨完成（--pelvis %s）: 目标侧净 %s m（水平 %.4f / 竖直 %.4f）"
+        % (args.pelvis, [round(v,4) for v in _tgt_delta], round(_tgt_h,4), round(_tgt_delta.z,4)))
+    if args.pelvis == "src":
+        _err = abs(_tgt_h - _src_h)
+        log("CHECK_TRAVEL: 源水平 %.4f m vs 目标水平 %.4f m，差 %.4f m（相对 %.2f%%）"
+            % (_src_h, _tgt_h, _err, (100.0*_err/_src_h) if _src_h > 1e-9 else 0.0))
 else:
-    # 飞行/离地动作：不贴地，保留源骨盆高度（否则会被强行拉到地面，骨架被压扁）
-    log("跳过贴地（--pelvis %s）：保留源骨盆高度" % args.pelvis)
+    # 飞行/离地动作：不写位移轨，保留源骨盆高度（否则会被强行拉到地面，骨架被压扁）
+    log("跳过骨盆位移轨（--pelvis %s）：保留源骨盆高度" % args.pelvis)
 
 # ---------- ModKit 规格导出（骑砍 human_skeleton 28 骨）----------
 # 规格来源：reexport_for_modkit.py / 自定义战斗.md「第1步：造动画」

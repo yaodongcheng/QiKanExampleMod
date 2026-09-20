@@ -33,7 +33,7 @@ if os.path.isdir(DATA_ROOT):
 
 PAT = re.compile(r'(?<![\w/])((?:\.\./|\./)?(?:[A-Za-z0-9_\u4e00-\u9fff\.\-]+/)+[A-Za-z0-9_\u4e00-\u9fff\.\-]+\.[A-Za-z0-9]{1,6})')
 
-# 白名单：非「仓内相对路径」的串（外部工具路径 / 被正则截断 / 文档占位示例）
+# 白名单：非「仓内相对路径」的串（外部工具路径 / 被正则截断 / 文档占位示例 / 已失效的历史引用）
 WHITELIST_SUB = [
     ".uproje",                 # 正则把 .uproject 截断了
     "Engine/Binaries",         # D:/UNREAL/UE_5.0/Engine/... 这类绝对路径的碎片
@@ -43,6 +43,12 @@ WHITELIST_SUB = [
     "1.2G",                    # 容量描述
     "viewer.html/serve.py",
     "xxx.", "yyy",             # 文档里的占位示例
+    # ── 项目总纲.md（整个工程的总纲，含大量外部/历史路径）──
+    "2/0.8/0.95/1.7",          # §8.5 里「别用试数值代替算」举的撞数值例子，被当成路径
+    "mySekiro/UE5.3",          # UE 工程标识（外部）
+    "config/external.json",    # T12 待办里「建议新增」的文件，尚未存在
+    "fbx_to_trf_fixed.py",     # 已于 2026-09-20 并入 anim-retarget，各处只作历史提及
+    "ue_pair7.glb",            # §10 事故记录：该文件已被脚本覆盖损毁，本就不存在
 ]
 
 # 豁免文件：这些文档按设计就会包含「已失效的旧路径」

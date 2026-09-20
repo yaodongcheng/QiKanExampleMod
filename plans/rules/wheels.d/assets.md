@@ -911,3 +911,75 @@ FBX 导入后**单位换算与转轴只写在对象矩阵里**，顶点本身是
 | `tint_face_texture.py` | 同上 | 脸贴图「洗底」 |
 | `custom.face_tex` | `ExampleModVS/.../Debug/FaceTintCommands.cs` | 运行时换脸贴图 |
 | `_facegen_slider_map.py` | `Debug/offline/` | 拉杆 ↔ deform_key ↔ morph 帧 全表提取 |
+
+---
+
+## 十八、动画「带位移」：clip 的 `displacement` 字段（2026-09-20 登记，实机验证通过）
+
+> 场景：做一条**带位移的动画**（处决扑击 / 翻滚 / 被击退），要角色**真的被动画带走**，而不是演完弹回原点。
+> 完整结论文档：[Knowledge/动画带位移_RootMotion与代码推位移.md](../../../Knowledge/动画带位移_RootMotion与代码推位移.md)
+
+### 18.1 一句话
+
+**骑砍2 引擎【不认】动画自带的位移轨** —— TRF 的根骨位置轨、骨骼位移，**都只动骨骼、不动 agent 世界坐标**。
+要角色真的被带走，**必须在 clip 的 `displacement` 用法里填一个向量**。填对了 = **零代码**跑通。
+
+> 实测对照（同一条动画、同一条轨道）：
+> 向量留空 → 播完 agent 位置 `(409.0954, 321.2711)` **一位没动**；
+> 填 `(0.2462, 3.6734, 0)` → 播完移动 **3.6822 m**（目标 3.6816 m，差 0.016%）。
+
+### 18.2 字段口径（原版 337 条带位移 clip 反推 + 实机正面验证）
+
+| 分量 | 含义 | 依据（原版四对同名对照） |
+|---|---|---|
+| **+X** | 角色**右手**侧 | `stagger_left_lvl2 = (-1,0,0)` · `stagger_right_lvl2 = (+1,0,0)` |
+| **+Y** | 角色**正前**方 | `strike_knock_back_chest_back`（背后挨打→往前飞）`= (0,+1.7,0)`；`..._chest_front = (0,-1.7,0)` |
+| **Z** | **恒 0**（纯水平） | 337 条里 Z **无一例外**全是 0 |
+| `endProgress` | 位移"走完"的进度点（占全长比例） | 原版实测 **0.4 ~ 1.0** |
+
+单位 = **米**。原版值是 `1.0 / 1.7 / 1.5` 这种**整数** ⇒ 这栏是**动画师手填**的，
+**引擎不会从动画自动算** —— 这就是"裸导的 clip 里它是空的、没人知道填什么"的来源。
+
+### 18.3 值怎么量
+
+```bash
+python Debug\offline\trf_root_travel.py --trf "<xxx.trf>"
+# → 净位移 (X,Y,Z) · 该填的 (X,Y,0) · endProgress 建议值 · 轨迹直线度诊断
+```
+
+### 18.4 两条写入路径
+
+| 路径 | 怎么做 | 何时用 |
+|---|---|---|
+| **ModKit（官方）** | clip 检视器 → 🔴 **`clip_usage_data` 折叠区**（**不在 Flags 复选框列表里**）→ 给 `displacement` 填 `(X,Y,Z)` + `endProgress` → 保存 → Publish | 常规；产物天然是官方工具链的 |
+| **离线** `tpaccli clipset` | `tpaccli clipset --packdir <目录> --filter <clip名> --disp X,Y,Z --end P --out <目录>` | 调参迭代（改一次几秒，不用开编辑器）|
+
+### 18.5 🔴 改 tpac 元数据的三个坑（全是库的 bug，同轮踩到）
+
+| # | 坑 | 现象 | 修法 |
+|---|---|---|---|
+| 1 | **`AssetPackage.Save` 把每资产 8 字节字段硬写 0** | 原代码 `stream.Write((ulong) 0); // wtf checksum` —— Load 读出来就丢、Save 写 0。**任何存过的包，每个资产都有 8 字节被清零**（实测 roundtrip 一个 6 资产小包 = 48 字节被改）| 已在 `AssetItem` 加 `UnknownMetadataChecksum`，**Load 存 / Save 原样搬回**。🔴 **验收判据 = roundtrip 逐字节零差异** |
+| 2 | **别信"改对象再序列化"** | 库的 `AnimationClip.WriteMetadata` ① 把 metadata 版本**硬写 5**，真实文件是 **6**；② `WriteVec3AsVec4` 把 vec4 第 4 分量写成 0，真实值是 **1.0** | 改包里元数据一律**字节级就地替换**（定位 → 只改那几个字节）；**验收 = 逐字节 diff 只剩该改的字节**（本次 12 字节）|
+| 3 | **`TypedAssetFactory` 漏注册 `AnimationClip`** | 包里所有 clip 退化成泛型 `AssetItem` → `OfType<AnimationClip>()` **永远空**（症状：命令报 "no animation clip matched"，而 `list` 明明列出了那些名字）| `TypedAssetFactory` 静态构造里补 `RegisterType(typeof(AnimationClip))` |
+
+> 通用教训：**"能读"不代表"能原样写回"**。动包里元数据之前，先跑一遍**空操作往返**（读→存→逐字节比对），
+> 零差异才敢改；有差异就先查清差在哪 —— 否则你会把改动混在一堆看不懂的偏移里，得出错误结论。
+
+### 18.6 新增工具
+
+| 工具 | 位置 | 用途 |
+|---|---|---|
+| `tpaccli clipinfo` | `tools/tpactool/` | 不开 ModKit 读 clip 全字段：Duration / Source1-2 / SkeletalAnimation / **Flags** / **ClipUsages（含 displacement 向量）** |
+| `tpaccli clipset` | 同上 | 就地改 clip 的 displacement（字节级替换 + **偏移自校验** + 回读验证）|
+| `trf_root_travel.py` | `Debug/offline/` | 读 TRF 根骨位置轨 → 算出该填的 `(X,Y,0)` 与 `endProgress` |
+| `tpac_meta_checksum_dump.py` | `Debug/offline/` | 看各 tpac 里每资产那 8 字节字段的值（判"引擎校不校验"用）|
+| `tpac_meta_checksum_probe.py` | `Debug/offline/` | 试辨认那 8 字节是什么算法（**结论：非标准 64 位散列**）|
+
+### 18.7 排查口诀
+
+| 症状 | 先查什么 |
+|---|---|
+| 动画演完**弹回原点** | clip 的 `displacement` 有没有值（`tpaccli clipinfo`）—— 空的就是它 |
+| 填了值**还是不动** | `displace_position` flag 有没有勾（**两个都要**：flag + 向量）|
+| 动是动了但**脚滑** | `endProgress` 与轨迹形状不匹配（引擎按**直线线性插值**，动画往往非匀速）|
+| 动了**两倍** | A/B 叠加了（代码 `TeleportToPosition` 与 `displace_position` 同开）|
