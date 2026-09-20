@@ -732,6 +732,657 @@ namespace LivingWorldNpcs.CampaignMode
         }
     }
 
+    // ─────────────────── 舞台道具生成（升降板实验第一步，2026-09-20） ───────────────────
+    /// <summary>
+    /// 把原版场景道具生成到玩家旁边 —— 升降板实验的**第一步：先看得见，再谈站上去**。
+    ///
+    /// 背景：2026-09-18 那版升降板用 `GameEntity.CreateEmpty` 建实体，**零网格 = 隐形**，
+    /// 玩家根本看不见该往哪站（[骑砍2Agent运动与位置机制.md] §6 表 #7）。本指令只负责
+    /// 「把一块看得见、带物理体的木板摆到玩家眼前」；登板逻辑仍归 custom.plate。
+    ///
+    /// 用法（控制台返回纯英文）：
+    ///   custom.prop x                           # 🔴 **推荐写个占位符**——裸 `custom.prop`（零参数）
+    ///                                           #    引擎可能根本不触发（首参可弃纪律的成因）。
+    ///                                           #    非数字首参 = 预制体名查不到 -> 回落默认件。
+    ///   上面这条 = 默认 wooden_platform_a，玩家**正前方 3 米**、贴地
+    ///   custom.prop 5 0 0                       # 首参是数字 = 世界轴增量（口径同 custom.move）
+    ///   custom.prop wooden_platform_c 3 0 0     # 指定预制体 + 世界轴增量
+    ///   custom.prop list                        # 列出全部（带 id / 移动性 / 坐标）
+    ///   custom.prop info 1                      # 单个详情
+    ///   custom.prop mv 1 5 0 0                  # 🔴 按 id 平移（世界轴增量）
+    ///   custom.prop z 1 +2 / z 1 60             # 只改高度（增量 / 绝对）
+    ///   custom.prop speed 1 0 0 1               # 🔴 匀速移动（**米/秒**，世界轴三分量）—— 逐帧瞬移
+    ///   custom.prop drive 1 0 0 1               # 🔴 匀速移动的**物理速度版**：关重力 + 动态体 + 每帧校正速度
+    ///   custom.prop stop 1                      # 停止匀速移动（speed 1 reset / speed 1 stop 同义）
+    ///   custom.prop reset 1                     # 一键复位：停速度 + 退回生成时那个点
+    ///   custom.prop mob 1 dynamic               # 改移动性（stationary|dynamic|forced）
+    ///   custom.prop clear                       # 拆掉本次生成的全部道具
+    ///
+    /// 🔴 生成时返回的 **id** 是我们自己的编号（单调递增、clear 后不复用），
+    ///    不是引擎的实体 id —— 骑砍2 的 `GameEntity` 只公开 `Name`（只读，= 预制体名），没有数字 id。
+    ///
+    /// 落地要点：
+    ///   · `GameEntity.Instantiate(scene, prefab, frame)` 内部 `createPhysics: true` ——
+    ///     物理体默认就给，正是要它（vanilla 的 SetAbilityOfFaces 以 GetPhysicsState() 为条件）。
+    ///   · 预制体名必须是 `Modules/Native/Prefabs/*.xml` 里的**顶层** game_entity；
+    ///     子件（如 wooden_platform_plank_b）不是预制体，Instantiate 拿不到。
+    ///   · 实测尺寸（tpaccli dump 量的包围盒）：wooden_platform_a = 5.29 × 5.16 × 0.40 m、
+    ///     顶面局部 z≈0.37、底面 z≈0.00；备选 wooden_platform_c = 2.40 × 5.16 × 0.40。
+    /// </summary>
+    public static class PropSpikeState
+    {
+        public const string DefaultPrefab = "wooden_platform_a";
+
+        /// <summary>移动方式：瞬移（SetFrame）还是物理速度驱动。</summary>
+        public enum MoveMode
+        {
+            /// <summary>逐帧 `SetFrame` 直接改坐标 —— 简单，但物理求解器不知道板在动。</summary>
+            Teleport,
+            /// <summary>`DisableGravity` + 动态体 + 每帧校正物理速度 —— 让求解器看到接触面在动。</summary>
+            Physics,
+        }
+
+        public class Entry
+        {
+            /// <summary>我们自己的编号（单调递增，clear 后不复用），供 custom.prop mv/z/info 引用。</summary>
+            public int Id;
+            public GameEntity Entity;
+            public string Prefab;
+
+            /// <summary>生成时的落点，供 `custom.prop reset` 复位用。</summary>
+            public Vec3 SpawnPos;
+
+            /// <summary>匀速速度，单位**米/秒**，世界轴。</summary>
+            public Vec3 Velocity;
+
+            /// <summary>是否在按 Velocity 匀速移动（由 PropSpikeMissionView 每帧推进）。</summary>
+            public bool Moving;
+
+            /// <summary>瞬移 or 物理速度驱动。</summary>
+            public MoveMode Mode = MoveMode.Teleport;
+
+            /// <summary>物理驱动模式下，上一帧读到的物理体速度（诊断：体到底动没动）。</summary>
+            public Vec3 BodyV;
+
+            /// <summary>移动中的日志节流计时（0.5s 一行 [PropMove]）。</summary>
+            public float LogTimer;
+        }
+
+        public static readonly List<Entry> Spawned = new List<Entry>();
+
+        private static int _nextId = 1;
+
+        public static int NextId() { return _nextId++; }
+
+        public static Entry Find(int id)
+        {
+            foreach (Entry e in Spawned)
+                if (e != null && e.Id == id) return e;
+            return null;
+        }
+
+        /// <summary>任务结束时只清列表、不碰指针（实体随场景一起销毁）。</summary>
+        public static void ForgetAll()
+        {
+            Spawned.Clear();
+            _nextId = 1;
+        }
+    }
+
+    public class PropSpikeCommands
+    {
+        /* 控制台命令注册纪律：public static string F(List<string>)，返回文本纯英文，首参可弃。 */
+
+        [CommandLineFunctionality.CommandLineArgumentFunction("prop", "custom")]
+        public static string Prop(List<string> args)
+        {
+            try
+            {
+                Mission mission = Mission.Current;
+                if (mission == null || mission.Scene == null)
+                    return "[Prop] no active mission";
+
+                string a = args.Count > 0 ? args[0].Trim() : "";
+
+                if (a.Equals("clear", StringComparison.OrdinalIgnoreCase))
+                    return Clear();
+                if (a.Equals("list", StringComparison.OrdinalIgnoreCase))
+                    return List();
+                if (a.Equals("info", StringComparison.OrdinalIgnoreCase))
+                    return Info(args);
+                if (a.Equals("mv", StringComparison.OrdinalIgnoreCase))
+                    return MoveDelta(args);
+                if (a.Equals("z", StringComparison.OrdinalIgnoreCase))
+                    return MoveZ(args);
+                if (a.Equals("mob", StringComparison.OrdinalIgnoreCase))
+                    return SetMob(args);
+                if (a.Equals("speed", StringComparison.OrdinalIgnoreCase) || a.Equals("v", StringComparison.OrdinalIgnoreCase))
+                    return SetSpeed(args);
+                if (a.Equals("stop", StringComparison.OrdinalIgnoreCase))
+                    return StopProp(args);
+                if (a.Equals("reset", StringComparison.OrdinalIgnoreCase))
+                    return ResetProp(args);
+                if (a.Equals("drive", StringComparison.OrdinalIgnoreCase))
+                    return Drive(args);
+
+                // 首参解析：能当数字读 = 已给的第一个增量（占位符 '1' 也走这条）；
+                // 读不成数字 = 当预制体名。
+                string prefab = PropSpikeState.DefaultPrefab;
+                List<string> nums = new List<string>();
+                if (a.Length > 0)
+                {
+                    if (TryParseFloat(a, out _)) nums.Add(a);
+                    else prefab = a;
+                }
+                for (int i = 1; i < args.Count; i++)
+                    nums.Add(args[i].Trim());
+
+                // 🔴 顺序护栏（2026-09-20 实机踩到）：
+                //    首参是数字时，后面**所有**参数都必须是数字（都是偏移量）。
+                //    一旦出现非数字，十有八九是把 id 写在了第一位 —— `custom.prop 1 reset`
+                //    本意是 `custom.prop reset 1`，但会被当成 "dx=1 的生成"，凭空多出一块木板。
+                //    这里直接拦下并给出正确写法，不再静默生成。
+                for (int i = 1; i < nums.Count; i++)
+                {
+                    if (TryParseFloat(nums[i], out _)) continue;
+                    return $"[Prop] '{nums[i]}' is not a number - offsets must be numeric. " +
+                           $"Did you mean 'custom.prop {nums[i]} {nums[0]}'? " +
+                           $"(the id goes SECOND: custom.prop reset 1 / custom.prop drive 1 0 0 1)";
+                }
+
+                Agent player = Agent.Main;
+                if (player == null)
+                    return "[Prop] no player agent";
+                Vec3 pp = player.Position;
+
+                float dx, dy, dz;
+                string how;
+                if (nums.Count == 0)
+                {
+                    // 默认：玩家正前方 3 米（沿朝向，XY 平面），Z 与玩家脚底同高
+                    Vec3 fwd = player.LookDirection;
+                    float len = (float)Math.Sqrt(fwd.x * fwd.x + fwd.y * fwd.y);
+                    if (len < 0.01f) { fwd = new Vec3(1f, 0f, 0f); len = 1f; }
+                    dx = fwd.x / len * DefaultForward;
+                    dy = fwd.y / len * DefaultForward;
+                    dz = 0f;
+                    how = "3m along facing";
+                }
+                else
+                {
+                    dx = ParseOr(nums, 0, DefaultForward);
+                    dy = ParseOr(nums, 1, 0f);
+                    dz = ParseOr(nums, 2, 0f);
+                    how = $"world delta ({dx:F2},{dy:F2},{dz:F2})";
+                }
+
+                string note = "";
+                GameEntity e = Spawn(mission, prefab, new Vec3(pp.x + dx, pp.y + dy, pp.z + dz));
+                if (e == null && prefab != PropSpikeState.DefaultPrefab)
+                {
+                    // 名字不存在 -> 回落到默认预制体（首参可弃纪律：解析不出别报错）
+                    note = $" [note: prefab '{prefab}' not found -> using {PropSpikeState.DefaultPrefab}]";
+                    prefab = PropSpikeState.DefaultPrefab;
+                    e = Spawn(mission, prefab, new Vec3(pp.x + dx, pp.y + dy, pp.z + dz));
+                }
+                if (e == null)
+                    return $"[Prop] Instantiate failed for '{prefab}' - is it a TOP-LEVEL prefab in Modules/Native/Prefabs/*.xml?";
+
+                int id = PropSpikeState.NextId();
+                e.Name = $"lwn_prop_{id}";   // 1.2.12 的 GameEntity.Name 有 setter，起个唯一名便于找回
+                PropSpikeState.Spawned.Add(new PropSpikeState.Entry
+                {
+                    Id = id,
+                    Entity = e,
+                    Prefab = prefab,
+                    SpawnPos = new Vec3(pp.x + dx, pp.y + dy, pp.z + dz),
+                });
+                return $"[Prop] id={id} name=lwn_prop_{id} guid={GuidOf(e)} spawned '{prefab}' " +
+                       $"at ({pp.x + dx:F1},{pp.y + dy:F1},{pp.z + dz:F2}) " +
+                       $"= player ({pp.x:F1},{pp.y:F1},{pp.z:F2}) + {how}{note}. " +
+                       $"total={PropSpikeState.Spawned.Count} | move it: custom.prop mv {id} <dx> <dy> <dz>";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Prop] command failed: {ex}");
+                return $"[Prop] failed: {ex.Message}";
+            }
+        }
+
+        /// <summary>默认前向距离：3 米（够看清整块板，又不用跑过去）。</summary>
+        private const float DefaultForward = 3f;
+
+        private static GameEntity Spawn(Mission mission, string prefab, Vec3 at)
+        {
+            MatrixFrame frame = MatrixFrame.Identity;
+            frame.origin = at;
+            // 内部 createPhysics: true —— 场景道具自带静态物理体，正是升降板要的
+            GameEntity e = GameEntity.Instantiate(mission.Scene, prefab, frame);
+            if (e == null || e.Pointer == UIntPtr.Zero)
+                return null;
+
+            DebugLogger.Log($"[Prop] spawned '{prefab}' guid={GuidOf(e)} at ({at.x:F2},{at.y:F2},{at.z:F2})");
+            return e;
+        }
+
+        private static string Clear()
+        {
+            int n = 0;
+            foreach (PropSpikeState.Entry en in PropSpikeState.Spawned)
+            {
+                if (en == null || en.Entity == null || en.Entity.Pointer == UIntPtr.Zero) continue;
+                en.Entity.Remove(0);
+                n++;
+            }
+            PropSpikeState.Spawned.Clear();
+            return $"[Prop] removed {n} spawned prop(s)";
+        }
+
+        /// <summary>
+        /// 🔴 只列**我们自己生成的那张表**（`PropSpikeState.Spawned`）—— 场景原生实体从来不进这张表，
+        /// 所以一个都不会被列出来，不存在"把全场实体刷屏"这回事。
+        /// 🔴 本条**故意不带 guid**：guid 36 字符，十几块板就能把控制台刷满；要 guid 用 `custom.prop info <id>`。
+        /// </summary>
+        private static string List()
+        {
+            if (PropSpikeState.Spawned.Count == 0)
+                return "[Prop] nothing spawned yet (custom.prop x to make one)";
+
+            StringBuilder sb = new StringBuilder($"[Prop] {PropSpikeState.Spawned.Count} spawned (ours only):");
+            foreach (PropSpikeState.Entry en in PropSpikeState.Spawned)
+            {
+                if (en == null || en.Entity == null || en.Entity.Pointer == UIntPtr.Zero)
+                {
+                    sb.Append($" {en?.Id}=DEAD;");
+                    continue;
+                }
+                MatrixFrame f = en.Entity.GetFrame();
+                sb.Append($" {en.Id}={en.Prefab}@({f.origin.x:F0},{f.origin.y:F0},{f.origin.z:F1});");
+            }
+            return sb.ToString();
+        }
+
+        private static string Info(List<string> args)
+        {
+            if (!Resolve(args, out PropSpikeState.Entry en, out string err)) return err;
+            return $"[Prop] {Describe(en)}";
+        }
+
+        /// <summary>世界轴增量位移（口径同 custom.move）。</summary>
+        private static string MoveDelta(List<string> args)
+        {
+            if (!Resolve(args, out PropSpikeState.Entry en, out string err)) return err;
+
+            float dx = ParseOr(args, 2, 0f);
+            float dy = ParseOr(args, 3, 0f);
+            float dz = ParseOr(args, 4, 0f);
+
+            MatrixFrame f = en.Entity.GetFrame();
+            f.origin = new Vec3(f.origin.x + dx, f.origin.y + dy, f.origin.z + dz);
+            en.Entity.SetFrame(ref f);
+            return $"[Prop] moved by ({dx:F2},{dy:F2},{dz:F2}) -> {Describe(en)}";
+        }
+
+        /// <summary>只改高度：绝对 z，或 +d / -d 增量。</summary>
+        private static string MoveZ(List<string> args)
+        {
+            if (!Resolve(args, out PropSpikeState.Entry en, out string err)) return err;
+
+            string zs = args.Count > 2 ? args[2].Trim() : "";
+            if (zs.Length == 0)
+                return $"[Prop] 'z' needs a value: custom.prop z {en.Id} <absolute|+d|-d>. {Describe(en)}";
+            if (!TryParseFloat(zs, out float v))
+                return $"[Prop] '{zs}' is not a number. {Describe(en)}";
+
+            MatrixFrame f = en.Entity.GetFrame();
+            float nz = (zs.StartsWith("+") || zs.StartsWith("-")) ? f.origin.z + v : v;
+            f.origin = new Vec3(f.origin.x, f.origin.y, nz);
+            en.Entity.SetFrame(ref f);
+            return $"[Prop] {Describe(en)}";
+        }
+
+        /// <summary>
+        /// 改实体移动性（stationary / dynamic / forced）。
+        /// 🔴 为什么专门给一条：预制体里 mobility 是写死的，**stationary 的实体挪 SetFrame 有可能
+        ///    只动视觉不动碰撞**；后面接导航面时「面跟不跟着实体走」正是 §7 的未知数之一。
+        ///
+        /// 🔴 版本兼容（本项目主环境 1.2.12 vs 对照 1.5.x）：`GameEntity.Mobility` 的**成员名两版不同**
+        ///    （1.2.12 = `stationary/dynamic/dynamic_forced` 小写；1.5.x = `Stationary/Dynamic/DynamicForced`），
+        ///    但**序数一致**（0/1/2）—— 所以按序数转型，两版都能编。
+        ///    另：`GetMobility()` 只有 1.5.x 有（1.2.12 没有），故**只写不读**。
+        /// </summary>
+        private static string SetMob(List<string> args)
+        {
+            if (!Resolve(args, out PropSpikeState.Entry en, out string err)) return err;
+
+            string ms = args.Count > 2 ? args[2].Trim().ToLowerInvariant() : "";
+            int ord;
+            if (ms.StartsWith("stat")) ord = 0;
+            else if (ms.StartsWith("dynf") || ms.StartsWith("forced")) ord = 2;
+            else if (ms.StartsWith("dyn")) ord = 1;
+            else return $"[Prop] 'mob' needs stationary|dynamic|forced. {Describe(en)}";
+
+            en.Entity.SetMobility((GameEntity.Mobility)ord);
+            return $"[Prop] {Describe(en)} (mobility set to ordinal {ord})";
+        }
+
+        /// <summary>
+        /// 设定**匀速速度**（单位 米/秒，世界轴三分量），设完立刻开始每帧推进。
+        ///   custom.prop speed 1 0 0 1     # 每秒上升 1 米（电梯）
+        ///   custom.prop speed 1 5 0 0     # 每秒沿 +X 走 5 米
+        ///   custom.prop stop 1            # 停
+        /// 只写位置（`SetFrame`）—— 碰撞体跟不跟着走取决于实体 mobility，
+        /// 若"坐标变了但画面/碰撞没动"，先试 `custom.prop mob 1 dynamic`。
+        /// </summary>
+        private static string SetSpeed(List<string> args)
+        {
+            if (!Resolve(args, out PropSpikeState.Entry en, out string err)) return err;
+
+            // 第二参给 reset / stop / 0 都当"停"——省得去记是哪个词
+            string first = args.Count > 2 ? args[2].Trim().ToLowerInvariant() : "";
+            if (first == "reset" || first == "stop" || first == "off")
+                return StopProp(args);
+
+            float vx = ParseOr(args, 2, float.NaN);
+            float vy = ParseOr(args, 3, float.NaN);
+            float vz = ParseOr(args, 4, float.NaN);
+            if (float.IsNaN(vx) || float.IsNaN(vy) || float.IsNaN(vz))
+                return $"[Prop] 'speed' needs 3 numbers in m/s, e.g. custom.prop speed {en.Id} 0 0 1 " +
+                       $"(or custom.prop stop {en.Id} to halt). {Describe(en)}";
+
+            en.Velocity = new Vec3(vx, vy, vz);
+            en.Moving = vx != 0f || vy != 0f || vz != 0f;
+            en.LogTimer = 0.5f;   // 让下一帧立刻打出第一行 [PropMove]
+            float mag = (float)Math.Sqrt(vx * vx + vy * vy + vz * vz);
+            return $"[Prop] {Describe(en)} speed=({vx:F2},{vy:F2},{vz:F2}) m/s |v|={mag:F2} " +
+                   $"({(en.Moving ? "moving" : "all zero = stopped")})";
+        }
+
+        private static string StopProp(List<string> args)
+        {
+            if (!Resolve(args, out PropSpikeState.Entry en, out string err)) return err;
+            en.Moving = false;
+            en.Mode = PropSpikeState.MoveMode.Teleport;
+            en.Velocity = Vec3.Zero;
+            return $"[Prop] {Describe(en)} stopped";
+        }
+
+        /// <summary>
+        /// **速度驱动模式**：不逐帧瞬移，改为把实体变成动态物理体、**关掉它的重力**，
+        /// 每帧把物理速度校正到目标值，让引擎自己积分位置。
+        ///
+        /// 🔴 为什么要有这条：瞬移（`SetFrame`）不会告诉物理求解器"这块板在动"，
+        ///    求解器只能靠"先穿透 → 再推开"顶人 → **速度越快人陷得越深**（"板卡在腰间"）。
+        ///    改成速度驱动后，接触面有了真实的相对速度，理论上这个稳态穿透就没了。
+        ///
+        /// 🔴 为什么是"读当前速度再补差值"而不是"直接设速度"：引擎**没有速度 setter**
+        ///    （`IGameEntity` 全表只有 `GetLinearVelocity`，没有任何 Set*Velocity）。
+        ///    好在逐帧读回当前值再校正 = 自带反馈的闭环，即使施加量会跨帧残留也能收敛。
+        /// </summary>
+        private static string Drive(List<string> args)
+        {
+            if (!Resolve(args, out PropSpikeState.Entry en, out string err)) return err;
+
+            string first = args.Count > 2 ? args[2].Trim().ToLowerInvariant() : "";
+            if (first == "reset" || first == "stop" || first == "off")
+            {
+                en.Moving = false;
+                en.Mode = PropSpikeState.MoveMode.Teleport;
+                en.Velocity = Vec3.Zero;
+                // 重力**不还回去**——还了板立刻掉。停住就冻在原地，想还重力用 `custom.prop mob` / 重新生成。
+                return $"[Prop] {Describe(en)} drive stopped (gravity stays off - platform holds position)";
+            }
+
+            float vx = ParseOr(args, 2, float.NaN);
+            float vy = ParseOr(args, 3, float.NaN);
+            float vz = ParseOr(args, 4, float.NaN);
+            if (float.IsNaN(vx) || float.IsNaN(vy) || float.IsNaN(vz))
+                return $"[Prop] 'drive' needs 3 numbers in m/s, e.g. custom.prop drive {en.Id} 0 0 1. {Describe(en)}";
+
+            string prep = PreparePhysics(en);
+            en.Velocity = new Vec3(vx, vy, vz);
+            en.Mode = PropSpikeState.MoveMode.Physics;
+            en.Moving = vx != 0f || vy != 0f || vz != 0f;
+            en.LogTimer = 0.5f;
+
+            string kick = Kick(en, en.Velocity);
+            return $"[Prop] {Describe(en)} drive=({vx:F2},{vy:F2},{vz:F2}) m/s [physics mode{prep}{kick}]";
+        }
+
+        /// <summary>
+        /// 🔴 **一次冲量设初速，之后不再干预**（开环）。
+        ///
+        /// 为什么不是每帧闭环校正（2026-09-20 实机教训）：
+        /// 原先写法是每帧 `ApplyAccelerationToDynamicBody((目标 − 当前) / dt)`，结果 **半秒内数值爆炸**
+        /// （日志：`bodyV` 从 0 → 5.97e14，`propZ` 从 8.25 → 1.15e12 米；目标速度 3 m/s 与 0.1 m/s 都炸）。
+        /// 说明该 API **不是"当帧施加一次"的语义**，闭环因此变成正反馈：算出的修正越大 → 速度偏得越多。
+        /// 冲量则没有这个歧义：`冲量 = 质量 × 速度增量`，定义上就是一次性的。
+        ///
+        /// 开环的代价：引擎若把冲量吃偏了不会自动纠。所以配了安全阀（见 tick），飞歪了会自动停机。
+        /// </summary>
+        private static string Kick(PropSpikeState.Entry en, Vec3 targetV)
+        {
+            try
+            {
+                float mass = en.Entity.GetMass();
+                if (mass <= 0.01f) mass = 1f;          // 质量读不到就按 1 算，够用
+                en.Entity.ApplyLocalImpulseToDynamicBody(Vec3.Zero, targetV * mass);
+                return $" kick(m={mass:F2})";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Prop] Kick failed: {ex}");
+                return $"; kick failed: {ex.GetType().Name}";
+            }
+        }
+
+        /// <summary>
+        /// 切物理驱动前的准备：唤醒 → 转动态体 → **关重力** → 去阻尼。
+        /// 🔴 `DisableGravity` 是**道具侧独有**的重力开关（agent 侧没有，见 §6 结论 3）——
+        ///    这条正是"给板关重力"的落地方式。
+        /// </summary>
+        private static string PreparePhysics(PropSpikeState.Entry en)
+        {
+            try
+            {
+                en.Entity.SetPhysicsState(true, true);          // 唤醒本体 + 子件
+                en.Entity.SetMobility((GameEntity.Mobility)1);  // dynamic（枚举成员名两版不同，按序数转）
+                en.Entity.EnableDynamicBody();
+                en.Entity.DisableGravity();                     // 🔴 关重力
+                en.Entity.SetDamping(0f, 50f);                  // 线速度不衰减 / 角速度压死，防翻滚
+                return "";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Prop] PreparePhysics failed: {ex}");
+                return $"; prep failed: {ex.GetType().Name}";
+            }
+        }
+
+        /// <summary>
+        /// 一键复位：**停速度 + 位置退回生成时那个点**。
+        /// （`custom.prop z/mv` 只能一个轴一个轴地调，板飞远了用这条最快。）
+        /// </summary>
+        private static string ResetProp(List<string> args)
+        {
+            if (!Resolve(args, out PropSpikeState.Entry en, out string err)) return err;
+
+            en.Moving = false;
+            en.Mode = PropSpikeState.MoveMode.Teleport;
+            en.Velocity = Vec3.Zero;
+
+            MatrixFrame f = en.Entity.GetFrame();
+            f.origin = en.SpawnPos;
+            en.Entity.SetFrame(ref f);
+            return $"[Prop] {Describe(en)} reset to spawn point (speed cleared)";
+        }
+
+        private static string Describe(PropSpikeState.Entry en)
+        {
+            if (en == null || en.Entity == null || en.Entity.Pointer == UIntPtr.Zero)
+                return $"id={en?.Id} '{en?.Prefab}' = DEAD";
+            MatrixFrame f = en.Entity.GetFrame();
+            return $"id={en.Id} '{en.Prefab}' guid={GuidOf(en.Entity)} " +
+                   $"at ({f.origin.x:F2},{f.origin.y:F2},{f.origin.z:F2})";
+        }
+
+        /// <summary>
+        /// 实体的引擎 GUID（`GameEntity.GetGuid()`）。**不是所有实体都有**——`IsGuidValid()` 就是为此存在，
+        /// 所以运行时 `Instantiate` 出来的这件到底有没有 guid，是本条要实测的未知数之一。
+        /// </summary>
+        private static string GuidOf(GameEntity e)
+        {
+            try
+            {
+                return e.IsGuidValid() ? e.GetGuid() : "(invalid)";
+            }
+            catch (Exception ex)
+            {
+                return "(err:" + ex.GetType().Name + ")";
+            }
+        }
+
+        /// <summary>取 args[1] 的 id 对应的实体；查不到给英文提示，不抛。</summary>
+        private static bool Resolve(List<string> args, out PropSpikeState.Entry en, out string err)
+        {
+            en = null;
+            err = null;
+            string ids = args.Count > 1 ? args[1].Trim() : "";
+            if (ids.Length == 0 ||
+                !int.TryParse(ids, NumberStyles.Integer, CultureInfo.InvariantCulture, out int id))
+            {
+                err = $"[Prop] needs an id, e.g. custom.prop mv 1 5 0 0 (got '{ids}'). {List()}";
+                return false;
+            }
+            en = PropSpikeState.Find(id);
+            if (en == null)
+            {
+                err = $"[Prop] no prop with id={id}. {List()}";
+                return false;
+            }
+            return true;
+        }
+
+        private static bool TryParseFloat(string s, out float v)
+        {
+            return float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
+        }
+
+        private static float ParseOr(List<string> nums, int i, float fallback)
+        {
+            if (i >= nums.Count) return fallback;
+            return TryParseFloat(nums[i], out float v) ? v : fallback;
+        }
+    }
+
+    /// <summary>
+    /// 道具匀速运动的每帧驱动（`custom.prop speed` 的落地端）。
+    /// 零开销快路径：没生成过道具时每帧只做一次 `Count` 判断。
+    ///
+    /// 🔴 判据在这行日志上（每 0.5 秒一行）：
+    ///   `[PropMove] id=1 v=(0.00,0.00,1.00) propZ=.. playerZ=.. dz=.. playerOnLand=..`
+    ///   · `propZ` 涨、`playerZ` 跟着涨  → **板真的把人抬起来了**（§6 表 #8「物件载人」的反例，成真）
+    ///   · `propZ` 涨、`playerZ` 不动    → 人没跟上，得回到导航面那条路
+    /// </summary>
+    public class PropSpikeMissionView : MissionBehavior
+    {
+        public override MissionBehaviorType BehaviorType => MissionBehaviorType.Other;
+
+        public override void OnMissionTick(float dt)
+        {
+            if (PropSpikeState.Spawned.Count == 0) return;
+
+            try
+            {
+                for (int i = 0; i < PropSpikeState.Spawned.Count; i++)
+                {
+                    PropSpikeState.Entry en = PropSpikeState.Spawned[i];
+                    if (en == null || !en.Moving) continue;
+                    if (en.Entity == null || en.Entity.Pointer == UIntPtr.Zero)
+                    {
+                        en.Moving = false;
+                        continue;
+                    }
+
+                    if (en.Mode == PropSpikeState.MoveMode.Physics)
+                    {
+                        // 🔴 开环：只在 `drive` 那一刻给过一次冲量，这里**什么都不施加**，只读回来记账。
+                        //    （曾经这里是每帧闭环校正，实机半秒内爆炸到 1e14 m/s —— 见 Kick() 的注释。）
+                        en.BodyV = en.Entity.GetLinearVelocity();
+
+                        // 安全阀：冲量万一被吃偏，别让板飞出宇宙再也找不回来
+                        float spd = en.BodyV.Length;
+                        if (spd > 200f)
+                        {
+                            en.Moving = false;
+                            en.Mode = PropSpikeState.MoveMode.Teleport;
+                            en.Velocity = Vec3.Zero;
+                            DebugLogger.Log($"[Prop] 🔴 RUNAWAY id={en.Id} bodySpeed={spd:F1} m/s -> auto-stopped");
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // 瞬移式：直接改坐标
+                        MatrixFrame f0 = en.Entity.GetFrame();
+                        f0.origin = new Vec3(
+                            f0.origin.x + en.Velocity.x * dt,
+                            f0.origin.y + en.Velocity.y * dt,
+                            f0.origin.z + en.Velocity.z * dt);
+                        en.Entity.SetFrame(ref f0);
+                    }
+
+                    en.LogTimer += dt;
+                    if (en.LogTimer < 0.5f) continue;
+                    en.LogTimer = 0f;
+
+                    MatrixFrame f = en.Entity.GetFrame();
+                    Agent p = Agent.Main;
+                    Vec3 pp = p != null ? p.Position : Vec3.Zero;
+                    float rx = pp.x - f.origin.x;
+                    float ry = pp.y - f.origin.y;
+                    // 板面 5.29 × 5.16 m（wooden_platform_a 实测包围盒）、原点在中心 → 半尺寸 2.6
+                    // 🔴 这个布尔是**判别器**：板底与地面同高时，`playerZ` 在"站在板上"与"站在旁边地面"
+                    //    两种情况下数值完全一样（都是地面高度）——只有水平位置能分开。
+                    bool onBoard = Math.Abs(rx) <= 2.6f && Math.Abs(ry) <= 2.6f;
+
+                    // 🔴 渲染位置 vs 逻辑位置：`Agent.Position` 是**逻辑**位置（引擎算的落脚高度），
+                    //    `Agent.VisualPosition` 是**真正画出来**的位置。两者不一致 = 视觉上人会陷进板里
+                    //    （"板卡在腰间"就是这么来的）—— 用这两个数把滞后量出来，别靠肉眼猜。
+                    float visZ = 0f;
+                    string visTag;
+                    try
+                    {
+                        visZ = p != null ? p.VisualPosition.z : 0f;
+                        visTag = $"{visZ:F2} vdz={visZ - f.origin.z:+0.00;-0.00;0.00}";
+                    }
+                    catch (Exception ex) { visTag = "(err:" + ex.GetType().Name + ")"; }
+
+                    DebugLogger.Log(
+                        $"[PropMove] id={en.Id} mode={en.Mode} v=({en.Velocity.x:F2},{en.Velocity.y:F2},{en.Velocity.z:F2}) " +
+                        (en.Mode == PropSpikeState.MoveMode.Physics
+                            ? $"bodyV=({en.BodyV.x:F2},{en.BodyV.y:F2},{en.BodyV.z:F2}) "
+                            : "") +
+                        $"propPos=({f.origin.x:F1},{f.origin.y:F1},{f.origin.z:F2}) " +
+                        $"playerZ={pp.z:F2} dz={pp.z - f.origin.z:+0.00;-0.00;0.00} " +
+                        $"visZ={visTag} " +
+                        $"rel=({rx:+0.0;-0.0;0.0},{ry:+0.0;-0.0;0.0}) onBoard={onBoard} " +
+                        $"playerOnLand={(p != null && p.IsOnLand())}");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PropMove] tick exception: {ex}");
+            }
+        }
+
+        public override void OnRemoveBehavior()
+        {
+            PropSpikeState.ForgetAll();   // 道具随场景销毁，只清列表、不碰指针
+            base.OnRemoveBehavior();
+        }
+    }
+
     // ─────────────────── 原 PlateSpike.cs ───────────────────
     /// <summary>
     /// 导航件升降板验证（2026-09-18）。
@@ -844,7 +1495,7 @@ namespace LivingWorldNpcs.CampaignMode
         {
             PlateSpikeState.Plate = null;
             PlateSpikeState.Rising = false;
-            base.OnRemoveBehavior();
+            base.OnRemoveBehavior();   // 舞台道具的清理归 PropSpikeMissionView
         }
     }
 
