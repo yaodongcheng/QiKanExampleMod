@@ -1251,7 +1251,7 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 - 🔴 **正解 = 让编辑器自己算**：给 FBX **绑上官方骨架**（`modding_resources\skeletons\human_skeleton.fbx`）再导入。编辑器一次算对全部字段（实测 `UnknownInt2=28` 与能跑的参考 mod `xxFemaleHead` 完全一致）。
 - 🔴 **官方骨架 FBX 单位标 `centimeter`、数值其实是米** → Blender 导入后头骨落在 **1.57 厘米**，与 1.57 **米**的网格差 **100 倍**。绑骨前必须把骨架缩放到与网格同空间（`k = 网格中心z / 头骨z`）。骨骼名自带引擎编号：`bip01_head_13` = 骨骼 13。
 - **跑游戏前让 `Assets` 改名让位**（编辑器要用它，游戏不能读它）——做成一对 bat，见 [CLAUDE.md](../../CLAUDE.md)「模块资产目录的编辑器/游戏模式切换」。
-- **诊断工具**（`tools/face-pipeline/tpactool/`）：`tpaccli morphinfo`（网格诊断）/ `morphfix`（补 morph 帧+键数）/ `skinfix --fullmat`（补蒙皮+角色标记+四角色材质配方）/ **`meshdiff`（全字段反射差分，和能跑的参照物逐行对比）**。
+- **诊断工具**（`tools/tpactool/`）：`tpaccli morphinfo`（网格诊断）/ `morphfix`（补 morph 帧+键数）/ `skinfix --fullmat`（补蒙皮+角色标记+四角色材质配方）/ **`meshdiff`（全字段反射差分，和能跑的参照物逐行对比）**。
 - **排查口诀**：**"自建资产 + 引擎启动断言/捏脸崩" → 先和能跑的同类 mod 做全字段差分，别逐个猜**（本轮逐个猜烧了 8 次实机启动，换成差分后一轮定位）。
 
 **工具链自己的坑（本轮修）**：`TpacTool.Lib` 的 `VertexStreamData.WriteData` **读写不对称**（读端不读计数前缀、写端写）→ 任何重写顶点流都会整体错位；已修。另：改 `MeshEditData`/`VertexStreamData` 内容必须**新建 ExternalLoader 顶替数据段**（就地改不被写回）。
@@ -1496,7 +1496,7 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
   59 条形变全叠加的变形头（实测信长 x ±0.132 被压到 ±0.083）。**做几何判断前先归零**。
 
 **完整来龙去脉**：`Knowledge/蒂法换头工程.md` §16（引擎按顺序/数量认部件、flags 不参与分配）
-+ §13.7①（4 件顺序）+ `tools/face-pipeline/tpactool/TpacToolCLI/MetaParts.cs` 的类注释。
++ §13.7①（4 件顺序）+ `tools/tpactool/TpacToolCLI/MetaParts.cs` 的类注释。
 
 ## 离线 Blender 探针读图集：`bpy.data.images.load` 不认**相对路径**（2026-09-16）
 
@@ -1630,3 +1630,23 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 ① **按高度切片比 x 外沿**（z 分桶，取 |x| 最大）；② **重心对齐**（同部位几何重心之差）。
 **两者都要有"参照版"**（本工程 = `Modules/TifaHead2_916` 那版 pack，即用户认可的站姿）——
 跨版本比同一把尺子，比"跟身体比"稳得多。
+
+---
+
+## 🔴 搬含 `.csproj` 的目录 → `Move-Item` 报 "item is in use" / 子目录改名报 Access denied（2026-09-20，tpactool 搬家）
+
+**症状**：`Move-Item` 搬一个装着 `.csproj` 的目录，整目录报
+`Cannot move item because the item ... is in use`；改成逐个给子目录改名探测，则报
+`Access to the path ... is denied`。此时没有任何编译在跑，`Get-Process MSBuild,VBCSCompiler` 也是干净的。
+
+**根因**：占用者是 VSCode 的 C# 语言服务器两件套 —— `Microsoft.CodeAnalysis.LanguageServer.exe`
+（扩展 `ms-dotnettools.csharp`）+ Dev Kit 的 CPS 宿主 `dotnet.exe`（`ms-dotnettools.csdevkit` 组件）。
+它长期驻留、且**只加载 SDK 式工程**：老式 csproj（如 TpacTool 的 WPF 工程）它不认、不锁 ——
+所以「哪几个子目录被锁」精确等于「它加载了哪几个工程」，可用来反证占用者是谁。
+
+**规避**：
+1. **诊断**：逐个把子项 `Rename-Item` 到临时名再改回来，报 Access denied 的就是被锁的那几个。
+2. 🔴 `dotnet build-server shutdown` **治不了这个**（它只管 MSBuild / VBCSCompiler 节点，实测白跑一趟）。
+3. **关掉那两个进程**（`Stop-Process`；自愈 —— 下次打开/编辑 C# 文件会自动重启）→ **紧接着**搬，
+   中间别停，否则它重启后又锁回去。kill 的是用户自己的编辑器工具，动手前说一声。
+4. 搬完提醒用户：VS / VSCode 里缓存的还是旧路径，工程要重新打开。

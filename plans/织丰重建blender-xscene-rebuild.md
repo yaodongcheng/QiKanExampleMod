@@ -20,7 +20,7 @@
 | meta/ | 占位（PhysicsShape/Particle 等工具不可导出物） | 621 |
 | fbx/ | 带骨骼角色（body/head/hands/feet/japan；人体用 Native human_skeleton，56 骨） | 35 |
 
-### 2.2 tpaccli 工具增强（`tools/face-pipeline/tpactool/TpacToolCLI/`）
+### 2.2 tpaccli 工具增强（`tools/tpactool/TpacToolCLI/`）
 - 新命令：`groups`（按 Source 源目录分组统计）、`segs`（段类型分布）、`missingrefs`（跨包材质依赖诊断）、`listformats`（Assimp 导出格式）
 - `dump` 加固：**多目录 packdir**（逗号分隔）、**缺失依赖占位 resolver**（防 UnresolvedDependence 中断）、子目录分类输出、纹理在 fbx/obj 模式跳过、`--filter ""` 全量
 - fbx 导出管线：骨架选择（优先 human 名→动画多数派→兜底）、蒙皮网格才绑骨（SkinDataSize>0）、**TPAC_NO_SKEL=1 环境开关**（去蒙皮演示）

@@ -1,0 +1,12 @@
+﻿material prt_shd_default_dirt
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = [dont_draw_to_gbuffer,no_modify_depth_buffer,needs_forward_rendering]
+  vertexLayoutFlags = []
+  blend = add_modulate_combined
+  shader = bd782b1a-c085-4cdb-bbe6-d023658ef5a7
+  shaderFlags = [use_sunlight]
+  alphaTest = 0
+  extra: ao=1 spec=1 gloss=2
+  tex[0] = 5595efae-9187-46f7-b09f-5188008de47b (prt_tex_default_dirt)

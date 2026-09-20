@@ -1,0 +1,12 @@
+﻿material prt_shd_snow_fall_1
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = [dont_draw_to_gbuffer,no_modify_depth_buffer]
+  vertexLayoutFlags = []
+  blend = add_modulate_combined
+  shader = bd782b1a-c085-4cdb-bbe6-d023658ef5a7
+  shaderFlags = [use_sunlight]
+  alphaTest = 0.5019608
+  extra: ao=1 spec=1 gloss=1
+  tex[0] = 232e1ccd-a1d8-42ab-8d5b-53d2cffb8eba (large_snow_particle)

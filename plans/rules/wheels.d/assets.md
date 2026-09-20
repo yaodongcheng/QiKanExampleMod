@@ -374,7 +374,7 @@ parts_table.py ──► build_heads.py ──► build_head.py      （头：1.
 **零成本验证通道（强烈推荐先用它，再决定要不要重导）**
 
 ```bash
-TP=tools/face-pipeline/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe
+TP=tools/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe
 "$TP" metaparts --packdir <包目录> --filter <网格名子串>                      # ① 只列出（诊断第一步）
 "$TP" metaparts --packdir <包目录> --filter <名> --out <新目录> --order 0,2,1   # ② 重排子网格
 "$TP" metaparts --packdir <包目录> --filter <名> --out <新目录> --clearflags   # ③ 清标记
@@ -392,7 +392,7 @@ TP=tools/face-pipeline/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe
 | **脸形段** | `KeyTime_1..59` | 皮肤 `deform_keys` 的 `key_time_point`（捏脸拉杆） | 拉杆不动 / 拉错部位（镜像事故那类） |
 | **表情段** | `KeyTime_60..100` | 引擎 `morph_anims` 片段：`face_01..12` / `Speak` / `JawDrop` / `CloseEyes` … | 🔴 **说话时嘴不动、整张脸零表情**（捏脸界面"试听声音"最直观） |
 
-- 帧号↔语义全表 = `tpactool/TpacTool.IO/Model/MorphNameMapping.cs`（f60 EyesRight … f71 JawDrop … f88 CloseEyes … f99 Speak / f100 Yell）。
+- 帧号↔语义全表 = `tools/tpactool/TpacTool.IO/Model/MorphNameMapping.cs`（f60 EyesRight … f71 JawDrop … f88 CloseEyes … f99 Speak / f100 Yell）。
 - 🔴 **`morphfix` 补帧是"填空"，不是"补内容"**：它把缺的帧填成"原地不动"，帧数够了（引擎缓冲不越界）但**不会有任何动作**。所以"包能跑、不崩"完全不能证明表情段在位。
 - 🔴 **表情段必须按件对位搬**（原版每个子网格各带自己的场）：**眼球转动（f60..63）在眼球件里、牙齿跟下颌走在嘴件里**。
   把脸壳的场无脑套到眼球件上 → 眼球只会被眼睑蹭 ~1mm，**转不起来**（原版整颗转 ~10mm）。
@@ -905,7 +905,7 @@ FBX 导入后**单位换算与转轴只写在对象矩阵里**，顶点本身是
 
 | 工具 | 位置 | 用途 |
 |---|---|---|
-| `tpaccli morphmap` | `tools/face-pipeline/tpactool/` | **逐帧位移质心 + 帧名** —— 查"拉杆推的是哪一块"的主力（`morphinfo` 只打前 8 帧、看不出部位） |
+| `tpaccli morphmap` | `tools/tpactool/` | **逐帧位移质心 + 帧名** —— 查"拉杆推的是哪一块"的主力（`morphinfo` 只打前 8 帧、看不出部位） |
 | `tpaccli texinfo` | 同上 | 贴图格式/尺寸/mips/flags 速查 |
 | `check_chan_anatomy.py` | `tools/face-pipeline/scripts/` | 位移场落点闸门，**换通道源后必跑** |
 | `tint_face_texture.py` | 同上 | 脸贴图「洗底」 |

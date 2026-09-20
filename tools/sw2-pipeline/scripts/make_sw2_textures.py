@@ -36,7 +36,7 @@
     **为什么不用另裁一张图集**：战无2 一件模型一张全身图集，脖子那块 UV 本来就画在
     **同一张图集**里（和脸/眼/嘴同一张）——所以三张 neck 贴图 = 同批次 `_d`/`_n`/`_s` 的
     **逐像素副本（md5 与 `_d`/`_n`/`_s` 相同是正常的）**，既不缺料、也没法另裁。
-    后处理链按材质名判角色（`tools/face-pipeline/tpactool/TpacToolCLI/MorphFix.cs` 的 `MatRole()`：
+    后处理链按材质名判角色（`tools/tpactool/TpacToolCLI/MorphFix.cs` 的 `MatRole()`：
     含 mouth/lash/brow/shadow/eye 才是对应角色，**其余一律当 face**）⇒ `<名>_neck` 会**自动**拿到
     **脸壳配方**（脖子与脸同一套皮肤着色，正是我们要的）；角色标记在装机时由
     `install_pack.py --clear-flags` 清掉（战无2 的 28 张头**必须清**，见该脚本第 3.5 步）。

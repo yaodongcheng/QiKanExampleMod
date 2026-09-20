@@ -541,7 +541,7 @@ PortraitRegistry 扫**所有模块**的 `ModuleData/AssetRegistry/*.csv`（列�
 - 🔴 **UI 调试热重载（CheckForChanges → SpriteData.Reload）会替换全部 SpritePart/SpriteCategory 对象**：不缓存 Sprite/Category 引用（每次现取 `GetSprite`/`part.Category`），否则旧引用指向已卸载纹理 → 黑块。
 - 内容包没装/tpac 名打错 → 返回 null + `[SpriteAssets]` 日志，不崩（铁律 1）。
 
-**关键文件**：`GUI/SpriteAssetsManager.cs`（GetSprite/GetOrLoad/EnsureLoaded/Release/ReleaseAll + LRU）、`Data/PortraitRegistry.cs`（GetStagePortraits/GetStagePortrait/GetEmotionSpriteName + CSV 扫描）、`Core/VersionCompat.cs`（`V.UIResourceDepot()`/`V.GetSpriteCategory()`——1.2.12 与 1.3+ 差异适配）。生产工具：`tools/face-pipeline/tpactool/TpacToolCLI`（makepack/inspect 命令，`TpacToolCLI/Bc3Encoder.cs` 内嵌 DXT5/BC3 编码器），产物生成器 `ShokuhoTaikouExpansionPack/ArtSource/scripts/build_profile_pack.py`。完整计划：`plans/scenario-campaign-mode/附录-立绘显示接入与分发方案.md`。
+**关键文件**：`GUI/SpriteAssetsManager.cs`（GetSprite/GetOrLoad/EnsureLoaded/Release/ReleaseAll + LRU）、`Data/PortraitRegistry.cs`（GetStagePortraits/GetStagePortrait/GetEmotionSpriteName + CSV 扫描）、`Core/VersionCompat.cs`（`V.UIResourceDepot()`/`V.GetSpriteCategory()`——1.2.12 与 1.3+ 差异适配）。生产工具：`tools/tpactool/TpacToolCLI`（makepack/inspect 命令，`TpacToolCLI/Bc3Encoder.cs` 内嵌 DXT5/BC3 编码器），产物生成器 `ShokuhoTaikouExpansionPack/ArtSource/scripts/build_profile_pack.py`。完整计划：`plans/scenario-campaign-mode/附录-立绘显示接入与分发方案.md`。
 
 ---
 
@@ -672,7 +672,7 @@ SpritePart.Texture (TwoDimension.Texture) → .PlatformTexture (ITexture)
 - **验证闭环**（每轮打包必做）：`tpaccli dump --format png` 回解 → 与源 PNG 逐像素 diff（mean 1.78/255、alpha 0.83 上限 = DXT5 物理极限；全量 2720/2720 PASS）。
 - 纹理格式定版：**DXT5（BC3）无 mipmap**（织丰官方 UI 同款；原版部分 UI 是 BC7 也兼容，但 TpacTool 回解链只解 DXT1-5，选 DXT5 保离线验证）。
 
-**关键文件**：`tools/face-pipeline/tpactool/TpacToolCLI/`（Program.cs/MakePack.cs/Bc3Encoder.cs）、`TpacTool.Lib`（AssetPackage/Texture/TexturePixelData，仅只读使用）、`ShokuhoTaikouExpansionPack/ArtSource/scripts/build_profile_pack.py`（生成 manifest + SpriteData XML + 内容包 CSV 的完整链路）。参考：`Knowledge/tpac资源替换打包指南.md`（换脸场景 + 五个坑）。
+**关键文件**：`tools/tpactool/TpacToolCLI/`（Program.cs/MakePack.cs/Bc3Encoder.cs）、`TpacTool.Lib`（AssetPackage/Texture/TexturePixelData，仅只读使用）、`ShokuhoTaikouExpansionPack/ArtSource/scripts/build_profile_pack.py`（生成 manifest + SpriteData XML + 内容包 CSV 的完整链路）。参考：`Knowledge/tpac资源替换打包指南.md`（换脸场景 + 五个坑）。
 
 ## 「一个屏、两个 prefab 互切」— 列表/详情同层换片（2026-09-11 登记）
 

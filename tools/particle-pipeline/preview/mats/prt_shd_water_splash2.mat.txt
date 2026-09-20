@@ -1,0 +1,14 @@
+﻿material prt_shd_water_splash2
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = [dont_draw_to_gbuffer,no_modify_depth_buffer]
+  vertexLayoutFlags = []
+  blend = add_alpha
+  shader = bd782b1a-c085-4cdb-bbe6-d023658ef5a7
+  shaderFlags = []
+  alphaTest = 0
+  extra: ao=1 spec=0.2 gloss=0.7
+  tex[0] = 387b12b5-5ee4-49c0-b027-9b46103f220b (prt_tex_watersplash2)
+  tex[2] = 55f1833a-1c60-46b6-a8b5-211c4d4da238 (prt_tex_blood_4_n)
+  tex[4] = c0ae82a5-caba-4165-a776-fdfe8fe14491 (physically_based_chrome_s)

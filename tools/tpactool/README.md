@@ -15,6 +15,27 @@
 
 -------------------
 
+> 🔴 **本仓库的 fork 说明（加在原文之上，2026-09-20）**
+>
+> 本目录是 [szszss/TpacTool](https://github.com/szszss/TpacTool) 的本地 fork，额外加了本工程要用的命令
+> （`metaparts` / `morphfix` / `skinfix` / `texreplace` / `meshdiff` / `makepack` / `assetclone`，
+> 源码在 `TpacToolCLI/`）。**五条管线共用**：`tools/face-pipeline` / `armor-pipeline` / `sw2-pipeline` /
+> `kcd-pipeline` / `loading_pipeline`（2026-09-20 从 `tools/face-pipeline/tpactool/` 搬到这里）。
+>
+> **构建（唯一一条命令，在本目录下跑）**
+>
+> ```
+> dotnet build -c Release
+> ```
+>
+> 产物 = `TpacToolCLI/bin/Release/net9.0/tpaccli.exe`。这条命令只编命令行工具 + 它依赖的三个库。
+>
+> 🔴 **上游的图形界面工程 `TpacTool/`（.NET Framework 4.6.2 WPF）默认不参与生成。**
+> 它的 NuGet 包（`packages/`，约 200MB）不进 git，新机器上若把它编进来会直接报
+> "缺少此项目引用的 NuGet 程序包"并**打断整个解决方案**（2026-09-20 踩过）。
+> 要用图形界面时：先 `msbuild TpacTool.sln -t:restore -p:RestorePackagesConfig=true` 还原包，
+> 再在 VS 里右键 `TpacTool` 工程单独生成。只是命令行工具的话，上面那条命令就够，不需要还原。
+
 #### About
 
 TpacTool is an open source asset explorer which can open TPAC format files, view and export the contents.

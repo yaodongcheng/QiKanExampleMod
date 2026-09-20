@@ -17,7 +17,10 @@
 保持同序才能让 diff 只显示真正改动的行。
 
 【用法】
-    python Scripts/gen_particle_effect.py <spec.py> -o <输出.xml>
+    python tools/particle-pipeline/gen_particle_effect.py <spec.py> -o <输出.xml>
+
+    （原来在 Scripts/ 下，2026-09-20 随粒子工具链搬进 tools/particle-pipeline/；
+      调用方 ue2bannerlord.py 走 paths.GEN 定位，不写死路径。）
 
 spec.py 里定义 EFFECTS = [ {...}, ... ]，见同目录示例或本文件末尾的 SPEC 说明。
 
@@ -303,7 +306,7 @@ class Emitter(object):
 def build(spec):
     out = ['<?xml version="1.0" encoding="utf-8"?>']
     out.append('<!-- 生成物 —— 禁止手改（铁律 22）。改效果请改 spec 并重跑：')
-    out.append('     python Scripts/gen_particle_effect.py <spec.py> -o <输出.xml> -->')
+    out.append('     python tools/particle-pipeline/gen_particle_effect.py <spec.py> -o <输出.xml> -->')
     out.append('<particle_effects>')
     for eff in spec:
         out.append('\t<effect')

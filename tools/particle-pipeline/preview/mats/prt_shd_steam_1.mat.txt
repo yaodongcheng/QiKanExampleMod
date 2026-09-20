@@ -1,0 +1,12 @@
+﻿material prt_shd_steam_1
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = [dont_draw_to_gbuffer,no_modify_depth_buffer]
+  vertexLayoutFlags = []
+  blend = add_alpha
+  shader = bd782b1a-c085-4cdb-bbe6-d023658ef5a7
+  shaderFlags = [use_sunlight]
+  alphaTest = 0
+  extra: ao=1 spec=1 gloss=1
+  tex[0] = 10a1b4cb-4556-4fdc-a6a5-c9450679c968 (prt_text_steam_1)
