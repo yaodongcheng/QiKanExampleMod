@@ -7,7 +7,7 @@
 
 | 上游 | 本工具链 | 下游 |
 |---|---|---|
-| UE4.27 工程 `FlexibleCombatSystem`（只读） | 四段管线 → 99 个 XML + 预览页 | 内容包 `ModuleData/project.mbproj` 注册 `soln_particle_systems`（**尚未实机验证**） |
+| UE4.27 工程 `FlexibleCombatSystem`（只读） | 四段管线 → 99 个 XML + 预览页 | 内容包 `ModuleData/project.mbproj` 注册 `soln_particle_systems`（**尚未实机验证**，怎么做见 §2.4） |
 
 ---
 
@@ -18,11 +18,26 @@
    数据根 DATA = D:\BrainMaker\骑砍2粒子特效复刻\              ← 288M T3D + 441M 贴图，不进 git
 
    D:\BrainMaker\骑砍2粒子特效复刻\
-   ├─ pipeline  -> junction 指向 TOOL/pipeline    （同一份代码，改哪边都是改同一份）
-   ├─ preview   -> junction 指向 TOOL/preview
-   ├─ output\      ★ 数据：t3d / parsed / spec / xml / tex / preview / verify / probe / spells_export
-   └─ README.md    数据根说明（怎么跑看本文件）
+   ├─ pipeline   -> junction 指向 TOOL/pipeline   （同一份代码，改哪边都是改同一份）
+   ├─ preview    -> junction 指向 TOOL/preview
+   ├─ README.md  -> 符号链接，指向本文件           （junction 只支持目录；文件跨盘符要用符号链接）
+   ├─ 阴魔斩.mp4           3.5M  录像
+   └─ output\              ★ 全部数据产物（体积为 2026-09-20 快照，会随时间变）
+      ├─ t3d/        288M  99 个 T3D —— UE 无头导出的原始文本，UE 资产没变就不用重跑第①段
+      ├─ parsed/      31M  99 个结构化 JSON + _index.json
+      ├─ spec/       509K  99 个 emitter spec（中间产物，可读可改）
+      ├─ xml/        5.1M  99 个骑砍 particle XML   ★ 交付物
+      ├─ tex/        441M  262 张 UE VFX 贴图 PNG（umodel 导出）
+      ├─ preview/          99 页预览 + index.html（§2.2 的 build_preview_set.py 产物）
+      ├─ verify/           验收截图
+      ├─ probe/            当年选路线时的 API 探针日志（选型证据）
+      ├─ spells_export/    技能表导出 + 技能↔特效对位表（跑法见 §4.1）
+      └─ vanilla_prt_shd_materials{,_native}.txt   原版材质白名单
 ```
+
+> 🔴 **数据根那份 `README.md` 不是第二份文档，是符号链接，指的就是本文件。**
+> 理由：D 盘是施工常待的地方（跑管线、看产物都在那边），两边各留一份 = 那边改了这边不知道。
+> 所以和 `pipeline/` `preview/` 一样**只留一份**，改哪边都是改这份。
 
 **为什么用 junction 而不是复制两份**：junction 是「一个文件两个路径」，在本仓库改脚本，D 盘那边立刻就是新的 —— 不存在「改哪份」的问题。**禁止**把代码复制一份到 D 盘（那就是分叉的开始）。
 
@@ -102,7 +117,33 @@ python preview\render_still.py --xml D:\...\output\xml\lwn_ns_fireball.xml --t 1
 从同名 sidecar `<xml 去后缀>.view.json` 读（范本 [examples/yinmo.view.json](examples/yinmo.view.json)）；
 **没有 sidecar 就自动模式** = 时间轴按 effect 数等分 + 锚点在原点 + 固定机位 + 不画替身网格。
 
+> 🔴 **静帧渲染器三条已知边界（2026-09-21 实测）**
+>
+> ① **一次只模拟「当前阶段」那一个 effect** —— 所以在 1.80s 这种「爆开壳还在飞、残迹刚起」的时刻，
+>    静帧里看不到爆开阶段的粒子，容易误判成「效果没做出来」。**静帧只用来看尺寸 / 形态 / 密度；
+>    想看三段连播必须走通道 A 的 HTML 页**（`make_preview.py`）。
+> ② `draw_shell()` 曾引用一个不存在的 `CENTER` → 渲染 `爆开` 阶段（1.50–2.40 s）直接 `NameError`、不出图。
+>    已修成 `cam.project(anchor(1, t))`（`fx=1` 就是爆开阶段）。**只有渲染爆开那一刻才触发**，所以之前一直没暴露。
+> ③ 想看**纯粒子本体**（不叠替身网格）：**另存一份** sidecar 把 `"meshes"` 改成 `false`
+>    （范本 `out/yinmo_particles_only.view.json`）—— 别改 `examples/yinmo.view.json`，那份的 `meshes:true` 是拿来对标参考图的。
+
 ### 2.3 手写特效（不走 UE）
+
+> **起点：这套工具链是围着「阴魔斩」长出来的**（2026-09-18）。
+> 要复刻的源 = bilibili 上一段 **UE 演示录像**（水印「代行者其一」，UE 4.26 Standalone），
+> 素材存在数据根 `阴魔斩.mp4`（**第三方素材，不进 git**；当年那三张对标静帧放在
+> `Debug/offline/particle_demo/对标效果/`，已随该目录清理掉）。
+> 做法是先手搓 three.js 预览器 + 生成器，**后来才被改造成通用预览器** —— 所以
+> `preview.template.html` 本体内核没动（§3 那 9 个靶点因此存在），`examples/yinmo_spec.py` +
+> `yinmo.view.json` 至今留着当**回归基准**（静帧逐像素比对就用它）。
+> 做到哪：spec → XML → 预览三步都通；🔴 **从未进过游戏**。
+>
+> **2026-09-21 更新**：`examples/yinmo_spec.py` 已按 `阴魔斩.mp4` **逐秒重新标定**（尺子 = 角色本身：
+> 12.00s 帧量得头顶→脚底 405 px = 1.8 m ⇒ **225 px/m**；颜色用高亮红/品红掩膜取均值与 p95）。
+> 13 个 emitter 的尺寸/颜色/材质全部换成实测值，`validate_xml.py` 13 emitter / 问题 0 条。
+> 完整实测数字表 + 方法论见 [Knowledge/骑砍2粒子系统.md §九](../../Knowledge/骑砍2粒子系统.md)。
+>
+> 另：那段录像的第三段「薄月牙」**纯粒子做不出来** —— 见 **§4.2**。
 
 ```bash
 python gen_particle_effect.py examples\yinmo_spec.py -o out\yinmo_slash.xml
@@ -110,7 +151,68 @@ python gen_particle_effect.py examples\yinmo_spec.py -o out\yinmo_slash.xml
 
 生成器把「要改的那几个值」和「格式样板」分开：spec 里只写要改的，其余从原版默认值带出。
 **为什么必须用生成器**：引擎的粒子格式是定长的 —— 每个 emitter 固定 **21 个 flag + 55 个 parameter**
-（对原版 74 个 emitter 全量统计，无一例外），手写一个 emitter 就是 ~76 行样板。
+（对**原版全部 6 个已注册文件、487 个 emitter** 全量统计：无一例外都是 (21, 55)；
+唯一例外是 basic 里一个叫 `invalid_particle` 的占位 effect（56 参数）—— 不是真特效。
+未注册的死档 `particle_systems2.xml` 是旧格式 (17, 38)，别拿它当模板）。
+手写一个 emitter 就是 ~76 行样板。
+
+### 2.4 进 modkit / 进游戏（2026-09-21 新增：XML 之后怎么真的「看见」）
+
+> 这一段补的是 §6 表里唯一没被证明的那一环。结论：**粒子既不需要编辑器编译、也不需要打 tpac**，
+> 但**在编辑器里挂一个 Particle 组件**是最省事的肉眼验证通道。
+
+**① Modkit 装在哪 —— 就地判断，别猜**
+
+本机 `H:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord` **同时就是 Modkit 的安装目录**
+（Steam 清单实证 `appmanifest_1393600.acf`：name = `Mount & Blade II: Bannerlord - Modding Kit`，
+`installdir = "Mount & Blade II Bannerlord"`，StateFlags=4 完整安装，30.9 GB）。
+这四个标志一起出现 = 装了：`bin/Win64_Shipping_wEditor/` · `modding_resources/` · `XmlSchemas/` · 各模块 `ModuleData/project.mbproj`。
+官方要求「编辑器必须与游戏同盘同目录」，这个目录形态正好满足。
+⚠️ `bin/Win64_Shipping_wEditor/` 里**没有 `Editor.exe`** —— 编辑器不是独立程序：从 Steam 启动 Modding Kit 后，
+它打开的是某个模块的 `project.mbproj`（solution）。
+
+**② 三步链路（谁负责什么）**
+
+| 步 | 做什么 | 要编译器 / 编辑器吗 |
+|---|---|---|
+| ① **注册** | 模块 `ModuleData/project.mbproj` 挂一行 `<file id="soln_particle_systems" name="…" type="particle_system" />` | 都不要，纯文本 |
+| ② **验加载** | 编辑器 Scene Editor → Entity → **Add Component → Particle** → 搜 `lwn_`；**搜得到名字 = 注册生效** | 要编辑器 |
+| ③ **真触发** | C# `Mission.Current.Scene.CreateBurstParticle(ParticleSystemManager.GetRuntimeIdByName("<effect 名>"), pos)` | 要编 DLL |
+
+- ② 的依据：官方文档快照 `Knowledge/bannerlord_official_docs/Editor/Scene Editor/creating_entity.md` ——
+  Add Component 共 5 种（Mesh / Decal / Light / **Particle** / Script），选完粒子可 **Edit Instance** 调参。
+  **所以「在编辑器里肉眼看粒子」是官方支持路径，不需要先打包资产。**
+- ③ 的依据：本仓库反编译实证（`Debug/offline/杂项/artem_research/src/*.decompiled.cs`，24 处同款调用）。
+  粒子 XML 是**惰性数据**——没人 spawn 就永远不出现，所以 ③ 不能省。
+- ⚠️ 三段式（charge / burst / trail）是**三个独立 effect**，② 里要各挂一个 Entity 才看得全；想连播只能走 ③。
+
+**③ 注册长什么样（照同族模块抄，别自创）**
+
+```xml
+<file id="soln_particle_systems" name="ModuleData/particles/particle_systems_fcs.xml" type="particle_system" />
+<!-- GPU 粒子才是 type="gpu_particle_system"，我们用不到 -->
+```
+
+**④ 动手前先看这张现状表（2026-09-21 全库 grep 结果）**
+
+| 项 | 现状 |
+|---|---|
+| 全库 `soln_particle_systems` | **只有 Native 挂了 7 行**（`_hardcoded_misc1/2` · `_general` · `_basic` · `_outdoor` · `_map_icon` · `gpu_particle_systems`）；**我们所有模块 0 行** |
+| `Modules/LivingWorldNpcs/ModuleData/project.mbproj` | **不存在**（该模块只有 `DesignData / Languages / ScenarioData`）→ 要新建 |
+| 别的模块有自建 particle XML 吗 | **没有**（全库 `find` 只命中 Native）→ 我们是第一例 |
+
+**⑤ 坑与风险（本次新增）**
+
+| # | 坑 / 风险 | 说明 |
+|---|---|---|
+| 1 | 🔴 `particle_system` 属 **soln_ 体系**，**不挂 mbproj = 完全不加载** | 同一个坑的**第四类**（前三类：`item_holsters` 雷 136 · `item_usage_sets` 雷 122 · `module_sounds`） |
+| 2 | 同名 id 多行是**合法**的 | Native 自己 7 行 → 引擎按 id 合并，我们是**追加**不是覆盖；effect 名取 `lwn_*`，不会和原版 `psys_*` 撞 |
+| 3 | 🟡 **未验证**：给模块**新加** mbproj 会不会影响它现有 `SubModule.xml <Xmls>`（Campaign 数据）的加载 | 两套体系不同但没有实证 → 改完**先进游戏看现有功能** |
+| 4 | 编辑器是**文件监视**：**开之前的改动不补拉** | 顺序必须「先落文件 → 再开编辑器」（铁律 31） |
+| 5 | 模块里一旦出现 `Assets\`，跑游戏前必须改名停用 | `Assets`（编辑器中间产物）与 `AssetPackages`（交付包）互斥，引擎取第一个存在的 |
+| 6 | 只有到「月牙要 mesh / 自制材质贴图」时才需要完整资产管线 | 那时走 `Assets\` + `AssetSources\`（**镜像布局**）+ Publish `.tpac`；ModKit 打不开的内容包走沙箱模块（范本 `Modules/TaikouAnim/`） |
+
+> **推进顺序建议**：先只注册 **1 个 XML**（阴魔斩三段）跑通「搜得到名字 → 场景里看得见」，再一次性铺 99 个。
 
 ---
 
@@ -191,6 +293,31 @@ Chrome 在 Windows 是 GUI 子系统程序，**必须 `Start-Process -Wait` 才�
 >
 > 取证图：`output/verify/_sheet_check.png`（把判出的格线画在贴图上，一眼看对错）。
 
+### 4.2 🔴 能力边界：月牙这类「网格件」纯粒子做不出来
+
+**背景**：阴魔斩参考录像第三段是一道**薄月牙斩击波**。它在 UE 侧是 **Mesh / Ribbon 渲染器**做的；
+骑砍的粒子系统**没有这两样**，我们复刻出来的是「亮核 + 拖烟 + 余烬」的彗尾，不是薄月牙。
+
+> 🔴 **别被预览页骗了**：预览页里那个月牙**不是 XML 画的**，是预览器自己的替身网格
+> （`preview.template.html` 的 `crescent` 对象 / `render_still.py` 的 `draw_crescent()`）——
+> 它是**对标参考图用的示意件**。所以它**既不能证明**骑砍能做月牙，**也不能说明** XML 里有月牙。
+
+| 断言 | 判定 | 证据（原版 8 个 particle XML 全量统计 + `bin` 全量 grep） |
+|---|---|---|
+| 发射体只有 box / sphere | ⚠️ **不完整** | `emit_volume_type` 确实只有 box/sphere，但**还有第三种发射源 `sample_mesh`**（从任意网格表面采样发射），原版自己在用：`prt_pot_pile` 10 处 · `prt_wood_parts2` 9 · `cave_rock_small_c` 6 · 攻城塔残骸 6 · `prt_foam_a` 2 · `generic_particle_3d` 2 |
+| 只有 billboard 面片 | ✅ | 61 个 parameter 里渲染相关的只有 `billboard_type`：`3d` 526 / `turn_to_velocity_side` 247 / `2d` 36 / `none` 4 |
+| 没有 mesh 渲染器 | ✅ | 无 mesh/renderer 类参数；`ParticleMesh`/`RibbonRenderer`/`MeshParticle` 在 `bin` 里零命中（`billboard_type`/`sample_mesh` 只在 `TaleWorlds.Native.dll` 解析 = C++ native 行为，C# 侧无对应类） |
+| 没有 ribbon emitter | ✅ | 无 ribbon 参数；最接近的 `turn_to_velocity_side` 是"面片朝速度方向"，宽度不可变、跟不上路径弯曲 —— **不是真 ribbon** |
+| 纯粒子读不出月牙 | ⚠️ **结论对、理由错** | `sample_mesh` 指一个月牙形网格当发射源 → 粒子就能沿月牙分布（知识文档 §1.4 写着这是「月牙形粒子带」的正解）；做不出来的只是**参考图那种薄、有厚度、边界锐利的立体月牙** |
+
+**要那个形，得换个层做**（这不是粒子的活）：
+
+| 参考录像里的 | 骑砍里的正确做法 |
+|---|---|
+| 月牙薄刃（UE Mesh 渲染器） | 挂一个带月牙网格的 **Entity / MetaMesh** 沿路径飞，粒子只做拖尾与余烬 |
+| Ribbon 拖尾 | 粒子 + `billboard_type=turn_to_velocity_side` + 高 `inherit_emitter_velocity`（原版做拖尾就这么干） |
+| 球形 / 环形粒子带 | `sample_mesh` 指一个球 / 环网格当发射源 |
+
 ---
 
 ## 5. 文件清单
@@ -209,7 +336,7 @@ Chrome 在 Windows 是 GUI 子系统程序，**必须 `Start-Process -Wait` 才�
 | `preview/make_preview.py` | **预览器**：XML → 离线自包含 HTML（§3 的补丁机制在这） |
 | `preview/preview.template.html` | 预览页模板（本体仍是阴魔斩那页，靠补丁通用化） |
 | `preview/build_preview_set.py` | **批次驱动**：一批 XML → N 页 + index.html + _index.json |
-| `preview/render_still.py` | 离线静帧渲染（numpy，无浏览器）；视图参数走 sidecar |
+| `preview/render_still.py` | 离线静帧渲染（numpy，无浏览器）；视图参数走 sidecar。⚠️ **一次只模拟「当前阶段」一个 effect**；要只看粒子本体就用 `meshes:false` 的 sidecar |
 | `preview/vendor/three.min.js` | three.js r160（**入库**，离线可开的唯一保证） |
 | `preview/smoke_d_256.png` | 原版 `smoke_d` 贴图（默认贴图，缺了预览器直接报错） |
 | `preview/mats/*.mat.txt` | 原版 41 个 `prt_shd_*` 材质的 dump —— `MAT_BLEND` 混合模式表的**证据** |
@@ -230,7 +357,7 @@ Chrome 在 Windows 是 GUI 子系统程序，**必须 `Start-Process -Wait` 才�
 | 生成器 / 预览器 / 批次驱动 / 静帧渲染 / 技能表导出 全部可复跑 | 预览器不吃 `emissive_multiplier`（自发光强度在预览里等于丢了 —— 但它在游戏里有效，**别照预览调**） |
 | 两根 + junction：代码进 git、数据留 D 盘、两边同一份 | 曲线插值用 smoothstep 近似（引擎用切线 Hermite） |
 
-**下一步（按价值排）**：① 把 `output/xml/` 接进内容包做**首次实机验证**（唯一还没被证明的一环）
+**下一步（按价值排）**：① 把 `output/xml/` 接进内容包做**首次实机验证**（唯一还没被证明的一环；三步链路 + 现状表见 **§2.4**）
 ② 拿 UE 原效果图与预览页并排比对，标定"还原度" ③ 实机标定坐标手性
 ④ 材质按语义细分（`prt_shd_glow` 现在吃掉 109 个 emitter，太粗）⑤ 反查剩余 59 个特效的引用者。
 
