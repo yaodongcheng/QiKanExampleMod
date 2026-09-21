@@ -1,6 +1,7 @@
 using System;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs.Flight
 {
@@ -39,9 +40,12 @@ namespace LivingWorldNpcs.Flight
         /// <summary>
         /// 在指定位置生成载具。预制体自带碰撞 + 法阵网格，**不需要再挂任何东西**。
         /// </summary>
-        /// <param name="feetWorldPos">玩家脚底的世界坐标（载具会被压到它下面）。</param>
+        /// <param name="boardTopWorldPos">
+        /// **板面**（承载面）要落在的世界坐标 —— 注意口径是"板面"，不是"板原点"，
+        /// 原点会被压到它下面 <see cref="FlightTuning.CarrierTopLocalZ"/> 处。
+        /// </param>
         /// <returns>成功返回 true。</returns>
-        public bool Spawn(Scene scene, Vec3 feetWorldPos)
+        public bool Spawn(Scene scene, Vec3 boardTopWorldPos)
         {
             if (scene == null)
                 return false;
@@ -63,9 +67,9 @@ namespace LivingWorldNpcs.Flight
 
             MatrixFrame frame = MatrixFrame.Identity;
             frame.origin = new Vec3(
-                feetWorldPos.x,
-                feetWorldPos.y,
-                feetWorldPos.z - FlightTuning.CarrierFeetOffset);
+                boardTopWorldPos.x,
+                boardTopWorldPos.y,
+                boardTopWorldPos.z - FlightTuning.CarrierTopLocalZ);   // 板面 → 原点
 
             try
             {
@@ -163,6 +167,53 @@ namespace LivingWorldNpcs.Flight
                 DebugLogger.Log($"[Flight] 拆除载具异常: {ex.Message}");
             }
             _carrier = null;
+        }
+
+        /// <summary>
+        /// 玩家**真实碰撞体**的底面高度（世界 z）。定位载具用它，**不要用 `agent.Position`**。
+        ///
+        /// 🔴 为什么（2026-09-21 用户指出）：`Position` 只是个约定俗成的"原点"，**二段跳时人在空中**，
+        ///    它跟碰撞体不一定同高；而引擎把真实碰撞胶囊给出来了
+        ///    （<see cref="Agent.CollisionCapsule"/>：世界坐标下的两端点 P1/P2 + 半径）。
+        ///    底面 = 两端点里较低那个 − 半径。
+        ///
+        /// 取不到就回落到 <see cref="Agent.Position"/> 的 z（宁可差一点，不能让飞行起不来）。
+        /// </summary>
+        public static float CollisionCapsuleBottomZ(Agent agent)
+        {
+            if (agent == null)
+                return 0f;
+            try
+            {
+                CapsuleData capsule = agent.CollisionCapsule;
+                float lowEnd = Math.Min(capsule.P1.z, capsule.P2.z);
+                return lowEnd - capsule.Radius;
+            }
+            catch
+            {
+                try { return agent.Position.z; }
+                catch { return 0f; }
+            }
+        }
+
+        /// <summary>一行碰撞体摘要（起飞时打进日志，用来核对手算的偏移对不对）。</summary>
+        public static string DescribeCapsule(Agent agent)
+        {
+            if (agent == null)
+                return "capsule=(none)";
+            try
+            {
+                CapsuleData capsule = agent.CollisionCapsule;
+                Vec3 pos = agent.Position;
+                return string.Format(
+                    "pos.z={0:F3} capsule P1.z={1:F3} P2.z={2:F3} r={3:F3} bottom={4:F3} land={5}",
+                    pos.z, capsule.P1.z, capsule.P2.z, capsule.Radius,
+                    CollisionCapsuleBottomZ(agent), agent.IsOnLand() ? 1 : 0);
+            }
+            catch (Exception ex)
+            {
+                return "capsule=(err " + ex.Message + ")";
+            }
         }
 
         /// <summary>网格是否已在某个已加载的包里。找不到返回 false，**不会崩**。</summary>

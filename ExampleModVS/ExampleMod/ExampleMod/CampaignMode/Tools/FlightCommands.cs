@@ -208,7 +208,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps landanim landmax | camera: camsens caminvertx caminverty campitchmin campitchmax camblend | flight: cruise boost accel hover clearance maxalt vrate longpress pitch pitchout blend sigillift";
+                return "ERR usage: custom.flight tune <key> <value> | 动画: blend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps landgrace landanim landmax gentleland takeoffanim takeoffdelay takeoffblend takeoffskip | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle | (hover/clearance/maxalt/vrate 已退役)";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -219,17 +219,29 @@ namespace LivingWorldNpcs.CampaignMode
                 case "cruise": FlightTuning.CruiseSpeed = v; break;
                 case "boost": FlightTuning.BoostSpeed = v; break;
                 case "accel": FlightTuning.Accel = v; break;
-                case "hover": FlightTuning.HoverAltitude = v; break;
-                case "clearance": FlightTuning.MinClearance = v; break;
-                case "maxalt": FlightTuning.MaxAltitude = v; break;
-                case "vrate": FlightTuning.VerticalRate = v; break;
+                case "hover": FlightTuning.HoverAltitude = v; break;            // 🪦 已退役（板不再自动抬升，值不起作用）
+                case "clearance": FlightTuning.MinClearance = v; break;         // 🪦 已退役
+                case "maxalt": FlightTuning.MaxAltitude = v; break;             // 🪦 已退役
+                case "vrate": FlightTuning.VerticalRate = v; break;             // 🪦 已退役（板只按 WASD 动）
+                case "takeoffanim": FlightTuning.TakeoffAnimSeconds = v; break; // 起飞入姿动画时长（秒；0=立刻交给飞行）
+                case "takeoffdelay": FlightTuning.TakeoffSpawnDelay = v; break; // 先切动作→晚这么久再召唤板（秒；0=同帧）
+                case "takeoffblend": FlightTuning.TakeoffBlendIn = v; break;    // 起飞动作淡入时长（秒；越小越"立刻起势"）
+                case "takeoffskip": FlightTuning.TakeoffSkipSeconds = v; break; // 跳过起飞 clip 开头（秒）
+                case "landgrace": FlightTuning.LandTouchGraceSeconds = v; break; // 进空中态后多久内不判撞地（秒）
                 case "landrate": FlightTuning.LandRate = v; break;
                 case "autoland": FlightTuning.AutoLandSeconds = v; break;
                 case "longpress": FlightTuning.LongPressSeconds = v; break;
                 case "pitch": FlightTuning.PitchThreshold = v; break;
                 case "pitchout": FlightTuning.PitchExitThreshold = v; break;
                 case "blend": FlightTuning.AnimBlendIn = v; break;
-                case "feetoffset": FlightTuning.CarrierFeetOffset = v; break;
+                case "presetblend": FlightTuning.CamBlendIn = v; break;         // 只改【机位之间】的过渡时长（动画交叉淡化不变）
+                case "camhandover": FlightTuning.UseCamHandover = v != 0f; break;   // 进出相机是否做交接（0=硬切，旧行为）
+                case "camhandback": FlightTuning.CamHandBackLook = v != 0f; break;  // 归还时是否把朝向写回引擎
+                case "turnrate": FlightTuning.TurnRateDegPerSec = v; break;     // 机身转向角速度（度/秒；0=瞬时，回到旧行为）
+                case "spawngap": FlightTuning.CarrierSpawnGap = v; break;       // 板面比碰撞体底面再低多少（米）
+                case "feetoffset": FlightTuning.CarrierSpawnGap = v; break;     // 旧键名，等价 spawngap（口径已改）
+                case "settle": FlightTuning.TakeoffSettleSeconds = v; break;    // 起飞等踩上板的最长等待（秒；0=不等）
+                case "gentleland": FlightTuning.LandAnimOnGentle = v != 0f; break; // 空格落地也播落地动画？（0=不播，默认）
                 // 起飞 / 落地手势（2026-09-21 N2 起改）
                 case "dbljump": FlightTuning.TakeoffByDoubleJump = v != 0f; break;      // 二段跳起飞
                 case "longpressjump": FlightTuning.TakeoffByLongPress = v != 0f; break; // 长按起飞（后备）
@@ -250,7 +262,7 @@ namespace LivingWorldNpcs.CampaignMode
                 case "caminverty": FlightTuning.InvertCamY = v != 0f; break;    // 上下反向
                 case "campitchmin": FlightTuning.CamPitchMin = v; break;
                 case "campitchmax": FlightTuning.CamPitchMax = v; break;
-                case "camblend": FlightTuning.CamBlendIn = v; FlightTuning.AnimBlendIn = v; break;  // 一起调（用户要求同步）                   // 撞地容差（米）
+                case "camblend": FlightTuning.CamBlendIn = v; FlightTuning.AnimBlendIn = v; break;  // 两个一起调（两个字段本来就该同源）
                 default:
                     return $"ERR unknown key '{key}'";
             }

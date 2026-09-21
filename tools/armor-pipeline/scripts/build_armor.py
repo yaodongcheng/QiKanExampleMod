@@ -134,6 +134,9 @@ CLOTH_DROP = [int(x) for x in get(A, "--cloth-drop", "").split(",") if x.strip()
 #    骨轴是竖直的（脊椎），绕它转等于没转。实测：浅井长政 idx1（driven by nuno1_p_9）从腰部
 #    向后伸 66cm，绕骨轴这条路走不通，必须用这个。
 CLOTH_HANG = [int(x) for x in get(A, "--cloth-hang", "").split(",") if x.strip()]
+# 🔴 LOD 保护（2026-09-21）：列出子网格号 —— 这些件在 LOD 的 decimate 里**保下来**。
+#    用在**薄片**上（披风/布片：基本共面 ⇒ collapse 直接把它砍没，实测信长披风 lod3 整块消失）。
+LOD_PROTECT = [int(x) for x in get(A, "--lod-protect", "").split(",") if x.strip()]
 # 🔴 刚性归属的诊断开关（T 模式）：逐碎片打印「主导骨 / 走刚性还是混合 / 位移」。
 #    平常只打一行统计，要查"某一片为什么被弯/被挪"时加它。
 RIGID_REPORT = "--rigid-report" in A
@@ -1154,6 +1157,21 @@ if CLOTH_DROP or CLOTH_HANG:
             CLOTH_MARK["__cloth_%s_%d__" % (_mode, _s)] = None
     print("   布料件标记：%s" % sorted(CLOTH_MARK))
 
+# 🔴 LOD 保护（2026-09-21）：**薄片会被 decimate 吃光**。实测信长的披风（两片各 44 顶点、
+#    基本共面）在 lod3 就整块消失 —— 离远披风直接不见（原版 09-20 那份就有，不是布料引入的）。
+#    做法：合并前给这些子网格打组 → 合并后取出顶点号 → LOD 循环里当 decimate 的"别动"权重。
+#    Blender 的语义（实测 `_dec_test.py`）：vertex_group 的**权重越高砍得越狠**，
+#    所以保护要用 `invert_vertex_group=True` + 权重 1。
+#    ⚠️ 只在传了 --lod-protect 时生效 ⇒ 不传就与改动前**逐字节同路**，其他角色不受影响。
+LODP_MARKED = False
+if LOD_PROTECT:
+    for _o in dup_list:
+        if parse_submesh(_o.name) in LOD_PROTECT:
+            _g = _o.vertex_groups.new(name="__lodprotect__")
+            _g.add(list(range(len(_o.data.vertices))), 1.0, 'REPLACE')
+            LODP_MARKED = True
+    print("   LOD 保护件标记：%s" % (sorted(LOD_PROTECT) if LODP_MARKED else "（选件里没有）"))
+
 # 🔴 着物（内衬布）也要在**合并前**打标记（2026-09-17）：`bpy.ops.object.join()` 之后
 #    子网格号就没了，再想认"哪块顶点是着物"只能靠当前这个标记组。着物是**布**，
 #    刚性归属要放过它（跟 --cloth-drop/--cloth-hang 一个道理，见文件头那段）。
@@ -1211,6 +1229,17 @@ if KIMONO_MARKED:
                        if any(x.group == _gi and x.weight > 0.5 for x in v.groups))
         ARM.vertex_groups.remove(_g)
     print("   着物件顶点：%d（布，走混合）" % len(KIMONO_V))
+
+# LOD 保护标记 → 顶点号（LOD 循环里当 decimate 的"别动"权重），然后删掉标记组
+LODP_V = []
+if LODP_MARKED:
+    _g = ARM.vertex_groups.get("__lodprotect__")
+    if _g is not None:
+        _gi = _g.index
+        LODP_V = [v.index for v in ARM.data.vertices
+                  if any(x.group == _gi and x.weight > 0.5 for x in v.groups)]
+        ARM.vertex_groups.remove(_g)
+    print("   LOD 保护顶点：%d" % len(LODP_V))
 
 # 🔴 材质必须换成一张干净的、名字对得上的空材质。源件带过来的是 `mat_L00_yukimura`
 #    外加指向 **不存在文件** 的贴图节点，实测后果（2026-09-14）：
@@ -1721,7 +1750,18 @@ if DO_LOD:
         m = d.modifiers.new("dec", 'DECIMATE')
         m.decimate_type = 'COLLAPSE'
         m.ratio = ratio
+        # 🔴 薄片保护（--lod-protect）：权重越高砍得越狠 ⇒ 保护要 invert + 权重 1
+        if LODP_V:
+            _vg = d.vertex_groups.new(name="__lodp__")
+            _vg.add(LODP_V, 1.0, 'REPLACE')
+            m.vertex_group = "__lodp__"
+            m.invert_vertex_group = True
+            m.vertex_group_factor = 1000.0
         bpy.ops.object.modifier_apply(modifier=m.name)
+        if LODP_V:
+            _vg2 = d.vertex_groups.get("__lodp__")
+            if _vg2 is not None:
+                d.vertex_groups.remove(_vg2)
         lods.append(d)
         print("   lod%d  ratio=%.3f -> v=%d f=%d" % (i, ratio, len(d.data.vertices), len(d.data.polygons)))
 

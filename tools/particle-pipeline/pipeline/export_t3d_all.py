@@ -33,7 +33,14 @@ def to_list(x):
     try: return list(x)
     except Exception: return []
 
-WANT = ("NiagaraSystem", "ParticleSystem")
+# 导出哪些资产类。默认 = 粒子（本工具链的主用途）。
+# 2026-09-21 起支持 **BM_T3D_CLASSES** 环境变量覆盖（逗号分隔）——为了能从别的 UE 工程
+# 顺便导出「动画 / 蒙太奇 / 混合空间 / 蓝图」等等非粒子资产做取证（飞行工程就是这么挖的）。
+# 🟡 非粒子类导出**没有下游解析器**，属于「先把文本拿到手」的取证手段，别指望 t3d_parse 吃它。
+WANT = tuple(
+    c.strip() for c in os.environ.get("BM_T3D_CLASSES", "NiagaraSystem,ParticleSystem").split(",")
+    if c.strip()
+)
 
 def list_assets():
     """注意：4.27 在 -run=pythonscript 下 AssetRegistry 启动时已扫好；
