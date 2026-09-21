@@ -225,8 +225,12 @@ namespace LivingWorldNpcs.Flight
             // ⑦ 姿态：按「冲刺 > 俯仰 > 速度」挑一条（状态没变时 SetAction 内部会跳过）
             SetAction(main, PickAirAction(forward));
 
-            // ⑧ 身体朝向跟着飞的方向（俯仰由动画表现 —— 引擎的 agent 转不了俯仰）
-            TurnBody(main, dir);
+            // ⑧ 机身朝向（2026-09-21 用户裁定 = **飞机式**）
+            //    有输入 → 朝【镜头看的方向】的水平投影。按 A/D 平移时身体**不转**，像飞机 ——
+            //            不是朝"实际移动方向"（那样一按侧移就甩头）。
+            //    无输入 → **一个字都不写** ⇒ 保持最后朝向 ⇒ 镜头绕着转能看到各个面、转到正面就是正脸。
+            if (FlightInput.HasMoveInput)
+                TurnBody(main, forward);
 
             // ⑨ 每 0.5 秒打一组诊断 —— 板就算隐藏了，也能靠数字确认「人在不在板上、输入有没有读到」
             _statusTimer += dt;
@@ -738,12 +742,15 @@ namespace LivingWorldNpcs.Flight
             MissionMainAgentController engView = Mission.Current?.GetMissionBehavior<MissionMainAgentController>();
             Vec2 pv = Vec2.Zero;
             try { pv = main.GetCurrentVelocity(); } catch { /* 取不到就留零 */ }
+            Vec3 look = Vec3.Zero;
+            try { look = main.LookDirection; } catch { /* 取不到就留零 */ }
             DebugLogger.Log(string.Format(
-                "[Flight-Diag] ctrl={0} frozen={1} isMine={2} | engDisabled={3}/{4} | engineMove=0x{5:X} engineAxis=({6:F2},{7:F2}) | playerVel=({8:F2},{9:F2})|{10:F1} boardVel={11:F1} | player=({12:F2},{13:F2},{14:F2}) board=({15:F2},{16:F2},{17:F2}) offset=({18:F2},{19:F2})",
+                "[Flight-Diag] ctrl={0} frozen={1} isMine={2} | engDisabled={3}/{4} | engineMove=0x{5:X} engineAxis=({6:F2},{7:F2}) | playerVel=({8:F2},{9:F2})|{10:F1} boardVel={11:F1} | body=({12:F2},{13:F2}) | player=({14:F2},{15:F2},{16:F2}) board=({17:F2},{18:F2},{19:F2}) offset=({20:F2},{21:F2})",
                 main.Controller, _frozenMode.HasValue ? _frozenMode.Value.ToString() : "-", main.IsMine ? 1 : 0,
                 _engDisabledBeforeCamera ? 1 : 0, (engView != null && engView.IsDisabled) ? 1 : 0,
                 _engineMoveFlags, _engineInput.x, _engineInput.y,
                 pv.x, pv.y, pv.Length, _velocity.Length,
+                look.x, look.y,
                 p.x, p.y, p.z, b.x, b.y, b.z, p.x - b.x, p.y - b.y));
 
             // 行 2：键盘原始输入（绕开一切逻辑）
@@ -805,13 +812,35 @@ namespace LivingWorldNpcs.Flight
             return FlightTuning.ActCruise;
         }
 
-        private static void TurnBody(Agent agent, Vec3 dir)        {
-            Vec3 flat = new Vec3(dir.x, dir.y, 0f);
-            if (flat.LengthSquared < 0.0001f)
+        /// <summary>
+        /// 写机身的水平朝向（俯仰由动画表现 —— 引擎的 agent 转不了俯仰）。
+        ///
+        /// 🔴 **接口用 <c>SetMovementDirection(Vec2)</c>，不是 <c>LookDirection</c>**（2026-09-21 用户纠正）：
+        ///    本项目既有做法就是它 —— `Story/VisualCommands.cs:512` 的"强制说话者看向听者"
+        ///    （`speakerAgent.SetMovementDirection(dirToListener.AsVec2)`）。
+        ///    `LookDirection` 那条（`agent.LookDirection = v`）实测**转不动**，别再用。
+        ///
+        /// 🔴 **由调用方决定"要不要写"**：本方法只管把向量落下去。
+        ///    飞行的规则是「有输入才写、没输入不写」—— 不写就等于保持最后朝向，
+        ///    这正是用户要的"悬停时镜头绕着转能看到各个面"（**别在这儿自作主张补一个朝向**，
+        ///    一旦每帧都写，人就被钉死在某个方向、再也转不动了）。
+        ///
+        /// 🔴 传入的应当是**镜头前方的水平投影**，不是实际移动方向（用户裁定 = 飞机式，
+        ///    侧移不甩头）。
+        ///
+        /// 🟡 **TODO（2026-09-21 用户确认留下）：转向要加平滑渐变** ——
+        ///    现在是**瞬时**转向，转镜头时人「啪」地跟过去，观感生硬。
+        ///    做法：每帧朝目标角度插值（限速 / 最短弧），速率进 <see cref="FlightTuning"/> 可调。
+        /// </summary>
+        private static void TurnBody(Agent agent, Vec3 dir)
+        {
+            Vec2 flat = new Vec2(dir.x, dir.y);
+            float len = flat.Length;
+            if (len < 0.0001f)
                 return;
             try
             {
-                agent.LookDirection = flat.NormalizedCopy();
+                agent.SetMovementDirection(flat * (1f / len));   // 归一化：只给方向，不给速度
             }
             catch
             {

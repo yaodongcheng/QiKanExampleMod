@@ -3302,6 +3302,120 @@ namespace LivingWorldNpcs
             return engineCtrl == null ? "engineInput=(n/a)" : $"engineInput.IsDisabled={(engineCtrl.IsDisabled ? 1 : 0)}";
         }
 
+        /// <summary>
+        /// 手动转玩家机身的水平朝向 —— **专测"到底哪个旋转接口能转得动"**（2026-09-21）。
+        ///
+        /// 背景：飞行时按 WASD 角色不转，怀疑和 `Controller=AI` + `SetIsAIPaused(true)` 有关。
+        /// 与其在飞行链路里猜，不如把「写朝向」这一件事单独拎出来拨一下看效果。
+        ///
+        /// 用法：
+        ///   custom.turntodir                # 查：当前朝向 + 控制权上下文
+        ///   custom.turntodir &lt;角度&gt;         # 🔴 现行接口 SetMovementDirection(Vec2)（0=+X, 90=+Y，逆时针，单位度）
+        ///   custom.turntodir vec &lt;x&gt; &lt;y&gt;     # 同上，直接给向量
+        ///   custom.turntodir look &lt;角度&gt;    # 对照：LookDirection(Vec3) —— 🔴 已知转不动
+        ///   custom.turntodir angle &lt;角度&gt;   # 对照：LookDirectionAsAngle(单浮点)
+        ///
+        /// 🔴 **飞行代码用的就是第一种**（`agent.SetMovementDirection(水平单位向量)`）。
+        ///    本项目既有用法见 `Story/VisualCommands.cs:512`「强制说话者看向听者」——
+        ///    `speakerAgent.SetMovementDirection(dirToListener.AsVec2)`。
+        ///    `look` / `angle` 是 2026-09-21 试过但**转不动**的接口，留着手动复现。
+        /// 🔴 一律走 `Agent.Main`（玩家）。模板 NPC 请用 `custom.print_npc_move_info` 那类带 agent 参数的命令。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("turntodir", "custom")]
+        public static string TurnToDir(List<string> args)
+        {
+            try
+            {
+                Agent player = Agent.Main;
+                if (player == null)
+                    return "[TurnDir] no player agent (enter a mission first)";
+
+                string ctx = $"Controller={player.Controller} IsAIControlled={(player.IsAIControlled ? 1 : 0)} IsPaused={(player.IsPaused ? 1 : 0)} IsMine={(player.IsMine ? 1 : 0)}";
+
+                if (args == null || args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
+                    return "[TurnDir] " + ctx + " | " + DescribeLook(player)
+                         + " | usage: custom.turntodir <deg> | look <deg> | angle <deg> | vec <x> <y>";
+
+                string first = args[0].Trim().ToLowerInvariant();
+                string before = DescribeLook(player);
+
+                // vec x y —— 直接给水平向量
+                if (first == "vec")
+                {
+                    if (args.Count < 3
+                        || !float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float vx)
+                        || !float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float vy))
+                        return "[TurnDir] usage: custom.turntodir vec <x> <y>";
+
+                    player.SetMovementDirection(new Vec2(vx, vy));
+                    DebugLogger.Log($"[TurnDir] SetMovementDirection <- vec({vx},{vy}) | {ctx}");
+                    return $"[TurnDir] SetMovementDirection <- vec({vx},{vy}) | {ctx} | before {before} | after {DescribeLook(player)}";
+                }
+
+                // angle <deg> —— 对照接口：单浮点角度
+                if (first == "angle")
+                {
+                    if (args.Count < 2 || !float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float adeg))
+                        return "[TurnDir] usage: custom.turntodir angle <deg>";
+
+                    float arad = adeg * (MathF.PI / 180f);
+                    player.LookDirectionAsAngle = arad;   // 🔴 单位按弧度试；若结果不对，改成直接喂 adeg
+                    DebugLogger.Log($"[TurnDir] LookDirectionAsAngle <- {adeg}deg ({arad}rad) | {ctx}");
+                    return $"[TurnDir] LookDirectionAsAngle <- {adeg}deg ({arad}rad) | before {before} | after {DescribeLook(player)}";
+                }
+
+                // look <deg> —— 对照接口（🔴 已知转不动，留着手动复现用）
+                if (first == "look")
+                {
+                    if (args.Count < 2 || !float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float ldeg))
+                        return "[TurnDir] usage: custom.turntodir look <deg>";
+
+                    float lrad = ldeg * (MathF.PI / 180f);
+                    player.LookDirection = new Vec3((float)Math.Cos(lrad), (float)Math.Sin(lrad), 0f);
+                    DebugLogger.Log($"[TurnDir] LookDirection(对照) <- {ldeg}deg | {ctx}");
+                    return $"[TurnDir] LookDirection(对照) <- {ldeg}deg | {ctx} | before {before} | after {DescribeLook(player)}";
+                }
+
+                // <deg> —— 🔴 **现行接口 SetMovementDirection**（本项目既有用法：
+                //         Story/VisualCommands.cs:512「强制说话者看向听者」）
+                if (float.TryParse(first, NumberStyles.Float, CultureInfo.InvariantCulture, out float deg))
+                {
+                    float rad = deg * (MathF.PI / 180f);
+                    var v = new Vec2((float)Math.Cos(rad), (float)Math.Sin(rad));
+                    player.SetMovementDirection(v);
+                    DebugLogger.Log($"[TurnDir] SetMovementDirection <- {deg}deg ({v.x:F2},{v.y:F2}) | {ctx}");
+                    return $"[TurnDir] SetMovementDirection <- {deg}deg ({v.x:F2},{v.y:F2}) | {ctx} | before {before} | after {DescribeLook(player)}";
+                }
+
+                // 首参可弃纪律：认不出就当占位符，回落查状态并注明
+                return "[TurnDir] " + ctx + " | " + DescribeLook(player)
+                     + $" | [note: '{args[0]}' is not an angle -> status] | usage: custom.turntodir <deg> | look <deg> | angle <deg> | vec <x> <y>";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[TurnDir] failed: {ex}");
+                return $"[TurnDir] failed: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 把玩家当前的朝向读出来 —— **三个读数都打**，方便对照"哪个才是真的生效了"。
+        /// · <c>MoveDir</c>：<c>GetMovementDirection()</c> —— 🔴 **现行接口 SetMovementDirection 的对应 getter，
+        ///   写完之后该变的就是它**（yaw 是从向量反算的，方便跟命令参数对照）
+        /// · <c>LookDir</c> / <c>LookDirAsAngle</c>：2026-09-21 试过但转不动的两条，留着对照
+        /// 若旋转真的生效，写入之后 <c>MoveDir</c> 那一项应该变；**不变 = 这个接口在当前状态下也没用**
+        /// （那时主要怀疑 <c>Controller=AI</c> + <c>IsAIPaused</c> 把原生转向一起冻了）。
+        /// </summary>
+        private static string DescribeLook(Agent player)
+        {
+            Vec2 move = player.GetMovementDirection();
+            Vec3 look = player.LookDirection;
+            float ang = player.LookDirectionAsAngle;
+            float mYaw = (float)(Math.Atan2(move.y, move.x) * (180.0 / Math.PI));
+            float lYaw = (float)(Math.Atan2(look.y, look.x) * (180.0 / Math.PI));
+            return $"MoveDir=({move.x:F2},{move.y:F2}) yaw={mYaw:F0}deg | LookDir=({look.x:F2},{look.y:F2}) yaw={lYaw:F0}deg LookDirAsAngle={ang:F3}";
+        }
+
 
     }
 
