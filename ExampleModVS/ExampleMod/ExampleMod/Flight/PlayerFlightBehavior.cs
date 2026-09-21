@@ -2,6 +2,7 @@ using System;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.View.MissionViews;
 using TaleWorlds.MountAndBlade.View.Screens;
 using TaleWorlds.ScreenSystem;
 
@@ -27,9 +28,11 @@ namespace LivingWorldNpcs.Flight
     ///     结果两个回路（板的位置、玩家的位置）互相耦合出了正反馈，花了一整天才排干净。
     ///     **加任何一层之前先问：它会不会和别的回路耦合？**
     ///
-    /// 🔴 本轮**不冻结玩家**（曾用 Controller=AI，那是"把玩家交给引擎 AI 开"，会让角色自己乱走）。
-    ///     代价：玩家按 WASD 会自己走下木板 —— 所以实验期用**小键盘 8/2/4/6** 控制飞行。
-    ///     以后要接回 WASD，必须先把"冻结"这一层单独加回来并单独验。
+    /// 🔴 **冻结玩家**（2026-09-21 T1）：飞行期间要让主角"别自己走"，否则按 WASD 他会自己走下木板。
+    ///     手法有 6 个候选档，见 <see cref="FlightFreezeMode"/> —— 用 <c>custom.flight freeze &lt;档&gt;</c> 热切。
+    ///     第一版只做了「保留 Controller=Player、每帧清零移动输入」，**实机证明无效**（玩家走路不看那两个量）。
+    ///     现役判断：真开关是 <c>Controller</c>；已观察到的两个坑是「AI 会跟移动中的木板较劲」，
+    ///     对症档位 = <c>aipause</c>（停掉 AI）/ <c>aidetach</c>（掐掉 AI 的目标来源）。
     ///
     /// 🔴 载具只能逐帧瞬移（<c>SetFrame</c>）；用物理速度驱动 = 完全不托人（实测）。
     /// </summary>
@@ -58,6 +61,32 @@ namespace LivingWorldNpcs.Flight
         private float _actionSetAt;         // 上次设置动作的时刻
         private float _statusTimer;         // 状态行的节流计时
         private int _pitchBand;             // 俯仰档：+1 爬升 / 0 水平 / −1 俯冲（带迟滞）
+        private bool _freezeWarned;         // 冻结相关失败只报一次（防每帧刷屏）
+        private FlightFreezeMode? _frozenMode;  // 当前**实际施加**的冻结档（null = 没冻）
+        private Formation _savedFormation;  // AiDetach 档摘下来的编队，落地还回去
+        private MissionMainAgentController _ctrl;   // CtrlOff 档要改的引擎玩家控制器
+        private bool _savedCtrlDisabled;    // CtrlOff 档改之前它的 IsDisabled 值，落地还回去
+        private uint _engineMoveFlags;      // Flags 档取证：冻结前引擎写的移动标志
+        private Vec2 _engineInput;          // Flags 档取证：冻结前引擎写的移动向量
+        private bool _engDisabledBeforeCamera;  // 取证：引擎相机冲刷【之前】读到的 IsDisabled（见 OnPreDisplayMissionTick）
+
+        /// <summary>
+        /// 🔴 **取证钩子**（2026-09-21）：`MissionScreen.UpdateCamera` 在 <c>Mission.OnTick</c> 里
+        /// **每帧**把 <c>MissionMainAgentController.IsDisabled</c> 先置 true 再置回 false。
+        /// 本钩子是 <c>OnTick</c> 的第一个行为回调、**早于 UpdateCamera**，在这里读一次，
+        /// 就能和 OnMissionTick 里（UpdateCamera 之后）读到的值对照：
+        ///
+        /// · 这里 = <b>true</b>、OnMissionTick = false ⇒ 我们的写入活过了帧边界，是**相机**在帧中冲掉的
+        ///   ⇒ 那么 ControlTick（在 OnPreMissionTick，比这里还早）看到的**是 true**，
+        ///   它确实被跳过了 ⇒ **玩家走路根本不走 ControlTick 这条路**（换路，别再修这条）。
+        /// · 这里 = <b>false</b> ⇒ 在更早的地方就被冲掉了 ⇒ ControlTick 看到 false、照常跑
+        ///   ⇒ 那条路的方向是对的，只是时机不对（要进 `OnPreMissionTick` 的窗口去写）。
+        /// </summary>
+        public override void OnPreDisplayMissionTick(float dt)
+        {
+            MissionMainAgentController view = Mission.Current?.GetMissionBehavior<MissionMainAgentController>();
+            _engDisabledBeforeCamera = view != null && view.IsDisabled;
+        }
 
         /// <summary>飞行中（含起飞 / 落地）。</summary>
         public bool IsFlying => _phase != Phase.Grounded;
@@ -108,11 +137,23 @@ namespace LivingWorldNpcs.Flight
                 DebugLogger.Log($"[Flight] tick 异常，已强制退出飞行: {ex}");
                 AbortFlight();
             }
+
+            // 🔴 冻结层（T1，2026-09-21）—— 放在相位更新【之后】：
+            //    起飞那一帧就冻、落地那一帧就松开，中间不留缝。
+            //    具体手法见 FlightFreezeMode；只有 Flags 档需要每帧做，其余档是"设一次就生效"的状态。
+            if (_phase != Phase.Grounded)
+            {
+                EnterFreeze(main);      // 幂等：已冻结则直接返回
+                TickFreeze(main);       // 幂等：非 Flags 档什么都不做
+            }
+            else
+            {
+                ExitFreeze();
+            }
         }
 
         /// <summary>场景结束时兜底回收（ESC 直接退场景也不泄漏）。</summary>
-        public override void OnRemoveBehavior()
-        {
+        public override void OnRemoveBehavior()        {
             try
             {
                 AbortFlight();
@@ -270,9 +311,15 @@ namespace LivingWorldNpcs.Flight
             _velocity = Vec3.Zero;
             _lowClampTimer = 0f;
             _landTimer = 0f;
+            ExitFreeze();
             FlightInput.Reset();
 
             DebugLogger.Log("[Flight] 已落地，控制权与动作通道均已归还");
+
+            // 手动 ctrl off 是没有安全网的 —— 落地时提醒一句，免得"落地后走不动"被当成 bug
+            MissionMainAgentController view = Mission.Current?.GetMissionBehavior<MissionMainAgentController>();
+            if (view != null && view.IsDisabled)
+                DebugLogger.Log("[Flight] ⚠️ 引擎玩家控制器仍是 IsDisabled=true（你手动 custom.flight ctrl off 关的）—— 想走路请下 custom.flight ctrl on");
         }
 
         /// <summary>异常 / 场景结束时的强制收摊（幂等）。</summary>
@@ -297,7 +344,210 @@ namespace LivingWorldNpcs.Flight
             _currentAction = null;
             _lowClampTimer = 0f;
             _landTimer = 0f;
+            ExitFreeze();
             FlightInput.Reset();
+        }
+
+        // ─────────────────────────── 冻结（T1，2026-09-21）───────────────────────────
+
+        /// <summary>
+        /// 进入冻结 —— 按 <see cref="FlightTuning.Freeze"/> 的档位对玩家下手。**幂等**：已冻结则直接返回。
+        ///
+        /// 🔴 第一版只做了「保留 Controller=Player、每帧清零移动输入」，**实机证明无效**
+        ///    （按 W 时 `engineMove` 恒为 `0x0`，人却比板快 2.25 m/s 自己在走 —— 玩家走路不看那两个量）。
+        ///    现在的判断：**玩家走路的真开关是 `Controller`**，而各档位对「板还托不托得住人」
+        ///    和「AI 会不会跟板较劲」的影响只能实测 —— 所以做成 6 个档一轮试出来。
+        ///
+        /// 🔴 **关于「AI 跟板较劲」**（2026-09-21 用户观察 + 推断）：
+        ///    地上把 Controller 切成 AI 后 **WASD 完全无效**（= 冻结确实成立），
+        ///    但上次在板上 AI 档会「乱走」—— 那不是没冻住，而是 **AI 在跟木板较劲**：
+        ///    板每帧把人挪走，AI 想把 agent 带回它认定的位置，于是自己走回来。
+        ///    对症的两档 = <see cref="FlightFreezeMode.AiPaused"/>（把 AI 停掉）与
+        ///    <see cref="FlightFreezeMode.AiDetach"/>（掐掉 AI 的目标来源 = 编队）。
+        /// </summary>
+        private void EnterFreeze(Agent main)
+        {
+            if (_frozenMode.HasValue)
+                return;
+
+            FlightFreezeMode mode = FlightTuning.Freeze;
+            _frozenMode = mode;
+
+            try
+            {
+                switch (mode)
+                {
+                    case FlightFreezeMode.Off:
+                        DebugLogger.Log("[Flight] 冻结档 = Off（不冻，按 WASD 角色会自己走下板 —— 仅作对照）");
+                        break;
+
+                    case FlightFreezeMode.Flags:
+                        DebugLogger.Log("[Flight] 冻结档 = Flags（Controller=Player + 每帧清零移动输入）");
+                        break;
+
+                    case FlightFreezeMode.CtrlOff:
+                        _ctrl = Mission.Current?.GetMissionBehavior<MissionMainAgentController>();
+                        if (_ctrl == null)
+                        {
+                            // 找不到就退回 AI 档（至少能冻住人，代价是可能跟板较劲）
+                            WarnFreezeOnce($"找不到 MissionMainAgentController，退回 Ai 档", null);
+                            goto case FlightFreezeMode.Ai;
+                        }
+                        _savedCtrlDisabled = _ctrl.IsDisabled;
+                        _ctrl.IsDisabled = true;
+                        DebugLogger.Log($"[Flight] 冻结档 = CtrlOff（Controller={main.Controller} 不变 | 引擎玩家控制器 IsDisabled {_savedCtrlDisabled}→true）");
+                        break;
+
+                    case FlightFreezeMode.Ai:
+                        V.SetPlayerControlFrozen(main, true);
+                        DebugLogger.Log($"[Flight] 冻结档 = Ai（Controller={main.Controller}）");
+                        break;
+
+                    case FlightFreezeMode.AiPaused:
+                        V.SetPlayerControlFrozen(main, true);
+                        main.SetIsAIPaused(true);
+                        DebugLogger.Log($"[Flight] 冻结档 = AiPaused（Controller={main.Controller} paused={main.IsPaused}）");
+                        break;
+
+                    case FlightFreezeMode.AiDetach:
+                        _savedFormation = main.Formation;      // 记下来，落地还回去
+                        V.SetPlayerControlFrozen(main, true);
+                        main.Formation = null;
+                        DebugLogger.Log($"[Flight] 冻结档 = AiDetach（Controller={main.Controller} 编队={(_savedFormation != null ? "已摘" : "本来就没有")}）");
+                        break;
+
+                    case FlightFreezeMode.None:
+                        V.SetAgentControllerNone(main);
+                        DebugLogger.Log($"[Flight] 冻结档 = None（Controller={main.Controller}）");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                WarnFreezeOnce($"冻结档 {mode} 施加失败", ex);
+            }
+        }
+
+        /// <summary>
+        /// 冻结的**每帧**部分。**只有 <see cref="FlightFreezeMode.Flags"/> 档需要**（引擎每帧重写，我们也得每帧清零）；
+        /// 其余档位是"设一次就生效"的状态（Controller / IsPaused / Formation），每帧不做任何事。
+        ///
+        /// 🔴 Flags 档顺手兼职**取证**：清零前先把引擎写进去的值记下来，诊断行里能看到
+        ///    "不冻结的话他这一帧会往哪走"（2026-09-21 就是靠它证明这条路无效的：
+        ///    按着 W 时 `engineMove` 恒为 `0x0`，说明那个量根本不是玩家走路的开关）。
+        /// </summary>
+        private void TickFreeze(Agent main)
+        {
+            if (_frozenMode != FlightFreezeMode.Flags)
+                return;
+
+            try
+            {
+                _engineMoveFlags = (uint)main.MovementFlags;
+                _engineInput = main.MovementInputVector;
+
+                main.MovementInputVector = Vec2.Zero;
+                main.MovementFlags = 0;
+                main.EventControlFlags = 0;      // 连跳跃 / 上下马 / 换武器一起封（空格同时是跳跃键）
+            }
+            catch (Exception ex)
+            {
+                WarnFreezeOnce("每帧清零失败（症状：角色会自己走下板）", ex);
+            }
+        }
+
+        /// <summary>
+        /// 松开冻结。**幂等**：没冻过就什么都不做。
+        ///
+        /// 🔴 <see cref="FlightFreezeMode.Flags"/> / <see cref="FlightFreezeMode.Off"/> 档**没有需要还原的状态**
+        ///    （前者引擎每帧自己重写，后者我们压根没动）—— 这也是第一版敢说"冻结不会泄漏"的原因。
+        ///    **其余档位改了真状态（Controller / IsPaused / Formation），必须还** ——
+        ///    不还的后果是落地后玩家永久失去控制权。所以这里失败也要吼一声。
+        /// </summary>
+        private void ExitFreeze()
+        {
+            if (!_frozenMode.HasValue)
+                return;
+
+            FlightFreezeMode mode = _frozenMode.Value;
+            _frozenMode = null;
+            _engineMoveFlags = 0;
+            _engineInput = Vec2.Zero;
+
+            // Off / Flags 档：没改过引擎状态，直接收工
+            if (mode == FlightFreezeMode.Off || mode == FlightFreezeMode.Flags)
+                return;
+
+            // 🔴 CtrlOff 档：把引擎玩家控制器还回去。**这一条尤其不能漏** ——
+            //    漏了 = 落地后玩家永久不能走（比失去控制权还彻底）。
+            //    它不依赖 agent 存活（控制器是 MissionView，与 agent 无关），所以放在最前面还。
+            if (mode == FlightFreezeMode.CtrlOff)
+            {
+                if (_ctrl != null)
+                {
+                    try
+                    {
+                        _ctrl.IsDisabled = _savedCtrlDisabled;
+                        DebugLogger.Log($"[Flight] 解冻（CtrlOff）：引擎玩家控制器 IsDisabled → {_savedCtrlDisabled}");
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[Flight] 🔴 归还玩家控制器失败（落地后可能不能走，重进场景可恢复）: {ex.Message}");
+                    }
+                    _ctrl = null;
+                }
+                return;
+            }
+
+            Agent main = Agent.Main;
+            if (main == null || !AgentControlHelper.SafeIsActive(main))
+            {
+                // agent 已经没了（阵亡 / 换场景）—— 新 agent 是重新建的，控制权天然是 Player，无从泄漏
+                _savedFormation = null;
+                DebugLogger.Log($"[Flight] 解冻（{mode}）：玩家 agent 已失效，无需归还");
+                return;
+            }
+
+            try
+            {
+                main.SetIsAIPaused(false);
+                if (_savedFormation != null)
+                {
+                    main.Formation = _savedFormation;
+                    _savedFormation = null;
+                }
+                V.SetPlayerControlFrozen(main, false);
+
+                DebugLogger.Log($"[Flight] 解冻（{mode}）：Controller={main.Controller} paused={main.IsPaused} 编队={(main.Formation != null ? "已还" : "无")}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Flight] 🔴 解冻失败，玩家可能失去控制权（重启场景可恢复）: {ex.Message}");
+            }
+        }
+
+        private void WarnFreezeOnce(string what, Exception ex)
+        {
+            if (_freezeWarned)
+                return;
+            _freezeWarned = true;
+            DebugLogger.Log(ex == null ? $"[Flight] {what}" : $"[Flight] {what}: {ex.Message}");
+        }
+
+        /// <summary>控制台热切冻结档（<c>custom.flight freeze &lt;模式&gt;</c>）。飞行中立即换档，不用重编译。</summary>
+        public string SetFreezeMode(FlightFreezeMode mode)
+        {
+            FlightFreezeMode old = FlightTuning.Freeze;
+            FlightTuning.Freeze = mode;
+
+            if (_phase == Phase.Grounded)
+                return $"freeze: {old} -> {mode} (applies on next takeoff)";
+
+            ExitFreeze();                       // 先还旧档的状态
+            Agent main = Agent.Main;
+            if (main != null && AgentControlHelper.SafeIsActive(main))
+                EnterFreeze(main);              // 再施新档
+            return $"freeze: {old} -> {mode} (re-applied in flight)";
         }
 
         // ─────────────────────────── 动画 ───────────────────────────
@@ -480,10 +730,20 @@ namespace LivingWorldNpcs.Flight
             catch { /* 相机取不到就留零 */ }
             GetCameraBasis(out Vec3 engF, out Vec3 engR);
 
-            // 行 1：控制权 + 两边坐标 + 人板偏移
+            // 行 1：控制权 + 冻结状态 + 玩家**真实速度** + 引擎输入通道 + 人板偏移
+            // 🔴 为什么要打 playerVel：光看 offset 分不清「打滑」和「走路」——
+            //    · playerVel ≈ 板速  ⇒ 只是被板带着走时的**跟随滞后**（无害）
+            //    · playerVel ≠ 板速（尤其方向不同/模长多出 2~3 m/s）⇒ 他**自己在动**
+            //    这是判断"冻结到底生没生效"最直接的一个量。
+            MissionMainAgentController engView = Mission.Current?.GetMissionBehavior<MissionMainAgentController>();
+            Vec2 pv = Vec2.Zero;
+            try { pv = main.GetCurrentVelocity(); } catch { /* 取不到就留零 */ }
             DebugLogger.Log(string.Format(
-                "[Flight-Diag] ctrl={0} frozen={1} isMine={2} | player=({3:F2},{4:F2},{5:F2}) board=({6:F2},{7:F2},{8:F2}) offset=({9:F2},{10:F2})",
-                main.Controller, 0, main.IsMine ? 1 : 0,
+                "[Flight-Diag] ctrl={0} frozen={1} isMine={2} | engDisabled={3}/{4} | engineMove=0x{5:X} engineAxis=({6:F2},{7:F2}) | playerVel=({8:F2},{9:F2})|{10:F1} boardVel={11:F1} | player=({12:F2},{13:F2},{14:F2}) board=({15:F2},{16:F2},{17:F2}) offset=({18:F2},{19:F2})",
+                main.Controller, _frozenMode.HasValue ? _frozenMode.Value.ToString() : "-", main.IsMine ? 1 : 0,
+                _engDisabledBeforeCamera ? 1 : 0, (engView != null && engView.IsDisabled) ? 1 : 0,
+                _engineMoveFlags, _engineInput.x, _engineInput.y,
+                pv.x, pv.y, pv.Length, _velocity.Length,
                 p.x, p.y, p.z, b.x, b.y, b.z, p.x - b.x, p.y - b.y));
 
             // 行 2：键盘原始输入（绕开一切逻辑）
@@ -608,7 +868,7 @@ namespace LivingWorldNpcs.Flight
         public string Status()
         {
             return string.Format("phase={0} frozen={1} anim={2} v={3:F1} hidden={4} {5}",
-                _phase, "(已摘除冻结)", _currentAction ?? "-", _velocity.Length,
+                _phase, _frozenMode.HasValue ? _frozenMode.Value.ToString() : "off", _currentAction ?? "-", _velocity.Length,
                 FlightTuning.HideCarrier ? "on" : "off", _board.Describe());
         }
     }

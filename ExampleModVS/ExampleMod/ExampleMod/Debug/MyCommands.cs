@@ -3212,7 +3212,18 @@ namespace LivingWorldNpcs
         ///   custom.set_controller player   # 还给玩家（恢复了控制就靠这条）
         ///   custom.set_controller ai       # 交给引擎 AI
         ///   custom.set_controller none     # 引擎 AI 完全退场（没人控制）
-        ///   custom.set_controller          # 只报当前状态
+        ///   custom.set_controller          # 只报当前状态（= 这一族的 get）
+        ///
+        /// 2026-09-21 新增（飞行要用）——**关掉引擎的玩家输入通道**：
+        ///   custom.set_controller input off  # MissionMainAgentController.IsDisabled = true
+        ///                                    # 引擎不再读键盘写玩家移动输入 ⇒ 人不动
+        ///                                    # 🔴 agent.Controller **不变**，仍是 Player
+        ///   custom.set_controller input on   # 恢复
+        ///
+        /// 🔴 `input off` 与 `none` 的区别（容易混）：
+        ///   `none`  = 改 **agent 的控制权归属**（Controller=None，引擎 AI 退场）
+        ///   `input off` = 改 **引擎那个"读键盘"的模块**（MissionView 上的 IsDisabled），控制权归属不动
+        ///
         /// 🔴 一律走 V.* 版本兼容封装（Agent.ControllerType 在 1.3+ 改名为顶级 AgentControllerType）。
         /// </summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("set_controller", "custom")]
@@ -3224,10 +3235,37 @@ namespace LivingWorldNpcs
                 if (player == null)
                     return "[Ctrl] no player agent (enter a mission first)";
 
+                // 🔴 控制权一行打头 —— 这是查这条命令时最想第一眼看到的东西。
+                //    用 raw ControllerType，不用 V.IsAgentPlayer 那种派生布尔（那个看不出 None/AI 的区别）。
+                var mainAgentCtrlType = player.Controller;
+
                 if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-                    return $"[Ctrl] playerControlled={V.IsAgentPlayer(player)} pos=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F2}) - usage: custom.set_controller player|ai|none";
+                    return $"[Ctrl] Controller={mainAgentCtrlType} playerControlled={V.IsAgentPlayer(player)} {EngineInputPart()} pos=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F2}) - usage: custom.set_controller player|ai|none | input on|off";
 
                 string mode = args[0].Trim().ToLowerInvariant();
+
+                // input on|off —— 关/开引擎的玩家输入通道（不动 agent.Controller）
+                // 🔴 2026-09-21 实机证伪：IsDisabled 是 MissionScreen.UpdateCamera **每帧自己管理**的标志
+                //    （先置 true 再置回 false），我们设的值下一帧就被冲掉 ⇒ 这条路不管用。
+                //    保留命令仅为取证/其它场景，**要冻人请用 custom.flight freeze ai / aipause / aidetach**。
+                if (mode == "input")
+                {
+                    var engineCtrl = Mission.Current?.GetMissionBehavior<TaleWorlds.MountAndBlade.View.MissionViews.MissionMainAgentController>();
+                    if (engineCtrl == null)
+                        return "[Ctrl] MissionMainAgentController not found";
+
+                    string sw = (args.Count >= 2) ? args[1].Trim().ToLowerInvariant() : string.Empty;
+                    if (sw != "on" && sw != "off")
+                        return $"[Ctrl] Controller={mainAgentCtrlType} usage: custom.set_controller input on|off (current {EngineInputPart()})";
+
+                    engineCtrl.IsDisabled = sw == "off";
+                    DebugLogger.Log($"[CtrlSpike] engineInput -> {sw}; IsDisabled={engineCtrl.IsDisabled} (set) playerControlled={V.IsAgentPlayer(player)}");
+
+                    // 🔴 回显必须【设完之后重新读】—— 之前在赋值前就把字符串拼好了，打的是旧值（2026-09-21 实机踩）
+                    return $"[Ctrl] Controller={mainAgentCtrlType} engineInput -> {sw}; {EngineInputPart()} "
+                         + "| WARNING: engine resets IsDisabled every frame (MissionScreen.UpdateCamera) -> use 'custom.flight freeze ai' to actually freeze";
+                }
+
                 switch (mode)
                 {
                     case "player":
@@ -3240,21 +3278,28 @@ namespace LivingWorldNpcs
                         V.SetAgentControllerNone(player);
                         break;
                     default:
-                        return $"[Ctrl] '{args[0]}' unknown -> ignored. use player | ai | none (current playerControlled={V.IsAgentPlayer(player)})";
+                        return $"[Ctrl] '{args[0]}' unknown -> ignored. use player | ai | none | input on|off (current Controller={mainAgentCtrlType})";
                 }
 
                 Vec3 p = player.Position;
                 DebugLogger.Log(
-                    $"[CtrlSpike] controller -> {mode}; pos=({p.x:F1},{p.y:F1},{p.z:F2}) " +
+                    $"[CtrlSpike] controller -> {mode}; now={player.Controller} pos=({p.x:F1},{p.y:F1},{p.z:F2}) " +
                     $"playerControlled={V.IsAgentPlayer(player)} onLand={player.IsOnLand()}");
 
-                return $"[Ctrl] -> {mode}; playerControlled={V.IsAgentPlayer(player)} pos=({p.x:F1},{p.y:F1},{p.z:F2})";
+                return $"[Ctrl] -> {mode}; Controller={player.Controller} playerControlled={V.IsAgentPlayer(player)} {EngineInputPart()} pos=({p.x:F1},{p.y:F1},{p.z:F2})";
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[CtrlSpike] failed: {ex}");
                 return $"[Ctrl] failed: {ex.Message}";
             }
+        }
+
+        /// <summary>当前引擎玩家输入通道的开关状态（找不到那个 MissionView 时说清楚）。</summary>
+        private static string EngineInputPart()
+        {
+            var engineCtrl = Mission.Current?.GetMissionBehavior<TaleWorlds.MountAndBlade.View.MissionViews.MissionMainAgentController>();
+            return engineCtrl == null ? "engineInput=(n/a)" : $"engineInput.IsDisabled={(engineCtrl.IsDisabled ? 1 : 0)}";
         }
 
 
