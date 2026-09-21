@@ -36,6 +36,13 @@ namespace LivingWorldNpcs.Flight
         public static bool BoostHeld { get; private set; }
 
         /// <summary>
+        /// 鼠标右键是否按住 = **瞄准机位**（N5）。
+        /// 🔴 只在悬停 / 巡航生效 —— 加速中不给进（用户裁定：瞄准必须是巡航或悬停状态）。
+        /// 判定在 <c>PlayerFlightBehavior.PickCamPreset</c> 里，这里只管读键。
+        /// </summary>
+        public static bool AimHeld { get; private set; }
+
+        /// <summary>
         /// 移动轴：X = 右(D−A)，Y = 前(W−S)，范围 −1..1，对角线会归一化。
         /// </summary>
         public static Vec2 MoveAxis { get; private set; }
@@ -123,6 +130,7 @@ namespace LivingWorldNpcs.Flight
             SpaceHeld = space;
 
             BoostHeld = Input.IsKeyDown(InputKey.LeftShift);
+            AimHeld = Input.IsKeyDown(InputKey.RightMouseButton);
 
             // 🔴 主路 = WASD（2026-09-21 T1 接回）：飞行的方向键就是游戏自己的走路键。
             //    它能成立的前提是**飞行期间把玩家冻结**（见 FlightTuning.FreezePlayerInput）——
@@ -175,6 +183,7 @@ namespace LivingWorldNpcs.Flight
         {
             SpaceHeld = false;
             BoostHeld = false;
+            AimHeld = false;
             MoveAxis = Vec2.Zero;
             _spaceHold = 0f;
             _spaceLongConsumed = false;
