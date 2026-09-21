@@ -196,6 +196,45 @@ namespace LivingWorldNpcs.Flight
         /// <summary>落地阶段把板降到地面的速率。</summary>
         public static float LandRate = 5f;
 
+        // ───────────── 落地手势（🔴 2026-09-21 用户重新定义，与起飞不对称）─────────────
+
+        /// <summary>短按空格是否可用于落地（总开关）。关掉 = 只能靠长按下降撞地落。</summary>
+        public static bool LandByTap = true;
+
+        /// <summary>
+        /// 短按落地的高度闸（米）：板顶离地面在这个高度以内，短按空格才落地。
+        /// 默认 8 —— 取"刚二段跳进浮空（悬停高度 6m）"再多留一点余量，
+        /// 语义就是"反悔刚才那一跳"。**高空平飞时短按不落地**（防误触）。
+        /// </summary>
+        public static float LandTapMaxHeight = 8f;
+
+        /// <summary>正在俯冲（冲向地面）时短按空格是否可落地。</summary>
+        public static bool LandTapWhileDiving = true;
+
+        /// <summary>
+        /// "冲向地面"的判据：镜头前方向的竖直分量 ≤ −这个值。
+        /// 默认 0.42（≈ 低头 25°），与 <see cref="PitchThreshold"/> 同一量级但**故意分开** ——
+        /// 姿态动画的阈值和落地判定是两件事，将来调一个不该牵动另一个。
+        /// </summary>
+        public static float LandTapDivePitch = 0.42f;
+
+        /// <summary>长按空格是否进入持续下降。关掉 = 长按空格无作用（只剩短按落地）。</summary>
+        public static bool LandByLongPressDescend = true;
+
+        /// <summary>持续下降的速率（米/秒）。长按空格时垂直分量整个被它接管。</summary>
+        public static float DescendRate = 6f;
+
+        // ───────────────────────── 撞地自动落地（N4，2026-09-21）─────────────────────────
+
+        /// <summary>飞行中板顶触地是否自动进落地。关掉 = 退回"只能手动长按空格落地"。</summary>
+        public static bool LandOnGroundTouch = true;
+
+        /// <summary>
+        /// 触地判定的容差（米）。板顶离地面小于它才算"撞上"。
+        /// 给容差是为了让**贴地掠过**不被误判成落地 —— 真撞上去才落。
+        /// </summary>
+        public static float LandTouchEps = 0.25f;
+
         /// <summary>停在最低点多久自动落地（秒）。玩家一直往下压 = 想下来。</summary>
         public static float AutoLandSeconds = 0.45f;
 
@@ -203,6 +242,19 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>长按空格多久算触发（秒）。</summary>
         public static float LongPressSeconds = 0.65f;
+
+        /// <summary>
+        /// 🔴 **起飞主路（2026-09-21 N2 用户要求）**：**跳跃中按空格**（二段跳）。
+        /// 判定 = `!Agent.IsOnLand()`（离地即为真）+ 空格按下沿。
+        /// 因为不要求"刚跳过"，**从高处坠落时按空格同样起飞** —— 这是想要的（摔下来能自救）。
+        /// </summary>
+        public static bool TakeoffByDoubleJump = true;
+
+        /// <summary>
+        /// 后备路：站着**长按空格**起飞。🔴 默认保留 —— 长按同时还是**落地**的触发，
+        /// 关掉它只影响"起飞"这一侧，落地手势不受影响。
+        /// </summary>
+        public static bool TakeoffByLongPress = true;
 
         // ───────────────────────── 俯仰姿态 ─────────────────────────
 
@@ -244,11 +296,18 @@ namespace LivingWorldNpcs.Flight
         public static string ActBoost = "act_fly_boost";
         public static string ActLand = "act_fly_land";
 
-        /// <summary>抬头爬升时播的姿态（upright 上升）。</summary>
-        public static string ActClimb = "act_fly_climb";
+        /// <summary>
+        /// 抬头爬升时播的姿态。🟡 **2026-09-21 本轮留空 = 不播** ——
+        /// 原计划接 `Pose_U` / `Pose_D`，但用户判定那两条属于 `A_FM_A_*` 那套体系、**本轮不导**
+        /// （它们和 `Lean_*` 是一家：源目录里是 `A_FM_{A..E}` 5 个变体各自的 `Pose` / `Pose_U` / `Pose_D`
+        ///  + `Lean_{L,R,U,D}` 四方向，属「转向倾斜」那轮的活）。
+        /// 留空的后果 = 抬头时**保持上一条姿态**（`SetAction` 遇到空串直接返回），观感是"平板上升"。
+        /// 🔴 将来要接：把 clip 导进包 → 这里填动作名 → `Taikou/ModuleData/` 两个 XML 各加一行。
+        /// </summary>
+        public static string ActClimb = "";
 
-        /// <summary>低头俯冲时播的姿态（头朝下）。</summary>
-        public static string ActDive = "act_fly_dive";
+        /// <summary>低头俯冲时播的姿态。🟡 本轮同样留空，原因见 <see cref="ActClimb"/>。</summary>
+        public static string ActDive = "";
 
         // ───────────────────────── 调试 ─────────────────────────
 
@@ -274,8 +333,18 @@ namespace LivingWorldNpcs.Flight
             BoostSpeed = 26f;
             Accel = 20f;
             LandRate = 5f;
+            LandByTap = true;
+            LandTapMaxHeight = 8f;
+            LandTapWhileDiving = true;
+            LandTapDivePitch = 0.42f;
+            LandByLongPressDescend = true;
+            DescendRate = 6f;
+            LandOnGroundTouch = true;
+            LandTouchEps = 0.25f;
             AutoLandSeconds = 0.45f;
             LongPressSeconds = 0.65f;
+            TakeoffByDoubleJump = true;
+            TakeoffByLongPress = true;
             AnimBlendIn = 0.3f;
             PitchExitThreshold = 0.30f;
             ActionRecheckSeconds = 0.5f;
@@ -284,8 +353,8 @@ namespace LivingWorldNpcs.Flight
             ActCruise = "act_fly_cruise";
             ActBoost = "act_fly_boost";
             ActLand = "act_fly_land";
-            ActClimb = "act_fly_climb";
-            ActDive = "act_fly_dive";
+            ActClimb = "";
+            ActDive = "";
             PitchThreshold = 0.42f;
         }
 

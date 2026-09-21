@@ -204,7 +204,13 @@ if (!agent.SpawnEquipment[EquipmentIndex.ArmorItemEndSlot].IsEmpty)
 查过三处都没有运行时改的口子：`AnimationSystemData`（随 action set 下发的那包参数，只有 `WalkingSpeedLimit`/`CrouchWalkingSpeedLimit`/`NumPaces`/`MonsterUsageSetIndex`）、`DrivenProperty`（84 项，无 jump）、native agent API 表（203 个方法，只有 `IsOnLand` 一个读口）。
 这两个字段只出现在 **native 的 monster 结构体**里——**加载时读一次，之后只读不写**。
 
-**⚠️ 玩家按空格是有效的**（`MissionMainAgentController` 读 GameKey 14 → `EventControlFlags |= Jump(8)`；徒步就是 Jump，骑马静止是 Rear(4)、骑马移动是 Jump）。日志实测两次 `onLand=False`——离地发生了，只是 `jump_speed_limit=0` 让它几乎立刻落地。
+**⚠️ 玩家按空格是有效的**（`MissionMainAgentController` 读 GameKey 14 → `EventControlFlags |= Jump(8)`；徒步就是 Jump，骑马静止是 Rear(4)、骑马移动是 Jump）。日志实测两次 `onLand=False`——离地发生了。
+
+> 🔴 **订正（2026-09-21，用户当场反驳）**：上面原有一句「只是 `jump_speed_limit=0` 让它几乎立刻落地」—— **那句解读是错的，已删**。
+> **骑砍2 空格就是跳跃，跳跃正常工作**。本页下面那条"副作用提醒"才是当时"跳不起来"的真因：
+> `custom.airhold` 每帧 `TeleportToPosition` 把跳跃的上升速度清掉了。
+> 字段值本身没错（`Native/ModuleData/monsters.xml` 的 `human` 确实 `jump_speed_limit = 0`），
+> **错的只是"0 = 跳不动"这个推论** —— 别再用它当"human 不能跳"的依据。
 
 **唯一还站着的思路（本次未做，用户决定收手）**：
 

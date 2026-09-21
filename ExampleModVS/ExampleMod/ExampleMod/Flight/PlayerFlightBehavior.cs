@@ -19,7 +19,7 @@ namespace LivingWorldNpcs.Flight
     ///
     /// 四个状态：
     /// <code>
-    /// 地面 ──长按空格──▶ 起飞 ──升到悬停高度──▶ 空中 ──长按空格──▶ 落地 ──▶ 地面
+    /// 地面 ──跳跃中按空格──▶ 起飞 ──升到悬停高度──▶ 空中 ──短按(贴地/俯冲)或长按降到撞地──▶ 落地 ──▶ 地面
     /// </code>
     ///
     /// 🔴🔴 **移动逻辑必须保持"读回真实坐标 + 加增量 + 写回"这一种形态**（2026-09-21 血泪教训）：
@@ -173,8 +173,29 @@ namespace LivingWorldNpcs.Flight
             if (main.HasMount)
                 return;
 
-            if (FlightInput.ConsumeSpaceLongPress())
+            // 🔴 起飞触发 = **二段跳**（2026-09-21 N2 用户要求）：**跳跃中（不在地面）按空格**。
+            //
+            //    · 跳跃是正常工作的（空格即跳跃）—— 方案里曾写"human 跳不动"，那是文档误读，已订正。
+            //    · 判定用 `IsOnLand()`：**离地即为真**，不要求"刚跳过"。所以从高处坠落时按空格
+            //      同样能起飞 —— 这是想要的（摔下来时能自救）。
+            //    · 🔴 按下沿**无条件消费**（不管冻没冻、开没开），否则它会跨帧滞留
+            //      （在地面起跳那一帧没消费掉 → 下一帧正好离地 → 一跳就直接飞）。
+            bool pressed = FlightInput.ConsumeSpacePress();
+            if (FlightTuning.TakeoffByDoubleJump && !main.IsOnLand() && pressed)
+            {
+                DebugLogger.Log("[Flight] 二段跳起飞（跳跃中按空格）");
                 BeginTakeoff(main);
+                return;
+            }
+
+            // 后备：长按空格起飞。🔴 **默认保留** —— 长按同时还是**落地**的触发
+            // （`TickAirborne` 里那条），所以"长按管进出"的对称手感还在。
+            // 不想要长按起飞就 `custom.flight tune longpressjump 0`（落地触发不受影响）。
+            if (FlightTuning.TakeoffByLongPress && FlightInput.ConsumeSpaceLongPress())
+            {
+                DebugLogger.Log("[Flight] 长按空格起飞（后备触发）");
+                BeginTakeoff(main);
+            }
         }
 
         private void TickTakeoff(Agent main, float dt)
@@ -196,15 +217,37 @@ namespace LivingWorldNpcs.Flight
 
         private void TickAirborne(Mission mission, Agent main, float dt)
         {
-            // ① 落地手势（同一个空格长按，管进出）
-            if (FlightInput.ConsumeSpaceLongPress())
+            // ① 先取镜头方向（下面几处都要用）
+            GetCameraBasis(out Vec3 forward, out Vec3 right);
+
+            // ② 下降 / 落地手势（🔴 2026-09-21 用户重新定义，与起飞不对称了）
+            //
+            //    · **短按空格 = 落地**，但**只有两种情况成立**：
+            //        ㈠ 冲向地面（镜头朝下的分量够大）
+            //        ㈡ 离地很近（≤ 刚二段跳进浮空的那个高度 —— 相当于"反悔刚才那一跳"）
+            //      高空平飞时短按**不落地** —— 免得手一抖就从天上掉下来。
+            //    · **长按空格 = 持续下降**（松手停），降到撞地由 N4 那条自动落地收尾。
+            //
+            //    🔴 与起飞不对称是**故意的**：起飞只要"在空中"就成立（跳一下按空格很简单），
+            //       落地却是个"破坏性"操作，必须给两道闸（贴地 / 俯冲）挡误触。
+            float groundZNow = GetGroundZ(mission.Scene, _board.Origin);
+            float heightAboveGround = (_board.Origin.z + FlightTuning.CarrierTopLocalZ) - groundZNow;
+            bool chargingGround = forward.z <= -FlightTuning.LandTapDivePitch;
+
+            if (FlightTuning.LandByTap && FlightInput.ConsumeSpacePress())
             {
-                BeginLanding(main);
-                return;
+                bool lowEnough = heightAboveGround <= FlightTuning.LandTapMaxHeight;
+                if (lowEnough || (chargingGround && FlightTuning.LandTapWhileDiving))
+                {
+                    DebugLogger.Log($"[Flight] 短按空格落地（距地 {heightAboveGround:F2}m 俯冲={chargingGround}）");
+                    BeginLanding(main);
+                    return;
+                }
             }
 
-            // ② 方向 = 镜头方向（含俯仰：抬头看天 + W 就是爬升）
-            GetCameraBasis(out Vec3 forward, out Vec3 right);
+            bool descendHeld = FlightTuning.LandByLongPressDescend
+                               && FlightInput.SpaceHeld
+                               && FlightInput.SpaceHoldSeconds >= FlightTuning.LongPressSeconds;
 
             Vec2 axis = FlightInput.MoveAxis;
             Vec3 dir = forward * axis.y + right * axis.x;
@@ -217,6 +260,11 @@ namespace LivingWorldNpcs.Flight
             float targetSpeed = FlightInput.BoostHeld ? FlightTuning.BoostSpeed : FlightTuning.CruiseSpeed;
             _velocity = dir * targetSpeed;
 
+            // 长按空格 = **持续下降**：垂直分量**整个接管**（不看镜头俯仰）—— 用户要的是
+            // "按住就一直往下降"，那就不该因为玩家抬头而改回爬升。水平分量保留（边降边飞）。
+            if (descendHeld)
+                _velocity = new Vec3(_velocity.x, _velocity.y, -FlightTuning.DescendRate);
+
             // (4) 逐帧瞬移载具 —— 就是 FlySpike 那三行，一个夹取都不加。
             //     地形夹取 / 高度上限 / 单帧上限 **全部删掉**：
             //     它们是"我猜的保险"，实测只会制造新问题（160 米上限当场把人卡死过）。
@@ -225,14 +273,35 @@ namespace LivingWorldNpcs.Flight
             // ⑦ 姿态：按「冲刺 > 俯仰 > 速度」挑一条（状态没变时 SetAction 内部会跳过）
             SetAction(main, PickAirAction(forward));
 
-            // ⑧ 机身朝向（2026-09-21 用户裁定 = **飞机式**）
-            //    有输入 → 朝【镜头看的方向】的水平投影。按 A/D 平移时身体**不转**，像飞机 ——
-            //            不是朝"实际移动方向"（那样一按侧移就甩头）。
+            // ⑧ 机身朝向（🔴 2026-09-21 用户裁定 = **朝实际移动方向**，见下）
+            //    有输入 → 朝【实际移动方向】的水平投影：
+            //              W 朝镜头前方 / A 朝左 / D 朝右 / S 转身朝镜头（对着玩家）
             //    无输入 → **一个字都不写** ⇒ 保持最后朝向 ⇒ 镜头绕着转能看到各个面、转到正面就是正脸。
+            //
+            // 🔴 **本条推翻早先的"飞机式"裁定**（那条要求 A/D 平移时身体不转、始终朝镜头前方）。
+            //    两条是相反的，**以现在这条为准**；要改回去只需把 `dir` 换成 `forward`（一行）。
             if (FlightInput.HasMoveInput)
-                TurnBody(main, forward);
+                TurnBody(main, dir);
 
-            // ⑨ 每 0.5 秒打一组诊断 —— 板就算隐藏了，也能靠数字确认「人在不在板上、输入有没有读到」
+            // ⑨ 撞地检测（N4，2026-09-21 用户要求）—— 板顶触地 ⇒ 自动进落地。
+            //    · 这是**纯检测、不做位置修正**：夹取会和"板的位置""玩家位置"两个回路耦合出正反馈
+            //      （方案开头那条血泪教训），而"发现触地就换状态"不是修正回路，安全。
+            //    · 用 GetGroundZ（只查**地形**，不查物理体）—— 查物理体会查到自己那块板，
+            //      板永远"踩着"自己 ⇒ 每帧都判触地。
+            //    · 阈值留一小段容差：飞行中贴地掠过不该被判成落地，真撞上去才落。
+            if (FlightTuning.LandOnGroundTouch)
+            {
+                float groundZ = GetGroundZ(mission.Scene, _board.Origin);
+                float boardTop = _board.Origin.z + FlightTuning.CarrierTopLocalZ;
+                if (boardTop <= groundZ + FlightTuning.LandTouchEps)
+                {
+                    DebugLogger.Log($"[Flight] 撞地 → 自动落地（板顶={boardTop:F2} 地面={groundZ:F2} 差={boardTop - groundZ:F2}）");
+                    BeginLanding(main);
+                    return;
+                }
+            }
+
+            // ⑩ 每 0.5 秒打一组诊断 —— 板就算隐藏了，也能靠数字确认「人在不在板上、输入有没有读到」
             _statusTimer += dt;
             if (_statusTimer >= 0.5f)
             {

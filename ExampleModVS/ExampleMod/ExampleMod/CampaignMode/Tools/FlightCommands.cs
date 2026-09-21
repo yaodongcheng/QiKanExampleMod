@@ -143,7 +143,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | keys: cruise boost accel hover clearance maxalt vrate longpress pitch pitchout blend sigillift";
+                return "ERR usage: custom.flight tune <key> <value> | keys: cruise boost accel hover clearance maxalt vrate longpress pitch pitchout blend sigillift | dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -166,6 +166,17 @@ namespace LivingWorldNpcs.CampaignMode
                 case "blend": FlightTuning.AnimBlendIn = v; break;
                 case "feetoffset": FlightTuning.CarrierFeetOffset = v; break;
                 case "sigillift": FlightTuning.SigilLiftZ = v; break;
+                // 起飞 / 落地手势（2026-09-21 N2 起改）
+                case "dbljump": FlightTuning.TakeoffByDoubleJump = v != 0f; break;      // 二段跳起飞
+                case "longpressjump": FlightTuning.TakeoffByLongPress = v != 0f; break; // 长按起飞（后备）
+                case "landtap": FlightTuning.LandByTap = v != 0f; break;                // 短按落地总闸
+                case "landheight": FlightTuning.LandTapMaxHeight = v; break;            // 短按落地的高度闸（米）
+                case "landdive": FlightTuning.LandTapWhileDiving = v != 0f; break;      // 俯冲时短按可落地
+                case "divedepth": FlightTuning.LandTapDivePitch = v; break;             // "冲向地面"判据（0.42≈低头25°）
+                case "descend": FlightTuning.LandByLongPressDescend = v != 0f; break;   // 长按=持续下降
+                case "descendrate": FlightTuning.DescendRate = v; break;                // 下降速率（米/秒）
+                case "landtouch": FlightTuning.LandOnGroundTouch = v != 0f; break;      // 撞地自动落地
+                case "landeps": FlightTuning.LandTouchEps = v; break;                   // 撞地容差（米）
                 default:
                     return $"ERR unknown key '{key}'";
             }
