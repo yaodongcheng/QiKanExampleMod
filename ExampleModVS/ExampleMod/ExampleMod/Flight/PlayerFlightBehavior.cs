@@ -1,5 +1,6 @@
 using System;
 using TaleWorlds.Engine;
+using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.MissionViews;
@@ -70,6 +71,9 @@ namespace LivingWorldNpcs.Flight
         private Vec2 _engineInput;          // Flags 档取证：冻结前引擎写的移动向量
         private bool _engDisabledBeforeCamera;  // 取证：引擎相机冲刷【之前】读到的 IsDisabled（见 OnPreDisplayMissionTick）
 
+        private readonly FlightCameraRig _camRig = new FlightCameraRig();
+        private bool _camEntered;               // rig 是否已接管（避免每帧重复 Enter）
+
         /// <summary>
         /// 🔴 **取证钩子**（2026-09-21）：`MissionScreen.UpdateCamera` 在 <c>Mission.OnTick</c> 里
         /// **每帧**把 <c>MissionMainAgentController.IsDisabled</c> 先置 true 再置回 false。
@@ -136,6 +140,18 @@ namespace LivingWorldNpcs.Flight
                 // 一次异常即收摊：防每帧刷屏，防冻结状态卡死玩家
                 DebugLogger.Log($"[Flight] tick 异常，已强制退出飞行: {ex}");
                 AbortFlight();
+            }
+
+            // 🔴 运动相机（N5）—— **飞行全程**（含起飞/落地）都推进，免得起降瞬间相机跳回引擎相机。
+            //    机位切换的时长与动画交叉淡化同源（`CamBlendIn` == `AnimBlendIn`），
+            //    因为用户要求"运动动画渐变和相机渐变一起做"。
+            if (_phase != Phase.Grounded && _camEntered)
+            {
+                // 🔴 先喂鼠标 —— 接管相机后引擎不再处理 look（CheckForUpdateCamera 早退），
+                //    这一行是玩家唯一能转视角的地方。
+                _camRig.ApplyLook(Input.MouseMoveX, Input.MouseMoveY);
+                _camRig.SetPreset(PickCamPreset(), FlightTuning.CamBlendIn);
+                _camRig.Tick(main, dt);
             }
 
             // 🔴 冻结层（T1，2026-09-21）—— 放在相位更新【之后】：
@@ -354,6 +370,13 @@ namespace LivingWorldNpcs.Flight
             _lowClampTimer = 0f;
             SetAction(main, FlightTuning.ActTakeoff);
 
+            if (FlightTuning.UseFlightCamera)
+            {
+                _camEntered = _camRig.Enter(main);
+                if (!_camEntered)
+                    DebugLogger.Log("[FlightCam] 接管失败，本次飞行用引擎默认相机");
+            }
+
             DebugLogger.Log($"[Flight] 起飞: groundZ={groundZ:F2} hoverZ={_hoverOriginZ:F2} {_board.Describe()}");
         }
 
@@ -384,6 +407,7 @@ namespace LivingWorldNpcs.Flight
             _velocity = Vec3.Zero;
             _lowClampTimer = 0f;
             _landTimer = 0f;
+            ExitCamera();               // 🔴 必须还相机
             ExitFreeze();
             FlightInput.Reset();
 
@@ -417,8 +441,39 @@ namespace LivingWorldNpcs.Flight
             _currentAction = null;
             _lowClampTimer = 0f;
             _landTimer = 0f;
+            ExitCamera();               // 🔴 必须还相机 —— 不还 = 场景内相机永远被我们接管
             ExitFreeze();
             FlightInput.Reset();
+        }
+
+        // ─────────────────────────── 运动相机（N5，2026-09-21）───────────────────────────
+
+        /// <summary>
+        /// 按当前飞行状态挑机位。优先级：**瞄准 &gt; 加速 &gt; 移动 &gt; 悬停**。
+        ///
+        /// 🔴 **瞄准只在悬停 / 巡航可用**（用户裁定）：加速中不给进 —— 冲刺时视野要的是"快"，
+        ///    拉近过肩会既看不清路又和速度感打架。
+        /// </summary>
+        private FlightCamPreset PickCamPreset()
+        {
+            bool boosting = FlightInput.BoostHeld;
+
+            if (FlightTuning.AimOnRightClick && FlightInput.AimHeld && !boosting)
+                return FlightCamPreset.Aim;
+
+            if (boosting)
+                return FlightCamPreset.Boost;
+
+            return FlightInput.HasMoveInput ? FlightCamPreset.Cruise : FlightCamPreset.Hover;
+        }
+
+        /// <summary>归还相机（幂等）。**落地 / 收摊 / 异常都要走这里** —— 不还 = 场景内相机永远被接管。</summary>
+        private void ExitCamera()
+        {
+            if (!_camEntered)
+                return;
+            _camEntered = false;
+            _camRig.Exit();
         }
 
         // ─────────────────────────── 冻结（T1，2026-09-21）───────────────────────────
@@ -701,12 +756,18 @@ namespace LivingWorldNpcs.Flight
         ///     正确写法 = **照抄引擎自己**（`MissionMainAgentController.LookTick`）：
         ///     `Mat3.Identity` 依次绕 Up / Side 转 bearing / elevation，取 `.f` 就是视线。
         /// </summary>
-        private static void GetCameraBasis(out Vec3 forward, out Vec3 right)
+        private void GetCameraBasis(out Vec3 forward, out Vec3 right)
         {
             forward = Vec3.Zero;
             right = Vec3.Zero;
 
-            // 主路：引擎自己的算法（MissionScreen 的相机角度）
+            // 🔴 主路 = **我们自己的相机**（接管期间）—— 绝不能用 ms.CameraBearing/Elevation：
+            //    挂上 CustomCamera 后引擎不再处理 look，那两个值是**冻结的旧值**
+            //    ⇒ 会得到"画面 A、WASD 飞 B、鼠标没反应"的三重错位（2026-09-21 实机栽过）。
+            if (_camEntered && _camRig.TryGetBasis(out forward, out right))
+                return;
+
+            // 回退：没接管相机时，引擎相机是活的，读它的角度（原逻辑）
             try
             {
                 if (ScreenManager.TopScreen is MissionScreen ms)
@@ -965,9 +1026,9 @@ namespace LivingWorldNpcs.Flight
 
         public string Status()
         {
-            return string.Format("phase={0} frozen={1} anim={2} v={3:F1} hidden={4} {5}",
+            return string.Format("phase={0} frozen={1} anim={2} v={3:F1} {4}",
                 _phase, _frozenMode.HasValue ? _frozenMode.Value.ToString() : "off", _currentAction ?? "-", _velocity.Length,
-                FlightTuning.HideCarrier ? "on" : "off", _board.Describe());
+                _board.Describe());
         }
     }
 }

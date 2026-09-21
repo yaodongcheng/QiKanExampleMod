@@ -16,7 +16,6 @@ namespace LivingWorldNpcs.CampaignMode
     /// custom.flight start           强制起飞（绕过长按空格）
     /// custom.flight stop            强制落地
     /// custom.flight verbose on|off  开逐帧诊断日志
-    /// custom.flight hide on|off     是否隐藏木板（阶段 1 默认显示，便于肉眼验收）
     /// custom.flight tune &lt;键&gt; &lt;值&gt;  热调一个参数（见下）
     /// custom.flight reset           参数回出厂值
     /// </code>
@@ -53,19 +52,16 @@ namespace LivingWorldNpcs.CampaignMode
                 case "tune":
                     return Tune(args);
 
+                case "cam":
+                    return Cam(args);
+
                 case "freeze":
                     return Freeze(args);
 
                 case "hide":
-                {
-                    // 阶段 1 让板【显示】便于肉眼验收；出货前再关掉
-                    if (args.Count >= 2)
-                    {
-                        string v = args[1].ToLowerInvariant();
-                        FlightTuning.HideCarrier = v == "on" || v == "1" || v == "true";
-                    }
-                    return $"OK. carrier mesh hidden={(FlightTuning.HideCarrier ? "on" : "off")} (takes effect on next takeoff)";
-                }
+                    // 🪦 已退役（2026-09-21 合一版）：载具本身就是法阵，没有"隐藏"这一步了。
+                    //    隐藏木板会把碰撞一起干掉（实机摔死过主角），这条路已被证伪。
+                    return "REMOVED. carrier is the sigil itself now (no hide step). see plans/flight plan, 2026-09-21.";
 
                 case "reset":
                     FlightTuning.ResetToDefaults();
@@ -140,10 +136,79 @@ namespace LivingWorldNpcs.CampaignMode
             return WithBehavior(b => b.SetFreezeMode(mode));
         }
 
+        /// <summary>
+        /// <c>custom.flight cam [机位] [参数] [值]</c> —— 飞行运动相机的**热调**（N5）。
+        ///
+        /// · 不带参数            = 列出 4 个机位的全部参数
+        /// · <c>&lt;机位&gt; &lt;参数&gt; &lt;值&gt;</c> = 改一个（飞行中立即生效，下一帧的渐变就会用新值）
+        /// · <c>on|off</c>            = 开关"飞行时接管相机"（下次起飞生效）
+        ///
+        /// 机位：hover / cruise / boost / aim
+        /// 参数：arm pitch yaw | pivotx pivoty pivotz | socketx sockety socketz | selfyaw selfpitch selfroll | fov
+        ///
+        /// 🔴 **参数是"第一版猜测值"，没实机调过** —— 尤其 `pitch` 的正负（原实现自己注了
+        ///    "左右手定则需测试"）。飞起来边看边调，调好把值报回来我写死成默认。
+        /// </summary>
+        private static string Cam(List<string> args)
+        {
+            if (args.Count < 2)
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"OK. flightCamera={FlightTuning.UseFlightCamera} blend={FlightTuning.CamBlendIn}s aimOnRMB={FlightTuning.AimOnRightClick}");
+                for (int i = 0; i < FlightCameraRig.PresetNames.Length; i++)
+                    sb.AppendLine("  " + FlightCameraRig.Describe((FlightCamPreset)i));
+                sb.Append("usage: custom.flight cam <hover|cruise|boost|aim> <param> <value> | cam on|off");
+                return sb.ToString();
+            }
+
+            string k = args[1].ToLowerInvariant();
+            if (k == "on" || k == "off")
+            {
+                FlightTuning.UseFlightCamera = k == "on";
+                return $"OK. flightCamera={FlightTuning.UseFlightCamera} (takes effect on next takeoff)";
+            }
+
+            if (args.Count < 4)
+                return "ERR usage: custom.flight cam <preset> <param> <value> | param: arm pitch yaw pivotx pivoty pivotz socketx sockety socketz selfyaw selfpitch selfroll fov";
+
+            int idx = Array.IndexOf(FlightCameraRig.PresetNames, k);
+            if (idx < 0)
+                return $"ERR unknown preset '{k}' | hover cruise boost aim";
+
+            string field = args[2].ToLowerInvariant();
+            if (!float.TryParse(args[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
+                return $"ERR '{args[3]}' is not a number";
+
+            FlightCamPreset preset = (FlightCamPreset)idx;
+            SpringArmCameraParam p = FlightCameraRig.Presets[idx];
+            switch (field)
+            {
+                case "arm": p.ArmLength = v; break;
+                case "pitch": p.ArmPitch = v; break;
+                case "yaw": p.ArmYaw = v; break;
+                case "pivotx": p.PivotX = v; break;
+                case "pivoty": p.PivotY = v; break;
+                case "pivotz": p.PivotZ = v; break;
+                case "socketx": p.SocketX = v; break;
+                case "sockety": p.SocketY = v; break;
+                case "socketz": p.SocketZ = v; break;
+                case "selfyaw": p.SelfYaw = v; break;
+                case "selfpitch": p.SelfPitch = v; break;
+                case "selfroll": p.SelfRoll = v; break;
+                case "fov": p.Fov = v; break;
+                default:
+                    return $"ERR unknown param '{field}' | arm pitch yaw pivotx pivoty pivotz socketx sockety socketz selfyaw selfpitch selfroll fov";
+            }
+            FlightCameraRig.Presets[idx] = p;
+
+            DebugLogger.Log("[FlightCam] " + FlightCameraRig.Describe(preset));
+            return "OK. " + FlightCameraRig.Describe(preset);
+        }
+
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | keys: cruise boost accel hover clearance maxalt vrate longpress pitch pitchout blend sigillift | dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps";
+                return "ERR usage: custom.flight tune <key> <value> | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps | camera: camsens caminvertx caminverty campitchmin campitchmax camblend | flight: cruise boost accel hover clearance maxalt vrate longpress pitch pitchout blend sigillift";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -165,7 +230,6 @@ namespace LivingWorldNpcs.CampaignMode
                 case "pitchout": FlightTuning.PitchExitThreshold = v; break;
                 case "blend": FlightTuning.AnimBlendIn = v; break;
                 case "feetoffset": FlightTuning.CarrierFeetOffset = v; break;
-                case "sigillift": FlightTuning.SigilLiftZ = v; break;
                 // 起飞 / 落地手势（2026-09-21 N2 起改）
                 case "dbljump": FlightTuning.TakeoffByDoubleJump = v != 0f; break;      // 二段跳起飞
                 case "longpressjump": FlightTuning.TakeoffByLongPress = v != 0f; break; // 长按起飞（后备）
@@ -176,7 +240,15 @@ namespace LivingWorldNpcs.CampaignMode
                 case "descend": FlightTuning.LandByLongPressDescend = v != 0f; break;   // 长按=持续下降
                 case "descendrate": FlightTuning.DescendRate = v; break;                // 下降速率（米/秒）
                 case "landtouch": FlightTuning.LandOnGroundTouch = v != 0f; break;      // 撞地自动落地
-                case "landeps": FlightTuning.LandTouchEps = v; break;                   // 撞地容差（米）
+                case "landeps": FlightTuning.LandTouchEps = v; break;
+                // 相机接管后的"看"（2026-09-21）
+                case "camfov": FlightTuning.UseFlightCamera = v != 0f; break;   // 同 cam on|off
+                case "camsens": FlightTuning.CamLookSensitivity = v; break;     // 鼠标灵敏度（度/像素基准）
+                case "caminvertx": FlightTuning.InvertCamX = v != 0f; break;    // 左右反向
+                case "caminverty": FlightTuning.InvertCamY = v != 0f; break;    // 上下反向
+                case "campitchmin": FlightTuning.CamPitchMin = v; break;
+                case "campitchmax": FlightTuning.CamPitchMax = v; break;
+                case "camblend": FlightTuning.CamBlendIn = v; FlightTuning.AnimBlendIn = v; break;  // 一起调（用户要求同步）                   // 撞地容差（米）
                 default:
                     return $"ERR unknown key '{key}'";
             }

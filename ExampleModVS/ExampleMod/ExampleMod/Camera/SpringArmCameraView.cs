@@ -110,93 +110,15 @@ namespace LivingWorldNpcs
 
 
 
-            float standEyeHeight = 1.4626f;
-            float sitEyeHeight = 1.024f;
-
-            //使用DebugLogger打印本次的anchorFrame，采用$"{} desc等"模式
-            //DebugLogger.Log($"ApplySpringArmCamera targetAgentName {targetAgent.Name} anchorFrame: {anchorFrame}");
-
-            float eyeHeightOffset = standEyeHeight;
-            if(VariableManager.GetV(targetAgent.Character.StringId,"IsSit") == "True")
-            {
-               // DebugLogger.Log($"因为{targetAgent.Name}坐下了，使用坐姿高度");
-                eyeHeightOffset = sitEyeHeight;
-            }
-
-            Vec3 anchorFootPos = anchorFrame.origin;
-            Vec3 anchorEyePos = anchorFootPos;
-            anchorEyePos.z += eyeHeightOffset;
-
-
-
-           // DebugLogger.Log($"ApplySpringArmCamera targetAgentName {targetAgent.Name} anchorLoc: {anchorFrame.origin} eyePos {targetAgent.GetEyeGlobalPosition()} eyeheight {targetAgent.GetEyeGlobalHeight()}");
-
-            Vec3 PivotOffset =  (anchorFrame.rotation.s * (p.PivotX))   + (anchorFrame.rotation.f * (p.PivotY))   + (anchorFrame.rotation.u * (p.PivotZ));
-
-
-            Vec3 pivotPos = anchorEyePos + PivotOffset;               
-
-
-            float degToRad = MathF.PI / 180.0f;
-            Mat3 armRotMat = Mat3.Identity;
+            // 🔴 2026-09-21：算法抽到 SpringArmMath 共用（飞行相机也用同一份，见 Flight/FlightCameraRig.cs）。
+            //    这里保留原行为不变 —— 尤其 `p.IsAnchorWorld = false;` 那句"提前强制"照旧，
+            //    不是顺手修 bug（那是另一个决定，改了会影响所有相机模板）。
             p.IsAnchorWorld = false;
-            if (p.IsAnchorWorld)
-            {
-                // 世界模式：完全由 Slider 控制，不跟随玩家转向
-                // 此时基准是世界坐标系 (Identity)
-                armRotMat.RotateAboutUp(p.ArmYaw * degToRad); // 世界 Yaw
-                armRotMat.RotateAboutSide(p.ArmPitch * degToRad); // 世界 Pitch
-            }
-            else
-            {
-                
-                armRotMat = targetAgent.LookFrame.rotation;               
-                armRotMat.RotateAboutUp(-p.ArmYaw * degToRad); // 注意左右手定则，M&B中左转通常为正或负需测试
-                armRotMat.RotateAboutSide(p.ArmPitch * degToRad);
-            }
 
-            float armLenMeters = p.ArmLength ;           
-
-            Vec3 socketOffset = (armRotMat.s * (p.SocketX ))
-                              + (armRotMat.f * (p.SocketY ))
-                              + (armRotMat.u * (p.SocketZ ));
-
-            Vec3 cameraPos = pivotPos - (armRotMat.f * armLenMeters) +  socketOffset;
-
-            Mat3 finalCamRot = armRotMat;
-
-            // 叠加自旋 (Yaw/Pitch/Roll)
-            // 注意：通常相机看向 Arm 的前方。
-            if (Math.Abs(p.SelfYaw) > 0.001f) finalCamRot.RotateAboutUp(-p.SelfYaw * degToRad);
-            if (Math.Abs(p.SelfPitch) > 0.001f) finalCamRot.RotateAboutSide(p.SelfPitch * degToRad);
-            if (Math.Abs(p.SelfRoll) > 0.001f) finalCamRot.RotateAboutForward(p.SelfRoll * degToRad);
-            finalCamRot.RotateAboutSide(MathF.PI / 2); // 相机朝天修正
-
-
-            // 确保坐标系正交
-            finalCamRot.Orthonormalize();
-
-
-            // 7. 应用到 Engine Camera
-            MatrixFrame finalFrame = MatrixFrame.Identity;
-            finalFrame.origin = cameraPos;
-
-
-
-            finalFrame.rotation = finalCamRot;
-
-            //测试，直接把相机放在角色的正后方
-            //finalFrame.origin = pivotPos - armRotMat.f * armLenMeters;
-
-
+            SpringArmMath.ComputeFrame(targetAgent, in p, out MatrixFrame finalFrame, out float fovDeg);
 
             _customCamera.Frame = finalFrame;
-            _customCamera.SetFovVertical(p.Fov * degToRad, Screen.AspectRatio, 0.1f, 1000f);
-           // DebugLogger.Log($"ApplySpringArmCamera anchorFootPos{anchorFootPos} anchorEyePos {anchorEyePos} PivotOffset {PivotOffset} pivotPos {pivotPos} ArmPos {armRotMat.f * armLenMeters} SocketOffset {socketOffset} finalOrigin: {finalFrame.origin}");
-
-            
-        
-
+            _customCamera.SetFovVertical(fovDeg * (MathF.PI / 180.0f), Screen.AspectRatio, 0.1f, 1000f);
 
             missionScreen.CustomCamera = _customCamera;
         }

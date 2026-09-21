@@ -103,16 +103,19 @@ namespace LivingWorldNpcs.Flight
         // 引擎写不进 agent 的 Z，只能靠"脚下一块实心道具 + 每帧瞬移它"把人托起来。
 
         /// <summary>承载用的实心预制体。网格会被隐藏，留下物理体当"地面"。</summary>
-        public static string CarrierPrefab = "wooden_platform_a";
+        /// <summary>
+        /// 飞行载具的预制体 —— 🔴 **2026-09-21 起就是法阵自己**
+        /// （`Taikou/Prefabs/lwn_flight_sigil.xml`：根带 `bo_wooden_platform_a` 碰撞 + 子带法阵网格）。
+        /// 旧值 `wooden_platform_a` 已废 —— 那个方案要另挂一张法阵并"把木板藏起来"，
+        /// 而**隐藏会把碰撞一起干掉**（实机摔死过主角）。
+        /// </summary>
+        public static string CarrierPrefab = "lwn_flight_sigil";
 
         /// <summary>
-        /// 是否隐藏载具网格。
-        ///
-        /// 🔴 默认 **false = 显示**。理由：板要是隐形的，**就没法用肉眼确认它真的生成了、真的在托人** ——
-        ///    "飞起来了"和"看见一块板抬着自己飞"是两回事，前者可能是别的原因造成的错觉。
-        ///    阶段 1 一律让它显示；等法阵进了包、要出货了，再用 <c>custom.flight hide on</c> 关掉。
+        /// 载具网格名（**生成前的存在性探针用**）。
+        /// 🔴 网格不在任何包里却去 `Instantiate` = native 访问违例，**游戏当场崩、try/catch 拦不住**。
         /// </summary>
-        public static bool HideCarrier = false;
+        public static string CarrierMeshName = "lwn_flight_sigil";
 
         /// <summary>wooden_platform_a 的顶面在局部坐标里的高度（实测 0.37 米）。</summary>
         public static float CarrierTopLocalZ = 0.37f;
@@ -125,26 +128,10 @@ namespace LivingWorldNpcs.Flight
 
         // ───────────────────────── 法阵（纯视觉）─────────────────────────
 
-        /// <summary>
-        /// 脚下法阵的预制体名（内容包提供）。
-        /// 🔴 资产还没做好时这里查不到 —— 代码会静默跳过（只飞、无法阵），不影响飞行本身。
-        /// </summary>
-        public static string SigilPrefab = "lwn_flight_sigil";
-
-        /// <summary>
-        /// 预制体里那个 <c>&lt;meta_mesh_component name="…"&gt;</c> 引用的**网格名**。
-        /// 代码在实例化预制体之前会先用它做存在性探针 ——
-        /// 🔴 网格不存在却去 Instantiate = native 访问违例，游戏当场崩，try/catch 拦不住（2026-09-21 实测）。
-        /// 导完法阵后如果 ModKit 给的名字不是这个，改这里（或 custom.flight tune 里加）。
-        /// </summary>
-        public static string SigilMeshName = "lwn_flight_sigil";
-
-        /// <summary>
-        /// 法阵相对「板原点」抬高多少。
-        /// 🔴 必须**高于板顶面**（<see cref="CarrierTopLocalZ"/> ≈ 0.37）—— 板原点在板**底面**，
-        ///    抬 0.02 的话法阵会埋在板体内部，等于看不见。抬到板顶面之上 = 正好在玩家脚下。
-        /// </summary>
-        public static float SigilLiftZ = 0.40f;
+        // ── 🪦 已退役（2026-09-21 合一版）：法阵不再是"另挂的一个实体"，它就是载具本身 ──
+        //    SigilPrefab / SigilMeshName / SigilLiftZ / HideCarrier / CarrierHideMode
+        //    这几个字段连同"隐藏载具"整层逻辑一起废了。保留注释只为记录来龙去脉，
+        //    **实机验证合一版没问题后可以整段删掉**（见 plans/玩家飞行-实施方案.md）。
 
         // ───────────────────────── 高度 ─────────────────────────
 
@@ -280,6 +267,39 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public static float AnimBlendIn = 0.3f;
 
+        // ───────────────────────── 运动相机（N5，2026-09-21）─────────────────────────
+
+        /// <summary>飞行期间是否接管相机（运动机位）。关掉 = 用引擎默认跟随相机。</summary>
+        public static bool UseFlightCamera = true;
+
+        /// <summary>
+        /// 相机机位之间的渐变时长（秒）。
+        /// 🔴 **与 <see cref="AnimBlendIn"/> 分开写但取同一个值** —— 用户要求"运动动画渐变和
+        /// 相机渐变一起做"，两边时长不一致会看着像两个独立系统。**改一个记得看另一个。**
+        /// </summary>
+        public static float CamBlendIn = 0.3f;
+
+        /// <summary>右键是否可以进瞄准机位（只在悬停 / 巡航生效，加速时不给进）。</summary>
+        public static bool AimOnRightClick = true;
+
+        // ── 相机接管后的"看"（🔴 接管相机就必须接管看，见 FlightCameraRig 的类型注释）──
+
+        /// <summary>
+        /// 鼠标灵敏度：**每像素转多少度**。最终值 = 本值 × 引擎的 <c>Input.MouseSensitivity</c>
+        /// （跟随玩家在选项里的设置），所以这里只给基准。
+        /// </summary>
+        public static float CamLookSensitivity = 0.12f;
+
+        /// <summary>上下视角钳制（度）。别让它翻过头 —— 抬头到 89 度以上画面会翻。</summary>
+        public static float CamPitchMin = -80f;
+        public static float CamPitchMax = 75f;
+
+        /// <summary>鼠标左右是否反向（实机觉得转反了就翻这个）。</summary>
+        public static bool InvertCamX = false;
+
+        /// <summary>鼠标上下是否反向。</summary>
+        public static bool InvertCamY = false;
+
         /// <summary>
         /// 每隔多久**核对一次**动画有没有被引擎抢回去（秒）。
         /// 为什么需要：0 号动作通道是引擎 locomotion 系统也有权写的，我们设完不保证一直有效。
@@ -317,12 +337,9 @@ namespace LivingWorldNpcs.Flight
         /// <summary>把参数恢复到出厂值。</summary>
         public static void ResetToDefaults()
         {
-            CarrierPrefab = "wooden_platform_a";
+            CarrierPrefab = "lwn_flight_sigil";
             CarrierTopLocalZ = 0.37f;
             CarrierFeetOffset = 0.45f;
-            SigilPrefab = "lwn_flight_sigil";
-            SigilMeshName = "lwn_flight_sigil";
-            SigilLiftZ = 0.40f;
             HoverAltitude = 6f;
             MinClearance = 1.2f;
             MaxAltitude = 160f;
@@ -346,6 +363,14 @@ namespace LivingWorldNpcs.Flight
             TakeoffByDoubleJump = true;
             TakeoffByLongPress = true;
             AnimBlendIn = 0.3f;
+            UseFlightCamera = true;
+            CamBlendIn = 0.3f;
+            AimOnRightClick = true;
+            CamLookSensitivity = 0.12f;
+            CamPitchMin = -80f;
+            CamPitchMax = 75f;
+            InvertCamX = false;
+            InvertCamY = false;
             PitchExitThreshold = 0.30f;
             ActionRecheckSeconds = 0.5f;
             ActTakeoff = "act_fly_start";
@@ -362,8 +387,8 @@ namespace LivingWorldNpcs.Flight
         public static string Describe()
         {
             return string.Format(
-                "carrier={0} sigil={1} | cruise={2} boost={3} accel={4} | hover={5} clearance={6} maxAlt={7} vrate={8} | longPress={9} | freeze={10}",
-                CarrierPrefab, SigilPrefab, CruiseSpeed, BoostSpeed, Accel,
+                "carrier={0} | cruise={1} boost={2} accel={3} | hover={4} clearance={5} maxAlt={6} vrate={7} | longPress={8} | freeze={9}",
+                CarrierPrefab, CruiseSpeed, BoostSpeed, Accel,
                 HoverAltitude, MinClearance, MaxAltitude, VerticalRate, LongPressSeconds,
                 Freeze);
         }
