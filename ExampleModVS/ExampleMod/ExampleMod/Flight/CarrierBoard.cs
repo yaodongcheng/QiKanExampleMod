@@ -73,14 +73,19 @@ namespace LivingWorldNpcs.Flight
 
             Origin = frame.origin;
 
-            // 🔴 只隐藏网格，**不动物理体** —— 板还得当"地面"用。
-            try
+            // 🔴 默认【不隐藏】—— 板隐形的就没法用肉眼确认它真的生成了、真的在托人。
+            //    阶段 1 调试让它显示；要出货了再用 custom.flight hide on 关掉。
+            if (FlightTuning.HideCarrier)
             {
-                _carrier.SetVisibilityExcludeParents(false);
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[Flight] 隐藏载具网格失败（板会显示出来，但飞行不受影响）: {ex.Message}");
+                try
+                {
+                    // 只隐藏网格，**不动物理体** —— 板还得当"地面"用
+                    _carrier.SetVisibilityExcludeParents(false);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[Flight] 隐藏载具网格失败（板会显示出来，但飞行不受影响）: {ex.Message}");
+                }
             }
 
             SpawnSigil(scene);
@@ -91,6 +96,18 @@ namespace LivingWorldNpcs.Flight
         {
             if (string.IsNullOrEmpty(FlightTuning.SigilPrefab))
                 return;
+
+            // 🔴🔴 硬门禁：**预制体引用的网格必须真的存在，否则 Instantiate 会 native 访问违例把游戏打崩。**
+            //     2026-09-21 实机踩过：法阵网格还没进包、预制体先放进了 Taikou\Prefabs\
+            //     → Instantiate 当场 AccessViolationException，try/catch **拦不住**
+            //     （AV 属"损坏状态异常"，.NET 默认不允许捕获）。
+            //     探针用法照抄引擎自己的 `MetaMesh.GetCopy(holsterMeshName, showErrors:false, mayReturnNull:true)`
+            //     —— mayReturnNull 就是"找不到给我 null，别崩"。
+            if (!MeshExists(FlightTuning.SigilMeshName))
+            {
+                LogSigilMissingOnce($"网格 '{FlightTuning.SigilMeshName}' 不在任何已加载的包里（资产还没做/还没装）");
+                return;
+            }
 
             MatrixFrame frame = MatrixFrame.Identity;
             frame.origin = new Vec3(Origin.x, Origin.y, Origin.z + FlightTuning.SigilLiftZ);
@@ -113,6 +130,22 @@ namespace LivingWorldNpcs.Flight
             }
         }
 
+        /// <summary>网格是否已在某个已加载的包里。找不到返回 false，**不会崩**。</summary>
+        private static bool MeshExists(string meshName)
+        {
+            if (string.IsNullOrEmpty(meshName))
+                return false;
+            try
+            {
+                MetaMesh probe = MetaMesh.GetCopy(meshName, showErrors: false, mayReturnNull: true);
+                return probe != null && probe.IsValid;
+            }
+            catch
+            {
+                return false;   // 探针本身出问题就当作"不存在"，宁可不显示法阵也不崩
+            }
+        }
+
         private void LogSigilMissingOnce(string why)
         {
             if (_sigilWarned)
@@ -121,12 +154,38 @@ namespace LivingWorldNpcs.Flight
             DebugLogger.Log($"[Flight] 法阵没挂上（{why}）—— 只飞不显示法阵，飞行本身不受影响。");
         }
 
-        /// <summary>每帧瞬移。</summary>
+        /// <summary>
+        /// 每帧瞬移 —— **逐字照搬已实测丝滑的那套**（FlySpike `PropSpikeMissionView`）：
+        /// <code>
+        /// MatrixFrame f0 = entity.GetFrame();      // (1) 读回【真实】坐标
+        /// f0.origin += velocity * dt;              // (2) 加增量
+        /// entity.SetFrame(ref f0);                 // (3) 写回
+        /// </code>
+        /// 🔴 关键是第 (1) 步：**读回真实坐标，不用自己记的值**。
+        ///    自己记 Origin 再覆盖 = 引擎若动过板就会被拽回去 → 互相打架（2026-09-21 教训）。
+        /// </summary>
         public void MoveBy(Vec3 delta)
         {
             if (!IsSpawned)
                 return;
-            MoveTo(Origin + delta);
+
+            MatrixFrame f;
+            try { f = _carrier.GetFrame(); }
+            catch (Exception ex) { DebugLogger.Log($"[Flight] 读载具坐标异常: {ex.Message}"); return; }
+
+            f.origin = new Vec3(f.origin.x + delta.x, f.origin.y + delta.y, f.origin.z + delta.z);
+
+            try { _carrier.SetFrame(ref f); }
+            catch (Exception ex) { DebugLogger.Log($"[Flight] 移动载具异常: {ex.Message}"); return; }
+
+            Origin = f.origin;      // 只用于日志/诊断
+
+            if (HasSigil)
+            {
+                MatrixFrame sf = MatrixFrame.Identity;
+                sf.origin = new Vec3(f.origin.x, f.origin.y, f.origin.z + FlightTuning.SigilLiftZ);
+                try { _sigil.SetFrame(ref sf); } catch { /* 法阵是纯视觉 */ }
+            }
         }
 
         /// <summary>直接设到指定原点（同样走瞬移，不碰物理）。</summary>

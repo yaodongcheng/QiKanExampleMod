@@ -8,12 +8,15 @@ Module-registration checker (自定义世界「段注册 / 源文件登记」离
   1.6「SandBox 9 个 GameText 文本段全量拷贝」——被 GameType 白名单过滤 = 整文件不加载（雷 35）
   阶段 2「新增 .cs 必须登记 csproj」——漏登记 = 静默不编译，build 报 0 错是假象（雷 40）
 
-三条规则：
+五条规则：
   1. **必需段在位**：id 清单（Items/SPCultures/…/GameText）+ 9 个官方 GameText path，
      且必须在本包 GameType 下生效（无 IncludedGameTypes 或白名单含它）
   2. **段 path 可解析**：每个注册的 path 必须能落到实际文件/目录（写错路径 = 引擎加载失败或静默空）
-  3. **孤儿数据文件**：ModuleData 下的 XML 既不被任何段覆盖、又不在引擎惯例名单里、**且定义了对象**
-     = 数据写了但运行时不存在（0 定义的空模板只提示）
+  3. **孤儿数据文件**：ModuleData 下的 XML 既不被任何段覆盖、又不挂在 project.mbproj 上、
+     又不在引擎惯例名单里、**且定义了对象** = 数据写了但运行时不存在（0 定义的空模板只提示）
+  3b. **soln 体系文件必须挂 project.mbproj**：`item_usage_sets` / `item_holsters` / `module_sounds` /
+     `action_sets` / `action_types` / `skins` 只有 mbproj 一条加载路径，文件在而没挂 = 完全不加载
+     （雷 122 的 AV 崩 / 雷 136 的枪管朝天 / 音效静音；2026-09-21 加）
   4. **csproj 漏登记**：`ExampleModVS/**/*.cs` 与 `<Compile Include>` 清单比对，未登记 = ERROR
 
 Usage:
@@ -47,16 +50,24 @@ REQUIRED_GAMETEXT_PATHS = [
 # ③ 引擎按**惯例文件名**加载、不经 XmlNode 段注册的文件（官方模块同款；实测 Native/SandBox 里存在）
 CONVENTIONAL_FILES = {
     "action_sets", "action_types", "collision_infos", "combat_parameters", "face_animations",
-    "item_holsters", "module_sounds", "native_parameters", "physics_materials",
+    "module_sounds", "native_parameters", "physics_materials",
     "skins", "items",
 }
-# 🔴 `item_usage_sets` / `monster_usage_sets` **故意不在**上面这张表里（2026-09-16 实机教训，勿再加回）：
-#   这两个文件**只由 Native 模块加载**——引擎硬编码，字符串只存在于 TaleWorlds.Native.dll，
-#   托管层没有对应 XmlName，内容包在 SubModule.xml 里也注册不了。
-#   ⇒ 内容包写 `ModuleData/item_usage_sets.xml` 是**死文件**（运行时不存在），本检查报它是**对的**。
-#   踩坑实录：太阁火器工程曾把这条告警当成误报驳回，给铁炮写了自定义 usage 名 `tk_firearm`，
-#   结果掏出火枪时 native 取到无效 usage 索引 → `AccessViolationException`（MissionState.TickMission）。
-#   引擎日志判据：`opening .../Modules/Native/ModuleData/item_usage_sets.xml` 只会出现 Native 一条。
+# ④ 🔴 **soln 体系文件**：不经 SubModule.xml 的 XmlNode，而是挂在 `ModuleData/project.mbproj` 的
+#    `<file id="soln_xxx" name="…" type="…"/>` 行上，引擎 `GetMergedXmlForNative` 合并后才交给 native。
+#    **文件在磁盘上 ≠ 被加载** —— 不挂 mbproj 行 = 完全不加载（静默），后果看文件而定：
+#      · `item_usage_sets` 不挂 → 物品的 item_usage 指向不存在的 usage → native 取无效索引 → AV 崩（雷 122）
+#      · `item_holsters` 不挂 → 换皮武器继续用旧槽 → 枪管朝天（雷 136）
+#      · `module_sounds` 不挂 → `SoundEvent.GetEventIdFromString` 全查不到 → 该档静音
+#    （`action_sets` / `action_types` / `skins` 同理；Taikou 的 project.mbproj 里逐条写着来龙去脉。）
+#    ⇒ 本检查器第 3b 段专门守这个：**文件在、mbproj 没挂 = ERROR**，见 SOLN_ONLY_FILES。
+# 🔴 2026-09-21 更正旧记录：此前这里写着「`item_usage_sets` / `monster_usage_sets` 只由 Native 加载，
+#    内容包注册不了，写了就是死文件」—— **那条是错的**（当时没发现 mbproj 这条路），
+#    它把**正常运行的文件**永久报成孤儿，也把"我没找到路"写成了"没有路"。
+#    实机反证：Taikou 挂了 `soln_item_usage_sets` 之后，铁炮的自定义 usage `tk_firearm`
+#    与自定义动作 `act_gun_reload` 都正常工作（2026-09-19 起）。
+#    ⚠️ 但**同名 id 会跨模块合并**：内容包写 item_usage_sets 时只能加**新 id**，
+#       照抄一份 Native 的 id = 合并出重复定义 = KeyNotFoundException（2026-09-08 实机崩过）。
 # Languages/ 由语言系统按清单加载，不走段注册
 # AssetRegistry/ = **运行期自读目录**（不经 MBObjectManager）：立绘表 ProfileStages.csv、
 #   ProfileEmotion.csv，以及选人详情页的画像表 HeroProfiles.xml 都放这里——
@@ -64,6 +75,31 @@ CONVENTIONAL_FILES = {
 #   **故意不注册**（注册了反而要求配套一个 MBObjectManager 类，徒增负担）。
 #   见 plans/选人流程复刻太阁5-设计.md §五·补。
 CONVENTIONAL_DIRS = {"Languages", "AssetRegistry"}
+
+# 见 ④：这些文件**只有** mbproj 一条加载路径（没有任何"惯例文件名"回退），
+# 所以"文件在、mbproj 没挂"是确定的 ERROR，不是猜测。
+SOLN_ONLY_FILES = {"item_usage_sets", "item_holsters", "module_sounds", "action_sets", "action_types", "skins"}
+
+
+def read_mbproj(data_dir):
+    """读 `ModuleData/project.mbproj`，返回**未被注释掉**的 `<file name="…"/>` 路径集合。
+
+    返回相对 **ModuleData** 的 posix 路径（mbproj 的 name 相对**模块根**，多数以 `ModuleData/`
+    开头，这里统一剥掉）。
+    🔴 **注释必须先剥**——Taikou 的 mbproj 里大段注释举着 `<file …/>` 的例子（说明"Native 自己
+    就是这么挂的"），不剥会把注释里的示例当成真挂载。"""
+    out = set()
+    p = data_dir / "project.mbproj"
+    if not p.is_file():
+        return out
+    txt = p.read_text(encoding="utf-8-sig", errors="replace")
+    txt = re.sub(r"<!--.*?-->", "", txt, flags=re.S)
+    for m in re.finditer(r'<file\b[^>]*\bname="([^"]+)"', txt):
+        name = m.group(1).replace("\\", "/").lstrip("/")
+        if name.startswith("ModuleData/"):
+            name = name[len("ModuleData/"):]
+        out.add(name)
+    return out
 
 
 def registry_mb2_path():
@@ -183,14 +219,19 @@ def main():
             if d.is_dir():
                 for f in d.rglob("*.xml"):
                     covered.add(f.relative_to(data).as_posix()[:-4])
+        mbproj = read_mbproj(data)          # ④ soln 体系挂载的（相对 ModuleData 的 posix 路径）
         orphans = 0
         for f in sorted(data.rglob("*.xml")):
             rel = f.relative_to(data).as_posix()
             stem = rel[:-4]
             if stem in covered or stem.split("/")[0] in covered:
                 continue
+            if rel in mbproj:
+                continue                    # 挂在 project.mbproj 的 soln 行上 → 加载路径成立
             if stem in CONVENTIONAL_FILES or stem.split("/")[0] in CONVENTIONAL_DIRS:
                 continue
+            if Path(rel).stem in SOLN_ONLY_FILES:
+                continue                    # soln 体系由第 3b 段专管（报"没挂 mbproj"，不报"孤儿"）
             try:
                 n = sum(1 for el in ET.parse(str(f)).getroot().iter() if el.get("id"))
             except Exception:
@@ -204,6 +245,27 @@ def main():
                 print(f"  [INFO]  {rel} —— 0 个定义（模板/占位，忽略）")
         if not orphans:
             print("  （无 ✓）")
+
+        # ── 3b. soln 体系文件必须挂 project.mbproj（雷 122/136） ──
+        #    判据不靠猜：这些文件**没有**任何"惯例文件名"回退路径，只有 mbproj 一条。
+        #    文件在磁盘上而 mbproj 没挂 = 完全不加载（引擎零报错），后果按文件不同：
+        #    AV 崩 / 武器姿势错 / 音效静音。
+        print("\n== soln 体系文件挂载（不挂 = 完全不加载，雷 122/136） ==")
+        unmounted = 0
+        for f in sorted(data.rglob("*.xml")):
+            rel = f.relative_to(data).as_posix()
+            if Path(rel).stem not in SOLN_ONLY_FILES:
+                continue
+            if rel in mbproj:
+                continue
+            unmounted += 1
+            errors.append(f"{rel} 未挂 project.mbproj")
+            print(f"  [ERROR] {rel} —— **未挂 project.mbproj**：文件在，但 project.mbproj 里没有"
+                  f"对应的 <file name=…/> 行 → **完全不加载**（引擎零报错）")
+            print(f"          修：在 ModuleData/project.mbproj 加一行 "
+                  f"<file id=\"soln_{Path(rel).stem}\" name=\"ModuleData/{rel}\" type=\"…\"/>")
+        if not unmounted:
+            print("  （soln 体系文件全部已挂 ✓）")
 
         # ── 4. csproj 漏登记 .cs ──
         repo = Path(args.repo) if args.repo else Path(__file__).resolve().parent.parent

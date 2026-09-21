@@ -158,6 +158,18 @@ case("语言：<strings> 块外的 <string> 必须抓到", "check_language_regis
                              "</strings>\n  <string id=\"TAIKOU_out_of_block\" text=\"块外条目\" />", 1),
      1, "在 <strings> 之外")
 
+# soln 体系：文件在磁盘上但 project.mbproj 没挂 = **完全不加载**（引擎零报错）
+#   造坏 = 把挂 item_usage_sets 的那行**注释掉** —— 注意注释里还留着同一串文本，
+#   所以这条同时验了两件事：①"没挂"能抓到 ②read_mbproj 剥注释（否则会把注释里的示例当成真挂载）
+case("soln 体系：project.mbproj 没挂 item_usage_sets 必须抓到（雷 122）",
+     "check_module_registration.py",
+     lambda m, c: patch_text(
+         m / "ModuleData" / "project.mbproj",
+         '<file id="soln_item_usage_sets" name="ModuleData/item_usage_sets.xml" type="item_usage_set"/>',
+         '<!-- <file id="soln_item_usage_sets" name="ModuleData/item_usage_sets.xml" '
+         'type="item_usage_set"/> -->', 1),
+     1, "未挂 project.mbproj")
+
 # 选人目录：Realm/House 的类型引用了不存在的筛档（左列点它会筛出空）
 case("选人目录：悬空的势力类型必须抓到", "check_hero_profile_keys.py",
      lambda m, c: patch_text(m / "ModuleData" / "AssetRegistry" / "HeroCatalog.xml",
