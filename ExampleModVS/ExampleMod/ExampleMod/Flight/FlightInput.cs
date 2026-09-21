@@ -24,6 +24,7 @@ namespace LivingWorldNpcs.Flight
     {
         private static float _spaceHold;
         private static bool _spaceLongConsumed;
+        private static bool _spacePressedEdge;      // 空格"按下沿"（本帧刚按下），一次性消费
 
         /// <summary>空格当前是否按住。</summary>
         public static bool SpaceHeld { get; private set; }
@@ -79,6 +80,11 @@ namespace LivingWorldNpcs.Flight
             BlockedByUi = SafeIsUiBlocking();
             DiagWasReset = BlockedByUi;
 
+            // 🔴 按下沿**只活一帧**：每帧开头先清掉上一帧遗留的。
+            //    不清的后果很具体：在地面按空格起跳（按下沿置位但本帧还没离地、没被消费），
+            //    下一帧刚好离地 → `ConsumeSpacePress()` 命中 ⇒ **一跳就直接进飞行**。
+            _spacePressedEdge = false;
+
             // 诊断：不管门控开不开，先把原始读到的值记下来（读的就是后面逻辑要用的那几个键）
             DiagWDown = Input.IsKeyDown(InputKey.W);
             DiagADown = Input.IsKeyDown(InputKey.A);
@@ -102,9 +108,10 @@ namespace LivingWorldNpcs.Flight
             {
                 if (!SpaceHeld)
                 {
-                    // 按下沿：重新计时
+                    // 按下沿：重新计时，同时记一个"刚按下"（二段跳起飞用）
                     _spaceHold = 0f;
                     _spaceLongConsumed = false;
+                    _spacePressedEdge = true;
                 }
                 _spaceHold += dt;
             }
@@ -148,6 +155,21 @@ namespace LivingWorldNpcs.Flight
             return true;
         }
 
+        /// <summary>
+        /// 空格**按下沿**是否发生过 —— **边沿触发，一次按下只返回一次 true**。
+        /// 二段跳起飞用它（跳跃中按一下空格 ⇒ 进飞行）。
+        /// 🔴 与 <see cref="ConsumeSpaceLongPress"/> 是**两个独立通道**：同一个按下沿，
+        ///    按下的那一帧 `ConsumeSpacePress` 命中；按住到阈值时 `ConsumeSpaceLongPress` 命中。
+        ///    所以"跳跃中短按"和"站着长按"不会互相吃掉。
+        /// </summary>
+        public static bool ConsumeSpacePress()
+        {
+            if (!_spacePressedEdge)
+                return false;
+            _spacePressedEdge = false;
+            return true;
+        }
+
         /// <summary>清空全部按键状态（进新场景 / 退出飞行时调）。</summary>
         public static void Reset()
         {
@@ -156,6 +178,7 @@ namespace LivingWorldNpcs.Flight
             MoveAxis = Vec2.Zero;
             _spaceHold = 0f;
             _spaceLongConsumed = false;
+            _spacePressedEdge = false;
         }
 
         /// <summary>

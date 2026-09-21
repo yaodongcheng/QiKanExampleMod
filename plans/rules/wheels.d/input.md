@@ -506,3 +506,33 @@ static bool Prefix(HotKey __instance, ref bool __result)
 **配套裁定（2026-08-23）**：`ImChatMissionInputPatch.ShouldBlock` ② 的 B 全分类吞去掉 `Mission.Current == null` 限制（`IsOpen` 检查提前，Mission 检查只留给 ① 战斗分类）——大地图统一：封死 GameMenu 里 B 触发「离开菜单」（`MapScreen.OnFrameTick` 轮询 `IsGameKeyPressed(4)`，与 ESC 穿透同款泄漏）。
 
 **🔴 引擎限制（同 session 发现，2026-08-23 用户裁定：保留移动、接受蹲）**：手柄 ↓ 蹲（`Crouch`=15）由 **native 直喂玩家 Agent**——原版陆上蹲读取（`TaleWorlds.MountAndBlade.View.dll`:24000）是 `(!Input.IsGamepadActive && IsGameKeyPressed(15))`，手柄被显式豁免（native 处理）；native 喂入的唯一开关 = `Agent.Controller = Player`（完整模式冻结 = `Controller=AI`，`V.SetPlayerControlFrozen` 实证），而半模态移动必须 Player 控制器 → **「可移动」与「屏蔽手柄蹲」在 C# 层互斥**。A 跳（24128 `IsGameKeyPressed(14)` 无豁免）/ ← 视角（25 无豁免）走 GameKey 可拦；↓ 蹲在 Mission 缩略下（聚焦/无焦点皆然）拦不到，接受为已知限制。
+
+---
+
+## 🔴 输入「按下沿」必须只活一帧（2026-09-21 飞行二段跳踩到）
+
+**症状**：在地面按一下空格起跳，角色**一跳就直接进了飞行模式** —— 本来要的是"跳到空中再按第二下"。
+
+**根因**：按下沿标志（`bool _pressedEdge`）在 `Input.Tick` 里置位后**没人清**，
+而消费点只在"空中"分支里调 ⇒ **地面那一帧的按下沿滞留到了下一帧**，下一帧人正好离地 → 命中。
+
+**修法**：`Tick()` **开头无条件清标志**，让按下沿的生命周期 = **当前这一帧**。
+消费点可以按状态决定"**用不用**"，但**不能决定"清不清"**。
+
+```csharp
+Tick():                                   // 每帧一次
+    _pressedEdge = false;                 // ① 先清上一帧遗留的
+    if (keyDown && !wasDown) _pressedEdge = true;   // ② 本帧新按下
+逻辑层:
+    bool pressed = ConsumePressed();      // ③ 每帧都消费（标志此刻已安全）
+    if (stateAllows && pressed) { ... }   //    只在条件满足时"用"它
+```
+
+**自检一句话**：任何"边沿触发"的输入标志，问 **「没被消费时它会活多久？」**
+答不上来、或答案是"到下次置位为止" ⇒ **有滞留 bug**。
+
+**与长按标志的区别**：长按（`_longConsumed`）靠**松手清零**续命，天生有界；
+按下沿**没有"松手"这个自然清零点**，必须靠 tick 开头清。
+
+**文件位置**：`Flight/FlightInput.cs`（`_spacePressedEdge` / `ConsumeSpacePress`）、
+`Flight/PlayerFlightBehavior.cs`（`TickGrounded` 里无条件消费）
