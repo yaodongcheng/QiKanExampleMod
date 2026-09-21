@@ -53,6 +53,9 @@ namespace LivingWorldNpcs.CampaignMode
                 case "tune":
                     return Tune(args);
 
+                case "freeze":
+                    return Freeze(args);
+
                 case "hide":
                 {
                     // 阶段 1 让板【显示】便于肉眼验收；出货前再关掉
@@ -108,6 +111,33 @@ namespace LivingWorldNpcs.CampaignMode
             {
                 return $"ERR {ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// <c>custom.flight freeze [模式]</c> —— 查/切「飞行时怎么让主角别自己走」的手法。
+        /// 不带参数 = 只查；飞行中切换**立即生效**（不用落地重飞、不用重编译）。
+        /// </summary>
+        private static string Freeze(List<string> args)
+        {
+            if (args.Count < 2)
+                return $"OK. freeze={FlightTuning.Freeze} | modes: ctrloff aipause aidetach ai none flags off";
+
+            string name = args[1].ToLowerInvariant();
+            FlightFreezeMode mode;
+            switch (name)
+            {
+                case "ctrloff": mode = FlightFreezeMode.CtrlOff; break;
+                case "off": mode = FlightFreezeMode.Off; break;
+                case "flags": mode = FlightFreezeMode.Flags; break;
+                case "ai": mode = FlightFreezeMode.Ai; break;
+                case "aipause": mode = FlightFreezeMode.AiPaused; break;
+                case "aidetach": mode = FlightFreezeMode.AiDetach; break;
+                case "none": mode = FlightFreezeMode.None; break;
+                default:
+                    return $"ERR unknown freeze mode '{name}' | modes: ctrloff aipause aidetach ai none flags off";
+            }
+
+            return WithBehavior(b => b.SetFreezeMode(mode));
         }
 
         private static string Tune(List<string> args)
