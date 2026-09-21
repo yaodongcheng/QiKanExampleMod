@@ -183,6 +183,20 @@ namespace LivingWorldNpcs.Flight
         /// <summary>落地阶段把板降到地面的速率。</summary>
         public static float LandRate = 5f;
 
+        /// <summary>
+        /// 🔴 **落地动画的时长（秒）** —— 触地之后**至少等这么久**才收摊（还相机 / 清动作通道）。
+        ///
+        /// 为什么要等（2026-09-21 用户反馈"好几次看不到 landing 动画"）：
+        ///    原来一触地就 <c>FinishFlight</c>，而它**同一帧**干三件事 —— 拆载具 / **还相机** / 清动作。
+        ///    从贴地短按落地时，板从 1 米降到地面只要 **0.2 秒** ⇒ 动画被"咔嚓"掉，
+        ///    同时画面还从自定义相机跳回引擎相机 ⇒ 观感上就是"没有落地动作"。
+        ///    实测这条 clip（`flight_superland_a`）的真实时长 = (61 帧 − 1) ÷ 30 = **2.0 秒**。
+        /// </summary>
+        public static float LandAnimSeconds = 2.0f;
+
+        /// <summary>落地阶段的硬上限（秒）—— 防止"动画时长"配错时把人卡在落地态出不来。</summary>
+        public static float LandMaxSeconds = 5f;
+
         // ───────────── 落地手势（🔴 2026-09-21 用户重新定义，与起飞不对称）─────────────
 
         /// <summary>短按空格是否可用于落地（总开关）。关掉 = 只能靠长按下降撞地落。</summary>
@@ -350,6 +364,8 @@ namespace LivingWorldNpcs.Flight
             BoostSpeed = 26f;
             Accel = 20f;
             LandRate = 5f;
+            LandAnimSeconds = 2.0f;
+            LandMaxSeconds = 5f;
             LandByTap = true;
             LandTapMaxHeight = 8f;
             LandTapWhileDiving = true;

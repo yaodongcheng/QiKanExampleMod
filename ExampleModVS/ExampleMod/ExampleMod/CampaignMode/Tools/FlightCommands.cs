@@ -208,7 +208,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps | camera: camsens caminvertx caminverty campitchmin campitchmax camblend | flight: cruise boost accel hover clearance maxalt vrate longpress pitch pitchout blend sigillift";
+                return "ERR usage: custom.flight tune <key> <value> | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps landanim landmax | camera: camsens caminvertx caminverty campitchmin campitchmax camblend | flight: cruise boost accel hover clearance maxalt vrate longpress pitch pitchout blend sigillift";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -241,6 +241,8 @@ namespace LivingWorldNpcs.CampaignMode
                 case "descendrate": FlightTuning.DescendRate = v; break;                // 下降速率（米/秒）
                 case "landtouch": FlightTuning.LandOnGroundTouch = v != 0f; break;      // 撞地自动落地
                 case "landeps": FlightTuning.LandTouchEps = v; break;
+                case "landanim": FlightTuning.LandAnimSeconds = v; break;       // 落地动画时长（触地后至少等这么久再收摊）
+                case "landmax": FlightTuning.LandMaxSeconds = v; break;         // 落地阶段硬上限
                 // 相机接管后的"看"（2026-09-21）
                 case "camfov": FlightTuning.UseFlightCamera = v != 0f; break;   // 同 cam on|off
                 case "camsens": FlightTuning.CamLookSensitivity = v; break;     // 鼠标灵敏度（度/像素基准）
