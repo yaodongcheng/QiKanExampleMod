@@ -1,5 +1,57 @@
 # 骑马与砍杀2：霸主 控制台指令大全
 
+## 🔴 通用语法（2026-09-21 反编译 1.2.12 实证，别猜）
+
+### ① 一次调用传多个参数要用竖线 `|`，不是空格
+
+**凡是形如 `[ItemObject] | [Amount]` 的格式提示，那个 `|` 是语法的一部分，不是"或"的意思。**
+引擎按 `|` 把参数**分组**，组内再用**空格**拼成一整串
+（`CampaignCheats.GetSeparatedNames(strings, "|")` + `ConcatenateString`）。
+
+```
+✅ campaign.add_item_to_main_party SpellSeal | 1
+❌ campaign.add_item_to_main_party SpellSeal 1      → Item is not found
+```
+
+### ② 物品类命令按「显示名」查，**不按 StringId**
+
+`CampaignCheats.GetItemObject(string)` 拿 `ItemObject.Name.ToString()`（**本地化后的显示名**）
+去掉所有空格、忽略大小写，跟输入逐个物品比对：
+
+```csharp
+// CampaignCheats.GetItemObject —— 1.2.12
+foreach (ItemObject o in Campaign.Current.ObjectManager.GetObjectTypeList<ItemObject>())
+    if (string.Equals(o.Name.ToString().Replace(" ", ""),
+                      itemObjectName.Replace(" ", ""), StringComparison.OrdinalIgnoreCase))
+        return o;      // Name 来自 ItemObject.Deserialize：Name = new TextObject(attrs["name"].InnerText)
+return null;
+```
+
+**所以 `campaign.add_item_to_main_party <StringId>` 永远查不到**，要敲**游戏里显示的名字**
+（多词名字直接写，空格会被两边一起忽略：`Simple Light Crossbow` 也认）。
+`campaign.add_modified_item` 同理。
+
+### 🔴 ③ 这条命令在 1.3 换代时**从"按名字"改成了"按 id"** —— 两个版本别混记
+
+| | 1.2.12（本工程主环境） | 1.3+ |
+|---|---|---|
+| 命令名 | `add_item_to_main_party` | 改名 `add_item_to_player_party` |
+| 格式提示 | `[ItemObject] \| [Amount]` | `[ItemId] \| [ModifierId] \| [Amount]` |
+| 查法 | `CampaignCheats.GetItemObject(name)` → 比 `ItemObject.Name`（**本地化显示名**） | `Game.Current.ObjectManager.GetObject<ItemObject>(id)` → 查 **StringId** 字典（`ObjectTypeRecord._registeredObjects`，键就是 StringId） |
+| 中文客户端 | 🔴 **得敲中文显示名**（`ItemObject.Name` 是本地化结果；`MBTextManager.GetLocalizedText` 对 `{=KEY}fallback` 按当前语言解析） | 敲 StringId 即可，与语言无关 |
+
+🔴 **推论（给中文环境的物品起名）**：1.2.12 上想让控制台拿到某物品，
+把它的**显示名做成中英同串的 ASCII**（范本：`taikou_items/spells.xml` 的 `SpellSeal`），
+否则中文客户端得在控制台敲中文（吃不吃 IME **未验证**）。
+或者干脆不走控制台——`is_merchandise="true"` + `culture` 指对，去市场买。
+
+写错时的症状极具迷惑性：报 `Item is not found`，**看着像物品没注册，其实是名字没对上**
+（2026-09-21 在施法体系 P0 探针上踩过：敲 id → 以为数据没加载 → 翻了两小时数据文件，
+**而数据从没被验到**）。
+
+> 🔴 **推论（给自己的物品起名时）**：想让某物品能靠控制台拿到，就把显示名做成
+> **中英同串的 ASCII**（如 `SpellSeal`）——否则中文客户端得在控制台敲中文，未必吃 IME。
+
 ---
 
 ## 通用/帮助 (General/Help)

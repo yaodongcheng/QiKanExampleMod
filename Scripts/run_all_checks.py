@@ -49,6 +49,7 @@ CHECKS = [
     ("check_reference_edges.py", "CSV 交叉引用全量边台账（悬空 + 全表孤儿 + XML 世界输出）", False, None),
     ("check_taikou_equip_tables.py", "两张装备数据表自洽（兵种表 TaikouTroop.csv / 武将装备档 HeroEquip.csv：slug·技能·文化·升级链·兜件配对）", False, None),
     ("check_equip_item_defs.py", "三张装备来源表（兵种表/武将表/武将装备档表）引用的物品**必须全部有定义**（本包 ∪ 引擎模块 ∪ 引擎硬编码）", False, None),
+    ("check_items_civilian.py", "物品平民装可用性（任何装备都必须 <Flags Civilian=\"true\"/>，2026-09-21 铁律）", False, None),
     ("test_negative_edges.py", "边台账负面测试（故意造坏数据必须抓到；含非人物行豁免反向验证）", False, None),
     ("test_negative_equip_tables.py", "两张装备表的负面测试（故意造坏必须抓到；含正向对照）", False, None),
     ("test_negative_equip_item_defs.py", "物品定义校验的负面测试（含「可锻造武器/引擎硬编码不许误报」反向验证）", False, None),

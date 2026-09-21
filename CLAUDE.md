@@ -118,8 +118,17 @@
     | **管线落点** `sw2\<角色键>\` | `AssetSources\sw2\L47_nene\…` | **只有人**（手工导入时看），**不参与自动同步** |
 
     **铁律**：
+    - 🔴🔴 **镜像只对「已经注册过的资产」有效；新资产放进镜像 = 什么都不会发生**（2026-09-21 用户裁定）——
+      镜像（`AssetSources\<类>\<名>\`）的作用是**替换内容**（编辑器按"同目录同名"同步到已有的那个资产上）。
+      **编辑器不会因为镜像里多了个文件就注册一个新资产**。所以：
+      **新资产（从没在 ModKit 里导入过的）必须手工导入** —— 文件放**管线落点目录**供导入
+      （**SW2 资产的落点 = `AssetSources\sw2\<角色键>\`**，如 `AssetSources\sw2\L02_nobunaga\`；
+      把 `tools/<工具链>/out/` 的产物拷进去即可），在编辑器里点它的路径导入；
+      导入之后编辑器才会建 `Assets\<类>\<名>\*_geo.tpac`。
+      **判据**：`Assets\<类>\<名>\` 里**有没有这个资产** —— 没有就是还没注册，光拷文件没用（拷进镜像也一样没用）。
+      ⚠️ 别把新资产丢到 `AssetSources\` **根层**（那是杂物堆，不是落点）。
     - 三个 builder / stage 脚本写的是 `sw2\<键>\`（管线产物落点）—— **写完什么都没发生**，编辑器里仍是旧资产；
-    - **必须再显式同步到镜像目录**（`AssetSources\head\<名>\` / `armor\<名>\` / `weapon\<名>\` / `helmet\<名>\`），或交用户导；
+    - **替换已注册资产时**：必须再显式同步到镜像目录（`AssetSources\head\<名>\` / `armor\<名>\` / `weapon\<名>\` / `helmet\<名>\`），或交用户导；
     - 🔴 **同步只对「ModKit 开着的那段时间内发生的改动」有效**（它是文件监视）：**ModKit 打开之前**改的文件**不会**被补拉 —— 实测宁宁的甲镜像 09:39 更新、ModKit 12:5x 才开 ⇒ 编辑器里仍是 09-16 的老甲（发布包里主网格 1110 顶点/z 顶 1.484，而 T 版是 1137/z 顶 1.538）。**判据 = `Assets\<类>\<名>\*_geo.tpac` 的 mtime**，不是镜像的 mtime。
     - **禁止拿"已归拢 `AssetSources`"当交付完成的证据**；判据只有两条：① `Assets\<类>\<名>\*_geo.tpac` 时间戳更新了 ② 装机包里量出来的数字对得上（`tpaccli dump --format obj` 量顶点数/包围盒）。
     - 🔴🔴 **【操作纪律】替换 AssetSources 的时机 = 用户把 ModKit 开起来之后**（2026-09-17 用户裁定）——
@@ -129,6 +138,8 @@
     - ⚠️ 一个头/甲的资产由**多个文件**组成（FBX + `_d/_n/_s` 贴图）：**只同步 FBX 不带贴图 = 半截**。
 
 32. 🔴🔴 **网格引用的材质名必须是「已定义」的 —— 禁止自造材质名；新件一律共用已有件的材质 datablock**（2026-09-17 用户裁定，实机外可见的「白板」就是这么来的）— **判据**：任何网格引用的材质名，必须在**编辑器工程 `Assets\<类>\<名>\*_mtl.tpac` 里有对应文件**（= 首次导入时编辑器按当时的件数建过），**或者与已存在的件共用同一个材质 datablock**。否则编辑器**拿默认白材质渲染** → ModKit 里那块是**白板**、缩略图打 ⚠、启动弹 `RGL CONTENT WARNING: Unable to find material for mesh X`。**2026-09-17 实锤**：脖子件（`build_head.py` 的 `carve_neck_part`）天生带自造材质名 `<头名>_neck`，而编辑器工程里**从来没有**这个材质资源（材质是 09-15 按当时 3 个件建的，后来件数变 4 却没建）→ 9 个有脖子件的人**脖子上全多一块白板**（运行时有 `MatRole()` 兜底归脸壳配方，所以**实机看不出来，只有编辑器能看见** —— 极易被当成"资产坏了"排查半天）。**修法**：脖子件**直接引用脸壳的材质对象** `ob.data.materials.clear(); ob.data.materials.append(face.data.materials[0])`（导出即同一个材质名）。⚠️ **两个高发坑**：① **各自 `new`/`copy` 一个同名材质会被 Blender 去重成 `head_<名>_a.001`** → 导出写的就是带 `.001` 的名字 → 编辑器照样找不到 = **白板没修掉**（我第一版就这么栽的，必须共用 datablock）；② **`check_materials.py` 通过 ≠ 够了** —— 它只查「裸名/_eye/_mouth 齐 + 无意外重名」，查不出"这个材质在编辑器里不存在"。**同轮连带**：脖子件的 UV 是从源模型原样搬的，实测跨度 `u[0.002,0.955]`（脸壳只到 0.53）**跨进了图集非头区**、采样偏暗 → 新增 `neck_uv_to_skin()` 把它的 UV 全落到**脸壳的肤色点**（取点口径与抠脖子的⑤参照色同一套：脸壳 z∈[1.56,1.65] 采样均值 → 容差 0.07 内挑最亮的一个顶点）。
+
+33. 🔴 **任何装备都必须「平民装可用」—— `<Flags Civilian="true"/>` 是硬门槛**（2026-09-21 用户裁定）— **判据**：内容包每一件 `<Item>` 的 `<Flags>` 里必须有 `Civilian="true"`。缺了 = 玩家在城镇/据点换**日常装**时**选不到这件东西**（进城、潜入、典狱长等一切要求平民装的场合全被挡住）——一件"战场上能用、进了城就凭空消失"的装备，对玩家是莫名其妙的 bug。**没有例外**：武器 / 铠甲 / 头盔 / 腿甲 / 臂甲 / 盾牌 / **弹药** / 马匹 / 旗帜，一律都要。**写法**：`Civilian="true"` 放 `<Flags>` 里、惯例**排在最后**（`<Flags UseTeamColor="true" Civilian="true" />`；原本没有 `<Flags>` 就补一个）。🔴 **最容易漏的一类 = 照抄原版的换皮件** —— 原版自己的很多武器**不带** Civilian（`crossbow_a` 就只有 `<Flags Stealth="true" />`），照抄字段时会把"没有 Civilian"一起抄进来（2026-09-21 施法体系那两件就是这么漏的，全库 195/197 就缺它俩）。**检查**：`python Scripts/check_items_civilian.py --module <内容包>`（已进 `run_all_checks.py` 一键体检；负面测试在 `test_negative_checks.py`「物品：缺 Civilian 必须抓到」）。
 
 ## 🔴 CSV 表头规范（2026-09-12 用户裁定，最高优先级）
 
@@ -389,6 +400,7 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 | [🔴 主菜单与自定义 UI 层](Knowledge/骑砍2主菜单与自定义UI层.md) | 🔴 **主菜单数据源 + 官方刷新链 + MCM 冲突坑（换短列表 = 越界崩）+ 两种界面形态怎么选（主菜单内点开=自建 Screen / 游戏进行与加载期=挂层到 TopScreen）+ 🔴 自建 Screen 在 GameState 切换期画不出来 + `OnLoadFinished` 被引擎每帧重复调用（须幂等）+ 🔴🔴 跳过引擎标准流程必须手动镜像其收尾（漏 `UnregisterActiveStateDisableRequest` = 地图永不激活 = 卡死）** | **要在主菜单/加载期加任何界面之前必读**；踩到 `ArgumentOutOfRangeException @ MCM.UI...`、界面"状态全对但画不出来"、跳流程后卡死，都按此定位 |
 | [🔴 太阁5剧本初始化机制与Snr解码](Knowledge/太阁5/太阁立志传5剧本初始化机制与Snr解码分析.md) | 🔴 **TK5 年代剧本初始化全链路**：6 剧本 = 6 份 Snr 世界快照（1554乱麻/1560日轮/1568升龙/1575霸道/1582转变/1598太平）、加载器反编译、**加密 = 每年代一张 256 字节 S-box**（表=剑阁编辑器 En/DeCode.rtg，6×256 置换对）、已解出`_analysis/decoded/Snr0-5.plain` | 剧本工程时代初始化设计（快照式 vs 增量式）参考、参照量级、存档对位法地图 |
 | [🔴 击晕机制 — 引擎能力与实现踩坑](Knowledge/击晕机制_引擎能力与实现踩坑.md) | 🔴 **背后击晕完整实现**：action_set 继承链陷阱、ForcePlayAction 绕过方案、human/human_child 骨骼差异、Brain auto-Resume 竞争、IsUsingGameObject vs InConversation、动画 ID 验证、完整调用链 | 新增击晕/强制动画相关功能前必读 |
+| [🔴 骑砍2骨骼级动画API与运行时姿势合成](Knowledge/骑砍2骨骼级动画API与运行时姿势合成.md) | 🔴 **`Agent.SetActionChannel` 改造不了**（直通 native 的薄壳，只传「播哪段动画」的 int 编号，混合逻辑全在 C++；引擎自带的通道 0/1 是按身体区域**硬切**，且**没有 `SetActionChannelWeight`**）→ 但引擎另有**一整套骨骼级工具台**（1.2.12 ~ 1.5.1 双端成员一致、公开）：采样 `Skeleton.GetBoneEntitialFrameAtAnimationProgress` + 写骨 `SetBoneLocalFrame` + 强刷 `UpdateEntitialFramesFromLocalFrames`/`ForceUpdateBoneFrames` + 冻结 `Freeze` + 骨架级播动画 `SetAnimationAtChannel` / 拖进度 `SetAnimationParameterAtChannel` + 绕开逻辑层设通道 `MBAgentVisuals.SetAgentActionChannel` + 动画元数据 `MBActionSet.GetAnimationIndexOfAction`；代价 = 每帧约 90 次托管↔原生跨界调用（**只够主角级单 agent**）+ 写入点必须晚于动画推进（钩 `AgentVisuals.Tick`）；🔴 **唯一未验门槛 = 写进去的骨骼帧能否上屏**（5 分钟可验：写 + `ForceUpdateBoneFrames` + **肉眼看**，日志读数不作数）；🔴 **同时更正 `Knowledge/骑砍2Agent运动与位置机制.md` §6 #5**——那条只证明了「骑手**逻辑位置**不跟」，**渲染侧从未验过**，不是已证死的结论；先例 = 第三方 mod DismembermentPlus + 引擎自带的编辑器脚本 `CharacterSpawner`/`HandPose`（冻结 + 参数驱动 + 强刷 = 定格在任意姿势） | **想做「两个动画按比例实时合成」/ 逐骨程序化姿势 / 定格动画进度之前必读**；固定比例优先走离线烘 clip（`tools/anim-retarget/`） |
 | [🔴 动画外部导入与UE5重定向](Knowledge/动画导入与UE5重定向_引擎能力与实现路径.md) | 🔴 **外部动画导入全链路**：动画全在 TPAC（不在 ModuleData，实测 1.5.x）、动画按骨名绑骨架与 LOD 无关、tpaccli dump 导出骨架 FBX 实测命令、官方 FBX 导入规格（≤64骨/根骨`_notused`/Z上/Create override）、千人战模拟分层 vs LOD 距离表、重定向路线图+风险分级 | 外部动画导入/重定向（如 UE5 小白人动画库）第一站；待机替换首选、攻击动画禁止 |
 | [🔴 资产中转沙箱模块工作流](Knowledge/资产中转沙箱模块工作流.md) | 🔴 **给 ModKit 打不开的内容包（Taikou / 未来三国）做资产的唯一通路**：建沙箱模块四步（`SubModule.xml` 骨架 / 模式切换 bat / junction 双端同源 / 沙箱**不注册任何东西**）→ 🔴 **从旧模块抽离资产**（`Assets\` 编译产物 + `AssetSources\` 源**两份整块拷**，保持 `<类>\<名>\` 层级；`Copy-Item` 拷到**不存在的父目录**会把它当成新名字 ⇒ 掉一层，编辑器认不出）→ **为什么"编辑器打开就全好了，只需 Publish"**（拷的是编辑器工程本身 + 镜像布局 + junction；编辑器是文件监视、开之前的改动不补拉）→ 交付**必须改名**（内容包 `AssetPackages\` 已有同名 `pack0.tpac` = 299MB 自有内容，覆盖即毁）→ 七条坑点速查 | **任何资产（网格/贴图/动画）要进内容包之前必读**；现成范本 = `Modules/TaikouAnim/` |
 | [🔴 原版对话流引擎逆向分析](Knowledge/原版对话流引擎逆向分析.md) | 🔴 **DialogFlow 底层token状态机逆向 + 动态化方案**：`ConversationManager._sentences` 大表模型、`DialogFlow` 只是建造者（非必需品）、`AddPlayerLine`/`AddDialogLineMultiAgent` 直接操作引擎、`PersuasionTask` 嵌入机制（`HasPersuasion` 标记）、LLM JSON → DynamicDialogueTurn 完整链路、与原版对话共存机制（`RemoveRelatedLines` 按归属清理） | 设计自定义 Quest 对话流、LLM 驱动动态对话、理解说服/技能检定挂接方式、实现"JSON/LLM输出直接变成游戏对话" |

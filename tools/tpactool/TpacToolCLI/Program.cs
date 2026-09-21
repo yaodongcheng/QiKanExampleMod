@@ -32,7 +32,7 @@ string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 string command = cmdLine.Length > 0 ? cmdLine[0] : "help";
 
 // assetclone / morphinfo / morphfix 有自己完整参数集——顶层解析只认命令名,参数原样透传
-if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "meshdiff"))
+if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "clothinfo"))
 {
     for (int i = 1; i < cmdLine.Length; i++)
     {
@@ -58,7 +58,7 @@ if (command is "help" or "-h" or "--help")
 }
 
 // morphinfo / morphfix / skinfix / metaparts 自带参数集且自己做加载——放在全局 preload 之前，避免被无关 tpac 拖累/拖崩
-if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metaparts" or "morphmap")
+if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metaparts" or "morphmap" or "clothinfo")
 {
     string mDir = null, mFilter = null, mOut = null, mOrder = null;
     int mTarget = 101, mBone = 13, mMaxFrames = 0;
@@ -89,6 +89,7 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metapart
         "morphfix" => MorphFix.Fix(mDir, mFilter, mOut, mTarget, mClearMat),
         "meshdiff" => MeshDiff.Run(mDir, mFilter, mOut),
         "metaparts" => MetaParts.Run(mDir, mFilter, mOut, mOrder, mClearFlags),
+        "clothinfo" => ClothInfo.Run(mDir, mFilter, mOut),
         _ => MorphFix.SkinFix(mDir, mFilter, mOut, mBone, mFullMat, mForce),
     };
 }

@@ -121,10 +121,30 @@ namespace LivingWorldNpcs.Flight
         public static float CarrierTopLocalZ = 0.37f;
 
         /// <summary>
-        /// 生成时把板往下压多少，让顶面正好落在脚底。
-        /// 多压一点（而不是刚好）是留冗余：板略低于脚底照样托得住，略高则会把人顶起来。
+        /// 生成时板面比**玩家真实碰撞体的底面**再低多少（米）。
+        ///
+        /// 🔴 **口径改过一次（2026-09-21 用户实机反馈"卡上木板"）**：
+        ///    旧口径 = "拿 `agent.Position` 当脚底，往下压 0.45"。两处都不对：
+        ///    ① `Position` 只是**假设**等于脚底，二段跳时人还在空中，它和真实碰撞体不一定同高；
+        ///    ② 下压 0.45 而板面只在原点上方 0.37 ⇒ **板面其实在脚底下方 8cm**，
+        ///       于是人先自由落体 8cm"砸"在板上，同时板正以 7 m/s 往上冲 = 那一下顿挫。
+        ///    现口径 = `板面 = 碰撞体底面 − 本值`（碰撞体底面走
+        ///    <see cref="TaleWorlds.MountAndBlade.Agent.CollisionCapsule"/> 真值，见 CarrierBoard）。
+        ///    留间隙是为了**避免插进碰撞体**（5.3 米宽的大盒子，一旦重叠，解算会往最短方向推人）。
+        ///    🔴 2026-09-21 用户："平面再稍微往下一点点" —— 0.03 → **0.06**（视觉上让脚下留出空隙）。
         /// </summary>
-        public static float CarrierFeetOffset = 0.45f;
+        public static float CarrierSpawnGap = 0.06f;
+
+        /// <summary>
+        /// 起飞时**等玩家真的踩到板上**再开始抬升（最多等这么久，秒）。0 = 不等。
+        ///
+        /// 为什么需要：触发方式是**二段跳**，按空格那一刻人还在空中（可能还在上升）。
+        /// 板生成在脚下 3cm 且**保持不动**，等人落回来（`IsOnLand` 为真）再抬升 ——
+        /// 否则"人的抛物线"和"板的匀速上升"两套运动打架 = 起飞那下不平滑。
+        /// 取值口径：一次跳跃在空中总共约 1 秒，**取 1.0 秒足够等到落回**（正常 0.2~0.5 秒就等到）；
+        /// 超时兜底照常抬升（不会卡住）。日志会打实际等了多久。
+        /// </summary>
+        public static float TakeoffSettleSeconds = 1.0f;
 
         // ───────────────────────── 法阵（纯视觉）─────────────────────────
 
@@ -136,6 +156,7 @@ namespace LivingWorldNpcs.Flight
         // ───────────────────────── 高度 ─────────────────────────
 
         /// <summary>起飞后相对「起飞点地面」的悬停高度。</summary>
+        /// <summary>🪦 已退役（2026-09-21）：**板不再自动抬升**，所以没有了"悬停高度"这个目标（见 PlayerFlightBehavior.TickTakeoff）。</summary>
         public static float HoverAltitude = 6f;
 
         /// <summary>飞行中离地形的最小间隙。低于它就把板顶回去，防止钻进山体。</summary>
@@ -145,7 +166,53 @@ namespace LivingWorldNpcs.Flight
         public static float MaxAltitude = 160f;
 
         /// <summary>抬升 / 下降速率（米/秒），只在起飞与降落阶段用。</summary>
+        /// <summary>🪦 已退役（2026-09-21）：那是起飞自动抬升的速度，**板现在只按 WASD 动**。</summary>
         public static float VerticalRate = 7f;
+
+        /// <summary>
+        /// 起飞姿态（`act_fly_start`）播多久 —— 登板之后**板不动**，只是把这 1.5 秒的入姿动画演完；
+        /// 玩家中途给任何方向输入就立刻交给飞行控制。
+        /// 取值 = 该 clip 的真实时长：(46 帧 − 1) ÷ 30 = **1.5 秒**。
+        /// </summary>
+        public static float TakeoffAnimSeconds = 1.5f;
+
+        /// <summary>
+        /// 起飞时**先切动作，板晚这么久才召唤**（秒）。0 = 同一帧出板。
+        ///
+        /// 为什么要延迟（2026-09-22 用户裁定）：动作是输入的即时反馈（按空格立刻起势），
+        /// 而"人落到板上"那一拍如果和动作同时发生，会读成一个独立的**落地**阶段。
+        /// 让板晚 0.2 秒出现 ⇒ 下落最后一段落在"起飞动作已经播起来之后"，观感连贯。
+        /// </summary>
+        public static float TakeoffSpawnDelay = 0.2f;
+
+        /// <summary>
+        /// 🔴 起飞动作的**淡入时长**（秒），单独一个值，不吃全局的 <see cref="AnimBlendIn"/>。
+        ///
+        /// 为什么（2026-09-21 用户两次反馈"hoverstart 播晚了 / 前面多一段脚踩平面"）：
+        ///    动作其实在**按下空格那一帧**就设了（见 BeginTakeoff），但淡入吃的是全局 0.3 秒 ——
+        ///    那 0.3 秒里人还是**跳跃/下落的姿势**在淡出，看起来就像"先踩一下平面才开始起飞"。
+        ///    ⇒ **用户裁定：进飞行模式就秒播**（跳跃中一按空格，姿势立刻换）⇒ 本值 = **0（不淡化）**。
+        ///    觉得突兀就往上调（0.05 / 0.1）。
+        /// </summary>
+        public static float TakeoffBlendIn = 0f;
+
+        /// <summary>
+        /// 起飞动作从**第几秒开始播**（跳过 clip 开头，秒）。0 = 从头播。
+        ///
+        /// 用途：如果那段"脚踩平面"是 **clip 自身开头**带的（不是淡入造成的），就从这里跳过它。
+        /// 会按 clip 时长换算成引擎要的 startProgress。热调：`custom.flight tune takeoffskip 0.3`
+        /// </summary>
+        public static float TakeoffSkipSeconds = 0f;
+
+        /// <summary>
+        /// 进入空中态后**多久内不判"撞地"**（秒）。
+        ///
+        /// 为什么需要：**板现在不自动抬升了** —— 二段跳按得早时，板就停在离地十几厘米处，
+        /// 撞地检测（板顶 ≤ 地面 + 0.25）会当场把人判成落地，刚起飞就结束。
+        /// 给一段宽限：这段时间里玩家抬头 + W 自己就升上去了。
+        /// 0 = 不宽限（会回到"贴着地起飞立刻判落地"）。
+        /// </summary>
+        public static float LandTouchGraceSeconds = 1.0f;
 
         // ───────────────────────── 冻结（T1，2026-09-21）─────────────────────────
 
@@ -193,9 +260,17 @@ namespace LivingWorldNpcs.Flight
         ///    实测这条 clip（`flight_superland_a`）的真实时长 = (61 帧 − 1) ÷ 30 = **2.0 秒**。
         /// </summary>
         public static float LandAnimSeconds = 2.0f;
-
         /// <summary>落地阶段的硬上限（秒）—— 防止"动画时长"配错时把人卡在落地态出不来。</summary>
         public static float LandMaxSeconds = 5f;
+
+        /// <summary>
+        /// 🔴 **空格落地的两种终点不一样**（2026-09-21 用户裁定）：
+        ///    · **空格导致的接地**（短按贴地 / 长按下降）⇒ **不播落地动画**、保持悬停待机姿势下降，
+        ///      触地**当场**收摊 → 引擎走跑接管。理由：这是玩家主动的"放下"，本来就轻，落地动画反而像摔了一跤。
+        ///    · **撞地**（飞着撞上地形）⇒ 照旧播落地动画 + 等它演完（破坏性的动作需要个交代）。
+        /// 本开关只影响第一种（默认 `false` = 不播）；调成 `true` 就回到"两种都播"的老行为。
+        /// </summary>
+        public static bool LandAnimOnGentle = false;
 
         // ───────────── 落地手势（🔴 2026-09-21 用户重新定义，与起飞不对称）─────────────
 
@@ -272,6 +347,21 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public static float PitchExitThreshold = 0.30f;
 
+        // ───────────────────────── 机身转向 ─────────────────────────
+
+        /// <summary>
+        /// 机身水平的**转向角速度**（度/秒）。0 = 关掉平滑（瞬时转向，回到旧行为）。
+        ///
+        /// 为什么要它（2026-09-21 用户实机反馈「起步时角色朝向会抖一下」）：`SetMovementDirection`
+        /// 写下去是**立刻生效**的，转镜头时人「啪」地跟过去。加上限速之后，机身以固定角速度追
+        /// 目标方向（最短弧），观感像真的在转体。
+        ///
+        /// 取值口径：540°/s ⇒ 转 180°（按 S 转身）要 0.33 秒，转 90° 要 0.17 秒 ——
+        /// 既看得出在转、又不拖沓。**嫌慢调大，想回到瞬时转向填 0。**
+        /// 热调：`custom.flight tune turnrate 540`
+        /// </summary>
+        public static float TurnRateDegPerSec = 540f;
+
         // ───────────────────────── 动画 ─────────────────────────
 
         /// <summary>
@@ -287,14 +377,35 @@ namespace LivingWorldNpcs.Flight
         public static bool UseFlightCamera = true;
 
         /// <summary>
-        /// 相机机位之间的渐变时长（秒）。
-        /// 🔴 **与 <see cref="AnimBlendIn"/> 分开写但取同一个值** —— 用户要求"运动动画渐变和
-        /// 相机渐变一起做"，两边时长不一致会看着像两个独立系统。**改一个记得看另一个。**
+        /// 相机**机位之间**的渐变时长（秒）。
+        ///
+        /// 🔴 **2026-09-21 起与 <see cref="AnimBlendIn"/> 解绑**：原先是两个字段取同一个值
+        /// （用户当时要求"运动动画渐变和相机渐变一起做"），后经实机试用后**用户裁定机位过渡要更长**（0.3 → 0.6）：
+        /// 机位是"镜头自己滑过去"，慢一点更像运镜；而动画交叉淡化翻的是 120°~180° 的大姿势，
+        /// 拖到 0.6 秒会显得黏。⇒ 现在**各管各的**。
+        /// 想再同步回去：`custom.flight tune camblend &lt;秒&gt;`（两个一起改）。
         /// </summary>
-        public static float CamBlendIn = 0.3f;
+        public static float CamBlendIn = 0.45f;
 
         /// <summary>右键是否可以进瞄准机位（只在悬停 / 巡航生效，加速时不给进）。</summary>
         public static bool AimOnRightClick = true;
+
+        /// <summary>
+        /// **接管/归还相机时做"交接"**（2026-09-21 用户提问后补，默认开）。
+        ///
+        /// 关掉 = 旧行为：接管瞬间**硬切**到运动机位、归还瞬间**硬切**回引擎相机。
+        /// 开着 = 两件事：
+        ///  ① **进**：从"引擎相机交班那一帧"（位置 + 朝向 + FOV）插值到我们的机位，用时 <see cref="CamBlendIn"/>；
+        ///  ② **出**：归还前把**我们当前的朝向写回引擎相机**（角度是私有 setter，走反射）——
+        ///     否则引擎相机从**接管那一刻**的冻结朝向恢复，飞行中转过视角的话落地会甩回去。
+        /// </summary>
+        public static bool UseCamHandover = true;
+
+        /// <summary>
+        /// 归还相机时是否把当前朝向写回引擎（<see cref="UseCamHandover"/> 的一部分，单独一个开关便于排除故障）。
+        /// 写回失败（反射拿不到 setter，换版本/换引擎）只打一行日志，不影响飞行。
+        /// </summary>
+        public static bool CamHandBackLook = true;
 
         // ── 相机接管后的"看"（🔴 接管相机就必须接管看，见 FlightCameraRig 的类型注释）──
 
@@ -353,11 +464,17 @@ namespace LivingWorldNpcs.Flight
         {
             CarrierPrefab = "lwn_flight_sigil";
             CarrierTopLocalZ = 0.37f;
-            CarrierFeetOffset = 0.45f;
+            CarrierSpawnGap = 0.06f;
+            TakeoffSettleSeconds = 1.0f;
             HoverAltitude = 6f;
             MinClearance = 1.2f;
             MaxAltitude = 160f;
             VerticalRate = 7f;
+            TakeoffAnimSeconds = 1.5f;
+            TakeoffSpawnDelay = 0.2f;
+            TakeoffBlendIn = 0f;
+            TakeoffSkipSeconds = 0f;
+            LandTouchGraceSeconds = 1.0f;
             Freeze = FlightFreezeMode.AiPaused;
             MaxStepPerFrame = 1.5f;
             CruiseSpeed = 9f;
@@ -366,6 +483,7 @@ namespace LivingWorldNpcs.Flight
             LandRate = 5f;
             LandAnimSeconds = 2.0f;
             LandMaxSeconds = 5f;
+            LandAnimOnGentle = false;
             LandByTap = true;
             LandTapMaxHeight = 8f;
             LandTapWhileDiving = true;
@@ -380,7 +498,9 @@ namespace LivingWorldNpcs.Flight
             TakeoffByLongPress = true;
             AnimBlendIn = 0.3f;
             UseFlightCamera = true;
-            CamBlendIn = 0.3f;
+            CamBlendIn = 0.45f;
+            UseCamHandover = true;
+            CamHandBackLook = true;
             AimOnRightClick = true;
             CamLookSensitivity = 0.12f;
             CamPitchMin = -80f;

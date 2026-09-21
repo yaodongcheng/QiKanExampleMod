@@ -95,6 +95,10 @@ OVERRIDE = {
     #    Debug/offline/外观批量导入/cloth_probe/audit_cloth.txt。
     "L42_nagamasa": dict(cloth_hang="0"),
     "L40_ieyasu":   dict(cloth_hang="0"),
+    # 🔴 2026-09-21 信长：披风（submesh 0）是**两片基本共面的薄片**，decimate 一路砍到 lod3 就
+    #    整块消失（实测原版 09-20 那份 lod3/4/5 里一片披风顶点都没有）→ 加 LOD 保护。
+    #    这是布料的前置：离远了披风直接不见，比"不飘"更出戏。
+    "L02_nobunaga": dict(lod_protect="0"),
 }
 
 # 🔴 甲 = 所有已加载件 − 绑头骨族的碎片（2026-09-15 T3）。
@@ -376,6 +380,8 @@ def main():
             cmd += ["--cloth-drop", own["cloth_drop"]]
         if own.get("cloth_hang"):
             cmd += ["--cloth-hang", own["cloth_hang"]]
+        if own.get("lod_protect"):
+            cmd += ["--lod-protect", own["lod_protect"]]
         # 🔴 甲 vs 头 去重复（2026-09-17）：只要**这个角色有头产物**就传（第二版起不要求 `_neck` 件，
         #    理由见 head_fbx）。靶子带 = build_armor 的默认 1.25~1.70（领口带）。
         _neckf = head_fbx(key)

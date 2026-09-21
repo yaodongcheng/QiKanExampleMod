@@ -53,7 +53,7 @@ namespace LivingWorldNpcs.Flight
 
         private Phase _phase = Phase.Grounded;
         private Vec3 _velocity = Vec3.Zero;
-        private float _hoverOriginZ;        // 悬停时「板原点」的目标高度
+        private float _hoverOriginZ;        // 🪦 已退役（2026-09-21：板不再自动抬升，见 TickTakeoff）
         private float _lowClampTimer;       // 贴着最低点停了多久（用于自动落地）
         private float _landTimer;
         private string _currentAction;
@@ -62,6 +62,19 @@ namespace LivingWorldNpcs.Flight
         private float _actionSetAt;         // 上次设置动作的时刻
         private float _statusTimer;         // 状态行的节流计时
         private int _pitchBand;             // 俯仰档：+1 爬升 / 0 水平 / −1 俯冲（带迟滞）
+        private float _bodyYawDeg = float.NaN;  // 机身当前水平朝向角（度，0=+X 逆时针）；NaN = 未知（起飞/落地时重置）
+        private bool _takeoffSettled;        // 起飞阶段：玩家是否已经真的站到板上（没站住不抬升）
+        private float _takeoffTimer;         // 起飞阶段计时（登板等待用）
+        private bool _landingGentle;         // 本次落地是"空格/主动下降"（true）还是"撞地"（false）
+        private FlightCamPreset _camPreset = FlightCamPreset.Hover;   // 本帧机位（PickCamPreset 写，Tick 用）
+        private bool _bodyDiagLogged;        // 取证：本次飞行是否已打过"首帧朝向"那行
+        private bool _bodyDiagPending;       // 取证：等着回读引擎实际朝向
+        private float _bodyDiagTimer;
+        private float _airTime;              // 进入空中态后过了多久（撞地检测的宽限期用）
+        private bool _descendArmed;          // 长按下降是否已"解锁"（起飞时手还按着空格 ⇒ 要松开重按）
+        private bool _boardSpawned;          // 本次起飞：板是否已经召唤出来（延迟召唤用）
+        private float _boardSpawnTimer;      // 本次起飞：从触发到召唤板过了多久
+        private float _takeoffAnimTimer;     // 本次起飞：从按空格那一刻起算（入姿时长按它判，与板延迟重叠）
         private bool _freezeWarned;         // 冻结相关失败只报一次（防每帧刷屏）
         private FlightFreezeMode? _frozenMode;  // 当前**实际施加**的冻结档（null = 没冻）
         private Formation _savedFormation;  // AiDetach 档摘下来的编队，落地还回去
@@ -143,14 +156,15 @@ namespace LivingWorldNpcs.Flight
             }
 
             // 🔴 运动相机（N5）—— **飞行全程**（含起飞/落地）都推进，免得起降瞬间相机跳回引擎相机。
-            //    机位切换的时长与动画交叉淡化同源（`CamBlendIn` == `AnimBlendIn`），
-            //    因为用户要求"运动动画渐变和相机渐变一起做"。
+            //    机位过渡时长与动画交叉淡化**2026-09-21 起已解绑**（用户实机裁定镜头慢一点更像运镜，
+            //    见 FlightTuning.CamBlendIn）；要一起调用 `custom.flight tune camblend`。
             if (_phase != Phase.Grounded && _camEntered)
             {
                 // 🔴 先喂鼠标 —— 接管相机后引擎不再处理 look（CheckForUpdateCamera 早退），
                 //    这一行是玩家唯一能转视角的地方。
                 _camRig.ApplyLook(Input.MouseMoveX, Input.MouseMoveY);
-                _camRig.SetPreset(PickCamPreset(), FlightTuning.CamBlendIn);
+                PickCamPreset();
+                _camRig.SetPreset(_camPreset, FlightTuning.CamBlendIn);
                 _camRig.Tick(main, dt);
             }
 
@@ -216,23 +230,66 @@ namespace LivingWorldNpcs.Flight
 
         private void TickTakeoff(Agent main, float dt)
         {
-            Vec3 o = _board.Origin;
-            float nz = Math.Min(o.z + FlightTuning.VerticalRate * dt, _hoverOriginZ);
-            _board.MoveTo(new Vec3(o.x, o.y, nz));
+            SetAction(main, FlightTuning.ActTakeoff, FlightTuning.TakeoffBlendIn);   // 同一条 → 内部直接返回；被抢走时才重设
 
-            SetAction(main, FlightTuning.ActTakeoff);
+            // 🔴 入姿计时**从按下空格那一刻**起算（不是从登板起算）——
+            //    这样 `takeoffdelay`（板延迟）与 `takeoffanim`（入姿时长）是**重叠**的，不是相加的：
+            //    设 1.3 秒延迟时，人一踩上板入姿也快演完了，不会再多等 1.5 秒。
+            _takeoffAnimTimer += dt;
 
-            if (nz >= _hoverOriginZ - 0.01f)
+            // ① 板延迟召唤（2026-09-22 用户裁定）：动作已经秒播了，板晚 <see cref="FlightTuning.TakeoffSpawnDelay"/> 秒出现。
+            if (!_boardSpawned)
+            {
+                _boardSpawnTimer += dt;
+                if (_boardSpawnTimer < FlightTuning.TakeoffSpawnDelay)
+                    return;                       // 板还没出现：人继续落/升，动作已经在播
+                if (!SpawnBoardAtFeet(main))
+                {
+                    DebugLogger.Log("[Flight] 载具召唤失败（网格不在包里？）—— 取消本次飞行");
+                    AbortFlight();
+                    return;
+                }
+                _boardSpawned = true;
+                _takeoffTimer = 0f;               // 登板计时从"板出现"那一刻起算
+                DebugLogger.Log($"[Flight] 板已召唤（延迟 {_boardSpawnTimer:F2}s） | {CarrierBoard.DescribeCapsule(main)} | {_board.Describe()}");
+            }
+
+            // 🔴 登板闸（2026-09-21 二修）：触发是**二段跳**，按空格那一帧人还在空中。
+            //    板生成在脚下 3cm 之后**一动不动**，等人自己落回板面（或超时兜底）。
+            //    为什么不跟人走（2026-09-21 用户裁定，我加过一版跟随，被否）：
+            //    **板就在脚底 3cm，人落回来是几帧的事** —— 不需要板去追；跟着人动反而让"板在飘"。
+            if (!_takeoffSettled)
+            {
+                _takeoffTimer += dt;
+                bool standing = main.IsOnLand();
+                if (!standing && _takeoffTimer < FlightTuning.TakeoffSettleSeconds)
+                    return;                       // 板保持不动，等人落回来
+                _takeoffSettled = true;
+                _airTime = 0f;
+                _descendArmed = false;            // 长按起飞时手还按着空格 —— 要松开重按才允许下降
+                DebugLogger.Log($"[Flight] 登板完成: 等待={_takeoffTimer:F2}s 站住={standing} | {CarrierBoard.DescribeCapsule(main)}");
+                _takeoffTimer = 0f;               // 计时切给"入姿动画演多久"（避免这一帧被记两次）
+                return;
+            }
+
+            // 🔴 **踩实之后板也不动**（2026-09-21 用户裁定："只允许玩家 WASD 移动时候让他动"）。
+            //    原来这里有一段自动抬升（7 m/s 升到悬停高度）—— 已删。
+            //    现在只做一件事：**把"起飞"姿态播完**（那 1.5 秒的入姿动画），或者玩家一给方向输入就立刻交给他。
+            //    这期间板纹丝不动 —— 要升空就自己抬头 + W（与"抬头爬升"那套一致）。
+            if (FlightInput.HasMoveInput || _takeoffAnimTimer >= FlightTuning.TakeoffAnimSeconds)
             {
                 _phase = Phase.Airborne;
                 _velocity = Vec3.Zero;
                 _lowClampTimer = 0f;
+                _airTime = 0f;
                 SetAction(main, FlightTuning.ActIdle);
             }
         }
 
         private void TickAirborne(Mission mission, Agent main, float dt)
         {
+            _airTime += dt;
+
             // ① 先取镜头方向（下面几处都要用）
             GetCameraBasis(out Vec3 forward, out Vec3 right);
 
@@ -256,14 +313,21 @@ namespace LivingWorldNpcs.Flight
                 if (lowEnough || (chargingGround && FlightTuning.LandTapWhileDiving))
                 {
                     DebugLogger.Log($"[Flight] 短按空格落地（距地 {heightAboveGround:F2}m 俯冲={chargingGround}）");
-                    BeginLanding(main);
+                    BeginLanding(main, gentle: true);   // 空格按的 = "轻轻放下"，不播落地动画
                     return;
                 }
             }
 
             bool descendHeld = FlightTuning.LandByLongPressDescend
+                               && _descendArmed
                                && FlightInput.SpaceHeld
                                && FlightInput.SpaceHoldSeconds >= FlightTuning.LongPressSeconds;
+
+            // 🔴 长按下降要"松开重按"才解锁（2026-09-21）：起飞是**长按空格**触发的后备路径时，
+            //    手还按在空格上 —— 不解锁的话一进空中态就立刻判成"持续下降"，刚起飞就往下掉。
+            //    双跳起飞时手早就松了，这一条对主路径没有影响。
+            if (!_descendArmed && !FlightInput.SpaceHeld)
+                _descendArmed = true;
 
             Vec2 axis = FlightInput.MoveAxis;
             Vec3 dir = forward * axis.y + right * axis.x;
@@ -297,7 +361,7 @@ namespace LivingWorldNpcs.Flight
             // 🔴 **本条推翻早先的"飞机式"裁定**（那条要求 A/D 平移时身体不转、始终朝镜头前方）。
             //    两条是相反的，**以现在这条为准**；要改回去只需把 `dir` 换成 `forward`（一行）。
             if (FlightInput.HasMoveInput)
-                TurnBody(main, dir);
+                TurnBodySmoothed(main, dir, dt);
 
             // ⑨ 撞地检测（N4，2026-09-21 用户要求）—— 板顶触地 ⇒ 自动进落地。
             //    · 这是**纯检测、不做位置修正**：夹取会和"板的位置""玩家位置"两个回路耦合出正反馈
@@ -305,14 +369,16 @@ namespace LivingWorldNpcs.Flight
             //    · 用 GetGroundZ（只查**地形**，不查物理体）—— 查物理体会查到自己那块板，
             //      板永远"踩着"自己 ⇒ 每帧都判触地。
             //    · 阈值留一小段容差：飞行中贴地掠过不该被判成落地，真撞上去才落。
-            if (FlightTuning.LandOnGroundTouch)
+            if (FlightTuning.LandOnGroundTouch && _airTime >= FlightTuning.LandTouchGraceSeconds)
             {
                 float groundZ = GetGroundZ(mission.Scene, _board.Origin);
                 float boardTop = _board.Origin.z + FlightTuning.CarrierTopLocalZ;
                 if (boardTop <= groundZ + FlightTuning.LandTouchEps)
                 {
                     DebugLogger.Log($"[Flight] 撞地 → 自动落地（板顶={boardTop:F2} 地面={groundZ:F2} 差={boardTop - groundZ:F2}）");
-                    BeginLanding(main);
+                    // 长按空格主动下降导致的接地 = "空格导致的"，也算轻放；
+                    // 其余（飞着撞上地形）= 硬着陆，照旧播落地动画。
+                    BeginLanding(main, gentle: descendHeld);
                     return;
                 }
             }
@@ -336,7 +402,8 @@ namespace LivingWorldNpcs.Flight
 
         private void TickLanding(Agent main, float dt)
         {
-            SetAction(main, FlightTuning.ActLand);
+            bool playLandAnim = !_landingGentle || FlightTuning.LandAnimOnGentle;
+            SetAction(main, playLandAnim ? FlightTuning.ActLand : FlightTuning.ActIdle);
 
             float groundOriginZ = GetGroundZ(Mission.Current.Scene, _board.Origin) - FlightTuning.CarrierTopLocalZ;
             Vec3 o = _board.Origin;
@@ -346,8 +413,22 @@ namespace LivingWorldNpcs.Flight
             // 🔴 触地**不等于**收摊：要等落地动画播完（用户要求，2026-09-21）。
             //    原来一触地就 FinishFlight，而它同一帧还相机 + 清动作通道 ⇒ 动画被咔嚓掉。
             //    从贴地短按落地时落差只有 1 米、0.2 秒就触地，动画基本看不到。
+            //
+            // 🔴 **但"空格/主动下降"那种落地不等**（2026-09-21 用户裁定）：它本来就是轻放，
+            //    保持待机姿势降到地面就当场收摊，让引擎走跑立刻接管 —— 用户原话
+            //    "得真的接地了再恢复常规行走（如果是空格导致接地不需要 land 动画）"。
             _landTimer += dt;
             bool touchedDown = nz <= groundOriginZ + 0.02f;
+
+            if (_landingGentle && !FlightTuning.LandAnimOnGentle)
+            {
+                if (touchedDown)
+                {
+                    DebugLogger.Log($"[Flight] 轻放收摊: 用时={_landTimer:F2}s（不播落地动画）");
+                    FinishFlight(main);
+                }
+                return;
+            }
 
             if ((touchedDown && _landTimer >= FlightTuning.LandAnimSeconds)
                 || _landTimer >= FlightTuning.LandMaxSeconds)
@@ -365,19 +446,32 @@ namespace LivingWorldNpcs.Flight
             if (scene == null)
                 return;
 
-            // 生成前先量地面 —— 板生成之后，地面查询可能查到板自己身上
-            float groundZ = GetGroundZ(scene, main.Position);
-
-            // 板生成在脚底（🔴 这是全方案唯一的未验证点，见实施方案 §六 阶段 0 E1）
-            if (!_board.Spawn(scene, main.Position))
-                return;
-
-            _hoverOriginZ = groundZ + FlightTuning.HoverAltitude - FlightTuning.CarrierTopLocalZ;
+            _takeoffSettled = false;
+            _takeoffTimer = 0f;
+            _boardSpawned = false;
+            _boardSpawnTimer = 0f;
+            _takeoffAnimTimer = 0f;
+            _airTime = 0f;
+            _descendArmed = false;
             _phase = Phase.Takeoff;
             _velocity = Vec3.Zero;
             _landTimer = 0f;
             _lowClampTimer = 0f;
-            SetAction(main, FlightTuning.ActTakeoff);
+            _bodyYawDeg = float.NaN;        // 机身朝向重新播种（首次写不插值 = 不甩头）
+            _bodyDiagLogged = false;        // 取向取证重新开一次
+            _bodyDiagPending = false;
+            _bodyDiagTimer = 0f;
+
+            // 🔴 **先切动作，板晚一点再召唤**（2026-09-22 用户裁定）。
+            //    理由：动作是玩家输入的即时反馈（按空格就该立刻起势），而板的出现晚 0.2 秒 ——
+            //    这样"下落到板上"那一拍落在**起飞动作已经播起来之后**，不再读成一个独立的"落地"。
+            //    淡入 = <see cref="FlightTuning.TakeoffBlendIn"/>（现在是 0 = 秒播，不淡化）。
+            //    可选跳过 clip 开头（`takeoffskip`），若那段"踩平面"是 clip 自带的话用得上。
+            float skip = MBMath.ClampFloat(FlightTuning.TakeoffSkipSeconds, 0f, FlightTuning.TakeoffAnimSeconds * 0.9f);
+            float startProgress = FlightTuning.TakeoffAnimSeconds > 0.01f
+                ? MBMath.ClampFloat(skip / FlightTuning.TakeoffAnimSeconds, 0f, 0.9f)
+                : 0f;
+            SetAction(main, FlightTuning.ActTakeoff, FlightTuning.TakeoffBlendIn, startProgress);
 
             if (FlightTuning.UseFlightCamera)
             {
@@ -386,16 +480,38 @@ namespace LivingWorldNpcs.Flight
                     DebugLogger.Log("[FlightCam] 接管失败，本次飞行用引擎默认相机");
             }
 
-            DebugLogger.Log($"[Flight] 起飞: groundZ={groundZ:F2} hoverZ={_hoverOriginZ:F2} {_board.Describe()}");
+            DebugLogger.Log($"[Flight] 起飞触发: 动作={FlightTuning.ActTakeoff} blendIn={FlightTuning.TakeoffBlendIn:F2}s " +
+                            $"跳过开头={skip:F2}s(startProgress={startProgress:F2}) 板延迟={FlightTuning.TakeoffSpawnDelay:F2}s " +
+                            $"| {CarrierBoard.DescribeCapsule(main)}");
         }
 
-        private void BeginLanding(Agent main)
+        /// <summary>
+        /// 在玩家**脚下**召唤载具（板面 = 碰撞体底面 − 间隙，见 <see cref="CarrierBoard.CollisionCapsuleBottomZ"/>）。
+        ///
+        /// 🔴 口径提醒：**不能用 `main.Position` 当脚底** —— 跳跃中碰撞体比它高约 0.43 米（实测 2026-09-21）。
+        /// </summary>
+        private bool SpawnBoardAtFeet(Agent main)
+        {
+            Scene scene = Mission.Current?.Scene;
+            if (scene == null)
+                return false;
+
+            float boardTopZ = CarrierBoard.CollisionCapsuleBottomZ(main) - FlightTuning.CarrierSpawnGap;
+            return _board.Spawn(scene, new Vec3(main.Position.x, main.Position.y, boardTopZ));
+        }
+
+        private void BeginLanding(Agent main, bool gentle)
         {
             _phase = Phase.Landing;
             _velocity = Vec3.Zero;
             _landTimer = 0f;
-            SetAction(main, FlightTuning.ActLand);
-            DebugLogger.Log($"[Flight] 进入落地（动作={FlightTuning.ActLand} 目标时长={FlightTuning.LandAnimSeconds:F2}s）");
+            _landingGentle = gentle;
+            // 空格导致的接地 = 保持**悬停待机姿势**下降（用户裁定）；撞地才播落地动画。
+            bool playLandAnim = !gentle || FlightTuning.LandAnimOnGentle;
+            SetAction(main, playLandAnim ? FlightTuning.ActLand : FlightTuning.ActIdle);
+            DebugLogger.Log($"[Flight] 进入落地（方式={(gentle ? "空格/主动下降" : "撞地")} " +
+                            $"动作={(playLandAnim ? FlightTuning.ActLand : FlightTuning.ActIdle + "（保持待机姿态）")} " +
+                            $"目标时长={FlightTuning.LandAnimSeconds:F2}s）");
         }
 
         private void FinishFlight(Agent main)
@@ -417,6 +533,9 @@ namespace LivingWorldNpcs.Flight
             _velocity = Vec3.Zero;
             _lowClampTimer = 0f;
             _landTimer = 0f;
+            _bodyYawDeg = float.NaN;
+            _takeoffSettled = false;
+            _takeoffTimer = 0f;
             ExitCamera();               // 🔴 必须还相机
             ExitFreeze();
             FlightInput.Reset();
@@ -451,6 +570,9 @@ namespace LivingWorldNpcs.Flight
             _currentAction = null;
             _lowClampTimer = 0f;
             _landTimer = 0f;
+            _bodyYawDeg = float.NaN;
+            _takeoffSettled = false;
+            _takeoffTimer = 0f;
             ExitCamera();               // 🔴 必须还相机 —— 不还 = 场景内相机永远被我们接管
             ExitFreeze();
             FlightInput.Reset();
@@ -464,17 +586,31 @@ namespace LivingWorldNpcs.Flight
         /// 🔴 **瞄准只在悬停 / 巡航可用**（用户裁定）：加速中不给进 —— 冲刺时视野要的是"快"，
         ///    拉近过肩会既看不清路又和速度感打架。
         /// </summary>
-        private FlightCamPreset PickCamPreset()
+        private void PickCamPreset()
         {
+            // 🔴 落地阶段一律用**悬停机位**（2026-09-21 用户裁定：落地动画一开始，镜头就该跟 idle 一样）。
+            //    不加这条的话，落地那一刻若还按着 W（HasMoveInput 为真）就仍是巡航机位，收摊时镜头落差明显。
+            if (_phase == Phase.Landing)
+            {
+                _camPreset = FlightCamPreset.Hover;
+                return;
+            }
+
             bool boosting = FlightInput.BoostHeld;
 
             if (FlightTuning.AimOnRightClick && FlightInput.AimHeld && !boosting)
-                return FlightCamPreset.Aim;
+            {
+                _camPreset = FlightCamPreset.Aim;
+                return;
+            }
 
             if (boosting)
-                return FlightCamPreset.Boost;
+            {
+                _camPreset = FlightCamPreset.Boost;
+                return;
+            }
 
-            return FlightInput.HasMoveInput ? FlightCamPreset.Cruise : FlightCamPreset.Hover;
+            _camPreset = FlightInput.HasMoveInput ? FlightCamPreset.Cruise : FlightCamPreset.Hover;
         }
 
         /// <summary>归还相机（幂等）。**落地 / 收摊 / 异常都要走这里** —— 不还 = 场景内相机永远被接管。</summary>
@@ -699,7 +835,7 @@ namespace LivingWorldNpcs.Flight
         ///     但每隔 <see cref="FlightTuning.ActionRecheckSeconds"/> **核对一次**有没有被引擎抢回去，
         ///     抢走了才重设 —— 0 号通道是引擎 locomotion 系统也有权写的。
         /// </summary>
-        private void SetAction(Agent agent, string actionName)
+        private void SetAction(Agent agent, string actionName, float blendInOverride = -1f, float startProgress = 0f)
         {
             if (string.IsNullOrEmpty(actionName) || agent == null)
                 return;
@@ -731,11 +867,16 @@ namespace LivingWorldNpcs.Flight
                     DebugLogger.Log($"[Flight] 动画 '{actionName}' 被引擎抢走了，重设");
             }
 
+            string from = _currentAction ?? "-";
             _currentAction = actionName;
             _actionSetAt = _clock;
+            float blend = blendInOverride >= 0f ? blendInOverride : FlightTuning.AnimBlendIn;
             try
             {
-                agent.SetActionChannel(0, idx, ignorePriority: true, blendInPeriod: FlightTuning.AnimBlendIn);
+                agent.SetActionChannel(0, idx, ignorePriority: true,
+                                       blendInPeriod: blend, startProgress: startProgress);
+                if (FlightTuning.VerboseLog)
+                    DebugLogger.Log($"[Flight] 切动作 {from}→{actionName} blendIn={blend:F2} start={startProgress:F2}");
             }
             catch (Exception ex)
             {
@@ -988,6 +1129,91 @@ namespace LivingWorldNpcs.Flight
             }
         }
 
+        /// <summary>
+        /// 带限速的机身转向（2026-09-21，治「转镜头时人啪地跟过去」）。
+        ///
+        /// **做法**：自己记一个当前朝向角 <see cref="_bodyYawDeg"/>，每帧朝目标角走
+        /// `TurnRateDegPerSec × dt`（最短弧，跨越 ±180° 也不会绕远路），再把角度还原成方向
+        /// 交给 <see cref="TurnBody"/> 写下去。**引擎侧接口没变**，只是喂给它的方向变平滑了。
+        ///
+        /// 🔴 **首次写不做插值**：<see cref="_bodyYawDeg"/> 是 NaN（起飞时重置）就直接取目标角 ——
+        ///    否则起飞第一帧机身会从"上一次飞行的朝向"或 0° 处慢慢转过来，反而多一次甩头。
+        ///
+        /// 🔴 **无输入时一个字都不写**这条规则没变（调用方保证）—— 所以这里不需要处理"保持朝向"，
+        ///    也不该在无输入时偷偷更新角度：镜头绕着转看各个面时，机身朝向本来就不该动。
+        ///
+        /// 🔴 **不写的时候 `_bodyYawDeg` 会与真实朝向脱钩吗**：不会。飞行期间玩家输入被冻结、
+        ///    AI 被暂停，没有第三方会转他；而"无输入"时我们既不写也不改 `_bodyYawDeg`，
+        ///    下次有输入时它仍等于上次写下去的值 = 机身实际朝向。
+        /// </summary>
+        private void TurnBodySmoothed(Agent agent, Vec3 dir, float dt)
+        {
+            Vec2 flat = new Vec2(dir.x, dir.y);
+            if (flat.LengthSquared < 0.0001f)
+                return;
+
+            float targetDeg = (float)(Math.Atan2(flat.y, flat.x) * (180.0 / Math.PI));
+            float rate = FlightTuning.TurnRateDegPerSec;
+
+            // 🔴 取证：飞行中**第一次**写朝向时打一行 —— 分辨"相机方向本来就歪"还是"机身没跟上"。
+            //    用户 2026-09-21 反馈"有几次起飞时角色又没朝前"，这一行就是判据：
+            //      · 目标角 与 相机前向角 差很多 ⇒ 方向本身有问题（相机播种/输入）
+            //      · 目标角 与 相机前向角 一致、但下面的"实际"对不上 ⇒ 引擎没吃我们的写入
+            //    ⚠️ 比的是**相机前向**的 `atan2(y,x)`，**不是** `_camRig.LookYaw` ——
+            //       后者是 `RotateAboutUp` 的角约定（`atan2(−x, y)`），两个口径相减永远差 90°（我第一版就写错了）。
+            if (!_bodyDiagLogged)
+            {
+                _bodyDiagLogged = true;
+                GetCameraBasis(out Vec3 camF, out _);
+                float camDeg = (float)(Math.Atan2(camF.y, camF.x) * (180.0 / Math.PI));
+                DebugLogger.Log(string.Format(
+                    "[Flight] 首帧朝向: 目标角={0:F0}° 相机前向={1:F0}° 差={2:F0}° | 相机yaw={3:F0}° 输入轴=({4:F2},{5:F2})",
+                    targetDeg, camDeg, Normalize180(targetDeg - camDeg), _camRig.LookYaw,
+                    FlightInput.MoveAxis.x, FlightInput.MoveAxis.y));
+                _bodyDiagPending = true;
+                _bodyDiagTimer = 0f;
+            }
+
+            if (float.IsNaN(_bodyYawDeg) || rate <= 0f)
+            {
+                _bodyYawDeg = targetDeg;          // 首次 / 关闭平滑 = 瞬时到位
+            }
+            else
+            {
+                float delta = Normalize180(targetDeg - _bodyYawDeg);
+                float step = rate * dt;
+                _bodyYawDeg += (Math.Abs(delta) <= step) ? delta
+                                                        : Math.Sign(delta) * step;
+            }
+
+            float rad = _bodyYawDeg * (MathF.PI / 180f);
+            TurnBody(agent, new Vec3(MathF.Cos(rad), MathF.Sin(rad), 0f));
+
+            // 取证：写入后 0.4 秒回读一次引擎那边的实际朝向（看我们的写入到底吃没吃）
+            if (_bodyDiagPending)
+            {
+                _bodyDiagTimer += dt;
+                if (_bodyDiagTimer >= 0.4f)
+                {
+                    _bodyDiagPending = false;
+                    Vec2 actual = Vec2.Zero;
+                    try { actual = agent.GetMovementDirection(); } catch { /* 读不到就留零 */ }
+                    float actualDeg = (float)(Math.Atan2(actual.y, actual.x) * (180.0 / Math.PI));
+                    DebugLogger.Log(string.Format(
+                        "[Flight] 朝向回读(0.4s后): 我们写的={0:F0}° 引擎实际={1:F0}° 差={2:F0}° |v|=({3:F2},{4:F2})",
+                        _bodyYawDeg, actualDeg, Normalize180(_bodyYawDeg - actualDeg), actual.x, actual.y));
+                }
+            }
+        }
+
+        /// <summary>把角度差折算到 (−180, 180]，保证转向走最短弧。</summary>
+        private static float Normalize180(float deg)
+        {
+            while (deg > 180f) deg -= 360f;
+            while (deg <= -180f) deg += 360f;
+            return deg;
+        }
+
         // ─────────────────────────── 地形 ───────────────────────────
 
         /// <summary>取地表高度。只用地形，不查物理体 —— 免得查到我们自己的板。</summary>
@@ -1030,7 +1256,7 @@ namespace LivingWorldNpcs.Flight
                 AbortFlight();
                 return "aborted (no player agent)";
             }
-            BeginLanding(main);
+            BeginLanding(main, gentle: true);   // 控制台强制落地 = 当作"主动放下"
             return "landing";
         }
 

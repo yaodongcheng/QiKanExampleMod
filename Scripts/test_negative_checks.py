@@ -158,6 +158,12 @@ case("语言：<strings> 块外的 <string> 必须抓到", "check_language_regis
                              "</strings>\n  <string id=\"TAIKOU_out_of_block\" text=\"块外条目\" />", 1),
      1, "在 <strings> 之外")
 
+# 物品：缺 Civilian 标记 = 玩家在城镇换日常装时选不到它（2026-09-21 用户裁定：任何装备都要平民可用）
+case("物品：缺 <Flags Civilian=\"true\"/> 必须抓到", "check_items_civilian.py",
+     lambda m, c: patch_text(m / "ModuleData" / "taikou_items" / "firearms.xml",
+                             '<Flags Civilian="true" />', '<Flags Stealth="true" />', 1),
+     1, "taikou_teppo")
+
 # soln 体系：文件在磁盘上但 project.mbproj 没挂 = **完全不加载**（引擎零报错）
 #   造坏 = 把挂 item_usage_sets 的那行**注释掉** —— 注意注释里还留着同一串文本，
 #   所以这条同时验了两件事：①"没挂"能抓到 ②read_mbproj 剥注释（否则会把注释里的示例当成真挂载）
