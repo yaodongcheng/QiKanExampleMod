@@ -496,3 +496,72 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 - `ClearAllActions`（internal）：plan_debug 调试直接调用（绕开事件闸门）；纯入队入口收敛为 `EnqueuePlanAction`（原 `EnqueueActionInternal` 与纯透传壳 `ClearAllActionsInternal` 均在 2026-08-11 删除——无空判/守卫/组合的壳不保留）。
 - `AgentAIController.OnMissionTick` 末尾加 `PlanExecutor.TickAll(dt)`（执行器统一驱动）；`OnRemoveBehavior` 加 `PlanExecutor.ShutdownAll()`。
 - 🔴 单脑化重构（2026-08-11）：行为步骤由执行器 `EnqueuePlanAction` 逐个入队（生命周期归脑，D4b），不再有 `ExecutePlanAction` 占位；脑 Tick 空脑分支加 ExecutingCommand 意图空窗守卫（D2）；动作完成 100ms 轮询三路径判定（IsFinished / IsActionAlive 外部清除 / RequestInterrupt）。完整纪律见 planner.md「执行器挂接」条目。
+
+---
+
+## 🔴 玩家冻结 + 机身转向（飞行用，2026-09-21 实机验证通过）
+
+**解决什么问题**：① 让玩家 agent「别自己走」（脚底有移动平台时，按 WASD 角色会自己走下去）
+② 用代码**指定玩家的机身朝向**（跟着镜头转 / 保持不动）。
+
+### ① 冻结玩家 = `Controller = AI` + `SetIsAIPaused(true)`
+
+```csharp
+V.SetPlayerControlFrozen(main, true);   // Controller = AI
+main.SetIsAIPaused(true);               // AIStateFlag.Paused
+// 解冻（幂等 + 异常兜底，落地/ESC 退场景/agent 失效都要还）：
+main.SetIsAIPaused(false);
+V.SetPlayerControlFrozen(main, false);
+```
+
+**为什么是它** —— 要同时满足三件事，只有这一档全中：
+
+| # | 要求 | 为什么满足 |
+|---|---|---|
+| ① | 玩家 WASD 被拿掉 | 切 AI 就成立（**地上**实测：AI 档 WASD 完全无效） |
+| ② | 脚下平台照样托人 | 切 AI 不影响碰撞承载（实机 `player.z - board.z` 恒为板顶面高度） |
+| ③ | **不让"脚下平台在动"干扰 AI** | 🔴 `ai` 档失败的根因：**AI 有自己的平台自适应**，板一动它跟着调整 ⇒ 在板上乱走/滑移。**暂停 AI = 那套自适应整个不跑** |
+
+🔴 **三条死路（别重走）**：
+
+| 做法 | 结果 |
+|---|---|
+| 保留 `Controller=Player` + 每帧清零 `MovementInputVector`/`MovementFlags` | ❌ 无效。按 W 时 `engineMove` 恒为 `0x0`、人却比板快 2.25 m/s ⇒ **玩家走路根本不看那两个量**（对玩家是被动的镜像，不是驱动源） |
+| `MissionMainAgentController.IsDisabled = true` | ❌ 无效。反编译实锤：`MissionScreen.UpdateCamera`（`Mission.OnTick` 里每帧跑）先置 true 再置回 false，**我们的值活不过一帧** |
+| 只切 `Controller=AI`、不暂停 | ❌ 输入确实冻住了，但 AI 跟移动中的板较劲 |
+
+**判据（飞行诊断行 `[Flight-Diag]`）**：`playerVel` 模长 ≈ 板速 = 只是被平台带着（滞后，无害）；明显多出 2~3 m/s = 他**自己在动**。
+
+### ② 机身转向 = `SetMovementDirection(Vec2)`，**不是** `LookDirection`
+
+```csharp
+agent.SetMovementDirection(new Vec2(dir.x, dir.y) 归一化);   // 对应 getter = GetMovementDirection()
+```
+
+- ✅ **`SetMovementDirection(in Vec2)`** —— 本项目既有做法：`Story/VisualCommands.cs:512`「强制说话者看向听者」
+  （`speakerAgent.SetMovementDirection(dirToListener.AsVec2)`）
+- ❌ **`LookDirection`（Vec3 属性）实测转不动**。反编译看它 setter **没有守卫**（裸调 `MBAPI.IMBAgent.SetLookDirection`）
+  ⇒ 是 native 行为，**C# 层看不出来 —— 以实测为准，别以反编译为准**
+- ❓ `LookDirectionAsAngle`（单浮点）**单位未证实**（度/弧度都可能），仅留作对照
+
+🔴 **"有输入才写、没输入不写"** —— 不写 = 保持最后朝向（镜头绕着转就能看到各个面）。
+**别在"无输入"分支补一个朝向**（朝镜头/归零都不行）：一旦每帧都写，人**被钉死在某个方向、再也转不动**。
+🟡 **待办：平滑渐变**（现在是瞬时转向，观感生硬）—— 记为 TODO，未做。
+
+**调试命令（`Debug/MyCommands.cs`）**：
+
+```
+custom.turntodir               查：MoveDir / LookDir / LookDirAsAngle 三个读数 + 控制权上下文
+custom.turntodir <角度>        现行接口 SetMovementDirection（0°=+X, 90°=+Y, 逆时针）
+custom.turntodir vec <x> <y>   同上，直接给向量
+custom.turntodir look <角度>   对照：LookDirection（已知转不动，手动复现用）
+custom.turntodir angle <角度>  对照：LookDirectionAsAngle
+custom.set_controller          查控制权（无参 = get；player|ai|none 切换）
+```
+
+**隔离测法**：地上拨一次 → 起飞拨一次 → `custom.flight freeze off` 再拨一次，
+即可分清「接口选错」与「冻结档把转向也冻了」。
+
+**文件位置**：`Flight/PlayerFlightBehavior.cs`（`TurnBody` / `EnterFreeze` / `ExitFreeze`）、
+`Flight/FlightTuning.cs`（`FlightFreezeMode` 各档 + 验证状态）、`Debug/MyCommands.cs`（`turntodir` / `set_controller`）、
+方案与踩坑全过程：`plans/玩家飞行-实施方案.md`
