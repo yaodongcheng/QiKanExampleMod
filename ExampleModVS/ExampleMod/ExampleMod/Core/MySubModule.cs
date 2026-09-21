@@ -149,6 +149,14 @@ namespace LivingWorldNpcs
             // 每帧只做一次 Count 判断，零开销。验完即整对删。
             mission.AddMissionBehavior(new PropSpikeMissionView());
 
+            // 🔴 玩家飞行（2026-09-21，custom.flight）—— **必须置于玩法闸门之前**：
+            //    战斗场景正好被那道闸门（IsInteractionDisabled）拦在外面，挂在后面 = 战场里飞不起来，
+            //    而「像超人一样飞」的主战场就是战斗。本行为只在收到长按空格时才生成载具，
+            //    未触发时每帧只做一次按键判定 + 一次相位判断，零开销。
+            //    机制：隐形实心载具 + 逐帧瞬移（Knowledge/骑砍2Agent运动与位置机制.md §6.6）。
+            //    方案：plans/玩家飞行-实施方案.md
+            mission.AddMissionBehavior(new LivingWorldNpcs.Flight.PlayerFlightBehavior());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——

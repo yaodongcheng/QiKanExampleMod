@@ -396,7 +396,7 @@ def draw_shell(canvas, t):
     op = max(0.0, 1 - u ** 1.5) * 0.9
     if op <= 0.01:
         return
-    c = cam.project(CENTER)
+    c = cam.project(anchor(1, t))          # 2026-09-21 修：CENTER 未定义 → 用「爆开」阶段(fx=1)的锚点
     if not c:
         return
     rr = r * cam.f / c[2]

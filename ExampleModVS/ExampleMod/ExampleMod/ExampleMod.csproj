@@ -458,6 +458,16 @@
     <!-- 飞天实验合集（fly / flytest / plate + 实验指令 vlift·lift·airhold·airjump·mount_scale·chair*）——
          全部飞行尝试都在这一个文件里；结论已归档 Knowledge/骑砍2Agent运动与位置机制.md §6，用完可整文件删 -->
     <Compile Include="CampaignMode\Tools\FlySpike.cs" />
+    <!-- 玩家飞行（2026-09-21）· 调试命令 custom.flight（start/stop/status/verbose/tune/reset）。
+         玩法本体在 Flight\ 目录，本文件只放控制台入口（归口表：C# 命令实现进 CampaignMode\Tools\）。 -->
+    <Compile Include="CampaignMode\Tools\FlightCommands.cs" />
+    <!-- 玩家飞行（2026-09-21）· 玩法本体。
+         🔴 新增 .cs 不登记本清单 = 静默不编译（雷 40），四行一个都不能少。
+         机制依据：Knowledge/骑砍2Agent运动与位置机制.md §6.6（实心载具 + 逐帧瞬移）；方案：plans/玩家飞行-实施方案.md -->
+    <Compile Include="Flight\FlightTuning.cs" />
+    <Compile Include="Flight\FlightInput.cs" />
+    <Compile Include="Flight\CarrierBoard.cs" />
+    <Compile Include="Flight\PlayerFlightBehavior.cs" />
     <!-- 🔴 2026-09-16 认知状态批量命令 custom.meet_all（原版无对应指令；HasMet 单向、消息清空副作用见文件头） -->
     <Compile Include="CampaignMode\Tools\HeroMeetCommands.cs" />
     <Compile Include="CampaignMode\Tools\HeightReportCommands.cs" />
