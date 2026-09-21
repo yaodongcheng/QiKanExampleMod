@@ -343,9 +343,18 @@ namespace LivingWorldNpcs.Flight
             float nz = Math.Max(groundOriginZ, o.z - FlightTuning.LandRate * dt);
             _board.MoveTo(new Vec3(o.x, o.y, nz));
 
+            // 🔴 触地**不等于**收摊：要等落地动画播完（用户要求，2026-09-21）。
+            //    原来一触地就 FinishFlight，而它同一帧还相机 + 清动作通道 ⇒ 动画被咔嚓掉。
+            //    从贴地短按落地时落差只有 1 米、0.2 秒就触地，动画基本看不到。
             _landTimer += dt;
-            if (nz <= groundOriginZ + 0.02f || _landTimer > 3f)
+            bool touchedDown = nz <= groundOriginZ + 0.02f;
+
+            if ((touchedDown && _landTimer >= FlightTuning.LandAnimSeconds)
+                || _landTimer >= FlightTuning.LandMaxSeconds)
+            {
+                DebugLogger.Log($"[Flight] 落地收摊: 用时={_landTimer:F2}s 动画时长={FlightTuning.LandAnimSeconds:F2}s 触地={touchedDown}");
                 FinishFlight(main);
+            }
         }
 
         // ─────────────────────────── 进出 ───────────────────────────
@@ -386,6 +395,7 @@ namespace LivingWorldNpcs.Flight
             _velocity = Vec3.Zero;
             _landTimer = 0f;
             SetAction(main, FlightTuning.ActLand);
+            DebugLogger.Log($"[Flight] 进入落地（动作={FlightTuning.ActLand} 目标时长={FlightTuning.LandAnimSeconds:F2}s）");
         }
 
         private void FinishFlight(Agent main)
