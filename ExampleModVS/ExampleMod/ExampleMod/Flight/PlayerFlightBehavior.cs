@@ -2,13 +2,15 @@ using System;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.View.Screens;
+using TaleWorlds.ScreenSystem;
 
 namespace LivingWorldNpcs.Flight
 {
     /// <summary>
     /// 玩家飞行（2026-09-21）—— 状态机主体。
     ///
-    /// 一句话：**封住原生移动 → 我们用镜头方向开木板 → 动画由我们直接指定**。
+    /// 一句话：**板托着人走，方向由镜头定，动画我们直接指定**。
     ///
     /// 挂载：<c>MySubModule.OnMissionBehaviorInitialize</c>，必须**置于玩法闸门之前**
     /// （<c>Settings.Instance.IsInteractionDisabled()</c>）—— 战场正好被那道闸门拦在外面，
@@ -16,15 +18,20 @@ namespace LivingWorldNpcs.Flight
     ///
     /// 四个状态：
     /// <code>
-    /// 地面 ──长按空格──▶ 起飞 ──升到悬停高度──▶ 空中 ──长按空格 / 贴地不动──▶ 落地 ──▶ 地面
+    /// 地面 ──长按空格──▶ 起飞 ──升到悬停高度──▶ 空中 ──长按空格──▶ 落地 ──▶ 地面
     /// </code>
     ///
-    /// 🔴 三条踩过的坑（别重犯）：
-    ///   1. **不要碰玩家的 Controller 之外的东西** —— 冻结走 <c>V.SetPlayerControlFrozen</c>（项目既有封装），
-    ///      它切 Controller=AI：角色原地待机、跳/走/攻击全死、**镜头照常跟着玩家**。
-    ///   2. **动画不要每帧重设** —— 每帧调 <c>SetActionChannel</c> 会把动画卡在第 0 帧。
-    ///      只在状态真的变了才设一次，靠 <c>blendInPeriod</c> 做交叉淡化。
-    ///   3. **载具只能逐帧瞬移** —— 别试图用物理速度驱动它（实测完全不托人）。
+    /// 🔴🔴 **移动逻辑必须保持"读回真实坐标 + 加增量 + 写回"这一种形态**（2026-09-21 血泪教训）：
+    ///     它是**开环**的，没有第二个人碰那块板，任何状态错了都不会被放大。
+    ///     我曾一次堆了五层（加速趋近 / 地形夹取 / 高度上限 / 单帧钳 / 安全绳），
+    ///     结果两个回路（板的位置、玩家的位置）互相耦合出了正反馈，花了一整天才排干净。
+    ///     **加任何一层之前先问：它会不会和别的回路耦合？**
+    ///
+    /// 🔴 本轮**不冻结玩家**（曾用 Controller=AI，那是"把玩家交给引擎 AI 开"，会让角色自己乱走）。
+    ///     代价：玩家按 WASD 会自己走下木板 —— 所以实验期用**小键盘 8/2/4/6** 控制飞行。
+    ///     以后要接回 WASD，必须先把"冻结"这一层单独加回来并单独验。
+    ///
+    /// 🔴 载具只能逐帧瞬移（<c>SetFrame</c>）；用物理速度驱动 = 完全不托人（实测）。
     /// </summary>
     public class PlayerFlightBehavior : MissionBehavior
     {
@@ -45,12 +52,11 @@ namespace LivingWorldNpcs.Flight
         private float _hoverOriginZ;        // 悬停时「板原点」的目标高度
         private float _lowClampTimer;       // 贴着最低点停了多久（用于自动落地）
         private float _landTimer;
-        private bool _controlFrozen;
-        private bool _wasCrouching;
         private string _currentAction;
         private bool _warnedBadAction;
         private float _clock;               // 累计时间（只给动画核对用）
         private float _actionSetAt;         // 上次设置动作的时刻
+        private float _statusTimer;         // 状态行的节流计时
         private int _pitchBand;             // 俯仰档：+1 爬升 / 0 水平 / −1 俯冲（带迟滞）
 
         /// <summary>飞行中（含起飞 / 落地）。</summary>
@@ -84,6 +90,7 @@ namespace LivingWorldNpcs.Flight
 
             _clock += dt;
             FlightInput.Tick(dt);
+            WatchPlayerDisplacement(main, dt);
 
             try
             {
@@ -121,9 +128,6 @@ namespace LivingWorldNpcs.Flight
 
         private void TickGrounded(Agent main)
         {
-            if (_controlFrozen)
-                RestoreControl(main);       // 兜底：不该出现，出现就是状态机漏了
-
             // 🔴 骑马时不许起飞：飞行期间控制权被切走，坐骑状态会乱（方案 §九 风险 4，本轮行为未定义）
             if (main.HasMount)
                 return;
@@ -159,9 +163,7 @@ namespace LivingWorldNpcs.Flight
             }
 
             // ② 方向 = 镜头方向（含俯仰：抬头看天 + W 就是爬升）
-            MatrixFrame cam = mission.GetCameraFrame();
-            Vec3 forward = cam.rotation.f;
-            Vec3 right = cam.rotation.s;
+            GetCameraBasis(out Vec3 forward, out Vec3 right);
 
             Vec2 axis = FlightInput.MoveAxis;
             Vec3 dir = forward * axis.y + right * axis.x;
@@ -170,52 +172,28 @@ namespace LivingWorldNpcs.Flight
             else
                 dir = Vec3.Zero;
 
-            // ③ 速度朝目标趋近（限加速度 ⇒ 手感上有惯性）
+            // (3) 速度 = 恒定值，**不做加速趋近**（对齐已实测丝滑的那套：那边就是恒定速度）
             float targetSpeed = FlightInput.BoostHeld ? FlightTuning.BoostSpeed : FlightTuning.CruiseSpeed;
-            Vec3 delta = dir * targetSpeed - _velocity;
-            float maxDelta = FlightTuning.Accel * dt;
-            if (delta.Length > maxDelta)
-                delta = delta.NormalizedCopy() * maxDelta;
-            _velocity += delta;
+            _velocity = dir * targetSpeed;
 
-            // ④ 逐帧瞬移载具（唯一能载人的移动方式）
-            Vec3 next = _board.Origin + _velocity * dt;
-
-            // ⑤ 地形约束：不许钻进山里 / 飞出上限
-            float floor = GetGroundZ(mission.Scene, next) + FlightTuning.MinClearance;
-            if (next.z < floor)
-            {
-                next.z = floor;
-                if (_velocity.z < 0f) _velocity.z = 0f;
-            }
-            if (next.z > FlightTuning.MaxAltitude)
-            {
-                next.z = FlightTuning.MaxAltitude;
-                if (_velocity.z > 0f) _velocity.z = 0f;
-            }
-
-            _board.MoveTo(next);
-
-            // ⑥ 贴着最低点不动 = 玩家想下来 ⇒ 自动落地
-            if (next.z <= floor + 0.05f)
-            {
-                _lowClampTimer += dt;
-                if (_lowClampTimer >= FlightTuning.AutoLandSeconds)
-                {
-                    BeginLanding(main);
-                    return;
-                }
-            }
-            else
-            {
-                _lowClampTimer = 0f;
-            }
+            // (4) 逐帧瞬移载具 —— 就是 FlySpike 那三行，一个夹取都不加。
+            //     地形夹取 / 高度上限 / 单帧上限 **全部删掉**：
+            //     它们是"我猜的保险"，实测只会制造新问题（160 米上限当场把人卡死过）。
+            _board.MoveBy(_velocity * dt);
 
             // ⑦ 姿态：按「冲刺 > 俯仰 > 速度」挑一条（状态没变时 SetAction 内部会跳过）
             SetAction(main, PickAirAction(forward));
 
             // ⑧ 身体朝向跟着飞的方向（俯仰由动画表现 —— 引擎的 agent 转不了俯仰）
             TurnBody(main, dir);
+
+            // ⑨ 每 0.5 秒打一组诊断 —— 板就算隐藏了，也能靠数字确认「人在不在板上、输入有没有读到」
+            _statusTimer += dt;
+            if (_statusTimer >= 0.5f)
+            {
+                _statusTimer = 0f;
+                LogDiag(mission, main);
+            }
 
             if (FlightTuning.VerboseLog)
             {
@@ -255,8 +233,6 @@ namespace LivingWorldNpcs.Flight
             if (!_board.Spawn(scene, main.Position))
                 return;
 
-            FreezeControl(main);
-
             _hoverOriginZ = groundZ + FlightTuning.HoverAltitude - FlightTuning.CarrierTopLocalZ;
             _phase = Phase.Takeoff;
             _velocity = Vec3.Zero;
@@ -290,8 +266,6 @@ namespace LivingWorldNpcs.Flight
             }
             _currentAction = null;
 
-            RestoreControl(main);
-
             _phase = Phase.Grounded;
             _velocity = Vec3.Zero;
             _lowClampTimer = 0f;
@@ -304,7 +278,7 @@ namespace LivingWorldNpcs.Flight
         /// <summary>异常 / 场景结束时的强制收摊（幂等）。</summary>
         private void AbortFlight()
         {
-            if (_phase == Phase.Grounded && !_board.IsSpawned && !_controlFrozen)
+            if (_phase == Phase.Grounded && !_board.IsSpawned)
                 return;
 
             _board.Remove();
@@ -317,57 +291,13 @@ namespace LivingWorldNpcs.Flight
                     main.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: false, blendInPeriod: 0.2f);
                 }
                 catch { /* 收摊阶段尽力而为 */ }
-                RestoreControl(main);
             }
-            else
-            {
-                _controlFrozen = false;
-                _wasCrouching = false;
-            }
-
             _phase = Phase.Grounded;
             _velocity = Vec3.Zero;
             _currentAction = null;
             _lowClampTimer = 0f;
             _landTimer = 0f;
             FlightInput.Reset();
-        }
-
-        // ─────────────────────────── 控制权 ───────────────────────────
-
-        // 照 Interaction/InteractionMissionView.cs 的既有范式：
-        // 幂等标志 → 进时保存蹲姿再切 AI（切 AI 会把姿态重置成站立）→ 出时先解脚本蹲姿再还控制。
-        private void FreezeControl(Agent agent)
-        {
-            if (_controlFrozen || agent == null)
-                return;
-
-            _controlFrozen = true;
-            _wasCrouching = agent.CrouchMode;
-            V.SetPlayerControlFrozen(agent, true);
-            if (_wasCrouching)
-                agent.SetCrouchMode(true);
-        }
-
-        private void RestoreControl(Agent agent)
-        {
-            if (!_controlFrozen || agent == null)
-                return;
-
-            _controlFrozen = false;
-            try
-            {
-                if (_wasCrouching)
-                {
-                    agent.SetCrouchMode(false);
-                    _wasCrouching = false;
-                }
-                V.SetPlayerControlFrozen(agent, false);
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[Flight] 归还控制权异常: {ex.Message}");
-            }
         }
 
         // ─────────────────────────── 动画 ───────────────────────────
@@ -435,6 +365,137 @@ namespace LivingWorldNpcs.Flight
             {
                 return true;      // 查不到就当正常，别因为查询失败把动画不停重置
             }
+        }
+
+        /// <summary>
+        /// 取「镜头看向哪里」—— 返回前向与右向两个基向量。
+        ///
+        /// 🔴🔴 **不要用 `Mission.GetCameraFrame().rotation.f`**（2026-09-21 实机踩）：
+        ///     玩家明明平视前方，取出来却是 `(0.00, 0.29, 0.96)` —— 几乎垂直朝上。
+        ///     也就是说相机帧的基向量排列和 `Mat3.Identity` 那套**不是一个约定**，取到的是上方向。
+        ///     症状：按 W 不往前飞，一路往天上窜（实测窜到 160 米天花板）。
+        ///
+        ///     正确写法 = **照抄引擎自己**（`MissionMainAgentController.LookTick`）：
+        ///     `Mat3.Identity` 依次绕 Up / Side 转 bearing / elevation，取 `.f` 就是视线。
+        /// </summary>
+        private static void GetCameraBasis(out Vec3 forward, out Vec3 right)
+        {
+            forward = Vec3.Zero;
+            right = Vec3.Zero;
+
+            // 主路：引擎自己的算法（MissionScreen 的相机角度）
+            try
+            {
+                if (ScreenManager.TopScreen is MissionScreen ms)
+                {
+                    Mat3 m = Mat3.Identity;
+                    m.RotateAboutUp(ms.CameraBearing);
+                    m.RotateAboutSide(ms.CameraElevation);
+                    if (m.f.LengthSquared > 0.0001f)
+                    {
+                        forward = m.f.NormalizedCopy();
+                        right = m.s.NormalizedCopy();
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Flight] 取相机角度异常，回退到相机帧: {ex.Message}");
+            }
+
+            // 兜底：至少别让飞行停摆（方向可能不对，但不会崩）
+            try
+            {
+                MatrixFrame cam = Mission.Current.GetCameraFrame();
+                forward = cam.rotation.f.NormalizedCopy();
+                right = cam.rotation.s.NormalizedCopy();
+            }
+            catch { /* 全失败就留零向量，本帧不产生推力 */ }
+        }
+
+        private Vec3 _prevPlayerPos;
+        private bool _hasPrevPos;
+
+        /// <summary>
+        /// 🔴 **位移监视器**：谁在动玩家，当场抓出来。
+        ///
+        /// 为什么要有它（2026-09-21）：排查"板飞得忽快忽慢"时连着绕了好几轮，
+        /// 每次都是我猜一个原因就加一个补丁，越加越乱。真正的事实是
+        /// **玩家被外部挪走了**（实测被挪到离板 41 米外），但当时没有监视器，
+        /// 只能靠事后猜。它唯一的作用是**让根因自己报出来**，不做任何修正。
+        ///
+        /// 判据：玩家本帧位移明显超过「板最快能带出来的量」= 有第三方在动他。
+        /// 触发时把现场一起打出来（控制权 / 编队 / AI 状态 / 两边坐标），一次日志就够定位。
+        /// </summary>
+        private void WatchPlayerDisplacement(Agent main, float dt)
+        {
+            Vec3 p = main.Position;
+            if (!_hasPrevPos)
+            {
+                _prevPlayerPos = p;
+                _hasPrevPos = true;
+                return;
+            }
+
+            Vec3 playerStep = p - _prevPlayerPos;
+            _prevPlayerPos = p;
+
+            if (_phase == Phase.Grounded || dt <= 0f)
+                return;
+
+            // 板最快也就 BoostSpeed；再加点容忍量。超过就是别人在动他。
+            float allowed = (FlightTuning.BoostSpeed + 2f) * dt + 0.05f;
+            if (playerStep.Length <= allowed)
+                return;
+
+            string formation = main.Formation != null
+                ? $"有(idx={main.Formation.FormationIndex})"
+                : "无";
+
+            DebugLogger.Log(string.Format(
+                "[Flight-Watch] 🔴 玩家被外部挪动：本帧 {0:F2} 米（板极限 {1:F2}）| player=({2:F2},{3:F2},{4:F2}) board=({5:F2},{6:F2},{7:F2}) | ctrl={8} 编队={9} 骑乘={10} 场景={11}",
+                playerStep.Length, allowed,
+                p.x, p.y, p.z, _board.Origin.x, _board.Origin.y, _board.Origin.z,
+                main.Controller, formation, main.HasMount,
+                Mission.Current != null ? Mission.Current.Mode.ToString() : "?"));
+        }
+
+        /// <summary>
+        /// 每 0.5 秒一组诊断。一次把排查"飞不动 / 摔下来"要看的量全打出来：
+        /// **控制状态 · 玩家坐标 · 键盘原始输入 · 相机朝向 · 木板位置 · 木板速度**。
+        /// 排查完可以整块删掉（只在 _statusTimer 里调用）。
+        /// </summary>
+        private void LogDiag(Mission mission, Agent main)
+        {
+            Vec3 p = main.Position;
+            Vec3 b = _board.Origin;
+            Vec3 cf = Vec3.Zero, cu = Vec3.Zero;
+            try
+            {
+                MatrixFrame camFrame = mission.GetCameraFrame();
+                cf = camFrame.rotation.f;
+                cu = camFrame.rotation.u;
+            }
+            catch { /* 相机取不到就留零 */ }
+            GetCameraBasis(out Vec3 engF, out Vec3 engR);
+
+            // 行 1：控制权 + 两边坐标 + 人板偏移
+            DebugLogger.Log(string.Format(
+                "[Flight-Diag] ctrl={0} frozen={1} isMine={2} | player=({3:F2},{4:F2},{5:F2}) board=({6:F2},{7:F2},{8:F2}) offset=({9:F2},{10:F2})",
+                main.Controller, 0, main.IsMine ? 1 : 0,
+                p.x, p.y, p.z, b.x, b.y, b.z, p.x - b.x, p.y - b.y));
+
+            // 行 2：键盘原始输入（绕开一切逻辑）
+            DebugLogger.Log("[Flight-Diag] key: " + FlightInput.Diagnose());
+
+            // 行 3：相机朝向 + 木板速度（含方向）
+            DebugLogger.Log(string.Format(
+                "[Flight-Diag] 引擎算法 look=({0:F2},{1:F2},{2:F2}) right=({3:F2},{4:F2},{5:F2}) | 相机帧 .f=({6:F2},{7:F2},{8:F2}) .u=({9:F2},{10:F2},{11:F2}) | vel=({12:F2},{13:F2},{14:F2}) |v|={15:F1} pitchBand={16} anim={17}",
+                engF.x, engF.y, engF.z, engR.x, engR.y, engR.z,
+                cf.x, cf.y, cf.z, cu.x, cu.y, cu.z,
+                _velocity.x, _velocity.y, _velocity.z,
+                _velocity.Length, _pitchBand, _currentAction ?? "-"));
         }
 
         /// <summary>
@@ -546,8 +607,9 @@ namespace LivingWorldNpcs.Flight
 
         public string Status()
         {
-            return string.Format("phase={0} frozen={1} anim={2} v={3:F1} {4}",
-                _phase, _controlFrozen, _currentAction ?? "-", _velocity.Length, _board.Describe());
+            return string.Format("phase={0} frozen={1} anim={2} v={3:F1} hidden={4} {5}",
+                _phase, "(已摘除冻结)", _currentAction ?? "-", _velocity.Length,
+                FlightTuning.HideCarrier ? "on" : "off", _board.Describe());
         }
     }
 }

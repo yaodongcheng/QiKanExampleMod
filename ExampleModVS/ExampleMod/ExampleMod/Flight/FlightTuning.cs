@@ -17,6 +17,15 @@ namespace LivingWorldNpcs.Flight
         /// <summary>承载用的实心预制体。网格会被隐藏，留下物理体当"地面"。</summary>
         public static string CarrierPrefab = "wooden_platform_a";
 
+        /// <summary>
+        /// 是否隐藏载具网格。
+        ///
+        /// 🔴 默认 **false = 显示**。理由：板要是隐形的，**就没法用肉眼确认它真的生成了、真的在托人** ——
+        ///    "飞起来了"和"看见一块板抬着自己飞"是两回事，前者可能是别的原因造成的错觉。
+        ///    阶段 1 一律让它显示；等法阵进了包、要出货了，再用 <c>custom.flight hide on</c> 关掉。
+        /// </summary>
+        public static bool HideCarrier = false;
+
         /// <summary>wooden_platform_a 的顶面在局部坐标里的高度（实测 0.37 米）。</summary>
         public static float CarrierTopLocalZ = 0.37f;
 
@@ -33,6 +42,14 @@ namespace LivingWorldNpcs.Flight
         /// 🔴 资产还没做好时这里查不到 —— 代码会静默跳过（只飞、无法阵），不影响飞行本身。
         /// </summary>
         public static string SigilPrefab = "lwn_flight_sigil";
+
+        /// <summary>
+        /// 预制体里那个 <c>&lt;meta_mesh_component name="…"&gt;</c> 引用的**网格名**。
+        /// 代码在实例化预制体之前会先用它做存在性探针 ——
+        /// 🔴 网格不存在却去 Instantiate = native 访问违例，游戏当场崩，try/catch 拦不住（2026-09-21 实测）。
+        /// 导完法阵后如果 ModKit 给的名字不是这个，改这里（或 custom.flight tune 里加）。
+        /// </summary>
+        public static string SigilMeshName = "lwn_flight_sigil";
 
         /// <summary>
         /// 法阵相对「板原点」抬高多少。
@@ -54,6 +71,23 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>抬升 / 下降速率（米/秒），只在起飞与降落阶段用。</summary>
         public static float VerticalRate = 7f;
+
+        /// <summary>
+        /// 冻结玩家的方式：
+        ///   true  = <c>Controller=None</c> —— **让引擎 AI 彻底退场**，没人驱动这个 agent（推荐）
+        ///   false = <c>Controller=AI</c>   —— 交给引擎 AI 开（对照用，会让 AI 把玩家带回编队位置）
+        ///
+        /// 🔴 默认 true 的原因（2026-09-21 实机）：AI 档下玩家会被 AI 带着在木板上走来走去、
+        ///    甚至被挪到离板 41 米外。None 档引擎完全不碰他，位置与姿态全归我们。
+        /// </summary>
+        public static bool FreezeWithNone = true;
+
+        /// <summary>
+        /// 载具**单帧位移上限**（米）。正常一帧最快也就 26 m/s × dt ≈ 0.5 米。
+        /// 设这条纯粹是数值兜底：出正反馈时最坏也只是"飞得慢"，不会窜出去或炸数值。
+        /// 🔴 它**不是**玩法修正，触发时一定有别的 bug —— 所以触发会打日志。
+        /// </summary>
+        public static float MaxStepPerFrame = 1.5f;
 
         // ───────────────────────── 速度 ─────────────────────────
 
@@ -135,11 +169,14 @@ namespace LivingWorldNpcs.Flight
             CarrierTopLocalZ = 0.37f;
             CarrierFeetOffset = 0.45f;
             SigilPrefab = "lwn_flight_sigil";
+            SigilMeshName = "lwn_flight_sigil";
             SigilLiftZ = 0.40f;
             HoverAltitude = 6f;
             MinClearance = 1.2f;
             MaxAltitude = 160f;
             VerticalRate = 7f;
+            FreezeWithNone = true;
+            MaxStepPerFrame = 1.5f;
             CruiseSpeed = 9f;
             BoostSpeed = 26f;
             Accel = 20f;
