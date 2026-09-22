@@ -157,6 +157,12 @@ namespace LivingWorldNpcs
             // 未建板时每帧只做一次 null 判断，零开销。验完即删。
             mission.AddMissionBehavior(new PlateSpikeMissionView());
 
+            // 🔴 法术弹飞行诊断（2026-09-22，custom.spell_trace）—— 同上置于闸门之前：
+            //    要测的正是战场里的弹道，被玩法闸门拦在外面就没意义（同 FirearmFxLogic）。
+            //    关着时每帧只判一个 bool，零开销。判据见 Combat/SpellMissileTrace.cs 文件头。
+            //    验完即删（连同本行与 csproj 那一行）。
+            mission.AddMissionBehavior(new SpellMissileTrace());
+
             // 舞台道具匀速移动（2026-09-20，custom.prop speed）：同上；没生成过道具时
             // 每帧只做一次 Count 判断，零开销。验完即整对删。
             mission.AddMissionBehavior(new PropSpikeMissionView());
@@ -168,6 +174,13 @@ namespace LivingWorldNpcs
             //    机制：隐形实心载具 + 逐帧瞬移（Knowledge/骑砍2Agent运动与位置机制.md §6.6）。
             //    方案：plans/玩家飞行-实施方案.md
             mission.AddMissionBehavior(new LivingWorldNpcs.Flight.PlayerFlightBehavior());
+
+            // 🔴 飞行动画逐帧取证（2026-09-22，custom.anim_trace）—— 同 SpellMissileTrace 的定位：
+            //    回答"引擎实际渲染出来的姿势跟 TRF 是不是一回事"（ModKit 预览 ≠ 游戏播放，
+            //    引擎编译时会逐骨削关键帧）。未 arm 时每帧只判一个 bool，零开销。
+            //    判据与用法见 CampaignMode/Tools/AnimTraceCommands.cs 文件头。验完即删
+            //    （连同本行与 csproj 那一行）。
+            mission.AddMissionBehavior(new LivingWorldNpcs.CampaignMode.AnimTraceBehavior());
 
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json

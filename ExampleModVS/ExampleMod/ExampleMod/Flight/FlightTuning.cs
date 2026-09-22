@@ -534,7 +534,24 @@ namespace LivingWorldNpcs.Flight
 
         // ───────────────────────── 调试 ─────────────────────────
 
-        /// <summary>开一次性的逐帧诊断日志（默认关，免得刷屏）。</summary>
+        /// <summary>
+        /// 🔴 **飞行 tick 日志总闸（默认关，2026-09-22 用户要求）** —— 管住所有**高频**日志：
+        /// `[Flight-Diag]` 三行（每 0.5 秒）、`[Flight] 姿态 →` + 屏幕姿态提示（每次切换）、
+        /// `[Flight] air v=…`（每帧，还要再叠 <see cref="VerboseLog"/>）、
+        /// 以及共享状态机的 `[Anim:flight] xx → yy`（每次切换）。
+        ///
+        /// **默认 false**：平时飞完只留每次飞行几行的低频日志（起飞/落地/相机交接，见方案 §3.9 的 B 类），
+        /// 出问题要查时再开：<c>custom.flight log on</c>（再加 `full` 连每帧那行也开）。
+        ///
+        /// ⚠️ **异常路径的日志不受本开关管**（冻结失败 / 载具召唤失败 / 网格不在包里 / tick 异常 /
+        /// 状态机抖动自检……）—— 那些是"坏了要能查"的唯一线索，按 §3.9 的 C 类**永远别删、也别关**。
+        /// </summary>
+        public static bool DebugLog = false;
+
+        /// <summary>
+        /// 在总闸之上**再加一档逐帧**日志（默认关，免得刷屏）。
+        /// 单开它无效 —— 要配合 <see cref="DebugLog"/>（<c>custom.flight log on full</c>）。
+        /// </summary>
         public static bool VerboseLog = false;
 
         /// <summary>把参数恢复到出厂值。</summary>
@@ -606,6 +623,8 @@ namespace LivingWorldNpcs.Flight
             BankThreshold = 0.35f;
             BankExitThreshold = 0.20f;
             ShowStateMessages = true;
+            DebugLog = false;
+            VerboseLog = false;
             BoostStartSeconds = 1.033f;
             DodgeClipSeconds = 1.867f;
             DodgeOnSpaceTapInBoost = true;

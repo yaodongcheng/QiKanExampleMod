@@ -191,25 +191,32 @@ namespace LivingWorldNpcs.Flight
             // 🔴 动画状态机：**每帧一次**（含起飞/落地）——
             //    它在这两段被 Hold 住（相位自己 Force），但**仍要跑**：维持当前动作 + 定期核对
             //    有没有被引擎的走跑系统抢走 0 号通道。
+            // 🔴 状态机的逐次切换日志（`[Anim:flight] xx → yy`）跟着飞行总闸走 ——
+            //    状态机是通用件（默认安静），它的 Verbose 由使用方决定。
+            _anim.Verbose = FlightTuning.DebugLog;
             _anim.Tick(main, dt);
 
-            // 🔴 姿态变化时弹一条提示（2026-09-22 用户要求：调姿态时"看得见"到底进了哪个状态）。
-            //    文本走 LWNTextHelper（铁律 13）；关掉：`custom.flight tune statemsg 0`。
-            if (FlightTuning.ShowStateMessages && _anim.Current != _lastAnimState)
+            // 🔴 姿态变化时的调试输出（**受总闸 FlightTuning.DebugLog 管，默认关**，2026-09-22 用户要求）。
+            //    开：`custom.flight log on`。屏幕提示另有子开关 `tune statemsg 0` 可单独关掉（只留日志）。
+            //    文本走 LWNTextHelper（铁律 13）。
+            if (FlightTuning.DebugLog && _anim.Current != _lastAnimState)
             {
                 _lastAnimState = _anim.Current;
                 if (!string.IsNullOrEmpty(_lastAnimState))
                 {
                     DebugLogger.Log($"[Flight] 姿态 → {_lastAnimState}（{_anim.CurrentAction}）");
-                    try
+                    if (FlightTuning.ShowStateMessages)
                     {
-                        InformationManager.DisplayMessage(new InformationMessage(
-                            LWNTextHelper.ResolveCompound("LWN_ui_flight_state", ("LWN_STATE", _lastAnimState)),
-                            Colors.Yellow));
-                    }
-                    catch
-                    {
-                        // 弹提示只是调试辅助，它自己出问题不该影响飞行
+                        try
+                        {
+                            InformationManager.DisplayMessage(new InformationMessage(
+                                LWNTextHelper.ResolveCompound("LWN_ui_flight_state", ("LWN_STATE", _lastAnimState)),
+                                Colors.Yellow));
+                        }
+                        catch
+                        {
+                            // 弹提示只是调试辅助，它自己出问题不该影响飞行
+                        }
                     }
                 }
             }
@@ -510,14 +517,15 @@ namespace LivingWorldNpcs.Flight
             }
 
             // ⑩ 每 0.5 秒打一组诊断 —— 板就算隐藏了，也能靠数字确认「人在不在板上、输入有没有读到」
+            //    🔴 受总闸管（默认关）：平时不刷屏，`custom.flight log on` 才开。
             _statusTimer += dt;
-            if (_statusTimer >= 0.5f)
+            if (FlightTuning.DebugLog && _statusTimer >= 0.5f)
             {
                 _statusTimer = 0f;
                 LogDiag(mission, main);
             }
 
-            if (FlightTuning.VerboseLog)
+            if (FlightTuning.DebugLog && FlightTuning.VerboseLog)
             {
                 DebugLogger.Log(string.Format(
                     "[Flight] air v=({0:F1},{1:F1},{2:F1}) |v|={3:F1} pos=({4:F1},{5:F1},{6:F1}) anim={7}",

@@ -179,7 +179,10 @@ namespace LivingWorldNpcs
 
             try
             {
-                executeAgent.SetActionChannel(0, actionIndex, false, 0UL, 0f, 1f, -0.2f, 0.4f, 0f, false, -0.2f, 0, true);
+                // 🔴 第 8 个参数 `blendOutPeriodToNoAnim` 必须传 0（默认是 0.4 秒）。
+                //    不传 = 动作走到尾声会被引擎用 0.4 秒淡出到「无动画」（拉回静止姿势）再弹回；
+                //    逐帧取证实测：循环动作一圈里只有中段是真的在播（2026-09-22，见 anim_trace）。
+                executeAgent.SetActionChannel(0, actionIndex, false, 0UL, 0f, 1f, -0.2f, 0f, 0f, false, -0.2f, 0, true);
 
                 return $"OK: {executeAgent.Name} plays '{actionName}' (duration {duration:0.00}s){durNote}{note}";
             }
@@ -187,6 +190,141 @@ namespace LivingWorldNpcs
             {
                 return "Error: " + e.Message;
             }
+        }
+
+        /// <summary>
+        /// 处决配对测试台（T17 带位移动画的实机检查）：把 interact 焦点上的 NPC 拉到玩家**正前方** [distance] 米、
+        /// 让他**面朝玩家**，然后**同一帧**起播两条配对动画 —— 玩家播 `act_execution02`、他播 `act_executed02`。
+        /// 两条都带位移（玩家前冲 3.68 m、受击方被推 1.2 m），所以必须同时起播才对得上。
+        ///
+        /// 用法（首参可弃：随手填个占位也能跑）：
+        ///   custom.exec_pair                  → 目标 = interact 焦点（准星盯着的人），距离 2 m，演出相机 = sp_lordshall
+        ///   custom.exec_pair 1                → '1' 解析不出 agent → 仍是 interact 焦点（返回里注明）
+        ///   custom.exec_pair lord_1_1         → 按 Character.StringId 指定受击方
+        ///   custom.exec_pair lord_1_1 2.5     → 再指定距离（钳在 0.5 ~ 5 m）
+        ///   custom.exec_pair 1 2 none         → 第 3 参 = 相机模式：`engine`（默认，照抄开演那一刻的引擎机位）/
+        ///                                       `none`（不接管）/ 其它 = Camera.csv 的模板名（如 sp_lordshall）
+        /// 演出期间相机由 `SpringArmCameraView` 的跟随模式接管（每帧跟位置，见该文件"跟随模式"段）。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("exec_pair", "custom")]
+        public static string ExecuteExecPair(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+            {
+                return "error: must be in a scene/mission to use this command.";
+            }
+
+            const string AttackerAction = "act_execution02";   // 玩家（攻击方）
+            const string VictimAction = "act_executed02";      // 焦点 NPC（受击方）
+
+            // 1. 受击方：可弃首参（解析不出就回落 interact 焦点，不报 not found）
+            Agent victim = null;
+            string note = string.Empty;
+            if (args.Count >= 1 && !string.IsNullOrWhiteSpace(args[0]))
+            {
+                victim = Mission.Current.Agents.FirstOrDefault(a => a.Character?.StringId == args[0]);
+                if (victim == null)
+                    note = $" [note: no agent with id '{args[0]}' -> using interact focus]";
+            }
+            if (victim == null)
+            {
+                var view = InteractionMissionView.Instance;
+                victim = view?.GetFocusdAgent() ?? view?.LastFocusedAgent;
+            }
+
+            if (victim == null)
+                return "FAILED: no focused agent (aim at someone within interact range, or pass an agent id)" + note;
+            if (victim == Agent.Main)
+                return "FAILED: focused agent is the player himself";
+
+            Agent attacker = Agent.Main;
+            if (!AgentControlHelper.SafeIsActive(attacker) || !AgentControlHelper.SafeIsActive(victim))
+                return "FAILED: attacker or victim is not active (dead / removed)";
+
+            // 2. 距离（第 2 参，默认 2 m）；相机模式在第 3 参（见下方第 7 步）
+            float distance = 2.0f;
+            if (args.Count >= 2 && !string.IsNullOrWhiteSpace(args[1])
+                && float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
+            {
+                distance = MathF.Clamp(parsed, 0.5f, 5f);
+            }
+
+            // 3. 动作名先解析：解析失败 = act_none，引擎不报错、只是不播（与 custom.do_anim 同款检查）
+            ActionIndexCache atkIndex = ActionIndexCache.Create(AttackerAction);
+            ActionIndexCache vicIndex = ActionIndexCache.Create(VictimAction);
+            if (atkIndex == ActionIndexCache.act_none)
+                return $"FAILED: action '{AttackerAction}' is NOT registered (act_none). check Taikou action_types.xml / action_sets.xml";
+            if (vicIndex == ActionIndexCache.act_none)
+                return $"FAILED: action '{VictimAction}' is NOT registered (act_none). check Taikou action_types.xml / action_sets.xml";
+
+            // 4. 站位：玩家正前方 distance 米、贴地。
+            //    🔴 用【角色朝向】LookFrame.rotation.f，不是相机方向 —— 处决的位移是沿角色前方推的，
+            //       按相机放会把目标放到"镜头看着的位置"，跟动画行进方向对不上。
+            Vec3 forward = attacker.LookFrame.rotation.f;
+            forward.z = 0f;
+            if (forward.LengthSquared < 1e-4f)
+            {
+                forward = attacker.LookDirection;   // 兜底：角色帧取不到时
+                forward.z = 0f;
+            }
+            if (forward.LengthSquared < 1e-4f)
+                return "FAILED: cannot read player facing direction";
+            forward.Normalize();
+
+            Vec3 spot = attacker.Position + forward * distance;
+            if (Mission.Current.Scene != null)
+                spot.z = Mission.Current.Scene.GetGroundHeightAtPosition(new Vec3(spot.x, spot.y, spot.z));
+
+            // 5. 放下 + 让他面朝玩家。
+            //    🔴 转朝向只能用 SetMovementDirection（LookDirection 赋值那条实测转不动）。
+            victim.TeleportToPosition(spot);
+            victim.SetMovementDirection(-1f * forward.AsVec2);
+
+            // 6. 同帧起播（这就是"同时"）：
+            //    玩家走 0 号通道，与 custom.do_anim 同一条调用（实测这条 clip 能推着玩家走 3.68 m）；
+            //    受击方走 ForcePlayAction —— 它负责切到 as_human_warrior（村民/平民的 action_set 里没有我们的动作）
+            //    并打断坐椅子之类的交互，否则引擎每帧会把动画覆盖回去。
+            float atkDur = MBActionSet.GetActionAnimationDuration(attacker.ActionSet, atkIndex);
+            attacker.SetActionChannel(0, atkIndex, false, 0UL, 0f, 1f, -0.2f, 0.4f, 0f, false, -0.2f, 0, true);
+            AgentControlHelper.ForcePlayAction(victim, VictimAction);
+            float vicDur = MBActionSet.GetActionAnimationDuration(victim.ActionSet, vicIndex);
+
+            // 7. 演出相机：整段表演（含收尾一拍）把镜头接管过来跟着玩家走。
+            //    为什么要"跟"：这条动画会把玩家往前推 3.68 m，镜头不跟人就走出画面。
+            //    默认 = **照抄引擎相机开演那一刻的机位**（方向冻住、只跟位置）——
+            //    观感是"视角还是你原来的视角，只是跟着人平移"，见 Camera/SpringArmCameraView.cs「跟随模式」段。
+            string camMode = (args.Count >= 3 && !string.IsNullOrWhiteSpace(args[2])) ? args[2] : "engine";
+            string camNote = " [camera: engine default]";
+            if (camMode.Equals("none", StringComparison.OrdinalIgnoreCase))
+            {
+                camNote = " [camera: none]";
+            }
+            else
+            {
+                float hold = MathF.Max(atkDur, vicDur) + 1.0f;
+                bool camOk;
+                if (camMode.Equals("engine", StringComparison.OrdinalIgnoreCase))
+                {
+                    camOk = SpringArmCameraView.ApplyFollowFromEngineCamera(attacker, hold);
+                    camNote = camOk
+                        ? $" [camera: engine pose held, following you {hold:0.0}s]"
+                        : " [camera FAILED: engine camera pose unavailable -> engine camera kept]";
+                }
+                else
+                {
+                    camOk = SpringArmCameraView.ApplyFollowTemplate(camMode, attacker, hold);
+                    camNote = camOk
+                        ? $" [camera: template '{camMode}' following you {hold:0.0}s]"
+                        : $" [camera FAILED: template '{camMode}' not in Camera.csv -> engine camera kept]";
+                }
+            }
+
+            string durNote = (atkDur > 0f && vicDur > 0f)
+                ? string.Empty
+                : " [note: duration 0.00s -> the clip name in action_sets.xml may not resolve]";
+
+            return $"OK: {attacker.Name} plays '{AttackerAction}' ({atkDur:0.00}s) + {victim.Name} plays '{VictimAction}' ({vicDur:0.00}s)"
+                 + $", victim placed {distance:0.0}m in front of you, facing you{note}{durNote}{camNote}";
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("print_npcs", "custom")]

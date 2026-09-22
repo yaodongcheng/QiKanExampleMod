@@ -615,3 +615,34 @@ anim.Release(agent);                                           // 收摊：通�
 
 **配套**：`[Anim:<名字>]` 日志标签（切换/被抢/抖动自检）—— 排查"为什么播的不是我以为的那条"第一站；
 抖动自检（1 秒 >10 次切换即报警）。方案与踩坑：`plans/玩家飞行-实施方案.md` §3.6 / §3.7。
+
+## 🔴 配对表演（两个 agent 同帧起播配对动画）— 2026-09-22 立，范本 `custom.exec_pair`
+
+**干什么用**：让两个 agent 演一段**成对**的动画（攻击方 + 受击方，如处决 `act_execution02` / `act_executed02`），
+要求**同一帧起播**、站位对得上。四步固定套路：
+
+```csharp
+Vec3 fwd = attacker.LookFrame.rotation.f;  fwd.z = 0f;  fwd.Normalize();   // 🔴 角色朝向，不是相机方向
+Vec3 spot = attacker.Position + fwd * distance;                            // 「正前方 N 米」
+spot.z = Mission.Current.Scene.GetGroundHeightAtPosition(new Vec3(spot.x, spot.y, spot.z));   // 贴地
+victim.TeleportToPosition(spot);
+victim.SetMovementDirection(-1f * fwd.AsVec2);                             // 受击方转身面朝攻击方
+attacker.SetActionChannel(0, atkIndex, false, 0UL, 0f, 1f, -0.2f, 0.4f, 0f, false, -0.2f, 0, true);
+AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // 🔴 NPC 侧必须走它
+```
+
+**四条要点**：
+1. 🔴 **站位基准 = 角色朝向 `LookFrame.rotation.f`**，不是相机方向 —— 配对动画的位移是沿**角色前方**推的，
+   按相机放会把目标放到"镜头看着的地方"，跟动画行进方向对不上。
+2. 🔴 **转朝向只有 `SetMovementDirection(Vec2)` 管用**，`agent.LookDirection = v` 实测转不动。
+3. 🔴 **NPC 侧必须走 `AgentControlHelper.ForcePlayAction`** —— 我们的动作只合并进 `as_human_warrior`，
+   村民/平民自带的 action_set 里没有这条；它还负责打断坐椅子之类的交互，否则引擎每帧把动画覆盖回去。
+   玩家侧直接 `SetActionChannel(0, …)`（与 `custom.do_anim` 同一条调用）。
+4. 🔴 **动作名一律先 `ActionIndexCache.Create` 判 `act_none`** —— 写错不报错、只是不播，命令自己得报出来；
+   时长 `0.00s` 同样 = `action_sets.xml` 里 `animation=` 的 clip 名没解析上。
+
+**相对站位的正反是素材约定**（谁面朝谁由原动画决定，本项目处决对 = 受击方面朝攻击方）——反了改 `-1f *` 的符号。
+
+**范本**：`custom.exec_pair [targetId] [距离] [相机模板]`（`Debug/MyCommands.cs` 的 `ExecuteExecPair`）：
+目标默认取 interact 焦点（`InteractionMissionView.Instance.GetFocusdAgent()`，回落 `LastFocusedAgent`）；
+演出相机见 [camera.md](camera.md)。
