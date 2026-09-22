@@ -102,6 +102,18 @@ namespace LivingWorldNpcs.Animation
                     return true;
             return false;
         }
+
+        /// <summary>
+        /// 是否**指名**了这个来源（<c>"*"</c> 不算）。一次性动作播放期间靠它区分
+        /// "兜底边"（不许打断）与"专门为打断写的边"（可以打断）。
+        /// </summary>
+        internal bool MatchesExplicit(string current)
+        {
+            for (int i = 0; i < From.Length; i++)
+                if (From[i] == current)
+                    return true;
+            return false;
+        }
     }
 
     /// <summary>

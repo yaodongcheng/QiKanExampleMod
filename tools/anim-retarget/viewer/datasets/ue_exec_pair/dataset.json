@@ -28,6 +28,10 @@
       "fixedClip": null,
       "files": [
         {
+          "id": "src_exec02_fixed",
+          "url": "assets/bl_exec02_fixed.glb"
+        },
+        {
           "id": "src_p7",
           "url": "assets/bl_pair7.glb"
         },
@@ -219,9 +223,9 @@
     },
     "GhostSamurai_Execution02": {
       "src": [
-        -0.8,
+        -0.58,
         null,
-        2.5,
+        5.6,
         0
       ],
       "dst": [

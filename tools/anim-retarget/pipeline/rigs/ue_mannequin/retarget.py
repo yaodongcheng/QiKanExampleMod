@@ -34,10 +34,14 @@ def parse():
                     help="ground=逐帧贴地、丢弃源水平位移（站立/地面动作）；"
                          "src=逐帧贴地【并保留源根位移】的水平分量（带位移动画，如处决/冲锋）；"
                          "none=保持源骨盆高度（飞行/离地动作）")
+    ap.add_argument("--obj_rot", default="true",
+                    help="是否把源【骨架对象】相对首帧的旋转增量搬进目标（转身类动作必需，默认 true）；"
+                         "false = 复现 2026-09-22 之前的旧行为（对象级转身会被整段丢掉）")
     ns = ap.parse_args(a)
     if not ns.name: ns.name = ns.clip
     if not ns.outdir: ns.outdir = OUTDIR
     ns.no_trf = str(ns.no_trf).lower() in ("1", "true", "yes")
+    ns.obj_rot = str(ns.obj_rot).lower() in ("1", "true", "yes")
     return ns
 args = parse()
 def log(m): print("[ue-align] %s" % m, flush=True)
@@ -139,13 +143,25 @@ SRC_STEP = float(SRC_FPS) / TGT_FPS
 N_OUT = int(round((fe - fs) / SRC_STEP)) + 1
 log("resample: src %d fps / %d frames -> out %d fps / %d frames" % (SRC_FPS, fe - fs + 1, TGT_FPS, N_OUT))
 
+# 对象级旋转基准（2026-09-22 修 "转身类动作重定向丢转身"）
+#   源 FBX 的"转身/朝向变化"挂在【骨架对象】上，不在骨骼上 —— 实测 GhostSamurai_Execution02(Root)：
+#   对象 0° → -180°（帧 85~145 / 401），同段 pelvis 骨的世界 yaw 只动 ±5~13°。
+#   而 sp 与 rp 若都乘【同一帧】matrix_world，对象级旋转会在 sp·rp⁻¹ 里被约掉 → 目标侧整段丢转身。
+#   修法：静姿基准改用【首帧】对象变换 W0，让 W(t)·W0⁻¹ 这一增量进入 R。
+#   首帧 W(fs)·W0⁻¹ = I ⇒ 首帧行为/站位对齐完全不变；对象不动的 clip W(t)≡W0 ⇒ 输出逐位不变。
+#   与位移那套（_src_root_world() - _src_root0 → 骨盆 location 轨）对称，只是位移早就有、旋转一直缺。
+sc.frame_set(fs); bpy.context.view_layer.update()
+SRC_W0 = src.matrix_world.copy()
+log("对象级旋转：%s（静姿基准 = 首帧对象变换；对象不动的 clip 输出不变）"
+    % ("搬入骨盆旋转轨" if args.obj_rot else "不搬，复现旧行为"))
+
 for _i in range(N_OUT):
     _of = 1 + _i
     sc.frame_set(int(round(fs + _i * SRC_STEP))); bpy.context.view_layer.update()
     W={}
     for s,t in PAIRS.items():
         sp = rot3(src.matrix_world @ src.pose.bones[s].matrix)
-        rp = rot3(src.matrix_world @ src.data.bones[s].matrix_local)
+        rp = rot3((SRC_W0 if args.obj_rot else src.matrix_world) @ src.data.bones[s].matrix_local)
         R  = F @ (sp @ rp.inverted()) @ F.transposed()
         A  = A_align.get(t)
         W[t] = (R @ A.inverted().to_matrix()) @ tgt_rest_w[t] if A is not None else (R @ tgt_rest_w[t])

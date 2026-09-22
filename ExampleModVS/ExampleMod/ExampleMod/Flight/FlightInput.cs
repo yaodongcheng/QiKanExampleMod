@@ -25,6 +25,8 @@ namespace LivingWorldNpcs.Flight
         private static float _spaceHold;
         private static bool _spaceLongConsumed;
         private static bool _spacePressedEdge;      // 空格"按下沿"（本帧刚按下），一次性消费
+        private static bool _boostPressedEdge;      // 冲刺键"按下沿"，一次性消费（进冲刺入姿用）
+        private static bool _boostWasHeld;          // 上一帧冲刺键是否按住（判按下沿用）
 
         /// <summary>空格当前是否按住。</summary>
         public static bool SpaceHeld { get; private set; }
@@ -91,6 +93,7 @@ namespace LivingWorldNpcs.Flight
             //    不清的后果很具体：在地面按空格起跳（按下沿置位但本帧还没离地、没被消费），
             //    下一帧刚好离地 → `ConsumeSpacePress()` 命中 ⇒ **一跳就直接进飞行**。
             _spacePressedEdge = false;
+            _boostPressedEdge = false;
 
             // 诊断：不管门控开不开，先把原始读到的值记下来（读的就是后面逻辑要用的那几个键）
             DiagWDown = Input.IsKeyDown(InputKey.W);
@@ -130,6 +133,9 @@ namespace LivingWorldNpcs.Flight
             SpaceHeld = space;
 
             BoostHeld = Input.IsKeyDown(InputKey.LeftShift);
+            if (BoostHeld && !_boostWasHeld)
+                _boostPressedEdge = true;           // 按下沿：进冲刺入姿那一段动画用它
+            _boostWasHeld = BoostHeld;
             AimHeld = Input.IsKeyDown(InputKey.RightMouseButton);
 
             // 🔴 主路 = WASD（2026-09-21 T1 接回）：飞行的方向键就是游戏自己的走路键。
@@ -178,6 +184,19 @@ namespace LivingWorldNpcs.Flight
             return true;
         }
 
+        /// <summary>
+        /// 冲刺键（左 Shift）**按下沿**是否发生过 —— 边沿触发，一次按下只返回一次 true。
+        /// 用途：进冲刺的**入姿**动画（`dashStart`），治"按 Shift 直接硬切到趴姿"。
+        /// 🔴 与 <see cref="BoostHeld"/> 是两回事：那是"按着"，这是"刚按下"。
+        /// </summary>
+        public static bool ConsumeBoostPress()
+        {
+            if (!_boostPressedEdge)
+                return false;
+            _boostPressedEdge = false;
+            return true;
+        }
+
         /// <summary>清空全部按键状态（进新场景 / 退出飞行时调）。</summary>
         public static void Reset()
         {
@@ -188,6 +207,8 @@ namespace LivingWorldNpcs.Flight
             _spaceHold = 0f;
             _spaceLongConsumed = false;
             _spacePressedEdge = false;
+            _boostPressedEdge = false;
+            _boostWasHeld = false;
         }
 
         /// <summary>

@@ -207,6 +207,10 @@ def bake_clip(clip):
             pb.rotation_mode='QUATERNION'
             pb.keyframe_insert(data_path="rotation_quaternion", frame=i)
     ROOTB = "pelvis"
+    # 统计量先建好：下面 `pelvis == "src"` 分支才会填，但段末的日志**无条件**读它们 ——
+    # 2026-09-22 修：原来只在 src 分支里初始化，于是 `--pelvis none` 每段都 NameError 崩掉。
+    _bad_v = [0]        # "源竖直位移不合理"的帧数，便于审计
+    _fix = [0]          # "最低点单向上限修正"生效的帧数
     if args.pelvis == "ground" and GB:
         for i in range(n+1):
             sc.frame_set(i); bpy.context.view_layer.update()
@@ -222,8 +226,6 @@ def bake_clip(clip):
         # 整体比源高一截（截图里两人高度对不上就是这个原因）。
         SA = src_arm_holder[0]
         src_rest_head = (SA.matrix_world @ SA.data.bones["pelvis"].matrix_local).translation.copy()
-        _bad_v = [0]      # 统计"源竖直位移不合理"的帧数，便于审计
-        _fix = [0]        # 统计"最低点单向上限修正"生效的帧数
         # 源(米) 与 目标(厘米) 单位不同，位移增量必须按「骨架尺度比」换算。
         # !!! 修 bug：原来用 base_rest_head.y / |src_rest_head.y|（某个坐标分量），
         #     实测 bl 侧算出 1.9098，而真值（骨盆→头 长度比）是 0.9572 —— 差 2 倍，

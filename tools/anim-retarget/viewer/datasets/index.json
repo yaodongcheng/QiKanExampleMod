@@ -2,6 +2,14 @@
   "default": "ue_slim",
   "datasets": [
     {
+      "id": "ue_flight_lean",
+      "name": "增量合成 · 倾斜/俯仰 6 段（左=基础，右=叠加后）"
+    },
+    {
+      "id": "ue_flight_next",
+      "name": "飞行 · 待导入的普通动画 8 段（冲刺入姿 / 四方向闪避）"
+    },
+    {
       "id": "ue_slim",
       "name": "UE5 小白人 ↔ 骑砍2 · 精简清单 280 段"
     },

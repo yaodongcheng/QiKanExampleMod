@@ -676,6 +676,7 @@
     <string id="LWN_ui_difficulty_hard" text="Hard" />
     
     <string id="LWN_ui_steal_msg_npc_timeout" text="The NPC's movement timed out — forcing a conversation." />
+    <string id="LWN_ui_flight_state" text="Flight pose: {LWN_STATE}" />
     <string id="LWN_ui_steal_msg_animal_fled" text="It slipped away..." />
     <string id="LWN_ui_steal_msg_target_gone" text="They've moved too far away to keep stealing." />
     <string id="LWN_ui_steal_msg_nothing_left" text="There's nothing left on them to steal." />
