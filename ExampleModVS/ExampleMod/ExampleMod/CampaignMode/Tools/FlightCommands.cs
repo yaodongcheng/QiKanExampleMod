@@ -208,7 +208,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | 动画: blend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps landgrace landanim landmax gentleland hardland falloff takeoffanim takeoffdelay takeoffblend takeoffskip | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle";
+                return "ERR usage: custom.flight tune <key> <value> | 动画: blend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps landgrace landanim landmax gentleland hardland falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dash/dodge: dodgespace dodgedist dodgetime dodgecd dodgeanim dashanim | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -253,6 +253,17 @@ namespace LivingWorldNpcs.CampaignMode
                 case "hardland": FlightTuning.HardLandingSpeed = v; break;      // 下冲 ≥ 它算硬着陆（演动画）
                 case "falloff": FlightTuning.FallOffDistance = v; break;        // 离板多远算"掉下去了"（米）       // 落地动画时长（触地后至少等这么久再收摊）
                 case "landmax": FlightTuning.LandMaxSeconds = v; break;         // 落地阶段硬上限
+                // 冲刺入姿 / 闪避（2026-09-22）
+                case "dodgespace": FlightTuning.DodgeOnSpaceTapInBoost = v != 0f; break; // 冲刺中短按空格=闪避（0=回旧行为：当落地判定）
+                case "dodgedist": FlightTuning.DodgeDistance = v; break;        // 闪避位移距离（米）
+                case "dodgetime": FlightTuning.DodgeDisplaceSeconds = v; break; // 闪避位移走完用时（秒）
+                case "dodgecd": FlightTuning.DodgeCooldownSeconds = v; break;   // 两次闪避的冷却（秒）
+                case "dodgeanim": FlightTuning.DodgeClipSeconds = v; break;     // 闪避姿态动画时长（秒；重导 clip 后改）
+                case "dashanim": FlightTuning.BoostStartSeconds = v; break;     // 冲刺入姿动画时长（秒；重导 clip 后改）
+                // 压弯（2026-09-22）
+                case "bank": FlightTuning.BankThreshold = v; break;             // 进压弯的横移阈值（|A/D|；0=关掉压弯）
+                case "bankout": FlightTuning.BankExitThreshold = v; break;      // 退出压弯的阈值（迟滞）
+                case "statemsg": FlightTuning.ShowStateMessages = v != 0f; break; // 姿态变化时屏幕弹提示（0=关）
                 // 相机接管后的"看"（2026-09-21）
                 case "camfov": FlightTuning.UseFlightCamera = v != 0f; break;   // 同 cam on|off
                 case "camsens": FlightTuning.CamLookSensitivity = v; break;     // 鼠标灵敏度（度/像素基准）

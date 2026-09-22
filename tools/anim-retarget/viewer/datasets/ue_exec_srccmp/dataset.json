@@ -92,6 +92,10 @@
       ],
       "files": [
         {
+          "id": "d_exec02_fixed",
+          "url": "../ue_exec_pair/assets/bl_exec02_fixed.glb"
+        },
+        {
           "id": "d_p7",
           "url": "../ue_exec_pair/assets/bl_pair7.glb"
         },

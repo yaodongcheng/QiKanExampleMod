@@ -1,34 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-gen_spell_textures.py — 阴魔斩网格的漫反射贴图（月牙 / 能量核）
+gen_spell_textures.py — 阴魔斩网格的贴图（月牙 / 能量核，**各一张全 UV**）
 ============================================================================
-    python Scripts/../../tools/armor-pipeline/scripts/gen_spell_textures.py
+    python tools/armor-pipeline/scripts/gen_spell_textures.py
 （系统 python 即可，不需要 Blender；跑完自动过一遍 `png_for_editor.py`）
 
-两张图都**不是拍脑袋的配色**，色标来自 `Knowledge/骑砍2粒子系统.md` §九
-（用角色身高当尺子、逐帧掩膜取均值/p95，从 `阴魔斩.mp4` 量的）：
+🔴 **2026-09-22 改版：拆网格后不再共用分区图集。** 旧版是一张图上下左右分区
+（左半月牙 / 右上核），因为"一个网格只能认一张 `_d.png`"。现在月牙与核是**两个独立网格**
+（见 `build_spell_mesh.py` 头部），各拿一张全 UV 图 ⇒ 两条限制同时消失：
+    · 各自一套材质（月牙可以漂移、核可以不动）
+    · 各自的 UV 满 [0,1]，**没有分区要躲**
 
-    白热核   (246,150,135) / p95 (255,194,185)   → 白热偏粉
-    绯红亮盘 (241,142,143) / p95 (255,164,167)   → 亮绯红（月牙亮边同色）
-    黑烟     暗紫红 (≈0.20,0.09,0.13) → 近黑
+色标来自 `Knowledge/骑砍2粒子系统.md` §九（用角色身高当尺子从 `阴魔斩.mp4` 逐帧量的）：
+    白热核 (246,150,135)/p95 (255,194,185) · 绯红亮盘 (241,142,143) · 黑烟 暗紫红 (≈0.20,0.09,0.13)
 
-🔴 贴图与 UV 的对应（`build_spell_mesh.py` 里铺的）：
-    月牙  u = 沿弧（0..1，与贴图无关）  v = **跨带**（0=内缘/凹面 → 1=外缘/凸面）
-          ⇒ 本图做成**竖直渐变**：底部(v=0)白热 → 顶部(v=1)暗紫黑。
-             这正是原版录像里"凹面白热、往外红橙、最外裹黑烟"的读法。
-    核    UV 是**平面投影**（沿 Z 投到 XY 上的圆盘）⇒ 本图做成**径向渐变**：
-             中心白热 → 0.4r 绯红 → 0.85r 暗红 → 边缘近黑（= 原版那圈"暗紫晕圈"的起点）。
-             火焰与外晕由粒子承担（spec 里的 crimson_disk / dark_halo），网格只给底色与亮心。
+两张图都是**黑底 + 加法就绪**（配 `Alpha Blend Mode = Add Alpha`：黑 = 不发光 = 隐形）。
 
-⚠️ 生成物纪律（铁律 22）：本文件是生成器，**图是产物，禁手改** —— 要调色改下面的色标重跑。
-⚠️ 进工程源前必须过 `png_for_editor.py`（8bit RGB、无附加块）—— 本脚本自动调用。
+⚠️ 生成物纪律（铁律 22）：图是产物，**禁手改** —— 要调色改下面的参数重跑。
 """
 import math
 import os
 import subprocess
 import sys
 
+import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,149 +32,122 @@ TOOL = os.path.dirname(HERE)                       # tools/armor-pipeline
 OUTDIR = os.path.join(TOOL, "out")
 PNG_FOR_EDITOR = os.path.join(os.path.dirname(TOOL), "face-pipeline", "scripts", "png_for_editor.py")
 
+# UE 原版 VFX 贴图库（粒子工具链导出的 262 张；路径变了改这里或设 BM_UE_TEX）
+UE_TEX_DIR = os.environ.get(
+    "BM_UE_TEX",
+    r"D:\BrainMaker\骑砍2粒子特效复刻\output\tex\FlexibleCombatSystem\VFX\Textures")
+UE_FIRE = "T_Noise_Fire.png"          # 橙红底 + 黄白亮脉 + 焦黑块；实测**可平铺**
+UE_NOISE = "T_FireNoiseTile_02.png"   # 黑白扰动（做花瓣边）
+
 SIZE = 1024
 NAME_CRESCENT = "lwn_yinmo_crescent_d.png"
 NAME_CORE = "lwn_yinmo_core_d.png"
 
-# 🔴 底图来自 UE 原版 VFX 贴图库（`tools/particle-pipeline` 从 FlexibleCombatSystem 导出的 262 张）。
-#    为什么不用纯渐变：**原版月牙的观感 90% 来自湍流火焰贴图**，光滑渐变怎么调都差一个量级
-#    （并排对照过，见 out/_compare/_SIDE_BY_SIDE.png）。
-#    这两个文件属于"另一个工程的资产"，不进本仓库 —— 路径变了改这里（或设 BM_UE_TEX 环境变量）。
-UE_TEX_DIR = os.environ.get(
-    "BM_UE_TEX",
-    r"D:\BrainMaker\骑砍2粒子特效复刻\output\tex\FlexibleCombatSystem\VFX\Textures")
-UE_FIRE = "T_Noise_Fire.png"          # 橙红底 + 黄白亮脉 + 焦黑块 ← 月牙/核的火焰本体
-UE_NOISE = "T_FireNoiseTile_02.png"   # 黑白扰动（做花瓣边、亮脉起伏）
-
-# ── 色标（R,G,B 0-255）：(位置, 颜色) —— 位置 0..1 沿对应轴 ──
-# 月牙：位置 = v（0 内缘 → 1 外缘）
-CRESCENT_RAMP = [
-    (0.00, (255, 236, 224)),   # 内缘刃口：白热
-    (0.14, (255, 194, 185)),   # 白热 p95（录像实测）
-    (0.30, (241, 142, 143)),   # 绯红亮盘（录像实测）
-    (0.52, (176,  52,  58)),
-    (0.74, ( 95,  24,  32)),
-    (1.00, ( 42,  13,  20)),   # 外缘：近黑（黑烟侧）
-]
-# 核的两级结构（原版最显眼的结构特征，见 out/_compare/orig_core_burst.png）：
-#   白热心（边缘花瓣状，不是正圆） → **一圈独立暗环** → 外接火焰
-WHITE_HOT = (255, 246, 240)
+# 🔴 2026-09-22 实机修正：原版最热的色是**鲑红**（实测 (246,150,135) / p95 (255,194,185)），
+#    **不是白**。第一版推成纯白 (255,246,240) → 加法叠上去是一片白雾，被亮背景（草地）一衬啥也看不出
+#    （实机症状："能看到在流动，但看不到血红"）。而且贴图本身的饱和度要**更红**：
+#    游戏里的 bloom 会自然把它洗白，所以底图留白 = 两头都丢。
+WHITE_HOT = (255, 170, 132)   # 白热偏橙（给内缘用，不是纯白）
+SAT_B = 0.72                  # 蓝通道压暗比值 → 提高饱和度（加法叠在亮背景上会被冲淡，底图必须更红）
+SAT_G = 0.90
 DARK_RING = (86, 20, 26)
 
+# ── 月牙参数 ──
+# 🔴 u（= 沿弧）方向必须**可平铺**：材质要用 use_texture_sweep **只漂 u**，把火顺着刃口送出去。
+#    v（= 跨带）方向**不漂**，所以"内缘白热 → 外缘暗"的渐变烘在 v 上会**稳稳停住**。
+CR_ENV_POW = 1.10    # 跨带亮度包络指数（越大越集中在内缘）
+CR_HOT_W = 0.40      # 内缘最多往"白热偏橙"偏多少（**不再拉满** —— 拉满就是白雾）
+CR_GAIN = 1.60       # 整体增益（加法叠亮背景会被冲淡，要比第一版更冲）
+CR_BASE = 0.25       # 无火处的底亮度（加法下"有底"才有实体感；实机反馈太透 → 从 0.05 提到 0.25）
+CR_TCONTRAST = 1.15  # 火亮度对比度（>1 压暗中间调；实机反馈太透 → 从 1.45 降到 1.15，让更多中间调参与）
 
-def lerp_ramp(ramp, t):
-    t = min(1.0, max(0.0, t))
-    for i in range(len(ramp) - 1):
-        p0, c0 = ramp[i]
-        p1, c1 = ramp[i + 1]
-        if t <= p1:
-            k = 0.0 if p1 == p0 else (t - p0) / (p1 - p0)
-            return tuple(int(round(c0[j] + (c1[j] - c0[j]) * k)) for j in range(3))
-    return ramp[-1][1]
+# ── 核参数 ──
+CO_CORE_R = 0.55     # 白心半径（归一化，1.0 = 贴图半宽）
+CO_RING_W = 0.12     # 暗环宽度（🔴 加法下"暗环" = 不加光 → 读作一条暗缝，原版最显眼的结构特征）
+CO_GAIN = 1.30
 
 
 def load_ue(name, size):
-    """读一张 UE 贴图并缩到 size×size（灰度化留给调用方按需做）。"""
     p = os.path.join(UE_TEX_DIR, name)
     if not os.path.isfile(p):
-        print(f"[FATAL] 找不到 UE 贴图 {p}\n        改 UE_TEX_DIR 或设环境变量 BM_UE_TEX 指到 Textures 目录")
+        print(f"[FATAL] 找不到 UE 贴图 {p}\n        改 UE_TEX_DIR 或设 BM_UE_TEX 指到 Textures 目录")
         raise SystemExit(2)
-    return Image.open(p).convert("RGB").resize((size, size), Image.LANCZOS)
+    return np.asarray(Image.open(p).convert("RGB").resize((size, size), Image.LANCZOS), dtype=np.float32)
 
 
-def make_atlas():
-    """一张图集（`build_spell_mesh.py` 的 UV 按这个铺）：
-
-        ┌───────────────┬───────────────┐
-        │  左半 u 0~0.5 │  右上 u .5~1  │
-        │  月牙跨带      │  v .5~1       │
-        │  火焰 × 内热外冷│  核：白心+暗环 │
-        ├───────────────┤               │
-        │   （左半整高） │               │
-        └───────────────┴───────────────┘
-
-    🔴 **为什么要拼图集**：月牙与核是**同一个网格**（一发导弹只能挂一个 flying_mesh），
-       而 ModKit 的贴图是按 `<网格名>_d.png` 自动配的 —— **一个网格只能认一张图**。
-    🔴 **为什么用 UE 火焰贴图而不是渐变**：原版的烧灼质感（亮脉/焦黑/絮边）全部来自贴图，
-       渐变只能给出"干净的塑料红"。对照见 out/_compare/_SIDE_BY_SIDE.png。"""
-    half = SIZE // 2
-    fire = load_ue(UE_FIRE, half)                       # 512² 火焰底
-    noise = load_ue(UE_NOISE, half).convert("L")        # 512² 扰动
-
-    im = Image.new("RGB", (SIZE, SIZE), (0, 0, 0))
-    fpx, npx, px = fire.load(), noise.load(), im.load()
-
-    # ── 左半：月牙 ──
-    # 🔴 两个调过才对的点（第一版都错，实拍对照后改）：
-    #   ① **贴图沿弧要多铺几遍**：UV 沿弧 512px 摊 5.27m、跨带 1024px 摊 0.85m，
-    #      各向异性约 12:1 ⇒ 只铺一遍会把火焰拉成又长又匀的条（实拍就是"塑料拉丝"）。
-    #      这里沿 x 铺 3 遍，让火舌尺度接近各向同性。
-    #   ② **本体色取火焰自己的橙红**，只在**内缘**往白热推 —— 不要用一条深红渐变当底色，
-    #      那会做成暗紫塑料（原版是炽亮的橙红，亮部直接到白热黄）。
-    X_TILE = 3
-    for y in range(SIZE):
-        v = 1.0 - y / (SIZE - 1)                        # 图像顶行 = v=1（外缘）
-        w = (1.0 - v) ** 1.5                            # 内缘权重：v=0 内缘最强
-        for x in range(half):
-            fr, fg, fb = fpx[(x * X_TILE) % half, y % half]
-            t = (0.35 * fr + 0.5 * fg + 0.15 * fb) / 255.0
-            body = (fr * (0.75 + 0.85 * t), fg * (0.60 + 0.85 * t), fb * (0.55 + 0.85 * t))
-            hot = w * (0.30 + 0.70 * t)
-            px[x, y] = tuple(min(255, int(body[i] * (1 - hot) + WHITE_HOT[i] * hot)) for i in range(3))
-        for x in range(half, SIZE):
-            px[x, y] = (0, 0, 0)                        # 右半由核那段填
-
-    # ── 右上：核 ── 白热心（花瓣状边） + 一圈**独立暗环** + 外接火焰
-    cx_px, cy_px, rad_px = 0.75 * SIZE, 0.25 * SIZE, 0.25 * SIZE
-    for y in range(SIZE // 2):
-        dy = (y - cy_px) / rad_px
-        for x in range(half, SIZE):
-            dx = (x - cx_px) / rad_px
-            r = (dx * dx + dy * dy) ** 0.5
-            ang = math.atan2(dy, dx)
-            # 花瓣边：用扰动图沿角度采样 → 白心的边界不是正圆
-            ni = int(((ang + math.pi) / (2 * math.pi)) * (half - 1))
-            nj = int(((r * 2.2) % 1.0) * (half - 1))
-            wob = (npx[ni, nj] / 255.0 - 0.5) * 0.16
-            core_r = 0.60 + wob                          # 白心半径（带扰动）
-            ring_r = core_r + 0.20                       # 暗环外沿
-            fr, fg, fb = fpx[x % half, y % half]
-            fire_c = (fr, fg, fb)
-            if r < core_r:
-                # 白热核：色标里的白热，按火焰亮度微微起伏（不要死平）
-                t = 0.75 + 0.25 * ((0.35 * fr + 0.5 * fg + 0.15 * fb) / 255.0)
-                c = tuple(min(255, int(WHITE_HOT[i] * t)) for i in range(3))
-            elif r < ring_r:
-                # 🔴 那圈**独立暗环** —— 原版最显眼的结构特征（甜甜圈感），
-                #    不是"中心白→边缘暗"的连续渐变（第一版就是这么做的，对照后改掉）
-                k = 0.75 + 0.25 * ((0.35 * fr + 0.5 * fg + 0.15 * fb) / 255.0)
-                c = tuple(int(DARK_RING[i] * k) for i in range(3))
-            else:
-                fade = max(0.0, 1.0 - (r - ring_r) / max(0.001, 1.15 - ring_r))
-                c = tuple(int(fire_c[i] * (0.35 + 0.65 * fade)) for i in range(3))
-            px[x, y] = c
-    return im
+def luma(a):
+    return (0.35 * a[:, :, 0] + 0.5 * a[:, :, 1] + 0.15 * a[:, :, 2]) / 255.0
 
 
-def save(im, name):
+def save(rgb, name):
+    os.makedirs(OUTDIR, exist_ok=True)
     raw = os.path.join(OUTDIR, "_raw_" + name)
-    im.save(raw)
-    # 进工程源前过格式闸门（8bit RGB / 无附加块）——省得编辑器把源图连产物一起删
+    Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").save(raw)
     subprocess.run([sys.executable, PNG_FOR_EDITOR, raw, os.path.join(OUTDIR, name)], check=True)
     os.remove(raw)
     print(f"   -> {os.path.join(OUTDIR, name)}")
 
 
+def build_crescent():
+    """月牙：**火噪声（u 可平铺）× 跨带渐变（v：内缘白热 → 外缘暗）**。
+    配合 `use_texture_sweep` + `Vector1 = (速度, 0, 0, 0)` ⇒ 火沿刃口流动、热刃口不动。"""
+    fire = load_ue(UE_FIRE, SIZE)                  # 缩放保持可平铺（边到边）
+    t = luma(fire)[:, :, None]
+    # 🔴 行→UV 的对应：**图像底行 = UV 的 v=0 = 月牙的内缘**（网格那边 v=0 就是内缘）。
+    #    `rowf` = 行比例：顶行 0 → 底行 1。所以"内缘最热" = 热在**底行** = 用 rowf 本身，
+    #    ⚠️ 别再写成 `1 - rowf` —— 那样热会跑到外缘去（第一版就是这么错的，渲染出来内缘是暗的）。
+    rowf = np.linspace(0.0, 1.0, SIZE)[:, None, None]
+    env = np.power(rowf, CR_ENV_POW)
+    hot = np.power(rowf, 2.0) * CR_HOT_W * (0.45 + 0.55 * t)
+    col = fire * (1.0 - hot) + np.array(WHITE_HOT, dtype=np.float32)[None, None, :] * hot
+    col[:, :, 1] *= SAT_G                       # 提饱和：压绿、压蓝 → 红更红
+    col[:, :, 2] *= SAT_B
+    # 🔴 亮度的"底"必须接近 0：加法混合下**只有亮的地方才存在** —— 底给大了整条带都发光 = 实心块
+    tt = np.power(np.clip(t, 0.0, 1.0), CR_TCONTRAST)
+    k = env * (CR_BASE + 1.75 * tt) * CR_GAIN
+    print(f"    月牙：{UE_FIRE} × 跨带渐变（内缘白热偏橙 → 外缘暗）· u 可平铺"
+          f" · 底 {CR_BASE} · 对比 {CR_TCONTRAST} · 增益 {CR_GAIN}")
+    return col * k
+
+
+def build_core():
+    """核：径向 —— **白热心（花瓣边）→ 暗环（加法下是暗缝）→ 外圈火 → 全黑**。
+    静态（不漂）：径向图案一漂就偏心，和飞行法阵的"圆形遮罩被漂走"是同一个坑。"""
+    fire = load_ue(UE_FIRE, SIZE)
+    noise = load_ue(UE_NOISE, SIZE)
+    t2 = luma(fire)                       # (S,S)   ← 🔴 掩码一律保持 2D
+    t3 = t2[:, :, None]                   # (S,S,1) ← 只在**最后相乘**时才升轴
+    yy, xx = np.mgrid[0:SIZE, 0:SIZE].astype(np.float32)
+    h = (SIZE - 1) / 2.0
+    nx, ny = (xx - h) / h, (yy - h) / h
+    r = np.sqrt(nx * nx + ny * ny)        # (S,S)
+    ang = np.arctan2(ny, nx)
+    # 花瓣边：用扰动图沿角度采样 → 白心边界不是正圆
+    ni = np.clip(((ang + math.pi) / (2 * math.pi) * (SIZE - 1)).astype(np.int32), 0, SIZE - 1)
+    nj = np.clip(((r * 2.2) % 1.0 * (SIZE - 1)).astype(np.int32), 0, SIZE - 1)
+    wob = (luma(noise)[nj, ni] - 0.5) * 0.14        # (S,S)
+    core_r = CO_CORE_R + wob                        # (S,S)
+    ring_r = core_r + CO_RING_W                     # (S,S)
+
+    white3 = np.broadcast_to(np.array(WHITE_HOT, dtype=np.float32), (SIZE, SIZE, 3))
+    ring3 = np.broadcast_to(np.array(DARK_RING, dtype=np.float32), (SIZE, SIZE, 3))
+    # ⚠️ ring_r 是**数组**（core_r 含花瓣扰动）⇒ 必须用 np.maximum 而不是内置 max（后者对数组求真值会报错）
+    fade = np.clip(1.0 - (r - ring_r) / np.maximum(1e-6, 1.10 - ring_r), 0.0, 1.0)   # (S,S)
+    outer = fire * fade[:, :, None] * (0.35 + 1.30 * t3)
+    inner_k = (0.90 + 0.45 * t2) * (1.0 - 0.30 * np.clip(r / np.maximum(core_r, 1e-6), 0, 1) ** 3)
+
+    out = np.where((r < core_r)[:, :, None], white3 * inner_k[:, :, None],
+          np.where((r < ring_r)[:, :, None], ring3 * 0.045, outer * CO_GAIN))
+    out[:, :, 1] *= SAT_G                       # 同样提饱和（理由见 WHITE_HOT 那段注释）
+    out[:, :, 2] *= SAT_B
+    print(f"    核：{UE_FIRE} 径向 —— 白心 r<{CO_CORE_R}（花瓣边）→ 暗环 +{CO_RING_W} → 外圈火 → 黑")
+    return out
+
+
 def main():
-    os.makedirs(OUTDIR, exist_ok=True)
-    if not os.path.isfile(PNG_FOR_EDITOR):
-        print(f"[FATAL] 找不到 {PNG_FOR_EDITOR}")
-        return 2
-    print("=== 阴魔斩网格贴图（色标 = 录像实测值，§九） ===")
-    atlas = make_atlas()
-    # 两个网格各自认自己名字的 _d.png，内容**同一张图集** —— 各自都能正确取样
-    save(atlas, NAME_CRESCENT)
-    save(atlas, NAME_CORE)
+    print("=== 阴魔斩网格贴图（月牙 / 核，各一张全 UV） ===")
+    save(build_crescent(), NAME_CRESCENT)
+    save(build_core(), NAME_CORE)
     print("DONE")
     return 0
 

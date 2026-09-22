@@ -88,6 +88,9 @@ def main():
                     help="重定向算法（默认 align，唯一交付模式）")
     ap.add_argument("--pelvis", default=None, help="骨盆策略 ground|src|delta|none")
     ap.add_argument("--animdir", default=None, help="源动画目录（缺省用 rig 脚本内置默认）")
+    ap.add_argument("--obj-rot", default=None,
+                    help="UE 线：是否把源【骨架对象】相对首帧的旋转增量搬进目标（转身类动作必需，默认 true）；"
+                         "传 false 复现旧行为（对象级转身会丢）")
     ap.add_argument("--no-trf", action="store_true", help="只要 FBX，不导 TRF（默认两者都产）")
     ap.add_argument("--blender", default=os.environ.get("BLENDER", DEFAULT_BLENDER))
     ap.add_argument("--dry-run", action="store_true", help="只打印命令")
@@ -104,6 +107,8 @@ def main():
         cmd += ["--pelvis", a.pelvis]
     if a.animdir:
         cmd += ["--animdir", a.animdir]
+    if a.obj_rot is not None and a.rig == "ue_mannequin":
+        cmd += ["--obj_rot", a.obj_rot]
     if a.no_trf:
         cmd += ["--no_trf", "true"]
 

@@ -262,7 +262,39 @@ python Debug\offline\trf_root_travel.py --trf "<xxx.trf>"
 | `Taikou\ModuleData\action_types.xml` / `action_sets.xml` | 声明动作 `act_execution02_root` 并绑到 clip（`animation="execution_02"`）|
 | 备用包 | `Debug\offline\anim_pack_backup\` 两份（ModKit 原产版 / 更早一版）|
 
-ModKit 填值：`Source 1 = 2` / `Source 2 = 102` / `Duration > 0`；`displacement` 填 `X=0.2462 Y=3.6734 Z=0 endProgress=0.4`。
+ModKit 填值：`Source 1 = 2` / `Source 2 = 102` / **`Duration = 3.367`（秒）**；`displacement` 填 `X=0.2462 Y=3.6734 Z=0 endProgress=0.4`。
+
+> **Duration 的口径（2026-09-22 查清）**：官方文档写的是 "Duration of this animation clip **in seconds**"；
+> 把原版 6177 条 clip 的「帧数 ÷ 时长」统计出来，**920 条落在 60.00、270 条落在 30.00**（其余是 40 / 50 / 31.25 等非整数 fps）
+> ⇒ **Duration(秒) = 帧数(S2 − S1 + 1) ÷ fps**（例：某原版 clip Duration 1.3 而 S1..S2 = 0..77 → 78 ÷ 60 = 1.3，精确吻合）。
+> 本 clip：101 帧 @30fps ⇒ **3.3667 s**；受击方 126 帧 ⇒ **4.2 s**。
+> **Flags（2026-09-22 从装机包 `execution_02.meta` 逐字解出，共 9 个，其余全不勾）**：
+> `ignore_all_collisions` · `client_prediction` · `disable_hand_ik` · `use_left_hand_during_attack` ·
+> `lock_movement` · `enforce_lowerbody` · `enforce_all` · `disable_foot_ik` · **`displace_position`**。
+> 同 block 里还有 `BlendIn = 0.3` / `BlendOut = 0`（meta 的 @96 = 0.3 与官方 clipinfo 布局一致）。
+> 注意 **`Do not optimize`、`cycle`、`enforce_root_rotation`、`disable_agent_agent_collisions`、`align_with_ground`、
+> `affected_by_movement`、`update_bounding_volume` 都不要勾**（装机验证的那条就是没勾）。
+> 受击方 `executed_02` 建议照抄同一套（`use_left_hand_during_attack` 对受击方无实际作用，留着无害）。
+> 另：装机包 `execution_02.meta` 已核实 **`Source 1 = 2` / `Source 2 = 102`**（浮点 @8=2.0、@12=102.0）、BlendIn 0.3、
+> `displacement = (0.2462, 3.6734, 0)`、末端 0.4（endProgress）—— 与上面填值单逐位一致。
+
+**配套：受击方 `executed_02`（2026-09-22 补测，同一条计算路径）**
+
+| 项 | 值 |
+|---|---|
+| 资源 | `output/trf/ue_GhostSamurai_Executed02__Root.trf`（受击方·带位移）+ `output/fbx/ue_GhostSamurai_Executed02__Root.fbx` |
+| 位移轨实测 | 首帧 2 `(0,0,0)` → 末帧 127 `(0.6360, 1.0444, -0.6980)`；**水平净 1.2228 m**（`CHECK_TRAVEL` 1.2228 vs 1.2228，差 0.00%） |
+| ModKit 填值 | `Source 1 = 2` / `Source 2 = 127` / `Duration > 0`；`displacement` 填 **`X=0.6360 Y=1.0444 Z=0`**（口径 = 水平面；竖直的 -0.698 是"被摔倒"不进该字段）；`endProgress` 建议 **0.4**（与攻击方一致）或 **0.7**（实测位移在 ~70% 处走完） |
+| 值可信度 | 与攻击方同一条代码路径（`retarget.py --pelvis src` 的"目标侧净"）；攻击方算出来 = **装机实测值 (0.2462, 3.6734, 0)**，**逐位一致** ⇒ 受击方这份同样可信 |
+| 方向 | 角色本地坐标系：主要是 +Y（3.67 m vs 1.04 m 都在 +Y）⇒ 受击方是**被顺着攻击方向推出去**的 |
+
+> 两条 clip 的 `displace_position` flag 都要勾；**两边档位要配套**（攻击方 Root 3.68 m + 受击方 Root 1.22 m）。
+> **资源落位（2026-09-22）**：两个 Root 版已放进 Kit 的资产源目录
+> `Modules/TaikouAnim/AssetSources/Execute/ue_GhostSamurai_Execution02__Root.trf` 与 `…/ue_GhostSamurai_Executed02__Root.trf`
+> （原地版 `…__Inplace.trf` 仍留在同目录，两档并存、按需挂）。
+> 攻击方 Root 的重新导出版（改名 `ue_GhostSamurai_Execution02__Root`）与装机验证过的 `gs_execution02_root.trf`
+> **只差第 3 行的资源名**，其余 2962 行逐字节相同 ⇒ 位移/旋转数据与实机验证过的完全一致。
+> 2026-09-22 重导出的 TRF 位移轨 **与旧产物逐位一致**（攻击方仍 = 0.2462 / 3.6734 / 0）；变的只是**旋转**（补回骨架对象那 180° 转身，见硬约束 29）。
 
 ---
 

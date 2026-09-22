@@ -355,6 +355,22 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public static float PitchExitThreshold = 0.30f;
 
+        // ── 压弯（倾斜）触发（2026-09-22 用户裁定后接）─────────────────────────
+        // 用**横移输入**当压弯：|MoveAxis.x| 超过进阈值算在压弯，低于出阈值退出（迟滞）。
+        // 理由：飞行里"A/D 侧移"就是压弯的语义；而且不用再引入"转向角速度"这种要额外平滑的量。
+        // 0 = 关掉压弯（两个阈值都填 0 就永远不进压弯状态）。
+        /// <summary>进压弯的横移阈值（|A/D 输入|）。</summary>
+        public static float BankThreshold = 0.35f;
+
+        /// <summary>退出压弯的阈值（迟滞，比进阈值小）。</summary>
+        public static float BankExitThreshold = 0.20f;
+
+        /// <summary>
+        /// 姿态变化时在屏幕上弹一条提示（默认开，调姿态时用；`custom.flight tune statemsg 0` 关）。
+        /// 只显示**状态名**（idle / cruise / leanL / boostLeanR …），跟代码和日志里的名字一致。
+        /// </summary>
+        public static bool ShowStateMessages = true;
+
         // ───────────────────────── 机身转向 ─────────────────────────
 
         /// <summary>
@@ -453,17 +469,68 @@ namespace LivingWorldNpcs.Flight
         public static string ActLand = "act_fly_land";
 
         /// <summary>
-        /// 抬头爬升时播的姿态。🟡 **2026-09-21 本轮留空 = 不播** ——
-        /// 原计划接 `Pose_U` / `Pose_D`，但用户判定那两条属于 `A_FM_A_*` 那套体系、**本轮不导**
-        /// （它们和 `Lean_*` 是一家：源目录里是 `A_FM_{A..E}` 5 个变体各自的 `Pose` / `Pose_U` / `Pose_D`
-        ///  + `Lean_{L,R,U,D}` 四方向，属「转向倾斜」那轮的活）。
-        /// 留空的后果 = 抬头时**保持上一条姿态**（`SetAction` 遇到空串直接返回），观感是"平板上升"。
-        /// 🔴 将来要接：把 clip 导进包 → 这里填动作名 → `Taikou/ModuleData/` 两个 XML 各加一行。
+        /// 抬头爬升时播的姿态。✅ **2026-09-22 已接**：`act_fly_climb` → clip `flight_hovermove_a_pitchu`
+        /// （A 套合成件，TRF `fly_A_Flight_HoverMove_A_PitchU`：巡航基准 + 抬头增量，合成时根骨那道量已按 0 缩放）。
+        /// ⚠️ 现在接的是**巡航家（直立）**的姿态 —— 冲刺（趴姿）时抬头会从趴姿切到直立，观感是翻一下；
+        /// 要"冲刺家也各有一套"得给状态机再拆状态（见 plans/玩家飞行-实施方案.md §3.8.1）。
+        /// 留空的后果（旧行为）= 抬头时**保持上一条姿态**，观感是"平板上升"。
         /// </summary>
-        public static string ActClimb = "";
+        public static string ActClimb = "act_fly_climb";
 
-        /// <summary>低头俯冲时播的姿态。🟡 本轮同样留空，原因见 <see cref="ActClimb"/>。</summary>
-        public static string ActDive = "";
+        /// <summary>低头俯冲时播的姿态。✅ **2026-09-22 已接**：`act_fly_dive` → clip `flight_hovermove_a_pitchd`，说明见 <see cref="ActClimb"/>。</summary>
+        public static string ActDive = "act_fly_dive";
+
+        /// <summary>进冲刺的**入姿**（一次性，治"按 Shift 硬切到趴姿"）。</summary>
+        public static string ActBoostStart = "act_fly_dash_start";
+
+        /// <summary>闪避四方向（一次性；只在冲刺态里播，理由见 <see cref="FlightAnimMachine"/>）。</summary>
+        public static string ActDodgeL = "act_fly_dodge_l";
+        public static string ActDodgeR = "act_fly_dodge_r";
+        public static string ActDodgeU = "act_fly_dodge_u";
+        public static string ActDodgeD = "act_fly_dodge_d";
+
+        // ── 压弯 / 俯仰的合成件（2026-09-22：A 套合成件进包后接线）────────────────
+        // 这批 clip 都是【合成】出来的（基础动画 ∘ 增量，根骨那道量已按 0 缩放，见方案 §3.8.1），
+        // 所以它们跟基础动画同帧号、同循环属性，直接当普通姿态播。
+
+        /// <summary>巡航（直立）压弯左 / 右。触发见 <see cref="BankThreshold"/>。</summary>
+        public static string ActLeanL = "act_fly_lean_l";
+        public static string ActLeanR = "act_fly_lean_r";
+
+        /// <summary>冲刺（趴姿）压弯左 / 右。</summary>
+        public static string ActBoostLeanL = "act_fly_boost_lean_l";
+        public static string ActBoostLeanR = "act_fly_boost_lean_r";
+
+        /// <summary>冲刺（趴姿）抬头 / 低头 —— 与巡航家的 <see cref="ActClimb"/> / <see cref="ActDive"/> 分开，
+        /// 免得冲刺时从趴姿硬切到直立姿态（那两个家族各有一套抬头/低头）。</summary>
+        public static string ActBoostClimb = "act_fly_boost_climb";
+        public static string ActBoostDive = "act_fly_boost_dive";
+
+        // ───────────────────── 冲刺入姿 / 闪避（2026-09-22）─────────────────────
+        // 🔴 这两组都是**一次性动作**：状态机里 `AnimState.Once(..., next: null, duration: …)`，
+        //    时长 = clip 真实长度（帧数 ÷ 30，实测值）。**重导 clip 换了帧数就改这里**。
+
+        /// <summary>冲刺入姿时长（秒）= 31 帧 ÷ 30，实测。</summary>
+        public static float BoostStartSeconds = 1.033f;
+
+        /// <summary>闪避动画时长（秒）= 56 帧 ÷ 30，实测。四条一样长。</summary>
+        public static float DodgeClipSeconds = 1.867f;
+
+        /// <summary>
+        /// 🔴 **闪避的触发方式（2026-09-22 用户裁定）**：**冲刺（按住 Shift）中短按空格 = 闪避**。
+        /// 与"悬停 / 巡航中长按空格 = 持续下降"是两套手势，靠**状态 + 长 / 短按**区分。
+        /// 关掉本开关 = 回到旧行为（冲刺中短按空格仍走"贴地 / 俯冲落地"那套判定）。
+        /// </summary>
+        public static bool DodgeOnSpaceTapInBoost = true;
+
+        /// <summary>闪避的位移距离（米）。</summary>
+        public static float DodgeDistance = 8f;
+
+        /// <summary>闪避位移走完用多久（秒）—— 之后速度交还普通飞行，姿态动画继续演完。</summary>
+        public static float DodgeDisplaceSeconds = 0.4f;
+
+        /// <summary>两次闪避之间的最短间隔（秒）。默认 ≈ 一条闪避动画的长度（演完才能再闪）。</summary>
+        public static float DodgeCooldownSeconds = 1.9f;
 
         // ───────────────────────── 调试 ─────────────────────────
 
@@ -523,8 +590,28 @@ namespace LivingWorldNpcs.Flight
             ActCruise = "act_fly_cruise";
             ActBoost = "act_fly_boost";
             ActLand = "act_fly_land";
-            ActClimb = "";
-            ActDive = "";
+            ActClimb = "act_fly_climb";
+            ActDive = "act_fly_dive";
+            ActBoostStart = "act_fly_dash_start";
+            ActDodgeL = "act_fly_dodge_l";
+            ActDodgeR = "act_fly_dodge_r";
+            ActDodgeU = "act_fly_dodge_u";
+            ActDodgeD = "act_fly_dodge_d";
+            ActLeanL = "act_fly_lean_l";
+            ActLeanR = "act_fly_lean_r";
+            ActBoostLeanL = "act_fly_boost_lean_l";
+            ActBoostLeanR = "act_fly_boost_lean_r";
+            ActBoostClimb = "act_fly_boost_climb";
+            ActBoostDive = "act_fly_boost_dive";
+            BankThreshold = 0.35f;
+            BankExitThreshold = 0.20f;
+            ShowStateMessages = true;
+            BoostStartSeconds = 1.033f;
+            DodgeClipSeconds = 1.867f;
+            DodgeOnSpaceTapInBoost = true;
+            DodgeDistance = 8f;
+            DodgeDisplaceSeconds = 0.4f;
+            DodgeCooldownSeconds = 1.9f;
             PitchThreshold = 0.42f;
         }
 

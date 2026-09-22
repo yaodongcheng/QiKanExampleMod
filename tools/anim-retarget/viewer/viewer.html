@@ -114,7 +114,8 @@
     </div>
     <div class="sec"><b>操作</b>
       <div style="color:var(--dim);font-size:11px;line-height:1.8">
-        左键拖拽=旋转 · 右键拖拽=平移<br>滚轮=缩放 · 空格=播放/暂停
+        左键拖拽=旋转 · 右键拖拽=平移<br>滚轮=缩放 · 空格=播放/暂停<br>
+        底部「进度/帧」拉杆：拖动=定位到某一帧（自动暂停，1 格 1 帧；拉杆聚焦后 ←/→ 微调 1 帧）
       </div>
     </div>
   </div>
@@ -513,7 +514,10 @@ async function boot(){
   const t = parseFloat(qs.get('t')||'');
   const pick = (want && NAMES.indexOf(want)>=0) ? want : NAMES[0];
   if(pick && qs.get('noplay')!=='1') play(pick);
-  if(qs.get('pause')==='1'){ paused = true; const _bp=document.getElementById('bPlay'); if(_bp) _bp.textContent='\u25b6 播放'; }
+  if(qs.get('pause')==='1') setPaused(true);
+  // ?frame=N：暂停并直接定位到第 N 帧（1 格 = 1 帧 @30fps），供无头逐帧核对用
+  const _fr = parseInt(qs.get('frame') || '', 10);
+  if(isFinite(_fr)) seekToFrame(_fr, true);
   // ?probe=1：把两侧角色的世界坐标写入 DOM，便于精确核对站位（无头 dump 可读）
   if (qs.get('probe') === '1') {
     setTimeout(() => {
@@ -529,6 +533,12 @@ async function boot(){
              + ' speed=' + (actB ? actB.timeScale.toFixed(3) : '-')
              + ' off=' + OFF.B.toFixed(3)
              + ' | playHead=' + playHead.toFixed(3) + ' pairMode=' + PAIRMODE);
+      out.push('SCRUB|paused=' + paused
+             + '|max=' + (scrubEl ? scrubEl.max : '-')
+             + '|value=' + (scrubEl ? scrubEl.value : '-')
+             + '|len=' + timelineLen().toFixed(3)
+             + '|t=' + timelineTime().toFixed(3)
+             + '|label=' + (scrubVEl ? scrubVEl.textContent : '-'));
       for (const id in loaded) {
         const L = loaded[id];
         if (!L.group.visible) continue;
@@ -811,9 +821,8 @@ function play(name){
   if(actA) actA.paused = false; if(actB) actB.paused = false;
   for(const e of EXTRAS) if(e.act) e.act.paused = false;
 
-  current = name; paused = false;
+  current = name; setPaused(false);
   const m = clipMeta(name);
-  document.getElementById('bPlay').textContent = '\u23f8 暂停';
   document.getElementById('hudAn').textContent = name;
   document.getElementById('hudTag').innerHTML =
       (m.prio ? '<span class="tag '+(m.prio==='P0'?'t-p0':'t-p1')+'">'+m.prio+'</span>' : '')
@@ -853,14 +862,12 @@ function play(name){
   };
   applyPairParams(PAIRD[name], A, B);       // ② 再叠加用户显式参数（x/y/z 为 null 就不覆盖）
   syncPairUI();
+  updateScrubUI(true);                      // 换 clip 后拉杆量程/位置归零
   render();
 }
 
 /* ---------- 控件 ---------- */
-document.getElementById('bPlay').onclick = ()=>{
-  paused = !paused;
-  document.getElementById('bPlay').textContent = paused ? '\u25b6 播放' : '\u23f8 暂停';
-};
+document.getElementById('bPlay').onclick = ()=> setPaused(!paused);
 document.getElementById('bPrev').onclick = ()=>{ if(!FNAMES.length) return;
   const i = FNAMES.indexOf(current); play(FNAMES[(i-1+FNAMES.length)%FNAMES.length]); };
 document.getElementById('bNext').onclick = ()=>{ if(!FNAMES.length) return;
@@ -949,6 +956,10 @@ function updateScrubUI(force){
   // 播放中让拉杆跟着走；暂停时不要回写（否则手拖的帧会被抹掉）
   if((force || !paused) && scrubEl.value !== String(fr)) scrubEl.value = String(fr);
   if(scrubVEl) scrubVEl.textContent = '帧 ' + fr + ' / ' + total + ' · ' + t.toFixed(3) + ' s';
+  if(PAIRMODE){          // 侧栏「播放轴」跟拉杆保持一致（暂停拖杆时也要更新）
+    const hEl = document.getElementById('offHead'); if(hEl) hEl.textContent = t.toFixed(2);
+    const lEl = document.getElementById('offLoop'); if(lEl) lEl.textContent = L.toFixed(2);
+  }
 }
 function seekToFrame(fr, forcePause){
   if(forcePause) setPaused(true);
@@ -1190,7 +1201,7 @@ function tick(){
     document.getElementById('time').textContent = t.toFixed(2)+' / '+d.toFixed(2)+' s';
     document.getElementById('hudFr').textContent = Math.round(t*30);
   }
-  updateScrubUI(PAIRMODE ? false : (paused && __pendingT !== null));   // 播放中跟随；暂停时不回写手拖的帧
+  updateScrubUI();          // 播放中拉杆跟着走；暂停时不回写（保住手拖选中的那一帧）
   if(SHOT && __ready && __pendingT !== null && actA && __fc >= 2){
     // ?t= 语义 = 【播放轴时间】，与正常播放一致
     if(PAIRMODE && (actA || actB)){
@@ -1252,6 +1263,13 @@ window.__viewer = {
                speedA: actA && actA.timeScale, speedB: actB && actB.timeScale }),
   dataset: ()=>({ name: DS_NAME, cfg: DS_CFG }),
   play,
+  // 逐帧定位（拉杆）：seek(t) 传秒；seekFrame(n) 传帧号（1 格 = 1 帧 @30fps，自动暂停）
+  seek: (t)=>seekToTime(t),
+  seekFrame: (fr)=>{ seekToFrame(fr, true); return true; },
+  setPaused: (v)=>{ setPaused(v); return paused; },
+  scrub: ()=>({ paused, fps: FPS, len: timelineLen(), t: timelineTime(),
+                max: scrubEl && scrubEl.max, value: scrubEl && scrubEl.value,
+                label: scrubVEl && scrubVEl.textContent }),
   state: ()=>({ current, activeMode, total:NAMES.length, filtered:FNAMES.length, paused, speed, ready:__ready,
     clipCounts: Object.fromEntries(Object.entries(loaded).map(([k,v])=>[k, v.clips.size])),
     visible: Object.fromEntries(Object.entries(loaded).map(([k,v])=>[k, v.group.visible])) }),

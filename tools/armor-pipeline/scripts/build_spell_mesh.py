@@ -52,12 +52,22 @@ DEPTH_TIP = 0.03   # 其余弧段的刃厚（m）—— 薄，读得出"刃"
                    # 🔴 刃厚要比核**直径小**：径向"包裹"是让带子够宽（BAND_BELLY ≫ 核 ⌀0.30），
                    #    厚度方向则要**让核露出来** —— 核 ⌀0.30 vs 刃厚 0.20 ⇒ 两面各鼓出 0.05 m，
                    #    正面看就是"月牙弧腹正中嵌着一颗球"。刃厚若 ≥ 核直径，核会整个埋进刃里看不见。
-CORE_R = 0.36     # 能量核半径（m）—— 🔴 **比弧腹中间宽度稍小**（用户 2026-09-21 裁定）：
-                  #    ⌀0.72 vs 中间带宽 0.85 ⇒ 径向只剩 0.065 m 一圈边，读作"带子刚好含住球"。
+CORE_R = 0.36     # 能量核半径（m）—— 🔴 **比弧腹中间宽度稍小**（用户 2026-09-21 裁定）：                  #    ⌀0.72 vs 中间带宽 0.85 ⇒ 径向只剩 0.065 m 一圈边，读作"带子刚好含住球"。
                   #    ⚠️ 别再按录像里"手心蓄力球 0.27~0.31 m"取值 —— 那是**手上**那点白热盘，
                   #       飞出去当中心球时视觉上要撑满月牙的腹，太小就成了颗小珠子（实测踩过）。
 CORE_POS = "belly"  # 核放哪：'belly' = 月牙弧腹的正中（被带子包住）｜'center' = 弧的曲率中心（圆的圆心）
 HORN_UP = True    # 🔴 犄角朝上？实测不确定的自由度，错了翻这里
+# 🔴🔴 **飞行朝向的唯一旋钮（2026-09-22 反编译实证 + 实机）**：
+#     `WeaponComponentData` 的 `rotation` 属性**不是**飞行时的视觉朝向 —— 它和 `position` 一起只拼出
+#     武器自己的 `Frame`（`rot2.RotateAbout…` → `Frame = new MatrixFrame(rot2, o)`），改它对飞行外观无效
+#     （实机验证："改 rotation 无效" 对）。飞行网格的朝向是 **native** 按速度方向算的，C# 侧只有
+#     `AddCustomMissile` 收一个 `Mat3 orientation`，**没有控制台指令能调**。
+#     ⇒ **要改朝向只能改网格本身**：月牙相对自身 **+Z（= 飞行方向）** 怎么摆，飞起来就是什么样。
+#        原始位姿：弧腹在原点、弧朝自身 **+Y** 鼓、躺在 **XY 平面**（法线 Z）
+#                ⇒ 腹朝"侧上方"、面朝前方（实机：像飞盘侧着飞）✗
+#        绕 X 转 +90°：`(x,y,z) → (x,-z,y)` ⇒ 腹（+Y）→ **+Z = 飞行方向** ✓、犄角往后拖 ✓
+#        这就是"斩击波"该有的样子（像船头破浪）。0 = 原始位姿；180 = 上下翻；-90 = 翻另一面。
+CRESCENT_TILT_X_DEG = 90.0
 SEG_ARC = 96      # 弧向分段
 SEG_BAND = 20     # 径向分段
 TAPER_MIN = 0.02  # 犄角端的最小收束比例（别收成 0 = 退化面）
@@ -140,9 +150,9 @@ def crescent_geometry():
                 lens = math.sqrt(max(0.0, 1.0 - s * s))            # 横截面透镜形：两边收成刃
                 z = sheet * hd * lens
                 verts.append((math.cos(a) * r, math.sin(a) * r, z))
-                # 🔴 u 压到 [0, 0.5]：贴图是**左右半图集**（左半=跨带渐变、右半=核的径向渐变），
-                #    月牙只许取左半，右半留给核（见 gen_spell_textures.py 顶部示意）
-                uvs.append((u * 0.5, v))
+                # 🔴 u **满 [0,1] 沿弧**（2026-09-22 拆网格后改）：不再压到图集左半。
+                #    月牙现在是独立网格 + 独立贴图，u 全程留给"火沿刃口流动"（use_texture_sweep 只漂 x=u）
+                uvs.append((u, v))
         for iu in range(SEG_ARC):
             for iv in range(SEG_BAND):
                 v0 = base + iu * (SEG_BAND + 1) + iv
@@ -184,12 +194,10 @@ def uv_sphere_geometry(radius, center=(0.0, 0.0, 0.0), seg=32, ring=16):
             y = radius * math.sin(phi) * math.sin(th)
             z = radius * math.cos(phi)
             verts.append((cx + x, cy + y, cz + z))
-            # 平面投影，压到图集的**右上四分之一方块**（u∈[0.5,1] × v∈[0.5,1]）——
-            # 图集左半是月牙的跨带渐变，右上是核的径向圆盘；圆心/半径与
-            # gen_spell_textures.py 里的 (768,256)/256 严格对应，改一边必须改另一边
-            uvs.append((0.75 + 0.25 * (x / radius), 0.75 + 0.25 * (y / radius)))
-    top = len(verts); verts.append((cx, cy, cz + radius)); uvs.append((0.75, 0.75))
-    bot = len(verts); verts.append((cx, cy, cz - radius)); uvs.append((0.75, 0.75))
+            # 平面投影，UV **满 [0,1]**（拆网格后核有自己独立的径向贴图，不再挤图集右上角）
+            uvs.append((0.5 + x / (2.0 * radius), 0.5 + y / (2.0 * radius)))
+    top = len(verts); verts.append((cx, cy, cz + radius)); uvs.append((0.5, 0.5))
+    bot = len(verts); verts.append((cx, cy, cz - radius)); uvs.append((0.5, 0.5))
     for i in range(ring - 2):
         for j in range(seg):
             a = i * seg + j
@@ -232,18 +240,31 @@ def main():
           f"   ┃ 核沿 Z 露出的量: {CORE_R - depth_half(0.5):+.3f} m（正=露出来，负=埋进刃里）")
     print(f"    输出目录 {OUTDIR}\n")
 
-    # ① 月牙 + 弧腹核（合并：一发导弹只能挂一个 flying_mesh）
+    # 🔴 2026-09-22 **拆成两个独立网格**（用户裁定）：不再合并。
+    #    · 蓄力期：prefab 的**父实体挂两个 meta_mesh 子件**，C# 各自控制缩放/淡入
+    #      → 做成"核先出现、月牙逐渐展开"（范本 Prefabs/lwn_yinmo_cast.xml）
+    #    · 飞行期：`flying_mesh` 用**月牙那件单独**（核的飞行段交给粒子 core_bead）—— 保住 L1 引擎复用
+    #    · 副产品（重要）：拆开后 **一个网格一张自己的贴图 + 一套自己的材质**，
+    #      不再被迫共用那张"左半月牙 / 右上核"的分区图集 ⇒ 两条动画路都解锁了
     cv, cf, cuv = crescent_geometry()
-    # 🔴 把弧腹（核）挪到网格原点：导弹的**原点 = 命中点**，核是玩家眼里这发法术的"正中"，
-    #    所以原点必须落在核上。否则法术看着打在月牙正中、实际在 R 米开外命中（月牙会整体偏出去）。
+    # 🔴 弧腹挪到网格原点：导弹的**原点 = 命中点**，弧腹是玩家眼里这发法术的"正中"。
+    #    不挪的话法术看着打在月牙正中、实际在 R 米开外命中（月牙整体偏出去）。
     cv = [(x - cc[0], y - cc[1], z - cc[2]) for (x, y, z) in cv]
-    kv, kf, kuv = uv_sphere_geometry(CORE_R, (0.0, 0.0, 0.0))
-    off = len(cv)
-    export(NAME_CRESCENT, cv + kv, cf + [tuple(i + off for i in f) for f in kf], cuv + kuv)
-    print(f"       月牙 {len(cf)} 面 + 核 {len(kf)} 面")
+    # 🔴 整体绕 X 转，把"腹朝 +Y"扳成"腹朝 +Z = 飞行方向"（飞行朝向的唯一旋钮，见文件头）
+    #    必须在"腹已挪到原点"**之后**转 —— 绕原点转才不会把腹转跑。
+    if CRESCENT_TILT_X_DEG:
+        th = math.radians(CRESCENT_TILT_X_DEG)
+        c_, s_ = math.cos(th), math.sin(th)
+        cv = [(x, y * c_ - z * s_, y * s_ + z * c_) for (x, y, z) in cv]
+        print(f"    月牙绕 X 转 {CRESCENT_TILT_X_DEG}°（腹 → +Z = 飞行方向）")
+    export(NAME_CRESCENT, cv, cf, cuv)
+    print(f"       月牙 {len(cf)} 面")
+    print(f"       弧腹(原点) 在 {CORE_POS}；曲率中心相对原点 "
+          f"({-cc[0]:+.2f}, {-cc[1]:+.2f}, {-cc[2]:+.2f})")
 
-    # ② 只有核（蓄力时挂手心复用）
+    kv, kf, kuv = uv_sphere_geometry(CORE_R, (0.0, 0.0, 0.0))
     export(NAME_CORE, kv, kf, kuv)
+    print(f"       核 {len(kf)} 面")
     print(f"\nDONE —— 两个 FBX 已在 {OUTDIR}")
 
 

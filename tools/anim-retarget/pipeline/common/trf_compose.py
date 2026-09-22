@@ -82,6 +82,18 @@ def qangle_deg(a, b):
     return math.degrees(2.0 * math.acos(d))
 
 
+def qslerp_identity(q, s):
+    """从"不转"插值到 q 的 s 倍（s=0 → 单位四元数，s=1 → q）。用来缩放某根骨的增量转了多少。"""
+    q = qnormalize(q)
+    if q[3] < 0.0:                      # 走短弧
+        q = tuple(-x for x in q)
+    ang = math.acos(max(-1.0, min(1.0, q[3])))
+    if ang < 1e-9:
+        return (0.0, 0.0, 0.0, 1.0)
+    k = math.sin(ang * s) / math.sin(ang)
+    return (q[0] * k, q[1] * k, q[2] * k, math.cos(ang * s))
+
+
 # ─────────────────────────────── TRF 读写 ───────────────────────────────
 
 
@@ -169,8 +181,17 @@ def write_trf(t, path):
 # ─────────────────────────────── 合成主逻辑 ───────────────────────────────
 
 
-def compose(base, add, ref, ref_frame=None):
-    """结果(t) = 基础(t) ∘ (增量 ∘ 参照(参照帧)⁻¹)。ref_frame=None ⇒ 用参照文件的第一帧。"""
+def compose(base, add, ref, ref_frame=None, root_scale=1.0, root_index=0):
+    """结果(t) = 基础(t) ∘ (增量 ∘ 参照(参照帧)⁻¹)。ref_frame=None ⇒ 用参照文件的第一帧。
+
+    root_scale：**根骨（默认 0 号 = pelvis）那道增量缩放多少**。1.0 = 原样（旧行为），
+      0 = 完全不加（身体朝向保持基础动画的，倾斜只来自脊柱/四肢）。
+      🔴 为什么要这个旋钮（2026-09-22 用户在查看器里盯出来的）：
+         `FM_A_Lean_*` 这批"倾斜"增量在**根骨上有 85°**（其它骨最大 22°），照原样合成
+         = 把人**整体转了 90°**；而 UE 那边这个倾斜的实际观感是"头带着肩膀倾"。
+         根骨那道量是**趴姿家族根骨读数 ~90° 的已知疑点**（见方案 §3.7）在增量上的投影，
+         不是"倾斜"本身 —— 所以合成时要能把它摘掉。
+    """
     if base.bone_count != add.bone_count or base.bone_count != ref.bone_count:
         raise ValueError("骨数不一致: base=%d add=%d ref=%d"
                          % (base.bone_count, add.bone_count, ref.bone_count))
@@ -185,11 +206,19 @@ def compose(base, add, ref, ref_frame=None):
 
     r = Trf()
     r.name = base.name + "_composed"
+    # 🔴 名字在 main() 里按【输出文件名】覆盖 —— TRF 第 3 行是 ModKit 用来生成 clip 名的
+    #     （见 fbx_to_trf.py 的 `--name` 注释）。原来写死 `_composed` 的后果（2026-09-22 用户抓到）：
+    #     所有合成件内部名都叫 `<基准>_composed`，**既看不出是哪一条、LeanL 和 LeanR 还会撞名**。
     deltas = []
 
     for b in range(base.bone_count):
         q_ref = ref.bone_at(b, ref_frame) if ref_frame is not None else ref.bone_first(b)
         d = qmul(add.bone_first(b), qconj(q_ref))
+        if b == root_index and root_scale < 0.999:
+            _before = qangle_deg(d, (0, 0, 0, 1))
+            d = qslerp_identity(d, max(0.0, root_scale))
+            print("[info] 根骨（骨 %d）增量缩放 %.2f：%.2f° → %.2f°"
+                  % (b, root_scale, _before, qangle_deg(d, (0, 0, 0, 1))))
         deltas.append(d)
         r.bones.append([(f, qnormalize(qmul(q, d))) for f, q in base.bones[b]])
 
@@ -241,6 +270,9 @@ def main():
     ap.add_argument("--ref-frame", type=int, default=None,
                     help="参照取哪一帧（Blender 帧号；默认取参照文件的第一帧）")
     ap.add_argument("--out", help="输出 TRF（--check 时可省）")
+    ap.add_argument("--name", help="TRF 里的动画名（缺省 = 输出文件名，ModKit 靠它生成 clip 名）")
+    ap.add_argument("--root-scale", type=float, default=1.0,
+                    help="根骨（0 号，pelvis）那道增量缩放多少：1=原样，0=完全不加（身体朝向保持基础动画）")
     ap.add_argument("--check", action="store_true",
                     help="自检模式：不写文件，只报告'合成结果 vs 基础'的偏差（中性增量应当 ≈ 0）")
     a = ap.parse_args()
@@ -253,7 +285,7 @@ def main():
     print("增量 = %s（%d 帧）" % (add.name, len(add.bones[0])))
     print("参照 = %s%s" % (ref.name, "" if a.ref else "（= 基础）"))
 
-    out, deltas = compose(base, add, ref, a.ref_frame)
+    out, deltas = compose(base, add, ref, a.ref_frame, a.root_scale)
     report_deltas(deltas)
 
     if a.check:
@@ -264,8 +296,11 @@ def main():
     if not a.out:
         print("ERR: 没给 --out（或加 --check 只做自检）", file=sys.stderr)
         return 1
+    # 🔴 TRF 第 3 行的动画名 = **输出文件名**（ModKit 靠它生成 clip 名）——
+    #    不这么写就会全叫 `<基准>_composed`（既看不出是哪条、LeanL/LeanR 还会撞名）。
+    out.name = a.name or os.path.splitext(os.path.basename(a.out))[0]
     write_trf(out, a.out)
-    print("已写出: %s" % a.out)
+    print("已写出: %s（动画名 = %s）" % (a.out, out.name))
     compare(out, base)
     return 0
 

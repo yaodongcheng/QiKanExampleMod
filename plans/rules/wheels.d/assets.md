@@ -983,3 +983,139 @@ python Debug\offline\trf_root_travel.py --trf "<xxx.trf>"
 | 填了值**还是不动** | `displace_position` flag 有没有勾（**两个都要**：flag + 向量）|
 | 动是动了但**脚滑** | `endProgress` 与轨迹形状不匹配（引擎按**直线线性插值**，动画往往非匀速）|
 | 动了**两倍** | A/B 叠加了（代码 `TeleportToPosition` 与 `displace_position` 同开）|
+
+---
+
+## 十九、增量动画：合成 + 预览（2026-09-22 登记，飞行工程实战）
+
+> 素材背景：UE 飞行包里带 `_Add` / `Lean_*` / `Pose_*` 的动画是**增量**（相对某条参照动画的差），
+> **直接当普通动画播或导 = 错**（本次实测：`FM_A_Lean_*` 直插会把整个人转 90°）。
+
+### 19.1 一句话
+
+**增量必须"合成"成一条独立动画才能用**：`结果(t) = 基础(t) ∘ (增量 ∘ 参照(参照帧)⁻¹)`。
+工具 `pipeline/common/trf_compose.py`（**TRF→TRF，不回 Blender**）。
+
+- **参照帧 = 参照文件的第 0 帧**；`--ref` 缺省 = `--base`。对这批素材验过：拿"中性"增量合成，
+  结果与基础只差 **0.010°** ⇒ 公式与参照假设都成立。
+- 🔴 **合成件的 TRF 内部动画名必须 = 输出文件名**（`--name` 可覆盖）：ModKit 是靠 TRF 第 3 行
+  生成资产名 / clip 名的。`trf_compose` 原先把名字写死成 `<基准名>_composed` —— 后果是
+  **所有合成件都叫同一个名、LeanL 与 LeanR 直接撞名**（2026-09-22 用户在 ModKit 里当场抓到）。
+- 想认"一条增量到底相对谁做的"：把它的第 0 帧与候选参照**逐骨比角**，最小者就是真参照
+  （本次 8 条全中；`FM_A_Lean_*` 相对 FastMove 基准平均只差 8°）。
+
+### 19.2 🔴 合成前必做：把**根骨那道增量**缩掉（`--root-scale 0`）
+
+这批"倾斜 / 俯仰"增量在 **根骨（骨 #0 = `pelvis`）上有 85°**，而其它骨最大才 22° ——
+照原样加 = **把整个人转 90°**（用户在查看器里当场指出："人家是头带着肩膀倾，你把人旋转 90 度了"）。
+
+- `--root-scale 0` 去掉后，偏差落回**肩 / 臂 / 颈**（22° / 20°，左右对称）= 正确观感。
+- 这是飞行方案 §3.7「趴姿家族根骨读数 ~90°」那条疑点在增量上的**首次实锤**。
+- **口径**：常规合成一律 `--root-scale 0`；真要一点整体压弯再给 0.2~0.5。
+
+### 19.3 🔴 预览链路：GLB 必须**直读 TRF**（`glb_pack_retargeted.py --trfdir`）
+
+查看器只吃 GLB、而交付物是 TRF —— 中间这一步踩过两个**把预览做假**的坑：
+
+| 坑 | 症状 | 做法 |
+|---|---|---|
+| **跨骨架搬 action** | Blender ≥4.4 的 action 带 slot，搬过去**静默失败**：姿势停在绑定姿势；文件照样生成、通道照样有 ⇒ "有没有数据"这类检查查不出来 | **逐帧拷 `rotation_quaternion/location/scale`**，或干脆不经 FBX |
+| **FBX 导入器改场景 fps** | 关键帧按 24fps 换算成秒 ⇒ 时长 ×1.25；查看器又按"时长比"给两侧锁相 ⇒ 两个人错位 | 设 `sc.render.fps` 必须在**导入基底之后** |
+
+⇒ **结论：打包直接读 `.trf`**（TRF 就是进 ModKit 的那份 ⇒ 预览所见 = 装机所见）。
+
+### 19.4 四联排预览法（判断"这个增量加得对不对"）
+
+查看器 `dataset.json` 的 `sides` 是**通用的**（不限 `src`/`dst`，`Object.keys(sides)` 驱动）。
+做 4 个面板同播一条 clip：**① 基础 pose ② 增量 pose ③ 基础动画 ④ 合成后动画**。
+
+- **姿态格要"定住第 0 帧、长度与动画格一致"**（`trf_hold.py`）—— 只留 1 帧会被查看器按时长比拉伸错位。
+- 判读：**②−① = 这条增量加了多少；④−③ = 同一件事在动画上的样子**。
+- ⚠️ `dataset.json` 的**字符串值里禁止半角双引号**（JSON 会提前截断 → 报 `position N` 解析失败）。
+
+### 19.5 体检（都不依赖渲染，"肉眼看"之前先过一遍）
+
+| 工具 | 干什么 |
+|---|---|
+| `trf_compose.py --check` | 合成结果 vs 基础的逐帧逐骨偏差（中性增量应当 ≈ 0）|
+| `check_glb_anim.py` | 读 GLB 关键帧，量每条动画相对**绑定姿势**的最大关节转角（≈0 = 搬运失败 / 本来就是定格）|
+| `glb_pose_probe.py` | 读 GLB 直接算某时刻 骨盆/头/脚 的世界坐标与**时长**（查 fps 写错这类）|
+| `trf_hold.py` | TRF 定格化（每帧 = 第 0 帧，帧数取参考动画）|
+
+### 19.6 本次新增 / 改动的工具
+
+| 工具 | 位置 | 说明 |
+|---|---|---|
+| `trf_compose.py` | `pipeline/common/` | 新增 `--root-scale`（根骨增量缩放；**这批素材用 0**）|
+| `trf_hold.py` | `pipeline/common/` | TRF 定格（`--like` 指定参考动画取帧数）|
+| `glb_pack_retargeted.py` | `pipeline/common/` | **直读 TRF** 合进查看器 GLB；`--clips "trf名=动画名"` 支持一条素材出多个名字 |
+| `check_glb_anim.py` | `pipeline/common/` | 纯 python GLB 动画体检 |
+| `glb_pose_probe.py` | `pipeline/common/` | 纯 python GLB 姿势/时长探针（**方向判读仍不可信，只用时长**）|
+| `trf_to_fbx.py` | `pipeline/common/` | TRF→FBX（通用件；预览链路已改走 TRF 直读，留着做别的用途）|
+
+---
+
+## 二十、🔴 **网格贴图动画**：翻页 vs 漂移，两条路互斥（2026-09-22 登记，法阵云实机踩出）
+
+> **一句话**：想让**网格材质**动起来，材质层有两条路 —— **翻页**（`use_animated_texture_coords`）与**漂移**（`use_texture_sweep`）。
+> 🔴 **它们 + `self_illumination` 三个抢同一个 `Vector Argument 1`，只能开一个。**
+> 全文（源码原文 + 生成脚本 + Material Editor 字段对照）→ **[Knowledge/骑砍2网格贴图动画_引擎能力与实现.md](../../../Knowledge/骑砍2网格贴图动画_引擎能力与实现.md)**
+
+### 20.1 选型（三行判据）
+
+| 想要 | 走哪条 | 贴图要求 |
+|---|---|---|
+| **流动感**（火焰沿刃流、云在涌、水面） | **漂移** `use_texture_sweep` | **必须可平铺**（接缝判据见 20.3） |
+| **形状变化**，或**贴图里有不能动的东西**（圆形遮罩、内热外冷渐变、图集分区） | **翻页** `use_animated_texture_coords` | **图集**（N×M 栅格），网格 UV 保持 [0,1] |
+| 🔴 **"遮罩 + 会动"** | **只能翻页** | 遮罩烘进**每一格**的中央 |
+
+🔴 **那条硬限制**（本轮踩出来的）：**漂移是平移 UV ⇒ 会把烘在贴图里的空间遮罩一起漂走**（云飘出圆心、方形网格四角露回方边）。
+**翻页是缩放+偏移（`uv *= 1/列行; += 格偏移`）⇒ 遮罩稳稳停在网格正中央。** 这两句是整个选型的根。
+
+### 20.2 参数（`Vector Argument 1`，界面 = Vector Arguments 面板）
+
+| | `.x` | `.y` | `.z` | `.w` |
+|---|---|---|---|---|
+| **翻页** | 图集列数 | 图集行数 | 播放速度（帧/秒） | 总帧数 |
+| **漂移** | u 漂移速度 | v 漂移速度 | — | — |
+| **自发光** | randomness | flicker_frequency | flicker_power | base_illumination |
+
+- 漂移量 = `参数 × 时间 × 1.64` ⇒ `0.03` ≈ 20 秒滚过一整张
+- 4 帧翻页的速度经验：**1~2 看着像 glitch（每帧硬切）、8~12 糊成沸腾**；各帧内容**形状相近且柔和**时"切"感最轻
+- 参数由 C# 给：`TaleWorlds.Engine.Mesh.SetVectorArgument(v0,v1,v2,v3)` / `SetVectorArgument2(...)`（引擎侧变量 `g_mesh_vector_argument` / `_2`）
+
+### 20.3 贴图生成三条纪律
+
+1. **黑底** —— 配 `Add Alpha` / `Add Modulate Combined`，**黑 = 不发光 = 隐形**；铺满颜色会被当 albedo 受光 ⇒ 渲染成"木地板"（实拍过）
+2. **可平铺判据**：`|左列−右列| 均值 < 内部相邻列差均值 × 1.6`（上下同理），**再拼 2×2 目视**
+   🔴 **名字带 `_Tile` 不等于无缝**：`T_Inky_Smoke_Tile` 实测接缝 2.2 / 内部基准 0.8 = 有明显缝
+3. **亮度重映射**：UE 噪声图暗部常不是 0（如 34）⇒ 加法下整片泛灰，要 `(亮 − LO)/(HI − LO)` 拉满
+
+其余：8bit RGB + 无附加块（过 `png_for_editor.py`）· **留 mips** · 平滑渐变（云/火）建议勾 **`Do Not Compress`**（DXT1 块压缩会出色阶）
+
+### 20.4 Material Editor 字段对照（dump 名 ↔ 界面名 ↔ 面板）
+
+| 引擎字段 | 界面名 | 面板 |
+|---|---|---|
+| `blend` / `alphaTest` | **Alpha Blend Mode** / Alpha Test | **Transparency** |
+| `shaderFlags` | **Material Shader Flags**（勾选列表） | 同名面板 |
+| `flags` | Needs Forward Rendering / Don't Modify Depth Buffer / Don't Draw To Gbuffer / Don't Cast Shadow / **Two Sided** | **Others** |
+| `g_mesh_vector_argument` / `_2` | **Vector Argument 1 / 2** | **Vector Arguments** |
+| `tex[0..N]` | Diffuse 1 / Diffuse 2 / … | **Textures** |
+
+**发光网格不是靠 addalpha 糊的**：`self_illumination` 是正式 flag —— 官方文档原话「发光图放 **Diffuse 2**、亮度在 **Vector Arguments** 调」。
+⚠️ 但它与翻页/漂移**共用 Vector1** ⇒ 只在两个都不开时才用。
+
+### 20.5 两条踩过的坑
+
+1. **`USE_SUNLIGHT` 只有粒子 shader 有**（`particle_shading.rsh`）—— 网格材质里勾不到，我当初把「粒子 dump 的 shaderFlags」和「网格 shader 的 flag」拼在一起给用户，白折腾一轮。**flag 归属要按 shader 逐个查**（`Shaders/Sources/` 全文 grep flag 名）
+2. **`Assets\<类>\<名>\*_tex.tpac` 没有像素**（只有导入设置）⇒ 想"捞回原图"只能从**已发布的 `AssetPackages\*.tpac`**：`tpaccli dump --packdir <模块>\AssetPackages --filter <名> --format png`。配套：**备份脚本必须幂等**（只在备份不存在时备），否则第 2 次运行就把"上次的产物"当原图备进去了 —— 本轮真发生过
+
+### 20.6 现成工具
+
+| 工具 | 位置 | 说明 |
+|---|---|---|
+| `gen_sigil_cloud_tex.py` | `tools/armor-pipeline/scripts/` | 云贴图生成器：`MODE = "cloud4"`（4 格圆云图集，遮罩内聚外散）/ `"sweep"`（可平铺漂移）/ `"flipbook"`。含**幂等备份** + `png_for_editor` 串联 |
+| `gen_spell_textures.py` | 同上 | 阴魔斩月牙/核：**一张图服务同一网格里的两件**（左半跨带渐变 + 右上核的径向盘） |
+| `preview_mesh.py` | 同上 | 回读 FBX：打印尺寸 / **UV 范围** / 包围盒 + 把 `_d.png` 接成自发光渲三视图 |
+| `build_spell_mesh.py` | 同上 | 月牙+核网格 Blender 生成器（参数全在文件头） |

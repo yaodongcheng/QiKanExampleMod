@@ -113,13 +113,15 @@ def render(path, w=900, h=900):
     eng = pick_engine()
     if eng == "CYCLES":
         sc.cycles.samples = 32
-    # 背景用**中灰偏暗**：自发光色才压得住、也还看得清轮廓（纯黑会把暗部刃口吃掉）
+    # 🔴 背景压到**近黑**：网格材质要用 **addalpha（加法混合）**，所以渲染出来的
+    #    "贴图本身"就约等于"它往画面上加的那份光" —— 黑底才看得准。
+    #    （用中灰底会误判：加法下不发光的地方是透明的，灰底会把它们衬成"实心暗块"。）
     wd = sc.world or bpy.data.worlds.new("W")
     sc.world = wd
     wd.use_nodes = True
     bg = wd.node_tree.nodes.get("Background")
     if bg:
-        bg.inputs[0].default_value = (0.13, 0.14, 0.17, 1.0)
+        bg.inputs[0].default_value = (0.035, 0.038, 0.050, 1.0)
         bg.inputs[1].default_value = 1.0
     sc.render.resolution_x = w
     sc.render.resolution_y = h
@@ -152,6 +154,14 @@ def main():
         for o in meshes:
             print(f"    对象 {o.name:28} 顶点 {len(o.data.vertices):6d}  面 {len(o.data.polygons):6d}"
                   f"  尺寸 {o.dimensions.x:.3f} × {o.dimensions.y:.3f} × {o.dimensions.z:.3f} m")
+            # UV 范围：决定"贴图能不能直接用"——超出 [0,1] 会平铺/取到别的格
+            if o.data.uv_layers:
+                us = [l.uv[0] for l in o.data.uv_layers[0].data]
+                vs = [l.uv[1] for l in o.data.uv_layers[0].data]
+                print(f"         UV u[{min(us):.3f},{max(us):.3f}]  v[{min(vs):.3f},{max(vs):.3f}]"
+                      f"  ({len(o.data.uv_layers)} 层)")
+            else:
+                print("         ⚠️ 无 UV 层")
         print(f"    包围盒 X[{lo.x:+.3f},{hi.x:+.3f}]  Y[{lo.y:+.3f},{hi.y:+.3f}]  Z[{lo.z:+.3f},{hi.z:+.3f}]")
         apply_texture_material(fbx, meshes)
 

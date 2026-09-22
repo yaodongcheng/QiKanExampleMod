@@ -84,6 +84,12 @@ namespace LivingWorldNpcs.Flight
         private float _bodyDiagTimer;
         private float _airTime;              // 进入空中态后过了多久（撞地检测的宽限期用）
         private bool _descendArmed;          // 长按下降是否已"解锁"（起飞时手还按着空格 ⇒ 要松开重按）
+        private float _dodgeTimer;           // 闪避位移还剩多久（>0 = 这段时间速度归闪避）
+        private Vec3 _dodgeDir;              // 闪避位移方向（世界向量，单位化）
+        private float _dodgeCooldown;        // 两次闪避之间的剩余冷却（秒）
+        private FlightDodgeDir _pendingDodge = FlightDodgeDir.None;  // 已请求、还没被状态机接走的闪避方向
+        private float _pendingDodgeTimer;    // 上面那个请求的存活时间（过期就撤，免得隔几帧突然闪一下）
+        private string _lastAnimState;       // 上一帧的动画状态名（变了就弹一条提示；见 OnMissionTick）
         private bool _boardSpawned;          // 本次起飞：板是否已经召唤出来（延迟召唤用）
         private float _boardSpawnTimer;      // 本次起飞：从触发到召唤板过了多久
         private float _takeoffAnimTimer;     // 本次起飞：从按空格那一刻起算（入姿时长按它判，与板延迟重叠）
@@ -110,6 +116,9 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>俯仰档（带迟滞）：+1 抬头 / 0 水平 / −1 低头。进用大阈值、出用小阈值。</summary>
         private readonly AnimLatch _pitchLatch = new AnimLatch(0f, 0f);   // 阈值每帧按 FlightTuning 刷新
+
+        /// <summary>压弯档（带迟滞）：+1 按 D（右移）/ 0 / −1 按 A（左移）。取自横移输入。</summary>
+        private readonly AnimLatch _bankLatch = new AnimLatch(0f, 0f);    // 同上
 
         /// <summary>
         /// 🔴 **取证钩子**（2026-09-21）：`MissionScreen.UpdateCamera` 在 <c>Mission.OnTick</c> 里
@@ -183,6 +192,35 @@ namespace LivingWorldNpcs.Flight
             //    它在这两段被 Hold 住（相位自己 Force），但**仍要跑**：维持当前动作 + 定期核对
             //    有没有被引擎的走跑系统抢走 0 号通道。
             _anim.Tick(main, dt);
+
+            // 🔴 姿态变化时弹一条提示（2026-09-22 用户要求：调姿态时"看得见"到底进了哪个状态）。
+            //    文本走 LWNTextHelper（铁律 13）；关掉：`custom.flight tune statemsg 0`。
+            if (FlightTuning.ShowStateMessages && _anim.Current != _lastAnimState)
+            {
+                _lastAnimState = _anim.Current;
+                if (!string.IsNullOrEmpty(_lastAnimState))
+                {
+                    DebugLogger.Log($"[Flight] 姿态 → {_lastAnimState}（{_anim.CurrentAction}）");
+                    try
+                    {
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            LWNTextHelper.ResolveCompound("LWN_ui_flight_state", ("LWN_STATE", _lastAnimState)),
+                            Colors.Yellow));
+                    }
+                    catch
+                    {
+                        // 弹提示只是调试辅助，它自己出问题不该影响飞行
+                    }
+                }
+            }
+
+            // 闪避请求已被状态机接走（当前状态就是闪避）⇒ 撤销请求，免得下一帧又触发一次。
+            // 超时也撤（正常一帧内就该接走；撤不掉说明那条动作没接线，见 FlightTuning.ActDodge*）。
+            if (_pendingDodge != FlightDodgeDir.None && IsDodgeState(_anim.Current))
+            {
+                _pendingDodge = FlightDodgeDir.None;
+                _pendingDodgeTimer = 0f;
+            }
 
             // 🔴 运动相机（N5）—— **飞行全程**（含起飞/落地）都推进，免得起降瞬间相机跳回引擎相机。
             //    机位过渡时长与动画交叉淡化**2026-09-21 起已解绑**（用户实机裁定镜头慢一点更像运镜，
@@ -321,6 +359,16 @@ namespace LivingWorldNpcs.Flight
         private void TickAirborne(Mission mission, Agent main, float dt)
         {
             _airTime += dt;
+            if (_dodgeTimer > 0f)
+                _dodgeTimer -= dt;
+            if (_dodgeCooldown > 0f)
+                _dodgeCooldown -= dt;
+            if (_pendingDodgeTimer > 0f)
+            {
+                _pendingDodgeTimer -= dt;
+                if (_pendingDodgeTimer <= 0f)
+                    _pendingDodge = FlightDodgeDir.None;   // 请求过期（没接线 / 没进状态）⇒ 撤销
+            }
 
             // ① 先取镜头方向（下面几处都要用）
             GetCameraBasis(out Vec3 forward, out Vec3 right);
@@ -342,7 +390,23 @@ namespace LivingWorldNpcs.Flight
             float heightAboveGround = (_board.Origin.z + FlightTuning.CarrierTopLocalZ) - groundZNow;
             bool chargingGround = forward.z <= -FlightTuning.LandTapDivePitch;
 
-            if (FlightTuning.LandByTap && FlightInput.ConsumeSpacePress())
+            // 🔴 空格**按下沿**一次读掉，再分流（2026-09-22 闪避接入）——
+            //    按下沿是"谁先读谁拿走"的一次性信号，分成两处各读一次 = 后读的那处永远读不到。
+            bool spaceTap = FlightInput.ConsumeSpacePress();
+
+            // ②-0 **冲刺中短按空格 = 闪避**（2026-09-22 用户裁定）。
+            //      · 只在冲刺态（按住 Shift）里成立 —— 那 4 条闪避动画的基准姿势就是趴姿，
+            //        从悬停 / 巡航（直立）切过去会硬翻 ~90°。
+            //      · 冲刺时这一下**专管闪避**：冷却中也吞掉，不再落回"贴地 / 俯冲落地"那套判定
+            //        （否则手一快就忽闪忽落，读不出玩家意图）。落地仍有长按下降与撞地两条路。
+            if (spaceTap && FlightTuning.DodgeOnSpaceTapInBoost && FlightInput.BoostHeld)
+            {
+                if (_dodgeCooldown <= 0f)
+                    BeginDodge(right);
+                return;     // 本帧交出去（姿态下一帧由状态机进，位移从下一帧起算）
+            }
+
+            if (spaceTap && FlightTuning.LandByTap)
             {
                 bool lowEnough = heightAboveGround <= FlightTuning.LandTapMaxHeight;
                 if (lowEnough || (chargingGround && FlightTuning.LandTapWhileDiving))
@@ -388,6 +452,15 @@ namespace LivingWorldNpcs.Flight
             if (descendHeld)
                 _velocity = new Vec3(_velocity.x, _velocity.y, -FlightTuning.DescendRate);
 
+            // 闪避位移：这段时间速度**整个交给闪避方向**（与"长按下降"同一套写法 —— 覆盖，不叠加）。
+            // 位移走完自动交还普通飞行，而姿态动画继续按自己的时长演完（两者刻意解耦：
+            // 位移是玩法，动画是表现，谁都不等谁）。
+            if (_dodgeTimer > 0f)
+            {
+                float span = Math.Max(0.01f, FlightTuning.DodgeDisplaceSeconds);
+                _velocity = _dodgeDir * (FlightTuning.DodgeDistance / span);
+            }
+
             // (4) 逐帧瞬移载具 —— 就是 FlySpike 那三行，一个夹取都不加。
             //     地形夹取 / 高度上限 / 单帧上限 **全部删掉**：
             //     它们是"我猜的保险"，实测只会制造新问题（160 米上限当场把人卡死过）。
@@ -405,7 +478,10 @@ namespace LivingWorldNpcs.Flight
             //
             // 🔴 **本条推翻早先的"飞机式"裁定**（那条要求 A/D 平移时身体不转、始终朝镜头前方）。
             //    两条是相反的，**以现在这条为准**；要改回去只需把 `dir` 换成 `forward`（一行）。
-            if (FlightInput.HasMoveInput)
+            //
+            // 🔴 **闪避位移期间不转**（2026-09-22）：那 4 条闪避动画是相对**身体正前方**做的
+            //    （实测：左右闪 = 头 / 腿朝两侧摆），位移时把身体转过去就变成"朝前闪"了，看着不对。
+            if (FlightInput.HasMoveInput && _dodgeTimer <= 0f)
                 TurnBodySmoothed(main, dir, dt);
 
             // ⑧′ 掉下板检测（2026-09-22 用户实机：撞墙时板穿墙、人被墙挡住 ⇒ 人掉下来）
@@ -463,7 +539,11 @@ namespace LivingWorldNpcs.Flight
             if (_boardRemoved)
             {
                 // ② 落地段：人已站在真实地面、板已拆，只剩把动画演完
-                _anim.Force(main, "land", FlightTuning.AnimBlendIn);
+                // 🔴 **只在没进落地态时才 Force**（2026-09-22 修）：原来每帧无条件 Force 一次，
+                //    后果是 ① 日志里刷出 357 行 `land → land` ② 状态机的抖动自检被它触发（每秒 61 次假警告）
+                //    ③ 更要命的是"每帧重设动作通道会把动画卡在第 0 帧"（方案里记过的坑）。
+                if (_anim.Current != "land")
+                    _anim.Force(main, "land", FlightTuning.AnimBlendIn);
                 _landTimer += dt;
                 if (_landTimer >= FlightTuning.LandAnimSeconds || _landTimer >= FlightTuning.LandMaxSeconds)
                 {
@@ -608,6 +688,73 @@ namespace LivingWorldNpcs.Flight
             return true;
         }
 
+        /// <summary>
+        /// **发起一次闪避**（2026-09-22 用户裁定：冲刺中短按空格）。
+        ///
+        /// 两件事一起做，但**各管各的时长**：
+        ///   · **位移** = 朝请求方向冲 <see cref="FlightTuning.DodgeDistance"/> 米
+        ///     （<see cref="FlightTuning.DodgeDisplaceSeconds"/> 秒内走完）；
+        ///   · **姿态** = 交给动画状态机（`dodgeL/R/U/D`，一次性，演完自己回普通转移）。
+        ///
+        /// 方向怎么定（本帧输入 → 状态机那条 `DodgeRequest`）：
+        ///   A → 左闪 / D → 右闪 / **S → 下闪** / **W 或没推方向 → 上闪**。
+        /// 为什么 W 也算上闪：冲刺时玩家几乎一直按着 W（往前飞），若要求"S 才下、没有键才上"，
+        /// 那最顺手的那一下（W + 空格）就永远只出上闪 —— 这样定至少让四种闪避都够得着。
+        /// 🔴 左右 / 上下**谁优先**：先看 A/D（横向躲最常见的攻击），再看 W/S。
+        /// </summary>
+        private void BeginDodge(Vec3 right)
+        {
+            Vec2 axis = FlightInput.MoveAxis;
+            FlightDodgeDir dir;
+            Vec3 moveDir;
+            if (axis.x < -0.3f)
+            {
+                dir = FlightDodgeDir.Left;
+                moveDir = -right;
+            }
+            else if (axis.x > 0.3f)
+            {
+                dir = FlightDodgeDir.Right;
+                moveDir = right;
+            }
+            else if (axis.y < -0.3f)
+            {
+                dir = FlightDodgeDir.Down;
+                moveDir = new Vec3(0f, 0f, -1f);
+            }
+            else
+            {
+                dir = FlightDodgeDir.Up;
+                moveDir = new Vec3(0f, 0f, 1f);
+            }
+
+            _pendingDodge = dir;
+            _pendingDodgeTimer = 0.3f;      // 状态机下一帧就该接走；超时（没接线）= 撤销
+            _dodgeDir = moveDir.NormalizedCopy();
+            _dodgeTimer = FlightTuning.DodgeDisplaceSeconds;
+            _dodgeCooldown = FlightTuning.DodgeCooldownSeconds;
+
+            DebugLogger.Log($"[Flight] 闪避 {dir}（输入=({axis.x:F2},{axis.y:F2}) " +
+                            $"位移={FlightTuning.DodgeDistance:F1}m/{FlightTuning.DodgeDisplaceSeconds:F2}s " +
+                            $"冷却={FlightTuning.DodgeCooldownSeconds:F1}s）");
+        }
+
+        /// <summary>这个状态名是不是闪避态（状态机那边定义的，写在这免得两处字符串漂移）。</summary>
+        private static bool IsDodgeState(string state)
+        {
+            return state == "dodgeL" || state == "dodgeR" || state == "dodgeU" || state == "dodgeD";
+        }
+
+        /// <summary>清掉闪避相关的临时状态（收摊时调）—— 不清的话下次起飞会带着上次的冷却 / 位移。</summary>
+        private void ClearDodgeState()
+        {
+            _dodgeTimer = 0f;
+            _dodgeCooldown = 0f;
+            _dodgeDir = Vec3.Zero;
+            _pendingDodge = FlightDodgeDir.None;
+            _pendingDodgeTimer = 0f;
+        }
+
         private void BeginLanding(Agent main, bool gentle, float approachSpeed)
         {
             _phase = Phase.Landing;
@@ -640,6 +787,7 @@ namespace LivingWorldNpcs.Flight
             _takeoffSettled = false;
             _takeoffTimer = 0f;
             _boardRemoved = false;
+            ClearDodgeState();
             ExitCamera();               // 🔴 必须还相机
             ExitFreeze();
             FlightInput.Reset();
@@ -671,6 +819,7 @@ namespace LivingWorldNpcs.Flight
             _takeoffSettled = false;
             _takeoffTimer = 0f;
             _boardRemoved = false;
+            ClearDodgeState();
             ExitCameraImmediate();      // 🔴 强制收摊不拖时间（不还 = 场景内相机永远被我们接管）
             ExitFreeze();
             FlightInput.Reset();
@@ -1110,6 +1259,13 @@ namespace LivingWorldNpcs.Flight
             _animCtx.Moving = FlightInput.HasMoveInput || _velocity.LengthSquared > 1f;
             _animCtx.Boost = FlightInput.BoostHeld;
 
+            // 冲刺键**按下沿**（一次性消费）—— 状态机用它进"冲刺入姿"那一段一次性动画。
+            // 🔴 只在空中态每帧读一次；起飞/落地那两段状态机被 Hold 住，此时按下沿丢掉也无所谓。
+            _animCtx.BoostJustPressed = FlightInput.ConsumeBoostPress();
+
+            // 闪避请求：由 BeginDodge 置位，被状态机接走（或 0.3 秒超时）后清掉。
+            _animCtx.DodgeRequest = _pendingDodge;
+
             // 俯仰档（带迟滞）：进用大阈值、出用小阈值。
             // 实测姿态之间是 120°~180° 的大翻转，单阈值下镜头停在阈值附近会让动画来回翻。
             _pitchLatch.SetThresholds(FlightTuning.PitchThreshold, FlightTuning.PitchExitThreshold);
@@ -1118,6 +1274,12 @@ namespace LivingWorldNpcs.Flight
             else
                 _pitchLatch.Update(camForward.z);   // 相机前方向的竖直分量 = 俯仰
             _animCtx.PitchBand = _pitchLatch.Value;
+
+            // 压弯档（带迟滞）：**横移输入 A/D** 的符号就是方向（−1 = A = 左压 / +1 = D = 右压）。
+            // 阈值可热调：`tune bank` / `tune bankout`；两个都填 0 = 关掉压弯（永远不进压弯状态）。
+            _bankLatch.SetThresholds(FlightTuning.BankThreshold, FlightTuning.BankExitThreshold);
+            _bankLatch.Update(FlightInput.MoveAxis.x);
+            _animCtx.BankBand = _bankLatch.Value;
         }
 
         /// <summary>

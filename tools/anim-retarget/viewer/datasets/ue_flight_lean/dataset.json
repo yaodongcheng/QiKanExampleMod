@@ -1,0 +1,27 @@
+{
+  "name": "ue_flight_lean",
+  "title": "增量合成 · 四联排（①基础pose ②增量pose ③基础动画 ④增量动画）",
+  "subtitle": "从左到右四格：①【基础 pose】= 基础动画的第 0 帧（合成公式里的「参照姿势」，静帧）②【增量 pose】= 加上这条增量后的姿态（也就是第 0 帧的合成结果，静帧）③【基础动画】= 基础动画在播 ④【增量动画】= 合成结果在播。②−① = 这条倾斜加了多少；④−③ = 同一件事在动画上的样子。6 条：巡航倾斜 L/R、巡航俯仰 U/D、冲刺倾斜 L/R。🔴 合成时**根骨（pelvis）那道增量已按 0 缩放**（2026-09-22：那几条增量在根骨上有 85°，照原样加会把整个人转 90°；去掉后倾斜只来自头/肩/脊柱）。四格同骨架 ⇒ rotY 全 0、时长对齐。",
+  "sides": {
+    "base_pose": {
+      "label": "① 基础 pose（静止）", "color": "#7fa8d8", "rotY": 0, "slot": -1.90,
+      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
+      "files": [ { "id": "bp_f", "url": "assets/lean_base_pose.glb" } ]
+    },
+    "add_pose": {
+      "label": "② 增量 pose（静止）", "color": "#8fc98f", "rotY": 0, "slot": -0.63,
+      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
+      "files": [ { "id": "ap_f", "url": "assets/lean_add_pose.glb" } ]
+    },
+    "base_anim": {
+      "label": "③ 基础动画", "color": "#b9c2cc", "rotY": 0, "slot": 0.63,
+      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
+      "files": [ { "id": "ba_f", "url": "assets/lean_base_anim.glb" } ]
+    },
+    "comp_anim": {
+      "label": "④ 增量动画（合成后）", "color": "#e0b070", "rotY": 0, "slot": 1.90,
+      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
+      "files": [ { "id": "ca_f", "url": "assets/lean_comp_anim.glb" } ]
+    }
+  }
+}

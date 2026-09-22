@@ -72,6 +72,9 @@ namespace LivingWorldNpcs.Animation
     ///   核对一次，发现不是我们的就重设（实测不核对会被抢回去）。
     /// · **动作名写错是静默失败**（引擎不报错、只是不播）⇒ 这里替它报一次日志。
     /// · **未接的状态自动跳过**（动作名空串）⇒ 行为等价于"没有这条转移"，条件里不用写例外。
+    /// · **一次性动作（<see cref="AnimState.Once"/>）播完前不被打断** —— `"*"` 出发的兜底边
+    ///   在它播完之前一律不参与求值（否则下一帧就被踢走，一帧都播不出来）；
+    ///   要打断就写**指名**它的边。见 <see cref="Tick"/> 里那条注释。
     /// · **相位自己掌控动画时**用 <see cref="Hold"/>，此时只认 <see cref="Force"/>。
     ///
     /// 用在**很多个 agent** 上时（将来别的运动系统）
@@ -161,6 +164,7 @@ namespace LivingWorldNpcs.Animation
             _agent = agent;
 
             _elapsed += dt;
+            TickSwitchWindow(dt);       // 抖动自检的窗口按**真实时间**推进（不是按切换次数）
 
             if (!Hold && _current != null)
             {
@@ -181,6 +185,13 @@ namespace LivingWorldNpcs.Animation
                     {
                         AnimEdgeDef e = edges[i];
                         if (!e.Matches(_current.Name))
+                            continue;
+
+                        // 🔴 **一次性动作（冲刺入姿 / 闪避）播放期间不被打断**：
+                        //    `"*"` 出发的兜底边在它播完前一律不参与 —— 否则下一帧就被 `* → 巡航` 踢走，
+                        //    一次性动作一帧都播不出来（这是它没被接上的原因，2026-09-22）。
+                        //    要打断就写**指名**它的边（`Edge("dodge_l", "cruise", …)`）。
+                        if (_current.OneShot && !CurrentFinished && !e.MatchesExplicit(_current.Name))
                             continue;
 
                         bool ok;
@@ -284,23 +295,32 @@ namespace LivingWorldNpcs.Animation
         }
 
         /// <summary>
-        /// 抖动自检：1 秒内切换超过 10 次 ⇒ 打一行警告（含"谁在跟谁互踢"）。
+        /// 抖动自检：**1 秒（真实时间）内切换超过 10 次** ⇒ 打一行警告（含"谁在跟谁互踢"）。
         /// 判据不是"切得多"，而是**同一个来回反复**（A→B→A→B）—— 那一定是条件振荡，不是玩家在操作。
+        ///
+        /// 🔴 窗口必须按**真实时间**推进（`Tick` 每帧喂 dt），不能按"切换次数"近似
+        ///   （2026-09-22 实机踩到：原来写 `_switchWindow += 1/60` 只在**切换时**累加 ⇒
+        ///   实际报的是"累计切了 61 次"，不是"1 秒内 61 次"，36 秒的正常操作被误报成抖动）。
         /// </summary>
         private void CountSwitch(string from, string to)
         {
             _switchCount++;
-            _switchWindow += 1f / 60f;      // 近似：状态机每帧最多切一次
+            _lastSwitchFrom = from;
+        }
+
+        /// <summary>窗口推进（每帧调，见 <see cref="Tick"/>）。</summary>
+        private void TickSwitchWindow(float dt)
+        {
+            _switchWindow += dt;
             if (_switchWindow < 1f)
                 return;
 
             if (_switchCount > 10)
                 DebugLogger.Log($"[Anim:{_def.Name}] ⚠️ 抖动：1 秒内切了 {_switchCount} 次" +
-                                $"（最近 {_lastSwitchFrom}↔{to}）—— 转移条件可能在振荡，动画会一直停在淡化开头");
+                                $"（最近 {_lastSwitchFrom}↔{_current?.Name}）—— 转移条件可能在振荡，动画会一直停在淡化开头");
 
             _switchCount = 0;
             _switchWindow = 0f;
-            _lastSwitchFrom = from;
         }
 
         /// <summary>0 号通道引擎也有权写 —— 定期核对有没有被抢走，被抢了重设。</summary>

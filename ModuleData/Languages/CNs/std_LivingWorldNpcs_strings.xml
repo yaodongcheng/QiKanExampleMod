@@ -717,6 +717,7 @@
     <string id="LWN_ui_difficulty_hard" text="难" />
     <!-- 偷窃/战利品信息消息 -->
     <string id="LWN_ui_steal_msg_npc_timeout" text="NPC 移动超时，强制进入对话。" />
+    <string id="LWN_ui_flight_state" text="飞行姿态：{LWN_STATE}" />
     <string id="LWN_ui_steal_msg_animal_fled" text="它溜走了..." />
     <string id="LWN_ui_steal_msg_target_gone" text="对方走远了，不能继续偷窃。" />
     <string id="LWN_ui_steal_msg_nothing_left" text="他身上已经没什么可偷的了。" />
