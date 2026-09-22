@@ -208,7 +208,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | 动画: blend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps landgrace landanim landmax gentleland takeoffanim takeoffdelay takeoffblend takeoffskip | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle | (hover/clearance/maxalt/vrate 已退役)";
+                return "ERR usage: custom.flight tune <key> <value> | 动画: blend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps landgrace landanim landmax gentleland hardland falloff takeoffanim takeoffdelay takeoffblend takeoffskip | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -219,10 +219,6 @@ namespace LivingWorldNpcs.CampaignMode
                 case "cruise": FlightTuning.CruiseSpeed = v; break;
                 case "boost": FlightTuning.BoostSpeed = v; break;
                 case "accel": FlightTuning.Accel = v; break;
-                case "hover": FlightTuning.HoverAltitude = v; break;            // 🪦 已退役（板不再自动抬升，值不起作用）
-                case "clearance": FlightTuning.MinClearance = v; break;         // 🪦 已退役
-                case "maxalt": FlightTuning.MaxAltitude = v; break;             // 🪦 已退役
-                case "vrate": FlightTuning.VerticalRate = v; break;             // 🪦 已退役（板只按 WASD 动）
                 case "takeoffanim": FlightTuning.TakeoffAnimSeconds = v; break; // 起飞入姿动画时长（秒；0=立刻交给飞行）
                 case "takeoffdelay": FlightTuning.TakeoffSpawnDelay = v; break; // 先切动作→晚这么久再召唤板（秒；0=同帧）
                 case "takeoffblend": FlightTuning.TakeoffBlendIn = v; break;    // 起飞动作淡入时长（秒；越小越"立刻起势"）
@@ -253,7 +249,9 @@ namespace LivingWorldNpcs.CampaignMode
                 case "descendrate": FlightTuning.DescendRate = v; break;                // 下降速率（米/秒）
                 case "landtouch": FlightTuning.LandOnGroundTouch = v != 0f; break;      // 撞地自动落地
                 case "landeps": FlightTuning.LandTouchEps = v; break;
-                case "landanim": FlightTuning.LandAnimSeconds = v; break;       // 落地动画时长（触地后至少等这么久再收摊）
+                case "landanim": FlightTuning.LandAnimSeconds = v; break;
+                case "hardland": FlightTuning.HardLandingSpeed = v; break;      // 下冲 ≥ 它算硬着陆（演动画）
+                case "falloff": FlightTuning.FallOffDistance = v; break;        // 离板多远算"掉下去了"（米）       // 落地动画时长（触地后至少等这么久再收摊）
                 case "landmax": FlightTuning.LandMaxSeconds = v; break;         // 落地阶段硬上限
                 // 相机接管后的"看"（2026-09-21）
                 case "camfov": FlightTuning.UseFlightCamera = v != 0f; break;   // 同 cam on|off

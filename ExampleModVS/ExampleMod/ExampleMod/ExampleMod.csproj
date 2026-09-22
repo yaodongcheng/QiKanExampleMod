@@ -470,6 +470,11 @@
     <Compile Include="Flight\CarrierBoard.cs" />
     <Compile Include="Flight\PlayerFlightBehavior.cs" />
     <Compile Include="Flight\FlightCameraRig.cs" />
+    <!-- 通用动画状态机（2026-09-22）：Animation\ 目录，首个用户是 Flight，
+         之后别的运动系统（坐骑 / 潜行 / 载具）也可以直接复用它。 -->
+    <Compile Include="Animation\AgentAnimStateMachine.cs" />
+    <Compile Include="Animation\AnimMachineRegistry.cs" />
+    <Compile Include="Flight\FlightAnimMachine.cs" />
     <!-- 🔴 2026-09-16 认知状态批量命令 custom.meet_all（原版无对应指令；HasMet 单向、消息清空副作用见文件头） -->
     <Compile Include="CampaignMode\Tools\HeroMeetCommands.cs" />
     <Compile Include="CampaignMode\Tools\HeightReportCommands.cs" />

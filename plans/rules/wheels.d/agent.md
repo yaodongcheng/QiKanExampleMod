@@ -565,3 +565,53 @@ custom.set_controller          查控制权（无参 = get；player|ai|none 切�
 **文件位置**：`Flight/PlayerFlightBehavior.cs`（`TurnBody` / `EnterFreeze` / `ExitFreeze`）、
 `Flight/FlightTuning.cs`（`FlightFreezeMode` 各档 + 验证状态）、`Debug/MyCommands.cs`（`turntodir` / `set_controller`）、
 方案与踩坑全过程：`plans/玩家飞行-实施方案.md`
+
+---
+
+## 🔴 通用动画状态机（注册制）—— `Animation/`（2026-09-22 立，**别的运动系统可直接复用**）
+
+**解决什么问题**：骑砍只给了"播哪条动画"（`Agent.SetActionChannel`）这一个口子，**没有状态机**。
+以前"什么时候播哪条、怎么切"散在各行为的 if/else 里（加一档姿态要改三处、条件读私有字段、只有那一个系统能用）。
+
+**结构（定义与运行时分家）**：
+
+| 件 | 文件 | 职责 |
+|---|---|---|
+| 运行时 | `Animation/AgentAnimStateMachine.cs` | 每帧 `Tick(agent, dt)` 按表流转；写 0 号通道；内建**防被引擎抢**、未接状态自动跳过、`Hold`+`Force` |
+| 定义类型 + 注册表 | `Animation/AnimMachineRegistry.cs` | `AnimState` / `AnimEdgeDef` / `AnimMachineDef` / `AnimContext` + `Register` / `Create` |
+| 某系统的定义 | 范本 `Flight/FlightAnimMachine.cs` | 状态表 + 转移表（一屏读完），在 `MySubModule.OnSubModuleLoad` 注册 |
+
+**关键 API**：
+
+```csharp
+var def = new AnimMachineDef("mySystem");
+def.DefaultBlend = () => MyTuning.Blend;                       // 委托 ⇒ 热调生效
+def.Add(AnimState.Loop("idle", "act_xxx"));                    // 循环状态（动作名空串 = 未接，自动跳过）
+def.Add(AnimState.Once("dashStart", "act_dash", next:"boost", duration:1.0f));  // 一次性：播完自动去 next
+def.Edge("*", "idle", c => !((MyCtx)c).Moving);                // 边：**顺序 = 优先级**，"*" = 任意状态
+AnimMachineRegistry.Register(def);                             // 模块加载时一次
+
+var ctx = new MyContext();                                     // 派生 AnimContext，装"条件要读的事实"
+var anim = AnimMachineRegistry.Create("mySystem", ctx);
+anim.Hold = true;  anim.Force(agent, "takeoff", blend);        // 相位自己掌控动画的时段
+anim.Hold = false; anim.Tick(agent, dt);                       // 正常流转
+anim.Release(agent);                                           // 收摊：通道还给引擎
+```
+
+**两条硬纪律（都是实机撞出来的，别改回去）**：
+
+1. 🔴 **转移求值必须"命中即定"** —— 第一条**条件成立**的边定输赢；它指向"你已经在的状态"就= 留在原地**并收手**。
+   若写成"跳过自己那条继续往下找"，低优先级的兜底边会把高优先级状态踢走 ⇒ **每帧互踢**
+   （实测 `boost↔cruise` 100+ 次/秒，动画永远停在交叉淡化的开头，看着像"前倾的巡航"）。
+   语义与引擎自己的 `item_usage_sets` / `movement_sets`（自上而下第一条满足的生效）一致。
+2. 🔴 **`Force` 必须带 agent** —— 起飞/落地这类"相位驱动"的调用**发生在首次 `Tick` 之前**，
+   传 null = 当场 NRE。机器内部也记住最近一次 Tick 的 agent 兜底，真没有 ⇒ 不接管（不崩）。
+
+**性能**：每帧 = 几条边的 lambda（读几个字段）+ 计时累加，**无堆分配**；动作名→索引**缓存在定义上**
+（`AnimState.Index()`，全进程一次）；真正的 `SetActionChannel` 只在状态变化时发生。
+**用在很多 agent 上**时把 `Verbose` 关掉。
+
+⚠️ **能不能用在 NPC 上不取决于本类**：0 号通道的归属要先解决（飞行玩家能拿到是因为冻结了玩家 + 暂停了 AI）。
+
+**配套**：`[Anim:<名字>]` 日志标签（切换/被抢/抖动自检）—— 排查"为什么播的不是我以为的那条"第一站；
+抖动自检（1 秒 >10 次切换即报警）。方案与踩坑：`plans/玩家飞行-实施方案.md` §3.6 / §3.7。
