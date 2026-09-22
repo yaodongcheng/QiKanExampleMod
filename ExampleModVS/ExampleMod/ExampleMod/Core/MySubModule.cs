@@ -9,6 +9,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
+using LivingWorldNpcs.Flight;
 using System.IO;
 using TaleWorlds.CampaignSystem.MapEvents;
 using TaleWorlds.ObjectSystem;
@@ -61,6 +62,17 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 Debug.PrintError($"[LivingWorldNpcs] Failed to register crash handler: {ex.Message}");
+            }
+
+            // ── 动画状态机定义注册（2026-09-22）：**注册制** —— 定义集中在各自的 XxxAnimMachine.cs，
+            //    这里只负责"注册一下"。以后别的运动系统（坐骑 / 潜行 / 载具）加一行即可。
+            try
+            {
+                FlightAnimMachine.Register();
+            }
+            catch (Exception ex)
+            {
+                Debug.PrintError($"[LivingWorldNpcs] Failed to register anim machines: {ex.Message}");
             }
 
             //加载策划表数据

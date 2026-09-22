@@ -25,6 +25,28 @@
 
 **运行时调试日志**：`Debug/StoryEngine_RuntimeLog.txt`（`DebugLogger.Log` 写入，内容随调试需求变动）。排查问题或验证行为时可直接 `Read` 分析。
 
+## 🔴 通用件：动画状态机（`Animation/`，2026-09-22 立）—— 任何运动系统可复用
+
+**要加/改"什么时候播哪条动画"的逻辑，一律走它，别再写散落的 if/else。**
+
+| 件 | 位置 | 职责 |
+|---|---|---|
+| 运行时 | `ExampleModVS/.../Animation/AgentAnimStateMachine.cs` | 每帧 `Tick(agent, dt)` 按表流转、写 0 号通道；内建防被引擎抢 / 未接状态自动跳过 / `Hold`+`Force` |
+| 定义类型 + 注册表 | `.../Animation/AnimMachineRegistry.cs` | `AnimState` / `AnimEdgeDef` / `AnimMachineDef` / `AnimContext` + `Register` / `Create` |
+| 某系统的**定义** | 范本 `.../Flight/FlightAnimMachine.cs` | 状态表 + 转移表（一屏读完），在 `MySubModule.OnSubModuleLoad` 里 `Register()` |
+
+- **加一个姿态 = 加一行状态 + 一行边**：`AnimState.Loop(名, 动作名)` 循环 / `AnimState.Once(名, 动作名, next:, duration:)` 一次性（播完自动去 next）；边 `def.Edge(from, to, ctx => 条件, blend)`，**书写顺序 = 优先级**、`"*"` = 任意状态。
+- **条件读上下文**（各系统派生 `AnimContext`），不读行为类私有字段 —— 这样定义才与系统解耦、可复用。
+- 🔴 **两条硬纪律（都是实机撞出来的）**：
+  ① **转移求值"命中即定"** —— 第一条**条件成立**的边定输赢，它指向"你已在的状态"就= 留原地**并收手**。
+     写成"跳过自己那条继续往下找" ⇒ 高低优先级**每帧互踢**（实测 `boost↔cruise` 100+ 次/秒，动画永远停在交叉淡化开头，看着像"前倾的巡航"）。
+  ② **`Force` 必须带 agent** —— 起飞/落地这类相位驱动的调用**发生在首次 `Tick` 之前**，传 null 当场 NRE。
+- **诊断**：`[Anim:<名字>]` 日志标签（切换/被抢/**抖动自检**：1 秒 >10 次即报警）。用在大量 agent 上时把 `Verbose` 关掉。
+- ⚠️ **给 NPC 用之前先解决"0 号通道归谁"**（飞行玩家能拿到，是因为冻结了玩家 + 暂停了 AI）—— 这不是状态机的事。
+
+> 细则（完整签名 + 调用范例 + 性能口径）：[wheels.d/agent.md](plans/rules/wheels.d/agent.md) 最后一卷 ·
+> 方案与踩坑：[玩家飞行-实施方案.md](plans/玩家飞行-实施方案.md) §3.6 / §3.7
+
 ### 🔴 LLM 对话日志认知注入检查纪律（认知同步计划 A-T，2026-08-16）
 
 > **背景**：随从/路人的 LLM 回复质量依赖 prompt 里注入的认知段。日志里 `[ImReply] 请求发出` / `[ReactiveRespond] 请求发出` 会打印**完整 prompt**——验证认知注入是否到位的最可靠途径就是搜这两行读 prompt，再按下面的原则与矩阵核对。

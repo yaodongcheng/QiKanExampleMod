@@ -33,6 +33,10 @@
     background:#181b21;color:var(--dim);font-size:14px;z-index:9;text-align:center;line-height:2;padding:0 40px}
   #load.hide{display:none}
   #bar{grid-column:2;background:var(--panel);border-top:1px solid var(--line);padding:8px 12px 10px}
+  #transport{display:flex;align-items:center;gap:8px;width:100%;padding-bottom:7px;margin-bottom:7px;
+    border-bottom:1px dashed var(--line)}
+  #transport input[type=range]{flex:1 1 auto;width:auto;min-width:120px}
+  #scrubV{flex:0 0 168px;text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}
   #ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
   button{background:#232b37;color:var(--fg);border:1px solid var(--line);border-radius:6px;
     padding:5px 11px;cursor:pointer;font-size:12px}
@@ -124,6 +128,11 @@
     <div id="load">正在载入数据集…<br><span style="font-size:11px">（需要本地 http 服务，不能用 file:// 直接打开）</span></div>
   </div>
   <div id="bar">
+    <div id="transport">
+      <span class="flt" style="flex:0 0 auto">进度 / 帧</span>
+      <input type="range" id="scrub" min="0" max="0" step="1" value="0" title="拖动定位到某一帧（1 格 = 1 帧 @30fps，聚焦后可用 ←/→ 微调）">
+      <span id="scrubV">— / —</span>
+    </div>
     <div id="ctl">
       <button id="bPlay">▶ 播放</button>
       <button id="bPrev">◀ 上一个</button>
@@ -888,6 +897,68 @@ document.getElementById('vTop').onclick  =()=>setView('top');
 document.getElementById('vFit').onclick  =()=>setView('fit');
 addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); document.getElementById('bPlay').click(); } });
 
+/* ---------- 时间轴拉杆：暂停后拖动即可定位到任意帧（1 格 = 1 帧 @30fps） ----------
+   两种播放模式共用一条「播放轴」：
+     · 成对动画：轴就是 playHead，两侧时间 = clamp(playHead + off, 0, dur)
+     · 普通动画：轴 = 主侧 clip 时间，目标侧按时长比同步，额外展示侧跟随主侧
+   seekToTime 不改倍速、不改站位，只做「赋值 + 立刻求值一帧」，所以暂停时画面能定在你选的那帧。 */
+const FPS = 30;
+const scrubEl = document.getElementById('scrub');
+const scrubVEl = document.getElementById('scrubV');
+
+function timelineLen(){
+  if(PAIRMODE && (actA || actB)) return loopLenNow();
+  return actA ? (actA.getClip().duration || 0) : 0;
+}
+function timelineTime(){
+  if(PAIRMODE && (actA || actB)) return playHead;
+  return actA ? actA.time : 0;
+}
+function setPaused(v){
+  paused = !!v;
+  const b = document.getElementById('bPlay');
+  if(b) b.textContent = paused ? '\u25b6 播放' : '\u23f8 暂停';
+}
+function seekToTime(t){
+  const L = timelineLen(); if(!(L > 0)) return 0;
+  t = Math.min(Math.max(t, 0), L);
+  if(PAIRMODE && (actA || actB)){
+    playHead = t;
+    applyPlayheadTo(actA, actB);
+  } else {
+    if(actA) actA.time = Math.min(t, Math.max(0, (actA.getClip().duration || 0) - 1e-4));
+    if(actB && actA){
+      const dA = actA.getClip().duration || 1, dB = actB.getClip().duration || 0;
+      actB.time = Math.min(t * (dB / dA), Math.max(0, dB - 1e-4));
+    }
+    for(const e of EXTRAS){
+      const d = e.act.getClip().duration || 0;
+      e.act.time = Math.min(t, Math.max(0, d - 1e-4));
+    }
+  }
+  for(const id in loaded){ if(loaded[id]){ try{ loaded[id].mixer.update(0); }catch(e){} } }
+  return t;
+}
+function updateScrubUI(force){
+  if(!scrubEl) return;
+  const L = timelineLen();
+  const total = Math.max(0, Math.round(L * FPS));
+  if(scrubEl.max !== String(total)) scrubEl.max = String(total);
+  const t = Math.min(Math.max(timelineTime(), 0), L);
+  const fr = Math.max(0, Math.min(total, Math.round(t * FPS)));
+  // 播放中让拉杆跟着走；暂停时不要回写（否则手拖的帧会被抹掉）
+  if((force || !paused) && scrubEl.value !== String(fr)) scrubEl.value = String(fr);
+  if(scrubVEl) scrubVEl.textContent = '帧 ' + fr + ' / ' + total + ' · ' + t.toFixed(3) + ' s';
+}
+function seekToFrame(fr, forcePause){
+  if(forcePause) setPaused(true);
+  seekToTime((parseInt(fr, 10) || 0) / FPS);
+  updateScrubUI(true);
+}
+if(scrubEl){
+  scrubEl.oninput = ()=> seekToFrame(scrubEl.value, true);   // 拖动即暂停：定住的那帧不会被播走
+}
+
 /* ---------- 主循环 ---------- */
 let helpers = [], __fc = 0;
 const SHOT = location.search.indexOf('shot') >= 0;   // 无头截图：渲染 30 帧后把画布塞进 #shotdata 并停住 RAF
@@ -1119,6 +1190,7 @@ function tick(){
     document.getElementById('time').textContent = t.toFixed(2)+' / '+d.toFixed(2)+' s';
     document.getElementById('hudFr').textContent = Math.round(t*30);
   }
+  updateScrubUI(PAIRMODE ? false : (paused && __pendingT !== null));   // 播放中跟随；暂停时不回写手拖的帧
   if(SHOT && __ready && __pendingT !== null && actA && __fc >= 2){
     // ?t= 语义 = 【播放轴时间】，与正常播放一致
     if(PAIRMODE && (actA || actB)){

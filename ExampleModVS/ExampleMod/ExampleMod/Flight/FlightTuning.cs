@@ -153,21 +153,10 @@ namespace LivingWorldNpcs.Flight
         //    这几个字段连同"隐藏载具"整层逻辑一起废了。保留注释只为记录来龙去脉，
         //    **实机验证合一版没问题后可以整段删掉**（见 plans/玩家飞行-实施方案.md）。
 
-        // ───────────────────────── 高度 ─────────────────────────
-
-        /// <summary>起飞后相对「起飞点地面」的悬停高度。</summary>
-        /// <summary>🪦 已退役（2026-09-21）：**板不再自动抬升**，所以没有了"悬停高度"这个目标（见 PlayerFlightBehavior.TickTakeoff）。</summary>
-        public static float HoverAltitude = 6f;
-
-        /// <summary>飞行中离地形的最小间隙。低于它就把板顶回去，防止钻进山体。</summary>
-        public static float MinClearance = 1.2f;
-
-        /// <summary>高度上限（防越界；实测从 169 米跳下后坐标会归零）。</summary>
-        public static float MaxAltitude = 160f;
-
-        /// <summary>抬升 / 下降速率（米/秒），只在起飞与降落阶段用。</summary>
-        /// <summary>🪦 已退役（2026-09-21）：那是起飞自动抬升的速度，**板现在只按 WASD 动**。</summary>
-        public static float VerticalRate = 7f;
+        // ───────────────────────── 起飞节拍 ─────────────────────────
+        // 🪦 2026-09-22 删掉了四个退役字段（hover / clearance / maxalt / vrate）——
+        //    它们服务的是"板自动抬升 + 高度夹取"，那套早已删掉（板只按 WASD 动）。
+        //    来龙去脉见 plans/玩家飞行-实施方案.md，不留在代码里当死重量。
 
         /// <summary>
         /// 起飞姿态（`act_fly_start`）播多久 —— 登板之后**板不动**，只是把这 1.5 秒的入姿动画演完；
@@ -274,6 +263,25 @@ namespace LivingWorldNpcs.Flight
 
         // ───────────── 落地手势（🔴 2026-09-21 用户重新定义，与起飞不对称）─────────────
 
+        /// <summary>
+        /// **离板多远算"掉下去了"**（米）—— 超过就强制收摊（拆板 + 还相机 + 解冻）。
+        ///
+        /// 为什么需要（2026-09-22 用户实机）：飞行撞墙时，**板会瞬移穿墙**（它是逐帧 SetFrame），
+        /// 而人会被墙挡住 ⇒ 人从板上掉下来。那时若不收摊，就留下"人在半空/地上 + 被冻结 + 板还在天上"
+        /// 的坏状态（走不动、也飞不了）。判据用"玩家碰撞体底面 vs 板面"的**三维距离**，
+        /// 站着时只有 0.37 米，阈值留到 1.2 米足够宽容。
+        /// </summary>
+        public static float FallOffDistance = 1.2f;
+
+        /// <summary>
+        /// 触地瞬间下降速度 ≥ 它 ⇒ 算**硬着陆**（演落地动画）。
+        ///
+        /// 两种落地的分界（2026-09-22 用户定义）：**自然慢速落地不播动画**、**快速俯冲撞地播动画**。
+        /// 取 7.5：长按下降的速率是 <see cref="DescendRate"/> = 6 ⇒ 稳定落在"轻放"那侧；
+        /// 巡航俯冲 45° ≈ 6.4（仍算轻）、60° ≈ 7.8（算硬），冲刺俯冲必是硬着陆。
+        /// </summary>
+        public static float HardLandingSpeed = 7.5f;
+
         /// <summary>短按空格是否可用于落地（总开关）。关掉 = 只能靠长按下降撞地落。</summary>
         public static bool LandByTap = true;
 
@@ -363,6 +371,8 @@ namespace LivingWorldNpcs.Flight
         public static float TurnRateDegPerSec = 540f;
 
         // ───────────────────────── 动画 ─────────────────────────
+        // 🔴 **"什么时候播哪条动画"的规则不在这里** —— 在注册制的定义 `Flight/FlightAnimMachine.cs`
+        //    （状态表 + 转移表）。本节这些值是**定义要用的参数**（过渡时长 / 动作名 / 核对周期）。
 
         /// <summary>
         /// 动作切换的交叉淡化时长（秒）。这就是骑砍2 里能做的"混合空间"。
@@ -429,6 +439,7 @@ namespace LivingWorldNpcs.Flight
         /// 每隔多久**核对一次**动画有没有被引擎抢回去（秒）。
         /// 为什么需要：0 号动作通道是引擎 locomotion 系统也有权写的，我们设完不保证一直有效。
         /// 为什么不能每帧核对：每帧重设 <c>SetActionChannel</c> 会把动画**卡在第 0 帧**。
+        /// 现在由通用状态机消费（<c>AnimMachineDef.RecheckSeconds</c> ← 这里）。
         /// </summary>
         public static float ActionRecheckSeconds = 0.5f;
 
@@ -466,10 +477,6 @@ namespace LivingWorldNpcs.Flight
             CarrierTopLocalZ = 0.37f;
             CarrierSpawnGap = 0.06f;
             TakeoffSettleSeconds = 1.0f;
-            HoverAltitude = 6f;
-            MinClearance = 1.2f;
-            MaxAltitude = 160f;
-            VerticalRate = 7f;
             TakeoffAnimSeconds = 1.5f;
             TakeoffSpawnDelay = 0.2f;
             TakeoffBlendIn = 0f;
@@ -484,6 +491,8 @@ namespace LivingWorldNpcs.Flight
             LandAnimSeconds = 2.0f;
             LandMaxSeconds = 5f;
             LandAnimOnGentle = false;
+            FallOffDistance = 1.2f;
+            HardLandingSpeed = 7.5f;
             LandByTap = true;
             LandTapMaxHeight = 8f;
             LandTapWhileDiving = true;
@@ -523,10 +532,8 @@ namespace LivingWorldNpcs.Flight
         public static string Describe()
         {
             return string.Format(
-                "carrier={0} | cruise={1} boost={2} accel={3} | hover={4} clearance={5} maxAlt={6} vrate={7} | longPress={8} | freeze={9}",
-                CarrierPrefab, CruiseSpeed, BoostSpeed, Accel,
-                HoverAltitude, MinClearance, MaxAltitude, VerticalRate, LongPressSeconds,
-                Freeze);
+                "carrier={0} | cruise={1} boost={2} accel={3} | longPress={4} | freeze={5}",
+                CarrierPrefab, CruiseSpeed, BoostSpeed, Accel, LongPressSeconds, Freeze);
         }
     }
 }

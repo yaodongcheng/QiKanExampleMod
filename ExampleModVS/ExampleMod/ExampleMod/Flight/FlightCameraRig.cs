@@ -84,9 +84,19 @@ namespace LivingWorldNpcs.Flight
         private float _lookYaw;
         private float _lookPitch;
 
-        // ── 交接（2026-09-21：进场只渐近视距/FOV，不走"相机那一帧"；出场写回朝向）──
+        // ── 交接（2026-09-21/22：进场渐近视距·FOV；出场**先渐变回默认相机参数**再撒手）──
         private float _engineElevSign = 1f;   // 引擎 CameraElevation 与我们的 pitch 的符号关系（接管时自校准）
         private bool _handBackWarned;         // 写回失败只报一次
+
+        // 🔴 接管那一刻记下的**默认相机参数**（2026-09-22 用户要求）：
+        //    "起飞前和起飞后的默认相机机位基本一致" ⇒ 归还时按这些值渐变过去，
+        //    不然就是硬切（实测引擎 视距 3.4 / fov 65，而我们巡航 5.5/70、冲刺 9/80 —— 俯冲落地最明显）。
+        private float _engineDistAtTakeover = -1f;
+        private float _engineFovAtTakeover = -1f;
+        private bool _handingBack;            // 正在"渐变回默认相机"
+        private float _handBackT = 1f;
+        private SpringArmCameraParam _handBackFrom;
+        private SpringArmCameraParam _handBackTo;
 
         /// <summary>相机是否正在接管。</summary>
         public bool IsActive => _active;
@@ -139,6 +149,11 @@ namespace LivingWorldNpcs.Flight
                 _current = Presets[(int)FlightCamPreset.Cruise];
                 _preset = FlightCamPreset.Cruise;
                 _blendDur = Math.Max(0.01f, FlightTuning.CamBlendIn);
+                _handingBack = false;              // 二次起飞：取消可能还在走的归还渐变
+
+                // 记下默认相机此刻的**视距 / FOV**（归还时按它们渐变回去）
+                _engineDistAtTakeover = _screen != null ? _screen.CameraResultDistanceToTarget : -1f;
+                _engineFovAtTakeover = _screen != null ? _screen.CameraViewAngle : -1f;
 
                 // 🔴 进场过渡的**正确做法 = 只对齐"距离与 FOV"，不对齐"相机那一帧"**（2026-09-21 修正）：
                 //    第一版是从引擎相机的那一帧（位置 + 朝向）整体插值过来 —— 结果是**镜头在过渡期间绕着角色转**
@@ -222,7 +237,37 @@ namespace LivingWorldNpcs.Flight
             CalibrateEngineElevationSign();
         }
 
-        /// <summary>把相机还给引擎（幂等；任何异常都要保证还）。</summary>
+        /// <summary>
+        /// **开始"渐变回默认相机"**（2026-09-22 用户要求）—— 不马上撒手，先用
+        /// <see cref="FlightTuning.CamBlendIn"/> 的时间把**视距 / FOV** 渐变回接管时记下的默认值，
+        /// 渐变走完才真的 `CustomCamera = null`。
+        ///
+        /// 为什么：归还时引擎相机按它自己的视距/FOV 复位，而我们的机位跟它差很多
+        /// （实测引擎 3.4/65 vs 巡航 5.5/70、冲刺 9/80）⇒ 硬切一下，俯冲落地尤其明显。
+        /// 朝向不渐（我们的 yaw/pitch 就是玩家刚看的方向，撒手前会写回引擎，见 <see cref="HandBackLookToEngine"/>）。
+        /// </summary>
+        public void BeginHandBack()
+        {
+            if (!_active || _handingBack)
+                return;
+
+            _handBackFrom = _current;
+            _handBackTo = _current;
+            if (_engineDistAtTakeover > 0.5f && _engineDistAtTakeover < 30f)
+                _handBackTo.ArmLength = MBMath.ClampFloat(_engineDistAtTakeover, 1f, 15f);
+            if (_engineFovAtTakeover > 20f && _engineFovAtTakeover < 130f)
+                _handBackTo.Fov = _engineFovAtTakeover;
+
+            _handBackT = 0f;
+            _handingBack = true;
+            DebugLogger.Log($"[FlightCam] 开始渐变回默认相机（视距 {_handBackFrom.ArmLength:F1}→{_handBackTo.ArmLength:F1} " +
+                            $"fov {_handBackFrom.Fov:F0}→{_handBackTo.Fov:F0}，用时 {_blendDur:F2}s）");
+        }
+
+        /// <summary>归还渐变是否还在走（行为层据此决定还要不要继续 Tick 相机）。</summary>
+        public bool IsHandingBack => _handingBack;
+
+        /// <summary>把相机还给引擎（幂等；任何异常都要保证还）。**立即切，不渐变**（异常/收摊路径用）。</summary>
         public void Exit()
         {
             if (!_active)
@@ -285,13 +330,28 @@ namespace LivingWorldNpcs.Flight
 
             try
             {
-                if (_blendT < 1f)
-                    _blendT = Math.Min(1f, _blendT + (_blendDur <= 0f ? 1f : dt / _blendDur));
+                if (_handingBack)
+                {
+                    // 归还渐变：**不再走常规机位解算**（否则下面那两行会把 _current 覆盖回预置）
+                    _handBackT = Math.Min(1f, _handBackT + (_blendDur <= 0f ? 1f : dt / _blendDur));
+                    _current = SpringArmMath.Lerp(in _handBackFrom, in _handBackTo, SpringArmMath.Ease(_handBackT));
+                    if (_handBackT >= 1f)
+                    {
+                        _handingBack = false;
+                        Exit();                       // 渐变走完 → 真的撒手（内部会写回朝向）
+                        return;
+                    }
+                }
+                else
+                {
+                    if (_blendT < 1f)
+                        _blendT = Math.Min(1f, _blendT + (_blendDur <= 0f ? 1f : dt / _blendDur));
 
-                SpringArmCameraParam target = Presets[(int)_preset];
-                _current = (_blendT >= 1f)
-                    ? target
-                    : SpringArmMath.Lerp(in _from, in target, SpringArmMath.Ease(_blendT));
+                    SpringArmCameraParam target = Presets[(int)_preset];
+                    _current = (_blendT >= 1f)
+                        ? target
+                        : SpringArmMath.Lerp(in _from, in target, SpringArmMath.Ease(_blendT));
+                }
 
                 // 🔴 世界锚定 + 鼠标朝向：机位预置里的 ArmYaw/ArmPitch 当**额外偏置**加在鼠标角上
                 SpringArmCameraParam p = _current;
