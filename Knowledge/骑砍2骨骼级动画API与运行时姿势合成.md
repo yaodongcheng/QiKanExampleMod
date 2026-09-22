@@ -1,11 +1,15 @@
 # 骑砍2 骨骼级动画 API 与运行时姿势合成
 
-> 日期: 2026-09-21
+> 日期: 2026-09-21 ｜ 2026-09-22 增补「运行期注册动画无通路」与「预烘 K 档 + 引擎交叉淡化」两节
 > 结论: `Agent.SetActionChannel` **改造不了**——它是直通 native 的薄壳，只传「播哪段动画」，不传「摆什么姿势」，
-> 混合逻辑全在 C++，C# 侧没有介入点。
-> 但引擎另有**一整套骨骼级 API**（1.2.12 ~ 1.5.1 全都有，公开可用），四个环节齐全：
-> 采样单动画的逐骨变换 → 按比例混合 → 写回骨骼 → 强刷上屏。
-> 唯一没验的门槛 = **写进去的骨骼帧能不能上屏**（5 分钟可验，见 §四）。
+> 混合逻辑全在 C++，C# 侧没有介入点。**运行期也没有注册新动画的 API**（见 §一末）——
+> 「自己融合好一段再递给引擎」在**运行期**不成立。
+> 可用的有两条通路：
+> ① **逐骨程序化**——骨骼级 API 齐全（1.2.12 ~ 1.5.1 公开）：采样 → 按比例混合 → 写回 → 强刷。
+> 代价 = 每帧约 90 次跨界调用（**只够主角级单 agent**），且 🔴「写进去能否上屏」至今没验（5 分钟可验，见 §四）。
+> ② 🎯 **预烘 K 档 + 引擎交叉淡化（推荐）**——离线按 K 个比例各烘一段 clip，装载期用 `action_sets.xml` 声明成动作，
+> 运行期按最近档切通道、靠**引擎自己的交叉淡化**抹平档距。
+> **零每帧开销、零未验门槛、战场批量可用**；代价 = K 份 clip 的体积 + 比例量化到档距（见 §六）。
 
 ---
 
@@ -38,6 +42,20 @@ public bool SetActionChannel(int channelNo, ActionIndexCache actionIndexCache, b
 
 **顺带记一条死路，省得再查**：`AnimFlags` 里有两个遗留常量 `anf_animation_layer_flags_mask = 0xFFFF000000000` / `anf_animation_layer_flags_bits = 0x24`（看着像「动画叠加层」，位段在 bit 44~59、移位 36）。
 **全库检索确认：没有任何 C# 代码消费它们，也没有配套的层枚举**——`AnimFlags.cs` 里孤零零两个常量。别顺着「图层」这个词往下猜。
+
+**🔴 顺带结论：运行期「自己融合好一段动画再递给引擎」也没有通路。**
+`SetActionChannel` 要的是**动作编号**，而编号 → 动画的映射是**装载期**读 `action_sets.xml` 建好的表。想递自己融合的动画，就得往那张表里加东西，而：
+
+| 检查 | 结果 |
+|---|---|
+| `IMBAnimation` 全部 22 个方法 | **全是 getter**（`GetIndexWithID` / `GetAnimationName` / `GetAnimationDuration` / `CheckAnimationClipExists` / `PrefetchAnimationClip` / `IsAnyAnimationLoadingFromDisk` …） |
+| `IMBActionSet` 全部 9 个方法 | **全是 getter** |
+| 全库搜 `RegisterAnimation` | 1 命中，但是 **`RegisterAnimationParameters` = 音乐参数**，与骨骼动画无关 |
+| 全库搜 `AddAnimation` | 2 命中，在 CampaignSystem / GauntletUI，是 **UI 动画** |
+| `CreateAnimationClip` / `RegisterClip` / `AddAnimationClip` / `create_animation` / `register_animation` / `add_animation` | **0 命中** |
+| `AnimationClip` | 只是**包里的资产类型**，代码侧只有 `CheckAnimationClipExists` / `PrefetchAnimationClip` 两个原子操作，**没有构造 / 写入口** |
+
+**一句话：动画表运行期只读。** 能加动画的只有**装载期**的 XML——那正是 §六 那条路。
 
 ---
 
@@ -152,15 +170,73 @@ sk.UpdateEntitialFramesFromLocalFrames();        // 不调这个，世界帧和�
 
 ---
 
-## 六、什么时候别走这条路：离线烘更省
+## 六、🎯 推荐路线：预烘 K 档 + 引擎交叉淡化
 
-**只有当混合比例是运行时连续变量**（被速度 / 伤势 / 姿态实时驱动）时，才值得走上面的运行时路。
+**结论：运行期要连续比例，最省的路不是每帧写骨，而是「离线按 K 个比例各烘一段 + 运行期在档位间切、让引擎自己淡化」。**
 
-**固定比例或少量档位 → 离线烘一个新 clip**：零运行时开销、零引擎风险、编辑器里能直接看效果。
-本项目已有完整离线管线：
+### 6.1 为什么走这条路
 
-- 管线入口：[tools/anim-retarget/项目总纲.md](../tools/anim-retarget/项目总纲.md)（源 → Blender 重定向 → TRF → ModKit 导入）
-- 相关文档：`Knowledge/骨骼动画TRF格式与增量陷阱.md`、`Knowledge/动画导入与UE5重定向_引擎能力与实现路径.md`、`Knowledge/动画带位移_RootMotion与代码推位移.md`
+| | 每帧写骨路线（§三） | **预烘 K 档路线（本节）** |
+|---|---|---|
+| 运行期开销 | 每帧约 90 次托管↔原生跨界调用，**只够 1~2 个 agent** | **零**（只在换档时调一次 `SetActionChannel`） |
+| 未解门槛 | 🔴「写进去能不能上屏」没验过 | **无**——全走官方通路 |
+| 包体积 | 无 | K 份 clip |
+| 比例响应 | 连续 | 量化到档距（要即时就加大 K / 缩短淡化） |
+| 战场批量 | 不可能 | **完全可行** |
+
+### 6.2 怎么做（四步）
+
+1. **定 K** —— 先试 5 档（0 / 25 / 50 / 75 / 100）
+2. **离线烘** —— 把两个动画在 K 个比例上各融一段 clip，**时长对齐、同相位**；出口走 TRF（现有管线：[tools/anim-retarget/项目总纲.md](../tools/anim-retarget/项目总纲.md)）
+3. **接线三件套** —— `action_types`（带 `type` + `action_stage`）+ `action_sets`（绑进 `as_human_warrior`）+ `project.mbproj`（**soln 行，缺一行文件就不加载**）；范本见 `plans/rules/wheels.d/assets.md` §十五「自制动画进游戏」（2026-09-19 实机验证通过）
+4. **运行期换档**：
+
+```csharp
+float prog = agent.GetCurrentActionProgress(0);        // 先读当前相位（1.2.12 Agent.cs:2458）
+agent.SetActionChannel(0, ActionIndexCache.Create(bucketName),
+                       ignorePriority: true, blendInPeriod: 0.1f,
+                       startProgress: prog);            // 🔴 不传 = 从 0 重播 = 姿势跳一下
+```
+
+### 6.3 为什么这是准的（不是凑合）
+
+第 i 档 clip 的每一帧就是 `blend(A, B, w_i)`。运行期在相邻两档间按 α 交叉淡化 →
+`α·blend(A,B,w_i) + (1−α)·blend(A,B,w_{i+1})`；而 `blend` 对权重是线性的（旋转 slerp 下是极近似）
+⇒ **等效比例 = `α·w_i + (1−α)·w_{i+1}`**。等于用「K 档 + 引擎淡化」把连续比例复现出来了。
+
+**唯一值得顺手确认的一点**：引擎同通道的交叉淡化是否按权重做逐骨姿态混合。
+基本确定（`blendInPeriod` 的语义就是这个），且 `Agent.GetActionChannelCurrentActionWeight`（1.2.12 Agent.cs:2468）能把权重读出来验证——第一轮实机切档时读一下这个数即可。
+
+### 6.4 装载期 XML 扩展点（引擎官方明写）
+
+`Modules/TifaHead2/ModuleData/action_sets.xml` 里引擎自己的注释原文：
+
+> "You can add new or override old action sets by adding nodes to this xml. For examples please refer to: Native/ModuleData/action_sets.xml."
+
+**先例一：YiGu 三国**（`Modules/YiGuThreeKingdoms/ModuleData/sg_action_sets.xml`）——直接声明全新动作绑全新动画，全挂进已有的 `as_human_warrior`：
+
+```xml
+<action type="act_sg_male_jugong_01_loop" animation="sg_male_jugong_01_loop" />
+<action type="act_sg_male_run_spear_01"  animation="sg_male_run_spear_01" />
+```
+
+**先例二：同 mod 的 XSLT**（`sg_dual_wield_weapon/sg_action_sets.xslt`）——不重写整表，只往 `as_human_warrior` **追加**动作，并把原版动作的 `animation` 属性**改指向**别的动画。双持武器就是这么做的。
+
+```xml
+<xsl:template match="action_set[@id='as_human_warrior']">
+  <xsl:copy>
+    <xsl:apply-templates select="@*|node()"/>
+    <action type="act_defend_forward_1h_passive_oh" animation="defend_forward_1h_passive_left_stance_m" />
+  </xsl:copy>
+</xsl:template>
+```
+
+### 6.5 前提与例外
+
+- ⚠️ 若融合动画要进**已有流程**（攻击 / 装填 / 掏武器），clip 元数据得整组抄原版（`Continue to action` / `Param 2` / `Priority`——见 `wheels.d/assets.md` §15 雷 4）；只由代码触发播一段（`do_anim` 那种）则裸 clip 就能播。
+- **比例是固定值或只有两三档** → 直接烘那几段就行，第 4 步的「换档」都不需要。
+
+相关文档：`Knowledge/骨骼动画TRF格式与增量陷阱.md`、`Knowledge/动画导入与UE5重定向_引擎能力与实现路径.md`、`Knowledge/动画带位移_RootMotion与代码推位移.md`
 
 ---
 

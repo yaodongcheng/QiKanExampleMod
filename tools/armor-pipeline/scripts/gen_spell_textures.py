@@ -108,18 +108,25 @@ def make_atlas():
     im = Image.new("RGB", (SIZE, SIZE), (0, 0, 0))
     fpx, npx, px = fire.load(), noise.load(), im.load()
 
-    # ── 左半：月牙 ── 火焰 × 跨带渐变（v=0 内缘白热 → v=1 外缘焦黑），沿弧方向把火焰铺开
+    # ── 左半：月牙 ──
+    # 🔴 两个调过才对的点（第一版都错，实拍对照后改）：
+    #   ① **贴图沿弧要多铺几遍**：UV 沿弧 512px 摊 5.27m、跨带 1024px 摊 0.85m，
+    #      各向异性约 12:1 ⇒ 只铺一遍会把火焰拉成又长又匀的条（实拍就是"塑料拉丝"）。
+    #      这里沿 x 铺 3 遍，让火舌尺度接近各向同性。
+    #   ② **本体色取火焰自己的橙红**，只在**内缘**往白热推 —— 不要用一条深红渐变当底色，
+    #      那会做成暗紫塑料（原版是炽亮的橙红，亮部直接到白热黄）。
+    X_TILE = 3
     for y in range(SIZE):
-        v = 1.0 - y / (SIZE - 1)                        # 图像顶行 = v=1
-        g = lerp_ramp(CRESCENT_RAMP, v)
-        for x in range(SIZE):
-            if x >= half:
-                break
-            fr, fg, fb = fpx[x % half, y % half]
-            # 火焰的亮度当"温度"，再乘跨带渐变 → 内缘白热、外缘焦黑、中间带亮脉
+        v = 1.0 - y / (SIZE - 1)                        # 图像顶行 = v=1（外缘）
+        w = (1.0 - v) ** 1.5                            # 内缘权重：v=0 内缘最强
+        for x in range(half):
+            fr, fg, fb = fpx[(x * X_TILE) % half, y % half]
             t = (0.35 * fr + 0.5 * fg + 0.15 * fb) / 255.0
-            k = t * (0.35 + 0.75 * (1.0 - v))
-            px[x, y] = tuple(min(255, int(g[i] * (0.45 + 1.15 * k))) for i in range(3))
+            body = (fr * (0.75 + 0.85 * t), fg * (0.60 + 0.85 * t), fb * (0.55 + 0.85 * t))
+            hot = w * (0.30 + 0.70 * t)
+            px[x, y] = tuple(min(255, int(body[i] * (1 - hot) + WHITE_HOT[i] * hot)) for i in range(3))
+        for x in range(half, SIZE):
+            px[x, y] = (0, 0, 0)                        # 右半由核那段填
 
     # ── 右上：核 ── 白热心（花瓣状边） + 一圈**独立暗环** + 外接火焰
     cx_px, cy_px, rad_px = 0.75 * SIZE, 0.25 * SIZE, 0.25 * SIZE
