@@ -71,6 +71,13 @@ namespace LivingWorldNpcs
 
         // 缓存变量，用于去重，避免每帧刷新UI
         private Agent _lastFocusedAgent = null;
+
+        /// <summary>
+        /// 最近一帧 interact 焦点的目标（与 UI 显示的是同一个；没盯人时为 null）。
+        /// 供调试命令读取 —— 相机射线偶尔取不到时，它还有上一帧的值。
+        /// </summary>
+        public Agent LastFocusedAgent => _lastFocusedAgent;
+
         private bool _lastAgentWasAlive = false;
         private bool _lastIsBehind = false;
         private bool _lastWasCrouching = false;

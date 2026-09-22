@@ -184,7 +184,8 @@ class Emitter(object):
         # 2) 参数覆盖 —— spec 的键名直接就是 XML 参数名
         handled = set()
         for key, val in spec.items():
-            if key in ("name", "_index_", "flags", "size_curve", "velocity", "color", "alpha"):
+            if key in ("name", "_index_", "flags", "size_curve", "velocity", "color", "alpha",
+                       "extra_params"):
                 continue
             if key not in self.params:
                 raise KeyError("emitter '%s' 未知参数: %s" % (self.name, key))
@@ -224,6 +225,16 @@ class Emitter(object):
             b, bias = (list(spec["velocity"]) + [0])[:2]
             for ax in "xyz":
                 self.params["emit_velocity_" + ax] = ("rand", (_num(b), _num(bias)))
+
+        # 3c) extra_params  「55 个以外的参数」逃生口（2026-09-22 加）
+        #   背景：引擎参数名字符串池里有一批**原版 XML 从没写过**的字段
+        #   （radial_velocity / radial_emission_velocity / radial_rotation_speed /
+        #     emit_sphere_radius_inner / emit_box_size / emit_disc_radius / warmup_time ...）
+        #   证据 = TaleWorlds.Native.dll 字符串池，以及 Native/Prefabs/*.xml 真的写过
+        #     emit_disc_radius / emit_box_size / decal_material / camera_fadeout_far_coef。
+        #   写在这里的参数**追加**在标准 55 个之后；默认不写 => 输出仍是原版 21/55 定长。
+        #   注意：预览器只实现了 55 个 => 这类参数在预览里一定「没反应」，只能进游戏判。
+        self.extra = list((spec.get("extra_params") or {}).items())
 
         # 4) 颜色 / 透明度曲线
         if "color" in spec or "alpha" in spec:
@@ -298,6 +309,10 @@ class Emitter(object):
                 a('%s\t\t\t\t</keys>' % tabs)
                 a('%s\t\t\t</alpha>' % tabs)
                 a('%s\t\t</parameter>' % tabs)
+        for k, v in self.extra:
+            a('%s\t\t<parameter' % tabs)
+            a('%s\t\t\tname="%s"' % (tabs, k))
+            a('%s\t\t\tvalue="%s" />' % (tabs, _num(v)))
         a('%s\t</parameters>' % tabs)
         a('%s</emitter>' % tabs)
         return "\n".join(L)

@@ -103,8 +103,12 @@ namespace LivingWorldNpcs.Animation
         private float _switchWindow;
         private string _lastSwitchFrom;
 
-        /// <summary>切换时是否打一行日志（排查"为什么播的不是我以为的那条"第一站）。</summary>
-        public bool Verbose = true;
+        /// <summary>
+        /// 切换时是否打一行日志（排查"为什么播的不是我以为的那条"第一站）。
+        /// 🔴 **默认 false**（2026-09-22 用户要求：通用件出厂安静，别替使用方决定刷不刷屏）——
+        /// 由使用方按自己的总闸打开，范本 = `PlayerFlightBehavior` 每帧写 `_anim.Verbose = FlightTuning.DebugLog`。
+        /// </summary>
+        public bool Verbose = false;
 
         /// <summary>
         /// **暂停自动转移**：true 时只维持当前状态、不判转移表（<see cref="Force"/> 仍然有效）。
@@ -281,8 +285,15 @@ namespace LivingWorldNpcs.Animation
 
             try
             {
+                // 🔴 `blendOutPeriodToNoAnim: 0` —— **必须显式传 0，不能用默认值**（默认 0.4 秒）。
+                //    引擎语义 = 「这条动作播完时用多久淡出到【无动画】」；不传 = 每条动作走到尾声
+                //    都会被拉回静止姿势再弹回来。实机取证（2026-09-22，custom.anim_trace 逐帧骨骼）：
+                //    一圈里只有中段 ~0.25~0.75 是真正的动画，头尾分别被 blendIn / blendOutToNoAnim
+                //    拖走 —— 膝角从数据里的 8~11° 被拉到精确 0.00（= 子骨 == 父骨 == 静止）再弹回，
+                //    观感就是"腿摆得很硬"。飞行这条链上全部是循环姿态，**永远不需要"淡出到无"**。
                 agent.SetActionChannel(0, idx, ignorePriority: true,
-                                       blendInPeriod: useBlend, startProgress: startProgress);
+                                       blendInPeriod: useBlend, blendOutPeriodToNoAnim: 0f,
+                                       startProgress: startProgress);
                 if (Verbose)
                     DebugLogger.Log($"[Anim:{_def.Name}] {from} → {state.Name}（{state.Action}）" +
                                     $" blend={useBlend:F2}{(startProgress > 0f ? $" start={startProgress:F2}" : "")}" +
@@ -343,7 +354,8 @@ namespace LivingWorldNpcs.Animation
                     return;                       // 还是我们的，没事
                 if (Verbose)
                     DebugLogger.Log($"[Anim:{_def.Name}] '{_current.Name}' 被引擎抢走了，重设");
-                agent.SetActionChannel(0, idx, ignorePriority: true, blendInPeriod: _def.DefaultBlend());
+                agent.SetActionChannel(0, idx, ignorePriority: true,
+                                       blendInPeriod: _def.DefaultBlend(), blendOutPeriodToNoAnim: 0f);
             }
             catch
             {

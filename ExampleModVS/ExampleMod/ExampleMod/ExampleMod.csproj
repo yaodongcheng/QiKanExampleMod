@@ -322,6 +322,9 @@
     <Compile Include="Combat\FirearmFxLogic.cs" />
     <Compile Include="Combat\FirearmFxRegistry.cs" />
     <Compile Include="Combat\KnockoutFlow.cs" />
+    <!-- 🔴 调试脚手架（2026-09-22）：法术弹飞行诊断（存活/命中/结局/示踪火线），验完即删。
+         用法与判据见文件头；控制台 custom.spell_trace。 -->
+    <Compile Include="Combat\SpellMissileTrace.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
@@ -462,6 +465,11 @@
     <!-- 玩家飞行（2026-09-21）· 调试命令 custom.flight（start/stop/status/verbose/tune/reset）。
          玩法本体在 Flight\ 目录，本文件只放控制台入口（归口表：C# 命令实现进 CampaignMode\Tools\）。 -->
     <Compile Include="CampaignMode\Tools\FlightCommands.cs" />
+    <!-- 飞行动画逐帧取证（2026-09-22）· 调试命令 custom.anim_trace。
+         回答"引擎实际渲染的姿势 vs TRF 是不是一回事"（ModKit 预览 ≠ 游戏播放：
+         引擎编译时按骨活跃度逐骨削关键帧，ModKit 预览的是源数据）。
+         判据见文件头；这是一次性诊断件，验完连同本行与 MySubModule 那行一起删。 -->
+    <Compile Include="CampaignMode\Tools\AnimTraceCommands.cs" />
     <!-- 玩家飞行（2026-09-21）· 玩法本体。
          🔴 新增 .cs 不登记本清单 = 静默不编译（雷 40），四行一个都不能少。
          机制依据：Knowledge/骑砍2Agent运动与位置机制.md §6.6（实心载具 + 逐帧瞬移）；方案：plans/玩家飞行-实施方案.md -->

@@ -58,7 +58,7 @@ material 不只是贴图，**它同时决定混合模式**（2026-09-18 全量�
 EFFECTS = [
 
     # =====================================================================
-    # 阶段 1 · 蓄力（1.50s）—— 掌上一颗白热红球，外裹暗紫晕、射出暗射线
+    # 阶段 1 · 蓄力（1.50s）—— 掌上一颗白热红球，四周黑气**向核塌缩**（2026-09-22 重写）
     #   实测：亮盘 0.30m / 暗晕 0.52m / 球心离指尖 0.37m / 满蓄 1.5s
     # =====================================================================
     dict(
@@ -86,40 +86,91 @@ EFFECTS = [
                  emit_sphere_radius=0.09, emit_volume_type="sphere",
                  damping=2.0, gravity="0.000, 0.000, 0.000",
                  velocity=(0.45, 0.35),
-                 particle_size=(0.280, 0.070), size_curve=(0.50, 1.40, 0.160),
+                 particle_size=(0.360, 0.080), size_curve=(0.50, 1.40, 0.160),
                  emissive_multiplier=1.8,
                  max_alive_particle_count=400,
                  color=[(0.0, "0.980, 0.550, 0.520"), (1.0, "0.620, 0.100, 0.120")],
                  alpha=[(0.0, 0.0), (0.15, 0.50), (0.60, 0.24), (1.0, 0.0)]),
 
-            # 🔴 暗紫晕 —— modulate 材质，压暗背景（实测 ⌀0.52m，= 亮盘的 1.7 倍）
-            #    alpha 峰值压在 0.34：乘法叠加会连乘，超过就糊成纯黑
-            dict(name="dark_halo",
-                 material="prt_shd_haze_1",
-                 emission_rate=(72, 0), particle_life=(1.30, 0.45),
-                 emit_sphere_radius=0.20, emit_volume_type="sphere",
-                 damping=0.5, gravity="0.000, 0.000, 0.000",
-                 velocity=(0.35, 0.30),
-                 particle_size=(0.300, 0.080), size_curve=(0.50, 1.75, 0.200),
-                 diffuse_multiplier=0.45, emissive_multiplier=0.0,
-                 max_alive_particle_count=400,
-                 color=[(0.0, "0.340, 0.100, 0.150"), (1.0, "0.130, 0.050, 0.090")],
-                 alpha=[(0.0, 0.0), (0.20, 0.34), (0.65, 0.16), (1.0, 0.0)]),
+            # =================================================================
+            # 🔴 黑气向核聚拢（2026-09-22 新增）—— 引擎没有「吸引子」，做不出真·径向内飞
+            #   实证：Native 全部 particle XML 里 emission_velocity_model **只有一种值**
+            #        `random_velocity_components`（492/492）→ 没有 inward / attract 速度模型。
+            #   所以「聚拢」用可实现的近似：**壳层塌缩 + 雾团自缩**
+            #     ① 不用 emit_at_once（语义不明），改用 emitter_life 0.10s × 高频 emission_rate
+            #        ≈ 一整层一次性发完——时长×速率，行为可预测；
+            #     ② 每层发在一个固定半径的球壳上（1.30m / 0.55m），用 activation_delay 错开；
+            #     ③ particle_size 的 size_curve 让每团从 1.0 缩到 0.2
+            #        → 视觉上就是「一圈黑气往核里收」。
+            #   ⚠️ 浓度铁律：modulate 是**乘法叠加**，一团叠一团会连乘到纯黑（第一版 90 颗 0.85m 粒子
+            #      把白热核整个吃掉）→ 壳上的粒子数 × 粒子尺寸必须小，alpha 峰值压在 0.2 以下。
+            #   实测依据：11.10–11.90s 蓄力期，核周围流场的光学流**径向分量为负**
+            #        （朝心占比 0.59→0.71，mean_rad −0.02→−0.22 px/帧）；
+            #        释放瞬间翻转（12.05s：+2.55 px/帧、朝心占比 0.24）⇒「蓄力吸、释放喷」。
+            #   取证图：output/yinmo_ref/flow/flow_11.90s.png（蓝箭头 = 朝心）
+            # =================================================================
 
-            # 暗射线 —— 光球四周辐射出去的细暗纹（视频里那一圈"逆光刺"）
-            #   turn_to_velocity_side 让面片顺着速度方向 = 细长线
-            dict(name="shadow_rays",
+            # 平滑暗晕：视频里紧贴亮盘的那圈暗色是**连续渐变**的（⌀0.52m ≈ 亮盘 1.7 倍，
+            #   已实测）。200 颗小烟团叠出来是"一团团烟"，不是暗晕 ⇒ 改用**单颗大面片**承担
+            #   （prt_shd_haze_1 是 modulate，一颗 0.52m 的面片正好是一层平滑暗环）
+            dict(name="dark_halo_flat",
+                 material="prt_shd_haze_1",
+                 emission_rate=(6, 0), particle_life=(1.20, 0.30),
+                 emit_sphere_radius=0.06, emit_volume_type="sphere",
+                 damping=0.5, gravity="0.000, 0.000, 0.000",
+                 velocity=(0.15, 0.10),
+                 particle_size=(0.520, 0.060), size_curve=(1.0, 1.05, 1.0),
+                 diffuse_multiplier=0.45, emissive_multiplier=0.0,
+                 max_alive_particle_count=8,
+                 color=[(0.0, "0.300, 0.090, 0.140"), (1.0, "0.120, 0.040, 0.080")],
+                 alpha=[(0.0, 0.0), (0.18, 0.22), (0.70, 0.12), (1.0, 0.0)]),
+
+            # 外层收拢雾：0.45m 壳上一圈细颗粒，各自往小瘪（范围按实测收）
+            dict(name="dark_shell_outer",
+                 material="prt_shd_haze_1",
+                 emitter_life=0.10, activation_delay=0.00,
+                 emission_rate=(120, 0), particle_life=(0.90, 0.20),
+                 emit_sphere_radius=0.45, emit_volume_type="sphere",
+                 damping=0.0, gravity="0.000, 0.000, 0.000",
+                 velocity=(0.10, 0.10),
+                 particle_size=(0.160, 0.050), size_curve=(1.0, 0.25, 0.18),
+                 diffuse_multiplier=0.40, emissive_multiplier=0.0,
+                 max_alive_particle_count=400,
+                 flags=dict(order_by_distance=True),
+                 color=[(0.0, "0.240, 0.090, 0.140"), (1.0, "0.100, 0.040, 0.070")],
+                 alpha=[(0.0, 0.0), (0.12, 0.06), (0.65, 0.03), (1.0, 0.0)]),
+
+            # 内层收拢雾：0.22m 壳，延后 0.35s 发 —— 接住外层的「塌缩接力」
+            dict(name="dark_shell_inner",
+                 material="prt_shd_haze_1",
+                 emitter_life=0.10, activation_delay=0.35,
+                 emission_rate=(80, 0), particle_life=(0.85, 0.20),
+                 emit_sphere_radius=0.22, emit_volume_type="sphere",
+                 damping=0.0, gravity="0.000, 0.000, 0.000",
+                 velocity=(0.08, 0.08),
+                 particle_size=(0.140, 0.040), size_curve=(1.0, 0.22, 0.18),
+                 diffuse_multiplier=0.42, emissive_multiplier=0.0,
+                 max_alive_particle_count=400,
+                 flags=dict(order_by_distance=True),
+                 color=[(0.0, "0.260, 0.100, 0.150"), (1.0, "0.110, 0.040, 0.080")],
+                 alpha=[(0.0, 0.0), (0.15, 0.08), (0.65, 0.04), (1.0, 0.0)]),
+
+            # 暗气流条：细长、顺着速度铺开
+            #   skew_with_respect_to_particle_velocity 是原版**最常用**的 flag（467 次）——拉条就靠它
+            dict(name="dark_inflow_streaks",
                  material="prt_shd_haze_1",
                  billboard_type="turn_to_velocity_side",
-                 emission_rate=(60, 0), particle_life=(0.45, 0.20),
-                 emit_sphere_radius=0.10, emit_volume_type="sphere",
-                 damping=0.20, gravity="0.000, 0.000, 0.000",
-                 velocity=(1.60, 0.50),
-                 particle_size=(0.035, 0.012), size_curve=(1.0, 0.30, 0.020),
-                 diffuse_multiplier=0.35, emissive_multiplier=0.0,
+                 emission_rate=(40, 0), particle_life=(0.55, 0.20),
+                 emit_sphere_radius=0.90, emit_volume_type="sphere",
+                 damping=0.25, gravity="0.000, 0.000, 0.000",
+                 velocity=(0.35, 0.30),
+                 particle_size=(0.050, 0.020), size_curve=(1.0, 0.25, 0.030),
+                 skew_with_particle_velocity_coef=10.000, skew_with_particle_velocity_limit=0.350,
+                 diffuse_multiplier=0.38, emissive_multiplier=0.0,
                  max_alive_particle_count=400,
-                 color=[(0.0, "0.300, 0.090, 0.140"), (1.0, "0.100, 0.040, 0.070")],
-                 alpha=[(0.0, 0.0), (0.12, 0.30), (0.70, 0.12), (1.0, 0.0)]),
+                 flags=dict(skew_with_respect_to_particle_velocity=True),
+                 color=[(0.0, "0.280, 0.090, 0.140"), (1.0, "0.110, 0.040, 0.070")],
+                 alpha=[(0.0, 0.0), (0.14, 0.10), (0.70, 0.04), (1.0, 0.0)]),
         ]),
 
     # =====================================================================

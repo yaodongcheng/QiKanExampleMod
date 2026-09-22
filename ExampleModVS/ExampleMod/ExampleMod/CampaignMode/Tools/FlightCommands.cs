@@ -15,7 +15,8 @@ namespace LivingWorldNpcs.CampaignMode
     /// custom.flight                 查状态（首参可弃：认不出的首参当占位符，回落 status）
     /// custom.flight start           强制起飞（绕过长按空格）
     /// custom.flight stop            强制落地
-    /// custom.flight verbose on|off  开逐帧诊断日志
+    /// custom.flight log on|off [full]  飞行 tick 日志总闸（默认关；full = 连每帧那行也开）
+    /// custom.flight verbose on|off  逐帧日志子开关（要配合总闸）
     /// custom.flight tune &lt;键&gt; &lt;值&gt;  热调一个参数（见下）
     /// custom.flight reset           参数回出厂值
     /// </code>
@@ -39,6 +40,32 @@ namespace LivingWorldNpcs.CampaignMode
                 case "land":
                     return WithBehavior(b => b.ForceStop());
 
+                case "log":
+                {
+                    // 🔴 飞行 tick 日志总闸（2026-09-22 用户要求：默认关，要查时再开）。
+                    //    管：[Flight-Diag] 三行 / [Flight] 姿态 → +屏幕提示 / [Flight] air v=… / [Anim:flight] 切换行。
+                    //    **异常路径的日志不受它管**（冻结失败/载具召唤失败/tick 异常/抖动自检）—— 那些永远留着。
+                    if (args.Count >= 2)
+                    {
+                        string v = args[1].ToLowerInvariant();
+                        if (v == "on" || v == "1" || v == "true")
+                        {
+                            FlightTuning.DebugLog = true;
+                            // 第三参 full = 连每帧那行也开
+                            FlightTuning.VerboseLog = args.Count >= 3 &&
+                                (args[2].ToLowerInvariant() is "full" or "verbose" or "all");
+                        }
+                        else
+                        {
+                            FlightTuning.DebugLog = false;
+                            FlightTuning.VerboseLog = false;
+                        }
+                    }
+                    return $"OK. debugLog={(FlightTuning.DebugLog ? "on" : "off")} "
+                         + $"verbose={(FlightTuning.VerboseLog ? "on" : "off")} "
+                         + "| usage: custom.flight log on|off [full]";
+                }
+
                 case "verbose":
                 {
                     if (args.Count >= 2)
@@ -46,7 +73,8 @@ namespace LivingWorldNpcs.CampaignMode
                         string v = args[1].ToLowerInvariant();
                         FlightTuning.VerboseLog = v == "on" || v == "1" || v == "true";
                     }
-                    return $"OK. verbose={(FlightTuning.VerboseLog ? "on" : "off")}";
+                    return $"OK. verbose={(FlightTuning.VerboseLog ? "on" : "off")} "
+                         + $"(note: per-frame line also needs the master switch: debugLog={(FlightTuning.DebugLog ? "on" : "off")})";
                 }
 
                 case "tune":

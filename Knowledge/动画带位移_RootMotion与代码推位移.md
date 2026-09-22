@@ -258,9 +258,14 @@ python Debug\offline\trf_root_travel.py --trf "<xxx.trf>"
 
 | 产物 | 说明 |
 |---|---|
-| `Taikou\AssetPackages\lwn_taikou_anim.tpac` | 含 clip `execution_02`（`displacement = (0.2462, 3.6734, 0)`、`endProgress = 0.4`、flag `displace_position`）|
-| `Taikou\ModuleData\action_types.xml` / `action_sets.xml` | 声明动作 `act_execution02_root` 并绑到 clip（`animation="execution_02"`）|
+| `Taikou\AssetPackages\lwn_taikou_anim.tpac` | 含 clip `execution02`（`displacement = (0.2462, 3.6734, 0)`、`endProgress = 0.4`、flag `displace_position`）· 配套受击侧 clip `executed02`（`(0.63, 1.04, 0)`、`endProgress 0.7`、时长 4.2 s）|
+| `Taikou\ModuleData\action_types.xml` / `action_sets.xml` | 声明动作 `act_execution02` 并绑到 clip（`animation="execution02"`）· 受击侧 `act_executed02` → `executed02`（**2026-09-22 改名**：动作名去掉 `_root` 后缀 —— 动作名只说"演什么"，"带不带位移"是 clip 自己的事）|
 | 备用包 | `Debug\offline\anim_pack_backup\` 两份（ModKit 原产版 / 更早一版）|
+
+**怎么实机验（配对检查台，2026-09-22 新增）**：`custom.exec_pair`（[MyCommands.cs](../ExampleModVS/ExampleMod/ExampleMod/Debug/MyCommands.cs)）
+—— 把 **interact 焦点**上的 NPC 拉到玩家正前方 2 米（第 2 参可改距离，0.5~5 m）、让他面朝玩家，然后**同一帧**起播
+玩家 `act_execution02` + 他 `act_executed02`。玩家自己单播仍走 `custom.do_anim act_execution02`。
+首参可弃（`custom.exec_pair 1` 也能跑，解析不出就回落焦点并在返回里注明）。
 
 ModKit 填值：`Source 1 = 2` / `Source 2 = 102` / **`Duration = 3.367`（秒）**；`displacement` 填 `X=0.2462 Y=3.6734 Z=0 endProgress=0.4`。
 

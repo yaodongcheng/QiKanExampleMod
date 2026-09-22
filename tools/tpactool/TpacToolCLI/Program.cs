@@ -26,6 +26,7 @@ string mapping = null;
 bool mapsonly = false;
 string dispArg = null;   // clipset: "X,Y,Z"
 string endArg = null;    // clipset: endProgress（可省）
+string durArg = null;    // clipduration: 新 Duration（秒），或 "auto"
 
 string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -46,6 +47,7 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--mapsonly": mapsonly = true; break;
             case "--disp": dispArg = cmdLine[++i]; break;
             case "--end": endArg = cmdLine[++i]; break;
+            case "--duration": durArg = cmdLine[++i]; break;
             default: Console.Error.WriteLine("unknown arg: " + args[i]); break;
         }
     }
@@ -494,6 +496,137 @@ switch (command)
                   && Math.Abs(bd.DisplacementVector.Z - v[2]) < 1e-4;
         Console.WriteLine(ok ? "  ✅ 写入生效且包结构完整" : "  ❌ 校验不过 —— 别用这个产物");
         return ok ? 0 : 1;
+    }
+    case "clipduration":
+    {
+        // 批量修 AnimationClip 的 Duration（秒）—— 只改元数据里那 4 个字节，数据段一个不碰。
+        //
+        // 用法：clipduration --packdir <目录> --filter <名字子串> --duration auto|<秒> [--out <目录>]
+        //
+        // 🔴 为什么要它：ModKit 的 Duration 输入框**只有 2 位小数**，而骑砍动画是 30fps ——
+        //    31 帧的真实时长是 1.0333 秒，四舍五入成 1.03 就**仍然偏短**。
+        //    正确做法是**向上取整**（1.04 / 2.04 / 3.04），`auto` 就是这个口径：
+        //        auto = ceil( (Source2 − Source1 + 1) / 30 × 100 ) / 100
+        //    并且**只升不降**（已经比 auto 长的保持原样）。
+        //
+        // 🔴 Duration 在元数据里的位置 = 文件头【偏移 4】的一个 float32
+        //    （布局：u32 version → float Duration → float Source1 → float Source2 …，
+        //     见 TpacTool.Lib/AnimationClip/AnimationClip.cs 的 ReadMetadata）。
+        //    与 clipset 同一条路：**就地改这 4 个字节，其余字节一个不碰** ——
+        //    绝不走"改对象再序列化"（库的 WriteMetadata 会把 metadata version 从 6 降成 5、
+        //    还会把 vec4 第 4 分量写成 0，实测 15 字节非预期改动）。
+        if (dir == null || filter == null || durArg == null)
+        {
+            Console.Error.WriteLine("clipduration requires --packdir <dir> --filter <substr> --duration auto|<seconds> [--out dir]");
+            return 1;
+        }
+        float forced = float.NaN;
+        bool auto = string.Equals(durArg.Trim(), "auto", StringComparison.OrdinalIgnoreCase);
+        if (!auto && !float.TryParse(durArg.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out forced))
+        {
+            Console.Error.WriteLine("--duration 只认 'auto' 或一个秒数: " + durArg);
+            return 1;
+        }
+
+        // ① 只读头定位含目标 clip 的那个 .tpac
+        string target = null;
+        var scanDirs = (dir ?? ".").Split(',').Select(d => d.Trim()).Where(d => d.Length > 0).ToArray();
+        foreach (var pd in scanDirs)
+        {
+            if (!Directory.Exists(pd)) continue;
+            foreach (var f in Directory.EnumerateFiles(pd, "*.tpac", SearchOption.AllDirectories))
+            {
+                if (new AssetPackage(f, true, false).Items.Any(i =>
+                        i.Type.Equals(AnimationClip.TYPE_GUID) &&
+                        i.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+                {
+                    target = f;
+                    break;
+                }
+            }
+            if (target != null) break;
+        }
+        if (target == null)
+        {
+            Console.Error.WriteLine($"没有哪个 .tpac 里含名字匹配 '{filter}' 的 AnimationClip");
+            return 1;
+        }
+        Console.WriteLine($"目标包: {target}");
+
+        // ② 只读头（故意不读数据段，理由同 clipset）
+        var pkg = new AssetPackage(target, true, false);
+        var hits = pkg.Items.OfType<AnimationClip>()
+                      .Where(c => c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                      .OrderBy(c => c.Name).ToList();
+        if (hits.Count == 0)
+        {
+            Console.Error.WriteLine("二遍扫描没找到（加载模式不一致？）");
+            return 1;
+        }
+
+        int changed = 0;
+        foreach (var c in hits)
+        {
+            var raw = c.RawMeta;
+            if (raw == null || raw.Length < 8)
+            {
+                Console.Error.WriteLine($"  {c.Name}: 没有 RawMeta，跳过");
+                continue;
+            }
+            float onDisk = BitConverter.ToSingle(raw, 4);
+            if (Math.Abs(onDisk - c.Duration) > 1e-5)
+            {
+                Console.Error.WriteLine($"  {c.Name}: 偏移自校验失败（字节流 {onDisk} vs 对象 {c.Duration}）—— 跳过");
+                continue;
+            }
+
+            int frames = (int)Math.Round(c.Source2 - c.Source1) + 1;
+            double want = auto ? Math.Ceiling(frames / 30.0 * 100.0 - 1e-9) / 100.0 : forced;
+
+            // 只升不降：已经够长的保持原样（例：闪避 1.87 > 1.8667，本来就是对的）
+            if (want <= c.Duration + 1e-6)
+            {
+                Console.WriteLine($"  {c.Name,-32} {c.Duration:F4} → 不动（目标 {want:F4} 不更大；帧 {frames}）");
+                continue;
+            }
+            BitConverter.GetBytes((float)want).CopyTo(raw, 4);
+            c.Duration = (float)want;
+            Console.WriteLine($"  {c.Name,-32} {onDisk:F4} → {want:F4}   (帧 {frames}，真实 {frames / 30.0:F4})");
+            changed++;
+        }
+        if (changed == 0)
+        {
+            Console.WriteLine("没有任何 clip 需要改 —— 不写出。");
+            return 0;
+        }
+
+        // ③ 写到独立目录（绝不原地覆盖）
+        var outRoot = outDir ?? ".";
+        Directory.CreateDirectory(outRoot);
+        var outPath = Path.Combine(outRoot, Path.GetFileName(target));
+        pkg.Save(outPath);
+        Console.WriteLine($"已写出: {outPath} ({new FileInfo(outPath).Length} bytes, 原 {new FileInfo(target).Length} bytes)");
+
+        // ④ 回读验证
+        var back = new AssetPackage(outPath, true, false);
+        bool sameGuid = back.Guid.Equals(pkg.Guid);
+        bool sameCount = back.Items.Count == pkg.Items.Count;
+        bool allOk = sameGuid && sameCount;
+        foreach (var c in hits)
+        {
+            AnimationClip bc = null;
+            foreach (var it in back.Items)
+                if (it.Type.Equals(AnimationClip.TYPE_GUID) && it.Name.Equals(c.Name, StringComparison.Ordinal))
+                    bc = (AnimationClip) it;
+            if (bc == null || Math.Abs(bc.Duration - c.Duration) > 1e-5)
+            {
+                Console.Error.WriteLine($"  ❌ 回读 {c.Name}: {(bc == null ? "缺失" : bc.Duration.ToString())} ≠ {c.Duration}");
+                allOk = false;
+            }
+        }
+        Console.WriteLine($"回读: items {back.Items.Count}/{pkg.Items.Count} · 包 guid 一致={sameGuid} · 改动 {changed} 条");
+        Console.WriteLine(allOk ? "✅ 写入生效且包结构完整" : "❌ 校验不过 —— 别用这个产物");
+        return allOk ? 0 : 1;
     }
     case "list":
     {

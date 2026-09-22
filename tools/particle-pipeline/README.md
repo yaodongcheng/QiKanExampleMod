@@ -140,7 +140,9 @@ python preview\render_still.py --xml D:\...\output\xml\lwn_ns_fireball.xml --t 1
 >
 > **2026-09-21 更新**：`examples/yinmo_spec.py` 已按 `阴魔斩.mp4` **逐秒重新标定**（尺子 = 角色本身：
 > 12.00s 帧量得头顶→脚底 405 px = 1.8 m ⇒ **225 px/m**；颜色用高亮红/品红掩膜取均值与 p95）。
-> 13 个 emitter 的尺寸/颜色/材质全部换成实测值，`validate_xml.py` 13 emitter / 问题 0 条。
+> **2026-09-22 更新（蓄力段第 1 步）**：`lwn_yinmo_charge` 重写成「白热核 + 黑气向核塌缩」，
+> emitter 数 13 → **15**，`validate_xml.py` 15 emitter / 问题 0 条。同物理视场对比图见
+> `out/charge_vs_video.png`（左=录像 12.00s，右=spec 0.95s，两侧都带 0.5 m 比例尺）。
 > 完整实测数字表 + 方法论见 [Knowledge/骑砍2粒子系统.md §九](../../Knowledge/骑砍2粒子系统.md)。
 >
 > 另：那段录像的第三段「薄月牙」**纯粒子做不出来** —— 见 **§4.2**。
@@ -168,8 +170,22 @@ python gen_particle_effect.py examples\yinmo_spec.py -o out\yinmo_slash.xml
 `installdir = "Mount & Blade II Bannerlord"`，StateFlags=4 完整安装，30.9 GB）。
 这四个标志一起出现 = 装了：`bin/Win64_Shipping_wEditor/` · `modding_resources/` · `XmlSchemas/` · 各模块 `ModuleData/project.mbproj`。
 官方要求「编辑器必须与游戏同盘同目录」，这个目录形态正好满足。
-⚠️ `bin/Win64_Shipping_wEditor/` 里**没有 `Editor.exe`** —— 编辑器不是独立程序：从 Steam 启动 Modding Kit 后，
-它打开的是某个模块的 `project.mbproj`（solution）。
+⚠️ **编辑器不是独立程序，也没有「打开 solution / Open Project」这种功能**
+（2026-09-22 用户纠正 —— 我第一版写"从 Steam 启动后打开某个模块的 project.mbproj(solution)"是瞎编的）。
+正规入口（官方 FAQ 快照 `Knowledge/bannerlord_official_docs/Asset Management/faq.md`「How to launch the tools?」
+＋本工程实机验证 `Knowledge/蒂法换头工程.md` §7）：
+
+```
+bin\Win64_Shipping_wEditor\TaleWorlds.MountAndBlade.Launcher.exe
+  → 启动器里【勾选模块】 → SinglePlayer → Play
+  → 主菜单按 Ctrl + E（或点 Editor 按钮） → 模块编辑器
+```
+
+🔴 **编辑器加载哪些模块 = 启动器里勾选哪些模块**，没有"选工程文件"这一步。
+所以要验证粒子，得把它挂在**编辑器能加载的模块**上（依赖四前置的 LWN 打不开 → 走 TaikouAnim 沙箱，见 ⑥）。
+本工程记录过的坑：RGL 警告 `Invalid submodule tag in file:///…SubModule.xml` **点确定可继续**
+（建议把第三方 mod 全部取消勾选再进）；`File > Save Scene` 会把 `Window > Show Model Viewer` 弄坏（要重启编辑器）；
+编辑器内存重，别一上来开大地图场景（织丰 4.1 万 entity 曾有崩编辑器的前科）。
 
 **② 三步链路（谁负责什么）**
 
@@ -213,6 +229,24 @@ python gen_particle_effect.py examples\yinmo_spec.py -o out\yinmo_slash.xml
 | 6 | 只有到「月牙要 mesh / 自制材质贴图」时才需要完整资产管线 | 那时走 `Assets\` + `AssetSources\`（**镜像布局**）+ Publish `.tpac`；ModKit 打不开的内容包走沙箱模块（范本 `Modules/TaikouAnim/`） |
 
 > **推进顺序建议**：先只注册 **1 个 XML**（阴魔斩三段）跑通「搜得到名字 → 场景里看得见」，再一次性铺 99 个。
+
+**⑥ 已落地（2026-09-22）＋ 四条新证据**
+
+🔴 **挂在 `Modules/TaikouAnim/`（ModKit 中转沙箱），不是 LivingWorldNpcs** —— 用户裁定：
+**ModKit 打不开 LWN**（它依赖 Harmony / ButterLib / UIExtenderEx / MBOptionScreen **四前置**），
+而沙箱只依赖 `Native` ⇒ 编辑器才起得来。同《[Knowledge/资产中转沙箱模块工作流.md](../../Knowledge/资产中转沙箱模块工作流.md)》。
+
+已落地：`Modules/TaikouAnim/ModuleData/project.mbproj` 挂 2 行
+（**阴魔斩 3 effect / 15 emitter** + **radial 探针 3 effect**），文件在 `ModuleData/particles/`。
+⚠️ 沙箱有两态，别搞混：**编辑器里看** = 保持 `Assets/` 存在；**要进游戏看** = 先跑模块的
+`to_game_mode.bat`（把 `Assets` 改名停用，否则引擎读半成品资产会崩）再勾选本模块。
+
+| 新证据 | 出处 | 意义 |
+|---|---|---|
+| **ModKit 打不开哪类模块**：依赖四前置的 LWN 打不开、只依赖 Native 的沙箱能开 | 用户裁定 + `SubModule.xml` 的 `DependedModules` | 「能不能进编辑器」取决于**前置依赖链**，与模块大小无关 → 粒子这种纯数据也走沙箱 |
+| **`project.mbproj` 的本机三种写法**：Native/Shokuho = `<base>` + 3 行目录；**XiuXian = 最简式（只有 `<base type="solution">` + `<file>`）**；MyMapTest = 用 `<Module>` **元素**（旧式） | 各模块 `ModuleData/project.mbproj` | **最简式够用**（我们采用它）—— 那 3 行 `outputDirectory/XMLDirectory/ModuleAssemblyDirectory` 只在**打包内容包**时用，本机连 `WOTS`/`MBModule` 目录都不存在 |
+| `soln_particle_systems` 在 C# 侧 **0 命中**（`TaleWorlds.MountAndBlade.dll` / `.Engine.dll` / `.Core.dll`），而同族的 `skins`/`item_holsters`/`sounds`/`animations` 都有 `CreateProcessed*XMLForNative` 合并函数 | 三个 C# DLL 字符串 | 粒子是**纯 native 读取**，不走 C# 的 XML 合并路径 —— 与其它 soln_ 类型**不同族**，所以"机制同款已验证三次"这条类比**要打折扣**（首次实机风险仍在） |
+| 三个 `particles*.tpac`（各 21 MB）里 **`<emitter` 命中 0**、`particle_life` 命中 0 | `Modules/Native/{AssetPackages,EmAssetPackages}` | 粒子**定义在 XML 里，不在 tpac 里**；tpac 装的是粒子用的**材质/贴图**资产。所以只要不新增材质，加 XML 就够了 |
 
 ---
 
@@ -298,6 +332,38 @@ Chrome 在 Windows 是 GUI 子系统程序，**必须 `Start-Process -Wait` 才�
 **背景**：阴魔斩参考录像第三段是一道**薄月牙斩击波**。它在 UE 侧是 **Mesh / Ribbon 渲染器**做的；
 骑砍的粒子系统**没有这两样**，我们复刻出来的是「亮核 + 拖烟 + 余烬」的彗尾，不是薄月牙。
 
+**同类边界（2026-09-22 加测：「聚拢 / 吸附」也做不到真·径向）**——对 Native 全部 particle XML
+（**1152 个 emitter**）做枚举统计：
+
+| 参数 | 全库取值 | 推论 |
+|---|---|---|
+| `emission_velocity_model` | XML 里只出现过 `random_velocity_components`（492/492） | ⚠️ **这只说明「原版没用」，不等于「引擎没有」** —— 我第一次就是这么推错的，见下面「更正」 |
+| `emit_volume_type` | `box` 812 · `sphere` **1** | 球体积发射支持，但原版几乎不用（我们用） |
+| `billboard_type` | `3d` 526 · `turn_to_velocity_side` 247 · `2d` 36 · `none` 4 | 拉条/丝带只能靠 `turn_to_velocity_side` |
+| 最常开的 flag | **`skew_with_respect_to_particle_velocity` 467** · `local_emit_dir` 461 · `uses_sprite_animation` 390 · `emit_at_once` 385 | 拉长粒子成条纹靠 skew（之前一直没敢开，实证是主流做法） |
+
+> 🔴 **更正（2026-09-22，用户质疑「粒子不是都能做引力/球内运动吗」后重查）**
+>
+> 上面的表是**用使用面推断能力面**，方法本身是错的。改用引擎侧证据（`bin/Win64_Shipping_wEditor/TaleWorlds.Native.dll`
+> 的参数字符串池）后，事实是：
+>
+> | 证据 | 结论 |
+> |---|---|
+> | DLL 字符串池里有 **`radial_velocity`**（就夹在 `emit_velocity_y` 与 `activation_delay` 之间）、`radial_emission_velocity`、`radial_rotation_speed`、`emit_sphere_radius_inner`（空心球壳）、`emit_box_size`、`emit_disc_radius`、`warmup_time`、`local_force` | **引擎结构体里有「径向速度/球壳」这类字段** —— 用户的直觉是对的 |
+> | `Native/Prefabs/*.xml` 的 `<emitter_overrides>` 真写过 **`emit_disc_radius`(5) · `emit_box_size`(5) · `decal_material`(77) · `camera_fadeout_far_coef`(1)**，`emit_volume_type` 还有取值 **`disc`**(3 处) | XML **确实存在「55 个参数以外」的写入路径**（我上一版说"只有 box/sphere"也是错的） |
+> | 但 `particle_systems_*.xml` 的 emitter 侧，491 个活体 emitter **清一色 (21 flag, 55 param)**，从没写过第 56 个 | 「往 particle_systems 的 emitter 里写 `radial_velocity` 会不会被读」**静态证据到此为止，必须实测** |
+>
+> **所以「能不能做引力」现在的答案是：引擎多半有，XML 能不能送到是未知。** 已做 A/B/C 探针去判：
+> `examples/probe_radial_spec.py` → `out/probe/probe_radial.xml`
+> （`lwn_probe_radial_in` = radial_velocity **−1.60** · `lwn_probe_radial_out` = **+1.60** · `lwn_probe_radial_off` = 不写）。
+> 生成器已加 **`extra_params` 逃生口**（默认不写 ⇒ 输出仍是原版 21/55 定长；探针里刻意写到 56 个参数，
+> 所以 `validate_xml.py` 会对它报 2 条 `param=56 (应 55)` —— **这是刻意的，不是坏档**）。
+> ⚠️ **别用预览页判这条**：预览器只实现了 55 个参数，它对这三个 effect 只会渲染出「一团不动的烟」。
+>
+> **在实测结果出来之前**，「黑气向核聚拢」仍用**壳层塌缩近似**（多个 emitter 各占一个固定半径球壳，
+> `activation_delay` 错开 + `emitter_life × emission_rate` 一次发完一层 + `size_curve` 让雾团自己往小瘪）。
+> 若探针证明 `radial_velocity` 无效，**真·向心**还有一条稳的路：**C# 每帧驱动一个挂着粒子的 Entity 朝心移动**。
+
 > 🔴 **别被预览页骗了**：预览页里那个月牙**不是 XML 画的**，是预览器自己的替身网格
 > （`preview.template.html` 的 `crescent` 对象 / `render_still.py` 的 `draw_crescent()`）——
 > 它是**对标参考图用的示意件**。所以它**既不能证明**骑砍能做月牙，**也不能说明** XML 里有月牙。
@@ -340,7 +406,7 @@ Chrome 在 Windows 是 GUI 子系统程序，**必须 `Start-Process -Wait` 才�
 | `preview/vendor/three.min.js` | three.js r160（**入库**，离线可开的唯一保证） |
 | `preview/smoke_d_256.png` | 原版 `smoke_d` 贴图（默认贴图，缺了预览器直接报错） |
 | `preview/mats/*.mat.txt` | 原版 41 个 `prt_shd_*` 材质的 dump —— `MAT_BLEND` 混合模式表的**证据** |
-| `examples/yinmo_spec.py` | 样张 spec（阴魔斩三段式，13 emitter） |
+| `examples/yinmo_spec.py` | 样张 spec（阴魔斩三段式，**15 emitter**） |
 | `examples/yinmo.view.json` | 阴魔斩的**视图配置** sidecar（阶段/锚点/相机/替身网格） |
 
 **生成物纪律（铁律 22）**：XML / 预览页 / 静帧都是生成物，**禁止手改** —— 改 spec 或改转换器，重跑。
