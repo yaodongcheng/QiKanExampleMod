@@ -12,6 +12,10 @@
 | **CanPlayerTakeQuestConditions 修复** | ✅ | CommissionHubIssue.cs:413：1.2.12~1.3.x 基类 4 参 / 1.4.x 基类 5 参，override 改 `MB2_GE_140` 三分支 |
 | **本机 v1.3.15 编译** | ✅ | `dotnet build -c Debug` **0 errors**（1 warning = `LivingWorldCampaignGameManager._heroSelectOpened` 未使用字段，历史遗留） |
 | **v1.3.15 兼容回归（2026-09-23）** | ✅ | 后续新功能（法印弹 / NavMesh 调试 / 飞行）只在 1.2.12 上编过 → 1.3.15 一编炸 18 处；新增 7 个 V 封装收口后，**1.3.15 / 1.2.12 / 1.5.x 三档全绿**（差异清单见下「1.3.0 变更」） |
+| **1.4.8 编译验证（2026-09-23）** | ✅ | `dotnet build -c Debug` 0 errors —— **四档全绿**（1.2.12 / 1.3.15 / 1.4.8 / 1.5.x） |
+| **Harmony 补丁目标全量核查（2026-09-23）** | ✅ | 1.3.15 一开局就崩在 `PatchAll`（目标被 1.3.0 删掉）→ 新增 `Debug/offline/_check_harmony_targets.ps1`（扫**编译产物** + 四档对比 + 负面测试）；三个 1.2.12-only 守卫整类 `#if` 圈掉；挂载改**逐类**（单类失败不再掐断其余） |
+| **1.3.15 / 1.4.8 实机验证（2026-09-23）** | ✅ | 修完「内容包专属补丁越界」（必备清单雷 156）+ 上面那些之后，**纯功能包模式可正常建号进游戏**（1.3.15 与 1.4.8 均实测通过） |
+| **Taikou 联接到 1.3.15 / 1.4.8（2026-09-23）** | ✅ | `set_junction.py` 改**表驱动**（并补上原先漏掉的 1.4.8）；`Taikou / TaikouAnim / Shokuho_CNs / LivingWorldNpcs` × 三客户端 = **12 格全 `[OK]`**。⚠️ 联接只是让模块可见，**要不要加载由启动器勾选决定** |
 | csproj 累积阈值宏 | ✅ | v1.3.x → `MB2_V1212`+`MB2_GE_130` 自动侦测，无需改动 |
 | VersionCompat.cs 注册表注释 | ✅ | CommissionHubIssue 行更新为三分支说明 |
 
@@ -19,6 +23,10 @@
 
 | 项目 | 优先级 | 说明 |
 |------|:------:|------|
+| 🔴 **战役模式移植到 1.3.x / 1.4.8** | **P0** | 必备清单**雷 158**：`CampaignMode/` 是 `#if MB2_V1212` 全量实现 / `#else` 空壳（`LivingWorldCampaignGameManager.OnLoadFinished` 只有 `base` 一句）⇒ **Taikou 在 1.3.x/1.4.8 上开局会卡在加载完成后**（不是崩）。**移植完成前，别用 Taikou 去测那些版本的"兼容性"**（没有诊断价值）。移植面：`LivingWorldCampaign` 全量 + `OnLoadFinished` 建号分支 + `LivingWorldCharacterCreationContent` 在 1.3.x 的新形态 + 三个被删 API 的等价物（`InitialHomeSettlement` / `SetInitialHomeSettlement` / `Creator.CreateNotable`） |
+| `GameDatabase.Initialize` 的 `KeyNotFoundException` | **P1** | 必备清单**雷 159**：1.3.15 上策划表数据没加载（引擎日志每次启动一行，被自己的 catch 吞掉）。**先查真因再修**，别加兜底补丁 |
+| 同类「越界」补丁收窄 | P2 | 必备清单**雷 156**：`BackstoryCampaignBehaviorPatch` / `CharacterCreationCultureStageSortPatch` / `CharacterCreationCultureVisualFallbackPatch` / FaceGen 三个（`FaceGenOnSelectRaceGuard` / `FaceGenRaceDefaultBodyPatch` / `FaceGenRaceGenderFilterPatch`）→ 按"没装内容包时它有意义吗"逐条收窄 |
+| `EncyclopediaHeroHelmetPatch` 机制坐实（可选） | P3 | 雷 156 记着「机制未查明」：把 `GameTextsFindNullProbe` 排到**挂载顺序最前**再复现一次，抓"谁在 GameTexts 未初始化时提前碰了它"的调用栈 |
 | **v1.2.12 编译验证** | 🔴 P0 | 在 v1.2.12 电脑上 `dotnet build -c Release` 确认 0 errors |
 | ~~v1.4.6+ 编译验证~~ | ✅ | 已随 v1.4.8 开发机验证；1.5.1 升级后再度验证（RaidSettlement 5 参 / requiredGold 分支均编译通过） |
 | ~~发布策略确认~~ | ✅ | **已确认：三版全出**（1.2.12 / 1.3.15 / 1.5.x 各一台机器出 DLL；1.4.x 成为历史，需要时可用 MB2_1.4.8 备份客户端临时编译） |
