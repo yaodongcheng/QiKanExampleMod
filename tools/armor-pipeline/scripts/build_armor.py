@@ -30,6 +30,10 @@
       [--drop-coincident-max-ratio 0.15]  # 安全闸：命中占比超它就报错退出、一个都不删
       [--lod 0.834,0.563,0.249,0.140,0.072]
       [--no-lod]
+      [--feet-mesh <腿脚 skin FBX>]        # 脚部覆盖（见正文那段）：把甲里那只"鞋"换成能罩住它的壳
+      [--foot-cut-z 0.17]                 #   删到哪（米）· [--foot-shell-z 0.38] 壳包到哪（米）
+      [--foot-scale 1.02]                 #   绕脚踝放大倍数 · [--foot-margin 0.010] 法线外扩（米）
+      [--no-foot-shell]                   #   关掉（甲按原样导出）
 
 两种定标模式（2026-09-16 第 2 步）：
   · **T 模式**（给了 `--t-s`）= 整装按**逐角色源变换 T** 重排，只保留手臂链姿态修正。
@@ -1666,6 +1670,285 @@ for v in ARM.data.vertices:
         mn[i] = min(mn[i], v.co[i]); mx[i] = max(mx[i], v.co[i])
 print("   甲 bbox  x[%.3f,%.3f] y[%.3f,%.3f] z[%.3f,%.3f]" % (mn.x, mx.x, mn.y, mx.y, mn.z, mx.z))
 print("   原版身体  x[-0.599,0.599] z[0.379,1.544]   （对照）")
+
+# ---------------------------------------------------------------- 🔴 脚部覆盖（--feet-mesh，2026-09-23 立）
+#
+# 症状（用户实机 2026-09-23）：织田信长穿甲时**双脚露皮肤**（脚趾 / 脚背 / 脚踝）。
+# 根因（离线量的，不是猜）：游戏里显示的脚**不是甲的一部分** —— 是 skin 的 `legs_mesh`
+#   （男 `feet_male_a` / 女 `feet_female_a`，骑砍骨架、圆润人脚，191 顶点/只），
+#   而甲里那只"鞋"来自源件（68 顶点/只的低模楔形）。两者**形状对不上**：实测原版脚面
+#   136/386 顶点戳在甲外（35%），露的就是脚趾、脚背、脚踝。
+#   🔴 **放大救不了**（实测档 1.00~1.50）：最好的 1.20 也只收到 56/386，1.30 以上反而更糟
+#      （鞋一大，鞋底/鞋跟又切进脚的另一侧）—— **楔形拓扑套不住圆脚，这是形状问题不是尺寸问题**。
+#
+# 修法（**只动脚区**；甲其余部分的位置 / 权重 / UV 一律不动）：
+#   ① 删：甲里 **z < `--foot-cut-z` 且绑脚骨**的那只"鞋"（它永远罩不住脚，留着就是穿帮）。
+#   ② 补：拿**原版脚自己** z < `--foot-shell-z` 的部分，以该侧脚踝为枢轴放大 `--foot-scale`
+#      倍做成"靴壳"，顶端收口封盖。因为壳是原版脚的**等比放大**，"罩得住"是**几何保证**，
+#      不是调参调出来的（判据自量，见 ③）。
+#      · 权重抄原版脚自己的（`l_foot` → `bip01_l_foot_3` …）⇒ 走路时和脚一模一样地跟着动；
+#      · UV 从被删的鞋件按**最近顶点**抄 ⇒ 贴的还是源件那只鞋的深色皮面，不另开贴图；
+#      · 壳往上包到 `--foot-shell-z`（默认 0.32）：源件小腿件罩不住的那条前缝也一并补上。
+#   ③ 验收（离线可验，**不是"看着对"**）：原版脚 z<`--foot-cut-z` 的顶点**必须 0 个露在甲外**；
+#      本步自己量并打前后对比数。
+FOOT_SHELL = "--no-foot-shell" not in A
+FEET_REF = get(A, "--feet-mesh")
+FOOT_CUT_Z = float(get(A, "--foot-cut-z", "0.17"))     # 删到哪（米）：源件那只鞋的上缘
+FOOT_SHELL_Z = float(get(A, "--foot-shell-z", "0.38"))  # 壳包到哪（米）：小腿件内侧
+FOOT_SCALE = float(get(A, "--foot-scale", "1.02"))      # 壳相对原版脚的放大倍数（默认不放大）
+FOOT_MARGIN = float(get(A, "--foot-margin", "0.010"))   # 🔴 沿原版脚**表面法线**外扩多少（米）= 保底间隙
+FOOT_SOLE_OFF = float(get(A, "--foot-sole-off", "0.0"))    # 壳整体下沉量（米）—— 🔴 默认 0：实测下沉会把脚侧面往下挪，
+                                                          #    反而在脚侧上沿露皮肤（脚底那道折痕不值这个代价）      # 壳相对原版脚的放大倍数
+_FOOT_W_BONES = ("bip01_l_foot_3", "bip01_l_toe0_4", "bip01_r_foot_7", "bip01_r_toe0_8")
+_ANKLE_BONE = {"l": "bip01_l_foot_3", "r": "bip01_r_foot_7"}
+# 原版脚 FBX 里的骨名（短名，human_skeleton）→ 本管线的骑砍骨名（带 bip01_ 编号）
+_FEET_WMAP = {"l_thigh": "bip01_l_thigh_1", "l_calf": "bip01_l_calf_2",
+              "l_foot": "bip01_l_foot_3", "l_toe0": "bip01_l_toe0_4",
+              "r_thigh": "bip01_r_thigh_5", "r_calf": "bip01_r_calf_6",
+              "r_foot": "bip01_r_foot_7", "r_toe0": "bip01_r_toe0_8"}
+
+
+def _foot_bvh(zcap=0.70):
+    """甲（腿以下）的 BVH —— 验收判据用。"""
+    from mathutils.bvhtree import BVHTree
+    co = [tuple(v.co) for v in ARM.data.vertices]
+    polys = [tuple(p.vertices) for p in ARM.data.polygons
+             if min(co[i][2] for i in p.vertices) < zcap]
+    return BVHTree.FromPolygons(co, polys, all_triangles=False)
+
+
+def _tmp_me_for_subdiv(verts, faces, name):
+    """把 verts/faces 装成一个临时 Blender mesh（细分用；用完由调用方丢弃）。"""
+    me = bpy.data.meshes.new(name + "_sub")
+    me.from_pydata([tuple(v) for v in verts], [], faces)
+    me.update()
+    return me
+
+
+def _foot_uncovered(bvh, pts, nors, reach=0.05):
+    """修**前**的体检数（只当量级参考，别当验收判据）：从原版脚每个顶点沿它的外法线打 5cm 射线，
+    够不到任何甲面就记一笔。偏高（法线与甲面接近平行时会擦面而过），所以只用来回答
+    "修之前有多糟"，验收一律看渲染（`_foot_visual.py`）。"""
+    n_bad = 0
+    for p, n in zip(pts, nors):
+        if bvh.ray_cast(p + n * 0.002, n, reach)[0] is None:
+            n_bad += 1
+    return n_bad, 0.0
+
+
+if FOOT_SHELL and T_MODE:
+    if not FEET_REF or not os.path.isfile(FEET_REF):
+        print("   !! 脚部覆盖：--feet-mesh 没给或文件不存在（%s）⇒ 跳过（甲按原样导出）" % FEET_REF)
+    else:
+        import bmesh
+        # --- 读原版脚：顶点 / 面 / 权重（导入→抓→删对象，写法照 --drop-coincident）---
+        _b4 = set(bpy.data.objects)
+        _fv, _ff, _fw, _fn = [], [], [], []
+        try:
+            bpy.ops.import_scene.fbx(filepath=FEET_REF)
+            bpy.context.view_layer.update()
+            for _o in [o for o in bpy.data.objects if o not in _b4]:
+                if _o.type != 'MESH' or not len(_o.data.vertices):
+                    continue
+                _base = len(_fv)
+                _mw = _o.matrix_world
+                _mw3 = _mw.to_3x3()
+                _gn = [g.name for g in _o.vertex_groups]
+                _fv += [_mw @ v.co for v in _o.data.vertices]
+                _fn += [(_mw3 @ v.normal).normalized() for v in _o.data.vertices]
+                _ff += [tuple(_base + i for i in p.vertices) for p in _o.data.polygons]
+                for _v in _o.data.vertices:
+                    _fw.append({_gn[g.group]: g.weight for g in _v.groups if g.weight > 1e-5})
+        finally:
+            for _o in [o for o in bpy.data.objects if o not in _b4]:
+                bpy.data.objects.remove(_o, do_unlink=True)
+        # --- 甲侧：要删的"鞋" = **z 低于 FOOT_CUT_Z 且主导骨是腿骨**的那一圈 ---
+        # 🔴 判据不能用"脚骨权重 ≥ 0.5"（第一版踩过）：源件那只鞋**上缘有一圈顶点绑的是小腿骨**
+        #    （实测 136 个脚区顶点里只删掉 104，剩 32 个 + 它们连的面 ⇒ 鞋面整片留着，
+        #     于是鞋面从壳里穿出来、皮肤照样露 —— 症状与没修一样）。
+        #    改判"主导骨 ∈ 八根腿骨"（大腿/小腿/脚/趾）⇒ 鞋整个走干净；同时**不会碰**
+        #    挂在腿边的披风/长袍（它们绑的是脊椎/布骨），也不是"一刀切 z<0.17"。
+        _vgn = [g.name for g in ARM.vertex_groups]
+        _LEG_BONES = set(_FEET_WMAP.values())          # bip01_?_{thigh,calf,foot,toe0}
+        _dom = []
+        for _v in ARM.data.vertices:
+            if not _v.groups:
+                _dom.append(None)
+            else:
+                _dom.append(_vgn[max(_v.groups, key=lambda g: g.weight).group])
+        _boot = sorted(i for i in range(len(_dom))
+                       if _dom[i] in _LEG_BONES and ARM.data.vertices[i].co.z < FOOT_CUT_Z)
+        # 枢轴 = 该侧脚踝（造壳与验收共用同一份，含 z：见下面那段"枢轴 z 不能取地面"）
+        _piv = {}
+        for _sd, _bn in _ANKLE_BONE.items():
+            _b = BL.data.bones.get(_bn)
+            if _b is not None:
+                _piv[_sd] = (BL.matrix_world @ _b.head_local).copy()
+        _bvh0 = _foot_bvh()
+        _low = [i for i, p in enumerate(_fv) if p.z < FOOT_CUT_Z]      # 脚区（验收只看这里）
+        _n0, _ = _foot_uncovered(_bvh0, [_fv[i] for i in _low], [_fn[i] for i in _low])
+        if not _boot:
+            print("   !! 脚部覆盖：甲里 z<%.2f 没有绑脚骨的顶点（这件没有鞋件）⇒ 跳过" % FOOT_CUT_Z)
+        elif not _low:
+            print("   !! 脚部覆盖：%s 在 z<%.2f 没有几何 ⇒ 跳过" % (os.path.basename(FEET_REF), FOOT_CUT_Z))
+        else:
+            # 删鞋之前先把它的 UV 抄下来（供壳采样，壳贴的就是这只鞋的皮面）
+            _uvname = ARM.data.uv_layers.active.name if ARM.data.uv_layers.active else None
+            _boot_uv = {}
+            if _uvname:
+                _uvl = ARM.data.uv_layers[_uvname]
+                _acc = {}
+                for _lp in ARM.data.loops:
+                    if _lp.vertex_index in set(_boot):
+                        _acc.setdefault(_lp.vertex_index, []).append(tuple(_uvl.data[_lp.index].uv))
+                for _i, _l in _acc.items():
+                    _boot_uv[_i] = (sum(u for u, v in _l) / len(_l), sum(v for u, v in _l) / len(_l))
+            from mathutils.kdtree import KDTree
+            _kd = KDTree(len(_boot))
+            for _n, _i in enumerate(_boot):
+                _kd.insert(ARM.data.vertices[_i].co, _n)
+            _kd.balance()
+            _bb = [ARM.data.vertices[i].co.copy() for i in _boot]
+            # --- ① 删鞋 ---
+            _bm = bmesh.new()
+            _bm.from_mesh(ARM.data)
+            _bm.verts.ensure_lookup_table()
+            bmesh.ops.delete(_bm, geom=[_bm.verts[i] for i in _boot], context='VERTS')
+            _bm.to_mesh(ARM.data)
+            _bm.free()
+            ARM.data.update()
+            # --- ② 造壳：原版脚 z<FOOT_SHELL_Z 等比放大（枢轴 = 该侧**脚踝**，含 z）---
+            # 🔴 枢轴的 z 必须是**脚踝高度**、不能取地面（第一版取 z=0，实测踩到）：
+            #    取地面时脚底那圈只放大 0.1mm ⇒ 壳的底面与原版脚底面**几乎重合**
+            #    （实机 z-fighting，射线判据也把它记成"光着"：104/112 个脚底顶点）。
+            #    取脚踝后脚底整圈下沉 ~5mm（靴底本来就该比脚厚，肉眼看不出）。
+            _keep = [i for i, p in enumerate(_fv) if p.z < FOOT_SHELL_Z]
+            _kmap = {old: new for new, old in enumerate(_keep)}
+            _drop = Vector((0.0, 0.0, -FOOT_SOLE_OFF))
+            _sv, _src_of = [], []
+            for _old in _keep:
+                _p = _fv[_old]
+                _pv = _piv.get("l" if _p.x < 0.0 else "r")
+                _sv.append(_p if _pv is None
+                           else _pv + (_p - _pv) * FOOT_SCALE + _fn[_old] * FOOT_MARGIN + _drop)
+                _src_of.append(_old)
+            _sf = [tuple(_kmap[i] for i in f) for f in _ff if all(i in _kmap for i in f)]
+            # 🔴 **穿模修正**（第四版，也是最终版）：上面的"沿顶点法线外扩"在**凸脊**上会被折角吃掉
+            #    （脚掌前下方那条），所以外扩之后再补一道**按皮肤面反推**的修正：
+            #    对每个壳顶点，取它到皮肤的最近点 + 该点法线，若"带符号高度"小于 margin，
+            #    就沿法线顶到 margin 处。迭代几轮收敛。
+            #    —— 这样"壳在皮肤外侧 ≥ margin"变成**逐点成立**的性质，不靠位移方向的选得对不对。
+            #    为什么不是别的写法（四条都试过，别再走回头路）：
+            #      · 只按比例缩放：踝部离枢轴才 2~3cm ⇒ 只挤出 1~2mm，几乎贴死；
+            #      · 只沿平均法线外扩：凸脊处缩进皮肤（一条红）；
+            #      · 逐面外扩：折角处顶点分裂 ⇒ 面之间裂开细缝，皮肤从缝里透出来（满腿红线）；
+            #      · 沿"离脚踝的径向"外扩：脚底那片径向几乎与脚底**相切** ⇒ 壳整片往前滑、后缘露皮肤。
+            # 🔴 **细分**：壳的面是"低模三角"（源件脚就这密度），在**脚底/脚掌**这种凸面上，
+            #    三角形会**弦切**进皮肤里（边越长、凸得越厉害，切得越深）——实测侧视就是脚掌下沿一条红。
+            #    先细分一遍（弦长减半 ⇒ 下沉量降到 1/4），再跑穿模修正，壳就贴着皮肤走。
+            _bm = bmesh.new()
+            _bm.from_mesh(_tmp_me_for_subdiv(_sv, _sf, NAME))
+            _bm.faces.ensure_lookup_table()
+            # 只细分**朝下的面**（脚底那片才是凸面/弦切的灾区；全身细分会把顶点数翻四倍，没必要）
+            _down_faces = [f for f in _bm.faces if max(v.co.z for v in f.verts) < 0.12]
+            _down_edges = list({e for f in _down_faces for e in f.edges})
+            if _down_edges:
+                bmesh.ops.subdivide_edges(_bm, edges=_down_edges, cuts=1, use_grid_fill=True)
+            _bm.verts.ensure_lookup_table()
+            _sub_v = [v.co.copy() for v in _bm.verts]
+            _sub_f = [tuple(v.index for v in f.verts) for f in _bm.faces]
+            _bm.free()
+            from mathutils.kdtree import KDTree as _KDT
+            _old_kd = _KDT(len(_sv))
+            for _i, _q in enumerate(_sv):
+                _old_kd.insert(_q, _i)
+            _old_kd.balance()
+            _new_src = [_src_of[_old_kd.find(q)[1]] for q in _sub_v]
+            _sv, _sf, _src_of = _sub_v, _sub_f, _new_src
+            print("   脚部覆盖：壳细分后 %d 顶点 / %d 面" % (len(_sv), len(_sf)))
+
+            from mathutils.bvhtree import BVHTree as _BVT
+            _skin_bvh = _BVT.FromPolygons([tuple(q) for q in _fv], _ff, all_triangles=False)
+            _moved = 0
+            for _round in range(4):
+                _nfix = 0
+                for _n2 in range(len(_sv)):
+                    _loc, _nor, _fi, _d = _skin_bvh.find_nearest(_sv[_n2])
+                    if _loc is None:
+                        continue
+                    _h = (_sv[_n2] - _loc).dot(_nor)
+                    if _h < FOOT_MARGIN:
+                        _sv[_n2] = _loc + _nor * FOOT_MARGIN
+                        _nfix += 1
+                _moved += _nfix
+                if _nfix == 0:
+                    break
+            # 🔴 **鞋底板**：壳在**脚底那片**永远差一点（脚底的法线朝下，而"从脚踝往外"的方向与脚底几乎相切，
+            #    任何外扩方向在脚底都会漏一条）。补一块平的鞋底：把**朝下的面**（法线 z<−0.5）整片投到
+            #    "壳最低点再低 5mm"的平面上（保留 x/y）⇒ 从正下方看就是一块鞋底。
+            #    侧面看不见它 —— 壳的边沿比它外扩 8mm（2% + 6mm），把它整圈挡住。
+            _sole_z = min(q.z for q in _sv) - 0.005
+            _n_sole = 0
+            _plate = {}          # 源顶点号 → 底板顶点号（去重：相邻面共用，别逐面复制）
+            for _f in list(_sf):
+                _vs = [_sv[i] for i in _f]
+                _nf = (_vs[1] - _vs[0]).cross(_vs[2] - _vs[0])
+                if _nf.length < 1e-12 or _nf.normalized().z >= -0.5:
+                    continue
+                _ids = []
+                for _i in _f:
+                    if _i not in _plate:
+                        _plate[_i] = len(_sv)
+                        _sv.append(Vector((_sv[_i].x, _sv[_i].y, _sole_z)))
+                        _src_of.append(_src_of[_i])
+                    _ids.append(_plate[_i])
+                _sf.append(tuple(_ids))
+                _n_sole += 1
+            print("   脚部覆盖：鞋底板 %d 面（z=%.4f）" % (_n_sole, _sole_z))
+
+            _me = bpy.data.meshes.new(NAME + "_footshell")
+            _me.from_pydata([tuple(p) for p in _sv], [], _sf)
+            _me.update()
+            _ob = bpy.data.objects.new(NAME + "_footshell", _me)
+            bpy.context.scene.collection.objects.link(_ob)
+            if _uvname:
+                _nuv = _me.uv_layers.new(name=_uvname)
+                for _lp in _me.loops:
+                    _hit = _kd.find(_sv[_lp.vertex_index])
+                    _src = _boot[_hit[1]] if _hit[1] is not None else None
+                    _nuv.data[_lp.index].uv = _boot_uv.get(_src, (0.5, 0.5))
+            _vg = {}
+            _nvert = 0
+            for _new, _old in enumerate(_src_of):
+                for _gn, _wv in _fw[_old].items():
+                    _bn = _FEET_WMAP.get(_gn)
+                    if _bn is None:
+                        continue
+                    if _bn not in _vg:
+                        _vg[_bn] = _ob.vertex_groups.new(name=_bn)
+                    _vg[_bn].add([_new], _wv, 'REPLACE')
+                    _nvert += 1
+            if ARM.data.materials:
+                _me.materials.append(ARM.data.materials[0])
+            # 并入甲（用 join：材质槽 / UV 层 / 顶点组按名合并）
+            bpy.ops.object.select_all(action='DESELECT')
+            ARM.select_set(True)
+            _ob.select_set(True)
+            bpy.context.view_layer.objects.active = ARM
+            bpy.ops.object.join()
+            ARM.data.update()
+            # --- ③ 报告 ---
+            # 🔴 这里**不给"罩住率"数字**（试过三条判据都不可信，别再往这加）：
+            #    · 最近点法线判号 —— 甲在脚那带有两层几何（外面壳、里面源件小腿件），会误报；
+            #    · 沿顶点法线打射线 —— 法线几乎与壳面平行时擦面而过，误报；
+            #    · 对壳做奇偶（壳是开口筒、无盖）/ 对原版脚反向映射（原版脚网格自身开口+内壁）—— 都失真。
+            #    壳到底罩没罩住，**离线只认渲染**：`Debug/offline/_foot_visual.py`（甲不透明 + 皮肤染红，
+            #    红的地方就是会露皮肤的地方）。判据 = 前/后/侧/俯/仰五个角度看**没有红**。
+            print("   脚部覆盖：删鞋 %d 顶点 · 补壳 %d 顶点/%d 面（穿模修正 %d 次；原版脚 %s，绕脚踝 ×%.2f + 法线外扩 %.1fmm，包到 z=%.2f）"
+                  % (len(_boot), len(_sv), len(_sf), _moved, os.path.basename(FEET_REF),
+                     FOOT_SCALE, FOOT_MARGIN * 1000, FOOT_SHELL_Z))
+            print("   脚部覆盖：修前「露皮肤」方向 %d（射线体检，偏高）→ 修后见渲染复核 "
+                  "_foot_visual.py（五个角度无红 = 通过）" % _n0)
 
 # ---------------------------------------------------------------- LOD
 def make_sheets_double_sided(ob, open_ratio=0.5):

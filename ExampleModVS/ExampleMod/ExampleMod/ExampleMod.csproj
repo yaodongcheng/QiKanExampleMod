@@ -328,6 +328,10 @@
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
+    <!-- 🔴 SwordBeam（第三方剑气 mod）飞行距离补丁（2026-09-23）：把写死的 21 米放开，
+         用于验证「自管实体飞行物没有引擎上限」（法印工程 §十六）。没装该 mod 时静默跳过。
+         ⚠️ 距离/速度/尺寸是该 mod 的赞助版功能 —— 自用与诊断可以，别打进对外发布的内容。 -->
+    <Compile Include="Core\SwordBeamRangePatch.cs" />
     <!-- 🔴 通用修复（与太阁无关，2026-09-10 从 CampaignMode/ 移入 Core/ 并订正定位）：
          无文化角色的生成期补全——服务对象是**织丰**等"模板漏写 culture"的内容包（织丰至今仍缺 24 个）。 -->
     <Compile Include="Core\CharacterCultureBackfill.cs" />
