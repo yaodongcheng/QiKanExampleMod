@@ -328,6 +328,11 @@
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
+    <!-- 🔴 SwordBeam（第三方剑气 mod）可调项补丁（2026-09-23）：接管它写死的
+         距离 21 / 尺寸 3.6 / 光强 80（尺寸连带判定半径，见文件头）。
+         判据 = 引擎真的把 SwordBeam 程序集装配进来了没；没加载就什么都不做。
+         ⚠️ 这几个都是该 mod 的赞助版功能 —— 自用与诊断可以，别打进对外发布的内容。 -->
+    <Compile Include="Core\SwordBeamRangePatch.cs" />
     <!-- 🔴 通用修复（与太阁无关，2026-09-10 从 CampaignMode/ 移入 Core/ 并订正定位）：
          无文化角色的生成期补全——服务对象是**织丰**等"模板漏写 culture"的内容包（织丰至今仍缺 24 个）。 -->
     <Compile Include="Core\CharacterCultureBackfill.cs" />
