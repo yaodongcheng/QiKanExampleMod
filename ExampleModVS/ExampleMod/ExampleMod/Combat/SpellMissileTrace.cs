@@ -51,6 +51,24 @@
 //   custom.spell_trace alt_particle <名|off> # 陪飞实体的拖尾粒子（默认 psys_game_burning_jar_trail）
 //   custom.spell_trace speed <倍率>      # 试手感：弩类导弹速度倍率（0.5 = 半速；1 = 原样）
 //   custom.spell_trace scale <倍率>      # A/B 实验：把法术弹放大 N 倍（5 = 五倍大；1 = 原样）
+//   custom.spell_trace meshlod bias <n>  # 🔴 LOD 链干预：给档位选择加偏置（负值 = 往低档压）
+//   custom.spell_trace meshlod numlods <n>  # 🔴 把 MetaMesh 的档数砍到 n（1 = 只剩 LOD0）
+//   custom.spell_trace shoot <item_id> [速度]  # 🔴 **绕开装备系统直接打一发**（见下）
+//
+// `shoot` 为什么重要（2026-09-23 用户要求）：
+//   它走 `Mission.AddCustomMissile`（**攻城器械发射炮弹用的就是它**），
+//   不需要物品能装进槽位、不需要 `ammo_class` 匹配 ⇒ **Boulder 类那种装不上槽的弹也能打**
+//   （原版巨石 `shoot boulder`、BattleArtillery 炮弹配置 `shoot taikou_probe_shell`）。
+//   发射点 = 玩家眼睛、方向 = 玩家视线、速度可指定（默认 60）。
+//   ⚠️ 与 `alt_mesh` 的区别：`alt_mesh` 建的是**场景实体影子**（不发射、无物理、不碰撞）；
+//      `shoot` 是**真的走导弹管线**发出去 —— 要判断"导弹渲染路径"就必须用 `shoot`。
+//
+// LOD 表尾问题（2026-09-23 实机实测，这是本工程踩得最深的一条）：
+//   · 引擎 LOD 距离表只有 **7 个阈值（档 0..6）**；`GetLodLevelForDistanceSq` 在 ~110 米外返回 **7.0**，
+//     表示"超出表尾" ⇒ **不管资产里有没有第 8 档都直接剔除**（"补到 8 档"实机验证无效）。
+//   · 实测轨迹：只有 LOD0 → 8 米外消失；补到 7 档 → 110 米外消失；补到 8 档 → 还是 110 米外。
+//   · 出路 = 让引擎**永远到不了表尾**：`meshlod numlods 1`（塌缩成一档）或 `meshlod bias <-n>`。
+//   ⚠️ 这两个 API 改的是**共享 MetaMesh**（所有用它的地方一起变，本例正是想要的），只在本局有效。
 //
 // 放大实验（2026-09-22 用户要求，用来切开两个假设）：
 //   放大 5 倍 = 屏幕覆盖面积 25 倍。
@@ -117,6 +135,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.ObjectSystem;
 using MissionMissile = TaleWorlds.MountAndBlade.Mission.Missile;
 using MissileReaction = TaleWorlds.MountAndBlade.Mission.MissileCollisionReaction;
 
@@ -201,6 +220,22 @@ namespace LivingWorldNpcs
         ///    `scale_factor="100"` 是**铸剑零件的百分比刻度**，另一套约定，别照抄）。
         /// </summary>
         public static float ItemScale = 1f;
+
+        /// <summary>
+        /// 🔴 LOD 链干预（2026-09-23，实机实测后的最后一招）——
+        /// 实测结论：引擎的 LOD 距离表只有 **7 个阈值（档 0..6）**，`GetLodLevelForDistanceSq`
+        /// 在 ~110 米外返回 **7.0 = 表尾之外**，此时**不管资产里有没有第 8 档都直接剔除**
+        /// （所以"补到 8 档"没用，实机验证过）。
+        /// ⇒ 唯一出路 = **让引擎永远到不了表尾**。两个现成运行时旋钮（`MetaMesh`）：
+        ///   · <see cref="MeshLodBias"/> = `SetLodBias(bias)`：给档位选择加偏置（负值 = 往低档压）
+        ///   · <see cref="MeshNumLods"/> = `SetNumLods(n)`：把该 MetaMesh 的档数砍到 n（=1 只剩 LOD0）
+        /// ⚠️ 这两个是**改共享资产**（所有用这个 MetaMesh 的地方都受影响 —— 对本例正是想要的），
+        ///    且只在本次运行内有效、不落盘。0 = 不干预（还原默认）。
+        /// </summary>
+        public static int MeshLodBias;
+
+        /// <summary>见 <see cref="MeshLodBias"/>。&lt;=0 = 不干预。</summary>
+        public static int MeshNumLods;
     }
 
     /// <summary>
@@ -330,6 +365,7 @@ namespace LivingWorldNpcs
                 tracked.LastSeenTime = now;
                 tracked.LastPos = SafePosition(missile, tracked.LastPos);
                 ApplyEnforcedLod0(missile);
+                ApplyMeshLodOverride(missile);
                 MoveAltStandIn(tracked, missile);
                 if (SpellMissileTraceState.Enabled
                     && now - tracked.LastLogTime >= SpellMissileTraceState.LogInterval)
@@ -476,8 +512,7 @@ namespace LivingWorldNpcs
 
                 DebugLogger.Log($"[SpellTrace] 陪飞对照组已生成: 网格='{SpellMissileTraceState.AltMesh}' "
                     + $"偏移={SpellMissileTraceState.AltOffsetMeters:F1}m 放大={SpellMissileTraceState.AltScale:F1}x "
-                    + $"名字读出={metaMesh.GetName()} "
-                    + $"有任意LOD={metaMesh.HasAnyLods()} 有自动生成LOD={metaMesh.HasAnyGeneratedLods()} {particleNote}");
+                    + $"结构: {DescribeMetaMesh(metaMesh)} {particleNote}");
             }
             catch (Exception ex)
             {
@@ -593,6 +628,101 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 🔴 **用引擎的官方发射入口直接打一发**（`Mission.AddCustomMissile` —— 攻城器械发射炮弹走的就是它）。
+        /// 关键：它**绕开整个装备系统** —— 不需要物品能装进槽位、不需要 `ammo_class` 匹配、
+        /// 不需要动画/装填流程 ⇒ **Boulder 类那种"玩家装不上槽"的弹也能打出去**
+        /// （原版巨石 `boulder`、BattleArtillery 的炮弹配置 `taikou_probe_shell`）。
+        /// 发射点 = 玩家眼睛，方向 = 玩家视线。
+        /// </summary>
+        public static string ShootItem(string itemId, float speed)
+        {
+            Mission mission = Mission.Current;
+            if (mission == null)
+            {
+                return "no active mission";
+            }
+            Agent shooter = mission.MainAgent;
+            if (shooter == null)
+            {
+                return "no main agent";
+            }
+            ItemObject item = null;
+            try
+            {
+                item = MBObjectManager.Instance.GetObject<ItemObject>(itemId);
+                if (item == null)
+                {
+                    // 铁律 5 的两轮策略：按 id 查不到就动态遍历
+                    item = MBObjectManager.Instance.GetObject<ItemObject>(
+                        x => string.Equals(x.StringId, itemId, StringComparison.Ordinal));
+                }
+            }
+            catch (Exception ex)
+            {
+                return "item lookup failed: " + ex.Message;
+            }
+            if (item == null)
+            {
+                return $"item '{itemId}' not found";
+            }
+
+            try
+            {
+                MissionWeapon weapon = new MissionWeapon(item, null, null);
+                weapon.Amount = 1;
+                Vec3 origin = shooter.GetEyeGlobalPosition();
+                Vec3 direction = shooter.LookDirection;
+                mission.AddCustomMissile(shooter, weapon, origin, direction, Mat3.Identity,
+                    speed, speed, addRigidBody: true, missionObjectToIgnore: null);
+                DebugLogger.Log($"[SpellTrace] shoot: AddCustomMissile 发射 '{itemId}'（{item.Name}）"
+                    + $"速度={speed} 起点={Pos(origin)}");
+                return $"fired '{itemId}' speed={speed} (via AddCustomMissile)";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[SpellTrace] shoot 异常: {ex}");
+                return "shoot_failed: " + ex.Message;
+            }
+        }
+        /// <summary>每帧对该发的 MetaMesh 施加 LOD 干预（bias / 档数），见 <see cref="SpellMissileTraceState.MeshLodBias"/>。</summary>
+        private void ApplyMeshLodOverride(MissionMissile missile)
+        {
+            if (SpellMissileTraceState.MeshLodBias == 0 && SpellMissileTraceState.MeshNumLods <= 0)
+            {
+                return;
+            }
+            try
+            {
+                GameEntity entity = missile.Entity;
+                if (entity == null)
+                {
+                    return;
+                }
+                int count = entity.MultiMeshComponentCount;
+                for (int i = 0; i < count; i++)
+                {
+                    MetaMesh metaMesh = entity.GetMetaMesh(i);
+                    if (metaMesh == null)
+                    {
+                        continue;
+                    }
+                    if (SpellMissileTraceState.MeshLodBias != 0)
+                    {
+                        metaMesh.SetLodBias(SpellMissileTraceState.MeshLodBias);
+                    }
+                    if (SpellMissileTraceState.MeshNumLods > 0)
+                    {
+                        metaMesh.SetNumLods(SpellMissileTraceState.MeshNumLods);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogOnce("网格LOD干预异常", ex);
+            }
+        }
+
+        /// <summary>
         /// A/B 实验：把这一发实体允许的 LOD 上限压到 0（不许因为距离远换粗模/剔除）。
         /// 🔴 **每帧都调**，不是只在认领时调一次 —— 这样可以在弹飞到一半时敲
         /// <c>custom.spell_trace lod0 on</c>，肉眼看着它"重新出现"，比打两发对比更有说服力
@@ -619,6 +749,50 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 把一个 MetaMesh 的 LOD 结构完整扫出来（子网格数 + 每个子网格的 LOD 掩码）。
+        /// 🔴 越界读会返回垃圾值（实测见过 -1017850112）—— 用"掩码不在 0..0xFFFF 就停"来识别表尾。
+        /// 用途：把「原版网格的 MetaMesh」与「我们月牙的 MetaMesh」**在同一份日志里做 A/B**。
+        /// </summary>
+        private static string DescribeMetaMesh(MetaMesh metaMesh)
+        {
+            if (metaMesh == null)
+            {
+                return "null";
+            }
+            StringBuilder sb = new StringBuilder();
+            string name = "?";
+            try { name = metaMesh.GetName(); } catch (Exception) { }
+            sb.Append($"名={name} 有任意LOD=");
+            try { sb.Append(metaMesh.HasAnyLods()); } catch (Exception) { sb.Append('?'); }
+            sb.Append(" 掩码=[");
+            int count = 0;
+            for (int i = 0; i < 16; i++)
+            {
+                int mask;
+                try
+                {
+                    mask = metaMesh.GetLodMaskForMeshAtIndex(i);
+                }
+                catch (Exception)
+                {
+                    break;
+                }
+                if (mask < 0 || mask > 0xFFFF)
+                {
+                    break;      // 越界垃圾值 = 表尾
+                }
+                if (i > 0)
+                {
+                    sb.Append(',');
+                }
+                sb.Append(mask);
+                count++;
+            }
+            sb.Append($"] 子网格={count}");
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// 认领时把飞行网格的 LOD 家底打出来 —— 「飞远了 mesh 看不见是不是 LOD」的第一手证据。
         /// 判读：<c>有任意LOD=False</c> ⇒ 这个网格**只有 LOD0**（程序生成的网格典型）；
         ///       原版 LOD 距离表是 15/22.5/30/50/70/130/210 米，**超出最后一级就剔除**
@@ -640,17 +814,7 @@ namespace LivingWorldNpcs
                 for (int i = 0; i < count; i++)
                 {
                     MetaMesh metaMesh = entity.GetMetaMesh(i);
-                    if (metaMesh == null)
-                    {
-                        sb.Append($" | #{i}=null");
-                        continue;
-                    }
-                    string mask0 = "?";
-                    string mask1 = "?";
-                    try { mask0 = metaMesh.GetLodMaskForMeshAtIndex(0).ToString(); } catch (Exception) { }
-                    try { mask1 = metaMesh.GetLodMaskForMeshAtIndex(1).ToString(); } catch (Exception) { }
-                    sb.Append($" | #{i} 有任意LOD={metaMesh.HasAnyLods()} 有自动生成LOD={metaMesh.HasAnyGeneratedLods()} "
-                        + $"lod0掩码={mask0} lod1掩码={mask1}");
+                    sb.Append($" | #{i} {DescribeMetaMesh(metaMesh)}");
                 }
                 DebugLogger.Log(sb.ToString());
 
@@ -1202,6 +1366,41 @@ namespace LivingWorldNpcs
                         }
                         SpellMissileTraceState.ItemScale = Math.Max(0.05f, Math.Min(20f, scale));
                         return Status("scale set" + EnsureEnabledNote());
+                    case "meshlod":
+                        if (args.Count < 3)
+                        {
+                            return "usage: spell_trace meshlod bias <int> | meshlod numlods <int>";
+                        }
+                        int meshLodValue;
+                        if (!int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out meshLodValue))
+                        {
+                            return "usage: spell_trace meshlod bias <int> | meshlod numlods <int>";
+                        }
+                        if (string.Equals(args[1], "bias", StringComparison.OrdinalIgnoreCase))
+                        {
+                            SpellMissileTraceState.MeshLodBias = meshLodValue;
+                        }
+                        else if (string.Equals(args[1], "numlods", StringComparison.OrdinalIgnoreCase))
+                        {
+                            SpellMissileTraceState.MeshNumLods = meshLodValue;
+                        }
+                        else
+                        {
+                            return "usage: spell_trace meshlod bias <int> | meshlod numlods <int>";
+                        }
+                        return Status("meshlod set" + EnsureEnabledNote());
+                    case "shoot":
+                        if (args.Count < 2 || string.IsNullOrEmpty(args[1]))
+                        {
+                            return "usage: spell_trace shoot <item_id> [speed]  (e.g. shoot boulder 60)";
+                        }
+                        float shootSpeed = 60f;
+                        if (args.Count >= 3 && !float.TryParse(args[2], NumberStyles.Float,
+                                CultureInfo.InvariantCulture, out shootSpeed))
+                        {
+                            return "usage: spell_trace shoot <item_id> [speed]";
+                        }
+                        return SpellMissileTrace.ShootItem(args[1], shootSpeed) + EnsureEnabledNote();
                     default:
                         // 可弃占位（如 `spell_trace 1`）→ 当作"切换开关"，不报错
                         SpellMissileTraceState.Enabled = !SpellMissileTraceState.Enabled;
@@ -1241,7 +1440,8 @@ namespace LivingWorldNpcs
                 + $"弹药过滤={SpellMissileTraceState.AmmoFilter} 间隔={SpellMissileTraceState.LogInterval:F2}s "
                 + $"强制LOD0={SpellMissileTraceState.ForceLod0} 陪飞网格={(string.IsNullOrEmpty(SpellMissileTraceState.AltMesh) ? "关" : SpellMissileTraceState.AltMesh)}"
                 + $" 陪飞拖尾={(SpellMissileTraceState.AltParticleEnabled ? SpellMissileTraceState.AltParticle : "关")}"
-                + $" 弩速倍率={SpellMissileTraceState.SpeedModifier:F2} 弹体放大={SpellMissileTraceState.ItemScale:F2}x");
+                + $" 弩速倍率={SpellMissileTraceState.SpeedModifier:F2} 弹体放大={SpellMissileTraceState.ItemScale:F2}x"
+                + $" 网格LOD干预(bias={SpellMissileTraceState.MeshLodBias},numlods={SpellMissileTraceState.MeshNumLods})");
             return $"spell_trace {headline} enabled={SpellMissileTraceState.Enabled} "
                 + $"tracer={SpellMissileTraceState.TracerEnabled} particle={SpellMissileTraceState.TracerParticle} "
                 + $"ammo={SpellMissileTraceState.AmmoFilter} interval={SpellMissileTraceState.LogInterval:F2} "

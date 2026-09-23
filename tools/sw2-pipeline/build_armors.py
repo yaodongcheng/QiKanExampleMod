@@ -63,6 +63,11 @@ except Exception:
 BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 SRC_ROOT = r"D:\BrainMaker\战国无双2资产解包分析"
 SRC_DIR = os.path.join(SRC_ROOT, "export", "fbx")
+# 🔴 脚部贴合的"原版参照脚"（2026-09-23 立）：游戏里玩家看到的脚**不是甲的一部分**，
+#    是 skin 的 `legs_mesh` —— 男 `feet_male_a` / 女 `feet_female_a`
+#    （Taikou 的 skins.xml 逐 race 指定，已核对）。甲里那只"鞋"要罩住它，脚本就得拿它当靶子。
+#    出处 = 织丰资产解包（与 Native 自带那份逐点一致，两处都量过）。
+FEET_DIR = r"D:\BrainMaker\extracted_sho\fbx\feet"
 # 源工程 2026-09-16 贴图升级产物（<键>_d.png = 超分漫反射，2 倍于原图集）
 TEX_BATCH = os.path.join(SRC_ROOT, "work", "tex_batch")
 USE_TEX_UPGRADE = True          # 由 --no-tex-upgrade 关闭（main 里赋值）
@@ -368,12 +373,18 @@ def main():
             fail.append(key); continue
         src = os.path.join(SRC_DIR, key + ".fbx")
         own = OVERRIDE.get(key, {})
+        # 🔴 脚部贴合（2026-09-23）：把"原版脚"当靶子传给甲管线（男/女各一份）。
+        #    缺文件 = 不传 ⇒ 甲管线跳过贴合（回归旧行为），不报错。
+        _feet = os.path.join(FEET_DIR, "feet_%s_a.fbx"
+                             % ("female" if row_of(key, TABLE).get("gender") == "female" else "male"))
         cmd = [BLENDER, "-b", "--python", BUILD, "--",
                "--src", src, "--skel", skel, "--out", outdir, "--name", name,
                "--parts-idx", ",".join(str(x) for x in plan["parts"]),
                "--kimono-idx", ",".join(str(x) for x in plan["kimono"]) or "0",
                # 定标 = 本角色的 T（第 2 步起）；旧的 --r / --r-arms 不再传（已退役）
                ] + tflag + ["--no-hands", "--kimono-torso-only"]
+        if os.path.isfile(_feet):
+            cmd += ["--feet-mesh", _feet]
         if plan["drophead"]:
             cmd += ["--drop-head-idx", ",".join(str(x) for x in plan["drophead"])]
         if own.get("cloth_drop"):

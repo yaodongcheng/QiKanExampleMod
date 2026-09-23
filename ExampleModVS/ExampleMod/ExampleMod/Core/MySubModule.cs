@@ -53,6 +53,18 @@ namespace LivingWorldNpcs
                 Debug.PrintError($"[LivingWorldNpcs] Failed to patch damage models: {ex.Message}");
             }
 
+            // ── SwordBeam（第三方剑气 mod）飞行距离补丁（2026-09-23）──
+            //    诊断用：把它的 21 米写死值放开，验证「自管实体飞行物没有引擎上限」
+            //    （法印工程 §十六）。**没装该 mod 时静默跳过**，不影响任何东西。
+            try
+            {
+                SwordBeamRangePatch.TryInstall(harmony);
+            }
+            catch (Exception ex)
+            {
+                Debug.PrintError($"[LivingWorldNpcs] SwordBeam range patch failed: {ex.Message}");
+            }
+
             // ── 全局异常钩子：崩溃/被吞异常自动写入运行日志 + 崩溃现场快照 ──
             // 三层覆盖（FirstChance / UnobservedTask / Unhandled），噪声过滤与去重见 CrashLogHook。
             try

@@ -75,6 +75,20 @@ SEG_ARC = 96      # 弧向分段
 SEG_BAND = 20     # 径向分段
 TAPER_MIN = 0.02  # 犄角端的最小收束比例（别收成 0 = 退化面）
 
+# 🔴🔴 LOD 档数（2026-09-23 立，实机实证的修法）——
+#     编辑器导入 FBX 时**按对象名后缀认 LOD 层级**：`<名字>` = LOD0，`<名字>.lod1` = LOD1 …（原版约定）。
+#     只给一件 = 只有 LOD0 ⇒ 引擎按距离往上切档（实机实测：**8 米就切到 LOD1**），
+#     切到"没有网格的那一档"就**什么都不画** —— 弹体凭空消失（本工程 2026-09-23 栽在这上面：
+#     Meta Mesh Editor 里 `Current Lod: 0(until 8m) / 1`，而 LOD1 以上是空的）。
+#     所以这里把 0..7 **八档全部填满**（同一份几何）：引擎不管切到哪档都有网格可画。
+#     🔴 为什么是 8 档（不是 6 也不是 7）：**实机日志实测** `GameEntity.GetLodLevelForDistanceSq`
+#        会一路涨到 **7.0**（相机距 116m 起、到 140m 一直停在 7.0 = 7 就是最高档）。
+#        官方那张距离表 15/22.5/30/50/70/130/210 是 **7 个阈值 ⇒ 8 档（0..7）**，不是 7 档。
+#        档位数给少了 = 高距离段"切到空档" = 网格凭空不画（本工程两次栽在这上面：
+#        先是只有 LOD0（8 米就消失），后是只补到 LOD6（110 米外消失））。
+#     ⚠️ 八份共用**同一个材质 datablock**（见 export 里的注释，铁律 32）。
+LOD_LEVELS = 8
+
 # 🔴🔴 全局缩放（2026-09-22 立）—— 所有**线性尺寸**统一乘这个系数，形状与朝向完全不变。
 #     用途：做"放大 N 倍，看远处还会不会消失"的实验（判断"看不见"是**太小**还是**硬性距离剔除**）。
 #     1.0 = 原尺寸（跨度 ≈3.81 m）｜5.0 = 五倍（跨度 ≈19 m）。
@@ -231,9 +245,19 @@ def uv_sphere_geometry(radius, center=(0.0, 0.0, 0.0), seg=32, ring=16):
     return verts, faces, uvs
 
 
-def export(name, verts, faces, uvs):
+def export(name, verts, faces, uvs, lod_levels=LOD_LEVELS):
     wipe()
     ob = new_object(name, verts, faces, name, uvs)
+    shared_mat = ob.data.materials[0] if len(ob.data.materials) else None
+    # 🔴 补满 LOD 档（0..lod_levels-1，2026-09-23）—— 只有 LOD0 的网格飞出去会"到距离就消失"：
+    #    引擎切到没有网格的那一档就什么都不画。名字后缀 `.lodN` 是编辑器认 LOD 的约定。
+    for lv in range(1, lod_levels):
+        lod_ob = new_object(f"{name}.lod{lv}", verts, faces, name, uvs)
+        # 🔴 共用同一份材质 datablock（铁律 32）：各自 new 一个同名材质会被 Blender 去重成 `.001`，
+        #    导出后的材质名就带后缀 → 编辑器里多出个材质 = 白板/材质分裂。
+        if shared_mat is not None:
+            lod_ob.data.materials.clear()
+            lod_ob.data.materials.append(shared_mat)
     bpy.context.view_layer.objects.active = ob
     ob.select_set(True)
     path = os.path.join(OUTDIR, name + ".fbx")
@@ -244,7 +268,7 @@ def export(name, verts, faces, uvs):
     tex = sorted(set(m.decode("latin1") for m in
                      re.findall(rb"[ -~]{4,120}\.(?:png|tga|dds|jpg|jpeg)", blob)))
     print(f"   -> {path}  ({os.path.getsize(path)} bytes)  "
-          f"UV 层 {len(ob.data.uv_layers)}  贴图引用: {tex if tex else '无 ✓'}")
+          f"UV 层 {len(ob.data.uv_layers)}  LOD 档 {lod_levels}  贴图引用: {tex if tex else '无 ✓'}")
     return path
 
 
