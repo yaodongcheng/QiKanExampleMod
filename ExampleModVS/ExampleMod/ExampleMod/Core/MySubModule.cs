@@ -122,6 +122,19 @@ namespace LivingWorldNpcs
                 Debug.PrintError($"[LivingWorldNpcs] 补丁挂载阶段整体异常：{exPatch.Message}");
             }
 
+            // ── SwordBeam（第三方剑气 mod）飞行距离补丁（2026-09-23）──
+            //    **判据 = 引擎真的加载了那个程序集没**（枚举 AppDomain，不看目录不看模块列表），
+            //    没加载就什么都不做（1.2.12 / 1.4.8 客户端本来就没装它）。
+            //    背景与两闸门设计见 Core/SwordBeamRangePatch.cs 文件头。
+            try
+            {
+                SwordBeamRangePatch.TryInstall(harmony);
+            }
+            catch (Exception exBeam)
+            {
+                Debug.PrintError($"[LivingWorldNpcs] SwordBeam range patch failed: {exBeam.Message}");
+            }
+
             // ── 伤害模型 Culture-null 空保护（通用：枚举所有 AgentApplyDamageModel 子类，无第三方探测）──
             // 时机正确性依据：LoadSubModules（TaleWorlds.MountAndBlade.dll:102627）先把所有激活模块的
             // DLL 装配进 AppDomain，全部装配完毕才依次回调 OnSubModuleLoad —— 此处枚举必能看到全部模型。
