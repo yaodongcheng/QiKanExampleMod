@@ -189,7 +189,7 @@
 | 面向用户 | 小白玩家：游戏内 选项 → Mod 选项 → Living World NPCs 改 | 高级玩家/开发者：手动编辑 `Modules/LivingWorldNpcs/config.json` |
 | 存储文件 | `{USERPROFILE}\Documents\Mount and Blade II Bannerlord\Configs\ModSettings\Global\LivingWorldNpcs\LivingWorldNpcsSettings_v1.json`（MCM json2，改即自动存） | `Modules/LivingWorldNpcs/config.json`（`JsonConvert.PopulateObject` 启动时加载，`Settings.Reload()` 热重载） |
 | 字段特征 | 玩家高频调整、需要即时反馈的开关/文本框 | 开发者调试、世界观参数、列表型配置、内容包（Mod B）注入 |
-| 目前字段 | `LLMBaseUrl` / `LLMApiKey` / `LLMModel` | 口吻参数（`SpeechStyle`/`WarriorTerms`/`FemaleSelfAddress`/`CurrencyName`）、`DisabledInteractionMissionModes`、`ShowDebugMessages`、`WitnessSystemEnabled`、`AlertDialogueMode`。🔴 世界观 flavor（`WorldDescription`/`EraDescription`）已删除（2026-08-17）——世界观完全自动生成，见 [worldview.md](plans/rules/worldview.md) |
+| 目前字段 | `LLMBaseUrl` / `LLMApiKey` / `LLMModel` | 口吻参数（`SpeechStyle`/`WarriorTerms`/`FemaleSelfAddress`/`CurrencyName`）、`DisabledInteractionMissionModes`、`ShowDebugMessages`、`WitnessSystemEnabled`、`AlertDialogueMode`、**`DisabledPatchClasses`**（🔴 补丁**逐类开关**：逗号分隔类名 / `*` = 全关但保留诊断探针；**改完重启游戏即生效、零重编** —— 怀疑某个补丁时用它二分。2026-09-23 建号崩溃排查沉淀）。🔴 世界观 flavor（`WorldDescription`/`EraDescription`）已删除（2026-08-17）——世界观完全自动生成，见 [worldview.md](plans/rules/worldview.md) |
 
 **🔴 禁止交叉配置**：同一个配置项**只能**存在于一边——要么进 MCM UI，要么进 config.json。两边都写 = 玩家不知道哪个生效。LLM 三字段已用 `[JsonIgnore]` 从 config.json 侧切断（唯一来源 = MCM UI），新字段照此办理。
 
@@ -565,6 +565,7 @@ LivingWorldNpcs/
 3. **每内容包 = LWN 里一个 thin 适配类**（如 `TaikouCampaign : LivingWorldCampaign`，几行）——引擎 `IncludedGameTypes` 按战役类名匹配（官方 `Campaign`、织丰 `ShokuhoCampaign` 两例实证），thin 类就是数据包与引擎的接插点；新内容包 = 加一个数据包 + LWN 加 3 行。
 4. **世界观参数化**：世界观指纹机制（[worldview.md](plans/rules/worldview.md)）是内容包接入点，内容包禁止硬编码进 LWN。
 5. 🔴 **LWN 双模式开关（2026-09-07 用户裁定）**——LWN 启动时检查**数据包模块是否加载**（`ModuleHelper.GetModuleInfo("Taikou")` 非 null = 已加载）：**已加载 → 接通用战役模式**（主菜单接线/自定义 GameManager/建号管线）；**未加载 → 纯功能包**（现状，原版战役上跑 LLM/戏剧/IM/玩法扩展）。检查点 = `OnSubModuleLoad`，运行时判断（**非编译分叉**），同一个 dll 服务两种玩家。
+   🔴 **推论（2026-09-23 实机教训）：「内容包专属」的补丁/行为，在未装内容包时一律【不挂载】** —— 判据同样是 `ActiveContentPack`（见 `Core/MySubModule.cs` 的 `contentPackOnly` 名单）。**"挂了但不生效"不够**：**补丁的挂载动作本身就有副作用**（实测：一个只对 `lwn_` 自建 race 有意义的百科立绘补丁，在没装内容包的 1.3.x 上把建号流程弄崩了 —— 而它运行时零动作、日志一条没有）。**写补丁前先问：「没有内容包时它有意义吗？」没意义就别挂。**
 6. 🔴🔴 **内容包与织丰（Shokuho）零依赖——所有内容自创**（2026-09-12 用户裁定）：
    - **铁律**：Taikou 与 Shokuho **完全不依赖**（不是"暂时能用"，是**禁止任何形式的依赖**）。SubModule 不列它当 `DependedModule` ✓，**运行时也不得靠它提供任何对象**。
    - **所有定义都在自己包里**：文化（`spcultures.xml`，**全部 16 个**：ikoku + neutral_culture + 9 地域 + 5 身份文化）、名字池、物品、模板、文本段——**一律自建/自带**，不引用织丰的任何 id。

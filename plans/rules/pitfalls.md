@@ -48,7 +48,7 @@
 ## 🔴 建号点「完成」就崩（`CampaignUIHelper` 静态构造 NRE）→ 一个「运行时零动作」的补丁（2026-09-23）
 
 **症状**
-- 1.3.15 客户端（**纯功能包模式**，没装内容包）走原版剧情战役建号：**捏脸阶段点「完成」→ 立即崩**。
+- **1.3.x 起都会崩（1.3.15 与 1.4.8 实测复现；1.5.x 未测但同理）**，纯功能包模式（没装内容包）走原版剧情战役建号：**捏脸阶段点「完成」→ 立即崩**。
 - VS 栈：`ButtonWidget.HandleClick → GauntletView.OnCommand → … → CharacterCreationNarrativeStageView..ctor → CharacterCreationGainedPropertiesVM..ctor → CampaignUIHelper..cctor → GameTexts.FindText → NRE`。
 - 引擎日志（`Documents\…\Configs\ModLogs\default<日期>.log`）里同一触发点写作 `Exception occurred inside invoke: ExecuteDone / Target type: FaceGenVM`。
 - **1.2.12 上同样操作不崩**（原因见下，已验证）。
