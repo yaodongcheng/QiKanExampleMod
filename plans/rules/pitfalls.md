@@ -45,6 +45,42 @@
 
 ---
 
+## 🔴 建号点「完成」就崩（`CampaignUIHelper` 静态构造 NRE）→ 一个「运行时零动作」的补丁（2026-09-23）
+
+**症状**
+- 1.3.15 客户端（**纯功能包模式**，没装内容包）走原版剧情战役建号：**捏脸阶段点「完成」→ 立即崩**。
+- VS 栈：`ButtonWidget.HandleClick → GauntletView.OnCommand → … → CharacterCreationNarrativeStageView..ctor → CharacterCreationGainedPropertiesVM..ctor → CampaignUIHelper..cctor → GameTexts.FindText → NRE`。
+- 引擎日志（`Documents\…\Configs\ModLogs\default<日期>.log`）里同一触发点写作 `Exception occurred inside invoke: ExecuteDone / Target type: FaceGenVM`。
+- **1.2.12 上同样操作不崩**（原因见下，已验证）。
+
+**根因**：补丁 `CampaignMode/EncyclopediaHelmetPatch.cs` 的 `EncyclopediaHeroHelmetPatch`（补 `EncyclopediaHeroPageVM.Refresh`，给自建 race `lwn_` 补百科立绘头盔）。
+
+- 🔴 **崩溃那次运行里它"运行时零动作"**：一条 `[EncHelmet]` 日志都没有（原版 race 上它按设计静默早退）；6 个诊断探针也显示 `GameTexts._gameTextManager` **全程非 null**。
+- 🔴 **机制未查明（不许编）**。主假说（能解释全部矛盾，**未证实**）：补丁类挂载时，其静态初始化器 `AccessTools.Field(typeof(EncyclopediaHeroPageVM), "_hero")` 强制解析了那个类型 → **提前触发了同程序集（`CampaignSystem.ViewModelCollection`）里 `CampaignUIHelper` 的静态构造**，而那一刻 `GameTexts` 还没初始化（`Game.Initialize` 尚未跑）→ cctor NRE → **CLR 把「类型初始化失败」永久缓存** → 到叙事阶段第一次真正用到它时，抛的是**当年那个被缓存的异常**（所以栈指向 `FindText`；而探针再也看不到 null —— 那次 null 发生在探针挂上之前）。
+- **坐实手段（下次做）**：把 `GameTextsFindNullProbe` 排到补丁挂载顺序**最前面**再复现 —— 就能抓到"谁在 GameTexts 未初始化时提前碰了它"的调用栈。
+
+**为什么 1.2.12 不报错（已验证，不是推断）**
+- 崩溃所在那条路径 **1.2.12 根本不存在**：`CharacterCreationNarrativeStage` 这个类型在 1.2.12 的 `SandBox.GauntletUI.dll` 里**没有**、1.3.15 里**有**（叙事式建号 = 1.3.x 新体系）。
+- ⇒ 不是「兼容性差异」，而是**触发点不存在**。同一个补丁在 1.2.12 上照样挂着，只是没有流程去踩它。
+
+**为什么版本兼容体系抓不到它**
+- `VersionCompat` 管的是「API 签名在某版本开始存在 / 改名 / 变参」；**这个坑零签名差异**：`EncyclopediaHeroPageVM.Refresh` 与 `_hero` 在 1.2.12 / 1.3.15 / 1.4.8 / 1.5.x **四档全在**（补丁目标扫描器四档全绿），编译也过 —— **签名层面它"完全兼容"**。
+- 失败发生在**运行期某条流程的第一次触发**上，在所有离线检查器（补丁目标存在性 / XML / 清单 / 数据）的射程之外：没有一条能在"装之前"预测"某个补丁会不会引发第三方类型的初始化失败"。
+- ⚠️ 旧版本**没有那条流程** ⇒ 在 1.2.12 上做再多验证也永远看不到它。
+
+**排查手法（这次花了 7 轮二分，记下来复用）**
+1. 启动器里**取消勾选 LWN** 跑一遍 → 不崩 ⇒ **确定是我们**（最快、信息量最大的一步）。
+2. 用 `config.json` 的 **`DisabledPatchClasses`**（逗号分隔类名；`*` = 全关但保留诊断探针）逐类二分 —— **改配置重启即生效，零重编**。实现 = `Core/MySubModule.cs` 的逐类挂载循环（顺带修掉了 `PatchAll` "一个类挂失败掐断全部"的隐患）。
+3. 每轮**先看日志再切**：崩溃快照 `Debug/crash/*.txt` 里存着**崩溃当时的整段运行日志**，谁在那一刻真动过手一目了然。
+4. 🔴 **本条最反直觉的教训：真凶恰恰是"日志里零动作"的那个。** 候选砍到少数时，**"它没打日志"不能作为排除依据** —— 补丁的**挂载/静态初始化本身**就有副作用；而且日志节流（如 `FaceGenRace` 只在数值变化时打）会掩盖更早的真实动作。
+
+**规避 / 修法（已落地，实机验证通过）**
+- `Core/MySubModule.cs` 增「**内容包专属补丁**」名单：**没装内容包（纯功能包模式）时不挂**。`EncyclopediaHeroHelmetPatch` 入列（只对 `lwn_` 自建 race 有意义，没内容包就没有这种 race）。
+- **同类越界待收窄**（在纯原版战役上也会生效、按同判据也该收窄；**与本次崩溃无关**，单独关掉都不崩）：`BackstoryCampaignBehaviorPatch`（掐原版前史）、`CharacterCreationCultureStageSortPatch`（跳过原版文化排序）、`CharacterCreationCultureVisualFallbackPatch`、`FaceGenOnSelectRaceGuard` / `FaceGenRaceDefaultBodyPatch` / `FaceGenRaceGenderFilterPatch`。
+- 通用教训：**写补丁前先问一句「没有内容包时它有意义吗」** —— 没意义就别挂。
+
+---
+
 ## 玩家攻击 NPC 后无法攻击/格挡（移动正常）→ NinjaNotification 圆环拦鼠标
 
 **症状**（实机 2026-08-11 16:15 复现）

@@ -9,6 +9,7 @@ using TaleWorlds.Library;
 
 namespace LivingWorldNpcs.CampaignMode
 {
+#if MB2_V1212
 	/// <summary>
 	/// 引擎裸调用守卫：<c>DefaultMapDistanceModel.GetClosestSettlementForNavigationMesh(PathFaceRecord)</c>
 	/// 拿到**非法导航面**时不判 <c>IsValid()</c> 就往下走 —— 内存缓存（键恒 ≥0）必然未命中，
@@ -49,8 +50,18 @@ namespace LivingWorldNpcs.CampaignMode
 	///   （**两步法**：先注释掉类上的 [HarmonyPatch] 特性停用 → 文件留着一轮 → 实机验证不崩 → 再删文件）。
 	///
 	/// 版本：1.2.12 实证该方法存在（`public override Settlement GetClosestSettlementForNavigationMesh(PathFaceRecord)`）；
-	///   1.3.15 起该方法已从引擎中删除（二进制 grep 0 命中 —— 模型被重构为 navigation-capability 式）
-	///   → 本补丁在 1.3+ 被 Harmony **静默跳过**（字符串目标找不到即不挂），无害，也无需版本宏。
+	///   1.3.0 起该方法已从引擎中删除（1.3.15 / 1.4.6 实测均无 —— 模型被重构为 navigation-capability 式）
+	///   → 本补丁整类只在 1.2.12 编译（见上方 #if）。
+	///   ⚠️ 将来若要让内容包跑在 1.3+，本守卫得对着那一版的等价入口重做（触发链与 mod 代码无关，同上）。
+	///
+	/// 🔴 勘误（2026-09-23 实机崩溃）：此处原写「1.3+ 被 Harmony **静默跳过**（字符串目标找不到即不挂），
+	///   无害，也无需版本宏」——**这个判断是错的**，就是它让 mod 在 1.3.15 上开局即崩。
+	///   真相 = Harmony 对属性式目标解析不到时 **抛 ArgumentException("Undefined target method ...")**
+	///   并**掐断整个 `PatchAll`**：排在本类之后的补丁全没打上，且 `OnSubModuleLoad` 里 PatchAll 之后的
+	///   代码（伤害模型补丁 / SwordBeam 补丁 / 崩溃钩子 / 动画状态机注册 / GameDatabase.Initialize）**一行都没执行**。
+	///   证据 = 反编译 0Harmony `PatchClassProcessor.PatchWithAttributes`。
+	///   同族两坑：`TargetMethod()` 返回 null **也抛**；只有 `TargetMethods()` 返回**空集合**才是真静默跳过。
+	///   完整版见 KingdomOnNewGameCreatedGuardPatch 类注释。
 	///
 	/// 姊妹补丁：<see cref="MapDistanceNullSettlementGuardPatch"/>（同一模型、另一个裸解引用，雷 107）。
 	/// </summary>
@@ -177,7 +188,7 @@ namespace LivingWorldNpcs.CampaignMode
 				{
 					return s;
 				}
-				float d = s.GatePosition.DistanceSquared(main.Position2D);
+				float d = s.GatePosition.DistanceSquared(V.Pos(main));
 				if (d < bestDistSq)
 				{
 					bestDistSq = d;
@@ -240,4 +251,5 @@ namespace LivingWorldNpcs.CampaignMode
 			return $"{owners.Count} 个：[{string.Join(", ", ids)}{suffix}]";
 		}
 	}
+#endif
 }

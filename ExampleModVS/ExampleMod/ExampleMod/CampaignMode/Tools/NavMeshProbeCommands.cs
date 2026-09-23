@@ -20,7 +20,8 @@ namespace LivingWorldNpcs.CampaignMode
 	///   GetFaceIndex(门位置) → DoesPathExistBetweenFaces(该面, 玩家当前面, false) ——
 	///   任意一环失败 = 点击被静默 return（无任何提示）。
 	///   本命令验证三环：①目标点是否有导航面 ②玩家当前面是否有效 ③两面是否同一陆块
-	///   （AreFacesOnSameIsland = DoesPathExistBetweenFaces 的可控近似，界面同判定）。
+	///   （同岛判定 = DoesPathExistBetweenFaces 的可控近似，界面同判定；
+	///     1.3.0+ AreFacesOnSameIsland 已移除 → 走 V.SameIsland 的探路替代）。
 	///
 	/// 用法（游戏内 ~ 控制台，返回文本纯英文；诊断详情走 DebugLogger 中文）：
 	///   custom.probe_face                  # 默认：京 gate (969.424, 421.563) ↔ 玩家当前位置
@@ -48,14 +49,16 @@ namespace LivingWorldNpcs.CampaignMode
 				}
 
 				IMapScene map = Campaign.Current.MapSceneWrapper;
-				PathFaceRecord targetFace = map.GetFaceIndex(target);
+				Vec2 playerPos = V.Pos(MobileParty.MainParty);
+				PathFaceRecord targetFace = V.FaceIndex(map, target);
 				PathFaceRecord playerFace = MobileParty.MainParty.CurrentNavigationFace;
+				// 同岛判定：1.2.12 = AreFacesOnSameIsland；1.3.0+ 该 API 已移除 → V.SameIsland 改用探路替代。
 				bool sameIsland = targetFace.IsValid() && playerFace.IsValid() &&
-					map.AreFacesOnSameIsland(targetFace, playerFace, false);
+					V.SameIsland(map, targetFace, target, playerFace, playerPos);
 
 				TerrainType terrain = map.GetFaceTerrainType(targetFace);
 				string line = $"[NavProbe] target=({target.X:F1},{target.Y:F1}) faceValid={targetFace.IsValid()} faceIndex={targetFace.FaceIndex} " +
-					$"terrain={terrain} | playerPos=({MobileParty.MainParty.Position2D.X:F1},{MobileParty.MainParty.Position2D.Y:F1}) " +
+					$"terrain={terrain} | playerPos=({playerPos.X:F1},{playerPos.Y:F1}) " +
 					$"playerFaceValid={playerFace.IsValid()} playerFaceIndex={playerFace.FaceIndex} sameIsland={sameIsland} " +
 					$"gate=({Settlement.Find("town_kyoto")?.GatePosition.X:F1},{Settlement.Find("town_kyoto")?.GatePosition.Y:F1})";
 				DebugLogger.Log(line);

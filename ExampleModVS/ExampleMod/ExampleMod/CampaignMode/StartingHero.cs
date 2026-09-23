@@ -131,7 +131,9 @@ namespace LivingWorldNpcs.CampaignMode
 			// ③ 通知建号内容收尾（我们的内容类里会 ResetCamera + TeleportCameraToMainParty）
 			try
 			{
-				CharacterCreationContentBase.Instance?.OnCharacterCreationFinalized();
+				// 🔴 跨版本：CharacterCreationContentBase 只在 1.2.12 存在（1.3.0+ 整类移除）→ 走 V 封装，
+				//    非 1.2.12 版本为空操作（那些版本不跑内容包战役，建号不经过我们）。
+				V.NotifyCharacterCreationFinalized();
 			}
 			catch (Exception ex)
 			{

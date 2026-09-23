@@ -4,6 +4,7 @@ using TaleWorlds.CampaignSystem.Settlements;
 
 namespace LivingWorldNpcs.CampaignMode
 {
+#if MB2_V1212
 	/// <summary>
 	/// 引擎裸解引用守卫：<c>DefaultMapDistanceModel.GetDistance(Settlement, Settlement)</c> 全程不对入参判空——
 	/// 第一个分支就写 <c>fromSettlement.Id</c>，传入 null 必 NRE。
@@ -22,6 +23,12 @@ namespace LivingWorldNpcs.CampaignMode
 	///   同族另一处没判 null 的调用点（家族灭亡路径 <c>Clan.All.Where(...)</c> 里的
 	///   <c>GetDistance(item.FactionMidSettlement, oldClan.FactionMidSettlement)</c>）被本守卫一并覆盖。
 	/// 版本：1.2.12 反编译实证该方法存在（`public override float GetDistance(Settlement, Settlement)`）。
+	///   🔴 1.3.0 起**两参重载不存在**（1.3.15 / 1.4.6 实测：Settlement 对只剩
+	///   `GetDistance(Settlement, Settlement, bool, bool, NavigationType)` 等 5 参 / 6 参形态）
+	///   → 本补丁整类只在 1.2.12 编译（见上方 #if）。
+	///   ⚠️ 将来若要让内容包跑在 1.3+，本守卫得对着那一版的重载重做（触发条件与 mod 代码无关，同上）。
+	/// 🔴 为什么必须 #if 而不是"找不到就算了"：Harmony 属性式目标解析不到 = **抛异常掐断整个 PatchAll**
+	///   （不是静默跳过）——完整证据与连带损失见 KingdomOnNewGameCreatedGuardPatch 的类注释。
 	/// </summary>
 	[HarmonyPatch(typeof(DefaultMapDistanceModel), "GetDistance", new[] { typeof(Settlement), typeof(Settlement) })]
 	public static class MapDistanceNullSettlementGuardPatch
@@ -46,4 +53,5 @@ namespace LivingWorldNpcs.CampaignMode
 			return false;
 		}
 	}
+#endif
 }

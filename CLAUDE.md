@@ -275,7 +275,7 @@ grep -c -a "RefreshBehaviorGroups" "$MB2_PATH/bin/Win64_Shipping_Client/"*.dll \
 
 `ilspycmd -t <类型>` 在**类型不存在的 DLL 上静默输出空、无报错**——输出空 ≠ 工具坏了，先做上面的定位再决定反编译哪个 DLL。
 
-**🔴 Harmony 字符串式补丁目标编译不校验**：`[HarmonyPatch(typeof(X), "字符串方法名")]` 编译通过 **≠ 方法存在**——字符串目标是运行期反射解析，编译期不检查，找不到时补丁**静默跳过**（不崩游戏，功能失效）。每次核对/新增补丁目标，都必须按上面的二进制 grep 验证方法名存在于对应 DLL。
+**🔴🔴 Harmony 补丁目标找不到 = 当场抛异常、掐断整个 PatchAll**（2026-09-23 实机崩溃教训；本条此前写的是"静默跳过、不崩游戏"，**是错的**）：`[HarmonyPatch(typeof(X), "字符串方法名")]` 的目标是运行期反射解析、编译期不检查，而**解析不到时 Harmony 直接 `throw ArgumentException("Undefined target method ...")`**——异常一路冒到 `OnSubModuleLoad`，后果有两层：①**排在该补丁类之后的所有补丁都没打上**；②`OnSubModuleLoad` 里 `PatchAll` 之后的代码**一行都不执行**（实机：伤害模型补丁 / SwordBeam 补丁 / 崩溃钩子 / 动画状态机注册 / `GameDatabase.Initialize` 全被跳过，mod 实际是半死的）。同族两个坑（反编译 0Harmony `PatchClassProcessor` 实锤）：`TargetMethod()` 返回 null **也抛**（"returned an unexpected result: null"）；只有 `TargetMethods()` 返回**空集合**才是真·静默跳过。**纪律：新增/改动任何补丁目标，必须先按上面的二进制 grep 或反射核目标在对应 DLL 里存在**；某版本把目标删了 → 用 `#if` 把整个补丁类圈掉（范例：`KingdomOnNewGameCreatedGuardPatch` / `MapDistanceNullSettlementGuardPatch` / `MapDistanceInvalidFaceGuardPatch` 三个 1.2.12-only 守卫）。批量自查脚本见 [Debug/offline/_check_harmony_targets.ps1](Debug/offline/_check_harmony_targets.ps1)。
 
 **版本参考 DLL**：项目根下的 `Modules/` 目录存放了其他版本的 DLL 副本，**🔴 仅用于 `ilspycmd` 反编译对比 API 差异，禁止用于交叉编译**：
 
@@ -324,11 +324,16 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 
 | 客户端 | 版本 | 路径 | 角色 |
 |------|---------|------|------|
-| 备份客户端（固定） | v1.2.12 | `H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord` | 🔴 当前主环境（Taikou 实机验证/编译，2026-09-09 实测） |
+| 备份客户端 | v1.2.12 | `H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord` | Taikou 实机验证/编译（唯一装了内容包的客户端，2026-09-09 实测） |
+| 备份客户端 | v1.3.15 | `H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.3.15\Mount & Blade II Bannerlord` | 🔴 **当前编译目标**（注册表 MB2_PATH 指向它，2026-09-23 实测；跑纯功能包模式） |
+| 备份客户端 | v1.4.8 | `H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.4.8\Mount & Blade II Bannerlord` | 1.4.x 临时编译（需要时才用） |
 | Steam 主目录（随官方更新） | v1.5.x | `H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord` | 对照环境（实测：2026-09-08 = v1.5.2） |
 
-> 🔴 **版本切换 = `set_mb2_path.py`（仓库根，2026-09-09 整改）**：`setx` 写注册表 User 级 MB2_PATH（铁律 19——判定一律读注册表，禁看 shell 进程快照）。改 `DEFAULT_VERSION` 变量点运行 = 切换；无参运行 = 只查询当前值；**改完必须重启 VS2022**（启动时捕获环境变量）。当前激活值：v1.2.12（2026-09-09）。
-> 🔴 **Taikou / LivingWorldNpcs 模块 = 双客户端 junction 同源**（`Get-Item ... | fl LinkType,Target` 验证，均指向 `...\Mount & Blade II Bannerlord\Modules\<mod>`）——数据/代码改动落一处 = 两个客户端同时生效，**不需要**两份拷贝、无同步问题。
+> 🔴 **版本切换 = `set_mb2_path.py`（仓库根，2026-09-09 整改）**：`setx` 写注册表 User 级 MB2_PATH（铁律 19——判定一律读注册表，禁看 shell 进程快照）。改 `DEFAULT_VERSION` 变量点运行 = 切换；无参运行 = 只查询当前值；**改完必须重启 VS2022**（启动时捕获环境变量）。当前激活值：**v1.3.15**（2026-09-23 读注册表实测）。
+> 🔴 **三档都要能编**：1.2.12 / 1.3.15 / 1.5.x。**1.3.0 是个真变更点**（既不同于 1.2.12 也不同于 1.4.x 的地方有一批：
+> `Mission.Missiles`→`MissilesList`、`Scene.GetNavMeshFaceIndex` 插参数、`GetPathBetweenAIFaces` 取消默认值……），
+> 新写任何跨版本 API 都必须按 [plans/version-compat-plan.md](plans/version-compat-plan.md)「1.3.0 变更」表逐条核对。
+> 🔴 **Taikou / LivingWorldNpcs 模块 = 各客户端 junction 同源**（`Get-Item ... | fl LinkType,Target` 验证，均指向 `...\Mount & Blade II Bannerlord\Modules\<mod>`）——数据/代码改动落一处 = 各端同时生效，**不需要**多份拷贝、无同步问题。
 > 1.4.x ~ 1.5.x 签名一致，编译验证通过——27 个 Harmony 字符串补丁目标二进制 grep 全存活，见下方 VersionCompat 章节。
 
 ### 累积阈值宏体系

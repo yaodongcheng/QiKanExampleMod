@@ -10,7 +10,8 @@
 | **v1.5.1 第四锚点验证（2026-08-23）** | ✅ | 开发机升级 v1.5.1（Latest）后 `dotnet build -c Debug` 0 错误 0 警告；27 个 Harmony 字符串补丁目标二进制 grep 全存活；1.5.x 与 1.4.x 签名一致，`MB2_GE_150` 尚无分支使用 |
 | **RaidSettlement 修复** | ✅ | VersionCompat.cs：`GetActionForRaidingSettlement` 1.3.x=4 参 / 1.4.x=5 参，新增 `#elif MB2_GE_130` 分支 |
 | **CanPlayerTakeQuestConditions 修复** | ✅ | CommissionHubIssue.cs:413：1.2.12~1.3.x 基类 4 参 / 1.4.x 基类 5 参，override 改 `MB2_GE_140` 三分支 |
-| **本机 v1.3.15 编译** | ✅ | `dotnet build -c Debug` **0 errors 0 warnings** |
+| **本机 v1.3.15 编译** | ✅ | `dotnet build -c Debug` **0 errors**（1 warning = `LivingWorldCampaignGameManager._heroSelectOpened` 未使用字段，历史遗留） |
+| **v1.3.15 兼容回归（2026-09-23）** | ✅ | 后续新功能（法印弹 / NavMesh 调试 / 飞行）只在 1.2.12 上编过 → 1.3.15 一编炸 18 处；新增 7 个 V 封装收口后，**1.3.15 / 1.2.12 / 1.5.x 三档全绿**（差异清单见下「1.3.0 变更」） |
 | csproj 累积阈值宏 | ✅ | v1.3.x → `MB2_V1212`+`MB2_GE_130` 自动侦测，无需改动 |
 | VersionCompat.cs 注册表注释 | ✅ | CommissionHubIssue 行更新为三分支说明 |
 
@@ -140,7 +141,32 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 `RayCastForClosestAgent(out 在第3位)` / `Scene.RayCastForClosestEntityOrTerrain(out GameEntity)` /
 `GetNavigationMeshForPosition(ref, bool)` / `GauntletLayer(int, string)` / `ChangeKingdomAction(3参)` /
 `IMapScene.AreFacesOnSameIsland` / `SetPartyAiAction.GetActionFor*(2参)` / `Vec2` 版 IMapScene/StartCameraAnimation /
-`InventoryManager.OpenScreenAsLoot`（搜刮流）/ `FillPartyStacks`
+`InventoryManager.OpenScreenAsLoot`（搜刮流）/ `FillPartyStacks` /
+`Mission.Missiles`（1.3.0+ 改名 `MissilesList`）/ `Texture.SaveToFile(1 参)` / `MobileParty.TargetPosition`(Vec2) /
+`CharacterCreationContentBase`（整类，1.3.0+ 无）/ `Scene.GetNavMeshFaceIndex`(4 参，无 `isRegion1`) /
+`Scene.GetPathBetweenAIFaces`(8 参带默认值) / `ScriptComponentBehavior.GameEntity` 返回 `GameEntity`(类)
+
+### 🔴 1.3.0 变更（2026-09-23 实机编译补录）
+
+背景：2026-09 的新功能（法印弹示踪 / NavMesh 调试 / 玩家飞行）只在 1.2.12 上编过，切到 1.3.15 一次炸 18 处。
+结论：**1.3.0 是个真变更点，且两处报错信息完全不指向真因**。全部已收进 `V`：
+
+| API | 1.2.12 形态 | 1.3.0+ 形态 | 收口 |
+|-----|------------|------------|------|
+| `Mission.Missiles` | 属性 → `IEnumerable<Mission.Missile>` | **改名** `MissilesList` → `MBReadOnlyList<Mission.Missile>` | `V.Missiles(mission)` |
+| `MobileParty.TargetPosition` | `Vec2` | **同名换类型** → `CampaignVec2`（读值要 `.ToVec2()`） | `V.TargetPos(party)` |
+| `Texture.SaveToFile` | `(string path)` | **加参** → `(string path, bool isRelativePath)` | `V.SaveTextureToFile(tex, path)` |
+| `Scene.GetNavMeshFaceIndex` | `(ref rec, Vec2, bool checkIfDisabled, bool ignoreHeight=false)` | **第 3 位插入** `bool isRegion1` → `(ref rec, Vec2, isRegion1, checkIfDisabled, ignoreHeight=false)` | `V.NavMeshFaceIndex(...)` |
+| `Scene.GetPathBetweenAIFaces` | `(int,int,Vec2,Vec2,float,NavigationPath, int[]=null, float=1)` | 追加 `regionSwitchCostTo0/1`，**且原有两个默认值一并取消** → 必须补满 10 参 | `V.PathBetweenFaces(...)` |
+| `CharacterCreationContentBase` | 建号内容基类（`Instance`） | **整类移除**（建号换成 `CharacterCreationManager`，无同名等价入口） | `V.NotifyCharacterCreationFinalized()`（非 1.2.12 = 空操作） |
+| `ScriptComponentBehavior.GameEntity` | 返回 `GameEntity`（**类**，判空 `== null`） | 返回 `WeakGameEntity`（**结构体**，判空只能 `IsValid`） | 返回类型不同，封不进 V → 裸 `#if`（已登记合规例外） |
+
+🔴 **两个「按报错找不到东西」的坑**：
+① `GetNavMeshFaceIndex` 少写参数 → 编译器**不报「参数不够」，而是退到 `Vec3` 重载报「参数 2 无法从 Vec2 转换为 Vec3」**。按报错去找 Vec3 永远找不到真因。
+② `GetPathBetweenAIFaces` 的默认值是**在 1.3.0 被取消**的（1.2.12 有默认值，所以 6 参调用在旧版能编）——**在 1.2.12 上永远复现不出来**。
+
+⚠️ **遗留未核实项**：`isRegion1: false`。该参数 1.3.0 新增，语义未反编译核实（推断 = 导航区域 0/1，false = 主区域）。
+当前只有 NavMeshDebug* 调试绘制消费它，日后实机看 navmesh 叠图时顺手核对即可。
 
 ## VersionCompat.cs：版本差异统一入口
 
@@ -149,7 +175,9 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 **纪律**：
 - 凡是跨版本 API 不同的调用，**一律走 `V.xxx()`**，禁止在业务代码里裸写 `#if`
 - 新增 V 方法后，**必须在每台目标版本电脑上分别编译通过**
-- 四锚点已验证：除 RaidSettlement 外所有 V 方法的 `MB2_GE_130` 分支覆盖 v1.3.0~v1.5.x 正确（1.5.1 编译验证，2026-08-23）
+- 四锚点已验证：除 RaidSettlement 外所有 V 方法的 `MB2_GE_130` 分支覆盖 v1.3.0~v1.5.x 正确（1.5.1 编译验证，2026-08-23）；
+  **2026-09-23 再补**：`Missiles`/`TargetPos`/`SaveTextureToFile`/`NavMeshFaceIndex`/`PathBetweenFaces`/`SameIsland`/`NotifyCharacterCreationFinalized`
+  七个新 V 方法已在 **1.3.15 / 1.2.12 / 1.5.x 三档分别编译通过**（`dotnet build -c Debug` 三绿）
 - 遇到 1.3.x 与 1.4.x 不同而 1.3.x 与 1.2.12 相同的 API（如 `CanPlayerTakeQuestConditions`），**必须用 `MB2_GE_140` 三分支**，不能沿用 `!MB2_V1212` 二分
 
 ### 不可迁入 V 的 #if（合规例外登记表）
@@ -167,10 +195,47 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 | type | `SpringArmCameraView.cs:40` | 同上 |
 | type | `NinjaNotificationMissionView.cs:19` | 同上 |
 | type | `MyCommands.cs:646` | `MissionObject.GameEntity` 返回 `WeakGameEntity`（1.3.15 已验证） |
+| type | `FlySpike.cs:2385` | `UsableMissionObject.GameEntity`：1.2.12 返回 `GameEntity`(类) / 1.3.0+ 返回 `WeakGameEntity`(**结构体** → 判空必须 `IsValid`)。返回类型不同，封不进 V |
 | type | `PlayerDetentionBehavior.cs:9,358` | `GameOverlays.MenuOverlayType`→`GameMenu.MenuOverlayType`（1.3.15 已验证） |
 | Harmony | `InteractionMissionView.cs:2550` | F-to-talk 补丁：`AgentInteractionInterfaceVM` 命名空间从顶层移到 `Missions.Interaction`（1.3.15 已验证） |
 | Harmony | `InteractionMissionView.cs:2582` | 村庄交易日志补丁：`InventoryManager.OpenScreenAsTrade` 三版本都存在（1.2.12 第 4 参 `DoneLogicExtrasDelegate` vs 1.3.15+ `Action`），补丁只在 1.2.12 编译，功能缺失不影响 |
 | Harmony | `DebugLogger.cs:18` | `FillPartyStacks`→`FillPartyManuallyAfterCreation`（1.3.15 已验证 MobilePartyHelper 存在） |
+| Harmony | `KingdomOnNewGameCreatedGuardPatch.cs` | 目标 `Kingdom.OnNewGameCreated` **1.3.0 起被引擎删除**（1.3.15 / 1.4.6 实测均无）→ 整类 `#if MB2_V1212` |
+| Harmony | `MapDistanceNullSettlementGuardPatch.cs` | 目标 `DefaultMapDistanceModel.GetDistance(Settlement,Settlement)` **1.3.0 起无 2 参重载**（只剩 5/6 参形态）→ 整类 `#if MB2_V1212` |
+| Harmony | `MapDistanceInvalidFaceGuardPatch.cs` | 目标 `GetClosestSettlementForNavigationMesh(PathFaceRecord)` **1.3.0 起被引擎删除** → 整类 `#if MB2_V1212` |
+
+### 🔴🔴 Harmony 补丁目标找不到 = 抛异常掐断整个 PatchAll（2026-09-23 实机崩溃）
+
+**结论**：`[HarmonyPatch(typeof(X), "方法名")]` 的目标解析不到时，Harmony **不是静默跳过**，而是
+`throw ArgumentException("Undefined target method ...")` → 异常冒到 `OnSubModuleLoad` →
+**① 排在该补丁类之后的所有补丁全部没打上；② `OnSubModuleLoad` 里 `PatchAll` 之后的代码一行都不执行**
+（实机连带跳过：伤害模型补丁 / SwordBeam 补丁 / 崩溃钩子 / 动画状态机注册 / `GameDatabase.Initialize`）。
+
+**证据**：反编译 0Harmony `PatchClassProcessor.PatchWithAttributes` —— 抛点原文可见：
+```csharp
+lastOriginal = patchMethod.info.GetOriginalMethod();
+if ((object)lastOriginal == null)
+    throw new ArgumentException("Undefined target method for patch method " + ...);
+```
+
+**同族两个坑**（同一处反编译实锤，修法选择时要知道）：
+
+| 写法 | 目标解析不到时 |
+|---|---|
+| 属性式 `[HarmonyPatch(typeof(X),"Y")]` | 🔴 抛 `ArgumentException`，掐断 PatchAll |
+| `[HarmonyTargetMethod] static MethodBase TargetMethod()` 返回 null | 🔴 **也抛**（`"returned an unexpected result: null"`） |
+| `[HarmonyTargetMethods]` 返回**空集合** | ✅ 真·静默跳过（唯一安全的降级写法） |
+
+⚠️ 由此推论：现有两处"返回 null 就算跳过"的写法（`SaveGuard.cs` 的 `ObjectSaveToPatch` / `VariableSaveToPatch`）
+**并不安全**，只是它们的目标在 1.2.12~1.5.x 四版都还在才没炸。改这两个补丁时要注意。
+
+**自查脚本**：`Debug/offline/_check_harmony_targets.ps1`（扫**编译产物**的 `[HarmonyPatch]` 属性并逐个核目标存在性——
+扫产物而非扫源码，是因为 `#if` 掉的东西本来就不在 DLL 里，扫源码会误报）。
+🔴 两个已知陷阱：① 只能算带 `[HarmonyPrefix]`/`[HarmonyPostfix]`/`[HarmonyTranspiler]`/`[HarmonyFinalizer]` 的方法，
+否则补丁类里的**普通辅助方法**会被当成补丁方法去核目标（第一版就这么误报了 7 条）；
+② PowerShell 管道会把 `Type[]` **展开**，取签名必须用 `foreach` 赋值而不是 `| Select -First 1`（否则签名只剩第一个类型，又误报一轮）。
+
+**当前状态（2026-09-23 修完后）**：1.2.12 = 66 个属性式目标全存活；1.3.15 / 1.5.x = 63 个全存活（少的 3 个 = 上表三个 1.2.12-only 守卫）；动态目标 4 个（`CommandLineFunctionality.CallFunction` ×2 / `ObjectSaveData.SaveTo` / `VariableSaveData.SaveTo`）在 1.3.15 实测全部存活。
 | structural | `WorldEventSimulator.cs:1668,1719` | `AreFacesOnSameIsland` 移除（1.3.15 已验证）；`GetPathDistanceBetweenAIFaces` 1.3.15 已是 10 参 |
 | structural | `MyBehavior.cs:33,45` | `CampaignEvents` 事件注册差异（2026-08-17 三版本实锤）：`HeroPrisonerReleased` 4参(1.2.12) / 5参(1.3+，lambda 适配)；`BeforeHeroesMarried` 1.3+ / 1.2.12 为同名同签名 `HeroesMarried`（婚后触发） |
 | structural | `InteractionMissionView.cs:1930,2385` | 搜刮 Loot 流（`InventoryManager.OpenScreenAsLoot` 1.2.12 only，1.3.15 走自研 fallback） |
@@ -197,6 +262,12 @@ Taikou 实例：`taikou_equipment_sets.xml` 的 `taikou_civil_common` / `taikou_
 | `Modules/1.3.15DLL/` | v1.3.15 | **反编译对比 API 差异**（在非 1.3.15 电脑上查 1.3.15 的签名） |
 | `Modules/1.4.6DLL/` | v1.4.6 | **反编译对比 API 差异**（1.4.x 历史锚点；1.4.6/1.4.7/1.4.8 签名一致） |
 | `Modules/1.5.1DLL/` | v1.5.1 | 🔴 **反编译查 Latest 的 API 签名**（2026-08-23 备份；可代表整套 1.5.x） |
+
+🔴 **跨版本比签名：优先反编译（ilspycmd）或「一个版本一个进程」的反射，禁止在一个进程里连续 `Assembly.LoadFrom` 多个版本**（2026-09-23 自踩）：
+`LoadFrom` **按程序集标识复用已加载实例**（各版本 `TaleWorlds.*.dll` 的标识都是 1.0.0.0，完全一样）——
+同一进程里先加载 1.2.12 再加载 1.3.15，第二次拿回的还是 **1.2.12 那个对象**，
+**症状 = 几个版本的查询结果一字不差**（看起来"四版签名完全一致"，其实全在复读第一个版本）。
+判据就是这句「一字不差」：正常情况四个版本不可能完全相同。要批量查就用 `ilspycmd`，或用反射时**每个版本单起一个 PowerShell 进程**。
 
 ```bash
 # 对比四个版本的同个方法

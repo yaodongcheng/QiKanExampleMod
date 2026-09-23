@@ -2382,8 +2382,16 @@ namespace LivingWorldNpcs.CampaignMode
                 UsableMissionObject used = player.CurrentlyUsedGameObject;
                 if (used == null) return;
 
+                // 🔴 承载实体取法跨版本（2026-09-23）：1.2.12 = GameEntity（**类**，判空用 == null）；
+                //    1.3.0+ = WeakGameEntity（**结构体**，判空必须用 IsValid）。两边 GetFrame/SetFrame 同名同义。
+                //    裸 #if 的合规依据见 Core/VersionCompat.cs 类注释 [type-level] 清单。
+#if MB2_GE_130
+                WeakGameEntity e = used.GameEntity;
+                if (!e.IsValid) return;
+#else
                 GameEntity e = used.GameEntity;
                 if (e == null) return;
+#endif
 
                 MatrixFrame f = e.GetFrame();
                 if (float.IsNaN(_chairBaseZ)) _chairBaseZ = f.origin.z;

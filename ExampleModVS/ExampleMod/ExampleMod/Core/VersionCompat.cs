@@ -53,11 +53,20 @@ namespace LivingWorldNpcs
     ///     NinjaNotificationMissionView.cs:19  同上
     ///     MyCommands.cs:646                   MissionObject.GameEntity 返回类型
     ///     PlayerDetentionBehavior.cs:9,312    GameOverlays→GameMenu.MenuOverlayType
+    ///     FlySpike.cs:2385 TickChairLift      UsableMissionObject.GameEntity：
+    ///                                         v1.2.12 返回 GameEntity（类）/ 1.3.0+ 返回 WeakGameEntity
+    ///                                         🔴 1.3.0+ 那个是**结构体** → 空判断必须用 IsValid，不能 == null
     ///
     ///   [Harmony] — 补丁目标/参数类型跨版本不同：
     ///     InteractionMissionView.cs:2529     F-to-talk 隐藏目标类+属性类型
     ///     InteractionMissionView.cs:2559     InventoryManager.OpenScreenAsTrade（1.2.12 only）
     ///     DebugLogger.cs:18                  FillPartyStacks→FillPartyManuallyAfterCreation
+    ///     KingdomOnNewGameCreatedGuardPatch.cs     目标 Kingdom.OnNewGameCreated 1.3.0 起被删除 → 整类 #if MB2_V1212
+    ///     MapDistanceNullSettlementGuardPatch.cs   目标 GetDistance(Settlement,Settlement) 1.3.0 起无 2 参重载 → 整类 #if MB2_V1212
+    ///     MapDistanceInvalidFaceGuardPatch.cs      目标 GetClosestSettlementForNavigationMesh 1.3.0 起被删除 → 整类 #if MB2_V1212
+    ///     🔴🔴 目标找不到 **不是静默跳过**：Harmony 抛 ArgumentException 并**掐断整个 PatchAll**
+    ///        （之后所有补丁 + OnSubModuleLoad 后半段全不执行）——实机 2026-09-23 崩过，详见
+    ///        plans/version-compat-plan.md「Harmony 补丁目标找不到」；新增补丁目标必先核存在性。
     ///
     ///   [structural] — 多语句算法/功能模块跨版本完全不同的实现：
     ///     WorldEventSimulator.cs:1668,1719    AreFacesOnSameIsland 移除
@@ -66,9 +75,10 @@ namespace LivingWorldNpcs
     ///     MyBehavior.cs:33,45                CampaignEvents 事件注册差异：HeroPrisonerReleased
     ///                                         5参=1.3+ / 4参=1.2.12（lambda 适配）；BeforeHeroesMarried
     ///                                         1.3+ / 1.2.12 为同名同签名 HeroesMarried（婚后触发）
-    ///     LivingWorldCampaign.cs               全类按 MB2_V1212 分叉（1.2.12 全量 / 1.5.x 空壳）：
-    ///                                         ①构造 base 参数差——1.2.12 Campaign(CampaignGameMode) /
-    ///                                           1.5.0+ (CampaignGameMode, AdvancedStartOptionsData)；
+    ///     LivingWorldCampaign.cs               全类按 MB2_V1212 分叉（1.2.12 全量实现 / 1.3.x 与 1.5.x 空壳），
+    ///                                         壳内再按 MB2_GE_150 分 base 参数：
+    ///                                         ①构造 base 参数差——1.2.12 与 1.3.x 都是 Campaign(CampaignGameMode)
+    ///                                           / 1.5.0+ (CampaignGameMode, AdvancedStartOptions+AdvancedStartOptionsData)；
     ///                                         ②1.2.12 独有 API：Clan.InitialPosition / Kingdom.InitialHomeLand /
     ///                                           Clan.UpdateHomeSettlement / HeroCreator.CreateHeroAtOccupation /
     ///                                           GameModels.SettlementConsumptionModel（1.5.2 等价物 =
@@ -859,6 +869,43 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // ── 导航面查询：位置 → PathFaceRecord（1.3.0 插参数）──────
+        // v1.2.12: Scene.GetNavMeshFaceIndex(ref rec, Vec2 pos, bool checkIfDisabled, bool ignoreHeight = false)
+        // v1.3.0+ : 第 3 位**插入** bool isRegion1 → (ref rec, Vec2 pos, isRegion1, checkIfDisabled, ignoreHeight = false)
+        //   🔴 1.3.0+ 照旧只写 3 个实参 = 匹配不上 Vec2 重载（bool 个数不够）→ 编译器落到 Vec3 重载，
+        //      报「参数 2 无法从 Vec2 转换为 Vec3」（2026-09-23 编译实锤，坑在报错信息完全指不到真因）。
+        //   `isRegion1: false` = 查主（陆地）区域。该参数语义未反编译核实（只有 NavMeshDebug* 调试绘制消费它）。
+
+        public static void NavMeshFaceIndex(Scene scene, ref PathFaceRecord record, Vec2 position, bool checkIfDisabled)
+        {
+            if (scene == null) return;
+#if MB2_GE_130
+            scene.GetNavMeshFaceIndex(ref record, position, isRegion1: false, checkIfDisabled: checkIfDisabled);
+#else
+            scene.GetNavMeshFaceIndex(ref record, position, checkIfDisabled: checkIfDisabled);
+#endif
+        }
+
+        // ── 两点寻路：面索引版（1.3.0 取消默认值）────────────────
+        // v1.2.12: Scene.GetPathBetweenAIFaces(int, int, Vec2, Vec2, float, NavigationPath,
+        //                                      int[] excludedFaceIds = null, float extraCostMultiplier = 1)
+        //          → 后两参**有默认值**，所以 6 参调用成立
+        // v1.3.0+ : 追加 regionSwitchCostTo0/1，**且原来的默认值一并取消** → 必须补足 10 参
+        //   （补的值 = 照抄 1.2.12 的默认：excludedFaceIds=null、extraCostMultiplier=1f；
+        //     两个 regionSwitchCost 填 0 = 不额外加价，与 WorldEventSimulator 调同族 API
+        //     GetPathDistanceBetweenAIFaces 的既有取法同口径）
+
+        public static bool PathBetweenFaces(Scene scene, int startFace, int endFace,
+            Vec2 start, Vec2 end, float agentRadius, NavigationPath path)
+        {
+            if (scene == null) return false;
+#if MB2_GE_130
+            return scene.GetPathBetweenAIFaces(startFace, endFace, start, end, agentRadius, path, null, 1f, 0, 0);
+#else
+            return scene.GetPathBetweenAIFaces(startFace, endFace, start, end, agentRadius, path);
+#endif
+        }
+
         // ── NavigationMeshWrapper helpers ──
         // v1.2.12: wrapper.GetAccessiblePointNearPosition(Vec2, float) → Vec2
         // v1.3.0+: wrapper.GetAccessiblePointNearPosition(CampaignVec2, float) → CampaignVec2
@@ -884,6 +931,23 @@ namespace LivingWorldNpcs
             return wrapper.GetFaceIndex(new CampaignVec2(pos, true));
 #else
             return wrapper.GetFaceIndex(pos);
+#endif
+        }
+
+        // ── 两面是否同岛 / 可达（1.3.0 移除原 API）──────────────
+        // v1.2.12: IMapScene.AreFacesOnSameIsland(faceA, faceB, bool ignoreDisabled)
+        // v1.3.0+ : 该 API 已移除（1.3.15 / 1.4.6 / 1.5.1 三个客户端实测均无此成员）
+        //   → 用 GetPathDistanceBetweenAIFaces 探路成功与否替代。仓库既有同款替代 =
+        //     WorldEventSimulator.FindReachableSpawnPosition 两处（同一组实参：0.1f/100f/null/0/0）。
+
+        public static bool SameIsland(IMapScene map, PathFaceRecord fromFace, Vec2 fromPos,
+            PathFaceRecord toFace, Vec2 toPos)
+        {
+            if (map == null) return false;
+#if MB2_GE_130
+            return map.GetPathDistanceBetweenAIFaces(fromFace, toFace, fromPos, toPos, 0.1f, 100f, out _, null, 0, 0);
+#else
+            return map.AreFacesOnSameIsland(fromFace, toFace, false);
 #endif
         }
 
@@ -975,6 +1039,65 @@ namespace LivingWorldNpcs
 #else
             var module = TaleWorlds.MountAndBlade.Module.CurrentModule;
             return module == null ? (IEnumerable<MBSubModuleBase>)new MBSubModuleBase[0] : (IEnumerable<MBSubModuleBase>)module.SubModules;
+#endif
+        }
+
+        // ── Mission 弹体列表（1.3.0 改名）────────────────────────
+        // v1.2.12: Mission.Missiles     → IEnumerable<Mission.Missile>
+        // v1.3.0+ : Mission.MissilesList → MBReadOnlyList<Mission.Missile>（实现 IList/IEnumerable<T>，可直接遍历）
+        // 返回 null = 传进来的 mission 为 null；返回值非 null 但集合可能为空。
+
+        public static IEnumerable<Mission.Missile> Missiles(Mission mission)
+        {
+            if (mission == null) return null;
+#if MB2_GE_130
+            return mission.MissilesList;
+#else
+            return mission.Missiles;
+#endif
+        }
+
+        // ── 部队目标点（1.3.0 换类型）────────────────────────────
+        // v1.2.12: MobileParty.TargetPosition → Vec2
+        // v1.3.0+ : 同名属性 → CampaignVec2
+
+        public static Vec2 TargetPos(MobileParty party)
+        {
+            if (party == null) return Vec2.Zero;
+#if MB2_GE_130
+            return party.TargetPosition.ToVec2();
+#else
+            return party.TargetPosition;
+#endif
+        }
+
+        // ── 纹理导出到文件（1.3.0 加参数）────────────────────────
+        // v1.2.12: Texture.SaveToFile(string path)
+        // v1.3.0+ : Texture.SaveToFile(string path, bool isRelativePath)
+        // 调用方给的 path 一律是绝对路径（BasePath 拼出来的）→ isRelativePath: false。
+
+        public static bool SaveTextureToFile(TaleWorlds.Engine.Texture tex, string path)
+        {
+            if (tex == null || string.IsNullOrEmpty(path)) return false;
+#if MB2_GE_130
+            tex.SaveToFile(path, false);
+#else
+            tex.SaveToFile(path);
+#endif
+            return true;
+        }
+
+        // ── 建号收尾通知（1.3.0 移除承载类）──────────────────────
+        // v1.2.12: CharacterCreationContentBase.Instance?.OnCharacterCreationFinalized()
+        // 1.3.0+ : 该类已整类移除（建号体系换成 CharacterCreationManager，无同名等价入口）→ 空操作。
+        //   这些版本不跑内容包战役（Taikou 数据包只装在 1.2.12 机），建号不经过我们，空操作无副作用。
+
+        public static void NotifyCharacterCreationFinalized()
+        {
+#if MB2_V1212
+            // 全名限定：本文件没有 CharacterCreationContent 命名空间的 using（且该类型全版本只此一处引用）
+            TaleWorlds.CampaignSystem.CharacterCreationContent.CharacterCreationContentBase.Instance
+                ?.OnCharacterCreationFinalized();
 #endif
         }
     }
