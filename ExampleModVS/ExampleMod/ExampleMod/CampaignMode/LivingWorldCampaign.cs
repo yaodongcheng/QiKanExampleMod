@@ -158,14 +158,22 @@ namespace LivingWorldNpcs.CampaignMode
 				DebugLogger.Log($"[LWN-campaign] 新档分步修复 FAILED: {exHome.Message}");
 			}
 		}
-#else
-		// 🔴 1.3.x / 1.5.x：战役模式暂不接入（裁定：CampaignModeActivator——这两个版本机不装 Taikou 数据包
-		//   = 纯功能包，本类不会被实例化）。本支只负责编译通过；1.2.12 独有 API（Clan.InitialPosition /
-		//   Kingdom.InitialHomeLand / Clan.UpdateHomeSettlement / HeroCreator.CreateHeroAtOccupation /
-		//   GameModels.SettlementConsumptionModel）在 1.3.15 与 1.5.2 已改名/移除（等价物：InitialHomeSettlement /
-		//   SetInitialHomeSettlement / HeroCreator.CreateNotable）——v1 接入对应版本的建号体系时按等价 API 重写本类。
+#elif MB2_GE_130
+		// 🔴 1.3.x / 1.4.x / 1.5.x 战役模式（2026-09-23 接入）。
+		//   与 1.2.12 支的差异只有两处（均已反编译实证）：
+		//   ① **家宅/王都置位整套删除**——1.2.12 那套反射写 `Kingdom.InitialHomeLand` 是给
+		//      `Kingdom.InitialPosition => InitialHomeLand.GatePosition` 兜底的，而 1.3.x 里
+		//      `InitialHomeSettlement` **全代码库无人读**（只有 XML 反序列化写 + 存档访问器），
+		//      领主刷部队不再解引用它 → 不需要补。
+		//   ② 位置写入换 API——`MobileParty.Position2D` 已不可写，改 `Position`（CampaignVec2）→ 走 V。
 		protected override void OnInitialize()
 		{
+			// 🔴 读档早退（与 1.2.12 同理）：读档时对象表未恢复，下面的补载/注册只服务新建档。
+			if (CampaignGameLoadingType == Campaign.GameLoadingType.SavedCampaign)
+			{
+				return;
+			}
+
 			// 🔴 第 5 颗雷（1.5.2 版，2026-09-08）：EquipmentRosters 段新战役不加载——反编译实锤：
 			//   Campaign.InitializeDefaultCampaignObjects（官方读档链）里才 LoadXML("EquipmentRosters")；
 			//   Campaign.OnInitialize 早期执行 InitializeDefaultEquipments →
@@ -180,6 +188,43 @@ namespace LivingWorldNpcs.CampaignMode
 				DebugLogger.Log($"[LWN-campaign] EquipmentRosters 段补载 FAILED: {exEq.Message}");
 			}
 			base.OnInitialize();
+
+			// 🔴 出生点置位（与 1.2.12 同理、同时点）：地图相机的初始目标 = 主队坐标，而这次读取
+			//   发生在「推入大地图状态」那一步（比建号完成回调更晚、但比它读得早的写法都不管用）；
+			//   创世界期写好，相机天然对准玩家。
+			//   ⚠️ 1.3.x 的引擎还会在 `CharacterCreationManager.ApplyFinalEffects` 里按
+			//   `SelectedCulture.StartingPoint` 覆写主队位置——但该值只在 XML 写了
+			//   `start_point_position_x/y` 时才非零，本内容包**一处都没写**（实测 0 命中）→ 不会覆盖我们。
+			try
+			{
+				CampaignEvents.OnNewGameCreatedPartialFollowUpEvent.AddNonSerializedListener(this, OnNewGameCreatedPartialFollowUp);
+			}
+			catch (Exception exReg)
+			{
+				DebugLogger.Log($"[LWN-campaign] partial-followup 注册 FAILED: {exReg.Message}");
+			}
+		}
+
+		/// <summary>新档创建期的出生点写入（引擎对本事件循环调用 100 次，i=0 最早）。</summary>
+		private void OnNewGameCreatedPartialFollowUp(CampaignGameStarter starter, int i)
+		{
+			try
+			{
+				if (i != 0 || MobileParty.MainParty == null)
+				{
+					return;
+				}
+				Vec2? spawn = StartingPosition;
+				if (spawn.HasValue)
+				{
+					V.SetMainPartyPosition(spawn.Value);
+					DebugLogger.Log($"[LWN-campaign] 出生点置位 MainParty.Position=({spawn.Value.X:F1},{spawn.Value.Y:F1})（世界创建期写入，相机天然对准玩家）");
+				}
+			}
+			catch (Exception exSpawn)
+			{
+				DebugLogger.Log($"[LWN-campaign] 出生点置位 FAILED: {exSpawn.Message}");
+			}
 		}
 #endif
 	}

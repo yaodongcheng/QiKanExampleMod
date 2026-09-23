@@ -16,6 +16,7 @@
 | **Harmony 补丁目标全量核查（2026-09-23）** | ✅ | 1.3.15 一开局就崩在 `PatchAll`（目标被 1.3.0 删掉）→ 新增 `Debug/offline/_check_harmony_targets.ps1`（扫**编译产物** + 四档对比 + 负面测试）；三个 1.2.12-only 守卫整类 `#if` 圈掉；挂载改**逐类**（单类失败不再掐断其余） |
 | **1.3.15 / 1.4.8 实机验证（2026-09-23）** | ✅ | 修完「内容包专属补丁越界」（必备清单雷 156）+ 上面那些之后，**纯功能包模式可正常建号进游戏**（1.3.15 与 1.4.8 均实测通过） |
 | **Taikou 联接到 1.3.15 / 1.4.8（2026-09-23）** | ✅ | `set_junction.py` 改**表驱动**（并补上原先漏掉的 1.4.8）；`Taikou / TaikouAnim / Shokuho_CNs / LivingWorldNpcs` × 三客户端 = **12 格全 `[OK]`**。⚠️ 联接只是让模块可见，**要不要加载由启动器勾选决定** |
+| **战役模式移植到 1.3.x+（2026-09-23）** | ✅ | 三处 `#else` 空壳补成真实现（`LivingWorldCampaign` 出生点置位 / `LivingWorldCampaignGameManager.OnLoadFinished` / `LivingWorldCharacterCreationContent` 的 1.3.x 形态）。1.3.15 编译 0 错 0 警；1.4.8 与 1.5.2 逐成员签名核对一致。**1.2.12 分支一行未动**。差异清单见下方「1.3.0 变更」表（新增 `MobileParty.Position2D` 一行）；接入点全貌见必备清单 ⑧；移植中撞出的新雷 = 必备清单 160~163。**实机验证待做** |
 | csproj 累积阈值宏 | ✅ | v1.3.x → `MB2_V1212`+`MB2_GE_130` 自动侦测，无需改动 |
 | VersionCompat.cs 注册表注释 | ✅ | CommissionHubIssue 行更新为三分支说明 |
 
@@ -23,7 +24,9 @@
 
 | 项目 | 优先级 | 说明 |
 |------|:------:|------|
-| 🔴 **战役模式移植到 1.3.x / 1.4.8** | **P0** | 必备清单**雷 158**：`CampaignMode/` 是 `#if MB2_V1212` 全量实现 / `#else` 空壳（`LivingWorldCampaignGameManager.OnLoadFinished` 只有 `base` 一句）⇒ **Taikou 在 1.3.x/1.4.8 上开局会卡在加载完成后**（不是崩）。**移植完成前，别用 Taikou 去测那些版本的"兼容性"**（没有诊断价值）。移植面：`LivingWorldCampaign` 全量 + `OnLoadFinished` 建号分支 + `LivingWorldCharacterCreationContent` 在 1.3.x 的新形态 + 三个被删 API 的等价物（`InitialHomeSettlement` / `SetInitialHomeSettlement` / `Creator.CreateNotable`） |
+| 🔴 **距离缓存放到 1.3.x 的新位置** | **P0** | 雷 164：1.3.x 读 `ModuleData/DistanceCaches/settlements_distance_cache_Default.bin`，Taikou 的还在 1.2.12 的老路径 ⇒ 缓存没注册 ⇒ `CalculateAverageDistanceBetweenTowns` NRE。**先对头部字节判格式**（相同 = 复制改名；不同 = 开 1.3.15 ModKit 用 `SettlementPositionScript` 的 `ComputeAndSaveSettlementDistanceCache` 重算）。⚠️ 模块加载顺序必须让 Taikou 排在 SandBox 之后 |
+| **实机复验 1.3.15 / 1.4.8 开局** | **P0** | 缓存修好后：两个客户端各勾 Taikou 开一局（选两个不同时代）→ 验「进建号/选人 → 落地进大地图、身份/家族/部队正确」。⚠️ **别拿编给 1.3.15 的 DLL 去跑 1.5.3**（2026-09-23 18:36 那次原生 AV 就是这么来的，与本次移植无关） |
+| **1.2.12 分支回归编译** | **P0** | 三处 `#if MB2_V1212` 分支本轮一行未动，但共用代码有改动（`OnLoadFinished` 合成一份、新增 `V.SetMainPartyPosition`）→ 需在 1.2.12 机上 `dotnet build` 复核 |
 | `GameDatabase.Initialize` 的 `KeyNotFoundException` | **P1** | 必备清单**雷 159**：1.3.15 上策划表数据没加载（引擎日志每次启动一行，被自己的 catch 吞掉）。**先查真因再修**，别加兜底补丁 |
 | 同类「越界」补丁收窄 | P2 | 必备清单**雷 156**：`BackstoryCampaignBehaviorPatch` / `CharacterCreationCultureStageSortPatch` / `CharacterCreationCultureVisualFallbackPatch` / FaceGen 三个（`FaceGenOnSelectRaceGuard` / `FaceGenRaceDefaultBodyPatch` / `FaceGenRaceGenderFilterPatch`）→ 按"没装内容包时它有意义吗"逐条收窄 |
 | `EncyclopediaHeroHelmetPatch` 机制坐实（可选） | P3 | 雷 156 记着「机制未查明」：把 `GameTextsFindNullProbe` 排到**挂载顺序最前**再复现一次，抓"谁在 GameTexts 未初始化时提前碰了它"的调用栈 |
@@ -34,29 +37,68 @@
 
 ---
 
-## 🔴 P0 完整 TODO：让 Taikou 在 1.3.15 / 1.4.8 上能开局（2026-09-23 立）
+## ✅ P0：让 Taikou 在 1.3.15 / 1.4.8 上能开局（2026-09-23 立 → 代码当日完成 → 实机又挖出一颗新雷）
 
 **目标（一句话）**：1.3.15 / 1.4.8 客户端上勾选 Taikou → 主菜单「剧本」→ 选时代 → **进建号/选人 → 落地进大地图**（与 1.2.12 同等体验）。
 
-**验收判据**：至少两个时代各开一局 —— 能进图、玩家身份/家族/部队正确、能存能读。
+**验收判据**：至少两个时代各开一局 —— 能进图、玩家身份/家族/部队正确。**存档读档不在本轮**（2026-09-23 裁定：本轮只到「能开局进图」）。
 
-**现状（为什么现在不行）**：`CampaignMode/` 全是 `#if MB2_V1212` 全量实现 / `#else` 空壳 ⇒ 世界**建得起来**（内容包数据、EquipmentRosters 补载都跑），但 `LivingWorldCampaignGameManager.OnLoadFinished` 在 1.3.x 分支上**只有 `base` 一句** ⇒ **卡在加载完成后**（不是崩）。
+**代码结果**：三处 `#else` 空壳补成真实现；1.3.15 `dotnet build` **0 错 0 警**；1.4.8 / 1.5.2 用反编译**逐成员核对签名**（与 1.3.15 一字不差）；**1.2.12 分支一行未动**。
+
+### 🔴 实机结果（2026-09-23 18:55，1.3.15 客户端）
+
+**移植本身全通**——链路一直走到世界加载的最后一段才停：
+
+| 时点 | 日志 | 判定 |
+|---|---|---|
+| 18:55:25.844 | `[MenuSoundtrack] 主题重映射：MainTheme(5) → 10000005` | **主菜单 ✓**（含 `WireMainMenu` 改列表，1.3.x 上没炸） |
+| 18:55:32.109 | `[EraCatalog] 已选剧本：TaikouCampaign1560` | **剧本入口 + 选时代 ✓** |
+| 18:55:32.178 | `[HeroSelect] 选人屏已开（年份 1560，树模式）` | **选人屏 ✓** |
+| 18:55:35.691 | `[StartingHero] 已选开局英雄：lord_tk5_195` | **选人落地交接 ✓** |
+| 18:55:36.829 | `[LWN-cc13] 建号内容行为已挂入战役` | **新写的建号接线 ✓** |
+| 18:55:36.9x | 💥 | **卡在世界加载** |
+
+崩点（用户带调试器抓到）：`Campaign.CalculateCachedValues → CalculateAverageDistanceBetweenTowns` →
+`DefaultMapDistanceModel.GetDistance(...)` **NullReferenceException**。
+
+### 🔴 新拦路石 = 距离缓存换了存放位置（雷 164，**数据活，不是代码活**）
+
+1.3.x 引擎找距离缓存的路径与 1.2.12 **完全不同**：
+
+| 版本 | 引擎实际去读的路径 | 文件格式 |
+|---|---|---|
+| 1.2.12 | `Modules/<模块>/ModuleData/settlements_distance_cache.bin` | 旧格式（该版 `SandBox.View.dll` 里**没有** `SandBoxNavigationCache` 类型） |
+| **1.3.x / 1.4.x** | `Modules/<模块>/ModuleData/**DistanceCaches**/settlements_distance_cache_**Default**.bin` | 新格式 `SandBoxNavigationCache`（官方 SandBox 就是这么放的，2.5MB） |
+
+Taikou 的缓存文件**在，也在 junction 里**（文件没丢），只是待在 1.2.12 的位置上 ⇒ **1.3.x 扫过去不看那一格**。
+引擎找不到时走 `SettlementPositionScript.OnInit` 的兜底，而兜底一旦抛异常就被那个 `catch` 吞掉
+⇒ 距离缓存永不注册 ⇒ 后面 `GetDistance` 空引用（**日志零线索**，与雷 156 同一个套路）。
+
+**下一步（用户 2026-09-23 定）**：开 **1.3.15 的 ModKit**，用地图场景里 `SettlementPositionScript` 实体自带的
+`ComputeAndSaveSettlementDistanceCache` 开关**重新生成 1.3.x 格式的缓存**并放到新路径。
+⚠️ 动手前先做**一分钟判据**：拿老文件和新路径官方文件的**头部字节**对一下 —— 若格式相同，复制改名即可（不用开 ModKit）；
+不同才需要重算。⚠️ 另注意引擎那段循环是**最后一个命中者胜**（`text = filePath` 覆盖），
+所以 Taikou 的模块加载顺序必须排在 SandBox / SandBoxCore 之后。
+
+**为什么当时不行（已解决，留档）**：`CampaignMode/` 那套是 `#if MB2_V1212` 全量实现 / `#else` 空壳 ⇒ 世界**建得起来**（内容包数据、EquipmentRosters 补载都跑），但 `LivingWorldCampaignGameManager.OnLoadFinished` 在 1.3.x 分支上**只有 `base` 一句** ⇒ **卡在加载完成后**（不是崩）。
 
 | # | 做什么 | 验收 | 状态 |
 |---|---|---|---|
-| **T0** | **调研 1.3.x 建号体系的接入点**（当前唯一未知量）：谁是宿主、阶段表从哪来、`CharacterCreationContent` 由谁提供、收尾在哪 | 写清「从 `SandboxGameManager.LaunchSandboxCharacterCreation` 到我们能插进去」的完整链路（带反编译证据行号） | ⬜ |
-| **T1** | `LivingWorldCampaign.OnInitialize` 的 1.3.x 版：EquipmentRosters 补载（空壳已有）+ **出生点置位** + **家宅/家园置位**（1.3.x 等价 API = `InitialHomeSettlement` / `SetInitialHomeSettlement`） | 新档里主队落在内容包出生点；无「领主刷部队 NRE」 | ⬜ |
-| **T2** | `LivingWorldCampaignGameManager.OnLoadFinished` 的 1.3.x 分支：**选人落地 / 推建号** 两条路 | 选人后能进图；点「自定义人物」能进建号 | ⬜ |
-| **T3** | `LivingWorldCharacterCreationContent` 的 1.3.x 形态（`CharacterCreationContentBase` 已整类移除）：阶段表（原 Culture→FaceGen→Generic→Review）在 1.3.x 由什么承载 | 建号能走完全部阶段并落地 | ⬜ |
-| **T4** | `StartingHero.FinalizeCampaignStart` 的 1.3.x 版收尾（照抄对象从 `CharacterCreationState.FinalizeCharacterCreation` 换成 1.3.x 的对应物） | 选人开局后：地图状态被激活 / 立绘刷新 / 其他 behavior 收到 `OnCharacterCreationIsOver` | ⬜ |
-| **T5** | 复查三个 1.2.12-only 守卫的 1.3.x 等价物：`Kingdom.OnNewGameCreated` 那段逻辑搬哪去了？无地势力的 null 还崩不崩？非法导航面还调不调原生？ | 内容包在 1.3.x 上跑 demo **不再出**那三类崩溃 | ⬜ |
+| **T0** | **调研 1.3.x 建号体系的接入点**（当时的唯一未知量） | ✅ **链路查明**（1.3.15 反编译）：`CharacterCreationState`（无参构造）→ 内部 new `CharacterCreationManager` → 构造期广播 `OnCharacterCreationInitializedEvent` → 战役行为在此注册 `ICharacterCreationContentHandler` → 随即逐个调 `InitializeContent`（加阶段/文化/菜单）。**3D 界面由游戏自带**：`SandBox.View.dll` 的 `CharacterCreationScreen` 带 `[GameStateScreen(typeof(CharacterCreationState))]`，状态一激活自动挂上，再按**阶段类型**配 view ⇒ **只复用原版阶段类型，零自建 UI**。优先级：原版内容 800 / 剧情 900 / 我们 1000（要等原版建完菜单才删得掉）。范本 = 原版 `CharacterCreationCampaignBehavior` + 剧情 `StoryModeCharacterCreationCampaignBehavior`。链路与接口全貌已沉淀进必备清单 ⑧（新内容包/新版本照它做） | ✅ |
+| **T1** | `LivingWorldCampaign.OnInitialize` 的 1.3.x 版 | ✅ EquipmentRosters 补载（原样保留）+ **出生点置位**（挂 `OnNewGameCreatedPartialFollowUpEvent`，i==0 时 `V.SetMainPartyPosition`）。**家宅/王都那套不移植** —— 反编译查明 `Kingdom.InitialHomeSettlement` 在 1.3.x **全代码库无人读**，1.2.12 那个 NRE 隐患不存在了（必备清单雷 163）。另查明：1.3.x 引擎会按 `Culture.StartingPoint` 覆写主队位置，而内容包 `spcultures.xml` 没写 `start_point_position_*` ⇒ 不会冲掉我们的坐标（雷 162） | ✅ |
+| **T2** | `LivingWorldCampaignGameManager.OnLoadFinished` 的 1.3.x 分支 | ✅ **与 1.2.12 共用一份实现**（本体用到的 API 两版一致，已逐条核对）；唯一版本差异收在 `PushCharacterCreation()` 内部：1.2.12 把内容实例当构造参数传 / 1.3.x 无参 `CreateState<CharacterCreationState>()` + `CleanAndPushState(state, 0)`（范本 = `SandBoxGameManager.LaunchSandboxCharacterCreation`） | ✅ |
+| **T3** | `LivingWorldCharacterCreationContent` 的 1.3.x 形态 | ✅ 改成 **`CampaignBehaviorBase` + `ICharacterCreationContentHandler`**（优先级 1000），由 `MySubModule.OnGameStart` 挂进战役。复刻 1.2.12 的四阶段：摘掉引擎默认的 家纹/家名/难度 三阶；文化表按 `IsMainCulture` 自己填（雷 160）；删原版 6 个叙事菜单、换成自建出身菜单（雷 161） | ✅ |
+| **T4** | `StartingHero.FinalizeCampaignStart` 的 1.3.x 版收尾 | ✅ **无需改动**——它照抄的四步（撤销禁用请求 / 推 MapState / `SetVisualAsDirty` / 广播 `OnCharacterCreationIsOver`）在 1.3.15 全部存在且语义相同。1.3.x 走「自定义人物」那条路时，收尾由引擎自己的 `CharacterCreationState.FinalizeCharacterCreationState` 完成（与我们的实现同构） | ✅ |
+| **T5** | 复查 1.2.12-only 守卫在 1.3.x 的等价物 | ⚠️ **部分**。三个守卫（`KingdomOnNewGameCreated` / `MapDistanceNullSettlement` / `MapDistanceInvalidFace`）在 1.3.x 已被 `#if MB2_V1212` 圈掉 —— 但**「补丁被圈掉」≠「问题不存在」**（本轮教训）。实机证明 **1.3.x 上距离模型照样出事**（只是形态变了：不再是「无地势力 null」或「非法导航面」，而是**距离缓存压根没注册**→ 雷 164）。旧的 1.2.12 守卫**不要恢复**，按 1.3.x 的机制另做（优先走数据：把缓存文件放对地方）。另：两个 CC 补丁（`CharacterCreationCultureStageSortPatch` / `CharacterCreationCultureVisualFallbackPatch`）已加进 `contentPackOnly` 名单 —— 它们只对内容包世界有意义，挂在原版战役上会**实打实改掉原版文化的排序**（雷 156 同族） | ⚠️ |
 
 **已知风险 / 纪律**
 - `EraCatalog.StartCampaign` 走 `MBGameManager.StartNewGame(new LivingWorldCampaignGameManager(era))` —— 1.3.x 同签名**编译已过** ✓，但**运行期行为要实测**（1.3.x 的 GameManager 装配链可能不同）。
-- 🔴 **移植没做完之前不要用 Taikou 测 1.3.x "兼容性"**（必备清单雷 158）：测出来的卡住是「功能未实现」，没有诊断价值。
+- 🔴 **第一次实机若崩在 `CharacterCreationNarrativeStageView` 构造**（`…GainedPropertiesVM..ctor → CampaignUIHelper..cctor → GameTexts.FindText`）：先照必备清单**雷 156** 的手法二分 —— `config.json` 的 `DisabledPatchClasses` 加 `EncyclopediaHeroHelmetPatch`（改配置重启即生效、零重编）。雷 156 说那个崩溃的**机制未查明**，而它的触发路径恰好是「叙事阶段 + 内容包补丁挂着」，**正是我们这次要走的路**。
+- 🔴 **移植没做完之前不要用 Taikou 测 1.3.x "兼容性"**（雷 158）—— 本条已解除：战役模式已接，现在测出来的问题**都是有诊断价值的真问题**。
 - **一次只打通一个版本**：先在 1.3.15 上走通，再验 1.4.8（两者 API 一致）。
 - **数据层不用动**（内容包纯数据 + `EquipmentSet` 民用标记双属性已合规）。
-- 三个守卫补丁在 1.3.x 上是 `#if MB2_V1212` 圈掉的 ⇒ T5 若发现 1.3.x 仍需同类保护，**按 1.3.x 的 API 重写**，不要去恢复 1.2.12 的补丁。
+- 三个守卫补丁在 1.3.x 上是 `#if MB2_V1212` 圈掉的 ⇒ 若 1.3.x 实测发现仍需同类保护，**按 1.3.x 的 API 重写**，不要去恢复 1.2.12 的补丁。
+- **本轮不含存档读档**（2026-09-23 裁定）⇒ 「继续战役」按钮仍是禁用的；下一轮做存档时按 `plans/version-compat-plan.md` 的 Saveable 纪律走。
 
 ---
 
@@ -189,6 +231,7 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 |-----|------------|------------|------|
 | `Mission.Missiles` | 属性 → `IEnumerable<Mission.Missile>` | **改名** `MissilesList` → `MBReadOnlyList<Mission.Missile>` | `V.Missiles(mission)` |
 | `MobileParty.TargetPosition` | `Vec2` | **同名换类型** → `CampaignVec2`（读值要 `.ToVec2()`） | `V.TargetPos(party)` |
+| `MobileParty.Position2D` | `Vec2`，**可写** | **可写属性没了**（只剩只读的 `GetPosition2D => Position.ToVec2()`）→ 改写 `Position`（`CampaignVec2`，须裹 `new CampaignVec2(v, isOnLand: true)`） | `V.SetMainPartyPosition(v)` |
 | `Texture.SaveToFile` | `(string path)` | **加参** → `(string path, bool isRelativePath)` | `V.SaveTextureToFile(tex, path)` |
 | `Scene.GetNavMeshFaceIndex` | `(ref rec, Vec2, bool checkIfDisabled, bool ignoreHeight=false)` | **第 3 位插入** `bool isRegion1` → `(ref rec, Vec2, isRegion1, checkIfDisabled, ignoreHeight=false)` | `V.NavMeshFaceIndex(...)` |
 | `Scene.GetPathBetweenAIFaces` | `(int,int,Vec2,Vec2,float,NavigationPath, int[]=null, float=1)` | 追加 `regionSwitchCostTo0/1`，**且原有两个默认值一并取消** → 必须补满 10 参 | `V.PathBetweenFaces(...)` |
