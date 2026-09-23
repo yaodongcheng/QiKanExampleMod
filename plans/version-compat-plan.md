@@ -34,6 +34,32 @@
 
 ---
 
+## 🔴 P0 完整 TODO：让 Taikou 在 1.3.15 / 1.4.8 上能开局（2026-09-23 立）
+
+**目标（一句话）**：1.3.15 / 1.4.8 客户端上勾选 Taikou → 主菜单「剧本」→ 选时代 → **进建号/选人 → 落地进大地图**（与 1.2.12 同等体验）。
+
+**验收判据**：至少两个时代各开一局 —— 能进图、玩家身份/家族/部队正确、能存能读。
+
+**现状（为什么现在不行）**：`CampaignMode/` 全是 `#if MB2_V1212` 全量实现 / `#else` 空壳 ⇒ 世界**建得起来**（内容包数据、EquipmentRosters 补载都跑），但 `LivingWorldCampaignGameManager.OnLoadFinished` 在 1.3.x 分支上**只有 `base` 一句** ⇒ **卡在加载完成后**（不是崩）。
+
+| # | 做什么 | 验收 | 状态 |
+|---|---|---|---|
+| **T0** | **调研 1.3.x 建号体系的接入点**（当前唯一未知量）：谁是宿主、阶段表从哪来、`CharacterCreationContent` 由谁提供、收尾在哪 | 写清「从 `SandboxGameManager.LaunchSandboxCharacterCreation` 到我们能插进去」的完整链路（带反编译证据行号） | ⬜ |
+| **T1** | `LivingWorldCampaign.OnInitialize` 的 1.3.x 版：EquipmentRosters 补载（空壳已有）+ **出生点置位** + **家宅/家园置位**（1.3.x 等价 API = `InitialHomeSettlement` / `SetInitialHomeSettlement`） | 新档里主队落在内容包出生点；无「领主刷部队 NRE」 | ⬜ |
+| **T2** | `LivingWorldCampaignGameManager.OnLoadFinished` 的 1.3.x 分支：**选人落地 / 推建号** 两条路 | 选人后能进图；点「自定义人物」能进建号 | ⬜ |
+| **T3** | `LivingWorldCharacterCreationContent` 的 1.3.x 形态（`CharacterCreationContentBase` 已整类移除）：阶段表（原 Culture→FaceGen→Generic→Review）在 1.3.x 由什么承载 | 建号能走完全部阶段并落地 | ⬜ |
+| **T4** | `StartingHero.FinalizeCampaignStart` 的 1.3.x 版收尾（照抄对象从 `CharacterCreationState.FinalizeCharacterCreation` 换成 1.3.x 的对应物） | 选人开局后：地图状态被激活 / 立绘刷新 / 其他 behavior 收到 `OnCharacterCreationIsOver` | ⬜ |
+| **T5** | 复查三个 1.2.12-only 守卫的 1.3.x 等价物：`Kingdom.OnNewGameCreated` 那段逻辑搬哪去了？无地势力的 null 还崩不崩？非法导航面还调不调原生？ | 内容包在 1.3.x 上跑 demo **不再出**那三类崩溃 | ⬜ |
+
+**已知风险 / 纪律**
+- `EraCatalog.StartCampaign` 走 `MBGameManager.StartNewGame(new LivingWorldCampaignGameManager(era))` —— 1.3.x 同签名**编译已过** ✓，但**运行期行为要实测**（1.3.x 的 GameManager 装配链可能不同）。
+- 🔴 **移植没做完之前不要用 Taikou 测 1.3.x "兼容性"**（必备清单雷 158）：测出来的卡住是「功能未实现」，没有诊断价值。
+- **一次只打通一个版本**：先在 1.3.15 上走通，再验 1.4.8（两者 API 一致）。
+- **数据层不用动**（内容包纯数据 + `EquipmentSet` 民用标记双属性已合规）。
+- 三个守卫补丁在 1.3.x 上是 `#if MB2_V1212` 圈掉的 ⇒ T5 若发现 1.3.x 仍需同类保护，**按 1.3.x 的 API 重写**，不要去恢复 1.2.12 的补丁。
+
+---
+
 ## 核心原则
 
 **不支持跨版本编译。** 不要试图用一台装了 v1.3.15 的电脑去编译 v1.2.12 的 DLL，反之亦然。API 差异不是简单的 `#if` 能完全隔离的（DLL 引用本身就不兼容）。
