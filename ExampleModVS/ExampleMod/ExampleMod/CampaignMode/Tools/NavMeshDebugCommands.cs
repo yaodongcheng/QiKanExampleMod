@@ -195,7 +195,7 @@ namespace LivingWorldNpcs.CampaignMode
                         MobileParty mainParty = MobileParty.MainParty;
                         if (mainParty == null)
                             return "main party not found";
-                        start = mainParty.Position2D;
+                        start = V.Pos(mainParty);
                     }
                 }
                 else if (args.Count == 4 && TryParseVec2(args[0], args[1], out start) && TryParseVec2(args[2], args[3], out end))
@@ -236,8 +236,8 @@ namespace LivingWorldNpcs.CampaignMode
                     return "no active scene (not in a mission or campaign)";
                 PathFaceRecord recAny = PathFaceRecord.NullFaceRecord;
                 PathFaceRecord recUsable = PathFaceRecord.NullFaceRecord;
-                scene.GetNavMeshFaceIndex(ref recAny, position, false);
-                scene.GetNavMeshFaceIndex(ref recUsable, position, true);
+                V.NavMeshFaceIndex(scene, ref recAny, position, false);
+                V.NavMeshFaceIndex(scene, ref recUsable, position, true);
 
                 int totalFaces = scene.GetNavMeshFaceCount();
                 if (!recAny.IsValid())
@@ -383,7 +383,7 @@ namespace LivingWorldNpcs.CampaignMode
                     {
                         if (party == mainParty || !party.IsActive)
                             continue;
-                        float dist = mainParty != null ? party.Position2D.Distance(mainParty.Position2D) : 0f;
+                        float dist = mainParty != null ? V.Pos(party).Distance(V.Pos(mainParty)) : 0f;
                         if (mainParty != null && dist > 60f)
                             continue;
                         candidates.Add(party);
@@ -416,7 +416,7 @@ namespace LivingWorldNpcs.CampaignMode
                     {
                         if (party == mainParty || !party.IsActive)
                             continue;
-                        float distSq = party.Position2D.DistanceSquared(mainParty.Position2D);
+                        float distSq = V.Pos(party).DistanceSquared(V.Pos(mainParty));
                         if (distSq < bestSq)
                         {
                             bestSq = distSq;

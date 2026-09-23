@@ -21,13 +21,15 @@ namespace LivingWorldNpcs.CampaignMode
 		public new static LivingWorldCampaign Current => (LivingWorldCampaign)Campaign.Current;
 
 		public LivingWorldCampaign(CampaignGameMode gameMode)
-#if MB2_V1212
-			: base(gameMode)
-#else
+#if MB2_GE_150
 			// 🔴 1.5.0+：Campaign 构造改为 (CampaignGameMode, AdvancedStartOptionsData)（时代开局数据）。
 			//   必须传非 null 实例——null 会在 CampaignOptions..ctor → TryGetSeed 解引用 NRE（实机 2026-09-08 16:45）。
 			//   空实例 = 无种子/无场景设定 = 引擎默认展开；本分支现仅保证编译 + 启动存活（v1 再接 1.5.x 建号体系）。
+			//   ⚠️ 该类型是 AdvancedStartOptions 的**嵌套类**，1.3.x 及更早整个不存在（2026-09-23 实测 1.3.15 无）。
 			: base(gameMode, new TaleWorlds.CampaignSystem.AdvancedStartOptions.AdvancedStartOptionsData())
+#else
+			// 1.2.12 与 1.3.x：Campaign 只有 (CampaignGameMode) 单参构造（两个客户端各自反编译实测一致）。
+			: base(gameMode)
 #endif
 		{
 		}
@@ -157,12 +159,11 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 		}
 #else
-		// 🔴 1.5.x：战役模式暂不接入（裁定：CampaignModeActivator——该版本机不装 Taikou 数据包 = 纯功能包，
-		//   本类不会被实例化）。本支只负责编译通过；1.2.12 独有 API（Clan.InitialPosition /
+		// 🔴 1.3.x / 1.5.x：战役模式暂不接入（裁定：CampaignModeActivator——这两个版本机不装 Taikou 数据包
+		//   = 纯功能包，本类不会被实例化）。本支只负责编译通过；1.2.12 独有 API（Clan.InitialPosition /
 		//   Kingdom.InitialHomeLand / Clan.UpdateHomeSettlement / HeroCreator.CreateHeroAtOccupation /
-		//   GameModels.SettlementConsumptionModel）在 1.5.2 已改名/移除（等价物：InitialHomeSettlement /
-		//   SetInitialHomeSettlement / HeroCreator.CreateNotable）——v1 接入 1.5.x 建号体系（CharacterCreationManager）时
-		//   按 1.5.2 等价 API 重写本类。
+		//   GameModels.SettlementConsumptionModel）在 1.3.15 与 1.5.2 已改名/移除（等价物：InitialHomeSettlement /
+		//   SetInitialHomeSettlement / HeroCreator.CreateNotable）——v1 接入对应版本的建号体系时按等价 API 重写本类。
 		protected override void OnInitialize()
 		{
 			// 🔴 第 5 颗雷（1.5.2 版，2026-09-08）：EquipmentRosters 段新战役不加载——反编译实锤：

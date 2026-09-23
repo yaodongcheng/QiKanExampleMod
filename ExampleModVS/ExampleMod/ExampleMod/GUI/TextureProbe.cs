@@ -116,7 +116,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 把纹理导出成文件（两版通用 API：`Texture.SaveToFile(path)`）。
+        /// 把纹理导出成文件（走 V.SaveTextureToFile：1.2.12 = SaveToFile(path) / 1.3.0+ = SaveToFile(path, isRelativePath)）。
         /// 产出落在 `Modules/LivingWorldNpcs/Debug/TextureProbe/{spriteName}.dds`——
         /// 之后可离线解析 DDS 头与像素，或直接拿看图工具打开（DXT5 需支持该格式的工具）。
         /// </summary>
@@ -132,7 +132,8 @@ namespace LivingWorldNpcs
                     TaleWorlds.Library.BasePath.Name, "Modules", "LivingWorldNpcs", "Debug", "TextureProbe");
                 System.IO.Directory.CreateDirectory(dir);
                 string file = System.IO.Path.Combine(dir, spriteName + ".dds");
-                tex.SaveToFile(file);
+                // 🔴 SaveToFile 跨版本（2026-09-23）：1.2.12 = (path) / 1.3.0+ = (path, isRelativePath)。
+                V.SaveTextureToFile(tex, file);
                 long size = 0;
                 try
                 {

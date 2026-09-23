@@ -79,6 +79,12 @@ namespace LivingWorldNpcs
         // ── 调试消息全局开关（工作时打开，发布前关掉）──
         public bool ShowDebugMessages { get; set; } = true;
 
+        // ── 🔴🔴 临时诊断（2026-09-23，定位"建号时文本系统 NRE"用；定位完删）──
+        // 逗号分隔的**补丁类名**（带 [HarmonyPatch] 那个类的名字，例：KingdomOnNewGameCreatedGuardPatch）。
+        // 列在这里的类**不挂载** → 用来二分"到底是哪个补丁造成的"。改 config.json 重启即生效，**不用重编**。
+        // 空 = 全部照常挂载（默认）。挂载结果见运行日志 [LWN-patch] 行。
+        public string DisabledPatchClasses { get; set; } = "";
+
         // ── 🔴 偷窃/击晕成功率强制覆盖（config.json 侧调试项；默认 -1 = 关闭）──
         // 本地调试用：NPC 偷窃/击晕老失败时直接锁成功率，不用反复改公式重编译。
         // 取值 0.05~0.95 = 强制成功率（所有判定都按这个概率掷点）；-1 = 走原公式。

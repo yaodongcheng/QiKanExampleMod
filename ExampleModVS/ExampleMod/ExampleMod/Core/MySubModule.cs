@@ -39,7 +39,83 @@ namespace LivingWorldNpcs
 
             //harmony测试，屏蔽掉F的交互
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
-            harmony.PatchAll( );
+
+            // ── 🔴🔴 临时诊断（2026-09-23）：逐类挂载，替代 harmony.PatchAll() ——
+            //   ① config.json 的 DisabledPatchClasses（逗号分隔类名）里的补丁类**不挂** →
+            //      二分定位"哪个补丁造成问题"用，改配置重启即生效，**零重编**；
+            //   ② 单个类挂载失败**不再掐断其余**（PatchAll 是一抛全断——CLAUDE.md 那条铁律的教训）。
+            //   定位结束后①可还原，但②这个健壮性值得长期保留。
+            try
+            {
+                var disabledClasses = new System.Collections.Generic.List<string>();
+                string rawDisabled = Settings.Instance.DisabledPatchClasses;
+                if (!string.IsNullOrWhiteSpace(rawDisabled))
+                {
+                    foreach (string piece in rawDisabled.Split(','))
+                    {
+                        string trimmed = piece.Trim();
+                        if (trimmed.Length > 0)
+                        {
+                            disabledClasses.Add(trimmed);
+                        }
+                    }
+                }
+
+                int patchOk = 0, patchSkipped = 0, patchFailed = 0;
+                bool disableAll = disabledClasses.Contains("*");
+                // 🔴 「内容包专属补丁」：没装内容包（纯功能包模式）时**不挂**。
+                //    判据 = 这些补丁只对内容包造出来的东西有意义（或只该在自定义世界里生效）；
+                //    在纯原版战役上挂着它们，轻则越界改原版体验，重则出事 —— 实测 2026-09-23：
+                //    `EncyclopediaHeroHelmetPatch`（给自建 race `lwn_` 补百科立绘头盔）挂在原版战役上时，
+                //    建号流程点「完成」会崩（`CampaignUIHelper` 静态构造 NRE）；关掉它即恢复。
+                //    ⚠️ 该崩溃的机制未查明（补丁运行时零动作、GameTexts 探针全程正常），
+                //    所以这里按"不该挂"直接不挂，属正确的收窄，不是绕过现象。
+                bool noContentPack = CampaignModeActivator.ActiveContentPack == null;
+                var contentPackOnly = new System.Collections.Generic.List<string>
+                {
+                    "EncyclopediaHeroHelmetPatch",
+                };
+                foreach (System.Type patchType in typeof(MySubModule).Assembly.GetTypes())
+                {
+                    if (patchType.GetCustomAttributes(typeof(HarmonyPatch), false).Length == 0)
+                    {
+                        continue;
+                    }
+                    // `*` = 全部不挂，**但诊断探针类永远保留**（它们是取证的眼睛，且零性能开销）
+                    bool skipThis = disableAll
+                        ? patchType.DeclaringType != typeof(CampaignLifecycleDiag)
+                        : disabledClasses.Contains(patchType.Name);
+                    if (!skipThis && noContentPack && contentPackOnly.Contains(patchType.Name))
+                    {
+                        skipThis = true;
+                        if (contentPackOnly.Count > 0)
+                        {
+                            DebugLogger.Log($"[LWN-patch] 内容包未加载 → 跳过内容包专属补丁：{patchType.Name}");
+                        }
+                    }
+                    if (skipThis)
+                    {
+                        patchSkipped++;
+                        continue;
+                    }
+                    try
+                    {
+                        harmony.CreateClassProcessor(patchType).Patch();
+                        patchOk++;
+                    }
+                    catch (Exception exClass)
+                    {
+                        patchFailed++;
+                        Debug.PrintError($"[LivingWorldNpcs] 补丁类 {patchType.Name} 挂载失败（已跳过，不影响其余）：{exClass.Message}");
+                    }
+                }
+                DebugLogger.Log($"[LWN-patch] 补丁类挂载：成功 {patchOk} / 跳过 {patchSkipped} / 失败 {patchFailed}"
+                    + (disabledClasses.Count > 0 ? $"（DisabledPatchClasses={rawDisabled}）" : ""));
+            }
+            catch (Exception exPatch)
+            {
+                Debug.PrintError($"[LivingWorldNpcs] 补丁挂载阶段整体异常：{exPatch.Message}");
+            }
 
             // ── 伤害模型 Culture-null 空保护（通用：枚举所有 AgentApplyDamageModel 子类，无第三方探测）──
             // 时机正确性依据：LoadSubModules（TaleWorlds.MountAndBlade.dll:102627）先把所有激活模块的
@@ -51,18 +127,6 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 Debug.PrintError($"[LivingWorldNpcs] Failed to patch damage models: {ex.Message}");
-            }
-
-            // ── SwordBeam（第三方剑气 mod）飞行距离补丁（2026-09-23）──
-            //    诊断用：把它的 21 米写死值放开，验证「自管实体飞行物没有引擎上限」
-            //    （法印工程 §十六）。**没装该 mod 时静默跳过**，不影响任何东西。
-            try
-            {
-                SwordBeamRangePatch.TryInstall(harmony);
-            }
-            catch (Exception ex)
-            {
-                Debug.PrintError($"[LivingWorldNpcs] SwordBeam range patch failed: {ex.Message}");
             }
 
             // ── 全局异常钩子：崩溃/被吞异常自动写入运行日志 + 崩溃现场快照 ──

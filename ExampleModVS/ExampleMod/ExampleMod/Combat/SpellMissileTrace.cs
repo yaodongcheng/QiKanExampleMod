@@ -347,14 +347,20 @@ namespace LivingWorldNpcs
 
         private void Tick()
         {
-            if (Mission == null || Mission.Missiles == null)
+            if (Mission == null)
+            {
+                return;
+            }
+            // 🔴 弹体列表跨版本（2026-09-23）：1.2.12 = Mission.Missiles / 1.3.0+ = Mission.MissilesList。
+            IEnumerable<MissionMissile> missiles = V.Missiles(Mission);
+            if (missiles == null)
             {
                 return;
             }
             ApplySpeedModifier();
             float now = Mission.CurrentTime;
 
-            foreach (MissionMissile missile in Mission.Missiles)
+            foreach (MissionMissile missile in missiles)
             {
                 Tracked tracked;
                 if (!_tracked.TryGetValue(missile.Index, out tracked))

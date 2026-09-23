@@ -65,7 +65,7 @@ namespace LivingWorldNpcs.CampaignMode
         public static void TickCampaignMap(Scene scene)
         {
             MobileParty mainParty = MobileParty.MainParty;
-            Vec3 refPos = mainParty != null ? ToDrawPos(scene, mainParty.Position2D) : Vec3.Zero;
+            Vec3 refPos = mainParty != null ? ToDrawPos(scene, V.Pos(mainParty)) : Vec3.Zero;
 
             if (NavMeshDebugState.Enabled)
                 DrawFaceSpheres(scene, refPos);
@@ -102,7 +102,7 @@ namespace LivingWorldNpcs.CampaignMode
                     // 禁用面检测：checkIfDisabled=true 查不到 = 该面被运行时禁用。
                     // ⚠️ 面中心恰好落在相邻面上会误判（调试用途可接受）；只对半径内的面做，成本可控。
                     PathFaceRecord rec = PathFaceRecord.NullFaceRecord;
-                    scene.GetNavMeshFaceIndex(ref rec, center.AsVec2, true);
+                    V.NavMeshFaceIndex(scene, ref rec, center.AsVec2, true);
                     bool disabled = !rec.IsValid();
 
                     uint color = disabled ? ColDisabledFace : ColorForGroup(groupId);
@@ -130,8 +130,8 @@ namespace LivingWorldNpcs.CampaignMode
 
             PathFaceRecord startFace = PathFaceRecord.NullFaceRecord;
             PathFaceRecord endFace = PathFaceRecord.NullFaceRecord;
-            scene.GetNavMeshFaceIndex(ref startFace, start, false);
-            scene.GetNavMeshFaceIndex(ref endFace, end, false);
+            V.NavMeshFaceIndex(scene, ref startFace, start, false);
+            V.NavMeshFaceIndex(scene, ref endFace, end, false);
 
             if (!startFace.IsValid() || !endFace.IsValid())
             {
@@ -141,7 +141,7 @@ namespace LivingWorldNpcs.CampaignMode
                 return false;
             }
 
-            if (!scene.GetPathBetweenAIFaces(startFace.FaceIndex, endFace.FaceIndex, start, end, 0.5f, PathBuffer) || PathBuffer.Size <= 0)
+            if (!V.PathBetweenFaces(scene, startFace.FaceIndex, endFace.FaceIndex, start, end, 0.5f, PathBuffer) || PathBuffer.Size <= 0)
             {
                 ThrottledLog($"{logTag}: 两点间无路径（不可达，或路径所需面被禁用）");
                 MBDebug.RenderDebugSphere(ToDrawPos(scene, start), 0.6f, ColPathFail, false, 0.3f);
@@ -204,8 +204,8 @@ namespace LivingWorldNpcs.CampaignMode
                 return;
             }
 
-            Vec2 pos = party.Position2D;
-            Vec2 target = party.TargetPosition;
+            Vec2 pos = V.Pos(party);
+            Vec2 target = V.TargetPos(party);
             Vec3 bodyPos = ToDrawPos(scene, pos) + new Vec3(0f, 0f, 1.0f);
             MBDebug.RenderDebugSphere(bodyPos, 0.8f, ColWatchedBody, false, 0.1f);
             MBDebug.RenderDebugText3D(bodyPos + new Vec3(0f, 0f, 1.5f),
@@ -226,7 +226,7 @@ namespace LivingWorldNpcs.CampaignMode
         {
             float z = 0f;
             PathFaceRecord rec = PathFaceRecord.NullFaceRecord;
-            scene.GetNavMeshFaceIndex(ref rec, point, false);
+            V.NavMeshFaceIndex(scene, ref rec, point, false);
             if (rec.IsValid())
                 z = scene.GetNavMeshFaceFirstVertexZ(rec.FaceIndex);
             return new Vec3(point.X, point.Y, z + 0.4f);
