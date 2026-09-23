@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -129,25 +128,32 @@ namespace LivingWorldNpcs
             missionScreen.CustomCamera = _customCamera;
         }
 
-        // ═════════════════ 跟随模式（2026-09-22 新增）：模板机位 + 每帧重设 ═════════════════
+        // ═════════════ 跟随模式（2026-09-23）：用现成相机 + 每帧推 + 补上引擎要的实体 ═════════════
         //
-        // 🔴 **为什么要有它**：`UseCameraTemlate` 是**一次性**的 —— 只按那一刻的角色帧算一次相机位，
-        //    之后就定死（静态机位）。角色一动（处决动画会把玩家往前推 3.68 m）人就走出画面。
-        //    跟随模式 = **同一个模板参数，每帧按角色当前帧重算** ⇒ 角色走到哪、镜头跟到哪。
+        // **相机 = 本类现成那台 `_customCamera`**（与对话/剧情取景同一台），不另建一台。
         //
-        // 🔴 **为什么不直接用飞行那套 `FlightCameraRig`**：它是"鼠标驱动 + 世界锚定"的**自由飞行**相机
-        //    （专门为了让人在飞行中自由环视），表演机位要的是"固定看角色背后、不接管鼠标"。
-        //    两边共用同一份数学（`SpringArmMath`），这边只额外借它一件事：**进出场只渐"臂长/FOV"、
-        //    不渐方向** —— 否则接管瞬间镜头会绕着人转一圈（飞行相机那边实测踩过）。
+        // 🔴🔴 **引擎读的是【相机实体】的全局帧，不是相机自己的 `Frame`**（2026-09-23 反编译实锤）。
+        //    <c>MissionScreen.CheckForUpdateCamera</c> 在 <c>CustomCamera != null</c> 时只做三件事：
+        //    <code>
+        //    CombatCamera.FillParametersFrom(CustomCamera);
+        //    if (CustomCamera.Entity != null) { CombatCamera.Frame = CustomCamera.Entity.GetGlobalFrame(); }
+        //    SceneView.SetCamera(CombatCamera);
+        //    </code>
+        //    ⇒ 实体为空时中间那块**整段被跳过** ⇒ 画面冻在接管那一刻
+        //    （2026-09-23 实机症状 = "镜头根本没变"，日志每帧 `entity=NULL`）。
+        //    **做法 = 现成相机若没有实体，就地给它挂一个空实体**
+        //    （无网格、无碰撞、无脚本 ⇒ 隐形零副作用；建空实体的做法见 `FlySpike` / `CarrierBoard`）。
         //
-        // 用法：`ApplyFollowTemplate("模板名", agent, 秒数)` 开始；到点自己渐变归还，也能 `StopFollowCamera()` 立刻还。
-        // 模板名 = `ModuleData/DesignData/Camera.csv` 的 ID 列（`sp_lordshall` = 领主背后、`sp_eye` = 第一人称…）。
+        // ⚠️ **为什么以前没暴露**：模板机位是**设一次就不动**的（对话两人站着说），所以"每帧写能不能动"
+        //    在我们的相机系统里**从来没被验证过**；飞行相机是唯一逐帧写的，但它那台相机带不带实体我没实机确认。
+        //
+        // 🔴 **为什么需要"跟随"**：处决动画会把玩家往前推 3.68 m，机位不跟人就走出画面。
+        //
+        // 用法：`ApplyFollowTemplate("模板名", agent, 秒数)` / `ApplyFollowFromEngineCamera(agent, 秒数)`；
+        // 到点自己渐变归还，也能 `StopFollowCamera()` 立刻还。模板名 = `DesignData/Camera.csv` 的 ID 列。
 
         /// <summary>进出场渐变时长（秒）—— 臂长/FOV 从引擎相机值滑到机位值，避免硬切。</summary>
         private const float FollowBlendSeconds = 0.35f;
-
-        /// <summary>跟随期间的诊断日志间隔（秒）。排查完可以调大/关掉。</summary>
-        private const float FollowLogSeconds = 0.5f;
 
         private static bool _followActive;
         private static bool _followHandingBack;
@@ -162,10 +168,15 @@ namespace LivingWorldNpcs
         private static float _followHandT = 1f;
         private static float _followRemain;
 
-        /// <summary>跟随模式写进的那台相机（归还时用来确认"现在挂着的是不是我们"）。</summary>
-        private static Camera _followCameraRef;
+        /// <summary>跟随模式用的**空实体**（挂到现成那台相机上，让引擎能读到我们的机位；见本节顶部注释）。</summary>
+        private static GameEntity _followCamEntity;
+        private static bool _camEntityBound;       // 空实体是否已经绑到那台相机上
 
-        private static float _followLogTimer;      // 诊断日志节流
+        private static float _followElapsed;       // 跟随已运行秒数（日志用）
+        private static float _followDt;            // 本帧 dt（日志用）
+        private static Vec3 _followLastAnchor;     // 上一帧锚点位置（算 Δ 用）
+        private static Vec3 _followLastCam;        // 上一帧相机位置（算 Δ 用）
+        private static bool _followHasLast;
         private static bool _followErrorLogged;    // 每帧写相机异常只报一次
 
         /// <summary>跟随模式是否在跑（诊断/命令回显用）。</summary>
@@ -258,33 +269,105 @@ namespace LivingWorldNpcs
             if (Mission.Current == null || agent == null)
                 return false;
 
-            SpringArmCameraView view = Mission.Current.GetMissionBehavior<SpringArmCameraView>();
-            if (view == null || view._customCamera == null)
-                return false;
             if (ScreenManager.TopScreen as MissionScreen == null)
                 return false;
 
-            targetAgent = agent;                  // ApplySpringArmCamera 的静态锚点
+            // 🔴 用 **Camera/ 里现成那台相机**（`_customCamera`，与对话/剧情取景同一台），不另建。
+            SpringArmCameraView view = Mission.Current.GetMissionBehavior<SpringArmCameraView>();
+            if (view?._customCamera == null)
+                return false;
+
+            targetAgent = agent;                  // ApplySpringArmCamera 的静态锚点（调试 UI 那条路径仍在用）
             _followAgent = agent;
             _followTarget = target;
             _followCurrent = target;
             _followFrom = from;
-            _followCameraRef = view._customCamera;
 
             _followBlendT = 0f;
             _followHandingBack = false;
             _followHandT = 1f;
             _followUseTimeout = seconds > 0f;
             _followRemain = seconds;
-            _followLogTimer = 0f;                 // 第一帧就打一行（现场证据从这里开始）
+            _followElapsed = 0f;
+            _followHasLast = false;
             _followErrorLogged = false;
             _followActive = true;
 
             DebugLogger.Log($"[FollowCam] 接管相机（{desc}）锚={agent.Name} " +
                             $"时长={(_followUseTimeout ? seconds.ToString("0.0") + "s" : "不限")} " +
                             $"yaw={target.ArmYaw:F0} pitch={target.ArmPitch:F0} " +
-                            $"臂长 {from.ArmLength:F1}->{target.ArmLength:F1} fov {from.Fov:F0}->{target.Fov:F0}");
+                            $"臂长 {from.ArmLength:F1}->{target.ArmLength:F1} fov {from.Fov:F0}->{target.Fov:F0} " +
+                            $"| 相机实体={DescribeEntity(view._customCamera)}");
             return true;
+        }
+
+        /// <summary>
+        /// 引擎读的是 `CustomCamera.Entity.GetGlobalFrame()`，实体为空时那一整块被跳过 ⇒ 画面冻住。
+        /// 现成那台相机若没实体，**就地给它挂一个空实体**（无网格无碰撞无脚本 = 隐形零副作用）。
+        /// 🔴 `Entity` 取值本身可能抛（native 包装）—— 抛也当成"没有"，照样尝试挂。
+        /// </summary>
+        /// <returns>true = 这台相机现在有实体可读。</returns>
+        private static bool EnsureCameraEntity(Camera camera)
+        {
+            if (camera == null)
+                return false;
+
+            if (HasEntity(camera))
+                return true;
+            if (_camEntityBound)
+                return true;                          // 挂过了（读不出来但已经绑上，别再重复绑）
+
+            try
+            {
+                if (!IsEntityAlive(_followCamEntity))
+                {
+                    _followCamEntity = GameEntity.CreateEmpty(Mission.Current.Scene, isModifiableFromEditor: false);
+                    if (_followCamEntity == null)
+                    {
+                        DebugLogger.Log("[FollowCam] 建相机实体失败（CreateEmpty 返回 null）");
+                        return false;
+                    }
+                }
+
+                camera.Entity = _followCamEntity;
+                _camEntityBound = true;
+                DebugLogger.Log("[FollowCam] 现成相机没有实体 —— 已给它挂上空实体（引擎只读实体帧）");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[FollowCam] 给相机挂实体失败: {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>相机有没有实体（取值可能抛 —— 抛 = 没有）。</summary>
+        private static bool HasEntity(Camera camera)
+        {
+            try { return camera != null && camera.Entity != null; }
+            catch { return false; }
+        }
+
+        /// <summary>实体是不是还活着（GameEntity 是 native 包装，已销毁时访问成员会抛）。判据同 `CarrierBoard.IsAlive`。</summary>
+        private static bool IsEntityAlive(GameEntity entity)
+        {
+            try { return entity != null && entity.Pointer != UIntPtr.Zero; }
+            catch { return false; }
+        }
+
+        /// <summary>相机实体状态（日志用）：`OK` / `NULL` / `THROW:<异常名>`。</summary>
+        private static string DescribeEntity(Camera camera)
+        {
+            try
+            {
+                if (camera == null)
+                    return "NO-CAMERA";
+                return camera.Entity != null ? "OK" : "NULL";
+            }
+            catch (Exception ex)
+            {
+                return "THROW:" + ex.GetType().Name;
+            }
         }
 
         /// <summary>引擎相机此刻的视距 / FOV（取不到或明显不合理 → false）。</summary>
@@ -371,7 +454,8 @@ namespace LivingWorldNpcs
             try
             {
                 MissionScreen screen = ScreenManager.TopScreen as MissionScreen;
-                if (screen != null && ReferenceEquals(screen.CustomCamera, _followCameraRef))
+                Camera cam = Mission.Current?.GetMissionBehavior<SpringArmCameraView>()?._customCamera;
+                if (screen != null && cam != null && ReferenceEquals(screen.CustomCamera, cam))
                     screen.CustomCamera = null;      // 置空 = 引擎相机回来
                 DebugLogger.Log("[FollowCam] 已归还相机");
             }
@@ -396,36 +480,45 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 把跟随参数写进相机。
+        /// 把跟随参数写进相机 —— **每帧**。
+        ///
+        /// 🔴 **两处都要写**（2026-09-23 实机教训）：
+        ///   ① `相机实体.SetGlobalFrame(frame)` —— **引擎真正读的是这个**（见本节顶部注释）；
+        ///   ② `相机.Frame = frame` —— 相机自己那份也保持一致（引擎的 FOV 那条分支会碰 CustomCamera）。
         ///
         /// 🔴 **不走 <see cref="ApplySpringArmCamera"/>**：那条为了保持原行为，进去第一件事就是
         ///    `p.IsAnchorWorld = false`（见那里的注释）⇒ 我们要的"世界锚定"会被它悄悄改掉。
-        ///    这里直接调同一份数学 <see cref="SpringArmMath.ComputeFrame"/> 自己摆相机
-        ///    （与 `Flight/FlightCameraRig.cs` 同一写法）。
+        ///    这里直接调同一份数学 <see cref="SpringArmMath.ComputeFrame"/> 自己摆相机。
         ///
-        /// 🔴 **必须 try/catch**：相机出错绝不能拖垮任务（异常抛进引擎 tick 的后果不明），
-        ///    出错就归还引擎相机。
+        /// 🔴 **必须 try/catch**：相机出错绝不能拖垮任务，出错就归还引擎相机。
         /// </summary>
         private static void ApplyFollowFrame(SpringArmCameraParam p, Agent agent, float dt)
         {
             try
             {
                 SpringArmCameraView view = Mission.Current?.GetMissionBehavior<SpringArmCameraView>();
-                if (view?._customCamera == null)
+                Camera cam = view?._customCamera;
+                MissionScreen screen = ScreenManager.TopScreen as MissionScreen;
+                if (cam == null || screen == null)
                     return;
 
-                MissionScreen screen = ScreenManager.TopScreen as MissionScreen;
-                if (screen == null)
+                if (!EnsureCameraEntity(cam))
                     return;
 
                 targetAgent = agent;
                 SpringArmMath.ComputeFrame(agent, in p, out MatrixFrame frame, out float fovDeg);
 
-                view._customCamera.Frame = frame;
-                view._customCamera.SetFovVertical(fovDeg * (MathF.PI / 180f), Screen.AspectRatio, 0.1f, 1000f);
-                screen.CustomCamera = view._customCamera;
+                MatrixFrame f = frame;
+                MatrixFrame camFrame = frame;
 
-                LogFollowTick(agent, frame, dt);
+                // 🔴 两处都写：引擎读的是**实体**那份；相机自己那份跟着写（对话/剧情取景也靠它）。
+                _followCamEntity.SetGlobalFrame(in f);
+                cam.SetFovVertical(fovDeg * (MathF.PI / 180f), Screen.AspectRatio, 0.1f, 1000f);
+                cam.Frame = camFrame;
+                screen.CustomCamera = cam;
+
+                _followDt = dt;
+                LogFollowTick(agent, frame, cam);
             }
             catch (Exception ex)
             {
@@ -439,25 +532,34 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 跟随期间的节流日志（每 <see cref="FollowLogSeconds"/> 秒一行）——
-        /// **排查"镜头跟没跟"的唯一现场证据**：锚点位置在动而相机位置不动 = 写没生效；
-        /// 锚点自己就不动 = 上层（动画/位移）没动。稳定后可把 <see cref="FollowLogSeconds"/> 调大。
+        /// 跟随期间的日志（**每帧一行**）—— 排查"镜头跟没跟"的现场证据。
+        /// `回读Δ` = 写完再从**实体**读回来的位置差：≈0 = 实体确实收下了（引擎读的是同一份）；明显不为 0 = 写没进去。
         /// </summary>
-        private static void LogFollowTick(Agent agent, in MatrixFrame frame, float dt)
+        private static void LogFollowTick(Agent agent, in MatrixFrame frame, Camera cam)
         {
-            _followLogTimer -= dt;
-            if (_followLogTimer > 0f)
-                return;
-            _followLogTimer = FollowLogSeconds;
+            _followElapsed += _followDt;
 
             Vec3 a = Vec3.Zero;
             try { a = agent.Position; } catch { /* 取不到就留零 */ }
-            bool entityOk = false;
-            try { entityOk = _followCameraRef?.Entity != null; } catch { entityOk = false; }
 
-            DebugLogger.Log($"[FollowCam] tick 锚=({a.x:F2},{a.y:F2},{a.z:F2}) " +
-                            $"相机=({frame.origin.x:F2},{frame.origin.y:F2},{frame.origin.z:F2}) " +
-                            $"臂长={_followCurrent.ArmLength:F1} entity={(entityOk ? "OK" : "NULL")}");
+            float anchorMoved = _followHasLast ? a.Distance(_followLastAnchor) : 0f;
+            float camMoved = _followHasLast ? frame.origin.Distance(_followLastCam) : 0f;
+            _followLastAnchor = a;
+            _followLastCam = frame.origin;
+            _followHasLast = true;
+
+            // 回读实体：证明"写进去了没有"
+            float readBack = -1f;
+            try { readBack = _followCamEntity.GetGlobalFrame().origin.Distance(frame.origin); }
+            catch { readBack = -1f; }
+
+            DebugLogger.Log($"[FollowCam] t={_followElapsed:F2} " +
+                            $"锚=({a.x:F2},{a.y:F2},{a.z:F2})Δ{anchorMoved:F3} " +
+                            $"相机=({frame.origin.x:F2},{frame.origin.y:F2},{frame.origin.z:F2})Δ{camMoved:F3} " +
+                            $"回读Δ={(readBack < 0f ? "ERR" : readBack.ToString("F4"))} " +
+                            $"yaw={_followCurrent.ArmYaw:F1} pitch={_followCurrent.ArmPitch:F1} " +
+                            $"臂长={_followCurrent.ArmLength:F2} fov={_followCurrent.Fov:F0} " +
+                            $"entity={DescribeEntity(cam)}");
         }
 
         /// <summary>每帧重算跟随机位 —— **这一步就是"角色动、镜头跟着动"**。</summary>
@@ -511,45 +613,6 @@ namespace LivingWorldNpcs
         }
 
         // --- Command Line Functions (保留但简化) ---
-
-        /// <summary>
-        /// **单独试跟随相机**（不含任何动画）—— 专门用来隔离排查"镜头到底跟没跟"：
-        /// 开起来之后**自己走两步**，看 `Debug/StoryEngine_RuntimeLog.txt` 里的
-        /// `[FollowCam] tick` 行：锚点坐标在变而相机坐标不变 = 写没生效；两个都在变 = 相机在跟。
-        ///   custom.followcam                 → 引擎机位（默认），10 秒
-        ///   custom.followcam engine 20       → 引擎机位，20 秒
-        ///   custom.followcam sp_lordshall 30 → 指定模板机位
-        ///   custom.followcam stop            → 立刻归还
-        /// </summary>
-        [CommandLineFunctionality.CommandLineArgumentFunction("followcam", "custom")]
-        public static string ExecuteFollowCamera(List<string> args)
-        {
-            if (Mission.Current == null || Agent.Main == null)
-                return "error: must be in a scene/mission to use this command.";
-
-            string mode = (args.Count >= 1 && !string.IsNullOrWhiteSpace(args[0])) ? args[0] : "engine";
-            if (mode.Equals("stop", StringComparison.OrdinalIgnoreCase))
-            {
-                bool was = IsFollowing;
-                StopFollowCamera();
-                return was ? "OK: follow camera released." : "OK: follow camera was not active.";
-            }
-
-            float seconds = 10f;
-            if (args.Count >= 2 && !string.IsNullOrWhiteSpace(args[1])
-                && float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
-            {
-                seconds = MBMath.ClampFloat(parsed, 1f, 600f);
-            }
-
-            bool ok = mode.Equals("engine", StringComparison.OrdinalIgnoreCase)
-                ? ApplyFollowFromEngineCamera(Agent.Main, seconds)
-                : ApplyFollowTemplate(mode, Agent.Main, seconds);
-
-            return ok
-                ? $"OK: follow camera '{mode}' on for {seconds:0}s (walk around and watch [FollowCam] tick lines)"
-                : $"FAILED: could not take over camera (mode '{mode}': engine pose unavailable, or template not in Camera.csv)";
-        }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("openSpringArmCamDebugger", "custom")]
         public static string ExecuteOpenCamDebugger(List<string> args)

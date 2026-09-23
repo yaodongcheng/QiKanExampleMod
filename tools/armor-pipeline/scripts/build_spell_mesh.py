@@ -75,6 +75,23 @@ SEG_ARC = 96      # 弧向分段
 SEG_BAND = 20     # 径向分段
 TAPER_MIN = 0.02  # 犄角端的最小收束比例（别收成 0 = 退化面）
 
+# 🔴🔴 全局缩放（2026-09-22 立）—— 所有**线性尺寸**统一乘这个系数，形状与朝向完全不变。
+#     用途：做"放大 N 倍，看远处还会不会消失"的实验（判断"看不见"是**太小**还是**硬性距离剔除**）。
+#     1.0 = 原尺寸（跨度 ≈3.81 m）｜5.0 = 五倍（跨度 ≈19 m）。
+#     ⚠️ 只乘线性尺寸；`ARC_DEG`/`SEG_*`/`HORN_UP`/`CRESCENT_TILT_X_DEG`/`CORE_POS` 是形状与朝向，
+#        不参与缩放。缩放是**绕原点**做的（弧腹已在原点），所以原点=命中点的约定不受影响。
+#     ⚠️ **核（`CORE_R`）故意不乘** —— 它是**手心蓄力球**（不参与飞行网格；飞行用月牙那件单独，
+#        见下方 2026-09-22 的拆分说明），放大 5 倍 = 手上顶个 3.6 米的球，没有意义。
+#     ⚠️ 碰撞体（`body_name="bo_capsule_arrow"`，47 cm）**不跟着变** —— 视觉/碰撞会严重不符，
+#        这是可见性实验的已知代价，不是遗漏。
+SCALE = 5.0
+if SCALE != 1.0:
+    R *= SCALE
+    BAND_BELLY *= SCALE
+    BAND_TIP *= SCALE
+    DEPTH_BELLY *= SCALE
+    DEPTH_TIP *= SCALE
+
 OUTDIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "out")
 
 # 导出规格：与 tools/armor-pipeline/scripts/build_armor.py 逐字一致（那套已被编辑器验证过）

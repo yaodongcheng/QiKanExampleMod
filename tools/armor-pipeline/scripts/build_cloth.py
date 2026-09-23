@@ -26,6 +26,7 @@
     --driver <名>    指定用哪个 driver 件（默认按包围盒重合度自动配，与 audit_cloth 同口径）
     --alpha-max 0.44 模拟网格下摆的活动半径（米），参照原版袍子 0.44
     --pin-band 0.06  甲上「贴肩钉死」的高度带（米，从披风顶往下量）
+    --no-sim         只刷甲的 alpha、不造替身（直接模拟那条路，信长就是这么装成的）
     --dry-run        只量不写
 """
 import argparse
@@ -77,6 +78,9 @@ T_ZSOLE = float(get(A, "--t-z-sole", "0"))
 ALPHA_MAX = float(get(A, "--alpha-max", "0.44"))
 PIN_BAND = float(get(A, "--pin-band", "0.06"))
 DRIVER = get(A, "--driver")
+# 🔴 --no-sim：**只刷甲的 alpha、不造替身**（= 直接模拟那条路，信长就是这么装成的）。
+#    这条路上不需要 driver 件，所以没有 driver 的角色也能做。
+NO_SIM = "--no-sim" in A
 DO_WRITE = "--dry-run" not in A
 ARMOR_FBX = os.path.join(OUT_DIR, NAME + ".fbx")
 CLO_FBX = os.path.join(OUT_DIR, CLO_NAME + ".fbx")
@@ -217,14 +221,29 @@ for o in meshes:                 # 本段场景即用即弃：先全搬进骑砍
 cape_objs = [o for o in meshes if parse_submesh(o.name) == CAPE_IDX]
 if not cape_objs:
     print("!! 源件里找不到子网格 %d" % CAPE_IDX); sys.exit(3)
-cape_pts = [v.co.copy() for o in cape_objs for v in o.data.vertices]
+cape_pts = []
+cape_uv = []                     # 与 cape_pts 平行：逐顶点的 UV（替身要抄它，见第 2 步）
+for o in cape_objs:
+    me = o.data
+    _uv0 = me.uv_layers[0].data if me.uv_layers else None
+    _per_vert = {}
+    if _uv0 is not None:
+        for _lp in me.loops:
+            _per_vert.setdefault(_lp.vertex_index, tuple(_uv0[_lp.index].uv))
+    for v in me.vertices:
+        cape_pts.append(v.co.copy())
+        cape_uv.append(_per_vert.get(v.index))
+if all(u is None for u in cape_uv):
+    print("   ⚠️ 渲染件也没有 UV —— 替身的 UV 只能填 0")
 cx0, cx1, cy0, cy1, cz0, cz1 = bbox(cape_pts)
 print("   披风 %d 件 / %d 顶点  x[%+.3f,%+.3f] y[%+.3f,%+.3f] z[%+.3f,%+.3f]"
       % (len(cape_objs), len(cape_pts), cx0, cx1, cy0, cy1, cz0, cz1))
 
 drivers = [o for o in meshes if o.name.startswith("driver_")]
-if not drivers:
+if not drivers and not NO_SIM:
     print("!! 源件里没有 driver 件（这个角色没现成替身，要自己降面）"); sys.exit(3)
+if not drivers:
+    print("   （无 driver 件 —— --no-sim 模式不需要替身，继续）")
 
 
 def overlap_ratio(pts, bb):
@@ -287,88 +306,102 @@ if d_cape2sim[-1] > 0.03 or d_sim2cape[-1] > 0.03:
 
 
 # --------------------------------------------------------------------------- 2) 造替身 FBX
-print("== 2/4 造模拟网格 ==")
-bpy.ops.wm.read_factory_settings(use_empty=True)
-tmp = import_fbx(SKEL)
-_tmp_arm = next(o for o in tmp if o.type == 'ARMATURE')
-_hb = next(b for b in _tmp_arm.data.bones if "head_13" in b.name)
-_z_raw = (_tmp_arm.matrix_world @ _hb.head_local).z
-bpy.ops.wm.read_factory_settings(use_empty=True)
-objs = import_fbx(SKEL, HEAD_BONE_Z / _z_raw)
-BL = next(o for o in objs if o.type == 'ARMATURE')
-for o in list(objs):
-    if o.type != 'ARMATURE':
-        bpy.data.objects.remove(o, do_unlink=True)
-_hz = (BL.matrix_world @ BL.data.bones["bip01_head_13"].head_local).z
-if abs(_hz - HEAD_BONE_Z) > 0.01:
-    print("!! 骨架校准失败 head z=%.4f" % _hz); sys.exit(3)
-print("   骨架校准 OK  head_13 z=%.5f" % _hz)
-
-objs = import_fbx(os.path.join(SRC_DIR, KEY + ".fbx"))
-SW_ARM = next((o for o in objs if o.type == 'ARMATURE'), None)
-drv = next((o for o in objs if o.type == 'MESH' and o.name.split("_noesis")[0] == DRV_BASE), None)
-if drv is None:
-    print("!! 第二遍导入找不到替身件 %s" % DRV_BASE); sys.exit(3)
-bake_object_transform(drv, SW_ARM)
-for v in drv.data.vertices:
-    v.co = Vector(T_FN(v.co))
-drv.matrix_world = Matrix.Identity(4)
-# 只留这一件、清掉源骨架带来的顶点组/材质
-drv.vertex_groups.clear()
-drv.data.materials.clear()
-if BONE not in {b.name for b in BL.data.bones}:
-    print("!! 骑砍骨架里没有骨 %s" % BONE); sys.exit(3)
-vg = drv.vertex_groups.new(name=BONE)
-vg.add(list(range(len(drv.data.vertices))), 1.0, 'REPLACE')
-drv.parent = BL
-_m = drv.modifiers.new("Armature", 'ARMATURE')
-_m.object = BL
-
-# alpha 梯度：贴肩 0 → 下摆 ALPHA_MAX（照原版袍子 clo_aserai_robe_c 0.44 → 0）
-zs = [v.co.z for v in drv.data.vertices]
-z_hi, z_lo = max(zs), min(zs)
-span = max(1e-6, z_hi - z_lo)
-alpha_drv = {}
-for v in drv.data.vertices:
-    t = (z_hi - v.co.z) / span                      # 顶部 0 → 底部 1
-    alpha_drv[v.index] = round(ALPHA_MAX * t, 4)
-set_alpha(drv.data, alpha_drv)
-drv.name = CLO_NAME
-drv.data.name = CLO_NAME
-_mat = bpy.data.materials.new(NAME)                 # 🔴 复用渲染件的材质名（原版也这么做：
-_mat.use_nodes = True                               #    模拟网格引用渲染件的材质，不新建）
-_nt = _mat.node_tree
-_nt.nodes.clear()
-_out = _nt.nodes.new('ShaderNodeOutputMaterial')
-_bsdf = _nt.nodes.new('ShaderNodeBsdfPrincipled')
-_nt.links.new(_bsdf.outputs['BSDF'], _out.inputs['Surface'])
-drv.data.materials.append(_mat)
-_bins = {}
-for a in alpha_drv.values():
-    _bins[round(a, 2)] = _bins.get(round(a, 2), 0) + 1
-print("   替身 alpha 分布（值:顶点数）: %s" % dict(sorted(_bins.items())))
-print("   材质名 -> %s（复用渲染件的材质资产）" % NAME)
-
-if DO_WRITE:
-    keep = {drv, BL}
-    for o in list(bpy.data.objects):
-        if o not in keep:
+if NO_SIM:
+    print("   --no-sim：跳过替身（走直接模拟）")
+else:
+    print("== 2/4 造模拟网格 ==")
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    tmp = import_fbx(SKEL)
+    _tmp_arm = next(o for o in tmp if o.type == 'ARMATURE')
+    _hb = next(b for b in _tmp_arm.data.bones if "head_13" in b.name)
+    _z_raw = (_tmp_arm.matrix_world @ _hb.head_local).z
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    objs = import_fbx(SKEL, HEAD_BONE_Z / _z_raw)
+    BL = next(o for o in objs if o.type == 'ARMATURE')
+    for o in list(objs):
+        if o.type != 'ARMATURE':
             bpy.data.objects.remove(o, do_unlink=True)
-    purge_non_scene()
-    print("   导出前场景：%s" % sorted(o.name for o in bpy.context.scene.objects))
-    bpy.context.scene.unit_settings.scale_length = 1.0
-    bpy.ops.export_scene.fbx(
-        filepath=CLO_FBX, use_selection=False, object_types={'ARMATURE', 'MESH'},
-        global_scale=1.0, apply_unit_scale=False, apply_scale_options='FBX_SCALE_UNITS',
-        bake_space_transform=False, use_mesh_modifiers=False, add_leaf_bones=False,
-        primary_bone_axis='Y', secondary_bone_axis='X', axis_forward='Y', axis_up='Z',
-        bake_anim=False, path_mode='COPY', embed_textures=False, use_custom_props=False,
-        colors_type='SRGB', prioritize_active_color=True)
-    print("   导出 -> %s" % CLO_FBX)
+    _hz = (BL.matrix_world @ BL.data.bones["bip01_head_13"].head_local).z
+    if abs(_hz - HEAD_BONE_Z) > 0.01:
+        print("!! 骨架校准失败 head z=%.4f" % _hz); sys.exit(3)
+    print("   骨架校准 OK  head_13 z=%.5f" % _hz)
+
+    objs = import_fbx(os.path.join(SRC_DIR, KEY + ".fbx"))
+    SW_ARM = next((o for o in objs if o.type == 'ARMATURE'), None)
+    drv = next((o for o in objs if o.type == 'MESH' and o.name.split("_noesis")[0] == DRV_BASE), None)
+    if drv is None:
+        print("!! 第二遍导入找不到替身件 %s" % DRV_BASE); sys.exit(3)
+    bake_object_transform(drv, SW_ARM)
+    for v in drv.data.vertices:
+        v.co = Vector(T_FN(v.co))
+    drv.matrix_world = Matrix.Identity(4)
+    # 🔴 必须带 UV 层（2026-09-22 实机教训：缺 UV 的替身在编辑器里做布料设置**直接崩**）。
+    #    源件的 driver 件**本来就没有 UV**，而原版两张模拟网格都有（实测 `_clo_attr_probe.py`）——
+    #    所以从渲染件抄一份：逐顶点取渲染件最近顶点的 UV。替身不渲染，UV 只为满足顶点布局。
+    _uvl = drv.data.uv_layers.new(name="UVMap")
+    _kd_cape = kd_of(cape_pts)
+    _uv_src = sum(1 for u in cape_uv if u is not None)
+    for _lp in drv.data.loops:
+        _uv = cape_uv[_kd_cape.find(drv.data.vertices[_lp.vertex_index].co)[1]]
+        _uvl.data[_lp.index].uv = _uv if _uv is not None else (0.0, 0.0)
+    print("   补 UV 层：%d 个顶点从渲染件抄（渲染件有 UV 的顶点 %d/%d）"
+          % (len(drv.data.vertices), _uv_src, len(cape_uv)))
+    # 只留这一件、清掉源骨架带来的顶点组/材质
+    drv.vertex_groups.clear()
+    drv.data.materials.clear()
+    if BONE not in {b.name for b in BL.data.bones}:
+        print("!! 骑砍骨架里没有骨 %s" % BONE); sys.exit(3)
+    vg = drv.vertex_groups.new(name=BONE)
+    vg.add(list(range(len(drv.data.vertices))), 1.0, 'REPLACE')
+    drv.parent = BL
+    _m = drv.modifiers.new("Armature", 'ARMATURE')
+    _m.object = BL
+
+    # alpha 梯度：贴肩 0 → 下摆 ALPHA_MAX（照原版袍子 clo_aserai_robe_c 0.44 → 0）
+    zs = [v.co.z for v in drv.data.vertices]
+    z_hi, z_lo = max(zs), min(zs)
+    span = max(1e-6, z_hi - z_lo)
+    alpha_drv = {}
+    for v in drv.data.vertices:
+        t = (z_hi - v.co.z) / span                      # 顶部 0 → 底部 1
+        alpha_drv[v.index] = round(ALPHA_MAX * t, 4)
+    set_alpha(drv.data, alpha_drv)
+    drv.name = CLO_NAME
+    drv.data.name = CLO_NAME
+    _mat = bpy.data.materials.new(NAME)                 # 🔴 复用渲染件的材质名（原版也这么做：
+    _mat.use_nodes = True                               #    模拟网格引用渲染件的材质，不新建）
+    _nt = _mat.node_tree
+    _nt.nodes.clear()
+    _out = _nt.nodes.new('ShaderNodeOutputMaterial')
+    _bsdf = _nt.nodes.new('ShaderNodeBsdfPrincipled')
+    _nt.links.new(_bsdf.outputs['BSDF'], _out.inputs['Surface'])
+    drv.data.materials.append(_mat)
+    _bins = {}
+    for a in alpha_drv.values():
+        _bins[round(a, 2)] = _bins.get(round(a, 2), 0) + 1
+    print("   替身 alpha 分布（值:顶点数）: %s" % dict(sorted(_bins.items())))
+    print("   材质名 -> %s（复用渲染件的材质资产）" % NAME)
+
+    if DO_WRITE:
+        keep = {drv, BL}
+        for o in list(bpy.data.objects):
+            if o not in keep:
+                bpy.data.objects.remove(o, do_unlink=True)
+        purge_non_scene()
+        print("   导出前场景：%s" % sorted(o.name for o in bpy.context.scene.objects))
+        bpy.context.scene.unit_settings.scale_length = 1.0
+        bpy.ops.export_scene.fbx(
+            filepath=CLO_FBX, use_selection=False, object_types={'ARMATURE', 'MESH'},
+            global_scale=1.0, apply_unit_scale=False, apply_scale_options='FBX_SCALE_UNITS',
+            bake_space_transform=False, use_mesh_modifiers=False, add_leaf_bones=False,
+            primary_bone_axis='Y', secondary_bone_axis='X', axis_forward='Y', axis_up='Z',
+            bake_anim=False, path_mode='COPY', embed_textures=False, use_custom_props=False,
+            colors_type='SRGB', prioritize_active_color=True)
+        print("   导出 -> %s" % CLO_FBX)
 
 
-# --------------------------------------------------------------------------- 3) 给甲刷 alpha
-print("== 3/4 给甲刷顶点色 alpha ==")
+    # --------------------------------------------------------------------------- 3) 给甲刷 alpha
+    print("== 3/4 给甲刷顶点色 alpha ==")
 bpy.ops.wm.read_factory_settings(use_empty=True)
 objs = import_fbx(ARMOR_FBX)
 AR = next((o for o in objs if o.type == 'ARMATURE'), None)
@@ -416,7 +449,7 @@ if DO_WRITE:
 print("== 4/4 摘要 ==")
 state = {"key": KEY, "armor": os.path.basename(ARMOR_FBX), "clo": os.path.basename(CLO_FBX),
          "cape_idx": CAPE_IDX, "bone": BONE, "alpha_max": ALPHA_MAX, "pin_band": PIN_BAND,
-         "driver_verts": len(drv_pts), "cape_verts": len(cape_pts), "written": DO_WRITE}
+         "driver_verts": (len(drv_pts) if not NO_SIM else 0), "cape_verts": len(cape_pts), "written": DO_WRITE}
 print(json.dumps(state, ensure_ascii=False))
 if DO_WRITE:
     with open(os.path.join(OUT_DIR, "_cloth_state.json"), "w", encoding="utf-8") as f:

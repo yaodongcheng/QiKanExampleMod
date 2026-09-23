@@ -47,8 +47,18 @@
 //   custom.spell_trace lod0 on|off       # A/B 实验：强制导弹实体只显示 LOD0（见下）
 //   custom.spell_trace alt_mesh <名|off> # 陪飞对照组：在真弹旁边平行放一个指定网格的实体（见下）
 //   custom.spell_trace alt_offset <米>   # 陪飞实体的横向偏移（默认 2.5m，必须错开才看得出谁是谁）
+//   custom.spell_trace alt_scale <倍率>  # 陪飞实体放大（默认 1；原版霰弹碎片只有 0.22m，不放大没得比）
 //   custom.spell_trace alt_particle <名|off> # 陪飞实体的拖尾粒子（默认 psys_game_burning_jar_trail）
 //   custom.spell_trace speed <倍率>      # 试手感：弩类导弹速度倍率（0.5 = 半速；1 = 原样）
+//   custom.spell_trace scale <倍率>      # A/B 实验：把法术弹放大 N 倍（5 = 五倍大；1 = 原样）
+//
+// 放大实验（2026-09-22 用户要求，用来切开两个假设）：
+//   放大 5 倍 = 屏幕覆盖面积 25 倍。
+//   · 放大后就看得远得多 ⇒ "看不见"是因为**太小**（薄刃在远处不足一像素），跟 LOD 无关；
+//   · 放大完全没用     ⇒ 是**硬性距离剔除**（LOD/剔除），与大小无关。
+//   实现 = 钩 `MissionWeapon.OnGetWeaponDataHandler` 改 `WeaponData.ScaleFactor`（逐发、不动数据）。
+//   ⚠️ 定稿写法：`spells.xml` 的 `taikou_spell_crescent` 加 `scale_factor="5"`
+//      （物品级该属性是**纯倍率**，默认 1；别照抄 `<Piece scale_factor="100">` 那套百分比约定）。
 //
 // 让弹飞得慢一点（2026-09-22 用户要求）：
 //   物理事实：**同一瞄准角度下"慢"和"远"是对立的** —— 慢 = 重力先把它按到地上 = 飞得近。
@@ -86,6 +96,9 @@
 //     若开了它在远处就能看见月牙 ⇒ LOD 剔除确认，且这个调用就是现成的修法（逐发、不动资产）。
 //
 // 日志（Debug/StoryEngine_RuntimeLog.txt，标签 [SpellTrace]）：
+//   🔴 **关键事件永远记录**（不需要开总开关）：发射 / 认领 / 网格家底 / 命中 / 结局 / 消失。
+//      总开关（`custom.spell_trace on`）只管**每 0.1 秒一行的高频状态**（速度/已飞/相机距/LOD 档）。
+//      —— 2026-09-22 改：总开关不跨会话保留，已两次出现"敲了 lod0 on 以为生效、其实没开"的白跑。
 //   发射 → 认领 → 每 interval 秒一条状态（速度/已飞/离射手/高度/刚体/实体是否还在）
 //   → 命中（含地形）→ 结局（Stick/BounceBack/PassThrough/BecomeInvisible）
 //   → 🔴 从导弹表消失（最后位置 + 飞了多远 + 用时 + 最后速度 + 同帧结局）
@@ -149,6 +162,14 @@ namespace LivingWorldNpcs
         /// <summary>陪飞实体相对真弹的横向偏移（米）—— 必须错开，否则两个重叠看不出是谁。</summary>
         public static float AltOffsetMeters = 2.5f;
 
+        /// <summary>
+        /// 陪飞实体的放大倍数（2026-09-22 用户要求"改大十倍"）。
+        /// 🔴 **需要它是因为陪飞用的原版霰弹碎片只有 0.22 m** —— 200 米外本来就是几个像素，
+        ///    不放大的话"它也没了"什么都证明不了。放大到与月牙同量级，比较才成立。
+        /// 实现 = 实体的 <c>MatrixFrame</c> 基向量乘倍数（`Mat3` 的基向量长度 = 缩放，见 `Mat3.GetScaleVector`）。
+        /// </summary>
+        public static float AltScale = 1f;
+
         /// <summary>陪飞实体是否也挂拖尾粒子（默认开 = 照抄人家炮弹：它自己带
         /// <c>trail_particle_name</c> + <c>LeavesTrail</c>）。🔴 做成可关，因为必须能分清
         /// "远处看见的是**网格**"还是"只是**拖尾**"——这是两条完全不同的结论。</summary>
@@ -166,6 +187,20 @@ namespace LivingWorldNpcs
         /// ⚠️ 全局生效：同一场景里**所有弩**（含 NPC 弩手）一起变 —— 调试可以，别当成品。
         /// </summary>
         public static float SpeedModifier = 1f;
+
+        /// <summary>
+        /// 🔴 A/B 实验：把法术弹**放大 N 倍**（1 = 原样）。回答"飞远了看不见是不是因为薄刃太小"：
+        /// 放大 5 倍 = 屏幕覆盖面积 25 倍 ⇒ 若"看不见"是小到看不见，放大后应该能看得远得多；
+        /// 若放大完全没用 ⇒ 是硬性距离剔除（LOD/剔除），与大小无关。
+        ///
+        /// 实现 = 钩 <c>MissionWeapon.OnGetWeaponDataHandler</c>，把 <c>WeaponData.ScaleFactor</c> 改掉
+        /// （该字段的**物品级**约定是纯倍率：`ItemObject.cs:566` 默认 1f；XML 属性 `scale_factor`）。
+        /// 逐发生效、不碰共享资产、不动数据文件、不用重开局。
+        /// ⚠️ 定稿要写进数据时 = `Modules/Taikou/ModuleData/taikou_items/spells.xml` 里
+        ///    `taikou_spell_crescent` 加 `scale_factor="5"`（注意：`<CraftedItem><Piece>` 里那个
+        ///    `scale_factor="100"` 是**铸剑零件的百分比刻度**，另一套约定，别照抄）。
+        /// </summary>
+        public static float ItemScale = 1f;
     }
 
     /// <summary>
@@ -216,10 +251,6 @@ namespace LivingWorldNpcs
             Vec3 velocity, Mat3 orientation, bool hasRigidBody, int forcedMissileIndex)
         {
             base.OnAgentShootMissile(shooterAgent, weaponIndex, position, velocity, orientation, hasRigidBody, forcedMissileIndex);
-            if (!SpellMissileTraceState.Enabled)
-            {
-                return;
-            }
             try
             {
                 if (shooterAgent == null || Mission == null)
@@ -266,14 +297,9 @@ namespace LivingWorldNpcs
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
-            if (!SpellMissileTraceState.Enabled)
-            {
-                if (_tracked.Count > 0)
-                {
-                    StopAll("trace disabled");
-                }
-                return;
-            }
+            // 🔴 2026-09-22 改：**不再受总开关管辖** —— 关键事件（认领 / 网格家底 / 命中 / 结局 /
+            //    消失）永远记录，总开关只管每 0.1 秒的高频状态行。
+            //    原因：总开关不跨会话保留，已经两次出现"敲了 lod0 on 就以为生效、其实没开"的白跑。
             try
             {
                 Tick();
@@ -305,7 +331,8 @@ namespace LivingWorldNpcs
                 tracked.LastPos = SafePosition(missile, tracked.LastPos);
                 ApplyEnforcedLod0(missile);
                 MoveAltStandIn(tracked, missile);
-                if (now - tracked.LastLogTime >= SpellMissileTraceState.LogInterval)
+                if (SpellMissileTraceState.Enabled
+                    && now - tracked.LastLogTime >= SpellMissileTraceState.LogInterval)
                 {
                     tracked.LastLogTime = now;
                     LogState(tracked, missile, now);
@@ -423,7 +450,7 @@ namespace LivingWorldNpcs
                     return;
                 }
                 entity.AddMultiMesh(metaMesh, true);
-                entity.SetGlobalFrame(new MatrixFrame(Mat3.Identity, pos));
+                entity.SetGlobalFrame(new MatrixFrame(ScaledIdentity(SpellMissileTraceState.AltScale), pos));
                 tracked.AltEntity = entity;
 
                 string particleNote = "拖尾=关";
@@ -448,7 +475,8 @@ namespace LivingWorldNpcs
                 }
 
                 DebugLogger.Log($"[SpellTrace] 陪飞对照组已生成: 网格='{SpellMissileTraceState.AltMesh}' "
-                    + $"偏移={SpellMissileTraceState.AltOffsetMeters:F1}m 名字读出={metaMesh.GetName()} "
+                    + $"偏移={SpellMissileTraceState.AltOffsetMeters:F1}m 放大={SpellMissileTraceState.AltScale:F1}x "
+                    + $"名字读出={metaMesh.GetName()} "
                     + $"有任意LOD={metaMesh.HasAnyLods()} 有自动生成LOD={metaMesh.HasAnyGeneratedLods()} {particleNote}");
             }
             catch (Exception ex)
@@ -482,12 +510,26 @@ namespace LivingWorldNpcs
                 {
                     pos += side * (SpellMissileTraceState.AltOffsetMeters / sideLen);
                 }
-                tracked.AltEntity.SetGlobalFrame(new MatrixFrame(Mat3.Identity, pos));
+                tracked.AltEntity.SetGlobalFrame(new MatrixFrame(ScaledIdentity(SpellMissileTraceState.AltScale), pos));
             }
             catch (Exception ex)
             {
                 LogOnce("陪飞实体移动异常", ex);
             }
+        }
+
+        /// <summary>单位旋转矩阵 × 倍数 —— 矩阵基向量的长度就是缩放（<c>Mat3</c> 的约定）。</summary>
+        private static Mat3 ScaledIdentity(float scale)
+        {
+            if (Math.Abs(scale - 1f) < 0.001f)
+            {
+                return Mat3.Identity;
+            }
+            Mat3 m = Mat3.Identity;
+            m.s = m.s * scale;
+            m.f = m.f * scale;
+            m.u = m.u * scale;
+            return m;
         }
 
         private void DestroyAltStandIn(Tracked tracked)
@@ -671,10 +713,6 @@ namespace LivingWorldNpcs
         public override void OnMissileHit(Agent attacker, Agent victim, bool isCanceled, AttackCollisionData collisionData)
         {
             base.OnMissileHit(attacker, victim, isCanceled, collisionData);
-            if (!SpellMissileTraceState.Enabled)
-            {
-                return;
-            }
             try
             {
                 int index = collisionData.AffectorWeaponSlotOrMissileIndex;
@@ -708,10 +746,6 @@ namespace LivingWorldNpcs
             Agent attachedAgent, sbyte attachedBoneIndex)
         {
             base.OnMissileCollisionReaction(collisionReaction, attackerAgent, attachedAgent, attachedBoneIndex);
-            if (!SpellMissileTraceState.Enabled)
-            {
-                return;
-            }
             try
             {
                 // 🔴 这个钩子对**全场每一发**导弹（含 NPC 的箭）都会派发 —— 没在跟踪任何目标时
@@ -742,7 +776,7 @@ namespace LivingWorldNpcs
         public override void OnEntityRemoved(GameEntity entity)
         {
             base.OnEntityRemoved(entity);
-            if (!SpellMissileTraceState.Enabled || entity == null)
+            if (entity == null)
             {
                 return;
             }
@@ -773,8 +807,54 @@ namespace LivingWorldNpcs
             StopAll("mission ended");
         }
 
+        public override void OnBehaviorInitialize()
+        {
+            base.OnBehaviorInitialize();
+            try
+            {
+                // 🔴 必须"先减后加"：这个静态委托游戏自己的 View 模块用 `=` 赋值
+                //    （ViewSubModule.cs:290），直接 `=` 会把它的顶掉。先减后加 = 幂等、不重复订阅。
+                MissionWeapon.OnGetWeaponDataHandler -= OnGetWeaponData;
+                MissionWeapon.OnGetWeaponDataHandler += OnGetWeaponData;
+            }
+            catch (Exception ex)
+            {
+                LogOnce("武器数据钩子安装异常", ex);
+            }
+        }
+
+        /// <summary>逐发改武器数据：把法术弹的 <c>ScaleFactor</c> 换成实验倍率（其余武器一律不碰）。</summary>
+        private void OnGetWeaponData(ref WeaponData weaponData, MissionWeapon weapon, bool isFemale, Banner banner,
+            bool needBatchedVersion)
+        {
+            if (Math.Abs(SpellMissileTraceState.ItemScale - 1f) < 0.001f)
+            {
+                return;
+            }
+            try
+            {
+                ItemObject item = weapon.Item;
+                if (item != null && string.Equals(item.StringId, SpellMissileTraceState.AmmoFilter, StringComparison.Ordinal))
+                {
+                    weaponData.ScaleFactor = SpellMissileTraceState.ItemScale;
+                }
+            }
+            catch (Exception)
+            {
+                // 这个回调在渲染/UI 路径上也会被调 —— 绝不能抛
+            }
+        }
+
         public override void OnRemoveBehavior()
         {
+            try
+            {
+                MissionWeapon.OnGetWeaponDataHandler -= OnGetWeaponData;
+            }
+            catch (Exception)
+            {
+                // 卸载期异常忽略
+            }
             base.OnRemoveBehavior();
             StopAll("behavior removed");
         }
@@ -935,7 +1015,8 @@ namespace LivingWorldNpcs
                 {
                     return "实体=null";
                 }
-                return $"实体=在 网格数={entity.MultiMeshComponentCount} 可见性标志={entity.EntityVisibilityFlags}";
+                return $"实体=在 网格数={entity.MultiMeshComponentCount} 可见性标志={entity.EntityVisibilityFlags}"
+                    + $" 包围盒={Pos(entity.GlobalBoxMin)}~{Pos(entity.GlobalBoxMax)}";
             }
             catch (Exception)
             {
@@ -1079,6 +1160,15 @@ namespace LivingWorldNpcs
                         }
                         SpellMissileTraceState.AltOffsetMeters = Math.Max(0f, Math.Min(30f, offset));
                         return Status("alt_offset set" + EnsureEnabledNote());
+                    case "alt_scale":
+                        float altScale;
+                        if (args.Count < 2 || !float.TryParse(args[1], NumberStyles.Float,
+                                CultureInfo.InvariantCulture, out altScale))
+                        {
+                            return "usage: spell_trace alt_scale <multiplier>  (e.g. 10 = ten times bigger)";
+                        }
+                        SpellMissileTraceState.AltScale = Math.Max(0.05f, Math.Min(50f, altScale));
+                        return Status("alt_scale set" + EnsureEnabledNote());
                     case "alt_particle":
                         if (args.Count < 2 || string.IsNullOrEmpty(args[1]))
                         {
@@ -1103,6 +1193,15 @@ namespace LivingWorldNpcs
                         }
                         SpellMissileTraceState.SpeedModifier = Math.Max(0.05f, Math.Min(5f, multiplier));
                         return Status("speed set" + EnsureEnabledNote());
+                    case "scale":
+                        float scale;
+                        if (args.Count < 2 || !float.TryParse(args[1], NumberStyles.Float,
+                                CultureInfo.InvariantCulture, out scale))
+                        {
+                            return "usage: spell_trace scale <multiplier>  (e.g. 5 = five times bigger, 1 = vanilla)";
+                        }
+                        SpellMissileTraceState.ItemScale = Math.Max(0.05f, Math.Min(20f, scale));
+                        return Status("scale set" + EnsureEnabledNote());
                     default:
                         // 可弃占位（如 `spell_trace 1`）→ 当作"切换开关"，不报错
                         SpellMissileTraceState.Enabled = !SpellMissileTraceState.Enabled;
@@ -1142,13 +1241,14 @@ namespace LivingWorldNpcs
                 + $"弹药过滤={SpellMissileTraceState.AmmoFilter} 间隔={SpellMissileTraceState.LogInterval:F2}s "
                 + $"强制LOD0={SpellMissileTraceState.ForceLod0} 陪飞网格={(string.IsNullOrEmpty(SpellMissileTraceState.AltMesh) ? "关" : SpellMissileTraceState.AltMesh)}"
                 + $" 陪飞拖尾={(SpellMissileTraceState.AltParticleEnabled ? SpellMissileTraceState.AltParticle : "关")}"
-                + $" 弩速倍率={SpellMissileTraceState.SpeedModifier:F2}");
+                + $" 弩速倍率={SpellMissileTraceState.SpeedModifier:F2} 弹体放大={SpellMissileTraceState.ItemScale:F2}x");
             return $"spell_trace {headline} enabled={SpellMissileTraceState.Enabled} "
                 + $"tracer={SpellMissileTraceState.TracerEnabled} particle={SpellMissileTraceState.TracerParticle} "
                 + $"ammo={SpellMissileTraceState.AmmoFilter} interval={SpellMissileTraceState.LogInterval:F2} "
                 + $"lod0={SpellMissileTraceState.ForceLod0} "
                 + $"alt_mesh={(string.IsNullOrEmpty(SpellMissileTraceState.AltMesh) ? "off" : SpellMissileTraceState.AltMesh)} "
-                + $"alt_offset={SpellMissileTraceState.AltOffsetMeters:F1}";
+                + $"alt_offset={SpellMissileTraceState.AltOffsetMeters:F1} "
+                + $"alt_scale={SpellMissileTraceState.AltScale:F1}";
         }
     }
 }
