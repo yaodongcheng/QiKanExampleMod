@@ -176,6 +176,19 @@ case("soln 体系：project.mbproj 没挂 item_usage_sets 必须抓到（雷 122
          'type="item_usage_set"/> -->', 1),
      1, "未挂 project.mbproj")
 
+# soln 体系（粒子）：粒子文件名是**带前缀的一族**（particle_systems_<名>.xml），
+#   按整名匹配会漏掉它 —— 这条专门验「前缀匹配」生效（2026-09-23 加，官方数据核过：
+#   Native 挂了 7 行 particle_systems*，粒子同属 soln 体系）。
+case("soln 体系：没挂 particle_systems_yinmo 必须抓到（前缀匹配，不是整名）",
+     "check_module_registration.py",
+     lambda m, c: patch_text(
+         m / "ModuleData" / "project.mbproj",
+         '<file id="soln_particle_systems" name="ModuleData/particle_systems_yinmo.xml" '
+         'type="particle_system"/>',
+         '<!-- <file id="soln_particle_systems" name="ModuleData/particle_systems_yinmo.xml" '
+         'type="particle_system"/> -->', 1),
+     1, "particle_systems_yinmo.xml")
+
 # 选人目录：Realm/House 的类型引用了不存在的筛档（左列点它会筛出空）
 case("选人目录：悬空的势力类型必须抓到", "check_hero_profile_keys.py",
      lambda m, c: patch_text(m / "ModuleData" / "AssetRegistry" / "HeroCatalog.xml",

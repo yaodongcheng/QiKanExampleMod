@@ -287,6 +287,11 @@ namespace LivingWorldNpcs
             // 调停（随从犯法被执法时面向守卫按 F）：与 Talk 同键——上下文互斥替换（守卫警戒非玩家时
             // Intervene 行替换 Talk 行，永不共存，无冲突警告）
             [InteractionIds.Intervene] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Short" },
+            // 施法（阶段 3 起手轴）：**按住蓄力、松手放**；R / RT 都是全分类零绑定的空闲键
+            //（施法方式 normal/channel/instant 由法术数据决定，与按键无关）。
+            // ⚠️ 它不显示在交互 HUD 上（那是 InteractionMissionView 的活，而战场上它不挂）——
+            //   施法提示留给阶段 5 的自建 HUD。
+            [InteractionIds.SpellCast] = new InteractionBindingConfig { Keyboard = "R", Gamepad = "RTrigger", PressMode = "Short" },
         };
 
         /// <summary>玩法行配置（玩家在 config.json 覆盖/增删；PopulateObject 合并，删行 = 回落内置默认）。</summary>

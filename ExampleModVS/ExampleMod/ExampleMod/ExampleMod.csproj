@@ -322,6 +322,17 @@
     <Compile Include="Combat\FirearmFxLogic.cs" />
     <Compile Include="Combat\FirearmFxRegistry.cs" />
     <Compile Include="Combat\KnockoutFlow.cs" />
+    <!-- 🔴 法术体系（通用施法框架，2026-09-23）：四段模型（起手/瞄准/投送/结算）。
+         契约与数据格式见 Combat\SpellDef.cs 头注释；方案见 plans\法术体系-通用施法框架.md。
+         五个文件 = 数据表 / 四段积木 / 施法唯一入口 / 飞行物宿主 / 法印开火拦截补丁。 -->
+    <Compile Include="Combat\SpellDef.cs" />
+    <Compile Include="Combat\SpellPieces.cs" />
+    <Compile Include="Combat\SpellCastFlow.cs" />
+    <Compile Include="Combat\SpellProjectileLogic.cs" />
+    <!-- 阶段 3/4：起手轴（输入 + 相位机 + 蓄力）+ NPC 施法者。 -->
+    <Compile Include="Combat\SpellCastInput.cs" />
+    <Compile Include="Combat\SpellNpcCaster.cs" />
+    <Compile Include="Combat\SpellSealFirePatch.cs" />
     <!-- 🔴 调试脚手架（2026-09-22）：法术弹飞行诊断（存活/命中/结局/示踪火线），验完即删。
          用法与判据见文件头；控制台 custom.spell_trace。 -->
     <Compile Include="Combat\SpellMissileTrace.cs" />
