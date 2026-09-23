@@ -74,6 +74,11 @@ namespace LivingWorldNpcs
                 var contentPackOnly = new System.Collections.Generic.List<string>
                 {
                     "EncyclopediaHeroHelmetPatch",
+                    // 两个 CC（建号界面）补丁：它们治的是「自定义世界里没有原版六文化」引起的问题，
+                    // 只有内容包战役才会遇到。挂在原版战役上时 `CharacterCreationCultureStageSortPatch`
+                    // 会把原版文化的固定排序整段跳过（**实打实改了原版体验**），故一并收窄。
+                    "CharacterCreationCultureStageSortPatch",
+                    "CharacterCreationCultureVisualFallbackPatch",
                 };
                 foreach (System.Type patchType in typeof(MySubModule).Assembly.GetTypes())
                 {
@@ -343,6 +348,11 @@ namespace LivingWorldNpcs
 
                 // 随从逮捕善后（Phase E）：被执法转押的随从 → 定居点菜单「赎回随从」（罚金）
                 campaignGameStarter.AddBehavior(new CompanionDetentionBehavior());
+
+                // 建号内容接线（🔴 1.3.x+ 战役模式必需：那儿的内容只能靠**战役行为**在
+                //   OnCharacterCreationInitializedEvent 里挂进去；1.2.12 下本调用是空操作，
+                //   版本分叉收在该方法内部）。内容包模式才挂。
+                LivingWorldCharacterCreationContent.RegisterIfNeeded(campaignGameStarter);
 
                 if (!_hasDumped)
                 {

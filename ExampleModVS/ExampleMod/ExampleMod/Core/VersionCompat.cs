@@ -1071,6 +1071,24 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // ── 主队位置写入（1.3.0 换类型）──────────────────────────
+        // v1.2.12: MobileParty.Position2D — Vec2 类型，**可写**
+        // 1.3.0+ : 可写的 Position2D 没了（只剩 `GetPosition2D => Position.ToVec2()` 只读属性）；
+        //          改写 Position（类型换成 CampaignVec2）。须裹一层并标 isOnLand: true
+        //          （引擎自己写文化出生点就是这么写的）。
+        //   ⚠️ 走 Position 的 setter，别反射后备字段——1.3.0+ 的 setter 里带
+        //      `Campaign.Current.MobilePartyLocator.UpdateLocator(this)`，绕过它 = 定位器不同步。
+
+        public static void SetMainPartyPosition(Vec2 position)
+        {
+            if (MobileParty.MainParty == null) return;
+#if MB2_GE_130
+            MobileParty.MainParty.Position = new CampaignVec2(position, true);
+#else
+            MobileParty.MainParty.Position2D = position;
+#endif
+        }
+
         // ── 纹理导出到文件（1.3.0 加参数）────────────────────────
         // v1.2.12: Texture.SaveToFile(string path)
         // v1.3.0+ : Texture.SaveToFile(string path, bool isRelativePath)

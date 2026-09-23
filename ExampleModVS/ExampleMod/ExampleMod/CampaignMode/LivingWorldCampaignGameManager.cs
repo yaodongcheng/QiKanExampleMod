@@ -136,8 +136,12 @@ namespace LivingWorldNpcs.CampaignMode
 		}
 
 		/// <summary>
-		/// 推入建号界面（原流程，一行未改）——由选人界面点「自定义人物」时调用。
-		/// ⚠️ 仅在 1.2.12 有效（1.5.x 建号是另一套体系，见 <see cref="OnLoadFinished"/> 的 1.5.x 分支说明）。
+		/// 推入建号界面——由选人界面点「自定义人物」时调用。
+		/// 🔴 两版差异只有「内容从哪进」这一处：
+		///   · 1.2.12：内容实例当**状态构造参数**传（状态自己持有 CurrentCharacterCreationContent）。
+		///   · 1.3.x+：状态是**无参构造**，内容由我们注册的 ContentHandler 在
+		///     `CharacterCreationManager` 构造期（`OnCharacterCreationInitializedEvent`）挂进来。
+		///     范本 = `SandBox.SandBoxGameManager.LaunchSandboxCharacterCreation`（1.3.15 反编译实读）。
 		/// </summary>
 		public static void PushCharacterCreation()
 		{
@@ -145,10 +149,12 @@ namespace LivingWorldNpcs.CampaignMode
 			Game.Current.GameStateManager.CleanAndPushState(
 				Game.Current.GameStateManager.CreateState<CharacterCreationState>(
 					new LivingWorldCharacterCreationContent(CampaignModeActivator.ActiveContentPack)));
+#else
+			Game.Current.GameStateManager.CleanAndPushState(
+				Game.Current.GameStateManager.CreateState<CharacterCreationState>(), 0);
 #endif
 		}
 
-#if MB2_V1212
 		/// <summary>
 		/// 加载完成 → **落地**（2026-09-11 改造：选人已挪到建世界**之前**）。
 		///
@@ -163,6 +169,11 @@ namespace LivingWorldNpcs.CampaignMode
 		/// 🔴 **不再需要 `PushCharacterCreation()` 给选人界面当宿主屏**——选人屏在主菜单阶段就已经
 		///   选完并退场了（它只读静态表，不依赖 `Campaign.Current`，见 CampaignMode/HeroSelectScreen.cs）。
 		///   这条改动砍掉了原实现里最脆的一段（挂层挂空 / 屏栈换代 / 静默失败都出在这里）。
+		///
+		/// 🔴 **1.3.x / 1.4.x / 1.5.x 与 1.2.12 共用本实现**（2026-09-23 接入）：本体内全部 API
+		///   两版一致（`SetVisualAsDirty` / `UnregisterActiveStateDisableRequest` /
+		///   `OnCharacterCreationIsOver` 已按 1.3.15 反编译逐条核对），唯一的版本差异在
+		///   `PushCharacterCreation()` 内部（内容怎么进建号状态）。
 		/// </summary>
 		public override void OnLoadFinished()
 		{
@@ -192,12 +203,5 @@ namespace LivingWorldNpcs.CampaignMode
 			PushCharacterCreation();
 			DebugLogger.Log($"[LWN-campaign] 世界已加载 GameType={GetType().Name} 时代={Era} → 进入建号流程");
 		}
-#else
-		/// <summary>1.5.x：建号 = CharacterCreationManager 新体系（本类在该版本不接入，v1 TODO）。</summary>
-		public override void OnLoadFinished()
-		{
-			base.OnLoadFinished();
-		}
-#endif
 	}
 }
