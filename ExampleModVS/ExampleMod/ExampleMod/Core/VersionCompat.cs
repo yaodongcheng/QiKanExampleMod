@@ -1118,5 +1118,29 @@ namespace LivingWorldNpcs
                 ?.OnCharacterCreationFinalized();
 #endif
         }
+
+        // ── 人物扫掠射线（1.3.0 改了形参顺序）────────────────────
+        // v1.2.12: RayCastForClosestAgent(from, to, out distance, excludedAgentIndex, rayThickness)
+        // v1.3.0+ : RayCastForClosestAgent(from, to, excludedAgentIndex, rayThickness, out distance)
+        //   用途：法术飞行物判"这一段撞到谁了"（引擎内部走空间索引，1 次原生调用；rayThickness = 沿线段
+        //   扫一个球 = 连续碰撞）。同名同义、只有形参顺序不同 ⇒ 正是 V 层的活。
+        //   ⚠️ 场景侧那条 RayCastForClosestEntityOrTerrain 在 1.2.12 与 1.3.0+ 之间还差一个
+        //      `out GameEntity` → `out WeakGameEntity`（类型级差异）—— 法术那边直接用**不带实体出参**的
+        //      重载绕开了它，故这里不需要 V 包装。
+
+        public static Agent RayCastForClosestAgent(Mission mission, Vec3 from, Vec3 to,
+            int excludedAgentIndex, float rayThickness, out float distance)
+        {
+            if (mission == null)
+            {
+                distance = -1f;
+                return null;
+            }
+#if MB2_GE_130
+            return mission.RayCastForClosestAgent(from, to, excludedAgentIndex, rayThickness, out distance);
+#else
+            return mission.RayCastForClosestAgent(from, to, out distance, excludedAgentIndex, rayThickness);
+#endif
+        }
     }
 }

@@ -79,6 +79,10 @@ namespace LivingWorldNpcs
                     // 会把原版文化的固定排序整段跳过（**实打实改了原版体验**），故一并收窄。
                     "CharacterCreationCultureStageSortPatch",
                     "CharacterCreationCultureVisualFallbackPatch",
+                    // 法印开火拦截（通用施法框架）：它认的是"弹药在法术表里"，而法术表只有内容包提供
+                    // （AssetRegistry/Spells.xml）—— 纯功能包模式下表恒空，挂上去只是白跑一次查表。
+                    // 按铁律 5 推论（内容包专属补丁在未装内容包时一律不挂），这里一并收窄。
+                    "SpellSealFirePatch",
                 };
                 foreach (System.Type patchType in typeof(MySubModule).Assembly.GetTypes())
                 {
@@ -250,6 +254,13 @@ namespace LivingWorldNpcs
             // 导航件升降板验证（2026-09-18，custom.plate）：同上置于闸门之前；
             // 未建板时每帧只做一次 null 判断，零开销。验完即删。
             mission.AddMissionBehavior(new PlateSpikeMissionView());
+
+            // 🔴 法术飞行物宿主（2026-09-23，通用施法框架）—— 同 FirearmFxLogic，**必须置于玩法闸门之前**：
+            //    法术的主战场就是战场/攻城，被那道闸门拦在外面就没意义了。纯表现+判定，不碰战役 API；
+            //    没有法术在飞时每帧只做一次 List.Count 判断，零开销。
+            //    数据来自内容包 ModuleData/AssetRegistry/Spells.xml（没有内容包 = 表为空 = 空转）。
+            //    方案见 plans/法术体系-通用施法框架.md；契约见 Combat/SpellDef.cs 头注释。
+            mission.AddMissionBehavior(new SpellProjectileLogic());
 
             // 🔴 法术弹飞行诊断（2026-09-22，custom.spell_trace）—— 同上置于闸门之前：
             //    要测的正是战场里的弹道，被玩法闸门拦在外面就没意义（同 FirearmFxLogic）。

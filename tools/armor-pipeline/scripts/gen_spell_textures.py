@@ -16,6 +16,13 @@ gen_spell_textures.py — 阴魔斩网格的贴图（月牙 / 能量核，**各�
     白热核 (246,150,135)/p95 (255,194,185) · 绯红亮盘 (241,142,143) · 黑烟 暗紫红 (≈0.20,0.09,0.13)
 
 两张图都是**黑底 + 加法就绪**（配 `Alpha Blend Mode = Add Alpha`：黑 = 不发光 = 隐形）。
+🔴 **2026-09-23（月牙改薄片后重调）**：跨带渐变从"整条带子发光的软包络"改成
+**「贴着刃口的一条亮线 + 刃背几乎全黑」** —— 加法下黑的地方不存在 ⇒ 实机看到的就是
+**一道弧形的斩击刃光**（几何只提供轮廓，细节全靠这张图）。
+亮线贴哪一侧由 `CR_EDGE` 决定（`--edge inner|outer`），两个都生成过预览图对比：
+`out/preview_lwn_yinmo_crescent_quarter_INNER.png`（默认）与 `..._OUTER.png`。
+切变体不用改代码：`python gen_spell_textures.py --edge outer` 重跑一次即可（产物名不变，
+编辑器那边重新编一次就换过去了；备选图另存为 `lwn_yinmo_crescent_d_outer.png`）。
 
 ⚠️ 生成物纪律（铁律 22）：图是产物，**禁手改** —— 要调色改下面的参数重跑。
 """
@@ -54,11 +61,23 @@ DARK_RING = (86, 20, 26)
 
 # ── 月牙参数 ──
 # 🔴 u（= 沿弧）方向必须**可平铺**：材质要用 use_texture_sweep **只漂 u**，把火顺着刃口送出去。
-#    v（= 跨带）方向**不漂**，所以"内缘白热 → 外缘暗"的渐变烘在 v 上会**稳稳停住**。
-CR_ENV_POW = 1.10    # 跨带亮度包络指数（越大越集中在内缘）
-CR_HOT_W = 0.40      # 内缘最多往"白热偏橙"偏多少（**不再拉满** —— 拉满就是白雾）
-CR_GAIN = 1.60       # 整体增益（加法叠亮背景会被冲淡，要比第一版更冲）
-CR_BASE = 0.25       # 无火处的底亮度（加法下"有底"才有实体感；实机反馈太透 → 从 0.05 提到 0.25）
+#    v（= 跨带）方向**不漂**，所以"刃口一条亮线 → 刃背暗"的渐变烘在 v 上会**稳稳停住**。
+# 🔴🔴 2026-09-23（月牙改成**薄片**之后重调）：几何不再提供"厚度/实体感"，所以贴图要把
+#    **斩击波那一条亮线**画出来 —— 由"整条带子发光的软渐变"改成「**刃口一条亮线 + 刃背几乎全黑**」：
+#      · 加法混合下"黑 = 不存在" ⇒ 亮线之外的部分自然隐掉，读作一道**弧形的斩击刃光**
+#      · `CR_ENV_POW` 从 1.10 提到 2.40（亮度往刃口集中）、新增 `CR_LINE_W` 那条**贴边的亮线**
+#      · `CR_GAIN` 提到 1.90 补回"亮的面积变小"带来的整体变暗
+#    🔴 **哪一侧是刃口**（`CR_EDGE`，网格那边的对应关系见 build_spell_mesh.py 的 crescent_geometry）：
+#      v=0 = 内缘 = **凹侧 = 后缘（拖在后面的刃背）**
+#      v=1 = 外缘 = **凸侧 = 前缘（迎着飞行方向的那道刃）** ← 传统"斩击波"的亮线在这边
+#    两个都生成出来看渲染图再定（`--edge inner|outer`），默认 `inner` 是**沿用之前实机调过的那一版**的朝向。
+CR_EDGE = "inner"    # inner = 亮线在内缘（v=0，沿用旧观感）｜outer = 亮线在外缘（v=1，前缘刃口）
+CR_ENV_POW = 2.40    # 跨带亮度包络指数（越大越集中在刃口；薄片版从 1.10 提上来）
+CR_LINE_W = 0.07     # 贴边亮线的宽度（归一化；越小越像"一道光刃"）
+CR_LINE_GAIN = 0.90  # 那条亮线的额外增益
+CR_HOT_W = 0.50      # 刃口最多往"白热偏橙"偏多少（**不再拉满** —— 拉满就是白雾）
+CR_GAIN = 1.90       # 整体增益（加法叠亮背景会被冲淡，要比第一版更冲）
+CR_BASE = 0.20       # 无火处的底亮度（加法下"有底"才有实体感；薄片版从 0.25 略降）
 CR_TCONTRAST = 1.15  # 火亮度对比度（>1 压暗中间调；实机反馈太透 → 从 1.45 降到 1.15，让更多中间调参与）
 
 # ── 核参数 ──
@@ -89,24 +108,28 @@ def save(rgb, name):
 
 
 def build_crescent():
-    """月牙：**火噪声（u 可平铺）× 跨带渐变（v：内缘白热 → 外缘暗）**。
-    配合 `use_texture_sweep` + `Vector1 = (速度, 0, 0, 0)` ⇒ 火沿刃口流动、热刃口不动。"""
+    """月牙（**薄片**版）：**一条贴着刃口的亮线 + 刃背几乎全黑 + u 可平铺的火噪声**。
+    配合 `use_texture_sweep` + `Vector1 = (速度, 0, 0, 0)` ⇒ 火沿刃口流动、亮线本身不漂。"""
     fire = load_ue(UE_FIRE, SIZE)                  # 缩放保持可平铺（边到边）
     t = luma(fire)[:, :, None]
-    # 🔴 行→UV 的对应：**图像底行 = UV 的 v=0 = 月牙的内缘**（网格那边 v=0 就是内缘）。
-    #    `rowf` = 行比例：顶行 0 → 底行 1。所以"内缘最热" = 热在**底行** = 用 rowf 本身，
-    #    ⚠️ 别再写成 `1 - rowf` —— 那样热会跑到外缘去（第一版就是这么错的，渲染出来内缘是暗的）。
+    # 🔴 行→UV 的对应：**图像底行 = UV 的 v=0 = 月牙的内缘（凹侧）**；顶行 = v=1 = 外缘（凸侧 = 刃口）。
+    #    `rowf` = 行比例：顶行 0 → 底行 1。所以：
+    #      CR_EDGE="inner" → 亮线在**底行**，直接用 rowf；
+    #      CR_EDGE="outer" → 亮线在**顶行**，用 1-rowf。
+    #    ⚠️ 别再手写 `1 - rowf` 去"修正内缘" —— 第一版就是这么错的（渲染出来内缘是暗的，注释见旧版）。
     rowf = np.linspace(0.0, 1.0, SIZE)[:, None, None]
-    env = np.power(rowf, CR_ENV_POW)
-    hot = np.power(rowf, 2.0) * CR_HOT_W * (0.45 + 0.55 * t)
+    edgef = rowf if CR_EDGE == "inner" else (1.0 - rowf)
+    env = np.power(edgef, CR_ENV_POW)
+    line = np.exp(-np.square((edgef - 1.0) / CR_LINE_W)) * CR_LINE_GAIN   # 贴着刃口的那道光
+    hot = np.power(edgef, 2.0) * CR_HOT_W * (0.45 + 0.55 * t)
     col = fire * (1.0 - hot) + np.array(WHITE_HOT, dtype=np.float32)[None, None, :] * hot
     col[:, :, 1] *= SAT_G                       # 提饱和：压绿、压蓝 → 红更红
     col[:, :, 2] *= SAT_B
     # 🔴 亮度的"底"必须接近 0：加法混合下**只有亮的地方才存在** —— 底给大了整条带都发光 = 实心块
     tt = np.power(np.clip(t, 0.0, 1.0), CR_TCONTRAST)
-    k = env * (CR_BASE + 1.75 * tt) * CR_GAIN
-    print(f"    月牙：{UE_FIRE} × 跨带渐变（内缘白热偏橙 → 外缘暗）· u 可平铺"
-          f" · 底 {CR_BASE} · 对比 {CR_TCONTRAST} · 增益 {CR_GAIN}")
+    k = (env + line) * (CR_BASE + 1.75 * tt) * CR_GAIN
+    print(f"    月牙：{UE_FIRE} × 薄片渐变（刃口亮线在{CR_EDGE}）· u 可平铺"
+          f" · 包络^{CR_ENV_POW} · 线宽 {CR_LINE_W} · 底 {CR_BASE} · 增益 {CR_GAIN}")
     return col * k
 
 
@@ -144,10 +167,36 @@ def build_core():
     return out
 
 
+def parse_args(argv):
+    """`--edge inner|outer`（亮线贴哪一侧）· `--name <输出名>`（默认 = NAME_CRESCENT）·
+    `--only crescent|core`（只重出一张）。"""
+    opts = {"edge": None, "name": None, "only": None}
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a.startswith("--") and i + 1 < len(argv) and a[2:] in opts:
+            opts[a[2:]] = argv[i + 1]
+            i += 2
+            continue
+        i += 1
+    return opts
+
+
 def main():
-    print("=== 阴魔斩网格贴图（月牙 / 核，各一张全 UV） ===")
-    save(build_crescent(), NAME_CRESCENT)
-    save(build_core(), NAME_CORE)
+    global CR_EDGE
+    opts = parse_args(sys.argv[1:])
+    if opts["edge"]:
+        CR_EDGE = opts["edge"].strip().lower()
+        if CR_EDGE not in ("inner", "outer"):
+            print("[FATAL] --edge 只能是 inner（内缘/后缘）或 outer（外缘/前缘刃口）")
+            return 2
+    only = (opts["only"] or "").strip().lower()
+    crescent_name = opts["name"] or NAME_CRESCENT
+    print(f"=== 阴魔斩网格贴图（月牙 / 核，各一张全 UV）· 刃口亮线在 {CR_EDGE} ===")
+    if only in ("", "crescent"):
+        save(build_crescent(), crescent_name)
+    if only in ("", "core"):
+        save(build_core(), NAME_CORE)
     print("DONE")
     return 0
 

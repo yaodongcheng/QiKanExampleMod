@@ -28,8 +28,9 @@ namespace LivingWorldNpcs
         /// 🔴 语义：走 HandleBlow 全管线（扣血 + OnAgentHit + 死亡判定 + 打击音效）；
         /// 音效默认抑制（引擎第一遍 HandleBlow 已播过——见类注释①），需要自己播时传 false。
         /// </summary>
+        /// <param name="logTag">日志标签（默认 "WarningStrike"；法术等其它调用方传自己的标签，免得日志张冠李戴）。</param>
         public static void CastBlow(Agent victim, in Blow template, in AttackCollisionData collisionData,
-            float damage, bool suppressSound = true)
+            float damage, bool suppressSound = true, string logTag = "WarningStrike")
         {
             if (victim == null || !AgentControlHelper.SafeIsActive(victim)) return;
 
@@ -38,7 +39,7 @@ namespace LivingWorldNpcs
             b.BaseMagnitude = MathF.Min(template.BaseMagnitude, 1000f);
             b.SelfInflictedDamage = 0;
             if (suppressSound) b.BlowFlag |= BlowFlags.NoSound;   // ①防双音（第一遍已播）
-            DebugLogger.Log($"[WarningStrike] CastBlow: {victim.Name}(Idx={victim.Index}) 扣血 {(int)b.InflictedDamage}（模板来源 attackType={template.AttackType} ownedBy={template.OwnerId}）");
+            DebugLogger.Log($"[{logTag}] CastBlow: {victim.Name}(Idx={victim.Index}) 扣血 {(int)b.InflictedDamage}（模板来源 attackType={template.AttackType} ownedBy={template.OwnerId}）");
             victim.RegisterBlow(b, in collisionData);
         }
 

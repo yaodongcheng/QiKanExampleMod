@@ -236,6 +236,8 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 | `Scene.GetNavMeshFaceIndex` | `(ref rec, Vec2, bool checkIfDisabled, bool ignoreHeight=false)` | **第 3 位插入** `bool isRegion1` → `(ref rec, Vec2, isRegion1, checkIfDisabled, ignoreHeight=false)` | `V.NavMeshFaceIndex(...)` |
 | `Scene.GetPathBetweenAIFaces` | `(int,int,Vec2,Vec2,float,NavigationPath, int[]=null, float=1)` | 追加 `regionSwitchCostTo0/1`，**且原有两个默认值一并取消** → 必须补满 10 参 | `V.PathBetweenFaces(...)` |
 | `CharacterCreationContentBase` | 建号内容基类（`Instance`） | **整类移除**（建号换成 `CharacterCreationManager`，无同名等价入口） | `V.NotifyCharacterCreationFinalized()`（非 1.2.12 = 空操作） |
+| `Mission.RayCastForClosestAgent` | `(from, to, out float dist, int excludedAgentIndex=-1, float rayThickness=0.01f)` | **形参顺序变了** → `(from, to, int excludedAgentIndex, float rayThickness, out float dist)` | `V.RayCastForClosestAgent(...)`（2026-09-23 法术体系加；`RayCastForClosestAgentsLimbs` 同款变更，尚未有人用） |
+| `Scene.RayCastForClosestEntityOrTerrain`（带实体出参那一版） | `out GameEntity collidedEntity` | `out WeakGameEntity collidedEntity`（**类→结构体**） | 🔴 **换重载绕开**：用**不带实体出参**的那版 `(from, to, out dist, out point, thickness, flags)`（两版都在）→ 不需要 V 封装 |
 | `ScriptComponentBehavior.GameEntity` | 返回 `GameEntity`（**类**，判空 `== null`） | 返回 `WeakGameEntity`（**结构体**，判空只能 `IsValid`） | 返回类型不同，封不进 V → 裸 `#if`（已登记合规例外） |
 
 🔴 **两个「按报错找不到东西」的坑**：

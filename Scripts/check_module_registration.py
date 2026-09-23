@@ -15,8 +15,9 @@ Module-registration checker (自定义世界「段注册 / 源文件登记」离
   3. **孤儿数据文件**：ModuleData 下的 XML 既不被任何段覆盖、又不挂在 project.mbproj 上、
      又不在引擎惯例名单里、**且定义了对象** = 数据写了但运行时不存在（0 定义的空模板只提示）
   3b. **soln 体系文件必须挂 project.mbproj**：`item_usage_sets` / `item_holsters` / `module_sounds` /
-     `action_sets` / `action_types` / `skins` 只有 mbproj 一条加载路径，文件在而没挂 = 完全不加载
-     （雷 122 的 AV 崩 / 雷 136 的枪管朝天 / 音效静音；2026-09-21 加）
+     `action_sets` / `action_types` / `skins` / **`particle_systems*`（2026-09-23 加，官方数据核过）**
+     只有 mbproj 一条加载路径，文件在而没挂 = 完全不加载
+     （雷 122 的 AV 崩 / 雷 136 的枪管朝天 / 音效静音 / 粒子查不到）
   4. **csproj 漏登记**：`ExampleModVS/**/*.cs` 与 `<Compile Include>` 清单比对，未登记 = ERROR
 
 Usage:
@@ -79,6 +80,20 @@ CONVENTIONAL_DIRS = {"Languages", "AssetRegistry"}
 # 见 ④：这些文件**只有** mbproj 一条加载路径（没有任何"惯例文件名"回退），
 # 所以"文件在、mbproj 没挂"是确定的 ERROR，不是猜测。
 SOLN_ONLY_FILES = {"item_usage_sets", "item_holsters", "module_sounds", "action_sets", "action_types", "skins"}
+
+# 🔴 2026-09-23 新增：**粒子系统同属 soln 体系**（拿官方数据核过，不是推断）——
+#   Native 的 project.mbproj 挂了 7 行 `particle_systems_*.xml` + `gpu_particle_systems.xml`，
+#   同目录下只有 `particle_systems2.xml` / `particle_systems_old.xml` 没挂，而那两个确实是**死档**
+#   （Knowledge/骑砍2粒子系统.md §1.6 实测：141 / 144 个 effect 从不加载）。
+#   ⇒「文件在、mbproj 没挂 = 完全不加载」对粒子同样成立。
+#   ⚠️ 粒子文件是**带前缀的一族名字**（`particle_systems_<名>.xml`），所以按**前缀**匹配、不按整名 ——
+#      按整名只认一个字面文件名，`particle_systems_yinmo.xml` 这类就漏网了（点名 = 漏网的老教训）。
+SOLN_ONLY_PREFIXES = ("particle_systems", "gpu_particle_systems")
+
+
+def is_soln_only(stem):
+    """这个文件名是否属于「只有 project.mbproj 一条加载路径」的 soln 体系。"""
+    return stem in SOLN_ONLY_FILES or stem.startswith(SOLN_ONLY_PREFIXES)
 
 
 def read_mbproj(data_dir):
@@ -230,7 +245,7 @@ def main():
                 continue                    # 挂在 project.mbproj 的 soln 行上 → 加载路径成立
             if stem in CONVENTIONAL_FILES or stem.split("/")[0] in CONVENTIONAL_DIRS:
                 continue
-            if Path(rel).stem in SOLN_ONLY_FILES:
+            if is_soln_only(Path(rel).stem):
                 continue                    # soln 体系由第 3b 段专管（报"没挂 mbproj"，不报"孤儿"）
             try:
                 n = sum(1 for el in ET.parse(str(f)).getroot().iter() if el.get("id"))
@@ -254,7 +269,7 @@ def main():
         unmounted = 0
         for f in sorted(data.rglob("*.xml")):
             rel = f.relative_to(data).as_posix()
-            if Path(rel).stem not in SOLN_ONLY_FILES:
+            if not is_soln_only(Path(rel).stem):
                 continue
             if rel in mbproj:
                 continue

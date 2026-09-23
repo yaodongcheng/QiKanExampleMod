@@ -28,6 +28,7 @@ namespace LivingWorldNpcs
         public const string StopPlan = "StopPlan";  // 停止键：对执行中的随从喊停（G 长按，与 Plot 同键；互斥不同时显示）
         public const string IM = "IM";              // 传讯：打开 IM 聊天面板（键盘 M / 手柄 ↑ 十字短按 = 面板外唯一呼出键；2026-08-17 设行、2026-08-23 O→M 重选）
         public const string Intervene = "Intervene"; // 调停：随从犯法被执法时面向守卫按 F（替换 Talk 行，上下文互斥）
+        public const string SpellCast = "SpellCast"; // 施法：按住蓄力、松手放（阶段 3 起手轴；只在战场上用，不占 HUD 行）
     }
 
     /// <summary>

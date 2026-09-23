@@ -157,6 +157,32 @@
       重建产物（写 `tools/<工具链>/out/`）可以随便跑，**但「分发进 AssetSources / 覆盖镜像」这一步必须等 ModKit 已开**，
       否则改动落在它监视窗口之外，用户以为没做、你又以为做了。**流程固定为**：
       `重跑产物 → 等用户开 ModKit → 分发 → 用户重编+Publish → install_pack → 实机`。
+    - 🔴🔴 **【判据】"ModKit 开着"怎么判 —— 看路径、不看进程名**（2026-09-23 我判错过一次）：
+      **编辑器与游戏启动器的进程名一模一样**（都叫 `TaleWorlds.MountAndBlade.Launcher`；任务管理器里
+      两者都显示为 "BannerlordLauncher"），唯一区别在**主模块路径**：
+      · ModKit（编辑器）= `…\bin\Win64_Shipping_wEditor\TaleWorlds.MountAndBlade.Launcher.exe`
+        —— 任务管理器展开后能看到子窗口 **`Edit Mode` / `Resource Browser`**（实机实证，内存约 3 GB）
+      · 游戏启动器 = `…\bin\Win64_Shipping_Client\…`，**且编辑器侧还常驻一个 `Bannerlord.exe`**
+        （`Win64_Shipping_wEditor\Bannerlord.exe` 才是编辑器主体）
+      ⇒ **判据命令**（路径筛选，不是名字筛选）：
+      ```powershell
+      Get-Process | Where-Object { $_.ProcessName -match 'Bannerlord|TaleWorlds' } | ForEach-Object {
+        $p = ""; try { $p = $_.MainModule.FileName } catch {}
+        "{0}  {1}" -f $_.ProcessName, $p }
+      # ModKit 开着的标志 = 出现含 Win64_Shipping_wEditor 的路径
+      ```
+      **另外一个便宜信号**：`Modules/<模块>/Assets/` 存在（而不是 `Assets_disabled/`）= 模块处于编辑器模式
+      （用户跑过 `to_editor_mode.bat`）—— 但它**不等于编辑器开着**，只能当辅助。
+    - 🔴🔴 **【技法】"蹭 mtime" 必须显式写，`Copy-Item` 不改时间戳**（2026-09-23 实锤）：
+      `Copy-Item` **保留源文件的 LastWriteTime**，所以"拷一遍让监视器看到"这一步**等于没做**
+      （实测：源 21:43 拷贝后镜像仍是 21:43，编辑器那边毫无反应）。要真的触发监视，得显式刷：
+      ```powershell
+      (Get-Item -LiteralPath $dst).LastWriteTime = Get-Date
+      ```
+      （先例：法印工程的 mtime flush 实验 —— 刷完 ~20 s 编辑器就重编了。）
+    - **交付判据（两条，缺一不可）**：① `Assets/<类>/<名>/*_geo.tpac` 的 **mtime 变新且大小对得上**
+      （2026-09-23 实测：旧 8 档月牙 = 5.5 MB，薄片版应显著变小）② 装机包里量出来的数字对得上
+      （`tpaccli dump --format obj` 量顶点数/包围盒）。⚠️ 只看镜像的 mtime 不算数。
     - ⚠️ 一个头/甲的资产由**多个文件**组成（FBX + `_d/_n/_s` 贴图）：**只同步 FBX 不带贴图 = 半截**。
 
 32. 🔴🔴 **网格引用的材质名必须是「已定义」的 —— 禁止自造材质名；新件一律共用已有件的材质 datablock**（2026-09-17 用户裁定，实机外可见的「白板」就是这么来的）— **判据**：任何网格引用的材质名，必须在**编辑器工程 `Assets\<类>\<名>\*_mtl.tpac` 里有对应文件**（= 首次导入时编辑器按当时的件数建过），**或者与已存在的件共用同一个材质 datablock**。否则编辑器**拿默认白材质渲染** → ModKit 里那块是**白板**、缩略图打 ⚠、启动弹 `RGL CONTENT WARNING: Unable to find material for mesh X`。**2026-09-17 实锤**：脖子件（`build_head.py` 的 `carve_neck_part`）天生带自造材质名 `<头名>_neck`，而编辑器工程里**从来没有**这个材质资源（材质是 09-15 按当时 3 个件建的，后来件数变 4 却没建）→ 9 个有脖子件的人**脖子上全多一块白板**（运行时有 `MatRole()` 兜底归脸壳配方，所以**实机看不出来，只有编辑器能看见** —— 极易被当成"资产坏了"排查半天）。**修法**：脖子件**直接引用脸壳的材质对象** `ob.data.materials.clear(); ob.data.materials.append(face.data.materials[0])`（导出即同一个材质名）。⚠️ **两个高发坑**：① **各自 `new`/`copy` 一个同名材质会被 Blender 去重成 `head_<名>_a.001`** → 导出写的就是带 `.001` 的名字 → 编辑器照样找不到 = **白板没修掉**（我第一版就这么栽的，必须共用 datablock）；② **`check_materials.py` 通过 ≠ 够了** —— 它只查「裸名/_eye/_mouth 齐 + 无意外重名」，查不出"这个材质在编辑器里不存在"。**同轮连带**：脖子件的 UV 是从源模型原样搬的，实测跨度 `u[0.002,0.955]`（脸壳只到 0.53）**跨进了图集非头区**、采样偏暗 → 新增 `neck_uv_to_skin()` 把它的 UV 全落到**脸壳的肤色点**（取点口径与抠脖子的⑤参照色同一套：脸壳 z∈[1.56,1.65] 采样均值 → 容差 0.07 内挑最亮的一个顶点）。
