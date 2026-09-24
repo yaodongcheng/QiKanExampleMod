@@ -193,6 +193,64 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// **动画元数据对照**（2026-09-24 立）—— 把一个动作背后的 clip 的**引擎侧元数据**打出来，
+        /// 用来和原版对照。典型用法（查"为什么我们的动作在通道 1 不播"）：
+        /// <code>
+        /// custom.anim_meta act_command_unarmed    ← 原版：通道 1 能播的基准
+        /// custom.anim_meta act_cast_charge        ← 我们：通道 1 不播
+        /// custom.anim_meta act_fly_cruise         ← 我们：通道 1 也不播（通道 0 能播）
+        /// </code>
+        /// 打的都是 `MBActionSet` 上的**公开**静态接口（`IMBAnimation` 那几个 Param1/2/3 是 internal，
+        /// mod 程序集够不着 —— 那三个要看就得开 ModKit 的 clip 面板）。
+        /// 🔴 重点看 **flags**：`anf_cyclic` 在不在。目前的怀疑 = 导入时被标了 cyclic 的 clip
+        ///    在**通道 1（上身层）**上不被引擎驱动（原版 `anim_command_unarmed` 的 flags 里没有 cyclic）。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("anim_meta", "custom")]
+        public static string ExecuteAnimMeta(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+            {
+                return "error: must be in a scene/mission to use this command.";
+            }
+            if (args.Count < 1 || string.IsNullOrWhiteSpace(args[0]))
+            {
+                return "usage: custom.anim_meta <actionName>";
+            }
+            string actionName = args[0].Trim();
+            Agent agent = Agent.Main;
+            ActionIndexCache idx = ActionIndexCache.Create(actionName);
+            if (idx == ActionIndexCache.act_none)
+            {
+                return $"FAILED: action '{actionName}' is NOT registered (act_none).";
+            }
+            try
+            {
+                AnimFlags flags = MBActionSet.GetActionAnimationFlags(agent.ActionSet, idx);
+                ulong f = (ulong)flags;
+                string line = string.Format(CultureInfo.InvariantCulture,
+                    "OK: action='{0}' clip='{1}' duration={2:0.00}s animIdx={3} flags=0x{4:X} "
+                    + "[cyclic={5} lowerbody={6} all={7}] contToAction={8} blendOutStart={9:0.00} disp={10}",
+                    actionName,
+                    MBActionSet.GetActionAnimationName(agent.ActionSet, idx) ?? "?",
+                    MBActionSet.GetActionAnimationDuration(agent.ActionSet, idx),
+                    MBActionSet.GetAnimationIndexOfAction(agent.ActionSet, idx),
+                    f,
+                    (flags.HasAnyFlag(AnimFlags.anf_cyclic) ? 1 : 0),
+                    (flags.HasAnyFlag(AnimFlags.anf_enforce_lowerbody) ? 1 : 0),
+                    (flags.HasAnyFlag(AnimFlags.anf_enforce_all) ? 1 : 0),
+                    MBActionSet.GetActionAnimationContinueToAction(agent.ActionSet, ActionIndexValueCache.Create(idx)).Index,
+                    MBActionSet.GetActionBlendOutStartProgress(agent.ActionSet, idx),
+                    MBActionSet.GetActionDisplacementVector(agent.ActionSet, idx));
+                DebugLogger.Log("[Cmd] anim_meta -> " + line);
+                return line;
+            }
+            catch (System.Exception e)
+            {
+                return "Error: " + e.Message;
+            }
+        }
+
+        /// <summary>
         /// **按指定通道播动作**（2026-09-24 立）—— `custom.do_anim` 只能播 0 号通道（全身），
         /// 这条专门用来验「**上身叠加**」：通道 1 的动作**不该动腿**。
         ///
@@ -215,7 +273,7 @@ namespace LivingWorldNpcs
             }
             if (args.Count < 1 || string.IsNullOrWhiteSpace(args[0]))
             {
-                return "usage: custom.anim_ch [channel 0..3] <actionName> [agentId|nearest|main] [loop] [lowerbody] [all]";
+                return "usage: custom.anim_ch [channel 0..3] <actionName> [agentId|nearest|main] [loop] [noforce] [lowerbody] [all]";
             }
 
             // 参数扫描（宽松：认不出的一律当动作名，只认第一段）
@@ -223,7 +281,7 @@ namespace LivingWorldNpcs
             string actionName = null;
             Agent agent = Agent.Main;
             string agentNote = string.Empty;
-            bool cyclic = false, lowerbody = false, enforceAll = false;
+            bool cyclic = false, lowerbody = false, enforceAll = false, ignorePriority = true;
             int numericSeen = 0;
             foreach (string rawArg in args)
             {
@@ -234,14 +292,15 @@ namespace LivingWorldNpcs
                 {
                     channel = n; numericSeen = 1; continue;      // 首参数字 = 通道
                 }
-                string low = a.ToLowerInvariant();
-                if (low == "loop" || low == "cyc" || low == "cyclic") { cyclic = true; continue; }
-                if (low == "lowerbody" || low == "lb") { lowerbody = true; continue; }
-                if (low == "all" || low == "ea") { enforceAll = true; continue; }
+                string low2 = a.ToLowerInvariant();
+                if (low2 == "loop" || low2 == "cyc" || low2 == "cyclic") { cyclic = true; continue; }
+                if (low2 == "lowerbody" || low2 == "lb") { lowerbody = true; continue; }
+                if (low2 == "all" || low2 == "ea") { enforceAll = true; continue; }
+                if (low2 == "noforce") { ignorePriority = false; continue; }   // 原版通道 1 的调用风格
                 if (actionName == null) { actionName = a; continue; }
                 // 第二段之后的非关键字 = 目标 agent
-                if (low == "main") { agent = Agent.Main; continue; }
-                if (low == "nearest")
+                if (low2 == "main") { agent = Agent.Main; continue; }
+                if (low2 == "nearest")
                 {
                     Agent best = null;
                     float bestSq = 400f;   // 20 m 内
@@ -262,7 +321,7 @@ namespace LivingWorldNpcs
             }
             if (string.IsNullOrEmpty(actionName))
             {
-                return "usage: custom.anim_ch [channel 0..3] <actionName> [agentId|nearest|main] [loop] [lowerbody] [all]";
+                return "usage: custom.anim_ch [channel 0..3] <actionName> [agentId|nearest|main] [loop] [noforce] [lowerbody] [all]";
             }
 
             ActionIndexCache idx = ActionIndexCache.Create(actionName);
@@ -294,15 +353,29 @@ namespace LivingWorldNpcs
                 // 🔴 **返回值就是判据**：`SetActionChannel` 返回 bool —— false = 这一发**被引擎拒了**
                 //    （优先级/通道占用/动作不适用），不是"播了但看不见"。原版欢呼也是这么用的：
                 //    `if (!agent.SetActionChannel(1, ...)) { 做别的 }`（Ballista.cs:283）。
-                bool accepted = agent.SetActionChannel(channel, idx, ignorePriority: true, additionalFlags: flags,
+                bool accepted = agent.SetActionChannel(channel, idx, ignorePriority: ignorePriority, additionalFlags: flags,
                     blendInPeriod: 0.12f, blendOutPeriodToNoAnim: 0f);
+
+                // 🔴 回读（比 ACCEPTED 更死）：收下之后通道里到底是不是这条动作、权重多少。
+                //    weight≈0 = 引擎收下了但**没让它上屏**（被规则/别的系统压住）；匹配=False = 立刻被换掉。
+                string back = string.Empty;
+                try
+                {
+                    ActionIndexCache now = agent.GetCurrentAction(channel);
+                    float weight = agent.GetActionChannelWeight(channel);
+                    float prog = agent.GetCurrentActionProgress(channel);
+                    back = $" after[matches={(now.Index == idx.Index ? 1 : 0)} weight={weight:0.00} prog={prog:0.00}]";
+                }
+                catch (System.Exception) { }
 
                 string durNote = duration > 0f ? string.Empty
                     : " [note: duration 0.00s -> this action does not resolve in the agent's current action_set]";
-                return $"OK: agent={agent.Name} channel={channel} action='{actionName}' duration={duration:0.00}s"
+                string line = $"OK: agent={agent.Name} channel={channel} action='{actionName}' duration={duration:0.00}s"
                      + $" ref(act_fly_cruise)={refDuration:0.00}s loop={(cyclic ? 1 : 0)}"
-                     + $" lowerbody={(lowerbody ? 1 : 0)} all={(enforceAll ? 1 : 0)}"
-                     + $" ACCEPTED={accepted}{durNote}{agentNote}";
+                     + $" lowerbody={(lowerbody ? 1 : 0)} all={(enforceAll ? 1 : 0)} force={(ignorePriority ? 1 : 0)}"
+                     + $" ACCEPTED={accepted}{back}{durNote}{agentNote}";
+                DebugLogger.Log("[Cmd] anim_ch -> " + line);   // 进日志 ⇒ 控制台窗口窄看不全也不怕
+                return line;
             }
             catch (System.Exception e)
             {

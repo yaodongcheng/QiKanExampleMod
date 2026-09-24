@@ -36,6 +36,13 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>压弯档（带迟滞）：**+1 = 按 D（右移）→ 右压 / −1 = 按 A（左移）→ 左压** / 0 = 不压。</summary>
         public int BankBand;
+
+        /// <summary>
+        /// **正在蓄力施法**（按住右键）—— 决定"进施法手势状态"。
+        /// 🔴 来源 = <c>SpellCastInput.IsPlayerAiming</c>（施法相位机是不是非 Idle）。
+        /// 释放那一下**不走这条**（一次性动作由行为 <c>Force</c> 进，与起飞/落地同一套路）。
+        /// </summary>
+        public bool SpellCharging;
     }
 
     /// <summary>
@@ -101,6 +108,23 @@ namespace LivingWorldNpcs.Flight
             def.Add(AnimState.Once("dodgeD", FlightTuning.ActDodgeD, next: null,
                                    duration: FlightTuning.DodgeClipSeconds));
 
+            // ── 施法手势（2026-09-24 接；FCS 素材，换动作只改这里 + 内容包两行）──────────────
+            //
+            // 🔴🔴 **为什么走通道 0，而不是"通道 1 = 只动上身"**（实机实测，别再重走一遍）：
+            //    通道 1 对**原版 clip** 有效（原版 `act_command_unarmed` 一放就出、还抢全身），
+            //    但对我们**自己导入的 clip**（飞行那 20 条 + FCS 这两条）**完全不动**。
+            //    包内元数据逐字节比过：我们的 clip 缺了原版 clip 自带的那几个字段
+            //    （偏移 28 / 84 的 int 与 ~96 的 float；末尾标志串原版是 `allow_head_movement`、我们是 `cyclic`）。
+            //    同一批 clip 走**通道 0 正常播**（`custom.do_anim` 验过）⇒ 结论 = **自管动画一律走通道 0**。
+            //    真要"只改上身"：① 离线合成（飞行姿势当基底 + 施法上身当增量，`tools/anim-retarget` 的 trf_compose）
+            //    ② 或在 ModKit 里把 clip 元数据逐项对齐原版。
+            //
+            // 姿态本身是**全身**的（FCS 的施法 idle 就是站姿）⇒ 通道 0 播它 = 蓄力那几秒全身换成施法姿势，
+            // 松手/取消后由普通转移回到飞行姿态。这是刻意取舍（腿不再保持飞行姿），比"什么都没有"强得多。
+            def.Add(AnimState.Loop("castCharge", FlightTuning.ActCastCharge));       // 蓄力循环
+            def.Add(AnimState.Once("castRelease", FlightTuning.ActCastProjectile, next: null,
+                                   duration: FlightTuning.CastReleaseSeconds));    // 释放（由行为 Force 进）
+
             // ── 转移：**顺序 = 优先级**（写在上面先判；第一条命中的生效）─────────────
             //
             //   ① 闪避 ② 冲刺入姿 ③ 冲刺家（趴姿）的压弯/俯仰 ④ 巡航家的压弯
@@ -122,6 +146,9 @@ namespace LivingWorldNpcs.Flight
             def.Edge(new[] { "boost", "dashStart", "boostLeanL", "boostLeanR", "boostClimb", "boostDive" },
                      "dodgeD", c => C(c).DodgeRequest == FlightDodgeDir.Down, blend: 0.12f);
             def.Edge("*", "dashStart", c => C(c).BoostJustPressed && C(c).Moving);
+            // 🔴 **施法压过一切**（第一条命中的边生效 ⇒ 写在最前面）：蓄力期间身体换成施法姿势，
+            //    压弯/俯仰/巡航全让位；蓄力一结束（松右键取消 / 放手）这条边自然不成立，回到原姿态。
+            def.Edge("*", "castCharge", c => C(c).SpellCharging, blend: 0.15f);
             // ③ 冲刺家（趴姿）：压弯优先于俯仰（两个同时成立时先出压弯）
             //    ⚠️ 符号口径：BankBand = −1 是**按 A（左移）** ⇒ 出 leanL；+1 是按 D ⇒ 出 leanR。
             //       左右接反了就交换下面两行（真机一眼能看出来）。

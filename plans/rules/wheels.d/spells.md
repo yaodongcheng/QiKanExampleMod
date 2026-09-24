@@ -167,9 +167,13 @@ anchor = hand + Vec3.Up * SpellCastInput.HandAnchorUpOffset;                   /
 | 蓄力 | `magic_idle`（55 帧 / 1.80 s） | `act_cast_charge` | 按住右键期间**循环**（`anf_cyclic`） |
 | 释放 | `magic_projectile_spell`（70 帧 / 2.30 s） | `act_cast_projectile` | 点左键播一次（出手帧 **36%**），播完自动收回 |
 
-- **只写通道 1（上身）**：配方与四条纪律（`anf_cyclic` / `blendOutPeriodToNoAnim: 0` / **别传** `anf_enforce_lowerbody` /
-  播完用 `GetCurrentActionProgress(1)` 收）见 [agent.md](agent.md)「上半身叠加动作（通道 1）」。
-- **代码**：`SpellCastInput.PlayChargeAnim / PlayReleaseAnim / TickCastAnim / ClearCastAnim`。
+- 🔴 **当前走通道 0（全身）**：手势由**飞行那台动画状态机**播（`FlightAnimMachine` 的 `castCharge` / `castRelease`，
+  行为喂 `SpellCastInput.IsPlayerAiming` 事实、释放那一拍 `Force`）。
+- 🔴 **通道 1 的真相（2026-09-24 结案）**：不是"只认原版 clip"，而是**要挑 clip 元数据** —— 导入的 clip 缺
+  `Priority` / `Right hand pose` / `Blend out period` / `Flags.allow_head_movement` 四项 ⇒ 收下了不播、零报错；
+  **照原版填上就通**（实机已播）。"只动上半身"仍待解决（引擎无每骨权重接口；剩两个 flag 未试；兜底 = 离线烘只含上身的 clip）。
+  证据/字段表/排查命令见 [agent.md](agent.md)「叠加动作与"通道 1"」与 [法术体系-通用施法框架.md](../../法术体系-通用施法框架.md) §A4。
+- **代码**：`Flight/FlightAnimMachine.cs`（状态+边）· `Flight/PlayerFlightBehavior.cs`（喂事实 + Force 释放）。
 - **接线**：内容包 `action_types.xml` 声明 `<action name="act_cast_charge" />` + `action_sets.xml` 绑定 `animation="magic_idle"`。
 - ⚠️ **clip 真名 ≠ TRF 名**：`tpaccli dump` 出来的 AnimationClip 名才是要填的（`ue_magicidle` / `ue_projectilespell` 是 SkeletalAnimation 源件，不是 clip）。
 - **素材余量**：`SkyfallSpell`（举天 40%）· `EruptionSpell`（下压 57%）· `SpellChannel1{_Start,_Mid,_Down,_End}`（引导四段）· `MagicWalk/Run ×8`（施法移动集）—— 都在 `D:/BrainMaker/骑砍2动画重定向/output/trf/`，要哪条就再导一次。

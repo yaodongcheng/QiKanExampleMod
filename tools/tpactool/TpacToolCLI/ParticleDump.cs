@@ -61,6 +61,9 @@ namespace TpacCli
                     catch (Exception ex) { Console.WriteLine($"{item.Name}: 读取失败 {ex.GetType().Name}"); continue; }
 
                     n++;
+                    Console.WriteLine($"   [asset] guid={item.Guid} version={item.Version} meta={(item.RawMeta?.Length ?? -1)} " +
+                                      $"checksum={item.UnknownMetadataChecksum} deps={item.UnknownDependences.Count} " +
+                                      $"段 owner={string.Join(",", item.TypelessDataSegments.Select(g => g.OwnerGuid.ToString()))}");
                     Console.WriteLine($"==== {item.Name}  raw {d.RawData?.Length ?? 0} bytes | SoundCode='{d.SoundCode}' | " +
                                       $"前置浮点 {d.UnknownFloats.Count} 个 | emitter {d.Emitters.Count} 个");
                     if (d.UnknownFloats.Count > 0)

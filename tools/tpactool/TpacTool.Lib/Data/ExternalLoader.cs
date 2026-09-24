@@ -157,6 +157,12 @@ namespace TpacTool.Lib
 					tempData = (memStream.BaseStream as MemoryStream).ToArray();
 				}
 				actualSize = (ulong) tempData.Length;
+				// 🔴 段头那两个"未知字段"其实就是**引擎的数据校验**：
+				//    8 字节 = XxHash64(未压缩数据)（实证：原版段算出来逐位相同）
+				//    4 字节 = 常规段恒为 1
+				// 新建资产时这两个字段是 0 → 引擎校验不过 = 找得到资产、读不到数据（emitter 全空）。
+				_unknownUlong = XxHash64.Hash(tempData);
+				_unknownUint = 1;
 				if (actualSize < 16)
 				{
 					storageSize = actualSize;

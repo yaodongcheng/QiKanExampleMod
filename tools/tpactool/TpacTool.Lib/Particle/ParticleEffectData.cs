@@ -41,11 +41,29 @@ namespace TpacTool.Lib
 			Emitters = new List<Emitter>();
 		}
 
+		/// <summary>解析失败的说明（null = 解析干净）。留 RawData 就能原样搬运，不需要理解内容。</summary>
+		[CanBeNull]
+		public string ParseError { get; private set; }
+
 		public override void ReadData(BinaryReader rawStream, IDictionary<object, object> userdata, int totalSize)
 		{
 			// 先把整段原始字节留存，再从内存副本解析（见 RawData 的注释）。
 			RawData = rawStream.ReadBytes(totalSize);
-			var stream = new BinaryReader(new MemoryStream(RawData, false));
+			ParseError = null;
+			try
+			{
+				ParseBody(new BinaryReader(new MemoryStream(RawData, false)));
+			}
+			catch (Exception ex)
+			{
+				// 🔴 吞掉：引擎有比这个解析器更新的布局（天气/破坏类），我们读不懂但**原始字节是完整的**
+				// —— 克隆/改包名这类"不理解内容也要搬运"的场合照样能用。roundtrip 闸门仍会抓到它（写回会不一致）。
+				ParseError = ex.GetType().Name + ": " + ex.Message;
+			}
+		}
+
+		void ParseBody(BinaryReader stream)
+		{
 
 			SoundCode = stream.ReadSizedString();
 			int length = stream.ReadInt32();
