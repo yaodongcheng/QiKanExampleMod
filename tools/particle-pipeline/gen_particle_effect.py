@@ -319,9 +319,11 @@ class Emitter(object):
 
 
 def build(spec):
+    # 🔴 形状**逐字对齐原版**（Native/ModuleData/particle_systems_*.xml）：**带 UTF-8 BOM**、
+    #    **根节点前不放任何注释**、禁止物警告一律放**根节点之后**（XML 允许根元素后带注释）。
+    #    为什么：这份 XML 的最后一个消费者是**编辑器**（运行时读的是它发布出来的粒子包），
+    #    而原版 7 份粒子文件清一色是「BOM + 根节点前零注释」—— 少一个变量是一个（2026-09-24 改）。
     out = ['<?xml version="1.0" encoding="utf-8"?>']
-    out.append('<!-- 生成物 —— 禁止手改（铁律 22）。改效果请改 spec 并重跑：')
-    out.append('     python tools/particle-pipeline/gen_particle_effect.py <spec.py> -o <输出.xml> -->')
     out.append('<particle_effects>')
     for eff in spec:
         out.append('\t<effect')
@@ -335,6 +337,8 @@ def build(spec):
         out.append('\t\t</emitters>')
         out.append('\t</effect>')
     out.append('</particle_effects>')
+    out.append('<!-- 生成物 —— 禁止手改（铁律 22）。改效果请改 spec 并重跑：')
+    out.append('     python tools/particle-pipeline/gen_particle_effect.py <spec.py> -o <输出.xml> -->')
     return "\n".join(out) + "\n"
 
 
@@ -365,7 +369,8 @@ def main():
                     break
             return 1
 
-    io.open(args.out, "w", encoding="utf-8", newline="\n").write(xml)
+    # 🔴 `utf-8-sig` = 写 UTF-8 BOM（对齐原版粒子文件；理由见 build() 头部）
+    io.open(args.out, "w", encoding="utf-8-sig", newline="\n").write(xml)
 
     n_em = sum(len(e["emitters"]) for e in mod.EFFECTS)
     print("写出 %s" % args.out)

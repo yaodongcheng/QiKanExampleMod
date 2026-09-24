@@ -2,6 +2,38 @@
 
 > 路径相对 `ExampleModVS/ExampleMod/ExampleMod/`。这一卷管**演出/过场相机**（把镜头接管过来、按机位摆好）。
 
+## 🔴🔴 先认两台相机：引擎相机 vs 自定义相机（2026-09-24 立 · CLAUDE.md 铁律 35 的分卷细则）
+
+| | **引擎相机**（默认） | **自定义相机**（我们挂上去的） |
+|---|---|---|
+| 谁在用 | 原版战斗 / 大地图视角 | 接管方 = `Camera/SpringArmCameraView`（演出 + 跟随）· `Flight/FlightCameraRig`（飞行）· `Camera/CameraDebuggerView`（调试 UI） |
+| 判据 | `MissionScreen.CustomCamera == null` | `MissionScreen.CustomCamera != null` |
+| 鼠标 look | 引擎处理 ⇒ `CameraBearing` / `CameraElevation` **实时** | **引擎整段跳过**（`CheckForUpdateCamera` 只做 `FillParametersFrom` + 从**相机实体**取帧 + `SetCamera`）⇒ 那两个角度**冻在接管那一刻** |
+| 视线怎么取 | `Mat3.Identity` 绕 Up 转 `CameraBearing`、绕 Side 转 `CameraElevation`，取 **`.f`**（范本 `SpellPieces.CameraForward()`） | **问接管方自己**：飞行 = `FlightCameraRig.TryGetBasis(out forward, out right)`；演出 = 开演那一刻的机位口径 |
+| `Mission.GetCameraFrame()` | `.origin` 可读；🔴 **取方向一律别用它**（2026-09-24 日志实测基向量：`.f` 是**"上"**、`.u` 是**视线的反向**（≈ −视线）、`.s` 是右向）—— 要视线得写 `-rotation.u`，**极易再错一次** | `.origin` = **自定义相机的位置**（引擎每帧从它的实体填进去）⇒ 取位置/算距离没问题，**只有方向会错** |
+
+**铁则**：写任何"看向哪 / 朝哪算"的代码之前先问一句 —— **现在是谁在管相机？**
+接管中还用引擎角度 = 画面与计算脱钩。
+
+**✅ 代码侧唯一入口 = `Camera/CameraLook.cs`**（2026-09-24 立）：`CameraLook.TryGet(out forward)`
+—— 接管中自动问接管方（`ICameraLookProvider`；飞行 = `PlayerFlightBehavior` 已注册），没接管才用引擎算法；
+失败时**调用方回退**（身体朝向 / 保持上一帧），别猜一个值。已接的消费者：
+`SpellPieces.CastDirection`（法术/投射方向）· `Compass/CompassHud`（罗盘 yaw）。
+🔴 **那一条实机证据**（2026-09-24 日志实测相机帧基向量）：`.f` = **"上"**、`.u` = **视线的反向**、
+`.s` = 右向 ⇒ 想要视线得写 `-rotation.u`，**极易再错一次**，所以「取方向」一律别碰 `GetCameraFrame()`。
+
+**归还时也要管方向**：接管期间引擎角度是死的 ⇒ `CustomCamera = null` 之前必须把朝向写回引擎（飞行用反射写），否则归还瞬间镜头跳一下。
+
+**同一个坑的三次实机记录**（都写在这里，别再犯第四次）：
+
+| 时间 | 踩法 | 症状 |
+|---|---|---|
+| 2026-09-21 飞行 | `atan2(look.y, look.x)` 当 yaw（与 `RotateAboutUp` 差 90°） | 接管瞬间镜头横甩 90° |
+| 2026-09-21 飞行 | 拿 `GetCameraFrame().rotation.f` 当视线（那是"上"） | 按 W 不往前飞、一路窜到 **160 米天花板** |
+| 2026-09-24 法术 | 同上，拿 `rotation.f` 当施法方向 | 对天开火月牙**朝地飞**；改走 `CameraBearing/Elevation` 算法后日志四发逐一吻合 ✓ |
+| 2026-09-24 飞行中施法 | 接管期间直接读 `CameraBearing`（冻值） | 月牙会朝"接管那一刻看的方向"飞 ⇒ `CastDirection` 走飞行分支问 rig ✓ |
+| **2026-08-20 起就存在、09-24 才发现** | `Compass/CompassHud` 拿 `GetCameraFrame().rotation.f` 算罗盘 yaw（那是"上"向量） | 罗盘刻度带**低头/抬头时乱跳**、朝向读数不可信 ⇒ 已改走 `CameraLook.TryGet`（同一入口） |
+
 ## 🔴 弹簧臂相机（模板机位 + 跟随模式）— `Camera/`（2026-09-22 登记）
 
 **三个件**：

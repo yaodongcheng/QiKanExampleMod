@@ -296,6 +296,7 @@
     <!-- Camera -->
     <Compile Include="Camera\CameraDebuggerView.cs" />
     <Compile Include="Camera\CameraDebuggerVM.cs" />
+    <Compile Include="Camera\CameraLook.cs" />
     <Compile Include="Camera\SpringArmCameraDebuggerVM.cs" />
     <Compile Include="Camera\SpringArmCameraView.cs" />
     <Compile Include="Camera\SpringArmMath.cs" />

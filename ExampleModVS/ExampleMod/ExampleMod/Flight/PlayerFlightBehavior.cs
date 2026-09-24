@@ -46,9 +46,41 @@ namespace LivingWorldNpcs.Flight
     ///
     /// 🔴 载具只能逐帧瞬移（<c>SetFrame</c>）；用物理速度驱动 = 完全不托人（实测）。
     /// </summary>
-    public class PlayerFlightBehavior : MissionBehavior
+    public class PlayerFlightBehavior : MissionBehavior, ICameraLookProvider
     {
         public override MissionBehaviorType BehaviorType => MissionBehaviorType.Other;
+
+        /// <summary>
+        /// 本场景里的飞行行为（没挂 = null）。给**别的系统**查询用 —— 目前一个消费者：
+        /// 飞行中施法（<c>Combat/SpellCastInput</c> 要问"在飞吗"）。
+        /// 🔴 每个 <c>OnMissionTick</c> 开头重设一次（行为是新对象时也不会漏），<c>OnRemoveBehavior</c> 清掉。
+        /// </summary>
+        public static PlayerFlightBehavior Current { get; private set; }
+
+        /// <summary>
+        /// **相机中心方向**（= 玩家看见的准星方向）。飞行中它就是施法/飞行的方向。
+        /// 🔴 必须走这里、**不能读 `MissionScreen.CameraBearing/Elevation`** —— 我们接管相机后那两个值是**冻的**（同 <see cref="GetCameraBasis"/> 那段注释）。
+        /// </summary>
+        public bool TryGetAimForward(out Vec3 forward)
+        {
+            GetCameraBasis(out forward, out _);
+            return forward.LengthSquared > 1e-6f;
+        }
+
+        /// <summary>
+        /// <see cref="ICameraLookProvider"/> 的实现 ——
+        /// 相机归我们管时，**全项目要"相机看向哪"都从这里拿**（CLAUDE.md 铁律 35 的唯一入口
+        /// <see cref="CameraLook"/>）。没接管时返回 false，调用方回落引擎相机。
+        /// </summary>
+        bool ICameraLookProvider.TryGetLook(out Vec3 forward)
+        {
+            forward = Vec3.Zero;
+            if (!_camEntered || !_camRig.TryGetBasis(out forward, out _))
+            {
+                return false;
+            }
+            return forward.LengthSquared > 1e-6f;
+        }
 
         public PlayerFlightBehavior()
         {
@@ -168,6 +200,11 @@ namespace LivingWorldNpcs.Flight
             }
 
             _clock += dt;
+            Current = this;                 // 给别的系统查（飞行中施法要问"在飞吗"）
+            // 🔴 相机归我们管 ⇒ 向全项目登记"要视线找我"（铁律 35 的唯一入口）。
+            //    每帧同步一次（幂等）：接管/归还的所有路径都不用各自记得登记与注销。
+            CameraLook.Provider =
+                (_camEntered && _camRig.IsActive) ? this : null;
             FlightInput.Tick(dt);
             WatchPlayerDisplacement(main, dt);
 
@@ -261,6 +298,10 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>场景结束时兜底回收（ESC 直接退场景也不泄漏）。</summary>
         public override void OnRemoveBehavior()        {
+            if (Current == this)
+                Current = null;
+            if (CameraLook.Provider == this)
+                CameraLook.Provider = null;
             try
             {
                 AbortFlight();

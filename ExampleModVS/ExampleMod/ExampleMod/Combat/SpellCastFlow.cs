@@ -92,6 +92,12 @@ namespace LivingWorldNpcs
 				return false;
 			}
 
+			// 🔴 方向取证（玩家自己施法时每次一行）：见 SpellWorld.DescribeAimSources 的字段说明
+			if (mission.MainAgent == caster)
+			{
+				DebugLogger.Log($"[Spell] 方向对比（{spell.Id}）：{SpellWorld.DescribeAimSources(caster, direction)}");
+			}
+
 			// ① 瞄准轴：产出一张意图表（阶段 1 恒 1 条）
 			ISpellTargeting targeting = SpellTargetingRegistry.Get(spell.Targeting);
 			if (targeting == null)
