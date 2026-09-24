@@ -23,7 +23,8 @@ namespace TpacTool.Lib
 		[NotNull]
 		public string BlendMode { set; get; }
 
-		public uint Version { set; get; }
+		// 注意：与基类 AssetItem.Version 是两个独立字段（基类那个装 tpac 资源头版本，这个装材质元数据里的格式版本）
+		public new uint Version { set; get; }
 
 		public uint SubVersion { set; get; }
 		/*
