@@ -224,6 +224,32 @@ namespace TpacTool.Lib
 			public string S11 { set; get; }
 			public float F34 { set; get; }
 
+			/// <summary>
+			/// 🔴 写盘前的合法性闸门（2026-09-24 实机教训，栽了两次）：发射器里这 8 个 Vector4 槽，
+			/// 引擎按 <c>rglVec3</c> 读写 —— **第 4 位必须是 1.0**。填别的值，编辑器一打开当场断言崩：
+			/// <c>rglBuffer.cpp:899  nearly_equals(vector-&gt;w, 1.0f)  "Potential read/write miss match for rglVec3"</c>。
+			/// 同族的另一条：未知 int 字段（U*/I*）要当**枚举/索引**看，越界值会让 ModKit 直接起不来
+			/// （`rglAsset_package.h:589 Unable to serialize int value`）。
+			/// ⇒ **探针值、自造值一律先过这一关**，别再让"随手填的数"炸编辑器。
+			/// 详见 Knowledge/骑砍2粒子系统.md §12.5 坑 8 / 坑 9。
+			/// </summary>
+			public void Validate()
+			{
+				var vecs = new Tuple<string, Vector4>[]
+				{
+					Tuple.Create("V1", V1), Tuple.Create("V2", V2), Tuple.Create("V3", V3),
+					Tuple.Create("V4", V4), Tuple.Create("V5", V5), Tuple.Create("gravity", Gravity),
+					Tuple.Create("V7", V7), Tuple.Create("fixedBillboardDir", FixedBillboardDirection),
+				};
+				foreach (var kv in vecs)
+				{
+					if (Math.Abs(kv.Item2.W - 1.0f) > 1e-6f)
+						throw new InvalidDataException(
+							$"发射器 '{Name}' 的向量 {kv.Item1} 第 4 位 = {kv.Item2.W}（必须 1.0）—— " +
+							"引擎按 rglVec3 读写，填别的值编辑器会断言（rglBuffer.cpp:899）。");
+				}
+			}
+
 			public Emitter()
 			{
 				Name = String.Empty;

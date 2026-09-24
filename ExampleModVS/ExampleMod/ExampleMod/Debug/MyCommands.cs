@@ -1516,39 +1516,46 @@ namespace LivingWorldNpcs
         [CommandLineFunctionality.CommandLineArgumentFunction("ninja_report", "custom")]
         public static string ShowNinjaReport(List<string> strings)
         {
+            // 🔴 2026-09-24 修：原实现要求"恰好 2 个参数、名字在第 2 格"（`if (strings.Count == 2) name = strings[1]`），
+            //    —— 于是 `custom.ninja_report lwn_xxx`（1 个参数）会**静默回落到默认效果**，
+            //    实测把"巨石撞石"当成了被测粒子（用户 2026-09-24 实机白烟+碎石）。
+            //    现在按项目约定改：**首参可弃**（1 个参数时它就是名字；多个参数取最后一个），
+            //    且**把解析结果打进返回文字**（`id -1` = 未注册；`id >= 0` = 认得）—— 判读不再靠肉眼。
+            const string DefaultParticle = "psys_game_boulder_stone_coll";
 
-            string particleName = "psys_game_boulder_stone_coll";
-            if (strings.Count ==2 )
+            string requested = null;
+            if (strings != null && strings.Count >= 1)
             {
-                particleName = strings[1];
+                string last = strings[strings.Count - 1];
+                if (!string.IsNullOrWhiteSpace(last)) requested = last.Trim();
             }
 
-            
-
-            // 【关键步骤】将字符串名字转换为 int ID
+            string particleName = requested ?? DefaultParticle;
             int particleId = ParticleSystemManager.GetRuntimeIdByName(particleName);
-
-            // 调用你在代码中提供的 CreateBurstParticle 方法
-            // 注意：Mission.Current.Scene 就是你提供的 Scene 类的实例
-
-            Agent mainAgent = Mission.Current.MainAgent;
-            if (particleId != -1)
+            string note = $"[note: '{particleName}' -> id {particleId}]";
+            if (particleId == -1 && requested != null)
             {
-             //   InformationManager.DisplayMessage(new InformationMessage($"忍者smoke已召唤!{particleId}"));
-                Mission.Current.Scene.CreateBurstParticle(particleId, mainAgent.Frame);
+                particleId = ParticleSystemManager.GetRuntimeIdByName(DefaultParticle);
+                note = $"[note: '{requested}' NOT REGISTERED (id -1) -> fell back to '{DefaultParticle}' (id {particleId})]";
             }
-            
 
-
-
+            Agent mainAgent = Mission.Current?.MainAgent;
+            if (particleId != -1 && mainAgent != null)
+            {
+                try { Mission.Current.Scene.CreateBurstParticle(particleId, mainAgent.Frame); }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[NinjaReport] 生成粒子失败：{ex.GetType().Name} {ex.Message}");
+                    return "ERROR: CreateBurstParticle failed (see log) " + note;
+                }
+            }
 
             NinjaNotificationManager.Show("忍者报告!", () => {
                 // 这里写点击圆圈后要发生的事情
                 // 比如：Mission.Current.SpawnNinja(...);
-        //        InformationManager.DisplayMessage(new InformationMessage("忍者已召唤!"));
             });
 
-            return "success";
+            return "success " + note;
         }
 
 

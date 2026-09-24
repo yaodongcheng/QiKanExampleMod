@@ -24,6 +24,7 @@ string outDir = null;
 string format = "png";
 string mapping = null;
 bool mapsonly = false;
+bool allArg = false;     // animbones: 全量一行一条
 string dispArg = null;   // clipset: "X,Y,Z"
 string endArg = null;    // clipset: endProgress（可省）
 string durArg = null;    // clipduration: 新 Duration（秒），或 "auto"
@@ -45,6 +46,7 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--format": format = args[++i]; break;
             case "--mapping": mapping = args[++i]; break;
             case "--mapsonly": mapsonly = true; break;
+            case "--all": allArg = true; break;
             case "--disp": dispArg = cmdLine[++i]; break;
             case "--end": endArg = cmdLine[++i]; break;
             case "--duration": durArg = cmdLine[++i]; break;
@@ -301,6 +303,9 @@ switch (command)
         }
         return 0;
     }
+    case "animbones":
+        // 离线量「这条动画动了哪些骨」—— 筛"轨道里没写腿"的动画用（引擎没有按骨遮罩接口）
+        return AnimBones.Run(assets, byGuid, filter, allArg);
     case "clipinfo":
     {
         // AnimationClip 全字段速查：Duration / Source 区间 / Flags / ClipUsages（含 displacement 向量）

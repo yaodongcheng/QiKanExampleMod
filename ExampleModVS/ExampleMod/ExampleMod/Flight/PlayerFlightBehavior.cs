@@ -525,13 +525,16 @@ namespace LivingWorldNpcs.Flight
             //    末尾每帧一次 —— 因为起飞/落地期间也要跑（状态机在那两段负责维持动作 + 防被抢）。
             _anim.Hold = false;              // 空中态 = 允许自动转移
 
-            // ⑦′ 🔴 **施法期间守通道 0**（2026-09-24 用户裁定「只动上半身」）：
-            //    施法手势走**通道 1**（上身层，由 `SpellCastInput` 播），但实测**通道 1 一动，通道 0 的
-            //    全身动作会被引擎取消** ⇒ 腿失去飞行姿态（看着就是「下半身一起动了」）。
-            //    对策：施法期间每帧查一次通道 0，**空了就把当前飞行姿势补回去**
-            //    （`Reassert` = 重写一次、不重播计时；补回后腿保持飞行姿、上身仍是施法姿势）。
-            bool spellAiming = SpellCastInput.IsPlayerAiming;
-            if (spellAiming && FlightTuning.CastOnUpperChannel)
+            // ⑦′ 🔴 **守通道 0**（2026-09-24 立；当日晚改成**常开**）：
+            //    飞行姿势全在通道 0。实测「**往通道 1 发一条动作会把通道 0 清掉**」⇒ 腿失去飞行姿
+            //    （看着像"下半身一起动了"，其实腿是没人驱动了）。这里每帧查一次通道 0，空了就补回当前飞行姿势
+            //    （`Reassert` = 重写一次、不重播计时）。
+            //
+            //    🔴 原实现只在**我们自己施法**（`SpellCastInput.IsPlayerAiming`）期间守，于是
+            //    `custom.anim_ch 1 <原版动作>` 这类**手验根本不走这条路** —— 用户据此看到的"腿也变了"
+            //    **证明不了通道 1 有没有遮罩**（那一次通道 0 压根没人补）。现在改成只要在空中就一直守，
+            //    手验与施法走同一条路。开关 = `FlightTuning.GuardChannelZero`。
+            if (FlightTuning.GuardChannelZero)
             {
                 bool ch0Empty = true;
                 try { ch0Empty = main.GetCurrentAction(0) == ActionIndexCache.act_none; }
@@ -539,9 +542,9 @@ namespace LivingWorldNpcs.Flight
                 if (ch0Empty && _anim.Reassert(main, blend: 0.05f))
                 {
                     _castCh0Restores++;
-                    if (_castCh0Restores <= 3)
+                    if (_castCh0Restores <= 5)
                     {
-                        DebugLogger.Log($"[Flight] 通道 0 被施法挤掉，已补回飞行姿势（第 {_castCh0Restores} 次）");
+                        DebugLogger.Log($"[Flight] 通道 0 空了，已补回飞行姿势（第 {_castCh0Restores} 次）");
                     }
                 }
             }

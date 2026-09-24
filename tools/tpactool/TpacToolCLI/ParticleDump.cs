@@ -47,6 +47,15 @@ namespace TpacCli
             var filters = filter.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
             bool csv = filters.Contains("--csv");            // 机器可读：一个 emitter 一行，反射把所有字段倒出来
             if (csv) filters = filters.Where(f => f != "--csv").ToArray();
+            // --raw:<目录>：把**解压后的原始数据段**整个倒出来（一个粒子一个 <名字>.raw）。
+            // 用途：引擎/编辑器有比我们解析器更新的布局，读不懂时（emitter 数读成 0 之类）直接看字节、
+            // 或拿同一 effect 的两个版本逐偏移对比。2026-09-24：编辑器存过的粒子就是这个情况。
+            string rawDir = filters.FirstOrDefault(f => f.StartsWith("--raw:", StringComparison.Ordinal));
+            if (rawDir != null)
+            {
+                rawDir = rawDir.Substring("--raw:".Length);
+                filters = filters.Where(f => f != "--raw:" + rawDir).ToArray();
+            }
             int n = 0;
             foreach (var p in mgr.LoadedPackages)
             {
@@ -70,6 +79,14 @@ namespace TpacCli
                                       $"前置浮点 {d.UnknownFloats.Count} 个 | emitter {d.Emitters.Count} 个");
                     if (d.UnknownFloats.Count > 0)
                         Console.WriteLine("   UnknownFloats: " + string.Join(", ", d.UnknownFloats.Select(f => f.ToString("0.######"))));
+
+                    if (rawDir != null && d.RawData != null)
+                    {
+                        Directory.CreateDirectory(rawDir);
+                        string rp = Path.Combine(rawDir, item.Name + ".raw");
+                        File.WriteAllBytes(rp, d.RawData);
+                        Console.WriteLine($"   [raw dumped] {rp}  {d.RawData.Length:N0} 字节");
+                    }
 
                     for (int ei = 0; ei < d.Emitters.Count; ei++)
                     {
