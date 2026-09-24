@@ -167,8 +167,9 @@ anchor = hand + Vec3.Up * SpellCastInput.HandAnchorUpOffset;                   /
 | 蓄力 | `magic_idle`（55 帧 / 1.80 s） | `act_cast_charge` | 按住右键期间**循环**（`anf_cyclic`） |
 | 释放 | `magic_projectile_spell`（70 帧 / 2.30 s） | `act_cast_projectile` | 点左键播一次（出手帧 **36%**），播完自动收回 |
 
-- 🔴 **当前走通道 0（全身）**：手势由**飞行那台动画状态机**播（`FlightAnimMachine` 的 `castCharge` / `castRelease`，
-  行为喂 `SpellCastInput.IsPlayerAiming` 事实、释放那一拍 `Force`）。
+- 🔴 **当前：手势走通道 1（上身层）+ 飞行侧守通道 0**（用户要「只动上半身」）：`SpellCastInput` 播
+  `act_cast_charge`（循环）/ `act_cast_projectile`（一次性）在通道 1；`PlayerFlightBehavior` 每帧查通道 0，
+  被挤掉就 `Reassert` 补回飞行姿势。回退开关 `FlightTuning.CastOnUpperChannel = false`（走通道 0 全身版）。
 - 🔴 **通道 1 的真相（2026-09-24 结案）**：不是"只认原版 clip"，而是**要挑 clip 元数据** —— 导入的 clip 缺
   `Priority` / `Right hand pose` / `Blend out period` / `Flags.allow_head_movement` 四项 ⇒ 收下了不播、零报错；
   **照原版填上就通**（实机已播）。"只动上半身"仍待解决（引擎无每骨权重接口；剩两个 flag 未试；兜底 = 离线烘只含上身的 clip）。

@@ -526,6 +526,13 @@ namespace LivingWorldNpcs.Flight
         public static float CastReleaseSeconds = 2.33f;
 
         /// <summary>
+        /// 施法手势放**通道 1（上身层）**吗（默认 true —— 2026-09-24 用户要「只动上半身」）。
+        /// false = 退回旧行为（手势由飞行状态机的 castCharge / castRelease 两个状态走通道 0，全身施法姿势）。
+        /// 通道 1 靠 <c>PlayerFlightBehavior</c> 每帧守通道 0 来保住腿的飞行姿。
+        /// </summary>
+        public static bool CastOnUpperChannel = true;
+
+        /// <summary>
         /// 🔴 **闪避的触发方式（2026-09-22 用户裁定）**：**冲刺（按住 Shift）中短按空格 = 闪避**。
         /// 与"悬停 / 巡航中长按空格 = 持续下降"是两套手势，靠**状态 + 长 / 短按**区分。
         /// 关掉本开关 = 回到旧行为（冲刺中短按空格仍走"贴地 / 俯冲落地"那套判定）。
@@ -639,6 +646,7 @@ namespace LivingWorldNpcs.Flight
             BoostStartSeconds = 1.033f;
             DodgeClipSeconds = 1.867f;
             CastReleaseSeconds = 2.33f;
+            CastOnUpperChannel = true;
             DodgeOnSpaceTapInBoost = true;
             DodgeDistance = 8f;
             DodgeDisplaceSeconds = 0.4f;

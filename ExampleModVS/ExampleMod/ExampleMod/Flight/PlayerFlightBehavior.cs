@@ -124,7 +124,7 @@ namespace LivingWorldNpcs.Flight
         private string _lastAnimState;       // 上一帧的动画状态名（变了就弹一条提示；见 OnMissionTick）
         private bool _boardSpawned;          // 本次起飞：板是否已经召唤出来（延迟召唤用）
         private bool _headAimActive;         // 施法瞄准期间我们设过"头看相机"的 POI（退出时要撤掉，别留给别人）
-        private bool _wasSpellAiming;        // 上一帧是否在蓄力施法（取「释放」那一拍用）
+        private int _castCh0Restores;        // 施法期间「通道 0 被挤掉又补回」的次数（诊断用）
         private float _boardSpawnTimer;      // 本次起飞：从触发到召唤板过了多久
         private float _takeoffAnimTimer;     // 本次起飞：从按空格那一刻起算（入姿时长按它判，与板延迟重叠）
         private bool _freezeWarned;         // 冻结相关失败只报一次（防每帧刷屏）
@@ -525,16 +525,26 @@ namespace LivingWorldNpcs.Flight
             //    末尾每帧一次 —— 因为起飞/落地期间也要跑（状态机在那两段负责维持动作 + 防被抢）。
             _anim.Hold = false;              // 空中态 = 允许自动转移
 
-            // ⑦′ 施法手势的**释放那一拍**：从「正在蓄力」跌到「没在蓄力」= 玩家放出去了（或取消）。
-            //    走的是一次性 castRelease（这里 Force，与起飞/落地同一套路）。
-            //    ⚠️ 取消也会走这一拍（代价 = 松手也演一下投掷）。要区分「真发出」与「取消」，
-            //      得让施法侧再暴露一个标志（现在是共用 IsPlayerAiming 这一个事实）。
+            // ⑦′ 🔴 **施法期间守通道 0**（2026-09-24 用户裁定「只动上半身」）：
+            //    施法手势走**通道 1**（上身层，由 `SpellCastInput` 播），但实测**通道 1 一动，通道 0 的
+            //    全身动作会被引擎取消** ⇒ 腿失去飞行姿态（看着就是「下半身一起动了」）。
+            //    对策：施法期间每帧查一次通道 0，**空了就把当前飞行姿势补回去**
+            //    （`Reassert` = 重写一次、不重播计时；补回后腿保持飞行姿、上身仍是施法姿势）。
             bool spellAiming = SpellCastInput.IsPlayerAiming;
-            if (_wasSpellAiming && !spellAiming)
+            if (spellAiming && FlightTuning.CastOnUpperChannel)
             {
-                _anim.Force(main, "castRelease", 0.12f);
+                bool ch0Empty = true;
+                try { ch0Empty = main.GetCurrentAction(0) == ActionIndexCache.act_none; }
+                catch (Exception) { ch0Empty = false; }
+                if (ch0Empty && _anim.Reassert(main, blend: 0.05f))
+                {
+                    _castCh0Restores++;
+                    if (_castCh0Restores <= 3)
+                    {
+                        DebugLogger.Log($"[Flight] 通道 0 被施法挤掉，已补回飞行姿势（第 {_castCh0Restores} 次）");
+                    }
+                }
             }
-            _wasSpellAiming = spellAiming;
 
             // ⑧ 机身朝向（🔴 2026-09-21 用户裁定 = **朝实际移动方向**，见下）
             //    有输入 → 朝【实际移动方向】的水平投影：

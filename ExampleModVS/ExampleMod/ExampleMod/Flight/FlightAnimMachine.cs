@@ -108,22 +108,22 @@ namespace LivingWorldNpcs.Flight
             def.Add(AnimState.Once("dodgeD", FlightTuning.ActDodgeD, next: null,
                                    duration: FlightTuning.DodgeClipSeconds));
 
-            // ── 施法手势（2026-09-24 接；FCS 素材，换动作只改这里 + 内容包两行）──────────────
+            // ── 施法手势（2026-09-24；FCS 素材，换动作只改 FlightTuning + 内容包两行）──────────────
             //
-            // 🔴🔴 **为什么走通道 0，而不是"通道 1 = 只动上身"**（实机实测，别再重走一遍）：
-            //    通道 1 对**原版 clip** 有效（原版 `act_command_unarmed` 一放就出、还抢全身），
-            //    但对我们**自己导入的 clip**（飞行那 20 条 + FCS 这两条）**完全不动**。
-            //    包内元数据逐字节比过：我们的 clip 缺了原版 clip 自带的那几个字段
-            //    （偏移 28 / 84 的 int 与 ~96 的 float；末尾标志串原版是 `allow_head_movement`、我们是 `cyclic`）。
-            //    同一批 clip 走**通道 0 正常播**（`custom.do_anim` 验过）⇒ 结论 = **自管动画一律走通道 0**。
-            //    真要"只改上身"：① 离线合成（飞行姿势当基底 + 施法上身当增量，`tools/anim-retarget` 的 trf_compose）
-            //    ② 或在 ModKit 里把 clip 元数据逐项对齐原版。
+            // 🔴 **默认不由这里播**（`FlightTuning.CastOnUpperChannel = true`）：
+            //    用户要「只动上半身」⇒ 手势由 `SpellCastInput` 播在**通道 1（上身层）**，
+            //    通道 0 留给飞行姿势；而**通道 1 一动会把通道 0 的动作挤掉**，
+            //    所以 `PlayerFlightBehavior` 第 ⑦′ 条每帧守通道 0 —— 空了就把当前飞行姿势补回去
+            //    （`AgentAnimStateMachine.Reassert`）。这样腿是飞行姿、上身是施法姿势。
             //
-            // 姿态本身是**全身**的（FCS 的施法 idle 就是站姿）⇒ 通道 0 播它 = 蓄力那几秒全身换成施法姿势，
-            // 松手/取消后由普通转移回到飞行姿态。这是刻意取舍（腿不再保持飞行姿），比"什么都没有"强得多。
-            def.Add(AnimState.Loop("castCharge", FlightTuning.ActCastCharge));       // 蓄力循环
+            //    下面这两个状态是**回退档**（`CastOnUpperChannel = false` 时才由边进）：
+            //    走通道 0 播全身施法姿势 —— 通道 1 那条路若在实机上不成立，把开关关掉即可退回。
+            //
+            // ⚠️ 通道 1 的"收下了不播"根因是 **clip 元数据**（Priority / Right hand pose / Blend out period /
+            //    Flags.allow_head_movement），已在编辑器修好并发布 —— 见计划 §A4，别再往引擎上赖。
+            def.Add(AnimState.Loop("castCharge", FlightTuning.ActCastCharge));       // 蓄力循环（回退档）
             def.Add(AnimState.Once("castRelease", FlightTuning.ActCastProjectile, next: null,
-                                   duration: FlightTuning.CastReleaseSeconds));    // 释放（由行为 Force 进）
+                                   duration: FlightTuning.CastReleaseSeconds));    // 释放（回退档）
 
             // ── 转移：**顺序 = 优先级**（写在上面先判；第一条命中的生效）─────────────
             //
@@ -148,7 +148,9 @@ namespace LivingWorldNpcs.Flight
             def.Edge("*", "dashStart", c => C(c).BoostJustPressed && C(c).Moving);
             // 🔴 **施法压过一切**（第一条命中的边生效 ⇒ 写在最前面）：蓄力期间身体换成施法姿势，
             //    压弯/俯仰/巡航全让位；蓄力一结束（松右键取消 / 放手）这条边自然不成立，回到原姿态。
-            def.Edge("*", "castCharge", c => C(c).SpellCharging, blend: 0.15f);
+            def.Edge("*", "castCharge", c => C(c).SpellCharging && !FlightTuning.CastOnUpperChannel, blend: 0.15f);
+            //    ⚠️ `CastOnUpperChannel = true`（默认）时这条边不成立 —— 手势由 `SpellCastInput` 播在**通道 1**，
+            //       通道 0 留给飞行姿势（飞行侧每帧守通道 0，见 PlayerFlightBehavior 第 ⑦′ 条）。
             // ③ 冲刺家（趴姿）：压弯优先于俯仰（两个同时成立时先出压弯）
             //    ⚠️ 符号口径：BankBand = −1 是**按 A（左移）** ⇒ 出 leanL；+1 是按 D ⇒ 出 leanR。
             //       左右接反了就交换下面两行（真机一眼能看出来）。
