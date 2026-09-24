@@ -11,6 +11,11 @@ T3D 是 UE 原生文本序列化格式，含：节点图(FunctionScript/PinName)
   BM_T3D_OUT   输出目录 (默认 D:/BrainMaker/骑砍2粒子特效复刻/output/t3d)
   BM_T3D_PATH  扫描根   (默认 /Game/FlexibleCombatSystem/VFX)
 """
+
+# 🔴 已退役（2026-09-24 合并）：T3D 导出/解析统一到 tools/ue-dissect/
+#    · 导出改用：tools/ue-dissect/export_t3d.py（全量，含 Cascade，是超集）
+#    · 本文件保留仅作历史记录；t3d_parse.py 已改为读 ue-dissect 的产物（paths.t3d_src()）
+
 import unreal, os, traceback
 
 # 🔴 本文件**故意不 import paths**：它是四段管线里唯一跑在 **UE 自带 python** 里的，

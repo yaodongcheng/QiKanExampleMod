@@ -11,6 +11,17 @@
 
 ---
 
+## 🔴 上游数据来源（2026-09-24 合并后）
+
+| 段 | 归谁 | 说明 |
+|---|---|---|
+| UE 资产 → T3D 文本 | **`tools/ue-dissect/`** | `export_t3d.py` 全量导出（本管线的 `pipeline/export_t3d_all.py` 已退役） |
+| T3D → 结构化数据 | **`tools/ue-dissect/t3d_tools.py`** | 底座：`walk_compat`（对象树）/ `decode_rapid_iteration`（常量解码）。`pipeline/t3d_parse.py` 只保留「→ 本管线 schema」的领域投影 |
+| T3D → 骑砍 XML | 本管线 | `ue2bannerlord.py`（映射）/ `gen_particle_effect.py`（生成）/ `validate_xml.py`（硬校验）/ `preview/`（three.js） |
+
+数据源解析见 `paths.t3d_src()`：**优先用 ue-dissect 的 `Debug/offline/fcs_dump/out/t3d/vfx/`（超集 + 含 Cascade）**，没有才退回本管线自己的 `output/t3d`。可用 `BM_T3D_SRC` 显式指定。
+合并验证（2026-09-24）：同一批 99 个 effect，**旧输入与新输入生成的 XML 逐字节一致**；重跑 99 文件 / 685 emitter，硬校验 0 问题。
+
 ## 1. 🔴 两根 + junction（先读这条，否则跑不起来）
 
 ```
@@ -52,8 +63,7 @@ python H:\...\tools\particle-pipeline\pipeline\t3d_parse.py   # ② 仓库侧入
 ```
 
 > 换机器 / 换盘符：设环境变量 `BM_PARTICLE_ROOT`，或改 `paths.py` 里那一行，**不用动任何脚本**。
-> 唯一的例外是 `pipeline/export_t3d_all.py` —— 它跑在 **UE 自带 python** 里，那边 `sys.path` 不可控，
-> 所以它故意不 import `paths`，两根写死在文件头（有注释说明）。
+> （UE 侧导出已不在这条管线里 —— 统一到 `tools/ue-dissect/export_t3d.py`，见上方「上游数据来源」。）
 
 ---
 
@@ -68,12 +78,13 @@ python H:\...\tools\particle-pipeline\pipeline\t3d_parse.py   # ② 仓库侧入
 ```bash
 cd /d D:\BrainMaker\骑砍2粒子特效复刻
 
-# ① UE 编辑器无头导出 T3D（只在 UE 资产变动时重跑；约 6 分钟）
-MSYS_NO_PATHCONV=1 "D:/UNREAL/UE_4.27/Engine/Binaries/Win64/UE4Editor.exe" \
+# ① UE 编辑器无头导出 T3D（只在 UE 资产变动时重跑）—— 脚本已统一到 tools/ue-dissect/export_t3d.py
+MSYS_NO_PATHCONV=1 "D:/UNREAL/UE_4.27/Engine/Binaries/Win64/UE4Editor-Cmd.exe" \
   "D:/UEProjects/【UE5】FlexibleCombatSystem/FlexibleCombatSystem.uproject" \
-  -run=pythonscript -script="D:/BrainMaker/骑砍2粒子特效复刻/pipeline/export_t3d_all.py" \
+  -run=pythonscript -script="exec(open(r'<仓库>/tools/ue-dissect/export_t3d.py', encoding='utf-8-sig').read())" \
   -unattended -nosplash -nullrhi -stdout
-#   别看退出码（引擎把 warning 记成 error）；看 output/t3d/*.t3d 在不在
+#   产物落 <仓库>/Debug/offline/fcs_dump/out/t3d/vfx/（150 个，含 Cascade）
+#   别看退出码（引擎把 warning 记成 error）；看 T3D 文件在不在
 
 python pipeline\t3d_parse.py            # ② T3D -> JSON          -> output/parsed/
 python pipeline\ue2bannerlord.py output\parsed\*.json   # ③ JSON -> spec -> XML -> output/xml/
@@ -392,8 +403,8 @@ Chrome 在 Windows 是 GUI 子系统程序，**必须 `Start-Process -Wait` 才�
 |---|---|
 | [paths.py](paths.py) | **两根定位**（TOOL/DATA）+ `TEX_DIR`；唯一允许写绝对路径的地方 |
 | [gen_particle_effect.py](gen_particle_effect.py) | **生成器**：spec → 完整 XML（补全 21 flag + 55 param）。原在 `Scripts/`，2026-09-20 搬来 |
-| `pipeline/export_t3d_all.py` | ① UE 侧导出 T3D（跑在 UE python 里，两根写死） |
-| `pipeline/t3d_parse.py` | ② T3D → JSON（Niagara RapidIterationParameters 字节解码 / Cascade 分布） |
+| ~~`pipeline/export_t3d_all.py`~~ | 🔴 **已退役（2026-09-24）**：UE 侧导出统一到 `tools/ue-dissect/export_t3d.py` |
+| `pipeline/t3d_parse.py` | ② T3D → JSON（**领域投影层**；解析底座 = `tools/ue-dissect/t3d_tools.py` 的 `walk_compat` / `decode_rapid_iteration`） |
 | `pipeline/ue2bannerlord.py` | ③ JSON → spec → XML（单位/材质/图集/朝向的映射规则都在这） |
 | `pipeline/validate_xml.py` | ④ 硬校验（格式定长约束 + 材质白名单） |
 | `pipeline/export_spell_table.py` | ⑤ **技能表导出**（UE 侧）：`DT_SpellsInfo` → JSON —— 回答「每个特效是哪个技能在用」 |
