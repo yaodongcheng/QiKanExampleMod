@@ -1,26 +1,11 @@
 {
  "meta": {
   "total": 280,
-  "source_csv": "UEAnims/anim_inventory/骑砍2动作精简清单.csv",
-  "generated": "2026-09-18 22:40",
-  "note": "mode=ground 为逐帧贴地烘焙；mode=src 为复制源骨盆位移烘焙（跳跃/翻越/倒地等）"
+  "source_csv": "input/inventory/骑砍2动作精简清单.csv",
+  "generated": "2026-09-24 16:22",
+  "note": "mode=ground 为逐帧贴地烘焙；mode=src 为复制源骨盆位移烘焙（跳跃/翻越/倒地等）。筛选只保留「动作功能」；优先级与武器/来源两列已停用（见 make_manifest.py 注释）。"
  },
- "P0": 132,
- "P1": 148,
  "groups": {
-  "prio": [
-   "P0",
-   "P1"
-  ],
-  "weapon": [
-   "CMU",
-   "剑/单手",
-   "弓",
-   "掩体",
-   "特殊技",
-   "通用",
-   "通用·徒手"
-  ],
   "func": [
    "A10_攀爬/潜行",
    "A1_行走",
@@ -66,8 +51,6 @@
  },
  "clips": {
   "079_49": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A10_攀爬/潜行",
    "pack": "1-CMU动捕",
    "desc": "monkey",
@@ -75,8 +58,6 @@
    "mode": "src"
   },
   "143_41": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A10_攀爬/潜行",
    "pack": "1-CMU动捕",
    "desc": "Sneak",
@@ -84,8 +65,6 @@
    "mode": "src"
   },
   "002_01": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A1_行走",
    "pack": "1-CMU动捕",
    "desc": "walk",
@@ -93,8 +72,6 @@
    "mode": "ground"
   },
   "002_02": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A1_行走",
    "pack": "1-CMU动捕",
    "desc": "walk",
@@ -102,8 +79,6 @@
    "mode": "ground"
   },
   "009_01": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A2_奔跑/冲刺",
    "pack": "1-CMU动捕",
    "desc": "run",
@@ -111,8 +86,6 @@
    "mode": "ground"
   },
   "009_02": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A2_奔跑/冲刺",
    "pack": "1-CMU动捕",
    "desc": "run",
@@ -120,8 +93,6 @@
    "mode": "ground"
   },
   "076_10": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A3_转向/横移",
    "pack": "1-CMU动捕",
    "desc": "turning",
@@ -129,8 +100,6 @@
    "mode": "ground"
   },
   "102_29": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A3_转向/横移",
    "pack": "1-CMU动捕",
    "desc": "Pivoting",
@@ -138,8 +107,6 @@
    "mode": "ground"
   },
   "013_39": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A5_跳跃/腾空",
    "pack": "1-CMU动捕",
    "desc": "jump",
@@ -147,8 +114,6 @@
    "mode": "src"
   },
   "013_40": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A5_跳跃/腾空",
    "pack": "1-CMU动捕",
    "desc": "jump",
@@ -156,8 +121,6 @@
    "mode": "src"
   },
   "079_02": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A6_闪避/翻滚",
    "pack": "1-CMU动捕",
    "desc": "swimming",
@@ -165,8 +128,6 @@
    "mode": "src"
   },
   "079_03": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A6_闪避/翻滚",
    "pack": "1-CMU动捕",
    "desc": "swimming",
@@ -174,8 +135,6 @@
    "mode": "src"
   },
   "120_15": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A8_起身/站起",
    "pack": "1-CMU动捕",
    "desc": "Mickey Surprised",
@@ -183,8 +142,6 @@
    "mode": "src"
   },
   "120_16": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "A8_起身/站起",
    "pack": "1-CMU动捕",
    "desc": "Mickey Surprised",
@@ -192,8 +149,6 @@
    "mode": "src"
   },
   "111_38": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B1_待机",
    "pack": "1-CMU动捕",
    "desc": "Yoga",
@@ -201,8 +156,6 @@
    "mode": "ground"
   },
   "111_39": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B1_待机",
    "pack": "1-CMU动捕",
    "desc": "Yoga",
@@ -210,8 +163,6 @@
    "mode": "ground"
   },
   "111_37": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B2_对话交谈",
    "pack": "1-CMU动捕",
    "desc": "Wave",
@@ -219,8 +170,6 @@
    "mode": "ground"
   },
   "113_27": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B2_对话交谈",
    "pack": "1-CMU动捕",
    "desc": "Wave",
@@ -228,8 +177,6 @@
    "mode": "ground"
   },
   "079_71": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B3_表情情绪",
    "pack": "1-CMU动捕",
    "desc": "sad",
@@ -237,8 +184,6 @@
    "mode": "ground"
   },
   "142_15": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B3_表情情绪",
    "pack": "1-CMU动捕",
    "desc": "Sad",
@@ -246,8 +191,6 @@
    "mode": "ground"
   },
   "111_14": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B4_日常交互",
    "pack": "1-CMU动捕",
    "desc": "Mope",
@@ -255,8 +198,6 @@
    "mode": "ground"
   },
   "141_27": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B4_日常交互",
    "pack": "1-CMU动捕",
    "desc": "Mope",
@@ -264,8 +205,6 @@
    "mode": "ground"
   },
   "075_18": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B5_坐/躺/跪",
    "pack": "1-CMU动捕",
    "desc": "high sit",
@@ -273,8 +212,6 @@
    "mode": "ground"
   },
   "075_20": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "B5_坐/躺/跪",
    "pack": "1-CMU动捕",
    "desc": "low sit",
@@ -282,8 +219,6 @@
    "mode": "ground"
   },
   "002_07": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "C1_剑/单手武器",
    "pack": "1-CMU动捕",
    "desc": "swordplay",
@@ -291,8 +226,6 @@
    "mode": "ground"
   },
   "002_08": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "C1_剑/单手武器",
    "pack": "1-CMU动捕",
    "desc": "swordplay",
@@ -300,26 +233,20 @@
    "mode": "ground"
   },
   "111_02": {
-   "prio": "P0",
-   "weapon": "CMU",
-   "func": "C2_弓/远程",
+   "func": "社交交互",
    "pack": "1-CMU动捕",
    "desc": "Bow",
    "path": "/Game/MocapCMU-InPlace/111_02",
    "mode": "ground"
   },
   "113_02": {
-   "prio": "P0",
-   "weapon": "CMU",
-   "func": "C2_弓/远程",
+   "func": "社交交互",
    "pack": "1-CMU动捕",
    "desc": "Bow",
    "path": "/Game/MocapCMU-InPlace/113_02",
    "mode": "ground"
   },
   "074_03": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "C3_徒手格斗",
    "pack": "1-CMU动捕",
    "desc": "kick",
@@ -327,8 +254,6 @@
    "mode": "ground"
   },
   "074_04": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "C3_徒手格斗",
    "pack": "1-CMU动捕",
    "desc": "kick",
@@ -336,8 +261,6 @@
    "mode": "ground"
   },
   "090_16": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "D2_死亡/倒地",
    "pack": "1-CMU动捕",
    "desc": "fall on face",
@@ -345,8 +268,6 @@
    "mode": "src"
   },
   "090_18": {
-   "prio": "P0",
-   "weapon": "CMU",
    "func": "D2_死亡/倒地",
    "pack": "1-CMU动捕",
    "desc": "RugPullFall",
@@ -354,8 +275,6 @@
    "mode": "src"
   },
   "Anim_CS_SP": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -363,8 +282,6 @@
    "mode": "ground"
   },
   "Anim_CS_GH_B_01": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -372,8 +289,6 @@
    "mode": "src"
   },
   "Anim_CS_KD_F": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -381,8 +296,6 @@
    "mode": "src"
   },
   "Anim_CS_KD_getB": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -390,8 +303,6 @@
    "mode": "src"
   },
   "Anim_CSST": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -399,8 +310,6 @@
    "mode": "ground"
   },
   "Anim_CS_cLEse_ST": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -408,8 +317,6 @@
    "mode": "ground"
   },
   "Anim_CSATLI_01_DE": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -417,8 +324,6 @@
    "mode": "ground"
   },
   "Anim_CSATLI_02_DE": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -426,8 +331,6 @@
    "mode": "ground"
   },
   "Anim_CSATLI_03_DE": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -435,8 +338,6 @@
    "mode": "ground"
   },
   "Anim_IN_SW_floor_ST": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -444,8 +345,6 @@
    "mode": "ground"
   },
   "Anim_IN_cut_TR_E": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -453,8 +352,6 @@
    "mode": "ground"
   },
   "Anim_CSBLST": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -462,8 +359,6 @@
    "mode": "ground"
   },
   "Anim_CSST_to_SP": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -471,8 +366,6 @@
    "mode": "ground"
   },
   "Anim_CS_CR_W": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -480,8 +373,6 @@
    "mode": "ground"
   },
   "Anim_CS_EQ": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "装备收起",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -489,8 +380,6 @@
    "mode": "ground"
   },
   "Anim_CS_unEQ": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "装备收起",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -498,8 +387,6 @@
    "mode": "ground"
   },
   "Anim_CS_JU_in_PL": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -507,8 +394,6 @@
    "mode": "src"
   },
   "Anim_CS_JU_land": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -516,8 +401,6 @@
    "mode": "src"
   },
   "Anim_CS_JU_land_hard": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -525,8 +408,6 @@
    "mode": "src"
   },
   "Anim_CS_R_TURN_180_L": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -534,8 +415,6 @@
    "mode": "ground"
   },
   "Anim_CS_R_TURN_180_R": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -543,8 +422,6 @@
    "mode": "ground"
   },
   "Anim_CS_DODGE_B": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -552,8 +429,6 @@
    "mode": "src"
   },
   "Anim_CS_DODGE_F": {
-   "prio": "P0",
-   "weapon": "剑/单手",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -561,8 +436,6 @@
    "mode": "src"
   },
   "Anim_BOW_SP": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -570,8 +443,6 @@
    "mode": "ground"
   },
   "Anim_BOW_GH_B_01": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -579,8 +450,6 @@
    "mode": "src"
   },
   "Anim_BOW_KD_F": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -588,8 +457,6 @@
    "mode": "src"
   },
   "Anim_BOW_KD_get_up": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -597,8 +464,6 @@
    "mode": "src"
   },
   "Anim_BOW_aim_ST_up": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "弓箭流程",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -606,8 +471,6 @@
    "mode": "ground"
   },
   "Anim_BOW_draw_DWN": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "弓箭流程",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -615,8 +478,6 @@
    "mode": "ground"
   },
   "Anim_BOW_draw_up": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "弓箭流程",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -624,8 +485,6 @@
    "mode": "ground"
   },
   "Anim_BOW_cLEse_ST": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -633,8 +492,6 @@
    "mode": "ground"
   },
   "Anim_CR_BOWST_toST_BOW": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -642,8 +499,6 @@
    "mode": "ground"
   },
   "Anim_EM_BOW_PT_01": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -651,8 +506,6 @@
    "mode": "ground"
   },
   "Anim_EM_BOW_call_01": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -660,8 +513,6 @@
    "mode": "ground"
   },
   "Anim_BOWST": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -669,8 +520,6 @@
    "mode": "ground"
   },
   "Anim_BOWST_to_SP": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -678,8 +527,6 @@
    "mode": "ground"
   },
   "Anim_CR_BOW_W": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -687,8 +534,6 @@
    "mode": "ground"
   },
   "Anim_BOW_EQ": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "装备收起",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -696,8 +541,6 @@
    "mode": "ground"
   },
   "Anim_BOW_unEQ": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "装备收起",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -705,8 +548,6 @@
    "mode": "ground"
   },
   "Anim_BOW_JU_in_PL": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -714,8 +555,6 @@
    "mode": "src"
   },
   "Anim_BOW_JU_land": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -723,8 +562,6 @@
    "mode": "src"
   },
   "Anim_BOW_JU_land_hard": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -732,8 +569,6 @@
    "mode": "src"
   },
   "Anim_BOW_R_TURN_180_L": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -741,8 +576,6 @@
    "mode": "ground"
   },
   "Anim_BOW_R_TURN_180_R": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -750,8 +583,6 @@
    "mode": "ground"
   },
   "Anim_BOW_DODGE_B": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -759,8 +590,6 @@
    "mode": "src"
   },
   "Anim_BOW_DODGE_F": {
-   "prio": "P0",
-   "weapon": "弓",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -768,8 +597,6 @@
    "mode": "src"
   },
   "Anim_RA_IDL_01": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -777,8 +604,6 @@
    "mode": "ground"
   },
   "Anim_RA_IDL_02": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -786,8 +611,6 @@
    "mode": "ground"
   },
   "Anim_RAST": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -795,8 +618,6 @@
    "mode": "ground"
   },
   "Anim_RAST_to_W": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -804,8 +625,6 @@
    "mode": "ground"
   },
   "Anim_RA_W": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -813,8 +632,6 @@
    "mode": "ground"
   },
   "Anim_RA_W_FWD_toST_L": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -822,8 +639,6 @@
    "mode": "ground"
   },
   "Anim_RA_W_FWD_toST_R": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -831,8 +646,6 @@
    "mode": "ground"
   },
   "Anim_RA_W_TURN_180_L": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -840,8 +653,6 @@
    "mode": "ground"
   },
   "Anim_RA_W_TURN_180_R": {
-   "prio": "P0",
-   "weapon": "掩体",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -849,8 +660,6 @@
    "mode": "ground"
   },
   "Anim_OFail": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -858,8 +667,6 @@
    "mode": "ground"
   },
   "Anim_BileCh_KO": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -867,8 +674,6 @@
    "mode": "src"
   },
   "Anim_DeathPL": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -876,8 +681,6 @@
    "mode": "src"
   },
   "Anim_Fwd_KO": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -885,8 +688,6 @@
    "mode": "src"
   },
   "Anim_Bl_ST": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -894,8 +695,6 @@
    "mode": "ground"
   },
   "Anim_Bl__ST": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -903,8 +702,6 @@
    "mode": "ground"
   },
   "Anim_BallKick_1": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -912,8 +709,6 @@
    "mode": "ground"
   },
   "Anim_DH_Attack": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -921,8 +716,6 @@
    "mode": "ground"
   },
   "Anim_T_Attack_1": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -930,8 +723,6 @@
    "mode": "ground"
   },
   "Anim_BP": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "特殊技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -939,8 +730,6 @@
    "mode": "src"
   },
   "Anim_BPAIR_W": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -948,8 +737,6 @@
    "mode": "ground"
   },
   "Anim_L_Run": {
-   "prio": "P0",
-   "weapon": "特殊技",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -957,8 +744,6 @@
    "mode": "ground"
   },
   "Anim_CR_E": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -966,8 +751,6 @@
    "mode": "ground"
   },
   "Anim_DU_E_GR": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -975,8 +758,6 @@
    "mode": "src"
   },
   "Anim_KD_get_up": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -984,8 +765,6 @@
    "mode": "src"
   },
   "Anim_dEAh_CO": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -993,8 +772,6 @@
    "mode": "src"
   },
   "Anim_Fall_1": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "坠落",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1002,8 +779,6 @@
    "mode": "src"
   },
   "Anim_CR_ST": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1011,8 +786,6 @@
    "mode": "ground"
   },
   "Anim_Idle1": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1020,8 +793,6 @@
    "mode": "ground"
   },
   "Anim_CR_COAttack_Anim": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1029,8 +800,6 @@
    "mode": "ground"
   },
   "Anim_T_": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "特殊技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1038,8 +807,6 @@
    "mode": "src"
   },
   "Anim_EM_CO": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1047,8 +814,6 @@
    "mode": "ground"
   },
   "Anim_EM_FL": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1056,8 +821,6 @@
    "mode": "ground"
   },
   "Anim_Run1": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1065,8 +828,6 @@
    "mode": "ground"
   },
   "Anim_W1": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1074,8 +835,6 @@
    "mode": "ground"
   },
   "Anim_WS": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1083,8 +842,6 @@
    "mode": "ground"
   },
   "Anim_H": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1092,8 +849,6 @@
    "mode": "src"
   },
   "Anim_J2": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1101,8 +856,6 @@
    "mode": "src"
   },
   "Anim_JUB": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1110,8 +863,6 @@
    "mode": "src"
   },
   "Anim_TA_N_L_TURN_body_L": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1119,8 +870,6 @@
    "mode": "ground"
   },
   "Anim_TA_N_L_TURN_body_R": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1128,8 +877,6 @@
    "mode": "ground"
   },
   "Anim_Sw": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1137,8 +884,6 @@
    "mode": "src"
   },
   "Anim_VUp": {
-   "prio": "P0",
-   "weapon": "通用",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1146,8 +891,6 @@
    "mode": "src"
   },
   "Anim_TH_E": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1155,8 +898,6 @@
    "mode": "ground"
   },
   "Anim_CRST_toST": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1164,8 +905,6 @@
    "mode": "ground"
   },
   "Anim_TH_ST": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1173,8 +912,6 @@
    "mode": "ground"
   },
   "Anim_IN_FI_EX_E": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1182,8 +919,6 @@
    "mode": "ground"
   },
   "Anim_IN_FI_EX_ST": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1191,8 +926,6 @@
    "mode": "ground"
   },
   "Anim_CR_W": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1200,8 +933,6 @@
    "mode": "ground"
   },
   "Anim_SP": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1209,8 +940,6 @@
    "mode": "ground"
   },
   "Anim_W": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1218,8 +947,6 @@
    "mode": "ground"
   },
   "Anim_R_TURN_180_L": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1227,8 +954,6 @@
    "mode": "ground"
   },
   "Anim_R_TURN_180_R": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1236,8 +961,6 @@
    "mode": "ground"
   },
   "Anim_DODGE_B": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1245,8 +968,6 @@
    "mode": "src"
   },
   "Anim_DODGE_F": {
-   "prio": "P0",
-   "weapon": "通用·徒手",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1254,8 +975,6 @@
    "mode": "src"
   },
   "080_54": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A10_攀爬/潜行",
    "pack": "1-CMU动捕",
    "desc": "monkey",
@@ -1263,8 +982,6 @@
    "mode": "src"
   },
   "111_03": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A10_攀爬/潜行",
    "pack": "1-CMU动捕",
    "desc": "Crawling",
@@ -1272,8 +989,6 @@
    "mode": "src"
   },
   "139_29": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A10_攀爬/潜行",
    "pack": "1-CMU动捕",
    "desc": "Sneaking",
@@ -1281,8 +996,6 @@
    "mode": "src"
   },
   "142_22": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A10_攀爬/潜行",
    "pack": "1-CMU动捕",
    "desc": "Sneaky",
@@ -1290,8 +1003,6 @@
    "mode": "src"
   },
   "005_01": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A1_行走",
    "pack": "1-CMU动捕",
    "desc": "walk",
@@ -1299,8 +1010,6 @@
    "mode": "ground"
   },
   "006_01": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A1_行走",
    "pack": "1-CMU动捕",
    "desc": "walk",
@@ -1308,8 +1017,6 @@
    "mode": "ground"
   },
   "007_01": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A1_行走",
    "pack": "1-CMU动捕",
    "desc": "walk",
@@ -1317,8 +1024,6 @@
    "mode": "ground"
   },
   "007_02": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A1_行走",
    "pack": "1-CMU动捕",
    "desc": "walk",
@@ -1326,8 +1031,6 @@
    "mode": "ground"
   },
   "009_03": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A2_奔跑/冲刺",
    "pack": "1-CMU动捕",
    "desc": "run",
@@ -1335,8 +1038,6 @@
    "mode": "ground"
   },
   "009_04": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A2_奔跑/冲刺",
    "pack": "1-CMU动捕",
    "desc": "run",
@@ -1344,8 +1045,6 @@
    "mode": "ground"
   },
   "009_05": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A2_奔跑/冲刺",
    "pack": "1-CMU动捕",
    "desc": "run",
@@ -1353,8 +1052,6 @@
    "mode": "ground"
   },
   "009_06": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A2_奔跑/冲刺",
    "pack": "1-CMU动捕",
    "desc": "run",
@@ -1362,8 +1059,6 @@
    "mode": "ground"
   },
   "085_15": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A3_转向/横移",
    "pack": "1-CMU动捕",
    "desc": "90TwistsFall",
@@ -1371,8 +1066,6 @@
    "mode": "ground"
   },
   "102_02": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A3_转向/横移",
    "pack": "1-CMU动捕",
    "desc": "LeftWideTurn",
@@ -1380,8 +1073,6 @@
    "mode": "ground"
   },
   "120_01": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A3_转向/横移",
    "pack": "1-CMU动捕",
    "desc": "Alien Turn",
@@ -1389,8 +1080,6 @@
    "mode": "ground"
   },
   "141_12": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A3_转向/横移",
    "pack": "1-CMU动捕",
    "desc": "Dance, Twist",
@@ -1398,8 +1087,6 @@
    "mode": "ground"
   },
   "013_41": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A5_跳跃/腾空",
    "pack": "1-CMU动捕",
    "desc": "jump",
@@ -1407,8 +1094,6 @@
    "mode": "src"
   },
   "013_42": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A5_跳跃/腾空",
    "pack": "1-CMU动捕",
    "desc": "jump",
@@ -1416,8 +1101,6 @@
    "mode": "src"
   },
   "016_01": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A5_跳跃/腾空",
    "pack": "1-CMU动捕",
    "desc": "jump",
@@ -1425,8 +1108,6 @@
    "mode": "src"
   },
   "016_02": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A5_跳跃/腾空",
    "pack": "1-CMU动捕",
    "desc": "jump",
@@ -1434,8 +1115,6 @@
    "mode": "src"
   },
   "080_72": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A6_闪避/翻滚",
    "pack": "1-CMU动捕",
    "desc": "swimming",
@@ -1443,8 +1122,6 @@
    "mode": "src"
   },
   "090_08": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A6_闪避/翻滚",
    "pack": "1-CMU动捕",
    "desc": "side flip",
@@ -1452,8 +1129,6 @@
    "mode": "src"
   },
   "090_34": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A6_闪避/翻滚",
    "pack": "1-CMU动捕",
    "desc": "wide leg roll",
@@ -1461,8 +1136,6 @@
    "mode": "src"
   },
   "111_21": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A6_闪避/翻滚",
    "pack": "1-CMU动捕",
    "desc": "Roll over",
@@ -1470,8 +1143,6 @@
    "mode": "src"
   },
   "111_09": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A8_起身/站起",
    "pack": "1-CMU动捕",
    "desc": "Get up from chair",
@@ -1479,8 +1150,6 @@
    "mode": "src"
   },
   "111_10": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A8_起身/站起",
    "pack": "1-CMU动捕",
    "desc": "get up from chair",
@@ -1488,8 +1157,6 @@
    "mode": "src"
   },
   "140_01": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A8_起身/站起",
    "pack": "1-CMU动捕",
    "desc": "Get Up Face Down",
@@ -1497,8 +1164,6 @@
    "mode": "src"
   },
   "140_02": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "A8_起身/站起",
    "pack": "1-CMU动捕",
    "desc": "Get Up Face Down",
@@ -1506,8 +1171,6 @@
    "mode": "src"
   },
   "111_40": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B1_待机",
    "pack": "1-CMU动捕",
    "desc": "Yoga",
@@ -1515,8 +1178,6 @@
    "mode": "ground"
   },
   "111_41": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B1_待机",
    "pack": "1-CMU动捕",
    "desc": "Yoga",
@@ -1524,8 +1185,6 @@
    "mode": "ground"
   },
   "113_28": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B1_待机",
    "pack": "1-CMU动捕",
    "desc": "Yoga",
@@ -1533,8 +1192,6 @@
    "mode": "ground"
   },
   "113_29": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B1_待机",
    "pack": "1-CMU动捕",
    "desc": "Yoga",
@@ -1542,8 +1199,6 @@
    "mode": "ground"
   },
   "111_25": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B2_对话交谈",
    "pack": "1-CMU动捕",
    "desc": "Shrug",
@@ -1551,8 +1206,6 @@
    "mode": "ground"
   },
   "113_16": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B2_对话交谈",
    "pack": "1-CMU动捕",
    "desc": "Shrug",
@@ -1560,8 +1213,6 @@
    "mode": "ground"
   },
   "138_11": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B2_对话交谈",
    "pack": "1-CMU动捕",
    "desc": "Story",
@@ -1569,8 +1220,6 @@
    "mode": "ground"
   },
   "138_12": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B2_对话交谈",
    "pack": "1-CMU动捕",
    "desc": "Story",
@@ -1578,8 +1227,6 @@
    "mode": "ground"
   },
   "013_14": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B3_表情情绪",
    "pack": "1-CMU动捕",
    "desc": "laugh",
@@ -1587,8 +1234,6 @@
    "mode": "ground"
   },
   "013_15": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B3_表情情绪",
    "pack": "1-CMU动捕",
    "desc": "laugh",
@@ -1596,8 +1241,6 @@
    "mode": "ground"
   },
   "013_16": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B3_表情情绪",
    "pack": "1-CMU动捕",
    "desc": "laugh",
@@ -1605,8 +1248,6 @@
    "mode": "ground"
   },
   "014_17": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B3_表情情绪",
    "pack": "1-CMU动捕",
    "desc": "laugh",
@@ -1614,8 +1255,6 @@
    "mode": "ground"
   },
   "106_01": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B4_日常交互",
    "pack": "1-CMU动捕",
    "desc": "clean",
@@ -1623,8 +1262,6 @@
    "mode": "ground"
   },
   "106_02": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B4_日常交互",
    "pack": "1-CMU动捕",
    "desc": "clean",
@@ -1632,8 +1269,6 @@
    "mode": "ground"
   },
   "106_03": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B4_日常交互",
    "pack": "1-CMU动捕",
    "desc": "clean",
@@ -1641,8 +1276,6 @@
    "mode": "ground"
   },
   "106_04": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B4_日常交互",
    "pack": "1-CMU动捕",
    "desc": "clean",
@@ -1650,8 +1283,6 @@
    "mode": "ground"
   },
   "014_13": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B5_坐/躺/跪",
    "pack": "1-CMU动捕",
    "desc": "mop floor",
@@ -1659,8 +1290,6 @@
    "mode": "ground"
   },
   "014_15": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B5_坐/躺/跪",
    "pack": "1-CMU动捕",
    "desc": "mop floor",
@@ -1668,8 +1297,6 @@
    "mode": "ground"
   },
   "075_17": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B5_坐/躺/跪",
    "pack": "1-CMU动捕",
    "desc": "medium sit",
@@ -1677,8 +1304,6 @@
    "mode": "ground"
   },
   "075_19": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B5_坐/躺/跪",
    "pack": "1-CMU动捕",
    "desc": "medium sit",
@@ -1686,8 +1311,6 @@
    "mode": "ground"
   },
   "111_05": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B6_舞蹈/表演",
    "pack": "1-CMU动捕",
    "desc": "Dance",
@@ -1695,8 +1318,6 @@
    "mode": "ground"
   },
   "113_04": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B6_舞蹈/表演",
    "pack": "1-CMU动捕",
    "desc": "Dance",
@@ -1704,8 +1325,6 @@
    "mode": "ground"
   },
   "079_91": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B7_体育运动",
    "pack": "1-CMU动捕",
    "desc": "football",
@@ -1713,8 +1332,6 @@
    "mode": "ground"
   },
   "090_24": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B7_体育运动",
    "pack": "1-CMU动捕",
    "desc": "ball mount",
@@ -1722,8 +1339,6 @@
    "mode": "ground"
   },
   "079_18": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B8_儿童游戏",
    "pack": "1-CMU动捕",
    "desc": "playing drums",
@@ -1731,8 +1346,6 @@
    "mode": "ground"
   },
   "142_01": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "B8_儿童游戏",
    "pack": "1-CMU动捕",
    "desc": "Childish",
@@ -1740,8 +1353,6 @@
    "mode": "ground"
   },
   "002_09": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "C1_剑/单手武器",
    "pack": "1-CMU动捕",
    "desc": "swordplay",
@@ -1749,26 +1360,20 @@
    "mode": "ground"
   },
   "063_02": {
-   "prio": "P1",
-   "weapon": "CMU",
-   "func": "C2_弓/远程",
+   "func": "B7_体育运动",
    "pack": "1-CMU动捕",
    "desc": "[subject] golf",
    "path": "/Game/MocapCMU-InPlace/063_02",
    "mode": "ground"
   },
   "063_03": {
-   "prio": "P1",
-   "weapon": "CMU",
-   "func": "C2_弓/远程",
+   "func": "B7_体育运动",
    "pack": "1-CMU动捕",
    "desc": "[subject] golf",
    "path": "/Game/MocapCMU-InPlace/063_03",
    "mode": "ground"
   },
   "111_33": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "C2_弓/远程",
    "pack": "1-CMU动捕",
    "desc": "Throwing",
@@ -1776,8 +1381,6 @@
    "mode": "ground"
   },
   "139_05": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "C2_弓/远程",
    "pack": "1-CMU动捕",
    "desc": "Pulling a Gun",
@@ -1785,8 +1388,6 @@
    "mode": "ground"
   },
   "013_17": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "C3_徒手格斗",
    "pack": "1-CMU动捕",
    "desc": "boxing",
@@ -1794,8 +1395,6 @@
    "mode": "ground"
   },
   "013_18": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "C3_徒手格斗",
    "pack": "1-CMU动捕",
    "desc": "boxing",
@@ -1803,8 +1402,6 @@
    "mode": "ground"
   },
   "074_05": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "C3_徒手格斗",
    "pack": "1-CMU动捕",
    "desc": "kick",
@@ -1812,8 +1409,6 @@
    "mode": "ground"
   },
   "074_06": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "C3_徒手格斗",
    "pack": "1-CMU动捕",
    "desc": "kick",
@@ -1821,8 +1416,6 @@
    "mode": "ground"
   },
   "002_06": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "D2_死亡/倒地",
    "pack": "1-CMU动捕",
    "desc": "bend over, scoop up, rise, lift arm",
@@ -1830,8 +1423,6 @@
    "mode": "src"
   },
   "090_12": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "D2_死亡/倒地",
    "pack": "1-CMU动捕",
    "desc": "bck flp twst fall",
@@ -1839,8 +1430,6 @@
    "mode": "src"
   },
   "090_13": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "D2_死亡/倒地",
    "pack": "1-CMU动捕",
    "desc": "bck flp twst fall",
@@ -1848,8 +1437,6 @@
    "mode": "src"
   },
   "090_17": {
-   "prio": "P1",
-   "weapon": "CMU",
    "func": "D2_死亡/倒地",
    "pack": "1-CMU动捕",
    "desc": "BannanaPeelSlip",
@@ -1857,8 +1444,6 @@
    "mode": "src"
   },
   "Anim_CS_spit": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1866,8 +1451,6 @@
    "mode": "ground"
   },
   "Anim_CS_GH_F_01": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1875,8 +1458,6 @@
    "mode": "src"
   },
   "Anim_CS_GH_F_L_01": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1884,8 +1465,6 @@
    "mode": "src"
   },
   "Anim_CS_GH_L_01": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1893,8 +1472,6 @@
    "mode": "src"
   },
   "Anim_CS_GH_R_01": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1902,8 +1479,6 @@
    "mode": "src"
   },
   "Anim_CS_KD_F_01": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1911,8 +1486,6 @@
    "mode": "src"
   },
   "Anim_CSST_to_CRST": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1920,8 +1493,6 @@
    "mode": "ground"
   },
   "Anim_CS_CRST_toST": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1929,8 +1500,6 @@
    "mode": "ground"
   },
   "Anim_CSATLI_01": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1938,8 +1507,6 @@
    "mode": "ground"
   },
   "Anim_CSATLI_04_DE": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "攻击",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1947,8 +1514,6 @@
    "mode": "ground"
   },
   "Anim_IN_TR_SAT_1": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1956,8 +1521,6 @@
    "mode": "ground"
   },
   "Anim_IN_TR_SAT_2": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1965,8 +1528,6 @@
    "mode": "ground"
   },
   "Anim_IN_TR_SAT_3": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1974,8 +1535,6 @@
    "mode": "ground"
   },
   "Anim_CSBL_break_01": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1983,8 +1542,6 @@
    "mode": "ground"
   },
   "Anim_CS_CRST_to_W": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -1992,8 +1549,6 @@
    "mode": "ground"
   },
   "Anim_IN_TR_S_EQ": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "装备收起",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2001,8 +1556,6 @@
    "mode": "ground"
   },
   "Anim_CS_R_JU_L": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2010,8 +1563,6 @@
    "mode": "src"
   },
   "Anim_CS_R_JU_R": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2019,8 +1570,6 @@
    "mode": "src"
   },
   "Anim_CS_W_TURN_180_L": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2028,8 +1577,6 @@
    "mode": "ground"
   },
   "Anim_CS_DODGE_L": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2037,8 +1584,6 @@
    "mode": "src"
   },
   "Anim_CS_DODGE_R": {
-   "prio": "P1",
-   "weapon": "剑/单手",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2046,8 +1591,6 @@
    "mode": "src"
   },
   "Anim_BOW_cLEse_E": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2055,8 +1598,6 @@
    "mode": "ground"
   },
   "Anim_BOW_GH_F_01": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2064,8 +1605,6 @@
    "mode": "src"
   },
   "Anim_BOW_GH_F_L_01": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2073,8 +1612,6 @@
    "mode": "src"
   },
   "Anim_BOW_GH_F_R_01": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2082,8 +1619,6 @@
    "mode": "src"
   },
   "Anim_BOW_GH_L_01": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2091,8 +1626,6 @@
    "mode": "src"
   },
   "Anim_BOW_GH_R_01": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2100,8 +1633,6 @@
    "mode": "src"
   },
   "Anim_BOW_aim_IDL_up": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "弓箭流程",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2109,8 +1640,6 @@
    "mode": "ground"
   },
   "Anim_BOW_IDL_01": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2118,8 +1647,6 @@
    "mode": "ground"
   },
   "Anim_CR_BOWST_01": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2127,8 +1654,6 @@
    "mode": "ground"
   },
   "Anim_EM_BOW_victory_01": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2136,8 +1661,6 @@
    "mode": "ground"
   },
   "Anim_EM_BOW_victory_02": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2145,8 +1668,6 @@
    "mode": "ground"
   },
   "Anim_BOWST_to_CR_BOWST": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2154,8 +1675,6 @@
    "mode": "ground"
   },
   "Anim_CR_BOWST_to_W": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2163,8 +1682,6 @@
    "mode": "ground"
   },
   "Anim_BOW_unEQ_to_S_EQ": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "装备收起",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2172,8 +1689,6 @@
    "mode": "ground"
   },
   "Anim_BOW_R_JU_L": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2181,8 +1696,6 @@
    "mode": "src"
   },
   "Anim_BOW_R_JU_R": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2190,8 +1703,6 @@
    "mode": "src"
   },
   "Anim_BOW_W_TURN_180_L": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2199,8 +1710,6 @@
    "mode": "ground"
   },
   "Anim_BOW_DODGE_L": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2208,8 +1717,6 @@
    "mode": "src"
   },
   "Anim_BOW_DODGE_R": {
-   "prio": "P1",
-   "weapon": "弓",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2217,8 +1724,6 @@
    "mode": "src"
   },
   "Anim_RA_IDL_03": {
-   "prio": "P1",
-   "weapon": "掩体",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2226,8 +1731,6 @@
    "mode": "ground"
   },
   "Anim_RAST_to_W_90_L": {
-   "prio": "P1",
-   "weapon": "掩体",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2235,8 +1738,6 @@
    "mode": "ground"
   },
   "Anim_RAST_to_W_90_R": {
-   "prio": "P1",
-   "weapon": "掩体",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2244,8 +1745,6 @@
    "mode": "ground"
   },
   "Anim_RAST_to_W_L": {
-   "prio": "P1",
-   "weapon": "掩体",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2253,8 +1752,6 @@
    "mode": "ground"
   },
   "Anim_CO_Tag": {
-   "prio": "P1",
-   "weapon": "特殊技",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2262,8 +1759,6 @@
    "mode": "ground"
   },
   "Anim_Death_1": {
-   "prio": "P1",
-   "weapon": "特殊技",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2271,8 +1766,6 @@
    "mode": "src"
   },
   "Anim_Fwd_KO_L_1": {
-   "prio": "P1",
-   "weapon": "特殊技",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2280,8 +1773,6 @@
    "mode": "src"
   },
   "Anim_KO_FromAir": {
-   "prio": "P1",
-   "weapon": "特殊技",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2289,8 +1780,6 @@
    "mode": "src"
   },
   "Anim_BPAIR_ST": {
-   "prio": "P1",
-   "weapon": "特殊技",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2298,8 +1787,6 @@
    "mode": "ground"
   },
   "Anim_L_Idle": {
-   "prio": "P1",
-   "weapon": "特殊技",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2307,8 +1794,6 @@
    "mode": "ground"
   },
   "Anim_DH": {
-   "prio": "P1",
-   "weapon": "特殊技",
    "func": "特殊技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2316,8 +1801,6 @@
    "mode": "src"
   },
   "Anim_NU": {
-   "prio": "P1",
-   "weapon": "特殊技",
    "func": "特殊技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2325,8 +1808,6 @@
    "mode": "src"
   },
   "Anim_ME_E": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2334,8 +1815,6 @@
    "mode": "ground"
   },
   "Anim_Flinch_1": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2343,8 +1822,6 @@
    "mode": "src"
   },
   "Anim_GH_B_01": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2352,8 +1829,6 @@
    "mode": "src"
   },
   "Anim_GH_F_01": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2361,8 +1836,6 @@
    "mode": "src"
   },
   "Anim_GH_L_01": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2370,8 +1843,6 @@
    "mode": "src"
   },
   "Anim_KD_F": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "受击死亡倒地",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2379,8 +1850,6 @@
    "mode": "src"
   },
   "Anim_Fall_2": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "坠落",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2388,8 +1857,6 @@
    "mode": "src"
   },
   "Anim_HIdle1": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2397,8 +1864,6 @@
    "mode": "ground"
   },
   "Anim_ME_ST": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2406,8 +1871,6 @@
    "mode": "ground"
   },
   "Anim_T_1": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "特殊技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2415,8 +1878,6 @@
    "mode": "src"
   },
   "Anim_T_2": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "特殊技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2424,8 +1885,6 @@
    "mode": "src"
   },
   "Anim_CR_LP_E": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2433,8 +1892,6 @@
    "mode": "ground"
   },
   "Anim_TA_N_P": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2442,8 +1899,6 @@
    "mode": "ground"
   },
   "Anim_TA_S_P": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2451,8 +1906,6 @@
    "mode": "ground"
   },
   "Anim_RunFwd_1": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2460,8 +1913,6 @@
    "mode": "ground"
   },
   "Anim_WFwd_1": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2469,8 +1920,6 @@
    "mode": "ground"
   },
   "Anim_H_Land": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2478,8 +1927,6 @@
    "mode": "src"
   },
   "Anim_PR_Up": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "跳跃翻越",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2487,8 +1934,6 @@
    "mode": "src"
   },
   "Anim_Dash": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2496,8 +1941,6 @@
    "mode": "src"
   },
   "Anim_SlideL1": {
-   "prio": "P1",
-   "weapon": "通用",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2505,8 +1948,6 @@
    "mode": "src"
   },
   "Anim_recover_01": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "其它",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2514,8 +1955,6 @@
    "mode": "ground"
   },
   "Anim_IDL_01": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2523,8 +1962,6 @@
    "mode": "ground"
   },
   "Anim_ST_to_CRST": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "待机姿态",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2532,8 +1969,6 @@
    "mode": "ground"
   },
   "Anim_IN_FI_EX_loop": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "社交交互",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2541,8 +1976,6 @@
    "mode": "ground"
   },
   "Anim_ST_to_SP": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2550,8 +1983,6 @@
    "mode": "ground"
   },
   "Anim_ST_to_W": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "移动",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2559,8 +1990,6 @@
    "mode": "ground"
   },
   "Anim_W_TURN_180_L": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "转身",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2568,8 +1997,6 @@
    "mode": "ground"
   },
   "Anim_DODGE_L": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",
@@ -2577,8 +2004,6 @@
    "mode": "src"
   },
   "Anim_DODGE_R": {
-   "prio": "P1",
-   "weapon": "通用·徒手",
    "func": "闪避位移特技",
    "pack": "2-3583官方动作集",
    "desc": "",

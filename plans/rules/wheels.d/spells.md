@@ -69,7 +69,7 @@ SpellRegistry.Families   // 内建 11 个（projectile/channel/skyfall/place/…
 
 ## 自管实体投射物（为什么不走引擎导弹）
 
-🔴 引擎导弹渲染**约 110 米外必定剔除网格**（全局 LOD 距离表表尾；放大 5 倍 / 开 `MissileWithPhysics` / 补 LOD 到 8 档 / 换原版大网格**全都照样消失** —— 七次实机证据链见 `plans/法印施法体系-实施计划.md` §16.2）。**场景实体路径没有这个上限**。
+🔴 引擎导弹渲染**约 110 米外必定剔除网格**（全局 LOD 距离表表尾；放大 5 倍 / 开 `MissileWithPhysics` / 补 LOD 到 8 档 / 换原版大网格**全都照样消失** —— 七次实机证据链见 [法术体系-通用施法框架.md](../../法术体系-通用施法框架.md) **附录 D**）。**场景实体路径没有这个上限**。
 
 ```csharp
 // 造飞行物（照抄范围：Knowledge/SwordBeam剑气_实现分析.md；本工程实现 = SpellWorld / ProjectileDelivery）
@@ -117,7 +117,7 @@ public static class SpellSealFirePatch { [HarmonyPrefix] public static bool Pref
 | 件 | 怎么调 |
 |---|---|
 | 球的位置 | 地面 = 身前近似手位（等"法阵 prefab"换真挂点）；**飞行 = 右手上方**（身体朝向绕 Up 转 90° 取 `.s` 当右向；真挂手骨 = `Monster.MainHandBoneIndex` + `AgentVisuals.GetBoneEntitialFrame`，范本 `CampaignMode/Tools/FlySpike.cs:1962`）—— 左右反了就把 `CoreAnchor` 里的右向取反 |
-| 球的大小 | **数据 `charge_scale`** = **满蓄力时**的放大倍率（默认 `0.375` ⇒ 核 ⌀0.72 m 时满蓄力 ⌀0.27 m，起手是它的 1/3）；运行时 `custom.spell core <倍率>`（不用重启） |
+| 球的大小 | **数据 `charge_scale`** = **满蓄力时**的放大倍率（默认 `0.375` ⇒ 核 ⌀0.72 m 时满蓄力 ⌀0.27 m）。**生长曲线 = 从 0 线性长到 1**（起手几乎看不见、蓄满不再变，2026-09-24 用户裁定"过程直观"；钳 0.01 免零缩放矩阵）；运行时 `custom.spell core <倍率>`（不用重启） |
 | 粒子的浓淡 | 随 `Power` 调**发射率倍数** `0.3 → 1.5`：`ParticleSystem.SetRuntimeEmissionRateMultiplier(mult)`（引擎为此专门开的接口；同一颗粒子不重建） |
 
 ### 🔴 方向来源 = `Camera/CameraLook.cs`（唯一入口，CLAUDE.md 铁律 35）
@@ -129,6 +129,50 @@ public static class SpellSealFirePatch { [HarmonyPrefix] public static bool Pref
 if (CameraLook.TryGet(out Vec3 look)) { /* 用 look */ }   // 接管中自动问接管方（ICameraLookProvider），没接管才用引擎角度
 // 飞行相机自己实现 ICameraLookProvider（PlayerFlightBehavior），进入时注册、每帧幂等同步、退出清
 ```
+
+### 🔴 瞄准偏移（2026-09-24 落地）：施法时身体 + 头朝相机
+
+**规则**（用户裁定）：蓄力 / 引导期间**身体与头都朝相机方向**（"看相机无限远处"），压过飞行那条"朝实际移动方向"；
+松手/取消/放完立刻回到原规则。**不看有没有移动输入**（站着不动也能瞄）。**只在空中施法**（地面本阶段停用）。
+
+```csharp
+// ① 身体（飞行侧，PlayerFlightBehavior 第 ⑧ 条机身朝向）：施法瞄准优先
+if (SpellCastInput.IsPlayerAiming) TurnBodySmoothed(main, forward /*相机前向*/, dt);
+else { StopAimingHead(main); if (FlightInput.HasMoveInput) TurnBodySmoothed(main, dir /*移动方向*/, dt); }
+
+// ② 头 —— 引擎原生接口（反编译 Agent.cs:2170 / :3797）：
+agent.SetLookToPointOfInterest(eyePos + cameraForward * 200f);   // "无限远处"；POI 粘性 ⇒ 进瞄准设一次
+agent.DisableLookToPointOfInterest();                            // 退出关一次（只撤我们自己设的，原版对话也用这个口）
+```
+
+**接口**：`SpellCastInput.IsPlayerAiming`（静态，读 `Current` 相位机是否非 Idle；`Current` 每帧 Tick 开头重设、
+宿主 `SpellProjectileLogic.OnRemoveBehavior` 里 `ClearCurrent`）。**不是**自己写 `SetMovementDirection` ——
+机身朝向的写入点只有一个（`TurnBodySmoothed`），两边都写会变成帧序竞态。
+
+### 蓄力球挂右手骨（2026-09-24 落地）
+
+```csharp
+sbyte bone = agent.Monster.MainHandBoneIndex;                                  // 主手骨 = 右手（武器挂的就是它）
+Vec3 hand = agent.AgentVisuals.GetBoneEntitialFrame(bone, useBoneMapping:false).origin;  // 当前动画帧的世界帧 ⇒ 手怎么动球怎么动
+anchor = hand + Vec3.Up * SpellCastInput.HandAnchorUpOffset;                   // 0.18 m（"右手上方"）
+```
+取不到（骨架没建 / 索引为负）→ 退回"身体坐标 + 右偏 + 上抬"的近似位。
+**诊断**：`custom.spell hand` 打出**骨索引 / 骨世界位置 / 相对角色的三向偏移与距离 / 上抬量 / 当前是骨骼还是近似**。
+
+### TODO：施法手势动画（只改上半身 · 蓄力与发射**分两段**）
+
+| 段 | 动画 | 说明 |
+|---|---|---|
+| 蓄力 | `ue_MagicIdle`（循环） | 按住右键期间一直播 |
+| 发射 | `ue_ProjectileSpell`（一次性） | 点左键播，出手帧 **36%** 对上 `release_at` |
+
+| 项 | 结论 |
+|---|---|
+| 通道口径 | **通道 0 = 全身、通道 1 = 上身**（按身体区域叠加；`anf_enforce_lowerbody` / `anf_enforce_all` 控制通道 1 盖哪些部位）。现有动画代码**全写通道 0** ⇒ 通道 1 空着，安全 |
+| 素材 | FCS 法术动画**已导出 FBX + 已重定向 TRF**：`MagicIdle` · `ProjectileSpell` · `SkyfallSpell`（举天）· `EruptionSpell`（下压）· `SpellChannel1{_Start,_Mid,_Down,_End}`（引导）· `MagicWalk/Run ×8`（施法移动集）。在 `D:/BrainMaker/骑砍2动画重定向/output/trf/` |
+| 出手帧 | FCS §十四：投掷 36% / 举天 40% / 下压 57% / 引导 58~76% ⇒ 填现有 `release_at` / `end_at` |
+| 接线 | 照飞行那 20 条 clip 的路（TRF → ModKit 导入 → `action_types.xml` 加 `act_*` → `action_sets.xml` 绑定）；四颗雷见 wheels assets §15 |
+| 头 | **已单独解决**（`SetLookToPointOfInterest`）⇒ clip 只管手臂/躯干，不靠它自带瞄准姿态 |
 
 ### 已知风险（实机第一眼看的）
 

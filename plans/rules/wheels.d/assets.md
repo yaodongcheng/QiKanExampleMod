@@ -718,6 +718,77 @@ M_b = Trans(骑砍骨头部) ∘ rot_b ∘ S_沿骨轴 ∘ Trans(−p_b)      p_
 引擎自带的动画要**适配不同身高**的角色 ⇒ 位置轨必然存**相对该骨架静止姿势的增量**，不可能是绝对骨盆高度。
 修法：位置写 `rest_rot @ location`（**不叠加** `rest.translation`）。判据：位置轨首帧应 **≈ 0**（不是 0.9）。
 
+### 15.3b 🔴 批量验收：每批 trf 出炉，**先全量扫「位置轨首帧 ≈ 0」**（2026-09-24 登记）
+
+**结论**：15.2 / 15.3 那两条都是**单文件**判据——它们能一眼看穿坏件，但**要求你逐条去看**。
+一批里混进坏件时，坏件的**文件大小、帧数、骨数、旋转轨全都正常**，只有位移轨语义错，
+抽查抓不到。**所以每批出厂前跑一次全量扫描是闸门，不是可选项。**
+
+跑法（脚本已就位；退出码 1 = 有坏件，可直接当流水线闸门）：
+
+```bash
+python pipeline/common/check_trf_pos.py <TRF目录或.trf文件...>
+```
+
+**判据**：位置轨首帧 **|分量| > 0.30 报警**。正常动作自身的骨盆位移可以到 ~0.15
+（实测：引导起手 `0.1400`、收招 `−0.1453`），病征量级是 **0.79~0.91**——0.30 落在两者之间，
+不误报也不漏报。`_` 前缀的归档目录/文件自动跳过（那是留作对照的旧件）。
+
+**实测事故（2026-09-24）**：FCS 施法 28 条（09-20 导出）**旋转轨与正确版本逐字相同**、
+位移轨却是绝对语义（首帧 `(0, 0.0202, 0.7895)`）⇒ 查看器里角色**整体悬空约 1m**。
+全目录一扫：`output/trf` 212 条里 **140 条**同病（施法 / sw2 / 处决 / 伏击 / 飞行 `*_B~E*` 套，同为 09-20 窗口），
+09-21 之后的批次与**保留发货的 `*_A*` 套全干净**。该批**赶在发货前抓到**（`TaikouAnim` 里当时没有任何施法 trf），没进游戏。
+按本条目批量重出 139 条（第 140 条 `sw2_gunner_p006_alig_abs` 无源 FBX，本就是规范点名的作废件）：
+**125 条干净修好**（首帧 0.79~0.91 → ≈0），**14 条暴露了第二种病**（见下）。
+
+🔴 **第二种病：FBX 的绑定姿势被烘成了躺姿**（14 条处决/伏击受害者 clip 逼出来的）。
+重出后首帧**不是 0，而是 +0.71~+0.83、且每条数值不同**——**这不是**"整批一个常数"的那个病征，别混。
+`pipeline/common/check_fbx_bindpose.py` 一查就清楚：这些 FBX 的**绑定姿势骨盆世界 z = `0.024 / 0.137 / 0.123`**
+（正常站姿是 `0.849`）⇒ `fbx_to_trf.py` 量出的增量天生带偏移。**根因在 FBX，改 TRF 治不好。**
+判据 = **首帧 − 绑定姿势 ≠ 0**（好件是 `0.0000`）。
+✅ **2026-09-24 已全批修完**（`output/trf` 212 条只剩 1 条 `sw2_gunner_p006_alig_abs`——它没有源 FBX，且本就是规范点名的作废件）。
+修法（三步，照抄即可）：
+① **拿源文件**：这批的源在 UE 工程里（`GhostSamurai_katana`，uasset 内部路径 `/Game/GhostSamurai_katana/Mannequin/Animation/...`）。
+   素材包**没有 `.uproject`** ⇒ 按 §5.1 把内容挂进一个已有的 4.26 工程：建一条 junction
+   `UEAnims/SuperheroFlightAnimations/Content/GhostSamurai_katana` → `UEAnims/GhostSamurai_katana`，再跑
+   `BM_OUT_DIR=… BM_ANIM_FILTER="Execution/Inplace" UE4Editor.exe <该工程>.uproject -run=pythonscript -script=…/export_ue_fbx.py -unattended -nosplash -nullrhi -stdout`
+   （实测：46 个资产、0 失败、约 1 分钟；**判据看 `export_trace.log` 不看 stdout**）。
+② **重跑重定向**：`python pipeline/run_retarget.py --rig ue_mannequin --clip <clip> --name <输出名> --animdir <源目录>`
+   —— 修好的 `retarget.py`（`--obj_rot` 默认 `true`）会**自动把绑定姿势做回站姿**，产物自带 `CHECK_POS 首帧≈0`，无需手工干预。
+   ⚠️ `run_retarget.py` 的 `--out-dir` **无效**：产物一律落到 `output/{fbx,trf}/`，别以为写进了别处。
+③ **验收**：`check_trf_pos.py output/trf` 全绿 + 与"已在游戏里验过的那条"（此处 = `Executed02`）数值特征对齐。
+   实测修复前后：`Executed01` 脚底 `0.893→0.0675 / 0.255→−0.5706 / 0.799→−0.0265`（站着起、倒地 ✓，与 `Executed02` 同型）。
+🔴 **别把"查看器里看着对"当验收依据**（见上「预览盲区」）：那批坏的 TRF 在 FBX 路径的查看器里**一直都是好看的**。
+🔴 **查看器 FBX 路径还会把竖直动作压平**（实测 `Executed01` 中间帧：TRF 路径 `−0.5706` vs FBX 路径 `+0.0405`）——
+   所以**竖直幅度只有 TRF 路径/游戏里才是真的**；只调水平站位与时间的话不受影响。
+
+**两种病怎么分**（先跑哪个脚本）：
+
+| 现象 | 病 | 治法 |
+|---|---|---|
+| 整批首帧是**同一个常数** `0.79~0.91` | TRF 位移轨写成绝对语义 | 重出 TRF（`check_trf_pos.py` 把关） |
+| 首帧**每条不同**，且 `首帧 − 绑定姿势 ≠ 0` | **FBX 绑定姿势不是站姿** | **先修 FBX 的静止姿势**（`check_fbx_bindpose.py` 查），再重出 TRF |
+
+🔴🔴 **预览盲区：这类病在查看器里【看不见】**（2026-09-24 用户当场质疑"我之前没看到问题"——他是对的）。
+查看器那些 GLB 走的是 `fbx_to_glb` / `bake_glb_posetransfer` 的**世界姿态**路径（后者 docstring 原话：
+"搬世界姿态则与静姿无关"）⇒ **FBX 的绑定姿势被烘歪，它照样把角色摆对**。而**游戏读的是 TRF**
+（按 FBX 静止姿势存增量）⇒ 同一个病在游戏里才显形。
+**实测对照**（同一条 `Executed01`）：查看器里 `bl_pair7.glb` 脚底 `0.016/0.041/−0.018` ✅，
+TRF 直读烘焙 `0.893/0.255/0.799` ❌；同一份 GLB 里的 `Executed02`（09-22 修过）是 `0.068/−0.242/0.068` ✅
+—— **自带对照，判读最省事**。
+**判据工具**：`pipeline/common/check_glb_feet.py`（离线复算查看器眼里的脚底高度，不需要浏览器）
++ 范本数据集 `viewer/datasets/ue_exec_trf/`（同一条 clip 两条烘焙路径并排，左 FBX / 右 TRF）。
+**口径**：要判"游戏里长什么样"，只能走 **TRF 直读**那条路或本脚本；**别拿 FBX 路径的查看器当证据**。
+
+**修法**：拿同一份 retarget 产物 FBX 过一遍 `fbx_to_trf.py` 重出即可。
+🔴 **旁证 = 旋转轨应逐字不变**（只有位移轨变）；若旋转轨也变了，说明动的不只是语义，先查原因再重出。
+🔴 **批量修的时候把这条做成安全闸**：逐条重出 → **旋转轨与原件逐字比对，不一致就拒绝覆盖**（说明这份 trf
+不是从该 FBX 来的）→ 覆盖前先备份进 `_backup_before_posfix_<日期>/`。本次 139 条全过闸、零误伤。
+
+**验收闭环（本次走的链，可照抄）**：重出 → `check_trf_pos.py` 全绿 → 覆盖 `output/trf`
+（旧件先备份进 `_backup_before_posfix_<日期>/`）→ 重打查看器 GLB →
+**与「已视觉验过的那份」做 md5 比对**：逐字节相同 = 直接继承视觉结论，不必再截一次图。
+
 ### 15.4 🔴 雷 3：自定义 usage 用 `base_set` 继承 → 能拔枪但流程起不来
 
 `<item_usage_set id="tk_firearm" base_set="crossbow">` 只覆盖 `<usages>` 的写法**实测失败**
@@ -943,8 +1014,12 @@ FBX 导入后**单位换算与转轴只写在对象矩阵里**，顶点本身是
 ### 18.3 值怎么量
 
 ```bash
-python Debug\offline\trf_root_travel.py --trf "<xxx.trf>"
+python tools/anim-retarget/pipeline/common/trf_root_travel.py --trf "<xxx.trf>"
 # → 净位移 (X,Y,Z) · 该填的 (X,Y,0) · endProgress 建议值 · 轨迹直线度诊断
+
+# 🔴 整批出表（duration / Source1 / Source2 / displacement X·Y / endProgress 一列不少）：
+python tools/anim-retarget/pipeline/common/make_import_sheet.py
+#   → output/modkit_import_sheet.csv   （直接照着往 ModKit 里填）
 ```
 
 ### 18.4 两条写入路径
@@ -971,7 +1046,8 @@ python Debug\offline\trf_root_travel.py --trf "<xxx.trf>"
 |---|---|---|
 | `tpaccli clipinfo` | `tools/tpactool/` | 不开 ModKit 读 clip 全字段：Duration / Source1-2 / SkeletalAnimation / **Flags** / **ClipUsages（含 displacement 向量）** |
 | `tpaccli clipset` | 同上 | 就地改 clip 的 displacement（字节级替换 + **偏移自校验** + 回读验证）|
-| `trf_root_travel.py` | `Debug/offline/` | 读 TRF 根骨位置轨 → 算出该填的 `(X,Y,0)` 与 `endProgress` |
+| `trf_root_travel.py` | `pipeline/common/`（原 `Debug/offline/`，2026-09-24 收编进工具链） | 读 TRF 根骨位置轨 → 算出该填的 `(X,Y,0)` 与 `endProgress` |
+| `make_import_sheet.py` | `pipeline/common/` | 🔴 **整批出 ModKit 填值清单**（duration / Source1 / Source2 / displacement X·Y / endProgress）→ `output/modkit_import_sheet.csv` |
 | `tpac_meta_checksum_dump.py` | `Debug/offline/` | 看各 tpac 里每资产那 8 字节字段的值（判"引擎校不校验"用）|
 | `tpac_meta_checksum_probe.py` | `Debug/offline/` | 试辨认那 8 字节是什么算法（**结论：非标准 64 位散列**）|
 

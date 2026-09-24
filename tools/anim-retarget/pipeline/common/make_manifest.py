@@ -26,9 +26,13 @@ def main():
         if not name:
             continue
         slot = (r.get("动作功能") or "").strip()
+        # 🔴 只留「动作功能」一个维度做筛选项（2026-09-24）。
+        #    去掉的两个：
+        #      · 优先级 P0/P1 —— 是当年"先导哪批"的排期标记，280 条早已全部导出交付，使命结束。
+        #      · 武器/来源   —— 这一列把【来源(CMU)】【武器(剑/单手·弓)】【动作性质(通用/特殊技/掩体)】
+        #                       三个维度混在一起，当筛选读不懂；真来源另有「来源包」列（只有 2 种取值，
+        #                       当筛选也没意义）。原始数据都还在 CSV 里，要看随时能查。
         clips[name] = {
-            "prio":   (r.get("优先级") or "").strip(),
-            "weapon": (r.get("武器/来源") or r.get("武器来源") or "").strip(),
             "func":   slot,
             "pack":   (r.get("来源包") or "").strip(),
             "desc":   (r.get("语义描述") or "").strip(),
@@ -46,13 +50,10 @@ def main():
             "total": len(clips),
             "source_csv": os.path.relpath(CSV_PATH, ROOT).replace("\\", "/"),
             "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "note": "mode=ground 为逐帧贴地烘焙；mode=src 为复制源骨盆位移烘焙（跳跃/翻越/倒地等）",
+            "note": "mode=ground 为逐帧贴地烘焙；mode=src 为复制源骨盆位移烘焙（跳跃/翻越/倒地等）。"
+                    "筛选只保留「动作功能」；优先级与武器/来源两列已停用（见 make_manifest.py 注释）。",
         },
-        "P0": sum(1 for c in clips.values() if c["prio"] == "P0"),
-        "P1": sum(1 for c in clips.values() if c["prio"] == "P1"),
         "groups": {
-            "prio":   uniq("prio"),
-            "weapon": uniq("weapon"),
             # 标准动作码(A1_行走…)排前面，中文语义类排后面
             "func":   uniq("func", order=lambda v: 0 if is_code(v) else 1),
             "pack":   uniq("pack"),
@@ -67,9 +68,8 @@ def main():
     cnt = {}
     for c in clips.values():
         cnt[c["mode"]] = cnt.get(c["mode"], 0) + 1
-    print("总 %d 段  P0=%d P1=%d  ground=%d src=%d" %
-          (len(clips), man["P0"], man["P1"], cnt.get("ground", 0), cnt.get("src", 0)))
-    print("武器来源:", man["groups"]["weapon"])
+    print("总 %d 段  ground=%d src=%d" %
+          (len(clips), cnt.get("ground", 0), cnt.get("src", 0)))
     print("动作功能 %d 类" % len(man["groups"]["func"]))
     print("写出:", OUT)
 

@@ -350,7 +350,16 @@ async function boot(){
   const qs = new URLSearchParams(location.search);
   let idx = null;
   try { idx = await fetch('datasets/index.json').then(r=>r.json()); } catch(e){}
-  DS_NAME = qs.get('ds') || (idx && (idx.default || (idx.datasets[0]||{}).id)) || 'ue_slim';
+  const avail = (idx && idx.datasets) ? idx.datasets.map(d=>d.id) : [];
+  const wantDs = qs.get('ds');
+  // 🔴 网址里的 ?ds= 指向一个已删掉的数据集时，静默回落到默认那台，并把地址栏纠正过来。
+  //    不这么做的话：页面去取一个 404，拿回 HTML 当 JSON 解析 → "Unexpected token '<'" 整页白屏。
+  DS_NAME = (wantDs && (!avail.length || avail.indexOf(wantDs) >= 0)) ? wantDs
+          : (idx && (idx.default || (idx.datasets[0]||{}).id)) || 'ue_slim';
+  if (wantDs && wantDs !== DS_NAME && avail.length){
+    const u = new URL(location); u.searchParams.set('ds', DS_NAME); u.searchParams.delete('clip');
+    history.replaceState(null, '', u.toString());
+  }
 
   const sel = document.getElementById('dsSel');
   if(idx && idx.datasets){
@@ -606,7 +615,10 @@ function render(){
     b.className = 'an' + (n===current ? ' on':'');
     b.innerHTML = (m.prio==='P0' ? '<span class="p0">●</span> ' : '') + labelOf(n)
       + '<span style="color:#6b7686">  ' + pairTag(n) + durOf(n).toFixed(2) + 's</span>';
-    b.title = n + (m.prio||m.weapon||m.func ? '   ['+(m.prio||'')+' / '+(m.weapon||'')+' / '+(m.func||'')+']' : '') + '\n' + (m.desc||'');
+    // 提示气泡：只拼【有值】的那几段（元数据里哪几列存在就显示哪几列，
+    // 别写死成「优先级 / 武器来源 / 功能」——列一旦停用就会显示成 "[ / / 移动]"）
+    const _tag = [m.prio, m.weapon, m.func].filter(Boolean).join(' / ');
+    b.title = n + (_tag ? '   ['+_tag+']' : '') + '\n' + (m.desc||'');
     b.onclick = ()=>play(n);
     box.appendChild(b);
   });
