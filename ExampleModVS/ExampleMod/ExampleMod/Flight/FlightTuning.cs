@@ -468,6 +468,12 @@ namespace LivingWorldNpcs.Flight
         public static string ActBoost = "act_fly_boost";
         public static string ActLand = "act_fly_land";
 
+        /// <summary>蓄力手势（按住右键期间循环播）。🔴 **走通道 0**（不是通道 1）—— 见 FlightAnimMachine 里那段注释。</summary>
+        public static string ActCastCharge = "act_cast_charge";
+
+        /// <summary>释放手势（点左键播一次）。</summary>
+        public static string ActCastProjectile = "act_cast_projectile";
+
         /// <summary>
         /// 抬头爬升时播的姿态。✅ **2026-09-22 已接**：`act_fly_climb` → clip `flight_hovermove_a_pitchu`
         /// （A 套合成件，TRF `fly_A_Flight_HoverMove_A_PitchU`：巡航基准 + 抬头增量，合成时根骨那道量已按 0 缩放）。
@@ -515,6 +521,9 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>闪避动画时长（秒）= 56 帧 ÷ 30，实测。四条一样长。</summary>
         public static float DodgeClipSeconds = 1.867f;
+
+        /// <summary>释放手势 `act_cast_projectile` 的 clip 时长（秒）—— 出手帧 36% 就是按它算的（≈0.83 s）。</summary>
+        public static float CastReleaseSeconds = 2.33f;
 
         /// <summary>
         /// 🔴 **闪避的触发方式（2026-09-22 用户裁定）**：**冲刺（按住 Shift）中短按空格 = 闪避**。
@@ -620,6 +629,8 @@ namespace LivingWorldNpcs.Flight
             ActBoostLeanR = "act_fly_boost_lean_r";
             ActBoostClimb = "act_fly_boost_climb";
             ActBoostDive = "act_fly_boost_dive";
+            ActCastCharge = "act_cast_charge";
+            ActCastProjectile = "act_cast_projectile";
             BankThreshold = 0.35f;
             BankExitThreshold = 0.20f;
             ShowStateMessages = true;
@@ -627,6 +638,7 @@ namespace LivingWorldNpcs.Flight
             VerboseLog = false;
             BoostStartSeconds = 1.033f;
             DodgeClipSeconds = 1.867f;
+            CastReleaseSeconds = 2.33f;
             DodgeOnSpaceTapInBoost = true;
             DodgeDistance = 8f;
             DodgeDisplaceSeconds = 0.4f;

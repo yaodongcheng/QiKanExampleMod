@@ -647,42 +647,84 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 目标默认取 interact 焦点（`InteractionMissionView.Instance.GetFocusdAgent()`，回落 `LastFocusedAgent`）；
 演出相机见 [camera.md](camera.md)。
 
-## 🔴 上半身叠加动作（通道 1）—— 手上动作不打断腿（2026-09-24 立，施法手势落地）
+## 🔴 叠加动作与"通道 1"—— 实机结论：**我们导入的 clip 走通道 0，别指望通道 1**（2026-09-24 实机定案）
 
-**解决什么问题**：要让角色**一边飞/一边走，一边做手上动作**（施法、结印、举枪），
-不能把全身动画顶掉 —— 引擎的**两条通道**就是干这个的：
+**问题**：要让角色**一边飞/一边走，一边做手上动作**（施法、结印、举枪），怎么让手上动作不打断腿？
 
-| 通道 | 覆盖范围 | 谁在用 |
-|---|---|---|
-| **0** | **全身** | 本项目所有现有动画（`ForcePlayAction`、飞行状态机、`AgentControlHelper`） |
-| **1** | **上身** | 空着 —— 谁要"手上动作"就往这写 |
+**引擎口径**（反编译 + 知识文档）：**通道 0 = 全身、通道 1 = 上身**，两条通道按身体区域叠加；
+原版自己就用通道 1 播"上身动作"（欢呼 `act_cheer_*`、喊命令 `act_command_*`、攻城器械装填），
+调用形式极简：`SetActionChannel(1, idx, ignorePriority: false, 0uL)`（`Ballista.cs:283`）。
 
-两条通道按**身体区域叠加**（不是二选一）⇒ 腿保持通道 0 的姿态，上半身走通道 1。
+**🔴🔴 结案（2026-09-24 实机验证）：通道 1 不是"只认原版 clip"，而是"要挑 clip 的元数据"** ——
+我们**从 TRF 导入**的 clip 那几项是空的/0（导入器不填），于是**收下了、时长读得到、就是不播、零报错**。
+**照原版把四项填上就通了**（实机已播）：
+
+| ModKit 的 Animation clip 面板字段 | 原版参照（`anim_command_unarmed`） | 我们导入后 | 修后 |
+|---|---|---|---|
+| **Priority** | 2.000 | **0.000** | 2.000 |
+| **Right hand pose** | 4.000 | **3.000** | 4.000 |
+| **Blend out period** | 0.500 | **0.000** | 0.500 |
+| **Flags → `allow_head_movement`** | 勾 | 没勾（`magic_idle` 只有 `cyclic`） | 勾 |
+
+⇒ **纪律：任何从外部导入的 clip，都要照原版把这四项填上**（这跟"clip 元数据必须整组抄原版"是同一条，
+只是那次栽在"装填流程"，这次栽在"通道 1"）。**蓄力类要循环的保留 `cyclic` 勾**。
+
+**排查手法（可复用）**：`custom.anim_meta <动作名>` 打出该动作背后 clip 的引擎侧元数据
+（时长/Flags/Continue to action/Blend out start progress/displacement）；`custom.anim_ch [通道] <动作名> [loop|noforce|lowerbody|all]`
+用来按通道手验（返回 `ACCEPTED` + 同帧回读，⚠️ 回读的 weight 是**同帧**值、blend 还没起来时恒 0，别当判据）。
+离线看包里 clip 的元数据更直接：`tpaccli dump --filter <clip名>` 出来的 `.meta`（字段与偏移见本次记录）。
+
+**"只动上半身"仍未做到**（2026-09-24 现状）：
+
+| 事实 | 说明 |
+|---|---|
+| 🔴 **引擎没有"每骨权重/遮罩"接口** | `Agent` 上只有**只读**的 `GetActionChannelWeight`（整条通道，非每骨）；**无 `SetActionChannelWeight`**；`SetActionChannel` 参数里没有骨骼/权重项；`AnimFlags` 的 `anf_animation_layer_flags_*` 是**无人消费的死常量** ⇒ UE 的 `Layered Blend Per Bone` 在这引擎不存在，粒度只有"通道 0 全身 / 通道 1 上身" |
+| 唯一没试的旋钮 | `anf_enforce_lowerbody` / `anf_enforce_all`（`custom.anim_ch 1 <动作> lowerbody` / `all` 当场试）—— 注意别望文生义，两种相反解释都说得通 |
+| 待搞清 | 原版 clip 放通道 1 时**腿也跟着动了** ⇒ "通道 1 = 上身"并非无条件；可能是 flag 管，也可能是**clip 里含哪些骨就驱动哪些骨**（缺的骨由下层接管） |
+| 兜底（可靠） | **离线烘"只含上半身"的 clip**（剔掉腿/骨盆轨道），工具 = `tools/anim-retarget`（飞行那 20 条就是它增量合成的）|
+
+**下面这段是当初的排查记录（保留：四条实测的判据在这里）**：
+
+**当初的观感：通道 1 只对【原版 clip】有效、对我们导入的 clip 完全不动**（2026-09-24，逐条验过）：
+
+| 实验 | 结果 |
+|---|---|
+| `custom.anim_ch 1 act_command_unarmed`（原版动作） | ✅ **播**（而且直接接管全身 —— 连"只动上身"都不是保证） |
+| `custom.anim_ch 1 act_fly_cruise`（**我们**导入的飞行 clip） | ❌ 不动 |
+| `custom.anim_ch 1 act_cast_charge` / `act_cast_projectile`（FCS 导入） | ❌ 不动 |
+| 同样两条 clip 走**通道 0**（`custom.do_anim`） | ✅ **正常播** |
+| 四条调用的返回 | 全部 `ACCEPTED=True`、`duration` 正常 ⇒ **不是"被拒"、不是"没注册"** |
+
+**根因（包内元数据逐字节对比）**：我们的 clip 缺了原版 clip 自带的那几项（编辑器里的
+`Continue to action` / `Param 2` / `Priority` 那一组）—— 偏移 28 / 84 的 int 与 ~96 的 float 取值不同，
+末尾标志串原版是 `allow_head_movement`、我们的是 `cyclic`。通道 1 这条路径认它们，通道 0 不认。
+
+**⇒ 结论与做法**：
+1. 🔴 **自管动画一律走通道 0**（已落地：飞行中施法的手势由 `FlightAnimMachine` 的 `castCharge` / `castRelease`
+   两个状态播，见该文件里那段注释）。
+2. 真要"只改上身"两条路：① **离线合成**（飞行姿势当基底 + 施法上身当增量，`tools/anim-retarget` 的 `trf_compose`）
+   ② 在 ModKit 里把 clip 元数据逐项对齐原版（试错成本未知，没做）。
+3. **诊断命令**：`custom.anim_ch [通道] <动作名> [loop|noforce|lowerbody|all]` —— 返回里带
+   `ACCEPTED` + `after[matches=? weight=?]`（⚠️ 权重是**同帧回读**，blend 还没起来时恒 0，别拿它当判据）
+   ＋**时长对照**（`duration=0.00s` = 该动作在当前 action_set 里解析不到）。
+
+**通道 0 播动作的三条纪律（仍然全部有效）**：
 
 ```csharp
-// 循环的手上姿势（例：蓄力待机）
 ActionIndexCache idx = ActionIndexCache.Create("act_cast_charge");
 if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静默跳过，别抛
-    agent.SetActionChannel(1, idx, ignorePriority: true,
-        additionalFlags: (ulong)AnimFlags.anf_cyclic,   // 🔴 循环就靠它；不传 = 播一次停在末帧
+    agent.SetActionChannel(0, idx, ignorePriority: true,
+        additionalFlags: (ulong)AnimFlags.anf_cyclic,   // 🔴 循环就靠它（clip 自己带 cyclic 也行）
         blendInPeriod: 0.12f,
         blendOutPeriodToNoAnim: 0f);                    // 🔴 必须显式传 0（默认 0.4 会把姿势淡回静止）
-// 一次性动作播完 ⇒ 收回通道 1（交还给全身姿态）
-agent.SetActionChannel(1, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0f,
-                       blendOutPeriodToNoAnim: 0.25f);
 ```
 
-**四条纪律（都踩过或查实过）**：
+1. 🔴 **`blendOutPeriodToNoAnim` 必须显式传 `0`**（默认 0.4 秒 = 动作尾声被拉回"无动画"姿势再弹回，观感"软掉"）。
+2. 🔴 **循环**：`AnimFlags.anf_cyclic` 或 clip 自带 `cyclic` 标记（导入时会给）—— 别自己每帧重发。
+3. 🔴 **不要传 `anf_enforce_lowerbody` / `anf_enforce_all`** —— 名字容易望文生义，实测对"只改上身"没帮助
+   （它们不是"忽略下半身"，我们的通道 1 实验里传了也没变化）。
+4. 一次性动作要知道什么时候播完：`GetCurrentActionProgress(0) ≥ 0.98` ⇒ 交还给普通状态
+   （`AgentAnimStateMachine` 的 `Once` 状态已经替你做了）。
 
-1. 🔴 **`blendOutPeriodToNoAnim` 必须显式传 `0`** —— 默认 0.4 秒 = 动作尾声被拉回"无动画"姿势再弹回，
-   观感"软掉"（同 `AgentAnimStateMachine` 里那条实机取证）。
-2. 🔴 **循环用 `AnimFlags.anf_cyclic`**（`0x4000000000`）—— 别自己每帧重发。
-   枚举全表：`bin/Win64_Shipping_Client/decompiled/…/AnimFlags.cs`。
-3. 🔴 **不要传 `anf_enforce_lowerbody` / `anf_enforce_all`** —— 那两个是"**让通道 1 连下半身一起盖住**"，
-   与"只改上身"**正好相反**（名字容易望文生义成"忽略下半身"）。
-4. **一次性动作要知道什么时候播完**：`agent.GetCurrentActionProgress(1)` ≥ 0.98 ⇒ 收回通道 1
-   （引擎不会自动收回，会停在最后一帧）。
-
-**落地范本**：`Combat/SpellCastInput.cs` 的 `PlayChargeAnim` / `PlayReleaseAnim` / `TickCastAnim` / `ClearCastAnim`
-（飞行中施法：蓄力循环 + 释放一次性；动作名 `act_cast_charge` / `act_cast_projectile`，在内容包 `action_types.xml` 声明、
-`action_sets.xml` 绑 clip 名）。
+**落地范本**：飞行的全部姿态 = `Flight/FlightAnimMachine.cs`（加一行状态 + 一行边）；
+飞行中施法的手势 = 同文件的 `castCharge` / `castRelease`。

@@ -37,7 +37,8 @@ namespace TpacCli
         {
             string xmlPath = null, outDir = ".", packName = "lwn_particles.tpac";
             string packDir = null, templateName = "psys_game_blood_1";
-            bool verbose = false;
+            bool verbose = false, split = false, allowMkdir = false;
+            string cloneSrc = null, cloneNew = null;   // --clone 模式：把原版粒子**原样**（数据一字节不改）写成我们的名字，用来二分"是改写的问题还是打包的问题"
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])
@@ -48,13 +49,41 @@ namespace TpacCli
                     case "--packdir": packDir = args[++i]; break;
                     case "--template": templateName = args[++i]; break;
                     case "--verbose": verbose = true; break;
+                    case "--split": split = true; break;
+                    case "--mkdir": allowMkdir = true; break;   // 一个 effect 一个 <名字>_psys.tpac（编辑器工程的 Assets/particles/ 要这个格式）
+                    case "--clone": cloneSrc = args[++i]; break;
+                    case "--newname": cloneNew = args[++i]; break;
                 }
             }
-            if (xmlPath == null || packDir == null)
+            if (packDir == null || (xmlPath == null && cloneSrc == null))
             {
-                Console.Error.WriteLine("particleimport requires --xml <file> and --packdir <原版包目录>");
+                Console.Error.WriteLine("particleimport requires --packdir <原版包目录> and --xml <file> (或 --clone <源粒子> --newname <新名>)");
                 return 1;
             }
+
+
+            // 🔴 输出目录闸门：模块资产目录有 Assets / Assets_disabled **两态**（同一文件夹的两个名字，
+            //    编辑器模式叫 Assets、游戏模式叫 Assets_disabled，靠 to_editor_mode.bat 改名切换）。
+            //    以前这里静默 Directory.CreateDirectory —— 写错名字时会"悄悄新建一个没人读的目录"，
+            //    错误被藏起来。现在：目录不存在就报错停住，确实要新建才加 --mkdir。
+            Console.WriteLine($"输出目录 = {Path.GetFullPath(outDir)}");
+            if (!Directory.Exists(outDir))
+            {
+                if (!allowMkdir)
+                {
+                    Console.Error.WriteLine("[STOP] 输出目录不存在 —— 已停，不自动新建。");
+                    Console.Error.WriteLine("  模块资产目录有【编辑器模式 Assets / 游戏模式 Assets_disabled】两态，");
+                    Console.Error.WriteLine("  先确认编辑器当前读哪一个（跑过 to_editor_mode.bat 后是 Assets）。");
+                    Console.Error.WriteLine("  确认无误确实要新建时再加 --mkdir。");
+                    return 1;
+                }
+                Directory.CreateDirectory(outDir);
+                Console.WriteLine("  （该目录原本不存在，按 --mkdir 新建）");
+            }
+            else
+            {
+            }
+
 
             // ---- 1. 载入原版包：拿骨架 + 材质名→GUID 表
             var mgr = new AssetManager();
@@ -83,6 +112,37 @@ namespace TpacCli
             Console.WriteLine($"骨架 = {template.Name}（subVersion {skeleton.SubVersion}，{tData.Emitters.Count} 个 emitter，" +
                               $"元数据 {(template.RawMeta ?? template.WriteMetadata()).Length} 字节）");
 
+            // ---- 1b. --clone 模式：原样搬运一个原版粒子的数据，只换名字
+            if (cloneSrc != null)
+            {
+                AssetItem src = null;
+                foreach (var p in mgr.LoadedPackages)
+                    foreach (var it in p.Items.OfType<Particle>())
+                        if (string.Equals(it.Name, cloneSrc, StringComparison.OrdinalIgnoreCase)) { src = it; break; }
+                if (src == null) { Console.Error.WriteLine($"源粒子 '{cloneSrc}' 没找到"); return 1; }
+                var sLoader = src.TypelessDataSegments.OfType<ExternalLoader<ParticleEffectData>>().FirstOrDefault();
+                if (sLoader == null) { Console.Error.WriteLine("源粒子没有数据段"); return 1; }
+                var sData = sLoader.Data;
+                var verbatim = new ParticleEffectData();
+                using (var ms = new MemoryStream(sData.RawData))
+                using (var r = new BinaryReader(ms))
+                    verbatim.ReadData(r, null, sData.RawData.Length);   // 只走 RawData，字节原样
+
+                var cl = new Particle { Name = cloneNew, Guid = DeterministicGuid(cloneNew) };
+                cl.CopyShellFrom(src);
+                var clLoader = new ExternalLoader<ParticleEffectData>(verbatim);
+                clLoader.OwnerGuid = cl.Guid;   // 🔴 段的 owner 必须 == 资产 guid（原版实证）—— 空 owner = 引擎找得到资产、找不到数据 = emitter 全空
+                cl.TypelessDataSegments.Add(clLoader);
+                var onePkg = new AssetPackage();
+                onePkg.Items.Add(cl);
+                Directory.CreateDirectory(outDir);
+                string op = Path.Combine(outDir, cloneNew + "_psys.tpac");
+                onePkg.Save(op);
+                Console.WriteLine($"  + 原样克隆 '{cloneSrc}' -> '{cloneNew}'（{sData.RawData.Length} 字节数据，" +
+                                  $"{sData.Emitters.Count} 个 emitter 按我们的读法）-> {Path.GetFileName(op)} {new FileInfo(op).Length:N0} 字节");
+                return 0;
+            }
+
             // ---- 2. 读我们的 XML，造资产
             var doc = XDocument.Load(xmlPath);
             var pkg = new AssetPackage();
@@ -106,17 +166,37 @@ namespace TpacCli
 
                 var asset = new Particle { Name = name, Guid = DeterministicGuid(name) };
                 asset.CopyShellFrom(template);   // 版本 + 元数据字节（否则 Save 时抛 NotImplementedException）
-                asset.TypelessDataSegments.Add(new ExternalLoader<ParticleEffectData>(data));
-                pkg.Items.Add(asset);
+                var loader = new ExternalLoader<ParticleEffectData>(data);
+                loader.OwnerGuid = asset.Guid;   // 🔴 同 clone：段 owner 必须 == 资产 guid
+                asset.TypelessDataSegments.Add(loader);
+                if (split)
+                {
+                    // 编辑器工程格式：Assets/particles/<资产名>_psys.tpac（原版 fight_tail_psys.tpac 就是这个形态）
+                    var one = new AssetPackage();
+                    one.Items.Add(asset);
+                    string onePath = Path.Combine(outDir, name + "_psys.tpac");
+                    one.Save(onePath);
+                    Console.WriteLine($"  + Particle '{name}'  ({data.Emitters.Count} emitter) -> {Path.GetFileName(onePath)} " +
+                                      $"{new FileInfo(onePath).Length:N0} 字节");
+                }
+                else
+                {
+                    pkg.Items.Add(asset);
+                    Console.WriteLine($"  + Particle '{name}'  ({data.Emitters.Count} emitter)");
+                }
                 effCount++;
-                Console.WriteLine($"  + Particle '{name}'  ({data.Emitters.Count} emitter)");
             }
-
-            Directory.CreateDirectory(outDir);
-            string outPath = Path.Combine(outDir, packName);
-            pkg.Save(outPath);
-            Console.WriteLine($"== 写出 {outPath}：{effCount} 个 effect / {emCount} 个 emitter / " +
-                              $"{new FileInfo(outPath).Length:N0} 字节 ==");
+            if (!split)
+            {
+                string outPath = Path.Combine(outDir, packName);
+                pkg.Save(outPath);
+                Console.WriteLine($"== 写出 {outPath}：{effCount} 个 effect / {emCount} 个 emitter / " +
+                                  $"{new FileInfo(outPath).Length:N0} 字节 ==");
+            }
+            else
+            {
+                Console.WriteLine($"== split 模式：{effCount} 个 effect / {emCount} 个 emitter 已分别写入 {outDir} ==");
+            }
             return 0;
         }
 

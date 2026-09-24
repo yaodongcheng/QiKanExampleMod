@@ -171,6 +171,17 @@ python gen_particle_effect.py examples\yinmo_spec.py -o out\yinmo_slash.xml
 
 ### 2.4 进 modkit / 进游戏（2026-09-21 新增：XML 之后怎么真的「看见」）
 
+> ✅ **2026-09-24 更新 —— 下面这条"编辑器 Publish"的路已被更省事的替代**：
+> **`tpaccli particleimport` 直接离线编译**（不开编辑器）：
+> ```bash
+> # 编辑器里看（一个粒子一个文件，目录必须是当前态的 <模块>/Assets/particles/）
+> tpaccli particleimport --xml <我们的XML> --out <模块>/Assets/particles --packdir <原版包目录> --split
+> # 游戏里用（一个包装多个，产物拷进内容包 AssetPackages/）
+> tpaccli particleimport --xml <我们的XML> --out <出包目录> --packname lwn_prt.tpac --packdir <原版包目录>
+> ```
+> 字段映射 / 段校验 / 七个坑 → [Knowledge/骑砍2粒子系统.md](../../Knowledge/骑砍2粒子系统.md) **§十二**。
+> 下面这段留着当"为什么必须编成资产"的证据与编辑器侧的操作参考。
+
 > 这一段补的是 §6 表里唯一没被证明的那一环。结论：**粒子既不需要编辑器编译、也不需要打 tpac**，
 > 但**在编辑器里挂一个 Particle 组件**是最省事的肉眼验证通道。
 

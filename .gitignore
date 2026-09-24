@@ -97,6 +97,11 @@ tools/particle-pipeline/out/
 #   下面是【防御性兜底】：防的是将来有人在工具目录里误跑出产物、或把数据拷进来
 tools/particle-pipeline/**/out/
 
+# tpactool（tpac 读写/编译工具链：粒子资产离线编译、贴图替换、网格元数据就地改）
+#   工具产物（编译出来的 tpac）一律不进库 —— 与上面几条同理。
+tools/tpactool/out/
+tools/tpactool/**/out/
+
 # ── 不同步 AIInfluence 子项目 ──
 ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
 

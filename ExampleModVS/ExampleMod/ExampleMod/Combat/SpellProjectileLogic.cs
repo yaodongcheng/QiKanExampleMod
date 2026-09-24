@@ -58,6 +58,7 @@ namespace LivingWorldNpcs
 		/// 用途：<c>custom.spell lead 0.83</c> / <c>custom.spell lead 0</c> 当场 A/B 两种手感。
 		/// </summary>
 		public static float? ReleaseLeadOverride;
+
 	}
 
 	/// <summary>

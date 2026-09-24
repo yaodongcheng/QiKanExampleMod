@@ -124,6 +124,7 @@ namespace LivingWorldNpcs.Flight
         private string _lastAnimState;       // 上一帧的动画状态名（变了就弹一条提示；见 OnMissionTick）
         private bool _boardSpawned;          // 本次起飞：板是否已经召唤出来（延迟召唤用）
         private bool _headAimActive;         // 施法瞄准期间我们设过"头看相机"的 POI（退出时要撤掉，别留给别人）
+        private bool _wasSpellAiming;        // 上一帧是否在蓄力施法（取「释放」那一拍用）
         private float _boardSpawnTimer;      // 本次起飞：从触发到召唤板过了多久
         private float _takeoffAnimTimer;     // 本次起飞：从按空格那一刻起算（入姿时长按它判，与板延迟重叠）
         private bool _freezeWarned;         // 冻结相关失败只报一次（防每帧刷屏）
@@ -523,6 +524,17 @@ namespace LivingWorldNpcs.Flight
             //    这里只"喂事实"（UpdateAnimContext 已在上面调）并解挂；真正的 Tick 在 OnMissionTick
             //    末尾每帧一次 —— 因为起飞/落地期间也要跑（状态机在那两段负责维持动作 + 防被抢）。
             _anim.Hold = false;              // 空中态 = 允许自动转移
+
+            // ⑦′ 施法手势的**释放那一拍**：从「正在蓄力」跌到「没在蓄力」= 玩家放出去了（或取消）。
+            //    走的是一次性 castRelease（这里 Force，与起飞/落地同一套路）。
+            //    ⚠️ 取消也会走这一拍（代价 = 松手也演一下投掷）。要区分「真发出」与「取消」，
+            //      得让施法侧再暴露一个标志（现在是共用 IsPlayerAiming 这一个事实）。
+            bool spellAiming = SpellCastInput.IsPlayerAiming;
+            if (_wasSpellAiming && !spellAiming)
+            {
+                _anim.Force(main, "castRelease", 0.12f);
+            }
+            _wasSpellAiming = spellAiming;
 
             // ⑧ 机身朝向（🔴 2026-09-21 用户裁定 = **朝实际移动方向**，见下）
             //    有输入 → 朝【实际移动方向】的水平投影：
@@ -1347,6 +1359,8 @@ namespace LivingWorldNpcs.Flight
             _bankLatch.SetThresholds(FlightTuning.BankThreshold, FlightTuning.BankExitThreshold);
             _bankLatch.Update(FlightInput.MoveAxis.x);
             _animCtx.BankBand = _bankLatch.Value;
+            // 施法蓄力（决定进施法手势状态；释放那一下由下面 Force 进）
+            _animCtx.SpellCharging = SpellCastInput.IsPlayerAiming;
         }
 
         /// <summary>
