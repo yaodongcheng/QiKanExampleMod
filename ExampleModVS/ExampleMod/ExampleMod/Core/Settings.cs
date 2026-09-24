@@ -287,11 +287,14 @@ namespace LivingWorldNpcs
             // 调停（随从犯法被执法时面向守卫按 F）：与 Talk 同键——上下文互斥替换（守卫警戒非玩家时
             // Intervene 行替换 Talk 行，永不共存，无冲突警告）
             [InteractionIds.Intervene] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Short" },
-            // 施法（阶段 3 起手轴）：**按住蓄力、松手放**；R / RT 都是全分类零绑定的空闲键
-            //（施法方式 normal/channel/instant 由法术数据决定，与按键无关）。
-            // ⚠️ 它不显示在交互 HUD 上（那是 InteractionMissionView 的活，而战场上它不挂）——
-            //   施法提示留给阶段 5 的自建 HUD。
-            [InteractionIds.SpellCast] = new InteractionBindingConfig { Keyboard = "R", Gamepad = "RTrigger", PressMode = "Short" },
+            // 施法（阶段 3 起手轴）：**按住蓄力、松手放**。
+            // 🔴 默认键 = X，**不是 R** —— R 是原版"切换第一人称/视角"的键，按下去会**同时**触发切视角
+            //    （我们的 ModInput 是轮询读取、不吞键，所以物理键冲突会双触发；2026-09-24 用户实机报的）。
+            //    ⚠️ 字母键基本都被原版占用（本项目早先逐分类核查的结论：**M 是唯一全空的字母键**，
+            //       而 M 已经给了 IM 面板）⇒ 任何字母默认都可能撞上别的功能。
+            //    **撞上了就在这里换**：`Modules/LivingWorldNpcs/config.json` → `Interactions` → `SpellCast`
+            //      → `Keyboard`（ModInput 的键位来源就是它，改完重启游戏生效）。
+            [InteractionIds.SpellCast] = new InteractionBindingConfig { Keyboard = "X", Gamepad = "RTrigger", PressMode = "Short" },
         };
 
         /// <summary>玩法行配置（玩家在 config.json 覆盖/增删；PopulateObject 合并，删行 = 回落内置默认）。</summary>

@@ -865,8 +865,6 @@ static void ExportObj(string path, Metamesh meta)
 // mesh→材质→贴图 全链映射 JSON：submesh(Mesh.Material/SecondMaterial GUID→材质名) → 材质 Textures 槽位(k→纹理名)
 static void WriteMatMap(string path, Metamesh meta, IReadOnlyList<AssetItem> assets)
 {
-    string MatName(Guid g) => assets.OfType<Material>().FirstOrDefault(m => m.Guid == g)?.Name
-        ?? (g == Guid.Empty ? null : "missing_" + g.ToString("N").Substring(0, 8)); // 仅 submesh 材质用(材质域)
     string TexName(Guid g) => assets.OfType<Texture>().FirstOrDefault(t => t.Guid == g)?.Name
         ?? "missing_" + g.ToString("N").Substring(0, 8);
     var submeshes = new System.Collections.Generic.List<object>();

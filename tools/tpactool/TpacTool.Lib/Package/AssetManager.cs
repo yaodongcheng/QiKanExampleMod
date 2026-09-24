@@ -102,8 +102,12 @@ namespace TpacTool.Lib
 			{
 				if (reportProgress && !callback(-1, -1, String.Empty, false))
 				{
+#if !NET6_0_OR_GREATER
+					// .NET 5+ 起 Thread.Abort 已不支持（会抛 PlatformNotSupportedException）：搜索线程是后台线程，
+					// 跳过 Abort 由 InterruptLoading() 清表即可，线程自行结束
 					if (thread.ThreadState != ThreadState.Stopped)
 						thread.Abort();
+#endif
 					InterruptLoading();
 					return;
 				}
