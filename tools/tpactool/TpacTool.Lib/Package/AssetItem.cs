@@ -86,6 +86,20 @@ namespace TpacTool.Lib
 				throw new NotImplementedException();
 		}
 
+		/// <summary>
+		/// 新建资产（不是从包里读出来的）时，把"外壳"对齐一个已存在的资产：
+		/// 版本号 + 元数据字节 + 那个 8 字节 checksum。
+		/// 为什么需要：Version 的 setter 是 protected internal，外部程序集写不了；
+		/// 而 AssetPackage.Save 对没有 RawMeta 的新资产会走 WriteMetadata() → 基类直接抛 NotImplementedException
+		/// （Particle 这类"没有元数据"的资产就卡在这）。
+		/// </summary>
+		public void CopyShellFrom([NotNull] AssetItem other)
+		{
+			Version = other.Version;
+			UnknownMetadataChecksum = other.UnknownMetadataChecksum;
+			RawMeta = other.RawMeta ?? other.WriteMetadata();
+		}
+
 		public virtual AssetItem Clone()
 		{
 			throw new NotImplementedException();

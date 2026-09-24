@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -33,7 +33,7 @@ string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 string command = cmdLine.Length > 0 ? cmdLine[0] : "help";
 
 // assetclone / morphinfo / morphfix 有自己完整参数集——顶层解析只认命令名,参数原样透传
-if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "clothinfo"))
+if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "clothinfo" or "particleimport"))
 {
     for (int i = 1; i < cmdLine.Length; i++)
     {
@@ -123,6 +123,18 @@ switch (command)
         foreach (var f in Assimp.Unmanaged.AssimpLibrary.Instance.GetExportFormatDescriptions())
             Console.WriteLine(f.FormatId + "  " + f.Description);
         return 0;
+    }
+    case "particleimport":
+    {
+        return ParticleImport.Run(cmdLine.Skip(1).ToArray());
+    }
+    case "prtdump":
+    {
+        return ParticleDump.Run(dir, filter);
+    }
+    case "prtroundtrip":
+    {
+        return ParticleRoundtrip.Run(dir, filter);
     }
     case "assetclone":
     {

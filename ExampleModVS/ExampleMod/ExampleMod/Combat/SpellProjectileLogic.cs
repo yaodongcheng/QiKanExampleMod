@@ -51,6 +51,13 @@ namespace LivingWorldNpcs
 		/// （下次按住施法键就生效；核已经画出来时会等下一次施法）。
 		/// </summary>
 		public static float? ChargeScaleOverride;
+
+		/// <summary>
+		/// **出手延迟**覆盖（秒）：法术等释放动作走到"出手帧"才飞出去。null = 用数据里每个法术自己的
+		/// <c>release_at</c>（0~1 fraction × 动作时长）；<c>0</c> = 点键即出（最跟手）。
+		/// 用途：<c>custom.spell lead 0.83</c> / <c>custom.spell lead 0</c> 当场 A/B 两种手感。
+		/// </summary>
+		public static float? ReleaseLeadOverride;
 	}
 
 	/// <summary>
@@ -75,6 +82,7 @@ namespace LivingWorldNpcs
 	///   custom.spell hit &lt;米&gt;|off             命中半径覆盖（判定更宽松/更严）
 	///   custom.spell core &lt;倍率&gt;|off          **手心蓄力核**的大小覆盖（按住 X 就能看到）
 	///   custom.spell hand                   右手骨诊断：球挂点的全部数字（骨索引/世界位置/相对角色偏移）
+	///   custom.spell lead &lt;秒&gt;|off           **出手延迟**覆盖：法术等释放动作走到出手帧才飞（0 = 点键即出）
 	///   custom.spell probe                  对最近的一个 agent 做三条实测定性（见方法注释）
 	/// </summary>
 	public class SpellProjectileLogic : MissionLogic
@@ -381,6 +389,8 @@ namespace LivingWorldNpcs
 						return Hit(args);
 					case "core":
 						return Core(args);
+					case "lead":
+						return Lead(args);
 					case "hand":
 						return Hand(args);
 					case "tilt":
@@ -824,6 +834,28 @@ namespace LivingWorldNpcs
 			}
 			SpellDebug.ChargeScaleOverride = MathF.Max(0.02f, MathF.Min(5f, value));
 			return $"OK: charge core override = {SpellDebug.ChargeScaleOverride.Value:F2}x (hold the cast key to see it)";
+		}
+
+		/// <summary>出手延迟覆盖（0~2 秒钳制；off = 还原成数据里的 release_at）。</summary>
+		private static string Lead(List<string> args)
+		{
+			if (args.Count < 2)
+			{
+				return $"OK: release lead override = {(SpellDebug.ReleaseLeadOverride.HasValue ? SpellDebug.ReleaseLeadOverride.Value.ToString("F2", CultureInfo.InvariantCulture) : "off")}";
+			}
+			string raw = args[1].Trim();
+			if (raw.Equals("off", StringComparison.OrdinalIgnoreCase))
+			{
+				SpellDebug.ReleaseLeadOverride = null;
+				return "OK: release lead override cleared (using per-spell release_at)";
+			}
+			float value;
+			if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+			{
+				return $"ERROR: '{raw}' is not a number.";
+			}
+			SpellDebug.ReleaseLeadOverride = MathF.Max(0f, MathF.Min(2f, value));
+			return $"OK: release lead override = {SpellDebug.ReleaseLeadOverride.Value:F2}s (0 = fire on key press)";
 		}
 
 		/// <summary>

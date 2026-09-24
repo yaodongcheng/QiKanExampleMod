@@ -646,3 +646,43 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 **范本**：`custom.exec_pair [targetId] [距离] [相机模板]`（`Debug/MyCommands.cs` 的 `ExecuteExecPair`）：
 目标默认取 interact 焦点（`InteractionMissionView.Instance.GetFocusdAgent()`，回落 `LastFocusedAgent`）；
 演出相机见 [camera.md](camera.md)。
+
+## 🔴 上半身叠加动作（通道 1）—— 手上动作不打断腿（2026-09-24 立，施法手势落地）
+
+**解决什么问题**：要让角色**一边飞/一边走，一边做手上动作**（施法、结印、举枪），
+不能把全身动画顶掉 —— 引擎的**两条通道**就是干这个的：
+
+| 通道 | 覆盖范围 | 谁在用 |
+|---|---|---|
+| **0** | **全身** | 本项目所有现有动画（`ForcePlayAction`、飞行状态机、`AgentControlHelper`） |
+| **1** | **上身** | 空着 —— 谁要"手上动作"就往这写 |
+
+两条通道按**身体区域叠加**（不是二选一）⇒ 腿保持通道 0 的姿态，上半身走通道 1。
+
+```csharp
+// 循环的手上姿势（例：蓄力待机）
+ActionIndexCache idx = ActionIndexCache.Create("act_cast_charge");
+if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静默跳过，别抛
+    agent.SetActionChannel(1, idx, ignorePriority: true,
+        additionalFlags: (ulong)AnimFlags.anf_cyclic,   // 🔴 循环就靠它；不传 = 播一次停在末帧
+        blendInPeriod: 0.12f,
+        blendOutPeriodToNoAnim: 0f);                    // 🔴 必须显式传 0（默认 0.4 会把姿势淡回静止）
+// 一次性动作播完 ⇒ 收回通道 1（交还给全身姿态）
+agent.SetActionChannel(1, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0f,
+                       blendOutPeriodToNoAnim: 0.25f);
+```
+
+**四条纪律（都踩过或查实过）**：
+
+1. 🔴 **`blendOutPeriodToNoAnim` 必须显式传 `0`** —— 默认 0.4 秒 = 动作尾声被拉回"无动画"姿势再弹回，
+   观感"软掉"（同 `AgentAnimStateMachine` 里那条实机取证）。
+2. 🔴 **循环用 `AnimFlags.anf_cyclic`**（`0x4000000000`）—— 别自己每帧重发。
+   枚举全表：`bin/Win64_Shipping_Client/decompiled/…/AnimFlags.cs`。
+3. 🔴 **不要传 `anf_enforce_lowerbody` / `anf_enforce_all`** —— 那两个是"**让通道 1 连下半身一起盖住**"，
+   与"只改上身"**正好相反**（名字容易望文生义成"忽略下半身"）。
+4. **一次性动作要知道什么时候播完**：`agent.GetCurrentActionProgress(1)` ≥ 0.98 ⇒ 收回通道 1
+   （引擎不会自动收回，会停在最后一帧）。
+
+**落地范本**：`Combat/SpellCastInput.cs` 的 `PlayChargeAnim` / `PlayReleaseAnim` / `TickCastAnim` / `ClearCastAnim`
+（飞行中施法：蓄力循环 + 释放一次性；动作名 `act_cast_charge` / `act_cast_projectile`，在内容包 `action_types.xml` 声明、
+`action_sets.xml` 绑 clip 名）。

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -53,6 +54,211 @@ namespace LivingWorldNpcs
 		/// 🔴 **起手那一刻定死**、放出或取消时才清 —— 半路起飞/落地不会把同一发弄成两种收势。
 		/// </summary>
 		private bool _flightGesture;
+
+		// ─────────────────────────── 施法手势动画（🔴 只写【通道 1 = 上身】） ───────────────────────────
+		//
+		// 引擎口径（反编译 + 知识文档实测）：**通道 0 = 全身、通道 1 = 上身**，按身体区域叠加。
+		// 飞行姿态由动画状态机写**通道 0**，施法手势写**通道 1** ⇒ 两边互不打架，腿始终是飞行姿势。
+		// 🔴 两个必须记住的 flag：
+		//   · 循环 = `AnimFlags.anf_cyclic`（不传 = 播一次就停在最后一帧）
+		//   · `blendOutPeriodToNoAnim: 0` **必须显式传**（默认 0.4 秒会把姿势淡回静止，观感"软掉"；
+		//     交底见 AgentAnimStateMachine 里那段实机取证）
+		//   ⚠️ **不要**传 `anf_enforce_lowerbody` / `anf_enforce_all` —— 那是"让通道 1 连下半身一起盖住"，
+		//      与我们要的"只改上身"正好相反。
+
+		/// <summary>蓄力循环动作名（要与内容包 `ModuleData/action_types.xml` 的声明一致）。</summary>
+		private const string ActCastCharge = "act_cast_charge";
+
+		/// <summary>释放动作名（同上）。</summary>
+		private const string ActCastProjectile = "act_cast_projectile";
+
+		private const float CastAnimBlendIn = 0.12f;    // 进手势的淡入（短一点，按键要"立刻有反应"）
+		private const float CastAnimBlendOut = 0.25f;   // 收回通道 1 的淡出（交还给飞行姿态）
+
+		private enum CastAnim
+		{
+			None,
+			Charging,    // 蓄力循环在播
+			Releasing,   // 释放动作在播（播完自动收）
+		}
+
+		private CastAnim _castAnim = CastAnim.None;
+
+		/// <summary>蓄力手势（循环）：进蓄力那一刻播一次，之后靠 `anf_cyclic` 自己转。</summary>
+		private void PlayChargeAnim(Agent player)
+		{
+			if (_castAnim == CastAnim.Charging)
+			{
+				return;
+			}
+			if (!SetChannelOne(player, ActCastCharge, cyclic: true))
+			{
+				return;
+			}
+			_castAnim = CastAnim.Charging;
+		}
+
+		/// <summary>释放手势（一次性）：放出去那一拍播；播完由 <see cref="TickCastAnim"/> 收回通道 1。</summary>
+		private void PlayReleaseAnim(Agent player)
+		{
+			if (SetChannelOne(player, ActCastProjectile, cyclic: false))
+			{
+				_castAnim = CastAnim.Releasing;
+			}
+		}
+
+		/// <summary>
+		/// 每帧的收势：① 释放动作播完（或播不出来）⇒ 收回通道 1 ② 蓄力中但相位机已经不在施法（被取消）⇒ 同样收回。
+		/// 收回 = 通道 1 置 `act_none` ⇒ 上身立刻交还给飞行姿态。
+		/// </summary>
+		private void TickCastAnim(Agent player)
+		{
+			if (_castAnim == CastAnim.None)
+			{
+				return;
+			}
+			bool done = false;
+			if (_castAnim == CastAnim.Releasing)
+			{
+				try { done = player.GetCurrentActionProgress(1) >= 0.98f; }
+				catch (Exception) { done = true; }
+			}
+			else if (_phase == Phase.Idle)
+			{
+				done = true;      // 蓄力被取消（松右键）：相位机回 Idle，手势也得跟着退
+			}
+			if (done)
+			{
+				ClearCastAnim(player);
+			}
+		}
+
+		/// <summary>把动作放到通道 1。返回 false = 动作没注册 / 播失败（静默，不抛）。</summary>
+		private static bool SetChannelOne(Agent player, string actionId, bool cyclic)
+		{
+			try
+			{
+				ActionIndexCache idx = ActionIndexCache.Create(actionId);
+				if (idx == ActionIndexCache.act_none)
+				{
+					// 🔴 只记一次（别每帧刷屏）：施法照常，只是没手势。
+					//    判据 = 动作在当前 action_set 里解析不到（没注册 / clip 名写错 / 模块没加载）；
+					//    游戏内手验用 `custom.anim_ch 1 <动作名> [loop]`（返回里带时长对照）。
+					if (_animWarned.Add(actionId))
+					{
+						DebugLogger.Log($"[Spell] 手势动作 '{actionId}' 没注册（act_none）—— 施法照常，只是没有上手姿势");
+					}
+					return false;
+				}
+				float duration = 0f;
+				try { duration = MBActionSet.GetActionAnimationDuration(player.ActionSet, idx); }
+				catch (Exception) { }
+				if (duration <= 0f && _animWarned.Add(actionId + ":dur"))
+				{
+					DebugLogger.Log($"[Spell] 手势动作 '{actionId}' 时长 0.00s —— 动作注册了，但 clip 在当前 action_set 里解析不到");
+				}
+				player.SetActionChannel(1, idx, ignorePriority: true,
+					additionalFlags: cyclic ? (ulong)AnimFlags.anf_cyclic : 0UL,
+					blendInPeriod: CastAnimBlendIn,
+					blendOutPeriodToNoAnim: 0f);
+				return true;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
+		/// <summary>已报过警的动作名（防每帧刷屏）。</summary>
+		private static readonly HashSet<string> _animWarned = new HashSet<string>(StringComparer.Ordinal);
+
+		/// <summary>收回通道 1（幂等）：上身交还给飞行姿态。</summary>
+		private void ClearCastAnim(Agent player)
+		{
+			if (_castAnim == CastAnim.None)
+			{
+				return;
+			}
+			_castAnim = CastAnim.None;
+			try
+			{
+				player.SetActionChannel(1, ActionIndexCache.act_none, ignorePriority: true,
+					additionalFlags: 0UL, blendInPeriod: 0f,
+					blendOutPeriodToNoAnim: CastAnimBlendOut);
+			}
+			catch (Exception)
+			{
+				// agent 没了（倒地/换场景）—— 无所谓，通道本来就没人播了
+			}
+		}
+
+		// ─────────────────────────── 出手时机：法术等动作的"出手帧" ───────────────────────────
+		//
+		// 🔴 释放动作 `ProjectileSpell` 有 **0.83 秒前摇**（出手帧 36% × 2.30 s）——
+		//    点左键立刻飞出去 = 人还在抬手、月牙已经撞墙上了。
+		//    数据字段 `release_at`（0~1，clip 的进度）就是为这一刻留的：延迟 = `release_at × 释放动作时长`。
+		//    · `release_at = 0`（当前数据值）⇒ **即时出手**（现在的行为，最跟手）
+		//    · `release_at = 0.36` ⇒ 等到抬手动作做完那一拍才飞出去（最像"投出去"，代价是 0.83 s 延迟）
+		//    运行时试：`custom.spell lead <秒>`（0 = 即时；不用重启、不用改数据）。
+
+		/// <summary>释放动作 `act_cast_projectile` 的时长（秒）—— 换素材时同步改这里（`MagicIdle` 是 1.80）。</summary>
+		private const float ReleaseClipSeconds = 2.30f;
+
+		private bool _hasPendingRelease;
+		private float _pendingReleaseTimer;
+		private SpellDef _pendingSpell;
+		private float _pendingPower = 1f;
+
+		/// <summary>延迟多少秒才真正放出去（数据 `release_at` × 释放动作时长；运行时旋钮优先）。</summary>
+		private static float ReleaseLeadSeconds(SpellDef spell)
+		{
+			if (SpellDebug.ReleaseLeadOverride.HasValue)
+			{
+				return MathF.Max(0f, SpellDebug.ReleaseLeadOverride.Value);
+			}
+			float frac = spell != null ? spell.ReleaseAt : 0f;
+			return frac > 0f ? frac * ReleaseClipSeconds : 0f;
+		}
+
+		/// <summary>挂起这一发（等动作走到出手帧再放）。</summary>
+		private void QueueRelease(SpellDef spell, float power, float lead)
+		{
+			_hasPendingRelease = true;
+			_pendingReleaseTimer = lead;
+			_pendingSpell = spell;
+			_pendingPower = power;
+		}
+
+		/// <summary>到点就放；玩家没了 / 落地了就把这一发丢掉（不补发）。</summary>
+		private void TickPendingRelease(Agent player, float dt)
+		{
+			if (!_hasPendingRelease)
+			{
+				return;
+			}
+			_pendingReleaseTimer -= dt;
+			if (_pendingReleaseTimer > 0f)
+			{
+				return;
+			}
+			SpellDef spell = _pendingSpell;
+			float power = _pendingPower;
+			_hasPendingRelease = false;
+			_pendingSpell = null;
+			if (spell == null)
+			{
+				return;
+			}
+			CastNow(player, spell, power);
+		}
+
+		/// <summary>真正把法术放出去（起点与方向都在**这一刻**算 —— 抬手的 0.8 秒里镜头可能已经转了）。</summary>
+		private void CastNow(Agent player, SpellDef spell, float power)
+		{
+			Vec3 origin = player.Position;
+			origin.z += player.GetEyeGlobalHeight();
+			SpellCastFlow.Cast(player, spell, origin, SpellWorld.CastDirection(player), power);
+		}
 
 		/// <summary>输入缓冲窗口（松手到动作结束之间按下的下一次施法要接住）。</summary>
 		private float _bufferUntil;
@@ -115,15 +321,17 @@ namespace LivingWorldNpcs
 
 			// 🔴 **本阶段只在空中施法**（2026-09-24 用户裁定）：地面有常规攻击模式，
 			//    施法手势与施法动作会跟它打架，所以地面的蓄力手势**暂时停用**（`X` 键不再起手）——
-			//    地面怎么兼容以后再看。地面正在蓄的当场取消（免得"起飞前按着 X，一飞起来带一发"）。
+			//    地面怎么兼容以后再看。落地 = 当场取消（含"飞着蓄力一半落地"，免得球挂在手上不放）。
 			//    ⚠️ 不受影响的两条：① `custom.spell cast`（控制台，测试用）② 法印开火拦截那条路
 			//       （引擎开火 → SpellSealFirePatch 改发我们的实体，它不需要手势、也不加动作）。
+			TickCastAnim(player);              // 收势：释放动作播完 / 蓄力被取消 ⇒ 收回通道 1
+			TickPendingRelease(player, dt);    // 出手帧到了 ⇒ 把挂起的那一发真放出去
 			if (!IsFlyingNow())
 			{
-				if (_phase != Phase.Idle && !_flightGesture)
-				{
-					Cancel();
-				}
+				// 落地/退出飞行：挂起的这一发**丢掉不补发**（人都落地了，月牙才飞出来最出戏）
+				_hasPendingRelease = false;
+				_pendingSpell = null;
+				Cancel();
 				return;
 			}
 
@@ -190,6 +398,10 @@ namespace LivingWorldNpcs
 			{
 				return;
 			}
+			if (_hasPendingRelease)
+			{
+				return;   // 上一发还在等出手帧 —— 先让它走完，别叠第二发
+			}
 			bool buffered = MissionTime() <= _bufferUntil;
 			if (!_releasedSinceCast && !buffered)
 			{
@@ -209,6 +421,7 @@ namespace LivingWorldNpcs
 			}
 			_phase = Phase.Charging;
 			UpdateCore(player, 0f);
+			PlayChargeAnim(player);       // 蓄力手势（通道 1 · 循环）
 		}
 
 		private void UpdateCharging(Agent player, SpellDef wielded, bool held, float dt, bool fire)
@@ -280,10 +493,21 @@ namespace LivingWorldNpcs
 			_releasedSinceCast = !_flightGesture;
 			_bufferUntil = MissionTime() + BufferWindowSeconds;
 
-			Vec3 origin = player.Position;
-			origin.z += player.GetEyeGlobalHeight();
-			// 🔴 方向取**相机朝向**（第三人称下相机 ≠ 身体朝向）
-			SpellCastFlow.Cast(player, spell, origin, SpellWorld.CastDirection(player), power);
+			// 释放手势（通道 1 · 一次性）：把蓄力循环换成"推出/投掷"那一条；
+			// 播完由 TickCastAnim 收回通道 1（`blendOutPeriodToNoAnim: 0` + 我们自己的 0.25 s 淡出）。
+			PlayReleaseAnim(player);
+
+			// 🔴 法术**什么时候真飞出去**：数据 `release_at`（0~1，释放动作的进度）× 动作时长。
+			//    0 = 点键即出（跟手）；0.36 = 等动作抬到手才出（像真的"投出去"，代价 0.83 s 延迟）。
+			float lead = _flightGesture ? ReleaseLeadSeconds(spell) : 0f;
+			if (lead > 0.01f && _castAnim == CastAnim.Releasing)
+			{
+				QueueRelease(spell, power, lead);      // 抬手那段走完再放（起点与方向到那时才算）
+			}
+			else
+			{
+				CastNow(player, spell, power);
+			}
 			_power = 1f;
 			_heldSeconds = 0f;
 		}

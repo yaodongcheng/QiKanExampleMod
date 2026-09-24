@@ -118,7 +118,8 @@ public static class SpellSealFirePatch { [HarmonyPrefix] public static bool Pref
 |---|---|
 | 球的位置 | 地面 = 身前近似手位（等"法阵 prefab"换真挂点）；**飞行 = 右手上方**（身体朝向绕 Up 转 90° 取 `.s` 当右向；真挂手骨 = `Monster.MainHandBoneIndex` + `AgentVisuals.GetBoneEntitialFrame`，范本 `CampaignMode/Tools/FlySpike.cs:1962`）—— 左右反了就把 `CoreAnchor` 里的右向取反 |
 | 球的大小 | **数据 `charge_scale`** = **满蓄力时**的放大倍率（默认 `0.375` ⇒ 核 ⌀0.72 m 时满蓄力 ⌀0.27 m）。**生长曲线 = 从 0 线性长到 1**（起手几乎看不见、蓄满不再变，2026-09-24 用户裁定"过程直观"；钳 0.01 免零缩放矩阵）；运行时 `custom.spell core <倍率>`（不用重启） |
-| 粒子的浓淡 | 随 `Power` 调**发射率倍数** `0.3 → 1.5`：`ParticleSystem.SetRuntimeEmissionRateMultiplier(mult)`（引擎为此专门开的接口；同一颗粒子不重建） |
+| 粒子的浓淡 | 随 `Power` 调**发射率倍数** `0.08 → 1.5`：`ParticleSystem.SetRuntimeEmissionRateMultiplier(mult)`（引擎为此专门开的接口；同一颗粒子不重建） |
+| **出手时机**（2026-09-24 落地） | 释放动作有 **0.83 秒前摇**（出手帧 36% × 2.30 s）⇒ 数据字段 **`release_at`**（0~1，clip 进度）现在是活的：延迟 = `release_at × 动作时长`（0 = 点键即出、最跟手）。运行时试：**`custom.spell lead <秒>`**。挂起的那一发由 `TickPendingRelease` 到点放；**落地/退出飞行 = 丢掉不补发**；待发期间不许起第二发 |
 
 ### 🔴 方向来源 = `Camera/CameraLook.cs`（唯一入口，CLAUDE.md 铁律 35）
 
@@ -159,20 +160,19 @@ anchor = hand + Vec3.Up * SpellCastInput.HandAnchorUpOffset;                   /
 取不到（骨架没建 / 索引为负）→ 退回"身体坐标 + 右偏 + 上抬"的近似位。
 **诊断**：`custom.spell hand` 打出**骨索引 / 骨世界位置 / 相对角色的三向偏移与距离 / 上抬量 / 当前是骨骼还是近似**。
 
-### TODO：施法手势动画（只改上半身 · 蓄力与发射**分两段**）
+### ✅ 施法手势动画（2026-09-24 已接线，只改上半身 · 蓄力与释放**分两段**）
 
-| 段 | 动画 | 说明 |
-|---|---|---|
-| 蓄力 | `ue_MagicIdle`（循环） | 按住右键期间一直播 |
-| 发射 | `ue_ProjectileSpell`（一次性） | 点左键播，出手帧 **36%** 对上 `release_at` |
+| 段 | clip（包内真名） | 动作名 | 播法 |
+|---|---|---|---|
+| 蓄力 | `magic_idle`（55 帧 / 1.80 s） | `act_cast_charge` | 按住右键期间**循环**（`anf_cyclic`） |
+| 释放 | `magic_projectile_spell`（70 帧 / 2.30 s） | `act_cast_projectile` | 点左键播一次（出手帧 **36%**），播完自动收回 |
 
-| 项 | 结论 |
-|---|---|
-| 通道口径 | **通道 0 = 全身、通道 1 = 上身**（按身体区域叠加；`anf_enforce_lowerbody` / `anf_enforce_all` 控制通道 1 盖哪些部位）。现有动画代码**全写通道 0** ⇒ 通道 1 空着，安全 |
-| 素材 | FCS 法术动画**已导出 FBX + 已重定向 TRF**：`MagicIdle` · `ProjectileSpell` · `SkyfallSpell`（举天）· `EruptionSpell`（下压）· `SpellChannel1{_Start,_Mid,_Down,_End}`（引导）· `MagicWalk/Run ×8`（施法移动集）。在 `D:/BrainMaker/骑砍2动画重定向/output/trf/` |
-| 出手帧 | FCS §十四：投掷 36% / 举天 40% / 下压 57% / 引导 58~76% ⇒ 填现有 `release_at` / `end_at` |
-| 接线 | 照飞行那 20 条 clip 的路（TRF → ModKit 导入 → `action_types.xml` 加 `act_*` → `action_sets.xml` 绑定）；四颗雷见 wheels assets §15 |
-| 头 | **已单独解决**（`SetLookToPointOfInterest`）⇒ clip 只管手臂/躯干，不靠它自带瞄准姿态 |
+- **只写通道 1（上身）**：配方与四条纪律（`anf_cyclic` / `blendOutPeriodToNoAnim: 0` / **别传** `anf_enforce_lowerbody` /
+  播完用 `GetCurrentActionProgress(1)` 收）见 [agent.md](agent.md)「上半身叠加动作（通道 1）」。
+- **代码**：`SpellCastInput.PlayChargeAnim / PlayReleaseAnim / TickCastAnim / ClearCastAnim`。
+- **接线**：内容包 `action_types.xml` 声明 `<action name="act_cast_charge" />` + `action_sets.xml` 绑定 `animation="magic_idle"`。
+- ⚠️ **clip 真名 ≠ TRF 名**：`tpaccli dump` 出来的 AnimationClip 名才是要填的（`ue_magicidle` / `ue_projectilespell` 是 SkeletalAnimation 源件，不是 clip）。
+- **素材余量**：`SkyfallSpell`（举天 40%）· `EruptionSpell`（下压 57%）· `SpellChannel1{_Start,_Mid,_Down,_End}`（引导四段）· `MagicWalk/Run ×8`（施法移动集）—— 都在 `D:/BrainMaker/骑砍2动画重定向/output/trf/`，要哪条就再导一次。
 
 ### 已知风险（实机第一眼看的）
 
