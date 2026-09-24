@@ -15,7 +15,7 @@ three.js 预览器只能靠人在浏览器里看；Claude 没有截图通道时�
     python Debug/offline/particle_demo/render_still.py --t 1.85 --out burst.png
     python Debug/offline/particle_demo/render_still.py --t 3.20 --out trail.png
 """
-import argparse, math, os, random, sys
+import argparse, glob, math, os, random, re, sys
 import xml.etree.ElementTree as ET
 import numpy as np
 from PIL import Image
@@ -23,6 +23,8 @@ from PIL import Image
 random.seed(20260918)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# 材质贴图目录（`_mat_tex_survey.py` 的产物；递归找，dump 会按类别分子目录）
+MAT_DIR_DEF = os.path.join(HERE, "..", "out", "mattex_all")
 W, H = 1100, 620
 FOV = 46.0
 
@@ -43,6 +45,17 @@ VIEW = None          # dict，由 load_view() 填
 PHASES = []          # 摊平后的阶段表（configure() 填）
 MESHES = False       # 是否画阴魔斩的替身网格
 CAM_DEF = {"look": [0.0, -0.15, 0.0], "dist": 8.6}
+
+# 🔴 每材质真贴图（2026-09-24 新增）—— 原版每个 prt_shd_* 材质的贴图**完全不一样**：
+#    火焰 = torchflameloop（一格格的橙火苗）· 碎石 = stone_gravel_d · 雪 = prt_text_snow_dust_1
+#    · 火星 = spark（黄色锥形条）· glow = 芝麻大的一个亮点 · 血 = blood19_sprite_horizontal …
+#    预览必须**按材质取贴图**，否则火/冰/毒/血全渲成同一团灰烟 —— 那就"看不出对不对"，
+#    也会误导判断（实测：曾经据此差点把 fire_1 的贴图问题当成冰系映射错）。
+#    贴图来源：Debug/offline/_mat_tex_survey.py 从原版包导出 → out/mattex_all/（按类别分子目录）。
+MAT_TEX = {}          # 材质名 -> PNG 路径
+_SPRITE_SETS = {}     # (材质, 列, 行) -> (cells, 每格平均色)
+TEX_DEFAULT = None    # 找不到材质贴图时的兜底（--tex，默认 smoke_d_256.png）
+TEX_RGB = False       # 贴图自带颜色是否参与调色（默认关：阴魔斩那套基准是"只取形状"对齐出来的）
 FOLLOW = {}          # 某阶段的专用机位：{fx: {"look":…, "dist":…}}
 TRAIL_FRM, TRAIL_TO = 0.0, 0.0
 
@@ -183,6 +196,22 @@ def parse(path):
             o["damping"] = o["rnd"].get("damping", (0, 0))[0]
             o["angDamp"] = o["rnd"].get("angular_damping", (0, 0))[0]
             o["blend"] = MAT_BLEND.get(o["num"].get("material", ""), "add")
+            o["material"] = o["num"].get("material", "")
+            _sc = (o["num"].get("texture_sprite_count") or "1, 1").split(",")
+            try:
+                o["grid"] = (max(1, int(float(_sc[0]))),
+                             max(1, int(float(_sc[1]))) if len(_sc) > 1 else 1)
+            except ValueError:
+                o["grid"] = (1, 1)
+            # 🔴 序列帧动画（2026-09-24 补）：原版粒子靠 `uses_sprite_animation` + frame_count/rate
+            #    在贴图图集里逐帧播放（火苗图集就是 128 帧的火焰动画）。预览以前只画第 0 帧
+            #    ⇒ 火焰动画的起手帧又小又暗，看着像"没做出来"（差点误判成材质错）。
+            o["anim"] = bool(o["flags"].get("uses_sprite_animation"))
+            try:
+                o["frame_count"] = int(float(o["num"].get("texture_sprite_frame_count") or 1))
+                o["frame_rate"] = float(o["num"].get("texture_sprite_frame_rate") or 0)
+            except ValueError:
+                o["frame_count"], o["frame_rate"] = 1, 0.0
             E["emitters"].append(o)
         out.append(E)
     return out
@@ -272,13 +301,65 @@ SIZES = (8, 12, 16, 24, 32, 48, 64, 96, 128)
 def load_sprites(png, cols=2, rows=2):
     im = Image.open(png).convert("RGBA")
     cw, ch = im.width // cols, im.height // rows
-    cells = []
+    cells, means = [], []
     for r in range(rows):
         for c in range(cols):
             cell = im.crop((c * cw, r * ch, (c + 1) * cw, (r + 1) * ch))
+            arr = np.asarray(cell, dtype=np.float32) / 255.0
+            # 贴图**平均色**（只在 --tex-rgb 时参与调色）：火焰贴图是橙的、雪是白的、血是红的
+            a = arr[:, :, 3:4]
+            w = float(a.sum()) or 1.0
+            mean = tuple(float((arr[:, :, i:i + 1] * a).sum() / w) for i in range(3))
+            means.append(mean)
             cells.append({s: np.asarray(cell.resize((s, s), Image.BILINEAR).split()[3],
                                         dtype=np.float32) / 255.0 for s in SIZES})
-    return cells
+    return cells, means
+
+
+def sprite_set(mat, grid):
+    """按材质取它的贴图图集（带缓存）。材质贴图缺失 → 退回默认烟贴图。
+
+    网格（几列几行）用**发射器自己写的** texture_sprite_count —— 同一张贴图被不同
+    发射器按不同格数切是合法的，所以缓存键 = (材质, 列, 行)。
+    """
+    key = (mat or "", grid)
+    if key in _SPRITE_SETS:
+        return _SPRITE_SETS[key]
+    gx, gy = grid
+    png = MAT_TEX.get(mat or "") or TEX_DEFAULT
+    try:
+        res = load_sprites(png, gx, gy)
+    except Exception:
+        res = load_sprites(TEX_DEFAULT, gx, gy)
+    _SPRITE_SETS[key] = res
+    return res
+
+
+def build_mat_tex(matdir, matdefdir=None):
+    """材质名 -> 贴图 PNG 路径。两步走（2026-09-24）：
+
+      ① `preview/mats/<材质>.mat.txt` 给出「**材质 → 贴图名**」（原版 dump 的材质定义里有 tex[0]）；
+      ② 贴图目录（`--matdir`）给出「**贴图名 → PNG**」（dump 会按类别丢进子目录 ⇒ 递归扫）。
+
+    两张表缺一不可 —— 只扫目录会把「材质名」（prt_shd_fire_1）当成贴图名去找，永远命中不了。
+    """
+    if not matdir or not os.path.isdir(matdir):
+        return {}
+    png = {}
+    for f in glob.glob(os.path.join(matdir, "**", "*.png"), recursive=True):
+        png.setdefault(os.path.splitext(os.path.basename(f))[0], f)
+    matdefdir = matdefdir or os.path.join(HERE, "mats")
+    out = {}
+    for f in glob.glob(os.path.join(matdefdir, "*.mat.txt")):
+        mat = os.path.basename(f)[:-len(".mat.txt")]
+        try:
+            text = open(f, encoding="utf-8-sig").read()
+        except OSError:
+            continue
+        m = re.findall(r"tex\[\d+\] = \S+ \(([^)]+)\)", text)
+        if m and m[0] in png:
+            out[mat] = png[m[0]]
+    return out
 
 
 def pick(want):
@@ -439,8 +520,12 @@ def draw_ring(canvas, t):
 # ===========================================================================
 cam = None
 
-def render(xml_path, tex_path, t_end, out_path, view_path=None):
-    global cam
+def render(xml_path, tex_path, t_end, out_path, view_path=None, matdir=None, tex_rgb=False):
+    global cam, TEX_DEFAULT, TEX_RGB
+    TEX_DEFAULT = tex_path
+    TEX_RGB = tex_rgb
+    MAT_TEX.clear()
+    MAT_TEX.update(build_mat_tex(matdir or MAT_DIR_DEF))
     fx = parse(xml_path)
     view = load_view(xml_path, view_path)
     configure(fx, view)
@@ -489,8 +574,7 @@ def render(xml_path, tex_path, t_end, out_path, view_path=None):
         draw_ring(canvas, t_end)          # 阴魔斩那套替身网格：只有 sidecar 明确要时才画
     draw_figure(canvas, (0.87, 0.89, 0.91))   # 人形 = 1.8m 尺度基准，永远画
 
-    # 粒子：从 phase 起点积到 t_end
-    cells = load_sprites(tex_path)
+    # 粒子：从 phase 起点积到 t_end（贴图按材质取，见 sprite_set）
     dt = 1.0 / 60
     t0 = ph["frm"]
     ems = fx[ph["fx"]]["emitters"]
@@ -535,6 +619,7 @@ def render(xml_path, tex_path, t_end, out_path, view_path=None):
     # 深度排序后合成（alpha/modulate 对顺序敏感）
     items = []
     for k, em in enumerate(ems):
+        sset, smean = sprite_set(em.get("material", ""), em.get("grid", (1, 1)))  # 🔴 每材质自己的贴图
         for p in state[k]["live"]:
             q = cam.project((p["x"], p["y"], p["z"]))
             if q is None:
@@ -545,14 +630,21 @@ def render(xml_path, tex_path, t_end, out_path, view_path=None):
             if cv:
                 size += sample(cv["keys"], u, False) * cv["mult"]
             col = sample(em["color"], u, True) if em["color"] else (1, 1, 1)
+            if em.get("anim") and em.get("frame_count", 1) > 1:
+                # 序列帧：按**绝对年龄**推进（不是生命比例）—— 引擎就是这么放动画的
+                ci = int(p["age"] * em.get("frame_rate", 0.0)) % len(sset)
+            else:
+                ci = random.randrange(len(sset)) if em["flags"].get("select_random_sprite") else 0
+            if TEX_RGB:      # 贴图平均色参与调色（火焰→橙、雪→白、血→红）
+                col = tuple(min(1.0, col[i] * smean[ci][i]) for i in range(3))
             a = sample(em["alpha"], u, False) if em["alpha"] else 1.0
             px = max(1, int(size * cam.f / q[2]))
-            items.append((q[2], px, col, a, q[0], q[1], em["blend"],
-                          random.randrange(len(cells)) if em["flags"].get("select_random_sprite") else 0))
+            items.append((q[2], px, col, a, q[0], q[1], em["blend"], ci,
+                          em.get("material", ""), em.get("grid", (1, 1))))
     items.sort(key=lambda z: -z[0])
-    for (_, px, col, a, sx, sy, bl, ci) in items:
+    for (_, px, col, a, sx, sy, bl, ci, mat, grid) in items:
         s = pick(px)
-        m = cells[ci][s]
+        m = sprite_set(mat, grid)[0][ci][s]
         half = s * 0.5
         blit(canvas, m, col, a, int(sx - half), int(sy - half), bl)
 
@@ -575,5 +667,9 @@ if __name__ == "__main__":
     ap.add_argument("--tex", default=os.path.join(HERE, "smoke_d_256.png"))
     ap.add_argument("--view", default=None,
                     help="视图配置 JSON（默认自动找同名 <xml>.view.json；都没有 = 自动模式）")
+    ap.add_argument("--matdir", default=None,
+                    help="材质贴图目录（默认 ../out/mattex_all；由 Debug/offline/_mat_tex_survey.py 生成）")
+    ap.add_argument("--tex-rgb", action="store_true",
+                    help="让贴图自带颜色参与调色（火焰→橙、雪→白、血→红）。默认关，保持阴魔斩基准不变")
     a = ap.parse_args()
-    render(a.xml, a.tex, a.t, a.out, a.view)
+    render(a.xml, a.tex, a.t, a.out, a.view, a.matdir, a.tex_rgb)

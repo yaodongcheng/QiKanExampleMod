@@ -19,15 +19,31 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 import paths          # 两根定位 TOOL/DATA —— 见工具链根 paths.py（realpath 穿透 junction）
 
 CM = 100.0          # UE cm -> m
+# 🔴 控制台编码兜底（2026-09-24）：Windows 控制台是 GBK，笔记里的 `²` 等字符会让 print 抛
+#    UnicodeEncodeError —— 而**打印发生在逐文件写盘的中途** ⇒ 一次只生成一半 XML，
+#    症状就是"改了没生效"（极难查）。这里把 stdout 的错误策略改成 replace，永不再崩。
+try:
+    import sys as _sys
+    _sys.stdout.reconfigure(errors="replace")
+except Exception:
+    pass
+
 GRAV_SCALE = 1.0 / 980.0   # UE 重力常为 -980(cm/s²) -> 骑砍默认量级 -1
 
 # --- UE 材质 -> 原版 prt_shd_* （顺序敏感：先具体后笼统；含 blend 语义） ---------
+# 🔴 2026-09-24 修正：火焰以前映射到 `prt_shd_fire_1` —— **那是错的**。把原版 41 个材质
+#    的贴图全导出来看（Debug/offline/_mat_tex_survey.py → out/sheet_materials.png）才发现：
+#      · `prt_shd_fire_1` 的贴图是 `testparticle`（橙褐色**叶/片状**图集，alpha 覆盖极低）
+#        ⇒ 火系效果渲染出来**几乎透明**（实渲验证：fireball/flamethrower/fireexplosion 全白淡一片）
+#      · **真火焰是 `prt_shd_flame_1`**，贴图 `torchflameloop`（一格格的橙火苗），emissive+additive ✓
+#      · 火星/余烬 = `prt_shd_sparks`（`spark` 是一条黄色锥形长条）
+#    教训：**材质名不可望文生义**，按语义给名之前先看它的贴图长什么样。
 MAT_RULES = [
     (("fire_haze", "firehaze"),                        "prt_shd_fire_haze_1"),
     (("lightning", "electric", "thunder", "chain"),     "prt_shd_lightning"),
-    (("flame", "fire", "ember", "burn", "torch", "meteor",
-      "inferno", "lava", "fireball", "ignite"),         "prt_shd_fire_1"),
-    (("spark",),                                        "prt_shd_sparks"),
+    (("flame", "fire", "burn", "torch", "meteor",
+      "inferno", "lava", "fireball", "ignite"),         "prt_shd_flame_1"),
+    (("ember", "spark"),                                "prt_shd_sparks"),
     (("snow", "frost", "ice", "blizzard", "icy", "crystal"), "prt_shd_snow_dust_1"),
     (("water", "bubble", "splash", "rain", "foam", "wave"), "prt_shd_water_splash2"),
     (("poison", "acid", "toxic", "sludge", "gross", "venom"), "prt_shd_steam_2"),
@@ -158,12 +174,27 @@ def niagara_emitter_spec(em, asset):
         spec["gravity"] = "%.3f, %.3f, %.3f" % (g[0] * GRAV_SCALE, g[1] * GRAV_SCALE, g[2] * GRAV_SCALE)
         notes.append("gravity=%s cm/s² -> 缩放 %.4f" % (g, GRAV_SCALE))
 
-    # --- 尺寸：ScaleSpriteSize + Vector2DFromCurve 的 X/Y 曲线
+    # --- 尺寸：① 先取常量表的真实尺寸（cm→m）② 曲线另算（两者叠加＝有效尺寸）
+    sz = niagara_size_pair(em)
+    if sz:
+        spec["particle_size"] = sz
+        notes.append("size %s cm -> %s m" % (niagara_const(em, "Uniform Sprite Size"),
+                                             sz[0]))
     curve = niagara_size_curve(em)
     if curve:
         spec["size_curve"] = curve; notes.append("size 曲线来自 Vector2DFromCurve")
     elif isinstance(em.get("_cascade_size"), list):
         pass
+
+    # --- 发射率 / 寿命：同样在常量表里（以前没读 ⇒ 全是兜底 20）
+    sr = niagara_const(em, "SpawnRate")
+    if isinstance(sr, (int, float)) and sr > 0:
+        spec["emission_rate"] = (float(sr), 0.0); notes.append("rate=%s" % sr)
+    lmin = niagara_const(em, "Lifetime Min")
+    lmax = niagara_const(em, "Lifetime Max")
+    if isinstance(lmin, (int, float)) and isinstance(lmax, (int, float)):
+        spec["particle_life"] = (round((lmin + lmax) / 2.0, 3), round(abs(lmax - lmin) / 2.0, 3))
+        notes.append("life=%s~%s" % (lmin, lmax))
 
     # --- 颜色
     col, alpha = niagara_color(em)
@@ -200,6 +231,135 @@ def niagara_emitter_spec(em, asset):
         spec["material"] = "prt_shd_smoke_1"; notes.append("material 缺省")
     spec["_notes"] = notes
     return spec
+
+def niagara_const(em, key_name):
+    """从 Niagara 的 `constants.Constants.<Emitter>.<Module>.<Param>` 里取**第一个带 value 的**匹配项。
+
+    🔴 2026-09-24 补：**这套常量表以前根本没被读** —— 于是绝大多数发射器的尺寸/发射率
+    只能吃兜底值（`particle_size 0.25±0.25` / `emission_rate 20`），一堆角色完全不同的
+    发射器参数一模一样（实查 lightningstrike 19 个发射器全同值 ⇒ 渲出来是一块大白板、
+    锯齿状、没有任何"闪电"的形态）。UE 侧其实写得很清楚：
+      · `InitializeParticle.Uniform Sprite Size`（**cm**）→ 粒子尺寸
+      · `SpawnRate.SpawnRate` → 发射率
+      · `InitializeParticle.Lifetime Min/Max` → 寿命
+    注意同一前缀下还有 `....SpawnRate.size`（那是**字节数**），所以只认**带 value 的 dict**。
+    """
+    cur = (em.get("constants") or {}).get("Constants") or {}
+    stack = [cur]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == key_name and isinstance(v, dict) and "value" in v:
+                    return v["value"]
+                if isinstance(v, (dict, list)):
+                    stack.append(v)
+        elif isinstance(node, list):        # 🔴 有些文件里同一层是**列表**（逐发射器一项）——也要能下去
+            stack.extend(node)
+    return None
+
+
+def niagara_size_pair(em):
+    """UE 的粒子尺寸（cm）→ 骑砍 particle_size（m）：(base, bias)。
+
+    🔴 2026-09-24 实查两个坑：
+      ① 解析出来的 JSON 里 **`emitters[].constants` 是空的**（真实数值在别的层），
+         所以"从常量表读尺寸"这条路走不通 —— 尺寸必须从**模块引脚的默认值**取
+         （`InitializeParticle` 的 `Uniform Sprite Size / Min / Max`，单位 **cm**）。
+      ② 以前只把 `Vector2DFromCurve` 映射成 `size_curve`（**只给曲线、不给基础值**）
+         ⇒ 685 个发射器的 `particle_size` **清一色是生成器默认的 0.25±0.25**（全量统计：值只有 1 种！），
+         于是所有特效"尺寸一个样"：闪电是一片大白板、暴风雪永远那么大一坨。
+    """
+    want = ("Uniform Sprite Size Max", "Uniform Sprite Size Min", "Uniform Sprite Size",
+            "Sprite Size Max", "Sprite Size Min", "Sprite Size")
+    found = {}
+
+    def scan(node, path=""):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k in want:
+                    val = v.get("default") if isinstance(v, dict) else v
+                    try:
+                        found.setdefault(k, float(val))
+                    except (TypeError, ValueError):
+                        pass
+                if isinstance(v, (dict, list)):
+                    scan(v, path + "." + str(k))
+        elif isinstance(node, list):
+            for x in node:
+                scan(x, path)
+
+    scan(em.get("constants"))
+    scan(em.get("modules"))
+    mx = found.get("Uniform Sprite Size Max") or found.get("Sprite Size Max")
+    mn = found.get("Uniform Sprite Size Min") or found.get("Sprite Size Min")
+    one = found.get("Uniform Sprite Size") or found.get("Sprite Size")
+    if mx is not None and mn is not None:
+        return (round((mx + mn) / 200.0, 4), round(abs(mx - mn) / 200.0, 4))
+    if one is not None:
+        return (round(one / 100.0, 4), 0.0)
+    if mx is not None:
+        return (round(mx / 100.0, 4), 0.0)
+    return None
+
+
+def collect_ue_sizes(doc):
+    """按**确认过的路径**直读 UE 粒子尺寸（cm）→ {命名空间: (base_m, bias_m)}。
+
+    实测路径（2026-09-24，NS_ChainLightning）：
+        doc.emitters[i].constants.Constants.<命名空间>.InitializeParticle.Uniform Sprite Size[ Max|Min]
+    · `<命名空间>` = 该发射器在 UE 里的模块组名（如 `Llightning` / `Sparks`），**不是** emitter 名；
+    · 单位 **cm** ⇒ ÷100 得米；有 Min/Max 时 base=(Max+Min)/200、bias=|Max-Min|/200；
+    · 实查样例：`Llightning` = Min50/Max100 → **0.75±0.25 m**；`Sparks` = 5 → **0.05 m**。
+    """
+    out = {}
+
+    def val(ip, *names):
+        for n in names:
+            e = ip.get(n)
+            if isinstance(e, dict) and isinstance(e.get("value"), (int, float)):
+                return float(e["value"])
+        return None
+
+    for em in (doc.get("emitters") or []):
+        cons = ((em.get("constants") or {}).get("Constants")) or {}
+        if not isinstance(cons, dict):
+            continue
+        for ns, node in cons.items():
+            ip = node.get("InitializeParticle") if isinstance(node, dict) else None
+            if not isinstance(ip, dict):
+                continue
+            mx = val(ip, "Uniform Sprite Size Max", "Sprite Size Max")
+            mn = val(ip, "Uniform Sprite Size Min", "Sprite Size Min")
+            one = val(ip, "Uniform Sprite Size", "Sprite Size")
+            if mx is not None and mn is not None:
+                v = ((mx + mn) / 200.0, abs(mx - mn) / 200.0)
+            elif one is not None:
+                v = (one / 100.0, 0.0)
+            elif mx is not None:
+                v = (mx / 100.0, 0.0)
+            else:
+                continue
+            out[str(ns)] = (round(v[0], 4), round(v[1], 4))
+    return out
+
+
+def em_size_from_table(sizes, em_name):
+    """按名字前缀把尺寸表对到某个 emitter 上（对不上就退回"表里唯一/最常见"的值）。"""
+    if not sizes:
+        return None
+    low = (em_name or "").lower()
+    for ns, v in sizes.items():
+        if low.startswith(ns.lower()) or ns.lower() in low:
+            return v
+    if len(set(sizes.values())) == 1:
+        return next(iter(sizes.values()))
+    # 多个候选且名字对不上：取最常见的值（至少比"清一色默认值"强）
+    cnt = {}
+    for v in sizes.values():
+        cnt[v] = cnt.get(v, 0) + 1
+    return max(cnt.items(), key=lambda kv: kv[1])[0]
+
 
 def niagara_size_curve(em):
     """从 NiagaraDataInterfaceVector2DCurve 的 XCurve/YCurve 取尺寸曲线。"""
@@ -356,6 +516,237 @@ def cascade_emitter_spec(em):
     return spec
 
 # ---------------------------------------------------------------- main
+# 🔴 元素覆盖（2026-09-24）：按**效果名**定元素，纠正"UE 模板残留名"造成的错配。
+#    起因（实渲验证抓到的）：冰弹 `NS_Frostbolt` 内部三个 emitter 叫 `Fire_8` / `Embers_6` / `Smoke_7`、
+#    材质是引擎默认 `DefaultSpriteMaterial` ⇒ 按名字/材质映射会把**冰弹做成火焰**（预览里就是一团火）。
+#    所以最后按"这个法术看起来该是什么"兜一道底。
+#    ⚠️ 只覆盖"元素性质"的材质；刻意选的碎屑/血/木/草/水花/拖尾**不碰**；
+#       暗色（modulate/压暗）材质也**保留** —— 它们是"阴"的对比来源，换成亮贴图就没黑色了。
+ELEMENT_RULES = [
+    (("frost", "ice", "snow", "blizzard", "icy", "crystal", "winter"), "prt_shd_snow_dust_1"),
+    (("poison", "acid", "toxic", "venom"),                             "prt_shd_steam_2"),
+    (("fire", "flame", "burn", "meteor", "inferno", "lava"),           "prt_shd_flame_1"),
+    (("lightning", "electric", "thunder", "chain"),                    "prt_shd_sparks"),
+    (("blood", "drain", "gore"),                                       "prt_shd_blood_1"),
+    (("heal", "buff", "bless", "holy"),                                "prt_shd_glow"),
+    (("madness", "shadow", "dark", "curse", "debuff"),                 "prt_shd_haze_1"),
+]
+OVERRIDABLE = {"prt_shd_fire_1", "prt_shd_flame_1", "prt_shd_glow", "prt_shd_smoke_1",
+               "prt_shd_smoke_2", "prt_shd_snow_dust_1", "prt_shd_steam_1", "prt_shd_steam_2",
+               "prt_shd_lightning", "prt_shd_sparks"}
+KEEP_DARK = {"prt_shd_haze_1", "prt_shd_fire_haze_1", "prt_shd_dust_1", "prt_shd_snow_dust_1",
+             "prt_shd_blood_1", "prt_shd_stone_gravel", "prt_shd_wood_splinter", "prt_shd_trail"}
+
+
+def element_override(effect_name, emitters):
+    """按效果名统一元素材质；返回命中的元素关键字（没命中返回 None）。"""
+    low = effect_name.lower()
+    for keys, mat in ELEMENT_RULES:
+        if any(k in low for k in keys):
+            for em in emitters:
+                m = em.get("material")
+                if m in KEEP_DARK:
+                    continue
+                if m is None or m in OVERRIDABLE:
+                    em["material"] = mat
+                    em.setdefault("_notes", []).append("element(%s)->%s" % (keys[0], mat))
+            return keys[0]
+    return None
+
+
+# 🔴 材质 → 惯用图集切法（2026-09-24，**从原版自己的粒子 XML 统计**：8 个 particle_systems_*.xml、
+#    57 个材质、取众数）。为什么必须跟着材质走：**图集切法是"贴图"的属性** —— 换材质就是换贴图，
+#    切法必须一起换。以前我们只在 UE 给了 `sub_image_size` 时才填，于是把材料换成原版材质后
+#    （如 fire_1 → flame_1）没跟着改 ⇒ **整张火苗图当一颗粒子画** → 缩成米粒、几乎透明
+#    （2026-09-24 实渲验证抓到的：fireball/flamethrower/fireexplosion 全"看不见"）。
+#    格式：材质名 -> (sprite_count, frame_count, frame_rate, 播序列帧?, 随机取格?)
+MAT_SPRITE = {
+    "prt_shd_smoke_1":           ("2, 2",   1,   1.0, False, False),
+    "prt_shd_smoke_2":           ("5, 5",  25,  20.0, True,  False),
+    "prt_shd_smoke_3":           ("2, 2",   1,   1.0, False, False),
+    "prt_shd_smoke_4":           ("8, 8",  64,  32.0, True,  False),
+    "prt_shd_haze_1":            ("2, 2",   1,   1.0, False, False),
+    "prt_shd_fire_haze_1":       ("1, 1",   1,   1.0, False, False),
+    "prt_shd_fire_1":            ("5, 5",  25,  30.0, True,  False),
+    "prt_shd_flame_1":           ("16, 8", 128, 48.0, True,  False),
+    "prt_shd_glow":              ("1, 1",   1,   1.0, False, False),
+    "prt_shd_sparks":            ("1, 1",   1,   1.0, False, False),
+    "prt_shd_lightning":         ("1, 1",   1,   1.0, False, False),
+    "prt_shd_dust":              ("2, 2",   1,   1.0, False, False),
+    "prt_shd_dust_1":            ("1, 1",   1,   1.0, False, False),
+    "prt_shd_dust_2":            ("2, 2",   1,   1.0, False, False),
+    "prt_shd_default_dirt":      ("8, 8",  64,  96.0, True,  False),
+    "prt_shd_steam_1":           ("1, 1",   1,   1.0, False, False),
+    "prt_shd_steam_2":           ("8, 8",  64,  24.0, True,  False),
+    "prt_shd_snow_dust_1":       ("1, 1",   1,   1.0, False, False),
+    "prt_shd_snow_fall_1":       ("1, 1",   1,   1.0, False, False),
+    "prt_shd_blood_1":           ("8, 8",  64,  64.0, True,  False),
+    "prt_shd_blood_3":           ("8, 8",  64,  96.0, True,  False),
+    "prt_shd_blood_4":           ("8, 4",  32,  32.0, True,  False),
+    "prt_shd_blood_5":           ("4, 4",  16,  30.0, True,  False),
+    "prt_shd_water_splash":      ("6, 6",  36,  48.0, True,  False),
+    "prt_shd_water_splash2":     ("8, 8",  64, 128.0, True,  False),
+    "prt_shd_water_dust":        ("8, 8",  64,  64.0, True,  False),
+    "prt_shd_water_dust_2":      ("2, 2",   1,   1.0, False, False),
+    "prt_shd_water_foam_circular": ("1, 1", 1,   1.0, False, False),
+    "prt_shd_water_wave_1":      ("1, 1",   1,   1.0, False, False),
+    "prt_shd_waterfall_dust":    ("1, 1",   1,   1.0, False, False),
+    "prt_shd_stone_gravel":      ("4, 4",   1,   1.0, False, False),
+    "prt_shd_wood_splinter":     ("4, 4",   1,   1.0, False, False),
+    "prt_shd_wood_splinter_2":   ("4, 4",   1,   1.0, False, False),
+    "prt_shd_trail":             ("1, 1",   1,   1.0, False, False),
+    "prt_shd_grass":             ("4, 4",   1,   1.0, False, False),
+    "prt_shd_straw_1":           ("3, 3",   1,   1.0, False, False),
+    "prt_shd_rain_mud_1":        ("2, 2",   1,   1.0, False, False),
+}
+MAT_SPRITE_DEF = ("1, 1", 1, 1.0, False, False)
+
+
+# 🔴 调参表（2026-09-24 晚 起）—— **自动翻译的起点不够看，这里按人眼复验的结果补差**。
+#    为什么必须有人调：UE 的模块栈（CurlNoiseForce / PointAttraction / Vortex / 任意曲线力）
+#    与骑砍那 55 个固定参数**不是一一对应** ⇒ 自动翻译能翻的翻、翻不了的丢，观感必然差一截。
+#    每条都要写**依据**（哪次渲图看到什么），别凭感觉加数字。
+#    格式：(效果名包含任一, 材质名, {参数: 系数})；**参数名用 spec/XML 的真名**
+#          （emission_rate / particle_size / particle_life / alpha）
+TUNE_RULES = [
+    # 火焰系太淡（2026-09-24 渲图：fireball/fireexplosion/flamethrower 几乎看不见）——
+    # 原因：UE 那边火焰靠 CurlNoise 把粒子吹散+叠加发光，骑砍没有等价力场 ⇒ 密度不够。
+    (("fireball", "fireexplosion", "flamethrower", "firepit", "meteor", "rainoffire", "firetornado"),
+     "prt_shd_flame_1", {"emission_rate": 2.5, "particle_size": 1.5, "particle_life": 1.4}),
+    # 冰雪系：黑烟（haze_1，乘法压暗）占比过高 ⇒ blizzard 渲出来是一团死黑（2026-09-24 渲图）
+    (("blizzard", "icywinds", "icytornado", "ice_circle", "snowstorm"),
+     "prt_shd_haze_1", {"emission_rate": 0.45, "particle_size": 0.7, "alpha": 0.6}),
+    # 冰雪系的亮部要顶上来（否则压暗一起作用 = 全黑）
+    (("blizzard", "icywinds", "icytornado", "ice_circle", "snowstorm"),
+     "prt_shd_snow_dust_1", {"emission_rate": 1.8, "particle_size": 1.3}),
+    # 火花是"条"，尺寸一大就成一块板（2026-09-24：lightningbolt 渲出一个大锥形）
+    (("lightning", "chainlightning", "lightningbolt", "lightningstrike"),
+     "prt_shd_sparks", {"particle_size": 0.6, "emission_rate": 1.6}),
+]
+
+
+# 🔴 元素配色（2026-09-24 晚 第 2 轮）—— 上一轮只按元素换了**材质**、没换**颜色**，
+#    于是：冰霜渲出来是灰的/红的（UE 曲线给的就是那个色）、毒是白的、暴风雪糊成一片死黑
+#    （黑不是材质黑，是**粒子颜色**被 UE 曲线带成暗色）。
+#    这里按元素给一条固定的颜色坡道，**只覆盖"元素主材质"那些发射器**，暗色（modulate）的不碰。
+ELEMENT_COLOR = {
+    "frost":     [("0.000", "0.78, 0.92, 1.000"), ("0.500", "0.45, 0.75, 1.000"), ("1.000", "0.20, 0.45, 0.850")],
+    "fire":      [("0.000", "1.000, 0.85, 0.55"), ("0.400", "1.000, 0.55, 0.180"), ("1.000", "0.75, 0.20, 0.080")],
+    "poison":    [("0.000", "0.70, 1.000, 0.45"), ("0.500", "0.40, 0.85, 0.250"), ("1.000", "0.20, 0.55, 0.120")],
+    "lightning": [("0.000", "0.85, 0.95, 1.000"), ("0.500", "0.55, 0.80, 1.000"), ("1.000", "0.30, 0.55, 0.950")],
+    "blood":     [("0.000", "0.85, 0.20, 0.200"), ("1.000", "0.35, 0.04, 0.060")],
+    "heal":      [("0.000", "0.85, 1.000, 0.75"), ("1.000", "0.35, 0.80, 0.400")],
+    "madness":   [("0.000", "0.70, 0.45, 0.900"), ("1.000", "0.25, 0.10, 0.400")],
+}
+# 🔴 尺寸上限（2026-09-24）：`sparks`（一条黄色锥形）和 `glow`（芝麻大一个点）**天生是小元素**，
+#    UE 侧给的 size 一大就摊成"大白锥/大光板"（实查：chainlightning 一整块青板、
+#    explosiongroundbig/frostexplosion 出扇面）。按材质钉上限。
+SIZE_CAP = {"prt_shd_sparks": 0.45, "prt_shd_glow": 0.60, "prt_shd_flame_1": 1.20}
+
+
+def apply_element_color(element, ems, main_mat):
+    """按元素给"元素主材质"那些发射器刷固定配色（暗色/碎屑类不碰）。"""
+    ramp = ELEMENT_COLOR.get(element)
+    if not ramp:
+        return 0
+    n = 0
+    for em in ems:
+        if (em.get("material") or "") != main_mat:
+            continue
+        em["color"] = list(ramp)
+        em.setdefault("_notes", []).append("color<=element(%s)" % element)
+        n += 1
+    return n
+
+
+def cap_sizes(ems):
+    """按材质钉尺寸上限（防"大白锥/大光板"）。
+
+    ⚠️ 2026-09-24 实查：只钉 `particle_size`（基础值）**不够** —— 有效尺寸 = `基础 + 曲线贡献 × 倍率`
+    （渲染器与引擎同算法），曲线一大照样摊成板子（chainlightning / explosiongroundbig 就是这样）。
+    所以曲线也要一起压。
+    """
+    for em in ems:
+        cap = SIZE_CAP.get(em.get("material") or "")
+        if not cap:
+            continue
+        v = em.get("particle_size")
+        if isinstance(v, (tuple, list)):
+            try:
+                s = [float(x) for x in v]
+                if s and s[0] > cap:
+                    em["particle_size"] = tuple([cap] + s[1:])
+                    em.setdefault("_notes", []).append("size cap %s->%s" % (s[0], cap))
+            except (TypeError, ValueError):
+                pass
+        c = em.get("size_curve")
+        if isinstance(c, (tuple, list)) and len(c) == 3:
+            try:
+                cc = [float(x) for x in c]
+                if max(cc) > 1.35:                      # 曲线峰值超 1.35 倍就等于没上限了
+                    k = 1.35 / max(cc)
+                    em["size_curve"] = tuple(round(x * k, 3) for x in cc)
+                    em.setdefault("_notes", []).append("curve cap x%.2f" % k)
+            except (TypeError, ValueError):
+                pass
+
+
+def apply_tune(effect_name, ems):
+    low = effect_name.lower()
+    hit = 0
+    for names, mat, k in TUNE_RULES:
+        if not any(n in low for n in names):
+            continue
+        for em in ems:
+            if (em.get("material") or "") != mat:
+                continue
+            for key, mul in k.items():
+                if key == "alpha":
+                    # alpha 是 [(t, v)] 关键帧表；**值可能是字符串**（spec 里按 XML 原文存）⇒ 必须 float()
+                    if em.get("alpha"):
+                        try:
+                            em["alpha"] = [(t, min(1.0, float(v) * mul)) for (t, v) in em["alpha"]]
+                        except (TypeError, ValueError):
+                            pass
+                    continue
+                v = em.get(key)
+                if isinstance(v, (tuple, list)):
+                    out = []
+                    for x in v:
+                        try:
+                            out.append(float(x) * mul)
+                        except (TypeError, ValueError):
+                            out.append(x)      # 非数值项原样保留
+                    em[key] = tuple(out)
+                else:
+                    try:
+                        em[key] = float(v) * mul
+                    except (TypeError, ValueError):
+                        pass                   # str / None 一律不碰
+            em.setdefault("_notes", []).append("tune %s%s" % (mat.replace("prt_shd_", ""), k))
+            hit += 1
+    return hit
+
+
+def apply_sprite(em):
+    """把材质的惯用图集切法写进 emitter（**覆盖** UE 侧推来的值 —— 贴图说了算）。
+
+    🔴 `"1, 1"` 也必须**显式写**，不能靠"删键"让默认值兜底：生成器的模板默认是 `2, 2`
+    （照抄骨架来的），删键 ⇒ 2,2 顶上来 ⇒ 一张单格贴图被切 4 份，画出来是"硬方块"
+    （2026-09-24 实查：frostbolt / lightningbolt 的方块就是这么来的）。
+    """
+    key, fc, fr, anim, rnd = MAT_SPRITE.get(em.get("material") or "", MAT_SPRITE_DEF)
+    em["texture_sprite_count"] = key
+    if fc > 1:
+        em["texture_sprite_frame_count"] = fc
+        em["texture_sprite_frame_rate"] = fr
+    fl = em.setdefault("flags", {})
+    fl["uses_sprite_animation"] = anim
+    if rnd:
+        fl["select_random_sprite"] = True
+    em.setdefault("_notes", []).append("sprite %s frame=%d" % (key, fc))
+
+
 def build_spec(json_path, out_name=None):
     d = json.load(open(json_path, encoding="utf-8"))
     if d["kind"] == "niagara":
@@ -364,8 +755,36 @@ def build_spec(json_path, out_name=None):
         ems = [cascade_emitter_spec(e) for e in d["emitters"]]
     bare = os.path.basename(d["asset"] or "effect").lower()
     name = out_name or ("lwn_" + re.sub(r"[^a-z0-9_]", "_", bare))
+    el = element_override(name, ems)
+    if el:
+        main = dict((k[0], m) for k, m in ELEMENT_RULES).get(el)
+        apply_element_color(el, ems, main)      # 元素配色（第 2 轮：只换材质不够，颜色也得换）
+    # 🔴 尺寸补差（2026-09-24 第 3 轮）：UE 的尺寸在**文件级常量表**里，按命名空间分组；
+    #    emitter 自己身上没有 ⇒ 全文件扫一遍再按名字前缀对位。不补的话 685 个发射器
+    #    清一色吃生成器默认的 0.25±0.25（这就是"闪电是一块白板""暴风雪永远一坨"的真因）。
+    sizes = collect_ue_sizes(d)
+    for em in ems:
+        if em.get("particle_size") is None:
+            v = em_size_from_table(sizes, em.get("name"))
+            if v:
+                em["particle_size"] = v
+                em.setdefault("_notes", []).append("size<=const %s m" % (v[0],))
+    for em in ems:                    # 材质定下来之后才能定图集切法
+        apply_sprite(em)
+    apply_tune(name, ems)             # 再按人眼复验补差（TUNE_RULES）
+    cap_sizes(ems)                    # 最后钉尺寸上限（火花/光点天生小元素）
+    for em in ems:
+        # 🔴 `max_alive_particle_count = 0` 在引擎里是「**一颗都不给**」，不是"无限"。
+        #    2026-09-24 实查：火焰系发射器全是 0（UE 侧没这个概念）⇒ 实机里火球只会是空的。
+        n = em.get("max_alive_particle_count")
+        if n is None or int(float(n)) <= 0:
+            rate = (em.get("emission_rate") or (10, 0))[0]
+            life = em.get("particle_life") or (1, 0)
+            est = float(rate) * (float(life[0]) + float(life[1]))
+            em["max_alive_particle_count"] = max(60, int(est * 1.5))
+            em.setdefault("_notes", []).append("maxAlive 0->%d" % em["max_alive_particle_count"])
     return {"name": name, "guid": guid_of(name), "emitters": ems,
-            "_src_kind": d["kind"], "_src_asset": d["asset"]}
+            "_src_kind": d["kind"], "_src_asset": d["asset"], "_element": el}
 
 _GUID_CACHE = {}
 def guid_of(name):

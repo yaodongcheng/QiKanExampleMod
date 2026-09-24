@@ -143,6 +143,17 @@ namespace LivingWorldNpcs.Animation
         /// <summary>"引擎把 0 号通道抢走"的核对周期（秒）。</summary>
         public Func<float> RecheckSeconds = () => 0.5f;
 
+        /// <summary>
+        /// 播动作时带上的**优先级**（写进 `additionalFlags` 的低字节，引擎的 `amf_priority_mask = 0xFF`）。
+        /// 0 = 不设（引擎按 clip 自带的 `Priority` 字段走）。
+        ///
+        /// 🔴 **为什么需要它**（2026-09-25 实机）：飞行姿势的 clip `Priority = 0`，而挥手动作是 2、
+        /// 挥刀 10~15 ⇒ **在飞行中（人被冻住、没有走路动画）挥一条通道 1 的动作，腿会被它抢走**
+        /// （地面不会 —— 腿归移动层）。给飞行姿势带上一个更高的优先级，腿才保得住。
+        /// 用委托 = 热调生效。
+        /// </summary>
+        public Func<int> ActionPriority = () => 0;
+
         public AnimMachineDef(string name)
         {
             Name = name;

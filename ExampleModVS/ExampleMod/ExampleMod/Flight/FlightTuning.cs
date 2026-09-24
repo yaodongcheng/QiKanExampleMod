@@ -541,6 +541,15 @@ namespace LivingWorldNpcs.Flight
         public static bool GuardChannelZero = true;
 
         /// <summary>
+        /// 🔴 **飞行姿势动作的优先级**（写进 `additionalFlags` 低字节，引擎 `amf_priority_mask`）。
+        /// 默认 **30** —— 比挥手（clip 自带 2）、挥刀（10~15）都高，腿才不会被它们抢走
+        /// （地面不用管：腿归移动动画；飞行中人是冻住的、没有走路动画）。
+        /// 参考量：走路/跑步 clip 自带 0、站着（走路那套的待机）71、欢呼 64。
+        /// 设 0 = 退回"用 clip 自带优先级"的旧行为。运行时试别的值：`custom.anim_ch 0 <动作> prio=NN`。
+        /// </summary>
+        public static int FlightActionPriority = 30;
+
+        /// <summary>
         /// 🔴 **闪避的触发方式（2026-09-22 用户裁定）**：**冲刺（按住 Shift）中短按空格 = 闪避**。
         /// 与"悬停 / 巡航中长按空格 = 持续下降"是两套手势，靠**状态 + 长 / 短按**区分。
         /// 关掉本开关 = 回到旧行为（冲刺中短按空格仍走"贴地 / 俯冲落地"那套判定）。
