@@ -253,8 +253,17 @@ sc.unit_settings.system = 'METRIC'; sc.unit_settings.scale_length = 1.0
 sc.render.fps = TGT_FPS
 sc.frame_start, sc.frame_end = 1, N_OUT
 # !!! 导出前把骨骼姿势清零：实测部分源（飞行的 FastMove/Pose）会让 FBX 导出器
-#     把【当前帧的姿态】当成 rest 写出去（rest 高被压到 0.329，正常应 ~1.6），
-#     但动画轨道本身是对的（CHECK_POS 正常）。清 pose 不影响 action 里的关键帧。
+#     把【当前帧的姿态】当成 bind pose 写出去，但动画轨道本身是对的（CHECK_POS 正常）。
+#
+# 🔴🔴 2026-09-24 惨痛教训 —— **别拿"摘 action"去修 bind pose**：
+#     试过"清 pose 之后再摘掉 action"（`tgt.animation_data.action = None`）来彻底修 bind。
+#     结果：bind 确实修好了（rest 回到官方值、脚底量出来 0.0），**但导出的 FBX 里
+#     姿态通道整个没了 —— 动画冻结在绑定姿势（T 字张开）**。带回查看器一看就露馅。
+#     ⇒ 摘 action 会连**对象级位移**（带位移 clip 挂在骨架对象上的那份）和**骨骼旋转通道**
+#       一起弄丢。**已彻底回退，别再走这条路。**
+#     🔴 附带教训：那次"验收通过"是**假绿** —— 我只量了 `check_glb_feet` 的**脚底高度**，
+#       而"冻结在绑定姿势"时脚底天然就是 0。**量脚底必须配 `check_glb_anim.py`（量关节有没在动）**，
+#       两个一起过才算数。
 try:
     sc.frame_set(1)
     for _pb in tgt.pose.bones:

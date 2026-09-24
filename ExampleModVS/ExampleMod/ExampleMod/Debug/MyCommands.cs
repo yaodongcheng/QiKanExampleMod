@@ -193,6 +193,124 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// **按指定通道播动作**（2026-09-24 立）—— `custom.do_anim` 只能播 0 号通道（全身），
+        /// 这条专门用来验「**上身叠加**」：通道 1 的动作**不该动腿**。
+        ///
+        /// 用法（首参可弃：不是 0~3 的数字就当成动作名、通道回落 1）：
+        ///   custom.anim_ch 1 act_cast_charge 1      → 上身**循环**播蓄力姿势（腿保持原样）
+        ///   custom.anim_ch 1 act_cast_projectile    → 上身播一次释放姿势
+        ///   custom.anim_ch act_cast_charge          → 同上（通道默认 1）
+        ///
+        /// 🔴 **返回里的时长就是判据**：时长 `0.00s` = 这个 action 在当前 action_set 里**解析不到**
+        ///    （没注册 / clip 名写错 / 模块没加载）—— 所有"播不出来"长得都一样，只有这个数能分辨。
+        ///    所以返回里同时给一条**已知能播的参照动作**（`act_fly_cruise`）的时长做对照：
+        ///    参照也是 0.00s ⇒ 是 action_set / 模块层面的问题；只有本条 0.00s ⇒ 是这条 clip 的绑定问题。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("anim_ch", "custom")]
+        public static string ExecuteAnimChannel(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+            {
+                return "error: must be in a scene/mission to use this command.";
+            }
+            if (args.Count < 1 || string.IsNullOrWhiteSpace(args[0]))
+            {
+                return "usage: custom.anim_ch [channel 0..3] <actionName> [agentId|nearest|main] [loop] [lowerbody] [all]";
+            }
+
+            // 参数扫描（宽松：认不出的一律当动作名，只认第一段）
+            int channel = 1;
+            string actionName = null;
+            Agent agent = Agent.Main;
+            string agentNote = string.Empty;
+            bool cyclic = false, lowerbody = false, enforceAll = false;
+            int numericSeen = 0;
+            foreach (string rawArg in args)
+            {
+                string a = rawArg != null ? rawArg.Trim() : string.Empty;
+                if (a.Length == 0) continue;
+                int n;
+                if (actionName == null && int.TryParse(a, out n) && n >= 0 && n <= 3 && numericSeen == 0)
+                {
+                    channel = n; numericSeen = 1; continue;      // 首参数字 = 通道
+                }
+                string low = a.ToLowerInvariant();
+                if (low == "loop" || low == "cyc" || low == "cyclic") { cyclic = true; continue; }
+                if (low == "lowerbody" || low == "lb") { lowerbody = true; continue; }
+                if (low == "all" || low == "ea") { enforceAll = true; continue; }
+                if (actionName == null) { actionName = a; continue; }
+                // 第二段之后的非关键字 = 目标 agent
+                if (low == "main") { agent = Agent.Main; continue; }
+                if (low == "nearest")
+                {
+                    Agent best = null;
+                    float bestSq = 400f;   // 20 m 内
+                    Vec3 here = Agent.Main.Position;
+                    foreach (Agent other in Mission.Current.Agents)
+                    {
+                        if (other == null || other == Agent.Main || !AgentControlHelper.SafeIsActive(other)) continue;
+                        float d = other.Position.DistanceSquared(here);
+                        if (d < bestSq) { bestSq = d; best = other; }
+                    }
+                    if (best != null) { agent = best; }
+                    else { agentNote = " [note: no nearby agent -> using main]"; }
+                    continue;
+                }
+                Agent named = Mission.Current.Agents.FirstOrDefault(x => x.Character?.StringId == a);
+                if (named != null) { agent = named; }
+                else { agentNote = $" [note: no agent '{a}' -> using {agent.Name}]"; }
+            }
+            if (string.IsNullOrEmpty(actionName))
+            {
+                return "usage: custom.anim_ch [channel 0..3] <actionName> [agentId|nearest|main] [loop] [lowerbody] [all]";
+            }
+
+            ActionIndexCache idx = ActionIndexCache.Create(actionName);
+            if (idx == ActionIndexCache.act_none)
+            {
+                return $"FAILED: action '{actionName}' is NOT registered (act_none). "
+                     + "check: action_types.xml declares it + action_sets.xml binds it + module loaded.";
+            }
+
+            float duration = 0f, refDuration = 0f;
+            try
+            {
+                duration = MBActionSet.GetActionAnimationDuration(agent.ActionSet, idx);
+                ActionIndexCache refIdx = ActionIndexCache.Create("act_fly_cruise");
+                if (refIdx != ActionIndexCache.act_none)
+                {
+                    refDuration = MBActionSet.GetActionAnimationDuration(agent.ActionSet, refIdx);
+                }
+            }
+            catch (System.Exception) { }
+
+            try
+            {
+                ulong flags = 0UL;
+                if (cyclic) flags |= (ulong)AnimFlags.anf_cyclic;
+                if (lowerbody) flags |= (ulong)AnimFlags.anf_enforce_lowerbody;
+                if (enforceAll) flags |= (ulong)AnimFlags.anf_enforce_all;
+
+                // 🔴 **返回值就是判据**：`SetActionChannel` 返回 bool —— false = 这一发**被引擎拒了**
+                //    （优先级/通道占用/动作不适用），不是"播了但看不见"。原版欢呼也是这么用的：
+                //    `if (!agent.SetActionChannel(1, ...)) { 做别的 }`（Ballista.cs:283）。
+                bool accepted = agent.SetActionChannel(channel, idx, ignorePriority: true, additionalFlags: flags,
+                    blendInPeriod: 0.12f, blendOutPeriodToNoAnim: 0f);
+
+                string durNote = duration > 0f ? string.Empty
+                    : " [note: duration 0.00s -> this action does not resolve in the agent's current action_set]";
+                return $"OK: agent={agent.Name} channel={channel} action='{actionName}' duration={duration:0.00}s"
+                     + $" ref(act_fly_cruise)={refDuration:0.00}s loop={(cyclic ? 1 : 0)}"
+                     + $" lowerbody={(lowerbody ? 1 : 0)} all={(enforceAll ? 1 : 0)}"
+                     + $" ACCEPTED={accepted}{durNote}{agentNote}";
+            }
+            catch (System.Exception e)
+            {
+                return "Error: " + e.Message;
+            }
+        }
+
+        /// <summary>
         /// 处决配对测试台（T17 带位移动画的实机检查）：把 interact 焦点上的 NPC 拉到玩家**正前方** [distance] 米、
         /// 让他**面朝玩家**，然后**同一帧**起播两条配对动画 —— 玩家播 `act_execution02`、他播 `act_executed02`。
         /// 两条都带位移（玩家前冲 3.68 m、受击方被推 1.2 m），所以必须同时起播才对得上。
