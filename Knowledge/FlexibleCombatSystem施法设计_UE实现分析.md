@@ -1,5 +1,79 @@
 # FlexibleCombatSystem（UE4.27）施法体系 —— 全量拆解
 
+---
+
+## 🔴 交接（2026-09-25 · "FCS 粒子在骑砍里复刻"这条线）
+
+**一句话现状**：99 个效果的 XML 已自动翻译、**全部编译进 ModKit**（`Modules/TaikouAnim/Assets_disabled/particles/`，99/99 成功、硬校验 0 问题）；这一轮修掉了 **6 个根因级缺陷**，**但观感离 FCS 原版仍差一截** —— 最大的那条（**粒子尺寸没从 UE 翻过来**）已定位、代码已写但**没吃到值**，是下次开工第一件事。
+
+### 这一轮修掉的（都渲图复验过）
+
+| # | 缺陷（根因） | 症状 | 修在哪 |
+|---|---|---|---|
+| 1 | **元素只换材质、没换颜色** | 冰霜渲成灰/暗红 · 毒渲成白 · 暴风雪黑成一片 | `ue2bannerlord.py` `ELEMENT_COLOR` + `apply_element_color()` |
+| 2 | **材质名望文生义**：`prt_shd_fire_1` 的贴图是"橙褐叶状片"、不是火 | 全部火系几乎**不可见** | `MAT_RULES`：火 → `prt_shd_flame_1`（`torchflameloop` 真火苗）· 火星 → `sparks` |
+| 3 | **图集切法没跟着材质走** | 火苗图集整张当一颗粒子 → 米粒大近透明；单格贴图被切 4 份 → "硬方块" | `MAT_SPRITE` 表（**从原版 XML 统计**，41 材质）+ `apply_sprite()`（`1,1` 必须显式写，模板默认 `2,2` 会顶上来） |
+| 4 | **`max_alive_particle_count = 0`** | 引擎里 = **一颗都不给**（实机空白；预览器宽容才没暴露） | `build_spec` 兜底：`0 → max(60, 率×寿命×1.5)` |
+| 5 | **尺寸失控**（`sparks`/`glow` 这种小元素当大粒子用） | 闪电一整块大白板 · 霜爆蓝锥 · 扇面 | `SIZE_CAP` + `cap_sizes()`（**基础值与曲线都要钉**：有效尺寸 = 基础 + 曲线×倍率） |
+| 6 | **生成器 print 编码崩在写盘中途** | 每次只生成**一半** XML ⇒ 症状是"改了没生效"（极难查） | `ue2bannerlord.py` 顶部 `sys.stdout.reconfigure(errors="replace")` |
+
+**渲图验证的改善**：`fireball`/`firepit`/`meteor`/`flamethrower` → **橙红火焰 + 黑烟** ✓ · `frostbolt`/`frost_barrier`/`frostexplosion` → **蓝** ✓ · `poison`/`acid` → **绿/墨绿** ✓ · `ice_circle` 死黑 → **深蓝** ✓ · `healingovertime` **绿** ✓ · 雷电锥形收敛 ✓
+
+### 🔴 仍没解决的（按优先级）
+
+| # | 问题 | 现状 / 下一步 |
+|---|---|---|
+| **T1** | **`particle_size` 根本没从 UE 翻译** | 全量统计：99 个 XML、**685 个发射器清一色 `0.250±0.250`**（值只有 1 种）= 生成器默认值。UE 真值在**文件级常量表**：`doc.emitters[i].constants.Constants.<命名空间>.InitializeParticle.Uniform Sprite Size[ Max\|Min]`（**cm**），实例：`Llightning` = Min50/Max100 → **0.75±0.25 m**、`Sparks` = 5 → **0.05 m**。**读取代码已写（`collect_ue_sizes()` / `em_size_from_table()`）但当前返回空** ⇒ 下次第一件事：单独调这个函数，查为什么没取到（怀疑 `constants.Constants.<NS>` 的层级/类型与假设不符） |
+| **T2** | `chainlightning` 大白板 · `ne_lightning_mesh` 白三角 · `blizzard` 偏黑 · `icytornado` 太空 · `explosiongroundbig` 扇面 | 全部指向 **T1**（尺寸没翻）—— T1 打通后重看一遍，多半成批消失 |
+| **T3** | **只看了约 50/99 个** | 分镜图 `tools/particle-pipeline/out/sv2_01…07.png`（16 格/张 × 7 张 = 全覆盖）；**剩下 5 张没看**，看完再总结一轮 |
+| **T4** | HTML 预览器**没跟上** | `render_still.py` 已支持"按材质取真贴图 + 图集 + 序列帧 + `--tex-rgb`"；`preview.template.html` **还是程序化圆点**（不读贴图、不切图集）⇒ 用户在浏览器里看不到材质层的东西 |
+
+### 命令速查（下次直接照抄）
+
+```powershell
+# ① 重生成 99 个 XML（⚠️ PowerShell 不展开 glob，要自己列；务必排除 _index.json）
+Set-Location "D:\BrainMaker\骑砍2粒子特效复刻"
+$files = (Get-ChildItem "output\parsed\*.json" | Where-Object { $_.Name -notlike "_*" }).FullName
+python pipeline\ue2bannerlord.py $files
+python pipeline\validate_xml.py            # 合格线：99 文件 / 685 emitter / 问题 0 条
+
+# ② 渲图自检（我自己的眼睛；--tex-rgb = 贴图自带颜色参与调色，最接近实机观感）
+Set-Location "<仓库>\tools\particle-pipeline"
+python preview\sheet_stills.py --xmls "D:/BrainMaker/骑砍2粒子特效复刻/output/xml/lwn_*.xml" --t 1.1 --out out/sv3.png --per-sheet 16 --cols 4 --cell 430x240 --tex-rgb
+
+# ③ 浏览器预览（给用户看；⚠️ 不显示材质/图集，只能看形态·节奏·颜色）
+python preview\build_preview_set.py        # → D:\...\output\preview\index.html
+
+# ④ 编进 ModKit（模块两态目录：写前先确认是 Assets 还是 Assets_disabled）
+tpaccli particleimport --xml <XML> --out "Modules\TaikouAnim\Assets_disabled\particles" --packdir "Debug\offline\_prt_vanilla" --split
+
+# ⑤ 原版材质贴图对照（挑材质用：41 个 prt_shd_* 的贴图长什么样）
+python Debug\offline\_mat_tex_survey.py    # → tools\particle-pipeline\out\sheet_materials.png
+```
+
+### 这轮踩实、别再犯的坑
+
+1. **材质名不可望文生义** —— 给名之前先看它的贴图（`_mat_tex_survey.py`）。
+2. **图集切法是"贴图"的属性**，换材质必须换切法；`1, 1` 要**显式写**（模板默认 `2, 2`）。
+3. **`max_alive_particle_count = 0` = 一颗都不给**（不是"无限"）。
+4. **生成器 print 编码崩 → 静默半量生成**（Windows 控制台 GBK 印不出 `²`）；凡"改了没生效"先怀疑它。
+5. **预览器不播序列帧**会把"火焰动画的起手帧"看成"没做出来"（已在 `render_still.py` 修）。
+6. **UE 的尺寸不在 emitter 上**，在文件级 `constants.Constants.<命名空间>` 里；引脚只有 `*Mode` 枚举。
+7. **`custom.*` 命令禁止写成"恰好 N 个参数"**（参数数不符会静默走默认分支 —— `ninja_report` 就这么坑过一次）。
+
+### 关键文件
+
+| 角色 | 路径 |
+|---|---|
+| 生成器（映射/调参/图集/配色全在这） | `tools/particle-pipeline/pipeline/ue2bannerlord.py` |
+| XML 生成器（spec → XML，含默认参数表） | `tools/particle-pipeline/gen_particle_effect.py` |
+| 硬校验 | `tools/particle-pipeline/pipeline/validate_xml.py` |
+| 我的静帧渲染器（**能看材质/图集/序列帧**） | `tools/particle-pipeline/preview/render_still.py` |
+| 分镜工具（批量渲图拼图） | `tools/particle-pipeline/preview/sheet_stills.py` |
+| 产物：99 个 XML | `D:\BrainMaker\骑砍2粒子特效复刻\output\xml\lwn_*.xml` |
+| 产物：ModKit 资产（**99/99 已投**） | `Modules\TaikouAnim\Assets_disabled\particles\*_psys.tpac` |
+| 材质贴图库（dump 出来的原版真贴图） | `tools\particle-pipeline\out\mattex_all\` |
+
 > **这份文档是什么**：对 UE 商店资产 **FlexibleCombatSystem（FCS）** 里「法术战斗」全部实现的一次**逐字段、逐类、逐帧**拆解，供在骑砍2 里把法术战斗做成 FCS 那个样子。
 > **为什么值得拆**：它是目前能找到的**唯一一个已落地的完整施法系统**（不是文档、不是构想），而且**纯数据驱动**——67 个法术全是数据表里的一行，逻辑只有 19 个类。这套形状与我们的《法术体系-通用施法框架》几乎同构，可以逐条对照。
 > **证据在哪**：`Debug/offline/fcs_dump/`（原始 T3D 文本 577MB + 结构化摘要 + 每表 CSV），本文所有数字都能在那里面查证。
@@ -66,6 +140,84 @@
 | 🔴 **粒子特效全量拆解**（116 个特效：emitter/渲染器/模块/参数值/材质/贴图） | `Debug/offline/fcs_dump/out/digest/VFX_BREAKDOWN.md` |
 | 🔴 **人读详情树**（410 页，镜像工程目录：逐蓝图变量/CDO 默认值/接口/组件/调用/伪代码/**引脚级连线明细**，逐枚举/结构体/数据表） | `Knowledge/FCS详情解析/` —— ⚠️ **不进 git**（可完全重生成：`python tools/ue-dissect/detail_tree.py`，薄版加 `--no-pins`） |
 | **工具链正本**（可复用于任意 UE 工程，路径参数化） | `tools/ue-dissect/`（含 README：流程/军规/边界） |
+
+### 1.4 🔴 已经「搬进骑砍」的部分 —— 99 个特效已编译成 ModKit 能看的资产（2026-09-24 晚）
+
+**要复刻的 MagicVFX 一共 60 个**（`Knowledge/FCS详情解析/VFX/MagicVFX/` 逐族：BuffsAndHeals 12 · Channel 7 ·
+Eruption 4 · ExplosionHits 5 · MagicWeapon 9 · Projectiles 8 · Runes 5 · Skyfall 5 · Teleport 2 · Tornado 2 +
+`NS_PlacementCircle` 1）—— **UE → 骑砍 particle XML 这步早就全转完了（缺 0 个）**，
+另外 Debuffs / MeleeVFX / RangedVFX 也一起转了，**合计 99 个 XML**（`…/骑砍2粒子特效复刻/output/xml/lwn_*.xml`，
+生成器 = `tools/particle-pipeline/` 四段管线，硬校验 99 文件 / 685 emitter / **问题 0 条**）。
+
+**2026-09-24 晚：99 个全部离线编译成 tpac 资产并投进 ModKit**：
+
+```bash
+# 一个 effect 一个文件（编辑器工程要这个格式）；--packdir 只需含原版 particles.tpac（硬链接目录即可）
+tpaccli particleimport --xml <XML> --out <模块>/Assets[_disabled]/particles --packdir <原版包目录> --split
+```
+| 项 | 值 |
+|---|---|
+| 落点 | `Modules/TaikouAnim/Assets_disabled/particles/`（= 编辑器态的同名目录；**ModKit 打开前记得跑 `to_editor_mode.bat`**） |
+| 结果 | **99/99 成功**（105 个粒子资产 / **701 个 emitter** / 无一个"emitter 全空"） |
+| 材质 | 全用原版 `prt_shd_*`（smoke_1 ×341 · glow ×109 · haze_1 ×88 · fire_1 ×57 · trail ×35 · water_splash2 14 · sparks 14 · lightning 9 · steam_1 8 · 其余零散）—— 所以**不需要自带贴图** |
+| ⚠️ 同目录 3 个空资产是**旧测试残留**（`lwn_clone_blood1` / `lwn_clone_rain` / `lwn_savetest`），与这批无关 |
+| 未做 | ① 还没出**游戏包**（`AssetPackages/*.tpac`，要进游戏才需要）② 部分 XML 的观感还没照参考帧返工（阴魔斩那条已是第 2 轮，见 §8.1） |
+
+### 1.5 🔴 材质返工（2026-09-24 晚）——「材质名不可望文生义」
+
+**怎么发现的**：给预览渲染器接上**原版每材质的真贴图**（`Debug/offline/_mat_tex_survey.py` 把 41 个
+`prt_shd_*` 的贴图全导出 → `out/sheet_materials.png`），再按 `render_still.py --tex-rgb` 渲图逐族看。
+
+| 材质 | 它的贴图实际长什么样 | 结论 |
+|---|---|---|
+| 🔴 `prt_shd_fire_1` | `testparticle`：橙褐色**叶/片状**图集，alpha 覆盖极低 | **不是火焰** —— 火系渲染出来几乎透明 |
+| ✅ `prt_shd_flame_1` | `torchflameloop`：一格格的橙火苗（emissive+additive） | **这才是火** |
+| `prt_shd_glow` | `rain_drop_d`：芝麻大的一个亮点 | 只适合火星/核心，不适合大团 |
+| `prt_shd_sparks` | `spark`：一条黄色锥形长条 | 是"条"不是"点" |
+| `prt_shd_snow_dust_1` | 白雪爆 | 冰/雪系正解 |
+| `prt_shd_smoke_2` | 干净白烟团 | 比 smoke_1 更白 |
+| `prt_shd_water_foam_circular` | 白色泡沫**环** | 天生适合"冲击波 / 环"类 |
+| `prt_shd_trail` | `stone_wall_new_b_detail_d`（一堵石墙） | 靠滚动 UV 才成立 |
+
+**改了什么**：`tools/particle-pipeline/pipeline/ue2bannerlord.py` —— ① `MAT_RULES` 里火焰族改指
+**`prt_shd_flame_1`**，`ember/spark` 单列指 `prt_shd_sparks`；② 新增 **`element_override()`**：按
+**效果名**兜一道底（起因：冰弹 `NS_Frostbolt` 内部三个 emitter 叫 `Fire_8/Embers_6/Smoke_7`、材质是引擎
+默认 `DefaultSpriteMaterial` ⇒ 按名字映射会把**冰弹做成火焰**）。99 文件重生成 + 硬校验 **0 问题**。
+
+**视觉复验（渲图逐格看过）**：frost_barrier 蓝 ✓ · healing 绿 ✓ · poison 绿丝 ✓ ·
+**fireball / fireexplosion / flamethrower 仍几乎看不见** ⇒ 根因 = **图集没按格切**：`torchflameloop`
+是多格火苗图集，而 XML 没给这些 emitter 设 `texture_sprite_count` ⇒ 整张图当**一颗粒子**画 →
+缩成一堆米粒 → 近透明。frostbolt / lightningbolt 的"硬方块"同源。
+
+**下一步**：① 从**原版自己的粒子 XML** 统计「材质 → 惯用 `texture_sprite_count`」（原版怎么切我们就怎么切，
+数据驱动不靠猜）→ 回填生成器；② 逐族再渲图复验；③ 通过后重新编译 99 个 tpac 投 ModKit。
+**不需要自建材质** —— 全部修法都在原版 41 个 `prt_shd_*` 之内（用户问的"重建材质清单"目前是空的）。
+
+#### 多格图集：已处理（2026-09-24 晚，第 2 段）
+
+**① 图集切法表**（`ue2bannerlord.py` 的 `MAT_SPRITE`）：从**原版自己的粒子 XML** 统计（8 个
+`particle_systems_*.xml`、57 个材质、取众数）：`flame_1` = `16, 8` + 128 帧 @48fps（逐帧动画）、
+`smoke_1`/`haze_1` = `2, 2`、`steam_2` = `8, 8`+64 帧、`blood_1` = `8, 8`+64 帧、`sparks`/`glow`/`snow_dust_1` = `1, 1`……
+**切法是"贴图"的属性 ⇒ 换材质必须跟着换切法**；`apply_sprite()` 在材质定下来之后统一写。
+✅ 切片对不对已用 `Debug/offline/_grid_check.py` 验过（`flame_1` 按 16×8 切，每格正好一朵火苗）。
+
+**② 顺带抓到的两个真缺陷**（都是"看不见/方块"的真因，都是**实机级**的）：
+
+| 缺陷 | 症状 | 修法 |
+|---|---|---|
+| 🔴 `max_alive_particle_count = 0` | UE 没这个概念 ⇒ 生成器写成 0，**而引擎里 0 = 一颗都不给**（不是"无限"）⇒ 火焰系实机里只会是空的 | 生成器兜底：`0 → max(60, 发射率 × 寿命 × 1.5)` |
+| 🔴 模板默认 `texture_sprite_count = 2, 2` 泄漏 | 单格贴图（sparks / snow_dust_1 / glow…）被切 4 份 ⇒ 画出来是**硬方块**（frostbolt / lightningbolt 的方块就是这个） | `apply_sprite()` **显式写** `1, 1`（不能靠"删键"让模板默认顶上来） |
+
+**③ 预览渲染器同步升级**（`render_still.py`）：按材质取真贴图 + `--tex-rgb`（贴图自带颜色参与调色）
++ **按 `uses_sprite_animation`/`frame_rate` 播序列帧**（以前只画第 0 帧 ⇒ 火焰动画的起手帧又小又暗，
+差点被误判成"材质错"）。
+
+**④ 视觉复验（渲图逐格看过）**：`firepit` / `meteor` 已出**橙色火苗 + 黑烟** ✓；
+`healing` 绿 ✓ `poison` 绿丝 ✓；`lightningbolt` 显示 `spark` 的锥形 ✓（形状对，但尺寸偏大）。
+**仍待逐条调**：`fireball` 太淡 · `blizzard` 一团死黑 · `ice_circle` 偏黑 —— 属**规模/密度调参**，
+不是结构问题。（→ 下一轮：按族调 发射率/尺寸/寿命，每轮渲图复验。）
+
+
 
 ---
 

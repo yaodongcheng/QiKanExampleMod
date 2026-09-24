@@ -212,3 +212,30 @@ custom.spell probe               对最近的 agent 做三条实测定性（射�
    判据（可复现）：`tpaccli dump --packdir Modules/Native/AssetPackages --filter <效果名>` —— 原版效果打出的是 **`META Particle`**；同名的材质/贴图会打成 `material` / `texture`（`waterfall_splash` 就属于后者，所以引擎运行时报 `Unable to find particle system with name waterfall_splash`）。
    外部反证：HikageRising **一个粒子 XML 都没有**，122 个粒子全是 tpac 资产且生效。
    ⇒ **要给内容包加粒子：XML + mbproj 注册只是第一步，必须再在编辑器里发布成粒子包，产物改名拷进内容包的 `AssetPackages/`**。详见 [法术体系-通用施法框架.md](../../法术体系-通用施法框架.md) §B。
+
+## 🔴 粒子资产离线编译链 + 材质/图集四纪律（2026-09-25 登记 · 从「FCS 99 特效复刻」沉淀）
+
+**解决什么问题**：把 UE / 手写 spec 的粒子搬进骑砍，**全程不开编辑器**：
+`spec.py` →（`gen_particle_effect.py`）→ `XML` →（`tpaccli particleimport`）→ `*_psys.tpac` → 丢进 `<模块>/Assets[_disabled]/particles/`（编辑器看）或 `AssetPackages/`（游戏用）。
+一条命令的粒度：`--split`（一个 effect 一个文件，编辑器要这个格式）/ `--packname`（一个包装多个，游戏用）/ `--clone`（原样搬运）/ `--probe`（指纹探针）。
+
+**🔴 四条硬纪律（都是实机或渲图抓出来的，别重犯）**
+
+1. **材质名不可望文生义** —— `prt_shd_fire_1` 的贴图是**橙褐色叶/片状图集、不是火**（照它做火系 ⇒ 几乎不可见）；**真火焰是 `prt_shd_flame_1`**（贴图 `torchflameloop`）。挑材质前先看贴图：
+   `python Debug/offline/_mat_tex_survey.py` → `tools/particle-pipeline/out/sheet_materials.png`（41 个 `prt_shd_*` 一张图）。
+2. **图集切法是"贴图"的属性** —— 换材质**必须同时换** `texture_sprite_count / texture_sprite_frame_count / texture_sprite_frame_rate`；`"1, 1"` 要**显式写**（生成器模板默认 `2, 2` 会顶上来 ⇒ 单格贴图被切 4 份 = **硬方块**）。切法表**从原版 XML 统计**（`ue2bannerlord.py` 的 `MAT_SPRITE`，8 个 `particle_systems_*.xml` / 57 材质取众数）；切片对不对用 `python Debug/offline/_grid_check.py <png> <列,行> <out.png>` 验。
+3. **`max_alive_particle_count = 0` = 一颗都不给**（不是"无限"）—— 外部数据（UE）没这个概念时会被填 0 ⇒ **实机空白，而预览器正常**（它宽容地把 0 当 1500）⇒ 这类"实机才有"的缺陷只能靠实机或看数值抓。
+4. **元素要"材质 + 颜色"一起换** —— 只换材质不换颜色会出现"冰霜渲成灰/暗红、毒渲成白、暴风雪黑成一片"（颜色由 UE 曲线带进来）。见 `ELEMENT_COLOR` + `apply_element_color()`。
+   配套：`sparks`/`glow` 这类**小元素**要钉尺寸上限，而且**基础值与曲线都要钉**（有效尺寸 = 基础 + 曲线×倍率）。
+
+**自检闭环（"我看图"用）**
+
+```powershell
+# 批量分镜：一批 XML × 每个一帧 → 9/16 格拼图（一帧一读图太费上下文）
+python preview/sheet_stills.py --xmls "<glob>" --t 1.1 --out out/sv.png --per-sheet 16 --cols 4 --tex-rgb
+```
+- `render_still.py` 已支持**按材质取真贴图 + 按图集切 + 播序列帧 + `--tex-rgb`**（贴图自带颜色参与调色，最接近实机观感）。
+- ⚠️ **HTML 预览器（`build_preview_set.py`）还没跟上**：它只画程序化圆点、不读贴图不切图集 ⇒ 材质层的东西**只能在静帧这边看**。
+- ⚠️ 两者都**不等于实机**（最终 shader 在引擎里）——材质层以 ModKit / 实机为准。
+
+**入口**：这条线的现状 / 待办 / 命令速查 / 坑表全在 [Knowledge/FlexibleCombatSystem施法设计_UE实现分析.md](../../../Knowledge/FlexibleCombatSystem施法设计_UE实现分析.md) 顶部的「🔴 交接（2026-09-25）」（99 个 FCS 特效已全部翻译并投进 ModKit）。

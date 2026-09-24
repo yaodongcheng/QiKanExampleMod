@@ -137,6 +137,16 @@ python preview\render_still.py --xml D:\...\output\xml\lwn_ns_fireball.xml --t 1
 >    已修成 `cam.project(anchor(1, t))`（`fx=1` 就是爆开阶段）。**只有渲染爆开那一刻才触发**，所以之前一直没暴露。
 > ③ 想看**纯粒子本体**（不叠替身网格）：**另存一份** sidecar 把 `"meshes"` 改成 `false`
 >    （范本 `out/yinmo_particles_only.view.json`）—— 别改 `examples/yinmo.view.json`，那份的 `meshes:true` 是拿来对标参考图的。
+>
+> ④ 🔴 **预览对"材质"是瞎的**（2026-09-24 实测，差点因此误判）：所有材质**共用一张烟贴图**
+>    （`render_still.py` 的 `--tex` 默认 `smoke_d_256.png`）；`preview/mats/*.mat.txt` 只记了材质属性
+>    （blend / shaderFlags / 贴图 GUID），**没有任何脚本消费它**。后果：
+>    · **火 / 冰 / 毒 / 血在预览里几乎分不出来** —— 只有写进粒子颜色的色偏能看出来
+>      （例：`lwn_ns_frost_barrier` 发了青蓝色 ⇒ 在图上是蓝的 ✓；`lwn_ns_fireball` 颜色是白的 ⇒ 图上就是白烟，**不代表映射错**）。
+>    · ⚠️ **禁止据预览图断言"材质映射错了"**。实测反例：`lwn_ns_frostbolt` 映射到 `prt_shd_fire_1`，
+>      看图像"冰弹做成火"—— 但 UE 侧那三个 emitter 名字就叫 `Embers_6` / `Fire_8` / `Smoke_7`，
+>      材质是引擎默认 `DefaultSpriteMaterial`，**观感全靠 `ColorFromCurve` 曲线** ⇒ 按语义映射到 fire_1 合理。
+>    · 材质层要验，只能进 **ModKit** 或实机。
 
 ### 2.3 手写特效（不走 UE）
 

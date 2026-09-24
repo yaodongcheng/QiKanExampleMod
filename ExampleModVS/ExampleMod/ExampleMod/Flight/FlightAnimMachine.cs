@@ -72,6 +72,9 @@ namespace LivingWorldNpcs.Flight
                 // 过渡与核对周期**指向 FlightTuning** ⇒ 现有热调键（blend / ActionRecheckSeconds）继续生效
                 DefaultBlend = () => FlightTuning.AnimBlendIn,
                 RecheckSeconds = () => FlightTuning.ActionRecheckSeconds,
+                // 🔴 **飞行姿势的优先级**（2026-09-25）：不设 = 0（= clip 自带值），会被挥手(2)/挥刀(10~15)
+                //    抢走腿 —— 飞行中人被冻住、没有走路动画给它分腿，谁的优先级高谁当主角。
+                ActionPriority = () => FlightTuning.FlightActionPriority,
             };
 
             // ── 状态：一条 = 引擎里的一条动作（`act_xxx`）────────────────────────────

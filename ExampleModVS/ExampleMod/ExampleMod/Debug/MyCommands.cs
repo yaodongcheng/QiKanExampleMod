@@ -273,7 +273,7 @@ namespace LivingWorldNpcs
             }
             if (args.Count < 1 || string.IsNullOrWhiteSpace(args[0]))
             {
-                return "usage: custom.anim_ch [channel] <actionName> [agentId|nearest] [noforce] [<任意AnimFlags名>…]";
+                return "usage: custom.anim_ch [channel] <actionName> [agentId|nearest] [noforce] [prio=NN] [<任意AnimFlags名>…]";
             }
 
             // 参数扫描（宽松：认不出的一律当动作名，只认第一段）
@@ -284,6 +284,7 @@ namespace LivingWorldNpcs
             bool cyclic = false, lowerbody = false, enforceAll = false, ignorePriority = true;
             ulong extraFlags = 0UL;   // 任意 AnimFlags（见下面解析）
             int numericSeen = 0;
+            int prioritySet = -1;     // prio=NN 传过才 >= 0（只用于回显）
             foreach (string rawArg in args)
             {
                 string a = rawArg != null ? rawArg.Trim() : string.Empty;
@@ -295,6 +296,19 @@ namespace LivingWorldNpcs
                 }
                 string low2 = a.ToLowerInvariant();
                 if (low2 == "noforce") { ignorePriority = false; continue; }   // 原版通道 1 的调用风格
+                // 🔴 **`prio=NN` = 直接给优先级**（写进 additionalFlags 低字节，引擎 `amf_priority_mask = 0xFF`）。
+                //    用途：当场试"谁当主角"。飞行姿势默认 prio=0 ⇒ 会被挥手(2)/挥刀(10~15) 抢走腿；
+                //    给它 prio=30 再挥手，腿就该保得住。0~255。
+                if (low2.StartsWith("prio="))
+                {
+                    int pv;
+                    if (int.TryParse(a.Substring(5), out pv) && pv >= 0 && pv <= 255)
+                    {
+                        extraFlags |= (ulong)(uint)pv;
+                        prioritySet = pv;
+                    }
+                    continue;
+                }
                 // 🔴 **任意 AnimFlags 名字都能直接传**（大小写不敏感，可省 `anf_` 前缀）：认到就 OR 进去。
                 //    例：`lowerbody` / `all` / `cyclic` / `affected_by_movement` / `enforce_root_rotation` / `allow_head_movement` …
                 //    名字全表 = `TaleWorlds.MountAndBlade.AnimFlags`（反编译 AnimFlags.cs，与编辑器 clip 面板那一栏同源）。
@@ -332,7 +346,7 @@ namespace LivingWorldNpcs
             }
             if (string.IsNullOrEmpty(actionName))
             {
-                return "usage: custom.anim_ch [channel] <actionName> [agentId|nearest] [noforce] [<任意AnimFlags名>…]";
+                return "usage: custom.anim_ch [channel] <actionName> [agentId|nearest] [noforce] [prio=NN] [<任意AnimFlags名>…]";
             }
 
             ActionIndexCache idx = ActionIndexCache.Create(actionName);
@@ -384,6 +398,7 @@ namespace LivingWorldNpcs
                 string line = $"OK: agent={agent.Name} channel={channel} action='{actionName}' duration={duration:0.00}s"
                      + $" ref(act_fly_cruise)={refDuration:0.00}s loop={(cyclic ? 1 : 0)}"
                      + $" lowerbody={(lowerbody ? 1 : 0)} all={(enforceAll ? 1 : 0)} force={(ignorePriority ? 1 : 0)}"
+                     + (prioritySet >= 0 ? $" prio={prioritySet}" : "")
                      + $" ACCEPTED={accepted}{back}{durNote}{agentNote}";
                 DebugLogger.Log("[Cmd] anim_ch -> " + line);   // 进日志 ⇒ 控制台窗口窄看不全也不怕
                 return line;
