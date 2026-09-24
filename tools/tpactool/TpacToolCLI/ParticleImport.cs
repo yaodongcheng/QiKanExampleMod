@@ -38,6 +38,7 @@ namespace TpacCli
             string xmlPath = null, outDir = ".", packName = "lwn_particles.tpac";
             string packDir = null, templateName = "psys_game_blood_1";
             bool verbose = false, split = false, allowMkdir = false;
+            string probe = null;
             string cloneSrc = null, cloneNew = null;   // --clone 模式：把原版粒子**原样**（数据一字节不改）写成我们的名字，用来二分"是改写的问题还是打包的问题"
             for (int i = 0; i < args.Length; i++)
             {
@@ -50,12 +51,13 @@ namespace TpacCli
                     case "--template": templateName = args[++i]; break;
                     case "--verbose": verbose = true; break;
                     case "--split": split = true; break;
-                    case "--mkdir": allowMkdir = true; break;   // 一个 effect 一个 <名字>_psys.tpac（编辑器工程的 Assets/particles/ 要这个格式）
+                    case "--mkdir": allowMkdir = true; break;
+                    case "--probe": probe = args[++i]; break;   // 指纹探针：把还没解析明白的字段各填一个独一无二的值   // 一个 effect 一个 <名字>_psys.tpac（编辑器工程的 Assets/particles/ 要这个格式）
                     case "--clone": cloneSrc = args[++i]; break;
                     case "--newname": cloneNew = args[++i]; break;
                 }
             }
-            if (packDir == null || (xmlPath == null && cloneSrc == null))
+            if (packDir == null || (xmlPath == null && cloneSrc == null && probe == null))
             {
                 Console.Error.WriteLine("particleimport requires --packdir <原版包目录> and --xml <file> (或 --clone <源粒子> --newname <新名>)");
                 return 1;
@@ -82,6 +84,26 @@ namespace TpacCli
             }
             else
             {
+                // 🔴 正面检查：Assets / Assets_disabled 是**同一文件夹的两个名字**（编辑器态/游戏态），
+                //    只能存在一个；两个都在 = 模块不一致，`to_game_mode.bat` 会拒绝执行。
+                //    注意：产物常常写在 <模块>/Assets/particles/ 这类**子目录**里，所以要向上回溯祖先，
+                //    不能只看路径最后一段。
+                string dir = Path.GetFullPath(outDir);
+                for (int up = 0; up < 4 && !string.IsNullOrEmpty(dir); up++)
+                {
+                    string leaf = Path.GetFileName(dir);
+                    string twin = leaf == "Assets" ? "Assets_disabled" : (leaf == "Assets_disabled" ? "Assets" : null);
+                    if (twin != null)
+                    {
+                        string twinPath = Path.Combine(Path.GetDirectoryName(dir), twin);
+                        if (Directory.Exists(twinPath))
+                            Console.Error.WriteLine("[WARN] " + dir + " 与 " + twinPath + " **同时存在** —— " +
+                                                    "模块的两态目录不该并存（同一文件夹的两个名字，只能留一个）。");
+                        break;
+                    }
+                    dir = Path.GetDirectoryName(dir);
+                }
+                Console.WriteLine($"  该目录现有 {Directory.GetFiles(outDir).Length} 个文件");
             }
 
 
@@ -111,6 +133,47 @@ namespace TpacCli
             if (skeleton == null) { Console.Error.WriteLine("模板粒子没有 emitter"); return 1; }
             Console.WriteLine($"骨架 = {template.Name}（subVersion {skeleton.SubVersion}，{tData.Emitters.Count} 个 emitter，" +
                               $"元数据 {(template.RawMeta ?? template.WriteMetadata()).Length} 字节）");
+
+            // ---- 1a. --probe 模式：指纹探针 —— 把尚未解析明白的字段各填一个独一无二的值，
+            //      用户把它打开在编辑器里，哪个面板标签显示我填的那个数，那个字段就是谁。
+            if (probe != null)
+            {
+                var pe = CopyEmitter(skeleton);
+                pe.Name = probe;
+                pe.F2 = 11.25f; pe.F19 = 12.5f; pe.F24 = 13.75f; pe.F25 = 14.5f; pe.F29 = 15.25f;
+                // F28 是 emit_sphere_radius 的唯一嫌疑（关联求解 366/405 vs 次名 350/381）—— 一并探掉
+                pe.F28 = 47.75f;
+                pe.F3 = 16.5f; pe.F20 = 17.75f; pe.F21 = 18.5f; pe.F26 = 19.25f; pe.F27 = 20.5f; pe.F31 = 21.75f;
+                // 🔴 int 字段（U*/I*）**一律不碰** —— 它们是枚举/索引的概率高，越界值会让编辑器的
+                //    序列化器直接断言（实测：`rglAsset_package.h:589 Unable to serialize int value`，
+                //    进去 ModKit 都进不去）。要探它们只能一次改一个、且用原版出现过的取值。
+                //    这里只探 float / 向量 —— 它们不会让序列化失败。
+                pe.V1 = new Vector4(31.25f, 31.5f, 31.75f, 32f);
+                pe.V2 = new Vector4(33.25f, 33.5f, 33.75f, 34f);
+                pe.V4 = new Vector4(35.25f, 35.5f, 35.75f, 36f);
+                pe.Curve1.UnknownFloat1 = 41.25f; pe.Curve1.UnknownFloat2 = 41.5f;
+                pe.Curve7.CurveMultiplier = 42.25f;
+                pe.Curve15 = new ParticleEffectData.EmitterParameter();
+                pe.Curve15.UnknownFloat1 = 43.25f; pe.Curve15.UnknownFloat2 = 43.5f;
+                pe.S11 = "lwn_probe_s11";   // S4 是父激活事件（继承来的），别动；S3 在 subVersion 0 里不存在
+                var pd = new ParticleEffectData();
+                pd.SoundCode = String.Empty; pd.UnknownFloats.Add(0f);
+                pd.Emitters.Add(pe);
+                var pa = new Particle { Name = probe, Guid = DeterministicGuid(probe) };
+                pa.CopyShellFrom(template);
+                var pl = new ExternalLoader<ParticleEffectData>(pd);
+                pl.OwnerGuid = pa.Guid;
+                pa.TypelessDataSegments.Add(pl);
+                var pp = new AssetPackage(); pp.Items.Add(pa);
+                Directory.CreateDirectory(outDir);
+                string pop = Path.Combine(outDir, probe + "_psys.tpac");
+                pp.Save(pop);
+                Console.WriteLine($"  + 指纹探针 '{probe}' -> {Path.GetFileName(pop)} {new FileInfo(pop).Length:N0} 字节");
+                Console.WriteLine("  唯一值表：F2=11.25 F19=12.5 F24=13.75 F25=14.5 F29=15.25 | F3=16.5 F20=17.75 F21=18.5 F26=19.25 F27=20.5 F31=21.75");
+                Console.WriteLine("           V1=(31.25,31.5,31.75,32) V2=(33.25..34) V4=(35.25..36)   [int 字段不探]");
+                Console.WriteLine("           Curve1.f1=41.25 Curve1.f2=41.5 Curve7.mult=42.25 Curve15.f1=43.25 Curve15.f2=43.5 | S3/S4/S11=lwn_probe_*");
+                return 0;
+            }
 
             // ---- 1b. --clone 模式：原样搬运一个原版粒子的数据，只换名字
             if (cloneSrc != null)

@@ -160,6 +160,22 @@ namespace LivingWorldNpcs.Animation
             Enter(agent, stateName, blend, startProgress, forced: true);
         }
 
+        /// <summary>
+        /// **把当前状态的动作重新写一遍**（不清状态、不重播计时）—— 用于"通道 0 被别人挤掉之后补回来"。
+        /// 典型场景：上层（通道 1）播施法动作时，引擎可能把通道 0 的全身动作取消掉 ⇒ 腿失去姿态；
+        /// 调用方每帧查一次"通道 0 是不是空了"，空了就调这里补回去（见 <c>PlayerFlightBehavior</c>）。
+        /// 返回 false = 当前没有状态可补（还没进过任何状态）。
+        /// </summary>
+        public bool Reassert(Agent agent, float blend = 0.1f)
+        {
+            if (agent == null || _current == null)
+            {
+                return false;
+            }
+            Enter(agent, _current.Name, blend, 0f, forced: true);
+            return true;
+        }
+
         /// <summary>每帧调一次（喂之前把上下文里的量更新好）。</summary>
         public void Tick(Agent agent, float dt)
         {

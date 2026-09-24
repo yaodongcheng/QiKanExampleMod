@@ -45,12 +45,14 @@ namespace TpacCli
             }
 
             var filters = filter.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
+            bool csv = filters.Contains("--csv");            // 机器可读：一个 emitter 一行，反射把所有字段倒出来
+            if (csv) filters = filters.Where(f => f != "--csv").ToArray();
             int n = 0;
             foreach (var p in mgr.LoadedPackages)
             {
                 foreach (var item in p.Items.OfType<Particle>())
                 {
-                    if (!filters.Any(f => item.Name.Contains(f, StringComparison.OrdinalIgnoreCase)))
+                    if (filters.Length > 0 && !filters.Any(f => item.Name.Contains(f, StringComparison.OrdinalIgnoreCase)))
                         continue;
                     var loader = item.TypelessDataSegments
                         .OfType<ExternalLoader<ParticleEffectData>>().FirstOrDefault();
@@ -72,6 +74,11 @@ namespace TpacCli
                     for (int ei = 0; ei < d.Emitters.Count; ei++)
                     {
                         var e = d.Emitters[ei];
+                        if (csv)
+                        {
+                            Console.WriteLine("E|" + item.Name + "|" + ei + "|" + CsvFields(e));
+                            continue;
+                        }
                         Console.WriteLine($"  -- emitter[{ei}]  name='{e.Name}'  subVersion={e.SubVersion}");
                         Console.WriteLine($"     guid: G1={e.G1}  -> {R(e.G1)}");
                         Console.WriteLine($"           G2={e.G2}  -> {R(e.G2)}");
@@ -123,6 +130,38 @@ namespace TpacCli
             Console.WriteLine($"== 命中 {n} 个 ==");
             return n > 0 ? 0 : 1;
         }
+
+        /// <summary>反射把 Emitter 的每个字段倒成 "名字=值" —— 新增字段自动出现，不会漏。</summary>
+        static string CsvFields(object o, string prefix = "")
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var p in o.GetType().GetProperties())
+            {
+                object v;
+                try { v = p.GetValue(o); } catch { continue; }
+                string n = prefix + p.Name;
+                if (v == null) { sb.Append(n).Append("=null|"); continue; }
+                var t = v.GetType();
+                if (t == typeof(Vector4)) sb.Append(n).Append('=').Append(Fmt((Vector4)v)).Append('|');
+                else if (t == typeof(Vector2)) sb.Append(n).Append("=(").Append(((Vector2)v).X.ToString("0.######")).Append(',').Append(((Vector2)v).Y.ToString("0.######")).Append(")|");
+                else if (t == typeof(float)) sb.Append(n).Append('=').Append(((float)v).ToString("0.######")).Append('|');
+                else if (t == typeof(string)) sb.Append(n).Append('=').Append(((string)v).Replace("|", "/")).Append('|');
+                else if (t == typeof(Guid)) sb.Append(n).Append('=').Append(v).Append('|');
+                else if (t.IsPrimitive) sb.Append(n).Append('=').Append(v).Append('|');
+                else if (v is System.Collections.IEnumerable en && !(v is string))
+                {
+                    var items = new List<string>();
+                    foreach (var x in en) items.Add(x is Guid g ? g.ToString().Substring(0, 8) : Convert.ToString(x));
+                    sb.Append(n).Append("=[").Append(string.Join(",", items)).Append("]|");
+                }
+                else if (t == typeof(ParticleEffectData.EmitterParameter) || t == typeof(ParticleEffectData.Curve) || t == typeof(ParticleEffectData.ParticleColorParameter))
+                    sb.Append(CsvFields(v, n + "."));
+            }
+            return sb.ToString();
+        }
+
+        static string Fmt(Vector4 v) => "(" + v.X.ToString("0.######") + "," + v.Y.ToString("0.######") + "," +
+                                        v.Z.ToString("0.######") + "," + v.W.ToString("0.######") + ")";
 
         static IEnumerable<(string, ParticleEffectData.EmitterParameter)> Curves(ParticleEffectData.Emitter e)
         {

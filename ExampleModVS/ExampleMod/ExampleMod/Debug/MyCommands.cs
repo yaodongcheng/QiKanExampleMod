@@ -273,7 +273,7 @@ namespace LivingWorldNpcs
             }
             if (args.Count < 1 || string.IsNullOrWhiteSpace(args[0]))
             {
-                return "usage: custom.anim_ch [channel 0..3] <actionName> [agentId|nearest|main] [loop] [noforce] [lowerbody] [all]";
+                return "usage: custom.anim_ch [channel] <actionName> [agentId|nearest] [noforce] [<任意AnimFlags名>…]";
             }
 
             // 参数扫描（宽松：认不出的一律当动作名，只认第一段）
@@ -282,6 +282,7 @@ namespace LivingWorldNpcs
             Agent agent = Agent.Main;
             string agentNote = string.Empty;
             bool cyclic = false, lowerbody = false, enforceAll = false, ignorePriority = true;
+            ulong extraFlags = 0UL;   // 任意 AnimFlags（见下面解析）
             int numericSeen = 0;
             foreach (string rawArg in args)
             {
@@ -293,10 +294,20 @@ namespace LivingWorldNpcs
                     channel = n; numericSeen = 1; continue;      // 首参数字 = 通道
                 }
                 string low2 = a.ToLowerInvariant();
-                if (low2 == "loop" || low2 == "cyc" || low2 == "cyclic") { cyclic = true; continue; }
-                if (low2 == "lowerbody" || low2 == "lb") { lowerbody = true; continue; }
-                if (low2 == "all" || low2 == "ea") { enforceAll = true; continue; }
                 if (low2 == "noforce") { ignorePriority = false; continue; }   // 原版通道 1 的调用风格
+                // 🔴 **任意 AnimFlags 名字都能直接传**（大小写不敏感，可省 `anf_` 前缀）：认到就 OR 进去。
+                //    例：`lowerbody` / `all` / `cyclic` / `affected_by_movement` / `enforce_root_rotation` / `allow_head_movement` …
+                //    名字全表 = `TaleWorlds.MountAndBlade.AnimFlags`（反编译 AnimFlags.cs，与编辑器 clip 面板那一栏同源）。
+                //    这条是给"通道 1 为什么只动上身"做矩阵测试用的：一次编译、所有 flag 组合当场试。
+                AnimFlags parsedFlag;
+                string flagName = low2.StartsWith("anf_") ? low2 : "anf_" + low2;
+                if (System.Enum.TryParse<AnimFlags>(flagName, true, out parsedFlag) && parsedFlag != 0)
+                {
+                    extraFlags |= (ulong)parsedFlag;
+                    if (parsedFlag == AnimFlags.anf_enforce_lowerbody) { lowerbody = true; }
+                    if (parsedFlag == AnimFlags.anf_enforce_all) { enforceAll = true; }
+                    continue;
+                }
                 if (actionName == null) { actionName = a; continue; }
                 // 第二段之后的非关键字 = 目标 agent
                 if (low2 == "main") { agent = Agent.Main; continue; }
@@ -321,7 +332,7 @@ namespace LivingWorldNpcs
             }
             if (string.IsNullOrEmpty(actionName))
             {
-                return "usage: custom.anim_ch [channel 0..3] <actionName> [agentId|nearest|main] [loop] [noforce] [lowerbody] [all]";
+                return "usage: custom.anim_ch [channel] <actionName> [agentId|nearest] [noforce] [<任意AnimFlags名>…]";
             }
 
             ActionIndexCache idx = ActionIndexCache.Create(actionName);
@@ -345,7 +356,7 @@ namespace LivingWorldNpcs
 
             try
             {
-                ulong flags = 0UL;
+                ulong flags = extraFlags;
                 if (cyclic) flags |= (ulong)AnimFlags.anf_cyclic;
                 if (lowerbody) flags |= (ulong)AnimFlags.anf_enforce_lowerbody;
                 if (enforceAll) flags |= (ulong)AnimFlags.anf_enforce_all;
