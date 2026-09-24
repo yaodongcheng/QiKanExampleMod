@@ -5,7 +5,7 @@
   99 个粒子特效必须挂到「哪个技能、什么时机」上才有意义（冲锋 / 蓄力 / 命中 / 持续 / 增益）。
   这个信息全在 FCS 的技能表 `DT_SpellsInfo`（行 = 法术，字段 = 法术蓝图 / VFX / 音效 / 图标 / 动画）。
 
-【跑法】（与 export_t3d_all.py 同款，UE 无头；约 30~60 秒）
+【跑法】（UE 无头；与 tools/ue-dissect/export_t3d.py 同款 bootstrap；约 30~60 秒）
   MSYS_NO_PATHCONV=1 "D:/UNREAL/UE_4.27/Engine/Binaries/Win64/UE4Editor.exe" \
     "D:/UEProjects/【UE5】FlexibleCombatSystem/FlexibleCombatSystem.uproject" \
     -run=pythonscript -script="<本文件>" -unattended -nosplash -nullrhi -stdout
@@ -17,7 +17,7 @@ import unreal
 import os
 import traceback
 
-# 🔴 本文件跑在 UE 自带 python 里，sys.path 不可控 → 与 export_t3d_all.py 一样，
+# 🔴 本文件跑在 UE 自带 python 里，sys.path 不可控 → 与 tools/ue-dissect/export_t3d.py 一样，
 #    路径写死在文件头（改数据根 = 改这一行或设环境变量）。
 OUT_DIR = os.environ.get("BM_SPELL_OUT", r"D:/BrainMaker/骑砍2粒子特效复刻/output/spells_export")
 TABLES = [

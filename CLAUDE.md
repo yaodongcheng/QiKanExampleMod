@@ -463,6 +463,10 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 | [🔴 官方 Mod 文档库（86 页快照）](Knowledge/bannerlord_official_docs/README.md) | 🔴 **`moddocs.bannerlord.com` 源仓（TaleWorlds/Documentations）english 版快照**（2026-09-09）：资产管理/XSLT 合并/场景制作（Mission Scenes）/编辑器/音频/联机。**与 .lt 站互补：偏资产与编辑器规范，代码 API 少**。中文版源仓有：`fetch ... official --lang schinese` | XSLT 合并 XML、场景 tag/出生点规范、地形编辑器；刷新：`python tools/fetch_bannerlord_docs.py official`（生成物，勿手改） |
 | [🔴 骑砍2网格贴图动画 — 引擎能力与实现](Knowledge/骑砍2网格贴图动画_引擎能力与实现.md) | 🔴 **网格贴图"动起来"只有两条路，且互斥**：**翻页** `use_animated_texture_coords`（缩放+偏移，需图集）· **漂移** `use_texture_sweep`（平移 UV，需可平铺）—— 两者 + `self_illumination` **三个抢同一个 Vector Argument 1**（`.x/.y/.z/.w` 三种读法，两个同开 = 9.6Hz 硬闪）。源码实证（`Shaders/Sources/pbr_standart_vertex_functions.rsh:38/91`、`standart.rsh:1237`）· 🔴 **硬限制：漂移会把贴图里的空间遮罩一起漂走** ⇒ "圆形遮罩 + 会动" 只能走翻页 · flag 归属（`USE_SUNLIGHT` **只有粒子 shader**，网格拿不到）· 贴图生成（8bit RGB/黑底/留 mips/`Do Not Compress`；可平铺判据 = 接缝差 < 内部差×1.6，**名字带 `_Tile` 不等于无缝**）· Material Editor 字段↔界面名↔面板对照 + 可抄的最小配方 · C# 侧 `Mesh.SetVectorArgument/2` | **任何"让网格材质动起来"的需求（火焰流动 / 云涌 / 水流 / 闪烁）开工前必读**；配套脚本 `tools/armor-pipeline/scripts/gen_sigil_cloud_tex.py`（含幂等备份）/ `gen_spell_textures.py` / `preview_mesh.py` |
 
+| [🔴 骑砍2粒子系统 — XML 格式 / 材质 / 跨引擎复刻](Knowledge/骑砍2粒子系统.md) | 🔴 **骑砍粒子的完整知识**：XML 格式与全字段表 · 🔴 **材质同时决定贴图与混合模式**（原版只有 45 个 `prt_shd_*`；换材质 = 换混合语义）· 编辑器面板↔XML 字段对照 · §八 **UE Niagara → 骑砍 XML** 映射表（单位 cm→m ÷100 / 重力 ×1/980 / HDR 归一 / 曲线直搬）· §十一 **Cascade 支线**（结构比 Niagara 更贴近骑砍；含「拿新 Cascade 素材来复刻」的**交接规范 §11.7**） | 做任何粒子特效前必读；粒子管线 `tools/particle-pipeline/` 的方法论与边界都在这 |
+| [🔴 FCS（UE 法术战斗模板）施法体系全解](Knowledge/FlexibleCombatSystem施法设计_UE实现分析.md) | 🔴 **唯一落地的完整施法系统逐字段拆解**：67 行法术表全值 · `S_SpellInfo` 22 字段 · 19 个逻辑类（**14 个进表**）· **伤害公式实读** `(基础+智力)×随机(0.75~1.0)×(暴击?2:1)` · 出手帧实测（投掷 36% / 举天 40% / 下压 57% / 引导 58~76%）· 粒子/音效/动画/AI/UI/存档 · §十四 **对骑砍2 落地映射**（28 条对照 + 落地顺序） | 规划施法系统、要对齐 UE 原版数值与手感时读；逐资产详情页（gitignored，可重生成）在 `Knowledge/FCS详情解析/` |
+| [🔴 UE 工程拆解工具链（ue-dissect）](tools/ue-dissect/README.md) | 🔴 **全仓唯一的 UE 资产导出/解析底座**：引擎自带 `ObjectExporterT3D` 把蓝图/数据表/动画/粒子/UI 导成文本（等价反编译，**不需要第三方工具**）· 数据表取值钥匙（挖字段全名）· Niagara 常量解码 · 四条军规 · 换工程只改 `paths.py` | 要拆**任何** UE 工程、或想找 FCS 的原始证据（T3D 577 MB 在 `Debug/offline/fcs_dump/`）时从这里进 |
+
 ## 工作流约定
 
 **🔴 删除操作被权限拦截 = 交给用户，禁止绕道重试** — Claude Code 的权限分类器会拦截 `rm`/`Remove-Item`/覆盖写入等不可逆操作（尤其是用户以问句形式表达的删除意图）。被拦截时：**停止该操作**，向用户说明「要删什么 + 为什么 + 给出现成命令」，由用户执行或明确授权「删」之后再来（2026-08-28 用户裁定）。禁止换 PowerShell/别的方式变相执行同一删除。删除前先 `ls`/`git status` 确认对象范围未超出用户意图。
@@ -570,7 +574,7 @@ LivingWorldNpcs/
 | 模块根 `Debug/`（如 `Debug/StoryEngine_RuntimeLog.txt`、`Debug/HeightmapExport/`） | **产物目录** | 路径固定，引用有效 |
 | `Debug/MyCommands.cs`、`Debug/SaveGuard.cs`、`Debug/DebugLogger.cs` 式写法（约 40 处） | **C# 源码目录** `ExampleModVS/ExampleMod/ExampleMod/Debug/` | 与产物目录无关，**不要跟着产物目录改动而改** |
 
-**已知欠账**（规则已写但文件仍在库里，需 `git rm --cached` 才生效）：`ExampleModVS/ExampleMod/packages/`（21 个 NuGet）、`tools/face-pipeline/data/`（7 个）。
+**已知欠账**：✅ 无（2026-09-24 核验 `git ls-files` 为空 —— 原列的 `ExampleModVS/ExampleMod/packages/`、`tools/face-pipeline/data/` 已清）。
 
 **打包影响**：`package_mod.py:121-123` 的白名单只放行 `Debug/StoryEngine_RuntimeLog.txt`，`Debug/` 下其余内容（含 `offline/`）**不会进发布包** —— 所以离线产物放 `Debug/` 下是安全的。
 

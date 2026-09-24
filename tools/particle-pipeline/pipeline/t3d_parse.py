@@ -18,129 +18,31 @@ import os, re, sys, json, glob, struct
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 import paths          # 两根定位 TOOL/DATA —— 见工具链根 paths.py（realpath 穿透 junction）
 
-# ---------------------------------------------------------------- 基础工具
-def f32(raw):
-    return struct.unpack("<f", raw)[0]
+# ================================================================
+# 🔴 T3D 底座已合并到 tools/ue-dissect/t3d_tools.py（2026-09-24）
+#    —— f32 / TYPE_KIND / TYPE_SIZE / decode_bytes / OBJ_RE / walk_objects / mergename /
+#       parse_rapid_iteration / decode_rapid_iteration 全部是**同一份实现**，两边共用。
+#    本文件只保留「Niagara / Cascade → ue2bannerlord 所需 schema」的**领域投影**。
+#    改动顺序：先改底座（tools/ue-dissect/t3d_tools.py），再回来看这里要不要跟着动。
+# ================================================================
+sys.path.insert(0, paths.UE_DISSECT_TOOL)
+from t3d_tools import (f32, TYPE_KIND, TYPE_SIZE, decode_bytes,
+                       walk_compat, mergename as _mergename,
+                       parse_rapid_iteration, decode_rapid_iteration)
 
-TYPE_KIND = {53: "half", 54: "half", 55: "float", 56: "float", 57: "int",
-             58: "bool", 59: "vec2", 60: "vec3", 61: "vec4", 62: "color",
-             63: "quat", 64: "vec4"}
-TYPE_SIZE = {53: 2, 54: 2, 55: 4, 56: 4, 57: 4, 58: 1, 59: 8, 60: 12,
-             61: 16, 62: 16, 63: 16, 64: 16}
-
-def decode_bytes(raw, kind, ti):
-    """按类型解码一段字节。"""
-    n = len(raw)
-    try:
-        if kind in ("float",) and n >= 4: return round(f32(raw[:4]), 6)
-        if kind == "int" and n >= 4: return struct.unpack("<i", raw[:4])[0]
-        if kind == "bool" and n >= 1: return bool(raw[0])
-        if kind == "half" and n >= 2: return round(struct.unpack("<e", raw[:2])[0], 6)
-        if kind == "vec2" and n >= 8: return [round(x, 6) for x in struct.unpack("<2f", raw[:8])]
-        if kind in ("vec3",) and n >= 12: return [round(x, 6) for x in struct.unpack("<3f", raw[:12])]
-        if kind in ("color", "vec4", "quat") and n >= 16:
-            return [round(x, 6) for x in struct.unpack("<4f", raw[:16])]
-    except Exception:
-        pass
-    return {"raw": list(raw[:16]), "type_index": ti, "kind": kind}
-
-# ---------------------------------------------------------------- 对象遍历
-OBJ_RE = re.compile(r'^\s*Begin Object (?:(Class=)(\S+) )?Name="([^"]+)"\s*$')
-END_RE = re.compile(r'^\s*End Object\s*$')
-PROP_RE = re.compile(r'^\s{3,}([A-Za-z_][A-Za-z0-9_]*)(?:\((\d+)\))?=(.*)$')
-
-class Obj:
-    __slots__ = ("name", "cls", "props", "pins", "children", "line", "parent")
-    def __init__(self, name, cls, line, parent):
-        self.name, self.cls, self.line, self.parent = name, cls, line, parent
-        self.props, self.pins, self.children = {}, [], []
 
 def walk_objects(lines):
-    """把 T3D 文本走成一棵对象树（返回根列表）。同名对象在 T3D 里会被重复声明，
-    这里【保留每一次出现】由上层负责合并（首现带 Class=，后续出现只有 Name=）。"""
-    roots, stack = [], []
-    classes = {}
-    for i, raw in enumerate(lines):
-        m = OBJ_RE.match(raw)
-        if m:
-            cls = m.group(2)
-            name = m.group(3)
-            if cls:
-                classes[name] = cls.split(".")[-1]
-            o = Obj(name, classes.get(name, "?"), i, stack[-1] if stack else None)
-            (stack[-1].children if stack else roots).append(o)
-            stack.append(o)
-            continue
-        if END_RE.match(raw):
-            if stack: stack.pop()
-            continue
-        if not stack: continue
-        o = stack[-1]
-        s = raw.strip()
-        if s.startswith("CustomProperties Pin ("):
-            o.pins.append(s); continue
-        pm = PROP_RE.match(raw)
-        if pm:
-            key = pm.group(1)
-            idx = pm.group(2)
-            val = pm.group(3).rstrip()
-            # !! 形如 Modules(0)=/Modules(1)= 的数组型属性，必须把下标并进键名，
-            #    否则后面的会覆盖前面的（本轮踩过：LOD 模块全丢）。
-            if idx is not None:
-                o.props["%s(%s)" % (key, idx)] = val
-            o.props[key] = val
-    return roots, classes
+    """兼容包装：旧签名收「行列表」，底座收「路径或行列表」。"""
+    return walk_compat(lines)
+
 
 def prop_of(o, key, default=None):
     return o.props.get(key, default)
 
+
 def mergename(objs):
-    """把同名对象的 props 合并（后出现的补齐先出现的空值）。"""
-    merged = {}
-    for o in objs:
-        m = merged.setdefault(o.name, {"name": o.name, "cls": o.cls, "props": {}, "pins": []})
-        if o.cls and o.cls != "?": m["cls"] = o.cls
-        m["props"].update(o.props)
-        m["pins"].extend(o.pins)
-    return merged
+    return _mergename(objs)
 
-# ---------------------------------------------------------------- Niagara 常量解码
-RI_RE = re.compile(r'SortedParameterOffsets=\((.*?)\),ParameterData=\((.*?)\)(?:,DebugName="([^"]*)")?')
-OFF_RE = re.compile(r'Offset=(\d+),Name="([^"]*)",TypeDefHandle=\(RegisteredTypeIndex=(\d+)\)')
-
-def parse_rapid_iteration(text):
-    """解析 RapidIterationParameters=(SortedParameterOffsets=...,ParameterData=...,DebugName=...)
-    -> (debugName, [(offset,name,type_index)], [bytes]) 失败返回 None。"""
-    m = RI_RE.search(text)
-    if not m: return None
-    offs, data, dbg = m.group(1), m.group(2), m.group(3)
-    params = [(int(a), b, int(c)) for a, b, c in OFF_RE.findall(offs)]
-    if not params: return None
-    try:
-        blob = bytes(int(x) for x in data.split(",") if x.strip() != "")
-    except Exception:
-        return None
-    return dbg or "", params, blob
-
-def decode_rapid_iteration(text):
-    """-> {完整常量名: 解码值}，并附带推算的字节尺寸。"""
-    r = parse_rapid_iteration(text)
-    if not r: return {}, None
-    dbg, params, blob = r
-    params_sorted = sorted(params, key=lambda p: p[0])
-    out = {}
-    for i, (off, name, ti) in enumerate(params_sorted):
-        # 尺寸优先用「下一个偏移 - 当前偏移」推断，末尾用类型表兜底
-        if i + 1 < len(params_sorted):
-            size = params_sorted[i + 1][0] - off
-        else:
-            size = TYPE_SIZE.get(ti, 4)
-        if size <= 0: size = TYPE_SIZE.get(ti, 4)
-        raw = blob[off:off + size]
-        kind = TYPE_KIND.get(ti, "float")
-        out[name] = {"type_index": ti, "kind": kind, "size": size,
-                     "value": decode_bytes(raw, kind, ti), "bytes": list(raw)}
-    return out, dbg
 
 # ---------------------------------------------------------------- Niagara 解析
 MODULE_PATH_RE = re.compile(r'^NiagaraScript\'"(.*?)"\'$')
@@ -409,11 +311,13 @@ def summarize(res):
     return res.get("cls", "?")
 
 def main():
-    src = sys.argv[1] if len(sys.argv) > 1 else paths.out("t3d")
+    # 数据源：优先 ue-dissect 的全量导出（超集），其次本管线自己的 out("t3d")
+    src = sys.argv[1] if len(sys.argv) > 1 else paths.t3d_src()
     dst = sys.argv[2] if len(sys.argv) > 2 else paths.out("parsed")
     os.makedirs(dst, exist_ok=True)
+    idmap = paths.asset_id_map()          # 资产名 -> 旧扁平 id（保持 parsed 文件名稳定）
     files = sorted(glob.glob(os.path.join(src, "*.t3d")))
-    index, ni, ca, bad = [], 0, 0, 0
+    index, ni, ca, bad, skip = [], 0, 0, 0, 0
     for f in files:
         try:
             res = parse_one(f)
@@ -422,7 +326,11 @@ def main():
             print("PARSE-ERR %s: %s" % (os.path.basename(f), e))
         if res is None:
             bad += 1; continue
-        base = os.path.basename(f).replace(".t3d", "")
+        # 只收「effect」：ue-dissect 的 vfx 目录里还有独立的 NiagaraEmitter 资产（不是 effect，下游不需要）
+        if res.get("kind") not in ("niagara", "cascade"):
+            skip += 1
+            continue
+        base = idmap.get(os.path.basename(f)[:-4]) or os.path.basename(f).replace(".t3d", "")
         res["_source"] = f
         res["_id"] = base
         for e in res.get("emitters", []):
@@ -437,7 +345,7 @@ def main():
                       "emitters": len(res.get("emitters", [])), "summary": sm})
     with open(os.path.join(dst, "_index.json"), "w", encoding="utf-8") as fh:
         json.dump(index, fh, ensure_ascii=False, indent=1)
-    print("== 解析完成: 共 %d, niagara=%d cascade=%d 失败=%d ==" % (len(files), ni, ca, bad))
+    print("== 解析完成: 输入 %d, niagara=%d cascade=%d 跳过(非effect)=%d 失败=%d ==" % (len(files), ni, ca, skip, bad))
     for it in index[:12]:
         print("  %-62s %s" % (it["id"][:62], it["summary"][:90]))
 

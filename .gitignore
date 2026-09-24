@@ -55,6 +55,10 @@ plans/scenario-campaign-mode/tools/_*
 # ── 规则空档补漏 ──
 .codemaker/
 
+# ── UE 拆解详情树：可由 tools/ue-dissect/detail_tree.py **完全重生成**（镜像 UE 工程目录，410 页）──
+#    重生成：python tools/ue-dissect/detail_tree.py（--no-pins = 薄版）
+Knowledge/FCS详情解析/
+
 # ── 工具目录：源码入库 + 产物整目录忽略（本仓库的正确范例）──
 tools/loading_pipeline/gen/
 tools/video_tools/out/
