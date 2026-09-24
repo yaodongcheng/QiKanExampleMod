@@ -30,11 +30,11 @@
 >
 > 产物 = `TpacToolCLI/bin/Release/net9.0/tpaccli.exe`。这条命令只编命令行工具 + 它依赖的三个库。
 >
-> 🔴 **上游的图形界面工程 `TpacTool/`（.NET Framework 4.6.2 WPF）默认不参与生成。**
-> 它的 NuGet 包（`packages/`，约 200MB）不进 git，新机器上若把它编进来会直接报
-> "缺少此项目引用的 NuGet 程序包"并**打断整个解决方案**（2026-09-20 踩过）。
-> 要用图形界面时：先 `msbuild TpacTool.sln -t:restore -p:RestorePackagesConfig=true` 还原包，
-> 再在 VS 里右键 `TpacTool` 工程单独生成。只是命令行工具的话，上面那条命令就够，不需要还原。
+> 🔴 **上游的图形界面工程 `TpacTool/`（.NET Framework 4.6.2 WPF）已删除（2026-09-24）。**
+> 删它的理由：它的 NuGet 包（`packages/`）不进 git，新机器上编整个方案会直接报
+> "缺少此项目引用的 NuGet 程序包"并**打断整个解决方案**（2026-09-20 踩过）；而本工程五条管线用的
+> 全是命令行工具 `tpaccli`。要用图形界面时，回上游仓库 [szszss/TpacTool](https://github.com/szszss/TpacTool) 另行下载。
+> 它的包目录 `packages/`（约 200MB，删掉 GUI 后已无任何项目引用）暂留原处，确认不需要可直接删。
 
 #### About
 
