@@ -148,14 +148,18 @@ namespace TpacCli
                 //    序列化器直接断言（实测：`rglAsset_package.h:589 Unable to serialize int value`，
                 //    进去 ModKit 都进不去）。要探它们只能一次改一个、且用原版出现过的取值。
                 //    这里只探 float / 向量 —— 它们不会让序列化失败。
-                pe.V1 = new Vector4(31.25f, 31.5f, 31.75f, 32f);
-                pe.V2 = new Vector4(33.25f, 33.5f, 33.75f, 34f);
-                pe.V4 = new Vector4(35.25f, 35.5f, 35.75f, 36f);
+                // 🔴 向量只填 x/y/z —— **第 4 位必须留 1.0**。引擎把这几个槽按 rglVec3 读写，
+                //    上一次给 w 填了 32/34/36，编辑器一打开就断言崩：
+                //    `rglBuffer.cpp:899 nearly_equals(vector->w, 1.0f) "Potential read/write miss match for rglVec3"`（2026-09-24）。
+                pe.V1 = new Vector4(31.25f, 31.5f, 31.75f, 1f);
+                pe.V2 = new Vector4(33.25f, 33.5f, 33.75f, 1f);
+                pe.V4 = new Vector4(35.25f, 35.5f, 35.75f, 1f);
                 pe.Curve1.UnknownFloat1 = 41.25f; pe.Curve1.UnknownFloat2 = 41.5f;
                 pe.Curve7.CurveMultiplier = 42.25f;
                 pe.Curve15 = new ParticleEffectData.EmitterParameter();
                 pe.Curve15.UnknownFloat1 = 43.25f; pe.Curve15.UnknownFloat2 = 43.5f;
                 pe.S11 = "lwn_probe_s11";   // S4 是父激活事件（继承来的），别动；S3 在 subVersion 0 里不存在
+                pe.Validate();              // 🔴 写盘前的合法性闸门：见 ParticleEffectData.Emitter.Validate
                 var pd = new ParticleEffectData();
                 pd.SoundCode = String.Empty; pd.UnknownFloats.Add(0f);
                 pd.Emitters.Add(pe);
@@ -170,7 +174,7 @@ namespace TpacCli
                 pp.Save(pop);
                 Console.WriteLine($"  + 指纹探针 '{probe}' -> {Path.GetFileName(pop)} {new FileInfo(pop).Length:N0} 字节");
                 Console.WriteLine("  唯一值表：F2=11.25 F19=12.5 F24=13.75 F25=14.5 F29=15.25 | F3=16.5 F20=17.75 F21=18.5 F26=19.25 F27=20.5 F31=21.75");
-                Console.WriteLine("           V1=(31.25,31.5,31.75,32) V2=(33.25..34) V4=(35.25..36)   [int 字段不探]");
+                Console.WriteLine("           V1=(31.25,31.5,31.75,**1**) V2=(33.25..33.75,**1**) V4=(35.25..35.75,**1**)   [第 4 位永远是 1.0，不能探]");
                 Console.WriteLine("           Curve1.f1=41.25 Curve1.f2=41.5 Curve7.mult=42.25 Curve15.f1=43.25 Curve15.f2=43.5 | S3/S4/S11=lwn_probe_*");
                 return 0;
             }
@@ -223,6 +227,7 @@ namespace TpacCli
                 {
                     var e = CopyEmitter(skeleton);      // 深拷贝骨架（Write→Read，写法已过 roundtrip 闸门）
                     ApplyEmitter(e, em, materialGuid, name, verbose);
+                    e.Validate();                       // 🔴 同探针：向量第 4 位非 1.0 会让编辑器断言
                     data.Emitters.Add(e);
                     emCount++;
                 }
