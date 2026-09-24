@@ -3,6 +3,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using LivingWorldNpcs.Flight;
 
 namespace LivingWorldNpcs
 {
@@ -47,6 +48,12 @@ namespace LivingWorldNpcs
 		/// <summary>上一次施法之后键是否松开过（防"按住不放 = 连发"）。</summary>
 		private bool _releasedSinceCast = true;
 
+		/// <summary>
+		/// 本次施法用的是**飞行手势**（右键蓄力 / 左键放 / 松右键取消）吗。
+		/// 🔴 **起手那一刻定死**、放出或取消时才清 —— 半路起飞/落地不会把同一发弄成两种收势。
+		/// </summary>
+		private bool _flightGesture;
+
 		/// <summary>输入缓冲窗口（松手到动作结束之间按下的下一次施法要接住）。</summary>
 		private float _bufferUntil;
 
@@ -74,25 +81,50 @@ namespace LivingWorldNpcs
 				return;
 			}
 
-			bool held = ModInput.IsHeld(InteractionIds.SpellCast);
+			// 🔴 **两套手势**（飞行那套是 2026-09-24 用户裁定，与地面故意不同）：
+			//   地面：按住施法键（X）蓄力 → **松手放**；按住不放不连发（要松一次手才认下一发）
+			//   飞行：**按住右键蓄力**（球长大、粒子变浓）→ 满蓄力后不松右键、**点左键放**；
+			//         **松右键 = 取消**（不放）。右键同时还是"瞄准机位"，一举两得。
+			bool flying = IsFlyingNow();
+			bool gestureFlight = _phase == Phase.Idle ? flying : _flightGesture;
+
+			bool held = gestureFlight ? FlightInput.AimHeld : ModInput.IsHeld(InteractionIds.SpellCast);
 			if (!held)
 			{
 				_releasedSinceCast = true;
 			}
-			SpellDef wielded = ResolveWieldedSpell(player);
+			// 左键"发射"**只在蓄力/引导期间消费**（在 Idle 里消费 = 白吞一次点击）
+			bool fire = gestureFlight && _phase != Phase.Idle && FlightInput.ConsumeFirePress();
+			SpellDef wielded = gestureFlight ? ResolveFlightSpell(player) : SpellWorld.ResolveWieldedSpell(player);
 
 			switch (_phase)
 			{
 				case Phase.Idle:
-					UpdateIdle(player, wielded, held);
+					UpdateIdle(player, wielded, held, flying);
 					break;
 				case Phase.Charging:
-					UpdateCharging(player, wielded, held, dt);
+					UpdateCharging(player, wielded, held, dt, fire);
 					break;
 				case Phase.Channeling:
 					UpdateChanneling(wielded, held);
 					break;
 			}
+		}
+
+		/// <summary>玩家现在在飞吗（飞行系统接管中）。飞中：**不要求装备**、方向取飞行相机中心。</summary>
+		private static bool IsFlyingNow()
+		{
+			PlayerFlightBehavior flight = PlayerFlightBehavior.Current;
+			return flight != null && flight.IsFlying;
+		}
+
+		/// <summary>
+		/// 飞行中"这一发放什么"：手里认得出法术就用它，认不出（飞行中允许空手）→ 用飞行默认法术
+		/// （表里第一条 projectile 族，见 <see cref="SpellRegistry.DefaultFlightSpell"/>）。
+		/// </summary>
+		private static SpellDef ResolveFlightSpell(Agent player)
+		{
+			return SpellWorld.ResolveWieldedSpell(player) ?? SpellRegistry.DefaultFlightSpell;
 		}
 
 		/// <summary>场景卸载 / 换场景时清干净。</summary>
@@ -104,11 +136,12 @@ namespace LivingWorldNpcs
 			_spell = null;
 			_heldSeconds = 0f;
 			_power = 1f;
+			_flightGesture = false;
 		}
 
 		// ─────────────────────────── 三态 ───────────────────────────
 
-		private void UpdateIdle(Agent player, SpellDef wielded, bool held)
+		private void UpdateIdle(Agent player, SpellDef wielded, bool held, bool flying)
 		{
 			if (!held || wielded == null)
 			{
@@ -119,6 +152,7 @@ namespace LivingWorldNpcs
 			{
 				return;   // 按住不放 = 不连发（要松一次手才认下一发）
 			}
+			_flightGesture = flying;      // 本次施法的手势，一路沿用到放出 / 取消
 			_spell = wielded;
 			_heldSeconds = 0f;
 
@@ -134,7 +168,7 @@ namespace LivingWorldNpcs
 			UpdateCore(player, 0f);
 		}
 
-		private void UpdateCharging(Agent player, SpellDef wielded, bool held, float dt)
+		private void UpdateCharging(Agent player, SpellDef wielded, bool held, float dt, bool fire)
 		{
 			if (_spell == null || wielded != _spell)
 			{
@@ -162,6 +196,21 @@ namespace LivingWorldNpcs
 				return;
 			}
 
+			if (_flightGesture)
+			{
+				// 飞行手势：**左键 = 放**（按当前蓄力，不必等满——满蓄力只是伤害最高档）；**松右键 = 取消**（不放）
+				if (fire)
+				{
+					Release(player, _spell, _power);
+					return;
+				}
+				if (!held)
+				{
+					Cancel();
+				}
+				return;
+			}
+
 			if (!held)
 			{
 				Release(player, _spell, _power);
@@ -183,13 +232,15 @@ namespace LivingWorldNpcs
 			ClearCore();
 			_phase = Phase.Idle;
 			_spell = null;
-			_releasedSinceCast = false;
+			// 地面手势：要松一次手才认下一发（防按住连发）。飞行手势：**右脚本就是蓄力键**，
+			// 放完后还按着就是要接着蓄下一发（发射另有"左键点一下"把关，不会连发）⇒ 直接放行。
+			_releasedSinceCast = !_flightGesture;
 			_bufferUntil = MissionTime() + BufferWindowSeconds;
 
 			Vec3 origin = player.Position;
 			origin.z += player.GetEyeGlobalHeight();
-			Vec3 direction = player.LookDirection;
-			SpellCastFlow.Cast(player, spell, origin, direction, power);
+			// 🔴 方向取**相机朝向**（第三人称下相机 ≠ 身体朝向）
+			SpellCastFlow.Cast(player, spell, origin, SpellWorld.CastDirection(player), power);
 			_power = 1f;
 			_heldSeconds = 0f;
 		}
@@ -198,8 +249,8 @@ namespace LivingWorldNpcs
 		{
 			Vec3 origin = player.Position;
 			origin.z += player.GetEyeGlobalHeight();
-			Vec3 direction = player.LookDirection;
-			_channelShot = SpellCastFlow.CastAndReturn(player, spell, origin, direction, power);
+			_channelShot = SpellCastFlow.CastAndReturn(player, spell, origin,
+				SpellWorld.CastDirection(player), power);
 			if (_channelShot == null)
 			{
 				Cancel();
@@ -238,13 +289,13 @@ namespace LivingWorldNpcs
 			{
 				return;
 			}
-			Vec3 look = player.LookDirection;
-			look = look.LengthSquared < 1e-8f ? Vec3.Forward : look.NormalizedCopy();
-			Vec3 at = player.Position;
-			at.z += 1.25f;
-			at += look * 0.55f;
+			Vec3 at = CoreAnchor(player);
 
-			float scale = 0.5f + power;   // 核 ⌀0.72 m：半亮到满亮长一倍
+			// 核的大小：数据 `charge_scale` = **满蓄力时**的放大倍率，起手那一刻是它的 1/3（蓄满看着长两倍）。
+			// 🔴 2026-09-24 用户裁定"球太大" → 满蓄力由 1.5 倍（⌀1.08 m）缩到 **0.375 倍**（⌀0.27 m）。
+			//    运行时想再调：`custom.spell core <倍率>`（不用重启）。
+			float full = SpellDebug.ChargeScaleOverride ?? _spell.ChargeScale;
+			float scale = full * (0.3333f + 0.6667f * power);
 			if (_coreEntity == null)
 			{
 				_coreEntity = SpellWorld.SpawnMeshEntity(_spell.ChargeMesh, at, Mat3.Identity, scale);
@@ -253,18 +304,70 @@ namespace LivingWorldNpcs
 					return;
 				}
 				_coreParticle = SpellWorld.AttachParticle(_spell.ChargeParticle, _coreEntity);
-				return;
 			}
-			try
+			else
 			{
-				Mat3 rotation = Mat3.Identity;
-				rotation.ApplyScaleLocal(scale);
-				_coreEntity.SetGlobalFrame(new MatrixFrame(rotation, at));
+				try
+				{
+					Mat3 rotation = Mat3.Identity;
+					rotation.ApplyScaleLocal(scale);
+					_coreEntity.SetGlobalFrame(new MatrixFrame(rotation, at));
+				}
+				catch (Exception)
+				{
+					_coreEntity = null;
+				}
 			}
-			catch (Exception)
+
+			// 🔴 特效随蓄力**变浓**（2026-09-24 用户要求"球变大且特效变浓"）：
+			//    同一颗粒子不重建，只调**发射率倍数**（`SetRuntimeEmissionRateMultiplier`，引擎为此专门开的接口）。
+			if (_coreParticle != null)
 			{
-				_coreEntity = null;
+				try
+				{
+					_coreParticle.SetRuntimeEmissionRateMultiplier(ChargeDensityAt(power));
+				}
+				catch (Exception)
+				{
+					// 粒子可能已被引擎回收 —— 下次进 UpdateCore 会重新挂
+					_coreParticle = null;
+				}
 			}
+		}
+
+		/// <summary>蓄力粒子的浓淡：起手稀疏（0.3 倍）→ 满蓄力浓（1.5 倍）。</summary>
+		private static float ChargeDensityAt(float power)
+		{
+			return 0.3f + 1.2f * MathF.Max(0f, MathF.Min(1f, power));
+		}
+
+		/// <summary>
+		/// 蓄力球挂在哪。
+		/// · **地面**：身前近似手位（阶段 3 起就是这样；等"法阵 prefab"接上再换真挂点）
+		/// · **飞行中**：**右手上方**（2026-09-24 用户裁定）—— 先按"身体坐标 + 右偏 + 上抬"近似，不动骨骼
+		///   （真挂骨骼要 `Monster.MainHandBoneIndex` + `AgentVisuals.GetBoneEntitialFrame`，见 FlySpike.cs 的范本）
+		/// </summary>
+		private Vec3 CoreAnchor(Agent player)
+		{
+			Vec3 look = player.LookDirection;
+			look = look.LengthSquared < 1e-8f ? Vec3.Forward : look.NormalizedCopy();
+
+			Vec3 at = player.Position;
+			if (_flightGesture)
+			{
+				// 右 = 身体朝向绕 Up 转 90°（与飞行相机同一套角约定：`Mat3.Identity` 绕 Up 转 yaw，`.s` 就是右）
+				Mat3 m = Mat3.Identity;
+				m.RotateAboutUp(look.RotationZ);
+				Vec3 right = m.s.LengthSquared < 1e-6f ? Vec3.Zero : m.s.NormalizedCopy();
+				at.z += player.GetEyeGlobalHeight() * 0.9f;   // 手的高度（≈眼高九成）往上一点
+				at += right * 0.32f;                          // 偏到右手侧
+				at += look * 0.28f;                           // 稍往前，别嵌进身体
+				return at;
+			}
+
+			at.z += 1.25f;
+			at += look * 0.55f;
+			return at;
 		}
 
 		private void ClearCore()

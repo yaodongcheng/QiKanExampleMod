@@ -32,6 +32,25 @@ namespace LivingWorldNpcs
 		/// 用途：<c>custom.spell power 0.2|1</c> + <c>cast</c>，**不用按住键**就能验"蓄满与不蓄满差多少"。
 		/// </summary>
 		public static float? PowerOverride;
+
+		/// <summary>
+		/// 飞行物**放大倍数**覆盖。null = 用数据里每个法术自己的 <c>scale</c>。
+		/// 用途：<c>custom.spell scale 3</c> 当场把月牙放大三倍再 <c>cast</c> —— **不用重启游戏**。
+		/// </summary>
+		public static float? ScaleOverride;
+
+		/// <summary>
+		/// **命中半径**覆盖（米）。null = 用数据里的 <c>hit_radius</c>。
+		/// 用途：<c>custom.spell hit 3</c> 让命中判定更宽松（薄片飞得快时肉眼判断容易"以为没中"）。
+		/// </summary>
+		public static float? HitRadiusOverride;
+
+		/// <summary>
+		/// **蓄力核**满蓄力时的放大倍率覆盖。null = 用数据里每个法术自己的 <c>charge_scale</c>。
+		/// 用途：<c>custom.spell core 0.2</c> 按住 X 当场看核变大变小 —— **不用改数据、不用重启**
+		/// （下次按住施法键就生效；核已经画出来时会等下一次施法）。
+		/// </summary>
+		public static float? ChargeScaleOverride;
 	}
 
 	/// <summary>
@@ -52,6 +71,9 @@ namespace LivingWorldNpcs
 	///   custom.spell cap &lt;n&gt;                改在飞上限
 	///   custom.spell give [spellId]         给最近的 NPC 装一套"法印+法术弹"→ **它自己会放**（阶段 4 的验证）
 	///   custom.spell power &lt;0~1&gt;|off         力度覆盖（验蓄力档位；配 cast 用）
+	///   custom.spell scale &lt;倍率&gt;|off         **放大月牙**（当场生效，不用重启；配 cast 用）
+	///   custom.spell hit &lt;米&gt;|off             命中半径覆盖（判定更宽松/更严）
+	///   custom.spell core &lt;倍率&gt;|off          **手心蓄力核**的大小覆盖（按住 X 就能看到）
 	///   custom.spell probe                  对最近的一个 agent 做三条实测定性（见方法注释）
 	/// </summary>
 	public class SpellProjectileLogic : MissionLogic
@@ -202,7 +224,7 @@ namespace LivingWorldNpcs
 
 			Mission mission = Mission.Current;
 			Agent player = mission != null ? mission.MainAgent : null;
-			SpellDef spell = ResolveWieldedSpell(player);
+			SpellDef spell = SpellWorld.ResolveWieldedSpell(player);
 			if (spell == null || spell.Targeting != "ground" || string.IsNullOrEmpty(spell.Indicator))
 			{
 				HideIndicator();
@@ -211,9 +233,8 @@ namespace LivingWorldNpcs
 
 			Vec3 origin = player.Position;
 			origin.z += player.GetEyeGlobalHeight();
-			Vec3 direction = player.LookDirection;
-			direction = direction.LengthSquared < 1e-8f ? Vec3.Forward : direction.NormalizedCopy();
-			Vec3 point = SpellAim.ResolveSurfacePoint(origin, direction, spell.MaxDistance);
+			// 🔴 指示圈也按**相机朝向**（与施法方向同口径，否则圈和法术落点对不上）
+			Vec3 point = SpellAim.ResolveSurfacePoint(origin, SpellWorld.CastDirection(player), spell.MaxDistance);
 			ShowIndicator(spell, point);
 		}
 
@@ -351,6 +372,12 @@ namespace LivingWorldNpcs
 						return Give(args);
 					case "power":
 						return Power(args);
+					case "scale":
+						return Scale(args);
+					case "hit":
+						return Hit(args);
+					case "core":
+						return Core(args);
 					case "tilt":
 						return Tilt(args);
 					case "verbose":
@@ -726,6 +753,72 @@ namespace LivingWorldNpcs
 			}
 			SpellDebug.PowerOverride = MathF.Max(0f, MathF.Min(1f, value));
 			return $"OK: power override = {SpellDebug.PowerOverride.Value:F2} (used by 'cast')";
+		}
+
+		/// <summary>放大倍率覆盖（0.1~20 钳制；off = 还原成数据里的 scale）。</summary>
+		private static string Scale(List<string> args)
+		{
+			if (args.Count < 2)
+			{
+				return $"OK: scale override = {(SpellDebug.ScaleOverride.HasValue ? SpellDebug.ScaleOverride.Value.ToString("F2", CultureInfo.InvariantCulture) : "off")}";
+			}
+			string raw = args[1].Trim();
+			if (raw.Equals("off", StringComparison.OrdinalIgnoreCase))
+			{
+				SpellDebug.ScaleOverride = null;
+				return "OK: scale override cleared (using per-spell scale)";
+			}
+			float value;
+			if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+			{
+				return $"ERROR: '{raw}' is not a number.";
+			}
+			SpellDebug.ScaleOverride = MathF.Max(0.1f, MathF.Min(20f, value));
+			return $"OK: scale override = {SpellDebug.ScaleOverride.Value:F2}x (next 'cast' uses it)";
+		}
+
+		/// <summary>命中半径覆盖（米；0.1~10 钳制；off = 还原成数据里的 hit_radius）。</summary>
+		private static string Hit(List<string> args)
+		{
+			if (args.Count < 2)
+			{
+				return $"OK: hit radius override = {(SpellDebug.HitRadiusOverride.HasValue ? SpellDebug.HitRadiusOverride.Value.ToString("F2", CultureInfo.InvariantCulture) : "off")}";
+			}
+			string raw = args[1].Trim();
+			if (raw.Equals("off", StringComparison.OrdinalIgnoreCase))
+			{
+				SpellDebug.HitRadiusOverride = null;
+				return "OK: hit radius override cleared (using per-spell hit_radius)";
+			}
+			float value;
+			if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+			{
+				return $"ERROR: '{raw}' is not a number.";
+			}
+			SpellDebug.HitRadiusOverride = MathF.Max(0.1f, MathF.Min(10f, value));
+			return $"OK: hit radius override = {SpellDebug.HitRadiusOverride.Value:F2}m (next 'cast' uses it)";
+		}
+
+		/// <summary>蓄力核大小覆盖（0.02~5 钳制；off = 还原成数据里的 charge_scale）。</summary>
+		private static string Core(List<string> args)
+		{
+			if (args.Count < 2)
+			{
+				return $"OK: charge core scale override = {(SpellDebug.ChargeScaleOverride.HasValue ? SpellDebug.ChargeScaleOverride.Value.ToString("F2", CultureInfo.InvariantCulture) : "off")}";
+			}
+			string raw = args[1].Trim();
+			if (raw.Equals("off", StringComparison.OrdinalIgnoreCase))
+			{
+				SpellDebug.ChargeScaleOverride = null;
+				return "OK: charge core override cleared (using per-spell charge_scale)";
+			}
+			float value;
+			if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+			{
+				return $"ERROR: '{raw}' is not a number.";
+			}
+			SpellDebug.ChargeScaleOverride = MathF.Max(0.02f, MathF.Min(5f, value));
+			return $"OK: charge core override = {SpellDebug.ChargeScaleOverride.Value:F2}x (hold the cast key to see it)";
 		}
 
 		/// <summary>最近的另一个 agent（诊断命令共用）。</summary>

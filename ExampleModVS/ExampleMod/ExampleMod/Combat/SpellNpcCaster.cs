@@ -102,7 +102,7 @@ namespace LivingWorldNpcs
 				return;
 			}
 			// ① 手里是不是法印 + 法术弹（与玩家同一条判据）
-			SpellDef spell = ResolveWieldedSpell(npc);
+			SpellDef spell = SpellWorld.ResolveWieldedSpell(npc);
 			if (spell == null || !spell.AiEnabled || !AiFamilies.Contains(spell.Family))
 			{
 				return;

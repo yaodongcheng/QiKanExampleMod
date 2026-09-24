@@ -2,8 +2,13 @@
 
 > 🔴 **说人话铁律（最高优先级，写任何 plan/文档前先读）**：plan 的第一读者是**审批人（人）**，不是执行 agent。结论先行、条陈式、禁止思考史、中文直白——**审批人看不懂 = 方案未完成**。完整条款见铁律 21。
 
-> **会话必读（写任何代码前先做）：读一遍 [plans/rules/wheels.md](plans/rules/wheels.md) 索引（~40 行），定位任务命中的域 → 打开 [wheels.d/](plans/rules/wheels.d/) 对应分卷。**
+> 🔴 **会话必读（写任何代码前先做）：读一遍 [plans/rules/wheels.md](plans/rules/wheels.md) 索引（~40 行），定位任务命中的域 → 打开 [wheels.d/](plans/rules/wheels.d/) 对应分卷。**
 > 这是已造轮子速查，避免重复造轮子 / 绕过既有引擎。**不查索引不准动手写新功能。**
+>
+> 🔴🔴 **排查任何「模块/补丁/资产为什么没生效」之前的第一步：自己读日志的 `Command Args:` 行**
+> （`C:\ProgramData\Mount and Blade II Bannerlord\logs\rgl_log_<pid>.txt`，里面是本次启动的完整 `_MODULES_…_MODULES_` 列表）。
+> **禁止问用户"你是怎么启动的/勾了哪些模块"**，也禁止靠文件夹存在去推断 —— 见下方**铁律 34**。
+
 > ⚠️ wheels.d/ 分卷按需加载——**只读命中域的卷**，禁止整卷全读（正文共 2200+ 行，全读会烧掉大量上下文）。
 
 详细规则见 `plans/rules/`。**wheels.md 索引每次会话必读**，其余按需加载：
@@ -189,6 +194,24 @@
 
 33. 🔴 **任何装备都必须「平民装可用」—— `<Flags Civilian="true"/>` 是硬门槛**（2026-09-21 用户裁定）— **判据**：内容包每一件 `<Item>` 的 `<Flags>` 里必须有 `Civilian="true"`。缺了 = 玩家在城镇/据点换**日常装**时**选不到这件东西**（进城、潜入、典狱长等一切要求平民装的场合全被挡住）——一件"战场上能用、进了城就凭空消失"的装备，对玩家是莫名其妙的 bug。**没有例外**：武器 / 铠甲 / 头盔 / 腿甲 / 臂甲 / 盾牌 / **弹药** / 马匹 / 旗帜，一律都要。**写法**：`Civilian="true"` 放 `<Flags>` 里、惯例**排在最后**（`<Flags UseTeamColor="true" Civilian="true" />`；原本没有 `<Flags>` 就补一个）。🔴 **最容易漏的一类 = 照抄原版的换皮件** —— 原版自己的很多武器**不带** Civilian（`crossbow_a` 就只有 `<Flags Stealth="true" />`），照抄字段时会把"没有 Civilian"一起抄进来（2026-09-21 施法体系那两件就是这么漏的，全库 195/197 就缺它俩）。**检查**：`python Scripts/check_items_civilian.py --module <内容包>`（已进 `run_all_checks.py` 一键体检；负面测试在 `test_negative_checks.py`「物品：缺 Civilian 必须抓到」）。
 
+34. 🔴🔴 **"哪些模块被加载"一律自己从日志取证 —— 禁止问用户**（2026-09-24 用户裁定）— 每次启动，引擎都把**完整命令行**写进 `C:\ProgramData\Mount and Blade II Bannerlord\logs\rgl_log_<pid>.txt` 的 **`Command Args:`** 行（含 `_MODULES_*…*_MODULES_` 全列表）。**两种启动方式都一样**：命令行启动直接带、原生启动器启动时**启动器也把勾选转成 `_MODULES_` 传给游戏进程**（反编译实证 `Launcher.Library:1108-1113`）。所以遇到「模块在不在 / 补丁为什么没生效 / 资产为什么没加载」这类问题：
+    · ✅ **第一步 = 读最新 `rgl_log_*.txt` 的 `Command Args:` 行**（自己读，零打扰）
+    · ❌ **禁止问用户**"你是怎么启动的、勾了哪些模块"（用户 2026-09-24 明确反感："就不用再问我一些傻逼问题了"）
+    · ❌ 禁止靠**文件夹存在**推断（`ModuleHelper.GetModuleInfo()` 只查安装目录扫描表、与勾选无关 —— 2026-09-07 因此误判崩过）
+    · 运行时等价物（若须从游戏内看）= `Utilities.GetModulesNames()`（项目已用它做启用判定）
+    · 要临时增减模块 = **用户改启动参数**，不是去点启动器
+
+35. 🔴🔴 **相机有两台，方向别串门 —— 自定义相机接管期间，"看向哪/朝哪算"一律只认自定义相机**（2026-09-24 用户裁定写死；这条已失误多次：飞行 2026-09-21、法术 2026-09-24）
+    - **判据**：`MissionScreen.CustomCamera != null` = **接管中**。本项目的接管方 = `Camera/SpringArmCameraView`（演出/跟随机位）· `Flight/FlightCameraRig`（飞行）· `Camera/CameraDebuggerView`（调试 UI）。
+    - **为什么**（反编译实锤，写在 `SpringArmCameraView.cs:134`）：`CustomCamera != null` 时 `MissionScreen.CheckForUpdateCamera` **整段跳过**引擎的相机更新，只做三件事 —— `CombatCamera.FillParametersFrom(CustomCamera)` / `CombatCamera.Frame = CustomCamera.Entity.GetGlobalFrame()` / `SetCamera`。引擎既然不更新相机，就**不再处理鼠标 look**。
+    - ❌ **接管期间禁止读**：`MissionScreen.CameraBearing` / `CameraElevation`（**冻在接管那一刻**的旧值 —— 读了 = "画面 A、计算 B、鼠标没反应"三重错位）。
+    - ❌ **任何情况下都别用 `Mission.GetCameraFrame()` 取方向**（2026-09-24 实机日志实测它的基向量：**`.f` 是"上"**、`.u` 是视线的**反向**（≈ −视线）、`.s` 是右向）—— 想要视线得写 `-rotation.u`，**极易再错一次**，所以直接别碰它。
+    - ✅ **接管期间正确读法 = 问接管方自己的朝向状态**：飞行 → `FlightCameraRig.TryGetBasis(out forward, out right)`（**飞行方向与施法方向都必须用它**，范本 `PlayerFlightBehavior.GetCameraBasis` / `SpellPieces.CastDirection` 的飞行分支）；演出 → 开演那一刻的机位口径（`ApplyFollowFromEngineCamera`）。
+    - ✅ **代码侧唯一入口 = `Camera/CameraLook.cs`**（`CameraLook.TryGet(out forward)`）：接管中自动问接管方（`ICameraLookProvider`，飞行已注册），没接管才用引擎角度；**写新的"相机看向哪"逻辑先看它能不能直接用**，别再造第五份。消费者：`SpellPieces.CastDirection`（法术方向）· `Compass/CompassHud`（罗盘 yaw，2026-09-24 修 —— 它原来拿 `.rotation.f` 算 yaw，等于拿一根近乎竖直的向量做水平投影）。
+    - ✅ **没接管时的"引擎视线"唯一算法**（照抄引擎 `MissionMainAgentController.LookTick`）：`Mat3.Identity` 绕 Up 转 `CameraBearing`、绕 Side 转 `CameraElevation`，取 **`.f`** —— 实现见 `CameraLook.TryGetEngineLook()`。
+    - ✅ **位置可以随便读**：`Mission.GetCameraFrame().origin` 是**自定义相机**的位置（引擎每帧从它的实体填进去）⇒ 取位置/算距离没问题，**只有方向会错**。
+    - 🔴 **归还也要管方向**：`CustomCamera = null` 交还引擎时，要把接管期间改过的朝向写回引擎（飞行用反射写回，见 `wheels.d/camera.md`），否则退出后镜头跳一下。
+
 ## 🔴 CSV 表头规范（2026-09-12 用户裁定，最高优先级）
 
 **`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/` 下的数据表一律两行表头**：
@@ -354,6 +377,22 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 | 备份客户端 | v1.3.15 | `H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.3.15\Mount & Blade II Bannerlord` | 🔴 **当前编译目标**（注册表 MB2_PATH 指向它，2026-09-23 实测；跑纯功能包模式） |
 | 备份客户端 | v1.4.8 | `H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.4.8\Mount & Blade II Bannerlord` | 1.4.x 临时编译（需要时才用） |
 | Steam 主目录（随官方更新） | v1.5.x | `H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord` | 对照环境（实测：2026-09-08 = v1.5.2） |
+
+> 🔴 **启动参数 = 「哪些模块真被加载」的唯一权威（2026-09-24 用户裁定，必须读）** ——
+> 用户**不用启动器勾选**，而是**从命令行/快捷方式带 `_MODULES_` 参数启动**；引擎用该参数**覆盖启动器勾选**
+> （同源事实见 [wheels.d/assets.md](plans/rules/wheels.d/assets.md)「换默认脸」那条）。1.2.12 客户端当前那条：
+> ```
+> /singleplayer _MODULES_*Bannerlord.Harmony*Bannerlord.ButterLib*Bannerlord.UIExtenderEx*Bannerlord.MBOptionScreen*Native*SandBoxCore*SandBox*CustomBattle*StoryMode*LivingWorldNpcs*Taikou*_MODULES_
+> ```
+> **判据（禁止靠猜）**：`C:\ProgramData\Mount and Blade II Bannerlord\logs\rgl_log_<pid>.txt` 里搜 `Command Args:`
+> —— 本次启动的完整命令行就在那儿（实测在第 39 行左右）。**排查"某模块在不在、补丁/资产为什么没生效"先读它。**
+> 🔴 **两条启动路径（命令行 / 原生启动器）都适用** —— 因为**启动器也是把勾选转成 `_MODULES_` 传给游戏进程的**
+> （反编译实证 `Launcher.Library:1108-1113`，同 `ModuleActivationHelper` 那段注释），所以无论用户怎么启动，
+> 游戏进程的命令行里都有 `_MODULES_` ⇒ 日志这一行**对两种方式都成立**。
+> 运行时等价物（若要从游戏内部看）= `Utilities.GetModulesNames()`（项目已用它做启用判定）；**禁用** `ModuleHelper.GetModuleInfo()`
+> 与"文件夹在不在"（前者只查安装目录扫描表、与勾选无关 —— 2026-09-07 因此误判崩过）。
+> ⚠️ **`TaikouAnim` 不在该列表里**（它是编辑器沙箱，只在 ModKit 里用）⇒ 别把问题归到"沙箱模块重复注册"上
+> （2026-09-24 我在这个假设上判断错过一次）。要临时增减模块 = **用户改那条命令行**，不是去点启动器。
 
 > 🔴 **版本切换 = `set_mb2_path.py`（仓库根，2026-09-09 整改）**：`setx` 写注册表 User 级 MB2_PATH（铁律 19——判定一律读注册表，禁看 shell 进程快照）。改 `DEFAULT_VERSION` 变量点运行 = 切换；无参运行 = 只查询当前值；**改完必须重启 VS2022**（启动时捕获环境变量）。当前激活值：**v1.3.15**（2026-09-23 读注册表实测）。
 > 🔴 **三档都要能编**：1.2.12 / 1.3.15 / 1.5.x。**1.3.0 是个真变更点**（既不同于 1.2.12 也不同于 1.4.x 的地方有一批：

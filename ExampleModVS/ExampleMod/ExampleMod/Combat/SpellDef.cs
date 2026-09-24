@@ -212,6 +212,14 @@ namespace LivingWorldNpcs
 		public string ChargeMesh = "lwn_yinmo_core";
 
 		/// <summary>
+		/// 蓄力核**满蓄力时**的放大倍率（默认 <c>0.375</c> —— 核网格 ⌀0.72 m，即满蓄力 ⌀0.27 m；
+		/// 起手那一刻是它的 **1/3**，所以蓄满看着长大两倍）。
+		/// 🔴 **嫌核太大/太小就改这个数**（数据改、不用重编资产也不用重启：法术表进场景时重读）。
+		/// 2026-09-24 用户裁定：原来的 1.5 倍（⌀1.08 m）太大，缩到四分之一。
+		/// </summary>
+		public float ChargeScale = 0.375f;
+
+		/// <summary>
 		/// NPC 施法（阶段 4）：这个法术**允许 NPC 用**吗（默认允许）。
 		/// 引擎侧还会再过一道"只开框架认的那几类族"的闸门（见 <see cref="SpellNpcCaster"/>）。
 		/// </summary>
@@ -258,6 +266,9 @@ namespace LivingWorldNpcs
 
 		private static readonly Dictionary<string, SpellDef> _byId =
 			new Dictionary<string, SpellDef>(StringComparer.Ordinal);
+
+		/// <summary>按加载顺序排的法术（`Dictionary` 顺序不保证，所以另存一份）—— 见 <see cref="DefaultFlightSpell"/>。</summary>
+		private static readonly List<SpellDef> _ordered = new List<SpellDef>();
 
 		private static readonly Dictionary<string, SpellFamily> _families =
 			new Dictionary<string, SpellFamily>(StringComparer.Ordinal);
@@ -334,6 +345,27 @@ namespace LivingWorldNpcs
 		public static IEnumerable<SpellDef> All
 		{
 			get { EnsureLoaded(); return _byId.Values; }
+		}
+
+		/// <summary>
+		/// **飞行默认法术** —— 飞行中"不要求装备"（2026-09-24 用户裁定）时放哪一个：
+		/// 表里**第一条 `family="projectile"`** 的法术；没有 projectile 就取第一条法术；一条法术都没有 = null（飞行中不放法术）。
+		/// 🔴 想让某个法术当飞行默认，把它**排在表里前面**即可（跨模块时按模块加载顺序）。
+		/// </summary>
+		public static SpellDef DefaultFlightSpell
+		{
+			get
+			{
+				EnsureLoaded();
+				for (int i = 0; i < _ordered.Count; i++)
+				{
+					if (_ordered[i].Family == "projectile")
+					{
+						return _ordered[i];
+					}
+				}
+				return _ordered.Count > 0 ? _ordered[0] : null;
+			}
 		}
 
 		private static void EnsureLoaded()
@@ -490,6 +522,7 @@ namespace LivingWorldNpcs
 				ChargeTime = FloatAttrAllowZero(node, "charge_time", 0f),
 				ChargeBonus = FloatAttrAllowZero(node, "charge_bonus", 0f),
 				ChargeMesh = Fallback(Attr(node, "charge_mesh"), "lwn_yinmo_core"),
+				ChargeScale = FloatAttr(node, "charge_scale", 0.375f),
 				AiEnabled = BoolAttr(node, "ai", true),
 				AiWeight = FloatAttr(node, "ai_weight", 1f),
 				AiCooldown = FloatAttr(node, "ai_cooldown", 5f),
@@ -521,6 +554,11 @@ namespace LivingWorldNpcs
 			}
 			_byAmmo[ammo] = def;
 			_byId[id] = def;
+			// 记加载顺序（字典顺序不保证）—— 「飞行默认法术」这类"取第一条"的用途靠它
+			if (!_ordered.Contains(def))
+			{
+				_ordered.Add(def);
+			}
 		}
 
 		private static DamageTypes ParseDamageType(string raw, string spellId)

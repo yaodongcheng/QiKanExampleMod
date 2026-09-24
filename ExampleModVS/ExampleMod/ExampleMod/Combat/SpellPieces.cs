@@ -633,6 +633,142 @@ namespace LivingWorldNpcs
 			return id;
 		}
 
+		/// <summary>
+		/// **施法朝向** —— 玩家用**相机朝向**（第三人称下相机 ≠ 身体朝向，2026-09-24 实机报的 bug），
+		/// 其他人用身体朝向。FCS 也是这么分的：起点在手上、方向从相机算（计划 §14.2 第 11 条）。
+		/// </summary>
+		public static Vec3 CastDirection(Agent caster)
+		{
+			if (caster == null)
+			{
+				return Vec3.Forward;
+			}
+			Mission mission = Mission.Current;
+			if (mission != null && mission.MainAgent == caster)
+			{
+				// 🔴 玩家：方向 = **相机中心**，走全项目唯一入口 `CameraLook`（CLAUDE.md 铁律 35）：
+				//    相机被接管（飞行 / 演出）时问接管方自己；没接管才用引擎角度。
+				//    ⚠️ 曾经直接读 `MissionScreen.CameraBearing` —— 接管期间那是**冻的旧值**
+				//       （症状：飞行中放法术永远朝"起飞时看的方向"飞；2026-09-21 在飞行上栽过同一条）。
+				if (CameraLook.TryGet(out Vec3 look)
+					&& look.LengthSquared > 1e-6f)
+				{
+					return look.NormalizedCopy();
+				}
+			}
+			Vec3 bodyLook = caster.LookDirection;
+			return bodyLook.LengthSquared < 1e-8f ? Vec3.Forward : bodyLook.NormalizedCopy();
+		}
+
+		/// <summary>
+		/// **镜头视线** —— 现在只是 <see cref="CameraLook.TryGet"/> 的薄壳
+		/// （**唯一实现**搬到了 `Camera/CameraLook.cs`：罗盘等别的系统也走那一个入口 —— CLAUDE.md 铁律 35）。
+		/// 保留这个方法名，是因为诊断日志（<see cref="DescribeAimSources"/>）与既有调用点都认它。
+		/// 🔴 正确写法（没接管时）= `Mat3.Identity` 绕 Up 转 `CameraBearing`、绕 Side 转 `CameraElevation`，取 `.f`。
+		/// 🔴🔴 **绝不要用 `Mission.GetCameraFrame()` 取方向**（2026-09-24 实测它的基向量：`.f` 是"上"、
+		///   `.u` 是视线的**反向**、`.s` 是右向）—— 项目在这上面栽过：飞行 2026-09-21"按 W 窜到 160 米天花板"、
+		///   法术"对天开火月牙朝地飞"。
+		/// </summary>
+		public static Vec3 CameraForward()
+		{
+			return CameraLook.TryGet(out Vec3 forward) ? forward : Vec3.Zero;
+		}
+
+		/// <summary>
+		/// **方向取证行**（2026-09-24 用户要求）：把这一发用到的方向与所有候选来源打一行，
+		/// 用来一眼判定"哪个来源才是真正的视线"。只在**玩家自己施法**时打（NPC 不进日志）。
+		/// 各来源含义：
+		///   取用 = 实际喂给瞄准轴的向量（X 键 = `CameraForward()`；左键 = 引擎给的出膛速度方向）
+		///   look = `Agent.LookDirection`（**身体**朝向）· move = `Agent.GetMovementDirection()`（移动方向）
+		///   camBearing/camElevation = 引擎相机角度（原值）
+		///   frameF/frameU = `Mission.GetCameraFrame().rotation.f / .u` —— 🔴 **已知不可用**（留着做反面对照）
+		/// </summary>
+		public static string DescribeAimSources(Agent caster, Vec3 used)
+		{
+			try
+			{
+				Vec3 look = caster.LookDirection;
+				Vec2 move = caster.GetMovementDirection();
+				float bearing = float.NaN, elevation = float.NaN;
+				if (TaleWorlds.ScreenSystem.ScreenManager.TopScreen is TaleWorlds.MountAndBlade.View.Screens.MissionScreen ms)
+				{
+					bearing = ms.CameraBearing;
+					elevation = ms.CameraElevation;
+				}
+				Vec3 frameF = Vec3.Zero, frameU = Vec3.Zero;
+				Mission mission = Mission.Current;
+				if (mission != null)
+				{
+					MatrixFrame cam = mission.GetCameraFrame();
+					frameF = cam.rotation.f;
+					frameU = cam.rotation.u;
+				}
+				return $"取用=({used.x:F2},{used.y:F2},{used.z:F2})"
+					+ $" look=({look.x:F2},{look.y:F2},{look.z:F2})"
+					+ $" move=({move.x:F2},{move.y:F2})"
+					+ $" camBearing={bearing:F3} camElevation={elevation:F3}"
+					+ $" frameF=({frameF.x:F2},{frameF.y:F2},{frameF.z:F2})"
+					+ $" frameU=({frameU.x:F2},{frameU.y:F2},{frameU.z:F2})";
+			}
+			catch (Exception ex)
+			{
+				return $"取证失败：{ex.GetType().Name}";
+			}
+		}
+
+		/// <summary>
+		/// 取"这个 agent 现在准备放哪个法术" —— **唯一实现**（相位机 / 落点圈 / NPC 施法者三处共用）。
+		/// 判据顺序：
+		///   ① 手持武器的弹药（弩/弓类：弹药挂在手持件下面；投掷类：手持件本身就是弹药）
+		///   ② 手持件本身（有些状态下手持的就是法术弹）
+		///   ③ 🔴 **扫装备槽兜底**（2026-09-24 实机 bug：弩开火后弹药槽会空一会儿 →
+		///      只按 ① 判会返回 null，X 键**静默失效**；扫槽 = "这个人身上带着法术弹"就认）
+		/// </summary>
+		public static SpellDef ResolveWieldedSpell(Agent agent)
+		{
+			if (agent == null)
+			{
+				return null;
+			}
+			MissionWeapon wielded = agent.WieldedWeapon;
+			SpellDef found = FromWeapon(wielded);
+			if (found != null)
+			{
+				return found;
+			}
+			// 兜底：扫四个武器槽（含弹药槽），谁在法术表里就用谁
+			try
+			{
+				for (EquipmentIndex slot = EquipmentIndex.Weapon0; slot <= EquipmentIndex.Weapon3; slot++)
+				{
+					found = FromWeapon(agent.Equipment[slot]);
+					if (found != null)
+					{
+						return found;
+					}
+				}
+			}
+			catch (Exception)
+			{
+				// 取不到装备就当没有
+			}
+			return null;
+		}
+
+		private static SpellDef FromWeapon(MissionWeapon weapon)
+		{
+			if (weapon.IsEqualTo(MissionWeapon.Invalid) || weapon.Item == null)
+			{
+				return null;
+			}
+			WeaponComponentData usage = weapon.CurrentUsageItem;
+			ItemObject ammo = usage != null && usage.IsRangedWeapon && usage.IsConsumable
+				? weapon.Item
+				: weapon.AmmoWeapon.Item;
+			SpellDef def = ammo != null ? SpellRegistry.FindByAmmo(ammo.StringId) : null;
+			return def ?? SpellRegistry.FindByAmmo(weapon.Item.StringId);
+		}
+
 		private static void LogOnce(string key, Exception ex)
 		{
 			if (!_logged.Add(key))
@@ -741,7 +877,14 @@ namespace LivingWorldNpcs
 		/// 沿这条射线找"准星真正指着的那个表面"。打不到东西就是"最远射程处"。
 		/// 用**细射线（0.01）**：这里要的是"表面在哪"，不是"能不能碰到"。
 		/// </summary>
-		public static Vec3 ResolveSurfacePoint(Vec3 origin, Vec3 direction, float maxDistance)
+		/// <param name="clampToGround">
+		/// 🔴 **射线什么都没打到时，要不要把落点按到地面上**：
+		///   · 落点类（放置 / 天降）→ **true**（法术总得落在地上）
+		///   · 准星直射（aim）→ **false** —— 否则**对天开火时瞄准点会被按到 120 米外的地面，
+		///     射线解出来的方向就朝下走**（2026-09-24 用户实机报的 bug："我对天发射，月牙朝地飞"）
+		/// </param>
+		public static Vec3 ResolveSurfacePoint(Vec3 origin, Vec3 direction, float maxDistance,
+			bool clampToGround = true)
 		{
 			Vec3 aimPoint = origin + direction * maxDistance;
 			Mission mission = Mission.Current;
@@ -758,9 +901,10 @@ namespace LivingWorldNpcs
 				{
 					aimPoint = point;
 				}
-				else
+				else if (clampToGround)
 				{
 					// 没打到东西（对着天/对着空）→ 把落点贴到那个位置的地面上
+					// ⚠️ 只有落点类法术才这么干（准星直射不能 —— 见参数注释）
 					float ground = mission.Scene.GetGroundHeightAtPosition(aimPoint, BodyFlags.CommonCollisionExcludeFlagsForMissile);
 					if (!float.IsNaN(ground) && !float.IsInfinity(ground))
 					{
@@ -856,7 +1000,9 @@ namespace LivingWorldNpcs
 			}
 			Vec3 direction = request.Direction;
 			direction = direction.LengthSquared < 1e-8f ? Vec3.Forward : direction.NormalizedCopy();
-			Vec3 aimPoint = SpellAim.ResolveSurfacePoint(request.Origin, direction, request.Spell.MaxDistance);
+			// 🔴 准星直射：**不按地面**（对天开火就得朝天上飞）
+			Vec3 aimPoint = SpellAim.ResolveSurfacePoint(request.Origin, direction, request.Spell.MaxDistance,
+				clampToGround: false);
 			SpellAim.Emit(request, aimPoint, direction, null, output);
 		}
 	}
@@ -1081,7 +1227,8 @@ namespace LivingWorldNpcs
 
 				float tilt = SpellDebug.TiltOverrideDeg ?? _spell.TiltDeg;
 				Mat3 rotation = SpellMath.BuildFlightRotation(_velocity, tilt);
-				_entity = SpellWorld.SpawnMeshEntity(_spell.Mesh, _position, rotation, _spell.Scale);
+				_entity = SpellWorld.SpawnMeshEntity(_spell.Mesh, _position, rotation,
+					SpellDebug.ScaleOverride ?? _spell.Scale);
 				if (_entity != null)
 				{
 					_trail = SpellWorld.AttachParticle(_spell.TrailParticle, _entity);
@@ -1238,7 +1385,8 @@ namespace LivingWorldNpcs
 				int exclude = _shot.Intent.Caster != null ? _shot.Intent.Caster.Index : -1;
 				Agent victim;
 				Vec3 point;
-				if (!SpellSweep.FindNearestHit(mission, from, to, _spell.HitRadius, exclude, _hitAgents,
+				if (!SpellSweep.FindNearestHit(mission, from, to, SpellDebug.HitRadiusOverride ?? _spell.HitRadius,
+					exclude, _hitAgents,
 					out victim, out point))
 				{
 					return true;   // 这一段什么都没撞到
@@ -1345,7 +1493,8 @@ namespace LivingWorldNpcs
 
 				// 区域实体：数据里的 mesh 躺在落点上（网格约定 = 平面法线本地 +Y，见 SpellMath.BuildGroundRotation）
 				Mat3 rotation = SpellMath.BuildGroundRotation();
-				_entity = SpellWorld.SpawnMeshEntity(_spell.Mesh, _center, rotation, _spell.Scale);
+				_entity = SpellWorld.SpawnMeshEntity(_spell.Mesh, _center, rotation,
+					SpellDebug.ScaleOverride ?? _spell.Scale);
 				if (_entity != null)
 				{
 					_particle = SpellWorld.AttachParticle(_spell.TrailParticle, _entity);

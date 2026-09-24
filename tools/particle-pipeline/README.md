@@ -257,7 +257,7 @@ bin\Win64_Shipping_wEditor\TaleWorlds.MountAndBlade.Launcher.exe
 | **ModKit 打不开哪类模块**：依赖四前置的 LWN 打不开、只依赖 Native 的沙箱能开 | 用户裁定 + `SubModule.xml` 的 `DependedModules` | 「能不能进编辑器」取决于**前置依赖链**，与模块大小无关 → 粒子这种纯数据也走沙箱 |
 | **`project.mbproj` 的本机三种写法**：Native/Shokuho = `<base>` + 3 行目录；**XiuXian = 最简式（只有 `<base type="solution">` + `<file>`）**；MyMapTest = 用 `<Module>` **元素**（旧式） | 各模块 `ModuleData/project.mbproj` | **最简式够用**（我们采用它）—— 那 3 行 `outputDirectory/XMLDirectory/ModuleAssemblyDirectory` 只在**打包内容包**时用，本机连 `WOTS`/`MBModule` 目录都不存在 |
 | `soln_particle_systems` 在 C# 侧 **0 命中**（`TaleWorlds.MountAndBlade.dll` / `.Engine.dll` / `.Core.dll`），而同族的 `skins`/`item_holsters`/`sounds`/`animations` 都有 `CreateProcessed*XMLForNative` 合并函数 | 三个 C# DLL 字符串 | 粒子是**纯 native 读取**，不走 C# 的 XML 合并路径 —— 与其它 soln_ 类型**不同族**，所以"机制同款已验证三次"这条类比**要打折扣**（首次实机风险仍在） |
-| 三个 `particles*.tpac`（各 21 MB）里 **`<emitter` 命中 0**、`particle_life` 命中 0 | `Modules/Native/{AssetPackages,EmAssetPackages}` | 粒子**定义在 XML 里，不在 tpac 里**；tpac 装的是粒子用的**材质/贴图**资产。所以只要不新增材质，加 XML 就够了 |
+| ~~三个 `particles*.tpac`（各 21 MB）里 **`<emitter` 命中 0** ⇒ 结论"粒子**定义在 XML 里，不在 tpac 里**，加 XML 就够了"~~ | — | 🔴🔴 **这条已推翻（2026-09-24 实机证伪）**：当时是**拿文本 grep 二进制包**，搜不到 XML 标签是理所当然的。改判据：`tpaccli dump` 按名字捞 `psys_game_burning_jar_trail` → 打出的是 **`META Particle`**，即 tpac 里装的就是**粒子定义本身**（二进制形态）。⇒ **运行期粒子表 = 包里的 `Particle` 资产；XML + mbproj 只是编辑器源，必须发布成粒子包再拷进内容包的 `AssetPackages/`**（外部反证：HikageRising 一个粒子 XML 都没有、122 个粒子全是 tpac 且生效）。详见 [法术体系-通用施法框架.md](../../plans/法术体系-通用施法框架.md) §B |
 
 ---
 

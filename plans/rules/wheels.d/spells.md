@@ -25,9 +25,9 @@
 | 结算 | `status` | 持续伤害状态（燃烧/中毒…），**同目标同法术刷新时长不叠伤害** | `status`/`status_damage`/`status_duration`/`status_interval`/`status_particle` |
 
 **起手轴（阶段 3）**：`cast_type` = `normal`（按住蓄力、松手发）· `channel`（按住持续、松手停）· `instant`（按下即出）。
-玩家键 = `InteractionIds.SpellCast`（默认 **R** / 手柄 **RT**，走 `ModInput` 可改键）。
+玩家键 = `InteractionIds.SpellCast`（默认 **X**，2026-09-24 由 R 改 —— R 与原版切视角冲突；手柄 RT，走 `ModInput` 可改键）。
 蓄力档位 → `Power`(0~1) → 随意图/命中传到结算 → 伤害 `× (1 + charge_bonus × Power)`。
-代码 = `Combat/SpellCastInput.cs`（相位机 + 蓄力核视觉 + 打断 + 输入缓冲）。
+代码 = `Combat/SpellCastInput.cs`（相位机 + 蓄力核视觉 + 打断 + 输入缓冲）。**手势细节见下方「施法 3C（手感）」一节。**
 
 **NPC 施法者（阶段 4）**：NPC 手里是「法印 + 法术弹」= 它是法师，`Combat/SpellNpcCaster.cs` 每秒扫附近一次、
 按 `ai_weight` 带权随机选法术、`ai_cooldown` 防重入、**从不碰移动**（施法期间照常走位）。
@@ -97,6 +97,47 @@ public static class SpellSealFirePatch { [HarmonyPrefix] public static bool Pref
 判据 = **这一发用的弹药物品在我们的法术表里**（`shooterAgent.Equipment[weaponIndex].AmmoWeapon`，与引擎取值口径同源）；不在表里一律放行（别的 mod 射箭、原版射弩、`AddCustomMissile` 那条路根本不经过本方法）。
 🔴 **六条纪律**：守卫要窄 / 前缀内**吞异常并放行**（出错就 `return true` 让引擎照常发导弹）/ 补一次 `UpdateLastRangedAttackTimeDueToAnAttack`（引擎原方法末尾那句，AI 计时用）/ 可 `DisabledPatchClasses` 单关 / 挂 `contentPackOnly` 名单（内容包专属补丁在纯功能包模式不挂）/ 兜底天然优雅（补丁关了 = 退回旧表现 `flying_mesh` 照飞）。
 
+## 🔴 施法 3C（手感）—— 起手手势 · 蓄力视觉 · 方向来源（2026-09-24 登记）
+
+> 「3C」= 角色 / 相机 / 操作的手感面。同类先例：`plans/铁炮射击手感3C-实施计划.md`（后坐、准星、音效那一套）。
+> **这一节是"按哪个键、球长在哪、朝哪飞"的唯一速查**；相位机与数据字段的实现分别在 `SpellCastInput` / `Spells.xml`。
+
+### 两套手势（同一个相位机，`_flightGesture` 在**起手那一刻定死**）
+
+| | 地面 | **飞行中**（`PlayerFlightBehavior.Current?.IsFlying`） |
+|---|---|---|
+| 蓄力键 | 按住 **X**（`InteractionIds.SpellCast`） | 按住 **右键**（`FlightInput.AimHeld` —— 它同时也是瞄准机位键，一举两得） |
+| 发射 | **松 X** 即发 | **点左键**才发（`FlightInput.ConsumeFirePress()`）；**松右键 = 取消**（不发射） |
+| 连发 | 要松一次手才认下一发（防按住连发） | 右键还按着就能接着蓄下一发（左键那一次点击把关） |
+| 装备 | 必须手持「法印 + 法术弹」 | **不要求装备**：手里认得出就用它，认不出回落 **`SpellRegistry.DefaultFlightSpell`**（表里第一条 `projectile` 族，按加载顺序） |
+| 引导型（`channel`） | 按住 X 持续放、松手停 | 按住右键持续放、松右键停（引导中左键不参与） |
+
+**蓄力视觉**（球 + 粒子，两套手势共用，代码 = `SpellCastInput.UpdateCore/CoreAnchor`）：
+
+| 件 | 怎么调 |
+|---|---|
+| 球的位置 | 地面 = 身前近似手位（等"法阵 prefab"换真挂点）；**飞行 = 右手上方**（身体朝向绕 Up 转 90° 取 `.s` 当右向；真挂手骨 = `Monster.MainHandBoneIndex` + `AgentVisuals.GetBoneEntitialFrame`，范本 `CampaignMode/Tools/FlySpike.cs:1962`）—— 左右反了就把 `CoreAnchor` 里的右向取反 |
+| 球的大小 | **数据 `charge_scale`** = **满蓄力时**的放大倍率（默认 `0.375` ⇒ 核 ⌀0.72 m 时满蓄力 ⌀0.27 m，起手是它的 1/3）；运行时 `custom.spell core <倍率>`（不用重启） |
+| 粒子的浓淡 | 随 `Power` 调**发射率倍数** `0.3 → 1.5`：`ParticleSystem.SetRuntimeEmissionRateMultiplier(mult)`（引擎为此专门开的接口；同一颗粒子不重建） |
+
+### 🔴 方向来源 = `Camera/CameraLook.cs`（唯一入口，CLAUDE.md 铁律 35）
+
+**法术朝哪飞 = "当前真正在管相机的那台"的视线**。我们接管相机（飞行/演出）后引擎的 `CameraBearing/Elevation` 是**冻的**
+—— 直接读它 = 法术永远朝"接管那一刻看的方向"飞（2026-09-21 在飞行上栽过同一条；2026-09-24 飞行中施法又差点栽）。
+
+```csharp
+if (CameraLook.TryGet(out Vec3 look)) { /* 用 look */ }   // 接管中自动问接管方（ICameraLookProvider），没接管才用引擎角度
+// 飞行相机自己实现 ICameraLookProvider（PlayerFlightBehavior），进入时注册、每帧幂等同步、退出清
+```
+
+### 已知风险（实机第一眼看的）
+
+1. **飞行中会不会一发变两发**（左键顺带触发原版攻击）：理论上冻结档 `aipause` 下引擎不吃玩家输入；真出现就在飞行中按住右键时屏蔽左键攻击。
+2. **球的左右**（见上，一行取反）。
+3. **没做的**：飞行中真挂手骨（手挥动时球不跟随）。
+
+**诊断/验收**：日志 `[Spell] 方向对比（<法术>）：取用=… look=… camBearing=… frameF=…` 只对**玩家自己**的每一发打（`frameF` 是反面对照 —— 它是"上"，别拿它当视线）。
+
 ## 诊断 — `custom.spell`（`SpellProjectileLogic.cs`）
 
 ```
@@ -104,6 +145,7 @@ custom.spell                     状态（表里几条 / 在飞数 / 上限 / �
 custom.spell list                列出全部法术
 custom.spell cast <spellId>      从玩家眼睛沿视线直接放一发（**不用装备法印**）
 custom.spell npc [spellId]       让最近的那个人朝玩家放一发（**验"管线不关心施法者是谁"**，铁律 18）
+custom.spell core <倍率>|off     **手心蓄力核**大小覆盖（按住施法键当场看）
 custom.spell tilt <度>|off       飞行姿态横滚角覆盖（朝向标定：一次实机试遍几个候选）
 custom.spell verbose on|off      每次碰撞检查打日志
 custom.spell probe               对最近的 agent 做三条实测定性（射线粗细/是否扫掠/场景查询打不打 agent）
@@ -116,4 +158,8 @@ custom.spell probe               对最近的 agent 做三条实测定性（射�
 1. `ExampleMod.csproj` 显式登记 5 个 `.cs`（本项目不登记 = 不编译）。
 2. `Core/MySubModule.cs`：`mission.AddMissionBehavior(new SpellProjectileLogic())` **必须挂在玩法闸门 `IsInteractionDisabled()` 之前**（法术的主战场就是战场/攻城）。
 3. `Core/VersionCompat.cs` 的 `V.RayCastForClosestAgent(...)` —— 1.2.12 与 1.3.0+ **形参顺序不同**（`out dist` 在前 vs 在后）；`Scene.RayCastForClosestEntityOrTerrain` 带实体出参那版 1.2.12 是 `GameEntity`、1.3.0+ 是 `WeakGameEntity` ⇒ **换用不带实体出参的重载**绕开。
-4. **粒子 XML 属 soln 体系**：必须在**会被加载的模块**的 `ModuleData/project.mbproj` 挂 `soln_particle_systems` 行，否则静默不加载（必备清单雷 165；体检 `check_module_registration.py` 已覆盖，按前缀匹配 `particle_systems*`）。
+4. **粒子 XML 属 soln 体系**：要在 `ModuleData/project.mbproj` 挂 `soln_particle_systems` 行，否则**编辑器**里看不到这个效果（体检 `check_module_registration.py` 已覆盖，按前缀匹配 `particle_systems*`）。
+   🔴🔴 **但挂好 ≠ 游戏里能用**（2026-09-24 实机证伪，我在这上面判断错过两次）：**引擎运行期的粒子表来自 AssetPackages 里的 `Particle` 资产（编译产物）**，ModuleData 的 XML + mbproj 注册只是**编辑器源**。
+   判据（可复现）：`tpaccli dump --packdir Modules/Native/AssetPackages --filter <效果名>` —— 原版效果打出的是 **`META Particle`**；同名的材质/贴图会打成 `material` / `texture`（`waterfall_splash` 就属于后者，所以引擎运行时报 `Unable to find particle system with name waterfall_splash`）。
+   外部反证：HikageRising **一个粒子 XML 都没有**，122 个粒子全是 tpac 资产且生效。
+   ⇒ **要给内容包加粒子：XML + mbproj 注册只是第一步，必须再在编辑器里发布成粒子包，产物改名拷进内容包的 `AssetPackages/`**。详见 [法术体系-通用施法框架.md](../../法术体系-通用施法框架.md) §B。

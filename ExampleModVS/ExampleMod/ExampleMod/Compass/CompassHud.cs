@@ -103,15 +103,21 @@ namespace LivingWorldNpcs
             if (visible != _vm.IsVisible) _vm.IsVisible = visible;
             if (!visible) return;
 
-            // ── 相机 yaw（forward 水平投影；世界方位角：0°=北=+Y，顺时针为正，东=+90°）──
+            // ── 相机 yaw（视线水平投影；世界方位角：0°=北=+Y，顺时针为正，东=+90°）──
             // 🔴 2026-08-20 勘误（反编译验证）：①引擎世界坐标 北=+Y（vanilla MapCameraView
             // PartyMoveUpKey: X+=sinθ, Y+=cosθ，θ=0 时北=+Y）；②Vec2.RotationInRadians 是
             // atan2(-x, y)（负号！），与罗盘字母角度约定（东=+90）符号相反——旧公式
             // yaw=atan2(-fwd.X, fwd.Y) + bearing=RotationInRadians 双符号错 → 面朝正北时
             // 图标左右镜像（西侧目标显示在东侧，实机 2026-08-20：NPC 说西、罗盘指东）。
-            Vec3 fwd;
-            try { fwd = mission.GetCameraFrame().rotation.f; }
-            catch { return; }
+            // 🔴🔴 2026-09-24 再勘误：原来取的是 `mission.GetCameraFrame().rotation.f` ——
+            //   实测那个基向量是**世界"上"**（`.f`=上、`.u`=视线反向、`.s`=右），
+            //   拿它算 yaw 等于拿一根近乎竖直的向量做水平投影（低头/抬头时乱跳）。
+            //   ⇒ 改走全项目唯一入口 `CameraLook`（铁律 35）：接管中问接管方（飞行相机），
+            //     没接管才用引擎的 bearing/elevation 算法。取不到就**保留上一帧 yaw**（不抖）。
+            if (!CameraLook.TryGet(out Vec3 fwd))
+            {
+                return;
+            }
             float yawDeg = (float)(Math.Atan2(fwd.X, fwd.Y) * 180.0 / Math.PI);
 
             // ── 每帧：刻度 + 字母位置注入 ──
@@ -340,7 +346,13 @@ namespace LivingWorldNpcs
             var sb = new System.Text.StringBuilder();
             try
             {
-                Vec3 fwd = mission.GetCameraFrame().rotation.f;
+                // 与刻度带同源（铁律 35 的唯一入口）：调试命令打印的就是玩家真正看到的那个 yaw
+                Vec3 fwd;
+                if (!CameraLook.TryGet(out fwd))
+                {
+                    sb.AppendLine("[Compass] look unavailable (custom camera active but no provider?)"); // lwn-ignore: A
+                    fwd = Vec3.Zero;
+                }
                 float yawDeg = (float)(Math.Atan2(fwd.X, fwd.Y) * 180.0 / Math.PI);
                 sb.AppendLine($"[Compass] yaw={yawDeg:F1} (0=北=+Y 顺时针为正) visible={hud._vm.IsVisible} " + // lwn-ignore: A
                     $"setting={Settings.Instance.ShowCompass} icons={hud._vm.IconItems.Count}"); // lwn-ignore: A

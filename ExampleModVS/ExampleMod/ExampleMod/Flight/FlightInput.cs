@@ -27,6 +27,8 @@ namespace LivingWorldNpcs.Flight
         private static bool _spacePressedEdge;      // 空格"按下沿"（本帧刚按下），一次性消费
         private static bool _boostPressedEdge;      // 冲刺键"按下沿"，一次性消费（进冲刺入姿用）
         private static bool _boostWasHeld;          // 上一帧冲刺键是否按住（判按下沿用）
+        private static bool _firePressedEdge;       // 左键"按下沿"，一次性消费（飞行中施法：发射）
+        private static bool _fireWasHeld;           // 上一帧左键是否按住（判按下沿用）
 
         /// <summary>空格当前是否按住。</summary>
         public static bool SpaceHeld { get; private set; }
@@ -138,6 +140,17 @@ namespace LivingWorldNpcs.Flight
             _boostWasHeld = BoostHeld;
             AimHeld = Input.IsKeyDown(InputKey.RightMouseButton);
 
+            // 左键"按下沿" = **飞行中施法的发射**（右键蓄力 → 左键放）。
+            // 飞行期间引擎不接受玩家输入（冻结档 aipause），所以左键不会同时触发原版攻击 —— 这个键在飞行中是空的。
+            // 🔴 **"按下沿只活一帧"**（本项目输入铁律）：先无条件清，本帧真按下才重新置位。
+            //    消费方 `SpellCastInput` 跑在本 Tick **之前** ⇒ 它看到的是上一帧置的位 = 正好一帧窗口，
+            //    不会把很久以前那一次点击积压到"刚开始蓄力就自己放一发"。
+            _firePressedEdge = false;
+            bool fire = Input.IsKeyDown(InputKey.LeftMouseButton);
+            if (fire && !_fireWasHeld)
+                _firePressedEdge = true;
+            _fireWasHeld = fire;
+
             // 🔴 主路 = WASD（2026-09-21 T1 接回）：飞行的方向键就是游戏自己的走路键。
             //    它能成立的前提是**飞行期间把玩家冻结**（见 FlightTuning.FreezePlayerInput）——
             //    不冻结的话角色会自己走下木板。
@@ -197,6 +210,19 @@ namespace LivingWorldNpcs.Flight
             return true;
         }
 
+        /// <summary>
+        /// 鼠标左键**按下沿**是否发生过 —— 边沿触发，一次按下只返回一次 true。
+        /// 用途：**飞行中施法的"发射"**（右键蓄力 → 左键放；见 <c>Combat/SpellCastInput</c>）。
+        /// 🔴 与 <see cref="AimHeld"/> 是两回事：那是"右键按着 = 蓄力/瞄准"，这是"左键刚点了一下"。
+        /// </summary>
+        public static bool ConsumeFirePress()
+        {
+            if (!_firePressedEdge)
+                return false;
+            _firePressedEdge = false;
+            return true;
+        }
+
         /// <summary>清空全部按键状态（进新场景 / 退出飞行时调）。</summary>
         public static void Reset()
         {
@@ -209,6 +235,8 @@ namespace LivingWorldNpcs.Flight
             _spacePressedEdge = false;
             _boostPressedEdge = false;
             _boostWasHeld = false;
+            _firePressedEdge = false;
+            _fireWasHeld = false;
         }
 
         /// <summary>
