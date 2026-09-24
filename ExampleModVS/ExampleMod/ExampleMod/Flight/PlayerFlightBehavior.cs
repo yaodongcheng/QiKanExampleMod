@@ -123,6 +123,7 @@ namespace LivingWorldNpcs.Flight
         private float _pendingDodgeTimer;    // 上面那个请求的存活时间（过期就撤，免得隔几帧突然闪一下）
         private string _lastAnimState;       // 上一帧的动画状态名（变了就弹一条提示；见 OnMissionTick）
         private bool _boardSpawned;          // 本次起飞：板是否已经召唤出来（延迟召唤用）
+        private bool _headAimActive;         // 施法瞄准期间我们设过"头看相机"的 POI（退出时要撤掉，别留给别人）
         private float _boardSpawnTimer;      // 本次起飞：从触发到召唤板过了多久
         private float _takeoffAnimTimer;     // 本次起飞：从按空格那一刻起算（入姿时长按它判，与板延迟重叠）
         private bool _freezeWarned;         // 冻结相关失败只报一次（防每帧刷屏）
@@ -224,6 +225,10 @@ namespace LivingWorldNpcs.Flight
                 DebugLogger.Log($"[Flight] tick 异常，已强制退出飞行: {ex}");
                 AbortFlight();
             }
+
+            // 🔴 不在空中 ⇒ 撤掉"头看相机"（落地 / 中止时清；只撤我们自己设过的那个 POI）
+            if (_phase != Phase.Airborne)
+                StopAimingHead(main);
 
             // 🔴 动画状态机：**每帧一次**（含起飞/落地）——
             //    它在这两段被 Hold 住（相位自己 Force），但**仍要跑**：维持当前动作 + 定期核对
@@ -529,8 +534,21 @@ namespace LivingWorldNpcs.Flight
             //
             // 🔴 **闪避位移期间不转**（2026-09-22）：那 4 条闪避动画是相对**身体正前方**做的
             //    （实测：左右闪 = 头 / 腿朝两侧摆），位移时把身体转过去就变成"朝前闪"了，看着不对。
-            if (FlightInput.HasMoveInput && _dodgeTimer <= 0f)
-                TurnBodySmoothed(main, dir, dt);
+            // 🔴 **施法瞄准优先**（2026-09-24 用户裁定："施法的时候让角色的身体和头看相机无限远处"）：
+            //    蓄力 / 引导法术期间，身体朝**相机方向**（不是移动方向）—— 这是施法姿态的一部分。
+            //    松手/取消/放完 ⇒ `IsPlayerAiming` 变 false，立刻回到下面那条"朝实际移动方向"。
+            //    ⚠️ 这里**不看有没有移动输入**：站着不动也能瞄准（下面那条规则才要求有输入）。
+            if (SpellCastInput.IsPlayerAiming)
+            {
+                TurnBodySmoothed(main, forward, dt);
+                AimHeadAtCamera(main, forward);
+            }
+            else
+            {
+                StopAimingHead(main);
+                if (FlightInput.HasMoveInput && _dodgeTimer <= 0f)
+                    TurnBodySmoothed(main, dir, dt);
+            }
 
             // ⑧′ 掉下板检测（2026-09-22 用户实机：撞墙时板穿墙、人被墙挡住 ⇒ 人掉下来）
             if (CheckFellOffBoard(main))
@@ -1365,6 +1383,38 @@ namespace LivingWorldNpcs.Flight
             {
                 // 朝向只是观感，失败不该拦住飞行
             }
+        }
+
+        /// <summary>
+        /// 🔴 **头看向相机方向的"无限远处"**（2026-09-24 用户裁定）—— 走引擎原生接口：
+        ///    `Agent.SetLookToPointOfInterest(Vec3 点)`（反编译 `Agent.cs:2170`）+ `DisableLookToPointOfInterest()`（`:3797`）。
+        /// 🔴 POI 是**粘性**的（设一次一直有效），所以：**进瞄准设一次、退出关一次**（<see cref="_headAimActive"/> 记账）。
+        ///    不用每帧设；也**不去动别人的 POI** —— 原版对话/场景也用这个口，没我们开的就绝不关。
+        /// </summary>
+        private void AimHeadAtCamera(Agent agent, Vec3 forward)
+        {
+            if (forward.LengthSquared < 1e-6f)
+                return;
+            try
+            {
+                Vec3 eye = agent.Position;
+                eye.z += agent.GetEyeGlobalHeight();
+                agent.SetLookToPointOfInterest(eye + forward * 200f);   // 200 m ≈ 无限远（POI 只要方向对）
+                _headAimActive = true;
+            }
+            catch (Exception)
+            {
+                // 头朝向只是观感，失败不该影响飞行 / 施法
+            }
+        }
+
+        /// <summary>撤掉**我们自己设的** POI（幂等；别人的不动）。</summary>
+        private void StopAimingHead(Agent agent)
+        {
+            if (!_headAimActive)
+                return;
+            try { agent.DisableLookToPointOfInterest(); } catch (Exception) { }
+            _headAimActive = false;
         }
 
         /// <summary>

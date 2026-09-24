@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "total": 28,
+  "generated": "2026-09-24",
+  "note": "FCS 施法动作全量（魔法域 45 条资产里可重定向的 28 条）。骑砍侧由 output/trf 的 .trf 直读烘焙 —— 预览所见 = 装机所见。出手帧百分比来自蒙太奇上的动画通知 AN_TriggerMagicAbility。"
+ },
+ "groups": {
+  "func": ["出手手势", "引导一", "引导二", "施法移动"],
+  "weapon": [],
+  "prio": []
+ },
+ "clips": {
+  "BarrierSpell": {
+   "func": "出手手势", "pack": "FCS/Magic",
+   "desc": "屏障族出手 · 蒙太奇 M_MagicAttack_RH_Up · 出手帧 0.98s / 42%"
+  },
+  "EruptionSpell": {
+   "func": "出手手势", "pack": "FCS/Magic",
+   "desc": "地裂·放置族出手 · 蒙太奇 M_EruptionSpell · 出手帧 1.23s / 57%"
+  },
+  "HandSplitSpell": {
+   "func": "出手手势", "pack": "FCS/Magic",
+   "desc": "分手法术 · 无蒙太奇通知（序列直接引用）"
+  },
+  "ProjectileSpell": {
+   "func": "出手手势", "pack": "FCS/Magic",
+   "desc": "投射族出手 · 投掷手势 · 蒙太奇 M_Projectile · 出手帧 0.83s / 36%"
+  },
+  "SkyfallSpell": {
+   "func": "出手手势", "pack": "FCS/Magic",
+   "desc": "天降族出手 · 蒙太奇 M_SkyfallSpell · 出手帧 1.19s / 40%"
+  },
+
+  "SpellChannelIntro": {
+   "func": "引导一", "pack": "FCS/Magic",
+   "desc": "引导入场 · 有通知 · 1.04s / 67%"
+  },
+  "SpellChannel1": {
+   "func": "引导一", "pack": "FCS/Magic",
+   "desc": "引导一 · 循环主段 3.33s（无通知，伤害由计时器每跳打）"
+  },
+  "SpellChannel1_Start": {
+   "func": "引导一", "pack": "FCS/Magic",
+   "desc": "引导一 · 起手 · 通知 0.77s / 76%"
+  },
+  "SpellChannel1_Mid": {
+   "func": "引导一", "pack": "FCS/Magic",
+   "desc": "引导一 · 循环中段 1.25s（无通知）"
+  },
+  "SpellChannel1_End": {
+   "func": "引导一", "pack": "FCS/Magic",
+   "desc": "引导一 · 收招（收尾帧 0.68s）"
+  },
+  "SpellChannel1_Up": {
+   "func": "引导一", "pack": "FCS/Magic",
+   "desc": "引导一 · 瞄准偏移 上（AimOffset）"
+  },
+  "SpellChannel1_Mid1": {
+   "func": "引导一", "pack": "FCS/Magic",
+   "desc": "引导一 · 瞄准偏移 中（AimOffset）"
+  },
+  "SpellChannel1_Down": {
+   "func": "引导一", "pack": "FCS/Magic",
+   "desc": "引导一 · 瞄准偏移 下（AimOffset）"
+  },
+
+  "SpellChannel2": {
+   "func": "引导二", "pack": "FCS/Magic",
+   "desc": "引导二 · 循环主段 4.30s（无通知）"
+  },
+  "SpellChannel2Start": {
+   "func": "引导二", "pack": "FCS/Magic",
+   "desc": "引导二 · 起手 · 通知 1.08s / 58%"
+  },
+  "SpellChannel2Mid": {
+   "func": "引导二", "pack": "FCS/Magic",
+   "desc": "引导二 · 循环中段（无通知）"
+  },
+  "SpellChannel2End": {
+   "func": "引导二", "pack": "FCS/Magic",
+   "desc": "引导二 · 收招（收尾帧 0.75s）"
+  },
+  "SpellChannel2Up": {
+   "func": "引导二", "pack": "FCS/Magic",
+   "desc": "引导二 · 瞄准偏移 上（AimOffset）"
+  },
+  "SpellChannel2Down": {
+   "func": "引导二", "pack": "FCS/Magic",
+   "desc": "引导二 · 瞄准偏移 下（AimOffset）"
+  },
+
+  "MagicIdle": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法待机"
+  },
+  "MagicWalkForwards": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法行走 · 前"
+  },
+  "MagicWalkBack": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法行走 · 后"
+  },
+  "MagicWalkLeft": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法行走 · 左"
+  },
+  "MagicWalkRight": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法行走 · 右"
+  },
+  "MagicRunForwards": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法奔跑 · 前"
+  },
+  "MagicRunBack": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法奔跑 · 后"
+  },
+  "MagicRunLeft": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法奔跑 · 左"
+  },
+  "MagicRunRight": {
+   "func": "施法移动", "pack": "FCS/Magic",
+   "desc": "施法奔跑 · 右"
+  }
+ }
+}

@@ -74,6 +74,7 @@ namespace LivingWorldNpcs
 	///   custom.spell scale &lt;倍率&gt;|off         **放大月牙**（当场生效，不用重启；配 cast 用）
 	///   custom.spell hit &lt;米&gt;|off             命中半径覆盖（判定更宽松/更严）
 	///   custom.spell core &lt;倍率&gt;|off          **手心蓄力核**的大小覆盖（按住 X 就能看到）
+	///   custom.spell hand                   右手骨诊断：球挂点的全部数字（骨索引/世界位置/相对角色偏移）
 	///   custom.spell probe                  对最近的一个 agent 做三条实测定性（见方法注释）
 	/// </summary>
 	public class SpellProjectileLogic : MissionLogic
@@ -192,6 +193,8 @@ namespace LivingWorldNpcs
 
 		public override void OnRemoveBehavior()
 		{
+			// 🔴 先撤销"我在施法"的对外可见状态（飞行那边靠它决定身体朝哪；不清 = 场景结束后仍为 true）
+			SpellCastInput.ClearCurrent(_castInput);
 			base.OnRemoveBehavior();
 			// 场景卸载：把还没结束的投送物全部清掉（否则实体留在世界里/留到下一个场景）
 			for (int i = _live.Count - 1; i >= 0; i--)
@@ -378,6 +381,8 @@ namespace LivingWorldNpcs
 						return Hit(args);
 					case "core":
 						return Core(args);
+					case "hand":
+						return Hand(args);
 					case "tilt":
 						return Tilt(args);
 					case "verbose":
@@ -819,6 +824,57 @@ namespace LivingWorldNpcs
 			}
 			SpellDebug.ChargeScaleOverride = MathF.Max(0.02f, MathF.Min(5f, value));
 			return $"OK: charge core override = {SpellDebug.ChargeScaleOverride.Value:F2}x (hold the cast key to see it)";
+		}
+
+		/// <summary>
+		/// 右手骨诊断（`custom.spell hand`）：把"蓄力球挂在哪儿"的全部数字打出来 —— 骨索引 / 骨世界位置 /
+		/// **相对角色的偏移**（三个分量 + 距离，这才是要记进文档的数）/ 球锚点（含上抬量）/ 与"近似法"的对比。
+		/// 返回文本纯英文（铁律：控制台命令）。
+		/// </summary>
+		private static string Hand(List<string> args)
+		{
+			Mission mission = Mission.Current;
+			Agent player = mission != null ? mission.MainAgent : null;
+			if (player == null)
+			{
+				return "ERROR: no main agent.";
+			}
+			try
+			{
+				sbyte bone = player.Monster != null ? player.Monster.MainHandBoneIndex : (sbyte)-1;
+				bool ok = SpellCastInput.TryGetRightHandAnchor(player, out Vec3 anchor);
+				Vec3 hand = ok ? anchor - Vec3.Up * SpellCastInput.HandAnchorUpOffset : Vec3.Zero;
+				Vec3 rel = ok ? hand - player.Position : Vec3.Zero;
+
+				string look = "n/a";
+				Vec3 bodyLook = player.LookDirection;
+				if (bodyLook.LengthSquared > 1e-6f)
+				{
+					Vec3 fwd = bodyLook.NormalizedCopy();
+					Vec3 right = Vec3.CrossProduct(fwd, Vec3.Up);
+					if (right.LengthSquared > 1e-6f)
+					{
+						right = right.NormalizedCopy();
+						look = string.Format(CultureInfo.InvariantCulture,
+							"along=(fwd {0:F2}) (right {1:F2}) (up {2:F2})",
+							Vec3.DotProduct(rel, fwd), Vec3.DotProduct(rel, right), rel.z);
+					}
+				}
+
+				return string.Format(CultureInfo.InvariantCulture,
+					"OK: mainHandBone={0} resolved={1} boneWorld=({2:F2},{3:F2},{4:F2}) relPlayer=({5:F2},{6:F2},{7:F2}) dist={8:F3}m upOffset={9:F2} {10} | style={11}",
+					bone, ok,
+					hand.x, hand.y, hand.z,
+					rel.x, rel.y, rel.z, rel.Length,
+					SpellCastInput.HandAnchorUpOffset, look,
+					(bool)(LivingWorldNpcs.Flight.PlayerFlightBehavior.Current != null
+						&& LivingWorldNpcs.Flight.PlayerFlightBehavior.Current.IsFlying)
+						? "flying(bone)" : "ground(approx)");
+			}
+			catch (Exception ex)
+			{
+				return $"ERROR: {ex.GetType().Name}";
+			}
 		}
 
 		/// <summary>最近的另一个 agent（诊断命令共用）。</summary>

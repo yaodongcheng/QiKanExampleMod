@@ -2,44 +2,33 @@
   "default": "ue_slim",
   "datasets": [
     {
-      "id": "ue_flight_lean",
-      "name": "增量合成 · 倾斜/俯仰 6 段（左=基础，右=叠加后）"
-    },
-    {
-      "id": "ue_flight_next",
-      "name": "飞行 · 待导入的普通动画 8 段（冲刺入姿 / 四方向闪避）"
-    },
-    {
       "id": "ue_slim",
-      "name": "UE5 小白人 ↔ 骑砍2 · 精简清单 280 段"
-    },
-    {
-      "id": "ue_exec_srccmp",
-      "name": "源(UE) ↔ 目标(骑砍2) · 同 clip 对照（查重定向畸变用）"
-    },
-    {
-      "id": "ue_exec_pair",
-      "name": "处决配对演示（攻击方+受击方）"
-    },
-    {
-      "id": "ue_flight_demo",
-      "name": "UE 飞行悬停 HoverMove ↔ 骑砍2"
-    },
-    {
-      "id": "ue_exec",
-      "name": "GhostSamurai SPAttack06 ↔ 骑砍2（处决/攻击）"
-    },
-    {
-      "id": "ue_basic",
-      "name": "UE5 小白人 ↔ 骑砍2 · 基础 29 段"
+      "name": "【通用动作】296 条 · 精简清单 280 + 早期补遗 16（已去重、已清垃圾）"
     },
     {
       "id": "ue_flight",
-      "name": "UE5 小白人 ↔ 骑砍2 · 飞行 130 段"
+      "name": "【飞行】原始 130 段"
+    },
+    {
+      "id": "ue_flight_lean",
+      "name": "【飞行】增量合成 6 段（左=基础，右=叠加后）"
+    },
+    {
+      "id": "ue_exec_trf",
+      "name": "【处决·个体】22 条 · 两种烘焙路径对照"
+    },
+    {
+      "id": "ue_exec_pair",
+      "name": "【处决·配对】11 组 · 攻击方 + 受击方"
+    },
+    {
+      "id": "ue_spell",
+      "name": "【施法】FCS 法术动作 28 段"
     },
     {
       "id": "sw2_gunner",
-      "name": "战国无双2 铁炮兵 p006 ↔ 骑砍2"
+      "name": "【铁炮】战国无双2 p006"
     }
-  ]
+  ],
+  "order_note": "分组（2026-09-24）：按素材主题并列。ue_basic 已并入 ue_slim（去重后 296 条）。已删除：ue_flight_next / ue_exec_srccmp / ue_flight_demo / ue_exec / ue_basic。"
 }

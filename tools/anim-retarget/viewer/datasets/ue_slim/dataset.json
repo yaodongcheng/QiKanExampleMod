@@ -1,23 +1,63 @@
 {
   "name": "ue_slim",
-  "title": "UE5 小白人 ↔ 骑砍2 重定向 · 精简清单 280 段",
-  "subtitle": "280 段（P0 132 / P1 148）· 按动作自动选烘焙模式",
+  "title": "UE5 小白人 ↔ 骑砍2 · 通用动作（精简清单 280 + 早期补遗）",
+  "subtitle": "精简清单 280 段（P0 132 / P1 148，带分级筛选）+ 最早验证台的 29 条真动作（其中 16 条别处没有）",
   "clipsFile": "manifest.json",
   "sides": {
     "src": {
-      "label": "UE5 小白人（源）", "color": "#7fa8d8", "rotY": 0, "slot": -0.62,
-      "footBones": ["foot_l","foot_r","ball_l","ball_r"],
+      "label": "UE5 小白人（源）",
+      "color": "#7fa8d8",
+      "rotY": 0,
+      "slot": -0.62,
+      "footBones": [
+        "foot_l",
+        "foot_r",
+        "ball_l",
+        "ball_r"
+      ],
       "files": [
-        { "id": "src_g", "mode": "ground", "url": "assets/ue_mannequin_ground.glb" },
-        { "id": "src_s", "mode": "src",    "url": "assets/ue_mannequin_src.glb" }
+        {
+          "id": "src_g",
+          "mode": "ground",
+          "url": "assets/ue_mannequin_ground.glb"
+        },
+        {
+          "id": "src_s",
+          "mode": "src",
+          "url": "assets/ue_mannequin_src.glb"
+        },
+        {
+          "id": "src_early",
+          "url": "assets/ue_mannequin_early29.glb"
+        }
       ]
     },
     "dst": {
-      "label": "骑砍2（重定向）", "color": "#e0b070", "rotY": 3.141592653589793, "slot": 0.62,
-      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
+      "label": "骑砍2（重定向）",
+      "color": "#e0b070",
+      "rotY": 3.141592653589793,
+      "slot": 0.62,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
       "files": [
-        { "id": "dst_g", "mode": "ground", "url": "assets/bannerlord_ground.glb" },
-        { "id": "dst_s", "mode": "src",    "url": "assets/bannerlord_src.glb" }
+        {
+          "id": "dst_g",
+          "mode": "ground",
+          "url": "assets/bannerlord_ground.glb"
+        },
+        {
+          "id": "dst_s",
+          "mode": "src",
+          "url": "assets/bannerlord_src.glb"
+        },
+        {
+          "id": "dst_early",
+          "url": "assets/bannerlord_early29.glb"
+        }
       ]
     }
   }

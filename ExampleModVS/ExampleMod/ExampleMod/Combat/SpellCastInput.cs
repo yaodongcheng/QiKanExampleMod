@@ -65,6 +65,37 @@ namespace LivingWorldNpcs
 			get { return _phase != Phase.Idle; }
 		}
 
+		/// <summary>
+		/// 本场景的玩家施法输入机（没挂 = null）。给**别的系统**查询状态用 —— 目前一个消费者：
+		/// 飞行（施法中要把身体转向相机，见 <see cref="IsPlayerAiming"/>）。
+		/// 🔴 每个 <c>Tick</c> 开头重设一次（幂等），宿主回收时清掉。
+		/// </summary>
+		public static SpellCastInput Current { get; private set; }
+
+		/// <summary>宿主场景回收时调用：把"对外可见的当前施法机"摘掉（幂等；不清的话场景结束后别人还读得到）。</summary>
+		public static void ClearCurrent(SpellCastInput owner)
+		{
+			if (Current == owner)
+			{
+				Current = null;
+			}
+		}
+
+		/// <summary>
+		/// 玩家**正在瞄准施法**吗（蓄力中 / 引导中）。
+		/// 用途：飞行中施法时，飞行系统据此把**身体朝相机方向**转（"看相机无限远处"），
+		/// 而不是朝移动方向 —— 见 <c>Flight/PlayerFlightBehavior</c> 第 ⑧ 条机身朝向那段。
+		/// 松手 / 取消 / 放完 ⇒ 自动回 false，身体立刻回到原来的规则。
+		/// </summary>
+		public static bool IsPlayerAiming
+		{
+			get
+			{
+				SpellCastInput cur = Current;
+				return cur != null && cur._phase != Phase.Idle;
+			}
+		}
+
 		/// <summary>当前蓄力进度 0~1（诊断用）。</summary>
 		public float Power
 		{
@@ -73,6 +104,7 @@ namespace LivingWorldNpcs
 
 		public void Tick(float dt)
 		{
+			Current = this;                       // 给别的系统查（飞行：施法时把身体转向相机）
 			Mission mission = Mission.Current;
 			Agent player = mission != null ? mission.MainAgent : null;
 			if (player == null || !AgentControlHelper.SafeIsActive(player))
@@ -81,26 +113,37 @@ namespace LivingWorldNpcs
 				return;
 			}
 
-			// 🔴 **两套手势**（飞行那套是 2026-09-24 用户裁定，与地面故意不同）：
-			//   地面：按住施法键（X）蓄力 → **松手放**；按住不放不连发（要松一次手才认下一发）
-			//   飞行：**按住右键蓄力**（球长大、粒子变浓）→ 满蓄力后不松右键、**点左键放**；
-			//         **松右键 = 取消**（不放）。右键同时还是"瞄准机位"，一举两得。
-			bool flying = IsFlyingNow();
-			bool gestureFlight = _phase == Phase.Idle ? flying : _flightGesture;
+			// 🔴 **本阶段只在空中施法**（2026-09-24 用户裁定）：地面有常规攻击模式，
+			//    施法手势与施法动作会跟它打架，所以地面的蓄力手势**暂时停用**（`X` 键不再起手）——
+			//    地面怎么兼容以后再看。地面正在蓄的当场取消（免得"起飞前按着 X，一飞起来带一发"）。
+			//    ⚠️ 不受影响的两条：① `custom.spell cast`（控制台，测试用）② 法印开火拦截那条路
+			//       （引擎开火 → SpellSealFirePatch 改发我们的实体，它不需要手势、也不加动作）。
+			if (!IsFlyingNow())
+			{
+				if (_phase != Phase.Idle && !_flightGesture)
+				{
+					Cancel();
+				}
+				return;
+			}
 
-			bool held = gestureFlight ? FlightInput.AimHeld : ModInput.IsHeld(InteractionIds.SpellCast);
+			// 🔴 **空中手势**（2026-09-24 用户裁定）：**按住右键蓄力**（球长大、粒子变浓）→
+			//    **点左键放**（朝相机中心）；**松右键 = 取消**（不放）。
+			//    右键同时还是"瞄准机位"，一举两得。地面那套（X 蓄力、松手放）本阶段停用，见上。
+			//    ⚠️ `_flightGesture` 仍然记着"这一发是空中起的"——半路落地时收势才不会走错分支。
+			bool held = FlightInput.AimHeld;
 			if (!held)
 			{
 				_releasedSinceCast = true;
 			}
 			// 左键"发射"**只在蓄力/引导期间消费**（在 Idle 里消费 = 白吞一次点击）
-			bool fire = gestureFlight && _phase != Phase.Idle && FlightInput.ConsumeFirePress();
-			SpellDef wielded = gestureFlight ? ResolveFlightSpell(player) : SpellWorld.ResolveWieldedSpell(player);
+			bool fire = _phase != Phase.Idle && FlightInput.ConsumeFirePress();
+			SpellDef wielded = ResolveFlightSpell(player);
 
 			switch (_phase)
 			{
 				case Phase.Idle:
-					UpdateIdle(player, wielded, held, flying);
+					UpdateIdle(player, wielded, held, true);
 					break;
 				case Phase.Charging:
 					UpdateCharging(player, wielded, held, dt, fire);
@@ -291,11 +334,11 @@ namespace LivingWorldNpcs
 			}
 			Vec3 at = CoreAnchor(player);
 
-			// 核的大小：数据 `charge_scale` = **满蓄力时**的放大倍率，起手那一刻是它的 1/3（蓄满看着长两倍）。
-			// 🔴 2026-09-24 用户裁定"球太大" → 满蓄力由 1.5 倍（⌀1.08 m）缩到 **0.375 倍**（⌀0.27 m）。
-			//    运行时想再调：`custom.spell core <倍率>`（不用重启）。
+			// 核的大小：数据 `charge_scale` = **满蓄力时**的放大倍率（0.375 ⇒ 满蓄力 ⌀0.27 m，2026-09-24 由原值 1/4 定下）。
+			// 🔴 2026-09-24 用户裁定：**从 0 开始长**（"蓄力过程比较直观"）—— 起手那一刻几乎什么都没有，
+			//    随着蓄力匀速长大，**蓄满就不再变**（`power` 会钳在 1）。钳一个极小值是为了别产生零缩放矩阵。
 			float full = SpellDebug.ChargeScaleOverride ?? _spell.ChargeScale;
-			float scale = full * (0.3333f + 0.6667f * power);
+			float scale = MathF.Max(0.01f, full * power);
 			if (_coreEntity == null)
 			{
 				_coreEntity = SpellWorld.SpawnMeshEntity(_spell.ChargeMesh, at, Mat3.Identity, scale);
@@ -335,17 +378,70 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>蓄力粒子的浓淡：起手稀疏（0.3 倍）→ 满蓄力浓（1.5 倍）。</summary>
+		/// <summary>
+		/// 蓄力粒子的浓淡：起手近乎没有（0.08 倍）→ 满蓄力浓（1.5 倍）。
+		/// 🔴 与球的"从 0 长起"配套（2026-09-24 用户要求蓄力过程直观）—— 别让火先于球出现。
+		/// </summary>
 		private static float ChargeDensityAt(float power)
 		{
-			return 0.3f + 1.2f * MathF.Max(0f, MathF.Min(1f, power));
+			return 0.08f + 1.42f * MathF.Max(0f, MathF.Min(1f, power));
 		}
+
+		/// <summary>
+		/// 右手骨的**世界位置**（蓄力球挂点）——骨索引 = `Monster.MainHandBoneIndex`（主手骨 = 右手，武器挂的就是它）。
+		/// 读法 = `AgentVisuals.GetBoneEntitialFrame(bone, useBoneMapping: false)` —— 与 `FlySpike.cs:1962` 读 pelvis/rider 骨同一套
+		/// （entitial = **当前动画帧**的世界帧，不是绑定姿势 ⇒ 手怎么动球怎么动）。
+		/// 取不到（骨架没建 / 索引为负 / 异常）→ 返回 false，调用方退回"身体坐标近似右手位"。
+		/// 诊断：游戏内 <c>custom.spell hand</c> 会把这里用到的全部数字打出来。
+		/// </summary>
+		public static bool TryGetRightHandAnchor(Agent agent, out Vec3 anchor)
+		{
+			anchor = Vec3.Zero;
+			try
+			{
+				if (agent == null || agent.Monster == null)
+				{
+					return false;
+				}
+				sbyte bone = agent.Monster.MainHandBoneIndex;
+				if (bone < 0)
+				{
+					return false;
+				}
+				MBAgentVisuals visuals = agent.AgentVisuals;
+				if (visuals == null || !visuals.IsValid())
+				{
+					return false;
+				}
+				Vec3 hand = visuals.GetBoneEntitialFrame(bone, useBoneMapping: false).origin;
+				if (hand.LengthSquared < 1e-6f)
+				{
+					return false;
+				}
+				// 🔴 **离角色太远 = 这个骨帧不可信**（空间不对 / 索引指向了别的东西）——宁可退回近似位，
+				//    也别把球丢到地图另一头（那在实机上就是"球看不见"）。3 m 远超过手臂长度了。
+				float dx = hand.x - agent.Position.x, dy = hand.y - agent.Position.y, dz = hand.z - agent.Position.z;
+				if (dx * dx + dy * dy + dz * dz > 9f)
+				{
+					return false;
+				}
+				anchor = hand + Vec3.Up * HandAnchorUpOffset;
+				return true;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
+		/// <summary>蓄力球挂在右手骨**上方**多少米（真挂手骨时用；观感不合就调这个数）。</summary>
+		public const float HandAnchorUpOffset = 0.18f;
 
 		/// <summary>
 		/// 蓄力球挂在哪。
 		/// · **地面**：身前近似手位（阶段 3 起就是这样；等"法阵 prefab"接上再换真挂点）
-		/// · **飞行中**：**右手上方**（2026-09-24 用户裁定）—— 先按"身体坐标 + 右偏 + 上抬"近似，不动骨骼
-		///   （真挂骨骼要 `Monster.MainHandBoneIndex` + `AgentVisuals.GetBoneEntitialFrame`，见 FlySpike.cs 的范本）
+		/// · **飞行中**：**右手骨上方**（2026-09-24 用户要求"把右手骨骼的位置查清楚"）——
+		///   先问骨骼（<see cref="TryGetRightHandAnchor"/>），取不到才退回"身体坐标 + 右偏 + 上抬"的近似位
 		/// </summary>
 		private Vec3 CoreAnchor(Agent player)
 		{
@@ -355,7 +451,11 @@ namespace LivingWorldNpcs
 			Vec3 at = player.Position;
 			if (_flightGesture)
 			{
-				// 右 = 身体朝向绕 Up 转 90°（与飞行相机同一套角约定：`Mat3.Identity` 绕 Up 转 yaw，`.s` 就是右）
+				if (TryGetRightHandAnchor(player, out Vec3 hand))
+				{
+					return hand;
+				}
+				// 兜底：右 = 身体朝向绕 Up 转 90°（与飞行相机同一套角约定：`Mat3.Identity` 绕 Up 转 yaw，`.s` 就是右）
 				Mat3 m = Mat3.Identity;
 				m.RotateAboutUp(look.RotationZ);
 				Vec3 right = m.s.LengthSquared < 1e-6f ? Vec3.Zero : m.s.NormalizedCopy();

@@ -1,0 +1,22 @@
+{
+  "name": "ue_exec_trf",
+  "title": "处决/伏击 · 两条烘焙路径对照",
+  "subtitle": "同一条 clip 并排：左 = FBX 世界姿态烘焙（查看器一直用的），右 = TRF 直读烘焙（游戏读的就是 TRF）。挑 Executed01 看左右差别；挑 Executed02（09-22 修过的那条）两边应当一样。",
+  "sides": {
+    "src": {
+      "label": "骑砍2 · FBX 路径（你一直看的）", "color": "#7fa8d8", "rotY": 0, "slot": -0.62,
+      "footBones": ["l_toe0", "r_toe0", "l_foot", "r_foot"],
+      "files": [
+        { "id": "src_p7", "url": "../ue_exec_pair/assets/bl_pair7.glb" },
+        { "id": "src_ab", "url": "../ue_exec_pair/assets/bl_ambush.glb" }
+      ]
+    },
+    "dst": {
+      "label": "骑砍2 · TRF 路径（游戏读的）", "color": "#e0b070", "rotY": 0, "slot": 0.62,
+      "footBones": ["l_toe0", "r_toe0", "l_foot", "r_foot"],
+      "files": [
+        { "id": "dst_trf", "url": "assets/bannerlord_exec_trf.glb" }
+      ]
+    }
+  }
+}
