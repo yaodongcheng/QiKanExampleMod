@@ -1648,6 +1648,298 @@ namespace LivingWorldNpcs
             return "success " + note;
         }
 
+        // ─────────────────────────── 头顶挂粒子（调试用） ───────────────────────────
+
+        /// <summary>
+        /// 调试：把一颗粒子挂在主角**头骨**上（跟着走、跟着转身，零每帧开销）。
+        ///
+        /// 用法：
+        /// <code>
+        /// custom.psys_head                          骨架挂接：默认效果，头骨上方 0.45 m（跟着走）
+        /// custom.psys_head &lt;抬高度&gt;                骨架挂接：抬高多少米（0 = 就贴在头骨上）
+        /// custom.psys_head &lt;粒子名&gt; [抬高度]        骨架挂接：指定效果
+        /// custom.psys_head world [高度] [缩放]      世界固定版：在你当前位置上方炸一次（走已验证的 CreateBurstParticle）
+        /// </code>
+        ///
+        /// 🔴 **为什么有两条路**：2026-09-25 实测「把粒子挂到**人物视觉实体**（`AgentVisuals.GetEntity()`）」**不可见**
+        ///    （连原版火 `psys_game_missile_flame` 都看不见）—— 人物实体每帧被引擎刷新，挂上去的组件会被清掉。
+        ///    改用引擎自己的**骨骼挂接** `MBAgentVisuals.CreateParticleSystemAttachedToBone` ⇒ **实机可见、跟随成立**。
+        ///    `world` 版走 `Scene.CreateBurstParticle`（`custom.ninja_report` 已实证可见），用于"摆在世界里看"。
+        ///
+        /// ⚠️ 三条已知边界：
+        /// ① **两条路都没有"摘掉"的句柄**（骨骼挂接返回 void、burst 也是）⇒ 摘不掉，换位置 = 再挂一个；
+        ///    清场靠换场景 / 重进任务。
+        /// ② 🔴 **缩放无效 —— 引擎的粒子系统没有任何 scale 接口**（2026-09-25 实机确认：传进 MatrixFrame 的缩放
+        ///    不生效）。**要改大小只能在编辑器里改 `Particle size` 再重新发布**。
+        /// ③ 骨轴**不沿肢体**（本项目已知坑）⇒ 抬高的偏移量是把"世界上"这个向量**换算到骨局部空间**算出来的，
+        ///    不是硬填 (0,0,h)。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("psys_head", "custom")]
+        public static string ParticleOnHead(List<string> strings)
+        {
+            const string DefaultParticle = "lwn_manual_fireball";
+            const float DefaultHeight = 2.2f;      // world 版：离脚底多高
+            const float DefaultBoneLift = 0.45f;   // 骨挂版：头骨上方多少米
+
+            Mission mission = Mission.Current;
+            if (mission == null)
+            {
+                return "ERROR: only works inside a mission (battle / arena / town scene).";
+            }
+
+            string requested = null;
+            float? number1 = null;
+            float? number2 = null;
+            bool worldMode = false;
+            var notes = new List<string>();
+
+            if (strings != null)
+            {
+                foreach (string raw in strings)
+                {
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    string arg = raw.Trim();
+                    if (arg.Equals("world", StringComparison.OrdinalIgnoreCase) ||
+                        arg.Equals("burst", StringComparison.OrdinalIgnoreCase))
+                    {
+                        worldMode = true;
+                        continue;
+                    }
+                    if (requested == null && ParticleSystemManager.GetRuntimeIdByName(arg) != -1)
+                    {
+                        requested = arg;
+                        continue;
+                    }
+                    float parsed;
+                    if (number1 == null &&
+                        float.TryParse(arg, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed))
+                    {
+                        number1 = parsed;
+                        continue;
+                    }
+                    if (number2 == null &&
+                        float.TryParse(arg, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed))
+                    {
+                        number2 = parsed;
+                        continue;
+                    }
+                    notes.Add("ignored '" + arg + "'");   // 首参可弃：解析不出来不算错
+                }
+            }
+
+            string name = requested ?? DefaultParticle;
+            int id = ParticleSystemManager.GetRuntimeIdByName(name);
+            if (id == -1 && requested != null)
+            {
+                notes.Add("'" + name + "' NOT REGISTERED (id -1) -> fell back to '" + DefaultParticle + "'");
+                name = DefaultParticle;
+                id = ParticleSystemManager.GetRuntimeIdByName(name);
+            }
+            if (id == -1)
+            {
+                return "ERROR: particle '" + name + "' not registered (id -1)." + Notes(notes);
+            }
+
+            Agent main = mission.MainAgent;
+            if (main == null)
+            {
+                return "ERROR: no main agent in this mission.";
+            }
+
+            if (worldMode)
+            {
+                float h = number1 ?? DefaultHeight;
+                float sc = number2 ?? 1f;
+                try
+                {
+                    MatrixFrame frame = new MatrixFrame(Mat3.Identity, main.Position + new Vec3(0f, 0f, h));
+                    if (Math.Abs(sc - 1f) > 0.001f && sc > 0f)
+                    {
+                        frame.rotation.ApplyScaleLocal(sc);   // 引擎认不认这个缩放 = 待实测
+                    }
+                    mission.Scene.CreateBurstParticle(id, frame);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[PsysHead] world 生成失败：{ex.GetType().Name} {ex.Message}");
+                    return "ERROR: world burst failed (see log)." + Notes(notes);
+                }
+                DebugLogger.Log($"[PsysHead] world '{name}' (id {id}) 高度 {h:0.##} 缩放 {sc:0.##}");
+                return $"OK: world burst '{name}' (id {id}) at {h:0.##} m above you, scale {sc:0.##}." + Notes(notes);
+            }
+
+            // 骨架挂接（默认，跟着人走）
+            try
+            {
+                MBAgentVisuals visuals = main.AgentVisuals;
+                if (visuals == null)
+                {
+                    return "ERROR: main agent has no visuals." + Notes(notes);
+                }
+                sbyte bone = main.Monster != null ? main.Monster.HeadLookDirectionBoneIndex : (sbyte)0;
+                float h = number1 ?? DefaultBoneLift;
+
+                // 🔴 平移量必须**算**出来，不能拍脑袋填 (0,0,h)：骑砍的**骨轴不沿肢体**（本项目已知坑），
+                //    骨局部空间里哪个方向是"上"完全看骨骼定义。做法 = 把"世界上"这个向量换算到骨局部空间：
+                //    骨世界朝向 = 实体世界朝向 × 骨在实体内的朝向（entitial frame = 动画算完、还没乘实体全局变换的那一层）。
+                Vec3 localOffset = Vec3.Zero;
+                try
+                {
+                    Skeleton skel = visuals.GetSkeleton();
+                    if (skel != null && Math.Abs(h) > 0.001f)
+                    {
+                        MatrixFrame boneEntitial = skel.GetBoneEntitialFrameWithIndex(bone);
+                        Mat3 boneWorldRot = visuals.GetGlobalFrame().rotation.TransformToParent(boneEntitial.rotation);
+                        localOffset = boneWorldRot.TransformToLocal(new Vec3(0f, 0f, h));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    notes.Add("offset math failed (" + ex.GetType().Name + ") -> attached at bone origin");
+                }
+
+                MatrixFrame local = new MatrixFrame(Mat3.Identity, localOffset);
+                visuals.CreateParticleSystemAttachedToBone(id, bone, ref local);
+                if (number2 != null)
+                {
+                    notes.Add("scale is NOT supported by the engine particle API (ignored)");
+                }
+                DebugLogger.Log($"[PsysHead] 骨挂 '{name}' (id {id})，头骨 {bone}，抬高 {h:0.##} m（局部偏移 {localOffset}）");
+                return $"OK: '{name}' (id {id}) on head bone {bone}, raised {h:0.##} m." +
+                       " No scale API exists - to resize, change Particle size in the editor and re-publish." + Notes(notes);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PsysHead] 骨挂失败：{ex.GetType().Name} {ex.Message}");
+                return "ERROR: bone attach failed (see log). Try: custom.psys_head world 2.2" + Notes(notes);
+            }
+        }
+
+        private static string Notes(List<string> notes)
+        {
+            if (notes == null || notes.Count == 0)
+            {
+                return string.Empty;
+            }
+            return " [note: " + string.Join("; ", notes) + "]";
+        }
+
+        /// <summary>
+        /// 调试：把粒子挂在一个**自己造的、被缩放的 GameEntity** 上（世界固定，不跟随）。
+        ///
+        /// 用法（🔴 **名字可省** —— 项目约定「首参可弃」：参数会被**自动分类**，
+        /// 能对上已注册粒子名的当名字，数字按顺序当高度、缩放）：
+        /// <code>
+        /// custom.psys_ent                                默认火球 · 高 1.5 m · 缩放 1
+        /// custom.psys_ent 1.5 0.3                        高 1.5 m · 缩放 0.3（名字省了）
+        /// custom.psys_ent lwn_manual_fireball 1.5 0.3    同上（名字写全）
+        /// </code>
+        ///
+        /// 🔴 **这条命令是为了回答一个问题**：引擎的粒子系统**没有** scale 接口（已逐一核对
+        /// `ParticleSystem` 的公开方法），那把粒子挂在**一个被缩放的实体**上，粒子会不会跟着缩放？
+        /// （= 能不能靠 prefab 实例的缩放来复用同一份粒子资产，而不是每档尺寸复制一份资产。）
+        /// **推断**（未验，2026-09-25）：实体的**位置**肯定跟着走（发射点在世界空间被帧变换）；
+        /// **粒子自身的尺寸**大概率**不跟**（尺寸是资产里的世界单位值，不是被帧缩放的那种量）。
+        /// 这条命令就是拿来证的 —— 两次调用（缩放 1 和 0.3）**都留着不摘**，好看清区别。
+        ///
+        /// ⚠️ 实体是空实体（无网格，所以只看得见粒子）；**没有摘除接口**，清场靠换场景 / 重进任务。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("psys_ent", "custom")]
+        public static string ParticleOnScaledEntity(List<string> strings)
+        {
+            const string DefaultParticle = "lwn_manual_fireball";
+            const float DefaultHeight = 1.5f;
+
+            Mission mission = Mission.Current;
+            if (mission == null)
+            {
+                return "ERROR: only works inside a mission (battle / arena / town scene).";
+            }
+
+            string requested = null;
+            float? number1 = null;
+            float? number2 = null;
+            var notes = new List<string>();
+            if (strings != null)
+            {
+                foreach (string raw in strings)
+                {
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    string arg = raw.Trim();
+                    if (requested == null && ParticleSystemManager.GetRuntimeIdByName(arg) != -1)
+                    {
+                        requested = arg;
+                        continue;
+                    }
+                    float parsed;
+                    if (number1 == null &&
+                        float.TryParse(arg, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed))
+                    {
+                        number1 = parsed;
+                        continue;
+                    }
+                    if (number2 == null &&
+                        float.TryParse(arg, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed))
+                    {
+                        number2 = parsed;
+                        continue;
+                    }
+                    notes.Add("ignored '" + arg + "'");
+                }
+            }
+
+            string name = requested ?? DefaultParticle;
+            int id = ParticleSystemManager.GetRuntimeIdByName(name);
+            if (id == -1 && requested != null)
+            {
+                notes.Add("'" + name + "' NOT REGISTERED (id -1) -> fell back to '" + DefaultParticle + "'");
+                name = DefaultParticle;
+                id = ParticleSystemManager.GetRuntimeIdByName(name);
+            }
+            if (id == -1)
+            {
+                return "ERROR: particle '" + name + "' not registered (id -1)." + Notes(notes);
+            }
+
+            Agent main = mission.MainAgent;
+            if (main == null)
+            {
+                return "ERROR: no main agent in this mission.";
+            }
+
+            float h = number1 ?? DefaultHeight;
+            float sc = number2 ?? 1f;
+            try
+            {
+                GameEntity entity = GameEntity.CreateEmpty(mission.Scene, true);
+                if (entity == null)
+                {
+                    return "ERROR: could not create empty entity." + Notes(notes);
+                }
+                Mat3 rot = Mat3.Identity;
+                if (Math.Abs(sc - 1f) > 0.001f && sc > 0f)
+                {
+                    rot.ApplyScaleLocal(sc);   // 帧的基向量长度 = 缩放（引擎对网格就是这个口径）
+                }
+                entity.SetGlobalFrame(new MatrixFrame(rot, main.Position + new Vec3(0f, 0f, h)));
+
+                MatrixFrame local = MatrixFrame.Identity;
+                ParticleSystem ps = ParticleSystem.CreateParticleSystemAttachedToEntity(id, entity, ref local);
+                if (ps == null)
+                {
+                    return "ERROR: attach returned null." + Notes(notes);
+                }
+                DebugLogger.Log($"[PsysEnt] '{name}' (id {id}) 挂在缩放 {sc:0.##} 的空实体上，高度 {h:0.##}");
+                return $"OK: '{name}' (id {id}) on a scaled empty entity at {h:0.##} m, entity scale {sc:0.##}." +
+                       " Compare with another scale (both stay attached)." + Notes(notes);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PsysEnt] 失败：{ex.GetType().Name} {ex.Message}");
+                return "ERROR: failed (see log)." + Notes(notes);
+            }
+        }
+
 
         [CommandLineFunctionality.CommandLineArgumentFunction("change_leader_by_id", "custom")]
         public static string ChangeLeaderById(List<string> strings)

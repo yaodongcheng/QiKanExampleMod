@@ -76,6 +76,10 @@ tools/face-pipeline/external/FreeUV/
 # armor-pipeline（盔甲构建工具链；产物整目录忽略，规则用整目录不用文件名——铁律 26）
 tools/armor-pipeline/out/
 
+# anim-statemachine（动画状态机工具链：XML -> 可视化页 / 编辑器 + 自检三件套）
+#   代码与文档进库；两个页面（生成物）与 _shots/ 截图全在 out/ 下，整目录忽略。
+tools/anim-statemachine/out/
+
 # anim-retarget（Blender 动画重定向工具链）
 #   代码 / 文档 / 数据集元数据进库；大数据面在 D:\BrainMaker\骑砍2动画重定向\（见 tools/anim-retarget/README.md）。
 tools/anim-retarget/docs/**/*.mp4

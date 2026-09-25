@@ -10,7 +10,7 @@ namespace LivingWorldNpcs.Animation
     /// 字符串表达式（自己写表达式解析器 = 失去编译期检查 ⇒ 多一种"打错了不报错、只是不生效"的静默失败）。
     /// 折中办法：**结构进 XML，判据留 C# 但给个名字** ——
     /// <code>
-    /// &lt;edge from="UprightFamily" to="fastmoveStart" when="sprinting"/&gt;      ← XML 里只写名字
+    /// &lt;edge from="Upright" to="fastmoveStart" when="sprinting"/&gt;      ← XML 里只写名字
     /// AnimConditions.Register("sprinting", c =&gt; ((FlightAnimContext)c).Boost &amp;&amp; ...);  ← 真身在 C#
     /// </code>
     ///

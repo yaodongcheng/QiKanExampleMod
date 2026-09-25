@@ -1,0 +1,75 @@
+# tools/anim-statemachine — 动画状态机工具链
+
+> **一句话**：把 `ModuleData/statemachine_flight.xml` 这台状态机 **画出来、点着改、改完导出**，
+> 并配三道自检保证页面"真的能用"（不是"看着能显示"）。
+>
+> 最后更新：2026-09-25（同日第二轮：从 `Debug/offline/` 迁入；编辑器页移到本目录根**进 git**、只读页删除）
+
+---
+
+## 一、怎么用
+
+| 你要做的事 | 怎么做 |
+|---|---|
+| 加/改状态、边、容器（状态机结构） | 双击 **`statemachine_editor.html`**（就在本目录）改，改完点「导出完整 XML」，整份覆盖回 `ModuleData/statemachine_flight.xml`，重启游戏生效 —— **不用重编译** |
+| 改了生成器代码 | 跑下面的命令，一条都不能省 |
+
+> 引擎侧的装载与校验在 `ExampleModVS/.../Animation/AnimMachineLoader.cs`：XML 有问题就**整台不注册**、
+> 把全部问题一次报到日志。设计原则、踩坑记录、待办全在 **[plans/动画状态机-XML化与编辑器.md](../../plans/动画状态机-XML化与编辑器.md)**。
+
+---
+
+## 二、四条命令（在本目录下跑）
+
+```bash
+python gen_statemachine_editor.py     # 重生成 statemachine_editor.html
+python check_pages.py                 # ① 语法：抠出页面里的 JS 喂 node --check
+python shoot_pages.py                 # ② 画面：无头 Chrome 出 18 张图到 out/_shots/
+node   drive_pages.mjs                # ③ 交互：CDP 打真实鼠标输入，51 项断言
+```
+
+**三道自检分工（缺一道就有一类 bug 抓不到）**：
+
+| 工具 | 抓什么 | 为什么不能省 |
+|---|---|---|
+| `check_pages.py` | **JS 语法错** | 模板里一个转义写错 ⇒ 整段 `<script>` 不跑 ⇒ 页面"能显示但全是静态壳"，**肉眼完全看不出来** |
+| `shoot_pages.py` | **渲染错** | 语法没错但标签压字 / 连线指向空气 / 菜单没弹 —— 只有看图才知道 |
+| `drive_pages.mjs` | **交互错** | 🔴 实战教训：双击进容器/进状态**全废**（`ev.detail` 在 pointerdown 恒为 0），截图 100% 看不出，真输入一按就现原形 |
+
+---
+
+## 三、文件
+
+| 文件 | 进 git？ | 是什么 |
+|---|---|---|
+| **`statemachine_editor.html`** | ✅ | 🔴 **页面本体**（生成物，但**故意入库** —— 克隆下来双击就能看，不必先装 Python） |
+| `gen_statemachine_editor.py` | ✅ | 页面生成器（缩放平移 / 右键菜单 / 容器下钻 / 复制粘贴 / 改名级联 / 草稿黄条） |
+| `check_pages.py` / `shoot_pages.py` / `drive_pages.mjs` | ✅ | 自检三件套（上表） |
+| `out/` | ❌ | **纯垃圾桶**（`.gitignore` 整目录忽略）—— 三个工具对它**只写不读**，里面所有东西都能删、下次跑自动重建。实际只留 `_shots/` 的截图（约 5MB） |
+
+> **Chrome profile 自清**：两个跑浏览器的工具会各自建一个 Chrome `--user-data-dir`（`shoot_pages` 的 `.profile`、
+> `drive_pages` 的 `.drive-profile`），**各几十 MB**（里面大半是 Chrome 自带的 tflite 模型）。它们只在
+> 本次运行内有意义（靠它让 `file://` 的 localStorage 跨场景/跨 reload 延续），所以**跑完在收尾里删掉**
+> （Chrome 句柄没放就退避重试，删不掉也不报错）。别再让 `out/` 涨到 70MB。
+
+**数据来源**（生成器现读，不手抄 —— 表和代码分叉过一次，不再犯）：
+`ModuleData/statemachine_flight.xml`（状态机定义）· `Flight/FlightAnimConditions.cs`（谓词真身）·
+`Flight/FlightTuning.cs`（动作名 / 阈值）· `Taikou/ModuleData/action_sets.xml`（动作名 → clip 名）。
+
+> **只读页已删（2026-09-25）**：原来还有第二个渲染器 `gen_statemachine_page.py` 出一张静态报告页
+> （状态→动画 / 迁移表 / 条件靠什么变量 / 不变式体检四张表）。删的原因是**两个渲染器读同一份 XML 必然漂移**
+> —— 实测过一次：XML 改完只读页直接崩、停在旧结构，**展示了一台已经不存在的状态机**。
+> 它那 5 条不变式体检**编辑器里早就有**（`validate()` 是超集，还多查谓词/键/条件是否登记）；
+> 代价是丢掉四张表的"通读形态" —— 真需要就把它做成编辑器的一个报告 tab，**别再养第二个渲染器**。
+
+---
+
+## 四、🔴 四条纪律（踩出来的）
+
+1. **生成物禁止手改**（铁律 22）—— 改页面 = 改生成器 → 重跑。手改 = 与生成器分叉，下次重跑即丢。
+2. **改完生成器必跑三道自检**（`check_pages.py` → `shoot_pages.py` → `drive_pages.mjs`）。
+   页面是 10 万字节的内联 JS + 内联 SVG，改一处看着没事、实际整页废掉是常态。
+3. **编辑器启动时 `localStorage` 的草稿会压过 XML**。现在会弹显眼黄条说明差异（这是被用户抓到"怎么还有 magicIdle"之后补的），
+   但改结构后请先点「用 XML 覆盖草稿」，否则你改的是浏览器里的旧副本。
+4. **自检带副作用的清理必须无条件正确**。某条断言失败后它的 `edges.pop()` 照样跑 ⇒ 把一条真边弹掉 ⇒
+   之后所有"边数应为 N"的断言全部错位。建边类测试统一「记基线 + 截断恢复」。

@@ -19,10 +19,15 @@
 | 99 个效果的 XML（`D:\BrainMaker\骑砍2粒子特效复刻\output\xml\`） | ✅ 生成 + 硬校验 0 问题（`validate_xml.py`，材质白名单=原版粒子用过的 31 个） |
 | 100 个资产（`TaikouAnim/Assets/particles/`，模块当前=**编辑器态**） | ⚠️ 已用正确 packdir + 修好的材质/亮度/alpha 重编过，但**因为上面的错位问题，只能当"素材库"，不能当"基准"** |
 | 自动翻译管线（`tools/particle-pipeline/`） | ⏸️ **暂停改动**（除非用户点名要）。它就是上面 99 个 XML 的来源 |
-| 手工复刻 | 🔄 **进行中**：用户新建 `lwn_manual_fireball`，照施工单第 1 轮填"火焰"发射器 |
+| 手工复刻 | ✅ **第 1 轮（火焰发射器）已验收**：资产 = `TaikouAnim/Assets/particle_system/lwn_manual_fireball_psys.tpac`（目录名 `particle_system` 单数，编辑器自己建的）。配方见施工单「案例 1」 |
 
-**新 session 的第一件事**：等用户回报第 1 轮的三个观察（火焰出现 / 把 `Diffuse multiplier` 改成 1 应该看不见 / 朝向），
-然后给第 2 轮（黑烟）与第 3 轮（火星）的填表。**别再动生成器、别再重编资产**（用户明确要求"你只当老师"）。
+**新 session 的第一件事**：给用户**第 2 轮（黑烟）**的表（已写好，施工单「案例 2」，零准备）→ 之后火星。
+**别再动生成器、别再重编资产**（用户明确要求"你只当老师"）。
+
+**手工路线摸出的三条面板级事实（2026-09-25，已进 [粒子系统.md](骑砍2粒子系统.md) §12.9）**：
+① **曲线图（alpha）默认装死** —— 先勾 `Use exposure compensation` 才能编辑，**改完取消勾选再 Save**（曲线保留）；
+② **RGB 色条在本 build 不可编辑**（用户裁定放弃）⇒ 颜色固定默认「黑→白」，**元素颜色靠挑材质/贴图**；
+③ **亮度 = diffuse × 颜色 × alpha**，三者耦合 —— 手工火焰实测 **diffuse=1 + alpha(0→0.55→0.45→0)** 才对，给 1000 过曝。
 
 **两件悬着的事**：① `prt_shd_glow`（我们用了 150 个发射器）与 `prt_shd_snow_dust_1`（69 个）**原版粒子从未引用过** ——
    跟当初踩雷的 `prt_shd_lightning` 同类信号，等用户在编辑器里开 `lwn_ns_agilitybuff` / `lwn_ns_blizzard` 看弹不弹
