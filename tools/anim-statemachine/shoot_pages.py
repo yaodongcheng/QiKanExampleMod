@@ -56,6 +56,38 @@ CHROME_CANDIDATES = [
 CTX = ("var svgEl=document.getElementById('svg');"
        "%s.dispatchEvent(new MouseEvent('contextmenu',{clientX:%d,clientY:%d,bubbles:true,cancelable:true}));")
 
+# 「真嵌套」的布景：在第一个容器（悬浮飞行）里放一个子容器，把 idle/hovermove 移进去并设入口。
+# 🔴 只改**内存里的编辑态**（= 用户在界面上的操作），不碰 XML。
+# 🔴 **必须幂等**：`openTab()` 会 `fit()` → `save()`，于是这一段会被写进草稿、下一场景加载时再跑一遍
+#    ⇒ 不复用旧的就变成"同名容器建两个"（校验里会冒出「容器名重复」）。所以先按名字清干净再建。
+NEST = ("(function(){var ng='子容器X';"
+        "groups=groups.filter(function(x){return x.name!==ng;});"
+        "groups.forEach(function(o){o.members=(o.members||[]).filter(function(m){return m!==ng;});});"
+        "var g=groups[0];groups.push({name:ng,entry:'',members:[]});g.members.push(ng);reindex();var s=groupByName[ng];"
+        "['idle','hovermove'].forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});s.members.push(m);});"
+        "s.entry='hovermove'; g.entry=ng; reindex(); render();")
+# 布景跑完把草稿抹掉：否则 18/19/20 之后的每个场景都顶着"你在看本地草稿"的黄条（真实编辑才会落草稿）
+# 🔴 「新建子容器 + 改名成 loco」——**用户报障的那条路**，布景就停在这一步（21 = 父页看它还在不在）。
+#    走真按钮 `#g-sub`（⇒ 留在父页 + 自动取景），再走 `renameGroup`（⇒ 名字级联）。
+NEST_REN = ("(function(){var g=groups[0];sel={type:'group',id:g.name};render();"
+            "document.getElementById('g-sub').onclick();"
+            "var ng=groups[groups.length-1].name; renameGroup(ng,'loco');"
+            "['idle','hovermove'].forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});groupByName['loco'].members.push(m);});"
+            "groupByName['loco'].entry='hovermove'; g.entry='loco'; reindex(); render();")
+# 22 = 建完**不**改名，直接钻进那个**空容器**（看提示在不在、取景对不对）
+# 23 = 入口状态被搬进子容器之后（父容器 entry 仍是老值）—— 图/字/校验三处一起看
+ENTRY_MOVED = ("(function(){var g=groups[0];"
+               "var ng='子容器E'; groups=groups.filter(function(x){return x.name!==ng;});"
+               "groups.forEach(function(o){o.members=(o.members||[]).filter(function(m){return m!==ng;});});"
+               "groups.push({name:ng,entry:'hovermove',members:[]}); g.members.push(ng); reindex();"
+               "groups.forEach(function(o){o.members=(o.members||[]).filter(function(m){return m!=='hovermove';});});"
+               "groupByName[ng].members.push('hovermove');"
+               "g.entry='hovermove'; reindex(); tabs=[{kind:'root'},{kind:'group',id:g.name}]; setActive(1); render(); fit();")
+NEST_EMPTY = ("(function(){var g=groups[0];sel={type:'group',id:g.name};render();"
+              "document.getElementById('g-sub').onclick();"
+              "openTab({kind:'group', id:groups[groups.length-1].name}); render();")
+CLEAR = "try{localStorage.removeItem(LSKEY)}catch(e){};draftActive=false;renderDraftBanner();"
+
 # 场景名 -> 注入的 JS（空 = 原样截图）
 SCEN = [
     # 00 先把上一轮可能留下的草稿清掉（file:// 的 localStorage 在同一 profile 里是共享的，
@@ -72,12 +104,28 @@ SCEN = [
     ("09_zoom150", "view.k=1.5;view.tx=-70;view.ty=-30;applyView();"),
     ("10_group_tab", "openTab({kind:'group', id:groups[0].name});"),
     ("11_state_tab", "openTab({kind:'state', id:'fastmoveStart'});"),
-    ("12_group_prone", "openTab({kind:'group', id:'ProneFamily'});"),
+    ("12_group_prone", "openTab({kind:'group', id:'冲刺飞行'});"),
     # 15/16 验三个交互补充：改名输入框 + 边列表聚焦 + 右键"粘贴状态"
-    ("15_state_selected", "sel={type:'state', id:'hoverstart'}; render();"),
-    ("17_edge_target_menu", "closeCtx(); pickEdgeTarget('hoverstart');"),
-    ("16_ctx_canvas_paste", "clip={kind:'state',name:'hoverstart',data:{name:'hoverstart'}};"
+    ("15_state_selected", "sel={type:'state', id:'进入飞行'}; render();"),
+    ("17_edge_target_menu", "closeCtx(); pickEdgeTarget('进入飞行');"),
+    ("16_ctx_canvas_paste", "clip={kind:'state',name:'进入飞行',data:{name:'进入飞行'}};"
                            "render();document.getElementById('svg').dispatchEvent(new MouseEvent('contextmenu',{clientX:620,clientY:620,bubbles:true,cancelable:true}));"),
+    # 18/19/20 **真嵌套**（会话 5）：在 悬浮飞行 里放一个子容器（idle/hovermove 移进去）
+    #   18 = 父容器页：应看到子容器盒（在内容区右侧、**不和 Entry 盒重叠**）+ 进子容器的边**锚在子容器盒上**
+    #   19 = 钻进子容器：应看到它自己的 Entry + 它自己的内部边（父页那边是折叠的）
+    #   20 = 总览：取景只按**本页画得出**的盒子算（嵌套子容器 / 组内状态不该把画面撑大）
+    # 21 用户实测："我新建一个子容器改名叫 loco 之后 他就不见了" ——
+    #    布景走到**改名**那一步就停：留在父容器页、新盒子当场可见（旧的改名级联 bug 会让它整条消失）
+    # 23 用户实测："这里的入口明明是子容器1，为什么写 hovermove" ——
+    #    entry 还是老值 hovermove，而 hovermove 已被搬进子容器1 ⇒ Entry 那行写成 ⚠ 子容器1 → hovermove，
+    #    并且校验里给出"把 entry 改成「子容器1」"的可执行建议
+    ("23_entry_state_moved_into_sub", ENTRY_MOVED + CLEAR + "})()"),
+    ("21_sub_renamed_visible", NEST_REN + CLEAR + "})()"),
+    # 22 新建完**留在父页**（不跳进那个空页面）；这里故意再钻进去，看空容器页有没有"还是空的"提示
+    ("22_empty_container_tab", NEST_EMPTY + CLEAR + "})()"),
+    ("18_nested_parent_tab", NEST + "openTab({kind:'group', id:groups[0].name});" + CLEAR + "})()"),
+    ("19_nested_child_tab", NEST + "openTab({kind:'group', id:'子容器X'});" + CLEAR + "})()"),
+    ("20_nested_overview", NEST + "closeCtx(); tabs=[{kind:'root'}]; active=0; fit();" + CLEAR + "})()"),
     # 13 种一份"旧草稿"（含 magicIdle + from="*"），14 重新加载 —— 应当弹出显眼的草稿黄条
     ("13_seed_stale_draft", "try{const d={states:DATA.states.concat([{name:'magicIdle',act:'act_magic_idle',dur:'',next:'',clip:'magic_idle',durText:'循环'}]),edges:DATA.edges.concat([{from:'*',to:'magicIdle',kind:'pred',pred:'casting-fallback',blend:'0.15',after:false,phase:false}]),groups:DATA.groups,pos:{},view:{k:1.15,tx:30,ty:70},gpos:{}};localStorage.setItem(LSKEY,JSON.stringify(d));}catch(e){document.title='SEED-ERR '+e.message}"),
     ("14_draft_banner", ""),

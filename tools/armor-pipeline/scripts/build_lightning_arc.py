@@ -26,16 +26,26 @@ build_lightning_arc.py — 施法框架「引导/射线」那条弧的网格
 import math
 import os
 import re
+import shutil
 
 import bpy
 
 # ─────────────────────────── 参数 ───────────────────────────
-NAME = "lwn_lightning_arc"
+# 要出哪几个网格。🔴 **名字 = FBX 里的对象名 = 导入时编辑器自动建的那个材质名**
+#   ⇒ 想给一张新贴图配一个独立材质，就出一个**同名**的网格（贴图 `<名>_d.png`、材质 `<名>`）。
+# 2026-09-25：给「源端集中 / 远端发散」那张 `lwn_lightning_arc2_d` 配 `lwn_lightning_arc2`。
+BUILD = ["lwn_lightning_arc2"]
+# 首版 `lwn_lightning_arc` 已注册、正在用 —— 只有真要重建它时才加回上面的列表
 LENGTH = 1.0     # 沿 +Z 的长度（m）——🔴 **必须 1.0**（代码按"距离(米) × Z 基向量"拉伸）
-WIDTH = 0.12     # 可见宽度（m）—— 想更粗改这里
+WIDTH = 0.12     # 可见宽度（m）—— 🔴 **同时是「贴图横向摆幅」的物理天花板**：
+                 #   贴图上画得再开，落到实物也只有 ±(0.5×WIDTH) 的横向余量（见 gen_lightning_arc_tex.py）
 LOD_LEVELS = 1   # 自管实体路线不需要多档 LOD（场景实体不吃导弹那套距离剔除）
 
 OUTDIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "out")
+# 交付落点 = **待导入目录**（新资产一律交用户 Import —— CLAUDE.md 铁律 36）
+_TOOL = os.path.dirname(OUTDIR)                                     # tools/armor-pipeline
+_REPO = os.path.dirname(os.path.dirname(_TOOL))                     # 仓库根
+STAGE_ROOT = os.path.join(_REPO, "..", "TaikouAnim", "AssetSources", "ImortReady")
 
 # 导出规格：与 build_spell_mesh.py / build_armor.py 逐字一致（那套已被编辑器验证过）
 FBX_KW = dict(
@@ -124,9 +134,22 @@ def main():
     print("    === 施法框架 · 引导弧网格生成 ===")
     print(f"    长 {LENGTH} m（+Z，原点在起点端）× 宽 {WIDTH} m × 十字双片（{LOD_LEVELS} 档 LOD）")
     v, f, uv = arc_geometry()
-    export(NAME, v, f, uv)
+    for name in BUILD:
+        print(f"\n  -- {name}")
+        fbx = export(name, v, f, uv)
+        # 交付：拷进「待导入」目录（子目录 = 去掉 lwn_ 前缀的名字）
+        sub = name[4:] if name.startswith("lwn_") else name
+        stage_dir = os.path.join(STAGE_ROOT, sub)
+        os.makedirs(stage_dir, exist_ok=True)
+        dst = os.path.join(stage_dir, name + ".fbx")
+        shutil.copy2(fbx, dst)
+        print(f"     已放入待导入目录 {dst}")
     print(f"\nDONE —— FBX 在 {OUTDIR}")
-    print(f"下一步（**用户操作**）：FBX 拷进 AssetSources\\meshes\\{NAME}\\ → 在 ModKit 里 Import")
+    print("下一步（**用户操作**）：在 ModKit 里 Import 上面的 FBX")
+    print("  🔴 导入后编辑器会**自动建一个同名材质**（例：`lwn_lightning_arc2`）——")
+    print("     贴图 `AssetSources/ImortReady/<子目录>/<名>_d.png` 也要先 Import，再在材质里挂上。")
+    print("     材质配方：Shader pbr_translucent · ☑ use_animated_texture_coords · Vector1=(4, 4, 18, 16)")
+    print("             · Alpha Blend Mode = Add · Vector2 全 0")
 
 
 if __name__ == "__main__":

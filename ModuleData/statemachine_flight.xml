@@ -35,13 +35,9 @@
 	     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会"硬翻"，所以进趴姿必须经 fastmoveStart 那道门。
 	     superland 不归属任何容器（散状态 = 出机衔接状态）。 -->
 	<families>
-		<!-- 🔴 容器 = **真实的子状态机**（对齐 UE），不是展示用的分组：
-		     · 成员 = 它拥有的状态（每个状态只归属一个容器）
-		     · **entry = 它的真实入口**：从外面"进入这个容器"时落到哪个状态
-		     · 边的 `to=` 可以直接写**容器名** ⇒ 装载期解析成它的 entry（引擎热路径零改动）
-		     · 边的 `from=` 写容器名 = 该容器里**任何状态**（对应 UE 的 State Alias 用法） -->
-		<family name="Upright" entry="hovermove">idle hovermove hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD hoverstart</family>
-		<family name="ProneFamily" entry="fastmove">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD dodgeL dodgeR dodgeU dodgeD</family>
+		<family name="悬浮飞行" entry="子容器1">hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD 子容器1</family>
+		<family name="冲刺飞行" entry="fastmoveStart">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD dodgeL dodgeR dodgeU dodgeD</family>
+		<family name="子容器1" entry="idle">hovermove idle</family>
 	</families>
 
 	<!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。
@@ -56,25 +52,18 @@
 		<state name="hovermovePitchD" act="act_fly_hovermove_pitchd" />
 		<state name="hovermoveLeanL" act="act_fly_hovermove_lean_l" />
 		<state name="hovermoveLeanR" act="act_fly_hovermove_lean_r" />
-		<!-- 🚪 进机衔接状态（起飞入姿）：相位 Force 进，演完或玩家给输入就放开控制 —— 见 <edges> ⓪ -->
-		<state name="hoverstart" act="act_fly_hoverstart" />
-		<!-- 🚪 出机衔接状态（落地收尾）：相位 Force 进，**播到剩 10% 就出机** —— 见 <edges> ⓪ -->
-		<state name="superland" act="act_fly_superland" once="true" />
-
+		<state name="超人落地" act="act_fly_superland" />
 		<state name="fastmove" act="act_fly_fastmove" />
 		<state name="fastmoveLeanL" act="act_fly_fastmove_lean_l" />
 		<state name="fastmoveLeanR" act="act_fly_fastmove_lean_r" />
 		<state name="fastmovePitchU" act="act_fly_fastmove_pitchu" />
 		<state name="fastmovePitchD" act="act_fly_fastmove_pitchd" />
-
-		<!-- 进趴姿的入姿（一次性 1.033 秒）；**演完兜底回 fastmove** -->
 		<state name="fastmoveStart" act="act_fly_fastmove_start" once="true" next="fastmove" />
-		<!-- 闪避四方向（一次性 1.867 秒）；**演完兜底回 fastmove**（这就是"闪避演完回趴姿"那一条） -->
 		<state name="dodgeL" act="act_fly_dodge_l" once="true" next="fastmove" />
 		<state name="dodgeR" act="act_fly_dodge_r" once="true" next="fastmove" />
 		<state name="dodgeU" act="act_fly_dodge_u" once="true" next="fastmove" />
 		<state name="dodgeD" act="act_fly_dodge_d" once="true" next="fastmove" />
-
+		<state name="进入飞行" act="act_fly_hoverstart" once="true" />
 	</states>
 
 	<!-- 边：**顺序 = 优先级**。
@@ -87,72 +76,31 @@
 	          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。
 	        · `<edge ... after-finish="true">` —— 演完之后**由条件**决定去哪（用于"演完且仍在冲刺 ⇒ 回 fastmove"这类）。 -->
 	<edges>
-		<!-- ⓪ **机外（非飞行）↔ 本机**：进出这台状态机就这两条，都是**相位驱动**（C# 在特定时刻 Force，
-		     状态机不求值，所以运行时零行为变化；写出来只是让"从哪进、从哪出"诚实）。
-		     进机：起飞 = 跳跃中按空格 / 长按空格 ⇒ 相位 Force 进 hoverstart（同时开板、冻人、接管相机）
-		     出机：落地 = 短按贴地·俯冲 / 长按下降 / 撞地 ⇒ 相位 Force 进 superland，演完拆板还相机后回机外
-		     🔴 hoverstart 的**出口**也归相位：入姿播完（1.5 s）**或玩家给方向输入** ⇒ 相位放开控制，
-		       交给下面的阶梯（在移动 ⇒ hovermove / 否则 ⇒ idle）。这条没写成边，是因为它必须
-		       "按输入可提前结束"，而循环状态挡不住 `*` 边、一次性状态又会挡死提前结束（两难），
-		       所以由相位的 Hold 机制独家管。 -->
-		<edge from="outside" to="hoverstart" when="takeoff-trigger" phase="true" />
-		<!-- 🔴 landing（superland）= **出机衔接状态**，和 hoverstart 对称：它不是普通姿态，只负责把"退出飞行状态机"接上。
-		     进它这两条同样是**相位驱动**（状态机不求值 ⇒ 运行期零行为变化），写出来只是让"从哪进"诚实 ——
-		     原来这里是空的（只在 ⓪ 的注释里说过），所以图上 superland 看着像个悬空的点。 -->
-		<edge from="Upright" to="superland" when="land-trigger" phase="true" />
-		<edge from="ProneFamily" to="superland" when="land-trigger" phase="true" />
-		<!-- 🔴 出机（回机外）：**这条边的时机是真的**（不像别的相位边只是文档）——
-		     相位（C# `PlayerFlightBehavior.TickLanding`）会**读这里的 anim-rem-pct** 来判"什么时候出机"：
-		     落地动画**剩 10%** 就拆板还相机、退出飞行状态机。
-		     ⇒ 换 clip 不用改代码；改这个数 = 改出机时机（改完重启游戏即生效，不用重编译）。
-		     ⚠️ 所以 `superland` 必须是 `once="true"` —— 否则算不出"剩余"，相位会回退到旧的 2.0 秒判据。 -->
-		<edge from="superland" to="outside" anim="remaining" anim-rem-pct="10" phase="true" />
-
-		<!-- ① 闪避：来源 = ProneFamily（趴姿族 10 个）。⚠️ 来源含闪避自己 ⇒ 闪避中再按方向键会**重新触发闪避**。
-		     闪避结束后由各自 <state next="fastmove"> 回快移（这正是"短暂状态"的含义）。
-		     若不要"闪避自打断"，把这 4 条的 from 改成 fastmove 即可。 -->
-		<edge from="ProneFamily" to="dodgeL" when="dodge-left" blend="0.12" />
-		<edge from="ProneFamily" to="dodgeR" when="dodge-right" blend="0.12" />
-		<edge from="ProneFamily" to="dodgeU" when="dodge-up" blend="0.12" />
-		<edge from="ProneFamily" to="dodgeD" when="dodge-down" blend="0.12" />
-
-		<!-- ③ 进趴姿唯一的门：来源 = Upright 全部 7 个状态。
-		     只看"按下沿"会在三种情况下被吞（没推方向键 / 起飞落地 Hold 期间 / 施法让位期间），
-		     所以改成"按着 Shift 且在移动 + 来源是直立家"，幂等：进了趴姿族就不在来源表里 -->
-		<edge from="Upright" to="fastmoveStart" when="sprinting" />
-
-		<!-- ④ 趴姿的压弯/俯仰：来源 = ProneFamily（趴姿族 10 个），演完才进（after-finish 保证不打断入姿/闪避）
-		     blend 用 0.15（小姿态；0.3 秒会吃掉大半停留时间） -->
-		<edge from="ProneFamily" to="fastmoveLeanL" when="sprint-lean-left" blend="0.15" after-finish="true" />
-		<edge from="ProneFamily" to="fastmoveLeanR" when="sprint-lean-right" blend="0.15" after-finish="true" />
-		<edge from="ProneFamily" to="fastmovePitchU" when="sprint-look-up" blend="0.15" after-finish="true" />
-		<edge from="ProneFamily" to="fastmovePitchD" when="sprint-look-down" blend="0.15" after-finish="true" />
-
-		<!-- ⑤ 直立悬停的压弯 —— 🔴 **这几条用"键"原语写**（组合与取反都在这里能写）：
-		     `keys="A+B"` = **同时按着** A 和 B（`+` 连，项间 AND）；`not="true"` = **整条取反**。
-		     例：进冲刺 = `keys="W+Shift"`；离开冲刺 = `keys="W+Shift" not="true"`。
-		        · Upright：直立族内部切换（这 6 个目标本身就是直立悬停族）
-		        · ProneFamily：趴姿族要能回到悬停姿态（含闪避；闪避是短暂状态，本身演完自己回 fastmove）
-		        ⚠️ 行为差异：原来 `*`＝任何状态（含 superland），现在 superland 不再是来源 ——
-		           落地动作由相位 Hold 管着，本来就不该被中途踢走（这条是修正，不是退化） -->
-		<edge from="Upright" to="hovermoveLeanL" keys="A" blend="0.15" />
-		<edge from="ProneFamily" to="hovermoveLeanL" keys="A" blend="0.15" />
-		<edge from="Upright" to="hovermoveLeanR" keys="D" blend="0.15" />
-		<edge from="ProneFamily" to="hovermoveLeanR" keys="D" blend="0.15" />
-
-		<!-- ⑥~⑨ 阶梯：待机 / 快移 / 俯仰 / 悬停移动。来源同 ⑤，一律写成显式的容器（不再用 `*`）。
-		     🔴 idle 只判"停住了" —— **Shift 是速度不是姿态开关**，松了方向键就该回直立悬停
-		     （2026-09-25 用户裁定）；"按着 Shift 却不动"要停在 idle 而不是趴姿，
-		     靠的是 fastmove 那条把条件收紧成"按着 Shift 且还在飞" -->
-		<edge from="Upright" to="idle" when="at-rest" />
-		<edge from="ProneFamily" to="idle" when="at-rest" />
-		<edge from="ProneFamily" to="fastmove" when="sprinting" after-finish="true" />
-		<edge from="Upright" to="hovermovePitchU" when="look-up" />
-		<edge from="ProneFamily" to="hovermovePitchU" when="look-up" />
-		<edge from="Upright" to="hovermovePitchD" when="look-down" />
-		<edge from="ProneFamily" to="hovermovePitchD" when="look-down" />
-		<edge from="Upright" to="hovermove" when="moving" />
-		<edge from="ProneFamily" to="hovermove" when="moving" />
+		<edge from="outside" to="进入飞行" when="takeoff-trigger" phase="true" />
+		<edge from="超人落地" to="outside" anim="remaining" anim-rem-pct="20" phase="true" />
+		<edge from="进入飞行" to="悬浮飞行" anim="remaining" anim-rem-pct="15" />
+		<edge from="悬浮飞行" to="冲刺飞行" keys="W+Shift" />
+		<edge from="冲刺飞行" to="悬浮飞行" keys="W+Shift" not="true" />
+		<edge from="冲刺飞行" to="超人落地" when="land-trigger" phase="true" />
+		<edge from="idle" to="hovermove" when="move-input" not="true" />
+		<edge from="hovermove" to="hovermoveLeanL" keys="A+Shift" />
+		<edge from="hovermove" to="hovermoveLeanR" keys="D+Shift" />
+		<edge from="hovermove" to="idle" when="move-input" />
+		<edge from="hovermoveLeanL" to="子容器1" keys="A" not="true" />
+		<edge from="hovermoveLeanR" to="子容器1" keys="D" not="true" />
+		<edge from="fastmoveStart" to="fastmove" keys="W" />
+		<edge from="fastmove" to="dodgeL" keys="Space+A" />
+		<edge from="fastmove" to="dodgeR" keys="Space+D" />
+		<edge from="fastmove" to="dodgeU" keys="W+Space" />
+		<edge from="fastmove" to="dodgeD" keys="S+Space" />
+		<edge from="dodgeL" to="fastmove" anim="remaining" anim-rem-pct="10" />
+		<edge from="dodgeR" to="fastmove" anim="remaining" anim-rem-pct="10" />
+		<edge from="dodgeU" to="fastmove" anim="remaining" anim-rem-pct="10" />
+		<edge from="dodgeD" to="fastmove" anim="remaining" anim-rem-pct="10" />
+		<edge from="fastmove" to="fastmoveLeanL" keys="W+A" />
+		<edge from="fastmove" to="fastmoveLeanR" keys="W+D" />
+		<edge from="fastmoveLeanL" to="fastmove" keys="A" not="true" />
+		<edge from="fastmoveLeanR" to="fastmove" keys="D" not="true" />
 	</edges>
 
 </state_machine>
