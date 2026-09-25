@@ -4,9 +4,74 @@
 
 ## 🔴 交接（2026-09-25 · "FCS 粒子在骑砍里复刻"这条线）
 
-**一句话现状**：99 个效果的 XML 已自动翻译、**全部编译进 ModKit**（`Modules/TaikouAnim/Assets_disabled/particles/`，99/99 成功、硬校验 0 问题）；这一轮修掉了 **6 个根因级缺陷**，**但观感离 FCS 原版仍差一截** —— 最大的那条（**粒子尺寸没从 UE 翻过来**）已定位、代码已写但**没吃到值**，是下次开工第一件事。
+**一句话现状**：99 个效果的 XML 已自动翻译、硬校验 0 问题；**2026-09-25 连做三轮** —— T1 打通「粒子尺寸从 UE 翻译」（380/487 个发射器拿到真值）、元素材质覆盖收窄（不再刷掉语义材质，闪电系大白板消失）、闪电换成原版真闪电贴图。⚠️ **`TaikouAnim/Assets_disabled/particles/` 里那 99 个资产是这三轮之前编的**，要实机看必须先重跑 `tpaccli particleimport`（命令见下方速查）。
 
-### 这一轮修掉的（都渲图复验过）
+### 2026-09-25 第二轮：T1（尺寸没翻译）已修 + 两条新根因
+
+**T1 根因 = 结构性误读，不是"函数没调对"**：解析产物里 `emitters[].constants` 是**扁平点号键字典**
+（键形如 `Constants.<命名空间>.InitializeParticle.Uniform Sprite Size`），而三处读取代码都按**嵌套字典**逐层 get
+⇒ **0/685 命中**，尺寸全落生成器默认值。改法（都在 `pipeline/ue2bannerlord.py`）：
+`const_find`（扁平键 + 尾段匹配）→ `const_num`（标量/vec2 都吃）→ `size_pair`（Min/Max 或单值 → 米）。
+
+| 同一轮顺带修掉的 | 症状 | 修法 |
+|---|---|---|
+| **命名空间取错** | `Empty002_4` 拿到别家的 0.30，而不是自己的 0.02 | `ns_rank`：同名 > 前缀（长者优先）> 第一个 |
+| **vec2 尺寸被丢** | UE 的 `Sprite Size` 是「宽×高」两分量，旧代码只认标量 | `num_or_mean` 取分量均值 |
+| **寿命写成 (min, max−min)** | 引擎语义是 均值±半幅 | 与尺寸同一套算法（旧路径本是死的，修活后自动更正） |
+
+**覆盖面**：Niagara 487 个发射器 → **自身常量 364 + 命名空间表兜底 16 = 380**；
+剩下 107 = **mesh 49 / ribbon 28 / light 4**（骑砍没有这三种渲染器）+ **精灵 26**（继承型发射器：自身没有
+`InitializeParticle`，只有一条乘性缩放曲线 ⇒ 拿不到基值）。
+**验证**：99 文件 / 685 emitter / 硬校验 0 问题；`out/sv4_01…07.png`（99/99 全览，与修复前 `sv2_*` 逐格可比）。
+**观感变化**：buff / 箭矢命中 / 毒 / 疯狂系 = 大涂抹 → **细小离散粒子**；`ne_lightning_mesh` 白柱 → 离散碎片 ✓。
+
+**🔴 本轮新揪出的两条根因（判据已给，第 1 条当晚就修了 → 见下节）**
+
+1. **元素材质「全覆盖」把语义材质刷掉了**（**56/99 个效果命中**）：`ELEMENT_RULES` 对效果名命中元素的所有
+   **可覆盖**发射器统一刷成该元素主材质 —— 闪电系 8 个效果全成 `prt_shd_sparks`，再被 `SIZE_CAP[sparks]=0.45`
+   压成同一个尺寸 ⇒ **一整片白色贴片**（chainlightning / lightningbolt / lightningexplosion / lightningstrike /
+   lightning_barrier 的"大白板/大三角"全是它）。同案被误刷的还有 `MI_Fire_01_8X8→sparks`、`MI_Splash_01→sparks`、
+   `MI_SmokeFlipbook_01→sparks`。
+2. **一批发射器在 UE 里就没有 SpawnRate / SpriteSize 常量**（T3D 实证：`NS_LightningStrike` 的 19 个发射器里
+   只有 `Source_01` 有）⇒ 它们吃我们的兜底 `rate=20`。**这是数据缺失，不是解析 bug**（UE 侧走模块默认值 /
+   连到别的节点上算）—— 要么接受，要么换一个更聪明的兜底（按同文件其他发射器 / 按渲染器类型推）。
+
+### 2026-09-25 第三轮：元素覆盖收窄 + 闪电拿到真贴图
+
+**改动 1 —— 元素覆盖只刷「兜底桶」**（`element_override` + 新增 `_mat_fb` 标记）：
+判据从"材质名在不在白名单里"改成**"我们根本没认出这个材质是什么"**（`map_material` 走 fallback/default 分支、
+或压根没有渲染器）才允许刷；语义匹配到的一律保留。覆盖次数 **278 → 199**，79 处语义材质不再被误刷
+（真实烟雾就该是烟、余烬就该是火星）。`OVERRIDABLE` 白名单**废止**（已写注释禁止加回来）。
+效果：`chainlightning` 从"硬边白板"→ 一串发光节点；`lightningbolt`/`lightningexplosion`/`lightningstrike`
+从大板/大锥 → **离散闪电碎片**。
+
+**改动 2 —— `prt_shd_lightning` 是真材质，而且是我们该用的那个**（实 dump 取证）：
+`tpaccli dump --filter prt_shd_lightning` → `blend=add_modulate_combined` · `[emissive,additive]` ·
+**`tex[0] = lightning`**，把那张贴图导出来看 = **1024×512 里 6 根竖闪电（6 列 × 1 行）**。
+⇒ `MAT_SPRITE` 里它原本声明成 `"1, 1"`（整张糊在一颗粒子上 = 白贴片的另一半原因），改成 **`"6, 1"` + 每颗随机挑一根**。
+（顺手把闪电材质与贴图补进预览资产：`preview/mats/prt_shd_lightning.mat.txt` + `out/mattex_all/particles/lightning.png`。）
+
+**改动 3 —— 顺手修掉一个方向写反的 bug**：Niagara 的 `SubImageSize=(X,Y)` 原本写成 `"Y, X"`。
+知识文档 §八 明写 `(X,Y) → "X, Y"`（`TextureSpriteCountX/Y` 分别对应第 1/2 个数）；方形图集（8×8/5×5）看不出来，
+我们的数据里 `X=2, Y=3` 那两处会切错。改成先列后行。
+
+**验证**：99 文件 / 685 emitter / 硬校验 0 问题；分镜 `out/sv6_01…07.png`（与 sv4/sv5 逐格可比）。
+**⚠️ 预览到此为止**：`render_still` 对材质的还原是近似的（`--tex-rgb` 只是染色），
+**材质层（混合模式 / 自发光强度）必须进 ModKit 或实机判**。
+
+**改动 4 —— 重编资产时发现「整批旧资产都是坏档」**（当晚一并修掉）：
+`tpaccli particleimport` 的 `--packdir` 原先给的是 `Debug/offline/_prt_vanilla`（里面只有 1 个 `particles.tpac`），
+**材质不在那个包里** ⇒ 编译器解析不到材质 GUID，只打印一行 `!! 材质 'prt_shd_xxx' 在原版里也找不到，保留骨架不覆盖`
+就**照常出包**（不报错、退出码 0）。
+**判据（`prtdump` 看材质槽 `G4`，两种编法逐行 diff）**：好档 = 每个 emitter 各自该有的材质
+（`prt_shd_glow` / `haze_1` / `trail`…）；**坏档 = 全部落成骨架材质 `prt_shd_blood_3`**
+（骨架是 `psys_game_blood_1`）—— 也就是说**之前那批资产在 ModKit 里每颗粒子都是"血"材质**。
+文件级判据：同一条 trail 正确编 **1283** 字节 / 坏编 **1251** 字节。
+⇒ 正确 `--packdir` = **`Debug/offline/_prt_native_all`**（151 个包）；**任何 `!!` 告警都当失败**。
+已用它重编 **100 个 XML**（0 失败 0 告警，脚本 `Debug/offline/_recompile_particles.py`），
+游戏侧 `Taikou/AssetPackages/lwn_yinmo_prt.tpac` 一并重建（旧包留 `.bak`）。坑档见 [骑砍2粒子系统.md](骑砍2粒子系统.md) §12.5 坑 10。
+
+### 第一轮（2026-09-24 晚）修掉的 6 条（都渲图复验过）
 
 | # | 缺陷（根因） | 症状 | 修在哪 |
 |---|---|---|---|
@@ -23,10 +88,12 @@
 
 | # | 问题 | 现状 / 下一步 |
 |---|---|---|
-| **T1** | **`particle_size` 根本没从 UE 翻译** | 全量统计：99 个 XML、**685 个发射器清一色 `0.250±0.250`**（值只有 1 种）= 生成器默认值。UE 真值在**文件级常量表**：`doc.emitters[i].constants.Constants.<命名空间>.InitializeParticle.Uniform Sprite Size[ Max\|Min]`（**cm**），实例：`Llightning` = Min50/Max100 → **0.75±0.25 m**、`Sparks` = 5 → **0.05 m**。**读取代码已写（`collect_ue_sizes()` / `em_size_from_table()`）但当前返回空** ⇒ 下次第一件事：单独调这个函数，查为什么没取到（怀疑 `constants.Constants.<NS>` 的层级/类型与假设不符） |
-| **T2** | `chainlightning` 大白板 · `ne_lightning_mesh` 白三角 · `blizzard` 偏黑 · `icytornado` 太空 · `explosiongroundbig` 扇面 | 全部指向 **T1**（尺寸没翻）—— T1 打通后重看一遍，多半成批消失 |
-| **T3** | **只看了约 50/99 个** | 分镜图 `tools/particle-pipeline/out/sv2_01…07.png`（16 格/张 × 7 张 = 全覆盖）；**剩下 5 张没看**，看完再总结一轮 |
-| **T4** | HTML 预览器**没跟上** | `render_still.py` 已支持"按材质取真贴图 + 图集 + 序列帧 + `--tex-rgb`"；`preview.template.html` **还是程序化圆点**（不读贴图、不切图集）⇒ 用户在浏览器里看不到材质层的东西 |
+| **T1** | ~~`particle_size` 根本没从 UE 翻译~~ | ✅ **已修（2026-09-25 第二轮）** —— 根因与覆盖面见上方「第二轮」节 |
+| **T2a** | ~~闪电系大白板~~ | ✅ **已修（第三轮）**：根因 = 元素材质全覆盖 + `prt_shd_lightning` 图集声明成 1,1。现该系多为离散闪电碎片 |
+| **T2b** | `blizzard` 偏黑 · `icytornado` 太空 · `explosiongroundbig`/`frostbolt`/`frostexplosion` 出锥形扇面 | T1 修完**仍在**。这三条各自待查：① blizzard 是黑烟（haze）占比高 + 雪尘亮部不够；② icytornado 主体发射器尺寸正常（0.39±0.13 m）但渲出来偏空 ⇒ 待确认是材质混合还是发射量；③ 锥形/扇面 = `emit_volume`+初速映射（UE 的 cone/cylinder 发射体骑砍没有对应） |
+| **T3** | ~~只看了约 50/99 个~~ | ✅ **已完成全览**：最新一轮分镜 `tools/particle-pipeline/out/sv6_01…07.png`（16 格/张 × 7 张 = 99/99）；历史对照 `sv2_*`（T1 前）→ `sv4_*`（T1 后）→ `sv5_*`（元素收窄） |
+| **T4** | HTML 预览器**没跟上** | 未动（`render_still.py` 已支持材质贴图/图集/序列帧，`preview.template.html` 仍是程序化圆点）|
+| **T5** | ~~资产重编~~ | ✅ **已完成（2026-09-25）**：**100 个 XML 用正确 packdir 重编进 `TaikouAnim/Assets_disabled/particles/`**（0 失败 0 告警）+ 游戏侧包 `Taikou/AssetPackages/lwn_yinmo_prt.tpac` 重建。⚠️ 重编时发现**旧的那批全是坏档**（`--packdir` 给少了 → 材质解析不到，见 §12.5 坑 10）——所以这批不只是"新尺寸"，还是**第一批材质正确的资产**。批量脚本 = `Debug/offline/_recompile_particles.py` |
 
 ### 命令速查（下次直接照抄）
 
@@ -45,7 +112,12 @@ python preview\sheet_stills.py --xmls "D:/BrainMaker/骑砍2粒子特效复刻/o
 python preview\build_preview_set.py        # → D:\...\output\preview\index.html
 
 # ④ 编进 ModKit（模块两态目录：写前先确认是 Assets 还是 Assets_disabled）
-tpaccli particleimport --xml <XML> --out "Modules\TaikouAnim\Assets_disabled\particles" --packdir "Debug\offline\_prt_vanilla" --split
+#    🔴 `--packdir` 必须是 **`Debug\offline\_prt_native_all`**（151 个原版包，**材质在里面**）。
+#       用旧的 `Debug\offline\_prt_vanilla`（只有 1 个 particles.tpac）→ 工具报警告
+#       「材质 'prt_shd_xxx' 在原版里也找不到，保留骨架不覆盖」继续编，**产物是缺材质引用的坏档**
+#       （2026-09-25 实锤：同一条 trail 两种编法 1283 vs 1251 字节，沙箱里现役那批正是坏的那种）。
+#    ⚠️ 一次只能喂一个 XML；批量重编用 `python Debug\offline\_recompile_particles.py`。
+tpaccli particleimport --xml <XML> --out "..\TaikouAnim\Assets_disabled\particles" --packdir "Debug\offline\_prt_native_all" --split
 
 # ⑤ 原版材质贴图对照（挑材质用：41 个 prt_shd_* 的贴图长什么样）
 python Debug\offline\_mat_tex_survey.py    # → tools\particle-pipeline\out\sheet_materials.png

@@ -417,6 +417,17 @@ namespace LivingWorldNpcs.Flight
         public static bool AimOnRightClick = true;
 
         /// <summary>
+        /// **施法中是否允许进"瞄准机位"**（默认 <c>true</c> = 旧行为，按右键就进过肩近景）。
+        ///
+        /// 来历：瞄准机位 = **过肩近景、人物偏左**（<c>FlightCamPreset.Aim</c>），拉近贴肩会把腿挤出画面；
+        /// 而右键同时就是施法键 ⇒ 2026-09-25 验"施法时腿有没有保持飞行姿势"那阵**临时设成 false**
+        /// （施法期间镜头不动，好盯着腿看）。**当天验完已改回 true**。
+        ///
+        /// 以后再要看腿：把它设 <c>false</c> 重编即可（<c>custom.flight tune</c> 还没有这个键）。
+        /// </summary>
+        public static bool AimCameraWhileCasting = true;
+
+        /// <summary>
         /// **接管/归还相机时做"交接"**（2026-09-21 用户提问后补，默认开）。
         ///
         /// 关掉 = 旧行为：接管瞬间**硬切**到运动机位、归还瞬间**硬切**回引擎相机。
@@ -533,21 +544,28 @@ namespace LivingWorldNpcs.Flight
         public static bool CastOnUpperChannel = true;
 
         /// <summary>
-        /// 🔴 **在空中每帧守通道 0**（默认 true，2026-09-24 晚立）：飞行姿势全在通道 0，
-        /// 而「往通道 1 发一条动作」实测会把通道 0 清掉（腿失去飞行姿）⇒ 空了就补回当前飞行姿势。
-        /// **原实现只在"我们自己施法"期间守**，导致 `custom.anim_ch` 手验根本不走这条路（结论失真）。
-        /// 关掉 = 退回"只在施法期间守"的旧行为（用户裁定「只动上半身」那条的原始试验态）。
+        /// 🔴 **已停用**（2026-09-25）：在空中每帧守通道 0（把飞行姿势补回通道 0）。
+        ///
+        /// **为什么停用**：状态探针（`custom.anim_state`）实测证明 —— 通道 1 播动作期间，
+        /// `ch0` 全程 `w=1.00 curW=1.00`，**从来没被清过** ⇒ 原先那句"通道 1 一动会把通道 0 挤掉"
+        /// 是误判，这段补写治的是**不存在的病**。
+        /// 真正的病根与解法 = 飞行姿势的 clip 带 `enforce_lowerbody`（见
+        /// [Knowledge/骑砍2动画通道与上下半身分层.md]）。
+        ///
+        /// 设 <c>true</c> = 恢复旧行为（仅作对照排查用）。**确认无误后这段代码按纪律整个删掉**。
         /// </summary>
-        public static bool GuardChannelZero = true;
+        public static bool GuardChannelZero = false;
 
         /// <summary>
-        /// 🔴 **飞行姿势动作的优先级**（写进 `additionalFlags` 低字节，引擎 `amf_priority_mask`）。
-        /// 默认 **30** —— 比挥手（clip 自带 2）、挥刀（10~15）都高，腿才不会被它们抢走
-        /// （地面不用管：腿归移动动画；飞行中人是冻住的、没有走路动画）。
-        /// 参考量：走路/跑步 clip 自带 0、站着（走路那套的待机）71、欢呼 64。
-        /// 设 0 = 退回"用 clip 自带优先级"的旧行为。运行时试别的值：`custom.anim_ch 0 <动作> prio=NN`。
+        /// 🔴 **已归零**（2026-09-25）：飞行姿势动作的运行时优先级（写进 `additionalFlags` 低字节）。
+        ///
+        /// **为什么归零**：实机已证 **优先级与分层无关** —— clip 元数据里把它从 0 改到 30、
+        /// 运行时传 `prio=60`，腿该被抢还是被抢。保住腿的是 clip 的 `enforce_lowerbody`。
+        /// 归零还额外保证"改 clip 的 Priority 做对照实验"时不会被我这边悄悄覆盖（两处同时给值会分不清谁生效）。
+        ///
+        /// 设成非 0 = 给飞行姿势带一个显式优先级（留作以后若有仲裁需求时用；现在不需要）。
         /// </summary>
-        public static int FlightActionPriority = 30;
+        public static int FlightActionPriority = 0;
 
         /// <summary>
         /// 🔴 **闪避的触发方式（2026-09-22 用户裁定）**：**冲刺（按住 Shift）中短按空格 = 闪避**。

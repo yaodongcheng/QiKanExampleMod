@@ -254,6 +254,15 @@ namespace LivingWorldNpcs
         /// **按指定通道播动作**（2026-09-24 立）—— `custom.do_anim` 只能播 0 号通道（全身），
         /// 这条专门用来验「**上身叠加**」：通道 1 的动作**不该动腿**。
         ///
+        /// 🔴🔴 **flag / prio 这些运行时参数引擎不读**（2026-09-25 实机定案：`lowerbody` / `all` / `prio=60`
+        ///    三次全无反应，而同样的 flag 写进 clip 元数据立刻生效）⇒ 本命令的 flag 参数**只当"设动作进通道"用**，
+        ///    **别拿它验 flag 语义**（要验/要改 = `tpaccli clipflags` / `clipprio`，见
+        ///    [Knowledge/骑砍2动画通道与上下半身分层.md]）。
+        ///    传了 flag 时返回里会带一条 warn 提醒。
+        ///
+        /// 通道的正确用法（结论）：**底层姿势（通道 0）靠 clip 的 `enforce_lowerbody` 保住腿，
+        /// 上层动作（通道 1）什么都别勾** —— 详见同一份 Knowledge 文档。
+        ///
         /// 用法（首参可弃：不是 0~3 的数字就当成动作名、通道回落 1）：
         ///   custom.anim_ch 1 act_cast_charge 1      → 上身**循环**播蓄力姿势（腿保持原样）
         ///   custom.anim_ch 1 act_cast_projectile    → 上身播一次释放姿势
@@ -389,9 +398,10 @@ namespace LivingWorldNpcs
                     ActionIndexCache now = agent.GetCurrentAction(channel);
                     float weight = agent.GetActionChannelWeight(channel);
                     float prog = agent.GetCurrentActionProgress(channel);
-                    back = $" after[matches={(now.Index == idx.Index ? 1 : 0)} weight={weight:0.00} prog={prog:0.00}]";
+                    back = $" after[matches={(now.Index == idx.Index ? 1 : 0)} setIdx={idx.Index} w={weight:0.00} prog={prog:0.00}]";
                 }
                 catch (System.Exception) { }
+                back += "  " + Channels(agent);   // 🔴 两条通道的现状（判"通道 0 是被清空了还是只是没权重"）
 
                 string durNote = duration > 0f ? string.Empty
                     : " [note: duration 0.00s -> this action does not resolve in the agent's current action_set]";
@@ -399,6 +409,12 @@ namespace LivingWorldNpcs
                      + $" ref(act_fly_cruise)={refDuration:0.00}s loop={(cyclic ? 1 : 0)}"
                      + $" lowerbody={(lowerbody ? 1 : 0)} all={(enforceAll ? 1 : 0)} force={(ignorePriority ? 1 : 0)}"
                      + (prioritySet >= 0 ? $" prio={prioritySet}" : "")
+                     // 🔴 自我提醒（2026-09-25 实测）：flags / prio 这两个**运行时参数引擎不读** ——
+                     //    `lowerbody` / `all` / `prio=60` 三次实机零反应；而写进 clip 元数据立刻生效。
+                     //    留着参数只为"设动作进通道"，别再拿它验 flag 语义（要验用 `tpaccli clipflags`）。
+                     + (extraFlags != 0UL
+                        ? "  [warn: additionalFlags(flags/prio) are IGNORED by the engine - write flags into clip metadata instead (tpaccli clipflags)]"
+                        : "")
                      + $" ACCEPTED={accepted}{back}{durNote}{agentNote}";
                 DebugLogger.Log("[Cmd] anim_ch -> " + line);   // 进日志 ⇒ 控制台窗口窄看不全也不怕
                 return line;
@@ -407,6 +423,65 @@ namespace LivingWorldNpcs
             {
                 return "Error: " + e.Message;
             }
+        }
+
+        /// <summary>
+        /// **只读探针：两条动画通道各自在演什么**（2026-09-25 立）。
+        ///
+        /// 为什么需要：飞行中往通道 1 放挥手动作，腿会被它接管；而通道 0 写回去又"没反应"。
+        /// 这两种情况**在画面上长得一模一样**，但引擎状态完全不同：
+        ///   · 通道 0 被清成 act_none（= 没人驱动腿，是谁抢了腿另说）
+        ///   · 通道 0 还挂着飞行姿势、只是 weight=0（= 引擎按层叠把腿让给了通道 1）
+        /// 数字一出来就知道是哪种，不用再猜。
+        ///
+        /// 用法：`custom.anim_state [agentId]`（首参可弃，解析不出就回落主角）
+        /// 返回：`ch0['动作名' idx=… w=通道权重 curW=当前动作权重 prog=进度 prio=优先级]  ch1[…]`
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("anim_state", "custom")]
+        public static string ExecuteAnimState(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+            {
+                return "error: must be in a scene/mission to use this command.";
+            }
+            Agent agent = Agent.Main;
+            string note = string.Empty;
+            if (args.Count >= 1 && !string.IsNullOrWhiteSpace(args[0]))
+            {
+                Agent named = Mission.Current.Agents.FirstOrDefault(x => x.Character?.StringId == args[0]);
+                if (named != null) { agent = named; }
+                else { note = " [note: '" + args[0] + "' is not an agent id -> using main hero]"; }
+            }
+
+            string line = $"state: agent={agent.Name} isPlayer={ (agent == Agent.Main ? 1 : 0) }"
+                        + $" aiming={(SpellCastInput.IsPlayerAiming ? 1 : 0)}  "
+                        + Channels(agent) + note;
+            DebugLogger.Log("[Cmd] anim_state -> " + line);
+            return line;
+        }
+
+        /// <summary>
+        /// 只读：把 0 / 1 两条动画通道的现状拼成一行（动作名 · 索引 · 通道权重 · 当前动作权重 · 进度 · 优先级）。
+        /// 判据：`idx` 与刚才 `custom.anim_ch` 回显的 `setIdx` 一致 = 这条动作还在通道里。
+        /// </summary>
+        private static string Channels(Agent a)
+        {
+            if (a == null) { return "(no agent)"; }
+            var sb = new System.Text.StringBuilder();
+            for (int ch = 0; ch <= 1; ch++)
+            {
+                try
+                {
+                    ActionIndexCache cur = a.GetCurrentAction(ch);
+                    sb.Append($"ch{ch}['{V.ActName(a, ch)}' idx={cur.Index} w={a.GetActionChannelWeight(ch):0.00}"
+                              + $" curW={a.GetActionChannelCurrentActionWeight(ch):0.00}"
+                              + $" prog={a.GetCurrentActionProgress(ch):0.00}"
+                              + $" prio={a.GetCurrentActionPriority(ch)}]");
+                }
+                catch (System.Exception e) { sb.Append($"ch{ch}[err:{e.Message}]"); }
+                if (ch == 0) { sb.Append("  "); }
+            }
+            return sb.ToString();
         }
 
         /// <summary>

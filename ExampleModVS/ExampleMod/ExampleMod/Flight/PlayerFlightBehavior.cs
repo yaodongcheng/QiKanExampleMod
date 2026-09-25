@@ -937,7 +937,12 @@ namespace LivingWorldNpcs.Flight
 
             bool boosting = FlightInput.BoostHeld;
 
-            if (FlightTuning.AimOnRightClick && FlightInput.AimHeld && !boosting)
+            // 🔴 **施法期间不进瞄准机位**（2026-09-25 用户要求）：右键同时是施法键，
+            //    而瞄准机位是过肩近景（人物偏左）⇒ 一蓄力镜头就贴上去、腿被挤出画面，
+            //    没法验证"施法时腿保持飞行姿势"。开关 = `FlightTuning.AimCameraWhileCasting`。
+            bool castingNow = SpellCastInput.IsPlayerAiming;
+            if (FlightTuning.AimOnRightClick && FlightInput.AimHeld && !boosting
+                && (FlightTuning.AimCameraWhileCasting || !castingNow))
             {
                 _camPreset = FlightCamPreset.Aim;
                 return;
