@@ -27,15 +27,17 @@ namespace LivingWorldNpcs.Animation
     /// <code>
     /// &lt;state_machine name="flight"&gt;
     ///   &lt;families&gt;
-    ///     &lt;family name="ProneFamily"&gt;fastmove fastmoveStart dodgeL&lt;/family&gt;   ← 成员空格分隔
+    ///     &lt;family name="Prone" entry="fastmove"&gt;fastmove fastmoveStart dodgeL&lt;/family&gt;
+    ///       ← 成员空格分隔；**entry = 容器（子状态机）的真实入口**：进容器落到哪个状态
     ///   &lt;/families&gt;
     ///   &lt;states&gt;
     ///     &lt;state name="idle" act="act_fly_idle"/&gt;                                ← 不带 duration = 循环
     ///     &lt;state name="fastmoveStart" act="act_fly_fastmove_start" duration="boostStartSeconds"/&gt;
     ///   &lt;/states&gt;
     ///   &lt;edges&gt;
-    ///     &lt;edge from="PronePoses" to="dodgeL" when="dodge-left" blend="0.12"/&gt;   ← from 可以是 "*" / 状态 / 族
-    ///     &lt;edge from="ProneFamily" to="fastmove" when="sprinting" after-finish="true"/&gt;
+    ///     &lt;edge from="Prone" to="dodgeL" when="dodge-left" blend="0.12"/&gt;   ← from = 状态 / 容器（容器 = 它里面任何状态）
+    ///     &lt;edge from="outside" to="Prone" phase="true"/&gt;                    ← to = 状态 / 容器（容器 = 进容器，装载期解析成它的 entry）
+    ///     &lt;edge from="Prone" to="fastmove" when="sprinting" after-finish="true"/&gt;
     ///   &lt;/edges&gt;
     /// &lt;/state_machine&gt;
     /// </code>
@@ -88,6 +90,10 @@ namespace LivingWorldNpcs.Animation
 
             var problems = new List<string>();
             var families = new Dictionary<string, string[]>(StringComparer.Ordinal);
+            // 🔴 容器（子状态机）的**真实入口**：进容器落到哪个状态。
+            //    有了它，边就能直接指向容器（`to="Upright"`），**装载期**解析成这个状态
+            //    ⇒ 运行时看到的仍是具体状态名，状态机热路径一行都不用改。
+            var familyEntry = new Dictionary<string, string>(StringComparer.Ordinal);
             var states = new List<AnimState>();
 
             // ── 族 ──
@@ -108,9 +114,11 @@ namespace LivingWorldNpcs.Animation
                                                                  StringSplitOptions.RemoveEmptyEntries);
                 if (members.Length == 0)
                 {
-                    problems.Add("族 '" + famName + "' 一个成员都没有");
+                    problems.Add("容器 '" + famName + "' 一个成员都没有");
                 }
                 families[famName] = members;
+                string entryAttr = Attr(node, "entry");
+                if (!string.IsNullOrEmpty(entryAttr)) familyEntry[famName] = entryAttr;
             }
 
             // ── 状态 ──
@@ -175,8 +183,12 @@ namespace LivingWorldNpcs.Animation
                 {
                     if (!stateNames.Contains(m))
                     {
-                        problems.Add("族 '" + kv.Key + "' 里的 '" + m + "' 不是已声明的状态");
+                        problems.Add("容器 '" + kv.Key + "' 里的 '" + m + "' 不是已声明的状态");
                     }
+                }
+                if (familyEntry.TryGetValue(kv.Key, out string ent) && Array.IndexOf(kv.Value, ent) < 0)
+                {
+                    problems.Add("容器 '" + kv.Key + "' 的 entry='" + ent + "' 不是它的成员");
                 }
             }
 
@@ -208,6 +220,17 @@ namespace LivingWorldNpcs.Animation
                         continue;
                     }
                 }
+                else if (families.ContainsKey(to))
+                {
+                    // 🔴 目标写成**容器名** = 进入该容器，落到它的 entry（= UE 的子状态机 Entry）。
+                    //    这里在**装载期**就解析成具体状态 ⇒ 运行时热路径零改动。
+                    if (!familyEntry.TryGetValue(to, out string entryState))
+                    {
+                        problems.Add(label + " 的目标 '" + to + "' 是容器，但该容器没写 entry（进容器落到哪个状态）");
+                        continue;
+                    }
+                    to = entryState;
+                }
                 else if (!stateNames.Contains(to))
                 {
                     problems.Add(label + " 的目标 '" + to + "' 不是已声明的状态");
@@ -237,7 +260,7 @@ namespace LivingWorldNpcs.Animation
                 }
                 else
                 {
-                    problems.Add(label + " 的来源 '" + from + "' 既不是 * 、也不是状态或族");
+                    problems.Add(label + " 的来源 '" + from + "' 既不是 * 、也不是状态或容器");
                     continue;
                 }
                 // 条件三选一：when= 命名谓词 / key=+key-mode= 单键 / anim=[+anim-lt=] 动画时间

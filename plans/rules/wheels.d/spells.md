@@ -224,7 +224,7 @@ custom.spell probe               对最近的 agent 做三条实测定性（射�
 1. **材质名不可望文生义** —— `prt_shd_fire_1` 的贴图是**橙褐色叶/片状图集、不是火**（照它做火系 ⇒ 几乎不可见）；**真火焰是 `prt_shd_flame_1`**（贴图 `torchflameloop`）。挑材质前先看贴图：
    `python Debug/offline/_mat_tex_survey.py` → `tools/particle-pipeline/out/sheet_materials.png`（41 个 `prt_shd_*` 一张图）。
 2. **图集切法是"贴图"的属性** —— 换材质**必须同时换** `texture_sprite_count / texture_sprite_frame_count / texture_sprite_frame_rate`；`"1, 1"` 要**显式写**（生成器模板默认 `2, 2` 会顶上来 ⇒ 单格贴图被切 4 份 = **硬方块**）。切法表**从原版 XML 统计**（`ue2bannerlord.py` 的 `MAT_SPRITE`，8 个 `particle_systems_*.xml` / 57 材质取众数）；切片对不对用 `python Debug/offline/_grid_check.py <png> <列,行> <out.png>` 验。
-3. **`max_alive_particle_count = 0` = 一颗都不给**（不是"无限"）—— 外部数据（UE）没这个概念时会被填 0 ⇒ **实机空白，而预览器正常**（它宽容地把 0 当 1500）⇒ 这类"实机才有"的缺陷只能靠实机或看数值抓。
+3. 🔴 **`max_alive_particle_count = 0` = 不限**（**2026-09-25 更正**；原文写"0 = 一颗都不给"）—— 判据 = **原版 813 个发射器里 453 个就是 0**（含实机能跑的 `psys_haze_1` / `static_flame`），二进制 dump 亦证实原版 haze `maxAlive=0`。旧结论来自一次「实机空白」现象，但同批资产还有**材质全落骨架（坑 10）/ 退化 alpha（坑 7）**两个真凶 ⇒ **那次空白不是 0 的锅**（该条待复核，暂按"0=不限"）。**实践不变：我们自己仍填正数**（无害、且更可控）。
 4. **元素要"材质 + 颜色"一起换** —— 只换材质不换颜色会出现"冰霜渲成灰/暗红、毒渲成白、暴风雪黑成一片"（颜色由 UE 曲线带进来）。见 `ELEMENT_COLOR` + `apply_element_color()`。
    配套：`sparks`/`glow` 这类**小元素**要钉尺寸上限，而且**基础值与曲线都要钉**（有效尺寸 = 基础 + 曲线×倍率）。
 

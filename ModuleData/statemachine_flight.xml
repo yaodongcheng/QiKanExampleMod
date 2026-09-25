@@ -3,10 +3,10 @@
      🔴 **改这个文件不用重编译** —— 重启游戏即生效（引擎不解析它，是我们自己在
         `MySubModule.OnSubModuleLoad` → `FlightAnimMachine.Register()` 里读的）。
 
-     🔴 **两个读者：游戏 + 可视化页**
+     🔴 **两个读者：游戏 + 编辑器页**
         · 游戏：`Animation/AnimMachineLoader.cs` 装载 + 校验（转成 AnimMachineDef）
-        · 可视化页：`Debug/offline/gen_statemachine_page.py` 读**同一个文件**渲染节点图
-        ⇒ 页面不可能和游戏里跑的那份分叉。（页面是生成物，改这里重跑生成器。）
+        · 编辑器页：`tools/anim-statemachine/gen_statemachine_editor.py` 读**同一个文件**画图 / 改结构
+        ⇒ 页面不可能和游戏里跑的那份分叉。（页面是生成物，改这里重跑生成器；页面本体 `statemachine_editor.html` 在 tools 里进 git。）
 
      🔴 **装载期校验**：状态名 / 目标 / 族成员 / 谓词名 / 数字 —— 有一处不对就**整台不注册**
         并列全部问题到日志（`[Anim]` 前缀）。所以打错字不会静默，是**响亮地失败**。
@@ -24,14 +24,24 @@
           · phase="true"     = **不由状态机求值**，由飞行相位 C# `Force` 进 —— 写在这里只为让表/图完整 -->
 <state_machine name="flight">
 
-	<!-- 族 = 一组状态，可以被当成边的来源（= UE 的 State Alias）。
-	     成员必须是下面 <states> 里声明过的状态名；空格分隔。
-	     为什么这么分：直立家与趴姿族的姿势基准差 ~90°，跨族切会"硬翻"，
-	     所以进趴姿必须经 fastmoveStart 那道门。 -->
+	<!-- 容器（= 边的来源集合，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。
+	     用户 2026-09-25 裁定：
+	       · 状态必须"只出现一次的唯一定义"（原来 PronePoses ⊂ ProneFamily 重叠，不符合 UE）
+	       · 趴姿**只留一个容器**（删掉 PronePoses，合并进 ProneFamily）——
+	         闪避 4 个也在这里面；它们是**短暂状态**：从趴姿进，演完由 <state next="fastmove"> 回快移
+	     现在只有两个容器，互不重叠：
+	       · Upright（直立）7 个 —— 悬停姿态族
+	       · ProneFamily（趴姿族）10 个 —— 趴姿本体 6 + 闪避 4
+	     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会"硬翻"，所以进趴姿必须经 fastmoveStart 那道门。
+	     superland 不归属任何容器（散状态 = 出机衔接状态）。 -->
 	<families>
-		<family name="UprightFamily">idle hovermove hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD hoverstart magicIdle</family>
-		<family name="PronePoses">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD</family>
-		<family name="ProneFamily">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD dodgeL dodgeR dodgeU dodgeD</family>
+		<!-- 🔴 容器 = **真实的子状态机**（对齐 UE），不是展示用的分组：
+		     · 成员 = 它拥有的状态（每个状态只归属一个容器）
+		     · **entry = 它的真实入口**：从外面"进入这个容器"时落到哪个状态
+		     · 边的 `to=` 可以直接写**容器名** ⇒ 装载期解析成它的 entry（引擎热路径零改动）
+		     · 边的 `from=` 写容器名 = 该容器里**任何状态**（对应 UE 的 State Alias 用法） -->
+		<family name="Upright" entry="hovermove">idle hovermove hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD hoverstart</family>
+		<family name="ProneFamily" entry="fastmove">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD dodgeL dodgeR dodgeU dodgeD</family>
 	</families>
 
 	<!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。
@@ -44,7 +54,9 @@
 		<state name="hovermovePitchD" act="act_fly_hovermove_pitchd" />
 		<state name="hovermoveLeanL" act="act_fly_hovermove_lean_l" />
 		<state name="hovermoveLeanR" act="act_fly_hovermove_lean_r" />
+		<!-- 🚪 进机衔接状态（起飞入姿）：相位 Force 进，演完或玩家给输入就放开控制 —— 见 <edges> ⓪ -->
 		<state name="hoverstart" act="act_fly_hoverstart" />
+		<!-- 🚪 出机衔接状态（落地收尾）：相位 Force 进，演完拆板还相机后回机外 —— 见 <edges> ⓪ -->
 		<state name="superland" act="act_fly_superland" />
 
 		<state name="fastmove" act="act_fly_fastmove" />
@@ -61,13 +73,10 @@
 		<state name="dodgeU" act="act_fly_dodge_u" duration="dodgeClipSeconds" next="fastmove" />
 		<state name="dodgeD" act="act_fly_dodge_d" duration="dodgeClipSeconds" next="fastmove" />
 
-		<!-- 施法手势（回退档：CastOnUpperChannel = false 时才由状态机播） -->
-		<state name="magicIdle" act="act_magic_idle" />
-		<state name="magicProjectile" act="act_magic_projectile" duration="castReleaseSeconds" />
 	</states>
 
 	<!-- 边：**顺序 = 优先级**。
-	     from = "*"（任意状态）或 状态名 或 族名；to = 状态名；when = 已登记的谓词名；
+	     from = 状态名 或 族名；to = 状态名；when = 已登记的谓词名；
 	     blend 省略 = 用机器默认（FlightTuning.AnimBlendIn，热调 tune blend）。
 
 	     🔴 **"演完去哪"有两种写法，别混**：
@@ -85,44 +94,57 @@
 		       "按输入可提前结束"，而循环状态挡不住 `*` 边、一次性状态又会挡死提前结束（两难），
 		       所以由相位的 Hold 机制独家管。 -->
 		<edge from="outside" to="hoverstart" when="takeoff-trigger" phase="true" />
+		<!-- 🔴 landing（superland）= **出机衔接状态**，和 hoverstart 对称：它不是普通姿态，只负责把"退出飞行状态机"接上。
+		     进它这两条同样是**相位驱动**（状态机不求值 ⇒ 运行期零行为变化），写出来只是让"从哪进"诚实 ——
+		     原来这里是空的（只在 ⓪ 的注释里说过），所以图上 superland 看着像个悬空的点。 -->
+		<edge from="Upright" to="superland" when="land-trigger" phase="true" />
+		<edge from="ProneFamily" to="superland" when="land-trigger" phase="true" />
 		<edge from="superland" to="outside" when="land-trigger" phase="true" />
 
-		<!-- ① 闪避：来源只有"趴姿本体 6 个"（不含闪避自己），且**可以打断**正在播的入姿 -->
-		<edge from="PronePoses" to="dodgeL" when="dodge-left" blend="0.12" />
-		<edge from="PronePoses" to="dodgeR" when="dodge-right" blend="0.12" />
-		<edge from="PronePoses" to="dodgeU" when="dodge-up" blend="0.12" />
-		<edge from="PronePoses" to="dodgeD" when="dodge-down" blend="0.12" />
+		<!-- ① 闪避：来源 = ProneFamily（趴姿族 10 个）。⚠️ 来源含闪避自己 ⇒ 闪避中再按方向键会**重新触发闪避**。
+		     闪避结束后由各自 <state next="fastmove"> 回快移（这正是"短暂状态"的含义）。
+		     若不要"闪避自打断"，把这 4 条的 from 改成 fastmove 即可。 -->
+		<edge from="ProneFamily" to="dodgeL" when="dodge-left" blend="0.12" />
+		<edge from="ProneFamily" to="dodgeR" when="dodge-right" blend="0.12" />
+		<edge from="ProneFamily" to="dodgeU" when="dodge-up" blend="0.12" />
+		<edge from="ProneFamily" to="dodgeD" when="dodge-down" blend="0.12" />
 
-		<!-- ② 施法压过一切（回退档专用；CastOnUpperChannel = true 时这条不成立） -->
-		<edge from="*" to="magicIdle" when="casting-fallback" blend="0.15" />
-
-		<!-- ③ 进趴姿唯一的门：来源 = 直立家全部 8 个状态。
+		<!-- ③ 进趴姿唯一的门：来源 = Upright 全部 7 个状态。
 		     只看"按下沿"会在三种情况下被吞（没推方向键 / 起飞落地 Hold 期间 / 施法让位期间），
 		     所以改成"按着 Shift 且在移动 + 来源是直立家"，幂等：进了趴姿族就不在来源表里 -->
-		<edge from="UprightFamily" to="fastmoveStart" when="sprinting" />
+		<edge from="Upright" to="fastmoveStart" when="sprinting" />
 
-		<!-- ④ 快移家（趴姿）的压弯/俯仰：来源 = 趴姿族 10 个，演完才进（不打断入姿/闪避）
+		<!-- ④ 趴姿的压弯/俯仰：来源 = ProneFamily（趴姿族 10 个），演完才进（after-finish 保证不打断入姿/闪避）
 		     blend 用 0.15（小姿态；0.3 秒会吃掉大半停留时间） -->
 		<edge from="ProneFamily" to="fastmoveLeanL" when="sprint-lean-left" blend="0.15" after-finish="true" />
 		<edge from="ProneFamily" to="fastmoveLeanR" when="sprint-lean-right" blend="0.15" after-finish="true" />
 		<edge from="ProneFamily" to="fastmovePitchU" when="sprint-look-up" blend="0.15" after-finish="true" />
 		<edge from="ProneFamily" to="fastmovePitchD" when="sprint-look-down" blend="0.15" after-finish="true" />
 
-		<!-- ⑤ 悬停移动家（直立）的压弯 —— 🔴 **这两条改用"键"原语写**（示范新写法）：
+		<!-- ⑤ 直立悬停的压弯 —— 🔴 **这几条改用"键"原语写**（示范新写法）：
 		     以前要先去 C# 登记一个谓词 `hold-left`，现在直接在定义里写"按着 A"。
-		     🟢 键是二值的，**不需要迟滞**（迟滞是给模拟量用的：鼠标俯仰那条才需要）。 -->
-		<edge from="*" to="hovermoveLeanL" key="A" key-mode="held" blend="0.15" />
-		<edge from="*" to="hovermoveLeanR" key="D" key-mode="held" blend="0.15" />
+		        · Upright：直立族内部切换（这 6 个目标本身就是直立悬停族）
+		        · ProneFamily：趴姿族要能回到悬停姿态（含闪避；闪避是短暂状态，本身演完自己回 fastmove）
+		        ⚠️ 行为差异：原来 `*`＝任何状态（含 superland），现在 superland 不再是来源 ——
+		           落地动作由相位 Hold 管着，本来就不该被中途踢走（这条是修正，不是退化） -->
+		<edge from="Upright" to="hovermoveLeanL" key="A" key-mode="held" blend="0.15" />
+		<edge from="ProneFamily" to="hovermoveLeanL" key="A" key-mode="held" blend="0.15" />
+		<edge from="Upright" to="hovermoveLeanR" key="D" key-mode="held" blend="0.15" />
+		<edge from="ProneFamily" to="hovermoveLeanR" key="D" key-mode="held" blend="0.15" />
 
-		<!-- ⑥~⑨ 阶梯：待机 / 快移 / 俯仰 / 悬停移动。
+		<!-- ⑥~⑨ 阶梯：待机 / 快移 / 俯仰 / 悬停移动。来源同 ⑤，一律写成显式的容器（不再用 `*`）。
 		     🔴 idle 只判"停住了" —— **Shift 是速度不是姿态开关**，松了方向键就该回直立悬停
 		     （2026-09-25 用户裁定）；"按着 Shift 却不动"要停在 idle 而不是趴姿，
 		     靠的是 fastmove 那条把条件收紧成"按着 Shift 且还在飞" -->
-		<edge from="*" to="idle" when="at-rest" />
+		<edge from="Upright" to="idle" when="at-rest" />
+		<edge from="ProneFamily" to="idle" when="at-rest" />
 		<edge from="ProneFamily" to="fastmove" when="sprinting" after-finish="true" />
-		<edge from="*" to="hovermovePitchU" when="look-up" />
-		<edge from="*" to="hovermovePitchD" when="look-down" />
-		<edge from="*" to="hovermove" when="moving" />
+		<edge from="Upright" to="hovermovePitchU" when="look-up" />
+		<edge from="ProneFamily" to="hovermovePitchU" when="look-up" />
+		<edge from="Upright" to="hovermovePitchD" when="look-down" />
+		<edge from="ProneFamily" to="hovermovePitchD" when="look-down" />
+		<edge from="Upright" to="hovermove" when="moving" />
+		<edge from="ProneFamily" to="hovermove" when="moving" />
 	</edges>
 
 </state_machine>
