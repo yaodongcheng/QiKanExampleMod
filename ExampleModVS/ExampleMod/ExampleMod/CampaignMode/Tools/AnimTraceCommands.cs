@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using LivingWorldNpcs.Animation;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -268,18 +269,76 @@ namespace LivingWorldNpcs.CampaignMode
     /// 控制台入口 <c>custom.anim_trace</c>（2026-09-22）。逐帧骨骼取证，见 <see cref="AnimTraceBehavior"/>。
     ///
     /// <code>
-    /// custom.anim_trace                          默认：act_fly_boost 跑 2 秒
-    /// custom.anim_trace act_fly_cruise           指定动作，2 秒
-    /// custom.anim_trace act_fly_boost 3          跑 3 秒
-    /// custom.anim_trace act_fly_boost 3 all      不筛骨，全部 28 根都打
+    /// custom.anim_trace                          默认：act_fly_fastmove 跑 2 秒
+    /// custom.anim_trace act_fly_hovermove        指定动作，2 秒
+    /// custom.anim_trace act_fly_fastmove 3       跑 3 秒
+    /// custom.anim_trace act_fly_fastmove 3 all   不筛骨，全部 28 根都打
     /// custom.anim_trace 1                        首参可弃：认不出就用默认动作
     /// </code>
     ///
     /// 🔴 两条项目纪律：返回文本**纯英文**（要显示在游戏内控制台）；**首参可弃**。
+    ///
+    /// 同族还有 <c>custom.anim_log</c>（状态机的日志开关，见本类下方）。
     /// </summary>
     public static class AnimTraceCommands
     {
-        private const string DefaultAction = "act_fly_boost";
+        private const string DefaultAction = "act_fly_fastmove";
+
+        /// <summary>
+        /// 控制台入口 <c>custom.anim_log [off|on|full]</c>（2026-09-25）——
+        /// **动画状态机的日志开关**，本体在 <see cref="AnimDebug"/>（`Animation/AnimDebug.cs`）。
+        ///
+        /// <code>
+        /// custom.anim_log            查当前档位（首参可弃：认不出的当占位符）
+        /// custom.anim_log on         拐点日志：状态切换 + blend 后生效确认 + 输入沿
+        /// custom.anim_log full       再加高频诊断（"被抢走重设"、逐帧那些）—— 会刷屏，排查时才开
+        /// custom.anim_log off        全关（**默认**）
+        /// </code>
+        ///
+        /// 🔴 **`✗ 被抢走` 那条不受本开关管**（异常证据，永远打）。
+        /// 🔴 与 <c>custom.flight log</c>（飞行自己的高频总闸）是**两回事**：那个管采样，这个管拐点。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("anim_log", "custom")]
+        public static string ExecuteAnimLog(List<string> args)
+        {
+            string note = string.Empty;
+            if (args != null && args.Count >= 1 && !string.IsNullOrWhiteSpace(args[0]))
+            {
+                switch (args[0].ToLowerInvariant())
+                {
+                    case "on":
+                    case "1":
+                    case "true":
+                    case "trace":
+                        AnimDebug.Trace = true;
+                        AnimDebug.Verbose = false;
+                        break;
+
+                    case "full":
+                    case "verbose":
+                    case "all":
+                        AnimDebug.Trace = true;
+                        AnimDebug.Verbose = true;
+                        break;
+
+                    case "off":
+                    case "0":
+                    case "false":
+                    case "quiet":
+                        AnimDebug.Trace = false;
+                        AnimDebug.Verbose = false;
+                        break;
+
+                    default:
+                        // 首参可弃纪律：认不出的当占位符，只查不改，并注明
+                        note = $" [note: '{args[0]}' is not a level -> query only]";
+                        break;
+                }
+            }
+            return "OK. anim_state_machine " + AnimDebug.Describe()
+                 + " | levels: off (default) / on (trace) / full (+ verbose)"
+                 + " | note: 'stolen' warnings are never silenced" + note;
+        }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("anim_trace", "custom")]
         public static string ExecuteAnimTrace(List<string> args)

@@ -64,11 +64,11 @@ namespace LivingWorldNpcs
 		//    Flags.allow_head_movement），已在编辑器修好并发布（计划 §A4）—— 不是引擎不认我们的动作。
 		// 回退：`FlightTuning.CastOnUpperChannel = false` ⇒ 改由飞行状态机走通道 0 播全身施法姿势。
 
-		/// <summary>蓄力循环动作名（与内容包 `action_types.xml` 的声明一致）。</summary>
-		private const string ActCastCharge = "act_cast_charge";
+		/// <summary>蓄力循环动作名（与内容包 `action_types.xml` 的声明一致；词根跟着 clip `magic_idle`）。</summary>
+		private const string ActMagicIdle = "act_magic_idle";
 
-		/// <summary>释放动作名（同上）。</summary>
-		private const string ActCastProjectile = "act_cast_projectile";
+		/// <summary>释放动作名（同上；clip = `magic_projectile_spell`）。</summary>
+		private const string ActMagicProjectile = "act_magic_projectile";
 
 		private const float CastAnimBlendIn = 0.12f;    // 进手势的淡入（短一点，按键要"立刻有反应"）
 		private const float CastAnimBlendOut = 0.25f;   // 收回通道 1 的淡出
@@ -92,7 +92,7 @@ namespace LivingWorldNpcs
 			{
 				return;
 			}
-			if (SetChannelOne(player, ActCastCharge, cyclic: false))
+			if (SetChannelOne(player, ActMagicIdle, cyclic: false))
 			{
 				_castAnim = CastAnim.Charging;
 			}
@@ -101,7 +101,7 @@ namespace LivingWorldNpcs
 		/// <summary>释放手势（一次性）：放出去那一拍播；播完由 <see cref="TickCastAnim"/> 收回通道 1。</summary>
 		private void PlayReleaseAnim(Agent player)
 		{
-			if (SetChannelOne(player, ActCastProjectile, cyclic: false))
+			if (SetChannelOne(player, ActMagicProjectile, cyclic: false))
 			{
 				_castAnim = CastAnim.Releasing;
 			}
@@ -195,7 +195,7 @@ namespace LivingWorldNpcs
 		//    · `release_at = 0.36` ⇒ 等到抬手动作做完那一拍才飞出去（最像"投出去"，代价是 0.83 s 延迟）
 		//    运行时试：`custom.spell lead <秒>`（0 = 即时；不用重启、不用改数据）。
 
-		/// <summary>释放动作 `act_cast_projectile` 的时长（秒）—— 换素材时同步改这里（`MagicIdle` 是 1.80）。</summary>
+		/// <summary>释放动作 `act_magic_projectile` 的时长（秒）—— 换素材时同步改这里（`magic_idle` 是 1.80）。</summary>
 		private const float ReleaseClipSeconds = 2.33f;   // ≈ `FlightTuning.CastReleaseSeconds`（同一颗 clip，改一个别忘另一个）
 
 		private bool _hasPendingRelease;

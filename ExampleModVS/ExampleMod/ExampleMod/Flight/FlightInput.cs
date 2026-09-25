@@ -69,6 +69,8 @@ namespace LivingWorldNpcs.Flight
         public static bool DiagNumpad6Down { get; private set; }
         public static bool DiagSpaceDown { get; private set; }
         public static bool DiagShiftDown { get; private set; }
+        public static bool DiagLeftMouseDown { get; private set; }
+        public static bool DiagRightMouseDown { get; private set; }
         /// <summary>诊断：本帧是否因为 UI 门控被整体清空。</summary>
         public static bool DiagWasReset { get; private set; }
 
@@ -108,6 +110,8 @@ namespace LivingWorldNpcs.Flight
             DiagNumpad6Down = Input.IsKeyDown(InputKey.Numpad6);
             DiagSpaceDown = Input.IsKeyDown(InputKey.Space);
             DiagShiftDown = Input.IsKeyDown(InputKey.LeftShift);
+            DiagLeftMouseDown = Input.IsKeyDown(InputKey.LeftMouseButton);
+            DiagRightMouseDown = Input.IsKeyDown(InputKey.RightMouseButton);
 
             if (BlockedByUi)
             {
@@ -199,8 +203,10 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>
         /// 冲刺键（左 Shift）**按下沿**是否发生过 —— 边沿触发，一次按下只返回一次 true。
-        /// 用途：进冲刺的**入姿**动画（`dashStart`），治"按 Shift 直接硬切到趴姿"。
-        /// 🔴 与 <see cref="BoostHeld"/> 是两回事：那是"按着"，这是"刚按下"。
+        /// 🔴 **当前无消费者**（2026-09-25 起）：入姿动画改判"来源是直立家 + Shift 按着"
+        ///    （见 `FlightAnimMachine` 的 ③ 那段），一帧就消失的按下沿会被 Hold / 施法让位吞掉。
+        ///    保留本方法是因为它是个**输入事实**（将来若有"双击 Shift"这类手势还要用），不是死逻辑。
+        /// 与 <see cref="BoostHeld"/> 是两回事：那是"按着"，这是"刚按下"。
         /// </summary>
         public static bool ConsumeBoostPress()
         {

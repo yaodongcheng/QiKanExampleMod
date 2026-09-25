@@ -85,13 +85,30 @@ namespace LivingWorldNpcs.Animation
         /// <summary>过渡时长（秒）。&lt;0 = 用机器定义的默认值。</summary>
         public float Blend = -1f;
 
-        public AnimEdgeDef(string[] from, string to, Func<AnimContext, bool> when, float blend = -1f)
+        /// <summary>
+        /// **只在该状态"演完之后"生效**（正在播的一次性动作**不参与**求值）。
+        ///
+        /// 🔴 **它补的是缺的第三档**（原来只有两档）：
+        ///    · `From = "*"`      —— 谁都能进，**但不打断**一次性动作；
+        ///    · `From = 指名状态` —— 只能从这些状态进，**且可以打断**（用于"闪避可以打断入姿"这类）；
+        ///    · **本开关**：`From = 指名状态` + **不打断**。
+        ///
+        /// 典型场景就是它诞生的原因（2026-09-25）：**"一次性动作演完回主状态"这条边**
+        /// 必须**指名**那几个一次性状态（不指名的话别的状态也能进来），
+        /// 但**绝不能打断它们**（不开关的话 `dodge → fastmove` 会把闪避动画切一半。
+        /// 实测：玩家闪避时一定按着 W，`Boost &amp;&amp; Moving` 恒成立 ⇒ 必被切）。
+        /// </summary>
+        public bool OnlyAfterFinish;
+
+        public AnimEdgeDef(string[] from, string to, Func<AnimContext, bool> when,
+                           float blend = -1f, bool onlyAfterFinish = false)
         {
-            From = from; To = to; When = when; Blend = blend;
+            From = from; To = to; When = when; Blend = blend; OnlyAfterFinish = onlyAfterFinish;
         }
 
-        public AnimEdgeDef(string from, string to, Func<AnimContext, bool> when, float blend = -1f)
-            : this(new[] { from }, to, when, blend)
+        public AnimEdgeDef(string from, string to, Func<AnimContext, bool> when,
+                           float blend = -1f, bool onlyAfterFinish = false)
+            : this(new[] { from }, to, when, blend, onlyAfterFinish)
         {
         }
 
@@ -123,7 +140,7 @@ namespace LivingWorldNpcs.Animation
     /// <code>
     /// var def = new AnimMachineDef("flight");
     /// def.Add(AnimState.Loop("idle", "act_fly_idle"));
-    /// def.Add(AnimState.Once("dashStart", "act_fly_dash_start", next: "boost", duration: 1.0f));
+    /// def.Add(AnimState.Once("fastmoveStart", "act_fly_fastmove_start", next: "fastmove", duration: 1.0f));
     /// def.Edge("*", "idle", ctx => !((MyCtx)ctx).Moving, blend: 0.3f);
     /// AnimMachineRegistry.Register(def);
     /// </code>
@@ -168,17 +185,20 @@ namespace LivingWorldNpcs.Animation
             return this;
         }
 
-        /// <summary>声明一条转移（**按调用顺序求值**；<paramref name="from"/> 写 <c>"*"</c> = 任意状态）。</summary>
-        public AnimMachineDef Edge(string from, string to, Func<AnimContext, bool> when, float blend = -1f)
+        /// <summary>声明一条转移（**按调用顺序求值**；<paramref name="from"/> 写 <c>"*"</c> = 任意状态）。
+        /// <paramref name="onlyAfterFinish"/> 见 <see cref="AnimEdgeDef.OnlyAfterFinish"/>。</summary>
+        public AnimMachineDef Edge(string from, string to, Func<AnimContext, bool> when,
+                                   float blend = -1f, bool onlyAfterFinish = false)
         {
-            _edges.Add(new AnimEdgeDef(from, to, when, blend));
+            _edges.Add(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish));
             return this;
         }
 
         /// <summary>同上，来源多个。</summary>
-        public AnimMachineDef Edge(string[] from, string to, Func<AnimContext, bool> when, float blend = -1f)
+        public AnimMachineDef Edge(string[] from, string to, Func<AnimContext, bool> when,
+                                   float blend = -1f, bool onlyAfterFinish = false)
         {
-            _edges.Add(new AnimEdgeDef(from, to, when, blend));
+            _edges.Add(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish));
             return this;
         }
 

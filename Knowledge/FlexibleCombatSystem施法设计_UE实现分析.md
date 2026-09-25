@@ -45,17 +45,22 @@
 效果：`chainlightning` 从"硬边白板"→ 一串发光节点；`lightningbolt`/`lightningexplosion`/`lightningstrike`
 从大板/大锥 → **离散闪电碎片**。
 
-**改动 2 —— `prt_shd_lightning` 是真材质，而且是我们该用的那个**（实 dump 取证）：
-`tpaccli dump --filter prt_shd_lightning` → `blend=add_modulate_combined` · `[emissive,additive]` ·
-**`tex[0] = lightning`**，把那张贴图导出来看 = **1024×512 里 6 根竖闪电（6 列 × 1 行）**。
-⇒ `MAT_SPRITE` 里它原本声明成 `"1, 1"`（整张糊在一颗粒子上 = 白贴片的另一半原因），改成 **`"6, 1"` + 每颗随机挑一根**。
-（顺手把闪电材质与贴图补进预览资产：`preview/mats/prt_shd_lightning.mat.txt` + `out/mattex_all/particles/lightning.png`。）
+**改动 2 —— ❌ 做错又回退的一步（留档，别再犯）**：曾把闪电从 `prt_shd_sparks` 改到 **`prt_shd_lightning`**
+（理由：实 dump 出它是真材质，`tex[0] = lightning`，一张 1024×512 的 **6 格竖闪电分镜**，看着比"黄色锥条"的 sparks 更像闪电）。
+**结果用户一开 ModKit 就弹** `RGL CONTENT WARNING: Unable to find material{{5404533A-…}} for particle effect
+lwn_ns_chainlightning::Llightning_0` —— **那个材质在包索引里存在（dump 得出来）但引擎的粒子材质表里没有**。
+⇒ **已回退到 `prt_shd_sparks`**；判据写死：**只许用「原版粒子 XML 真正引用过」的 33 个材质**
+（`output/vanilla_prt_shd_materials.txt`，`validate_xml.py` 的白名单已换成它）。
+教训一句话：**"能 dump 出来" ≠ "能用"**。坑档见 [骑砍2粒子系统.md](骑砍2粒子系统.md) §12.5 坑 11。
 
 **改动 3 —— 顺手修掉一个方向写反的 bug**：Niagara 的 `SubImageSize=(X,Y)` 原本写成 `"Y, X"`。
 知识文档 §八 明写 `(X,Y) → "X, Y"`（`TextureSpriteCountX/Y` 分别对应第 1/2 个数）；方形图集（8×8/5×5）看不出来，
 我们的数据里 `X=2, Y=3` 那两处会切错。改成先列后行。
 
 **验证**：99 文件 / 685 emitter / 硬校验 0 问题；分镜 `out/sv6_01…07.png`（与 sv4/sv5 逐格可比）。
+**alpha 修复后重渲一轮 = `out/sv7_01…07.png`**：火系整体读对了（`fireball`/`firepit`/`flamethrower`/`meteor`/
+`explosiongroundbig`/`torchlight` = 火焰 + 黑烟）· `icytornado` 由"近乎空"变可见 · 闪电系为离散碎片。
+⚠️ 同一修复也把一批**本就该若隐若现**的发射器显了出来（`chainlightning` 又聚成一团白）—— 这批属于调参。
 **⚠️ 预览到此为止**：`render_still` 对材质的还原是近似的（`--tex-rgb` 只是染色），
 **材质层（混合模式 / 自发光强度）必须进 ModKit 或实机判**。
 
@@ -70,6 +75,10 @@
 ⇒ 正确 `--packdir` = **`Debug/offline/_prt_native_all`**（151 个包）；**任何 `!!` 告警都当失败**。
 已用它重编 **100 个 XML**（0 失败 0 告警，脚本 `Debug/offline/_recompile_particles.py`），
 游戏侧 `Taikou/AssetPackages/lwn_yinmo_prt.tpac` 一并重建（旧包留 `.bak`）。坑档见 [骑砍2粒子系统.md](骑砍2粒子系统.md) §12.5 坑 10。
+
+**改动 5 —— 退化 alpha 曲线（15% 的发射器全透明）**：UE 的 `AlphaCurve` 很多只有一根键值 0，
+    照搬 = 骑砍这边粒子完全透明。**685 个发射器里 104 个**中招 —— 用户在 ModKit 粒子面板里
+    "什么都看不到"就是它（主火焰 `Fire_8` 就在其中）。判据与修法见下方「别再犯」第 8 条。
 
 ### 第一轮（2026-09-24 晚）修掉的 6 条（都渲图复验过）
 
@@ -89,8 +98,9 @@
 | # | 问题 | 现状 / 下一步 |
 |---|---|---|
 | **T1** | ~~`particle_size` 根本没从 UE 翻译~~ | ✅ **已修（2026-09-25 第二轮）** —— 根因与覆盖面见上方「第二轮」节 |
-| **T2a** | ~~闪电系大白板~~ | ✅ **已修（第三轮）**：根因 = 元素材质全覆盖 + `prt_shd_lightning` 图集声明成 1,1。现该系多为离散闪电碎片 |
-| **T2b** | `blizzard` 偏黑 · `icytornado` 太空 · `explosiongroundbig`/`frostbolt`/`frostexplosion` 出锥形扇面 | T1 修完**仍在**。这三条各自待查：① blizzard 是黑烟（haze）占比高 + 雪尘亮部不够；② icytornado 主体发射器尺寸正常（0.39±0.13 m）但渲出来偏空 ⇒ 待确认是材质混合还是发射量；③ 锥形/扇面 = `emit_volume`+初速映射（UE 的 cone/cylinder 发射体骑砍没有对应） |
+| **T2a** | ~~闪电系大白板~~ | ✅ **已修（第三轮）**：根因 = 元素材质全覆盖（已收窄）。⚠️ 同轮把闪电材质改到 `prt_shd_lightning` **踩雷回退**（见「改动 2」），现用 `prt_shd_sparks` |
+| **T2b** | ~~`icytornado` 太空~~ ✅ 已被 alpha 修复顺带解决（sv7 里能看到青色冰晶结构）；**仍在**：`chainlightning` 又变成一团白（`sparks` 发射器 alpha 修好后全显出来，400/s × 0.75 m 太密）· `lightningbolt` 白锥 · `blizzard` 偏黑 · 冰系出现黑烟（UE 里真实存在的 smoke 发射器现在可见了）· `madnessexplosion` 偏红 | 全部属于**调参**（不是映射 bug）；判据以 ModKit / 实机为准，见下方 sv7 记录 |
+| **T2b-old** | 原始记录：`blizzard` 偏黑 · `icytornado` 太空 · `explosiongroundbig`/`frostbolt`/`frostexplosion` 出锥形扇面 | T1 修完**仍在**。这三条各自待查：① blizzard 是黑烟（haze）占比高 + 雪尘亮部不够；② icytornado 主体发射器尺寸正常（0.39±0.13 m）但渲出来偏空 ⇒ 待确认是材质混合还是发射量；③ 锥形/扇面 = `emit_volume`+初速映射（UE 的 cone/cylinder 发射体骑砍没有对应） |
 | **T3** | ~~只看了约 50/99 个~~ | ✅ **已完成全览**：最新一轮分镜 `tools/particle-pipeline/out/sv6_01…07.png`（16 格/张 × 7 张 = 99/99）；历史对照 `sv2_*`（T1 前）→ `sv4_*`（T1 后）→ `sv5_*`（元素收窄） |
 | **T4** | HTML 预览器**没跟上** | 未动（`render_still.py` 已支持材质贴图/图集/序列帧，`preview.template.html` 仍是程序化圆点）|
 | **T5** | ~~资产重编~~ | ✅ **已完成（2026-09-25）**：**100 个 XML 用正确 packdir 重编进 `TaikouAnim/Assets_disabled/particles/`**（0 失败 0 告警）+ 游戏侧包 `Taikou/AssetPackages/lwn_yinmo_prt.tpac` 重建。⚠️ 重编时发现**旧的那批全是坏档**（`--packdir` 给少了 → 材质解析不到，见 §12.5 坑 10）——所以这批不只是"新尺寸"，还是**第一批材质正确的资产**。批量脚本 = `Debug/offline/_recompile_particles.py` |
@@ -132,6 +142,13 @@ python Debug\offline\_mat_tex_survey.py    # → tools\particle-pipeline\out\she
 5. **预览器不播序列帧**会把"火焰动画的起手帧"看成"没做出来"（已在 `render_still.py` 修）。
 6. **UE 的尺寸不在 emitter 上**，在文件级 `constants.Constants.<命名空间>` 里；引脚只有 `*Mode` 枚举。
 7. **`custom.*` 命令禁止写成"恰好 N 个参数"**（参数数不符会静默走默认分支 —— `ninja_report` 就这么坑过一次）。
+8. 🔴🔴 **退化的 UE AlphaCurve 必须丢掉，否则粒子全透明**（2026-09-25 用户开 ModKit 粒子面板"什么都看不到"时揪出）：
+   UE 侧很多发射器的 `AlphaCurve` **只有一根键、值 0**（可见性其实交给材质 / 模块的 Scale Alpha），
+   照搬 = 骑砍这边 `alpha` 恒为 0。全量统计：**685 个发射器里 104 个（15%）** 是这种
+   （`fireball` 的主火焰 `Fire_8`＝125/s、1.09 m 就是这么"隐身"的）。
+   **判据**：键数 < 2，或所有键值 ≤ 0.02 ⇒ **不写 alpha**，让生成器默认的"淡入淡出"曲线顶上。
+   已验证方式：单帧渲图（`render_still.py`）—— 修前那张火球几乎是空的，修后是橙红火焰 + 黑烟。
+   ⚠️ **逆向症状**：凡是"参数看着都对（速率/尺寸/寿命齐全）但看不见"，先查 alpha。
 
 ### 关键文件
 

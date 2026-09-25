@@ -159,7 +159,7 @@ namespace LivingWorldNpcs.Flight
         //    来龙去脉见 plans/玩家飞行-实施方案.md，不留在代码里当死重量。
 
         /// <summary>
-        /// 起飞姿态（`act_fly_start`）播多久 —— 登板之后**板不动**，只是把这 1.5 秒的入姿动画演完；
+        /// 起飞姿态（`act_fly_hoverstart`）播多久 —— 登板之后**板不动**，只是把这 1.5 秒的入姿动画演完；
         /// 玩家中途给任何方向输入就立刻交给飞行控制。
         /// 取值 = 该 clip 的真实时长：(46 帧 − 1) ÷ 30 = **1.5 秒**。
         /// </summary>
@@ -367,7 +367,8 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>
         /// 姿态变化时在屏幕上弹一条提示（默认开，调姿态时用；`custom.flight tune statemsg 0` 关）。
-        /// 只显示**状态名**（idle / cruise / leanL / boostLeanR …），跟代码和日志里的名字一致。
+        /// 只显示**状态名**（idle / hovermove / fastmove / hovermoveLeanL / fastmovePitchU …），
+        /// 跟代码、日志、ModKit 里的 clip 名一致（命名规则见 FlightAnimMachine 顶部那张对照表）。
         /// </summary>
         public static bool ShowStateMessages = true;
 
@@ -472,35 +473,41 @@ namespace LivingWorldNpcs.Flight
 
         // ───────────────────────── 动作名 ─────────────────────────
         // 🔴 这些是「动作名」，不是 clip 名 —— clip 名在内容包的 action_sets.xml 里绑，两边别混。
+        //
+        // 🔴🔴 **命名规则（2026-09-25 用户裁定）**：动作名的词跟着动画走 ——
+        //    `act_fly_hovermove` ↔ clip `flight_hovermove_a`，去掉前缀后缀就是同一个词，一眼对得上。
+        //    状态机那边的状态名也是同一套词（见 FlightAnimMachine 顶部那张对照表）。
+        //    ⚠️ 输入侧/速度侧的词**没改**（`BoostSpeed` / `BoostHeld` / `custom.flight tune boost`）——
+        //    那些说的是"哪个键、多快"，不是"哪条动画"。
 
-        public static string ActTakeoff = "act_fly_start";
+        public static string ActHoverStart = "act_fly_hoverstart";
         public static string ActIdle = "act_fly_idle";
-        public static string ActCruise = "act_fly_cruise";
-        public static string ActBoost = "act_fly_boost";
-        public static string ActLand = "act_fly_land";
+        public static string ActHoverMove = "act_fly_hovermove";
+        public static string ActFastMove = "act_fly_fastmove";
+        public static string ActSuperLand = "act_fly_superland";
 
         /// <summary>蓄力手势（按住右键期间循环播）。🔴 **走通道 0**（不是通道 1）—— 见 FlightAnimMachine 里那段注释。</summary>
-        public static string ActCastCharge = "act_cast_charge";
+        public static string ActMagicIdle = "act_magic_idle";
 
         /// <summary>释放手势（点左键播一次）。</summary>
-        public static string ActCastProjectile = "act_cast_projectile";
+        public static string ActMagicProjectile = "act_magic_projectile";
 
         /// <summary>
-        /// 抬头爬升时播的姿态。✅ **2026-09-22 已接**：`act_fly_climb` → clip `flight_hovermove_a_pitchu`
-        /// （A 套合成件，TRF `fly_A_Flight_HoverMove_A_PitchU`：巡航基准 + 抬头增量，合成时根骨那道量已按 0 缩放）。
-        /// ⚠️ 现在接的是**巡航家（直立）**的姿态 —— 冲刺（趴姿）时抬头会从趴姿切到直立，观感是翻一下；
-        /// 要"冲刺家也各有一套"得给状态机再拆状态（见 plans/玩家飞行-实施方案.md §3.8.1）。
+        /// 抬头爬升时播的姿态。✅ **2026-09-22 已接**：`act_fly_hovermove_pitchu` → clip `flight_hovermove_a_pitchu`
+        /// （A 套合成件，TRF `fly_A_Flight_HoverMove_A_PitchU`：悬停移动基准 + 抬头增量，合成时根骨那道量已按 0 缩放）。
+        /// ⚠️ 现在接的是**悬停移动家（直立）**的姿态 —— 快移（趴姿）时抬头会从趴姿切到直立，观感是翻一下；
+        /// 要"快移家也各有一套"得给状态机再拆状态（见 plans/玩家飞行-实施方案.md §3.8.1）。
         /// 留空的后果（旧行为）= 抬头时**保持上一条姿态**，观感是"平板上升"。
         /// </summary>
-        public static string ActClimb = "act_fly_climb";
+        public static string ActHoverMovePitchU = "act_fly_hovermove_pitchu";
 
-        /// <summary>低头俯冲时播的姿态。✅ **2026-09-22 已接**：`act_fly_dive` → clip `flight_hovermove_a_pitchd`，说明见 <see cref="ActClimb"/>。</summary>
-        public static string ActDive = "act_fly_dive";
+        /// <summary>低头俯冲时播的姿态。✅ **2026-09-22 已接**：`act_fly_hovermove_pitchd` → clip `flight_hovermove_a_pitchd`，说明见 <see cref="ActHoverMovePitchU"/>。</summary>
+        public static string ActHoverMovePitchD = "act_fly_hovermove_pitchd";
 
-        /// <summary>进冲刺的**入姿**（一次性，治"按 Shift 硬切到趴姿"）。</summary>
-        public static string ActBoostStart = "act_fly_dash_start";
+        /// <summary>进快移（冲刺）的**入姿**（一次性，治"按 Shift 硬切到趴姿"）。</summary>
+        public static string ActFastMoveStart = "act_fly_fastmove_start";
 
-        /// <summary>闪避四方向（一次性；只在冲刺态里播，理由见 <see cref="FlightAnimMachine"/>）。</summary>
+        /// <summary>闪避四方向（一次性；只在快移态里播，理由见 <see cref="FlightAnimMachine"/>）。</summary>
         public static string ActDodgeL = "act_fly_dodge_l";
         public static string ActDodgeR = "act_fly_dodge_r";
         public static string ActDodgeU = "act_fly_dodge_u";
@@ -510,35 +517,35 @@ namespace LivingWorldNpcs.Flight
         // 这批 clip 都是【合成】出来的（基础动画 ∘ 增量，根骨那道量已按 0 缩放，见方案 §3.8.1），
         // 所以它们跟基础动画同帧号、同循环属性，直接当普通姿态播。
 
-        /// <summary>巡航（直立）压弯左 / 右。触发见 <see cref="BankThreshold"/>。</summary>
-        public static string ActLeanL = "act_fly_lean_l";
-        public static string ActLeanR = "act_fly_lean_r";
+        /// <summary>悬停移动（直立）压弯左 / 右。触发见 <see cref="BankThreshold"/>。</summary>
+        public static string ActHoverMoveLeanL = "act_fly_hovermove_lean_l";
+        public static string ActHoverMoveLeanR = "act_fly_hovermove_lean_r";
 
-        /// <summary>冲刺（趴姿）压弯左 / 右。</summary>
-        public static string ActBoostLeanL = "act_fly_boost_lean_l";
-        public static string ActBoostLeanR = "act_fly_boost_lean_r";
+        /// <summary>快移（趴姿）压弯左 / 右。</summary>
+        public static string ActFastMoveLeanL = "act_fly_fastmove_lean_l";
+        public static string ActFastMoveLeanR = "act_fly_fastmove_lean_r";
 
-        /// <summary>冲刺（趴姿）抬头 / 低头 —— 与巡航家的 <see cref="ActClimb"/> / <see cref="ActDive"/> 分开，
+        /// <summary>快移（趴姿）抬头 / 低头 —— 与悬停移动家的 <see cref="ActHoverMovePitchU"/> / <see cref="ActHoverMovePitchD"/> 分开，
         /// 免得冲刺时从趴姿硬切到直立姿态（那两个家族各有一套抬头/低头）。</summary>
-        public static string ActBoostClimb = "act_fly_boost_climb";
-        public static string ActBoostDive = "act_fly_boost_dive";
+        public static string ActFastMovePitchU = "act_fly_fastmove_pitchu";
+        public static string ActFastMovePitchD = "act_fly_fastmove_pitchd";
 
-        // ───────────────────── 冲刺入姿 / 闪避（2026-09-22）─────────────────────
+        // ───────────────────── 快移入姿 / 闪避（2026-09-22）─────────────────────
         // 🔴 这两组都是**一次性动作**：状态机里 `AnimState.Once(..., next: null, duration: …)`，
         //    时长 = clip 真实长度（帧数 ÷ 30，实测值）。**重导 clip 换了帧数就改这里**。
 
-        /// <summary>冲刺入姿时长（秒）= 31 帧 ÷ 30，实测。</summary>
+        /// <summary>快移入姿时长（秒）= 31 帧 ÷ 30，实测。</summary>
         public static float BoostStartSeconds = 1.033f;
 
         /// <summary>闪避动画时长（秒）= 56 帧 ÷ 30，实测。四条一样长。</summary>
         public static float DodgeClipSeconds = 1.867f;
 
-        /// <summary>释放手势 `act_cast_projectile` 的 clip 时长（秒）—— 出手帧 36% 就是按它算的（≈0.83 s）。</summary>
+        /// <summary>释放手势 `act_magic_projectile` 的 clip 时长（秒）—— 出手帧 36% 就是按它算的（≈0.83 s）。</summary>
         public static float CastReleaseSeconds = 2.33f;
 
         /// <summary>
         /// 施法手势放**通道 1（上身层）**吗（默认 true —— 2026-09-24 用户要「只动上半身」）。
-        /// false = 退回旧行为（手势由飞行状态机的 castCharge / castRelease 两个状态走通道 0，全身施法姿势）。
+        /// false = 退回旧行为（手势由飞行状态机的 magicIdle / magicProjectile 两个状态走通道 0，全身施法姿势）。
         /// 通道 1 靠 <c>PlayerFlightBehavior</c> 每帧守通道 0 来保住腿的飞行姿。
         /// </summary>
         public static bool CastOnUpperChannel = true;
@@ -587,17 +594,24 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>
         /// 🔴 **飞行 tick 日志总闸（默认关，2026-09-22 用户要求）** —— 管住所有**高频**日志：
-        /// `[Flight-Diag]` 三行（每 0.5 秒）、`[Flight] 姿态 →` + 屏幕姿态提示（每次切换）、
-        /// `[Flight] air v=…`（每帧，还要再叠 <see cref="VerboseLog"/>）、
-        /// 以及共享状态机的 `[Anim:flight] xx → yy`（每次切换）。
+        /// `[Flight-Diag]` 三行（每 0.5 秒 = 120 行/分钟）、`[Flight] 姿态 →` 日志行 +
+        /// `[Flight] air v=…`（每帧，还要再叠 <see cref="VerboseLog"/>）。
         ///
         /// **默认 false**：平时飞完只留每次飞行几行的低频日志（起飞/落地/相机交接，见方案 §3.9 的 B 类），
         /// 出问题要查时再开：<c>custom.flight log on</c>（再加 `full` 连每帧那行也开）。
         ///
-        /// ⚠️ **异常路径的日志不受本开关管**（冻结失败 / 载具召唤失败 / 网格不在包里 / tick 异常 /
-        /// 状态机抖动自检……）—— 那些是"坏了要能查"的唯一线索，按 §3.9 的 C 类**永远别删、也别关**。
+        /// ⚠️ **低频的拐点日志不归它管** —— 状态切换 / 生效确认 / 输入沿那些看
+        ///    <see cref="LivingWorldNpcs.Animation.AnimDebug"/>（`custom.anim_log`）；
+        /// **异常路径的日志也不归它管**（冻结失败 / 载具召唤失败 / 网格不在包里 / tick 异常 /
+        /// 状态机抖动自检 / 通道 0 被抢走……）—— 那些是"坏了要能查"的唯一线索，
+        /// 按 §3.9 的 C 类**永远别删、也别关**。
         /// </summary>
         public static bool DebugLog = false;
+
+        // 🪦 2026-09-25：原 `TraceLog`（拐点日志开关）已搬到 `Animation/AnimDebug.cs` ——
+        //    状态机是通用件，开关跟它走（控制台 `custom.anim_log off|on|full`，默认 off）。
+        //    飞行这边只有 `[Flight-In]` 输入沿那两行，它跟着**同一个**开关
+        //    （见 PlayerFlightBehavior.LogInputEdges）—— 一条链路一个开关，不搞两套。
 
         /// <summary>
         /// 在总闸之上**再加一档逐帧**日志（默认关，免得刷屏）。
@@ -653,26 +667,26 @@ namespace LivingWorldNpcs.Flight
             InvertCamY = false;
             PitchExitThreshold = 0.30f;
             ActionRecheckSeconds = 0.5f;
-            ActTakeoff = "act_fly_start";
+            ActHoverStart = "act_fly_hoverstart";
             ActIdle = "act_fly_idle";
-            ActCruise = "act_fly_cruise";
-            ActBoost = "act_fly_boost";
-            ActLand = "act_fly_land";
-            ActClimb = "act_fly_climb";
-            ActDive = "act_fly_dive";
-            ActBoostStart = "act_fly_dash_start";
+            ActHoverMove = "act_fly_hovermove";
+            ActFastMove = "act_fly_fastmove";
+            ActSuperLand = "act_fly_superland";
+            ActHoverMovePitchU = "act_fly_hovermove_pitchu";
+            ActHoverMovePitchD = "act_fly_hovermove_pitchd";
+            ActFastMoveStart = "act_fly_fastmove_start";
             ActDodgeL = "act_fly_dodge_l";
             ActDodgeR = "act_fly_dodge_r";
             ActDodgeU = "act_fly_dodge_u";
             ActDodgeD = "act_fly_dodge_d";
-            ActLeanL = "act_fly_lean_l";
-            ActLeanR = "act_fly_lean_r";
-            ActBoostLeanL = "act_fly_boost_lean_l";
-            ActBoostLeanR = "act_fly_boost_lean_r";
-            ActBoostClimb = "act_fly_boost_climb";
-            ActBoostDive = "act_fly_boost_dive";
-            ActCastCharge = "act_cast_charge";
-            ActCastProjectile = "act_cast_projectile";
+            ActHoverMoveLeanL = "act_fly_hovermove_lean_l";
+            ActHoverMoveLeanR = "act_fly_hovermove_lean_r";
+            ActFastMoveLeanL = "act_fly_fastmove_lean_l";
+            ActFastMoveLeanR = "act_fly_fastmove_lean_r";
+            ActFastMovePitchU = "act_fly_fastmove_pitchu";
+            ActFastMovePitchD = "act_fly_fastmove_pitchd";
+            ActMagicIdle = "act_magic_idle";
+            ActMagicProjectile = "act_magic_projectile";
             BankThreshold = 0.35f;
             BankExitThreshold = 0.20f;
             ShowStateMessages = true;

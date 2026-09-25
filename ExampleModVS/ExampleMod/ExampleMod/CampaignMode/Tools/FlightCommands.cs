@@ -43,7 +43,8 @@ namespace LivingWorldNpcs.CampaignMode
                 case "log":
                 {
                     // 🔴 飞行 tick 日志总闸（2026-09-22 用户要求：默认关，要查时再开）。
-                    //    管：[Flight-Diag] 三行 / [Flight] 姿态 → +屏幕提示 / [Flight] air v=… / [Anim:flight] 切换行。
+                    //    管：[Flight-Diag] 三行 / [Flight] 姿态 → +屏幕提示 / [Flight] air v=…。
+                    //    **状态机那档不归它管**（2026-09-25 起在 `Animation/AnimDebug.cs`，用 `custom.anim_log`）。
                     //    **异常路径的日志不受它管**（冻结失败/载具召唤失败/tick 异常/抖动自检）—— 那些永远留着。
                     if (args.Count >= 2)
                     {
