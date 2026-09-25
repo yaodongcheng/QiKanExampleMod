@@ -196,7 +196,19 @@ namespace LivingWorldNpcs.Animation
                     problems.Add(label + " 缺 from / to");
                     continue;
                 }
-                if (!stateNames.Contains(to))
+                bool phaseAttr = string.Equals(Attr(node, "phase"), "true", StringComparison.OrdinalIgnoreCase);
+                // 🔴 `outside` = **机外**（非飞行那个外部状态）：只允许出现在**相位驱动**边上
+                //    （起飞进机 = outside → hoverstart；落地出机 = superland → outside）。
+                //    状态机不求值它，所以运行时零行为变化 —— 写出来只是让"从哪进、从哪出"诚实。
+                if (to == "outside")
+                {
+                    if (!phaseAttr)
+                    {
+                        problems.Add(label + " 目标是 outside（机外），只允许用于相位驱动边");
+                        continue;
+                    }
+                }
+                else if (!stateNames.Contains(to))
                 {
                     problems.Add(label + " 的目标 '" + to + "' 不是已声明的状态");
                     continue;
@@ -205,6 +217,15 @@ namespace LivingWorldNpcs.Animation
                 if (from == "*")
                 {
                     srcs = new[] { "*" };
+                }
+                else if (from == "outside")
+                {
+                    if (!phaseAttr)
+                    {
+                        problems.Add(label + " 来源是 outside（机外），只允许用于相位驱动边");
+                        continue;
+                    }
+                    srcs = new[] { "outside" };
                 }
                 else if (families.TryGetValue(from, out string[] famMembers))
                 {
@@ -263,7 +284,7 @@ namespace LivingWorldNpcs.Animation
                     continue;
                 }
                 bool afterFinish = string.Equals(Attr(node, "after-finish"), "true", StringComparison.OrdinalIgnoreCase);
-                bool phaseForced = string.Equals(Attr(node, "phase"), "true", StringComparison.OrdinalIgnoreCase);
+                bool phaseForced = phaseAttr;
                 edges.Add(new AnimEdgeDef(srcs, to, pred, blend, afterFinish, phaseForced));
             }
 
@@ -271,7 +292,10 @@ namespace LivingWorldNpcs.Animation
             var touched = new HashSet<string>(StringComparer.Ordinal);   // 相位驱动的边也算（它们写进定义就是为了这个）
             foreach (AnimEdgeDef e in edges)
             {
-                touched.Add(e.To);
+                if (e.To != "outside")
+                {
+                    touched.Add(e.To);
+                }
                 foreach (string s in e.From)
                 {
                     touched.Add(s);
