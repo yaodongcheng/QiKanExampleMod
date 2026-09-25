@@ -76,15 +76,16 @@
 	          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。
 	        · `<edge ... after-finish="true">` —— 演完之后**由条件**决定去哪（用于"演完且仍在冲刺 ⇒ 回 fastmove"这类）。 -->
 	<edges>
-		<!-- ⓪ 相位驱动的两头（不由状态机求值，写在这里让进出可见）：
-		     起飞 = 跳跃中按空格 / 长按空格 ⇒ 相位 Force 进 hoverstart（同时开板、冻人、接管相机）
-		     落地 = 短按贴地·俯冲 / 长按下降 / 撞地 ⇒ 相位 Force 进 superland
+		<!-- ⓪ **机外（非飞行）↔ 本机**：进出这台状态机就这两条，都是**相位驱动**（C# 在特定时刻 Force，
+		     状态机不求值，所以运行时零行为变化；写出来只是让"从哪进、从哪出"诚实）。
+		     进机：起飞 = 跳跃中按空格 / 长按空格 ⇒ 相位 Force 进 hoverstart（同时开板、冻人、接管相机）
+		     出机：落地 = 短按贴地·俯冲 / 长按下降 / 撞地 ⇒ 相位 Force 进 superland，演完拆板还相机后回机外
 		     🔴 hoverstart 的**出口**也归相位：入姿播完（1.5 s）**或玩家给方向输入** ⇒ 相位放开控制，
 		       交给下面的阶梯（在移动 ⇒ hovermove / 否则 ⇒ idle）。这条没写成边，是因为它必须
 		       "按输入可提前结束"，而循环状态挡不住 `*` 边、一次性状态又会挡死提前结束（两难），
 		       所以由相位的 Hold 机制独家管。 -->
-		<edge from="*" to="hoverstart" when="takeoff-trigger" phase="true" />
-		<edge from="*" to="superland" when="land-trigger" phase="true" />
+		<edge from="outside" to="hoverstart" when="takeoff-trigger" phase="true" />
+		<edge from="superland" to="outside" when="land-trigger" phase="true" />
 
 		<!-- ① 闪避：来源只有"趴姿本体 6 个"（不含闪避自己），且**可以打断**正在播的入姿 -->
 		<edge from="PronePoses" to="dodgeL" when="dodge-left" blend="0.12" />
