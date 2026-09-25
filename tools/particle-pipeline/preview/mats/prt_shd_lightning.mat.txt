@@ -1,0 +1,12 @@
+﻿material prt_shd_lightning
+  version = 0
+  typeGuid = 1db01393-6902-4f19-83ba-b37a39830717
+  billboard = 00000000-0000-0000-0000-000000000000
+  flags = [dont_draw_to_gbuffer,no_modify_depth_buffer]
+  vertexLayoutFlags = []
+  blend = add_modulate_combined
+  shader = bd782b1a-c085-4cdb-bbe6-d023658ef5a7
+  shaderFlags = [emissive,additive]
+  alphaTest = 0
+  extra: ao=1 spec=1 gloss=1
+  tex[0] = e6470119-fb67-49e0-8655-665ce03b58e0 (lightning)

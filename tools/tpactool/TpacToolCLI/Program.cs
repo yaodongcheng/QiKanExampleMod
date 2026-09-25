@@ -25,6 +25,10 @@ string format = "png";
 string mapping = null;
 bool mapsonly = false;
 bool allArg = false;     // animbones: 全量一行一条
+string prioArg = null;   // clipprio: 目标 Priority
+string addArg = null;    // clipflags: 要加的 flag（逗号分隔）
+string removeArg = null; // clipflags: 要删的 flag
+bool inPlaceArg = false; // clipprio: 原地覆盖（自动备份）
 string dispArg = null;   // clipset: "X,Y,Z"
 string endArg = null;    // clipset: endProgress（可省）
 string durArg = null;    // clipduration: 新 Duration（秒），或 "auto"
@@ -47,6 +51,10 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--mapping": mapping = args[++i]; break;
             case "--mapsonly": mapsonly = true; break;
             case "--all": allArg = true; break;
+            case "--prio": prioArg = cmdLine[++i]; break;
+            case "--add": addArg = cmdLine[++i]; break;
+            case "--remove": removeArg = cmdLine[++i]; break;
+            case "--inplace": inPlaceArg = true; break;
             case "--disp": dispArg = cmdLine[++i]; break;
             case "--end": endArg = cmdLine[++i]; break;
             case "--duration": durArg = cmdLine[++i]; break;
@@ -302,6 +310,32 @@ switch (command)
                             + $"sys=[{string.Join(",", t.SystemFlags ?? new List<string>())}]");
         }
         return 0;
+    }
+    case "clipflags":
+    {
+        // 离线给 clip 加/删 flags（字节级；见 ClipFlags.cs 的说明）
+        if (addArg == null && removeArg == null)
+        {
+            Console.Error.WriteLine("clipflags requires --filter <clipNameSubstr> --add <flag[,flag]> and/or --remove <flag[,flag]> [--out dir] [--inplace]");
+            return 1;
+        }
+        return ClipFlags.Run(dir, filter, addArg, removeArg, outDir, inPlaceArg);
+    }
+    case "clipprio":
+    {
+        // 离线改 AnimationClip 的 Priority（字节级；见 ClipPrio.cs 的说明）
+        if (prioArg == null)
+        {
+            Console.Error.WriteLine("clipprio requires --filter <clipNameSubstr> --prio <0..255> [--out dir] [--inplace]");
+            return 1;
+        }
+        int prioVal;
+        if (!int.TryParse(prioArg.Trim(), out prioVal))
+        {
+            Console.Error.WriteLine("--prio 解析不出整数: " + prioArg);
+            return 1;
+        }
+        return ClipPrio.Run(dir, filter, prioVal, outDir, inPlaceArg);
     }
     case "animbones":
         // 离线量「这条动画动了哪些骨」—— 筛"轨道里没写腿"的动画用（引擎没有按骨遮罩接口）

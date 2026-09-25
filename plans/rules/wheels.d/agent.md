@@ -647,7 +647,20 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 目标默认取 interact 焦点（`InteractionMissionView.Instance.GetFocusdAgent()`，回落 `LastFocusedAgent`）；
 演出相机见 [camera.md](camera.md)。
 
-## 🔴 叠加动作与"通道 1"—— 实机结论：**我们导入的 clip 走通道 0，别指望通道 1**（2026-09-24 实机定案）
+## 🔴 叠加动作与"通道 1"—— **两层模型 + `enforce_lowerbody`**（2026-09-25 结案；本节下面的 09-24 结论已作废）
+
+> 🔴🔴 **旧的"我们导入的 clip 走通道 0，别指望通道 1"已作废** —— 那是"通道 1 收下了不播"
+> （clip 元数据缺项，2026-09-24 已修）+"没发现 `enforce_lowerbody`"两件事叠出来的误判。
+> **现行口径**（全文 = [Knowledge/骑砍2动画通道与上下半身分层.md](../../../Knowledge/骑砍2动画通道与上下半身分层.md)）：
+>
+> · **通道 0 = 底层（全身）· 通道 1 = 上层（默认整骨覆盖下层）· 移动层（`movement_sets`）在最上面管腿。**
+> · **人一被冻住（飞行/坐姿/器械）移动层就停** ⇒ 通道 1 的动作会连腿一起演（这正是"原版走近战挥刀腿照走"的真相：腿归移动层）。
+> · 想要"**腿归 A、上身归 B**"：**A（姿势那条）放通道 0，并在 clip 元数据里勾 `enforce_lowerbody`**；
+>   B（上层动作）放通道 1、**什么都别勾**（勾了 = "我也要腿"，方向相反）。
+> · 🔴 **flag 必须写进资源包（clip 元数据）**：运行时用 `SetActionChannel(additionalFlags:)` 传**引擎不认**（三次实测零反应）。
+> · **优先级与分层无关**（clip `Priority` 0→30 无变化）；**通道 0 从没被清过**（状态探针 `ch0 w=1.00` 全程不变）⇒ "守通道 0"是治不存在的病，已停用。
+> · **自管手势走通道 1 是对的**（`SpellCastInput.SetChannelOne`），别再改回通道 0。
+> · 工具：`tpaccli clipinfo / animbones / clipprio / clipflags`（离线读/改 clip 元数据，见同文档 §六）。
 
 **问题**：要让角色**一边飞/一边走，一边做手上动作**（施法、结印、举枪），怎么让手上动作不打断腿？
 
@@ -674,7 +687,8 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 用来按通道手验（返回 `ACCEPTED` + 同帧回读，⚠️ 回读的 weight 是**同帧**值、blend 还没起来时恒 0，别当判据）。
 离线看包里 clip 的元数据更直接：`tpaccli dump --filter <clip名>` 出来的 `.meta`（字段与偏移见本次记录）。
 
-**"只动上半身"仍未做到**（2026-09-24 现状）：
+**"只动上半身"仍未做到**（2026-09-24 现状）—— ✅ **2026-09-25 已做到**：飞行姿势（通道 0）勾 `enforce_lowerbody`
+⇒ 施法手势（通道 1）盖上身、腿保持飞行姿势，实机验证通过。**本节下面这段保留作历史记录**：
 
 | 事实 | 说明 |
 |---|---|
@@ -700,13 +714,18 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 末尾标志串原版是 `allow_head_movement`、我们的是 `cyclic`。通道 1 这条路径认它们，通道 0 不认。
 
 **⇒ 结论与做法**：
-1. 🔴 **自管动画一律走通道 0**（已落地：飞行中施法的手势由 `FlightAnimMachine` 的 `castCharge` / `castRelease`
-   两个状态播，见该文件里那段注释）。
+1. ~~**自管动画一律走通道 0**~~ 🔴 **已作废** —— 自管手势现在走**通道 1**（`SpellCastInput.SetChannelOne`），
+   底层姿势（飞行）靠 clip 的 `enforce_lowerbody` 保住腿（见本节顶部与 Knowledge 文档）。
+   （`FlightAnimMachine` 的 `castCharge` / `castRelease` 两个状态**保留作回退档**：`CastOnUpperChannel=false` 时才走通道 0。）
 2. 真要"只改上身"两条路：① **离线合成**（飞行姿势当基底 + 施法上身当增量，`tools/anim-retarget` 的 `trf_compose`）
    ② 在 ModKit 里把 clip 元数据逐项对齐原版（试错成本未知，没做）。
-3. **诊断命令**：`custom.anim_ch [通道] <动作名> [loop|noforce|lowerbody|all]` —— 返回里带
-   `ACCEPTED` + `after[matches=? weight=?]`（⚠️ 权重是**同帧回读**，blend 还没起来时恒 0，别拿它当判据）
-   ＋**时长对照**（`duration=0.00s` = 该动作在当前 action_set 里解析不到）。
+3. **诊断命令**（两条，**定位不同、不可互换**）：
+   · `custom.do_anim <动作> [agent]` = **固定通道 0** + **原版调用风格**（`ignorePriority:false`、用 clip 自带混合）
+     ⇒ 判"**引擎自己会怎么播**"（比较基线）、查动作是否注册/时长；
+   · `custom.anim_ch [通道] <动作> [noforce] [prio=NN] [flag…]` = **通道可指定（默认 1）** + **强制塞**
+     （`ignorePriority:true`）⇒ 手验叠加（`do_anim` 到不了通道 1）、看两条通道现状（返回带 `ch0[…] ch1[…]`）。
+   ⚠️ `anim_ch 0 <动作>` ≠ `do_anim <动作>`（优先级/混合参数不同）；⚠️ 两者的 **flag/prio 参数引擎不读**。
+   返回里 `after[matches=? weight=?]`（权重是**同帧回读**、blend 没起来时恒 0，别当判据）＋ `duration=0.00s` = 该动作解析不到。
 
 **通道 0 播动作的三条纪律（仍然全部有效）**：
 
@@ -714,15 +733,16 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 ActionIndexCache idx = ActionIndexCache.Create("act_cast_charge");
 if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静默跳过，别抛
     agent.SetActionChannel(0, idx, ignorePriority: true,
-        additionalFlags: (ulong)AnimFlags.anf_cyclic,   // 🔴 循环就靠它（clip 自己带 cyclic 也行）
+        additionalFlags: 0UL,                           // ⚠️ 这里传 flag/优先级引擎不读（2026-09-25 定案）
         blendInPeriod: 0.12f,
         blendOutPeriodToNoAnim: 0f);                    // 🔴 必须显式传 0（默认 0.4 会把姿势淡回静止）
 ```
 
 1. 🔴 **`blendOutPeriodToNoAnim` 必须显式传 `0`**（默认 0.4 秒 = 动作尾声被拉回"无动画"姿势再弹回，观感"软掉"）。
-2. 🔴 **循环**：`AnimFlags.anf_cyclic` 或 clip 自带 `cyclic` 标记（导入时会给）—— 别自己每帧重发。
-3. 🔴 **不要传 `anf_enforce_lowerbody` / `anf_enforce_all`** —— 名字容易望文生义，实测对"只改上身"没帮助
-   （它们不是"忽略下半身"，我们的通道 1 实验里传了也没变化）。
+2. 🔴 **循环**：靠 **clip 元数据里的 `cyclic`**（导入时给）—— ⚠️ 运行时传 `anf_cyclic` **引擎不读**（见本节顶部），别靠它；也别自己每帧重发。
+3. 🔴 **`enforce_lowerbody` / `enforce_all` 运行时传确实没用（引擎不读）—— 但它们绝不是没用**：
+   **写进 clip 元数据**就是"保住腿"的正解（见本节顶部）。
+   ⚠️ 本行原写的是"实测对只改上身没帮助"——那是**运行时传**造出的假象，2026-09-25 已订正。
 4. 一次性动作要知道什么时候播完：`GetCurrentActionProgress(0) ≥ 0.98` ⇒ 交还给普通状态
    （`AgentAnimStateMachine` 的 `Once` 状态已经替你做了）。
 

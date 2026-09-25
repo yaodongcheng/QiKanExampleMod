@@ -93,7 +93,7 @@ namespace TpacCli
                 if (batch)
                 {
                     Console.WriteLine($"{c.Name,-44} anim={sa.Name,-42} skel={(byGuid.TryGetValue(sa.Skeleton, out var sk0) ? sk0.Name : "?")},"
-                                    + $"legsN={legIdx.Count},bones={names.Count} "
+                                    + $"legsN={legIdx.Count},bones={names.Count},zeroBones={full.ZeroBones} "
                                     + $"legsWin={legWin,6:0.0}deg legsFull={legFull,6:0.0}deg "
                                     + $"maxWin={win.Max(s => s.rotDeg),6:0.0}deg keys={win.KeyCount,4}/{full.KeyCount,4}");
                     continue;
@@ -132,6 +132,8 @@ namespace TpacCli
             public float MinKey = float.MaxValue;
             public float MaxKey = float.MinValue;
             public int KeyCount;
+            /// <summary>**一根轨道都没写**的骨数（= 这条动画不含这些骨的数据）。</summary>
+            public int ZeroBones;
         }
 
         private static Stats Measure(AnimationDefinitionData anim, float t0, float t1)
@@ -163,6 +165,7 @@ namespace TpacCli
                 foreach (var f in posFrames) { res.MinKey = Math.Min(res.MinKey, f.Key); res.MaxKey = Math.Max(res.MaxKey, f.Key); }
 
                 res.KeyCount = Math.Max(res.KeyCount, rotFrames.Count);
+                if (rotFrames.Count == 0 && posFrames.Count == 0) res.ZeroBones++;
                 res.Add(new BoneStat { rotDeg = rotMax, posCm = posMax });
             }
             if (res.MinKey > res.MaxKey) { res.MinKey = 0f; res.MaxKey = 0f; }

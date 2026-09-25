@@ -218,19 +218,103 @@ def niagara_emitter_spec(em, asset):
     if r:
         m, why = map_material(r.get("material"))
         spec["material"] = m; notes.append("material %s" % why)
+        # 🔴 记住这个材质是「语义匹配到的」还是「兜底桶里的」（2026-09-25 第三轮）：
+        #    元素覆盖只允许刷**兜底桶**（我们根本没认出它是什么），语义匹配到的一律保留
+        #    —— 真实烟雾就该是烟、余烬就该是火星，不然爆炸只剩一团火焰（丢了黑烟对比）。
+        spec["_mat_fb"] = why.startswith("fallback") or why.startswith("default")
         si = r.get("sub_image_size")
         if si:
             mm = re.findall(r"[XY]=([\d.]+)", si)
             if len(mm) == 2 and float(mm[0]) > 0 and float(mm[1]) > 0:
-                spec["texture_sprite_count"] = "%d, %d" % (int(float(mm[1])), int(float(mm[0])))
+                # 🔴 顺序 = `texture_sprite_count="X, Y"`（先列后行），知识文档 §八「SubImageSize=(X,Y) → "X, Y"」
+                #    实证：`TextureSpriteCountX/Y` 分别对应第 1/2 个数。2026-09-25 前这里是**写反的**
+                #    （写成 Y, X）—— 方形图集看不出来（8×8/5×5），一旦 `X=2, Y=3` 这种就会切错格。
+                spec["texture_sprite_count"] = "%d, %d" % (int(float(mm[0])), int(float(mm[1])))
                 spec.setdefault("flags", {})["select_random_sprite"] = True; notes.append("atlas %s" % si)
         al = r.get("alignment")
         if al in ALIGN2BB:
             spec["billboard_type"] = ALIGN2BB[al]; notes.append("align %s" % al)
     else:
-        spec["material"] = "prt_shd_smoke_1"; notes.append("material 缺省")
+        spec["material"] = "prt_shd_smoke_1"; spec["_mat_fb"] = True; notes.append("material 缺省")
     spec["_notes"] = notes
     return spec
+
+def const_find(em, *names):
+    """在**扁平点号键**常量表里按尾段取原始值。
+
+    🔴 2026-09-25 根因修正（T1）：解析产物里 `emitters[].constants` 是**扁平字典**——
+    键就是完整点号路径（`Constants.<命名空间>.InitializeParticle.Uniform Sprite Size`），
+    不是嵌套字典。以前三处读取代码（本函数的前身 / `niagara_size_pair` / `collect_ue_sizes`）
+    都按"嵌套逐层 get"写 ⇒ **永远取不到** ⇒ 685 个发射器尺寸清一色吃生成器默认的 0.25±0.25。
+    匹配规则：去掉 `Constants` 与命名空间两段后的尾段，与要查的名字比对；
+    允许"尾段以 `.名字` 结尾"（调用方省掉模块前缀也能命中）。实测覆盖 280/685 个发射器。
+
+    🔴 命名空间选值优先序（2026-09-25 第二轮）：一个发射器的常量表里可能**同时**挂着
+    多个命名空间的同名参数（它自己的 + 上游继承来的），"取第一个"会取错 —— 实测
+    `Empty002_4` 拿到了 `Empty` 的 0.30 而不是自己的 0.02、`Smoke_02_9` 拿到别家的 0.10。
+    所以按「命名空间 = 发射器基名 > 前缀匹配（长者优先）> 第一个」挑。
+    """
+    consts = em.get("constants") or {}
+    wants = [n.lower().replace(" ", "") for n in names]
+    hits = []                                   # (命名空间, 距离, 取值)
+    for k, v in consts.items():
+        parts = k.split(".")
+        if len(parts) < 3 or parts[0] != "Constants":
+            continue
+        tail = ".".join(parts[2:]).lower().replace(" ", "")
+        if not any(tail == w or tail.endswith("." + w) for w in wants):
+            continue
+        hits.append((parts[1], ns_rank(em.get("name"), parts[1]), v.get("value")))
+    if not hits:
+        return None
+    hits.sort(key=lambda h: h[1])
+    return hits[0][2]
+
+
+def ns_rank(em_name, ns):
+    """命名空间与发射器的贴合度（越小越贴合）：同名 0 · 前缀匹配 1 · 其他 2。
+
+    发射器名形如 `Embers001_3`（图里的节点名带序号），命名空间形如 `Embers001`
+    （模块组名）—— 所以比较前先把名字尾部的 `_数字` 去掉。
+    """
+    base = re.sub(r"_\d+$", "", em_name or "").lower()
+    low = (ns or "").lower()
+    if base == low:
+        return 0
+    if low and (base.startswith(low) or low.startswith(base)):
+        return 1
+    return 2
+
+
+def num_or_mean(v):
+    """标量直接用；vec2/vecN 取分量均值（UE 的 `Sprite Size` 是「宽×高」两分量，
+    骑砍的 `particle_size` 是单值方片）；其他一律 None。"""
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, (list, tuple)) and v and all(isinstance(x, (int, float)) for x in v):
+        return float(sum(v)) / len(v)
+    return None
+
+
+def const_num(em, *names):
+    """`const_find` 的数值版（见 `num_or_mean` 的取值口径）。"""
+    return num_or_mean(const_find(em, *names))
+
+
+def size_pair(mx, mn, one):
+    """(Max, Min, 单值) 三个候选值（**cm**）→ 骑砍 `particle_size` 的 (base, bias)（**m**）。
+
+    · Min/Max 齐 → base=(Max+Min)/200、bias=|Max−Min|/200（骑砍是 ± 半宽）
+    · 只有单值  → base=值/100、bias=0
+    """
+    if mx is not None and mn is not None:
+        return (round((mx + mn) / 200.0, 4), round(abs(mx - mn) / 200.0, 4))
+    if one is not None:
+        return (round(one / 100.0, 4), 0.0)
+    if mx is not None:
+        return (round(mx / 100.0, 4), 0.0)
+    return None
+
 
 def niagara_const(em, key_name):
     """从 Niagara 的 `constants.Constants.<Emitter>.<Module>.<Param>` 里取**第一个带 value 的**匹配项。
@@ -244,121 +328,78 @@ def niagara_const(em, key_name):
       · `InitializeParticle.Lifetime Min/Max` → 寿命
     注意同一前缀下还有 `....SpawnRate.size`（那是**字节数**），所以只认**带 value 的 dict**。
     """
-    cur = (em.get("constants") or {}).get("Constants") or {}
-    stack = [cur]
-    while stack:
-        node = stack.pop()
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if k == key_name and isinstance(v, dict) and "value" in v:
-                    return v["value"]
-                if isinstance(v, (dict, list)):
-                    stack.append(v)
-        elif isinstance(node, list):        # 🔴 有些文件里同一层是**列表**（逐发射器一项）——也要能下去
-            stack.extend(node)
-    return None
+    return const_find(em, key_name)
 
 
 def niagara_size_pair(em):
     """UE 的粒子尺寸（cm）→ 骑砍 particle_size（m）：(base, bias)。
 
-    🔴 2026-09-24 实查两个坑：
-      ① 解析出来的 JSON 里 **`emitters[].constants` 是空的**（真实数值在别的层），
-         所以"从常量表读尺寸"这条路走不通 —— 尺寸必须从**模块引脚的默认值**取
-         （`InitializeParticle` 的 `Uniform Sprite Size / Min / Max`，单位 **cm**）。
-      ② 以前只把 `Vector2DFromCurve` 映射成 `size_curve`（**只给曲线、不给基础值**）
-         ⇒ 685 个发射器的 `particle_size` **清一色是生成器默认的 0.25±0.25**（全量统计：值只有 1 种！），
-         于是所有特效"尺寸一个样"：闪电是一片大白板、暴风雪永远那么大一坨。
+    🔴 2026-09-25 T1 修复：以前这里扫的是**按键名精确匹配的嵌套字典**，而真实键是
+    扁平点号路径 ⇒ 一次都没命中过（实测 685 个发射器命中 0），尺寸全吃生成器默认的
+    0.25±0.25 —— 这就是"闪电一片大白板、暴风雪永远一坨"的真因。改走 `const_num`
+    （扁平键 + 尾段匹配，标量/vec2 都吃）后覆盖 320/487；剩下那些发射器自身没有该常量，由
+    `collect_ue_sizes` 的文件级命名空间表兜底。
     """
-    want = ("Uniform Sprite Size Max", "Uniform Sprite Size Min", "Uniform Sprite Size",
-            "Sprite Size Max", "Sprite Size Min", "Sprite Size")
-    found = {}
-
-    def scan(node, path=""):
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if k in want:
-                    val = v.get("default") if isinstance(v, dict) else v
-                    try:
-                        found.setdefault(k, float(val))
-                    except (TypeError, ValueError):
-                        pass
-                if isinstance(v, (dict, list)):
-                    scan(v, path + "." + str(k))
-        elif isinstance(node, list):
-            for x in node:
-                scan(x, path)
-
-    scan(em.get("constants"))
-    scan(em.get("modules"))
-    mx = found.get("Uniform Sprite Size Max") or found.get("Sprite Size Max")
-    mn = found.get("Uniform Sprite Size Min") or found.get("Sprite Size Min")
-    one = found.get("Uniform Sprite Size") or found.get("Sprite Size")
-    if mx is not None and mn is not None:
-        return (round((mx + mn) / 200.0, 4), round(abs(mx - mn) / 200.0, 4))
-    if one is not None:
-        return (round(one / 100.0, 4), 0.0)
-    if mx is not None:
-        return (round(mx / 100.0, 4), 0.0)
-    return None
+    mx = const_num(em, "Uniform Sprite Size Max", "Sprite Size Max")
+    mn = const_num(em, "Uniform Sprite Size Min", "Sprite Size Min")
+    one = const_num(em, "Uniform Sprite Size", "Sprite Size")
+    return size_pair(mx, mn, one)
 
 
 def collect_ue_sizes(doc):
-    """按**确认过的路径**直读 UE 粒子尺寸（cm）→ {命名空间: (base_m, bias_m)}。
+    """文件级尺寸表：**命名空间 → (base_m, bias_m)**，给"自己身上没有该常量"的发射器兜底。
 
-    实测路径（2026-09-24，NS_ChainLightning）：
-        doc.emitters[i].constants.Constants.<命名空间>.InitializeParticle.Uniform Sprite Size[ Max|Min]
-    · `<命名空间>` = 该发射器在 UE 里的模块组名（如 `Llightning` / `Sparks`），**不是** emitter 名；
-    · 单位 **cm** ⇒ ÷100 得米；有 Min/Max 时 base=(Max+Min)/200、bias=|Max-Min|/200；
+    实测路径（2026-09-25 用扁平键重读）：`Constants.<命名空间>.InitializeParticle.Uniform Sprite Size[ Max|Min]`
+    · `<命名空间>` = 该常量块的归属名（如 `Llightning` / `Sparks`），**不保证等于某个发射器名**；
+    · 单位 **cm** ⇒ 走 `size_pair` 换算成米；
     · 实查样例：`Llightning` = Min50/Max100 → **0.75±0.25 m**；`Sparks` = 5 → **0.05 m**。
     """
-    out = {}
-
-    def val(ip, *names):
-        for n in names:
-            e = ip.get(n)
-            if isinstance(e, dict) and isinstance(e.get("value"), (int, float)):
-                return float(e["value"])
-        return None
-
+    tbl = {}
     for em in (doc.get("emitters") or []):
-        cons = ((em.get("constants") or {}).get("Constants")) or {}
-        if not isinstance(cons, dict):
-            continue
-        for ns, node in cons.items():
-            ip = node.get("InitializeParticle") if isinstance(node, dict) else None
-            if not isinstance(ip, dict):
+        for k, v in (em.get("constants") or {}).items():
+            parts = k.split(".")
+            if len(parts) < 4 or parts[0] != "Constants":
                 continue
-            mx = val(ip, "Uniform Sprite Size Max", "Sprite Size Max")
-            mn = val(ip, "Uniform Sprite Size Min", "Sprite Size Min")
-            one = val(ip, "Uniform Sprite Size", "Sprite Size")
-            if mx is not None and mn is not None:
-                v = ((mx + mn) / 200.0, abs(mx - mn) / 200.0)
-            elif one is not None:
-                v = (one / 100.0, 0.0)
-            elif mx is not None:
-                v = (mx / 100.0, 0.0)
-            else:
+            val = num_or_mean(v.get("value"))       # vec2 的 `Sprite Size` 也吃（取均值）
+            if val is None:
                 continue
-            out[str(ns)] = (round(v[0], 4), round(v[1], 4))
+            tail = ".".join(parts[2:]).lower().replace(" ", "")
+            if tail not in ("initializeparticle.uniformspritesizemax",
+                            "initializeparticle.uniformspritesizemin",
+                            "initializeparticle.uniformspritesize",
+                            "initializeparticle.spritesizemax",
+                            "initializeparticle.spritesizemin",
+                            "initializeparticle.spritesize"):
+                continue
+            tbl.setdefault(parts[1], {})[tail.rsplit(".", 1)[-1]] = float(val)
+    out = {}
+    for ns, d in tbl.items():
+        v = size_pair(d.get("uniformspritesizemax") or d.get("spritesizemax"),
+                      d.get("uniformspritesizemin") or d.get("spritesizemin"),
+                      d.get("uniformspritesize") or d.get("spritesize"))
+        if v:
+            out[str(ns)] = v
     return out
 
 
 def em_size_from_table(sizes, em_name):
-    """按名字前缀把尺寸表对到某个 emitter 上（对不上就退回"表里唯一/最常见"的值）。"""
+    """按名字把尺寸表对到某个 emitter 上（对位规则与 `const_find` 同：同名 > 前缀 > 唯一值）。
+
+    🔴 只认「名字对得上」与「全表只有一个取值」两种情形 —— **不做"取最常见值"**：
+    同一文件里常常既有 20 m 的天幕也有 5 cm 的火花，硬塞一个值比吃默认值更糟
+    （那会让小元素变成大白板，正是这轮要修的毛病）。
+    """
     if not sizes:
         return None
-    low = (em_name or "").lower()
-    for ns, v in sizes.items():
-        if low.startswith(ns.lower()) or ns.lower() in low:
-            return v
+    ranked = sorted(sizes.items(), key=lambda kv: ns_rank(em_name, kv[0]))
+    if ranked and ns_rank(em_name, ranked[0][0]) == 0:              # 同名：直接用
+        return ranked[0][1]
+    prefixed = [kv for kv in ranked if ns_rank(em_name, kv[0]) == 1]
+    if prefixed:
+        return sizes[max(prefixed, key=lambda kv: len(kv[0]))[0]]   # 前缀匹配里取最长的那个
     if len(set(sizes.values())) == 1:
         return next(iter(sizes.values()))
-    # 多个候选且名字对不上：取最常见的值（至少比"清一色默认值"强）
-    cnt = {}
-    for v in sizes.values():
-        cnt[v] = cnt.get(v, 0) + 1
-    return max(cnt.items(), key=lambda kv: kv[1])[0]
+    return None
 
 
 def niagara_size_curve(em):
@@ -501,6 +542,7 @@ def cascade_emitter_spec(em):
         mat = em["type_data"]["material"]
     mn, why = map_material(mat)
     spec["material"] = mn; notes.append("material %s" % why)
+    spec["_mat_fb"] = why.startswith("fallback") or why.startswith("default")   # 同 Niagara：兜底桶标记
     if req:
         h = req.get("SubImages_Horizontal"); v = req.get("SubImages_Vertical")
         try:
@@ -531,15 +573,24 @@ ELEMENT_RULES = [
     (("heal", "buff", "bless", "holy"),                                "prt_shd_glow"),
     (("madness", "shadow", "dark", "curse", "debuff"),                 "prt_shd_haze_1"),
 ]
-OVERRIDABLE = {"prt_shd_fire_1", "prt_shd_flame_1", "prt_shd_glow", "prt_shd_smoke_1",
-               "prt_shd_smoke_2", "prt_shd_snow_dust_1", "prt_shd_steam_1", "prt_shd_steam_2",
-               "prt_shd_lightning", "prt_shd_sparks"}
+# 🔴 `OVERRIDABLE`（可被元素覆盖的材质白名单）已于 2026-09-25 第三轮**废止** ——
+#    它按"材质名在不在名单里"判，结果把语义明确的材质也刷掉了。改成按 `_mat_fb`
+#    （这个材质是不是从兜底桶来的）判，见 `element_override`。别再把它加回来。
 KEEP_DARK = {"prt_shd_haze_1", "prt_shd_fire_haze_1", "prt_shd_dust_1", "prt_shd_snow_dust_1",
              "prt_shd_blood_1", "prt_shd_stone_gravel", "prt_shd_wood_splinter", "prt_shd_trail"}
 
 
 def element_override(effect_name, emitters):
-    """按效果名统一元素材质；返回命中的元素关键字（没命中返回 None）。"""
+    """按效果名统一元素材质 —— **只刷「兜底桶」里的发射器**；返回命中的元素关键字（没命中返回 None）。
+
+    🔴 2026-09-25 第三轮收窄（原实现会刷掉一切"可覆盖"材质，实测 99 个效果里 56 个命中、共刷 278 次）：
+    实测被误刷的大头是**语义明确的材质** —— `MI_Splash_01→sparks`、`MI_Fire_01_8X8→sparks`、
+    `MI_SmokeFlipbook_01→sparks`、`MI_Lightning_01→sparks`（闪电系 8 个效果全是这样，
+    再叠加 `SIZE_CAP[sparks]=0.45` 把尺寸压平 ⇒ **一整片白色贴片**）。
+    现在的判据 = **我们根本没认出这个材质是什么**（`map_material` 走的 fallback/default 分支、
+    或压根没有渲染器）才允许刷；认出语义的一律保留（真实烟雾就该是烟、余烬就该是火星，
+    否则爆炸只剩一团火焰、丢了黑烟对比）。元素感主要由 `ELEMENT_COLOR` 的配色承担。
+    """
     low = effect_name.lower()
     for keys, mat in ELEMENT_RULES:
         if any(k in low for k in keys):
@@ -547,7 +598,7 @@ def element_override(effect_name, emitters):
                 m = em.get("material")
                 if m in KEEP_DARK:
                     continue
-                if m is None or m in OVERRIDABLE:
+                if (m is None or em.get("_mat_fb")) and m != mat:
                     em["material"] = mat
                     em.setdefault("_notes", []).append("element(%s)->%s" % (keys[0], mat))
             return keys[0]
@@ -571,7 +622,11 @@ MAT_SPRITE = {
     "prt_shd_flame_1":           ("16, 8", 128, 48.0, True,  False),
     "prt_shd_glow":              ("1, 1",   1,   1.0, False, False),
     "prt_shd_sparks":            ("1, 1",   1,   1.0, False, False),
-    "prt_shd_lightning":         ("1, 1",   1,   1.0, False, False),
+    # 🔴 `prt_shd_lightning` = **6 格闪电分镜**（2026-09-25 实 dump：`tex[0] = lightning`，
+    #    1024×512 里 6 根竖闪电，6 列 × 1 行；材质 `blend=add_modulate_combined` + `[emissive,additive]`）。
+    #    声明成 `1, 1` = 把六根闪电糊在一颗粒子上（就是"白色贴片"的样子）⇒ 必须按 6 格切、
+    #    并让每颗粒子**随机挑一根**（`select_random_sprite`）。
+    "prt_shd_lightning":         ("6, 1",   1,   1.0, False, True),
     "prt_shd_dust":              ("2, 2",   1,   1.0, False, False),
     "prt_shd_dust_1":            ("1, 1",   1,   1.0, False, False),
     "prt_shd_dust_2":            ("2, 2",   1,   1.0, False, False),
