@@ -337,7 +337,11 @@ try {
     (await ev("edges.length")) === base21 + 1 && (await ev("edges[" + base21 + "].from")) === 'outside'
       && (await ev("edges[" + base21 + "].phase")) === true,
     'from=' + await ev("edges[" + base21 + "].from") + ' phase=' + await ev("edges[" + base21 + "].phase"));
-  check('㉑c 这条机外边不会让整台定义失效（校验 0 问题）', (await ev("validate().length")) === 0, JSON.stringify(await ev("validate()")));
+  // 🔴 只断言"没有关于机外的报错" —— 这条测试自己在上面建了一条**重复的**机外边（#27 与 #1 同来源同条件），
+  //    断言"全局 0 问题"是**测试自己不干净**（新加的"同来源同条件"检查会正确地把它报出来）
+  check('㉑c 这条机外边不会让整台定义失效（校验里没有关于"机外"的报错）',
+    (await ev("validate().filter(function(x){return x.indexOf('机外')>=0||x.indexOf('outside')>=0}).length")) === 0,
+    JSON.stringify(await ev("validate()")));
   await ev("edges.length = " + base21 + "; sel=null; commit()");
 
   // ㉒ 拖线落到机外盒 = to=outside（自动相位）
@@ -367,7 +371,9 @@ try {
   check('㉓b 目标改成机外 ⇒ 自动变相位驱动',
     (await ev("edges[1].to")) === 'outside' && (await ev("edges[1].phase")) === true,
     'to=' + await ev("edges[1].to") + ' phase=' + await ev("edges[1].phase"));
-  check('㉓c 校验仍 0 问题', (await ev("validate().length")) === 0, JSON.stringify(await ev("validate()")));
+  check('㉓c 校验里没有关于"机外"的报错（同上：这条测试自己也留了条重复边）',
+    (await ev("validate().filter(function(x){return x.indexOf('机外')>=0||x.indexOf('outside')>=0}).length")) === 0,
+    JSON.stringify(await ev("validate()")));
   await ev("edges[1].to='superland'; sel=null; commit()");
 
   // ㉔ 拉到空白处要有提示
@@ -427,6 +433,278 @@ try {
   const rowsOk = await ev("(function(){return [].slice.call(document.querySelectorAll('#elist .erow')).every(function(r){return (r.querySelector('.txt')||{}).textContent.indexOf('landing')>=0;})})()");
   check('⑯ 选中状态后边列表只列相关边', relRows > 0 && relRows < allRows && rowsOk === true,
     '全部=' + allRows + ' 相关=' + relRows);
+
+  // ㉕ 撤销 / 重做（本轮新增：要"自己重连各个节点"就必须有后悔药）
+  await ev("closeCtx(); sel=null; histReset(); render()");     // 以当前这一帧为新的历史起点
+  const he0 = await ev("edges.length");
+  await ev("addEdge('idle','hovermove')");
+  const he1 = await ev("edges.length");
+  await ev("undo()");
+  const he2 = await ev("edges.length");
+  await ev("redo()");
+  const he3 = await ev("edges.length");
+  check('㉕ 撤销：建边后一步回退', he1 === he0 + 1 && he2 === he0, `基线=${he0} 建后=${he1} 撤销后=${he2}`);
+  check('㉕b 重做：一步恢复', he3 === he0 + 1, `重做后=${he3}`);
+  check('㉕c 撤销到头不再往下掉（且给提示）',
+    (await ev("(function(){undo();var n=edges.length;undo();return edges.length===n && notice.indexOf('已经到头')>=0;})()")) === true,
+    String(await ev("notice")).slice(0, 36));
+
+  // ㉖ 选中状态后按 Delete 能删（以前只处理"边"⇒ 按了毫无反应）；删错能 Ctrl+Z 回来
+  await ev("closeCtx(); elistAll=true; active=0; sel={type:'state',id:'landing_copy'}; notice=''; render()");
+  const b26 = await ev("states.filter(s=>s.name==='landing_copy').length");
+  await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Delete', code: 'Delete', windowsVirtualKeyCode: 46, nativeVirtualKeyCode: 46 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Delete', code: 'Delete', windowsVirtualKeyCode: 46, nativeVirtualKeyCode: 46 });
+  await sleep(350);
+  const a26 = await ev("states.filter(s=>s.name==='landing_copy').length");
+  await ev("undo()");
+  const u26 = await ev("states.filter(s=>s.name==='landing_copy').length");
+  check('㉖ 选中状态按 Delete 能删掉', b26 === 1 && a26 === 0, `前=${b26} 删后=${a26}`);
+  check('㉖b 删错能撤销回来', u26 === 1, `撤销后=${u26}`);
+
+  // ㉗㉘ 播放方式 = **单选开关**，且**不写时长**（用户："循环 or 不循环应该是个单选开关吧""动画本身时长是多少就是多少"）
+  await ev("closeCtx(); active=0; sel={type:'state',id:'idle'}; notice=''; render()");
+  check('㉗ 状态面板是「循环 / 一次性」单选（循环态：next 锁上、且**没有时长输入框**）',
+    (await ev("!!(document.getElementById('s-mode-loop') && document.getElementById('s-mode-once'))"))
+      && (await ev("document.getElementById('s-mode-loop').checked"))
+      && (await ev("document.getElementById('s-next').disabled === true"))
+      && (await ev("document.getElementById('s-dur') === null")), '');
+  await ev("document.getElementById('s-mode-once').click()");     // 真点击，不是直接调函数
+  await sleep(320);
+  check('㉘ 切「一次性」= once=true、next 解锁，且**仍然没有时长输入框**',
+    (await ev("stateByName['idle'].once === true && document.getElementById('s-next').disabled === false"))
+      && (await ev("document.getElementById('s-dur') === null")), '');
+  await ev("document.getElementById('s-mode-loop').click()");
+  await sleep(320);
+  check('㉘b 切回「循环」= once=false、next 锁上',
+    (await ev("stateByName['idle'].once === false && document.getElementById('s-mode-loop').checked")) === true, '');
+
+  // ㉙ 边的「剩余」条件 = **百分比**（不是秒），导出成 anim-rem-pct
+  //    用一条**临时边**测，测完截断弹掉（别动真数据 —— 建边类测试的老教训）
+  await ev("closeCtx(); active=0; elistAll=true; edges.push({from:'idle',to:'fastmovePitchD',kind:'key',key:'W',mode:'held',blend:'',after:false,phase:false}); sel={type:'edge',id:edges.length-1}; render()");
+  const ti = await ev("edges.length-1");
+  await ev("(function(){var k=document.getElementById('f-kind'); k.value='anim'; k.onchange({target:{value:'anim'}});})()");
+  await sleep(300);
+  await ev("(function(){var a=document.getElementById('f-anim'); a.value='remaining'; a.onchange({target:{value:'remaining'}});})()");
+  await sleep(300);
+  await ev("(function(){var el=document.getElementById('f-lt'); el.value='20'; el.onchange({target:{value:'20'}});})()");
+  await sleep(300);
+  const exml = await ev("edgesXml().split('\\n')[" + ti + "]");
+  check('㉙ 边的「剩余」阈值是**百分比**，导出成 anim-rem-pct',
+    (await ev("edges[" + ti + "].kind==='anim' && edges[" + ti + "].anim==='remaining' && edges[" + ti + "].lt==='20'")) === true
+      && String(exml).indexOf('anim-rem-pct="20"') >= 0, 'xml=' + exml);
+  check('㉙b 百分比范围校验（150 报错、20 通过）',
+    (await ev("(function(){var e=edges[" + ti + "];e.lt='150';var bad=validate().some(function(x){return x.indexOf('百分比')>=0});e.lt='20';return bad && !validate().some(function(x){return x.indexOf('百分比')>=0});})()")) === true, '');
+  await ev("edges.length = " + ti + "; sel=null; notice=''; commit()");   // 弹掉临时边
+
+  // ㉚ 容器改名必须**级联**（用户实测："我给两个容器改了名字之后 无法拖动了"）
+  //    真因：改名只改 groups[i].name、没重建 groupByName ⇒ `groupBox(i, undefined)` 在 `gpos[g.name]` 抛错
+  //          ⇒ pointerdown 半路中断 ⇒ 整个容器拖不动。gpos 也没迁 ⇒ 盒子还会跳回默认位。
+  await ev("closeCtx(); active=0; sel=null; groups.push({name:'临时容器甲', members:[], entry:''}); reindex(); commit(); fit()");
+  await sleep(350);
+  const gb30a = await centerOf('.grp[data-g="临时容器甲"]');
+  if (gb30a) await dragFrom(gb30a, 40, 30);                        // 先挪一下，制造一个 gpos
+  const gp30a = await ev("JSON.stringify(gpos['临时容器甲'])");
+  await ev("sel={type:'group', id:'临时容器甲'}; render()");
+  await sleep(250);
+  await ev("(function(){var el=document.getElementById('g-name'); el.value='临时容器乙'; el.onchange({target:{value:'临时容器乙'}});})()");
+  await sleep(350);
+  check('㉚ 改容器名：索引重建（新名在 / 旧名没了）+ 拖过的位置(gpos)跟着迁',
+    (await ev("!!groupByName['临时容器乙'] && !groupByName['临时容器甲']")) === true
+      && (await ev("!!(gpos['临时容器乙'] && !gpos['临时容器甲'])")) === true,
+    'gpos ' + gp30a + ' → ' + await ev("JSON.stringify(gpos['临时容器乙'])"));
+  check('㉚b 改名当帧 groupBox 不再抛错（拖动的起手就是它）',
+    (await ev("(function(){try{var b=groupBox(groupIndexOf('临时容器乙'), groupByName['临时容器乙']);return !!(b && b.w>0)}catch(e){return 'EXC:'+e.message}})()")) === true, '');
+  const gp30b = await ev("JSON.stringify(gpos['临时容器乙'])");
+  const gb30b = await centerOf('.grp[data-g="临时容器乙"]');
+  if (gb30b) await dragFrom(gb30b, -50, 25);                       // 改名之后**真鼠标再拖一次**
+  const gp30c = await ev("JSON.stringify(gpos['临时容器乙'])");
+  check('㉚c 改容器名之后**真鼠标仍拖得动**（位置真的变了）',
+    gb30b !== null && gp30b !== gp30c, 'before=' + gp30b + ' after=' + gp30c);
+  await ev("groups = groups.filter(function(x){return x.name!=='临时容器乙'}); delete gpos['临时容器乙']; reindex(); sel=null; notice=''; commit()");
+
+  // ㉛ 从**容器端口**拉线时，预览线起点必须是**容器盒**（不是世界原点）
+  //    真因：预览线一律走 `nodeRect(pending)`（给状态用的）⇒ 容器名取不到 pos ⇒ 兜底 {0,0,240,50}
+  //          ⇒ 起点落到世界 (240,25) ⇒ 线飞向画面外（用户实测："容器右侧的小圆点想连接时候 线条显示异常"）
+  await ev("closeCtx(); active=0; tabs=[{kind:'root'}]; sel=null; notice=''; render(); fit()");
+  await sleep(350);
+  const ne31 = await ev("edges.length");
+  const cp31 = await centerOf('.grp[data-g="Upright"] .port');
+  check('㉛ 容器盒右侧有出边端口（拉线的起点）', cp31 !== null, JSON.stringify(cp31));
+  if (cp31) {
+    await mouse('mousePressed', cp31.x, cp31.y, 1, 1);
+    await mouse('mouseMoved', cp31.x + 130, cp31.y + 70, 1, 1);
+    await sleep(250);
+  }
+  const pv31 = await ev("(function(){var a=[].slice.call(document.querySelectorAll('path'));var p=a.filter(function(x){return x.getAttribute('pointer-events')==='none' && x.getAttribute('stroke-dasharray')})[0];return p?p.getAttribute('d'):'';})()");
+  const exp31 = await ev("(function(){var b=groupBox(groupIndexOf('Upright'), groupByName['Upright']);return 'M '+(b.x+b.w)+' '+(b.y+b.h/2)+' L';})()");
+  check('㉛b 预览线从**容器盒右侧中点**出发（不是世界原点）',
+    String(pv31).indexOf(String(exp31)) === 0, 'd=' + pv31 + '  期望前缀=' + exp31);
+  if (cp31) await mouse('mouseReleased', cp31.x + 130, cp31.y + 70, 1, 0);
+  await sleep(250);
+  await ev("edges.length = " + ne31 + "; pending=null; drag=null; notice=''; sel=null; commit()");   // 截断回基线，别污染后面的断言
+  check('㉛c 这次拉线没留下脏边', (await ev("edges.length")) === ne31, 'edges=' + await ev("edges.length"));
+
+  // ㉜ 相位边只该写**相位触发器**（用户实测："这里条件有点怪" —— 那个 move-input 是编辑器默认塞的）
+  //    依据：FlightAnimConditions L62/L63 `takeoff-trigger`/`land-trigger` 真身就是 `c => false`；
+  //          AgentAnimStateMachine `if (e.PhaseForced) continue;` ⇒ 相位边的 when= 运行时不求值。
+  await ev("closeCtx(); active=0; tabs=[{kind:'root'}]; sel=null; notice=''; render()");
+  const ne32 = await ev("edges.length");
+  await ev("addEdge('outside','hoverstart')");
+  await sleep(250);
+  check('㉜ 机外 → 状态：时机自动是 takeoff-trigger（不再是 move-input）',
+    (await ev("(function(){var e=edges[edges.length-1];return e.phase===true && e.pred==='takeoff-trigger'})()")) === true,
+    await ev("JSON.stringify({pred:edges[edges.length-1].pred, phase:edges[edges.length-1].phase})"));
+  check('㉜b 相位边写普通谓词 ⇒ 校验报错（以前静默通过）',
+    (await ev("(function(){var e=edges[edges.length-1];e.pred='move-input';var bad=validate().some(function(x){return x.indexOf('相位时刻')>=0});e.pred='takeoff-trigger';return bad && !validate().some(function(x){return x.indexOf('相位时刻')>=0});})()")) === true, '');
+  check('㉜c 相位边**仍是同一套控件**：有 #f-kind（按键/动画 标为用不到）、谓词下拉里**全部谓词都能选**、相位时刻人话置顶',
+    (await ev("(function(){sel={type:'edge',id:edges.length-1};render();var k=document.getElementById('f-kind');if(!k)return false;var el=document.getElementById('f-pred');if(!el)return false;var o=[].slice.call(el.options).map(function(x){return x.value});var g=[].slice.call(el.querySelectorAll('optgroup')).map(function(x){return x.label});return o.indexOf('takeoff-trigger')>=0 && o.indexOf('land-trigger')>=0 && o.indexOf('move-input')>=0 && k.options[0].disabled===true && g.length===2;})()")) === true, '');
+  await ev("edges.length = " + ne32 + "; pending=null; drag=null; sel=null; notice=''; commit()");
+  check('㉜d 清理干净（边数回到基线）', (await ev("edges.length")) === ne32, 'edges=' + await ev("edges.length"));
+
+  // ㉜e 面板要**直接写出正确值**，别让用户猜（用户实测："所以这里我咋填 看不懂"）
+  await ev("closeCtx(); active=0; sel={type:'edge', id:edges.findIndex(function(x){return x.from==='outside'})}; render()");
+  await sleep(220);
+  const txt32 = await ev("document.getElementById('editor').textContent || ''");
+  check('㉜e 相位边面板写人话：点明进机「写『起飞』即可」+ 选项是「起飞 —— 空中按跳跃（进机）」（不再甩 c=>false）',
+    String(txt32).indexOf('写「起飞」即可') >= 0 && String(txt32).indexOf('空中按跳跃') >= 0
+      && String(txt32).indexOf('=> false') < 0,
+    String(txt32).replace(/\s+/g, ' ').slice(0, 120));
+
+  // ㉝ 相位边也能写「动画 · 剩余 %」，而且**导出成真的条件**（相位会读它 ⇒ 出机判据）
+  //    用**当时确实存在**的状态（`superland` 在前面 ⑭ 已被改名成 `landing` —— 上次这里就是踩了这个）
+  await ev("closeCtx(); active=0; sel=null; render()");
+  const ne33 = await ev("edges.length");
+  await ev("addEdge('landing','outside')");
+  await sleep(250);
+  check('㉝ 相位边选「按键」被禁（相位读不到按键），但「动画」档是开的',
+    (await ev("(function(){var k=document.getElementById('f-kind');return !!k && k.options[0].disabled===true && k.options[1].disabled===false;})()")) === true, '');
+  await ev("(function(){var k=document.getElementById('f-kind');k.value='anim';k.onchange({target:{value:'anim'}});})()");
+  await sleep(300);
+  await ev("(function(){var a=document.getElementById('f-anim');a.value='remaining';a.onchange({target:{value:'remaining'}});})()");
+  await sleep(300);
+  await ev("(function(){var el=document.getElementById('f-lt');el.value='10';el.onchange({target:{value:'10'}});})()");
+  await sleep(300);
+  const x33 = await ev("edgesXml().split('\\n')[" + ne33 + "]");
+  check('㉝b 导出成 anim="remaining" anim-rem-pct="10" phase="true"',
+    String(x33).indexOf('anim="remaining"') >= 0 && String(x33).indexOf('anim-rem-pct="10"') >= 0
+      && String(x33).indexOf('phase="true"') >= 0, 'xml=' + x33);
+  check('㉝c 相位边写动画条件 ⇒ 校验 0 问题（它是真的，不是误导）',
+    (await ev("(function(){return validate().filter(function(x){return x.indexOf('相位')>=0 || x.indexOf('anim-rem-pct')>=0}).length===0;})()")) === true,
+    await ev("JSON.stringify(validate())"));
+  await ev("edges.length = " + ne33 + "; pending=null; drag=null; sel=null; notice=''; commit()");
+
+  // ㉞ 按键改成**勾选框**：多选 = 同时按着（组合），另有统一的「取反」
+  //    用户原话："这四个模式没看懂" + "我还是希望你能够让我来写按键组合以及not否定"
+  await ev("closeCtx(); active=0; edges.push({from:'idle',to:'hovermove',kind:'key',keys:'W',blend:'',after:false,phase:false,not:false}); sel={type:'edge',id:edges.length-1}; render()");
+  await sleep(250);
+  check('㉞ 按键是**勾选框**（8 个键 + 取反），没有"模式"下拉了',
+    (await ev("(function(){return document.querySelectorAll('#f-args input[data-k]').length===8 && !!document.getElementById('f-not') && document.getElementById('f-mode')===null && document.getElementById('f-key')===null;})()")) === true,
+    '键勾选框=' + await ev("document.querySelectorAll('#f-args input[data-k]').length"));
+  await ev("(function(){var b=document.querySelector('#f-args input[data-k=Shift]'); b.checked=true; b.onchange();})()");
+  await sleep(250);
+  check('㉞b 勾第二个键 = **同时按着**（keys="W+Shift"）',
+    (await ev("edges[edges.length-1].keys")) === 'W+Shift', 'keys=' + await ev("edges[edges.length-1].keys"));
+  await ev("(function(){var c=document.getElementById('f-not'); c.checked=true; c.onchange({target:{checked:true}});})()");
+  await sleep(250);
+  const x34 = await ev("edgesXml().split('\\n')[edges.length-1]");
+  check('㉞c 勾「取反」⇒ 导出 not="true"（就是 not（W+Shift））',
+    String(x34).indexOf('keys="W+Shift"') >= 0 && String(x34).indexOf('not="true"') >= 0, 'xml=' + x34);
+  await ev("(function(){var b=document.querySelector('#f-args input[data-k=A]'); b.checked=true; b.onchange();})()");
+  await sleep(250);
+  check('㉞d 组合能加到 3 个键', (await ev("edges[edges.length-1].keys")) === 'W+Shift+A', 'keys=' + await ev("edges[edges.length-1].keys"));
+  await ev("edges.length = edges.length - 1; sel=null; notice=''; commit()");
+
+  // ㉟ 校验能抓两种"结构性错误"（通用，不针对任何节点）：
+  //    用户当前草稿就有 冲刺飞行⇄悬浮飞行 两条都写 sprinting ⇒ 互踢；还有一对完全重复的边
+  await ev("closeCtx(); active=0; elistAll=true; sel=null; render()");
+  const ne35 = await ev("edges.length");
+  check('㉟ 校验能抓「互为反向、条件相同 ⇒ 互踢」',
+    (await ev("(function(){edges.push({from:'idle',to:'landing',kind:'pred',pred:'moving',blend:'',after:false,phase:false});"
+      + "edges.push({from:'landing',to:'idle',kind:'pred',pred:'moving',blend:'',after:false,phase:false});"
+      + "var bad=validate().some(function(x){return x.indexOf('互踢')>=0});"
+      + "edges.length=" + ne35 + ";commit();return bad;})()")) === true, '');
+  check('㉟b 校验能抓「完全重复的边」',
+    (await ev("(function(){edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'moving',blend:'',after:false,phase:false});"
+      + "edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'moving',blend:'',after:false,phase:false});"
+      + "var bad=validate().some(function(x){return x.indexOf('完全重复')>=0});"
+      + "edges.length=" + ne35 + ";commit();return bad;})()")) === true, '');
+  check('㉟c 校验能抓「同来源 + 同条件（目标不同）⇒ 后面那条永远轮不到」',
+    (await ev("(function(){edges.push({from:'idle',to:'landing',kind:'pred',pred:'moving',blend:'',after:false,phase:false});"
+      + "edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'moving',blend:'',after:false,phase:false});"
+      + "var bad=validate().some(function(x){return x.indexOf('永远轮不到')>=0});"
+      + "edges.length=" + ne35 + ";commit();return bad;})()")) === true, '');
+  // ㊱ 相位触发器（真身 `c => false`）用在**非相位边**上 = 死边
+  //    用户实测：`冲刺飞行 → 超人落地` 写了 takeoff-trigger 却没勾相位驱动
+  check('㊱ 校验能抓「相位触发器用在没勾相位驱动的边上 ⇒ 永远不会生效」',
+    (await ev("(function(){edges.push({from:'idle',to:'landing',kind:'pred',pred:'takeoff-trigger',blend:'',after:false,phase:false});"
+      + "var bad=validate().some(function(x){return x.indexOf('永远不会生效')>=0});"
+      + "edges.length=" + ne35 + ";commit();return bad;})()")) === true, '');
+  await ev("sel=null; notice=''; commit()");
+
+  // ㊲ 容器页的「入口线」是**推导出来的装饰**（不是边）—— 不能抢走真边的点击/右键
+  //    用户实测："这个线为什么删不掉"（右键它拿到的是画布菜单，所以永远没有"删除这条边"）
+  await ev("closeCtx(); tabs=[{kind:'root'},{kind:'group',id:groups[0].name}]; active=1; sel=null; render()");
+  await sleep(320);
+  check('㊲ 容器页画了「入口线」，但它 pointer-events:none（鼠标能穿到下面的真边）',
+    (await ev("(function(){var g=document.querySelector('.entry-edge');return !!g && getComputedStyle(g).pointerEvents==='none';})()")) === true,
+    'entry-edge 数量=' + await ev("document.querySelectorAll('.entry-edge').length"));
+  await ev("closeCtx(); active=0; tabs=[{kind:'root'}]; sel=null; render()");
+  await sleep(220);
+
+  // ㊳ Entry 也能**自己连**（用户："难道不是应该我自己连 entry-idle吗"）——
+  //    容器页里从 Entry 右侧绿点拉线，落到成员状态 ⇒ 设置容器的 entry
+  await ev("closeCtx(); tabs=[{kind:'root'},{kind:'group',id:groups[0].name}]; active=1; sel=null; render()");
+  await sleep(320);
+  const old38 = await ev("groups[0].entry");
+  const mem38 = await ev("groups[0].members[0]");
+  const ep38 = await centerOf('[data-entry]');
+  check('㊳ 容器页的 Entry 盒有出边绿点（可以自己连入口）', ep38 !== null, JSON.stringify(ep38));
+  const nd38 = await centerOf('.node[data-n="' + mem38 + '"]');
+  if (ep38 && nd38) await dragFrom(ep38, nd38.x - ep38.x, nd38.y - ep38.y);
+  await sleep(220);
+  check('㊳b 从 Entry 拉线落到成员 ⇒ 容器入口改成它',
+    (await ev("groups[0].entry")) === mem38,
+    'entry=' + await ev("groups[0].entry") + '（期望 ' + mem38 + '，原来 ' + old38 + '）');
+  await ev("groups[0].entry = " + JSON.stringify(old38) + "; closeCtx(); active=0; tabs=[{kind:'root'}]; sel=null; notice=''; commit()");
+  await sleep(220);
+
+  // ㊳c~㊳e **真嵌套**（用户："我想把这俩个组成一个新的子容器 看起来做不到"）
+  await ev("closeCtx(); active=1; tabs=[{kind:'root'},{kind:'group',id:groups[0].name}]; sel={type:'group',id:groups[0].name}; render()");
+  await sleep(300);
+  const ng38 = await ev("(function(){var b=document.getElementById('g-sub'); if(!b) return ''; b.onclick(); return groups[groups.length-1].name;})()");
+  await sleep(300);
+  check('㊳c 容器页有「＋ 新建子容器」⇒ 父容器的成员里多了一个**容器名**',
+    !!ng38 && (await ev("(groups[0].members||[]).indexOf(" + JSON.stringify(ng38) + ")>=0")) === true,
+    '子容器=' + ng38);
+  await ev("(function(){var sub=" + JSON.stringify(ng38) + ";var s=groupByName[sub];"
+    + "['idle','hovermove'].forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});s.members.push(m);});"
+    + "s.entry='hovermove'; groups[0].entry=sub; commit();})()");
+  await sleep(300);
+  check('㊳d 嵌套后：两状态成为**子容器的直接成员**，父的**叶子展开**里仍然有它们',
+    (await ev("(groups[0].members||[]).indexOf('hovermove')<0")) === true
+      && (await ev("leafStatesOf(groups[0].name).indexOf('hovermove')>=0")) === true
+      && (await ev("parentGroupOf('hovermove')")) === ng38,
+    '子成员=' + await ev("JSON.stringify(groupByName[" + JSON.stringify(ng38) + "].members)"));
+  check('㊳e 嵌套 + entry 指向子容器 ⇒ 校验 0 问题（入口链最终落到状态）',
+    (await ev("validate().length")) === 0, JSON.stringify(await ev("validate()")));
+  // ㊳f **画布右键**里也要有「新建子容器」（用户实测："看不见新建子容器按钮" —— 他是在画布右键里找的）
+  //     🔴 用**合成事件直接派给 svg**（`ev.target` 必是 svg ⇒ 一定走画布分支），不靠"猜一个空白点"
+  await ev("closeCtx(); active=1; tabs=[{kind:'root'},{kind:'group',id:groups[0].name}]; sel=null; render()");
+  await sleep(300);
+  await ev("(function(){var svg=document.getElementById('svg');var r=svg.getBoundingClientRect();"
+    + "svg.dispatchEvent(new MouseEvent('contextmenu',{clientX:Math.round(r.left+40),clientY:Math.round(r.top+40),bubbles:true,cancelable:true}));})()");
+  await sleep(300);
+  const items38 = await ev("[].slice.call(document.querySelectorAll('#ctx .it')).map(function(x){return x.textContent}).join(' | ')");
+  check('㊳f 容器页的**画布右键**里有「＋ 新建子容器」',
+    String(items38).indexOf('新建子容器') >= 0 && String(items38).indexOf('新建容器') >= 0,
+    '菜单=' + String(items38).slice(0, 120));
+  await ev("closeCtx(); active=0; tabs=[{kind:'root'}]; sel=null; render()");
+  await ev("groups = groups.filter(function(x){return x.name!==" + JSON.stringify(ng38) + "});"
+    + "groups[0].members = groups[0].members.filter(function(m){return m!==" + JSON.stringify(ng38) + "});"
+    + "groups[0].members.push('idle','hovermove'); groups[0].entry='hovermove';"
+    + "reindex(); sel=null; tabs=[{kind:'root'}]; active=0; notice=''; commit()");
+  await sleep(250);
+  await ev("sel=null; notice=''; commit()");
 
   // ⑩⑪ 本地草稿必须**显眼**（用户实测踩过的坑：草稿静默盖住 XML，看着像"改了没生效"）
   await ev(`try{const d={states:DATA.states.concat([{name:'magicIdle',act:'act_magic_idle',dur:'',next:'',clip:'magic_idle',durText:'循环'}]),edges:DATA.edges.concat([{from:'*',to:'magicIdle',kind:'pred',pred:'casting-fallback',blend:'0.15',after:false,phase:false}]),groups:DATA.groups,pos:{},view:{k:1.15,tx:30,ty:70},gpos:{}};localStorage.setItem(LSKEY,JSON.stringify(d));}catch(e){}`);

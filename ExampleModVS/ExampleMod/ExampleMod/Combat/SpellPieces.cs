@@ -1831,6 +1831,11 @@ namespace LivingWorldNpcs
 			private float _nextTick;
 			private bool _ended;
 
+			// 🔴 弧的视觉（2026-09-25 加）：数据里的 `mesh` + `trail_particle` 拉成一条从起点到命中点的弧。
+			//    引导投送以前**只做判定不画东西** —— 手里有球、命中处有爆散，中间那条线是空的。
+			private GameEntity _arcEntity;
+			private ParticleSystem _arcParticle;
+
 			public Instance(SpellShot shot)
 			{
 				_shot = shot;
@@ -1850,6 +1855,7 @@ namespace LivingWorldNpcs
 				{
 					return false;   // 硬上限（正常由起手轴松手结束）
 				}
+				UpdateArc();        // 视觉：每帧摆弧（不结算）
 				if (_elapsed >= _nextTick)
 				{
 					_nextTick = _elapsed + MathF.Max(0.05f, _spell.RepeatInterval);
@@ -1897,7 +1903,98 @@ namespace LivingWorldNpcs
 					return;
 				}
 				_ended = true;
+				ReleaseArc();
 				DebugLogger.Log($"[Spell] 引导 '{_spell.Id}' 结束（持续 {_elapsed:F1}s）");
+			}
+
+			/// <summary>
+			/// 弧的**视觉**：每帧沿朝向扫一次（与 <see cref="Fire"/> 同一条射线），把数据里的
+			/// <c>mesh</c> 从起点拉到命中点、<c>trail_particle</c> 挂在这条网格上。
+			///
+			/// 🔴 **只做视觉，不结算** —— 伤害仍只在 <see cref="Fire"/> 那一拍上报（契约 3：
+			///   每帧都在照到人，但每 <c>repeat_interval</c> 才结算一次）。
+			/// 🔴 网格约定（`build_lightning_arc.py`）：**长轴 = 本地 +Z、长度基准 1 m、原点在起点端**
+			///   ⇒ 摆法 = 起点 + 朝向命中点 + **把 Z 基向量乘上距离（米）**（"基向量长度即缩放"）。
+			/// ⚠️ 网格只造一次、之后每帧只改帧（每帧重建会漏实体）。
+			/// </summary>
+			private void UpdateArc()
+			{
+				if (string.IsNullOrEmpty(_spell.Mesh))
+				{
+					return;   // 没配网格 = 这条法术不要弧（数据说不要就不要）
+				}
+				Vec3 origin = _shot.Intent.Origin;
+				Vec3 direction = _shot.Intent.Direction;
+				direction = direction.LengthSquared < 1e-8f ? Vec3.Forward : direction.NormalizedCopy();
+				Vec3 end = origin + direction * _spell.MaxDistance;
+				int exclude = _shot.Intent.Caster != null ? _shot.Intent.Caster.Index : -1;
+				Agent victim;
+				Vec3 point;
+				bool hit = SpellSweep.FindNearestHit(Mission.Current, origin, end, _spell.HitRadius, exclude, null,
+					out victim, out point);
+				if (!hit)
+				{
+					point = end;
+				}
+
+				Vec3 delta = point - origin;
+				float length = delta.Length;
+				if (length < 0.05f)
+				{
+					return;   // 贴脸太短就不摆（旋转矩阵会退化）
+				}
+
+				if (_arcEntity == null)
+				{
+					_arcEntity = SpellWorld.SpawnMeshEntity(_spell.Mesh, origin, Mat3.Identity, 1f);
+					if (_arcEntity == null)
+					{
+						return;
+					}
+					_arcParticle = SpellWorld.AttachParticle(_spell.TrailParticle, _arcEntity);
+				}
+				try
+				{
+					Mat3 rotation = SpellMath.BuildFlightRotation(delta * (1f / length), 0f);
+					// 🔴 粗细 = 数据 `scale`（倍率），**不写死在网格里** —— 写死就得"每改一次粗细重导一次资产"。
+					//    运行时还能 `custom.spell scale <x>` 临场调（SpellDebug.ScaleOverride 优先）。
+					//    网格基准宽 0.12 m ⇒ scale 1 = 12 cm、scale 3 = 36 cm（传奇那种粗电柱往 3~5 走）。
+					float width = SpellDebug.ScaleOverride ?? _spell.Scale;
+					if (Math.Abs(width - 1f) > 0.001f && width > 0f)
+					{
+						rotation.s = rotation.s * width;   // X 基向量 = 横向
+						rotation.f = rotation.f * width;   // Y 基向量 = 另一横向（十字双片）
+					}
+					rotation.u = rotation.u * length;      // 本地 Z 的基向量长度 = 弧长
+					_arcEntity.SetGlobalFrame(new MatrixFrame(rotation, origin));
+				}
+				catch (Exception)
+				{
+					_arcEntity = null;      // 实体可能已被引擎回收 —— 下一帧重建
+					_arcParticle = null;
+				}
+			}
+
+			/// <summary>摘掉弧（实体 + 挂在它上面的粒子），照弹体那套收尾口径。</summary>
+			private void ReleaseArc()
+			{
+				if (_arcEntity != null)
+				{
+					try
+					{
+						if (_arcParticle != null)
+						{
+							_arcEntity.RemoveComponent(_arcParticle);
+						}
+						_arcEntity.Remove(0);
+					}
+					catch (Exception)
+					{
+						// 实体可能已被引擎回收 —— 正常
+					}
+				}
+				_arcEntity = null;
+				_arcParticle = null;
 			}
 		}
 	}

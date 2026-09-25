@@ -25,24 +25,15 @@ namespace LivingWorldNpcs.Flight
     {
         // ── IAnimInputFacts 的载体（每帧由 PlayerFlightBehavior 填；下标顺序 = AnimPrimitives.Keys）──
         private readonly bool[] _keyHeld = new bool[AnimPrimitives.KeyCount];
-        private readonly bool[] _keyDown = new bool[AnimPrimitives.KeyCount];
-        private readonly bool[] _keyUp = new bool[AnimPrimitives.KeyCount];
 
-        /// <summary>当前动画还剩多少秒（循环状态 = +∞ ⇒ "剩余 &lt; X" 永不成立）。</summary>
-        public float AnimRemaining = float.PositiveInfinity;
+        /// <summary>当前动画还剩多少（**占 clip 的比例** 0~1；循环状态 = +∞ ⇒ "剩余 &lt; X%" 永不成立）。</summary>
+        public float AnimRemainFrac = float.PositiveInfinity;
 
-        /// <summary>填一个键的状态（沿只活一帧，见 <see cref="IAnimInputFacts"/>）。</summary>
-        internal void SetKey(int i, bool held, bool down, bool up)
-        {
-            _keyHeld[i] = held;
-            _keyDown[i] = down;
-            _keyUp[i] = up;
-        }
+        /// <summary>填一个键的**电平**（按住 / 没按住；"沿"已删，见 <see cref="IAnimInputFacts"/>）。</summary>
+        internal void SetKey(int i, bool held) => _keyHeld[i] = held;
 
         bool IAnimInputFacts.KeyHeld(int i) => _keyHeld[i];
-        bool IAnimInputFacts.KeyDown(int i) => _keyDown[i];
-        bool IAnimInputFacts.KeyUp(int i) => _keyUp[i];
-        float IAnimInputFacts.AnimRemaining => AnimRemaining;
+        float IAnimInputFacts.AnimRemainFrac => AnimRemainFrac;
 
         /// <summary>有方向输入（或还在惯性滑行）—— 决定"待机 ↔ 悬停移动"。= <see cref="MoveInput"/> || 速度&gt;1。</summary>
         public bool Moving;

@@ -28,6 +28,9 @@ namespace LivingWorldNpcs.Animation
     /// &lt;state_machine name="flight"&gt;
     ///   &lt;families&gt;
     ///     &lt;family name="Prone" entry="fastmove"&gt;fastmove fastmoveStart dodgeL&lt;/family&gt;
+    ///     &lt;!-- 🔴 成员可以是**别的容器名** ⇒ 真嵌套；装载期递归展开成叶子状态 --&gt;
+    ///     &lt;family name="Upright" entry="HoverBase"&gt;hoverstart HoverBase&lt;/family&gt;
+    ///     &lt;family name="HoverBase" entry="hovermove"&gt;hovermove idle&lt;/family&gt;
     ///       ← 成员空格分隔；**entry = 容器（子状态机）的真实入口**：进容器落到哪个状态
     ///   &lt;/families&gt;
     ///   &lt;states&gt;
@@ -139,11 +142,24 @@ namespace LivingWorldNpcs.Animation
                 }
                 float duration = 0f;
                 string durRaw = Attr(node, "duration");
+                string onceRaw = Attr(node, "once");
                 string nxt = Attr(node, "next");
-                bool oneShot = !string.IsNullOrEmpty(durRaw);
-                if (oneShot && !ResolveNumber(durRaw, out duration))
+                // 🔴 一次性 = `once="true"`。**长度不写** —— 长度由 clip 自己带，
+                //    引擎给的是 0~1 的播放进度（见 AgentAnimStateMachine.CurrentRemainFrac / CurrentFinished）。
+                //    `duration="…"`（秒 / 命名标量）保留成**可选覆盖**：只在"要主动截短 clip"时才写。
+                if (!string.IsNullOrEmpty(onceRaw)
+                    && !string.Equals(onceRaw, "true", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(onceRaw, "false", StringComparison.OrdinalIgnoreCase))
                 {
-                    problems.Add("状态 '" + sn + "' 的 duration='" + durRaw + "' 既不是数字、也不是已登记的命名标量");
+                    problems.Add("状态 '" + sn + "' 的 once='" + onceRaw + "' 只认 true / false");
+                    continue;
+                }
+                bool oneShot = string.Equals(onceRaw, "true", StringComparison.OrdinalIgnoreCase)
+                               || !string.IsNullOrEmpty(durRaw);
+                if (oneShot && !string.IsNullOrEmpty(durRaw) && !ResolveNumber(durRaw, out duration))
+                {
+                    problems.Add("状态 '" + sn + "' 的 duration='" + durRaw + "' 既不是数字、也不是已登记的命名标量"
+                                 + "（**不写就行** —— 长度默认取 clip 自己的）");
                     continue;
                 }
                 if (!oneShot && !string.IsNullOrEmpty(nxt))
@@ -176,19 +192,101 @@ namespace LivingWorldNpcs.Animation
                 }
             }
 
-            // ── 族成员必须是已声明的状态 ──
-            foreach (KeyValuePair<string, string[]> kv in families)
+            // 🔴 **入口解析器**：`to=容器` 时一路往下走，直到落到**状态**。
+            //    嵌套之后 entry 可以指向**子容器** ⇒ 必须递归（不是查一次表）。
+            Func<string, string> resolveEntry = fam =>
             {
-                foreach (string m in kv.Value)
+                string cur = fam;
+                for (int g = 0; g < 32 && families.ContainsKey(cur); g++)
                 {
-                    if (!stateNames.Contains(m))
+                    if (!familyEntry.TryGetValue(cur, out string nxt)) return null;
+                    cur = nxt;
+                }
+                return cur;
+            };
+
+            // ── 容器（族）校验 + **递归展开成叶子状态** ──
+            //    🔴 支持**嵌套**：`<family name="A">hovermove idle 子容器</family>` —— 成员可以是**容器名**。
+            //    归属仍然**唯一**（递归），且**不许成环**。
+            //    🔴 展开在**装载期**做完：`families[name]` 最终只装**叶子状态** ⇒
+            //       下游（`from=容器` 取来源 / `to=容器` 取 entry / 运行时）**一个字都不用改**。
+            {
+                var ownerOf = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (KeyValuePair<string, string[]> kv in families)
+                {
+                    if (kv.Key != null && stateNames.Contains(kv.Key))
                     {
-                        problems.Add("容器 '" + kv.Key + "' 里的 '" + m + "' 不是已声明的状态");
+                        problems.Add("容器名 '" + kv.Key + "' 和一个状态重名了（名字必须唯一）");
+                    }
+                    foreach (string m in kv.Value)
+                    {
+                        bool isState = stateNames.Contains(m), isFam = families.ContainsKey(m);
+                        if (!isState && !isFam)
+                        {
+                            problems.Add("容器 '" + kv.Key + "' 里的 '" + m + "' 既不是已声明的状态、也不是已声明的容器");
+                            continue;
+                        }
+                        if (string.Equals(m, kv.Key, StringComparison.Ordinal))
+                        {
+                            problems.Add("容器 '" + kv.Key + "' 把自己列成了成员");
+                            continue;
+                        }
+                        if (ownerOf.TryGetValue(m, out string prev))
+                        {
+                            problems.Add("'" + m + "' 同时属于容器 '" + prev + "' 和 '" + kv.Key
+                                         + "' —— 一个状态 / 容器只能归属一个容器");
+                            continue;
+                        }
+                        ownerOf[m] = kv.Key;
+                    }
+                    if (familyEntry.TryGetValue(kv.Key, out string ent) && Array.IndexOf(kv.Value, ent) < 0)
+                    {
+                        problems.Add("容器 '" + kv.Key + "' 的 entry='" + ent + "' 不是它的成员");
                     }
                 }
-                if (familyEntry.TryGetValue(kv.Key, out string ent) && Array.IndexOf(kv.Value, ent) < 0)
+
+                // 递归展开（带环检测）：容器 → 它的全部**叶子状态**
+                var leaves = new Dictionary<string, string[]>(StringComparer.Ordinal);
+                Func<string, List<string>, List<string>> expand = null;
+                expand = (name, stack) =>
                 {
-                    problems.Add("容器 '" + kv.Key + "' 的 entry='" + ent + "' 不是它的成员");
+                    var outp = new List<string>();
+                    if (!families.ContainsKey(name))
+                    {
+                        outp.Add(name);                       // 叶子：状态
+                        return outp;
+                    }
+                    if (stack.Contains(name))
+                    {
+                        problems.Add("容器嵌套成环：" + string.Join(" → ", stack) + " → " + name);
+                        return outp;
+                    }
+                    stack.Add(name);
+                    foreach (string m in families[name])
+                    {
+                        outp.AddRange(expand(m, stack));
+                    }
+                    stack.RemoveAt(stack.Count - 1);
+                    return outp;
+                };
+                foreach (KeyValuePair<string, string[]> kv in families)
+                {
+                    leaves[kv.Key] = expand(kv.Key, new List<string>()).ToArray();
+                }
+                foreach (KeyValuePair<string, string[]> kv in leaves)
+                {
+                    families[kv.Key] = kv.Value;              // 🔴 用叶子覆盖：下游一律不用改
+                }
+            }
+
+            // entry 必须**最终落到一个状态**（可以一路指向子容器，只要链底是状态）
+            foreach (KeyValuePair<string, string> kv in familyEntry)
+            {
+                string fin = resolveEntry(kv.Key);
+                if (string.IsNullOrEmpty(fin) || !stateNames.Contains(fin))
+                {
+                    problems.Add("容器 '" + kv.Key + "' 的 entry='" + kv.Value
+                                 + "' 最终没落到已声明的状态（嵌套链断了 / 没设 entry / 成环？）");
                 }
             }
 
@@ -222,14 +320,14 @@ namespace LivingWorldNpcs.Animation
                 }
                 else if (families.ContainsKey(to))
                 {
-                    // 🔴 目标写成**容器名** = 进入该容器，落到它的 entry（= UE 的子状态机 Entry）。
-                    //    这里在**装载期**就解析成具体状态 ⇒ 运行时热路径零改动。
-                    if (!familyEntry.TryGetValue(to, out string entryState))
+                    // 🔴 `to=容器` ⇒ 装载期解析成它的 entry；entry 可以是**子容器** ⇒ 递归到底
+                    string resolved = resolveEntry(to);
+                    if (string.IsNullOrEmpty(resolved))
                     {
-                        problems.Add(label + " 的目标 '" + to + "' 是容器，但该容器没写 entry（进容器落到哪个状态）");
+                        problems.Add(label + " 的目标 '" + to + "' 是容器，但入口链没落到状态（没写 entry / 成环？）");
                         continue;
                     }
-                    to = entryState;
+                    to = resolved;
                 }
                 else if (!stateNames.Contains(to))
                 {
@@ -263,16 +361,29 @@ namespace LivingWorldNpcs.Animation
                     problems.Add(label + " 的来源 '" + from + "' 既不是 * 、也不是状态或容器");
                     continue;
                 }
-                // 条件三选一：when= 命名谓词 / key=+key-mode= 单键 / anim=[+anim-lt=] 动画时间
-                string keyAttr = Attr(node, "key");
-                string keyMode = Attr(node, "key-mode");
+                // 条件三选一：when= 命名谓词 / keys="A+B" 组合键 / anim=[+anim-rem-pct=] 动画时间
+                // `not="true"` 可以**取反任意一种**（见下面统一包的那一层）
+                string keysAttr = Attr(node, "keys");
                 string animAttr = Attr(node, "anim");
-                string animLt = Attr(node, "anim-lt");
+                string animPct = Attr(node, "anim-rem-pct");
+                string notRaw = Attr(node, "not");
+                float remainPct = -1f;
+                if (!string.IsNullOrEmpty(Attr(node, "anim-lt")))
+                {
+                    problems.Add(label + " 用了已废弃的 anim-lt（那是**秒**）；改成 anim-rem-pct=\"20\"（**百分比** 0~100）");
+                    continue;
+                }
+                if (!string.IsNullOrEmpty(Attr(node, "key")) || !string.IsNullOrEmpty(Attr(node, "key-mode")))
+                {
+                    problems.Add(label + " 用了已废弃的 key= / key-mode=；改成 keys=\"A+B\"（+ 连 = 同时按着），"
+                                 + "要按相反的情况加 not=\"true\"");
+                    continue;
+                }
                 Func<AnimContext, bool> pred;
                 string subError;
-                if (!string.IsNullOrEmpty(keyAttr))
+                if (!string.IsNullOrEmpty(keysAttr))
                 {
-                    if (!AnimPrimitives.TryBuildKey(keyAttr, keyMode, out pred, out subError))
+                    if (!AnimPrimitives.TryBuildKeys(keysAttr, out pred, out subError))
                     {
                         problems.Add(label + " " + subError);
                         continue;
@@ -280,10 +391,20 @@ namespace LivingWorldNpcs.Animation
                 }
                 else if (!string.IsNullOrEmpty(animAttr))
                 {
-                    if (!AnimPrimitives.TryBuildAnim(animAttr, animLt, out pred, out subError))
+                    if (!AnimPrimitives.TryBuildAnim(animAttr, animPct, out pred, out subError))
                     {
                         problems.Add(label + " " + subError);
                         continue;
+                    }
+                    // 🔴 相位边要用这个**数**（"剩多少出机"）—— 谓词只够判真假，判不出"还剩多少"。
+                    //    （相位读它：见 AnimEdgeDef.RemainPct / AgentAnimStateMachine.PhaseRemainPct）
+                    if (string.Equals(animAttr.Trim(), "remaining", StringComparison.OrdinalIgnoreCase))
+                    {
+                        float tmp;
+                        if (ResolveNumber(animPct, out tmp))
+                        {
+                            remainPct = tmp;
+                        }
                     }
                 }
                 else if (!string.IsNullOrEmpty(when))
@@ -296,8 +417,25 @@ namespace LivingWorldNpcs.Animation
                 }
                 else
                 {
-                    problems.Add(label + " 没有条件（when= / key= / anim= 三选一，不能都空着）");
+                    problems.Add(label + " 没有条件（when= / keys= / anim= 三选一，不能都空着）");
                     continue;
+                }
+                // 🔴 `not="true"` = **整条条件取反**（对 keys / anim / 命名谓词**一律适用**）——
+                //    只在**这一处**包一层。别在每个 builder 里各写一份（那就是"同一个语义多处实现"，
+                //    迟早有一处忘改 —— 本项目已经因为这种结构踩过好几次）。
+                if (!string.IsNullOrEmpty(notRaw))
+                {
+                    bool neg;
+                    if (!bool.TryParse(notRaw.Trim(), out neg))
+                    {
+                        problems.Add(label + " 的 not='" + notRaw + "' 只认 true / false");
+                        continue;
+                    }
+                    if (neg)
+                    {
+                        Func<AnimContext, bool> inner = pred;
+                        pred = c => !inner(c);
+                    }
                 }
                 float blend = -1f;
                 string blendRaw = Attr(node, "blend");
@@ -308,7 +446,9 @@ namespace LivingWorldNpcs.Animation
                 }
                 bool afterFinish = string.Equals(Attr(node, "after-finish"), "true", StringComparison.OrdinalIgnoreCase);
                 bool phaseForced = phaseAttr;
-                edges.Add(new AnimEdgeDef(srcs, to, pred, blend, afterFinish, phaseForced));
+                AnimEdgeDef edgeDef = new AnimEdgeDef(srcs, to, pred, blend, afterFinish, phaseForced);
+                edgeDef.RemainPct = remainPct;
+                edges.Add(edgeDef);
             }
 
             // ── 悬空状态：既不是任何边的来源、也没人指向它（警告，不算错 —— 相位 Force 专用的状态就是这样）──
