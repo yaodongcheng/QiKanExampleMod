@@ -219,7 +219,7 @@ custom.spell probe               对最近的 agent 做三条实测定性（射�
 `spec.py` →（`gen_particle_effect.py`）→ `XML` →（`tpaccli particleimport`）→ `*_psys.tpac` → 丢进 `<模块>/Assets[_disabled]/particles/`（编辑器看）或 `AssetPackages/`（游戏用）。
 一条命令的粒度：`--split`（一个 effect 一个文件，编辑器要这个格式）/ `--packname`（一个包装多个，游戏用）/ `--clone`（原样搬运）/ `--probe`（指纹探针）。
 
-**🔴 四条硬纪律（都是实机或渲图抓出来的，别重犯）**
+**🔴 八条硬纪律（都是实机或渲图抓出来的，别重犯；5~8 条为 2026-09-25 追加）**
 
 1. **材质名不可望文生义** —— `prt_shd_fire_1` 的贴图是**橙褐色叶/片状图集、不是火**（照它做火系 ⇒ 几乎不可见）；**真火焰是 `prt_shd_flame_1`**（贴图 `torchflameloop`）。挑材质前先看贴图：
    `python Debug/offline/_mat_tex_survey.py` → `tools/particle-pipeline/out/sheet_materials.png`（41 个 `prt_shd_*` 一张图）。
@@ -227,6 +227,28 @@ custom.spell probe               对最近的 agent 做三条实测定性（射�
 3. **`max_alive_particle_count = 0` = 一颗都不给**（不是"无限"）—— 外部数据（UE）没这个概念时会被填 0 ⇒ **实机空白，而预览器正常**（它宽容地把 0 当 1500）⇒ 这类"实机才有"的缺陷只能靠实机或看数值抓。
 4. **元素要"材质 + 颜色"一起换** —— 只换材质不换颜色会出现"冰霜渲成灰/暗红、毒渲成白、暴风雪黑成一片"（颜色由 UE 曲线带进来）。见 `ELEMENT_COLOR` + `apply_element_color()`。
    配套：`sparks`/`glow` 这类**小元素**要钉尺寸上限，而且**基础值与曲线都要钉**（有效尺寸 = 基础 + 曲线×倍率）。
+
+5. 🔴 **材质只许用「原版粒子 XML 真正引用过」的那 31 个**（白名单文件 = `output/vanilla_prt_shd_materials.txt`，
+   现 33 条 —— 多出的 `prt_shd_glow` / `prt_shd_snow_dust_1` 两个**待验**：原版粒子没用过，可能跟 lightning 同病）。
+   **判据陷阱：「`tpaccli dump` 得出来」≠「引擎认」** —— `prt_shd_lightning` 名字在包索引里、还带一张 6 格闪电贴图，
+   但引擎的粒子材质表里没有它 ⇒ 编成资产后 ModKit 直接弹 `RGL CONTENT WARNING: Unable to find material{…}`。
+   （2026-09-25 实锤；`validate_xml.py` 的白名单已换成这 31 条。）
+6. 🔴 **`diffuse_multiplier` 不给 = 发光类材质等于不可见**：引擎默认 1，原版按材质给 ——
+   `flame_1`=**1000** · `fire_1`=250 · `sparks`=**30** · `trail`=5 · `steam_2`=3 · 烟/尘/石砾/血/水花=1。
+   给 1 的症状是「**只见黑烟、不见火焰**」（haze 这类乘法压暗材质用 1 恰好正常）。
+   `MAT_DIFFUSE` + `apply_multiplier()` 已按材质写。**预览器不读这个倍率 ⇒ 只能进编辑器/实机看。**
+7. 🔴 **退化的 UE `AlphaCurve` 必须丢掉**：很多发射器的 alpha 曲线只有**一根键、值 0**（可见性交给材质/模块），
+   照搬 = 骑砍这边**全透明**（全量 685 个发射器里 104 个中招；`fireball` 的主火焰就在其中）。
+   判据：键数 < 2 或峰值 ≤ 0.02 ⇒ 不写 alpha，让默认"淡入淡出"曲线顶上。
+8. 🔴 **`tpaccli particleimport --packdir` 必须是含材质的目录**（`Debug/offline/_prt_native_all`，151 个包）。
+   给少了（只给 `particles.tpac` 那类单包）⇒ 编译器解析不到材质 GUID，**只打印一行 `!!` 警告然后照常出包**
+   （退出码 0）⇒ 产物里**每个 emitter 的材质都落成骨架自带的**（实测全是 `prt_shd_blood_3`）。
+   **任何 `!!` 告警都当失败**；判据 = `prtdump` 看材质槽 `G4`。批量重编 = `python Debug/offline/_recompile_particles.py`。
+
+> 🔴🔴 **2026-09-25 收盘裁定：程序造的粒子资产不能当"核对基准"**（见 [骑砍2粒子系统.md](../../../Knowledge/骑砍2粒子系统.md) §12.5 坑 12）：
+> 编辑器里**标签页与数据错位**（点 `Smoke_7` 显示的是 `Embers001_10` 的值、删 A 删掉 B）⇒
+> **要逐项核对/调效果，就在编辑器里手造**（编辑器自己存的资产自洽）；程序造的当**素材库/批量铺量**用。
+> 手工填表的施工单与经验：[plans/粒子手工复刻-填表.md](../../粒子手工复刻-填表.md)。
 
 **自检闭环（"我看图"用）**
 

@@ -87,6 +87,27 @@ namespace LivingWorldNpcs.Flight
                 MoveAxis.x, MoveAxis.y, HasMoveInput ? 1 : 0);
         }
 
+        /// <summary>
+        /// 按 <see cref="AnimPrimitives.Keys"/> 的**键序**读原始键（给上下文填 <c>IAnimInputFacts</c> 用）。
+        /// 🔴 这里的 case 顺序**必须**与 `AnimPrimitives.Keys` 一模一样（W A S D Space Shift RMB LMB）；
+        ///    改那边就要改这里，否则键会错位。
+        /// </summary>
+        public static bool RawKeyAt(int i)
+        {
+            switch (i)
+            {
+                case 0: return DiagWDown;
+                case 1: return DiagADown;
+                case 2: return DiagSDown;
+                case 3: return DiagDDown;
+                case 4: return DiagSpaceDown;
+                case 5: return DiagShiftDown;
+                case 6: return DiagRightMouseDown;
+                case 7: return DiagLeftMouseDown;
+                default: return false;
+            }
+        }
+
         /// <summary>每帧调一次（由 <see cref="PlayerFlightBehavior"/> 驱动）。</summary>
         public static void Tick(float dt)
         {

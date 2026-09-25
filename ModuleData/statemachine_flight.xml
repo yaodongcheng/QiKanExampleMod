@@ -1,0 +1,127 @@
+<!-- 飞行动画状态机的**定义**（2026-09-25 由 C# 迁到这里）。
+
+     🔴 **改这个文件不用重编译** —— 重启游戏即生效（引擎不解析它，是我们自己在
+        `MySubModule.OnSubModuleLoad` → `FlightAnimMachine.Register()` 里读的）。
+
+     🔴 **两个读者：游戏 + 可视化页**
+        · 游戏：`Animation/AnimMachineLoader.cs` 装载 + 校验（转成 AnimMachineDef）
+        · 可视化页：`Debug/offline/gen_statemachine_page.py` 读**同一个文件**渲染节点图
+        ⇒ 页面不可能和游戏里跑的那份分叉。（页面是生成物，改这里重跑生成器。）
+
+     🔴 **装载期校验**：状态名 / 目标 / 族成员 / 谓词名 / 数字 —— 有一处不对就**整台不注册**
+        并列全部问题到日志（`[Anim]` 前缀）。所以打错字不会静默，是**响亮地失败**。
+
+     🔴 **判据不在这里**：`when=` 写的是**谓词名**（名字用输入语言：`hold-left` = 按着 A），
+        真身在 `Flight/FlightAnimConditions.cs`。理由：字符串表达式 = 失去编译期检查 = 又一种静默失败。
+
+     🔴 **运行期旋钮不在这里**：默认过渡时长 / 核对周期 / 动作优先级仍是 C# 里的委托
+        （指向 `FlightTuning` 的字段），所以 `custom.flight tune blend / turnrate …` 照旧有效。
+
+     🔴 **边的顺序 = 优先级**（第一条命中的生效），改顺序 = 改优先级，别随手挪。
+        三种边型（`AnimEdgeDef` 的三个开关）：
+          · 缺省             = 普通边；能打断正在播的一次性动作（闪避那四条靠这个打断入姿）
+          · after-finish     = 只在"演完"之后参与求值（绝不打断）
+          · phase="true"     = **不由状态机求值**，由飞行相位 C# `Force` 进 —— 写在这里只为让表/图完整 -->
+<state_machine name="flight">
+
+	<!-- 族 = 一组状态，可以被当成边的来源（= UE 的 State Alias）。
+	     成员必须是下面 <states> 里声明过的状态名；空格分隔。
+	     为什么这么分：直立家与趴姿族的姿势基准差 ~90°，跨族切会"硬翻"，
+	     所以进趴姿必须经 fastmoveStart 那道门。 -->
+	<families>
+		<family name="UprightFamily">idle hovermove hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD hoverstart magicIdle</family>
+		<family name="PronePoses">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD</family>
+		<family name="ProneFamily">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD dodgeL dodgeR dodgeU dodgeD</family>
+	</families>
+
+	<!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。
+	     不带 duration = 循环姿态；带 duration = 一次性动作（秒，可写数字或命名标量）。
+	     next = **演完兜底**：播完、且没有任何边命中时回这里（见 <edges> 顶部的说明）。 -->
+	<states>
+		<state name="idle" act="act_fly_idle" />
+		<state name="hovermove" act="act_fly_hovermove" />
+		<state name="hovermovePitchU" act="act_fly_hovermove_pitchu" />
+		<state name="hovermovePitchD" act="act_fly_hovermove_pitchd" />
+		<state name="hovermoveLeanL" act="act_fly_hovermove_lean_l" />
+		<state name="hovermoveLeanR" act="act_fly_hovermove_lean_r" />
+		<state name="hoverstart" act="act_fly_hoverstart" />
+		<state name="superland" act="act_fly_superland" />
+
+		<state name="fastmove" act="act_fly_fastmove" />
+		<state name="fastmoveLeanL" act="act_fly_fastmove_lean_l" />
+		<state name="fastmoveLeanR" act="act_fly_fastmove_lean_r" />
+		<state name="fastmovePitchU" act="act_fly_fastmove_pitchu" />
+		<state name="fastmovePitchD" act="act_fly_fastmove_pitchd" />
+
+		<!-- 进趴姿的入姿（一次性 1.033 秒）；**演完兜底回 fastmove** -->
+		<state name="fastmoveStart" act="act_fly_fastmove_start" duration="boostStartSeconds" next="fastmove" />
+		<!-- 闪避四方向（一次性 1.867 秒）；**演完兜底回 fastmove**（这就是"闪避演完回趴姿"那一条） -->
+		<state name="dodgeL" act="act_fly_dodge_l" duration="dodgeClipSeconds" next="fastmove" />
+		<state name="dodgeR" act="act_fly_dodge_r" duration="dodgeClipSeconds" next="fastmove" />
+		<state name="dodgeU" act="act_fly_dodge_u" duration="dodgeClipSeconds" next="fastmove" />
+		<state name="dodgeD" act="act_fly_dodge_d" duration="dodgeClipSeconds" next="fastmove" />
+
+		<!-- 施法手势（回退档：CastOnUpperChannel = false 时才由状态机播） -->
+		<state name="magicIdle" act="act_magic_idle" />
+		<state name="magicProjectile" act="act_magic_projectile" duration="castReleaseSeconds" />
+	</states>
+
+	<!-- 边：**顺序 = 优先级**。
+	     from = "*"（任意状态）或 状态名 或 族名；to = 状态名；when = 已登记的谓词名；
+	     blend 省略 = 用机器默认（FlightTuning.AnimBlendIn，热调 tune blend）。
+
+	     🔴 **"演完去哪"有两种写法，别混**：
+	        · `<state next="X">`（上面）—— **演完兜底**：一次性动作播完、且下面**没有任何边命中**时回 X。
+	          条件优先、演完兜底：例如入姿演完那一刻玩家已经松开 Shift，就该走 at-rest 那条边去 idle，
+	          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。
+	        · `<edge ... after-finish="true">` —— 演完之后**由条件**决定去哪（用于"演完且仍在冲刺 ⇒ 回 fastmove"这类）。 -->
+	<edges>
+		<!-- ⓪ 相位驱动的两头（不由状态机求值，写在这里让进出可见）：
+		     起飞 = 跳跃中按空格 / 长按空格 ⇒ 相位 Force 进 hoverstart（同时开板、冻人、接管相机）
+		     落地 = 短按贴地·俯冲 / 长按下降 / 撞地 ⇒ 相位 Force 进 superland
+		     🔴 hoverstart 的**出口**也归相位：入姿播完（1.5 s）**或玩家给方向输入** ⇒ 相位放开控制，
+		       交给下面的阶梯（在移动 ⇒ hovermove / 否则 ⇒ idle）。这条没写成边，是因为它必须
+		       "按输入可提前结束"，而循环状态挡不住 `*` 边、一次性状态又会挡死提前结束（两难），
+		       所以由相位的 Hold 机制独家管。 -->
+		<edge from="*" to="hoverstart" when="takeoff-trigger" phase="true" />
+		<edge from="*" to="superland" when="land-trigger" phase="true" />
+
+		<!-- ① 闪避：来源只有"趴姿本体 6 个"（不含闪避自己），且**可以打断**正在播的入姿 -->
+		<edge from="PronePoses" to="dodgeL" when="dodge-left" blend="0.12" />
+		<edge from="PronePoses" to="dodgeR" when="dodge-right" blend="0.12" />
+		<edge from="PronePoses" to="dodgeU" when="dodge-up" blend="0.12" />
+		<edge from="PronePoses" to="dodgeD" when="dodge-down" blend="0.12" />
+
+		<!-- ② 施法压过一切（回退档专用；CastOnUpperChannel = true 时这条不成立） -->
+		<edge from="*" to="magicIdle" when="casting-fallback" blend="0.15" />
+
+		<!-- ③ 进趴姿唯一的门：来源 = 直立家全部 8 个状态。
+		     只看"按下沿"会在三种情况下被吞（没推方向键 / 起飞落地 Hold 期间 / 施法让位期间），
+		     所以改成"按着 Shift 且在移动 + 来源是直立家"，幂等：进了趴姿族就不在来源表里 -->
+		<edge from="UprightFamily" to="fastmoveStart" when="sprinting" />
+
+		<!-- ④ 快移家（趴姿）的压弯/俯仰：来源 = 趴姿族 10 个，演完才进（不打断入姿/闪避）
+		     blend 用 0.15（小姿态；0.3 秒会吃掉大半停留时间） -->
+		<edge from="ProneFamily" to="fastmoveLeanL" when="sprint-lean-left" blend="0.15" after-finish="true" />
+		<edge from="ProneFamily" to="fastmoveLeanR" when="sprint-lean-right" blend="0.15" after-finish="true" />
+		<edge from="ProneFamily" to="fastmovePitchU" when="sprint-look-up" blend="0.15" after-finish="true" />
+		<edge from="ProneFamily" to="fastmovePitchD" when="sprint-look-down" blend="0.15" after-finish="true" />
+
+		<!-- ⑤ 悬停移动家（直立）的压弯 —— 🔴 **这两条改用"键"原语写**（示范新写法）：
+		     以前要先去 C# 登记一个谓词 `hold-left`，现在直接在定义里写"按着 A"。
+		     🟢 键是二值的，**不需要迟滞**（迟滞是给模拟量用的：鼠标俯仰那条才需要）。 -->
+		<edge from="*" to="hovermoveLeanL" key="A" key-mode="held" blend="0.15" />
+		<edge from="*" to="hovermoveLeanR" key="D" key-mode="held" blend="0.15" />
+
+		<!-- ⑥~⑨ 阶梯：待机 / 快移 / 俯仰 / 悬停移动。
+		     🔴 idle 只判"停住了" —— **Shift 是速度不是姿态开关**，松了方向键就该回直立悬停
+		     （2026-09-25 用户裁定）；"按着 Shift 却不动"要停在 idle 而不是趴姿，
+		     靠的是 fastmove 那条把条件收紧成"按着 Shift 且还在飞" -->
+		<edge from="*" to="idle" when="at-rest" />
+		<edge from="ProneFamily" to="fastmove" when="sprinting" after-finish="true" />
+		<edge from="*" to="hovermovePitchU" when="look-up" />
+		<edge from="*" to="hovermovePitchD" when="look-down" />
+		<edge from="*" to="hovermove" when="moving" />
+	</edges>
+
+</state_machine>
