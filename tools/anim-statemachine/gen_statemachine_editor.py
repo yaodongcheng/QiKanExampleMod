@@ -204,6 +204,9 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
 .entry rect{fill:var(--entry-soft);stroke:var(--entry);stroke-width:1.6}
 .entry .tri{fill:var(--entry)}
 .entry .t1{fill:var(--entry);font-weight:600}
+/* 空容器页的提示：新建出来的容器一建就是空的，画布上什么都没画最容易让人以为"丢了" */
+.emptyhint rect{fill:var(--surface-2);stroke:var(--line-2);stroke-dasharray:5 4}
+.emptyhint text{fill:var(--ink-2)}
 .ghost rect{fill:var(--surface-2)}
 .ctx{position:fixed;z-index:100;max-height:72vh;overflow:auto;min-width:196px;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.18);display:none}
 .ctx.on{display:block}
@@ -220,6 +223,7 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
 .banner.on{display:flex}
 .banner b{color:var(--prone)}
 .banner .mono{color:var(--ink-2)}
+.banner.slim{padding:5px 10px;line-height:1.5}
 .bdg{fill:var(--door-soft);stroke:var(--door);stroke-width:.8}
 /* 容器页的**真实入口边**（Entry → 入口状态）*/
 /* 🔴 容器页的「入口线」（Entry → 本容器的入口状态）是**推导出来的装饰，不是边**：
@@ -383,6 +387,9 @@ function esc(s) { return String(s === undefined || s === null ? "" : s)
 
 // ── 布局 ───────────────────────────────────────────────────
 const NODE_W = 240, NODE_H = 50, ROW = 60, PORT_R = 6;
+// 状态默认排两列（直立族 / 趴姿族）。🔴 必须是**常量**：嵌套子容器盒的默认站位要基于它算，
+// 若改成"读当前节点位置"就会变成**拖动时的反馈环** —— 盒子跟着被拖的节点一起跑，永远落不进去。
+const COL_X = [470, 760];
 const OUTSIDE = {x: 24, y: 24, w: 196, h: 42};    // 机外：非飞行那个外部状态
 // 🚫 「机内任意状态 `*`」已移除（用户 2026-09-25 裁定：来源一律写成显式的族；XML 里已无 from="*"）
 // 🚫 机器级 Entry 已移除 —— 用户裁定：Entry 只属于「容器」（下钻到容器页才画一名）。
@@ -392,17 +399,46 @@ const BOX0 = {outside: {x: OUTSIDE.x, y: OUTSIDE.y}};
 function boxOf(id) { return OUTSIDE; }
 function resetBoxes() { OUTSIDE.x = BOX0.outside.x; OUTSIDE.y = BOX0.outside.y; }
 if (pendingBoxes && pendingBoxes.outside) { OUTSIDE.x = +pendingBoxes.outside.x || 0; OUTSIDE.y = +pendingBoxes.outside.y || 0; }
+// 🔴 容器盒的**默认位置**必须按层级算（`gpos` 里有值 = 用户拖过，优先用它）。
+//    原来一律 `24 + (i%2)*214, 246 + floor(i/2)*62` —— 那是**顶层容器**的排布，
+//    子容器被丢到同一个槽位上 ⇒ 在父容器的容器页里正好和「Entry 盒」叠在一起
+//    （实测：`子容器X@24,308 ∩ ENTRY@120,299`）。
+//    现在：顶层容器保持原来的两列（总览观感不变）；**子容器贴到"全部状态内容区"的右侧**，
+//    按层深横向递进、按兄弟序竖向错开 —— 那里永远是空的（Entry 在内容区左侧、状态在中间）。
+function groupChain(gname) {                 // [顶层祖先, …, gname]
+  const out = []; let cur = gname;
+  for (let i = 0; i < 32 && cur; i++) { out.unshift(cur); cur = parentGroupOf(cur); }
+  return out;
+}
+function contentRight() {                    // 状态默认两列（470 / 760）的最右边界
+  return COL_X[COL_X.length - 1] + NODE_W;
+}
+function defaultGroupPos(gname, i) {
+  const chain = groupChain(gname);
+  if (chain.length <= 1) return {x: 24 + ((i | 0) % 2) * 214, y: 246 + Math.floor((i | 0) / 2) * 62};
+  const parent = chain[chain.length - 2];
+  const k = Math.max(0, childGroupsOf(parent).indexOf(gname));   // 兄弟序
+  return {x: contentRight() + 60 + (chain.length - 2) * 240, y: 24 + k * 62};
+}
 function groupBox(i, g) {
   const p = gpos[g.name];
-  return p ? {x: p.x, y: p.y, w: 200, h: 52, g} : {x: 24 + (i % 2) * 214, y: 246 + Math.floor(i / 2) * 62, w: 200, h: 52, g};
+  if (p) return {x: p.x, y: p.y, w: 200, h: 52, g};
+  const d = defaultGroupPos(g.name, i);
+  return {x: d.x, y: d.y, w: 200, h: 52, g};
+}
+// 🔴「本页画了哪些容器盒」= **单一来源**。渲染、拖拽落点、取景、折叠判据全走它 ——
+//    原来各写一份（落点那次还遍历了**全部**容器，包含本页根本没画的盒子 ⇒ 会掉进看不见的容器）。
+function visibleGroupBoxes(t) {
+  const out = [];
+  groups.forEach((g, i) => { if (groupVisible(g.name, t)) out.push({g, i, name: g.name, box: groupBox(i, g)}); });
+  return out;
 }
 function defaultPos() {
-  const col = {0: 470, 1: 760};
   const used = {0: 0, 1: 0};
   states.forEach(s => {
     const inProne = groups.some(g => /Prone|趴/.test(g.name) && g.members.indexOf(s.name) >= 0);
     const c = inProne ? 1 : 0;
-    if (!pos[s.name]) pos[s.name] = {x: col[c], y: 60 + used[c] * ROW};
+    if (!pos[s.name]) pos[s.name] = {x: COL_X[c], y: 60 + used[c] * ROW};
     used[c]++;
   });
 }
@@ -458,8 +494,14 @@ function placeLabel(text, p1, p2, dx, obstacles, placed, spin) {
       if (!clash(b)) return put(b);
     }
   }
-  const b = {x: Math.max(4, c.x - w / 2), y: c.y - h - 300, w, h};
-  return put(b);
+  // ③ 兜底：曲线中点正上方、**按已放数量往下错开**。
+  //    🔴 原来是一律 `y = c.y - h - 300` —— 共享同一个中点的边（容器页的扇出、嵌套后多条边汇进
+  //    同一个子容器盒）会**全部叠在同一格**，糊成一团看不懂（截图 18 就是这么发现的）。
+  //    现在至少保证"兜底标签之间"不互相压：只和 `placed` 比，宁可离曲线远。
+  const cands = [];
+  for (let k = 0; k < 60; k++) cands.push({x: Math.max(4, c.x - w / 2), y: c.y - h - 300 - k * 20, w, h});
+  for (const cb of cands) if (!placed.some(o => overlaps(inflate(cb, 4), o))) return put(cb);
+  return put(cands[placed.length % cands.length]);
 }
 function condText(e) {
   let s;
@@ -496,13 +538,36 @@ function renderTabs() {
     `<span class="tab${i === active ? " on" : ""}" data-tab="${i}">${esc(tabLabel(t))}` +
     (t.kind === "root" ? "" : `<span class="x" data-close="${i}">×</span>`) + `</span>`).join("");
 }
+// 🔴 **镜头是"每页各记一份"的**。`view` 本身是全局量，但"总览"和"钻进某个状态页"需要的取景
+//    完全不同 —— 不记的话，从容器页切回总览会顶着容器页的镜头看总览，内容直接跑到画面外
+//    （`drive_pages` 里 ⑳d/㉑/㉒/㉔ 四条几何用例就是这么集体挂掉的：它们 `active=0` 回到总览后量屏幕坐标）。
+//    · 第一次打开某页 ⇒ `fit()` 自动取景（顺带解决"新建了子容器却在画面外、看不见"）
+//    · 再切回来 ⇒ 还原离开这一页时的镜头
+function viewSnapshot() { return {k: view.k, tx: view.tx, ty: view.ty}; }
+function viewApply(v) { if (!v) return false; view.k = v.k; view.tx = v.tx; view.ty = v.ty; applyView(); return true; }
+function setActive(i) {
+  if (i < 0 || i >= tabs.length || i === active) return false;
+  if (tabs[active]) tabs[active].view = viewSnapshot();
+  active = i;
+  render();
+  if (!viewApply(tabs[i].view)) fit();
+  return true;
+}
 function openTab(t) {
   const dup = tabs.findIndex(x => x.kind === t.kind && x.id === t.id);
-  if (dup >= 0) { active = dup; } else { tabs.push(t); active = tabs.length - 1; }
+  if (dup >= 0) { setActive(dup); return; }           // 只是切回已有的页 ⇒ **还原这一页的镜头**
+  if (tabs[active]) tabs[active].view = viewSnapshot();
+  tabs.push(t); active = tabs.length - 1;
   render();
+  fit();                                              // 新页：自动取景
 }
 
 function render() {
+  // 🔴 单一兜底：tab 索引 / 选中项都可能是"已经被删掉的那个"（删页、删状态、撤销、导入…）。
+  //    不夹住就会在下面读 `t.kind` / `.name` 时抛错 ⇒ **整段 render 半路中断**（本次实测踩到）。
+  if (!tabs.length) tabs = [{kind: "root"}];
+  if (active < 0 || active >= tabs.length) active = Math.max(0, Math.min(active, tabs.length - 1));
+  dropDeadSel();
   const t = tabs[active];
   hoverEdge = null; tipEl.classList.remove("on");
   let out = [];
@@ -519,16 +584,19 @@ function render() {
 
   // 🔴 总览**只画顶层**：容器（成员进去看）+ 不属于任何容器的散状态 + 三个"机外/机内/入口"盒
   const showStates = states.filter(s => stateVisible(s.name, t));
-  const drawnGroups = groups.map((g, i) => ({g, i})).filter(o => groupVisible(o.g.name, t));
+  const drawnGroups = visibleGroupBoxes(t);          // 🔴 单一来源：本页真画出来的容器盒（嵌套时 = 直接子容器）
 
   // 容器页里那个"本容器 Entry"
-  const gEntry = t.kind === "group" ? groupEntryBox(t) : null;
+  // 🔴 **空容器页不画 Entry**：空容器没有成员、也没有入边 ⇒ 那个 Entry 盒只是个"没有意义的框"，
+  //    还会正好压在"还是空的"提示上（截图 22 发现的）。空页只留提示。
+  const pageEmpty = t.kind === "group" && !drawnGroups.length && !showStates.length;
+  const gEntry = (t.kind === "group" && !pageEmpty) ? groupEntryBox(t) : null;
 
   // 条件标签避让要用的"障碍物" = 本页所有画得到的盒子
   const obstacles = [];
   if (t.kind === "root") {
     obstacles.push(OUTSIDE);
-    drawnGroups.forEach(o => obstacles.push(groupBox(o.i, o.g)));
+    drawnGroups.forEach(o => obstacles.push(o.box));
   }
   if (gEntry) obstacles.push(gEntry);
   showStates.forEach(s => obstacles.push(nodeRect(s.name)));
@@ -536,13 +604,32 @@ function render() {
 
   // 边：总览按锚点画；容器页只画"目标在本容器内"的边，来源若不在容器内 ⇒ 折进本容器 Entry
   if (t.kind !== "state") {
-    const mem = t.kind === "group" ? membersOf(t.id) : null;
     const same = (p, q) => !!(p && q && p.x === q.x && p.y === q.y && p.w === q.w);
+    // 🔴 **本页可见的直接子容器盒**：用来折叠"子容器内部"的边（和总览同一套判据）。
+    const childKeys = {};
+    drawnGroups.forEach(o => { childKeys[o.box.x + "|" + o.box.y] = o.name; });
+    // 🔴 容器页的边一律按**叶子语义**判"在不在本容器里"（直接成员可能是子容器）——
+    //    原来用 `membersOf(t.id)`（直接成员）⇒ 目标落在**子容器里**的边会被整条丢掉
+    //    （实测：Upright 页 13 条目标在内的边只画了 9 条，进 子容器X 的那 4 条全没了）。
+    const lvT = t.kind === "group" ? leafStatesOf(t.id) : null;
+    const inHere = n => {
+      if (n === "outside") return false;
+      if (lvT.indexOf(n) >= 0) return true;
+      if (groupByName[n]) { const l = leafStatesOf(n); return l.length > 0 && l.every(x => lvT.indexOf(x) >= 0); }
+      return false;
+    };
     // 先把每条边的两端锚点一次算好：后面要按"锚点是否重合"判断自转移 / 并行边
     const AB = edges.map(e => {
-      if (mem) {
-        if (mem.indexOf(e.to) < 0) return null;                  // 出本容器的边，本页不画
-        return [mem.indexOf(e.from) >= 0 ? nodeRect(e.from) : gEntry, nodeRect(e.to)];
+      if (t.kind === "group") {
+        if (!inHere(e.to)) return null;                  // 目标不在本容器 ⇒ 出本容器的边，本页不画
+        // 来源不在本页画得出（容器外 / 就是本容器自己）⇒ 折进本页 Entry
+        const a = (inHere(e.from) ? anchorOf(e.from, t) : null) || gEntry;
+        const b = anchorOf(e.to, t);
+        if (!a || !b) return null;
+        const ka = a.x + "|" + a.y, kb = b.x + "|" + b.y;
+        // 🔴 两端都折进**同一个直接子容器** ⇒ 它是那个子容器的**内部边**，本页折叠（钻进子容器才看）
+        if (ka === kb && childKeys[ka]) return null;
+        return [a, b];
       }
       const a0 = anchorOf(e.from, t), b0 = anchorOf(e.to, t);
       if (!a0 || !b0) return null;
@@ -553,6 +640,9 @@ function render() {
       if (t.kind === "root") {
         const go = ownerGroup(e.from), gt = ownerGroup(e.to);
         if (go && gt && (groupContains(go, gt) || groupContains(gt, go))) return null;
+        // 🔴 同一个**直接子容器**内部的两端（含两端都收敛到同一个子容器盒的情况）也折叠
+        const ka = a0.x + "|" + a0.y, kb = b0.x + "|" + b0.y;
+        if (ka === kb && childKeys[ka]) return null;
       }
       return [a0, b0];
     });
@@ -584,7 +674,7 @@ function render() {
       out.push(`<path class="main" d="${d}"${dash} marker-end="url(#ar)"/>`);
       if (view.k >= 0.6) {
         const text = (i + 1) + " " + condText(e);
-        const lp = placeLabel(text, L1, L2, ldx, obstacles, placed, mem ? i : 0);
+        const lp = placeLabel(text, L1, L2, ldx, obstacles, placed, t.kind === "group" ? i : 0);
         out.push(`<g class="lbl"><rect x="${lp.b.x}" y="${lp.b.y}" width="${lp.b.w}" height="${lp.b.h}" rx="4"/>`
           + `<text x="${lp.b.x + lp.b.w/2}" y="${lp.b.y + 11}" text-anchor="middle">${esc(text)}</text></g>`);
       }
@@ -611,18 +701,19 @@ function render() {
     out.push('<g class="entry" style="cursor:default">'
       + `<rect x="${gEntry.x}" y="${gEntry.y}" width="${gEntry.w}" height="${gEntry.h}" rx="9"/>`
       + `<path class="tri" d="M ${gEntry.x+11} ${gEntry.y+14} L ${gEntry.x+21} ${gEntry.y+21} L ${gEntry.x+11} ${gEntry.y+28} Z"/>`
-      + `<text class="t1" x="${gEntry.x+28}" y="${gEntry.y+18}" font-family="var(--mono)" font-size="12">Entry</text>`
-      + `<text x="${gEntry.x+28}" y="${gEntry.y+33}" font-family="var(--mono)" font-size="10" fill="var(--ink-3)">${gcur.entry ? "入口 → " + esc(gcur.entry) : "⚠ 未设入口"} · 外部进入边 ${ext} 条</text>`
+      + `<text class="t1" x="${gEntry.x+28}" y="${gEntry.y+18}" font-family="var(--mono)" font-size="12">${esc(clipW("Entry · " + t.id, gEntry.w - 40))}</text>`
+      + `<text x="${gEntry.x+28}" y="${gEntry.y+33}" font-family="var(--mono)" font-size="10" fill="var(--ink-3)">${gcur.entry ? "入口 → " + esc(entryPathOf(t.id)) + (entryBad(t.id) ? " ⚠" : "") : "⚠ 未设入口"} · 外部进入边 ${ext} 条</text>`
       + '</g>');
     // 🔴 Entry 盒右侧的**绿点**：从它拉线到**本容器的成员状态** ⇒ 就是设置"进容器落到哪"（= `entry`）。
     //    （`entry` 由**装载期**解析 ⇒ 热路径零改动。所以这里不做"多条带条件的 Entry 出边"那套运行时求值。）
     out.push(`<circle class="port" data-entry="${esc(t.id)}" cx="${gEntry.x + gEntry.w}" cy="${gEntry.y + gEntry.h / 2}" r="${PORT_R}" fill="var(--entry)" opacity="0.9"/>`);
     // 🔴 **真实入口**：Entry → 入口状态 画一条实边（装载期就是把 `to=本容器` 解析成它）
-    if (gcur.entry && pos[gcur.entry]) {
-      const r2 = nodeRect(gcur.entry);
+    // 🔴 锚点要用 `anchorOf`：入口可能是**子容器**（没有 `pos`），原来 `pos[entry]` 取不到 ⇒ **整条入口线不画**
+    const r2 = gcur.entry ? (anchorOf(gcur.entry, t) || (pos[gcur.entry] ? nodeRect(gcur.entry) : null)) : null;
+    if (r2) {
       const q1 = { x: gEntry.x + gEntry.w, y: gEntry.y + gEntry.h / 2 }, q2 = { x: r2.x - 10, y: r2.y + r2.h / 2 };
       const qdx = Math.max(30, Math.abs(q2.x - q1.x) * 0.45);
-      const et = "入口 → " + gcur.entry;
+      const et = "入口 → " + entryPathOf(t.id);
       const elp2 = placeLabel(et, q1, q2, qdx, obstacles, placed);
       out.push('<g class="entry-edge">'
         + `<path d="M ${q1.x} ${q1.y} C ${q1.x+qdx} ${q1.y}, ${q2.x-qdx} ${q2.y}, ${q2.x} ${q2.y}" marker-end="url(#ar-entry)"/>`
@@ -633,13 +724,17 @@ function render() {
 
   // 容器盒（只在总览画；钻进容器后不再画它本身）
   drawnGroups.forEach(o => {
-    const g = o.g, b = groupBox(o.i, g);
+    const g = o.g, b = o.box;
     const isSel = sel && sel.type === "group" && sel.id === g.name;
+    // 嵌套：直接成员里可能混着**子容器**，分开数（原来一律写"N 个状态"，嵌套后会数错）
+    const nSub = childGroupsOf(g.name).length;
+    const nSt = (g.members || []).length - nSub;
+    const sub = `容器 · ${nSt} 状态${g.entry ? " · 入口 → " + esc(entryPathOf(g.name)) + (entryBad(g.name) ? " ⚠" : "") : " · ⚠ 未设入口"}${nSub ? " · 🗂 " + nSub + " 子容器" : ""}`;
     out.push(`<g class="grp" data-g="${esc(g.name)}" style="cursor:grab">`);
     out.push(`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="9" fill="var(--surface-2)" `
            + `stroke="${isSel ? "var(--door)" : "var(--line-2)"}" stroke-width="${isSel ? 2 : 1}" stroke-dasharray="6 4"/>`);
     out.push(`<text x="${b.x+11}" y="${b.y+20}" font-family="var(--mono)" font-size="11.5" font-weight="600" fill="var(--ink)">${esc(g.name)}</text>`);
-    out.push(`<text x="${b.x+11}" y="${b.y+36}" font-family="var(--mono)" font-size="10" fill="var(--ink-3)">容器 · ${g.members.length} 个状态${g.entry ? " · 入口 → " + esc(g.entry) : " · ⚠ 未设入口"}</text>`);
+    out.push(`<text x="${b.x+11}" y="${b.y+36}" font-family="var(--mono)" font-size="10" fill="var(--ink-3)">${esc(clipW(sub, b.w - 16))}</text>`);
     // 🔴 容器盒右侧给一个**出边端口**（和状态节点一样）：从这里拉线 ⇒ 边的来源是"整个容器"
     //    （原来这里是橙色小点，只是"可接收状态"的提示，想画 容器→状态 的边没法直接拖）
     out.push(`<circle class="port" data-p="${esc(g.name)}" cx="${b.x + b.w}" cy="${b.y + b.h/2}" r="${PORT_R}" fill="var(--door)" opacity="0.85"/>`);
@@ -665,6 +760,18 @@ function render() {
     out.push(`<circle class="port" data-p="${esc(s.name)}" cx="${r.x+r.w}" cy="${r.y+r.h/2}" r="${PORT_R}" fill="var(--door)" opacity="0.85"/>`);
     out.push("</g>");
   });
+
+  // 🔴 空容器页：画一句"这里为什么是空的"。
+  //    新容器一建出来就是空的（没成员、没有入边 ⇒ 连 Entry 盒都只是个飘着的框），
+  //    不解释的话就是"我新建的容器不见了"（用户实测原话）。
+  if (pageEmpty) {
+    const h = emptyHintBox();
+    out.push('<g class="emptyhint">'
+      + `<rect x="${h.x}" y="${h.y}" width="${h.w}" height="${h.h}" rx="10"/>`
+      + `<text x="${h.x + 16}" y="${h.y + 24}" font-family="var(--mono)" font-size="12" font-weight="600">容器「${esc(t.id)}」还是空的</text>`
+      + `<text x="${h.x + 16}" y="${h.y + 44}" font-family="var(--mono)" font-size="10.5">点上面的父容器 tab 回去，把这个状态机里的状态 / 子容器拖进它的盒子（它在你上次看到的位置）</text>`
+      + '</g>');
+  }
 
   // 状态内部视图：ghost 入边来源 → 本状态 → output（对齐 UE 的状态节点细节）
   if (t.kind === "state") {
@@ -766,24 +873,52 @@ function draftDiff() {
   const de = edges.map(e => e.from + "→" + e.to + "|" + condText(e));
   const addS = ds.filter(n => xs.indexOf(n) < 0), delS = xs.filter(n => ds.indexOf(n) < 0);
   const addE = de.filter(k => xe.indexOf(k) < 0).length, delE = xe.filter(k => de.indexOf(k) < 0).length;
-  return {addS, delS, addE, delE, n: addS.length + delS.length + addE + delE};
+  // 🔴 只比"状态名 / 边"是不够的：**容器成员表 / entry / once / next / act** 变了同样是结构差异。
+  //    实测踩过：草稿与文件的名字、边完全一样，只有成员表和 once 不同 ⇒ 差异算成 0 ⇒ 黄条不弹
+  //    ⇒ **文件里的定义被静默压掉**（正好违背这条黄条存在的理由）。
+  const sig = (st, gs) => st.map(s => s.name + "/" + (s.once ? "1" : "0") + "/" + (s.next || "") + "/" + (s.act || "")).join("|")
+    + "##" + gs.map(g => g.name + "[" + (g.members || []).join(",") + "]" + (g.entry || "")).join("|");
+  const other = sig(DATA.states, DATA.groups) === sig(states, groups) ? 0 : 1;
+  return {addS, delS, addE, delE, other, n: addS.length + delS.length + addE + delE + other};
 }
 function renderDraftBanner() {
   const b = document.getElementById("banner");
   if (!b) return;
   if (!draftActive) { b.classList.remove("on"); b.innerHTML = ""; return; }
   const d = draftDiff();
+  // 🔴 只差**布局**（节点位置 / 缩放平移）不算"草稿" —— 页面在启动时本来就会 save() 一次
+  //    （`fit()` 落盘），以前这会让**每一次打开都弹"你在看本地草稿"**，明明一个字都没改。
+  if (!d.n) { b.classList.remove("on"); b.innerHTML = ""; return; }
   b.innerHTML = '<b>⚠ 现在画的是浏览器里的本地草稿，不是 XML</b>'
     + '<span class="mono">　与 XML 相比：'
     + (d.addS.length ? "多 " + d.addS.length + " 个状态" + (d.addS.length <= 4 ? "（" + esc(d.addS.join("/")) + "）" : "") + "　" : "")
     + (d.delS.length ? "少 " + d.delS.length + " 个状态　" : "")
     + (d.addE ? "多 " + d.addE + " 条边　" : "")
     + (d.delE ? "少 " + d.delE + " 条边　" : "")
+    + (d.other ? "容器成员 / once / next / 动作名也有差别　" : "")
     + "XML 现在是 " + DATA.states.length + " 状态 / " + DATA.edges.length + " 边</span>";
+  const wipeDraft = () => { try { localStorage.removeItem(LSKEY); } catch (e) {}
+    draftActive = false; draftAck = false; document.getElementById("btn-reset").onclick(); };
+  // 🔴 点过「保留草稿」之后**必须收成一条紧凑提示** —— 原来 `draftAck = true` 之后
+  //    又原样重建了整条黄条（`draftAck` 压根没人读）⇒ 用户实测："我点保留草稿没有反应"。
+  if (draftAck) {
+    b.innerHTML = '<b>⚠ 正在编辑本地草稿</b><span class="mono">（还没写回 XML）　与 XML 相比：'
+      + (d.addS.length ? "多 " + d.addS.length + " 状态　" : "") + (d.delS.length ? "少 " + d.delS.length + " 状态　" : "")
+      + (d.addE ? "多 " + d.addE + " 边　" : "") + (d.delE ? "少 " + d.delE + " 边　" : "") + '</span>';
+    const more = document.createElement("button");
+    more.textContent = "展开说明";
+    more.onclick = () => { draftAck = false; renderDraftBanner(); };
+    const wipe2 = document.createElement("button");
+    wipe2.className = "primary"; wipe2.textContent = "用 XML 覆盖草稿";
+    wipe2.onclick = wipeDraft;
+    b.appendChild(more); b.appendChild(wipe2);
+    b.classList.add("on", "slim");
+    return;
+  }
+  b.classList.remove("slim");
   const btn = document.createElement("button");
   btn.className = "primary"; btn.textContent = "用 XML 覆盖草稿";
-  btn.onclick = () => { try { localStorage.removeItem(LSKEY); } catch (e) {}
-    draftActive = false; draftAck = false; document.getElementById("btn-reset").onclick(); };
+  btn.onclick = wipeDraft;
   const keep = document.createElement("button");
   keep.textContent = "保留草稿";
   keep.onclick = () => { draftAck = true; renderDraftBanner(); };
@@ -809,26 +944,62 @@ function groupVisible(gname, t) {
   return false;
 }
 function membersOf(gname) { return (groupByName[gname] || {members: []}).members; }
-// 容器页那个"本容器 Entry"的位置：自动摆在成员的左外侧，跟着成员走
+// 🔴 入口的**人话路径**：`entry` 可以指向子容器、也可以指向"已经被收进某个子容器的状态"。
+//    后者光写状态名会出现"线指到子容器盒、字写的是状态"的矛盾（用户实测：
+//    「这里的入口明明是子容器1，为什么写hovermove」）—— 而**装载期就是这么一路解析的**，
+//    所以把整条链写出来才是诚实的：`子容器1 → hovermove`。
+function entryPathOf(gname) {
+  const g = groupByName[gname];
+  if (!g || !g.entry) return null;
+  const parts = []; let cur = g.entry;
+  for (let i = 0; i < 32 && cur; i++) {
+    const owner = parentGroupOf(cur);       // 它被谁装着（null = 顶层散状态 / 本容器自己）
+    // 🔴 先补上"装着它的那个子容器" —— 否则会出现"线指到子容器盒、字只写状态名"的矛盾：
+    //    `entry = hovermove` 而 hovermove 在 `子容器1` 里时，装载期真正的落点是 子容器1 → hovermove。
+    if (owner && owner !== gname && parts.indexOf(owner) < 0) parts.push(owner);
+    parts.push(cur);
+    cur = groupByName[cur] ? (groupByName[cur].entry || null) : null;
+  }
+  return parts.join(" → ");
+}
+// `entry` 必须是**本容器的直接成员**（装载器的硬要求）。🔴 失效标记**放句尾**、不放句首 ——
+// 原来写成 `⚠ 子容器1 → hovermove`，用户一眼看过去以为"这是子容器1的入口"（实测原话：
+// 「这个子容器1的entry明明指向idle，你是咋回事为什么自作主张说还是hovermove」）。
+function entryBad(gname) {
+  const g = groupByName[gname];
+  return !!(g && g.entry && (g.members || []).indexOf(g.entry) < 0);
+}
+// 容器页那个"本容器 Entry"的位置：自动摆在**本页画出来的东西**的左外侧，跟着它们走。
+// 🔴 嵌套：直接成员可能是**子容器**（没有 `pos`）⇒ 原来 `filter(n => pos[n])` 把它整个漏掉，
+//    成员的盒子只剩下一部分 ⇒ Entry 会叠到子容器盒上（实测 `子容器X ∩ ENTRY`）。现在两种盒子都算。
 function groupEntryBox(t) {
-  const mem = membersOf(t.id).filter(n => pos[n]);
-  if (!mem.length) return {x: 60, y: 60, w: 214, h: 52};
+  const bs = [];
+  membersOf(t.id).forEach(m => {
+    if (pos[m]) bs.push(nodeRect(m));
+    else if (groupByName[m]) bs.push(groupBox(groupIndexOf(m), groupByName[m]));
+  });
+  if (!bs.length) return {x: 60, y: 60, w: 214, h: 52};
   let minX = Infinity, minY = Infinity, maxY = -Infinity;
-  mem.forEach(n => { const p = pos[n]; if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; });
-  return {x: minX - 350, y: Math.round((minY + maxY + NODE_H) / 2) - 26, w: 214, h: 52};
+  bs.forEach(b => { if (b.x < minX) minX = b.x; if (b.y < minY) minY = b.y; if (b.y + b.h > maxY) maxY = b.y + b.h; });
+  return {x: minX - 350, y: Math.round((minY + maxY) / 2) - 26, w: 214, h: 52};
 }
 // 「适应视图」按当前页取景（原来固定按整机，容器页会缩得过小）
+// 🔴 空的容器页（新容器一建就是空的）画面上只有一个 Entry 盒 ⇒ `tabBoxes` 会是空的、
+//    `fit()` 直接 return（镜头还停在上一页）⇒ 钻进空容器就是"一片空白，像丢了"。
+//    所以空页也要有一个**可取景**的盒子：那句提示。
+function emptyHintBox() { return {x: 40, y: 40, w: 470, h: 58}; }
 function tabBoxes(t) {
   if (t.kind === "group") {
     const bs = states.filter(s => stateVisible(s.name, t)).map(s => nodeRect(s.name));
     // 🔴 嵌套：本页还会画**子容器盒**，取景要把它们算进去
-    groups.forEach((gg, i) => { if (groupVisible(gg.name, t)) bs.push(groupBox(i, gg)); });
+    visibleGroupBoxes(t).forEach(o => bs.push(o.box));
     const lv = leafStatesOf(t.id);
     if (edges.some(e => lv.indexOf(e.to) >= 0 && lv.indexOf(e.from) < 0)) bs.push(groupEntryBox(t));
+    if (!bs.length) bs.push(emptyHintBox());          // 空容器页：至少框住那句提示
     return bs;
   }
   if (t.kind === "state") { const s = stateByName[t.id]; return s ? [nodeRect(s.name)] : []; }
-  return allBoxes();
+  return allBoxes(t);
 }
 function groupOfState(n) { return groups.find(g => g.members.indexOf(n) >= 0); }
 // 锚点必须是"本页真的画出来了的盒子"，否则箭头会指向空气。
@@ -895,10 +1066,23 @@ function predOpts(cur, phase) {
   return html;
 }
 
+// 🔴 `sel` 可能指向**已经不存在的**状态 / 容器 / 边（删了它、撤销回去、导入覆盖…）。
+//    不拦就会在下面读 `.name` 时抛 TypeError ⇒ **整段 render() 半路中断**：
+//    画面不更新、而且**调用 render 的那一整段脚本全废**（本次实测：测试的收尾脚本里
+//    `sel` 停在刚删掉的子容器上 ⇒ `setActive(0)` 里那句 render 抛错 ⇒ 后面设镜头的语句一句没跑）。
+//    `histApply` 里本来就有这份检查，但只它一个人有 ⇒ 提出来做成"一份实现"，render / renderPanel 都调。
+function dropDeadSel() {
+  if (!sel) return;
+  const alive = sel.type === "edge" ? !!edges[sel.id]
+    : sel.type === "state" ? !!stateByName[sel.id]
+    : sel.type === "group" ? !!groupByName[sel.id] : false;
+  if (!alive) sel = null;
+}
 function renderPanel() {
   // 一次性提示统一放在面板顶部（以前只挂在"状态"分支里 ⇒ 撤销 / 删除的提示根本看不到）
   const nEl = document.getElementById("notice");
   if (nEl) nEl.innerHTML = notice ? `<span style="color:var(--door);font-size:12px">${esc(notice)}</span>` : "";
+  dropDeadSel();
   if (!sel) {
     selname.textContent = "（没选）";
     editor.innerHTML = '<p class="hint"><b>非飞行（机外）</b> = 这台状态机之外（起飞从它进来、落地收摊回到它）。<br>点状态 / 容器 / 边来编辑。'
@@ -939,7 +1123,12 @@ function renderPanel() {
       s.once = false; notice = `「${s.name}」改成循环 —— 循环状态不要写 next`; commit();
     };
     document.getElementById("s-mode-once").onchange = () => {
-      s.once = true; notice = `「${s.name}」改成一次性 —— 长度取 clip 自己的（不用填秒数）`; commit();
+      s.once = true;
+      // 🔴 顺手清掉**遗留的** `duration` 覆盖值：面板已经没有"填时长"的入口了，
+      //    旧草稿里那份（如 `boostStartSeconds`）留着会**静默**盖掉"长度取 clip 自己的"。
+      const hadDur = !!s.dur; s.dur = "";
+      notice = `「${s.name}」改成一次性` + (hadDur ? "（顺手清掉旧的 duration 覆盖值 —— 长度现在取 clip 自己的）" : " —— 长度取 clip 自己的");
+      commit();
     };
     document.getElementById("s-next").onchange = ev => { s.next = ev.target.value.trim(); commit(); };
   } else if (sel.type === "group") {
@@ -1123,9 +1312,11 @@ function renderPanel() {
 function validate() {
   const p = [], names = {}; states.forEach(s => {
     if (names[s.name]) p.push(`状态名重复："${s.name}"`);
-    // 🔴 默认**不写时长**（长度问 clip）；写了就是"覆盖"，必须是数字 —— 认不出会让整台不注册
-    if (s.dur && !/^[0-9.]+$/.test(s.dur))
-      p.push(`状态 "${s.name}" 的 duration 覆盖值 "${s.dur}" 不是数字（默认不写就行 —— 长度取 clip 自己的）`);
+    // 🔴 默认**不写时长**（长度问 clip）；写了就是"覆盖"，必须是**数字**或**已登记的命名标量**
+    //    —— 装载器的 `ResolveNumber` 两种都收（`FlightAnimConditions.RegisterParam(...)`），
+    //    编辑器以前只认数字 ⇒ 对 `duration="boostStartSeconds"` 报**假警**（用户草稿里白多了 5 条）。
+    if (s.dur && !/^[0-9.]+$/.test(s.dur) && !(DATA.scalars && DATA.scalars[s.dur]))
+      p.push(`状态 "${s.name}" 的 duration 覆盖值 "${s.dur}" 既不是数字、也不是已登记的命名标量（默认不写就行 —— 长度取 clip 自己的）`);
     // 循环状态写 next ⇒ 引擎装载期直接判"定义有问题"
     if (!s.once && s.next) p.push(`状态 "${s.name}" 是循环状态，不该写 next（next 只给一次性动作）`);
     names[s.name] = 1;
@@ -1141,7 +1332,14 @@ function validate() {
       else if (owner[m]) p.push(`"${m}" 同时属于容器 "${owner[m]}" 和 "${g.name}" —— 一个状态 / 容器只能归属一个容器`);
       else owner[m] = g.name;
     });
-    if (g.entry && (g.members || []).indexOf(g.entry) < 0) p.push(`容器 "${g.name}" 的入口 entry="${g.entry}" 不是它的成员`);
+    if (g.entry && (g.members || []).indexOf(g.entry) < 0) {
+      // 🔴 这是用户实测最常撞的一条：把入口状态**搬进子容器**之后，父容器的 `entry` 立刻失效
+      //    （装载器 `Array.IndexOf(members, entry) < 0` ⇒ 报错 ⇒ **整台不注册**）。
+      //    光说"不是它的成员"没用，得**直接告诉他改成谁**。
+      const host = (g.members || []).filter(m => groupByName[m] && leafStatesOf(m).indexOf(g.entry) >= 0)[0];
+      p.push(`容器 "${g.name}" 的入口 entry="${g.entry}" 不是它的成员`
+        + (host ? ` —— 它已经被收进了子容器「${host}」；把 entry 改成「${host}」即可（装载期会继续解析到 ${g.entry}）` : ""));
+    }
   });
   groups.forEach(g => { if (names[g.name]) p.push(`容器名 "${g.name}" 和一个状态重名了（名字必须唯一）`); });
   // entry 必须**最终落到状态**（可以一路指向子容器，但链不能断、不能成环）
@@ -1317,15 +1515,24 @@ svg.addEventListener("pointerup", ev => {
   if (pan) { pan = null; svg.classList.remove("panning"); save(); return; }
   const dt = dropTargetAt(ev);
   const node = dt.node, grpEl = dt.grp, drop = dt.grp, boxEl = dt.box;
-  if (pendingEntry) {                            // 从 Entry 绿点拉线 → 落到成员状态 = 设置容器入口
+  if (pendingEntry) {                            // 从 Entry 绿点拉线 → 落到**本容器的成员** = 设置容器入口
     const gname = pendingEntry; pendingEntry = null; drag = null;
-    if (!node) { notice = "没落到状态上 —— 请把 Entry 的线拖到**本容器的成员状态**上"; return commit(); }
-    const nn = node.getAttribute("data-n"), g2 = groupByName[gname];
+    // 🔴 落点**除了状态节点，也要认容器盒** —— 入口可以指向**子容器**（`resolveEntry` 会一路递归到状态）。
+    //    原来只认 `.node` ⇒ 把线拖到子容器盒上**毫无反应**（用户实测："我这里 entry 无法连接到子容器上"）。
+    const nn = node ? node.getAttribute("data-n") : (drop ? drop.getAttribute("data-g") : null);
+    const g2 = groupByName[gname];
+    if (!nn) {
+      notice = "没落到有效目标上 —— 把 Entry 的线拖到**本容器的成员**上（状态节点 / 子容器盒都行）";
+      return commit();
+    }
     if (!g2 || (g2.members || []).indexOf(nn) < 0) {
-      notice = `「${nn}」不是容器「${gname}」的成员 —— 入口只能指向本容器的状态`; return commit();
+      notice = `「${nn}」不是容器「${gname}」的成员 —— 入口只能指向**本容器的成员**（状态 / 子容器）`;
+      return commit();
     }
     g2.entry = nn;
-    notice = `容器「${gname}」的入口 = ${nn}（进这个容器就落到它；装载期解析，不用重编译）`;
+    notice = `容器「${gname}」的入口 = ${nn}`
+      + (groupByName[nn] ? "（子容器 ⇒ 装载期继续往下解析到它自己的入口）" : "（进这个容器就落到它）")
+      + "；装载期解析，不用重编译";
     return commit();
   }
   if (pending && node) {                         // 拉线 → 落到状态节点 = 新建边
@@ -1360,22 +1567,26 @@ svg.addEventListener("pointerup", ev => {
     // 🔴 `pos[id]` **只有 x/y、没有 w/h** —— 必须借 `nodeRect()` 补上尺寸，否则中心点是 NaN、落点永远判不中
     const cur = drag.kind === "state" ? nodeRect(drag.id) : groupBox(groupIndexOf(drag.id), groupByName[drag.id]);
     const c = { x: cur.x + cur.w / 2, y: cur.y + cur.h / 2 };
+    // 🔴 落点判据 = **光标在盒子里 _或_ 被拖元素的中心在盒子里**（取并集）。
+    //    只用"中心"太严：节点 240 宽、容器盒 200 宽，用户**抓着节点的左半边往上丢**时
+    //    中心可能还差几十像素在盒外 ⇒ 松手没反应，只能靠猜（用户实测就是这么问的）。
+    //    只看"光标"也不够：拖容器盒时盒子跟着光标走、光标未必在目标盒里。
     let gname = null;
-    groups.forEach((gg, i) => {
-      if (drag.kind === "group" && gg.name === drag.id) return;   // 别把自己判成落点
-      const b = groupBox(i, gg);
-      if (c.x >= b.x && c.x <= b.x + b.w && c.y >= b.y && c.y <= b.y + b.h) gname = gg.name;
+    // 🔴 只在**本页画出来的**容器盒里找落点（原来遍历全部容器 ⇒ 会掉进一个页面上根本看不见的容器）
+    visibleGroupBoxes(tabs[active] || {kind: "root"}).forEach(o => {
+      if (drag.kind === "group" && o.name === drag.id) return;   // 别把自己判成落点
+      const b = o.box;
+      const inRect = (x, y) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+      if (inRect(mouse.x, mouse.y) || inRect(c.x, c.y)) gname = o.name;
     });
     // 🔴 防环：容器不能放进它自己、也不能放进它的后代
     if (gname && drag.kind === "group" && (gname === drag.id || groupContains(drag.id, gname))) {
       notice = `不能把「${drag.id}」放进「${gname}」—— 那会成环`;
       gname = null;
     }
-    const g = gname ? groupByName[gname] : null;
-    if (g) {
+    if (gname && applyOwnership(drag.id, gname)) {
       // 🔴 用户裁定：状态 / 容器只能归属一个容器（UE 规范）⇒ 这里一律是**移动**
-      groups.forEach(o => { o.members = (o.members || []).filter(m => m !== drag.id); });
-      g.members.push(drag.id);
+      notice = "已把「" + drag.id + "」移进容器「" + gname + "」";
     }
   }
   // 拉了半天线却落在空白处：给一句提示，别让人以为"没反应"
@@ -1410,10 +1621,19 @@ elist.addEventListener("click", ev => {
 tabsEl.addEventListener("click", ev => {
   const c = ev.target.getAttribute && ev.target.getAttribute("data-close");
   if (c !== null && c !== undefined && c !== "") {
-    const i = +c; tabs.splice(i, 1); if (active >= tabs.length) active = tabs.length - 1; render(); return;
+    const i = +c;
+    const wasActive = i === active;
+    tabs.splice(i, 1);
+    if (!tabs.length) tabs = [{kind: "root"}];
+    if (i < active) { active--; render(); return; }        // 关的是别的页 ⇒ 只是索引左移
+    if (!wasActive) { render(); return; }
+    active = Math.max(0, Math.min(active, tabs.length - 1));
+    render();
+    if (!viewApply((tabs[active] || {}).view)) fit();      // 关掉当前页 ⇒ 落到新页的镜头
+    return;
   }
   const t = ev.target.closest(".tab");
-  if (t) { active = +t.getAttribute("data-tab"); render(); }
+  if (t) setActive(+t.getAttribute("data-tab"));            // 🔴 走 setActive ⇒ 还原该页自己的镜头
 });
 
 // ── 缩放 / 平移（UE 手感：滚轮缩放、拖空白平移、适应视图）──────
@@ -1438,15 +1658,27 @@ function zoomAt(cx, cy, f) {
   view.ty = y - (y - view.ty) * (k / k0);
   view.k = k; applyView(); save();
 }
-function allBoxes() {
-  const bs = [OUTSIDE];
-  groups.forEach((g, i) => bs.push(groupBox(i, g)));
-  states.forEach(s => { const p = pos[s.name]; if (p) bs.push({x: p.x, y: p.y, w: NODE_W, h: NODE_H}); });
+// 🔴 `allBoxes()` 就是"**本页画出来的所有盒子**"—— 取景（fit）用它，所以必须**跟着可见性走**。
+//    原来它无条件收：全部容器（含嵌套子容器）+ 全部有 pos 的状态（含被收进容器的）
+//    ⇒ 总览实测收到 **22** 个盒子（其中 15 个本页根本不画：嵌套子容器 + 组内状态），
+//      取景被撑到整机那么大，画面缩得很小还偏到一边。
+function allBoxes(t) {
+  const tt = t || {kind: "root"};
+  const bs = [];
+  if (tt.kind === "root") bs.push(OUTSIDE);
+  visibleGroupBoxes(tt).forEach(o => bs.push(o.box));
+  states.forEach(s => {
+    if (!stateVisible(s.name, tt)) return;
+    const p = pos[s.name];
+    if (p) bs.push({x: p.x, y: p.y, w: NODE_W, h: NODE_H});
+  });
   return bs;
 }
 function fit() {
   const bs = tabBoxes(tabs[active] || {kind: "root"});
-  if (!bs.length) return;
+  if (!bs.length) {                       // 理论上不会走到（容器页至少有"空容器"提示盒）；兜底别把镜头卡死
+    view.k = 1; view.tx = 36; view.ty = 36; applyView(); save(); return;
+  }
   const pad = 36;
   const x0 = Math.min.apply(null, bs.map(b => b.x)), y0 = Math.min.apply(null, bs.map(b => b.y));
   const x1 = Math.max.apply(null, bs.map(b => b.x + b.w)), y1 = Math.max.apply(null, bs.map(b => b.y + b.h));
@@ -1552,7 +1784,7 @@ function addEdge(from, to, note) {
 }
 // 边的目标显示：容器要标出它会落到哪个入口
 function toText(t) {
-  return groupByName[t] ? t + "（容器 → 入口 " + (groupByName[t].entry || "未设！") + "）" : t;
+  return groupByName[t] ? t + "（容器 → 入口 " + (entryPathOf(t) || "未设！") + "）" : t;
 }
 // ── 复制 / 粘贴状态（内存剪贴板；Ctrl+C / Ctrl+V 也可）──────────────
 function copyState(n) {
@@ -1583,12 +1815,16 @@ function renameGroup(oldName, nn) {
   if (!nn || nn === oldName) return render();
   if (stateByName[nn] || groupByName[nn]) { notice = `名字「${nn}」已被占用（状态 / 容器重名都不行）`; return render(); }
   g.name = nn;
+  // 🔴 **父容器的成员表也必须跟着改** —— 容器可以被别的容器装（嵌套）⇒ 它出现在**别人的 members 里**。
+  //    漏了这一句 = 改名后它**在所有页面凭空消失**（用户实测："改名叫 loco 之后 他就不见了"），
+  //    并且父容器里留下一个**指向空气的名字**（校验会报"既不是状态也不是容器"）。
+  groups.forEach(o => { o.members = (o.members || []).map(m => (m === oldName ? nn : m)); });
   reindex();
   edges.forEach(e => { if (e.from === oldName) e.from = nn; });
   if (gpos[oldName]) { gpos[nn] = gpos[oldName]; delete gpos[oldName]; }   // 否则盒子跳回默认位置
   tabs.forEach(t => { if (t.kind === "group" && t.id === oldName) t.id = nn; });
   if (sel && sel.type === "group" && sel.id === oldName) sel.id = nn;
-  notice = `容器已改名：「${oldName}」→「${nn}」（边来源 / 位置 / 标签都跟着走了）`;
+  notice = `容器已改名：「${oldName}」→「${nn}」（父容器成员表 / 边来源 / 位置 / 标签都跟着走了）`;
   commit();
 }
 // ── 改状态名：必须**级联** —— 容器成员 + 所有引用它的边 + 位置 + 已打开的 tab
@@ -1653,7 +1889,43 @@ function removeState(n) {
   notice = `已删除状态「${n}」` + (gone ? `（连带删掉 ${gone} 条引用它的边）` : "") + " —— Ctrl+Z 可撤销";
   commit();
 }
+// 🔴 「把状态 / 容器移到哪个容器」= **归属变更的唯一入口**（拖拽落点、右键菜单都走它）。
+//    用户实测提问：「我现在怎么把这俩个塞到子容器里？」—— 光有"拖"不够，得有条**看得见**的路。
+//    用户裁定过：状态 / 容器**只归属一个容器** ⇒ 这里一律是**移动**（先从所有容器移出，再进目标）。
+//    `gname = null` ⇒ 移出容器、变成顶层。
+function applyOwnership(id, gname) {
+  if (parentGroupOf(id) === (gname || null)) return false;      // 已经在目标里 ⇒ 不算改动
+  groups.forEach(o => { o.members = (o.members || []).filter(m => m !== id); });
+  if (gname && groupByName[gname]) groupByName[gname].members.push(id);
+  return true;
+}
+// 「移进容器…」二级菜单（右键状态 / 右键容器盒都有）。防环跟拖拽用同一条判据。
+function pickContainerFor(id) {
+  const isG = !!groupByName[id], cur = parentGroupOf(id);
+  const items = [{hd: (isG ? "把容器「" + id + "」移进哪里？" : "把状态「" + id + "」移进哪里？")}, "-"];
+  let n = 0;
+  groups.forEach(g => {
+    if (g.name === id) return;
+    if (isG && groupContains(id, g.name)) return;               // 防环：不能移进自己的后代
+    n++;
+    items.push({t: g.name + (g.name === cur ? "　（现在就在这）" : ""), fn: () => {
+      if (applyOwnership(id, g.name)) { notice = "已把「" + id + "」移进容器「" + g.name + "」"; commit(); }
+    }});
+  });
+  if (!n) items.push({t: "（没有可放的目标容器）", fn: () => {}});
+  if (cur) {
+    items.push("-");
+    items.push({t: "移出容器（变成顶层）", fn: () => {
+      if (applyOwnership(id, null)) { notice = "已把「" + id + "」移出容器 —— 它现在是顶层标记"; commit(); }
+    }});
+  }
+  showCtx(lastCtxXY, items);
+}
 // 🔴 在指定容器里新建一个**子容器**（真嵌套）。容器面板的按钮与画布右键**都走这里** —— 一处实现，不会漂移。
+// 🔴 铁律：**不要跳到那个刚建出来的空容器里去**。旧行为是 `openTab(新容器)`，而新容器是空的、
+//    取景也没内容（`tabBoxes` 为空 ⇒ `fit()` 直接返回）⇒ 画布上只剩一个飘到画面外的 Entry 盒，
+//    用户以为"容器不见了"（实测原话："我新建一个子容器改名叫 loco 之后 他就不见了"）。
+//    正确落点 = **留在父容器页**，把新盒子取景进来、选中它，并说清下一步。
 function newSubGroup(parentName) {
   const g = groupByName[parentName];
   if (!g) return;
@@ -1663,8 +1935,9 @@ function newSubGroup(parentName) {
   g.members.push(nn);
   reindex();                              // 🔴 新建后必须重建索引（"改名拖不动"同源）
   sel = { type: "group", id: nn };
-  openTab({ kind: "group", id: nn });
-  notice = `已在「${parentName}」里新建子容器「${nn}」—— 把状态拖进去（或从"加入成员"里选），再给它设个入口`;
+  openTab({ kind: "group", id: parentName });   // 父页（已在就只是切回，不会重复开 tab）
+  fit();                                        // 🔴 子容器默认在内容区右侧，父页原镜头可能框不到它
+  notice = `已在「${parentName}」里新建子容器「${nn}」—— 把状态拖进这个盒子（或从"加入成员"里选），再双击盒子进去布置`;
   commit();
 }
 function removeGroup(n) {
@@ -1698,6 +1971,7 @@ svg.addEventListener("contextmenu", ev => {
       {t: outsideTarget() === n ? "（已是机外进入的目标）" : "设为机外进入的目标（outside 边）", fn: () => setOutside(n)},
       {t: "打开内部视图", fn: () => openTab({kind: "state", id: n})}, "-",
       {t: "从这里连一条边…", fn: () => pickEdgeTarget(n)}, "-",
+      {t: "移进容器…", fn: () => pickContainerFor(n)},
       {t: "复制状态（进剪贴板）", fn: () => copyState(n)},
       {t: "删除该状态", bad: true, fn: () => removeState(n)}
     ]);
@@ -1726,6 +2000,7 @@ svg.addEventListener("contextmenu", ev => {
       {hd: "容器 " + gname}, "-",
       {t: "打开容器", fn: () => openTab({kind: "group", id: gname})},
       {t: "从这里连一条边…（来源 = 整个容器）", fn: () => pickEdgeTarget(gname)},
+      {t: "移进容器…", fn: () => pickContainerFor(gname)},
       // 🔴 不用原生 prompt()：那是**阻塞式**的，无头自检一碰就卡死（同 §二十二 ②的处理）
       {t: "改名（去右侧面板输入）", fn: () => {
         sel = {type: "group", id: gname};
@@ -1810,14 +2085,28 @@ function fullXml() {
     .replace(/\n[ \t]*<states>[\s\S]*?\n[ \t]*<\/states>/, "\n\t<states>\n" + statesXml() + "\n\t</states>")
     .replace(/\n[ \t]*<edges>[\s\S]*?\n[ \t]*<\/edges>/, "\n\t<edges>\n" + edgesXml() + "\n\t</edges>");
 }
+// 🔴 导出必须有**看得见的反馈**。原来 `io.value = ...` 一塞了事，而那个文本框在右侧面板**最下面**
+//    （大概率在屏幕外）⇒ 用户实测："我点导出完整 xml 没有反应"。现在：写文本框 + 提示条 + 滚到眼前。
+function fillIO(text, label) {
+  io.value = text;
+  notice = label + " —— 已写进下面的文本框（" + text.split("\n").length + " 行），点「复制」就能拿走";
+  renderPanel();
+  try { io.scrollIntoView({block: "center"}); } catch (e) {}
+  try { io.focus(); io.setSelectionRange(0, 0); io.scrollTop = 0; } catch (e) {}
+}
 document.getElementById("btn-export-full").onclick = () => {
-  const p = validate();
-  io.value = (p.length ? "<!-- 还有 " + p.length + " 处问题，见右侧校验 -->\n" : "") + fullXml();
+  const p = validate(), xml = fullXml();
+  fillIO((p.length ? "<!-- ⚠ 当前草稿还有 " + p.length + " 处问题（见右侧校验）；这一份 = 草稿现状 -->\n" : "") + xml,
+         "已导出**完整 XML**" + (p.length ? "（⚠ 有 " + p.length + " 处问题）" : "（校验 0 问题）"));
 };
-document.getElementById("btn-export").onclick = () => { io.value = "<edges>\n" + edgesXml() + "\n</edges>"; };
+document.getElementById("btn-export").onclick = () => fillIO("<edges>\n" + edgesXml() + "\n</edges>", "已导出**边片段**");
 document.getElementById("btn-copy").onclick = async () => {
   io.select();
-  try { await navigator.clipboard.writeText(io.value); } catch (e) { /* 已全选，手动 Ctrl+C */ }
+  let ok = false;
+  try { await navigator.clipboard.writeText(io.value); ok = true; } catch (e) { ok = false; }
+  notice = ok ? "已复制到剪贴板（" + io.value.split("\n").length + " 行） —— 整份覆盖回 ModuleData/statemachine_flight.xml"
+              : "复制被浏览器挡了 —— 文本框已全选，按 **Ctrl+C** 即可";
+  renderPanel();
 };
 document.getElementById("btn-import").onclick = () => { io.value = ""; io.focus(); };
 document.getElementById("btn-apply").onclick = () => {
@@ -1865,6 +2154,7 @@ document.getElementById("btn-redo").onclick = () => redo();
 histReset();                     // 把"载入后的初始结构"作为历史第 0 帧 ⇒ 第一次编辑也能撤销回去
 render();
 if (!viewRestored) fit();
+tabs[0].view = viewSnapshot();   // 🔴 总览这一页的初始镜头要记下来（切回来时还原，而不是重新 fit）
 </script>
 """
 
