@@ -609,11 +609,19 @@ def element_override(effect_name, emitters):
         if any(k in low for k in keys):
             for em in emitters:
                 m = em.get("material")
-                if m in KEEP_DARK:
+                # 🔴 `KEEP_DARK` 只保护**语义匹配到的**暗材质（我们真按 UE 材质名认出它是压暗类）；
+                #    兜底桶里的不算 —— 2026-09-25 实机：fireball 的 `Embers_6` 在 UE 里是
+                #    **`DefaultSpriteMaterial`**（= 没材质，中性白精灵），我们兜底成 `haze_1`（乘法压暗），
+                #    而 haze_1 在黑名单里 ⇒ **连元素补材质都进不去**，结果一整个火球只看见一团黑烟
+                #    （冰系的黑烟、frostbolt 的"烟"同一个根因）。判据：`_mat_fb` 为真 = 这是占位材质，
+                #    必须允许元素把它刷成该元素的主材质。
+                if m in KEEP_DARK and not em.get("_mat_fb"):
                     continue
-                if (m is None or em.get("_mat_fb")) and m != mat:
-                    em["material"] = mat
-                    em.setdefault("_notes", []).append("element(%s)->%s" % (keys[0], mat))
+                if m is None or em.get("_mat_fb"):
+                    if m != mat:
+                        em["material"] = mat
+                        em.setdefault("_notes", []).append("element(%s)->%s%s" % (keys[0], mat,
+                                                                    "(兜底桶)" if m else ""))
             return keys[0]
     return None
 
@@ -755,6 +763,37 @@ def cap_sizes(ems):
                 pass
 
 
+# 🔴 材质 → 亮度倍率（2026-09-25 用户实机揪出"只见黑烟不见火焰"的真凶）
+#    引擎默认 `diffuse_multiplier = 1.000`，**原版按材质给值**（下表的数都是原版粒子 XML 的众数）：
+#      · `prt_shd_flame_1` = **1000**（真火焰就靠这个提亮）
+#      · `prt_shd_fire_1`  = 250（47 处）
+#      · `prt_shd_sparks`  = **30**（14 处；另有 3 处 1000）
+#      · `prt_shd_trail`   = 5 · `prt_shd_steam_2` = 3
+#      · 烟/尘/石砾/血/水花… = 1（= 引擎默认，不用写）
+#    我们此前**全部**是默认 1 ⇒ 火焰比原版暗 1000 倍 = **看不见**；而 `haze_1` 这种**乘法压暗**材质
+#    用 1 恰好正常 ⇒ 症状正是"只看得见黑烟、看不见火"。⚠️ **预览器完全不读这个倍率**
+#    （`render_still.py` 没有这个概念）⇒ 光看离线图永远发现不了这一类问题，只能进编辑器/实机。
+MAT_DIFFUSE = {
+    "prt_shd_flame_1": 1000.0,
+    "prt_shd_fire_1": 250.0,
+    "prt_shd_sparks": 30.0,
+    "prt_shd_trail": 5.0,
+    "prt_shd_steam_2": 3.0,
+}
+
+
+def apply_multiplier(ems):
+    """按材质写 `diffuse_multiplier`（发光类材质必须提亮，否则实机/编辑器里等于不可见）。"""
+    n = 0
+    for em in ems:
+        v = MAT_DIFFUSE.get(em.get("material") or "")
+        if v and em.get("diffuse_multiplier") is None:
+            em["diffuse_multiplier"] = v
+            em.setdefault("_notes", []).append("diffuseMult=%.0f(材质)" % v)
+            n += 1
+    return n
+
+
 def apply_tune(effect_name, ems):
     low = effect_name.lower()
     hit = 0
@@ -836,6 +875,7 @@ def build_spec(json_path, out_name=None):
     for em in ems:                    # 材质定下来之后才能定图集切法
         apply_sprite(em)
     apply_tune(name, ems)             # 再按人眼复验补差（TUNE_RULES）
+    apply_multiplier(ems)             # 按材质给亮度倍率（材质定了才能给；发光类不给 = 看不见）
     cap_sizes(ems)                    # 最后钉尺寸上限（火花/光点天生小元素）
     for em in ems:
         # 🔴 `max_alive_particle_count = 0` 在引擎里是「**一颗都不给**」，不是"无限"。

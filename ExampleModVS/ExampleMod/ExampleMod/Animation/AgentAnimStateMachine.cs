@@ -156,6 +156,28 @@ namespace LivingWorldNpcs.Animation
         /// <summary>当前状态已经播了多久（秒）。</summary>
         public float CurrentElapsed => _elapsed;
 
+        /// <summary>
+        /// **当前动画还剩多少秒**（给 XML 的 `anim="remaining" anim-lt="…"` 用）：
+        /// 循环状态 = <c>+∞</c>（循环没有"播完"这回事）；一次性动作 = 时长 − 已播，播完为 0。
+        /// </summary>
+        public float CurrentRemaining
+        {
+            get
+            {
+                if (_current == null || !_current.OneShot)
+                {
+                    return float.PositiveInfinity;
+                }
+                if (_current.Duration > 0.01f)
+                {
+                    return Math.Max(0f, _current.Duration - _elapsed);
+                }
+                // 没写时长的一次性动作：只能按引擎进度粗判
+                float p = _progressFn != null ? _progressFn() : 0f;
+                return p >= 0.999f ? 0f : 0.5f;
+            }
+        }
+
         /// <summary>当前状态是不是"一次性动作且已播完"。</summary>
         public bool CurrentFinished
         {
@@ -207,14 +229,9 @@ namespace LivingWorldNpcs.Animation
 
             if (!Hold && _current != null)
             {
-                // ① 一次性动作播完 → 去它声明的下一个状态
-                if (CurrentFinished && !string.IsNullOrEmpty(_current.Next))
+                // ① 转移表：按注册顺序，第一条命中的生效
+                bool fired = false;
                 {
-                    Enter(agent, _current.Next, _current.NextBlend, 0f, forced: false);
-                }
-                else
-                {
-                    // ② 转移表：按注册顺序，第一条命中的生效
                     var edges = _def.Edges;
                     // 🔴 **命中的第一条边定输赢**（这张表是"优先级阶梯"，不是"找一条能切的"）。
                     //    命中边的目标就是当前状态 ⇒ **留在原地，且不能继续往下找** ——
@@ -223,6 +240,8 @@ namespace LivingWorldNpcs.Animation
                     for (int i = 0; i < edges.Count; i++)
                     {
                         AnimEdgeDef e = edges[i];
+                        if (e.PhaseForced)
+                            continue;       // 相位驱动的边（起飞/落地）：只是写在定义里给图看，不在这里求值
                         if (!e.Matches(_current.Name))
                             continue;
 
@@ -248,8 +267,19 @@ namespace LivingWorldNpcs.Animation
 
                         if (e.To != _current.Name)
                             Enter(agent, e.To, e.Blend, 0f, forced: false);
+                        fired = true;
                         break;      // ← 命中即定（目标是自己 = 留在原地，也在这里收手）
                     }
+                }
+
+                // ② 🔴 **演完兜底**（2026-09-25 改，UE 的"动画播完自动转移"对应物）：
+                //    一次性动作演完、**且上面一条边都没命中** ⇒ 回它声明的宿主状态（`Next`）。
+                //    🔴 **兜底放在边之后**（不是之前）是刻意的：**条件优先、演完兜底** ——
+                //       例：入姿演完那一刻玩家已经松开 Shift，那就该走 idle/hovermove 那条边，
+                //       而不是先回趴姿再被踢走（那是连着两次交叉淡化，看着闪一下）。
+                if (!fired && CurrentFinished && !string.IsNullOrEmpty(_current.Next))
+                {
+                    Enter(agent, _current.Next, _current.NextBlend, 0f, forced: false);
                 }
             }
 

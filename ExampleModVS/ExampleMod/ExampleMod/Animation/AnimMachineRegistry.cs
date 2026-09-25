@@ -100,15 +100,24 @@ namespace LivingWorldNpcs.Animation
         /// </summary>
         public bool OnlyAfterFinish;
 
+        /// <summary>
+        /// **相位驱动**：这条边**不由状态机求值** —— 它由飞行相位（C#）在特定时刻
+        /// `Force` 进目标状态（起飞入姿 / 落地）。写进定义只是为了让**表与图完整**：
+        /// 让"从哪进、从哪出"在定义里一眼可见，而不是散在 C# 里。
+        /// 状态机求值时直接跳过（见 <see cref="AgentAnimStateMachine.Tick"/>）。
+        /// </summary>
+        public bool PhaseForced;
+
         public AnimEdgeDef(string[] from, string to, Func<AnimContext, bool> when,
-                           float blend = -1f, bool onlyAfterFinish = false)
+                           float blend = -1f, bool onlyAfterFinish = false, bool phaseForced = false)
         {
-            From = from; To = to; When = when; Blend = blend; OnlyAfterFinish = onlyAfterFinish;
+            From = from; To = to; When = when; Blend = blend;
+            OnlyAfterFinish = onlyAfterFinish; PhaseForced = phaseForced;
         }
 
         public AnimEdgeDef(string from, string to, Func<AnimContext, bool> when,
-                           float blend = -1f, bool onlyAfterFinish = false)
-            : this(new[] { from }, to, when, blend, onlyAfterFinish)
+                           float blend = -1f, bool onlyAfterFinish = false, bool phaseForced = false)
+            : this(new[] { from }, to, when, blend, onlyAfterFinish, phaseForced)
         {
         }
 
@@ -196,9 +205,24 @@ namespace LivingWorldNpcs.Animation
 
         /// <summary>同上，来源多个。</summary>
         public AnimMachineDef Edge(string[] from, string to, Func<AnimContext, bool> when,
-                                   float blend = -1f, bool onlyAfterFinish = false)
+                                   float blend = -1f, bool onlyAfterFinish = false, bool phaseForced = false)
         {
-            _edges.Add(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish));
+            _edges.Add(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish, phaseForced));
+            return this;
+        }
+
+        /// <summary>
+        /// 直接加一条**已经构造好的**边（给 XML 装载器用：那边是逐条校验后才拼出来的
+        /// <see cref="AnimEdgeDef"/>，不该再拆成参数重来一遍）。
+        /// **顺序 = 优先级**，和 <see cref="Edge(string,string,Func{AnimContext,bool},float,bool)"/> 一条规则。
+        /// </summary>
+        public AnimMachineDef AddEdge(AnimEdgeDef edge)
+        {
+            if (edge == null)
+            {
+                throw new ArgumentException("AddEdge 不接受 null");
+            }
+            _edges.Add(edge);
             return this;
         }
 

@@ -208,6 +208,7 @@ namespace LivingWorldNpcs.Flight
             CameraLook.Provider =
                 (_camEntered && _camRig.IsActive) ? this : null;
             FlightInput.Tick(dt);
+            UpdateKeyFacts();
             LogInputEdges();
             WatchPlayerDisplacement(main, dt);
 
@@ -1299,6 +1300,26 @@ namespace LivingWorldNpcs.Flight
         /// <summary>每个键**上一帧**的状态 —— 只用来判"变没变"。</summary>
         private readonly bool[] _loggedKey = new bool[LoggedKeys.Length];
 
+        /// <summary>上一帧的原始键状态（判"刚按下 / 刚松开"沿用；下标顺序 = `AnimPrimitives.Keys`）。</summary>
+        private readonly bool[] _prevKey = new bool[AnimPrimitives.KeyCount];
+
+        /// <summary>
+        /// **把原始按键与"动画还剩多久"填进上下文**（每帧一次，**在状态机 Tick 之前**，与飞行相位无关）——
+        /// 这样 XML 里就能直接写 `key="W" key-mode="down"` / `anim="remaining" anim-lt="0.2"`，
+        /// 不必为每种条件再登记一个 C# 谓词。
+        /// 读的是 <see cref="FlightInput.RawKeyAt"/>（原始键，绕开一切逻辑）。
+        /// </summary>
+        private void UpdateKeyFacts()
+        {
+            for (int i = 0; i < AnimPrimitives.KeyCount; i++)
+            {
+                bool now = FlightInput.RawKeyAt(i);
+                _animCtx.SetKey(i, now, now && !_prevKey[i], !now && _prevKey[i]);
+                _prevKey[i] = now;
+            }
+            _animCtx.AnimRemaining = _anim.CurrentRemaining;
+        }
+
         /// <summary>上一帧是否处于"UI 门控接管输入"状态（只在进入那一帧打一行）。</summary>
         private bool _loggedUiBlock;
 
@@ -1455,7 +1476,8 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         private void UpdateAnimContext(Vec3 camForward)
         {
-            _animCtx.Moving = FlightInput.HasMoveInput || _velocity.LengthSquared > 1f;
+            _animCtx.MoveInput = FlightInput.HasMoveInput;                                  // 纯输入（这一帧按着方向键）
+            _animCtx.Moving = _animCtx.MoveInput || _velocity.LengthSquared > 1f;           // 输入 或 惯性滑行
             _animCtx.Boost = FlightInput.BoostHeld;
 
             // 🪦 2026-09-25：这里原来消费"冲刺键按下沿"喂给状态机（进快移入姿）。已删 ——
