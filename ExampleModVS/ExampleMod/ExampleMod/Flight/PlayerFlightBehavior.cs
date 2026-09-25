@@ -208,6 +208,7 @@ namespace LivingWorldNpcs.Flight
             CameraLook.Provider =
                 (_camEntered && _camRig.IsActive) ? this : null;
             FlightInput.Tick(dt);
+            LogInputEdges();
             WatchPlayerDisplacement(main, dt);
 
             try
@@ -234,9 +235,10 @@ namespace LivingWorldNpcs.Flight
             // 🔴 动画状态机：**每帧一次**（含起飞/落地）——
             //    它在这两段被 Hold 住（相位自己 Force），但**仍要跑**：维持当前动作 + 定期核对
             //    有没有被引擎的走跑系统抢走 0 号通道。
-            // 🔴 状态机的逐次切换日志（`[Anim:flight] xx → yy`）跟着飞行总闸走 ——
-            //    状态机是通用件（默认安静），它的 Verbose 由使用方决定。
-            _anim.Verbose = FlightTuning.DebugLog;
+            // 🔴 状态机那两档日志的开关**不在飞行这边**了（2026-09-25 搬到 `Animation/AnimDebug.cs`）——
+            //    状态机是通用件，开关挂在飞行身上等于"换个系统就得再抄一份"，而且会出现两套打架的开关。
+            //    控制台：`custom.anim_log off|on|full`（**默认 off**，要查时敲 `custom.anim_log on`）。
+            //    本行为类负责的只是"**默认飞行在开日志时**，输入沿那三行也一起打"（见 LogInputEdges）。
             _anim.Tick(main, dt);
 
             // 🔴 姿态变化时的调试输出（**受总闸 FlightTuning.DebugLog 管，默认关**，2026-09-22 用户要求）。
@@ -634,8 +636,8 @@ namespace LivingWorldNpcs.Flight
                 // 🔴 **只在没进落地态时才 Force**（2026-09-22 修）：原来每帧无条件 Force 一次，
                 //    后果是 ① 日志里刷出 357 行 `land → land` ② 状态机的抖动自检被它触发（每秒 61 次假警告）
                 //    ③ 更要命的是"每帧重设动作通道会把动画卡在第 0 帧"（方案里记过的坑）。
-                if (_anim.Current != "land")
-                    _anim.Force(main, "land", FlightTuning.AnimBlendIn);
+                if (_anim.Current != "superland")
+                    _anim.Force(main, "superland", FlightTuning.AnimBlendIn);
                 _landTimer += dt;
                 if (_landTimer >= FlightTuning.LandAnimSeconds || _landTimer >= FlightTuning.LandMaxSeconds)
                 {
@@ -671,7 +673,7 @@ namespace LivingWorldNpcs.Flight
             }
 
             DebugLogger.Log($"[Flight] 触地：板已拆、人在地面，开始播落地动画（时长={FlightTuning.LandAnimSeconds:F2}s）");
-            _anim.Force(main, "land", FlightTuning.AnimBlendIn);
+            _anim.Force(main, "superland", FlightTuning.AnimBlendIn);
         }
 
         // ─────────────────────────── 进出 ───────────────────────────
@@ -708,7 +710,7 @@ namespace LivingWorldNpcs.Flight
                 ? MBMath.ClampFloat(skip / FlightTuning.TakeoffAnimSeconds, 0f, 0.9f)
                 : 0f;
             _anim.Hold = true;                                          // 起飞入姿这一段动画归相位管
-            _anim.Force(main, "takeoff", FlightTuning.TakeoffBlendIn, startProgress);
+            _anim.Force(main, "hoverstart", FlightTuning.TakeoffBlendIn, startProgress);
 
             if (FlightTuning.UseFlightCamera)
             {
@@ -729,7 +731,7 @@ namespace LivingWorldNpcs.Flight
                     TurnBodySmoothed(main, takeoffFwd, 0f);
             }
 
-            DebugLogger.Log($"[Flight] 起飞触发: 动作={FlightTuning.ActTakeoff} blendIn={FlightTuning.TakeoffBlendIn:F2}s " +
+            DebugLogger.Log($"[Flight] 起飞触发: 动作={FlightTuning.ActHoverStart} blendIn={FlightTuning.TakeoffBlendIn:F2}s " +
                             $"跳过开头={skip:F2}s(startProgress={startProgress:F2}) 板延迟={FlightTuning.TakeoffSpawnDelay:F2}s " +
                             $"| {CarrierBoard.DescribeCapsule(main)}");
         }
@@ -1252,6 +1254,106 @@ namespace LivingWorldNpcs.Flight
         private Vec3 _prevPlayerPos;
         private bool _hasPrevPos;
 
+        /// <summary>飞行输入监听的**一个键**：怎么读它的原始状态 + 日志里叫什么 +（可选）按下/抬起的备注。</summary>
+        private readonly struct KeyEdge
+        {
+            public readonly Func<bool> Read;
+            public readonly string Name;
+            public readonly string DownNote;
+            public readonly string UpNote;
+
+            public KeyEdge(Func<bool> read, string name, string downNote = "", string upNote = "")
+            {
+                Read = read; Name = name; DownNote = downNote; UpNote = upNote;
+            }
+        }
+
+        /// <summary>
+        /// **飞行要监听的键** —— 判据是"**这个键能引起飞行状态变化**"，用户 2026-09-25 划定：
+        /// WASD / 小键盘方向（两者等价，都是飞行方向键）· 空格（起飞 / 闪避 / 落地 / 长按下降）·
+        /// Shift（冲刺模式）· 右键（蓄力 / 瞄准机位）· 左键（发射）。
+        ///
+        /// 🔴 读的全是 <see cref="FlightInput"/> 的**原始读数**（`Diag*`，绕开一切逻辑）——
+        ///    所以"按了没反应"能一眼分清是"键没读到"还是"逻辑没走"。
+        /// 🔴 **不许改成读 `BoostHeld` / `AimHeld` 这类逻辑量**：UI 门控会把逻辑输入清零
+        ///    （<see cref="FlightInput.Reset"/>），拿逻辑量当"按键日志"会把**门控**误报成**玩家松手**
+        ///    —— 那正是"我明明没松手，角色却停了"最难查的一种。原始读数 + 下面那条门控行一起看，
+        ///    三种原因（玩家真的松手 / 引擎没读到 / 被门控清空）才能分开。
+        /// </summary>
+        private static readonly KeyEdge[] LoggedKeys =
+        {
+            new KeyEdge(() => FlightInput.DiagWDown, "W"),
+            new KeyEdge(() => FlightInput.DiagADown, "A"),
+            new KeyEdge(() => FlightInput.DiagSDown, "S"),
+            new KeyEdge(() => FlightInput.DiagDDown, "D"),
+            new KeyEdge(() => FlightInput.DiagNumpad8Down, "小键盘8"),
+            new KeyEdge(() => FlightInput.DiagNumpad4Down, "小键盘4"),
+            new KeyEdge(() => FlightInput.DiagNumpad2Down, "小键盘2"),
+            new KeyEdge(() => FlightInput.DiagNumpad6Down, "小键盘6"),
+            new KeyEdge(() => FlightInput.DiagSpaceDown, "空格"),
+            new KeyEdge(() => FlightInput.DiagShiftDown, "Shift", "冲刺（快移）", "松开冲刺"),
+            new KeyEdge(() => FlightInput.DiagRightMouseDown, "右键", "蓄力 / 瞄准机位", "松开右键"),
+            new KeyEdge(() => FlightInput.DiagLeftMouseDown, "左键", "发射（飞行中施法）", "松开左键"),
+        };
+
+        /// <summary>每个键**上一帧**的状态 —— 只用来判"变没变"。</summary>
+        private readonly bool[] _loggedKey = new bool[LoggedKeys.Length];
+
+        /// <summary>上一帧是否处于"UI 门控接管输入"状态（只在进入那一帧打一行）。</summary>
+        private bool _loggedUiBlock;
+
+        /// <summary>
+        /// **输入的"按下 / 抬起"日志**（2026-09-25 立；跟着状态机那个开关 <see cref="AnimDebug.Trace"/> ——
+        /// **默认关**，要看得 `custom.anim_log on`）。
+        ///
+        /// 为什么要有它：用户原话——"不然我都不知道按了 Shift 到底有没有反应"。
+        /// 状态机那条切换行只说"动画变了"，不说是**哪个输入**让它变的；这一行补上前半截，
+        /// 于是一条链路在日志里能连着读：`Shift↓` → `hovermove → fastmoveStart` → `✓ fastmoveStart 生效`。
+        ///
+        /// 🔴 **防刷屏的全部机制就一条：只在"和上一帧比变了"的那一帧打** ——
+        ///    保持按着、保持没按，都不打。所以按一次键 = 两行（按下 + 抬起），长按不刷屏。
+        ///
+        /// 两条门控（不满足就**只同步游标、不打**）：
+        ///   · **地面不打**（`_phase == Grounded`）—— <see cref="FlightInput.Tick"/> 在地面也一直在读键，
+        ///     在城里跳一下就刷一行没意义。触发起飞的那一次空格由"二段跳起飞"那行自己交代。
+        ///   · **被 UI 门控时不打** —— 进菜单会把键状态清零，不拦的话"开个菜单"就会报一串假的"抬起"。
+        /// </summary>
+        private void LogInputEdges()
+        {
+            // 🔴 **门控行**：进菜单 / ESC / 对话时 `FlightInput.Reset()` 会把**逻辑**输入清零
+            //    （WASD 轴归零、Shift 视作松开）⇒ 飞行这边表现成"我没松手，角色却停了"。
+            //    原始按键**不受影响**（上面表里读的就是原始读数），所以这一行是那种情况的**唯一书证**。
+            if (FlightInput.BlockedByUi != _loggedUiBlock)
+            {
+                _loggedUiBlock = FlightInput.BlockedByUi;
+                if (_loggedUiBlock && AnimDebug.Trace && _phase != Phase.Grounded)
+                {   // ⚠️ 地面不打：`FlightInput.Tick` 在地面也跑，不拦的话"每次开菜单"都刷一行
+                    DebugLogger.Log("[Flight-In] ⚠️ UI 门控接管输入（飞行逻辑收到空输入；原始按键仍在读，见上面的键行）");
+                }
+            }
+
+            bool loggable = AnimDebug.Trace
+                            && _phase != Phase.Grounded      // 飞行全程都算（含起飞 / 落地那两段，玩家也在按键）
+                            && !FlightInput.BlockedByUi;
+
+            for (int i = 0; i < LoggedKeys.Length; i++)
+            {
+                bool now = LoggedKeys[i].Read();
+                if (now == _loggedKey[i])
+                    continue;                        // 🔴 保持状态不打印 —— 防刷屏就靠这一行
+                _loggedKey[i] = now;
+                if (!loggable)
+                    continue;                        // 只同步、不打（免得起飞 / 开菜单时补报一串假事件）
+
+                KeyEdge k = LoggedKeys[i];
+                string arrow = now ? "↓" : "↑";
+                string note = now ? k.DownNote : k.UpNote;
+                DebugLogger.Log(string.IsNullOrEmpty(note)
+                    ? $"[Flight-In] {k.Name}{arrow}"
+                    : $"[Flight-In] {k.Name}{arrow} {note}");
+            }
+        }
+
         /// <summary>
         /// 🔴 **位移监视器**：谁在动玩家，当场抓出来。
         ///
@@ -1356,9 +1458,9 @@ namespace LivingWorldNpcs.Flight
             _animCtx.Moving = FlightInput.HasMoveInput || _velocity.LengthSquared > 1f;
             _animCtx.Boost = FlightInput.BoostHeld;
 
-            // 冲刺键**按下沿**（一次性消费）—— 状态机用它进"冲刺入姿"那一段一次性动画。
-            // 🔴 只在空中态每帧读一次；起飞/落地那两段状态机被 Hold 住，此时按下沿丢掉也无所谓。
-            _animCtx.BoostJustPressed = FlightInput.ConsumeBoostPress();
+            // 🪦 2026-09-25：这里原来消费"冲刺键按下沿"喂给状态机（进快移入姿）。已删 ——
+            //    入姿的判据改成"来源是直立家 + Shift 按着"（见 FlightAnimMachine 的 ③ 那段），
+            //    不再需要按下沿这个一帧就消失的信号。
 
             // 闪避请求：由 BeginDodge 置位，被状态机接走（或 0.3 秒超时）后清掉。
             _animCtx.DodgeRequest = _pendingDodge;

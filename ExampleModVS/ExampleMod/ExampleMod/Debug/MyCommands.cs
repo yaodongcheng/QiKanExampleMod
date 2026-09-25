@@ -197,8 +197,8 @@ namespace LivingWorldNpcs
         /// 用来和原版对照。典型用法（查"为什么我们的动作在通道 1 不播"）：
         /// <code>
         /// custom.anim_meta act_command_unarmed    ← 原版：通道 1 能播的基准
-        /// custom.anim_meta act_cast_charge        ← 我们：通道 1 不播
-        /// custom.anim_meta act_fly_cruise         ← 我们：通道 1 也不播（通道 0 能播）
+        /// custom.anim_meta act_magic_idle         ← 我们：通道 1 不播
+        /// custom.anim_meta act_fly_hovermove      ← 我们：通道 1 也不播（通道 0 能播）
         /// </code>
         /// 打的都是 `MBActionSet` 上的**公开**静态接口（`IMBAnimation` 那几个 Param1/2/3 是 internal，
         /// mod 程序集够不着 —— 那三个要看就得开 ModKit 的 clip 面板）。
@@ -264,13 +264,13 @@ namespace LivingWorldNpcs
         /// 上层动作（通道 1）什么都别勾** —— 详见同一份 Knowledge 文档。
         ///
         /// 用法（首参可弃：不是 0~3 的数字就当成动作名、通道回落 1）：
-        ///   custom.anim_ch 1 act_cast_charge 1      → 上身**循环**播蓄力姿势（腿保持原样）
-        ///   custom.anim_ch 1 act_cast_projectile    → 上身播一次释放姿势
-        ///   custom.anim_ch act_cast_charge          → 同上（通道默认 1）
+        ///   custom.anim_ch 1 act_magic_idle 1      → 上身**循环**播蓄力姿势（腿保持原样）
+        ///   custom.anim_ch 1 act_magic_projectile  → 上身播一次释放姿势
+        ///   custom.anim_ch act_magic_idle          → 同上（通道默认 1）
         ///
         /// 🔴 **返回里的时长就是判据**：时长 `0.00s` = 这个 action 在当前 action_set 里**解析不到**
         ///    （没注册 / clip 名写错 / 模块没加载）—— 所有"播不出来"长得都一样，只有这个数能分辨。
-        ///    所以返回里同时给一条**已知能播的参照动作**（`act_fly_cruise`）的时长做对照：
+        ///    所以返回里同时给一条**已知能播的参照动作**（`act_fly_hovermove`）的时长做对照：
         ///    参照也是 0.00s ⇒ 是 action_set / 模块层面的问题；只有本条 0.00s ⇒ 是这条 clip 的绑定问题。
         /// </summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("anim_ch", "custom")]
@@ -369,7 +369,7 @@ namespace LivingWorldNpcs
             try
             {
                 duration = MBActionSet.GetActionAnimationDuration(agent.ActionSet, idx);
-                ActionIndexCache refIdx = ActionIndexCache.Create("act_fly_cruise");
+                ActionIndexCache refIdx = ActionIndexCache.Create("act_fly_hovermove");
                 if (refIdx != ActionIndexCache.act_none)
                 {
                     refDuration = MBActionSet.GetActionAnimationDuration(agent.ActionSet, refIdx);
@@ -406,7 +406,7 @@ namespace LivingWorldNpcs
                 string durNote = duration > 0f ? string.Empty
                     : " [note: duration 0.00s -> this action does not resolve in the agent's current action_set]";
                 string line = $"OK: agent={agent.Name} channel={channel} action='{actionName}' duration={duration:0.00}s"
-                     + $" ref(act_fly_cruise)={refDuration:0.00}s loop={(cyclic ? 1 : 0)}"
+                     + $" ref(act_fly_hovermove)={refDuration:0.00}s loop={(cyclic ? 1 : 0)}"
                      + $" lowerbody={(lowerbody ? 1 : 0)} all={(enforceAll ? 1 : 0)} force={(ignorePriority ? 1 : 0)}"
                      + (prioritySet >= 0 ? $" prio={prioritySet}" : "")
                      // 🔴 自我提醒（2026-09-25 实测）：flags / prio 这两个**运行时参数引擎不读** ——

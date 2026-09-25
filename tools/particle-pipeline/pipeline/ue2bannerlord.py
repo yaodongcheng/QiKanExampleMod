@@ -39,8 +39,14 @@ GRAV_SCALE = 1.0 / 980.0   # UE 重力常为 -980(cm/s²) -> 骑砍默认量级 
 #      · 火星/余烬 = `prt_shd_sparks`（`spark` 是一条黄色锥形长条）
 #    教训：**材质名不可望文生义**，按语义给名之前先看它的贴图长什么样。
 MAT_RULES = [
-    (("fire_haze", "firehaze"),                        "prt_shd_fire_haze_1"),
-    (("lightning", "electric", "thunder", "chain"),     "prt_shd_lightning"),
+    # 🔴 2026-09-25 更正：以前映射到 `prt_shd_lightning` —— **那是坏的**。它在包索引里存在
+    #    （`tpaccli dump` 能解析、还带张 6 格闪电贴图），但**引擎的粒子材质表里没有它**
+    #    ⇒ 编成资产后 ModKit 弹 `RGL CONTENT WARNING: Unable to find material{...}`（用户实机撞到）。
+    #    判据：**"dump 得出来" ≠ "能用"** —— 只许用**原版粒子真正引用过的那 33 个**
+    #    （`output/vanilla_prt_shd_materials.txt`，`validate_xml.py` 现在按它把守）。
+    (("lightning", "electric", "thunder", "chain"),     "prt_shd_sparks"),
+    (("fire_haze", "firehaze"),                        "prt_shd_haze_1"),
+    # ⚠️ `prt_shd_fire_haze_1` 也不在那 33 个里（原版粒子没用过）⇒ 同样别用，见上一行的归并。
     (("flame", "fire", "burn", "torch", "meteor",
       "inferno", "lava", "fireball", "ignite"),         "prt_shd_flame_1"),
     (("ember", "spark"),                                "prt_shd_sparks"),
@@ -440,8 +446,15 @@ def niagara_color(em):
             gg = (g[i][1] if i < len(g) else g[-1][1]) / scale
             bb = (b[i][1] if i < len(b) else b[-1][1]) / scale
             cols.append(("%.3f" % t, "%.3f, %.3f, %.3f" % (rr, gg, bb)))
-        al = [("%.3f" % t, "%.3f" % min(max(v, 0.0), 1.0)) for t, v in a] \
-             or [("0.000", "1.000"), ("1.000", "0.000")]
+        al = [("%.3f" % t, "%.3f" % min(max(v, 0.0), 1.0)) for t, v in a]
+        # 🔴 退化 alpha 必须丢掉（2026-09-25 实机：用户在 ModKit 的粒子面板里"什么都看不到"）：
+        #    UE 侧很多发射器的 AlphaCurve 只有**一根键、值 0**（可见性其实交给材质或模块的
+        #    Scale Alpha 决定），照搬过来 = 骑砍这边粒子**全透明**。全量统计：685 个发射器里 **104 个**
+        #    是这种退化曲线（fireball 的主火焰 `Fire_8`＝125/s、1.09 m 就是这么"隐身"的）。
+        #    判据：键数 < 2，或所有键值 ≤ 0.02 ⇒ 不写 alpha，让生成器的默认"淡入淡出"曲线顶上。
+        vals = [v for _, v in a]
+        if len(a) < 2 or (vals and max(vals) <= 0.02):
+            al = None
         return cols, al
     return None, None
 
@@ -617,16 +630,12 @@ MAT_SPRITE = {
     "prt_shd_smoke_3":           ("2, 2",   1,   1.0, False, False),
     "prt_shd_smoke_4":           ("8, 8",  64,  32.0, True,  False),
     "prt_shd_haze_1":            ("2, 2",   1,   1.0, False, False),
-    "prt_shd_fire_haze_1":       ("1, 1",   1,   1.0, False, False),
     "prt_shd_fire_1":            ("5, 5",  25,  30.0, True,  False),
     "prt_shd_flame_1":           ("16, 8", 128, 48.0, True,  False),
     "prt_shd_glow":              ("1, 1",   1,   1.0, False, False),
     "prt_shd_sparks":            ("1, 1",   1,   1.0, False, False),
-    # 🔴 `prt_shd_lightning` = **6 格闪电分镜**（2026-09-25 实 dump：`tex[0] = lightning`，
-    #    1024×512 里 6 根竖闪电，6 列 × 1 行；材质 `blend=add_modulate_combined` + `[emissive,additive]`）。
-    #    声明成 `1, 1` = 把六根闪电糊在一颗粒子上（就是"白色贴片"的样子）⇒ 必须按 6 格切、
-    #    并让每颗粒子**随机挑一根**（`select_random_sprite`）。
-    "prt_shd_lightning":         ("6, 1",   1,   1.0, False, True),
+    # ⚠️ 2026-09-25：`prt_shd_lightning` 条目**已删** —— 那材质引擎粒子表里没有（见 MAT_RULES 顶部），
+    #    它虽然是一张 6 格闪电分镜（`tex[0]=lightning`），但**不能用**。闪电改走 `prt_shd_sparks`。
     "prt_shd_dust":              ("2, 2",   1,   1.0, False, False),
     "prt_shd_dust_1":            ("1, 1",   1,   1.0, False, False),
     "prt_shd_dust_2":            ("2, 2",   1,   1.0, False, False),

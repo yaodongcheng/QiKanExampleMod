@@ -78,7 +78,7 @@ namespace LivingWorldNpcs.Animation
     /// · **相位自己掌控动画时**用 <see cref="Hold"/>，此时只认 <see cref="Force"/>。
     ///
     /// 用在**很多个 agent** 上时（将来别的运动系统）
-    /// · 把 <see cref="Verbose"/> 关掉（否则每次转移打一行日志）；
+    /// · 把 <see cref="TraceEnabled"/> 关掉（否则每个 agent 都会往日志里写）；
     /// · 动作索引已缓存在**定义**上（<see cref="AnimState.Index"/>），与 agent 数量无关；
     /// · 每帧成本 = 几条边的 lambda 求值（读几个字段）+ 一次计时累加，**无堆分配**；
     ///   真正花钱的"0 号通道写入"只在**状态变化时**发生。
@@ -97,6 +97,11 @@ namespace LivingWorldNpcs.Animation
         private bool _warnedBadAction;
         private Func<float> _progressFn;
 
+        // 生效确认（2026-09-25）：切换后等 blend 走完，回读 0 号通道看是不是我们要的那条。
+        // 🔴 **只记最新的一条**（切换太快就丢掉旧的，不排队）—— 这是"不刷屏"的关键。
+        private AnimState _confirmState;
+        private float _confirmTimer;
+
         // 抖动自检（2026-09-22）：条件振荡会让状态在帧级来回切，动画永远播不起来
         // （实机踩过：boost↔cruise 每 5ms 互踢，看着像"前倾的巡航"）。这里只是**报出来**，不改行为。
         private int _switchCount;
@@ -104,11 +109,25 @@ namespace LivingWorldNpcs.Animation
         private string _lastSwitchFrom;
 
         /// <summary>
-        /// 切换时是否打一行日志（排查"为什么播的不是我以为的那条"第一站）。
-        /// 🔴 **默认 false**（2026-09-22 用户要求：通用件出厂安静，别替使用方决定刷不刷屏）——
-        /// 由使用方按自己的总闸打开，范本 = `PlayerFlightBehavior` 每帧写 `_anim.Verbose = FlightTuning.DebugLog`。
+        /// **本实例是否参与日志**（默认 `true`）。
+        ///
+        /// 🔴 **给"批量使用"留的口子**：几十上百个 agent 都跑状态机时，把非重点的那些置 `false`。
+        ///    **别去关全局开关**（<see cref="AnimDebug.Trace"/>）—— 那是"我要查"，
+        ///    这里是"这个 agent 值不值得记"，两个问题分开回答。
+        /// 🔴 **总开关在 <see cref="AnimDebug"/>**（`Animation/AnimDebug.cs`，控制台 `custom.anim_log`）——
+        ///    放那儿是因为状态机是通用件，开关不该挂在某一个使用方（飞行）身上。
+        /// 🔴 **`✗ 被抢走` 那条不受任何开关管**（异常证据，永远打）—— 关掉日志也得能查"腿为什么没姿势"。
         /// </summary>
-        public bool Verbose = false;
+        public bool TraceEnabled = true;
+
+        /// <summary>拐点日志开不开：全局开关 × 本实例开关。</summary>
+        private bool TraceOn => AnimDebug.Trace && TraceEnabled;
+
+        /// <summary>高频诊断日志开不开：全局开关 × 本实例开关。</summary>
+        private bool VerboseOn => AnimDebug.Verbose && TraceEnabled;
+
+        /// <summary>确认行要等 blend 走完再多等这一小会儿（秒）—— 免得正好卡在交叉淡化的尾巴上。</summary>
+        private const float ConfirmDelaySeconds = 0.05f;
 
         /// <summary>
         /// **暂停自动转移**：true 时只维持当前状态、不判转移表（<see cref="Force"/> 仍然有效）。
@@ -207,11 +226,14 @@ namespace LivingWorldNpcs.Animation
                         if (!e.Matches(_current.Name))
                             continue;
 
-                        // 🔴 **一次性动作（冲刺入姿 / 闪避）播放期间不被打断**：
-                        //    `"*"` 出发的兜底边在它播完前一律不参与 —— 否则下一帧就被 `* → 巡航` 踢走，
+                        // 🔴 **一次性动作（快移入姿 / 闪避）播放期间不被打断**：
+                        //    `"*"` 出发的兜底边在它播完前一律不参与 —— 否则下一帧就被 `* → 悬停移动` 踢走，
                         //    一次性动作一帧都播不出来（这是它没被接上的原因，2026-09-22）。
-                        //    要打断就写**指名**它的边（`Edge("dodge_l", "cruise", …)`）。
-                        if (_current.OneShot && !CurrentFinished && !e.MatchesExplicit(_current.Name))
+                        //    要打断就写**指名**它的边（`Edge("dodgeL", "hovermove", …)`）。
+                        //    🔴 **第三档**：指名来源 + `OnlyAfterFinish` = "演完才能进、但绝不打断"
+                        //       （2026-09-25 补，用于"入姿/闪避演完回快移"这类边 —— 见 AnimEdgeDef 的注释）。
+                        if (_current.OneShot && !CurrentFinished
+                            && (e.OnlyAfterFinish || !e.MatchesExplicit(_current.Name)))
                             continue;
 
                         bool ok;
@@ -232,6 +254,7 @@ namespace LivingWorldNpcs.Animation
             }
 
             RecheckStolen(agent, dt);
+            TickConfirm(agent, dt);
         }
 
         /// <summary>把 0 号通道还给引擎（收摊 / 落地时调；之后 <see cref="Current"/> 变 null）。</summary>
@@ -239,6 +262,7 @@ namespace LivingWorldNpcs.Animation
         {
             _current = null;
             _elapsed = 0f;
+            _confirmState = null;      // 收摊了就别再报"生效/被抢"了
             if (agent == null)
                 return;
             try
@@ -311,10 +335,17 @@ namespace LivingWorldNpcs.Animation
                                        additionalFlags: (ulong)Math.Max(0, _def.ActionPriority()),
                                        blendInPeriod: useBlend, blendOutPeriodToNoAnim: 0f,
                                        startProgress: startProgress);
-                if (Verbose)
+                if (VerboseOn || TraceOn)
                     DebugLogger.Log($"[Anim:{_def.Name}] {from} → {state.Name}（{state.Action}）" +
                                     $" blend={useBlend:F2}{(startProgress > 0f ? $" start={startProgress:F2}" : "")}" +
                                     (forced ? " [强制]" : ""));
+
+                // ③ **生效确认**：登记的这一刻起算，等 `blend + 50ms` 再回读 0 号通道。
+                //    🔴 只留最新的一条（切换太快就丢掉旧的）⇒ 一次切换一行，不排队、不刷屏。
+                //    🔴 **无条件登记**（不看开关）：✓ 那行归开关管，但 ✗ 是异常证据，
+                //       把日志关掉之后它**照样得能查**（否则"腿为什么没姿势"又变成一片安静）。
+                _confirmState = state;
+                _confirmTimer = useBlend + ConfirmDelaySeconds;
             }
             catch (Exception ex)
             {
@@ -369,7 +400,7 @@ namespace LivingWorldNpcs.Animation
                     return;
                 if (agent.GetCurrentAction(0) == idx)
                     return;                       // 还是我们的，没事
-                if (Verbose)
+                if (VerboseOn)
                     DebugLogger.Log($"[Anim:{_def.Name}] '{_current.Name}' 被引擎抢走了，重设");
                 agent.SetActionChannel(0, idx, ignorePriority: true,
                                        additionalFlags: (ulong)Math.Max(0, _def.ActionPriority()),
@@ -378,6 +409,56 @@ namespace LivingWorldNpcs.Animation
             catch
             {
                 // 核对失败不该影响玩法
+            }
+        }
+
+        /// <summary>
+        /// **生效确认**（2026-09-25）：切换后等 `blend + 50ms`，回读 0 号通道看**实际在播的是不是我们要的**。
+        ///
+        /// 为什么要有这一步：<c>SetActionChannel</c> **不报错 ≠ 引擎真的在播它** ——
+        ///   走跑系统会抢、通道仲裁会压（实机踩过：飞行姿势被抢，腿失去姿态，而日志上一片安静）。
+        /// 两类结果：
+        ///   ✅ 一致 ⇒ 一行确认（受 <see cref="TraceOn"/> 管）—— "输入 → 状态 → 动画"这条链路走通了。
+        ///   ❌ 不一致 ⇒ **一行异常**（期望 vs 实际，带真名），**不受任何开关管** —— 这是"腿为什么没姿势"的现场证据。
+        /// </summary>
+        private void TickConfirm(Agent agent, float dt)
+        {
+            if (_confirmState == null)
+                return;
+            _confirmTimer -= dt;
+            if (_confirmTimer > 0f)
+                return;
+
+            AnimState want = _confirmState;
+            _confirmState = null;          // 一次性：无论结果如何都消费掉
+            if (agent == null)
+                return;
+
+            string actual;
+            bool ok;
+            try
+            {
+                ActionIndexCache got = agent.GetCurrentAction(0);
+                actual = got != null ? got.Name : "?";
+                ok = got == want.Index();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Anim:{_def.Name}] 生效确认读取失败（{want.Name}）: {ex.Message}");
+                return;
+            }
+
+            if (ok)
+            {
+                if (TraceOn)
+                    DebugLogger.Log($"[Anim:{_def.Name}] ✓ {want.Name} 生效（通道 0 = {actual}）");
+            }
+            else
+            {
+                // 🔴 **异常证据：永远打**（不受 <see cref="AnimDebug"/> 任何档位管）——
+                //    "动作没播出来"长得都一样，只有这一行能分辨是没接上、被抢走、还是被仲裁压掉。
+                DebugLogger.Log($"[Anim:{_def.Name}] ✗ 被抢走：期望 {want.Name}（{want.Action}），" +
+                                $"通道 0 实际是 {actual}");
             }
         }
     }

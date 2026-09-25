@@ -587,13 +587,13 @@ custom.set_controller          查控制权（无参 = get；player|ai|none 切�
 var def = new AnimMachineDef("mySystem");
 def.DefaultBlend = () => MyTuning.Blend;                       // 委托 ⇒ 热调生效
 def.Add(AnimState.Loop("idle", "act_xxx"));                    // 循环状态（动作名空串 = 未接，自动跳过）
-def.Add(AnimState.Once("dashStart", "act_dash", next:"boost", duration:1.0f));  // 一次性：播完自动去 next
+def.Add(AnimState.Once("dashStart", "act_dash", next:"fastmove", duration:1.0f));  // 一次性：播完自动去 next
 def.Edge("*", "idle", c => !((MyCtx)c).Moving);                // 边：**顺序 = 优先级**，"*" = 任意状态
 AnimMachineRegistry.Register(def);                             // 模块加载时一次
 
 var ctx = new MyContext();                                     // 派生 AnimContext，装"条件要读的事实"
 var anim = AnimMachineRegistry.Create("mySystem", ctx);
-anim.Hold = true;  anim.Force(agent, "takeoff", blend);        // 相位自己掌控动画的时段
+anim.Hold = true;  anim.Force(agent, "hoverstart", blend);        // 相位自己掌控动画的时段
 anim.Hold = false; anim.Tick(agent, dt);                       // 正常流转
 anim.Release(agent);                                           // 收摊：通道还给引擎
 ```
@@ -704,8 +704,8 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 | 实验 | 结果 |
 |---|---|
 | `custom.anim_ch 1 act_command_unarmed`（原版动作） | ✅ **播**（而且直接接管全身 —— 连"只动上身"都不是保证） |
-| `custom.anim_ch 1 act_fly_cruise`（**我们**导入的飞行 clip） | ❌ 不动 |
-| `custom.anim_ch 1 act_cast_charge` / `act_cast_projectile`（FCS 导入） | ❌ 不动 |
+| `custom.anim_ch 1 act_fly_hovermove`（**我们**导入的飞行 clip） | ❌ 不动 |
+| `custom.anim_ch 1 act_magic_idle` / `act_magic_projectile`（FCS 导入） | ❌ 不动 |
 | 同样两条 clip 走**通道 0**（`custom.do_anim`） | ✅ **正常播** |
 | 四条调用的返回 | 全部 `ACCEPTED=True`、`duration` 正常 ⇒ **不是"被拒"、不是"没注册"** |
 
@@ -716,7 +716,7 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 **⇒ 结论与做法**：
 1. ~~**自管动画一律走通道 0**~~ 🔴 **已作废** —— 自管手势现在走**通道 1**（`SpellCastInput.SetChannelOne`），
    底层姿势（飞行）靠 clip 的 `enforce_lowerbody` 保住腿（见本节顶部与 Knowledge 文档）。
-   （`FlightAnimMachine` 的 `castCharge` / `castRelease` 两个状态**保留作回退档**：`CastOnUpperChannel=false` 时才走通道 0。）
+   （`FlightAnimMachine` 的 `magicIdle` / `magicProjectile` 两个状态**保留作回退档**：`CastOnUpperChannel=false` 时才走通道 0。）
 2. 真要"只改上身"两条路：① **离线合成**（飞行姿势当基底 + 施法上身当增量，`tools/anim-retarget` 的 `trf_compose`）
    ② 在 ModKit 里把 clip 元数据逐项对齐原版（试错成本未知，没做）。
 3. **诊断命令**（两条，**定位不同、不可互换**）：
@@ -730,7 +730,7 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 **通道 0 播动作的三条纪律（仍然全部有效）**：
 
 ```csharp
-ActionIndexCache idx = ActionIndexCache.Create("act_cast_charge");
+ActionIndexCache idx = ActionIndexCache.Create("act_magic_idle");
 if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静默跳过，别抛
     agent.SetActionChannel(0, idx, ignorePriority: true,
         additionalFlags: 0UL,                           // ⚠️ 这里传 flag/优先级引擎不读（2026-09-25 定案）
@@ -747,4 +747,4 @@ if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静�
    （`AgentAnimStateMachine` 的 `Once` 状态已经替你做了）。
 
 **落地范本**：飞行的全部姿态 = `Flight/FlightAnimMachine.cs`（加一行状态 + 一行边）；
-飞行中施法的手势 = 同文件的 `castCharge` / `castRelease`。
+飞行中施法的手势 = 同文件的 `magicIdle` / `magicProjectile`。

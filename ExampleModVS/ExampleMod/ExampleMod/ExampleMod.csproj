@@ -503,6 +503,8 @@
          之后别的运动系统（坐骑 / 潜行 / 载具）也可以直接复用它。 -->
     <Compile Include="Animation\AgentAnimStateMachine.cs" />
     <Compile Include="Animation\AnimMachineRegistry.cs" />
+    <!-- 调试开关（2026-09-25）：拐点日志 / 高频诊断两档，控制台 custom.anim_log -->
+    <Compile Include="Animation\AnimDebug.cs" />
     <Compile Include="Flight\FlightAnimMachine.cs" />
     <!-- 🔴 2026-09-16 认知状态批量命令 custom.meet_all（原版无对应指令；HasMet 单向、消息清空副作用见文件头） -->
     <Compile Include="CampaignMode\Tools\HeroMeetCommands.cs" />

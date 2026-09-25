@@ -8,7 +8,13 @@ import sys, os, glob, xml.etree.ElementTree as ET
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 import paths          # 两根定位 TOOL/DATA —— 见工具链根 paths.py（realpath 穿透 junction）
 
-WL = paths.out("vanilla_prt_shd_materials_native.txt")
+# 🔴 材质白名单 = **原版粒子 XML 实际用过的 33 个**（`vanilla_prt_shd_materials.txt`）。
+#    2026-09-25 实锤：以前用的是 `..._native.txt`（44 个，从引擎字符串池抓的），它**放过了
+#    `prt_shd_lightning`** —— 那个名字在包索引里存在（`tpaccli dump` 能解析、还带贴图），
+#    但**引擎的粒子材质表里没有它** ⇒ 编成资产后 ModKit 直接弹
+#    `RGL CONTENT WARNING: Unable to find material{...} for particle effect lwn_ns_chainlightning::Llightning_0`。
+#    判据：**"能 dump 出来" ≠ "能用"**；只有原版粒子真正引用过的材质才是被验证过能加载的。
+WL = paths.out("vanilla_prt_shd_materials.txt")
 def load_wl():
     try:
         return set(l.strip() for l in open(WL, encoding="utf-8") if l.strip())
