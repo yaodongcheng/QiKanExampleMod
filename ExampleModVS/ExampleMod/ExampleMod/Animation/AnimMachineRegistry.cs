@@ -32,7 +32,10 @@ namespace LivingWorldNpcs.Animation
         /// <summary>一次性动作（播完自动去 <see cref="Next"/>）？false = 循环。</summary>
         public bool OneShot;
 
-        /// <summary>一次性动作的时长（秒）。≤0 = 改用引擎的播放进度判完成。</summary>
+        /// <summary>
+        /// 一次性动作的**可选时长覆盖**（秒）。**默认 0 = 不用** —— 长度由 clip 自己带（引擎给播放进度）。
+        /// >0 = 显式覆盖（要主动截短 clip 时才写 `duration="…"`）。
+        /// </summary>
         public float Duration;
 
         /// <summary>一次性动作播完后去哪个状态（null = 留在原地，让普通转移接管）。</summary>
@@ -107,6 +110,17 @@ namespace LivingWorldNpcs.Animation
         /// 状态机求值时直接跳过（见 <see cref="AgentAnimStateMachine.Tick"/>）。
         /// </summary>
         public bool PhaseForced;
+
+        /// <summary>
+        /// **相位边声明的"剩余百分比"**（`anim="remaining" anim-rem-pct="10"` 里那个 10）。
+        /// &lt;0 = 没声明 ⇒ 调用方（相位）回退到自己的默认判据。
+        ///
+        /// 🔴 **为什么相位边要带这个数**：相位边**不由状态机求值**（Tick 里整条跳过），
+        ///    但"什么时候出机"仍然需要判据 —— 以前那个判据**硬编码在 C# 里**（手填的 2.0 秒），
+        ///    和"长度问 clip"的原则冲突。现在改成**相位去读这条边在 XML 里写的百分比**：
+        ///    图上写的 = 实际生效的，换 clip 不用改代码。
+        /// </summary>
+        public float RemainPct = -1f;
 
         public AnimEdgeDef(string[] from, string to, Func<AnimContext, bool> when,
                            float blend = -1f, bool onlyAfterFinish = false, bool phaseForced = false)

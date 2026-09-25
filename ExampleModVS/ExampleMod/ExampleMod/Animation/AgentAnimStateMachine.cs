@@ -157,10 +157,14 @@ namespace LivingWorldNpcs.Animation
         public float CurrentElapsed => _elapsed;
 
         /// <summary>
-        /// **当前动画还剩多少秒**（给 XML 的 `anim="remaining" anim-lt="…"` 用）：
-        /// 循环状态 = <c>+∞</c>（循环没有"播完"这回事）；一次性动作 = 时长 − 已播，播完为 0。
+        /// **当前动画还剩多少**，用**占整条 clip 的比例**表示（给 XML 的 `anim="remaining" anim-rem-pct="…"` 用）：
+        /// 循环状态 = <c>+∞</c>（循环没有"播完"这回事）；一次性动作 = 1 − 播放进度，播完为 0。
+        ///
+        /// 🔴 **默认走的就是这条**（配置里**不写时长**）：进度由引擎给（<c>GetCurrentActionProgress</c>），
+        ///    所以"clip 重导换了帧数"**不用改任何配置**。
+        /// 🔴 <see cref="AnimState.Duration"/> 只是**可选覆盖**（要主动截短 clip 时才写），写了就按秒折算比例。
         /// </summary>
-        public float CurrentRemaining
+        public float CurrentRemainFrac
         {
             get
             {
@@ -170,12 +174,33 @@ namespace LivingWorldNpcs.Animation
                 }
                 if (_current.Duration > 0.01f)
                 {
-                    return Math.Max(0f, _current.Duration - _elapsed);
+                    return Math.Max(0f, (_current.Duration - _elapsed) / _current.Duration);
                 }
-                // 没写时长的一次性动作：只能按引擎进度粗判
-                float p = _progressFn != null ? _progressFn() : 0f;
-                return p >= 0.999f ? 0f : 0.5f;
+                float p = _progressFn != null ? _progressFn() : 1f;
+                return Math.Max(0f, 1f - p);
             }
+        }
+
+        /// <summary>
+        /// **相位边在 XML 里声明的"剩余百分比"**（`anim="remaining" anim-rem-pct="10"` 里那个 10）。
+        /// 返回 &lt;0 = 定义里没写 ⇒ 调用方回退到自己的默认判据。
+        ///
+        /// 🔴 相位边**不由状态机 Tick 求值**（`Tick` 里 `if (e.PhaseForced) continue;`），
+        ///    但"什么时候出机"这件事仍然需要判据 —— 让**相位来读这张表**，
+        ///    而不是相位自己再硬编码一个秒数（那就成了第二份真相，改一处忘一处）。
+        /// </summary>
+        public float PhaseRemainPct(string from, string to)
+        {
+            var es = _def.Edges;
+            for (int i = 0; i < es.Count; i++)
+            {
+                AnimEdgeDef e = es[i];
+                if (e.PhaseForced && e.RemainPct >= 0f && e.To == to && e.Matches(from))
+                {
+                    return e.RemainPct;
+                }
+            }
+            return -1f;
         }
 
         /// <summary>当前状态是不是"一次性动作且已播完"。</summary>

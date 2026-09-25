@@ -640,9 +640,19 @@ namespace LivingWorldNpcs.Flight
                 if (_anim.Current != "superland")
                     _anim.Force(main, "superland", FlightTuning.AnimBlendIn);
                 _landTimer += dt;
-                if (_landTimer >= FlightTuning.LandAnimSeconds || _landTimer >= FlightTuning.LandMaxSeconds)
+                // 🔴 **出机时机从定义里读**（`<edge from="superland" to="outside" anim="remaining" anim-rem-pct="10" phase="true"/>`）：
+                //    "落地动画剩多少就出机"由 XML 说 —— 不再在这里硬编码一个秒数（换 clip 不用改代码，
+                //    而且图上写的与实际生效的是同一个数）。
+                //    没写百分比（或 superland 不是一次性 ⇒ 剩余 = +∞）⇒ 回退到 LandAnimSeconds，不会卡死。
+                float remain = _anim.CurrentRemainFrac;
+                float exitPct = _anim.PhaseRemainPct("superland", "outside");
+                bool animDone = exitPct > 0f ? remain * 100f <= exitPct
+                                             : _landTimer >= FlightTuning.LandAnimSeconds;
+                if (animDone || _landTimer >= FlightTuning.LandMaxSeconds)
                 {
-                    DebugLogger.Log($"[Flight] 落地动画演完: 用时={_landTimer:F2}s");
+                    DebugLogger.Log($"[Flight] 落地动画出机: 用时={_landTimer:F2}s" + (exitPct > 0f
+                        ? $"（剩 {remain * 100f:F0}% ≤ 定义要求的 {exitPct:F0}%）"
+                        : "（定义没写 anim-rem-pct ⇒ 按 LandAnimSeconds 兜底）"));
                     FinishFlight(main);
                 }
                 return;
@@ -1305,19 +1315,18 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>
         /// **把原始按键与"动画还剩多久"填进上下文**（每帧一次，**在状态机 Tick 之前**，与飞行相位无关）——
-        /// 这样 XML 里就能直接写 `key="W" key-mode="down"` / `anim="remaining" anim-lt="0.2"`，
+        /// 这样 XML 里就能直接写 `key="W" key-mode="held"` / `anim="remaining" anim-rem-pct="20"`（**百分比**），
         /// 不必为每种条件再登记一个 C# 谓词。
         /// 读的是 <see cref="FlightInput.RawKeyAt"/>（原始键，绕开一切逻辑）。
+        /// 🔴 只填**电平**（按住 / 没按住）—— "沿"那两档已删，「刚按下一帧」会被起飞/落地 Hold 与施法让位吞掉。
         /// </summary>
         private void UpdateKeyFacts()
         {
             for (int i = 0; i < AnimPrimitives.KeyCount; i++)
             {
-                bool now = FlightInput.RawKeyAt(i);
-                _animCtx.SetKey(i, now, now && !_prevKey[i], !now && _prevKey[i]);
-                _prevKey[i] = now;
+                _animCtx.SetKey(i, FlightInput.RawKeyAt(i));
             }
-            _animCtx.AnimRemaining = _anim.CurrentRemaining;
+            _animCtx.AnimRemainFrac = _anim.CurrentRemainFrac;
         }
 
         /// <summary>上一帧是否处于"UI 门控接管输入"状态（只在进入那一帧打一行）。</summary>

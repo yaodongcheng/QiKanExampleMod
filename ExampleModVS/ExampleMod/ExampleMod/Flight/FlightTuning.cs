@@ -531,8 +531,9 @@ namespace LivingWorldNpcs.Flight
         public static string ActFastMovePitchD = "act_fly_fastmove_pitchd";
 
         // ───────────────────── 快移入姿 / 闪避（2026-09-22）─────────────────────
-        // 🔴 这两组都是**一次性动作**：状态机里 `AnimState.Once(..., next: null, duration: …)`，
-        //    时长 = clip 真实长度（帧数 ÷ 30，实测值）。**重导 clip 换了帧数就改这里**。
+        // 🔴 这两组都是**一次性动作**：XML 里写 `once="true"`，**不写时长** ——
+        //    长度由 **clip 自己带**（引擎给 0~1 的播放进度），所以**重导 clip 换了帧数也不用改这里**。
+        // ⚠️ 下面两个常量现在**只剩文档 / 调试价值**（状态机不再读它们）；要主动截短 clip 才写 `duration=`。
 
         /// <summary>快移入姿时长（秒）= 31 帧 ÷ 30，实测。</summary>
         public static float BoostStartSeconds = 1.033f;

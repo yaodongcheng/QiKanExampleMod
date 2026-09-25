@@ -53,6 +53,14 @@ svg{display:block;color:var(--ink-2);touch-action:none}
 .panel h3{margin:14px 0 6px;font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
 label{display:block;font-size:12px;color:var(--ink-2);margin:9px 0 3px}
 select,input,textarea{width:100%;font:12px var(--mono);padding:6px 8px;border-radius:7px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink)}
+/* 单选钮：上面那条 width:100% 会把 radio 撑坏，这里单独管 */
+input[type=radio]{width:auto;padding:0;margin:0 5px 0 0;vertical-align:-1px}
+.modes{display:flex;gap:16px;margin:2px 0 6px}
+.modes label{display:inline-flex;align-items:center;margin:0;font-size:12px;color:var(--ink);cursor:pointer}
+/* 按键勾选框（组合用）：多选 = 同时按着 */
+.keys{display:flex;flex-wrap:wrap;gap:4px 12px;margin:4px 0 2px}
+.keys label{display:inline-flex;align-items:center;margin:0;font-size:12px;color:var(--ink);cursor:pointer}
+label.ck{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);margin:8px 0 0;cursor:pointer}
 textarea{min-height:170px;white-space:pre;overflow:auto}
 .row{display:flex;gap:8px}
 .row>div{flex:1;min-width:0}
@@ -100,6 +108,7 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
 .edge.sel .lbl rect,.edge.hl .lbl rect{fill:var(--door-soft);stroke:var(--door)}
 .lbl text{font-family:var(--mono);font-size:10px;fill:currentColor}
 #svg.labels-off .lbl{display:none}
+.btns button:disabled{opacity:.38;cursor:default}
 .entry rect{fill:var(--entry-soft);stroke:var(--entry);stroke-width:1.6}
 .entry .tri{fill:var(--entry)}
 .entry .t1{fill:var(--entry);font-weight:600}
@@ -121,6 +130,11 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
 .banner .mono{color:var(--ink-2)}
 .bdg{fill:var(--door-soft);stroke:var(--door);stroke-width:.8}
 /* 容器页的**真实入口边**（Entry → 入口状态）*/
+/* 🔴 容器页的「入口线」（Entry → 本容器的入口状态）是**推导出来的装饰，不是边**：
+   它没有 `data-i`、不是 `.edge` ⇒ 点它不选中、右键弹的是**画布菜单**（没有"删除这条边"）。
+   而且它画在真边**之上** ⇒ 会**把真边的点击/右键整个吃掉**（用户实测："这个线为什么删不掉"）。
+   ⇒ 让它**不参与命中测试**，鼠标直接穿到下面的真边。想让它消失 = 改容器的「入口状态 entry」。 */
+.entry-edge{pointer-events:none}
 .entry-edge path{fill:none;stroke:var(--entry);stroke-width:2}
 .entry-edge text{fill:var(--entry);font-family:var(--mono);font-size:10px}
 </style>
@@ -134,6 +148,8 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
     编完点 <b>导出完整 XML</b>，整份覆盖回 <span class="mono">ModuleData/statemachine_flight.xml</span>，重启游戏即生效（不用重编译）。</p>
   </div>
   <div class="btns">
+    <button id="btn-undo" title="撤销（Ctrl+Z）">↶ 撤销</button>
+    <button id="btn-redo" title="重做（Ctrl+Shift+Z / Ctrl+Y）">↷ 重做</button>
     <button id="btn-newgroup">新建容器</button>
     <button id="btn-export-full" class="primary">导出完整 XML</button>
     <button id="btn-export">导出边（片段）</button>
@@ -158,6 +174,7 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
   </div>
   <div class="panel">
     <h2>选中：<span id="selname" class="mono">（没选）</span></h2>
+    <div id="notice"></div>
     <div id="editor"></div>
     <h3>边列表（顺序 = 优先级 ↑↓）</h3>
     <div id="elist-bar"></div>
@@ -176,7 +193,7 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
 <div class="ctx" id="ctx"></div>
 
 <script>
-const DATA = {"machine": "flight", "groups": [{"name": "Upright", "entry": "hovermove", "members": ["idle", "hovermove", "hovermoveLeanL", "hovermoveLeanR", "hovermovePitchU", "hovermovePitchD", "hoverstart"]}, {"name": "ProneFamily", "entry": "fastmove", "members": ["fastmove", "fastmoveStart", "fastmoveLeanL", "fastmoveLeanR", "fastmovePitchU", "fastmovePitchD", "dodgeL", "dodgeR", "dodgeU", "dodgeD"]}], "states": [{"name": "idle", "act": "act_fly_idle", "dur": "", "next": "", "clip": "flight_idle_a", "durText": "循环"}, {"name": "hovermove", "act": "act_fly_hovermove", "dur": "", "next": "", "clip": "flight_hovermove_a", "durText": "循环"}, {"name": "hovermovePitchU", "act": "act_fly_hovermove_pitchu", "dur": "", "next": "", "clip": "flight_hovermove_a_pitchu", "durText": "循环"}, {"name": "hovermovePitchD", "act": "act_fly_hovermove_pitchd", "dur": "", "next": "", "clip": "flight_hovermove_a_pitchd", "durText": "循环"}, {"name": "hovermoveLeanL", "act": "act_fly_hovermove_lean_l", "dur": "", "next": "", "clip": "flight_hovermove_a_leanl", "durText": "循环"}, {"name": "hovermoveLeanR", "act": "act_fly_hovermove_lean_r", "dur": "", "next": "", "clip": "flight_hovermove_a_leanr", "durText": "循环"}, {"name": "hoverstart", "act": "act_fly_hoverstart", "dur": "", "next": "", "clip": "flight_hoverstart_a", "durText": "循环"}, {"name": "superland", "act": "act_fly_superland", "dur": "", "next": "", "clip": "flight_superland_a", "durText": "循环"}, {"name": "fastmove", "act": "act_fly_fastmove", "dur": "", "next": "", "clip": "flight_fastmove_a", "durText": "循环"}, {"name": "fastmoveLeanL", "act": "act_fly_fastmove_lean_l", "dur": "", "next": "", "clip": "flight_fastmove_a_leanl", "durText": "循环"}, {"name": "fastmoveLeanR", "act": "act_fly_fastmove_lean_r", "dur": "", "next": "", "clip": "flight_fastmove_a_leanr", "durText": "循环"}, {"name": "fastmovePitchU", "act": "act_fly_fastmove_pitchu", "dur": "", "next": "", "clip": "flight_fastmove_a_pitchu", "durText": "循环"}, {"name": "fastmovePitchD", "act": "act_fly_fastmove_pitchd", "dur": "", "next": "", "clip": "flight_fastmove_a_pitchd", "durText": "循环"}, {"name": "fastmoveStart", "act": "act_fly_fastmove_start", "dur": "boostStartSeconds", "next": "fastmove", "clip": "flight_fastmove_start_a", "durText": "1.033s"}, {"name": "dodgeL", "act": "act_fly_dodge_l", "dur": "dodgeClipSeconds", "next": "fastmove", "clip": "flight_dodge_a_l", "durText": "1.867s"}, {"name": "dodgeR", "act": "act_fly_dodge_r", "dur": "dodgeClipSeconds", "next": "fastmove", "clip": "flight_dodge_a_r", "durText": "1.867s"}, {"name": "dodgeU", "act": "act_fly_dodge_u", "dur": "dodgeClipSeconds", "next": "fastmove", "clip": "flight_dodge_a_u", "durText": "1.867s"}, {"name": "dodgeD", "act": "act_fly_dodge_d", "dur": "dodgeClipSeconds", "next": "fastmove", "clip": "flight_dodge_a_d", "durText": "1.867s"}], "edges": [{"from": "outside", "to": "hoverstart", "after": false, "phase": true, "blend": "", "kind": "pred", "pred": "takeoff-trigger"}, {"from": "Upright", "to": "superland", "after": false, "phase": true, "blend": "", "kind": "pred", "pred": "land-trigger"}, {"from": "ProneFamily", "to": "superland", "after": false, "phase": true, "blend": "", "kind": "pred", "pred": "land-trigger"}, {"from": "superland", "to": "outside", "after": false, "phase": true, "blend": "", "kind": "pred", "pred": "land-trigger"}, {"from": "ProneFamily", "to": "dodgeL", "after": false, "phase": false, "blend": "0.12", "kind": "pred", "pred": "dodge-left"}, {"from": "ProneFamily", "to": "dodgeR", "after": false, "phase": false, "blend": "0.12", "kind": "pred", "pred": "dodge-right"}, {"from": "ProneFamily", "to": "dodgeU", "after": false, "phase": false, "blend": "0.12", "kind": "pred", "pred": "dodge-up"}, {"from": "ProneFamily", "to": "dodgeD", "after": false, "phase": false, "blend": "0.12", "kind": "pred", "pred": "dodge-down"}, {"from": "Upright", "to": "fastmoveStart", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "sprinting"}, {"from": "ProneFamily", "to": "fastmoveLeanL", "after": true, "phase": false, "blend": "0.15", "kind": "pred", "pred": "sprint-lean-left"}, {"from": "ProneFamily", "to": "fastmoveLeanR", "after": true, "phase": false, "blend": "0.15", "kind": "pred", "pred": "sprint-lean-right"}, {"from": "ProneFamily", "to": "fastmovePitchU", "after": true, "phase": false, "blend": "0.15", "kind": "pred", "pred": "sprint-look-up"}, {"from": "ProneFamily", "to": "fastmovePitchD", "after": true, "phase": false, "blend": "0.15", "kind": "pred", "pred": "sprint-look-down"}, {"from": "Upright", "to": "hovermoveLeanL", "after": false, "phase": false, "blend": "0.15", "kind": "key", "key": "A", "mode": "held"}, {"from": "ProneFamily", "to": "hovermoveLeanL", "after": false, "phase": false, "blend": "0.15", "kind": "key", "key": "A", "mode": "held"}, {"from": "Upright", "to": "hovermoveLeanR", "after": false, "phase": false, "blend": "0.15", "kind": "key", "key": "D", "mode": "held"}, {"from": "ProneFamily", "to": "hovermoveLeanR", "after": false, "phase": false, "blend": "0.15", "kind": "key", "key": "D", "mode": "held"}, {"from": "Upright", "to": "idle", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "at-rest"}, {"from": "ProneFamily", "to": "idle", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "at-rest"}, {"from": "ProneFamily", "to": "fastmove", "after": true, "phase": false, "blend": "", "kind": "pred", "pred": "sprinting"}, {"from": "Upright", "to": "hovermovePitchU", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "look-up"}, {"from": "ProneFamily", "to": "hovermovePitchU", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "look-up"}, {"from": "Upright", "to": "hovermovePitchD", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "look-down"}, {"from": "ProneFamily", "to": "hovermovePitchD", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "look-down"}, {"from": "Upright", "to": "hovermove", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "moving"}, {"from": "ProneFamily", "to": "hovermove", "after": false, "phase": false, "blend": "", "kind": "pred", "pred": "moving"}], "preds": [{"name": "move-input", "body": "MoveInput"}, {"name": "shift-held", "body": "Boost"}, {"name": "hold-left", "body": "BankBand < 0"}, {"name": "hold-right", "body": "BankBand > 0"}, {"name": "look-up", "body": "PitchBand > 0"}, {"name": "look-down", "body": "PitchBand < 0"}, {"name": "moving", "body": "Moving"}, {"name": "coasting", "body": "Moving && !MoveInput"}, {"name": "at-rest", "body": "!Moving"}, {"name": "sprinting", "body": "Boost && Moving"}, {"name": "sprint-lean-left", "body": "Boost && BankBand < 0"}, {"name": "sprint-lean-right", "body": "Boost && BankBand > 0"}, {"name": "sprint-look-up", "body": "Boost && PitchBand > 0"}, {"name": "sprint-look-down", "body": "Boost && PitchBand < 0"}, {"name": "casting-fallback", "body": "SpellCharging && !FlightTuning.CastOnUpperChannel"}, {"name": "dodge-left", "body": "DodgeRequest == FlightDodgeDir.Left"}, {"name": "dodge-right", "body": "DodgeRequest == FlightDodgeDir.Right"}, {"name": "dodge-up", "body": "DodgeRequest == FlightDodgeDir.Up"}, {"name": "dodge-down", "body": "DodgeRequest == FlightDodgeDir.Down"}, {"name": "takeoff-trigger", "body": "false"}, {"name": "land-trigger", "body": "false"}], "scalars": {"boostStartSeconds": "FlightTuning.BoostStartSeconds", "dodgeClipSeconds": "FlightTuning.DodgeClipSeconds", "castReleaseSeconds": "FlightTuning.CastReleaseSeconds"}, "keys": ["W", "A", "S", "D", "Space", "Shift", "RMB", "LMB"], "modes": ["down", "up", "held", "released"], "anims": ["finished", "remaining"], "rawXml": "<!-- 飞行动画状态机的**定义**（2026-09-25 由 C# 迁到这里）。\n\n     🔴 **改这个文件不用重编译** —— 重启游戏即生效（引擎不解析它，是我们自己在\n        `MySubModule.OnSubModuleLoad` → `FlightAnimMachine.Register()` 里读的）。\n\n     🔴 **两个读者：游戏 + 编辑器页**\n        · 游戏：`Animation/AnimMachineLoader.cs` 装载 + 校验（转成 AnimMachineDef）\n        · 编辑器页：`tools/anim-statemachine/gen_statemachine_editor.py` 读**同一个文件**画图 / 改结构\n        ⇒ 页面不可能和游戏里跑的那份分叉。（页面是生成物，改这里重跑生成器；页面本体 `statemachine_editor.html` 在 tools 里进 git。）\n\n     🔴 **装载期校验**：状态名 / 目标 / 族成员 / 谓词名 / 数字 —— 有一处不对就**整台不注册**\n        并列全部问题到日志（`[Anim]` 前缀）。所以打错字不会静默，是**响亮地失败**。\n\n     🔴 **判据不在这里**：`when=` 写的是**谓词名**（名字用输入语言：`hold-left` = 按着 A），\n        真身在 `Flight/FlightAnimConditions.cs`。理由：字符串表达式 = 失去编译期检查 = 又一种静默失败。\n\n     🔴 **运行期旋钮不在这里**：默认过渡时长 / 核对周期 / 动作优先级仍是 C# 里的委托\n        （指向 `FlightTuning` 的字段），所以 `custom.flight tune blend / turnrate …` 照旧有效。\n\n     🔴 **边的顺序 = 优先级**（第一条命中的生效），改顺序 = 改优先级，别随手挪。\n        三种边型（`AnimEdgeDef` 的三个开关）：\n          · 缺省             = 普通边；能打断正在播的一次性动作（闪避那四条靠这个打断入姿）\n          · after-finish     = 只在\"演完\"之后参与求值（绝不打断）\n          · phase=\"true\"     = **不由状态机求值**，由飞行相位 C# `Force` 进 —— 写在这里只为让表/图完整 -->\n<state_machine name=\"flight\">\n\n\t<!-- 容器（= 边的来源集合，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。\n\t     用户 2026-09-25 裁定：\n\t       · 状态必须\"只出现一次的唯一定义\"（原来 PronePoses ⊂ ProneFamily 重叠，不符合 UE）\n\t       · 趴姿**只留一个容器**（删掉 PronePoses，合并进 ProneFamily）——\n\t         闪避 4 个也在这里面；它们是**短暂状态**：从趴姿进，演完由 <state next=\"fastmove\"> 回快移\n\t     现在只有两个容器，互不重叠：\n\t       · Upright（直立）7 个 —— 悬停姿态族\n\t       · ProneFamily（趴姿族）10 个 —— 趴姿本体 6 + 闪避 4\n\t     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会\"硬翻\"，所以进趴姿必须经 fastmoveStart 那道门。\n\t     superland 不归属任何容器（散状态 = 出机衔接状态）。 -->\n\t<families>\n\t\t<!-- 🔴 容器 = **真实的子状态机**（对齐 UE），不是展示用的分组：\n\t\t     · 成员 = 它拥有的状态（每个状态只归属一个容器）\n\t\t     · **entry = 它的真实入口**：从外面\"进入这个容器\"时落到哪个状态\n\t\t     · 边的 `to=` 可以直接写**容器名** ⇒ 装载期解析成它的 entry（引擎热路径零改动）\n\t\t     · 边的 `from=` 写容器名 = 该容器里**任何状态**（对应 UE 的 State Alias 用法） -->\n\t\t<family name=\"Upright\" entry=\"hovermove\">idle hovermove hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD hoverstart</family>\n\t\t<family name=\"ProneFamily\" entry=\"fastmove\">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD dodgeL dodgeR dodgeU dodgeD</family>\n\t</families>\n\n\t<!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。\n\t     不带 duration = 循环姿态；带 duration = 一次性动作（秒，可写数字或命名标量）。\n\t     next = **演完兜底**：播完、且没有任何边命中时回这里（见 <edges> 顶部的说明）。 -->\n\t<states>\n\t\t<state name=\"idle\" act=\"act_fly_idle\" />\n\t\t<state name=\"hovermove\" act=\"act_fly_hovermove\" />\n\t\t<state name=\"hovermovePitchU\" act=\"act_fly_hovermove_pitchu\" />\n\t\t<state name=\"hovermovePitchD\" act=\"act_fly_hovermove_pitchd\" />\n\t\t<state name=\"hovermoveLeanL\" act=\"act_fly_hovermove_lean_l\" />\n\t\t<state name=\"hovermoveLeanR\" act=\"act_fly_hovermove_lean_r\" />\n\t\t<!-- 🚪 进机衔接状态（起飞入姿）：相位 Force 进，演完或玩家给输入就放开控制 —— 见 <edges> ⓪ -->\n\t\t<state name=\"hoverstart\" act=\"act_fly_hoverstart\" />\n\t\t<!-- 🚪 出机衔接状态（落地收尾）：相位 Force 进，演完拆板还相机后回机外 —— 见 <edges> ⓪ -->\n\t\t<state name=\"superland\" act=\"act_fly_superland\" />\n\n\t\t<state name=\"fastmove\" act=\"act_fly_fastmove\" />\n\t\t<state name=\"fastmoveLeanL\" act=\"act_fly_fastmove_lean_l\" />\n\t\t<state name=\"fastmoveLeanR\" act=\"act_fly_fastmove_lean_r\" />\n\t\t<state name=\"fastmovePitchU\" act=\"act_fly_fastmove_pitchu\" />\n\t\t<state name=\"fastmovePitchD\" act=\"act_fly_fastmove_pitchd\" />\n\n\t\t<!-- 进趴姿的入姿（一次性 1.033 秒）；**演完兜底回 fastmove** -->\n\t\t<state name=\"fastmoveStart\" act=\"act_fly_fastmove_start\" duration=\"boostStartSeconds\" next=\"fastmove\" />\n\t\t<!-- 闪避四方向（一次性 1.867 秒）；**演完兜底回 fastmove**（这就是\"闪避演完回趴姿\"那一条） -->\n\t\t<state name=\"dodgeL\" act=\"act_fly_dodge_l\" duration=\"dodgeClipSeconds\" next=\"fastmove\" />\n\t\t<state name=\"dodgeR\" act=\"act_fly_dodge_r\" duration=\"dodgeClipSeconds\" next=\"fastmove\" />\n\t\t<state name=\"dodgeU\" act=\"act_fly_dodge_u\" duration=\"dodgeClipSeconds\" next=\"fastmove\" />\n\t\t<state name=\"dodgeD\" act=\"act_fly_dodge_d\" duration=\"dodgeClipSeconds\" next=\"fastmove\" />\n\n\t</states>\n\n\t<!-- 边：**顺序 = 优先级**。\n\t     from = 状态名 或 族名；to = 状态名；when = 已登记的谓词名；\n\t     blend 省略 = 用机器默认（FlightTuning.AnimBlendIn，热调 tune blend）。\n\n\t     🔴 **\"演完去哪\"有两种写法，别混**：\n\t        · `<state next=\"X\">`（上面）—— **演完兜底**：一次性动作播完、且下面**没有任何边命中**时回 X。\n\t          条件优先、演完兜底：例如入姿演完那一刻玩家已经松开 Shift，就该走 at-rest 那条边去 idle，\n\t          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。\n\t        · `<edge ... after-finish=\"true\">` —— 演完之后**由条件**决定去哪（用于\"演完且仍在冲刺 ⇒ 回 fastmove\"这类）。 -->\n\t<edges>\n\t\t<!-- ⓪ **机外（非飞行）↔ 本机**：进出这台状态机就这两条，都是**相位驱动**（C# 在特定时刻 Force，\n\t\t     状态机不求值，所以运行时零行为变化；写出来只是让\"从哪进、从哪出\"诚实）。\n\t\t     进机：起飞 = 跳跃中按空格 / 长按空格 ⇒ 相位 Force 进 hoverstart（同时开板、冻人、接管相机）\n\t\t     出机：落地 = 短按贴地·俯冲 / 长按下降 / 撞地 ⇒ 相位 Force 进 superland，演完拆板还相机后回机外\n\t\t     🔴 hoverstart 的**出口**也归相位：入姿播完（1.5 s）**或玩家给方向输入** ⇒ 相位放开控制，\n\t\t       交给下面的阶梯（在移动 ⇒ hovermove / 否则 ⇒ idle）。这条没写成边，是因为它必须\n\t\t       \"按输入可提前结束\"，而循环状态挡不住 `*` 边、一次性状态又会挡死提前结束（两难），\n\t\t       所以由相位的 Hold 机制独家管。 -->\n\t\t<edge from=\"outside\" to=\"hoverstart\" when=\"takeoff-trigger\" phase=\"true\" />\n\t\t<!-- 🔴 landing（superland）= **出机衔接状态**，和 hoverstart 对称：它不是普通姿态，只负责把\"退出飞行状态机\"接上。\n\t\t     进它这两条同样是**相位驱动**（状态机不求值 ⇒ 运行期零行为变化），写出来只是让\"从哪进\"诚实 ——\n\t\t     原来这里是空的（只在 ⓪ 的注释里说过），所以图上 superland 看着像个悬空的点。 -->\n\t\t<edge from=\"Upright\" to=\"superland\" when=\"land-trigger\" phase=\"true\" />\n\t\t<edge from=\"ProneFamily\" to=\"superland\" when=\"land-trigger\" phase=\"true\" />\n\t\t<edge from=\"superland\" to=\"outside\" when=\"land-trigger\" phase=\"true\" />\n\n\t\t<!-- ① 闪避：来源 = ProneFamily（趴姿族 10 个）。⚠️ 来源含闪避自己 ⇒ 闪避中再按方向键会**重新触发闪避**。\n\t\t     闪避结束后由各自 <state next=\"fastmove\"> 回快移（这正是\"短暂状态\"的含义）。\n\t\t     若不要\"闪避自打断\"，把这 4 条的 from 改成 fastmove 即可。 -->\n\t\t<edge from=\"ProneFamily\" to=\"dodgeL\" when=\"dodge-left\" blend=\"0.12\" />\n\t\t<edge from=\"ProneFamily\" to=\"dodgeR\" when=\"dodge-right\" blend=\"0.12\" />\n\t\t<edge from=\"ProneFamily\" to=\"dodgeU\" when=\"dodge-up\" blend=\"0.12\" />\n\t\t<edge from=\"ProneFamily\" to=\"dodgeD\" when=\"dodge-down\" blend=\"0.12\" />\n\n\t\t<!-- ③ 进趴姿唯一的门：来源 = Upright 全部 7 个状态。\n\t\t     只看\"按下沿\"会在三种情况下被吞（没推方向键 / 起飞落地 Hold 期间 / 施法让位期间），\n\t\t     所以改成\"按着 Shift 且在移动 + 来源是直立家\"，幂等：进了趴姿族就不在来源表里 -->\n\t\t<edge from=\"Upright\" to=\"fastmoveStart\" when=\"sprinting\" />\n\n\t\t<!-- ④ 趴姿的压弯/俯仰：来源 = ProneFamily（趴姿族 10 个），演完才进（after-finish 保证不打断入姿/闪避）\n\t\t     blend 用 0.15（小姿态；0.3 秒会吃掉大半停留时间） -->\n\t\t<edge from=\"ProneFamily\" to=\"fastmoveLeanL\" when=\"sprint-lean-left\" blend=\"0.15\" after-finish=\"true\" />\n\t\t<edge from=\"ProneFamily\" to=\"fastmoveLeanR\" when=\"sprint-lean-right\" blend=\"0.15\" after-finish=\"true\" />\n\t\t<edge from=\"ProneFamily\" to=\"fastmovePitchU\" when=\"sprint-look-up\" blend=\"0.15\" after-finish=\"true\" />\n\t\t<edge from=\"ProneFamily\" to=\"fastmovePitchD\" when=\"sprint-look-down\" blend=\"0.15\" after-finish=\"true\" />\n\n\t\t<!-- ⑤ 直立悬停的压弯 —— 🔴 **这几条改用\"键\"原语写**（示范新写法）：\n\t\t     以前要先去 C# 登记一个谓词 `hold-left`，现在直接在定义里写\"按着 A\"。\n\t\t        · Upright：直立族内部切换（这 6 个目标本身就是直立悬停族）\n\t\t        · ProneFamily：趴姿族要能回到悬停姿态（含闪避；闪避是短暂状态，本身演完自己回 fastmove）\n\t\t        ⚠️ 行为差异：原来 `*`＝任何状态（含 superland），现在 superland 不再是来源 ——\n\t\t           落地动作由相位 Hold 管着，本来就不该被中途踢走（这条是修正，不是退化） -->\n\t\t<edge from=\"Upright\" to=\"hovermoveLeanL\" key=\"A\" key-mode=\"held\" blend=\"0.15\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermoveLeanL\" key=\"A\" key-mode=\"held\" blend=\"0.15\" />\n\t\t<edge from=\"Upright\" to=\"hovermoveLeanR\" key=\"D\" key-mode=\"held\" blend=\"0.15\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermoveLeanR\" key=\"D\" key-mode=\"held\" blend=\"0.15\" />\n\n\t\t<!-- ⑥~⑨ 阶梯：待机 / 快移 / 俯仰 / 悬停移动。来源同 ⑤，一律写成显式的容器（不再用 `*`）。\n\t\t     🔴 idle 只判\"停住了\" —— **Shift 是速度不是姿态开关**，松了方向键就该回直立悬停\n\t\t     （2026-09-25 用户裁定）；\"按着 Shift 却不动\"要停在 idle 而不是趴姿，\n\t\t     靠的是 fastmove 那条把条件收紧成\"按着 Shift 且还在飞\" -->\n\t\t<edge from=\"Upright\" to=\"idle\" when=\"at-rest\" />\n\t\t<edge from=\"ProneFamily\" to=\"idle\" when=\"at-rest\" />\n\t\t<edge from=\"ProneFamily\" to=\"fastmove\" when=\"sprinting\" after-finish=\"true\" />\n\t\t<edge from=\"Upright\" to=\"hovermovePitchU\" when=\"look-up\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermovePitchU\" when=\"look-up\" />\n\t\t<edge from=\"Upright\" to=\"hovermovePitchD\" when=\"look-down\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermovePitchD\" when=\"look-down\" />\n\t\t<edge from=\"Upright\" to=\"hovermove\" when=\"moving\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermove\" when=\"moving\" />\n\t</edges>\n\n</state_machine>\n"};
+const DATA = {"machine": "flight", "groups": [{"name": "Upright", "entry": "hovermove", "members": ["idle", "hovermove", "hovermoveLeanL", "hovermoveLeanR", "hovermovePitchU", "hovermovePitchD", "hoverstart"]}, {"name": "ProneFamily", "entry": "fastmove", "members": ["fastmove", "fastmoveStart", "fastmoveLeanL", "fastmoveLeanR", "fastmovePitchU", "fastmovePitchD", "dodgeL", "dodgeR", "dodgeU", "dodgeD"]}], "states": [{"name": "idle", "act": "act_fly_idle", "once": false, "dur": "", "next": "", "clip": "flight_idle_a", "durText": "循环"}, {"name": "hovermove", "act": "act_fly_hovermove", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a", "durText": "循环"}, {"name": "hovermovePitchU", "act": "act_fly_hovermove_pitchu", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a_pitchu", "durText": "循环"}, {"name": "hovermovePitchD", "act": "act_fly_hovermove_pitchd", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a_pitchd", "durText": "循环"}, {"name": "hovermoveLeanL", "act": "act_fly_hovermove_lean_l", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a_leanl", "durText": "循环"}, {"name": "hovermoveLeanR", "act": "act_fly_hovermove_lean_r", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a_leanr", "durText": "循环"}, {"name": "hoverstart", "act": "act_fly_hoverstart", "once": false, "dur": "", "next": "", "clip": "flight_hoverstart_a", "durText": "循环"}, {"name": "superland", "act": "act_fly_superland", "once": true, "dur": "", "next": "", "clip": "flight_superland_a", "durText": "一次性"}, {"name": "fastmove", "act": "act_fly_fastmove", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a", "durText": "循环"}, {"name": "fastmoveLeanL", "act": "act_fly_fastmove_lean_l", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_leanl", "durText": "循环"}, {"name": "fastmoveLeanR", "act": "act_fly_fastmove_lean_r", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_leanr", "durText": "循环"}, {"name": "fastmovePitchU", "act": "act_fly_fastmove_pitchu", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_pitchu", "durText": "循环"}, {"name": "fastmovePitchD", "act": "act_fly_fastmove_pitchd", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_pitchd", "durText": "循环"}, {"name": "fastmoveStart", "act": "act_fly_fastmove_start", "once": true, "dur": "", "next": "fastmove", "clip": "flight_fastmove_start_a", "durText": "一次性"}, {"name": "dodgeL", "act": "act_fly_dodge_l", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_l", "durText": "一次性"}, {"name": "dodgeR", "act": "act_fly_dodge_r", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_r", "durText": "一次性"}, {"name": "dodgeU", "act": "act_fly_dodge_u", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_u", "durText": "一次性"}, {"name": "dodgeD", "act": "act_fly_dodge_d", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_d", "durText": "一次性"}], "edges": [{"from": "outside", "to": "hoverstart", "after": false, "phase": true, "blend": "", "not": false, "kind": "pred", "pred": "takeoff-trigger"}, {"from": "Upright", "to": "superland", "after": false, "phase": true, "blend": "", "not": false, "kind": "pred", "pred": "land-trigger"}, {"from": "ProneFamily", "to": "superland", "after": false, "phase": true, "blend": "", "not": false, "kind": "pred", "pred": "land-trigger"}, {"from": "superland", "to": "outside", "after": false, "phase": true, "blend": "", "not": false, "kind": "anim", "anim": "remaining", "lt": "10"}, {"from": "ProneFamily", "to": "dodgeL", "after": false, "phase": false, "blend": "0.12", "not": false, "kind": "pred", "pred": "dodge-left"}, {"from": "ProneFamily", "to": "dodgeR", "after": false, "phase": false, "blend": "0.12", "not": false, "kind": "pred", "pred": "dodge-right"}, {"from": "ProneFamily", "to": "dodgeU", "after": false, "phase": false, "blend": "0.12", "not": false, "kind": "pred", "pred": "dodge-up"}, {"from": "ProneFamily", "to": "dodgeD", "after": false, "phase": false, "blend": "0.12", "not": false, "kind": "pred", "pred": "dodge-down"}, {"from": "Upright", "to": "fastmoveStart", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "sprinting"}, {"from": "ProneFamily", "to": "fastmoveLeanL", "after": true, "phase": false, "blend": "0.15", "not": false, "kind": "pred", "pred": "sprint-lean-left"}, {"from": "ProneFamily", "to": "fastmoveLeanR", "after": true, "phase": false, "blend": "0.15", "not": false, "kind": "pred", "pred": "sprint-lean-right"}, {"from": "ProneFamily", "to": "fastmovePitchU", "after": true, "phase": false, "blend": "0.15", "not": false, "kind": "pred", "pred": "sprint-look-up"}, {"from": "ProneFamily", "to": "fastmovePitchD", "after": true, "phase": false, "blend": "0.15", "not": false, "kind": "pred", "pred": "sprint-look-down"}, {"from": "Upright", "to": "hovermoveLeanL", "after": false, "phase": false, "blend": "0.15", "not": false, "kind": "key", "keys": "A"}, {"from": "ProneFamily", "to": "hovermoveLeanL", "after": false, "phase": false, "blend": "0.15", "not": false, "kind": "key", "keys": "A"}, {"from": "Upright", "to": "hovermoveLeanR", "after": false, "phase": false, "blend": "0.15", "not": false, "kind": "key", "keys": "D"}, {"from": "ProneFamily", "to": "hovermoveLeanR", "after": false, "phase": false, "blend": "0.15", "not": false, "kind": "key", "keys": "D"}, {"from": "Upright", "to": "idle", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "at-rest"}, {"from": "ProneFamily", "to": "idle", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "at-rest"}, {"from": "ProneFamily", "to": "fastmove", "after": true, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "sprinting"}, {"from": "Upright", "to": "hovermovePitchU", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "look-up"}, {"from": "ProneFamily", "to": "hovermovePitchU", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "look-up"}, {"from": "Upright", "to": "hovermovePitchD", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "look-down"}, {"from": "ProneFamily", "to": "hovermovePitchD", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "look-down"}, {"from": "Upright", "to": "hovermove", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "moving"}, {"from": "ProneFamily", "to": "hovermove", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "moving"}], "preds": [{"name": "move-input", "body": "MoveInput"}, {"name": "shift-held", "body": "Boost"}, {"name": "hold-left", "body": "BankBand < 0"}, {"name": "hold-right", "body": "BankBand > 0"}, {"name": "look-up", "body": "PitchBand > 0"}, {"name": "look-down", "body": "PitchBand < 0"}, {"name": "moving", "body": "Moving"}, {"name": "coasting", "body": "Moving && !MoveInput"}, {"name": "at-rest", "body": "!Moving"}, {"name": "sprinting", "body": "Boost && Moving"}, {"name": "sprint-lean-left", "body": "Boost && BankBand < 0"}, {"name": "sprint-lean-right", "body": "Boost && BankBand > 0"}, {"name": "sprint-look-up", "body": "Boost && PitchBand > 0"}, {"name": "sprint-look-down", "body": "Boost && PitchBand < 0"}, {"name": "casting-fallback", "body": "SpellCharging && !FlightTuning.CastOnUpperChannel"}, {"name": "dodge-left", "body": "DodgeRequest == FlightDodgeDir.Left"}, {"name": "dodge-right", "body": "DodgeRequest == FlightDodgeDir.Right"}, {"name": "dodge-up", "body": "DodgeRequest == FlightDodgeDir.Up"}, {"name": "dodge-down", "body": "DodgeRequest == FlightDodgeDir.Down"}, {"name": "takeoff-trigger", "body": "false"}, {"name": "land-trigger", "body": "false"}], "scalars": {"boostStartSeconds": "FlightTuning.BoostStartSeconds", "dodgeClipSeconds": "FlightTuning.DodgeClipSeconds", "castReleaseSeconds": "FlightTuning.CastReleaseSeconds"}, "keys": ["W", "A", "S", "D", "Space", "Shift", "RMB", "LMB"], "anims": ["finished", "remaining"], "rawXml": "<!-- 飞行动画状态机的**定义**（2026-09-25 由 C# 迁到这里）。\n\n     🔴 **改这个文件不用重编译** —— 重启游戏即生效（引擎不解析它，是我们自己在\n        `MySubModule.OnSubModuleLoad` → `FlightAnimMachine.Register()` 里读的）。\n\n     🔴 **两个读者：游戏 + 编辑器页**\n        · 游戏：`Animation/AnimMachineLoader.cs` 装载 + 校验（转成 AnimMachineDef）\n        · 编辑器页：`tools/anim-statemachine/gen_statemachine_editor.py` 读**同一个文件**画图 / 改结构\n        ⇒ 页面不可能和游戏里跑的那份分叉。（页面是生成物，改这里重跑生成器；页面本体 `statemachine_editor.html` 在 tools 里进 git。）\n\n     🔴 **装载期校验**：状态名 / 目标 / 族成员 / 谓词名 / 数字 —— 有一处不对就**整台不注册**\n        并列全部问题到日志（`[Anim]` 前缀）。所以打错字不会静默，是**响亮地失败**。\n\n     🔴 **判据不在这里**：`when=` 写的是**谓词名**（名字用输入语言：`hold-left` = 按着 A），\n        真身在 `Flight/FlightAnimConditions.cs`。理由：字符串表达式 = 失去编译期检查 = 又一种静默失败。\n\n     🔴 **运行期旋钮不在这里**：默认过渡时长 / 核对周期 / 动作优先级仍是 C# 里的委托\n        （指向 `FlightTuning` 的字段），所以 `custom.flight tune blend / turnrate …` 照旧有效。\n\n     🔴 **边的顺序 = 优先级**（第一条命中的生效），改顺序 = 改优先级，别随手挪。\n        三种边型（`AnimEdgeDef` 的三个开关）：\n          · 缺省             = 普通边；能打断正在播的一次性动作（闪避那四条靠这个打断入姿）\n          · after-finish     = 只在\"演完\"之后参与求值（绝不打断）\n          · phase=\"true\"     = **不由状态机求值**，由飞行相位 C# `Force` 进 —— 写在这里只为让表/图完整 -->\n<state_machine name=\"flight\">\n\n\t<!-- 容器（= 边的来源集合，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。\n\t     用户 2026-09-25 裁定：\n\t       · 状态必须\"只出现一次的唯一定义\"（原来 PronePoses ⊂ ProneFamily 重叠，不符合 UE）\n\t       · 趴姿**只留一个容器**（删掉 PronePoses，合并进 ProneFamily）——\n\t         闪避 4 个也在这里面；它们是**短暂状态**：从趴姿进，演完由 <state next=\"fastmove\"> 回快移\n\t     现在只有两个容器，互不重叠：\n\t       · Upright（直立）7 个 —— 悬停姿态族\n\t       · ProneFamily（趴姿族）10 个 —— 趴姿本体 6 + 闪避 4\n\t     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会\"硬翻\"，所以进趴姿必须经 fastmoveStart 那道门。\n\t     superland 不归属任何容器（散状态 = 出机衔接状态）。 -->\n\t<families>\n\t\t<!-- 🔴 容器 = **真实的子状态机**（对齐 UE），不是展示用的分组：\n\t\t     · 成员 = 它拥有的状态（每个状态只归属一个容器）\n\t\t     · **entry = 它的真实入口**：从外面\"进入这个容器\"时落到哪个状态\n\t\t     · 边的 `to=` 可以直接写**容器名** ⇒ 装载期解析成它的 entry（引擎热路径零改动）\n\t\t     · 边的 `from=` 写容器名 = 该容器里**任何状态**（对应 UE 的 State Alias 用法） -->\n\t\t<family name=\"Upright\" entry=\"hovermove\">idle hovermove hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD hoverstart</family>\n\t\t<family name=\"ProneFamily\" entry=\"fastmove\">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD dodgeL dodgeR dodgeU dodgeD</family>\n\t</families>\n\n\t<!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。\n\t     **不带 once = 循环姿态；once=\"true\" = 一次性动作**（播完自动去 next）。\n\t     🔴 **不写时长** —— 长度由 **clip 自己带**，引擎给的是 0~1 的播放进度（见 Animation/AgentAnimStateMachine）。\n\t        `duration=\"…\"`（秒 / 命名标量）保留成**可选覆盖**，只在\"要主动截短 clip\"时才写。\n\t     next = **演完兜底**：播完、且没有任何边命中时回这里（见 <edges> 顶部的说明）。 -->\n\t<states>\n\t\t<state name=\"idle\" act=\"act_fly_idle\" />\n\t\t<state name=\"hovermove\" act=\"act_fly_hovermove\" />\n\t\t<state name=\"hovermovePitchU\" act=\"act_fly_hovermove_pitchu\" />\n\t\t<state name=\"hovermovePitchD\" act=\"act_fly_hovermove_pitchd\" />\n\t\t<state name=\"hovermoveLeanL\" act=\"act_fly_hovermove_lean_l\" />\n\t\t<state name=\"hovermoveLeanR\" act=\"act_fly_hovermove_lean_r\" />\n\t\t<!-- 🚪 进机衔接状态（起飞入姿）：相位 Force 进，演完或玩家给输入就放开控制 —— 见 <edges> ⓪ -->\n\t\t<state name=\"hoverstart\" act=\"act_fly_hoverstart\" />\n\t\t<!-- 🚪 出机衔接状态（落地收尾）：相位 Force 进，**播到剩 10% 就出机** —— 见 <edges> ⓪ -->\n\t\t<state name=\"superland\" act=\"act_fly_superland\" once=\"true\" />\n\n\t\t<state name=\"fastmove\" act=\"act_fly_fastmove\" />\n\t\t<state name=\"fastmoveLeanL\" act=\"act_fly_fastmove_lean_l\" />\n\t\t<state name=\"fastmoveLeanR\" act=\"act_fly_fastmove_lean_r\" />\n\t\t<state name=\"fastmovePitchU\" act=\"act_fly_fastmove_pitchu\" />\n\t\t<state name=\"fastmovePitchD\" act=\"act_fly_fastmove_pitchd\" />\n\n\t\t<!-- 进趴姿的入姿（一次性 1.033 秒）；**演完兜底回 fastmove** -->\n\t\t<state name=\"fastmoveStart\" act=\"act_fly_fastmove_start\" once=\"true\" next=\"fastmove\" />\n\t\t<!-- 闪避四方向（一次性 1.867 秒）；**演完兜底回 fastmove**（这就是\"闪避演完回趴姿\"那一条） -->\n\t\t<state name=\"dodgeL\" act=\"act_fly_dodge_l\" once=\"true\" next=\"fastmove\" />\n\t\t<state name=\"dodgeR\" act=\"act_fly_dodge_r\" once=\"true\" next=\"fastmove\" />\n\t\t<state name=\"dodgeU\" act=\"act_fly_dodge_u\" once=\"true\" next=\"fastmove\" />\n\t\t<state name=\"dodgeD\" act=\"act_fly_dodge_d\" once=\"true\" next=\"fastmove\" />\n\n\t</states>\n\n\t<!-- 边：**顺序 = 优先级**。\n\t     from = 状态名 或 族名；to = 状态名；when = 已登记的谓词名；\n\t     blend 省略 = 用机器默认（FlightTuning.AnimBlendIn，热调 tune blend）。\n\n\t     🔴 **\"演完去哪\"有两种写法，别混**：\n\t        · `<state next=\"X\">`（上面）—— **演完兜底**：一次性动作播完、且下面**没有任何边命中**时回 X。\n\t          条件优先、演完兜底：例如入姿演完那一刻玩家已经松开 Shift，就该走 at-rest 那条边去 idle，\n\t          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。\n\t        · `<edge ... after-finish=\"true\">` —— 演完之后**由条件**决定去哪（用于\"演完且仍在冲刺 ⇒ 回 fastmove\"这类）。 -->\n\t<edges>\n\t\t<!-- ⓪ **机外（非飞行）↔ 本机**：进出这台状态机就这两条，都是**相位驱动**（C# 在特定时刻 Force，\n\t\t     状态机不求值，所以运行时零行为变化；写出来只是让\"从哪进、从哪出\"诚实）。\n\t\t     进机：起飞 = 跳跃中按空格 / 长按空格 ⇒ 相位 Force 进 hoverstart（同时开板、冻人、接管相机）\n\t\t     出机：落地 = 短按贴地·俯冲 / 长按下降 / 撞地 ⇒ 相位 Force 进 superland，演完拆板还相机后回机外\n\t\t     🔴 hoverstart 的**出口**也归相位：入姿播完（1.5 s）**或玩家给方向输入** ⇒ 相位放开控制，\n\t\t       交给下面的阶梯（在移动 ⇒ hovermove / 否则 ⇒ idle）。这条没写成边，是因为它必须\n\t\t       \"按输入可提前结束\"，而循环状态挡不住 `*` 边、一次性状态又会挡死提前结束（两难），\n\t\t       所以由相位的 Hold 机制独家管。 -->\n\t\t<edge from=\"outside\" to=\"hoverstart\" when=\"takeoff-trigger\" phase=\"true\" />\n\t\t<!-- 🔴 landing（superland）= **出机衔接状态**，和 hoverstart 对称：它不是普通姿态，只负责把\"退出飞行状态机\"接上。\n\t\t     进它这两条同样是**相位驱动**（状态机不求值 ⇒ 运行期零行为变化），写出来只是让\"从哪进\"诚实 ——\n\t\t     原来这里是空的（只在 ⓪ 的注释里说过），所以图上 superland 看着像个悬空的点。 -->\n\t\t<edge from=\"Upright\" to=\"superland\" when=\"land-trigger\" phase=\"true\" />\n\t\t<edge from=\"ProneFamily\" to=\"superland\" when=\"land-trigger\" phase=\"true\" />\n\t\t<!-- 🔴 出机（回机外）：**这条边的时机是真的**（不像别的相位边只是文档）——\n\t\t     相位（C# `PlayerFlightBehavior.TickLanding`）会**读这里的 anim-rem-pct** 来判\"什么时候出机\"：\n\t\t     落地动画**剩 10%** 就拆板还相机、退出飞行状态机。\n\t\t     ⇒ 换 clip 不用改代码；改这个数 = 改出机时机（改完重启游戏即生效，不用重编译）。\n\t\t     ⚠️ 所以 `superland` 必须是 `once=\"true\"` —— 否则算不出\"剩余\"，相位会回退到旧的 2.0 秒判据。 -->\n\t\t<edge from=\"superland\" to=\"outside\" anim=\"remaining\" anim-rem-pct=\"10\" phase=\"true\" />\n\n\t\t<!-- ① 闪避：来源 = ProneFamily（趴姿族 10 个）。⚠️ 来源含闪避自己 ⇒ 闪避中再按方向键会**重新触发闪避**。\n\t\t     闪避结束后由各自 <state next=\"fastmove\"> 回快移（这正是\"短暂状态\"的含义）。\n\t\t     若不要\"闪避自打断\"，把这 4 条的 from 改成 fastmove 即可。 -->\n\t\t<edge from=\"ProneFamily\" to=\"dodgeL\" when=\"dodge-left\" blend=\"0.12\" />\n\t\t<edge from=\"ProneFamily\" to=\"dodgeR\" when=\"dodge-right\" blend=\"0.12\" />\n\t\t<edge from=\"ProneFamily\" to=\"dodgeU\" when=\"dodge-up\" blend=\"0.12\" />\n\t\t<edge from=\"ProneFamily\" to=\"dodgeD\" when=\"dodge-down\" blend=\"0.12\" />\n\n\t\t<!-- ③ 进趴姿唯一的门：来源 = Upright 全部 7 个状态。\n\t\t     只看\"按下沿\"会在三种情况下被吞（没推方向键 / 起飞落地 Hold 期间 / 施法让位期间），\n\t\t     所以改成\"按着 Shift 且在移动 + 来源是直立家\"，幂等：进了趴姿族就不在来源表里 -->\n\t\t<edge from=\"Upright\" to=\"fastmoveStart\" when=\"sprinting\" />\n\n\t\t<!-- ④ 趴姿的压弯/俯仰：来源 = ProneFamily（趴姿族 10 个），演完才进（after-finish 保证不打断入姿/闪避）\n\t\t     blend 用 0.15（小姿态；0.3 秒会吃掉大半停留时间） -->\n\t\t<edge from=\"ProneFamily\" to=\"fastmoveLeanL\" when=\"sprint-lean-left\" blend=\"0.15\" after-finish=\"true\" />\n\t\t<edge from=\"ProneFamily\" to=\"fastmoveLeanR\" when=\"sprint-lean-right\" blend=\"0.15\" after-finish=\"true\" />\n\t\t<edge from=\"ProneFamily\" to=\"fastmovePitchU\" when=\"sprint-look-up\" blend=\"0.15\" after-finish=\"true\" />\n\t\t<edge from=\"ProneFamily\" to=\"fastmovePitchD\" when=\"sprint-look-down\" blend=\"0.15\" after-finish=\"true\" />\n\n\t\t<!-- ⑤ 直立悬停的压弯 —— 🔴 **这几条用\"键\"原语写**（组合与取反都在这里能写）：\n\t\t     `keys=\"A+B\"` = **同时按着** A 和 B（`+` 连，项间 AND）；`not=\"true\"` = **整条取反**。\n\t\t     例：进冲刺 = `keys=\"W+Shift\"`；离开冲刺 = `keys=\"W+Shift\" not=\"true\"`。\n\t\t        · Upright：直立族内部切换（这 6 个目标本身就是直立悬停族）\n\t\t        · ProneFamily：趴姿族要能回到悬停姿态（含闪避；闪避是短暂状态，本身演完自己回 fastmove）\n\t\t        ⚠️ 行为差异：原来 `*`＝任何状态（含 superland），现在 superland 不再是来源 ——\n\t\t           落地动作由相位 Hold 管着，本来就不该被中途踢走（这条是修正，不是退化） -->\n\t\t<edge from=\"Upright\" to=\"hovermoveLeanL\" keys=\"A\" blend=\"0.15\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermoveLeanL\" keys=\"A\" blend=\"0.15\" />\n\t\t<edge from=\"Upright\" to=\"hovermoveLeanR\" keys=\"D\" blend=\"0.15\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermoveLeanR\" keys=\"D\" blend=\"0.15\" />\n\n\t\t<!-- ⑥~⑨ 阶梯：待机 / 快移 / 俯仰 / 悬停移动。来源同 ⑤，一律写成显式的容器（不再用 `*`）。\n\t\t     🔴 idle 只判\"停住了\" —— **Shift 是速度不是姿态开关**，松了方向键就该回直立悬停\n\t\t     （2026-09-25 用户裁定）；\"按着 Shift 却不动\"要停在 idle 而不是趴姿，\n\t\t     靠的是 fastmove 那条把条件收紧成\"按着 Shift 且还在飞\" -->\n\t\t<edge from=\"Upright\" to=\"idle\" when=\"at-rest\" />\n\t\t<edge from=\"ProneFamily\" to=\"idle\" when=\"at-rest\" />\n\t\t<edge from=\"ProneFamily\" to=\"fastmove\" when=\"sprinting\" after-finish=\"true\" />\n\t\t<edge from=\"Upright\" to=\"hovermovePitchU\" when=\"look-up\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermovePitchU\" when=\"look-up\" />\n\t\t<edge from=\"Upright\" to=\"hovermovePitchD\" when=\"look-down\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermovePitchD\" when=\"look-down\" />\n\t\t<edge from=\"Upright\" to=\"hovermove\" when=\"moving\" />\n\t\t<edge from=\"ProneFamily\" to=\"hovermove\" when=\"moving\" />\n\t</edges>\n\n</state_machine>\n"};
 const LSKEY = "lwn.statemachine.flight.draft2";
 
 // ── 可编辑状态 ─────────────────────────────────────────────
@@ -186,6 +203,7 @@ let edges = JSON.parse(JSON.stringify(DATA.edges));
 let pos = {};
 let sel = null;          // {type:'state'|'group'|'edge', id}
 let pending = null;      // 正在拉线的源状态名
+let pendingEntry = null; // 正在从**容器页的 Entry 绿点**拉线（值是容器名）⇒ 落到成员状态 = 设置 entry
 let tabs = [{kind: "root"}];
 let active = 0;
 let mouse = {x: 0, y: 0}, drag = null;
@@ -200,6 +218,49 @@ let lastCtxXY = { clientX: 400, clientY: 300 };   // 右键菜单落点（二级
 let elistAll = false;                        // 边列表是否显示全部（false = 只看与选中相关）
 let notice = "";                             // 一次性提示（例如改名失败）
 
+// ── 撤销 / 重做（结构快照栈）────────────────────────────────
+//    快照只含「结构 + 布局」：states / groups / edges / pos / gpos。
+//    🔴 **不含 view**（缩放平移是"浏览"不是"编辑"，撤销不该把镜头也倒回去）。
+//    线性栈 + 指针（不是双栈）：天然去重，也天然支持"改完再改回去"。
+let hist = [], hpos = -1;
+const HIST_MAX = 80;
+function histSnap() { return JSON.stringify({states: states, groups: groups, edges: edges, pos: pos, gpos: gpos}); }
+function updateHistBtns() {
+  const u = document.getElementById("btn-undo"), r = document.getElementById("btn-redo");
+  if (u) u.disabled = !(hpos > 0);
+  if (r) r.disabled = !(hpos >= 0 && hpos < hist.length - 1);
+}
+function histReset() { hist = [histSnap()]; hpos = 0; updateHistBtns(); }
+function histPush() {
+  const s = histSnap();
+  if (hpos >= 0 && hist[hpos] === s) return;      // 没变就不记（同一动作别记两遍）
+  hist = hist.slice(0, hpos + 1);                 // 改过之后，原来的"重做"作废
+  hist.push(s);
+  if (hist.length > HIST_MAX) hist.shift();
+  hpos = hist.length - 1;
+  updateHistBtns();
+}
+function histApply(s, label) {
+  const o = JSON.parse(s);
+  states = o.states; groups = o.groups; edges = o.edges; pos = o.pos || {}; gpos = o.gpos || {};
+  reindex();
+  if (sel && sel.type === "state" && !stateByName[sel.id]) sel = null;
+  if (sel && sel.type === "group" && !groupByName[sel.id]) sel = null;
+  if (sel && sel.type === "edge" && !edges[sel.id]) sel = null;
+  tabs = tabs.filter(t => t.kind === "root" || (t.kind === "state" ? !!stateByName[t.id] : !!groupByName[t.id]));
+  if (!tabs.length) tabs = [{kind: "root"}];
+  if (active >= tabs.length) active = tabs.length - 1;
+  notice = label; commit();
+}
+function undo() {
+  if (hpos <= 0) { notice = "已经到头了 —— 没有更早的步骤"; return render(); }
+  hpos--; histApply(hist[hpos], "已撤销（Ctrl+Shift+Z / Ctrl+Y 可重做）");
+}
+function redo() {
+  if (hpos >= hist.length - 1) { notice = "没有可重做的步骤"; return render(); }
+  hpos++; histApply(hist[hpos], "已重做");
+}
+
 try {
   const raw = localStorage.getItem(LSKEY);
   if (raw) { const o = JSON.parse(raw);
@@ -213,6 +274,15 @@ try {
 //    （用户实测踩到：点了恢复还是旧数据）。老 bug，这次靠真输入自检才抓到。
 let stateByName = {}; states.forEach(s => stateByName[s.name] = s);
 let groupByName = {}; groups.forEach(g => groupByName[g.name] = g);
+
+// 🔴 **索引必须跟着名字走。** 改名后不重建 ⇒ `groupByName[新名]` 是 undefined ⇒
+//    `groupBox(i, undefined)` 在 `gpos[g.name]` 抛 TypeError ⇒ pointerdown 半路中断
+//    ⇒ **整个容器拖不动**（用户实测："我给两个容器改了名字之后 无法拖动了"）。
+//    凡是"整批换掉 states/groups"或"改了名字"的地方，收尾都调它。
+function reindex() {
+  stateByName = {}; states.forEach(s => stateByName[s.name] = s);
+  groupByName = {}; groups.forEach(g => groupByName[g.name] = g);
+}
 
 function save() { try { localStorage.setItem(LSKEY, JSON.stringify({edges, groups, states, pos, view, gpos,
   boxes: {outside: {x: OUTSIDE.x, y: OUTSIDE.y}}})); } catch (e) {} }
@@ -300,10 +370,15 @@ function placeLabel(text, p1, p2, dx, obstacles, placed, spin) {
   return put(b);
 }
 function condText(e) {
-  if (e.phase) return "相位驱动";
-  if (e.kind === "key") return e.key + " " + ({down: "按下", up: "松开", held: "按着", released: "没按"}[e.mode] || e.mode);
-  if (e.kind === "anim") return e.anim === "finished" ? "动画演完" : "剩余 < " + e.lt + "s";
-  return e.pred || "?";
+  let s;
+  // 相位边的显示：写了「动画 · 剩余 %」就显示那个（它是**真的**，相位会读），否则显示相位时刻
+  if (e.phase) s = e.kind === "anim"
+    ? "相位驱动 · " + (e.anim === "finished" ? "演完" : "剩余 < " + e.lt + "%")
+    : "相位驱动 · " + phaseShort(e.pred);
+  else if (e.kind === "key") s = String(e.keys || "?").split("+").join(" + ") + " 一起按着";
+  else if (e.kind === "anim") s = e.anim === "finished" ? "动画演完" : "剩余 < " + e.lt + "%";
+  else s = e.pred || "?";
+  return e.not ? "不是（" + s + "）" : s;      // 🔴 取反：对三种条件**一律适用**
 }
 function groupIndexOf(name) { return groups.findIndex(g => g.name === name); }
 function edgesTouchingGroup(g) {
@@ -437,13 +512,19 @@ function render() {
   // 容器页：本容器的 Entry —— 等价于 UE 子图里的 Entry（外部进来的边都汇到它）
   if (gEntry) {
     const gcur = groupByName[t.id] || {members: []};
-    const ext = edges.filter(e => membersOf(t.id).indexOf(e.to) >= 0 && membersOf(t.id).indexOf(e.from) < 0).length;
+    const ext = (function () {
+      const lv = leafStatesOf(t.id);   // 🔴 嵌套：入边也可能指向**子容器里的**状态
+      return edges.filter(e => lv.indexOf(e.to) >= 0 && lv.indexOf(e.from) < 0).length;
+    })();
     out.push('<g class="entry" style="cursor:default">'
       + `<rect x="${gEntry.x}" y="${gEntry.y}" width="${gEntry.w}" height="${gEntry.h}" rx="9"/>`
       + `<path class="tri" d="M ${gEntry.x+11} ${gEntry.y+14} L ${gEntry.x+21} ${gEntry.y+21} L ${gEntry.x+11} ${gEntry.y+28} Z"/>`
       + `<text class="t1" x="${gEntry.x+28}" y="${gEntry.y+18}" font-family="var(--mono)" font-size="12">Entry</text>`
       + `<text x="${gEntry.x+28}" y="${gEntry.y+33}" font-family="var(--mono)" font-size="10" fill="var(--ink-3)">${gcur.entry ? "入口 → " + esc(gcur.entry) : "⚠ 未设入口"} · 外部进入边 ${ext} 条</text>`
       + '</g>');
+    // 🔴 Entry 盒右侧的**绿点**：从它拉线到**本容器的成员状态** ⇒ 就是设置"进容器落到哪"（= `entry`）。
+    //    （`entry` 由**装载期**解析 ⇒ 热路径零改动。所以这里不做"多条带条件的 Entry 出边"那套运行时求值。）
+    out.push(`<circle class="port" data-entry="${esc(t.id)}" cx="${gEntry.x + gEntry.w}" cy="${gEntry.y + gEntry.h / 2}" r="${PORT_R}" fill="var(--entry)" opacity="0.9"/>`);
     // 🔴 **真实入口**：Entry → 入口状态 画一条实边（装载期就是把 `to=本容器` 解析成它）
     if (gcur.entry && pos[gcur.entry]) {
       const r2 = nodeRect(gcur.entry);
@@ -516,9 +597,20 @@ function render() {
   }
 
   if (pending) {
-    const r = nodeRect(pending);
+    // 🔴 预览线的起点 = **这个来源当前的锚点**。`pending` 可能是「状态名 / 容器名 / outside」三选一，
+    //    原来一律走 `nodeRect()`（那是给状态用的）⇒ 从**容器端口 / 机外端口**拉线时它返回
+    //    `{0,0,240,50}` 的兜底值 ⇒ 起点变成世界坐标 (240,25) ⇒ 线从画面外拉过来
+    //    （用户实测："悬浮飞行容器右侧的小圆点想连接时候 线条显示异常"）。
+    //    改用 `anchorOf()` —— 和边本身用的是**同一套锚点规则**，必然一致。
+    const t = tabs[active] || {kind: "root"};
+    const a = anchorOf(pending, t) || nodeRect(pending);
+    const p0 = {x: a.x + a.w, y: a.y + a.h / 2};
     // 🔴 预览线必须 pointer-events=none：它画在最上层，否则会挡住"落点"（拖到容器盒上会被它截住）
-    out.push(`<path d="M ${r.x+r.w} ${r.y+r.h/2} L ${mouse.x} ${mouse.y}" pointer-events="none" stroke="var(--door)" stroke-width="2" stroke-dasharray="5 4" fill="none"/>`);
+    out.push(`<path d="M ${p0.x} ${p0.y} L ${mouse.x} ${mouse.y}" pointer-events="none" stroke="var(--door)" stroke-width="2" stroke-dasharray="5 4" fill="none"/>`);
+  }
+  // 从 Entry 绿点拉线的预览（落到成员状态 = 改容器入口）
+  if (pendingEntry && gEntry) {
+    out.push(`<path d="M ${gEntry.x + gEntry.w} ${gEntry.y + gEntry.h / 2} L ${mouse.x} ${mouse.y}" pointer-events="none" stroke="var(--entry)" stroke-width="2" stroke-dasharray="5 4" fill="none"/>`);
   }
   out.push("</g>");
   svg.innerHTML = out.join("");
@@ -539,17 +631,40 @@ function bridgeOf(name) {
   });
   return r;
 }
-// 状态/容器"归属哪个容器"（容器名优先；散状态返回 null）
-function ownerGroup(name) {
-  if (groupByName[name]) return name;
-  const g = groupOfState(name);
+// 🔴 **容器可以嵌套**（成员里可以写容器名）。下面这组是嵌套版的地基：
+//    · `parentGroupOf`  —— **直接**归属（状态 / 容器 都适用；顶层返回 null）
+//    · `leafStatesOf`   —— 递归展开成叶子状态（判"边是不是内部边"、`from=容器` 的来源都靠它）
+//    · `topGroupOf`     —— 一路往上，最外层那个容器
+//    · `childGroupsOf`  —— 直接成员里的**子容器**
+function parentGroupOf(name) {
+  const g = groups.find(x => (x.members || []).indexOf(name) >= 0);
   return g ? g.name : null;
 }
-// outer 是否（等于或）包住 inner —— 容器允许重叠，PronePoses ⊂ ProneFamily 就是这种
+function childGroupsOf(gname) {
+  return membersOf(gname).filter(n => !!groupByName[n]);
+}
+function leafStatesOf(gname) {
+  const out = [], seen = {};
+  (function walk(n, depth) {
+    if (depth > 32) return;
+    if (groupByName[n]) { membersOf(n).forEach(m => walk(m, depth + 1)); return; }
+    if (!seen[n]) { seen[n] = 1; out.push(n); }
+  })(gname, 0);
+  return out;
+}
+function topGroupOf(name) {
+  let cur = groupByName[name] ? name : parentGroupOf(name);
+  for (let i = 0; i < 32 && cur && parentGroupOf(cur); i++) cur = parentGroupOf(cur);
+  return cur;
+}
+// 状态/容器"归属哪个容器"（顶层返回 null）—— 内部边判定与锚点都用它
+function ownerGroup(name) { return parentGroupOf(name); }
+// outer 是否（等于或）包住 inner —— 🔴 嵌套版：inner 直接就是 outer 的成员也算包住
 function groupContains(outer, inner) {
   if (outer === inner) return true;
   const o = groupByName[outer], i = groupByName[inner];
   if (!o || !i) return false;
+  if ((o.members || []).indexOf(inner) >= 0) return true;          // 子容器：名字就在父的成员里
   return i.members.every(m => o.members.indexOf(m) >= 0);
 }
 // 草稿 vs XML 的差异摘要（用来把"你在看草稿"这件事说清楚）
@@ -592,7 +707,15 @@ function stateVisible(n, t) {
 // 🔴 容器页（钻进容器）**不再画容器自己的盒子**，也不再画机外 / 任意状态 / 机器级 Entry ——
 //    只画"里面有什么"：本容器的 Entry（把"外部进入本容器"的边都收在它身上）+ 成员 + 成员之间的边。
 //    （用户反馈："为什么进入容器了，还能看到容器自己的节点，还有外部状态节点"）
-function groupVisible(gname, t) { return t.kind === "root"; }
+// 🔴 容器可见性（支持嵌套）：
+//    · 总览：只画**顶层**容器（不属于任何容器的那些）
+//    · 容器页：画它的**直接子容器**
+//    · 状态页：不画
+function groupVisible(gname, t) {
+  if (t.kind === "root") return !parentGroupOf(gname);
+  if (t.kind === "group") return parentGroupOf(gname) === t.id;
+  return false;
+}
 function membersOf(gname) { return (groupByName[gname] || {members: []}).members; }
 // 容器页那个"本容器 Entry"的位置：自动摆在成员的左外侧，跟着成员走
 function groupEntryBox(t) {
@@ -606,33 +729,84 @@ function groupEntryBox(t) {
 function tabBoxes(t) {
   if (t.kind === "group") {
     const bs = states.filter(s => stateVisible(s.name, t)).map(s => nodeRect(s.name));
-    if (edges.some(e => membersOf(t.id).indexOf(e.to) >= 0 && membersOf(t.id).indexOf(e.from) < 0)) bs.push(groupEntryBox(t));
+    // 🔴 嵌套：本页还会画**子容器盒**，取景要把它们算进去
+    groups.forEach((gg, i) => { if (groupVisible(gg.name, t)) bs.push(groupBox(i, gg)); });
+    const lv = leafStatesOf(t.id);
+    if (edges.some(e => lv.indexOf(e.to) >= 0 && lv.indexOf(e.from) < 0)) bs.push(groupEntryBox(t));
     return bs;
   }
   if (t.kind === "state") { const s = stateByName[t.id]; return s ? [nodeRect(s.name)] : []; }
   return allBoxes();
 }
 function groupOfState(n) { return groups.find(g => g.members.indexOf(n) >= 0); }
-// 🔴 锚点必须是"本页真的画出来了的盒子"，否则箭头会指向空气（老毛病：总览里指向容器内状态的边）
+// 锚点必须是"本页真的画出来了的盒子"，否则箭头会指向空气。
+// 🔴 嵌套版：本页没画这个状态 / 容器 ⇒ 一路往上找"本页能看见的那个祖先盒子"。
 function anchorOf(name, t) {
   if (t.kind === "state") return null;                  // 状态页改用 ghost 入边，见 render()
   if (name === "outside") return OUTSIDE;
-  if (groupByName[name]) return groupVisible(name, t) ? groupBox(groupIndexOf(name), groupByName[name]) : null;
+  if (groupByName[name] && groupVisible(name, t)) return groupBox(groupIndexOf(name), groupByName[name]);
   if (pos[name] && stateVisible(name, t)) return nodeRect(name);
-  const g = groupOfState(name);
-  if (g && groupVisible(g.name, t)) return groupBox(groupIndexOf(g.name), g);
+  let cur = groupByName[name] ? name : parentGroupOf(name);
+  for (let i = 0; i < 32 && cur; i++) {
+    if (groupVisible(cur, t)) return groupBox(groupIndexOf(cur), groupByName[cur]);
+    cur = parentGroupOf(cur);
+  }
   return null;
 }
 function edgeInTab(e, t) {
-  if (t.kind === "group") return e.from === t.id || (groupByName[t.id] || {members: []}).members.indexOf(e.to) >= 0;
+  if (t.kind === "group") return e.from === t.id || leafStatesOf(t.id).indexOf(e.to) >= 0;
   if (t.kind === "state") return e.to === t.id;
   return true;
 }
 
 // ── 面板 ───────────────────────────────────────────────────
 function opt(v, list, cur) { return list.map(x => `<option value="${esc(x)}"${x === cur ? " selected" : ""}>${esc(x)}</option>`).join(""); }
+// ── 相位边（`phase="true"`）的"时机" ─────────────────────────────
+// 🔴 相位边**没有状态机条件**：它由飞行相位 C# `Force` 进，而 `AgentAnimStateMachine.Tick` 里
+//    `if (e.PhaseForced) continue;` ⇒ **求值时整条被跳过**。所以 `when=` 只是**文档**。
+//    ⇒ 它只该写**相位触发器**（`*-trigger`）。
+//    🐛 以前这里到处写 `e.pred || DATA.preds[0].name` 兜底，而 `preds[0]` 恰好是 `move-input`
+//       —— 一个和"空中按跳跃"毫无关系的谓词 ⇒ 用户实测："这里条件有点怪"。
+// 🟢 界面上一律说人话：选项写「起飞 / 落地」+ 一句解释，**不把 `c => false` 这种真身甩给用户**
+//    （用户原话："所以这里我咋填 看不懂"）。
+const PHASE_INFO = {
+  "takeoff-trigger": {short: "起飞", long: "起飞 —— 空中按跳跃那一刻"},
+  "land-trigger":    {short: "落地", long: "落地 —— 板触地那一刻（贴地 / 俯冲 / 撞地都算）"},
+};
+function phaseShort(n) { return (PHASE_INFO[n] || {}).short || n || "未选"; }
+function phaseLong(n) { return (PHASE_INFO[n] || {}).long || n; }
+function phasePreds() { return (DATA.preds || []).filter(p => /-trigger$/.test(p.name)); }
+function pickPhasePred(cur) {
+  const t = phasePreds();
+  if (cur && t.some(p => p.name === cur)) return cur;
+  return (t[0] || (DATA.preds || [])[0] || {name: ""}).name;
+}
+// **方向决定时机**：进机（来自机外）= 起飞；出机 / 去衔接态 = 落地
+function phasePredFor(from, to) {
+  const want = from === "outside" ? "takeoff-trigger" : (to === "outside" ? "land-trigger" : "");
+  return (want && phasePreds().some(p => p.name === want)) ? want : pickPhasePred("");
+}
+// 谓词下拉：**一个列表，全部谓词都在**。相位边只把 `*-trigger` **置顶**并写人话 ——
+// 🔴 不把别的谓词藏掉：相位边不参与求值，选别的只是"文档写错"，该靠**提示**纠正、**不该剥夺选择**。
+//    （用户实测："你这里为啥不让我选条件啊 难道你又是针对这个节点写死了右侧面板吗？都说要做通用的了"）
+function predOpts(cur, phase) {
+  const all = DATA.preds || [];
+  if (!phase) return opt(cur, all.map(p => p.name), cur);
+  const trig = all.filter(p => /-trigger$/.test(p.name));
+  const rest = all.filter(p => !/-trigger$/.test(p.name));
+  const mk = p => `<option value="${esc(p.name)}"${p.name === cur ? " selected" : ""}>${esc(phaseLong(p.name))}</option>`;
+  let html = "";
+  if (cur && !all.some(p => p.name === cur))
+    html += `<option value="${esc(cur)}" selected>${esc(cur)}（不在登记表里）</option>`;
+  if (trig.length) html += `<optgroup label="相位时刻（推荐）">` + trig.map(mk).join("") + `</optgroup>`;
+  if (rest.length) html += `<optgroup label="其他谓词（相位边不求值 —— 选了只是文档，校验会提醒）">` + rest.map(mk).join("") + `</optgroup>`;
+  return html;
+}
 
 function renderPanel() {
+  // 一次性提示统一放在面板顶部（以前只挂在"状态"分支里 ⇒ 撤销 / 删除的提示根本看不到）
+  const nEl = document.getElementById("notice");
+  if (nEl) nEl.innerHTML = notice ? `<span style="color:var(--door);font-size:12px">${esc(notice)}</span>` : "";
   if (!sel) {
     selname.textContent = "（没选）";
     editor.innerHTML = '<p class="hint"><b>非飞行（机外）</b> = 这台状态机之外（起飞从它进来、落地收摊回到它）。<br>点状态 / 容器 / 边来编辑。'
@@ -640,28 +814,41 @@ function renderPanel() {
       + '<b>拖绿点</b>到状态节点 = 新建边（容器盒右侧也有绿点，从它拉出 ⇒ 来源是"整个容器"）；<br>'
       + '拖线<b>落到容器盒</b>上 = 直接连到该容器（装载期解析成它的<b>入口 entry</b>，= UE 的子状态机）；<br>'
       + '<b>拖状态落到容器盒上</b> = 把那个状态移进容器；'
-      + '<b>双击状态节点或容器</b>进去看内部（容器页只显示"里面有什么"：本容器的 Entry + 成员 + 成员之间的边）。</p>';
+      + '<b>双击状态节点或容器</b>进去看内部（容器页只显示"里面有什么"：本容器的 Entry + 成员 + 成员之间的边）。<br>'
+      + '<b>Ctrl+Z 撤销 / Ctrl+Shift+Z（或 Ctrl+Y）重做</b>；选中状态 / 容器 / 边后按 <b>Delete</b> 删除。<br>'
+      + '容器页里：<b>从 Entry 右侧的绿点拉线</b>到成员状态 = 设置该容器的「<b>入口</b>」（进容器落到哪）。</p>';
   } else if (sel.type === "state") {
     const s = stateByName[sel.id];
     selname.textContent = s.name + "（状态内部）";
     const inGroups = groups.filter(g => g.members.indexOf(s.name) >= 0).map(g => g.name);
-    editor.innerHTML = (notice ? `<p class="hint" style="color:var(--bad)">${esc(notice)}</p>` : "")
-      + `
+    editor.innerHTML = `
       <div class="chips"><span class="chip">${esc(s.act)}</span><span class="chip g">${esc(s.clip)}</span>`
       + (s.next ? `<span class="chip p">演完兜底 → ${esc(s.next)}</span>` : "") + `</div>
       <label>状态名（改它会级联：容器成员 + 所有引用它的边）</label>
       <input id="s-name" value="${esc(s.name)}">
       <label>动作名 act（内容包 action_sets.xml 里的那一层）</label>
       <input id="s-act" value="${esc(s.act)}">
-      <div class="row">
-        <div><label>时长（秒，留空 = 循环）</label><input id="s-dur" value="${esc(s.dur)}" placeholder="留空 = 循环"></div>
-        <div><label>演完兜底 next</label><input id="s-next" value="${esc(s.next)}" placeholder="留空 = 不兜底"></div>
+      <label>播放方式</label>
+      <div class="modes">
+        <label><input type="radio" name="s-mode" id="s-mode-loop" value="loop"${s.once ? "" : " checked"}> 循环</label>
+        <label><input type="radio" name="s-mode" id="s-mode-once" value="once"${s.once ? " checked" : ""}> 一次性（不循环）</label>
       </div>
+      <p class="hint">一次性<b>不用写时长</b>：长度由 <b>clip 自己带</b>（引擎给 0~1 的播放进度），重导 clip 换帧数也不用改配置。</p>
+      <label>演完兜底 next（只给一次性用）</label>
+      <input id="s-next" value="${esc(s.next)}" placeholder="${s.once ? "留空 = 不兜底" : "循环状态没有 next"}"${s.once ? "" : " disabled"}>
       <p class="hint">属于：${inGroups.length ? inGroups.map(esc).join(" / ") : "（不属于任何容器）"}</p>
-      <p class="hint">改时长/兜底是<b>改结构</b>（导出进 XML 的 states 段）；改 act 要与内容包一致，否则装载期会报 act_none。</p>`;
+      <p class="hint"><b>循环 / 一次性</b>就是引擎的判据：<span class="mono">once="true"</span> = 一次性（播完回 next），不写 = 循环。
+      一次性<b>不写时长</b> —— 长度由 clip 自己带。改 act 要与内容包一致，否则装载期会报 <span class="mono">act_none</span>。</p>`;
     document.getElementById("s-name").onchange = ev => renameState(s.name, ev.target.value.trim());
     document.getElementById("s-act").onchange = ev => { s.act = ev.target.value.trim(); commit(); };
-    document.getElementById("s-dur").onchange = ev => { s.dur = ev.target.value.trim(); commit(); };
+    // 🔴 播放方式 = **单选开关**（= 引擎的判据：`once="true"` = 一次性；不写 = 循环）。
+    //    🔴 **不写时长** —— 长度由 clip 自己带（引擎给 0~1 的播放进度），重导 clip 换帧数不用改配置。
+    document.getElementById("s-mode-loop").onchange = () => {
+      s.once = false; notice = `「${s.name}」改成循环 —— 循环状态不要写 next`; commit();
+    };
+    document.getElementById("s-mode-once").onchange = () => {
+      s.once = true; notice = `「${s.name}」改成一次性 —— 长度取 clip 自己的（不用填秒数）`; commit();
+    };
     document.getElementById("s-next").onchange = ev => { s.next = ev.target.value.trim(); commit(); };
   } else if (sel.type === "group") {
     const g = groupByName[sel.id];
@@ -669,24 +856,35 @@ function renderPanel() {
     editor.innerHTML = `
       <label>容器名（导出成 &lt;family name="…"&gt;）</label>
       <input id="g-name" value="${esc(g.name)}">
-      <label>入口状态 entry（从外面"进入本容器"时落到哪个状态；边指向容器就落到它）</label>
+      <label>入口状态 entry（进容器落到哪；容器页里也能从 <b>Entry 绿点</b>拖线到成员上设）</label>
       <select id="g-entry">${['<option value=""' + (g.entry ? "" : " selected") + '>（不设 —— 此时边不能指向本容器）</option>']
         .concat(g.members.map(m => `<option value="${esc(m)}"${m === g.entry ? " selected" : ""}>${esc(m)}</option>`)).join("")}</select>
-      <h3 style="margin-top:12px">成员（点一下移出）</h3>
-      <div class="members">${g.members.map(m => `<span class="mem" data-m="${esc(m)}">${esc(m)}</span>`).join("") || '<span class="hint">空的 —— 把一个状态拖到容器盒上</span>'}</div>
-      <div class="row" style="margin-top:12px"><div><button id="g-del" class="danger" style="width:100%">删除容器</button></div></div>
-      <p class="hint">🔴 <b>一个状态只归属一个容器</b>（用户裁定 / UE 规范）：把状态拖到别的容器盒上 = <b>移动</b>，不是叠加。<br>边以容器为来源 = 容器里任何状态都算。</p>`;
+      <h3 style="margin-top:12px">成员（点一下移出；🗂 = 子容器）</h3>
+      <div class="members">${g.members.map(m => `<span class="mem" data-m="${esc(m)}">${esc(m)}${groupByName[m] ? " 🗂" : ""}</span>`).join("") || '<span class="hint">空的 —— 把一个状态 / 子容器拖到容器盒上</span>'}</div>
+      <label style="margin-top:10px">加入成员（状态 或 子容器）</label>
+      <select id="g-add"><option value="">（选一个加进来）</option>${states.filter(s => g.members.indexOf(s.name) < 0).map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join("")}${groups.filter(x => x.name !== g.name && g.members.indexOf(x.name) < 0).map(x => `<option value="${esc(x.name)}">🗂 ${esc(x.name)}（子容器）</option>`).join("")}</select>
+      <div class="row" style="margin-top:12px"><div><button id="g-sub" style="width:100%">＋ 新建子容器（放进本容器）</button></div></div>
+      <div class="row" style="margin-top:8px"><div><button id="g-del" class="danger" style="width:100%">删除容器</button></div></div>
+      <p class="hint">🔴 <b>一个状态 / 容器只归属一个容器</b>（用户裁定 / UE 规范）：拖到别的容器盒上 = <b>移动</b>，不是叠加。<br>
+      属于：<b>${parentGroupOf(g.name) ? esc(parentGroupOf(g.name)) : "（顶层容器）"}</b>　·　子容器：${childGroupsOf(g.name).map(esc).join(" / ") || "（无）"}<br>
+      边以容器为来源 = 容器里**任何**状态（含子容器的）都算。容器名也能当成员写 ⇒ <b>可以嵌套</b>。</p>`;
     document.getElementById("g-entry").onchange = ev => { g.entry = ev.target.value; commit(); };
-    document.getElementById("g-name").onchange = ev => {
-      const nn = ev.target.value.trim();
-      if (!nn || groupByName[nn]) { render(); return; }
-      edges.forEach(e => { if (e.from === g.name) e.from = nn; });
-      g.name = nn; sel.id = nn; commit();
-    };
+    document.getElementById("g-name").onchange = ev => renameGroup(g.name, ev.target.value.trim());
     editor.querySelectorAll(".mem").forEach(el => el.onclick = () => {
       const m = el.getAttribute("data-m");
       g.members = g.members.filter(x => x !== m); commit();
     });
+    // 🔴 从容器侧加成员：状态 **或子容器** 都行（嵌套）；加之前先从所有容器移出（唯一归属）+ 防环
+    document.getElementById("g-add").onchange = ev => {
+      const m = ev.target.value; if (!m) return;
+      if (groupByName[m] && (m === g.name || groupContains(m, g.name))) {
+        notice = `不能把「${m}」放进「${g.name}」—— 那会成环`; return render();
+      }
+      groups.forEach(o => { o.members = (o.members || []).filter(x => x !== m); });
+      g.members.push(m); commit();
+    };
+    // 🔴 在**本容器里**新建一个子容器（真嵌套）—— 这就是"把这几个状态组成一个新子容器"的入口
+    document.getElementById("g-sub").onclick = () => newSubGroup(g.name);
     document.getElementById("g-del").onclick = () => {
       groups = groups.filter(x => x !== g); sel = null; commit();
     };
@@ -702,13 +900,23 @@ function renderPanel() {
       <select id="f-to">${`<option value="outside"${e.to === "outside" ? " selected" : ""}>outside（机外 —— 只允许相位驱动）</option>`
         + states.map(s => `<option value="${esc(s.name)}"${s.name === e.to ? " selected" : ""}>${esc(s.name)}</option>`).join("")
         + groups.map(g => `<option value="${esc(g.name)}"${g.name === e.to ? " selected" : ""}>${esc(g.name)}（容器 → 入口 ${esc(g.entry || "未设！")}）</option>`).join("")}</select>
-      <label>条件</label>
+      <label>条件${e.phase ? "（相位驱动）" : ""}</label>
       <select id="f-kind">
-        <option value="key"${e.kind === "key" ? " selected" : ""}>按键（按下 / 松开 / 按着 / 没按）</option>
-        <option value="anim"${e.kind === "anim" ? " selected" : ""}>动画播放情况</option>
+        <option value="key"${e.kind === "key" ? " selected" : ""}${e.phase ? " disabled" : ""}>按键（按下 / 松开 / 按着 / 没按）${e.phase ? " —— 相位读不到按键" : ""}</option>
+        <option value="anim"${e.kind === "anim" ? " selected" : ""}>动画播放情况${e.phase ? "（相位会读「剩余 %」）" : ""}</option>
         <option value="pred"${e.kind === "pred" ? " selected" : ""}>命名谓词（复合条件）</option>
       </select>
       <div id="f-args"></div>
+      <label class="ck"><input type="checkbox" id="f-not"${e.not ? " checked" : ""}> <b>取反</b>（"不是这样"）—— 对上面任何一种条件都生效</label>
+      ${e.phase ? `<p class="hint">相位驱动的边<b>不由状态机求值</b>（Tick 里整条跳过）—— 它由<b>相位（C#）</b>在恰当时机处理。
+      ⇒ 所以这里的条件分两种：<br>
+      · <b>「动画 · 剩余 %」是真的</b>：相位会读这个数来判时机（出机就是靠它，见 <span class="mono">PlayerFlightBehavior.TickLanding</span>）。<br>
+      · <b>命名谓词只是文档</b>：相位不读它（相位时刻在人话标签那组里置顶）。<br>
+      这条边的方向是 <b>${e.from === "outside" ? "机外 → 状态（进机）" : "状态 → 机外 / 衔接态"}</b>
+      ${e.to === "outside" ? "（出机：建议写「动画 · 剩余 10%」，相位会读它）"
+        : (e.from === "outside" ? "（进机：相位 Force，写「起飞」即可）" : "（相位自己判，谓词只是文档）")}。
+      ${(e.kind === "pred" && e.pred && !/-trigger$/.test(e.pred))
+        ? `<br><span style="color:var(--bad)">⚠ 现在存的是「${esc(e.pred)}」（早期版本编辑器默认塞的，相位不读它）。</span>` : ""}</p>` : ""}
       <label>blend（秒，留空 = 默认）</label>
       <input id="f-blend" value="${esc(e.blend)}">
       <label style="margin-top:10px"><input type="checkbox" id="f-after"${e.after ? " checked" : ""}> 演完才进（不打断一次性动作）</label>
@@ -716,48 +924,75 @@ function renderPanel() {
       <div class="row" style="margin-top:10px"><div><button id="btn-del" class="danger" style="width:100%">删除这条边</button></div></div>`;
     document.getElementById("f-from").onchange = ev => {
       e.from = ev.target.value;
-      if (e.from === "outside" && !e.phase) { e.phase = true; notice = "来源是机外 ⇒ 已自动改成相位驱动（机外只允许相位边）"; }
+      // 🔴 机外 ⇒ 强制相位边；同时把"时机"设成**相位触发器**（以前不设 ⇒ 导出时被兜成 preds[0] = move-input）
+      if (e.from === "outside" && !e.phase) {
+        e.phase = true; e.kind = "pred"; e.pred = phasePredFor("outside", e.to);
+        notice = "来源是机外 ⇒ 已自动改成相位驱动（机外只允许相位边），时机 = " + e.pred;
+      }
       commit();
     };
     document.getElementById("f-to").onchange = ev => {
       e.to = ev.target.value;
-      if (e.to === "outside" && !e.phase) { e.phase = true; notice = "目标是机外 ⇒ 已自动改成相位驱动（机外只允许相位边）"; }
+      if (e.to === "outside" && !e.phase) {
+        e.phase = true; e.kind = "pred"; e.pred = phasePredFor(e.from, "outside");
+        notice = "目标是机外 ⇒ 已自动改成相位驱动（机外只允许相位边），时机 = " + e.pred;
+      }
       commit();
     };
     document.getElementById("f-blend").onchange = ev => { e.blend = ev.target.value.trim(); commit(); };
     document.getElementById("f-after").onchange = ev => { e.after = ev.target.checked; commit(); };
+    document.getElementById("f-not").onchange = ev => { e.not = ev.target.checked; commit(); };   // 🔴 取反（三种条件通用）
     document.getElementById("f-phase").onchange = ev => {
       e.phase = ev.target.checked;
-      if (e.phase) { e.kind = "pred"; e.pred = e.pred || DATA.preds[0].name; }
+      // 🔴 勾上相位驱动 ⇒ **谓词**只认相位触发器；但「动画 · 剩余 %」是**相位真的要读的**，别覆盖掉
+      if (e.phase && e.kind !== "anim") { e.kind = "pred"; e.pred = pickPhasePred(e.pred); }
       commit();
     };
     document.getElementById("btn-del").onclick = () => { edges.splice(sel.id, 1); sel = null; commit(); };
     const kindSel = document.getElementById("f-kind");
     function drawArgs() {
       const box = document.getElementById("f-args");
-      if (e.kind === "key") {
-        box.innerHTML = `<div class="row"><div><label>键</label><select id="f-key">${opt(e.key, DATA.keys, e.key)}</select></div>`
-          + `<div><label>模式</label><select id="f-mode">${opt(e.mode, DATA.modes, e.mode)}</select></div></div>`;
-        document.getElementById("f-key").onchange = ev => { e.key = ev.target.value; commit(); };
-        document.getElementById("f-mode").onchange = ev => { e.mode = ev.target.value; commit(); };
-      } else if (e.kind === "anim") {
-        box.innerHTML = `<div class="row"><div><label>动画</label><select id="f-anim">${opt(e.anim, DATA.anims, e.anim)}</select></div>`
-          + `<div><label>剩余 &lt; 秒</label><input id="f-lt" value="${esc(e.lt)}"></div></div>`;
-        document.getElementById("f-anim").onchange = ev => { e.anim = ev.target.value; commit(); };
-        document.getElementById("f-lt").onchange = ev => { e.lt = ev.target.value.trim(); commit(); };
-      } else {
-        box.innerHTML = `<label>谓词</label><select id="f-pred">${opt(e.pred, DATA.preds.map(p => p.name), e.pred)}</select>`
-          + `<p class="hint">真身：<span class="mono" id="f-body"></span></p>`;
-        const show = () => { document.getElementById("f-body").textContent = (DATA.preds.find(p => p.name === e.pred) || {}).body || "?"; };
+      // 🔴 相位边也可以写「动画」档（相位会读它的 `剩余 %`）⇒ 只有 pred 走谓词分支
+      if (e.kind === "pred") {
+        box.innerHTML = `<label>谓词</label><select id="f-pred">${predOpts(e.pred, e.phase)}</select>`
+          + (e.phase ? "" : `<p class="hint">真身：<span class="mono" id="f-body"></span></p>`);
+        const show = () => {
+          const b = document.getElementById("f-body");
+          if (b) b.textContent = (DATA.preds.find(p => p.name === e.pred) || {}).body || "?";
+        };
         document.getElementById("f-pred").onchange = ev => { e.pred = ev.target.value; show(); commit(); };
         show();
+      } else if (e.kind === "key") {
+        // 🔴 **勾选框**（结构化输入，不让你敲字符串）：多选 = **同时按着**（项间 AND）；
+        //    要"不是这样按"就勾下面的「取反」。
+        const cur = String(e.keys || "").split("+").filter(Boolean);
+        box.innerHTML = `<label>键（多选 = <b>同时按着</b>）</label>`
+          + `<div class="keys">${(DATA.keys || []).map(k =>
+              `<label><input type="checkbox" data-k="${esc(k)}"${cur.indexOf(k) >= 0 ? " checked" : ""}> ${esc(k)}</label>`).join("")}</div>`
+          + `<p class="hint">现在：<span class="mono">keys="${esc(e.keys || "（还没勾）")}"</span>`
+          + `${e.not ? ' <b>not="true"</b>' : ""}</p>`;
+        box.querySelectorAll("input[data-k]").forEach(el => el.onchange = () => {
+          const k = el.getAttribute("data-k");
+          let arr = String(e.keys || "").split("+").filter(Boolean);
+          if (el.checked) { if (arr.indexOf(k) < 0) arr.push(k); }
+          else arr = arr.filter(x => x !== k);
+          e.keys = arr.join("+");
+          commit();
+        });
+      } else {
+        box.innerHTML = `<div class="row"><div><label>动画</label><select id="f-anim">${opt(e.anim, DATA.anims, e.anim)}</select></div>`
+          + `<div><label>剩余 &lt; %（0~100）</label><input id="f-lt" value="${esc(e.lt)}" placeholder="20"></div></div>`
+          + `<p class="hint">阈值是<b>百分比</b> —— 长度由 clip 自己带，配置里不写秒数。`
+          + (e.phase ? `<br>🔴 相位边写这个<u>不是文档</u>：**相位（C#）会读它**来判时机（出机就是靠它）。` : "") + `</p>`;
+        document.getElementById("f-anim").onchange = ev => { e.anim = ev.target.value; commit(); };
+        document.getElementById("f-lt").onchange = ev => { e.lt = ev.target.value.trim(); commit(); };
       }
     }
     kindSel.onchange = ev => {
       e.kind = ev.target.value;
-      if (e.kind === "key") { e.key = e.key || "W"; e.mode = e.mode || "held"; }
-      else if (e.kind === "anim") { e.anim = e.anim || "finished"; e.lt = e.lt || "0.2"; }
-      else { e.pred = e.pred || DATA.preds[0].name; }
+      if (e.kind === "key") { e.keys = e.keys || "W"; }
+      else if (e.kind === "anim") { e.anim = e.anim || "finished"; e.lt = e.lt || "20"; }
+      else { e.pred = e.pred || (e.phase ? pickPhasePred("") : DATA.preds[0].name); }
       commit();
     };
     drawArgs();
@@ -796,39 +1031,92 @@ function renderPanel() {
 function validate() {
   const p = [], names = {}; states.forEach(s => {
     if (names[s.name]) p.push(`状态名重复："${s.name}"`);
+    // 🔴 默认**不写时长**（长度问 clip）；写了就是"覆盖"，必须是数字 —— 认不出会让整台不注册
+    if (s.dur && !/^[0-9.]+$/.test(s.dur))
+      p.push(`状态 "${s.name}" 的 duration 覆盖值 "${s.dur}" 不是数字（默认不写就行 —— 长度取 clip 自己的）`);
+    // 循环状态写 next ⇒ 引擎装载期直接判"定义有问题"
+    if (!s.once && s.next) p.push(`状态 "${s.name}" 是循环状态，不该写 next（next 只给一次性动作）`);
     names[s.name] = 1;
   });
-  const gn = {}, owner = {}; groups.forEach(g => {
-    if (gn[g.name]) p.push(`容器名重复："${g.name}"`); gn[g.name] = 1;
-    if (g.entry && g.members.indexOf(g.entry) < 0) p.push(`容器 "${g.name}" 的入口 entry="${g.entry}" 不是它的成员`);
-    g.members.forEach(m => {
-      if (!names[m]) p.push(`容器 "${g.name}" 里的 "${m}" 不是已声明的状态`);
-      // 🔴 状态必须只出现一次的唯一定义（用户裁定 / UE 规范）：一个状态不能同时属于两个容器
-      if (owner[m]) p.push(`"${m}" 同时属于容器 "${owner[m]}" 和 "${g.name}" —— 状态只能归属一个容器`);
+  const gn = {}; groups.forEach(g => { if (gn[g.name]) p.push(`容器名重复："${g.name}"`); gn[g.name] = 1; });
+  // 🔴 归属唯一（**递归版**）：一个名字（状态 **或容器**）只能出现在**一个**容器的成员里
+  const owner = {};
+  groups.forEach(g => {
+    (g.members || []).forEach(m => {
+      const isState = !!names[m], isFam = !!gn[m];
+      if (!isState && !isFam) p.push(`容器 "${g.name}" 里的 "${m}" 既不是状态、也不是容器`);
+      else if (m === g.name) p.push(`容器 "${g.name}" 把自己列成了成员`);
+      else if (owner[m]) p.push(`"${m}" 同时属于容器 "${owner[m]}" 和 "${g.name}" —— 一个状态 / 容器只能归属一个容器`);
       else owner[m] = g.name;
     });
+    if (g.entry && (g.members || []).indexOf(g.entry) < 0) p.push(`容器 "${g.name}" 的入口 entry="${g.entry}" 不是它的成员`);
   });
+  groups.forEach(g => { if (names[g.name]) p.push(`容器名 "${g.name}" 和一个状态重名了（名字必须唯一）`); });
+  // entry 必须**最终落到状态**（可以一路指向子容器，但链不能断、不能成环）
+  const entryLands = (n, depth) => {
+    if (!gn[n]) return !!names[n];
+    if (depth > 32) return false;
+    const gg = groupByName[n];
+    return !!(gg && gg.entry) && entryLands(gg.entry, depth + 1);
+  };
+  groups.forEach(g => { if (g.entry && !entryLands(g.entry, 0)) p.push(`容器 "${g.name}" 的入口 entry="${g.entry}" 最终没落到状态（嵌套链断了 / 成环？）`); });
   edges.forEach((e, i) => {
     const n = i + 1;
     if (e.from !== "*" && e.from !== "outside" && !gn[e.from] && !names[e.from]) p.push(`#${n} 来源 "${e.from}" 不是状态也不是容器`);
     if ((e.from === "outside" || e.to === "outside") && !e.phase) p.push(`#${n} outside（机外）只允许用于相位驱动边`);
+    // 🔴 相位边的条件分两种：
+    //    · `anim="remaining" anim-rem-pct=N` —— **真的**（相位读它判时机，例如出机剩 10%）
+    //    · 命名谓词 —— **只是文档**（相位不读；用普通谓词典型是编辑器以前默认塞的 move-input）
+    if (e.phase && e.kind === "pred" && !/-trigger$/.test(e.pred || ""))
+      p.push(`#${n} 相位驱动边用「命名谓词」时建议选相位时刻（现在是 "${e.pred || "（空）"}"）—— 相位不读普通谓词`);
+    // 🔴 相位触发器的真身是 `c => false`（它们**只为相位边存在**）⇒ 普通边用了它 = **死边**
+    if (!e.phase && e.kind === "pred" && /-trigger$/.test(e.pred || ""))
+      p.push(`#${n} 用了相位触发器 "${e.pred}"，但**没勾「相位驱动」** —— 它的真身是 false ⇒ 这条边**永远不会生效**`
+           + `（要么勾上「相位驱动」，要么换成普通谓词）`);
     if (e.to !== "outside") {
       if (gn[e.to]) { if (!groupByName[e.to].entry) p.push(`#${n} 目标 "${e.to}" 是容器，但它没设入口 entry`); }
       else if (!names[e.to]) p.push(`#${n} 目标 "${e.to}" 不是状态也不是容器`);
     }
-    if (e.kind === "key") {
-      if (DATA.keys.indexOf(e.key) < 0) p.push(`#${n} 键 "${e.key}" 不在可用键里`);
-      if (DATA.modes.indexOf(e.mode) < 0) p.push(`#${n} 模式 "${e.mode}" 不合法`);
+    if (e.phase) {
+      // 🔴 相位边导出时只写 `when=` ⇒ `kind` 不参与，别拿它报"没选条件"（旧数据里 kind 可能是 key）
+      if (e.pred && !DATA.preds.some(x => x.name === e.pred)) p.push(`#${n} 相位边引用了没登记的谓词 "${e.pred}"`);
+    } else if (e.kind === "key") {
+      const ks = String(e.keys || "").split("+").filter(Boolean);
+      if (!ks.length) p.push(`#${n} 没选键（至少勾一个）`);
+      ks.forEach(k => { if ((DATA.keys || []).indexOf(k) < 0) p.push(`#${n} 键 "${k}" 不在可用键里`); });
+      if (new Set(ks).size !== ks.length) p.push(`#${n} 同一个键勾了两次（keys="${e.keys}"）`);
     } else if (e.kind === "anim") {
       if (DATA.anims.indexOf(e.anim) < 0) p.push(`#${n} 动画条件 "${e.anim}" 不合法`);
-      if (e.anim === "remaining" && !/^[0-9.]+$/.test(e.lt)) p.push(`#${n} "剩余时间" 需要数字阈值`);
+      if (e.anim === "remaining" && (!/^[0-9.]+$/.test(e.lt) || +e.lt < 0 || +e.lt > 100))
+        p.push(`#${n} "剩余" 的阈值得是**百分比** 0~100（现在是 "${e.lt}"）`);
     } else if (e.kind === "pred") {
       if (!DATA.preds.some(x => x.name === e.pred)) p.push(`#${n} 谓词 "${e.pred}" 没登记`);
-    } else p.push(`#${n} 没选条件`);
+    } else if (!e.phase) p.push(`#${n} 没选条件`);
+  });
+  // 🔴 边之间的三种"结构性错误"——**通用检查，不针对任何具体节点**（边表 = 顺序命中，第一条赢）：
+  //    ① 完全重复（同 from / to / 条件）⇒ 后面那条永远不生效
+  //    ② **同来源 + 同条件、只是目标不同** ⇒ 后面那条**永远轮不到**
+  //       （典型：`A→留在这` 与 `A→去别处` 都写同一个条件 —— 第二条是死边）
+  //    ③ 互为反向、条件还写一样 ⇒ **互踢**（§八 踩过：boost↔cruise 每 5ms 互踢，动画永远播不起来）
+  edges.forEach((e, i) => {
+    for (let j = i + 1; j < edges.length; j++) {
+      const f = edges[j];
+      if (condText(e) !== condText(f)) continue;
+      const sameFrom = e.from === f.from, sameTo = e.to === f.to;
+      if (sameFrom && sameTo) {
+        p.push(`#${i + 1} 与 #${j + 1} **完全重复**（同来源 / 同目标 / 同条件）—— 后面那条永远不会生效`);
+      } else if (sameFrom) {
+        p.push(`#${i + 1} 与 #${j + 1} **同来源、同条件**（只是目标不同）—— 边表按顺序命中 ⇒ **#${j + 1} 永远轮不到**。`
+             + `给它们写"各自成立的条件"（例如"还在冲刺"和"不冲刺了"要分开写）`);
+      } else if (e.from === f.to && e.to === f.from) {
+        p.push(`#${i + 1} 与 #${j + 1} 互为**反向边**、条件又写一样 ⇒ 会**互踢**（§八：boost↔cruise 每 5ms 互踢过）`);
+      }
+    }
   });
   return p;
 }
-function commit() { save(); render(); }
+// 🔴 撤销栈挂在 commit 上：所有结构性改动都走 commit ⇒ 自动全部进历史（含拖节点、改名、建边、模板下拉）。
+function commit() { save(); histPush(); render(); }
 
 function svgPt(ev) {
   const r = svg.getBoundingClientRect();
@@ -864,6 +1152,9 @@ svg.addEventListener("pointerdown", ev => {
   const edgeEl = ev.target.closest && ev.target.closest(".edge");
   const boxEl = ev.target.closest && ev.target.closest("[data-box]");
   mouse = svgPt(ev);
+  // 🔴 必须先判 Entry 绿点：它也带 `class="port"`（为了同一套样式），否则会被下面那条通用端口分支先吃掉
+  const ep = ev.target.closest && ev.target.closest("[data-entry]");
+  if (ep) { lastTap = null; pendingEntry = ep.getAttribute("data-entry"); svg.setPointerCapture(ev.pointerId); render(); return; }
   if (port) { lastTap = null; pending = port.getAttribute("data-p"); svg.setPointerCapture(ev.pointerId); render(); return; }
   if (node) {                                   // 状态节点：可拖 + 双击进内部视图
     const n = node.getAttribute("data-n");
@@ -913,7 +1204,7 @@ svg.addEventListener("pointermove", ev => {
     setDragPos(drag, nx, ny);
     render(); return;
   }
-  if (pending) { render(); moveTip(ev); return; }
+  if (pending || pendingEntry) { render(); moveTip(ev); return; }
   const edgeEl = ev.target.closest && ev.target.closest(".edge");
   setHoverEdge(edgeEl ? +edgeEl.getAttribute("data-i") : null);
   moveTip(ev);
@@ -934,6 +1225,17 @@ svg.addEventListener("pointerup", ev => {
   if (pan) { pan = null; svg.classList.remove("panning"); save(); return; }
   const dt = dropTargetAt(ev);
   const node = dt.node, grpEl = dt.grp, drop = dt.grp, boxEl = dt.box;
+  if (pendingEntry) {                            // 从 Entry 绿点拉线 → 落到成员状态 = 设置容器入口
+    const gname = pendingEntry; pendingEntry = null; drag = null;
+    if (!node) { notice = "没落到状态上 —— 请把 Entry 的线拖到**本容器的成员状态**上"; return commit(); }
+    const nn = node.getAttribute("data-n"), g2 = groupByName[gname];
+    if (!g2 || (g2.members || []).indexOf(nn) < 0) {
+      notice = `「${nn}」不是容器「${gname}」的成员 —— 入口只能指向本容器的状态`; return commit();
+    }
+    g2.entry = nn;
+    notice = `容器「${gname}」的入口 = ${nn}（进这个容器就落到它；装载期解析，不用重编译）`;
+    return commit();
+  }
   if (pending && node) {                         // 拉线 → 落到状态节点 = 新建边
     const from = pending, to = node.getAttribute("data-n");
     pending = null; drag = null;
@@ -960,25 +1262,33 @@ svg.addEventListener("pointerup", ev => {
     addEdge(from, "outside", "已新建边 → 机外（outside，自动设为相位驱动）—— 条件在右侧改");
     return;
   }
-  // 拖状态 → 落进哪个容器：用**被拖节点的中心点**做几何判定。
-  //  🔴 不能用 elementFromPoint：被拖的节点就在光标下面，会把自己判成落点 ⇒ 容器永远检测不到。
-  if (drag && drag.kind === "state" && drag.active) {
-    const c = { x: pos[drag.id].x + NODE_W / 2, y: pos[drag.id].y + NODE_H / 2 };
+  // 拖**状态或子容器** → 落进哪个容器盒：用**被拖元素的中心点**做几何判定。
+  //  🔴 不能用 elementFromPoint：被拖的元素就在光标下面，会把它自己判成落点。
+  if (drag && (drag.kind === "state" || drag.kind === "group") && drag.active) {
+    // 🔴 `pos[id]` **只有 x/y、没有 w/h** —— 必须借 `nodeRect()` 补上尺寸，否则中心点是 NaN、落点永远判不中
+    const cur = drag.kind === "state" ? nodeRect(drag.id) : groupBox(groupIndexOf(drag.id), groupByName[drag.id]);
+    const c = { x: cur.x + cur.w / 2, y: cur.y + cur.h / 2 };
     let gname = null;
     groups.forEach((gg, i) => {
+      if (drag.kind === "group" && gg.name === drag.id) return;   // 别把自己判成落点
       const b = groupBox(i, gg);
       if (c.x >= b.x && c.x <= b.x + b.w && c.y >= b.y && c.y <= b.y + b.h) gname = gg.name;
     });
+    // 🔴 防环：容器不能放进它自己、也不能放进它的后代
+    if (gname && drag.kind === "group" && (gname === drag.id || groupContains(drag.id, gname))) {
+      notice = `不能把「${drag.id}」放进「${gname}」—— 那会成环`;
+      gname = null;
+    }
     const g = gname ? groupByName[gname] : null;
     if (g) {
-      // 🔴 用户裁定：状态只能归属一个容器（UE 规范）。所以这里是**移动**：先从所有容器移出，再加进目标容器。
-      groups.forEach(o => { o.members = o.members.filter(m => m !== drag.id); });
+      // 🔴 用户裁定：状态 / 容器只能归属一个容器（UE 规范）⇒ 这里一律是**移动**
+      groups.forEach(o => { o.members = (o.members || []).filter(m => m !== drag.id); });
       g.members.push(drag.id);
     }
   }
   // 拉了半天线却落在空白处：给一句提示，别让人以为"没反应"
   if (pending) notice = "没落到有效目标上 —— 请拖到 状态节点 / 容器盒 / 机外盒 上（或右键用「从这里连一条边…」）";
-  pending = null; drag = null;
+  pending = null; pendingEntry = null; drag = null;
   try { svg.releasePointerCapture(ev.pointerId); } catch (e) {}
   commit();
 });
@@ -1137,7 +1447,11 @@ function addEdge(from, to, note) {
   // 🔴 机外（outside）**只允许相位驱动边**（引擎装载期校验）。建边时自动置 phase，
   //    否则会造出一条"整台定义有问题 ⇒ 不注册"的边 —— 这个口子在审计时抓到的。
   const ph = (from === "outside" || to === "outside");
-  edges.push({ from: from, to: to, kind: "key", key: "W", mode: "held", blend: "", after: false, phase: ph });
+  // 🔴 机外只允许相位边，而相位边只写**相位触发器** —— 以前这里留着 kind:"key"、`pred` 不设，
+  //    导出时被 `e.pred || DATA.preds[0].name` 兜成 `move-input`（跟"空中按跳跃"毫无关系）。
+  edges.push(ph
+    ? { from: from, to: to, kind: "pred", pred: phasePredFor(from, to), blend: "", after: false, phase: true, not: false }
+    : { from: from, to: to, kind: "key", keys: "W", blend: "", after: false, phase: false, not: false });
   sel = { type: "edge", id: edges.length - 1 };
   notice = note || (ph
     ? "已新建**相位驱动**边（机外只允许相位边）—— 在右侧把它改成你要的条件 / 来源 / 目标"
@@ -1168,6 +1482,23 @@ function pasteState(x, y) {
   notice = `已粘贴「${nn}」：act 沿用 ${s.act}（要换动作改下面的 act，否则两条状态播同一段动画）`;
   commit();
 }
+// ── 改容器名：必须**级联** —— 索引 + 边来源 + 拖过的位置(gpos) + 已打开的 tab + 选中
+//    🔴 三样漏一样就是一个真 bug：漏索引 ⇒ 拖不动；漏 gpos ⇒ 盒子跳回默认位；漏边 ⇒ 边断掉。
+function renameGroup(oldName, nn) {
+  notice = "";
+  const g = groupByName[oldName];
+  if (!g) return;
+  if (!nn || nn === oldName) return render();
+  if (stateByName[nn] || groupByName[nn]) { notice = `名字「${nn}」已被占用（状态 / 容器重名都不行）`; return render(); }
+  g.name = nn;
+  reindex();
+  edges.forEach(e => { if (e.from === oldName) e.from = nn; });
+  if (gpos[oldName]) { gpos[nn] = gpos[oldName]; delete gpos[oldName]; }   // 否则盒子跳回默认位置
+  tabs.forEach(t => { if (t.kind === "group" && t.id === oldName) t.id = nn; });
+  if (sel && sel.type === "group" && sel.id === oldName) sel.id = nn;
+  notice = `容器已改名：「${oldName}」→「${nn}」（边来源 / 位置 / 标签都跟着走了）`;
+  commit();
+}
 // ── 改状态名：必须**级联** —— 容器成员 + 所有引用它的边 + 位置 + 已打开的 tab
 function renameState(oldName, nn) {
   notice = "";
@@ -1176,10 +1507,10 @@ function renameState(oldName, nn) {
   if (!nn || nn === oldName) return render();
   if (stateByName[nn] || groupByName[nn]) { notice = `名字「${nn}」已被占用（状态 / 容器重名都不行）`; return render(); }
   s.name = nn;
+  reindex();
   groups.forEach(g => { g.members = g.members.map(m => (m === oldName ? nn : m)); });
   edges.forEach(e => { if (e.from === oldName) e.from = nn; if (e.to === oldName) e.to = nn; });
   if (pos[oldName]) { pos[nn] = pos[oldName]; delete pos[oldName]; }
-  delete stateByName[oldName]; stateByName[nn] = s;
   tabs.forEach(t => { if (t.kind === "state" && t.id === oldName) t.id = nn; });
   if (sel && sel.type === "state" && sel.id === oldName) sel.id = nn;
   commit();
@@ -1197,7 +1528,7 @@ function edgeRelevant(e) {
 }
 function newState(x, y) {
   const name = uniqueName("新状态");
-  states.push({name, act: "act_" + name, dur: "", next: "", clip: "?", durText: "循环"});
+  states.push({name, act: "act_" + name, once: false, dur: "", next: "", clip: "?", durText: "循环"});
   stateByName[name] = states[states.length - 1];
   pos[name] = {x: x, y: y};
   sel = {type: "state", id: name};
@@ -1206,8 +1537,9 @@ function newState(x, y) {
 // 「机外进来落到哪个状态」= 改那条 from="outside" 相位边的目标（它就是机器的入口本身）
 function setOutside(n) {
   const e = edges.find(x => x.from === "outside");
-  if (e) { e.to = n; e.phase = true; e.after = false; e.kind = "pred"; e.pred = e.pred || "takeoff-trigger"; }
-  else edges.unshift({from: "outside", to: n, kind: "pred", pred: "takeoff-trigger", phase: true, after: false, blend: ""});
+  // 进机边 = 相位边，时机固定 takeoff-trigger（原来若存着个非触发器，这里顺手纠正）
+  if (e) { e.to = n; e.phase = true; e.after = false; e.kind = "pred"; e.pred = phasePredFor("outside", n); }
+  else edges.unshift({from: "outside", to: n, kind: "pred", pred: phasePredFor("outside", n), phase: true, after: false, blend: ""});
   sel = null; commit();
 }
 function moveEdge(i, d) {
@@ -1218,6 +1550,7 @@ function moveEdge(i, d) {
   commit();
 }
 function removeState(n) {
+  const gone = edges.filter(e => e.from === n || e.to === n).length;
   states = states.filter(s => s.name !== n);
   delete stateByName[n];
   groups.forEach(g => g.members = g.members.filter(m => m !== n));
@@ -1225,15 +1558,33 @@ function removeState(n) {
   if (sel && sel.type === "state" && sel.id === n) sel = null;
   tabs = tabs.filter(t => !(t.kind === "state" && t.id === n));
   if (active >= tabs.length) active = Math.max(0, tabs.length - 1);
+  notice = `已删除状态「${n}」` + (gone ? `（连带删掉 ${gone} 条引用它的边）` : "") + " —— Ctrl+Z 可撤销";
+  commit();
+}
+// 🔴 在指定容器里新建一个**子容器**（真嵌套）。容器面板的按钮与画布右键**都走这里** —— 一处实现，不会漂移。
+function newSubGroup(parentName) {
+  const g = groupByName[parentName];
+  if (!g) return;
+  let i = 1, nn;
+  do { nn = "子容器" + i++; } while (stateByName[nn] || groupByName[nn]);
+  groups.push({ name: nn, entry: "", members: [] });
+  g.members.push(nn);
+  reindex();                              // 🔴 新建后必须重建索引（"改名拖不动"同源）
+  sel = { type: "group", id: nn };
+  openTab({ kind: "group", id: nn });
+  notice = `已在「${parentName}」里新建子容器「${nn}」—— 把状态拖进去（或从"加入成员"里选），再给它设个入口`;
   commit();
 }
 function removeGroup(n) {
+  const gone = edges.filter(e => e.from === n).length;
+  groups.forEach(o => { o.members = (o.members || []).filter(m => m !== n); });   // 🔴 从父容器里摘掉（嵌套）
   groups = groups.filter(g => g.name !== n);
   delete groupByName[n];
   edges = edges.filter(e => e.from !== n);     // 🔴 `*` 已废弃：容器没了，从它出发的边一并删掉
   if (sel && sel.type === "group" && sel.id === n) sel = null;
   tabs = tabs.filter(t => !(t.kind === "group" && t.id === n));
   if (active >= tabs.length) active = Math.max(0, tabs.length - 1);
+  notice = `已删除容器「${n}」` + (gone ? `（连带删掉 ${gone} 条从它出发的边）` : "") + " —— Ctrl+Z 可撤销";
   commit();
 }
 svg.addEventListener("contextmenu", ev => {
@@ -1283,12 +1634,10 @@ svg.addEventListener("contextmenu", ev => {
       {hd: "容器 " + gname}, "-",
       {t: "打开容器", fn: () => openTab({kind: "group", id: gname})},
       {t: "从这里连一条边…（来源 = 整个容器）", fn: () => pickEdgeTarget(gname)},
-      {t: "重命名…", fn: () => {
-        const nn = prompt("容器名", gname);
-        if (!nn || nn === gname || groupByName[nn]) return;
-        edges.forEach(e => { if (e.from === gname) e.from = nn; });
-        groupByName[gname].name = nn;
-        if (sel && sel.type === "group" && sel.id === gname) sel.id = nn;
+      // 🔴 不用原生 prompt()：那是**阻塞式**的，无头自检一碰就卡死（同 §二十二 ②的处理）
+      {t: "改名（去右侧面板输入）", fn: () => {
+        sel = {type: "group", id: gname};
+        notice = "在右侧「容器名」里改 —— 边来源 / 位置 / 标签会一起跟着走";
         commit();
       }},
       {t: "删除容器", bad: true, fn: () => removeGroup(gname)}
@@ -1300,7 +1649,11 @@ svg.addEventListener("contextmenu", ev => {
     {t: clip ? `粘贴状态「${clip.name}」` : "粘贴状态（剪贴板为空）",
      fn: () => pasteState(p.x - NODE_W / 2, p.y - NODE_H / 2)},
     {t: "新建状态", fn: () => newState(p.x - NODE_W / 2, p.y - NODE_H / 2)},
-    {t: "新建容器", fn: () => document.getElementById("btn-newgroup").onclick()}, "-",
+    {t: "新建容器", fn: () => document.getElementById("btn-newgroup").onclick()},
+    // 🔴 **在容器页上右键**时，直接给「新建子容器」—— 用户实测："看不见新建子容器按钮"
+    ...((tabs[active] || {}).kind === "group"
+      ? [{ t: `＋ 新建子容器（放进「${tabs[active].id}」）`, fn: () => newSubGroup(tabs[active].id) }]
+      : []), "-",
     {t: "适应视图（F）", fn: fit},
     {t: "恢复默认布局", fn: () => { pos = {}; gpos = {}; resetBoxes(); defaultPos(); commit(); fit(); }}, "-",
     {t: "恢复成文件里的样子", bad: true, fn: () => document.getElementById("btn-reset").onclick()}
@@ -1311,9 +1664,17 @@ addEventListener("keydown", ev => {
   const tag = (ev.target && ev.target.tagName) || "";
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) return;
   if (ev.key === "Escape") closeCtx();
+  // 🔴 撤销 / 重做：Ctrl+Z 撤销，Ctrl+Shift+Z / Ctrl+Y 重做（和多数编辑器一致）
+  else if ((ev.ctrlKey || ev.metaKey) && (ev.key === "z" || ev.key === "Z")) {
+    ev.preventDefault(); if (ev.shiftKey) redo(); else undo();
+  }
+  else if ((ev.ctrlKey || ev.metaKey) && (ev.key === "y" || ev.key === "Y")) { ev.preventDefault(); redo(); }
   else if (ev.key === "f" || ev.key === "F") fit();
-  else if ((ev.key === "Delete" || ev.key === "Backspace") && sel && sel.type === "edge") {
-    edges.splice(sel.id, 1); sel = null; commit();
+  else if (ev.key === "Delete" || ev.key === "Backspace") {
+    // 🔴 以前只处理"边"：选中状态 / 容器按 Delete 毫无反应（基础操作缺口）。删错可 Ctrl+Z 回来。
+    if (sel && sel.type === "edge") { edges.splice(sel.id, 1); sel = null; commit(); }
+    else if (sel && sel.type === "state") removeState(sel.id);
+    else if (sel && sel.type === "group") removeGroup(sel.id);
   }
   else if ((ev.ctrlKey || ev.metaKey) && (ev.key === "c" || ev.key === "C") && sel && sel.type === "state") {
     ev.preventDefault(); copyState(sel.id);
@@ -1328,13 +1689,17 @@ addEventListener("keydown", ev => {
 // ── 导出 / 导入 ────────────────────────────────────────────
 function edgesXml() {
   return edges.map(e => {
+    // 🔴 **`kind` 决定条件怎么写，`phase` 只是一个附加标记**。
+    //    以前这里 `if (e.phase)` 排在最前 ⇒ 相位边**永远只导 `when=`**，
+    //    写在它上面的 `anim="remaining" anim-rem-pct="10"` 会被**吃掉**（出机那条就中招了）。
     let c;
-    if (e.phase) c = `when="${e.pred || DATA.preds[0].name}" phase="true"`;
-    else if (e.kind === "key") c = `key="${e.key}" key-mode="${e.mode}"`;
-    else if (e.kind === "anim") c = `anim="${e.anim}"${e.anim === "remaining" ? ` anim-lt="${e.lt}"` : ""}`;
-    else c = `when="${e.pred}"`;
+    if (e.kind === "key") c = `keys="${e.keys}"`;
+    else if (e.kind === "anim") c = `anim="${e.anim}"${e.anim === "remaining" ? ` anim-rem-pct="${e.lt}"` : ""}`;
+    else c = `when="${e.pred || (e.phase ? pickPhasePred("") : (DATA.preds[0] || {}).name)}"`;
     return `\t\t<edge from="${e.from}" to="${e.to}" ${c}`
-         + (e.blend ? ` blend="${e.blend}"` : "") + (e.after ? ` after-finish="true"` : "") + " />";
+         + (e.blend ? ` blend="${e.blend}"` : "") + (e.after ? ` after-finish="true"` : "")
+         + (e.not ? ` not="true"` : "")                     // 🔴 取反：对三种条件**一律适用**
+         + (e.phase ? ` phase="true"` : "") + " />";
   }).join("\n");
 }
 function groupsXml() {
@@ -1343,7 +1708,8 @@ function groupsXml() {
 }
 function statesXml() {
   return states.map(s => `\t\t<state name="${s.name}" act="${s.act}"`
-    + (s.dur ? ` duration="${s.dur}"` : "") + (s.next ? ` next="${s.next}"` : "") + " />").join("\n");
+    + (s.once ? ` once="true"` : "") + (s.dur ? ` duration="${s.dur}"` : "")
+    + (s.next ? ` next="${s.next}"` : "") + " />").join("\n");
 }
 // 🔴 整份导出：拿原文件原文，只替换三段 —— 文件头那一大段注释原样保留
 function fullXml() {
@@ -1372,23 +1738,26 @@ document.getElementById("btn-apply").onclick = () => {
   if (fams.length) groups = fams.map(f => ({name: f.getAttribute("name"), entry: f.getAttribute("entry") || "",
     members: (f.textContent || "").split(/\s+/).filter(Boolean)}));
   if (sts.length) states = sts.map(s => ({name: s.getAttribute("name"), act: s.getAttribute("act"),
-    dur: s.getAttribute("duration") || "", next: s.getAttribute("next") || "", clip: (stateByName[s.getAttribute("name")] || {}).clip || "?", durText: (stateByName[s.getAttribute("name")] || {}).durText || ""}));
+    once: (s.getAttribute("once") || "").toLowerCase() === "true" || !!s.getAttribute("duration"),
+    dur: s.getAttribute("duration") || "", next: s.getAttribute("next") || "",
+    clip: (stateByName[s.getAttribute("name")] || {}).clip || "?", durText: (stateByName[s.getAttribute("name")] || {}).durText || ""}));
   if (ens.length) edges = ens.map(nd => {
     const e = {from: nd.getAttribute("from"), to: nd.getAttribute("to"), blend: nd.getAttribute("blend") || "",
                after: nd.getAttribute("after-finish") === "true", phase: nd.getAttribute("phase") === "true"};
-    if (nd.getAttribute("key")) { e.kind = "key"; e.key = nd.getAttribute("key"); e.mode = nd.getAttribute("key-mode"); }
-    else if (nd.getAttribute("anim")) { e.kind = "anim"; e.anim = nd.getAttribute("anim"); e.lt = nd.getAttribute("anim-lt") || ""; }
+    if (nd.getAttribute("keys")) { e.kind = "key"; e.keys = nd.getAttribute("keys"); }
+    else if (nd.getAttribute("anim")) { e.kind = "anim"; e.anim = nd.getAttribute("anim"); e.lt = nd.getAttribute("anim-rem-pct") || ""; }
     else { e.kind = "pred"; e.pred = nd.getAttribute("when"); }
+    e.not = nd.getAttribute("not") === "true";
     return e;
   });
-  states.forEach(s => stateByName[s.name] = s);
-  groups.forEach(g => groupByName[g.name] = g);
+  reindex();               // 🔴 必须先清空重建 —— 否则导入后旧名字还留在索引里
   sel = null; commit();
 };
 document.getElementById("btn-newgroup").onclick = () => {
   let i = 1, name;
   do { name = "新容器" + i++; } while (groupByName[name]);
-  groups.push({name, members: []});
+  groups.push({name, entry: "", members: []});
+  reindex();                       // 🔴 新建后必须重建索引，否则 groupByName[新名] 不存在（同"改名拖不动"那种病）
   sel = {type: "group", id: name};
   openTab({kind: "group", id: name});
 };
@@ -1396,10 +1765,12 @@ document.getElementById("btn-reset").onclick = () => {
   groups = JSON.parse(JSON.stringify(DATA.groups));
   states = JSON.parse(JSON.stringify(DATA.states));
   edges = JSON.parse(JSON.stringify(DATA.edges));
-  stateByName = {}; states.forEach(s => stateByName[s.name] = s);
-  groupByName = {}; groups.forEach(g => groupByName[g.name] = g);
+  reindex();
   pos = {}; gpos = {}; resetBoxes(); defaultPos(); sel = null; tabs = [{kind: "root"}]; active = 0; commit(); fit();
 };
+document.getElementById("btn-undo").onclick = () => undo();
+document.getElementById("btn-redo").onclick = () => redo();
+histReset();                     // 把"载入后的初始结构"作为历史第 0 帧 ⇒ 第一次编辑也能撤销回去
 render();
 if (!viewRestored) fit();
 </script>
