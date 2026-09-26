@@ -471,64 +471,21 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public static float ActionRecheckSeconds = 0.5f;
 
-        // ───────────────────────── 动作名 ─────────────────────────
-        // 🔴 这些是「动作名」，不是 clip 名 —— clip 名在内容包的 action_sets.xml 里绑，两边别混。
+        // ───────────────────────── 动作名（**不在这里**）─────────────────────────
+        // 🔴🪦 2026-09-26：原来这一大块 `ActHoverStart` / `ActIdle` / `ActFastMove` / `ActDodge*` …
+        //    全部删除 —— **动作名只有一个地方**：`ModuleData/statemachine_flight.xml` 的 `<state act="…">`。
+        //    删它的理由（用户裁定「飞行动作管理要数据驱动」）：
+        //      · 编辑器里改状态名 / 换动作名，代码一行都不用动；留一份在这里 = **第二份真相**，
+        //        改了它却不生效（状态机只读 XML），排查时会先怀疑代码 —— 白绕；
+        //      · 起降要进哪个状态也已经从 XML 的相位边读（见 `AgentAnimStateMachine.TryPhaseEnter/TryPhaseExit`），
+        //        所以连"起飞该 Force 谁"都不需要常量了。
+        //    ⚠️ 施法手势那两个动作名（`act_magic_idle` / `act_magic_projectile`）不归状态机管，
+        //       它们在 `Combat/SpellCastInput.cs` 里，**没删**。
         //
-        // 🔴🔴 **命名规则（2026-09-25 用户裁定）**：动作名的词跟着动画走 ——
-        //    `act_fly_hovermove` ↔ clip `flight_hovermove_a`，去掉前缀后缀就是同一个词，一眼对得上。
-        //    状态机那边的状态名也是同一套词（见 FlightAnimMachine 顶部那张对照表）。
+        // 🔴 命名规则（2026-09-25 用户裁定，仍然有效）：状态名 = 动作名 = clip 名 ——
+        //    `hovermove` ↔ `act_fly_hovermove` ↔ `flight_hovermove_a`，去掉 `act_fly_` 前缀与 `_a` 后缀就是同一个词。
         //    ⚠️ 输入侧/速度侧的词**没改**（`BoostSpeed` / `BoostHeld` / `custom.flight tune boost`）——
         //    那些说的是"哪个键、多快"，不是"哪条动画"。
-
-        public static string ActHoverStart = "act_fly_hoverstart";
-        public static string ActIdle = "act_fly_idle";
-        public static string ActHoverMove = "act_fly_hovermove";
-        public static string ActFastMove = "act_fly_fastmove";
-        public static string ActSuperLand = "act_fly_superland";
-
-        /// <summary>蓄力手势（按住右键期间循环播）。🔴 **走通道 0**（不是通道 1）—— 见 FlightAnimMachine 里那段注释。</summary>
-        public static string ActMagicIdle = "act_magic_idle";
-
-        /// <summary>释放手势（点左键播一次）。</summary>
-        public static string ActMagicProjectile = "act_magic_projectile";
-
-        /// <summary>
-        /// 抬头爬升时播的姿态。✅ **2026-09-22 已接**：`act_fly_hovermove_pitchu` → clip `flight_hovermove_a_pitchu`
-        /// （A 套合成件，TRF `fly_A_Flight_HoverMove_A_PitchU`：悬停移动基准 + 抬头增量，合成时根骨那道量已按 0 缩放）。
-        /// ⚠️ 现在接的是**悬停移动家（直立）**的姿态 —— 快移（趴姿）时抬头会从趴姿切到直立，观感是翻一下；
-        /// 要"快移家也各有一套"得给状态机再拆状态（见 plans/玩家飞行-实施方案.md §3.8.1）。
-        /// 留空的后果（旧行为）= 抬头时**保持上一条姿态**，观感是"平板上升"。
-        /// </summary>
-        public static string ActHoverMovePitchU = "act_fly_hovermove_pitchu";
-
-        /// <summary>低头俯冲时播的姿态。✅ **2026-09-22 已接**：`act_fly_hovermove_pitchd` → clip `flight_hovermove_a_pitchd`，说明见 <see cref="ActHoverMovePitchU"/>。</summary>
-        public static string ActHoverMovePitchD = "act_fly_hovermove_pitchd";
-
-        /// <summary>进快移（冲刺）的**入姿**（一次性，治"按 Shift 硬切到趴姿"）。</summary>
-        public static string ActFastMoveStart = "act_fly_fastmove_start";
-
-        /// <summary>闪避四方向（一次性；只在快移态里播，理由见 <see cref="FlightAnimMachine"/>）。</summary>
-        public static string ActDodgeL = "act_fly_dodge_l";
-        public static string ActDodgeR = "act_fly_dodge_r";
-        public static string ActDodgeU = "act_fly_dodge_u";
-        public static string ActDodgeD = "act_fly_dodge_d";
-
-        // ── 压弯 / 俯仰的合成件（2026-09-22：A 套合成件进包后接线）────────────────
-        // 这批 clip 都是【合成】出来的（基础动画 ∘ 增量，根骨那道量已按 0 缩放，见方案 §3.8.1），
-        // 所以它们跟基础动画同帧号、同循环属性，直接当普通姿态播。
-
-        /// <summary>悬停移动（直立）压弯左 / 右。触发见 <see cref="BankThreshold"/>。</summary>
-        public static string ActHoverMoveLeanL = "act_fly_hovermove_lean_l";
-        public static string ActHoverMoveLeanR = "act_fly_hovermove_lean_r";
-
-        /// <summary>快移（趴姿）压弯左 / 右。</summary>
-        public static string ActFastMoveLeanL = "act_fly_fastmove_lean_l";
-        public static string ActFastMoveLeanR = "act_fly_fastmove_lean_r";
-
-        /// <summary>快移（趴姿）抬头 / 低头 —— 与悬停移动家的 <see cref="ActHoverMovePitchU"/> / <see cref="ActHoverMovePitchD"/> 分开，
-        /// 免得冲刺时从趴姿硬切到直立姿态（那两个家族各有一套抬头/低头）。</summary>
-        public static string ActFastMovePitchU = "act_fly_fastmove_pitchu";
-        public static string ActFastMovePitchD = "act_fly_fastmove_pitchd";
 
         // ───────────────────── 快移入姿 / 闪避（2026-09-22）─────────────────────
         // 🔴 这两组都是**一次性动作**：XML 里写 `once="true"`，**不写时长** ——
@@ -668,26 +625,8 @@ namespace LivingWorldNpcs.Flight
             InvertCamY = false;
             PitchExitThreshold = 0.30f;
             ActionRecheckSeconds = 0.5f;
-            ActHoverStart = "act_fly_hoverstart";
-            ActIdle = "act_fly_idle";
-            ActHoverMove = "act_fly_hovermove";
-            ActFastMove = "act_fly_fastmove";
-            ActSuperLand = "act_fly_superland";
-            ActHoverMovePitchU = "act_fly_hovermove_pitchu";
-            ActHoverMovePitchD = "act_fly_hovermove_pitchd";
-            ActFastMoveStart = "act_fly_fastmove_start";
-            ActDodgeL = "act_fly_dodge_l";
-            ActDodgeR = "act_fly_dodge_r";
-            ActDodgeU = "act_fly_dodge_u";
-            ActDodgeD = "act_fly_dodge_d";
-            ActHoverMoveLeanL = "act_fly_hovermove_lean_l";
-            ActHoverMoveLeanR = "act_fly_hovermove_lean_r";
-            ActFastMoveLeanL = "act_fly_fastmove_lean_l";
-            ActFastMoveLeanR = "act_fly_fastmove_lean_r";
-            ActFastMovePitchU = "act_fly_fastmove_pitchu";
-            ActFastMovePitchD = "act_fly_fastmove_pitchd";
-            ActMagicIdle = "act_magic_idle";
-            ActMagicProjectile = "act_magic_projectile";
+            // 🪦 2026-09-26：动作名（原 ActHoverStart / ActIdle / … 一行一个）不再恢复出厂 ——
+            //    它们已经不存在了，动作名的唯一来源是 `ModuleData/statemachine_flight.xml`。
             BankThreshold = 0.35f;
             BankExitThreshold = 0.20f;
             ShowStateMessages = true;

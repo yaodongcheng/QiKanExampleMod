@@ -34,13 +34,17 @@ namespace LivingWorldNpcs.Animation
     ///       ← 成员空格分隔；**entry = 容器（子状态机）的真实入口**：进容器落到哪个状态
     ///   &lt;/families&gt;
     ///   &lt;states&gt;
-    ///     &lt;state name="idle" act="act_fly_idle"/&gt;                                ← 不带 duration = 循环
-    ///     &lt;state name="fastmoveStart" act="act_fly_fastmove_start" duration="boostStartSeconds"/&gt;
+    ///     &lt;state name="idle" act="act_fly_idle"/&gt;                                ← 不带 once = 循环
+    ///     &lt;state name="fastmoveStart" act="act_fly_fastmove_start" once="true" next="fastmove"/&gt;
+    ///                        ← once = 一次性（播完去 next）；**不写时长** —— 长度由 clip 自己带
     ///   &lt;/states&gt;
     ///   &lt;edges&gt;
-    ///     &lt;edge from="Prone" to="dodgeL" when="dodge-left" blend="0.12"/&gt;   ← from = 状态 / 容器（容器 = 它里面任何状态）
-    ///     &lt;edge from="outside" to="Prone" phase="true"/&gt;                    ← to = 状态 / 容器（容器 = 进容器，装载期解析成它的 entry）
-    ///     &lt;edge from="Prone" to="fastmove" when="sprinting" after-finish="true"/&gt;
+    ///     &lt;edge from="Prone" to="dodgeL" keys="Space+A"/&gt;                     ← from = 状态 / 容器（容器 = 它里面任何状态）
+    ///     &lt;edge from="Prone" to="dodgeR" keys="Space+D" not="true"/&gt;          ← 组合键 + 取反（整条条件取反）
+    ///     &lt;edge from="Prone" to="fastmove" anim="remaining" anim-rem-pct="15"/&gt; ← 剩余不足 15%（**百分比，不是秒**）
+    ///     &lt;edge from="outside" to="hoverstart" when="takeoff-trigger" phase="true"/&gt; ← **相位接缝**：C# 起飞时 Force 进它
+    ///     &lt;edge from="superland" to="outside" anim="remaining" anim-rem-pct="20" phase="true"/&gt;
+    ///                        ← 出机接缝：`from` = 落地姿态、`anim-rem-pct` = 剩多少出机（C# 用 TryPhaseEnter/Exit 读）
     ///   &lt;/edges&gt;
     /// &lt;/state_machine&gt;
     /// </code>
@@ -397,7 +401,7 @@ namespace LivingWorldNpcs.Animation
                         continue;
                     }
                     // 🔴 相位边要用这个**数**（"剩多少出机"）—— 谓词只够判真假，判不出"还剩多少"。
-                    //    （相位读它：见 AnimEdgeDef.RemainPct / AgentAnimStateMachine.PhaseRemainPct）
+                    //    （相位读它：见 AnimEdgeDef.RemainPct / AgentAnimStateMachine.TryPhaseExit）
                     if (string.Equals(animAttr.Trim(), "remaining", StringComparison.OrdinalIgnoreCase))
                     {
                         float tmp;
@@ -448,6 +452,13 @@ namespace LivingWorldNpcs.Animation
                 bool phaseForced = phaseAttr;
                 AnimEdgeDef edgeDef = new AnimEdgeDef(srcs, to, pred, blend, afterFinish, phaseForced);
                 edgeDef.RemainPct = remainPct;
+                // 🔴 相位边要把 `when=` 的**名字**留着（普通边不用）：相位（C#）按时刻找状态 ——
+                //    "落地这个时刻该 Force 进哪个状态" = 读 `when="land-trigger"` 那条边的 `to`
+                //    （见 AgentAnimStateMachine.TryPhaseTarget）。
+                if (phaseForced)
+                {
+                    edgeDef.WhenName = when;
+                }
                 edges.Add(edgeDef);
             }
 

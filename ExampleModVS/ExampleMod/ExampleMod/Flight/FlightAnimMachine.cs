@@ -5,7 +5,11 @@ using LivingWorldNpcs.Animation;
 
 namespace LivingWorldNpcs.Flight
 {
-    /// <summary>闪避方向（一次请求 = 一个方向；<see cref="None"/> = 没请求）。</summary>
+    /// <summary>
+    /// **闪避方向**（C# 侧只关心"往哪挪"）—— 姿态动画那边不看它：
+    /// 闪避的**姿态**由 XML 的 `keys="Space+A"` 这类条件直接触发（状态机自己读键），
+    /// C# 只管**位移**（<c>PlayerFlightBehavior.BeginDodge</c>）。两者读的是同一批物理键，所以不会打架。
+    /// </summary>
     public enum FlightDodgeDir
     {
         None,
@@ -44,8 +48,11 @@ namespace LivingWorldNpcs.Flight
         /// <summary>按着冲刺键（左 Shift）。</summary>
         public bool Boost;
 
-        /// <summary>这一帧请求的闪避方向（<see cref="FlightDodgeDir.None"/> = 没请求）。</summary>
-        public FlightDodgeDir DodgeRequest;
+        // 🪦 2026-09-26 删除 `DodgeRequest`（闪避请求）：闪避**姿态**改由 XML 的 `keys="Space+A"` 这类
+        //    条件直接触发（状态机自己读键，见 <see cref="IAnimInputFacts"/>）⇒ C# 不再"请求"某个状态名，
+        //    也就没有"请求没被接走"这种状态要对账。C# 只留**位移**（BeginDodge）。
+        //    连带删掉的：`dodge-left/right/up/down` 四个谓词、`PlayerFlightBehavior._pendingDodge`、
+        //    `IsDodgeState`（那是个把状态名写死在 C# 里的名单 —— 编辑器一改名它就失效）。
 
         /// <summary>俯仰档（带迟滞）：+1 抬头 / 0 水平 / −1 低头。</summary>
         public int PitchBand;
@@ -75,6 +82,15 @@ namespace LivingWorldNpcs.Flight
     ///   ② 从 XML **装载 + 校验**（<see cref="AnimMachineLoader"/>），校验不过**不注册**；
     ///   ③ 挂上**运行期旋钮**（默认过渡时长 / 核对周期 / 动作优先级 → 仍指向 `FlightTuning` 的字段，
     ///      所以 `custom.flight tune blend` 那些热调键照旧有效）。
+    ///
+    /// 🔴🔴 **飞行那边一个状态名都不许写**（2026-09-26 用户裁定「重新实现飞行的动作管理，数据驱动」）——
+    /// 起降这两个"相位接缝"全从 XML 的**相位边**读（<see cref="AgentAnimStateMachine.TryPhaseEnter"/> /
+    /// <see cref="AgentAnimStateMachine.TryPhaseExit"/>）：
+    ///   · **进机**（起飞入姿）= `from="outside"` 那条边的 `to`
+    ///   · **出机前的姿态**（触地后播的落地动作）= `to="outside"` 那条边的 `from`
+    ///   · **出机时机** = 同一条边上的 `anim="remaining" anim-rem-pct="N"`
+    /// ⇒ **在编辑器里改名字 / 换状态 / 调时机，代码一行都不用动**（这是那次改名的教训：
+    ///   `hoverstart` / `superland` 被改名之后，C# 里的 `Force("hoverstart")` 只是安静地不播动画）。
     ///
     /// 命名规则（**贯穿三层，改哪层都照这个来**）：**状态名 = 动作名 = clip 名**，去掉 `act_fly_` /
     /// `flight_` 前缀与 `_a` 后缀就是同一个词：

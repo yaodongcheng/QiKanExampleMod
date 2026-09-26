@@ -93,6 +93,7 @@ namespace LivingWorldNpcs.Animation
         private Agent _agent;              // 最近一次拿到的 agent（Force 可能早于首次 Tick）
         private AnimState _current;
         private float _elapsed;
+        private float _blendIn;            // 本条动作的淡入时长（见 ProgressTrustworthy）
         private float _sinceRecheck;
         private bool _warnedBadAction;
         private Func<float> _progressFn;
@@ -157,6 +158,19 @@ namespace LivingWorldNpcs.Animation
         public float CurrentElapsed => _elapsed;
 
         /// <summary>
+        /// **引擎给的播放进度这会儿可信吗**（2026-09-26）。
+        ///
+        /// 为什么要有它：**刚切过去的那一刻，通道上压着的是"旧动作还没淡出、新动作刚淡入"两条**，
+        /// 而 `GetCurrentActionProgress(0)` 这时可能回的仍是**旧动作**的进度 —— 旧动作通常已经播到 1.0，
+        /// 于是会被读成"**新动作已经播完了**"⇒ 一次性动作在**第二帧就被跳过**（入姿 / 闪避看着像没播）。
+        /// 所以：**淡入走完之前，一律当作"刚开始"**（剩余 = +∞、演完 = false）。
+        ///
+        /// 🔴 **显式写了时长**（`duration="…"`）的状态不受影响 —— 那种是按秒判的，与引擎进度无关。
+        /// </summary>
+        private bool ProgressTrustworthy =>
+            _current != null && (_current.Duration > 0.01f || _elapsed >= _blendIn);
+
+        /// <summary>
         /// **当前动画还剩多少**，用**占整条 clip 的比例**表示（给 XML 的 `anim="remaining" anim-rem-pct="…"` 用）：
         /// 循环状态 = <c>+∞</c>（循环没有"播完"这回事）；一次性动作 = 1 − 播放进度，播完为 0。
         ///
@@ -176,34 +190,127 @@ namespace LivingWorldNpcs.Animation
                 {
                     return Math.Max(0f, (_current.Duration - _elapsed) / _current.Duration);
                 }
+                if (!ProgressTrustworthy)
+                {
+                    return float.PositiveInfinity;      // 淡入还没走完：当作"刚开始"，别拿旧进度判
+                }
                 float p = _progressFn != null ? _progressFn() : 1f;
                 return Math.Max(0f, 1f - p);
             }
         }
 
         /// <summary>
-        /// **相位边在 XML 里声明的"剩余百分比"**（`anim="remaining" anim-rem-pct="10"` 里那个 10）。
-        /// 返回 &lt;0 = 定义里没写 ⇒ 调用方回退到自己的默认判据。
+        /// **相位接缝查询 ①：进机** —— 起飞那一刻，相位（C#）该 `Force` 进**哪个状态**。
         ///
-        /// 🔴 相位边**不由状态机 Tick 求值**（`Tick` 里 `if (e.PhaseForced) continue;`），
-        ///    但"什么时候出机"这件事仍然需要判据 —— 让**相位来读这张表**，
-        ///    而不是相位自己再硬编码一个秒数（那就成了第二份真相，改一处忘一处）。
+        /// 读的是**相位边**（XML 里 `phase="true"`）中 `from = <paramref name="fromMarker"/>`
+        /// （机外 = `"outside"`）那条的 `to`。
+        ///
+        /// 🔴 **为什么要有它**（2026-09-26）：以前 C# 里写死 `Force(agent, "hoverstart")` ——
+        ///    状态名可以在编辑器里随手改（改成中文 / 改叫法），**改完 C# 就静默失效**
+        ///    （只在日志里留一行"没在定义里声明过"）。现在改成**读定义**：图上怎么画，代码就怎么走。
         /// </summary>
-        public float PhaseRemainPct(string from, string to)
+        /// <param name="fromMarker">来源标记（`"outside"` = 机外）。</param>
+        /// <param name="state">那条边的目标状态；没这条边时返回 false（调用方自己降级）。</param>
+        public bool TryPhaseEnter(string fromMarker, out string state)
         {
+            state = null;
             var es = _def.Edges;
             for (int i = 0; i < es.Count; i++)
             {
                 AnimEdgeDef e = es[i];
-                if (e.PhaseForced && e.RemainPct >= 0f && e.To == to && e.Matches(from))
+                if (!e.PhaseForced || !HasExactFrom(e, fromMarker))
                 {
-                    return e.RemainPct;
+                    continue;
                 }
+                if (e.To == fromMarker)
+                {
+                    continue;      // 目标就是机外 = 那是"出机"那条，不是进机
+                }
+                state = e.To;
+                return true;
             }
-            return -1f;
+            return false;
         }
 
-        /// <summary>当前状态是不是"一次性动作且已播完"。</summary>
+        /// <summary>
+        /// **相位接缝查询 ①′：按"时刻"找状态**（更推荐，2026-09-26 用户指出）——
+        /// `when="&lt;whenToken&gt;"` 那条相位边的 `to` = C# 在**这个时刻**该 `Force` 进的状态：
+        ///   · `takeoff-trigger` ⇒ 起飞入姿该进哪个状态
+        ///   · `land-trigger`    ⇒ 落地动作是哪个状态
+        ///
+        /// 🔴🔴 **"什么时候"不在 XML**（别搞混，这是本轮被问到的一点）：
+        ///    XML 只说"**这个时刻进哪个状态**"；**触发时刻本身是 C# 的物理判定** ——
+        ///    起飞 = 空中按空格（`TickGrounded`）/ 落地 = **板顶触地**（`TickLanding`，硬着陆才播动作）。
+        ///    相位边的 `when=` 名字就为此存在：让"哪个时刻配哪个状态"能画在图上、并且被代码读到。
+        /// </summary>
+        public bool TryPhaseTarget(string whenToken, out string state)
+        {
+            state = null;
+            if (string.IsNullOrEmpty(whenToken))
+            {
+                return false;
+            }
+            var es = _def.Edges;
+            for (int i = 0; i < es.Count; i++)
+            {
+                AnimEdgeDef e = es[i];
+                if (e.PhaseForced && string.Equals(e.WhenName, whenToken, StringComparison.Ordinal)
+                    && e.To != "outside")
+                {
+                    state = e.To;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// **相位接缝查询 ②：出机** —— 落地动作是**哪个状态**、**剩多少**就该把 0 号通道还给引擎。
+        ///
+        /// 读的是**相位边**中 `to = <paramref name="toMarker"/>`（`"outside"` = 机外）那条：
+        /// · 它的 `from` = **出机前必须处的状态**（= 触地后要 `Force` 的落地姿态）
+        /// · 它的 `anim="remaining" anim-rem-pct="N"` = 出机时机（`remainPct` &lt; 0 = 定义里没写，
+        ///   调用方回退到自己的默认判据）。
+        ///
+        /// 🔴 与 <see cref="TryPhaseEnter"/> 对称：**起降两头的状态名一律从定义里读**。
+        /// </summary>
+        public bool TryPhaseExit(string toMarker, out string state, out float remainPct)
+        {
+            state = null;
+            remainPct = -1f;
+            var es = _def.Edges;
+            for (int i = 0; i < es.Count; i++)
+            {
+                AnimEdgeDef e = es[i];
+                if (!e.PhaseForced || e.To != toMarker || e.From == null || e.From.Length == 0)
+                {
+                    continue;
+                }
+                state = e.From[0];
+                remainPct = e.RemainPct;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>`from` 里**逐字**写了这个标记（`"*"` 不算 —— 相位边的来源必须是显式的）。</summary>
+        private static bool HasExactFrom(AnimEdgeDef e, string marker)
+        {
+            if (e.From == null || string.IsNullOrEmpty(marker))
+            {
+                return false;
+            }
+            for (int i = 0; i < e.From.Length; i++)
+            {
+                if (string.Equals(e.From[i], marker, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>当前状态是不是"一次性动作且已播完"（判据见 <see cref="ProgressTrustworthy"/>）。</summary>
         public bool CurrentFinished
         {
             get
@@ -212,12 +319,16 @@ namespace LivingWorldNpcs.Animation
                     return false;
                 if (_current.Duration > 0.01f)
                     return _elapsed >= _current.Duration;
-                return _progressFn != null && _progressFn() >= 0.999f;
+                return ProgressTrustworthy && _progressFn != null && _progressFn() >= 0.999f;
             }
         }
 
         /// <summary>
         /// **强制进入某状态**（不看条件）—— 用于相位驱动的时刻（起飞 / 落地 / 收摊）。
+        ///
+        /// 🔴 **状态名别写死在调用方**：起降要进哪个状态由 XML 的相位边声明，
+        ///    调用方用 <see cref="TryPhaseEnter"/> / <see cref="TryPhaseExit"/> 读出来再传进来
+        ///    （否则编辑器里改个状态名，这边就静默失效 —— 见那两个方法的说明）。
         /// </summary>
         /// <param name="agent">要驱动哪个 agent（**必须给** —— 起飞/落地都在"首次 Tick 之前"发生）。</param>
         /// <param name="startProgress">从动作的哪个进度开始播（0~1；跳过 clip 开头用）。</param>
@@ -254,21 +365,21 @@ namespace LivingWorldNpcs.Animation
 
             if (!Hold && _current != null)
             {
-                // ① 转移表：按注册顺序，第一条命中的生效
+                // ① 转移表：**只看从当前状态出发的边**（状态机同时只在一个状态里）——
+                //    `EdgesFrom` 已经在装载/首次进入时按状态分好并缓存（顺序仍是全局优先级），
+                //    容器来源在装载期就展开成叶子状态了，所以"父容器那些边"自动包含在内。
+                // 🔴 命中的第一条边定输赢（这张表是"优先级阶梯"，不是"找一条能切的"）。
+                //    命中边的目标就是当前状态 ⇒ **留在原地，且不能继续往下找** ——
+                //    否则低优先级的兜底边会把它踢走。2026-09-22 实机踩过：写成了"跳过自己那条继续找"，
+                //    结果 boost↔cruise 每 5ms 互踢一次，动画永远停在淡化开头（看着像"前倾的巡航"）。
                 bool fired = false;
                 {
-                    var edges = _def.Edges;
-                    // 🔴 **命中的第一条边定输赢**（这张表是"优先级阶梯"，不是"找一条能切的"）。
-                    //    命中边的目标就是当前状态 ⇒ **留在原地，且不能继续往下找** ——
-                    //    否则低优先级的兜底边会把它踢走。2026-09-22 实机踩过：写成了"跳过自己那条继续找"，
-                    //    结果 boost↔cruise 每 5ms 互踢一次，动画永远停在淡化开头（看着像"前倾的巡航"）。
+                    var edges = _def.EdgesFrom(_current.Name);
                     for (int i = 0; i < edges.Count; i++)
                     {
                         AnimEdgeDef e = edges[i];
                         if (e.PhaseForced)
                             continue;       // 相位驱动的边（起飞/落地）：只是写在定义里给图看，不在这里求值
-                        if (!e.Matches(_current.Name))
-                            continue;
 
                         // 🔴 **一次性动作（快移入姿 / 闪避）播放期间不被打断**：
                         //    `"*"` 出发的兜底边在它播完前一律不参与 —— 否则下一帧就被 `* → 悬停移动` 踢走，
@@ -371,6 +482,7 @@ namespace LivingWorldNpcs.Animation
             CountSwitch(from, state.Name);
             _current = state;
             _elapsed = 0f;
+            _blendIn = useBlend;        // 淡入期间不认引擎给的进度（见 ProgressTrustworthy）
             _sinceRecheck = 0f;
             _progressFn = () =>
             {

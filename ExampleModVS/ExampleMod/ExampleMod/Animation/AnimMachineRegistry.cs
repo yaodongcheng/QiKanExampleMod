@@ -112,6 +112,17 @@ namespace LivingWorldNpcs.Animation
         public bool PhaseForced;
 
         /// <summary>
+        /// 相位边上写的**"时刻"名**（`when="takeoff-trigger"` / `when="land-trigger"`）。
+        ///
+        /// 🔴 普通边的条件是**委托**、用不着名字；相位边单独留下名字，是因为**相位（C#）要按时刻找状态**：
+        ///    "落地这个时刻该 Force 进哪个状态" = 读 `when="land-trigger"` 那条边的 `to`
+        ///     （<see cref="AgentAnimStateMachine.TryPhaseTarget"/>）。
+        /// ⚠️ 名字本身**不代表时刻**（那两个谓词的真身是 `c => false`）——
+        ///    真正的触发时刻在 C#（起飞 = 空中按空格；落地 = 板顶触地），XML 只说"进哪个状态"。
+        /// </summary>
+        public string WhenName;
+
+        /// <summary>
         /// **相位边声明的"剩余百分比"**（`anim="remaining" anim-rem-pct="10"` 里那个 10）。
         /// &lt;0 = 没声明 ⇒ 调用方（相位）回退到自己的默认判据。
         ///
@@ -174,6 +185,10 @@ namespace LivingWorldNpcs.Animation
         private readonly Dictionary<string, AnimState> _states = new Dictionary<string, AnimState>();
         private readonly List<AnimEdgeDef> _edges = new List<AnimEdgeDef>();
 
+        /// <summary>"按状态取边"的缓存（见 <see cref="EdgesFrom"/>）—— <see cref="AddEdge"/> 时清空。</summary>
+        private readonly Dictionary<string, List<AnimEdgeDef>> _fromCache =
+            new Dictionary<string, List<AnimEdgeDef>>(StringComparer.Ordinal);
+
         public readonly string Name;
 
         /// <summary>没写 <see cref="AnimEdgeDef.Blend"/> 的转移用它。用委托是为了**热调生效**
@@ -213,16 +228,14 @@ namespace LivingWorldNpcs.Animation
         public AnimMachineDef Edge(string from, string to, Func<AnimContext, bool> when,
                                    float blend = -1f, bool onlyAfterFinish = false)
         {
-            _edges.Add(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish));
-            return this;
+            return AddEdge(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish));
         }
 
         /// <summary>同上，来源多个。</summary>
         public AnimMachineDef Edge(string[] from, string to, Func<AnimContext, bool> when,
                                    float blend = -1f, bool onlyAfterFinish = false, bool phaseForced = false)
         {
-            _edges.Add(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish, phaseForced));
-            return this;
+            return AddEdge(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish, phaseForced));
         }
 
         /// <summary>
@@ -237,7 +250,38 @@ namespace LivingWorldNpcs.Animation
                 throw new ArgumentException("AddEdge 不接受 null");
             }
             _edges.Add(edge);
+            _fromCache.Clear();          // 表变了 ⇒ "按状态取边"的缓存失效（见 EdgesFrom）
             return this;
+        }
+
+        /// <summary>
+        /// **从某个状态出发的边**（**顺序 = 全局优先级**，含 `from="*"` 的兜底边）。
+        ///
+        /// 🔴 **状态机任何时刻只在一个状态里**（2026-09-26 用户指出）⇒ 每帧只有这些边**可能**命中，
+        ///    全量扫整张表既是浪费、也会让人误读成"顺序是全局的事"。这里按状态**预先分好并缓存**：
+        ///    · 容器来源在**装载期**就展开成叶子状态了（每个成员各进一份）⇒ 这里天然覆盖"父容器的边"
+        ///    · 只在**首次进入该状态**时算一次（25 条边 × 十几个状态 = 一次性的几微秒），之后直接命中缓存
+        ///    · 调用方**不要再自己判 `Matches`**（已经筛过了），但 `PhaseForced` 仍要自己跳过
+        ///
+        /// <see cref="AddEdge"/> 会清缓存 ⇒ 装载期边还没加完就调用也是对的。
+        /// </summary>
+        public IReadOnlyList<AnimEdgeDef> EdgesFrom(string state)
+        {
+            List<AnimEdgeDef> list;
+            if (_fromCache.TryGetValue(state, out list))
+            {
+                return list;
+            }
+            list = new List<AnimEdgeDef>();
+            for (int i = 0; i < _edges.Count; i++)
+            {
+                if (_edges[i].Matches(state))
+                {
+                    list.Add(_edges[i]);      // 按 _edges 的先后追加 = 全局优先级顺序
+                }
+            }
+            _fromCache[state] = list;
+            return list;
         }
 
         public IReadOnlyList<AnimEdgeDef> Edges => _edges;
