@@ -73,8 +73,17 @@ def build_data():
         edges.append(e)
 
     conds = strip_comments(io.open(os.path.join(SRC, "Flight", "FlightAnimConditions.cs"), encoding="utf-8").read())
-    preds = [{"name": k, "body": " ".join(v.split()).replace("C(c).", "")}
-             for k, v in re.findall(r'AnimConditions\.Register\("([^"]+)",\s*c\s*=>\s*([^;]+)\);', conds)]
+    # 🔴 登记既可以写字面量，也可以写**常量**（`AnimConditions.Register(TakeoffTrigger, c => false);`）——
+    #    只认字面量的话，写成常量的那个谓词会**从编辑器的下拉里凭空消失**（自检"校验通过"当场抓到过）。
+    #    所以先把同文件里的 `public const string X = "值";` 收成表，再解析两种写法。
+    consts = dict(re.findall(r'public\s+const\s+string\s+(\w+)\s*=\s*"([^"]+)"', conds))
+    preds = []
+    for lit, cname, body in re.findall(
+            r'AnimConditions\.Register\(\s*(?:"([^"]+)"|(\w+))\s*,\s*c\s*=>\s*([^;]+)\);', conds):
+        name = lit if lit else consts.get(cname)
+        if not name:
+            continue          # 常量没在本文件里定义 —— 宁可少列，别把解析不出来的当成名字
+        preds.append({"name": name, "body": " ".join(body.split()).replace("C(c).", "")})
 
     prims = io.open(os.path.join(SRC, "Animation", "AnimPrimitives.cs"), encoding="utf-8").read()
     clips = dict(re.findall(r'type="(act_\w+)"\s*\n?\s*animation="([^"]+)"',
@@ -1577,7 +1586,9 @@ svg.addEventListener("pointerup", ev => {
       if (drag.kind === "group" && o.name === drag.id) return;   // 别把自己判成落点
       const b = o.box;
       const inRect = (x, y) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
-      if (inRect(mouse.x, mouse.y) || inRect(c.x, c.y)) gname = o.name;
+      // 🔴 状态拖拽：加上“光标在盒里”（宽容——节点 240 宽、盒子 200 宽，拓左边丢会差几十像素）。
+      //    容器拖拽：只认中心 —— 宽容会让“稍微拖一下”就被隔壁容器吞掉（实测过）。
+      if (inRect(c.x, c.y) || (drag.kind === "state" && inRect(mouse.x, mouse.y))) gname = o.name;
     });
     // 🔴 防环：容器不能放进它自己、也不能放进它的后代
     if (gname && drag.kind === "group" && (gname === drag.id || groupContains(drag.id, gname))) {

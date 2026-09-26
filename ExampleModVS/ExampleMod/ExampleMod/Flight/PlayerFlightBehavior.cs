@@ -109,6 +109,8 @@ namespace LivingWorldNpcs.Flight
         private float _takeoffTimer;         // 起飞阶段计时（登板等待用）
         private bool _landingGentle;         // 本次落地是"轻放"（true）还是"硬着陆"（false）
         private float _landingApproach;      // 进入落地那一刻的下冲速度（硬着陆按它下降）
+        private string _landPoseState;       // 落地动作的状态名 —— 从 XML 的相位边读（`超人落地 → 机外` 的 from）
+        private float _landExitPct = -1f;    // 出机时机（剩余百分比）—— 同上那条边上的 anim-rem-pct；<0 = 没写
         private bool _boardRemoved;          // 落地时板是否已拆（拆了 = 人已站在真实地面）
         private FlightCamPreset _camPreset = FlightCamPreset.Hover;   // 本帧机位（PickCamPreset 写，Tick 用）
         private bool _bodyDiagLogged;        // 取证：本次飞行是否已打过"首帧朝向"那行
@@ -119,8 +121,9 @@ namespace LivingWorldNpcs.Flight
         private float _dodgeTimer;           // 闪避位移还剩多久（>0 = 这段时间速度归闪避）
         private Vec3 _dodgeDir;              // 闪避位移方向（世界向量，单位化）
         private float _dodgeCooldown;        // 两次闪避之间的剩余冷却（秒）
-        private FlightDodgeDir _pendingDodge = FlightDodgeDir.None;  // 已请求、还没被状态机接走的闪避方向
-        private float _pendingDodgeTimer;    // 上面那个请求的存活时间（过期就撤，免得隔几帧突然闪一下）
+        // 🪦 2026-09-26 删除 `_pendingDodge` / `_pendingDodgeTimer`：闪避**姿态**现在由 XML 的
+        //    `keys="Space+A"` 这类条件直接触发（状态机自己读键）⇒ C# 不再"请求"某个状态，
+        //    也就没有"请求有没有被接走"要对账。C# 只负责位移（见 BeginDodge）。
         private string _lastAnimState;       // 上一帧的动画状态名（变了就弹一条提示；见 OnMissionTick）
         private bool _boardSpawned;          // 本次起飞：板是否已经召唤出来（延迟召唤用）
         private bool _headAimActive;         // 施法瞄准期间我们设过"头看相机"的 POI（退出时要撤掉，别留给别人）
@@ -233,6 +236,13 @@ namespace LivingWorldNpcs.Flight
             if (_phase != Phase.Airborne)
                 StopAimingHead(main);
 
+            // 🔴 **喂事实**：状态机要读的"当前帧事实"（按键 / 有没有推方向 / 相机俯仰档）——
+            //    每帧一次，**在 Tick 之前**（相位怎么变都不影响这条顺序）。
+            //    🪦 2026-09-26 起这里统一喂：以前只在空中态喂（TickAirborne 里），
+            //    现在**落地下降段也由状态机自己演**（不再 Force 待机姿势），所以提到主循环里来。
+            GetCameraBasis(out Vec3 camFwd, out _);
+            UpdateAnimContext(camFwd);
+
             // 🔴 动画状态机：**每帧一次**（含起飞/落地）——
             //    它在这两段被 Hold 住（相位自己 Force），但**仍要跑**：维持当前动作 + 定期核对
             //    有没有被引擎的走跑系统抢走 0 号通道。
@@ -265,14 +275,6 @@ namespace LivingWorldNpcs.Flight
                         }
                     }
                 }
-            }
-
-            // 闪避请求已被状态机接走（当前状态就是闪避）⇒ 撤销请求，免得下一帧又触发一次。
-            // 超时也撤（正常一帧内就该接走；撤不掉说明那条动作没接线，见 FlightTuning.ActDodge*）。
-            if (_pendingDodge != FlightDodgeDir.None && IsDodgeState(_anim.Current))
-            {
-                _pendingDodge = FlightDodgeDir.None;
-                _pendingDodgeTimer = 0f;
             }
 
             // 🔴 运动相机（N5）—— **飞行全程**（含起飞/落地）都推进，免得起降瞬间相机跳回引擎相机。
@@ -402,8 +404,12 @@ namespace LivingWorldNpcs.Flight
 
             // 🔴 **踩实之后板也不动**（2026-09-21 用户裁定："只允许玩家 WASD 移动时候让他动"）。
             //    原来这里有一段自动抬升（7 m/s 升到悬停高度）—— 已删。
-            //    现在只做一件事：**把"起飞"姿态播完**（那 1.5 秒的入姿动画），或者玩家一给方向输入就立刻交给他。
+            //    现在只做一件事：**把控制权交给玩家**（有方向输入，或入姿那份时长到了）。
             //    这期间板纹丝不动 —— 要升空就自己抬头 + W（与"抬头爬升"那套一致）。
+            //
+            // 🔴 **"相位交棒" ≠ "姿态结束"**（2026-09-26 澄清）：这里只放开 `Hold`，**不切动作** ——
+            //    入姿那条 clip 由 XML 的 `<edge from="进入飞行" to="悬浮飞行" anim-rem-pct="15"/>` 收尾，
+            //    所以按着 W 抢跑也不会把入姿砍半（以前靠"这里有个秒数"来管，现在是定义说了算）。
             if (FlightInput.HasMoveInput || _takeoffAnimTimer >= FlightTuning.TakeoffAnimSeconds)
             {
                 _phase = Phase.Airborne;
@@ -420,18 +426,11 @@ namespace LivingWorldNpcs.Flight
                 _dodgeTimer -= dt;
             if (_dodgeCooldown > 0f)
                 _dodgeCooldown -= dt;
-            if (_pendingDodgeTimer > 0f)
-            {
-                _pendingDodgeTimer -= dt;
-                if (_pendingDodgeTimer <= 0f)
-                    _pendingDodge = FlightDodgeDir.None;   // 请求过期（没接线 / 没进状态）⇒ 撤销
-            }
 
             // ① 先取镜头方向（下面几处都要用）
             GetCameraBasis(out Vec3 forward, out Vec3 right);
 
-            // ①′ 更新动画状态机的"当前帧事实"（🔴 必须在 Tick 状态机**之前**）
-            UpdateAnimContext(forward);
+            // ①′ （状态机的事实已在 OnMissionTick 主循环里喂过 —— 见那里的 `UpdateAnimContext`）
 
             // ② 下降 / 落地手势（🔴 2026-09-21 用户重新定义，与起飞不对称了）
             //
@@ -523,8 +522,8 @@ namespace LivingWorldNpcs.Flight
             //     它们是"我猜的保险"，实测只会制造新问题（160 米上限当场把人卡死过）。
             _board.MoveBy(_velocity * dt);
 
-            // ⑦ 姿态：**交给动画状态机**（规则全在注册的那份 FlightAnimMachine 定义里）
-            //    这里只"喂事实"（UpdateAnimContext 已在上面调）并解挂；真正的 Tick 在 OnMissionTick
+            // ⑦ 姿态：**交给动画状态机**（规则全在 `ModuleData/statemachine_flight.xml` 那台定义里）
+            //    这里只解挂（事实已在 OnMissionTick 主循环里喂过）；真正的 Tick 在 OnMissionTick
             //    末尾每帧一次 —— 因为起飞/落地期间也要跑（状态机在那两段负责维持动作 + 防被抢）。
             _anim.Hold = false;              // 空中态 = 允许自动转移
 
@@ -637,28 +636,30 @@ namespace LivingWorldNpcs.Flight
                 // 🔴 **只在没进落地态时才 Force**（2026-09-22 修）：原来每帧无条件 Force 一次，
                 //    后果是 ① 日志里刷出 357 行 `land → land` ② 状态机的抖动自检被它触发（每秒 61 次假警告）
                 //    ③ 更要命的是"每帧重设动作通道会把动画卡在第 0 帧"（方案里记过的坑）。
-                if (_anim.Current != "superland")
-                    _anim.Force(main, "superland", FlightTuning.AnimBlendIn);
+                // 🔴 **状态名不在这里**（2026-09-26）：`_landPoseState` 是从 XML 的相位边读出来的
+                //    （`<edge from="超人落地" to="outside" …/>` 的 from），编辑器里改名字这边自动跟着变。
+                if (!string.IsNullOrEmpty(_landPoseState) && _anim.Current != _landPoseState)
+                    _anim.Force(main, _landPoseState, FlightTuning.AnimBlendIn);
                 _landTimer += dt;
-                // 🔴 **出机时机从定义里读**（`<edge from="superland" to="outside" anim="remaining" anim-rem-pct="10" phase="true"/>`）：
-                //    "落地动画剩多少就出机"由 XML 说 —— 不再在这里硬编码一个秒数（换 clip 不用改代码，
+                // 🔴 **出机时机也从定义里读**（同一条边上的 `anim="remaining" anim-rem-pct="20"`）：
+                //    "落地动作剩多少就出机"由 XML 说 —— 不在这里硬编码秒数（换 clip 不用改代码，
                 //    而且图上写的与实际生效的是同一个数）。
-                //    没写百分比（或 superland 不是一次性 ⇒ 剩余 = +∞）⇒ 回退到 LandAnimSeconds，不会卡死。
+                //    没写百分比（或那个状态不是一次性 ⇒ 剩余 = +∞）⇒ 回退到 LandAnimSeconds，不会卡死。
                 float remain = _anim.CurrentRemainFrac;
-                float exitPct = _anim.PhaseRemainPct("superland", "outside");
-                bool animDone = exitPct > 0f ? remain * 100f <= exitPct
-                                             : _landTimer >= FlightTuning.LandAnimSeconds;
+                bool animDone = _landExitPct > 0f ? remain * 100f <= _landExitPct
+                                                 : _landTimer >= FlightTuning.LandAnimSeconds;
                 if (animDone || _landTimer >= FlightTuning.LandMaxSeconds)
                 {
-                    DebugLogger.Log($"[Flight] 落地动画出机: 用时={_landTimer:F2}s" + (exitPct > 0f
-                        ? $"（剩 {remain * 100f:F0}% ≤ 定义要求的 {exitPct:F0}%）"
+                    DebugLogger.Log($"[Flight] 落地动画出机: 用时={_landTimer:F2}s" + (_landExitPct > 0f
+                        ? $"（剩 {remain * 100f:F0}% ≤ 定义要求的 {_landExitPct:F0}%）"
                         : "（定义没写 anim-rem-pct ⇒ 按 LandAnimSeconds 兜底）"));
                     FinishFlight(main);
                 }
                 return;
             }
 
-            // ① 下降段（保持待机姿态；硬着陆按下冲速度降，别让"刚才还在俯冲"变成慢悠悠飘下来）
+            // ① 下降段（🔴 **姿态不在这里管**（2026-09-26）：状态机自己按输入演，"落地动作只在地面播"由上面②保证；
+            //    这里只管往下走 —— 硬着陆按下冲速度降，别让"刚才还在俯冲"变成慢悠悠飘下来）
             float rate = _landingGentle ? FlightTuning.LandRate
                                         : Math.Max(FlightTuning.LandRate, _landingApproach);
             float groundOriginZ = GetGroundZ(Mission.Current.Scene, _board.Origin) - FlightTuning.CarrierTopLocalZ;
@@ -683,11 +684,53 @@ namespace LivingWorldNpcs.Flight
                 return;
             }
 
-            DebugLogger.Log($"[Flight] 触地：板已拆、人在地面，开始播落地动画（时长={FlightTuning.LandAnimSeconds:F2}s）");
-            _anim.Force(main, "superland", FlightTuning.AnimBlendIn);
+            // 🔴 **触地这一刻才 Force 落地动作，而且从 XML 读它是哪个状态**（2026-09-26）：
+            //      · **落地动作** = `when="land-trigger"` 那条相位边的 `to`
+            //        （`<edge from="冲刺飞行" to="超人落地" when="land-trigger" phase="true"/>`）
+            //      · **出机时机**   = `to="outside"` 那条边上的 `anim-rem-pct="20"`
+            //      · **"什么时候"** = **本类自己**：板顶触地（硬着陆）——XML 只管"进哪个状态"，
+            //        触发时刻在 C#（见本方法上面那段触地判定）。这两半拼起来才是完整的"落地动作"。
+            //    定义里没那条边 ⇒ 不接管姿态（Hold 放开），只按 LandAnimSeconds 到点收摊。
+            if (_anim.TryPhaseExit("outside", out string exitState, out float exitPct))
+            {
+                _landExitPct = exitPct;
+                // 落地动作优先读"落地时刻"那条边声明的状态；没写就用出机边的来源（两者不一致就报一行）
+                string poseState = _anim.TryPhaseTarget(FlightAnimConditions.LandTrigger, out string declared)
+                    ? declared
+                    : exitState;
+                if (!string.Equals(poseState, exitState, StringComparison.Ordinal))
+                {
+                    DebugLogger.Log($"[Flight] ⚠️ 定义不一致：落地时刻那条边说要进 '{poseState}'，" +
+                                    $"而 '{exitState}' 才是出机前必须处的状态 —— 以 'land-trigger' 那条为准");
+                }
+                _landPoseState = poseState;
+                _anim.Hold = true;                                     // 落地这一段动画归相位管
+                _anim.Force(main, poseState, FlightTuning.AnimBlendIn);
+                DebugLogger.Log($"[Flight] 触地：板已拆、人在地面，开始播落地动作 '{poseState}'" +
+                                (exitPct > 0f ? $"（剩 {exitPct:F0}% 出机）" : "（定义没写 anim-rem-pct ⇒ 按 LandAnimSeconds 兜底）"));
+            }
+            else
+            {
+                _anim.Hold = false;
+                _landPoseState = null;
+                _landExitPct = -1f;
+                DebugLogger.Log("[Flight] ⚠️ 定义里没有 `to=\"outside\"` 的相位边 ⇒ 没有落地动作可播" +
+                                "（按 LandAnimSeconds 到点收摊；要落地动作就在 XML 里画一条 机外 的相位边）");
+            }
         }
 
         // ─────────────────────────── 进出 ───────────────────────────
+
+        /// <summary>
+        /// **起飞入姿该进哪个状态**（2026-09-26）：① 相位边 `when="takeoff-trigger"` 的 `to`；
+        /// ② 没写那条就用"机外 → X"那条边界边。两者都没有 = false（飞行照常，只是没有入姿动画）。
+        /// 🔴 这里**没有任何状态名** —— 状态名只存在于 XML。
+        /// </summary>
+        private bool TryResolveTakeoffState(out string state)
+        {
+            return _anim.TryPhaseTarget(FlightAnimConditions.TakeoffTrigger, out state)
+                   || _anim.TryPhaseEnter("outside", out state);
+        }
 
         private void BeginTakeoff(Agent main)
         {
@@ -720,8 +763,25 @@ namespace LivingWorldNpcs.Flight
             float startProgress = FlightTuning.TakeoffAnimSeconds > 0.01f
                 ? MBMath.ClampFloat(skip / FlightTuning.TakeoffAnimSeconds, 0f, 0.9f)
                 : 0f;
-            _anim.Hold = true;                                          // 起飞入姿这一段动画归相位管
-            _anim.Force(main, "hoverstart", FlightTuning.TakeoffBlendIn, startProgress);
+            // 🔴 **进哪个状态由 XML 说**（2026-09-26）：
+            //    ① 先读相位边 `when="takeoff-trigger"` 的 `to`（图上标着"起飞这个时刻"的那条）
+            //    ② 没有就用"机外 → X"那条边界边
+            //    这里**一个字的状态名都不写** —— 编辑器里改名 / 换状态，这边自动跟着走
+            //    （教训：`hoverstart` 被改名成 `进入飞行` 之后，写死的 `Force("hoverstart")` 只是安静地不播动画）。
+            //    ⚠️ **"什么时候起飞"不在这里读** —— 那是本类自己的物理判定（空中按空格 / 长按空格，
+            //       见 TickGrounded）；XML 只回答"起飞这一刻进哪个状态"。
+            if (TryResolveTakeoffState(out string entryState))
+            {
+                _anim.Hold = true;                                      // 起飞入姿这一段动画归相位管
+                _anim.Force(main, entryState, FlightTuning.TakeoffBlendIn, startProgress);
+            }
+            else
+            {
+                // 定义里没画"机外 → 某状态" ⇒ 不接管姿态，让状态机按转移表自己走（飞行照常，只是没有入姿）
+                _anim.Hold = false;
+                DebugLogger.Log("[Flight] ⚠️ 定义里没有起飞入姿的相位边（`when=\"takeoff-trigger\"` 或 `from=\"outside\"`）" +
+                                " ⇒ 本次起飞没有入姿动画（要入姿就在 XML 里画一条 机外 → 某状态 的相位驱动边）");
+            }
 
             if (FlightTuning.UseFlightCamera)
             {
@@ -742,7 +802,7 @@ namespace LivingWorldNpcs.Flight
                     TurnBodySmoothed(main, takeoffFwd, 0f);
             }
 
-            DebugLogger.Log($"[Flight] 起飞触发: 动作={FlightTuning.ActHoverStart} blendIn={FlightTuning.TakeoffBlendIn:F2}s " +
+            DebugLogger.Log($"[Flight] 起飞触发: 动作={_anim.CurrentAction ?? "-"} blendIn={FlightTuning.TakeoffBlendIn:F2}s " +
                             $"跳过开头={skip:F2}s(startProgress={startProgress:F2}) 板延迟={FlightTuning.TakeoffSpawnDelay:F2}s " +
                             $"| {CarrierBoard.DescribeCapsule(main)}");
         }
@@ -796,13 +856,14 @@ namespace LivingWorldNpcs.Flight
         /// <summary>
         /// **发起一次闪避**（2026-09-22 用户裁定：冲刺中短按空格）。
         ///
-        /// 两件事一起做，但**各管各的时长**：
-        ///   · **位移** = 朝请求方向冲 <see cref="FlightTuning.DodgeDistance"/> 米
-        ///     （<see cref="FlightTuning.DodgeDisplaceSeconds"/> 秒内走完）；
-        ///   · **姿态** = 交给动画状态机（`dodgeL/R/U/D`，一次性，演完自己回普通转移）。
+        /// 🔴 **本方法只管"位移"**（2026-09-26 澄清）：朝请求方向冲 <see cref="FlightTuning.DodgeDistance"/> 米
+        ///    （<see cref="FlightTuning.DodgeDisplaceSeconds"/> 秒内走完）。
+        ///    **姿态**由 XML 的状态机自己判 —— `fastmove → dodgeL keys="Space+A"`（读的是同一批物理键），
+        ///    所以两边不会打架；也不需要 C# 去"请求"任何状态名（那种写法一改名就失效）。
+        ///    位移是玩法、动画是表现，**各管各的时长**，谁都不等谁。
         ///
-        /// 方向怎么定（本帧输入 → 状态机那条 `DodgeRequest`）：
-        ///   A → 左闪 / D → 右闪 / **S → 下闪** / **W 或没推方向 → 上闪**。
+        /// 方向怎么定（本帧输入 → 与 XML 那四条 `keys=` 一一对应）：
+        ///   A → 左闪（`Space+A`）/ D → 右闪（`Space+D`）/ **S → 下闪**（`S+Space`）/ **W 或没推方向 → 上闪**（`W+Space`）。
         /// 为什么 W 也算上闪：冲刺时玩家几乎一直按着 W（往前飞），若要求"S 才下、没有键才上"，
         /// 那最顺手的那一下（W + 空格）就永远只出上闪 —— 这样定至少让四种闪避都够得着。
         /// 🔴 左右 / 上下**谁优先**：先看 A/D（横向躲最常见的攻击），再看 W/S。
@@ -833,8 +894,6 @@ namespace LivingWorldNpcs.Flight
                 moveDir = new Vec3(0f, 0f, 1f);
             }
 
-            _pendingDodge = dir;
-            _pendingDodgeTimer = 0.3f;      // 状态机下一帧就该接走；超时（没接线）= 撤销
             _dodgeDir = moveDir.NormalizedCopy();
             _dodgeTimer = FlightTuning.DodgeDisplaceSeconds;
             _dodgeCooldown = FlightTuning.DodgeCooldownSeconds;
@@ -844,20 +903,12 @@ namespace LivingWorldNpcs.Flight
                             $"冷却={FlightTuning.DodgeCooldownSeconds:F1}s）");
         }
 
-        /// <summary>这个状态名是不是闪避态（状态机那边定义的，写在这免得两处字符串漂移）。</summary>
-        private static bool IsDodgeState(string state)
-        {
-            return state == "dodgeL" || state == "dodgeR" || state == "dodgeU" || state == "dodgeD";
-        }
-
         /// <summary>清掉闪避相关的临时状态（收摊时调）—— 不清的话下次起飞会带着上次的冷却 / 位移。</summary>
         private void ClearDodgeState()
         {
             _dodgeTimer = 0f;
             _dodgeCooldown = 0f;
             _dodgeDir = Vec3.Zero;
-            _pendingDodge = FlightDodgeDir.None;
-            _pendingDodgeTimer = 0f;
         }
 
         private void BeginLanding(Agent main, bool gentle, float approachSpeed)
@@ -869,12 +920,12 @@ namespace LivingWorldNpcs.Flight
             _landingApproach = approachSpeed;
             _boardRemoved = false;
 
-            // 🔴 **下降段一律保持待机姿态**（2026-09-22 用户裁定）：
-            //    落地动画必须等"板已拆、人已站在真实地面"之后再播 ——
-            //    否则就是"悬空播着陆动画、脚踩板往下掉"。所以这里只 Force idle，
-            //    硬着陆的 `land` 等到触地那一刻（见 TickLanding）才切。
-            _anim.Hold = true;                                          // 落地这一段动画归相位管
-            _anim.Force(main, "idle", FlightTuning.AnimBlendIn);
+            // 🔴 **下降段不接管姿态**（2026-09-26 改；用户裁定「数据驱动」）：
+            //    让状态机**自己按输入演**（往下冲就是俯冲姿势），唯一要守的规矩是
+            //    **"落地动作只在地面播"** —— 由 <see cref="TickLanding"/> 里"触地那一刻才 Force 出机前的姿态"保证。
+            //    （改前这里是 `Hold = true` + 写死 Force `"idle"`：那个 idle 是从 XML 读不到的硬编码状态名，
+            //      编辑器里一改名就静默失效。）
+            _anim.Hold = false;
             DebugLogger.Log($"[Flight] 进入落地（方式={(gentle ? "空格/主动下降" : "硬着陆")} " +
                             $"下冲={approachSpeed:F1}m/s 下降速度={(gentle ? FlightTuning.LandRate : Math.Max(FlightTuning.LandRate, approachSpeed)):F1}m/s " +
                             $"落地动画={((!gentle || FlightTuning.LandAnimOnGentle) ? "待触地后播" : "不播")}）");
@@ -1310,12 +1361,9 @@ namespace LivingWorldNpcs.Flight
         /// <summary>每个键**上一帧**的状态 —— 只用来判"变没变"。</summary>
         private readonly bool[] _loggedKey = new bool[LoggedKeys.Length];
 
-        /// <summary>上一帧的原始键状态（判"刚按下 / 刚松开"沿用；下标顺序 = `AnimPrimitives.Keys`）。</summary>
-        private readonly bool[] _prevKey = new bool[AnimPrimitives.KeyCount];
-
         /// <summary>
         /// **把原始按键与"动画还剩多久"填进上下文**（每帧一次，**在状态机 Tick 之前**，与飞行相位无关）——
-        /// 这样 XML 里就能直接写 `key="W" key-mode="held"` / `anim="remaining" anim-rem-pct="20"`（**百分比**），
+        /// 这样 XML 里就能直接写 `keys="W+Shift"` / `anim="remaining" anim-rem-pct="20"`（**百分比**），
         /// 不必为每种条件再登记一个 C# 谓词。
         /// 读的是 <see cref="FlightInput.RawKeyAt"/>（原始键，绕开一切逻辑）。
         /// 🔴 只填**电平**（按住 / 没按住）—— "沿"那两档已删，「刚按下一帧」会被起飞/落地 Hold 与施法让位吞掉。
@@ -1490,11 +1538,8 @@ namespace LivingWorldNpcs.Flight
             _animCtx.Boost = FlightInput.BoostHeld;
 
             // 🪦 2026-09-25：这里原来消费"冲刺键按下沿"喂给状态机（进快移入姿）。已删 ——
-            //    入姿的判据改成"来源是直立家 + Shift 按着"（见 FlightAnimMachine 的 ③ 那段），
-            //    不再需要按下沿这个一帧就消失的信号。
-
-            // 闪避请求：由 BeginDodge 置位，被状态机接走（或 0.3 秒超时）后清掉。
-            _animCtx.DodgeRequest = _pendingDodge;
+            //    入姿的判据改成"按着 Shift 且在动"（键原语 / 命名谓词），不再需要一帧就消失的按下沿。
+            // 🪦 2026-09-26：`DodgeRequest`（闪避请求）也删了 —— 闪避姿态由 XML 的 `keys="Space+A"` 直接触发。
 
             // 俯仰档（带迟滞）：进用大阈值、出用小阈值。
             // 实测姿态之间是 120°~180° 的大翻转，单阈值下镜头停在阈值附近会让动画来回翻。

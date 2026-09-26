@@ -19,25 +19,54 @@
 
      🔴 **边的顺序 = 优先级**（第一条命中的生效），改顺序 = 改优先级，别随手挪。
         三种边型（`AnimEdgeDef` 的三个开关）：
-          · 缺省             = 普通边；能打断正在播的一次性动作（闪避那四条靠这个打断入姿）
+          · 缺省             = 普通边；能打断正在播的一次性动作（入姿演到一半也能被它踢走）
           · after-finish     = 只在"演完"之后参与求值（绝不打断）
-          · phase="true"     = **不由状态机求值**，由飞行相位 C# `Force` 进 —— 写在这里只为让表/图完整 -->
+          · phase="true"     = **不由状态机求值**，由飞行相位 C# `Force` 进 —— 写在这里只为让表/图完整
+
+     ⚠️ **这一段（文件头）编辑器导出时原样保留；写在 `<families>` / `<states>` / `<edges>` 里面的注释
+        会被导出覆盖掉** —— 要长期留着的说明写在这里。
+
+     🔴🔴 **相位接缝：C# 里一个状态名都没有，全从这下面三条读**（2026-09-26 改）——
+        所以**改名字、换状态、调时机都只改本文件**，重启游戏生效、不用重编译：
+          · **进机**（起飞入姿）= `from="outside"` 那条边的 `to`
+          · **出机前的姿态**（落地动作）= `to="outside"` 那条边的 `from`
+          · **出机时机** = 同一条边上的 `anim="remaining" anim-rem-pct="N"`（剩 N% 就交还引擎）
+        ⇒ 落地下降段**不强制任何姿态**（状态机自己按输入演）—— 落地动作只在地面播，
+           由"触地那一刻 Force 出机前姿态"保证。
+
+     🔴 **跳转图总览（2026-09-26 定稿，改结构时连这段一起改）**
+        两族之间的门：`悬浮飞行` 按 W+Shift 进 `冲刺飞行`（进趴姿**必先播** fastmoveStart 入姿）
+                      `冲刺飞行` 松开 Shift 回 `悬浮飞行`（**Shift 才是加速开关** ⇒ 按着 Shift 横移/换向不出去）
+        直立家：idle ⇄ hovermove（有 / 无方向输入）
+                hovermove → 压弯 L/R（按 A / D）、俯仰 U/D（镜头抬 / 压）；**压弯优先于俯仰**
+                压弯 / 俯仰：条件不成立 **或停下来** ⇒ 回本族入口（idle）
+        趴姿家：fastmoveStart 演完进 fastmove
+                fastmove → 闪避（Space+方向）、压弯（A/D）、俯仰（镜头）；**闪避 > 压弯 > 俯仰**
+                闪避来源 = `FlyFastPoses`（本体 5 个：**不含闪避自己** ⇒ 不会自我重触发、
+                也不会把"演完回本体"那条边挡在后面 —— 状态机是"命中即定"）
+        ⚠️ 闪避 / 压弯 / 俯仰的**姿态**看这张图；**位移**在 C#（`PlayerFlightBehavior.BeginDodge`）——
+           两边读的是同一批物理键，所以不会打架。 -->
 <state_machine name="flight">
 
-	<!-- 容器（= 边的来源集合，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。
-	     用户 2026-09-25 裁定：
-	       · 状态必须"只出现一次的唯一定义"（原来 PronePoses ⊂ ProneFamily 重叠，不符合 UE）
-	       · 趴姿**只留一个容器**（删掉 PronePoses，合并进 ProneFamily）——
-	         闪避 4 个也在这里面；它们是**短暂状态**：从趴姿进，演完由 <state next="fastmove"> 回快移
-	     现在只有两个容器，互不重叠：
-	       · Upright（直立）7 个 —— 悬停姿态族
-	       · ProneFamily（趴姿族）10 个 —— 趴姿本体 6 + 闪避 4
+	<!-- 容器（= 边的来源集合 / 真子状态机，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。
+	     现状（2026-09-26 与文件同步核过）—— 四个容器，互不重叠：
+	       · 悬浮飞行（直立家，入口 = FlyHoverLocomotion → idle）压弯×2 + 俯仰×2 + FlyHoverLocomotion
+	       · 冲刺飞行（趴姿家，入口 = fastmoveStart）      FlyFastPoses + fastmoveStart + 闪避×4
+	       · FlyHoverLocomotion（悬浮飞行 的子容器，入口 = idle）      hovermove / idle
+	       · FlyFastPoses（冲刺飞行 的子容器，入口 = fastmove）        趴姿本体 5 个（闪避的**发起来源**）
 	     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会"硬翻"，所以进趴姿必须经 fastmoveStart 那道门。
-	     superland 不归属任何容器（散状态 = 出机衔接状态）。 -->
+	     超人落地 / 进入飞行 不归属任何容器（散状态 = 出机 / 进机的衔接状态）。
+	     （本段是历史裁定，改容器结构时请连这段一起改 —— 编辑器导出**只保留文件头与本段之前的注释**，
+	       写在 <families> / <states> / <edges> 里面的注释导出时会被覆盖掉。） -->
 	<families>
-		<family name="悬浮飞行" entry="子容器1">hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD 子容器1</family>
-		<family name="冲刺飞行" entry="fastmoveStart">fastmove fastmoveStart fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD dodgeL dodgeR dodgeU dodgeD</family>
-		<family name="子容器1" entry="idle">hovermove idle</family>
+		<family name="悬浮飞行" entry="FlyHoverLocomotion">hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD FlyHoverLocomotion</family>
+		<family name="冲刺飞行" entry="fastmoveStart">FlyFastPoses fastmoveStart dodgeL dodgeR dodgeU dodgeD</family>
+		<family name="FlyHoverLocomotion" entry="idle">hovermove idle</family>
+		<!-- 🔴 **趴姿本体 5 个**（不含入姿、不含闪避）—— 单独一个容器**只为一件事**：
+		     当"闪避的发起来源"。用整族 `冲刺飞行` 当来源会**把闪避自己也包进去** ⇒ 按住 Space+方向
+		     会自我重触发、并且把"演完回本体"的边挡在后面（状态机是"命中即定"）；
+		     用单个 `fastmove` 当来源又太窄（压弯/抬头时闪不了）。这个边界正好。 -->
+		<family name="FlyFastPoses" entry="fastmove">fastmove fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD</family>
 	</families>
 
 	<!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。
@@ -52,7 +81,7 @@
 		<state name="hovermovePitchD" act="act_fly_hovermove_pitchd" />
 		<state name="hovermoveLeanL" act="act_fly_hovermove_lean_l" />
 		<state name="hovermoveLeanR" act="act_fly_hovermove_lean_r" />
-		<state name="超人落地" act="act_fly_superland" />
+		<state name="超人落地" act="act_fly_superland" once="true" />
 		<state name="fastmove" act="act_fly_fastmove" />
 		<state name="fastmoveLeanL" act="act_fly_fastmove_lean_l" />
 		<state name="fastmoveLeanR" act="act_fly_fastmove_lean_r" />
@@ -63,7 +92,7 @@
 		<state name="dodgeR" act="act_fly_dodge_r" once="true" next="fastmove" />
 		<state name="dodgeU" act="act_fly_dodge_u" once="true" next="fastmove" />
 		<state name="dodgeD" act="act_fly_dodge_d" once="true" next="fastmove" />
-		<state name="进入飞行" act="act_fly_hoverstart" once="true" />
+		<state name="进入飞行" act="act_fly_hoverstart" once="true" next="idle" />
 	</states>
 
 	<!-- 边：**顺序 = 优先级**。
@@ -76,31 +105,61 @@
 	          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。
 	        · `<edge ... after-finish="true">` —— 演完之后**由条件**决定去哪（用于"演完且仍在冲刺 ⇒ 回 fastmove"这类）。 -->
 	<edges>
+		<!-- ── ① 相位接缝（C# 读这三条：进机状态 / 落地姿态 / 出机时机；状态机不求值）── -->
 		<edge from="outside" to="进入飞行" when="takeoff-trigger" phase="true" />
 		<edge from="超人落地" to="outside" anim="remaining" anim-rem-pct="20" phase="true" />
-		<edge from="进入飞行" to="悬浮飞行" anim="remaining" anim-rem-pct="15" />
-		<edge from="悬浮飞行" to="冲刺飞行" keys="W+Shift" />
-		<edge from="冲刺飞行" to="悬浮飞行" keys="W+Shift" not="true" />
+		<!-- 落地能从**任意姿态**触发（"什么时候"在 C#：板顶触地）⇒ 两条来源都写上，图才诚实 -->
+		<edge from="悬浮飞行" to="超人落地" when="land-trigger" phase="true" />
 		<edge from="冲刺飞行" to="超人落地" when="land-trigger" phase="true" />
-		<edge from="idle" to="hovermove" when="move-input" not="true" />
-		<edge from="hovermove" to="hovermoveLeanL" keys="A+Shift" />
-		<edge from="hovermove" to="hovermoveLeanR" keys="D+Shift" />
-		<edge from="hovermove" to="idle" when="move-input" />
-		<edge from="hovermoveLeanL" to="子容器1" keys="A" not="true" />
-		<edge from="hovermoveLeanR" to="子容器1" keys="D" not="true" />
-		<edge from="fastmoveStart" to="fastmove" keys="W" />
-		<edge from="fastmove" to="dodgeL" keys="Space+A" />
-		<edge from="fastmove" to="dodgeR" keys="Space+D" />
-		<edge from="fastmove" to="dodgeU" keys="W+Space" />
-		<edge from="fastmove" to="dodgeD" keys="S+Space" />
+
+		<!-- ── ② 起飞入姿：演到剩 15% 就进悬停族（`next="idle"` 是兜底，防卡在入姿）── -->
+		<edge from="进入飞行" to="悬浮飞行" anim="remaining" anim-rem-pct="15" />
+
+		<!-- ── ③ 两族之间的门（进趴姿必须先播入姿）─────────────────────────────
+		     出族条件 = **松开 Shift**（不是"松开 W"）：Shift 才是"加速=冲刺"那个开关，
+		     按着 Shift 横移/换向时**应当留在趴姿**（交给下面的压弯边），
+		     写成 `keys="W+Shift" not=true` 会让"一横移就站起来"（旧版 C# 表里是留在趴姿的）。 -->
+		<edge from="悬浮飞行" to="冲刺飞行" keys="W+Shift" />
+		<edge from="冲刺飞行" to="悬浮飞行" keys="Shift" not="true" />
+
+		<!-- ── ④ 直立家（悬停）：待机 ⇄ 巡航，巡航再分压弯 / 俯仰 ──────────────
+		     压弯条件**不带 Shift**（与旧版实机验证过的一致：Shift 是加速，不是姿态开关）；
+		     压弯 / 俯仰的来源都写 `hovermove`（不是整个族）⇒ 从待机态不会直接蹦到压弯，先经巡航。
+		     优先顺序：压弯 > 俯仰（两个同时成立时先出压弯）。 -->
+		<edge from="hovermove" to="idle" when="move-input" not="true" />
+		<edge from="idle" to="hovermove" when="move-input" />
+		<edge from="hovermove" to="hovermoveLeanL" keys="A" />
+		<edge from="hovermove" to="hovermoveLeanR" keys="D" />
+		<edge from="hovermove" to="hovermovePitchU" when="look-up" />
+		<edge from="hovermove" to="hovermovePitchD" when="look-down" />
+		<edge from="hovermoveLeanL" to="FlyHoverLocomotion" keys="A" not="true" />
+		<edge from="hovermoveLeanR" to="FlyHoverLocomotion" keys="D" not="true" />
+		<edge from="hovermovePitchU" to="FlyHoverLocomotion" when="look-up" not="true" />
+		<edge from="hovermovePitchD" to="FlyHoverLocomotion" when="look-down" not="true" />
+		<!-- 停下来也回待机（复刻旧版"停住优先于俯仰"）：`move-input` 为假 ⇒ 回本族入口（idle） -->
+		<edge from="hovermovePitchU" to="FlyHoverLocomotion" when="move-input" not="true" />
+		<edge from="hovermovePitchD" to="FlyHoverLocomotion" when="move-input" not="true" />
+
+		<!-- ── ⑤ 趴姿家：入姿 → 本体；本体再分闪避 / 压弯 / 俯仰 ────────────────
+		     闪避来源 = `FlyFastPoses`（趴姿本体 5 个：压弯/抬头中也能闪，但**闪避自己不进来** ⇒ 不会自触发）。
+		     优先顺序：闪避 > 压弯 > 俯仰。 -->
+		<edge from="fastmoveStart" to="fastmove" keys="W" after-finish="true" />
+		<edge from="FlyFastPoses" to="dodgeL" keys="Space+A" />
+		<edge from="FlyFastPoses" to="dodgeR" keys="Space+D" />
+		<edge from="FlyFastPoses" to="dodgeU" keys="W+Space" />
+		<edge from="FlyFastPoses" to="dodgeD" keys="S+Space" />
 		<edge from="dodgeL" to="fastmove" anim="remaining" anim-rem-pct="10" />
 		<edge from="dodgeR" to="fastmove" anim="remaining" anim-rem-pct="10" />
 		<edge from="dodgeU" to="fastmove" anim="remaining" anim-rem-pct="10" />
 		<edge from="dodgeD" to="fastmove" anim="remaining" anim-rem-pct="10" />
-		<edge from="fastmove" to="fastmoveLeanL" keys="W+A" />
-		<edge from="fastmove" to="fastmoveLeanR" keys="W+D" />
+		<edge from="fastmove" to="fastmoveLeanL" keys="A" />
+		<edge from="fastmove" to="fastmoveLeanR" keys="D" />
+		<edge from="fastmove" to="fastmovePitchU" when="look-up" />
+		<edge from="fastmove" to="fastmovePitchD" when="look-down" />
 		<edge from="fastmoveLeanL" to="fastmove" keys="A" not="true" />
 		<edge from="fastmoveLeanR" to="fastmove" keys="D" not="true" />
+		<edge from="fastmovePitchU" to="fastmove" when="look-up" not="true" />
+		<edge from="fastmovePitchD" to="fastmove" when="look-down" not="true" />
 	</edges>
 
 </state_machine>
