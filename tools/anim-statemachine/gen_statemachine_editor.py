@@ -2126,7 +2126,11 @@ function fillIO(text, label) {
 }
 document.getElementById("btn-export-full").onclick = () => {
   const p = validate(), xml = fullXml();
-  fillIO((p.length ? "<!-- ⚠ 当前草稿还有 " + p.length + " 处问题（见右侧校验）；这一份 = 草稿现状 -->\n" : "") + xml,
+  // 🔴 这里不能直接写"小于号 + 感叹号 + 两个减号"那种 HTML 注释开闭标记：
+  //    HTML 规范里脚本块内出现它们会切进"脚本转义"状态，VSCode 的 HTML 语言服务会因此
+  //    把后面的 JS 解析错位（报一片假错）。拼出来，运行期一模一样。
+  const cmtOpen = "<" + "!-- ", cmtClose = " --" + ">", nl = String.fromCharCode(10);
+  fillIO((p.length ? cmtOpen + "⚠ 当前草稿还有 " + p.length + " 处问题（见右侧校验）；这一份 = 草稿现状" + cmtClose + nl : "") + xml,
          "已导出**完整 XML**" + (p.length ? "（⚠ 有 " + p.length + " 处问题）" : "（校验 0 问题）"));
 };
 document.getElementById("btn-export").onclick = () => fillIO("<edges>\n" + edgesXml() + "\n</edges>", "已导出**边片段**");
@@ -2140,7 +2144,9 @@ document.getElementById("btn-copy").onclick = async () => {
 };
 document.getElementById("btn-import").onclick = () => { io.value = ""; io.focus(); };
 document.getElementById("btn-apply").onclick = () => {
-  const txt = io.value.replace(/<!--[\s\S]*?-->/g, "");
+  // 剥掉粘贴内容里的 HTML 注释（同样避开"小于号+感叹号"那个序列：用 RegExp 拼出来，
+  // 别让脚本块进"转义态" —— 理由同上一条）
+  const txt = io.value.replace(new RegExp("<" + "!--[\\s\\S]*?--" + ">", "g"), "");
   const doc = new DOMParser().parseFromString("<root>" + txt + "</root>", "application/xml");
   const ens = [].slice.call(doc.querySelectorAll("edge"));
   const fams = [].slice.call(doc.querySelectorAll("family"));
@@ -2191,7 +2197,16 @@ tabs[0].view = viewSnapshot();   // 🔴 总览这一页的初始镜头要记下
 
 def main():
     data = build_data()
-    html = TEMPLATE.replace("@@DATA@@", json.dumps(data, ensure_ascii=False))
+    # 🔴 JSON 里的 `<` 一律写成 `<`（**只在页面源码里转义，运行期值一个字不变**）。
+    #    为什么：嵌进页面的原始 XML 自带 `<!--` 注释，而 HTML 规范里 `<script>` 内出现 `<!--`
+    #    会切进"脚本转义"状态 —— 浏览器与 `node --check` 都按规范处理（页面照跑），
+    #    但 **VSCode 的 HTML 语言服务会解析错位**，在脚本尾部报一片 "Argument expression expected" 假错误。
+    #    转义后源码里不再有那个序列：IDE 干净、导出内容不变（`fullXml()` 出来的仍是原样 XML）。
+    #    （`<` 在 JSON 里只可能出现在字符串值内部，结构字符是 {}[]:," ⇒ 直接替换是安全的。）
+    #  `<` 与 `>` **都**转义（后者是双保险：连 `-->` 都不在脚本块里出现）。运行期值一字不变。
+    payload = (json.dumps(data, ensure_ascii=False)
+               .replace("<", "\\u003C").replace(">", "\\u003E"))
+    html = TEMPLATE.replace("@@DATA@@", payload)
     io.open(OUT, "w", encoding="utf-8", newline="\n").write(html)
     print("OK -> " + OUT)
     print("   %d states / %d groups / %d edges" % (len(data["states"]), len(data["groups"]), len(data["edges"])))
