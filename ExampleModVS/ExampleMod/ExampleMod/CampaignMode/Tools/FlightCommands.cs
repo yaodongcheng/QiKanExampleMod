@@ -243,7 +243,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | 动画: blend hoverblend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle";
+                return "ERR usage: custom.flight tune <key> <value> | 动画: blend hoverblend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle spawngap settle";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -269,6 +269,10 @@ namespace LivingWorldNpcs.CampaignMode
                 case "camhandover": FlightTuning.UseCamHandover = v != 0f; break;   // 进出相机是否做交接（0=硬切，旧行为）
                 case "camhandback": FlightTuning.CamHandBackLook = v != 0f; break;  // 归还时是否把朝向写回引擎
                 case "turnrate": FlightTuning.TurnRateDegPerSec = v; break;     // 机身转向角速度（度/秒；0=瞬时，回到旧行为）
+                // 航向惯性（2026-09-27）：实际"往哪走"的转向角速度 —— 与上面 turnrate 分工见 FlightTuning
+                case "steer": FlightTuning.SteerRateDegPerSec = v; break;            // 悬停/巡航档（度/秒；0=瞬时=旧行为）
+                case "steerboost": FlightTuning.SteerRateBoostDegPerSec = v; break;  // 冲刺档（度/秒；更低=高速转向更"重"）
+                case "steeridle": FlightTuning.SteerIdleResetSeconds = v; break;     // 停稳多久算"没有航向动量"（秒）
                 case "spawngap": FlightTuning.CarrierSpawnGap = v; break;       // 板面比碰撞体底面再低多少（米）
                 case "feetoffset": FlightTuning.CarrierSpawnGap = v; break;     // 旧键名，等价 spawngap（口径已改）
                 case "settle": FlightTuning.TakeoffSettleSeconds = v; break;    // 起飞等踩上板的最长等待（秒；0=不等）

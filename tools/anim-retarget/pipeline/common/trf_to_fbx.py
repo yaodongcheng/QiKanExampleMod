@@ -96,6 +96,15 @@ for idx, clip in enumerate(CLIPS, 1):
         sc.render.fps = FPS
         bpy.ops.import_scene.fbx(filepath=SKEL)
         arm = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
+        # 🔴 2026-09-27 修：骨架对象名必须 = human_skeleton_notused
+        #    （骑砍2 硬约束 2：叫 human_skeleton 会与引擎内置骨架冲突；见 bannerlord_target.json）。
+        #    trf_to_fbx.py 以前直接沿用输入骨架 FBX 的对象名（human_lod_4.fbx 里叫 human_skeleton），
+        #    导致它的**所有**产物都过不了 verify_modkit_fbx.py 这一项（实测 ue_SkyfallSpell 同样 FAIL）。
+        arm.name = "human_skeleton_notused"
+        try:
+            arm.data.name = "human_skeleton_notused"
+        except Exception:
+            pass
         if arm.animation_data:
             arm.animation_data.action = None
         act = bpy.data.actions.new(name)

@@ -124,6 +124,10 @@ namespace LivingWorldNpcs.Flight
         private float _clock;               // 累计时间
         private float _statusTimer;         // 状态行的节流计时
         private float _bodyYawDeg = float.NaN;  // 机身当前水平朝向角（度，0=+X 逆时针）；NaN = 未知（起飞/落地时重置）
+        private float _velYawDeg = float.NaN;   // 实际航向的水平角（度）—— 航向惯性用；NaN = 未播种（起飞/落地/停稳时重置）
+        private float _velPitchDeg;             // 实际航向的俯仰（度，+上）—— 同上
+        private float _steerTargetYawDeg;       // 上一帧的**目标**航向角（只给诊断日志看"差多少度"）
+        private float _steerIdleTimer;          // 无输入累计时长（到 SteerIdleResetSeconds 就把航向重新播种）
         private bool _takeoffSettled;        // 起飞阶段：玩家是否已经真的站到板上（没站住不抬升）
         private float _takeoffTimer;         // 起飞阶段计时（登板等待用）
         private float _landingApproach;      // 进入落地那一刻的下冲速度（硬着陆按它下降）
@@ -500,6 +504,8 @@ namespace LivingWorldNpcs.Flight
             {
                 _phase = Phase.Airborne;
                 _velocity = Vec3.Zero;
+                _velYawDeg = float.NaN;       // 航向重新播种（起飞第一帧不插值 = 不让机头从旧航向慢慢转过来）
+                _steerIdleTimer = 0f;
                     _airTime = 0f;
                 _anim.Hold = false;           // 交回状态机：下一帧按转移表挑姿态（待机 / 巡航）
             }
@@ -554,13 +560,28 @@ namespace LivingWorldNpcs.Flight
             Vec2 axis = FlightInput.MoveAxis;
             Vec3 dir = forward * axis.y + right * axis.x;
             if (dir.LengthSquared > 0.0001f)
+            {
                 dir = dir.NormalizedCopy();
+                _steerIdleTimer = 0f;
+            }
             else
+            {
                 dir = Vec3.Zero;
+                // 停稳（无输入满 `SteerIdleResetSeconds`）⇒ 航向重新播种：悬停没有"航向动量"可言，
+                // 镜头转过去再给输入应当**立刻朝那边走**；而按键之间的 1~2 帧空隙够不到这时长
+                // （够到了就会把正在划的弧"啪"地掰直 —— W 换 A 那种换键最容易撞上）。
+                _steerIdleTimer += dt;
+                if (_steerIdleTimer >= FlightTuning.SteerIdleResetSeconds)
+                    _velYawDeg = float.NaN;
+            }
 
-            // (3) 速度 = 恒定值，**不做加速趋近**（对齐已实测丝滑的那套：那边就是恒定速度）
+            // (3) 速度 = 恒定值（**大小**不做加速趋近）；**方向带惯性**（2026-09-27 用户裁定，A 方案）——
+            //     相机转了方向，实际航向以 `SteerRateDegPerSec`（冲刺用 `SteerRateBoostDegPerSec`）
+            //     追过去 ⇒ 掉头是**划一道弧**，不是当帧把整个速度横过来。两档填 0 = 回到旧的瞬时行为。
+            //     ⚠️ 这里**只管方向**：大小仍是 Shift 一按一松当帧切 9 ⇄ 26（速度渐变是另一层，没做）。
             float targetSpeed = FlightInput.BoostHeld ? FlightTuning.BoostSpeed : FlightTuning.CruiseSpeed;
-            _velocity = dir * targetSpeed;
+            Vec3 moveDir = (dir.LengthSquared > 0.0001f) ? SteerVelocityDir(dir, dt) : Vec3.Zero;
+            _velocity = moveDir * targetSpeed;
 
             // 闪避位移：这段时间速度**整个交给闪避方向**（覆盖，不叠加）。
             // 位移走完自动交还普通飞行，而姿态动画继续按自己的时长演完（两者刻意解耦：
@@ -610,6 +631,12 @@ namespace LivingWorldNpcs.Flight
             //              W 朝镜头前方 / A 朝左 / D 朝右 / S 转身朝镜头（对着玩家）
             //    无输入 → **一个字都不写** ⇒ 保持最后朝向 ⇒ 镜头绕着转能看到各个面、转到正面就是正脸。
             //
+            // 🔴 **喂的是 `_velocity`（实际航迹），不是相机方向 `dir`**（2026-09-27 加航向惯性时改）：
+            //    航向有了惯性之后，相机方向与实际航迹**会差一个角度**（正在划弧的那段）。
+            //    若还按相机方向转机身，身体会比航迹转得快 ⇒ 看着像"斜着平移"（侧滑）。
+            //    喂 `_velocity` = 身体永远朝着**真正在走的方向**，与「朝实际移动方向」这条裁定也更贴。
+            //    （闪避期间 `_velocity` 是闪避方向，但那一段被下面的 `_dodgeTimer` 挡在外面，不受影响。）
+            //
             // 🔴 **本条推翻早先的"飞机式"裁定**（那条要求 A/D 平移时身体不转、始终朝镜头前方）。
             //    两条是相反的，**以现在这条为准**；要改回去只需把 `dir` 换成 `forward`（一行）。
             //
@@ -628,7 +655,7 @@ namespace LivingWorldNpcs.Flight
             {
                 StopAimingHead(main);
                 if (FlightInput.HasMoveInput && _dodgeTimer <= 0f)
-                    TurnBodySmoothed(main, dir, dt);
+                    TurnBodySmoothed(main, _velocity, dt);
             }
 
             // ⑧′ 掉下板检测（2026-09-22 用户实机：撞墙时板穿墙、人被墙挡住 ⇒ 人掉下来）
@@ -799,6 +826,8 @@ namespace LivingWorldNpcs.Flight
             _velocity = Vec3.Zero;
             _landTimer = 0f;
             _bodyYawDeg = float.NaN;        // 机身朝向重新播种（首次写不插值 = 不甩头）
+            _velYawDeg = float.NaN;         // 航向同理（新一次飞行从"当帧就朝镜头"开始，不带着上次的弧）
+            _steerIdleTimer = 0f;
             _bodyDiagLogged = false;        // 取向取证重新开一次
             _bodyDiagPending = false;
             _bodyDiagTimer = 0f;
@@ -920,6 +949,10 @@ namespace LivingWorldNpcs.Flight
             _dodgeDir = (forward.LengthSquared > 1e-6f ? forward : new Vec3(0f, 0f, 1f)).NormalizedCopy();
             _dodgeTimer = FlightTuning.DodgeDisplaceSeconds;
             _dodgeCooldown = FlightTuning.DodgeCooldownSeconds;
+
+            // 航向状态**跟着闪避方向走**（2026-09-27）：闪避这 0.4 秒速度整个交给 `_dodgeDir`，
+            // 若不同步，位移走完的那一帧航向还停在闪避**之前**的角度 ⇒ 会从旧航向再划一道弧回去。
+            SeedSteerFrom(_dodgeDir);
 
             DebugLogger.Log($"[Flight] 闪避（前闪）方向=({_dodgeDir.x:F2},{_dodgeDir.y:F2},{_dodgeDir.z:F2}) " +
                             $"位移={FlightTuning.DodgeDistance:F1}m/{FlightTuning.DodgeDisplaceSeconds:F2}s " +
@@ -1169,6 +1202,8 @@ namespace LivingWorldNpcs.Flight
             _velocity = Vec3.Zero;
             _landTimer = 0f;
             _bodyYawDeg = float.NaN;
+            _velYawDeg = float.NaN;
+            _steerIdleTimer = 0f;
             _takeoffSettled = false;
             _takeoffTimer = 0f;
             _boardRemoved = false;
@@ -1201,6 +1236,8 @@ namespace LivingWorldNpcs.Flight
             _velocity = Vec3.Zero;
             _landTimer = 0f;
             _bodyYawDeg = float.NaN;
+            _velYawDeg = float.NaN;
+            _steerIdleTimer = 0f;
             _takeoffSettled = false;
             _takeoffTimer = 0f;
             _boardRemoved = false;
@@ -1769,12 +1806,20 @@ namespace LivingWorldNpcs.Flight
             DebugLogger.Log("[Flight-Diag] key: " + FlightInput.Diagnose());
 
             // 行 3：相机朝向 + 木板速度（含方向）
+            // 🔴 `steer=` 是**航向惯性**的判据（2026-09-27）：左边 = 实际航向角、右边 = 相机给的目标角。
+            //    两个数**持续不等** = 正在划弧（惯性生效）；永远相等 = 归零了 / 初速就一致。
+            //    `steerRate=0` 时它必然恒等 —— 这就是"回到旧行为"的对照。
+            string steerTxt = float.IsNaN(_velYawDeg)
+                ? "steer=-"
+                : string.Format("steer={0:F0}°→{1:F0}° (off {2:F0}°, rate={3:F0}/s)",
+                                _velYawDeg, _steerTargetYawDeg, Normalize180(_steerTargetYawDeg - _velYawDeg),
+                                FlightInput.BoostHeld ? FlightTuning.SteerRateBoostDegPerSec : FlightTuning.SteerRateDegPerSec);
             DebugLogger.Log(string.Format(
-                "[Flight-Diag] 引擎算法 look=({0:F2},{1:F2},{2:F2}) right=({3:F2},{4:F2},{5:F2}) | 相机帧 .f=({6:F2},{7:F2},{8:F2}) .u=({9:F2},{10:F2},{11:F2}) | vel=({12:F2},{13:F2},{14:F2}) |v|={15:F1} pitchBand={16} anim={17}",
+                "[Flight-Diag] 引擎算法 look=({0:F2},{1:F2},{2:F2}) right=({3:F2},{4:F2},{5:F2}) | 相机帧 .f=({6:F2},{7:F2},{8:F2}) .u=({9:F2},{10:F2},{11:F2}) | vel=({12:F2},{13:F2},{14:F2}) |v|={15:F1} pitchBand={16} anim={17} | {18}",
                 engF.x, engF.y, engF.z, engR.x, engR.y, engR.z,
                 cf.x, cf.y, cf.z, cu.x, cu.y, cu.z,
                 _velocity.x, _velocity.y, _velocity.z,
-                _velocity.Length, _pitchLatch.Value, _anim.CurrentAction ?? "-"));
+                _velocity.Length, _pitchLatch.Value, _anim.CurrentAction ?? "-", steerTxt));
         }
 
         /// <summary>
@@ -1876,6 +1921,78 @@ namespace LivingWorldNpcs.Flight
                 return;
             try { agent.DisableLookToPointOfInterest(); } catch (Exception) { }
             _headAimActive = false;
+        }
+
+        /// <summary>
+        /// **航向惯性**（2026-09-27 用户裁定，A 方案）—— 把"实际飞行方向"从当前航向以
+        /// `SteerRateDegPerSec × dt` 的角速度朝相机方向转过去，而不是当帧就换。
+        ///
+        /// **为什么要它**：加它之前 `_velocity = 相机方向 × 定速` 是**每帧从头算**的 ——
+        /// 转镜头当帧航向就换。冲刺 26 m/s 时甩一下镜头 = 画面整个横过来、人却像没有质量。
+        /// 加上限速之后，掉头是**划一道弧**（180°/s 配 26 m/s ⇒ 转弯半径约 8 米）。
+        ///
+        /// **口径**（与 <see cref="TurnBodySmoothed"/> 同一套思路：先算目标角，再按速率走最短弧）：
+        /// · **两档角速度** —— 悬停/巡航用 <see cref="FlightTuning.SteerRateDegPerSec"/>、
+        ///   冲刺（按住 Shift）用 <see cref="FlightTuning.SteerRateBoostDegPerSec"/>（更低 ⇒ 高速转向更"重"）。
+        ///   **任填 0 = 瞬时**（回到 2026-09-27 之前的旧行为）。
+        /// · **首帧不插值**：<see cref="_velYawDeg"/> 是 NaN（起飞/落地时重置）就直接取目标角 ——
+        ///   否则起飞第一帧会从"上一次飞行的航向"处慢慢转过来，多一次甩头。
+        /// · **只管方向、不管大小**：速度大小仍是 Shift 一按一松当帧切（9 ⇄ 26）。
+        /// · **无输入时不由这里管**：调用方只在有方向输入时调它；"停稳后重新播种"也在调用方
+        ///   （见 `TickAirborne` 与 <see cref="FlightTuning.SteerIdleResetSeconds"/>）。
+        ///
+        /// 🔴 **不写的时候会不会与真实航向脱钩**：不会。飞行期间玩家输入被冻结、AI 被暂停，
+        ///    没有第三方会动航向；无输入时我们既不写也不改它，下次给输入时它仍是上次的实际航向。
+        /// </summary>
+        private Vec3 SteerVelocityDir(Vec3 target, float dt)
+        {
+            float targetYaw = (float)(Math.Atan2(target.y, target.x) * (180.0 / Math.PI));
+            float targetPitch = (float)(Math.Asin(Math.Max(-1f, Math.Min(1f, target.z))) * (180.0 / Math.PI));
+            _steerTargetYawDeg = targetYaw;
+
+            float rate = FlightInput.BoostHeld ? FlightTuning.SteerRateBoostDegPerSec
+                                               : FlightTuning.SteerRateDegPerSec;
+
+            if (float.IsNaN(_velYawDeg) || rate <= 0f)
+            {
+                _velYawDeg = targetYaw;          // 首帧 / 关掉惯性 = 瞬时到位
+                _velPitchDeg = targetPitch;
+            }
+            else
+            {
+                float step = rate * dt;
+
+                float dYaw = Normalize180(targetYaw - _velYawDeg);
+                _velYawDeg += (Math.Abs(dYaw) <= step) ? dYaw : Math.Sign(dYaw) * step;
+
+                float dPitch = targetPitch - _velPitchDeg;   // 俯仰在 ±90 以内，不会绕圈，不用归一化
+                _velPitchDeg += (Math.Abs(dPitch) <= step) ? dPitch : Math.Sign(dPitch) * step;
+            }
+
+            float yawRad = _velYawDeg * (MathF.PI / 180f);
+            float pitchRad = _velPitchDeg * (MathF.PI / 180f);
+            float cp = MathF.Cos(pitchRad);
+            return new Vec3(cp * MathF.Cos(yawRad), cp * MathF.Sin(yawRad), MathF.Sin(pitchRad));
+        }
+
+        /// <summary>
+        /// 把航向状态**播种**成 `dir` —— 给"方向换了但速度没断"的接缝用（闪避开始那一刻）。
+        /// 传零向量 = 退回"未播种"（下次有输入时当帧到位）。
+        /// </summary>
+        private void SeedSteerFrom(Vec3 dir)
+        {
+            if (dir.LengthSquared < 1e-6f)
+            {
+                _velYawDeg = float.NaN;
+                _steerIdleTimer = 0f;
+                return;
+            }
+
+            Vec3 d = dir.NormalizedCopy();
+            _velYawDeg = (float)(Math.Atan2(d.y, d.x) * (180.0 / Math.PI));
+            _velPitchDeg = (float)(Math.Asin(Math.Max(-1f, Math.Min(1f, d.z))) * (180.0 / Math.PI));
+            _steerTargetYawDeg = _velYawDeg;
+            _steerIdleTimer = 0f;
         }
 
         /// <summary>

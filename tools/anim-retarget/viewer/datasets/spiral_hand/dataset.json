@@ -1,0 +1,25 @@
+{
+  "name": "spiral_hand",
+  "title": "螺旋手里剑手势 · start / loop / cast / cancel",
+  "subtitle": "start=idle→手势 · loop=保持(真呼吸) · Cast=丢出去(真投掷) · End=取消收回；接缝全 0.00°",
+  "sides": {
+    "dst": {
+      "label": "骑砍2 · 螺旋手里剑手势（start/loop/cast/cancel）",
+      "color": "#e0b070",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "assets/dst.glb"
+        }
+      ]
+    }
+  }
+}
