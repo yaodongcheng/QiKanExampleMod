@@ -70,7 +70,8 @@
 🔴 **三条可直接抄的口径**（与我们在骑砍2 里做的完全同构）：
 1. **进冲刺必须先播一次"入姿"**（`Start`），入姿**剩 20%** 时切到循环 —— 这正是我们 XML 里
    `进入飞行 → 悬浮飞行 anim-rem-pct="15"` 与 `fastmoveStart` 那条 `after-finish` 的同一套做法。
-2. **退出条件就是"松开加速"**（`NOT IsSprint`）—— 我们在 `冲刺飞行 → 悬浮飞行` 上用的 `keys="Shift" not="true"` 与此一致。
+2. **退出条件就是"松开加速"**（`NOT IsSprint`）—— 我们的出口边同样只看 Shift（`keys="Shift" not="true"`），
+   但**目标是 `进入飞行`（hoverstart 入姿）**，不是直接回悬浮 —— 这是用户 2026-09-27 的裁定（"回悬浮一律经入姿"）。
 3. 入姿途中松开加速 ⇒ **直接回悬停**（#13），不必先回循环 —— 我们的"条件优先、演完兜底"是同一件事。
 
 ---
@@ -212,7 +213,7 @@ Lean.Y = FInterpTo(Lean.Y, MapRangeClamped(PitchVelocityDifference, ±180 → �
 
 ## 8. 映射到骑砍2（我们手上有什么 / 差在哪）
 
-| UE | 我们（`ModuleData/statemachine_flight.xml`） | 状态 |
+| UE | 我们（`ModuleData/statemachines/flight.xml`） | 状态 |
 |---|---|---|
 | `Flying` 3 状态 + 入姿 + `NOT IsSprint` 退出 | `悬浮飞行` / `冲刺飞行` 两族 + `fastmoveStart` 入姿 + `keys="Shift" not="true"` 退出 | ✅ 同构 |
 | 入姿剩 20% 切循环 | `进入飞行 → 悬浮飞行 anim-rem-pct="15"`、`fastmoveStart` 的 `after-finish` | ✅ 同构 |
@@ -227,7 +228,7 @@ Lean.Y = FInterpTo(Lean.Y, MapRangeClamped(PitchVelocityDifference, ±180 → �
 
 **相关的骑砍2 侧事实**（别在别处重复维护）：
 - 《玩家飞行-实施方案.md》§3.12′（跳转线定稿）、§3.11（趴姿腿硬 = 引擎编译丢低偏移骨轨道）、§3.8.1（增量合成口径 `--root-scale`）。
-- 我们自己的状态机：`Animation/AgentAnimStateMachine.cs`（求值）+ `Animation/AnimMachineLoader.cs`（装载校验）+ `ModuleData/statemachine_flight.xml`（定义）。
+- 我们自己的状态机：`Animation/AgentAnimStateMachine.cs`（求值）+ `Animation/AnimMachineLoader.cs`（装载校验）+ `ModuleData/statemachines/flight.xml`（定义）。
 
 ---
 

@@ -6,7 +6,7 @@ namespace LivingWorldNpcs.Flight
     /// <summary>
     /// 飞行状态机用到的**条件谓词 + 命名标量**（2026-09-25 立）—— 注册给 XML 用。
     ///
-    /// 🔴 **这里是这批名字的唯一真身**。`ModuleData/statemachine_flight.xml` 里只写名字
+    /// 🔴 **这里是这批名字的唯一真身**。`ModuleData/statemachines/flight.xml` 里只写名字
     /// （`when="sprinting"`、`duration="boostStartSeconds"`），名字写错**装载期就报错**、不会静默。
     ///
     /// 🔴 **为什么判据不写进 XML**：写成字符串表达式就得自己写解析器，也失去编译期检查 ——

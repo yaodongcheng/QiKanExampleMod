@@ -1,9 +1,9 @@
-# 动画状态机：XML 化 + 编辑器（2026-09-25 · **会话 3 交接**）
+# 动画状态机：XML 化 + 编辑器（**最新 = 顶部 ⓿″ 会话 7 交接（2026-09-27）**）
 
 > **会话 2** = 把这台状态机做出来（XML 化 + 编辑器，§七~§二十）；
 > **会话 3**（同日）= 工具链归位 + 只删一个渲染器（§二十一）—— **只动工具与文档，没动 XML 语义、没动 C#**。
 
-> **一句话**：飞行动画状态机的定义在 `ModuleData/statemachine_flight.xml`（**改它不用重编译**），
+> **一句话**：飞行动画状态机的定义在 `ModuleData/statemachines/flight.xml`（**改它不用重编译**），
 > 配套 **UE 式编辑器**（`tools/anim-statemachine/statemachine_editor.html`，直接双击开 —— 这一份**进 git**）
 > + 自检三件套（说明见工具链的 [README.md](../tools/anim-statemachine/README.md)）。
 > 🟢 **前提（2026-09-25 用户裁定）：这台状态机是自建层，最终归属 = `SetActionChannel`**
@@ -22,7 +22,7 @@
 ### 三条（从此是**前提**，不再论证）
 
 1. **这台动画状态机是自建层，不是骑砍2 的原生动画系统。** 整条链都在我们自己的代码里：
-   `statemachine_flight.xml` → `Animation/AnimMachineLoader.cs`（装载 + 校验）→ `AgentAnimStateMachine`（求值）
+   `statemachines/flight.xml` → `Animation/AnimMachineLoader.cs`（装载 + 校验）→ `AgentAnimStateMachine`（求值）
    → **唯一的落点 `agent.SetActionChannel(0, idx, …)`** —— 引擎只负责"把某条 clip 写到 0 号通道"。
 2. **`XML → 运行期` 这条路是用户的**：他自己解析、自己装载、自己看 clip 落得对不对。
    所以"写得对不对"的**最终判据 = 他跑一遍看落没落对**，**不是**"等一个外部条件成熟"。
@@ -39,6 +39,57 @@
 | 验收口径 = "编译通过 / 规则镜像通过" | 验收口径 = **跑完是不是落了正确的 clip 到 0 号通道** |
 
 > 仍然**要**如实标注"哪条路径没人走过" —— 但那是**状态描述（告诉你先盯哪里）**，**不是挡箭牌**。
+
+---
+
+## ⓿″ 会话 7 交接（2026-09-27）· **新 session 先看这段**
+
+> **一句话现状**：状态机 XML 搬进**专门目录** `ModuleData/statemachines/flight.xml`（以后多台机各一份）；
+> 编辑器仍是"改 → 导出完整 XML → 粘贴回文件"这条老路，但**黄条现在直接告诉你该点哪个**；
+> 🔴 **本轮所有改动一次都没实机跑过**。**下一步的大件 = 给编辑器加"直接读写文件"**（方案已批，见 TODO 1）。
+
+### 本轮做了什么（4 件，全部验过）
+
+| # | 事 | 关键点 |
+|---|---|---|
+| **1** | **XML 搬进专门目录** | `ModuleData/statemachines/flight.xml`（文件名 = 机器名，对应 `<state_machine name="flight">`）。C# 侧 `FlightAnimMachine.FileName` + 新增 `SubDir`；生成器 / 两个探针 / 3 份文档 / README 全改。⚠️ **git 里表现为"删旧文件 + 新增目录"**，改名留给用户 commit |
+| **2** | **黄条加时间戳 + 建议** | 显示 `草稿保存于 X · XML 修改于 Y ⇒` **哪个新 / 点哪个**（用户实测原话："我看不太懂为什么说有草稿、也不知道该点哪个"）。草稿开始记 `at`；XML 的 mtime 由生成器烘进 `DATA.xmlAt` |
+| **3** | **脚本块禁字面 HTML 注释标记** | HTML 规范里 `<script>` 内出现"小于号+感叹号+两减号"会切进**脚本转义**态 ⇒ 浏览器照跑、**VSCode 的 HTML 语言服务解析错位报假错**。做法：嵌进页面的 JSON 里，小于/大于号写成 **JSON 的 unicode 转义**（运行期值一字不变）；`check_pages.py` 自动查；**已入 CLAUDE.md 铁律 37** |
+| **4** | 自检 ④ 不再写死屏幕坐标 | 头部文案一变长就把坐标压到节点上（假 FAIL）⇒ 改成**动态找一个"光标下没有可交互元素"的点**（判据与页面 `pointerdown` 同一套） |
+
+**验证**：`check_pages`（含新规）· `shoot` 24 图 0 失败 · `drive` **129 / 0** · 装载器规则预检 **0 问题** · 跳转模拟 **16/16** ·
+往返导出（无头浏览器取 `fullXml()`）与 XML **逐条一致（4 容器 / 18 状态 / 23 边）** · `dotnet build` **0 警告 0 错误**。
+
+### 🔴 下一步 TODO（按优先级，**新 session 照这个做**）
+
+1. **给编辑器加"直接读写文件"**（用户已批准的设计；`file://` 页面里 File System Access API **已验可用**：`isSecureContext=true`，三个 picker 都在）：
+   - **「打开文件夹…」** = 选 `ModuleData/statemachines/` ⇒ 列出目录里所有 `*.xml`（"以后不止一台机"的入口）
+   - **「保存」** = **覆盖正本**；**写之前先写备份**；`Ctrl+S` 同效
+   - **「另存为…」** = 换名字 / 换目录（"多份"的入口）
+   - **备份落点** = `Debug/offline/statemachine_backup/`（用户选了 Debug/offline；**子目录名待用户点头**）
+   - **冲突闸门** = 载入时记**指纹（大小 + mtime）**，保存前再比一次；不一致（磁盘上被别人改了，**包括 Claude 改的**）⇒ **拒绝保存**并提示"先重新载入 / 另存"
+   - **黄条三选一** = 继续编辑草稿 / 用文件覆盖草稿 / **把草稿另存为文件**（不丢工作、也不污染真相）
+   - ⚠️ **要用户配合一次**：首次各选一次目录（XML 目录 + 备份目录）—— 浏览器不给永久句柄，重开页面可能要再点一次授权
+   - **自检**：无头浏览器点不了原生对话框 ⇒ 注入**假句柄桩**（`window.showOpenFilePicker / showSaveFilePicker / showDirectoryPicker`）测 5~6 条：
+     保存写回内容 / 备份文件名与保留份数 / 冲突时拒绝 / 另存为 / 草稿三选一 / 旧路（导出 + 粘贴）仍在
+   - **旧的「导出完整 XML + 粘贴」保留** = FSA 不可用时的降级路径（别的浏览器 / 隐私模式）
+2. **实机验证（最高优先，与 TODO 1 可并行）**：**VS2022 重编** → 启动日志看
+   `✅ [Anim:flight] 定义已从 XML 装载：18 个状态 / 23 条边 / 4 个族（flight.xml）`（⚠️ 文件名现在是 `flight.xml`）；
+   四条行为：① 悬停 / 冲刺按空格**都退出飞行**（掉落接管）、掉着再按**回飞行** ② 冲刺**只响应 Shift** ③ 冲刺退回**也播入姿** ④ 撞地自动落地 + **剩 20% 出机**
+3. **等用户拍板的三个小口子**（都已写在 XML 注释里）：
+   - **闪避用哪个键** —— 空格被"出机"占用，闪避**整条暂时停用**（XML 那条边摘掉 + C# `DodgeOnSpaceTapInBoost=false`）
+   - **趴姿的压弯 / 俯仰**（`fastmoveLeanL/R`、`fastmovePitchU/D` 四个状态空着）—— 等"角速度 / 竖直速度"驱动量，
+     原版 UE 就是这么驱动的（见 [Knowledge/SuperheroFlight飞行系统_动画状态机与过渡解析.md](../../Knowledge/SuperheroFlight飞行系统_动画状态机与过渡解析.md) §5）
+   - **前闪用哪条 clip**（现在留 `dodgeU`）
+4. 小账：`tools/anim-statemachine/out/_shots/*.html` 是截图的中间产物，已在 `out/`（整目录不进 git）✓
+
+### 本轮的三个"写文档 / 改脚本"教训（下个 session 省时间）
+
+1. 🔴 **heredoc 会吃掉反斜杠**（转义序列到文件里就变样，本轮被坑三次）⇒ 改带转义的字符串**用 Edit 工具**，或用 `chr(92)` 拼。
+2. 🔴 **Edit 工具会把 unicode 转义当字符解析** ⇒ 文档里要描述它时**用文字**（"反斜杠 + u003C"），别写那个序列本身
+   （我第一版写进铁律 37 就被吃成裸的小于号）。
+3. 🔴 **静态 HTML 里花括号美元符不求值**（只有 JS 模板串里才求值）⇒ 页面静态部分要显示路径 / 常量时用**生成期占位符**
+   （本轮 `${DATA.xmlPath}` 就在页面上杵成了字面量，靠截图抓到）。
 
 ---
 
@@ -110,7 +161,7 @@
 
 | 件 | 在哪 | 状态 |
 |---|---|---|
-| 状态机定义 | `ModuleData/statemachine_flight.xml` | **18 状态 / 26 边 / 2 容器**（`Upright` 7、`ProneFamily` 10）；`superland` 是散状态（出机衔接） |
+| 状态机定义 | `ModuleData/statemachines/flight.xml` | **18 状态 / 26 边 / 2 容器**（`Upright` 7、`ProneFamily` 10）；`superland` 是散状态（出机衔接） |
 | 引擎装载 | `Animation/AnimMachineLoader.cs` | 支持 `<family name="X" entry="…">` + 边 `to=容器` ⇒ **装载期**解析成该容器入口（**运行时热路径零改动**） |
 | **编辑器（唯一页面）** | `tools/anim-statemachine/statemachine_editor.html` ← 生成器 `gen_statemachine_editor.py`（**这份 html 进 git**） | 缩放平移 / 右键菜单 / **容器下钻** / 复制粘贴 / **撤销·重做** / 改名级联 / 边列表按选中聚焦 / 草稿黄条 / 校验 / 导出整份 XML |
 | 自检三件套 | `check_pages.py`（JS 语法）· `shoot_pages.py`（静态截图）· `drive_pages.mjs`（**真输入交互**） | 编辑器 **90/90 通过**（见 ⓿′） |
@@ -188,7 +239,7 @@ node   drive_pages.mjs       # 真输入交互自检（51 项）—— **任何�
 
 | # | 件 | 在哪 | 说明 |
 |---|---|---|---|
-| 1 | **定义** | `ModuleData/statemachine_flight.xml` | 20 状态 / 19 边 / 3 容器 / 21 谓词 + 3 命名标量。**改它不用重编译**，重启游戏即生效 |
+| 1 | **定义** | `ModuleData/statemachines/flight.xml` | 20 状态 / 19 边 / 3 容器 / 21 谓词 + 3 命名标量。**改它不用重编译**，重启游戏即生效 |
 | 2 | **装载 + 校验** | `Animation/AnimMachineLoader.cs` | 状态名 / 目标 / 容器成员 / 谓词名 / 数字**逐条校验**；不过就**整台不注册**，并把全部问题一次报到日志 |
 | 3 | **判据（两层）** | `Flight/FlightAnimConditions.cs`（命名谓词）+ `Animation/AnimPrimitives.cs`（原语） | 🔴 **组合条件用命名谓词**（`sprinting` = 按着 Shift 且在动）；"按着什么键 / 动画还剩多久"直接在 XML 写原语：`key="W" key-mode="held"`、`anim="remaining" anim-rem-pct="20"`（**键只有电平两档、剩余是百分比** —— 见 §二十五 / §二十六） |
 | 4 | **键的载体** | `IAnimInputFacts`（新接口）← `FlightAnimContext` 实现，`PlayerFlightBehavior.UpdateKeyFacts()` 每帧填 | 8 键 × 电平/按下沿/松开沿 + 动画剩余秒数 |
@@ -212,7 +263,7 @@ node   drive_pages.mjs       # 真输入交互自检（51 项）—— **任何�
 1. **实机没跑过**。XML 装载器 / 键与动画原语 / `演完兜底` / `outside` 全部只到"编译通过 + 规则镜像通过"。
    **判据（重启后看日志，两行一眼可辨）**：
    ```
-   ✅ [Anim:flight] 定义已从 XML 装载：18 个状态 / 26 条边 / 2 个容器（statemachine_flight.xml）
+   ✅ [Anim:flight] 定义已从 XML 装载：18 个状态 / 26 条边 / 2 个容器（statemachines/flight.xml）
    ❌ [Anim] 状态机 'flight' 定义有 N 处问题，**未注册**： + 逐条问题列表
       [Flight] 状态机未注册（定义有问题…）—— 飞行本身照常，只是没有姿态动画
    ```
@@ -266,7 +317,7 @@ node   drive_pages.mjs       # 真输入交互自检（51 项）—— **任何�
 ## 六、文件清单（本次改动，git 归用户）
 
 **新增**：`Animation/AnimPrimitives.cs` · `Animation/AnimConditions.cs` · `Animation/AnimMachineLoader.cs` ·
-`Flight/FlightAnimConditions.cs` · `ModuleData/statemachine_flight.xml` ·
+`Flight/FlightAnimConditions.cs` · `ModuleData/statemachines/flight.xml` ·
 `tools/anim-statemachine/gen_statemachine_editor.py` · `tools/anim-statemachine/check_pages.py` · `tools/anim-statemachine/shoot_pages.py`（会话 2 加）
 · `tools/anim-statemachine/drive_pages.mjs`（会话 2 加）· `tools/anim-statemachine/README.md`（2026-09-25 迁入 `tools/` 时补）
 · `tools/anim-statemachine/statemachine_editor.html`（生成物，**故意入库**）
@@ -362,7 +413,7 @@ node   drive_pages.mjs       # 真输入交互自检（51 项）—— **任何�
 | # | 用户裁定 | 做了什么 |
 |---|---|---|
 | 1 | **总览不应该有 Entry**（Entry 是每个状态容器才有的） | 机器级 Entry 盒 / `Entry → 默认入口` 视觉边 / Entry 端口 / 「清除入口」菜单 **全部移除**。机器"从哪进"的唯一答案就是那条 `from="outside"` 相位边（画在「机外」盒身上）；右键状态 → 「设为机外进入的目标」。**容器页的 Entry 保留**（下钻视图里它表示"从外部进入本容器"的那些边） |
-| 2 | **飞行状态机不该有 magic 状态**（施法是外部强加的上半身通道） | `ModuleData/statemachine_flight.xml` 删掉 `magicIdle` / `magicProjectile` 两个 state + `UprightFamily` 里的成员 + `* → magicIdle` 边 ⇒ **18 状态 / 18 边**（原 20 / 19） |
+| 2 | **飞行状态机不该有 magic 状态**（施法是外部强加的上半身通道） | `ModuleData/statemachines/flight.xml` 删掉 `magicIdle` / `magicProjectile` 两个 state + `UprightFamily` 里的成员 + `* → magicIdle` 边 ⇒ **18 状态 / 18 边**（原 20 / 19） |
 
 **删 magic 的影响面（逐条核过）**：
 
@@ -381,7 +432,7 @@ node   drive_pages.mjs       # 真输入交互自检（51 项）—— **任何�
 
 用户裁定（我先说明代价、他确认后）：**彻底不要 `from="*"`，改写成显式来源**。
 
-**XML**（`ModuleData/statemachine_flight.xml`）⇒ **18 状态 / 24 边**（原 18 / 18）
+**XML**（`ModuleData/statemachines/flight.xml`）⇒ **18 状态 / 24 边**（原 18 / 18）
 
 - 原来 6 条 `* → X` 各拆成 2 条：`UprightFamily → X`（直立族内部切换）+ `ProneFamily → X`（趴姿族回落）
 - 拆的 6 个目标：`idle` / `hovermove` / `hovermoveLeanL` / `hovermoveLeanR` / `hovermovePitchU` / `hovermovePitchD`
@@ -584,7 +635,7 @@ ProneFamily (10)  fastmove fastmoveStart fastmoveLeanL/R fastmovePitchU/D   ← 
 - 新增校验（不过则**整台不注册**并列问题）：`entry` 必须是该容器的成员；`to=容器` 时该容器必须有 `entry`
 - 文档注释同步更新；`族` 的措辞统一成「容器」
 
-`ModuleData/statemachine_flight.xml`：给两个容器声明入口
+`ModuleData/statemachines/flight.xml`：给两个容器声明入口
 ```xml
 <family name="Upright"     entry="hovermove">idle hovermove …</family>
 <family name="ProneFamily" entry="fastmove">fastmove … dodgeL..d</family>
@@ -688,7 +739,7 @@ ProneFamily (10)  fastmove fastmoveStart fastmoveLeanL/R fastmovePitchU/D   ← 
 
 ## 二十一、会话 3（同日）：工具链归位 + **只留一个渲染器** + 清理
 
-> **范围**：只动**工具与文档**。`ModuleData/statemachine_flight.xml` 的语义、C#、飞行行为**一行没改**。
+> **范围**：只动**工具与文档**。`ModuleData/statemachines/flight.xml` 的语义、C#、飞行行为**一行没改**。
 
 ### ① 工具从 `Debug/offline/` 迁到 `tools/anim-statemachine/`
 
@@ -731,7 +782,7 @@ ProneFamily (10)  fastmove fastmoveStart fastmoveLeanL/R fastmovePitchU/D   ← 
 ### 文档同步
 
 `tools/anim-statemachine/README.md`（重写：四条命令 / 三道自检分工 / 文件表带"进 git?"列 / 四条纪律）、
-`ModuleData/statemachine_flight.xml` 头部注释（「可视化页」→「编辑器页」）、
+`ModuleData/statemachines/flight.xml` 头部注释（「可视化页」→「编辑器页」）、
 `plans/玩家飞行-实施方案.md`（同一处指针）、本文档 ⓿/§一/§二/§五/§六。
 
 ### 提交
@@ -747,7 +798,7 @@ git add tools/anim-statemachine          # 6 个文件（4 个工具 + README + 
 ## 二十二、会话 3 补丁 2（同日）：编辑器补齐**基础图操作** —— 撤销/重做 + Delete 删除
 
 > **范围**：只动**编辑器工具**（生成器 + 页面 + 自检 + 文档）。
-> `ModuleData/statemachine_flight.xml` 的**语义一行没改**，C# 一行没改。
+> `ModuleData/statemachines/flight.xml` 的**语义一行没改**，C# 一行没改。
 
 ### 起因（用户原话）
 
@@ -884,7 +935,7 @@ git add tools/anim-statemachine          # 生成器 + 页面 + drive_pages.mjs 
 
 ### 改动清单
 
-**XML（`ModuleData/statemachine_flight.xml`）**
+**XML（`ModuleData/statemachines/flight.xml`）**
 
 | 改前 | 改后 |
 |---|---|
@@ -1374,7 +1425,7 @@ AnimConditions.Register("sprinting", c => C(c).Boost && C(c).Moving);   // 按�
 |---|---|
 | `Animation/AnimPrimitives.cs` | `TryBuildKey(key,mode)` → **`TryBuildKeys("A+B")`**；**删掉 `Modes`**（「沿」的最后残留） |
 | `Animation/AnimMachineLoader.cs` | 读 `keys=` / `not=`；**`key=` / `key-mode=` 响亮报错**（不静默换义）；`not` **只在装载器包一层**（三种条件共用一处实现） |
-| `ModuleData/statemachine_flight.xml` | 4 条 `key="A" key-mode="held"` → `keys="A"`；注释补上组合/取反的写法 |
+| `ModuleData/statemachines/flight.xml` | 4 条 `key="A" key-mode="held"` → `keys="A"`；注释补上组合/取反的写法 |
 | 编辑器 | 键档改成**勾选框**（8 键 + 取反）；导出 `keys=`/`not=`；校验（空 / 未知 / 重复 / 非法 not） |
 
 **顺手修掉两个"陈旧读取"**（都在生成器 `build_data` 里 —— 同一种病：**改了 schema 没改读取处**）
@@ -1455,7 +1506,7 @@ AnimConditions.Register("sprinting", c => C(c).Boost && C(c).Moving);   // 按�
 ## 二十八、会话 5（2026-09-25）：真嵌套的**渲染细节**收尾 + 三个连带缺陷
 
 > **范围**：只动**编辑器工具**（生成器 + 页面 + 三个自检 + README + 本文档）。
-> 🔴 `ModuleData/statemachine_flight.xml` 的**语义一行没改**、C# **一行没改**。
+> 🔴 `ModuleData/statemachines/flight.xml` 的**语义一行没改**、C# **一行没改**。
 > 起点 = ⓿′ 的 todo 第 3 条（"本轮只做到能用"那三条）+ 第 6 条（清理）。
 
 ### 用户指令
@@ -1650,7 +1701,7 @@ AnimConditions.Register("sprinting", c => C(c).Boost && C(c).Moving);   // 按�
 
 ## 三十、会话 6（2026-09-26）：**C# 里不再有状态名** + 那台机器的三处修正 + 一条既有失败的定性
 
-> **范围**：动 **C#（飞行侧 + 通用件）** + `ModuleData/statemachine_flight.xml`（三处） + 谓词表；**工具代码没动**（只重跑生成器）。
+> **范围**：动 **C#（飞行侧 + 通用件）** + `ModuleData/statemachines/flight.xml`（三处） + 谓词表；**工具代码没动**（只重跑生成器）。
 > 起点 = 用户把自己画的机器导出成 XML 之后：状态改名成 `进入飞行` / `超人落地`、容器改成 `悬浮飞行` / `冲刺飞行` / `子容器1`，
 > 而飞行 C# 里写死了 `Force("hoverstart")` / `Force("superland")` / `Force("idle")` 和闪避状态名名单 ——
 > **改名之后只是安静地不播动画**（日志一行"没在定义里声明过"）。用户裁定：**重新实现飞行动作管理，要数据驱动**。
@@ -1813,3 +1864,21 @@ AnimConditions.Register("sprinting", c => C(c).Boost && C(c).Moving);   // 按�
    关键是 `触地：… 开始播落地动作 '超人落地'（剩 20% 出机）` 与 `落地动画出机: …（剩 N% ≤ 定义要求的 20%）`。
 2. **浏览器里手点一遍**：XML 改过三处 ⇒ 打开编辑器若弹黄条（本地草稿 vs XML 有差异），点「**用 XML 覆盖草稿**」。
 3. `㉚c`（既有失败）**另开一轮**修，别和飞行动作混在一起查。
+
+---
+
+## 三十一、会话 7（2026-09-27）记录：目录归位 + 黄条说人话 + 生成物体检
+
+> 交接与 TODO 在**顶部 ⓿″**；本节只补三件"过程性"的事，供追溯。
+
+> 明细与交接在**顶部 ⓿″**；这里只补三件"过程性"的事，供追溯。
+
+1. **XML 目录迁移**：`ModuleData/statemachine_flight.xml` → `ModuleData/statemachines/flight.xml`
+   （用户裁定："需要一个专门的文件夹来保存状态机 xml，因为可能不只是一份了"）。
+   C# 侧新增 `FlightAnimMachine.SubDir`；工具/探针/文档全路径同步（全仓搜 `statemachine_flight` = 0 命中，
+   只剩历史记载里的只读页文件名 `statemachine_flight.html`，那页早已删除）。
+2. **往返探针 `Debug/offline/_sm_roundtrip.mjs`**（新增，临时）：无头 Chrome 打开编辑器 → 清 localStorage →
+   取 `fullXml()` → 与 XML 做**语义 diff**（容器 / 状态 / 边逐条 + 属性）。
+   ⇒ 这是"编辑器导出的就是那份 XML"的**唯一证据**，改完生成器/页面都可以跑一遍。
+3. **`check_pages.py` 新增一条检查**：脚本块内不得出现字面 `<!--` / `-->`（负面测试：注入一个假的 ⇒ exit 1 抓到）。
+   同轮修掉它自己在 **GBK 控制台打 `✗` 会崩**的问题（文件头重设 stdout 编码）。

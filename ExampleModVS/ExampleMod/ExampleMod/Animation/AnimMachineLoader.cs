@@ -23,7 +23,7 @@ namespace LivingWorldNpcs.Animation
     ///   所以装载时**逐条校验并一次性报出全部问题**（状态名/目标/族成员/谓词名/数字），
     ///   校验不过**不注册**（状态机退回空机器：动画不播、其它照常，而不是带着半张错表跑）。
     ///
-    /// 格式（与 `ModuleData/statemachine_flight.xml` 对照着看）：
+    /// 格式（与 `ModuleData/statemachines/flight.xml` 对照着看）：
     /// <code>
     /// &lt;state_machine name="flight"&gt;
     ///   &lt;families&gt;

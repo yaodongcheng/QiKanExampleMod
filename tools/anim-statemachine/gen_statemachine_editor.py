@@ -29,7 +29,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.abspath(os.path.join(HERE, "..", ".."))    # 上两级 = 模块根（tools/<工具链>/ 的固定深度）
 SRC = os.path.join(MOD, "ExampleModVS", "ExampleMod", "ExampleMod")
 TAIKOU = os.path.abspath(os.path.join(MOD, "..", "Taikou"))
-XML = os.path.join(MOD, "ModuleData", "statemachine_flight.xml")
+# 🔴 2026-09-27：状态机 XML 有**专门目录** `ModuleData/statemachines/`（用户裁定）——
+#    以后不止一台机（坐骑 / 载具 / 潜行…）就各放一个文件，**文件名 = 机器名**（`<state_machine name="flight">`）。
+XML = os.path.join(MOD, "ModuleData", "statemachines", "flight.xml")
+XML_REL = "ModuleData/statemachines/flight.xml"   # 给页面显示的相对路径（只有这一份，别在别处写死）
 OUT = os.path.join(HERE, "statemachine_editor.html")
 
 
@@ -93,7 +96,11 @@ def build_data():
         # 节点副标题上的小记号：循环 / 一次性（一次性默认不写时长 —— 用 clip 自己的长度）
         s["durText"] = (("一次性" + ("（覆盖 " + s["dur"] + "s）" if s["dur"] else "")) if s["once"] else "循环")
 
-    return {"machine": root.get("name"), "groups": groups, "states": states, "edges": edges,
+    # 黄条要用"XML 文件什么时候改的"来判"哪个新"（用户 2026-09-27 实测：不知道草稿和 XML 该点哪个）
+    import time as _time
+    _xml_at = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(os.path.getmtime(XML)))
+    return {"machine": root.get("name"), "xmlPath": XML_REL, "xmlAt": _xml_at,
+            "groups": groups, "states": states, "edges": edges,
             "preds": preds, "scalars": dict(re.findall(r'AnimConditions\.RegisterParam\("([^"]+)",\s*\(\)\s*=>\s*([A-Za-z0-9_.]+)\)', conds)),
             "keys": carr(prims, "Keys"), "anims": carr(prims, "Anims"),
             "rawXml": raw}
@@ -250,7 +257,7 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
     <p class="sub">拖连线编转移、<b>自己建容器装状态</b>（容器 = 可当来源的一组状态，等价于 UE 的 State Alias；<b>一个状态只归属一个容器</b>，拖到别的容器 = 移动；
     <b>双击容器钻进去</b>，里面的 Entry = "从外部进入本容器"的那些边）。
     滚轮缩放 / 拖空白平移（<b>拖盒子 = 单独挪它</b>）/ 空白右键出菜单 / 悬停边高亮 / 条件标签自动避让防撞字。
-    编完点 <b>导出完整 XML</b>，整份覆盖回 <span class="mono">ModuleData/statemachine_flight.xml</span>，重启游戏即生效（不用重编译）。</p>
+    编完点 <b>导出完整 XML</b>，整份覆盖回 <span class="mono">@@XMLREL@@</span>，重启游戏即生效（不用重编译）。</p>
   </div>
   <div class="btns">
     <button id="btn-undo" title="撤销（Ctrl+Z）">↶ 撤销</button>
@@ -318,6 +325,7 @@ let pendingBoxes = null;                // 草稿里的三个特殊盒位置，�
 const view = {k: 1, tx: 0, ty: 0};      // 画布视图：缩放 + 平移（对齐 UE 的图浏览手感）
 let viewRestored = false;
 let draftActive = false, draftAck = false;   // 载入了本地草稿 / 用户已点过"保留草稿"
+let draftAt = 0;                             // 草稿保存时间（毫秒）；0 = 老草稿没记时间
 let clip = null;                             // 内存剪贴板：复制状态 → 粘贴状态
 let lastCtxXY = { clientX: 400, clientY: 300 };   // 右键菜单落点（二级菜单复用同一坐标）
 let elistAll = false;                        // 边列表是否显示全部（false = 只看与选中相关）
@@ -370,7 +378,7 @@ try {
   const raw = localStorage.getItem(LSKEY);
   if (raw) { const o = JSON.parse(raw);
     if (o && o.edges) { edges = o.edges; groups = o.groups || groups; states = o.states || states; pos = o.pos || {};
-      gpos = o.gpos || {}; pendingBoxes = o.boxes || null; draftActive = true;
+      gpos = o.gpos || {}; pendingBoxes = o.boxes || null; draftActive = true; draftAt = o.at || 0;
       if (o.view) { view.k = +o.view.k || 1; view.tx = +o.view.tx || 0; view.ty = +o.view.ty || 0; viewRestored = true; } } }
 } catch (e) { /* localStorage 坏了也不能影响用 */ }
 
@@ -389,8 +397,10 @@ function reindex() {
   groupByName = {}; groups.forEach(g => groupByName[g.name] = g);
 }
 
+// 🔴 草稿里存**保存时间**（`at`）：黄条靠它跟 XML 的 mtime 比"哪个新"，并给一句明确建议 ——
+//    2026-09-27 用户实测："我看不太懂为什么说有草稿、也不知道该点哪个"。
 function save() { try { localStorage.setItem(LSKEY, JSON.stringify({edges, groups, states, pos, view, gpos,
-  boxes: {outside: {x: OUTSIDE.x, y: OUTSIDE.y}}})); } catch (e) {} }
+  at: Date.now(), boxes: {outside: {x: OUTSIDE.x, y: OUTSIDE.y}}})); } catch (e) {} }
 function esc(s) { return String(s === undefined || s === null ? "" : s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
@@ -876,6 +886,11 @@ function groupContains(outer, inner) {
   return i.members.every(m => o.members.indexOf(m) >= 0);
 }
 // 草稿 vs XML 的差异摘要（用来把"你在看草稿"这件事说清楚）
+// XML 的修改时间（`DATA.xmlAt`，形如 "2026-09-27 10:10"，本地时区）→ 毫秒；解析不了给 0
+function xmlAtMs() {
+  const m = String(DATA.xmlAt || "").match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : 0;
+}
 function draftDiff() {
   const xs = DATA.states.map(s => s.name), ds = states.map(s => s.name);
   const xe = DATA.edges.map(e => e.from + "→" + e.to + "|" + condText(e));
@@ -898,7 +913,17 @@ function renderDraftBanner() {
   // 🔴 只差**布局**（节点位置 / 缩放平移）不算"草稿" —— 页面在启动时本来就会 save() 一次
   //    （`fit()` 落盘），以前这会让**每一次打开都弹"你在看本地草稿"**，明明一个字都没改。
   if (!d.n) { b.classList.remove("on"); b.innerHTML = ""; return; }
+  // 🔴 **"哪个新"要直接写出来**（2026-09-27 用户实测："我看不太懂为什么说有草稿、也不知道该点哪个"）：
+  //    草稿保存时间 vs XML 文件修改时间 ⇒ 给一句可执行建议，别让人自己推算。
+  const fmt = ms => { try { const d = new Date(ms); const p = n => (n < 10 ? "0" : "") + n;
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  } catch (e) { return "?"; } };
+  const draftNewer = draftAt && draftAt > xmlAtMs();
+  const whenLine = '<span class="mono">　草稿保存于 ' + (draftAt ? fmt(draftAt) : "（更早的版本，没记时间）")
+    + ' · XML 修改于 ' + esc(DATA.xmlAt || "?") + ' ⇒ '
+    + (draftNewer ? '<b>草稿较新</b>：先把草稿「导出完整 XML」另存一份再决定' : '<b>XML 较新</b>：点右边「用 XML 覆盖草稿」') + '</span>';
   b.innerHTML = '<b>⚠ 现在画的是浏览器里的本地草稿，不是 XML</b>'
+    + whenLine + '<br>'
     + '<span class="mono">　与 XML 相比：'
     + (d.addS.length ? "多 " + d.addS.length + " 个状态" + (d.addS.length <= 4 ? "（" + esc(d.addS.join("/")) + "）" : "") + "　" : "")
     + (d.delS.length ? "少 " + d.delS.length + " 个状态　" : "")
@@ -2138,7 +2163,7 @@ document.getElementById("btn-copy").onclick = async () => {
   io.select();
   let ok = false;
   try { await navigator.clipboard.writeText(io.value); ok = true; } catch (e) { ok = false; }
-  notice = ok ? "已复制到剪贴板（" + io.value.split("\n").length + " 行） —— 整份覆盖回 ModuleData/statemachine_flight.xml"
+  notice = ok ? "已复制到剪贴板（" + io.value.split("\n").length + " 行） —— 整份覆盖回 " + DATA.xmlPath
               : "复制被浏览器挡了 —— 文本框已全选，按 **Ctrl+C** 即可";
   renderPanel();
 };
@@ -2206,7 +2231,7 @@ def main():
     #  `<` 与 `>` **都**转义（后者是双保险：连 `-->` 都不在脚本块里出现）。运行期值一字不变。
     payload = (json.dumps(data, ensure_ascii=False)
                .replace("<", "\\u003C").replace(">", "\\u003E"))
-    html = TEMPLATE.replace("@@DATA@@", payload)
+    html = TEMPLATE.replace("@@DATA@@", payload).replace("@@XMLREL@@", XML_REL)
     io.open(OUT, "w", encoding="utf-8", newline="\n").write(html)
     print("OK -> " + OUT)
     print("   %d states / %d groups / %d edges" % (len(data["states"]), len(data["groups"]), len(data["edges"])))

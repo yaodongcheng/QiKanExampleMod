@@ -187,9 +187,17 @@ try {
     'OUTSIDE=' + await ev('JSON.stringify({x:OUTSIDE.x,y:OUTSIDE.y})'));
 
   // ④ 拖空白：整体平移画布
+  // 🔴 **不许写死屏幕坐标**（写死过一次就挂过：顶部提示换了个长文件名 ⇒ 内容整体下移 ⇒ (900,1000)
+  //    压到节点上 ⇒ 拖的是节点不是画布）。动态找一个 `elementFromPoint` 命中 <svg> 本身的点。
   await sleep(700);
   v = await ev('JSON.stringify(view)');
-  await dragFrom({ x: 900, y: 1000 }, 60, -40);
+  //    判据用**页面自己的那一套**：光标下没有 `.node/.grp/[data-box]/.port/.edge` 祖先 = 空白
+  //    （`elementFromPoint` 命中的是网格 rect，不是 <svg> 本身 —— 第一版就是按 id==='svg' 找的，找不到 ⇒ 假 FAIL）
+  const blank4 = await ev(`(function(){var r=document.getElementById('svg').getBoundingClientRect();
+    for (var y=r.y+r.height-40; y>r.y+20; y-=16) for (var x=r.x+24; x<r.x+r.width-24; x+=16) {
+      var el=document.elementFromPoint(x,y);
+      if (el && !el.closest('.node,.grp,[data-box],.port,.edge,[data-entry]')) return {x:x,y:y}; } return null; })()`);
+  await dragFrom(blank4 || { x: 900, y: 1000 }, 60, -40);
   check('④ 拖空白：整体平移画布', !same(await ev('JSON.stringify(view)'), v), '');
 
   // ⑤ 单击容器（1px 抖动）不该挪动它

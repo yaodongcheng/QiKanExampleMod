@@ -1,9 +1,14 @@
 # tools/anim-statemachine — 动画状态机工具链
 
-> **一句话**：把 `ModuleData/statemachine_flight.xml` 这台状态机 **画出来、点着改、改完导出**，
+> **一句话**：把 `ModuleData/statemachines/flight.xml` 这台状态机 **画出来、点着改、改完导出**，
 > 并配三道自检保证页面"真的能用"（不是"看着能显示"）。
 >
-> 最后更新：2026-09-25（**会话 5**：真嵌套的**渲染细节**收尾 —— 子容器盒默认位置按层级排（不再和 Entry 盒重叠）、
+> 最后更新：**2026-09-27（会话 7）**：状态机 XML 搬进 **`ModuleData/statemachines/`**（多台机各一份）、
+> 黄条加**时间戳 + 该点哪个**的建议、生成物脚本块**禁字面 HTML 注释标记**（`check_pages.py` 自动查，CLAUDE.md 铁律 37）、
+> 自检 ④ 不再写死屏幕坐标。**下一步大件 = 编辑器直接读写文件**（打开文件夹 / 保存覆盖 + 另存为 / 备份 / 冲突闸门）
+> —— 交接与 TODO 在 [plans/动画状态机-XML化与编辑器.md](../../plans/动画状态机-XML化与编辑器.md) 顶部 **⓿″**。
+>
+> 上上次：2026-09-25（**会话 5**：真嵌套的**渲染细节**收尾 —— 子容器盒默认位置按层级排（不再和 Entry 盒重叠）、
 > `fit()` 只算**本页画得出**的盒子、容器页按**叶子语义**画边并把子容器内部边**折叠**；
 > 顺带：**每页各记一份镜头**（切回总览不再顶着别的页的取景）+ 条件标签兜底不再糊成一团。
 > 渲染自检 18 → **24 张图**；交互自检 90 → **125 项**）
@@ -19,7 +24,7 @@
 
 | 你要做的事 | 怎么做 |
 |---|---|
-| 加/改状态、边、容器（状态机结构） | 双击 **`statemachine_editor.html`**（就在本目录）改，改完点「导出完整 XML」，整份覆盖回 `ModuleData/statemachine_flight.xml`，重启游戏生效 —— **不用重编译** |
+| 加/改状态、边、容器（状态机结构） | 双击 **`statemachine_editor.html`**（就在本目录）改，改完点「导出完整 XML」，整份覆盖回 `ModuleData/statemachines/flight.xml`，重启游戏生效 —— **不用重编译** |
 | 改了生成器代码 | 跑下面的命令，一条都不能省 |
 | **改错了想回退** | **Ctrl+Z** 撤销 / **Ctrl+Shift+Z**（或 **Ctrl+Y**）重做；顶栏也有 **↶ / ↷** 两个按钮 |
 | **删节点 / 删边** | 选中它按 **Delete**。删状态 / 容器会**级联**带走相关的边 —— 删错 Ctrl+Z 回来 |
@@ -47,6 +52,15 @@ python shoot_pages.py                 # ② 画面：无头 Chrome 出 24 张图
 node   drive_pages.mjs                # ③ 交互：CDP 打真实鼠标 / 键盘输入，125 项断言
 ```
 
+> 🔴 **改生成器时的两条硬纪律**（都踩过）：
+> ① **生成物里脚本块不能出现字面 `<!--` / `-->`** —— HTML 规范里 `<script>` 内出现 `<!--` 会切进"脚本转义"状态：
+>    浏览器与 `node --check` 照规范处理（**页面照跑**），但 **VSCode 的 HTML 语言服务会解析错位**，
+>    在脚本尾部报一片 `Argument expression expected` **假错误**（用户截图来问过）。
+>    做法：嵌进去的 JSON 里，小于号 / 大于号写成 **JSON 的 unicode 转义**（反斜杠 + `u003C` / 反斜杠 + `u003E`，
+>    运行期值一字不变）；源码里的字符串/正则拼出来；**注释里也别写那个序列**。
+>    验收：脚本块内 `<!--` 与 `-->` 计数都为 0（`check_pages.py` 已经自动查这条）。见 CLAUDE.md 铁律 37。
+> ② **改完必须重跑四条命令**（生成器 → 语法 → 画面 → 交互）；页面是**生成物**，手改会被下次生成覆盖。
+
 **三道自检分工（缺一道就有一类 bug 抓不到）**：
 
 | 工具 | 抓什么 | 为什么不能省 |
@@ -72,7 +86,7 @@ node   drive_pages.mjs                # ③ 交互：CDP 打真实鼠标 / 键�
 > （Chrome 句柄没放就退避重试，删不掉也不报错）。别再让 `out/` 涨到 70MB。
 
 **数据来源**（生成器现读，不手抄 —— 表和代码分叉过一次，不再犯）：
-`ModuleData/statemachine_flight.xml`（状态机定义）· `Flight/FlightAnimConditions.cs`（谓词真身）·
+`ModuleData/statemachines/flight.xml`（状态机定义）· `Flight/FlightAnimConditions.cs`（谓词真身）·
 `Flight/FlightTuning.cs`（动作名 / 阈值）· `Taikou/ModuleData/action_sets.xml`（动作名 → clip 名）。
 
 > **只读页已删（2026-09-25）**：原来还有第二个渲染器 `gen_statemachine_page.py` 出一张静态报告页
