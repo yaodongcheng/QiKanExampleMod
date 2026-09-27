@@ -1702,3 +1702,41 @@ if (!_campaignDone && Campaign.Current != null && CampaignEntitySystemReady())
 **同一个脚本里还有第二个坑**：**FBX 导入器会按文件自带帧率改写场景 fps** ——
 `sc.render.fps = 30` 必须写在**导入基底之后**再设一次；否则关键帧按错帧率换算成秒
 （实测：31 帧的 clip 变成 1.25 s = 按 24 fps 写的），而查看器又按"时长比"给两侧锁相 ⇒ 两个模型错位。
+
+---
+
+## 🔴 VS「全部重新生成」报 `doesn't list 'win-x64' as a "RuntimeIdentifier"`（一行代码都不编译）→ `obj\` 里多了个 SDK 侧写的 `project.assets.json`（2026-09-27）
+
+**症状**
+- VS2022 点「全部重新生成」，第一行就是错：
+  `…\MSBuild\Microsoft\NuGet\17.0\Microsoft.NuGet.targets(198,5): error : Your project file doesn't list 'win-x64' as a "RuntimeIdentifier". You should add 'win-x64' to the "RuntimeIdentifiers" property in your project file and then re-run NuGet restore.`
+- **一行代码都不编译**（错在编译前的引用解析阶段就中止）；csproj 与源码都没动过，前一天还能编。
+- ⚠️ **文案误导**：看着像"工程缺个属性"，**照它说的加 `RuntimeIdentifiers` 是错的解法**（那是 PackageReference 工程的解法）。
+
+**根因**（全链路实证）
+
+```
+obj\project.assets.json 存在   ← PackageReference 式资产文件
+  本工程是 packages.config 传统工程，正常【永远不该有】它 —— 是 SDK 侧 dotnet 的 restore/build 留下的外来物
+
+Microsoft.NuGet.targets:196  ResolveNuGetPackageAssets 的开关 =
+  '$(ResolveNuGetPackages)' == 'true' and exists('$(ProjectLockFile)')
+  （ProjectLockFile 默认就取 obj\project.assets.json，见同文件 :58-61）→ 文件一在，目标就打开
+
+同文件 :101 / :107  VS 拿 PlatformTarget 拼运行时标识：
+  csproj 的 Debug 配置里写着 <PlatformTarget>x64</PlatformTarget>
+    → NuGetRuntimeIdentifier = "win" + "-x64" = win-x64
+  → 拿 win-x64 去那份【空】资产文件里找目标 → 找不到 → 硬报错，编译不启动
+```
+
+- **判据**：报错里的 `win-x64` 只能来自 `PlatformTarget`（`:101` 那行 `-$(PlatformTarget.ToLower())`）——**与工程有没有 `RuntimeIdentifiers` 无关**。
+- 实测那份文件内容：`"projectStyle": "PackageReference"` / `targets` 里只有空的 `.NETFramework,Version=v4.7.2` / `SdkAnalysisLevel 9.0.300` / `runtimeIdentifierGraphPath …\dotnet\sdk\9.0.318\…` ⇒ 确系 **SDK 侧**写的。
+
+**规避**
+1. **修 = 删 `ExampleModVS\ExampleMod\ExampleMod\obj\` 整个目录** → VS 重编（obj 是 gitignore 的纯产物，无需备份）。**实证**：只把一份空 assets 文件放回去 = 一模一样的报错复现；删掉 = 同一个目标退出码 0、整条引用解析链也过。
+2. **护栏（2026-09-27 未加，待定）**：csproj 加一行 `<ResolveNuGetPackages>false</ResolveNuGetPackages>` —— 上面那个条件为假 ⇒ **文件在不在都免疫**（已实测：带该属性 + 空 assets 文件 ⇒ 退出码 0）。本工程所有引用都是 HintPath 指游戏 DLL、**零 NuGet 包引用**，关掉无副作用。
+3. **排查口诀**：**"编译还没开始就报 NuGet / RuntimeIdentifier" → 先去 `obj\` 里找 `project.assets.json`**，别改 csproj。
+4. 顺带两条（用 `dotnet build` 做语法检查时踩的）：
+   - Debug 的 `OutputPath` = 模块的 `bin\Win64_Shipping_Client\`（**游戏读的那份**）⇒ `dotnet build -c Debug` 会**直接覆盖部署中的 DLL**，只验语法必须带 `-p:OutputPath=<临时目录>`。
+   - PowerShell 里 `-p:OutputPath="D:\x\"` **结尾反斜杠吞掉引号** ⇒ 路径变成 `D:\x -v:m --nologo`，编译过了但复制失败（MSB3027/MSB3021）。临时路径别以反斜杠结尾。
+5. ⚠️ **谁写的那个文件未钉死**：`dotnet build` / `dotnet restore` / `dotnet msbuild -t:Restore` / 解决方案构建**逐个试过，都不复现**（只留下 `obj\Debug`、`obj\Release` 的编译产物）。⇒ **"记得清 obj"不可靠，护栏才是保险。**

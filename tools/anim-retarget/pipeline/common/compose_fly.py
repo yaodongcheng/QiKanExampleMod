@@ -17,6 +17,7 @@
 
 合成完：viewer/启动查看器.bat → 下拉选「【飞行·合成】…」→ 底部按 Add 名切换 → 看三格。
 表在 build_fly_comp_viewer.PAIRS（唯一一份，改表只改那里）。
+🔴 合成件命名：基础动画名 + `_Add` + 方向（AddL/AddR/AddF/AddB/AddD/AddU）—— 不用 Lean/Pitch。
 """
 import os
 import subprocess
@@ -35,19 +36,20 @@ def main():
     dry = "--dry" in sys.argv
     no_viewer = "--no-viewer" in sys.argv
     diff = "--diff" in sys.argv
-    rs = "0"
+    rs = "0"   # 0 = 用 PAIRS 里每条自带的 root-scale（用户指定别的值则全用那个）
     if "--root-scale" in sys.argv:
         rs = sys.argv[sys.argv.index("--root-scale") + 1]
 
     ok, bad = 0, []
-    for comp, clip, base in PAIRS:
+    for comp, clip, base, clip_rs in PAIRS:
         add = "fly_" + clip
         b = os.path.join(TRFDIR, base + ".trf")
         a = os.path.join(TRFDIR, add + ".trf")
         if not (os.path.isfile(b) and os.path.isfile(a)):
             bad.append((comp, "缺输入: %s / %s" % (os.path.basename(b), os.path.basename(a))))
             continue
-        cmd = [PY, COMPOSE, "--base", b, "--add", a, "--ref", b, "--root-scale", rs]
+        use_rs = rs if rs != "0" else str(clip_rs)   # 没显式指定就用表里每条自己的
+        cmd = [PY, COMPOSE, "--base", b, "--add", a, "--ref", b, "--root-scale", use_rs]
         if diff:
             cmd += ["--check"]
         else:

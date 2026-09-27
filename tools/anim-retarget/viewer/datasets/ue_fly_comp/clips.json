@@ -1,0 +1,76 @@
+{
+  "clips": {
+    "A_Flight_HoverMove_A_L_Add": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_HoverMove_A_AddL = fly_A_Flight_HoverMove_A + fly_A_Flight_HoverMove_A_L_Add"
+    },
+    "A_Flight_HoverMove_A_R_Add": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_HoverMove_A_AddR = fly_A_Flight_HoverMove_A + fly_A_Flight_HoverMove_A_R_Add"
+    },
+    "A_Flight_HoverMove_A_F_Add": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_HoverMove_A_AddF = fly_A_Flight_HoverMove_A + fly_A_Flight_HoverMove_A_F_Add"
+    },
+    "A_Flight_HoverMove_A_B_Add": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_HoverMove_A_AddB = fly_A_Flight_HoverMove_A + fly_A_Flight_HoverMove_A_B_Add"
+    },
+    "A_Flight_HoverMove_A_D_Add": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_HoverMove_A_AddD = fly_A_Flight_HoverMove_A + fly_A_Flight_HoverMove_A_D_Add"
+    },
+    "A_Flight_HoverMove_A_U_Add": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_HoverMove_A_AddU = fly_A_Flight_HoverMove_A + fly_A_Flight_HoverMove_A_U_Add"
+    },
+    "A_Flight_HoverLean_A_L_Add": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_HoverLean_A_AddL = fly_A_Flight_HoverMove_A + fly_A_Flight_HoverLean_A_L_Add"
+    },
+    "A_Flight_HoverLean_A_R_Add": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_HoverLean_A_AddR = fly_A_Flight_HoverMove_A + fly_A_Flight_HoverLean_A_R_Add"
+    },
+    "A_FM_A_Lean_L": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_FastMove_A_AddL = fly_A_Flight_FastMove_A + fly_A_FM_A_Lean_L"
+    },
+    "A_FM_A_Lean_R": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_FastMove_A_AddR = fly_A_Flight_FastMove_A + fly_A_FM_A_Lean_R"
+    },
+    "A_FM_A_Pose_U": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_FastMove_A_AddU = fly_A_Flight_FastMove_A + fly_A_FM_A_Pose_U"
+    },
+    "A_FM_A_Pose_D": {
+      "prio": 0,
+      "weapon": "",
+      "func": "合成",
+      "desc": "fly_A_Flight_FastMove_A_AddD = fly_A_Flight_FastMove_A + fly_A_FM_A_Pose_D"
+    }
+  }
+}

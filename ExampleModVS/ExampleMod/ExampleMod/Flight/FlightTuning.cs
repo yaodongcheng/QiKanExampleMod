@@ -296,6 +296,55 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public static bool TakeoffByLongPress = true;
 
+        // ───────────────────────── 出机掉落（2026-09-27）─────────────────────────
+
+        /// <summary>
+        /// 🔴 **出机掉落期间，相机继续跟着玩家**（默认开，2026-09-27 用户裁定"我想看空中掉落过程"）。
+        ///
+        /// 掉落本身 **100% 是引擎原生的**（我们不写速度、不写位置、不接管动作通道）——
+        /// 这条只管**镜头**：不还相机，玩家就能看清自己在往下掉、也能看清离地还有多高。
+        /// 关掉 = 出机当场把相机还给引擎（旧行为）。
+        /// </summary>
+        public static bool KeepCameraWhileFalling = true;
+
+        /// <summary>
+        /// 掉落期间**保留输入闸**（`Controller=AI` + AI 暂停；默认开）。
+        ///
+        /// 两件事：① 玩家的 WASD / 空格**不再进引擎**（掉落中本来也走不了路）；
+        /// ② 🔴 **关键** —— 空格"按下沿"只归我们读，引擎收不到那个键，
+        ///    于是**不会给玩家起跳**（引擎那次跳的落地解算会把 agent 按地形重算 ⇒ 空中重进机时被瞬移到地面）。
+        /// 关掉 = 出机当场解冻（旧行为，空中重进机会被摔到地上）。
+        /// </summary>
+        public static bool HoldInputWhileFalling = true;
+
+        /// <summary>
+        /// 🔴 **坠落方式：板运着人一起掉**（默认开，2026-09-27 实机定位后改）。
+        ///
+        /// **为什么不能让人自由落体**：引擎在"agent 由悬空变成被托住"的那一瞬间，会把 agent 的
+        /// **位置按地形重算一次** —— 离地多高就瞬移多少（实测 63 米一帧，人当场被摔到地面、板留在半空，
+        /// 随后判"脱离载具"收摊）。低空看不出来，只是因为地形本来就在脚底下、重算量只有几厘米。
+        /// ⇒ **支撑不能断**：出机后板继续托着人往下走，人始终踩在板上（引擎视角里"一直有支撑"），
+        /// 那句重算就永远不会触发；按空格回飞时同理。
+        /// （实机反证：正常飞行时板以 26 m/s 往下落也从来不出事，就是这个道理。）
+        ///
+        /// 关掉 = 回到"拆板自由落体"（旧行为）：姿势与物理完全原生，但**空中回飞会把人瞬移到地面**。
+        /// 热调：<c>custom.flight tune fallride 0</c>。
+        /// </summary>
+        public static bool FallRide = true;
+
+        /// <summary>坠落时板的**下坠加速度**（m/s²）。取 9.3（≈0.95g）刻意**略小于重力** —— 人始终压在板上，支撑不断。</summary>
+        public static float FallRideAccel = 9.3f;
+
+        /// <summary>坠落下坠速度上限（m/s）—— 免得从几百米掉下来速度失控。</summary>
+        public static float FallRideTerminal = 36f;
+
+        /// <summary>
+        /// 回飞时把下坠速度**收干**用的减速度（m/s²，默认 30 ≈ 3g）。
+        /// 🔴 为什么要收干而不是急停：人带着下坠速度压在板上，板一停人就脱板（支撑断开 = 引擎那次地形重算的触发条件）。
+        /// 36 m/s 大约 1.2 秒收完；收完之前**不交回飞行控制**（见 TickTakeoff 的闸）。
+        /// </summary>
+        public static float FallRideBrake = 30f;
+
         // ───────────────────────── 俯仰姿态 ─────────────────────────
 
         /// <summary>
@@ -353,6 +402,19 @@ namespace LivingWorldNpcs.Flight
         /// 0.2 秒翻 180° 看着像猛地翻跟头。
         /// </summary>
         public static float AnimBlendIn = 0.3f;
+
+        /// <summary>
+        /// 🔴 **悬停 ⇄ 巡航**这两条边专用的交叉淡化时长（秒，默认 **1.0**）。
+        ///
+        /// 为什么单独给它们一条：巡航现在播的是**前倾合成件**（`flight_hovermove_a_addf`，
+        /// 整体前倾 25°），而悬停是直立姿势 —— 两者是**整个上半身的姿态差**，
+        /// 用默认那条 0.3 秒会"啪"地翻过去。**1.0 秒是照抄 UE 原项目的**：
+        /// 它那条 `BlendListByBool(HasMovementInput, 1.0s)` 就是这个进/出动态姿势的过渡时长。
+        ///
+        /// 只作用于 `flight.xml` 里 `idle ⇄ hovermove` 两条边（边上写了 `blend="hoverBlendSeconds"`）；
+        /// 其余转移照旧走 <see cref="AnimBlendIn"/>。热调：<c>custom.flight tune hoverblend 1.2</c>。
+        /// </summary>
+        public static float HoverBlendSeconds = 1.0f;
 
         // ───────────────────────── 运动相机（N5，2026-09-21）─────────────────────────
 
@@ -489,15 +551,18 @@ namespace LivingWorldNpcs.Flight
         public static int FlightActionPriority = 0;
 
         /// <summary>
-        /// **冲刺中短按空格 = 给一次前闪位移**（C# 这一半管"位移"；**姿态**在 XML）。
+        /// **冲刺中按 Z = 给一次前闪位移**（C# 这一半管"位移"；**姿态**在 XML 那条
+        /// `FlyFastPoses → dodgeU keys="Z"` 的边上）。
         ///
-        /// 🔴 **默认 false**（2026-09-27 用户裁定）：**空格专管"出机"** —— XML 里
-        /// `<edge from="悬浮飞行|冲刺飞行" to="outside" keys="Space"/>` 已经把两个族的空格都指向机外，
-        /// 再让 C# 抢这一下就会"闪一下又退出飞行"。
-        /// 打开本开关 = 冲刺中空格改成闪避（**同时要把 XML 那条出机边移到最后**，否则它永远轮不到）。
-        /// ⚠️ 闪避**姿态**那条边（`FlyFastPoses → dodgeU`）现在也摘掉了 —— 给闪避配了别的键再加回来。
+        /// 🔴 **键 = Z**（2026-09-27 用户裁定）：它就是游戏自己的**蹲下键**，而 UE 超人项目里
+        /// 闪避也正是蹲下键、空中不需要蹲 ⇒ 同一个键最贴原意。**空格不再参与闪避** —— 它专管"出机"。
+        /// ⚠️ 先试过 C，实机发现 **C 会打开 UI**，所以换 Z。
+        /// 🔴 **Z 与蹲不冲突**（用户 2026-09-27 当场指正）：键盘的蹲走引擎玩家控制器
+        ///    （`MissionMainAgentController.ControlTick`），而飞行/坠落期间 agent 的 Controller 是 AI
+        ///    ⇒ 那个控制器根本不跑 ⇒ 引擎**根本不会处理 Z 的蹲**。曾按这个顾虑加过一段每帧压蹲的
+        ///    代码，属死代码，已删 —— 别再加回来。
         /// </summary>
-        public static bool DodgeOnSpaceTapInBoost = false;
+        public static bool DodgeInBoost = true;
 
         /// <summary>闪避的位移距离（米）。</summary>
         public static float DodgeDistance = 8f;
@@ -563,7 +628,14 @@ namespace LivingWorldNpcs.Flight
             LongPressSeconds = 0.65f;
             TakeoffByDoubleJump = true;
             TakeoffByLongPress = true;
+            KeepCameraWhileFalling = true;
+            HoldInputWhileFalling = true;
+            FallRide = true;
+            FallRideAccel = 9.3f;
+            FallRideTerminal = 36f;
+            FallRideBrake = 30f;
             AnimBlendIn = 0.3f;
+            HoverBlendSeconds = 1.0f;
             UseFlightCamera = true;
             CamBlendIn = 0.45f;
             UseCamHandover = true;
@@ -587,7 +659,7 @@ namespace LivingWorldNpcs.Flight
             DodgeClipSeconds = 1.867f;
             CastReleaseSeconds = 2.33f;
             CastOnUpperChannel = true;
-            DodgeOnSpaceTapInBoost = true;
+            DodgeInBoost = true;
             DodgeDistance = 8f;
             DodgeDisplaceSeconds = 0.4f;
             DodgeCooldownSeconds = 1.9f;

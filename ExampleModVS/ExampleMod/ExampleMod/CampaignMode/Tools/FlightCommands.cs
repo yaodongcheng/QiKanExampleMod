@@ -14,7 +14,8 @@ namespace LivingWorldNpcs.CampaignMode
     /// <code>
     /// custom.flight                 查状态（首参可弃：认不出的首参当占位符，回落 status）
     /// custom.flight start           强制起飞（绕过长按空格）
-    /// custom.flight stop            强制落地
+    /// custom.flight stop|drop|exit  强制出机 ⇒ 引擎原生掉落接管（掉着按空格 / 再敲一次 drop 可回飞）
+    /// custom.flight dodge           强制闪避一次（只出位移；闪避**姿态**照常由冲刺中按 Z 触发）
     /// custom.flight log on|off [full]  飞行 tick 日志总闸（默认关；full = 连每帧那行也开）
     /// custom.flight verbose on|off  逐帧日志子开关（要配合总闸）
     /// custom.flight tune &lt;键&gt; &lt;值&gt;  热调一个参数（见下）
@@ -38,7 +39,12 @@ namespace LivingWorldNpcs.CampaignMode
 
                 case "stop":
                 case "land":
-                    return WithBehavior(b => b.ForceStop());
+                case "exit":
+                case "drop":
+                    return WithBehavior(b => b.ForceDrop());
+
+                case "dodge":
+                    return WithBehavior(b => b.ForceDodge());
 
                 case "log":
                 {
@@ -237,7 +243,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | 动画: blend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dash/dodge: dodgespace dodgedist dodgetime dodgecd dodgeanim dashanim | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle";
+                return "ERR usage: custom.flight tune <key> <value> | 动画: blend hoverblend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -258,6 +264,7 @@ namespace LivingWorldNpcs.CampaignMode
                 case "pitch": FlightTuning.PitchThreshold = v; break;
                 case "pitchout": FlightTuning.PitchExitThreshold = v; break;
                 case "blend": FlightTuning.AnimBlendIn = v; break;
+                case "hoverblend": FlightTuning.HoverBlendSeconds = v; break;   // 悬停⇄巡航 这两条边的过渡时长（秒；默认 1.0）
                 case "presetblend": FlightTuning.CamBlendIn = v; break;         // 只改【机位之间】的过渡时长（动画交叉淡化不变）
                 case "camhandover": FlightTuning.UseCamHandover = v != 0f; break;   // 进出相机是否做交接（0=硬切，旧行为）
                 case "camhandback": FlightTuning.CamHandBackLook = v != 0f; break;  // 归还时是否把朝向写回引擎
@@ -273,13 +280,20 @@ namespace LivingWorldNpcs.CampaignMode
                 case "landanim": FlightTuning.LandAnimSeconds = v; break;
                 case "falloff": FlightTuning.FallOffDistance = v; break;        // 离板多远算"掉下去了"（米）       // 落地动画时长（触地后至少等这么久再收摊）
                 case "landmax": FlightTuning.LandMaxSeconds = v; break;         // 落地阶段硬上限
-                // 冲刺入姿 / 闪避（2026-09-22）
-                case "dodgespace": FlightTuning.DodgeOnSpaceTapInBoost = v != 0f; break; // 冲刺中短按空格=闪避（0=回旧行为：当落地判定）
+                // 冲刺入姿 / 闪避（2026-09-22；闪避键 2026-09-27 改成 C）
+                case "dodgeinboost": FlightTuning.DodgeInBoost = v != 0f; break;     // 冲刺中按 Z = 闪避（0=关掉闪避的位移一侧）
                 case "dodgedist": FlightTuning.DodgeDistance = v; break;        // 闪避位移距离（米）
                 case "dodgetime": FlightTuning.DodgeDisplaceSeconds = v; break; // 闪避位移走完用时（秒）
                 case "dodgecd": FlightTuning.DodgeCooldownSeconds = v; break;   // 两次闪避的冷却（秒）
                 case "dodgeanim": FlightTuning.DodgeClipSeconds = v; break;     // 闪避姿态动画时长（秒；重导 clip 后改）
                 case "dashanim": FlightTuning.BoostStartSeconds = v; break;     // 冲刺入姿动画时长（秒；重导 clip 后改）
+                // 出机掉落（2026-09-27）：掉落的物理/动画是引擎的，这两条只管"我们留什么"
+                case "fallcam": FlightTuning.KeepCameraWhileFalling = v != 0f; break;  // 坠落期间相机跟着（0=出机当场还给引擎）
+                case "fallgate": FlightTuning.HoldInputWhileFalling = v != 0f; break;  // 坠落期间保留输入闸（0=出机当场解冻）
+                case "fallride": FlightTuning.FallRide = v != 0f; break;               // 坠落方式：1=板载（默认，支撑不断）/ 0=拆板自由落体
+                case "fallg": FlightTuning.FallRideAccel = v; break;                   // 板载坠落的加速度（m/s²，默认 9.3 ≈ 0.95g）
+                case "fallterm": FlightTuning.FallRideTerminal = v; break;             // 板载坠落速度上限（m/s）
+                case "fallbrake": FlightTuning.FallRideBrake = v; break;               // 回飞时收干下坠速度的减速度（m/s²）
                 // 压弯（2026-09-22）
                 case "bank": FlightTuning.BankThreshold = v; break;             // 进压弯的横移阈值（|A/D|；0=关掉压弯）
                 case "bankout": FlightTuning.BankExitThreshold = v; break;      // 退出压弯的阈值（迟滞）
