@@ -1,22 +1,62 @@
 {
   "name": "ue_fly_comp",
   "title": "【飞行·合成】①源动画的 pose(UE小白人) ②重定向后的 pose(骑砍2) ③合成后的动画",
-  "subtitle": "底部切换 add：A_Flight_HoverMove_A_L/R/F/B/D/U_Add、A_Flight_HoverLean_A_L/R_Add、A_FM_A_Lean_L/R、A_FM_A_Pose_U/D（共 12 条）。①左格=源 UE 小白人播那条 Add 的姿势；②中格=同一条 Add 重定向到骑砍2 后的姿势；③右格=把这条 Add 合成到基础动画上之后的结果在播。①②来自 ue_flight 的 ue_mannequin_flight.glb / bannerlord_flight.glb（同名 clip），③由 glb_pack_retargeted.py 直读 output/trf 里合成件烘出。",
+  "subtitle": "底部按「源 Add 名」切换（12 条）：A_Flight_HoverMove_A_L/R/F/B/D/U_Add、A_Flight_HoverLean_A_L/R_Add、A_FM_A_Lean_L/R、A_FM_A_Pose_U/D。①左格=源 UE 小白人播那条 Add 的姿势；②中格=同一条 Add 重定向到骑砍2 后的姿势；③右格=这条 Add 合成到基础动画后的结果。合成件命名口径（2026-09-27）：基础动画名 + _Add + 方向，例 fly_A_Flight_HoverMove_A_AddL（不用 Lean/Pitch）。①②来自 ue_flight 的同名 GLB；③由 build_fly_comp_viewer.py 直读 output/trf 烘出。 ｜ 主轴 = ③ 合成动画（61 帧），①② 是 2 帧静态 pose，跟着它对齐。",
   "sides": {
-    "comp": {
-      "label": "③ 合成后的动画（骑砍2）", "color": "#e0b070", "rotY": 3.141592653589793, "slot": 1.90,
-      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
-      "files": [ { "id": "c3", "url": "assets/comp.glb" } ]
+    "after": {
+      "label": "③ 合成后的动画（骑砍2）",
+      "color": "#e0b070",
+      "rotY": 3.141592653589793,
+      "slot": 1.9,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "after",
+          "url": "assets/comp.glb"
+        }
+      ]
     },
-    "bl_pose": {
-      "label": "② 重定向后的 pose（骑砍2）", "color": "#b9c2cc", "rotY": 3.141592653589793, "slot": 0.0,
-      "footBones": ["l_toe0","r_toe0","l_foot","r_foot"],
-      "files": [ { "id": "c2", "url": "../ue_flight/assets/bannerlord_flight.glb" } ]
+    "retarget": {
+      "label": "② 重定向后的 pose（骑砍2）",
+      "color": "#b9c2cc",
+      "rotY": 3.141592653589793,
+      "slot": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "retarget",
+          "url": "../ue_flight/assets/bannerlord_flight.glb"
+        }
+      ]
     },
-    "src": {
-      "label": "① 源动画的 pose（UE 小白人）", "color": "#7fa8d8", "rotY": 0, "slot": -1.90,
-      "footBones": ["foot_l","foot_r","ball_l","ball_r"],
-      "files": [ { "id": "c1", "url": "../ue_flight/assets/ue_mannequin_flight.glb" } ]
+    "source": {
+      "label": "① 源动画的 pose（UE 小白人）",
+      "color": "#7fa8d8",
+      "rotY": 0,
+      "slot": -1.9,
+      "footBones": [
+        "foot_l",
+        "foot_r",
+        "ball_l",
+        "ball_r"
+      ],
+      "files": [
+        {
+          "id": "source",
+          "url": "../ue_flight/assets/ue_mannequin_flight.glb"
+        }
+      ]
     }
-  }
+  },
+  "clipsFile": "clips.json"
 }

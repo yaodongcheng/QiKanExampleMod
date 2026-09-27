@@ -29,6 +29,8 @@ namespace LivingWorldNpcs.Flight
         private static bool _boostWasHeld;          // 上一帧冲刺键是否按住（判按下沿用）
         private static bool _firePressedEdge;       // 左键"按下沿"，一次性消费（飞行中施法：发射）
         private static bool _fireWasHeld;           // 上一帧左键是否按住（判按下沿用）
+        private static bool _dodgePressedEdge;      // Z 键"按下沿"，一次性消费（冲刺中闪避）
+        private static bool _dodgeWasHeld;          // 上一帧 Z 是否按住（判按下沿用）
 
         /// <summary>空格当前是否按住。</summary>
         public static bool SpaceHeld { get; private set; }
@@ -69,6 +71,7 @@ namespace LivingWorldNpcs.Flight
         public static bool DiagNumpad6Down { get; private set; }
         public static bool DiagSpaceDown { get; private set; }
         public static bool DiagShiftDown { get; private set; }
+        public static bool DiagZDown { get; private set; }
         public static bool DiagLeftMouseDown { get; private set; }
         public static bool DiagRightMouseDown { get; private set; }
         /// <summary>诊断：本帧是否因为 UI 门控被整体清空。</summary>
@@ -78,19 +81,19 @@ namespace LivingWorldNpcs.Flight
         public static string Diagnose()
         {
             return string.Format(
-                "ui={0} reset={1} | WASD {2}{3}{4}{5} | 小键盘 8={6} 4={7} 2={8} 6={9} | space={10} shift={11} | axis=({12:F2},{13:F2}) hasMove={14}",
+                "ui={0} reset={1} | WASD {2}{3}{4}{5} | 小键盘 8={6} 4={7} 2={8} 6={9} | space={10} shift={11} Z={12} | axis=({13:F2},{14:F2}) hasMove={15}",
                 BlockedByUi ? 1 : 0, DiagWasReset ? 1 : 0,
                 DiagWDown ? 1 : 0, DiagADown ? 1 : 0, DiagSDown ? 1 : 0, DiagDDown ? 1 : 0,
                 DiagNumpad8Down ? 1 : 0, DiagNumpad4Down ? 1 : 0,
                 DiagNumpad2Down ? 1 : 0, DiagNumpad6Down ? 1 : 0,
-                DiagSpaceDown ? 1 : 0, DiagShiftDown ? 1 : 0,
+                DiagSpaceDown ? 1 : 0, DiagShiftDown ? 1 : 0, DiagZDown ? 1 : 0,
                 MoveAxis.x, MoveAxis.y, HasMoveInput ? 1 : 0);
         }
 
         /// <summary>
         /// 按 <see cref="AnimPrimitives.Keys"/> 的**键序**读原始键（给上下文填 <c>IAnimInputFacts</c> 用）。
-        /// 🔴 这里的 case 顺序**必须**与 `AnimPrimitives.Keys` 一模一样（W A S D Space Shift RMB LMB）；
-        ///    改那边就要改这里，否则键会错位。
+        /// 🔴 这里的 case 顺序**必须**与 `AnimPrimitives.Keys` 一模一样（W A S D Space Shift RMB LMB Z）；
+        ///    改那边就要改这里，否则键会错位（新键一律**追加**在末尾，别插队）。
         /// </summary>
         public static bool RawKeyAt(int i)
         {
@@ -104,6 +107,7 @@ namespace LivingWorldNpcs.Flight
                 case 5: return DiagShiftDown;
                 case 6: return DiagRightMouseDown;
                 case 7: return DiagLeftMouseDown;
+                case 8: return DiagZDown;
                 default: return false;
             }
         }
@@ -131,6 +135,7 @@ namespace LivingWorldNpcs.Flight
             DiagNumpad6Down = Input.IsKeyDown(InputKey.Numpad6);
             DiagSpaceDown = Input.IsKeyDown(InputKey.Space);
             DiagShiftDown = Input.IsKeyDown(InputKey.LeftShift);
+            DiagZDown = Input.IsKeyDown(InputKey.Z);
             DiagLeftMouseDown = Input.IsKeyDown(InputKey.LeftMouseButton);
             DiagRightMouseDown = Input.IsKeyDown(InputKey.RightMouseButton);
 
@@ -175,6 +180,17 @@ namespace LivingWorldNpcs.Flight
             if (fire && !_fireWasHeld)
                 _firePressedEdge = true;
             _fireWasHeld = fire;
+
+            // Z 键"按下沿" = **冲刺中闪避**（2026-09-27 用户裁定：闪避键从空格改成 Z ——
+            // 它是游戏自己的**蹲下键**，UE 超人项目里闪避也正是蹲下键、空中不需要蹲 ⇒ 同一个键。
+            // 🔴 代价：蹲是引擎**原生直喂玩家 agent** 的 ⇒ 飞行中要主动压制（见 PlayerFlightBehavior 的压蹲））。
+            // 🔴 与空格分开的两条通道：空格专管"出机"（XML 里那条 `to="outside"` 的边），
+            //    两边抢同一个键的旧病（"闪一下又退出飞行"）就此消失。
+            _dodgePressedEdge = false;
+            bool dodgeKey = Input.IsKeyDown(InputKey.Z);
+            if (dodgeKey && !_dodgeWasHeld)
+                _dodgePressedEdge = true;
+            _dodgeWasHeld = dodgeKey;
 
             // 🔴 主路 = WASD（2026-09-21 T1 接回）：飞行的方向键就是游戏自己的走路键。
             //    它能成立的前提是**飞行期间把玩家冻结**（见 FlightTuning.FreezePlayerInput）——
@@ -250,6 +266,22 @@ namespace LivingWorldNpcs.Flight
             return true;
         }
 
+        /// <summary>
+        /// **Z 键（闪避键）按下沿**是否发生过 —— 边沿触发，一次按下只返回一次 true。
+        /// 🔴 **一次按下 = 一次闪避**：消费掉之后，即使玩家一直按着 C 也不会再触发
+        /// （姿态那边同理，见 <c>PlayerFlightBehavior.UpdateKeyFacts</c> 的闩）。
+        /// </summary>
+        public static bool ConsumeDodgePress()
+        {
+            if (!_dodgePressedEdge)
+                return false;
+            _dodgePressedEdge = false;
+            return true;
+        }
+
+        /// <summary>Z 键当前是否按住（**原始读数**，给状态机的键事实用；逻辑在 <see cref="ConsumeDodgePress"/>）。</summary>
+        public static bool DodgeKeyHeld => DiagZDown;
+
         /// <summary>清空全部按键状态（进新场景 / 退出飞行时调）。</summary>
         public static void Reset()
         {
@@ -264,6 +296,8 @@ namespace LivingWorldNpcs.Flight
             _boostWasHeld = false;
             _firePressedEdge = false;
             _fireWasHeld = false;
+            _dodgePressedEdge = false;
+            _dodgeWasHeld = false;
         }
 
         /// <summary>

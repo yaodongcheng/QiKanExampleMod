@@ -54,15 +54,37 @@
                       🔴 **回悬浮一律经 `进入飞行`**：它是"回到悬停"的**通用 entry**，
                          不只是"从空中开始飞"，**从冲刺退回悬停也要播**（用户裁定）。
         直立家：idle ⇄ hovermove（有 / 无方向输入）
+                🔴 **这两条边带自己的过渡时长**（2026-09-27）：`blend="hoverBlendSeconds"`（默认 1.0 秒，
+                   热调 `custom.flight tune hoverblend`）。为什么单独给：`hovermove` 现在的动作是
+                   **前倾合成件**（内容包 `act_fly_hovermove` 指向 `flight_hovermove_a_addf`，整体前倾 25°），
+                   而 `idle` 是直立姿势 —— 两者是整个上半身的姿态差，用全局那条 0.3 秒会"啪"地翻过去。
+                   1.0 秒是照抄 UE 原项目的 `BlendListByBool(HasMovementInput, 1.0s)`。
+                   ⚠️ 状态名 / 动作名都没变（还是 hovermove），**换的只是内容包里那条 clip** ——
+                   所以图上看不出差别，别以为"没改"。
                 hovermove → 压弯 L/R（按 A / D）、俯仰 U/D（镜头抬 / 压）；**压弯优先于俯仰**
                 压弯 / 俯仰：条件不成立 **或停下来** ⇒ 回本族入口（idle）
         趴姿家：**姿态对 WASD 无响应**（用户裁定：冲刺只由 Shift 进出）——
-                fastmoveStart 演完进 fastmove；本体只接**一条闪避边**（`Space` → `dodgeU` = 前闪）。
+                fastmoveStart 演完进 fastmove；本体接**一条闪避边**：`Z` → `dodgeU`（前闪）。
+                🔴 **闪避键 = Z**（2026-09-27 用户裁定）：它就是游戏自己的**蹲下键**，
+                   而 UE 超人项目里闪避也正是蹲下键、空中不需要蹲 ⇒ 同一个键最贴原意
+                   （先试过 C，实机发现 **C 会打开 UI**）；**空格不再参与闪避** —— 它专管"出机"。
+                   🔴 与蹲**不冲突**：键盘的蹲走引擎玩家控制器，而飞行期间 agent 的 Controller 是 AI
+                   ⇒ 那控制器不跑 ⇒ 引擎不会处理 Z 的蹲（不必任何压制代码）。
+                ⚠️ 位移方向仍是**相机前向**（冲刺不响应 WASD ⇒ 没有左右闪的输入来源，
+                   `dodgeL/R/D` 三条先空着，等接上"角速度 / 竖直速度"那套驱动量再连）。
                 🔴 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**暂时空着**：原版 UE 里那两层是
                    "角速度 / 竖直速度"驱动的，我们还没有那套驱动量 ⇒ 等接上再连线（别用方向键顶替）。
-        出机（空格）：**两个族各一条 `to="outside"` 的普通边**（见 <edges> ③′）——
-                "谁能出机、按什么键"全在本文件；使用方只遵守"机器说机外 ⇒ 交还引擎"一条通用规则
-                （**C# 里没有"空格"这个字**）。掉着时再按一次 = 重新进机（同一手势，进出对称）。
+        出机（空格）：**两个族各一条 `to="坠落"` 的普通边**（见 <edges> ③′）——
+                "谁能出机、按什么键"全在本文件；使用方只遵守两条通用规则
+                （**C# 里没有"空格"这个字**）：
+                  · 机器**进了 坠落** ⇒ 出机开始下坠（拆不拆板见下）
+                  · 机器**说机外了**（坠落里触地时 C# 送它出机）⇒ 收摊：拆板 / 还通道 / 还相机 / 解冻
+                下坠这一段（见 PlayerFlightBehavior.BeginFalling）：
+                · 🔴 **板不拆，运着人往下加速掉**（≈0.95g）—— 支撑**不断**，所以引擎那句
+                  "悬空变被托住就把人按地形重算位置"的解算不会触发（掉着按空格回飞时也不会）；
+                  拆板让它自由落体是不行的：接回来的那一瞬间人被按地形瞬移（实测 63 米一帧）。
+                · 相机继续跟着 + 输入闸保留（看得出在掉、空格只归我们读）。
+                掉着时再按一次空格 = 重新进机（同一手势，进出对称）；板顶触地 = 送它出机 ⇒ 收摊。
                 撞地 = 自动落地 + 演落地动作（另一条相位边管）。
         ⚠️ 闪避 / 压弯 / 俯仰的**姿态**看这张图；**位移**在 C#（`PlayerFlightBehavior.BeginDodge` = 沿相机前向）。 -->
 <state_machine name="flight" finish-margin="0.15">
@@ -104,6 +126,14 @@
 		<state name="dodgeU" act="act_fly_dodge_u" once="true" next="fastmove" />
 		<state name="dodgeD" act="act_fly_dodge_d" once="true" next="fastmove" />
 		<state name="进入飞行" act="act_fly_hoverstart" once="true" next="idle" />
+		<!-- 🔴 **坠落**（2026-09-27 新增）——出机（空格）之后、回飞之前那一段的姿势。
+		     动作名用的是**引擎自己的空中动作** `act_jump_loop`（Native/ModuleData/action_types.xml 第 20 行已声明），
+		     不是我们内容包里的 clip —— 理由：① 免做新资产；② 那正是**引擎给悬空 agent 播的那一条**
+		     （实机日志里通道 0 一直显示它）⇒ 观感与原版坠落一致。
+		     ⚠️ 本状态**不是**出机那条边的目标：出机照旧指向 `outside`（机器语义 = 不再驱动通道 0），
+		     本状态由**相位**（C#）在出机那一刻 `Force` 进 + `Hold` 住，与 进入飞行 / 超人落地 同一套路 ⇒
+		     C# 里没有这个状态名，名字从 `<edges>` 里 `when="fall-trigger"` 那条边读（同起飞 / 落地两个接缝）。 -->
+		<state name="坠落" act="act_jump_loop" />
 	</states>
 
 	<!-- 边：**顺序 = 优先级**。
@@ -118,14 +148,31 @@
 	<edges>
 		<edge from="超人落地" to="outside" anim="remaining" anim-rem-pct="15" />
 		<edge from="冲刺飞行" to="超人落地" when="land-trigger" event="true" />
+		<!-- 🔴 **坠落这个时刻**（2026-09-27 新增）：出机（空格）那一刻 C# 要 Force 进哪个状态 ——
+		     与 起飞/落地 同一套接缝写法。两条（两个族各一条）都指向同一个状态。
+		     ⚠️ 它是"时刻"标签，真值在 C#：出机 = 空格那条边命中 / 撞地 = 板顶触地。 -->
+		<edge from="悬浮飞行" to="坠落" when="fall-trigger" event="true" />
+		<edge from="冲刺飞行" to="坠落" when="fall-trigger" event="true" />
+		<!-- 坠落里再按空格 = 回飞：**目标与"机外"那条起飞边写得一模一样**（`to="悬浮飞行"`）——
+		     `TryEventTarget` 取的是**第一条** `when="takeoff-trigger"` 的边，两条目标写成同一个值，
+		     无论先命中哪条，结果都一致（也就不会有"改了一条、另一条偷偷生效"的事）。
+		     补这条也是为了让图诚实：坠落这个状态**有出口**（不然健康检查会报"进去就出不来"）。 -->
+		<edge from="坠落" to="悬浮飞行" when="takeoff-trigger" event="true" />
+		<!-- 🔴 **落地这个时刻**（2026-09-27）：坠落演到"触地"时 C# 主动把机器送出机外
+		     （`Force(OutsideState)`）⇒ `Current` 变 `outside` ⇒ 使用方那条通用规则收摊（拆板 / 还控制）。
+		     补这条同样是为了图诚实：坠落这个状态的**另一个出口**。
+		     ⚠️ 它**不写 `anim-rem-pct`** —— 落地没有"落地动作"要演（坠落姿势直接收），
+		        写了反而会被当成"出机前姿态"那条接缝（`TryEventExit`）读走。 -->
+		<edge from="坠落" to="outside" when="land-trigger" event="true" />
 		<edge from="悬浮飞行" to="冲刺飞行" keys="Shift" />
-		<edge from="悬浮飞行" to="outside" keys="Space" />
-		<edge from="hovermove" to="idle" when="move-input" not="true" />
-		<edge from="idle" to="hovermove" when="move-input" />
+		<edge from="悬浮飞行" to="坠落" keys="Space" />
+		<edge from="hovermove" to="idle" when="move-input" not="true" blend="hoverBlendSeconds" />
+		<edge from="idle" to="hovermove" when="move-input" blend="hoverBlendSeconds" />
 		<edge from="进入飞行" to="FlyHoverLocomotion" anim="remaining" anim-rem-pct="10" />
 		<edge from="outside" to="悬浮飞行" when="takeoff-trigger" event="true" />
 		<edge from="冲刺飞行" to="悬浮飞行" keys="Shift" not="true" />
-		<edge from="冲刺飞行" to="outside" keys="Space" />
+		<edge from="FlyFastPoses" to="dodgeU" keys="Z" />
+		<edge from="冲刺飞行" to="坠落" keys="Space" />
 		<edge from="fastmoveStart" to="FlyFastPoses" anim="remaining" anim-rem-pct="15" />
 	</edges>
 

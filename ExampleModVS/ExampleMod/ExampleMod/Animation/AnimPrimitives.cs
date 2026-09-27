@@ -48,8 +48,10 @@ namespace LivingWorldNpcs.Animation
         /// <summary>
         /// **可用的键**（顺序 = <see cref="IAnimInputFacts"/> 里数组的下标，**改顺序会错位，别动**）。
         /// 与飞行那边 <c>FlightInput</c> 读的是同一批原始键。
+        /// 🔴 **新键一律往后追加**（2026-09-27 加 `Z` = 闪避键：游戏里它就是蹲下键，
+        ///    UE 超人那套里闪避也是蹲下键、空中不需要蹲 ⇒ 同一个键；插在中间会让下标整体错位）。
         /// </summary>
-        public static readonly string[] Keys = { "W", "A", "S", "D", "Space", "Shift", "RMB", "LMB" };
+        public static readonly string[] Keys = { "W", "A", "S", "D", "Space", "Shift", "RMB", "LMB", "Z" };
 
         // 🔴 **按键**只有一个词汇：`keys="A+B"`（`+` 连接 = **同时按着**，项间 AND）+ `not="true"`（整条取反）。
         //    · 「刚按下 / 刚松开」（沿）已删 —— 会被起飞/落地 Hold、施法让位吞掉。
@@ -59,7 +61,7 @@ namespace LivingWorldNpcs.Animation
         /// <summary>可用的动画条件：`finished` = 演完；`remaining` = 剩余不足阈值（要配 <c>anim-rem-pct</c>，**百分比 0~100**）。</summary>
         public static readonly string[] Anims = { "remaining" };
 
-        public const int KeyCount = 8;   // 必须等于 Keys.Length
+        public const int KeyCount = 9;   // 必须等于 Keys.Length
 
         /// <summary>键名 → 下标（大小写不敏感；不认得的返回 -1）。</summary>
         public static int KeyIndex(string key)

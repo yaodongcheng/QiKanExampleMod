@@ -777,7 +777,7 @@ python pipeline/common/check_trf_pos.py <TRF目录或.trf文件...>
 首帧越不站姿、偏得越多：普通施法 `0.124` · 瞄准姿势 `0.275` · 处决受害者最大 —— **实机/预览里就是「浮空」**。
 
 **机制（已实证）**：导出器自己会触发一次求值，action 还挂着时动画就把姿势**装回来了**。
-> 实测（`_trf_fix_20260924/resttest2.py`）：清零后立刻读 `0.9145` ✅，**再 `frame_set` 求值一次变 `0.6645`** ❌。
+> 实测（`_legacy/_trf_fix_20260924/resttest2.py`）：清零后立刻读 `0.9145` ✅，**再 `frame_set` 求值一次变 `0.6645`** ❌。
 
 #### ⛔ 试过并**失败**的修法 —— 别再走
 
@@ -1166,6 +1166,60 @@ python tools/anim-retarget/pipeline/common/make_import_sheet.py
 
 ---
 
+### 19.7 🔴 2026-09-27 修的两个真 bug（合成件全批作废重出）
+
+**症状**：用户看图指出"合成效果不符合预期" —— ③ 合成后动画跟 ①② 完全不是一回事。
+
+#### Bug 1 —— `trf_compose.py` 乘法顺序反了（**合成件全批作废**）
+
+| | 公式 |
+|---|---|
+| 旧（错） | `结果 = 基础 ∘ (增量 ∘ 参照⁻¹)` |
+| 新（对） | `结果 = 基础 ∘ (参照⁻¹ ∘ 增量)` |
+
+- 🔴 **判据只有一条**：在**参照帧**上，合成结果必须**逐骨等于那条增量本身**。
+  旧式实测差 **71°**；新式 **≤0.18°**（只剩 6 位小数舍入）。
+- ⚠️ **为什么之前没抓到**：旧自检是"拿**中性**增量合成 vs 基础 ≈ 0" ——
+  中性增量下 `add ∘ ref⁻¹` 与 `ref⁻¹ ∘ add` 都退化成单位四元数，**两种顺序分辨不出来**。
+  ⇒ **自检必须用"非中性增量 + 参照帧"，光验中性增量等于没验。**
+- 影响面：**只有 `trf_compose.py` 的产物**。重定向件、TRF/FBX 交付链**不受影响**。
+
+#### Bug 2 —— 源侧预览 GLB 烘歪（`ue_mannequin_flight.glb`）
+
+- 症状：查看器 ①（源 pose）手臂张开、头带偏，"像没摆 pose"。
+- 根因：`head` 和一堆 `*_twist_01_*` 的局部旋转读数 == `pelvis` 的（25.0 vs 25.4）
+  = **把父骨/世界旋转写进了子骨的局部通道**。
+- 判据：拿它和源 FBX 逐骨比 —— 真值动的是 `neck_01 / thigh_r / calf_r`，
+  坏件的量跑到了 `head / calf_twist_01_r` 上。
+- 修法（重烘 130 条，两处引用都要换：`output/glb/ue_flight/` 与 `viewer/datasets/ue_flight/assets/`）：
+  ```
+  blender -b --factory-startup --python pipeline/common/fbx_to_glb.py -- \
+    --mode ue --animdir input/source/ue_mannequin/clips_flight \
+    --out <新>.glb --pelvis src --bones all
+  ```
+  （`fbx_to_glb.py` 是修好版；坏的 `.bak_20260927_badbake` 已备份）
+
+#### 随之改掉的三条口径
+
+| 项 | 旧 | 新 | 为什么 |
+|---|---|---|---|
+| `--root-scale` | `0` | **`1`** | 摘根骨是旧顺序下的"补救"。顺序修好后，合成件在参照帧上 == 那条 Add，根骨本来就该带（0~90°） |
+| 合成件命名 | `LeanL / PitchF …` | **`AddL / AddR / AddF / AddB / AddD / AddU`** | Lean/Pitch 是"观感"，来源族会串（HoverMove 的 `_L_Add` 和 HoverLean 的 `_L_Add` 都被叫成过 Lean）；改成"基础动画名 + `_Add` + 方向" |
+| 三格侧名 | `src / dst / comp` | **`after / retarget / source`** | 查看器把 `src` 当**主轴**；它是 2 帧静态 pose，会把 61 帧的合成动画按"时长比"拉到**末帧** ⇒ 三格对不上。**主轴必须给"动画"那一格** |
+
+#### 与之配套的用法（一条命令）
+
+```
+python pipeline/common/compose_fly.py        # 合成 12 条 + 自动刷查看器第③格
+python pipeline/common/trf_compose.py        # 单条：--base/--add/--ref/--out/--root-scale
+```
+- **表只有一份**：`build_fly_comp_viewer.py` 的 `PAIRS`（合成件名 / clip 名 / 基础动画 / root-scale），`compose_fly.py` 复用它
+- **查看器**：`ds=ue_fly_comp`，三格 = ①源 pose(UE 小白人) ②重定向后 pose(骑砍2) ③合成后动画；底栏只列 12 条（靠 `clips.json` 收窄，否则会列出源 GLB 里全部 130 条）
+
+#### 教训（写给下一个）
+
+**数值自洽 ≠ 对。** 合成/重定向这类"看着才知道对不对"的产物，**出厂前必须做一次视觉复核**（把渲染图读回来自己看）；
+而且自检要挑**能分辨对错的那个案例** —— 这次就是"拿中性增量当自检"把乘法顺序的错掩盖了半年。
 ## 二十、🔴 **网格贴图动画**：翻页 vs 漂移，两条路互斥（2026-09-22 登记，法阵云实机踩出）
 
 > **一句话**：想让**网格材质**动起来，材质层有两条路 —— **翻页**（`use_animated_texture_coords`）与**漂移**（`use_texture_sweep`）。

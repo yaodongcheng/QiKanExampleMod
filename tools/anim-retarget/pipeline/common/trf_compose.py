@@ -8,7 +8,7 @@ trf_compose.py —— 把「增量动画」合成到「基础动画」上，产�
     UE 飞行工程里带 `_Add` / `Lean_*` / `Pose_*` 的动画是**增量**（相对某条参照动画的差），
     直接当普通动画导进来播会散架。正确用法（逐骨、局部空间）：
 
-        结果(t) = 基础(t) ∘ ( 增量 ∘ 参照(参照帧)⁻¹ )
+        结果(t) = 基础(t) ∘ ( 参照(参照帧)⁻¹ ∘ 增量 )
 
     即：先把增量相对参照"减"出来（四元数里减 = 乘逆），再"加"到基础上去（乘）。
 
@@ -213,7 +213,9 @@ def compose(base, add, ref, ref_frame=None, root_scale=1.0, root_index=0):
 
     for b in range(base.bone_count):
         q_ref = ref.bone_at(b, ref_frame) if ref_frame is not None else ref.bone_first(b)
-        d = qmul(add.bone_first(b), qconj(q_ref))
+        # 🔴 2026-09-27 修：乘法顺序。增量 = 参照⁻¹ ∘ 增量（不是 增量 ∘ 参照⁻¹）——
+        #    这样"在参照帧上，合成结果 == 那条增量本身"才成立（实测旧式差 71°）。
+        d = qmul(qconj(q_ref), add.bone_first(b))
         if b == root_index and root_scale < 0.999:
             _before = qangle_deg(d, (0, 0, 0, 1))
             d = qslerp_identity(d, max(0.0, root_scale))

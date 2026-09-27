@@ -35,6 +35,13 @@ namespace LivingWorldNpcs.Flight
         /// <summary>**相位"时刻"名 —— 落地（落地动作）**。真身同样是 `c => false`；触发在 C#（板顶触地）。</summary>
         public const string LandTrigger = "land-trigger";
 
+        /// <summary>
+        /// **相位"时刻"名 —— 坠落（出机后的下坠姿势）**。真身同样是 `c => false`；触发在 C#（状态机出机那一刻）。
+        /// 🔴 它的作用是**让 C# 知道"那一段该演哪个状态"**（`TryEventTarget(FallTrigger)`），
+        /// 于是 `flight.xml` 里那个状态改名 / 换 clip，C# 一行都不用动（同起飞 / 落地两条接缝）。
+        /// </summary>
+        public const string FallTrigger = "fall-trigger";
+
         /// <summary>把本机用到的名字全部登记进去（`FlightAnimMachine.Register` 里调一次）。</summary>
         public static void RegisterAll()
         {
@@ -76,11 +83,15 @@ namespace LivingWorldNpcs.Flight
             //    落地 = **板顶触地**（硬着陆才播落地动作；轻放不播）。
             AnimConditions.Register(TakeoffTrigger, c => false);
             AnimConditions.Register(LandTrigger, c => false);
+            AnimConditions.Register(FallTrigger, c => false);   // 坠落（出机后那段）—— 同上是"时刻"标签
 
             // ── 命名标量（一次性动作的时长；重导 clip 换了帧数就改 FlightTuning 那边的值）──
             AnimConditions.RegisterParam("boostStartSeconds", () => FlightTuning.BoostStartSeconds);
             AnimConditions.RegisterParam("dodgeClipSeconds", () => FlightTuning.DodgeClipSeconds);
             AnimConditions.RegisterParam("castReleaseSeconds", () => FlightTuning.CastReleaseSeconds);
+            // 悬停 ⇄ 巡航 那两条边的过渡时长（边上写 `blend="hoverBlendSeconds"`）——
+            // 单独一个名字是为了"只调这两条、不动别的转移"，热调键 `custom.flight tune hoverblend`。
+            AnimConditions.RegisterParam("hoverBlendSeconds", () => FlightTuning.HoverBlendSeconds);
         }
 
         /// <summary>把上下文收窄成飞行那份（定义与上下文同命名空间，收窄在这里是安全的）。</summary>

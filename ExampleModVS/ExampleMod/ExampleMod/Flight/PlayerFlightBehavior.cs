@@ -23,11 +23,17 @@ namespace LivingWorldNpcs.Flight
     /// **本类有两级"状态"，别搞混**（读代码先认这两级，就不会迷路）
     ///
     ///   ① **相位**（<see cref="Phase"/>，管**物理与流程**）：<see cref="TickGrounded"/> /
-    ///      <see cref="TickTakeoff"/> / <see cref="TickAirborne"/> / <see cref="TickLanding"/>
+    ///      <see cref="TickTakeoff"/> / <see cref="TickAirborne"/> / <see cref="TickLanding"/> /
+    ///      <see cref="TickFalling"/>
     ///      ```
-    ///      地面 ──空中按空格──▶ 起飞 ──踩实+入姿演完──▶ 空中 ──(XML: 空格⇒机外 / 撞地⇒落地)──▶ 地面
-    ///      🔴 **两条出口都在 XML 的状态机里**：`<edge … to="outside" keys="Space"/>`（交还引擎、掉落接管）
-    ///         与 `<edge from="超人落地" to="outside" anim-rem-pct="20"/>`（撞地收摊）。
+    ///      地面 ──空中按空格──▶ 起飞 ──踩实+入姿演完──▶ 空中 ──(XML: 空格⇒坠落)──▶ 坠落 ──(空格⇒回飞 / 触地⇒地面)──▶ 地面
+    ///                                              └──(XML: 撞地⇒落地)──▶ 落地 ──▶ 地面
+    ///      🔴 **出机与出机的收尾都是 XML 里的边**：`<edge … to="坠落" keys="Space"/>`（出机）
+    ///         与 `<edge from="坠落" to="outside" when="land-trigger"/>`（触地时由 C# 送它出机）。
+    ///      🔴 **坠落 = 板载下坠**（2026-09-27 用户裁定「增加一个空中坠落状态」，实机定位后定的形）：
+    ///         板**不拆**，运着人一起往下掉 —— **支撑不断**，所以引擎那句"由悬空变成被托住
+    ///         就把人按地形重算位置"永不触发（拆板自由落体的接回那一瞬会瞬移，实测 63 米一帧）。
+    ///         姿势由状态机那条「坠落」状态自己驱动；相机与输入闸留在我们手里 —— 见 <see cref="BeginFalling"/>。
     ///      ```
     ///   ② **动画状态机**（<see cref="AgentAnimStateMachine"/>，管**播哪条动画**）：
     ///      **规则不在这里** —— 在注册制的那份定义 <see cref="FlightAnimMachine"/>（状态表 + 转移表，一眼读完）。
@@ -96,11 +102,22 @@ namespace LivingWorldNpcs.Flight
             Grounded,   // 不飞（原版状态）
             Takeoff,    // 抬升中（播起飞动画）
             Airborne,   // 空中自由飞（悬停 / 巡航 / 冲刺）
-            Landing     // 落地中（播落地动画）
+            Landing,    // 落地中（播落地动画）
+            Falling     // 出机后**坠落**（板载下坠：板不拆、运着人掉；姿势归状态机，相机与输入闸归我们）
         }
 
         private readonly CarrierBoard _board = new CarrierBoard();
 
+        // ── 掉落相位的三条硬编码口径（都是"判据"不是可调手感，所以不进 FlightTuning）──
+
+        /// <summary>出机后多久之内不判"着地"（秒）—— 出机那一两帧板还托着脚，`IsOnLand` 可能仍是真。</summary>
+        private const float FallLandGraceSeconds = 0.2f;
+
+        /// <summary>掉多久还没着地就强制交还控制（秒）—— 防"卡在天上"把玩家永久冻住（正常掉落用不到）。</summary>
+        private const float FallGiveUpSeconds = 20f;
+
+        /// <summary>"玩家被外部挪动"监视器在掉落期间用的速度上限（m/s）—— 只有瞬移量级才会触发。</summary>
+        private const float FallWatchSpeedLimit = 60f;
         private Phase _phase = Phase.Grounded;
         private Vec3 _velocity = Vec3.Zero;
         private float _landTimer;
@@ -121,6 +138,16 @@ namespace LivingWorldNpcs.Flight
         private float _dodgeTimer;           // 闪避位移还剩多久（>0 = 这段时间速度归闪避）
         private Vec3 _dodgeDir;              // 闪避位移方向（世界向量，单位化）
         private float _dodgeCooldown;        // 两次闪避之间的剩余冷却（秒）
+        private bool _dodgeKeyUsed;          // Z 键"这一次按下已经用掉了"（一次按下 = 一次闪避；松开才重新武装）
+        private float _fallTimer;            // 掉落已经多久（秒）—— 着地判定有一段宽限，见 TickFalling
+        private float _fallSpeedZ;           // 掉落当前竖直速度（m/s，负 = 往下）：自己按前后两帧的 z 算
+        private float _fallPrevZ;            // 上一帧的 z（同上）
+        private bool _hasFallPrevZ;
+        private float _fallLogTimer;         // 掉落诊断节流（0.5 秒一行）
+        private int _fallLogLines;           // 掉落诊断已打行数（封顶 6 行 —— 掉一分钟也只多 6 行）
+        private float _fallRideVel;          // 坠落=板载（FallRide）时的下坠速度（m/s，正数 = 往下）
+        private string _fallPoseState;       // 坠落姿势的状态名 —— 从 XML `when="fall-trigger"` 那条边读（C# 里没有状态名）
+        private bool _fallStateResolved;     // 上面那个名字是否已经查过（定义一次装载、进程内不变，查一次就够）
         // 🪦 2026-09-26 删除 `_pendingDodge` / `_pendingDodgeTimer`：闪避**姿态**现在由 XML 的
         //    `keys="Space+A"` 这类条件直接触发（状态机自己读键）⇒ C# 不再"请求"某个状态，
         //    也就没有"请求有没有被接走"要对账。C# 只负责位移（见 BeginDodge）。
@@ -206,6 +233,18 @@ namespace LivingWorldNpcs.Flight
 
             _clock += dt;
             Current = this;                 // 给别的系统查（飞行中施法要问"在飞吗"）
+
+            // 🔴 **坠落接缝：从 XML 读"哪个状态算坠落"**（`when="fall-trigger"` 那条边）——
+            //    定义一个进程只装载一次 ⇒ 查一次就够。名字读不到 = 退回"机外 = 出机那一刻"的老写法
+            //    （那条路下空中回飞会把人瞬移到地面，只是别把飞行卡死）。
+            if (!_fallStateResolved)
+            {
+                _fallStateResolved = true;
+                _anim.TryEventTarget(FlightAnimConditions.FallTrigger, out _fallPoseState);
+                DebugLogger.Log(_fallPoseState != null
+                    ? $"[Flight] 坠落接缝：状态「{_fallPoseState}」= 出机后那段（定义里 fall-trigger 那条边的 to）"
+                    : "[Flight] ⚠️ 定义里没有 `when=\"fall-trigger\"` 的边 ⇒ 退回老写法（机外 = 出机那一刻）");
+            }
             // 🔴 相机归我们管 ⇒ 向全项目登记"要视线找我"（铁律 35 的唯一入口）。
             //    每帧同步一次（幂等）：接管/归还的所有路径都不用各自记得登记与注销。
             CameraLook.Provider =
@@ -223,6 +262,7 @@ namespace LivingWorldNpcs.Flight
                     case Phase.Takeoff: TickTakeoff(main, dt); break;
                     case Phase.Airborne: TickAirborne(mission, main, dt); break;
                     case Phase.Landing: TickLanding(main, dt); break;
+                    case Phase.Falling: TickFalling(main, dt); break;
                 }
             }
             catch (Exception ex)
@@ -252,14 +292,30 @@ namespace LivingWorldNpcs.Flight
             //    本行为类负责的只是"**默认飞行在开日志时**，输入沿那三行也一起打"（见 LogInputEdges）。
             _anim.Tick(main, dt);
 
-            // ⑦″ 🔴 **通用规则：状态机说"机外"了 ⇒ 把控制权还给引擎**（2026-09-27 用户裁定）。
-            //     "谁能出机、按什么键出机"全写在 XML（`to="outside"` 的边）—— **C# 里没有"空格"这个字**。
-            //     这里只做拆装：拆板 / 还动作通道 / 渐变还相机 / 解冻 ⇒ 引擎的默认掉落接管；
-            //     掉着时再按空格 = `TickGrounded` 那条"空中按空格起飞"⇒ 重新进机（进出对称）。
-            if (_phase != Phase.Grounded
-                && string.Equals(_anim.Current, AgentAnimStateMachine.OutsideState, StringComparison.Ordinal))
+            // ⑦″ 🔴 **两条通用规则**（2026-09-27 第二轮：出机那条边直接连到「坠落」状态，姿势归机器自己管）：
+            //     ① 机器**进了坠落状态** ⇒ 出机开始下坠（板载下坠，见 BeginFalling）
+            //     ② 机器**说机外了** ⇒ 收摊：拆板 / 还通道 / 还相机 / 解冻
+            //     🔴 两条都不认键、也不写死状态名 —— "坠落"那个名字从 XML 的 `when="fall-trigger"`
+            //        那条边读（同起飞 / 落地两条接缝）；②的"机外"是机器自己的哨兵（不是 XML 里的状态名）。
+            //     ⚠️ 定义里没声明坠落状态时**退回老写法**（机外 = 出机那一刻），那时②不能跟着一起判 ——
+            //        否则坠落刚起来就会被它当场收掉（那一档的起点本来就是机外）。
+            bool fallDeclared = !string.IsNullOrEmpty(_fallPoseState);
+            if (_phase != Phase.Grounded && _phase != Phase.Falling)
             {
-                ExitToEngine(main);
+                bool entered = fallDeclared
+                    ? string.Equals(_anim.Current, _fallPoseState, StringComparison.Ordinal)
+                    : string.Equals(_anim.Current, AgentAnimStateMachine.OutsideState, StringComparison.Ordinal);
+                if (entered)
+                {
+                    BeginFalling(main, fallDeclared ? $"状态机进「{_fallPoseState}」" : "状态机出机（定义里没声明坠落状态）");
+                    return;
+                }
+            }
+            else if (_phase == Phase.Falling && fallDeclared
+                     && string.Equals(_anim.Current, AgentAnimStateMachine.OutsideState, StringComparison.Ordinal))
+            {
+                DebugLogger.Log("[Flight] 状态机说机外（坠落触地）⇒ 拆板 / 还通道 / 还相机 / 解冻");
+                EndFalling();
                 return;
             }
 
@@ -307,7 +363,11 @@ namespace LivingWorldNpcs.Flight
             // 🔴 冻结层（T1，2026-09-21）—— 放在相位更新【之后】：
             //    起飞那一帧就冻、落地那一帧就松开，中间不留缝。
             //    具体手法见 FlightFreezeMode；只有 Flags 档需要每帧做，其余档是"设一次就生效"的状态。
-            if (_phase != Phase.Grounded)
+            // 🔴 **掉落相位要看那个开关**（2026-09-27）：`fallgate 0` 时输入闸是放开的，
+            //    这里若照"非地面就冻"来判，下一帧就会把刚解开的冻**又加回去**（开关等于失效）。
+            bool wantFreeze = _phase != Phase.Grounded
+                              && !(_phase == Phase.Falling && !FlightTuning.HoldInputWhileFalling);
+            if (wantFreeze)
             {
                 EnterFreeze(main);      // 幂等：已冻结则直接返回
                 TickFreeze(main);       // 幂等：非 Flags 档什么都不做
@@ -412,6 +472,19 @@ namespace LivingWorldNpcs.Flight
                 return;
             }
 
+            // 🔴 **板载坠落后回飞：板不能急停**（2026-09-27）—— 人这时带着下坠速度压在板上，
+            //    板一停人就离开板面 = 支撑断开 = 又给了引擎那句"按地形重算位置"机会。所以让它
+            //    用 `FallRideBrake` 那档减速度把速度收干（36 m/s 大约 1.2 秒），全程人压着板。
+            if (_board.IsSpawned && _fallRideVel > 0f)
+            {
+                _fallRideVel = Math.Max(0f, _fallRideVel - FlightTuning.FallRideBrake * dt);
+                Vec3 bo = _board.Origin;
+                float gj = GetGroundZ(Mission.Current?.Scene, bo) - FlightTuning.CarrierTopLocalZ;
+                _board.MoveTo(new Vec3(bo.x, bo.y, Math.Max(gj, bo.z - _fallRideVel * dt)));
+                if (_fallRideVel <= 0f)
+                    DebugLogger.Log("[Flight] 坠落速度已收干 ⇒ 交回飞行控制");
+            }
+
             // 🔴 **踩实之后板也不动**（2026-09-21 用户裁定："只允许玩家 WASD 移动时候让他动"）。
             //    原来这里有一段自动抬升（7 m/s 升到悬停高度）—— 已删。
             //    现在只做一件事：**把控制权交给玩家**（有方向输入，或入姿那份时长到了）。
@@ -420,7 +493,10 @@ namespace LivingWorldNpcs.Flight
             // 🔴 **"相位交棒" ≠ "姿态结束"**（2026-09-26 澄清）：这里只放开 `Hold`，**不切动作** ——
             //    入姿那条 clip 由 XML 的 `<edge from="进入飞行" to="悬浮飞行" anim-rem-pct="15"/>` 收尾，
             //    所以按着 W 抢跑也不会把入姿砍半（以前靠"这里有个秒数"来管，现在是定义说了算）。
-            if (FlightInput.HasMoveInput || _takeoffAnimTimer >= FlightTuning.TakeoffAnimSeconds)
+            // 🔴 **收速没收完就不交棒**（2026-09-27）：否则带着 30 m/s 的下坠速度转进空中相位、
+            //    板一停人就脱板（同上，= 支撑断开）。
+            if ((FlightInput.HasMoveInput || _takeoffAnimTimer >= FlightTuning.TakeoffAnimSeconds)
+                && _fallRideVel <= 0.01f)
             {
                 _phase = Phase.Airborne;
                 _velocity = Vec3.Zero;
@@ -442,35 +518,38 @@ namespace LivingWorldNpcs.Flight
 
             // ①′ （状态机的事实已在 OnMissionTick 主循环里喂过 —— 见那里的 `UpdateAnimContext`）
 
-            // ② 空格手势：冲刺=前闪 / 非冲刺=退出飞行（🔴 2026-09-27 用户实机感受后重定义）
-            //    🔴 **2026-09-27 用户实机感受后重定义**（以手感为准，旧的"贴地/俯冲落地 + 长按下降"已废）：
-            //    · **短按空格 = 退出飞行**（非冲刺时）—— 拆板/还相机/解冻/交还动作通道，
-            //      **由引擎的默认掉落接管**；掉着的时候**再按一次空格就重新进机**
-            //      （= `TickGrounded` 里那条"空中按空格起飞"，**同一个手势，进出对称**）。
-            //    · **冲刺时短按空格 = 前闪**（不退出飞行）—— 见 ②-0。
+            // ② 手势分工（🔴 2026-09-27 用户裁定：**空格专管出机，闪避改用 C**）
+            //    · **空格 = 退出飞行**（两个家族都是）—— 它是 **XML 里的一条边**
+            //      （`<edge from="悬浮飞行|冲刺飞行" to="outside" keys="Space"/>`），
+            //      本类只遵守一句通用规则 —— "状态机说机外了 ⇒ 开始掉落"（见 OnMissionTick ⑦″）。
+            //      掉着的时候**再按一次空格就重新进机**（见 `TickFalling`，**同一个手势，进出对称**）。
+            //    · **冲刺中按 Z = 前闪**（不退出飞行）—— 见 ②-0。
             //    · **撞地**（板顶触地）照旧自动落地并播落地动作。
             float groundZNow = GetGroundZ(mission.Scene, _board.Origin);
             float heightAboveGround = (_board.Origin.z + FlightTuning.CarrierTopLocalZ) - groundZNow;
 
-            // 🔴 空格**按下沿**一次读掉，再分流 ——
-            //    按下沿是"谁先读谁拿走"的一次性信号，分成两处各读一次 = 后读的那处永远读不到。
-            bool spaceTap = FlightInput.ConsumeSpacePress();
+            // 🔴 空格**按下沿**在这里一次读掉（**丢弃**，不派任何用场）——
+            //    目的是"出机那一下"别留到下一帧：`FlightInput` 的按下沿只活一帧，
+            //    但 `TickFalling` 也读同一个通道，出机与"重新进机"必须在**不同的按下**上发生。
+            FlightInput.ConsumeSpacePress();
 
-            // ②-0 **冲刺中短按空格 = 前闪**（2026-09-27 收窄：冲刺没有方向输入，只留前闪这一条）。
+            // ②-0 **冲刺中按 Z = 前闪**（2026-09-27 用户裁定：闪避键从空格改成 Z ——
+            //      它就是游戏自己的蹲下键，UE 超人项目里闪避也正是蹲下键（空中不需要蹲）⇒ 最贴原意）。
             //      · 只在冲刺态（按住 Shift）里成立 —— 闪避动画的基准姿势就是趴姿，
-            //        从悬停/巡航（直立）切过去会硬翻 ~90°。
-            //      · 冲刺时这一下**专管闪避**（冷却中也吞掉），不落回"退出飞行"——
-            //        否则手一快就忽闪忽退，读不出玩家意图。
-            if (spaceTap && FlightTuning.DodgeOnSpaceTapInBoost && FlightInput.BoostHeld)
+            //        从悬停/巡航（直立）切过去会硬翻 ~90°；姿态那条边在 XML 里也挂在趴姿族上。
+            //      · 🔴 **一次按下 = 一次闪避**：`_dodgeKeyUsed` 闩住，松开 C 才重新武装
+            //        （不然按住不放会在冷却结束后反复重播闪避姿态 = "闪了一下人没动"）。
+            if (FlightInput.ConsumeDodgePress())
             {
-                if (_dodgeCooldown <= 0f)
-                    BeginDodge(forward);
-                return;     // 本帧交出去（姿态下一帧由状态机进，位移从下一帧起算）
+                _dodgeKeyUsed = true;
+                if (FlightTuning.DodgeInBoost && FlightInput.BoostHeld)
+                {
+                    if (_dodgeCooldown <= 0f)
+                        BeginDodge(forward);
+                    else
+                        DebugLogger.Log($"[Flight] 闪避被冷却挡下（还剩 {_dodgeCooldown:F2}s）");
+                }
             }
-
-            // ②-1 **退出飞行不在 C#**（2026-09-27 用户裁定）：它是 XML 里的一条边
-            //      （`<edge from="悬浮飞行|冲刺飞行" to="outside" keys="Space"/>`），
-            //      本类只遵守一句通用规则 —— "状态机说机外了 ⇒ 把控制权还给引擎"（见 OnMissionTick ⑦″）。
 
             Vec2 axis = FlightInput.MoveAxis;
             Vec3 dir = forward * axis.y + right * axis.x;
@@ -698,16 +777,21 @@ namespace LivingWorldNpcs.Flight
                    || _anim.TryEventEnter("outside", out state);
         }
 
-        private void BeginTakeoff(Agent main)
+        /// <summary>
+        /// 起飞（进机）。<paramref name="ridingBoard"/> = **人已经站在板上**（板载坠落后回飞那条路）——
+        /// 这时**不重新召唤板、也不等"踩实"**：板和人的支撑关系从头到尾没断过，
+        /// 拆了重召唤等于人为制造一次"悬空变成被托住"（引擎那句按地形重算位置的解算就会趁机发作）。
+        /// </summary>
+        private void BeginTakeoff(Agent main, bool ridingBoard = false)
         {
             Scene scene = Mission.Current?.Scene;
             if (scene == null)
                 return;
 
-            _takeoffSettled = false;
+            _takeoffSettled = ridingBoard;
             _takeoffTimer = 0f;
             _boardRemoved = false;
-            _boardSpawned = false;
+            _boardSpawned = ridingBoard;
             _boardSpawnTimer = 0f;
             _takeoffAnimTimer = 0f;
             _airTime = 0f;
@@ -823,7 +907,7 @@ namespace LivingWorldNpcs.Flight
         ///
         /// 🔴 **本方法只管"位移"**（2026-09-26 澄清）：朝请求方向冲 <see cref="FlightTuning.DodgeDistance"/> 米
         ///    （<see cref="FlightTuning.DodgeDisplaceSeconds"/> 秒内走完）。
-        ///    **姿态**由 XML 的状态机自己判 —— `fastmove → dodgeU keys="Space"`（读的是同一批物理键），
+        ///    **姿态**由 XML 的状态机自己判 —— `FlyFastPoses → dodgeU keys="Z"`（读的是同一批物理键），
         ///    所以两边不会打架；也不需要 C# 去"请求"任何状态名（那种写法一改名就失效）。
         ///    位移是玩法、动画是表现，**各管各的时长**，谁都不等谁。
         ///
@@ -852,7 +936,7 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>
         /// 进入落地段（**唯一入口 = 撞地**，2026-09-27 起）——
-        /// 主动退出飞行不走这里（<see cref="ExitToEngine"/>：交还引擎、不播落地动作）。
+        /// 主动出机（空格）不走这里（<see cref="BeginFalling"/>：交还引擎原生掉落、不播落地动作）。
         /// </summary>
         private void BeginLanding(Agent main, float approachSpeed)
         {
@@ -873,35 +957,207 @@ namespace LivingWorldNpcs.Flight
         }
 
         /// <summary>
-        /// **交还引擎**（2026-09-27）—— 由"状态机进入 `outside`"触发（**不认任何键**，见 <see cref="ExitToEngine"/> 的调用点）。
-        /// 效果 = 退出飞行、由引擎的默认掉落接管。
+        /// **出机 ⇒ 开始掉落**（2026-09-27 重做）—— 由"状态机进入 `outside`"触发（**不认任何键**，
+        /// 见 <see cref="OnMissionTick"/> ⑦″ 那个调用点）。**按空格出机**与**撞地落地**是两条路，
+        /// 后者走 <see cref="BeginLanding"/>（要播落地动作）。
         ///
-        /// 做四件事（与 <see cref="FinishFlight"/> 同源，但**不是"落地"**）：
-        /// 拆板 · 交还 0 号动作通道 · **渐变**归还相机 · 解冻（控制权回到玩家）。
-        /// 之后就是引擎自己的事了：人自由落体、落地由引擎的走跑/摔落接管。
+        /// 🔴🔴 **掉落的物理与动画 100% 是引擎原生的**（用户 2026-09-27 裁定：「原版应该有自己原生的
+        ///     跳跃掉落机制」）—— 本类在掉落期间**不写速度、不写位置、不驱动 0 号通道**，
+        ///     拆掉板 + 把动作通道还给引擎（<see cref="AgentAnimStateMachine.Release"/>）就完事，
+        ///     剩下的（重力、空中姿态、落地）全归引擎。
         ///
-        /// 🔴 **重新进机**：掉着的时候再按一次空格 ⇒ <see cref="TickGrounded"/> 那条
-        ///    "空中按空格起飞"（`!IsOnLand() && ConsumeSpacePress()`）⇒ 播 `进入飞行` 入姿。
-        ///    **进出对称**，不需要额外代码。
+        /// 🔴 **但相机与输入闸先留着**，两条都各治一个具体病：
+        ///   ① **相机不还**（<see cref="FlightTuning.KeepCameraWhileFalling"/>）：掉落全程镜头跟着，
+        ///      玩家才看得清"自己在往下掉、离地还有多高"——出机当场还相机的话，画面一切换，
+        ///      掉落过程就读成了一个"镜头跳了一下"。
+        ///   ② **输入闸不撤**（<see cref="FlightTuning.HoldInputWhileFalling"/>）：玩家按键**不进引擎**。
+        ///      掉落中本来就走不了路，真正的目的是**空格只归我们读** —— 引擎收不到那个键，
+        ///      就**不会给玩家起跳**；引擎那次跳的落地解算会按**地形**重算 agent 位置，
+        ///      实测（2026-09-27 日志）空中重进机时把玩家从 37 米一帧拽到地面、板留在半空 ⇒ 飞行当场收摊。
+        ///      保留输入闸后，重进机全程引擎都没起过跳，那条解算根本不会发生。
         ///
         /// 🔴 **不调 `FlightInput.Reset()`**：Reset 会把"空格仍按着"重新算成一次**按下沿**，
-        ///    下一帧 `TickGrounded` 就会立刻把玩家重新送上飞机（"一按就退出又进机"）。保持输入状态不动即可。
+        ///    下一帧 `TickFalling` 就会立刻把玩家重新送上飞机（"一按就退出又进机"）。保持输入状态不动即可。
         /// </summary>
-        private void ExitToEngine(Agent main)
+        private void BeginFalling(Agent main, string why)
         {
-            DebugLogger.Log("[Flight] 状态机出机 ⇒ 交还引擎（默认掉落接管；空中再按空格可重新进机）");
-            _board.Remove();
-            _anim.Release(main);
-            _phase = Phase.Grounded;
+            float z = 0f;
+            try { z = main.Position.z; } catch { /* 取不到就按 0 打日志 */ }
+
+            DebugLogger.Log($"[Flight] 出机 ⇒ 坠落开始（{why}；离地高度={z:F1}m）| " +
+                            $"方式={(FlightTuning.FallRide ? "板载（支撑不断，不会触发引擎的地形重算）" : "自由落体（引擎原生；回飞时会被按地形重算）")} · " +
+                            $"姿势={_fallPoseState ?? "(定义里没有 fall-trigger 边 ⇒ 退回老写法)"}（由状态机自己驱动） · " +
+                            $"相机={(FlightTuning.KeepCameraWhileFalling ? "跟着" : "还给引擎")} · " +
+                            $"输入闸={(FlightTuning.HoldInputWhileFalling ? "保留" : "放开")}");
+
+            if (FlightTuning.FallRide)
+            {
+                // 🔴 **板不拆**：人继续踩在板上（支撑不断）⇒ 不存在"悬空变成被托住"那一瞬间，
+                //    引擎那句"按地形重算位置"永远不触发（这是实机定位出来的唯一可行解，见 FlightTuning.FallRide）。
+                if (!_board.IsSpawned && !SpawnBoardAtFeet(main))
+                    DebugLogger.Log("[Flight] ⚠️ 坠落开始但板不在（网格没进包？）—— 本次坠落只能用自由落体");
+                _fallRideVel = 0f;
+                _boardSpawned = true;              // 板已有（或刚补上）⇒ 回飞时 TickTakeoff 不必再召唤
+                _takeoffSettled = true;            // 人本来就站在板上 ⇒ 不必再等"踩实"
+            }
+            else
+            {
+                _board.Remove();                   // 自由落体：拆板
+                _anim.Release(main);               // 0 号通道还给引擎 ⇒ 空中姿势由引擎自己演
+            }
+            // 🔴 姿势**不需要这里 Force**（2026-09-27 第二轮用户裁定）：出机那条边直接连到「坠落」，
+            //    机器自己进了那个状态并驱动通道 0 了；C# 只等它说"机外"（触地时送它出机）。
+            //    定义里没声明坠落状态（`_fallPoseState == null`）⇒ 那一档的机器还停在机外，姿势本就归引擎。
+
+            _phase = Phase.Falling;
             _velocity = Vec3.Zero;
             _landTimer = 0f;
-            _takeoffSettled = false;
-            _takeoffTimer = 0f;
             _boardRemoved = false;
-            _boardSpawned = false;
+            _fallTimer = 0f;
+            _fallSpeedZ = 0f;
+            _hasFallPrevZ = false;
+            _fallLogTimer = 0f;
+            _fallLogLines = 0;
             ClearDodgeState();
-            ExitCamera();        // 渐变归还；Tick 里会继续推进到还完（`_camRig.IsHandingBack`）
+
+            if (!FlightTuning.KeepCameraWhileFalling)
+                ExitCamera();           // 渐变归还；Tick 里会继续推进到还完（`_camRig.IsHandingBack`）
+
+            if (!FlightTuning.HoldInputWhileFalling)
+                ExitFreeze();
+        }
+
+        /// <summary>
+        /// **掉落中**（每帧）—— 只做三件事：**空格回飞** · **着地收工** · 打几行诊断。
+        /// 掉落本身不归我们管（见 <see cref="BeginFalling"/>），所以这里没有任何运动代码。
+        /// </summary>
+        private void TickFalling(Agent main, float dt)
+        {
+            _fallTimer += dt;
+            UpdateFallSpeed(main, dt);
+
+            // ① **板载坠落**：板运着人往下加速掉 —— 人**始终踩在板上**（支撑不断）。
+            //    🔴 这是"不触发引擎那次地形重算"的关键：引擎只在"agent 由悬空变成被托住"那一瞬间重算，
+            //       支撑不断就永远不触发（正常飞行时板以 26 m/s 下坠也从来不出事，就是这个道理）。
+            if (FlightTuning.FallRide && _board.IsSpawned)
+            {
+                _fallRideVel = Math.Min(FlightTuning.FallRideTerminal,
+                                        _fallRideVel + FlightTuning.FallRideAccel * dt);
+                Vec3 o = _board.Origin;
+                float groundOriginZ = GetGroundZ(Mission.Current?.Scene, o) - FlightTuning.CarrierTopLocalZ;
+                float nz = Math.Max(groundOriginZ, o.z - _fallRideVel * dt);
+                _board.MoveTo(new Vec3(o.x, o.y, nz));
+                if (nz <= groundOriginZ + 0.02f)
+                {
+                    LandFromFall(main, "坠落触地（板载：板顶落到地面，人随之落地）");
+                    return;
+                }
+            }
+
+            // ② 空格 ⇒ 重新进机（与地面那条"空中按空格起飞"同一个手势、同一段入姿）。
+            //    🔴 板载坠落时**不重新召唤板**（人正踩在上面）—— 那两个 `_boardSpawned/_takeoffSettled`
+            //       已经在 BeginFalling 里置真，TickTakeoff 会直接从"交回控制"那一步走。
+            if (FlightInput.ConsumeSpacePress())
+            {
+                DebugLogger.Log($"[Flight] 坠落中按空格 ⇒ 重新进机（已坠 {_fallTimer:F2}s，下落 {_fallSpeedZ:F1} m/s，板速 {_fallRideVel:F1}）");
+                BeginTakeoff(main, ridingBoard: FlightTuning.FallRide && _board.IsSpawned);
+                return;
+            }
+
+            // ③ 着地 ⇒ 把相机与输入还给玩家（宽限 0.2 秒：出机那一两帧板还托着脚，`IsOnLand` 可能仍是真）。
+            //    ⚠️ **只在自由落体档用这条**：板载档下 `IsOnLand` 全程为真（人一直站在板上），
+            //       它的着地由上面 ① 的"板顶触地"判。
+            if (!FlightTuning.FallRide && main.IsOnLand() && _fallTimer >= FallLandGraceSeconds)
+            {
+                LandFromFall(main, $"坠落着地（用时 {_fallTimer:F2}s）");
+                return;
+            }
+
+            // ④ 兜底：坠不出结果（场景怪 / 卡住）也不能把玩家永久冻在天上
+            if (_fallTimer >= FallGiveUpSeconds)
+            {
+                DebugLogger.Log($"[Flight] ⚠️ 坠落超过 {FallGiveUpSeconds:F0}s 仍未着地 ⇒ 强制交还控制 | {DescribeFall(main)}");
+                EndFalling();
+                return;
+            }
+
+            // ⑤ 诊断：每 0.5 秒一行、封顶 6 行（坠一分钟也只多 6 行）。
+            //    🔴 **看 `差`（胶囊底 − pos.z）**：正常 ≈ 0.4；它忽然变成几十米 = agent 的位置
+            //       被引擎按地形重算过（就是板载要避免的那句解算）—— 这是排查"回飞被摔到地上"的唯一书证。
+            _fallLogTimer += dt;
+            if (_fallLogTimer >= 0.5f && _fallLogLines < 6)
+            {
+                _fallLogTimer = 0f;
+                _fallLogLines++;
+                DebugLogger.Log("[Flight-Diag] " + DescribeFall(main));
+            }
+        }
+
+        /// <summary>
+        /// **坠落落地**：把机器**送出机外**（定义里声明了坠落状态时）—— 之后由主循环那条通用规则
+        /// 收摊（拆板 / 还通道 / 还相机 / 解冻）。定义里没声明坠落状态的兜底档直接收 ✓。
+        /// 🔴 走状态机这条路是用户 2026-09-27 的裁定：「坠落动画监听落地事件后才 outside」——
+        ///    出机与出机的收尾**都写成边**，C# 只遵守"机器说机外 ⇒ 收摊"。
+        /// </summary>
+        private void LandFromFall(Agent main, string why)
+        {
+            DebugLogger.Log($"[Flight] {why} | {DescribeFall(main)}");
+            if (!string.IsNullOrEmpty(_fallPoseState))
+                _anim.Force(main, AgentAnimStateMachine.OutsideState, FlightTuning.AnimBlendIn);
+            else
+                EndFalling();       // 兜底档：机器本来就停在机外，没有"送它出机"这一步
+        }
+
+        /// <summary>着地 / 放弃：拆板 + 还动作通道 + 把相机与输入还给玩家（幂等）。</summary>
+        private void EndFalling()
+        {
+            _phase = Phase.Grounded;
+            _fallTimer = 0f;
+            _fallSpeedZ = 0f;
+            _fallRideVel = 0f;
+            _hasFallPrevZ = false;
+            // 🔴 **坠落姿势是相位 `Force` 进去 + `Hold` 住的**（板载档），收摊必须两件都还：
+            //    拆板（不然地上留一块托脚的法阵）+ 把 0 号通道还给引擎。
+            //    漏了 Release 的后果很具体：`Hold` 一直是真、状态机永远停在「坠落」⇒ 人锁死在坠落姿势里。
+            _board.Remove();
+            Agent main = Agent.Main;
+            if (main != null && AgentControlHelper.SafeIsActive(main))
+                _anim.Release(main);
+            ExitCamera();
             ExitFreeze();
+            FlightInput.Reset();
+        }
+
+        /// <summary>坠落进度一行（诊断用）。</summary>
+        private string DescribeFall(Agent main)
+        {
+            float z = 0f, bottom = 0f;
+            bool onLand = false;
+            string anim = "-";
+            try
+            {
+                z = main.Position.z;
+                bottom = CarrierBoard.CollisionCapsuleBottomZ(main);
+                onLand = main.IsOnLand();
+                // ⚠️ 用 `.Name` —— `ActionIndexCache.ToString()` 没被重写，打出来是类型名（这个坑踩过一次）
+                anim = main.GetCurrentAction(0).Name ?? "-";
+            }
+            catch { /* 诊断自己出问题不该影响坠落 */ }
+            return string.Format(
+                "坠落 t={0:F2}s 速度={1:F1}m/s 板速={2:F1} pos.z={3:F2} 胶囊底={4:F2} 差={5:F2} 着地={6} anim={7}",
+                _fallTimer, _fallSpeedZ, _fallRideVel, z, bottom, bottom - z, onLand ? 1 : 0, anim);
+        }
+
+        /// <summary>掉落竖直速度（自算：引擎的 `GetCurrentVelocity` 只有水平两个分量）。</summary>
+        private void UpdateFallSpeed(Agent main, float dt)
+        {
+            float z;
+            try { z = main.Position.z; }
+            catch { return; }
+            if (_hasFallPrevZ && dt > 0f)
+                _fallSpeedZ = (z - _fallPrevZ) / dt;
+            _fallPrevZ = z;
+            _hasFallPrevZ = true;
         }
 
         private void FinishFlight(Agent main)
@@ -966,7 +1222,9 @@ namespace LivingWorldNpcs.Flight
         {
             // 🔴 落地阶段一律用**悬停机位**（2026-09-21 用户裁定：落地动画一开始，镜头就该跟 idle 一样）。
             //    不加这条的话，落地那一刻若还按着 W（HasMoveInput 为真）就仍是巡航机位，收摊时镜头落差明显。
-            if (_phase == Phase.Landing)
+            // 🔴 **掉落阶段同理用悬停机位**（2026-09-27）：那会儿板已经没了，按输入/冲刺挑机位没有意义，
+            //    固定成悬停机位 = 镜头稳稳跟着人掉（玩家才看得清自己在下坠）。
+            if (_phase == Phase.Landing || _phase == Phase.Falling)
             {
                 _camPreset = FlightCamPreset.Hover;
                 return;
@@ -1346,21 +1604,26 @@ namespace LivingWorldNpcs.Flight
             for (int i = 0; i < AnimPrimitives.KeyCount; i++)
             {
                 bool held = FlightInput.RawKeyAt(i);
-                // 🔴 **闪避冷却期间，对状态机把"空格"报成没按**（2026-09-27）：
-                //    闪避是**动作级**的 —— C# 这边有冷却（冷却中不给位移），而姿态那边由 XML 的
-                //    `keys="Space"` 直接触发；照实报"按着"就会在冷却里**反复重播闪避姿态**
-                //    （看着像"闪了一下、人没动"）。让状态机看到与玩法**一致**的事实。
-                if (i == SpaceKeyIndex && held && _dodgeCooldown > 0f)
+                // 🔴 **C（闪避键）对状态机报"没按"，直到玩家松开**（2026-09-27）：
+                //    玩法这一侧是**动作级**的（一次按下 = 一次闪避 + 一段位移 + 一个冷却），
+                //    而姿态那一侧由 XML 的 `keys="Z"` 直接触发、读的是**电平**。
+                //    照实报"按着"，按住不放就会在冷却结束那一刻再触发一次闪避姿态 ——
+                //    而玩法那边没有对应的位移（按下沿早用掉了）⇒ **看着像"闪了一下、人没动"**。
+                //    ⇒ 让状态机看到与玩法**一致**的事实：这一次按下已经用过了。
+                if (i == DodgeKeyIndex)
                 {
-                    held = false;
+                    if (!held)
+                        _dodgeKeyUsed = false;      // 松开 ⇒ 重新武装
+                    else if (_dodgeKeyUsed)
+                        held = false;               // 用过了 ⇒ 对状态机报"没按"
                 }
                 _animCtx.SetKey(i, held);
             }
             _animCtx.AnimRemainFrac = _anim.CurrentRemainFrac;
         }
 
-        /// <summary>空格在 `AnimPrimitives.Keys` 里的下标（-1 = 没对上 ⇒ 那条抑制逻辑自动失效，不崩）。</summary>
-        private static readonly int SpaceKeyIndex = AnimPrimitives.KeyIndex("Space");
+        /// <summary>闪避键（C）在 `AnimPrimitives.Keys` 里的下标（-1 = 没对上 ⇒ 上面那条抑制逻辑自动失效，不崩）。</summary>
+        private static readonly int DodgeKeyIndex = AnimPrimitives.KeyIndex("Z");
 
         /// <summary>上一帧是否处于"UI 门控接管输入"状态（只在进入那一帧打一行）。</summary>
         private bool _loggedUiBlock;
@@ -1444,8 +1707,11 @@ namespace LivingWorldNpcs.Flight
             if (_phase == Phase.Grounded || dt <= 0f)
                 return;
 
-            // 板最快也就 BoostSpeed；再加点容忍量。超过就是别人在动他。
-            float allowed = (FlightTuning.BoostSpeed + 2f) * dt + 0.05f;
+            // 上限 = 板最快能带出来的量；再加点容忍量。超过就是别人在动他。
+            // 🔴 **掉落期间没有"板速"这个上限了**（板已经拆了，人是引擎在往下拽）——
+            //    改用一个宽松的 60 m/s 上限：正常自由落体（几十米高也就 30 m/s 上下）不会误报，
+            //    而"被引擎按地形重算位置"那种瞬移（实测一帧 20~35 米 = 上千 m/s）照样抓得到。
+            float allowed = (_phase == Phase.Falling ? FallWatchSpeedLimit : FlightTuning.BoostSpeed + 2f) * dt + 0.05f;
             if (playerStep.Length <= allowed)
                 return;
 
@@ -1717,37 +1983,63 @@ namespace LivingWorldNpcs.Flight
         // ─────────────────────────── 给控制台用的手动手控 ───────────────────────────
 
         /// <summary>控制台强制起飞（绕过长按）。返回一句英文回执。</summary>
+        /// <summary>控制台强制起飞（绕过长按）。掉落中调用 = **直接回飞**（等价于掉着按空格）。返回一句英文回执。</summary>
         public string ForceStart()
         {
-            if (_phase != Phase.Grounded)
+            if (_phase != Phase.Grounded && _phase != Phase.Falling)
                 return "already flying";
             Agent main = Agent.Main;
             if (main == null || !AgentControlHelper.SafeIsActive(main))
                 return "no player agent";
-            BeginTakeoff(main);
+            BeginTakeoff(main, ridingBoard: _phase == Phase.Falling && FlightTuning.FallRide && _board.IsSpawned);
             return _phase == Phase.Takeoff ? "takeoff started" : "takeoff failed (carrier spawn failed?)";
         }
 
-        /// <summary>控制台强制退出飞行（= 与"空中短按空格"同一条路：交还引擎、默认掉落接管）。</summary>
+        /// <summary>控制台强制出机（= 与"空中按空格"同一条路：引擎原生掉落接管，掉着按空格可回飞）。</summary>
         public string ForceStop()
         {
             if (_phase == Phase.Grounded)
                 return "not flying";
+            if (_phase == Phase.Falling)
+                return $"already falling ({_fallTimer:F2}s, vz={_fallSpeedZ:F1})";
             Agent main = Agent.Main;
             if (main == null || !AgentControlHelper.SafeIsActive(main))
             {
                 AbortFlight();
                 return "aborted (no player agent)";
             }
-            ExitToEngine(main);
-            return "exited (engine takes over; press Space in air to re-enter)";
+            BeginFalling(main, "custom.flight stop");
+            return "falling (engine-native drop; press Space in air or custom.flight start to re-enter)";
         }
+
+        /// <summary>控制台强制闪避一次（<c>custom.flight dodge</c>）—— 只出**位移**那一半；
+        /// 闪避**姿态**照常由冲刺中按 Z 触发（XML 那条 `FlyFastPoses → dodgeU keys="Z"` 的边）。</summary>
+        public string ForceDodge()
+        {
+            if (_phase != Phase.Airborne)
+                return $"not airborne (phase={_phase})";
+            Agent main = Agent.Main;
+            if (main == null || !AgentControlHelper.SafeIsActive(main))
+                return "no player agent";
+            if (_dodgeCooldown > 0f)
+                return $"dodge on cooldown ({_dodgeCooldown:F2}s left)";
+            GetCameraBasis(out Vec3 forward, out _);
+            BeginDodge(forward);
+            return $"dodge: {FlightTuning.DodgeDistance:F1}m over {FlightTuning.DodgeDisplaceSeconds:F2}s " +
+                   "(pose needs the C key in boost: XML edge FlyFastPoses -> dodgeU keys=\"C\")";
+        }
+
+        /// <summary>控制台强制出机进入掉落（<c>custom.flight drop</c>）—— 与 <see cref="ForceStop"/> 同义，名字更贴新语义。</summary>
+        public string ForceDrop() => ForceStop();
 
         public string Status()
         {
-            return string.Format("phase={0} frozen={1} anim={2} v={3:F1} {4}",
-                _phase, _frozenMode.HasValue ? _frozenMode.Value.ToString() : "off", _anim.CurrentAction ?? "-", _velocity.Length,
-                _board.Describe());
+            string fall = _phase == Phase.Falling
+                ? string.Format(" fall={0:F2}s vz={1:F1} ", _fallTimer, _fallSpeedZ)
+                : " ";
+            return string.Format("phase={0} frozen={1} anim={2} v={3:F1}{4}{5}",
+                _phase, _frozenMode.HasValue ? _frozenMode.Value.ToString() : "off", _anim.CurrentAction ?? "-",
+                _velocity.Length, fall, _board.Describe());
         }
     }
 }
