@@ -311,16 +311,16 @@ namespace LivingWorldNpcs.Animation
                     continue;
                 }
                 bool phaseAttr = string.Equals(Attr(node, "phase"), "true", StringComparison.OrdinalIgnoreCase);
-                // 🔴 `outside` = **机外**（非飞行那个外部状态）：只允许出现在**相位驱动**边上
-                //    （起飞进机 = outside → hoverstart；落地出机 = superland → outside）。
-                //    状态机不求值它，所以运行时零行为变化 —— 写出来只是让"从哪进、从哪出"诚实。
+                // 🔴 `outside` = **机外**（不驱动 0 号通道的虚拟状态）。两条方向规则不同（2026-09-27 用户裁定）：
+                //    · **进机**（`from="outside"`）**只允许相位驱动**：起飞是物理判定（人在空中）+ 要动板/相机，
+                //      不是状态机的事；
+                //    · **出机**（`to="outside"`）**允许状态机求值**（普通边 + `keys=`/`when=` 都行）：
+                //      "谁能出机、按什么键出机"写在 XML 里，使用方只遵守一条通用规则
+                //      —— `Current == AgentAnimStateMachine.OutsideState` ⇒ 交还引擎。
+                //    两种写法都合法 ⇒ 这里不再拦 `to="outside"` 的普通边。
                 if (to == "outside")
                 {
-                    if (!phaseAttr)
-                    {
-                        problems.Add(label + " 目标是 outside（机外），只允许用于相位驱动边");
-                        continue;
-                    }
+                    // 机外 = 合法目标（虚拟状态：进去 = 不驱动 0 号通道）—— 不用解析成状态
                 }
                 else if (families.ContainsKey(to))
                 {

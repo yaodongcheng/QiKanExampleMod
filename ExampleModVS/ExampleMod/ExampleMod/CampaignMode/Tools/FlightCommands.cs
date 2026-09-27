@@ -237,7 +237,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | 动画: blend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtap landheight landdive divedepth descend descendrate landtouch landeps landgrace landanim landmax gentleland hardland falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dash/dodge: dodgespace dodgedist dodgetime dodgecd dodgeanim dashanim | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle";
+                return "ERR usage: custom.flight tune <key> <value> | 动画: blend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dash/dodge: dodgespace dodgedist dodgetime dodgecd dodgeanim dashanim | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate spawngap settle";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -254,7 +254,6 @@ namespace LivingWorldNpcs.CampaignMode
                 case "takeoffskip": FlightTuning.TakeoffSkipSeconds = v; break; // 跳过起飞 clip 开头（秒）
                 case "landgrace": FlightTuning.LandTouchGraceSeconds = v; break; // 进空中态后多久内不判撞地（秒）
                 case "landrate": FlightTuning.LandRate = v; break;
-                case "autoland": FlightTuning.AutoLandSeconds = v; break;
                 case "longpress": FlightTuning.LongPressSeconds = v; break;
                 case "pitch": FlightTuning.PitchThreshold = v; break;
                 case "pitchout": FlightTuning.PitchExitThreshold = v; break;
@@ -266,20 +265,12 @@ namespace LivingWorldNpcs.CampaignMode
                 case "spawngap": FlightTuning.CarrierSpawnGap = v; break;       // 板面比碰撞体底面再低多少（米）
                 case "feetoffset": FlightTuning.CarrierSpawnGap = v; break;     // 旧键名，等价 spawngap（口径已改）
                 case "settle": FlightTuning.TakeoffSettleSeconds = v; break;    // 起飞等踩上板的最长等待（秒；0=不等）
-                case "gentleland": FlightTuning.LandAnimOnGentle = v != 0f; break; // 空格落地也播落地动画？（0=不播，默认）
                 // 起飞 / 落地手势（2026-09-21 N2 起改）
                 case "dbljump": FlightTuning.TakeoffByDoubleJump = v != 0f; break;      // 二段跳起飞
                 case "longpressjump": FlightTuning.TakeoffByLongPress = v != 0f; break; // 长按起飞（后备）
-                case "landtap": FlightTuning.LandByTap = v != 0f; break;                // 短按落地总闸
-                case "landheight": FlightTuning.LandTapMaxHeight = v; break;            // 短按落地的高度闸（米）
-                case "landdive": FlightTuning.LandTapWhileDiving = v != 0f; break;      // 俯冲时短按可落地
-                case "divedepth": FlightTuning.LandTapDivePitch = v; break;             // "冲向地面"判据（0.42≈低头25°）
-                case "descend": FlightTuning.LandByLongPressDescend = v != 0f; break;   // 长按=持续下降
-                case "descendrate": FlightTuning.DescendRate = v; break;                // 下降速率（米/秒）
                 case "landtouch": FlightTuning.LandOnGroundTouch = v != 0f; break;      // 撞地自动落地
                 case "landeps": FlightTuning.LandTouchEps = v; break;
                 case "landanim": FlightTuning.LandAnimSeconds = v; break;
-                case "hardland": FlightTuning.HardLandingSpeed = v; break;      // 下冲 ≥ 它算硬着陆（演动画）
                 case "falloff": FlightTuning.FallOffDistance = v; break;        // 离板多远算"掉下去了"（米）       // 落地动画时长（触地后至少等这么久再收摊）
                 case "landmax": FlightTuning.LandMaxSeconds = v; break;         // 落地阶段硬上限
                 // 冲刺入姿 / 闪避（2026-09-22）

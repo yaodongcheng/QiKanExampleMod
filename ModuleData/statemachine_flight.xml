@@ -1,0 +1,176 @@
+<!-- 飞行动画状态机的**定义**（2026-09-25 由 C# 迁到这里）。
+
+     🔴 **改这个文件不用重编译** —— 重启游戏即生效（引擎不解析它，是我们自己在
+        `MySubModule.OnSubModuleLoad` → `FlightAnimMachine.Register()` 里读的）。
+
+     🔴 **两个读者：游戏 + 编辑器页**
+        · 游戏：`Animation/AnimMachineLoader.cs` 装载 + 校验（转成 AnimMachineDef）
+        · 编辑器页：`tools/anim-statemachine/gen_statemachine_editor.py` 读**同一个文件**画图 / 改结构
+        ⇒ 页面不可能和游戏里跑的那份分叉。（页面是生成物，改这里重跑生成器；页面本体 `statemachine_editor.html` 在 tools 里进 git。）
+
+     🔴 **装载期校验**：状态名 / 目标 / 族成员 / 谓词名 / 数字 —— 有一处不对就**整台不注册**
+        并列全部问题到日志（`[Anim]` 前缀）。所以打错字不会静默，是**响亮地失败**。
+
+     🔴 **判据不在这里**：`when=` 写的是**谓词名**（名字用输入语言：`hold-left` = 按着 A），
+        真身在 `Flight/FlightAnimConditions.cs`。理由：字符串表达式 = 失去编译期检查 = 又一种静默失败。
+
+     🔴 **运行期旋钮不在这里**：默认过渡时长 / 核对周期 / 动作优先级仍是 C# 里的委托
+        （指向 `FlightTuning` 的字段），所以 `custom.flight tune blend / turnrate …` 照旧有效。
+
+     🔴 **边的顺序 = 优先级**（第一条命中的生效），改顺序 = 改优先级，别随手挪。
+        三种边型（`AnimEdgeDef` 的三个开关）：
+          · 缺省             = 普通边；能打断正在播的一次性动作（入姿演到一半也能被它踢走）
+          · after-finish     = 只在"演完"之后参与求值（绝不打断）
+          · phase="true"     = **不由状态机求值**，由飞行相位 C# `Force` 进 —— 写在这里只为让表/图完整
+
+     ⚠️ **这一段（文件头）编辑器导出时原样保留；写在 `<families>` / `<states>` / `<edges>` 里面的注释
+        会被导出覆盖掉** —— 要长期留着的说明写在这里。
+
+     🔴🔴 **相位接缝：C# 里一个状态名都没有，全从这下面三条读**（2026-09-26 改）——
+        所以**改名字、换状态、调时机都只改本文件**，重启游戏生效、不用重编译：
+          · **进机**（起飞入姿）= `from="outside"` 那条边的 `to`
+          · **出机前的姿态**（落地动作）= `to="outside"` 那条边的 `from`
+          · **出机时机** = 同一条边上的 `anim="remaining" anim-rem-pct="N"`（剩 N% 就交还引擎）
+        ⇒ 落地下降段**不强制任何姿态**（状态机自己按输入演）—— 落地动作只在地面播，
+           由"触地那一刻 Force 出机前姿态"保证。
+
+     🔴 **跳转图总览（2026-09-27 按"玩家能感受到的"重定，改结构时连这段一起改）**
+        两族之间的门：**只看 Shift 一个键** ——
+                      按 Shift 进 `冲刺飞行`（**必先播** fastmoveStart 入姿）
+                      松 Shift 回 `进入飞行`（= hoverstart 入姿）再进悬浮
+                      🔴 **回悬浮一律经 `进入飞行`**：它是"回到悬停"的**通用 entry**，
+                         不只是"从空中开始飞"，**从冲刺退回悬停也要播**（用户裁定）。
+        直立家：idle ⇄ hovermove（有 / 无方向输入）
+                hovermove → 压弯 L/R（按 A / D）、俯仰 U/D（镜头抬 / 压）；**压弯优先于俯仰**
+                压弯 / 俯仰：条件不成立 **或停下来** ⇒ 回本族入口（idle）
+        趴姿家：**姿态对 WASD 无响应**（用户裁定：冲刺只由 Shift 进出）——
+                fastmoveStart 演完进 fastmove；本体只接**一条闪避边**（`Space` → `dodgeU` = 前闪）。
+                🔴 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**暂时空着**：原版 UE 里那两层是
+                   "角速度 / 竖直速度"驱动的，我们还没有那套驱动量 ⇒ 等接上再连线（别用方向键顶替）。
+        出机（空格）：**两个族各一条 `to="outside"` 的普通边**（见 <edges> ③′）——
+                "谁能出机、按什么键"全在本文件；使用方只遵守"机器说机外 ⇒ 交还引擎"一条通用规则
+                （**C# 里没有"空格"这个字**）。掉着时再按一次 = 重新进机（同一手势，进出对称）。
+                撞地 = 自动落地 + 演落地动作（另一条相位边管）。
+        ⚠️ 闪避 / 压弯 / 俯仰的**姿态**看这张图；**位移**在 C#（`PlayerFlightBehavior.BeginDodge` = 沿相机前向）。 -->
+<state_machine name="flight">
+
+	<!-- 容器（= 边的来源集合 / 真子状态机，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。
+	     现状（2026-09-26 与文件同步核过）—— 四个容器，互不重叠：
+	       · 悬浮飞行（直立家，入口 = FlyHoverLocomotion → idle）压弯×2 + 俯仰×2 + FlyHoverLocomotion
+	       · 冲刺飞行（趴姿家，入口 = fastmoveStart）      FlyFastPoses + fastmoveStart + 闪避×4
+	       · FlyHoverLocomotion（悬浮飞行 的子容器，入口 = idle）      hovermove / idle
+	       · FlyFastPoses（冲刺飞行 的子容器，入口 = fastmove）        趴姿本体 5 个（闪避的**发起来源**）
+	     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会"硬翻"，所以进趴姿必须经 fastmoveStart 那道门。
+	     超人落地 / 进入飞行 不归属任何容器（散状态 = 出机 / 进机的衔接状态）。
+	     （本段是历史裁定，改容器结构时请连这段一起改 —— 编辑器导出**只保留文件头与本段之前的注释**，
+	       写在 <families> / <states> / <edges> 里面的注释导出时会被覆盖掉。） -->
+	<families>
+		<family name="悬浮飞行" entry="FlyHoverLocomotion">hovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD FlyHoverLocomotion</family>
+		<family name="冲刺飞行" entry="fastmoveStart">FlyFastPoses fastmoveStart dodgeL dodgeR dodgeU dodgeD</family>
+		<family name="FlyHoverLocomotion" entry="idle">hovermove idle</family>
+		<!-- 🔴 **趴姿本体 5 个**（不含入姿、不含闪避）—— 单独一个容器**只为一件事**：
+		     当"闪避的发起来源"。用整族 `冲刺飞行` 当来源会**把闪避自己也包进去** ⇒ 按住 Space+方向
+		     会自我重触发、并且把"演完回本体"的边挡在后面（状态机是"命中即定"）；
+		     用单个 `fastmove` 当来源又太窄（压弯/抬头时闪不了）。这个边界正好。 -->
+		<family name="FlyFastPoses" entry="fastmove">fastmove fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD</family>
+	</families>
+
+	<!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。
+	     **不带 once = 循环姿态；once="true" = 一次性动作**（播完自动去 next）。
+	     🔴 **不写时长** —— 长度由 **clip 自己带**，引擎给的是 0~1 的播放进度（见 Animation/AgentAnimStateMachine）。
+	        `duration="…"`（秒 / 命名标量）保留成**可选覆盖**，只在"要主动截短 clip"时才写。
+	     next = **演完兜底**：播完、且没有任何边命中时回这里（见 <edges> 顶部的说明）。 -->
+	<states>
+		<state name="idle" act="act_fly_idle" />
+		<state name="hovermove" act="act_fly_hovermove" />
+		<state name="hovermovePitchU" act="act_fly_hovermove_pitchu" />
+		<state name="hovermovePitchD" act="act_fly_hovermove_pitchd" />
+		<state name="hovermoveLeanL" act="act_fly_hovermove_lean_l" />
+		<state name="hovermoveLeanR" act="act_fly_hovermove_lean_r" />
+		<state name="超人落地" act="act_fly_superland" once="true" />
+		<state name="fastmove" act="act_fly_fastmove" />
+		<state name="fastmoveLeanL" act="act_fly_fastmove_lean_l" />
+		<state name="fastmoveLeanR" act="act_fly_fastmove_lean_r" />
+		<state name="fastmovePitchU" act="act_fly_fastmove_pitchu" />
+		<state name="fastmovePitchD" act="act_fly_fastmove_pitchd" />
+		<state name="fastmoveStart" act="act_fly_fastmove_start" once="true" next="fastmove" />
+		<state name="dodgeL" act="act_fly_dodge_l" once="true" next="fastmove" />
+		<state name="dodgeR" act="act_fly_dodge_r" once="true" next="fastmove" />
+		<state name="dodgeU" act="act_fly_dodge_u" once="true" next="fastmove" />
+		<state name="dodgeD" act="act_fly_dodge_d" once="true" next="fastmove" />
+		<state name="进入飞行" act="act_fly_hoverstart" once="true" next="idle" />
+	</states>
+
+	<!-- 边：**顺序 = 优先级**。
+	     from = 状态名 或 族名；to = 状态名；when = 已登记的谓词名；
+	     blend 省略 = 用机器默认（FlightTuning.AnimBlendIn，热调 tune blend）。
+
+	     🔴 **"演完去哪"有两种写法，别混**：
+	        · `<state next="X">`（上面）—— **演完兜底**：一次性动作播完、且下面**没有任何边命中**时回 X。
+	          条件优先、演完兜底：例如入姿演完那一刻玩家已经松开 Shift，就该走 at-rest 那条边去 idle，
+	          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。
+	        · `<edge ... after-finish="true">` —— 演完之后**由条件**决定去哪（用于"演完且仍在冲刺 ⇒ 回 fastmove"这类）。 -->
+	<edges>
+		<!-- ── ① 相位接缝（C# 读这三条：进机状态 / 落地姿态 / 出机时机；状态机不求值）── -->
+		<edge from="outside" to="进入飞行" when="takeoff-trigger" phase="true" />
+		<edge from="超人落地" to="outside" anim="remaining" anim-rem-pct="20" phase="true" />
+		<!-- 落地能从**任意姿态**触发（"什么时候"在 C#：板顶触地）⇒ 两条来源都写上，图才诚实 -->
+		<edge from="悬浮飞行" to="超人落地" when="land-trigger" phase="true" />
+		<edge from="冲刺飞行" to="超人落地" when="land-trigger" phase="true" />
+
+		<!-- ── ② 起飞入姿：演到剩 15% 就进悬停族（`next="idle"` 是兜底，防卡在入姿）── -->
+		<edge from="进入飞行" to="悬浮飞行" anim="remaining" anim-rem-pct="15" />
+
+		<!-- ── ③ 两族之间的门（进趴姿必须先播入姿）─────────────────────────────
+		     🔴 **判据只看 Shift**（用户 2026-09-27 实机感受后裁定）：冲刺是"按住加速键"这**一个**状态，
+		     跟方向键无关（方向只影响**飞多快往哪飞**，不影响姿态）。所以：
+		       按下 Shift 进冲刺（先播 fastmoveStart 入姿）· 松开 Shift 回悬浮。
+		     🔴 **回悬浮一律经 `进入飞行`**（= hoverstart 入姿，"回到悬停"的通用 entry，用户 2026-09-27 裁定）——
+		     不只是"从空中开始飞"要播，**从冲刺退回悬停也要播**。 -->
+		<edge from="悬浮飞行" to="冲刺飞行" keys="Shift" />
+		<edge from="冲刺飞行" to="进入飞行" keys="Shift" not="true" />
+
+		<!-- ── ③′ 出机：**两个族各一条「空格 ⇒ 机外」**（2026-09-27 用户裁定）────────────
+		     🔴 这是**状态机求值的普通边**（不是相位边）：从这里开始，0 号通道交还引擎、
+		     使用方（`PlayerFlightBehavior`）看到"机器在机外"就收摊（拆板/还相机/解冻）⇒
+		     **引擎的默认掉落接管**；掉着时再按空格 = 走 `TickGrounded` 那条"空中起飞"⇒ 重新进机。
+		     ⇒ **C# 里没有"空格"这个字**：换键、换来源、加"只有某些状态能出机"，都只改这里。
+		     🔴 **位置在族门之后、族内边之前**：按着 Shift 时 Shift 优先（进冲刺），否则空格 = 出机。
+		     ⚠️ 进机（`from="outside"`）**仍然只允许相位驱动**（装载器硬校验）—— "什么时候算起飞"
+		        是物理判定（人在空中）+ 要动板/相机，不归状态机。 -->
+		<edge from="悬浮飞行" to="outside" keys="Space" />
+		<edge from="冲刺飞行" to="outside" keys="Space" />
+
+		<!-- ── ④ 直立家（悬停）：待机 ⇄ 巡航，巡航再分压弯 / 俯仰 ──────────────
+		     压弯条件**不带 Shift**（与旧版实机验证过的一致：Shift 是加速，不是姿态开关）；
+		     压弯 / 俯仰的来源都写 `hovermove`（不是整个族）⇒ 从待机态不会直接蹦到压弯，先经巡航。
+		     优先顺序：压弯 > 俯仰（两个同时成立时先出压弯）。 -->
+		<edge from="hovermove" to="idle" when="move-input" not="true" />
+		<edge from="idle" to="hovermove" when="move-input" />
+		<edge from="hovermove" to="hovermoveLeanL" keys="A" />
+		<edge from="hovermove" to="hovermoveLeanR" keys="D" />
+		<edge from="hovermove" to="hovermovePitchU" when="look-up" />
+		<edge from="hovermove" to="hovermovePitchD" when="look-down" />
+		<edge from="hovermoveLeanL" to="FlyHoverLocomotion" keys="A" not="true" />
+		<edge from="hovermoveLeanR" to="FlyHoverLocomotion" keys="D" not="true" />
+		<edge from="hovermovePitchU" to="FlyHoverLocomotion" when="look-up" not="true" />
+		<edge from="hovermovePitchD" to="FlyHoverLocomotion" when="look-down" not="true" />
+		<!-- 停下来也回待机（复刻旧版"停住优先于俯仰"）：`move-input` 为假 ⇒ 回本族入口（idle） -->
+		<edge from="hovermovePitchU" to="FlyHoverLocomotion" when="move-input" not="true" />
+		<edge from="hovermovePitchD" to="FlyHoverLocomotion" when="move-input" not="true" />
+
+		<!-- ── ⑤ 趴姿家：入姿 → 本体；本体只响应**空格闪避** ────────────────────
+		     🔴 **冲刺姿态对 WASD 无响应**（用户 2026-09-27 实机感受后裁定）：趴姿就一个本体循环 +
+		     一个前闪，**方向键不改变姿态**（原版 UE 也是这个模型：冲刺姿态只由 Shift 进出，
+		     压弯/俯仰那两层是"角速度 / 竖直速度"驱动的 —— 我们暂时没有那套驱动量，
+		     所以 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**先空着**，等驱动量接上再连线）。
+		     🔴 **闪避只留"前闪"一条**：冲刺里没有方向输入 ⇒ 左右/下闪无从触发（用户裁定）。
+		     空格在冲刺里**专管闪避**（不退出飞行）—— 退出的手势见 `TickAirborne`：非冲刺时短按空格 = 退出飞行。 -->
+		<edge from="fastmoveStart" to="fastmove" keys="W" after-finish="true" />
+		<!-- 🪦 **前闪那条线暂时摘掉**（2026-09-27）：空格已经被"出机"占用（见 ③′），
+		     留着它会被出机边整条压过（永远轮不到）。**要给闪避另配一个键**（`R` / `Ctrl` / 鼠标侧键…）
+		     说一声 —— XML 加回 `FlyFastPoses → dodgeU keys="<键>"`、C# 把 `DodgeOnSpaceTapInBoost` 打开即可。 -->
+		<edge from="dodgeU" to="fastmove" anim="remaining" anim-rem-pct="10" />
+	</edges>
+
+</state_machine>
