@@ -233,7 +233,15 @@ namespace LivingWorldNpcs.Flight
         /// <summary>冲刺速度（按住左 Shift）。</summary>
         public static float BoostSpeed = 26f;
 
-        /// <summary>速度趋近速率（米/秒²）—— 手感上的"惯性"。</summary>
+        /// <summary>
+        /// 🪦 **死字段（2026-09-27 核实）**：速度趋近速率（米/秒²）—— 它是当年"五层"里
+        /// 「加速趋近」那一层留下的残留，**全库没有任何一行读它**（只有热调命令 `tune accel` 在往里写）。
+        /// 那一层随"板位置与玩家位置两个回路耦合出正反馈"的事故被一起拆掉了（见实施方案"三条血泪"）。
+        ///
+        /// 🔴 **速度的"惯性"不在这一维** —— 现在做的是**方向**的惯性（见下方 `SteerRateDegPerSec` 那组）；
+        ///    **大小**仍是定速瞬时切换（9 ⇄ 26）。要做大小渐变（起飞推背 / 松手滑行）才需要它，
+        ///    到时候按新的减速度口径重写、别照名字用。
+        /// </summary>
         public static float Accel = 20f;
 
         /// <summary>落地阶段把板降到地面的速率。</summary>
@@ -391,6 +399,41 @@ namespace LivingWorldNpcs.Flight
         /// 热调：`custom.flight tune turnrate 540`
         /// </summary>
         public static float TurnRateDegPerSec = 540f;
+
+        // ─────────────────── 航向惯性（速度方向追随，2026-09-27）───────────────────
+        // 🔴 与上面那档的分工，一句话：**上面管"身体转多快"（纯外观），这里管"实际往哪走"（真实航迹）。**
+        //    加这组之前，速度方向是**每帧从相机方向重算**的 ⇒ 转镜头当帧航向就换，冲刺 26 m/s
+        //    时甩一下镜头画面整个横过来、人像没有质量。现在航向按下面的角速度追相机 ⇒ 掉头划一道弧。
+        //    用户裁定（2026-09-27）："相机方向变化时，需要让角色速度方向有一个过渡过来的时间才会更有操作感"。
+
+        /// <summary>
+        /// 航向追随角速度（度/秒）—— **悬停 / 巡航**档。0 = 瞬时（回到 2026-09-27 之前的旧行为）。
+        ///
+        /// 取值口径：360°/s ⇒ 巡航 9 m/s 时转弯半径约 1.4 米（几乎跟手）；
+        /// **嫌"飘"调大、嫌"没有质量感"调小**。
+        /// 热调：`custom.flight tune steer 360`
+        /// </summary>
+        public static float SteerRateDegPerSec = 360f;
+
+        /// <summary>
+        /// 航向追随角速度 —— **冲刺**（按住 Shift）单独一档。
+        ///
+        /// 为什么要单开一档：冲刺 26 m/s，同样的角速度下转弯半径是巡航的 3 倍，而**高速转向正是
+        /// 最需要"质量感"的地方**（用户原话："尤其是冲刺飞行的时候"）。
+        /// 取值口径：180°/s ⇒ 转弯半径约 8.3 米、掉头 1 秒；想更飘调大、想更像轰炸机调小。
+        /// 热调：`custom.flight tune steerboost 180`
+        /// </summary>
+        public static float SteerRateBoostDegPerSec = 180f;
+
+        /// <summary>
+        /// **停稳多久算"没有航向动量"**（秒）—— 无输入累计到这个时长就把航向重新播种。
+        ///
+        /// 为什么要它：悬停时人是停着的，此时转镜头再给输入**应当立刻朝那边走**；
+        /// 而按键之间的 1~2 帧空隙（W 换 A 中间那一帧）不该被当成停稳 —— 否则正在划的弧会被
+        /// "啪"地掰直。0.2 秒 = 跨过换键空隙、又短到悬停时无感。
+        /// 热调：`custom.flight tune steeridle 0.2`
+        /// </summary>
+        public static float SteerIdleResetSeconds = 0.2f;
 
         // ───────────────────────── 动画 ─────────────────────────
         // 🔴 **"什么时候播哪条动画"的规则不在这里** —— 在注册制的定义 `Flight/FlightAnimMachine.cs`
@@ -664,14 +707,21 @@ namespace LivingWorldNpcs.Flight
             DodgeDisplaceSeconds = 0.4f;
             DodgeCooldownSeconds = 1.9f;
             PitchThreshold = 0.42f;
+            // 转向（2026-09-27）：`TurnRateDegPerSec` 原来漏在这儿恢复出厂，顺手补上
+            TurnRateDegPerSec = 540f;
+            SteerRateDegPerSec = 360f;
+            SteerRateBoostDegPerSec = 180f;
+            SteerIdleResetSeconds = 0.2f;
         }
 
         /// <summary>给控制台 custom.flight status 用的一行摘要。</summary>
         public static string Describe()
         {
             return string.Format(
-                "carrier={0} | cruise={1} boost={2} accel={3} | longPress={4} | freeze={5}",
-                CarrierPrefab, CruiseSpeed, BoostSpeed, Accel, LongPressSeconds, Freeze);
+                "carrier={0} | cruise={1} boost={2} | steer={3}/{4}deg-s idle={5}s | turnrate={6} | longPress={7} | freeze={8}",
+                CarrierPrefab, CruiseSpeed, BoostSpeed,
+                SteerRateDegPerSec, SteerRateBoostDegPerSec, SteerIdleResetSeconds, TurnRateDegPerSec,
+                LongPressSeconds, Freeze);
         }
     }
 }

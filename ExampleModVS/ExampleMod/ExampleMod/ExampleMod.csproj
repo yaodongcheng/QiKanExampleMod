@@ -337,6 +337,9 @@
     <!-- 🔴 调试脚手架（2026-09-22）：法术弹飞行诊断（存活/命中/结局/示踪火线），验完即删。
          用法与判据见文件头；控制台 custom.spell_trace。 -->
     <Compile Include="Combat\SpellMissileTrace.cs" />
+    <!-- 🔴 螺旋丸（2026-09-27）：运行时驱动 —— 实例化 prefab + 每帧转三个环 + 蓄力曲线。
+         验收命令在 CampaignMode\Tools\RasenganCommands.cs（custom.rasengan）。 -->
+    <Compile Include="Combat\RasenganController.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
@@ -532,6 +535,8 @@
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <Compile Include="CampaignMode\Tools\TerrainExportCommands.cs" />
+    <!-- 螺旋丸验收命令（custom.rasengan spawn/spin/charge/replay/status）——玩法本体在 Combat\RasenganController.cs -->
+    <Compile Include="CampaignMode\Tools\RasenganCommands.cs" />
     <!-- GUI -->
     <Compile Include="GUI\LoadingRandomPatch.cs" />
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />
