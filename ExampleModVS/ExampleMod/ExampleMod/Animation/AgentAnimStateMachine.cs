@@ -87,11 +87,23 @@ namespace LivingWorldNpcs.Animation
     /// </summary>
     public sealed class AgentAnimStateMachine
     {
+        /// <summary>
+        /// **机外**（= "不驱动 0 号通道"的虚拟状态）—— 由 XML 的 `<edge to="outside" …/>` **进入**
+        /// （2026-09-27 用户裁定：出机也写成状态机的一条普通边，而不是 C# 里特判某个键）。
+        ///
+        /// 🔴 **进机（`from="outside"`）仍然是相位驱动的**（装载器硬校验）：因为"什么时候算起飞"是物理判定
+        ///    （人在空中），而且起飞还要动板/相机 —— 那不是状态机的事。
+        /// 🔴 **出机（`to="outside"`）现在允许状态机求值**：谁能出机、按什么键出机，全写在 XML；
+        ///    使用方的代码只遵守一条通用规则 —— "`Current == OutsideState` ⇒ 交还引擎"。
+        /// </summary>
+        public const string OutsideState = "outside";
+
         private readonly AnimMachineDef _def;
         private readonly AnimContext _ctx;
 
         private Agent _agent;              // 最近一次拿到的 agent（Force 可能早于首次 Tick）
         private AnimState _current;
+        private bool _inOutside;           // 现在在"机外"（没驱动 0 号通道）—— 见 OutsideState
         private float _elapsed;
         private float _blendIn;            // 本条动作的淡入时长（见 ProgressTrustworthy）
         private float _sinceRecheck;
@@ -148,11 +160,11 @@ namespace LivingWorldNpcs.Animation
         /// <summary>定义名（日志用）。</summary>
         public string MachineName => _def.Name;
 
-        /// <summary>当前状态名（null = 还没接管）。</summary>
-        public string Current => _current?.Name;
+        /// <summary>当前状态名（null = 还没接管；<see cref="OutsideState"/> = 已出机、没驱动 0 号通道）。</summary>
+        public string Current => _inOutside ? OutsideState : _current?.Name;
 
-        /// <summary>当前引擎动作名（没接管时 null）。</summary>
-        public string CurrentAction => _current?.Action;
+        /// <summary>当前引擎动作名（没接管 / 机外时 null）。</summary>
+        public string CurrentAction => _inOutside ? null : _current?.Action;
 
         /// <summary>当前状态已经播了多久（秒）。</summary>
         public float CurrentElapsed => _elapsed;
@@ -427,6 +439,7 @@ namespace LivingWorldNpcs.Animation
         public void Release(Agent agent)
         {
             _current = null;
+            _inOutside = true;         // 收摊 = 机外（使用方靠 Current == OutsideState 判"该还控制权了"）
             _elapsed = 0f;
             _confirmState = null;      // 收摊了就别再报"生效/被抢"了
             if (agent == null)
@@ -456,6 +469,17 @@ namespace LivingWorldNpcs.Animation
                 return;
             _agent = agent;
 
+            // 🔴 **出机**：`<edge … to="outside"/>` 命中，或使用方主动把机器送出机外 ——
+            //    语义 = "不再驱动 0 号通道"（不是"播某条 clip"）。写 clip 的事到此为止，
+            //    引擎的走跑/掉落系统从这一刻起接管那条通道。
+            if (string.Equals(stateName, OutsideState, StringComparison.Ordinal))
+            {
+                if (VerboseOn || TraceOn)
+                    DebugLogger.Log($"[Anim:{_def.Name}] {(_current?.Name ?? "-")} → 机外（交还 0 号通道）");
+                Release(agent);
+                return;
+            }
+
             AnimState state;
             if (!_def.TryGetState(stateName, out state))
             {
@@ -478,6 +502,7 @@ namespace LivingWorldNpcs.Animation
             }
 
             float useBlend = blend >= 0f ? blend : _def.DefaultBlend();
+            _inOutside = false;        // 进了一个真状态 ⇒ 不再是机外
             string from = _current?.Name ?? "-";
             CountSwitch(from, state.Name);
             _current = state;

@@ -34,18 +34,24 @@
         ⇒ 落地下降段**不强制任何姿态**（状态机自己按输入演）—— 落地动作只在地面播，
            由"触地那一刻 Force 出机前姿态"保证。
 
-     🔴 **跳转图总览（2026-09-26 定稿，改结构时连这段一起改）**
-        两族之间的门：`悬浮飞行` 按 W+Shift 进 `冲刺飞行`（进趴姿**必先播** fastmoveStart 入姿）
-                      `冲刺飞行` 松开 Shift 回 `悬浮飞行`（**Shift 才是加速开关** ⇒ 按着 Shift 横移/换向不出去）
+     🔴 **跳转图总览（2026-09-27 按"玩家能感受到的"重定，改结构时连这段一起改）**
+        两族之间的门：**只看 Shift 一个键** ——
+                      按 Shift 进 `冲刺飞行`（**必先播** fastmoveStart 入姿）
+                      松 Shift 回 `进入飞行`（= hoverstart 入姿）再进悬浮
+                      🔴 **回悬浮一律经 `进入飞行`**：它是"回到悬停"的**通用 entry**，
+                         不只是"从空中开始飞"，**从冲刺退回悬停也要播**（用户裁定）。
         直立家：idle ⇄ hovermove（有 / 无方向输入）
                 hovermove → 压弯 L/R（按 A / D）、俯仰 U/D（镜头抬 / 压）；**压弯优先于俯仰**
                 压弯 / 俯仰：条件不成立 **或停下来** ⇒ 回本族入口（idle）
-        趴姿家：fastmoveStart 演完进 fastmove
-                fastmove → 闪避（Space+方向）、压弯（A/D）、俯仰（镜头）；**闪避 > 压弯 > 俯仰**
-                闪避来源 = `FlyFastPoses`（本体 5 个：**不含闪避自己** ⇒ 不会自我重触发、
-                也不会把"演完回本体"那条边挡在后面 —— 状态机是"命中即定"）
-        ⚠️ 闪避 / 压弯 / 俯仰的**姿态**看这张图；**位移**在 C#（`PlayerFlightBehavior.BeginDodge`）——
-           两边读的是同一批物理键，所以不会打架。 -->
+        趴姿家：**姿态对 WASD 无响应**（用户裁定：冲刺只由 Shift 进出）——
+                fastmoveStart 演完进 fastmove；本体只接**一条闪避边**（`Space` → `dodgeU` = 前闪）。
+                🔴 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**暂时空着**：原版 UE 里那两层是
+                   "角速度 / 竖直速度"驱动的，我们还没有那套驱动量 ⇒ 等接上再连线（别用方向键顶替）。
+        出机（空格）：**两个族各一条 `to="outside"` 的普通边**（见 <edges> ③′）——
+                "谁能出机、按什么键"全在本文件；使用方只遵守"机器说机外 ⇒ 交还引擎"一条通用规则
+                （**C# 里没有"空格"这个字**）。掉着时再按一次 = 重新进机（同一手势，进出对称）。
+                撞地 = 自动落地 + 演落地动作（另一条相位边管）。
+        ⚠️ 闪避 / 压弯 / 俯仰的**姿态**看这张图；**位移**在 C#（`PlayerFlightBehavior.BeginDodge` = 沿相机前向）。 -->
 <state_machine name="flight">
 
 	<!-- 容器（= 边的来源集合 / 真子状态机，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。
@@ -116,11 +122,24 @@
 		<edge from="进入飞行" to="悬浮飞行" anim="remaining" anim-rem-pct="15" />
 
 		<!-- ── ③ 两族之间的门（进趴姿必须先播入姿）─────────────────────────────
-		     出族条件 = **松开 Shift**（不是"松开 W"）：Shift 才是"加速=冲刺"那个开关，
-		     按着 Shift 横移/换向时**应当留在趴姿**（交给下面的压弯边），
-		     写成 `keys="W+Shift" not=true` 会让"一横移就站起来"（旧版 C# 表里是留在趴姿的）。 -->
-		<edge from="悬浮飞行" to="冲刺飞行" keys="W+Shift" />
-		<edge from="冲刺飞行" to="悬浮飞行" keys="Shift" not="true" />
+		     🔴 **判据只看 Shift**（用户 2026-09-27 实机感受后裁定）：冲刺是"按住加速键"这**一个**状态，
+		     跟方向键无关（方向只影响**飞多快往哪飞**，不影响姿态）。所以：
+		       按下 Shift 进冲刺（先播 fastmoveStart 入姿）· 松开 Shift 回悬浮。
+		     🔴 **回悬浮一律经 `进入飞行`**（= hoverstart 入姿，"回到悬停"的通用 entry，用户 2026-09-27 裁定）——
+		     不只是"从空中开始飞"要播，**从冲刺退回悬停也要播**。 -->
+		<edge from="悬浮飞行" to="冲刺飞行" keys="Shift" />
+		<edge from="冲刺飞行" to="进入飞行" keys="Shift" not="true" />
+
+		<!-- ── ③′ 出机：**两个族各一条「空格 ⇒ 机外」**（2026-09-27 用户裁定）────────────
+		     🔴 这是**状态机求值的普通边**（不是相位边）：从这里开始，0 号通道交还引擎、
+		     使用方（`PlayerFlightBehavior`）看到"机器在机外"就收摊（拆板/还相机/解冻）⇒
+		     **引擎的默认掉落接管**；掉着时再按空格 = 走 `TickGrounded` 那条"空中起飞"⇒ 重新进机。
+		     ⇒ **C# 里没有"空格"这个字**：换键、换来源、加"只有某些状态能出机"，都只改这里。
+		     🔴 **位置在族门之后、族内边之前**：按着 Shift 时 Shift 优先（进冲刺），否则空格 = 出机。
+		     ⚠️ 进机（`from="outside"`）**仍然只允许相位驱动**（装载器硬校验）—— "什么时候算起飞"
+		        是物理判定（人在空中）+ 要动板/相机，不归状态机。 -->
+		<edge from="悬浮飞行" to="outside" keys="Space" />
+		<edge from="冲刺飞行" to="outside" keys="Space" />
 
 		<!-- ── ④ 直立家（悬停）：待机 ⇄ 巡航，巡航再分压弯 / 俯仰 ──────────────
 		     压弯条件**不带 Shift**（与旧版实机验证过的一致：Shift 是加速，不是姿态开关）；
@@ -140,26 +159,18 @@
 		<edge from="hovermovePitchU" to="FlyHoverLocomotion" when="move-input" not="true" />
 		<edge from="hovermovePitchD" to="FlyHoverLocomotion" when="move-input" not="true" />
 
-		<!-- ── ⑤ 趴姿家：入姿 → 本体；本体再分闪避 / 压弯 / 俯仰 ────────────────
-		     闪避来源 = `FlyFastPoses`（趴姿本体 5 个：压弯/抬头中也能闪，但**闪避自己不进来** ⇒ 不会自触发）。
-		     优先顺序：闪避 > 压弯 > 俯仰。 -->
+		<!-- ── ⑤ 趴姿家：入姿 → 本体；本体只响应**空格闪避** ────────────────────
+		     🔴 **冲刺姿态对 WASD 无响应**（用户 2026-09-27 实机感受后裁定）：趴姿就一个本体循环 +
+		     一个前闪，**方向键不改变姿态**（原版 UE 也是这个模型：冲刺姿态只由 Shift 进出，
+		     压弯/俯仰那两层是"角速度 / 竖直速度"驱动的 —— 我们暂时没有那套驱动量，
+		     所以 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**先空着**，等驱动量接上再连线）。
+		     🔴 **闪避只留"前闪"一条**：冲刺里没有方向输入 ⇒ 左右/下闪无从触发（用户裁定）。
+		     空格在冲刺里**专管闪避**（不退出飞行）—— 退出的手势见 `TickAirborne`：非冲刺时短按空格 = 退出飞行。 -->
 		<edge from="fastmoveStart" to="fastmove" keys="W" after-finish="true" />
-		<edge from="FlyFastPoses" to="dodgeL" keys="Space+A" />
-		<edge from="FlyFastPoses" to="dodgeR" keys="Space+D" />
-		<edge from="FlyFastPoses" to="dodgeU" keys="W+Space" />
-		<edge from="FlyFastPoses" to="dodgeD" keys="S+Space" />
-		<edge from="dodgeL" to="fastmove" anim="remaining" anim-rem-pct="10" />
-		<edge from="dodgeR" to="fastmove" anim="remaining" anim-rem-pct="10" />
+		<!-- 🪦 **前闪那条线暂时摘掉**（2026-09-27）：空格已经被"出机"占用（见 ③′），
+		     留着它会被出机边整条压过（永远轮不到）。**要给闪避另配一个键**（`R` / `Ctrl` / 鼠标侧键…）
+		     说一声 —— XML 加回 `FlyFastPoses → dodgeU keys="<键>"`、C# 把 `DodgeOnSpaceTapInBoost` 打开即可。 -->
 		<edge from="dodgeU" to="fastmove" anim="remaining" anim-rem-pct="10" />
-		<edge from="dodgeD" to="fastmove" anim="remaining" anim-rem-pct="10" />
-		<edge from="fastmove" to="fastmoveLeanL" keys="A" />
-		<edge from="fastmove" to="fastmoveLeanR" keys="D" />
-		<edge from="fastmove" to="fastmovePitchU" when="look-up" />
-		<edge from="fastmove" to="fastmovePitchD" when="look-down" />
-		<edge from="fastmoveLeanL" to="fastmove" keys="A" not="true" />
-		<edge from="fastmoveLeanR" to="fastmove" keys="D" not="true" />
-		<edge from="fastmovePitchU" to="fastmove" when="look-up" not="true" />
-		<edge from="fastmovePitchD" to="fastmove" when="look-down" not="true" />
 	</edges>
 
 </state_machine>

@@ -392,9 +392,12 @@ try {
   await mouse('mouseMoved', obox.x, obox.y, 1, 1);
   await mouse('mouseReleased', obox.x, obox.y, 1, 0);
   await sleep(300);
-  check('㉒ 拖线落到机外盒 = 建 to=outside（自动相位）',
+  // 🔴 2026-09-27 规则改了：出机 = **普通边**（默认条件 Space）；只有"动画·剩 %"那种才归相位
+  check('㉒ 拖线落到机外盒 = 建 to=outside（普通边，默认条件 Space）',
     (await ev("edges.length")) === base22 + 1 && (await ev("edges[" + base22 + "].to")) === 'outside'
-      && (await ev("edges[" + base22 + "].phase")) === true,
+      && (await ev("edges[" + base22 + "].phase")) === false
+      && (await ev("edges[" + base22 + "].kind")) === 'key'
+      && (await ev("edges[" + base22 + "].keys")) === 'Space',
     'to=' + await ev("edges[" + base22 + "].to") + ' phase=' + await ev("edges[" + base22 + "].phase"));
   await ev("edges.length = " + base22 + "; sel=null; commit()");
 
@@ -620,6 +623,9 @@ try {
   await ev("closeCtx(); setActive(0); sel=null; render()");
   const ne33 = await ev("edges.length");
   await ev("addEdge('超人落地','outside')");
+  await sleep(250);
+  // 🔴 出机边现在是普通边 ⇒ 先**勾上「相位驱动」**（用户路径 = 面板上的复选框），再验下面两条
+  await ev("(function(){var c=document.getElementById('f-phase'); c.checked=true; c.onchange({target:{checked:true}});})()");
   await sleep(250);
   check('㉝ 相位边选「按键」被禁（相位读不到按键），但「动画」档是开的',
     (await ev("(function(){var k=document.getElementById('f-kind');return !!k && k.options[0].disabled===true && k.options[1].disabled===false;})()")) === true, '');

@@ -25,7 +25,9 @@ namespace LivingWorldNpcs.Flight
     ///   ① **相位**（<see cref="Phase"/>，管**物理与流程**）：<see cref="TickGrounded"/> /
     ///      <see cref="TickTakeoff"/> / <see cref="TickAirborne"/> / <see cref="TickLanding"/>
     ///      ```
-    ///      地面 ──跳跃中按空格──▶ 起飞 ──踩实+入姿演完──▶ 空中 ──(短按贴地·俯冲/长按下降/撞地)──▶ 落地 ──▶ 地面
+    ///      地面 ──空中按空格──▶ 起飞 ──踩实+入姿演完──▶ 空中 ──(XML: 空格⇒机外 / 撞地⇒落地)──▶ 地面
+    ///      🔴 **两条出口都在 XML 的状态机里**：`<edge … to="outside" keys="Space"/>`（交还引擎、掉落接管）
+    ///         与 `<edge from="超人落地" to="outside" anim-rem-pct="20"/>`（撞地收摊）。
     ///      ```
     ///   ② **动画状态机**（<see cref="AgentAnimStateMachine"/>，管**播哪条动画**）：
     ///      **规则不在这里** —— 在注册制的那份定义 <see cref="FlightAnimMachine"/>（状态表 + 转移表，一眼读完）。
@@ -107,7 +109,6 @@ namespace LivingWorldNpcs.Flight
         private float _bodyYawDeg = float.NaN;  // 机身当前水平朝向角（度，0=+X 逆时针）；NaN = 未知（起飞/落地时重置）
         private bool _takeoffSettled;        // 起飞阶段：玩家是否已经真的站到板上（没站住不抬升）
         private float _takeoffTimer;         // 起飞阶段计时（登板等待用）
-        private bool _landingGentle;         // 本次落地是"轻放"（true）还是"硬着陆"（false）
         private float _landingApproach;      // 进入落地那一刻的下冲速度（硬着陆按它下降）
         private string _landPoseState;       // 落地动作的状态名 —— 从 XML 的相位边读（`超人落地 → 机外` 的 from）
         private float _landExitPct = -1f;    // 出机时机（剩余百分比）—— 同上那条边上的 anim-rem-pct；<0 = 没写
@@ -117,7 +118,6 @@ namespace LivingWorldNpcs.Flight
         private bool _bodyDiagPending;       // 取证：等着回读引擎实际朝向
         private float _bodyDiagTimer;
         private float _airTime;              // 进入空中态后过了多久（撞地检测的宽限期用）
-        private bool _descendArmed;          // 长按下降是否已"解锁"（起飞时手还按着空格 ⇒ 要松开重按）
         private float _dodgeTimer;           // 闪避位移还剩多久（>0 = 这段时间速度归闪避）
         private Vec3 _dodgeDir;              // 闪避位移方向（世界向量，单位化）
         private float _dodgeCooldown;        // 两次闪避之间的剩余冷却（秒）
@@ -251,6 +251,17 @@ namespace LivingWorldNpcs.Flight
             //    控制台：`custom.anim_log off|on|full`（**默认 off**，要查时敲 `custom.anim_log on`）。
             //    本行为类负责的只是"**默认飞行在开日志时**，输入沿那三行也一起打"（见 LogInputEdges）。
             _anim.Tick(main, dt);
+
+            // ⑦″ 🔴 **通用规则：状态机说"机外"了 ⇒ 把控制权还给引擎**（2026-09-27 用户裁定）。
+            //     "谁能出机、按什么键出机"全写在 XML（`to="outside"` 的边）—— **C# 里没有"空格"这个字**。
+            //     这里只做拆装：拆板 / 还动作通道 / 渐变还相机 / 解冻 ⇒ 引擎的默认掉落接管；
+            //     掉着时再按空格 = `TickGrounded` 那条"空中按空格起飞"⇒ 重新进机（进出对称）。
+            if (_phase != Phase.Grounded
+                && string.Equals(_anim.Current, AgentAnimStateMachine.OutsideState, StringComparison.Ordinal))
+            {
+                ExitToEngine(main);
+                return;
+            }
 
             // 🔴 姿态变化时的调试输出（**受总闸 FlightTuning.DebugLog 管，默认关**，2026-09-22 用户要求）。
             //    开：`custom.flight log on`。屏幕提示另有子开关 `tune statemsg 0` 可单独关掉（只留日志）。
@@ -396,7 +407,6 @@ namespace LivingWorldNpcs.Flight
                     return;                       // 板保持不动，等人落回来
                 _takeoffSettled = true;
                 _airTime = 0f;
-                _descendArmed = false;            // 长按起飞时手还按着空格 —— 要松开重按才允许下降
                 DebugLogger.Log($"[Flight] 登板完成: 等待={_takeoffTimer:F2}s 站住={standing} | {CarrierBoard.DescribeCapsule(main)}");
                 _takeoffTimer = 0f;               // 计时切给"入姿动画演多久"（避免这一帧被记两次）
                 return;
@@ -432,65 +442,35 @@ namespace LivingWorldNpcs.Flight
 
             // ①′ （状态机的事实已在 OnMissionTick 主循环里喂过 —— 见那里的 `UpdateAnimContext`）
 
-            // ② 下降 / 落地手势（🔴 2026-09-21 用户重新定义，与起飞不对称了）
-            //
-            //    · **短按空格 = 落地**，但**只有两种情况成立**：
-            //        ㈠ 冲向地面（镜头朝下的分量够大）
-            //        ㈡ 离地很近（≤ 刚二段跳进浮空的那个高度 —— 相当于"反悔刚才那一跳"）
-            //      高空平飞时短按**不落地** —— 免得手一抖就从天上掉下来。
-            //    · **长按空格 = 持续下降**（松手停），降到撞地由 N4 那条自动落地收尾。
-            //
-            //    🔴 与起飞不对称是**故意的**：起飞只要"在空中"就成立（跳一下按空格很简单），
-            //       落地却是个"破坏性"操作，必须给两道闸（贴地 / 俯冲）挡误触。
+            // ② 空格手势：冲刺=前闪 / 非冲刺=退出飞行（🔴 2026-09-27 用户实机感受后重定义）
+            //    🔴 **2026-09-27 用户实机感受后重定义**（以手感为准，旧的"贴地/俯冲落地 + 长按下降"已废）：
+            //    · **短按空格 = 退出飞行**（非冲刺时）—— 拆板/还相机/解冻/交还动作通道，
+            //      **由引擎的默认掉落接管**；掉着的时候**再按一次空格就重新进机**
+            //      （= `TickGrounded` 里那条"空中按空格起飞"，**同一个手势，进出对称**）。
+            //    · **冲刺时短按空格 = 前闪**（不退出飞行）—— 见 ②-0。
+            //    · **撞地**（板顶触地）照旧自动落地并播落地动作。
             float groundZNow = GetGroundZ(mission.Scene, _board.Origin);
             float heightAboveGround = (_board.Origin.z + FlightTuning.CarrierTopLocalZ) - groundZNow;
-            bool chargingGround = forward.z <= -FlightTuning.LandTapDivePitch;
 
-            // 🔴 空格**按下沿**一次读掉，再分流（2026-09-22 闪避接入）——
+            // 🔴 空格**按下沿**一次读掉，再分流 ——
             //    按下沿是"谁先读谁拿走"的一次性信号，分成两处各读一次 = 后读的那处永远读不到。
             bool spaceTap = FlightInput.ConsumeSpacePress();
 
-            // ②-0 **冲刺中短按空格 = 闪避**（2026-09-22 用户裁定）。
-            //      · 只在冲刺态（按住 Shift）里成立 —— 那 4 条闪避动画的基准姿势就是趴姿，
-            //        从悬停 / 巡航（直立）切过去会硬翻 ~90°。
-            //      · 冲刺时这一下**专管闪避**：冷却中也吞掉，不再落回"贴地 / 俯冲落地"那套判定
-            //        （否则手一快就忽闪忽落，读不出玩家意图）。落地仍有长按下降与撞地两条路。
+            // ②-0 **冲刺中短按空格 = 前闪**（2026-09-27 收窄：冲刺没有方向输入，只留前闪这一条）。
+            //      · 只在冲刺态（按住 Shift）里成立 —— 闪避动画的基准姿势就是趴姿，
+            //        从悬停/巡航（直立）切过去会硬翻 ~90°。
+            //      · 冲刺时这一下**专管闪避**（冷却中也吞掉），不落回"退出飞行"——
+            //        否则手一快就忽闪忽退，读不出玩家意图。
             if (spaceTap && FlightTuning.DodgeOnSpaceTapInBoost && FlightInput.BoostHeld)
             {
                 if (_dodgeCooldown <= 0f)
-                    BeginDodge(right);
+                    BeginDodge(forward);
                 return;     // 本帧交出去（姿态下一帧由状态机进，位移从下一帧起算）
             }
 
-            if (spaceTap && FlightTuning.LandByTap)
-            {
-                bool lowEnough = heightAboveGround <= FlightTuning.LandTapMaxHeight;
-                if (lowEnough || (chargingGround && FlightTuning.LandTapWhileDiving))
-                {
-                    // 🔴 两种落地（2026-09-22 用户定义）：
-                    //   · **自然慢速落地** → 不播动画（"轻轻放下"）
-                    //   · **快速俯冲撞地** → 播落地动画
-                    //   判据 = **按空格那一刻的下冲速度**（`_velocity.z`，BeginLanding 会把它清零，
-                    //   所以必须在这里先量）：悬停/平飞接近 0、巡航俯冲 45°≈6.4、60°≈7.8、冲刺更高。
-                    float approach = -_velocity.z;
-                    bool hardDive = approach >= FlightTuning.HardLandingSpeed;
-                    DebugLogger.Log($"[Flight] 短按空格落地（距地 {heightAboveGround:F2}m 俯冲={chargingGround} " +
-                                    $"下冲={approach:F1}m/s 硬着陆={hardDive}）");
-                    BeginLanding(main, gentle: !hardDive, approachSpeed: approach);
-                    return;
-                }
-            }
-
-            bool descendHeld = FlightTuning.LandByLongPressDescend
-                               && _descendArmed
-                               && FlightInput.SpaceHeld
-                               && FlightInput.SpaceHoldSeconds >= FlightTuning.LongPressSeconds;
-
-            // 🔴 长按下降要"松开重按"才解锁（2026-09-21）：起飞是**长按空格**触发的后备路径时，
-            //    手还按在空格上 —— 不解锁的话一进空中态就立刻判成"持续下降"，刚起飞就往下掉。
-            //    双跳起飞时手早就松了，这一条对主路径没有影响。
-            if (!_descendArmed && !FlightInput.SpaceHeld)
-                _descendArmed = true;
+            // ②-1 **退出飞行不在 C#**（2026-09-27 用户裁定）：它是 XML 里的一条边
+            //      （`<edge from="悬浮飞行|冲刺飞行" to="outside" keys="Space"/>`），
+            //      本类只遵守一句通用规则 —— "状态机说机外了 ⇒ 把控制权还给引擎"（见 OnMissionTick ⑦″）。
 
             Vec2 axis = FlightInput.MoveAxis;
             Vec3 dir = forward * axis.y + right * axis.x;
@@ -503,12 +483,7 @@ namespace LivingWorldNpcs.Flight
             float targetSpeed = FlightInput.BoostHeld ? FlightTuning.BoostSpeed : FlightTuning.CruiseSpeed;
             _velocity = dir * targetSpeed;
 
-            // 长按空格 = **持续下降**：垂直分量**整个接管**（不看镜头俯仰）—— 用户要的是
-            // "按住就一直往下降"，那就不该因为玩家抬头而改回爬升。水平分量保留（边降边飞）。
-            if (descendHeld)
-                _velocity = new Vec3(_velocity.x, _velocity.y, -FlightTuning.DescendRate);
-
-            // 闪避位移：这段时间速度**整个交给闪避方向**（与"长按下降"同一套写法 —— 覆盖，不叠加）。
+            // 闪避位移：这段时间速度**整个交给闪避方向**（覆盖，不叠加）。
             // 位移走完自动交还普通飞行，而姿态动画继续按自己的时长演完（两者刻意解耦：
             // 位移是玩法，动画是表现，谁都不等谁）。
             if (_dodgeTimer > 0f)
@@ -594,10 +569,9 @@ namespace LivingWorldNpcs.Flight
                 if (boardTop <= groundZ + FlightTuning.LandTouchEps)
                 {
                     DebugLogger.Log($"[Flight] 撞地 → 自动落地（板顶={boardTop:F2} 地面={groundZ:F2} 差={boardTop - groundZ:F2} " +
-                                    $"下冲={-_velocity.z:F1}m/s 主动下降={descendHeld}）");
-                    // 长按空格主动下降导致的接地 = "空格导致的"，也算轻放；
-                    // 其余（飞着撞上地形）= 硬着陆，照旧播落地动画。
-                    BeginLanding(main, gentle: descendHeld, approachSpeed: -_velocity.z);
+                                    $"下冲={-_velocity.z:F1}m/s）");
+                    // 撞地是**唯一**的落地路径（2026-09-27 起：主动退出飞行不再播落地动作）⇒ 一律硬着陆。
+                    BeginLanding(main, approachSpeed: -_velocity.z);
                     return;
                 }
             }
@@ -660,8 +634,7 @@ namespace LivingWorldNpcs.Flight
 
             // ① 下降段（🔴 **姿态不在这里管**（2026-09-26）：状态机自己按输入演，"落地动作只在地面播"由上面②保证；
             //    这里只管往下走 —— 硬着陆按下冲速度降，别让"刚才还在俯冲"变成慢悠悠飘下来）
-            float rate = _landingGentle ? FlightTuning.LandRate
-                                        : Math.Max(FlightTuning.LandRate, _landingApproach);
+            float rate = Math.Max(FlightTuning.LandRate, _landingApproach);
             float groundOriginZ = GetGroundZ(Mission.Current.Scene, _board.Origin) - FlightTuning.CarrierTopLocalZ;
             Vec3 o = _board.Origin;
             float nz = Math.Max(groundOriginZ, o.z - rate * dt);
@@ -672,17 +645,10 @@ namespace LivingWorldNpcs.Flight
                 return;                                     // 还没触地
 
             // ── 触地：先拆板（人已经站在真实地面上），再看要不要演动画 ──
-            bool playLandAnim = !_landingGentle || FlightTuning.LandAnimOnGentle;
+
             _board.Remove();
             _boardRemoved = true;
             _landTimer = 0f;
-
-            if (!playLandAnim)
-            {
-                DebugLogger.Log($"[Flight] 轻放收摊: 板已拆（不播落地动画，引擎走跑立刻接管）");
-                FinishFlight(main);
-                return;
-            }
 
             // 🔴 **触地这一刻才 Force 落地动作，而且从 XML 读它是哪个状态**（2026-09-26）：
             //      · **落地动作** = `when="land-trigger"` 那条相位边的 `to`
@@ -745,7 +711,6 @@ namespace LivingWorldNpcs.Flight
             _boardSpawnTimer = 0f;
             _takeoffAnimTimer = 0f;
             _airTime = 0f;
-            _descendArmed = false;
             _phase = Phase.Takeoff;
             _velocity = Vec3.Zero;
             _landTimer = 0f;
@@ -858,49 +823,23 @@ namespace LivingWorldNpcs.Flight
         ///
         /// 🔴 **本方法只管"位移"**（2026-09-26 澄清）：朝请求方向冲 <see cref="FlightTuning.DodgeDistance"/> 米
         ///    （<see cref="FlightTuning.DodgeDisplaceSeconds"/> 秒内走完）。
-        ///    **姿态**由 XML 的状态机自己判 —— `fastmove → dodgeL keys="Space+A"`（读的是同一批物理键），
+        ///    **姿态**由 XML 的状态机自己判 —— `fastmove → dodgeU keys="Space"`（读的是同一批物理键），
         ///    所以两边不会打架；也不需要 C# 去"请求"任何状态名（那种写法一改名就失效）。
         ///    位移是玩法、动画是表现，**各管各的时长**，谁都不等谁。
         ///
-        /// 方向怎么定（本帧输入 → 与 XML 那四条 `keys=` 一一对应）：
-        ///   A → 左闪（`Space+A`）/ D → 右闪（`Space+D`）/ **S → 下闪**（`S+Space`）/ **W 或没推方向 → 上闪**（`W+Space`）。
-        /// 为什么 W 也算上闪：冲刺时玩家几乎一直按着 W（往前飞），若要求"S 才下、没有键才上"，
-        /// 那最顺手的那一下（W + 空格）就永远只出上闪 —— 这样定至少让四种闪避都够得着。
-        /// 🔴 左右 / 上下**谁优先**：先看 A/D（横向躲最常见的攻击），再看 W/S。
+        /// 🔴 **方向只有一个：前闪**（2026-09-27 用户实机感受后裁定）——
+        ///    冲刺飞行**不响应 WASD**（方向只决定"往哪飞"，不决定姿态）⇒ 左右/下闪没有输入来源，
+        ///    XML 那边也只保留了 `dodgeU` 一条边。位移方向 = **相机前向**（就是你正在飞的方向）。
         /// </summary>
-        private void BeginDodge(Vec3 right)
+        private void BeginDodge(Vec3 forward)
         {
-            Vec2 axis = FlightInput.MoveAxis;
-            FlightDodgeDir dir;
-            Vec3 moveDir;
-            if (axis.x < -0.3f)
-            {
-                dir = FlightDodgeDir.Left;
-                moveDir = -right;
-            }
-            else if (axis.x > 0.3f)
-            {
-                dir = FlightDodgeDir.Right;
-                moveDir = right;
-            }
-            else if (axis.y < -0.3f)
-            {
-                dir = FlightDodgeDir.Down;
-                moveDir = new Vec3(0f, 0f, -1f);
-            }
-            else
-            {
-                dir = FlightDodgeDir.Up;
-                moveDir = new Vec3(0f, 0f, 1f);
-            }
-
-            _dodgeDir = moveDir.NormalizedCopy();
+            _dodgeDir = (forward.LengthSquared > 1e-6f ? forward : new Vec3(0f, 0f, 1f)).NormalizedCopy();
             _dodgeTimer = FlightTuning.DodgeDisplaceSeconds;
             _dodgeCooldown = FlightTuning.DodgeCooldownSeconds;
 
-            DebugLogger.Log($"[Flight] 闪避 {dir}（输入=({axis.x:F2},{axis.y:F2}) " +
+            DebugLogger.Log($"[Flight] 闪避（前闪）方向=({_dodgeDir.x:F2},{_dodgeDir.y:F2},{_dodgeDir.z:F2}) " +
                             $"位移={FlightTuning.DodgeDistance:F1}m/{FlightTuning.DodgeDisplaceSeconds:F2}s " +
-                            $"冷却={FlightTuning.DodgeCooldownSeconds:F1}s）");
+                            $"冷却={FlightTuning.DodgeCooldownSeconds:F1}s");
         }
 
         /// <summary>清掉闪避相关的临时状态（收摊时调）—— 不清的话下次起飞会带着上次的冷却 / 位移。</summary>
@@ -911,12 +850,15 @@ namespace LivingWorldNpcs.Flight
             _dodgeDir = Vec3.Zero;
         }
 
-        private void BeginLanding(Agent main, bool gentle, float approachSpeed)
+        /// <summary>
+        /// 进入落地段（**唯一入口 = 撞地**，2026-09-27 起）——
+        /// 主动退出飞行不走这里（<see cref="ExitToEngine"/>：交还引擎、不播落地动作）。
+        /// </summary>
+        private void BeginLanding(Agent main, float approachSpeed)
         {
             _phase = Phase.Landing;
             _velocity = Vec3.Zero;
             _landTimer = 0f;
-            _landingGentle = gentle;
             _landingApproach = approachSpeed;
             _boardRemoved = false;
 
@@ -926,9 +868,40 @@ namespace LivingWorldNpcs.Flight
             //    （改前这里是 `Hold = true` + 写死 Force `"idle"`：那个 idle 是从 XML 读不到的硬编码状态名，
             //      编辑器里一改名就静默失效。）
             _anim.Hold = false;
-            DebugLogger.Log($"[Flight] 进入落地（方式={(gentle ? "空格/主动下降" : "硬着陆")} " +
-                            $"下冲={approachSpeed:F1}m/s 下降速度={(gentle ? FlightTuning.LandRate : Math.Max(FlightTuning.LandRate, approachSpeed)):F1}m/s " +
-                            $"落地动画={((!gentle || FlightTuning.LandAnimOnGentle) ? "待触地后播" : "不播")}）");
+            DebugLogger.Log($"[Flight] 进入落地（撞地）下冲={approachSpeed:F1}m/s " +
+                            $"下降速度={Math.Max(FlightTuning.LandRate, approachSpeed):F1}m/s 落地动作=待触地后播");
+        }
+
+        /// <summary>
+        /// **交还引擎**（2026-09-27）—— 由"状态机进入 `outside`"触发（**不认任何键**，见 <see cref="ExitToEngine"/> 的调用点）。
+        /// 效果 = 退出飞行、由引擎的默认掉落接管。
+        ///
+        /// 做四件事（与 <see cref="FinishFlight"/> 同源，但**不是"落地"**）：
+        /// 拆板 · 交还 0 号动作通道 · **渐变**归还相机 · 解冻（控制权回到玩家）。
+        /// 之后就是引擎自己的事了：人自由落体、落地由引擎的走跑/摔落接管。
+        ///
+        /// 🔴 **重新进机**：掉着的时候再按一次空格 ⇒ <see cref="TickGrounded"/> 那条
+        ///    "空中按空格起飞"（`!IsOnLand() && ConsumeSpacePress()`）⇒ 播 `进入飞行` 入姿。
+        ///    **进出对称**，不需要额外代码。
+        ///
+        /// 🔴 **不调 `FlightInput.Reset()`**：Reset 会把"空格仍按着"重新算成一次**按下沿**，
+        ///    下一帧 `TickGrounded` 就会立刻把玩家重新送上飞机（"一按就退出又进机"）。保持输入状态不动即可。
+        /// </summary>
+        private void ExitToEngine(Agent main)
+        {
+            DebugLogger.Log("[Flight] 状态机出机 ⇒ 交还引擎（默认掉落接管；空中再按空格可重新进机）");
+            _board.Remove();
+            _anim.Release(main);
+            _phase = Phase.Grounded;
+            _velocity = Vec3.Zero;
+            _landTimer = 0f;
+            _takeoffSettled = false;
+            _takeoffTimer = 0f;
+            _boardRemoved = false;
+            _boardSpawned = false;
+            ClearDodgeState();
+            ExitCamera();        // 渐变归还；Tick 里会继续推进到还完（`_camRig.IsHandingBack`）
+            ExitFreeze();
         }
 
         private void FinishFlight(Agent main)
@@ -1372,10 +1345,22 @@ namespace LivingWorldNpcs.Flight
         {
             for (int i = 0; i < AnimPrimitives.KeyCount; i++)
             {
-                _animCtx.SetKey(i, FlightInput.RawKeyAt(i));
+                bool held = FlightInput.RawKeyAt(i);
+                // 🔴 **闪避冷却期间，对状态机把"空格"报成没按**（2026-09-27）：
+                //    闪避是**动作级**的 —— C# 这边有冷却（冷却中不给位移），而姿态那边由 XML 的
+                //    `keys="Space"` 直接触发；照实报"按着"就会在冷却里**反复重播闪避姿态**
+                //    （看着像"闪了一下、人没动"）。让状态机看到与玩法**一致**的事实。
+                if (i == SpaceKeyIndex && held && _dodgeCooldown > 0f)
+                {
+                    held = false;
+                }
+                _animCtx.SetKey(i, held);
             }
             _animCtx.AnimRemainFrac = _anim.CurrentRemainFrac;
         }
+
+        /// <summary>空格在 `AnimPrimitives.Keys` 里的下标（-1 = 没对上 ⇒ 那条抑制逻辑自动失效，不崩）。</summary>
+        private static readonly int SpaceKeyIndex = AnimPrimitives.KeyIndex("Space");
 
         /// <summary>上一帧是否处于"UI 门控接管输入"状态（只在进入那一帧打一行）。</summary>
         private bool _loggedUiBlock;
@@ -1743,7 +1728,7 @@ namespace LivingWorldNpcs.Flight
             return _phase == Phase.Takeoff ? "takeoff started" : "takeoff failed (carrier spawn failed?)";
         }
 
-        /// <summary>控制台强制落地。</summary>
+        /// <summary>控制台强制退出飞行（= 与"空中短按空格"同一条路：交还引擎、默认掉落接管）。</summary>
         public string ForceStop()
         {
             if (_phase == Phase.Grounded)
@@ -1754,8 +1739,8 @@ namespace LivingWorldNpcs.Flight
                 AbortFlight();
                 return "aborted (no player agent)";
             }
-            BeginLanding(main, gentle: true, approachSpeed: 0f);   // 控制台强制落地 = 当作"主动放下"
-            return "landing";
+            ExitToEngine(main);
+            return "exited (engine takes over; press Space in air to re-enter)";
         }
 
         public string Status()

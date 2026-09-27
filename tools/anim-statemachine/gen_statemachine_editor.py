@@ -1187,7 +1187,7 @@ function renderPanel() {
       <label>来源（状态 / 容器 / 机外 outside）</label>
       <select id="f-from">${opt(e.from, srcList, e.from)}</select>
       <label>目标状态</label>
-      <select id="f-to">${`<option value="outside"${e.to === "outside" ? " selected" : ""}>outside（机外 —— 只允许相位驱动）</option>`
+      <select id="f-to">${`<option value="outside"${e.to === "outside" ? " selected" : ""}>outside（机外 —— 出机＝交还引擎；普通边，条件可写 Space）</option>`
         + states.map(s => `<option value="${esc(s.name)}"${s.name === e.to ? " selected" : ""}>${esc(s.name)}</option>`).join("")
         + groups.map(g => `<option value="${esc(g.name)}"${g.name === e.to ? " selected" : ""}>${esc(g.name)}（容器 → 入口 ${esc(g.entry || "未设！")}）</option>`).join("")}</select>
       <label>条件${e.phase ? "（相位驱动）" : ""}</label>
@@ -1203,7 +1203,7 @@ function renderPanel() {
       · <b>「动画 · 剩余 %」是真的</b>：相位会读这个数来判时机（出机就是靠它，见 <span class="mono">PlayerFlightBehavior.TickLanding</span>）。<br>
       · <b>命名谓词只是文档</b>：相位不读它（相位时刻在人话标签那组里置顶）。<br>
       这条边的方向是 <b>${e.from === "outside" ? "机外 → 状态（进机）" : "状态 → 机外 / 衔接态"}</b>
-      ${e.to === "outside" ? "（出机：建议写「动画 · 剩余 10%」，相位会读它）"
+      ${e.to === "outside" ? "（出机：写按键（如 Space）或「动画 · 剩余 %」都行）"
         : (e.from === "outside" ? "（进机：相位 Force，写「起飞」即可）" : "（相位自己判，谓词只是文档）")}。
       ${(e.kind === "pred" && e.pred && !/-trigger$/.test(e.pred))
         ? `<br><span style="color:var(--bad)">⚠ 现在存的是「${esc(e.pred)}」（早期版本编辑器默认塞的，相位不读它）。</span>` : ""}</p>` : ""}
@@ -1217,20 +1217,26 @@ function renderPanel() {
       // 🔴 机外 ⇒ 强制相位边；同时把"时机"设成**相位触发器**（以前不设 ⇒ 导出时被兜成 preds[0] = move-input）
       if (e.from === "outside" && !e.phase) {
         e.phase = true; e.kind = "pred"; e.pred = phasePredFor("outside", e.to);
-        notice = "来源是机外 ⇒ 已自动改成相位驱动（机外只允许相位边），时机 = " + e.pred;
+        notice = "来源是机外（进机）⇒ 已自动改成相位驱动（进机是物理判定 + 要动板/相机），时机 = " + e.pred;
       }
       commit();
     };
     document.getElementById("f-to").onchange = ev => {
       e.to = ev.target.value;
-      if (e.to === "outside" && !e.phase) {
-        e.phase = true; e.kind = "pred"; e.pred = phasePredFor(e.from, "outside");
-        notice = "目标是机外 ⇒ 已自动改成相位驱动（机外只允许相位边），时机 = " + e.pred;
+      // 出机（to=outside）**默认是普通边**（按键/谓词的自己写，不由状态机以外的谁求值）。
+      // 🔴 例外：写成「动画 · 剩余 %」时必须交给**相位** —— C#（`TryPhaseExit`）要读这个数来判出机时机。
+      if (e.to === "outside" && e.kind === "anim" && e.anim === "remaining") {
+        e.phase = true;
+        notice = "出机边写了「动画 · 剩余 %」⇒ 自动勾上相位驱动（这个数由 C# 读）";
+      } else if (e.to === "outside" && e.kind === "pred" && !/-trigger$/.test(e.pred || "")) {
+        notice = "提示：出机边也可以写按键（如 Space）—— 相位边不由状态机求值，写了就永远轮不到";
       }
       commit();
     };
     document.getElementById("f-blend").onchange = ev => { e.blend = ev.target.value.trim(); commit(); };
     document.getElementById("f-after").onchange = ev => { e.after = ev.target.checked; commit(); };
+    // 出机边改成「动画 · 剩余 %」⇒ 自动勾相位（与 f-to 那条规则同源，别只做一半）
+
     document.getElementById("f-not").onchange = ev => { e.not = ev.target.checked; commit(); };   // 🔴 取反（三种条件通用）
     document.getElementById("f-phase").onchange = ev => {
       e.phase = ev.target.checked;
@@ -1274,12 +1280,21 @@ function renderPanel() {
           + `<div><label>剩余 &lt; %（0~100）</label><input id="f-lt" value="${esc(e.lt)}" placeholder="20"></div></div>`
           + `<p class="hint">阈值是<b>百分比</b> —— 长度由 clip 自己带，配置里不写秒数。`
           + (e.phase ? `<br>🔴 相位边写这个<u>不是文档</u>：**相位（C#）会读它**来判时机（出机就是靠它）。` : "") + `</p>`;
-        document.getElementById("f-anim").onchange = ev => { e.anim = ev.target.value; commit(); };
+        document.getElementById("f-anim").onchange = ev => { e.anim = ev.target.value; syncOutsidePhase(); commit(); };
         document.getElementById("f-lt").onchange = ev => { e.lt = ev.target.value.trim(); commit(); };
       }
     }
+    // 🔴 出机边（`to=outside`）写成「动画 · 剩余 %」⇒ 必须交给相位（C# 要读那个数）。
+    //    定义放在所有 handler 之前（同一作用域里 const 有 TDZ，放在后面会被提前调用而抛）。
+    const syncOutsidePhase = () => {
+      if (e.to === "outside" && !e.phase && e.kind === "anim" && e.anim === "remaining") {
+        e.phase = true;
+        notice = "出机边写了「动画 · 剩余 %」⇒ 自动勾上相位驱动（这个数由 C# 读）";
+      }
+    };
     kindSel.onchange = ev => {
       e.kind = ev.target.value;
+      syncOutsidePhase();
       if (e.kind === "key") { e.keys = e.keys || "W"; }
       else if (e.kind === "anim") { e.anim = e.anim || "finished"; e.lt = e.lt || "20"; }
       else { e.pred = e.pred || (e.phase ? pickPhasePred("") : DATA.preds[0].name); }
@@ -1362,7 +1377,9 @@ function validate() {
   edges.forEach((e, i) => {
     const n = i + 1;
     if (e.from !== "*" && e.from !== "outside" && !gn[e.from] && !names[e.from]) p.push(`#${n} 来源 "${e.from}" 不是状态也不是容器`);
-    if ((e.from === "outside" || e.to === "outside") && !e.phase) p.push(`#${n} outside（机外）只允许用于相位驱动边`);
+    if (e.from === "outside" && !e.phase) p.push(`#${n} 进机（from="outside"）必须是相位驱动边`);
+    if (e.to === "outside" && !e.phase && e.kind === "anim" && e.anim === "remaining")
+      p.push(`#${n} 出机写了「动画 · 剩余 %」但没勾相位驱动 —— 那个数由 C# 读（勾上「相位驱动」）`);
     // 🔴 相位边的条件分两种：
     //    · `anim="remaining" anim-rem-pct=N` —— **真的**（相位读它判时机，例如出机剩 10%）
     //    · 命名谓词 —— **只是文档**（相位不读；用普通谓词典型是编辑器以前默认塞的 move-input）
@@ -1564,10 +1581,10 @@ svg.addEventListener("pointerup", ev => {
     return;
   }
   if (pending && boxEl && boxEl.getAttribute("data-box") === "outside") {
-    // 🔴 落到**机外盒**上 = `to=outside`（出机）。机外只允许相位驱动边，addEdge 会自动置 phase
+    // 🔴 落到**机外盒**上 = `to=outside`（出机）= **普通边**（默认条件 Space）—— 条件在右侧改
     const from = pending;
     pending = null; drag = null;
-    addEdge(from, "outside", "已新建边 → 机外（outside，自动设为相位驱动）—— 条件在右侧改");
+    addEdge(from, "outside", "已新建边 → 机外（出机，默认条件 = 按住 Space）—— 条件在右侧改");
     return;
   }
   // 拖**状态或子容器** → 落进哪个容器盒：用**被拖元素的中心点**做几何判定。
@@ -1779,14 +1796,16 @@ function pickEdgeTarget(from) {
 // 新建一条边（默认条件：按着 W —— 建完在右侧面板改）
 function addEdge(from, to, note) {
   if (!from || !to || from === to) return;
-  // 🔴 机外（outside）**只允许相位驱动边**（引擎装载期校验）。建边时自动置 phase，
-  //    否则会造出一条"整台定义有问题 ⇒ 不注册"的边 —— 这个口子在审计时抓到的。
-  const ph = (from === "outside" || to === "outside");
-  // 🔴 机外只允许相位边，而相位边只写**相位触发器** —— 以前这里留着 kind:"key"、`pred` 不设，
-  //    导出时被 `e.pred || DATA.preds[0].name` 兜成 `move-input`（跟"空中按跳跃"毫无关系）。
+  // 🔴 机外的**两条方向规则不同**（2026-09-27 用户裁定）：
+  //    · **进机**（`from=outside`）= 相位驱动（装载期硬校验）—— 起飞是物理判定，且要动板/相机；
+  //    · **出机**（`to=outside`）= **普通边**：按什么键/什么条件下出机写在边上，
+  //      C# 只遵守"机器在机外 ⇒ 交还引擎"一条通用规则。⇒ 这里**不再**自动给它 phase。
+  const ph = (from === "outside");
   edges.push(ph
     ? { from: from, to: to, kind: "pred", pred: phasePredFor(from, to), blend: "", after: false, phase: true, not: false }
-    : { from: from, to: to, kind: "key", keys: "W", blend: "", after: false, phase: false, not: false });
+    // 🔴 相位边只写**相位触发器**（否则导出时被 preds[0] 兜成 move-input）；
+    //    出机边的默认条件给 `Space`（现行设计就是"空格出机"），要改在右侧面板改。
+    : { from: from, to: to, kind: "key", keys: (to === "outside" ? "Space" : "W"), blend: "", after: false, phase: false, not: false });
   sel = { type: "edge", id: edges.length - 1 };
   notice = note || (ph
     ? "已新建**相位驱动**边（机外只允许相位边）—— 在右侧把它改成你要的条件 / 来源 / 目标"

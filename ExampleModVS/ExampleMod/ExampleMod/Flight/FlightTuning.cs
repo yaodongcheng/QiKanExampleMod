@@ -252,14 +252,6 @@ namespace LivingWorldNpcs.Flight
         /// <summary>落地阶段的硬上限（秒）—— 防止"动画时长"配错时把人卡在落地态出不来。</summary>
         public static float LandMaxSeconds = 5f;
 
-        /// <summary>
-        /// 🔴 **空格落地的两种终点不一样**（2026-09-21 用户裁定）：
-        ///    · **空格导致的接地**（短按贴地 / 长按下降）⇒ **不播落地动画**、保持悬停待机姿势下降，
-        ///      触地**当场**收摊 → 引擎走跑接管。理由：这是玩家主动的"放下"，本来就轻，落地动画反而像摔了一跤。
-        ///    · **撞地**（飞着撞上地形）⇒ 照旧播落地动画 + 等它演完（破坏性的动作需要个交代）。
-        /// 本开关只影响第一种（默认 `false` = 不播）；调成 `true` 就回到"两种都播"的老行为。
-        /// </summary>
-        public static bool LandAnimOnGentle = false;
 
         // ───────────── 落地手势（🔴 2026-09-21 用户重新定义，与起飞不对称）─────────────
 
@@ -273,40 +265,6 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public static float FallOffDistance = 1.2f;
 
-        /// <summary>
-        /// 触地瞬间下降速度 ≥ 它 ⇒ 算**硬着陆**（演落地动画）。
-        ///
-        /// 两种落地的分界（2026-09-22 用户定义）：**自然慢速落地不播动画**、**快速俯冲撞地播动画**。
-        /// 取 7.5：长按下降的速率是 <see cref="DescendRate"/> = 6 ⇒ 稳定落在"轻放"那侧；
-        /// 巡航俯冲 45° ≈ 6.4（仍算轻）、60° ≈ 7.8（算硬），冲刺俯冲必是硬着陆。
-        /// </summary>
-        public static float HardLandingSpeed = 7.5f;
-
-        /// <summary>短按空格是否可用于落地（总开关）。关掉 = 只能靠长按下降撞地落。</summary>
-        public static bool LandByTap = true;
-
-        /// <summary>
-        /// 短按落地的高度闸（米）：板顶离地面在这个高度以内，短按空格才落地。
-        /// 默认 8 —— 取"刚二段跳进浮空（悬停高度 6m）"再多留一点余量，
-        /// 语义就是"反悔刚才那一跳"。**高空平飞时短按不落地**（防误触）。
-        /// </summary>
-        public static float LandTapMaxHeight = 8f;
-
-        /// <summary>正在俯冲（冲向地面）时短按空格是否可落地。</summary>
-        public static bool LandTapWhileDiving = true;
-
-        /// <summary>
-        /// "冲向地面"的判据：镜头前方向的竖直分量 ≤ −这个值。
-        /// 默认 0.42（≈ 低头 25°），与 <see cref="PitchThreshold"/> 同一量级但**故意分开** ——
-        /// 姿态动画的阈值和落地判定是两件事，将来调一个不该牵动另一个。
-        /// </summary>
-        public static float LandTapDivePitch = 0.42f;
-
-        /// <summary>长按空格是否进入持续下降。关掉 = 长按空格无作用（只剩短按落地）。</summary>
-        public static bool LandByLongPressDescend = true;
-
-        /// <summary>持续下降的速率（米/秒）。长按空格时垂直分量整个被它接管。</summary>
-        public static float DescendRate = 6f;
 
         // ───────────────────────── 撞地自动落地（N4，2026-09-21）─────────────────────────
 
@@ -319,8 +277,6 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public static float LandTouchEps = 0.25f;
 
-        /// <summary>停在最低点多久自动落地（秒）。玩家一直往下压 = 想下来。</summary>
-        public static float AutoLandSeconds = 0.45f;
 
         // ───────────────────────── 长按 ─────────────────────────
 
@@ -533,11 +489,15 @@ namespace LivingWorldNpcs.Flight
         public static int FlightActionPriority = 0;
 
         /// <summary>
-        /// 🔴 **闪避的触发方式（2026-09-22 用户裁定）**：**冲刺（按住 Shift）中短按空格 = 闪避**。
-        /// 与"悬停 / 巡航中长按空格 = 持续下降"是两套手势，靠**状态 + 长 / 短按**区分。
-        /// 关掉本开关 = 回到旧行为（冲刺中短按空格仍走"贴地 / 俯冲落地"那套判定）。
+        /// **冲刺中短按空格 = 给一次前闪位移**（C# 这一半管"位移"；**姿态**在 XML）。
+        ///
+        /// 🔴 **默认 false**（2026-09-27 用户裁定）：**空格专管"出机"** —— XML 里
+        /// `<edge from="悬浮飞行|冲刺飞行" to="outside" keys="Space"/>` 已经把两个族的空格都指向机外，
+        /// 再让 C# 抢这一下就会"闪一下又退出飞行"。
+        /// 打开本开关 = 冲刺中空格改成闪避（**同时要把 XML 那条出机边移到最后**，否则它永远轮不到）。
+        /// ⚠️ 闪避**姿态**那条边（`FlyFastPoses → dodgeU`）现在也摘掉了 —— 给闪避配了别的键再加回来。
         /// </summary>
-        public static bool DodgeOnSpaceTapInBoost = true;
+        public static bool DodgeOnSpaceTapInBoost = false;
 
         /// <summary>闪避的位移距离（米）。</summary>
         public static float DodgeDistance = 8f;
@@ -597,18 +557,9 @@ namespace LivingWorldNpcs.Flight
             LandRate = 5f;
             LandAnimSeconds = 2.0f;
             LandMaxSeconds = 5f;
-            LandAnimOnGentle = false;
             FallOffDistance = 1.2f;
-            HardLandingSpeed = 7.5f;
-            LandByTap = true;
-            LandTapMaxHeight = 8f;
-            LandTapWhileDiving = true;
-            LandTapDivePitch = 0.42f;
-            LandByLongPressDescend = true;
-            DescendRate = 6f;
             LandOnGroundTouch = true;
             LandTouchEps = 0.25f;
-            AutoLandSeconds = 0.45f;
             LongPressSeconds = 0.65f;
             TakeoffByDoubleJump = true;
             TakeoffByLongPress = true;
