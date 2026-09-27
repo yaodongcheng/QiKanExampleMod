@@ -85,6 +85,41 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 //    `fit()` 按当前页取景，保证每个盒子都在画面里。
 async function frame() { await ev("fit()"); await sleep(220); }
 
+// ── 夹具助手（🔴 一律**从当前 XML 现挑名字**，不许写死）───────────────────────────
+// 用户会在编辑器里改名 / 删状态（2026-09-27 实测：他删掉 4 个直立压弯/俯仰 + 重排了容器
+// ⇒ 一次打挂 11 条用例）。凡是"挑一个状态 / 容器来操作"的夹具，名字都从这里现取。
+// `G2` = 第一个"有 ≥2 个**直接状态成员**"的容器下标（做 Entry / 嵌套夹具用）
+const G2 = "(function(){var i=groups.findIndex(function(g){return g.members.filter(function(m){return !!stateByName[m]}).length>=2});"
+         + "return i<0?0:i;})()";
+// 该容器的直接状态成员（数组表达式）
+const G2M = "(membersOf(groups[" + G2 + "].name).filter(function(m){return !!stateByName[m]}))";
+// `G3` = 同上但要求 ≥3 个（㊷ 那组夹具要"两个搬进子容器、还留一个在父里"才能表达跨容器边）
+const G3 = "(function(){var i=groups.findIndex(function(g){return g.members.filter(function(m){return !!stateByName[m]}).length>=3});return i<0?0:i;})()";
+const G3M = "(membersOf(groups[" + G3 + "].name).filter(function(m){return !!stateByName[m]}))";
+// 世界坐标 → 屏幕坐标（`getScreenCTM`：缩放平移与画布位置都在里面）
+const w2s = p => ev(`(function(){var g=document.getElementById('world');var m=g.getScreenCTM();`
+  + `if(!m) return null; var x=${p.x}, y=${p.y}; return {x: m.a*x+m.c*y+m.e, y: m.b*x+m.d*y+m.f};})()`);
+// 世界里挑一个**不压在任何容器盒上**的点 —— 把容器往空处拖 = 移动；压在别的容器盒上会变成"改归属"
+const emptyWorld = async exclude => ev(`(function(){
+  var bs = visibleGroupBoxes(tabs[active]).filter(function(o){return o.name!==${JSON.stringify(exclude)}}).map(function(o){return o.box});
+  var cand = [[40,40],[40,430],[40,780],[1000,40],[1000,780],[1520,400],[240,-260]];
+  for (var i=0;i<cand.length;i++){ var x=cand[i][0], y=cand[i][1];
+    if(!bs.some(function(b){return x>=b.x-115 && x<=b.x+b.w+115 && y>=b.y-45 && y<=b.y+b.h+45})) return {x:x,y:y}; }
+  return {x:40,y:1100};})()`);
+// 拿一个**确实抓得到这个容器盒**的屏幕点。🔴 别用 `centerOf`（= 元素外接框中心）：
+//    盒子可能被一个**状态节点**盖住，而 pointerdown 的分支顺序是 **节点优先于容器**
+//    ⇒ 拖下去抓到的是那个节点（本轮 ㉚c 就是这么假 FAIL 的：残留的 `落地_T_copy` 正好压在盒子上）。
+const boxGrabPoint = gname => ev(`(function(){
+  var el=document.querySelector('.grp[data-g=${JSON.stringify(gname)}]'); if(!el) return null;
+  var r=el.getBoundingClientRect();
+  var cand=[[0.5,0.62],[0.2,0.28],[0.8,0.28],[0.2,0.85],[0.8,0.85],[0.5,0.2]];
+  for(var i=0;i<cand.length;i++){
+    var x=Math.round(r.x+r.width*cand[i][0]), y=Math.round(r.y+r.height*cand[i][1]);
+    var hit=document.elementFromPoint(x,y);
+    if(hit && hit.closest && hit.closest('.grp') && hit.closest('.grp').getAttribute('data-g')===${JSON.stringify(gname)}) return {x:x,y:y};
+  }
+  return null;})()`);
+
 // 🔴 用例收尾**统一走"从 XML 重来"**。以前每条自己手写"把 idle/hovermove 挪回 groups[0]、entry 设回 hovermove"
 //    —— XML 一改（idle/hovermove 被收进子容器、容器改名）就**集体错位**，一次挂 10 条（本次实测）。
 //    用 DATA 重灌 = 天然跟着 XML 走，还顺带证明"XML 本身是干净的"。
@@ -100,8 +135,50 @@ async function resetAll() {
 //    取景 ⇒ `centerOf()` 量到的屏幕坐标可能落在画面外，鼠标事件全打空（⑳d/㉑b/㉒/㉔ 四条就是这么挂的）。
 //    `setActive(0)` 按"每页各记一份镜头"的规则还原（没有记录就 fit() 取景）。
 
-async function dragFrom(p, dx, dy) {
-  await mouse('mousePressed', p.x, p.y, 1, 1);
+// ── 桩：内存文件系统（把 File System Access 的 picker 换成它）────────────
+// 为什么必须是桩：无头浏览器**点不了原生对话框**（`showOpenFilePicker` 直接抛 AbortError），
+// 而"打开 / 保存"这条链全压在对话框返回的**句柄**上 ⇒ 不换桩就一条都测不了。
+// 🔴 桩要忠实到能暴露真 bug，两条不能省：
+//   ① **`showOpenFilePicker` 给的句柄默认只读** —— 第一次写必须过 `requestPermission`。
+//      桩要是"一写就成"，那条真实路径（也是唯一会弹浏览器授权的路径）就永远测不到。
+//   ② `createWritable().write()` 要真改内容 —— 否则"保存"断言不到东西。
+const FSA_STUB = `
+(function(){
+  window.__vfs = {files:{}, writes:[], asked:0, openNext:"flight.xml", saveAsNext:null, abort:null};
+  function mkFile(n, writable){
+    return {
+      kind:"file", name:n, _w: !!writable,
+      async getFile(){ const t=window.__vfs.files[n];
+        if(t===undefined){ const e=new Error("no such file"); e.name="NotFoundError"; throw e; }
+        return {name:n, size:t.length, lastModified:1000, async text(){ return window.__vfs.files[n]; }}; },
+      async createWritable(){
+        if(!this._w){ const e=new Error("not allowed"); e.name="NotAllowedError"; throw e; }
+        const self=this;
+        return { async write(x){ window.__vfs.writes.push([n,x]); window.__vfs.files[n]=x; },
+                 async close(){}, async abort(){} }; },
+      async queryPermission(){ return this._w ? "granted" : "prompt"; },
+      async requestPermission(){ window.__vfs.asked++; this._w = true; return "granted"; }
+    };
+  }
+  window.__vfsSeed = function(xml){
+    window.__vfs.files = {"flight.xml": xml}; window.__vfs.writes = []; window.__vfs.asked = 0;
+    window.__vfs.openNext = "flight.xml"; window.__vfs.saveAsNext = null; window.__vfs.abort = null;
+  };
+  window.showOpenFilePicker = async function(){
+    if(window.__vfs.abort){ const e=new Error("user aborted"); e.name="AbortError"; throw e; }
+    return [mkFile(window.__vfs.openNext || "flight.xml", false)];   // 🔴 只读句柄（= 真实行为）
+  };
+  window.showSaveFilePicker = async function(o){
+    if(window.__vfs.abort){ const e=new Error("user aborted"); e.name="AbortError"; throw e; }
+    const n = window.__vfs.saveAsNext || (o && o.suggestedName) || "untitled.xml";
+    window.__vfs.saveAsNext = null;
+    if(!(n in window.__vfs.files)) window.__vfs.files[n] = "";
+    return mkFile(n, true);                                          // 另存为的句柄直接可写
+  };
+})();
+`;
+
+async function dragFrom(p, dx, dy) {  await mouse('mousePressed', p.x, p.y, 1, 1);
   for (let i = 1; i <= 5; i++) await mouse('mouseMoved', p.x + dx * i / 5, p.y + dy * i / 5, 1, 1);
   await mouse('mouseReleased', p.x + dx, p.y + dy, 1, 0);
   await sleep(250);
@@ -343,7 +420,7 @@ try {
   check('⑱d 容器盒上也写出入口（写的是**人话路径**）',
     d18.full === true || d18.elided === true, JSON.stringify(d18));
   const v18 = await ev("(function(){var g=groupByName['悬浮飞行'],old=g.entry;g.entry='';"
-    + "edges.push({from:'超人落地',to:'悬浮飞行',kind:'key',key:'W',mode:'held',blend:'',after:false,phase:false});"
+    + "edges.push({from:'超人落地',to:'悬浮飞行',kind:'key',key:'W',mode:'held',blend:'',after:false,event:false});"
     + "var r=validate().some(function(s){return s.indexOf('没设入口')>=0});"
     + "edges.pop();g.entry=old;return r;})()");
   check('⑱e 校验能抓出「目标是容器但没设入口」', v18 === true, '');
@@ -377,10 +454,10 @@ try {
   await mouse('mouseMoved', t21.x, t21.y, 1, 1);
   await mouse('mouseReleased', t21.x, t21.y, 1, 0);
   await sleep(300);
-  check('㉑b 从机外拉线 → 来源=outside 且自动相位驱动',
+  check('㉑b 从机外拉线 → 来源=outside 且自动事件驱动',
     (await ev("edges.length")) === base21 + 1 && (await ev("edges[" + base21 + "].from")) === 'outside'
-      && (await ev("edges[" + base21 + "].phase")) === true,
-    'from=' + await ev("edges[" + base21 + "].from") + ' phase=' + await ev("edges[" + base21 + "].phase"));
+      && (await ev("edges[" + base21 + "].event")) === true,
+    'from=' + await ev("edges[" + base21 + "].from") + ' event=' + await ev("edges[" + base21 + "].event"));
   // 🔴 只断言"没有关于机外的报错" —— 这条测试自己在上面建了一条**重复的**机外边（#27 与 #1 同来源同条件），
   //    断言"全局 0 问题"是**测试自己不干净**（新加的"同来源同条件"检查会正确地把它报出来）
   check('㉑c 这条机外边不会让整台定义失效（校验里没有关于"机外"的报错）',
@@ -403,10 +480,10 @@ try {
   // 🔴 2026-09-27 规则改了：出机 = **普通边**（默认条件 Space）；只有"动画·剩 %"那种才归相位
   check('㉒ 拖线落到机外盒 = 建 to=outside（普通边，默认条件 Space）',
     (await ev("edges.length")) === base22 + 1 && (await ev("edges[" + base22 + "].to")) === 'outside'
-      && (await ev("edges[" + base22 + "].phase")) === false
+      && (await ev("edges[" + base22 + "].event")) === false
       && (await ev("edges[" + base22 + "].kind")) === 'key'
       && (await ev("edges[" + base22 + "].keys")) === 'Space',
-    'to=' + await ev("edges[" + base22 + "].to") + ' phase=' + await ev("edges[" + base22 + "].phase"));
+    'to=' + await ev("edges[" + base22 + "].to") + ' event=' + await ev("edges[" + base22 + "].event"));
   await ev("edges.length = " + base22 + "; sel=null; commit()");
 
   // ㉓ 目标下拉含 outside，且改一下就自动相位
@@ -416,9 +493,9 @@ try {
     (await ev("(function(){var s=document.getElementById('f-to');return [].slice.call(s.options).some(function(o){return o.value==='outside'})})()")) === true, '');
   await ev("(function(){var s=document.getElementById('f-to'); s.value='outside'; s.dispatchEvent(new Event('change'));})()");
   await sleep(300);
-  check('㉓b 目标改成机外 ⇒ 自动变相位驱动',
-    (await ev("edges[1].to")) === 'outside' && (await ev("edges[1].phase")) === true,
-    'to=' + await ev("edges[1].to") + ' phase=' + await ev("edges[1].phase"));
+  check('㉓b 目标改成机外 ⇒ 自动变事件驱动',
+    (await ev("edges[1].to")) === 'outside' && (await ev("edges[1].event")) === true,
+    'to=' + await ev("edges[1].to") + ' event=' + await ev("edges[1].event"));
   check('㉓c 校验里没有关于"机外"的报错（同上：这条测试自己也留了条重复边）',
     (await ev("validate().filter(function(x){return x.indexOf('机外')>=0||x.indexOf('outside')>=0}).length")) === 0,
     JSON.stringify(await ev("validate()")));
@@ -531,12 +608,11 @@ try {
 
   // ㉙ 边的「剩余」条件 = **百分比**（不是秒），导出成 anim-rem-pct
   //    用一条**临时边**测，测完截断弹掉（别动真数据 —— 建边类测试的老教训）
-  await ev("closeCtx(); setActive(0); elistAll=true; edges.push({from:'idle',to:'fastmovePitchD',kind:'key',key:'W',mode:'held',blend:'',after:false,phase:false}); sel={type:'edge',id:edges.length-1}; render()");
+  await ev("closeCtx(); setActive(0); elistAll=true; edges.push({from:'idle',to:'fastmovePitchD',kind:'key',key:'W',mode:'held',blend:'',after:false,event:false}); sel={type:'edge',id:edges.length-1}; render()");
   const ti = await ev("edges.length-1");
   await ev("(function(){var k=document.getElementById('f-kind'); k.value='anim'; k.onchange({target:{value:'anim'}});})()");
   await sleep(300);
-  await ev("(function(){var a=document.getElementById('f-anim'); a.value='remaining'; a.onchange({target:{value:'remaining'}});})()");
-  await sleep(300);
+  // 🔴 动画档**没有**下拉了（只有 `remaining`+数字；`anim="finished"` 已删）
   await ev("(function(){var el=document.getElementById('f-lt'); el.value='20'; el.onchange({target:{value:'20'}});})()");
   await sleep(300);
   const exml = await ev("edgesXml().split('\\n')[" + ti + "]");
@@ -568,12 +644,29 @@ try {
     (await ev("(function(){try{var b=groupBox(groupIndexOf('临时容器乙'), groupByName['临时容器乙']);return !!(b && b.w>0)}catch(e){return 'EXC:'+e.message}})()")) === true, '');
   const gp30b = await ev("JSON.stringify(gpos['临时容器乙'])");
   await frame();
-  const gb30b = await centerOf('.grp[data-g="临时容器乙"]');
-  if (gb30b) await dragFrom(gb30b, -50, 25);                       // 改名之后**真鼠标再拖一次**
+  const gb30b = await boxGrabPoint('临时容器乙');
+  // 🔴 落点必须**算**出来（不能写死位移）：拖到**别的容器盒**上会变成"改归属"而不是移动，
+  //    机器结构一变、邻居挪位，固定位移就会正好压上去 ⇒ 盒子没动 ⇒ 假 FAIL（本轮就是这么挂的）。
+  const spot30 = await emptyWorld('临时容器乙');
+  const sc30 = await w2s(spot30);
+  let dbg30 = '';
+  if (gb30b && sc30) {
+    const d30x = Math.round(sc30.x - gb30b.x), d30y = Math.round(sc30.y - gb30b.y);
+    await mouse('mousePressed', gb30b.x, gb30b.y, 1, 1);
+    await sleep(120);
+    dbg30 = String(await ev("JSON.stringify({drag: drag&&{k:drag.kind,id:drag.id}, pan:!!pan,"
+      + " tab: tabs[active].kind+':'+(tabs[active].id||''), sel: sel&&sel.id,"
+      + " hit: (function(){var el=document.elementFromPoint(" + gb30b.x + "," + gb30b.y + ");"
+      + "return el? String((el.closest&&el.closest('.grp')&&el.closest('.grp').getAttribute('data-g'))||el.tagName):'null';})()})"));
+    for (let i = 1; i <= 5; i++) await mouse('mouseMoved', gb30b.x + d30x * i / 5, gb30b.y + d30y * i / 5, 1, 1);
+    await mouse('mouseReleased', gb30b.x + d30x, gb30b.y + d30y, 1, 0);
+    await sleep(280);
+  }
   const gp30c = await ev("JSON.stringify(gpos['临时容器乙'])");
   check('㉚c 改容器名之后**真鼠标仍拖得动**（位置真的变了）',
     gb30b !== null && gp30b !== gp30c,
     'tab=' + await ev("tabs[active].kind+':'+(tabs[active].id||'')") + ' box=' + JSON.stringify(gb30b)
+      + ' 目标世界=' + JSON.stringify(spot30) + ' → 屏幕=' + JSON.stringify(sc30) + ' down后=' + dbg30
       + ' 落点元素=' + (gb30b ? await ev("(function(){var el=document.elementFromPoint(" + gb30b.x + "," + gb30b.y + ");return el? String((el.closest&&el.closest('.grp')&&el.closest('.grp').getAttribute('data-g'))||el.tagName) : 'null';})()") : '-')
       + ' grp在画面上=' + await ev("[].slice.call(document.querySelectorAll('.grp')).map(function(e){return e.getAttribute('data-g')}).join(',')") + ' before=' + gp30b + ' after=' + gp30c);
   await ev("groups = groups.filter(function(x){return x.name!=='临时容器乙'}); delete gpos['临时容器乙']; reindex(); sel=null; notice=''; commit()");
@@ -600,20 +693,43 @@ try {
   await ev("edges.length = " + ne31 + "; pending=null; drag=null; notice=''; sel=null; commit()");   // 截断回基线，别污染后面的断言
   check('㉛c 这次拉线没留下脏边', (await ev("edges.length")) === ne31, 'edges=' + await ev("edges.length"));
 
-  // ㉜ 相位边只该写**相位触发器**（用户实测："这里条件有点怪" —— 那个 move-input 是编辑器默认塞的）
+  // ㉜ 事件边只该写**相位触发器**（用户实测："这里条件有点怪" —— 那个 move-input 是编辑器默认塞的）
   //    依据：FlightAnimConditions L62/L63 `takeoff-trigger`/`land-trigger` 真身就是 `c => false`；
-  //          AgentAnimStateMachine `if (e.PhaseForced) continue;` ⇒ 相位边的 when= 运行时不求值。
+  //          AgentAnimStateMachine `if (e.PhaseForced) continue;` ⇒ 事件边的 when= 运行时不求值。
   await ev("closeCtx(); setActive(0); tabs=[{kind:'root'}]; sel=null; notice=''; render()");
   const ne32 = await ev("edges.length");
   await ev("addEdge('outside','进入飞行')");
   await sleep(250);
   check('㉜ 机外 → 状态：时机自动是 takeoff-trigger（不再是 move-input）',
-    (await ev("(function(){var e=edges[edges.length-1];return e.phase===true && e.pred==='takeoff-trigger'})()")) === true,
-    await ev("JSON.stringify({pred:edges[edges.length-1].pred, phase:edges[edges.length-1].phase})"));
-  check('㉜b 相位边写普通谓词 ⇒ 校验报错（以前静默通过）',
-    (await ev("(function(){var e=edges[edges.length-1];e.pred='move-input';var bad=validate().some(function(x){return x.indexOf('相位时刻')>=0});e.pred='takeoff-trigger';return bad && !validate().some(function(x){return x.indexOf('相位时刻')>=0});})()")) === true, '');
-  check('㉜c 相位边**仍是同一套控件**：有 #f-kind（按键/动画 标为用不到）、谓词下拉里**全部谓词都能选**、相位时刻人话置顶',
-    (await ev("(function(){sel={type:'edge',id:edges.length-1};render();var k=document.getElementById('f-kind');if(!k)return false;var el=document.getElementById('f-pred');if(!el)return false;var o=[].slice.call(el.options).map(function(x){return x.value});var g=[].slice.call(el.querySelectorAll('optgroup')).map(function(x){return x.label});return o.indexOf('takeoff-trigger')>=0 && o.indexOf('land-trigger')>=0 && o.indexOf('move-input')>=0 && k.options[0].disabled===true && g.length===2;})()")) === true, '');
+    (await ev("(function(){var e=edges[edges.length-1];return e.event===true && e.pred==='takeoff-trigger'})()")) === true,
+    await ev("JSON.stringify({pred:edges[edges.length-1].pred, event:edges[edges.length-1].event})"));
+  check('㉜b 事件边写普通谓词 ⇒ 校验报错（以前静默通过）',
+    (await ev("(function(){var e=edges[edges.length-1];e.pred='move-input';var bad=validate().some(function(x){return x.indexOf('游戏事件')>=0});e.pred='takeoff-trigger';return bad && !validate().some(function(x){return x.indexOf('游戏事件')>=0});})()")) === true, '');
+  // 🔴 新模型（2026-09-27 用户裁定："事件驱动为什么单独一个单选框？不和条件放在一起？"）：
+  //    「游戏事件」= **条件下拉里的第四项**（不再是独立复选框）；选中它之后**时机由方向决定**、不给选。
+  const k32 = await ev("(function(){sel={type:'edge',id:edges.length-1};render();"
+    + "var k=document.getElementById('f-kind'); if(!k) return null;"
+    + "return {n:k.options.length, vals:[].slice.call(k.options).map(function(x){return x.value}),"
+    + " sel:k.options[k.selectedIndex].value, oldChk: !!document.getElementById('f-phase'),"
+    + " args:(document.getElementById('f-args').textContent||'').replace(/\s+/g,' ')};})()");
+  // 🔴 用户 2026-09-27 追问：「你为什么写死这条边，不让我来选具体是哪个事件？？」
+  //    ⇒ 事件必须是**清单里选出来的**（候选 = 所有已登记的 `*-trigger`），方向只给默认值。
+  const k32b = await ev("(function(){var s=document.getElementById('f-evt'); if(!s) return null;"
+    + "return {n:s.options.length, vals:[].slice.call(s.options).map(function(o){return o.value}),"
+    + " txt:[].slice.call(s.options).map(function(o){return o.textContent}).join(' | '),"
+    + " sel:s.value};})()");
+  check('㉜c 事件边=条件里的「游戏事件」那一项（4 个选项 · 选中它 · 且**事件本身可选**）',
+    k32 && k32.n === 4 && k32.vals[k32.n - 1] === 'event' && k32.sel === 'event'
+      && k32.oldChk === false
+      && k32b && k32b.n >= 2 && k32b.vals.indexOf('takeoff-trigger') >= 0 && k32b.vals.indexOf('land-trigger') >= 0
+      && String(k32b.txt).indexOf('起飞') >= 0 && String(k32b.txt).indexOf('落地') >= 0,
+    JSON.stringify(k32) + ' 事件下拉=' + JSON.stringify(k32b));
+  // 换一个事件 ⇒ 真的写进数据；换成一个"没有 C# 会来问"的时刻 ⇒ 校验给提示（不挡选择）
+  const sw32 = await ev("(function(){var s=document.getElementById('f-evt');var before=edges[edges.length-1].pred;"
+    + "s.value='land-trigger'; s.onchange({target:{value:'land-trigger'}});"
+    + "return {before:before, after:edges[edges.length-1].pred};})()");
+  check('㉜c-2 事件下拉**真能改**（改了写进边，不是摆设）',
+    sw32 && sw32.before !== sw32.after && sw32.after === 'land-trigger', JSON.stringify(sw32));
   await ev("edges.length = " + ne32 + "; pending=null; drag=null; sel=null; notice=''; commit()");
   check('㉜d 清理干净（边数回到基线）', (await ev("edges.length")) === ne32, 'edges=' + await ev("edges.length"));
 
@@ -621,40 +737,60 @@ try {
   await ev("closeCtx(); setActive(0); sel={type:'edge', id:edges.findIndex(function(x){return x.from==='outside'})}; render()");
   await sleep(220);
   const txt32 = await ev("document.getElementById('editor').textContent || ''");
-  check('㉜e 相位边面板写人话：点明进机「写『起飞』即可」+ 选项是「起飞 —— 空中按跳跃（进机）」（不再甩 c=>false）',
-    String(txt32).indexOf('写「起飞」即可') >= 0 && String(txt32).indexOf('空中按跳跃') >= 0
+  check('㉜e 事件边面板写人话：事件选项是人话（「起飞 —— 空中按跳跃那一刻」），不再甩 c=>false',
+    String(txt32).indexOf('空中按跳跃') >= 0 && String(txt32).indexOf('板触地') >= 0
       && String(txt32).indexOf('=> false') < 0,
     String(txt32).replace(/\s+/g, ' ').slice(0, 120));
+  // ㉜f 用户实测："我就是想动画播完之后继续播连线的下一个" —— 面板必须**直接给出答案**：
+  //     条件选「动画 · finished」；并且说清「演完才进」**是门不是触发**（勾了条件仍要成立，两者是"与"）。
+  //     🔴 再问一次"这个该写什么"就是这条没做到位。
+  check('㉜f 面板直接答"播完就进该写什么"：用「剩余 < 15」这种值；「演完才进」是门不是触发（与的关系）',
+    String(txt32).indexOf('播完就进') >= 0 && String(txt32).indexOf('不是"触发"') >= 0
+      && String(txt32).indexOf('finish-margin') >= 0,
+    String(txt32).replace(/\s+/g, ' ').slice(0, 90));
+  const ph32 = await ev("(function(){var a=document.getElementById('f-after'); if(!a) return null;"
+    + "var p=document.getElementById('f-phase');"
+    + "return {afterDisabled:a.disabled, afterLabel:(a.parentElement.textContent||'').slice(0,40),"
+    + " oldChk: !!p};})()");
+  check('㉜g 事件边上「演完才进」标成用不到并禁掉；且**不再有独立的"事件驱动"复选框**',
+    ph32 && ph32.afterDisabled === true && String(ph32.afterLabel).indexOf('用不到') >= 0
+      && ph32.oldChk === false, JSON.stringify(ph32));
+  // 🔴 复选框不能被撑成整行宽（全局 `input{width:100%}` 的漏网项）—— 用户截图里"取反（不是这样）"
+  //    的文字被推到面板最右边就是这么来的。判据：勾选框的宽度要远小于它所在的 label。
+  const ckBox = await ev("(function(){var i=document.getElementById('f-not');if(!i)return null;"
+    + "var r=i.getBoundingClientRect(), l=i.parentElement.getBoundingClientRect();"
+    + "return {w:Math.round(r.width), lw:Math.round(l.width)};})()");
+  check('复选框没被撑成整行宽（标签文字不会被推到面板另一头）',
+    ckBox && ckBox.w > 0 && ckBox.w < 40 && ckBox.lw > ckBox.w, JSON.stringify(ckBox));
 
-  // ㉝ 相位边也能写「动画 · 剩余 %」，而且**导出成真的条件**（相位会读它 ⇒ 出机判据）
+
+  // ㉝ 事件边也能写「动画 · 剩余 %」，而且**导出成真的条件**（相位会读它 ⇒ 出机判据）
   //    用**当时确实存在**的状态（`超人落地` 在前面 ⑭ 已被改名成 `超人落地` —— 上次这里就是踩了这个）
   await ev("closeCtx(); setActive(0); sel=null; render()");
   const ne33 = await ev("edges.length");
   await ev("addEdge('超人落地','outside')");
   await sleep(250);
-  // 🔴 出机边现在是普通边 ⇒ 先**勾上「相位驱动」**（用户路径 = 面板上的复选框），再验下面两条
-  await ev("(function(){var c=document.getElementById('f-phase'); c.checked=true; c.onchange({target:{checked:true}});})()");
-  await sleep(250);
-  check('㉝ 相位边选「按键」被禁（相位读不到按键），但「动画」档是开的',
-    (await ev("(function(){var k=document.getElementById('f-kind');return !!k && k.options[0].disabled===true && k.options[1].disabled===false;})()")) === true, '');
+  // 🔴 出机边新建出来是**普通边**（默认按键）⇒ 把「条件」选成「动画 · 剩余 %」，
+  //    这一步会**自动**把它变成事件边（出机那个数只有 C# 会读）—— 也正是下面要验的。
+  const ph0 = await ev("edges[" + ne33 + "].event");            // 新建出来是**普通边**（默认 Space 出机）
   await ev("(function(){var k=document.getElementById('f-kind');k.value='anim';k.onchange({target:{value:'anim'}});})()");
   await sleep(300);
-  await ev("(function(){var a=document.getElementById('f-anim');a.value='remaining';a.onchange({target:{value:'remaining'}});})()");
-  await sleep(300);
+  check('㉝ 出机边把条件改成「动画 · 剩余 %」⇒ **自动变成事件边**（那个数只有 C# 会读）',
+    ph0 === false && (await ev("edges[" + ne33 + "].event === true")), '改前 event=' + ph0);
   await ev("(function(){var el=document.getElementById('f-lt');el.value='10';el.onchange({target:{value:'10'}});})()");
   await sleep(300);
   const x33 = await ev("edgesXml().split('\\n')[" + ne33 + "]");
-  check('㉝b 导出成 anim="remaining" anim-rem-pct="10" phase="true"',
+  check('㉝b 导出成 anim="remaining" anim-rem-pct="10" event="true"',
     String(x33).indexOf('anim="remaining"') >= 0 && String(x33).indexOf('anim-rem-pct="10"') >= 0
-      && String(x33).indexOf('phase="true"') >= 0, 'xml=' + x33);
-  check('㉝c 相位边写动画条件 ⇒ 校验 0 问题（它是真的，不是误导）',
+      && String(x33).indexOf('event="true"') >= 0, 'xml=' + x33);
+  check('㉝c 事件边写动画条件 ⇒ 校验 0 问题（它是真的，不是误导）',
     (await ev("(function(){return validate().filter(function(x){return x.indexOf('相位')>=0 || x.indexOf('anim-rem-pct')>=0}).length===0;})()")) === true,
     await ev("JSON.stringify(validate())"));
   await ev("edges.length = " + ne33 + "; pending=null; drag=null; sel=null; notice=''; commit()");
 
   // ㉞ 按键改成**勾选框**：多选 = 同时按着（组合），另有统一的「取反」
   //    用户原话："这四个模式没看懂" + "我还是希望你能够让我来写按键组合以及not否定"
-  await ev("closeCtx(); setActive(0); edges.push({from:'idle',to:'hovermove',kind:'key',keys:'W',blend:'',after:false,phase:false,not:false}); sel={type:'edge',id:edges.length-1}; render()");
+  await ev("closeCtx(); setActive(0); edges.push({from:'idle',to:'hovermove',kind:'key',keys:'W',blend:'',after:false,event:false,not:false}); sel={type:'edge',id:edges.length-1}; render()");
   await sleep(250);
   check('㉞ 按键是**勾选框**（8 个键 + 取反），没有"模式"下拉了',
     (await ev("(function(){return document.querySelectorAll('#f-args input[data-k]').length===8 && !!document.getElementById('f-not') && document.getElementById('f-mode')===null && document.getElementById('f-key')===null;})()")) === true,
@@ -678,24 +814,24 @@ try {
   await ev("closeCtx(); setActive(0); elistAll=true; sel=null; render()");
   const ne35 = await ev("edges.length");
   check('㉟ 校验能抓「互为反向、条件相同 ⇒ 互踢」',
-    (await ev("(function(){edges.push({from:'idle',to:'超人落地',kind:'pred',pred:'move-input',blend:'',after:false,phase:false});"
-      + "edges.push({from:'超人落地',to:'idle',kind:'pred',pred:'move-input',blend:'',after:false,phase:false});"
+    (await ev("(function(){edges.push({from:'idle',to:'超人落地',kind:'pred',pred:'move-input',blend:'',after:false,event:false});"
+      + "edges.push({from:'超人落地',to:'idle',kind:'pred',pred:'move-input',blend:'',after:false,event:false});"
       + "var bad=validate().some(function(x){return x.indexOf('互踢')>=0});"
       + "edges.length=" + ne35 + ";commit();return bad;})()")) === true, '');
   check('㉟b 校验能抓「完全重复的边」',
-    (await ev("(function(){edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'move-input',blend:'',after:false,phase:false});"
-      + "edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'move-input',blend:'',after:false,phase:false});"
+    (await ev("(function(){edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'move-input',blend:'',after:false,event:false});"
+      + "edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'move-input',blend:'',after:false,event:false});"
       + "var bad=validate().some(function(x){return x.indexOf('完全重复')>=0});"
       + "edges.length=" + ne35 + ";commit();return bad;})()")) === true, '');
   check('㉟c 校验能抓「同来源 + 同条件（目标不同）⇒ 后面那条永远轮不到」',
-    (await ev("(function(){edges.push({from:'idle',to:'超人落地',kind:'pred',pred:'move-input',blend:'',after:false,phase:false});"
-      + "edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'move-input',blend:'',after:false,phase:false});"
+    (await ev("(function(){edges.push({from:'idle',to:'超人落地',kind:'pred',pred:'move-input',blend:'',after:false,event:false});"
+      + "edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'move-input',blend:'',after:false,event:false});"
       + "var bad=validate().some(function(x){return x.indexOf('永远轮不到')>=0});"
       + "edges.length=" + ne35 + ";commit();return bad;})()")) === true, '');
-  // ㊱ 相位触发器（真身 `c => false`）用在**非相位边**上 = 死边
-  //    用户实测：`冲刺飞行 → 超人落地` 写了 takeoff-trigger 却没勾相位驱动
-  check('㊱ 校验能抓「相位触发器用在没勾相位驱动的边上 ⇒ 永远不会生效」',
-    (await ev("(function(){edges.push({from:'idle',to:'超人落地',kind:'pred',pred:'takeoff-trigger',blend:'',after:false,phase:false});"
+  // ㊱ 相位触发器（真身 `c => false`）用在**非事件边**上 = 死边
+  //    用户实测：`冲刺飞行 → 超人落地` 写了 takeoff-trigger 却没勾事件驱动
+  check('㊱ 校验能抓「相位触发器用在没勾事件驱动的边上 ⇒ 永远不会生效」',
+    (await ev("(function(){edges.push({from:'idle',to:'超人落地',kind:'pred',pred:'takeoff-trigger',blend:'',after:false,event:false});"
       + "var bad=validate().some(function(x){return x.indexOf('永远不会生效')>=0});"
       + "edges.length=" + ne35 + ";commit();return bad;})()")) === true, '');
   await ev("sel=null; notice=''; commit()");
@@ -711,37 +847,42 @@ try {
 
   // ㊳ Entry 也能**自己连**（用户："难道不是应该我自己连 entry-idle吗"）——
   //    容器页里从 Entry 右侧绿点拉线，落到成员状态 ⇒ 设置容器的 entry
-  await ev("closeCtx(); tabs=[{kind:'root'},{kind:'group',id:groups[0].name}]; setActive(1); sel=null; render()");
+  //    🔴 夹具**从当前 XML 现挑**：挑"有 ≥2 个直接状态成员"的容器，先把 entry 设成第 1 个，
+  //       再拖线到第 2 个 ⇒ 这样断言"entry 真的变了"才有意义（写死名字会指着空气，本轮就挂在这）。
+  const g38 = await ev("(function(){var gi=" + G2 + "; var ms=" + G2M + "; window.__old38=groups[gi].entry;"
+    + "groups[gi].entry=ms[0]; return {i:gi, from:ms[0], to:ms[1]};})()");
+  await ev("closeCtx(); tabs=[{kind:'root'},{kind:'group',id:groups[" + g38.i + "].name}]; setActive(1); sel=null; render()");
   await sleep(320);
-  const old38 = await ev("groups[0].entry");
-  const mem38 = await ev("groups[0].members[0]");
   const ep38 = await centerOf('[data-entry]');
   check('㊳ 容器页的 Entry 盒有出边绿点（可以自己连入口）', ep38 !== null, JSON.stringify(ep38));
-  const nd38 = await centerOf('.node[data-n="' + mem38 + '"]');
+  const nd38 = await centerOf('.node[data-n="' + g38.to + '"]');
   if (ep38 && nd38) await dragFrom(ep38, nd38.x - ep38.x, nd38.y - ep38.y);
   await sleep(220);
-  check('㊳b 从 Entry 拉线落到成员 ⇒ 容器入口改成它',
-    (await ev("groups[0].entry")) === mem38,
-    'entry=' + await ev("groups[0].entry") + '（期望 ' + mem38 + '，原来 ' + old38 + '）');
-  await ev("groups[0].entry = " + JSON.stringify(old38) + "; closeCtx(); setActive(0); tabs=[{kind:'root'}]; sel=null; notice=''; commit()");
+  check('㊳b 从 Entry 拉线落到**另一个成员** ⇒ 容器入口改成它',
+    (await ev("groups[" + g38.i + "].entry")) === g38.to,
+    'entry=' + await ev("groups[" + g38.i + "].entry") + '（期望 ' + g38.to + '，原来 ' + g38.from + '）');
+  await ev("groups[" + g38.i + "].entry = window.__old38; closeCtx(); setActive(0); tabs=[{kind:'root'}]; sel=null; notice=''; commit()");
   await sleep(220);
 
   // ㊳c~㊳e **真嵌套**（用户："我想把这俩个组成一个新的子容器 看起来做不到"）
-  await ev("closeCtx(); setActive(1); tabs=[{kind:'root'},{kind:'group',id:groups[0].name}]; sel={type:'group',id:groups[0].name}; render()");
+  const nest38 = await ev("(function(){var gi=" + G2 + "; var ms=" + G2M + "; return ms.slice(0,2);})()");
+  await ev("closeCtx(); setActive(1); tabs=[{kind:'root'},{kind:'group',id:groups[" + g38.i + "].name}];"
+    + "sel={type:'group',id:groups[" + g38.i + "].name}; render()");
   await sleep(300);
   const ng38 = await ev("(function(){var b=document.getElementById('g-sub'); if(!b) return ''; b.onclick(); return groups[groups.length-1].name;})()");
   await sleep(300);
   check('㊳c 容器页有「＋ 新建子容器」⇒ 父容器的成员里多了一个**容器名**',
-    !!ng38 && (await ev("(groups[0].members||[]).indexOf(" + JSON.stringify(ng38) + ")>=0")) === true,
+    !!ng38 && (await ev("(groups[" + g38.i + "].members||[]).indexOf(" + JSON.stringify(ng38) + ")>=0")) === true,
     '子容器=' + ng38);
   await ev("(function(){var sub=" + JSON.stringify(ng38) + ";var s=groupByName[sub];"
-    + "['hovermoveLeanL','hovermoveLeanR'].forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});s.members.push(m);});"
-    + "s.entry='hovermoveLeanL'; groups[0].entry=sub; commit();})()");
+    + "var ms=" + JSON.stringify(nest38) + ";"
+    + "ms.forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});s.members.push(m);});"
+    + "s.entry=ms[0]; groups[" + g38.i + "].entry=sub; commit();})()");
   await sleep(300);
   check('㊳d 嵌套后：两状态成为**子容器的直接成员**，父的**叶子展开**里仍然有它们',
-    (await ev("(groups[0].members||[]).indexOf('hovermove')<0")) === true
-      && (await ev("leafStatesOf(groups[0].name).indexOf('hovermoveLeanL')>=0")) === true
-      && (await ev("parentGroupOf('hovermoveLeanL')")) === ng38,
+    (await ev("(groups[" + g38.i + "].members||[]).indexOf(" + JSON.stringify(nest38[0]) + ")<0")) === true
+      && (await ev("leafStatesOf(groups[" + g38.i + "].name).indexOf(" + JSON.stringify(nest38[0]) + ")>=0")) === true
+      && (await ev("parentGroupOf(" + JSON.stringify(nest38[0]) + ")")) === ng38,
     '子成员=' + await ev("JSON.stringify(groupByName[" + JSON.stringify(ng38) + "].members)"));
   check('㊳e 嵌套 + entry 指向子容器 ⇒ 校验 0 问题（入口链最终落到状态）',
     (await ev("validate().length")) === 0, JSON.stringify(await ev("validate()")));
@@ -786,15 +927,19 @@ try {
   //    ② `fit()/allBoxes()` 必须排除「嵌套但本页不可见」的盒子（实测总览收了 **22** 个，本页只画 7 个）
   //    ③ 容器页的边要按**叶子语义**画、并把「子容器内部」的边折叠（和总览同一套判据）
   //       （原来用直接成员判 ⇒ 目标落在子容器里的边**整条消失**：悬浮飞行 页 13 条只画了 9 条）
-  const P39 = await ev("groups[0].name");
+  //    🔴 夹具**从当前 XML 现挑**（`G3` = 有 ≥3 个直接状态成员的容器；A/B 搬进子容器、C 留在父里）
+  const P39 = await ev("groups[" + G3 + "].name");
+  const S39 = await ev("(function(){var ms=" + G3M + "; return ms.slice(0,3);})()");
+  const S39A = S39[0], S39B = S39[1], S39C = S39[2];
   await ev("closeCtx(); setActive(1); tabs=[{kind:'root'},{kind:'group',id:" + JSON.stringify(P39)
     + "}]; sel={type:'group',id:" + JSON.stringify(P39) + "}; render()");
   await sleep(300);
   const NG39 = await ev("(function(){var b=document.getElementById('g-sub'); if(!b) return ''; b.onclick(); return groups[groups.length-1].name;})()");
   await sleep(300);
   await ev("(function(){var sub=" + JSON.stringify(NG39) + ";var s=groupByName[sub];"
-    + "['hovermoveLeanL','hovermoveLeanR'].forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});s.members.push(m);});"
-    + "s.entry='hovermove'; groups[0].entry=sub; groups.forEach(function(g){if(g.entry&&(g.members||[]).indexOf(g.entry)<0)g.entry='';}); sel=null; commit();})()");
+    + JSON.stringify([S39A, S39B]) + ".forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});s.members.push(m);});"
+    + "s.entry=" + JSON.stringify(S39B) + "; groups[groupIndexOf(" + JSON.stringify(P39) + ")].entry=sub;"
+    + "groups.forEach(function(g){if(g.entry&&(g.members||[]).indexOf(g.entry)<0)g.entry='';}); sel=null; commit();})()");
   await sleep(320);
 
   const ov39 = await ev("(function(){var t=tabs[active];var bs=[];"
@@ -815,21 +960,23 @@ try {
     b39 && b39.n === b39.want && !b39.hasChild,
     '收到 ' + (b39 && b39.n) + ' 个（应 ' + (b39 && b39.want) + '）· 含子容器盒=' + (b39 && b39.hasChild));
 
+  //    🔴 三条边都用**现挑的名字**：`S39C`（还留在父容器里的直接成员）→ `S39B`（已进子容器）= 跨容器边；
+  //       `S39A` → `S39B` = 子容器**内部**边（父页该折叠）。名字写死就会指着空气（本轮 11 条就是这么挂的）。
   const c39 = await ev("(function(){closeCtx();tabs=[{kind:'root'},{kind:'group',id:" + JSON.stringify(P39)
     + "}];setActive(1);sel=null;render();var n0=edges.length;"
-    + "edges.push({from:'hovermovePitchU',to:'idle',kind:'pred',pred:'move-input',blend:'',after:false,phase:false});var iIn=n0;"
-    + "edges.push({from:'idle',to:'hovermove',kind:'pred',pred:'move-input',blend:'',after:false,phase:false});var iIn2=n0+1;"
+    + "edges.push({from:" + JSON.stringify(S39C) + ",to:" + JSON.stringify(S39B) + ",kind:'pred',pred:'move-input',blend:'',after:false,event:false});var iIn=n0;"
+    + "edges.push({from:" + JSON.stringify(S39A) + ",to:" + JSON.stringify(S39B) + ",kind:'pred',pred:'move-input',blend:'',after:false,event:false});var iIn2=n0+1;"
     + "render();var dr=[].slice.call(document.querySelectorAll('.edge')).map(function(g){return +g.getAttribute('data-i');});"
     + "var p=document.querySelector('.edge[data-i=\"'+iIn+'\"] .main').getAttribute('d');"
-    + "var hs=nodeRect('hovermovePitchU');var want='M '+(hs.x+hs.w)+' '+(hs.y+hs.h/2);"
+    + "var hs=nodeRect(" + JSON.stringify(S39C) + ");var want='M '+(hs.x+hs.w)+' '+(hs.y+hs.h/2);"
     + "var onP=dr.indexOf(iIn)>=0, innerOnP=dr.indexOf(iIn2)>=0, nP=dr.length;"
-    + "var ab=anchorOf('idle', tabs[active]);"
+    + "var ab=anchorOf(" + JSON.stringify(S39B) + ", tabs[active]);"
     + "var end2=(ab.x-10)+' '+(ab.y+ab.h/2);"                     // 箭头落在子容器盒的左中点
     + "var endOK=String(p).indexOf(end2)>=0;"
-    + "openTab({kind:'group',id:parentGroupOf('idle')});render();"
+    + "openTab({kind:'group',id:parentGroupOf(" + JSON.stringify(S39B) + ")});render();"
     + "var dc=[].slice.call(document.querySelectorAll('.edge')).map(function(g){return +g.getAttribute('data-i');});"
     + "var innerOnC=dc.indexOf(iIn2)>=0, nC=dc.length;"
-    + "var childInfo=(tabs[active].kind+':'+(tabs[active].id||''))+' leaf='+leafStatesOf(childGroupsOf(groups[0].name)[0]).join(',')+' drawn='+dc.join(',');"
+    + "var childInfo=(tabs[active].kind+':'+(tabs[active].id||''))+' leaf='+leafStatesOf(childGroupsOf(" + JSON.stringify(P39) + ")[0]).join(',')+' drawn='+dc.join(',');"
     + "edges.length=n0;setActive(1);tabs=[{kind:'root'},{kind:'group',id:" + JSON.stringify(P39) + "}];sel=null;render();"
     + "return {onP:onP,endOK:endOK,end2:end2,got:String(p).slice(0,30),full:String(p),childInfo:childInfo,"
     + "innerOnP:innerOnP,innerOnC:innerOnC,nP:nP,nC:nC};})()");
@@ -855,28 +1002,29 @@ try {
   // ㊷d ⓿′ todo#2：**用真鼠标把"真嵌套"走一遍**（不是直接调函数）
   await ev("closeCtx(); setActive(1); tabs=[{kind:'root'},{kind:'group',id:" + JSON.stringify(P39) + "}]; sel=null; render();"
     // 🔴 取景要**算**出来：被拖的节点 + 目标盒子都必须在画面里（写死 k 时，多一个子容器就把它挤出屏幕）
-    + "(function(){var nb=nodeRect('hovermovePitchU'), cb=groupBox(groupIndexOf(" + JSON.stringify(NG39) + "), groupByName[" + JSON.stringify(NG39) + "]);"
+    + "(function(){var nb=nodeRect(" + JSON.stringify(S39C) + "), cb=groupBox(groupIndexOf(" + JSON.stringify(NG39) + "), groupByName[" + JSON.stringify(NG39) + "]);"
     + "var x0=Math.min(nb.x,cb.x)-40, x1=Math.max(nb.x+nb.w,cb.x+cb.w)+40, y0=Math.min(nb.y,cb.y)-40, y1=Math.max(nb.y+nb.h,cb.y+cb.h)+40;"
     + "var r=svg.getBoundingClientRect(); view.k=Math.max(0.35, Math.min(0.95,(r.width-90)/(x1-x0),(r.height-90)/(y1-y0)));"
     + "view.tx=45-x0*view.k; view.ty=45-y0*view.k; applyView();})()");
   await sleep(320);
-  const n39 = await centerOf('.node[data-n="hovermovePitchU"]');
+  const n39 = await centerOf('.node[data-n="' + S39C + '"]');
   // 🔴 拖拽是「**左上角**跟着鼠标」；落点判定用的是**节点的中心点**。
   //    所以位移要按"中心 → 子容器盒中心"算，不然中心会正好落在盒子外面（差半个节点宽）。
-  const dl39 = await ev("(function(){var nb=nodeRect('hovermovePitchU');var cb=groupBox(groupIndexOf("
+  const dl39 = await ev("(function(){var nb=nodeRect(" + JSON.stringify(S39C) + ");var cb=groupBox(groupIndexOf("
     + JSON.stringify(NG39) + "), groupByName[" + JSON.stringify(NG39) + "]);"
     + "return {dx:Math.round(((cb.x+cb.w/2)-(nb.x+nb.w/2))*view.k), dy:Math.round(((cb.y+cb.h/2)-(nb.y+nb.h/2))*view.k)};})()");
   if (n39 && dl39) await dragFrom(n39, dl39.dx, dl39.dy);
   check('㊷d 真鼠标把状态拖进**子容器盒** ⇒ 归属变成子容器（父的直接成员里移出、父的叶子展开里仍在）',
-    (await ev("groupByName[" + JSON.stringify(NG39) + "].members.indexOf('hovermovePitchU')>=0")) === true
-      && (await ev("groups[0].members.indexOf('hovermovePitchU')<0")) === true
-      && (await ev("leafStatesOf(groups[0].name).indexOf('hovermovePitchU')>=0")) === true,
-    '子成员=' + await ev("JSON.stringify(groupByName[" + JSON.stringify(NG39) + "].members)") + ' 父的直接成员=' + await ev("JSON.stringify(groups[0].members)"));
+    (await ev("groupByName[" + JSON.stringify(NG39) + "].members.indexOf(" + JSON.stringify(S39C) + ")>=0")) === true
+      && (await ev("groups[groupIndexOf(" + JSON.stringify(P39) + ")].members.indexOf(" + JSON.stringify(S39C) + ")<0")) === true
+      && (await ev("leafStatesOf(" + JSON.stringify(P39) + ").indexOf(" + JSON.stringify(S39C) + ")>=0")) === true,
+    '子成员=' + await ev("JSON.stringify(groupByName[" + JSON.stringify(NG39) + "].members)") + ' 父的直接成员=' + await ev("JSON.stringify(groups[groupIndexOf(" + JSON.stringify(P39) + ")].members)"));
   await ev("(function(){var sub=" + JSON.stringify(NG39) + ";var s=groupByName[sub];"
-    + "var back=s.members.slice();"                                   // 🔴 全部还回去（含 hovermove），别漏
+    + "var back=s.members.slice();"                                   // 🔴 全部还回去（含子容器名），别漏
+    + "var P=groupByName[" + JSON.stringify(P39) + "];"
     + "groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==sub;});});"
-    + "back.forEach(function(m){if(groups[0].members.indexOf(m)<0)groups[0].members.push(m);});"
-    + "groups[0].entry='hovermove'; groups=groups.filter(function(g){return g.name!==sub;});"
+    + "back.forEach(function(m){if(P.members.indexOf(m)<0)P.members.push(m);});"
+    + "groups=groups.filter(function(g){return g.name!==sub;});"
     + "reindex(); sel=null; tabs=[{kind:'root'}]; setActive(0); view.k=1; view.tx=0; view.ty=0; notice=''; commit();})()");
   await sleep(250);
   // ㊸ 用户实测："我新建一个子容器改名叫loco之后 他就不见了"
@@ -929,13 +1077,16 @@ try {
   // ㊺ 用户实测提问："我现在怎么把这俩个塞到子容器里？" ——
   //    「拖」本来就能用（下面的 ㊺d 用真鼠标验），但**看不出来**。所以补一条看得见的路：
   //    右键状态 / 容器盒 → 「移进容器…」→ 选目标（含"移出容器"与防环）。
-  const ng45 = await ev("(function(){var g=groups[0];sel={type:'group',id:g.name};render();"
+  //    🔴 名字全从当前 XML 现挑：`P45` = 有 ≥2 状态成员的容器，`S45` = 它的第一个状态成员。
+  const P45 = await ev("groups[" + G2 + "].name");
+  const S45 = await ev(G2M + "[0]");
+  const ng45 = await ev("(function(){var g=groupByName[" + JSON.stringify(P45) + "];sel={type:'group',id:g.name};render();"
     + "document.getElementById('g-sub').onclick(); return groups[groups.length-1].name;})()");
   await sleep(320);
-  await ev("closeCtx(); setActive(1); if(!tabs[active]||tabs[active].kind!=='group'){tabs=[{kind:'root'},{kind:'group',id:groups[0].name}];setActive(1);} render()");
+  await ev("closeCtx(); tabs=[{kind:'root'},{kind:'group',id:" + JSON.stringify(P45) + "}]; setActive(1); sel=null; render()");
   await sleep(250);
   // ① 右键状态 → 菜单里得有「移进容器…」
-  await ev("(function(){var n=document.querySelector('.node[data-n=\"hovermoveLeanL\"]'); var r=n.getBoundingClientRect();"
+  await ev("(function(){var n=document.querySelector('.node[data-n=" + JSON.stringify(S45) + "]'); var r=n.getBoundingClientRect();"
     + "n.dispatchEvent(new MouseEvent('contextmenu',{clientX:Math.round(r.left+r.width/2),clientY:Math.round(r.top+r.height/2),bubbles:true,cancelable:true}));})()");
   await sleep(250);
   const m45 = await ev("[].slice.call(document.querySelectorAll('#ctx .it')).map(function(x){return x.textContent}).join(' | ')");
@@ -945,44 +1096,47 @@ try {
   await sleep(250);
   const sub45 = await ev("[].slice.call(document.querySelectorAll('#ctx .it')).map(function(x){return x.textContent}).join(' | ')");
   check('㊺b 二级菜单列出全部容器（当前所在 / 空容器都能选）',
-    String(sub45).indexOf('悬浮飞行') >= 0 && String(sub45).indexOf(ng45) >= 0, '二级菜单=' + String(sub45));
+    String(sub45).indexOf(P45) >= 0 && String(sub45).indexOf(ng45) >= 0, '二级菜单=' + String(sub45));
   await ev("(function(){var it=[].slice.call(document.querySelectorAll('#ctx .it')).filter(function(e){return e.textContent.indexOf(" + JSON.stringify(ng45) + ")>=0})[0]; if(it) it.click();})()");
   await sleep(300);
   check('㊺c 点一下就**移进**那个子容器（归属变了）',
-    (await ev("parentGroupOf('hovermoveLeanL')")) === ng45, '现在归属=' + (await ev("parentGroupOf('idle')")));
+    (await ev("parentGroupOf(" + JSON.stringify(S45) + ")")) === ng45,
+    '现在归属=' + (await ev("parentGroupOf(" + JSON.stringify(S45) + ")")));
   // ② 移出容器：回到顶层
-  await ev("(function(){var n=document.querySelector('.node[data-n=\"idle\"]')||document.querySelector('.grp[data-g=\"idle\"]');})()");
-  const out45 = await ev("(function(){var id='hovermoveLeanL'; if(!groupByName[parentGroupOf(id)]) return 'ERR';"
+  const out45 = await ev("(function(){var id=" + JSON.stringify(S45) + "; if(!groupByName[parentGroupOf(id)]) return 'ERR';"
     + "pickContainerFor(id); var it=[].slice.call(document.querySelectorAll('#ctx .it')).filter(function(e){return e.textContent.indexOf('移出容器')>=0})[0];"
     + "var has=!!it; if(it) it.click(); return has?String(parentGroupOf(id)):'NO-ITEM';})()");
   check('㊺d 「移出容器（变成顶层）」也在（否则塞进去就出不来了）',
-    out45 === 'null', '移出后 parentGroupOf(hovermoveLeanL)=' + out45);
+    out45 === 'null', '移出后 parentGroupOf(' + S45 + ')=' + out45);
   // ③ 防环：容器不能移进自己的后代
-  const cyc45 = await ev("(function(){pickContainerFor(groups[0].name);"
+  const cyc45 = await ev("(function(){pickContainerFor(" + JSON.stringify(P45) + ");"
     + "var txt=[].slice.call(document.querySelectorAll('#ctx .it')).map(function(x){return x.textContent}).join('|'); closeCtx();"
     + "return {listsOwnChild: txt.indexOf(" + JSON.stringify(ng45) + ")>=0};})()");
-  check('㊺e 防环：容器「悬浮飞行」的候选里**不出现**它自己的子容器',
+  check('㊺e 防环：容器「' + P45 + '」的候选里**不出现**它自己的子容器',
     cyc45.listsOwnChild === false, JSON.stringify(cyc45));
   await resetAll();
-  check('㊺f 收尾干净：子容器已删、两状态回到 悬浮飞行、校验 0 问题',
+  check('㊺f 收尾干净：子容器已删、状态回到原容器、校验 0 问题',
     JSON.stringify(await ev('validate()')) === '[]' && (await ev("groups.length")) === (await ev('DATA.groups.length'))
-      && (await ev("parentGroupOf('hovermoveLeanL')")) === '悬浮飞行',
+      && (await ev("parentGroupOf(" + JSON.stringify(S45) + ")")) === P45,
     JSON.stringify(await ev('validate()')));
 
   // ㊻ 用户实测："我这里 entry 无法连接到子容器上" —— 落点原来只认**状态节点**（`.node`），
   //    把线拖到**子容器盒**上毫无反应；而 `entry` **本来就允许指向子容器**（装载期 `resolveEntry` 递归到状态）。
-  const ng46 = await ev("(function(){var g=groups[0];sel={type:'group',id:g.name};render();"
+  //    🔴 名字现挑：`P46` = 有 ≥2 状态成员的容器，`S46` = 它的头两个成员（搬进子容器）
+  const P46 = await ev("groups[" + G2 + "].name");
+  const S46 = await ev("(function(){var ms=" + G2M + "; return ms.slice(0,2);})()");
+  const ng46 = await ev("(function(){var g=groupByName[" + JSON.stringify(P46) + "];sel={type:'group',id:g.name};render();"
     + "document.getElementById('g-sub').onclick(); var n=groups[groups.length-1].name; var s=groupByName[n];"
-    + "['hovermoveLeanL','hovermoveLeanR'].forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});s.members.push(m);});"
-    + "s.entry='hovermoveLeanL'; reindex(); tabs=[{kind:'root'},{kind:'group',id:g.name}]; setActive(1); render(); fit(); return n;})()");
+    + JSON.stringify(S46) + ".forEach(function(m){groups.forEach(function(o){o.members=(o.members||[]).filter(function(x){return x!==m;});});s.members.push(m);});"
+    + "s.entry=" + JSON.stringify(S46[0]) + "; reindex(); tabs=[{kind:'root'},{kind:'group',id:g.name}]; setActive(1); render(); fit(); return n;})()");
   await sleep(340);
-  // 🔴 量屏幕坐标之前先把布局**恢复默认并统一取景** —— 上面那条用例（㊷d）把 `进入飞行`
+  // 🔴 量屏幕坐标之前先把布局**恢复默认并统一取景** —— 上面那条用例（㊷d）把节点
   //    拖到了世界坐标 (1040,25)（正是子容器盒默认站位 (1060,24) 附近）⇒ 节点**盖在盒子上面**，
   //    `elementFromPoint` 一律被节点接走，entry 就落成了状态而不是容器。
   //    （这就是"测试自己的布局假设也是被测对象"：几何断言前必须构造确定的布局。）
   await ev("pos={}; gpos={}; resetBoxes(); defaultPos(); sel=null; render(); fit()");
   await sleep(320);
-  const base46 = await ev("groupByName[groups[0].name].entry");
+  const base46 = await ev("groupByName[" + JSON.stringify(P46) + "].entry");
   const ep46 = await centerOf('[data-entry]');
   const gb46 = await centerOf('.grp[data-g="' + ng46 + '"]');
   const hit46 = await ev("(function(){var el=document.elementFromPoint(" + (gb46 ? gb46.x : 0) + "," + (gb46 ? gb46.y : 0) + ");"
@@ -991,8 +1145,8 @@ try {
     !!ep46 && !!gb46 && hit46 === ng46, JSON.stringify([ep46, gb46, hit46]));
   if (ep46 && gb46) await dragFrom(ep46, gb46.x - ep46.x, gb46.y - ep46.y);
   check('㊻a 真鼠标：Entry 绿点拖到**子容器盒** ⇒ 入口 = 那个子容器',
-    (await ev("groupByName[groups[0].name].entry")) === ng46,
-    'entry=' + (await ev("groupByName[groups[0].name].entry")) + '（改前 ' + base46 + '）');
+    (await ev("groupByName[" + JSON.stringify(P46) + "].entry")) === ng46,
+    'entry=' + (await ev("groupByName[" + JSON.stringify(P46) + "].entry")) + '（改前 ' + base46 + '）');
   const line46 = await ev("(function(){var p=document.querySelector('.entry-edge path');"
     + "var cb=groupBox(groupIndexOf(" + JSON.stringify(ng46) + "), groupByName[" + JSON.stringify(ng46) + "]);"
     + "return {n:document.querySelectorAll('.entry-edge').length, d:p?String(p.getAttribute('d')):'',"
@@ -1004,15 +1158,16 @@ try {
   // ㊻d 落到空白：给提示且 entry 不变
   const tl46 = await ev("(function(){var r=svg.getBoundingClientRect(); return {x:Math.round(r.left+28), y:Math.round(r.top+28)};})()");
   const ep46b = await centerOf('[data-entry]');
-  const before46 = await ev("groupByName[groups[0].name].entry");
+  const before46 = await ev("groupByName[" + JSON.stringify(P46) + "].entry");
   await ev("notice=''");
   if (ep46b) await dragFrom(ep46b, tl46.x - ep46b.x, tl46.y - ep46b.y);
   check('㊻d 落到空白 ⇒ 有提示、entry 不变',
-    String(await ev("notice")).indexOf('没落到有效目标') >= 0 && (await ev("groupByName[groups[0].name].entry")) === before46,
+    String(await ev("notice")).indexOf('没落到有效目标') >= 0 && (await ev("groupByName[" + JSON.stringify(P46) + "].entry")) === before46,
     'notice=' + (await ev("notice")));
   await resetAll();
   check('㊻e 收尾干净：子容器已删、entry 复原、校验 0 问题',
-    JSON.stringify(await ev('validate()')) === '[]' && (await ev("groupByName[groups[0].name].entry")) === (await ev('DATA.groups[0].entry')), '');
+    JSON.stringify(await ev('validate()')) === '[]'
+      && (await ev("groupByName[" + JSON.stringify(P46) + "].entry")) === (await ev("DATA.groups[groupIndexOf(" + JSON.stringify(P46) + ")].entry")), '');
 
   // ㊼ 用户实测："这里的入口明明是子容器1，为什么写 hovermove" ——
   //    真因两层：① 那行字显示的是容器的 **`entry` 属性**（还是老值 hovermove），不是"线拉到哪"；
@@ -1058,7 +1213,7 @@ try {
 
   check('㊷e 清理干净：子容器已删、状态回到父容器、校验 0 问题',
     (await ev("groups.some(function(g){return g.name===" + JSON.stringify(NG39) + "})")) === false
-      && (await ev("groups[0].members.indexOf('hovermovePitchU')>=0")) === true
+      && (await ev("groups[groupIndexOf(" + JSON.stringify(P39) + ")].members.indexOf(" + JSON.stringify(S39C) + ")>=0")) === true
       && JSON.stringify(await ev('validate()')) === '[]',
     JSON.stringify(await ev('validate()')));
 
@@ -1083,25 +1238,8 @@ try {
   await ev("closeCtx(); tabs=[{kind:'root'}]; setActive(0); sel=null; notice=''; render()");
   await sleep(220);
 
-  // ㊾c/d 导出必须**看得见**（用户实测："我点导出完整 xml 没有反应" ——
-  //    原来只往右侧面板**最下面**那个文本框塞，没滚动、没提示，屏幕外的东西等于没发生）
-  await ev("closeCtx(); tabs=[{kind:'root'}]; setActive(0); sel=null; notice=''; render()");
-  await sleep(220);
-  await ev("(function(){document.getElementById('btn-export-full').onclick();})()");
-  await sleep(250);
-  const ex49 = await ev("(function(){return {len:(document.getElementById('io').value||'').length,"
-    + "notice:(document.getElementById('notice').textContent||'').slice(0,80),"
-    + "head:(document.getElementById('io').value||'').slice(0,30)};})()");
-  check('㊾c 点「导出完整 XML」⇒ 文本框拿到整份 XML，**且面板提示说清去哪拿**',
-    ex49.len > 1500 && String(ex49.notice).indexOf('导出') >= 0, JSON.stringify(ex49));
-  await ev("(function(){document.getElementById('btn-export').onclick();})()");
-  await sleep(220);
-  const ex49b = await ev("(function(){return {len:(document.getElementById('io').value||'').length,"
-    + "notice:(document.getElementById('notice').textContent||'').slice(0,60)};})()");
-  check('㊾d 点「导出边（片段）」同样有反馈', ex49b.len > 200 && String(ex49b.notice).indexOf('边片段') >= 0, JSON.stringify(ex49b));
-
   // ⑩⑪ 本地草稿必须**显眼**（用户实测踩过的坑：草稿静默盖住 XML，看着像"改了没生效"）
-  await ev(`try{const d={states:DATA.states.concat([{name:'magicIdle',act:'act_magic_idle',dur:'',next:'',clip:'magic_idle',durText:'循环'}]),edges:DATA.edges.concat([{from:'*',to:'magicIdle',kind:'pred',pred:'casting-fallback',blend:'0.15',after:false,phase:false}]),groups:DATA.groups,pos:{},view:{k:1.15,tx:30,ty:70},gpos:{}};localStorage.setItem(LSKEY,JSON.stringify(d));}catch(e){}`);
+  await ev(`try{const d={states:DATA.states.concat([{name:'magicIdle',act:'act_magic_idle',dur:'',next:'',clip:'magic_idle',durText:'循环'}]),edges:DATA.edges.concat([{from:'*',to:'magicIdle',kind:'pred',pred:'casting-fallback',blend:'0.15',after:false,event:false}]),groups:DATA.groups,pos:{},view:{k:1.15,tx:30,ty:70},gpos:{}};localStorage.setItem(LSKEY,JSON.stringify(d));}catch(e){}`);
   await send('Page.reload'); await sleep(1600);
   check('⑩ 旧草稿被载入时弹出显眼提示条',
     await ev("document.getElementById('banner').classList.contains('on')"),
@@ -1129,6 +1267,179 @@ try {
   check('⑪ 一键「用 XML 覆盖草稿」后 magicIdle 消失、提示条收起',
     (await ev("states.filter(s=>s.name==='magicIdle').length")) === 0
       && !(await ev("document.getElementById('banner').classList.contains('on')")), '');
+
+  // ── F 组：直接读写文件（打开 XML / 保存 / 另存为）────────────────────
+  // 🔴 无头浏览器**点不了原生对话框** ⇒ 三个 picker 换成**内存文件系统桩**（见上面的 `FSA_STUB`）。
+  await ev(FSA_STUB);
+  // 假状态机：3 状态 / 1 容器 / 2 边（故意与真 XML 不同 —— "载入后页面真的换成它了"才可断言）
+  const FAKE = "['<state_machine name=\"probe\">','<states>','  <state name=\"a\" act=\"act_fly_idle\" />',"
+    + "'  <state name=\"b\" act=\"act_fly_hovermove\" once=\"true\" next=\"a\" />',"
+    + "'  <state name=\"c\" act=\"act_fly_fastmove\" />','</states>','<families>',"
+    + "'  <family name=\"G1\" entry=\"a\">a b</family>','</families>','<edges>',"
+    + "'  <edge from=\"outside\" to=\"a\" when=\"takeoff-trigger\" event=\"true\" />',"
+    + "'  <edge from=\"G1\" to=\"c\" keys=\"W\" />','</edges>','</state_machine>']"
+    + ".join(String.fromCharCode(10))";
+
+  // F1 打开 XML…（桩给一份只读句柄）⇒ 页面换成那份文件
+  await ev('window.__vfsSeed(' + FAKE + ')');
+  await ev("document.getElementById('btn-open').click()");
+  await sleep(600);
+  const f1 = await ev("({n: states.length, m: DATA.machine, name: fsx.name, asked: window.__vfs.asked,"
+    + " chip: document.getElementById('fschip').textContent})");
+  check('F1 「打开 XML…」把那份文件载进页面（状态数 / 机器名 / 药丸都跟着变）',
+    f1.n === 3 && f1.m === 'probe' && f1.name === 'flight.xml' && f1.chip.indexOf('flight.xml') >= 0,
+    JSON.stringify(f1));
+  // 🔴 写权限在**打开那一刻**要掉（用户实测："点了保存就应该是覆盖当前文件，不需要再弹窗"）——
+  //    浏览器只在刚点完对话框那一下认手势，留到保存时问 = 卡在"改完就想存"的节骨眼上蹦对话框
+  check('F1c 打开时就问掉写权限（而不是留到保存）', f1.asked === 1, 'asked=' + f1.asked);
+  check('F1b 载入后 `fullXml()` 的模板也换成那份文件（导出 / 恢复 / 黄条比对都跟着它）',
+    await ev("fullXml().indexOf('<state_machine name=\"probe\"') >= 0"), '');
+
+  // F2 保存写回磁盘（页面上改一条边 ⇒ 保存 ⇒ 磁盘内容跟着变）
+  //    🔴 还要过 `requestPermission` —— `showOpenFilePicker` 给的句柄**默认只读**（真实行为）
+  await ev("edges.push({from:'a',to:'b',kind:'key',keys:'Q',blend:'',after:false,event:false,not:false}); commit();");
+  await ev("document.getElementById('btn-save').click()");
+  await sleep(700);
+  const f2 = await ev("({txt: window.__vfs.files['flight.xml'], asked: window.__vfs.asked,"
+    + " note: (document.getElementById('notice').textContent||'')})");
+  check('F2 「保存」把页面现状写回磁盘（含刚加的那条边）',
+    typeof f2.txt === 'string' && f2.txt.indexOf('keys="Q"') >= 0, '磁盘长度 ' + (f2.txt || '').length);
+  check('F2b 「保存」**不再弹任何东西**（打开时已经要过权限了）—— 就是"点保存直接覆盖"',
+    f2.asked === 1 && f2.note.indexOf('已保存到') >= 0, 'asked=' + f2.asked + ' note=' + (f2.note || '').slice(0, 30));
+
+  // F3 另存为：写出新文件，且以后「保存」就写这一份
+  await ev("window.__vfs.saveAsNext = 'copy.xml'; document.getElementById('btn-saveas').click()");
+  await sleep(700);
+  await ev("edges.push({from:'c',to:'a',kind:'key',keys:'Z',blend:'',after:false,event:false,not:false}); commit();"
+    + "document.getElementById('btn-save').click()");
+  await sleep(700);
+  const f3 = await ev("({copy: window.__vfs.files['copy.xml'], name: fsx.name,"
+    + " origin: window.__vfs.files['flight.xml']})");
+  check('F3 「另存为…」写出新文件，之后「保存」写的是新那份（原来那份不动了）',
+    f3.name === 'copy.xml' && typeof f3.copy === 'string' && f3.copy.indexOf('keys="Z"') >= 0
+      && f3.origin.indexOf('keys="Z"') < 0, 'name=' + f3.name);
+
+  // F4 取消对话框 = 正常操作，不报错、不动状态
+  await ev("window.__vfs.abort = true; window.__vfs.files['cancel.xml'] = 'X'; fsx.name = 'copy.xml';"
+    + "document.getElementById('btn-open').click()");
+  await sleep(500);
+  const f4 = await ev("({name: fsx.name, n: states.length, untouched: window.__vfs.files['cancel.xml'],"
+    + " note: (document.getElementById('notice').textContent||'')})");
+  check('F4 在对话框里点取消 ⇒ 什么都不发生（不报错、不改当前文件）',
+    f4.name === 'copy.xml' && f4.n === 3 && f4.untouched === 'X' && f4.note.indexOf('失败') < 0,
+    JSON.stringify(f4));
+  await ev("window.__vfs.abort = null");
+
+  // F6 用户实测那个局面（"为什么我保存完了 xml 还是有这个提示!!!"）：
+  //    草稿与基准不同 ⇒ 黄条弹着 ⇒ 点保存 ⇒ **黄条必须当场收掉**，基准（DATA）跟着换成刚写出去的那份
+  await ev("edges.push({from:'b',to:'c',kind:'key',keys:'E',blend:'',after:false,event:false,not:false});"
+    + "commit(); draftActive = true; draftAck = false; renderDraftBanner();");
+  await sleep(300);
+  const f6a = await ev("(document.getElementById('banner').textContent||'').slice(0,36)");
+  await ev("document.getElementById('btn-save').click()");
+  await sleep(700);
+  const f6b = await ev("({on: document.getElementById('banner').classList.contains('on'),"
+    + " draftActive: draftActive, dataEdges: DATA.edges.length, edges: edges.length,"
+    + " savedName: (savedAt && savedAt.name) || '', disk: window.__vfs.files['copy.xml'].indexOf('keys=\"E\"')})");
+  check('F6 点保存 ⇒ 黄条当场收掉，且基准（DATA）换成刚写出去的那份',
+    f6b.on === false && f6b.draftActive === false && f6b.dataEdges === f6b.edges && f6b.disk >= 0,
+    '保存前黄条=' + JSON.stringify(f6a) + ' 之后=' + JSON.stringify(f6b));
+  check('F6b 记下"上次存到哪一份"（刷新页面后靠它认出草稿已落盘）',
+    f6b.savedName === 'copy.xml', 'savedName=' + f6b.savedName);
+
+  // F6c 🔴 刷新页面（= 用户实际动作）：**不许再弹"你在看草稿、不是 XML"那条警告**，
+  //     而是一条"已经存进 X"的说明 —— 这条就是用户报障的完整路径
+  await send('Page.reload'); await sleep(1800);
+  const f6c = await ev("({on: document.getElementById('banner').classList.contains('on'),"
+    + " ok: document.getElementById('banner').classList.contains('ok'),"
+    + " chip: document.getElementById('fschip').textContent,"
+    + " txt: (document.getElementById('banner').textContent||'').slice(0,60)})");
+  check('F6c 刷新后不再吓人：黄条变成"已经存进 X"的说明（不是"你在看草稿"警告）',
+    f6c.on === true && f6c.ok === true && String(f6c.txt).indexOf('已经存进') >= 0
+      && String(f6c.txt).indexOf('不是 XML') < 0, JSON.stringify(f6c));
+  // 🔴 刷新后**句柄必然丢了**（不能跨会话），药丸只说"未打开"会让人以为"我没加载过"（用户实测问过）
+  //    ⇒ 必须写成"未打开（上次存到 X）"，让人知道内容是哪来的、下一步该点哪。
+  check('F6c-2 刷新后药丸说明"上次存到哪一份"（不是光一句"未打开"）',
+    String(f6c.chip).indexOf('上次存到') >= 0 && String(f6c.chip).indexOf('copy.xml') >= 0,
+    '药丸=' + f6c.chip);
+  await ev("try{localStorage.removeItem(LSKEY)}catch(e){}; draftActive=false; savedAt=null; renderDraftBanner();");
+  await sleep(250);
+
+  // ㉞′ 一次性状态"演完无处可去" = 会停在最后一帧（用户 2026-09-27 问到 next 的语义时补的校验）
+  const lone = await ev("(function(){states.push({name:'_孤星',act:'act_fly_idle',once:true,dur:'',next:'',clip:'?',durText:'一次性'});"
+    + "stateByName['_孤星']=states[states.length-1];"
+    + "var bad=validate().some(function(x){return x.indexOf('_孤星')>=0 && x.indexOf('停在最后一帧')>=0});"
+    + "stateByName['_孤星'].next='idle';"
+    + "var okNow=!validate().some(function(x){return x.indexOf('_孤星')>=0});"
+    + "states=states.filter(function(s){return s.name!=='_孤星'}); delete stateByName['_孤星']; commit();"
+    + "return {bad:bad, okNow:okNow};})()");
+  check('㉞′ 校验能抓「一次性动作演完无处可去」（填了 next 就不再报）',
+    lone && lone.bad === true && lone.okNow === true, JSON.stringify(lone));
+
+  // 图例必须写**怎么设**（用户追问："我没看到演完才进要靠什么东西来设置"）
+  const leg = await ev("(document.querySelector('.legend')||{}).textContent || ''");
+  check('图例三种线都写了"怎么设"（勾边上哪个框），不只是"是什么"',
+    String(leg).indexOf('每个 tick') >= 0 && String(leg).indexOf('条件选「') >= 0
+      && String(leg).indexOf('勾边上的「演完才进」') >= 0, String(leg).replace(/\s+/g, ' ').slice(0, 110));
+  // 🔴 光有 DOM 不算数 —— 它得**真画在画布左下角**、而且**不吃鼠标事件**（否则挡住画布操作）
+  const legBox = await ev("(function(){var el=document.querySelector('.legend');if(!el)return null;"
+    + "var r=el.getBoundingClientRect(), c=document.querySelector('.canvas').getBoundingClientRect();"
+    + "return {x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),"
+    + " inCanvas: r.x>=c.x-1 && r.y>=c.y-1 && r.right<=c.right+1 && r.bottom<=c.bottom+1,"
+    + " pe: getComputedStyle(el).pointerEvents};})()");
+  check('图例真的画在画布左下角（在 canvas 里、有尺寸），且 pointer-events:none',
+    legBox && legBox.inCanvas && legBox.w > 200 && legBox.h > 40 && legBox.pe === 'none',
+    JSON.stringify(legBox));
+
+  // ㊿ 在**容器页**新建 / 粘贴的状态必须归那个容器（用户实测："我在容器里面的画布右键新建状态  //     你给我新建到总览里面去了" —— 不带归属的状态只在总览画 ⇒ 当前页看不见，等于"建丢了"）
+  await resetAll();
+  await sleep(250);
+  const nBefore50 = await ev("states.length");
+  await ev("closeCtx(); sel=null; notice=''; tabs=[{kind:'root'},{kind:'group',id:groups[0].name}]; setActive(1); render()");
+  await sleep(300);
+  await ev("(function(){var svg=document.getElementById('svg');var r=svg.getBoundingClientRect();"
+    + "svg.dispatchEvent(new MouseEvent('contextmenu',{clientX:Math.round(r.left+40),clientY:Math.round(r.top+40),bubbles:true,cancelable:true}));})()");
+  await sleep(300);
+  const menu50 = await ev("[].slice.call(document.querySelectorAll('#ctx .it')).map(function(x){return x.textContent}).join(' | ')");
+  await ev("(function(){var b=[].slice.call(document.querySelectorAll('#ctx .it')).filter(function(x){return /新建状态/.test(x.textContent)})[0]; if(b) b.click();})()");
+  await sleep(350);
+  const r50 = await ev("(function(){var nm=states[states.length-1].name;"
+    + "return {n: states.length, made: nm, parent: parentGroupOf(nm), inPage: stateVisible(nm, tabs[active]),"
+    + " notice: (document.getElementById('notice').textContent||'')};})()");
+  const g0 = await ev("groups[0].name");
+  check('㊿ 容器页画布右键「新建状态」⇒ 新状态**归属当前容器**（当前页就画得出来）',
+    r50.n === nBefore50 + 1 && r50.parent === g0 && r50.inPage === true,
+    JSON.stringify(r50) + ' 菜单=' + String(menu50).slice(0, 60));
+  check('㊿b 菜单标签与提示都说清"放进哪个容器"',
+    String(menu50).indexOf('放进「') >= 0 && String(r50.notice).indexOf('已放进容器') >= 0,
+    String(r50.notice).slice(0, 50));
+
+  // ㊿c 同一个缺陷的第二个入口：**粘贴状态**也要落到当前容器
+  await ev("copyState(states[states.length-1].name); pasteState(200, 200)");
+  await sleep(350);
+  const r50c = await ev("(function(){var nm=states[states.length-1].name;"
+    + "return {made: nm, parent: parentGroupOf(nm), inPage: stateVisible(nm, tabs[active])};})()");
+  check('㊿c 容器页**粘贴状态**同样落到当前容器（不是总览）',
+    r50c.parent === g0 && r50c.inPage === true, JSON.stringify(r50c));
+
+  // ㊿e 反向：**总览**上新建仍然是"顶层"（别修过头 —— 散状态是合法的，比如超人落地那个衔接状态）
+  await ev("closeCtx(); tabs=[{kind:'root'}]; setActive(0); sel=null; notice=''; render(); newState(600, 600)");
+  await sleep(350);
+  const r50e = await ev("(function(){var nm=states[states.length-1].name;"
+    + "return {parent: parentGroupOf(nm), inPage: stateVisible(nm, tabs[active]),"
+    + " notice: (document.getElementById('notice').textContent||'')};})()");
+  check('㊿e 总览上新建状态 ⇒ 仍是顶层（不属于任何容器）',
+    r50e.parent === null && r50e.inPage === true && String(r50e.notice).indexOf('顶层') >= 0,
+    JSON.stringify(r50e));
+
+  // ㊿d 清干净（两个新状态删掉、回总览）
+  await ev("(function(){states.map(function(s){return s.name}).filter(function(n){return /新状态|_copy/.test(n)})"
+    + ".forEach(function(n){ if(stateByName[n]) removeState(n); });"
+    + "closeCtx(); tabs=[{kind:'root'}]; setActive(0); sel=null; render();})()");
+  await resetAll();
+  await sleep(250);
+  const r50d = await ev("({states: states.length, problems: validate().length})");
+  check('㊿d 收尾干净：临时状态已删、校验 0 问题', r50d.problems === 0, JSON.stringify(r50d));
 } catch (e) {
   check('驱动异常', false, e.message);
 } finally {

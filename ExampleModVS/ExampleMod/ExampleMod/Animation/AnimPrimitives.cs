@@ -57,7 +57,7 @@ namespace LivingWorldNpcs.Animation
         //    ⇒ 组合与否定**都能写**，而且**不是自由文本**：每个键都能在装载期校验（写错就整台不注册）。
 
         /// <summary>可用的动画条件：`finished` = 演完；`remaining` = 剩余不足阈值（要配 <c>anim-rem-pct</c>，**百分比 0~100**）。</summary>
-        public static readonly string[] Anims = { "finished", "remaining" };
+        public static readonly string[] Anims = { "remaining" };
 
         public const int KeyCount = 8;   // 必须等于 Keys.Length
 
@@ -141,8 +141,13 @@ namespace LivingWorldNpcs.Animation
             string a = (anim ?? string.Empty).Trim().ToLowerInvariant();
             if (a == "finished")
             {
-                when = c => Facts(c).AnimRemainFrac <= 0.001f;
-                return true;
+                // 🔴 **`anim="finished"` 已删**（2026-09-27 用户裁定）：它 = "`remaining` + 一个隐含余量"，
+                //    留着就是**两套词汇说同一件事** —— 用户原话："直接删掉演完这个概念，动画播放只保留
+                //    remaining+数字"。⇒ 现在只有一种写法，"播完就进"就写 `anim-rem-pct="15"` 这类值。
+                //    写成旧词 = **这里响亮地报错**（不静默当没写）。
+                error = "`anim=\"finished\"` 已删除 —— 改用 `anim=\"remaining\" anim-rem-pct=\"15\"`"
+                      + "（留一点余量：clip 播完 0 号通道会当场空掉，等真播完再切会从默认姿势开始淡化）";
+                return false;
             }
             if (a == "remaining")
             {

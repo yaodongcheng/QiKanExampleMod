@@ -38,12 +38,6 @@ namespace LivingWorldNpcs.Animation
         /// </summary>
         public float Duration;
 
-        /// <summary>一次性动作播完后去哪个状态（null = 留在原地，让普通转移接管）。</summary>
-        public string Next;
-
-        /// <summary>播完转移用的过渡时长（秒）。</summary>
-        public float NextBlend = 0.25f;
-
         /// <summary>已接？（动作名非空）</summary>
         public bool IsWired => !string.IsNullOrEmpty(Action);
 
@@ -62,6 +56,12 @@ namespace LivingWorldNpcs.Animation
         /// <summary>循环状态。</summary>
         public static AnimState Loop(string name, string action)
             => new AnimState { Name = name, Action = action };
+
+        /// <summary>一次性动作播完后去哪个状态（null = 留在原地，让普通转移接管）。</summary>
+        public string Next;
+
+        /// <summary>播完转移用的过渡时长（秒）。</summary>
+        public float NextBlend = 0.25f;
 
         /// <summary>一次性状态：播完自动去 <paramref name="next"/>。</summary>
         public static AnimState Once(string name, string action, string next, float duration = 0f, float nextBlend = 0.25f)
@@ -104,29 +104,29 @@ namespace LivingWorldNpcs.Animation
         public bool OnlyAfterFinish;
 
         /// <summary>
-        /// **相位驱动**：这条边**不由状态机求值** —— 它由飞行相位（C#）在特定时刻
+        /// **事件驱动**：这条边**不由状态机求值** —— 它由飞行相位（C#）在特定时刻
         /// `Force` 进目标状态（起飞入姿 / 落地）。写进定义只是为了让**表与图完整**：
         /// 让"从哪进、从哪出"在定义里一眼可见，而不是散在 C# 里。
         /// 状态机求值时直接跳过（见 <see cref="AgentAnimStateMachine.Tick"/>）。
         /// </summary>
-        public bool PhaseForced;
+        public bool EventDriven;
 
         /// <summary>
-        /// 相位边上写的**"时刻"名**（`when="takeoff-trigger"` / `when="land-trigger"`）。
+        /// 事件边上写的**"时刻"名**（`when="takeoff-trigger"` / `when="land-trigger"`）。
         ///
-        /// 🔴 普通边的条件是**委托**、用不着名字；相位边单独留下名字，是因为**相位（C#）要按时刻找状态**：
+        /// 🔴 普通边的条件是**委托**、用不着名字；事件边单独留下名字，是因为**相位（C#）要按时刻找状态**：
         ///    "落地这个时刻该 Force 进哪个状态" = 读 `when="land-trigger"` 那条边的 `to`
-        ///     （<see cref="AgentAnimStateMachine.TryPhaseTarget"/>）。
+        ///     （<see cref="AgentAnimStateMachine.TryEventTarget"/>）。
         /// ⚠️ 名字本身**不代表时刻**（那两个谓词的真身是 `c => false`）——
         ///    真正的触发时刻在 C#（起飞 = 空中按空格；落地 = 板顶触地），XML 只说"进哪个状态"。
         /// </summary>
         public string WhenName;
 
         /// <summary>
-        /// **相位边声明的"剩余百分比"**（`anim="remaining" anim-rem-pct="10"` 里那个 10）。
+        /// **事件边声明的"剩余百分比"**（`anim="remaining" anim-rem-pct="10"` 里那个 10）。
         /// &lt;0 = 没声明 ⇒ 调用方（相位）回退到自己的默认判据。
         ///
-        /// 🔴 **为什么相位边要带这个数**：相位边**不由状态机求值**（Tick 里整条跳过），
+        /// 🔴 **为什么事件边要带这个数**：事件边**不由状态机求值**（Tick 里整条跳过），
         ///    但"什么时候出机"仍然需要判据 —— 以前那个判据**硬编码在 C# 里**（手填的 2.0 秒），
         ///    和"长度问 clip"的原则冲突。现在改成**相位去读这条边在 XML 里写的百分比**：
         ///    图上写的 = 实际生效的，换 clip 不用改代码。
@@ -134,15 +134,15 @@ namespace LivingWorldNpcs.Animation
         public float RemainPct = -1f;
 
         public AnimEdgeDef(string[] from, string to, Func<AnimContext, bool> when,
-                           float blend = -1f, bool onlyAfterFinish = false, bool phaseForced = false)
+                           float blend = -1f, bool onlyAfterFinish = false, bool eventDriven = false)
         {
             From = from; To = to; When = when; Blend = blend;
-            OnlyAfterFinish = onlyAfterFinish; PhaseForced = phaseForced;
+            OnlyAfterFinish = onlyAfterFinish; EventDriven = eventDriven;
         }
 
         public AnimEdgeDef(string from, string to, Func<AnimContext, bool> when,
-                           float blend = -1f, bool onlyAfterFinish = false, bool phaseForced = false)
-            : this(new[] { from }, to, when, blend, onlyAfterFinish, phaseForced)
+                           float blend = -1f, bool onlyAfterFinish = false, bool eventDriven = false)
+            : this(new[] { from }, to, when, blend, onlyAfterFinish, eventDriven)
         {
         }
 
@@ -198,6 +198,23 @@ namespace LivingWorldNpcs.Animation
         /// <summary>"引擎把 0 号通道抢走"的核对周期（秒）。</summary>
         public Func<float> RecheckSeconds = () => 0.5f;
 
+        /// <summary>没写 `finish-margin` 时的默认"完成余量"（见 <see cref="FinishMarginFrac"/>）。</summary>
+        public const float DefaultFinishMargin = 0.15f;
+
+        /// <summary>
+        /// **"一次性动作算演完"的余量**（占整条 clip 的比例；`<state_machine finish-margin="0.15">` 可调，0~1）。
+        ///
+        /// 🔴 **为什么要留余量、不等真播完**（2026-09-27 用户裁定，UE 习惯）：
+        ///    `SetActionChannel` 用的是 `blendOutPeriodToNoAnim: 0` ⇒ **clip 一播完，0 号通道当场空掉**
+        ///    （引擎回到走跑 / 默认姿势）。而我们只能**下一个 tick** 才发现"播完了" ⇒ 中间那 1~几帧：
+        ///    ① 看得见地掉回默认姿势；② **更要命 —— 随后的交叉淡化是从"默认姿势"开始的**（不是上一段的收尾），
+        ///    整段过渡都变形。留一点余量在"通道还有动作"的时候切过去，淡化才从**真实姿势**接得上。
+        ///
+        /// 语义：`演完才进`（`after-finish`）/ `演完兜底`（`&lt;state next="…"&gt;`）/ 原语 `anim="finished"`
+        /// 全部按**剩余 ≤ 这个余量**判定。想要"真播完"就写 `anim="remaining" anim-rem-pct="0"`。
+        /// </summary>
+        public float FinishMarginFrac = DefaultFinishMargin;
+
         /// <summary>
         /// 播动作时带上的**优先级**（写进 `additionalFlags` 的低字节，引擎的 `amf_priority_mask = 0xFF`）。
         /// 0 = 不设（引擎按 clip 自带的 `Priority` 字段走）。
@@ -233,9 +250,9 @@ namespace LivingWorldNpcs.Animation
 
         /// <summary>同上，来源多个。</summary>
         public AnimMachineDef Edge(string[] from, string to, Func<AnimContext, bool> when,
-                                   float blend = -1f, bool onlyAfterFinish = false, bool phaseForced = false)
+                                   float blend = -1f, bool onlyAfterFinish = false, bool eventDriven = false)
         {
-            return AddEdge(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish, phaseForced));
+            return AddEdge(new AnimEdgeDef(from, to, when, blend, onlyAfterFinish, eventDriven));
         }
 
         /// <summary>
@@ -261,7 +278,7 @@ namespace LivingWorldNpcs.Animation
         ///    全量扫整张表既是浪费、也会让人误读成"顺序是全局的事"。这里按状态**预先分好并缓存**：
         ///    · 容器来源在**装载期**就展开成叶子状态了（每个成员各进一份）⇒ 这里天然覆盖"父容器的边"
         ///    · 只在**首次进入该状态**时算一次（25 条边 × 十几个状态 = 一次性的几微秒），之后直接命中缓存
-        ///    · 调用方**不要再自己判 `Matches`**（已经筛过了），但 `PhaseForced` 仍要自己跳过
+        ///    · 调用方**不要再自己判 `Matches`**（已经筛过了），但 `EventDriven` 仍要自己跳过
         ///
         /// <see cref="AddEdge"/> 会清缓存 ⇒ 装载期边还没加完就调用也是对的。
         /// </summary>

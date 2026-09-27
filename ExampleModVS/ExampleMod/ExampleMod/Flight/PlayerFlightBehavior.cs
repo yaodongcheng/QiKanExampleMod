@@ -110,7 +110,7 @@ namespace LivingWorldNpcs.Flight
         private bool _takeoffSettled;        // 起飞阶段：玩家是否已经真的站到板上（没站住不抬升）
         private float _takeoffTimer;         // 起飞阶段计时（登板等待用）
         private float _landingApproach;      // 进入落地那一刻的下冲速度（硬着陆按它下降）
-        private string _landPoseState;       // 落地动作的状态名 —— 从 XML 的相位边读（`超人落地 → 机外` 的 from）
+        private string _landPoseState;       // 落地动作的状态名 —— 从 XML 的事件边读（`超人落地 → 机外` 的 from）
         private float _landExitPct = -1f;    // 出机时机（剩余百分比）—— 同上那条边上的 anim-rem-pct；<0 = 没写
         private bool _boardRemoved;          // 落地时板是否已拆（拆了 = 人已站在真实地面）
         private FlightCamPreset _camPreset = FlightCamPreset.Hover;   // 本帧机位（PickCamPreset 写，Tick 用）
@@ -610,7 +610,7 @@ namespace LivingWorldNpcs.Flight
                 // 🔴 **只在没进落地态时才 Force**（2026-09-22 修）：原来每帧无条件 Force 一次，
                 //    后果是 ① 日志里刷出 357 行 `land → land` ② 状态机的抖动自检被它触发（每秒 61 次假警告）
                 //    ③ 更要命的是"每帧重设动作通道会把动画卡在第 0 帧"（方案里记过的坑）。
-                // 🔴 **状态名不在这里**（2026-09-26）：`_landPoseState` 是从 XML 的相位边读出来的
+                // 🔴 **状态名不在这里**（2026-09-26）：`_landPoseState` 是从 XML 的事件边读出来的
                 //    （`<edge from="超人落地" to="outside" …/>` 的 from），编辑器里改名字这边自动跟着变。
                 if (!string.IsNullOrEmpty(_landPoseState) && _anim.Current != _landPoseState)
                     _anim.Force(main, _landPoseState, FlightTuning.AnimBlendIn);
@@ -651,17 +651,17 @@ namespace LivingWorldNpcs.Flight
             _landTimer = 0f;
 
             // 🔴 **触地这一刻才 Force 落地动作，而且从 XML 读它是哪个状态**（2026-09-26）：
-            //      · **落地动作** = `when="land-trigger"` 那条相位边的 `to`
+            //      · **落地动作** = `when="land-trigger"` 那条事件边的 `to`
             //        （`<edge from="冲刺飞行" to="超人落地" when="land-trigger" phase="true"/>`）
             //      · **出机时机**   = `to="outside"` 那条边上的 `anim-rem-pct="20"`
             //      · **"什么时候"** = **本类自己**：板顶触地（硬着陆）——XML 只管"进哪个状态"，
             //        触发时刻在 C#（见本方法上面那段触地判定）。这两半拼起来才是完整的"落地动作"。
             //    定义里没那条边 ⇒ 不接管姿态（Hold 放开），只按 LandAnimSeconds 到点收摊。
-            if (_anim.TryPhaseExit("outside", out string exitState, out float exitPct))
+            if (_anim.TryEventExit("outside", out string exitState, out float exitPct))
             {
                 _landExitPct = exitPct;
                 // 落地动作优先读"落地时刻"那条边声明的状态；没写就用出机边的来源（两者不一致就报一行）
-                string poseState = _anim.TryPhaseTarget(FlightAnimConditions.LandTrigger, out string declared)
+                string poseState = _anim.TryEventTarget(FlightAnimConditions.LandTrigger, out string declared)
                     ? declared
                     : exitState;
                 if (!string.Equals(poseState, exitState, StringComparison.Ordinal))
@@ -680,22 +680,22 @@ namespace LivingWorldNpcs.Flight
                 _anim.Hold = false;
                 _landPoseState = null;
                 _landExitPct = -1f;
-                DebugLogger.Log("[Flight] ⚠️ 定义里没有 `to=\"outside\"` 的相位边 ⇒ 没有落地动作可播" +
-                                "（按 LandAnimSeconds 到点收摊；要落地动作就在 XML 里画一条 机外 的相位边）");
+                DebugLogger.Log("[Flight] ⚠️ 定义里没有 `to=\"outside\"` 的事件边 ⇒ 没有落地动作可播" +
+                                "（按 LandAnimSeconds 到点收摊；要落地动作就在 XML 里画一条 机外 的事件边）");
             }
         }
 
         // ─────────────────────────── 进出 ───────────────────────────
 
         /// <summary>
-        /// **起飞入姿该进哪个状态**（2026-09-26）：① 相位边 `when="takeoff-trigger"` 的 `to`；
+        /// **起飞入姿该进哪个状态**（2026-09-26）：① 事件边 `when="takeoff-trigger"` 的 `to`；
         /// ② 没写那条就用"机外 → X"那条边界边。两者都没有 = false（飞行照常，只是没有入姿动画）。
         /// 🔴 这里**没有任何状态名** —— 状态名只存在于 XML。
         /// </summary>
         private bool TryResolveTakeoffState(out string state)
         {
-            return _anim.TryPhaseTarget(FlightAnimConditions.TakeoffTrigger, out state)
-                   || _anim.TryPhaseEnter("outside", out state);
+            return _anim.TryEventTarget(FlightAnimConditions.TakeoffTrigger, out state)
+                   || _anim.TryEventEnter("outside", out state);
         }
 
         private void BeginTakeoff(Agent main)
@@ -729,7 +729,7 @@ namespace LivingWorldNpcs.Flight
                 ? MBMath.ClampFloat(skip / FlightTuning.TakeoffAnimSeconds, 0f, 0.9f)
                 : 0f;
             // 🔴 **进哪个状态由 XML 说**（2026-09-26）：
-            //    ① 先读相位边 `when="takeoff-trigger"` 的 `to`（图上标着"起飞这个时刻"的那条）
+            //    ① 先读事件边 `when="takeoff-trigger"` 的 `to`（图上标着"起飞这个时刻"的那条）
             //    ② 没有就用"机外 → X"那条边界边
             //    这里**一个字的状态名都不写** —— 编辑器里改名 / 换状态，这边自动跟着走
             //    （教训：`hoverstart` 被改名成 `进入飞行` 之后，写死的 `Force("hoverstart")` 只是安静地不播动画）。
@@ -744,8 +744,8 @@ namespace LivingWorldNpcs.Flight
             {
                 // 定义里没画"机外 → 某状态" ⇒ 不接管姿态，让状态机按转移表自己走（飞行照常，只是没有入姿）
                 _anim.Hold = false;
-                DebugLogger.Log("[Flight] ⚠️ 定义里没有起飞入姿的相位边（`when=\"takeoff-trigger\"` 或 `from=\"outside\"`）" +
-                                " ⇒ 本次起飞没有入姿动画（要入姿就在 XML 里画一条 机外 → 某状态 的相位驱动边）");
+                DebugLogger.Log("[Flight] ⚠️ 定义里没有起飞入姿的事件边（`when=\"takeoff-trigger\"` 或 `from=\"outside\"`）" +
+                                " ⇒ 本次起飞没有入姿动画（要入姿就在 XML 里画一条 机外 → 某状态 的事件驱动边）");
             }
 
             if (FlightTuning.UseFlightCamera)

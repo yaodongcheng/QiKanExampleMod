@@ -42,9 +42,9 @@ namespace LivingWorldNpcs.Animation
     ///     &lt;edge from="Prone" to="dodgeL" keys="Space+A"/&gt;                     ← from = 状态 / 容器（容器 = 它里面任何状态）
     ///     &lt;edge from="Prone" to="dodgeR" keys="Space+D" not="true"/&gt;          ← 组合键 + 取反（整条条件取反）
     ///     &lt;edge from="Prone" to="fastmove" anim="remaining" anim-rem-pct="15"/&gt; ← 剩余不足 15%（**百分比，不是秒**）
-    ///     &lt;edge from="outside" to="hoverstart" when="takeoff-trigger" phase="true"/&gt; ← **相位接缝**：C# 起飞时 Force 进它
+    ///     &lt;edge from="outside" to="hoverstart" when="takeoff-trigger" phase="true"/&gt; ← **事件接缝**：C# 起飞时 Force 进它
     ///     &lt;edge from="superland" to="outside" anim="remaining" anim-rem-pct="20" phase="true"/&gt;
-    ///                        ← 出机接缝：`from` = 落地姿态、`anim-rem-pct` = 剩多少出机（C# 用 TryPhaseEnter/Exit 读）
+    ///                        ← 出机接缝：`from` = 落地姿态、`anim-rem-pct` = 剩多少出机（C# 用 TryEventEnter/Exit 读）
     ///   &lt;/edges&gt;
     /// &lt;/state_machine&gt;
     /// </code>
@@ -96,8 +96,7 @@ namespace LivingWorldNpcs.Animation
             }
 
             var problems = new List<string>();
-            var families = new Dictionary<string, string[]>(StringComparer.Ordinal);
-            // 🔴 容器（子状态机）的**真实入口**：进容器落到哪个状态。
+            var families = new Dictionary<string, string[]>(StringComparer.Ordinal);            // 🔴 容器（子状态机）的**真实入口**：进容器落到哪个状态。
             //    有了它，边就能直接指向容器（`to="Upright"`），**装载期**解析成这个状态
             //    ⇒ 运行时看到的仍是具体状态名，状态机热路径一行都不用改。
             var familyEntry = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -171,8 +170,6 @@ namespace LivingWorldNpcs.Animation
                     problems.Add("状态 '" + sn + "' 是循环状态，不该写 next（next 只给一次性动作用）");
                     continue;
                 }
-                // 🔴 next = **演完兜底**：一次性动作播完、且没有任何边命中时回这里
-                //    （条件优先、演完兜底 —— 所以入姿演完那一刻玩家已松手就会走普通边）
                 states.Add(oneShot
                     ? AnimState.Once(sn, act, next: string.IsNullOrEmpty(nxt) ? null : nxt, duration: duration)
                     : AnimState.Loop(sn, act));
@@ -310,9 +307,19 @@ namespace LivingWorldNpcs.Animation
                     problems.Add(label + " 缺 from / to");
                     continue;
                 }
-                bool phaseAttr = string.Equals(Attr(node, "phase"), "true", StringComparison.OrdinalIgnoreCase);
+                // 🔴 属性名 = `event="true"`（**2026-09-27 由 `phase` 改名**）。
+                //    为什么改：用户原话「你一直在说相位我无法理解，本质上就是监听到了某些特殊事件吧，
+                //    你为什么不改成叫事件监听，这样就明显看出来是和动画结束、按下什么键是并列的触发时机了」。
+                //    ⇒ 界面上/文档里一律叫「**游戏事件**」；`phase` 是内部旧名。
+                //    ⚠️ 旧名**响亮报错**（不静默当没写 —— 静默 = 那条边悄悄变成普通边，落地动作就没了）。
+                if (!string.IsNullOrEmpty(Attr(node, "phase")))
+                {
+                    problems.Add(label + " 用的是旧属性 `phase=\"true\"` —— 已改名，请写 `event=\"true\"`（游戏事件）");
+                    continue;
+                }
+                bool eventAttr = string.Equals(Attr(node, "event"), "true", StringComparison.OrdinalIgnoreCase);
                 // 🔴 `outside` = **机外**（不驱动 0 号通道的虚拟状态）。两条方向规则不同（2026-09-27 用户裁定）：
-                //    · **进机**（`from="outside"`）**只允许相位驱动**：起飞是物理判定（人在空中）+ 要动板/相机，
+                //    · **进机**（`from="outside"`）**只允许事件驱动**：起飞是物理判定（人在空中）+ 要动板/相机，
                 //      不是状态机的事；
                 //    · **出机**（`to="outside"`）**允许状态机求值**（普通边 + `keys=`/`when=` 都行）：
                 //      "谁能出机、按什么键出机"写在 XML 里，使用方只遵守一条通用规则
@@ -345,9 +352,9 @@ namespace LivingWorldNpcs.Animation
                 }
                 else if (from == "outside")
                 {
-                    if (!phaseAttr)
+                    if (!eventAttr)
                     {
-                        problems.Add(label + " 来源是 outside（机外），只允许用于相位驱动边");
+                        problems.Add(label + " 来源是 outside（机外），只允许用于事件驱动边");
                         continue;
                     }
                     srcs = new[] { "outside" };
@@ -400,8 +407,8 @@ namespace LivingWorldNpcs.Animation
                         problems.Add(label + " " + subError);
                         continue;
                     }
-                    // 🔴 相位边要用这个**数**（"剩多少出机"）—— 谓词只够判真假，判不出"还剩多少"。
-                    //    （相位读它：见 AnimEdgeDef.RemainPct / AgentAnimStateMachine.TryPhaseExit）
+                    // 🔴 事件边要用这个**数**（"剩多少出机"）—— 谓词只够判真假，判不出"还剩多少"。
+                    //    （相位读它：见 AnimEdgeDef.RemainPct / AgentAnimStateMachine.TryEventExit）
                     if (string.Equals(animAttr.Trim(), "remaining", StringComparison.OrdinalIgnoreCase))
                     {
                         float tmp;
@@ -449,13 +456,13 @@ namespace LivingWorldNpcs.Animation
                     continue;
                 }
                 bool afterFinish = string.Equals(Attr(node, "after-finish"), "true", StringComparison.OrdinalIgnoreCase);
-                bool phaseForced = phaseAttr;
-                AnimEdgeDef edgeDef = new AnimEdgeDef(srcs, to, pred, blend, afterFinish, phaseForced);
+                bool eventDriven = eventAttr;
+                AnimEdgeDef edgeDef = new AnimEdgeDef(srcs, to, pred, blend, afterFinish, eventDriven);
                 edgeDef.RemainPct = remainPct;
-                // 🔴 相位边要把 `when=` 的**名字**留着（普通边不用）：相位（C#）按时刻找状态 ——
+                // 🔴 事件边要把 `when=` 的**名字**留着（普通边不用）：相位（C#）按时刻找状态 ——
                 //    "落地这个时刻该 Force 进哪个状态" = 读 `when="land-trigger"` 那条边的 `to`
-                //    （见 AgentAnimStateMachine.TryPhaseTarget）。
-                if (phaseForced)
+                //    （见 AgentAnimStateMachine.TryEventTarget）。
+                if (eventDriven)
                 {
                     edgeDef.WhenName = when;
                 }
@@ -463,7 +470,7 @@ namespace LivingWorldNpcs.Animation
             }
 
             // ── 悬空状态：既不是任何边的来源、也没人指向它（警告，不算错 —— 相位 Force 专用的状态就是这样）──
-            var touched = new HashSet<string>(StringComparer.Ordinal);   // 相位驱动的边也算（它们写进定义就是为了这个）
+            var touched = new HashSet<string>(StringComparer.Ordinal);   // 事件驱动的边也算（它们写进定义就是为了这个）
             foreach (AnimEdgeDef e in edges)
             {
                 if (e.To != "outside")
@@ -498,6 +505,19 @@ namespace LivingWorldNpcs.Animation
             }
 
             var def = new AnimMachineDef(name);
+            // ── 「一次性动作算演完」的余量（可选；默认见 AnimMachineDef.DefaultFinishMargin）──
+            //    写成比例 0~1（`finish-margin="0.15"` = 剩 15% 就算演完）。写错不静默：越界报问题。
+            string fmRaw = Attr(root, "finish-margin");
+            if (!string.IsNullOrEmpty(fmRaw))
+            {
+                float fm;
+                if (!float.TryParse(fmRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out fm))
+                    problems.Add("finish-margin=\"" + fmRaw + "\" 不是数字（要**比例** 0~1，例如 0.15）");
+                else if (fm < 0f || fm > 1f)
+                    problems.Add("finish-margin=" + fmRaw + " 超出范围（比例 0~1；0.15 = 剩 15% 就算演完）");
+                else
+                    def.FinishMarginFrac = fm;
+            }
             foreach (AnimState s in states)
             {
                 def.Add(s);

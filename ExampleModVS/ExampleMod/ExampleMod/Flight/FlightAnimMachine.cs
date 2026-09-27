@@ -84,8 +84,8 @@ namespace LivingWorldNpcs.Flight
     ///      所以 `custom.flight tune blend` 那些热调键照旧有效）。
     ///
     /// 🔴🔴 **飞行那边一个状态名都不许写**（2026-09-26 用户裁定「重新实现飞行的动作管理，数据驱动」）——
-    /// 起降这两个"相位接缝"全从 XML 的**相位边**读（<see cref="AgentAnimStateMachine.TryPhaseEnter"/> /
-    /// <see cref="AgentAnimStateMachine.TryPhaseExit"/>）：
+    /// 起降这两个"事件接缝"全从 XML 的**事件边**读（<see cref="AgentAnimStateMachine.TryEventEnter"/> /
+    /// <see cref="AgentAnimStateMachine.TryEventExit"/>）：
     ///   · **进机**（起飞入姿）= `from="outside"` 那条边的 `to`
     ///   · **出机前的姿态**（触地后播的落地动作）= `to="outside"` 那条边的 `from`
     ///   · **出机时机** = 同一条边上的 `anim="remaining" anim-rem-pct="N"`
