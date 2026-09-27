@@ -87,6 +87,23 @@ NEST_EMPTY = ("(function(){var g=groups[0];sel={type:'group',id:g.name};render()
               "document.getElementById('g-sub').onclick();"
               "openTab({kind:'group', id:groups[groups.length-1].name}); render();")
 CLEAR = "try{localStorage.removeItem(LSKEY)}catch(e){};draftActive=false;renderDraftBanner();"
+# 🔴 `CLEAR` 只清了 localStorage —— 而页面**启动时已经把旧草稿读进内存**了。要真回到"文件里的样子"
+#    必须再走一次 `btn-reset`（它从 `DATA` 重灌 states/groups/edges）。第一次跑 24 时就栽在这：
+#    图上还挂着旧草稿的 24 条边 + 一条 `casting-fallback` 未登记的假报错。
+CLEAN = ("try{localStorage.removeItem(LSKEY)}catch(e){};draftActive=false;draftAck=false;"
+         "document.getElementById('btn-reset').onclick();")
+
+# 24 = 打开过一份 XML 之后的顶栏（药丸显示文件名 + 面板顶部一行"已载入…"）。
+# 无头浏览器点不了原生对话框 ⇒ 用**内存桩**替掉 picker —— 与 drive_pages.mjs 的 `FSA_STUB` 同款，
+# 但这里只求"页面进入已打开状态"，行为链由 drive_pages.mjs 的 F 组负责测。
+FSA_STUB = ("(function(){"
+            "function mkFile(n){return {kind:'file',name:n,"
+            "getFile:async function(){var t=DATA.rawXml;return {name:n,size:t.length,lastModified:1000,text:async function(){return t;}};},"
+            "createWritable:async function(){return {write:async function(){},close:async function(){},abort:async function(){}};},"
+            "queryPermission:async function(){return 'granted';},requestPermission:async function(){return 'granted';}};}"
+            "window.showOpenFilePicker=async function(){return [mkFile('flight.xml')];};"
+            "window.showSaveFilePicker=async function(){return mkFile('flight.xml');};"
+            "fsOpen();})();")
 
 # 场景名 -> 注入的 JS（空 = 原样截图）
 SCEN = [
@@ -129,6 +146,13 @@ SCEN = [
     # 13 种一份"旧草稿"（含 magicIdle + from="*"），14 重新加载 —— 应当弹出显眼的草稿黄条
     ("13_seed_stale_draft", "try{const d={states:DATA.states.concat([{name:'magicIdle',act:'act_magic_idle',dur:'',next:'',clip:'magic_idle',durText:'循环'}]),edges:DATA.edges.concat([{from:'*',to:'magicIdle',kind:'pred',pred:'casting-fallback',blend:'0.15',after:false,phase:false}]),groups:DATA.groups,pos:{},view:{k:1.15,tx:30,ty:70},gpos:{}};localStorage.setItem(LSKEY,JSON.stringify(d));}catch(e){document.title='SEED-ERR '+e.message}"),
     ("14_draft_banner", ""),
+    # 24 = 打开过一份 XML 之后的顶栏（药丸显示文件名）。🔴 必须排在**最后**，且先 `CLEAN`：
+    #    它会把草稿换掉 ⇒ 排在前面会污染 13/14 那两条依赖 localStorage 的场景；反过来，
+    #    13 种下的旧草稿也会顶在这张图上（第一次跑就是这么串味的）。
+    ("24_file_opened", CLEAN + FSA_STUB + "closeCtx();"),
+    # 26 = 选中一条**事件边**（条件 = 「游戏事件」）：看面板里的**事件下拉**（人话选项）+
+    #      「演完才进」被标成"事件边用不到"
+    ("26_edge_phase_panel", "closeCtx(); setActive(0); sel={type:'edge', id:edges.findIndex(function(x){return x.event})}; render();"),
 ]
 
 

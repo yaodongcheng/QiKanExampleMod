@@ -10,10 +10,6 @@
       "name": "【飞行】原始 130 段"
     },
     {
-      "id": "ue_flight_lean",
-      "name": "【飞行】增量合成 6 段（左=基础，右=叠加后）"
-    },
-    {
       "id": "ue_exec_trf",
       "name": "【处决·个体】22 条 · 两种烘焙路径对照"
     },
@@ -28,7 +24,11 @@
     {
       "id": "sw2_gunner",
       "name": "【铁炮】战国无双2 p006"
+    },
+    {
+      "id": "ue_fly_comp",
+      "name": "【飞行·合成】①源pose ②重定向后pose ③合成后动画（12 条）"
     }
   ],
-  "order_note": "分组（2026-09-24）：按素材主题并列。ue_basic 已并入 ue_slim（去重后 296 条）。已删除：ue_flight_next / ue_exec_srccmp / ue_flight_demo / ue_exec / ue_basic。"
+  "order_note": "分组（2026-09-24）：按素材主题并列。ue_basic 已并入 ue_slim（去重后 296 条）。 ｜ 2026-09-27：删除 ue_flight_lean（4 格合成预览，已被 ue_fly_comp 取代）；新增 ue_fly_comp（①源pose ②重定向后pose ③合成后动画）。"
 }

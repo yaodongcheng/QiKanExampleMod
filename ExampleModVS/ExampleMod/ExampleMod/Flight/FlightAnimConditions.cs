@@ -25,7 +25,7 @@ namespace LivingWorldNpcs.Flight
         /// <summary>
         /// **相位"时刻"名 —— 起飞（进机入姿）**。
         /// 🔴 相位边的 `when=` 写它；C# 也用它去找"起飞该进哪个状态"
-        /// （<c>AgentAnimStateMachine.TryPhaseTarget(TakeoffTrigger)</c>）——
+        /// （<c>AgentAnimStateMachine.TryEventTarget(TakeoffTrigger)</c>）——
         /// **名字只有这一份**，改这里两边一起改。
         /// ⚠️ 它的真身是 `c => false`：**它不代表时刻**，只代表"起飞那一刻"这个标签；
         ///    真正的触发在 C#（空中按空格）。

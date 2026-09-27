@@ -91,7 +91,7 @@ namespace LivingWorldNpcs.Animation
         /// **机外**（= "不驱动 0 号通道"的虚拟状态）—— 由 XML 的 `<edge to="outside" …/>` **进入**
         /// （2026-09-27 用户裁定：出机也写成状态机的一条普通边，而不是 C# 里特判某个键）。
         ///
-        /// 🔴 **进机（`from="outside"`）仍然是相位驱动的**（装载器硬校验）：因为"什么时候算起飞"是物理判定
+        /// 🔴 **进机（`from="outside"`）仍然是事件驱动的**（装载器硬校验）：因为"什么时候算起飞"是物理判定
         ///    （人在空中），而且起飞还要动板/相机 —— 那不是状态机的事。
         /// 🔴 **出机（`to="outside"`）现在允许状态机求值**：谁能出机、按什么键出机，全写在 XML；
         ///    使用方的代码只遵守一条通用规则 —— "`Current == OutsideState` ⇒ 交还引擎"。
@@ -212,9 +212,9 @@ namespace LivingWorldNpcs.Animation
         }
 
         /// <summary>
-        /// **相位接缝查询 ①：进机** —— 起飞那一刻，相位（C#）该 `Force` 进**哪个状态**。
+        /// **事件接缝查询 ①：进机** —— 起飞那一刻，相位（C#）该 `Force` 进**哪个状态**。
         ///
-        /// 读的是**相位边**（XML 里 `phase="true"`）中 `from = <paramref name="fromMarker"/>`
+        /// 读的是**事件边**（XML 里 `phase="true"`）中 `from = <paramref name="fromMarker"/>`
         /// （机外 = `"outside"`）那条的 `to`。
         ///
         /// 🔴 **为什么要有它**（2026-09-26）：以前 C# 里写死 `Force(agent, "hoverstart")` ——
@@ -223,14 +223,14 @@ namespace LivingWorldNpcs.Animation
         /// </summary>
         /// <param name="fromMarker">来源标记（`"outside"` = 机外）。</param>
         /// <param name="state">那条边的目标状态；没这条边时返回 false（调用方自己降级）。</param>
-        public bool TryPhaseEnter(string fromMarker, out string state)
+        public bool TryEventEnter(string fromMarker, out string state)
         {
             state = null;
             var es = _def.Edges;
             for (int i = 0; i < es.Count; i++)
             {
                 AnimEdgeDef e = es[i];
-                if (!e.PhaseForced || !HasExactFrom(e, fromMarker))
+                if (!e.EventDriven || !HasExactFrom(e, fromMarker))
                 {
                     continue;
                 }
@@ -245,17 +245,17 @@ namespace LivingWorldNpcs.Animation
         }
 
         /// <summary>
-        /// **相位接缝查询 ①′：按"时刻"找状态**（更推荐，2026-09-26 用户指出）——
-        /// `when="&lt;whenToken&gt;"` 那条相位边的 `to` = C# 在**这个时刻**该 `Force` 进的状态：
+        /// **事件接缝查询 ①′：按"时刻"找状态**（更推荐，2026-09-26 用户指出）——
+        /// `when="&lt;whenToken&gt;"` 那条事件边的 `to` = C# 在**这个时刻**该 `Force` 进的状态：
         ///   · `takeoff-trigger` ⇒ 起飞入姿该进哪个状态
         ///   · `land-trigger`    ⇒ 落地动作是哪个状态
         ///
         /// 🔴🔴 **"什么时候"不在 XML**（别搞混，这是本轮被问到的一点）：
         ///    XML 只说"**这个时刻进哪个状态**"；**触发时刻本身是 C# 的物理判定** ——
         ///    起飞 = 空中按空格（`TickGrounded`）/ 落地 = **板顶触地**（`TickLanding`，硬着陆才播动作）。
-        ///    相位边的 `when=` 名字就为此存在：让"哪个时刻配哪个状态"能画在图上、并且被代码读到。
+        ///    事件边的 `when=` 名字就为此存在：让"哪个时刻配哪个状态"能画在图上、并且被代码读到。
         /// </summary>
-        public bool TryPhaseTarget(string whenToken, out string state)
+        public bool TryEventTarget(string whenToken, out string state)
         {
             state = null;
             if (string.IsNullOrEmpty(whenToken))
@@ -266,7 +266,7 @@ namespace LivingWorldNpcs.Animation
             for (int i = 0; i < es.Count; i++)
             {
                 AnimEdgeDef e = es[i];
-                if (e.PhaseForced && string.Equals(e.WhenName, whenToken, StringComparison.Ordinal)
+                if (e.EventDriven && string.Equals(e.WhenName, whenToken, StringComparison.Ordinal)
                     && e.To != "outside")
                 {
                     state = e.To;
@@ -277,16 +277,16 @@ namespace LivingWorldNpcs.Animation
         }
 
         /// <summary>
-        /// **相位接缝查询 ②：出机** —— 落地动作是**哪个状态**、**剩多少**就该把 0 号通道还给引擎。
+        /// **事件接缝查询 ②：出机** —— 落地动作是**哪个状态**、**剩多少**就该把 0 号通道还给引擎。
         ///
-        /// 读的是**相位边**中 `to = <paramref name="toMarker"/>`（`"outside"` = 机外）那条：
+        /// 读的是**事件边**中 `to = <paramref name="toMarker"/>`（`"outside"` = 机外）那条：
         /// · 它的 `from` = **出机前必须处的状态**（= 触地后要 `Force` 的落地姿态）
         /// · 它的 `anim="remaining" anim-rem-pct="N"` = 出机时机（`remainPct` &lt; 0 = 定义里没写，
         ///   调用方回退到自己的默认判据）。
         ///
-        /// 🔴 与 <see cref="TryPhaseEnter"/> 对称：**起降两头的状态名一律从定义里读**。
+        /// 🔴 与 <see cref="TryEventEnter"/> 对称：**起降两头的状态名一律从定义里读**。
         /// </summary>
-        public bool TryPhaseExit(string toMarker, out string state, out float remainPct)
+        public bool TryEventExit(string toMarker, out string state, out float remainPct)
         {
             state = null;
             remainPct = -1f;
@@ -294,7 +294,15 @@ namespace LivingWorldNpcs.Animation
             for (int i = 0; i < es.Count; i++)
             {
                 AnimEdgeDef e = es[i];
-                if (!e.PhaseForced || e.To != toMarker || e.From == null || e.From.Length == 0)
+                // 🔴 **不再要求它是事件边**（2026-09-27 用户裁定）：「超人落地就是应该落地动画播完之后才回到
+                //    outside」—— 这条边有两个角色，缺一不可：
+                //      ① **事件侧**：撞地那一刻 C# 要读它（`from` = Force 哪个落地动作、`anim-rem-pct` =
+                //         剩多少交还引擎）；
+                //      ② **条件侧**：那句"剩 15% 出机"由**谁判都行** —— 状态机判也行（撞地后这边会
+                //         `Hold = true` 把状态机停住 ⇒ 不会两边同时触发）。
+                //    判据 = `to = 机外` **且写了 `anim-rem-pct`**（= 它在声明"出机"这件事）。
+                //    ⚠️ 没写 pct 的普通出机边（`keys="Space"`）**不是**声明，跳过 ✓。
+                if (e.To != toMarker || e.From == null || e.From.Length == 0 || e.RemainPct < 0f)
                 {
                     continue;
                 }
@@ -305,7 +313,7 @@ namespace LivingWorldNpcs.Animation
             return false;
         }
 
-        /// <summary>`from` 里**逐字**写了这个标记（`"*"` 不算 —— 相位边的来源必须是显式的）。</summary>
+        /// <summary>`from` 里**逐字**写了这个标记（`"*"` 不算 —— 事件边的来源必须是显式的）。</summary>
         private static bool HasExactFrom(AnimEdgeDef e, string marker)
         {
             if (e.From == null || string.IsNullOrEmpty(marker))
@@ -322,24 +330,38 @@ namespace LivingWorldNpcs.Animation
             return false;
         }
 
-        /// <summary>当前状态是不是"一次性动作且已播完"（判据见 <see cref="ProgressTrustworthy"/>）。</summary>
+        /// <summary>
+        /// 当前状态是不是"一次性动作**算演完了**"。
+        ///
+        /// 🔴 **不是 `progress >= 1`，而是"剩 ≤ 完成余量"**（`AnimMachineDef.FinishMarginFrac`，
+        ///    XML 写 `&lt;state_machine finish-margin="0.15"&gt;`，默认 15%）——
+        ///    2026-09-27 用户裁定（UE 习惯）：留一点余量，让**下一个动作在 0 号通道还没空的时候**接上。
+        ///    不然 clip 一播完通道当场空掉（`blendOutPeriodToNoAnim: 0`），而我们只能下一个 tick 才发现
+        ///    ⇒ 既要掉几帧默认姿势，随后的交叉淡化还会从**默认姿势**开始（整段过渡变形）。
+        ///    语义：`演完才进` / `演完兜底` / 原语 `anim="finished"` 全用这一条。要"真播完"写
+        ///    `anim="remaining" anim-rem-pct="0"`。
+        /// </summary>
         public bool CurrentFinished
         {
             get
             {
                 if (_current == null || !_current.OneShot)
                     return false;
+                float margin = _def != null ? _def.FinishMarginFrac : 0f;
                 if (_current.Duration > 0.01f)
-                    return _elapsed >= _current.Duration;
-                return ProgressTrustworthy && _progressFn != null && _progressFn() >= 0.999f;
+                    return _elapsed >= _current.Duration * (1f - margin);
+                return ProgressTrustworthy && _progressFn != null && _progressFn() >= 1f - margin;
             }
         }
 
+        /// <summary>这台机器的"完成余量"（比例）—— 给上下文填给原语 `anim="finished"` 用（见 <see cref="CurrentFinished"/>）。</summary>
+        public float FinishMarginFrac => _def != null ? _def.FinishMarginFrac : 0f;
+
         /// <summary>
-        /// **强制进入某状态**（不看条件）—— 用于相位驱动的时刻（起飞 / 落地 / 收摊）。
+        /// **强制进入某状态**（不看条件）—— 用于事件驱动的时刻（起飞 / 落地 / 收摊）。
         ///
-        /// 🔴 **状态名别写死在调用方**：起降要进哪个状态由 XML 的相位边声明，
-        ///    调用方用 <see cref="TryPhaseEnter"/> / <see cref="TryPhaseExit"/> 读出来再传进来
+        /// 🔴 **状态名别写死在调用方**：起降要进哪个状态由 XML 的事件边声明，
+        ///    调用方用 <see cref="TryEventEnter"/> / <see cref="TryEventExit"/> 读出来再传进来
         ///    （否则编辑器里改个状态名，这边就静默失效 —— 见那两个方法的说明）。
         /// </summary>
         /// <param name="agent">要驱动哪个 agent（**必须给** —— 起飞/落地都在"首次 Tick 之前"发生）。</param>
@@ -390,8 +412,8 @@ namespace LivingWorldNpcs.Animation
                     for (int i = 0; i < edges.Count; i++)
                     {
                         AnimEdgeDef e = edges[i];
-                        if (e.PhaseForced)
-                            continue;       // 相位驱动的边（起飞/落地）：只是写在定义里给图看，不在这里求值
+                        if (e.EventDriven)
+                            continue;       // 事件驱动的边（起飞/落地）：只是写在定义里给图看，不在这里求值
 
                         // 🔴 **一次性动作（快移入姿 / 闪避）播放期间不被打断**：
                         //    `"*"` 出发的兜底边在它播完前一律不参与 —— 否则下一帧就被 `* → 悬停移动` 踢走，
@@ -425,6 +447,8 @@ namespace LivingWorldNpcs.Animation
                 //    🔴 **兜底放在边之后**（不是之前）是刻意的：**条件优先、演完兜底** ——
                 //       例：入姿演完那一刻玩家已经松开 Shift，那就该走 idle/hovermove 那条边，
                 //       而不是先回趴姿再被踢走（那是连着两次交叉淡化，看着闪一下）。
+                //    🔴 2026-09-27 说明（别删）：用户看过这套设计后要求的是**"给它做格式检查"**，
+                //       **不是**把它改成边 —— 别自作主张动它（我把这条理解错了一次，已整批还原）。
                 if (!fired && CurrentFinished && !string.IsNullOrEmpty(_current.Next))
                 {
                     Enter(agent, _current.Next, _current.NextBlend, 0f, forced: false);

@@ -433,7 +433,7 @@ namespace LivingWorldNpcs.Flight
         //    删它的理由（用户裁定「飞行动作管理要数据驱动」）：
         //      · 编辑器里改状态名 / 换动作名，代码一行都不用动；留一份在这里 = **第二份真相**，
         //        改了它却不生效（状态机只读 XML），排查时会先怀疑代码 —— 白绕；
-        //      · 起降要进哪个状态也已经从 XML 的相位边读（见 `AgentAnimStateMachine.TryPhaseEnter/TryPhaseExit`），
+        //      · 起降要进哪个状态也已经从 XML 的事件边读（见 `AgentAnimStateMachine.TryEventEnter/TryEventExit`），
         //        所以连"起飞该 Force 谁"都不需要常量了。
         //    ⚠️ 施法手势那两个动作名（`act_magic_idle` / `act_magic_projectile`）不归状态机管，
         //       它们在 `Combat/SpellCastInput.cs` 里，**没删**。

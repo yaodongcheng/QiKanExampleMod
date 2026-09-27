@@ -55,6 +55,9 @@ label{display:block;font-size:12px;color:var(--ink-2);margin:9px 0 3px}
 select,input,textarea{width:100%;font:12px var(--mono);padding:6px 8px;border-radius:7px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink)}
 /* 单选钮：上面那条 width:100% 会把 radio 撑坏，这里单独管 */
 input[type=radio]{width:auto;padding:0;margin:0 5px 0 0;vertical-align:-1px}
+/* 🔴 **复选框同理** —— 漏了这条的后果：勾选框被撑成整行宽，标签文字被推到面板最右边
+   （用户截图里"取反（不是这样）"就是这么歪的）。 */
+input[type=checkbox]{width:auto;padding:0;margin:0 6px 0 0;vertical-align:-1px}
 .modes{display:flex;gap:16px;margin:2px 0 6px}
 .modes label{display:inline-flex;align-items:center;margin:0;font-size:12px;color:var(--ink);cursor:pointer}
 /* 按键勾选框（组合用）：多选 = 同时按着 */
@@ -86,9 +89,13 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
 .problems{margin-top:8px;font-size:12px}
 .problems ul{margin:4px 0 0;padding-inline-start:18px;color:var(--bad)}
 .problems .ok{color:var(--door)}
-.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
-.legend i{display:inline-block;width:18px;height:0;border-top:2px solid currentColor;vertical-align:middle;margin-inline-end:6px}
-.legend .d{border-top-style:dashed}
+/* 画布左下角的**线的含义**图例（三种线各有意思，不标出来等于没有含义） */
+.legend{position:absolute;left:10px;bottom:10px;z-index:4;pointer-events:none;
+  display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.legend span{display:flex;align-items:center;gap:7px}
+.legend svg{flex:none;color:var(--ink-2)}
+.legend b{color:var(--door);font-weight:600}
 /* ── 本轮新增（P1：缩放平移 / Entry / 右键菜单 / 边高亮防撞字）────────── */
 .canvas{position:relative;overflow:hidden}
 #svg{width:100%;height:76vh;min-height:560px;display:block;touch-action:none;cursor:default;user-select:none;-webkit-user-select:none}
@@ -130,6 +137,8 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
 .banner{display:none;margin-top:10px;padding:9px 12px;border-radius:10px;border:1px solid var(--prone);background:var(--prone-soft);color:var(--ink);font-size:12.5px;line-height:1.7;align-items:center;gap:10px;flex-wrap:wrap}
 .banner.on{display:flex}
 .banner b{color:var(--prone)}
+.banner.ok{background:var(--door-soft);border-color:var(--door)}
+.banner b.okmark{color:var(--door)}
 .banner .mono{color:var(--ink-2)}
 .banner.slim{padding:5px 10px;line-height:1.5}
 .bdg{fill:var(--door-soft);stroke:var(--door);stroke-width:.8}
@@ -141,6 +150,8 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
 .entry-edge{pointer-events:none}
 .entry-edge path{fill:none;stroke:var(--entry);stroke-width:2}
 .entry-edge text{fill:var(--entry);font-family:var(--mono);font-size:10px}
+/* ── 直接读写文件：顶栏那颗"当前文件"药丸 ───────────────────── */
+.chip.fs{font-family:var(--mono)}
 </style>
 
 <header>
@@ -149,15 +160,16 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
     <p class="sub">拖连线编转移、<b>自己建容器装状态</b>（容器 = 可当来源的一组状态，等价于 UE 的 State Alias；<b>一个状态只归属一个容器</b>，拖到别的容器 = 移动；
     <b>双击容器钻进去</b>，里面的 Entry = "从外部进入本容器"的那些边）。
     滚轮缩放 / 拖空白平移（<b>拖盒子 = 单独挪它</b>）/ 空白右键出菜单 / 悬停边高亮 / 条件标签自动避让防撞字。
-    编完点 <b>导出完整 XML</b>，整份覆盖回 <span class="mono">ModuleData/statemachines/flight.xml</span>，重启游戏即生效（不用重编译）。</p>
+    编完点 <b>保存</b>（<span class="mono">Ctrl+S</span>）直接写回你打开的那份 xml，重启游戏即生效（不用重编译）。</p>
   </div>
   <div class="btns">
+    <span class="chip fs" id="fschip">文件：未打开</span>
+    <button id="btn-open" title="打开一份状态机 XML（Ctrl+O）">打开 XML…</button>
+    <button id="btn-save" class="primary" title="覆盖回你打开的那份文件（Ctrl+S）">保存</button>
+    <button id="btn-saveas" title="另存为新文件">另存为…</button>
     <button id="btn-undo" title="撤销（Ctrl+Z）">↶ 撤销</button>
     <button id="btn-redo" title="重做（Ctrl+Shift+Z / Ctrl+Y）">↷ 重做</button>
     <button id="btn-newgroup">新建容器</button>
-    <button id="btn-export-full" class="primary">导出完整 XML</button>
-    <button id="btn-export">导出边（片段）</button>
-    <button id="btn-import">导入（粘贴 XML）</button>
     <button id="btn-reset" class="danger">恢复成文件里的样子</button>
   </div>
 </header>
@@ -175,6 +187,17 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
       <button id="z-1" title="回到 1:1">1:1</button>
     </div>
     <div class="tip" id="tip"></div>
+    <!-- 🔴 线的虚实**是有含义的**（用户实测问过："为什么一会实线一会虚线 有什么讲究吗"）
+         —— 页面以前从不解释，那就等于没含义。放画布左下角、不参与命中测试。
+         🔴 每条都要写**怎么设**（用户追问过："我没看到演完才进要靠什么东西来设置"）：
+         只说"是什么"不够，得说"勾边上哪个框"。
+         ⚠ 措辞别再写"每秒"：状态机是**每个 tick**判一次（`_anim.Tick(main, dt)` 在飞行的每帧主循环里，
+         无节流）—— 用户 2026-09-27 当场纠正过："实线不能按照每秒取值吧 应该是每个 tick 来吧"。 -->
+    <div class="legend">
+      <span><svg width="24" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4" stroke="currentColor" stroke-width="1.4"/></svg>普通边 · <b>每个 tick</b>判一次（条件写 按键 / 谓词 / 动画）</span>
+      <span><svg width="24" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4" stroke="currentColor" stroke-width="1.4" stroke-dasharray="1 4"/></svg><b>事件驱动</b> · C# 在"起飞 / 落地"那一刻强行走 —— 条件选「<b>游戏事件</b>」</span>
+      <span><svg width="24" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4" stroke="currentColor" stroke-width="1.4" stroke-dasharray="6 4"/></svg>演完才进 · 一次性动作播完才过去 —— 勾边上的「演完才进」</span>
+    </div>
   </div>
   <div class="panel">
     <h2>选中：<span id="selname" class="mono">（没选）</span></h2>
@@ -185,19 +208,12 @@ textarea{min-height:170px;white-space:pre;overflow:auto}
     <div class="elist" id="elist"></div>
     <h3>校验</h3>
     <div class="problems" id="problems"></div>
-    <h3>导出 / 导入</h3>
-    <textarea id="io" spellcheck="false"></textarea>
-    <div class="row" style="margin-top:8px">
-      <div><button id="btn-copy" style="width:100%">复制</button></div>
-      <div><button id="btn-apply" style="width:100%">把粘贴的内容导入</button></div>
-    </div>
-    <p class="hint">导入接受：完整文件 / <span class="mono">&lt;edges&gt;</span> 段 / 若干 <span class="mono">&lt;edge /&gt;</span> 行。</p>
   </div>
 </main>
 <div class="ctx" id="ctx"></div>
 
 <script>
-const DATA = {"machine": "flight", "xmlPath": "ModuleData/statemachines/flight.xml", "xmlAt": "2026-09-27 09:46", "groups": [{"name": "悬浮飞行", "entry": "FlyHoverLocomotion", "members": ["hovermoveLeanL", "hovermoveLeanR", "hovermovePitchU", "hovermovePitchD", "FlyHoverLocomotion"]}, {"name": "冲刺飞行", "entry": "fastmoveStart", "members": ["FlyFastPoses", "fastmoveStart", "dodgeL", "dodgeR", "dodgeU", "dodgeD"]}, {"name": "FlyHoverLocomotion", "entry": "idle", "members": ["hovermove", "idle"]}, {"name": "FlyFastPoses", "entry": "fastmove", "members": ["fastmove", "fastmoveLeanL", "fastmoveLeanR", "fastmovePitchU", "fastmovePitchD"]}], "states": [{"name": "idle", "act": "act_fly_idle", "once": false, "dur": "", "next": "", "clip": "flight_idle_a", "durText": "循环"}, {"name": "hovermove", "act": "act_fly_hovermove", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a", "durText": "循环"}, {"name": "hovermovePitchU", "act": "act_fly_hovermove_pitchu", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a_pitchu", "durText": "循环"}, {"name": "hovermovePitchD", "act": "act_fly_hovermove_pitchd", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a_pitchd", "durText": "循环"}, {"name": "hovermoveLeanL", "act": "act_fly_hovermove_lean_l", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a_leanl", "durText": "循环"}, {"name": "hovermoveLeanR", "act": "act_fly_hovermove_lean_r", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a_leanr", "durText": "循环"}, {"name": "超人落地", "act": "act_fly_superland", "once": true, "dur": "", "next": "", "clip": "flight_superland_a", "durText": "一次性"}, {"name": "fastmove", "act": "act_fly_fastmove", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a", "durText": "循环"}, {"name": "fastmoveLeanL", "act": "act_fly_fastmove_lean_l", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_leanl", "durText": "循环"}, {"name": "fastmoveLeanR", "act": "act_fly_fastmove_lean_r", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_leanr", "durText": "循环"}, {"name": "fastmovePitchU", "act": "act_fly_fastmove_pitchu", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_pitchu", "durText": "循环"}, {"name": "fastmovePitchD", "act": "act_fly_fastmove_pitchd", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_pitchd", "durText": "循环"}, {"name": "fastmoveStart", "act": "act_fly_fastmove_start", "once": true, "dur": "", "next": "fastmove", "clip": "flight_fastmove_start_a", "durText": "一次性"}, {"name": "dodgeL", "act": "act_fly_dodge_l", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_l", "durText": "一次性"}, {"name": "dodgeR", "act": "act_fly_dodge_r", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_r", "durText": "一次性"}, {"name": "dodgeU", "act": "act_fly_dodge_u", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_u", "durText": "一次性"}, {"name": "dodgeD", "act": "act_fly_dodge_d", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_d", "durText": "一次性"}, {"name": "进入飞行", "act": "act_fly_hoverstart", "once": true, "dur": "", "next": "idle", "clip": "flight_hoverstart_a", "durText": "一次性"}], "edges": [{"from": "outside", "to": "进入飞行", "after": false, "phase": true, "blend": "", "not": false, "kind": "pred", "pred": "takeoff-trigger"}, {"from": "超人落地", "to": "outside", "after": false, "phase": true, "blend": "", "not": false, "kind": "anim", "anim": "remaining", "lt": "20"}, {"from": "悬浮飞行", "to": "超人落地", "after": false, "phase": true, "blend": "", "not": false, "kind": "pred", "pred": "land-trigger"}, {"from": "冲刺飞行", "to": "超人落地", "after": false, "phase": true, "blend": "", "not": false, "kind": "pred", "pred": "land-trigger"}, {"from": "进入飞行", "to": "悬浮飞行", "after": false, "phase": false, "blend": "", "not": false, "kind": "anim", "anim": "remaining", "lt": "15"}, {"from": "悬浮飞行", "to": "冲刺飞行", "after": false, "phase": false, "blend": "", "not": false, "kind": "key", "keys": "Shift"}, {"from": "冲刺飞行", "to": "进入飞行", "after": false, "phase": false, "blend": "", "not": true, "kind": "key", "keys": "Shift"}, {"from": "悬浮飞行", "to": "outside", "after": false, "phase": false, "blend": "", "not": false, "kind": "key", "keys": "Space"}, {"from": "冲刺飞行", "to": "outside", "after": false, "phase": false, "blend": "", "not": false, "kind": "key", "keys": "Space"}, {"from": "hovermove", "to": "idle", "after": false, "phase": false, "blend": "", "not": true, "kind": "pred", "pred": "move-input"}, {"from": "idle", "to": "hovermove", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "move-input"}, {"from": "hovermove", "to": "hovermoveLeanL", "after": false, "phase": false, "blend": "", "not": false, "kind": "key", "keys": "A"}, {"from": "hovermove", "to": "hovermoveLeanR", "after": false, "phase": false, "blend": "", "not": false, "kind": "key", "keys": "D"}, {"from": "hovermove", "to": "hovermovePitchU", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "look-up"}, {"from": "hovermove", "to": "hovermovePitchD", "after": false, "phase": false, "blend": "", "not": false, "kind": "pred", "pred": "look-down"}, {"from": "hovermoveLeanL", "to": "FlyHoverLocomotion", "after": false, "phase": false, "blend": "", "not": true, "kind": "key", "keys": "A"}, {"from": "hovermoveLeanR", "to": "FlyHoverLocomotion", "after": false, "phase": false, "blend": "", "not": true, "kind": "key", "keys": "D"}, {"from": "hovermovePitchU", "to": "FlyHoverLocomotion", "after": false, "phase": false, "blend": "", "not": true, "kind": "pred", "pred": "look-up"}, {"from": "hovermovePitchD", "to": "FlyHoverLocomotion", "after": false, "phase": false, "blend": "", "not": true, "kind": "pred", "pred": "look-down"}, {"from": "hovermovePitchU", "to": "FlyHoverLocomotion", "after": false, "phase": false, "blend": "", "not": true, "kind": "pred", "pred": "move-input"}, {"from": "hovermovePitchD", "to": "FlyHoverLocomotion", "after": false, "phase": false, "blend": "", "not": true, "kind": "pred", "pred": "move-input"}, {"from": "fastmoveStart", "to": "fastmove", "after": true, "phase": false, "blend": "", "not": false, "kind": "key", "keys": "W"}, {"from": "dodgeU", "to": "fastmove", "after": false, "phase": false, "blend": "", "not": false, "kind": "anim", "anim": "remaining", "lt": "10"}], "preds": [{"name": "move-input", "body": "MoveInput"}, {"name": "look-up", "body": "PitchBand \u003E 0"}, {"name": "look-down", "body": "PitchBand \u003C 0"}, {"name": "takeoff-trigger", "body": "false"}, {"name": "land-trigger", "body": "false"}], "scalars": {"boostStartSeconds": "FlightTuning.BoostStartSeconds", "dodgeClipSeconds": "FlightTuning.DodgeClipSeconds", "castReleaseSeconds": "FlightTuning.CastReleaseSeconds"}, "keys": ["W", "A", "S", "D", "Space", "Shift", "RMB", "LMB"], "anims": ["finished", "remaining"], "rawXml": "\u003C!-- 飞行动画状态机的**定义**（2026-09-25 由 C# 迁到这里）。\n\n     🔴 **改这个文件不用重编译** —— 重启游戏即生效（引擎不解析它，是我们自己在\n        `MySubModule.OnSubModuleLoad` → `FlightAnimMachine.Register()` 里读的）。\n\n     🔴 **两个读者：游戏 + 编辑器页**\n        · 游戏：`Animation/AnimMachineLoader.cs` 装载 + 校验（转成 AnimMachineDef）\n        · 编辑器页：`tools/anim-statemachine/gen_statemachine_editor.py` 读**同一个文件**画图 / 改结构\n        ⇒ 页面不可能和游戏里跑的那份分叉。（页面是生成物，改这里重跑生成器；页面本体 `statemachine_editor.html` 在 tools 里进 git。）\n\n     🔴 **装载期校验**：状态名 / 目标 / 族成员 / 谓词名 / 数字 —— 有一处不对就**整台不注册**\n        并列全部问题到日志（`[Anim]` 前缀）。所以打错字不会静默，是**响亮地失败**。\n\n     🔴 **判据不在这里**：`when=` 写的是**谓词名**（名字用输入语言：`hold-left` = 按着 A），\n        真身在 `Flight/FlightAnimConditions.cs`。理由：字符串表达式 = 失去编译期检查 = 又一种静默失败。\n\n     🔴 **运行期旋钮不在这里**：默认过渡时长 / 核对周期 / 动作优先级仍是 C# 里的委托\n        （指向 `FlightTuning` 的字段），所以 `custom.flight tune blend / turnrate …` 照旧有效。\n\n     🔴 **边的顺序 = 优先级**（第一条命中的生效），改顺序 = 改优先级，别随手挪。\n        三种边型（`AnimEdgeDef` 的三个开关）：\n          · 缺省             = 普通边；能打断正在播的一次性动作（入姿演到一半也能被它踢走）\n          · after-finish     = 只在\"演完\"之后参与求值（绝不打断）\n          · phase=\"true\"     = **不由状态机求值**，由飞行相位 C# `Force` 进 —— 写在这里只为让表/图完整\n\n     ⚠️ **这一段（文件头）编辑器导出时原样保留；写在 `\u003Cfamilies\u003E` / `\u003Cstates\u003E` / `\u003Cedges\u003E` 里面的注释\n        会被导出覆盖掉** —— 要长期留着的说明写在这里。\n\n     🔴🔴 **相位接缝：C# 里一个状态名都没有，全从这下面三条读**（2026-09-26 改）——\n        所以**改名字、换状态、调时机都只改本文件**，重启游戏生效、不用重编译：\n          · **进机**（起飞入姿）= `from=\"outside\"` 那条边的 `to`\n          · **出机前的姿态**（落地动作）= `to=\"outside\"` 那条边的 `from`\n          · **出机时机** = 同一条边上的 `anim=\"remaining\" anim-rem-pct=\"N\"`（剩 N% 就交还引擎）\n        ⇒ 落地下降段**不强制任何姿态**（状态机自己按输入演）—— 落地动作只在地面播，\n           由\"触地那一刻 Force 出机前姿态\"保证。\n\n     🔴 **跳转图总览（2026-09-27 按\"玩家能感受到的\"重定，改结构时连这段一起改）**\n        两族之间的门：**只看 Shift 一个键** ——\n                      按 Shift 进 `冲刺飞行`（**必先播** fastmoveStart 入姿）\n                      松 Shift 回 `进入飞行`（= hoverstart 入姿）再进悬浮\n                      🔴 **回悬浮一律经 `进入飞行`**：它是\"回到悬停\"的**通用 entry**，\n                         不只是\"从空中开始飞\"，**从冲刺退回悬停也要播**（用户裁定）。\n        直立家：idle ⇄ hovermove（有 / 无方向输入）\n                hovermove → 压弯 L/R（按 A / D）、俯仰 U/D（镜头抬 / 压）；**压弯优先于俯仰**\n                压弯 / 俯仰：条件不成立 **或停下来** ⇒ 回本族入口（idle）\n        趴姿家：**姿态对 WASD 无响应**（用户裁定：冲刺只由 Shift 进出）——\n                fastmoveStart 演完进 fastmove；本体只接**一条闪避边**（`Space` → `dodgeU` = 前闪）。\n                🔴 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**暂时空着**：原版 UE 里那两层是\n                   \"角速度 / 竖直速度\"驱动的，我们还没有那套驱动量 ⇒ 等接上再连线（别用方向键顶替）。\n        出机（空格）：**两个族各一条 `to=\"outside\"` 的普通边**（见 \u003Cedges\u003E ③′）——\n                \"谁能出机、按什么键\"全在本文件；使用方只遵守\"机器说机外 ⇒ 交还引擎\"一条通用规则\n                （**C# 里没有\"空格\"这个字**）。掉着时再按一次 = 重新进机（同一手势，进出对称）。\n                撞地 = 自动落地 + 演落地动作（另一条相位边管）。\n        ⚠️ 闪避 / 压弯 / 俯仰的**姿态**看这张图；**位移**在 C#（`PlayerFlightBehavior.BeginDodge` = 沿相机前向）。 --\u003E\n\u003Cstate_machine name=\"flight\"\u003E\n\n\t\u003C!-- 容器（= 边的来源集合 / 真子状态机，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。\n\t     现状（2026-09-26 与文件同步核过）—— 四个容器，互不重叠：\n\t       · 悬浮飞行（直立家，入口 = FlyHoverLocomotion → idle）压弯×2 + 俯仰×2 + FlyHoverLocomotion\n\t       · 冲刺飞行（趴姿家，入口 = fastmoveStart）      FlyFastPoses + fastmoveStart + 闪避×4\n\t       · FlyHoverLocomotion（悬浮飞行 的子容器，入口 = idle）      hovermove / idle\n\t       · FlyFastPoses（冲刺飞行 的子容器，入口 = fastmove）        趴姿本体 5 个（闪避的**发起来源**）\n\t     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会\"硬翻\"，所以进趴姿必须经 fastmoveStart 那道门。\n\t     超人落地 / 进入飞行 不归属任何容器（散状态 = 出机 / 进机的衔接状态）。\n\t     （本段是历史裁定，改容器结构时请连这段一起改 —— 编辑器导出**只保留文件头与本段之前的注释**，\n\t       写在 \u003Cfamilies\u003E / \u003Cstates\u003E / \u003Cedges\u003E 里面的注释导出时会被覆盖掉。） --\u003E\n\t\u003Cfamilies\u003E\n\t\t\u003Cfamily name=\"悬浮飞行\" entry=\"FlyHoverLocomotion\"\u003EhovermoveLeanL hovermoveLeanR hovermovePitchU hovermovePitchD FlyHoverLocomotion\u003C/family\u003E\n\t\t\u003Cfamily name=\"冲刺飞行\" entry=\"fastmoveStart\"\u003EFlyFastPoses fastmoveStart dodgeL dodgeR dodgeU dodgeD\u003C/family\u003E\n\t\t\u003Cfamily name=\"FlyHoverLocomotion\" entry=\"idle\"\u003Ehovermove idle\u003C/family\u003E\n\t\t\u003C!-- 🔴 **趴姿本体 5 个**（不含入姿、不含闪避）—— 单独一个容器**只为一件事**：\n\t\t     当\"闪避的发起来源\"。用整族 `冲刺飞行` 当来源会**把闪避自己也包进去** ⇒ 按住 Space+方向\n\t\t     会自我重触发、并且把\"演完回本体\"的边挡在后面（状态机是\"命中即定\"）；\n\t\t     用单个 `fastmove` 当来源又太窄（压弯/抬头时闪不了）。这个边界正好。 --\u003E\n\t\t\u003Cfamily name=\"FlyFastPoses\" entry=\"fastmove\"\u003Efastmove fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD\u003C/family\u003E\n\t\u003C/families\u003E\n\n\t\u003C!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。\n\t     **不带 once = 循环姿态；once=\"true\" = 一次性动作**（播完自动去 next）。\n\t     🔴 **不写时长** —— 长度由 **clip 自己带**，引擎给的是 0~1 的播放进度（见 Animation/AgentAnimStateMachine）。\n\t        `duration=\"…\"`（秒 / 命名标量）保留成**可选覆盖**，只在\"要主动截短 clip\"时才写。\n\t     next = **演完兜底**：播完、且没有任何边命中时回这里（见 \u003Cedges\u003E 顶部的说明）。 --\u003E\n\t\u003Cstates\u003E\n\t\t\u003Cstate name=\"idle\" act=\"act_fly_idle\" /\u003E\n\t\t\u003Cstate name=\"hovermove\" act=\"act_fly_hovermove\" /\u003E\n\t\t\u003Cstate name=\"hovermovePitchU\" act=\"act_fly_hovermove_pitchu\" /\u003E\n\t\t\u003Cstate name=\"hovermovePitchD\" act=\"act_fly_hovermove_pitchd\" /\u003E\n\t\t\u003Cstate name=\"hovermoveLeanL\" act=\"act_fly_hovermove_lean_l\" /\u003E\n\t\t\u003Cstate name=\"hovermoveLeanR\" act=\"act_fly_hovermove_lean_r\" /\u003E\n\t\t\u003Cstate name=\"超人落地\" act=\"act_fly_superland\" once=\"true\" /\u003E\n\t\t\u003Cstate name=\"fastmove\" act=\"act_fly_fastmove\" /\u003E\n\t\t\u003Cstate name=\"fastmoveLeanL\" act=\"act_fly_fastmove_lean_l\" /\u003E\n\t\t\u003Cstate name=\"fastmoveLeanR\" act=\"act_fly_fastmove_lean_r\" /\u003E\n\t\t\u003Cstate name=\"fastmovePitchU\" act=\"act_fly_fastmove_pitchu\" /\u003E\n\t\t\u003Cstate name=\"fastmovePitchD\" act=\"act_fly_fastmove_pitchd\" /\u003E\n\t\t\u003Cstate name=\"fastmoveStart\" act=\"act_fly_fastmove_start\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"dodgeL\" act=\"act_fly_dodge_l\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"dodgeR\" act=\"act_fly_dodge_r\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"dodgeU\" act=\"act_fly_dodge_u\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"dodgeD\" act=\"act_fly_dodge_d\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"进入飞行\" act=\"act_fly_hoverstart\" once=\"true\" next=\"idle\" /\u003E\n\t\u003C/states\u003E\n\n\t\u003C!-- 边：**顺序 = 优先级**。\n\t     from = 状态名 或 族名；to = 状态名；when = 已登记的谓词名；\n\t     blend 省略 = 用机器默认（FlightTuning.AnimBlendIn，热调 tune blend）。\n\n\t     🔴 **\"演完去哪\"有两种写法，别混**：\n\t        · `\u003Cstate next=\"X\"\u003E`（上面）—— **演完兜底**：一次性动作播完、且下面**没有任何边命中**时回 X。\n\t          条件优先、演完兜底：例如入姿演完那一刻玩家已经松开 Shift，就该走 at-rest 那条边去 idle，\n\t          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。\n\t        · `\u003Cedge ... after-finish=\"true\"\u003E` —— 演完之后**由条件**决定去哪（用于\"演完且仍在冲刺 ⇒ 回 fastmove\"这类）。 --\u003E\n\t\u003Cedges\u003E\n\t\t\u003C!-- ── ① 相位接缝（C# 读这三条：进机状态 / 落地姿态 / 出机时机；状态机不求值）── --\u003E\n\t\t\u003Cedge from=\"outside\" to=\"进入飞行\" when=\"takeoff-trigger\" phase=\"true\" /\u003E\n\t\t\u003Cedge from=\"超人落地\" to=\"outside\" anim=\"remaining\" anim-rem-pct=\"20\" phase=\"true\" /\u003E\n\t\t\u003C!-- 落地能从**任意姿态**触发（\"什么时候\"在 C#：板顶触地）⇒ 两条来源都写上，图才诚实 --\u003E\n\t\t\u003Cedge from=\"悬浮飞行\" to=\"超人落地\" when=\"land-trigger\" phase=\"true\" /\u003E\n\t\t\u003Cedge from=\"冲刺飞行\" to=\"超人落地\" when=\"land-trigger\" phase=\"true\" /\u003E\n\n\t\t\u003C!-- ── ② 起飞入姿：演到剩 15% 就进悬停族（`next=\"idle\"` 是兜底，防卡在入姿）── --\u003E\n\t\t\u003Cedge from=\"进入飞行\" to=\"悬浮飞行\" anim=\"remaining\" anim-rem-pct=\"15\" /\u003E\n\n\t\t\u003C!-- ── ③ 两族之间的门（进趴姿必须先播入姿）─────────────────────────────\n\t\t     🔴 **判据只看 Shift**（用户 2026-09-27 实机感受后裁定）：冲刺是\"按住加速键\"这**一个**状态，\n\t\t     跟方向键无关（方向只影响**飞多快往哪飞**，不影响姿态）。所以：\n\t\t       按下 Shift 进冲刺（先播 fastmoveStart 入姿）· 松开 Shift 回悬浮。\n\t\t     🔴 **回悬浮一律经 `进入飞行`**（= hoverstart 入姿，\"回到悬停\"的通用 entry，用户 2026-09-27 裁定）——\n\t\t     不只是\"从空中开始飞\"要播，**从冲刺退回悬停也要播**。 --\u003E\n\t\t\u003Cedge from=\"悬浮飞行\" to=\"冲刺飞行\" keys=\"Shift\" /\u003E\n\t\t\u003Cedge from=\"冲刺飞行\" to=\"进入飞行\" keys=\"Shift\" not=\"true\" /\u003E\n\n\t\t\u003C!-- ── ③′ 出机：**两个族各一条「空格 ⇒ 机外」**（2026-09-27 用户裁定）────────────\n\t\t     🔴 这是**状态机求值的普通边**（不是相位边）：从这里开始，0 号通道交还引擎、\n\t\t     使用方（`PlayerFlightBehavior`）看到\"机器在机外\"就收摊（拆板/还相机/解冻）⇒\n\t\t     **引擎的默认掉落接管**；掉着时再按空格 = 走 `TickGrounded` 那条\"空中起飞\"⇒ 重新进机。\n\t\t     ⇒ **C# 里没有\"空格\"这个字**：换键、换来源、加\"只有某些状态能出机\"，都只改这里。\n\t\t     🔴 **位置在族门之后、族内边之前**：按着 Shift 时 Shift 优先（进冲刺），否则空格 = 出机。\n\t\t     ⚠️ 进机（`from=\"outside\"`）**仍然只允许相位驱动**（装载器硬校验）—— \"什么时候算起飞\"\n\t\t        是物理判定（人在空中）+ 要动板/相机，不归状态机。 --\u003E\n\t\t\u003Cedge from=\"悬浮飞行\" to=\"outside\" keys=\"Space\" /\u003E\n\t\t\u003Cedge from=\"冲刺飞行\" to=\"outside\" keys=\"Space\" /\u003E\n\n\t\t\u003C!-- ── ④ 直立家（悬停）：待机 ⇄ 巡航，巡航再分压弯 / 俯仰 ──────────────\n\t\t     压弯条件**不带 Shift**（与旧版实机验证过的一致：Shift 是加速，不是姿态开关）；\n\t\t     压弯 / 俯仰的来源都写 `hovermove`（不是整个族）⇒ 从待机态不会直接蹦到压弯，先经巡航。\n\t\t     优先顺序：压弯 \u003E 俯仰（两个同时成立时先出压弯）。 --\u003E\n\t\t\u003Cedge from=\"hovermove\" to=\"idle\" when=\"move-input\" not=\"true\" /\u003E\n\t\t\u003Cedge from=\"idle\" to=\"hovermove\" when=\"move-input\" /\u003E\n\t\t\u003Cedge from=\"hovermove\" to=\"hovermoveLeanL\" keys=\"A\" /\u003E\n\t\t\u003Cedge from=\"hovermove\" to=\"hovermoveLeanR\" keys=\"D\" /\u003E\n\t\t\u003Cedge from=\"hovermove\" to=\"hovermovePitchU\" when=\"look-up\" /\u003E\n\t\t\u003Cedge from=\"hovermove\" to=\"hovermovePitchD\" when=\"look-down\" /\u003E\n\t\t\u003Cedge from=\"hovermoveLeanL\" to=\"FlyHoverLocomotion\" keys=\"A\" not=\"true\" /\u003E\n\t\t\u003Cedge from=\"hovermoveLeanR\" to=\"FlyHoverLocomotion\" keys=\"D\" not=\"true\" /\u003E\n\t\t\u003Cedge from=\"hovermovePitchU\" to=\"FlyHoverLocomotion\" when=\"look-up\" not=\"true\" /\u003E\n\t\t\u003Cedge from=\"hovermovePitchD\" to=\"FlyHoverLocomotion\" when=\"look-down\" not=\"true\" /\u003E\n\t\t\u003C!-- 停下来也回待机（复刻旧版\"停住优先于俯仰\"）：`move-input` 为假 ⇒ 回本族入口（idle） --\u003E\n\t\t\u003Cedge from=\"hovermovePitchU\" to=\"FlyHoverLocomotion\" when=\"move-input\" not=\"true\" /\u003E\n\t\t\u003Cedge from=\"hovermovePitchD\" to=\"FlyHoverLocomotion\" when=\"move-input\" not=\"true\" /\u003E\n\n\t\t\u003C!-- ── ⑤ 趴姿家：入姿 → 本体；本体只响应**空格闪避** ────────────────────\n\t\t     🔴 **冲刺姿态对 WASD 无响应**（用户 2026-09-27 实机感受后裁定）：趴姿就一个本体循环 +\n\t\t     一个前闪，**方向键不改变姿态**（原版 UE 也是这个模型：冲刺姿态只由 Shift 进出，\n\t\t     压弯/俯仰那两层是\"角速度 / 竖直速度\"驱动的 —— 我们暂时没有那套驱动量，\n\t\t     所以 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**先空着**，等驱动量接上再连线）。\n\t\t     🔴 **闪避只留\"前闪\"一条**：冲刺里没有方向输入 ⇒ 左右/下闪无从触发（用户裁定）。\n\t\t     空格在冲刺里**专管闪避**（不退出飞行）—— 退出的手势见 `TickAirborne`：非冲刺时短按空格 = 退出飞行。 --\u003E\n\t\t\u003Cedge from=\"fastmoveStart\" to=\"fastmove\" keys=\"W\" after-finish=\"true\" /\u003E\n\t\t\u003C!-- 🪦 **前闪那条线暂时摘掉**（2026-09-27）：空格已经被\"出机\"占用（见 ③′），\n\t\t     留着它会被出机边整条压过（永远轮不到）。**要给闪避另配一个键**（`R` / `Ctrl` / 鼠标侧键…）\n\t\t     说一声 —— XML 加回 `FlyFastPoses → dodgeU keys=\"\u003C键\u003E\"`、C# 把 `DodgeOnSpaceTapInBoost` 打开即可。 --\u003E\n\t\t\u003Cedge from=\"dodgeU\" to=\"fastmove\" anim=\"remaining\" anim-rem-pct=\"10\" /\u003E\n\t\u003C/edges\u003E\n\n\u003C/state_machine\u003E\n"};
+const DATA = {"machine": "flight", "xmlPath": "ModuleData/statemachines/flight.xml", "xmlAt": "2026-09-27 16:25", "groups": [{"name": "悬浮飞行", "entry": "进入飞行", "members": ["FlyHoverLocomotion", "进入飞行"]}, {"name": "冲刺飞行", "entry": "fastmoveStart", "members": ["FlyFastPoses", "fastmoveStart", "dodgeL", "dodgeR", "dodgeU", "dodgeD"]}, {"name": "FlyHoverLocomotion", "entry": "idle", "members": ["hovermove", "idle"]}, {"name": "FlyFastPoses", "entry": "fastmove", "members": ["fastmove", "fastmoveLeanL", "fastmoveLeanR", "fastmovePitchU", "fastmovePitchD"]}], "states": [{"name": "idle", "act": "act_fly_idle", "once": false, "dur": "", "next": "", "clip": "flight_idle_a", "durText": "循环"}, {"name": "hovermove", "act": "act_fly_hovermove", "once": false, "dur": "", "next": "", "clip": "flight_hovermove_a", "durText": "循环"}, {"name": "超人落地", "act": "act_fly_superland", "once": true, "dur": "", "next": "", "clip": "flight_superland_a", "durText": "一次性"}, {"name": "fastmove", "act": "act_fly_fastmove", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a", "durText": "循环"}, {"name": "fastmoveLeanL", "act": "act_fly_fastmove_lean_l", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_leanl", "durText": "循环"}, {"name": "fastmoveLeanR", "act": "act_fly_fastmove_lean_r", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_leanr", "durText": "循环"}, {"name": "fastmovePitchU", "act": "act_fly_fastmove_pitchu", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_pitchu", "durText": "循环"}, {"name": "fastmovePitchD", "act": "act_fly_fastmove_pitchd", "once": false, "dur": "", "next": "", "clip": "flight_fastmove_a_pitchd", "durText": "循环"}, {"name": "fastmoveStart", "act": "act_fly_fastmove_start", "once": true, "dur": "", "next": "fastmove", "clip": "flight_fastmove_start_a", "durText": "一次性"}, {"name": "dodgeL", "act": "act_fly_dodge_l", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_l", "durText": "一次性"}, {"name": "dodgeR", "act": "act_fly_dodge_r", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_r", "durText": "一次性"}, {"name": "dodgeU", "act": "act_fly_dodge_u", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_u", "durText": "一次性"}, {"name": "dodgeD", "act": "act_fly_dodge_d", "once": true, "dur": "", "next": "fastmove", "clip": "flight_dodge_a_d", "durText": "一次性"}, {"name": "进入飞行", "act": "act_fly_hoverstart", "once": true, "dur": "", "next": "idle", "clip": "flight_hoverstart_a", "durText": "一次性"}], "edges": [{"from": "超人落地", "to": "outside", "after": false, "event": false, "blend": "", "not": false, "kind": "anim", "anim": "remaining", "lt": "15"}, {"from": "冲刺飞行", "to": "超人落地", "after": false, "event": true, "blend": "", "not": false, "kind": "pred", "pred": "land-trigger"}, {"from": "悬浮飞行", "to": "冲刺飞行", "after": false, "event": false, "blend": "", "not": false, "kind": "key", "keys": "Shift"}, {"from": "悬浮飞行", "to": "outside", "after": false, "event": false, "blend": "", "not": false, "kind": "key", "keys": "Space"}, {"from": "hovermove", "to": "idle", "after": false, "event": false, "blend": "", "not": true, "kind": "pred", "pred": "move-input"}, {"from": "idle", "to": "hovermove", "after": false, "event": false, "blend": "", "not": false, "kind": "pred", "pred": "move-input"}, {"from": "进入飞行", "to": "FlyHoverLocomotion", "after": false, "event": false, "blend": "", "not": false, "kind": "anim", "anim": "remaining", "lt": "10"}, {"from": "outside", "to": "悬浮飞行", "after": false, "event": true, "blend": "", "not": false, "kind": "pred", "pred": "takeoff-trigger"}, {"from": "冲刺飞行", "to": "悬浮飞行", "after": false, "event": false, "blend": "", "not": true, "kind": "key", "keys": "Shift"}, {"from": "冲刺飞行", "to": "outside", "after": false, "event": false, "blend": "", "not": false, "kind": "key", "keys": "Space"}, {"from": "fastmoveStart", "to": "FlyFastPoses", "after": false, "event": false, "blend": "", "not": false, "kind": "anim", "anim": "remaining", "lt": "15"}], "preds": [{"name": "move-input", "body": "MoveInput"}, {"name": "look-up", "body": "PitchBand \u003E 0"}, {"name": "look-down", "body": "PitchBand \u003C 0"}, {"name": "takeoff-trigger", "body": "false"}, {"name": "land-trigger", "body": "false"}], "scalars": {"boostStartSeconds": "FlightTuning.BoostStartSeconds", "dodgeClipSeconds": "FlightTuning.DodgeClipSeconds", "castReleaseSeconds": "FlightTuning.CastReleaseSeconds"}, "keys": ["W", "A", "S", "D", "Space", "Shift", "RMB", "LMB"], "anims": ["remaining"], "rawXml": "\u003C!-- 飞行动画状态机的**定义**（2026-09-25 由 C# 迁到这里）。\n\n     🔴 **改这个文件不用重编译** —— 重启游戏即生效（引擎不解析它，是我们自己在\n        `MySubModule.OnSubModuleLoad` → `FlightAnimMachine.Register()` 里读的）。\n\n     🔴 **两个读者：游戏 + 编辑器页**\n        · 游戏：`Animation/AnimMachineLoader.cs` 装载 + 校验（转成 AnimMachineDef）\n        · 编辑器页：`tools/anim-statemachine/gen_statemachine_editor.py` 读**同一个文件**画图 / 改结构\n        ⇒ 页面不可能和游戏里跑的那份分叉。（页面是生成物，改这里重跑生成器；页面本体 `statemachine_editor.html` 在 tools 里进 git。）\n\n     🔴 **装载期校验**：状态名 / 目标 / 族成员 / 谓词名 / 数字 —— 有一处不对就**整台不注册**\n        并列全部问题到日志（`[Anim]` 前缀）。所以打错字不会静默，是**响亮地失败**。\n\n     🔴 **判据不在这里**：`when=` 写的是**谓词名**（名字用输入语言：`hold-left` = 按着 A），\n        真身在 `Flight/FlightAnimConditions.cs`。理由：字符串表达式 = 失去编译期检查 = 又一种静默失败。\n\n     🔴 **运行期旋钮不在这里**：默认过渡时长 / 核对周期 / 动作优先级仍是 C# 里的委托\n        （指向 `FlightTuning` 的字段），所以 `custom.flight tune blend / turnrate …` 照旧有效。\n\n     🔴 **边的顺序 = 优先级**（第一条命中的生效），改顺序 = 改优先级，别随手挪。\n        三种边型（`AnimEdgeDef` 的三个开关）：\n          · 缺省             = 普通边；能打断正在播的一次性动作（入姿演到一半也能被它踢走）\n          · after-finish     = 只在\"演完\"之后参与求值（绝不打断）\n          · event=\"true\"     = **不由状态机求值** —— **游戏事件**（起飞 / 落地那一刻）由 C# 强行走；写在这里只为让表/图完整\n\n     ⚠️ **这一段（文件头）编辑器导出时原样保留；写在 `\u003Cfamilies\u003E` / `\u003Cstates\u003E` / `\u003Cedges\u003E` 里面的注释\n        会被导出覆盖掉** —— 要长期留着的说明写在这里。\n\n     🔴🔴 **事件接缝：C# 里一个状态名都没有，全从这下面三条读**（2026-09-27 改；属性名 `event`）——\n        所以**改名字、换状态、调时机都只改本文件**，重启游戏生效、不用重编译：\n          · **进机**（起飞入姿）= `from=\"outside\"` 那条边的 `to`\n          · **出机前的姿态**（落地动作）= `to=\"outside\"` 那条边的 `from`\n          · **出机时机** = 同一条边上的 `anim=\"remaining\" anim-rem-pct=\"N\"`（剩 N% 就交还引擎）\n        🔴 **\"出机\"那条边不必标 `event=\"true\"`**（2026-09-27 用户裁定：「超人落地就是应该落地动画播完之后\n           才回到 outside」）：C# 判定\"出机声明\"的判据 = **`to=机外` 且写了 `anim-rem-pct`**；\n           那句\"剩 N% 出机\"由**状态机**判也行（撞地后 C# 会 `Hold` 住状态机 ⇒ 不会两边同时触发）。\n        ⇒ 落地下降段**不强制任何姿态**（状态机自己按输入演）—— 落地动作只在地面播，\n           由\"触地那一刻 Force 出机前姿态\"保证。\n\n     🔴 **`finish-margin`（根节点属性，比例 0~1，默认 0.15）= \"一次性动作算演完\"的余量**（2026-09-27 加）——\n        `演完才进`（`after-finish`）与 `演完兜底`（`\u003Cstate next=\"…\"\u003E`）**共用这一条判据**：\n        剩余 ≤ 余量 就算演完。**留余量是为了接得上**：clip 一播完，0 号通道**当场空掉**\n        （`SetActionChannel` 传的是 `blendOutPeriodToNoAnim: 0`），而状态机只能**下一个 tick** 才发现\n        ⇒ 中间那几帧既掉默认姿势、**随后的交叉淡化还会从\"默认姿势\"开始**（整段过渡变形）。\n        在\"还剩一点\"的时候切过去，淡化才从**真实姿势**接得上（用户裁定 / UE 习惯）。\n        🔴 **动画条件只有一种写法**：`anim=\"remaining\" anim-rem-pct=\"N\"` —— \"播完就进\"就写 N=15 这种值。\n        原来的 `anim=\"finished\"` **已删**（2026-09-27 用户裁定：它等于\"剩 N% + 一个隐含余量\"，\n        两套词汇只会让人纠结该选哪个）—— 写了它在装载期**响亮报错**，不会静默失效。\n\n     🔴 **跳转图总览（2026-09-27 按\"玩家能感受到的\"重定，改结构时连这段一起改）**\n        两族之间的门：**只看 Shift 一个键** ——\n                      按 Shift 进 `冲刺飞行`（**必先播** fastmoveStart 入姿）\n                      松 Shift 回 `进入飞行`（= hoverstart 入姿）再进悬浮\n                      🔴 **回悬浮一律经 `进入飞行`**：它是\"回到悬停\"的**通用 entry**，\n                         不只是\"从空中开始飞\"，**从冲刺退回悬停也要播**（用户裁定）。\n        直立家：idle ⇄ hovermove（有 / 无方向输入）\n                hovermove → 压弯 L/R（按 A / D）、俯仰 U/D（镜头抬 / 压）；**压弯优先于俯仰**\n                压弯 / 俯仰：条件不成立 **或停下来** ⇒ 回本族入口（idle）\n        趴姿家：**姿态对 WASD 无响应**（用户裁定：冲刺只由 Shift 进出）——\n                fastmoveStart 演完进 fastmove；本体只接**一条闪避边**（`Space` → `dodgeU` = 前闪）。\n                🔴 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**暂时空着**：原版 UE 里那两层是\n                   \"角速度 / 竖直速度\"驱动的，我们还没有那套驱动量 ⇒ 等接上再连线（别用方向键顶替）。\n        出机（空格）：**两个族各一条 `to=\"outside\"` 的普通边**（见 \u003Cedges\u003E ③′）——\n                \"谁能出机、按什么键\"全在本文件；使用方只遵守\"机器说机外 ⇒ 交还引擎\"一条通用规则\n                （**C# 里没有\"空格\"这个字**）。掉着时再按一次 = 重新进机（同一手势，进出对称）。\n                撞地 = 自动落地 + 演落地动作（另一条相位边管）。\n        ⚠️ 闪避 / 压弯 / 俯仰的**姿态**看这张图；**位移**在 C#（`PlayerFlightBehavior.BeginDodge` = 沿相机前向）。 --\u003E\n\u003Cstate_machine name=\"flight\" finish-margin=\"0.15\"\u003E\n\n\t\u003C!-- 容器（= 边的来源集合 / 真子状态机，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。\n\t     现状（2026-09-26 与文件同步核过）—— 四个容器，互不重叠：\n\t       · 悬浮飞行（直立家，入口 = FlyHoverLocomotion → idle）压弯×2 + 俯仰×2 + FlyHoverLocomotion\n\t       · 冲刺飞行（趴姿家，入口 = fastmoveStart）      FlyFastPoses + fastmoveStart + 闪避×4\n\t       · FlyHoverLocomotion（悬浮飞行 的子容器，入口 = idle）      hovermove / idle\n\t       · FlyFastPoses（冲刺飞行 的子容器，入口 = fastmove）        趴姿本体 5 个（闪避的**发起来源**）\n\t     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会\"硬翻\"，所以进趴姿必须经 fastmoveStart 那道门。\n\t     超人落地 / 进入飞行 不归属任何容器（散状态 = 出机 / 进机的衔接状态）。\n\t     （本段是历史裁定，改容器结构时请连这段一起改 —— 编辑器导出**只保留文件头与本段之前的注释**，\n\t       写在 \u003Cfamilies\u003E / \u003Cstates\u003E / \u003Cedges\u003E 里面的注释导出时会被覆盖掉。） --\u003E\n\t\u003Cfamilies\u003E\n\t\t\u003Cfamily name=\"悬浮飞行\" entry=\"进入飞行\"\u003EFlyHoverLocomotion 进入飞行\u003C/family\u003E\n\t\t\u003Cfamily name=\"冲刺飞行\" entry=\"fastmoveStart\"\u003EFlyFastPoses fastmoveStart dodgeL dodgeR dodgeU dodgeD\u003C/family\u003E\n\t\t\u003Cfamily name=\"FlyHoverLocomotion\" entry=\"idle\"\u003Ehovermove idle\u003C/family\u003E\n\t\t\u003Cfamily name=\"FlyFastPoses\" entry=\"fastmove\"\u003Efastmove fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD\u003C/family\u003E\n\t\u003C/families\u003E\n\n\t\u003C!-- 状态 = 状态机里的标识 + 内容包里的动作名（act_ 那一层，见 Taikou/ModuleData/action_sets.xml）。\n\t     **不带 once = 循环姿态；once=\"true\" = 一次性动作**（播完自动去 next）。\n\t     🔴 **不写时长** —— 长度由 **clip 自己带**，引擎给的是 0~1 的播放进度（见 Animation/AgentAnimStateMachine）。\n\t        `duration=\"…\"`（秒 / 命名标量）保留成**可选覆盖**，只在\"要主动截短 clip\"时才写。\n\t     next = **演完兜底**：播完、且没有任何边命中时回这里（见 \u003Cedges\u003E 顶部的说明）。 --\u003E\n\t\u003Cstates\u003E\n\t\t\u003Cstate name=\"idle\" act=\"act_fly_idle\" /\u003E\n\t\t\u003Cstate name=\"hovermove\" act=\"act_fly_hovermove\" /\u003E\n\t\t\u003Cstate name=\"超人落地\" act=\"act_fly_superland\" once=\"true\" /\u003E\n\t\t\u003Cstate name=\"fastmove\" act=\"act_fly_fastmove\" /\u003E\n\t\t\u003Cstate name=\"fastmoveLeanL\" act=\"act_fly_fastmove_lean_l\" /\u003E\n\t\t\u003Cstate name=\"fastmoveLeanR\" act=\"act_fly_fastmove_lean_r\" /\u003E\n\t\t\u003Cstate name=\"fastmovePitchU\" act=\"act_fly_fastmove_pitchu\" /\u003E\n\t\t\u003Cstate name=\"fastmovePitchD\" act=\"act_fly_fastmove_pitchd\" /\u003E\n\t\t\u003Cstate name=\"fastmoveStart\" act=\"act_fly_fastmove_start\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"dodgeL\" act=\"act_fly_dodge_l\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"dodgeR\" act=\"act_fly_dodge_r\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"dodgeU\" act=\"act_fly_dodge_u\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"dodgeD\" act=\"act_fly_dodge_d\" once=\"true\" next=\"fastmove\" /\u003E\n\t\t\u003Cstate name=\"进入飞行\" act=\"act_fly_hoverstart\" once=\"true\" next=\"idle\" /\u003E\n\t\u003C/states\u003E\n\n\t\u003C!-- 边：**顺序 = 优先级**。\n\t     from = 状态名 或 族名；to = 状态名；when = 已登记的谓词名；\n\t     blend 省略 = 用机器默认（FlightTuning.AnimBlendIn，热调 tune blend）。\n\n\t     🔴 **\"演完去哪\"有两种写法，别混**：\n\t        · `\u003Cstate next=\"X\"\u003E`（上面）—— **演完兜底**：一次性动作播完、且下面**没有任何边命中**时回 X。\n\t          条件优先、演完兜底：例如入姿演完那一刻玩家已经松开 Shift，就该走 at-rest 那条边去 idle，\n\t          而不是先回 fastmove 再被踢走（那是连着两次交叉淡化，看着闪一下）。\n\t        · `\u003Cedge ... after-finish=\"true\"\u003E` —— 演完之后**由条件**决定去哪（用于\"演完且仍在冲刺 ⇒ 回 fastmove\"这类）。 --\u003E\n\t\u003Cedges\u003E\n\t\t\u003Cedge from=\"超人落地\" to=\"outside\" anim=\"remaining\" anim-rem-pct=\"15\" /\u003E\n\t\t\u003Cedge from=\"冲刺飞行\" to=\"超人落地\" when=\"land-trigger\" event=\"true\" /\u003E\n\t\t\u003Cedge from=\"悬浮飞行\" to=\"冲刺飞行\" keys=\"Shift\" /\u003E\n\t\t\u003Cedge from=\"悬浮飞行\" to=\"outside\" keys=\"Space\" /\u003E\n\t\t\u003Cedge from=\"hovermove\" to=\"idle\" when=\"move-input\" not=\"true\" /\u003E\n\t\t\u003Cedge from=\"idle\" to=\"hovermove\" when=\"move-input\" /\u003E\n\t\t\u003Cedge from=\"进入飞行\" to=\"FlyHoverLocomotion\" anim=\"remaining\" anim-rem-pct=\"10\" /\u003E\n\t\t\u003Cedge from=\"outside\" to=\"悬浮飞行\" when=\"takeoff-trigger\" event=\"true\" /\u003E\n\t\t\u003Cedge from=\"冲刺飞行\" to=\"悬浮飞行\" keys=\"Shift\" not=\"true\" /\u003E\n\t\t\u003Cedge from=\"冲刺飞行\" to=\"outside\" keys=\"Space\" /\u003E\n\t\t\u003Cedge from=\"fastmoveStart\" to=\"FlyFastPoses\" anim=\"remaining\" anim-rem-pct=\"15\" /\u003E\n\t\u003C/edges\u003E\n\n\u003C/state_machine\u003E\n"};
 const LSKEY = "lwn.statemachine.flight.draft2";
 
 // ── 可编辑状态 ─────────────────────────────────────────────
@@ -218,6 +234,10 @@ const view = {k: 1, tx: 0, ty: 0};      // 画布视图：缩放 + 平移（对�
 let viewRestored = false;
 let draftActive = false, draftAck = false;   // 载入了本地草稿 / 用户已点过"保留草稿"
 let draftAt = 0;                             // 草稿保存时间（毫秒）；0 = 老草稿没记时间
+// 上次"存进文件"的内容指纹 / 文件名 / 时间 —— 🔴 **刷新页面之后**靠它认出"这份草稿已经落盘了"，
+// 否则重开一次就又被黄条警告"你在看草稿而不是 XML"（用户实测报过：存完还有提示）。
+// 声明必须在这里（= 草稿载入那段之前）：页面启动时就会读它，晚了就是 TDZ 报错。
+let savedAt = null;
 let clip = null;                             // 内存剪贴板：复制状态 → 粘贴状态
 let lastCtxXY = { clientX: 400, clientY: 300 };   // 右键菜单落点（二级菜单复用同一坐标）
 let elistAll = false;                        // 边列表是否显示全部（false = 只看与选中相关）
@@ -271,6 +291,7 @@ try {
   if (raw) { const o = JSON.parse(raw);
     if (o && o.edges) { edges = o.edges; groups = o.groups || groups; states = o.states || states; pos = o.pos || {};
       gpos = o.gpos || {}; pendingBoxes = o.boxes || null; draftActive = true; draftAt = o.at || 0;
+      savedAt = o.saved || null;                 // 上次存进文件的是哪一份内容（没有 = 从没在这个浏览器里存过）
       if (o.view) { view.k = +o.view.k || 1; view.tx = +o.view.tx || 0; view.ty = +o.view.ty || 0; viewRestored = true; } } }
 } catch (e) { /* localStorage 坏了也不能影响用 */ }
 
@@ -292,7 +313,7 @@ function reindex() {
 // 🔴 草稿里存**保存时间**（`at`）：黄条靠它跟 XML 的 mtime 比"哪个新"，并给一句明确建议 ——
 //    2026-09-27 用户实测："我看不太懂为什么说有草稿、也不知道该点哪个"。
 function save() { try { localStorage.setItem(LSKEY, JSON.stringify({edges, groups, states, pos, view, gpos,
-  at: Date.now(), boxes: {outside: {x: OUTSIDE.x, y: OUTSIDE.y}}})); } catch (e) {} }
+  at: Date.now(), boxes: {outside: {x: OUTSIDE.x, y: OUTSIDE.y}}, saved: savedAt})); } catch (e) {} }
 function esc(s) { return String(s === undefined || s === null ? "" : s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
@@ -304,7 +325,7 @@ const COL_X = [470, 760];
 const OUTSIDE = {x: 24, y: 24, w: 196, h: 42};    // 机外：非飞行那个外部状态
 // 🚫 「机内任意状态 `*`」已移除（用户 2026-09-25 裁定：来源一律写成显式的族；XML 里已无 from="*"）
 // 🚫 机器级 Entry 已移除 —— 用户裁定：Entry 只属于「容器」（下钻到容器页才画一名）。
-//    机器"从哪进"= 那条 from="outside" 的相位边本身（画在 机外 盒身上）。
+//    机器"从哪进"= 那条 from="outside" 的事件边本身（画在 机外 盒身上）。
 // 🔴 两个特殊盒 + 容器盒**都能单独拖动**（用户反馈："只能整体拖，不能调节点位置"）
 const BOX0 = {outside: {x: OUTSIDE.x, y: OUTSIDE.y}};
 function boxOf(id) { return OUTSIDE; }
@@ -355,7 +376,7 @@ function defaultPos() {
 }
 defaultPos();
 
-// 机器"从哪进"= 那条 from="outside" 的相位边（不再有 Entry 节点；它就是唯一答案）
+// 机器"从哪进"= 那条 from="outside" 的事件边（不再有 Entry 节点；它就是唯一答案）
 function outsideTarget() { const e = edges.find(x => x.from === "outside"); return e ? e.to : null; }
 
 function isProne(n) { return groups.some(g => /Prone|趴/.test(g.name) && g.members.indexOf(n) >= 0); }
@@ -416,12 +437,12 @@ function placeLabel(text, p1, p2, dx, obstacles, placed, spin) {
 }
 function condText(e) {
   let s;
-  // 相位边的显示：写了「动画 · 剩余 %」就显示那个（它是**真的**，相位会读），否则显示相位时刻
-  if (e.phase) s = e.kind === "anim"
-    ? "相位驱动 · " + (e.anim === "finished" ? "演完" : "剩余 < " + e.lt + "%")
-    : "相位驱动 · " + phaseShort(e.pred);
+  // 事件边的显示：写了「动画 · 剩余 %」就显示那个（它是**真的**，事件会读），否则显示游戏事件
+  if (e.event) s = e.kind === "anim"
+    ? "事件驱动 · 剩余 < " + e.lt + "%"
+    : "事件驱动 · " + momentShort(e.pred);
   else if (e.kind === "key") s = String(e.keys || "?").split("+").join(" + ") + " 一起按着";
-  else if (e.kind === "anim") s = e.anim === "finished" ? "动画演完" : "剩余 < " + e.lt + "%";
+  else if (e.kind === "anim") s = "剩余 < " + e.lt + "%";
   else s = e.pred || "?";
   return e.not ? "不是（" + s + "）" : s;      // 🔴 取反：对三种条件**一律适用**
 }
@@ -438,7 +459,6 @@ const selname = document.getElementById("selname");
 const editor = document.getElementById("editor");
 const elist = document.getElementById("elist");
 const problemsBox = document.getElementById("problems");
-const io = document.getElementById("io");
 
 function tabLabel(t) {
   if (t.kind === "root") return "总览";
@@ -579,7 +599,7 @@ function render() {
         L1 = p1; L2 = p2; ldx = dx;
       }
       const isSel = sel && sel.type === "edge" && sel.id === i;
-      const dash = e.phase ? ' stroke-dasharray="1 4"' : (e.after ? ' stroke-dasharray="6 4"' : "");
+      const dash = e.event ? ' stroke-dasharray="1 4"' : (e.after ? ' stroke-dasharray="6 4"' : "");
       out.push(`<g class="edge${isSel ? " sel" : ""}" data-i="${i}">`);
       out.push(`<path class="hit" d="${d}"/>`);
       out.push(`<path class="main" d="${d}"${dash} marker-end="url(#ar)"/>`);
@@ -656,7 +676,7 @@ function render() {
   showStates.forEach(s => {
     const r = nodeRect(s.name);
     const isSel = sel && sel.type === "state" && sel.id === s.name;
-    const br = bridgeOf(s.name);                 // "in"/"out" = 进机/出机衔接状态（都是相位驱动边）
+    const br = bridgeOf(s.name);                 // "in"/"out" = 进机/出机衔接状态（都是事件驱动边）
     const col = br ? "var(--door)" : (isProne(s.name) ? "var(--prone)" : "var(--upright)");
     out.push(`<g class="node" data-n="${esc(s.name)}" style="cursor:grab">`);
     out.push(`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="9" fill="${br ? "var(--door-soft)" : "var(--surface)"}" `
@@ -727,17 +747,22 @@ function render() {
   applyView();
   renderTabs();
   renderDraftBanner();
+  renderFsChip();
   renderPanel();
 }
 
 // 🔴 landing（superland）/ 起飞入姿（hoverstart）是**衔接状态**：它们不参与"姿态之间"的转移，
-//    只负责和状态机外面接上（都是相位驱动边）。这里从 phase 边**推导**，不新造 XML 属性。
+//    只负责和状态机外面接上（都是事件驱动边）。这里从事件边**推导**，不新造 XML 属性。
 function bridgeOf(name) {
   let r = null;
   edges.forEach(e => {
-    if (!e.phase) return;
-    if (e.from === "outside" && e.to === name) r = "in";
-    else if (e.to === "outside" && e.from === name && r !== "in") r = "out";
+    // 进机：`from=机外` 的**事件边**（装载期硬要求：进机必须事件驱动）
+    if (e.from === "outside" && e.event && e.to === name) { r = "in"; return; }
+    // 🔴 出机：**不要求它是事件边**（与 C# 的 `TryEventExit` 同一条判据）——
+    //    "出机声明" = `to=机外` **且写了 anim-rem-pct**（`from` = 撞地 Force 哪个落地动作）。
+    //    用户裁定：「超人落地就是应该落地动画播完之后才回到 outside」⇒ 那条边可以是普通边，
+    //    但它仍然是"出机前的姿态"，角标该亮（测试 ㊷ 那批就靠这个角标认衔接状态）。
+    if (e.to === "outside" && e.from === name && String(e.lt || "") !== "" && r !== "in") r = "out";
   });
   return r;
 }
@@ -797,10 +822,45 @@ function draftDiff() {
   const other = sig(DATA.states, DATA.groups) === sig(states, groups) ? 0 : 1;
   return {addS, delS, addE, delE, other, n: addS.length + delS.length + addE + delE + other};
 }
+// 结构指纹 —— 用来回答"这份草稿跟**上次存出去的那份**是不是同一份"（不认位置 / 镜头，只认结构）
+// 🔴 **不许把 `DATA.machine` 算进来**：它只在「打开一份文件」时才更新，刷新页面会退回**页面烘焙的那个名字**
+//    ⇒ 指纹永远不匹配（实测：刷新后黄条从"已经存进"退成"有还没保存的改动"）。指纹只认草稿自己的内容。
+function structSig() {
+  return JSON.stringify([
+    states.map(s => [s.name, s.act, s.once ? 1 : 0, s.next, s.dur]),
+    groups.map(g => [g.name, g.entry, g.members]),
+    edges.map(e => [e.from, e.to, e.kind, e.keys || e.pred || e.anim || "", e.lt || "", e.blend || "",
+                    e.after ? 1 : 0, e.event ? 1 : 0, e.not ? 1 : 0])]);
+}
+function sigHash(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
 function renderDraftBanner() {
   const b = document.getElementById("banner");
   if (!b) return;
   if (!draftActive) { b.classList.remove("on"); b.innerHTML = ""; return; }
+  // 🔴 **已经落盘的草稿不该再吓人**（用户实测："为什么我保存完了 xml 还是有这个提示!!!"）：
+  //    草稿跟"上次存出去的那份"结构上一致 ⇒ 它**就是文件**，不存在"草稿静默盖住 XML"的风险
+  //    ⇒ 收成一条说明（绿色、无按钮）。用户在上面又改了东西 ⇒ 才回到警告。
+  if (savedAt && sigHash(structSig()) === savedAt.sig) {
+    // 🔴 末尾那句要**看有没有握住文件**（刷新后句柄必然丢了）：说"点保存即可"是假话
+    //    —— 那时点保存会弹"存到哪"的对话框（因为这一页并没有文件可写）。
+    b.innerHTML = '<b class="okmark">✓ 本页内容已经存进 ' + esc(savedAt.name) + '</b>'
+      + '<span class="mono">（' + fmtClock(savedAt.at) + '）　'
+      + (fsx.file ? '浏览器里这份还在，改完点「保存」即可'
+                  : '但这一页还没握住文件（句柄不能跨会话）—— 改完点「保存」时选回这份，或先点「打开 XML…」')
+      + '</span>';
+    b.classList.remove("slim");
+    b.classList.add("on", "slim", "ok");
+    return;
+  }
+  if (savedAt) {
+    // 🔴 存过、**之后又改了** ⇒ 别拿"生成页面时那份 XML"当基准报差异（它既不是文件、也不是真身）
+    //    —— 直说"有没保存的改动"，并给出唯一可靠的回头路：重新打开那份文件。
+    b.innerHTML = '<b>⚠ 有还没保存的改动</b><span class="mono">　上次存进 ' + esc(savedAt.name) + ' 是 '
+      + fmtClock(savedAt.at) + '；要丢掉改动、回到文件里的内容 ⇒ 点上面的「打开 XML…」重开一次</span>';
+    b.classList.remove("slim", "ok");
+    b.classList.add("on");
+    return;
+  }
   const d = draftDiff();
   // 🔴 只差**布局**（节点位置 / 缩放平移）不算"草稿" —— 页面在启动时本来就会 save() 一次
   //    （`fit()` 落盘），以前这会让**每一次打开都弹"你在看本地草稿"**，明明一个字都没改。
@@ -813,7 +873,7 @@ function renderDraftBanner() {
   const draftNewer = draftAt && draftAt > xmlAtMs();
   const whenLine = '<span class="mono">　草稿保存于 ' + (draftAt ? fmt(draftAt) : "（更早的版本，没记时间）")
     + ' · XML 修改于 ' + esc(DATA.xmlAt || "?") + ' ⇒ '
-    + (draftNewer ? '<b>草稿较新</b>：先把草稿「导出完整 XML」另存一份再决定' : '<b>XML 较新</b>：点右边「用 XML 覆盖草稿」') + '</span>';
+    + (draftNewer ? '<b>草稿较新</b>：先「另存为…」把草稿落一份再决定' : '<b>XML 较新</b>：点右边「用 XML 覆盖草稿」') + '</span>';
   b.innerHTML = '<b>⚠ 现在画的是浏览器里的本地草稿，不是 XML</b>'
     + whenLine + '<br>'
     + '<span class="mono">　与 XML 相比：'
@@ -839,9 +899,10 @@ function renderDraftBanner() {
     wipe2.onclick = wipeDraft;
     b.appendChild(more); b.appendChild(wipe2);
     b.classList.add("on", "slim");
+    b.classList.remove("ok");
     return;
   }
-  b.classList.remove("slim");
+  b.classList.remove("slim", "ok");
   const btn = document.createElement("button");
   btn.className = "primary"; btn.textContent = "用 XML 覆盖草稿";
   btn.onclick = wipeDraft;
@@ -950,45 +1011,45 @@ function edgeInTab(e, t) {
 
 // ── 面板 ───────────────────────────────────────────────────
 function opt(v, list, cur) { return list.map(x => `<option value="${esc(x)}"${x === cur ? " selected" : ""}>${esc(x)}</option>`).join(""); }
-// ── 相位边（`phase="true"`）的"时机" ─────────────────────────────
-// 🔴 相位边**没有状态机条件**：它由飞行相位 C# `Force` 进，而 `AgentAnimStateMachine.Tick` 里
+// ── 事件边（`event="true"`）的"时机" ─────────────────────────────
+// 🔴 事件边**没有状态机条件**：它由飞行相位 C# `Force` 进，而 `AgentAnimStateMachine.Tick` 里
 //    `if (e.PhaseForced) continue;` ⇒ **求值时整条被跳过**。所以 `when=` 只是**文档**。
 //    ⇒ 它只该写**相位触发器**（`*-trigger`）。
 //    🐛 以前这里到处写 `e.pred || DATA.preds[0].name` 兜底，而 `preds[0]` 恰好是 `move-input`
 //       —— 一个和"空中按跳跃"毫无关系的谓词 ⇒ 用户实测："这里条件有点怪"。
 // 🟢 界面上一律说人话：选项写「起飞 / 落地」+ 一句解释，**不把 `c => false` 这种真身甩给用户**
 //    （用户原话："所以这里我咋填 看不懂"）。
-const PHASE_INFO = {
+const MOMENT_INFO = {
   "takeoff-trigger": {short: "起飞", long: "起飞 —— 空中按跳跃那一刻"},
   "land-trigger":    {short: "落地", long: "落地 —— 板触地那一刻（贴地 / 俯冲 / 撞地都算）"},
 };
-function phaseShort(n) { return (PHASE_INFO[n] || {}).short || n || "未选"; }
-function phaseLong(n) { return (PHASE_INFO[n] || {}).long || n; }
-function phasePreds() { return (DATA.preds || []).filter(p => /-trigger$/.test(p.name)); }
-function pickPhasePred(cur) {
-  const t = phasePreds();
+function momentShort(n) { return (MOMENT_INFO[n] || {}).short || n || "未选"; }
+function momentLong(n) { return (MOMENT_INFO[n] || {}).long || n; }
+function eventPreds() { return (DATA.preds || []).filter(p => /-trigger$/.test(p.name)); }
+function pickEventPred(cur) {
+  const t = eventPreds();
   if (cur && t.some(p => p.name === cur)) return cur;
   return (t[0] || (DATA.preds || [])[0] || {name: ""}).name;
 }
 // **方向决定时机**：进机（来自机外）= 起飞；出机 / 去衔接态 = 落地
-function phasePredFor(from, to) {
+function eventPredFor(from, to) {
   const want = from === "outside" ? "takeoff-trigger" : (to === "outside" ? "land-trigger" : "");
-  return (want && phasePreds().some(p => p.name === want)) ? want : pickPhasePred("");
+  return (want && eventPreds().some(p => p.name === want)) ? want : pickEventPred("");
 }
-// 谓词下拉：**一个列表，全部谓词都在**。相位边只把 `*-trigger` **置顶**并写人话 ——
-// 🔴 不把别的谓词藏掉：相位边不参与求值，选别的只是"文档写错"，该靠**提示**纠正、**不该剥夺选择**。
+// 谓词下拉：**一个列表，全部谓词都在**。事件边只把 `*-trigger` **置顶**并写人话 ——
+// 🔴 不把别的谓词藏掉：事件边不参与求值，选别的只是"文档写错"，该靠**提示**纠正、**不该剥夺选择**。
 //    （用户实测："你这里为啥不让我选条件啊 难道你又是针对这个节点写死了右侧面板吗？都说要做通用的了"）
-function predOpts(cur, phase) {
+function predOpts(cur, moment) {
   const all = DATA.preds || [];
-  if (!phase) return opt(cur, all.map(p => p.name), cur);
+  if (!moment) return opt(cur, all.map(p => p.name), cur);
   const trig = all.filter(p => /-trigger$/.test(p.name));
   const rest = all.filter(p => !/-trigger$/.test(p.name));
-  const mk = p => `<option value="${esc(p.name)}"${p.name === cur ? " selected" : ""}>${esc(phaseLong(p.name))}</option>`;
+  const mk = p => `<option value="${esc(p.name)}"${p.name === cur ? " selected" : ""}>${esc(momentLong(p.name))}</option>`;
   let html = "";
   if (cur && !all.some(p => p.name === cur))
     html += `<option value="${esc(cur)}" selected>${esc(cur)}（不在登记表里）</option>`;
-  if (trig.length) html += `<optgroup label="相位时刻（推荐）">` + trig.map(mk).join("") + `</optgroup>`;
-  if (rest.length) html += `<optgroup label="其他谓词（相位边不求值 —— 选了只是文档，校验会提醒）">` + rest.map(mk).join("") + `</optgroup>`;
+  if (trig.length) html += `<optgroup label="游戏事件（推荐）">` + trig.map(mk).join("") + `</optgroup>`;
+  if (rest.length) html += `<optgroup label="其他谓词（事件边不求值 —— 选了只是文档，校验会提醒）">` + rest.map(mk).join("") + `</optgroup>`;
   return html;
 }
 
@@ -1038,6 +1099,11 @@ function renderPanel() {
       <p class="hint">一次性<b>不用写时长</b>：长度由 <b>clip 自己带</b>（引擎给 0~1 的播放进度），重导 clip 换帧数也不用改配置。</p>
       <label>演完兜底 next（只给一次性用）</label>
       <input id="s-next" value="${esc(s.next)}" placeholder="${s.once ? "留空 = 不兜底" : "循环状态没有 next"}"${s.once ? "" : " disabled"}>
+      <p class="hint">🔴 <b>它不是"又一条边"，是最后一道兜底</b>：求值顺序 = <b>先按顺序看所有边</b>，
+      一条都没命中、且动作已经演完 ⇒ <b>才</b>回这里。<br>
+      为什么不做成边？① 它<b>永远排在最后</b>（写成恒真边摆错位置会把后面的边全遮住）；
+      ② 它是<b>保证</b> —— 一次性动作一定落得下来；漏写 = 演完停在最后一帧（通道空掉 = 掉默认姿势），
+      编辑器校验会抓。</p>
       <p class="hint">属于：${inGroups.length ? inGroups.map(esc).join(" / ") : "（不属于任何容器）"}</p>
       <p class="hint"><b>循环 / 一次性</b>就是引擎的判据：<span class="mono">once="true"</span> = 一次性（播完回 next），不写 = 循环。
       一次性<b>不写时长</b> —— 长度由 clip 自己带。改 act 要与内容包一致，否则装载期会报 <span class="mono">act_none</span>。</p>`;
@@ -1100,6 +1166,9 @@ function renderPanel() {
     if (!e) { sel = null; return renderPanel(); }
     selname.textContent = "边 #" + (sel.id + 1);
     const srcList = ["outside"].concat(groups.map(g => g.name), states.map(s => s.name));
+    // 🔴 事件边上的「演完才进」**是无效的**（状态机整条跳过事件边 ⇒ 它不读这个标志）——
+    //    跟"按键"同一个做法：**标注用不到**（不藏选项，留着让人能自己取消勾选）。
+    //    用户实测问过：「动画剩余20%本身就代表着演完才进」⇒ 顺手把两者的区别写进面板。
     editor.innerHTML = `
       <label>来源（状态 / 容器 / 机外 outside）</label>
       <select id="f-from">${opt(e.from, srcList, e.from)}</select>
@@ -1107,34 +1176,37 @@ function renderPanel() {
       <select id="f-to">${`<option value="outside"${e.to === "outside" ? " selected" : ""}>outside（机外 —— 出机＝交还引擎；普通边，条件可写 Space）</option>`
         + states.map(s => `<option value="${esc(s.name)}"${s.name === e.to ? " selected" : ""}>${esc(s.name)}</option>`).join("")
         + groups.map(g => `<option value="${esc(g.name)}"${g.name === e.to ? " selected" : ""}>${esc(g.name)}（容器 → 入口 ${esc(g.entry || "未设！")}）</option>`).join("")}</select>
-      <label>条件${e.phase ? "（相位驱动）" : ""}</label>
+      <label>条件 —— <b>什么时候走这条边</b></label>
       <select id="f-kind">
-        <option value="key"${e.kind === "key" ? " selected" : ""}${e.phase ? " disabled" : ""}>按键（按下 / 松开 / 按着 / 没按）${e.phase ? " —— 相位读不到按键" : ""}</option>
-        <option value="anim"${e.kind === "anim" ? " selected" : ""}>动画播放情况${e.phase ? "（相位会读「剩余 %」）" : ""}</option>
-        <option value="pred"${e.kind === "pred" ? " selected" : ""}>命名谓词（复合条件）</option>
+        <option value="key"${e.kind === "key" && !isEventMoment() ? " selected" : ""}>按键（按着 / 没按 —— 状态机每个 tick 判）</option>
+        <option value="anim"${e.kind === "anim" && !isEventMoment() ? " selected" : ""}>动画 · 剩余 &lt; %（状态机每个 tick 判）${e.event && e.kind === "anim" ? "　← 事件监听（C#）读这个数" : ""}</option>
+        <option value="pred"${e.kind === "pred" && !isEventMoment() ? " selected" : ""}>命名谓词（复合条件 —— 状态机判）</option>
+        <option value="event"${isEventMoment() ? " selected" : ""}>游戏事件（起飞 / 落地那一刻 —— 由 C# 强行走，状态机不求值）</option>
       </select>
       <div id="f-args"></div>
-      <label class="ck"><input type="checkbox" id="f-not"${e.not ? " checked" : ""}> <b>取反</b>（"不是这样"）—— 对上面任何一种条件都生效</label>
-      ${e.phase ? `<p class="hint">相位驱动的边<b>不由状态机求值</b>（Tick 里整条跳过）—— 它由<b>相位（C#）</b>在恰当时机处理。
-      ⇒ 所以这里的条件分两种：<br>
-      · <b>「动画 · 剩余 %」是真的</b>：相位会读这个数来判时机（出机就是靠它，见 <span class="mono">PlayerFlightBehavior.TickLanding</span>）。<br>
-      · <b>命名谓词只是文档</b>：相位不读它（相位时刻在人话标签那组里置顶）。<br>
-      这条边的方向是 <b>${e.from === "outside" ? "机外 → 状态（进机）" : "状态 → 机外 / 衔接态"}</b>
-      ${e.to === "outside" ? "（出机：写按键（如 Space）或「动画 · 剩余 %」都行）"
-        : (e.from === "outside" ? "（进机：相位 Force，写「起飞」即可）" : "（相位自己判，谓词只是文档）")}。
+      <label class="ck"><input type="checkbox" id="f-not"${e.not ? " checked" : ""}> <b>取反</b>（不是这样）</label>
+      ${e.event ? `<p class="hint">${isEventMoment()
+        ? `这条边由 <b>C#</b> 在<b>${e.pred === "takeoff-trigger" ? "起飞" : "落地"}那一刻</b>强行走（状态机整条跳过它）。`
+        : `🔴 这条边是<b>出机声明</b>：C# 会读它的 <b>来源</b>（撞地那一刻 Force 哪个落地动作）
+           和这里的 <b>剩余 %</b>（什么时候交还引擎）—— 那个数就是时机，写 0 会掉姿势，留点余量。`}
       ${(e.kind === "pred" && e.pred && !/-trigger$/.test(e.pred))
-        ? `<br><span style="color:var(--bad)">⚠ 现在存的是「${esc(e.pred)}」（早期版本编辑器默认塞的，相位不读它）。</span>` : ""}</p>` : ""}
+        ? `<br><span style="color:var(--bad)">⚠ 现在存的是「${esc(e.pred)}」—— 事件不读它，改用「起飞 / 落地」。</span>` : ""}</p>` : ""}
+      ${(!e.event && e.to === "outside" && e.kind === "anim" && e.anim === "remaining")
+        ? `<p class="hint">🔴 这条边是<b>出机声明</b>：<b>C# 会读它</b>（来源 = 撞地时 Force 哪个落地动作；
+           「剩余 %」= 什么时候交还引擎）。条件由<b>状态机</b>判也行 —— 撞地后状态机会被停住，不会两边同时触发。</p>` : ""}
       <label>blend（秒，留空 = 默认）</label>
       <input id="f-blend" value="${esc(e.blend)}">
-      <label style="margin-top:10px"><input type="checkbox" id="f-after"${e.after ? " checked" : ""}> 演完才进（不打断一次性动作）</label>
-      <label><input type="checkbox" id="f-phase"${e.phase ? " checked" : ""}> 相位驱动（不由状态机求值，只作文档）</label>
+      <label style="margin-top:10px"><input type="checkbox" id="f-after"${e.after ? " checked" : ""}${(e.event && !e.after) ? " disabled" : ""}> 演完才进（不打断一次性动作）${e.event ? (e.after ? " —— ⚠ 事件边勾了也不生效" : " —— 事件边用不到") : ""}</label>
+      <p class="hint">🔴 <b>它是"门"，不是"触发"</b>：勾了只表示别打断，<b>条件仍要成立</b>（两者是<b>与</b>）。
+      要"播完就进" ⇒ 条件用 <b>剩余 &lt; 15</b> 这类值。
+      （"演完"的判据 = 剩余 ≤ 根节点 <span class="mono">finish-margin</span>，默认 15%）</p>
       <div class="row" style="margin-top:10px"><div><button id="btn-del" class="danger" style="width:100%">删除这条边</button></div></div>`;
     document.getElementById("f-from").onchange = ev => {
       e.from = ev.target.value;
-      // 🔴 机外 ⇒ 强制相位边；同时把"时机"设成**相位触发器**（以前不设 ⇒ 导出时被兜成 preds[0] = move-input）
-      if (e.from === "outside" && !e.phase) {
-        e.phase = true; e.kind = "pred"; e.pred = phasePredFor("outside", e.to);
-        notice = "来源是机外（进机）⇒ 已自动改成相位驱动（进机是物理判定 + 要动板/相机），时机 = " + e.pred;
+      // 🔴 机外 ⇒ 强制事件边；同时把"时机"设成**相位触发器**（以前不设 ⇒ 导出时被兜成 preds[0] = move-input）
+      if (e.from === "outside" && !e.event) {
+        e.event = true; e.kind = "pred"; e.pred = eventPredFor("outside", e.to);
+        notice = "来源是机外（进机）⇒ 已自动改成事件驱动（进机是物理判定 + 要动板/相机），时机 = " + e.pred;
       }
       commit();
     };
@@ -1143,10 +1215,10 @@ function renderPanel() {
       // 出机（to=outside）**默认是普通边**（按键/谓词的自己写，不由状态机以外的谁求值）。
       // 🔴 例外：写成「动画 · 剩余 %」时必须交给**相位** —— C#（`TryPhaseExit`）要读这个数来判出机时机。
       if (e.to === "outside" && e.kind === "anim" && e.anim === "remaining") {
-        e.phase = true;
-        notice = "出机边写了「动画 · 剩余 %」⇒ 自动勾上相位驱动（这个数由 C# 读）";
+        e.event = true;
+        notice = "出机边写了「动画 · 剩余 %」⇒ 自动勾上事件驱动（这个数由 C# 读）";
       } else if (e.to === "outside" && e.kind === "pred" && !/-trigger$/.test(e.pred || "")) {
-        notice = "提示：出机边也可以写按键（如 Space）—— 相位边不由状态机求值，写了就永远轮不到";
+        notice = "提示：出机边也可以写按键（如 Space）—— 事件边不由状态机求值，写了就永远轮不到";
       }
       commit();
     };
@@ -1155,20 +1227,27 @@ function renderPanel() {
     // 出机边改成「动画 · 剩余 %」⇒ 自动勾相位（与 f-to 那条规则同源，别只做一半）
 
     document.getElementById("f-not").onchange = ev => { e.not = ev.target.checked; commit(); };   // 🔴 取反（三种条件通用）
-    document.getElementById("f-phase").onchange = ev => {
-      e.phase = ev.target.checked;
-      // 🔴 勾上相位驱动 ⇒ **谓词**只认相位触发器；但「动画 · 剩余 %」是**相位真的要读的**，别覆盖掉
-      if (e.phase && e.kind !== "anim") { e.kind = "pred"; e.pred = pickPhasePred(e.pred); }
-      commit();
-    };
     document.getElementById("btn-del").onclick = () => { edges.splice(sel.id, 1); sel = null; commit(); };
     const kindSel = document.getElementById("f-kind");
     function drawArgs() {
       const box = document.getElementById("f-args");
-      // 🔴 相位边也可以写「动画」档（相位会读它的 `剩余 %`）⇒ 只有 pred 走谓词分支
-      if (e.kind === "pred") {
-        box.innerHTML = `<label>谓词</label><select id="f-pred">${predOpts(e.pred, e.phase)}</select>`
-          + (e.phase ? "" : `<p class="hint">真身：<span class="mono" id="f-body"></span></p>`);
+      // 🔴 事件边也可以写「动画」档（事件会读它的 `剩余 %`）⇒ 只有 pred 走谓词分支
+      if (e.kind === "pred" && isEventMoment()) {
+        // 🔴 **"游戏事件"的时机由方向决定**（进机 = 起飞 / 出机·衔接 = 落地）⇒ 直接写出来，
+        //    不给选错的余地（选错就是死边 —— 校验也会报）。
+        // 🔴 **事件是"选出来的"，不是按方向写死的**（用户 2026-09-27 追问：「你为什么写死这条边，
+        //    不让我来选具体是哪个事件？？」—— 这是"把便捷当成了通用"的第二次翻车，同 §二十六 ③c）。
+        //    候选 = **所有已登记的 `*-trigger` 时刻**：C# 那边 `Register("xxx-trigger", …)` 登记一个
+        //    就自动多一个（未来的"入水 / 被击中 / 血量过半"都走这条路）⇒ 这才叫通用。
+        //    方向只用来给**默认值**（进机=起飞 / 出机·衔接=落地），选什么由你定。
+        box.innerHTML = `<label>哪个事件</label><select id="f-evt">`
+          + eventPreds().map(p => `<option value="${esc(p.name)}"${p.name === e.pred ? " selected" : ""}>${esc(momentLong(p.name))}</option>`).join("")
+          + `</select><p class="hint">C# 在那个事件发生时来找这条边（时机只在 C#，这里选的是"哪个时刻"）。
+          候选来自 <b>已登记的时刻</b>（<span class="mono">*-trigger</span>）—— 以后 C# 登记新事件会自动出现在这里。</p>`;
+        document.getElementById("f-evt").onchange = ev => { e.pred = ev.target.value; commit(); };
+      } else if (e.kind === "pred") {
+        box.innerHTML = `<label>谓词</label><select id="f-pred">${predOpts(e.pred, e.event)}</select>`
+          + (e.event ? "" : `<p class="hint">真身：<span class="mono" id="f-body"></span></p>`);
         const show = () => {
           const b = document.getElementById("f-body");
           if (b) b.textContent = (DATA.preds.find(p => p.name === e.pred) || {}).body || "?";
@@ -1193,28 +1272,44 @@ function renderPanel() {
           commit();
         });
       } else {
-        box.innerHTML = `<div class="row"><div><label>动画</label><select id="f-anim">${opt(e.anim, DATA.anims, e.anim)}</select></div>`
-          + `<div><label>剩余 &lt; %（0~100）</label><input id="f-lt" value="${esc(e.lt)}" placeholder="20"></div></div>`
-          + `<p class="hint">阈值是<b>百分比</b> —— 长度由 clip 自己带，配置里不写秒数。`
-          + (e.phase ? `<br>🔴 相位边写这个<u>不是文档</u>：**相位（C#）会读它**来判时机（出机就是靠它）。` : "") + `</p>`;
-        document.getElementById("f-anim").onchange = ev => { e.anim = ev.target.value; syncOutsidePhase(); commit(); };
-        document.getElementById("f-lt").onchange = ev => { e.lt = ev.target.value.trim(); commit(); };
+        // 🔴 动画条件**只有一种写法**：`remaining` + 百分比。`anim="finished"` 已删（2026-09-27 用户裁定）——
+        //    它等于"remaining + 一个隐含余量"，留着就是两套词汇说同一件事，UI 上还得为它留个没意义的数字框。
+        //    ⇒ 这里不再有"动画"下拉，只有那个数字（值就是余量：写 15 = 剩 15% 就命中）。
+        e.anim = "remaining";
+        box.innerHTML = `<label>剩余 &lt; %（0~100）</label><input id="f-lt" value="${esc(e.lt)}" placeholder="15">`
+          + `<p class="hint">剩这么多就命中。<b>别写 0</b>：clip 一播完 0 号通道当场空掉，
+             下一条会从默认姿势开始淡化 —— 留一点余量（15 上下）才接得上。</p>`;
+        document.getElementById("f-lt").onchange = ev => { e.lt = ev.target.value.trim(); syncOutsideEvent(); commit(); };
       }
     }
-    // 🔴 出机边（`to=outside`）写成「动画 · 剩余 %」⇒ 必须交给相位（C# 要读那个数）。
-    //    定义放在所有 handler 之前（同一作用域里 const 有 TDZ，放在后面会被提前调用而抛）。
-    const syncOutsidePhase = () => {
-      if (e.to === "outside" && !e.phase && e.kind === "anim" && e.anim === "remaining") {
-        e.phase = true;
-        notice = "出机边写了「动画 · 剩余 %」⇒ 自动勾上相位驱动（这个数由 C# 读）";
+    // 🔴 **"事件边"是条件的一种，不是一个独立开关**（2026-09-27 用户裁定）——
+    //    他原话：「事件驱动为什么单独一个单选框？不和条件放在一起？你这个动画播完不就是条件之一吗？」
+    //    确实：`event` 说的是"**谁在跑这条边**"（状态机每帧判 / C# 在某一刻强行走），
+    //    而"什么时候走这条边"本来就是**条件**这一栏的事 ⇒ 现在它是下拉里的第四项。
+    //    判据：**条件是「起飞 / 落地」这两个时刻** = 事件边（`pred` 是 `*-trigger`）。
+    //    ⚠ 数据模型没变：导出仍是 `when="<trigger>" event="true"`（kind 仍存 "pred"）。
+    function isEventMoment() { return e.event && e.kind === "pred" && /-trigger$/.test(String(e.pred || "")); }
+    // 🔴 出机边（`to=outside`）写成「动画 · 剩余 %」⇒ **必须**是事件边（C# 要读那个数），自动挂上、不给关。
+    const syncOutsideEvent = () => {
+      if (e.to === "outside" && !e.event && e.kind === "anim" && e.anim === "remaining") {
+        e.event = true;
+        notice = "出机边写了「动画 · 剩余 %」⇒ 由 C# 相位读（这个数就是出机时机）";
       }
     };
     kindSel.onchange = ev => {
-      e.kind = ev.target.value;
-      syncOutsidePhase();
-      if (e.kind === "key") { e.keys = e.keys || "W"; }
-      else if (e.kind === "anim") { e.anim = e.anim || "finished"; e.lt = e.lt || "20"; }
-      else { e.pred = e.pred || (e.phase ? pickPhasePred("") : DATA.preds[0].name); }
+      const v = ev.target.value;
+      if (v === "event") {
+        // 「游戏事件」= 由 C# 强行走。时机按**方向**定：进机 = 起飞、出机 / 衔接 = 落地。
+        e.event = true; e.kind = "pred"; e.pred = eventPredFor(e.from, e.to); e.not = false;
+        notice = "已设为「游戏事件」—— 由 C# 在 " + momentShort(e.pred) + " 那一刻强行走（状态机不求值它）";
+      } else {
+        e.kind = v;
+        e.event = false;                       // 换回普通条件 ⇒ 不再由事件驱动
+        if (v === "key") { e.keys = e.keys || "W"; }
+        else if (v === "anim") { e.anim = "remaining"; e.lt = e.lt || "15"; }
+        else { e.pred = e.pred || DATA.preds[0].name; }
+        syncOutsideEvent();                    // 机外那两类**必须**是事件边 ⇒ 会再自动挂回 true
+      }
       commit();
     };
     drawArgs();
@@ -1260,6 +1355,16 @@ function validate() {
       p.push(`状态 "${s.name}" 的 duration 覆盖值 "${s.dur}" 既不是数字、也不是已登记的命名标量（默认不写就行 —— 长度取 clip 自己的）`);
     // 循环状态写 next ⇒ 引擎装载期直接判"定义有问题"
     if (!s.once && s.next) p.push(`状态 "${s.name}" 是循环状态，不该写 next（next 只给一次性动作）`);
+    // 🔴 **一次性状态"演完无处可去" = 会停在最后一帧**（用户 2026-09-27 问到 `next` 的语义时补的）：
+    //    `next` 是**演完兜底**（边一条都没命中时才走）；它和"边"不是重复定义 —— 见状态面板里的说明。
+    //    真正危险的是**漏写**：一条一次性动作演完、又没有任何边从它出发 ⇒ 0 号通道空掉 ⇒ 掉默认姿势。
+    //    判据：既没有 `next`，且**没有任何边**以它（或它所属的容器）为来源。
+    if (s.once && !s.next) {
+      const froms = edges.map(e => e.from || "");
+      const owners = groups.filter(g => (g.members || []).indexOf(s.name) >= 0).map(g => g.name);
+      const hasOut = froms.some(f => f === s.name || owners.indexOf(f) >= 0);
+      if (!hasOut) p.push(`状态 "${s.name}" 是一次性动作，但**既没有 next、也没有任何边从它出发** —— 演完会停在最后一帧（0 号通道空掉 = 掉默认姿势）。要么填 next，要么写一条出边`);
+    }
     names[s.name] = 1;
   });
   const gn = {}; groups.forEach(g => { if (gn[g.name]) p.push(`容器名重复："${g.name}"`); gn[g.name] = 1; });
@@ -1294,25 +1399,40 @@ function validate() {
   edges.forEach((e, i) => {
     const n = i + 1;
     if (e.from !== "*" && e.from !== "outside" && !gn[e.from] && !names[e.from]) p.push(`#${n} 来源 "${e.from}" 不是状态也不是容器`);
-    if (e.from === "outside" && !e.phase) p.push(`#${n} 进机（from="outside"）必须是相位驱动边`);
-    if (e.to === "outside" && !e.phase && e.kind === "anim" && e.anim === "remaining")
-      p.push(`#${n} 出机写了「动画 · 剩余 %」但没勾相位驱动 —— 那个数由 C# 读（勾上「相位驱动」）`);
-    // 🔴 相位边的条件分两种：
-    //    · `anim="remaining" anim-rem-pct=N` —— **真的**（相位读它判时机，例如出机剩 10%）
-    //    · 命名谓词 —— **只是文档**（相位不读；用普通谓词典型是编辑器以前默认塞的 move-input）
-    if (e.phase && e.kind === "pred" && !/-trigger$/.test(e.pred || ""))
-      p.push(`#${n} 相位驱动边用「命名谓词」时建议选相位时刻（现在是 "${e.pred || "（空）"}"）—— 相位不读普通谓词`);
-    // 🔴 相位触发器的真身是 `c => false`（它们**只为相位边存在**）⇒ 普通边用了它 = **死边**
-    if (!e.phase && e.kind === "pred" && /-trigger$/.test(e.pred || ""))
-      p.push(`#${n} 用了相位触发器 "${e.pred}"，但**没勾「相位驱动」** —— 它的真身是 false ⇒ 这条边**永远不会生效**`
-           + `（要么勾上「相位驱动」，要么换成普通谓词）`);
+    if (e.from === "outside" && !e.event) p.push(`#${n} 进机（from="outside"）必须是事件驱动边`);
+    // 🔴 **出机那条边不必是"事件边"**（2026-09-27 用户裁定：「超人落地就是应该落地动画播完之后才回到
+    //    outside」）—— C# 那边（`TryEventExit`）已经改成"**只要 to=机外 且写了 anim-rem-pct** 就当出机声明读"，
+    //    所以这里**不再报错**。（它仍然被 C# 读：`from` = 撞地时 Force 哪个落地动作；`剩余 %` = 什么时候交还引擎。）
+    // 🔴 事件边的条件分两种：
+    //    · `anim="remaining" anim-rem-pct=N` —— **真的**（事件读它判时机，例如出机剩 10%）
+    //    · 命名谓词 —— **只是文档**（事件不读；用普通谓词典型是编辑器以前默认塞的 move-input）
+    if (e.event && e.kind === "pred" && !/-trigger$/.test(e.pred || ""))
+      p.push(`#${n} 事件驱动边用「命名谓词」时建议选游戏事件（现在是 "${e.pred || "（空）"}"）—— 事件不读普通谓词`);
+    // 🔴 相位触发器的真身是 `c => false`（它们**只为事件边存在**）⇒ 普通边用了它 = **死边**
+    if (!e.event && e.kind === "pred" && /-trigger$/.test(e.pred || ""))
+      p.push(`#${n} 用了相位触发器 "${e.pred}"，但**没勾「事件驱动」** —— 它的真身是 false ⇒ 这条边**永远不会生效**`
+           + `（要么勾上「事件驱动」，要么换成普通谓词）`);
     if (e.to !== "outside") {
       if (gn[e.to]) { if (!groupByName[e.to].entry) p.push(`#${n} 目标 "${e.to}" 是容器，但它没设入口 entry`); }
       else if (!names[e.to]) p.push(`#${n} 目标 "${e.to}" 不是状态也不是容器`);
     }
-    if (e.phase) {
-      // 🔴 相位边导出时只写 `when=` ⇒ `kind` 不参与，别拿它报"没选条件"（旧数据里 kind 可能是 key）
-      if (e.pred && !DATA.preds.some(x => x.name === e.pred)) p.push(`#${n} 相位边引用了没登记的谓词 "${e.pred}"`);
+    if (e.event) {
+      // 🔴 事件边导出时只写 `when=` ⇒ `kind` 不参与，别拿它报"没选条件"（旧数据里 kind 可能是 key）
+      if (e.pred && !DATA.preds.some(x => x.name === e.pred)) p.push(`#${n} 事件边引用了没登记的谓词 "${e.pred}"`);
+      // 🔴 **事件与方向对不上 = 这条边走不到**（提示，不挡选择 —— 选项留给你）：
+      //    C# 那两个接口是**按名字问**的：进机问「起飞那一瞬」的边、撞地问「落地那一瞬」的边。
+      //    选了个对不上的时刻 ⇒ 没有任何 C# 会来找它 ⇒ 静默不生效。
+      else if (e.pred && /-trigger$/.test(e.pred)) {
+        const want = e.from === "outside" ? "takeoff-trigger" : (e.to === "outside" ? "land-trigger" : "");
+        if (e.from !== "outside" && e.to !== "outside") {
+          // 衔接态之间的时刻边：C# 只按名字问那两个（起飞 / 落地），别的时刻得有 C# 来问才算数
+          if (!["takeoff-trigger", "land-trigger"].some(t => t === e.pred))
+            p.push(`#${n} 事件 "${e.pred}" 现在**没有 C# 会按名字来找它** —— 这条边走不到（要在 C# 里加一处查询，或在边里改回已接的「起飞 / 落地」）`);
+        } else if (want && e.pred !== want) {
+          p.push(`#${n} 方向与事件对不上：${e.from === "outside" ? "来源是机外（进机）" : "目标是机外（出机）"}`
+            + ` ⇒ C# 找的是「${momentShort(want)}」，而这里选的是「${momentShort(e.pred)}」—— 这条边走不到（改回「${momentShort(want)}」）`);
+        }
+      }
     } else if (e.kind === "key") {
       const ks = String(e.keys || "").split("+").filter(Boolean);
       if (!ks.length) p.push(`#${n} 没选键（至少勾一个）`);
@@ -1324,7 +1444,7 @@ function validate() {
         p.push(`#${n} "剩余" 的阈值得是**百分比** 0~100（现在是 "${e.lt}"）`);
     } else if (e.kind === "pred") {
       if (!DATA.preds.some(x => x.name === e.pred)) p.push(`#${n} 谓词 "${e.pred}" 没登记`);
-    } else if (!e.phase) p.push(`#${n} 没选条件`);
+    } else if (!e.event) p.push(`#${n} 没选条件`);
   });
   // 🔴 边之间的三种"结构性错误"——**通用检查，不针对任何具体节点**（边表 = 顺序命中，第一条赢）：
   //    ① 完全重复（同 from / to / 条件）⇒ 后面那条永远不生效
@@ -1643,7 +1763,7 @@ document.getElementById("z-1").onclick = () => { view.k = 1; applyView(); save()
 // ── 边悬浮高亮 + 跟随提示（只切 class，不重绘 → 不闪）────────────
 function edgeTip(i) {
   const e = edges[i]; if (!e) return "";
-  const flags = [e.after ? "演完才进" : "", e.phase ? "相位驱动" : "", e.blend ? "blend " + e.blend + "s" : ""].filter(Boolean).join(" · ");
+  const flags = [e.after ? "演完才进" : "", e.event ? "事件驱动" : "", e.blend ? "blend " + e.blend + "s" : ""].filter(Boolean).join(" · ");
   const body = e.kind === "pred" ? ((DATA.preds.find(p => p.name === e.pred) || {}).body || "") : "";
   return `<b>#${i + 1} ${esc(e.from)} → ${esc(e.to)}</b><br>条件：${esc(condText(e))}`
        + (body ? `<br>真身：<span style="color:var(--ink-3)">${esc(body)}</span>` : "")
@@ -1714,18 +1834,18 @@ function pickEdgeTarget(from) {
 function addEdge(from, to, note) {
   if (!from || !to || from === to) return;
   // 🔴 机外的**两条方向规则不同**（2026-09-27 用户裁定）：
-  //    · **进机**（`from=outside`）= 相位驱动（装载期硬校验）—— 起飞是物理判定，且要动板/相机；
+  //    · **进机**（`from=outside`）= 事件驱动（装载期硬校验）—— 起飞是物理判定，且要动板/相机；
   //    · **出机**（`to=outside`）= **普通边**：按什么键/什么条件下出机写在边上，
-  //      C# 只遵守"机器在机外 ⇒ 交还引擎"一条通用规则。⇒ 这里**不再**自动给它 phase。
+  //      C# 只遵守"机器在机外 ⇒ 交还引擎"一条通用规则。⇒ 这里**不再**自动给它事件标记。
   const ph = (from === "outside");
   edges.push(ph
-    ? { from: from, to: to, kind: "pred", pred: phasePredFor(from, to), blend: "", after: false, phase: true, not: false }
-    // 🔴 相位边只写**相位触发器**（否则导出时被 preds[0] 兜成 move-input）；
+    ? { from: from, to: to, kind: "pred", pred: eventPredFor(from, to), blend: "", after: false, event: true, not: false }
+    // 🔴 事件边只写**相位触发器**（否则导出时被 preds[0] 兜成 move-input）；
     //    出机边的默认条件给 `Space`（现行设计就是"空格出机"），要改在右侧面板改。
-    : { from: from, to: to, kind: "key", keys: (to === "outside" ? "Space" : "W"), blend: "", after: false, phase: false, not: false });
+    : { from: from, to: to, kind: "key", keys: (to === "outside" ? "Space" : "W"), blend: "", after: false, event: false, not: false });
   sel = { type: "edge", id: edges.length - 1 };
   notice = note || (ph
-    ? "已新建**相位驱动**边（机外只允许相位边）—— 在右侧把它改成你要的条件 / 来源 / 目标"
+    ? "已新建**事件驱动**边（机外只允许事件边）—— 在右侧把它改成你要的条件 / 来源 / 目标"
     : "已新建边（默认条件「按着 W」）—— 在右侧把它改成你要的条件 / 来源 / 目标");
   commit();
 }
@@ -1749,9 +1869,15 @@ function pasteState(x, y) {
   const s = Object.assign({}, clip.data, { name: nn });
   states.push(s); stateByName[nn] = s;
   pos[nn] = { x: x, y: y };
+  // 🔴 归属跟"新建状态"同一条规则（见 `newStateTarget`）：在容器页粘贴就该落到那个容器里，
+  //    否则它会跑到总览去 —— 当前页根本看不见（同一个缺陷的第二个入口）
+  const into = newStateTarget();
+  if (into) applyOwnership(nn, into);
   sel = { type: "state", id: nn };
-  notice = `已粘贴「${nn}」：act 沿用 ${s.act}（要换动作改下面的 act，否则两条状态播同一段动画）`;
+  notice = `已粘贴「${nn}」${into ? "（放进容器「" + into + "」）" : ""}：act 沿用 ${s.act}（要换动作改下面的 act，否则两条状态播同一段动画）`;
   commit();
+  const t = tabs[active] || {kind: "root"};
+  if (t.kind === "state") openTab(into ? {kind: "group", id: into} : {kind: "root"});
 }
 // ── 改容器名：必须**级联** —— 索引 + 边来源 + 拖过的位置(gpos) + 已打开的 tab + 选中
 //    🔴 三样漏一样就是一个真 bug：漏索引 ⇒ 拖不动；漏 gpos ⇒ 盒子跳回默认位；漏边 ⇒ 边断掉。
@@ -1801,20 +1927,38 @@ function edgeRelevant(e) {
   if (sel.type === "group") { const m = membersOf(sel.id); return e.from === sel.id || m.indexOf(e.to) >= 0; }
   return true;
 }
+// 🔴 「在**当前页**新建的状态该归哪个容器」= **一个判断、一处实现**。
+//    用户实测的缺陷：「我在容器里面的画布右键新建状态 你给我新建到总览里面去了」——
+//    新状态不带归属时，`stateVisible` 只在**总览**认它（总览 = 不属于任何容器的散状态）
+//    ⇒ 在容器页 / 状态页里建就等于"建丢了"（当前画布根本不画它）。
+//    规则：**在哪个页面新建，就放进你正看着的那个容器**（状态页 = 那个状态所在的容器）。
+function newStateTarget() {
+  const t = tabs[active] || {kind: "root"};
+  if (t.kind === "group") return t.id;
+  if (t.kind === "state") return parentGroupOf(t.id);
+  return null;
+}
 function newState(x, y) {
   const name = uniqueName("新状态");
   states.push({name, act: "act_" + name, once: false, dur: "", next: "", clip: "?", durText: "循环"});
   stateByName[name] = states[states.length - 1];
   pos[name] = {x: x, y: y};
+  const into = newStateTarget();
+  if (into) applyOwnership(name, into);      // 归属变更走**唯一入口**（拖拽 / 右键菜单同一套）
   sel = {type: "state", id: name};
+  notice = into ? `新建了「${name}」，已放进容器「${into}」`
+                : `新建了「${name}」（顶层：不属于任何容器 —— 画在总览）`;
   commit();
+  // 🔴 **状态页**上画布只画那一个节点 ⇒ 新建的状态在那一页**永远看不见** ⇒ 切到看得见它的那页
+  const t = tabs[active] || {kind: "root"};
+  if (t.kind === "state") openTab(into ? {kind: "group", id: into} : {kind: "root"});
 }
-// 「机外进来落到哪个状态」= 改那条 from="outside" 相位边的目标（它就是机器的入口本身）
+// 「机外进来落到哪个状态」= 改那条 from="outside" 事件边的目标（它就是机器的入口本身）
 function setOutside(n) {
   const e = edges.find(x => x.from === "outside");
-  // 进机边 = 相位边，时机固定 takeoff-trigger（原来若存着个非触发器，这里顺手纠正）
-  if (e) { e.to = n; e.phase = true; e.after = false; e.kind = "pred"; e.pred = phasePredFor("outside", n); }
-  else edges.unshift({from: "outside", to: n, kind: "pred", pred: phasePredFor("outside", n), phase: true, after: false, blend: ""});
+  // 进机边 = 事件边，时机固定 takeoff-trigger（原来若存着个非触发器，这里顺手纠正）
+  if (e) { e.to = n; e.event = true; e.after = false; e.kind = "pred"; e.pred = eventPredFor("outside", n); }
+  else edges.unshift({from: "outside", to: n, kind: "pred", pred: eventPredFor("outside", n), event: true, after: false, blend: ""});
   sel = null; commit();
 }
 function moveEdge(i, d) {
@@ -1931,10 +2075,12 @@ svg.addEventListener("contextmenu", ev => {
       {hd: "#" + (i + 1) + " " + e.from + " → " + e.to}, "-",
       {t: "↑ 提高优先级", fn: () => moveEdge(i, -1)},
       {t: "↓ 降低优先级", fn: () => moveEdge(i, 1)}, "-",
-      {t: e.after ? "✓ 演完才进（点掉）" : "设为：演完才进", fn: () => { e.after = !e.after; commit(); }},
-      {t: e.phase ? "✓ 相位驱动（点掉）" : "设为：相位驱动", fn: () => {
-        e.phase = !e.phase;
-        if (e.phase) { e.kind = "pred"; e.pred = e.pred || DATA.preds[0].name; }
+      {t: e.after ? "✓ 演完才进（点掉）" : "设为：演完才进", fn: () => { e.after = !e.after; commit(); }}, "-",
+      // 🔴 "事件驱动"**不再是这里的开关** —— 它是条件下拉里的「游戏事件」那一项
+      //    （用户裁定：什么时候走这条边 = 条件的事，别拆两处）。这里只留一个跳转，方便找。
+      {t: "（事件边走哪条？→ 右侧「条件」下拉最后一项）", fn: () => {
+        sel = {type: "edge", id: i};
+        notice = "把「条件」下拉选到「游戏事件（起飞 / 落地那一刻）」即可";
         commit();
       }}, "-",
       {t: "删除这条边", bad: true, fn: () => { edges.splice(i, 1); sel = null; commit(); }}
@@ -1958,11 +2104,14 @@ svg.addEventListener("contextmenu", ev => {
     ]);
     return;
   }
+  // 🔴 标签要写清"建出来放哪"：在容器页建 ⇒ 进这个容器（不然它会跑到总览去，用户实测报过这个）
+  const intoNow = newStateTarget();
   showCtx(ev, [
     {hd: "画布"}, "-",
     {t: clip ? `粘贴状态「${clip.name}」` : "粘贴状态（剪贴板为空）",
      fn: () => pasteState(p.x - NODE_W / 2, p.y - NODE_H / 2)},
-    {t: "新建状态", fn: () => newState(p.x - NODE_W / 2, p.y - NODE_H / 2)},
+    {t: "新建状态" + (intoNow ? `（放进「${intoNow}」）` : "（顶层）"),
+     fn: () => newState(p.x - NODE_W / 2, p.y - NODE_H / 2)},
     {t: "新建容器", fn: () => document.getElementById("btn-newgroup").onclick()},
     // 🔴 **在容器页上右键**时，直接给「新建子容器」—— 用户实测："看不见新建子容器按钮"
     ...((tabs[active] || {}).kind === "group"
@@ -1983,6 +2132,10 @@ addEventListener("keydown", ev => {
     ev.preventDefault(); if (ev.shiftKey) redo(); else undo();
   }
   else if ((ev.ctrlKey || ev.metaKey) && (ev.key === "y" || ev.key === "Y")) { ev.preventDefault(); redo(); }
+  // Ctrl+S = 保存（写回打开的那份文件；没打开过文件时退化成「另存为」）
+  else if ((ev.ctrlKey || ev.metaKey) && (ev.key === "s" || ev.key === "S")) { ev.preventDefault(); fsSave(); }
+  // Ctrl+O = 打开一份 XML
+  else if ((ev.ctrlKey || ev.metaKey) && (ev.key === "o" || ev.key === "O")) { ev.preventDefault(); fsOpen(); }
   else if (ev.key === "f" || ev.key === "F") fit();
   else if (ev.key === "Delete" || ev.key === "Backspace") {
     // 🔴 以前只处理"边"：选中状态 / 容器按 Delete 毫无反应（基础操作缺口）。删错可 Ctrl+Z 回来。
@@ -2003,17 +2156,17 @@ addEventListener("keydown", ev => {
 // ── 导出 / 导入 ────────────────────────────────────────────
 function edgesXml() {
   return edges.map(e => {
-    // 🔴 **`kind` 决定条件怎么写，`phase` 只是一个附加标记**。
-    //    以前这里 `if (e.phase)` 排在最前 ⇒ 相位边**永远只导 `when=`**，
+    // 🔴 **`kind` 决定条件怎么写，`event` 只是一个附加标记**。
+    //    以前这里 `if (e.event)` 排在最前 ⇒ 事件边**永远只导 `when=`**，
     //    写在它上面的 `anim="remaining" anim-rem-pct="10"` 会被**吃掉**（出机那条就中招了）。
     let c;
     if (e.kind === "key") c = `keys="${e.keys}"`;
     else if (e.kind === "anim") c = `anim="${e.anim}"${e.anim === "remaining" ? ` anim-rem-pct="${e.lt}"` : ""}`;
-    else c = `when="${e.pred || (e.phase ? pickPhasePred("") : (DATA.preds[0] || {}).name)}"`;
+    else c = `when="${e.pred || (e.event ? pickEventPred("") : (DATA.preds[0] || {}).name)}"`;
     return `\t\t<edge from="${e.from}" to="${e.to}" ${c}`
          + (e.blend ? ` blend="${e.blend}"` : "") + (e.after ? ` after-finish="true"` : "")
          + (e.not ? ` not="true"` : "")                     // 🔴 取反：对三种条件**一律适用**
-         + (e.phase ? ` phase="true"` : "") + " />";
+         + (e.event ? ` event="true"` : "") + " />";
   }).join("\n");
 }
 function groupsXml() {
@@ -2032,43 +2185,17 @@ function fullXml() {
     .replace(/\n[ \t]*<states>[\s\S]*?\n[ \t]*<\/states>/, "\n\t<states>\n" + statesXml() + "\n\t</states>")
     .replace(/\n[ \t]*<edges>[\s\S]*?\n[ \t]*<\/edges>/, "\n\t<edges>\n" + edgesXml() + "\n\t</edges>");
 }
-// 🔴 导出必须有**看得见的反馈**。原来 `io.value = ...` 一塞了事，而那个文本框在右侧面板**最下面**
-//    （大概率在屏幕外）⇒ 用户实测："我点导出完整 xml 没有反应"。现在：写文本框 + 提示条 + 滚到眼前。
-function fillIO(text, label) {
-  io.value = text;
-  notice = label + " —— 已写进下面的文本框（" + text.split("\n").length + " 行），点「复制」就能拿走";
-  renderPanel();
-  try { io.scrollIntoView({block: "center"}); } catch (e) {}
-  try { io.focus(); io.setSelectionRange(0, 0); io.scrollTop = 0; } catch (e) {}
-}
-document.getElementById("btn-export-full").onclick = () => {
-  const p = validate(), xml = fullXml();
-  // 🔴 这里不能直接写"小于号 + 感叹号 + 两个减号"那种 HTML 注释开闭标记：
-  //    HTML 规范里脚本块内出现它们会切进"脚本转义"状态，VSCode 的 HTML 语言服务会因此
-  //    把后面的 JS 解析错位（报一片假错）。拼出来，运行期一模一样。
-  const cmtOpen = "<" + "!-- ", cmtClose = " --" + ">", nl = String.fromCharCode(10);
-  fillIO((p.length ? cmtOpen + "⚠ 当前草稿还有 " + p.length + " 处问题（见右侧校验）；这一份 = 草稿现状" + cmtClose + nl : "") + xml,
-         "已导出**完整 XML**" + (p.length ? "（⚠ 有 " + p.length + " 处问题）" : "（校验 0 问题）"));
-};
-document.getElementById("btn-export").onclick = () => fillIO("<edges>\n" + edgesXml() + "\n</edges>", "已导出**边片段**");
-document.getElementById("btn-copy").onclick = async () => {
-  io.select();
-  let ok = false;
-  try { await navigator.clipboard.writeText(io.value); ok = true; } catch (e) { ok = false; }
-  notice = ok ? "已复制到剪贴板（" + io.value.split("\n").length + " 行） —— 整份覆盖回 " + DATA.xmlPath
-              : "复制被浏览器挡了 —— 文本框已全选，按 **Ctrl+C** 即可";
-  renderPanel();
-};
-document.getElementById("btn-import").onclick = () => { io.value = ""; io.focus(); };
-document.getElementById("btn-apply").onclick = () => {
-  // 剥掉粘贴内容里的 HTML 注释（同样避开"小于号+感叹号"那个序列：用 RegExp 拼出来，
-  // 别让脚本块进"转义态" —— 理由同上一条）
-  const txt = io.value.replace(new RegExp("<" + "!--[\\s\\S]*?--" + ">", "g"), "");
-  const doc = new DOMParser().parseFromString("<root>" + txt + "</root>", "application/xml");
+// 解析一份 XML 文本 → 编辑器状态（**「打开 XML」唯一的入口**）。返回 {ok, msg}
+// 🔴 注释要剥掉：那份 xml 的文件头就是一大段注释，不剥会把 DOMParser 搞出 parsererror
+//    （写法上避开"小于号+感叹号"那个序列：用 RegExp 拼出来，别让脚本块进 HTML 的"转义态"）
+function applyXmlText(txt) {
+  const clean = String(txt || "").replace(new RegExp("<" + "!--[\\s\\S]*?--" + ">", "g"), "");
+  const doc = new DOMParser().parseFromString("<root>" + clean + "</root>", "application/xml");
+  if (doc.querySelector("parsererror")) return {ok: false, msg: "XML 解析失败 —— 内容不是合法 XML"};
   const ens = [].slice.call(doc.querySelectorAll("edge"));
   const fams = [].slice.call(doc.querySelectorAll("family"));
   const sts = [].slice.call(doc.querySelectorAll("state"));
-  if (!ens.length && !fams.length && !sts.length) { io.value = "（没解析出任何 edge / family / state）"; return; }
+  if (!ens.length && !fams.length && !sts.length) return {ok: false, msg: "没解析出任何 edge / family / state"};
   if (fams.length) groups = fams.map(f => ({name: f.getAttribute("name"), entry: f.getAttribute("entry") || "",
     members: (f.textContent || "").split(/\s+/).filter(Boolean)}));
   if (sts.length) states = sts.map(s => ({name: s.getAttribute("name"), act: s.getAttribute("act"),
@@ -2077,16 +2204,169 @@ document.getElementById("btn-apply").onclick = () => {
     clip: (stateByName[s.getAttribute("name")] || {}).clip || "?", durText: (stateByName[s.getAttribute("name")] || {}).durText || ""}));
   if (ens.length) edges = ens.map(nd => {
     const e = {from: nd.getAttribute("from"), to: nd.getAttribute("to"), blend: nd.getAttribute("blend") || "",
-               after: nd.getAttribute("after-finish") === "true", phase: nd.getAttribute("phase") === "true"};
+               after: nd.getAttribute("after-finish") === "true", event: nd.getAttribute("event") === "true"};
     if (nd.getAttribute("keys")) { e.kind = "key"; e.keys = nd.getAttribute("keys"); }
     else if (nd.getAttribute("anim")) { e.kind = "anim"; e.anim = nd.getAttribute("anim"); e.lt = nd.getAttribute("anim-rem-pct") || ""; }
     else { e.kind = "pred"; e.pred = nd.getAttribute("when"); }
     e.not = nd.getAttribute("not") === "true";
     return e;
   });
-  reindex();               // 🔴 必须先清空重建 —— 否则导入后旧名字还留在索引里
-  sel = null; commit();
-};
+  reindex();               // 🔴 必须先清空重建 —— 否则旧名字还留在索引里
+  sel = null;
+  // 🔴 连"基准"一起换掉：`DATA` = 「恢复成文件里的样子」的目标 + 导出模板
+  //    （`fullXml()` 用 `DATA.rawXml` 保文件头注释）+ 黄条比对对象。
+  //    不换的话：读的是 A 文件、点"恢复"却回到生成页面时的那份、黄条还拿 B 比 —— 三处全错。
+  DATA.rawXml = String(txt);
+  DATA.states = JSON.parse(JSON.stringify(states));
+  DATA.groups = JSON.parse(JSON.stringify(groups));
+  DATA.edges = JSON.parse(JSON.stringify(edges));
+  const m = String(txt).match(/<state_machine[^>]*\bname\s*=\s*"([^"]+)"/);
+  if (m) DATA.machine = m[1];
+  // 黄条要比"草稿 vs 文件"的时间 ⇒ 载入即刷新这份文件的修改时间（格式与生成器烘的 `xmlAt` 一致）
+  DATA.xmlAt = dataNowClock();
+  commit();
+  return {ok: true, msg: sts.length + " 状态 / " + fams.length + " 容器 / " + ens.length + " 边", n: ens.length};
+}
+
+// ══ 直接读写文件：三个按钮 —— 打开 XML / 保存 / 另存为 ══════════════════════
+// 以前只有"导出 XML → 手动粘贴回文件"这一条路（**保留着当降级路径**：别的浏览器 / 隐私模式）。
+// 🔴 `file://` 页面上这套 API **实测可用**：isSecureContext=true、picker 能调起来
+//    （无头下用真手势调它会返回 AbortError = 对话框真的打开了；不是"源不允许"）。
+// 🔴 **故意只要这两样**：一个文件句柄 + 一次写。不做目录、不做句柄持久化（IndexedDB）、
+//    不做备份、不做冲突检测 —— 那份 xml 在 **git** 里，历史和"回退"都交给 git（用户 2026-09-27 裁定）。
+let fsx = {file: null, name: "", busy: false, note: ""};
+
+function fmtClock(ms) { const d = new Date(ms), p = n => (n < 10 ? "0" : "") + n;
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes()); }
+const dataNowClock = () => fmtClock(Date.now());   // `DATA.xmlAt` 唯一的格式来源（黄条拿它跟草稿时间比大小）
+const fsApiOk = () => typeof showOpenFilePicker === "function";
+const XML_TYPES = {types: [{description: "状态机 XML", accept: {"application/xml": [".xml"]}}]};
+// 浏览器只在"用户手势"里给授权 ⇒ **用户取消是正常操作，不吵他**
+function fsErr(e, what) {
+  if (!e) return "（未知错误）";
+  if (e.name === "AbortError") return "";                      // 用户自己取消了
+  if (e.name === "NotAllowedError") return what + "：浏览器要你先允许一次 —— 再点一遍即可";
+  if (e.name === "SecurityError") return what + "被浏览器挡了：" + e.message;
+  return what + "失败：" + e.name + " :: " + e.message;
+}
+// 写回一个句柄。🔴 `showOpenFilePicker` 给的句柄**默认只读** ⇒ 第一次写要 `requestPermission`
+//    （它必须有用户手势，所以只能在这里调）；`showSaveFilePicker` 给的句柄直接可写。
+async function writeFile(fh, text) {
+  let w;
+  try { w = await fh.createWritable(); }
+  catch (e) {
+    if (e.name !== "NotAllowedError" || typeof fh.requestPermission !== "function") throw e;
+    if ((await fh.requestPermission({mode: "readwrite"})) !== "granted") throw e;
+    w = await fh.createWritable();
+  }
+  await w.write(text); await w.close();
+}
+
+// ── 打开：磁盘 → 页面 ───────────────────────────────────────
+async function fsOpen() {
+  if (!fsApiOk()) { fsx.note = "这个浏览器不能直接读写文件（要 Chrome / Edge）"; return render(); }
+  let fh;
+  try { fh = (await showOpenFilePicker(Object.assign({id: "lwn-statemachine", multiple: false}, XML_TYPES)))[0]; }
+  catch (e) { fsx.note = fsErr(e, "打开"); return render(); }
+  await fsLoadHandle(fh);
+  // 🔴 写入授权**趁现在要掉**：用户刚点完文件对话框 ⇒ 手势还在。
+  //    留到"保存"那一下再要 ⇒ 正好卡在"改完就想存"的节骨眼上蹦一个对话框（用户实测报的就是这个）。
+  //    ⚠ 这是**浏览器的权限弹窗**（不是我们的"另存为"）：`showOpenFilePicker` 给的句柄默认只读，
+  //    而浏览器**不肯给永久写入权** ⇒ 只能趁有手势时问这一次；问过之后「保存」不再弹。
+  if (fsx.file === fh && typeof fh.requestPermission === "function") {
+    try {
+      let p = await fh.queryPermission({mode: "readwrite"});
+      if (p !== "granted") p = await fh.requestPermission({mode: "readwrite"});
+      if (p !== "granted") fsx.note += "　⚠ 浏览器没给写入权限 —— 「保存」时还会再问一次（或直接用「另存为…」）";
+    } catch (e) {}
+    render();
+  }
+}
+async function fsLoadHandle(fh) {
+  let f, text;
+  try { f = await fh.getFile(); text = await f.text(); }
+  catch (e) { fsx.note = fsErr(e, "读取 " + fh.name); return render(); }
+  const r = applyXmlText(text);
+  if (!r.ok) { fsx.note = "「" + fh.name + "」" + r.msg + " —— 没载入"; return render(); }
+  fsx.file = fh; fsx.name = fh.name;
+  DATA.xmlPath = fh.name;
+  // 载入的是磁盘上的真身 ⇒ 本地草稿这件事就此了结（黄条收起来）
+  draftActive = false; draftAck = false;
+  fsx.note = "已载入 " + fh.name + "（" + r.msg + "）";
+  commit(); fit();
+}
+// ── 保存：页面 → 磁盘（就是覆盖当前那份文件）──────────────────
+// 🔴 **保存之后，页面现状就是那份文件的内容** ⇒ "基准"（`DATA`）必须跟着一起换、黄条必须收。
+//    不换的话：黄条永远拿**生成页面时那份** XML 当基准 —— 你明明存过了，它还说"你在看草稿"
+//    （用户实测原话："为什么我保存完了 xml 还是有这个提示!!!"）。
+function markSaved(xml) {
+  DATA.rawXml = xml;                                   // 模板 = 刚写出去的那一份（文件头注释已在里面）
+  DATA.states = JSON.parse(JSON.stringify(states));
+  DATA.groups = JSON.parse(JSON.stringify(groups));
+  DATA.edges = JSON.parse(JSON.stringify(edges));
+  DATA.xmlPath = fsx.name;
+  DATA.xmlAt = dataNowClock();
+  draftActive = false; draftAck = false;
+  // 记下"刚存出去的是哪一份内容" ⇒ **刷新页面之后**也能认出"这份草稿已经落盘了"，不再吓人
+  savedAt = {sig: sigHash(structSig()), name: fsx.name, at: Date.now()};
+  save();
+}
+async function fsSave() {
+  if (fsx.busy) return;
+  if (!fsx.file) {
+    // 还没握住文件（没打开过，或是**刷新过页面** —— 句柄不能跨会话）⇒ 走"另存为"，
+    // 并把默认名字给成上次存的那份，省得用户在对话框里翻目录。
+    fsx.note = (savedAt && savedAt.name)
+      ? "这一页还没握住文件（重开页面后旧句柄就没了）—— 在「另存为…」里选回 " + savedAt.name + " 即可"
+      : "";
+    return fsSaveAs();
+  }
+  fsx.busy = true;
+  try {
+    const xml = fullXml();
+    await writeFile(fsx.file, xml);
+    markSaved(xml);
+    fsx.note = "已保存到 " + fsx.name + "　" + fmtClock(Date.now()).slice(11) + "　重启游戏即生效";
+  } catch (e) { fsx.note = fsErr(e, "保存"); }
+  finally { fsx.busy = false; render(); }
+}
+async function fsSaveAs() {
+  if (!fsApiOk()) { fsx.note = "这个浏览器不能直接读写文件（要 Chrome / Edge）"; return render(); }
+  let fh;
+  try { fh = await showSaveFilePicker(Object.assign({id: "lwn-statemachine",
+    suggestedName: fsx.name || (savedAt && savedAt.name) || ((DATA.machine || "machine") + ".xml")}, XML_TYPES)); }
+  catch (e) { fsx.note = fsErr(e, "另存为") || fsx.note; return render(); }   // 用户取消 ⇒ 保留上一句提示（别把"为什么弹这个"的解释擦掉）
+  try { const xml = fullXml(); await writeFile(fh, xml); }
+  catch (e) { fsx.note = fsErr(e, "写入"); return render(); }
+  fsx.file = fh; fsx.name = fh.name;
+  markSaved(fullXml());
+  fsx.note = "已另存为 " + fh.name + "（以后「保存」就写这一份）";
+  render();
+}
+// ── 顶栏那颗药丸：唯一的"当前文件"提示（保存会写哪一份）+ 把一次性提示转给面板顶部那行 ──
+// 🔴 它说的是"**这一页有没有握住文件**"，不是"内容来自哪"：**重开页面后句柄就没了**
+//    （浏览器不给跨会话的写入权，我们也没有做句柄持久化）⇒ 内容还在、能改，但「保存」不知道往哪写。
+//    只说"未打开"会让人以为"我没加载过"（用户实测就问过）⇒ 记住上次存到哪一份，写在药丸里。
+function renderFsChip() {
+  const c = document.getElementById("fschip");
+  if (c) {
+    let txt, tip, cls = "chip fs";
+    if (fsx.file) {
+      txt = "文件：" + fsx.name; cls += " g";
+      tip = "「保存」（Ctrl+S）会直接覆盖这一份";
+    } else if (savedAt && savedAt.name) {
+      txt = "文件：未打开（上次存到 " + savedAt.name + "）";
+      tip = "页面里的内容就是上次存出去的那份，但**这一页还没握住文件**（句柄不能跨会话）——\n"
+          + "点「打开 XML…」再选一次 " + savedAt.name + "，之后「保存」就能直接覆盖它。";
+    } else {
+      txt = "文件：未打开";
+      tip = "点「打开 XML…」选一份状态机 xml；之后「保存」直接覆盖那一份";
+    }
+    c.textContent = txt; c.className = cls; c.title = tip;
+  }
+  if (fsx.note) { notice = fsx.note; fsx.note = ""; }      // 🔴 提示只有一个出口（`notice`），别各写一处
+}
+
 document.getElementById("btn-newgroup").onclick = () => {
   let i = 1, name;
   do { name = "新容器" + i++; } while (groupByName[name]);
@@ -2104,6 +2384,9 @@ document.getElementById("btn-reset").onclick = () => {
 };
 document.getElementById("btn-undo").onclick = () => undo();
 document.getElementById("btn-redo").onclick = () => redo();
+document.getElementById("btn-open").onclick = () => fsOpen();
+document.getElementById("btn-save").onclick = () => fsSave();
+document.getElementById("btn-saveas").onclick = () => fsSaveAs();
 histReset();                     // 把"载入后的初始结构"作为历史第 0 帧 ⇒ 第一次编辑也能撤销回去
 render();
 if (!viewRestored) fit();
