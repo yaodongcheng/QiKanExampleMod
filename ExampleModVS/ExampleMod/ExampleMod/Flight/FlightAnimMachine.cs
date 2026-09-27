@@ -72,7 +72,7 @@ namespace LivingWorldNpcs.Flight
     /// **飞行动画状态机**（2026-09-22 立，2026-09-25 定义迁到 XML）。
     ///
     /// 🔴🔴 **"什么时候播哪条动画"的规则不在代码里了** —— 在
-    /// [`ModuleData/statemachine_flight.xml`](../../../ModuleData/statemachine_flight.xml)：
+    /// [`ModuleData/statemachines/flight.xml`](../../../ModuleData/statemachines/flight.xml)：
     /// 状态表（状态名 / 动作名 / 循环性 / 时长）+ 族名单 + 转移表（来源 / 目标 / 条件名 / 优先级）。
     /// **改那个文件不用重编译**，重启游戏即生效。
     ///
@@ -104,8 +104,14 @@ namespace LivingWorldNpcs.Flight
         /// <summary>注册名（<see cref="AnimMachineRegistry.Create"/> 用它取）。</summary>
         public const string Name = "flight";
 
-        /// <summary>定义文件名（在模块的 `ModuleData/` 下）。</summary>
-        public const string FileName = "statemachine_flight.xml";
+        /// <summary>
+        /// 定义文件名 —— 🔴 **2026-09-27 起状态机 XML 有专门目录**（`ModuleData/statemachines/`）：
+        /// 以后不止一台机（坐骑 / 载具 / 潜行…）就各放一个文件，文件名 = 机器名（`name="flight"`）。
+        /// </summary>
+        public const string FileName = "flight.xml";
+
+        /// <summary>定义文件所在子目录（相对 `ModuleData/`）。</summary>
+        public const string SubDir = "statemachines";
 
         /// <summary>注册进注册表（幂等：重名会覆盖，方便热改）。</summary>
         public static void Register()
@@ -115,7 +121,7 @@ namespace LivingWorldNpcs.Flight
 
             // ② 结构（XML）：装载 + 校验；校验不过就不注册（状态机退回"空机器"：
             //    动画不播、飞行照常 —— 而不是带着半张错表跑）
-            string path = Path.Combine(ModuleRoot, "ModuleData", FileName);
+            string path = Path.Combine(ModuleRoot, "ModuleData", SubDir, FileName);
             AnimMachineDef def = AnimMachineLoader.Load(path, out string error);
             if (def == null)
             {

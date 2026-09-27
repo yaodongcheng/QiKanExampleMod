@@ -497,7 +497,7 @@ namespace LivingWorldNpcs.Flight
             //     它们是"我猜的保险"，实测只会制造新问题（160 米上限当场把人卡死过）。
             _board.MoveBy(_velocity * dt);
 
-            // ⑦ 姿态：**交给动画状态机**（规则全在 `ModuleData/statemachine_flight.xml` 那台定义里）
+            // ⑦ 姿态：**交给动画状态机**（规则全在 `ModuleData/statemachines/flight.xml` 那台定义里）
             //    这里只解挂（事实已在 OnMissionTick 主循环里喂过）；真正的 Tick 在 OnMissionTick
             //    末尾每帧一次 —— 因为起飞/落地期间也要跑（状态机在那两段负责维持动作 + 防被抢）。
             _anim.Hold = false;              // 空中态 = 允许自动转移

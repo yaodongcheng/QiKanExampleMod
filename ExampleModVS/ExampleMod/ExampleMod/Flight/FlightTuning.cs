@@ -429,7 +429,7 @@ namespace LivingWorldNpcs.Flight
 
         // ───────────────────────── 动作名（**不在这里**）─────────────────────────
         // 🔴🪦 2026-09-26：原来这一大块 `ActHoverStart` / `ActIdle` / `ActFastMove` / `ActDodge*` …
-        //    全部删除 —— **动作名只有一个地方**：`ModuleData/statemachine_flight.xml` 的 `<state act="…">`。
+        //    全部删除 —— **动作名只有一个地方**：`ModuleData/statemachines/flight.xml` 的 `<state act="…">`。
         //    删它的理由（用户裁定「飞行动作管理要数据驱动」）：
         //      · 编辑器里改状态名 / 换动作名，代码一行都不用动；留一份在这里 = **第二份真相**，
         //        改了它却不生效（状态机只读 XML），排查时会先怀疑代码 —— 白绕；
@@ -577,7 +577,7 @@ namespace LivingWorldNpcs.Flight
             PitchExitThreshold = 0.30f;
             ActionRecheckSeconds = 0.5f;
             // 🪦 2026-09-26：动作名（原 ActHoverStart / ActIdle / … 一行一个）不再恢复出厂 ——
-            //    它们已经不存在了，动作名的唯一来源是 `ModuleData/statemachine_flight.xml`。
+            //    它们已经不存在了，动作名的唯一来源是 `ModuleData/statemachines/flight.xml`。
             BankThreshold = 0.35f;
             BankExitThreshold = 0.20f;
             ShowStateMessages = true;

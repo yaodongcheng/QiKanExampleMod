@@ -19,8 +19,34 @@ import shutil
 import subprocess
 import sys
 
+# 控制台可能是 GBK（Windows 默认）—— 本文件会打中文与 ✗，不重设编码会**当场崩**（实测过）
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 TMP_DIR = os.path.join(HERE, "out")     # 临时 js 丢这儿（out/ 是忽略目录，别在源码目录留垃圾）
+
+
+def check_script_markers(path, blocks):
+    """🔴 脚本块里不许出现字面 `<!--` / `-->`（CLAUDE.md 铁律 37，2026-09-27）。
+
+    为什么：HTML 规范里 `<script>` 内出现 `<!--` 会切进"脚本转义"状态 ——
+    浏览器与 node --check 都照规范处理（**页面照跑**），但 **VSCode 的 HTML 语言服务会解析错位**，
+    在脚本尾部报一片 `Argument expression expected` 假错误（用户截图来问过一轮）。
+    嵌入的 JSON 里 `<` `>` 要写成 `\\u003C` / `\\u003E`；源码里的字符串/正则拼出来；注释里也别写。
+    """
+    hits = []
+    for i, b in enumerate(blocks):
+        if "<!--" in b or "-->" in b:
+            for n, line in enumerate(b.split("\n"), 1):
+                if "<!--" in line or "-->" in line:
+                    hits.append("块%d 第%d行: %s" % (i + 1, n, line.strip()[:70]))
+    if hits:
+        print("  %-34s ✗ 脚本块里有字面 <!-- / -->（会让 VSCode 解析错位）" % os.path.basename(path))
+        for h in hits[:6]:
+            print("      " + h)
+        return False
+    print("  %-34s 脚本块无 HTML 注释标记 OK" % os.path.basename(path))
+    return True
 
 
 def check(path):
@@ -29,6 +55,7 @@ def check(path):
     if not blocks:
         print("  %-34s （没有内联脚本，跳过）" % os.path.basename(path))
         return True
+    ok = check_script_markers(path, blocks)
     tmp = os.path.join(TMP_DIR, "_syntax_check.js")
     io.open(tmp, "w", encoding="utf-8", newline="\n").write(blocks[-1])
     try:
@@ -38,7 +65,7 @@ def check(path):
         os.remove(tmp)
     if r.returncode == 0:
         print("  %-34s JS syntax OK (%d bytes)" % (os.path.basename(path), len(blocks[-1])))
-        return True
+        return ok          # 🔴 语法 OK ≠ 页面合格：脚下还有"脚本块不许有 HTML 注释标记"那条
     print("  %-34s JS SYNTAX ERROR" % os.path.basename(path))
     print("    " + (r.stderr or "").strip().replace("\n", "\n    "))
     return False
