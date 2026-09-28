@@ -170,9 +170,70 @@ namespace LivingWorldNpcs.Animation
                     problems.Add("状态 '" + sn + "' 是循环状态，不该写 next（next 只给一次性动作用）");
                     continue;
                 }
-                states.Add(oneShot
+
+                // 🔴 **进出动作**（2026-09-28）：XML 里只写**动作名**，真身在 `AnimActions` 注册
+                //    （与 `when=` 条件谓词同一个套路）。**没登记的名字 = 装载期报错**，不静默。
+                System.Action<AnimContext> enterAct = null, leaveAct = null;
+                string enterRaw = Attr(node, "enter");
+                string leaveRaw = Attr(node, "leave");
+                if (!string.IsNullOrEmpty(enterRaw) && !AnimActions.TryGet(enterRaw, out enterAct))
+                {
+                    problems.Add("状态 '" + sn + "' 引用了没登记的动作 enter='" + enterRaw + "'"
+                                 + "（已登记： " + string.Join(" / ", AnimActions.ActionNames) + "）");
+                    continue;
+                }
+                if (!string.IsNullOrEmpty(leaveRaw) && !AnimActions.TryGet(leaveRaw, out leaveAct))
+                {
+                    problems.Add("状态 '" + sn + "' 引用了没登记的动作 leave='" + leaveRaw + "'"
+                                 + "（已登记： " + string.Join(" / ", AnimActions.ActionNames) + "）");
+                    continue;
+                }
+
+                AnimState newState = oneShot
                     ? AnimState.Once(sn, act, next: string.IsNullOrEmpty(nxt) ? null : nxt, duration: duration)
-                    : AnimState.Loop(sn, act));
+                    : AnimState.Loop(sn, act);
+                newState.EnterAction = enterAct;
+                newState.LeaveAction = leaveAct;
+
+                // 🔴 **轨道时间点**（2026-09-28）：`<state>` 里的子节点 `<track at="0.067" action="land-fx"/>`。
+                //    `at` = 占整条 clip 的比例 0~1（不是秒）—— 同 `anim-rem-pct` 的口径，
+                //    重导 clip 换了帧数不用改。**值域/名字都在装载期校验**（写错 = 整台不注册）。
+                foreach (XmlNode tr in node.SelectNodes("track"))
+                {
+                    string atRaw = Attr(tr, "at");
+                    string actRaw = Attr(tr, "action");
+                    if (string.IsNullOrEmpty(atRaw) || string.IsNullOrEmpty(actRaw))
+                    {
+                        problems.Add("状态 '" + sn + "' 的 <track> 缺 at 或 action");
+                        continue;
+                    }
+                    float at;
+                    if (!float.TryParse(atRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out at)
+                        || at < 0f || at > 1f)
+                    {
+                        problems.Add("状态 '" + sn + "' 的 <track at=\"" + atRaw + "\"> 必须是 0~1 的比例"
+                                     + "（不是秒 —— 例如 0.067 = 演到 6.7% 处）");
+                        continue;
+                    }
+                    Action<AnimContext> trackAct;
+                    if (!AnimActions.TryGet(actRaw, out trackAct))
+                    {
+                        problems.Add("状态 '" + sn + "' 的 <track action=\"" + actRaw + "\"> 没登记"
+                                     + "（已登记： " + string.Join(" / ", AnimActions.ActionNames) + "）");
+                        continue;
+                    }
+                    if (newState.Track == null)
+                    {
+                        newState.Track = new List<AnimTrackPoint>();
+                    }
+                    newState.Track.Add(new AnimTrackPoint { At = at, Act = trackAct });
+                }
+                if (newState.Track != null)
+                {
+                    newState.Track.Sort((a, b) => a.At.CompareTo(b.At));   // 按时间排，日志/语义都清楚
+                }
+
+                states.Add(newState);
             }
             if (states.Count == 0)
             {

@@ -212,6 +212,33 @@ namespace LivingWorldNpcs.Animation
         }
 
         /// <summary>
+        /// **当前动作的播放进度**（0~1）—— 给状态轨道的时间点用（<see cref="AnimTrackPoint"/>）。
+        ///
+        /// 🔴 **拿不准时返回 0**（不是 1）：淡入没走完（<see cref="ProgressTrustworthy"/> = false）时
+        ///    引擎给的还是上一条动作的进度，用它会把"后面的时间点"当场误触发。
+        ///    返回 0 = "当作刚开头"，等进度可信了自然会跨过去。
+        /// </summary>
+        public float CurrentProgress
+        {
+            get
+            {
+                if (_current == null)
+                {
+                    return 0f;
+                }
+                if (_current.Duration > 0.01f)
+                {
+                    return Math.Min(1f, _elapsed / _current.Duration);   // 写了时长覆盖：按秒折算
+                }
+                if (!ProgressTrustworthy)
+                {
+                    return 0f;
+                }
+                return _progressFn != null ? _progressFn() : 0f;
+            }
+        }
+
+        /// <summary>
         /// **事件接缝查询 ①：进机** —— 起飞那一刻，相位（C#）该 `Force` 进**哪个状态**。
         ///
         /// 读的是**事件边**（XML 里 `phase="true"`）中 `from = <paramref name="fromMarker"/>`
@@ -383,7 +410,10 @@ namespace LivingWorldNpcs.Animation
             {
                 return false;
             }
-            Enter(agent, _current.Name, blend, 0f, forced: true);
+            // 🔴 **补写不算"进入"**（2026-09-28）—— 不跑进出动作。
+            //    否则"通道被抢 → 补回来"这条每次都会把 enter 动作再放一遍
+            //    （落地特效会看着像炸了两次）。语义上这里也没离开过当前状态。
+            Enter(agent, _current.Name, blend, 0f, forced: true, runActions: false);
             return true;
         }
 
@@ -455,13 +485,48 @@ namespace LivingWorldNpcs.Animation
                 }
             }
 
+            // 🔴 **轨道时间点**（2026-09-28）—— 刻意放在 `if (!Hold …)` **外面**：
+            //    落地 / 起飞这些相位状态正是被 `Hold` 住的（动画归相位管，见 PlayerFlightBehavior），
+            //    放进那个门控里 = 永远不触发。这里只要求"有个当前状态"。
+            TickTrack();
+
             RecheckStolen(agent, dt);
             TickConfirm(agent, dt);
+        }
+
+        /// <summary>
+        /// 跑当前状态轨道上**到点且没触发过**的时间点（2026-09-28）。
+        ///
+        /// 🔴 **跨过即触发**（`progress >= At`）——不是"等于"：帧率抖动、快进、`Hold` 期间一次跨很大
+        ///    都可能跳过精确点；用 `>=` + `Fired` 标记保证"每个点一次进入只响一次"。
+        /// 🔴 与 <see cref="RunAction"/> 一样**绝不外抛**（状态机是每帧跑的公共件）。
+        /// </summary>
+        private void TickTrack()
+        {
+            if (_current == null || _current.Track == null || _current.Track.Count == 0)
+            {
+                return;
+            }
+            float p = CurrentProgress;
+            var pts = _current.Track;
+            for (int i = 0; i < pts.Count; i++)
+            {
+                AnimTrackPoint tp = pts[i];
+                if (tp.Fired || p < tp.At)
+                {
+                    continue;      // 已触发 / 还没到点 —— 表是按 At 升序排过的，但**不提前 break**：
+                                   // 进度可能在 Hold 后回退（换 clip / 重播），漏掉后面的点更糟
+                }
+                tp.Fired = true;
+                RunAction(tp.Act, $"track@{tp.At:F3}", _current.Name);
+            }
         }
 
         /// <summary>把 0 号通道还给引擎（收摊 / 落地时调；之后 <see cref="Current"/> 变 null）。</summary>
         public void Release(Agent agent)
         {
+            // 🔴 离开当前状态 ⇒ 先跑它的 leave 动作（含"出机"这条收摊路；2026-09-28）。
+            RunAction(_current != null ? _current.LeaveAction : null, "leave", _current?.Name);
             _current = null;
             _inOutside = true;         // 收摊 = 机外（使用方靠 Current == OutsideState 判"该还控制权了"）
             _elapsed = 0f;
@@ -480,7 +545,29 @@ namespace LivingWorldNpcs.Animation
 
         // ─────────────────────────────── 内部 ───────────────────────────────
 
-        private void Enter(Agent agent, string stateName, float blend, float startProgress, bool forced)
+        /// <summary>
+        /// 跑一个**状态进出动作**（2026-09-28 立；动作本体在 <see cref="AnimActions"/> 注册）。
+        ///
+        /// 🔴 **绝不外抛** —— 动作里干的是"播特效 / 查引擎 id / 拿 Scene / 找 agent"这类
+        ///    越界就会炸的事，而状态机是**每帧都在跑的公共件**（多个系统共用）⇒
+        ///    一处异常会连累整机。所以这里兜住、只记一行日志。
+        /// </summary>
+        private void RunAction(Action<AnimContext> act, string kind, string stateName)
+        {
+            if (act == null)
+                return;
+            try
+            {
+                act(_ctx);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Anim:{_def.Name}] 状态 '{stateName ?? "-"}' 的 {kind} 动作异常（已忽略）: {ex.Message}");
+            }
+        }
+
+        private void Enter(Agent agent, string stateName, float blend, float startProgress, bool forced,
+                           bool runActions = true)
         {
             if (string.IsNullOrEmpty(stateName))
                 return;
@@ -529,8 +616,29 @@ namespace LivingWorldNpcs.Animation
             _inOutside = false;        // 进了一个真状态 ⇒ 不再是机外
             string from = _current?.Name ?? "-";
             CountSwitch(from, state.Name);
+
+            // 🔴 **进出动作**（2026-09-28）：leave 在**离开旧状态之前**跑，enter 在**状态真正确立之后**跑。
+            //    两边都包 try/catch（见 RunAction）—— 动作炸了只记日志，绝不带崩状态机（铁律 1）。
+            //    `runActions: false`（Reassert 补写）时两边都不跑 —— 那不算"进入"。
+            if (runActions)
+            {
+                RunAction(_current != null ? _current.LeaveAction : null, "leave", _current?.Name);
+            }
+
             _current = state;
             _elapsed = 0f;
+            if (runActions)
+            {
+                // 轨道时间点的"已触发"标记随每次**真正进入**清零（Reassert 补写不算，同 enter 动作）。
+                if (state.Track != null)
+                {
+                    for (int i = 0; i < state.Track.Count; i++)
+                    {
+                        state.Track[i].Fired = false;
+                    }
+                }
+                RunAction(state.EnterAction, "enter", state.Name);
+            }
             _blendIn = useBlend;        // 淡入期间不认引擎给的进度（见 ProgressTrustworthy）
             _sinceRecheck = 0f;
             _progressFn = () =>

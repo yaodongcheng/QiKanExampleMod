@@ -46,6 +46,9 @@ namespace LivingWorldNpcs.CampaignMode
                 case "dodge":
                     return WithBehavior(b => b.ForceDodge());
 
+                case "fx":
+                    return Fx(args);
+
                 case "log":
                 {
                     // 🔴 飞行 tick 日志总闸（2026-09-22 用户要求：默认关，要查时再开）。
@@ -169,6 +172,33 @@ namespace LivingWorldNpcs.CampaignMode
             }
 
             return WithBehavior(b => b.SetFreezeMode(mode));
+        }
+
+        /// <summary>
+        /// <c>custom.flight fx [粒子名]</c> —— **在脚下地面放一次粒子**（验收用，不用真的飞一遍）。
+        ///
+        /// · 不带参数 = 放**落地特效**（= `flight.xml` 里 `超人落地` 的 `enter="land-fx"` 那一个）
+        /// · 带名字   = 放指定的粒子系统，如 <c>custom.flight fx lwn_manual_fly_land</c>
+        ///
+        /// 🔴 **为什么要这条命令**：落地特效只有"真的飞一次并撞地"才看得到，一次试错好几分钟。
+        ///    这条把它拆成"敲一下就看"，也是 CLAUDE.md 那条「每做完一个功能必须交付验收指令」的要求。
+        ///
+        /// 🔴 走的**就是状态机那条路**（同一个 <see cref="FlightAnimConditions.PlayFxAtFeet"/>），
+        ///    所以能同时验两件事：① 粒子本身做没做出来 ② 位置口径对不对（脚下地面）。
+        ///    ⚠️ 但它**不验 enter 挂没挂上** —— 那条要真飞一次撞地，或看日志里
+        ///    `[Anim:flight] … → 超人落地` 那行之后有没有 `[Flight-Fx] 播放 …`。
+        /// </summary>
+        private static string Fx(List<string> args)
+        {
+            string name = (args != null && args.Count > 1 && !string.IsNullOrWhiteSpace(args[1]))
+                ? args[1].Trim()
+                : FlightAnimConditions.LandingFxName;
+
+            string error;
+            bool ok = FlightAnimConditions.PlayFxAtFeet(name, out error);
+            return ok
+                ? $"OK. played '{name}' at your feet."
+                : $"ERR {error}";
         }
 
         /// <summary>
