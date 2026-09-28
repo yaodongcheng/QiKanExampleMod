@@ -3,7 +3,7 @@
 """
 gen_spell_textures.py — 阴魔斩网格的贴图（月牙 / 能量核，**各一张全 UV**）
 ============================================================================
-    python tools/armor-pipeline/scripts/gen_spell_textures.py
+    python tools/particle-pipeline/scripts/gen_spell_textures.py
 （系统 python 即可，不需要 Blender；跑完自动过一遍 `png_for_editor.py`）
 
 🔴 **2026-09-22 改版：拆网格后不再共用分区图集。** 旧版是一张图上下左右分区
@@ -35,7 +35,7 @@ import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TOOL = os.path.dirname(HERE)                       # tools/armor-pipeline
+TOOL = os.path.dirname(HERE)                       # tools/particle-pipeline
 OUTDIR = os.path.join(TOOL, "out")
 PNG_FOR_EDITOR = os.path.join(os.path.dirname(TOOL), "face-pipeline", "scripts", "png_for_editor.py")
 

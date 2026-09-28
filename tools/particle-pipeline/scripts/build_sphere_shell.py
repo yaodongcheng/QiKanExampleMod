@@ -12,7 +12,7 @@ build_sphere_shell.py — 施法框架「电罩」那层**球壳**网格
 🔴 基准尺寸 = **半径 0.5（直径 1.0 m）** —— 跟 `build_lightning_arc.py` 的"长 1.0 m"同一个口径：
    代码把实体缩放到想要的实际尺寸（`scale 1.5` = 直径 1.5 m，正好配上半径 0.75 的粒子壳）。
 
-产出（写 `tools/armor-pipeline/out/`，并自动拷进 `AssetSources/ImortReady/<子目录>/`）：
+产出（写 `tools/particle-pipeline/out/`，并自动拷进 `AssetSources/ImortReady/<子目录>/`）：
     lwn_lightning_shell.fbx   UV 球（等距柱状 UV）
 
 🔴 **为什么必须是等距柱状 UV（equirect）**：贴图要按球面展开画（u = 经度、v = 纬度），

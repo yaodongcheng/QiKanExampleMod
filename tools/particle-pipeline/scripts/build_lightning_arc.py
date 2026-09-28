@@ -7,7 +7,7 @@ build_lightning_arc.py — 施法框架「引导/射线」那条弧的网格
 
     "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --python build_lightning_arc.py
 
-产出（写 `tools/armor-pipeline/out/`）：
+产出（写 `tools/particle-pipeline/out/`）：
     lwn_lightning_arc.fbx    一条"十字交叉双片"的弧带（**非**月牙，是直的）
 
 🔴 形状与朝向（照 `build_spell_mesh.py` 的约定，改之前先读那段）：
@@ -43,7 +43,7 @@ LOD_LEVELS = 1   # 自管实体路线不需要多档 LOD（场景实体不吃导
 
 OUTDIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "out")
 # 交付落点 = **待导入目录**（新资产一律交用户 Import —— CLAUDE.md 铁律 36）
-_TOOL = os.path.dirname(OUTDIR)                                     # tools/armor-pipeline
+_TOOL = os.path.dirname(OUTDIR)                                     # tools/particle-pipeline
 _REPO = os.path.dirname(os.path.dirname(_TOOL))                     # 仓库根
 STAGE_ROOT = os.path.join(_REPO, "..", "TaikouAnim", "AssetSources", "ImortReady")
 

@@ -35,7 +35,7 @@ build_rasengan.py — 螺旋丸的两个网格：**中心球** + **4 片旋涡�
       顺带纠正一条误判：球看着"一圈圈棱"**不是**平面着色造成的（老件 `lwn_lightning_shell`
       从没设过平滑、导入回来仍是 512/512 全平滑）—— 那是**分段太少**，见 `CORE_SEGS` 旁的注释。
 
-产出（写 `tools/armor-pipeline/out/`，并自动拷进 `AssetSources/ImortReady/<名>/`）：
+产出（写 `tools/particle-pipeline/out/`，并自动拷进 `AssetSources/ImortReady/<名>/`）：
     lwn_rasengan_core.fbx · lwn_rasengan_blade.fbx
 配套贴图见 `gen_rasengan_parts_tex.py`（另一条命令，不依赖 Blender）。
 """

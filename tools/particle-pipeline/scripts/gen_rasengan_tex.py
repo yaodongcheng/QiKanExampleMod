@@ -3,7 +3,7 @@
 """
 gen_rasengan_tex.py — 螺旋丸气流的「蓝白烟」粒子贴图（拿原版 smoke_d 的形状改造）
 ====================================================================================
-    python tools/armor-pipeline/scripts/gen_rasengan_tex.py
+    python tools/particle-pipeline/scripts/gen_rasengan_tex.py
 （系统 python 即可；跑完自动过一遍 `png_for_editor.py`，并把待导入件放进 ImortReady）
 
 【为什么要这张图】
@@ -27,8 +27,8 @@ gen_rasengan_tex.py — 螺旋丸气流的「蓝白烟」粒子贴图（拿原�
 配 **`Alpha Blend Mode = Add`（纯加法）**：黑 = 加 0 = 天然隐形，形状完全由这张图承担。
 
 【产物】
-    tools/armor-pipeline/out/lwn_prt_rasengan_air_d.png           管线产物（2×2 图集）
-    tools/armor-pipeline/out/_preview_lwn_prt_rasengan_air_d.png  预览（黑底 + 白底并排）
+    tools/particle-pipeline/out/lwn_prt_rasengan_air_d.png           管线产物（2×2 图集）
+    tools/particle-pipeline/out/_preview_lwn_prt_rasengan_air_d.png  预览（黑底 + 白底并排）
     Modules/TaikouAnim/AssetSources/ImortReady/lwn_prt_rasengan_air/   待用户 Import
 
 【导入后要在编辑器里做的】见脚本末尾打印的后续步骤（建材质 / 选混合 / 切图集）。
@@ -57,7 +57,7 @@ GAIN = 1.00                         # 整体亮度倍率（加法混合下不够
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 SRC = os.path.join(ROOT, "tools", "particle-pipeline", "out", "mattex_all", "text0", "smoke_d.png")
-OUT = os.path.join(ROOT, "tools", "armor-pipeline", "out")
+OUT = os.path.join(ROOT, "tools", "particle-pipeline", "out")
 # 🔴 待导入目录在**正牌模块** `Modules/TaikouAnim/`（与 LivingWorldNpcs 平级）——
 #    不是 `LivingWorldNpcs/Modules/TaikouAnim`（那是另一份独立副本，编辑器不读它）。
 #    口径与 `build_rasengan.py` / `build_sphere_shell.py` 的 STAGE_ROOT 一致。

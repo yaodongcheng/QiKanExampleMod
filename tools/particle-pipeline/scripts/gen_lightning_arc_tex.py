@@ -3,7 +3,7 @@
 """
 gen_lightning_arc_tex.py — 引导电弧网格 `lwn_lightning_arc` 的「翻页闪电」图集
 ================================================================================
-    python tools/armor-pipeline/scripts/gen_lightning_arc_tex.py
+    python tools/particle-pipeline/scripts/gen_lightning_arc_tex.py
 
 ## 为什么要做这张图（2026-09-25 用户裁定）
 
@@ -90,7 +90,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TOOL = os.path.dirname(HERE)                                   # tools/armor-pipeline
+TOOL = os.path.dirname(HERE)                                   # tools/particle-pipeline
 REPO = os.path.dirname(os.path.dirname(TOOL))                  # 仓库根（LivingWorldNpcs）
 OUTDIR = os.path.join(TOOL, "out")
 PNG_FOR_EDITOR = os.path.join(os.path.dirname(TOOL), "face-pipeline", "scripts", "png_for_editor.py")

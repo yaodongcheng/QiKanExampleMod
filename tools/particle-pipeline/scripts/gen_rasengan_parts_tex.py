@@ -3,7 +3,7 @@
 """
 gen_rasengan_parts_tex.py — 螺旋丸「中心球 + 4 片叶」的材质贴图
 ============================================================================
-    python tools/armor-pipeline/scripts/gen_rasengan_parts_tex.py
+    python tools/particle-pipeline/scripts/gen_rasengan_parts_tex.py
 （系统 python 即可；跑完自动过一遍 `png_for_editor.py`，并把待导入件放进 ImortReady）
 
 【两张图，各自配一个网格】（网格由 `build_rasengan.py` 出，UV 口径见那边）
@@ -54,7 +54,7 @@ BLADE_EDGE_SOFT = 0.55          # 横向边缘柔化强度（0 = 硬边、1 = �
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-OUT = os.path.join(ROOT, "tools", "armor-pipeline", "out")
+OUT = os.path.join(ROOT, "tools", "particle-pipeline", "out")
 # 🔴 待导入目录在**正牌模块** `Modules/TaikouAnim/`（与 LivingWorldNpcs 平级）——
 #    不是 `LivingWorldNpcs/Modules/TaikouAnim`（那是另一份独立副本，编辑器不读它）。
 #    口径与 `build_rasengan.py` 的 STAGE_ROOT 一致。

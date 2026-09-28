@@ -1,7 +1,7 @@
 {
-  "name": "pose_dianxue_pair",
-  "title": "成对交互 · 花式点穴 → 应声倒地（手K关键帧 4.0s）",
-  "subtitle": "左=点穴者，右=被点穴者。**照着《武林外传》白展堂「葵花点穴手」剧照拆解后重写**：直臂剑指走势 + 拧腰侧身 + 虚步 + 出手后定格亮相 0.83 秒 + 受击者僵直后木板式倒地。",
+  "name": "pose_dianxue_v8",
+  "title": "成对交互 · 点穴（**Seedance 生成 → 双人提取 → 重定向**）",
+  "subtitle": "左=点穴者，右=被点穴者。素材=Seedance 生成的 5 秒视频（照白展堂葵花点穴手剧照写提示词），切掉片尾静止后过双人提取 + pose_mediapipe 解算。**根骨朝向改用「双眼连线中线的垂线」为基准**（侧视素材下髋线又短又抖，会偏几十度）。",
   "sides": {
     "src": {
       "label": "点穴者（攻击方）",
@@ -23,15 +23,15 @@
       "pairAnchor": {
         "anchor": "dst",
         "pelvisBone": "pelvis",
-        "gap": 0.68,
+        "gap": 0.56,
         "mode": "behind"
       },
-      "fixedClip": "dianxue_attack",
+      "fixedClip": "v8_attack",
       "freezeRootH": true,
       "files": [
         {
-          "id": "dx_atk",
-          "url": "assets/dianxue_pair.glb"
+          "id": "v8_atk_f",
+          "url": "assets/dianxue_v8.glb"
         }
       ]
     },
@@ -54,21 +54,21 @@
       ],
       "fixedClipReplace": [
         [
-          "dianxue_attack",
-          "dianxue_victim"
+          "v8_attack",
+          "v8_victim"
         ]
       ],
       "freezeRootH": true,
       "files": [
         {
-          "id": "dx_vic",
-          "url": "assets/dianxue_pair.glb"
+          "id": "v8_vic_f",
+          "url": "assets/dianxue_v8.glb"
         }
       ]
     }
   },
   "pairs": {
-    "dianxue_attack": {
+    "v8_attack": {
       "src": [
         null,
         null,
@@ -83,5 +83,5 @@
       ]
     }
   },
-  "assetsVersion": "20260928-v15-snap"
+  "assetsVersion": "20260928-v8e-eyebasis"
 }

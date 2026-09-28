@@ -3,7 +3,7 @@
 """
 gen_ring_sprite_tex.py — 「电罩外轮廓」那张**环形贴图**（给粒子用，不是给网格）
 ================================================================================
-    python tools/armor-pipeline/scripts/gen_ring_sprite_tex.py
+    python tools/particle-pipeline/scripts/gen_ring_sprite_tex.py
 
 ## 为什么是"一张环形贴图"（2026-09-25 绕了一大圈才回到这条）
 

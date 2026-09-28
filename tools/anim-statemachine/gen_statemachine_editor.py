@@ -59,13 +59,15 @@ def build_data():
         # 🔴 一次性 = `once="true"`。**不写时长** —— 长度由 clip 自己带（引擎给 0~1 的播放进度）。
         #    `duration="…"` 保留成"可选覆盖"，只在要主动截短 clip 时才写。
         #
-        # 🔴 状态轨道时间点（2026-09-28）：`<state>` 里的 `<track at="0.067" action="land-fx"/>`。
-        #    **必须原样读进来 + 原样写回去** —— 否则从页面保存一次就把它们**静默删掉**（页面
-        #    只认识 name/act/once/dur/next 那五个属性，重写 <states> 段时会把别的都抹掉）。
+        # 🔴 状态轨道时间点（2026-09-28）：`<state>` 里的 `<track at="0.067" action="land-fx"/>`
+        #    （一次性）或 `<track every="0.1" action="boost-cloud"/>`（**周期**，持续特效）。
+        #    **必须原样读进来 + 原样写回去** —— 否则从页面保存一次就把它们**静默删掉/写坏**
+        #    （页面只认识 name/act/once/dur/next 那五个属性，重写 <states> 段时会把别的都抹掉）。
         #    ⚠️ 页面目前**只做保真往返**、没有可视化编辑（要加 UI 再说）。
         tracks = []
         for tr in st.findall("track"):
-            tracks.append({"at": tr.get("at") or "", "action": tr.get("action") or ""})
+            tracks.append({"at": tr.get("at") or "", "every": tr.get("every") or "",
+                           "action": tr.get("action") or ""})
         states.append({"name": st.get("name"), "act": st.get("act"),
                        "once": (st.get("once") or "").lower() == "true" or bool(st.get("duration")),
                        "dur": st.get("duration") or "", "next": st.get("next") or "",
@@ -2294,13 +2296,16 @@ function groupsXml() {
 function statesXml() {
   // 🔴 状态轨道时间点必须**原样带回去**（2026-09-28）—— 页面不编辑它们，但**不能弄丢**：
   //    没有 track 就写自闭合 <state ... />，有就写成容器形式带子节点。
+  //    两种形态都支持：一次性 at=（比例）/ 周期 every=（秒）。
   return states.map(s => {
     const trs = (s.track && s.track.length) ? s.track : null;
     const head = `\t\t<state name="${s.name}" act="${s.act}"`
       + (s.once ? ` once="true"` : "") + (s.dur ? ` duration="${s.dur}"` : "")
       + (s.next ? ` next="${s.next}"` : "");
     if (!trs) return head + " />";
-    const body = trs.map(t => `\t\t\t<track at="${t.at}" action="${t.action}" />`).join("\n");
+    const body = trs.map(t => `\t\t\t<track`
+      + (t.at ? ` at="${t.at}"` : "") + (t.every ? ` every="${t.every}"` : "")
+      + ` action="${t.action}" />`).join("\n");
     return head + ">\n" + body + "\n\t\t</state>";
   }).join("\n");
 }

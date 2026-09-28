@@ -3,7 +3,7 @@
 """
 gen_lightning_shell_tex.py — 电罩球壳 `lwn_lightning_shell` 的「翻页电纹」图集
 ================================================================================
-    python tools/armor-pipeline/scripts/gen_lightning_shell_tex.py
+    python tools/particle-pipeline/scripts/gen_lightning_shell_tex.py
 
 ## 这是什么
 

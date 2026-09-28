@@ -100,29 +100,52 @@ namespace LivingWorldNpcs.Animation
     /// <summary>
     /// **状态轨道上的一个时间点**（2026-09-28 立）—— 对应 UE 的 **AnimNotify**。
     ///
-    /// 写法（`flight.xml` 的 `&lt;state&gt;` 里面）：
+    /// **两种写法**：
     /// <code>
+    /// &lt;!-- ① 一次性：演到 clip 的 6.7% 时响一次（落地特效用这个） --&gt;
     /// &lt;state name="超人落地" act="act_fly_superland" once="true"&gt;
     ///     &lt;track at="0.067" action="land-fx" /&gt;
     /// &lt;/state&gt;
-    /// </code>
-    /// `at` = **占整条 clip 的比例 0~1**（不是秒）—— 与项目其它地方一个口径：
-    /// 长度由 clip 自己带，**重导 clip 换了帧数不用改这里**。
     ///
-    /// 🔴 **一次进入只触发一次**（<see cref="Fired"/> 在进状态时清零）；
-    /// 🔴 求值**不受 `Hold` 影响** —— 落地/起飞这些相位状态正是被 `Hold` 住的（动画归相位管），
+    /// &lt;!-- ② 周期：状态期间**每 0.1 秒刷一次**（持续特效用这个：破空云迹 / 尾迹） --&gt;
+    /// &lt;state name="fastmove" act="act_fly_fastmove"&gt;
+    ///     &lt;track every="0.1" action="boost-cloud" /&gt;
+    /// &lt;/state&gt;
+    /// </code>
+    /// 一次性点的 `at` = **占整条 clip 的比例 0~1**（不是秒）—— 与项目其它地方一个口径：
+    /// 长度由 clip 自己带，**重导 clip 换了帧数不用改这里**。
+    /// 周期点的 `every` = **秒**（循环状态没有"百分之几"可言，见 <see cref="AnimTrackPoint.Every"/>）。
+    ///
+    /// 🔴 **求值不受 `Hold` 影响** —— 落地/起飞这些相位状态正是被 `Hold` 住的（动画归相位管），
     ///    把求值放进 Hold 门控里 = 永远不触发（2026-09-28 实现时特意避开的坑）。
     /// </summary>
     public sealed class AnimTrackPoint
     {
-        /// <summary>触发位置：占整条 clip 的比例（0~1）。</summary>
+        /// <summary>触发位置：占整条 clip 的比例（0~1）。**周期点（<see cref="Every"/>&gt;0）不看它。**</summary>
         public float At;
+
+        /// <summary>
+        /// **周期**（秒）：&gt;0 = **每隔这么久触发一次**（到状态结束为止），0 = 只触发一次。
+        ///
+        /// 🔴 **为什么周期用秒、而 `at` 用比例**（2026-09-28 定）：
+        /// `at` 是"这条 clip 演到百分之几"（跟着 clip 走，重导换帧数不用改）；
+        /// 而周期点用在**循环状态**上（冲刺本体 `fastmove`）—— 循环状态没有"百分之几"可言，
+        /// 它要的是"**每秒刷几次**"，所以是秒。
+        ///
+        /// 用途 = **持续特效**（破空云迹 / 尾迹）：UE 那边也是靠"短命粒子不停刷"做的
+        /// （云 0.2 s @10/秒、烟 0.15 s @75/秒），骑砍侧同理 ——
+        /// **粒子资产做"一次性 1 颗"，密度全由这里的秒数控制**（改密度不用重发粒子）。
+        /// </summary>
+        public float Every;
 
         /// <summary>到点执行的动作（<see cref="AnimActions"/> 里注册的真身）。</summary>
         public Action<AnimContext> Act;
 
-        /// <summary>本次进入状态内是否已触发过（进状态时清零）。</summary>
+        /// <summary>一次性点：本次进入状态内是否已触发过（进状态时清零）。</summary>
         internal bool Fired;
+
+        /// <summary>周期点：下一次该响的时刻（秒，相对进入状态那一刻）。进状态时清零。</summary>
+        internal float NextAt;
     }
 
     /// <summary>

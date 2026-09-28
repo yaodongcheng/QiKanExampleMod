@@ -3,7 +3,7 @@
 """
 gen_sigil_cloud_tex.py — 把飞行法阵的贴图换成「烟雾云」（`smoke_d` 四态图集）
 ============================================================================
-    python tools/armor-pipeline/scripts/gen_sigil_cloud_tex.py
+    python tools/particle-pipeline/scripts/gen_sigil_cloud_tex.py
 
 背景（2026-09-22 用户要求）：飞行载具 `<lwn_flight_sigil>` 原来贴的是一张法阵图
 （六芒星+蓝符文），改成**类似 `prt_shd_smoke` 那种云粒子的观感** —— 即一块能被阳光照到的烟云。
@@ -44,7 +44,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TOOL = os.path.dirname(HERE)                                    # tools/armor-pipeline
+TOOL = os.path.dirname(HERE)                                    # tools/particle-pipeline
 REPO = os.path.dirname(os.path.dirname(TOOL))                   # 仓库根（LivingWorldNpcs）
 OUTDIR = os.path.join(TOOL, "out")
 PNG_FOR_EDITOR = os.path.join(os.path.dirname(TOOL), "face-pipeline", "scripts", "png_for_editor.py")

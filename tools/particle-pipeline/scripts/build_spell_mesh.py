@@ -7,7 +7,7 @@ build_spell_mesh.py — 法印施法体系的法术网格（阴魔斩：月牙 +
 
     "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --python build_spell_mesh.py
 
-产出（写 `tools/armor-pipeline/out/`）：
+产出（写 `tools/particle-pipeline/out/`）：
     lwn_yinmo_crescent.fbx   月牙弧 + 弧心的能量核（**合并成一件** —— 一发导弹只能挂一个
                              flying_mesh，而"核会作为月牙的中心点一起发射出去"，所以必须同一个网格）
     lwn_yinmo_core.fbx       只有能量核（蓄力时挂在手心那个球复用这一件）
