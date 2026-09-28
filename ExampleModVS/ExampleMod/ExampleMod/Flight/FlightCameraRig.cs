@@ -53,15 +53,55 @@ namespace LivingWorldNpcs.Flight
         //   `Fov`                = 垂直视场角（度）
 
         /// <summary>4 个机位的参数表，下标 = <see cref="FlightCamPreset"/>。</summary>
+        /// <remarks>
+        /// 🔴 **两套"会动"的参数，别混**（2026-09-28）：
+        /// · `LagSpeed` / `LagMaxDistance` = **弹簧跟随**（相机位置滞后，UE 的 `CameraLagSpeed` / `CameraLagMaxDistance`）
+        /// · `FovPerVz` / `ArmPerVz` / `RollPerYawRate` = **运动驱动**（按竖直速率与航向角速度连续改 FOV/臂长/侧倾）
+        ///   两者的量纲都写在 <c>SpringArmCameraView.cs</c> 的字段注释里；**全填 0 = 关掉 = 老行为**。
+        /// 标定口径（我们这套飞行）：竖直速率上限按 20 m/s 钳（`SpringArmMath.MotionVzCap`）；
+        /// 航向角速度上限 = 航向追随速率（巡航 360°/s、冲刺 180°/s）⇒ 侧倾幅度天然被限住、不会失控。
+        /// </remarks>
         public static readonly SpringArmCameraParam[] Presets = new SpringArmCameraParam[]
         {
             // 悬停：近一点 —— 悬停时会转镜头看角色
-            new SpringArmCameraParam { ArmLength = 3.8f, Fov = 65f },
+            // 🔴 臂长 3.8 → **3.2**（2026-09-28 用户实机："悬浮和冲刺都有点远"）：
+            //    **悬停时人是停着的、拖尾 ≈ 0** ⇒ 这一档"画面上的距离"基本就等于臂长本身。
+            //    悬停飞行（9 m/s）时拖尾 9÷5 = 1.8 米 ⇒ 有效距离 3.2+1.8 ≈ **5.0**（原 5.6）。
+            new SpringArmCameraParam
+            {
+                ArmLength = 3.2f, Fov = 65f,
+                LagSpeed = 5f, LagMaxDistance = 4f,
+                FovPerVz = 0.4f, ArmPerVz = 0.08f, RollPerYawRate = 0.008f,
+            },
             // 巡航：标准跟随
-            new SpringArmCameraParam { ArmLength = 5.5f, Fov = 70f },
+            // 🔴 臂长 5.5 → **4.5**：有效距离 4.5+1.8 ≈ **6.3**（原 7.3）。
+            new SpringArmCameraParam
+            {
+                ArmLength = 4.5f, Fov = 70f,
+                LagSpeed = 5f, LagMaxDistance = 6f,
+                FovPerVz = 0.4f, ArmPerVz = 0.08f, RollPerYawRate = 0.008f,
+            },
             // 加速：拉远 + 广角 ⇒ 地面景物掠过更快 = 速度感
-            new SpringArmCameraParam { ArmLength = 9.0f, Fov = 80f },
+            // 🔴 这一档的 `LagSpeed` 是"弹性"最明显的地方（2026-09-27）：稳态拖尾 = 速度 ÷ LagSpeed，
+            //    冲刺 26 m/s ÷ 4 ≈ **6.5 米**尾巴；转弯时角色会先滑到画面一侧再滑回中间。
+            // 🔴 **臂长 9 → 6 → 4.5**（2026-09-28 用户实机两次反馈"太远"）：
+            //    画面上感觉到的距离 = **臂长 + 尾巴** ⇒ 现在 4.5+6.5 ≈ **11.0**（最初 15.5、上一版 12.5）。
+            //    继续收：`custom.flight cam boost arm <值>`；想收**尾巴**就 `cam boost lag <值>`
+            //    （lag 越大尾巴越短：5 ⇒ 5.2 米，6 ⇒ 4.3 米）。
+            // 🔴 运动驱动在这一档也最明显（2026-09-28）：45° 俯冲（竖直 18 m/s）⇒ FOV 80→89、臂长 4.5→6.3。
+            // 🔴 **拖尾收到 3.5 米**（2026-09-28 用户指定）：拖尾 = 速度 ÷ LagSpeed ⇒ 26 ÷ 7.4 ≈ **3.5 米**
+            //    （`LagSpeed` 由 4 提到 **7.4**）。画面距离 4.5+3.5 ≈ **8.0**（最初 15.5 → 12.5 → 11.0 → 8.0）。
+            //    ⚠️ LagSpeed 同时也决定"尾巴建立/收回的快慢"（时间常数 1/7.4 ≈ 0.14 秒，比原来 0.25 秒更跟手）。
+            //    要再改：`custom.flight cam boost lag <值>`（拖尾 = 26 ÷ 值）。
+            new SpringArmCameraParam
+            {
+                ArmLength = 4.5f, Fov = 80f,
+                LagSpeed = 7.4f, LagMaxDistance = 10f,
+                FovPerVz = 0.5f, ArmPerVz = 0.10f, RollPerYawRate = 0.015f,
+            },
             // 瞄准：过肩近景；SocketX>0 ⇒ 人物偏左；FOV 收窄，视线集中
+            // 🔴 **瞄准档全关**（滞后 + 运动驱动都填 0）：这时玩家在瞄目标，镜头必须是硬的
+            //    （滞后会让准心飘、FOV 随俯仰变会让瞄准距离感失真）。
             new SpringArmCameraParam { ArmLength = 1.9f, Fov = 55f, SocketX = 0.75f, SocketZ = 0.25f },
         };
 
@@ -83,6 +123,20 @@ namespace LivingWorldNpcs.Flight
         // 鼠标累加出来的世界朝向（度）
         private float _lookYaw;
         private float _lookPitch;
+
+        // ── 弹簧跟随（相机位置滞后，2026-09-27）—— UE `SpringArmComponent.CameraLagSpeed` 的等价物 ──
+        // 🔴 **它补的是"弹性"那一半**：只做航向惯性的话，相机焊死在角色身上，
+        //    角色永远在画面正中央 —— 航向与镜头的夹角**在画面上看不见**。
+        //    相机一滞后，那个夹角就变成"角色滑到画面一侧"，追上后再滑回来。
+        // 🔴 **状态本身是共用件**（2026-09-28 抽出去，见 `SpringArmMath.SpringArmLagState`）：
+        //    这里只留一个字段 + 每帧一次 `Update`，别的相机（演出跟随 / 以后的载具镜头）照抄这两行即可。
+        // 口径：滞后的是**角色锚点**（不是相机位置）：相机位 = 锚点 − 前向×臂长，
+        // 所以"锚点滞后多少，相机就跟着挪多少"，与 UE 的 pivot 滞后完全等价
+        // （前提：PivotX/Y/Z = 0 —— 飞行四个机位都是 0；若哪天给某个机位填了 pivot 偏移，这条要重推）。
+        private SpringArmLagState _lag;
+
+        /// <summary>本帧的运动量（行为层每帧喂，见 <see cref="SetMotion"/>）—— 驱动 FOV/臂长/侧倾的连续量。</summary>
+        private SpringArmMotion _motion;
 
         // ── 交接（2026-09-21/22：进场渐近视距·FOV；出场**先渐变回默认相机参数**再撒手）──
         private float _engineElevSign = 1f;   // 引擎 CameraElevation 与我们的 pitch 的符号关系（接管时自校准）
@@ -175,6 +229,8 @@ namespace LivingWorldNpcs.Flight
                 }
 
                 _active = true;
+                _lag.Reset();                      // 弹簧跟随重新播种（接管那一帧不滞后，随后自然拖起来）
+                _motion = default;                 // 运动量清零（行为层下一帧就会喂）
                 DebugLogger.Log($"[FlightCam] 已接管相机（世界锚定，鼠标驱动）yaw={_lookYaw:F0} pitch={_lookPitch:F0} " +
                                 $"| 引擎相机 bearing={RadToDeg(_screen?.CameraBearing ?? 0f):F0} elev={RadToDeg(_screen?.CameraElevation ?? 0f):F1} " +
                                 $"视距={_screen?.CameraResultDistanceToTarget ?? 0f:F1} fov={_from.Fov:F0} 进场过渡={(FlightTuning.UseCamHandover ? "开" : "关")}");
@@ -274,6 +330,8 @@ namespace LivingWorldNpcs.Flight
                 return;
 
             _active = false;
+            _lag.Reset();                        // 弹簧跟随状态不留到下次（下次接管当帧对齐）
+            _motion = default;
             try
             {
                 HandBackLookToEngine();          // 🔴 先写回朝向，再撒手（否则引擎相机甩回接管那一刻）
@@ -308,6 +366,24 @@ namespace LivingWorldNpcs.Flight
             if (_lookYaw > 180f) _lookYaw -= 360f;
             if (_lookYaw < -180f) _lookYaw += 360f;
             _lookPitch = MBMath.ClampFloat(_lookPitch, FlightTuning.CamPitchMin, FlightTuning.CamPitchMax);
+        }
+
+        /// <summary>
+        /// 喂本帧的**运动量**（在 <see cref="Tick"/> 之前调一次）—— 运动驱动的唯一入口。
+        ///
+        /// 🔴 **为什么要行为层喂、不自己读 agent 速度**：飞行时**玩家的速度被冻结成 0**
+        ///    （输入冻结 + AI 暂停），真实速度在行为层的 `_velocity`（木板速度）里 —— 相机拿不到。
+        ///    演出相机不喂 ⇒ `_motion` 全零 ⇒ 与加这套之前逐字节一致。
+        ///
+        /// 全局增益 = <see cref="FlightTuning.CamMotionGain"/>（`custom.flight tune cammotion`）：
+        /// **填 0 = 一键关掉整套运动驱动**，方便和"没有运动驱动"的观感对比。
+        /// </summary>
+        public void SetMotion(in SpringArmMotion m)
+        {
+            float g = FlightTuning.CamMotionGain;
+            _motion.Vz = m.Vz * g;
+            _motion.YawRate = m.YawRate * g;
+            _motion.Speed = m.Speed;        // 只做诊断（飞行速度大小只有 0/9/26 三档），不乘增益
         }
 
         /// <summary>切换机位。**只有机位真的变了才重启渐变**（每帧同一个机位不会重置进度）。</summary>
@@ -359,7 +435,17 @@ namespace LivingWorldNpcs.Flight
                 p.ArmYaw = _lookYaw + _current.ArmYaw;
                 p.ArmPitch = _lookPitch + _current.ArmPitch;
 
+                // 运动驱动（2026-09-28）：把本帧的运动量叠到 FOV / 臂长 / 侧倾上（`_motion` 全零 ⇒ 等于没这行）
+                p = SpringArmMath.WithMotion(in p, in _motion);
+
                 SpringArmMath.ComputeFrame(agent, in p, out MatrixFrame frame, out float fovDeg);
+
+                // ── 弹簧跟随（相机位置滞后，2026-09-27；状态已抽成共用件）──
+                //    · 归还渐变期间**不滞后**、并把偏移按 `1−进度` 淡出 ⇒ 撒手那一刻正好归零，不弹
+                //    · LagSpeed ≤ 0（含瞄准档）= 不滞后，偏移以 `SpringArmLagState.FadeSpeed` 渐隐
+                float lagSpeed = _handingBack ? 0f : _current.LagSpeed;
+                float lagFade = _handingBack ? (1f - _handBackT) : 1f;
+                frame.origin += _lag.Update(agent.LookFrame.origin, lagSpeed, _current.LagMaxDistance, dt, lagFade);
 
                 _camera.Frame = frame;
                 _camera.SetFovVertical(fovDeg * (MathF.PI / 180f), Screen.AspectRatio, 0.1f, 1000f);
@@ -490,9 +576,11 @@ namespace LivingWorldNpcs.Flight
         {
             SpringArmCameraParam v = Presets[(int)p];
             return string.Format(
-                "{0,-6} arm={1:F1} yawBias={2:F1} pitchBias={3:F1} pivot=({4:F2},{5:F2},{6:F2}) socket=({7:F2},{8:F2},{9:F2}) fov={10:F0}",
+                "{0,-6} arm={1:F1} yawBias={2:F1} pitchBias={3:F1} pivot=({4:F2},{5:F2},{6:F2}) socket=({7:F2},{8:F2},{9:F2}) fov={10:F0}" +
+                " | lag={11:F1} lagmax={12:F1} | fovvz={13:F2} armvz={14:F3} rollyaw={15:F3}",
                 PresetNames[(int)p], v.ArmLength, v.ArmYaw, v.ArmPitch,
-                v.PivotX, v.PivotY, v.PivotZ, v.SocketX, v.SocketY, v.SocketZ, v.Fov);
+                v.PivotX, v.PivotY, v.PivotZ, v.SocketX, v.SocketY, v.SocketZ, v.Fov,
+                v.LagSpeed, v.LagMaxDistance, v.FovPerVz, v.ArmPerVz, v.RollPerYawRate);
         }
     }
 }

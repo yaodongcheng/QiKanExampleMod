@@ -402,6 +402,29 @@ if (agent.Team != null && agent.Team.IsValid   // IsValid => MBTeam.Index >= 0�
 
 ---
 
+## XML 注释里写了"连续两个半角减号" → 整份 XML 报 not well-formed（且**运行时纯静默**）
+
+**症状**
+- 改注释时顺手把命令行开关照抄了进去（`tpaccli list --packdir <目录>`），文件看起来完全正常，
+  编辑器、`git diff` 都看不出问题；
+- 但 `xml.etree.ElementTree.parse` 直接报 **`not well-formed (invalid token): line 112`**；
+- 🔴 **危险在运行时**：`action_sets.xml` 这类文件解析失败 ⇒ **动作集加载不了** ⇒
+  所有 `act_fly_*` / `act_magic_*` 动作**一条都播不出来**，而**引擎不报任何错**（"看着好好的、进游戏全哑"）。
+
+**根因**
+- XML 规范（[XML 1.0 §2.5](https://www.w3.org/TR/xml/#sec-comments)）：**注释内容里不得出现 `--`**。
+  命令行开关天然带两个减号，是最容易撞的写法（`--packdir` / `--format` / `--out` …）。
+
+**规避**
+- 🔴 **注释里描述命令行时用文字，别照抄符号**：写"用 list 的 packdir 开关"，不写 `--packdir`。
+  （真要写符号，用全角减号或拆开写。）
+- 🔴 **改完任何 XML，跑正式关卡**：`python Scripts/check_xml_parse.py`（一键体检里的"雷 8：任一文件坏 = exit 1"）。
+  这条工具**本来就有** —— 2026-09-28 的教训是**改完 XML 没跑它**，靠用户一句"这不是在注释里？"才发现。
+- 顺带：`Debug/offline/_check_flight_xml.py`（临时探针）里也有"注释内连续减号"这一项，但它在 offline 下、
+  不进 git、也不在一键体检里 —— **以 `check_xml_parse.py` 为准**。
+
+---
+
 ## PowerShell 正则替换串 `$1`/`$2` 没展开 → XML 里被写成字面量 `$1`
 
 **症状**

@@ -356,17 +356,27 @@ namespace LivingWorldNpcs.Flight
         // ───────────────────────── 俯仰姿态 ─────────────────────────
 
         /// <summary>
-        /// 镜头前方向量的**竖直分量**超过多少算「在爬升 / 在俯冲」。
-        /// 0.42 ≈ 抬头 25°。朝向的俯仰由动画表现（引擎的 agent 转不了俯仰，见 §三）。
+        /// **升降姿态**（抬头 / 低头）的进入阈值 —— 判据 = **木板速度单位向量的竖直分量**
+        /// （= 航迹倾角的正弦，与速度大小无关；见 <see cref="PlayerFlightBehavior"/> 的 `_climbLatch`）。
+        ///
+        /// 🔴 **2026-09-28 由 0.42 提到 0.80**（用户实机裁定："稍微有一点垂直速度就直接改飞行状态"）：
+        ///    我们**没有混合空间**，抬头/低头是**一档固定 ~90° 的姿态**（新包 `addu/addd` 整身转过去），
+        ///    ⇒ 触发门槛必须**陡**，让平飞 / 缓爬仍保持趴姿、只有真的朝天才立起来。
+        ///
+        /// 换算：0.80 = sin⁻¹ ≈ **53°**；0.90 ≈ 64°；0.70 ≈ 44°；0.42 ≈ 25°（旧值，太浅）。
+        /// 热调：`custom.flight tune pitch 0.8`
         /// </summary>
-        public static float PitchThreshold = 0.42f;
+        public static float PitchThreshold = 0.80f;
 
         /// <summary>
         /// 退出俯仰姿态的阈值（**迟滞**，比进阈值小）。
+        ///
         /// 为什么需要：姿态之间是 120°~180° 的大翻转（实测），单一阈值下玩家把镜头停在
         /// 阈值附近会让动画来回翻。进出用两个阈值就不会抖。
+        /// 现在 = 0.65（≈ 40.5°）：进 53° / 退 40.5°，中间那 12° 是防抖带。
+        /// 热调：`custom.flight tune pitchout 0.65`
         /// </summary>
-        public static float PitchExitThreshold = 0.30f;
+        public static float PitchExitThreshold = 0.65f;
 
         // ── 压弯（倾斜）触发（2026-09-22 用户裁定后接）─────────────────────────
         // 用**横移输入**当压弯：|MoveAxis.x| 超过进阈值算在压弯，低于出阈值退出（迟滞）。
@@ -405,6 +415,17 @@ namespace LivingWorldNpcs.Flight
         //    加这组之前，速度方向是**每帧从相机方向重算**的 ⇒ 转镜头当帧航向就换，冲刺 26 m/s
         //    时甩一下镜头画面整个横过来、人像没有质量。现在航向按下面的角速度追相机 ⇒ 掉头划一道弧。
         //    用户裁定（2026-09-27）："相机方向变化时，需要让角色速度方向有一个过渡过来的时间才会更有操作感"。
+
+        /// <summary>
+        /// **冲刺档：只按 Shift（一个方向键都没按）时，当作按着 W 往前飞**（2026-09-28 用户裁定）。
+        ///
+        /// 为什么：改之前那种情况是"**趴姿原地悬停**"（姿势进了冲刺、人却不动）—— 别扭；
+        /// 而"冲刺"这个词本身就是"我要往前冲"，再额外要求按 W 是多余的。
+        /// ⚠️ **只在"一个方向键都没按"时生效**：按着 A/D（哪怕没 W）仍按横移算 —— 别去改横移语义。
+        /// 填 0 = 关掉（回到"Shift 单独按 = 原地趴着悬停"）。
+        /// 热调：<c>custom.flight tune boostfwd 0</c>
+        /// </summary>
+        public static bool BoostImpliesForward = true;
 
         /// <summary>
         /// 航向追随角速度（度/秒）—— **悬停 / 巡航**档。0 = 瞬时（回到 2026-09-27 之前的旧行为）。
@@ -458,6 +479,17 @@ namespace LivingWorldNpcs.Flight
         /// 其余转移照旧走 <see cref="AnimBlendIn"/>。热调：<c>custom.flight tune hoverblend 1.2</c>。
         /// </summary>
         public static float HoverBlendSeconds = 1.0f;
+
+        /// <summary>
+        /// **升降姿态**（升 ⇄ 平 ⇄ 降）那几条边的过渡时长（秒；2026-09-28）。
+        ///
+        /// 和 <see cref="HoverBlendSeconds"/> 同一个理由：它是"整段姿态差"，用全局 0.3 秒会啪地翻过去；
+        /// 但也不能像悬停那样给 1 秒 —— 升降是**边飞边变**的，太慢会跟不上动作。
+        /// 0.45 秒 ≈ 速度方向建立的那点时间（航向惯性 ⇒ 竖直分量要 0.2~0.3 秒才压出来，正好接得上）。
+        /// 只作用于 `flight.xml` 里升降那几条边（边上写了 `blend="pitchBlendSeconds"`）。
+        /// 热调：<c>custom.flight tune pitchblend 0.45</c>。
+        /// </summary>
+        public static float PitchBlendSeconds = 0.45f;
 
         // ───────────────────────── 运动相机（N5，2026-09-21）─────────────────────────
 
@@ -517,6 +549,17 @@ namespace LivingWorldNpcs.Flight
         /// <summary>上下视角钳制（度）。别让它翻过头 —— 抬头到 89 度以上画面会翻。</summary>
         public static float CamPitchMin = -80f;
         public static float CamPitchMax = 75f;
+
+        /// <summary>
+        /// **运动驱动的总增益**（2026-09-28）—— 竖直速率 / 航向角速度对镜头（FOV·臂长·侧倾）的影响，
+        /// 全部乘这个数。**填 0 = 一键关掉整套运动驱动**（回到"镜头只按机位死参数摆"）。
+        ///
+        /// 为什么要一个总增益：各档的斜率是**逐机位**调的（`custom.flight cam <档> fovvz …`），
+        /// 想整体对比"有/没有"时一个个改太麻烦 —— 这一个数就够。
+        /// 别拿它当"整体手感"旋钮长期用：调好之后各档的斜率才是真参数。
+        /// 热调：`custom.flight tune cammotion 0|1|1.5`
+        /// </summary>
+        public static float CamMotionGain = 1f;
 
         /// <summary>鼠标左右是否反向（实机觉得转反了就翻这个）。</summary>
         public static bool InvertCamX = false;
@@ -679,17 +722,19 @@ namespace LivingWorldNpcs.Flight
             FallRideBrake = 30f;
             AnimBlendIn = 0.3f;
             HoverBlendSeconds = 1.0f;
+            PitchBlendSeconds = 0.45f;
             UseFlightCamera = true;
             CamBlendIn = 0.45f;
             UseCamHandover = true;
             CamHandBackLook = true;
             AimOnRightClick = true;
             CamLookSensitivity = 0.12f;
+            CamMotionGain = 1f;
             CamPitchMin = -80f;
             CamPitchMax = 75f;
             InvertCamX = false;
             InvertCamY = false;
-            PitchExitThreshold = 0.30f;
+            PitchExitThreshold = 0.65f;
             ActionRecheckSeconds = 0.5f;
             // 🪦 2026-09-26：动作名（原 ActHoverStart / ActIdle / … 一行一个）不再恢复出厂 ——
             //    它们已经不存在了，动作名的唯一来源是 `ModuleData/statemachines/flight.xml`。
@@ -706,7 +751,8 @@ namespace LivingWorldNpcs.Flight
             DodgeDistance = 8f;
             DodgeDisplaceSeconds = 0.4f;
             DodgeCooldownSeconds = 1.9f;
-            PitchThreshold = 0.42f;
+            PitchThreshold = 0.80f;
+            BoostImpliesForward = true;
             // 转向（2026-09-27）：`TurnRateDegPerSec` 原来漏在这儿恢复出厂，顺手补上
             TurnRateDegPerSec = 540f;
             SteerRateDegPerSec = 360f;

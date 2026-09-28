@@ -75,6 +75,16 @@ RIGS = {
         "clip_arg": "--clip",
         "desc": "UE5 小白人 -> 骑砍2（源为 FBX）",
     },
+    # 🆕 2026-09-27：**图片/视频一路** —— 源不是骨架动画，而是 MediaPipe BlazePose 的 33 个 3D 关键点。
+    #    上游：pipeline/tools/vid2pose.py（视频/图片 -> input/source/pose_mediapipe/<clip>.json）
+    #    下游：本 rig 用 look-at 解算把关键点"瞄准"成 28 骨动画（纯几何，无神经网络）。
+    "pose_mediapipe": {
+        "script": "pipeline/rigs/pose_mediapipe/retarget.py",
+        "map": "pipeline/rigs/pose_mediapipe/map.json",
+        "source_kind": "posejson",
+        "clip_arg": "--clip",
+        "desc": "图片/视频 BlazePose 关键点 -> 骑砍2（源为 pose.json）",
+    },
 }
 
 

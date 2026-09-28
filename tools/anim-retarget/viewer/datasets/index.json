@@ -32,6 +32,14 @@
     {
       "id": "spiral_hand",
       "name": "【手势·三阶段】螺旋手里剑 start/loop/end（真 mocap 拼装）"
+    },
+    {
+      "id": "pose_dance",
+      "name": "【外部素材迁移】视频/图片 → 骨骼动画（BlazePose 解算）"
+    },
+    {
+      "id": "pose_rasen",
+      "name": "【动作迁移】蓄力→出手（小白人视频 → 骑砍2）"
     }
   ],
   "order_note": "分组（2026-09-24）：按素材主题并列。ue_basic 已并入 ue_slim（去重后 296 条）。 ｜ 2026-09-27：删除 ue_flight_lean（4 格合成预览，已被 ue_fly_comp 取代）；新增 ue_fly_comp（①源pose ②重定向后pose ③合成后动画）。"

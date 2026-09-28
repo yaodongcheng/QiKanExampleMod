@@ -58,8 +58,19 @@ namespace LivingWorldNpcs.Flight
             //    🔴 **两个家族共用这两个**（2026-09-26）：直立家 / 趴姿家各用**边的来源**区分
             //       （`from="hovermove"` vs `from="fastmove"`），不再需要 `sprint-look-*` 那对
             //       —— 它们已删（同一语义只留一处）。
-            AnimConditions.Register("look-up", c => C(c).PitchBand > 0);       // 镜头抬起（爬升姿势用）
-            AnimConditions.Register("look-down", c => C(c).PitchBand < 0);     // 镜头压下（俯冲姿势用）
+            //    🪦 **2026-09-28 起没有边再用它们**：姿态改走下面的 `climbing`/`diving`（**竖直运动**驱动）——
+            //       用户实机反馈"朝天/朝地飞身体没跟着运动走" ⇒ 姿势要跟**实际怎么动**，不跟镜头朝哪
+            //       （航向惯性之后两者不再是一回事）。留着是因为"相机朝哪"这个量本身还有用
+            //       （`[Flight-Diag]` 仍在打 `pitchBand`），要恢复"镜头驱动"只需把边上 when 换回来。
+            AnimConditions.Register("look-up", c => C(c).PitchBand > 0);       // 镜头抬起
+            AnimConditions.Register("look-down", c => C(c).PitchBand < 0);     // 镜头压下
+
+            // ── 升降（**键原语也表达不了**：它是"实际在往哪飞"）──────────────────────
+            //    判据 = 木板竖直速度的方向分量（`velocity.z ÷ |velocity|`，带迟滞）。
+            //    🔴 爬升 / 俯冲的姿态（内容包里的 pitchu / pitchd）**由这两个进**（2026-09-28 接回，
+            //       照抄 UE："抬头/低头看竖直速度分量"）。两个家族各用**边的来源**区分，同 look-* 的写法。
+            AnimConditions.Register("climbing", c => C(c).ClimbBand > 0);      // 在爬升（姿态 = 抬头）
+            AnimConditions.Register("diving", c => C(c).ClimbBand < 0);        // 在俯冲（姿态 = 低头）
 
             // 🪦 2026-09-26 删除的谓词（用户裁定：**没用到、且用键原语 / 边来源就能表达**的，一律不留 ——
             //    下拉里混着重复名字容易选错，而且行为有细微差别）：
@@ -92,6 +103,9 @@ namespace LivingWorldNpcs.Flight
             // 悬停 ⇄ 巡航 那两条边的过渡时长（边上写 `blend="hoverBlendSeconds"`）——
             // 单独一个名字是为了"只调这两条、不动别的转移"，热调键 `custom.flight tune hoverblend`。
             AnimConditions.RegisterParam("hoverBlendSeconds", () => FlightTuning.HoverBlendSeconds);
+            // 升降姿态（升 ⇄ 平 ⇄ 降）那几条边的过渡时长（2026-09-28）——
+            // 同 hoverBlend 的理由：它是"整段姿态差"，用全局 0.3 秒会啪地翻过去；热调 `tune pitchblend`。
+            AnimConditions.RegisterParam("pitchBlendSeconds", () => FlightTuning.PitchBlendSeconds);
         }
 
         /// <summary>把上下文收窄成飞行那份（定义与上下文同命名空间，收窄在这里是安全的）。</summary>

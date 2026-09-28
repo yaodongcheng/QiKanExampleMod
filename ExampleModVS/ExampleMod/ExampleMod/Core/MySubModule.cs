@@ -373,6 +373,9 @@ namespace LivingWorldNpcs
                 // 随从逮捕善后（Phase E）：被执法转押的随从 → 定居点菜单「赎回随从」（罚金）
                 campaignGameStarter.AddBehavior(new CompanionDetentionBehavior());
 
+                // 法术：手环宝石槽的配装仓（阶段 5，存档键 lwn_spell_loadout）—— 存角色身上 + 进存档
+                campaignGameStarter.AddBehavior(new SpellLoadoutBehavior());
+
                 // 建号内容接线（🔴 1.3.x+ 战役模式必需：那儿的内容只能靠**战役行为**在
                 //   OnCharacterCreationInitializedEvent 里挂进去；1.2.12 下本调用是空操作，
                 //   版本分叉收在该方法内部）。内容包模式才挂。

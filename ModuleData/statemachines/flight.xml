@@ -61,10 +61,17 @@
                    1.0 秒是照抄 UE 原项目的 `BlendListByBool(HasMovementInput, 1.0s)`。
                    ⚠️ 状态名 / 动作名都没变（还是 hovermove），**换的只是内容包里那条 clip** ——
                    所以图上看不出差别，别以为"没改"。
-                hovermove → 压弯 L/R（按 A / D）、俯仰 U/D（镜头抬 / 压）；**压弯优先于俯仰**
-                压弯 / 俯仰：条件不成立 **或停下来** ⇒ 回本族入口（idle）
+                🔴 **升降姿态（2026-09-28 接回，只接了趴姿家）**：`fastmove ⇄ fastmovePitchU / fastmovePitchD`，
+                   判据 = **竖直运动**（`climbing` / `diving` = 木板速度的竖直方向分量），**不是镜头俯仰** ——
+                   照抄 UE（那边两族都看竖直速度分量）。过渡 `blend="pitchBlendSeconds"`（0.45 秒，热调 `tune pitchblend`）。
+                   为什么改判据（用户 2026-09-28 实机，点名的就是冲刺）："朝天 / 朝地飞，身体没跟着**运动方向**变" ——
+                   镜头与运动之间还隔着航向惯性那一段差，两者不再是一回事。
+                   ⬜ **直立家（idle/hovermove）没有升降状态**：原来那 4 个（压弯×2 + 俯仰×2）是 2026-09-27
+                      用户在编辑器里删掉的 ⇒ **没经点名不加回来**（要加 = 补状态 + 边，照趴姿家那四条抄）。
         趴姿家：**姿态对 WASD 无响应**（用户裁定：冲刺只由 Shift 进出）——
-                fastmoveStart 演完进 fastmove；本体接**一条闪避边**：`Z` → `dodgeU`（前闪）。
+                fastmoveStart 演完进 fastmove；本体接**一条闪避边**（`Z` → `dodgeU` 前闪）
+                + **一对升降边**（2026-09-28 接回：`fastmove ⇄ fastmovePitchU / D`，判据 = 竖直运动，
+                   同 UE"抬头/低头看竖直速度分量"；本族没有 idle 这个休息态 ⇒ 条件不成立就回 `fastmove`）。
                 🔴 **闪避键 = Z**（2026-09-27 用户裁定）：它就是游戏自己的**蹲下键**，
                    而 UE 超人项目里闪避也正是蹲下键、空中不需要蹲 ⇒ 同一个键最贴原意
                    （先试过 C，实机发现 **C 会打开 UI**）；**空格不再参与闪避** —— 它专管"出机"。
@@ -72,8 +79,9 @@
                    ⇒ 那控制器不跑 ⇒ 引擎不会处理 Z 的蹲（不必任何压制代码）。
                 ⚠️ 位移方向仍是**相机前向**（冲刺不响应 WASD ⇒ 没有左右闪的输入来源，
                    `dodgeL/R/D` 三条先空着，等接上"角速度 / 竖直速度"那套驱动量再连）。
-                🔴 `fastmoveLeanL/R` / `fastmovePitchU/D` 四个状态**暂时空着**：原版 UE 里那两层是
-                   "角速度 / 竖直速度"驱动的，我们还没有那套驱动量 ⇒ 等接上再连线（别用方向键顶替）。
+                🔴 `fastmoveLeanL/R` 两个状态**仍然空着**：UE 里那层是**角速度**驱动的
+                   （驱动量 2026-09-28 已经有了 —— 航向角速度，相机侧倾用的就是它）；
+                   要接随时能接，**用户没点就先不接**（别用方向键顶替，那是另一套语义）。
         出机（空格）：**两个族各一条 `to="坠落"` 的普通边**（见 <edges> ③′）——
                 "谁能出机、按什么键"全在本文件；使用方只遵守两条通用规则
                 （**C# 里没有"空格"这个字**）：
@@ -91,8 +99,8 @@
 
 	<!-- 容器（= 边的来源集合 / 真子状态机，对应 UE 的 State Alias）：🔴 **每个状态只归属一个容器**。
 	     现状（2026-09-26 与文件同步核过）—— 四个容器，互不重叠：
-	       · 悬浮飞行（直立家，入口 = FlyHoverLocomotion → idle）压弯×2 + 俯仰×2 + FlyHoverLocomotion
-	       · 冲刺飞行（趴姿家，入口 = fastmoveStart）      FlyFastPoses + fastmoveStart + 闪避×4
+	       · 悬浮飞行（直立家，入口 = FlyHoverLocomotion → idle）俯仰×2 + FlyHoverLocomotion（压弯×2 待接）
+	       · 冲刺飞行（趴姿家，入口 = fastmoveStart）      FlyFastPoses + fastmoveStart + 闪避×4（升降×2 在 FlyFastPoses 里）
 	       · FlyHoverLocomotion（悬浮飞行 的子容器，入口 = idle）      hovermove / idle
 	       · FlyFastPoses（冲刺飞行 的子容器，入口 = fastmove）        趴姿本体 5 个（闪避的**发起来源**）
 	     为什么直立/趴姿要分开：两者姿势基准差 ~90°，跨族切会"硬翻"，所以进趴姿必须经 fastmoveStart 那道门。
@@ -118,8 +126,8 @@
 		<state name="fastmove" act="act_fly_fastmove" />
 		<state name="fastmoveLeanL" act="act_fly_fastmove_lean_l" />
 		<state name="fastmoveLeanR" act="act_fly_fastmove_lean_r" />
-		<state name="fastmovePitchU" act="act_fly_fastmove_pitchu" />
-		<state name="fastmovePitchD" act="act_fly_fastmove_pitchd" />
+		<state name="fastmovePitchU" act="act_fly_fastmove_addu" />
+		<state name="fastmovePitchD" act="act_fly_fastmove_addd" />
 		<state name="fastmoveStart" act="act_fly_fastmove_start" once="true" next="fastmove" />
 		<state name="dodgeL" act="act_fly_dodge_l" once="true" next="fastmove" />
 		<state name="dodgeR" act="act_fly_dodge_r" once="true" next="fastmove" />
@@ -172,6 +180,13 @@
 		<edge from="outside" to="悬浮飞行" when="takeoff-trigger" event="true" />
 		<edge from="冲刺飞行" to="悬浮飞行" keys="Shift" not="true" />
 		<edge from="FlyFastPoses" to="dodgeU" keys="Z" />
+		<!-- 趴姿家的升降（2026-09-28 接回；判据 = 竖直运动 `climbing`/`diving`，见文件头）——
+		     本族没有 idle 这个休息态 ⇒ 条件不成立就回 `fastmove`。
+		     ⚠️ 直立家**没有**这一对（那 4 个直立家状态 2026-09-27 已由用户在编辑器里删除）。 -->
+		<edge from="fastmovePitchU" to="fastmove" when="climbing" not="true" blend="pitchBlendSeconds" />
+		<edge from="fastmovePitchD" to="fastmove" when="diving" not="true" blend="pitchBlendSeconds" />
+		<edge from="fastmove" to="fastmovePitchU" when="climbing" blend="pitchBlendSeconds" />
+		<edge from="fastmove" to="fastmovePitchD" when="diving" blend="pitchBlendSeconds" />
 		<edge from="冲刺飞行" to="坠落" keys="Space" />
 		<edge from="fastmoveStart" to="FlyFastPoses" anim="remaining" anim-rem-pct="15" />
 	</edges>

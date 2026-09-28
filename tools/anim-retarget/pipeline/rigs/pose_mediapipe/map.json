@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "source": "MediaPipe BlazePose 33 关键点（pose_world_landmarks，米制，原点=双髋中点）",
+    "target": "Bannerlord human_skeleton (human_lod_4.fbx, 28 骨)",
+    "note": "只有【方向】从关键点来 —— 骨骼长度/比例一律用目标骨架自己的（旋转型重定向）。手指只 1 根静态骨，不驱动。"
+  },
+  "axis": {
+    "from": "mediapipe_world",
+    "to": "armature",
+    "note": "MP: x 图像右(约=受试者左) / y 向下 / z 背离相机  |  骑砍2: X=角色右 / Y=面朝前 / Z=上",
+    "matrix": [[-1, 0, 0], [0, 0, -1], [0, -1, 0]],
+    "unit": "两个空间都是米，旋转型重定向不需要缩放"
+  },
+  "root": {
+    "bone": "pelvis",
+    "mode": "full_basis",
+    "up":   { "a": [23, 24], "b": [11, 12] },
+    "left": { "a": [24], "b": [23] },
+    "note": "根骨要完整基（含 yaw 扭转）；骨盆自身轴是朝前的，拿它当瞄准轴没意义"
+  },
+  "bones": {
+    "l_thigh":          { "a": 23, "b": 25 },
+    "l_calf":           { "a": 25, "b": 27 },
+    "l_foot":           { "a": 27, "b": 31 },
+    "r_thigh":          { "a": 24, "b": 26 },
+    "r_calf":           { "a": 26, "b": 28 },
+    "r_foot":           { "a": 28, "b": 32 },
+    "spine":            { "a": [23, 24], "b": [11, 12], "frac": 0.34 },
+    "spine1":           { "a": [23, 24], "b": [11, 12], "frac": 0.67 },
+    "spine2":           { "a": [23, 24], "b": [11, 12], "frac": 1.00 },
+    "neck":             { "a": [11, 12], "b": [7, 8] },
+    "head":             { "self": true, "a": [7, 8], "b": [0] },
+    "l_clavicle":       { "a": [11, 12], "b": 11 },
+    "l_upperarm_twist": { "a": 11, "b": 13 },
+    "l_foretwist":      { "a": 13, "b": 15 },
+    "l_hand":           { "a": 15, "b": [17, 19, 21] },
+    "r_clavicle":       { "a": [11, 12], "b": 12 },
+    "r_upperarm_twist": { "a": 12, "b": 14 },
+    "r_foretwist":      { "a": 14, "b": 16 },
+    "r_hand":           { "a": 16, "b": [18, 20, 22] }
+  },
+  "keep_rest": [
+    "l_upperarm_twist1", "l_foretwist1", "l_finger0",
+    "r_upperarm_twist1", "r_foretwist1", "r_finger0",
+    "l_toe0", "r_toe0"
+  ]
+}

@@ -204,7 +204,7 @@ namespace LivingWorldNpcs.CampaignMode
             }
 
             if (args.Count < 4)
-                return "ERR usage: custom.flight cam <preset> <param> <value> | param: arm pitch yaw pivotx pivoty pivotz socketx sockety socketz selfyaw selfpitch selfroll fov";
+                return "ERR usage: custom.flight cam <preset> <param> <value> | param: arm pitch yaw pivotx pivoty pivotz socketx sockety socketz selfyaw selfpitch selfroll fov lag lagmax fovvz armvz rollyaw";
 
             int idx = Array.IndexOf(FlightCameraRig.PresetNames, k);
             if (idx < 0)
@@ -231,8 +231,15 @@ namespace LivingWorldNpcs.CampaignMode
                 case "selfpitch": p.SelfPitch = v; break;
                 case "selfroll": p.SelfRoll = v; break;
                 case "fov": p.Fov = v; break;
+                // 弹簧跟随（相机位置滞后；0 = 焊死在角色身上 = 旧行为）—— UE 的 CameraLagSpeed
+                case "lag": p.LagSpeed = v; break;
+                case "lagmax": p.LagMaxDistance = v; break;      // 拖尾上限（米；0=不限）—— UE 的 CameraLagMaxDistance
+                // 运动驱动（2026-09-28）—— 全填 0 = 关掉该档的运动响应；总增益 custom.flight tune cammotion
+                case "fovvz": p.FovPerVz = v; break;             // 竖直速率每 1 m/s → FOV 加几度
+                case "armvz": p.ArmPerVz = v; break;             // 竖直速率每 1 m/s → 臂长加几米
+                case "rollyaw": p.RollPerYawRate = v; break;     // 航向角速度每 1°/s → 侧倾几度（反了填负）
                 default:
-                    return $"ERR unknown param '{field}' | arm pitch yaw pivotx pivoty pivotz socketx sockety socketz selfyaw selfpitch selfroll fov";
+                    return $"ERR unknown param '{field}' | arm pitch yaw pivotx pivoty pivotz socketx sockety socketz selfyaw selfpitch selfroll fov lag lagmax fovvz armvz rollyaw";
             }
             FlightCameraRig.Presets[idx] = p;
 
@@ -243,7 +250,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | 动画: blend hoverblend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camera: camsens caminvertx caminverty campitchmin campitchmax | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle spawngap settle";
+                return "ERR usage: custom.flight tune <key> <value> | 动画: blend hoverblend pitchblend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camera: camsens caminvertx caminverty campitchmin campitchmax camlag cammotion | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle boostfwd spawngap settle";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -265,6 +272,7 @@ namespace LivingWorldNpcs.CampaignMode
                 case "pitchout": FlightTuning.PitchExitThreshold = v; break;
                 case "blend": FlightTuning.AnimBlendIn = v; break;
                 case "hoverblend": FlightTuning.HoverBlendSeconds = v; break;   // 悬停⇄巡航 这两条边的过渡时长（秒；默认 1.0）
+                case "pitchblend": FlightTuning.PitchBlendSeconds = v; break;   // 升降姿态（升⇄平⇄降）那几条边（秒；默认 0.45）
                 case "presetblend": FlightTuning.CamBlendIn = v; break;         // 只改【机位之间】的过渡时长（动画交叉淡化不变）
                 case "camhandover": FlightTuning.UseCamHandover = v != 0f; break;   // 进出相机是否做交接（0=硬切，旧行为）
                 case "camhandback": FlightTuning.CamHandBackLook = v != 0f; break;  // 归还时是否把朝向写回引擎
@@ -273,6 +281,8 @@ namespace LivingWorldNpcs.CampaignMode
                 case "steer": FlightTuning.SteerRateDegPerSec = v; break;            // 悬停/巡航档（度/秒；0=瞬时=旧行为）
                 case "steerboost": FlightTuning.SteerRateBoostDegPerSec = v; break;  // 冲刺档（度/秒；更低=高速转向更"重"）
                 case "steeridle": FlightTuning.SteerIdleResetSeconds = v; break;     // 停稳多久算"没有航向动量"（秒）
+                // 冲刺档：只按 Shift、一个方向键都没按 ⇒ 当作按着 W 往前飞（0 = 关掉，回到"原地趴着悬停"）
+                case "boostfwd": FlightTuning.BoostImpliesForward = v != 0f; break;
                 case "spawngap": FlightTuning.CarrierSpawnGap = v; break;       // 板面比碰撞体底面再低多少（米）
                 case "feetoffset": FlightTuning.CarrierSpawnGap = v; break;     // 旧键名，等价 spawngap（口径已改）
                 case "settle": FlightTuning.TakeoffSettleSeconds = v; break;    // 起飞等踩上板的最长等待（秒；0=不等）
@@ -309,6 +319,20 @@ namespace LivingWorldNpcs.CampaignMode
                 case "caminverty": FlightTuning.InvertCamY = v != 0f; break;    // 上下反向
                 case "campitchmin": FlightTuning.CamPitchMin = v; break;
                 case "campitchmax": FlightTuning.CamPitchMax = v; break;
+                // 弹簧跟随速率（相机位置滞后）—— 一次改三档（悬停/巡航/冲刺），**瞄准档固定不滞后**
+                // （瞄目标时镜头必须是硬的，滞后会让准心飘）。0 = 相机焊死在角色身上 = 2026-09-27 之前的行为。
+                case "camlag":
+                    for (int i = 0; i < FlightCameraRig.Presets.Length; i++)
+                    {
+                        if (FlightCameraRig.PresetNames[i] == "aim")
+                            continue;
+                        SpringArmCameraParam cp = FlightCameraRig.Presets[i];
+                        cp.LagSpeed = v;
+                        FlightCameraRig.Presets[i] = cp;
+                    }
+                    break;
+                // 运动驱动的**总增益**（竖直速率 / 航向角速度 → FOV·臂长·侧倾）。0 = 一键关掉整套。
+                case "cammotion": FlightTuning.CamMotionGain = v; break;
                 case "camblend": FlightTuning.CamBlendIn = v; FlightTuning.AnimBlendIn = v; break;  // 两个一起调（两个字段本来就该同源）
                 default:
                     return $"ERR unknown key '{key}'";

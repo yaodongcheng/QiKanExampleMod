@@ -904,7 +904,10 @@ function setView(p){
   // 'top' 必须是【正俯视】：up=(0,0,-1) → 屏幕向右 = +X，屏幕向上 = −Z（即 +Z 朝屏幕下方）
   // 这样 3D 俯视与 2D 平面图是同一套约定，可以直接对账。
   camera.up.set(0, 1, 0);
-  if(p==='front') camera.position.set(0, 1.35, 4.6);
+  // 🔴 2026-09-27 修：角色在查看器里朝 -Z（= bannerlord_target.json 的 facing_after_gltf:"-Z"，
+  //    实测胸口前向箭头也指向 -Z）。所以能拍到【正面】的相机必须在 **-Z 侧**；
+  //    原来放在 +Z(= 角色背后)，点「正面」看到的是背面 —— 既有问题，影响所有数据集。
+  if(p==='front') camera.position.set(0, 1.35, -4.6);
   if(p==='side')  camera.position.set(4.9, 1.35, 0.0);
   if(p==='top'){  camera.up.set(0, 0, -1); camera.position.set(0, 9.0, 0.0); }
   if(p==='fit')   camera.position.set(1.9, 1.9, 4.3);

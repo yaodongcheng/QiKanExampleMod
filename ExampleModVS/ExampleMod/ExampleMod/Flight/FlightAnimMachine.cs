@@ -54,8 +54,19 @@ namespace LivingWorldNpcs.Flight
         //    连带删掉的：`dodge-left/right/up/down` 四个谓词、`PlayerFlightBehavior._pendingDodge`、
         //    `IsDodgeState`（那是个把状态名写死在 C# 里的名单 —— 编辑器一改名它就失效）。
 
-        /// <summary>俯仰档（带迟滞）：+1 抬头 / 0 水平 / −1 低头。</summary>
+        /// <summary>俯仰档（带迟滞）：+1 抬头 / 0 水平 / −1 低头。**来源 = 相机前向**（谓词 `look-up`/`look-down` 用它）。</summary>
         public int PitchBand;
+
+        /// <summary>
+        /// **升降档（带迟滞）：+1 = 在爬升 / 0 = 平飞 / −1 = 在俯冲**（2026-09-28 加）。
+        ///
+        /// 🔴 **来源 = 木板的竖直速度方向分量**（`velocity.z ÷ |velocity|` = 航迹倾角的正弦），**不是相机俯仰** ——
+        ///    照抄 UE：那边"抬头/低头"两族都看**竖直速度分量**（悬停家按最大速度归一化、冲刺家取速度单位向量的 z 再平滑，
+        ///    见 `Knowledge/SuperheroFlight飞行系统_动画状态机与过渡解析.md` §5.1）。
+        ///    用户 2026-09-28 实机反馈"朝天/朝地飞，身体没跟着运动方向变" ⇒ 姿势必须跟**实际怎么动**走，
+        ///    而不是跟**镜头朝哪**走（镜头和运动之间还有航向惯性那段差，两者不再是一回事）。
+        /// </summary>
+        public int ClimbBand;
 
         /// <summary>压弯档（带迟滞）：**+1 = 按 D（右移）→ 右压 / −1 = 按 A（左移）→ 左压** / 0 = 不压。</summary>
         public int BankBand;
