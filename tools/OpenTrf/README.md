@@ -18,7 +18,7 @@ Bannerlord（《骑马与砍杀2：霸主》）`.trf` 文本资源文件的 **Bl
 > 🔴 **`out/sw2_gunner_p006_alig_abs.trf` 别删**：它是**实机验证通过的黄金样本**
 > （md5 `b78076e31c1e5f38…`，位置轨首帧 `(0,0,0)` = 纯增量语义），现在全工程只有这一份和
 > `TaikouAnim/AssetSources/animations/gun/` 里那份。
-> 动画那边的语义说明见 [tools/anim-retarget/README.md](../anim-retarget/README.md) §三。
+> 动画那边的语义说明见 [tools/anim-retarget/项目总纲.md](../anim-retarget/项目总纲.md) §12.2。
 
 ---
 

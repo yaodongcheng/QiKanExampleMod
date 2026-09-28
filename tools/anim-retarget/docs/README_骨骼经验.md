@@ -290,7 +290,7 @@ blender -b --python /tmp/sk.py -- "你的.fbx"
 | 实机"人趴地上、四肢乱折" | TRF 的**旋转**用了增量语义当绝对用 | 用 `pipeline/common/fbx_to_trf.py`，看 `CHECK_POS` 首帧 ≈0 与 `CHECK_OK` |
 | 实机"人被整体抬高约 6cm" | TRF 的**平移**用了绝对语义（多叠 `rest.translation`） | 同上；判据 = 位置轨首帧应 ≈0 而非 ≈0.86 |
 | `… pos ipo[2,42] does not fit … sources 0.00 and 0.00` | ModKit 里 `Source 1/2` 没填 | 填成 TRF 的帧范围（如 2/42） |
-| **FBX 比官方小 100 倍**（骨架高 0.015 vs 官方 1.575） | 导出时 `scene.unit_settings.scale_length = 0.01` | 改为 **1.0**（README 硬约束 4b） |
+| **FBX 比官方小 100 倍**（骨架高 0.015 vs 官方 1.575） | 导出时 `scene.unit_settings.scale_length = 0.01` | 改为 **1.0**（项目总纲 §6 硬约束 4b） |
 | **两侧位移差 100 倍 → "一前一后"** | `--pelvis src` 把**世界坐标**直接赋给 **Armature 空间**的 `pb.matrix`；两侧 base 的 `matrix_world` 缩放不同（0.01 vs 1.0） | 世界空间算完再 `base.matrix_world.inverted() @ ...`（硬约束 11） |
 | **竖直位移整个丢失（人像被压平）** | 护栏 `abs(off.z) > 1.5` 是「米」语义，却用在**换算放大 100 倍后**的值上 → 71/71 帧全被清零 | 护栏改用**换算前**的物理量判断（硬约束 12） |
 | **查看器里两人走向相反（一个冲进画面一个冲出）** | 用 `group.rotation.y` 对齐朝向时，把**根位移也翻了 180°** | 对未旋转侧做根位移水平反向（硬约束 13，`viewer.html` 已自动处理） |
