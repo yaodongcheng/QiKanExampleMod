@@ -1,5 +1,8 @@
 using System;
 using LivingWorldNpcs.Animation;
+using TaleWorlds.Engine;
+using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs.Flight
 {
@@ -106,6 +109,91 @@ namespace LivingWorldNpcs.Flight
             // 升降姿态（升 ⇄ 平 ⇄ 降）那几条边的过渡时长（2026-09-28）——
             // 同 hoverBlend 的理由：它是"整段姿态差"，用全局 0.3 秒会啪地翻过去；热调 `tune pitchblend`。
             AnimConditions.RegisterParam("pitchBlendSeconds", () => FlightTuning.PitchBlendSeconds);
+
+            // ── 状态**进出动作**（2026-09-28 立；登记表在 `AnimActions`，写法同上面的条件谓词）──────
+            // 🔴 触发点由状态机保证：**enter 在状态真正确立之后 / leave 在离开之前**，
+            //    且两端都包了 try/catch（动作炸了不会带崩状态机，见 `AgentAnimStateMachine.RunAction`）。
+            // 用在哪儿：`flight.xml` 的 `<state name="超人落地" … enter="land-fx"/>`。
+            AnimActions.Register(LandFxAction, c => PlayFxAtFeet(LandingFxName, out _));
+        }
+
+        /// <summary>
+        /// **落地特效的名字**（内容包发布包里注册的那个粒子系统名）。
+        /// 🔴 换名字 / 改名 = 只改这一行（XML 里写的是动作名 `land-fx`，不是粒子名）。
+        /// </summary>
+        public const string LandingFxName = "lwn_manual_fly_land";
+
+        /// <summary>`flight.xml` 里 <c>&lt;state … enter="land-fx"/&gt;</c> 的那个动作名。</summary>
+        public const string LandFxAction = "land-fx";
+
+        /// <summary>已经报过一次"粒子没注册"了（避免每帧刷屏）。</summary>
+        private static bool _warnedFxMissing;
+
+        /// <summary>
+        /// **在主角脚下的地面上放一次粒子**（世界固定的一次性 burst）。
+        ///
+        /// 供两处用：① 状态机的 `enter="land-fx"`（落地那一刻）② 验收命令 `custom.flight fx`。
+        ///
+        /// 🔴 **位置口径**：水平用主角当前位置、**竖直用地面高度**（`Scene.GetTerrainHeight`）——
+        ///    撞地判定是「板顶触地」，直接拿人物 z 会浮空或埋地（见 `PlayerFlightBehavior` 的撞地段）。
+        /// 🔴 **不抛异常**：调用方可能是每帧都在跑的状态机。失败一律"记一行 + 返回 false"。
+        /// </summary>
+        internal static bool PlayFxAtFeet(string particleName, out string error)
+        {
+            error = null;
+            try
+            {
+                if (string.IsNullOrEmpty(particleName))
+                {
+                    error = "no particle name";
+                    return false;
+                }
+                Mission mission = Mission.Current;
+                if (mission == null)
+                {
+                    error = "only works inside a mission (battle / arena / town scene)";
+                    return false;
+                }
+                Agent main = mission.MainAgent;
+                if (main == null)
+                {
+                    error = "no main agent in this mission";
+                    return false;
+                }
+                Scene scene = mission.Scene;
+                if (scene == null)
+                {
+                    error = "no scene";
+                    return false;
+                }
+
+                int id = ParticleSystemManager.GetRuntimeIdByName(particleName);
+                if (id == -1)
+                {
+                    error = "'" + particleName + "' NOT REGISTERED (id -1) - publish the particle pack "
+                          + "into the module the game loads (see docs)";
+                    if (!_warnedFxMissing)
+                    {
+                        _warnedFxMissing = true;
+                        DebugLogger.Log("[Flight-Fx] " + error);
+                    }
+                    return false;
+                }
+
+                Vec3 p = main.Position;
+                float z = p.z;
+                try { z = scene.GetTerrainHeight(new Vec2(p.x, p.y), true); }
+                catch { /* 拿不到地形就用人物高度兜底 */ }
+                scene.CreateBurstParticle(id, new MatrixFrame(Mat3.Identity, new Vec3(p.x, p.y, z)));
+                DebugLogger.Log($"[Flight-Fx] 播放 '{particleName}'（id {id}）于 ({p.x:F2}, {p.y:F2}, {z:F2})");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = "exception: " + ex.Message;
+                DebugLogger.Log("[Flight-Fx] " + error);
+                return false;
+            }
         }
 
         /// <summary>把上下文收窄成飞行那份（定义与上下文同命名空间，收窄在这里是安全的）。</summary>

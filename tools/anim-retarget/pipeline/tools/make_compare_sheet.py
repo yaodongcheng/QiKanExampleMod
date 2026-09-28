@@ -57,20 +57,25 @@ def main():
     ap.add_argument("--frames", default="0,0.2,0.4,0.6,0.8,1.0")
     ap.add_argument("--view", default="f", help="动画侧机位（默认 f=正面；别乱改）")
     ap.add_argument("--size", default="210x300", help="每格宽x高")
+    ap.add_argument("--animdir", default=None,
+                    help="pose.json 所在目录（默认 input/source/pose_mediapipe；多人链路传 input/source/multi_person）")
     ap.add_argument("--workdir", default=os.path.join(ROOT, "output", "verify", "_cmp_work"))
     ap.add_argument("--keep", action="store_true", help="保留中间帧")
     a = ap.parse_args()
 
     fr = [float(x) for x in a.frames.split(",")]
     CW, CH = [int(x) for x in a.size.lower().split("x")]
-    pj = os.path.join(ROOT, "input", "source", "pose_mediapipe", a.clip + ".json")
+    animdir = a.animdir or os.path.join(ROOT, "input", "source", "pose_mediapipe")
+    pj = os.path.join(animdir, a.clip + ".json")
     if not os.path.isfile(pj):
         sys.exit("找不到 pose.json: %s（先跑 vid2pose.py）" % pj)
     P = json.load(open(pj, encoding="utf-8"))
     fps = float(P.get("fps") or 30.0)
     stride = int(P.get("stride") or 1)
     src_fps = float(P.get("src_fps") or fps)
-    start = int(P.get("start_frame") or 0)
+    # 多人导出没有 start_frame 字段，但有 shot_frame_range -> 用它的起点（s0 镜即 0）
+    _sfr = P.get("shot_frame_range")
+    start = int(P.get("start_frame") or (_sfr[0] if _sfr else 0))
 
     # ---- 1) 从 TRF 烘一个临时 GLB（复用项目既有工具）----
     os.makedirs(a.workdir, exist_ok=True)

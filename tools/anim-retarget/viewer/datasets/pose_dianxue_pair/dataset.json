@@ -1,0 +1,87 @@
+{
+  "name": "pose_dianxue_pair",
+  "title": "成对交互 · 背后点穴 → 应声倒地（3.9 秒 · 含可见伸手）",
+  "subtitle": "左=点穴者(骑砍2)，右=被点穴者(骑砍2)。**3.9 秒版**：保留原素材里真实的『伸手→戳中』过程（腕到后颈距离 0.44→0.08，是真接触），切掉开头 2 秒发呆与结尾 1.8 秒躺尸，并用时间中值滤波压掉抽搐。素材=锁机位单镜视频 → BlazePose 多人提取 → pose_mediapipe 解算 → 倒地根位移补偿。『点穴者』只对齐首帧摆在受击方正后方 gap 米；站位/起点延迟在面板调。",
+  "sides": {
+    "src": {
+      "label": "点穴者（攻击方）",
+      "color": "#7fd8c8",
+      "rotY": 0,
+      "slot": 0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
+      ],
+      "pairAnchor": {
+        "anchor": "dst",
+        "pelvisBone": "pelvis",
+        "gap": 0.8,
+        "mode": "behind"
+      },
+      "fixedClip": "dianxue_attack",
+      "freezeRootH": true,
+      "files": [
+        {
+          "id": "dx_atk",
+          "url": "assets/dianxue_pair.glb"
+        }
+      ]
+    },
+    "dst": {
+      "label": "被点穴者（受击方）",
+      "color": "#e0b070",
+      "rotY": 0,
+      "slot": 0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
+      ],
+      "fixedClipReplace": [
+        [
+          "dianxue_attack",
+          "dianxue_victim"
+        ]
+      ],
+      "freezeRootH": true,
+      "files": [
+        {
+          "id": "dx_vic",
+          "url": "assets/dianxue_pair.glb"
+        }
+      ]
+    }
+  },
+  "pairs": {
+    "dianxue_attack": {
+      "src": [
+        null,
+        null,
+        null,
+        0
+      ],
+      "dst": [
+        null,
+        null,
+        null,
+        0
+      ]
+    }
+  },
+  "assetsVersion": "20260928-v5-fix-collapse"
+}

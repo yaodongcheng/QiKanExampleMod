@@ -252,7 +252,12 @@ function bindBox(root){
 
 function loadModel(cfg){
   return new Promise((res, rej)=>{
-    loader.load(cfg.url, gltf=>{
+    // 🔴 缓存规避：数据集可在 dataset.json 里声明 assetsVersion。
+    //    改了 GLB 但浏览器还拿旧的缓存时，表现是「明明重新导出过，画面却是老版本」——
+    //    这里给 URL 挂上版本号即可。没声明就不挂（保持大资产集不重复下载）。
+    const _vurl = cfg.url + ((DS_CFG && DS_CFG.assetsVersion)
+        ? (cfg.url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + encodeURIComponent(DS_CFG.assetsVersion) : '');
+    loader.load(_vurl, gltf=>{
       const model = gltf.scene;
       const group = new THREE.Group();
       group.rotation.y = cfg.rotY || 0;

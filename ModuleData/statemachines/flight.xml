@@ -14,6 +14,40 @@
      🔴 **判据不在这里**：`when=` 写的是**谓词名**（名字用输入语言：`hold-left` = 按着 A），
         真身在 `Flight/FlightAnimConditions.cs`。理由：字符串表达式 = 失去编译期检查 = 又一种静默失败。
 
+     🔴 **状态进出动作**（2026-09-28 立）：`<state … enter="动作名" leave="动作名"/>` ——
+        与 `when=` 同一个套路：**XML 只写名字**，真身在 `AnimActions` 注册
+        （飞行那两个在 `Flight/FlightAnimConditions.cs` 的 `RegisterAll` 末尾）。
+        · 触发时机由状态机保证：**enter 在状态真正确立之后 / leave 在离开之前**（含"出机"那条收摊路）；
+        · 名字写错 = **装载期响亮报错**（同谓词），不会静默；
+        · 动作里炸了不会带崩状态机（状态机侧包了 try/catch，只记一行 `[Anim:…]`）。
+
+     🔴🔴 **状态轨道时间点**（2026-09-28 立，**照 UE 的 AnimNotify 做的** —— 这也是特效该用的那条）：
+        ```xml
+        <state name="超人落地" act="act_fly_superland" once="true">
+            <track at="0.067" action="land-fx" />
+        </state>
+        ```
+        · `at` = **占整条 clip 的比例 0~1（不是秒）** —— 同 `anim-rem-pct` 的口径，
+          **重导 clip 换了帧数不用改这个数**；
+        · 一个状态可以挂**多个**点（UE 那边一条蒙太奇上就挂着 VFX / CameraShake / 相机 FOV 好几个）；
+        · 每个点**一次进入只响一次**（进状态时清零）；
+        · 🔴 **求值不受 `Hold` 影响** —— 落地/起飞这些相位状态正是被 `Hold` 住的，
+          放进 Hold 门控里 = 永远不触发（实现时特意避开的坑）；
+        · 🔴 **`enter` 与 `track` 的分工**：`enter` = "进状态**立刻**"（适合无相位差的时机），
+          `track` = "**演到百分之几**才触发"（**特效一律用这个** —— 撞地判定带容差，
+          进状态那一刻人还在空中一点点，立刻炸会看着早）。
+        **UE 真值对照**：原项目落地蒙太奇 2.000 s，VFX 通知挂在 0.134 s = **6.7%**
+        （`AM_SuperheroLanding_A~E` 五条逐条相同）—— 所以这里写 `at="0.067"`。
+
+     🔴 **`坠落` 这个状态**（2026-09-27 新增；说明原在 `<states>` 里，2026-09-28 挪到本文件头 ——
+        **因为写在 `<states>` 里的注释会被编辑器页导出覆盖掉**，见文件头第一条）：
+        动作名用的是**引擎自己的空中动作** `act_jump_loop`（`Native/ModuleData/action_types.xml` 第 20 行已声明），
+        不是我们内容包里的 clip —— 理由：① 免做新资产；② 那正是**引擎给悬空 agent 播的那一条**
+        （实机日志里通道 0 一直显示它）⇒ 观感与原版坠落一致。
+        ⚠️ 本状态**不是**出机那条边的目标：出机照旧指向 `outside`（机器语义 = 不再驱动通道 0），
+        本状态由**相位**（C#）在出机那一刻 `Force` 进 + `Hold` 住，与 进入飞行 / 超人落地 同一套路 ⇒
+        C# 里没有这个状态名，名字从 `<edges>` 里 `when="fall-trigger"` 那条边读（同起飞 / 落地两个接缝）。
+
      🔴 **运行期旋钮不在这里**：默认过渡时长 / 核对周期 / 动作优先级仍是 C# 里的委托
         （指向 `FlightTuning` 的字段），所以 `custom.flight tune blend / turnrate …` 照旧有效。
 
@@ -122,7 +156,9 @@
 	<states>
 		<state name="idle" act="act_fly_idle" />
 		<state name="hovermove" act="act_fly_hovermove" />
-		<state name="超人落地" act="act_fly_superland" once="true" />
+		<state name="超人落地" act="act_fly_superland" once="true">
+			<track at="0.067" action="land-fx" />
+		</state>
 		<state name="fastmove" act="act_fly_fastmove" />
 		<state name="fastmoveLeanL" act="act_fly_fastmove_lean_l" />
 		<state name="fastmoveLeanR" act="act_fly_fastmove_lean_r" />
@@ -134,13 +170,6 @@
 		<state name="dodgeU" act="act_fly_dodge_u" once="true" next="fastmove" />
 		<state name="dodgeD" act="act_fly_dodge_d" once="true" next="fastmove" />
 		<state name="进入飞行" act="act_fly_hoverstart" once="true" next="idle" />
-		<!-- 🔴 **坠落**（2026-09-27 新增）——出机（空格）之后、回飞之前那一段的姿势。
-		     动作名用的是**引擎自己的空中动作** `act_jump_loop`（Native/ModuleData/action_types.xml 第 20 行已声明），
-		     不是我们内容包里的 clip —— 理由：① 免做新资产；② 那正是**引擎给悬空 agent 播的那一条**
-		     （实机日志里通道 0 一直显示它）⇒ 观感与原版坠落一致。
-		     ⚠️ 本状态**不是**出机那条边的目标：出机照旧指向 `outside`（机器语义 = 不再驱动通道 0），
-		     本状态由**相位**（C#）在出机那一刻 `Force` 进 + `Hold` 住，与 进入飞行 / 超人落地 同一套路 ⇒
-		     C# 里没有这个状态名，名字从 `<edges>` 里 `when="fall-trigger"` 那条边读（同起飞 / 落地两个接缝）。 -->
 		<state name="坠落" act="act_jump_loop" />
 	</states>
 

@@ -63,9 +63,66 @@ namespace LivingWorldNpcs.Animation
         /// <summary>播完转移用的过渡时长（秒）。</summary>
         public float NextBlend = 0.25f;
 
+        /// <summary>
+        /// **进入本状态时执行的动作**（2026-09-28 立）。null = 没有。
+        ///
+        /// 与 <see cref="When"/> 同一个套路：**XML 里只写名字**（`enter="land-fx"`），
+        /// 真身在 <see cref="AnimActions"/> 注册。主要用于**"这一刻播个特效"**这类事。
+        ///
+        /// 🔴 触发点 = <see cref="AgentAnimStateMachine"/> 里**状态真正确立之后**
+        ///    （切换前的校验没通过 = 根本没进这个状态 ⇒ 不会误触发）。
+        /// </summary>
+        public Action<AnimContext> EnterAction;
+
+        /// <summary>
+        /// **离开本状态时执行的动作**。null = 没有。
+        /// 🔴 触发点 = **离开之前**（含"出机"那条路 —— 交还 0 号通道时也调）。
+        /// </summary>
+        public Action<AnimContext> LeaveAction;
+
+        /// <summary>
+        /// **状态轨道上的时间点**（2026-09-28 立，照 UE 的 AnimNotify 做的）。
+        ///
+        /// 与 <see cref="EnterAction"/> 的区别：enter 是"进状态**立刻**"，
+        /// 这里是"**演到 clip 的百分之几**才触发"——
+        /// 落地特效就该这么挂：进落地状态那一刻人**还在空中一点点**（撞地判定带 0.25 m 容差），
+        /// 立刻炸 = 看着早；UE 那边也是把它挂在落地蒙太奇的 **6.7%** 处。
+        ///
+        /// 每个点只触发一次（进状态时清零），见 <see cref="AnimTrackPoint.Fired"/>。
+        /// </summary>
+        public List<AnimTrackPoint> Track;
+
         /// <summary>一次性状态：播完自动去 <paramref name="next"/>。</summary>
         public static AnimState Once(string name, string action, string next, float duration = 0f, float nextBlend = 0.25f)
             => new AnimState { Name = name, Action = action, OneShot = true, Next = next, Duration = duration, NextBlend = nextBlend };
+    }
+
+    /// <summary>
+    /// **状态轨道上的一个时间点**（2026-09-28 立）—— 对应 UE 的 **AnimNotify**。
+    ///
+    /// 写法（`flight.xml` 的 `&lt;state&gt;` 里面）：
+    /// <code>
+    /// &lt;state name="超人落地" act="act_fly_superland" once="true"&gt;
+    ///     &lt;track at="0.067" action="land-fx" /&gt;
+    /// &lt;/state&gt;
+    /// </code>
+    /// `at` = **占整条 clip 的比例 0~1**（不是秒）—— 与项目其它地方一个口径：
+    /// 长度由 clip 自己带，**重导 clip 换了帧数不用改这里**。
+    ///
+    /// 🔴 **一次进入只触发一次**（<see cref="Fired"/> 在进状态时清零）；
+    /// 🔴 求值**不受 `Hold` 影响** —— 落地/起飞这些相位状态正是被 `Hold` 住的（动画归相位管），
+    ///    把求值放进 Hold 门控里 = 永远不触发（2026-09-28 实现时特意避开的坑）。
+    /// </summary>
+    public sealed class AnimTrackPoint
+    {
+        /// <summary>触发位置：占整条 clip 的比例（0~1）。</summary>
+        public float At;
+
+        /// <summary>到点执行的动作（<see cref="AnimActions"/> 里注册的真身）。</summary>
+        public Action<AnimContext> Act;
+
+        /// <summary>本次进入状态内是否已触发过（进状态时清零）。</summary>
+        internal bool Fired;
     }
 
     /// <summary>

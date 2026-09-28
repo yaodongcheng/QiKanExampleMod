@@ -40,7 +40,11 @@
     {
       "id": "pose_rasen",
       "name": "【动作迁移】蓄力→出手（小白人视频 → 骑砍2）"
+    },
+    {
+      "id": "pose_dianxue_pair",
+      "name": "【成对·点穴】背后点穴 → 应声倒地（3.9 秒 · 含可见伸手）"
     }
   ],
-  "order_note": "分组（2026-09-24）：按素材主题并列。ue_basic 已并入 ue_slim（去重后 296 条）。 ｜ 2026-09-27：删除 ue_flight_lean（4 格合成预览，已被 ue_fly_comp 取代）；新增 ue_fly_comp（①源pose ②重定向后pose ③合成后动画）。"
+  "order_note": "分组（2026-09-24）：按素材主题并列。ue_basic 已并入 ue_slim（去重后 296 条）。 ｜ 2026-09-27：删除 ue_flight_lean（4 格合成预览，已被 ue_fly_comp 取代）；新增 ue_fly_comp（①源pose ②重定向后pose ③合成后动画）。 ｜ 2026-09-28：新增 pose_dianxue_pair（视频提取的成对交互动画：背后点穴→倒地）。"
 }
