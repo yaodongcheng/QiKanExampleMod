@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using LivingWorldNpcs.Animation;
+using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -113,9 +115,41 @@ namespace LivingWorldNpcs.Flight
             // ── 状态**进出动作**（2026-09-28 立；登记表在 `AnimActions`，写法同上面的条件谓词）──────
             // 🔴 触发点由状态机保证：**enter 在状态真正确立之后 / leave 在离开之前**，
             //    且两端都包了 try/catch（动作炸了不会带崩状态机，见 `AgentAnimStateMachine.RunAction`）。
-            // 用在哪儿：`flight.xml` 的 `<state name="超人落地" … enter="land-fx"/>`。
+            // 用在哪儿：`flight.xml` 的 `<state name="超人落地" …>` 里的 `<track at="0.067" action="land-fx"/>`。
             AnimActions.Register(LandFxAction, c => PlayFxAtFeet(LandingFxName, out _));
+            // 冲刺起步 / 起飞（`fastmoveStart` 与 `进入飞行` 的 `<track at="0.1" action="boost-fx"/>`）——
+            // 🔴 **在"身上"，不是脚下**（2026-09-28 修）：UE 那边这几个发射器都是 `ParticleOwnerPosition`
+            //    = 主人身上；我第一版误用了 `PlayFxAtFeet`（那是给"贴地炸开"的落地用的），位置低了一米。
+            AnimActions.Register(BoostStartFxAction, c => PlayFxAtBody(BoostStartFxName, 1.0f, out _));
+            // 🔴 **持续特效**（2026-09-28）：冲刺期间在**身上**按间隔刷 `lwn_manual_fly_boosting`
+            //    （`fastmove` 的 `<track every="…" action="boost-loop"/>`）。
+            //    为什么这么设计：UE 那边的"持续云迹"本来就是**短命粒子不停刷**出来的
+            //    （云 0.2 s @10/秒）—— 所以**密度由 XML 的 `every` 控制**，改密度不用重新发布粒子；
+            //    也绕开了"骨挂粒子摘不掉"那个死结（不挂，只是刷）。
+            // ⚠️ `every` 该填多少，取决于资产自己的 `Emitter life`（见 `BoostLoopFxName` 的注释）。
+            AnimActions.Register(BoostLoopFxAction, c => PlayFxAtBody(BoostLoopFxName, 1.0f, out _));
+            // 🔴 **手部尾迹**（2026-09-28）：**两只手各刷一颗** —— 走"读手骨世界坐标"那条路，
+            //    **不是骨挂**（骨挂摘不掉，冲刺一停尾迹还留在手上，见 `PlayFxAtBothHands` 的说明）。
+            //    对应 UE `NS_Flight_Trail` 里的 `HandTrail_L` / `HandTrail_R`（两条 8 cm 的细带子）。
+            AnimActions.Register(BoostHandFxAction, c => PlayFxAtBothHands(BoostHandFxName, out _));
         }
+
+        /// <summary>**手部尾迹的粒子名**（双手各刷一颗，2026-09-28）。</summary>
+        public const string BoostHandFxName = "lwn_manual_fly_handtrail";
+
+        /// <summary>`fastmove` 上那条手部尾迹轨道点的动作名。</summary>
+        public const string BoostHandFxAction = "boost-hand";
+
+        /// <summary>**持续云迹的粒子名**（冲刺期间刷的那个，2026-09-28）。</summary>
+        public const string BoostLoopFxName = "lwn_manual_fly_boosting";
+
+        /// <summary>
+        /// `fastmove` 那条**周期**轨道点的动作名。
+        /// ⚠️ **`every` 的取值取决于这个资产的 `Emitter life`**：
+        /// · `Emitter life` &gt; 0（自己会停）⇒ `every` 取它的**一半左右**，两批首尾叠上 = 看着连续；
+        /// · `Emitter life` = 0（永不自己停）⇒ **不能周期刷**（会越堆越多），得改成"进状态刷一次"。
+        /// </summary>
+        public const string BoostLoopFxAction = "boost-loop";
 
         /// <summary>
         /// **落地特效的名字**（内容包发布包里注册的那个粒子系统名）。
@@ -123,11 +157,17 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public const string LandingFxName = "lwn_manual_fly_land";
 
-        /// <summary>`flight.xml` 里 <c>&lt;state … enter="land-fx"/&gt;</c> 的那个动作名。</summary>
+        /// <summary>`flight.xml` 里 <c>&lt;state … &gt;&lt;track … action="land-fx"/&gt;</c> 的那个动作名。</summary>
         public const string LandFxAction = "land-fx";
 
-        /// <summary>已经报过一次"粒子没注册"了（避免每帧刷屏）。</summary>
-        private static bool _warnedFxMissing;
+        /// <summary>**冲刺起步特效的名字**（2026-09-28）。同 <see cref="LandingFxName"/> 的口径。</summary>
+        public const string BoostStartFxName = "lwn_manual_fly_booststart";
+
+        /// <summary>`fastmoveStart` 那条轨道点的动作名。</summary>
+        public const string BoostStartFxAction = "boost-fx";
+
+        /// <summary>已经报过"某个粒子没注册"的名字（**按名字记** —— 免得第二个特效缺失时一句话都不打）。</summary>
+        private static readonly HashSet<string> _warnedFxMissing = new HashSet<string>(StringComparer.Ordinal);
 
         /// <summary>
         /// **在主角脚下的地面上放一次粒子**（世界固定的一次性 burst）。
@@ -140,51 +180,123 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         internal static bool PlayFxAtFeet(string particleName, out string error)
         {
+            return PlayFx(particleName, atFeet: true, upOffset: 0f, out error);
+        }
+
+        /// <summary>
+        /// **在主角身上（可带抬高）放一次粒子** —— 给**持续刷**的破空云迹 / 尾迹用（2026-09-28）。
+        ///
+        /// 与 <see cref="PlayFxAtFeet"/> 的区别只有一个 —— **取哪个 z**：
+        /// 脚下那个取**地面高度**（落地要贴地），这个取**人自己的位置**（云要裹在人身上，不贴地）。
+        ///
+        /// 🔴 **帧里带上人的朝向**：UE 那边粒子是"往身后甩"的（`AddVelocity (-7500,0,0)`，局部空间）——
+        ///    我们的粒子若也做局部空间，帧的旋转分量就得是人的朝向，否则甩的方向是错的。
+        /// </summary>
+        internal static bool PlayFxAtBody(string particleName, float upOffset, out string error)
+        {
+            return PlayFx(particleName, atFeet: false, upOffset: upOffset, out error);
+        }
+
+        /// <summary>
+        /// **在主角两只手的骨骼位置各放一次粒子** —— 给**手部尾迹**用（2026-09-28）。
+        ///
+        /// 🔴 **为什么不是"骨挂"**：引擎的 `CreateParticleSystemAttachedToBone` **没有摘除句柄**
+        ///    ⇒ 挂上去就摘不掉，冲刺一停尾迹还留在手上。所以走**周期刷点**：
+        ///    每 N 毫秒读一次手骨的世界坐标、在那儿炸一颗**短命**的 —— 停手 = 不再刷 = 自然消失。
+        ///
+        /// 🔴 **骨骼世界坐标的算法**（抄自 `custom.psys_head` 那段可用的先例）：
+        ///    `GetBoneEntitialFrameWithIndex` 给的是**实体局部**（动画算完、还没乘实体全局变换的那一层）
+        ///    ⇒ 要再乘一次 `visuals.GetGlobalFrame()` 才是世界坐标。
+        ///    ⚠️ 骑砍**骨轴不沿肢体**，所以"往哪个方向甩"不能用骨轴推，得用世界方向（或用人的朝向）。
+        /// </summary>
+        internal static bool PlayFxAtBothHands(string particleName, out string error)
+        {
             error = null;
             try
             {
-                if (string.IsNullOrEmpty(particleName))
+                if (!TryResolveFxId(particleName, out int id, out error))
                 {
-                    error = "no particle name";
                     return false;
                 }
-                Mission mission = Mission.Current;
-                if (mission == null)
+                if (!TryGetMainAgent(out Mission mission, out Agent main, out Scene scene, out error))
                 {
-                    error = "only works inside a mission (battle / arena / town scene)";
                     return false;
                 }
-                Agent main = mission.MainAgent;
-                if (main == null)
+                MBAgentVisuals visuals = main.AgentVisuals;
+                Skeleton skel = visuals != null ? visuals.GetSkeleton() : null;
+                if (visuals == null || skel == null)
                 {
-                    error = "no main agent in this mission";
-                    return false;
-                }
-                Scene scene = mission.Scene;
-                if (scene == null)
-                {
-                    error = "no scene";
+                    error = "main agent has no visuals/skeleton";
                     return false;
                 }
 
-                int id = ParticleSystemManager.GetRuntimeIdByName(particleName);
-                if (id == -1)
+                MatrixFrame entFrame = visuals.GetGlobalFrame();
+                Mat3 rot = entFrame.rotation.TransformToParent(skel.GetBoneEntitialFrameWithIndex(0).rotation);
+                int played = 0;
+                for (int i = 0; i < 2; i++)
                 {
-                    error = "'" + particleName + "' NOT REGISTERED (id -1) - publish the particle pack "
-                          + "into the module the game loads (see docs)";
-                    if (!_warnedFxMissing)
+                    sbyte bone = visuals.GetRealBoneIndex(i == 0 ? HumanBone.HandL : HumanBone.HandR);
+                    if (bone < 0)
                     {
-                        _warnedFxMissing = true;
-                        DebugLogger.Log("[Flight-Fx] " + error);
+                        continue;
                     }
+                    Vec3 world = entFrame.TransformToParent(skel.GetBoneEntitialFrameWithIndex(bone).origin);
+                    scene.CreateBurstParticle(id, new MatrixFrame(rot, world));
+                    played++;
+                }
+                if (played == 0)
+                {
+                    error = "no hand bones resolved";
+                    return false;
+                }
+                DebugLogger.Log($"[Flight-Fx] 播放 '{particleName}'（id {id}）于 {played} 只手");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = "exception: " + ex.Message;
+                DebugLogger.Log("[Flight-Fx] " + error);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 两个入口共用的执行体（2026-09-28 合并 —— 铁律 18：同一语义只留一份）。
+        ///
+        /// 🔴 **不抛异常**：调用方可能是**每帧都在跑的状态机**。失败一律"记一行 + 返回 false"。
+        /// </summary>
+        private static bool PlayFx(string particleName, bool atFeet, float upOffset, out string error)
+        {
+            error = null;
+            try
+            {
+                if (!TryResolveFxId(particleName, out int id, out error))
+                {
+                    return false;
+                }
+                if (!TryGetMainAgent(out Mission mission, out Agent main, out Scene scene, out error))
+                {
                     return false;
                 }
 
                 Vec3 p = main.Position;
-                float z = p.z;
-                try { z = scene.GetTerrainHeight(new Vec2(p.x, p.y), true); }
-                catch { /* 拿不到地形就用人物高度兜底 */ }
-                scene.CreateBurstParticle(id, new MatrixFrame(Mat3.Identity, new Vec3(p.x, p.y, z)));
+                float z;
+                if (atFeet)
+                {
+                    // 落地：水平用人的位置、**竖直用地面**（撞地判定是"板顶触地"，直接用人的 z 会浮空/埋地）
+                    z = p.z;
+                    try { z = scene.GetTerrainHeight(new Vec2(p.x, p.y), true); }
+                    catch { /* 拿不到地形就用人物高度兜底 */ }
+                }
+                else
+                {
+                    z = p.z + upOffset;      // 身上：云裹在人身上
+                }
+
+                Mat3 rot = Mat3.Identity;    // 朝向（局部空间速度靠它）
+                try { rot = main.Frame.rotation; } catch { }
+
+                scene.CreateBurstParticle(id, new MatrixFrame(rot, new Vec3(p.x, p.y, z)));
                 DebugLogger.Log($"[Flight-Fx] 播放 '{particleName}'（id {id}）于 ({p.x:F2}, {p.y:F2}, {z:F2})");
                 return true;
             }
@@ -194,6 +306,57 @@ namespace LivingWorldNpcs.Flight
                 DebugLogger.Log("[Flight-Fx] " + error);
                 return false;
             }
+        }
+
+        /// <summary>把粒子名解析成引擎 id（**按名字去重**：每个缺失的粒子各报一次，不刷屏）。</summary>
+        private static bool TryResolveFxId(string particleName, out int id, out string error)
+        {
+            id = -1;
+            error = null;
+            if (string.IsNullOrEmpty(particleName))
+            {
+                error = "no particle name";
+                return false;
+            }
+            id = ParticleSystemManager.GetRuntimeIdByName(particleName);
+            if (id != -1)
+            {
+                return true;
+            }
+            error = "'" + particleName + "' NOT REGISTERED (id -1) - publish the particle pack "
+                  + "into the module the game loads (see docs)";
+            if (_warnedFxMissing.Add(particleName))
+            {
+                DebugLogger.Log("[Flight-Fx] " + error);
+            }
+            return false;
+        }
+
+        /// <summary>取出「在一个 Mission 里 + 有主角 + 有场景」这三个前提（各入口共用）。</summary>
+        private static bool TryGetMainAgent(out Mission mission, out Agent main, out Scene scene, out string error)
+        {
+            mission = Mission.Current;
+            main = null;
+            scene = null;
+            error = null;
+            if (mission == null)
+            {
+                error = "only works inside a mission (battle / arena / town scene)";
+                return false;
+            }
+            main = mission.MainAgent;
+            if (main == null)
+            {
+                error = "no main agent in this mission";
+                return false;
+            }
+            scene = mission.Scene;
+            if (scene == null)
+            {
+                error = "no scene";
+                return false;
+            }
+            return true;
         }
 
         /// <summary>把上下文收窄成飞行那份（定义与上下文同命名空间，收窄在这里是安全的）。</summary>

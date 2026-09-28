@@ -101,6 +101,8 @@ def main():
     ap.add_argument("--obj-rot", default=None,
                     help="UE 线：是否把源【骨架对象】相对首帧的旋转增量搬进目标（转身类动作必需，默认 true）；"
                          "传 false 复现旧行为（对象级转身会丢）")
+    ap.add_argument("--root-basis", default=None, choices=["hip", "eye"],
+                    help="根骨朝向基准：hip=髋线（默认）；eye=双眼连线中线（侧视素材建议用这个）")
     ap.add_argument("--no-trf", action="store_true", help="只要 FBX，不导 TRF（默认两者都产）")
     ap.add_argument("--blender", default=os.environ.get("BLENDER", DEFAULT_BLENDER))
     ap.add_argument("--dry-run", action="store_true", help="只打印命令")
@@ -119,6 +121,8 @@ def main():
         cmd += ["--animdir", a.animdir]
     if a.obj_rot is not None and a.rig == "ue_mannequin":
         cmd += ["--obj_rot", a.obj_rot]
+    if a.root_basis:
+        cmd += ["--root_basis", a.root_basis]
     if a.no_trf:
         cmd += ["--no_trf", "true"]
 

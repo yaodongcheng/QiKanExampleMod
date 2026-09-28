@@ -22,22 +22,56 @@
         · 动作里炸了不会带崩状态机（状态机侧包了 try/catch，只记一行 `[Anim:…]`）。
 
      🔴🔴 **状态轨道时间点**（2026-09-28 立，**照 UE 的 AnimNotify 做的** —— 这也是特效该用的那条）：
-        ```xml
-        <state name="超人落地" act="act_fly_superland" once="true">
-            <track at="0.067" action="land-fx" />
-        </state>
-        ```
-        · `at` = **占整条 clip 的比例 0~1（不是秒）** —— 同 `anim-rem-pct` 的口径，
+        **两种写法**（同一个 `<track>` 元素）。
+        ⚠️ 下面两块是**示例文本、不是可复制的整段**（本段本身就在注释里，XML 注释**不能嵌套**）；
+        真正在用的两份，去看 `<states>` 里 `超人落地` 和 `fastmove` 那两个状态。
+
+        ① **一次性**（落地特效用的那种）：`at` = 演到 clip 的百分之几时响一次 ——
+           `<state name="超人落地" …>` 里面挂 `<track at="0.067" action="land-fx" />`
+        ② **周期**（持续云迹 / 尾迹用的那种）：`every` = 状态期间每 N 秒刷一次 ——
+           `<state name="fastmove" …>` 里面挂 `<track every="0.5" action="boost-loop" />`
+
+        · **一次性** `at` = **占整条 clip 的比例 0~1（不是秒）** —— 同 `anim-rem-pct` 的口径，
           **重导 clip 换了帧数不用改这个数**；
+        · **周期** `every` = **秒**（循环状态没有"百分之几"可言）—— 🔴 **持续特效靠它**：
+          UE 那边的"持续云迹"本来就是**短命粒子不停刷**出来的（云 0.2 s @10/秒、尾迹 0.15 s @75/秒），
+          所以**粒子资产做成"一次性 1 颗"，密度全由这个秒数控制** ⇒ **改密度不用重新发布粒子**，
+          也**绕开了"骨挂粒子摘不掉"那个死结**（不挂，只是刷）；
         · 一个状态可以挂**多个**点（UE 那边一条蒙太奇上就挂着 VFX / CameraShake / 相机 FOV 好几个）；
-        · 每个点**一次进入只响一次**（进状态时清零）；
+        · 每个点**一次进入只响一次 / 周期点进状态立刻响第一次**；
         · 🔴 **求值不受 `Hold` 影响** —— 落地/起飞这些相位状态正是被 `Hold` 住的，
           放进 Hold 门控里 = 永远不触发（实现时特意避开的坑）；
         · 🔴 **`enter` 与 `track` 的分工**：`enter` = "进状态**立刻**"（适合无相位差的时机），
-          `track` = "**演到百分之几**才触发"（**特效一律用这个** —— 撞地判定带容差，
+          `track` = "**演到百分之几 / 每 N 秒**"（**特效一律用这个** —— 撞地判定带容差，
           进状态那一刻人还在空中一点点，立刻炸会看着早）。
         **UE 真值对照**：原项目落地蒙太奇 2.000 s，VFX 通知挂在 0.134 s = **6.7%**
         （`AM_SuperheroLanding_A~E` 五条逐条相同）—— 所以这里写 `at="0.067"`。
+        ⚠️ **冲刺那两条没有 UE 真值可抄**（它们的通知挂在 AnimSequence 上，不在已导出的蒙太奇里）
+        ⇒ `fastmoveStart` / `进入飞行` 的 `at="0.1"` 与 `fastmove` 的 `every="0.5"` 都是**先给的感觉值**，实机觉得不对就调。
+        🔴 **加一个特效 = 两处**：① C# 里 `AnimActions.Register("xxx-fx", …)`（`Flight/FlightAnimConditions.cs`）
+        ② 某状态的 `<track action="xxx-fx" />`。
+        **当前在用的四个动作名**（真身都在 `FlightAnimConditions.cs` 的 `RegisterAll` 末尾）：
+        · `land-fx`   → `lwn_manual_fly_land`（**脚下方**的地面；`超人落地` 用）
+        · `boost-fx`  → `lwn_manual_fly_booststart`（**身上**；`fastmoveStart` 与 `进入飞行` 用）
+        · `boost-loop`→ `lwn_manual_fly_boosting`（**身上 + 周期刷**；`fastmove` 用）
+        · `boost-hand`→ `lwn_manual_fly_handtrail`（**两只手各刷一颗**；`fastmove` 用）
+
+        🔴 **手部尾迹为什么不是"骨挂"**：引擎的 `CreateParticleSystemAttachedToBone` **没有摘除句柄**
+        ⇒ 挂上去就摘不掉，冲刺一停尾迹还留在手上。所以**读手骨的世界坐标、在那儿周期炸**：
+        每 N 毫秒读一次、停手 = 不再刷 = 自然消失。
+        骨骼世界坐标的算法（抄 `custom.psys_head` 那段可用先例）：
+        `GetBoneEntitialFrameWithIndex` 给的是**实体局部** ⇒ 还要再乘 `visuals.GetGlobalFrame()`。
+        ⚠️ 骑砍**骨轴不沿肢体**，所以"往哪甩"不能用骨轴推，得用**世界方向**（或人的朝向）。
+
+        🔴 **周期点 `every` 该填多少 —— 取决于资产自己的 `Emitter life`**（重要，别拍脑袋）：
+        · 资产**自己会停**（`Emitter life` &gt; 0）⇒ `every` 填它的**一半左右**，两批首尾叠上 = 看着连续；
+        · 资产**永不自己停**（`Emitter life` = 0）⇒ **不能周期刷**（系统会越堆越多），
+          得改成"进状态刷一次"（把 `every` 去掉、只留一个 `at`，或改用 `enter` 动作）。
+        ⚠️ `lwn_manual_fly_boosting` 的 `Emitter life` **还没确认**，当前 `every="0.5"` 是按"活 ~1 秒"估的。
+
+        🔴 **起飞先借 `booststart`**（2026-09-28 用户裁定：「hovermovestart 也可以用 booststart 先看看效果」）——
+        等 `NS_Flight_Hover_Start`（UE 那边是个贴地的环）单独做出来，再换成它自己的粒子。
+        它和 `fastmoveStart` 的 `at="0.1"` **同样是感觉值**（UE 那两条通知挂在 AnimSequence 上、没导出）。
 
      🔴 **`坠落` 这个状态**（2026-09-27 新增；说明原在 `<states>` 里，2026-09-28 挪到本文件头 ——
         **因为写在 `<states>` 里的注释会被编辑器页导出覆盖掉**，见文件头第一条）：
@@ -47,6 +81,28 @@
         ⚠️ 本状态**不是**出机那条边的目标：出机照旧指向 `outside`（机器语义 = 不再驱动通道 0），
         本状态由**相位**（C#）在出机那一刻 `Force` 进 + `Hold` 住，与 进入飞行 / 超人落地 同一套路 ⇒
         C# 里没有这个状态名，名字从 `<edges>` 里 `when="fall-trigger"` 那条边读（同起飞 / 落地两个接缝）。
+
+     🔴🔴 **几条边的来由**（原写在 `<edges>` 里，2026-09-28 全挪到本文件头 —— **那一段的注释会被编辑器页
+        导出时整段覆盖掉**，本文件头才是能长期留住的地方。⚠️ 往 `<edges>`/`<states>` 里写注释前先想一下）：
+
+     **① `fall-trigger`（坠落这个时刻，2026-09-27）**：出机（空格）那一刻 C# 要 Force 进哪个状态 ——
+        与 起飞/落地 同一套接缝写法。两条（两个族各一条）都指向同一个状态。
+        ⚠️ 它是"时刻"标签，真值在 C#：出机 = 空格那条边命中 / 撞地 = 板顶触地。
+
+     **② `坠落 → 悬浮飞行`（坠落里再按空格 = 回飞）**：目标与"机外"那条起飞边写得**一模一样**
+        （`to="悬浮飞行"`）—— `TryEventTarget` 取的是**第一条** `when="takeoff-trigger"` 的边，
+        两条目标写成同一个值，无论先命中哪条结果都一致（也就不会有"改了一条、另一条偷偷生效"的事）。
+        补这条也是为了让图诚实：坠落这个状态**有出口**（不然健康检查会报"进去就出不来"）。
+
+     **③ `坠落 → outside`（落地这个时刻，2026-09-27）**：坠落演到"触地"时 C# 主动把机器送出机外
+        （`Force(OutsideState)`）⇒ `Current` 变 `outside` ⇒ 使用方那条通用规则收摊（拆板 / 还控制）。
+        补这条同样是为了图诚实：坠落这个状态的**另一个出口**。
+        ⚠️ 它**不写 `anim-rem-pct`** —— 落地没有"落地动作"要演（坠落姿势直接收），
+           写了反而会被当成"出机前姿态"那条接缝（`TryEventExit`）读走。
+
+     **④ `fastmove ⇄ fastmovePitchU / fastmovePitchD`（趴姿家的升降，2026-09-28 接回）**：
+        判据 = 竖直运动 `climbing`/`diving`（见上面的跳转图总览）。本族没有 idle 这个休息态
+        ⇒ 条件不成立就回 `fastmove`。⚠️ 直立家**没有**这一对（那 4 个直立家状态 2026-09-27 已由用户在编辑器里删除）。
 
      🔴 **运行期旋钮不在这里**：默认过渡时长 / 核对周期 / 动作优先级仍是 C# 里的委托
         （指向 `FlightTuning` 的字段），所以 `custom.flight tune blend / turnrate …` 照旧有效。
@@ -159,17 +215,24 @@
 		<state name="超人落地" act="act_fly_superland" once="true">
 			<track at="0.067" action="land-fx" />
 		</state>
-		<state name="fastmove" act="act_fly_fastmove" />
+		<state name="fastmove" act="act_fly_fastmove">
+			<track every="0.5" action="boost-loop" />
+			<track every="0.06" action="boost-hand" />
+		</state>
 		<state name="fastmoveLeanL" act="act_fly_fastmove_lean_l" />
 		<state name="fastmoveLeanR" act="act_fly_fastmove_lean_r" />
 		<state name="fastmovePitchU" act="act_fly_fastmove_addu" />
 		<state name="fastmovePitchD" act="act_fly_fastmove_addd" />
-		<state name="fastmoveStart" act="act_fly_fastmove_start" once="true" next="fastmove" />
+		<state name="fastmoveStart" act="act_fly_fastmove_start" once="true" next="fastmove">
+			<track at="0.1" action="boost-fx" />
+		</state>
 		<state name="dodgeL" act="act_fly_dodge_l" once="true" next="fastmove" />
 		<state name="dodgeR" act="act_fly_dodge_r" once="true" next="fastmove" />
 		<state name="dodgeU" act="act_fly_dodge_u" once="true" next="fastmove" />
 		<state name="dodgeD" act="act_fly_dodge_d" once="true" next="fastmove" />
-		<state name="进入飞行" act="act_fly_hoverstart" once="true" next="idle" />
+		<state name="进入飞行" act="act_fly_hoverstart" once="true" next="idle">
+			<track at="0.1" action="boost-fx" />
+		</state>
 		<state name="坠落" act="act_jump_loop" />
 	</states>
 
@@ -185,21 +248,9 @@
 	<edges>
 		<edge from="超人落地" to="outside" anim="remaining" anim-rem-pct="15" />
 		<edge from="冲刺飞行" to="超人落地" when="land-trigger" event="true" />
-		<!-- 🔴 **坠落这个时刻**（2026-09-27 新增）：出机（空格）那一刻 C# 要 Force 进哪个状态 ——
-		     与 起飞/落地 同一套接缝写法。两条（两个族各一条）都指向同一个状态。
-		     ⚠️ 它是"时刻"标签，真值在 C#：出机 = 空格那条边命中 / 撞地 = 板顶触地。 -->
 		<edge from="悬浮飞行" to="坠落" when="fall-trigger" event="true" />
 		<edge from="冲刺飞行" to="坠落" when="fall-trigger" event="true" />
-		<!-- 坠落里再按空格 = 回飞：**目标与"机外"那条起飞边写得一模一样**（`to="悬浮飞行"`）——
-		     `TryEventTarget` 取的是**第一条** `when="takeoff-trigger"` 的边，两条目标写成同一个值，
-		     无论先命中哪条，结果都一致（也就不会有"改了一条、另一条偷偷生效"的事）。
-		     补这条也是为了让图诚实：坠落这个状态**有出口**（不然健康检查会报"进去就出不来"）。 -->
 		<edge from="坠落" to="悬浮飞行" when="takeoff-trigger" event="true" />
-		<!-- 🔴 **落地这个时刻**（2026-09-27）：坠落演到"触地"时 C# 主动把机器送出机外
-		     （`Force(OutsideState)`）⇒ `Current` 变 `outside` ⇒ 使用方那条通用规则收摊（拆板 / 还控制）。
-		     补这条同样是为了图诚实：坠落这个状态的**另一个出口**。
-		     ⚠️ 它**不写 `anim-rem-pct`** —— 落地没有"落地动作"要演（坠落姿势直接收），
-		        写了反而会被当成"出机前姿态"那条接缝（`TryEventExit`）读走。 -->
 		<edge from="坠落" to="outside" when="land-trigger" event="true" />
 		<edge from="悬浮飞行" to="冲刺飞行" keys="Shift" />
 		<edge from="悬浮飞行" to="坠落" keys="Space" />
@@ -209,9 +260,6 @@
 		<edge from="outside" to="悬浮飞行" when="takeoff-trigger" event="true" />
 		<edge from="冲刺飞行" to="悬浮飞行" keys="Shift" not="true" />
 		<edge from="FlyFastPoses" to="dodgeU" keys="Z" />
-		<!-- 趴姿家的升降（2026-09-28 接回；判据 = 竖直运动 `climbing`/`diving`，见文件头）——
-		     本族没有 idle 这个休息态 ⇒ 条件不成立就回 `fastmove`。
-		     ⚠️ 直立家**没有**这一对（那 4 个直立家状态 2026-09-27 已由用户在编辑器里删除）。 -->
 		<edge from="fastmovePitchU" to="fastmove" when="climbing" not="true" blend="pitchBlendSeconds" />
 		<edge from="fastmovePitchD" to="fastmove" when="diving" not="true" blend="pitchBlendSeconds" />
 		<edge from="fastmove" to="fastmovePitchU" when="climbing" blend="pitchBlendSeconds" />
@@ -219,5 +267,4 @@
 		<edge from="冲刺飞行" to="坠落" keys="Space" />
 		<edge from="fastmoveStart" to="FlyFastPoses" anim="remaining" anim-rem-pct="15" />
 	</edges>
-
 </state_machine>

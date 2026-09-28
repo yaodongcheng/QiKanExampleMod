@@ -59,6 +59,50 @@ def main():
     from trf_compose import read_trf, write_trf
 
     P = json.load(open(a.pose, encoding="utf-8"))
+
+    # 🔴 手 K 编排的数据会**直接给出**每帧该下沉多少米（root_z_m）——那就不必从画面估，
+    #    直接用（更准，且没有单目估高的透视误差）。
+    if P.get("root_z_m"):
+        dz = np.asarray(P["root_z_m"], np.float32)
+        T = len(dz)
+        drop = float(dz[0] - dz.min())
+        print("=" * 70)
+        print("  身份    : %s（%d 帧）" % (P.get("identity", "?"), T))
+        print("  来源    : pose.json 自带的 root_z_m（手 K 编排数据，跳过单目估计）")
+        print("  下沉    : 首帧 %.3f m  最低 %.3f m  落差 %.3f m" % (dz[0], dz.min(), drop))
+        # 手 K 编排给的 root_z_m 是**显式数据**，不做"倒地/非倒地"的猜测护栏
+        # （虚步下沉 0.055 m 是故意的，不该被 0.15 的护栏拦掉）
+        if drop < 0.02:
+            print("  结论    : 落差 < 0.02 ⇒ 无实质下沉，不动 TRF")
+            return
+        if drop < a.min_hip_drop:
+            print("  提示    : 落差 %.3f < %.2f，但数据是显式 root_z_m ⇒ 照常写入" % (drop, a.min_hip_drop))
+        from trf_compose import read_trf, write_trf
+        t = read_trf(a.trf)
+        n = len(t.root_pos)
+        dz_r = np.interp(np.linspace(0, 1, n), np.linspace(0, 1, T), dz)
+        side = a.trf + ".rootz.json"
+        prev = None
+        if os.path.isfile(side):
+            prev = np.asarray(json.load(open(side, encoding="utf-8"))["dz"], np.float32)
+            if len(prev) != n:
+                prev = None
+        t.root_pos = [(f, (v[0], v[1],
+                           float(v[2]) - (float(prev[i]) if prev is not None else 0.0) + float(dz_r[i])))
+                      for i, (f, v) in enumerate(t.root_pos)]
+        if not a.apply:
+            print("  干跑    : 加 --apply 才写盘")
+            print("=" * 70)
+            return
+        write_trf(t, a.trf)
+        json.dump({"dz": [float(x) for x in dz_r], "source": "pose.json:root_z_m",
+                   "note": "root_z_from_image 写入，重跑会先减掉这条"},
+                  open(side, "w", encoding="utf-8"), ensure_ascii=False)
+        print("  写盘    : %s" % a.trf)
+        print("=" * 70)
+        print("DONE")
+        return
+
     norm = np.asarray(P["norm"], np.float32)          # [T,33,4]
     T = norm.shape[0]
     vis = norm[:, :, 3] > 0.3

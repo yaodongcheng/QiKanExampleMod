@@ -84,6 +84,9 @@ TGT_FPS = int(ARGS.get("fps") or 30)
 PELVIS = (ARGS.get("pelvis") or "none").lower()      # none | ground
 YAW = float(ARGS.get("yaw") or 0.0)                  # 整体绕世界 Z 转（受试者背对镜头时补 180）
 AUTO_YAW = str(ARGS.get("auto_yaw") or "false").lower() in ("1", "true", "yes")
+# 🔴 根骨朝向用哪套基准。默认 hip（髋线 × 髋→肩），**侧视素材下髋线又短又抖、会偏几十度**；
+#    eye = 用【双眼连线中线的垂线】——这是本仓既定的"前向基准"（见 docs/骨骼经验、双人摆位 skill）。
+ROOT_BASIS = (ARGS.get("root_basis") or "hip").lower()
 KEEP_ROOT_H = str(ARGS.get("keep_root_h") or "false").lower() in ("1", "true", "yes")
 NO_TRF = str(ARGS.get("no_trf") or "false").lower() in ("1", "true", "yes")
 
@@ -214,6 +217,11 @@ def solve_root_basis(fi):
     """根骨要完整基（含 yaw）：用 髋→肩 当 up、髋线当 left。"""
     up = safe_dir(mid(fi, ROOT_UP["a"]), mid(fi, ROOT_UP["b"]))
     lf = safe_dir(mid(fi, ROOT_LEFT["a"]), mid(fi, ROOT_LEFT["b"]))
+    if ROOT_BASIS == "eye":
+        # 左方向 = 右眼中心 -> 左眼中心（与髋线同向约定：都指向角色左侧）
+        _lfe = safe_dir(mid(fi, [4, 5, 6]), mid(fi, [1, 2, 3]))
+        if _lfe is not None:
+            lf = _lfe
     if up is None or lf is None:
         return None
     lf = lf - up * lf.dot(up)
@@ -357,9 +365,25 @@ except Exception as e:
 
 FOOTB = [n for n in ("l_toe0", "r_toe0", "l_foot", "r_foot") if n in IDX]
 n_bad = 0
+# 🔴 重采样：**相邻源帧 slerp 插值**，不要「就近取整」。
+#    实测（2026-09-28，24fps 源 → 30fps 输出）：就近取样让 106 帧里有 **21 帧是重复帧**
+#    （同一帧连播两遍），播放起来就是「走走停停」的顿挫，肉眼像抽搐。
+#    step=0.8 时索引序列是 0,1,2,2,3,4,5,6,6,... —— 每隔几帧就卡一下。
+#    改成对相邻两帧各自的解算结果做 slerp，输出的 30fps 才是真正平滑的。
 for k in range(N_OUT):
-    fi = min(NF - 1, int(round(k * step)))
+    _x = k * step
+    fi = min(NF - 1, int(math.floor(_x)))
+    _u = _x - fi
     sol = solve_frame(fi, yaw_q)
+    if sol is not None and _u > 1e-6:
+        _fi1 = min(NF - 1, fi + 1)
+        if _fi1 != fi:
+            _s1 = solve_frame(_fi1, yaw_q)
+            if _s1 is not None:
+                for _nm, _q0 in list(sol.items()):
+                    _q1 = _s1.get(_nm)
+                    if _q1 is not None:
+                        sol[_nm] = _q0.slerp(_q1, _u)
     fno = k + 1
     if sol is None:
         n_bad += 1

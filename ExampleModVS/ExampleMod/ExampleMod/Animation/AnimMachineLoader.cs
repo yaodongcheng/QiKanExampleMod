@@ -201,18 +201,29 @@ namespace LivingWorldNpcs.Animation
                 foreach (XmlNode tr in node.SelectNodes("track"))
                 {
                     string atRaw = Attr(tr, "at");
+                    string everyRaw = Attr(tr, "every");
                     string actRaw = Attr(tr, "action");
-                    if (string.IsNullOrEmpty(atRaw) || string.IsNullOrEmpty(actRaw))
+                    if (string.IsNullOrEmpty(actRaw) || (string.IsNullOrEmpty(atRaw) && string.IsNullOrEmpty(everyRaw)))
                     {
-                        problems.Add("状态 '" + sn + "' 的 <track> 缺 at 或 action");
+                        problems.Add("状态 '" + sn + "' 的 <track> 缺 action，或 at / every 一个都没写");
                         continue;
                     }
-                    float at;
-                    if (!float.TryParse(atRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out at)
-                        || at < 0f || at > 1f)
+                    float at = 0f;
+                    if (!string.IsNullOrEmpty(atRaw)
+                        && (!float.TryParse(atRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out at)
+                            || at < 0f || at > 1f))
                     {
                         problems.Add("状态 '" + sn + "' 的 <track at=\"" + atRaw + "\"> 必须是 0~1 的比例"
                                      + "（不是秒 —— 例如 0.067 = 演到 6.7% 处）");
+                        continue;
+                    }
+                    float every = 0f;
+                    if (!string.IsNullOrEmpty(everyRaw)
+                        && (!float.TryParse(everyRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out every)
+                            || every <= 0f))
+                    {
+                        problems.Add("状态 '" + sn + "' 的 <track every=\"" + everyRaw + "\"> 必须是**正的秒数**"
+                                     + "（例如 0.1 = 状态期间每 0.1 秒刷一次）");
                         continue;
                     }
                     Action<AnimContext> trackAct;
@@ -226,7 +237,7 @@ namespace LivingWorldNpcs.Animation
                     {
                         newState.Track = new List<AnimTrackPoint>();
                     }
-                    newState.Track.Add(new AnimTrackPoint { At = at, Act = trackAct });
+                    newState.Track.Add(new AnimTrackPoint { At = at, Every = every, Act = trackAct });
                 }
                 if (newState.Track != null)
                 {

@@ -495,10 +495,14 @@ namespace LivingWorldNpcs.Animation
         }
 
         /// <summary>
-        /// 跑当前状态轨道上**到点且没触发过**的时间点（2026-09-28）。
+        /// 跑当前状态轨道上**该响**的时间点（2026-09-28）。
         ///
-        /// 🔴 **跨过即触发**（`progress >= At`）——不是"等于"：帧率抖动、快进、`Hold` 期间一次跨很大
-        ///    都可能跳过精确点；用 `>=` + `Fired` 标记保证"每个点一次进入只响一次"。
+        /// **两种点**（见 <see cref="AnimTrackPoint"/>）：
+        /// · **一次性**（`at=`，比例）：**跨过即触发**（`progress >= At`）—— 不是"等于"：
+        ///   帧率抖动、快进、`Hold` 期间一次跨很大都可能跳过精确点；用 `>=` + `Fired` 保证"一次进入只响一次"。
+        /// · **周期**（`every=`，秒）：按 <see cref="AnimTrackPoint.NextAt"/> 到点就响、响完排下一次
+        ///   （用在**循环状态**上做持续特效：破空云迹 / 尾迹）。
+        ///
         /// 🔴 与 <see cref="RunAction"/> 一样**绝不外抛**（状态机是每帧跑的公共件）。
         /// </summary>
         private void TickTrack()
@@ -512,6 +516,17 @@ namespace LivingWorldNpcs.Animation
             for (int i = 0; i < pts.Count; i++)
             {
                 AnimTrackPoint tp = pts[i];
+                if (tp.Every > 0.01f)
+                {
+                    // 周期点：到点响、排下一次。
+                    // 🔴 掉帧时**补一次就够**（不是紧着补 N 次）—— 一帧里炸 5 颗同位置的粒子只会更难看出问题。
+                    if (_elapsed >= tp.NextAt)
+                    {
+                        tp.NextAt = _elapsed + tp.Every;
+                        RunAction(tp.Act, $"track-every({tp.Every:F2}s)", _current.Name);
+                    }
+                    continue;
+                }
                 if (tp.Fired || p < tp.At)
                 {
                     continue;      // 已触发 / 还没到点 —— 表是按 At 升序排过的，但**不提前 break**：
@@ -629,12 +644,13 @@ namespace LivingWorldNpcs.Animation
             _elapsed = 0f;
             if (runActions)
             {
-                // 轨道时间点的"已触发"标记随每次**真正进入**清零（Reassert 补写不算，同 enter 动作）。
+                // 轨道点的"已触发 / 下次时刻"随每次**真正进入**清零（Reassert 补写不算，同 enter 动作）。
                 if (state.Track != null)
                 {
                     for (int i = 0; i < state.Track.Count; i++)
                     {
                         state.Track[i].Fired = false;
+                        state.Track[i].NextAt = 0f;     // 周期点：进状态立刻响第一次
                     }
                 }
                 RunAction(state.EnterAction, "enter", state.Name);
