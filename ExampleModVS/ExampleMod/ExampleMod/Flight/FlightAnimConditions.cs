@@ -121,35 +121,25 @@ namespace LivingWorldNpcs.Flight
             // 🔴 **在"身上"，不是脚下**（2026-09-28 修）：UE 那边这几个发射器都是 `ParticleOwnerPosition`
             //    = 主人身上；我第一版误用了 `PlayFxAtFeet`（那是给"贴地炸开"的落地用的），位置低了一米。
             AnimActions.Register(BoostStartFxAction, c => PlayFxAtBody(BoostStartFxName, 1.0f, out _));
-            // 🔴 **持续特效**（2026-09-28）：冲刺期间在**身上**按间隔刷 `lwn_manual_fly_boosting`
-            //    （`fastmove` 的 `<track every="…" action="boost-loop"/>`）。
-            //    为什么这么设计：UE 那边的"持续云迹"本来就是**短命粒子不停刷**出来的
-            //    （云 0.2 s @10/秒）—— 所以**密度由 XML 的 `every` 控制**，改密度不用重新发布粒子；
-            //    也绕开了"骨挂粒子摘不掉"那个死结（不挂，只是刷）。
-            // ⚠️ `every` 该填多少，取决于资产自己的 `Emitter life`（见 `BoostLoopFxName` 的注释）。
-            AnimActions.Register(BoostLoopFxAction, c => PlayFxAtBody(BoostLoopFxName, 1.0f, out _));
-            // 🔴 **手部尾迹**（2026-09-28）：**两只手各刷一颗** —— 走"读手骨世界坐标"那条路，
-            //    **不是骨挂**（骨挂摘不掉，冲刺一停尾迹还留在手上，见 `PlayFxAtBothHands` 的说明）。
-            //    对应 UE `NS_Flight_Trail` 里的 `HandTrail_L` / `HandTrail_R`（两条 8 cm 的细带子）。
-            AnimActions.Register(BoostHandFxAction, c => PlayFxAtBothHands(BoostHandFxName, out _));
+            // 🪦 **`boost-loop`（每 0.5 秒在"身上"刷一颗云）2026-09-28 已废** ——
+            //    冲刺云迹改成**骨挂持续发射**，不再按秒刷点。废因与手部尾迹同：
+            //    定点刷点连不成轨迹，且持续型资产会无限叠加。
+            // 🔴🔴 **三件持续特效（手部尾迹 / 身体尾迹 / 冲刺云迹）现在不在这里注册动作了** ——
+            //    它们是 **XML 轨道上的声明**（用户 2026-09-28 裁定：内容不许写死在 C# 里）：
+            //    <code>&lt;track particle="lwn_manual_fly_handtrail" bone="HandL+HandR" /&gt;</code>
+            //    执行者在 `Flight/FlightBoneFx.cs`（实现 `IAnimFxHost`），**它一个粒子名都不认识**。
+            //    写在哪：`flight.xml` 的 `冲刺飞行` **家族**上（家族级 ⇒ 内部互切不重挂）。
         }
 
-        /// <summary>**手部尾迹的粒子名**（双手各刷一颗，2026-09-28）。</summary>
-        public const string BoostHandFxName = "lwn_manual_fly_handtrail";
+        /// <summary>**手部尾迹的粒子名**（两手各挂一颗）。⚠️ 挂/摘由 `flight.xml` 的轨道声明驱动，
+        /// 这里只留名字给**验收命令** `custom.flight trail` 用。</summary>
+        public const string HandTrailFxName = "lwn_manual_fly_handtrail";
 
-        /// <summary>`fastmove` 上那条手部尾迹轨道点的动作名。</summary>
-        public const string BoostHandFxAction = "boost-hand";
+        /// <summary>**身体尾迹的粒子名**（挂身体中心骨）。</summary>
+        public const string BodyTrailFxName = "lwn_manual_fly_bodytrail";
 
-        /// <summary>**持续云迹的粒子名**（冲刺期间刷的那个，2026-09-28）。</summary>
+        /// <summary>**冲刺云迹的粒子名**（挂身体中心骨）。</summary>
         public const string BoostLoopFxName = "lwn_manual_fly_boosting";
-
-        /// <summary>
-        /// `fastmove` 那条**周期**轨道点的动作名。
-        /// ⚠️ **`every` 的取值取决于这个资产的 `Emitter life`**：
-        /// · `Emitter life` &gt; 0（自己会停）⇒ `every` 取它的**一半左右**，两批首尾叠上 = 看着连续；
-        /// · `Emitter life` = 0（永不自己停）⇒ **不能周期刷**（会越堆越多），得改成"进状态刷一次"。
-        /// </summary>
-        public const string BoostLoopFxAction = "boost-loop";
 
         /// <summary>
         /// **落地特效的名字**（内容包发布包里注册的那个粒子系统名）。
@@ -195,69 +185,6 @@ namespace LivingWorldNpcs.Flight
         internal static bool PlayFxAtBody(string particleName, float upOffset, out string error)
         {
             return PlayFx(particleName, atFeet: false, upOffset: upOffset, out error);
-        }
-
-        /// <summary>
-        /// **在主角两只手的骨骼位置各放一次粒子** —— 给**手部尾迹**用（2026-09-28）。
-        ///
-        /// 🔴 **为什么不是"骨挂"**：引擎的 `CreateParticleSystemAttachedToBone` **没有摘除句柄**
-        ///    ⇒ 挂上去就摘不掉，冲刺一停尾迹还留在手上。所以走**周期刷点**：
-        ///    每 N 毫秒读一次手骨的世界坐标、在那儿炸一颗**短命**的 —— 停手 = 不再刷 = 自然消失。
-        ///
-        /// 🔴 **骨骼世界坐标的算法**（抄自 `custom.psys_head` 那段可用的先例）：
-        ///    `GetBoneEntitialFrameWithIndex` 给的是**实体局部**（动画算完、还没乘实体全局变换的那一层）
-        ///    ⇒ 要再乘一次 `visuals.GetGlobalFrame()` 才是世界坐标。
-        ///    ⚠️ 骑砍**骨轴不沿肢体**，所以"往哪个方向甩"不能用骨轴推，得用世界方向（或用人的朝向）。
-        /// </summary>
-        internal static bool PlayFxAtBothHands(string particleName, out string error)
-        {
-            error = null;
-            try
-            {
-                if (!TryResolveFxId(particleName, out int id, out error))
-                {
-                    return false;
-                }
-                if (!TryGetMainAgent(out Mission mission, out Agent main, out Scene scene, out error))
-                {
-                    return false;
-                }
-                MBAgentVisuals visuals = main.AgentVisuals;
-                Skeleton skel = visuals != null ? visuals.GetSkeleton() : null;
-                if (visuals == null || skel == null)
-                {
-                    error = "main agent has no visuals/skeleton";
-                    return false;
-                }
-
-                MatrixFrame entFrame = visuals.GetGlobalFrame();
-                Mat3 rot = entFrame.rotation.TransformToParent(skel.GetBoneEntitialFrameWithIndex(0).rotation);
-                int played = 0;
-                for (int i = 0; i < 2; i++)
-                {
-                    sbyte bone = visuals.GetRealBoneIndex(i == 0 ? HumanBone.HandL : HumanBone.HandR);
-                    if (bone < 0)
-                    {
-                        continue;
-                    }
-                    Vec3 world = entFrame.TransformToParent(skel.GetBoneEntitialFrameWithIndex(bone).origin);
-                    scene.CreateBurstParticle(id, new MatrixFrame(rot, world));
-                    played++;
-                }
-                if (played == 0)
-                {
-                    error = "no hand bones resolved";
-                    return false;
-                }
-                DebugLogger.Log($"[Flight-Fx] 播放 '{particleName}'（id {id}）于 {played} 只手");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                error = "exception: " + ex.Message;
-                DebugLogger.Log("[Flight-Fx] " + error);
-                return false;
-            }
         }
 
         /// <summary>

@@ -261,3 +261,54 @@ python preview/sheet_stills.py --xmls "<glob>" --t 1.1 --out out/sv.png --per-sh
 - ⚠️ 两者都**不等于实机**（最终 shader 在引擎里）——材质层以 ModKit / 实机为准。
 
 **入口**：这条线的现状 / 待办 / 命令速查 / 坑表全在 [Knowledge/FlexibleCombatSystem施法设计_UE实现分析.md](../../../Knowledge/FlexibleCombatSystem施法设计_UE实现分析.md) 顶部的「🔴 交接（2026-09-25）」（99 个 FCS 特效已全部翻译并投进 ModKit）。
+
+## 🔴 运行期挂粒子的两条硬事实（2026-09-28 登记 · 手部尾迹实机教训）
+
+### ① 粒子**必须挂在场景里的实体上** —— 拿裸 `Skeleton` 建 = 不上屏
+
+**症状**：日志一切正常（`id` 解析到了、骨索引找到了、返回非 null、无异常），**画面上什么都没有**。
+
+```csharp
+// ❌ 第一版（实机 19:41：日志说"已挂上"、画面全空）
+ParticleSystem.CreateParticleSystemAttachedToBone(id, skeleton, bone, ref localFrame);
+//    ↑ 拿**裸 Skeleton** 建粒子，没有宿主实体 ⇒ 这个粒子系统从没进过场景的更新/渲染名单
+```
+
+**正解 = 四步（照 HikageRising，第三方忍者 mod 实机跑通）**：
+
+```csharp
+GameEntity host = GameEntity.CreateEmpty(scene, true);                    // ① 属于场景的实体（缺这步就白干）
+MatrixFrame local = MatrixFrame.Identity;
+ParticleSystem ps = ParticleSystem.CreateParticleSystemAttachedToEntity(id, host, ref local);  // ② 挂实体
+visuals.AddChildEntity(host);                                             // ③ 实体挂到 agent 身上
+skel.AddComponentToBone(bone, ps);                                        // ④ 再挂到骨上（引擎负责跟骨走）
+```
+
+**摘除 = 三步**（`SetEnable(false)` 停发射 → `RemoveBoneComponent`/`RemoveComponent` 从骨上摘
+→ **`host.Remove(0)` 销毁宿主实体**）。最后那步是**保底的杀招**：实体一没，挂在上面的粒子跟着没。
+范本 `Flight/HandTrailFx.cs`（含防野指针守卫：摘之前对一下场景指针，不是同一个场景就只丢句柄、一个 native 调用都不发）。
+
+### ② "粒子摘不掉"是**分 API 的**，不是引擎的普遍事实
+
+| 路 | API | 有句柄？ | 能销毁？ |
+|---|---|---|---|
+| 定点炸一次 | `Scene.CreateBurstParticle(id, frame)` | ❌ 什么都不返回 | ❌ 只能等资产自己演完 |
+| 挂实体 | `ParticleSystem.CreateParticleSystemAttachedToEntity(id, entity, ref local)` | ✅ | ✅ `entity.RemoveComponent(ps)` / `RemoveAllParticleSystems()` / `entity.Remove(0)` |
+| 挂骨 | `...CreateParticleSystemAttachedToBone(id, skeleton, bone, ref local)` | ✅ | ✅ `Skeleton.RemoveBoneComponent(bone, ps)`（⚠️ 但见上面 ①：挂骨也要先有宿主实体） |
+
+先例：原版 `SandBox.View` 的 `PartyVisual` 拿 `RemoveAllParticleSystems()` 开关"村庄被烧的烟"；
+本项目 `SpellPieces` 拿 `entity.RemoveComponent(ps)` 收法术拖尾。
+⚠️ HikageRising 那份逆向资料里写的"骑砍没有停止粒子的接口"**只对第一行成立**。
+
+### ③ 做"连续尾迹"的调参手感（粒子层能拧的旋钮）
+
+- **点状 vs 连续 = 沿路径的采样密度**：粒子不带速度时停在出生的世界位置 ⇒ 间距 = **速度 ÷ 发射率**。
+  30/秒 @ 30 m/s = 每米一颗 = 一颗颗小云片。
+- 🔴 **代价只看「存活数 = 发射率 × 寿命」**（外加尺寸带来的 overdraw）——**发射率本身几乎不花钱**：
+  `30/秒 × 1 秒 = 30 颗` 与 `150/秒 × 0.25 秒 ≈ 37 颗` 开销几乎一样，密度差 5 倍。
+  ⇒ **要密就"提发射率 + 砍寿命"，别靠加尺寸**。
+- `billboard_type = turn_to_velocity_side`（配合 `skew_with_respect_to_particle_velocity`）
+  = 每片**沿运动方向拉成条** → "点变线"最有效的一招（需粒子有速度，见 `inherit_emitter_velocity`）。
+- `scale_with_respect_to_emitter_velocity`（**flag**）= 发射器越快片越大（引擎自带，零代码）。
+- `max_alive_particle_count` 设个上限当**性能天花板**
+  （🔴 但**别设 0** —— 那是"一颗都不给"，见上面的坑表）。

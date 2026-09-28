@@ -103,6 +103,12 @@ def main():
                          "传 false 复现旧行为（对象级转身会丢）")
     ap.add_argument("--root-basis", default=None, choices=["hip", "eye"],
                     help="根骨朝向基准：hip=髋线（默认）；eye=双眼连线中线（侧视素材建议用这个）")
+    ap.add_argument("--yaw", type=float, default=None,
+                    help="整体绕世界 Z 旋转的角度（度）。素材不是【正面朝镜头】时用它把角色转回骨架标准前方 +Y；"
+                         "同一批状态机片段务必用同一个值（否则状态间朝向会跳）。")
+    ap.add_argument("--auto-yaw", action="store_true",
+                    help="用素材【中位 yaw】自动转正（等价于 --yaw = -中位yaw）；逐片段各自取值，"
+                         "批量片段建议改用显式 --yaw 保持朝向一致")
     ap.add_argument("--no-trf", action="store_true", help="只要 FBX，不导 TRF（默认两者都产）")
     ap.add_argument("--blender", default=os.environ.get("BLENDER", DEFAULT_BLENDER))
     ap.add_argument("--dry-run", action="store_true", help="只打印命令")
@@ -123,6 +129,10 @@ def main():
         cmd += ["--obj_rot", a.obj_rot]
     if a.root_basis:
         cmd += ["--root_basis", a.root_basis]
+    if a.yaw is not None:
+        cmd += ["--yaw", str(a.yaw)]
+    if a.auto_yaw:
+        cmd += ["--auto_yaw", "true"]
     if a.no_trf:
         cmd += ["--no_trf", "true"]
 

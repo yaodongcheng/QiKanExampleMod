@@ -49,6 +49,20 @@ PAIRS = [("R腕", 16, "r_hand", 1), ("L腕", 15, "l_hand", 1),
          ("R踝", 28, "r_foot", 0), ("L踝", 27, "l_foot", 0)]
 
 
+def _proj(dx, dy, dz, cam):
+    """把动画侧的骨偏移投到【源素材那台相机】的图像平面上（只取屏幕右向分量）。
+
+    唯一的机位定义处。骨架系：X=角色右 / Y=面朝前（=骨架标准前方）/ Z=上。
+    名字与 render_glb_frames.py 的 AZ 表**同一套**，别再造第二套：
+      f  = 相机在 +Y（正对角色正面）→ 屏幕右 = -X（默认；正面朝镜头的素材）
+      b  = 相机在 -Y（角色背后）     → 屏幕右 = +X
+      s  = 相机在 +X（角色右侧）     → 屏幕右 = +Y
+      sl = 相机在 -X（角色左侧）     → 屏幕右 = -Y  ← 侧拍素材用这个
+    相机放错，左右判据会整段反过来（假报"镜像"）。
+    """
+    return {"f": -dx, "b": dx, "s": dy, "sl": -dy}[cam]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--clip", required=True, help="pose.json 名")
@@ -57,9 +71,17 @@ def main():
     ap.add_argument("--midline", type=float, default=0.15,
                     help="横向小于该值(单位=源肩宽)的帧视为病态，不计入符号一致率分母")
     ap.add_argument("--skel-json", default=os.path.join(ROOT, "output", "verify", "bannerlord_skel.json"))
+    ap.add_argument("--cam", default="f", choices=["f", "b", "s", "sl"],
+                    help="源素材的相机方位（与 render_glb_frames.py 同名）："
+                         "f=相机在 +Y（正面朝镜头，默认）｜b=背面｜s=角色右侧｜"
+                         "sl=角色左侧（侧拍锁机位素材用这个）。相机放错会让左右判据整段误报。")
+    ap.add_argument("--animdir", default=None,
+                    help="pose.json 所在目录（默认 input/source/pose_mediapipe；"
+                         "素材放在别的来源目录时用它指定，和 make_compare_sheet.py 同口径）")
     a = ap.parse_args()
 
-    P = json.load(open(os.path.join(ROOT, "input/source/pose_mediapipe", a.clip + ".json"), encoding="utf-8"))
+    animdir = a.animdir or os.path.join(ROOT, "input/source/pose_mediapipe")
+    P = json.load(open(os.path.join(animdir, a.clip + ".json"), encoding="utf-8"))
     W = np.array(P["world"])
     skel = json.load(open(a.skel_json, encoding="utf-8"))
     bones, rl, invq = build(skel)
@@ -88,7 +110,7 @@ def main():
             s = np.array([W[ks][li][0] - hipc[0], -(W[ks][li][1] - hipc[1])]) / sw
             o = p[bn][1] if ut else p[bn][0]
             d = o - pv
-            ov = np.array([-float(d[0]), float(d[2])]) / sw
+            ov = np.array([_proj(float(d[0]), float(d[1]), float(d[2]), a.cam), float(d[2])]) / sw
             devs.append(float(np.linalg.norm(s - ov)))
             # 🔴 判据**按每个肢体单独**算：该肢体横向贴中线时它的左右符号是病态的，跳过不计；
             #    上下方向不受此限（人不会把手挂在肩上，竖直方向不病态）。

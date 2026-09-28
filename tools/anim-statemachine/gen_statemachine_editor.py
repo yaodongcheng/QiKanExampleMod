@@ -9,6 +9,8 @@
   ② 「任意状态 *」= UE 的 Any State；**用户 2026-09-25 裁定废弃**（来源一律写显式容器 / 状态）。
   ③ **容器（组）取代家族**：自己建组、把状态拖进去；一个状态只归属一个容器；**容器可以嵌套容器**。
      🔴 导出仍是 `<family name="…">成员…</family>` 名单（成员可以写容器名），**运行期一字不改**。
+     🔴 容器上的 `entry=`（入口）与 `enter=` / `leave=`（**进出这个容器时的动作**）三个属性**原样带回去** ——
+        页面不改它们（在 XML 里手写），但**绝不能弄丢**：丢了 = 那种特效从此不出现，而且是**静默**的。
   ④ **每个状态有内部视图**：entry（入边列表）→ clip 卡片（可改 act / 循环性 / next）→ output。
   ⑤ **分层 tab**：总览 / 各容器 / 各状态内部，各自一页。
 
@@ -51,7 +53,16 @@ def build_data():
     raw = io.open(XML, encoding="utf-8").read()
     root = ET.fromstring(raw)
 
-    groups = [{"name": f.get("name"), "entry": f.get("entry") or "", "members": (f.text or "").split()}
+    # 🔴 容器的**进出动作**（enter/leave）+ **骨挂持续粒子声明**（`<track particle="…" bone="…"/>`
+    #    子元素）也必须读进来 —— 页面不编辑它们，但**保存时不能弄丢**（丢了 = 特效/动作静默消失）。
+    #    ⚠️ 成员取 `"".join(itertext())` 而不是 `.text`：家族里现在挂了 `<track>` 子元素，
+    #       `.text` 只给**第一个子元素之前**那点空白 ⇒ 成员会读成空。
+    groups = [{"name": f.get("name"), "entry": f.get("entry") or "",
+               "enter": f.get("enter") or "", "leave": f.get("leave") or "",
+               "track": [{"particle": tr.get("particle") or "", "bone": tr.get("bone") or "",
+                          "at": tr.get("at") or "", "remove": tr.get("remove") or ""}
+                         for tr in f.findall("track")],
+               "members": "".join(f.itertext()).split()}
               for f in root.findall("families/family")]
 
     states = []
@@ -60,17 +71,22 @@ def build_data():
         #    `duration="…"` 保留成"可选覆盖"，只在要主动截短 clip 时才写。
         #
         # 🔴 状态轨道时间点（2026-09-28）：`<state>` 里的 `<track at="0.067" action="land-fx"/>`
-        #    （一次性）或 `<track every="0.1" action="boost-cloud"/>`（**周期**，持续特效）。
+        #    （一次性）或 `<track every="0.1" action="boost-cloud"/>`（**周期**），
+        #    以及 **骨挂持续粒子** `<track particle="…" bone="…" [at] [remove]/>`。
         #    **必须原样读进来 + 原样写回去** —— 否则从页面保存一次就把它们**静默删掉/写坏**
         #    （页面只认识 name/act/once/dur/next 那五个属性，重写 <states> 段时会把别的都抹掉）。
         #    ⚠️ 页面目前**只做保真往返**、没有可视化编辑（要加 UI 再说）。
-        tracks = []
-        for tr in st.findall("track"):
-            tracks.append({"at": tr.get("at") or "", "every": tr.get("every") or "",
-                           "action": tr.get("action") or ""})
+        def _track(tr):
+            if tr.get("particle"):
+                return {"particle": tr.get("particle"), "bone": tr.get("bone") or "",
+                        "at": tr.get("at") or "", "remove": tr.get("remove") or ""}
+            return {"at": tr.get("at") or "", "every": tr.get("every") or "",
+                    "action": tr.get("action") or ""}
+        tracks = [_track(tr) for tr in st.findall("track")]
         states.append({"name": st.get("name"), "act": st.get("act"),
                        "once": (st.get("once") or "").lower() == "true" or bool(st.get("duration")),
                        "dur": st.get("duration") or "", "next": st.get("next") or "",
+                       "enter": st.get("enter") or "", "leave": st.get("leave") or "",
                        "track": tracks})
 
     edges = []
@@ -780,7 +796,9 @@ function render() {
     // 嵌套：直接成员里可能混着**子容器**，分开数（原来一律写"N 个状态"，嵌套后会数错）
     const nSub = childGroupsOf(g.name).length;
     const nSt = (g.members || []).length - nSub;
-    const sub = `容器 · ${nSt} 状态${g.entry ? " · 入口 → " + esc(entryPathOf(g.name)) + (entryBad(g.name) ? " ⚠" : "") : " · ⚠ 未设入口"}${nSub ? " · 🗂 " + nSub + " 子容器" : ""}`;
+    const sub = `容器 · ${nSt} 状态${g.entry ? " · 入口 → " + esc(entryPathOf(g.name)) + (entryBad(g.name) ? " ⚠" : "") : " · ⚠ 未设入口"}${nSub ? " · 🗂 " + nSub + " 子容器" : ""}`
+      // 🔴 容器的进出动作（**进/出这个容器**才响，内部互切不响）—— 同状态节点，必须看得见。
+      + (g.enter ? " · [进]" + esc(g.enter) : "") + (g.leave ? " · [出]" + esc(g.leave) : "");
     out.push(`<g class="grp" data-g="${esc(g.name)}" style="cursor:grab">`);
     out.push(`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="9" fill="var(--surface-2)" `
            + `stroke="${isSel ? "var(--door)" : "var(--line-2)"}" stroke-width="${isSel ? 2 : 1}" stroke-dasharray="6 4"/>`);
@@ -803,7 +821,10 @@ function render() {
            + `stroke="${isSel || br ? "var(--door)" : "var(--line-2)"}" stroke-width="${br ? 1.6 : (isSel ? 2 : 1)}"/>`);
     out.push(`<rect x="${r.x+1}" y="${r.y+7}" width="4" height="${r.h-14}" rx="2" fill="${col}"/>`);
     out.push(`<text x="${r.x+15}" y="${r.y+20}" font-family="var(--mono)" font-size="12.5" font-weight="600" fill="var(--ink)">${esc(s.name)}</text>`);
-    out.push(`<text x="${r.x+15}" y="${r.y+36}" font-family="var(--mono)" font-size="10" fill="var(--ink-3)">${esc(clipW(s.clip + " · " + s.durText + (s.next ? " · 演完→" + s.next : ""), br ? NODE_W - 62 : NODE_W - 24))}</text>`);
+    out.push(`<text x="${r.x+15}" y="${r.y+36}" font-family="var(--mono)" font-size="10" fill="var(--ink-3)">${esc(clipW(s.clip + " · " + s.durText + (s.next ? " · 演完→" + s.next : "")
+      // 🔴 进出动作是**在 XML 里手写**的（页面不改），但必须**看得见** —— 看不见的钩子等于没有钩子
+      //    （它在图上不出现、又会被导出原样带回，最容易被当成"没配"而重复加一个）。
+      + (s.enter ? " · [进]" + s.enter : "") + (s.leave ? " · [出]" + s.leave : ""), br ? NODE_W - 62 : NODE_W - 24))}</text>`);
     if (br) {                                    // 右上角小标：进机 / 出机
       out.push(`<rect class="bdg" x="${r.x + r.w - 44}" y="${r.y + 7}" width="36" height="15" rx="7"/>`
              + `<text x="${r.x + r.w - 26}" y="${r.y + 18}" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="var(--door)">${br === "in" ? "进机" : "出机"}</text>`);
@@ -2060,7 +2081,8 @@ function newStateTarget() {
 }
 function newState(x, y) {
   const name = uniqueName("新状态");
-  states.push({name, act: "act_" + name, once: false, dur: "", next: "", clip: "?", durText: "循环"});
+  states.push({name, act: "act_" + name, once: false, dur: "", next: "", enter: "", leave: "",
+               clip: "?", durText: "循环"});
   stateByName[name] = states[states.length - 1];
   pos[name] = {x: x, y: y};
   const into = newStateTarget();
@@ -2142,7 +2164,7 @@ function newSubGroup(parentName) {
   if (!g) return;
   let i = 1, nn;
   do { nn = "子容器" + i++; } while (stateByName[nn] || groupByName[nn]);
-  groups.push({ name: nn, entry: "", members: [] });
+  groups.push({ name: nn, entry: "", enter: "", leave: "", track: [], members: [] });
   g.members.push(nn);
   reindex();                              // 🔴 新建后必须重建索引（"改名拖不动"同源）
   sel = { type: "group", id: nn };
@@ -2284,28 +2306,51 @@ function edgesXml() {
     else if (e.kind === "anim") c = `anim="${e.anim}"${e.anim === "remaining" ? ` anim-rem-pct="${e.lt}"` : ""}`;
     else c = `when="${e.pred || (e.event ? pickEventPred("") : (DATA.preds[0] || {}).name)}"`;
     return `\t\t<edge from="${e.from}" to="${e.to}" ${c}`
-         + (e.blend ? ` blend="${e.blend}"` : "") + (e.after ? ` after-finish="true"` : "")
          + (e.not ? ` not="true"` : "")                     // 🔴 取反：对三种条件**一律适用**
-         + (e.event ? ` event="true"` : "") + " />";
+         + (e.blend ? ` blend="${e.blend}"` : "") + (e.after ? ` after-finish="true"` : "")
+         + (e.event ? ` event="true"` : "") + " />";        // ⚠️ 属性顺序与源文件保持一致 ——
+         //   XML 语义不看顺序，但**顺序一致 = git diff 干净**（不然每次保存都重排一堆行，真人看不出改了啥）
   }).join("\n");
 }
+function fxOf(t) {
+  // 一条「骨挂持续粒子」声明（2026-09-28）：粒子和骨都写在轨道上，**页面不编辑、但绝不能弄丢**。
+  return {particle: t.getAttribute("particle") || "", bone: t.getAttribute("bone") || "",
+          at: t.getAttribute("at") || "", remove: t.getAttribute("remove") || ""};
+}
+function fxXml(t, indent) {
+  return indent + `<track particle="${t.particle}" bone="${t.bone}"`
+       + (t.at ? ` at="${t.at}"` : "") + (t.remove ? ` remove="${t.remove}"` : "") + " />";
+}
 function groupsXml() {
-  // 容器 = 真实子状态机：导出要带 entry（入口状态）
-  return groups.map(g => `\t\t<family name="${g.name}"${g.entry ? ` entry="${g.entry}"` : ""}>${g.members.join(" ")}</family>`).join("\n");
+  // 容器 = 真实子状态机：导出要带 entry（入口状态）+ **进出动作**（enter/leave）
+  //   + **骨挂持续粒子声明**（`<track particle="…" bone="…"/>` 子元素，2026-09-28）。
+  // 🔴 enter/leave 与 track 页面都**不编辑**（在 XML 里手写），但**绝不能弄丢** ——
+  //    丢了 = 特效永远不出现 / 动作永远不跑，而且是**静默**的。
+  return groups.map(g => {
+    const trs = (g.track && g.track.length) ? g.track : null;
+    const head = `\t\t<family name="${g.name}"${g.entry ? ` entry="${g.entry}"` : ""}`
+      + (g.enter ? ` enter="${g.enter}"` : "") + (g.leave ? ` leave="${g.leave}"` : "");
+    if (!trs) return head + `>${g.members.join(" ")}</family>`;
+    return head + ">\n" + trs.map(t => fxXml(t, "\t\t\t")).join("\n")
+         + "\n\t\t\t" + g.members.join(" ") + "\n\t\t</family>";
+  }).join("\n");
 }
 function statesXml() {
   // 🔴 状态轨道时间点必须**原样带回去**（2026-09-28）—— 页面不编辑它们，但**不能弄丢**：
   //    没有 track 就写自闭合 <state ... />，有就写成容器形式带子节点。
-  //    两种形态都支持：一次性 at=（比例）/ 周期 every=（秒）。
+  //    三种形态都支持：一次性 at=（比例）/ 周期 every=（秒）/ **骨挂持续粒子 particle=+bone=**。
+  // 🔴 同理 **enter / leave**（状态进出动作）：页面不编辑，但**绝不弄丢**（丢了 = 特效静默消失）。
   return states.map(s => {
     const trs = (s.track && s.track.length) ? s.track : null;
     const head = `\t\t<state name="${s.name}" act="${s.act}"`
       + (s.once ? ` once="true"` : "") + (s.dur ? ` duration="${s.dur}"` : "")
-      + (s.next ? ` next="${s.next}"` : "");
+      + (s.next ? ` next="${s.next}"` : "")
+      + (s.enter ? ` enter="${s.enter}"` : "") + (s.leave ? ` leave="${s.leave}"` : "");
     if (!trs) return head + " />";
-    const body = trs.map(t => `\t\t\t<track`
-      + (t.at ? ` at="${t.at}"` : "") + (t.every ? ` every="${t.every}"` : "")
-      + ` action="${t.action}" />`).join("\n");
+    const body = trs.map(t => t.particle
+      ? fxXml(t, "\t\t\t")
+      : `\t\t\t<track` + (t.at ? ` at="${t.at}"` : "") + (t.every ? ` every="${t.every}"` : "")
+        + ` action="${t.action}" />`).join("\n");
     return head + ">\n" + body + "\n\t\t</state>";
   }).join("\n");
 }
@@ -2327,11 +2372,28 @@ function applyXmlText(txt) {
   const fams = [].slice.call(doc.querySelectorAll("family"));
   const sts = [].slice.call(doc.querySelectorAll("state"));
   if (!ens.length && !fams.length && !sts.length) return {ok: false, msg: "没解析出任何 edge / family / state"};
-  if (fams.length) groups = fams.map(f => ({name: f.getAttribute("name"), entry: f.getAttribute("entry") || "",
-    members: (f.textContent || "").split(/\s+/).filter(Boolean)}));
+  if (fams.length) groups = fams.map(f => ({
+    name: f.getAttribute("name"), entry: f.getAttribute("entry") || "",
+    enter: f.getAttribute("enter") || "", leave: f.getAttribute("leave") || "",
+    // 🔴 **成员只取"直属文本"**（2026-09-28）—— 家族里还允许挂 `<track particle="…">` 子元素，
+    //    用 `textContent` 会把子元素一起吞（它们只有属性、暂无文本，但那是隐患）。
+    members: [].slice.call(f.childNodes).filter(n => n.nodeType === 3)
+              .map(n => n.nodeValue).join(" ").split(/\s+/).filter(Boolean),
+    // **家族级的骨挂持续粒子声明**：页面不编辑，但必须原样带回去（丢了 = 特效静默消失）
+    track: [].slice.call(f.querySelectorAll("track")).map(fxOf)}));
   if (sts.length) states = sts.map(s => ({name: s.getAttribute("name"), act: s.getAttribute("act"),
     once: (s.getAttribute("once") || "").toLowerCase() === "true" || !!s.getAttribute("duration"),
     dur: s.getAttribute("duration") || "", next: s.getAttribute("next") || "",
+    enter: s.getAttribute("enter") || "", leave: s.getAttribute("leave") || "",
+    // 🔴 **轨道时间点必须在这里读**（2026-09-28 修既有 bug）：`statesXml()` 一直会写 `track`，
+    //    但这里从来没**读**过 ⇒ 用户点「打开 XML…」之后工作区里 `s.track` 是空的，
+    //    再 Ctrl+S ⇒ **所有 `<track>` 被静默删掉**（落地特效 / 破空云迹的挂点当场消失）。
+    //    （Python 侧那份读取器一直有读，所以"页面自己生成的那份"是对的 —— 只有"打开真文件"这条会丢。）
+    //    两种形态：动作轨道（action=）/ **骨挂持续粒子**（particle=+bone=）。
+    track: [].slice.call(s.querySelectorAll("track")).map(t => t.getAttribute("particle")
+      ? fxOf(t)
+      : {at: t.getAttribute("at") || "", every: t.getAttribute("every") || "",
+         action: t.getAttribute("action") || ""}),
     clip: (stateByName[s.getAttribute("name")] || {}).clip || "?", durText: (stateByName[s.getAttribute("name")] || {}).durText || ""}));
   if (ens.length) edges = ens.map(nd => {
     const e = {from: nd.getAttribute("from"), to: nd.getAttribute("to"), blend: nd.getAttribute("blend") || "",
@@ -2501,7 +2563,7 @@ function renderFsChip() {
 document.getElementById("btn-newgroup").onclick = () => {
   let i = 1, name;
   do { name = "新容器" + i++; } while (groupByName[name]);
-  groups.push({name, entry: "", members: []});
+  groups.push({name, entry: "", enter: "", leave: "", track: [], members: []});
   reindex();                       // 🔴 新建后必须重建索引，否则 groupByName[新名] 不存在（同"改名拖不动"那种病）
   sel = {type: "group", id: name};
   openTab({kind: "group", id: name});

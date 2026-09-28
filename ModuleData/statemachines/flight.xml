@@ -21,53 +21,96 @@
         · 名字写错 = **装载期响亮报错**（同谓词），不会静默；
         · 动作里炸了不会带崩状态机（状态机侧包了 try/catch，只记一行 `[Anim:…]`）。
 
-     🔴🔴 **状态轨道时间点**（2026-09-28 立，**照 UE 的 AnimNotify 做的** —— 这也是特效该用的那条）：
+     🔴🔴 **状态轨道时间点**（2026-09-28 立，**照 UE 的 AnimNotify 做的**）：
         **两种写法**（同一个 `<track>` 元素）。
-        ⚠️ 下面两块是**示例文本、不是可复制的整段**（本段本身就在注释里，XML 注释**不能嵌套**）；
-        真正在用的两份，去看 `<states>` 里 `超人落地` 和 `fastmove` 那两个状态。
+        ⚠️ 下面是**示例文本、不是可复制的整段**（本段本身就在注释里，XML 注释**不能嵌套**）；
+        真正在用的，去看 `<states>` 里 `超人落地` / `fastmoveStart` / `进入飞行` 那三个状态。
 
-        ① **一次性**（落地特效用的那种）：`at` = 演到 clip 的百分之几时响一次 ——
+        ① **一次性**（落地 / 起步特效用的那种）：`at` = 演到 clip 的百分之几时响一次 ——
            `<state name="超人落地" …>` 里面挂 `<track at="0.067" action="land-fx" />`
-        ② **周期**（持续云迹 / 尾迹用的那种）：`every` = 状态期间每 N 秒刷一次 ——
-           `<state name="fastmove" …>` 里面挂 `<track every="0.5" action="boost-loop" />`
+        ② **周期**（"短命粒子不停刷"型持续特效用）：`every` = 状态期间每 N 秒刷一次 ——
+           `<state name="某状态" …>` 里面挂 `<track every="0.1" action="某动作" />`
+           ⚠️ **当前没有状态在用 `every`** —— 三件冲刺特效（手/身体/云迹）都改走骨挂持续发射了。
 
         · **一次性** `at` = **占整条 clip 的比例 0~1（不是秒）** —— 同 `anim-rem-pct` 的口径，
           **重导 clip 换了帧数不用改这个数**；
-        · **周期** `every` = **秒**（循环状态没有"百分之几"可言）—— 🔴 **持续特效靠它**：
-          UE 那边的"持续云迹"本来就是**短命粒子不停刷**出来的（云 0.2 s @10/秒、尾迹 0.15 s @75/秒），
-          所以**粒子资产做成"一次性 1 颗"，密度全由这个秒数控制** ⇒ **改密度不用重新发布粒子**，
-          也**绕开了"骨挂粒子摘不掉"那个死结**（不挂，只是刷）；
+        · **周期** `every` = **秒**（循环状态没有"百分之几"可言）—— 只适合**"短命粒子不停刷"**：
+          粒子资产做成"一次性 1 颗"、密度全由这个秒数控制 ⇒ **改密度不用重新发布粒子**；
+        · ⚠️ **周期刷只适合"短命"资产**（自己会停、`Emitter life` > 0）。**永不自己停的资产不能周期刷**
+          （会越堆越多）—— 那类（尾迹 / 云迹）走**容器的进出动作**（见上面那段）：挂一次、离开摘掉。
         · 一个状态可以挂**多个**点（UE 那边一条蒙太奇上就挂着 VFX / CameraShake / 相机 FOV 好几个）；
         · 每个点**一次进入只响一次 / 周期点进状态立刻响第一次**；
         · 🔴 **求值不受 `Hold` 影响** —— 落地/起飞这些相位状态正是被 `Hold` 住的，
           放进 Hold 门控里 = 永远不触发（实现时特意避开的坑）；
         · 🔴 **`enter` 与 `track` 的分工**：`enter` = "进状态**立刻**"（适合无相位差的时机），
-          `track` = "**演到百分之几 / 每 N 秒**"（**特效一律用这个** —— 撞地判定带容差，
+          `track` = "**演到百分之几 / 每 N 秒**"（**一次性特效一律用这个** —— 撞地判定带容差，
           进状态那一刻人还在空中一点点，立刻炸会看着早）。
+          ⚠️ **持续型**特效（挂上、之后一直发）不在这两者里 —— 那种走**容器的 enter/leave**（见上）。
         **UE 真值对照**：原项目落地蒙太奇 2.000 s，VFX 通知挂在 0.134 s = **6.7%**
         （`AM_SuperheroLanding_A~E` 五条逐条相同）—— 所以这里写 `at="0.067"`。
         ⚠️ **冲刺那两条没有 UE 真值可抄**（它们的通知挂在 AnimSequence 上，不在已导出的蒙太奇里）
-        ⇒ `fastmoveStart` / `进入飞行` 的 `at="0.1"` 与 `fastmove` 的 `every="0.5"` 都是**先给的感觉值**，实机觉得不对就调。
+        ⇒ `fastmoveStart` / `进入飞行` 的 `at="0.1"` 是**先给的感觉值**，实机觉得不对就调。
         🔴 **加一个特效 = 两处**：① C# 里 `AnimActions.Register("xxx-fx", …)`（`Flight/FlightAnimConditions.cs`）
-        ② 某状态的 `<track action="xxx-fx" />`。
-        **当前在用的四个动作名**（真身都在 `FlightAnimConditions.cs` 的 `RegisterAll` 末尾）：
+        ② 某状态的 `<track action="xxx-fx" />` **或** 某容器的 `enter=` / `leave=`（持续型用后者）。
+        **当前在用的动作名**（真身都在 `FlightAnimConditions.cs` 的 `RegisterAll` 末尾）：
         · `land-fx`   → `lwn_manual_fly_land`（**脚下方**的地面；`超人落地` 用）
         · `boost-fx`  → `lwn_manual_fly_booststart`（**身上**；`fastmoveStart` 与 `进入飞行` 用）
-        · `boost-loop`→ `lwn_manual_fly_boosting`（**身上 + 周期刷**；`fastmove` 用）
-        · `boost-hand`→ `lwn_manual_fly_handtrail`（**两只手各刷一颗**；`fastmove` 用）
+        · `hand-trail-on/off` → `lwn_manual_fly_handtrail`（**两手各一颗**，骨挂；`冲刺飞行` 家族）
+        · `body-trail-on/off` → `lwn_manual_fly_bodytrail`（**身体中心骨**，骨挂；`冲刺飞行` 家族）
+        · `boost-loop-on/off` → `lwn_manual_fly_boosting`（**身体中心骨**，骨挂；`冲刺飞行` 家族）
+          三件的挂点是**容器**（冲刺家族），复验命令 `custom.flight trail [hand|body|boost] on|off`
 
-        🔴 **手部尾迹为什么不是"骨挂"**：引擎的 `CreateParticleSystemAttachedToBone` **没有摘除句柄**
-        ⇒ 挂上去就摘不掉，冲刺一停尾迹还留在手上。所以**读手骨的世界坐标、在那儿周期炸**：
-        每 N 毫秒读一次、停手 = 不再刷 = 自然消失。
-        骨骼世界坐标的算法（抄 `custom.psys_head` 那段可用先例）：
-        `GetBoneEntitialFrameWithIndex` 给的是**实体局部** ⇒ 还要再乘 `visuals.GetGlobalFrame()`。
-        ⚠️ 骑砍**骨轴不沿肢体**，所以"往哪甩"不能用骨轴推，得用**世界方向**（或人的朝向）。
+     🔴🔴 **骨挂持续粒子 = 轨道声明**（2026-09-28 重做；用户裁定"内容不许写死在 C# 里"）：
+        **挂哪个粒子、挂哪几根骨、什么时候挂** —— 全写在轨道上；C# 只提供"怎么挂/怎么摘"的能力。
+
+        <family name="冲刺飞行" entry="fastmoveStart">
+            <track particle="lwn_manual_fly_handtrail" bone="HandL+HandR" />
+            ...
+        MembersGoHere
+        </family>
+
+        · `particle=` = 粒子系统名（内容包发布包里注册的那个）；`bone=` = **`HumanBone` 枚举名**，
+          多个用 `+` 连（`HandL+HandR` / `Abdomen` / `Spine1` / `Thorax`）—— 两个都在**装载期逐个校验**；
+        · **不写 `at`/`remove` ⇒ 整个作用域期间都在**；写了 = **占 clip 的比例 0~1**（同 `at=` 的口径）：
+          `at="0.2"` 演到 20% 挂上 · `remove="0.7"` 演到 70% 摘掉（`remove` 必须大于 `at`）；
+        · 🔴 **离开作用域一定摘**（用户 2026-09-28 裁定："如果离开状态了就要 remove"）——
+          不管 `at` 到没到、`remove` 过没过；
+        · **写在哪决定作用域**：
+          · 写在 `<state>` 里 ⇒ 作用域 = **这一个状态**（`at`/`remove` 是这条 clip 的比例）；
+          · 写在 `<family>` 里 ⇒ 作用域 = **整个家族**，⚠️ **不许写 `at`/`remove`**（家族没有"百分之几"可言，
+            写了装载期报错）。**家族级存在的理由** = 内部状态互切时**不反复 add/remove**（冲刺家族里
+            `fastmove ⇄ fastmovePitchU/D` 会频繁互切 —— 写在状态上就会"每切一次摘了再挂"）；
+          · 🔴 **同一个粒子不许既写在家族上、又写在该家族的状态上**（装载期报错：状态退出会把家族级的一起摘掉）。
+        · **执行者** = `Flight/FlightBoneFx.cs`（实现 `IAnimFxHost`），**它一个粒子名都不认识**；
+          状态机只喊"把某粒子挂到某几根骨上"。别的系统要用同一套语法 = 再写一个 `IAnimFxHost` 实现。
+        · **验收命令**：`custom.flight trail`（列当前挂着的）· `on <粒子名>` / `off <粒子名>`（单独挂/摘）。
+
+        🔴🔴 **做对它的关键就一条**：粒子必须挂在**场景里的实体**上
+        （`GameEntity.CreateEmpty` → `CreateParticleSystemAttachedToEntity` → `AddChildEntity`
+        → `AddComponentToBone`）。**直接拿裸 `Skeleton` 建粒子 = 日志一切正常、画面全空**
+        （2026-09-28 实机栽过一次，详见 wheels.d/spells.md）。
+
+     🔴 **容器的进出动作**（2026-09-28 立）：`<family … enter="动作名" leave="动作名">` ——
+        与状态的那两个完全一样（XML 只写名字，真身在 `AnimActions`），区别只在**触发点**：
+        状态动作看"进 / 出**某一个状态**"，这里看"进 / 出**这个容器**"。
+        · **可以写多个，用半角逗号分隔**（`enter="a-fx,b-fx"`，按写的先后跑）；
+        · **只在换了容器时响**；顺序 = **进由外到内 / 出由内到外**；
+        · **带动作的容器不许嵌套**；名字写错 = 装载期响亮报错。
+        · ⚠️ 它跟上面的**骨挂粒子声明是两回事**：这条是"跑一个已登记的 C# 动作"，
+          上面那条是"把某个粒子挂到某几根骨上（粒子和骨都是数据）"。**持续特效优先用上面的**。
+
+        🔴 **旧写法（已废）**：手部尾迹曾用"每 0.06 秒读手骨世界坐标、在那儿 `CreateBurstParticle`
+        炸一颗"、云迹曾用"每 0.5 秒在'身上'炸一颗"。两个硬伤：① `CreateBurstParticle` 是**定点**的，
+        粒子不跟手走 ⇒ 只能连成**虚线**；② 资产若是**持续型**，每刷一次就开一个**永不结束**的发射器
+        ⇒ **无限叠加**。**"粒子摘不掉"那条旧结论也只对 `CreateBurstParticle` 成立** ——
+        挂实体 / 挂骨**都返回 `ParticleSystem` 句柄**，摘除口 `Skeleton.RemoveBoneComponent` /
+        `Entity.RemoveComponent`。
 
         🔴 **周期点 `every` 该填多少 —— 取决于资产自己的 `Emitter life`**（重要，别拍脑袋）：
         · 资产**自己会停**（`Emitter life` &gt; 0）⇒ `every` 填它的**一半左右**，两批首尾叠上 = 看着连续；
         · 资产**永不自己停**（`Emitter life` = 0）⇒ **不能周期刷**（系统会越堆越多），
           得改成"进状态刷一次"（把 `every` 去掉、只留一个 `at`，或改用 `enter` 动作）。
-        ⚠️ `lwn_manual_fly_boosting` 的 `Emitter life` **还没确认**，当前 `every="0.5"` 是按"活 ~1 秒"估的。
+        ⚠️ **`every` 现在只剩"短命粒子不停刷"这一种用法**（当前只有 `boost-fx` / `land-fx` 两条 `at=`）。
 
         🔴 **起飞先借 `booststart`**（2026-09-28 用户裁定：「hovermovestart 也可以用 booststart 先看看效果」）——
         等 `NS_Flight_Hover_Start`（UE 那边是个贴地的环）单独做出来，再换成它自己的粒子。
@@ -199,7 +242,10 @@
 	       写在 <families> / <states> / <edges> 里面的注释导出时会被覆盖掉。） -->
 	<families>
 		<family name="悬浮飞行" entry="进入飞行">FlyHoverLocomotion 进入飞行</family>
-		<family name="冲刺飞行" entry="fastmoveStart">FlyFastPoses fastmoveStart dodgeL dodgeR dodgeU dodgeD</family>
+		<family name="冲刺飞行" entry="fastmoveStart">
+			<track particle="lwn_manual_fly_boosting" bone="Abdomen" />
+			FlyFastPoses fastmoveStart dodgeL dodgeR dodgeU dodgeD
+		</family>
 		<family name="FlyHoverLocomotion" entry="idle">hovermove idle</family>
 		<family name="FlyFastPoses" entry="fastmove">fastmove fastmoveLeanL fastmoveLeanR fastmovePitchU fastmovePitchD</family>
 	</families>
@@ -215,10 +261,7 @@
 		<state name="超人落地" act="act_fly_superland" once="true">
 			<track at="0.067" action="land-fx" />
 		</state>
-		<state name="fastmove" act="act_fly_fastmove">
-			<track every="0.5" action="boost-loop" />
-			<track every="0.06" action="boost-hand" />
-		</state>
+		<state name="fastmove" act="act_fly_fastmove" />
 		<state name="fastmoveLeanL" act="act_fly_fastmove_lean_l" />
 		<state name="fastmoveLeanR" act="act_fly_fastmove_lean_r" />
 		<state name="fastmovePitchU" act="act_fly_fastmove_addu" />

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs.Animation
@@ -507,7 +508,14 @@ namespace LivingWorldNpcs.Animation
         /// </summary>
         private void TickTrack()
         {
-            if (_current == null || _current.Track == null || _current.Track.Count == 0)
+            if (_current == null)
+            {
+                return;
+            }
+            // 🔴 **骨挂粒子的时间点也要跑**（2026-09-28）—— 所以**不能**在"没有动作轨道时提前 return"：
+            //    一个状态可以只挂 `particle=`（进 `Fx` 不进 `Track`），提前返回会让它的 at/remove 永不触发。
+            TickFx(_current.Fx);
+            if (_current.Track == null || _current.Track.Count == 0)
             {
                 return;
             }
@@ -537,11 +545,43 @@ namespace LivingWorldNpcs.Animation
             }
         }
 
+        /// <summary>跑状态级骨挂粒子的时间点（<see cref="TickTrack"/> 的一部分）。</summary>
+        private void TickFx(List<AnimFxPoint> fx)
+        {
+            if (fx == null || _def.FxHost == null)
+            {
+                return;
+            }
+            float p = CurrentProgress;
+            for (int i = 0; i < fx.Count; i++)
+            {
+                AnimFxPoint f = fx[i];
+                if (!f.Added && p >= f.At)
+                {
+                    f.Added = true;
+                    try { _def.FxHost.AttachFx(f.Particle, f.Bones); }
+                    catch (Exception ex) { DebugLogger.Log($"[Anim:{_def.Name}] 挂粒子 '{f.Particle}' 异常（已忽略）: {ex.Message}"); }
+                }
+                if (f.Remove >= 0f && f.Added && !f.Removed && p >= f.Remove)
+                {
+                    f.Removed = true;
+                    try { _def.FxHost.DetachFx(f.Particle); }
+                    catch (Exception ex) { DebugLogger.Log($"[Anim:{_def.Name}] 摘粒子 '{f.Particle}' 异常（已忽略）: {ex.Message}"); }
+                }
+            }
+        }
+
         /// <summary>把 0 号通道还给引擎（收摊 / 落地时调；之后 <see cref="Current"/> 变 null）。</summary>
         public void Release(Agent agent)
         {
             // 🔴 离开当前状态 ⇒ 先跑它的 leave 动作（含"出机"这条收摊路；2026-09-28）。
+            //    收摊同样要**出容器**（出机 = 离开冲刺家族 ⇒ 家族 leave 必须响，否则尾迹留在手上）。
+            //    顺序同 Enter：由内到外（先状态、后家族）。
             RunAction(_current != null ? _current.LeaveAction : null, "leave", _current?.Name);
+            RunFamilyAction(_def.FamilyOf(_current?.Name), isLeave: true);
+            // 🔴 收摊 = 离开状态 + 离开家族 ⇒ 两级的骨挂粒子都摘（否则尾迹留在身上）
+            DetachFxList(_current?.Fx);
+            DetachAllFamilyFx(_current?.Name);
             _current = null;
             _inOutside = true;         // 收摊 = 机外（使用方靠 Current == OutsideState 判"该还控制权了"）
             _elapsed = 0f;
@@ -578,6 +618,138 @@ namespace LivingWorldNpcs.Animation
             catch (Exception ex)
             {
                 DebugLogger.Log($"[Anim:{_def.Name}] 状态 '{stateName ?? "-"}' 的 {kind} 动作异常（已忽略）: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// **跑一张骨挂粒子声明表**（2026-09-28）—— `attach` = 挂上（幂等）。
+        /// <paramref name="resetFlags"/> = 进作用域时重置"已挂/已摘"标记（`At`/`Remove` 每次进入只响一次）。
+        /// 宿主（`_def.FxHost`）没配 = 这台机器不挂粒子，安静跳过。
+        /// </summary>
+        private void AttachFxList(List<AnimFxPoint> fx, bool resetFlags)
+        {
+            if (fx == null || _def.FxHost == null)
+            {
+                return;
+            }
+            for (int i = 0; i < fx.Count; i++)
+            {
+                AnimFxPoint p = fx[i];
+                if (resetFlags)
+                {
+                    p.Added = false;
+                    p.Removed = false;
+                }
+                if (p.Added || p.At > 0f)
+                {
+                    continue;      // 已经挂上 / 还要等 `at` 到点（由 TickTrack 负责）
+                }
+                p.Added = true;
+                try { _def.FxHost.AttachFx(p.Particle, p.Bones); }
+                catch (Exception ex) { DebugLogger.Log($"[Anim:{_def.Name}] 挂粒子 '{p.Particle}' 异常（已忽略）: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>**摘掉一张骨挂粒子声明表**（离开作用域时调；幂等，没挂就什么也不做）。</summary>
+        private void DetachFxList(List<AnimFxPoint> fx)
+        {
+            if (fx == null || _def.FxHost == null)
+            {
+                return;
+            }
+            for (int i = 0; i < fx.Count; i++)
+            {
+                AnimFxPoint p = fx[i];
+                try { _def.FxHost.DetachFx(p.Particle); }
+                catch (Exception ex) { DebugLogger.Log($"[Anim:{_def.Name}] 摘粒子 '{p.Particle}' 异常（已忽略）: {ex.Message}"); }
+                p.Added = false;
+                p.Removed = false;
+            }
+        }
+
+        /// <summary>
+        /// **家族级的骨挂粒子：按"命中的家族集合"做差集**（2026-09-28 修）。
+        ///
+        /// 🔴 **为什么不是"家族变了就换"**：家族归属跟 `enter=`/`leave=` 钩子**是两件事**
+        ///    （家族可以不写钩子、只挂粒子）。而且家族**可嵌套** ⇒ 一个状态可能同时命中共几个家族。
+        ///    所以判据 = 「**新状态命中的家族集合** − **旧状态命中的集合**」= 该挂的；
+        ///    反过来 = 该摘的。同一个家族两边都有 ⇒ 不动（**家族内部互切不重挂**，这正是家族级的意义）。
+        /// </summary>
+        private void ApplyFamilyFx(string oldState, string newState)
+        {
+            List<string> oldFams = _def.FxFamiliesOf(oldState);
+            List<string> newFams = _def.FxFamiliesOf(newState);
+            if (oldFams == null && newFams == null)
+            {
+                return;
+            }
+            // 出：旧有、新没有
+            if (oldFams != null)
+            {
+                for (int i = 0; i < oldFams.Count; i++)
+                {
+                    if (newFams != null && newFams.Contains(oldFams[i]))
+                    {
+                        continue;
+                    }
+                    DetachFxList(_def.FamilyFxOf(oldFams[i]));
+                }
+            }
+            // 进：新有、旧没有
+            if (newFams != null)
+            {
+                for (int i = 0; i < newFams.Count; i++)
+                {
+                    if (oldFams != null && oldFams.Contains(newFams[i]))
+                    {
+                        continue;
+                    }
+                    AttachFxList(_def.FamilyFxOf(newFams[i]), resetFlags: true);
+                }
+            }
+        }
+
+        /// <summary>**离开当前状态所属的全部粒子家族**（收摊 / 出机时用）。</summary>
+        private void DetachAllFamilyFx(string stateName)
+        {
+            List<string> fams = _def.FxFamiliesOf(stateName);
+            if (fams == null)
+            {
+                return;
+            }
+            for (int i = 0; i < fams.Count; i++)
+            {
+                DetachFxList(_def.FamilyFxOf(fams[i]));
+            }
+        }
+
+        /// <summary>
+        /// 跑一个**容器（家族）的进出动作**（2026-09-28 立）—— 只在"**换了容器**"时响，
+        /// 容器内部的状态互切不响（那是它与状态动作的唯一区别，也是它存在的理由，见 <see cref="AnimFamilyHooks"/>）。
+        ///
+        /// 复用 <see cref="RunAction"/> 的"绝不外抛"（容器动作同样是每帧可能跑的公共件）。
+        /// </summary>
+        private void RunFamilyAction(string family, bool isLeave)
+        {
+            if (string.IsNullOrEmpty(family))
+            {
+                return;
+            }
+            AnimFamilyHooks hooks;
+            if (!_def.TryGetFamilyHooks(family, out hooks))
+            {
+                return;
+            }
+            // 🔴 一个容器可以挂**多个**动作（XML 里逗号分隔）—— 按写的先后顺序跑。
+            Action<AnimContext>[] acts = isLeave ? hooks.Leave : hooks.Enter;
+            if (acts == null)
+            {
+                return;
+            }
+            string kind = isLeave ? "leave[容器]" : "enter[容器]";
+            for (int i = 0; i < acts.Length; i++)
+            {
+                RunAction(acts[i], kind, family);
             }
         }
 
@@ -635,9 +807,24 @@ namespace LivingWorldNpcs.Animation
             // 🔴 **进出动作**（2026-09-28）：leave 在**离开旧状态之前**跑，enter 在**状态真正确立之后**跑。
             //    两边都包 try/catch（见 RunAction）—— 动作炸了只记日志，绝不带崩状态机（铁律 1）。
             //    `runActions: false`（Reassert 补写）时两边都不跑 —— 那不算"进入"。
+            // 🔴 **容器（家族）那层**按"**进由外到内、出由内到外**"排：
+            //    出容器 = 先状态 leave、后家族 leave；进容器 = 先家族 enter、后状态 enter。
+            //    而且只在**换了容器**时才响 —— 容器内部互切不重挂（持续特效靠这条，见 AnimFamilyHooks）。
+            string oldFamily = _def.FamilyOf(_current?.Name);
+            string newFamily = _def.FamilyOf(state.Name);
+            bool familyChanged = !string.Equals(oldFamily, newFamily, StringComparison.Ordinal);
             if (runActions)
             {
                 RunAction(_current != null ? _current.LeaveAction : null, "leave", _current?.Name);
+                // 🔴 **离开状态 ⇒ 它声明的骨挂粒子全摘**（用户 2026-09-28 裁定：
+                //    "如果离开状态了就要 remove" —— 不管 at 到没到、remove 过没过）。
+                DetachFxList(_current?.Fx);
+                if (familyChanged)
+                {
+                    RunFamilyAction(oldFamily, isLeave: true);
+                }
+                // 家族级的骨挂粒子：按"命中的家族集合"做差集（与钩子无关，见 ApplyFamilyFx）
+                ApplyFamilyFx(_current?.Name, state.Name);
             }
 
             _current = state;
@@ -653,6 +840,12 @@ namespace LivingWorldNpcs.Animation
                         state.Track[i].NextAt = 0f;     // 周期点：进状态立刻响第一次
                     }
                 }
+                if (familyChanged)
+                {
+                    RunFamilyAction(newFamily, isLeave: false);
+                }
+                // 进状态 ⇒ 状态级声明：标记清零；`at` 没写的（= 0）立刻挂
+                AttachFxList(state.Fx, resetFlags: true);
                 RunAction(state.EnterAction, "enter", state.Name);
             }
             _blendIn = useBlend;        // 淡入期间不认引擎给的进度（见 ProgressTrustworthy）

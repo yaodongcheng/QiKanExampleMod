@@ -92,6 +92,14 @@ namespace LivingWorldNpcs.Animation
         /// </summary>
         public List<AnimTrackPoint> Track;
 
+        /// <summary>
+        /// **本状态期间要挂着的骨挂持续粒子**（2026-09-28 立）—— 由
+        /// <c>&lt;track particle="…" bone="…" /&gt;</c> 的**声明式**形式装载。
+        /// 🔴 与 <see cref="Track"/> 的区别：`Track` 是"某一刻跑一下动作"，这里是"**一段时间内一直挂着**"。
+        /// 离开本状态时**一定全部摘掉**（见 <see cref="AnimFxPoint"/> 的生存期语义）。
+        /// </summary>
+        public List<AnimFxPoint> Fx;
+
         /// <summary>一次性状态：播完自动去 <paramref name="next"/>。</summary>
         public static AnimState Once(string name, string action, string next, float duration = 0f, float nextBlend = 0.25f)
             => new AnimState { Name = name, Action = action, OneShot = true, Next = next, Duration = duration, NextBlend = nextBlend };
@@ -248,6 +256,96 @@ namespace LivingWorldNpcs.Animation
     }
 
     /// <summary>
+    /// **一个容器（家族）的进出动作**（2026-09-28 立）—— 与 <see cref="AnimState.EnterAction"/> 同一套路
+    /// （XML 里只写名字，真身在 <see cref="AnimActions"/>），区别只在**触发点**：
+    /// 状态动作看"进/出**某一个状态**"，这里看"进/出**这个容器**"。
+    ///
+    /// 🔴 **为什么需要它**（手部尾迹逼出来的，2026-09-28）：冲刺是**一个家族**
+    ///    （`fastmove` + 4 个姿态 + 起手 + 4 个闪避），而家族**内部**的状态会频繁互切
+    ///    （爬升 / 俯冲 = `fastmove ⇄ fastmovePitchU/D`）。把"挂特效/摘特效"摊到每个状态上
+    ///    ⇒ 每切一次就"先摘再挂" = 粒子清空重来（尾迹一段段地断）。
+    ///    容器级钩子只认"**进出这个容器**"，内部怎么切都不响 —— 这才是"持续特效"的正确挂点。
+    ///
+    /// ⚠️ **触发顺序**（由 <see cref="AgentAnimStateMachine"/> 保证）：**进容器由外到内**
+    ///    （先家族 enter、后状态 enter）、**出容器由内到外**（先状态 leave、后家族 leave）。
+    /// ⚠️ **带钩子的容器不许嵌套**（一个状态同时属于两个带钩子的容器）= 装载期报错，不猜。
+    /// </summary>
+    public sealed class AnimFamilyHooks
+    {
+        /// <summary>容器名。</summary>
+        public string Name;
+
+        /// <summary>
+        /// 进入这个容器时要跑的**全部**动作（按 XML 里写的先后顺序）。
+        /// null / 空 = 没有。**支持逗号分隔写多个**（`enter="hand-trail-on,body-trail-on"`）。
+        /// </summary>
+        public Action<AnimContext>[] Enter;
+
+        /// <summary>离开这个容器时要跑的**全部**动作（顺序同 <see cref="Enter"/>）。</summary>
+        public Action<AnimContext>[] Leave;
+    }
+
+    /// <summary>
+    /// **一条"骨挂持续粒子"的声明**（2026-09-28 立）—— 由 XML 的
+    /// <c>&lt;track particle="粒子名" bone="HandL+HandR" /&gt;</c> 装载而来。
+    ///
+    /// 🔴 **为什么做成"声明"而不是 C# 里写死的清单**（用户 2026-09-28 裁定）：
+    ///    挂哪个粒子、挂哪几根骨、什么时候挂 —— **全是内容，应该写在轨道上**；
+    ///    C# 只提供**能力**（怎么挂 / 怎么摘），不规定内容。
+    ///
+    /// 🔴 **生存期语义**：
+    ///    · 不写 <see cref="At"/> / <see cref="Remove"/> ⇒ **整个作用域期间都在**
+    ///      （状态级 = 状态期间 / 家族级 = 在这个家族里期间）；
+    ///    · **离开作用域一定摘**（用户裁定："如果离开状态了就要 remove"）——
+    ///      哪怕 <see cref="At"/> 还没到 / <see cref="Remove"/> 已经过了。
+    ///
+    /// 🔴 **状态级 vs 家族级**（写在不同元素上）：
+    ///    · 写在 `<state>` 里 ⇒ 作用域 = **这一个状态**；`At`/`Remove` = **占这条 clip 的比例 0~1**
+    ///      （与一次性轨道点同一个口径，重导 clip 换帧数不用改）；
+    ///    · 写在 `<family>` 里 ⇒ 作用域 = **整个家族**；家族**没有"百分之几"可言**
+    ///      ⇒ **不许写 `At`/`Remove`**（装载期报错），也就是说家族级一律"全程"。
+    ///      这是**为避免家族内部互切时反复 add/remove** 而存在的形式（用户 2026-09-28 要求）。
+    ///    · 状态是**循环**的话，`At`/`Remove` **每次进状态只响一次**（同 <see cref="AnimTrackPoint.Fired"/> 的纪律）。
+    /// </summary>
+    public sealed class AnimFxPoint
+    {
+        /// <summary>粒子系统名（内容包发布包里注册的那个）。</summary>
+        public string Particle;
+
+        /// <summary>
+        /// 挂到哪几根骨 —— **`HumanBone` 枚举的名字**（如 `HandL` / `Abdomen`），多个用 `+` 连。
+        /// 装载期逐个解析校验（写错 = 整台不注册，不静默）。
+        /// </summary>
+        public string[] Bones;
+
+        /// <summary>挂上时机（占 clip 比例 0~1；0 = 进作用域立刻挂）。家族级恒为 0。</summary>
+        public float At;
+
+        /// <summary>摘下时机（占 clip 比例 0~1；**&lt;0 = 不显式摘**，离开作用域时才摘）。</summary>
+        public float Remove = -1f;
+
+        /// <summary>本次进入作用域内，`At` 是不是已经响过（进作用域时清零）。</summary>
+        internal bool Added;
+
+        /// <summary>本次进入作用域内，`Remove` 是不是已经响过（进作用域时清零）。</summary>
+        internal bool Removed;
+    }
+
+    /// <summary>
+    /// **骨挂粒子的"宿主"**（2026-09-28 立）—— 状态机只认识这个接口，**不认识引擎**
+    /// （它不该知道 `GameEntity` / `ParticleSystem` 这些东西）。引擎侧的实现由各系统提供：
+    /// 飞行 = `Flight/FlightBoneFx.cs`；别的系统要用同一套轨道语法，就再写一个实现。
+    /// </summary>
+    public interface IAnimFxHost
+    {
+        /// <summary>挂上（幂等：已经挂着就重挂）。失败自己吞掉 + 记日志（调用方是每帧跑的状态机）。</summary>
+        void AttachFx(string particle, string[] bones);
+
+        /// <summary>摘掉（幂等：本来没挂就什么也不做）。</summary>
+        void DetachFx(string particle);
+    }
+
+    /// <summary>
     /// **一台状态机的完整定义**（状态表 + 转移表）—— 这就是"注册"的东西。
     ///
     /// 写法（照 `Flight/FlightAnimMachine.cs`）：
@@ -352,8 +450,171 @@ namespace LivingWorldNpcs.Animation
         }
 
         /// <summary>
+        /// **带进出动作的容器**（容器名 → 钩子）。见 <see cref="AnimFamilyHooks"/>。
+        /// </summary>
+        private readonly Dictionary<string, AnimFamilyHooks> _familyHooks =
+            new Dictionary<string, AnimFamilyHooks>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// **叶子状态 → 它归属的那个带钩子的容器**（只装带钩子的容器；没带钩子的容器不进这张表）。
+        /// 运行时靠它回答"从 A 切到 B 算不算换容器"（<see cref="FamilyOf"/>）。
+        /// </summary>
+        private readonly Dictionary<string, string> _hookFamilyOfState =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// 声明一个容器的进出动作（**装载期**调；<paramref name="leaves"/> = 这个容器展开后的叶子状态）。
+        /// 两个动作都给 null = 什么也不做（调用方不必先判）。
+        /// </summary>
+        public AnimMachineDef AddFamilyHooks(string family, string[] leaves,
+                                            Action<AnimContext>[] enter, Action<AnimContext>[] leave)
+        {
+            if (string.IsNullOrEmpty(family))
+            {
+                throw new ArgumentException("AddFamilyHooks 需要容器名");
+            }
+            bool hasEnter = enter != null && enter.Length > 0;
+            bool hasLeave = leave != null && leave.Length > 0;
+            if (!hasEnter && !hasLeave)
+            {
+                return this;
+            }
+            if (_familyHooks.ContainsKey(family))
+            {
+                throw new ArgumentException("容器 '" + family + "' 的进出动作重复声明");
+            }
+            _familyHooks[family] = new AnimFamilyHooks
+            {
+                Name = family,
+                Enter = hasEnter ? enter : null,
+                Leave = hasLeave ? leave : null,
+            };
+            if (leaves != null)
+            {
+                for (int i = 0; i < leaves.Length; i++)
+                {
+                    if (!string.IsNullOrEmpty(leaves[i]))
+                    {
+                        _hookFamilyOfState[leaves[i]] = family;
+                    }
+                }
+            }
+            return this;
+        }
+
+        /// <summary>
+        /// 这个状态属于哪个**带进出动作的**容器（不属于任何 = null；<paramref name="stateName"/> 为空也返回 null）。
+        /// 🔴 只认带钩子的容器 —— 没挂动作的容器跟"没有容器"在运行时是一回事（进出都不用做事）。
+        /// </summary>
+        public string FamilyOf(string stateName)
+        {
+            if (string.IsNullOrEmpty(stateName))
+            {
+                return null;
+            }
+            return _hookFamilyOfState.TryGetValue(stateName, out string fam) ? fam : null;
+        }
+
+        /// <summary>取一个容器的进出动作（没声明过 = false）。</summary>
+        public bool TryGetFamilyHooks(string family, out AnimFamilyHooks hooks)
+        {
+            hooks = null;
+            return !string.IsNullOrEmpty(family) && _familyHooks.TryGetValue(family, out hooks);
+        }
+
+        /// <summary>这个叶子状态是不是已经归给另一个带钩子的容器了（**装载期查重用**）。</summary>
+        public bool TryGetHookFamilyOfState(string stateName, out string family)
+        {
+            return _hookFamilyOfState.TryGetValue(stateName, out family);
+        }
+
+        /// <summary>
+        /// **每个家族声明了哪些骨挂持续粒子**（家族名 → 声明列表；没声明 = 不在表里）。
+        /// 生存期 = 在这个家族里期间（内部互切不重挂 —— 这正是家族级存在的理由）。
+        /// </summary>
+        private readonly Dictionary<string, List<AnimFxPoint>> _familyFx =
+            new Dictionary<string, List<AnimFxPoint>>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// **状态 → 声明了骨挂粒子的家族名单**（可能不止一个：家族可以嵌套）。
+        ///
+        /// 🔴 **这张表必须独立于"家族有没有进出动作"**（2026-09-28 实机栽过）：
+        ///    最初"状态属于哪个家族"是**顺手从带 `enter=`/`leave=` 钩子的家族**推出来的 ——
+        ///    后来持续特效改用 `<track particle=>`、家族不再写钩子 ⇒ 那张映射直接空了
+        ///    ⇒ 状态机**不知道 `fastmove` 属于"冲刺飞行"** ⇒ 家族级声明永远匹配不上，
+        ///    **一件特效都不挂**（而 XML 装载日志一切正常）。归属与钩子是两件事，必须分开记。
+        /// </summary>
+        private readonly Dictionary<string, List<string>> _fxFamiliesOfState =
+            new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// **骨挂粒子的执行者** —— 状态机不懂引擎，只知道"把某个粒子挂到这几根骨上"。
+        /// 由各系统在注册时赋值（飞行 = `FlightBoneFx`）；null = 这台机器不挂粒子
+        /// （轨道里写了 `particle=` 也**安静地不动作**？—— 不：装载期会报错，见 `AnimMachineLoader`）。
+        /// </summary>
+        public IAnimFxHost FxHost;
+
+        /// <summary>
+        /// 加一组家族级骨挂声明（**装载期**调）—— <paramref name="leaves"/> = 这个家族**展开后的叶子状态**，
+        /// 用来反向建"状态 → 家族"表（见 <see cref="_fxFamiliesOfState"/>）。
+        /// </summary>
+        public AnimMachineDef AddFamilyFx(string family, string[] leaves, List<AnimFxPoint> fx)
+        {
+            if (string.IsNullOrEmpty(family) || fx == null || fx.Count == 0)
+            {
+                return this;
+            }
+            _familyFx[family] = fx;
+            if (leaves != null)
+            {
+                for (int i = 0; i < leaves.Length; i++)
+                {
+                    string leaf = leaves[i];
+                    if (string.IsNullOrEmpty(leaf))
+                    {
+                        continue;
+                    }
+                    if (!_fxFamiliesOfState.TryGetValue(leaf, out List<string> list))
+                    {
+                        list = new List<string>();
+                        _fxFamiliesOfState[leaf] = list;
+                    }
+                    if (!list.Contains(family))
+                    {
+                        list.Add(family);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /// <summary>
+        /// **这个状态命中了哪些"声明了骨挂粒子的家族"**（可能多个 —— 家族可嵌套；一个都没命中 = null）。
+        /// 状态机靠它判断"换状态时该挂谁、该摘谁"。
+        /// </summary>
+        public List<string> FxFamiliesOf(string stateName)
+        {
+            if (string.IsNullOrEmpty(stateName))
+            {
+                return null;
+            }
+            return _fxFamiliesOfState.TryGetValue(stateName, out List<string> list) ? list : null;
+        }
+
+        /// <summary>取某个家族的骨挂声明（没声明 = null）。</summary>
+        public List<AnimFxPoint> FamilyFxOf(string family)
+        {
+            if (string.IsNullOrEmpty(family))
+            {
+                return null;
+            }
+            return _familyFx.TryGetValue(family, out List<AnimFxPoint> fx) ? fx : null;
+        }
+
+        /// <summary>
         /// **从某个状态出发的边**（**顺序 = 全局优先级**，含 `from="*"` 的兜底边）。
         ///
+
         /// 🔴 **状态机任何时刻只在一个状态里**（2026-09-26 用户指出）⇒ 每帧只有这些边**可能**命中，
         ///    全量扫整张表既是浪费、也会让人误读成"顺序是全局的事"。这里按状态**预先分好并缓存**：
         ///    · 容器来源在**装载期**就展开成叶子状态了（每个成员各进一份）⇒ 这里天然覆盖"父容器的边"
