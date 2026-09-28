@@ -69,8 +69,12 @@ namespace LivingWorldNpcs
 		/// <summary>投送轴实现 id。</summary>
 		public string Delivery;
 
-		/// <summary>结算轴实现 id 列表（每个都收到同一次命中事件）。</summary>
-		public readonly List<string> Payloads = new List<string>();
+		/// <summary>
+		/// 结算轴实现 id 列表（每个都收到同一次命中事件）。
+		/// ⚠️ 刻意**不加 readonly**：<see cref="Clone"/> 要用 MemberwiseClone 复制整份定义，
+		/// 而"解算会就地改的容器"必须换成新的一份（readonly 字段只有构造函数里能重新赋值）。
+		/// </summary>
+		public List<string> Payloads = new List<string>();
 
 		// ── 视觉（全在内容包，LWN 只认名字）──
 		/// <summary>飞行网格名（MetaMesh 名）。空 = 不画飞行物（但仍会飞、会命中）。</summary>
@@ -105,7 +109,19 @@ namespace LivingWorldNpcs
 		/// <summary>初速（米/秒）。手感的唯一旋钮（原版弩 60）。</summary>
 		public float Speed = 60f;
 
-		/// <summary>重力（米/秒²）。0 = 平飞；&gt;0 = 抛物线下坠（瞄准时按抛物线解算初速）。</summary>
+		/// <summary>
+		/// 初速 × 修正倍率 —— 🔴 **发射解算唯一读这个**（<see cref="SpellAim.Emit"/> 与天降的起落速度）。
+		/// 只加一处的理由：两处都乘一遍 = 挂"加速"宝石会变成平方。
+		/// </summary>
+		public float EffectiveSpeed
+		{
+			get { return Speed * (SpeedScale > 0.01f ? SpeedScale : 0.01f); }
+		}
+
+		/// <summary>
+		/// 重力（米/秒²）—— 🔴 **带符号**：<c>&gt;0</c> = 往下掉（瞄准时按抛物线解算初速）·
+		/// <c>0</c> = 平飞 · <c>&lt;0</c> = **反重力**（往上飘；不平抛解算，直接照瞄准方向打出去）。
+		/// </summary>
 		public float Gravity;
 
 		/// <summary>
@@ -246,6 +262,151 @@ namespace LivingWorldNpcs
 
 		/// <summary>施法方式：normal（有前摇）/ channel（按住持续）/ instant（瞬发）。</summary>
 		public string CastType = "normal";
+
+		// ═══════════════════════════════════════════════════════════════════════
+		// 阶段 5：**修正机制**读的那些属性（计划 §16.1 的八个作用点）
+		//
+		// 🔴 纪律：**每一个字段都必须能说出它在八处（①推进 ②定向 ③命中查询 ④命中裁决 ⑤触发 ⑥到期
+		//   ⑦表现 ⑧结算）的哪一处被读**；说不出来的 = 装饰品，不进 <see cref="SpellFields"/> 那张表。
+		// 🔴 这些字段全部默认"等于现状" —— 所以**旧法术的行为一个都不变**（阶段 5 的验收第 2 条）。
+		// ═══════════════════════════════════════════════════════════════════════
+
+		// ── ① 推进 ──
+		/// <summary>初速倍率（修正改速度走它；<see cref="Speed"/> 是绝对值、留给数据直接设）。</summary>
+		public float SpeedScale = 1f;
+
+		/// <summary>空气阻力（每秒衰减比例；0 = 不减速）。</summary>
+		public float Drag;
+
+		/// <summary>沿飞行方向的加速度（米/秒²；负数 = 边飞边慢）。</summary>
+		public float Accel;
+
+		/// <summary>起飞后多少秒才开始追踪（秒；0 = 立刻追）。</summary>
+		public float TurnDelay;
+
+		// ── ② 定向 ──
+		/// <summary>
+		/// 网格朝向模式：<c>fixed</c>（**默认** = 进入时算一次、之后只挪位置 —— 现状）
+		/// 或 <c>velocity</c>（每帧按当前速度方向重算 —— 追踪弹才需要）。
+		/// </summary>
+		public string OrientMode = "fixed";
+
+		// ── ③ 命中查询 ──
+		/// <summary>撞不撞地形/墙面（关掉 = 连这条查询都不做，省一次原生调用）。</summary>
+		public bool CollideTerrain = true;
+
+		/// <summary>撞不撞人。</summary>
+		public bool CollideAgent = true;
+
+		// ── ④ 命中裁决 ──
+		/// <summary>打不打自己人（**默认打** —— 引擎现状如此，改默认值 = 改旧法术行为）。</summary>
+		public bool HitSameTeam = true;
+
+		/// <summary>能弹几下（0 = 撞到就结束）。撞地形时按命中法线反射速度。</summary>
+		public int BounceCount;
+
+		/// <summary>每次弹跳保留多少速度（0.6 = 弹完剩六成）。</summary>
+		public float BounceDamping = 0.6f;
+
+		/// <summary>钻地：撞地形**不停**、继续飞（飞行距离照算，也不报命中）。</summary>
+		public bool Drill;
+
+		// ── ⑤ 触发（载荷 = 一个"装配块"，见 <see cref="SpellTriggerPayload"/>）──
+		/// <summary>命中时放的子块 id（＝宝石里 <c>&lt;Sub id="…"&gt;</c> 的名字），空 = 不触发。</summary>
+		public string OnHitCast;
+
+		/// <summary>飞行 <see cref="TimerSeconds"/> 秒后放的子块 id（在空中放，不是命中）。</summary>
+		public string OnTimerCast;
+
+		/// <summary>定时触发的秒数。</summary>
+		public float TimerSeconds;
+
+		/// <summary>到期 / 飞完时放的子块 id。</summary>
+		public string OnExpireCast;
+
+		/// <summary>每次弹跳时放的子块 id。</summary>
+		public string OnBounceCast;
+
+		/// <summary>子法术最多还能再套几层（防无限套娃；解算时读，默认 3）。</summary>
+		public int TriggerDepth = 3;
+
+		/// <summary>飞到行程的百分之几时分裂（0~1；0 = 不分裂）。</summary>
+		public float SplitAt;
+
+		/// <summary>分裂成几发。</summary>
+		public int SplitCount;
+
+		/// <summary>
+		/// 命中/到期时留下哪种地表（阶段 8 的世界层读它）。
+		/// ⚠️ **现在没有读取点会真的造地表** —— 投送会在命中时打一条"要等阶段 8"的告警，
+		/// 免得数据作者以为自己配错了（计划 §16.5 把"留地表"归到 D 组：等后面的层）。
+		/// </summary>
+		public string LeaveSurface;
+
+		// ── ⑧ 结算 ──
+		/// <summary>伤害浮动（0.25 = 每次随机乘 0.75~1.0；**0 = 不浮动** —— 旧法术的默认值）。</summary>
+		public float DamageVariance;
+
+		/// <summary>暴击率（0~1；**0 = 不暴击** —— 旧法术的默认值）。</summary>
+		public float Crit;
+
+		/// <summary>暴击倍率（默认 2 = FCS 那套）。</summary>
+		public float CritMult = 2f;
+
+		// ── 运行时（不来自 XML）──
+		/// <summary>
+		/// 触发载荷表：子块 id → 解算好的子法术（有效定义）。
+		/// 🔴 **由 <see cref="SpellResolver"/> 在解算时填**，只有"带触发器的有效定义"里才有内容；
+		/// 基础术（表里那一条）永远是空的 —— 所以它不参与数据解析，也不进存档。
+		/// </summary>
+		public Dictionary<string, SpellTriggerPayload> Triggers =
+			new Dictionary<string, SpellTriggerPayload>(StringComparer.Ordinal);
+
+		/// <summary>
+		/// 这份定义**已经解算过**了（配装修正已落完）—— <see cref="SpellLoadout.ResolveFor"/> 见到它就原样放行。
+		/// 🔴 两个用途：① 触发的子法术**不继承外层配装**（§16.4：子块独立解算）
+		///   ② 上层已经解算过的定义被第二次施放时**不会重复叠一遍修正**。
+		/// </summary>
+		public bool Resolved;
+
+		/// <summary>
+		/// 复制一份定义（修正解算的起点）。
+		/// 🔴 用 <c>MemberwiseClone</c> 自动带上**全部**字段 ⇒ **以后加字段不用动这里**（少一处漂移源）；
+		///   代价是"解算会就地改的两个容器"必须显式换成新的一份（否则会改到表里那条共享定义）。
+		/// </summary>
+		public SpellDef Clone()
+		{
+			SpellDef copy = (SpellDef)MemberwiseClone();
+			copy.Payloads = new List<string>(Payloads);
+			copy.Triggers = new Dictionary<string, SpellTriggerPayload>(Triggers, StringComparer.Ordinal);
+			return copy;
+		}
+
+		/// <summary>
+		/// 同一条法术吗 —— 🔴 **比 id，不比引用**。
+		/// 理由：阶段 5 之后手里拿的可能是**解算出来的副本**（配了宝石时）⇒ 拿引用比会永远不等，
+		/// 后果是"换法术了 = 打断"与"同法术状态刷新不叠"这两条**同时静默失效**。
+		/// </summary>
+		public bool SameAs(SpellDef other)
+		{
+			return other != null && string.Equals(Id, other.Id, StringComparison.Ordinal);
+		}
+	}
+
+	/// <summary>
+	/// 一个**触发载荷** = 一个"装配块"（计划 §16.4）：子法术的完整有效定义 + 它自己的缩放。
+	/// 🔴 不是一个法术 id —— 只填 id 会把"触发器里塞带修正的法术"这半个能力直接丢掉。
+	/// </summary>
+	public sealed class SpellTriggerPayload
+	{
+		/// <summary>子块 id（诊断用）。</summary>
+		public string Id;
+
+		/// <summary>子块独立解算后的**完整法术定义**（含它自己的宝石，不继承外层修正）。</summary>
+		public SpellDef Spell;
+
+		/// <summary>解算时的层级（0 = 直接由基础术触发；最深 <see cref="SpellDef.TriggerDepth"/>）。</summary>
+		public int Depth;
 	}
 
 
@@ -366,6 +527,24 @@ namespace LivingWorldNpcs
 				}
 				return _ordered.Count > 0 ? _ordered[0] : null;
 			}
+		}
+
+		/// <summary>
+		/// **重读法术表**（每次进场景调一次，见 <see cref="SpellProjectileLogic"/> 的构造）——
+		/// 这样改 <c>Spells.xml</c> **不用重启游戏**，重进一次战场就生效（调数值的循环快一个数量级）。
+		/// 🔴 清空重来：内建族由 <see cref="EnsureLoaded"/> 重新登记，内容包的族与法术从文件重新读。
+		/// </summary>
+		public static void Reload()
+		{
+			lock (_lock)
+			{
+				_loaded = false;
+				_byAmmo.Clear();
+				_byId.Clear();
+				_ordered.Clear();
+				_families.Clear();
+			}
+			EnsureLoaded();
 		}
 
 		private static void EnsureLoaded()
@@ -531,6 +710,31 @@ namespace LivingWorldNpcs
 				EndAt = FloatAttrAllowZero(node, "end_at", 0.8f),
 				CastType = Fallback(Attr(node, "cast_type"), "normal"),
 				DamageType = ParseDamageType(Attr(node, "damage_type"), id),
+
+				// ── 阶段 5：修正机制读的属性（默认值 = 现状，所以旧法术行为一个都不变）──
+				SpeedScale = FloatAttr(node, "speed_scale", 1f),
+				Drag = FloatAttrAllowZero(node, "drag", 0f),
+				Accel = FloatAttrAllowZero(node, "accel", 0f),
+				TurnDelay = FloatAttrAllowZero(node, "turn_delay", 0f),
+				OrientMode = Fallback(Attr(node, "orient_mode"), "fixed"),
+				CollideTerrain = BoolAttr(node, "collide_terrain", true),
+				CollideAgent = BoolAttr(node, "collide_agent", true),
+				HitSameTeam = BoolAttr(node, "hit_same_team", true),
+				BounceCount = IntAttr(node, "bounce_count", 0),
+				BounceDamping = FloatAttrAllowZero(node, "bounce_damping", 0.6f),
+				Drill = BoolAttr(node, "drill", false),
+				OnHitCast = Attr(node, "on_hit_cast"),
+				OnTimerCast = Attr(node, "on_timer_cast"),
+				TimerSeconds = FloatAttrAllowZero(node, "timer_seconds", 0f),
+				OnExpireCast = Attr(node, "on_expire_cast"),
+				OnBounceCast = Attr(node, "on_bounce_cast"),
+				TriggerDepth = IntAttr(node, "trigger_depth", 3),
+				SplitAt = FloatAttrAllowZero(node, "split_at", 0f),
+				SplitCount = IntAttr(node, "split_count", 0),
+				LeaveSurface = Attr(node, "leave_surface"),
+				DamageVariance = FloatAttrAllowZero(node, "damage_variance", 0f),
+				Crit = FloatAttrAllowZero(node, "crit", 0f),
+				CritMult = FloatAttr(node, "crit_mult", 2f),
 			};
 
 			string payloads = Fallback(Attr(node, "payloads"), fam.Payloads);

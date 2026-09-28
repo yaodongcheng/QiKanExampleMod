@@ -31,6 +31,20 @@ namespace LivingWorldNpcs
         // 5. Misc
         public float Fov;
         public bool IsAnchorWorld;
+        // 6. 跟随滞后（**只有飞行相机用**；0 = 不滞后 = 老的"焊死在角色身上"行为）
+        //    口径与 UE 的 `SpringArmComponent.CameraLagSpeed` 一致：相机**位置**以这个速率追理想机位。
+        //    ⚠️ 裁剪相机（SpringArmCameraView 演出用）一律不填 = 0，行为与加这个字段之前逐字节一致。
+        public float LagSpeed;
+        // 拖尾距离上限（米）—— 对应 UE 的 `CameraLagMaxDistance`；0 = 不限。
+        // 为什么要有：拖尾 = 速度 ÷ LagSpeed，出机坠落能到 36 m/s（尾巴 9 米）⇒ 相机被拉得太远。
+        public float LagMaxDistance;
+
+        // 7. 运动驱动（2026-09-28）—— 由调用方每帧喂 `SpringArmMotion`（见 `SpringArmMath.WithMotion`）。
+        //    **全填 0 = 关掉 = 加这组字段之前的行为。** 我们的速度大小是离散的（0/9/26），
+        //    所以驱动量取**连续**的那两个：竖直速度分量、航向角速度。
+        public float FovPerVz;        // 竖直速率每 1 m/s → FOV 加多少度（正 = 升降越快视场越广）
+        public float ArmPerVz;        // 竖直速率每 1 m/s → 臂长加多少米（正 = 越快镜头越远）
+        public float RollPerYawRate;  // 航向角速度每 1°/s → 相机侧倾多少度（正负号：觉得反了填负）
     }
 
     public class SpringArmCameraView : MissionView

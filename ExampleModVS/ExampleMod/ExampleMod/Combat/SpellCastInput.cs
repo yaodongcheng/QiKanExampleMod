@@ -402,7 +402,9 @@ namespace LivingWorldNpcs
 				return;   // 按住不放 = 不连发（要松一次手才认下一发）
 			}
 			_flightGesture = flying;      // 本次施法的手势，一路沿用到放出 / 取消
-			_spell = wielded;
+			// 🔴 阶段 5：蓄力期间用的是**解算后的有效定义**（配了宝石的话，蓄力核大小/粒子、蓄满时长、
+			//    出手延迟都按配装走）。解算结果带 Resolved 标记 ⇒ 放出时 SpellCastFlow 不会再叠一遍。
+			_spell = SpellLoadout.ResolveFor(player, wielded);
 			_heldSeconds = 0f;
 
 			string castType = _spell.CastType ?? "normal";
@@ -423,7 +425,7 @@ namespace LivingWorldNpcs
 
 		private void UpdateCharging(Agent player, SpellDef wielded, bool held, float dt, bool fire)
 		{
-			if (_spell == null || wielded != _spell)
+			if (_spell == null || !_spell.SameAs(wielded))
 			{
 				// 换武器 / 换法术 → 打断（核当场灭掉）
 				Cancel();
@@ -472,7 +474,7 @@ namespace LivingWorldNpcs
 
 		private void UpdateChanneling(SpellDef wielded, bool held)
 		{
-			if (!held || _spell == null || wielded != _spell)
+			if (!held || _spell == null || !_spell.SameAs(wielded))
 			{
 				Cancel();   // 松手 / 换法术 → 停
 			}

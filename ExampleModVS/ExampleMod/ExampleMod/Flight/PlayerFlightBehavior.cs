@@ -128,6 +128,8 @@ namespace LivingWorldNpcs.Flight
         private float _velPitchDeg;             // 实际航向的俯仰（度，+上）—— 同上
         private float _steerTargetYawDeg;       // 上一帧的**目标**航向角（只给诊断日志看"差多少度"）
         private float _steerIdleTimer;          // 无输入累计时长（到 SteerIdleResetSeconds 就把航向重新播种）
+        private float _velYawRateRaw;           // 本帧实际航向角速度（度/秒，未平滑）—— 喂相机侧倾用
+        private float _velYawRateDeg;           // 平滑后的航向角速度（度/秒）—— 运动驱动真正消费的那个
         private bool _takeoffSettled;        // 起飞阶段：玩家是否已经真的站到板上（没站住不抬升）
         private float _takeoffTimer;         // 起飞阶段计时（登板等待用）
         private float _landingApproach;      // 进入落地那一刻的下冲速度（硬着陆按它下降）
@@ -184,6 +186,7 @@ namespace LivingWorldNpcs.Flight
 
         /// <summary>俯仰档（带迟滞）：+1 抬头 / 0 水平 / −1 低头。进用大阈值、出用小阈值。</summary>
         private readonly AnimLatch _pitchLatch = new AnimLatch(0f, 0f);   // 阈值每帧按 FlightTuning 刷新
+        private readonly AnimLatch _climbLatch = new AnimLatch(0f, 0f);   // 升降档（竖直运动驱动姿态）—— 同上
 
         /// <summary>压弯档（带迟滞）：+1 按 D（右移）/ 0 / −1 按 A（左移）。取自横移输入。</summary>
         private readonly AnimLatch _bankLatch = new AnimLatch(0f, 0f);    // 同上
@@ -357,6 +360,9 @@ namespace LivingWorldNpcs.Flight
                 // 🔴 先喂鼠标 —— 接管相机后引擎不再处理 look（CheckForUpdateCamera 早退），
                 //    这一行是玩家唯一能转视角的地方。
                 _camRig.ApplyLook(Input.MouseMoveX, Input.MouseMoveY);
+                // 🔴 **运动量必须在 Tick 之前喂**（2026-09-28）：相机那边拿不到真实速度 ——
+                //    飞行时玩家的速度被冻结成 0，真速度是我们手上的 `_velocity`（木板速度）。
+                _camRig.SetMotion(BuildCamMotion(dt));
                 PickCamPreset();
                 _camRig.SetPreset(_camPreset, FlightTuning.CamBlendIn);
                 _camRig.Tick(main, dt);
@@ -558,6 +564,17 @@ namespace LivingWorldNpcs.Flight
             }
 
             Vec2 axis = FlightInput.MoveAxis;
+            // 🔴 **冲刺档：只按 Shift、一个方向键都没按 ⇒ 当作按着 W 往前飞**（2026-09-28 用户裁定）。
+            //    改之前那种情况是"趴姿原地悬停"（姿势进了冲刺、人却不动）—— 别扭，而且"冲刺"这个词
+            //    本身的意思就是"我要往前冲"，还额外要求按 W 是多余的。
+            //    ⚠️ **只在"一个方向键都没按"时生效**：按着 A/D（哪怕没按 W）仍按横移算，别去改横移语义。
+            //    开关 = FlightTuning.BoostImpliesForward（`custom.flight tune boostfwd 0` 可关）。
+            bool impliedForward = FlightTuning.BoostImpliesForward
+                                  && FlightInput.BoostHeld
+                                  && axis.LengthSquared < 1e-4f;
+            if (impliedForward)
+                axis = new Vec2(0f, 1f);      // (x, y) = (横, 前) ⇒ 这就是 W
+
             Vec3 dir = forward * axis.y + right * axis.x;
             if (dir.LengthSquared > 0.0001f)
             {
@@ -567,6 +584,7 @@ namespace LivingWorldNpcs.Flight
             else
             {
                 dir = Vec3.Zero;
+                _velYawRateRaw = 0f;          // 没在转 ⇒ 航向角速度归零（相机侧倾跟着回正）
                 // 停稳（无输入满 `SteerIdleResetSeconds`）⇒ 航向重新播种：悬停没有"航向动量"可言，
                 // 镜头转过去再给输入应当**立刻朝那边走**；而按键之间的 1~2 帧空隙够不到这时长
                 // （够到了就会把正在划的弧"啪"地掰直 —— W 换 A 那种换键最容易撞上）。
@@ -654,7 +672,10 @@ namespace LivingWorldNpcs.Flight
             else
             {
                 StopAimingHead(main);
-                if (FlightInput.HasMoveInput && _dodgeTimer <= 0f)
+                // 🔴 **判据从"按着方向键"换成"这一帧有航向"**（2026-09-28）：冲刺的"隐式 W"也是航向，
+                //    不然按着 Shift 往前飞、身体却纹丝不动（朝向停在起飞那一下）。
+                //    等价性：旧口径下"有方向键"必然产生速度、"没方向键"必然速度归零 ⇒ 两者同真同假。
+                if (axis.LengthSquared > 1e-4f && _dodgeTimer <= 0f)
                     TurnBodySmoothed(main, _velocity, dt);
             }
 
@@ -1250,6 +1271,29 @@ namespace LivingWorldNpcs.Flight
         // ─────────────────────────── 运动相机（N5，2026-09-21）───────────────────────────
 
         /// <summary>
+        /// 算出本帧喂给相机的**运动量**（2026-09-28，运动驱动的入口）。
+        ///
+        /// **喂哪两个量、为什么不喂"速度"**：我们的速度**大小**只有 0 / 9 / 26 三档（Shift 一按一换），
+        /// 拿它驱参数只会得到三个台阶；真正连续的是
+        /// · **竖直速率** = 木板速度的 z 分量（相机内部取绝对值）—— 俯冲/爬升越快，视场越广、镜头越远
+        /// · **航向角速度** = 上一步航向惯性算出来的那个（**先平滑再用** —— 照抄 UE 侧 `FInterpTo(…, 5)` 的口径；
+        ///   不平滑的话，转向"够到目标角"的那一帧角速度会从 180 突降到 0，侧倾会顿一下）
+        ///
+        /// 坠落相位单独给：那时 `_velocity` 是零，真实下坠速度在 `_fallRideVel` 里 ——
+        /// 不喂它的话**俯冲坠落反而没有速度感**（而坠落正是最快的时候，36 m/s）。
+        /// </summary>
+        private SpringArmMotion BuildCamMotion(float dt)
+        {
+            // 航向角速度平滑（首次趋近速率 5/秒；dt 大时直接到位，不过冲）
+            _velYawRateDeg += (_velYawRateRaw - _velYawRateDeg) * Math.Min(1f, 5f * dt);
+
+            if (_phase == Phase.Falling)
+                return new SpringArmMotion { Vz = _fallRideVel, YawRate = 0f, Speed = _fallRideVel };
+
+            return new SpringArmMotion { Vz = _velocity.z, YawRate = _velYawRateDeg, Speed = _velocity.Length };
+        }
+
+        /// <summary>
         /// 按当前飞行状态挑机位。优先级：**瞄准 &gt; 加速 &gt; 移动 &gt; 悬停**。
         ///
         /// 🔴 **瞄准只在悬停 / 巡航可用**（用户裁定）：加速中不给进 —— 冲刺时视野要的是"快"，
@@ -1815,11 +1859,11 @@ namespace LivingWorldNpcs.Flight
                                 _velYawDeg, _steerTargetYawDeg, Normalize180(_steerTargetYawDeg - _velYawDeg),
                                 FlightInput.BoostHeld ? FlightTuning.SteerRateBoostDegPerSec : FlightTuning.SteerRateDegPerSec);
             DebugLogger.Log(string.Format(
-                "[Flight-Diag] 引擎算法 look=({0:F2},{1:F2},{2:F2}) right=({3:F2},{4:F2},{5:F2}) | 相机帧 .f=({6:F2},{7:F2},{8:F2}) .u=({9:F2},{10:F2},{11:F2}) | vel=({12:F2},{13:F2},{14:F2}) |v|={15:F1} pitchBand={16} anim={17} | {18}",
+                "[Flight-Diag] 引擎算法 look=({0:F2},{1:F2},{2:F2}) right=({3:F2},{4:F2},{5:F2}) | 相机帧 .f=({6:F2},{7:F2},{8:F2}) .u=({9:F2},{10:F2},{11:F2}) | vel=({12:F2},{13:F2},{14:F2}) |v|={15:F1} climb={16} camPitch={17} anim={18} | {19}",
                 engF.x, engF.y, engF.z, engR.x, engR.y, engR.z,
                 cf.x, cf.y, cf.z, cu.x, cu.y, cu.z,
                 _velocity.x, _velocity.y, _velocity.z,
-                _velocity.Length, _pitchLatch.Value, _anim.CurrentAction ?? "-", steerTxt));
+                _velocity.Length, _climbLatch.Value, _pitchLatch.Value, _anim.CurrentAction ?? "-", steerTxt));
         }
 
         /// <summary>
@@ -1845,6 +1889,17 @@ namespace LivingWorldNpcs.Flight
             else
                 _pitchLatch.Update(camForward.z);   // 相机前方向的竖直分量 = 俯仰
             _animCtx.PitchBand = _pitchLatch.Value;
+            // 🪦 2026-09-28：姿态**不再读 `PitchBand`**（那是"镜头朝哪"）—— 改读下面的升降档
+            //    （`ClimbBand` = "实际在往哪飞"）。理由与口径见 `FlightAnimContext.ClimbBand` 的注释。
+
+            // 升降档（带迟滞；2026-09-28）：驱动"抬头 / 低头"姿态，**跟实际运动走**（照抄 UE 的竖直速度口径）。
+            // 归一化口径 = **速度单位向量的 z 分量**（= 航迹倾角的正弦）⇒ 与速度大小无关
+            // （巡航 9 与冲刺 26 在同样的倾角下进同一个档）；单位向量是"方向"，所以速度 ~0 时给 0。
+            _climbLatch.SetThresholds(FlightTuning.PitchThreshold, FlightTuning.PitchExitThreshold);
+            float speedNow = _velocity.Length;
+            float velDirZ = speedNow > 0.01f ? _velocity.z / speedNow : 0f;
+            _climbLatch.Update(velDirZ);
+            _animCtx.ClimbBand = _climbLatch.Value;
 
             // 压弯档（带迟滞）：**横移输入 A/D** 的符号就是方向（−1 = A = 左压 / +1 = D = 右压）。
             // 阈值可热调：`tune bank` / `tune bankout`；两个都填 0 = 关掉压弯（永远不进压弯状态）。
@@ -1957,13 +2012,17 @@ namespace LivingWorldNpcs.Flight
             {
                 _velYawDeg = targetYaw;          // 首帧 / 关掉惯性 = 瞬时到位
                 _velPitchDeg = targetPitch;
+                _velYawRateRaw = 0f;             // 瞬时到位不算"在转"（否则相机侧倾会跟着抽一下）
             }
             else
             {
                 float step = rate * dt;
 
                 float dYaw = Normalize180(targetYaw - _velYawDeg);
-                _velYawDeg += (Math.Abs(dYaw) <= step) ? dYaw : Math.Sign(dYaw) * step;
+                float appliedYaw = (Math.Abs(dYaw) <= step) ? dYaw : Math.Sign(dYaw) * step;
+                _velYawDeg += appliedYaw;
+                // 实际转过去的角速度（度/秒）—— 相机侧倾的驱动量（照 UE 那套"角速度驱动侧倾"）
+                _velYawRateRaw = dt > 1e-5f ? appliedYaw / dt : 0f;
 
                 float dPitch = targetPitch - _velPitchDeg;   // 俯仰在 ±90 以内，不会绕圈，不用归一化
                 _velPitchDeg += (Math.Abs(dPitch) <= step) ? dPitch : Math.Sign(dPitch) * step;

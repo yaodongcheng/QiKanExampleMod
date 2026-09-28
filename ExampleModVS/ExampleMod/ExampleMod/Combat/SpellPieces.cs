@@ -331,12 +331,15 @@ namespace LivingWorldNpcs
 		/// 解算初速度：想从 <paramref name="origin"/> 打到 <paramref name="aimPoint"/>，初速固定为
 		/// <paramref name="speed"/> 时该朝哪个方向、以什么速度飞（重力 0 时就是直线）。
 		/// 无解（目标太远/太低，这个初速够不到）→ 退回直线朝瞄准点飞（宁可打不到，也不要歪到别处）。
+		/// 🔴 <paramref name="gravity"/> **带符号**：正 = 往下掉（解抛物线打准瞄准点）·
+		///    **负 = 反重力**（不平抛解算，直接照瞄准方向打出去 —— 向上的加速度自然把弹道抬起来；
+		///    真要解抛物线的话会算出一个"先往下压"的发射角，看着莫名其妙）。
 		/// </summary>
 		public static Vec3 SolveLaunchVelocity(Vec3 origin, Vec3 aimPoint, float speed, float gravity)
 		{
 			Vec3 flat = new Vec3(aimPoint.x - origin.x, aimPoint.y - origin.y, 0f);
 			float range = flat.Length;
-			if (speed <= 0f || Math.Abs(gravity) < 1e-4f || range < 1e-3f)
+			if (speed <= 0f || Math.Abs(gravity) < 1e-4f || range < 1e-3f || gravity < 0f)
 			{
 				Vec3 dir = aimPoint - origin;
 				dir = dir.LengthSquared < 1e-8f ? Vec3.Forward : dir.NormalizedCopy();
@@ -344,7 +347,7 @@ namespace LivingWorldNpcs
 			}
 
 			float dz = aimPoint.z - origin.z;
-			float g = Math.Abs(gravity);
+			float g = gravity;
 			float s2 = speed * speed;
 			// 标准斜抛解：tanθ = (s² ± √(s⁴ − g(g·x² + 2·z·s²))) / (g·x)
 			float disc = s2 * s2 - g * (g * range * range + 2f * dz * s2);
@@ -360,9 +363,7 @@ namespace LivingWorldNpcs
 			// (水平方向 × cosθ + 世界朝上 × sinθ) × 初速
 			float cos = 1f / MathF.Sqrt(1f + tanTheta * tanTheta);
 			float sin = tanTheta * cos;
-			Vec3 v = flatDir * (speed * cos) + Vec3.Up * (speed * sin);
-			// gravity < 0 表示"向上吸"（罕见），统一按设定方向施加重力在投送里做
-			return v;
+			return flatDir * (speed * cos) + Vec3.Up * (speed * sin);
 		}
 	}
 
@@ -782,6 +783,37 @@ namespace LivingWorldNpcs
 	// ─────────────────────────── 阶段 1 的三个实现 ───────────────────────────
 
 	/// <summary>
+	/// **伤害解算的唯一入口**（阶段 5；公式采纳计划 §24 第 6 条的 FCS 那套）：
+	/// <code>伤害 = damage × (1 + charge_bonus × power) × (1 − damage_variance × rand) × (暴击 ? crit_mult : 1)</code>
+	/// 🔴 浮动与暴击**默认都是 0（关）** ⇒ 旧法术逐字不变（阶段 5 验收第 2 条）；
+	///   挂上对应的宝石之后才有"伤害有浮动、暴击有可读峰值"。
+	/// 🔴 三个结算实现（damage / area / aura）**都走它**，所以"伤害怎么算"只有一处。
+	/// </summary>
+	internal static class SpellDamage
+	{
+		public static float Roll(SpellDef spell, float power, out bool crit)
+		{
+			crit = false;
+			if (spell == null)
+			{
+				return 0f;
+			}
+			float p = MathF.Max(0f, MathF.Min(1f, power));
+			float damage = spell.Damage * (1f + spell.ChargeBonus * p);
+			if (spell.DamageVariance > 0f)
+			{
+				damage *= 1f - MathF.Min(1f, spell.DamageVariance) * MBRandom.RandomFloat;
+			}
+			if (spell.Crit > 0f && MBRandom.RandomFloat < spell.Crit)
+			{
+				crit = true;
+				damage *= spell.CritMult > 0f ? spell.CritMult : 1f;
+			}
+			return damage;
+		}
+	}
+
+	/// <summary>
 	/// **扫掠判定**（投送轴的公共件）—— "从 from 到 to 这一小段，最先撞到的是什么"。
 	///
 	/// 两条引擎查询各给一个距离，**取近的那个**：
@@ -803,11 +835,34 @@ namespace LivingWorldNpcs
 		/// 返回 true 且 <paramref name="victim"/> 为空 = 打到墙/地（point = 表面点）。
 		/// <paramref name="alreadyHit"/> = 已经打过的目标（穿透时不重复报；null = 不去重）。
 		/// </summary>
+		/// <summary>一次扫掠里最多跳过几个人（防"所有人都在已命中表里"时死循环）。</summary>
+		private const int MaxSkipPerSweep = 8;
+
+		/// <summary>
+		/// 找这一段里最近的一次碰撞（**不带修正过滤**的旧口径 —— 引导/领域那条路继续用它）。
+		/// 返回 false = 什么都没撞到（<paramref name="victim"/> / <paramref name="point"/> 无意义）。
+		/// </summary>
 		public static bool FindNearestHit(Mission mission, Vec3 from, Vec3 to, float agentRadius,
 			int excludeAgentIndex, HashSet<int> alreadyHit, out Agent victim, out Vec3 point)
 		{
+			Vec3 normal;
+			return FindNearestHit(mission, from, to, agentRadius, excludeAgentIndex, null, alreadyHit, null,
+				out victim, out point, out normal);
+		}
+
+		/// <summary>
+		/// 同上，但带上**阶段 5 的三个旋钮**（都由 <paramref name="spell"/> 决定，null = 全用现状口径）：
+		///   · <c>collide_agent</c> / <c>collide_terrain</c> = **这条查询做不做**（③ 命中查询）
+		///   · <c>hit_same_team</c> = 打不打自己人（④ 命中裁决；默认打 = 引擎现状）
+		/// 外加 <paramref name="normal"/>：撞地形/墙面时的**表面法线**（弹跳按它反射速度）。
+		/// </summary>
+		public static bool FindNearestHit(Mission mission, Vec3 from, Vec3 to, float agentRadius,
+			int excludeAgentIndex, Team casterTeam, HashSet<int> alreadyHit, SpellDef spell,
+			out Agent victim, out Vec3 point, out Vec3 normal)
+		{
 			victim = null;
 			point = to;
+			normal = Vec3.Up;
 			if (mission == null || mission.Scene == null)
 			{
 				return false;
@@ -818,38 +873,68 @@ namespace LivingWorldNpcs
 			bool worldHit = false;
 			Vec3 worldPoint = to;
 
-			try
+			if (spell == null || spell.CollideAgent)
 			{
-				float distance;
-				Agent found = V.RayCastForClosestAgent(mission, from, to, excludeAgentIndex, agentRadius, out distance);
-				if (found != null && found.Health > 0f
-					&& (alreadyHit == null || !alreadyHit.Contains(found.Index)))
+				try
 				{
-					victim = found;
-					agentDistance = distance;
+					// 🔴 引擎只给"最近的那一个"：要过滤（已命中 / 自己人）就得往后挪一点再问一次。
+					//    跳过量有上限（MaxSkipPerSweep），"整队人都在已命中表里"也不会转不出来。
+					Vec3 cursor = from;
+					float consumed = 0f;
+					for (int guard = 0; guard < MaxSkipPerSweep; guard++)
+					{
+						float distance;
+						Agent found = V.RayCastForClosestAgent(mission, cursor, to, excludeAgentIndex, agentRadius, out distance);
+						if (found == null || found.Health <= 0f)
+						{
+							break;
+						}
+						if (!SkipAgent(found, casterTeam, alreadyHit, spell))
+						{
+							victim = found;
+							agentDistance = consumed + distance;
+							break;
+						}
+						Vec3 rest = to - cursor;
+						float restLength = rest.Length;
+						if (restLength < 1e-4f)
+						{
+							break;
+						}
+						float advance = distance + 0.05f;
+						if (advance >= restLength)
+						{
+							break;
+						}
+						cursor += rest * (advance / restLength);
+						consumed += advance;
+					}
 				}
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.Log($"[Spell] 人物扫掠异常：{ex.GetType().Name} {ex.Message}");
+				catch (Exception ex)
+				{
+					DebugLogger.Log($"[Spell] 人物扫掠异常：{ex.GetType().Name} {ex.Message}");
+				}
 			}
 
-			try
+			if (spell == null || spell.CollideTerrain)
 			{
-				Vec3 hitPoint;
-				float distance;
-				// 场景查询用细射线（0.01）：命中点 = 真正的表面（"命中半径"是给人用的，不给墙）
-				worldHit = mission.Scene.RayCastForClosestEntityOrTerrain(from, to, out distance, out hitPoint,
-					0.01f, BodyFlags.CommonCollisionExcludeFlagsForMissile);
-				if (worldHit)
+				try
 				{
-					worldDistance = distance;
-					worldPoint = hitPoint;
+					Vec3 hitPoint;
+					float distance;
+					// 场景查询用细射线（0.01）：命中点 = 真正的表面（"命中半径"是给人用的，不给墙）
+					worldHit = mission.Scene.RayCastForClosestEntityOrTerrain(from, to, out distance, out hitPoint,
+						0.01f, BodyFlags.CommonCollisionExcludeFlagsForMissile);
+					if (worldHit)
+					{
+						worldDistance = distance;
+						worldPoint = hitPoint;
+					}
 				}
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.Log($"[Spell] 场景扫掠异常：{ex.GetType().Name} {ex.Message}");
+				catch (Exception ex)
+				{
+					DebugLogger.Log($"[Spell] 场景扫掠异常：{ex.GetType().Name} {ex.Message}");
+				}
 			}
 
 			if (victim != null && agentDistance <= worldDistance)
@@ -862,9 +947,99 @@ namespace LivingWorldNpcs
 			{
 				victim = null;
 				point = worldPoint;
+				normal = ResolveWorldNormal(mission, worldPoint, to - from);
 				return true;
 			}
 			return false;
+		}
+
+		/// <summary>这个目标要不要跳过（已命中过 / 自己人且法术不打自己人）。</summary>
+		private static bool SkipAgent(Agent agent, Team casterTeam, HashSet<int> alreadyHit, SpellDef spell)
+		{
+			if (alreadyHit != null && alreadyHit.Contains(agent.Index))
+			{
+				return true;
+			}
+			// hit_same_team 默认 true（引擎现状就是打自己人）；只有数据显式关掉才滤
+			if (spell != null && !spell.HitSameTeam && casterTeam != null && agent.Team == casterTeam)
+			{
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// 撞到世界的**表面法线**（弹跳按它反射速度）。
+		/// ① 地形：引擎直接给（<c>GetTerrainHeightAndNormal</c>，一次调用、精确）；
+		/// ② 墙面/物件：引擎的射线不给法线 ⇒ 打三根探针估一个平面（弹跳是低频事件，多两次射线无所谓）。
+		/// 估不出来时退回 <c>-来向</c>（= 正面撞上去弹回来），不抛异常（铁律 1）。
+		/// </summary>
+		private static Vec3 ResolveWorldNormal(Mission mission, Vec3 point, Vec3 travel)
+		{
+			Vec3 dir = travel.LengthSquared > 1e-8f ? travel.NormalizedCopy() : Vec3.Forward;
+			try
+			{
+				float height;
+				Vec3 terrainNormal;
+				mission.Scene.GetTerrainHeightAndNormal(new Vec2(point.x, point.y), out height, out terrainNormal);
+				if (terrainNormal.LengthSquared > 1e-6f && Math.Abs(point.z - height) < 1.5f)
+				{
+					return terrainNormal.NormalizedCopy();
+				}
+			}
+			catch (Exception)
+			{
+				// 取不到地形法线 → 走探针
+			}
+			return ProbeNormal(mission, point, dir);
+		}
+
+		/// <summary>三探针估平面法线（命中点 + 横向两点的外积）。</summary>
+		private static Vec3 ProbeNormal(Mission mission, Vec3 point, Vec3 dir)
+		{
+			Vec3 side = Vec3.CrossProduct(dir, Vec3.Up);
+			if (side.LengthSquared < 1e-6f)
+			{
+				side = Vec3.CrossProduct(dir, Vec3.Forward);
+			}
+			side = side.NormalizedCopy();
+			Vec3 up = Vec3.CrossProduct(side, dir);
+			up = up.LengthSquared < 1e-6f ? Vec3.Up : up.NormalizedCopy();
+
+			const float offset = 0.25f;    // 横向偏多少
+			const float back = 0.5f;       // 从命中点前面多远起打
+			const float reach = 1.2f;      // 探针打多长
+			Vec3 origin = point - dir * back;
+			Vec3 hitA;
+			Vec3 hitB;
+			bool okA = CastForPoint(mission, origin + side * offset, dir, reach, out hitA);
+			bool okB = CastForPoint(mission, origin + up * offset, dir, reach, out hitB);
+			if (!okA || !okB)
+			{
+				return -dir;
+			}
+			Vec3 normal = Vec3.CrossProduct(hitA - point, hitB - point);
+			if (normal.LengthSquared < 1e-8f)
+			{
+				return -dir;
+			}
+			normal = normal.NormalizedCopy();
+			return Vec3.DotProduct(normal, dir) > 0f ? -normal : normal;   // 法线要迎着来向
+		}
+
+		private static bool CastForPoint(Mission mission, Vec3 origin, Vec3 dir, float reach, out Vec3 hit)
+		{
+			hit = origin;
+			try
+			{
+				float distance;
+				return mission.Scene.RayCastForClosestEntityOrTerrain(origin, origin + dir * reach,
+					out distance, out hit, 0.01f, BodyFlags.CommonCollisionExcludeFlagsForMissile);
+			}
+			catch (Exception)
+			{
+				return false;
+			}
 		}
 	}
 
@@ -929,7 +1104,9 @@ namespace LivingWorldNpcs
 			SpellDef spell = request.Spell;
 			int count = spell.Count > 0 ? spell.Count : 1;
 			// 基准发射解（有重力时是抛物线解）——散布是在它上面加角度偏移，不是重新解一遍
-			Vec3 baseVelocity = SpellMath.SolveLaunchVelocity(request.Origin, aimPoint, spell.Speed, spell.Gravity);
+			// 🔴 速度取 **EffectiveSpeed**（= speed × speed_scale）：这是初速被读的**唯一一处**
+			//    （另一处是天降的起落速度），乘两遍会让"加速"宝石变成平方。
+			Vec3 baseVelocity = SpellMath.SolveLaunchVelocity(request.Origin, aimPoint, spell.EffectiveSpeed, spell.Gravity);
 			Vec3 baseDir = baseVelocity.LengthSquared < 1e-8f
 				? direction.NormalizedCopy()
 				: baseVelocity.NormalizedCopy();
@@ -958,8 +1135,11 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>在一个圆锥内随机偏一个方向（散布角是圆锥的**全角**）。</summary>
-		private static Vec3 Scatter(Vec3 direction, float spreadDeg)
+		/// <summary>
+		/// 在一个圆锥内随机偏一个方向（散布角是圆锥的**全角**）。
+		/// 多发（本类）与**分裂**（<see cref="ProjectileDelivery"/> 的 ⑤ 触发）共用它 —— 同一个散布口径。
+		/// </summary>
+		public static Vec3 Scatter(Vec3 direction, float spreadDeg)
 		{
 			float half = spreadDeg * 0.5f * (MathF.PI / 180f);
 			float cosLimit = MathF.Cos(half);
@@ -1191,12 +1371,31 @@ namespace LivingWorldNpcs
 			private GameEntity _entity;
 			private ParticleSystem _trail;
 
+			/// <summary>施法者的队伍（<c>hit_same_team=false</c> 时用来滤掉自己人；取不到 = null = 不过滤）。</summary>
+			private readonly Team _casterTeam;
+
 			private Vec3 _position;
 			private Vec3 _velocity;
 			private float _elapsed;
 			private float _travelled;
 			private float _sinceCheck;
 			private int _hitCount;
+
+			/// <summary>还能弹几下（④ 命中裁决；0 = 撞到就结束）。</summary>
+			private int _bouncesLeft;
+
+			/// <summary>这一帧弹跳过（位置已由弹跳逻辑摆好，别再往前推）。</summary>
+			private bool _bounced;
+
+			/// <summary>② 定向：<c>orient_mode="velocity"</c> 时每帧按速度重算网格姿态。</summary>
+			private readonly bool _orientByVelocity;
+
+			// ⑤ 触发：一次性的事件各记"放过了没有"
+			private bool _timerFired;
+			private bool _splitDone;
+
+			/// <summary>leave_surface 的"阶段 8 才生效"告警只打一次。</summary>
+			private bool _leaveSurfaceWarned;
 
 			/// <summary>已被打中过的人（防重复上报；穿透时也用来排除）。</summary>
 			private readonly HashSet<int> _hitAgents = new HashSet<int>();
@@ -1209,6 +1408,9 @@ namespace LivingWorldNpcs
 				_spell = shot.Intent.Spell;
 				_position = shot.Intent.Origin;
 				_velocity = shot.Intent.Velocity;
+				_bouncesLeft = _spell.BounceCount > 0 ? _spell.BounceCount : 0;
+				_orientByVelocity = string.Equals(_spell.OrientMode, "velocity", StringComparison.OrdinalIgnoreCase);
+				_casterTeam = shot.Intent.Caster != null ? shot.Intent.Caster.Team : null;
 
 				// 🔴 天降（start_height > 0）：不从手上飞出去，而是从**落点正上方**朝落点砸下来。
 				//    瞄准轴只负责给落点，起落高度是投送的事（计划 §2.2 ProjectileStrike 行）。
@@ -1220,7 +1422,8 @@ namespace LivingWorldNpcs
 					_position = drop;
 					Vec3 down = shot.Intent.AimPoint - drop;
 					down = down.LengthSquared < 1e-6f ? new Vec3(0f, 0f, -1f) : down.NormalizedCopy();
-					_velocity = down * MathF.Max(1f, _spell.Speed);
+					// 速度同样走 EffectiveSpeed（初速被读的**另一处**，与 SpellAim.Emit 同口径）
+					_velocity = down * MathF.Max(1f, _spell.EffectiveSpeed);
 					// 天降的"飞满距离"从落点算起，不然它一下来就把寿命耗光
 					_travelled = _spell.StartHeight;
 				}
@@ -1244,21 +1447,38 @@ namespace LivingWorldNpcs
 
 				_elapsed += dt;
 
+				// ── ① 推进：转向 / 阻力 / 沿程加速 / 重力（属性只在这一处被读）──
+
 				// 追踪（turn_rate > 0）：每帧把速度方向朝目标转一点（限速转弯）。
 				// 目标优先取**目标引用**的位置（软锁锁的那个人现在在哪），没有就取瞄准点。
-				if (_spell.TurnRate > 0f)
+				// turn_delay = 起飞后先直飞一段再开始追（默认 0 = 立刻追，与旧行为一致）。
+				if (_spell.TurnRate > 0f && _elapsed >= _spell.TurnDelay)
 				{
 					SteerTowardTarget(dt);
 				}
+				// 阻力：每秒按比例掉速度（0 = 不掉，默认）
+				if (_spell.Drag > 0f)
+				{
+					_velocity *= MathF.Max(0f, 1f - _spell.Drag * dt);
+				}
+				// 沿程加速：沿**当前**飞行方向加（负数 = 边飞边慢）
+				if (Math.Abs(_spell.Accel) > 1e-4f)
+				{
+					Vec3 heading = FlightDirection;
+					_velocity += heading * (_spell.Accel * dt);
+				}
+				// 重力**带符号**：正 = 往下掉 · 0 = 平飞 · 负 = 往上飘（反重力）。
+				// 🔴 2026-09-28 改：原来这里写的是 `-Math.Abs(gravity)` —— 负号被吃掉了，
+				//    "反重力"根本不存在（只有"失重"）。计划 §16.1 的 Noita 对照表里
+				//    反重力是 `gravity += / ×`，所以这条路必须真的通。
 				if (Math.Abs(_spell.Gravity) > 1e-4f)
 				{
-					// 重力恒向下（数据里 gravity 是"多大"，方向固定朝地 —— 免得有人写负号还以为是反重力）
-					_velocity += new Vec3(0f, 0f, -Math.Abs(_spell.Gravity) * dt);
+					_velocity += new Vec3(0f, 0f, -_spell.Gravity * dt);
 				}
 
 				Vec3 next = _position + _velocity * dt;
 
-				// 命中检查（每 0.05 秒一次，线段 = 上一次检查点 → 这一次检查点）
+				// ── ③④ 命中查询与裁决（每 0.05 秒一次，线段 = 上一次检查点 → 这一次检查点）──
 				_sinceCheck += dt;
 				bool alive = true;
 				if (_sinceCheck >= CheckInterval)
@@ -1267,21 +1487,52 @@ namespace LivingWorldNpcs
 					alive = Sweep(_position, next);
 				}
 
-				Vec3 step = next - _position;
-				_travelled += step.Length;
-				_position = next;
+				// 弹跳那一拍**自己把位置摆在表面外**了（见 OnWorldHit）⇒ 这一帧别再往前推
+				if (_bounced)
+				{
+					_bounced = false;
+				}
+				else
+				{
+					Vec3 step = next - _position;
+					_travelled += step.Length;
+					_position = next;
+				}
 				MoveEntity();
 
 				if (!alive)
 				{
 					return false;
 				}
-				// 到期：飞满距离或活满时间，先到先算
+
+				// ── ⑤ 触发：定时器 / 分裂（都发生在"还在飞"的时候）──
+				if (!_timerFired && !string.IsNullOrEmpty(_spell.OnTimerCast)
+					&& _spell.TimerSeconds > 0f && _elapsed >= _spell.TimerSeconds)
+				{
+					_timerFired = true;
+					FireTrigger(_spell.OnTimerCast, _position, FlightDirection);
+				}
+				if (!_splitDone && _spell.SplitAt > 0f && _spell.SplitCount > 0
+					&& _travelled >= _spell.SplitAt * MathF.Max(1f, _spell.MaxDistance))
+				{
+					_splitDone = true;
+					SplitNow();
+				}
+
+				// ── ⑥ 到期：飞满距离或活满时间，先到先算 ──
 				if (_travelled >= _spell.MaxDistance || _elapsed >= _spell.MaxLifetime)
 				{
+					FireTrigger(_spell.OnExpireCast, _position, FlightDirection);
+					WarnLeaveSurface();
 					return false;
 				}
 				return true;
+			}
+
+			/// <summary>当前飞行方向（零速度时退回世界前方，避免除零）。</summary>
+			private Vec3 FlightDirection
+			{
+				get { return _velocity.LengthSquared < 1e-8f ? Vec3.Forward : _velocity.NormalizedCopy(); }
 			}
 
 			public void End()
@@ -1310,7 +1561,11 @@ namespace LivingWorldNpcs
 				_trail = null;
 			}
 
-			/// <summary>推进这一帧的视觉（只改原点，姿态在进入时定死 —— 与速度无关，故直线飞行不会翻滚）。</summary>
+			/// <summary>
+			/// 推进这一帧的视觉（只改原点 —— 直线飞行不会翻滚）。
+			/// ② 定向：<c>orient_mode="velocity"</c> 时**每帧按速度方向重算姿态**（追踪弹才需要；
+			/// 默认 <c>fixed</c> = 进入时算一次，与旧行为逐字一致）。
+			/// </summary>
 			private void MoveEntity()
 			{
 				if (_entity == null)
@@ -1321,6 +1576,11 @@ namespace LivingWorldNpcs
 				{
 					MatrixFrame frame = _entity.GetGlobalFrame();
 					frame.origin = _position;
+					if (_orientByVelocity)
+					{
+						frame.rotation = SpellMath.BuildFlightRotation(_velocity,
+							SpellDebug.TiltOverrideDeg ?? _spell.TiltDeg);
+					}
 					_entity.SetGlobalFrame(frame);
 				}
 				catch (Exception)
@@ -1381,24 +1641,26 @@ namespace LivingWorldNpcs
 				{
 					return true;
 				}
-				// 判定口径全在 SpellSweep 里（人物 / 墙地两条查询取近的那个 + 已命中排除）
+				// 判定口径全在 SpellSweep 里（人物 / 墙地两条查询取近的那个 + 已命中排除
+				// + 阶段 5 的三个旋钮：collide_agent / collide_terrain / hit_same_team）
 				int exclude = _shot.Intent.Caster != null ? _shot.Intent.Caster.Index : -1;
 				Agent victim;
 				Vec3 point;
+				Vec3 normal;
 				if (!SpellSweep.FindNearestHit(mission, from, to, SpellDebug.HitRadiusOverride ?? _spell.HitRadius,
-					exclude, _hitAgents,
-					out victim, out point))
+					exclude, _casterTeam, _hitAgents, _spell,
+					out victim, out point, out normal))
 				{
 					return true;   // 这一段什么都没撞到
 				}
-				return victim != null ? OnAgentHit(victim) : OnWorldHit(point);
+				return victim != null ? OnAgentHit(victim) : OnWorldHit(point, normal);
 			}
 
 			private bool OnAgentHit(Agent victim)
 			{
 				_hitAgents.Add(victim.Index);
 				_hitCount++;
-				Vec3 direction = _velocity.LengthSquared < 1e-8f ? Vec3.Forward : _velocity.NormalizedCopy();
+				Vec3 direction = FlightDirection;
 				Vec3 point = victim.Position;
 				point.z += victim.GetEyeGlobalHeight() * 0.5f;   // 视觉上打在躯干，不是脚底
 
@@ -1413,14 +1675,50 @@ namespace LivingWorldNpcs
 					Power = _shot.Intent.Power,
 					Spell = _spell,
 				});
+				// ⑤ 触发：打人的这一发算"命中"（术语口径见 OnWorldHit 的注释）
+				FireTrigger(_spell.OnHitCast, point, direction);
+				WarnLeaveSurface();
 
 				// 还能穿透就继续飞（pierce = 最多能命中几个目标）
 				return _hitCount < _spell.Pierce;
 			}
 
-			private bool OnWorldHit(Vec3 point)
+			/// <summary>
+			/// 撞到墙/地的那一击。三条出口按优先级：
+			///   ① <c>drill</c>（钻地）—— 地形不当回事：不停、不报、继续飞（飞行距离照算）
+			///   ② <c>bounce_count</c> 还有剩 —— 按命中法线**反射速度**、速度乘衰减、放"弹跳触发"
+			///   ③ 否则 —— **这一发到此为止**：放命中触发 + 报一次结算
+			/// 🔴 **触发口径**：<c>on_hit_cast</c> 只在"真的停下来的那一击"响；
+			///   弹跳那一拍响的是 <c>on_bounce_cast</c>（否则一颗弹跳弹会把命中触发器连响 N 次）。
+			/// </summary>
+			private bool OnWorldHit(Vec3 point, Vec3 normal)
 			{
-				Vec3 direction = _velocity.LengthSquared < 1e-8f ? Vec3.Forward : _velocity.NormalizedCopy();
+				Vec3 direction = FlightDirection;
+
+				// ① 钻地
+				if (_spell.Drill)
+				{
+					return true;
+				}
+
+				// ② 弹跳
+				if (_bouncesLeft > 0)
+				{
+					_bouncesLeft--;
+					Vec3 n = normal.LengthSquared < 1e-8f ? -direction : normal.NormalizedCopy();
+					Vec3 reflected = _velocity - n * (2f * Vec3.DotProduct(_velocity, n));
+					_velocity = reflected * MathF.Max(0f, _spell.BounceDamping);
+					// 从表面里挪出来一点，否则下一个检查点会立刻又撞同一面（贴着墙抖）
+					_travelled += (point - _position).Length;
+					_position = point + n * 0.05f;
+					_bounced = true;
+					SpellWorld.BurstParticle(_spell.ImpactParticle, point);
+					FireTrigger(_spell.OnBounceCast, point, FlightDirection);
+					// 弹得几乎没速度了 = 这一发到此为止（不然它会永远贴着地面蹭）
+					return _velocity.LengthSquared > 1f;
+				}
+
+				// ③ 结束
 				SpellWorld.PlaySound(_spell.SoundHit, point);
 				SpellWorld.BurstParticle(_spell.ImpactParticle, point);
 				_shot.ReportHit(new SpellHit
@@ -1432,8 +1730,69 @@ namespace LivingWorldNpcs
 					Power = _shot.Intent.Power,
 					Spell = _spell,
 				});
+				FireTrigger(_spell.OnHitCast, point, direction);
+				WarnLeaveSurface();
 				return false;
 			}
+
+			/// <summary>
+			/// ⑤ 触发：在触发点**派一条新的施法意图**（起点 = 投射物当时的位置，方向 = 继承飞行方向），
+			/// 走的是**同一条 <see cref="SpellCastFlow"/>** ⇒ "召唤一颗新子弹 / 炸一片 / 留一地火"
+			/// 全都是它（子法术自己能带范围、追踪、留地表，不需要为每种效果新造机制）。
+			/// 🔴 子法术带 <c>Resolved</c> 标记 ⇒ **不会**再叠一遍施法者的配装（§16.4：子块独立解算）。
+			/// </summary>
+			private void FireTrigger(string subId, Vec3 position, Vec3 direction)
+			{
+				if (string.IsNullOrEmpty(subId))
+				{
+					return;
+				}
+				SpellTriggerPayload payload;
+				if (!_spell.Triggers.TryGetValue(subId, out payload) || payload == null || payload.Spell == null)
+				{
+					if (_warnedTriggers.Add(_spell.Id + ":" + subId))
+					{
+						DebugLogger.Log($"[Spell] 法术 '{_spell.Id}' 的触发子块 '{subId}' 没有定义"
+							+ " → 这一下不会响（触发器要由宝石的 <Sub id=\"{subId}\"> 提供）");
+					}
+					return;
+				}
+				SpellCastFlow.Cast(_shot.Intent.Caster, payload.Spell, position, direction,
+					MathF.Max(0f, MathF.Min(1f, _shot.Intent.Power)));
+			}
+
+			/// <summary>⑤ 触发：分裂 —— 在当前位置摊出 N 发同款（子体不再分裂，防指数增长）。</summary>
+			private void SplitNow()
+			{
+				int count = _spell.SplitCount > 0 ? _spell.SplitCount : 1;
+				SpellDef child = SpellResolver.StripSplit(_spell);
+				float spread = _spell.SpreadDeg > 0f ? _spell.SpreadDeg : 20f;   // 没配散布就给个默认扇面
+				Vec3 direction = FlightDirection;
+				for (int i = 0; i < count; i++)
+				{
+					Vec3 dir = count > 1 ? SpellAim.Scatter(direction, spread) : direction;
+					SpellCastFlow.Cast(_shot.Intent.Caster, child, _position, dir,
+						MathF.Max(0f, MathF.Min(1f, _shot.Intent.Power)));
+				}
+			}
+
+			/// <summary>
+			/// <c>leave_surface</c> 的读取点（阶段 5 只**登记 + 告警**）：地表系统属阶段 8（计划 §16.5 D 组），
+			/// 现在没人会真的造出那片地表 —— 说一声，免得数据作者以为自己配错了。
+			/// </summary>
+			private void WarnLeaveSurface()
+			{
+				if (_leaveSurfaceWarned || string.IsNullOrEmpty(_spell.LeaveSurface))
+				{
+					return;
+				}
+				_leaveSurfaceWarned = true;
+				DebugLogger.Log($"[Spell] 法术 '{_spell.Id}' 配了 leave_surface='{_spell.LeaveSurface}'，"
+					+ "但地表系统属阶段 8 → 这次不会真的留下地表（字段已登记，等世界层接上）");
+			}
+
+			/// <summary>已报过"触发子块缺失"的法术+子块（防每帧刷屏）。</summary>
+			private static readonly HashSet<string> _warnedTriggers = new HashSet<string>(StringComparer.Ordinal);
 		}
 	}
 
@@ -1618,9 +1977,11 @@ namespace LivingWorldNpcs
 				return;
 			}
 			// 已经挂过同一个法术的状态 → 只把时间往后推（不叠伤害）
+			// 🔴 比 **id 不比引用**：阶段 5 之后每一发都可能是"解算出来的副本"（配了宝石时），
+			//    拿引用比 = 永远不相等 = 同一条法术连打几发就叠成秒杀（契约 3 的同源问题）。
 			for (int i = 0; i < _active.Count; i++)
 			{
-				if (_active[i].Victim == victim && _active[i].Spell == spell)
+				if (_active[i].Victim == victim && _active[i].Spell != null && _active[i].Spell.SameAs(spell))
 				{
 					_active[i].ExpiresAt = MissionTime() + spell.StatusDuration;
 					_active[i].NextTick = MathF.Min(_active[i].NextTick,
@@ -2000,6 +2361,23 @@ namespace LivingWorldNpcs
 	}
 
 	/// <summary>
+	/// 范围类结算的**敌我过滤**（area / aura 共用，与扫掠同一条口径）：
+	/// <c>hit_same_team = false</c> 时连自己一起跳过 —— 不然"火球穿队友飞过去、爆开还是把他炸了"。
+	/// 默认 true（打自己人）= 引擎现状，旧法术一行不变。
+	/// </summary>
+	internal static class SpellTeamFilter
+	{
+		public static bool Skip(SpellDef spell, Agent caster, Agent agent)
+		{
+			if (spell == null || spell.HitSameTeam || caster == null || agent == null)
+			{
+				return false;
+			}
+			return caster.Team != null && agent.Team == caster.Team;
+		}
+	}
+
+	/// <summary>
 	/// 结算轴「光环」（<c>payloads="aura"</c>）：以**施法者自己为圆心**把半径内的人一起打
 	/// （雷电领域 / 大地加护那一类）。与 <c>area</c> 的区别只在圆心 —— area 以命中点为心，aura 以施法者为心。
 	/// 有 <c>status</c> 就顺带给半径内每个人挂上（"站在圈里持续被烧/被电"）。
@@ -2026,6 +2404,7 @@ namespace LivingWorldNpcs
 			{
 				return;
 			}
+			// 伤害走唯一入口（蓄力 / 浮动 / 暴击都在里面）；**暴击每个人各掷一次**
 			Mission mission = Mission.Current;
 			if (mission == null)
 			{
@@ -2033,7 +2412,6 @@ namespace LivingWorldNpcs
 			}
 			Vec3 center = hit.Caster.Position;
 			center.z += hit.Caster.GetEyeGlobalHeight() * 0.5f;
-			float factor = 1f + spell.ChargeBonus * MathF.Max(0f, MathF.Min(1f, hit.Power));
 			try
 			{
 				_nearby.Clear();
@@ -2042,6 +2420,10 @@ namespace LivingWorldNpcs
 				{
 					Agent agent = _nearby[i];
 					if (agent == null || !AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0f)
+					{
+						continue;
+					}
+					if (SpellTeamFilter.Skip(spell, hit.Caster, agent))
 					{
 						continue;
 					}
@@ -2059,8 +2441,13 @@ namespace LivingWorldNpcs
 					}
 					if (spell.Damage > 0f)
 					{
-						SpellWorld.Damage(agent, spell.Damage * factor * falloff, spell.DamageType,
-							agent.Position, delta, hit.Caster);
+						bool crit;
+						float damage = SpellDamage.Roll(spell, hit.Power, out crit) * falloff;
+						if (crit)
+						{
+							DebugLogger.Log($"[Spell] 暴击！'{spell.Id}' 光环打 {agent.Name} {damage:F1}");
+						}
+						SpellWorld.Damage(agent, damage, spell.DamageType, agent.Position, delta, hit.Caster);
 					}
 					if (!string.IsNullOrEmpty(spell.StatusId) && spell.StatusDamage > 0f)
 					{
@@ -2092,8 +2479,14 @@ namespace LivingWorldNpcs
 			{
 				return;
 			}
-			float factor = 1f + hit.Spell.ChargeBonus * MathF.Max(0f, MathF.Min(1f, hit.Power));
-			SpellWorld.Damage(hit.Victim, hit.Spell.Damage * factor, hit.Spell.DamageType,
+			bool crit;
+			float damage = SpellDamage.Roll(hit.Spell, hit.Power, out crit);
+			if (crit)
+			{
+				DebugLogger.Log($"[Spell] 暴击！'{hit.Spell.Id}' 打 {hit.Victim.Name} {damage:F1}"
+					+ $"（{hit.Spell.Crit:P0} × {hit.Spell.CritMult:0.#}）");
+			}
+			SpellWorld.Damage(hit.Victim, damage, hit.Spell.DamageType,
 				hit.Position, hit.Direction, hit.Caster);
 		}
 	}
@@ -2145,6 +2538,10 @@ namespace LivingWorldNpcs
 					{
 						continue;
 					}
+					if (SpellTeamFilter.Skip(spell, hit.Caster, agent))
+					{
+						continue;
+					}
 					Vec3 delta = agent.Position - hit.Position;
 					float distanceSq = delta.LengthSquared;
 					if (distanceSq > radius * radius)
@@ -2153,12 +2550,18 @@ namespace LivingWorldNpcs
 					}
 					float t = MathF.Sqrt(distanceSq) / radius;          // 0 = 正中，1 = 边缘
 					float factor = 1f - spell.RadiusFalloff * t;
-					factor *= 1f + spell.ChargeBonus * MathF.Max(0f, MathF.Min(1f, hit.Power));   // 蓄力档位
 					if (factor <= 0f)
 					{
 						continue;
 					}
-					SpellWorld.Damage(agent, spell.Damage * factor, spell.DamageType,
+					// 伤害走唯一入口（蓄力 / 浮动 / 暴击都在里面）；**暴击每个人各掷一次**
+					bool crit;
+					float damage = SpellDamage.Roll(spell, hit.Power, out crit) * factor;
+					if (crit)
+					{
+						DebugLogger.Log($"[Spell] 暴击！'{spell.Id}' 半径伤害打 {agent.Name} {damage:F1}");
+					}
+					SpellWorld.Damage(agent, damage, spell.DamageType,
 						agent.Position, delta, hit.Caster);
 				}
 			}

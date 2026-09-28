@@ -78,6 +78,14 @@ namespace LivingWorldNpcs
 			{
 				return false;
 			}
+			// 🔴 修正解算（阶段 5）：拿**这个施法者**的配装把基础术解算成"有效定义"（计划 §16.2）。
+			//    放在这里的理由：玩家与 NPC 走的是同一个入口（铁律 18）⇒ 一处接线，两边都吃修正。
+			//    没配装 = 原样返回（零开销、零行为变化）；已解算过 = 原样返回（触发子法术不继承外层配装）。
+			spell = SpellLoadout.ResolveFor(caster, spell);
+			if (spell == null)
+			{
+				return false;
+			}
 			Mission mission = Mission.Current;
 			if (mission == null)
 			{

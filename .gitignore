@@ -87,6 +87,9 @@ tools/anim-retarget/docs/**/*.mp4
 #   烘出来的 GLB（137MB，可由 input/source 的 FBX 重生成）与 serve.py 的滚动备份不进库
 tools/anim-retarget/viewer/datasets/*/assets/
 tools/anim-retarget/viewer/datasets/*/_backup/
+#   🔴 分层（2026-09-28 定）：**viewer/ 只放逻辑**（页面 / 脚本 / dataset.json），
+#   **数据一律放 output/**（成品展示页 output/交付总览/、对照图 output/verify/、视频…）。
+#   output/ 整目录已被下方兜底段忽略 ⇒ 数据天然不进库，不需要再给 viewer/ 开例外。
 #   下面几条是【防御性兜底】：这些目录本不该出现在工具目录里（数据都在 D 盘），
 #   防的是将来有人在工具目录里跑出产物、或误把数据拷进来。
 tools/anim-retarget/input/

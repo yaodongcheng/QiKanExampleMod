@@ -334,6 +334,12 @@
     <Compile Include="Combat\SpellCastInput.cs" />
     <Compile Include="Combat\SpellNpcCaster.cs" />
     <Compile Include="Combat\SpellSealFirePatch.cs" />
+    <!-- 🔴 阶段 5：修正机制（2026-09-28）—— 宝石数据 + 属性表 / 有效定义解算 / 手环宝石槽（配装 + 存档）。
+         方案见 plans\法术体系-通用施法框架.md §十六；属性表 = Combat\SpellModifier.cs 的 SpellFields。
+         验收命令：custom.spell mods / build / gem。 -->
+    <Compile Include="Combat\SpellModifier.cs" />
+    <Compile Include="Combat\SpellResolve.cs" />
+    <Compile Include="Combat\SpellLoadout.cs" />
     <!-- 🔴 调试脚手架（2026-09-22）：法术弹飞行诊断（存活/命中/结局/示踪火线），验完即删。
          用法与判据见文件头；控制台 custom.spell_trace。 -->
     <Compile Include="Combat\SpellMissileTrace.cs" />

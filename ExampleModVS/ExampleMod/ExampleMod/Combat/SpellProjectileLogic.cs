@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -85,6 +86,11 @@ namespace LivingWorldNpcs
 	///   custom.spell hand                   右手骨诊断：球挂点的全部数字（骨索引/世界位置/相对角色偏移）
 	///   custom.spell lead &lt;秒&gt;|off           **出手延迟**覆盖：法术等释放动作走到出手帧才飞（0 = 点键即出）
 	///   custom.spell probe                  对最近的一个 agent 做三条实测定性（见方法注释）
+	///   ── 阶段 5（修正机制）──
+	///   custom.spell mods                   **列全部宝石**：每颗挂哪一段、改哪些属性、带哪些触发子块
+	///   custom.spell build &lt;法术&gt; [宝石…]     **逐属性打印解算后的有效定义**（不写宝石 = 用当前配装）
+	///   custom.spell gem [槽位] [宝石|none]   手环宝石槽：不填=看配装 · 填槽位+宝石=插一颗 · clear=清空
+	///   custom.spell cast &lt;法术&gt; [宝石…]       临时组合直接放一发（不改配装 —— 验收"组合是算出来的"）
 	/// </summary>
 	public class SpellProjectileLogic : MissionLogic
 	{
@@ -122,10 +128,15 @@ namespace LivingWorldNpcs
 		{
 			// 预热法术表：把"首次查询才扫模块读文件"的活儿放在进场时做掉，
 			// 免得第一发法术在战场中途卡一下（顺带每场景记一条"表里有什么"）。
+			// 🔴 同时**重读一次**：改 Spells.xml / Modifiers.xml 不用重启游戏，重进一场就生效
+			//    （调数值的循环从"重启 + 读档"缩到"重进自定义战斗"）。
 			try
 			{
+				SpellRegistry.Reload();
+				ModifierRegistry.Reload();
 				SpellStatusManager.Reset();   // 新场景 = 上一场挂的状态全清（状态是场景范围内的东西）
-				DebugLogger.Log($"[Spell] 场景就绪：法术表 {SpellRegistry.Count} 条 / 族 {SpellRegistry.Families.Count} 个");
+				DebugLogger.Log($"[Spell] 场景就绪：法术表 {SpellRegistry.Count} 条 / 族 {SpellRegistry.Families.Count} 个"
+					+ $" / 宝石 {ModifierRegistry.Count} 颗 / 可修正字段 {SpellFields.Count} 个");
 			}
 			catch (Exception ex)
 			{
@@ -236,7 +247,9 @@ namespace LivingWorldNpcs
 
 			Mission mission = Mission.Current;
 			Agent player = mission != null ? mission.MainAgent : null;
-			SpellDef spell = SpellWorld.ResolveWieldedSpell(player);
+			// 🔴 指示圈读的也是**解算后的有效定义**：宝石改了 targeting / indicator / indicator_scale
+			//    之后，圈和真正会落下的法术才是一回事（没配装时原样返回，零开销）。
+			SpellDef spell = SpellLoadout.ResolveFor(player, SpellWorld.ResolveWieldedSpell(player));
 			if (spell == null || spell.Targeting != "ground" || string.IsNullOrEmpty(spell.Indicator))
 			{
 				HideIndicator();
@@ -392,6 +405,12 @@ namespace LivingWorldNpcs
 						return Core(args);
 					case "lead":
 						return Lead(args);
+					case "mods":
+						return Mods();
+					case "build":
+						return Build(args);
+					case "gem":
+						return Gem(args);
 					case "hand":
 						return Hand(args);
 					case "tilt":
@@ -445,7 +464,7 @@ namespace LivingWorldNpcs
 		{
 			if (args.Count < 2)
 			{
-				return "USAGE: custom.spell cast <spellId>";
+				return "USAGE: custom.spell cast <spellId> [gemId...]";
 			}
 			Agent player = Agent.Main;
 			if (player == null)
@@ -459,11 +478,206 @@ namespace LivingWorldNpcs
 			{
 				return $"FAILED: '{args[1]}' is not a spell id (see 'custom.spell list')";
 			}
+			// 🔴 可选：把后面的参数当**临时宝石**（不改配装）—— 验收"同一个术装不同宝石行为不同"最省事的路径。
+			//    解算过的定义带 Resolved 标记 ⇒ SpellCastFlow 不会再叠一遍玩家配装（显式覆盖优先）。
+			string gemNote = "";
+			if (args.Count > 2)
+			{
+				List<string> gems = SplitGems(args, 2);
+				spell = SpellResolver.Resolve(spell, gems, 0, null);
+				gemNote = $" gems=[{string.Join(",", gems.ToArray())}]";
+			}
 			float power = SpellDebug.PowerOverride ?? 1f;
 			bool ok = SpellCastFlow.Cast(player, spell, origin, player.LookDirection, power);
 			return ok
-				? $"OK: cast '{spell.Id}' power={power:F2}"
+				? $"OK: cast '{spell.Id}' power={power:F2}{gemNote}"
 				: $"FAILED: '{spell.Id}' did not start (see log)";
+		}
+
+		/// <summary>把命令参数从 <paramref name="from"/> 起拼成宝石 id 表（支持逗号/竖线分隔）。</summary>
+		private static List<string> SplitGems(List<string> args, int from)
+		{
+			List<string> gems = new List<string>();
+			for (int i = from; i < args.Count; i++)
+			{
+				foreach (string piece in args[i].Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+				{
+					string gem = piece.Trim();
+					if (gem.Length > 0)
+					{
+						gems.Add(gem);
+					}
+				}
+			}
+			return gems;
+		}
+
+		// ══════════════ 阶段 5：修正机制的三条验收命令 ══════════════
+
+		/// <summary>
+		/// <c>custom.spell mods</c> —— 列出宝石表：每颗宝石挂哪一段、改哪些属性。
+		/// 🔴 判据：**字段拼错在这里就看得出来**（加载期已把认不出的字段挡掉并记日志，
+		///   所以这里打出来的每一条都是真的会被执行的）。
+		/// </summary>
+		private static string Mods()
+		{
+			if (ModifierRegistry.Count == 0)
+			{
+				return "OK: no gems (no content pack provides ModuleData/AssetRegistry/Modifiers.xml)";
+			}
+			var sb = new System.Text.StringBuilder("OK: gems=" + ModifierRegistry.Count
+				+ " fields=" + SpellFields.Count + " sealSlots=");
+			bool first = true;
+			foreach (KeyValuePair<string, int> kv in ModifierRegistry.SealSlots)
+			{
+				sb.Append(first ? "" : ",");
+				sb.Append($"{kv.Key}:{kv.Value}");
+				first = false;
+			}
+			if (first)
+			{
+				sb.Append("default:" + ModifierRegistry.DefaultSlots);
+			}
+			foreach (ModifierDef gem in ModifierRegistry.All)
+			{
+				sb.Append($" [{gem.Id}/{gem.Stage}");
+				for (int i = 0; i < gem.Ops.Count; i++)
+				{
+					sb.Append(i == 0 ? ": " : ", ");
+					sb.Append(gem.Ops[i].Raw);
+				}
+				if (gem.Subs.Count > 0)
+				{
+					sb.Append(", subs=");
+					for (int i = 0; i < gem.Subs.Count; i++)
+					{
+						sb.Append(i == 0 ? "" : "+");
+						sb.Append(gem.Subs[i].Id);
+					}
+				}
+				sb.Append(']');
+			}
+			return sb.ToString();
+		}
+
+		/// <summary>
+		/// <c>custom.spell build &lt;spellId&gt; [gemId...]</c> —— **逐属性打印解算后的有效定义**。
+		/// 不写宝石 = 用玩家当前的配装；写了 = 用这一串（临时组合，不改配装）。
+		/// 控制台只回"变了的字段"（一行英文）；完整步骤链进日志（<c>DebugLogger</c>，中文）。
+		/// </summary>
+		private static string Build(List<string> args)
+		{
+			if (args.Count < 2)
+			{
+				return "USAGE: custom.spell build <spellId> [gemId...]  (no gems -> use the player's loadout)";
+			}
+			SpellDef baseDef = SpellRegistry.FindById(args[1].Trim());
+			if (baseDef == null)
+			{
+				return $"FAILED: '{args[1]}' is not a spell id (see 'custom.spell list')";
+			}
+			List<string> gems;
+			string source;
+			if (args.Count > 2)
+			{
+				gems = SplitGems(args, 2);
+				source = "args";
+			}
+			else
+			{
+				gems = SpellLoadout.GetGems(SpellLoadout.HeroOf(Agent.Main));
+				source = "loadout";
+			}
+
+			List<string> trace = new List<string>();
+			SpellDef effective = SpellResolver.Resolve(baseDef, gems, 0, trace);
+			List<string> changed = SpellResolver.Diff(baseDef, effective);
+
+			DebugLogger.Log($"[Spell] build '{baseDef.Id}' gems=[{string.Join(",", gems.ToArray())}] ({source})"
+				+ $" · {SpellResolver.Summary(effective)} · 触发子块 {effective.Triggers.Count} 个");
+			for (int i = 0; i < trace.Count; i++)
+			{
+				DebugLogger.Log("    " + trace[i]);
+			}
+			if (changed.Count > 0)
+			{
+				DebugLogger.Log("    有效定义（与基础术不同的字段）：" + string.Join(" | ", changed.ToArray()));
+			}
+
+			string header = $"OK: '{baseDef.Id}' gems=[{string.Join(",", gems.ToArray())}] ({source})";
+			if (changed.Count == 0)
+			{
+				return header + $" -> no field changed (table has {SpellFields.Count} fields)";
+			}
+			return header + " -> " + string.Join(" | ", changed.ToArray());
+		}
+
+		/// <summary>
+		/// <c>custom.spell gem</c> —— 手环宝石槽的装配（阶段 5 是靠控制台验机制；玩家面界面排在阶段 10）。
+		///   <c>gem</c> / <c>gem show</c>   看当前配装（槽位数 / 每槽是哪颗）
+		///   <c>gem &lt;槽位&gt; &lt;宝石|none&gt;</c>  插一颗（none = 清空该槽）
+		///   <c>gem clear</c>              清空这个英雄的全部配装
+		/// </summary>
+		private static string Gem(List<string> args)
+		{
+			Agent player = Agent.Main;
+			Hero hero = SpellLoadout.HeroOf(player) ?? Hero.MainHero;
+			if (hero == null)
+			{
+				return "ERROR: no hero (are you in a campaign?)";
+			}
+			string seal = null;
+			SpellDef wielded = SpellWorld.ResolveWieldedSpell(player);
+			if (wielded != null)
+			{
+				seal = wielded.SealItem;
+			}
+			if (seal == null)
+			{
+				seal = SpellLoadout.DefaultSealId();
+			}
+
+			string sub = args.Count >= 2 ? args[1].Trim().ToLowerInvariant() : "show";
+			if (args.Count < 2 || sub == "show")
+			{
+				return DescribeLoadout(hero, seal);
+			}
+			if (sub == "clear")
+			{
+				SpellLoadout.Clear(hero);
+				return $"OK: loadout cleared for {hero.Name}";
+			}
+			if (args.Count < 3)
+			{
+				return "USAGE: custom.spell gem <slot> <gemId|none> | gem show | gem clear";
+			}
+			int slot;
+			if (!int.TryParse(sub, NumberStyles.Integer, CultureInfo.InvariantCulture, out slot))
+			{
+				return $"FAILED: '{args[1]}' is not a slot number (see 'custom.spell gem show')";
+			}
+			string error;
+			bool ok = SpellLoadout.SetSlot(hero, slot, args[2].Trim(), seal, out error);
+			if (!ok)
+			{
+				return $"FAILED: {error}";
+			}
+			return "OK: " + DescribeLoadout(hero, seal);
+		}
+
+		private static string DescribeLoadout(Hero hero, string seal)
+		{
+			int slots = SpellLoadout.SlotCount(hero, seal);
+			int baseSlots = ModifierRegistry.SlotsForSeal(seal);
+			int level = SpellLoadout.NinjutsuLevel(hero);
+			var sb = new System.Text.StringBuilder();
+			sb.Append($"OK: {hero.Name} seal={seal ?? "-"} slots={slots} (bracelet {baseSlots} + ninjutsu {level})");
+			for (int i = 0; i < slots; i++)
+			{
+				string gem = SpellLoadout.GetSlot(hero, i);
+				sb.Append($" [{i}={gem ?? "-"}]");
+			}
+			return sb.ToString();
 		}
 
 		/// <summary>

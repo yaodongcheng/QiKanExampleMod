@@ -1,0 +1,25 @@
+{
+  "name": "pose_rasen",
+  "title": "蓄力 → 螺旋手里剑出手（无版权替身视频迁移）",
+  "subtitle": "Seedance 生成连续动作 → BlazePose 关键点 → look-at 解算 → 骑砍2 28 骨",
+  "sides": {
+    "dst": {
+      "label": "骑砍2 · 蓄力→发出（小白人视频迁移）",
+      "color": "#e0b070",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "assets/dst.glb"
+        }
+      ]
+    }
+  }
+}

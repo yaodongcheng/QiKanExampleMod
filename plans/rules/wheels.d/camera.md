@@ -79,3 +79,43 @@ SpringArmCameraView.StopFollowCamera();      // 立刻归还（幂等）；到�
   引擎相机继续用；别让"什么都不发生"静默过去。
 - 跟随模式的锚点没了（换场景 / agent 被移除）→ 自己收摊（日志 `[FollowCam] 已归还相机`）。
 - 想边调边看：`custom.openSpringArmCamDebugger`（带滑杆的调试 UI）· `custom.useSpringArmCamera <模板> [agentId]`。
+
+## 🔴 弹簧臂的两个共用件：**位置滞后** + **运动驱动**（2026-09-28 立）
+
+> **解决什么**：① 相机焊死在角色身上 ⇒ 角色永远在画面正中央，**运动的方向差在画面上看不见**（看着"没有质量"）；
+> ② 镜头参数只按机位**死值**摆，没有速度感（俯冲和悬停一样广）。
+> 两件都是**纯数学 + 可选填参**：不填 = 行为与加它之前**逐字节一致**（演出相机就没填）。
+
+| 件 | 在哪 | 对应 UE `SpringArmComponent` |
+|---|---|---|
+| `SpringArmLagState`（结构体）+ `SpringArmMath.LagToward` | `Camera/SpringArmMath.cs` | `bEnableCameraLag` + `CameraLagSpeed`（`VInterpTo` 口径逐字照抄）|
+| 参数 `LagSpeed` / `LagMaxDistance` | `SpringArmCameraParam`（`Camera/SpringArmCameraView.cs`）| `CameraLagSpeed` / `CameraLagMaxDistance` |
+| `SpringArmMotion`（结构体）+ `SpringArmMath.WithMotion` | `Camera/SpringArmMath.cs` | 无直接对应（UE 那份靠动画通知 `BPANS_SetCameraLag` 按状态改参数）|
+| 参数 `FovPerVz` / `ArmPerVz` / `RollPerYawRate` | 同上 | —— |
+
+**接法（消费者侧就三行）** —— 范本 = `Flight/FlightCameraRig.cs` 的 `Tick`：
+
+```csharp
+private SpringArmLagState _lag;          // 字段：滞后状态
+private SpringArmMotion _motion;         // 字段：本帧运动量（行为层每帧 SetMotion 喂）
+// 帧内（算完参数、摆相机之前）：
+p = SpringArmMath.WithMotion(in p, in _motion);                       // 运动驱动叠到 FOV/臂长/侧倾
+SpringArmMath.ComputeFrame(agent, in p, out MatrixFrame frame, out float fov);
+frame.origin += _lag.Update(agent.LookFrame.origin, p.LagSpeed, p.LagMaxDistance, dt, lagFade);
+```
+
+🔴 **三条口径（推过/踩过才写）**：
+1. **滞后的是"角色锚点"，不是相机位置** —— 相机位 = 锚点 − 前向 × 臂长 ⇒ 锚点滞后多少相机就挪多少，
+   与 UE 的 pivot 滞后等价（**前提 PivotX/Y/Z = 0**；飞行四个机位都是 0，哪天真填了 pivot 偏移这条要重推）。
+2. **松开滞后必须渐隐**（`SpringArmLagState.FadeSpeed` = 8/秒）：冲刺稳态尾巴 = 速度 ÷ LagSpeed ≈ 6.5 米，
+   硬关 = 镜位一帧跳 6.5 米（肉眼就是"镜头被弹一下"）；**归还相机时再乘 `1 − 渐变进度`** ⇒ 撒手那一刻正好归零。
+3. **运动驱动只喂"连续量"**：我们的飞行速度**大小**是离散的（0 / 9 / 26，Shift 一按一换）⇒ 拿它驱 FOV 只有三个台阶。
+   真正连续的是 **竖直速率**（俯冲/爬升多快 ⇒ 视场变广、镜头拉远）与 **航向角速度**（转得多快 ⇒ 侧倾；
+   **必须先平滑**，照 UE `FInterpTo(…, 5)`，否则"转到位"那一帧角速度从 180 突降到 0、侧倾会顿一下）。
+   竖直速率在 `WithMotion` 内部钳到 **20 m/s**（出机坠落 36 m/s，不钳 FOV 会被拉到失真）。
+
+**现成消费者 + 旋钮**：飞行相机（`Flight/FlightCameraRig.cs`）四档机位各带一套值 ——
+`custom.flight cam <hover|cruise|boost|aim> lag|lagmax|fovvz|armvz|rollyaw <值>`；
+一键开关 = `custom.flight tune camlag 0`（关滞后）/ `custom.flight tune cammotion 0`（关运动驱动）。
+**瞄准档两样都固定关**（要瞄目标时镜头必须是硬的）。
+新消费者自己接的话：**别改 `SpringArmMath.ComputeFrame`**，照上面三行接在它外面。

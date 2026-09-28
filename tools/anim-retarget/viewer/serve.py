@@ -23,10 +23,39 @@ def pick_port(start, tries):
     return None
 
 
+# ── 数据盘的 output/ 挂到 /output/* ────────────────────────────────────────────
+# 🔴 2026-09-28 分层修正：**viewer/ 只放逻辑（进 git）**，报告/展示页/截图/视频都是**数据**，
+#    按项目约定应该落在 output/。但 serve.py 原来只服务 viewer/ 目录，output/ 就访问不到。
+#    所以这里把 output/ 作为一个**只读静态挂载**接到 /output/*，同一个服务、同一个端口。
+#    展示页因此可以放 output/ 里，链接相对回 viewer（如 `../../viewer.html`）。
+def _output_root():
+    here = os.path.dirname(os.path.abspath(__file__))
+    cand = os.path.abspath(os.path.join(here, "..", "output"))
+    if os.path.isdir(cand):
+        return cand
+    # viewer/ 是 junction 时，.. 可能落到仓库侧（没有 output/）—— 退回数据根
+    alt = r"D:\BrainMaker\骑砍2动画重定向\output"
+    return alt if os.path.isdir(alt) else cand
+
+
+OUTPUT_ROOT = _output_root()
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
+
+    def translate_path(self, path):
+        """把 /output/<...> 映射到数据盘的 output/；其余仍走 viewer/。"""
+        u = urllib.parse.urlparse(path).path
+        if u.startswith("/output/"):
+            rest = urllib.parse.unquote(u[len("/output/"):])
+            full = os.path.abspath(os.path.join(OUTPUT_ROOT, rest))
+            if full.startswith(OUTPUT_ROOT):          # 防目录穿越
+                return full
+            return os.path.join(os.getcwd(), "__forbidden__")
+        return super().translate_path(path)
 
     def log_message(self, *a):
         pass
