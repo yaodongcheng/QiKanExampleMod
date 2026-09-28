@@ -121,10 +121,26 @@ if FACING:
         log("  [!] 素材疑似【背对镜头】：解出来角色会背朝标准前方 +Y。"
             "用 --auto-yaw 自动转正，或手工 --yaw 180")
     if AUTO_YAW:
-        _auto = -float(FACING.get("median_yaw_deg", 0.0))
+        _auto = float(FACING.get("median_yaw_deg", 0.0))
         log("自动朝向: 把中位 yaw %+.1f° 转回 0°（角色转到骨架标准前方 +Y），施加 %+.1f°"
             % (FACING.get("median_yaw_deg", 0.0), _auto))
         YAW += _auto
+
+# ── 🔴 整体转身：**必须旋转【关键点数据】，不能旋转根骨** ──────────────────────────
+#   本算法的每一根骨都被"瞄准"到源方向（E(b) @ d_rest(b) = d_now(b)，见文件头公式），
+#   所以根骨上的旋转会被子骨的瞄准**抵消**：实测把 -69.4° 加在根骨上，FK 量出来的
+#   骨盆朝向确实转了 139°，但手的位置一动没动 ⇒ 结果是"骨盆拧了、四肢原地"的变形骨架。
+#   正解：先把 33 个关键点整体绕【世界 Z（竖直）轴】转 YAW 度，再照常解算 —— 这时
+#   源方向本身就转了，全链一致。已用 FK 复测：--yaw +69.4 ⇒ 末帧朝向 yaw ≈ 0°（正对 +Y）。
+#   旋转在 MP 系里做：Rz(θ)_arm = AXIS3 ∘ M ∘ AXIS3⁻¹（M 就是 MP 系里的等价旋转）。
+if abs(YAW) > 1e-6:
+    _Rz = Matrix.Rotation(math.radians(YAW), 3, 'Z')
+    _M = np.array(AXIS3.inverted() @ _Rz @ AXIS3, dtype=float)
+    _W = np.array(LAND, dtype=float)
+    LAND = (_M @ _W.reshape(-1, 3).T).T.reshape(_W.shape)
+    log("整体转身: 关键点绕世界 Z 旋转 %+.1f°（源朝向 yaw %+.1f° → %+.1f°）"
+        % (YAW, float(FACING.get("median_yaw_deg", 0.0)) if FACING else 0.0,
+           (float(FACING.get("median_yaw_deg", 0.0)) - YAW) if FACING else -YAW))
 
 
 # ─────────────────────────── 点 / 方向 工具 ───────────────────────────
@@ -199,11 +215,16 @@ for pb in PB:
 
 # 驱动表：{骨名: (a_spec, b_spec, frac)}
 DRIVE = {}
+DRIVE_FULL = {}      # 带 "up" 参考的骨：走【全基】驱动（方向 + roll 都定），见 solve_frame
 for nm, d in MAPD["bones"].items():
     if nm not in IDX:
         log("  !! map.json 里的骨名在目标骨架找不到: %s（跳过）" % nm)
         continue
     DRIVE[nm] = (d["a"], d["b"], float(d.get("frac", 1.0)))
+    if d.get("up"):
+        DRIVE_FULL[nm] = (d["a"], d["b"], d["up"][0], d["up"][1], d.get("lat"))
+if DRIVE_FULL:
+    log("全基驱动（方向+roll）%d 骨: %s" % (len(DRIVE_FULL), ", ".join(sorted(DRIVE_FULL))))
 KEEP = set(MAPD.get("keep_rest", []))
 ROOTB = MAPD["root"]["bone"]
 ROOT_UP = MAPD["root"]["up"]
@@ -245,15 +266,73 @@ def solve_root_basis(fi):
     return E.to_quaternion()
 
 
-def solve_frame(fi, yaw_q):
-    """返回 {骨名: 相对父的 basis 四元数}。"""
+# ── 全基驱动：静止参考帧（用于带 "up" 参考的骨，如脚）──────────────────────────
+#   为什么需要：aim 驱动只约束"骨段方向"，**绕该方向的 roll 是空出来的**（由最小旋转+父链凑），
+#   实测脚被抬高 ~35°、脚掌后翻（和 neck/head 同一个病）。
+#   脚的关键点里有 踝(27/28) 趾(31/32) 跟(29/30) ⇒ **脚掌平面是可定的**，于是方向与 roll 都能定。
+#   rest 侧没有"脚跟骨"，用"静止时脚是平放的"这条成立的前提取 脚掌法线 ≈ +Z。
+FULL_REST = {}
+for nm, (a_spec, b_spec, ua, ub, _lat) in DRIVE_FULL.items():
+    d_rest = ANCHOR[nm][1]
+    if d_rest is None:
+        continue
+    # 静止帧的"侧向/朝外"参考：优先用 map 里声明的 `lat`（世界系提示向量，取静止矩阵里最贴它的一根轴）；
+    # 没声明才回落到"该侧朝外"（左脚 -X / 右脚 +X）。
+    # 🔴 别用 "fwd × (踝→跟)" 当静止侧向：踝→跟 ≈ −up，cross 出来正好反号 ⇒ 会翻 180°（脚那次踩过）。
+    # 手用 lat=[0,±1,0]：静止 A-pose 手心是薄片正对镜头 ⇒ 手心法线 ≈ ±Y。
+    out = Vector(tuple(_lat)) if _lat else (
+        Vector((-1.0, 0.0, 0.0)) if nm.startswith("l_") else Vector((1.0, 0.0, 0.0)))
+    Rl = REST_WORLD[IDX[nm]]
+    cols = [Rl.col[i].copy() for i in range(3)]
+    best = max(cols, key=lambda c: abs(c.dot(out)))
+    lat0 = best if best.dot(out) > 0 else -best
+    lat0.normalize()
+    fwd0 = d_rest - lat0 * d_rest.dot(lat0)          # 骨段方向里去掉侧向分量
+    if fwd0.length < 1e-6:
+        continue
+    fwd0.normalize()
+    FULL_REST[nm] = (fwd0, lat0, fwd0.cross(lat0))   # (前, 外, 上)
+
+
+def solve_full_basis(nm, fi):
+    """返回该骨【世界系】的目标旋转增量 E_target（相对静止姿势），roll 由 up 参考定死。"""
+    if nm not in FULL_REST:
+        return None
+    a_spec, b_spec, ua, ub, _lat = DRIVE_FULL[nm]
+    fwd = safe_dir(mid(fi, a_spec), mid(fi, b_spec))          # 踝→趾
+    ref = safe_dir(mid(fi, ua), mid(fi, ub))                  # 踝→跟
+    if fwd is None or ref is None:
+        return None
+    lat = fwd.cross(ref)                                      # 踝→趾 × 踝→跟 = 脚掌平面法线 = 侧向
+    if lat.length < 1e-6:
+        return None
+    lat.normalize()
+    fwd = fwd - lat * fwd.dot(lat)                            # 去掉侧向分量，保证正交
+    if fwd.length < 1e-6:
+        return None
+    fwd.normalize()
+    upn = fwd.cross(lat)                                      # 右手系：上 = 前 × 外
+    if upn.length < 1e-6:
+        return None
+    upn.normalize()
+    f0, l0, u0 = FULL_REST[nm]                                # 静止帧的 (前, 外, 上)
+    # 两帧的列都按 (前, 外, 上) 摆 —— 同一个约定，roll 才对齐
+    Mnow = Matrix(((fwd.x, lat.x, upn.x), (fwd.y, lat.y, upn.y), (fwd.z, lat.z, upn.z)))
+    Mrest = Matrix(((f0.x, l0.x, u0.x), (f0.y, l0.y, u0.y), (f0.z, l0.z, u0.z)))
+    return (Mnow @ Mrest.inverted()).to_quaternion()
+
+
+def solve_frame(fi):
+    """返回 {骨名: 相对父的 basis 四元数}。
+
+    🔴 这里**不再接受 yaw 参数**：整体转身已改为"先旋转关键点"（见文件中部 YAW 段）。
+       根骨上再加旋转会被子骨的瞄准抵消（骨盆转了、四肢原地）—— 实测过的坑。
+    """
     basis = {}
     E = {}
     rq = solve_root_basis(fi)
     if rq is None:
         return None
-    if yaw_q is not None:
-        rq = yaw_q @ rq
     E[ROOTB] = rq
     basis[ROOTB] = (REST_WORLD_Q[IDX[ROOTB]].inverted() @ rq @ REST_WORLD_Q[IDX[ROOTB]])
 
@@ -269,6 +348,17 @@ def solve_frame(fi, yaw_q):
                 q = PB[IDX[q]].parent.name if PB[IDX[q]].parent else None
             if q is not None:
                 Ep = E[q]
+        # 🔴 全基骨（脚）：方向 + roll 一起定，**不**走下面的 aim 分支
+        if nm in DRIVE_FULL:
+            qE = solve_full_basis(nm, fi)
+            if qE is None:
+                basis[nm] = Quaternion((1, 0, 0, 0))
+                E[nm] = Ep
+                continue
+            rst = REST_WORLD_Q[IDX[nm]]
+            basis[nm] = rst.inverted() @ (Ep.inverted() @ qE) @ rst
+            E[nm] = qE
+            continue
         kind, d_rest = ANCHOR[nm]
         if d_rest is None:
             basis[nm] = Quaternion((1, 0, 0, 0))
@@ -345,11 +435,6 @@ if src_fps > 0 and abs(src_fps - TGT_FPS) > 0.5:
 N_OUT = int(NF / step) if step != 1.0 else NF
 N_OUT = max(1, N_OUT)
 
-yaw_q = None
-if abs(YAW) > 1e-6:
-    yaw_q = Quaternion((0, 0, 1), math.radians(YAW))
-    log("整体绕世界 Z 旋转 %.1f°" % YAW)
-
 act = bpy.data.actions.new(NAME)
 act.use_fake_user = True
 if arm.animation_data is None:
@@ -374,11 +459,11 @@ for k in range(N_OUT):
     _x = k * step
     fi = min(NF - 1, int(math.floor(_x)))
     _u = _x - fi
-    sol = solve_frame(fi, yaw_q)
+    sol = solve_frame(fi)
     if sol is not None and _u > 1e-6:
         _fi1 = min(NF - 1, fi + 1)
         if _fi1 != fi:
-            _s1 = solve_frame(_fi1, yaw_q)
+            _s1 = solve_frame(_fi1)
             if _s1 is not None:
                 for _nm, _q0 in list(sol.items()):
                     _q1 = _s1.get(_nm)

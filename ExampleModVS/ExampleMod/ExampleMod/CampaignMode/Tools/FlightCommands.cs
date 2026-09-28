@@ -49,6 +49,9 @@ namespace LivingWorldNpcs.CampaignMode
                 case "fx":
                     return Fx(args);
 
+                case "trail":
+                    return Trail(args);
+
                 case "log":
                 {
                     // 🔴 飞行 tick 日志总闸（2026-09-22 用户要求：默认关，要查时再开）。
@@ -199,6 +202,78 @@ namespace LivingWorldNpcs.CampaignMode
             return ok
                 ? $"OK. played '{name}' at your feet."
                 : $"ERR {error}";
+        }
+
+        /// <summary>
+        /// <c>custom.flight trail [on &lt;粒子名&gt;|off &lt;粒子名&gt;|off]</c> —— **骨挂持续粒子的手动挂 / 摘**。
+        ///
+        /// · 不带参数        = 列出当前挂着的粒子（没挂 = `none attached`）
+        /// · <c>on &lt;粒子名&gt;</c>  = 手动挂一颗粒子（**不用真去冲刺**）—— 名字 = 内容包发布包里注册的那个
+        /// · <c>off &lt;粒子名&gt;</c> = 摘掉指定那颗粒子
+        /// · <c>off</c>          = 全摘
+        ///
+        /// 🔴 **为什么要这条命令**：这几颗平时只有"冲刺中"才看得到，想单独看 / 想验"摘了到底会不会
+        ///    当场消失"都得先飞起来。这条把它拆成"敲一下就看"（CLAUDE.md 那条
+        ///    「每做完一个功能必须交付验收指令」）。
+        /// ⚠️ 它**不验"轨道声明对不对"** —— 那条要真冲刺一次，看日志里
+        ///    `[Anim:flight] … enter[容器]` 之后有没有 `[Flight-Fx] '<粒子名>' 已挂上`。
+        ///    ⚠️ `on` 需要显式给 `bone=` 那几根骨 —— 命令不方便写骨名，所以**只支持飞行的三颗**
+        ///    （名字在 <see cref="FlightAnimConditions"/>）；要试别的走 XML 轨道。
+        /// </summary>
+        private static string Trail(List<string> args)
+        {
+            string a1 = (args != null && args.Count > 1) ? args[1].Trim().ToLowerInvariant() : "status";
+            switch (a1)
+            {
+                case "on":
+                {
+                    string particle = (args.Count > 2) ? args[2].Trim() : null;
+                    if (string.IsNullOrEmpty(particle))
+                    {
+                        return "ERR usage: custom.flight trail on <particleName> | known: "
+                             + KnownParticles();
+                    }
+                    string bones = BonesFor(particle);
+                    if (bones == null)
+                    {
+                        return "ERR '" + particle + "' is not a flight trail particle | known: " + KnownParticles();
+                    }
+                    bool ok = FlightBoneFx.Instance.Attach(particle, bones.Split('+'));
+                    return ok
+                        ? $"OK. '{particle}' attached ({FlightBoneFx.Instance.Describe()})."
+                        : $"ERR '{particle}' attach failed (see log: id -1 = not published / no bones)";
+                }
+                case "off":
+                {
+                    string particle = (args.Count > 2) ? args[2].Trim() : null;
+                    if (string.IsNullOrEmpty(particle))
+                    {
+                        FlightBoneFx.Instance.DetachAll();
+                        return $"OK. all detached ({FlightBoneFx.Instance.Describe()}).";
+                    }
+                    bool had = FlightBoneFx.Instance.Detach(particle);
+                    return had
+                        ? $"OK. '{particle}' detached ({FlightBoneFx.Instance.Describe()}) -- watch the leftover particles."
+                        : $"OK. '{particle}' was not attached (nothing to detach).";
+                }
+                default:
+                    return $"OK. {FlightBoneFx.Instance.Describe()} | usage: custom.flight trail "
+                         + "[on <particleName> | off [particleName]] | known: " + KnownParticles();
+            }
+        }
+
+        /// <summary>验收命令认识的三颗（骨名给定；换挂点走 XML 轨道）。</summary>
+        private static string KnownParticles()
+            => FlightAnimConditions.HandTrailFxName + " / " + FlightAnimConditions.BodyTrailFxName
+             + " / " + FlightAnimConditions.BoostLoopFxName;
+
+        /// <summary>粒子名 → 命令默认用的骨名单（认不出 = null）。</summary>
+        private static string BonesFor(string particle)
+        {
+            if (particle == FlightAnimConditions.HandTrailFxName) return "HandL+HandR";
+            if (particle == FlightAnimConditions.BodyTrailFxName) return "Abdomen";
+            if (particle == FlightAnimConditions.BoostLoopFxName) return "Abdomen";
+            return null;
         }
 
         /// <summary>

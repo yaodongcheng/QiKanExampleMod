@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 
 namespace LivingWorldNpcs.Animation
@@ -100,6 +101,12 @@ namespace LivingWorldNpcs.Animation
             //    有了它，边就能直接指向容器（`to="Upright"`），**装载期**解析成这个状态
             //    ⇒ 运行时看到的仍是具体状态名，状态机热路径一行都不用改。
             var familyEntry = new Dictionary<string, string>(StringComparer.Ordinal);
+            // 🔴 容器的**进出动作名**（2026-09-28）：先原样收着，等叶子展开完再解析成委托
+            //    （带钩子的容器要按**叶子状态**登记归属，见下面那段）。
+            var familyEnterRaw = new Dictionary<string, string>(StringComparer.Ordinal);
+            var familyLeaveRaw = new Dictionary<string, string>(StringComparer.Ordinal);
+            // 🔴 容器级的**骨挂持续粒子**声明（2026-09-28）：家族名 → 声明列表。
+            var familyFx = new Dictionary<string, List<AnimFxPoint>>(StringComparer.Ordinal);
             var states = new List<AnimState>();
 
             // ── 族 ──
@@ -116,8 +123,8 @@ namespace LivingWorldNpcs.Animation
                     problems.Add("族名重复: " + famName);
                     continue;
                 }
-                string[] members = (node.InnerText ?? "").Split(new[] { ' ', '\t', '\r', '\n' },
-                                                                 StringSplitOptions.RemoveEmptyEntries);
+                string[] members = DirectText(node).Split(new[] { ' ', '\t', '\r', '\n' },
+                                                        StringSplitOptions.RemoveEmptyEntries);
                 if (members.Length == 0)
                 {
                     problems.Add("容器 '" + famName + "' 一个成员都没有");
@@ -125,6 +132,29 @@ namespace LivingWorldNpcs.Animation
                 families[famName] = members;
                 string entryAttr = Attr(node, "entry");
                 if (!string.IsNullOrEmpty(entryAttr)) familyEntry[famName] = entryAttr;
+                // 容器的进出动作（`enter="hand-trail-on"` / `leave="hand-trail-off"`）——
+                // 真身在 AnimActions 注册，名字在下面（叶子展开之后）校验。
+                string famEnter = Attr(node, "enter");
+                string famLeave = Attr(node, "leave");
+                if (!string.IsNullOrEmpty(famEnter)) familyEnterRaw[famName] = famEnter;
+                if (!string.IsNullOrEmpty(famLeave)) familyLeaveRaw[famName] = famLeave;
+                // 🔴 **容器级的骨挂持续粒子**（2026-09-28）：`<family …><track particle="…" bone="…"/>成员…</family>`
+                //    作用域 = 整个家族 ⇒ **内部状态互切不重挂**（这正是家族级存在的理由）。
+                //    ⚠️ 不许写 at/remove（家族没有"百分之几"）。
+                foreach (XmlNode tr in node.SelectNodes("track"))
+                {
+                    AnimFxPoint fx = ParseFxPoint(tr, "容器 '" + famName + "'", allowTimes: false, problems);
+                    if (fx == null)
+                    {
+                        continue;
+                    }
+                    if (!familyFx.TryGetValue(famName, out List<AnimFxPoint> fxList))
+                    {
+                        fxList = new List<AnimFxPoint>();
+                        familyFx[famName] = fxList;
+                    }
+                    fxList.Add(fx);
+                }
             }
 
             // ── 状态 ──
@@ -203,9 +233,34 @@ namespace LivingWorldNpcs.Animation
                     string atRaw = Attr(tr, "at");
                     string everyRaw = Attr(tr, "every");
                     string actRaw = Attr(tr, "action");
+                    string partRaw = Attr(tr, "particle");
+                    // 🔴 **两种轨道**（二选一，装载期校验）：
+                    //    · `action=`  → 跑一个**已登记的动作**（一次性 `at` / 周期 `every`）
+                    //    · `particle=`→ **声明式：骨挂持续粒子**（`bone=` 必填；`at`/`remove` 可选，
+                    //       不写 = 整个状态期间都在）—— 见 AnimFxPoint 的生存期语义。
+                    if (!string.IsNullOrEmpty(partRaw))
+                    {
+                        if (!string.IsNullOrEmpty(actRaw))
+                        {
+                            problems.Add("状态 '" + sn + "' 的 <track> 同时写了 action 与 particle —— 二选一");
+                            continue;
+                        }
+                        AnimFxPoint fx = ParseFxPoint(tr, "状态 '" + sn + "'", allowTimes: true, problems);
+                        if (fx == null)
+                        {
+                            continue;
+                        }
+                        if (newState.Fx == null)
+                        {
+                            newState.Fx = new List<AnimFxPoint>();
+                        }
+                        newState.Fx.Add(fx);
+                        continue;
+                    }
                     if (string.IsNullOrEmpty(actRaw) || (string.IsNullOrEmpty(atRaw) && string.IsNullOrEmpty(everyRaw)))
                     {
-                        problems.Add("状态 '" + sn + "' 的 <track> 缺 action，或 at / every 一个都没写");
+                        problems.Add("状态 '" + sn + "' 的 <track> 缺 action，或 at / every 一个都没写"
+                                     + "（要做骨挂持续粒子就写 particle= + bone=）");
                         continue;
                     }
                     float at = 0f;
@@ -349,6 +404,85 @@ namespace LivingWorldNpcs.Animation
                 foreach (KeyValuePair<string, string[]> kv in leaves)
                 {
                     families[kv.Key] = kv.Value;              // 🔴 用叶子覆盖：下游一律不用改
+                }
+            }
+
+            // ── 骨挂粒子声明：**同一个粒子不许既挂家族、又挂该家族的状态**（2026-09-28）──
+            //    两者是**同一份句柄**（按粒子名记账）⇒ 状态退出时会把家族级的那颗一起摘掉。
+            //    想"家族期间一直有、某状态里再加一层"是不成立的 —— 报错，不猜。
+            foreach (KeyValuePair<string, List<AnimFxPoint>> famKv in familyFx)
+            {
+                if (!families.TryGetValue(famKv.Key, out string[] famLeaves))
+                {
+                    continue;
+                }
+                var leafSet = new HashSet<string>(famLeaves, StringComparer.Ordinal);
+                foreach (AnimState st in states)
+                {
+                    if (st.Fx == null || !leafSet.Contains(st.Name))
+                    {
+                        continue;
+                    }
+                    foreach (AnimFxPoint sp in st.Fx)
+                    {
+                        foreach (AnimFxPoint fp in famKv.Value)
+                        {
+                            if (string.Equals(sp.Particle, fp.Particle, StringComparison.Ordinal))
+                            {
+                                problems.Add("粒子 '" + sp.Particle + "' 既挂在容器 '" + famKv.Key
+                                             + "' 上、又挂在它的状态 '" + st.Name + "' 上 —— 只能选一处"
+                                             + "（状态退出时会把家族级的那颗一起摘掉）");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── 容器的**进出动作**（2026-09-28）──
+            //    必须在**叶子展开之后**做：归属是按**叶子状态**登记的（运行时只有叶子状态）。
+            //    🔴 用途 = 「持续特效」的正确挂点（如冲刺期间的手部尾迹）—— 容器内部互切不该重挂，
+            //       摊到状态上就会"每切一次清空重来"（见 AnimFamilyHooks）。
+            var familyHooks = new Dictionary<string, AnimFamilyHooks>(StringComparer.Ordinal);
+            {
+                var hookedOwner = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (KeyValuePair<string, string[]> famKv in families)
+                {
+                    string famName = famKv.Key;
+                    familyEnterRaw.TryGetValue(famName, out string eRaw);
+                    familyLeaveRaw.TryGetValue(famName, out string lRaw);
+                    if (string.IsNullOrEmpty(eRaw) && string.IsNullOrEmpty(lRaw))
+                    {
+                        continue;
+                    }
+
+                    Action<AnimContext>[] eActs = null, lActs = null;
+                    bool bad = false;
+                    if (!TryParseActions(famName, "容器", "enter", eRaw, out eActs, problems)) bad = true;
+                    if (!TryParseActions(famName, "容器", "leave", lRaw, out lActs, problems)) bad = true;
+                    if (bad)
+                    {
+                        continue;
+                    }
+
+                    // 🔴 **带钩子的容器不许嵌套**：一个状态同时属于两个带钩子的容器 ⇒
+                    //    "进哪个、出哪个"没有定义（是先进外层还是先出内层？）⇒ 报错，不猜。
+                    foreach (string leaf in famKv.Value)
+                    {
+                        if (hookedOwner.TryGetValue(leaf, out string prev))
+                        {
+                            problems.Add("状态 '" + leaf + "' 同时属于两个**带进出动作**的容器（'" + prev
+                                         + "' 与 '" + famName + "'）—— 带动作的容器不能嵌套，"
+                                         + "请只给最外层那个挂 enter/leave");
+                            bad = true;
+                            break;
+                        }
+                        hookedOwner[leaf] = famName;
+                    }
+                    if (bad)
+                    {
+                        continue;
+                    }
+                    familyHooks[famName] = new AnimFamilyHooks { Name = famName, Enter = eActs, Leave = lActs };
                 }
             }
 
@@ -598,9 +732,194 @@ namespace LivingWorldNpcs.Animation
             {
                 def.AddEdge(e);
             }
+            // 容器的进出动作（叶子名单 = 展开后的那份；见上面那段）
+            foreach (KeyValuePair<string, AnimFamilyHooks> kv in familyHooks)
+            {
+                def.AddFamilyHooks(kv.Key, families[kv.Key], kv.Value.Enter, kv.Value.Leave);
+            }
+            // 容器级的骨挂持续粒子声明（2026-09-28）—— 叶子名单一起给，供状态机反查"状态属于谁"
+            foreach (KeyValuePair<string, List<AnimFxPoint>> kv in familyFx)
+            {
+                families.TryGetValue(kv.Key, out string[] fxLeaves);
+                def.AddFamilyFx(kv.Key, fxLeaves, kv.Value);
+            }
+            int fxCount = 0;
+            foreach (AnimState s in states)
+            {
+                if (s.Fx != null) fxCount += s.Fx.Count;
+            }
+            foreach (KeyValuePair<string, List<AnimFxPoint>> kv in familyFx)
+            {
+                fxCount += kv.Value.Count;
+            }
             DebugLogger.Log("[Anim:" + name + "] 定义已从 XML 装载：" + states.Count + " 个状态 / "
-                            + edges.Count + " 条边 / " + families.Count + " 个族（" + Path.GetFileName(path) + "）");
+                            + edges.Count + " 条边 / " + families.Count + " 个族 / "
+                            + fxCount + " 条骨挂粒子声明（" + Path.GetFileName(path) + "）");
+            // 🔴 **骨挂声明的作用域自检**（2026-09-28 加）—— 光报"几条声明"不够：
+            //    实机栽过一次"装载日志一切正常、一件特效都不挂"（家族归属表是空的）。
+            //    这里把**每条声明覆盖了几个状态**打出来：`→ 0 个状态` = 声明写了但永远命中不了。
+            foreach (KeyValuePair<string, List<AnimFxPoint>> kv in familyFx)
+            {
+                int cover = 0;
+                if (families.TryGetValue(kv.Key, out string[] fxLeaves2))
+                {
+                    cover = fxLeaves2.Length;
+                }
+                var names = new List<string>();
+                for (int i = 0; i < kv.Value.Count; i++)
+                {
+                    names.Add(kv.Value[i].Particle);
+                }
+                DebugLogger.Log("[Anim:" + name + "]   家族 '" + kv.Key + "'：" + kv.Value.Count
+                                + " 条（" + string.Join(" / ", names) + "）→ 覆盖 " + cover + " 个状态"
+                                + (cover == 0 ? "  ⚠️ 一个状态都不覆盖 ⇒ 永远挂不上！" : ""));
+            }
+            foreach (AnimState s in states)
+            {
+                if (s.Fx == null || s.Fx.Count == 0)
+                {
+                    continue;
+                }
+                var names = new List<string>();
+                for (int i = 0; i < s.Fx.Count; i++)
+                {
+                    names.Add(s.Fx[i].Particle);
+                }
+                DebugLogger.Log("[Anim:" + name + "]   状态 '" + s.Name + "'：" + s.Fx.Count
+                                + " 条（" + string.Join(" / ", names) + "）");
+            }
             return def;
+        }
+
+        /// <summary>
+        /// **解析一条"骨挂持续粒子"声明**（2026-09-28）——
+        /// `&lt;track particle="粒子名" bone="HandL+HandR" [at="0~1"] [remove="0~1"] /&gt;`。
+        ///
+        /// 校验全在装载期做（**写错 = 整台不注册**，同其它轨道的纪律）：
+        ///   · `particle` 非空；`bone` 必填、每个名字都必须是 `HumanBone` 的枚举名；
+        ///   · `at` / `remove` 是 **0~1 的比例**（不是秒，同 `anim-rem-pct` 口径）；
+        ///   · **家族级不许写 `at`/`remove`** —— 家族没有"百分之几"可言（要按时间就写在该家族的状态上）。
+        /// </summary>
+        private static AnimFxPoint ParseFxPoint(XmlNode tr, string owner, bool allowTimes, List<string> problems)
+        {
+            string particle = Attr(tr, "particle");
+            string boneRaw = Attr(tr, "bone");
+            if (string.IsNullOrEmpty(boneRaw))
+            {
+                problems.Add(owner + " 的 <track particle=\"" + particle + "\"> 缺 bone= —— "
+                             + "要写明挂到哪几根骨（HumanBone 枚举名，多个用 + 连，如 HandL+HandR / Abdomen）");
+                return null;
+            }
+            string[] bones = boneRaw.Split(new[] { '+' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < bones.Length; i++)
+            {
+                bones[i] = bones[i].Trim();
+                if (!Enum.TryParse(bones[i], out HumanBone _))
+                {
+                    problems.Add(owner + " 的 <track bone=\"" + boneRaw + "\"> 里的 '" + bones[i]
+                                 + "' 不是 HumanBone 的枚举名（如 HandL / HandR / Abdomen / Spine1 / Thorax）");
+                    return null;
+                }
+            }
+
+            var fx = new AnimFxPoint { Particle = particle, Bones = bones };
+            string atRaw = Attr(tr, "at");
+            string remRaw = Attr(tr, "remove");
+            if (!allowTimes && (!string.IsNullOrEmpty(atRaw) || !string.IsNullOrEmpty(remRaw)))
+            {
+                problems.Add(owner + " 是**家族**级声明，不许写 at / remove —— "
+                             + "家族没有\"百分之几\"可言（家族级一律全程）。要按时间进出就写在该家族的状态上");
+                return null;
+            }
+            if (!string.IsNullOrEmpty(atRaw)
+                && (!float.TryParse(atRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out fx.At)
+                    || fx.At < 0f || fx.At > 1f))
+            {
+                problems.Add(owner + " 的 <track particle=\"" + particle + "\" at=\"" + atRaw
+                             + "\"> 必须是 0~1 的比例（不是秒 —— 0.2 = 演到 20% 时挂上）");
+                return null;
+            }
+            if (!string.IsNullOrEmpty(remRaw))
+            {
+                float rem;
+                if (!float.TryParse(remRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out rem)
+                    || rem < 0f || rem > 1f)
+                {
+                    problems.Add(owner + " 的 <track particle=\"" + particle + "\" remove=\"" + remRaw
+                                 + "\"> 必须是 0~1 的比例（不是秒）");
+                    return null;
+                }
+                fx.Remove = rem;
+            }
+            if (fx.Remove >= 0f && fx.Remove <= fx.At)
+            {
+                problems.Add(owner + " 的 <track particle=\"" + particle + "\"> 的 remove("
+                             + fx.Remove.ToString("F2") + ") 必须大于 at(" + fx.At.ToString("F2") + ")");
+                return null;
+            }
+            return fx;
+        }
+
+        /// <summary>
+        /// **解析一组动作名**（2026-09-28）—— `<family enter="a,b">` 支持**逗号分隔写多个**。
+        ///
+        /// 为什么需要：一个容器只能有一对 `enter`/`leave`，但同一个家族上可能要挂好几件
+        /// （冲刺家族现在就是：手部尾迹 + 身体尾迹 + 冲刺云迹）。也支持逗号分隔 ⇒
+        /// **加减一件不用改 C#**（只改 XML 里那串名字），这正是"结构进 XML"的本意。
+        ///
+        /// 名字逐个校验：**有一个没登记就整段报错**（同谓词 / 同状态动作的纪律，不静默）。
+        /// </summary>
+        private static bool TryParseActions(string ownerName, string ownerKind, string attrName,
+                                            string raw, out Action<AnimContext>[] actions, List<string> problems)
+        {
+            actions = null;
+            if (string.IsNullOrEmpty(raw))
+            {
+                return true;      // 没写 = 这一侧没有动作，不算错
+            }
+            string[] names = raw.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var list = new List<Action<AnimContext>>();
+            bool ok = true;
+            for (int i = 0; i < names.Length; i++)
+            {
+                string one = names[i].Trim();
+                if (one.Length == 0)
+                {
+                    continue;
+                }
+                if (!AnimActions.TryGet(one, out Action<AnimContext> act))
+                {
+                    problems.Add(ownerKind + " '" + ownerName + "' 引用了没登记的动作 " + attrName + "='" + one + "'"
+                                 + "（已登记： " + string.Join(" / ", AnimActions.ActionNames) + "）");
+                    ok = false;
+                    continue;
+                }
+                list.Add(act);
+            }
+            if (list.Count > 0)
+            {
+                actions = list.ToArray();
+            }
+            return ok;
+        }
+
+        /// <summary>
+        /// **只取一个元素的"直属文本"**（2026-09-28）—— `<family>` 的成员名单是它的文本内容，
+        /// 但 `<family>` 里现在还允许挂 `<track particle="…">` 子元素。
+        /// 用 `InnerText` 会把子元素的内容一并吞进来（虽然它们只有属性、没有文本，但那是隐患）——
+        /// 所以只拼**直属的文本节点**。
+        /// </summary>
+        private static string DirectText(XmlNode node)
+        {
+            var sb = new StringBuilder();
+            foreach (XmlNode child in node.ChildNodes)
+            {
+                if (child.NodeType == XmlNodeType.Text || child.NodeType == XmlNodeType.CDATA)
+                {
+                    sb.Append(child.Value).Append(' ');
+                }
+            }
+            return sb.ToString();
         }
 
         /// <summary>数字 → 直接取值；否则查命名标量。都失败返回 false。</summary>

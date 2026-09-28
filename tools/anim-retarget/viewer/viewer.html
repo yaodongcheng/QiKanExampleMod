@@ -105,7 +105,7 @@
     </div>
     <div class="sec"><b>视角</b>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button id="vFront">正面</button><button id="vSide">侧面</button>
+        <button id="vFront">正面</button><button id="vSide">侧面</button><button id="vSL" title="相机在角色左侧 = 侧拍素材的源机位">源机位(左)</button>
         <button id="vTop">俯视</button><button id="vFit">复位</button>
       </div>
     </div>
@@ -373,6 +373,10 @@ async function boot(){
   } else { sel.style.display='none'; }
 
   DS_CFG = await fetch('datasets/'+DS_NAME+'/dataset.json').then(r=>r.json());
+  // 数据集可声明 defaultView（同 setView 的名字：front/side/sl/top/fit）。
+  // 侧拍素材的数据集应声明 "sl"，否则默认的 fit（相机在 +X+Z）会拍到角色背后、
+  // 看不出动作。URL 的 ?view= 仍然优先。
+  if(!window.__urlView && DS_CFG && DS_CFG.defaultView) setView(DS_CFG.defaultView);
   SIDE = DS_CFG.sides || {};
   const keys = Object.keys(SIDE);
   SRC_KEY = SIDE.src ? 'src' : keys[0];
@@ -914,6 +918,10 @@ function setView(p){
   //    原来放在 +Z(= 角色背后)，点「正面」看到的是背面 —— 既有问题，影响所有数据集。
   if(p==='front') camera.position.set(0, 1.35, -4.6);
   if(p==='side')  camera.position.set(4.9, 1.35, 0.0);
+  // 🔴 「源机位(左)」：相机在 **-X = 角色左侧**。与 render_glb_frames.py 的 AZ["sl"] 同一含义。
+  //    侧拍锁机位素材（角色面朝画面左）的解算结果，**只有这个机位**能还原源片视角；
+  //    用 front/side 看会顺着手臂轴看过去（只剩一截手臂），那是侧拍动作的必然，不是解算错。
+  if(p==='sl')    camera.position.set(-4.9, 1.35, 0.0);
   if(p==='top'){  camera.up.set(0, 0, -1); camera.position.set(0, 9.0, 0.0); }
   if(p==='fit')   camera.position.set(1.9, 1.9, 4.3);
   controls.update();
@@ -922,6 +930,7 @@ document.getElementById('vFront').onclick=()=>setView('front');
 document.getElementById('vSide').onclick =()=>setView('side');
 document.getElementById('vTop').onclick  =()=>setView('top');
 document.getElementById('vFit').onclick  =()=>setView('fit');
+document.getElementById('vSL').onclick   =()=>setView('sl');
 addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); document.getElementById('bPlay').click(); } });
 
 /* ---------- 时间轴拉杆：暂停后拖动即可定位到任意帧（1 格 = 1 帧 @30fps） ----------
@@ -1255,7 +1264,7 @@ setView('fit');
 try {
   const _q = new URLSearchParams(location.search);
   const _v = _q.get('view');
-  if (_v) setView(_v);
+  if (_v) { setView(_v); window.__urlView = _v; }   // 记下来：URL 优先于 dataset.json 的 defaultView
   // URL 参数只用来覆盖这两个开关的初始状态（默认：坐标轴/前向箭头 = 开，站位标记 = 关）
   if (_q.get('axes')  === '1') document.getElementById('cax').checked = true;
   if (_q.get('axes')  === '0') document.getElementById('cax').checked = false;

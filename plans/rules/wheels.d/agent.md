@@ -748,3 +748,53 @@ if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静�
 
 **落地范本**：飞行的全部姿态 = `Flight/FlightAnimMachine.cs`（加一行状态 + 一行边）；
 飞行中施法的手势 = 同文件的 `magicIdle` / `magicProjectile`。
+
+## 🔴 持续特效怎么挂：轨道声明 `particle=` / `bone=`（2026-09-28 登记，**首选这条**）
+
+**解决什么问题**：**"一段时间内一直挂着"的特效（尾迹 / 云迹）该写在哪、什么时候挂什么时候摘。**
+
+🔴 **内容不许写死在 C# 里**（用户 2026-09-28 裁定）—— 挂哪个粒子、挂哪几根骨、什么时候挂
+**全是数据**，写在轨道上；C# 只提供"怎么挂 / 怎么摘"的**能力**。
+
+```xml
+<!-- 写在 <state> 里 ⇒ 作用域 = 这一个状态；写在 <family> 里 ⇒ 作用域 = 整个家族 -->
+<family name="冲刺飞行" entry="fastmoveStart">
+    <track particle="lwn_manual_fly_handtrail" bone="HandL+HandR" />
+    <track particle="lwn_manual_fly_bodytrail" bone="Abdomen" at="0.2" remove="0.7" />
+    成员名单写在这里
+</family>
+```
+
+| 属性 | 含义 | 校验 |
+|---|---|---|
+| `particle=` | 粒子系统名（发布包里注册的那个） | 非空 |
+| `bone=` | **`HumanBone` 枚举名**，多个用 `+` 连（`HandL+HandR` / `Abdomen` / `Spine1`） | 逐个 `Enum.TryParse`，写错 = 整台不注册 |
+| `at=` | 挂上时机 = **占 clip 比例 0~1**（同 `at=` 口径，**不是秒**）；不写 = 进作用域立刻 | 0~1 |
+| `remove=` | 摘下时机（比例）；不写 = 离开作用域才摘 | 0~1 且必须 > `at` |
+
+**四条生存期语义**：
+1. **不写 `at`/`remove` ⇒ 整个作用域期间都在**；
+2. 🔴 **离开作用域一定摘**（用户裁定："如果离开状态了就要 remove"）—— 不管 `at` 到没到、`remove` 过没过；
+3. **状态是循环的话，`at`/`remove` 每次进状态只响一次**（进作用域时清标记）；
+4. 🔴 **同一个粒子不许既写在家族上、又写在该家族的状态上**（装载期报错）——
+   两者是同一份句柄（按粒子名记账），状态一退会把家族级那颗一起摘掉。
+
+**家族级存在的理由**：家族**内部状态互切时不反复 add/remove**（冲刺家族里
+`fastmove ⇄ fastmovePitchU/D` 会频繁互切 —— 写在状态上就会"每切一次摘了再挂"）。
+⚠️ 家族**没有"百分之几"可言** ⇒ **家族级不许写 `at`/`remove`**（装载期报错）。
+
+**分工**（三件东西别混）：
+· `<track at=/every= action=>` = **某一刻跑一下**（一次性 / 周期刷点）；
+· `<track particle= bone=>` = **一段时间内一直挂着**（本条，持续特效首选）；
+· `<family enter=/leave=>` = **进出容器时跑一个已登记的 C# 动作**（通用钩子；支持逗号分隔多个）。
+
+**实现位置**：定义 `Animation/AnimMachineRegistry.cs` 的 `AnimFxPoint` + `IAnimFxHost`；
+装载 `AnimMachineLoader.cs`（`ParseFxPoint` / 家族级 `track` 子元素 / `DirectText` 取成员）；
+触发 `AgentAnimStateMachine.cs`（`AttachFxList` / `DetachFxList` / `TickFx` + `Enter`/`Release`）。
+**执行者由各系统提供**：飞行 = `Flight/FlightBoneFx.cs`（实现 `IAnimFxHost`，**一个粒子名都不认识**）。
+
+🔴 **踩过的两个坑**（详见 wheels.d/spells.md）：
+① **粒子必须挂在场景里的实体上**（裸 `Skeleton` 建 = 日志成功、画面全空）；
+② 编辑器页对 `<family>` 的成员原本取 `textContent` / Python 侧取 `.text` ——
+   家族里一挂 `<track>` 子元素，成员就会读成空（已改 `DirectText` / `itertext`，
+   且**两条导出路都要验**：`_sm_roundtrip.mjs` 现在验"打开文件"和"全新页面直接保存"两条）。

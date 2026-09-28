@@ -145,6 +145,9 @@ namespace LivingWorldNpcs.Flight
             def.DefaultBlend = () => FlightTuning.AnimBlendIn;
             def.RecheckSeconds = () => FlightTuning.ActionRecheckSeconds;
             def.ActionPriority = () => FlightTuning.FlightActionPriority;
+            // ④ 骨挂持续粒子的**执行者**（2026-09-28）—— 状态机只喊"把某粒子挂到某几根骨上"，
+            //    怎么挂 / 怎么摘在 `FlightBoneFx`。**挂哪些粒子由 XML 的轨道声明**，C# 不认识具体名字。
+            def.FxHost = FlightBoneFx.Instance;
 
             AnimMachineRegistry.Register(def);
         }
