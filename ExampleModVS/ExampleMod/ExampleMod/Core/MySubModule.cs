@@ -287,6 +287,12 @@ namespace LivingWorldNpcs
             //    （连同本行与 csproj 那一行）。
             mission.AddMissionBehavior(new LivingWorldNpcs.CampaignMode.AnimTraceBehavior());
 
+            // 🔴 贴花特效每帧驱动（2026-09-29，custom.decal_fx）—— 熔岩"流动"必须由 C# 每帧
+            //    写 Mesh 的 UV 偏移：贴花 shader 自身没有时间项，材质 flag 也管不到贴花
+            //    （实证见 CampaignMode/Tools/DecalFxCommands.cs 文件头）。
+            //    没有贴花在场上时每帧只判一个 Count==0，零开销。
+            mission.AddMissionBehavior(new LivingWorldNpcs.CampaignMode.DecalFxBehavior());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——
