@@ -591,10 +591,17 @@ to_editor_mode.bat    Assets_disabled → Assets            + 删掉 skins.xslt�
 2. 🔴 **`AssetPackages/` 是编辑器 Publish 的目标目录，Publish 会清空它** —— 备份别放那儿（实测放在里面的 4 个 `.bak` 被清掉）。
 3. 🔴 **`echo` 行里的 `>` 必须转义成 `^>`** —— cmd 会把裸 `>` 当重定向符：那行字被吞掉，**还会在当前工作目录生成一个以重定向目标的头一个词命名的垃圾文件**。实测（2026-09-14）：`echo   => Set the Publish target...` 生成了 `LivingWorldNpcs\Set`、`echo [2/2] AssetSources -> AssetSources_disabled` 生成了 `LivingWorldNpcs\AssetSources_disabled`。范本：TifaHead2 的 bat 通篇写 `-^>`。**自查**：正则 `(?<!\^)>` 扫所有 `echo` 行。
 
-**已接入的模块**（客户端根 `to_editor_mode.bat` / `to_game_mode.bat` 里 `for %%T in (...)` 列表）：`TifaHead TifaHead2 Taikou`。
-加新模块 = ①在模块下建同名一对 bat（管 `Assets` ↔ `Assets_disabled`、`AssetSources` ↔ `AssetSources_disabled`）②把模块名加进客户端根那两个 bat 的列表。全程纯 ASCII。
+**已接入的模块**（各自模块目录下一对同名 bat）：`Taikou` · `TaikouAnim`（[2026-09-29 核实] 客户端根**没有**聚合 bat，旧的 `TifaHead/TifaHead2` 也已不在）。
+加新模块 = 在模块下建同名一对 bat（管 `Assets` ↔ `Assets_disabled`、`AssetSources` ↔ `AssetSources_disabled`）。全程纯 ASCII。
 
 **新模块照此办理**：凡是编辑器工程与运行期资产包分离的模块，都做一对同名 bat，**别靠人肉改名**。
+
+🔴🔴 **`Assets` / `Assets_disabled` 的当前状态是【临时态】—— 禁止当问题报，禁止自己跑 bat**（2026-09-29 用户裁定，我因此多事挨过一次）：
+**用户每次开游戏前都会自己跑一遍 `to_game_mode.bat`**（Taikou / TaikouAnim 各一次）。所以：
+- 看到 `Assets` 在、`Assets_disabled` 不在 = **用户上一次开的是编辑器**，属正常中间态，**不是要你去修的故障**；
+- 看到 `Assets` 是空目录 = 同样正常（编辑器模式下空 `Assets\` 就是这个样子，遮蔽效应由用户开游戏前的 bat 负责消除）；
+- ⇒ **不要报"它会遮蔽 AssetPackages"、不要主动跑 `to_game_mode.bat`、不要问"你是不是切成编辑器模式了"**。这件事**归用户**，全程零打扰。
+- 唯一需要我说话的情形：用户**明确让我**做资产交付/装机核查，且**当场**读引擎日志 `Loading packages …` 那一行发现真读的是 `Assets` 而不是 `AssetPackages` —— 那才叫证据。
 
 ## 🔴 目录归口与 git 收纳政策（2026-09-13 用户裁定）
 

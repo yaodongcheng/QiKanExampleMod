@@ -544,6 +544,8 @@
     <Compile Include="CampaignMode\Tools\TerrainExportCommands.cs" />
     <!-- 螺旋丸验收命令（custom.rasengan spawn/spin/charge/replay/status）——玩法本体在 Combat\RasenganController.cs -->
     <Compile Include="CampaignMode\Tools\RasenganCommands.cs" />
+    <!-- 贴花特效（custom.decal_fx lava/ice/speed/clear）——熔岩流动靠每帧写 Mesh VA1，见文件头 -->
+    <Compile Include="CampaignMode\Tools\DecalFxCommands.cs" />
     <!-- GUI -->
     <Compile Include="GUI\LoadingRandomPatch.cs" />
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />
