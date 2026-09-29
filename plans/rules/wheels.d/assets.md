@@ -1284,3 +1284,86 @@ python pipeline/common/trf_compose.py        # 单条：--base/--add/--ref/--out
 | `gen_spell_textures.py` | 同上 | 阴魔斩月牙/核：**一张图服务同一网格里的两件**（左半跨带渐变 + 右上核的径向盘） |
 | `preview_mesh.py` | 同上 | 回读 FBX：打印尺寸 / **UV 范围** / 包围盒 + 把 `_d.png` 接成自发光渲三视图 |
 | `build_spell_mesh.py` | 同上 | 月牙+核网格 Blender 生成器（参数全在文件头） |
+
+---
+
+## 21. 🔴 贴花（Decal）—— 运行期往地面留痕（2026-09-29 立，实机验证）
+
+> 全文与证据：**[Knowledge/骑砍2贴花系统.md](../../../Knowledge/骑砍2贴花系统.md)**
+> 一句话：贴花 = 把一张图**投射到已有表面**（不是粒子那种堆透明面片）。做**大面积地面效果**
+> （焦土 / 血迹 / 泥 / 水洼）比铺粒子便宜得多。原版自己的火焰地面就是 **粒子出火苗 + 贴花出焦痕**两层。
+
+### 21.1 🔴🔴 准入规则（唯一门槛，别绕弯）
+
+**运行期贴花只能渲染「注册在*当前场景所属图集组*那张表里」的贴图。**
+
+| 场景 | 表 | 可用贴图数 | 地面类现成货 |
+|---|---|---|---|
+| 城镇 / 据点 | `decal_textures_town.xml` | 27 | 🔴 **`ashes_a_d`（灰烬）** · `mud_a_d` · `dirt_leaking_a_d` · `ground_straw_b_d` · `puddles_d` · `road_water_leaking_a_d` · `wall_damaged_decal_a_d` · `type_a/b/c_decal` |
+| 野战 / 攻城 | `decal_textures_battle.xml` | 🔴 **仅 13** | 只有 `dirt_leaking_a_d` + 血 12 种（**没灰烬没泥**） |
+| 大地图 | `decal_textures_worldmap.xml` | 17 | `ground_soil_a_d/b_d` · `grass_a_d` · `mainmap_decal_undervillage_d` · `desert_floor_b` · `decal_siege_*` |
+| ⚠️ `decal_textures_all.xml` | —— | —— | **不是"到处都能用"**：它是 `DecalAtlasGroup.All` 那一组，城镇场景**看不到**（`fire_damage` 就栽在这） |
+
+表在 `Modules/Native/ModuleData/`。材质名≠贴图名≠图集条目名（坑见 §21.5）。
+
+### 21.2 🔴 自定义美术：**封死**（三条路都试过）
+
+1. mod 自带 `decal_textures.xml` 放编辑器沙箱 → **编辑器预览不出来**（表没被读）
+2. mod 自带 `decal_textures_town.xml` 放**游戏加载的模块** → 贴花建成功但**空白**（表根本没被引擎读）
+3. 运行时 `Material.SetTexture` 塞指针 → **塞得进去**（`liveVisible=True`）但未注册贴图**仍不渲染**
+
+⇒ **美术从 §21.1 的现成清单里挑，别指望用自己的图。**
+
+### 21.3 运行期 API（`TaleWorlds.Engine`，逐字照抄原版 `SandBox.View` 的 `MapCursor`）
+
+```csharp
+Material mat = Material.GetFromResource("blood_terrain_decal_3");   // 🔴 必须"完整"的贴花材质，见 §21.4
+GameEntity entity = GameEntity.CreateEmpty(scene, true);
+Decal decal = Decal.CreateDecal(null);
+decal.SetMaterial(mat);
+entity.AddComponent(decal);
+scene.AddDecalInstance(decal, "editor_set", true);                  // 原版固定用 "editor_set"
+MatrixFrame local = new MatrixFrame(Mat3.Identity, Vec3.Zero);
+local.Scale(new Vec3(size, size, size));
+decal.SetFrame(local);                                              // 尺寸在 Decal 局部帧
+entity.SetGlobalFrame(new MatrixFrame(Mat3.Identity, worldPos));    // 位置在实体全局帧
+entity.SetVisibilityExcludeParents(true);                           // 🔴 原版每次都手写，别赌默认值
+```
+* 多张：原版 `MapScreen` = **一 CreateDecal + 其余 `CreateCopy()`**
+* **没有"删单张"的 API** —— 只有 `Scene.ClearDecals()`（**全场清光，血渍也一起没**）⇒ 只能隐藏实体
+* 场景：`Mission.Current.Scene`（任务）/ `(Campaign.Current.MapSceneWrapper as SandBox.MapScene).Scene`（大地图）
+
+### 21.4 🔴 Vector Arguments 与材质规格
+
+| 槽 | 分量 | 名字（编辑器实拍） | C# |
+|---|---|---|---|
+| **VA1** | xyzw | **UV Scale X / Scale Y / Offset X / Offset Y** | `decal.SetVectorArgument(sx,sy,ox,oy)` ← **贴花动画只能靠它，每帧手摇** |
+| **VA2** | x/y/z/w | **Emission / Emission Fade Time / Heightmap Mask Height / Reject Threshold Angle** | `decal.SetVectorArgument2(...)`（Emission 未实机验） |
+
+* 🔴 **材质 flag `use_animated_texture_coord` 对贴花不生效**（`decal` shader 的 include 链不含实现它的文件）⇒ 翻页/滚动**必须 C# 每帧写 VA1**
+* **材质规格**：🟢 **复制一个已知能出画的**（`blood_terrain_decal_3`）→ Save As → 换贴图，**其它别动**。
+  `decal` shader + 那套 8 个 shaderFlags + Others 勾 **Cull Front Faces** + **Don't Modify Depth Buffer**。
+  ⚠️ **别从零建**：`fire_damage`（只有 3 个 flag、一张贴图）运行期建出来是**空白且不报错**
+* **n/s 槽留空不影响渲染**（实测）；`SetFactor1` 染色/透明度可用
+
+### 21.5 两个名字坑（都栽过）
+
+1. **材质名 ≠ 图集条目名**：`Material.GetFromResource("ashes_a_d")` → **null**（那是贴图名）；
+   `Material.GetFromResource("blood_terrain_decal_3")` → 有效。**别拿图集表剥 `_d/_n/_s` 后缀当材质名**
+2. flag 庙里实测拼写是 **`use_animated_texture_coord`（单数）**，shader 源码宏是 `..._COORDS`（复数）——
+   `AddMaterialShaderFlag("…")` 照庙里拼
+
+### 21.6 已证伪的推论（别再走回头路）
+
+* ❌ 「只有 `is_dynamic="true"` 的条目能渲染」—— `type_a_decal`（**静态**）照样出画
+* ❌ 「`all` 表是合并进所有图集的公共底表」—— `fire_damage` 空白推翻
+* ❌ 「材质必须三张贴图齐全」—— 只有 Diffuse 也出画
+* ❌ 「自制头/网格那套材质经验能直接套」—— 贴花是**运行时按组表查贴图**，跟网格材质的规则不同
+
+### 21.7 探针命令（🔴 **当前已停用**，2026-09-29 收工退役第一步）
+
+`custom.decal`（`CampaignMode/Tools/DecalProbeCommands.cs`）：
+`list` / `row [材质名…]` / `loud` / `tex <底材质> <贴图名> [尺寸] [距离]` / `uv sx sy ox oy` / `color r g b a` / `anim off|uv|pulse` / `clear`
+
+* **停用方式**：`MySubModule` 的注册行 + `ExampleMod.csproj` 的 Compile 行**双双注释** ⇒ 命令与运行时行为都不在 DLL 里（已验证 DLL 搜不到 `DecalProbe`）。**文件留着**，重启 = 取消两处注释。
+* 🔴 **逐项诊断一律进日志**（`Debug/StoryEngine_RuntimeLog.txt` 的 `[DecalProbe]`）：控制台那行会被面板宽度截断（为此瞎过两轮）。
