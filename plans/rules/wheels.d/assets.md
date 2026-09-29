@@ -1287,15 +1287,44 @@ python pipeline/common/trf_compose.py        # 单条：--base/--add/--ref/--out
 
 ---
 
-## 21. 🔴 贴花（Decal）—— 运行期往地面留痕（2026-09-29 立，实机验证）
+## 21. 🔴 贴花（Decal）—— 往地面留痕（2026-09-29 立；同日补全「自绘贴图」路线并实机验证）
 
 > 全文与证据：**[Knowledge/骑砍2贴花系统.md](../../../Knowledge/骑砍2贴花系统.md)**
 > 一句话：贴花 = 把一张图**投射到已有表面**（不是粒子那种堆透明面片）。做**大面积地面效果**
-> （焦土 / 血迹 / 泥 / 水洼）比铺粒子便宜得多。原版自己的火焰地面就是 **粒子出火苗 + 贴花出焦痕**两层。
+> （焦土 / 血迹 / 泥 / 水洼 / 火焰地面）比铺粒子便宜得多。
+>
+> 🔴 **两条路，选之前先看这张表**（"两条路"是本项目的归纳，非官方术语；两套 API 与两条 shader 路径客观存在）：
 
-### 21.1 🔴🔴 准入规则（唯一门槛，别绕弯）
+| | **A. `Decal` 组件 / 运行期 API** | **B. `decal_mesh` 网格 + decal 材质** |
+|---|---|---|
+| 怎么建 | 空实体 + `Decal` 组件；或 `Decal.CreateDecal()` | 空实体 + MetaMesh(`decal_mesh`) + 一个 **decal shader** 材质 |
+| 贴图来源 | **全局图集** `decal_atlas_<组>`，**靠材质引用的贴图名查表** | **材质自己的贴图** |
+| 能用自绘贴图 | ❌ 不能 | ✅ **能（已实机验证）** |
+| 形状在哪 | 贴图 **alpha** | 🔴 **必须画在 RGB 里**（alpha 两种 Blend 下都不管用） |
+| 谁管形状 | 引擎（alpha 门控） | **材质 Blend + 贴图的「空色」**（见 §21.2） |
 
-**运行期贴花只能渲染「注册在*当前场景所属图集组*那张表里」的贴图。**
+**⇒ 要"用自己的美术做地面效果" ⇒ 走 B。要"用原版现成图案、且要真 alpha 抠图" ⇒ 走 A。**
+
+### 21.0 🔴 快速配方（路线 B，全链路已实机验证）
+
+```
+画图 形状画在【RGB】里；空处填该 Blend 的【空色】 AddAlpha→纯黑 / Modulate→纯白
+     1024² · RGBA · 只写 IHDR/IDAT/IEND（照抄 Debug/offline/_gen_decal_maps.py）
+导入 Resource Browser → 空白处右键 → Import new asset（⚠️ 同名导不进，换名）
+材质 照抄 blood_terrain_decal_3：Shader=decal · no_depth_test/no_modify_depth_buffer/
+     cull_front_faces · Blend=AddAlpha · 8 个 shaderFlags · Factor1=255,255,255,255
+实体 空实体 + MetaMesh(decal_mesh) · Scale X/Y=地面米数 · Z=竖直厚度
+     🔴 scale 必须写在【子节点】——根节点 transform 会被 Instantiate 的 frame 覆盖
+装机 Publish → 改名搬进 Taikou/AssetPackages → 重启
+验收 custom.spawn_prefab customDecalTest 4   （范本 Modules/Taikou/Prefabs/customDecalTest.xml）
+迭代 🔴 ModKit 所见 = 游戏所见 ⇒ 改贴花/材质不用重启
+```
++ **"又压暗又发光"** ⇒ 两个实体叠两层（`Modulate`+白底 / `AddAlpha`+黑底）
++ **贴花受场景光照** —— 要"夜里也亮"得靠 `Emission`（VA2.x，未验）或改用粒子
+
+### 21.1 🔴 路线 A 的准入规则（走 A 才需要看；B 不受此限）
+
+**路线 A 的运行期贴花只能渲染「注册在*当前场景所属图集组*那张表里」的贴图。**
 
 | 场景 | 表 | 可用贴图数 | 地面类现成货 |
 |---|---|---|---|
@@ -1304,15 +1333,31 @@ python pipeline/common/trf_compose.py        # 单条：--base/--add/--ref/--out
 | 大地图 | `decal_textures_worldmap.xml` | 17 | `ground_soil_a_d/b_d` · `grass_a_d` · `mainmap_decal_undervillage_d` · `desert_floor_b` · `decal_siege_*` |
 | ⚠️ `decal_textures_all.xml` | —— | —— | **不是"到处都能用"**：它是 `DecalAtlasGroup.All` 那一组，城镇场景**看不到**（`fire_damage` 就栽在这） |
 
+📌 **查找键 = 材质引用的【贴图名】**（不是材质名）—— 37 个原版 prefab 贴花材质 37/37 命中，且都命中在它实际被使用的那个组。
 表在 `Modules/Native/ModuleData/`。材质名≠贴图名≠图集条目名（坑见 §21.5）。
 
-### 21.2 🔴 自定义美术：**封死**（三条路都试过）
+### 21.2 🔴🔴 贴图怎么画（走过去 A 用 alpha；走 B 用「空色」）
 
-1. mod 自带 `decal_textures.xml` 放编辑器沙箱 → **编辑器预览不出来**（表没被读）
-2. mod 自带 `decal_textures_town.xml` 放**游戏加载的模块** → 贴花建成功但**空白**（表根本没被引擎读）
-3. 运行时 `Material.SetTexture` 塞指针 → **塞得进去**（`liveVisible=True`）但未注册贴图**仍不渲染**
+**路线 B 的核心规则（用户实测确认）**：
 
-⇒ **美术从 §21.1 的现成清单里挑，别指望用自己的图。**
+> **alpha 空的地方，RGB 也必须是「空色」** —— 否则**整个足迹**都会被染色。
+
+| Blend | 公式 | 空色 | 显形的是 | 只能做 |
+|---|---|---|---|---|
+| **`AddAlpha`** | 地面 **+** RGB×alpha | **纯黑 (0,0,0)** | 比黑亮的 | **提亮**（火焰/余烬/法阵） |
+| `Modulate` | 地面 **×** RGB | **纯白 (255,255,255)** | 比白暗的 | **压暗**（焦土/泥污/阴影） |
+
+**形状 / 不规则 / 软边全部画在 RGB 里**（羽化 = RGB 渐变到空色）。
+
+**实测记录（别重走）**：
+- 品红铺满 + 二值 alpha → `Modulate` 出**整块饱和品红**、`AddAlpha` 出**整块淡品红** ⇒ **两种 Blend 下 alpha 都不影响形状**
+- RGB=形状+**黑底**、alpha=形状，配 `AddAlpha` ⇒ ✅ **出不规则发光贴花（已实机验证）**
+- 原版血材质 `blood_terrain_decal_3` 挂 `decal_mesh` → **一整片红矩形**（它的 RGB 全图同一个红，没有"空色"概念）
+- ⚠️ **贴花足迹是整个方块**（±0.5×scale），形状要留在贴图内圈，顶到边缘会被 `clip` 切出硬边
+- ⚠️ **Pillow 缩放会把透明区 RGB 抹成黑**（实测 12.3.0）⇒ 缩图时先把 alpha 合成掉，否则整块压黑
+- ⚠️ `png_for_editor.py` **会丢 alpha**（它是给不透明贴图写的）—— AddAlpha 型贴花别过它
+
+**路线 A 的贴图**：形状画在 **alpha**（原版血贴图就是"RGB 固有色 + alpha 出形状"）。
 
 ### 21.3 运行期 API（`TaleWorlds.Engine`，逐字照抄原版 `SandBox.View` 的 `MapCursor`）
 
@@ -1355,15 +1400,23 @@ entity.SetVisibilityExcludeParents(true);                           // 🔴 原�
 
 ### 21.6 已证伪的推论（别再走回头路）
 
-* ❌ 「只有 `is_dynamic="true"` 的条目能渲染」—— `type_a_decal`（**静态**）照样出画
-* ❌ 「`all` 表是合并进所有图集的公共底表」—— `fire_damage` 空白推翻
+* ❌ **「自定义美术封死、只能用图集里的现成贴图」** —— 本节曾用整节这么写。**错**：
+  **路线 B（`decal_mesh` + decal 材质）能用自绘贴图，已实机验证通过**（§21.0）
+* ❌ **「alpha 通道决定形状」** —— 错。实测**两种 Blend 下 alpha 都不影响形状**（品红判定图）；
+  形状只能画在 **RGB**，alpha 只需"和 RGB 同步为空"
+* ❌ 「只有 `is_dynamic="true"` 的条目能渲染」—— `type_a_decal`（**静态**）照样出画；
+  该字段在运行时**根本不被读取**（native 里搜不到这个字符串）
+* ❌ 「`all` 表是合并进所有图集的公共底表」—— `all` 是**独立的一组**；跨组要用的贴图是逐个重复登记的
 * ❌ 「材质必须三张贴图齐全」—— 只有 Diffuse 也出画
-* ❌ 「自制头/网格那套材质经验能直接套」—— 贴花是**运行时按组表查贴图**，跟网格材质的规则不同
+* ❌ 「`fire_damage` 空白是 shaderFlags 少了几个 flag」—— 是**它的贴图不在 town 表**
+* ❌ 「自制头/网格那套材质经验能直接套」—— 贴花有自己的查表/混合规则，跟网格材质不同
 
-### 21.7 探针命令（🔴 **当前已停用**，2026-09-29 收工退役第一步）
+### 21.7 探针命令（🔴 **已删除**，2026-09-29）
 
-`custom.decal`（`CampaignMode/Tools/DecalProbeCommands.cs`）：
-`list` / `row [材质名…]` / `loud` / `tex <底材质> <贴图名> [尺寸] [距离]` / `uv sx sy ox oy` / `color r g b a` / `anim off|uv|pulse` / `clear`
+原 `custom.decal` 探针（`CampaignMode/Tools/DecalProbeCommands.cs`）随结论定案一并退役：
+`MySubModule` 注册行 + csproj Compile 行 + 源文件**三处一起删**。
 
-* **停用方式**：`MySubModule` 的注册行 + `ExampleMod.csproj` 的 Compile 行**双双注释** ⇒ 命令与运行时行为都不在 DLL 里（已验证 DLL 搜不到 `DecalProbe`）。**文件留着**，重启 = 取消两处注释。
-* 🔴 **逐项诊断一律进日志**（`Debug/StoryEngine_RuntimeLog.txt` 的 `[DecalProbe]`）：控制台那行会被面板宽度截断（为此瞎过两轮）。
+* **为什么可以不心疼**：结论已全部落档（本卷 §21 + [Knowledge/骑砍2贴花系统.md](../../../Knowledge/骑砍2贴花系统.md)），
+  而且**后续调贴花不再需要它** —— 路线 B 在 **ModKit 里所见即所得**，材质/贴图改动不用重启
+* 仍需要"运行期造贴花"时：照 §21.3 的 `MapCursor` 序列自己写（那是原版逐字范本）
+* ⚠️ 历史教训留着：**逐项诊断一律进日志**（控制台那行会被面板宽度截断，为此瞎过两轮）

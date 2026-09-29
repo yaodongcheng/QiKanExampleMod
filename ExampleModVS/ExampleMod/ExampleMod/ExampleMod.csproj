@@ -544,10 +544,6 @@
     <Compile Include="CampaignMode\Tools\TerrainExportCommands.cs" />
     <!-- 螺旋丸验收命令（custom.rasengan spawn/spin/charge/replay/status）——玩法本体在 Combat\RasenganController.cs -->
     <Compile Include="CampaignMode\Tools\RasenganCommands.cs" />
-    <!-- 贴花探针（custom.decal）—— **已停用**（2026-09-29 收工，退役第一步：连同 MySubModule 那行一起注释）。
-         结论已落档：Knowledge/骑砍2贴花系统.md + wheels.d/assets.md §21。
-         要重启：取消本行与 MySubModule 那行的注释即可。实机确认无碍后再删本文件。 -->
-    <!-- <Compile Include="CampaignMode\Tools\DecalProbeCommands.cs" /> -->
     <!-- GUI -->
     <Compile Include="GUI\LoadingRandomPatch.cs" />
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />
