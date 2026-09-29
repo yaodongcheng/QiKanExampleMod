@@ -287,12 +287,6 @@ namespace LivingWorldNpcs
             //    （连同本行与 csproj 那一行）。
             mission.AddMissionBehavior(new LivingWorldNpcs.CampaignMode.AnimTraceBehavior());
 
-            // 🔴 贴花探针（2026-09-29）—— **已停用**（2026-09-29 收工，退役第一步）。
-            //    结论已定案并落档：Knowledge/骑砍2贴花系统.md + wheels.d/assets.md §21。
-            //    要重启这条线：把下面这行取消注释即可（文件与 csproj 行都还留着，零改动可用）。
-            //    实机确认无碍后，按退役第二步删掉：本行 + csproj 那一行 + CampaignMode/Tools/DecalProbeCommands.cs。
-            // mission.AddMissionBehavior(new LivingWorldNpcs.CampaignMode.DecalProbeBehavior());
-
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——
