@@ -293,6 +293,13 @@ namespace LivingWorldNpcs
             //    没有贴花在场上时每帧只判一个 Count==0，零开销。
             mission.AddMissionBehavior(new LivingWorldNpcs.CampaignMode.DecalFxBehavior());
 
+            // 🔴 元素地表贴花：生命周期 + 元素过渡（2026-09-30，`custom.surface`）——
+            //    每帧算「空间权重（离异类边界多远）× 寿命因子（淡入/存活/淡出）」→ 写 Mesh 的 alpha。
+            //    地基前提 = 贴花 shader 的 `early_alpha_value *= g_mesh_factor_color.a`。
+            //    `custom.surface lock 0.3` 是这套设计的地基实验（贴花变淡 = 成立）。
+            //    文件头有完整说明；没有地表在场上时每帧只判 Count==0，零开销。
+            mission.AddMissionBehavior(new LivingWorldNpcs.CampaignMode.Tools.SurfaceDecalBehavior());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——
