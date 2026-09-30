@@ -574,6 +574,52 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             return $"OK: layer filter = '{_layerFilter}' (empty = all layers)";
         }
 
+        /// <summary>
+        /// 🔴 **三地块布局**：左 A、右 B、**中间是两者的交界带**。
+        /// 中心距 = `2 × size × (1 − overlap)`：
+        ///   · `overlap = 0`   → 两片**刚好挨着**（没有交界带 = 硬边）
+        ///   · `overlap = 0.5` → 重叠一半 ⇒ **中间出现一条明显过渡带**  ← 要看的
+        ///   · `overlap = 1`   → 完全重叠（两片叠在一处）
+        /// 看到的三个区 = `[A] [A∩B] [B]`。
+        /// </summary>
+        public static bool SpawnStrip(string prefabA, string prefabB, float size, float overlap,
+                                      float distance, out string report, out string err)
+        {
+            report = null; err = null;
+            if (size <= 0f) size = DefaultSize;
+            overlap = Clamp01(overlap);
+
+            Mission mission = Mission.Current;
+            if (mission == null) { err = "no mission (enter a scene first)."; return false; }
+            Agent main = mission.MainAgent;
+            if (main == null) { err = "no main agent to anchor on."; return false; }
+
+            Vec3 fwd = FlatForward(1f);
+            Vec3 right = Vec3.Zero;
+            try { Vec3 look; if (CameraLook.TryGet(out look)) right = Vec3.CrossProduct(Vec3.Up, look); } catch { }
+            Vec3 flatR = new Vec3(right.X, right.Y, 0f);
+            if (flatR.Length < 1e-3f) flatR = new Vec3(0f, 1f, 0f);
+            flatR.Normalize();
+
+            float halfSep = size * (1f - overlap);        // 各自离中心的偏移
+            Vec3 center = main.Position + fwd * distance;
+
+            Patch pa, pb;
+            if (!SpawnOffset(prefabA, size, 0f, center - flatR * halfSep, 0f, out pa, out err))
+                return false;
+            if (!SpawnOffset(prefabB, size, 0f, center + flatR * halfSep, 0f, out pb, out err))
+                return false;
+
+            float sep = halfSep * 2f;
+            float band = Math.Max(0f, size * 2f - sep);   // 中间交界带的宽度
+            report = string.Format(CultureInfo.InvariantCulture,
+                "OK strip: [A '{0}'] | overlap {1:F0}% -> junction band ~{2:F1}m | [B '{3}']  (centre distance {4:F1}m)",
+                prefabA, overlap * 100f, band, prefabB, sep)
+                + "\n  left zone = A only | middle zone = A+B cross-fade | right zone = B only"
+                + "\n  " + Describe();
+            return true;
+        }
+
         /// <summary>解锁驱动（spawn 时自动调，防止上一次的 lock 把寿命曲线旁路掉）。</summary>
         public static string ReleaseLock()
         {
@@ -755,6 +801,24 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                     "OK: spawned '{0}' size={1:F1}m life={2} at {3:F1}m ahead. close the console (~) and look ahead. | {4}{5}",
                     p.Element, radius, life <= 0f ? "inf" : life.ToString("F1", CultureInfo.InvariantCulture) + "s",
                     dist, SurfaceDecalFx.Describe(), note + unlockNote);
+            }
+
+            if (sub == "strip")
+            {
+                // 🔴 三地块：左 A | 中间交界带 | 右 B
+                string pa = rest.Count > 0 ? rest[0] : "customDecalTest";
+                string pb = rest.Count > 1 ? rest[1] : "customDecalTest_vanilla";
+                string note = rest.Count == 0 ? " [note: no prefabs given -> customDecalTest | customDecalTest_vanilla]" : string.Empty;
+                float size = nums.Count >= 1 ? nums[0] : DefaultSize * 2f;
+                if (size <= 0f) size = DefaultSize * 2f;
+                float ov = nums.Count >= 2 ? nums[1] : 35f;     // 重叠百分比（0~100）
+                if (ov > 1.0f) ov /= 100f;                       // 允许 "35" 也允许 "0.35"
+                float dist = nums.Count >= 3 ? nums[2] : DefaultDistance + size;
+
+                string rep, err;
+                if (!SurfaceDecalFx.SpawnStrip(pa, pb, size, ov, dist, out rep, out err))
+                    return "error: " + err + note;
+                return rep + note;
             }
 
             if (sub == "twin")
