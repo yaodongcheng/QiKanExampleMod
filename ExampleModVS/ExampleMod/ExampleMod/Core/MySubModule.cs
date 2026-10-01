@@ -229,10 +229,18 @@ namespace LivingWorldNpcs
             // ImChatOpenButton 范本，2026-09-03 用户指引）——Mission 驱动挂在
             // MissionScreen.OnFrameTick 补丁（PerfMissionFrameTickPatch），战场照常。
 
+            // 🔴 钩索（2026-10-01，custom.grapple）—— **唯一挂在战役闸门之前的行为**：
+            //    它只碰 Mission / Agent / Scene / GameEntity，**一行战役 API 都不用** ⇒ 自定义战斗里也安全，
+            //    而"能在自定义战斗里测"对调绳子这种纯观感的东西太重要了（不用读存档、开一局就能看）。
+            //    现阶段只做"绳"本身（点链 + 分段渲染），验的是绳子的运动与观感；
+            //    钩头飞行 / 命中 / 拉拽 / 弓形武器接线在后面几步（plans\钩索-实施计划.md）。
+            //    没收绳时每帧只判一个 bool，零开销。
+            mission.AddMissionBehavior(new GrappleLogic());
+
             // 🔴 非战役模式（自定义战斗 / 联机 / 主菜单试玩等）不挂载任何行为：
             // 没有 Campaign 时 Settlement.CurrentSettlement、Hero.MainHero 等战役 API 会 NRE
             // （实测 2026-08-12：自定义战斗 AgentAIController.AfterStart 崩，getter 内部访问
-            //   MobileParty.MainParty 无 null 保护），本 mod 全部行为都依赖战役上下文。
+            //   MobileParty.MainParty 无 null 保护），本 mod 其余行为都依赖战役上下文。
             if (Campaign.Current == null)
                 return;
 
