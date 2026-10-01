@@ -348,9 +348,12 @@
     <Compile Include="Combat\RasenganController.cs" />
     <!-- 🔴 钩索（2026-10-01）：绳本体（点链 verlet + 分段渲染）+ 运行时宿主。
          方案 = plans\钩索-实施计划.md；验收命令在 CampaignMode\Tools\GrappleCommands.cs（custom.grapple）。
-         第 1 步只做"绳"，钩头/命中/拉拽/弓形武器在后面几步。 -->
+         第 1 步 = 绳；第 2 步 = 钩头飞行 + 命中 + 落点平台解算（GrappleHook / GrappleLanding）。 -->
     <Compile Include="Combat\GrappleRope.cs" />
     <Compile Include="Combat\GrappleLogic.cs" />
+    <Compile Include="Combat\GrappleHook.cs" />
+    <Compile Include="Combat\GrappleLanding.cs" />
+    <Compile Include="Combat\GrappleFirePatch.cs" />
     <Compile Include="CampaignMode\Tools\GrappleCommands.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />

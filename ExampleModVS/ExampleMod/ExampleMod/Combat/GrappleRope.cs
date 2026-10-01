@@ -54,9 +54,12 @@ namespace LivingWorldNpcs
 		public float LengthFollowSpeed = 8f;
 
 		/// <summary>自动长度的上下限（米）。上限也决定实体池的大小。
-		/// 下限只是防退化（跨度极小时别把绳压成零长），别指望它"兜住余量"。</summary>
+		/// 下限只是防退化（跨度极小时别把绳压成零长），别指望它"兜住余量"。
+		/// 🔴 上限 24 = 覆盖钩索的瞄准射程（`GrappleLogic.AimRange` 默认 20 米 + 余量）——
+		///   绳长被夹到比跨度短时走"绷直解析解"，绳仍会连到钩头，**但链节会被拉稀**（节距 &gt; 链环长）⇒
+		///   射程内别让它发生。第 1 步的 16 米是当时"手到锚点"的合理上限，随射程一起抬了。</summary>
 		public float MinLength = 0.3f;
-		public float MaxLength = 16f;
+		public float MaxLength = 24f;
 
 		/// <summary>段的粗细倍率（1.0 = 管网格原直径 5cm）。</summary>
 		public float RadiusScale = s_radiusScale;
@@ -949,8 +952,9 @@ namespace LivingWorldNpcs
 		/// 🔴 为什么不用 <c>Mat3.CreateMat3WithForward</c>（2026-10-01 实机栽过）：那个函数把方向写进
 		///   **`f`（局部 Y 轴）**，而我们的管网格是沿**局部 Z** 长的 ⇒ 长度轴被甩到别处，管子全立起来。
 		///   Mat3 的轴对应关系（`MatrixFrame.Scale` 的 `s.x/f.y/u.z` 实锤）：**s = 局部 X · f = 局部 Y · u = 局部 Z**。
+		/// （`internal`：钩头实体摆位也用它 —— 唯一实现，别再抄一份。）
 		/// </summary>
-		private static Mat3 BasisWithLocalZ(Vec3 dir)
+		internal static Mat3 BasisWithLocalZ(Vec3 dir)
 		{
 			Mat3 m = Mat3.Identity;
 			m.u = dir;

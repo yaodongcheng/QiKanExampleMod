@@ -12,6 +12,25 @@ BEGIN = re.compile(r'^Begin Object\s+(?:Class=(\S+)\s+)?Name="([^"]*)"')
 END = re.compile(r'^End Object')
 
 
+def sniff_encoding(path):
+    """T3D 的编码跟 UE 版本走：UE4.27 写 ASCII/UTF-8，UE5.3 写 UTF-16LE+BOM。
+    按 BOM 嗅探，别再写死 utf-8（写死 = UE5 的导出全读成乱码字符）。"""
+    try:
+        with open(path, 'rb') as f:
+            head = f.read(2)
+        if head[:2] in (b'\xff\xfe', b'\xfe\xff'):
+            return 'utf-16'
+    except Exception:
+        pass
+    return 'utf-8'
+
+
+def read_t3d_text(path):
+    """按嗅探到的编码读 T3D 全文（返回行列表）。"""
+    with io.open(path, encoding=sniff_encoding(path), errors='replace') as f:
+        return f.read().splitlines()
+
+
 def split_top(s):
     """按顶层逗号切分（尊重引号与括号嵌套）。"""
     out, buf, depth, q = [], [], 0, False
@@ -65,7 +84,7 @@ def parse_t3d(path):
     root = {'cls': None, 'name': '__root__', 'props': [], 'pins': [], 'children': [], 'parent': None}
     stack = [root]
     graph_names = set()
-    with io.open(path, encoding='utf-8', errors='replace') as f:
+    with io.open(path, encoding=sniff_encoding(path), errors='replace') as f:
         for line in f:
             s = line.rstrip('\n').rstrip()
             t = s.strip()
@@ -683,7 +702,7 @@ def walk_compat(src):
     if isinstance(src, (list, tuple)):
         lines = list(src)
     else:
-        lines = io.open(src, encoding='utf-8', errors='replace').read().splitlines()
+        lines = read_t3d_text(src)
     roots, stack, classes = [], [], {}
     for i, raw in enumerate(lines):
         m = OBJ_RE.match(raw)
