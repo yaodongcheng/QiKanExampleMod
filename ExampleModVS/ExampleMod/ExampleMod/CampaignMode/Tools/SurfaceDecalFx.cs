@@ -7,7 +7,7 @@
 //   · **双层有且只有一种合法形态**：**两个不同元素的单层贴花互相重叠做渐变**
 //     —— 那是**两个实体**（各单层），不是一个 prefab 里塞两层。
 //   · 本类强制这条：实例化后发现 decal mesh > 1 个，**只用第一个**并在日志里报警。
-//   ⇒ 所以默认 prefab = `customDecalTest`（**单层**），不是 `lwn_decal_lava`（那是两层，已弃用）。
+//   ⇒ 所以默认 prefab = `lwnDecalScrochAdd`（**单层**），不是 `lwn_decal_lava`（那是两层，已弃用）。
 //
 // 【要解决什么】
 //     ① **生命周期管理渐变**：一片贴花要能淡入 → 存活 → 淡出 → 回收，而不是"啪"地出现/消失
@@ -62,18 +62,18 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         private static float _lockAlpha = -1f;    // ≥0 = 锁死这个 alpha（地基实验用）；-1 = 正常
 
         // 🔴 **单层 prefab**（铁律：一个 prefab 只准一个 decal_mesh）。
-        //    两个现成的单层 prefab，**混合模式不同**，用来分别验两条地表的驱动：
-        //      `customDecalTest`         → 材质 `lwn_manual_blood_decal_1` = **add_alpha**（加法：火/光）
-        //      `customDecalTest_vanilla` → 材质 `lwn_blood_terrain_decal_3` = **modulate**（压暗：焦土/油）
+        //    prefab 名与材质一一对应；下面两个是**同一张贴图、只差 blend** 的一对，做 A/B 对照：
+        //      `lwnDecalScrochAdd` → 材质 `lwn_manual_scroch_addalpha` = **add_alpha**（加法：火/光）
+        //      `lwnDecalScrochMod` → 材质 `lwn_manual_scroch_modulate` = **modulate**（覆盖：焦土/油）
         //    `lwn_decal_lava` / `lwn_decal_ice` = 两层，**已弃用不准再用**。
-        private static string _prefab = "customDecalTest";
+        private static string _prefab = "lwnDecalScrochAdd";
         private const float DefaultSize = 3f;   // prefab 自带的边长（米）—— 子节点 scale 写的是 3.0
         private const int MaxLayers = 1;        // 超过这个数就报警并只用第一层
 
         /// <summary>切换用哪个单层 prefab（也就切换了混合模式）。传 "-" 回默认。</summary>
         public static string SetPrefab(string name)
         {
-            if (string.IsNullOrEmpty(name) || name == "-") { _prefab = "customDecalTest"; }
+            if (string.IsNullOrEmpty(name) || name == "-") { _prefab = "lwnDecalScrochAdd"; }
             else _prefab = name;
             bool exists = false;
             try { exists = GameEntity.PrefabExists(_prefab); } catch { }
@@ -729,6 +729,38 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (sub == "probe")
                 return "OK: " + SurfaceDecalFx.Probe();
 
+            // 🔴 地形图层那条线（元素地表 §3.1 旧结论的更正件，2026-09-30）：
+            //    引擎的地形本身就是「每层权重图 + 逐层 over 合成」，天生带渐变与优先级。
+            //    命令只做最小验证 —— 先探测能不能读，再试能不能写权重。
+            //    数字参数被统一收进 nums，所以地形子命令名落在 rest[0]：
+            //      custom.surface terrain                                  → info（只读，零风险）
+            //      custom.surface terrain weight <层> <值> [nodeX] [nodeY]  → 试写（未验证，见 SurfaceTerrainFx 文件头风险段）
+            //      custom.surface terrain finalize                         → 写完没反应时试它
+            if (sub == "terrain")
+            {
+                string t = rest.Count > 0 ? rest[0].ToLowerInvariant() : "info";
+
+                if (t == "info" || t == "probe" || t == "status")
+                    return "OK: " + SurfaceTerrainFx.Info();
+
+                if (t == "finalize")
+                    return SurfaceTerrainFx.FinalizeEdit();
+
+                if (t == "weight" || t == "paint")
+                {
+                    if (nums.Count < 2)
+                        return "Usage: custom.surface terrain weight <layer> <value 0..1> [nodeX] [nodeY]";
+                    int layer = (int)nums[0];
+                    float val = nums[1];
+                    int nx = nums.Count >= 3 ? (int)nums[2] : 0;
+                    int ny = nums.Count >= 4 ? (int)nums[3] : 0;
+                    return SurfaceTerrainFx.Weight(layer, val, nx, ny);
+                }
+
+                return "error: unknown terrain subcommand '" + t
+                     + "'. usage: custom.surface terrain [info | weight <layer> <value> [x] [y] | finalize]";
+            }
+
             if (sub == "prefab")
             {
                 return SurfaceDecalFx.SetPrefab(rest.Count > 0 ? rest[0] : null);
@@ -806,9 +838,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (sub == "strip")
             {
                 // 🔴 三地块：左 A | 中间交界带 | 右 B
-                string pa = rest.Count > 0 ? rest[0] : "customDecalTest";
-                string pb = rest.Count > 1 ? rest[1] : "customDecalTest_vanilla";
-                string note = rest.Count == 0 ? " [note: no prefabs given -> customDecalTest | customDecalTest_vanilla]" : string.Empty;
+                string pa = rest.Count > 0 ? rest[0] : "lwnDecalScrochAdd";
+                string pb = rest.Count > 1 ? rest[1] : "lwnDecalScrochMod";
+                string note = rest.Count == 0 ? " [note: no prefabs given -> lwnDecalScrochAdd | lwnDecalScrochMod]" : string.Empty;
                 float size = nums.Count >= 1 ? nums[0] : DefaultSize * 2f;
                 if (size <= 0f) size = DefaultSize * 2f;
                 float ov = nums.Count >= 2 ? nums[1] : 35f;     // 重叠百分比（0~100）
@@ -823,15 +855,15 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
             if (sub == "twin")
             {
-                string a = rest.Count > 0 ? rest[0] : "customDecalTest";
-                string b = rest.Count > 1 ? rest[1] : "customDecalTest_vanilla";
+                string a = rest.Count > 0 ? rest[0] : "lwnDecalScrochAdd";
+                string b = rest.Count > 1 ? rest[1] : "lwnDecalScrochMod";
                 float radius = nums.Count >= 1 ? nums[0] : DefaultSize;
                 if (radius <= 0f) radius = DefaultSize;
                 float gap = nums.Count >= 2 ? nums[1] : 0f;    // 两片中心的额外间距（0 = 完全重叠）
                 float dist = nums.Count >= 3 ? nums[2] : DefaultDistance;
 
                 string note = string.Empty;
-                if (rest.Count == 0) note = " [note: no prefabs given -> customDecalTest vs customDecalTest_vanilla]";
+                if (rest.Count == 0) note = " [note: no prefabs given -> lwnDecalScrochAdd vs lwnDecalScrochMod]";
 
                 // A 在中心，B 沿侧向偏开 —— 侧偏量 = 半径×2 + gap（0 就是完全叠在一起看混合）
                 float side = gap <= 0f ? 0f : (radius * 2f + gap);

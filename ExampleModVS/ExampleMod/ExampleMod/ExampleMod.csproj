@@ -346,6 +346,12 @@
     <!-- 🔴 螺旋丸（2026-09-27）：运行时驱动 —— 实例化 prefab + 每帧转三个环 + 蓄力曲线。
          验收命令在 CampaignMode\Tools\RasenganCommands.cs（custom.rasengan）。 -->
     <Compile Include="Combat\RasenganController.cs" />
+    <!-- 🔴 钩索（2026-10-01）：绳本体（点链 verlet + 分段渲染）+ 运行时宿主。
+         方案 = plans\钩索-实施计划.md；验收命令在 CampaignMode\Tools\GrappleCommands.cs（custom.grapple）。
+         第 1 步只做"绳"，钩头/命中/拉拽/弓形武器在后面几步。 -->
+    <Compile Include="Combat\GrappleRope.cs" />
+    <Compile Include="Combat\GrappleLogic.cs" />
+    <Compile Include="CampaignMode\Tools\GrappleCommands.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
@@ -547,6 +553,8 @@
     <!-- 贴花特效（custom.decal_fx lava/ice/speed/clear）——熔岩流动靠每帧写 Mesh VA1，见文件头 -->
     <Compile Include="CampaignMode\Tools\DecalFxCommands.cs" />
     <Compile Include="CampaignMode\Tools\SurfaceDecalFx.cs" />
+    <!-- 地形图层探测/写入（custom.surface terrain info|weight|finalize）——最小验证件；native 崩溃风险见文件头 -->
+    <Compile Include="CampaignMode\Tools\SurfaceTerrainFx.cs" />
     <!-- GUI -->
     <Compile Include="GUI\LoadingRandomPatch.cs" />
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />
