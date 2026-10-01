@@ -118,6 +118,7 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 | ✅ 有效 | `Scene.GetTerrainData`（nodeDim/nodeSize/layerCount/layerVersion） | 两版一致：真值（原版/织丰都 OK） |
 | ✅ 有效 | `Scene.GetTerrainNodeData(x,y, out vtx, out quadLength, out min, out max)` | **原版=垃圾未初始化（vtx=-394260642）→ fallback 256 quads/节点；织丰=真值（vtx=257, quad=0.516）**——值入口自动双判 |
 | ✅ 有效 | `Scene.GetTerrainHeight(Vec2, bool checkHoles)` | 逐点采样，客户端唯一安全活路（运行时寻路/射线同源）。**注意 checkHoles 参数保留 true** |
+| 🔴 别用错 | ⚠️ **它只回答"高度图在这一点多高"** —— 城镇/城堡里脚下是**网格铺装**，高度图在铺装**之下** ⇒ 拿它贴地会**陷进去**（2026-10-01 钩索实测）。要"某个东西底下的地面"用 `Scene.GetGroundHeightAtPositionMT(Vec3(带探针高), BodyFlags.CommonCollisionExcludeFlags)`（范本 `SurfaceDecalFx.GroundZ`）；逐点一次引擎调用 ⇒ **限频用**。详见 [assets.md](assets.md) §22.4 |
 | ✅ 有效 | `Scene.GetTerrainMinMaxHeight`（Scale/min） | 全版本有效 = 场景 max_height 参数（导入面板 min/max 口径） |
 | 💣 炸弹 | `Scene.GetTerrainHeightData` **永久禁用** | 原版=空壳；**织丰=direct native 崩溃（托管 catch 不住、引擎 crash handler 都不弹、tracelog 冻结于调用行）**——只禁不调 |
 | 💣 炸弹 | `Scene.GetTerrainMemoryUsage` | 同族（原版返回 0）；禁用 |

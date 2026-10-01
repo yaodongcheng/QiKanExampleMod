@@ -1420,3 +1420,62 @@ entity.SetVisibilityExcludeParents(true);                           // 🔴 原�
   而且**后续调贴花不再需要它** —— 路线 B 在 **ModKit 里所见即所得**，材质/贴图改动不用重启
 * 仍需要"运行期造贴花"时：照 §21.3 的 `MapCursor` 序列自己写（那是原版逐字范本）
 * ⚠️ 历史教训留着：**逐项诊断一律进日志**（控制台那行会被面板宽度截断，为此瞎过两轮）
+
+---
+
+## 22. 🔴 **运行时造网格**：形状用代码算，不开 ModKit（2026-10-01 登记，钩索铁链**实机验证通过**）
+
+> 域：**在游戏里加一个"参数化的几何"**（铁环 / 管件 / 任何能用公式描述的形状）——
+> 不想走 `FBX → ModKit 导入 → Publish` 那条链路时就用它。
+> 范本 = `ExampleModVS/ExampleMod/ExampleMod/Combat/GrappleRope.cs`（`EnsureTubeMesh` / `EnsureLinkMesh`）；
+> 方案与验收 = [plans/钩索-实施计划.md](../../../plans/钩索-实施计划.md)。
+
+### 22.1 能做什么（实机验证）
+
+✅ **造一次、所有实例共用一份网格**：
+
+```csharp
+Mesh m = Mesh.CreateMesh(editable: true);
+UIntPtr h = m.LockEditDataWrite();
+m.AddTriangle(p1, p2, p3, uv1, uv2, uv3, 0xFFFFFFFFu, h);  // 直接给三个坐标 + UV，不用自己管索引
+m.UnlockEditDataWrite(h);
+m.ComputeNormals();
+m.UpdateBoundingBox();
+m.SetMaterial(借来的材质);          // 材质可以借任意已加载的网格（见 22.3）
+m.SetVisibilityMask(VisibilityMaskFlags.Final);
+entity.AddMesh(m);                  // 挂到实体上（实体照旧 SetGlobalFrame 摆位）
+```
+
+- 实测：**8 边圆管**（钩索分段管）与**体育场形铁环**（铁链）都能上屏 ✓
+- 每个环/段共用**同一份** Mesh，逐帧只 `SetGlobalFrame` ⇒ 开销可忽略（40 段 0.05ms）
+- `AddTriangle` 比 `AddFaceCorner`+`AddFace` 省事得多（不用维护角索引）
+
+### 22.2 🔴 不通的路：**每帧 `ClearMesh` 重建**
+
+试过"一个实体 + 一个网格，每帧清空重铺顶点"（整条弯曲绳）：**实机完全画不出来** ——
+不报错、`tick` 正常、面角数也查得到，就是没画面。排掉三个嫌疑后仍不显示：
+① `ClearMesh` 与 `LockEditDataWrite` 的顺序（先清后锁）② `HintVerticesDynamic` / `HintIndicesDynamic`
+③ "挂到实体上的那一刻网格里必须有数据"（推迟挂载）。
+⇒ **要连续形变的几何别走这条路**：改用「**离散刚体件拼**」（钩索的铁链就是这么做的：一串环 + 相邻转 90°）
+或蒙皮 + 写骨。
+
+### 22.3 材质是「借」的
+
+`Mesh.GetMaterial()` / `Mesh.SetMaterial(Material)` —— 从任意**已加载**的网格上取材质（共享，不改它）。
+
+- 例：铁链想要金属感 ⇒ `custom.grapple mat empire_plate_armor`（借板甲的材质），**不用开 ModKit**
+- ⚠️ UV 是自己套的，跟原件的贴图布局无关 ⇒ **质感方向对、具体花纹错位**，看个大概够用
+- 要正经质感（金属 shader / 磨损细节 / LOD）**还是得走 ModKit 做资产** —— 但架构不用动（形状尺寸全是参数）
+
+### 22.4 顺带一条：**某个东西底下的地面高度，用 `GetGroundHeightAtPositionMT`**
+
+同一功能里踩出来的（钩索陷进石板路）：
+
+```csharp
+float z = scene.GetGroundHeightAtPositionMT(new Vec3(x, y, 探针高), BodyFlags.CommonCollisionExcludeFlags);
+if (float.IsNaN(z) || z > 1e5f || z < -1e5f) { /* 悬空，别压 */ }
+```
+
+- 🔴 **`Scene.GetTerrainHeight` 是高度图**：城镇/城堡里脚下是**网格铺装**，高度图在铺装**之下** ⇒ 会陷进去
+- 范本 = `CampaignMode/Tools/SurfaceDecalFx.cs` 的 `GroundZ`（地表系统）· `Combat/SpellPieces.cs` 的落点贴地
+- 代价：逐点一次引擎调用 ⇒ **限频用**（钩索 20Hz，不是每帧每点）
