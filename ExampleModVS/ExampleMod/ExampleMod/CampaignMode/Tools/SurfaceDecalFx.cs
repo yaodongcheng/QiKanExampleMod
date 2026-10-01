@@ -601,7 +601,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (flatR.Length < 1e-3f) flatR = new Vec3(0f, 1f, 0f);
             flatR.Normalize();
 
-            float halfSep = size * (1f - overlap);        // 各自离中心的偏移
+            // 🔴 坐标换算（2026-10-01 修正）：`size` 是**片的边长**（SpawnAt 把子节点缩放到 radius = size），
+            //    所以「刚好挨着」的中心距 = size、「完全重叠」= 0 ⇒ halfSep = size × (1−overlap) / 2。
+            //    旧公式漏了 /2 ⇒ 中心距翻倍 ⇒ overlap=0 时隔着一整片、17% 时也仍然分离
+            //    （实机症状：两片并排不相交，"过渡带"根本不存在）。
+            float halfSep = size * (1f - overlap) * 0.5f;
             Vec3 center = main.Position + fwd * distance;
 
             Patch pa, pb;
@@ -611,7 +615,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                 return false;
 
             float sep = halfSep * 2f;
-            float band = Math.Max(0f, size * 2f - sep);   // 中间交界带的宽度
+            float band = Math.Max(0f, size - sep);        // 两片的重叠宽度 = 边长 − 中心距
             report = string.Format(CultureInfo.InvariantCulture,
                 "OK strip: [A '{0}'] | overlap {1:F0}% -> junction band ~{2:F1}m | [B '{3}']  (centre distance {4:F1}m)",
                 prefabA, overlap * 100f, band, prefabB, sep)
@@ -865,8 +869,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                 string note = string.Empty;
                 if (rest.Count == 0) note = " [note: no prefabs given -> lwnDecalScrochAdd vs lwnDecalScrochMod]";
 
-                // A 在中心，B 沿侧向偏开 —— 侧偏量 = 半径×2 + gap（0 就是完全叠在一起看混合）
-                float side = gap <= 0f ? 0f : (radius * 2f + gap);
+                // A 在中心，B 沿侧向偏开 —— 侧偏量 = **边长 + gap**（片边长 = radius）。
+                // 🔴 2026-10-01 修正：旧公式写 `radius * 2f + gap` ⇒ 间隔翻倍；只有 gap=0（完全重叠）那档是对的。
+                float side = gap <= 0f ? 0f : (radius + gap);
 
                 SurfaceDecalFx.Patch pa, pb;
                 string err;
