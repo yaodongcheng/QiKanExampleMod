@@ -147,22 +147,18 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         }
 
         /// <summary>
-        /// 在指定中心**侧移**造一片（`twin` 用）：B 从 A 的落点沿相机右向偏开 side 米。
-        /// 两片共用同一次地面高度计算，避免各自算导致高度错位。
+        /// 在指定中心**侧移**造一片（`twin` / `strip` 用）。
+        ///
+        /// 🔴 侧移方向 = **世界 X 轴**（2026-10-01 修正）。
+        ///    贴花片是**轴对齐**的 —— `SpawnAt` 用 `MatrixFrame.Identity`、不旋转，
+        ///    所以只有沿世界轴错开，两片的边才互相平行、才能拼成一条。
+        ///    旧版用「相机右向」错开：片不旋转但错开方向斜着 ⇒ 实机看到两个方块斜错开、拼不上
+        ///    （用户 2026-10-01 截图实证）。
         /// </summary>
         public static bool SpawnOffset(string prefab, float radius, float life,
                                        Vec3 center, float side, out Patch patch, out string err)
         {
-            Vec3 right = Vec3.Zero;
-            try
-            {
-                Vec3 look;
-                if (CameraLook.TryGet(out look)) { right = Vec3.CrossProduct(Vec3.Up, look); }
-            }
-            catch { }
-            Vec3 flat = new Vec3(right.X, right.Y, 0f);
-            if (flat.Length < 1e-3f) flat = new Vec3(1f, 0f, 0f);
-            flat.Normalize();
+            Vec3 flat = new Vec3(1f, 0f, 0f);
             return SpawnAt(prefab, radius, life, center + flat * side, out patch, out err);
         }
 
@@ -595,11 +591,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (main == null) { err = "no main agent to anchor on."; return false; }
 
             Vec3 fwd = FlatForward(1f);
-            Vec3 right = Vec3.Zero;
-            try { Vec3 look; if (CameraLook.TryGet(out look)) right = Vec3.CrossProduct(Vec3.Up, look); } catch { }
-            Vec3 flatR = new Vec3(right.X, right.Y, 0f);
-            if (flatR.Length < 1e-3f) flatR = new Vec3(0f, 1f, 0f);
-            flatR.Normalize();
+            // 🔴 错开方向 = **世界 X 轴**（2026-10-01 修正）：贴花片是**轴对齐**的
+            //    （`SpawnAt` 用 `MatrixFrame.Identity`、不旋转），只有沿世界轴错开、
+            //    两片的边才互相平行、才能拼成一条。旧版沿「相机右向」⇒ 片不转但错开方向斜着
+            //    ⇒ 实机看到两个方块斜错开、拼不上（用户截图实证）。
+            Vec3 flatR = new Vec3(1f, 0f, 0f);
 
             // 🔴 坐标换算（2026-10-01 修正）：`size` 是**片的边长**（SpawnAt 把子节点缩放到 radius = size），
             //    所以「刚好挨着」的中心距 = size、「完全重叠」= 0 ⇒ halfSep = size × (1−overlap) / 2。
