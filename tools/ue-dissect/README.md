@@ -67,8 +67,9 @@ $code = "exec(open(r'$py', encoding='utf-8-sig').read())"
 |---|---|---|
 | `paths.py` | 本地 | **唯一要改的配置**（工程/引擎/产物根/镜像根） |
 | `export_t3d.py` | **UE 内** | 全量 T3D 导出 + 数据表取值（主力） |
+| `export_targeted.py` | **UE 内** | 🔴 **定向导出**（2026-10-01 加）：读环境变量 `UE_TARGETS`（分号/换行分隔的资产路径）+ `UE_DUMP`，只导指定几个资产 —— **大工程（真游戏工程）别跑全量清单**，挑几个看就用它 |
 | `dump_assets.py` | **UE 内** | 分阶段导出：清单/依赖/枚举/结构体/数据表/蓝图/动画/控件/粒子/声音/网格/材质 |
-| `t3d_tools.py` | 本地 | T3D 解析器：`graph` 执行线伪代码 / `dataflow` 纯函数公式 / `node_pin_detail` 引脚级明细 |
+| `t3d_tools.py` | 本地 | T3D 解析器：`graph` 执行线伪代码 / `dataflow` 纯函数公式 / `node_pin_detail` 引脚级明细。🔴 **读文件自动嗅探编码**（见军规 5） |
 | `detail_tree.py` | 本地 | 生成「详情树」：镜像工程目录，一资产一 .md |
 | `vfx_breakdown.py` | 本地 | Niagara 逐系统拆解（含参数值解码） |
 | `cascade_breakdown.py` | 本地 | Cascade 逐系统拆解 + 模块/分布普查 |
@@ -85,6 +86,9 @@ $code = "exec(open(r'$py', encoding='utf-8-sig').read())"
 3. 🔴 **K2Node 名字是"按图局部"的** —— 同一个包里 `K2Node_CallFunction_0` 会出现 22 次；
    **必须按 EdGraph 子树作用域合并**，全局合并会把不同函数的引脚搅在一起。
 4. 🔴 **纯函数没有 exec 引脚** —— 沿执行线走读不到；读公式要用**数据流视图**（看每个输入引脚的字面量/来源节点）。
+5. 🔴 **T3D 的编码跟 UE 版本走** —— UE4.27 写 ASCII/UTF-8，**UE5.3 写 UTF-16LE+BOM**。
+   读文件别写死 `encoding='utf-8'`（写死 = UE5 的产物全读成带 \x00 的乱码、grep 一条都打不中）。
+   本仓的读法 = `t3d_tools.read_t3d_text(path)` / `sniff_encoding(path)`（按 BOM 嗅探），**新脚本一律走它**。
 
 ## 换一个 UE 工程要改什么
 

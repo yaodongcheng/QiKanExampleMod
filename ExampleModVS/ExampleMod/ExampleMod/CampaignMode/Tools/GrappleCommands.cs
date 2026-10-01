@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.ObjectSystem;
 
 namespace LivingWorldNpcs.CampaignMode.Tools
 {
@@ -35,6 +38,25 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple release            远端松手（绳自己掉下去 —— 验重力；再 anchor 一次钉回去）
 	///   custom.grapple dump               详细状态（段数 / 长度 / 手与锚点坐标 / 绷直还是松垂）
 	///
+	/// —— 步骤 2 起（钩头 + 落点平台，2026-10-01）——
+	///   custom.grapple throw              朝准星发一根钩头（完整链路：飞行 → 命中 → 落点平台解算）
+	///   custom.grapple probe              只解算不发射：打印瞄准点 + 落点平台逐环明细（调参主力）
+	///   custom.grapple retract            收钩（钩头拆掉、绳藏起来）
+	///   custom.grapple range &lt;米&gt;         瞄准射线最大长度（默认 20；UE 参考工程是 12）
+	///   custom.grapple hspeed &lt;m/s&gt;       钩头飞行速度（默认 35）
+	///   custom.grapple hscale &lt;倍率&gt;      钩头占位网格缩放（默认 0.35）
+	///   custom.grapple hmesh &lt;网格名&gt;     换钩头占位网格（第一候选；后两个兜底保留）
+	///   custom.grapple nz &lt;值&gt;           落点平台：地面法线竖直度阈值（默认 0.7，越大越平）
+	///   custom.grapple dz &lt;min&gt; &lt;max&gt;    落点平台：允许的高度窗口（米，默认 -1 ~ 4）
+	///   custom.grapple headroom &lt;米&gt;      落点平台：头顶净空要求（默认 2.0）
+	///   custom.grapple ring &lt;r1,r2,...&gt;   落点平台：环形采样半径表（米，默认 0.4,0.8,1.3,2.0）
+	///   custom.grapple backoff &lt;米&gt;       没平台时沿射线退回的距离（默认 1.5）
+	///   custom.grapple lreset             落点平台参数恢复默认
+	///
+	/// —— 步骤 3 起（武器接线）——
+	///   custom.grapple equip              把钩索武器 + 绳弹**当场发到玩家手上**（Weapon0/1）——
+	///                                     之后右键瞄准出准星、松手发射 = 钩头飞出（拦截补丁接的）
+	///
 	/// 首参可弃（项目纪律）：认不出的第一个参数**当作没有**，回落到"状态"并注明。
 	/// 返回文本一律英文（控制台纪律）。
 	/// </summary>
@@ -43,11 +65,6 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		[CommandLineFunctionality.CommandLineArgumentFunction("grapple", "custom")]
 		public static string Execute(List<string> args)
 		{
-			if (Mission.Current == null || Agent.Main == null)
-			{
-				return "Error: not in mission.";
-			}
-
 			string sub = "dump";
 			int at = 0;
 			bool discarded = false;
@@ -56,7 +73,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				string s = args[0].Trim().ToLowerInvariant();
 				if (s == "anchor" || s == "clear" || s == "seg" || s == "len" || s == "radius"
 					|| s == "overlap" || s == "damp" || s == "grav" || s == "mesh" || s == "ground"
-					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status")
+					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
+					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh"
+					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip")
 				{
 					sub = s == "status" ? "dump" : s;
 					at = 1;
@@ -66,6 +85,20 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					// 可弃占位（`custom.grapple 1` 这类）—— 回落到状态
 					discarded = true;
 				}
+			}
+
+			// 🔴 `equip` **两边都能敲**（2026-10-01 用户要求）：
+			//    · 在场景里 = 直接把钩索+绳弹发到 Weapon0/1（当场可用）；
+			//    · 在大地图 = 把两件物品**进主队辎重**（虚空来源，铁律 4 的 Grant），玩家自己去物品栏装备。
+			//    其余子命令都依赖场景（绳/钩头/落点都在 Mission 里），照旧拦。
+			if (sub == "equip")
+			{
+				return DoEquip();
+			}
+
+			if (Mission.Current == null || Agent.Main == null)
+			{
+				return "Error: not in mission.";
 			}
 
 			GrappleLogic logic = GrappleLogic.Ensure();
@@ -260,6 +293,121 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				// ─────────────────────────── 步骤 2：钩头 + 落点平台 ───────────────────────────
+
+				case "throw":
+					result = logic.Throw();
+					break;
+
+				case "probe":
+					result = logic.Probe();
+					break;
+
+				case "retract":
+					result = logic.Release();
+					break;
+
+				case "range":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v <= 0f) { result = "Error: range needs meters > 0 (e.g. custom.grapple range 20)"; break; }
+					GrappleLogic.AimRange = v;
+					result = $"grapple: aim range = {v:F1}m";
+					break;
+				}
+
+				case "hspeed":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v <= 0f) { result = "Error: hspeed needs m/s > 0 (e.g. custom.grapple hspeed 35)"; break; }
+					GrappleHook.Speed = v;
+					result = $"grapple: hook speed = {v:F1} m/s";
+					break;
+				}
+
+				case "hscale":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v <= 0f) { result = "Error: hscale needs a multiplier > 0 (e.g. custom.grapple hscale 0.35)"; break; }
+					GrappleHook.MeshScale = v;
+					result = $"grapple: hook mesh scale = {v:F2}";
+					break;
+				}
+
+				case "hmesh":
+				{
+					string name = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(name)) { result = "Error: hmesh needs a mesh name (e.g. custom.grapple hmesh push_fork)"; break; }
+					GrappleHook.MeshCandidates = new[] { name, "push_fork", "bolt_bl_a" };
+					result = $"grapple: hook mesh candidates = {name}, push_fork, bolt_bl_a (takes effect on next throw)";
+					break;
+				}
+
+				case "nz":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v < 0f || v > 1f) { result = "Error: nz needs 0~1 (e.g. custom.grapple nz 0.7)"; break; }
+					GrappleLanding.MinNormalZ = v;
+					result = $"grapple: landing min normal.z = {v:F2}";
+					break;
+				}
+
+				case "dz":
+				{
+					float lo = ParseF(args, at + 0, float.NaN);
+					float hi = ParseF(args, at + 1, float.NaN);
+					if (float.IsNaN(lo) || float.IsNaN(hi) || lo >= hi)
+					{
+						result = "Error: dz needs two meters (min < max), e.g. custom.grapple dz -1 4";
+						break;
+					}
+					GrappleLanding.MinDz = lo;
+					GrappleLanding.MaxDz = hi;
+					result = $"grapple: landing height window = [{lo:F1}, {hi:F1}]m";
+					break;
+				}
+
+				case "headroom":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v < 0f) { result = "Error: headroom needs meters >= 0 (e.g. custom.grapple headroom 2.0)"; break; }
+					GrappleLanding.Headroom = v;
+					result = $"grapple: landing headroom = {v:F1}m";
+					break;
+				}
+
+				case "ring":
+				{
+					string csv = ArgAt(args, at + 0);
+					float[] parsed = ParseFloatList(csv, 0f);
+					if (parsed == null || parsed.Length == 0)
+					{
+						result = "Error: ring needs a comma list of meters > 0 (e.g. custom.grapple ring 0.4,0.8,1.3,2.0)";
+						break;
+					}
+					GrappleLanding.Radii = parsed;
+					result = "grapple: landing rings = " + string.Join(",", Array.ConvertAll(parsed, x => x.ToString("F2", CultureInfo.InvariantCulture)));
+					break;
+				}
+
+				case "backoff":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v < 0f) { result = "Error: backoff needs meters >= 0 (e.g. custom.grapple backoff 1.5)"; break; }
+					GrappleLanding.FallbackBackoff = v;
+					result = $"grapple: no-platform backoff = {v:F1}m";
+					break;
+				}
+
+				case "lreset":
+					GrappleLanding.ResetDefaults();
+					result = "grapple: landing params reset to defaults";
+					break;
+
+				case "equip":
+					result = DoEquip();
+					break;
+
 				default:
 					result = logic.Status();
 					break;
@@ -315,6 +463,108 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			if (args == null || i < 0 || i >= args.Count || args[i] == null) return fallback;
 			return float.TryParse(args[i], NumberStyles.Float, CultureInfo.InvariantCulture, out float v)
 				? v : fallback;
+		}
+
+		/// <summary>
+		/// 发钩索装备 —— **两边都能敲**：
+		///   · **在场景里** = 直接装到手上（Weapon0 = 钩索 · Weapon1 = 绳弹），当场可试；
+		///   · **在大地图** = 两件物品**进主队辎重**（虚空来源，铁律 4 的 Grant；走 AgentControlHelper），
+		///     玩家自己去物品栏装备 —— 这是"正常流程"验收要走的路（进战斗前装配）。
+		/// 🔴 物品在**内容包**里（`Modules/Taikou/ModuleData/taikou_items/grapple.xml`）；
+		///    没装内容包 / 名字改了 = 这里给一句明确的英文错误，不崩。
+		/// 🔴 两轮查找（铁律 5）：第一轮按 StringId 精确找；第二轮在内存里按名字**包含**扫一遍兜底。
+		/// </summary>
+		private static string DoEquip()
+		{
+			ItemObject hook = ResolveContentItem("taikou_grapple_hook", "grapple_hook");
+			ItemObject dart = ResolveContentItem("taikou_grapple_dart", "grapple_dart");
+			if (hook == null || dart == null)
+			{
+				return "Error: grapple items not found (content pack Taikou not loaded? expected taikou_grapple_hook / taikou_grapple_dart)";
+			}
+
+			// ① 场景里：直接装到玩家手上（当场可用）
+			Agent main = Agent.Main;
+			if (Mission.Current != null && main != null)
+			{
+				try
+				{
+					MissionWeapon hookWeapon = new MissionWeapon(hook, null, main.Origin?.Banner);
+					main.EquipWeaponWithNewEntity(EquipmentIndex.Weapon0, ref hookWeapon);
+					MissionWeapon dartWeapon = new MissionWeapon(dart, null, main.Origin?.Banner);
+					main.EquipWeaponWithNewEntity(EquipmentIndex.Weapon1, ref dartWeapon);
+					main.UpdateAgentStats();
+					return "OK (mission): equipped GrappleHook (slot 0) + GrappleDart x1 (slot 1) - draw with RMB, release to fire.";
+				}
+				catch (Exception ex)
+				{
+					return "Error: equip failed (" + ex.GetType().Name + ": " + ex.Message + ")";
+				}
+			}
+
+			// ② 大地图：进主队辎重（玩家自己去物品栏装备）
+			try
+			{
+				Hero hero = Hero.MainHero;
+				if (hero == null)
+				{
+					return "Error: no main hero.";
+				}
+				int givenHook = AgentControlHelper.TransferItems(null, hero, hook, 1);
+				int givenDart = AgentControlHelper.TransferItems(null, hero, dart, 1);
+				if (givenHook <= 0 && givenDart <= 0)
+				{
+					return "Error: could not add grapple items to the party inventory.";
+				}
+				return $"OK (campaign): added to party inventory - GrappleHook x{givenHook}, GrappleDart x{givenDart}. Equip them in the inventory screen (bow slot + arrow slot), then enter a battle and fire. Run again for spares.";
+			}
+			catch (Exception ex)
+			{
+				return "Error: campaign give failed (" + ex.GetType().Name + ": " + ex.Message + ")";
+			}
+		}
+
+		/// <summary>两轮查物品：① StringId 精确 ② 内存里按 StringId 包含片段扫一遍（铁律 5）。</summary>
+		private static ItemObject ResolveContentItem(string exactId, string nameFragment)
+		{
+			try
+			{
+				ItemObject exact = MBObjectManager.Instance.GetObject<ItemObject>(exactId);
+				if (exact != null)
+				{
+					return exact;
+				}
+				foreach (ItemObject item in MBObjectManager.Instance.GetObjectTypeList<ItemObject>())
+				{
+					if (item != null && item.StringId != null
+						&& item.StringId.IndexOf(nameFragment, StringComparison.OrdinalIgnoreCase) >= 0)
+					{
+						return item;
+					}
+				}
+			}
+			catch (Exception)
+			{
+				// 查不到就返回 null，调用方给英文错误
+			}
+			return null;
+		}
+
+		/// <summary>把 "0.4,0.8,1.3" 这样的逗号串解成 float 数组（全解析不出 = null；非法项丢弃）。</summary>
+		private static float[] ParseFloatList(string csv, float minExclusive)
+		{
+			if (string.IsNullOrEmpty(csv)) return null;
+			string[] parts = csv.Split(',');
+			List<float> values = new List<float>();
+			foreach (string part in parts)
+			{
+				if (float.TryParse(part.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float v)
+					&& v > minExclusive)
+				{
+					values.Add(v);
+				}
+			}
+			return values.Count > 0 ? values.ToArray() : null;
 		}
 
 		private static string ArgAt(List<string> args, int i)
