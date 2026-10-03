@@ -123,15 +123,28 @@ namespace LivingWorldNpcs
 			}
 
 			float step = Speed * dt;
+			float remaining = _maxDistance - _travelled;
+
+			// 🔴🔴 **本帧会到达/越过终点 ⇒ 只飞到终点，并强制做一次碰撞检查**（2026-10-03 实机定死的 bug）：
+			//    碰撞检查是限频的（每 0.05 秒 ≈ 1.75 米一段），而**最后一段**原来永远没人查 ——
+			//    检查段是"上次检查点 → 本次新位置"，可钩头在到达终点那一帧就直接被判"打空"，
+			//    下一检查点（更远）根本没机会执行 ⇒ **落在最后一小段（最多 1.75 米）里的目标必然判定打空**
+			//    （实机：瞄 12.3 米的目标，检查段只覆盖到 12.25 米 → 飞满 12.9 米报"打空"，绳随即收掉）。
+			//    ⇒ 到达终点这一帧把位置钳到终点、并且**无条件**扫最后一段 [_checkFrom → 终点]。
+			bool reachedEnd = step >= remaining;
+			if (reachedEnd)
+			{
+				step = MathF.Max(0f, remaining);
+			}
 			Vec3 next = Position + _dir * step;
 			_travelled += step;
 
-			// ── 碰撞检查（限频）──
+			// ── 碰撞检查（限频；到达终点那一帧强制做一次）──
 			// 🔴 线段 = **上一次检查点 → 这次的新位置**（不是"本帧起止"）——
 			//    两次检查之间飞过的距离（35 m/s × 0.05s ≈ 1.75 米）也必须落在某条线段里，
 			//    否则薄墙/薄人会被整段跳过去（法术那边同款口径）。
 			_checkTimer += dt;
-			if (_checkTimer >= CheckInterval)
+			if (_checkTimer >= CheckInterval || reachedEnd)
 			{
 				_checkTimer = 0f;
 
@@ -170,9 +183,9 @@ namespace LivingWorldNpcs
 			Position = next;
 			MoveEntity();
 
-			if (_travelled >= _maxDistance)
+			if (reachedEnd)
 			{
-				DebugLogger.Log($"[Grapple] 钩头打空（飞满 {_maxDistance:F1} 米）@ {Fmt(Position)}");
+				DebugLogger.Log($"[Grapple] 钩头打空（飞满 {_maxDistance:F1} 米，末段已查）@ {Fmt(Position)}");
 				State = Phase.Idle;
 				HideEntity();
 				return StepResult.Missed;

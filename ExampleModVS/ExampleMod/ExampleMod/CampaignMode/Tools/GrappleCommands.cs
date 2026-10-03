@@ -493,6 +493,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					main.EquipWeaponWithNewEntity(EquipmentIndex.Weapon0, ref hookWeapon);
 					MissionWeapon dartWeapon = new MissionWeapon(dart, null, main.Origin?.Banner);
 					main.EquipWeaponWithNewEntity(EquipmentIndex.Weapon1, ref dartWeapon);
+					// 🔴 把绳弹钉死在 **1 发**（2026-10-03）：物品的 `stack_amount` 是 20 —— 为什么不是 1，
+					//    见 `taikou_items/grapple.xml` 顶上的注释（HUD 的子弹数只统计"最大堆叠 > 1"的弹药；
+					//    写 1 = 能射但永远显示 0）。装填完立刻设成 1 = "上限 20、实有 1"。
+					main.SetWeaponAmountInSlot(EquipmentIndex.Weapon1, 1, false);
 					main.UpdateAgentStats();
 					return "OK (mission): equipped GrappleHook (slot 0) + GrappleDart x1 (slot 1) - draw with RMB, release to fire.";
 				}

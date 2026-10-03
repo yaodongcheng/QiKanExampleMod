@@ -45,6 +45,9 @@ namespace LivingWorldNpcs
 		/// <summary>瞄准射线找人时的粗细（米）。</summary>
 		public static float AimAgentRadius = 0.3f;
 
+		/// <summary>退化瞄准闸：地形命中点离相机小于这个距离（米）= 判为"相机贴进几何体"，拒发（见 <see cref="TryAim"/>）。</summary>
+		public static float MinAimCameraDistance = 1.0f;
+
 		/// <summary>绳本体（命令层读当前参数用；改参数一律走 <see cref="Configure"/>）。</summary>
 		public GrappleRope Rope => _rope;
 
@@ -58,9 +61,10 @@ namespace LivingWorldNpcs
 		private const float DefaultRopeLength = 3.6f;
 
 		/// <summary>
-		/// 拿当前 Mission 上的实例，没有就挂一个（命令入口调它）。
+		/// 拿当前 Mission 上的实例，没有就挂一个（命令入口 + 开火排队入口调它）。
 		/// 🔴 追加行为**拿不到 `OnBehaviorInitialize`**（引擎只调 `OnCreated`，反编译实锤，见
-		/// `AI/NpcSightSystem.cs` 的注释）⇒ 这里自己把 <see cref="Current"/> 设上。
+		/// <see cref="OnCreated"/> 的注释）⇒ 本类的 `Current` 在 **`OnCreated`** 里设；
+		/// 这里的赋值是"显式起见"的冗余（`AddMissionBehavior` 内部会先调 `OnCreated`，值其实已经设上）。
 		/// </summary>
 		public static GrappleLogic Ensure()
 		{
@@ -71,6 +75,20 @@ namespace LivingWorldNpcs
 			mission.AddMissionBehavior(c);
 			Current = c;
 			return c;
+		}
+
+		/// <summary>
+		/// 🔴🔴 **`Current` 在这里设，不能只在 <see cref="OnBehaviorInitialize"/> 里设**（2026-10-03 实机踩到）：
+		/// 引擎的顺序是「先给已在列表里的行为调 `OnBehaviorInitialize`，**之后**才调各 SubModule 的
+		/// `OnMissionBehaviorInitialize`」（反编译 `Mission.Initialize` 实锤）—— 本行为是在后者里
+		/// `AddMissionBehavior` 挂上的，而 `AddMissionBehavior` **只调 `OnCreated`**（同一份反编译实锤）
+		/// ⇒ 它**永远拿不到 `OnBehaviorInitialize`**。此前只在那里赋值 ⇒ 玩家"只 equip 没敲过命令"
+		/// 的那个场景里 `Current` 恒为 null（症状：开火被"没有 GrappleLogic"挡掉，什么都没有飞出来）。
+		/// </summary>
+		public override void OnCreated()
+		{
+			base.OnCreated();
+			Current = this;
 		}
 
 		public override void OnBehaviorInitialize()
@@ -181,10 +199,27 @@ namespace LivingWorldNpcs
 		// ─────────────────────────────── 钩头模式（步骤 2） ───────────────────────────────
 
 		/// <summary>
-		/// 朝准星发一根钩头（命令 `throw`；步骤 3 的武器开火将走同一条链路）。
+		/// 朝准星发一根钩头（命令 `throw`；武器开火走 <see cref="ThrowFromShot"/> → 同一条内部链路）。
 		/// 返回一句英文回执（控制台纪律）。
 		/// </summary>
 		public string Throw()
+		{
+			return ThrowInternal(false, Vec3.Zero, Vec3.Zero);
+		}
+
+		/// <summary>
+		/// **武器开火路径**（2026-10-03 加）：带上引擎给的那一枪的**起点与方向**做兜底瞄准。
+		/// 为什么需要：实机出现过"第一发正常、之后每一发都 `nothing within 20m`" —— 相机射线
+		/// （第三人称瞄准机位）**自己泡在几何体里**时，射线可能一路穿出去什么都打不到；
+		/// 而**这一枪的起点在弓上、方向是引擎算好的箭道**，没有这个毛病。
+		/// 优先级：仍以**相机准星**为准（那是玩家看到的"指哪"）；相机打空才退回弹道。
+		/// </summary>
+		public string ThrowFromShot(Vec3 shotOrigin, Vec3 shotDirection)
+		{
+			return ThrowInternal(true, shotOrigin, shotDirection);
+		}
+
+		private string ThrowInternal(bool hasShot, Vec3 shotOrigin, Vec3 shotDirection)
 		{
 			Mission mission = Mission;
 			Scene scene = mission?.Scene;
@@ -193,12 +228,24 @@ namespace LivingWorldNpcs
 				return "Error: no scene.";
 			}
 
+			// 🔴 **先清场再瞄准**（2026-10-03 用户要求）：上一根钩头/绳**不该留着** ——
+			//    以前是"瞄失败直接 return"，于是旧绳旧钩挂在原地（实机症状："第二次射的时候没销毁前一次"）。
+			if (_hookPhase != HookPhase.Idle)
+			{
+				Release("re-throw（发射前清场）");
+			}
+
 			Vec3 hand, aim;
 			bool aimAgent;
 			string why;
 			if (!TryAim(out hand, out aim, out aimAgent, out why))
 			{
-				return "Error: " + why;
+				// 相机准星打空 → 退回"这一枪自己的弹道"（见 ThrowFromShot 注释）
+				if (!hasShot || !TryAimAlongShot(mission, shotOrigin, shotDirection, out hand, out aim, out aimAgent))
+				{
+					DebugLogger.Log($"[Grapple] 瞄准失败（相机：{why}；弹道兜底也未命中）");
+					return "Error: " + why;
+				}
 			}
 
 			Vec3 toAim = aim - hand;
@@ -269,9 +316,16 @@ namespace LivingWorldNpcs
 				aim.x, aim.y, aim.z, (aim - playerPos).Length, GrappleLanding.Describe(r));
 		}
 
-		/// <summary>收钩（命令 `retract`；也是异常兜底）。</summary>
-		public string Release()
+		/// <summary>
+		/// 收钩（命令 `retract`；也是打空与异常的兜底）。
+		/// <paramref name="reason"/> **只进日志**（2026-10-03 加：实机出现"绳突然消失"，没有原因日志没法定位）。
+		/// </summary>
+		public string Release(string reason = "command")
 		{
+			if (_hookPhase != HookPhase.Idle)
+			{
+				DebugLogger.Log($"[Grapple] 收钩（{reason}）| 钩头末位置 {Fmt(_hook.Position)} 状态 {_hook.State}");
+			}
 			_hook.Clear();
 			_hookPhase = HookPhase.Idle;
 			_rope.Hide();
@@ -329,16 +383,76 @@ namespace LivingWorldNpcs
 				if (!SpellSweep.FindNearestHit(mission, origin, end, AimAgentRadius, main.Index, null,
 					out victim, out point))
 				{
+					// 打空时把射线的三个关键量打进日志 —— "相机泡在几何体里"这类问题一看就知道
+					DebugLogger.Log(string.Format(
+						"[Grapple] 相机瞄准打空：起点=({0:F2},{1:F2},{2:F2}) 方向=({3:F2},{4:F2},{5:F2}) 终点=({6:F2},{7:F2},{8:F2})",
+						origin.x, origin.y, origin.z, forward.x, forward.y, forward.z, end.x, end.y, end.z));
 					why = string.Format("nothing within {0:F0}m under the crosshair.", AimRange);
 					return false;
 				}
+
+				// 🔴 退化瞄准闸（2026-10-03 加）：命中点**离相机太近** ⇒ 多半是第三人称相机贴进了墙里/地形里，
+				//    射线一出来就打在自己的"内侧"上。这种点当目标 = 钩头朝**反方向**飞一小段就打空、
+				//    绳随即收掉（实机症状正是"飞了一下、绳没了"）。宁可拒发（回执说明原因），别发一钩废的。
+				float cameraDist = (point - origin).Length;
+				if (victim == null && cameraDist < MinAimCameraDistance)
+				{
+					why = string.Format("aim point too close ({0:F2}m from camera) - camera clipped into geometry?", cameraDist);
+					return false;
+				}
+
 				aim = point;
 				hitAgent = victim != null;
+				DebugLogger.Log(string.Format(
+					"[Grapple] 瞄准：相机→命中 {0:F2}m · 手→命中 {1:F2}m · 目标={2} 命中点=({3:F2},{4:F2},{5:F2})",
+					cameraDist, (point - hand).Length, hitAgent ? "人" : "地形",
+					point.x, point.y, point.z));
 				return true;
 			}
 			catch (Exception ex)
 			{
 				why = "aim ray failed (" + ex.GetType().Name + ").";
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// **弹道兜底瞄准**（武器开火路径专用）：从**这一枪的起点**（弓上）沿**引擎给的箭道方向**打射线。
+		/// 相机射线打空时用它 —— 起点在弓上、方向是引擎算的，不受"相机泡在几何体里"影响。
+		/// 返回 false = 这条也没打到（真的是朝天上放的）。
+		/// </summary>
+		private bool TryAimAlongShot(Mission mission, Vec3 shotOrigin, Vec3 shotDirection,
+			out Vec3 hand, out Vec3 aim, out bool hitAgent)
+		{
+			hand = GetHand();
+			aim = hand;
+			hitAgent = false;
+			if (mission?.Scene == null || shotDirection.LengthSquared < 1e-8f)
+			{
+				return false;
+			}
+			try
+			{
+				Vec3 dir = shotDirection.NormalizedCopy();
+				Vec3 end = shotOrigin + dir * AimRange;
+				Agent victim;
+				Vec3 point;
+				int exclude = Agent.Main != null ? Agent.Main.Index : -1;
+				if (!SpellSweep.FindNearestHit(mission, shotOrigin, end, AimAgentRadius, exclude, null,
+					out victim, out point))
+				{
+					return false;
+				}
+				aim = point;
+				hitAgent = victim != null;
+				DebugLogger.Log(string.Format(
+					"[Grapple] 瞄准源=**弹道兜底**（相机打空）| 起点={0} 命中距={1:F1}m 目标={2} 命中点=({3:F2},{4:F2},{5:F2})",
+					Fmt(shotOrigin), (point - shotOrigin).Length, hitAgent ? "人" : "地形",
+					point.x, point.y, point.z));
+				return true;
+			}
+			catch (Exception)
+			{
 				return false;
 			}
 		}
@@ -381,6 +495,10 @@ namespace LivingWorldNpcs
 		{
 			base.OnMissionTick(dt);
 
+			// ⓪ 开火拦截的排队执行（2026-10-03）：拦截补丁只"记一笔"，真正的发射与退弹在这一帧做 ——
+			//    这样武器开火与命令 `throw` 走的是**同一条链路**（都在常规 tick 里）。
+			GrappleFirePatch.ProcessPending();
+
 			// ① 钩头模式（步骤 2 起）：它接管绳子；手动锚定让位
 			if (_hookPhase != HookPhase.Idle)
 			{
@@ -416,7 +534,7 @@ namespace LivingWorldNpcs
 				catch (Exception ex)
 				{
 					DebugLogger.Log($"[Grapple] 钩头 tick 异常，收钩：{ex.GetType().Name} {ex.Message}");
-					Release();
+					Release("hook tick exception: " + ex.Message);
 					return;
 				}
 
@@ -432,7 +550,7 @@ namespace LivingWorldNpcs
 				}
 				else if (step == GrappleHook.StepResult.Missed)
 				{
-					Release();
+					Release("missed (打空)");
 					return;
 				}
 			}
@@ -444,7 +562,7 @@ namespace LivingWorldNpcs
 			catch (Exception ex)
 			{
 				DebugLogger.Log($"[Grapple] 绳 tick 异常，收钩：{ex.GetType().Name} {ex.Message}");
-				Release();
+				Release("rope tick exception: " + ex.Message);
 			}
 		}
 
