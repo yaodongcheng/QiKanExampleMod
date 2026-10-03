@@ -57,6 +57,16 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple equip              把钩索武器 + 绳弹**当场发到玩家手上**（Weapon0/1）——
 	///                                     之后右键瞄准出准星、松手发射 = 钩头飞出（拦截补丁接的）
 	///
+	/// —— 步骤 4 起（拉自己）——
+	///   custom.grapple pull self          把玩家拉向钩点（要求已勾住：先 throw 或开一枪）
+	///   custom.grapple pulltime &lt;秒&gt;      拉升时长（0 = 自动：按距离缩放的地面 1.2 / 空中 0.95 秒）
+	///   custom.grapple arc &lt;米&gt;          拉拽弧线高度（默认 1.5；0 = 直线）
+	///   custom.grapple delay &lt;地面&gt; &lt;空中&gt; 蓄势时长（钩住后到开始拉，默认 0.65 / 0.35 秒）
+	///   custom.grapple autopull &lt;0|1&gt;     武器开火命中后自动拉（默认开；关掉 = 只勾住，自己敲 pull self）
+	///   custom.grapple cam &lt;米|t:模板名|off&gt;  拉拽机位：&lt;米&gt; = 引擎机位 + 臂长拉远（默认 8）·
+	///                                     t:&lt;名&gt; = 用 Camera.csv 的模板机位（方向相对角色、接管瞬间硬切，调试角度用）· off = 不接管
+	///   custom.grapple facehook &lt;0|1&gt;     拉拽期间是否把身体转向钩点（默认开；关掉 = 朝向完全交给引擎，隔离实验用）
+	///
 	/// 首参可弃（项目纪律）：认不出的第一个参数**当作没有**，回落到"状态"并注明。
 	/// 返回文本一律英文（控制台纪律）。
 	/// </summary>
@@ -75,7 +85,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "overlap" || s == "damp" || s == "grav" || s == "mesh" || s == "ground"
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh"
-					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip")
+					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip"
+					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook")
 				{
 					sub = s == "status" ? "dump" : s;
 					at = 1;
@@ -407,6 +418,115 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case "equip":
 					result = DoEquip();
 					break;
+
+				// ─────────────────────────── 步骤 4：拉自己 ───────────────────────────
+
+				case "pull":
+				{
+					string what = (ArgAt(args, at + 0) ?? "self").ToLowerInvariant();
+					if (what == "self")
+					{
+						result = logic.PullSelf();
+						break;
+					}
+					if (what == "target")
+					{
+						result = "Error: pull target not implemented yet (step 5).";
+						break;
+					}
+					result = "Error: pull needs 'self' (target = step 5)";
+					break;
+				}
+
+				case "pulltime":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v < 0f) { result = "Error: pulltime needs seconds >= 0 (0 = auto by distance)"; break; }
+					GrapplePull.DurationOverride = v;
+					result = v <= 0f ? "grapple: pull duration = auto (by distance)" : $"grapple: pull duration = {v:F2}s (fixed)";
+					break;
+				}
+
+				case "arc":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v < 0f) { result = "Error: arc needs meters >= 0 (0 = straight line)"; break; }
+					GrapplePull.ArcHeight = v;
+					result = $"grapple: pull arc height = {v:F1}m";
+					break;
+				}
+
+				case "delay":
+				{
+					float ground = ParseF(args, at + 0, -1f);
+					float air = ParseF(args, at + 1, -1f);
+					if (ground < 0f && air < 0f)
+					{
+						result = "Error: delay needs seconds (ground [air]), e.g. custom.grapple delay 0.65 0.35";
+						break;
+					}
+					if (ground >= 0f) GrappleLogic.PullDelayGround = ground;
+					if (air >= 0f) GrappleLogic.PullDelayAir = air;
+					result = $"grapple: pull delay = ground {GrappleLogic.PullDelayGround:F2}s / air {GrappleLogic.PullDelayAir:F2}s";
+					break;
+				}
+
+				case "autopull":
+				{
+					GrappleLogic.AutoPull = ParseF(args, at + 0, 1f) > 0.5f;
+					result = GrappleLogic.AutoPull
+						? "grapple: autopull ON (weapon fire -> attach -> pull automatically)"
+						: "grapple: autopull OFF (weapon fire stops at attached; use 'pull self')";
+					break;
+				}
+
+				case "facehook":
+				{
+					// 隔离实验用：拉拽期间"把身体转向钩点"的写入开关（关掉 = 朝向完全交给引擎）
+					GrapplePull.FaceHook = ParseF(args, at + 0, 1f) > 0.5f;
+					result = GrapplePull.FaceHook
+						? "grapple: facehook ON (body is turned toward the hook during the pull)"
+						: "grapple: facehook OFF (we write nothing; engine decides the facing)";
+					break;
+				}
+
+				case "cam":
+				{
+					// 三种用法：无参 = 看当前；`cam off` = 不接管；`cam <米>` = 引擎机位 + 拉远多少米；
+					//           `cam t:<模板名>` = 用 Camera.csv 的模板机位（方向相对角色，调试角度用）
+					string name = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(name))
+					{
+						result = GrapplePull.CameraArmLength <= 0f && string.IsNullOrEmpty(GrapplePull.CameraTemplate)
+							? "grapple: pull camera = OFF (engine camera)"
+							: $"grapple: pull camera = {(string.IsNullOrEmpty(GrapplePull.CameraTemplate) ? "engine-look + arm " + GrapplePull.CameraArmLength.ToString("F1") + "m" : "template " + GrapplePull.CameraTemplate)}";
+						break;
+					}
+					if (name.Equals("off", StringComparison.OrdinalIgnoreCase))
+					{
+						GrapplePull.CameraArmLength = 0f;
+						GrapplePull.CameraTemplate = "";
+						result = "grapple: pull camera = OFF (engine camera; for comparison)";
+						break;
+					}
+					if (name.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
+					{
+						string tpl = name.Substring(2).Trim();
+						GrapplePull.CameraTemplate = tpl;
+						result = $"grapple: pull camera = template '{tpl}' (must exist in DesignData/Camera.csv; watch for a direction snap at takeover)";
+						break;
+					}
+					float arm = ParseF(args, at + 0, -1f);
+					if (arm < 0f)
+					{
+						result = "Error: cam needs meters, 't:<template>' or 'off' (e.g. custom.grapple cam 8)";
+						break;
+					}
+					GrapplePull.CameraTemplate = "";
+					GrapplePull.CameraArmLength = arm;
+					result = $"grapple: pull camera = engine-look + arm {arm:F1}m";
+					break;
+				}
 
 				default:
 					result = logic.Status();

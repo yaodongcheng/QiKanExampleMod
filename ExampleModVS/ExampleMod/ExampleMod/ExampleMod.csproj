@@ -353,6 +353,7 @@
     <Compile Include="Combat\GrappleLogic.cs" />
     <Compile Include="Combat\GrappleHook.cs" />
     <Compile Include="Combat\GrappleLanding.cs" />
+    <Compile Include="Combat\GrapplePull.cs" />
     <Compile Include="Combat\GrappleFirePatch.cs" />
     <Compile Include="CampaignMode\Tools\GrappleCommands.cs" />
     <!-- Core -->

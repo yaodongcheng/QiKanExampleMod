@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -169,6 +169,7 @@ namespace LivingWorldNpcs
         /// <summary>进出场渐变时长（秒）—— 臂长/FOV 从引擎相机值滑到机位值，避免硬切。</summary>
         private const float FollowBlendSeconds = 0.35f;
 
+        private static bool _followWriteBackLook;   // 归还时是否把我们的朝向写回引擎（见 ApplyFollowFromEngineCamera 重载）
         private static bool _followActive;
         private static bool _followHandingBack;
         private static bool _followUseTimeout;
@@ -246,8 +247,22 @@ namespace LivingWorldNpcs
         /// <param name="seconds">≤0 = 不限时（要手动 <see cref="StopFollowCamera"/>）。</param>
         public static bool ApplyFollowFromEngineCamera(Agent agent, float seconds)
         {
+            return ApplyFollowFromEngineCamera(agent, seconds, writeBackLookOnReturn: false);
+        }
+
+        /// <summary>
+        /// 同上，但可选择**归还时把我们的朝向写回引擎**（`CameraBearing/Elevation`，反射写私有 setter）。
+        ///
+        /// 🔴 为什么需要（2026-10-03 钩索实机）：引擎的 bearing 在**接管期间也会变**
+        ///    （实测：开火后瞄具复位把 bearing 转了 ~87°）—— 如果归还时"渐回引擎角度"，
+        ///    玩家看到的就是**落地瞬间镜头大范围旋转**。写回 = 引擎从我们停的地方接着看 ⇒ **零旋转**。
+        ///    做法与飞行工程 `FlightCameraRig.HandBackLookToEngine` 同源；默认 **false**（演出取景行为不变）。
+        /// </summary>
+        public static bool ApplyFollowFromEngineCamera(Agent agent, float seconds, bool writeBackLookOnReturn)
+        {
             if (!TryBuildEngineCameraParam(agent, out SpringArmCameraParam p))
                 return false;
+            _followWriteBackLook = writeBackLookOnReturn;
 
             // 起点 = 终点（本来就是从引擎相机抄的）⇒ 没有进场渐变，也就没有"镜头先动一下"
             return StartFollow(p, p, agent, "engine-camera", seconds);
@@ -450,16 +465,52 @@ namespace LivingWorldNpcs
             {
                 ArmLength = dist,
                 ArmYaw = look.RotationZ * RadToDeg,
-                ArmPitch = MBMath.ClampFloat(look.RotationX * RadToDeg, -75f, 45f),
+                // 🔴 **别收窄这个 pitch 钳位**（2026-10-03 实机教训）：以前是 [−75, 45]，
+                //    而**钩索常常要仰头瞄屋顶/崖顶**（pitch 超出 45）⇒ 我们抓到的机位与引擎实际角度
+                //    系统性对不上，归还渐变时镜头就得**转回那个差值**（用户症状："落地瞬间镜头和角色大幅旋转"）。
+                //    钳到 ±85 只防"臂翻转"，其余一律照抄引擎 ⇒ 接管前后两边严丝合缝。
+                ArmPitch = MBMath.ClampFloat(look.RotationX * RadToDeg, -85f, 85f),
                 Fov = fov,
                 IsAnchorWorld = true,                 // ← 方向冻在世界里（不跟角色转身）
             };
             return true;
         }
 
-        /// <summary>立刻归还相机（幂等；任何异常都要保证还）。**不渐变**（异常/收摊路径用）。</summary>
-        public static void StopFollowCamera()
+        /// <summary>
+        /// **跟随期间改臂长（米）** —— 给"脚本驱动的短期接管"用（钩索拉拽 2026-10-03：
+        /// 方向用接管那一刻的引擎机位、**不硬切**，只把机位拉远到能看全身/看弧线）。
+        ///
+        /// 🔴 **只改 `<see cref="_followTarget"/>`，绝不碰 `<see cref="_followFrom"/>`**（2026-10-03 实机教训）：
+        ///   `_followFrom` 是**接管那一刻的引擎相机快照**，归还渐变（<see cref="BeginFollowHandBack"/>）
+        ///   拿它当"臂长/FOV 的终点" —— 一旦被覆盖，渐变就变成"8→8"，撒手瞬间引擎相机从 8 米**弹回**
+        ///   它自己的视距 ⇒ 观感 = "最后释放缺一段平滑过渡"。
+        ///   写进 target = 进场时臂长会从引擎值**平滑长到**目标值（更自然），归还时再平滑回落 ✓。
+        /// </summary>
+        public static void SetFollowArmLength(float meters)
         {
+            if (!_followActive || meters <= 0f)
+            {
+                return;
+            }
+            _followTarget.ArmLength = meters;
+        }
+
+        /// <summary>
+        /// **请求渐变归还**（= 超时那条路，只是由调用方主动触发）：
+        /// 把臂长/FOV 滑回接管时引擎相机的值，滑完自动撒手。给"脚本驱动的短期接管"用
+        /// （钩索拉拽 2026-10-03：拉完想滑回引擎相机，而不是硬切一下）。
+        /// 已经在归还中 / 没接管 = 什么都不做。
+        /// </summary>
+        public static void RequestHandBack()
+        {
+            if (_followActive && !_followHandingBack)
+            {
+                BeginFollowHandBack();
+            }
+        }
+
+        /// <summary>立刻归还相机（幂等；任何异常都要保证还）。**不渐变**（异常/收摊路径用）。</summary>
+        public static void StopFollowCamera()        {
             if (!_followActive)
                 return;
 
@@ -482,6 +533,13 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 归还前渐变：把**臂长 / FOV** 滑回接管时引擎相机的值（方向不渐），滑完才真撒手。
         /// 为什么要：引擎相机复位时用它自己的视距/FOV，而我们的机位跟它差不少 ⇒ 硬切会"跳"一下。
+        ///
+        /// 🔴 **方向也要渐（2026-10-03 加，钩索拉拽实机要求）**：只有当**我们这一份是世界锚定**时才渐
+        ///    （世界锚定 = 有"世界 yaw"可比），终点 = **预测的引擎机位** —— 引擎接管期间不处理鼠标 look，
+        ///    所以它的 `CameraBearing/CameraElevation` 冻着不动，而那正是撒手后它要用的角度
+        ///    （见 `CameraLook.TryGetEngineAnglesRaw`）⇒ 朝它渐 = 撒手那一帧两边严丝合缝。
+        ///    另外老实现里 pitch 被钳到 [−75,45]（`TryBuildEngineCameraParam`），越界时方向本来就对不上，
+        ///    这一渐把这种偏差也一起抹平。
         /// </summary>
         private static void BeginFollowHandBack()
         {
@@ -491,6 +549,93 @@ namespace LivingWorldNpcs
             _followHandTo = _followTarget;
             _followHandTo.ArmLength = _followFrom.ArmLength;   // ← _followFrom 存的正是引擎相机那组值
             _followHandTo.Fov = _followFrom.Fov;
+
+            // ① **首选：把我们的朝向写回引擎**（零旋转 —— 引擎从我们停的地方接着看）。
+            //    理由见 ApplyFollowFromEngineCamera 重载的注释（引擎 bearing 在接管期间会变）。
+            bool wroteBack = false;
+            if (_followWriteBackLook && _followFrom.IsAnchorWorld)
+            {
+                wroteBack = WriteBackLookToEngine(_followHandFrom.ArmYaw, _followHandFrom.ArmPitch);
+            }
+
+            // ② 写不回去（或没要求写）：退回"渐回引擎角度"（至少不是硬跳）。
+            //    预测引擎机位并朝它渐（只对世界锚定那一份做 —— 模板机位的 yaw 是"相对角色"的，不可直接比）
+            float yawDelta = 0f, pitchDelta = 0f;
+            bool aligned = false;
+            if (!wroteBack && _followFrom.IsAnchorWorld
+                && CameraLook.TryGetEngineAnglesRaw(out float engYawDeg, out float engPitchDeg))
+            {
+                _followHandFrom.IsAnchorWorld = true;              // 两端口径统一（世界锚定）
+                _followHandTo.IsAnchorWorld = true;
+                _followHandTo.ArmYaw = engYawDeg;
+                _followHandTo.ArmPitch = engPitchDeg;
+                yawDelta = Normalize180(_followHandFrom.ArmYaw - engYawDeg);
+                pitchDelta = _followHandFrom.ArmPitch - engPitchDeg;
+                aligned = true;
+            }
+
+            DebugLogger.Log($"[FollowCam] 归还渐变开始：臂长 {_followHandFrom.ArmLength:F1}→{_followHandTo.ArmLength:F1} "
+                + $"fov {_followHandFrom.Fov:F0}→{_followHandTo.Fov:F0} "
+                + (wroteBack
+                    ? $"方向：已写回引擎（{_followHandFrom.ArmYaw:F0}/{_followHandFrom.ArmPitch:F0}°）—— 撒手零旋转"
+                    : (aligned
+                        ? $"方向 {_followHandFrom.ArmYaw:F0}/{_followHandFrom.ArmPitch:F0} → 引擎 {_followHandTo.ArmYaw:F0}/{_followHandTo.ArmPitch:F0}°（差 {yawDelta:F0}/{pitchDelta:F0}°）"
+                        : "方向：不渐（非世界锚定或读不到引擎角度）")));
+        }
+
+        /// <summary>
+        /// 把我们的朝向**写回引擎**（`CameraBearing` / `CameraElevation`；角度是私有 setter，走反射 ——
+        /// 本项目既有手法，见飞行工程 `FlightCameraRig.HandBackLookToEngine`）。
+        /// 角度口径实测对称：引擎 look = `RotateAboutUp(bearing)` 再 `RotateAboutSide(elevation)`，
+        /// 而 `Vec3.RotationZ/RotationX` 正好是它的可逆分解（反编译实证）⇒ 直接对写即可，无需符号校准。
+        /// 失败返回 false（调用方退回"渐回引擎角度"），只告警一次。
+        /// </summary>
+        private static bool WriteBackLookToEngine(float yawDeg, float pitchDeg)
+        {
+            try
+            {
+                if (!(ScreenManager.TopScreen is MissionScreen screen))
+                {
+                    return false;
+                }
+                const System.Reflection.BindingFlags F =
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic;
+                var bearingSet = typeof(MissionScreen).GetProperty("CameraBearing", F)?.GetSetMethod(true);
+                var elevSet = typeof(MissionScreen).GetProperty("CameraElevation", F)?.GetSetMethod(true);
+                if (bearingSet == null || elevSet == null)
+                {
+                    if (!_lookWriteWarned)
+                    {
+                        _lookWriteWarned = true;
+                        DebugLogger.Log("[FollowCam] 写不回引擎朝向（反射找不到 setter）—— 归还时退回'渐回引擎角度'");
+                    }
+                    return false;
+                }
+                const float DegToRad = MathF.PI / 180f;
+                bearingSet.Invoke(screen, new object[] { yawDeg * DegToRad });
+                elevSet.Invoke(screen, new object[] { pitchDeg * DegToRad });
+                DebugLogger.Log($"[FollowCam] 朝向已写回引擎：bearing={yawDeg:F0}° elev={pitchDeg:F0}°（撒手零旋转）");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (!_lookWriteWarned)
+                {
+                    _lookWriteWarned = true;
+                    DebugLogger.Log($"[FollowCam] 写回引擎朝向异常（退回渐变）: {ex.Message}");
+                }
+                return false;
+            }
+        }
+
+        private static bool _lookWriteWarned;
+
+        private static float Normalize180(float deg)
+        {
+            while (deg > 180f) deg -= 360f;
+            while (deg <= -180f) deg += 360f;
+            return deg;
         }
 
         /// <summary>

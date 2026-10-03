@@ -70,6 +70,33 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
+		/// **读引擎自己的相机角度**（bearing/elevation → 世界 yaw/pitch，度）—— **接管期间也读**。
+		///
+		/// 🔴 用途只有一个：**归还相机前对齐用**（2026-10-03 钩索拉拽）。接管期间引擎不处理鼠标 look，
+		///    这两个角**冻在接管那一刻**——它们不是"现在看哪"（所以别拿去做方向计算，铁律 35），
+		///    但它们**正是撒手引擎恢复后要用的角度** ⇒ 想把我们的机位和引擎机位对上，就得读它。
+		/// 数学与 <see cref="TryGetEngineLook"/> 同源（照抄引擎 `MissionMainAgentController.LookTick`）。
+		/// </summary>
+		public static bool TryGetEngineAnglesRaw(out float yawDeg, out float pitchDeg)
+		{
+			yawDeg = 0f;
+			pitchDeg = 0f;
+			try
+			{
+				if (ScreenManager.TopScreen is MissionScreen ms)
+				{
+					yawDeg = ms.CameraBearing * (180f / MathF.PI);
+					pitchDeg = ms.CameraElevation * (180f / MathF.PI);
+					return true;
+				}
+			}
+			catch (Exception)
+			{
+			}
+			return false;
+		}
+
+		/// <summary>
 		/// **引擎相机**的视线（照抄引擎 `MissionMainAgentController.LookTick`）。
 		/// 🔴 **接管期间返回 false**（那时 bearing/elevation 是冻的旧值，读了就是"画面 A、计算 B"）。
 		/// </summary>
