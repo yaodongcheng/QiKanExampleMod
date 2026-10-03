@@ -133,3 +133,20 @@ frame.origin += _lag.Update(agent.LookFrame.origin, p.LagSpeed, p.LagMaxDistance
    相机射线打空时拿它再打一条。范本 = `Combat/GrappleFirePatch.cs` + `GrappleLogic.ThrowFromShot`。
 2. **打空必留证据**：把射线**起点 / 方向 / 终点**打进日志（"泡在几何体里"一眼可辨）；
    再配一条"命中点离相机 < 1 米 ⇒ 判为相机贴进几何体、拒发并说明"的退化闸。
+
+## 🔴 脚本驱动的短期接管：四条归还纪律（2026-10-03 钩索拉拽四轮实机，全部有日志/反编译证据）
+
+> 场景 = "脚本推着玩家动 1~2 秒（拉拽/演出/载具），期间用自家相机跟拍"。四条按踩坑顺序：
+> 范本 = `Combat/GrapplePull.cs`（`EnterCamera/ExitCamera`）+ `SpringArmCameraView` 的
+> `ApplyFollowFromEngineCamera(…, writeBackLookOnReturn)` 重载 + `WriteBackLookToEngine`。
+
+1. 🔴 **方向别用"模板相对角色"的机位**：模板的 `ArmYaw` 是**相对角色朝向**算的（`SpringArmMath.ComputeFrame` 用 `agent.LookFrame.rotation` 起算）⇒ 角色一转，相机绕着他转 = "镜头猛转"。
+   **脚本接管时的正解 = 世界锚定**：抄**接管那一刻的引擎机位**（`ApplyFollowFromEngineCamera`）——视角保持你出发时的样子，只跟着人平移。
+   拉远只需 `SetFollowArmLength(米)`（演出相机是硬跟随、无弹簧滞后；快镜头下这正是要的）。
+2. 🔴 **接管快照不能被覆盖**：`SetFollowArmLength` **只改 `_followTarget`**（进场平滑变长、归还平滑回落）；
+   `_followFrom` 是"接管那一刻的引擎相机快照"，**归还渐变的终点就是它** —— 覆盖了 = 归还没有可回落的终点 = 撒手一帧弹回。
+3. 🔴 **pitch 别窄钳位**：抄引擎机位时若把 pitch 钳到 `[−75,45]`，**抬头场景**（钩索瞄屋顶、仰视演出）就会与引擎实际角度**系统性对不上**，归还时镜头被迫转回差值。放宽到 **±85**（只防臂翻转）。
+4. 🔴🔴 **归还 = 把我们的朝向写回引擎，不是渐回引擎角度**（**这条最难，四轮才定**）：
+   **引擎的 `CameraBearing/Elevation` 在接管期间也会变**（实测：开火后瞄具复位把 bearing 转了 ~87°）⇒ "渐回引擎角度" = 落地瞬间镜头**扫 87°**；"不渐" = **硬跳**。两个都错。
+   **正解 = 照飞行工程 `HandBackLookToEngine`：接管结束前把我们当前的 yaw/pitch 写回 `CameraBearing/Elevation`**（反射写私有 setter）⇒ 引擎从我们停的地方接着看、**零旋转**；反射失败才退回"渐回"（不硬跳）。
+   角度口径**可逆、无需符号校准**：引擎 look = `RotateAboutUp(bearing)` 再 `RotateAboutSide(elevation)`，而 `Vec3.RotationZ/RotationX` 正好是它的分解（反编译 `Mat3.RotateAboutUp/RotateAboutSide` 实证；⚠️ `RotationZ = atan2(−x, y)`，与"角色移动方向"那族 `atan2(y,x)` **差 90°**，混用会把好数据判成坏数据）。

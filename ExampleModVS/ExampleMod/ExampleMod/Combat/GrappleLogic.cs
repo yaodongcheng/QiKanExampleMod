@@ -2,6 +2,8 @@ using System;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.View.Screens;
+using TaleWorlds.ScreenSystem;
 
 namespace LivingWorldNpcs
 {
@@ -25,6 +27,7 @@ namespace LivingWorldNpcs
 			Idle,
 			Flying,     // 钩头在飞
 			Attached,   // 钩头钉住（墙/地 = AttachedPoint；人 = 挂在身上）
+			Pulling,    // 拉自己中（步骤 4：冻结 + 木板 + 曲线）
 		}
 
 		private readonly GrappleRope _rope = new GrappleRope();
@@ -39,6 +42,13 @@ namespace LivingWorldNpcs
 		private GrappleLanding.Result _landing;       // 命中后解算的落点（飞行终点）
 		private string _landingNote = "-";            // 落点解算的一行摘要（dump 用）
 
+		// ── 拉自己（步骤 4）──
+		private readonly GrapplePull _pull = new GrapplePull();
+		private float _attachTimer;                   // 钩头钉住后过了多久（蓄势计时）
+		private bool _attachFromAir;                  // 这一钩是不是"空中起钩"（决定蓄势/拉升时长的基准）
+		private bool _attachAutoPull;                 // 这一钩钉住后要不要自动拉（武器开火 = 要；命令 throw = 不要）
+		private int _postPullWatch;                   // 拉拽结束后再盯 N 帧（诊断"落地瞬间镜头/角色是否被转"）
+
 		/// <summary>瞄准射线的最大长度（米）。UE 参考工程是 12 米；骑砍地图更大，默认 20（命令 `range` 可调）。</summary>
 		public static float AimRange = 20f;
 
@@ -47,6 +57,16 @@ namespace LivingWorldNpcs
 
 		/// <summary>退化瞄准闸：地形命中点离相机小于这个距离（米）= 判为"相机贴进几何体"，拒发（见 <see cref="TryAim"/>）。</summary>
 		public static float MinAimCameraDistance = 1.0f;
+
+		/// <summary>蓄势时长（秒）：钩头钉住之后、开始拉之前的那一小段（UE 参考工程：地面 0.65 / 空中 0.35）。</summary>
+		public static float PullDelayGround = 0.65f;
+		public static float PullDelayAir = 0.35f;
+
+		/// <summary>武器开火命中地形后**自动拉过去**（命令 `autopull` 可关；关掉用于"只看勾住"的调试）。</summary>
+		public static bool AutoPull = true;
+
+		/// <summary>拉拽控制器（命令层读状态用）。</summary>
+		internal GrapplePull Pull => _pull;
 
 		/// <summary>绳本体（命令层读当前参数用；改参数一律走 <see cref="Configure"/>）。</summary>
 		public GrappleRope Rope => _rope;
@@ -111,6 +131,13 @@ namespace LivingWorldNpcs
 			try
 			{
 				_hook.Clear();
+			}
+			catch (Exception)
+			{
+			}
+			try
+			{
+				_pull.Abort("mission end");
 			}
 			catch (Exception)
 			{
@@ -193,7 +220,8 @@ namespace LivingWorldNpcs
 		{
 			string head = _anchored ? "anchored" : "idle";
 			return "grapple: " + head + " | rope: " + _rope.Status()
-				+ " | hook: " + _hook.Describe() + " | landing: " + _landingNote;
+				+ " | hook: " + _hook.Describe() + " | landing: " + _landingNote
+				+ " | " + _pull.Describe();
 		}
 
 		// ─────────────────────────────── 钩头模式（步骤 2） ───────────────────────────────
@@ -204,7 +232,7 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public string Throw()
 		{
-			return ThrowInternal(false, Vec3.Zero, Vec3.Zero);
+			return ThrowInternal(false, Vec3.Zero, Vec3.Zero, autoPull: false);
 		}
 
 		/// <summary>
@@ -216,10 +244,10 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public string ThrowFromShot(Vec3 shotOrigin, Vec3 shotDirection)
 		{
-			return ThrowInternal(true, shotOrigin, shotDirection);
+			return ThrowInternal(true, shotOrigin, shotDirection, autoPull: true);
 		}
 
-		private string ThrowInternal(bool hasShot, Vec3 shotOrigin, Vec3 shotDirection)
+		private string ThrowInternal(bool hasShot, Vec3 shotOrigin, Vec3 shotDirection, bool autoPull)
 		{
 			Mission mission = Mission;
 			Scene scene = mission?.Scene;
@@ -278,7 +306,12 @@ namespace LivingWorldNpcs
 			_aimPoint = aim;
 			_aimHitAgent = aimAgent;
 			_landingNote = "-";
-			DebugLogger.Log($"[Grapple] 发射：手={Fmt(hand)} 瞄准={Fmt(aim)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}");
+			// 这一钩的两个属性：从空中起的吗（决定蓄势/拉升时长）、要不要自动拉（武器开火 = 要）
+			_attachFromAir = Agent.Main != null && !Agent.Main.IsOnLand();
+			_attachAutoPull = autoPull;
+			_attachTimer = 0f;
+			DebugLogger.Log($"[Grapple] 发射：手={Fmt(hand)} 瞄准={Fmt(aim)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
+				+ $" | 起手={(autoPull ? "武器开火(命中后自动拉)" : "命令(命中即停)")} 空中起钩={_attachFromAir}");
 
 			return string.Format("OK: hook thrown | dist={0:F1}m target={1} aim=({2:F2},{3:F2},{4:F2})",
 				dist, aimAgent ? "agent" : "terrain", aim.x, aim.y, aim.z);
@@ -322,6 +355,18 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public string Release(string reason = "command")
 		{
+			// 正在拉拽 ⇒ 先中止（拆板 + 解冻 —— 绝不留冻结状态）
+			if (_pull.IsActive)
+			{
+				try
+				{
+					_pull.Abort("released (" + reason + ")");
+				}
+				catch (Exception ex)
+				{
+					DebugLogger.Log($"[Grapple] 中止拉拽异常（继续收钩）：{ex.GetType().Name} {ex.Message}");
+				}
+			}
 			if (_hookPhase != HookPhase.Idle)
 			{
 				DebugLogger.Log($"[Grapple] 收钩（{reason}）| 钩头末位置 {Fmt(_hook.Position)} 状态 {_hook.State}");
@@ -499,6 +544,49 @@ namespace LivingWorldNpcs
 			//    这样武器开火与命令 `throw` 走的是**同一条链路**（都在常规 tick 里）。
 			GrappleFirePatch.ProcessPending();
 
+			// ⓪′ 拉拽结束后的落地观察窗（诊断）：每帧记"玩家朝向 / 引擎 bearing / 相机位置"，
+			//     看落地瞬间到底是谁在转（镜头归还？角色被引擎转向？还是位置跳）。
+			if (_postPullWatch > 0)
+			{
+				_postPullWatch--;
+				try
+				{
+					Agent main = Agent.Main;
+					float playerYaw = 0f;
+					Vec3 pos = Vec3.Zero;
+					if (main != null)
+					{
+						pos = main.Position;
+						// 🔴 用 `LookDirection.RotationZ`（= atan2(−x, y)）——**与引擎 bearing 同一约定**；
+						//    别用 atan2(y, x)：那是"角色移动方向"的约定（SetMovementDirection 那一族），
+						//    两个口径差 90°，混着打日志会让人白判"差了 90°"（2026-10-03 自查抓到）。
+						playerYaw = main.LookDirection.RotationZ * (180f / MathF.PI);
+					}
+					CameraLook.TryGetEngineAnglesRaw(out float engYawDeg, out float engPitchDeg);
+					Vec3 camPos = Vec3.Zero;
+					try { camPos = Mission.GetCameraFrame().origin; } catch { }
+					// 引擎自己的"移动方向"（我们写的朝向最后有没有被它吃进去/它有没有另写一个）
+					float moveYaw = float.NaN;
+					try
+					{
+						Vec2 md = main != null ? main.GetMovementDirection() : Vec2.Zero;
+						if (md.LengthSquared > 1e-6f)
+						{
+							moveYaw = MathF.Atan2(md.y, md.x) * (180f / MathF.PI);
+						}
+					}
+					catch { }
+					DebugLogger.Log($"[Grapple] 落地后第 {24 - _postPullWatch} 帧：玩家yaw={playerYaw:F0}° "
+						+ $"移动方向yaw={(float.IsNaN(moveYaw) ? "无" : moveYaw.ToString("F0") + "°")} "
+						+ $"引擎bearing={engYawDeg:F0}/{engPitchDeg:F0}° 玩家={Fmt(pos)} 相机={Fmt(camPos)} "
+						+ $"customCam={(MissionScreenHasCustomCamera() ? 1 : 0)}");
+				}
+				catch (Exception)
+				{
+					_postPullWatch = 0;
+				}
+			}
+
 			// ① 钩头模式（步骤 2 起）：它接管绳子；手动锚定让位
 			if (_hookPhase != HookPhase.Idle)
 			{
@@ -541,16 +629,53 @@ namespace LivingWorldNpcs
 				if (step == GrappleHook.StepResult.HitWorld)
 				{
 					_hookPhase = HookPhase.Attached;
+					_attachTimer = 0f;
 					ResolveLanding();
 				}
 				else if (step == GrappleHook.StepResult.HitAgent)
 				{
 					_hookPhase = HookPhase.Attached;
+					_attachTimer = 0f;
 					_landingNote = "attached to agent (pull-target path = step 5)";
 				}
 				else if (step == GrappleHook.StepResult.Missed)
 				{
 					Release("missed (打空)");
+					return;
+				}
+			}
+			else if (_hookPhase == HookPhase.Attached)
+			{
+				// 钉住之后：蓄势（UE 参考工程的那半秒）→ 自动拉（只有武器开火那一钩会）
+				_attachTimer += dt;
+				if (_attachAutoPull && AutoPull && _hook.AttachedAgent == null)
+				{
+					float delay = _attachFromAir ? PullDelayAir : PullDelayGround;
+					if (_attachTimer >= delay)
+					{
+						_attachAutoPull = false;              // 只自动拉一次
+						string r = StartPull("auto（武器开火）");
+						DebugLogger.Log($"[Grapple] 自动拉拽（蓄势 {_attachTimer:F2}s ≥ {delay:F2}s）→ {r}");
+						if (!r.StartsWith("OK"))
+						{
+							_landingNote = "auto-pull refused: " + r;
+						}
+					}
+				}
+			}
+			else if (_hookPhase == HookPhase.Pulling)
+			{
+				GrapplePull.PullEvent ev = _pull.Tick(dt);
+				if (ev == GrapplePull.PullEvent.Finished)
+				{
+					_postPullWatch = 24;                 // 落地后盯 8 帧（每帧一行，看镜头/角色有没有被转）
+					Release("pull finished（到位拆板）");
+					return;
+				}
+				if (ev == GrapplePull.PullEvent.Aborted)
+				{
+					_postPullWatch = 24;
+					Release("pull aborted（拉拽中止）");
 					return;
 				}
 			}
@@ -563,6 +688,61 @@ namespace LivingWorldNpcs
 			{
 				DebugLogger.Log($"[Grapple] 绳 tick 异常，收钩：{ex.GetType().Name} {ex.Message}");
 				Release("rope tick exception: " + ex.Message);
+			}
+		}
+
+		// ─────────────────────────────── 拉自己（步骤 4） ───────────────────────────────
+
+		/// <summary>
+		/// **命令入口：拉自己**（`custom.grapple pull self`）。要求钩头已经钉在地形上（先 `throw` 或开一枪）。
+		/// 真正的活由 <see cref="GrapplePull"/> 干（冻结 + 木板 + 曲线）。
+		/// </summary>
+		public string PullSelf()
+		{
+			if (_hookPhase == HookPhase.Pulling)
+			{
+				return "Error: already pulling.";
+			}
+			if (_hookPhase != HookPhase.Attached)
+			{
+				return "Error: no hook attached (throw first, or fire with the grapple)";
+			}
+			if (_hook.AttachedAgent != null)
+			{
+				return "Error: hook is on a person (pull-target path = step 5)";
+			}
+			return StartPull("command");
+		}
+
+		/// <summary>起一次拉拽（命令与自动两条路共用）。失败时什么都不动。</summary>
+		private string StartPull(string why)
+		{
+			Agent main = Agent.Main;
+			Scene scene = Mission?.Scene;
+			if (main == null || scene == null)
+			{
+				return "Error: no player/scene.";
+			}
+			bool fromAir = !main.IsOnLand();
+			string r = _pull.Start(main, _landing.Endpoint, _landing.Found, scene, fromAir, _hook.AttachedPoint);
+			if (r.StartsWith("OK"))
+			{
+				_hookPhase = HookPhase.Pulling;
+				DebugLogger.Log($"[Grapple] 拉拽开始（{why}）| 落点={Fmt(_landing.Endpoint)} 平台={(_landing.Found ? "有" : "无")} → {r}");
+			}
+			return r;
+		}
+
+		/// <summary>诊断用：当前是不是我们/别人在接管相机（铁律 35 的判据）。</summary>
+		private static bool MissionScreenHasCustomCamera()
+		{
+			try
+			{
+				return (ScreenManager.TopScreen as MissionScreen)?.CustomCamera != null;
+			}
+			catch (Exception)
+			{
+				return false;
 			}
 		}
 
