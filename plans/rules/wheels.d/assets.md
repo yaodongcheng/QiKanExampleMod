@@ -1519,3 +1519,23 @@ if (float.IsNaN(z) || z > 1e5f || z < -1e5f) { /* 悬空，别压 */ }
 - 🔴 **`Scene.GetTerrainHeight` 是高度图**：城镇/城堡里脚下是**网格铺装**，高度图在铺装**之下** ⇒ 会陷进去
 - 范本 = `CampaignMode/Tools/SurfaceDecalFx.cs` 的 `GroundZ`（地表系统）· `Combat/SpellPieces.cs` 的落点贴地
 - 代价：逐点一次引擎调用 ⇒ **限频用**（钩索 20Hz，不是每帧每点）
+
+### 🔴 22.5 落点平台解算 —— 「这点附近能不能站人」（2026-10-03 登记，钩索）
+
+**解决什么问题**：知道了一个世界点（钩点/目标点），要找一个**能站人的平台**当落点（墙顶、屋顶、岩台），
+而不是撞在那个点本身上。**任何"把 NPC/玩家放到某个面附近"的功能都能直接抄**。
+
+**实现**（唯一实现 = `Combat/GrappleLanding.cs`，纯静态、无状态、可单测）：
+
+```csharp
+// 在目标点四周做环形采样（8 方向 × 几档半径），每点从"高于允许平台的高度"向下问地面：
+scene.GetGroundHeightAtPositionMT(new Vec3(px, py, 探针高), out Vec3 normal, BodyFlags.CommonCollisionExcludeFlags);
+// 三重筛（全过才算候选）：normal.z ≥ 0.7（站得住）· 高度在 [目标点-1m, +4m]（是"附近的台"不是墙脚）· 头顶净空 ≥2m（向上细射线不被挡）
+// 打分 = |候选z − 目标z| + 半径×0.5 → 取最优；一个都没有 = 兜底（沿视线退回一段再自由落体）
+```
+
+- 🔴 **只有带 `MT` 的重载真填法线**：`GetGroundHeightAtPositionMT(pos, out normal, flags)` ——
+  不带 `MT` 的同名重载是**引擎绑定 bug**（把 `normal` 填成 `Invalid` 就返回了，法线永远为空）。
+- 探针**从高处往下问**（不是从目标点问）：这样平台在目标点**上方**时也能被找到。
+- 返回值哨兵判据与 §22.4 同款（`NaN` / `±1e5` = 此处没有地面）。
+- **验收/调参入口**：钩索的 `custom.grapple probe` —— 只解算不发射，打印每一环的通过数与最终终点。

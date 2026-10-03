@@ -1763,3 +1763,24 @@ Microsoft.NuGet.targets:196  ResolveNuGetPackageAssets 的开关 =
    - Debug 的 `OutputPath` = 模块的 `bin\Win64_Shipping_Client\`（**游戏读的那份**）⇒ `dotnet build -c Debug` 会**直接覆盖部署中的 DLL**，只验语法必须带 `-p:OutputPath=<临时目录>`。
    - PowerShell 里 `-p:OutputPath="D:\x\"` **结尾反斜杠吞掉引号** ⇒ 路径变成 `D:\x -v:m --nologo`，编译过了但复制失败（MSB3027/MSB3021）。临时路径别以反斜杠结尾。
 5. ⚠️ **谁写的那个文件未钉死**：`dotnet build` / `dotnet restore` / `dotnet msbuild -t:Restore` / 解决方案构建**逐个试过，都不复现**（只留下 `obj\Debug`、`obj\Release` 的编译产物）。⇒ **"记得清 obj"不可靠，护栏才是保险。**
+
+---
+
+## `OnMissionBehaviorInitialize` 里挂的 MissionBehavior 拿不到 `OnBehaviorInitialize`（静态 `Current` 恒 null）（2026-10-03 钩索实机）
+
+**症状**：某 MissionBehavior 每帧 tick 跑得好好的（`OnMissionTick` 有日志、有行为），但它在 `OnBehaviorInitialize` 里做的初始化**从没发生** —— 典型表现 = 类的静态实例引用（`Current`）**恒为 null**，别的系统按 `Current` 找它找不到。极易误判成"逻辑随机失效"：同一段代码，**走命令路径正常、走自动路径什么都不发生**（实测：开火拦截日志齐全、就是什么都不飞出来，多一行 `没有 GrappleLogic` 才破案）。
+
+**根因**（反编译 `Mission` 实锤，顺序如下，别记反）：
+```csharp
+subModule.OnBeforeMissionBehaviorInitialize(this);
+for (i = 0; i < MissionBehaviors.Count; i++)
+    MissionBehaviors[i].OnBehaviorInitialize();     // ← 只给"此刻已在列表里"的行为调
+subModule2.OnMissionBehaviorInitialize(this);       // ← 各模块在这一步里 AddMissionBehavior
+```
+而 `Mission.AddMissionBehavior`（同文件 `:4371`）**只调 `OnCreated()`**，不调 `OnBehaviorInitialize`。
+⇒ **在 `OnMissionBehaviorInitialize` 里挂的行为，永远等不到 `OnBehaviorInitialize`**。
+
+**规避**
+1. **初始化一律写进 `OnCreated()`**（`AddMissionBehavior` 必调它），`OnBehaviorInitialize` 留着当冗余 —— 两条挂载路径都覆盖。
+2. 别让 `OnBehaviorInitialize` 成为某个赋值的**唯一**发生地（尤其静态 `Current` 这类"别人靠它找你"的引用）。
+3. 旧记录「**追加**行为拿不到 `OnBehaviorInitialize`」只覆盖"运行时追加"（`NpcSightSystem` 那条）；本条覆盖"**初始化期挂载**"——**两种都中招**，判据统一：**只信 `OnCreated`**。
