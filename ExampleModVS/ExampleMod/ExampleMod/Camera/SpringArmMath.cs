@@ -1,4 +1,5 @@
 using System;
+using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -57,23 +58,30 @@ namespace LivingWorldNpcs
 
             MatrixFrame anchorFrame = targetAgent.LookFrame;
 
-            float eyeHeightOffset = StandEyeHeight;
-            // 坐姿是 VariableManager 里的标志位（表演系统在用）。🔴 Character 可能为 null（模板 NPC），
-            // 原实现没判 —— 这里补上，否则模板 NPC 上跑会 NRE。
-            try
+            float eyeHeightOffset = ResolveEyeHeightOffset(targetAgent, p.UseEngineEyeHeight);
+
+            // 🔴 锚点**基准位置**：引擎口径用 `Agent.VisualPosition`（反编译实证：View 装配 `UpdateCamera`
+            //    `val23 = agentToFollow.VisualPosition`），旧口径沿用 `LookFrame.origin`（= 逻辑位置 Position）。
+            //    两者在"角色被木板搬运/视觉插值"时会差几十厘米（实测 −0.36m）—— 这就是"撒手后引擎相机
+            //    比我们高/低一截"的一半来源（2026-10-04）。VisualPosition 取不到就回落逻辑位置。
+            Vec3 basePos = anchorFrame.origin;
+            if (p.UseEngineEyeHeight)
             {
-                if (targetAgent.Character != null
-                    && VariableManager.GetV(targetAgent.Character.StringId, "IsSit") == "True")
+                try
                 {
-                    eyeHeightOffset = SitEyeHeight;
+                    Vec3 vp = targetAgent.VisualPosition;
+                    if (vp.LengthSquared > 0.01f)
+                    {
+                        basePos = vp;
+                    }
+                }
+                catch
+                {
+                    // 取不到就用逻辑位置
                 }
             }
-            catch
-            {
-                // 变量系统取不到就按站姿算 —— 眼高不该阻断相机
-            }
 
-            Vec3 anchorEyePos = anchorFrame.origin;
+            Vec3 anchorEyePos = basePos;
             anchorEyePos.z += eyeHeightOffset;
 
             Vec3 pivotOffset = (anchorFrame.rotation.s * p.PivotX)
@@ -110,9 +118,140 @@ namespace LivingWorldNpcs
 
             finalCamRot.Orthonormalize();
 
+            // 🔴🔴 **引擎第三人称相机自带的"沿画面向上偏移"**（View 装配 `UpdateCamera` 12257 行，逐字）：
+            //     _cameraTarget = 锚点 + 画面up × (0.7 × AgentScale × pow(cos(1/((臂长/缩放 − 0.2)×30 + 20)), 3500))
+            //     臂长 1.83、缩放 1 时 = 0.7 × cos(1/68.9)^3500 = **0.484 米** —— 实测的 0.45~0.51 就是它
+            //     （2026-10-04 定位；此前 `camlift` 标定的那 0.5 米 = 这一项）。
+            //     ⇒ **引擎口径下必须带上**（UseEngineEyeHeight = true 的跟随相机）；旧口径（飞行/模板）不带，行为不变。
+            //     ⚠️ 若实机发现方向反了（Δ眼 反而变小），把 `+` 改 `-` 即可（两边 π/2 修正都是同一个调用，理论同向）。
+            if (p.UseEngineEyeHeight)
+            {
+                cameraPos += finalCamRot.f * ComputeEngineLift(targetAgent, p.ArmLength);
+            }
+
             frame = MatrixFrame.Identity;
             frame.origin = cameraPos;
             frame.rotation = finalCamRot;
+        }
+
+        /// <summary>**字面意义的眼高**（`monster.StandingEyeHeight × 缩放`，**不含**引擎锚点那 +0.2）——
+        /// 日志里"相机↔眼睛高度差"按它算，读数才和名字一致（引擎的锚点比它高 0.2 米，是常量偏移）。
+        /// 只按站姿算（蹲/坐的日志场景暂不需要）。取不到 monster 回落旧常量。</summary>
+        public static float ResolveLiteralEyeHeight(Agent agent)
+        {
+            try
+            {
+                Monster monster = agent.Monster;
+                if (monster != null)
+                {
+                    float scale = agent.AgentScale > 0.01f ? agent.AgentScale : 1f;
+                    return monster.StandingEyeHeight * scale;
+                }
+            }
+            catch
+            {
+                // 落到旧常量
+            }
+            return StandEyeHeight;
+        }
+
+        /// <summary>眼高解析入口（`ComputeFrame` 内部用；日志/诊断也用它 —— 相机相对"角色眼睛"的高度差要按同一口径算）。
+        /// <paramref name="useEngineFormula"/> = true 走引擎口径（(monster 眼高 + 0.2) × 缩放），false 走旧常量。</summary>
+        public static float ResolveEyeHeightOffset(Agent agent, bool useEngineFormula)
+        {
+            return useEngineFormula ? ResolveEngineEyeHeight(agent) : ResolveLegacyEyeHeight(agent);
+        }
+
+        /// <summary>
+        /// **引擎口径的锚点高度**（照抄 View 装配 `MissionScreen.UpdateCamera` 第三人称分支，11929 行）：
+        /// <code>
+        /// 站姿 = (Monster.StandingEyeHeight + 0.2) × AgentScale     // human: (1.70+0.2)=1.90 米
+        /// 蹲/坐 = (Monster.CrouchEyeHeight + 0.2) × AgentScale      // human: (1.10+0.2)=1.30 米
+        /// 倒地/特殊动画 = 0.5（不乘缩放）
+        /// </code>
+        /// 🔴 **为什么要有这一支**（2026-10-04 用户实机："交接前后相机相对角色高了一截、只看得到肩以上"）：
+        ///    旧常量 1.4626 比引擎的 1.90 低 **0.44 米** ⇒ 撒手瞬间相机的"环绕点"整体抬高 0.44 米，
+        ///    画面里角色整体下移、观感像"镜头跳高了一截"。跟随相机（钩索/脚本接管）必须用引擎这一支，
+        ///    撒手那一刻的机位才能和引擎严丝合缝、取景不再变。
+        /// 取不到 monster（模板 NPC 等）时回落旧常量。
+        /// </summary>
+        private static float ResolveEngineEyeHeight(Agent agent)
+        {
+            try
+            {
+                Monster monster = agent.Monster;
+                if (monster == null)
+                {
+                    return ResolveLegacyEyeHeight(agent);
+                }
+                float scale = agent.AgentScale > 0.01f ? agent.AgentScale : 1f;
+
+                bool ragdoll = false, specialAnim = false;
+                // ⚠️ 1.2.12 里这两个 API 返回枚举（`RagdollState`/`AnimFlags`），新版返回 int ⇒ 统一转 int 比
+                try { ragdoll = (int)agent.AgentVisuals.GetCurrentRagdollState() == 3; } catch { }
+                try { specialAnim = ((int)agent.GetCurrentAnimationFlag(0) & 0x40000000) != 0; } catch { }
+                if (ragdoll || specialAnim)
+                {
+                    return 0.5f;
+                }
+
+                bool crouch = false, sitting = false;
+                try { crouch = agent.CrouchMode; } catch { }
+                try { sitting = agent.IsSitting(); } catch { }
+                return (crouch || sitting)
+                    ? (monster.CrouchEyeHeight + 0.2f) * scale
+                    : (monster.StandingEyeHeight + 0.2f) * scale;
+            }
+            catch
+            {
+                return ResolveLegacyEyeHeight(agent);
+            }
+        }
+
+        /// <summary>旧口径眼高（写死常量；坐姿靠 `VariableManager` 的 "IsSit"，表演系统在用）——
+        /// 飞行相机与相机模板演出沿用这一支（行为不变）。</summary>
+        private static float ResolveLegacyEyeHeight(Agent agent)
+        {
+            // 🔴 Character 可能为 null（模板 NPC），原实现没判 —— 这里补上，否则模板 NPC 上跑会 NRE。
+            try
+            {
+                if (agent.Character != null
+                    && VariableManager.GetV(agent.Character.StringId, "IsSit") == "True")
+                {
+                    return SitEyeHeight;
+                }
+            }
+            catch
+            {
+                // 变量系统取不到就按站姿算 —— 眼高不该阻断相机
+            }
+            return StandEyeHeight;
+        }
+
+        /// <summary>
+        /// **引擎第三人称相机自带的"沿画面向上偏移"量**（米）—— 引擎口径专用，照抄 View 装配 `UpdateCamera` 12257 行：
+        /// <code>lift = 0.7 × AgentScale × pow(cos(1 / ((臂长/缩放 − 0.2) × 30 + 20)), 3500)</code>
+        /// 臂长 1.83、缩放 1 时 = **0.484 米**（2026-10-04 定位：这正是"撒手瞬间引擎相机比我们高 0.45~0.51"的全部来源）。
+        /// 引擎把它加在锚点上（`_cameraTarget = 锚点 + 画面up × lift`，然后相机 = `_cameraTarget + 后方向 × 距离`）。
+        /// 取不到 AgentScale 按 1 算。
+        /// </summary>
+        public static float ComputeEngineLift(Agent agent, float armLength)
+        {
+            float agentScale = 1f;
+            try
+            {
+                if (agent != null && agent.AgentScale > 0.01f)
+                {
+                    agentScale = agent.AgentScale;
+                }
+            }
+            catch
+            {
+                // 取不到按 1 算
+            }
+            float unscaledDist = MBMath.ClampFloat(armLength / agentScale, 0.2f, 20f);
+            return 0.7f * agentScale
+                * MathF.Pow(MathF.Cos(1f / ((unscaledDist - 0.2f) * 30f + 20f)), 3500f);
         }
 
         /// <summary>两组机位参数之间线性插值（<paramref name="t"/> = 0 取 a，1 取 b）。相机渐变用。</summary>
@@ -133,6 +272,7 @@ namespace LivingWorldNpcs
             r.SelfRoll = a.SelfRoll + (b.SelfRoll - a.SelfRoll) * t;
             r.Fov = a.Fov + (b.Fov - a.Fov) * t;
             r.IsAnchorWorld = t < 0.5f ? a.IsAnchorWorld : b.IsAnchorWorld;
+            r.UseEngineEyeHeight = t < 0.5f ? a.UseEngineEyeHeight : b.UseEngineEyeHeight;
             r.LagSpeed = a.LagSpeed + (b.LagSpeed - a.LagSpeed) * t;
             r.LagMaxDistance = a.LagMaxDistance + (b.LagMaxDistance - a.LagMaxDistance) * t;
             r.FovPerVz = a.FovPerVz + (b.FovPerVz - a.FovPerVz) * t;

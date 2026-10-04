@@ -66,6 +66,15 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple cam &lt;米|t:模板名|off&gt;  拉拽机位：&lt;米&gt; = 引擎机位 + 臂长拉远（默认 8）·
 	///                                     t:&lt;名&gt; = 用 Camera.csv 的模板机位（方向相对角色、接管瞬间硬切，调试角度用）· off = 不接管
 	///   custom.grapple facehook &lt;0|1&gt;     拉拽期间是否把身体转向钩点（默认开；关掉 = 朝向完全交给引擎，隔离实验用）
+	///   custom.grapple camret [&lt;比例&gt; &lt;秒&gt;]  相机（臂长/FOV）归还时机：比例 = 拉拽进度到多少就**提前**滑回引擎机位
+	///                                     （默认 0.5，1 = 到位才开始 = 旧行为）；秒 = 滑行时长（默认 1.2）。
+	///                                     无参 = 看当前值
+	///   custom.grapple lookret [&lt;比例&gt; &lt;秒&gt;] **方向**归还时机（与 camret 分开计时）：比例 = 拉拽进度到多少
+	///                                     就开始把方向转向"引擎重置后"的姿态（默认 **0 = 拉拽一开始**）；
+	///                                     秒 = 转完时长（默认 0 = 跟拉拽时长一致）。无参 = 看当前值
+	///
+	/// ⚠️ **相机本身的诊断命令不在这一族**（2026-10-04 起）：`custom.cam log|stat|info|test|lift`
+	///    见 `Camera/CameraCommands.cs`（相机自己的模块）。
 	///
 	/// 首参可弃（项目纪律）：认不出的第一个参数**当作没有**，回落到"状态"并注明。
 	/// 返回文本一律英文（控制台纪律）。
@@ -86,7 +95,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip"
-					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook")
+					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret")
 				{
 					sub = s == "status" ? "dump" : s;
 					at = 1;
@@ -487,6 +496,63 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					result = GrapplePull.FaceHook
 						? "grapple: facehook ON (body is turned toward the hook during the pull)"
 						: "grapple: facehook OFF (we write nothing; engine decides the facing)";
+					break;
+				}
+
+				case "lookret":
+				{
+					// **方向**归还时机（与 camret 的臂长/FOV 归还分开计时；2026-10-04 用户要求"从开始拉拽就渐变"）：
+					//   比例 = 拉拽进度 u 到多少就开始转（默认 0 = 一开始；0.5 = 后半程）
+					//   秒   = 转完时长（默认 0 = 跟拉拽时长一致）
+					// 无参 = 看当前；只给比例 = 只改比例。
+					float start = ParseF(args, at + 0, -1f);
+					float secs = ParseF(args, at + 1, -1f);
+					string show = $"grapple: look return = start u>={GrapplePull.LookReturnStart:F2} seconds "
+						+ (GrapplePull.LookReturnSeconds <= 0.05f ? "auto(=pull duration)" : GrapplePull.LookReturnSeconds.ToString("F2"));
+					if (start < 0f && secs < 0f)
+					{
+						result = show;
+						break;
+					}
+					if (start >= 0f)
+					{
+						if (start > 1f) { result = "Error: lookret start must be 0..1 (0 = from the very beginning of the pull)"; break; }
+						GrapplePull.LookReturnStart = start;
+					}
+					if (secs >= 0f)
+					{
+						GrapplePull.LookReturnSeconds = secs;      // 0 = auto（跟拉拽时长一致）
+					}
+					show = $"grapple: look return = start u>={GrapplePull.LookReturnStart:F2} seconds "
+						+ (GrapplePull.LookReturnSeconds <= 0.05f ? "auto(=pull duration)" : GrapplePull.LookReturnSeconds.ToString("F2"));
+					result = show;
+					break;
+				}
+
+				case "camret":
+				{
+					// 相机（臂长/FOV）归还时机（2026-10-03 用户要求"还没落地就开始渐变"）：
+					//   比例 = 拉拽进度 u 到多少就起飞（默认 0.5；1 = 到位才开始 = 旧行为）
+					//   秒   = 滑行时长（默认 1.2；旧值 0.35 太快，看着像硬切）
+					// 无参 = 看当前；只给比例 = 只改比例。
+					float start = ParseF(args, at + 0, -1f);
+					float glide = ParseF(args, at + 1, -1f);
+					if (start < 0f && glide < 0f)
+					{
+						result = $"grapple: camera return = start u>={GrapplePull.CameraReturnStart:F2} glide {GrapplePull.CameraReturnGlideSeconds:F2}s";
+						break;
+					}
+					if (start >= 0f)
+					{
+						if (start > 1f) { result = "Error: camret start must be 0..1 (1 = return only after landing)"; break; }
+						GrapplePull.CameraReturnStart = start;
+					}
+					if (glide >= 0f)
+					{
+						if (glide < 0.05f) { result = "Error: camret glide must be >= 0.05 seconds"; break; }
+						GrapplePull.CameraReturnGlideSeconds = glide;
+					}
+					result = $"grapple: camera return = start u>={GrapplePull.CameraReturnStart:F2} glide {GrapplePull.CameraReturnGlideSeconds:F2}s";
 					break;
 				}
 

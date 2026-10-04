@@ -150,3 +150,21 @@ frame.origin += _lag.Update(agent.LookFrame.origin, p.LagSpeed, p.LagMaxDistance
    **引擎的 `CameraBearing/Elevation` 在接管期间也会变**（实测：开火后瞄具复位把 bearing 转了 ~87°）⇒ "渐回引擎角度" = 落地瞬间镜头**扫 87°**；"不渐" = **硬跳**。两个都错。
    **正解 = 照飞行工程 `HandBackLookToEngine`：接管结束前把我们当前的 yaw/pitch 写回 `CameraBearing/Elevation`**（反射写私有 setter）⇒ 引擎从我们停的地方接着看、**零旋转**；反射失败才退回"渐回"（不硬跳）。
    角度口径**可逆、无需符号校准**：引擎 look = `RotateAboutUp(bearing)` 再 `RotateAboutSide(elevation)`，而 `Vec3.RotationZ/RotationX` 正好是它的分解（反编译 `Mat3.RotateAboutUp/RotateAboutSide` 实证；⚠️ `RotationZ = atan2(−x, y)`，与"角色移动方向"那族 `atan2(y,x)` **差 90°**，混用会把好数据判成坏数据）。
+
+## 🔴🔴 相机与引擎"严丝合缝"的完整公式与归还三步（2026-10-04 收官 —— **取代上一条的第 4 点**）
+
+> **完整版（逐字公式 + 反编译行号 + 排查记事）= [Knowledge/骑砍2相机系统_自定义相机与引擎对齐.md](../../Knowledge/骑砍2相机系统_自定义相机与引擎对齐.md)**。这里只留必须记住的：
+
+1. **相机 = 5 个参数**：锚点 / 臂长 / pitch / yaw / fov。**5 个全同 ⇒ 画面全同**；"切相机时跳一下"永远是其中某个**实际不同**，按公式逐项对，别猜。
+2. **引擎锚点比我们以前抄的多两项**（`SpringArmMath.ResolveEngineEyeHeight` + `ComputeEngineLift`）：
+   - 基准点 = **`Agent.VisualPosition`**（**不是** `Position` —— 被木板/载具搬运或视觉插值时能差几十厘米，实测 −0.36m）；
+   - 高度 = 站姿 `(StandingEyeHeight+0.2)×scale` · 蹲坐 · **骑马（另加坐骑项 —— 最容易漏的一支）** · 倒地/特殊动画 `0.5`；
+   - 🔴 **再沿"画面向上"抬 `0.7×scale×cos(1/((臂长/scale − 0.2)×30 + 20))^3500`** —— 臂长 1.83m 时 = **0.484 米**。**漏这一项 = 交接瞬间相机高度差半米**（我们为此排查了两轮，最后靠它收官）。
+3. **我们持有相机期间，引擎有一批状态被冻结**（`_cameraSpecial*` 8 项 / `_cameraAddedElevation` / 锚高平滑）⇒ **撒手第一帧一次性释放 = 跳变**。**撒手前清零**：`SpringArmCameraView.ClearEngineSpecialCameraAdds`（钩索专用开关 `clearSpecialCameraOnReturn`）。
+4. **归还三步**（**取代**上面那条的第 4 点"写回引擎"）：
+   ① 撒手前清 `_cameraSpecial*`；
+   ② 方向在归还滑行期**追引擎的实时值**（`ChaseEngineLook`：指数平滑 + **yaw 走最短弧** + 收尾收紧），**差 ≤2° 才撒手**，超时上限兜底；
+   ③ **不要写回角度** —— 会被"解冻触发的一次性相机重置"打掉（见 5）。
+5. **切 Controller（冻结/解冻玩家）⇒ 引擎重置相机**：解冻（`Agent.Controller = Player`）→ `Mission.MainAgent = this` → 下一帧 `HandleUserInput`（**每帧跑、不受 CustomCamera 挡板保护**）执行 `CameraBearing = 角色移动方向; CameraElevation = 0`。⇒ **任何"冻结玩家"的功能（钩索/飞行/未来载具），解冻后都必须按这条重新对齐**。
+6. **调试工具已归位相机模块**（2026-10-04）：`custom.cam log|stat|info|test|lift`（`Camera/CameraCommands.cs`）；`[FollowCam]` 诊断日志**默认关**（`custom.cam log 1` 打开，会话级）。
+   **黄金测试** = `custom.cam test` 原地切换相机：两边**坐标厘米级一致、画面零变化**即通过（收官实测四方坐标 `(420.61,391.81,6.97)` 完全相同）。

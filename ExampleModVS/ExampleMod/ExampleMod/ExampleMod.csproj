@@ -294,6 +294,7 @@
     <Compile Include="AgentHUD\AgentHudCollectionVM.cs" />
     <Compile Include="AgentHUD\AgentHudVM.cs" />
     <!-- Camera -->
+    <Compile Include="Camera\CameraCommands.cs" />
     <Compile Include="Camera\CameraDebuggerView.cs" />
     <Compile Include="Camera\CameraDebuggerVM.cs" />
     <Compile Include="Camera\CameraLook.cs" />

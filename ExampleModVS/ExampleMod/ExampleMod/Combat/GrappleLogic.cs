@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -47,7 +47,6 @@ namespace LivingWorldNpcs
 		private float _attachTimer;                   // 钩头钉住后过了多久（蓄势计时）
 		private bool _attachFromAir;                  // 这一钩是不是"空中起钩"（决定蓄势/拉升时长的基准）
 		private bool _attachAutoPull;                 // 这一钩钉住后要不要自动拉（武器开火 = 要；命令 throw = 不要）
-		private int _postPullWatch;                   // 拉拽结束后再盯 N 帧（诊断"落地瞬间镜头/角色是否被转"）
 
 		/// <summary>瞄准射线的最大长度（米）。UE 参考工程是 12 米；骑砍地图更大，默认 20（命令 `range` 可调）。</summary>
 		public static float AimRange = 20f;
@@ -544,49 +543,6 @@ namespace LivingWorldNpcs
 			//    这样武器开火与命令 `throw` 走的是**同一条链路**（都在常规 tick 里）。
 			GrappleFirePatch.ProcessPending();
 
-			// ⓪′ 拉拽结束后的落地观察窗（诊断）：每帧记"玩家朝向 / 引擎 bearing / 相机位置"，
-			//     看落地瞬间到底是谁在转（镜头归还？角色被引擎转向？还是位置跳）。
-			if (_postPullWatch > 0)
-			{
-				_postPullWatch--;
-				try
-				{
-					Agent main = Agent.Main;
-					float playerYaw = 0f;
-					Vec3 pos = Vec3.Zero;
-					if (main != null)
-					{
-						pos = main.Position;
-						// 🔴 用 `LookDirection.RotationZ`（= atan2(−x, y)）——**与引擎 bearing 同一约定**；
-						//    别用 atan2(y, x)：那是"角色移动方向"的约定（SetMovementDirection 那一族），
-						//    两个口径差 90°，混着打日志会让人白判"差了 90°"（2026-10-03 自查抓到）。
-						playerYaw = main.LookDirection.RotationZ * (180f / MathF.PI);
-					}
-					CameraLook.TryGetEngineAnglesRaw(out float engYawDeg, out float engPitchDeg);
-					Vec3 camPos = Vec3.Zero;
-					try { camPos = Mission.GetCameraFrame().origin; } catch { }
-					// 引擎自己的"移动方向"（我们写的朝向最后有没有被它吃进去/它有没有另写一个）
-					float moveYaw = float.NaN;
-					try
-					{
-						Vec2 md = main != null ? main.GetMovementDirection() : Vec2.Zero;
-						if (md.LengthSquared > 1e-6f)
-						{
-							moveYaw = MathF.Atan2(md.y, md.x) * (180f / MathF.PI);
-						}
-					}
-					catch { }
-					DebugLogger.Log($"[Grapple] 落地后第 {24 - _postPullWatch} 帧：玩家yaw={playerYaw:F0}° "
-						+ $"移动方向yaw={(float.IsNaN(moveYaw) ? "无" : moveYaw.ToString("F0") + "°")} "
-						+ $"引擎bearing={engYawDeg:F0}/{engPitchDeg:F0}° 玩家={Fmt(pos)} 相机={Fmt(camPos)} "
-						+ $"customCam={(MissionScreenHasCustomCamera() ? 1 : 0)}");
-				}
-				catch (Exception)
-				{
-					_postPullWatch = 0;
-				}
-			}
-
 			// ① 钩头模式（步骤 2 起）：它接管绳子；手动锚定让位
 			if (_hookPhase != HookPhase.Idle)
 			{
@@ -668,13 +624,11 @@ namespace LivingWorldNpcs
 				GrapplePull.PullEvent ev = _pull.Tick(dt);
 				if (ev == GrapplePull.PullEvent.Finished)
 				{
-					_postPullWatch = 24;                 // 落地后盯 8 帧（每帧一行，看镜头/角色有没有被转）
 					Release("pull finished（到位拆板）");
 					return;
 				}
 				if (ev == GrapplePull.PullEvent.Aborted)
 				{
-					_postPullWatch = 24;
 					Release("pull aborted（拉拽中止）");
 					return;
 				}

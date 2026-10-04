@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using LivingWorldNpcs.Flight;      // CarrierBoard / FlightTuning（与飞行工程共用同一套载具与常量）
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -91,6 +91,38 @@ namespace LivingWorldNpcs
 		/// <summary>接管时比拉拽本身多留的时间（秒）：覆盖登板等待 + 停稳 + 归还渐变。</summary>
 		public static float CameraExtraSeconds = 1.5f;
 
+		/// <summary>
+		/// 相机归还的**起点**（拉拽进度 u，0~1）：u 到这个比例，镜头就**开始往回滑**
+		/// （臂长从 8 米收回引擎视距），而不是等落地那一帧才动。
+		/// 🔴 2026-10-03 用户要求："快到终点的时候就开始过渡，不然时间太短了看不出来，好像是硬切"
+		///    —— 旧行为 = 到位那一帧才开始（= 1.0）、只滑 0.35s ⇒ 8m→引擎视距那一下看着像硬切。
+		///
+		/// 🔴 **这里刻意和飞行工程不一样**（用户 2026-10-03 明确裁定，别照抄飞行那套）：
+		///    飞行 = 玩家自己高速撞地收场，落点是玩家冲出来的、收势只能留在落地那一下；
+		///    钩索 = **脚本算好的定点落台**（§3.5 的曲线 + 末段本来就减速），终点在拉拽开始前就已知 ⇒
+		///    镜头**还没落地就该开始收**：落地时已经滑了大半，剩下的一小截在"停稳 0.25 秒"里滑完，
+		///    玩家恢复控制的那一帧镜头是连续的（全程一段运镜，没有"最后抖一下"）。
+		/// 所以默认值给"过半就开始"，而不是"到位才开始"。
+		/// 1 = 回到旧时机（到位才开始；只做对照实验用）。
+		/// </summary>
+		public static float CameraReturnStart = 0.5f;
+
+		/// <summary>相机归还的**滑行时长**（秒）：从我们的机位滑回引擎视距/FOV 用多久。
+		/// 拉长到 1 秒出头才看得出是渐变（旧值 = 相机系统的默认 0.35s）。</summary>
+		public static float CameraReturnGlideSeconds = 1.2f;
+
+		/// <summary>
+		/// **方向归还的起飞点**（拉拽进度 u，0~1）：默认 **0 = 拉拽一开始就把方向朝 0 俯仰转过去**
+		/// （2026-10-04 用户要求"从开始拉拽的时候就开始渐变"）。
+		/// 与 <see cref="CameraReturnStart"/>（臂长/FOV 的归还时机）**各管各的** —— 方向可以更早起跑，
+		/// 臂长仍保持宽镜到后半程（想连臂长也一开始收：`camret 0 1.2`）。
+		/// </summary>
+		public static float LookReturnStart = 0f;
+
+		/// <summary>方向归还的**时长**（秒）：≤0 = 跟拉拽时长一致（整段拉拽平顺转完）；&gt;0 = 固定时长。</summary>
+		public static float LookReturnSeconds = 0f;
+
+
 		/// <summary>拉拽期间把身体**转向钩点**（保住发射时的朝向；不写的话朝向会飘）。</summary>
 		public static bool FaceHook = true;
 
@@ -111,6 +143,8 @@ namespace LivingWorldNpcs
 		private float _fallSpeed;
 		private bool _frozen;
 		private bool _cameraHeld;      // 本次拉拽有没有接管相机（收摊时只还我们接的）
+		private bool _cameraReturning; // 相机是否已"提前归还"（防重复触发/重复日志；归还滑完前 _cameraHeld 保持 true = 中途 Abort 还能硬还）
+		private bool _lookReturnStarted; // 方向归还是否已启动（默认拉拽一开始就起）
 		private Vec3 _faceTarget;      // 拉拽期间身体朝向的目标（= 钩点，保住"发射时的朝向"）
 		private float _bodyYawDeg = float.NaN;
 		private float _logTimer;       // 拉拽诊断日志节流（每 0.25s 一行）
@@ -304,17 +338,31 @@ namespace LivingWorldNpcs
 					+ $"身体yaw={LookYawDeg(_main):F0}° 行进yaw={travelYaw:F0}°（常量目标）");
 			}
 
+			// 🔴 **方向归还从拉拽一开始就跑**（2026-10-04 用户要求"从开始拉拽的时候就开始渐变"）——
+			//    它和相机归还（臂长/FOV）**分开计时**：方向在整个拉拽里平顺转完，臂长仍宽镜到后半程。
+			if (u >= LookReturnStart)
+			{
+				StartLookReturn();
+			}
+
+			// 🔴 **相机提前归还**（2026-10-03 用户要求"快到终点的时候就开始过渡"）：
+			//    旧行为 = 到位那一帧才开始滑、只滑 0.35s ⇒ 太快，看着像硬切。
+			//    现在 u 到 CameraReturnStart 镜头就开始往回滑、滑 CameraReturnGlideSeconds 秒 ——
+			//    落地/拆板时早已在滑路上，玩家恢复控制的那一帧镜头是连续的。
+			if (u >= CameraReturnStart)
+			{
+				StartCameraReturn();
+			}
+
 			if (u >= 1f)
 			{
 				if (_landingFound)
 				{
 					_phase = Phase.Settling;
 					_phaseTimer = 0f;
-					// 🔴 **归还渐变从"到位那一刻"就开始**（2026-10-03 用户要求"最后段做渐变"）：
-					//    渐变本身约 0.5 秒，而我们停稳 0.25 秒后才撒手 ⇒ 起渐早一点，撒手时已经滑到位，
-					//    玩家恢复控制的那一帧不会看到"镜头动一下"。
-					ExitCamera(immediate: false);
-					DebugLogger.Log($"[Grapple] 拉拽到位（{_duration:F2}s）→ 停稳 {SettleSeconds:F2}s 后拆板（相机开始归还渐变）| {_board.Describe()}");
+					// 兜底：`camret` 设成 1（= 旧时机）时这里才开始收；默认早已在归还中，重复请求是空操作。
+					StartCameraReturn();
+					DebugLogger.Log($"[Grapple] 拉拽到位（{_duration:F2}s）→ 停稳 {SettleSeconds:F2}s 后拆板 | {_board.Describe()}");
 				}
 				else
 				{
@@ -513,6 +561,8 @@ namespace LivingWorldNpcs
 			{
 				return;
 			}
+			_cameraReturning = false;
+			_lookReturnStarted = false;
 			bool useTemplate = !string.IsNullOrEmpty(CameraTemplate);
 			if (!useTemplate && CameraArmLength <= 0f)
 			{
@@ -527,8 +577,15 @@ namespace LivingWorldNpcs
 				}
 				else
 				{
-					// 方向 = 接管那一刻的引擎机位（不硬切、不跟角色转），再单独把臂长拉远
-					_cameraHeld = SpringArmCameraView.ApplyFollowFromEngineCamera(_main, seconds, writeBackLookOnReturn: true);
+					// 方向 = 接管那一刻的引擎机位（不硬切、不跟角色转），再单独把臂长拉远。
+					// 🔴 归还 = **完全交还引擎**（2026-10-03 用户裁定）：方向在滑行期间**追引擎的实时值**
+					//    （引擎自己会在滑行中把角度改回它的默认 —— 实测俯仰 49°→0.0°），跟平了才撒手 ⇒
+					//    撒手那一刻两边必然一致，不会再有俯仰突变。所以这里**不写回**（writeBackLookOnReturn: false）。
+					// 🔴 另外撒手前**清掉引擎"特殊相机"的冻结修正**（clearSpecialCameraOnReturn: true）——
+					//    那份冻值（开火瞄准态残留）是"落地瞬间相机高度台阶"（实测 0.09~0.51m）的来源，
+					//    清零后引擎恢复的第一帧就是纯几何机位 = 我们的机位（2026-10-04 用户要求"彻底抹平"）。
+					_cameraHeld = SpringArmCameraView.ApplyFollowFromEngineCamera(_main, seconds,
+						writeBackLookOnReturn: false, clearSpecialCameraOnReturn: true, predictResetOnReturn: true);
 					if (_cameraHeld)
 					{
 						SpringArmCameraView.SetFollowArmLength(CameraArmLength);
@@ -546,6 +603,51 @@ namespace LivingWorldNpcs
 			}
 		}
 
+		/// <summary>
+		/// **启动"方向归还"**（拉拽一开始就调；幂等）：让相机方向在整个拉拽里平顺转到
+		/// 引擎解冻后会把值重置成的那个姿态（= 预测重置值，含俯仰 0）。详见 `SpringArmCameraView.BeginLookReturn`。
+		/// </summary>
+		private void StartLookReturn()
+		{
+			if (!_cameraHeld || _lookReturnStarted)
+			{
+				return;
+			}
+			_lookReturnStarted = true;
+			try
+			{
+				float seconds = LookReturnSeconds > 0.05f ? LookReturnSeconds : _duration;
+				SpringArmCameraView.BeginLookReturn(seconds);
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 方向归还触发异常（忽略）：{ex.GetType().Name} {ex.Message}");
+			}
+		}
+
+		/// <summary>
+		/// **提前开始归还相机**（拉拽尾段每帧调，幂等）：让 rig 把臂长/FOV 滑回接管时的引擎机位，
+		/// 滑完自己撒手。**归还期间 `_cameraHeld` 保持 true** —— 这样中途 Abort 仍能
+		/// <see cref="ExitCamera"/> 走"立刻还"（滑行中被打断不该留着镜头慢慢飘）。
+		/// </summary>
+		private void StartCameraReturn()
+		{
+			if (!_cameraHeld || _cameraReturning)
+			{
+				return;
+			}
+			_cameraReturning = true;
+			try
+			{
+				SpringArmCameraView.RequestHandBack(CameraReturnGlideSeconds);
+				DebugLogger.Log($"[Grapple] 相机提前归还：镜头开始往回滑，{CameraReturnGlideSeconds:F2}s 滑回引擎机位（还没落地就开始收）");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 相机归还触发异常（忽略）：{ex.GetType().Name} {ex.Message}");
+			}
+		}
+
 		/// <summary>归还相机：正常结束走渐变（不跳），异常路径立刻还。</summary>
 		private void ExitCamera(bool immediate)
 		{
@@ -554,6 +656,7 @@ namespace LivingWorldNpcs
 				return;
 			}
 			_cameraHeld = false;
+			_cameraReturning = false;
 			try
 			{
 				if (immediate)
