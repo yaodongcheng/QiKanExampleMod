@@ -51,19 +51,38 @@ namespace LivingWorldNpcs
 		public static float ArcHeight = 1.5f;
 
 		/// <summary>拉升时长（秒）——地面起钩 / 空中起钩两个基准（UE 参考工程 = 1.2 / 0.95）。</summary>
-		public static float DurationGround = 1.2f;
+		/// <remarks>
+		/// 🔴 2026-10-04 **地面档改成 1.17**（= 动画时间轴的位移窗口 1.13→2.30 = 源 GrappleEnd）：
+		///    位移时长与"过程"段对齐后，"切落地点 = 位移 ~63%"（谓词里的剩 10%）才与物理动作严丝合缝。
+		///    空中档还没做时间轴（等空中起钩那版），先留旧值。
+		/// </remarks>
+		public static float DurationGround = 1.17f;
 		public static float DurationAir = 0.95f;
 
 		/// <summary>时长按距离缩放的参照距离（米）：UE 那次是 12 米射程；我们射程 20 米，按比例放大但钳住。</summary>
 		public static float RefDistance = 12f;
-		public static float DurationScaleMin = 0.6f;
-		public static float DurationScaleMax = 1.8f;
+		/// <summary>
+		/// 距离缩放区间（2026-10-04 起默认 **1.0~1.0 = 关掉缩放**）：动画时间轴是固定的，
+		/// 位移时长必须钉死才对齐（用户 2026-10-04 裁定："怎么动"走曲线、"动多久"由动画节点说了算）。
+		/// 想找回"远拉快、近拉慢"的手感 ⇒ 把这两个值改回 0.6 / 1.8（代价：节点只在 12 米附近对得上）。
+		/// </summary>
+		public static float DurationScaleMin = 1.0f;
+		public static float DurationScaleMax = 1.0f;
 
 		/// <summary>&gt;0 = 固定时长（命令 `pulltime`）；0 = 按上面那套自动算。</summary>
 		public static float DurationOverride = 0f;
 
 		/// <summary>到位后的停顿（秒）——留一点时间让人"落稳"，然后才拆板。</summary>
 		public static float SettleSeconds = 0.25f;
+
+		/// <summary>
+		/// 动画收摊的等待门（2026-10-04）：**返回 false = 落地动作还没演完**，拆板/解冻再等等。
+		/// 由 <see cref="GrappleLogic"/> 挂上（`AnimExited`）；没挂 = 不等（回旧行为）。
+		/// </summary>
+		public Func<bool> WaitAnimExit;
+
+		/// <summary>等动画的上限（秒）——超了就强制拆板（别为了等动画把人锁住）。</summary>
+		public static float MaxAnimWaitSeconds = 1.2f;
 
 		/// <summary>等玩家站上板的超时（秒）。</summary>
 		public static float OnBoardTimeout = 0.5f;
@@ -378,6 +397,12 @@ namespace LivingWorldNpcs
 		{
 			_phaseTimer += dt;
 			if (_phaseTimer < SettleSeconds)
+			{
+				return PullEvent.None;
+			}
+			// 🔴 等"落地"动作演完再拆板（2026-10-04）：状态机那台在 落地段 剩 15% 才出机；
+			//    解冻（交还控制权）跟着它走 = 落地收势完整播完。上限兜底，别把人锁住太久。
+			if (WaitAnimExit != null && !WaitAnimExit() && _phaseTimer < SettleSeconds + MaxAnimWaitSeconds)
 			{
 				return PullEvent.None;
 			}

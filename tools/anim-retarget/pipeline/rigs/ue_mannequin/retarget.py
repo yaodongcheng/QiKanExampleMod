@@ -204,11 +204,21 @@ if args.pelvis in ("ground", "src"):
     trk = []
     for _i in range(N_OUT):
         _of = 1 + _i
-        sc.frame_set(int(round(fs + _i * SRC_STEP))); bpy.context.view_layer.update()
+        if args.pelvis == "src":
+            # 源根位移必须在【源帧号】上读（源动作按源帧号打键）
+            sc.frame_set(int(round(fs + _i * SRC_STEP))); bpy.context.view_layer.update()
+            _d = F @ (_src_root_world() - _src_root0)
+        # 🔴🔴 **贴地必须在【目标帧号 _of】上读姿态**（2026-10-04 修，钩索实机撞出来的）——
+        #   目标动作的旋转是按**输出帧号 1..N_OUT** 打的键（见上面旋转环），
+        #   原来这里却用**源帧号** `fs+_i*SRC_STEP` 去 frame_set，两个后果：
+        #     ① 源帧 ≠ 输出帧（60fps 源每输出帧差 2）⇒ 贴地量按"别的帧的腿姿"算 ⇒ 骨盆上下抖（实测 ±0.4m）；
+        #     ② 源帧号一旦超出 N_OUT（60fps 源自 _i≈47 起）⇒ 读到动作区间之外、姿态被钳住
+        #        ⇒ 贴地量恒 ≈0 ⇒ **后半段完全没有骨盆下沉**（落地蹲姿浮在半空 0.5m）。
+        #   验收：重跑后 `trf_edit`/探针看位置轨 z 应全程平滑跟随蹲/起，无成段常数 0。
+        sc.frame_set(_of); bpy.context.view_layer.update()
         m = PB.matrix.copy()
         if args.pelvis == "src":
             # 源位移在世界空间算完，再用与旋转同一套帧变换 F 转过去（硬约束 11）
-            _d = F @ (_src_root_world() - _src_root0)
             m.translation = rest_head + (w2a @ _d)
         else:
             m.translation = rest_head

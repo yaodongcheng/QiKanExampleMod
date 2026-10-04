@@ -2372,7 +2372,12 @@ function applyXmlText(txt) {
   const fams = [].slice.call(doc.querySelectorAll("family"));
   const sts = [].slice.call(doc.querySelectorAll("state"));
   if (!ens.length && !fams.length && !sts.length) return {ok: false, msg: "没解析出任何 edge / family / state"};
-  if (fams.length) groups = fams.map(f => ({
+  // 🔴 **三段无条件赋值**（2026-10-04 修）：以前是 `if (fams.length) groups = …` ——
+  //    打开一份**没有容器**的状态机（如 grapple.xml：四个状态全是衔接状态、不建容器）时，
+  //    `fams.length === 0` ⇒ `groups` 原样留着**上一份文件**（页面启动烘的是 flight.xml）的容器
+  //    ⇒ 画面上多出一堆不属于这份文件的容器盒、validate() 还报"容器里的状态不存在"的假错。
+  //    改成无条件赋（空就是空数组）。上面那条"三个都空才拒绝"的闸还在，不会把工作区清没。
+  groups = fams.map(f => ({
     name: f.getAttribute("name"), entry: f.getAttribute("entry") || "",
     enter: f.getAttribute("enter") || "", leave: f.getAttribute("leave") || "",
     // 🔴 **成员只取"直属文本"**（2026-09-28）—— 家族里还允许挂 `<track particle="…">` 子元素，
@@ -2381,7 +2386,7 @@ function applyXmlText(txt) {
               .map(n => n.nodeValue).join(" ").split(/\s+/).filter(Boolean),
     // **家族级的骨挂持续粒子声明**：页面不编辑，但必须原样带回去（丢了 = 特效静默消失）
     track: [].slice.call(f.querySelectorAll("track")).map(fxOf)}));
-  if (sts.length) states = sts.map(s => ({name: s.getAttribute("name"), act: s.getAttribute("act"),
+  states = sts.map(s => ({name: s.getAttribute("name"), act: s.getAttribute("act"),
     once: (s.getAttribute("once") || "").toLowerCase() === "true" || !!s.getAttribute("duration"),
     dur: s.getAttribute("duration") || "", next: s.getAttribute("next") || "",
     enter: s.getAttribute("enter") || "", leave: s.getAttribute("leave") || "",
@@ -2395,7 +2400,7 @@ function applyXmlText(txt) {
       : {at: t.getAttribute("at") || "", every: t.getAttribute("every") || "",
          action: t.getAttribute("action") || ""}),
     clip: (stateByName[s.getAttribute("name")] || {}).clip || "?", durText: (stateByName[s.getAttribute("name")] || {}).durText || ""}));
-  if (ens.length) edges = ens.map(nd => {
+  edges = ens.map(nd => {
     const e = {from: nd.getAttribute("from"), to: nd.getAttribute("to"), blend: nd.getAttribute("blend") || "",
                after: nd.getAttribute("after-finish") === "true", event: nd.getAttribute("event") === "true"};
     if (nd.getAttribute("keys")) { e.kind = "key"; e.keys = nd.getAttribute("keys"); }

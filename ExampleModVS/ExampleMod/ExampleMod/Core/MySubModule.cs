@@ -170,6 +170,9 @@ namespace LivingWorldNpcs
             try
             {
                 FlightAnimMachine.Register();
+                // 钩索（2026-10-04）：放后面 —— 复用的 fall-trigger / land-trigger 靠飞行先登记
+                // （本机也有"没有才登记"的兜底，顺序其实无所谓）。
+                GrappleAnimMachine.Register();
             }
             catch (Exception ex)
             {

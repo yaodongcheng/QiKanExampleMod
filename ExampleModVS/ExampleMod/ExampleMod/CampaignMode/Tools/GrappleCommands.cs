@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using LivingWorldNpcs.Animation;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
@@ -95,7 +96,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip"
-					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret")
+					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
+					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr")
 				{
 					sub = s == "status" ? "dump" : s;
 					at = 1;
@@ -465,6 +467,57 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				// ── 姿态动画（2026-10-04；定义 = ModuleData/statemachines/grapple.xml）──
+				case "anim":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v < 0f)
+					{
+						result = GrappleLogic.AnimEnabled
+							? "grapple anim: ON | " + AnimStateLine(logic)
+							: "grapple anim: OFF (old bow-anim behavior)";
+						break;
+					}
+					GrappleLogic.AnimEnabled = v > 0.5f;
+					result = GrappleLogic.AnimEnabled ? "grapple anim: ON" : "grapple anim: OFF (old bow-anim behavior)";
+					break;
+				}
+
+				case "animlock":
+				{
+					// 锁死播某一段静观：`animlock 投掷` / `animlock clear`（无参 = 看当前）
+					string st = args != null && args.Count > at && args[at] != null ? args[at].Trim() : "";
+					result = st.Length == 0 ? AnimStateLine(logic) : "grapple: " + logic.SetAnimLock(st);
+					break;
+				}
+
+				case "animblend":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v <= 0f) { result = $"grapple: anim blend = {GrappleAnimMachine.AnimBlendIn:F2}s"; break; }
+					GrappleAnimMachine.AnimBlendIn = v;
+					result = $"grapple: anim blend = {v:F2}s";
+					break;
+				}
+
+				case "animthr":
+				{
+					// 两个"剩多少就切"阈值：切落地/自由落体 · 投掷失败的收手点
+					float a = ParseF(args, at + 0, -1f);
+					float b = ParseF(args, at + 1, -1f);
+					if (a < 0f && b < 0f)
+					{
+						result = $"grapple: anim thr | switch(land/fall) remain={GrappleAnimConditions.SwitchRemainFrac * 100f:F0}%"
+							+ $" throwcancel remain={GrappleAnimConditions.CancelRemainFrac * 100f:F0}%";
+						break;
+					}
+					if (a >= 0f) GrappleAnimConditions.SwitchRemainFrac = a > 1f ? a / 100f : a;
+					if (b >= 0f) GrappleAnimConditions.CancelRemainFrac = b > 1f ? b / 100f : b;
+					result = $"grapple: anim thr | switch remain={GrappleAnimConditions.SwitchRemainFrac * 100f:F0}%"
+						+ $" throwcancel remain={GrappleAnimConditions.CancelRemainFrac * 100f:F0}%";
+					break;
+				}
+
 				case "delay":
 				{
 					float ground = ParseF(args, at + 0, -1f);
@@ -649,6 +702,16 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			if (args == null || i < 0 || i >= args.Count || args[i] == null) return fallback;
 			return float.TryParse(args[i], NumberStyles.Float, CultureInfo.InvariantCulture, out float v)
 				? v : fallback;
+		}
+
+		/// <summary>姿态动画的一行状态（命令回执用，纯英文 —— 控制台纪律）。</summary>
+		private static string AnimStateLine(GrappleLogic logic)
+		{
+			AgentAnimStateMachine m = logic?.Anim;
+			if (m == null) return "anim: (no machine)";
+			string cur = m.Current ?? "(never took over)";
+			return string.Format("anim: {0} | current={1} action={2} remain={3:F2}",
+				GrappleLogic.AnimEnabled ? "ON" : "OFF", cur, m.CurrentAction ?? "-", m.CurrentRemainFrac);
 		}
 
 		/// <summary>

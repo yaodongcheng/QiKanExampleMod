@@ -92,8 +92,14 @@ def main():
         parts = first.split()
         v = [float(x) for x in parts[1:4]]
         m = max(abs(x) for x in v)
-        flag = "❌ 绝对语义，作废" if m > THRESHOLD else "✅"
-        if m > THRESHOLD:
+        # 🔴 2026-10-04 口径修正：**只有 z 为正**且量级大才算"绝对语义"。
+        #    理由：绝对语义的病征 = 位置轨存的是骨盆**绝对高度**（站 ≈ +0.86 / 蹲 ≈ +0.4，全为正）；
+        #    而"从半途切出来的段"首帧本就可以是**负的**（深蹲起步 = 静止姿势往下 0.36 米，是合法的相对增量）。
+        #    钩索的 hold / release 两条从深蹲帧起步（首帧 z ≈ −0.36）被旧口径误报"作废"；
+        #    文档原本的口径也是"量级是米（~0.86）"，这里让实现与文档一致。
+        is_abs = v[2] > THRESHOLD
+        flag = "❌ 绝对语义，作废" if is_abs else "✅"
+        if is_abs:
             bad.append((p, m))
         print("%-46s (%8.4f,%8.4f,%8.4f) %8.4f  %s" % (os.path.basename(p), v[0], v[1], v[2], m, flag))
 

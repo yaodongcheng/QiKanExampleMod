@@ -1,0 +1,25 @@
+{
+  "name": "ue_grapple_seg",
+  "title": "钩索 · 地面拉拽 · 切段（投掷/过程/落地/收手）",
+  "subtitle": "四条片段单独播；帧号 = 查看器帧号（= 原片 0.70→0.97 s 那段就是 recover=收手）",
+  "sides": {
+    "dst": {
+      "label": "骑砍2（切段）",
+      "color": "#9ee0b4",
+      "slot": 0.0,
+      "rotY": 3.141592653589793,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "../ue_grapple/assets/bannerlord_grapple_segs.glb"
+        }
+      ]
+    }
+  }
+}

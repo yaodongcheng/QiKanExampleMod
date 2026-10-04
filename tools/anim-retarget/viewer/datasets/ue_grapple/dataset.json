@@ -1,0 +1,43 @@
+{
+  "name": "ue_grapple",
+  "title": "钩索 · 地面拉拽（源 vs 重定向）",
+  "subtitle": "左=UE源动画（未重定向）· 右=骑砍2 重定向（94 帧 @30fps = 3.1 秒；帧 f = (f-1)/30 秒）",
+  "sides": {
+    "src": {
+      "label": "UE5 小白人（源）",
+      "color": "#7fa8d8",
+      "slot": -0.62,
+      "rotY": 0.0,
+      "footBones": [
+        "foot_l",
+        "foot_r",
+        "ball_l",
+        "ball_r"
+      ],
+      "files": [
+        {
+          "id": "src",
+          "url": "assets/ue_mannequin_grapple.glb"
+        }
+      ]
+    },
+    "dst": {
+      "label": "骑砍2（重定向 · 钩索地面）",
+      "color": "#e0b070",
+      "slot": 0.62,
+      "rotY": 3.141592653589793,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "assets/bannerlord_grapple.glb"
+        }
+      ]
+    }
+  }
+}

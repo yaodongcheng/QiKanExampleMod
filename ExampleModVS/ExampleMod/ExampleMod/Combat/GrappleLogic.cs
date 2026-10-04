@@ -1,4 +1,5 @@
 ﻿using System;
+using LivingWorldNpcs.Animation;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -64,6 +65,29 @@ namespace LivingWorldNpcs
 		/// <summary>武器开火命中地形后**自动拉过去**（命令 `autopull` 可关；关掉用于"只看勾住"的调试）。</summary>
 		public static bool AutoPull = true;
 
+		// ── 姿态动画（2026-10-04；定义 = `ModuleData/statemachines/grapple.xml`）──
+
+		/// <summary>动画总开关（命令 `custom.grapple anim`）：**关 = 回"复用弓动画"的旧行为**（对照用）。</summary>
+		public static bool AnimEnabled = true;
+
+		/// <summary>
+		/// 位移起点钉在**开火后多少秒**（用户定的时间轴 = 0.90；fire = 松手那一刻 ⇒ 源帧 34 在 fire+0.90）。
+		/// 蓄势 = 它 − 本钩飞行耗时（见 <see cref="TickHook"/> 的自动拉拽段）。
+		/// </summary>
+		public static float PullStartSeconds = 0.90f;
+
+		/// <summary>
+		/// **release 动作的长度**（秒，= 内容包 clip `grapple_ground_release` 0.333 s）：
+		/// 开火后过这么久，引擎的甩出动作演完 ⇒ C# 把状态机送进"过程"（合并件从源帧 17 起，无缝接上）。
+		/// </summary>
+		public static float ReleaseSeconds = 0.333f;
+
+		private GrappleAnimContext _animCtx;
+		private AgentAnimStateMachine _anim;
+		private float _animPendingPullTimer;  // >0 = 开火后计时中，到点把状态机送进"过程"（release 演完那一刻）
+		private float _flightSeconds;         // 本钩飞行耗时（蓄势 = PullStartSeconds − 它）
+		private string _lockedAnimState;      // 命令 `animlock`：非空 = 强锁该状态 + Hold（静观用）
+
 		/// <summary>拉拽控制器（命令层读状态用）。</summary>
 		internal GrapplePull Pull => _pull;
 
@@ -108,6 +132,10 @@ namespace LivingWorldNpcs
 		{
 			base.OnCreated();
 			Current = this;
+			// 姿态动画状态机实例（从注册表按名字取；定义没注册 = 一台空机器 —— 动不了，但一切照常，铁律 1）
+			_animCtx = new GrappleAnimContext();
+			_anim = AnimMachineRegistry.Create(GrappleAnimMachine.Name, _animCtx);
+			_pull.WaitAnimExit = AnimExited;      // 落地动作没演完就先别拆板（GrapplePull.TickSettling 的等待门）
 		}
 
 		public override void OnBehaviorInitialize()
@@ -312,6 +340,17 @@ namespace LivingWorldNpcs
 			DebugLogger.Log($"[Grapple] 发射：手={Fmt(hand)} 瞄准={Fmt(aim)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
 				+ $" | 起手={(autoPull ? "武器开火(命中后自动拉)" : "命令(命中即停)")} 空中起钩={_attachFromAir}");
 
+			// ── 姿态动画：开火（2026-10-04 二稿）──
+			//    前半段（ready/hold/release）归**武器 usage**，引擎自己在松手那一拍播 release；
+			//    本机只在 release 演完（+ReleaseSeconds）那一刻接管"过程"。这里只记计时 + 重置上下文。
+			_flightSeconds = (dist + 0.6f) / MathF.Max(1f, GrappleHook.Speed);   // 蓄势用它（见 TickHook）
+			_animPendingPullTimer = ReleaseSeconds;
+			if (_animCtx != null)
+			{
+				_animCtx.LandingFound = false;    // 上一钩的平台别带进这一钩（这一钩解算了才置真）
+				_animCtx.Cancelled = !autoPull;   // 命令 throw（不自动拉）= 没人续这一钩 ⇒ 到时走"收手"出口
+			}
+
 			return string.Format("OK: hook thrown | dist={0:F1}m target={1} aim=({2:F2},{3:F2},{4:F2})",
 				dist, aimAgent ? "agent" : "terrain", aim.x, aim.y, aim.z);
 		}
@@ -354,8 +393,9 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public string Release(string reason = "command")
 		{
+			bool wasPulling = _pull.IsActive;    // 动画收摊的判据要在 Abort 之前取（Abort 会把它收掉）
 			// 正在拉拽 ⇒ 先中止（拆板 + 解冻 —— 绝不留冻结状态）
-			if (_pull.IsActive)
+			if (wasPulling)
 			{
 				try
 				{
@@ -374,7 +414,164 @@ namespace LivingWorldNpcs
 			_hookPhase = HookPhase.Idle;
 			_rope.Hide();
 			_landingNote = "released";
+
+			// ── 姿态动画收摊（2026-10-04 二稿）──
+			//    · **人已空中**（拉拽中掉板 / 空中收摊）：立即收摊（按 fall-trigger 送 自由落体）；
+			//    · **其余**（打空 / 命令 / 正常收尾）：只打"已放弃"标志 —— 状态机自己走：
+			//        过程段 → recover-due 边 → 收手（打空亮相）；落地/收手段 → rem 15% 自己出机。
+			if (_animCtx != null)
+			{
+				_animCtx.Cancelled = true;
+			}
+			if (IsMainAirborne())
+			{
+				ExitAnim();
+			}
 			return "grapple: hook released, rope hidden";
+		}
+
+		// ─────────────────────────────── 姿态动画（2026-10-04） ───────────────────────────────
+
+		/// <summary>命令层读机械态用（`custom.grapple anim` 打印当前状态 / animlock 用）。</summary>
+		internal AgentAnimStateMachine Anim => _anim;
+
+		/// <summary>每帧推进状态机：喂事实 → Tick（照飞行，"填完才 Tick"）。</summary>
+		private void TickAnim(float dt)
+		{
+			if (_anim == null || _animCtx == null || Agent.Main == null)
+			{
+				return;
+			}
+
+			if (!AnimEnabled)
+			{
+				// 总开关关掉：机器若还在机内就送出去（回引擎动画），之后不再动它
+				if (IsAnimInside())
+				{
+					ExitAnim();
+				}
+				return;
+			}
+
+			if (!string.IsNullOrEmpty(_lockedAnimState))
+			{
+				// 命令 animlock：强锁某状态 + Hold（静观用）；无参 = 解锁（见 SetAnimLock）
+				_anim.Hold = true;
+				if (_anim.Current != _lockedAnimState)
+				{
+					_anim.Force(Agent.Main, _lockedAnimState, GrappleAnimMachine.AnimBlendIn);
+				}
+				return;
+			}
+			_anim.Hold = false;
+
+			// 🔴 开火计时：release 播完（+ReleaseSeconds）那一刻把状态机送进"过程"
+			//    （合并件从源帧 17 起，无缝接住引擎播的 release 尾帧）。命令路径同此。
+			if (_animPendingPullTimer > 0f)
+			{
+				_animPendingPullTimer -= dt;
+				if (_animPendingPullTimer <= 0f)
+				{
+					_animPendingPullTimer = 0f;
+					ForceAnim(GrappleAnimConditions.PullTrigger);
+				}
+			}
+
+			// 喂事实（填完才 Tick）：段剩余 = 当前状态的剩余（所以 landing-due 拿到的就是"过程段"的）
+			_animCtx.AnimRemainFrac = _anim.CurrentRemainFrac;
+			_animCtx.LandingFound = _landing.Found;
+
+			_anim.Tick(Agent.Main, dt);
+
+			if (_anim.Current == AgentAnimStateMachine.OutsideState)
+			{
+				_animCtx.Cancelled = false;      // 收摊 = 标志清干净，别带进下一钩
+			}
+		}
+
+		/// <summary>机器"在机内"吗（接管着 0 号通道）。</summary>
+		private bool IsAnimInside()
+		{
+			string cur = _anim?.Current;
+			return cur != null && cur != AgentAnimStateMachine.OutsideState;
+		}
+
+		/// <summary>按 XML 里的"时刻名"Force 进对应状态（C# 里没有状态名；改名/换状态只改 XML）。</summary>
+		private void ForceAnim(string whenToken)
+		{
+			if (_anim == null || Agent.Main == null || !AnimEnabled)
+			{
+				return;
+			}
+			if (_anim.TryEventTarget(whenToken, out string state))
+			{
+				_anim.Force(Agent.Main, state, GrappleAnimMachine.AnimBlendIn);
+			}
+			else
+			{
+				DebugLogger.Log($"[Grapple] 状态机里没有 '{whenToken}' 这条事件边 —— 动画不起"
+					+ "（检查 ModuleData/statemachines/grapple.xml）");
+			}
+		}
+
+		/// <summary>动画收摊：在机内才动；人在空中 ⇒ 按 `fall-trigger` 送 自由落体，否则送机外。</summary>
+		private void ExitAnim()
+		{
+			_animPendingPullTimer = 0f;      // 收摊 = 作废"待进过程"的计时
+			if (!IsAnimInside() || Agent.Main == null || !AnimEnabled)
+			{
+				return;
+			}
+			string cur = _anim.Current;
+			if (IsMainAirborne() && _anim.TryEventTarget(GrappleAnimConditions.FallTrigger, out string fallState))
+			{
+				_anim.Force(Agent.Main, fallState, GrappleAnimMachine.AnimBlendIn);
+				DebugLogger.Log($"[Grapple] 姿态动画 → 自由落体（人还在空中；从 {cur}）");
+				return;
+			}
+			_anim.Force(Agent.Main, AgentAnimStateMachine.OutsideState, GrappleAnimMachine.AnimBlendIn);
+			DebugLogger.Log($"[Grapple] 姿态动画收摊（0 号通道还引擎）| 从 {cur}");
+		}
+
+		/// <summary>
+		/// `GrapplePull` 的落地等待门（`WaitAnimExit`）：**落地动作没演完就返回 false** —— 拆板/解冻再等等。
+		/// 机器没接管 / 总开关关了 ⇒ 恒 true（不等，回旧行为）。
+		/// </summary>
+		private bool AnimExited()
+		{
+			if (_anim == null || _animCtx == null || !AnimEnabled)
+			{
+				return true;
+			}
+			return !IsAnimInside();
+		}
+
+		/// <summary>命令 `animlock`：锁死播某个状态（静观）· 空参 = 解锁。返回英文回执（控制台纪律）。</summary>
+		internal string SetAnimLock(string stateName)
+		{
+			if (_anim == null || Agent.Main == null)
+			{
+				return "Error: no anim machine (in mission?)";
+			}
+			if (string.IsNullOrEmpty(stateName) || stateName == "clear")
+			{
+				_lockedAnimState = null;
+				_anim.Hold = false;
+				return "OK: animlock cleared.";
+			}
+			_lockedAnimState = stateName;
+			_anim.Hold = true;
+			_anim.Force(Agent.Main, stateName, GrappleAnimMachine.AnimBlendIn);
+			return _anim.Current == stateName
+				? $"OK: locked '{stateName}' (hold=true; 'animlock clear' to release)."
+				: $"FAILED: could not enter '{stateName}' —— 名字不在定义里，或这条动作的 clip 还没导入（act_none，看日志）"
+					+ "  usage: animlock <投掷|过程|落地|自由落体|clear>";
+		}
+
+		/// <summary>主角在空中吗（口径同 <see cref="ThrowInternal"/> 的 `_attachFromAir`）。</summary>
+		private static bool IsMainAirborne()
+		{
+			return Agent.Main != null && !Agent.Main.IsOnLand();
 		}
 
 		/// <summary>
@@ -539,6 +736,9 @@ namespace LivingWorldNpcs
 		{
 			base.OnMissionTick(dt);
 
+			// ⓪′ 姿态动画状态机（2026-10-04）：喂事实 → Tick（照飞行："填完才 Tick"）
+			TickAnim(dt);
+
 			// ⓪ 开火拦截的排队执行（2026-10-03）：拦截补丁只"记一笔"，真正的发射与退弹在这一帧做 ——
 			//    这样武器开火与命令 `throw` 走的是**同一条链路**（都在常规 tick 里）。
 			GrappleFirePatch.ProcessPending();
@@ -606,7 +806,12 @@ namespace LivingWorldNpcs
 				_attachTimer += dt;
 				if (_attachAutoPull && AutoPull && _hook.AttachedAgent == null)
 				{
-					float delay = _attachFromAir ? PullDelayAir : PullDelayGround;
+					// 🔴 蓄势 = **拉拽起点钉在开火后 PullStartSeconds** − 本钩飞行耗时（2026-10-04 时间轴对齐）：
+					//    钩到得早就不多等、飞得远就少等 —— 位移起点始终 ≈ 动画"过程"段的起点（用户定的 1.13 s）。
+					//    （空中起钩的时间轴还没做，先照旧用固定值。）
+					float delay = _attachFromAir
+						? PullDelayAir
+						: MathF.Max(0f, PullStartSeconds - _flightSeconds);
 					if (_attachTimer >= delay)
 					{
 						_attachAutoPull = false;              // 只自动拉一次
@@ -624,6 +829,9 @@ namespace LivingWorldNpcs
 				GrapplePull.PullEvent ev = _pull.Tick(dt);
 				if (ev == GrapplePull.PullEvent.Finished)
 				{
+					// 拉拽整段完成：落地那条在 WaitAnimExit 的等待门里已自己出机（此处空操作）；
+					// 板载自由落体落地的那条还留在 自由落体 状态 ⇒ 送它出机。
+					ExitAnim();
 					Release("pull finished（到位拆板）");
 					return;
 				}
@@ -682,6 +890,7 @@ namespace LivingWorldNpcs
 			if (r.StartsWith("OK"))
 			{
 				_hookPhase = HookPhase.Pulling;
+				// 姿态动画：位移真的开始 = 板动起来（状态机早在开火 +0.333 s 就进了"过程"，这里不 Force）
 				DebugLogger.Log($"[Grapple] 拉拽开始（{why}）| 落点={Fmt(_landing.Endpoint)} 平台={(_landing.Found ? "有" : "无")} → {r}");
 			}
 			return r;
