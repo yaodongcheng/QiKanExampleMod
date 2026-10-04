@@ -209,6 +209,15 @@ namespace LivingWorldNpcs
         private static bool _followWriteBackLook;   // 归还时是否把我们的朝向写回引擎（见 ApplyFollowFromEngineCamera 重载）
         private static bool _followClearSpecialOnReturn;   // 撒手前是否清掉引擎"特殊相机"的冻结修正（钩索用，见 ClearEngineSpecialCameraAdds）
         private static bool _followPredictReset;           // 归还时是否"预置俯仰到重置值"（钩索用：它一定会解冻⇒引擎必然重置；camtest 不设）
+
+        // 🔴 外部朝向驱动（瞄准相机 2026-10-04）：非零 = 本帧 ArmYaw/ArmPitch 用外部每帧喂的值（鼠标 look）。
+        //    瞄准相机是"接管期间玩家还要转视角"的场景 —— 方向自己掌控，不走归还 chase 那套。
+        private static bool _followExternalLook;
+        private static float _followExternalLookYaw;
+        private static float _followExternalLookPitch;
+        // 调用方写过 Pivot/Socket 偏移（瞄准相机）⇒ 归还时把它们滑回 0（= 引擎口径）。
+        // 模板/演出跟随从不写这两个字段 ⇒ 保持 false ⇒ 行为不变。
+        private static bool _followOffsetsDirty;
         private static bool _followActive;
         private static bool _followHandingBack;
         private static bool _followUseTimeout;
@@ -427,6 +436,8 @@ namespace LivingWorldNpcs
             _followBlendT = 0f;
             _followHandingBack = false;
             _followLookReturning = false;
+            _followExternalLook = false;
+            _followOffsetsDirty = false;
             _followHandT = 1f;
             _followUseTimeout = seconds > 0f;
             _followRemain = seconds;
@@ -641,6 +652,77 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// **外部朝向驱动**（瞄准相机 2026-10-04）：每帧调用则本帧方向 = 给定角（spring-arm 世界口径，
+        /// 与 <see cref="SpringArmCameraParam.ArmYaw"/>/<c>ArmPitch</c> 同源）。停止用 <see cref="ClearFollowLook"/>。
+        /// 给"接管期间玩家还要转视角"的场景（鼠标 look 由调用方解算）。
+        /// </summary>
+        public static void SetFollowLook(float yawDeg, float pitchDeg)
+        {
+            _followExternalLook = true;
+            _followExternalLookYaw = yawDeg;
+            _followExternalLookPitch = pitchDeg;
+        }
+
+        /// <summary>停用外部朝向驱动（方向回到渐变/归还 chase 决定）。</summary>
+        public static void ClearFollowLook()
+        {
+            _followExternalLook = false;
+        }
+
+        /// <summary>
+        /// **改"环绕点"偏移 Z**（米；角色系 —— 直立时 = 上下）＝ UE 弹簧臂的 **TargetOffset.Z**。
+        /// 瞄准相机用它把环绕点压到蹲姿身位（引擎眼高公式只认引擎 `CrouchMode`、认不出动画蹲姿）。
+        /// 已写过偏移的跟随，**归还渐变会把它平滑滑回 0**（引擎口径），防撒手瞬间"环绕点跳一下"。
+        /// </summary>
+        public static void SetFollowPivotZ(float meters)
+        {
+            if (!_followActive)
+            {
+                return;
+            }
+            _followTarget.PivotZ = meters;
+            _followOffsetsDirty = true;
+        }
+
+        /// <summary>
+        /// **改"相机"偏移 Z**（米；相机系 —— 画面上下）＝ UE 弹簧臂的 **SocketOffset.Z**。
+        /// 画面里人偏上/偏下时的最后微调（瞄准相机 `aimlift`）。归还同样滑回 0。
+        /// </summary>
+        public static void SetFollowSocketZ(float meters)
+        {
+            if (!_followActive)
+            {
+                return;
+            }
+            _followTarget.SocketZ = meters;
+            _followOffsetsDirty = true;
+        }
+
+        /// <summary>读当前生效方向（瞄准相机接管时**播种**用 = 接管那一刻的引擎机位 ⇒ 不硬切）。</summary>
+        public static bool TryGetFollowLook(out float yawDeg, out float pitchDeg)
+        {
+            yawDeg = _followCurrent.ArmYaw;
+            pitchDeg = _followCurrent.ArmPitch;
+            return _followActive;
+        }
+
+        /// <summary>改"归还三件套"（瞄准相机被拉拽**收编**时用：把钩索拉拽那套旗标接过来）。</summary>
+        public static void SetFollowReturnBehavior(bool writeBackLook, bool clearSpecial, bool predictReset)
+        {
+            _followWriteBackLook = writeBackLook;
+            _followClearSpecialOnReturn = clearSpecial;
+            _followPredictReset = predictReset;
+        }
+
+        /// <summary>改跟随超时（收编时把拉拽侧的时长余量接过来；seconds ≤ 0 = 不限时）。</summary>
+        public static void SetFollowTimeout(float seconds)
+        {
+            _followUseTimeout = seconds > 0f;
+            _followRemain = seconds;
+            _followElapsed = 0f;
+        }
+
+        /// <summary>
         /// **请求渐变归还**（= 超时那条路，只是由调用方主动触发）：
         /// 把臂长/FOV 滑回接管时引擎相机的值，滑完自动撒手。给"脚本驱动的短期接管"用
         /// （钩索拉拽 2026-10-03：拉完想滑回引擎相机，而不是硬切一下）。
@@ -664,6 +746,8 @@ namespace LivingWorldNpcs
             _followActive = false;
             _followHandingBack = false;
             _followLookReturning = false;
+            _followExternalLook = false;
+            _followOffsetsDirty = false;
             try
             {
                 MissionScreen screen = ScreenManager.TopScreen as MissionScreen;
@@ -722,6 +806,14 @@ namespace LivingWorldNpcs
             _followHandTo = _followTarget;
             _followHandTo.ArmLength = _followFrom.ArmLength;   // ← _followFrom 存的正是引擎相机那组值
             _followHandTo.Fov = _followFrom.Fov;
+            // 写过 Pivot/Socket 偏移的跟随（瞄准相机 / 拉拽收编它）⇒ 归还时滑回 0（= 引擎口径），
+            // 不归零 = 撒手瞬间"环绕点/机位跳一下"（2026-10-04 落地高度台阶的同族问题）。
+            // 模板/演出跟随从不写这两个字段 ⇒ dirty=false ⇒ 行为不变。
+            if (_followOffsetsDirty)
+            {
+                _followHandTo.PivotZ = 0f;
+                _followHandTo.SocketZ = 0f;
+            }
             // 方向 = 独立状态、逐帧累积（见字段注释）。**已经在归还中就不要重置** ——
             // 重置 = 每帧从起点重来 = 增量丢失（2026-10-04 那个"俯仰纹丝不动"的 bug）。
             if (!_followLookReturning)
@@ -1388,14 +1480,20 @@ namespace LivingWorldNpcs
             try { readBack = _followCamEntity.GetGlobalFrame().origin.Distance(frame.origin); }
             catch { readBack = -1f; }
 
-            DebugLogger.Log($"[FollowCam] t={_followElapsed:F2} " +
-                            $"锚=({a.x:F2},{a.y:F2},{a.z:F2})Δ{anchorMoved:F3} " +
-                            $"相机=({frame.origin.x:F2},{frame.origin.y:F2},{frame.origin.z:F2})Δ{camMoved:F3} " +
-                            $"Δ眼={FmtCameraVsEye(frame.origin, agent, _followCurrent.UseEngineEyeHeight)}m " +
-                            $"回读Δ={(readBack < 0f ? "ERR" : readBack.ToString("F4"))} " +
-                            $"yaw={_followCurrent.ArmYaw:F1} pitch={_followCurrent.ArmPitch:F1} " +
-                            $"臂长={_followCurrent.ArmLength:F2} fov={_followCurrent.Fov:F0} " +
-                            $"entity={DescribeEntity(cam)}");
+            // 🔴 **每帧一行是排查专用的**（一次拉拽就刷几百行；2026-10-05 用户要求关）——
+            //    受 `custom.cam log 1`（`DebugLogging`）开关管；默认关 = 安静。
+            //    Δ 记账（_followElapsed / _followHasLast）照留 —— 其它诊断读它，不能跟着一起砍。
+            if (DebugLogging)
+            {
+                DebugLogger.Log($"[FollowCam] t={_followElapsed:F2} " +
+                                $"锚=({a.x:F2},{a.y:F2},{a.z:F2})Δ{anchorMoved:F3} " +
+                                $"相机=({frame.origin.x:F2},{frame.origin.y:F2},{frame.origin.z:F2})Δ{camMoved:F3} " +
+                                $"Δ眼={FmtCameraVsEye(frame.origin, agent, _followCurrent.UseEngineEyeHeight)}m " +
+                                $"回读Δ={(readBack < 0f ? "ERR" : readBack.ToString("F4"))} " +
+                                $"yaw={_followCurrent.ArmYaw:F1} pitch={_followCurrent.ArmPitch:F1} " +
+                                $"臂长={_followCurrent.ArmLength:F2} fov={_followCurrent.Fov:F0} " +
+                                $"entity={DescribeEntity(cam)}");
+            }
         }
 
         /// <summary>每帧重算跟随机位 —— **这一步就是"角色动、镜头跟着动"**。</summary>
@@ -1448,6 +1546,15 @@ namespace LivingWorldNpcs
                 ChaseEngineLook(ref _followHandLookYaw, ref _followHandLookPitch, dt);
                 _followCurrent.ArmYaw = _followHandLookYaw;
                 _followCurrent.ArmPitch = _followHandLookPitch;
+            }
+
+            // 外部朝向驱动（瞄准相机）：**逐帧覆盖本帧方向**，优先级最高（在渐变与归还 chase 之后）。
+            // 🔴 必须写在这里（和 chase 同位置）——写 `_followCurrent` 会被上面的 Lerp 每帧重算回起点，
+            //    只有这个位置写进去的才是"本帧真正渲染的方向"（2026-10-04 拉拽 chase 同一个坑）。
+            if (_followExternalLook)
+            {
+                _followCurrent.ArmYaw = _followExternalLookYaw;
+                _followCurrent.ArmPitch = _followExternalLookPitch;
             }
 
             // 臂长归还走完 ⇒ 看方向是否已和引擎一致：一致才撒手（撒手那一帧两边必须严丝合缝）。

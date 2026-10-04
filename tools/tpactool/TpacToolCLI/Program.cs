@@ -14,6 +14,7 @@ using TpacTool.IO.Assimp;
 //   dump     --packdir <dir> --filter <substr> [--out <dir>] [--format png|dds|raw]
 //   inspect  --packdir <dir> --filter <substr>        (打印 texture 全字段，提取模板用)
 //   clipinfo --packdir <dir> [--filter <substr>]      (打印 AnimationClip 全字段：Flags / ClipUsages / displacement 向量)
+//   clipparams --packdir <dir> --filter <clip> [--p1 X] [--p2 Y] [--p3 Z] [--out <dir>]  (改 Param1/2/3，字节级；clipprio 同构)
 //   makepack --manifest <json> --out <dir>            (manifest 描述 -> 全新 tpac 包)
 //
 // Uses TpacTool.Lib to read TaleWorlds AssetPackages and export named assets.
@@ -26,6 +27,9 @@ string mapping = null;
 bool mapsonly = false;
 bool allArg = false;     // animbones: 全量一行一条
 string prioArg = null;   // clipprio: 目标 Priority
+string p1Arg = null;     // clipparams: Param1（可省）
+string p2Arg = null;     // clipparams: Param2（可省）
+string p3Arg = null;     // clipparams: Param3（可省）
 string addArg = null;    // clipflags: 要加的 flag（逗号分隔）
 string removeArg = null; // clipflags: 要删的 flag
 bool inPlaceArg = false; // clipprio: 原地覆盖（自动备份）
@@ -52,6 +56,9 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--mapsonly": mapsonly = true; break;
             case "--all": allArg = true; break;
             case "--prio": prioArg = cmdLine[++i]; break;
+            case "--p1": p1Arg = cmdLine[++i]; break;
+            case "--p2": p2Arg = cmdLine[++i]; break;
+            case "--p3": p3Arg = cmdLine[++i]; break;
             case "--add": addArg = cmdLine[++i]; break;
             case "--remove": removeArg = cmdLine[++i]; break;
             case "--inplace": inPlaceArg = true; break;
@@ -336,6 +343,35 @@ switch (command)
             return 1;
         }
         return ClipPrio.Run(dir, filter, prioVal, outDir, inPlaceArg);
+    }
+    case "clipparams":
+    {
+        // 离线改 AnimationClip 的 Param1/2/3（字节级；见 ClipParams.cs 的说明）
+        if (p1Arg == null && p2Arg == null && p3Arg == null)
+        {
+            Console.Error.WriteLine("clipparams requires --filter <clipNameSubstr> [--p1 X] [--p2 Y] [--p3 Z] [--out dir] [--inplace]");
+            return 1;
+        }
+        float? p1 = null, p2 = null, p3 = null;
+        if (p1Arg != null)
+        {
+            if (!float.TryParse(p1Arg.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v1))
+            { Console.Error.WriteLine("--p1 解析不出浮点数: " + p1Arg); return 1; }
+            p1 = v1;
+        }
+        if (p2Arg != null)
+        {
+            if (!float.TryParse(p2Arg.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v2))
+            { Console.Error.WriteLine("--p2 解析不出浮点数: " + p2Arg); return 1; }
+            p2 = v2;
+        }
+        if (p3Arg != null)
+        {
+            if (!float.TryParse(p3Arg.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v3))
+            { Console.Error.WriteLine("--p3 解析不出浮点数: " + p3Arg); return 1; }
+            p3 = v3;
+        }
+        return ClipParams.Run(dir, filter, p1, p2, p3, outDir, inPlaceArg);
     }
     case "animbones":
         // 离线量「这条动画动了哪些骨」—— 筛"轨道里没写腿"的动画用（引擎没有按骨遮罩接口）

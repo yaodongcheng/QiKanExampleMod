@@ -75,7 +75,10 @@ namespace LivingWorldNpcs
 
 		/// <summary>
 		/// 给姿态动作带的优先级（写进 `additionalFlags`，0 = 引擎按 clip 自带走）。
-		/// 拉拽期间玩家被冻结（没有移动层竞争），先给 0；实机若出现"腿被别的动作抢走"再加。
+		/// 🔴 **真正生效的是 clip 元数据里的 Priority**（2026-10-04 晚实机：pull/land/recover 原为 0，
+		///    被引擎开火后必播的上弦 `reload_bow_right`（P11）逐帧抢走 ⇒ 两套姿势糊在一起、"拉拽/落地动画有点怪"；
+		///    修 = `tpaccli clipprio --filter <clip> --prio 30` 写进交付包，全提到 30 —— 与飞行工程同款修法）。
+		///    运行期 `additionalFlags` 传引擎不认（旁证：`custom.anim_ch` 的 `prio=` 传了没用），这条留着只是保险。
 		/// </summary>
 		public static int ActionPriority = 0;
 

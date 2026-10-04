@@ -31,6 +31,10 @@ namespace LivingWorldNpcs
 			Pulling,    // 拉自己中（步骤 4：冻结 + 木板 + 曲线）
 		}
 
+		/// <summary>钩索正在忙（钩头在飞 / 已挂住 / 拉拽中）—— 瞄准相机用它决定
+		/// "瞄准结束但流程未完（已开火、拉拽相机还没接手）时先别还相机"（见 GrappleAimCamera.Tick）。</summary>
+		public bool IsBusy => _hookPhase != HookPhase.Idle;
+
 		private readonly GrappleRope _rope = new GrappleRope();
 		private bool _anchored;
 		private Vec3 _anchor;
@@ -506,6 +510,9 @@ namespace LivingWorldNpcs
 			if (_anim.TryEventTarget(whenToken, out string state))
 			{
 				_anim.Force(Agent.Main, state, GrappleAnimMachine.AnimBlendIn);
+				// 🔴 常开一行/次（2026-10-04 深夜：用户问"状态机有没有 setactionchannel 的记录"——
+				//    以前成功的 Force 是静默的，日志里查不到"到底进没进"，只有缺边才报错）。
+				DebugLogger.Log($"[Grapple] 姿态动画 Force → {state}（时刻名 {whenToken}）");
 			}
 			else
 			{
@@ -735,6 +742,10 @@ namespace LivingWorldNpcs
 		public override void OnMissionTick(float dt)
 		{
 			base.OnMissionTick(dt);
+
+			// ⓪ 瞄准相机（2026-10-04）：按住左键瞄准期间接管相机（鼠标驱动；见 GrappleAimCamera）。
+			//    放在最前 —— 它的生命周期与钩头相位无关（瞄准时钩头通常还是 Idle）。
+			GrappleAimCamera.Tick(dt);
 
 			// ⓪′ 姿态动画状态机（2026-10-04）：喂事实 → Tick（照飞行："填完才 Tick"）
 			TickAnim(dt);

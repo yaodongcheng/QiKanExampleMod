@@ -359,6 +359,7 @@
     <!-- 🔴 钩索姿态动画（2026-10-04）：状态机装载/注册 + 谓词与时刻名（定义在 ModuleData/statemachines/grapple.xml）。 -->
     <Compile Include="Combat\GrappleAnimMachine.cs" />
     <Compile Include="Combat\GrappleAnimConditions.cs" />
+    <Compile Include="Combat\GrappleAimCamera.cs" />
     <Compile Include="CampaignMode\Tools\GrappleCommands.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />

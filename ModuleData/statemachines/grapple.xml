@@ -10,10 +10,14 @@
 
      前半段 **武器 usage 驱动**（换成自家两组：`grapple_hook` / `grapple_dart`，见内容包 item_usage_sets.xml；
      弓的"拉弓/持械/放箭"实际挂在**弹药**组上）：
-       按右键    → act_grapple_ground_ready    （源帧 0..5，0.20 s） 起手
+       按住左键  → act_grapple_ground_ready    （源帧 0..5，0.20 s） 起手
        按住      → act_grapple_ground_hold     （源第 6 帧定格，0.50 s）持械循环
        松手      → act_grapple_ground_release  （源帧 7..16，0.33 s）甩出 —— 引擎自己播，不经过本机
-       取弹槽 reload = **留空**（远程留空属先试项：若实机"拉不出弹/姿态卡"，把 reload 指回 hold）
+       取弹槽 reload = **必须非空**（2026-10-04 实机：留空 ⇒ AutoReload 上弦链断 ⇒ 左键无反应）；
+                       现指原版 `act_reload_bow_right`（1.3 s 弓取箭、能用但出戏，待换自家动作）
+
+     🔴 **三条 usage 驱动的动作必须带 `type` / `action_stage`**（`action_types.xml` 里声明；
+        漏了 = 能播但引擎的远程武器状态机认不出阶段 ⇒ 实测 ready 反复重播、进不了 hold —— 2026-10-04 卡点）
 
      后半段 **本状态机驱动**（通道 0）：
        过程      act_grapple_ground_pull       （源帧 17..55，1.30 s = 跟随动作 + 位移的合并件）

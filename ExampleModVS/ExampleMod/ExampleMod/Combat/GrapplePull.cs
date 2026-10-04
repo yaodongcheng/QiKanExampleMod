@@ -600,6 +600,19 @@ namespace LivingWorldNpcs
 				{
 					_cameraHeld = SpringArmCameraView.ApplyFollowTemplate(CameraTemplate, _main, seconds);
 				}
+				else if (SpringArmCameraView.IsFollowing && GrappleAimCamera.IsActive)
+				{
+					// 🔴 **瞄准相机已在接管**（瞄准 → 开火 → 钩头在飞这段归它）—— **就地收编，不重新快照**：
+					//    接管期间引擎相机是冻的，重抄它 = 镜头跳回瞄准起手那一刻。跟随本身不断
+					//    （方向 = 玩家最后瞄的地方），这里只换臂长 + 归还三件套 + 时长。
+					GrappleAimCamera.OnPullAdopt();
+					SpringArmCameraView.SetFollowArmLength(CameraArmLength);
+					SpringArmCameraView.SetFollowReturnBehavior(writeBackLook: false, clearSpecial: true, predictReset: true);
+					SpringArmCameraView.SetFollowTimeout(seconds);
+					_cameraHeld = true;
+					DebugLogger.Log($"[Grapple] 相机接管：从瞄准相机无缝接手（臂长 → {CameraArmLength:F1}m，{seconds:F1}s 后自动归还）");
+					return;   // 已接住，不再走"快照引擎机位"那条路（也就跳过下面那行通用日志）
+				}
 				else
 				{
 					// 方向 = 接管那一刻的引擎机位（不硬切、不跟角色转），再单独把臂长拉远。

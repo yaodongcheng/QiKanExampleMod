@@ -461,8 +461,11 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 只读：把 0 / 1 两条动画通道的现状拼成一行（动作名 · 索引 · 通道权重 · 当前动作权重 · 进度 · 优先级）。
+        /// 只读：把 0 / 1 两条动画通道的现状拼成一行（动作名 · 索引 · 通道权重 · 当前动作权重 · 进度 · 阶段 · 类别 · 优先级）。
         /// 判据：`idx` 与刚才 `custom.anim_ch` 回显的 `setIdx` 一致 = 这条动作还在通道里。
+        /// 🔴 2026-10-04 补 `stage` / `type`：引擎的武器流程靠 `action_types.xml` 的
+        ///    `type` / `action_stage` 属性认动作（钩索 ready 卡点 = 漏声明 ⇒ stage 恒 None）。
+        ///    `stage=AttackReady` = 引擎把当前动作认成"远程武器起手/持械阶段"（弓的 ready/continue 都该是它）。
         /// </summary>
         private static string Channels(Agent a)
         {
@@ -476,6 +479,8 @@ namespace LivingWorldNpcs
                     sb.Append($"ch{ch}['{V.ActName(a, ch)}' idx={cur.Index} w={a.GetActionChannelWeight(ch):0.00}"
                               + $" curW={a.GetActionChannelCurrentActionWeight(ch):0.00}"
                               + $" prog={a.GetCurrentActionProgress(ch):0.00}"
+                              + $" stage={a.GetCurrentActionStage(ch)}"
+                              + $" type={a.GetCurrentActionType(ch)}"
                               + $" prio={a.GetCurrentActionPriority(ch)}]");
                 }
                 catch (System.Exception e) { sb.Append($"ch{ch}[err:{e.Message}]"); }
