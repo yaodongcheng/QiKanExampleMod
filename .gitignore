@@ -109,6 +109,12 @@ tools/particle-pipeline/**/out/
 tools/tpactool/out/
 tools/tpactool/**/out/
 
+# textureconverter（第三方二进制转换工具：NVTT / nvcompress / ffmpeg 等约 250MB 可执行文件）
+#   不是本项目的源码，整个目录不进库（2026-10-06）。要用时从原始来源重新下载。
+#   ⚠️ 索引里曾以 tools/TextureConverter/ 的大写拼写被误提交，两种拼写都写一条防漏。
+tools/textureconverter/
+tools/TextureConverter/
+
 # ── 不同步 AIInfluence 子项目 ──
 ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
 
