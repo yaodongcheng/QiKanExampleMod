@@ -94,18 +94,28 @@ namespace LivingWorldNpcs
 		/// <summary>脱离载具的判据（米，同飞行工程 `FallOffDistance` 的口径）。</summary>
 		public static float FallOffLimit = 1.2f;
 
+		/// <summary>本相机在 Camera.csv 里的行名（🔴 2026-10-05 阶段 1 起，拉拽机位参数也住在表里）。</summary>
+		public const string CaseName = "grapple_pull";
+
+		/// <summary>取表行（缺行 = false ⇒ 本次拉拽**不接管相机**并打日志；拉拽本身照常跑）。</summary>
+		public static bool TryGetCase(out CameraCase kase) => CameraCase.TryGet(CaseName, out kase);
+
 		/// <summary>
 		/// 拉拽期间的机位（2026-10-03 加；同日第二版改成"引擎机位 + 拉远"）：
 		/// **方向 = 接管那一刻的引擎相机机位（世界锚定、不硬切、不跟角色转）**，只把臂长拉远 ——
 		/// 上一版用模板（方向相对角色、且接管瞬间硬切到侧后 30°）实机症状：**镜头猛转**。
 		/// 世界锚定 = 相机保持发射时的视角、只是跟着人平移 ⇒ 不会甩、也不会跟丢。
-		/// 臂长（米）：默认 8（能看清全身与弧线）；**≤0 = 不接管相机**（回引擎相机，对照用）。
+		/// 臂长（米）：表列 `ArmLength`（默认 8，能看清全身与弧线）；**≤0 = 不接管相机**（回引擎相机，对照用）。
+		/// 🔴 2026-10-05 阶段 1：数值搬到 `Camera.csv` 的 `grapple_pull` 行；本属性读写的就是那一行（内存态）。
 		/// </summary>
-		public static float CameraArmLength = 8f;
+		public static float CameraArmLength
+		{
+			get => CameraCase.TryGet(CaseName, out CameraCase c) ? c.Param.ArmLength : 0f;
+			set { if (CameraCase.TryGet(CaseName, out CameraCase c)) { c.Param.ArmLength = value; } }
+		}
 
-		/// <summary>非空 = 改用**模板机位**（`Camera.csv` 的行名，方向相对角色、接管瞬间硬切）——
-		/// 只留给"想试别的角度"的调试用；默认走上面的引擎机位。</summary>
-		public static string CameraTemplate = "";
+		// 🪦 2026-10-05 阶段 3：`CameraTemplate`（`custom.grapple cam t:<模板>` 的调试口子）**已退役** ——
+		//    想用别的机位看拉拽：`custom.cam play <case> [秒]`（任何 Camera.csv 行都能起播）。
 
 		/// <summary>接管时比拉拽本身多留的时间（秒）：覆盖登板等待 + 停稳 + 归还渐变。</summary>
 		public static float CameraExtraSeconds = 1.5f;
@@ -579,6 +589,12 @@ namespace LivingWorldNpcs
 		/// <summary>
 		/// 接管相机（脚本驱动的短期跟随）。失败不影响拉拽本身 —— 顶多回到引擎相机（跟丢就认了）。
 		/// 时长给足：登板等待 + 拉拽 + 停稳 + 归还渐变的余量，**到点会自动滑回**（双保险）。
+		///
+		/// 🔴 **2026-10-05 阶段 2：整段收敛成"一次调用"**（原来是 5 步 setter 舞）——
+		///    · 瞄准相机在手上 ⇒ `CameraService.Adopt(grapple_pull, …)`（**收编、不重播种**）；
+		///    · 否则 ⇒ `CameraService.Play(grapple_pull, …)`（Seed=Engine = 照抄接管那一刻的引擎机位 + 行里的臂长 8）。
+		///    归还三件套（不写回朝向 / 撒手前清引擎特殊相机修正 / 归还预置俯仰）作**调用参数**传进去 ——
+		///    它们描述的是"引擎接下来会干什么"（收尾会解冻玩家 ⇒ 引擎必然重置相机），不进表。
 		/// </summary>
 		private void EnterCamera()
 		{
@@ -588,50 +604,51 @@ namespace LivingWorldNpcs
 			}
 			_cameraReturning = false;
 			_lookReturnStarted = false;
-			bool useTemplate = !string.IsNullOrEmpty(CameraTemplate);
-			if (!useTemplate && CameraArmLength <= 0f)
+			if (!GrappleAimCamera.Enabled)      // 钩索相机总开关（`custom.grapple cam off`）
 			{
+				return;
+			}
+			if (CameraArmLength <= 0f)          // `cam off` = 不接管（对照用）
+			{
+				return;
+			}
+			// 🔴 机位参数来自 Camera.csv 的 `grapple_pull` 行（2026-10-05 阶段 1）——
+			//    缺行 = **本次不接管相机**（拉拽本身照常跑，顶多回到引擎相机）；不做代码兜底。
+			if (!TryGetCase(out CameraCase pullCase))
+			{
+				DebugLogger.Log("[Grapple] 🔴 Camera.csv 缺 `" + CaseName + "` 行 —— 本次拉拽不接管相机"
+								+ "（拉拽照常；请检查 ModuleData/DesignData/Camera.csv）");
 				return;
 			}
 			try
 			{
 				float seconds = OnBoardTimeout + _duration + SettleSeconds + CameraExtraSeconds;
-				if (useTemplate)
+				var policy = new CameraReturnPolicy
 				{
-					_cameraHeld = SpringArmCameraView.ApplyFollowTemplate(CameraTemplate, _main, seconds);
-				}
-				else if (SpringArmCameraView.IsFollowing && GrappleAimCamera.IsActive)
+					WriteBackLook = false,     // 完全交还引擎：方向在滑行期间追引擎实时值（2026-10-03 用户裁定）
+					ClearSpecial = true,       // 撒手前清引擎"特殊相机"冻结修正（落地高度台阶的根治）
+					PredictReset = true,       // 收尾会解冻玩家 ⇒ 引擎必然重置相机 ⇒ 预置俯仰
+				};
+				bool adopt = GrappleAimCamera.IsActive && CameraService.IsHeldBy(GrappleAimCamera.Owner);
+				if (adopt)
 				{
-					// 🔴 **瞄准相机已在接管**（瞄准 → 开火 → 钩头在飞这段归它）—— **就地收编，不重新快照**：
+					// 🔴 **瞄准相机已在接管**（开火 → 钩头在飞这段归它）—— **就地收编，不重新快照**：
 					//    接管期间引擎相机是冻的，重抄它 = 镜头跳回瞄准起手那一刻。跟随本身不断
-					//    （方向 = 玩家最后瞄的地方），这里只换臂长 + 归还三件套 + 时长。
-					GrappleAimCamera.OnPullAdopt();
-					SpringArmCameraView.SetFollowArmLength(CameraArmLength);
-					SpringArmCameraView.SetFollowReturnBehavior(writeBackLook: false, clearSpecial: true, predictReset: true);
-					SpringArmCameraView.SetFollowTimeout(seconds);
-					_cameraHeld = true;
-					DebugLogger.Log($"[Grapple] 相机接管：从瞄准相机无缝接手（臂长 → {CameraArmLength:F1}m，{seconds:F1}s 后自动归还）");
-					return;   // 已接住，不再走"快照引擎机位"那条路（也就跳过下面那行通用日志）
-				}
-				else
-				{
-					// 方向 = 接管那一刻的引擎机位（不硬切、不跟角色转），再单独把臂长拉远。
-					// 🔴 归还 = **完全交还引擎**（2026-10-03 用户裁定）：方向在滑行期间**追引擎的实时值**
-					//    （引擎自己会在滑行中把角度改回它的默认 —— 实测俯仰 49°→0.0°），跟平了才撒手 ⇒
-					//    撒手那一刻两边必然一致，不会再有俯仰突变。所以这里**不写回**（writeBackLookOnReturn: false）。
-					// 🔴 另外撒手前**清掉引擎"特殊相机"的冻结修正**（clearSpecialCameraOnReturn: true）——
-					//    那份冻值（开火瞄准态残留）是"落地瞬间相机高度台阶"（实测 0.09~0.51m）的来源，
-					//    清零后引擎恢复的第一帧就是纯几何机位 = 我们的机位（2026-10-04 用户要求"彻底抹平"）。
-					_cameraHeld = SpringArmCameraView.ApplyFollowFromEngineCamera(_main, seconds,
-						writeBackLookOnReturn: false, clearSpecialCameraOnReturn: true, predictResetOnReturn: true);
+					//    （方向 = 玩家最后瞄的地方），只换臂长（行里的 8m）+ 归还三件套 + 时长。
+					var stage = new CameraStage { Seconds = seconds, Policy = policy, HasPolicy = true };
+					_cameraHeld = CameraService.Adopt(GrappleAimCamera.PullCaseName, GrappleAimCamera.Owner, in stage);
 					if (_cameraHeld)
 					{
-						SpringArmCameraView.SetFollowArmLength(CameraArmLength);
+						GrappleAimCamera.OnPullAdopt();
+						DebugLogger.Log($"[Grapple] 相机接管：从瞄准相机无缝接手（case={pullCase.Id}，臂长 {pullCase.Param.ArmLength:F1}m，{seconds:F1}s 后自动归还）");
 					}
+					return;
 				}
+
+				_cameraHeld = CameraService.Play(pullCase.Id, _main, seconds,
+					GrappleAimCamera.Owner, policy);
 				DebugLogger.Log(_cameraHeld
-					? $"[Grapple] 相机接管：{(useTemplate ? "模板 " + CameraTemplate : "引擎机位+臂长 " + CameraArmLength.ToString("F1") + "m")}"
-						+ $"（{seconds:F1}s 后自动归还）"
+					? $"[Grapple] 相机接管：引擎机位 + 臂长 {pullCase.Param.ArmLength:F1}m（{seconds:F1}s 后自动归还）"
 					: "[Grapple] 相机接管失败 —— 用引擎相机继续");
 			}
 			catch (Exception ex)
@@ -643,7 +660,7 @@ namespace LivingWorldNpcs
 
 		/// <summary>
 		/// **启动"方向归还"**（拉拽一开始就调；幂等）：让相机方向在整个拉拽里平顺转到
-		/// 引擎解冻后会把值重置成的那个姿态（= 预测重置值，含俯仰 0）。详见 `SpringArmCameraView.BeginLookReturn`。
+		/// 引擎解冻后会把值重置成的那个姿态（= 预测重置值，含俯仰 0）。详见 `SpringArmRig.BeginLookReturn`。
 		/// </summary>
 		private void StartLookReturn()
 		{
@@ -655,7 +672,7 @@ namespace LivingWorldNpcs
 			try
 			{
 				float seconds = LookReturnSeconds > 0.05f ? LookReturnSeconds : _duration;
-				SpringArmCameraView.BeginLookReturn(seconds);
+				CameraService.BeginLookReturn(seconds);
 			}
 			catch (Exception ex)
 			{
@@ -664,7 +681,7 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
-		/// **提前开始归还相机**（拉拽尾段每帧调，幂等）：让 rig 把臂长/FOV 滑回接管时的引擎机位，
+		/// **提前开始归还相机**（拉拽尾段每帧调，幂等）：让机器把臂长/FOV 滑回接管时的引擎机位，
 		/// 滑完自己撒手。**归还期间 `_cameraHeld` 保持 true** —— 这样中途 Abort 仍能
 		/// <see cref="ExitCamera"/> 走"立刻还"（滑行中被打断不该留着镜头慢慢飘）。
 		/// </summary>
@@ -677,7 +694,7 @@ namespace LivingWorldNpcs
 			_cameraReturning = true;
 			try
 			{
-				SpringArmCameraView.RequestHandBack(CameraReturnGlideSeconds);
+				CameraService.RequestHandBack(CameraReturnGlideSeconds);
 				DebugLogger.Log($"[Grapple] 相机提前归还：镜头开始往回滑，{CameraReturnGlideSeconds:F2}s 滑回引擎机位（还没落地就开始收）");
 			}
 			catch (Exception ex)
@@ -697,13 +714,19 @@ namespace LivingWorldNpcs
 			_cameraReturning = false;
 			try
 			{
+				// 🔴 **只有还归我们持有才动它**（2026-10-05 阶段 2：相机被演出/对话抢占过的话，
+				//    这里再 Stop 就是在踩别人的相机 —— 服务按 owner 判断，不是我们的就不动）。
+				if (!CameraService.IsHeldBy(GrappleAimCamera.Owner))
+				{
+					return;
+				}
 				if (immediate)
 				{
-					SpringArmCameraView.StopFollowCamera();
+					CameraService.Stop();
 				}
 				else
 				{
-					SpringArmCameraView.RequestHandBack();
+					CameraService.RequestHandBack();
 				}
 			}
 			catch (Exception ex)

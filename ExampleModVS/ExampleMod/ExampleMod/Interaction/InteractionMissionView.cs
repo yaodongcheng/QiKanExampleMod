@@ -1533,8 +1533,9 @@ namespace LivingWorldNpcs
 
                    
 
-            // 3. 恢复镜头 (如果之前设置了 CustomCamera)
-            thisMissionScreen.CustomCamera = null;
+            // 3. 恢复镜头：**只收我们自己摆的机位**（2026-10-05 阶段 2：相机的进出统一由 CameraService 记账，
+            //    老写法直接 `CustomCamera = null` 会把别人（飞行/钩索）正在用的相机一起踩掉）
+            CameraService.StopPose();
             IsHandlingInteraction = false;
             IsChatting = false;
 

@@ -470,10 +470,9 @@ namespace LivingWorldNpcs
             CloseUI();
             // 可以在这里恢复游戏时间流逝等
 
-            //镜头重置
-            MissionScreen missionScreen = ScreenManager.TopScreen as MissionScreen;
-            missionScreen.CustomCamera = null;
-            CameraDebuggerView.targetAgent = Mission.Current.MainAgent;
+            //镜头重置：**只收我们自己摆的机位**（2026-10-05 阶段 2）—— 老写法直接 `CustomCamera = null`，
+            //会把正在飞的相机一起踩掉。相机的一切进出都由 `CameraService` 记账。
+            CameraService.StopPose();
 
             //恢复主角移动
             if (Agent.Main != null && AgentControlHelper.SafeIsActive(Agent.Main))

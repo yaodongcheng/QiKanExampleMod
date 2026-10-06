@@ -294,13 +294,14 @@
     <Compile Include="AgentHUD\AgentHudCollectionVM.cs" />
     <Compile Include="AgentHUD\AgentHudVM.cs" />
     <!-- Camera -->
+    <Compile Include="Camera\CameraCase.cs" />
     <Compile Include="Camera\CameraCommands.cs" />
-    <Compile Include="Camera\CameraDebuggerView.cs" />
-    <Compile Include="Camera\CameraDebuggerVM.cs" />
     <Compile Include="Camera\CameraLook.cs" />
+    <Compile Include="Camera\CameraService.cs" />
     <Compile Include="Camera\SpringArmCameraDebuggerVM.cs" />
     <Compile Include="Camera\SpringArmCameraView.cs" />
     <Compile Include="Camera\SpringArmMath.cs" />
+    <Compile Include="Camera\SpringArmRig.cs" />
     <!-- Compass -->
     <Compile Include="Compass\CompassHud.cs" />
     <Compile Include="Compass\CompassIconVM.cs" />
@@ -522,6 +523,7 @@
     <Compile Include="Flight\FlightInput.cs" />
     <Compile Include="Flight\CarrierBoard.cs" />
     <Compile Include="Flight\PlayerFlightBehavior.cs" />
+    <Compile Include="Flight\FlightCameraDriver.cs" />
     <Compile Include="Flight\FlightCameraRig.cs" />
     <!-- 通用动画状态机（2026-09-22）：Animation\ 目录，首个用户是 Flight，
          之后别的运动系统（坐骑 / 潜行 / 载具）也可以直接复用它。 -->

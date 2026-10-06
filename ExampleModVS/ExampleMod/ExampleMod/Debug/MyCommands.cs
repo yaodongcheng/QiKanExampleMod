@@ -602,14 +602,14 @@ namespace LivingWorldNpcs
                 bool camOk;
                 if (camMode.Equals("engine", StringComparison.OrdinalIgnoreCase))
                 {
-                    camOk = SpringArmCameraView.ApplyFollowFromEngineCamera(attacker, hold);
+                    camOk = CameraService.PlayEnginePose(attacker, hold, "perf:exec_pair");
                     camNote = camOk
                         ? $" [camera: engine pose held, following you {hold:0.0}s]"
                         : " [camera FAILED: engine camera pose unavailable -> engine camera kept]";
                 }
                 else
                 {
-                    camOk = SpringArmCameraView.ApplyFollowTemplate(camMode, attacker, hold);
+                    camOk = CameraService.Play(camMode, attacker, hold, "perf:exec_pair");
                     camNote = camOk
                         ? $" [camera: template '{camMode}' following you {hold:0.0}s]"
                         : $" [camera FAILED: template '{camMode}' not in Camera.csv -> engine camera kept]";
@@ -845,66 +845,10 @@ namespace LivingWorldNpcs
             return "unknown command. usage: mount, npc [name], camera, reset";
         }
 
-        [CommandLineFunctionality.CommandLineArgumentFunction("cam_face", "custom")]
-        public static string ExecuteCamFace(List<string> args)
-        {
-            if (Mission.Current == null || Agent.Main == null) return "error:no mission";
-
-            // 【关键修正】: 不通过 Behavior 获取，而是直接通过 ScreenManager 获取当前屏幕
-            MissionScreen missionScreen = ScreenManager.TopScreen as MissionScreen;
-
-            if (missionScreen == null) return "error: no mission screen";
-
-            // 1. 获取主角眼睛的位置
-            // 1. 确定目标点（玩家的眼睛）
-            Vec3 targetPos = Agent.Main.LookFrame.origin;
-
-            // 2. 确定摄像机的位置（玩家正前方 2.5 米，高度稍微抬高一点）
-            // Agent.Main.LookDirection 是玩家脸朝向的方向
-            Vec3 forwardDir = Agent.Main.LookDirection;
-            forwardDir.Normalize(); // 标准化向量，确保长度为1
-
-            // 位置计算：玩家位置 + (朝向向量 * 距离)
-            Vec3 cameraPos = targetPos + (forwardDir * 2.5f);
-
-            // 稍微把摄像机抬高一点 (0.5米)，形成一点点俯视感，这样更有电影感
-            cameraPos.z += 0.5f;
-
-            // 3. 【核心修正】手动计算“从摄像机看向玩家”的方向向量
-            // 向量减法：终点 - 起点 = 指向终点的向量
-            Vec3 directionFromCamToPlayer = targetPos - cameraPos;
-            directionFromCamToPlayer.Normalize();
-
-            // 4. 【核心修正】强制构建旋转矩阵
-            // Mat3.CreateMat3WithForward(前向向量, 上方向量)
-            // 我们明确告诉引擎：摄像机的“正前方(Y轴)”必须等于 directionFromCamToPlayer
-            Mat3 rotation = Mat3.CreateMat3WithForward(in directionFromCamToPlayer);
-
-            // 5. 组合成最终的坐标帧 (MatrixFrame = 旋转 + 位置)
-            MatrixFrame camFrame = new MatrixFrame(rotation, cameraPos);
-
-            // 6. 创建相机并赋值
-            Camera customCam = Camera.CreateCamera();
-            customCam.Frame = camFrame;
-            missionScreen.CustomCamera = customCam;
-
-            return "Camera see you now.";
-        }
-
-        // 恢复正常镜头
-        // 命令: custom.cam_reset
-        [CommandLineFunctionality.CommandLineArgumentFunction("cam_reset", "custom")]
-        public static string ExecuteCamReset(List<string> args)
-        {
-            MissionScreen missionScreen = ScreenManager.TopScreen as MissionScreen;
-            if (missionScreen != null)
-            {
-                // 设为 null 就会自动切回游戏默认视角
-                missionScreen.CustomCamera = null;
-                return "screen reset success。";
-            }
-            return "error:no screen";
-        }
+        // 🪦 2026-10-05 阶段 0：`custom.cam_face` / `custom.cam_reset` 两条**裸建相机**命令已删
+        //    （方案 = plans/自定义相机整合-实施方案.md）。它们是第 4 个写 `MissionScreen.CustomCamera` 的地方，
+        //    留着仲裁做不干净。相机接管/归还一律走 `Camera/SpringArmCameraView`（阶段 2 起 = `CameraService`）；
+        //    调试台 = `custom.cam log|stat|info|test|lift`。
 
         [CommandLineFunctionality.CommandLineArgumentFunction("print_npc_move_info", "custom")]
         public static string ExecutePrintMoveInfo(List<string> args)

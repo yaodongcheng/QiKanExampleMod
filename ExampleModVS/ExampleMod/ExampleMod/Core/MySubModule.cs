@@ -334,9 +334,8 @@ namespace LivingWorldNpcs
 
             //决斗UI
               mission.AddMissionBehavior(new DuelMissionView());
-            //相机调试UI
-            mission.AddMissionBehavior(new CameraDebuggerView());
-            //相机调试UI
+            //相机：弹簧臂（一次性机位 + 跟随机位）；🪦 2026-10-05 阶段 0 删掉了旧的 `CameraDebuggerView`
+            //（第 3 个 CustomCamera 写者，老调试相机；命令 `custom.openCamDebugger` / `custom.useCameraTemplate` 一并退役）
             mission.AddMissionBehavior(new SpringArmCameraView());
             //Agent头上HUD
             mission.AddMissionBehavior(new AgentHudMissionView());

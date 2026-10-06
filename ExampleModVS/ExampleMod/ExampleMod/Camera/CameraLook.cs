@@ -10,8 +10,9 @@ namespace LivingWorldNpcs
 {
 	/// <summary>
 	/// **"相机现在看向哪"的提供者** —— 谁接管了相机、谁就实现它。
-	/// 目前唯一的实现 = <see cref="LivingWorldNpcs.Flight.PlayerFlightBehavior"/>（飞行相机由鼠标自驱动）；
-	/// 演出机位（<see cref="SpringArmCameraView"/>）暂时没注册（它自己算帧、不对外供方向）。
+	/// 🔴 **2026-10-05 阶段 2 起：唯一登记的提供者 = `CameraService` 那个"路由器"**
+	/// （它按"谁在管相机"分发：外部持有者（`Flight/FlightCameraRig`）→ 问它；内部机器（`SpringArmRig`）→ 问机器；
+	/// 都没接管 → 返回 false，本类自己回落到引擎分支）。业务方**不要**再注册自己的提供者。
 	/// </summary>
 	public interface ICameraLookProvider
 	{
@@ -39,8 +40,32 @@ namespace LivingWorldNpcs
 	/// </summary>
 	public static class CameraLook
 	{
-		/// <summary>当前接管相机的那位（没接管 = null）。接管方进入时挂、退出时清。</summary>
-		public static ICameraLookProvider Provider { get; set; }
+		/// <summary>当前接管相机的那位（没接管 = null）。**只由 <see cref="Set"/> / <see cref="Clear"/> 改**
+		/// （2026-10-05 阶段 2 起：直接读写它 = 单槽互踩 —— 甲的退出会把乙的注册清掉）。</summary>
+		public static ICameraLookProvider Provider { get; private set; }
+
+		/// <summary>当前注册者的标签（`Clear` 用它判断"是不是该我清"）。</summary>
+		public static string ProviderOwner { get; private set; }
+
+		/// <summary>
+		/// 登记"看"的提供者（带 owner 标签）。**后登记者覆盖先登记**（谁在管相机谁说了算），
+		/// 但**只有同 owner 才能清掉它**（<see cref="Clear"/>）—— 这就是"修单槽互踩"的全部机制。
+		/// </summary>
+		public static void Set(ICameraLookProvider provider, string owner)
+		{
+			Provider = provider;
+			ProviderOwner = owner;
+		}
+
+		/// <summary>按 owner 清登记：**不是自己的登记不动**（甲退出不会踩掉乙）。</summary>
+		public static void Clear(string owner)
+		{
+			if (ProviderOwner == owner)
+			{
+				Provider = null;
+				ProviderOwner = null;
+			}
+		}
 
 		/// <summary>
 		/// 相机视线。优先级：① **接管方自己**（它知道鼠标把镜头转到哪了）② 没接管时用引擎相机角度。

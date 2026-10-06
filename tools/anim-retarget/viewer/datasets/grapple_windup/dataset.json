@@ -1,0 +1,25 @@
+{
+  "name": "grapple_windup",
+  "title": "钩索 · 直立瞄准 + 甩腕蓄力 loop",
+  "subtitle": "3_WindupLoop = 甩腕转圈蓄力（30f@30fps, 2圈, 矢状面, 腕自转360°）｜底姿 = 直立持钩 aim（Ready/Hold 已抬正上半身+站直）",
+  "sides": {
+    "dst": {
+      "label": "骑砍2 · 钩索甩腕蓄力（直立aim→绕圈loop→丢出）",
+      "color": "#e0b070",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "assets/dst.glb"
+        }
+      ]
+    }
+  }
+}

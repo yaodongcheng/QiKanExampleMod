@@ -48,9 +48,9 @@ namespace LivingWorldNpcs
     ///
     ///   [type-level] — 字段/变量类型跨版本不同：
     ///     MySubModule.cs:344                  IGauntletMovie vs GauntletMovieIdentifier
-    ///     CameraDebuggerView.cs:34            同上
     ///     SpringArmCameraView.cs:40           同上
     ///     NinjaNotificationMissionView.cs:19  同上
+    ///     （🪦 2026-10-05 阶段 0：`CameraDebuggerView.cs:34` 那条随老调试相机一起删除）
     ///     MyCommands.cs:646                   MissionObject.GameEntity 返回类型
     ///     PlayerDetentionBehavior.cs:9,312    GameOverlays→GameMenu.MenuOverlayType
     ///     FlySpike.cs:2385 TickChairLift      UsableMissionObject.GameEntity：

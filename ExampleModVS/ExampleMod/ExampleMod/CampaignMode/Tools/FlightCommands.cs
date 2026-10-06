@@ -295,8 +295,16 @@ namespace LivingWorldNpcs.CampaignMode
             {
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"OK. flightCamera={FlightTuning.UseFlightCamera} blend={FlightTuning.CamBlendIn}s aimOnRMB={FlightTuning.AimOnRightClick}");
-                for (int i = 0; i < FlightCameraRig.PresetNames.Length; i++)
-                    sb.AppendLine("  " + FlightCameraRig.Describe((FlightCamPreset)i));
+                if (FlightCameraRig.EnsureCases())
+                {
+                    for (int i = 0; i < FlightCameraRig.PresetNames.Length; i++)
+                        sb.AppendLine("  " + FlightCameraRig.Describe((FlightCamPreset)i));
+                }
+                else
+                {
+                    sb.AppendLine("  ERR: Camera.csv is missing the fly_* rows -> flight camera will NOT take over"
+                                + " (fix ModuleData/DesignData/Camera.csv; no code fallback by design)");
+                }
                 sb.Append("usage: custom.flight cam <hover|cruise|boost|aim> <param> <value> | cam on|off");
                 return sb.ToString();
             }
@@ -315,47 +323,17 @@ namespace LivingWorldNpcs.CampaignMode
             if (idx < 0)
                 return $"ERR unknown preset '{k}' | hover cruise boost aim";
 
-            string field = args[2].ToLowerInvariant();
-            if (!float.TryParse(args[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
-                return $"ERR '{args[3]}' is not a number";
-
-            FlightCamPreset preset = (FlightCamPreset)idx;
-            SpringArmCameraParam p = FlightCameraRig.Presets[idx];
-            switch (field)
-            {
-                case "arm": p.ArmLength = v; break;
-                case "pitch": p.ArmPitch = v; break;
-                case "yaw": p.ArmYaw = v; break;
-                case "pivotx": p.PivotX = v; break;
-                case "pivoty": p.PivotY = v; break;
-                case "pivotz": p.PivotZ = v; break;
-                case "socketx": p.SocketX = v; break;
-                case "sockety": p.SocketY = v; break;
-                case "socketz": p.SocketZ = v; break;
-                case "selfyaw": p.SelfYaw = v; break;
-                case "selfpitch": p.SelfPitch = v; break;
-                case "selfroll": p.SelfRoll = v; break;
-                case "fov": p.Fov = v; break;
-                // 弹簧跟随（相机位置滞后；0 = 焊死在角色身上 = 旧行为）—— UE 的 CameraLagSpeed
-                case "lag": p.LagSpeed = v; break;
-                case "lagmax": p.LagMaxDistance = v; break;      // 拖尾上限（米；0=不限）—— UE 的 CameraLagMaxDistance
-                // 运动驱动（2026-09-28）—— 全填 0 = 关掉该档的运动响应；总增益 custom.flight tune cammotion
-                case "fovvz": p.FovPerVz = v; break;             // 竖直速率每 1 m/s → FOV 加几度
-                case "armvz": p.ArmPerVz = v; break;             // 竖直速率每 1 m/s → 臂长加几米
-                case "rollyaw": p.RollPerYawRate = v; break;     // 航向角速度每 1°/s → 侧倾几度（反了填负）
-                default:
-                    return $"ERR unknown param '{field}' | arm pitch yaw pivotx pivoty pivotz socketx sockety socketz selfyaw selfpitch selfroll fov lag lagmax fovvz armvz rollyaw";
-            }
-            FlightCameraRig.Presets[idx] = p;
-
-            DebugLogger.Log("[FlightCam] " + FlightCameraRig.Describe(preset));
-            return "OK. " + FlightCameraRig.Describe(preset);
+            // 🪦 2026-10-05 阶段 3：逐参数设置**已迁移到 `custom.cam set`**（机位数值的唯一来源 = Camera.csv，
+            //    命令统一到相机模块）。旧写法返回迁移提示，**不静默**。
+            return $"ERR: 'custom.flight cam <preset> <param> <value>' retired -> use "
+                 + $"'custom.cam set fly_{k} <column> <value>' (e.g. custom.cam set fly_{k} arm 5). "
+                 + "'custom.cam show fly_" + k + "' to inspect.";
         }
 
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | 动画: blend hoverblend pitchblend | 机位: presetblend camblend camhandover camhandback | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camera: camsens caminvertx caminverty campitchmin campitchmax camlag cammotion | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle boostfwd spawngap settle";
+                return "ERR usage: custom.flight tune <key> <value> | anim: blend hoverblend pitchblend | camPreset: presetblend camblend camhandover camhandback mergedrig | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camLook: camsens caminvertx caminverty campitchmin campitchmax camlag cammotion | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle boostfwd spawngap settle";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -417,24 +395,31 @@ namespace LivingWorldNpcs.CampaignMode
                 case "bank": FlightTuning.BankThreshold = v; break;             // 进压弯的横移阈值（|A/D|；0=关掉压弯）
                 case "bankout": FlightTuning.BankExitThreshold = v; break;      // 退出压弯的阈值（迟滞）
                 case "statemsg": FlightTuning.ShowStateMessages = v != 0f; break; // 姿态变化时屏幕弹提示（0=关）
-                // 相机接管后的"看"（2026-09-21）
+                // 相机接管后的"看"（2026-09-21；🔴 2026-10-05 起这三项是 **Camera.csv 的逐 case 列**，
+                // 命令改的是**表行内存态**，不再有全局 FlightTuning 字段）
                 case "camfov": FlightTuning.UseFlightCamera = v != 0f; break;   // 同 cam on|off
-                case "camsens": FlightTuning.CamLookSensitivity = v; break;     // 鼠标灵敏度（度/像素基准）
+                // 🔴 **合并相机机器**（2026-10-05 阶段 4）：1 = 飞行走相机服务 + 合并机器（全项目一台机器）。
+                //    **改完要重进场景**（驱动在行为对象构造时选定）。A/B 用：一趟 0、一趟 1，比 [FlightCam] 日志与手感。
+                case "mergedrig": FlightTuning.UseMergedRig = v != 0f; break;
+                case "camsens":
+                    if (!FlightCameraRig.SetAllLookSens(v))
+                        return "ERR: Camera.csv fly_* rows missing -> camera cases not loaded (nothing changed)";
+                    break;                                                       // 鼠标灵敏度（度/像素基准）
                 case "caminvertx": FlightTuning.InvertCamX = v != 0f; break;    // 左右反向
                 case "caminverty": FlightTuning.InvertCamY = v != 0f; break;    // 上下反向
-                case "campitchmin": FlightTuning.CamPitchMin = v; break;
-                case "campitchmax": FlightTuning.CamPitchMax = v; break;
+                case "campitchmin":
+                    if (!FlightCameraRig.SetAllPitchMin(v))
+                        return "ERR: Camera.csv fly_* rows missing -> camera cases not loaded (nothing changed)";
+                    break;
+                case "campitchmax":
+                    if (!FlightCameraRig.SetAllPitchMax(v))
+                        return "ERR: Camera.csv fly_* rows missing -> camera cases not loaded (nothing changed)";
+                    break;
                 // 弹簧跟随速率（相机位置滞后）—— 一次改三档（悬停/巡航/冲刺），**瞄准档固定不滞后**
                 // （瞄目标时镜头必须是硬的，滞后会让准心飘）。0 = 相机焊死在角色身上 = 2026-09-27 之前的行为。
                 case "camlag":
-                    for (int i = 0; i < FlightCameraRig.Presets.Length; i++)
-                    {
-                        if (FlightCameraRig.PresetNames[i] == "aim")
-                            continue;
-                        SpringArmCameraParam cp = FlightCameraRig.Presets[i];
-                        cp.LagSpeed = v;
-                        FlightCameraRig.Presets[i] = cp;
-                    }
+                    if (!FlightCameraRig.SetAllLagSpeed(v))
+                        return "ERR: Camera.csv fly_* rows missing -> camera cases not loaded (nothing changed)";
                     break;
                 // 运动驱动的**总增益**（竖直速率 / 航向角速度 → FOV·臂长·侧倾）。0 = 一键关掉整套。
                 case "cammotion": FlightTuning.CamMotionGain = v; break;
@@ -443,7 +428,8 @@ namespace LivingWorldNpcs.CampaignMode
                     return $"ERR unknown key '{key}'";
             }
 
-            return $"OK. {key}={v} | {FlightTuning.Describe()}";
+            return $"OK. {key}={v} | {FlightTuning.Describe()}"
+                 + (key == "mergedrig" ? " | NOTE: takes effect after re-entering the scene (driver is picked when the behavior is created)" : "");
         }
     }
 }

@@ -497,6 +497,21 @@ namespace LivingWorldNpcs.Flight
         public static bool UseFlightCamera = true;
 
         /// <summary>
+        /// 🔴 **合并相机机器**（2026-10-05 阶段 4；**默认 false = 旧机器**）。
+        ///
+        /// 打开 = 飞行改用 `ServiceFlightDriver`（走 `CameraService` + `SpringArmRig`）——
+        /// 全项目只剩**一个** `CustomCamera` 写者、**一台**机器；钩索/跟随/飞行共用同一份逻辑。
+        /// 关着 = 原来的 `FlightCameraRig`（自己摆相机、自己读鼠标；它仍向相机服务登记持有权）。
+        ///
+        /// 🔴 **先 A/B 再切**（方案 §4 阶段 4）：两边各飞一趟完整流程，比 `[FlightCam]` 日志与手感，
+        /// 合格后把默认值改成 true、再删旧类。
+        /// ⚠️ **前置未知（已用反编译查清）**：引擎在 `CustomCamera != null` 时
+        /// `FillParametersFrom(相机)` + **仅当相机有实体时**才用实体帧覆盖；两台机器的相机都走"写相机 + 写实体"
+        /// 两条路，值相同 ⇒ 视角不变（反编译见 `SpringArmCameraView` 顶部注释）。
+        /// </summary>
+        public static bool UseMergedRig = false;
+
+        /// <summary>
         /// 相机**机位之间**的渐变时长（秒）。
         ///
         /// 🔴 **2026-09-21 起与 <see cref="AnimBlendIn"/> 解绑**：原先是两个字段取同一个值
@@ -539,16 +554,12 @@ namespace LivingWorldNpcs.Flight
         public static bool CamHandBackLook = true;
 
         // ── 相机接管后的"看"（🔴 接管相机就必须接管看，见 FlightCameraRig 的类型注释）──
-
-        /// <summary>
-        /// 鼠标灵敏度：**每像素转多少度**。最终值 = 本值 × 引擎的 <c>Input.MouseSensitivity</c>
-        /// （跟随玩家在选项里的设置），所以这里只给基准。
-        /// </summary>
-        public static float CamLookSensitivity = 0.12f;
-
-        /// <summary>上下视角钳制（度）。别让它翻过头 —— 抬头到 89 度以上画面会翻。</summary>
-        public static float CamPitchMin = -80f;
-        public static float CamPitchMax = 75f;
+        //
+        // 🪦 2026-10-05（阶段 1）：`CamLookSensitivity` / `CamPitchMin` / `CamPitchMax` 三个全局字段**已删除** ——
+        //    它们现在是**逐 case 的表格列**（`Camera.csv` 的 `LookSens` / `PitchMin` / `PitchMax`，
+        //    四档机位 `fly_*` 各一行），由 `FlightCameraRig.ApplyLook` / `SeedLookFromEngineCamera` 直接读表行。
+        //    `custom.flight tune camsens|campitchmin|campitchmax` 改的也是表行（内存态）—— **别再在这里加回来**：
+        //    留一份"看起来还在"的全局值 = 第二份真相。
 
         /// <summary>
         /// **运动驱动的总增益**（2026-09-28）—— 竖直速率 / 航向角速度对镜头（FOV·臂长·侧倾）的影响，
@@ -724,14 +735,14 @@ namespace LivingWorldNpcs.Flight
             HoverBlendSeconds = 1.0f;
             PitchBlendSeconds = 0.45f;
             UseFlightCamera = true;
+            UseMergedRig = false;      // 合并机器：默认关（A/B 合格后才切成 true）
             CamBlendIn = 0.45f;
             UseCamHandover = true;
             CamHandBackLook = true;
             AimOnRightClick = true;
-            CamLookSensitivity = 0.12f;
+            // 🪦 2026-10-05：`CamLookSensitivity` / `CamPitchMin` / `CamPitchMax` 已挪进 Camera.csv（逐 case 列），
+            //    不再在这里恢复出厂 —— 要改就 `custom.flight tune camsens|campitchmin|campitchmax`（改表行内存态）。
             CamMotionGain = 1f;
-            CamPitchMin = -80f;
-            CamPitchMax = 75f;
             InvertCamX = false;
             InvertCamY = false;
             PitchExitThreshold = 0.65f;

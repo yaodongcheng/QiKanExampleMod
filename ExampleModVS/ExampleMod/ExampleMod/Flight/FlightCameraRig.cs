@@ -41,7 +41,7 @@ namespace LivingWorldNpcs.Flight
     ///    （顺带：这条分支在 <c>SpringArmCameraView</c> 里是死代码 —— 它在调用前把
     ///     <c>IsAnchorWorld</c> 强制置 false 了。算法本身是好的，只是从没被走过。）
     /// </summary>
-    public sealed class FlightCameraRig
+    public sealed class FlightCameraRig : ICameraExternalHolder, IFlightCameraDriver
     {
         // ─────────────────────── 机位参数（可直接改；也能用 custom.flight cam 热调）───────────────────────
         //
@@ -52,61 +52,139 @@ namespace LivingWorldNpcs.Flight
         //   `SocketX`            = 相机横向偏移；**>0 ⇒ 相机往右移 ⇒ 角色在画面里偏左**
         //   `Fov`                = 垂直视场角（度）
 
-        /// <summary>4 个机位的参数表，下标 = <see cref="FlightCamPreset"/>。</summary>
-        /// <remarks>
-        /// 🔴 **两套"会动"的参数，别混**（2026-09-28）：
-        /// · `LagSpeed` / `LagMaxDistance` = **弹簧跟随**（相机位置滞后，UE 的 `CameraLagSpeed` / `CameraLagMaxDistance`）
-        /// · `FovPerVz` / `ArmPerVz` / `RollPerYawRate` = **运动驱动**（按竖直速率与航向角速度连续改 FOV/臂长/侧倾）
-        ///   两者的量纲都写在 <c>SpringArmCameraView.cs</c> 的字段注释里；**全填 0 = 关掉 = 老行为**。
-        /// 标定口径（我们这套飞行）：竖直速率上限按 20 m/s 钳（`SpringArmMath.MotionVzCap`）；
-        /// 航向角速度上限 = 航向追随速率（巡航 360°/s、冲刺 180°/s）⇒ 侧倾幅度天然被限住、不会失控。
-        /// </remarks>
-        public static readonly SpringArmCameraParam[] Presets = new SpringArmCameraParam[]
-        {
-            // 悬停：近一点 —— 悬停时会转镜头看角色
-            // 🔴 臂长 3.8 → **3.2**（2026-09-28 用户实机："悬浮和冲刺都有点远"）：
-            //    **悬停时人是停着的、拖尾 ≈ 0** ⇒ 这一档"画面上的距离"基本就等于臂长本身。
-            //    悬停飞行（9 m/s）时拖尾 9÷5 = 1.8 米 ⇒ 有效距离 3.2+1.8 ≈ **5.0**（原 5.6）。
-            new SpringArmCameraParam
-            {
-                ArmLength = 3.2f, Fov = 65f,
-                LagSpeed = 5f, LagMaxDistance = 4f,
-                FovPerVz = 0.4f, ArmPerVz = 0.08f, RollPerYawRate = 0.008f,
-            },
-            // 巡航：标准跟随
-            // 🔴 臂长 5.5 → **4.5**：有效距离 4.5+1.8 ≈ **6.3**（原 7.3）。
-            new SpringArmCameraParam
-            {
-                ArmLength = 4.5f, Fov = 70f,
-                LagSpeed = 5f, LagMaxDistance = 6f,
-                FovPerVz = 0.4f, ArmPerVz = 0.08f, RollPerYawRate = 0.008f,
-            },
-            // 加速：拉远 + 广角 ⇒ 地面景物掠过更快 = 速度感
-            // 🔴 这一档的 `LagSpeed` 是"弹性"最明显的地方（2026-09-27）：稳态拖尾 = 速度 ÷ LagSpeed，
-            //    冲刺 26 m/s ÷ 4 ≈ **6.5 米**尾巴；转弯时角色会先滑到画面一侧再滑回中间。
-            // 🔴 **臂长 9 → 6 → 4.5**（2026-09-28 用户实机两次反馈"太远"）：
-            //    画面上感觉到的距离 = **臂长 + 尾巴** ⇒ 现在 4.5+6.5 ≈ **11.0**（最初 15.5、上一版 12.5）。
-            //    继续收：`custom.flight cam boost arm <值>`；想收**尾巴**就 `cam boost lag <值>`
-            //    （lag 越大尾巴越短：5 ⇒ 5.2 米，6 ⇒ 4.3 米）。
-            // 🔴 运动驱动在这一档也最明显（2026-09-28）：45° 俯冲（竖直 18 m/s）⇒ FOV 80→89、臂长 4.5→6.3。
-            // 🔴 **拖尾收到 3.5 米**（2026-09-28 用户指定）：拖尾 = 速度 ÷ LagSpeed ⇒ 26 ÷ 7.4 ≈ **3.5 米**
-            //    （`LagSpeed` 由 4 提到 **7.4**）。画面距离 4.5+3.5 ≈ **8.0**（最初 15.5 → 12.5 → 11.0 → 8.0）。
-            //    ⚠️ LagSpeed 同时也决定"尾巴建立/收回的快慢"（时间常数 1/7.4 ≈ 0.14 秒，比原来 0.25 秒更跟手）。
-            //    要再改：`custom.flight cam boost lag <值>`（拖尾 = 26 ÷ 值）。
-            new SpringArmCameraParam
-            {
-                ArmLength = 4.5f, Fov = 80f,
-                LagSpeed = 7.4f, LagMaxDistance = 10f,
-                FovPerVz = 0.5f, ArmPerVz = 0.10f, RollPerYawRate = 0.015f,
-            },
-            // 瞄准：过肩近景；SocketX>0 ⇒ 人物偏左；FOV 收窄，视线集中
-            // 🔴 **瞄准档全关**（滞后 + 运动驱动都填 0）：这时玩家在瞄目标，镜头必须是硬的
-            //    （滞后会让准心飘、FOV 随俯仰变会让瞄准距离感失真）。
-            new SpringArmCameraParam { ArmLength = 1.9f, Fov = 55f, SocketX = 0.75f, SocketZ = 0.25f },
-        };
+        /// <summary>
+        /// 4 个机位的**表行**（下标 = <see cref="FlightCamPreset"/>；数值 = 行里的 `Param`，**唯一来源**）。
+        ///
+        /// 🔴 **2026-10-05（阶段 1）起：数值不在代码里了** —— 唯一来源 =
+        ///    `ModuleData/DesignData/Camera.csv` 的 `fly_hover` / `fly_cruise` / `fly_boost` / `fly_aim` 四行，
+        ///    由 <see cref="EnsureCases"/> 装载。
+        ///    **CSV 缺行 ⇒ 不接管相机**（`EnsureCases` 返回 false + 明确日志）—— **不做代码兜底**：
+        ///    代码里留一份"看起来还在"的值，只会掩盖表格坏掉这件事。
+        ///
+        /// 标定来历（数值在表里，理由留在这儿，**改表前先读**）：
+        /// · 三档臂长按"画面上的距离 = 臂长 + 拖尾"标定（冲刺拖尾 = 26 ÷ LagSpeed ≈ 3.5 米）——
+        ///   实机两次反馈"太远"，冲刺档 15.5 → 12.5 → 11.0 → **8.0** 米。
+        /// · `LagSpeed` / `LagMaxDistance` = 弹簧跟随（UE `CameraLagSpeed` / `CameraLagMaxDistance`）；
+        /// · `FovPerVz` / `ArmPerVz` / `RollPerYawRate` = 运动驱动（竖直速率→FOV/臂长、航向角速度→侧倾），
+        ///   量纲见 `SpringArmCameraView.cs` 的字段注释；标定口径 = 竖直速率上限 20 m/s
+        ///   （`SpringArmMath.MotionVzCap`）、航向角速度上限 = 航向追随速率（巡航 360°/s、冲刺 180°/s）。
+        /// · **瞄准档全关**（滞后 + 运动驱动都填 0）：玩家在瞄目标时镜头必须是硬的
+        ///   （滞后会让准心飘、FOV 随俯仰变会让瞄准距离感失真）。
+        /// </summary>
+        private static readonly CameraCase[] Cases = new CameraCase[4];
 
-        /// <summary>机位名（给控制台回显 / 日志用，下标与 <see cref="Presets"/> 对齐）。</summary>
+        /// <summary>四档是否已从表里装载成功（<see cref="EnsureCases"/> 的一次性开关）。</summary>
+        private static bool _casesLoaded;
+
+        /// <summary>机位名（给控制台回显 / 日志用，下标与 <see cref="Cases"/> 对齐）。</summary>
         public static readonly string[] PresetNames = { "hover", "cruise", "boost", "aim" };
+
+        /// <summary>某档的机位参数（唯一来源 = 表行；没装载 = 全零）。</summary>
+        public static SpringArmCameraParam PresetOf(int index)
+            => index >= 0 && index < Cases.Length && Cases[index] != null ? Cases[index].Param : default;
+
+        /// <summary>
+        /// **从 Camera.csv 装载四档机位**（幂等；缺行 → false + 明确日志 = 本次不接管相机）。
+        /// 没有表 / 表里没有 `fly_*` 行 = 内容坏了 —— 明确失败，别静默拿零值去飞。
+        /// </summary>
+        public static bool EnsureCases()
+        {
+            if (_casesLoaded)
+                return true;
+
+            string missing = null;
+            for (int i = 0; i < PresetNames.Length; i++)
+            {
+                string id = "fly_" + PresetNames[i];
+                if (!CameraCase.TryGet(id, out CameraCase c))
+                {
+                    missing = missing == null ? id : missing + ", " + id;
+                    continue;
+                }
+                Cases[i] = c;
+            }
+            if (missing != null)
+            {
+                DebugLogger.Log($"[FlightCam] 🔴 Camera.csv 缺行：{missing} —— **本次不接管相机**"
+                              + "（零值机位只会把镜头搞坏；不设代码兜底，请检查 ModuleData/DesignData/Camera.csv）");
+                return false;
+            }
+            _casesLoaded = true;
+            DebugLogger.Log("[FlightCam] 四档机位已从 Camera.csv 装载：" + DescribeAll());
+            return true;
+        }
+
+        /// <summary>四档是否可用（`custom.flight cam` 标题 / 诊断用）。</summary>
+        public static bool CasesLoaded => _casesLoaded;
+
+        /// <summary>改一档的机位参数（**写回表行** —— 表行就是唯一来源，`custom.cam set` 改的也是它）。</summary>
+        public static void SetPresetParam(int index, in SpringArmCameraParam p)
+        {
+            if (index < 0 || index >= Cases.Length)
+                return;
+            CameraCase c = Cases[index];
+            if (c != null)
+                c.Param = p;
+        }
+
+        /// <summary>四档一起改鼠标灵敏度（`custom.flight tune camsens`）。没装载 → false。</summary>
+        public static bool SetAllLookSens(float value)
+        {
+            if (!_casesLoaded)
+                return false;
+            for (int i = 0; i < Cases.Length; i++)
+                Cases[i].LookSens = value;
+            return true;
+        }
+
+        /// <summary>四档一起改**俯仰下限**（`custom.flight tune campitchmin`）。没装载 → false。</summary>
+        public static bool SetAllPitchMin(float value)
+        {
+            if (!_casesLoaded)
+                return false;
+            for (int i = 0; i < Cases.Length; i++)
+                Cases[i].PitchMin = value;
+            return true;
+        }
+
+        /// <summary>四档一起改**俯仰上限**（`custom.flight tune campitchmax`）。没装载 → false。</summary>
+        public static bool SetAllPitchMax(float value)
+        {
+            if (!_casesLoaded)
+                return false;
+            for (int i = 0; i < Cases.Length; i++)
+                Cases[i].PitchMax = value;
+            return true;
+        }
+
+        /// <summary>非瞄准档一起改滞后速率（`custom.flight tune camlag`；**瞄准档固定不滞后**）。没装载 → false。</summary>
+        public static bool SetAllLagSpeed(float value)
+        {
+            if (!_casesLoaded)
+                return false;
+            for (int i = 0; i < PresetNames.Length; i++)
+            {
+                if (PresetNames[i] == "aim")
+                    continue;
+                SpringArmCameraParam p = PresetOf(i);
+                p.LagSpeed = value;
+                SetPresetParam(i, in p);
+            }
+            return true;
+        }
+
+        /// <summary>四档一行一个（装载日志 / `custom.flight cam` 列表用）。</summary>
+        public static string DescribeAll()
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < PresetNames.Length; i++)
+            {
+                if (i > 0)
+                    sb.Append(" | ");
+                sb.Append(Describe((FlightCamPreset)i));
+            }
+            return sb.ToString();
+        }
 
         // ─────────────────────────────── 实例状态 ───────────────────────────────
 
@@ -194,14 +272,20 @@ namespace LivingWorldNpcs.Flight
                 if (_screen == null)
                     return false;
 
+                // 🔴 机位数值来自 `Camera.csv` 的 `fly_*` 四行（2026-10-05 阶段 1）——
+                //    缺行 = **本次不接管相机**（`EnsureCases` 里已有明确日志；不设代码兜底）
+                if (!EnsureCases())
+                    return false;
+
                 if (_camera == null)
                     _camera = Camera.CreateCamera();
+
+                _preset = FlightCamPreset.Cruise;      // 先定档：下面播种的俯仰钳位按"当前档"的表行取
 
                 // 播种：与引擎相机当前的视线完全对齐（取不到就回落到角色朝向，见方法内注释）
                 SeedLookFromEngineCamera(agent);
 
-                _current = Presets[(int)FlightCamPreset.Cruise];
-                _preset = FlightCamPreset.Cruise;
+                _current = PresetOf((int)FlightCamPreset.Cruise);
                 _blendDur = Math.Max(0.01f, FlightTuning.CamBlendIn);
                 _handingBack = false;              // 二次起飞：取消可能还在走的归还渐变
 
@@ -229,6 +313,16 @@ namespace LivingWorldNpcs.Flight
                 }
 
                 _active = true;
+                // 🔴 向相机服务登记"飞行在持有相机"（2026-10-05 阶段 2）：别人起播会被**拒绝**、
+                //    演出/对话的一次性机位会**抢占**（叫我们立刻放手，见 OnCameraPreempted）。
+                //    "视线找谁"也一并由服务分发（服务那唯一的 CameraLook 提供者会转给本 rig）。
+                // ⚠️ 起飞是主要玩法：**先顶掉当前持有者**（否则两台机器会各写各的 = 画面抖）。
+                if (CameraService.IsHeld && !CameraService.IsHeldBy("flight"))
+                {
+                    DebugLogger.Log($"[FlightCam] 起飞顶掉当前相机持有者 {CameraService.Holder}（飞行优先）");
+                    CameraService.Stop();
+                }
+                CameraService.TakeExternal("flight", this);
                 _lag.Reset();                      // 弹簧跟随重新播种（接管那一帧不滞后，随后自然拖起来）
                 _motion = default;                 // 运动量清零（行为层下一帧就会喂）
                 DebugLogger.Log($"[FlightCam] 已接管相机（世界锚定，鼠标驱动）yaw={_lookYaw:F0} pitch={_lookPitch:F0} " +
@@ -286,8 +380,17 @@ namespace LivingWorldNpcs.Flight
             }
 
             _lookYaw = look.RotationZ * DegPerRad;
-            _lookPitch = MBMath.ClampFloat(look.RotationX * DegPerRad,
-                                           FlightTuning.CamPitchMin, FlightTuning.CamPitchMax);
+            // 🔴 俯仰钳位 = **当前档的表行**（`Camera.csv` 的 `PitchMin`/`PitchMax` 列，2026-10-05 阶段 1）——
+            //    原来是全局 `FlightTuning.CamPitchMin/Max`，现在逐 case 配（四档当前同值）。
+            CameraCase c = Cases[(int)_preset];
+            if (c != null)
+            {
+                _lookPitch = MBMath.ClampFloat(look.RotationX * DegPerRad, c.PitchMin, c.PitchMax);
+            }
+            else
+            {
+                _lookPitch = look.RotationX * DegPerRad;
+            }
 
             // 同一个相机方向 → 顺便把"引擎 elevation 与我们的 pitch 谁正谁负"标定出来（出场写回要用）
             CalibrateEngineElevationSign();
@@ -335,8 +438,10 @@ namespace LivingWorldNpcs.Flight
             try
             {
                 HandBackLookToEngine();          // 🔴 先写回朝向，再撒手（否则引擎相机甩回接管那一刻）
-                if (_screen != null)
-                    _screen.CustomCamera = null;     // 置空 = 引擎相机回来
+                // 🔴 **只还自己那台**（2026-10-05 阶段 2 修的老 bug：原来无条件置 null，
+                //    会把别人（演出/钩索）正在用的相机踩掉）：服务先退登记，再按对象比对撒手。
+                CameraService.ReleaseExternal("flight");
+                CameraService.ReleasePresentedIf(_camera);
                 DebugLogger.Log("[FlightCam] 已归还相机");
             }
             catch (Exception ex)
@@ -356,7 +461,13 @@ namespace LivingWorldNpcs.Flight
             if (!_active)
                 return;
 
-            float s = FlightTuning.CamLookSensitivity * Math.Max(0.05f, Input.MouseSensitivity);
+            // 🔴 灵敏度 / 俯仰钳位 = **当前档的表行**（`Camera.csv` 的 `LookSens` / `PitchMin` / `PitchMax` 列；
+            //    2026-10-05 阶段 1 从全局 `FlightTuning` 挪到逐 case）。鼠标左右/上下反向仍是全局设备偏好。
+            CameraCase c = Cases[(int)_preset];
+            if (c == null)
+                return;      // 正常不会（Enter 已挡）；真到了这 = 不写方向，交给归还路径
+
+            float s = c.LookSens * Math.Max(0.05f, Input.MouseSensitivity);
             float sx = FlightTuning.InvertCamX ? 1f : -1f;
             float sy = FlightTuning.InvertCamY ? 1f : -1f;
 
@@ -365,7 +476,7 @@ namespace LivingWorldNpcs.Flight
 
             if (_lookYaw > 180f) _lookYaw -= 360f;
             if (_lookYaw < -180f) _lookYaw += 360f;
-            _lookPitch = MBMath.ClampFloat(_lookPitch, FlightTuning.CamPitchMin, FlightTuning.CamPitchMax);
+            _lookPitch = MBMath.ClampFloat(_lookPitch, c.PitchMin, c.PitchMax);
         }
 
         /// <summary>
@@ -423,7 +534,7 @@ namespace LivingWorldNpcs.Flight
                     if (_blendT < 1f)
                         _blendT = Math.Min(1f, _blendT + (_blendDur <= 0f ? 1f : dt / _blendDur));
 
-                    SpringArmCameraParam target = Presets[(int)_preset];
+                    SpringArmCameraParam target = PresetOf((int)_preset);
                     _current = (_blendT >= 1f)
                         ? target
                         : SpringArmMath.Lerp(in _from, in target, SpringArmMath.Ease(_blendT));
@@ -450,9 +561,8 @@ namespace LivingWorldNpcs.Flight
                 _camera.Frame = frame;
                 _camera.SetFovVertical(fovDeg * (MathF.PI / 180f), Screen.AspectRatio, 0.1f, 1000f);
 
-                MissionScreen screen = _screen ?? (ScreenManager.TopScreen as MissionScreen);
-                if (screen != null)
-                    screen.CustomCamera = _camera;
+                // 呈现（`CustomCamera = 相机`）走相机服务 —— 全项目唯一写者（阶段 2）
+                CameraService.Present(_camera);
             }
             catch (Exception ex)
             {
@@ -490,6 +600,21 @@ namespace LivingWorldNpcs.Flight
             {
                 return false;
             }
+        }
+
+        // ─────────────────────── 相机服务的"外部持有者"接口（过渡期：阶段 4 合并后退役）───────────────────────
+
+        /// <summary>被**抢占**（演出/对话的一次性机位要镜头）—— 立刻归还，不渐变（服务在抢占路径上同步调用）。</summary>
+        void ICameraExternalHolder.OnCameraPreempted()
+        {
+            DebugLogger.Log("[FlightCam] 被抢占（演出/对话要相机）—— 立刻归还");
+            Exit();
+        }
+
+        /// <summary>把"相机看向哪"给出去（相机服务那唯一的 `CameraLook` 提供者会转到这里）。</summary>
+        bool ICameraExternalHolder.TryGetLook(out Vec3 forward)
+        {
+            return TryGetBasis(out forward, out _);
         }
 
         // 🔴 这里曾有一个 `YawDegOf(agent)`（`atan2(look.y, look.x)`），已删除（2026-09-21）。
@@ -574,7 +699,7 @@ namespace LivingWorldNpcs.Flight
         /// <summary>一行参数摘要（控制台打印 / 日志用）。</summary>
         public static string Describe(FlightCamPreset p)
         {
-            SpringArmCameraParam v = Presets[(int)p];
+            SpringArmCameraParam v = PresetOf((int)p);
             return string.Format(
                 "{0,-6} arm={1:F1} yawBias={2:F1} pitchBias={3:F1} pivot=({4:F2},{5:F2},{6:F2}) socket=({7:F2},{8:F2},{9:F2}) fov={10:F0}" +
                 " | lag={11:F1} lagmax={12:F1} | fovvz={13:F2} armvz={14:F3} rollyaw={15:F3}",

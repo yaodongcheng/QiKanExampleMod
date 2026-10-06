@@ -94,6 +94,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				// 🔴 **这张白名单是子命令的准入表 —— 加新 case 必须同步加名字**（2026-10-05 事故：
 				//    aimcam/aimanchor/aimlift/aimsens 只加了 case 忘了加这里 ⇒ 命令被当"不认识"、
 				//    静默回落到 dump，用户敲 aimlift -100 "似乎根本没用"）。
+				// ⚠️ 那四个名字 2026-10-05 阶段 3 起**只用来返回"已迁移到 custom.cam"的提示**（功能已删）。
 				if (s == "anchor" || s == "clear" || s == "seg" || s == "len" || s == "radius"
 					|| s == "overlap" || s == "damp" || s == "grav" || s == "mesh" || s == "ground"
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
@@ -122,11 +123,13 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				return DoEquip();
 			}
 
-			// 🔴 瞄准相机四个旋钮 = **纯静态参数**，不碰任何 mission 对象 ⇒ 大地图上也能先设好
-			//    （2026-10-05：原来它们排在 mission 闸门后面，在场景外敲会被拦）。
+			// 🔴 瞄准相机的四个旋钮**已迁移到相机模块**（2026-10-05 阶段 3：命令统一到 `custom.cam`）——
+			//    名字仍留在白名单里，是为了**返回迁移提示**（静默回落 = 用户以为"没用"，2026-10-05 那次事故）。
 			if (sub == "aimcam" || sub == "aimanchor" || sub == "aimlift" || sub == "aimsens")
 			{
-				return ExecuteAimCameraKnobs(sub, args, at);
+				return "grapple: '" + sub + "' retired -> use 'custom.cam set grapple_shot <column> <value>'"
+					 + " [arm | socketz | sens | anchorhead 0|1 | anchorheight <m>], "
+					 + "or 'custom.cam play grapple_shot [seconds]' to watch it. (custom.cam list / show for details)";
 			}
 
 			if (Mission.Current == null || Agent.Main == null)
@@ -622,37 +625,42 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
 				case "cam":
 				{
-					// 三种用法：无参 = 看当前；`cam off` = 不接管；`cam <米>` = 引擎机位 + 拉远多少米；
-					//           `cam t:<模板名>` = 用 Camera.csv 的模板机位（方向相对角色，调试角度用）
+					// 🔴 **钩索相机总开关**（2026-10-05 阶段 3 收敛成这一条）：无参 = 看当前；
+					//    `cam off|on` = 瞄准 + 拉拽**两个相机一起**开关；`cam <米>` = 拉拽臂长（行里的值）。
+					//    （逐参数调节已迁移到 `custom.cam set grapple_pull arm <米>`。）
 					string name = ArgAt(args, at + 0);
 					if (string.IsNullOrEmpty(name))
 					{
-						result = GrapplePull.CameraArmLength <= 0f && string.IsNullOrEmpty(GrapplePull.CameraTemplate)
-							? "grapple: pull camera = OFF (engine camera)"
-							: $"grapple: pull camera = {(string.IsNullOrEmpty(GrapplePull.CameraTemplate) ? "engine-look + arm " + GrapplePull.CameraArmLength.ToString("F1") + "m" : "template " + GrapplePull.CameraTemplate)}";
+						result = $"grapple: gcams={(GrappleAimCamera.Enabled ? "ON" : "OFF")} pullArm={GrapplePull.CameraArmLength:F1}m"
+							   + (GrappleAimCamera.Enabled && GrapplePull.CameraArmLength <= 0f ? " (pull camera OFF)" : "")
+							   + " | " + GrappleAimCamera.StatusLine();
 						break;
 					}
-					if (name.Equals("off", StringComparison.OrdinalIgnoreCase))
+					if (name.Equals("off", StringComparison.OrdinalIgnoreCase) || name == "0")
 					{
-						GrapplePull.CameraArmLength = 0f;
-						GrapplePull.CameraTemplate = "";
-						result = "grapple: pull camera = OFF (engine camera; for comparison)";
+						GrappleAimCamera.Enabled = false;
+						result = "grapple: grapple cameras OFF (aim + pull use the engine camera; for comparison)";
+						break;
+					}
+					if (name.Equals("on", StringComparison.OrdinalIgnoreCase) || name == "1")
+					{
+						GrappleAimCamera.Enabled = true;
+						result = "grapple: grapple cameras ON | " + GrappleAimCamera.StatusLine();
 						break;
 					}
 					if (name.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
 					{
-						string tpl = name.Substring(2).Trim();
-						GrapplePull.CameraTemplate = tpl;
-						result = $"grapple: pull camera = template '{tpl}' (must exist in DesignData/Camera.csv; watch for a direction snap at takeover)";
+						result = "grapple: 'cam t:<template>' retired -> use 'custom.cam play <case> [seconds]'"
+							   + " (any Camera.csv row can be played)";
 						break;
 					}
 					float arm = ParseF(args, at + 0, -1f);
 					if (arm < 0f)
 					{
-						result = "Error: cam needs meters, 't:<template>' or 'off' (e.g. custom.grapple cam 8)";
+						result = "Error: cam needs 'off' | 'on' | <meters> (e.g. custom.grapple cam 8)";
 						break;
 					}
-					GrapplePull.CameraTemplate = "";
+					GrappleAimCamera.Enabled = true;
 					GrapplePull.CameraArmLength = arm;
 					result = $"grapple: pull camera = engine-look + arm {arm:F1}m";
 					break;
@@ -734,129 +742,6 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///    没装内容包 / 名字改了 = 这里给一句明确的英文错误，不崩。
 		/// 🔴 两轮查找（铁律 5）：第一轮按 StringId 精确找；第二轮在内存里按名字**包含**扫一遍兜底。
 		/// </summary>
-		/// <summary>
-		/// 瞄准相机四个旋钮（`aimcam` / `aimanchor` / `aimlift` / `aimsens`）—— **纯静态参数**，
-		/// 不碰任何 mission 对象 ⇒ 单独放在 mission 闸门**之前**（大地图上也能先设好）。
-		/// ⚠️ 这四个名字同时登记在 Execute() 顶部那张**子命令白名单**里 —— 漏登记 = 命令被吞、
-		/// 静默回落到 dump（2026-10-05 事故：`aimlift -100` "似乎根本没用"）。
-		/// </summary>
-		private static string ExecuteAimCameraKnobs(string sub, List<string> args, int at)
-		{
-			switch (sub)
-			{
-				case "aimcam":
-				{
-					// `aimcam`（看状态）· `aimcam off|on` · `aimcam <臂长米>` · `aimcam lock|unlock`（调试锁定）
-					string s = ArgAt(args, at + 0);
-					if (string.IsNullOrEmpty(s))
-					{
-						return "grapple: " + GrappleAimCamera.StatusLine();
-					}
-					if (s.Equals("off", StringComparison.OrdinalIgnoreCase) || s == "0")
-					{
-						GrappleAimCamera.Enabled = false;
-						GrappleAimCamera.Forced = false;
-						GrappleAimCamera.TestSeconds = 0f;
-						return "grapple: aimcam OFF | " + GrappleAimCamera.StatusLine();
-					}
-					if (s.Equals("lock", StringComparison.OrdinalIgnoreCase))
-					{
-						GrappleAimCamera.Enabled = true;
-						GrappleAimCamera.Forced = true;
-						GrappleAimCamera.TestSeconds = 0f;
-						return "grapple: aimcam LOCK (takes over without holding LMB) | " + GrappleAimCamera.StatusLine();
-					}
-					if (s.Equals("unlock", StringComparison.OrdinalIgnoreCase))
-					{
-						GrappleAimCamera.Forced = false;
-						GrappleAimCamera.TestSeconds = 0f;
-						return "grapple: aimcam UNLOCK (back to aim-only) | " + GrappleAimCamera.StatusLine();
-					}
-					if (s.Equals("test", StringComparison.OrdinalIgnoreCase))
-					{
-						// 试看：接管 N 秒后**自动切回**（默认 3 秒）—— 无脑看取景，不用记着 unlock
-						float sec = ParseF(args, at + 1, 0f);
-						GrappleAimCamera.Enabled = true;
-						GrappleAimCamera.Forced = true;
-						GrappleAimCamera.TestSeconds = sec > 0.1f ? sec : 3f;
-						return $"grapple: aimcam TEST {GrappleAimCamera.TestSeconds:F1}s (auto hands back) | " + GrappleAimCamera.StatusLine();
-					}
-					if (s.Equals("on", StringComparison.OrdinalIgnoreCase) || s == "1")
-					{
-						GrappleAimCamera.Enabled = true;
-						return "grapple: aimcam ON | " + GrappleAimCamera.StatusLine();
-					}
-					float arm = ParseF(args, at + 0, -1f);
-					if (arm <= 0f)
-					{
-						return "grapple: aimcam needs off|on|lock|unlock|<arm meters> | " + GrappleAimCamera.StatusLine();
-					}
-					GrappleAimCamera.Enabled = true;
-					GrappleAimCamera.ArmLength = arm;
-					return "grapple: " + GrappleAimCamera.StatusLine();
-				}
-
-				case "aimlift":
-				{
-					// 画面微调（米，负 = 画面里人往下挪；= UE 弹簧臂的 SocketOffset.Z）
-					float v = ParseF(args, at + 0, float.NaN);
-					if (float.IsNaN(v))
-					{
-						return $"grapple: aimlift = {GrappleAimCamera.LiftMeters:F2}m";
-					}
-					GrappleAimCamera.LiftMeters = v;
-					if (GrappleAimCamera.IsActive)
-					{
-						SpringArmCameraView.SetFollowSocketZ(v);   // 正在瞄准 = 即时看效果
-					}
-					return $"grapple: aimlift = {v:F2}m" + (GrappleAimCamera.IsActive ? " (live)" : "");
-				}
-
-				case "aimanchor":
-				{
-					// `aimanchor`（看）· `aimanchor auto`（跟头骨，默认）· `aimanchor engine`（引擎口径）·
-					// `aimanchor 1.10`（固定高度，米；= UE 弹簧臂的 TargetOffset.Z）
-					string s = ArgAt(args, at + 0);
-					if (string.IsNullOrEmpty(s))
-					{
-						return "grapple: " + GrappleAimCamera.StatusLine();
-					}
-					if (s.Equals("auto", StringComparison.OrdinalIgnoreCase))
-					{
-						GrappleAimCamera.AnchorFollowHead = true;
-						return "grapple: aimanchor AUTO (head bone) | " + GrappleAimCamera.StatusLine();
-					}
-					if (s.Equals("engine", StringComparison.OrdinalIgnoreCase))
-					{
-						GrappleAimCamera.AnchorFollowHead = false;
-						GrappleAimCamera.AnchorHeight = 0f;
-						return "grapple: aimanchor ENGINE | " + GrappleAimCamera.StatusLine();
-					}
-					float h = ParseF(args, at + 0, -1f);
-					if (h <= 0f)
-					{
-						return "grapple: aimanchor needs auto|engine|<height meters> | " + GrappleAimCamera.StatusLine();
-					}
-					GrappleAimCamera.AnchorFollowHead = false;
-					GrappleAimCamera.AnchorHeight = h;
-					return "grapple: " + GrappleAimCamera.StatusLine();
-				}
-
-				case "aimsens":
-				{
-					// 鼠标灵敏度（每像素度；最终 × 引擎设置里的灵敏度）
-					float v = ParseF(args, at + 0, -1f);
-					if (v <= 0f)
-					{
-						return $"grapple: aimsens = {GrappleAimCamera.Sensitivity:F3} (deg per pixel, x engine sensitivity)";
-					}
-					GrappleAimCamera.Sensitivity = v;
-					return $"grapple: aimsens = {v:F3}";
-				}
-			}
-			return "grapple: unknown aim knob.";
-		}
-
 		private static string DoEquip()
 		{
 			ItemObject hook = ResolveContentItem("taikou_grapple_hook", "grapple_hook");

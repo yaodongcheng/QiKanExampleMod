@@ -2,11 +2,49 @@
 
 > 路径相对 `ExampleModVS/ExampleMod/ExampleMod/`。这一卷管**演出/过场相机**（把镜头接管过来、按机位摆好）。
 
+## 🔴🔴 【硬规则】相机的一切改动只走这一套框架 —— 要拓展功能，也在框架里拓展（2026-10-06 用户裁定）
+
+**任何涉及自定义相机的东西 —— 加/改机位、接管镜头、跟拍、演出取景、载具/坐骑镜头、任何玩法要"看哪" —— 一律用下面三件，不得另起炉灶：**
+
+| 件 | 是什么 | 你该做的 |
+|---|---|---|
+| `Camera/CameraService.cs` | **唯一入口 + 持有者仲裁**；全项目**唯一**写 `MissionScreen.CustomCamera` 与 `CameraLook` 登记的地方 | 只说"**用哪一行 case**" + 一个 **owner 标签**：`Play / PlayEnginePose / Adopt / Switch / ApplyPose / SetXxx / RequestHandBack / Stop` |
+| `Camera/SpringArmRig.cs` | **唯一的相机机器**（接管 / 渐变 / 归还 / 鼠标驱动 / 锚点 / 弹簧滞后 / 运动驱动） | 要加**新能力**（新的驱动量、新的归还行为）→ 加在**机器里**（或 case 的列/开关里），**别在业务侧再写一台相机** |
+| `ModuleData/DesignData/Camera.csv` 的**一行**（解析入口 `Camera/CameraCase.cs`） | **唯一的机位数据** | 新机位 = **加一行**；新参数 = **加一列**（数值列只许追加、语义冻结）。中文只写在**第 3 行标签行**（纯人读） |
+
+**禁止清单**（都有前科）：
+- ❌ 直接 `MissionScreen.CustomCamera = …` —— 唯一合法写点 = `CameraService.Present / ReleasePresentedIf`。**新代码里出现一次就是错。**
+- ❌ 直接读写 `CameraLook.Provider` —— 唯一合法写点 = `CameraService` 那一个"路由器"提供者（用 `CameraLook.Set/Clear(owner)` 成对写法，防单槽互踩）。
+- ❌ 自建 `Camera.CreateCamera()` 接管画面 / 自己每帧算帧 = **第 N 台相机机器**（2026-10-05 已把两套合并成一套）。
+- ❌ 把机位数值硬编码进代码 —— 数值住表；**表缺行 = 不接管 + 明确日志，不做代码兜底**。
+- ❌ 给 NPC / 别的系统另造"玩家相机 UI"（UI 专属通道的边界见铁律 18）。
+
+**改完自查（三行 grep，括号里的命中范围 2026-10-06 实测过）**：
+```powershell
+# 1) 真写入只应命中 Camera/CameraService.cs（`CameraDebuggerView.cs` 未编译、待删；其余命中是注释）
+rg -n "CustomCamera\s*="      ExampleModVS --glob "*.cs"
+# 2) 登记"看"只应命中 Camera/CameraService.cs 的 `CameraLook.Set(...)`；直写 `Provider` 只应出现在注释里
+rg -n "CameraLook\.(Set|Clear)\(" ExampleModVS --glob "*.cs"
+rg -n "CameraLook\.Provider\s*=" ExampleModVS --glob "*.cs"
+# 3) 过渡期例外（阶段 4 合并后删）：SpringArmCameraView.cs（视图那台）+ FlightCameraRig.cs（旧飞行机器）
+rg -n "Camera\.CreateCamera"   ExampleModVS --glob "*.cs"
+```
+
+**过渡期已知例外**（不是新写法，别照抄）：`Camera/CameraDebuggerView.cs` + `CameraDebuggerVM.cs` 已从编译摘除（🪦 阶段 0）；`Flight/FlightCameraRig.cs` 是**旧飞行机器**（自摆相机、向服务登记为"外部持有者"），由 `FlightTuning.UseMergedRig` 决定用不用 —— **阶段 4 A/B 合格后连同它一起删**，此后全项目只剩上面那三件。
+
+**相机命令的三条分界线**（别的模块里还留着的相机相关命令，按这个判该不该搬）：
+| 类别 | 住哪 | 现存例子 |
+|---|---|---|
+| **机位数据**（镜头长什么样） | `Camera.csv` 一行；改它 = `custom.cam set` | `custom.grapple cam <米>`（写 `grapple_pull` 行的 ArmLength）· `custom.flight tune camsens\|campitchmin\|campitchmax\|camlag`（写 `fly_*` 行的内存值） |
+| **玩法政策 / 时序**（何时接管、何时还、滑多久） | 留玩法模块，作 `Adopt`/`Play` 的**调用参数**（§2.3 明确不进表） | `custom.grapple cam on\|off`（钩索相机总开关）· `camret` / `lookret`（归还时机与时长）· `custom.flight cam on\|off` |
+| **全局标定 / 设备偏好** | 代码（`FlightTuning`） | `tune cammotion`（运动驱动总增益）· `caminvertx/y`（鼠标反向）· `tune mergedrig` |
+| 🪦 **已退役（返回迁移提示）** | — | `custom.grapple aimcam\|aimanchor\|aimlift\|aimsens` · `custom.grapple cam t:<模板>` · `custom.flight cam <档> <参数> <值>` |
+
 ## 🔴🔴 先认两台相机：引擎相机 vs 自定义相机（2026-09-24 立 · CLAUDE.md 铁律 35 的分卷细则）
 
 | | **引擎相机**（默认） | **自定义相机**（我们挂上去的） |
 |---|---|---|
-| 谁在用 | 原版战斗 / 大地图视角 | 接管方 = `Camera/SpringArmCameraView`（演出 + 跟随）· `Flight/FlightCameraRig`（飞行）· `Camera/CameraDebuggerView`（调试 UI） |
+| 谁在用 | 原版战斗 / 大地图视角 | 接管方 = **`Camera/CameraService`**（唯一入口；机器 = `Camera/SpringArmRig`，跟随 / 钩索 / 演出 / 飞行共用）· `Flight/FlightCameraRig`（旧飞行机器，`FlightTuning.UseMergedRig` 决定用不用）· ~~`Camera/CameraDebuggerView`（调试 UI）~~ 🪦 2026-10-05 阶段 0 已删（它是第 3 个 `CustomCamera` 写者；相机调试走 `custom.cam log\|stat\|info\|test\|lift\|play\|stop\|set\|show\|list`） |
 | 判据 | `MissionScreen.CustomCamera == null` | `MissionScreen.CustomCamera != null` |
 | 鼠标 look | 引擎处理 ⇒ `CameraBearing` / `CameraElevation` **实时** | **引擎整段跳过**（`CheckForUpdateCamera` 只做 `FillParametersFrom` + 从**相机实体**取帧 + `SetCamera`）⇒ 那两个角度**冻在接管那一刻** |
 | 视线怎么取 | `Mat3.Identity` 绕 Up 转 `CameraBearing`、绕 Side 转 `CameraElevation`，取 **`.f`**（范本 `SpellPieces.CameraForward()`） | **问接管方自己**：飞行 = `FlightCameraRig.TryGetBasis(out forward, out right)`；演出 = 开演那一刻的机位口径 |
@@ -34,51 +72,101 @@
 | 2026-09-24 飞行中施法 | 接管期间直接读 `CameraBearing`（冻值） | 月牙会朝"接管那一刻看的方向"飞 ⇒ `CastDirection` 走飞行分支问 rig ✓ |
 | **2026-08-20 起就存在、09-24 才发现** | `Compass/CompassHud` 拿 `GetCameraFrame().rotation.f` 算罗盘 yaw（那是"上"向量） | 罗盘刻度带**低头/抬头时乱跳**、朝向读数不可信 ⇒ 已改走 `CameraLook.TryGet`（同一入口） |
 
-## 🔴 弹簧臂相机（模板机位 + 跟随模式）— `Camera/`（2026-09-22 登记）
+## 🔴 弹簧臂相机 = `CameraService`（唯一入口）— `Camera/`（2026-09-22 登记 · 2026-10-05 整合）
 
-**三个件**：
+**四个件**（自 2026-10-05「服务化 + 合并机器」起）：
 
 | 件 | 作用 |
 |---|---|
-| `Camera/SpringArmCameraView.cs` | MissionView（`MySubModule` 注册）。**两个入口**：静态机位 / 跟随机位 |
-| `Camera/SpringArmMath.cs` | 纯数学 `ComputeFrame` / `Lerp` / `Ease` —— **与飞行相机共用同一份**（`Flight/FlightCameraRig.cs`），别再抄第二份 |
-| `ModuleData/DesignData/Camera.csv` | 机位模板表（10 个模板；上游导入文件，表头列结构勿动） |
+| `Camera/CameraService.cs` | **全项目唯一入口 + 持有者仲裁**；也是**唯一写 `MissionScreen.CustomCamera` 与 `CameraLook` 登记**的地方 |
+| `Camera/SpringArmRig.cs` | **唯一的相机机器**（接管/渐变/归还/锚点/鼠标驱动/弹簧滞后/运动驱动）—— 跟随、钩索、飞行（开关打开时）共用这一份 |
+| `Camera/CameraCase.cs` | `Camera.csv` 的一行 → 参数 + 行为开关（唯一解析入口） |
+| `Camera/SpringArmCameraView.cs` | 只剩**视图**：生命周期 / 相机实体 / 调试滑杆 UI。**别在这里写任何"每帧摆相机"的逻辑** |
+| `Camera/SpringArmMath.cs` | 纯数学 `ComputeFrame` / `Lerp` / `Ease` / `WithMotion` / `LagToward` |
 
 ```csharp
-// ① 静态机位：只按"那一刻"的角色帧算一次 —— 角色一动就出画（对话/剧情演出在用）
-SpringArmCameraView.UseCameraTemlate("xm_Any_Side45_Far_R", speaker, listener, Vec3.Zero);
-// ② 🔴 跟随机位 —— 每帧按角色当前帧重算，角色走到哪镜头跟到哪。**两个入口，按用途挑**：
-//    ②a 表演镜头的默认做法（2026-09-22 用户裁定）：照抄引擎相机开演那一刻的机位，方向冻住、只跟位置
-bool ok = SpringArmCameraView.ApplyFollowFromEngineCamera(agent, seconds /* ≤0 = 不限时 */);
-//    ②b 要指定"看角色的哪个角度"时用模板（方向按模板，**跟着角色转**；臂长/FOV 从引擎相机渐变过去）
-bool ok2 = SpringArmCameraView.ApplyFollowTemplate("sp_lordshall", agent, seconds);
-SpringArmCameraView.StopFollowCamera();      // 立刻归还（幂等）；到点会自己渐变归还
+// ① 一次性静态机位：只按"那一刻"的角色帧算一次 —— 角色一动就出画（对话/剧情演出在用）
+SpringArmCameraView.UseCameraTemlate("xm_Any_Side45_Far_R", speaker, listener, Vec3.Zero);   // 签名保留（5 处调用点不动）
+CameraService.ApplyPose("xm_Any_Side45_Far_R", speaker, listener, Vec3.Zero);   // = 同一件事；**会抢占**当前持有者
+// ② 🔴 跟随/接管 —— 一切机位都是 Camera.csv 的一行；调用方只说"用哪一行"
+//    ②a 表演镜头的默认做法（Seed=Engine）：照抄引擎相机开演那一刻的机位，方向冻住、只跟位置
+bool ok  = CameraService.PlayEnginePose(agent, seconds /* ≤0 = 不限时 */, "perf:exec_pair");
+//    ②b 要指定"看角色的哪个角度"时用行（Seed=Row：方向按行、臂长/FOV 从引擎相机渐变过去）
+bool ok2 = CameraService.Play("sp_lordshall", agent, seconds, "perf:exec_pair");
+// ③ 同一位持有者换阶段（不重播种，钩索收编走这条）/ 换 case（飞行机位切换）
+CameraService.Adopt("grapple_pull", "grapple", new CameraStage { Seconds = 4f, Policy = policy, HasPolicy = true });
+CameraService.Switch("fly_boost", 0.45f);
+// ④ 现场改（仅当前持有者）/ 归还 / 查询
+CameraService.SetArmLength(8f); CameraService.SetLook(yaw, pitch); CameraService.SetMotion(in motion);
+CameraService.BeginLookReturn(1.2f); CameraService.RequestHandBack(1.2f); CameraService.Stop();
+CameraService.IsHeld / Holder / CurrentCase / IsHeldBy("flight") / TryGetBasis(out f, out r);
 ```
 
-🔴 **②a 与 ②b 的区别 = 方向跟不跟角色转**：②a **世界锚定**（方向锁死在开演那一刻，角色转身镜头不甩）——
-"视角还是玩家原来的视角，只是跟着人平移"；②b 锚在角色身上（`ArmYaw=0` 就是角色正后方，角色转身镜头跟着转）。
-表演类需求默认用 ②a；只有明确要"必须看角色背后/侧面"时才用模板。
+🔴 **仲裁规则**（2026-10-05 用户审定）：常规起播（`Play` / `PlayEnginePose` / `Adopt`）**被占用 = 拒绝** + 日志；
+`ApplyPose`（演出/对话的一次性机位）= **抢占**（先停旧持有者）；静态机位可以被新 `Play` 顶掉；
+**只有持有者能置 `CustomCamera = null`**（老 bug：飞行 `Exit` 无条件置 null，会踩掉别人的相机）。
+**飞行**（阶段 4 前）以"外部持有者"身份登记（`ICameraExternalHolder`）—— 别人起播被拒、演出抢占会叫它放手。
 
-**机位口径**（模板列）：`Pivot*` 锚点偏移（锚 = 角色脚底 + 眼高 1.4626 m）· `ArmLength` 臂长 = 相机离角色多远 ·
-**`ArmYaw = 0` = 角色正后方**（仅在 `IsAnchorWorld=false` 的模板路径下是这个含义）· `ArmPitch` 俯仰 ·
-`Socket*` 相机额外偏移 · `Self*` 相机自身旋转 · `Fov` 视场 · `AttachType`（Player/Speaker/Listener/AnchorWorld）
-**只喂静态入口**，两个跟随入口都不看它（锚 = 你显式传的 agent）。几个现成模板：`sp_lordshall`（领主背后，
-约 4 m 后方 + 低 0.76 m）· `sp_eye`（第一人称）· `xm_Self_Side30_Mid_R` / `xm_Any_Side45_Far_R`（对话过肩/侧 45°）。
+🔴 **②a 与 ②b 的区别 = 方向从哪来**：`Seed=Engine` **世界锚定**（方向锁死在开演那一刻，角色转身镜头不甩）——
+"视角还是玩家原来的视角，只是跟着人平移"；`Seed=Row` 锚在角色身上（`ArmYaw=0` 就是角色正后方）。
+表演类需求默认用 `Seed=Engine`（`follow_engine` 行）；只有明确要"必须看角色背后/侧面"时才用演出模板行。
+两个 `Seed` 的行都由**同一台机器**跑（差别只在播种那一步）。
 
-🔴 **照抄引擎机位的方向换算走 `Vec3.RotationZ` / `RotationX`**（`TryBuildEngineCameraParam`），
+**机位口径**（行里的列）：`Pivot*` 锚点偏移（锚 = 角色脚底 + 眼高，口径见 `UseEngineEyeHeight`）· `ArmLength` 臂长 ·
+**`ArmYaw = 0` = 角色正后方**（仅 `IsAnchorWorld=0` 的行是这个含义）· `ArmPitch` 俯仰 · `Socket*` 相机额外偏移 ·
+`Self*` 相机自身旋转 · `Fov` 视场 · `AttachType`（Player/Speaker/Listener/AnchorWorld，**只喂一次性机位那条路**）。
+现成行：`sp_lordshall`（领主背后，约 4 m 后方 + 低 0.76 m）· `sp_eye`（第一人称）·
+`xm_Self_Side30_Mid_R` / `xm_Any_Side45_Far_R`（对话过肩/侧 45°）· `follow_engine`（照抄引擎机位）·
+`fly_*` 四档（飞行）· `grapple_shot` / `grapple_pull`（钩索）。
+
+🔴 **照抄引擎机位的方向换算走 `Vec3.RotationZ` / `RotationX`**（`SpringArmRig.TryBuildEngineCameraParam`），
 **不是 `atan2(y, x)`** —— 两者差 90°，飞行相机 2026-09-21 在这上面栽过一次（接管瞬间镜头横甩 90°）。
 
 🔴 **接管相机 = 必须接管"看"**：一挂 `MissionScreen.CustomCamera`，`MissionScreen.CheckForUpdateCamera` 整段早退
-⇒ 引擎不再处理鼠标 look，`CameraBearing/CameraElevation` **冻在接管那一刻**。几秒的表演镜头无所谓；
-要长时间能自由看，得像 `Flight/FlightCameraRig.cs` 那样自己读鼠标（`ApplyLook`）+ 归还时用反射把朝向写回引擎。
+⇒ 引擎不再处理鼠标 look，`CameraBearing/CameraElevation` **冻在接管那一刻**。行的 `MouseLook=1` = 机器自己读鼠标
+（灵敏度 = 行的 `LookSens` × 引擎 `Input.MouseSensitivity`）；演出那种几秒的镜头不填 = 不驱动。
 
-🔴 **进出场只渐"臂长 / FOV"，不渐方向** —— 方向按模板一次到位；渐方向 = 镜头绕着人转一圈（飞行相机实机踩过）。
+🔴 **进出场只渐"臂长 / FOV"，不渐方向** —— 方向一次到位；渐方向 = 镜头绕着人转一圈（飞行相机实机踩过）。
 
 **判据 / 坑**：
-- 模板名不在表里 → 两个入口都**明确失败**（`ApplyFollowTemplate` 返回 false + `[FollowCam]` 日志），**不接管**，
-  引擎相机继续用；别让"什么都不发生"静默过去。
-- 跟随模式的锚点没了（换场景 / agent 被移除）→ 自己收摊（日志 `[FollowCam] 已归还相机`）。
-- 想边调边看：`custom.openSpringArmCamDebugger`（带滑杆的调试 UI）· `custom.useSpringArmCamera <模板> [agentId]`。
+- 行名不在表里 → **明确失败**（`Play` 返回 false + 日志），**不接管**，引擎相机继续用；别让"什么都不发生"静默过去。
+- 跟随模式的锚点没了（换场景 / agent 被移除）→ 自己收摊（日志 `[FollowCam] 锚点没了…已归还相机`）。
+- 想边调边看：`custom.openSpringArmCamDebugger`（带滑杆的调试 UI）· `custom.useSpringArmCamera <行名> [agentId]` ·
+  `custom.cam play <行名> [秒]`（**首选**，不用开 UI）。
+
+### 🔴 机位数据 = Camera.csv（2026-10-05 阶段 1「数值搬家」已落地）
+
+- **唯一来源** = `ModuleData/DesignData/Camera.csv`（**UTF-8 无 BOM + CRLF + 三行表头**：①英文键 ②类型 ③中文标签；
+  数据从第 4 行起）。**数值列只许追加**（语义冻结）—— 老行缺列 = 0 = 旧行为。
+  🔴 **2026-10-06 两处清理**：① `ScriptName` 列**已删**（中文描述、全仓零消费者；顺带修掉"中文进控制台"隐患）——
+  改中文标签只改**第 3 行**，那是纯人读行，代码一行不碰；② 编码 **GBK → UTF-8**（与同目录 `Emotion.csv` 一致；
+  老 GBK 在编辑器里整片乱码，且加载器 `CsvLoader` 本就按 UTF-8 读 ⇒ 旧的中文列在内存里一直是乱码）。
+  新增 14 列 = `IsAnchorWorld` · `UseEngineEyeHeight` · `LagSpeed`/`LagMaxDistance` ·
+  `FovPerVz`/`ArmPerVz`/`RollPerYawRate` · `Seed`(Engine/Row) · `MouseLook`/`LookSens`/`PitchMin`/`PitchMax` ·
+  `AnchorFollowHead`/`AnchorHeight`。
+- **解析入口只有一个** = `Camera/CameraCase.cs`（`TryGet(行名, out case)` / `All()`）→ 产
+  `SpringArmCameraParam` + 行为开关。🔴 0/1 开关的**类型行写 `float`**（`bool.TryParse("1")` 为 false、
+  `DynamicRecord.GetFloat` 只认 float），代码读 `GetFloat(...) > 0.5f`。
+- **数值在表里的消费者**：飞行四档（`fly_hover`/`fly_cruise`/`fly_boost`/`fly_aim`，`FlightCameraRig.EnsureCases()` 装载）·
+  钩索两档（`grapple_shot`/`grapple_pull`）· 跟随/一次性机位走同一个 `CameraCase`。
+  **缺行 = 不接管相机 + 明确日志（不做代码兜底）** —— 代码里留一份"看起来还在"的值只会掩盖表格坏掉。
+- **命令（2026-10-05 阶段 3 全部收编到 `custom.cam`）**：`play <case> [秒]`（起播任意行；替代钩索 `aimcam lock/test`
+  与飞行逐参数命令）· `stop` · `set <case> <列> <值>`（**热改内存行，改的正是当前那行 ⇒ 实时可见**）·
+  `show [case]` / `list`（静态核对）· 以及原有的 `log|stat|info|test|lift`。
+  旧名一律返回"已迁移到 custom.cam …"提示（`custom.grapple aimcam|aimanchor|aimlift|aimsens`、
+  `custom.flight cam <档> <参数> <值>`、`custom.grapple cam t:<模板>`），**不静默**。
+- `custom.flight tune camsens|campitchmin|campitchmax|camlag` 改的也是**表行（内存态）** ——
+  `FlightTuning` 里那三个全局字段（`CamLookSensitivity`/`CamPitchMin`/`CamPitchMax`）已删，别再往回加。
+
+### 🔴 合并机器（2026-10-05 阶段 4 · `FlightTuning.UseMergedRig`，默认 0）
+
+- 打开 = 飞行改用 `ServiceFlightDriver`（`Flight/FlightCameraDriver.cs`）走 `CameraService` + `SpringArmRig`
+  —— **全项目一台机器、一个 `CustomCamera` 写者**；关 = 旧的 `FlightCameraRig`（自己摆相机，仍向服务登记持有权）。
+- 行为层只认接口 `IFlightCameraDriver`（`Enter/Exit/BeginHandBack/ApplyLook/SetMotion/SetPreset/Tick/IsActive/
+  IsHandingBack/LookYaw/TryGetBasis`）—— 两台机器各实现一份，**别在行为层写 `if (UseMergedRig)`**。
+- **改 `UseMergedRig` 要重进场景**（驱动在行为对象构造时选定）。
+- 🔴 **A/B 时盯一处口径差**：写回引擎朝向的**时机** —— 旧机器"滑行结束时写回"、合并机器"滑行开始时写回"
+  （与跟随/钩索那条路一致）。落地瞬间镜头有差就先看这里。
 
 ## 🔴 弹簧臂的两个共用件：**位置滞后** + **运动驱动**（2026-09-28 立）
 

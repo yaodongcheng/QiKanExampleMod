@@ -1,0 +1,25 @@
+{
+  "name": "gou_chain",
+  "title": "",
+  "subtitle": "",
+  "sides": {
+    "dst": {
+      "label": "骑砍2 · 钩索链",
+      "color": "#e0b070",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "assets/dst.glb"
+        }
+      ]
+    }
+  }
+}

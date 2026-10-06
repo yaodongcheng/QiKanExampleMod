@@ -209,7 +209,7 @@
     · 要临时增减模块 = **用户改启动参数**，不是去点启动器
 
 35. 🔴🔴 **相机有两台，方向别串门 —— 自定义相机接管期间，"看向哪/朝哪算"一律只认自定义相机**（2026-09-24 用户裁定写死；这条已失误多次：飞行 2026-09-21、法术 2026-09-24）
-    - **判据**：`MissionScreen.CustomCamera != null` = **接管中**。本项目的接管方 = `Camera/SpringArmCameraView`（演出/跟随机位）· `Flight/FlightCameraRig`（飞行）· `Camera/CameraDebuggerView`（调试 UI）。
+    - **判据**：`MissionScreen.CustomCamera != null` = **接管中**。本项目的接管方 = `Camera/CameraService`（**唯一入口**；机器 = `SpringArmRig`，跟随/钩索/飞行共用）· `Flight/FlightCameraRig`（旧飞行机器，2026-10-05 阶段 4 起由 `FlightTuning.UseMergedRig` 决定用不用）。~~`Camera/CameraDebuggerView`~~ 🪦 2026-10-05 阶段 0 已删（相机调试走 `custom.cam log|stat|info|test|lift|play|stop|set|show|list`）。
     - **为什么**（反编译实锤，写在 `SpringArmCameraView.cs:134`）：`CustomCamera != null` 时 `MissionScreen.CheckForUpdateCamera` **整段跳过**引擎的相机更新，只做三件事 —— `CombatCamera.FillParametersFrom(CustomCamera)` / `CombatCamera.Frame = CustomCamera.Entity.GetGlobalFrame()` / `SetCamera`。引擎既然不更新相机，就**不再处理鼠标 look**。
     - ❌ **接管期间禁止读**：`MissionScreen.CameraBearing` / `CameraElevation`（**冻在接管那一刻**的旧值 —— 读了 = "画面 A、计算 B、鼠标没反应"三重错位）。
     - ❌ **任何情况下都别用 `Mission.GetCameraFrame()` 取方向**（2026-09-24 实机日志实测它的基向量：**`.f` 是"上"**、`.u` 是视线的**反向**（≈ −视线）、`.s` 是右向）—— 想要视线得写 `-rotation.u`，**极易再错一次**，所以直接别碰它。

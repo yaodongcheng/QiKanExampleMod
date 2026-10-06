@@ -54,7 +54,7 @@ namespace LivingWorldNpcs.Flight
     ///
     /// 🔴 载具只能逐帧瞬移（<c>SetFrame</c>）；用物理速度驱动 = 完全不托人（实测）。
     /// </summary>
-    public class PlayerFlightBehavior : MissionBehavior, ICameraLookProvider
+    public class PlayerFlightBehavior : MissionBehavior
     {
         public override MissionBehaviorType BehaviorType => MissionBehaviorType.Other;
 
@@ -76,22 +76,20 @@ namespace LivingWorldNpcs.Flight
         }
 
         /// <summary>
-        /// <see cref="ICameraLookProvider"/> 的实现 ——
-        /// 相机归我们管时，**全项目要"相机看向哪"都从这里拿**（CLAUDE.md 铁律 35 的唯一入口
-        /// <see cref="CameraLook"/>）。没接管时返回 false，调用方回落引擎相机。
+        /// 🪦 2026-10-05（阶段 2）：本类原来直接实现 <c>ICameraLookProvider</c> 并每帧写
+        /// <c>CameraLook.Provider</c> —— 那是单槽互踩的老写法（甲退出会踩掉乙的登记）。现在
+        /// **视线由相机服务统一分发**：飞行 rig 登记为服务的"外部持有者"（`FlightCameraRig` 实现
+        /// <see cref="ICameraExternalHolder"/>），服务的提供者把 `TryGetLook` 转给 rig。
+        /// 要方向照旧走 <see cref="CameraLook.TryGet"/>（铁律 35 的唯一入口），别直接读本类。
         /// </summary>
-        bool ICameraLookProvider.TryGetLook(out Vec3 forward)
-        {
-            forward = Vec3.Zero;
-            if (!_camEntered || !_camRig.TryGetBasis(out forward, out _))
-            {
-                return false;
-            }
-            return forward.LengthSquared > 1e-6f;
-        }
 
         public PlayerFlightBehavior()
         {
+            // 相机驱动：`UseMergedRig` 打开 = 走相机服务（合并机器）；关 = 旧的飞行机（默认）
+            _camRig = FlightTuning.UseMergedRig
+                ? (IFlightCameraDriver)new ServiceFlightDriver()
+                : new FlightCameraRig();
+
             // 从注册表按名字取（定义在 FlightAnimMachine；注册在 MySubModule.OnSubModuleLoad）。
             // 定义没注册也不会崩 —— 注册表会给一台空机器（动画不播，其它照常）。
             _anim = AnimMachineRegistry.Create(FlightAnimMachine.Name, _animCtx);
@@ -172,7 +170,10 @@ namespace LivingWorldNpcs.Flight
         private Vec2 _engineInput;          // Flags 档取证：冻结前引擎写的移动向量
         private bool _engDisabledBeforeCamera;  // 取证：引擎相机冲刷【之前】读到的 IsDisabled（见 OnPreDisplayMissionTick）
 
-        private readonly FlightCameraRig _camRig = new FlightCameraRig();
+        // 🔴 **相机驱动 = 按开关二选一**（2026-10-05 阶段 4）：旧的 `FlightCameraRig`（自己摆相机）
+        //    或 `ServiceFlightDriver`（走相机服务 + 合并机器）。两者接口相同，本类其余代码一行不用改。
+        //    ⚠️ 字段在构造函数里赋值 —— **别写成字段初始化器**（那样拿不到 FlightTuning 的运行期值）。
+        private readonly IFlightCameraDriver _camRig;
         private bool _camEntered;               // rig 是否已接管（避免每帧重复 Enter）
 
         // ─────────────────────── 动画状态机（注册制，定义见 Flight/FlightAnimMachine.cs）───────────────────────
@@ -252,10 +253,10 @@ namespace LivingWorldNpcs.Flight
                     ? $"[Flight] 坠落接缝：状态「{_fallPoseState}」= 出机后那段（定义里 fall-trigger 那条边的 to）"
                     : "[Flight] ⚠️ 定义里没有 `when=\"fall-trigger\"` 的边 ⇒ 退回老写法（机外 = 出机那一刻）");
             }
-            // 🔴 相机归我们管 ⇒ 向全项目登记"要视线找我"（铁律 35 的唯一入口）。
-            //    每帧同步一次（幂等）：接管/归还的所有路径都不用各自记得登记与注销。
-            CameraLook.Provider =
-                (_camEntered && _camRig.IsActive) ? this : null;
+            // 🔴 相机归我们管 ⇒ "要视线找我"已由**相机服务**统一分发（2026-10-05 阶段 2）：
+            //    飞行 rig 在 `Enter` 时向 `CameraService.TakeExternal("flight", rig)` 登记，
+            //    服务那唯一的 `CameraLook` 提供者会把 `TryGetLook` 转给 rig。
+            //    **别再在这里直接写 `CameraLook.Provider`** —— 那是单槽互踩的老写法。
             FlightInput.Tick(dt);
             UpdateKeyFacts();
             LogInputEdges();
@@ -392,8 +393,7 @@ namespace LivingWorldNpcs.Flight
         public override void OnRemoveBehavior()        {
             if (Current == this)
                 Current = null;
-            if (CameraLook.Provider == this)
-                CameraLook.Provider = null;
+            CameraService.ReleaseExternal("flight");   // 幂等；视线登记由相机服务统一管（阶段 2）
             try
             {
                 AbortFlight();
