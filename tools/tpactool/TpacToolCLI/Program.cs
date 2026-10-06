@@ -32,6 +32,9 @@ string p2Arg = null;     // clipparams: Param2（可省）
 string p3Arg = null;     // clipparams: Param3（可省）
 string addArg = null;    // clipflags: 要加的 flag（逗号分隔）
 string removeArg = null; // clipflags: 要删的 flag
+string alphaTestArg = null; // matflags: 新的 alphaTest 阈值
+string blendArg = null;     // matflags: 新的 blend 模式
+bool withAlphaArg = false;  // texreplace: 走 BC3/DXT5（带 alpha）而不是 DXT1
 bool inPlaceArg = false; // clipprio: 原地覆盖（自动备份）
 string dispArg = null;   // clipset: "X,Y,Z"
 string endArg = null;    // clipset: endProgress（可省）
@@ -61,6 +64,9 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--p3": p3Arg = cmdLine[++i]; break;
             case "--add": addArg = cmdLine[++i]; break;
             case "--remove": removeArg = cmdLine[++i]; break;
+            case "--alphatest": alphaTestArg = cmdLine[++i]; break;
+            case "--blend": blendArg = cmdLine[++i]; break;
+            case "--alpha": withAlphaArg = true; break;
             case "--inplace": inPlaceArg = true; break;
             case "--disp": dispArg = cmdLine[++i]; break;
             case "--end": endArg = cmdLine[++i]; break;
@@ -174,7 +180,7 @@ switch (command)
     }
     case "texreplace":
     {
-        return ReplaceTex.Run(dir, filter, mapping, outDir);
+        return ReplaceTex.Run(dir, filter, mapping, outDir, withAlphaArg);
     }
     case "inspect":
     {
@@ -327,6 +333,29 @@ switch (command)
             return 1;
         }
         return ClipFlags.Run(dir, filter, addArg, removeArg, outDir, inPlaceArg);
+    }
+    case "matflags":
+    {
+        // 离线改 Material 的 shader flags / alphaTest / blend（字节级；见 MatFlags.cs 的说明）
+        float? alphaVal = null;
+        if (alphaTestArg != null)
+        {
+            float af;
+            if (!float.TryParse(alphaTestArg, NumberStyles.Float, CultureInfo.InvariantCulture, out af))
+            {
+                Console.Error.WriteLine($"matflags: --alphatest parse failed: '{alphaTestArg}'");
+                return 1;
+            }
+            alphaVal = af;
+        }
+        if (addArg == null && removeArg == null && !alphaVal.HasValue && blendArg == null)
+        {
+            Console.Error.WriteLine("matflags requires --filter <materialNameSubstr> and at least one of"
+                                  + " --add <flag[,flag]> / --remove <flag[,flag]> / --alphatest <0..1> / --blend <mode>"
+                                  + " [--out dir] [--inplace]");
+            return 1;
+        }
+        return MatFlags.Run(dir, filter, addArg, removeArg, alphaVal, blendArg, outDir, inPlaceArg);
     }
     case "clipprio":
     {

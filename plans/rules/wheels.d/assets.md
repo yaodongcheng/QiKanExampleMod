@@ -1435,6 +1435,16 @@ entity.SetVisibilityExcludeParents(true);                           // 🔴 原�
 | `GbufferAlphaBlend` | 整块地面**光照变暗** —— 它改了 G-buffer 的其它通道（法线/AO） | ❌ |
 | 换**非 decal shader**（试过 `_metallic`） | **不贴地**（不认投影体积） | ❌ |
 
+> 🔴🔴 **2026-10-06 更正（实机四格）**：上表"**不看 alpha**"只在**材质没勾 `alpha_test`** 时成立。
+> **勾上 `alpha_test` + 材质 `alphaTest` 值 > 0** ⇒ 贴图 alpha 会**硬裁**掉像素（`clip(alpha − g_alpha_ref)`），
+> **形状就跟着贴图 alpha 走**（任意轮廓、二值、无羽化）。
+> · 两把钥匙缺一不可：**flag 决定那段代码编不编译**（`flagDefs.rsh:92` 默认 0），**数值是阈值**（填 0 = 一个都不裁）。
+> · ModKit 面板**看不到** `alpha_test` 勾选项 ⇒ `tpaccli matflags --add alpha_test` 离线写；**每次 Publish 会冲掉**。
+> · **贴图 PNG / DDS 无关**（两种导入落地都是 DXT5 + alpha 活着，逐格表现一致）。
+> · 想**羽化**（非硬裁）⇒ 改走 `use_mask_texture`（tex[1] 软遮罩），未实测。
+> · 源码调用在**入口 `.rs`**（`decal.rs:61` 等五处），只 grep `deferred_decal.rsh` 会误判"decal 不吃 alphaTest"。
+> 详见 [Knowledge/骑砍2贴花系统.md](../../../Knowledge/骑砍2贴花系统.md) 卷首「2026-10-06 定案」。
+
 **贴图规格**：空白区 **RGBA 全 0**（RGB=0 → 加法无痕；alpha=0 → 万一换 lerp 也无痕）。
 ⚠️ **判 alpha 以 ModKit 为准** —— `tpaccli dump` 出的 alpha 与 ModKit 显示**相反**。
 ⚠️ 带 alpha 的贴图**不能过 `png_for_editor.py`**（它丢 alpha = 丢形状）。
@@ -1462,6 +1472,142 @@ entity.SetVisibilityExcludeParents(true);                           // 🔴 原�
 > 一句话：**A 路的混合是「地面」做的，B 路的混合是「贴花自己」做的。**
 
 
+
+### 21.9 🔴🔴 形状由**贴图 alpha** 决定 —— 两把钥匙 + 离线写 flag 的工具（2026-10-06 登记，实机四格定案）
+
+**解决什么问题**：B 路（`decal_mesh`）以前只能做**整块方形**（21.8 那条「边界只能方形」）。
+现在贴图 alpha 画什么形状，地面就替换/叠加成什么形状 ⇒ **`modulate` 地表也能做任意轮廓**。
+
+**两把钥匙（缺一不可）**：
+
+| 钥匙 | 在哪 | 取值 |
+|---|---|---|
+| shader flag **`alpha_test`** | 材质 `shaderFlags`（🔴 ModKit 面板**看不到这一项**） | 有 ⇒ 那段 clip 代码才编译 |
+| 材质 **`alphaTest`** | 材质编辑器的数值 | **必须 > 0**（原版用 `0.024`，ModKit 里填 `6`）——填 0 一个像素都不裁 |
+
+**机制（源码链）**：`decal.rs:61`（**入口**像素着色器）→ `apply_alpha_test(In, early_alpha_value)`
+→ `apply_alpha_test_impl: if (ALPHA_TEST) clip(alpha_val - g_alpha_ref)`；
+其中 `early_alpha_value = g_mesh_factor_color.a × diffuse_texture_color.a`
+（贴图那一项被 shader flag **`do_not_use_alpha`** 门控）。
+
+🔴 **两个高发误判**：
+- **只 grep `deferred_decal.rsh` 会得出「decal 不吃 alphaTest」的错结论** —— 调用在**入口 `.rs`**：
+  `decal.rs:61` / `decal_gbuffer.rs:62` / `decal_overdraw.rs:64` / `deferred_decal.rs:98` / `deferred_decal_gbuffer.rs:99`，**五个全有**。
+- **`alphaTest = 0` ≠「开了一点」** —— `clip(alpha − 0)` 一个都不丢（HLSL `clip` 只在值 `< 0` 时丢弃）。
+
+**实机四格**（灰图探针：73% 灰 + 正中 27% 圆洞 alpha=0；四个材质都勾了 flag）：
+
+| 贴图 | `alphaTest` | B 路实机 |
+|---|---|---|
+| DDS | 0.588 | **圆洞透出地面** ✓ |
+| **PNG** | 0.588 | **圆洞透出地面** ✓ ⇒ **贴图格式无关** |
+| DDS / PNG | 0 | 黑洞（没裁） |
+
+⇒ **「必须用 DDS，PNG 不行」是错的** —— 两种导入落地都是 **DXT5 + alpha 活着**（`tpaccli dump --format dds` 读头实证）。
+
+**工具（因为 ModKit 不给那个勾选项）**：
+
+```bash
+tpaccli matflags --packdir <目录> --filter <材质名子串> --add alpha_test [--remove X] [--out <目录>] [--inplace]
+```
+
+- 源码 [`tools/tpactool/TpacToolCLI/MatFlags.cs`](../../../tools/tpactool/TpacToolCLI/MatFlags.cs)，与 `clipflags` 同构：
+  **字节级只重建 `ShaderMaterialFlags` 那一段**（按 `Material.ReadMetadata` 逐字段走位 + 自校验），其余字节原样；
+  `AssetPackage.Save` 对元数据是 **RawMeta 优先直写 + 自动重算偏移** ⇒ 变长插入安全。
+- **自带全包逐字节比对**：回读时把包里每个资产的 RawMeta 与源包比，**除命中的材质外零差异**才报 ✅。
+- ⚠️ **每次 Publish 都会冲掉** ⇒ 重发布后要再跑一次。
+
+**验收命令**（`CampaignMode/Tools/SurfaceDecalFx.cs`）：
+
+```bash
+custom.surface spawn <材质名> <距离> <a|b|ab> [半径] [A缩放]   # a=A路 / b=B路 / ab=并排对照
+custom.surface decalClear                                    # 清 A 路（Scene.ClearDecals）
+```
+
+**同族另两个 flag（别再踩）**：`do_not_use_alpha`（一开，贴图 alpha 在 shader 第一行就被丢，原版 `ashes_decal` 带着它）
+· `use_mask_texture`（改用 **tex[1] 当软遮罩**，`early_alpha_value = sample_diffuse2_texture(...).a`，
+**是真混合、可羽化**，不是硬裁；原版 `decal_moss_a` 带着它 —— **未实测**）。
+
+### 21.10 🔴🔴 离线换贴图（`texreplace`）的两个致命坑 —— 都会让 alpha_test「看着像没生效」（2026-10-06 实机踩到）
+
+用 `tpaccli texreplace` 把一张贴图的像素换掉时，**有两处默认行为会毁掉 alpha**：
+
+| 坑 | 症状 | 修法 |
+|---|---|---|
+| **① 输出格式写死 DXT1**（无 alpha） | 换完贴图整个形状不见了/变成实心方块 | 加 **`--alpha`** 走 BC3/DXT5（用 `Bc3Encoder.Encode`） |
+| **② 无条件清空 `SystemFlags`** | 🔴 **`has_alpha` 被清掉 ⇒ 引擎按【不透明】处理 ⇒ shader 里 `diffuse_texture_color.a` 恒为 1 ⇒ `alpha_test` 永远不裁** ⇒ 整块方形盖住地面（外圈 RGB=0 被当实体画上去） | **保留原有 SystemFlags**，只按本次是否写 alpha 增删 `has_alpha` 这一项 |
+
+**判据（一定要回读核对，别只看命令成功）**：
+
+```bash
+tpaccli inspect --packdir <目录> --filter <贴图名> | grep -E "MipmapCount|Format|SystemFlags"
+# 期望： Format = DXT5 · SystemFlags = [has_alpha]
+```
+
+⚠️ **别只写 1 级 mip** —— 贴花是"贴地 + 掠射角"，没有 mip 链会**闪烁**。
+`texreplace` 现在会自动生成完整 mip 链（盒式降采样 + 逐级编码），
+`RawImage` 的布局是 **`[array][mip]`**（`TexturePixelData.ReadData` 里 `PrimaryRawImage = raw[0][0]` 可证），
+mip 级数必须与 `KEY_MIPMAP` / `MipmapCount` **三处一致**。
+
+> 排查提示：**"材质/贴图逐字段都对，画面却不对"时，去看 `SystemFlags`** —— 它不在 `Flags` 里，
+> 也不在材质上，是最容易漏的一层。
+
+**A 路（`Decal` 组件）配自定义材质仍然封死**（2026-10-06 再证）：四个材质走`Decal.CreateDecal()` → `SetMaterial` → `AddComponent` → `Scene.AddDecalInstance(decal, "editor_set", true)`
+**全部空白** —— 引擎拿材质 tex[0] 的**贴图名**查 `decal_textures_<场景组>.xml`，查不到整条丢弃；
+它**从不采样材质贴图**（`decal_atlas_texture` 只在 `shared_decal_functions.rsh` / `gbuffer_functions.rsh` 里被采样）。
+⚠️ 引擎对这种情况**静默无日志**；⚠️ `AddDecalInstance` 那句**不能省**（社区教程 snippet 常漏）。
+
+---
+
+### 21.11 🔴🔴 贴花「平滑消失」的完整配方：补偿曲线 + 抛物面坡 + 近圆形状（2026-10-06 实机通过）
+
+**解决什么问题**：贴花要能"慢慢淡出消失"，而不是"到点整块跳"。硬裁（`alpha_test`）下这件事有数学约束，
+拍脑袋调不出来 —— 这一节是**反推出来的公式**，离线可算、与实机一致。
+
+**规则**：`像素被画出来 ⟺ 贴图alpha ≥ 阈值 ÷ factor.a`（后面的商叫**有效阈值**）。
+淡出 = 有效阈值从「阈值」扫到 ∞。三条结论：
+
+| # | 结论 | 公式 / 做法 |
+|---|---|---|
+| 1 | **阈值同时管"满亮覆盖"和"尾段平滑"，且互相拉扯** | 8 位量化 + 倒数效应：阈值 0.0235 → 尾段只剩 **3 档**（228 ms/步，看得出跳）；0.2 → **23 档**（35 ms）；0.3 → 30 档。**推荐 0.2** |
+| 2 | **补偿曲线：让有效阈值线性推进** | `kAlpha = 阈值 / (阈值 + (1−阈值)(1−a))`，`a` = 线性驱动量。已在 `SurfaceDecalFx.SetColor` 实现，**只作用于 alpha**（RGB 乘法保持线性） |
+| 3 | **贴图 alpha 随半径要成抛物面，不是直线** | 面积 ∝ 半径² ⇒ 要面积线性缩就得 `半径 ∝ √(1−p)` ⇒ **`alpha(r) = 1 − (1−阈值)·(r/半径)²`** |
+
+**法则 3 的两个好处**：① 面积随淡出**严格线性**（实测 77.6→49.0→29.3→9.6%，吻合理论到 0.5%）；
+② 抛物面按阈值归一化后，**形状边缘的 alpha 恰好=阈值**（卡在裁剪线上）⇒ **满亮时是完整的形状**
+（直线坡会被啃掉 `阈值` 那一圈，满亮只剩 `1−阈值` 直径）。
+
+**守恒律（躲不掉）**：alpha **同一个值**的像素必然**同时过线** ⇒ 只能整块跳。
+「能缩掉的行程」与「满亮时不被啃掉多少」**是同一个数** ⇒ 唯一出路 = **没有平台**（抛物面天然满足）。
+
+**坡按「形状轮廓」算，不按「画框边框」算**：按轮廓（距离变换）⇒ 可见边界永远是"轮廓内缩一圈"⇒ **锯齿保留**；
+按画框 ⇒ 边界变成坡的等高线（圆角方框）⇒ **轮廓被抹平**。
+（代价：侵蚀深度 = 阈值 × 形状内切半径 ⇒ **痕迹要先放大到铺满画幅**，否则像"一小坨在缩"而不是"整个方框往内收"。）
+
+**成品配方（覆盖 99% × 面积线性 × 轮廓不规则）**：
+
+```
+半径 R(θ) = ρ₀ × (1 + 0.10 × (0.55·sin3θ + 0.30·sin7θ + 0.15·sin11θ))   # ±10% 起伏，不是正圆
+alpha(r)  = clip(1 − (1 − 阈值) × (r / R(θ))², 0, 1)
+RGB       = 焦痕纹理铺满整幅（否则圆内是纯色圆盘，不像痕迹）
+阈值       = 0.2（与抛物面归一化用的值一致）
+```
+生成器 [`tools/decal-pipeline/scripts/gen_decal_shape.py`](../../../tools/decal-pipeline/scripts/gen_decal_shape.py)（工具链说明 [tools/decal-pipeline/README.md](../../../tools/decal-pipeline/README.md)，带回读校验 + 各阈值下的直径/面积表）。
+实测：满亮直径 99% / 面积 77.6%（内切圆理论 78.5%）。
+
+**🔴 引擎没有真 alpha 混合（同轮验完）**：`modulate` / `add_alpha` / `factor` **都不消费输出 alpha**
+（`factor` 实机：外圈照样画出来 + 无渐变）⇒ 单层 `decal_mesh` 做不到"整体变淡"那种淡出。
+**加法层不受此限**（浓淡走 RGB 乘法，天生平滑，只是替代不了地面）；要"满幅 + 真淡出"只剩**粒子**路
+（原版火焰地面 = 粒子出火苗 + 贴花出焦痕）。
+
+**验收**：
+```bash
+custom.surface spawn <材质名> <距离> <a|b|ab> [半径] [寿命秒] [A缩放]
+custom.surface drive alpha          # modulate 层要走 alpha；加法层走 rgb
+custom.surface fade <淡入秒> <淡出秒>
+```
+
+---
 
 ## 22. 🔴 **运行时造网格**：形状用代码算，不开 ModKit（2026-10-01 登记，钩索铁链**实机验证通过**）
 

@@ -89,6 +89,13 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             public Mesh Mesh;
             public string Name = "";      // 子节点名（prefab 里写的，如 lwn_decal_lava_glow）
             public string Material = "";  // 材质名
+            /// <summary>这个材质的 alphaTest 阈值（0 = 没开 alpha test）。
+            /// 🔴 在 `CollectMeshes` 和 `ApplyMaterial` 两处刷新 —— 换材质是 spawn 之后发生的，
+            /// 只填一次会拿到旧材质的阈值。淡出补偿曲线要用它（`SetColor`）。</summary>
+            public float AlphaTest = 0f;
+            /// <summary>上次真正写进 `Mesh.Color` 的驱动量（-1 = 还没写过）。
+            /// 用来跳过"值没变"的帧 —— 见 `Tick` 里的写入闸门。</summary>
+            public float LastWritten = -1f;
         }
 
         public sealed class Patch
@@ -106,6 +113,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         private static readonly List<Patch> Patches = new List<Patch>();
         private static int _seq;
         private static float _lastAlpha = -1f;
+        /// <summary>置位后下一帧**忽略"值没变就跳过"的闸门**，全量重写一遍颜色。
+        /// 凡是改变了「同一个驱动量 → 不同颜色」的映射的操作都要置位：改基色 / 改驱动通道 /
+        /// 改混合 / 改锁定 / 换材质。</summary>
+        private static bool _colorDirty = true;
 
         // ── 场景辅助 ──────────────────────────────────────────────────────
         private static Vec3 FlatForward(float distance)
@@ -118,8 +129,39 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             return flat * distance;
         }
 
-        private static float GroundZ(Scene scene, Vec3 pos, float fallbackZ)
+        /// <summary>
+        /// 面向方向的**右手边**（水平；把前向绕 Z 转 −90°：(x,y) → (y,−x)）。
+        /// A/B 对照沿它错开 —— 这样**不管你面朝哪边**，A 永远在你左手边、B 永远在右手边。
+        /// （`SpawnOffset` 用的是**世界 X 轴**，那是给"拼成一条"用的：两片的边必须互相平行。
+        ///   对照不用拼，用玩家右向才好认 —— 之前 A/B 沿世界 X 放，人一转身左右就颠倒了。）
+        /// </summary>
+        private static Vec3 FlatRight(float distance)
         {
+            Vec3 look = Vec3.Zero;
+            try { if (!CameraLook.TryGet(out look)) look = Vec3.Forward; } catch { look = Vec3.Forward; }
+            Vec3 flat = new Vec3(look.X, look.Y, 0f);
+            if (flat.Length < 1e-3f) flat = new Vec3(0f, 1f, 0f);
+            flat.Normalize();
+            return new Vec3(flat.Y, -flat.X, 0f) * distance;
+        }
+
+        /// <summary>把"这一点在哪"讲清楚：世界坐标 + 相对玩家的前后/左右（米）。
+        /// 目的：贴花看不见时，能分清是"没渲染"还是"放偏了/太小" —— 引擎对运行时贴花
+        /// 被丢弃是**静默**的（native 里只有粒子那条 `Can not find decal material`），没有日志可查。</summary>
+        private static string Spot(Vec3 pos, Agent main, string extra)
+        {
+            Vec3 d = new Vec3(pos.X - main.Position.X, pos.Y - main.Position.Y, pos.Z - main.Position.Z);
+            Vec3 f = FlatForward(1f);
+            Vec3 r = FlatRight(1f);
+            float ahead = d.X * f.X + d.Y * f.Y + d.Z * f.Z;
+            float side = d.X * r.X + d.Y * r.Y + d.Z * r.Z;
+            float dist = (float)Math.Sqrt(d.X * d.X + d.Y * d.Y + d.Z * d.Z);
+            return string.Format(CultureInfo.InvariantCulture,
+                "pos=({0:F1},{1:F1},{2:F1}) {3:F1}m away [ahead {4:F1}m, right {5:F1}m] {6}",
+                pos.X, pos.Y, pos.Z, dist, ahead, side, extra);
+        }
+
+        private static float GroundZ(Scene scene, Vec3 pos, float fallbackZ)        {
             try
             {
                 float z = scene.GetGroundHeightAtPositionMT(new Vec3(pos.X, pos.Y, fallbackZ + 50f),
@@ -254,8 +296,14 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                             Mesh mesh = mm.GetMeshAtIndex(k);
                             if (mesh == null) continue;
                             string mat = "";
-                            try { Material m = mesh.GetMaterial(); mat = m != null ? m.Name : ""; } catch { }
-                            p.Layers.Add(new LayerRef { Mesh = mesh, Name = gname, Material = mat });
+                            float alphaThr = 0f;
+                            try
+                            {
+                                Material m = mesh.GetMaterial();
+                                if (m != null) { mat = m.Name; alphaThr = m.GetAlphaTestValue(); }
+                            }
+                            catch { }
+                            p.Layers.Add(new LayerRef { Mesh = mesh, Name = gname, Material = mat, AlphaTest = alphaThr });
                         }
                     }
                     catch (Exception ex) { DebugLogger.Log($"[Surface] 取 MetaMesh/Mesh 异常: {ex.Message}"); }
@@ -291,6 +339,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                 return;
             }
 
+            _colorDirty = true;   // 换了材质 ⇒ 同一个驱动量会算出不同颜色，必须全量重写
             for (int i = 0; i < p.Layers.Count; i++)
             {
                 Mesh mesh = p.Layers[i].Mesh;
@@ -306,6 +355,18 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                         copy.SetAlphaBlendMode(ParseBlend(_forceBlend));
                         mesh.SetMaterial(copy);
                     }
+                    // 🔴 换完材质必须**重新读阈值** —— LayerRef.AlphaTest 是 spawn 时那个材质的，
+                    //    淡出补偿曲线要用新材料的值（否则用错阈值 → 溶解曲线算歪）。
+                    try
+                    {
+                        Material now = mesh.GetMaterial();
+                        if (now != null)
+                        {
+                            p.Layers[i].Material = now.Name;
+                            p.Layers[i].AlphaTest = now.GetAlphaTestValue();
+                        }
+                    }
+                    catch { }
                 }
                 catch (Exception ex) { DebugLogger.Log($"[Surface] SetMaterial 异常: {ex.Message}"); }
             }
@@ -331,9 +392,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (string.IsNullOrEmpty(mode) || mode == "-")
             {
                 _forceBlend = null;
+                _colorDirty = true;
                 return "OK: blend override cleared (use material's own blend)";
             }
             _forceBlend = mode;
+            _colorDirty = true;
 
             // 对已存在的片重新套一遍
             int n = 0;
@@ -396,10 +459,20 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                 for (int j = 0; j < p.Layers.Count; j++)
                 {
                     if (!LayerMatches(p.Layers[j])) continue;   // 层筛选（probe 用）
-                    SetColor(p.Layers[j].Mesh, a);
+                    LayerRef lr = p.Layers[j];
+                    // 🔴 **只在数值真变了才写**（2026-10-06）：满值保持期（12 秒寿命里占 8.5 秒）
+                    //    每帧都在写同一个数，纯属白费。阈值取 1/255 —— Mesh.Color 本来就会被量化到
+                    //    8 位，更小的变化引擎和眼睛都看不见。
+                    //    `_colorDirty` 在 tint/drive/blend/lock/换材质时置位，保证那些改动立刻全量重写。
+                    if (_colorDirty || lr.LastWritten < 0f || Math.Abs(a - lr.LastWritten) >= 1f / 255f)
+                    {
+                        SetColor(lr.Mesh, a, lr.AlphaTest);
+                        lr.LastWritten = a;
+                    }
                 }
             }
             _lastAlpha = sum / Patches.Count;
+            _colorDirty = false;
         }
 
         /// <summary>层筛选：空 = 全部；否则只看名字或材质里含这个词的层（如 "glow" / "frost"）。</summary>
@@ -464,7 +537,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         ///   `final_rgb = 基色 × 权重 × 寿命因子`；`= 0` 时加 0 = 看不见 = **淡出**。
         ///   基色由 <see cref="_tint"/> 给（默认白 = 保留材质原色，靠贴图自己带颜色）。
         /// </summary>
-        private static void SetColor(Mesh m, float a)
+        private static void SetColor(Mesh m, float a, float alphaTest)
         {
             float k = Clamp01(a);
             uint baseRgb = _tint ?? 0x00FFFFFFu;
@@ -473,14 +546,29 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             uint b = (uint)Math.Round((baseRgb & 0xFF) * k);
             uint rgb = (r << 16) | (g << 8) | b;
 
+            // 🔴 溶解补偿曲线（2026-10-06；只作用于**被 alpha test 消费的那个 alpha**）：
+            //   shader 的裁定是 `factor.a × 贴图alpha ≥ 阈值`，变形 = `贴图alpha ≥ 阈值 / factor.a`
+            //   —— 固定的阈值被 factor.a 一除就成了"有效阈值"。factor.a 线性降 ⇒ 有效阈值走**倒数**
+            //   （前 95% 的时间几乎不动、最后一下暴走）⇒ 形状变化全挤在末段（实测：0.0235 阈值下
+            //   98% 的时长里形状只缩了 1%）。
+            //   反解出让有效阈值**线性上升**的 factor.a：T(p) = thr + (1−thr)·p，k = thr / T，p = 1 − a
+            //     ⇒ k_alpha = thr / (thr + (1 − thr) × (1 − a))
+            //   效果：形状在**整段淡出时间里均匀缩小**，走到末尾正好归零。
+            //   RGB 那一路（加法层的淡出）**保持线性** —— 它本来就是对的，别动。
+            float kAlpha = k;
+            if (alphaTest > 0.0001f && _drive != "rgb")
+            {
+                float thr = Clamp01(alphaTest);
+                if (thr < 0.999f) kAlpha = thr / (thr + (1f - thr) * (1f - k));
+            }
+
             switch (_drive)
             {
                 case "alpha":
-                    // 只动 alpha，RGB 保持白 —— 用来单独验 alpha 这条路
-                    try { m.Color = ((uint)Math.Round(k * 255f) << 24) | 0x00FFFFFFu; } catch { }
+                    try { m.Color = ((uint)Math.Round(kAlpha * 255f) << 24) | 0x00FFFFFFu; } catch { }
                     break;
                 case "both":
-                    try { m.Color = ((uint)Math.Round(k * 255f) << 24) | rgb; } catch { }
+                    try { m.Color = ((uint)Math.Round(kAlpha * 255f) << 24) | rgb; } catch { }
                     break;
                 default:   // "rgb"
                     try { m.Color = 0xFF000000u | rgb; } catch { }
@@ -504,6 +592,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (k != "rgb" && k != "alpha" && k != "both")
                 return "error: drive must be rgb | alpha | both";
             _drive = k;
+            _colorDirty = true;
             return $"OK: drive = {_drive}. rgb = multiply to black (works on additive layers); "
                  + "alpha = transparency (what modulate layers need).";
         }
@@ -511,13 +600,14 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         /// <summary>给所有片设一个基色（"ff0000"）。传 "-" 清掉（回白）。</summary>
         public static string SetTint(string hex)
         {
-            if (string.IsNullOrEmpty(hex) || hex == "-") { _tint = null; return "OK: tint cleared (white base)"; }
+            if (string.IsNullOrEmpty(hex) || hex == "-") { _tint = null; _colorDirty = true; return "OK: tint cleared (white base)"; }
             string h = hex.TrimStart('#');
             if (h.Length == 6) h = "FF" + h;
             uint v;
             if (!uint.TryParse(h, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out v))
                 return $"error: bad hex '{hex}' (want RRGGBB)";
             _tint = v & 0x00FFFFFFu;
+            _colorDirty = true;
             return $"OK: base tint = 0x{_tint.Value:X6} (fade multiplies this). "
                  + "NOTE: a base whose channel is ~0 in the texture will make the decal vanish.";
         }
@@ -526,6 +616,186 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         private static void Hide(Patch p)
         {
             try { p.Entity?.SetVisibilityExcludeParents(false); } catch { }
+        }
+
+        // ── A 路对照（Decal 组件 + 全局图集）2026-10-06 ─────────────────────
+        //
+        // 🔴 与 B 路的本质差别（shader 源码实证）：
+        //    · B 路（decal_mesh）采样**材质自己的贴图** —— 所以我们画的图能上屏。
+        //    · A 路（Decal 组件）**从不采样材质贴图**：引擎拿「材质 tex[0] 的**贴图名**」
+        //      去查 `decal_textures_<当前场景组>.xml`（Native 里烘死的表）——
+        //      查不到 ⇒ **整条 decal 丢弃**（表现是"什么都不出"）；查到 ⇒ 按 UV 从
+        //      **预烘图集** `decal_atlas_<组>` 取像素。
+        //      （证据：`decal_atlas_texture` 只被 `shared_decal_functions.rsh` ×7 /
+        //        `gbuffer_functions.rsh` ×1 / parallax / pbr_shading 采样，
+        //        我们的 `decal.rs` / `deferred_decal.rsh` 里 **0 次**。）
+        //    ⇒ 用**非覆写的自定义材质**走 A 路，预期 = **什么都不出**，且这个结果与
+        //      贴图是 DDS 还是 PNG、有没有 alpha_test **无关**（贴图根本没被采样）。
+        //
+        // 照抄官方两处用例（1.2.12 SandBox.View 反编译：MapCursor / 攻城器械圆圈）：
+        //   CreateDecal → SetMaterial → AddComponent → SetGlobalFrame
+        //   → `Scene.AddDecalInstance(decal, "editor_set", deletable: true)`
+        //   🔴 最后那句不能省（网上教程的 snippet 常漏掉它）。
+        //   `editor_set`（Native/ModuleData/decal_sets.xml）= 寿命近乎无限、不淡出，正合探针。
+        //
+        // 🔴 1.2.12 **没有** `Scene.RemoveDecalInstance`（1.5.x 才加）⇒ 清理只能靠
+        //    `Scene.ClearDecals()`（会连带清掉其它**运行期**贴花实例；静态 decal_component 不受影响）。
+        private static readonly List<GameEntity> _routeAEntities = new List<GameEntity>();
+        private static readonly List<string> _routeALog = new List<string>();   // 给 Describe() 用：放了哪些 A 片、在哪
+
+        /// <summary>B 路那片网格的**本地**包围盒（含子节点缩放前的口径）——用来判断"是不是空的/退化的"。
+        /// 世界尺寸 ≈ 本地 × k（k = radius / DefaultSize，见 SpawnAt）。</summary>
+        private static string MeshBox(Patch p)
+        {
+            if (p == null || p.Layers.Count == 0) return "?";
+            try
+            {
+                Mesh m = p.Layers[0].Mesh;
+                Vec3 mn = m.GetBoundingBoxMin(), mx = m.GetBoundingBoxMax();
+                return string.Format(CultureInfo.InvariantCulture, "{0:F2}x{1:F2}x{2:F2}(local)",
+                    mx.X - mn.X, mx.Y - mn.Y, mx.Z - mn.Z);
+            }
+            catch { return "?"; }
+        }
+
+        private static Decal SpawnRouteAAt(string materialName, Vec3 pos, float scale, out string err)
+        {
+            err = null;
+            Mission mission = Mission.Current;
+            if (mission == null) { err = "no mission."; return null; }
+            Scene scene = mission.Scene;
+            if (scene == null) { err = "mission has no scene."; return null; }
+
+            Material mat = null;
+            try { mat = Material.GetFromResource(materialName); } catch { }
+            if (mat == null) { err = $"material '{materialName}' not found."; return null; }
+
+            pos = new Vec3(pos.X, pos.Y, GroundZ(scene, pos, pos.Z));
+            if (scale <= 0f) scale = 1f;
+
+            GameEntity ent = null;
+            try
+            {
+                ent = GameEntity.CreateEmpty(scene);
+                ent.Name = "lwn_routeA_" + materialName;
+
+                Decal decal = Decal.CreateDecal();
+                decal.SetMaterial(mat);
+                decal.SetFactor1Linear(0xFFFFFFFFu);
+                ent.AddComponent(decal);
+
+                MatrixFrame frame = MatrixFrame.Identity;
+                frame.origin = pos;
+                frame.Scale(new Vec3(scale, scale, scale));   // A 路 = 均匀缩放（官方两处都这么写）
+                ent.SetGlobalFrame(frame);
+                ent.SetVisibilityExcludeParents(true);
+
+                scene.AddDecalInstance(decal, "editor_set", deletable: true);
+
+                _routeAEntities.Add(ent);
+                DebugLogger.Log($"[Surface] routeA mat='{materialName}' scale={scale:F2} "
+                              + $"pos=({pos.X:F2},{pos.Y:F2},{pos.Z:F2}) total={_routeAEntities.Count}");
+                return decal;
+            }
+            catch (Exception ex)
+            {
+                err = "A-route threw: " + ex.Message;
+                DebugLogger.Log($"[Surface] routeA 异常: {ex}");
+                try { ent?.SetVisibilityExcludeParents(false); } catch { }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// A/B 路对照统一入口。`mode` = "a" | "b" | "ab"。
+        /// 由 `custom.surface spawn &lt;材质名&gt; &lt;距离&gt; &lt;a|b|ab&gt; [半径] [寿命秒] [A缩放]` 调用 —— 一次只放一个材质。
+        /// `ab` 时两片并排：A 在左（世界 −X）、B 在右（世界 +X），各偏 <c>radius</c> 米
+        /// （贴花片轴对齐、不旋转，只有沿世界轴错开才摆得整齐 —— 同 `SpawnOffset` 的教训）。
+        /// `life` &gt; 0 ⇒ 有寿命（会走淡入/淡出，见 `LifeFactor`）；≤ 0 ⇒ 永久片。
+        /// 🔴 返回文本一律英文（控制台纪律）。
+        /// </summary>
+        public static string Route(string mode, string materialName, float distance, float radius, float life, float scale)
+        {
+            Mission mission = Mission.Current;
+            if (mission == null) return "FAIL: no mission (enter a scene first).";
+            Agent main = mission.MainAgent;
+            if (main == null) return "FAIL: no main agent to anchor on.";
+            if (string.IsNullOrEmpty(materialName)) return "FAIL: no material name given.";
+
+            Material probe = null;
+            try { probe = Material.GetFromResource(materialName); } catch { }
+            if (probe == null) return $"FAIL: material '{materialName}' not found (is its package loaded?).";
+
+            if (distance <= 0f) distance = 4f;      // 同 SurfaceCommands.DefaultDistance
+            if (radius <= 0f) radius = DefaultSize;
+            if (scale <= 0f) scale = 1f;
+            mode = (mode ?? "ab").ToLowerInvariant();
+            if (mode != "a" && mode != "b") mode = "ab";
+
+            string unlockNote = ReleaseLock();
+            Vec3 center = main.Position + FlatForward(distance);
+            float gap = mode == "ab" ? radius : 0f;
+
+            string aLine = "A: skipped";
+            string bLine = "B: skipped";
+
+            if (mode == "a" || mode == "ab")
+            {
+                Vec3 posA = center - FlatRight(gap);
+                string err;
+                Decal d = SpawnRouteAAt(materialName, posA, scale, out err);
+                if (d != null)
+                {
+                    _routeALog.Add($"{materialName} scale={scale:F2} @ ({posA.X:F1},{posA.Y:F1},{posA.Z:F1})");
+                    aLine = "A(left): " + Spot(posA, main,
+                        $"scale={scale:F2}, set='editor_set' | CAVEAT: route A's visual size is engine-side and UNCALIBRATED "
+                      + "-- if you see nothing, sweep the scaleA arg: ... 5 a 3 3 / 5 a 3 10 / 5 a 3 30");
+                }
+                else aLine = $"A(left): FAILED -- {err}";
+            }
+
+            if (mode == "b" || mode == "ab")
+            {
+                Vec3 posB = center + FlatRight(gap);
+                Patch p; string err;
+                if (SpawnAt(_prefab, radius, life, posB, out p, out err))
+                {
+                    ApplyMaterial(p, materialName);      // 按名字换材质（实测比对象重载可靠）
+                    bLine = "B(right): " + Spot(p.Center, main,
+                        $"size={radius:F1}m, life={(life > 0f ? life.ToString("F1", CultureInfo.InvariantCulture) + "s" : "inf")}, "
+                      + $"layers={p.Layers.Count}, mat='{materialName}', meshBBox={MeshBox(p)}");
+                }
+                else bLine = $"B(right): FAILED -- {err}";
+            }
+
+            return $"OK: route {mode.ToUpperInvariant()} | mat '{materialName}' | dist={distance:F1} r={radius:F1}"
+                 + $" life={(life > 0f ? life.ToString("F1", CultureInfo.InvariantCulture) + "s" : "inf")} scaleA={scale:F2}"
+                 + $" | {aLine} | {bLine}"
+                 + " | EXPECT A to render NOTHING for a custom (non-override) material:"
+                 + " route A looks up tex[0]'s TEXTURE NAME in decal_textures_<scene group>.xml and drops the decal if absent;"
+                 + " it never samples the material's texture."
+                 + " | clear: 'custom.surface decalClear' (A: Scene.ClearDecals) + 'custom.surface clear' (B)"
+                 + unlockNote;
+        }
+
+        /// <summary>清掉本命令放下的 A 路实例。1.2.12 没有单条删除 API ⇒ 只能整场景 `ClearDecals()`。</summary>
+        public static string ClearRouteA()
+        {
+            int n = _routeAEntities.Count;
+            for (int i = 0; i < n; i++)
+            {
+                try { _routeAEntities[i]?.SetVisibilityExcludeParents(false); } catch { }
+            }
+            _routeAEntities.Clear();
+            _routeALog.Clear();
+
+            bool wiped = false;
+            try { Mission.Current?.Scene?.ClearDecals(); wiped = true; } catch { }
+            DebugLogger.Log($"[Surface] routeA clear: hidden={n} ClearDecals={wiped}");
+            return $"OK: routeA entities hidden ({n})"
+                 + (wiped ? " + Scene.ClearDecals() called (also wipes other RUNTIME decal instances; static decal_components are unaffected)"
+                          : " ; Scene.ClearDecals() failed -- re-enter the scene to clear")
+                 + ". B-route patches -> use 'custom.surface clear'.";
         }
 
         // ── 控制台用 ──────────────────────────────────────────────────────
@@ -625,6 +895,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         {
             if (_lockAlpha < 0f) return string.Empty;
             _lockAlpha = -1f;
+            _colorDirty = true;
             return " [note: drive lock released (was sticky)]";
         }
 
@@ -633,9 +904,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (a < 0f)
             {
                 _lockAlpha = -1f;
+                _colorDirty = true;
                 return "OK: lock released (drive = weight x life again)";
             }
             _lockAlpha = Clamp01(a);
+            _colorDirty = true;
             return $"OK: drive LOCKED to {_lockAlpha:F2} (RGB = base x this). 0 = invisible, 1 = full.";
         }
 
@@ -661,18 +934,25 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             for (int i = 0; i < Patches.Count; i++)
             {
                 Patch p = Patches[i];
-                sb.Append("\n  #").Append(i).Append(" '").Append(p.Element).Append("'  r=")
+                sb.Append("\n  B#").Append(i).Append(" '").Append(p.Element).Append("'  r=")
                   .Append(p.Radius.ToString("F1", CultureInfo.InvariantCulture)).Append("m  w=")
                   .Append(p.Weight.ToString("F2", CultureInfo.InvariantCulture)).Append("  life=")
                   .Append(p.MaxLife <= 0f ? "inf" : p.Life.ToString("F1", CultureInfo.InvariantCulture))
-                  .Append("  layers=").Append(p.Layers.Count);
+                  .Append("  layers=").Append(p.Layers.Count)
+                  .Append("  pos=(").Append(p.Center.X.ToString("F1", CultureInfo.InvariantCulture)).Append(",")
+                  .Append(p.Center.Y.ToString("F1", CultureInfo.InvariantCulture)).Append(",")
+                  .Append(p.Center.Z.ToString("F1", CultureInfo.InvariantCulture)).Append(")");
             }
+            for (int i = 0; i < _routeALog.Count; i++)
+                sb.Append("\n  A#").Append(i).Append(" ").Append(_routeALog[i]);
             return sb.ToString();
         }
 
         public static void OnSceneGone()
         {
             Patches.Clear();
+            _routeAEntities.Clear();
+            _routeALog.Clear();
             _seq = 0;
             _lastAlpha = -1f;
             _layerFilter = "";
@@ -720,7 +1000,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             // ── 无参 / status ──
             if (sub == null || sub == "status" || sub == "list")
                 return "OK: " + SurfaceDecalFx.Describe()
-                     + " | usage: custom.surface spawn <material> [radius_m] [life_s] | twin <matA> <matB> [radius] [gap]"
+                     + " | usage: custom.surface spawn <material> [radius_m] [life_s] | spawn <mat> <dist> <a|b|ab> [radius] [life_s] [scaleA]"
+                     + " | decalClear | twin <matA> <matB> [radius] [gap]"
                      + " | fade <in_s> <out_s> | band <m> | lock <0..1|-1> | layer <kw|-all> | probe | clear";
 
             if (sub == "clear")
@@ -808,8 +1089,37 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                 return SurfaceDecalFx.SetLock(nums[0]);
             }
 
+            // ── A 路清理（2026-10-06）──────────────────────────────────────
+            //   走 A 路的片**没有**单条删除 API（1.2.12 无 RemoveDecalInstance）⇒ 只能整场景 ClearDecals()。
+            //   ⚠️ 这会连带清掉其它**运行期**贴花实例；静态 decal_component 不受影响。
+            if (sub == "decalclear")
+                return SurfaceDecalFx.ClearRouteA();
+
             if (sub == "spawn")
             {
+                // 🔴 两种形式，靠**有没有 a/b/ab 这个"方法"词**区分（prefab 名永远不会是这三个）：
+                //    ① A/B 路对照（2026-10-06）：
+                //         custom.surface spawn <材质名> <距离> <a|b|ab> [半径] [寿命秒] [A缩放]
+                //         参数1 = 材质名 · 参数2 = 距离 · 参数3 = 方法
+                //           a  = A 路（Decal 组件 + 全局图集，自定义材质预期什么都不出）
+                //           b  = B 路（decal_mesh + 材质自己的贴图）
+                //           ab = 两片并排对照（A 在左、B 在右）
+                //         [寿命秒] > 0 ⇒ 会走淡入/淡出（`custom.surface fade <in> <out>` 调时长）
+                string method = null;
+                if (rest.Count >= 2)
+                {
+                    string m0 = rest[1].ToLowerInvariant();
+                    if (m0 == "a" || m0 == "b" || m0 == "ab") method = m0;
+                }
+                if (method != null)
+                {
+                    float rDist = nums.Count >= 1 ? nums[0] : 0f;    // 0 = 用默认
+                    float rRad = nums.Count >= 2 ? nums[1] : 0f;
+                    float rLife = nums.Count >= 3 ? nums[2] : 0f;    // 0 = 永久
+                    float rScaleA = nums.Count >= 4 ? nums[3] : 0f;
+                    return SurfaceDecalFx.Route(method, rest[0], rDist, rRad, rLife, rScaleA);
+                }
+
                 // 🔴 第一参 = **prefab 名**（现在一个 prefab 对应一种材质/混合模式，prefab 就是"元素"）。
                 //    不填就用当前默认（`custom.surface prefab <名>` 可改）。
                 string prefab = rest.Count > 0 ? rest[0] : null;
@@ -885,7 +1195,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                     a, pa.Weight, b, pb.Weight, side, SurfaceDecalFx.Describe(), note);
             }
 
-            return "error: unknown subcommand '" + sub + "'. usage: custom.surface [status|spawn|twin|fade|band|lock|clear]";
+            return "error: unknown subcommand '" + sub + "'. usage: custom.surface [status|spawn|twin|decalClear|fade|band|lock|clear]";
         }
     }
 }
