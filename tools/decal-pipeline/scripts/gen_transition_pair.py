@@ -77,10 +77,18 @@ def fill_rgb(path, S):
     return out
 
 
+def value_noise(S, cells, rng):
+    """粗糙但平滑的 2D 值噪声：小随机图 → 双三次放大。只用 PIL，不依赖 noise 库。"""
+    g = (rng.random((cells + 1, cells + 1)) * 255).astype(np.uint8)
+    im = Image.fromarray(g, "L").resize((S, S), Image.BICUBIC)
+    return np.asarray(im).astype(np.float32) / 255.0
+
+
 def main():
     a_src, b_src, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
     d = sys.argv[4].lower() if len(sys.argv) > 4 else "we"
-    lo = float(sys.argv[5]) if len(sys.argv) > 5 else 0.02
+    lo = float(sys.argv[5]) if len(sys.argv) > 5 else 0.2
+    wav = float(sys.argv[6]) if len(sys.argv) > 6 else 0.12   # 前线起伏强度（0 = 笔直）
     S = 1024
     os.makedirs(outdir, exist_ok=True)
 
@@ -93,11 +101,23 @@ def main():
         "sn": yy / t,
     }.get(d, 1.0 - xx / t)
 
-    # 🔴 autha 区间必须**上下都留一点**：
-    #   下限 > 材质阈值（本项目 0.01）⇒ 水位推到 0 时先进方才能**盖满**；
-    #   上限 < 1 ⇒ 水位推到 1 时后退方才能被**裁干净**（若上限=1，那一小条 alpha=1 的像素会留下来 = 残边）。
+    # 🔴 前线起伏：往线性扫掠里加**低频平滑噪声** ⇒ 等高线（= 前线）变成自然曲线。
+    #    噪声只生成一次、两层共用（B 仍是 1−f）⇒ 互补性不受影响 ✓
+    #    ⚠️ 用低频（cells 小）：高频噪声会让前线变成锯齿 ✗；也别加太猛（会分出多条前线/孤岛）。
+    if wav > 0.0:
+        rng = np.random.default_rng(20261007)
+        n = (0.60 * value_noise(S, 5, rng)
+             + 0.28 * value_noise(S, 11, rng)
+             + 0.12 * value_noise(S, 23, rng))
+        n = (n - n.min()) / max(1e-6, n.max() - n.min())      # → [0,1]
+        f_raw = ramp + wav * (n - 0.5) * 2.0                  # 起伏 ±wav
+    else:
+        f_raw = ramp
+
+    # 归一化回 [0,1]（加了噪声之后范围会变），再映射到 [lo, hi]
+    f_norm = (f_raw - f_raw.min()) / max(1e-6, f_raw.max() - f_raw.min())
     hi = 1.0 - lo
-    f = lo + (hi - lo) * ramp
+    f = lo + (hi - lo) * f_norm
 
     def save(alpha01, rgb_path, name):
         rgb = fill_rgb(rgb_path, S)
@@ -116,6 +136,13 @@ def main():
     save(f, a_src, base_a + "_A.png")                      # 先进方（火）
     save(1.0 - f, b_src, base_b + "_B.png")                # 后退方（冰）—— **精确互补**
     print("  （互补自检：A + B 应恒为 1 ⇒ 同一水位 L 处 A 显示 f≥L、B 显示 f≤L，不重叠也不留缝）")
+
+    # 前线预览：灰度 = 高度场 f，红线 = 各水位处的前线（不用进游戏就能看形状）
+    prev = np.repeat((f_norm * 255).astype(np.uint8)[:, :, None], 3, axis=2)
+    for L in (0.75, 0.5, 0.25):
+        prev[np.abs(f_norm - L) < 0.004] = (255, 60, 60)
+    Image.fromarray(prev).resize((S // 2, S // 2), Image.LANCZOS).save(os.path.join(outdir, "_front_preview.png"))
+    print(f"  前线预览: {os.path.join(outdir, '_front_preview.png')}（灰度=高度场，红线=各水位的前线）")
 
 
 if __name__ == "__main__":
