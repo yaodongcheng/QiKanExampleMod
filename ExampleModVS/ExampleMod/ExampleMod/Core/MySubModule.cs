@@ -314,6 +314,14 @@ namespace LivingWorldNpcs
             //    文件头有完整说明；没有地表在场上时每帧只判 Count==0，零开销。
             mission.AddMissionBehavior(new LivingWorldNpcs.CampaignMode.Tools.SurfaceDecalBehavior());
 
+            // 🔴 冰冻效果探针（2026-10-07，`custom.ice`）—— 回答两件事：
+            //    ① 能不能"只冻他一个"（引擎自带 PauseSkeletonAnimation / Skeleton.Freeze + 停 AI）；
+            //    ② 能不能"只把他身上的材质换成冰雪"（每个角色的网格是各人一份副本，反编译实证）。
+            //    🔴 必须挂在 IsInteractionDisabled 闸门**之前**：冰冻的主战场就是战斗场景。
+            //    未操作时 OnMissionTick 只判一个 Count==0，零开销。
+            //    用法与判据见 Combat/IceFxBehavior.cs 文件头。
+            mission.AddMissionBehavior(new LivingWorldNpcs.Combat.IceFxBehavior());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——

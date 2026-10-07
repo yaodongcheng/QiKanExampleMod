@@ -10,9 +10,9 @@
 
      前半段 **武器 usage 驱动**（换成自家两组：`grapple_hook` / `grapple_dart`，见内容包 item_usage_sets.xml；
      弓的"拉弓/持械/放箭"实际挂在**弹药**组上）：
-       按住左键  → act_grapple_ground_ready    （源帧 0..5，0.20 s） 起手
-       按住      → act_grapple_ground_hold     （源第 6 帧定格，0.50 s）持械循环
-       松手      → act_grapple_ground_release  （源帧 7..16，0.33 s）甩出 —— 引擎自己播，不经过本机
+       按住左键  → act_grapple_ground_ready    （0.60 s，2026-10-07 重切）起手
+       按住      → act_grapple_ground_hold     （1.83 s 循环，2026-10-07 重切）持械循环
+       松手      → act_grapple_ground_release  （1.17 s，2026-10-07 重切）甩出 —— 引擎自己播，不经过本机
        取弹槽 reload = **必须非空**（2026-10-04 实机：留空 ⇒ AutoReload 上弦链断 ⇒ 左键无反应）；
                        现指原版 `act_reload_bow_right`（1.3 s 弓取箭、能用但出戏，待换自家动作）
 
@@ -20,27 +20,27 @@
         漏了 = 能播但引擎的远程武器状态机认不出阶段 ⇒ 实测 ready 反复重播、进不了 hold —— 2026-10-04 卡点）
 
      后半段 **本状态机驱动**（通道 0）：
-       过程      act_grapple_ground_pull       （源帧 17..55，1.30 s = 跟随动作 + 位移的合并件）
-                 进入时刻 = **开火后 0.333 s**（release 播完那一刻；C# 计时，见 GrappleLogic.ReleaseSeconds）
-       落地      act_grapple_ground_land       （源帧 56..93，1.27 s 收势 + 落台 + 起身）
-       收手      act_grapple_ground_recover    （源帧 21..29，0.30 s）—— **打空/中止的出口**（用户 2026-10-04 定）
+       过程      act_grapple_ground_pull       （1.30 s = 跟随动作 + 位移的合并件；未重切）
+                 进入时刻 = **开火后 1.167 s**（= 新 release 全长；C# 计时，见 GrappleLogic.ReleaseSeconds）
+       落地      act_grapple_ground_land       （1.27 s 收势 + 落台 + 起身；未重切）
+       收手      act_grapple_ground_recover    （1.17 s，2026-10-07 重切为独立动画）—— **打空/中止的出口**
        自由落体  act_jump_loop                 （引擎自带空中循环，借飞行工程那条）
 
-     🔴 **时间轴锚点**（用户定的节点，fire = 松手那一刻）：
-        fire + 0.00  引擎播 release（甩出）
-        fire + 0.33  本机接管"过程"（合并件从源帧 17 起，无缝接 release 的尾帧）
-        fire + 0.90  **位移开始**（源帧 34 = StartGrapMoving 在合并件里的位置）——C# 的 PullStartSeconds
-        fire + 1.63  **切收势**（合并件播完 = 源帧 56 落地起点）；位移真正结束 ≈ fire + 2.10（源 GrappleEnd 帧 70）
-                     —— 落地段开头 ~0.45 s 的收势盖住位移的减速尾段，"蹲下"那一下正好落在位移结束上
+     🔴 **时间轴锚点**（fire = 松手那一刻；**2026-10-07 重切后**——release 0.333→1.167 s ⇒ 整条后移 +0.834 s）：
+        fire + 0.000  引擎播 release（甩出）
+        fire + 1.167  本机接管"过程"（= 新 release 全长；pull 段无缝接上）——C# 的 ReleaseSeconds
+        fire + 1.734  **位移开始**（pull 段内"源帧 34"的拍点 = 1.167 + 0.567）——C# 的 PullStartSeconds
+        fire + 2.467  **切收势**（过程段播完 = 落地起点）；位移真正结束 ≈ fire + 2.90（= 位移起点 + 拉拽时长）
+                     —— 落地段开头的收势盖住位移的减速尾段，"蹲下"那一下正好落在位移结束上
      🔴 **两个"剩多少就切"的阈值在 C# 谓词里**（GrappleAnimConditions，`custom.grapple animthr` 热调）：
         landing-due / fall-due 用 SwitchRemainFrac（默认 0.10，= 合并件快播完）；recover-due 用 CancelRemainFrac（默认 0.90）。
 
      ─────────────────────────── 什么时候切换（全从下面 <edges> 读；C# 里没有状态名）───────────────────────────
 
-       pull-trigger    开火后 0.333 s（release 播完）            -> 过程   （事件边，C# 计时 Force）
+       pull-trigger    开火后 1.167 s（release 播完）            -> 过程   （事件边，C# 计时 Force）
        landing-due     过程段快播完（剩 ≤ 0.10）且 **有平台**    -> 落地     ┐ 普通边（状态机求值），
        fall-due        过程段快播完 且 **没平台**                -> 自由落体 ┘ "时间点 + 分支"合在谓词真身里
-       recover-due     过程段剩 ≤ 0.90 **且 这一钩已放弃**        -> 收手      （打空：release 演完 0.13 s 就切，接源帧 21 的收手段）
+       recover-due     过程段剩 ≤ 0.90 **且 这一钩已放弃**        -> 收手      （打空：约 fire+1.30 s 即切，最先的出口）
        fall-trigger    拉拽途中收摊且人还在空中（掉板）           -> 自由落体 （事件边，C# 按时刻名力送）
        · 落地 / 收手 → outside 都用 `anim-rem-pct="15"`（照飞行 超人落地）：剩 15% 交还 0 号通道；
          落地的 C# 读这条声明（TryEventExit）当"落地动作演到哪一步才拆板/解冻"的判据（数字越小锁得越短）。
@@ -53,7 +53,7 @@
      · 谓词与时刻名：`Combat/GrappleAnimConditions.cs`（`pull-trigger`/`fall-trigger`/`land-trigger` 是时刻标签，
        真身 `c => false`；`landing-due`/`fall-due`/`recover-due` 读上下文：段剩余 + 落点有无 / 已放弃）。
      · 上下文：`Combat/GrappleAnimContext`（段剩余 / 落点有无 / 已放弃）。
-     · 接线：`GrappleLogic`（开火记计时 → +0.333 Force 过程；收摊判据见 Release）+ `GrapplePull.WaitAnimExit`
+     · 接线：`GrappleLogic`（开火记计时 → +1.167 Force 过程；收摊判据见 Release）+ `GrapplePull.WaitAnimExit`
        （落地动作没演完先不拆板）。
      · 验收命令：`custom.grapple anim <0|1>` · `animlock <过程|落地|收手|自由落体|clear>` · `animblend <秒>` ·
        `animthr <切落地点> <收手点>`；日志标签 `[Anim:Grapple]`。

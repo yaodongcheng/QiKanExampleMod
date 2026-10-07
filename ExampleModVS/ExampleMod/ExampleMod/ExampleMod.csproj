@@ -345,6 +345,10 @@
     <!-- 🔴 调试脚手架（2026-09-22）：法术弹飞行诊断（存活/命中/结局/示踪火线），验完即删。
          用法与判据见文件头；控制台 custom.spell_trace。 -->
     <Compile Include="Combat\SpellMissileTrace.cs" />
+    <!-- 🔴 冰冻效果探针（2026-10-07）：定格一个人的动作 + 把他身上的材质换成冰雪。
+         原理/判据见 Combat\IceFxBehavior.cs 文件头；控制台 custom.ice
+         （入口在 CampaignMode\Tools\IceFxCommands.cs）。 -->
+    <Compile Include="Combat\IceFxBehavior.cs" />
     <!-- 🔴 螺旋丸（2026-09-27）：运行时驱动 —— 实例化 prefab + 每帧转三个环 + 蓄力曲线。
          验收命令在 CampaignMode\Tools\RasenganCommands.cs（custom.rasengan）。 -->
     <Compile Include="Combat\RasenganController.cs" />
@@ -566,6 +570,8 @@
     <Compile Include="CampaignMode\Tools\SurfaceDecalFx.cs" />
     <!-- 地形图层探测/写入（custom.surface terrain info|weight|finalize）——最小验证件；native 崩溃风险见文件头 -->
     <Compile Include="CampaignMode\Tools\SurfaceTerrainFx.cs" />
+    <!-- 🔴 冰冻效果控制台入口（2026-10-07），本体在 Combat\IceFxBehavior.cs。 -->
+    <Compile Include="CampaignMode\Tools\IceFxCommands.cs" />
     <!-- GUI -->
     <Compile Include="GUI\LoadingRandomPatch.cs" />
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />

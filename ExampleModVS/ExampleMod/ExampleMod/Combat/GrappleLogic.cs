@@ -75,16 +75,18 @@ namespace LivingWorldNpcs
 		public static bool AnimEnabled = true;
 
 		/// <summary>
-		/// 位移起点钉在**开火后多少秒**（用户定的时间轴 = 0.90；fire = 松手那一刻 ⇒ 源帧 34 在 fire+0.90）。
+		/// 位移起点钉在**开火后多少秒**（fire = 松手那一刻 ⇒ pull 段内"源帧 34"）——
+		/// 🔴 **2026-10-07 重切后 = 1.734**（= 新 release 全长 1.167 + pull 段内偏移 0.567；pull clip 未重切、偏移不变）。
 		/// 蓄势 = 它 − 本钩飞行耗时（见 <see cref="TickHook"/> 的自动拉拽段）。
 		/// </summary>
-		public static float PullStartSeconds = 0.90f;
+		public static float PullStartSeconds = 1.734f;
 
 		/// <summary>
-		/// **release 动作的长度**（秒，= 内容包 clip `grapple_ground_release` 0.333 s）：
-		/// 开火后过这么久，引擎的甩出动作演完 ⇒ C# 把状态机送进"过程"（合并件从源帧 17 起，无缝接上）。
+		/// **release 动作的长度**（秒，= 内容包 clip `grapple_ground_release` 的时长；**2026-10-07 重切后 = 1.167 s**）：
+		/// 开火后过这么久，引擎的甩出动作演完 ⇒ C# 把状态机送进"过程"（pull 段无缝接上）。
+		/// ⚠️ **用户重切动画后这个数必须跟着改**（旧值 0.333 配的是 0.2 s ready / 0.333 s release 那套旧剪辑）。
 		/// </summary>
-		public static float ReleaseSeconds = 0.333f;
+		public static float ReleaseSeconds = 1.167f;
 
 		private GrappleAnimContext _animCtx;
 		private AgentAnimStateMachine _anim;
@@ -901,7 +903,7 @@ namespace LivingWorldNpcs
 			if (r.StartsWith("OK"))
 			{
 				_hookPhase = HookPhase.Pulling;
-				// 姿态动画：位移真的开始 = 板动起来（状态机早在开火 +0.333 s 就进了"过程"，这里不 Force）
+				// 姿态动画：位移真的开始 = 板动起来（状态机早在开火 +1.167 s 就进了"过程"，这里不 Force）
 				DebugLogger.Log($"[Grapple] 拉拽开始（{why}）| 落点={Fmt(_landing.Endpoint)} 平台={(_landing.Found ? "有" : "无")} → {r}");
 			}
 			return r;

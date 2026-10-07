@@ -7,7 +7,7 @@ namespace LivingWorldNpcs
 	///
 	/// 定义在 `ModuleData/statemachines/grapple.xml`（2026-10-04 二稿：前半段 ready/hold/release 归**武器 usage**，
 	/// 本机只管"过程"起的后半段），用到这些名字：
-	///   · `pull-trigger`    —— 时刻标签（事件边）：**开火后 0.333 s（release 播完）**，进入"过程"那一刻。
+	///   · `pull-trigger`    —— 时刻标签（事件边）：**开火后 1.167 s（release 播完；2026-10-07 重切后的新时长）**，进入"过程"那一刻。
 	///                          真身 `c => false`，触发在 C#（GrappleLogic 的计时）。
 	///   · `fall-trigger`    —— 时刻标签（事件边）：**拉拽途中收摊且人还在空中** ⇒ C# 力送 自由落体。
 	///   · `landing-due`     —— 普通谓词：过程段快播完（剩 ≤ 阈值）**且**这一钩有平台 ⇒ 该切 落地。
@@ -47,7 +47,7 @@ namespace LivingWorldNpcs
 		///
 		/// 依据（2026-10-04 逐帧核对）：收手段 = 源帧 21..29（手臂从甩出的顶点放回），而合并件从**帧 17** 起
 		/// ⇒ 过程段播 4 帧（0.13 s）后正好接上收手段的起点，**无缝**。
-		/// （release 段由引擎播 0.333 s ⇒ 打空全程 = release + 0.13 + 收手 0.30 ≈ 0.77 s，干净利落。）
+		/// （2026-10-07 重切后：release 1.17 + 0.13 + 收手 1.17 ≈ 2.5 s；旧剪辑那套 ≈0.77 s。）
 		/// </summary>
 		public static float CancelRemainFrac = 0.90f;
 
