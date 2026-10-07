@@ -76,17 +76,48 @@ namespace LivingWorldNpcs
 
 		/// <summary>
 		/// 位移起点钉在**开火后多少秒**（fire = 松手那一刻 ⇒ pull 段内"源帧 34"）——
-		/// 🔴 **2026-10-07 重切后 = 1.734**（= 新 release 全长 1.167 + pull 段内偏移 0.567；pull clip 未重切、偏移不变）。
+		/// 🔴 **2026-10-07 晚重切后 = 1.133**（= 新 release 全长 **0.566** + pull 段内偏移 0.567；
+		/// pull clip 只做了镜像、时长与内部节拍未变 ⇒ 偏移不变）。
 		/// 蓄势 = 它 − 本钩飞行耗时（见 <see cref="TickHook"/> 的自动拉拽段）。
 		/// </summary>
-		public static float PullStartSeconds = 1.734f;
+		public static float PullStartSeconds = 1.133f;
 
 		/// <summary>
-		/// **release 动作的长度**（秒，= 内容包 clip `grapple_ground_release` 的时长；**2026-10-07 重切后 = 1.167 s**）：
+		/// **release 动作的长度**（秒，= 内容包 clip `grapple_ground_release` 的时长；**2026-10-07 晚重切后 = 0.566 s**）：
 		/// 开火后过这么久，引擎的甩出动作演完 ⇒ C# 把状态机送进"过程"（pull 段无缝接上）。
-		/// ⚠️ **用户重切动画后这个数必须跟着改**（旧值 0.333 配的是 0.2 s ready / 0.333 s release 那套旧剪辑）。
+		/// ⚠️ **用户每重切一次动画，这个数就要跟着改**（历次：0.333 → 1.167 → **0.566**）。
 		/// </summary>
-		public static float ReleaseSeconds = 1.167f;
+		public static float ReleaseSeconds = 0.566f;
+
+		// ── 手里待命（设计 B，2026-10-07）：钩索拿在手上 = 钩头实体停在**右手**绕圈、绳连到钩的尾环 ──
+
+		/// <summary>转速（转/分）。0 = 不绕、就停在手上；负值 = 反向。</summary>
+		public static float HandHookRpm = 90f;
+
+		/// <summary>绕圈半径（米）= 手里那截绳的长度（绳走 verlet，甩起来自然有弧线与拖尾）。
+		/// 🔴 2026-10-07 用户口径：**手里大约 20 cm 绳** ⇒ 默认 0.20。</summary>
+		public static float HandHookRadius = 0.20f;
+
+		/// <summary>手里待命总开关（`custom.grapple spin off`）。</summary>
+		public static bool HandHookEnabled = true;
+
+		/// <summary>手里那条**绳**的开关（`custom.grapple spinrope 1`）。
+		/// 🔴 **默认关**（2026-10-07 事故后分两步走）：待机路径里钩实体与绳是一起上的，一起崩时说不清是谁；
+		///    先只开钩（实体 + 自造网格），确认不崩再单独打开绳 ⇒ 一步就能定死病根。
+		/// 待机绳是**全新工况**（绳长只有 0.3~0.5 m，飞行时是 20 m），最可疑的就是它。</summary>
+		public static bool HandRopeEnabled = false;
+
+		/// <summary>诊断开关（`custom.grapple parkframe <0|1|2>`）—— 把"手里那枚"的摆位方式切成三种，
+		/// 用来二分"看不见"到底是哪一环（三种都能运行期切、即时生效）：
+		/// · **1（默认）** 每帧摆位 + 径向朝向 = 正常模式
+		/// · **0** 只在建出来那一刻摆一次 + 径向朝向
+		/// · **2** 只摆一次 + **Identity 朝向** = **与 `custom.spawn_mesh`（已知能渲染）逐字同款**
+		/// 判读：2 能显示 ⇒ 差异在"摆位方式"；2 也不行 ⇒ 差异在别的（位置/环境），继续切。</summary>
+		public static int HandHookParkMode = 1;
+
+		private float _handHookAngle;        // 绕圈相位（弧度）
+		private bool _handHookRopeShown;     // 手里那条绳是否 Show 过（Show 会把点链拉直 ⇒ 只在进入时调一次）
+		private bool _handHookLogged;        // 诊断：开摆只打一条日志
 
 		private GrappleAnimContext _animCtx;
 		private AgentAnimStateMachine _anim;
@@ -222,7 +253,7 @@ namespace LivingWorldNpcs
 			_anchor = point;
 			_anchored = true;
 			_rope.FreeEnd = false;          // 重新锚定 = 把远端钉回去（`release` 的反动作）
-			_rope.Show(GetHand(), _anchor);
+			_rope.Show(GetRopeAnchor(), _anchor);
 			return $"grapple: anchored at ({point.x:F2},{point.y:F2},{point.z:F2}) | {_rope.Status()}";
 		}
 
@@ -328,7 +359,7 @@ namespace LivingWorldNpcs
 			{
 				return "Error: rope build failed (" + _rope.LastError + ")";
 			}
-			_rope.Show(hand, hand + dir * 0.5f);
+			_rope.Show(GetRopeAnchor(), hand + dir * 0.5f);
 
 			if (!_hook.Launch(scene, hand, dir, dist + 0.6f))
 			{
@@ -763,11 +794,19 @@ namespace LivingWorldNpcs
 				return;
 			}
 
+			// ①′ 手里待命（设计 B，2026-10-07）：钩索在手上 = 钩头停在右手绕圈、绳连到钩的尾环。
+			//     顺序：飞行/钉住归 ①；命令锚定归 ②（那条也要用绳，所以这里先让开）。
+			if (!_anchored)
+			{
+				TickHandHook(dt);
+				return;
+			}
+
 			// ② 手动锚定模式（步骤 1 的命令）
 			if (!_anchored) return;
 			try
 			{
-				_rope.Tick(dt, GetHand(), _anchor);
+				_rope.Tick(dt, GetRopeAnchor(), _anchor);
 			}
 			catch (Exception ex)
 			{
@@ -857,7 +896,7 @@ namespace LivingWorldNpcs
 
 			try
 			{
-				_rope.Tick(dt, GetHand(), FarEnd());
+				_rope.Tick(dt, GetRopeAnchor(), FarEnd());
 			}
 			catch (Exception ex)
 			{
@@ -920,6 +959,152 @@ namespace LivingWorldNpcs
 			{
 				return false;
 			}
+		}
+
+		// ─────────────────── 手里待命（设计 B，2026-10-07）：钩在右手上绕圈 ───────────────────
+
+		/// <summary>
+		/// 钩索拿在手上时每帧：钩头实体停在**右手**上、绕着手指定的圈转，绳走"手 → 钩（尾环）"那条。
+		/// 判据 = **此刻握着的是钩索本体**（`Agent.WieldedWeapon`）—— 换武器 / 收起来就收掉钩与绳。
+		/// 参数：<see cref="HandHookRpm"/> · <see cref="HandHookRadius"/> · <see cref="HandHookEnabled"/>。
+		/// 🔴 绳**只在进入时 Show 一次**（Show 会把点链拉直成一条线）；之后每帧只 Tick —— 让它自己甩。
+		/// </summary>
+		private void TickHandHook(float dt)
+		{
+			if (!HandHookEnabled || !IsHoldingGrapple())
+			{
+				_hook.Unpark();
+				if (_handHookRopeShown)
+				{
+					_handHookRopeShown = false;
+					_rope.Hide();
+				}
+				if (_handHookLogged)
+				{
+					_handHookLogged = false;      // 下次再拿起来会重新打"开摆"
+					string wieldedId = "(?)";
+					try
+					{
+						Agent m = Agent.Main;
+						wieldedId = (m != null && m.WieldedWeapon.Item != null) ? m.WieldedWeapon.Item.StringId : "(空手)";
+					}
+					catch (Exception)
+					{
+					}
+					DebugLogger.Log($"[Grapple] 手里的钩：停（此刻握着 {wieldedId}，开开关={HandHookEnabled}）");
+				}
+				return;
+			}
+
+			Agent player = Agent.Main;
+			Scene scene = Mission != null ? Mission.Scene : null;
+			if (player == null || scene == null)
+			{
+				return;
+			}
+
+			// 🔴 **支点 = 手的世界位置，走已验证的那条读法**（`GetHand` → `SpellCastInput.TryGetRightHandAnchor`）：
+			//    它内部带"**骨帧离角色 > 3 m 就判不可信、退回身体近似位**"的兜底。
+			//    2026-10-07 实机栽过：我裸用 `GetBoneEntitialFrame`（没兜底），那一帧读到的是**角色局部**坐标
+			//    (0.28,-0.16,0.85) ⇒ 钩被摆到世界原点附近 ⇒ 手里什么都看不见（不崩，就是找不到）。
+			Vec3 pivot = GetHand();
+
+			// 绕圈平面用**世界轴**推（不再依赖骨帧朝向）：竖直圆 —— 法线 = 角色右手方向 ⇒ 圈在"体侧"立着转。
+			Vec3 fwd = player.LookDirection;
+			if (fwd.LengthSquared < 1e-6f) { fwd = Vec3.Forward; }
+			fwd = fwd.NormalizedCopy();
+			Vec3 right = Vec3.CrossProduct(fwd, Vec3.Up);     // 与 BasisWithLocalZ 同款约定：s = f × u
+			if (right.LengthSquared < 1e-6f) { right = Vec3.Forward; }   // 正上/正下看时退化，随便挑一个
+			right = right.NormalizedCopy();
+
+			_handHookAngle += dt * HandHookRpm / 60f * 6.2831855f;
+			float c = (float)Math.Cos(_handHookAngle);
+			float s = (float)Math.Sin(_handHookAngle);
+
+			Vec3 radial = (right * c + Vec3.Up * s);
+			if (radial.LengthSquared < 1e-8f)
+			{
+				return;
+			}
+			radial = radial.NormalizedCopy();
+			Vec3 hookPos = pivot + radial * HandHookRadius;
+
+			_hook.Park(scene, hookPos, radial,
+				applyFrameEveryTick: HandHookParkMode == 1,
+				identityRotation: HandHookParkMode == 2);
+
+			if (!_handHookLogged)
+			{
+				_handHookLogged = true;
+				DebugLogger.Log($"[Grapple] 手里的钩：开摆 手={pivot.x:F2},{pivot.y:F2},{pivot.z:F2}"
+					+ $" 钩={hookPos.x:F2},{hookPos.y:F2},{hookPos.z:F2} 半径={HandHookRadius:F2} rpm={HandHookRpm:F0}"
+					+ $" | {_hook.ParkState()}");
+			}
+
+			// 绳的**近端 = 右手**（见 GetRopeAnchor 的事故记录）；绳默认不开，见 HandRopeEnabled。
+			if (!HandRopeEnabled)
+			{
+				if (_handHookRopeShown)
+				{
+					_handHookRopeShown = false;
+					_rope.Hide();
+				}
+				return;
+			}
+
+			Vec3 ropeAnchor = GetRopeAnchor();
+			if (!_handHookRopeShown)
+			{
+				if (!_rope.Build(scene))
+				{
+					return;
+				}
+				_rope.Show(ropeAnchor, hookPos);
+				_handHookRopeShown = true;
+			}
+			_rope.Tick(dt, ropeAnchor, hookPos);
+		}
+
+		/// <summary>命令用（`custom.grapple spin` 无参）：把"手里那枚实体"的状态读成一行 ——
+		/// 回答"到底召唤出实体没有 / 网格挂上没"（别靠猜）。</summary>
+		public string ParkStateLine()
+		{
+			return _hook.ParkState();
+		}
+
+		/// <summary>此刻"手上拿着钩索"吗？判据 = `Agent.WieldedWeapon` 是**钩索本体**（`taikou_grapple_hook`）
+		/// **或绳弹**（`taikou_grapple_dart`）。
+		/// 🔴 2026-10-07 实机（"瞄准时钩看不见"）：**瞄准期间引擎把 `WieldedWeapon` 报成那支**（弹药），
+		///   只判本体 ⇒ 一瞄准钩就被收掉（拔刀那一瞬还在，日志可证）。两件都认即可。
+		/// 换到别的武器（刀/弓）时两件都不匹配 ⇒ 正常收掉 ✓。</summary>
+		private static bool IsHoldingGrapple()
+		{
+			try
+			{
+				Agent main = Agent.Main;
+				if (main == null)
+				{
+					return false;
+				}
+				MissionWeapon wielded = main.WieldedWeapon;
+				string id = wielded.Item != null ? wielded.Item.StringId : null;
+				return id == GrappleFirePatch.WeaponItemId || id == GrappleFirePatch.DartItemId;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
+		/// <summary>绳的**近端**锚点 = **右手**（= 开火/出手点，与 <see cref="GetHand"/> 同一套**已被实机验证**的读法）。
+		/// 🔴 2026-10-07 事故记录（别再照抄那条路）：我一度把它改成"左手的环"（读 `Monster.OffHandItemBoneIndex`
+		///    + `GetBoneEntitialFrame`）—— 那是**本项目第一次**读左手骨，结果**拔刀后第一帧就 AccessViolation**
+		///    （栈顶 = 托管→本机转换、崩在 `MissionState.TickMission` 里；引擎日志最后一行 = `Render Requested: taikou_grapple_hook`）。
+		///    ⇒ 恢复成右手（已验证）；"绳系在左手环上"那条观感**等有稳妥的左手骨读法再说**（要动就得先单独验证那个 API）。
+		/// 画面口径：绳从**右手**（捏绳那只手）连到钩 —— 左手的环是独立道具，不参与绳的锚点。</summary>
+		private Vec3 GetRopeAnchor()
+		{
+			return GetHand();
 		}
 
 		/// <summary>手的世界位置（复用蓄力球那套挂点读取；取不到退回"身体坐标 + 抬一点"）。</summary>

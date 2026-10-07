@@ -45,8 +45,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple retract            收钩（钩头拆掉、绳藏起来）
 	///   custom.grapple range &lt;米&gt;         瞄准射线最大长度（默认 20；UE 参考工程是 12）
 	///   custom.grapple hspeed &lt;m/s&gt;       钩头飞行速度（默认 35）
-	///   custom.grapple hscale &lt;倍率&gt;      钩头占位网格缩放（默认 0.35）
-	///   custom.grapple hmesh &lt;网格名&gt;     换钩头占位网格（第一候选；后两个兜底保留）
+	///   custom.grapple hscale &lt;倍率&gt;      钩头网格缩放（默认 0.30）
+	///   custom.grapple hmesh &lt;网格名&gt;     换钩头网格（第一候选；后两个兜底保留）
+	///   custom.grapple spin &lt;rpm&gt; [半径]   **手里的钩**：绕右手转的转速 / 半径（= 手里那截绳的长度，默认 90 rpm / 0.20 m）
+	///   custom.grapple spin on|off        手里的钩总开关（off = 手上不显示钩与绳）；无参 = 看当前值
+	///   custom.grapple spinrope &lt;0|1&gt;     **待机那条绳**的开关（**默认 0 = 关**；开着才能看出"绳从手连到钩"）
+	///   custom.grapple parkframe &lt;0|1|2&gt;    **诊断**：手里那枚的摆位方式（1=每帧+径向 · 0=只摆一次+径向 · 2=只摆一次+Identity，与 spawn_mesh 逐字同款）
 	///   custom.grapple nz &lt;值&gt;           落点平台：地面法线竖直度阈值（默认 0.7，越大越平）
 	///   custom.grapple dz &lt;min&gt; &lt;max&gt;    落点平台：允许的高度窗口（米，默认 -1 ~ 4）
 	///   custom.grapple headroom &lt;米&gt;      落点平台：头顶净空要求（默认 2.0）
@@ -98,7 +102,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				if (s == "anchor" || s == "clear" || s == "seg" || s == "len" || s == "radius"
 					|| s == "overlap" || s == "damp" || s == "grav" || s == "mesh" || s == "ground"
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
-					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh"
+					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "parkframe"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
@@ -373,9 +377,92 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case "hmesh":
 				{
 					string name = ArgAt(args, at + 0);
-					if (string.IsNullOrEmpty(name)) { result = "Error: hmesh needs a mesh name (e.g. custom.grapple hmesh push_fork)"; break; }
-					GrappleHook.MeshCandidates = new[] { name, "push_fork", "bolt_bl_a" };
-					result = $"grapple: hook mesh candidates = {name}, push_fork, bolt_bl_a (takes effect on next throw)";
+					if (string.IsNullOrEmpty(name)) { result = "Error: hmesh needs a mesh name (e.g. custom.grapple hmesh hook)"; break; }
+					GrappleHook.MeshCandidates = new[] { name, "lwn_grapple_hook", "push_fork" };
+					result = $"grapple: hook mesh candidates = {name}, lwn_grapple_hook, push_fork (takes effect on next throw)";
+					break;
+				}
+
+				case "spin":
+				{
+					// 手里的钩（设计 B，2026-10-07）：绕右手转的转速/半径；off = 手上不显示钩与绳。
+					// 无参 = 看当前值 + **实体/网格自证**（回答"到底召唤出实体没有、网格挂上没"）。
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						string park = "-";
+						try { park = GrappleLogic.Ensure().ParkStateLine(); } catch (Exception) { }
+						result = $"grapple: hand hook = {(GrappleLogic.HandHookEnabled ? "ON" : "OFF")}"
+							+ $" | rpm {GrappleLogic.HandHookRpm:F0} | radius {GrappleLogic.HandHookRadius:F2} m"
+							+ $" | rope {(GrappleLogic.HandRopeEnabled ? "ON" : "OFF")}"
+							+ $" | {park}"
+							+ "   (usage: custom.grapple spin <rpm> [radius] | spin on|off | spinrope <0|1>)";
+						break;
+					}
+					if (a0 == "off")
+					{
+						GrappleLogic.HandHookEnabled = false;
+						result = "grapple: hand hook OFF";
+						break;
+					}
+					if (a0 == "on")
+					{
+						GrappleLogic.HandHookEnabled = true;
+						result = "grapple: hand hook ON";
+						break;
+					}
+
+					float rpm = ParseF(args, at + 0, float.NaN);
+					if (float.IsNaN(rpm))
+					{
+						result = "Error: spin needs a number (rpm), or on|off. e.g. custom.grapple spin 90 0.55";
+						break;
+					}
+					GrappleLogic.HandHookRpm = rpm;
+					GrappleLogic.HandHookEnabled = true;
+					float radius = ParseF(args, at + 1, -1f);
+					if (radius > 0f) { GrappleLogic.HandHookRadius = radius; }
+					result = $"grapple: hand hook rpm {GrappleLogic.HandHookRpm:F0}, radius {GrappleLogic.HandHookRadius:F2} m";
+					break;
+				}
+
+				case "parkframe":
+				{
+					// 诊断：手里那枚的摆位方式（1=每帧摆+径向朝向 / 0=只摆一次+径向 / 2=只摆一次+Identity朝向）
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: park mode = {GrappleLogic.HandHookParkMode}"
+							+ "  (1=every-tick+radial / 0=one-shot+radial / 2=one-shot+identity, like spawn_mesh)"
+							+ "   (usage: custom.grapple parkframe <0|1|2>)";
+						break;
+					}
+					int mode;
+					if (int.TryParse(a0, out mode) && mode >= 0 && mode <= 2)
+					{
+						GrappleLogic.HandHookParkMode = mode;
+						result = $"grapple: park mode = {mode} (takes effect immediately)";
+					}
+					else
+					{
+						result = "Error: parkframe takes 0, 1 or 2";
+					}
+					break;
+				}
+
+				case "spinrope":
+				{
+					// 待机那条绳的开关（2026-10-07 事故后分两步走：默认关，单独打开以便定位崩溃）
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: hand rope = {(GrappleLogic.HandRopeEnabled ? "ON" : "OFF")}"
+							+ "   (usage: custom.grapple spinrope <0|1>)";
+						break;
+					}
+					if (a0 == "1" || a0 == "on") { GrappleLogic.HandRopeEnabled = true; result = "grapple: hand rope ON (idle rope enabled)"; }
+					else if (a0 == "0" || a0 == "off") { GrappleLogic.HandRopeEnabled = false; result = "grapple: hand rope OFF"; }
+					else { result = "Error: spinrope takes 0|1 (or on|off)"; }
 					break;
 				}
 

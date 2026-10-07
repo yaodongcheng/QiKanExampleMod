@@ -33,6 +33,9 @@ namespace LivingWorldNpcs
 		/// <summary>绳弹的物品 StringId（内容包 `taikou_items/grapple.xml`）。改了那边这里要跟着改。</summary>
 		public const string DartItemId = "taikou_grapple_dart";
 
+		/// <summary>钩索本体的物品 StringId（判"玩家此刻握着的是不是钩索"用；同上一处，改内容包要跟着改）。</summary>
+		public const string WeaponItemId = "taikou_grapple_hook";
+
 		/// <summary>绳弹"应该有"的数量（玩家身上永远是 1 个 —— 打完立刻退还）。</summary>
 		private const short DartExpectedAmount = 1;
 

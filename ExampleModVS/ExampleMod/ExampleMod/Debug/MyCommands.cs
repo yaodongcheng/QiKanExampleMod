@@ -2292,6 +2292,64 @@ namespace LivingWorldNpcs
             return msg;
         }
 
+        /// <summary>
+        /// 在玩家面前生成**指定网格**（MetaMesh）—— 用来回答"这个网格到底能不能渲染"。
+        /// 与 spawn_prefab 的分工：prefab 走场景预制体，本命令**直接按网格名建实体**（正是自管实体/物品网格那条路）。
+        /// 诊断"看不见某件东西"时**先敲它**：网格能显示 ⇒ 病不在网格上。
+        /// 用法: custom.spawn_mesh &lt;meshName&gt; [dist=2] [scale=1] [height=1.2]
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("spawn_mesh", "custom")]
+        public static string ExecuteSpawnMesh(List<string> args)
+        {
+            if (Mission.Current == null || Mission.Current.Scene == null || Agent.Main == null)
+                return "Error: not in mission.";
+            if (args.Count < 1 || string.IsNullOrWhiteSpace(args[0]))
+                return "Usage: custom.spawn_mesh <meshName> [dist=2] [scale=1] [height=1.2]";
+
+            string meshName = args[0];
+            float dist = 2f;
+            if (args.Count >= 2) float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out dist);
+            float scale = 1f;
+            if (args.Count >= 3) float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out scale);
+            float height = 1.2f;
+            if (args.Count >= 4) float.TryParse(args[3], NumberStyles.Float, CultureInfo.InvariantCulture, out height);
+
+            // 解析口径与运行时那条链**同款**（先 GetMultiMesh、再退 GetCopy）—— 复现"实体到底拿到网格没有"
+            MetaMesh mesh = null;
+            string how = "GetMultiMesh";
+            try { mesh = MetaMesh.GetMultiMesh(meshName); } catch (Exception) { }
+            if (mesh == null)
+            {
+                how = "GetCopy";
+                try { mesh = MetaMesh.GetCopy(meshName, showErrors: false, mayReturnNull: true); } catch (Exception) { }
+            }
+            if (mesh == null)
+                return $"Mesh '{meshName}' NOT FOUND (GetMultiMesh + GetCopy both null).";
+
+            Vec3 look = Agent.Main.LookDirection;
+            float hl = MathF.Sqrt(look.x * look.x + look.y * look.y);
+            Vec3 fwd = hl > 1e-3f ? new Vec3(look.x / hl, look.y / hl, 0f) : new Vec3(0f, 1f, 0f);
+            Vec3 pos = Agent.Main.Position + fwd * dist + new Vec3(0f, 0f, height);
+
+            try
+            {
+                GameEntity entity = GameEntity.CreateEmpty(Mission.Current.Scene, true);
+                if (entity == null) return "Error: CreateEmpty returned null.";
+                entity.AddMultiMesh(mesh, true);
+                entity.SetVisibilityExcludeParents(true);
+                Mat3 rot = Mat3.Identity;
+                if (Math.Abs(scale - 1f) > 0.001f && scale > 0f) rot.ApplyScaleLocal(scale);
+                entity.SetGlobalFrame(new MatrixFrame(rot, pos));
+                string msg = $"Spawned '{meshName}' via {how} at ({pos.x:F1},{pos.y:F1},{pos.z:F1}) scale={scale:F2} " + GetEntityAssetStr(entity);
+                DebugLogger.Log($"[SpawnMesh] {msg}");
+                return msg;
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.GetType().Name} {ex.Message}";
+            }
+        }
+
         [CommandLineFunctionality.CommandLineArgumentFunction("print_focus", "custom")]
         public static string ExecutePrintFocusDebug(List<string> args)
         {

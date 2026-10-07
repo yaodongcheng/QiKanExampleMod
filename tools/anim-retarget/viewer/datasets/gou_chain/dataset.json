@@ -1,10 +1,10 @@
 {
   "name": "gou_chain",
-  "title": "",
-  "subtitle": "",
+  "title": "钩索 · 状态机（拆分版）",
+  "subtitle": "0_Idle=施法待机 ｜ 1_Reload=进入待机过渡 ｜ 2_Unload=退出的反向 ｜ 3_Ready=沉身备战 ｜ 4_Hold=瞄准循环(53帧·无静止·全程微动·闭环0.14°) ｜ 5_Release=抛出 ｜ 6_Recover=收招 ｜ 7_Pull=镜像拉拽 ｜ 8_Land=落地 ｜ 9_Flow=备战→瞄准→抛出→收招 连播",
   "sides": {
     "dst": {
-      "label": "骑砍2 · 钩索链",
+      "label": "骑砍2 · 钩索状态机",
       "color": "#e0b070",
       "slot": 0.0,
       "rotY": 0.0,

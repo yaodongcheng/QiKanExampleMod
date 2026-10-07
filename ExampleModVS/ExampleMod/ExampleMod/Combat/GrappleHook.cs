@@ -54,11 +54,25 @@ namespace LivingWorldNpcs
 		/// <summary>碰撞检查间隔（秒）。**不是每帧** —— 省原生调用（法术那边的纪律）。</summary>
 		public static float CheckInterval = 0.05f;
 
-		/// <summary>占位网格候选（铁律 5 两轮策略：逐个试，全不行 = 隐形飞，不崩）。第一版是**原版推草叉**（双齿，形似钩爪）。</summary>
-		public static string[] MeshCandidates = { "push_fork", "bolt_bl_a", "throwing_stone" };
+		/// <summary>钩头网格候选（铁律 5 两轮策略：逐个试，全不行 = 隐形飞，不崩）。
+		/// 🔴 2026-10-07 用户选定形状：原版那把**纯三爪钩**（尾环在原点、钩体沿 +Z、0.664 m）。
+		///    ⚠️ **别直接引用原版 `hook`** —— 它在包里是**场景道具**那一类资产，运行时按名字取不到
+		///       （实机日志：`网格 'hook' 查不到` ⇒ 实体是空壳 = 手里看不见钩）。
+		///       所以把它转成我们自己的资产 `lwn_grapple_hook`（生成器 `tools/grapple-model/scripts/build_hook_from_obj.py`，
+		///       坐标原样搬、往返自检 0 偏差），由用户在 ModKit 导入后即可按名字引用。
+		///    ⚠️ `grappling_hook`（绳圈+钩混装）与 `kitchen_hook`（吊钩）也不行：前者不是纯钩、后者同样取不到。
+		///    运行时可用 `custom.grapple hmesh &lt;网格名&gt;` / `hscale &lt;倍率&gt;` 现场换、现场调（不用重编译）。</summary>
+		public static string[] MeshCandidates = { "lwn_grapple_hook", "push_fork" };
 
-		/// <summary>占位网格缩放（推草叉偏大，缩小到像"钩头"）。</summary>
-		public static float MeshScale = 0.35f;
+		/// <summary>钩头网格缩放。🔴 **默认 1.0** —— 尺寸已经**烘进资产**（`lwn_grapple_hook.fbx` 实测
+		/// 0.107 × 0.114 × **0.199 m**，即 20 cm 的钩）。想看大/小用 `custom.grapple hscale &lt;倍率&gt;` 现场调。
+		/// （2026-10-07 修：早前资产是 0.664 m 的原版尺寸、靠这里的 0.30 缩到 20 cm —— 那种"隐藏的 0.3 倍"
+		///   让编辑器预览与实机对不上，已改为烘进资产。）</summary>
+		public static float MeshScale = 1.0f;
+
+		/// <summary>网格自身沿 +Z 的长度（米，**缩放前**）—— 摆位时把"钩尖"顶到点上，而不是把"尾环"顶上去
+		/// （否则钩会有一截埋进墙里）。资产实测：尾环在原点、钩尖在 +Z **0.175 m** 处（已含烘进去的缩放）。</summary>
+		public static float MeshLengthZ = 0.175f;
 
 		// ───────────────────────────── 状态 ─────────────────────────────
 
@@ -202,6 +216,7 @@ namespace LivingWorldNpcs
 		public void Clear()
 		{
 			RemoveEntity();
+			_parked = false;              // 手里待命态一并清掉（发射前会先 Clear）
 			State = Phase.Idle;
 			AttachedAgent = null;
 			_travelled = 0f;
@@ -233,7 +248,13 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>摆到当前位置（局部 Z = 飞行方向 —— 用绳那套已验证的基底，别用 CreateMat3WithForward）。</summary>
+		/// <summary>摆到当前位置。
+		/// · **飞行 / 钉住**：局部 Z = 飞行方向（用绳那套已验证的基底，别用 CreateMat3WithForward），
+		///   并沿飞行方向**后退一个钩长** —— 让**钩尖**落在 <see cref="Position"/> / 命中点上
+		///   （否则钩有一截埋进墙里、看着"环在前钩在后"）。
+		/// · **手里待命**（<see cref="_parked"/>）：位置与朝向由外部每帧喂（见 <see cref="Park"/>），
+		///   **不做钩尖补偿** —— 待命时要的是**尾环**正好落在绳端上（绳就系在环上）。
+		/// 🔴 三爪钩绕自身轴每 120° 对称 ⇒ 滚转随便取，`BasisWithLocalZ` 的 roll 不用管。</summary>
 		private void MoveEntity()
 		{
 			if (_entity == null || _entity.Pointer == UIntPtr.Zero)
@@ -242,13 +263,98 @@ namespace LivingWorldNpcs
 			}
 			try
 			{
-				MatrixFrame frame = new MatrixFrame(GrappleRope.BasisWithLocalZ(_dir), Position);
+				Vec3 pos;
+				Vec3 zdir;
+				if (_parked)
+				{
+					pos = _parkPos;
+					zdir = _parkDir;
+					if (_parkIdentity)
+					{
+						// 诊断模式：**不转**，与 `custom.spawn_mesh` 的 `Mat3.Identity` 完全同款
+						MatrixFrame idf = new MatrixFrame(Mat3.Identity, pos);
+						idf.Scale(new Vec3(MeshScale, MeshScale, MeshScale));
+						_entity.SetGlobalFrame(idf);
+						return;
+					}
+				}
+				else
+				{
+					zdir = _dir;
+					pos = (State == Phase.Flying || State == Phase.Attached)
+						? Position - _dir * (MeshLengthZ * MeshScale)
+						: Position;
+				}
+				if (zdir.LengthSquared < 1e-8f)
+				{
+					return;   // 方向退化 = 基向量算不出来，这一帧不摆（下一帧再说）
+				}
+				MatrixFrame frame = new MatrixFrame(GrappleRope.BasisWithLocalZ(zdir), pos);
 				frame.Scale(new Vec3(MeshScale, MeshScale, MeshScale));
 				_entity.SetGlobalFrame(frame);
 			}
 			catch (Exception)
 			{
 				// 单帧摆位失败不拖垮飞行
+			}
+		}
+
+		// ───────────────── 手里待命（设计 B，2026-10-07）：钩停在手上、绕手转 ─────────────────
+
+		private bool _parked;
+		private Vec3 _parkPos;
+		private Vec3 _parkDir;
+		private bool _parkIdentity;      // 诊断：用 Identity 朝向（= custom.spawn_mesh 同款）而不是径向朝向
+
+		/// <summary>
+		/// **手里待命**：把实体停在 <paramref name="pos"/>（= 绳端 / 尾环位置）、钩尖朝 <paramref name="zdir"/>
+		/// （待命时 = 离心方向）。位置由 <see cref="GrappleLogic"/> 每帧算好喂进来。
+		/// 发射时不需要先 Unpark —— <see cref="Launch"/> 会先 <see cref="Clear"/>（顺带把待命态清掉）。
+		/// </summary>
+		public void Park(Scene scene, Vec3 pos, Vec3 zdir, bool applyFrameEveryTick = true, bool identityRotation = false)
+		{
+			_parkPos = pos;
+			_parkDir = zdir;
+			_parkIdentity = identityRotation;
+			bool wasParked = _parked;
+			_parked = true;
+			if (_entity == null || _entity.Pointer == UIntPtr.Zero)
+			{
+				SpawnEntity(scene);          // 飞行收尾 Clear() 会把实体拆掉 ⇒ 待命期按需重建
+				wasParked = false;
+			}
+			ShowEntity();
+			// 🔴 `applyFrameEveryTick = false` = **只在建出来那一刻摆一次**，之后不再动 ——
+			//    与 `custom.spawn_mesh`（已知能正常渲染）完全同款，用来二分"每帧摆位是不是元凶"。
+			if (applyFrameEveryTick || !wasParked)
+			{
+				MoveEntity();
+			}
+		}
+
+		/// <summary>收掉手里那枚（钩索不在手上 / 换武器 / 关开关）。实体留着，下次 <see cref="Park"/> 复用。</summary>
+		public void Unpark()
+		{
+			if (!_parked)
+			{
+				return;
+			}
+			_parked = false;
+			HideEntity();
+		}
+
+		private void ShowEntity()
+		{
+			if (_entity == null || _entity.Pointer == UIntPtr.Zero)
+			{
+				return;
+			}
+			try
+			{
+				_entity.SetVisibilityExcludeParents(true);
+			}
+			catch (Exception)
+			{
 			}
 		}
 
@@ -284,6 +390,22 @@ namespace LivingWorldNpcs
 			{
 			}
 			_entity = null;
+		}
+
+		/// <summary>诊断用：当前手里待命那枚实体的状态（网格名 / 实体是否建出来）。</summary>
+		public string ParkState()
+		{
+			string meshName = "(未知)";
+			try
+			{
+				MetaMesh m = ResolveHookMesh();
+				meshName = m != null ? MeshCandidates[0] + " ✓" : "**全部查不到 = 空实体**";
+			}
+			catch (Exception)
+			{
+			}
+			bool alive = _entity != null && _entity.Pointer != UIntPtr.Zero;
+			return $"parked={_parked} entity={(alive ? "已建" : "null")} mesh={meshName} pos=({_parkPos.x:F2},{_parkPos.y:F2},{_parkPos.z:F2})";
 		}
 
 		/// <summary>占位网格：候选表逐个试（铁律 5 两轮策略的第一轮；第二轮 = ResolveMesh 内部的动态兜底）。</summary>
