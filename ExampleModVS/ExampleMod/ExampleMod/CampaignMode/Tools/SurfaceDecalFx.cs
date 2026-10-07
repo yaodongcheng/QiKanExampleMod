@@ -103,6 +103,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             public GameEntity Entity;
             public readonly List<LayerRef> Layers = new List<LayerRef>();
             public string Element = "";   // 元素名（= 材质名）
+            /// <summary>地表过渡里的角色：0=普通片；1=先进方(A)；2=后退方(B)。
+            /// 见 `Transition()` 与 `Tick` 的过渡分支。</summary>
+            public int Role = 0;
             public Vec3 Center;
             public float Radius;
             public float Life;            // 剩余寿命（秒）；MaxLife<=0 = 永久
@@ -117,6 +120,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         /// 凡是改变了「同一个驱动量 → 不同颜色」的映射的操作都要置位：改基色 / 改驱动通道 /
         /// 改混合 / 改锁定 / 换材质。</summary>
         private static bool _colorDirty = true;
+
+        /// <summary>地表过渡的水位进度：&lt;0 = 不在过渡；0 = 全是后退方(B)；1 = 全是先进方(A)。
+        /// 见 `Transition()` 与 `Tick` 的过渡分支。</summary>
+        private static float _transitionP = -1f;
+        private static float _transDur = 8f;
 
         // ── 场景辅助 ──────────────────────────────────────────────────────
         private static Vec3 FlatForward(float distance)
@@ -438,6 +446,40 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         {
             if (Patches.Count == 0) return;
 
+            // ── 地表「过渡」模式（2026-10-06）──────────────────────────────────
+            //   两层**互补 alpha** 的地表互相推一条分界线。贴图的 alpha 就是一张**高度场** f
+            //   （亮=1=先进方 A 的地盘，暗=0=后退方 B 的地盘）；水位 L 从 1 扫到 0，
+            //   分界线 = f = L 那条等高线 ⇒ **分界线形状离线烘焙、位置运行期一个数就能推**。
+            //
+            //   两层的有效阈值必须**互补**（A 显示 {f ≥ L}、B 显示 {f ≤ L}）：
+            //     A 的 factor.a = 阈值 ÷ L        B 的 factor.a = 阈值 ÷ (1 − L)
+            //   （还是"有效阈值 = 阈值 ÷ factor.a"那条老关系，这次用它推**分界线位置**，不是推淡出。）
+            //   🔴 互补 ⇒ 两层绘制区域**不重叠** ⇒ 多层也不怕绘制顺序（那条老坑直接绕过去了）。
+            if (_transitionP >= 0f)
+            {
+                for (int i = 0; i < Patches.Count; i++)
+                {
+                    Patch p = Patches[i];
+                    if (p.Role == 0) continue;
+                    float thr = (p.Layers.Count > 0 && p.Layers[0].AlphaTest > 0f) ? p.Layers[0].AlphaTest : 0.05f;
+                    float L = (p.Role == 1) ? (1f - _transitionP) : _transitionP;
+                    float ka = Clamp01(thr / Math.Max(1e-4f, L));
+                    uint a8 = (uint)Math.Round(ka * 255f) << 24;
+                    for (int j = 0; j < p.Layers.Count; j++)
+                    {
+                        if (!LayerMatches(p.Layers[j])) continue;
+                        try { p.Layers[j].Mesh.Color = a8 | 0x00FFFFFFu; } catch { }
+                    }
+                }
+                if (_transDur > 0.05f)
+                {
+                    _transitionP += dt / _transDur;
+                    if (_transitionP > 1f) _transitionP = 1f;      // 到 1 停在"全是 A"
+                }
+                _lastAlpha = _transitionP;
+                return;                 // 过渡期间不走常规那套（寿命/权重/写入闸门）
+            }
+
             for (int i = Patches.Count - 1; i >= 0; i--)
             {
                 Patch p = Patches[i];
@@ -540,6 +582,14 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         private static void SetColor(Mesh m, float a, float alphaTest)
         {
             float k = Clamp01(a);
+
+            // 🔴🔴 2026-10-06 实机定案：**`modulate` 是"替换反照率"，不是乘法** ——
+            //   判据：贴图给纯白时把它推到 factor=1，画面直接**变成白板**（而不是"不变"）。
+            //   ⇒ 替换语义下**贴图值没有"无痕"档**：白就盖成白、黑就盖成黑，
+            //     唯一"不生效"的方式 = **根本不画**（靠 `alpha_test` 裁）。
+            //   ⇒ 这种层的淡出**只能靠裁剪**（形状从边缘往内收 = `tools/decal-pipeline` 那套抛物面配方）；
+            //     推 RGB 只会把"盖上去的颜色"推向黑，推不出"回到底面"。
+            //   （曾按"乘法"假设给这层加过反相映射 `factor = 1−k`，实机证伪，已撤。）
             uint baseRgb = _tint ?? 0x00FFFFFFu;
             uint r = (uint)Math.Round(((baseRgb >> 16) & 0xFF) * k);
             uint g = (uint)Math.Round(((baseRgb >> 8) & 0xFF) * k);
@@ -707,73 +757,105 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         }
 
         /// <summary>
-        /// A/B 路对照统一入口。`mode` = "a" | "b" | "ab"。
-        /// 由 `custom.surface spawn &lt;材质名&gt; &lt;距离&gt; &lt;a|b|ab&gt; [半径] [寿命秒] [A缩放]` 调用 —— 一次只放一个材质。
-        /// `ab` 时两片并排：A 在左（世界 −X）、B 在右（世界 +X），各偏 <c>radius</c> 米
-        /// （贴花片轴对齐、不旋转，只有沿世界轴错开才摆得整齐 —— 同 `SpawnOffset` 的教训）。
-        /// `life` &gt; 0 ⇒ 有寿命（会走淡入/淡出，见 `LifeFactor`）；≤ 0 ⇒ 永久片。
+        /// A/B 路对照 + 多层叠加统一入口。`mode` = "a" | "b" | "ab" | "pair"。
+        /// 由 `custom.surface spawn &lt;材质…&gt; &lt;距离&gt; &lt;方法&gt; [半径] [寿命秒] [A缩放]` 调用。
+        /// · `a`/`b`/`ab` 只用**第一个**材质（`ab` = 两片并排：A 在左、B 在右，各偏 radius 米）
+        /// · `pair` 把**每一个**材质各放一片在**同一个位置**（测多层叠加）—— 顺序 = 参数顺序。
+        ///   🔴 必须原子放：分两条命令打的话，中间镜头一动，两次算出的位置就不同 ⇒ 错位
+        ///   （位置 = 玩家坐标 + **镜头朝向** × 距离）。
+        /// `life` &gt; 0 ⇒ 有寿命（会走淡入/淡出）；≤ 0 ⇒ 永久片。
         /// 🔴 返回文本一律英文（控制台纪律）。
         /// </summary>
-        public static string Route(string mode, string materialName, float distance, float radius, float life, float scale)
+        public static string Route(string mode, List<string> materials, float distance, float radius, float life, float scale)
         {
             Mission mission = Mission.Current;
             if (mission == null) return "FAIL: no mission (enter a scene first).";
             Agent main = mission.MainAgent;
             if (main == null) return "FAIL: no main agent to anchor on.";
-            if (string.IsNullOrEmpty(materialName)) return "FAIL: no material name given.";
 
-            Material probe = null;
-            try { probe = Material.GetFromResource(materialName); } catch { }
-            if (probe == null) return $"FAIL: material '{materialName}' not found (is its package loaded?).";
+            if (materials == null || materials.Count == 0) return "FAIL: no material name given.";
+            mode = (mode ?? "b").ToLowerInvariant();
+            if (mode != "a" && mode != "ab" && mode != "pair") mode = "b";
+            if (mode != "pair" && materials.Count > 1) materials = new List<string> { materials[0] };
+
+            // 逐个校验材质是否存在（不静默吞 —— 打错一个字就白跑一轮）
+            var ok = new List<string>();
+            var bad = new List<string>();
+            for (int i = 0; i < materials.Count; i++)
+            {
+                Material probe = null;
+                try { probe = Material.GetFromResource(materials[i]); } catch { }
+                if (probe == null) bad.Add(materials[i]); else ok.Add(materials[i]);
+            }
+            if (ok.Count == 0)
+                return "FAIL: material not found: " + string.Join(", ", bad) + " (is its package loaded?).";
+            materials = ok;
 
             if (distance <= 0f) distance = 4f;      // 同 SurfaceCommands.DefaultDistance
             if (radius <= 0f) radius = DefaultSize;
             if (scale <= 0f) scale = 1f;
-            mode = (mode ?? "ab").ToLowerInvariant();
-            if (mode != "a" && mode != "b") mode = "ab";
 
             string unlockNote = ReleaseLock();
             Vec3 center = main.Position + FlatForward(distance);
             float gap = mode == "ab" ? radius : 0f;
 
-            string aLine = "A: skipped";
-            string bLine = "B: skipped";
-
-            if (mode == "a" || mode == "ab")
+            var lines = new List<string>();
+            for (int i = 0; i < materials.Count; i++)
             {
-                Vec3 posA = center - FlatRight(gap);
-                string err;
-                Decal d = SpawnRouteAAt(materialName, posA, scale, out err);
-                if (d != null)
+                string mat = materials[i];
+
+                if (mode == "pair")
                 {
-                    _routeALog.Add($"{materialName} scale={scale:F2} @ ({posA.X:F1},{posA.Y:F1},{posA.Z:F1})");
-                    aLine = "A(left): " + Spot(posA, main,
-                        $"scale={scale:F2}, set='editor_set' | CAVEAT: route A's visual size is engine-side and UNCALIBRATED "
-                      + "-- if you see nothing, sweep the scaleA arg: ... 5 a 3 3 / 5 a 3 10 / 5 a 3 30");
+                    // 每个材质一片、全部落在同一个中心点（顺序 = 参数顺序，用来验绘制顺序）
+                    Patch pp; string perr;
+                    if (SpawnAt(_prefab, radius, life, center, out pp, out perr))
+                    {
+                        ApplyMaterial(pp, mat);
+                        lines.Add($"[{i}] '{mat}' at SAME spot");
+                    }
+                    else lines.Add($"[{i}] '{mat}' FAILED({perr})");
+                    continue;
                 }
-                else aLine = $"A(left): FAILED -- {err}";
+
+                string aLine = null, bLine = null;
+                if (mode == "a" || mode == "ab")
+                {
+                    Vec3 posA = center - FlatRight(gap);
+                    string err;
+                    Decal d = SpawnRouteAAt(mat, posA, scale, out err);
+                    if (d != null)
+                    {
+                        _routeALog.Add($"{mat} scale={scale:F2} @ ({posA.X:F1},{posA.Y:F1},{posA.Z:F1})");
+                        aLine = "A(left): " + Spot(posA, main,
+                            $"scale={scale:F2}, set='editor_set' | CAVEAT: route A's visual size is engine-side and UNCALIBRATED");
+                    }
+                    else aLine = $"A(left): FAILED -- {err}";
+                }
+                if (mode == "b" || mode == "ab")
+                {
+                    Vec3 posB = center + FlatRight(gap);
+                    Patch p; string err;
+                    if (SpawnAt(_prefab, radius, life, posB, out p, out err))
+                    {
+                        ApplyMaterial(p, mat);      // 按名字换材质（实测比对象重载可靠）
+                        bLine = "B(right): " + Spot(p.Center, main,
+                            $"size={radius:F1}m, life={(life > 0f ? life.ToString("F1", CultureInfo.InvariantCulture) + "s" : "inf")}, "
+                          + $"layers={p.Layers.Count}, mat='{mat}', meshBBox={MeshBox(p)}");
+                    }
+                    else bLine = $"B(right): FAILED -- {err}";
+                }
+                var parts = new List<string>();
+                if (aLine != null) parts.Add(aLine);
+                if (bLine != null) parts.Add(bLine);
+                lines.Add($"[{i}] '{mat}': " + string.Join(" · ", parts));
             }
 
-            if (mode == "b" || mode == "ab")
-            {
-                Vec3 posB = center + FlatRight(gap);
-                Patch p; string err;
-                if (SpawnAt(_prefab, radius, life, posB, out p, out err))
-                {
-                    ApplyMaterial(p, materialName);      // 按名字换材质（实测比对象重载可靠）
-                    bLine = "B(right): " + Spot(p.Center, main,
-                        $"size={radius:F1}m, life={(life > 0f ? life.ToString("F1", CultureInfo.InvariantCulture) + "s" : "inf")}, "
-                      + $"layers={p.Layers.Count}, mat='{materialName}', meshBBox={MeshBox(p)}");
-                }
-                else bLine = $"B(right): FAILED -- {err}";
-            }
-
-            return $"OK: route {mode.ToUpperInvariant()} | mat '{materialName}' | dist={distance:F1} r={radius:F1}"
+            return $"OK: route {mode.ToUpperInvariant()} | {materials.Count} material(s) | dist={distance:F1} r={radius:F1}"
                  + $" life={(life > 0f ? life.ToString("F1", CultureInfo.InvariantCulture) + "s" : "inf")} scaleA={scale:F2}"
-                 + $" | {aLine} | {bLine}"
-                 + " | EXPECT A to render NOTHING for a custom (non-override) material:"
-                 + " route A looks up tex[0]'s TEXTURE NAME in decal_textures_<scene group>.xml and drops the decal if absent;"
-                 + " it never samples the material's texture."
+                 + (bad.Count > 0 ? $" | NOT FOUND (skipped): {string.Join(",", bad)}" : "")
+                 + " | " + string.Join(" | ", lines)
+                 + (mode == "pair" ? " | NOTE: pair = all layers at the SAME spot; their ORDER = your argument order"
+                                      + " (swap the two names to test the reverse draw order)." : "")
                  + " | clear: 'custom.surface decalClear' (A: Scene.ClearDecals) + 'custom.surface clear' (B)"
                  + unlockNote;
         }
@@ -912,11 +994,68 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             return $"OK: drive LOCKED to {_lockAlpha:F2} (RGB = base x this). 0 = invisible, 1 = full.";
         }
 
+        /// <summary>
+        /// 启动一次**地表过渡**：A（先进方）与 B（后退方）两层**互补 alpha** 的贴图，同位置叠放，
+        /// 水位从"全是 B"扫到"全是 A"。
+        ///
+        /// 两张贴图必须**互补**（B 的 alpha = 1 − A 的 alpha），由
+        /// `tools/decal-pipeline/scripts/gen_transition_pair.py` 生成。
+        /// 分界线的**形状**烘焙在贴图的 alpha 高度场里（线性/径向/手绘任意），运行期只推水位。
+        /// 🔴 互补 ⇒ 两层绘制区域不重叠 ⇒ **不用管绘制顺序**。
+        /// 🔴 材质阈值要小（本项目用 0.01）、alpha 下限也要小（0.02）—— 否则水位扫到两端会**留残边**。
+        /// </summary>
+        public static string Transition(string matA, string matB, float distance, float radius, float seconds)
+        {
+            Mission mission = Mission.Current;
+            if (mission == null) return "FAIL: no mission (enter a scene first).";
+            Agent main = mission.MainAgent;
+            if (main == null) return "FAIL: no main agent to anchor on.";
+            if (string.IsNullOrEmpty(matA) || string.IsNullOrEmpty(matB))
+                return "FAIL: need TWO material names: transition <advancingA> <retreatingB> <dist> [radius] [seconds]";
+            foreach (string n in new[] { matA, matB })
+            {
+                Material probe = null;
+                try { probe = Material.GetFromResource(n); } catch { }
+                if (probe == null) return $"FAIL: material '{n}' not found (is its package loaded?).";
+            }
+            if (distance <= 0f) distance = 4f;
+            if (radius <= 0f) radius = DefaultSize;
+            if (seconds <= 0.1f) seconds = 8f;
+
+            string unlock = ReleaseLock();
+            Vec3 center = main.Position + FlatForward(distance);
+            Clear();                                   // 先清场，免得旧片混进来（Clear 会把水位复位）
+
+            string e1, e2;
+            Patch pa, pb;
+            bool okA = SpawnAt(_prefab, radius, -1f, center, out pa, out e1);
+            if (okA) { ApplyMaterial(pa, matA); pa.Role = 1; }
+            bool okB = SpawnAt(_prefab, radius, -1f, center, out pb, out e2);
+            if (okB) { ApplyMaterial(pb, matB); pb.Role = 2; }
+            if (!okA || !okB)
+            {
+                _transitionP = -1f;
+                return $"FAIL: spawn A={okA}({e1}) B={okB}({e2})";
+            }
+
+            _transitionP = 0f;                         // 从"全是 B"开始
+            _transDur = seconds;
+            Tick(0f);
+            DebugLogger.Log($"[Surface] transition A='{matA}' B='{matB}' dur={seconds:F1}s r={radius:F1} "
+                          + $"@({center.X:F1},{center.Y:F1},{center.Z:F1})");
+            return $"OK: transition '{matA}' (advancing) <- '{matB}' (retreating) | dur={seconds:F1}s r={radius:F1}"
+                 + " | water level L sweeps 1->0; A shows {alpha>=L}, B shows {alpha<=L};"
+                 + " the two layers are COMPLEMENTARY so draw order does not matter"
+                 + " | stop/reset: 'custom.surface clear'" + unlock;
+        }
+
         public static string Clear()
         {
             for (int i = 0; i < Patches.Count; i++) Hide(Patches[i]);
             int n = Patches.Count;
             Patches.Clear();
+            _transitionP = -1f;                 // 顺带退出过渡模式
+            _colorDirty = true;
             return $"OK: hid {n} patch(es).";
         }
 
@@ -1000,7 +1139,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             // ── 无参 / status ──
             if (sub == null || sub == "status" || sub == "list")
                 return "OK: " + SurfaceDecalFx.Describe()
-                     + " | usage: custom.surface spawn <material> [radius_m] [life_s] | spawn <mat> <dist> <a|b|ab> [radius] [life_s] [scaleA]"
+                     + " | usage: custom.surface spawn <material> [radius_m] [life_s] | spawn <mat...> <dist> <a|b|ab|pair> [radius] [life_s] [scaleA]"
+                     + " | transition <matA> <matB> <dist> [radius] [secs]"
                      + " | decalClear | twin <matA> <matB> [radius] [gap]"
                      + " | fade <in_s> <out_s> | band <m> | lock <0..1|-1> | layer <kw|-all> | probe | clear";
 
@@ -1089,6 +1229,20 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                 return SurfaceDecalFx.SetLock(nums[0]);
             }
 
+            // ── 地表过渡（2026-10-06）──────────────────────────────────────
+            //   custom.surface transition <先进方材质A> <后退方材质B> <距离> [半径] [秒]
+            //   两层**互补 alpha** 的贴图同位置叠放，水位从"全是 B"扫到"全是 A"。
+            //   贴图对由 tools/decal-pipeline/scripts/gen_transition_pair.py 生成（必须互补）。
+            if (sub == "transition")
+            {
+                string mA = rest.Count > 0 ? rest[0] : null;
+                string mB = rest.Count > 1 ? rest[1] : null;
+                float td = nums.Count >= 1 ? nums[0] : 0f;
+                float tr = nums.Count >= 2 ? nums[1] : 0f;
+                float ts = nums.Count >= 3 ? nums[2] : 0f;
+                return SurfaceDecalFx.Transition(mA, mB, td, tr, ts);
+            }
+
             // ── A 路清理（2026-10-06）──────────────────────────────────────
             //   走 A 路的片**没有**单条删除 API（1.2.12 无 RemoveDecalInstance）⇒ 只能整场景 ClearDecals()。
             //   ⚠️ 这会连带清掉其它**运行期**贴花实例；静态 decal_component 不受影响。
@@ -1098,26 +1252,33 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (sub == "spawn")
             {
                 // 🔴 两种形式，靠**有没有 a/b/ab 这个"方法"词**区分（prefab 名永远不会是这三个）：
-                //    ① A/B 路对照（2026-10-06）：
+                //    ① A/B 路对照 + 多层叠加（2026-10-06）：
                 //         custom.surface spawn <材质名> <距离> <a|b|ab> [半径] [寿命秒] [A缩放]
-                //         参数1 = 材质名 · 参数2 = 距离 · 参数3 = 方法
+                //         custom.surface spawn <下层> <上层> <距离> pair [半径] [寿命秒]
+                //         参数1 = 材质名（pair 模式给两个，**顺序 = 放置顺序**）· 参数2 = 距离 · 参数3 = 方法
                 //           a  = A 路（Decal 组件 + 全局图集，自定义材质预期什么都不出）
                 //           b  = B 路（decal_mesh + 材质自己的贴图）
                 //           ab = 两片并排对照（A 在左、B 在右）
+                //           pair = 给出的每个材质各放一片在**同一个位置**（测多层叠加用；
+                //                  分两条命令打会因镜头移动而错位，所以必须原子放）
                 //         [寿命秒] > 0 ⇒ 会走淡入/淡出（`custom.surface fade <in> <out>` 调时长）
+                //   🔴 方法词在 rest 里**任意位置**都能认（其余 token 一律当材质名）——
+                //      这样"材质名恰好叫 a/b"也不会误判，且顺序完全由参数顺序决定。
                 string method = null;
-                if (rest.Count >= 2)
+                var matNames = new List<string>();
+                for (int i = 0; i < rest.Count; i++)
                 {
-                    string m0 = rest[1].ToLowerInvariant();
-                    if (m0 == "a" || m0 == "b" || m0 == "ab") method = m0;
+                    string t = rest[i].ToLowerInvariant();
+                    if (method == null && (t == "a" || t == "b" || t == "ab" || t == "pair")) { method = t; continue; }
+                    matNames.Add(rest[i]);
                 }
-                if (method != null)
+                if (method != null && matNames.Count > 0)
                 {
                     float rDist = nums.Count >= 1 ? nums[0] : 0f;    // 0 = 用默认
                     float rRad = nums.Count >= 2 ? nums[1] : 0f;
                     float rLife = nums.Count >= 3 ? nums[2] : 0f;    // 0 = 永久
                     float rScaleA = nums.Count >= 4 ? nums[3] : 0f;
-                    return SurfaceDecalFx.Route(method, rest[0], rDist, rRad, rLife, rScaleA);
+                    return SurfaceDecalFx.Route(method, matNames, rDist, rRad, rLife, rScaleA);
                 }
 
                 // 🔴 第一参 = **prefab 名**（现在一个 prefab 对应一种材质/混合模式，prefab 就是"元素"）。
