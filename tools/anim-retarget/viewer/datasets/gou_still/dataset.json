@@ -1,0 +1,25 @@
+{
+  "name": "gou_still",
+  "title": "钩索 · 上弦定格（still）",
+  "subtitle": "10_Still = 上弦专用定格（2 帧 / 0.067 s，姿态**逐字取自 5_Release 的末帧**、根位移轨置 0）｜用途：引擎每射一箭必\"搭下一支箭\"，这一条让那一步**视觉上什么都没发生**",
+  "sides": {
+    "dst": {
+      "label": "骑砍2 · grapple_ground_still",
+      "color": "#e0b070",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "assets/gou_still.glb"
+        }
+      ]
+    }
+  }
+}

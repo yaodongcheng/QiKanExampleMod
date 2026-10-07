@@ -56,6 +56,10 @@
     {
       "id": "gou_chain",
       "name": "【钩索状态机】idle/reload/unload/ready/hold/release/recover/pull/land"
+    },
+    {
+      "id": "gou_still",
+      "name": "【钩索】上弦定格 still（姿态 = release 末帧，2 帧）"
     }
   ],
   "order_note": "分组（2026-09-24）：按素材主题并列。ue_basic 已并入 ue_slim（去重后 296 条）。 ｜ 2026-09-27：删除 ue_flight_lean（4 格合成预览，已被 ue_fly_comp 取代）；新增 ue_fly_comp（①源pose ②重定向后pose ③合成后动画）。 ｜ 2026-09-28：新增 pose_dianxue_pair（视频提取的成对交互动画：背后点穴→倒地）。 ｜ 2026-09-28：移除实验性数据集（已移至 viewer/_removed_datasets_20260928/，可回滚）：pose_rasen、pose_dianxue_pair、pose_dianxue_v8、pose_rasen_sm。查看器只保留实测人工位（pose_dance）与拼接件（spiral_hand）+ 动作库。"

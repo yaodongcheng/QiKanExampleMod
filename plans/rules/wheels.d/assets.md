@@ -1710,3 +1710,59 @@ scene.GetGroundHeightAtPositionMT(new Vec3(px, py, 探针高), out Vec3 normal, 
 - 探针**从高处往下问**（不是从目标点问）：这样平台在目标点**上方**时也能被找到。
 - 返回值哨兵判据与 §22.4 同款（`NaN` / `±1e5` = 此处没有地面）。
 - **验收/调参入口**：钩索的 `custom.grapple probe` —— 只解算不发射，打印每一环的通过数与最终终点。
+
+---
+
+## 23. 🔴 **发布链三件套**：编辑器工程 → 发布产物 → 装机包（2026-10-07 登记，钩索瞄准动画实战）
+
+**解决什么问题**：动画/资产"配置看着全对、就是播不出来" —— 尤其是**发布包里静默少了东西**这一类。
+先记住这条因果：**ModKit 的 Publish 只写「编辑器工程里现存的资产」** —— 工程里被删掉的 clip，发布包里**静默消失**（编译不报错、引擎不报错、只有"动作播不出来"一个症状）。
+
+### 23.1 三个位置，别搞混
+
+| 位置 | 是什么 | 谁写 | 判据 |
+|---|---|---|---|
+| `Modules/<沙箱>\Assets\animations\<名>\<名>_geo.tpac` **+** `<名>_anm.tpac` | **编辑器工程**：一条动画 = **两个文件**（`_geo` = 动画数据 / `_anm` = clip 壳） | 编辑器（人） | 只有 `_geo` 没有 `_anm` ⇒ **这条 clip 在工程里根本不存在** |
+| `Modules\Publish\<沙箱>\AssetPackages\pack0.tpac` | **发布产物**（Publish **每次清空重写**该目录，备份别放这儿） | 编辑器 Publish | `tpaccli animlist` 里该动画应标 `clip` 而不是 `ORPHAN` |
+| `Modules\<内容包>\AssetPackages\<改名>.tpac` | **装机包**（游戏实际读的那份） | 人（从发布产物拷/改名） | `md5` 应与发布产物一致 |
+
+### 23.2 三步定位（从便宜到贵）
+
+1. **引擎日志**（`C:\ProgramData\Mount and Blade II Bannerlord\logs\rgl_log_<pid>.txt`）搜 `does not contain act_`。
+   出现 = 该动作在动作集里不存在。**两个根**：①它绑的 clip 不在包里（本节）②动作集条目写错 —— 后者**哪怕只是个制表符**也是静默 `act_none`，症状一模一样（实测 `act_grapple_ground_pull` 的 `type` 被误删成一个 tab）。
+2. **`tpaccli animlist --packdir <包目录> --filter <名>`** —— 列**动画资产**并标 `clip` / **`ORPHAN`**（没被任何 clip 指着的）。
+   🔴 **`clipinfo` 只列 clip —— 没 clip 挂着的动画在它那儿完全隐形**（实测 11 条动画只显示 7 条，第一轮就看走眼在这）。这条命令就是为这个盲区新加的。
+3. **打开编辑器工程目录**看有没有 `_anm.tpac`。没有 ⇒ **回编辑器补建**，发布多少次都没用。
+
+### 23.3 修法两条
+
+- ✅ **正解**：ModKit 里补建 AnimationClip（源 = 现存动画 · 帧范围 · 名字 · **元数据照原值**）。
+  ⚠️ 元数据漏了会变成另一种坏法：`ready` 漏 `keep` = 起手反复重播；`hold` 漏 `cyclic` = 瞄准循环不转；`release` 优先级不对 = 被引擎的上弦动作抢走。
+- ⚡ **应急（离线，不回编辑器）**：
+  ```bash
+  tpaccli clipgraft --packdir <donor 目录> --onto <目标 tpac> --filter "名1,名2" --out <输出目录>
+  ```
+  - 自检①：donor 的 clip 指向的**动画 guid 必须在目标包里**（不在 ⇒ 拒绝搬：两边不是同一批动画，搬过去也是指空）
+  - 自检②：只比 **clip 同名**才跳过（🔴 **不能比"全部资产"** —— 动画与 clip 天生同名，比全部 = 一条都搬不进来，第一版就这么栽的）
+  - 只搬 clip **不搬动画**（动画本来就同 guid 同内容，搬过来只是包里多一份重复资产）
+
+### 23.4 验收纪律（每次发布后 30 秒，三条都便宜）
+
+```bash
+tpaccli animlist --packdir <包> --filter <本批前缀>     # 有 ORPHAN 吗
+tpaccli clipinfo --packdir A > a.txt; tpaccli clipinfo --packdir B > b.txt; diff a.txt b.txt   # 元数据被刷掉没
+md5sum <发布产物> <装机包>                              # 一致吗（不一致 = 有人手改过，或装错文件）
+```
+
+### 23.5 本次实战数据（钩索，2026-10-07）
+
+- 19:49 那版发布丢了 `ready`/`hold`/`release` **三条 clip**（动画数据都在）⇒ 引擎每帧刷 `does not contain act_grapple_ground_ready`
+  （按住瞄准 16 秒 = **2304 行**），人停在 reload 槽（`grapple_ground_still` = release 末帧）的姿势上 ⇒ 用户看到的是"瞄准时像已经放完 release"。
+- 取证：发布产物与装机包 **md5 相同** ⇒ 排除"拷贝丢的"；上一版（17:10）还带着这三条 ⇒ 17:12~19:49 之间从工程里消失。
+  **根因（用户 2026-10-07 确认）= 在编辑器里手工删除资产时把这三条误删了**。
+  🔴 **要害不是谁删的，是"删掉之后全场无声"**：ModKit 删除**无二次确认、无撤销**、发布/编译/引擎**零报错** ⇒ 这类事故一定会再发生。
+  **防线只能是发布后的比对**（23.4 三连验），别指望从现场反推出是谁删的。
+  另一条已经救过命的习惯：**留一份"上版装机包"当 donor**（`.installbak-*`）—— 这次三条 clip 正是从它里面搬回来的。
+- 抢救：三条指向的动画 guid 与新包**完全一致** ⇒ `clipgraft` 搬回即恢复；随后用户在编辑器补建 → 重发布 → 与 graft 版**全量 diff 零差异** ⇒ 换回编辑器原产物，链干净。
+- 同轮副产物（两个都是 tpaccli 新命令）：`animlist`（动画全表 + ORPHAN 标记）· `clipgraft`（跨包搬 clip）
+  · 另加一个临时全链体检脚本 `Debug/offline/_check_grapple_chain.py`（动作名 → 声明 / 接线 / clip 三处对齐，可推广到任意动作族）。

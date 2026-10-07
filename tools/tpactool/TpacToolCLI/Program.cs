@@ -39,6 +39,7 @@ bool inPlaceArg = false; // clipprio: 原地覆盖（自动备份）
 string dispArg = null;   // clipset: "X,Y,Z"
 string endArg = null;    // clipset: endProgress（可省）
 string durArg = null;    // clipduration: 新 Duration（秒），或 "auto"
+string ontoArg = null;   // clipgraft: 目标 tpac 文件（把 donor 里命中的资产并进它）
 
 string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -71,6 +72,7 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--disp": dispArg = cmdLine[++i]; break;
             case "--end": endArg = cmdLine[++i]; break;
             case "--duration": durArg = cmdLine[++i]; break;
+            case "--onto": ontoArg = cmdLine[++i]; break;
             default: Console.Error.WriteLine("unknown arg: " + args[i]); break;
         }
     }
@@ -444,6 +446,98 @@ switch (command)
             Console.WriteLine("no animation clip matched");
             return 1;
         }
+        return 0;
+    }
+    case "animlist":
+    {
+        // SkeletalAnimation 全表（名字 + **它自己的 guid** + 骨架 + 帧数）——2026-10-07 立。
+        // 为什么单开一条：`clipinfo` 只列 AnimationClip，**没被 clip 指着的动画在它那儿完全隐形**
+        // （实测：包里 11 条 grapple_ground_* 动画，只有 7 条有 clip ⇒ 另外 4 条 clipinfo 一个字都不打，
+        //  看起来像"资产没导入"，其实是"导入成功但没建 clip"）。
+        // 用途 = ① 找孤儿动画 ② 核对"老包里的 clip 指向的动画 guid"与"新包里的同名动画 guid"是否同一个
+        //        （同一个 ⇒ 可以把老 clip 直接搬到新包；不同 ⇒ 老 clip 会指到旧动画数据上，不能搬）。
+        var anims = assets.OfType<SkeletalAnimation>()
+            .Where(a => filter == null || a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(a => a.Name)
+            .ToList();
+        var clipTargets = new HashSet<Guid>(assets.OfType<AnimationClip>().Select(c => c.Animation));
+        foreach (var a in anims)
+        {
+            string skel = "(unresolved)";
+            if (!a.Skeleton.Equals(Guid.Empty) && byGuid.TryGetValue(a.Skeleton, out var sk))
+                skel = sk.Name;
+            Console.WriteLine($"{a.Name}\tframes={a.Duration}\t{(clipTargets.Contains(a.Guid) ? "clip" : "ORPHAN")}"
+                              + $"\tguid={a.Guid}\tskel={skel}");
+        }
+        if (anims.Count == 0)
+        {
+            Console.WriteLine("no skeletal animation matched");
+            return 1;
+        }
+        return 0;
+    }
+    case "clipgraft":
+    {
+        // clipgraft —— 把**旧包里还在、新包里已丢**的 AnimationClip 搬回新包（2026-10-07 立）。
+        // 背景：ModKit 重发布只写"编辑器工程里现存的资产"；工程里被删掉的 clip 就这样从交付包消失
+        //       （实测：瞄准链三条 clip `ready`/`hold`/`release` 没了，而它们指向的**动画 guid 两包完全一致**
+        //        ⇒ 动画数据没变，只是"clip"这层壳被删了 ⇒ 可以把壳搬回来，不用回编辑器重做）。
+        // 🔴 只搬 clip、**不搬动画**：动画在两包里本来就同 guid 同内容，搬过来 = 包里多一份重复资产。
+        // 🔴 搬之前必须核对"donor 的 clip 指向的动画 guid 在 target 里存不存在"——不存在就**拒绝搬这一条**
+        //    （说明两边不是同一批动画，搬过去 = clip 指空 ⇒ 引擎照样播不出来，白忙）。
+        // 🔴 两边同名 clip 都在 = 跳过（目标包优先，绝不覆盖）。
+        // 用法：tpaccli clipgraft --packdir <donor 目录> --onto <目标 tpac> --filter <名1,名2> --out <目录>
+        if (string.IsNullOrEmpty(ontoArg))
+        {
+            Console.Error.WriteLine("clipgraft 需要 --onto <目标 tpac 文件>（donor 用 --packdir 指目录）");
+            return 1;
+        }
+        if (!File.Exists(ontoArg)) { Console.Error.WriteLine("目标包不存在: " + ontoArg); return 1; }
+
+        var want = (filter ?? "").Split(',').Select(s => s.Trim())
+            .Where(s => s.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var target = new AssetPackage(ontoArg, true, false);
+        var targetGuid = new HashSet<Guid>(target.Items.Select(i => i.Guid));
+        // 🔴 只比"clip 同名"，**不能比"资产同名"** —— 动画与 clip 天生同名
+        //    （`grapple_ground_ready` 既是一条 SkeletalAnimation 又是一条 AnimationClip），
+        //    拿全部资产比 = 每次都判"已存在"，一条都搬不进来（2026-10-07 第一版就这么栽的）。
+        var targetClipNames = new HashSet<string>(target.Items.OfType<AnimationClip>().Select(i => i.Name),
+                                                  StringComparer.OrdinalIgnoreCase);
+        Console.WriteLine($"target {Path.GetFileName(ontoArg)}: {target.Items.Count} items, {targetClipNames.Count} clips");
+
+        int moved = 0, skipped = 0, refused = 0;
+        foreach (var f in Directory.EnumerateFiles(dir ?? ".", "*.tpac", SearchOption.AllDirectories))
+        {
+            if (Path.GetFullPath(f).Equals(Path.GetFullPath(ontoArg), StringComparison.OrdinalIgnoreCase)) continue;
+            AssetPackage donor;
+            try { donor = new AssetPackage(f, true, false); }
+            catch (Exception e) { Console.Error.WriteLine($"跳过 {Path.GetFileName(f)}：读头失败 {e.Message}"); continue; }
+
+            foreach (var clip in donor.Items.OfType<AnimationClip>())
+            {
+                if (want.Count > 0 && !want.Contains(clip.Name)) continue;
+                if (targetClipNames.Contains(clip.Name)) { Console.WriteLine($"  跳过 {clip.Name}：目标包已有同名 clip"); skipped++; continue; }
+                if (!targetGuid.Contains(clip.Animation))
+                {
+                    Console.Error.WriteLine($"  ❌ 拒绝 {clip.Name}：它指向的动画 guid {clip.Animation} 不在目标包里"
+                                            + "（两边不是同一批动画，搬过去也是指空）");
+                    refused++;
+                    continue;
+                }
+                target.Items.Add(clip);          // 直接搬对象：RawMeta 原样带走，写回去与 donor 逐字节一致
+                targetClipNames.Add(clip.Name);
+                Console.WriteLine($"  + {clip.Name}  (from {Path.GetFileName(f)})  动画={clip.Animation}  "
+                                  + $"帧 {clip.Source1}/{clip.Source2}  {clip.Duration:0.###}s  P{clip.Priority}");
+                moved++;
+            }
+        }
+        if (moved == 0) { Console.WriteLine("没有可搬的 clip（全被跳过/拒绝）—— 不写文件"); return refused > 0 ? 1 : 0; }
+
+        string outPath = Path.Combine(string.IsNullOrEmpty(outDir) ? "." : outDir, Path.GetFileName(ontoArg));
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath)));
+        target.Save(outPath);
+        Console.WriteLine($"已写出 {outPath} （{new FileInfo(outPath).Length:N0} B；搬入 {moved} 条，跳过 {skipped}，拒绝 {refused}）");
         return 0;
     }
     case "clipset":
