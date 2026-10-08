@@ -882,6 +882,36 @@ TRF 直读烘焙 `0.893/0.255/0.799` ❌；同一份 GLB 里的 `Executed02`（0
 
 ---
 
+### 15.9 🔴 自制运动模式（movement_set）—— **给任意武器/任意状态一套自己的走跑**（2026-10-08 实机验证通过：钩索四向走跑）
+
+**解决什么问题**：让某件武器（或某个状态）下的走 / 跑 / 站立用**自己的动画**，而不是它借的那个武器族的。
+钩索案例 = 握着钩索时 直走 / 后退 / 左移 / 右移 / 跑（8 条）全换成自做动画 ✓ ——
+⭐ **「忍者特殊移动」这类玩法走的就是这条链**（换一套 clip + 一个用法组 + 一个运动组，其余机制一模一样）。
+
+**链路（六环，缺一环都不生效）**：
+
+| # | 环节 | 干什么 | 关键点 |
+|---|---|---|---|
+| 1 | **动画** | Blender → trf → ModKit 导入 | 见 15.1 五环 |
+| 2 | **clip 元数据** | **抄原版同族** | 走/跑那族：`make_walk_sound` · Priority **0** · Param1 走 0 / 跑 **0.4** · BlendIn 走 **0.3** / 跑 **0.4** · **不勾 `cyclic`** · 带 `bip_mov_ik`。判据 `tpaccli clipinfo` |
+| 3 | **动作名声明** | 本包 `action_types.xml` 加**裸声明** | `<action name="act_x" />`（移动族原版零属性）；🔴 **漏这步 = 拔装备 `AccessViolation`（雷 169）** |
+| 4 | **动作名 → clip** | 本包 `action_sets.xml` | `<action type="act_x" animation="clip_x" />` |
+| 5 | **运动组** | 本包 `movement_sets.xml` 逐槽引用 | `idle` / `forward` / `backward` / `left` / `right` / 两个斜向 / 两个转身过渡 / `rotate` / **8 条 adder**（adder 全武器共用、名字里没 bow，**照抄别改**） |
+| 6 | **组装 + 指向** | `full_movement_sets.xml` 把四套（walk / run / crouch_walk / crouch_run）按 `movement_mode` 拼成一个 `full_movement_set`；再用**用法组**（`item_usage_sets.xml`）的 `<movement_sets><movement_set id="你的组"/></movement_sets>` 指过去 | 🔴 `movement_sets` / `full_movement_sets` 都要在 `project.mbproj` 挂 **soln 行**（不挂 = 完全不加载，引擎零报错） |
+
+**合并机制（为什么新 id 安全）**：`movement_sets` 是**原样拼接、无同名去重** ⇒ 新 id 纯追加、不挤掉原版；
+`full_movement_sets` 按 **id 合并子节点** ⇒ 同理（都是反编译实证）。**别用原版 id 去覆盖。**
+
+**接一条新动作 = 三处**（雷 169 的规矩）：① `action_types.xml` 声明 ② `action_sets.xml` 映射 ③ **谁引用它**
+（`movement_sets` 的槽 / `item_usage_sets` 的 `ready_action` 等 / `item_holsters`）。
+**判据**：`python Scripts/check_action_wiring.py --module <内容包>`（漏声明当场报，不用等实机 AV 来发现）。
+
+**常见坑**：
+- 🔴 **动作名的词跟着 clip 走**（2026-09-25 命名规则）：去掉 clip 名前后缀就是同一个词 —— 别自己造词。
+- 🔴 **蹲姿别硬套站姿 clip**（"蹲着却站直"穿帮）—— 蹲姿那两套要么整套换、要么整套留原值。
+- **只换 `forward` 不够**：横走/倒退/转身仍是原武器的姿势 ⇒ 一次换一套（四个正方向起步，斜向/转身/adder 可后补）。
+- 交付与验收照 **15.7** / **§23 三连**（md5 发布产物 vs 装机包 · `animlist` 查 ORPHAN · `clipinfo` diff）；装机包必须**改名**拷进内容包 `AssetPackages/`。
+
 ## 十六、🔴 模型导入核对表 —— **任何 FBX → 骑砍资产，进编辑器之前逐条核**（2026-09-19 登记）
 
 > **这不是某个工程的注意事项，是每一次导入都要走的流程。** 下面每一条错了的症状都是
