@@ -60,7 +60,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   custom.grapple armaxis &lt;0..4&gt; [轴外移米]  **手里那枚的绕转轴**（圆所在的平面 ⊥ 这个轴；即时生效、不用重编）：
 		///                                     4 = 小臂轴（肘→手）**默认**（2026-10-07 晚用户裁定）·
 		///                                     0 = 世界竖直 · 1 = 体侧前后甩 · 2 = 左右横扫 · 3 = 上臂弦（折臂时不准）
-		///                                     第 2 参 = 圆心沿轴外移（默认 0.05 m，"再向外探一点点"）
+		///                                     第 2 参 = 圆心沿轴外移（**默认 0**；掌心的那 8 cm 由 `palm` 统一负责）
+		///   custom.grapple palm &lt;米&gt;          **手部挂点沿小臂外移**（默认 0.08 = 掌心）—— **绳的近端 / 钩的圆心 / 开火起点三处共用**：
+		///                                     0 = 正好压在腕关节 · 负值 = 往腕方向回缩
 		///   custom.grapple hookface &lt;0|1|2|3&gt;  **钩朝哪**：哪个物体局部轴对准"离心向外"
 		///                                     （**默认 3 + hookroll 180** = 用户实机定的"对的形态"；0=+Z · 1=−Z · 2=+Y · 3=−Y；
 		///                                      🔴 引擎口径实测 = **钩体沿局部 +Y**（tpaccli 读装机包为准，FBX/Blender 侧会做轴换算））
@@ -68,6 +70,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   custom.grapple armout &lt;米&gt;         圆心**横向远离身体**（默认 0.10）—— 治"转一圈有一小段看不见"（圆内侧扫进躯干）
 		///   custom.grapple spinlog &lt;0|1&gt;       限频帧日志（默认关）：每 ~0.4 s 打 角度/钩位置/**actual**，
 		///                                     用来判"某个角度看不见"是**被遮挡**（actual 正常画圆）还是**摆位失效**（actual 跳走）
+		///   custom.grapple ringface &lt;0|1|2&gt;   **左手环的自身轴指向**（环由我们自绘、挂在根实体下）：
+		///                                     0 = 沿小臂（默认，环面 ⊥ 小臂 = 像松垮的镯子）· 1 = 世界竖直（环面水平）· 2 = 角色右方向
+		///   custom.grapple ringscale &lt;倍率&gt;    左手环缩放（默认 1 = 资产 8 cm 外径）
 	///   custom.grapple nz &lt;值&gt;           落点平台：地面法线竖直度阈值（默认 0.7，越大越平）
 	///   custom.grapple dz &lt;min&gt; &lt;max&gt;    落点平台：允许的高度窗口（米，默认 -1 ~ 4）
 	///   custom.grapple headroom &lt;米&gt;      落点平台：头顶净空要求（默认 2.0）
@@ -120,6 +125,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "overlap" || s == "damp" || s == "grav" || s == "mesh" || s == "ground"
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
+					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
@@ -213,11 +219,29 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
 				case "slack":
 				{
-					// 自动长度留的余量比例（1.2 = 永远比跨度长 20%）
+					// 自动长度留的余量比例（1.2 = 永远比跨度长 20%）—— **飞行那档**；
+					// 手里那档固定 1.0（绷直，用户 2026-10-08），第 2 个参数可改它。
+					string a0 = ArgAt(args, at + 0);
 					float v = ParseF(args, at + 0, -1f);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: rope slack — flight={GrappleLogic.FlightRopeSlackRatio:F2}"
+							+ $" | hand->hook(B)={GrappleLogic.HandRopeSlackRatio:F2} (必须 1.00 = 绷直)"
+							+ $" | ring->hand(A)={GrappleLogic.RopeASlackRatio:F2} (要松)"
+							+ $" | minLen flight={GrappleLogic.FlightRopeMinLength:F2} B={GrappleLogic.HandRopeMinLength:F2} A={GrappleLogic.RopeAMinLength:F2}"
+							+ "   (usage: custom.grapple slack <flight> [handB] [ringA]; 1 = exactly the span = taut)";
+						break;
+					}
 					if (v < 1f) { result = "Error: slack needs a ratio >= 1 (e.g. custom.grapple slack 1.2)"; break; }
+					GrappleLogic.FlightRopeSlackRatio = v;
 					rope.SlackRatio = v;
-					result = logic.Refresh();
+					float hand = ParseF(args, at + 1, -1f);
+					if (hand >= 1f) { GrappleLogic.HandRopeSlackRatio = hand; }
+					float ringA = ParseF(args, at + 2, -1f);
+					if (ringA >= 1f) { GrappleLogic.RopeASlackRatio = ringA; }
+					result = $"grapple: rope slack flight={GrappleLogic.FlightRopeSlackRatio:F2}"
+						+ $" handB={GrappleLogic.HandRopeSlackRatio:F2} ringA={GrappleLogic.RopeASlackRatio:F2}"
+						+ $"（下一帧起生效）· {logic.Refresh()}";
 					break;
 				}
 
@@ -471,6 +495,24 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				case "palm":
+				{
+					// 手部挂点沿小臂外移（腕关节 → 掌心）—— 绳的近端 / 钩的圆心 / 开火起点**三处共用**
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: palm offset (wrist -> palm, along the forearm) = {GrappleLogic.HandPalmOffset:F3} m"
+							+ "   (usage: custom.grapple palm <meters>; 0 = exactly on the wrist bone, 0.08 = palm centre,"
+							+ " negative = pull back toward the wrist)";
+						break;
+					}
+					float m = ParseF(args, at + 0, float.NaN);
+					if (float.IsNaN(m)) { result = "Error: palm needs meters, e.g. custom.grapple palm 0.08"; break; }
+					GrappleLogic.HandPalmOffset = m;
+					result = $"grapple: palm offset = {m:F3} m (rope end / hook pivot / shot origin all move together; takes effect immediately)";
+					break;
+				}
+
 				case "armaxis":
 				{
 					// 手里那枚的**绕转轴**（2026-10-07 晚用户要求"以手臂为轴做圆周运动"）——
@@ -488,8 +530,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					if (int.TryParse(a0, out ax) && ax >= 0 && ax <= 4)
 					{
 						GrappleLogic.HandHookAxis = ax;
-						float off = ParseF(args, at + 1, -1f);
-						if (off >= 0f) { GrappleLogic.HandHookAxisOffset = off; }
+						float off = ParseF(args, at + 1, float.NaN);
+						if (!float.IsNaN(off)) { GrappleLogic.HandHookAxisOffset = off; }   // 可正可负：正 = 离心向外，负 = 往腕
 						result = $"grapple: hand hook axis = {ax} | {HandAxisDesc(ax)}"
 							+ $" | pivot offset = {GrappleLogic.HandHookAxisOffset:F3} m (takes effect immediately)";
 					}
@@ -595,19 +637,106 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
-				case "spinrope":
+				case "ringface":
 				{
-					// 待机那条绳的开关（2026-10-07 事故后分两步走：默认关，单独打开以便定位崩溃）
+					// 左手环的自身轴指向哪（环 = 我们自己画的实体，跟钩/绳同属一个根实体）
+					string a0 = ArgAt(args, at + 0);
+					int f;
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: left-hand ring face = {GrappleRig.RingFaceMode} | {RingFaceDesc(GrappleRig.RingFaceMode)}"
+							+ $" | palm offset {GrappleRig.RingPalmOffset:F2} m | scale {GrappleRig.RingScale:F2}"
+							+ "   (usage: custom.grapple ringface <0|1|2> [palmOffsetMeters])";
+						break;
+					}
+					if (int.TryParse(a0, out f) && f >= 0 && f <= 2)
+					{
+						GrappleRig.RingFaceMode = f;
+						float off = ParseF(args, at + 1, float.NaN);
+						if (!float.IsNaN(off)) { GrappleRig.RingPalmOffset = off; }   // 可正可负：正 = 往指尖，负 = 往腕
+						result = $"grapple: left-hand ring face = {f} | {RingFaceDesc(f)}"
+							+ $" | palm offset = {GrappleRig.RingPalmOffset:F2} m (takes effect immediately)";
+					}
+					else
+					{
+						result = "Error: ringface takes 0 (axis along the forearm), 1 (axis = world up) or 2 (axis = your right)";
+					}
+					break;
+				}
+
+				case "ringscale":
+				{
 					string a0 = ArgAt(args, at + 0);
 					if (string.IsNullOrEmpty(a0))
 					{
-						result = $"grapple: hand rope = {(GrappleLogic.HandRopeEnabled ? "ON" : "OFF")}"
-							+ "   (usage: custom.grapple spinrope <0|1>)";
+						result = $"grapple: left-hand ring scale = {GrappleRig.RingScale:F2}"
+							+ "   (usage: custom.grapple ringscale <multiplier>; 1 = asset size, 8 cm outer diameter)";
 						break;
 					}
-					if (a0 == "1" || a0 == "on") { GrappleLogic.HandRopeEnabled = true; result = "grapple: hand rope ON (idle rope enabled)"; }
-					else if (a0 == "0" || a0 == "off") { GrappleLogic.HandRopeEnabled = false; result = "grapple: hand rope OFF"; }
-					else { result = "Error: spinrope takes 0|1 (or on|off)"; }
+					float s = ParseF(args, at + 0, -1f);
+					if (s <= 0f) { result = "Error: ringscale needs a positive multiplier"; break; }
+					GrappleRig.RingScale = s;
+					result = $"grapple: left-hand ring scale = {s:F2} (takes effect immediately)";
+					break;
+				}
+
+				case "ropelog":
+				{
+					// 绳/环/钩的"召唤/销毁/显隐"事件日志开关（默认开 —— 查 AV 时"崩在哪个事件之后"是唯一线索）
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: rope event log = {(GrappleRope.LogEvents ? "ON" : "OFF")}"
+							+ "   (usage: custom.grapple ropelog <0|1>; logs [Rope] <tag> spawn/rebuild/teardown/show/hide)";
+						break;
+					}
+					if (a0 == "1" || a0 == "on") { GrappleRope.LogEvents = true; result = "grapple: rope event log ON"; }
+					else if (a0 == "0" || a0 == "off") { GrappleRope.LogEvents = false; result = "grapple: rope event log OFF"; }
+					else { result = "Error: ropelog takes 0|1 (or on|off)"; }
+					break;
+				}
+
+				case "spinrope":
+				{
+					// 待机时那两条绳的开关（2026-10-08：拆成 a / b 两条，一次只开一条来二分 AV 嫌疑）
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: hand ropes A(ring->hand)={(GrappleLogic.HandRopeAEnabled ? "ON" : "OFF")}"
+							+ $" B(hand->hook)={(GrappleLogic.HandRopeEnabled ? "ON" : "OFF")}"
+							+ "   (usage: custom.grapple spinrope <off|a|b|ab>)"
+							+ "   [both default OFF: they reproduce the 10-07 AccessViolation; enable ONE at a time to find which one]";
+						break;
+					}
+					switch (a0)
+					{
+						case "0":
+						case "off":
+							GrappleLogic.HandRopeAEnabled = false;
+							GrappleLogic.HandRopeEnabled = false;
+							result = "grapple: hand ropes A=OFF B=OFF";
+							break;
+						case "1":
+						case "on":
+						case "b":
+							GrappleLogic.HandRopeAEnabled = false;
+							GrappleLogic.HandRopeEnabled = true;
+							result = "grapple: hand ropes A=OFF B=ON (hand->hook rope only)";
+							break;
+						case "a":
+							GrappleLogic.HandRopeAEnabled = true;
+							GrappleLogic.HandRopeEnabled = false;
+							result = "grapple: hand ropes A=ON B=OFF (ring->hand rope only)";
+							break;
+						case "ab":
+							GrappleLogic.HandRopeAEnabled = true;
+							GrappleLogic.HandRopeEnabled = true;
+							result = "grapple: hand ropes A=ON B=ON";
+							break;
+						default:
+							result = "Error: spinrope takes off | a | b | ab";
+							break;
+					}
 					break;
 				}
 
@@ -959,6 +1088,17 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		private const string HandProbeLadder =
 			"1 in-front-of-eyes/placed-once, 2 in-front-of-eyes/every-frame, 3 right-hand-bone/identity,"
 			+ " 4 hand-orbit/radial-facing (= real thing), 0 off";
+
+		/// <summary>`custom.grapple ringface` 的三档含义（命令回执用，纯英文）。</summary>
+		private static string RingFaceDesc(int f)
+		{
+			switch (f)
+			{
+				case 1: return "1 = ring axis = world up => ring plane horizontal (flat on the palm)";
+				case 2: return "2 = ring axis = your right => ring plane vertical, facing fore/aft";
+				default: return "0 = ring axis along the FOREARM (elbow->hand) => ring plane perpendicular to the forearm (like a loose bracelet)";
+			}
+		}
 
 		/// <summary>`custom.grapple hookface` 的四档含义（命令回执用，纯英文）。</summary>
 		private static string HookFaceDesc(int f)

@@ -163,6 +163,22 @@ namespace LivingWorldNpcs
 		private GameEntity[] _linkEntities;
 		private readonly List<Vec3> _finePts = new List<Vec3>(4096);   // 铺链用的光滑曲线采样（复用）
 		private GameEntity[] _seg;
+		private readonly GrappleRig _rig;    // 根实体（绳/钩/环 同属一个根，2026-10-08）
+		private readonly string _tag;        // 这条绳叫什么（"A"/"B"）—— 日志里靠它区分
+
+		/// <summary>
+		/// **绳的事件日志开关**（建/拆实体、Show/Hide 各打一行 `[Rope] &lt;标签&gt; …`）。
+		/// 🔴 2026-10-08 加：查 AccessViolation 时"崩在哪个事件之后"是唯一线索，而此前这些事件**一行都不打**。
+		/// 事件本身稀疏（重建/显隐），默认开着不刷屏；嫌吵就 `custom.grapple ropelog 0`。
+		/// </summary>
+		public static bool LogEvents = true;
+
+		/// <summary>构造：把"根实体"与**名字**传进来 —— 绳建的每个实体都会被收进根实体下面。</summary>
+		internal GrappleRope(GrappleRig rig = null, string tag = "?")
+		{
+			_rig = rig;
+			_tag = tag;
+		}
 		private string _boundSig;        // 实体当前绑的是哪份网格 / 哪种画法（变了就重建）
 		private Vec3[] _pts;             // 长度 = 段数 + 1
 		private Vec3[] _prev;            // 上一帧位置（verlet 用）
@@ -230,6 +246,26 @@ namespace LivingWorldNpcs
 			_pts = new Vec3[want + 1];
 			_prev = new Vec3[want + 1];
 
+			if (LogEvents)
+			{
+				GameEntity[] arr = _linkEntities ?? _seg;
+				string who;
+				if (arr == null || arr.Length == 0)
+				{
+					who = "-";
+				}
+				else if (arr.Length <= 12)
+				{
+					who = string.Join(" ", Array.ConvertAll(arr, GrappleRig.Describe));   // 少就逐个列
+				}
+				else
+				{
+					who = $"{GrappleRig.Describe(arr[0])} … {GrappleRig.Describe(arr[arr.Length - 1])}（共 {arr.Length}）";
+				}
+				DebugLogger.Log($"[Rope] {_tag} 重建实体：段数={want} 模式={(ChainMode ? "chain" : "segments")}"
+					+ $" 长度={Length:F2}m 半径={RadiusScale:F2} | {who}");
+			}
+
 			if (ChainMode)
 			{
 				if (!BuildChain(scene))
@@ -263,6 +299,8 @@ namespace LivingWorldNpcs
 				}
 				AttachSegmentMesh(e);
 				e.SetVisibilityExcludeParents(false);
+				GrappleRig.Name(e, $"lwn_{_tag}_seg{i:D2}");     // 自己的编号（日志/反查用）
+				_rig?.Adopt(scene, e);
 				_seg[i] = e;
 			}
 			return true;
@@ -301,6 +339,8 @@ namespace LivingWorldNpcs
 				}
 				e.AddMesh(_linkMesh);
 				e.SetVisibilityExcludeParents(false);
+				GrappleRig.Name(e, $"lwn_{_tag}_link{i:D3}");    // 自己的编号（日志/反查用）
+				_rig?.Adopt(scene, e);
 				_linkEntities[i] = e;
 			}
 			return true;
@@ -645,6 +685,17 @@ namespace LivingWorldNpcs
 		/// <summary>拆掉全部实体（自造网格留着复用）。</summary>
 		public void Teardown()
 		{
+			// 🔴 事件日志（2026-10-08）：拆实体是 AV 的头号嫌疑（挂进根实体后销毁 = 可能的悬空子件），
+			//    所以"拆了几个"必须留下痕迹。放在真正动手之前打 —— 崩了也能看到"它正准备拆"。
+			if (LogEvents && (_seg != null || _linkEntities != null))
+			{
+				GameEntity[] arr = _linkEntities ?? _seg;
+				string who = (arr == null || arr.Length == 0) ? "-"
+					: (arr.Length <= 12 ? string.Join(" ", Array.ConvertAll(arr, GrappleRig.Describe))
+						: $"{GrappleRig.Describe(arr[0])} … {GrappleRig.Describe(arr[arr.Length - 1])}（共 {arr.Length}）");
+				DebugLogger.Log($"[Rope] {_tag} 销毁实体：段={_seg?.Length ?? 0} 环={_linkEntities?.Length ?? 0}"
+					+ $" 根子树={(_rig != null ? _rig.ChildCount.ToString() : "n/a")} | {who}");
+			}
 			_visible = false;
 			if (_seg != null)
 			{
@@ -666,6 +717,13 @@ namespace LivingWorldNpcs
 			_prev = null;
 			_scene = null;
 			_visible = false;
+
+			// 🔴 拆完再打一次根子树数量 —— 与上面那条"拆前"的数一比，就是"引擎会不会解链"的判据：
+			//    变少 = 会解链 ✓（悬挂嫌疑排除）· 没变 = **悬空子件坐实** ✗（必须补显式摘链或改池子）。
+			if (LogEvents && _rig != null)
+			{
+				DebugLogger.Log($"[Rope] {_tag} 销毁完成：根子树={_rig.ChildCount}（与上面那条「拆前」对比）");
+			}
 		}
 
 		// ─────────────────────────────── 显示 / 隐藏 ───────────────────────────────
@@ -685,13 +743,26 @@ namespace LivingWorldNpcs
 			_pts[n - 1] = to;
 			_visible = true;
 			_groundTimer = 0f;
+			if (LogEvents)
+			{
+				DebugLogger.Log($"[Rope] {_tag} Show：{from.x:F2},{from.y:F2},{from.z:F2} → {to.x:F2},{to.y:F2},{to.z:F2}"
+					+ $" 跨度={(to - from).Length:F2}m 段数={n - 1}");
+			}
 			Draw();
 		}
 
 		/// <summary>藏起来（保留实体，下次 Show 复用）。</summary>
+		/// <summary>🔴 调用方要判"绳现在显示着吗"一律用**这个**（第 184 行那个属性的权威说明）：
+		/// 别只信自己记的"我 Show 过了"标志 —— `Release()`/`Anchor()` 等路径会绕过标志直接 `Hide()`，
+		/// 标志卡在 true ⇒ 之后只 Tick 不 Show（Tick 在隐藏时直接 return）⇒ **绳永久不出现**（2026-10-08 实机）。
+		/// </summary>
 		public void Hide()
 		{
 			if (!_visible) return;
+			if (LogEvents)
+			{
+				DebugLogger.Log($"[Rope] {_tag} Hide（隐藏实体，不销毁）");
+			}
 			_visible = false;
 			SetEntitiesVisible(false);
 		}
@@ -977,21 +1048,21 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public string Status()
 		{
+			string vis = _visible ? "" : "HIDDEN ";     // 🔴 诊断：绳是不是根本没被 Show 出来（用户 2026-10-08 "看不见了"）
 			string mode = ChainMode
 				? (_linkMesh != null ? $"chain(links={_linkEntities?.Length ?? 0},pitch={ChainPitch():F3}m,wire={LinkWireRadius * 100f:F1}cm)" : "chain(FAILED)")
 				: (UseTubeSegment ? "tube-segments" : $"part{MeshPart}");
 			if (_pts == null)
 			{
 				return $"not built | mode={mode} mesh={MeshName} err={(string.IsNullOrEmpty(LastError) ? _lastTubeError : LastError)}";
-			}
-			Vec3 a = _pts[0];
+			}			Vec3 a = _pts[0];
 			Vec3 b = _pts[_pts.Length - 1];
 			float span = (b - a).Length;
 			float slack = Length - span;
 			int mid = _pts.Length / 2;
 			float sag = (a + b).z * 0.5f - _pts[mid].z;
 			string taut = FreeEnd ? "FREE" : (span >= Length * 0.98f ? "TAUT" : "slack");
-			return $"length={Length:F2}m{(AutoLength ? "(auto)" : "")} span={span:F2}m slack={slack:F2}m sag={sag:F2}m [{taut}]"
+			return $"{vis}length={Length:F2}m{(AutoLength ? "(auto)" : "")} span={span:F2}m slack={slack:F2}m sag={sag:F2}m [{taut}]"
 				+ $" | segments={_pts.Length - 1} radius={RadiusScale:F2} "
 				+ $"overlap={Overlap:F2} shape={mode}{(Frozen ? " FROZEN" : "")} ground={GroundClamp} tick={_tickMsAvg:F2}ms"
 				+ $" | hand=({a.x:F1},{a.y:F1},{a.z:F1}) anchor=({b.x:F1},{b.y:F1},{b.z:F1})";

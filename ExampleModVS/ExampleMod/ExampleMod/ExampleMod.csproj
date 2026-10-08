@@ -356,6 +356,7 @@
          方案 = plans\钩索-实施计划.md；验收命令在 CampaignMode\Tools\GrappleCommands.cs（custom.grapple）。
          第 1 步 = 绳；第 2 步 = 钩头飞行 + 命中 + 落点平台解算（GrappleHook / GrappleLanding）。 -->
     <Compile Include="Combat\GrappleRope.cs" />
+    <Compile Include="Combat\GrappleRig.cs" />
     <Compile Include="Combat\GrappleLogic.cs" />
     <Compile Include="Combat\GrappleHook.cs" />
     <Compile Include="Combat\GrappleLanding.cs" />

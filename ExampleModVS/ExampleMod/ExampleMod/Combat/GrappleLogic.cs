@@ -35,12 +35,46 @@ namespace LivingWorldNpcs
 		/// "瞄准结束但流程未完（已开火、拉拽相机还没接手）时先别还相机"（见 GrappleAimCamera.Tick）。</summary>
 		public bool IsBusy => _hookPhase != HookPhase.Idle;
 
-		private readonly GrappleRope _rope = new GrappleRope();
+		/// <summary>
+		/// **根实体**（钩 / 绳 / 左手环 同属它的子级 —— 用户 2026-10-08 要求"严格的父子关系"）。
+		/// 🔴 必须先于 <see cref="_rope"/> / <see cref="_hook"/> 初始化（字段初始化按声明顺序跑，构造里要用它）。
+		/// </summary>
+		private readonly GrappleRig _rig = new GrappleRig();
+
+		private readonly GrappleRope _rope;
 		private bool _anchored;
 		private Vec3 _anchor;
 
+		/// <summary>
+		/// **左手那截绳（A：左手环 → 右手）** —— 用户 2026-10-08 定的拓扑：
+		/// **左手环 + 绳A一端 · 右手（不可见节点）+ 绳A另一端 + 绳B一端 · 钩 = 绳B另一端**；
+		/// 发射时飞出去的是 **B**（= <see cref="_rope"/>，与手里甩的那条**同一条**——用户要求"射出去的必须是手里那条"）。
+		/// 🔴 从 2026-10-07 起绳的近端一直在**右手**（`GetRopeAnchor`）——那是因为当时裸读左手骨崩过一次而回退；
+		///    现在左手环已由我们自绘（<see cref="GrappleRig.RingPosition"/> 每帧可读）⇒ A 可以真的系在环上。
+		/// </summary>
+		private readonly GrappleRope _ropeA;
+		private bool _ropeAShown;
+
 		// ── 钩头模式（步骤 2）──
-		private readonly GrappleHook _hook = new GrappleHook();
+		private readonly GrappleHook _hook;
+
+		public GrappleLogic()
+		{
+			_rope = new GrappleRope(_rig, "B");
+			_ropeA = new GrappleRope(_rig, "A");
+			_hook = new GrappleHook(_rig);
+
+			// A 的配置：短、自动跟长（两只手分开就拉长）、不甩 —— 它就是"握在手里的那一截"
+			_ropeA.AutoLength = true;
+			_ropeA.FreeEnd = false;
+			_ropeA.MinLength = 0.15f;
+
+			// 🔴 **2026-10-08 用户要求：手里甩的那截绳再细一半** ——
+			//    A、B 都减半（B 是同一条，所以飞行时也细了；要飞行时恢复粗的就改这一行）。
+			//    `RadiusScale` 是实例级、初始化自静态默认（`radius` 命令的那个）⇒ 这里做乘法，不动静态值。
+			_rope.RadiusScale *= 0.5f;
+			_ropeA.RadiusScale *= 0.5f;
+		}
 		private HookPhase _hookPhase = HookPhase.Idle;
 		private Vec3 _aimPoint;                       // 本次发射的瞄准点（命中点）
 		private bool _aimHitAgent;                    // 瞄准点是不是人（是人就不解算落点平台）
@@ -116,11 +150,64 @@ namespace LivingWorldNpcs
 		public static int HandHookAxis = 4;
 
 		/// <summary>
-		/// **圆心沿轴向外偏移**（米，`custom.grapple armaxis &lt;档&gt; [米]`）—— 圆所在的平面整体沿**轴方向**挪一点。
-		/// 用户 2026-10-07 晚口径："以手肘到手的连线为轴，**再向外探一点点**" ⇒ 默认 **0.05 m**：
-		/// 圆心从手腕（骨点）往外挪到掌心外侧，钩就不会擦着手转。
+		/// **手部挂点沿小臂外移**（米，`custom.grapple palm &lt;米&gt;`；默认 **0.08**）——
+		/// 🔴 骨点 = **腕关节**，不是掌心（骨骼原点是起点关节）。这个偏移把"手"这一个点整体挪到**掌心**，
+		///    于是**三处一起**跟着走：① 绳的近端锚点（`GetRopeAnchor`）② 手里那枚钩的圆心 ③ 开火起点。
+		///    （2026-10-08 用户实机："绳的挂点仍然在手腕，不在手心" —— 当时只有圆心挪了、绳没挪，故统一到这里。）
+		/// 方向 = **小臂方向**（肘→手，`TryGetForearmAxis`，与绕转轴同一套语义骨接口）；读不到就不移。
+		/// 设 0 = 正好压在腕关节上。
 		/// </summary>
-		public static float HandHookAxisOffset = 0.05f;
+		/// 🔴 2026-10-08 用户实机定稿：**默认 0.25**（腕关节沿小臂外移 25 cm）。
+		///    ⚠️ 参考量级：腕→掌心 ≈ 0.08、腕→指尖 ≈ 0.18~0.20 ⇒ 0.25 已经**在指尖之外**，
+		///    绳的近端与钩的圆心都会浮在手前方一点（用户明确要这个数）。要贴回手心就 `palm 0.08`。
+		/// </summary>
+		public static float HandPalmOffset = 0.25f;
+
+		/// <summary>
+		/// **圆心再沿轴外移**（米，`custom.grapple armaxis &lt;档&gt; [米]`；**默认 0**）——
+		/// 圆所在的平面整体沿"绕转轴"方向挪一点（在 <see cref="HandPalmOffset"/> 之上再叠）。
+		/// 🔴 默认改成 0（2026-10-08）：原来那 0.08 是为了把圆心挪进掌心，现在这件事由 `palm` 统一负责，
+		///    这里再叠就会**double**（掌心里又往外挪 8 cm）。留作微调旋钮。
+		/// </summary>
+		public static float HandHookAxisOffset = 0f;
+
+		/// <summary>
+		/// **飞行期间**的绳长跟随速度（米/秒；`GrappleRope.LengthFollowSpeed` 的临时值，收钩时恢复原值）。
+		/// 🔴 2026-10-08 加：默认的 8 m/s 追不上 42 m/s 的钩头 ⇒ 绳永远比跨度短 ⇒ **绷直成一条直线**
+		/// （用户实机："看不到末端从右手边飞到目标点的曲线过程，只有一条笔直的直线"）。拉到 60 之后
+		/// 绳长≈跨度×1.05（那份"永远留的余量"）⇒ 甩出去带弧 ✓。
+		/// </summary>
+		public static float FlightLengthFollowSpeed = 60f;
+
+		/// <summary>手里那档的绳长跟随速度（= 绳自己的默认值 8 m/s；收钩时恢复成它）。</summary>
+		public static float HandLengthFollowSpeed = 8f;
+
+		/// <summary>
+		/// 🔴 **手里那段绳要绷直**（用户 2026-10-08）—— 手→钩那一截是"甩着的绳"，必须是紧的。
+		/// `SlackRatio = 1.0` ⇒ 目标绳长 = 跨度（不留余量）⇒ 引擎走**绷紧的解析解** = 一条直线 ✓
+		/// （绳自己的默认 1.05 是给飞行用的：甩出去要带弧）。
+		/// </summary>
+		public static float HandRopeSlackRatio = 1.0f;
+
+		/// <summary>手里那档的绳长**下限**（米）—— 绳的默认 `MinLength` 是 0.3，
+		/// 而手里跨度只有 ~0.25 m ⇒ 下限比跨度还长 ⇒ 必然松 ✗。手里这档压到 0.1。</summary>
+		public static float HandRopeMinLength = 0.1f;
+
+		/// <summary>飞行那档的余量比例（默认 1.05 = 比跨度长 5% ⇒ 带弧；`custom.grapple slack` 改的就是它）。</summary>
+		public static float FlightRopeSlackRatio = 1.05f;
+
+		/// <summary>飞行那档的绳长下限（米，绳的默认值）。</summary>
+		public static float FlightRopeMinLength = 0.3f;
+
+		/// <summary>
+		/// 🔴 **A 段（左手环 → 右手）要松**（用户 2026-10-08）—— 那是"握在两只手之间的一段绳"，
+		/// 自然垂一点才像话；B 段（手→钩）才是必须绷直的那截。
+		/// 1.3 = 比跨度长 30% ⇒ 明显的一段垂弧（绳的 verlet 自带重力 ⇒ 自己会垂 ✓）；嫌垂多/垂少改这个数。
+		/// </summary>
+		public static float RopeASlackRatio = 1.3f;
+
+		/// <summary>A 段的绳长下限（米）。</summary>
+		public static float RopeAMinLength = 0.12f;
 
 		/// <summary>
 		/// **圆心横向远离身体**的偏移（米，`custom.grapple armout &lt;米&gt;`；默认 0.10）——
@@ -170,7 +257,14 @@ namespace LivingWorldNpcs
 		/// 🔴 **默认关**（2026-10-07 事故后分两步走）：待机路径里钩实体与绳是一起上的，一起崩时说不清是谁；
 		///    先只开钩（实体 + 自造网格），确认不崩再单独打开绳 ⇒ 一步就能定死病根。
 		/// 待机绳是**全新工况**（绳长只有 0.3~0.5 m，飞行时是 20 m），最可疑的就是它。</summary>
-		public static bool HandRopeEnabled = false;
+		/// 🔴 **2026-10-08 用户裁定：默认开**（实机开 `spinrope ab` 没崩）。早前的 AV 嫌疑仍在案，
+		///    但我们现在有**事件级日志**（`[Rope]` 建/拆/显隐 + 根子树计数）⇒ 真崩了也能一次定位。
+		///    出事立刻 `custom.grapple spinrope off` 当场关掉（即时生效）。
+		public static bool HandRopeEnabled = true;
+
+		/// <summary>**左手那截绳（A：环→右手）**的独立开关（`custom.grapple spinrope a`）—— 用来二分"崩在哪条绳"。
+		/// 🔴 2026-10-08 用户裁定：**默认开**（与 B 一起）。分开的开关保留着，随时能单独关。</summary>
+		public static bool HandRopeAEnabled = true;
 
 		/// <summary>
 		/// 🔴 **手上那枚钩的分档诊断**（`custom.grapple hand &lt;0..4&gt;`，2026-10-07 晚）——
@@ -269,6 +363,7 @@ namespace LivingWorldNpcs
 			try
 			{
 				_rope.Teardown();
+				_ropeA.Teardown();          // 手里那截（环 → 右手）
 			}
 			catch (Exception)
 			{
@@ -277,6 +372,14 @@ namespace LivingWorldNpcs
 			try
 			{
 				_hook.Clear();
+			}
+			catch (Exception)
+			{
+			}
+			try
+			{
+				_hook.DestroyEntity();      // 先拆子件（钩），再拆根 —— 顺序反了就是"销毁父级后还动子级"
+				_rig.Teardown();            // 根实体 + 左手环（绳由下面的 Teardown 自己收）
 			}
 			catch (Exception)
 			{
@@ -422,7 +525,11 @@ namespace LivingWorldNpcs
 				}
 			}
 
-			Vec3 toAim = aim - hand;
+			// 🔴 **飞行起点 = 钩此刻待的地方**（用户 2026-10-08 要求："钩锁的飞行起点位置就是之前做圆周运动
+			//    的那个位置，不准强行设置到相机中心处，这样才真实"）—— 手里那枚停在圆周上，就从那儿飞出去。
+			//    没在待命（命令 `throw` / 没拿在手上）才退回"手"。
+			Vec3 launchFrom = _hook.IsParked ? _hook.ParkedPosition : hand;
+			Vec3 toAim = aim - launchFrom;
 			float dist = toAim.Length;
 			if (dist < 0.4f)
 			{
@@ -433,6 +540,9 @@ namespace LivingWorldNpcs
 			// 绳先摆出来（手 → 钩头方向的一小段），此后每帧跟着钩头 —— 顺序照 Anchor()：先定长度再 Build
 			_rope.AutoLength = true;
 			_rope.FreeEnd = false;
+			// 切回**飞行那一档**（手里那档是"绷直"：余量 1.0 / 下限 0.1；飞行要带弧：1.05 / 0.3）
+			_rope.SlackRatio = FlightRopeSlackRatio;
+			_rope.MinLength = FlightRopeMinLength;
 			if (_rope.Length < _rope.MinLength)
 			{
 				_rope.Length = _rope.MinLength;
@@ -441,9 +551,24 @@ namespace LivingWorldNpcs
 			{
 				return "Error: rope build failed (" + _rope.LastError + ")";
 			}
-			_rope.Show(GetRopeAnchor(), hand + dir * 0.5f);
+			// 🔴🔴 **2026-10-08 修：开火时不再 `Show`（= 不再把绳拉直）** ——
+			//    `Show()` 的语义就是"把点链**重新排成一条直线**"（见 GrappleRope.Show 的注释）；在开火瞬间调它，
+			//    手里那条甩着的绳会**立刻变成一条笔直的线** ⇒ 用户实机："看不到末端从右手边飞到目标点的曲线过程"。
+			//    而这里**根本不需要 Show**：钩的起点 = 它刚才待的**圆周位置** = 绳的远端**本来就在那儿**，
+			//    接着每帧 `Tick` 就是完全连续的（绳自己会随钩头拉长、甩出去 ✓）。
+			//    只有"手里压根没绳"时（命令 `throw` / 手绳关着）才需要 Show 出一条来。
+			if (!_rope.IsVisible || _rope.PointCount < 2)
+			{
+				_rope.Show(GetRopeAnchor(), launchFrom);
+			}
 
-			if (!_hook.Launch(scene, hand, dir, dist + 0.6f))
+			// 🔴🔴 **2026-10-08 修（二）：飞行时把"绳长跟随速度"拉高** —— 否则绳永远比跨度短 ⇒ 走**解析解 = 一条直线**：
+			//    钩以 42 m/s 飞出去，而 `LengthFollowSpeed` 默认只有 8 m/s ⇒ 绳长追不上跨度 ⇒ `[TAUT]` ⇒ 看不到弧。
+			//    拉高之后绳长≈跨度×1.05（那份"永远留的余量"）⇒ 甩出去时自然**带弧**、远端像被拽着走 ✓。
+			//    收钩时（<see cref="Release"/>）恢复原值。
+			_rope.LengthFollowSpeed = FlightLengthFollowSpeed;
+
+			if (!_hook.Launch(scene, launchFrom, dir, dist + 0.6f))
 			{
 				return "Error: hook launch failed.";
 			}
@@ -456,7 +581,8 @@ namespace LivingWorldNpcs
 			_attachFromAir = Agent.Main != null && !Agent.Main.IsOnLand();
 			_attachAutoPull = autoPull;
 			_attachTimer = 0f;
-			DebugLogger.Log($"[Grapple] 发射：手={Fmt(hand)} 瞄准={Fmt(aim)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
+			DebugLogger.Log($"[Grapple] 发射：起点={Fmt(launchFrom)}{(_hook.IsParked ? "(= 圆周上那枚此刻的位置)" : "(手)")}"
+				+ $" 手={Fmt(hand)} 瞄准={Fmt(aim)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
 				+ $" | 起手={(autoPull ? "武器开火(命中后自动拉)" : "命令(命中即停)")} 空中起钩={_attachFromAir}");
 
 			// ── 姿态动画：开火（2026-10-04 二稿）──
@@ -532,6 +658,7 @@ namespace LivingWorldNpcs
 			_hook.Clear();
 			_hookPhase = HookPhase.Idle;
 			_rope.Hide();
+			_rope.LengthFollowSpeed = HandLengthFollowSpeed;   // 恢复手里那档（飞行期的临时值到此为止）
 			_landingNote = "released";
 
 			// ── 姿态动画收摊（2026-10-04 二稿）──
@@ -869,6 +996,10 @@ namespace LivingWorldNpcs
 			//    这样武器开火与命令 `throw` 走的是**同一条链路**（都在常规 tick 里）。
 			GrappleFirePatch.ProcessPending();
 
+			// ⓪″ **手里那套常驻件**（左手环 + "环→右手"那截绳 A，2026-10-08）：与钩头相位**无关** ——
+			//     握着钩索就该在（待命 / 飞行 / 拉拽都跟着两只手），所以放在相位分派**之前**。
+			TickHandKit(dt);
+
 			// ① 钩头模式（步骤 2 起）：它接管绳子；手动锚定让位
 			if (_hookPhase != HookPhase.Idle)
 			{
@@ -1043,6 +1174,63 @@ namespace LivingWorldNpcs
 			}
 		}
 
+		// ─────────────────── 手里那套常驻件（左手环 + 环→右手那截绳 A，2026-10-08） ───────────────────
+
+		/// <summary>
+		/// **左手环 + "环 → 右手"那截绳（A）** —— 用户 2026-10-08 定的拓扑：
+		/// **左手环 + A 一端 · 右手（不可见节点）+ A 另一端 + B 一端 · 钩 = B 另一端**。
+		/// 与钩头相位**无关**（握着钩索就该在：待命 / 飞行 / 拉拽期间都跟着两只手），没拿钩索或手动锚定时才收。
+		/// 判据与钩一致（<see cref="HandHookEnabled"/> + <see cref="IsHoldingGrapple"/>）—— 三件总是一起出现、一起消失。
+		/// </summary>
+		private void TickHandKit(float dt)
+		{
+			Agent player = Agent.Main;
+			Scene scene = Mission != null ? Mission.Scene : null;
+			bool want = HandHookEnabled && !_anchored && player != null && scene != null && IsHoldingGrapple();
+
+			_rig.TickRing(scene, player, want);      // 左手环（根实体下的第三件）
+
+			if (!want)
+			{
+				if (_ropeAShown)
+				{
+					_ropeAShown = false;
+					_ropeA.Hide();
+				}
+				return;
+			}
+
+			// A（环 → 右手）：独立开关 —— 默认关（与 B 一样是 AV 嫌疑，见 HandRopeAEnabled）
+			if (!HandRopeAEnabled)
+			{
+				if (_ropeAShown)
+				{
+					_ropeAShown = false;
+					_ropeA.Hide();
+				}
+				return;
+			}
+
+			// A 段**要松**（用户 2026-10-08）：那是"握在两只手之间的一段绳"，垂一点才自然；
+			//   B 段（手→钩）才绷直（见 TickHandHook 里那两行）。两段的档各自独立、互不影响。
+			_ropeA.SlackRatio = RopeASlackRatio;
+			_ropeA.MinLength = RopeAMinLength;
+
+			// A：左手环 → 右手（环还没摆上时退化成"手的点"，不至于拉出一条飞线）
+			Vec3 hand = GetHand();
+			Vec3 ring = _rig.RingPlaced ? _rig.RingPosition : hand;
+			if (!_ropeAShown || !_ropeA.IsVisible)      // 同上：以绳自己的状态为准，别只信标志
+			{
+				if (!_ropeA.Build(scene))
+				{
+					return;
+				}
+				_ropeA.Show(ring, hand);
+				_ropeAShown = true;
+			}
+			_ropeA.Tick(dt, ring, hand);
+		}
+
 		// ─────────────────── 手里待命（设计 B，2026-10-07）：钩在右手上绕圈 ───────────────────
 
 		/// <summary>
@@ -1175,8 +1363,16 @@ namespace LivingWorldNpcs
 				return;
 			}
 
+			// 🔴 **手里那截必须绷直**（用户 2026-10-08）：余量压到 1.0（目标绳长 = 跨度）+ 下限压到 0.1
+			//    （绳默认下限 0.3 > 手里跨度 0.25 ⇒ 不改的话必然松）。发射时（ThrowInternal）切回飞行那档。
+			_rope.SlackRatio = HandRopeSlackRatio;
+			_rope.MinLength = HandRopeMinLength;
+
 			Vec3 ropeAnchor = GetRopeAnchor();
-			if (!_handHookRopeShown)
+			// 🔴 `|| !_rope.IsVisible` 是**必需**的（2026-10-08 实机：发射落地后绳再也不出现）：
+			//    `Release()` / `Anchor()` 会绕过 `_handHookRopeShown` 直接 Hide() ⇒ 标志卡在 true、
+			//    这里只 Tick 不 Show（而 Tick 在隐藏时直接 return）⇒ 绳永久看不见。以**绳自己的状态**为准。
+			if (!_handHookRopeShown || !_rope.IsVisible)
 			{
 				if (!_rope.Build(scene))
 				{
@@ -1238,7 +1434,22 @@ namespace LivingWorldNpcs
 		/// 回答"到底召唤出实体没有 / 网格挂上没"（别靠猜）。</summary>
 		public string ParkStateLine()
 		{
-			return _hook.ParkState();
+			return _hook.ParkState() + " | " + _rig.Describe()
+				+ " | ropeA[ring->hand]: " + SafeStatus(_ropeA)
+				+ " | ropeB[hand->hook]: " + SafeStatus(_rope);
+		}
+
+		/// <summary>绳状态的安全读取（命令回执用；单行，出错不抛）。</summary>
+		private static string SafeStatus(GrappleRope rope)
+		{
+			try
+			{
+				return rope == null ? "(null)" : rope.Status();
+			}
+			catch (Exception ex)
+			{
+				return "(status failed: " + ex.GetType().Name + ")";
+			}
 		}
 
 		/// <summary>
@@ -1344,17 +1555,29 @@ namespace LivingWorldNpcs
 			return GetHand();
 		}
 
-		/// <summary>手的世界位置（复用蓄力球那套挂点读取；取不到退回"身体坐标 + 抬一点"）。</summary>
+		/// <summary>手的世界位置（复用蓄力球那套挂点读取；取不到退回"身体坐标 + 抬一点"）。
+		/// 🔴 **2026-10-08：把"蓄力球口径"的上抬减掉**，再**沿小臂外移到掌心**（<see cref="HandPalmOffset"/>）——
+		///    三处（绳的近端 / 钩的圆心 / 开火起点）共用这一个点，所以只需调一个旋钮。
+		///    （原 0.18 上抬是给阴魔斩球的：球挂手上方好看；钩/绳拿它当支点就会比掌心靠内靠上。）
+		/// ⚠️ 球那边不受影响（它自己走 <see cref="SpellCastInput.TryGetRightHandAnchor"/>）。</summary>
 		private Vec3 GetHand()
 		{
 			Agent player = Agent.Main;
 			if (player == null) return _anchor;
 			Vec3 hand;
-			if (SpellCastInput.TryGetRightHandAnchor(player, out hand))
+			if (!SpellCastInput.TryGetRightHandAnchor(player, out hand))
 			{
-				return hand;
+				return player.Position + Vec3.Up * FallbackHandLift;
 			}
-			return player.Position + Vec3.Up * FallbackHandLift;
+			hand -= Vec3.Up * SpellCastInput.HandAnchorUpOffset;      // 去掉蓄力球口径的上抬 → 回到手骨原点（腕关节）
+
+			// 沿**小臂方向**外移到掌心（读不到就保持腕关节，不乱挪）
+			if (Math.Abs(HandPalmOffset) > 0.0005f
+				&& SpellCastInput.TryGetForearmAxis(player, out Vec3 foreArm))
+			{
+				hand += foreArm * HandPalmOffset;
+			}
+			return hand;
 		}
 	}
 }

@@ -88,6 +88,13 @@ namespace LivingWorldNpcs
 		public Vec3 AttachedPoint { get; private set; }
 
 		private GameEntity _entity;
+		private readonly GrappleRig _rig;      // 根实体（钩/绳/环 同属一个根，2026-10-08）
+
+		/// <summary>构造：把"根实体"传进来（<see cref="GrappleRig"/>）—— 钩的实体会被收进它下面。</summary>
+		internal GrappleHook(GrappleRig rig = null)
+		{
+			_rig = rig;
+		}
 		private Vec3 _dir;
 		private float _travelled;
 		private float _maxDistance;
@@ -121,6 +128,7 @@ namespace LivingWorldNpcs
 			State = Phase.Flying;
 
 			SpawnEntity(scene);
+			ShowEntity();                                // 复用实体 ⇒ Clear() 刚把它藏了，这里要重新亮出来
 			MoveEntity();
 			return true;
 		}
@@ -212,10 +220,16 @@ namespace LivingWorldNpcs
 			return StepResult.Flying;
 		}
 
-		/// <summary>收掉（实体拆掉；下次发射重建）。</summary>
+		/// <summary>
+		/// 收掉（状态归零、实体**藏着留着复用**）。
+		/// 🔴 2026-10-08 改：原来这里是 `RemoveEntity()`（拆实体），现在**不拆** —— 钩已挂在**根实体**下，
+		///    每发拆一次 = 频繁制造"被销毁的子件"（引擎会不会自动解链**全 DLL 无先例可查**，不想赌）；
+		///    隐藏 + 复位状态完全等效，场景结束由 <see cref="GrappleRig.Teardown"/> 统一收。
+		///    ⚠️ 因此 <see cref="Launch"/> 必须自己 <c>ShowEntity()</c>（以前靠"新建的实体默认可见"）。
+		/// </summary>
 		public void Clear()
 		{
-			RemoveEntity();
+			HideEntity();
 			_parked = false;              // 手里待命态一并清掉（发射前会先 Clear）
 			State = Phase.Idle;
 			AttachedAgent = null;
@@ -240,6 +254,10 @@ namespace LivingWorldNpcs
 					_entity.AddMultiMesh(mesh, true);
 				}
 				_entity.SetVisibilityExcludeParents(true);
+				_rig?.Adopt(scene, _entity);       // 收进根实体下（用户 2026-10-08：钩/绳/环 = 严格父子）
+				GrappleRig.Name(_entity, "lwn_hook");          // 自己的编号
+				DebugLogger.Log("[Rope] hook 召唤实体：网格=" + (mesh != null ? MeshCandidates[0] : "(空壳)")
+					+ " " + GrappleRig.Describe(_entity) + "（已收进根实体）");
 			}
 			catch (Exception ex)
 			{
@@ -368,6 +386,16 @@ namespace LivingWorldNpcs
 			return m;
 		}
 
+		/// <summary>手里待命（`Park`）中吗？</summary>
+		public bool IsParked => _parked;
+
+		/// <summary>
+		/// 手里那枚**此刻在哪**（= 圆周上的当前位置）。没待命 = <see cref="Vec3.Zero"/>。
+		/// 🔴 用途（用户 2026-10-08 要求）：**开火时钩必须从"它现在待的这个地方"飞出去** ——
+		///    "飞行起点位置就是之前做圆周运动的那个位置，不准强行设置到相机中心/手中心处"。
+		/// </summary>
+		public Vec3 ParkedPosition => _parked ? _parkPos : Vec3.Zero;
+
 		/// <summary>
 		/// **手里待命**：把实体停在 <paramref name="pos"/>（= 绳端 / 尾环位置）、钩尖朝 <paramref name="zdir"/>
 		/// （待命时 = 离心方向）。位置由 <see cref="GrappleLogic"/> 每帧算好喂进来。
@@ -452,6 +480,12 @@ namespace LivingWorldNpcs
 			{
 			}
 			_entity = null;
+		}
+
+		/// <summary>场景结束用（`GrappleRig.Teardown` 之前调）：把钩实体也交出去拆掉。</summary>
+		public void DestroyEntity()
+		{
+			RemoveEntity();
 		}
 
 		/// <summary>
