@@ -126,7 +126,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
-					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring"
+					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens")
@@ -811,6 +811,24 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				// 🔴 **每帧面包屑**（2026-10-08 立）—— 查"栈丢失的 AccessViolation"专用：开着时每一步都往
+				//    运行日志写一行 `[GTrace] f<帧号> <阶段>`（`DebugLogger` 逐行落盘 ⇒ 硬崩也留得住）
+				//    ⇒ **崩前的最后一行 = 死掉的那一步**。代价 = 每帧十几行，只在复现那一次开。
+				case "tracelog":
+				{
+					string a0 = ArgAt(args, at + 0);
+					if (!string.IsNullOrEmpty(a0))
+					{
+						string v = a0.Trim().ToLowerInvariant();
+						if (v == "0" || v == "off" || v == "false") { GrappleLogic.TraceTick = false; }
+						else if (v == "1" || v == "on" || v == "true") { GrappleLogic.TraceTick = true; }
+						else { result = "Error: tracelog takes 0|1 (or on|off)"; break; }
+					}
+					result = "grapple: per-frame breadcrumb trace = " + (GrappleLogic.TraceTick ? "ON" : "OFF")
+						+ "   (usage: custom.grapple tracelog <0|1>; writes '[GTrace] f<frame> <stage>' every step."
+						+ " Arm it, reproduce the crash, then send the LAST 30 lines of the runtime log)";
+					break;
+				}
 
 				case "spinrope":
 				{
@@ -821,7 +839,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 						result = $"grapple: hand ropes A(ring->hand)={(GrappleLogic.HandRopeAEnabled ? "ON" : "OFF")}"
 							+ $" B(hand->hook)={(GrappleLogic.HandRopeEnabled ? "ON" : "OFF")}"
 							+ "   (usage: custom.grapple spinrope <off|a|b|ab>)"
-							+ "   [both default OFF: they reproduce the 10-07 AccessViolation; enable ONE at a time to find which one]";
+							+ "   [the hand rope reproduces the 10-07/10-08 AccessViolation -"
+							+ " turn ONE on at a time to bisect; see also 'custom.grapple tracelog 1']";
 						break;
 					}
 					switch (a0)

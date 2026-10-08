@@ -83,11 +83,17 @@ namespace LivingWorldNpcs
 		///    ⇒ 以后"把整件东西挪走/丢下"只需摆 root 一件事，全套跟着走 ✓。
 		///    🔴 每帧**必须先摆 root、再摆子件**（子件写的是"相对 root 的局部帧"，用到的 root 帧要是本帧的）。
 		/// </summary>
-		public void PlaceRoot(Vec3 worldPos)
+		public void PlaceRoot(Vec3 worldPos, Scene scene = null)
 		{
 			try
 			{
-				GameEntity root = Root(null);       // 已建过就直接拿，不会因 scene=null 去新建
+				// 🔴 **要传 scene**（2026-10-08 修）：不传的话，第一次 `PlaceRoot` 时根实体还不存在 ⇒
+				//    `Root(null)` 直接返回 null、什么都不做；根实体随后在 `Adopt()`（建第一个子件时）才被创建，
+				//    **位置在世界原点** ⇒ 那一帧所有子件记下的"局部帧"其实是**世界坐标**（几百米）。
+				//    同一帧里子件会被重新摆一次（`Place` 会重算局部帧）所以看不出问题，
+				//    但**没被重摆的子件**（退化被隐藏的那些）会把那份几百米的偏移一直挂着 —— 根一动它们就飞。
+				//    传了 scene ⇒ 根实体在**摆根这一步**就按"手的位置"建出来，从第一帧起坐标口径就是对的。
+				GameEntity root = Root(scene);       // 已建过就直接拿；scene 非空且没建过 = 现在就建
 				if (root == null || root.Pointer == UIntPtr.Zero)
 				{
 					return;

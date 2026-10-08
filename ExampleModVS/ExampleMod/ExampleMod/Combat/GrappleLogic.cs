@@ -1074,31 +1074,65 @@ namespace LivingWorldNpcs
 			return string.Format("({0:F2},{1:F2},{2:F2})", v.x, v.y, v.z);
 		}
 
+		// ─────────────────────────────── 每帧面包屑（查栈丢失的 AV 用） ───────────────────────────────
+
+		/// <summary>
+		/// **每帧面包屑**（`custom.grapple tracelog &lt;0|1&gt;`，**默认关**）——开着时**每一步都往运行日志写一行**
+		/// `[GTrace] f&lt;帧号&gt; &lt;阶段&gt;`。
+		///
+		/// 🔴 **为什么要有它**：钩索这一段的 AccessViolation 是**栈丢失**的那种（崩在 native、托管栈没有、
+		///    连 dump 都没落盘 —— 见 plan §B4）。那种崩法**唯一**能取证的东西就是"**最后写进磁盘的那一行**"：
+		///    `DebugLogger` 每次调用都 `AppendAllText`（逐行落盘、不缓存）⇒ 硬崩也留得住。
+		///    ⇒ 崩在哪一行，那一行前面的**阶段名**就是死掉的那一步（阶段名紧挨着真正的调用写）。
+		///
+		/// **代价**：每帧十几行（30 秒 ≈ 2 万行、约 2 MB）。**只在复现崩溃的那一次开**，验完就关。
+		/// 用法：`custom.grapple tracelog 1` → 复现 → 把运行日志**最后 30 行**发出来。
+		/// </summary>
+		public static bool TraceTick = false;
+
+		private int _traceFrame;
+
+		/// <summary>写一条面包屑（关着时零成本：一次 bool 判断）。**紧挨着真正的调用写**，不合并。</summary>
+		private void Trace(string stage)
+		{
+			if (TraceTick)
+			{
+				DebugLogger.Log($"[GTrace] f{_traceFrame} {stage}");
+			}
+		}
+
 		// ─────────────────────────────── 每帧 ───────────────────────────────
 
 		public override void OnMissionTick(float dt)
 		{
 			base.OnMissionTick(dt);
+			_traceFrame++;
+			Trace("tick:begin");
 
 			// ⓪ 瞄准相机（2026-10-04）：按住左键瞄准期间接管相机（鼠标驱动；见 GrappleAimCamera）。
 			//    放在最前 —— 它的生命周期与钩头相位无关（瞄准时钩头通常还是 Idle）。
 			GrappleAimCamera.Tick(dt);
+			Trace("cam");
 
 			// ⓪′ 姿态动画状态机（2026-10-04）：喂事实 → Tick（照飞行："填完才 Tick"）
 			TickAnim(dt);
+			Trace("anim");
 
 			// ⓪ 开火拦截的排队执行（2026-10-03）：拦截补丁只"记一笔"，真正的发射与退弹在这一帧做 ——
 			//    这样武器开火与命令 `throw` 走的是**同一条链路**（都在常规 tick 里）。
 			GrappleFirePatch.ProcessPending();
+			Trace("fire");
 
 			// ⓪″ **手里那套常驻件**（左手环 + "环→右手"那截绳 A，2026-10-08）：与钩头相位**无关** ——
 			//     握着钩索就该在（待命 / 飞行 / 拉拽都跟着两只手），所以放在相位分派**之前**。
 			TickHandKit(dt);
+			Trace("handkit");
 
 			// ① 钩头模式（步骤 2 起）：它接管绳子；手动锚定让位
 			if (_hookPhase != HookPhase.Idle)
 			{
 				TickHook(dt);
+				Trace("hook");
 				return;
 			}
 
@@ -1106,7 +1140,9 @@ namespace LivingWorldNpcs
 			//     顺序：飞行/钉住归 ①；命令锚定归 ②（那条也要用绳，所以这里先让开）。
 			if (!_anchored)
 			{
+				Trace("handhook:enter");
 				TickHandHook(dt);
+				Trace("handhook");
 				return;
 			}
 
@@ -1115,6 +1151,7 @@ namespace LivingWorldNpcs
 			try
 			{
 				_rope.Tick(dt, GetRopeAnchor(), _anchor);
+				Trace("anchor.rope");
 			}
 			catch (Exception ex)
 			{
@@ -1123,6 +1160,7 @@ namespace LivingWorldNpcs
 				_rope.Hide();
 				DebugLogger.Log($"[Grapple] tick disabled after exception: {ex.GetType().Name} {ex.Message}");
 			}
+			Trace("tick:end");
 		}
 
 		/// <summary>钩头模式每帧：推进钩头 → 处理命中/打空 → 绳跟着（手 → 远端）。</summary>
@@ -1171,6 +1209,7 @@ namespace LivingWorldNpcs
 					Release("hook tick exception: " + ex.Message);
 					return;
 				}
+				Trace("hk:step");
 
 				if (step == GrappleHook.StepResult.HitWorld)
 				{
@@ -1245,6 +1284,7 @@ namespace LivingWorldNpcs
 			try
 			{
 				_rope.Tick(dt, GetRopeAnchor(), FarEnd());
+				Trace("hk:rope");
 			}
 			catch (Exception ex)
 			{
@@ -1329,13 +1369,15 @@ namespace LivingWorldNpcs
 			//    因为子件写的是"相对 root 的局部帧"（用到的 root 帧要是本帧的，否则差一帧 ⇒ 抖）。
 			if (want)
 			{
-				_rig.PlaceRoot(GetHand());
+				_rig.PlaceRoot(GetHand(), scene);      // 传 scene：根实体在这一步就按"手的位置"建出来（见 PlaceRoot 注释）
 			}
+			Trace("kit:root");
 
 			// 🔴 **左手环默认关**（2026-10-08）：左手那件现在由**物品网格**（绳，`lwn_grapple_rope`，引擎挂在左手骨上）
 			//    负责 —— 环是它上一版的做法（运行时实体、每帧跟左手骨），两个一起上 = 同一只手上叠着环 + 绳。
 			//    要用回来：`custom.grapple handring 1`（即时生效）。绳的近端锚点在**右手**，与环无关，关掉不丢功能。
 			_rig.TickRing(scene, player, want && GrappleRig.HandRingEnabled);   // 左手环（根实体下的第三件）
+			Trace("kit:ring");
 
 			if (!want)
 			{
@@ -1363,19 +1405,36 @@ namespace LivingWorldNpcs
 			_ropeA.SlackRatio = RopeASlackRatio;
 			_ropeA.MinLength = RopeAMinLength;
 
+			// 🔴 **环没摆上 = A 干脆不建**（2026-10-08 修）：A 的两端是"左手环 → 右手"，环关着时环的点**退回手点**
+			//    ⇒ 两端是同一个点（实机日志 `A Show：… → … 跨度=0.00m`）—— 那是 **48 个恒退化的实体**
+			//    （摆不出任何形状、还占着根实体的子树）。环要用了（`handring 1`）A 自然就回来。
+			if (!_rig.RingPlaced)
+			{
+				if (_ropeAShown)
+				{
+					_ropeAShown = false;
+					_ropeA.Hide();
+				}
+				Trace("kit:A:off(no ring)");
+				return;
+			}
+
 			// A：左手环 → 右手（环还没摆上时退化成"手的点"，不至于拉出一条飞线）
 			Vec3 hand = GetHand();
-			Vec3 ring = _rig.RingPlaced ? _rig.RingPosition : hand;
+			Vec3 ring = _rig.RingPosition;
 			if (!_ropeAShown || !_ropeA.IsVisible)      // 同上：以绳自己的状态为准，别只信标志
 			{
+				Trace("kit:A:build");
 				if (!_ropeA.Build(scene))
 				{
 					return;
 				}
 				_ropeA.Show(ring, hand);
 				_ropeAShown = true;
+				Trace("kit:A:show");
 			}
 			_ropeA.Tick(dt, ring, hand);
+			Trace("kit:A:tick");
 		}
 
 		// ─────────────────── 手里待命（设计 B，2026-10-07）：钩在右手上绕圈 ───────────────────
@@ -1437,6 +1496,7 @@ namespace LivingWorldNpcs
 			//    (0.28,-0.16,0.85) ⇒ 钩被摆到世界原点附近 ⇒ 手里什么都看不见（不崩，就是找不到）。
 			//    🔴 当晚最终修法 = `TryReadBoneWorld` 的**双解释**（原生给的就是角色局部坐标，实测 d=575 m vs 1.4 m）。
 			Vec3 pivot = GetHand();
+			Trace("hh:hand");
 
 			// 圆心**横向远离身体**（默认 0.10 m）——"转一圈消失一下"的常见原因 =
 			// 半径 0.25 的圆内侧那一段扫进了躯干里（整段埋在身体内部 ⇒ 看不见）。
@@ -1453,8 +1513,10 @@ namespace LivingWorldNpcs
 			// 用 `BasisWithLocalZ(轴)` 的 s / f 当圆平面的基（都是单位长、正交、且都 ⊥ 轴）——
 			// 复用同一个已验证的基底构造，不再自己搭三角函数（2026-10-07 早前的"竖直圆"就是它的 s/f 特例）。
 			Vec3 axis = HandHookAxisDir(player);
+			Trace("hh:axis");
 			pivot += axis * HandHookAxisOffset;      // 圆心沿轴外移（"再向外探一点点"）
 			Mat3 plane = ContinuousPlane(axis);      // 🔴 连续基（别再换回 BasisWithLocalZ，见方法注释）
+			Trace("hh:plane");
 			// 🔴 **两档转速**（用户 2026-10-08 定：待机 135 / 瞄准蓄力 270）—— 瞄准判据见 IsAimingGrapple。
 			//    角度是**连续累加**的 ⇒ 切档只改"转多快"，不会跳一下（相位不重置）。
 			bool aiming = IsAimingGrapple(player);
@@ -1495,6 +1557,7 @@ namespace LivingWorldNpcs
 			// **手源换路日志**：路径标签变了才打（0.5 s 节流 = 抖动时最多 2 条/秒，不会刷屏）。
 			//   放在 `Park` 之后 ⇒ 行里的 `pos=` 就是本帧摆的位（与「开摆」那条同口径）。
 			_hook.Park(scene, hookPos, radial);
+			Trace("hh:park");
 			string srcTag = HandSourceTag(SpellCastInput.LastHandSource);
 			if (srcTag != _lastHandSrcTag && _handSrcLogCool <= 0f)
 			{
@@ -1584,14 +1647,17 @@ namespace LivingWorldNpcs
 			//    这里只 Tick 不 Show（而 Tick 在隐藏时直接 return）⇒ 绳永久看不见。以**绳自己的状态**为准。
 			if (!_handHookRopeShown || !_rope.IsVisible)
 			{
+				Trace("hh:B:build");
 				if (!_rope.Build(scene))
 				{
 					return;
 				}
 				_rope.Show(ropeAnchor, hookPos);
 				_handHookRopeShown = true;
+				Trace("hh:B:show");
 			}
 			_rope.Tick(dt, ropeAnchor, hookPos);
+			Trace("hh:B:tick");
 		}
 
 		/// <summary>绕转轴（世界坐标、单位向量），见 <see cref="HandHookAxis"/>。
