@@ -69,22 +69,6 @@ namespace LivingWorldNpcs
 		/// <inheritdoc cref="RopeIconFill"/>
 		public static float HookIconFill = 0.62f;
 
-		/// <summary>
-		/// **挂在身上时，钩网格绕自身 X 轴的转角**（度；`custom.grapple hookbelt &lt;度&gt;`，默认 **+90**）。
-		///
-		/// **为什么需要**（2026-10-08 用户："挂的时候爪端要下垂"）：
-		///   钩的网格长轴是**局部 +Y**，而挂点几何（`taikou_grapple_hook_hip` 照抄自绳/弓那套）是按
-		///   **弓的约定**（武器网格长轴 = **局部 +Z**）摆的 ⇒ 同一个旋转下钩的杆是**横的**
-		///   （实测：爪尖朝屏幕左）。在挂点数据上补 90°（yaw/pitch/roll）没用 —— pitch 那一轴是
-		///   **绕钩自身长轴自转**（±90 两次都还是横的）⇒ **不在欧拉角上猜**，改成把**网格自己**转 90°：
-		///   让钩的 +Y 对齐弓的 +Z ⇒ 挂上去就跟绳一样"顺着垂下"。
-		///
-		/// 做法 = 在 `GetHolsterMeshCopy` / `GetHolsterWithWeaponMeshCopy` 的**副本**上写 `Frame` 旋转
-		/// （引擎自己给锻造武器抬图标也用这个字段）；只动副本，**碰不到资产、碰不到手里那枚运行时实体**。
-		/// ⚠️ **爪朝上就把它敲成 −90**（两个方向差 180°，实机一眼可判）。
-		/// </summary>
-		public static float HookBeltRotDeg = 90f;
-
 		[HarmonyPrefix]
 		private static bool Prefix(ItemRosterElement rosterElement, bool isFemale, ref MetaMesh __result)
 		{
@@ -170,67 +154,6 @@ namespace LivingWorldNpcs
 	}
 	}
 
-	/// <summary>
-	/// **挂在身上的钩：把网格转正**（2026-10-08 用户："挂的时候爪端要下垂"）——
-	/// 钩的网格长轴是局部 **+Y**，而挂点几何（`taikou_grapple_hook_hip`，照抄自绳/弓那套）是按**弓的约定**
-	/// （武器网格长轴 = 局部 **+Z**）摆的 ⇒ 同一个旋转下钩的杆是**横的**（实测：爪尖朝屏幕左）。
-	/// 在挂点数据上补 90°（yaw/pitch/roll）没用（pitch 那一轴是"绕钩自身长轴自转"，±90 两次都还横着）
-	/// ⇒ **不在欧拉角上猜**，改成**把网格自己转 90°**：让钩的 +Y 对齐弓的 +Z ⇒ 挂上去跟绳一样垂下。
-	/// 只对**钩那件**、且只动**副本**（`GetHolsterMeshCopy` 本来就返回 copy）—— 碰不到资产、碰不到手里那枚运行时实体。
-	/// 旋钮 = <see cref="GrappleIconPatch.HookBeltRotDeg"/>（`custom.grapple hookbelt &lt;度&gt;`；**爪朝上就敲 −90**）。
-	/// </summary>
-	// 🪦 **两条"转挂件网格"的补丁已停用**（2026-10-08 实机证明无效，按"退役两步法"先注释、保留备查）：
-	//    原因（反编译取证）：挂到骨架那条链是 **native** 干的 —— C# 侧连 holster 的 position/rotation
-	//    都没有解析类（`item_holsters.xml` 由引擎 native 直读），我们写进 `MetaMesh.Frame` 的旋转它不看。
-	//    ⇒ 挂件朝向的**唯一杠杆 = 数据**（`item_holsters.xml` 的 `holster_rotation_yaw_pitch_roll`）。
-	//    实测证据：`custom.grapple hookbelt 90 / -90` 对人物预览**毫无变化**。
-	//    要恢复实验：把下面两个类的注释去掉即可（代码本身是好的，只是打错了链）。
-	/*
-	[HarmonyPatch(typeof(ItemCollectionElementViewExtensions), "GetHolsterMeshCopy")]
-	internal static class GrappleHolsterMeshPatch
-	{
-		[HarmonyPostfix]
-		private static void Postfix(ItemObject item, ref MetaMesh __result)
-		{
-			RotateForBelt(item, __result);
-		}
-
-		/// <summary>给"挂身上"那件网格加一个绕自身 X 轴的旋转（钩专用；其余物品一行都不动）。</summary>
-		internal static void RotateForBelt(ItemObject item, MetaMesh mesh)
-		{
-			try
-			{
-				if (!GrappleIconPatch.Enabled || item == null || mesh == null)
-				{
-					return;
-				}
-				if (item.StringId != GrappleFirePatch.HookItemId)
-				{
-					return;
-				}
-				Mat3 r = Mat3.Identity;
-				r.RotateAboutSide(GrappleIconPatch.HookBeltRotDeg * (MathF.PI / 180f));
-				MatrixFrame f = mesh.Frame;
-				f.rotation = r;      // 我们自己的资产帧是单位帧 ⇒ 直接换掉（不叠乘，免得反复刷新时越转越多）
-				mesh.Frame = f;
-			}
-			catch (Exception)
-			{
-			}
-		}
-	}
-
-	/// <summary>同上，但走"**武器和弹药都收起来**"那一格 —— 人物预览用的正是它（见 `holster_mesh_with_weapon`）。</summary>
-	[HarmonyPatch(typeof(ItemCollectionElementViewExtensions), "GetHolsterWithWeaponMeshCopy")]
-	internal static class GrappleHolsterWithWeaponMeshPatch
-	{
-		[HarmonyPostfix]
-		private static void Postfix(ItemObject item, ref MetaMesh __result)
-		{
-			GrappleHolsterMeshPatch.RotateForBelt(item, __result);
-		}
-	}
-	*/
 #if !MB2_GE_130
 	/// <summary>
 	/// 🔴 **图标取景补丁**（1.2.12 专用）—— 把两件钩索物品**摆到相机正前方**、按"占画面宽度"定尺寸、

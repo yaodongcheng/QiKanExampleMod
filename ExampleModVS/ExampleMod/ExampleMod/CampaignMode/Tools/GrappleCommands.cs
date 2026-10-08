@@ -175,21 +175,19 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					+ " (mesh '" + GrappleIconPatch.HookMeshName + "'). Reopen the inventory screen to redraw the icon.";
 			}
 
-			// 🪦 `hookbelt`（2026-10-08 立，同日证伪）—— 它改的是"挂件网格副本"的帧，**实测对挂到骨架那条链无效**
-			//    （反编译：那条链在 native 里，C# 连 holster 的 position/rotation 都没有解析类）。
-			//    保留命令只为**返回正确指引**（静默失效 = 用户以为"没用"，2026-10-05 相机那次事故的教训）：
-			//    挂件朝向的真正杠杆 = 内容包数据 `item_holsters.xml` 的 `holster_rotation_yaw_pitch_roll`。
+			// 🪦 `hookbelt`（2026-10-08 立，同日证伪，**死代码已删**）—— 保留这条命令只为**返回正确指引**
+			//    （静默失效 = 用户以为"没用"，2026-10-05 相机那次事故的教训）：
+			//    改挂件网格的帧对"挂到骨架"那条链**无效**（native 干的），唯一杠杆 = 内容包槽位数据。
 			if (sub == "hookbelt")
 			{
-				float deg = ParseF(args, at + 0, float.NaN);
-				if (!float.IsNaN(deg)) { GrappleIconPatch.HookBeltRotDeg = deg; }
-				return "grapple: 'hookbelt' is RETIRED (proven ineffective 2026-10-08) - the holster attach is done by"
-					+ " native code and ignores the mesh frame we set. To rotate the holstered hook, edit the SLOT data:"
-					+ " Taikou/ModuleData/item_holsters.xml -> item_holster 'taikou_grapple_hook_hip' ->"
-					+ " holster_rotation_yaw_pitch_roll. Axis roles (measured in game 2026-10-08):"
-					+ " yaw = turn in the HORIZONTAL plane; pitch = spin about the hook's own long axis;"
-					+ " roll = the VERTICAL tilt (the only one that can make it hang down)."
-					+ " At '0,0,0' the claws point straight FORWARD; roll=70 is the natural hanging angle.";
+				return "grapple: 'hookbelt' is RETIRED (proven ineffective 2026-10-08; its code has been deleted) -"
+					+ " the holster attach is done by NATIVE code and ignores any mesh frame we set."
+					+ " The only lever is the SLOT data: Taikou/ModuleData/item_holsters.xml ->"
+					+ " item_holster 'taikou_grapple_hook_hip' -> holster_rotation_yaw_pitch_roll."
+					+ " Axis roles (measured in game 2026-10-08): yaw = turn in the HORIZONTAL plane;"
+					+ " pitch = spin about the hook's own long axis; roll = the VERTICAL tilt (the only one that"
+					+ " can make it hang down). At '0,0,0' the claws point straight FORWARD; roll=70 is the natural"
+					+ " hanging angle (90 = straight down but looks stiff).";
 			}
 
 			// 🔴 `iconscale` = 图标里两件道具**占画面宽度的比例**（2026-10-08 用户报"图标又小又偏"的修法）。
