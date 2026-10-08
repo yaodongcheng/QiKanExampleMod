@@ -289,7 +289,9 @@ namespace LivingWorldNpcs
 				{
 					return;   // 方向退化 = 基向量算不出来，这一帧不摆（下一帧再说）
 				}
-				MatrixFrame frame = new MatrixFrame(GrappleRope.BasisWithLocalZ(zdir), pos);
+				// 手里待命走 ParkBasis（可按 hookface / hookroll 现场翻朝向）；飞行/钉住仍用纯径向基底
+				Mat3 basis = _parked ? ParkBasis(zdir) : GrappleRope.BasisWithLocalZ(zdir);
+				MatrixFrame frame = new MatrixFrame(basis, pos);
 				frame.Scale(new Vec3(MeshScale, MeshScale, MeshScale));
 				_entity.SetGlobalFrame(frame);
 			}
@@ -305,6 +307,66 @@ namespace LivingWorldNpcs
 		private Vec3 _parkPos;
 		private Vec3 _parkDir;
 		private bool _parkIdentity;      // 诊断：用 Identity 朝向（= custom.spawn_mesh 同款）而不是径向朝向
+
+		/// <summary>
+		/// **手里待命时"哪个物体局部轴朝离心向外"**（`custom.grapple hookface &lt;0..3&gt;`；0=+Z · 1=−Z · 2=+Y · 3=−Y）。
+		///
+		/// 🔴🔴 **引擎空间的真值（2026-10-08 定案）**：钩的**长轴是局部 +Y**（长 0.199 m、尾环在原点、钩尖 +0.175），
+		/// 不是 +Z。证据 = `tpaccli dump` 装机包（`Debug/offline/_hookdump/`）：X ±0.054 · **Y −0.024..+0.175** · Z ±0.057。
+		/// ⚠️ **我先前判成"+Z"是两处错**：① 信了 FBX/Blender 侧的读数（那条路会做轴换算）；② 后来 dump 出 Y 长，
+		/// 又自己套了个"OBJ 是 Y-up、要换回 Z-up"的假设把答案改回去 —— **tpaccli 读的是编译后的网格、就是引擎口径，不用换**。
+		/// ⇒ **凡"朝向/摆位"结论一律以 tpaccli/装机包为准，FBX/Blender 侧只当中间产物。**
+		///
+		/// 🔴 **默认 = 3（−Y 朝外）+ <see cref="HandRollDeg"/> 180**（用户实机逐个试出来的"对的形态"，2026-10-08）：
+		/// 效果 = 长轴(+Y)径向向外（钩尖朝外、尾环朝内）+ 局部 +Z 指向圆的**切向正向**。
+		/// 中间那半天我在 4 档 × 任意滚转里让用户自己摸 —— 这是流程错误，正确做法见下面 `hookface` 命令的说明。
+		/// </summary>
+		public static int HandFaceMode = 3;
+
+		/// <summary>手里待命时**绕"离心向外"那根轴滚转**（度，`custom.grapple hookroll &lt;度&gt;`）——
+		/// 三爪钩的爪朝哪个方向弯（观感项）；飞行时不受影响。
+		/// 🔴 **默认 180**（2026-10-08 用户实测定稿：`hookface 3` + `hookroll 180` 才是对的形态）。</summary>
+		public static float HandRollDeg = 180f;
+
+		/// <summary>待命朝向的基底：先按 <see cref="HandFaceMode"/> 选"哪个物体局部轴朝外"，再按 <see cref="HandRollDeg"/> 绕该轴滚转。</summary>
+		private static Mat3 ParkBasis(Vec3 outward)
+		{
+			// BasisWithLocalZ 给的 (s,f,u) 满足 u = outward、三者正交单位 ⇒ 直接拿来做轴交换/滚转的地基
+			Mat3 b = GrappleRope.BasisWithLocalZ(outward);
+			Mat3 m = Mat3.Identity;
+			switch (HandFaceMode)
+			{
+				case 1:      // −Z 朝外（整体翻转 180°：绕 s 轴转）
+					m.s = b.s;
+					m.f = -b.f;
+					m.u = -b.u;
+					break;
+				case 2:      // +Y 朝外（绕 s 轴转 90°：u→f、f→−u）
+					m.s = b.s;
+					m.f = b.u;
+					m.u = -b.f;
+					break;
+				case 3:      // −Y 朝外
+					m.s = b.s;
+					m.f = -b.u;
+					m.u = b.f;
+					break;
+				default:     // +Z 朝外（资产实测口径，默认）
+					m.s = b.s;
+					m.f = b.f;
+					m.u = b.u;
+					break;
+			}
+			if (Math.Abs(HandRollDeg) > 0.01f)
+			{
+				float r = HandRollDeg * 0.017453292f;      // 度 → 弧度
+				float c = (float)Math.Cos(r), s = (float)Math.Sin(r);
+				Vec3 s0 = m.s, f0 = m.f;
+				m.s = s0 * c + f0 * s;                     // 在 s-f 平面里转 = 绕 u（朝外那根轴）滚转
+				m.f = f0 * c - s0 * s;
+			}
+			return m;
+		}
 
 		/// <summary>
 		/// **手里待命**：把实体停在 <paramref name="pos"/>（= 绳端 / 尾环位置）、钩尖朝 <paramref name="zdir"/>
@@ -392,20 +454,47 @@ namespace LivingWorldNpcs
 			_entity = null;
 		}
 
-		/// <summary>诊断用：当前手里待命那枚实体的状态（网格名 / 实体是否建出来）。</summary>
+		/// <summary>
+		/// 读回实体的**实际**世界帧原点 —— 回答"我们要它去哪"与"它真在哪"是否一致。
+		/// 🔴 为什么必须有这一条：<see cref="ParkState"/> 里的 `pos=` 打的是**我们喂进去的值**（`_parkPos`），
+		///    **不是实体自己的帧**。万一 `SetGlobalFrame` 被引擎忽略或抛异常（<see cref="MoveEntity"/> 的
+		///    catch 会把它吞掉），日志照样显示"坐标正确、在转"，而实体其实停在"建出来那一刻"的位置
+		///    ⇒ **看不见，但所有自证都"正常"** —— 2026-10-07 排查就卡在这个盲区上。
+		/// </summary>
+		public string ActualFrame()
+		{
+			if (_entity == null || _entity.Pointer == UIntPtr.Zero)
+			{
+				return "actual=(no entity)";
+			}
+			try
+			{
+				MatrixFrame f = _entity.GetGlobalFrame();
+				return $"actual=({f.origin.x:F2},{f.origin.y:F2},{f.origin.z:F2})";
+			}
+			catch (Exception ex)
+			{
+				return "actual=(read failed: " + ex.GetType().Name + ")";
+			}
+		}
+
+		/// <summary>诊断用：当前手里待命那枚实体的状态（网格名 / 实体是否建出来）。
+		/// ⚠️ **返回文本一律英文**（控制台纪律）—— 它同时被 `custom.grapple spin` 与日志行用。
+		/// 🔴 `pos=` = **我们要求的位置**；`actual=` = **实体自己报的帧**。两者不一致 = 摆位没生效。</summary>
 		public string ParkState()
 		{
-			string meshName = "(未知)";
+			string meshName = "(unknown)";
 			try
 			{
 				MetaMesh m = ResolveHookMesh();
-				meshName = m != null ? MeshCandidates[0] + " ✓" : "**全部查不到 = 空实体**";
+				meshName = m != null ? MeshCandidates[0] + " OK" : "NONE FOUND (empty entity)";
 			}
 			catch (Exception)
 			{
 			}
 			bool alive = _entity != null && _entity.Pointer != UIntPtr.Zero;
-			return $"parked={_parked} entity={(alive ? "已建" : "null")} mesh={meshName} pos=({_parkPos.x:F2},{_parkPos.y:F2},{_parkPos.z:F2})";
+			return $"parked={_parked} entity={(alive ? "built" : "null")} mesh={meshName}"
+				+ $" pos=({_parkPos.x:F2},{_parkPos.y:F2},{_parkPos.z:F2}) {ActualFrame()}";
 		}
 
 		/// <summary>占位网格：候选表逐个试（铁律 5 两轮策略的第一轮；第二轮 = ResolveMesh 内部的动态兜底）。</summary>

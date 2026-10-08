@@ -611,44 +611,207 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
-		/// 右手骨的**世界位置**（蓄力球挂点）——骨索引 = `Monster.MainHandBoneIndex`（主手骨 = 右手，武器挂的就是它）。
-		/// 读法 = `AgentVisuals.GetBoneEntitialFrame(bone, useBoneMapping: false)` —— 与 `FlySpike.cs:1962` 读 pelvis/rider 骨同一套
-		/// （entitial = **当前动画帧**的世界帧，不是绑定姿势 ⇒ 手怎么动球怎么动）。
-		/// 取不到（骨架没建 / 索引为负 / 异常）→ 返回 false，调用方退回"身体坐标近似右手位"。
-		/// 诊断：游戏内 <c>custom.spell hand</c> 会把这里用到的全部数字打出来。
+		/// 右手骨的**世界位置**（蓄力球 / 手里那枚钩的挂点）—— 骨索引 = `Monster.MainHandBoneIndex`。
+		///
+		/// 🔴🔴 **2026-10-07 晚重写（挖出一个老 bug）**：原版这里只做"读一次 + 3 m 守卫"，而
+		///   `AgentVisuals.GetBoneEntitialFrame(...)` **实测会返回"角色局部坐标"**
+		///   （手垂着时给 `(0.28,-0.16,0.85)` = 右手在角色坐标系里的位置，不是世界坐标）。
+		///   3 m 守卫把这种值判为不可信 ⇒ **每帧静默退回近似位（脚上方 1.25 m ≈ 腰腹/盆骨）**，
+		///   而调用方只拿到 `false`，分不清是"读数坏了"还是"骨架没建" ⇒ 钩与球一直被摆在**盆骨**上。
+		///   实机症状（用户 2026-10-07 晚原话）："手明明在身体右上方，钩却绕着盆骨转"。
+		///
+		///   现在 = **双解释 + 三级兜底**：
+		///   ① **骨读数双解释** —— 原始值既按"世界坐标"量一次离身体的距离，也按 **`Agent.Frame` 转成世界**
+		///      量一次；谁落进 <see cref="MaxHandDistance"/>（1.5 m）就采信谁。
+		///      两种空间自动识别，**不再赌原生返回哪一种**（旧的 3 m 守卫只认世界，等于把局部值全丢掉）。
+		///   ② 两条都不合理 ⇒ 退到 **引擎自己挂在手上的物品实体**
+		///      （<see cref="Agent.GetWeaponEntityFromEquipmentSlot"/> = 引擎画"手里那件装备"用的帧，
+		///       【天然就在手上】—— 就是实机里能看见的那把钩所在的帧）。
+		///   ③ 还不行 ⇒ 返回 false（调用方退回近似位）。
+		///
+		/// 实际走哪一路记在 <see cref="LastHandSource"/>（日志 + `custom.spell hand` 都会打出来）。
+		/// 手工指定：`custom.spell handsrc &lt;auto|world|local|item&gt;`（现场对比，不用重编）。
 		/// </summary>
 		public static bool TryGetRightHandAnchor(Agent agent, out Vec3 anchor)
 		{
 			anchor = Vec3.Zero;
+			LastHandSource = "none";
 			try
 			{
 				if (agent == null || agent.Monster == null)
 				{
+					LastHandSource = "no agent/monster";
 					return false;
 				}
-				sbyte bone = agent.Monster.MainHandBoneIndex;
+
+				// ── ① 骨读数（双解释：世界 / 角色局部；唯一实现在 TryReadBoneWorld）──
+				if (TryReadBoneWorld(agent, agent.Monster.MainHandBoneIndex, MaxHandDistance,
+						out Vec3 handWorld, out string how))
+				{
+					anchor = handWorld + Vec3.Up * HandAnchorUpOffset;
+					LastHandSource = "bone/" + how;
+					return true;
+				}
+				LastHandSource = "bone: " + how;
+
+				if (HandSourceMode == HandSource.World || HandSourceMode == HandSource.Local)
+				{
+					return false;      // 手工锁定骨读数时**不退兜底** —— 好用它二分"到底哪一路对"
+				}
+
+				// ── ② 引擎挂在手上的**物品实体**（= 实机里能看见的那件装备所在的帧）──
+				for (int i = 0; i < 2; i++)
+				{
+					EquipmentIndex slot = i == 0 ? EquipmentIndex.Weapon1 : EquipmentIndex.Weapon0;
+					try
+					{
+						GameEntity e = agent.GetWeaponEntityFromEquipmentSlot(slot);
+						if (e == null || e.Pointer == UIntPtr.Zero)
+						{
+							continue;
+						}
+						Vec3 p = e.GetGlobalFrame().origin;
+						float d = Distance(p, agent.Position);
+						if (d <= MaxHandDistance)
+						{
+							anchor = p + Vec3.Up * (HandAnchorUpOffset * 0.5f);   // 物品帧已贴手，少抬一点
+							LastHandSource = $"item-entity {slot} d={d:F2}";
+							return true;
+						}
+					}
+					catch (Exception)
+					{
+					}
+				}
+
+				return false;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
+		/// <summary>手相对身体中心的最大合理距离（米）—— 超过它 = "这个读数根本不在同一个空间里"。
+		/// 手垂着离身体中心 ≈ 0.6~0.9 m、抬起来 ≤ 1.2 m；1.5 m 留足余量，又远小于"坐标空间错了"的量级（几百米）。</summary>
+		private const float MaxHandDistance = 1.5f;
+
+		/// <summary>手挂点的**取法**（`custom.spell handsrc &lt;auto|world|local|item&gt;`，现场对比用）。</summary>
+		public enum HandSource
+		{
+			Auto,      // 自动识别世界/局部 + 兜底物品实体（默认）
+			World,     // 强制按世界坐标解释骨帧
+			Local,     // 强制按"角色局部"解释（用 Agent.Frame 转世界）
+			Item,      // 跳过骨读数，直接用"手上的物品实体"帧
+		}
+
+		/// <summary>当前取法（默认 <see cref="HandSource.Auto"/>）。</summary>
+		public static HandSource HandSourceMode = HandSource.Auto;
+
+		/// <summary>上一次 <see cref="TryGetRightHandAnchor"/> 实际走的哪一路（诊断；纯英文，日志与命令都打）。</summary>
+		public static string LastHandSource = "-";
+
+		private static float Distance(Vec3 a, Vec3 b)
+		{
+			float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+			return MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+		}
+
+		/// <summary>骨读数离身体中心的最大合理距离（米）。肩膀可以到 1.5 m 以上 ⇒ 读上臂骨时放宽到 2。</summary>
+		private const float ArmBoneMaxDist = 2.0f;
+
+		/// <summary>
+		/// 读一条骨 → **世界坐标点**。**双解释**：原始值既当"世界坐标"量一次离身体的距离，
+		/// 也用 `Agent.Frame.TransformToParent` 转成世界再量一次，谁 ≤ <paramref name="maxDist"/> 采信谁。
+		/// 实测（2026-10-07 晚）原生给的是**角色局部坐标**（手垂着 = `(0.28,-0.16,0.85)`；当世界用会飞出去 575 m）。
+		/// <see cref="HandSourceMode"/> 可强制某一解释（二分用）。
+		/// 🔴 **唯一实现** —— 手挂点与手臂轴都走它，别再抄第二份。
+		/// </summary>
+		public static bool TryReadBoneWorld(Agent agent, sbyte bone, float maxDist, out Vec3 world, out string how)
+		{
+			world = Vec3.Zero;
+			how = "-";
+			try
+			{
+				if (HandSourceMode == HandSource.Item)
+				{
+					how = "item mode (bone skipped)";
+					return false;
+				}
+				if (agent == null)
+				{
+					how = "no agent";
+					return false;
+				}
 				if (bone < 0)
 				{
+					how = "index<0";
 					return false;
 				}
-				MBAgentVisuals visuals = agent.AgentVisuals;
-				if (visuals == null || !visuals.IsValid())
+				MBAgentVisuals v = agent.AgentVisuals;
+				if (v == null || !v.IsValid())
+				{
+					how = "visuals invalid";
+					return false;
+				}
+				Vec3 raw = v.GetBoneEntitialFrame(bone, useBoneMapping: false).origin;
+				if (raw.LengthSquared < 1e-6f)
+				{
+					how = "raw=0";
+					return false;
+				}
+				Vec3 asLocal = agent.Frame.TransformToParent(raw);
+				float dw = Distance(raw, agent.Position);
+				float dl = Distance(asLocal, agent.Position);
+				if (HandSourceMode == HandSource.World || (HandSourceMode == HandSource.Auto && dw <= maxDist))
+				{
+					world = raw;
+					how = $"world d={dw:F2}";
+					return true;
+				}
+				if (HandSourceMode == HandSource.Local || (HandSourceMode == HandSource.Auto && dl <= maxDist))
+				{
+					world = asLocal;
+					how = $"local d={dl:F2}";
+					return true;
+				}
+				how = $"both far (world {dw:F1} local {dl:F1})";
+				return false;
+			}
+			catch (Exception)
+			{
+				how = "exception";
+				return false;
+			}
+		}
+
+		/// <summary>两条骨 → 方向（世界单位向量）。闸门 = 两点距离落在 [minLen, maxLen]（量级不对 = 读数不可信）。</summary>
+		public static bool TryBoneToBoneAxis(Agent agent, sbyte fromBone, sbyte toBone,
+			float minLen, float maxLen, out Vec3 axis, out float len)
+		{
+			axis = Vec3.Zero;
+			len = 0f;
+			try
+			{
+				if (fromBone < 0 || toBone < 0 || fromBone == toBone)
 				{
 					return false;
 				}
-				Vec3 hand = visuals.GetBoneEntitialFrame(bone, useBoneMapping: false).origin;
-				if (hand.LengthSquared < 1e-6f)
+				if (!TryReadBoneWorld(agent, toBone, ArmBoneMaxDist, out Vec3 toW, out _))
 				{
 					return false;
 				}
-				// 🔴 **离角色太远 = 这个骨帧不可信**（空间不对 / 索引指向了别的东西）——宁可退回近似位，
-				//    也别把球丢到地图另一头（那在实机上就是"球看不见"）。3 m 远超过手臂长度了。
-				float dx = hand.x - agent.Position.x, dy = hand.y - agent.Position.y, dz = hand.z - agent.Position.z;
-				if (dx * dx + dy * dy + dz * dz > 9f)
+				if (!TryReadBoneWorld(agent, fromBone, ArmBoneMaxDist, out Vec3 fromW, out _))
 				{
 					return false;
 				}
-				anchor = hand + Vec3.Up * HandAnchorUpOffset;
+				Vec3 d = toW - fromW;
+				len = d.Length;
+				if (len < minLen || len > maxLen)
+				{
+					return false;
+				}
+				axis = d * (1f / len);
 				return true;
 			}
 			catch (Exception)
@@ -656,6 +819,95 @@ namespace LivingWorldNpcs
 				return false;
 			}
 		}
+
+		/// <summary>
+		/// **上臂弦**（肩 → 手）：`RightUpperArmBoneIndex` 与手骨各读一个世界点、相减。
+		/// 用途 = `custom.grapple armaxis 3`。⚠️ **手臂一折这条弦就不是小臂了** —— 用户 2026-10-07 晚当场指出，
+		/// 正解见 <see cref="TryGetForearmAxis"/>（肘 → 手）。
+		/// ⚠️ 上臂骨是本项目第一次读的骨；若让游戏崩，切回 0/1/2。
+		/// </summary>
+		public static bool TryGetArmAxis(Agent agent, out Vec3 axis)
+		{
+			axis = Vec3.Zero;
+			try
+			{
+				if (agent == null || agent.Monster == null)
+				{
+					return false;
+				}
+				sbyte handBone = agent.Monster.MainHandBoneIndex;
+				sbyte armBone = agent.Monster.RightUpperArmBoneIndex;
+				if (TryBoneToBoneAxis(agent, armBone, handBone, 0.15f, 0.95f, out axis, out float len))
+				{
+					LastArmBones = $"UpperarmR={armBone} HandR={handBone} len={len:F3}";
+					return true;
+				}
+				LastArmBones = $"UpperarmR={armBone} HandR={handBone} rejected";
+				return false;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// 🔴 **小臂轴（肘 → 手）** —— 用户 2026-10-07 晚口径："(手臂)可能是折的，要以**手肘到手**的连线为轴，
+		/// 再向外探一点点"。圆 ⊥ 小臂 ⇒ 才真的像"绕着这条胳膊甩"。
+		///
+		/// 骨索引走**官方语义接口** `MBAgentVisuals.GetRealBoneIndex(HumanBone)`（不是猜名字、也不是走父骨）：
+		/// `HumanBone.ForearmR` = 肘 · `HumanBone.HandR` = 手。闸门 = 两点距离 **0.10~0.60 m**（一条小臂的量级）。
+		/// 诊断：<see cref="LastArmBones"/> 记下两个索引与实测长度。
+		/// </summary>
+		public static bool TryGetForearmAxis(Agent agent, out Vec3 axis)
+		{
+			axis = Vec3.Zero;
+			try
+			{
+				if (agent == null || agent.Monster == null)
+				{
+					return false;
+				}
+				MBAgentVisuals v = agent.AgentVisuals;
+				if (v == null || !v.IsValid())
+				{
+					return false;
+				}
+				sbyte fore = v.GetRealBoneIndex(HumanBone.ForearmR);
+				sbyte hand = v.GetRealBoneIndex(HumanBone.HandR);
+
+				// 🔴 **把骨名读出来自证** —— 骑砍2 的骨架里"上臂/小臂"实际叫 `*_upperarm_twist` / `*_foretwist`
+				//    （twist 骨当主干用，不是直觉上的 upperarm/forearm，用户 2026-10-07 给的 UE 映射表专门标过）
+				//    ⇒ 用 GetBoneName 打出真实名字，免得"索引拿到了但拿错骨"这种哑巴错。
+				string names = "-";
+				try
+				{
+					Skeleton sk = v.GetSkeleton();
+					if (sk != null)
+					{
+						names = $"{sk.GetBoneName(fore)}/{sk.GetBoneName(hand)}";
+					}
+				}
+				catch (Exception)
+				{
+				}
+
+				if (TryBoneToBoneAxis(agent, fore, hand, 0.10f, 0.60f, out axis, out float len))
+				{
+					LastArmBones = $"{names} (ForearmR={fore} HandR={hand}) len={len:F3}";
+					return true;
+				}
+				LastArmBones = $"{names} (ForearmR={fore} HandR={hand}) rejected";
+				return false;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
+		/// <summary>上一次取手臂轴用的两个骨索引与实测长度（诊断；纯英文）。</summary>
+		public static string LastArmBones = "-";
 
 		/// <summary>蓄力球挂在右手骨**上方**多少米（真挂手骨时用；观感不合就调这个数）。</summary>
 		public const float HandAnchorUpOffset = 0.18f;

@@ -50,7 +50,24 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple spin &lt;rpm&gt; [半径]   **手里的钩**：绕右手转的转速 / 半径（= 手里那截绳的长度，默认 90 rpm / 0.20 m）
 	///   custom.grapple spin on|off        手里的钩总开关（off = 手上不显示钩与绳）；无参 = 看当前值
 	///   custom.grapple spinrope &lt;0|1&gt;     **待机那条绳**的开关（**默认 0 = 关**；开着才能看出"绳从手连到钩"）
-	///   custom.grapple parkframe &lt;0|1|2&gt;    **诊断**：手里那枚的摆位方式（1=每帧+径向 · 0=只摆一次+径向 · 2=只摆一次+Identity，与 spawn_mesh 逐字同款）
+	///   custom.grapple hand &lt;0..4&gt;       🔴 the "why is the hand hook invisible" LADDER（**每档只比上一档多一个变量** ⇒「第一档开始看不见」= 元凶就是那一档新加的变量；
+		///                                     全程同一枚实体、换档不重建）：
+		///                                     1 = 眼前 2 m / 高 1.2（= `custom.spawn_mesh` 逐字同款）· Identity · **只摆一次**
+		///                                     2 = 同位置 · Identity · **每帧摆**（跟着人走）→ 比 1 多的是"每帧"
+		///                                     3 = **右手骨上方 0.18 m**（= 阴魔斩蓄力球同一读点）· Identity · 每帧 → 比 2 多的是"手骨位置"
+		///                                     4 = 手骨 + 离心（默认 0.25 m）· **径向朝向** · 每帧 = **现行为** → 比 3 多的是"径向基底"
+		///                                     0 = 关（回正常那条：受 spin 开关与"握着钩索"判据管）· 无参 = 看当前档与含义
+		///   custom.grapple armaxis &lt;0..4&gt; [轴外移米]  **手里那枚的绕转轴**（圆所在的平面 ⊥ 这个轴；即时生效、不用重编）：
+		///                                     4 = 小臂轴（肘→手）**默认**（2026-10-07 晚用户裁定）·
+		///                                     0 = 世界竖直 · 1 = 体侧前后甩 · 2 = 左右横扫 · 3 = 上臂弦（折臂时不准）
+		///                                     第 2 参 = 圆心沿轴外移（默认 0.05 m，"再向外探一点点"）
+		///   custom.grapple hookface &lt;0|1|2|3&gt;  **钩朝哪**：哪个物体局部轴对准"离心向外"
+		///                                     （**默认 3 + hookroll 180** = 用户实机定的"对的形态"；0=+Z · 1=−Z · 2=+Y · 3=−Y；
+		///                                      🔴 引擎口径实测 = **钩体沿局部 +Y**（tpaccli 读装机包为准，FBX/Blender 侧会做轴换算））
+		///   custom.grapple hookroll &lt;度&gt;      绕"离心向外"轴滚转（三爪朝哪边弯的观感项；即时生效）
+		///   custom.grapple armout &lt;米&gt;         圆心**横向远离身体**（默认 0.10）—— 治"转一圈有一小段看不见"（圆内侧扫进躯干）
+		///   custom.grapple spinlog &lt;0|1&gt;       限频帧日志（默认关）：每 ~0.4 s 打 角度/钩位置/**actual**，
+		///                                     用来判"某个角度看不见"是**被遮挡**（actual 正常画圆）还是**摆位失效**（actual 跳走）
 	///   custom.grapple nz &lt;值&gt;           落点平台：地面法线竖直度阈值（默认 0.7，越大越平）
 	///   custom.grapple dz &lt;min&gt; &lt;max&gt;    落点平台：允许的高度窗口（米，默认 -1 ~ 4）
 	///   custom.grapple headroom &lt;米&gt;      落点平台：头顶净空要求（默认 2.0）
@@ -102,7 +119,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				if (s == "anchor" || s == "clear" || s == "seg" || s == "len" || s == "radius"
 					|| s == "overlap" || s == "damp" || s == "grav" || s == "mesh" || s == "ground"
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
-					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "parkframe"
+					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
@@ -426,26 +443,154 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
-				case "parkframe":
+				case "hand":
 				{
-					// 诊断：手里那枚的摆位方式（1=每帧摆+径向朝向 / 0=只摆一次+径向 / 2=只摆一次+Identity朝向）
+					// 🔴 **手上那枚钩的分档诊断**（2026-10-07 晚）—— 阶梯表见 GrappleLogic.HandProbeStage。
+					//    设计：每上一档**只比上一档多一个变量** ⇒ 「第一档开始看不见」= 元凶就在那一档新加的那个变量上。
+					//    全程用同一枚实体（换档不重建），免得"重建"混进来当第二个变量。
+					string a0 = ArgAt(args, at + 0);
+					int stage = -1;
+					if (!string.IsNullOrEmpty(a0))
+					{
+						int.TryParse(a0, out stage);
+					}
+					if (stage < 0 || stage > 4)
+					{
+						result = "grapple: hand probe = " + GrappleLogic.HandProbeStage
+							+ " | " + HandProbeDesc(GrappleLogic.HandProbeStage)
+							+ "   (usage: custom.grapple hand <0|1|2|3|4>  = " + HandProbeLadder + ")";
+						break;
+					}
+					logic.SetHandProbe(stage);
+					string park = "-";
+					try { park = logic.ParkStateLine(); } catch (Exception) { }
+					result = "grapple: hand probe = " + stage + " | " + HandProbeDesc(stage)
+						+ " | " + park
+						+ "   (the state above is from BEFORE the next tick - the new placement lands next frame;"
+						+ " walk the ladder 1 -> 4: the FIRST stage you cannot see is where the culprit variable is)";
+					break;
+				}
+
+				case "armaxis":
+				{
+					// 手里那枚的**绕转轴**（2026-10-07 晚用户要求"以手臂为轴做圆周运动"）——
+					// 圆所在的平面 ⊥ 这个轴；即时生效、不用重编。
 					string a0 = ArgAt(args, at + 0);
 					if (string.IsNullOrEmpty(a0))
 					{
-						result = $"grapple: park mode = {GrappleLogic.HandHookParkMode}"
-							+ "  (1=every-tick+radial / 0=one-shot+radial / 2=one-shot+identity, like spawn_mesh)"
-							+ "   (usage: custom.grapple parkframe <0|1|2>)";
+						result = $"grapple: hand hook axis = {GrappleLogic.HandHookAxis} | {HandAxisDesc(GrappleLogic.HandHookAxis)}"
+							+ $" | pivot offset along axis = {GrappleLogic.HandHookAxisOffset:F3} m"
+							+ $" | arm bones = [{SpellCastInput.LastArmBones}]"
+							+ "   (usage: custom.grapple armaxis <0|1|2|3|4> [pivotOffsetMeters])";
 						break;
 					}
-					int mode;
-					if (int.TryParse(a0, out mode) && mode >= 0 && mode <= 2)
+					int ax;
+					if (int.TryParse(a0, out ax) && ax >= 0 && ax <= 4)
 					{
-						GrappleLogic.HandHookParkMode = mode;
-						result = $"grapple: park mode = {mode} (takes effect immediately)";
+						GrappleLogic.HandHookAxis = ax;
+						float off = ParseF(args, at + 1, -1f);
+						if (off >= 0f) { GrappleLogic.HandHookAxisOffset = off; }
+						result = $"grapple: hand hook axis = {ax} | {HandAxisDesc(ax)}"
+							+ $" | pivot offset = {GrappleLogic.HandHookAxisOffset:F3} m (takes effect immediately)";
 					}
 					else
 					{
-						result = "Error: parkframe takes 0, 1 or 2";
+						result = "Error: armaxis takes 0 (world up), 1 (fore/aft at your side), 2 (left/right sweep),"
+							+ " 3 (perpendicular to the shoulder->hand chord) or 4 (perpendicular to the FOREARM, elbow->hand)"
+							+ "; optional 2nd arg = pivot offset along the axis in meters";
+					}
+					break;
+				}
+
+				case "hookface":
+				{
+					// 手里那枚**朝哪**（哪个物体局部轴对准"离心向外"）—— 资产实测 = 钩体沿 +Z（默认 0）
+					string a0 = ArgAt(args, at + 0);
+					int f;
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: hook facing = {GrappleHook.HandFaceMode} | {HookFaceDesc(GrappleHook.HandFaceMode)}"
+							+ $" | roll = {GrappleHook.HandRollDeg:F0} deg"
+							+ "   (usage: custom.grapple hookface <0|1|2|3>)";
+						break;
+					}
+					if (int.TryParse(a0, out f) && f >= 0 && f <= 3)
+					{
+						GrappleHook.HandFaceMode = f;
+						result = $"grapple: hook facing = {f} | {HookFaceDesc(f)} (takes effect immediately)";
+					}
+					else
+					{
+						result = "Error: hookface takes 0 (+Z out, measured default), 1 (-Z out), 2 (+Y out) or 3 (-Y out)";
+					}
+					break;
+				}
+
+				case "hookroll":
+				{
+					// 绕"离心向外"那根轴滚转（三爪朝哪边弯的观感项）
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: hook roll = {GrappleHook.HandRollDeg:F0} deg (spin around the outward axis)"
+							+ "   (usage: custom.grapple hookroll <degrees>)";
+						break;
+					}
+					float deg = ParseF(args, at + 0, float.NaN);
+					if (float.IsNaN(deg))
+					{
+						result = "Error: hookroll needs degrees, e.g. custom.grapple hookroll 60";
+						break;
+					}
+					GrappleHook.HandRollDeg = deg;
+					result = $"grapple: hook roll = {deg:F0} deg (takes effect immediately)";
+					break;
+				}
+
+				case "armout":
+				{
+					// 圆心**横向远离身体**的偏移（治"转一圈有一小段看不见" = 圆内侧扫进躯干）
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: pivot out-shift (away from body) = {GrappleLogic.HandHookOutShift:F2} m"
+							+ "   (usage: custom.grapple armout <meters>; 0 = pivot sits exactly on the hand bone)";
+						break;
+					}
+					float m = ParseF(args, at + 0, -1f);
+					if (m < 0f)
+					{
+						result = "Error: armout needs a non-negative number of meters";
+						break;
+					}
+					GrappleLogic.HandHookOutShift = m;
+					result = $"grapple: pivot out-shift = {m:F2} m (takes effect immediately)";
+					break;
+				}
+
+				case "spinlog":
+				{
+					// 限频帧日志（判"某个角度看不见"是遮挡还是摆位失效）
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: spin frame log = {(GrappleLogic.HandHookLog ? "ON" : "OFF")}"
+							+ "   (usage: custom.grapple spinlog <0|1>)";
+						break;
+					}
+					if (a0 == "1" || a0 == "on")
+					{
+						GrappleLogic.HandHookLog = true;
+						result = "grapple: spin frame log ON (~2.5 lines/sec into the mod log)";
+					}
+					else if (a0 == "0" || a0 == "off")
+					{
+						GrappleLogic.HandHookLog = false;
+						result = "grapple: spin frame log OFF";
+					}
+					else
+					{
+						result = "Error: spinlog takes 0|1 (or on|off)";
 					}
 					break;
 				}
@@ -808,6 +953,51 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			if (args == null || i < 0 || i >= args.Count || args[i] == null) return fallback;
 			return float.TryParse(args[i], NumberStyles.Float, CultureInfo.InvariantCulture, out float v)
 				? v : fallback;
+		}
+
+		/// <summary>`custom.grapple hand` 的阶梯一句话（纯英文 —— 控制台纪律）。表见 GrappleLogic.HandProbeStage。</summary>
+		private const string HandProbeLadder =
+			"1 in-front-of-eyes/placed-once, 2 in-front-of-eyes/every-frame, 3 right-hand-bone/identity,"
+			+ " 4 hand-orbit/radial-facing (= real thing), 0 off";
+
+		/// <summary>`custom.grapple hookface` 的四档含义（命令回执用，纯英文）。</summary>
+		private static string HookFaceDesc(int f)
+		{
+			switch (f)
+			{
+				case 0: return "0 = +Z points outward";
+				case 1: return "1 = -Z points outward";
+				case 2: return "2 = +Y points outward (the hook BODY runs along +Y, tail ring at the origin)";
+				case 3: return "3 = -Y points outward   [DEFAULT, together with hookroll 180 = user-approved]";
+				default: return "(unknown)";
+			}
+		}
+
+		/// <summary>`custom.grapple armaxis` 的三档含义（命令回执用，纯英文）。</summary>
+		private static string HandAxisDesc(int axis)
+		{
+			switch (axis)
+			{
+				case 1: return "1 = axis along your right => circle in the vertical plane, swinging fore/aft";
+				case 2: return "2 = axis along your facing => circle in the frontal plane, sweeping left/right";
+				case 3: return "3 = axis = shoulder->hand chord (two bone reads) => circle PERPENDICULAR to that chord";
+				case 4: return "4 = axis = FOREARM (elbow->hand, HumanBone.ForearmR/HandR) => circle PERPENDICULAR to the forearm   [DEFAULT]";
+				default: return "0 = axis = world up => horizontal circle (spins around a hanging forearm)";
+			}
+		}
+
+		/// <summary>某一档的含义（命令回执用，纯英文）。</summary>
+		private static string HandProbeDesc(int stage)
+		{
+			switch (stage)
+			{
+				case 0: return "OFF - normal hand hook (gated by 'spin on|off' and the wielded-grapple check)";
+				case 1: return "1 = in front of eyes (2 m ahead / 1.2 m up), identity rotation, placed ONCE (= custom.spawn_mesh recipe)";
+				case 2: return "2 = in front of eyes, identity rotation, placed EVERY frame (follows you)";
+				case 3: return "3 = right-hand bone + 0.18 m up (same anchor as the spell charge ball), identity rotation, every frame";
+				case 4: return "4 = hand + 0.20 m orbit, RADIAL facing, every frame (= the real hand hook)";
+				default: return "(unknown stage)";
+			}
 		}
 
 		/// <summary>姿态动画的一行状态（命令回执用，纯英文 —— 控制台纪律）。</summary>

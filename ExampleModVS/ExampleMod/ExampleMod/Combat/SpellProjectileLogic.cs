@@ -413,6 +413,8 @@ namespace LivingWorldNpcs
 						return Gem(args);
 					case "hand":
 						return Hand(args);
+					case "handsrc":
+						return HandSrc(args);
 					case "tilt":
 						return Tilt(args);
 					case "verbose":
@@ -1093,6 +1095,26 @@ namespace LivingWorldNpcs
 				Vec3 hand = ok ? anchor - Vec3.Up * SpellCastInput.HandAnchorUpOffset : Vec3.Zero;
 				Vec3 rel = ok ? hand - player.Position : Vec3.Zero;
 
+				// 🔴 原始骨帧 + 两种解释各自离身体多远 —— 回答"原生到底返回的是哪个空间"
+				//    （2026-10-07 晚：实测它给的是"角色局部"，旧守卫只认世界 ⇒ 每帧静默退兜底 ⇒ 钩/球被摆在盆骨上）
+				string rawTxt = "raw=n/a";
+				try
+				{
+					MBAgentVisuals v = player.AgentVisuals;
+					if (bone >= 0 && v != null && v.IsValid())
+					{
+						Vec3 raw = v.GetBoneEntitialFrame(bone, useBoneMapping: false).origin;
+						Vec3 asLocal = player.Frame.TransformToParent(raw);
+						rawTxt = string.Format(CultureInfo.InvariantCulture,
+							"raw=({0:F2},{1:F2},{2:F2}) worldD={3:F2} localD={4:F2}",
+							raw.x, raw.y, raw.z,
+							(raw - player.Position).Length, (asLocal - player.Position).Length);
+					}
+				}
+				catch (Exception)
+				{
+				}
+
 				string look = "n/a";
 				Vec3 bodyLook = player.LookDirection;
 				if (bodyLook.LengthSquared > 1e-6f)
@@ -1109,11 +1131,11 @@ namespace LivingWorldNpcs
 				}
 
 				return string.Format(CultureInfo.InvariantCulture,
-					"OK: mainHandBone={0} resolved={1} boneWorld=({2:F2},{3:F2},{4:F2}) relPlayer=({5:F2},{6:F2},{7:F2}) dist={8:F3}m upOffset={9:F2} {10} | style={11}",
-					bone, ok,
+					"OK: mainHandBone={0} resolved={1} src=[{2}] boneWorld=({3:F2},{4:F2},{5:F2}) relPlayer=({6:F2},{7:F2},{8:F2}) dist={9:F3}m upOffset={10:F2} {11} {12} | style={13}",
+					bone, ok, SpellCastInput.LastHandSource,
 					hand.x, hand.y, hand.z,
 					rel.x, rel.y, rel.z, rel.Length,
-					SpellCastInput.HandAnchorUpOffset, look,
+					SpellCastInput.HandAnchorUpOffset, look, rawTxt,
 					(bool)(LivingWorldNpcs.Flight.PlayerFlightBehavior.Current != null
 						&& LivingWorldNpcs.Flight.PlayerFlightBehavior.Current.IsFlying)
 						? "flying(bone)" : "ground(approx)");
@@ -1122,6 +1144,35 @@ namespace LivingWorldNpcs
 			{
 				return $"ERROR: {ex.GetType().Name}";
 			}
+		}
+
+		/// <summary>
+		/// 手挂点的**取法开关**：`custom.spell handsrc &lt;auto|world|local|item&gt;` ——
+		/// auto = 自动识别"世界/角色局部"并兜底到"手上的物品实体"（默认）·
+		/// world / local = **强制**按那一种解释（此时不退兜底，便于二分）· item = 跳过骨读数、直接用物品实体的帧。
+		/// 改完立刻生效（下一个 tick 就按新取法摆钩/球），**不用重编**。
+		/// </summary>
+		private static string HandSrc(List<string> args)
+		{
+			string cur = SpellCastInput.HandSourceMode.ToString().ToLowerInvariant();
+			if (args.Count < 2 || string.IsNullOrWhiteSpace(args[1]))
+			{
+				return $"OK: hand source = {cur} | last read = [{SpellCastInput.LastHandSource}]"
+					+ "   (usage: custom.spell handsrc <auto|world|local|item>)";
+			}
+			switch (args[1].Trim().ToLowerInvariant())
+			{
+				case "auto": SpellCastInput.HandSourceMode = SpellCastInput.HandSource.Auto; break;
+				case "world": SpellCastInput.HandSourceMode = SpellCastInput.HandSource.World; break;
+				case "local": SpellCastInput.HandSourceMode = SpellCastInput.HandSource.Local; break;
+				case "item": SpellCastInput.HandSourceMode = SpellCastInput.HandSource.Item; break;
+				default:
+					return "FAILED: handsrc takes auto | world | local | item";
+			}
+			Agent p = Mission.Current != null ? Mission.Current.MainAgent : null;
+			bool ok = p != null && SpellCastInput.TryGetRightHandAnchor(p, out Vec3 _);
+			return $"OK: hand source = {SpellCastInput.HandSourceMode.ToString().ToLowerInvariant()}"
+				+ $" | resolved={ok} | last read = [{SpellCastInput.LastHandSource}]";
 		}
 
 		/// <summary>最近的另一个 agent（诊断命令共用）。</summary>

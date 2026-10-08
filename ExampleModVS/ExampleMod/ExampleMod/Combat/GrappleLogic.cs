@@ -95,8 +95,73 @@ namespace LivingWorldNpcs
 		public static float HandHookRpm = 90f;
 
 		/// <summary>绕圈半径（米）= 手里那截绳的长度（绳走 verlet，甩起来自然有弧线与拖尾）。
-		/// 🔴 2026-10-07 用户口径：**手里大约 20 cm 绳** ⇒ 默认 0.20。</summary>
-		public static float HandHookRadius = 0.20f;
+		/// 🔴 2026-10-07 晚用户口径：**半径 ≈ 小臂长度（0.25 m）** ⇒ 默认 0.25
+		///    （早前是 0.20，"手里大约 20 cm 绳"）。现调：`custom.grapple spin &lt;rpm&gt; [半径]`。</summary>
+		public static float HandHookRadius = 0.25f;
+
+		/// <summary>
+		/// 绕转的**轴**（`custom.grapple armaxis &lt;0|1|2&gt;`）—— 圆所在的平面 ⊥ 这个轴：
+		/// · **0（默认）世界竖直** —— 手垂在体侧时小臂≈竖直 ⇒ 圆是**水平的、绕着胳膊转**
+		///   （用户 2026-10-07 口径："以手臂为轴做圆周运动，半径差不多是小臂长度"）
+		/// · 1 = **体侧前后**（轴 = 角色右方向）⇒ 圆在竖直面里、前后甩
+		/// · 2 = **左右横扫**（轴 = 角色朝向）⇒ 圆在正面（左右）面里
+		/// · 3 = **上臂弦（肩 → 手）** ⇒ 圆 ⊥ 这条弦；⚠️ 手臂一折它就不是小臂了（用户当场指出）⇒ 一般用 4
+		/// · 4 = 🔴 **小臂轴（肘 → 手）**（用户 2026-10-07 晚最终口径）⇒ 圆 ⊥ 小臂，真像"绕着胳膊甩"；
+		///   骨索引走官方语义接口 `GetRealBoneIndex(HumanBone.ForearmR / HandR)`；读不到自动退回 0。
+		/// ⚠️ 真"小臂骨方向"要读 `Monster.RightUpperArmBoneIndex`（本项目**从没读过这条**，且有
+		///    裸读左手骨当场 AccessViolation 的前科）—— 先不碰；竖直轴在手垂下时就是小臂方向。
+		/// </summary>
+		/// 🔴 **默认值已改为 4（小臂轴）**（2026-10-07 晚用户裁定："别让我多打一个指令了"）——
+		///    上面 · 里写的"0（默认）"作废，0/1/2/3 现在都只是备选对照档。
+		public static int HandHookAxis = 4;
+
+		/// <summary>
+		/// **圆心沿轴向外偏移**（米，`custom.grapple armaxis &lt;档&gt; [米]`）—— 圆所在的平面整体沿**轴方向**挪一点。
+		/// 用户 2026-10-07 晚口径："以手肘到手的连线为轴，**再向外探一点点**" ⇒ 默认 **0.05 m**：
+		/// 圆心从手腕（骨点）往外挪到掌心外侧，钩就不会擦着手转。
+		/// </summary>
+		public static float HandHookAxisOffset = 0.05f;
+
+		/// <summary>
+		/// **圆心横向远离身体**的偏移（米，`custom.grapple armout &lt;米&gt;`；默认 0.10）——
+		/// 治"转一圈有一小段看不见"：半径 0.25 m 的圆，若圆心就压在手腕骨点上，**圆内侧那一段正好扫进躯干里**
+		/// （实机现象：转一圈就短暂消失一下）。往外挪一点，整圈都露在体外。
+		/// </summary>
+		public static float HandHookOutShift = 0.10f;
+
+		/// <summary>限频帧日志（`custom.grapple spinlog &lt;0|1&gt;`，默认关）—— 每 ~0.4 s 打一行 `角度 / 钩位置 / actual`
+		/// （`actual` = 实体自己报的帧位置）。判"某个角度看不见"是**被身体/手臂挡住**（actual 正常）还是**摆位失效**（actual 跳走）。</summary>
+		public static bool HandHookLog = false;
+
+		private float _handHookLogTimer;
+		private Vec3 _hookPlaneS;             // 圆平面内的参考方向（状态：逐帧最小旋转，保证平面不跳）
+
+		/// <summary>
+		/// 圆平面的**连续**基（给出 s / f ⊥ 轴，且 s × f = u = 轴）。
+		///
+		/// 🔴 **为什么不能直接用 `GrappleRope.BasisWithLocalZ`**（2026-10-08 用户报告"钩的旋转面在扭"）：
+		/// 那个函数在 **|轴.z| 跨越 0.99** 时会**换一根参考轴**去叉乘（(0,0,1) ↔ (0,1,0)）⇒ 平面基**突然翻 90°**，
+		/// 表现出来就是钩在圆上的**相位**与自身**滚转**跳一下（用户看到的"扭"/"忽然变个样"）。
+		/// ⇒ 改成把**上一帧的 s 投影到新平面再归一**（最小旋转 / 平行移动）：平面跟着轴平滑转，永不跳。
+		/// 顺带：`hookroll` 因此变成"相对一个稳定参考"的滚转，调出来的角度才可复现。
+		/// </summary>
+		private Mat3 ContinuousPlane(Vec3 axis)
+		{
+			Vec3 s = _hookPlaneS - axis * Vec3.DotProduct(_hookPlaneS, axis);   // 投影到 ⊥ 轴的平面
+			if (s.LengthSquared < 1e-8f)
+			{
+				Mat3 fresh = GrappleRope.BasisWithLocalZ(axis);                 // 首帧 / s 与轴几乎平行 → 重建一个
+				_hookPlaneS = fresh.s;
+				return fresh;
+			}
+			s.Normalize();
+			_hookPlaneS = s;
+			Mat3 m = Mat3.Identity;
+			m.u = axis;
+			m.s = s;
+			m.f = Vec3.CrossProduct(axis, s);       // 与 BasisWithLocalZ 同款手性：s × f = u
+			return m;
+		}
 
 		/// <summary>手里待命总开关（`custom.grapple spin off`）。</summary>
 		public static bool HandHookEnabled = true;
@@ -107,13 +172,30 @@ namespace LivingWorldNpcs
 		/// 待机绳是**全新工况**（绳长只有 0.3~0.5 m，飞行时是 20 m），最可疑的就是它。</summary>
 		public static bool HandRopeEnabled = false;
 
-		/// <summary>诊断开关（`custom.grapple parkframe <0|1|2>`）—— 把"手里那枚"的摆位方式切成三种，
-		/// 用来二分"看不见"到底是哪一环（三种都能运行期切、即时生效）：
-		/// · **1（默认）** 每帧摆位 + 径向朝向 = 正常模式
-		/// · **0** 只在建出来那一刻摆一次 + 径向朝向
-		/// · **2** 只摆一次 + **Identity 朝向** = **与 `custom.spawn_mesh`（已知能渲染）逐字同款**
-		/// 判读：2 能显示 ⇒ 差异在"摆位方式"；2 也不行 ⇒ 差异在别的（位置/环境），继续切。</summary>
-		public static int HandHookParkMode = 1;
+		/// <summary>
+		/// 🔴 **手上那枚钩的分档诊断**（`custom.grapple hand &lt;0..4&gt;`，2026-10-07 晚）——
+		/// 回答"它为什么不显示"。**每一档只比上一档多一个变量**，所以：
+		/// **第一档开始看不见 = 元凶就是那一档新加的那个变量。**
+		///
+		/// | 档 | 位置 | 朝向 | 摆位频率 | 比上一档多出来的变量 |
+		/// |---|---|---|---|---|
+		/// | 1 | 身前 2 m / 高 1.2（= `custom.spawn_mesh` 逐字同款，那件**已知可见**） | Identity | **只摆一次** | 起点（= 对照组） |
+		/// | 2 | 同档 1（跟着人走） | Identity | **每帧** | 每帧 `SetGlobalFrame` |
+		/// | 3 | **右手骨上方 0.18 m**（<see cref="GetHand"/>，= 阴魔斩蓄力球同一读法） | Identity | 每帧 | 位置换成手骨 |
+		/// | 4 | 手骨 + 离心 0.20 m | **径向朝向** | 每帧 | 径向基底（**= 现行为**） |
+		///
+		/// **判读**：4 看不见而 3 看得见 ⇒ 元凶 = 径向基底（`BasisWithLocalZ`）·
+		/// 3 看不见而 2 看得见 ⇒ 元凶 = 手骨位置 · 2 看不见而 1 看得见 ⇒ 元凶 = 每帧摆位 ·
+		/// **1 就看不见 ⇒ 元凶在"实体 + 网格这条路"本身**（那时与 `custom.spawn_mesh` 的差异只剩
+		/// 「缓存过的 MetaMesh」与「建实体的写法」，再往下切）。
+		///
+		/// 🔴 全程用**同一枚实体**（`_hook`）—— 换档不重建，免得"重建"本身混进来当变量。
+		/// 🔴 档 4 不是"另写一份摆位"，而是**直接落进正常那条路**（只跳过判据）—— 保证它就是现行为。
+		/// </summary>
+		public static int HandProbeStage = 0;
+
+		private bool _handProbePlaced;             // 档 1（只摆一次）是否已摆过
+		private int _handProbeLoggedStage = -1;    // 诊断日志闸门：每档只打一条
 
 		private float _handHookAngle;        // 绕圈相位（弧度）
 		private bool _handHookRopeShown;     // 手里那条绳是否 Show 过（Show 会把点链拉直 ⇒ 只在进入时调一次）
@@ -968,10 +1050,19 @@ namespace LivingWorldNpcs
 		/// 判据 = **此刻握着的是钩索本体**（`Agent.WieldedWeapon`）—— 换武器 / 收起来就收掉钩与绳。
 		/// 参数：<see cref="HandHookRpm"/> · <see cref="HandHookRadius"/> · <see cref="HandHookEnabled"/>。
 		/// 🔴 绳**只在进入时 Show 一次**（Show 会把点链拉直成一条线）；之后每帧只 Tick —— 让它自己甩。
+		/// 🔴 **诊断阶梯**（<see cref="HandProbeStage"/>）：档 1~3 由 <see cref="TickHandProbe"/> 独占；
+		///    档 4 = 落进下面这条正常路（只跳过判据）；档 0 = 正常（判据照旧）。
 		/// </summary>
 		private void TickHandHook(float dt)
 		{
-			if (!HandHookEnabled || !IsHoldingGrapple())
+			if (HandProbeStage >= 1 && HandProbeStage <= 3)
+			{
+				TickHandProbe(dt);
+				return;
+			}
+
+			// 档 0 = 正常；**档 4 = 强制走下面那条**（不看总开关、不看握着谁 —— 它就是"现行为"的对照）
+			if (HandProbeStage == 0 && (!HandHookEnabled || !IsHoldingGrapple()))
 			{
 				_hook.Unpark();
 				if (_handHookRopeShown)
@@ -1007,21 +1098,31 @@ namespace LivingWorldNpcs
 			//    它内部带"**骨帧离角色 > 3 m 就判不可信、退回身体近似位**"的兜底。
 			//    2026-10-07 实机栽过：我裸用 `GetBoneEntitialFrame`（没兜底），那一帧读到的是**角色局部**坐标
 			//    (0.28,-0.16,0.85) ⇒ 钩被摆到世界原点附近 ⇒ 手里什么都看不见（不崩，就是找不到）。
+			//    🔴 当晚最终修法 = `TryReadBoneWorld` 的**双解释**（原生给的就是角色局部坐标，实测 d=575 m vs 1.4 m）。
 			Vec3 pivot = GetHand();
 
-			// 绕圈平面用**世界轴**推（不再依赖骨帧朝向）：竖直圆 —— 法线 = 角色右手方向 ⇒ 圈在"体侧"立着转。
-			Vec3 fwd = player.LookDirection;
-			if (fwd.LengthSquared < 1e-6f) { fwd = Vec3.Forward; }
-			fwd = fwd.NormalizedCopy();
-			Vec3 right = Vec3.CrossProduct(fwd, Vec3.Up);     // 与 BasisWithLocalZ 同款约定：s = f × u
-			if (right.LengthSquared < 1e-6f) { right = Vec3.Forward; }   // 正上/正下看时退化，随便挑一个
-			right = right.NormalizedCopy();
+			// 圆心**横向远离身体**（默认 0.10 m）——"转一圈消失一下"的常见原因 =
+			// 半径 0.25 的圆内侧那一段扫进了躯干里（整段埋在身体内部 ⇒ 看不见）。
+			if (HandHookOutShift > 0.001f)
+			{
+				Vec3 lateral = new Vec3(pivot.x - player.Position.x, pivot.y - player.Position.y, 0f);
+				if (lateral.LengthSquared > 1e-6f)
+				{
+					pivot += lateral.NormalizedCopy() * HandHookOutShift;
+				}
+			}
 
+			// 绕圈平面：**圆 ⊥ 轴**（轴由 <see cref="HandHookAxis"/> 选，`armaxis` 现场调）。
+			// 用 `BasisWithLocalZ(轴)` 的 s / f 当圆平面的基（都是单位长、正交、且都 ⊥ 轴）——
+			// 复用同一个已验证的基底构造，不再自己搭三角函数（2026-10-07 早前的"竖直圆"就是它的 s/f 特例）。
+			Vec3 axis = HandHookAxisDir(player);
+			pivot += axis * HandHookAxisOffset;      // 圆心沿轴外移（"再向外探一点点"）
+			Mat3 plane = ContinuousPlane(axis);      // 🔴 连续基（别再换回 BasisWithLocalZ，见方法注释）
 			_handHookAngle += dt * HandHookRpm / 60f * 6.2831855f;
 			float c = (float)Math.Cos(_handHookAngle);
 			float s = (float)Math.Sin(_handHookAngle);
 
-			Vec3 radial = (right * c + Vec3.Up * s);
+			Vec3 radial = (plane.s * c + plane.f * s);
 			if (radial.LengthSquared < 1e-8f)
 			{
 				return;
@@ -1029,16 +1130,38 @@ namespace LivingWorldNpcs
 			radial = radial.NormalizedCopy();
 			Vec3 hookPos = pivot + radial * HandHookRadius;
 
-			_hook.Park(scene, hookPos, radial,
-				applyFrameEveryTick: HandHookParkMode == 1,
-				identityRotation: HandHookParkMode == 2);
+			_hook.Park(scene, hookPos, radial);
 
 			if (!_handHookLogged)
 			{
 				_handHookLogged = true;
+				// 🔴 把**径向基底**逐向量打出来 —— 万一元凶是"基底退化 ⇒ 网格被压成一条线/零体积"，
+				//    这一行是唯一能看出来的地方（三个向量应当都是单位长、两两垂直）。
+				Mat3 basis = GrappleRope.BasisWithLocalZ(radial);
 				DebugLogger.Log($"[Grapple] 手里的钩：开摆 手={pivot.x:F2},{pivot.y:F2},{pivot.z:F2}"
+					+ $" 手源=[{SpellCastInput.LastHandSource}]"
 					+ $" 钩={hookPos.x:F2},{hookPos.y:F2},{hookPos.z:F2} 半径={HandHookRadius:F2} rpm={HandHookRpm:F0}"
+					+ $" 轴模式={HandHookAxis} 轴=({axis.x:F3},{axis.y:F3},{axis.z:F3}) 轴外移={HandHookAxisOffset:F2}"
+					+ $" 臂骨=[{SpellCastInput.LastArmBones}]"
+					+ $" 径向=({radial.x:F3},{radial.y:F3},{radial.z:F3})"
+					+ $" 基底 s=({basis.s.x:F3},{basis.s.y:F3},{basis.s.z:F3})"
+					+ $" f=({basis.f.x:F3},{basis.f.y:F3},{basis.f.z:F3})"
+					+ $" u=({basis.u.x:F3},{basis.u.y:F3},{basis.u.z:F3})"
 					+ $" | {_hook.ParkState()}");
+			}
+
+			// 限频帧日志（默认关）：判"某个角度看不见"是**被身体/手臂遮挡**还是**摆位失效**
+			// —— actual 跟着角度正常画圆 = 遮挡（把 armout / armaxis 的轴外移调大）；
+			//    actual 在某角度跳走 = 摆位真的坏了（把这一行发我）。
+			if (HandHookLog)
+			{
+				_handHookLogTimer += dt;
+				if (_handHookLogTimer >= 0.4f)
+				{
+					_handHookLogTimer = 0f;
+					DebugLogger.Log($"[Grapple] spinlog 角度={((_handHookAngle * 57.29578f) % 360f + 360f) % 360f:F0}°"
+						+ $" 钩={Fmt(hookPos)} 圆心={Fmt(pivot)} 轴模式={HandHookAxis} | {_hook.ParkState()}");
+				}
 			}
 
 			// 绳的**近端 = 右手**（见 GetRopeAnchor 的事故记录）；绳默认不开，见 HandRopeEnabled。
@@ -1065,11 +1188,125 @@ namespace LivingWorldNpcs
 			_rope.Tick(dt, ropeAnchor, hookPos);
 		}
 
+		/// <summary>绕转轴（世界坐标、单位向量），见 <see cref="HandHookAxis"/>。
+		/// 三种都只用**已验证过的读法**（`LookDirection` / 世界轴），不碰新骨骼（避免再撞 AV）。</summary>
+		private static Vec3 HandHookAxisDir(Agent player)
+		{
+			Vec3 fwd = player.LookDirection;
+			if (fwd.LengthSquared < 1e-6f)
+			{
+				fwd = Vec3.Forward;
+			}
+			fwd = fwd.NormalizedCopy();
+
+			switch (HandHookAxis)
+			{
+				case 1:
+				{
+					// 体侧前后甩：轴 = 角色右方向（= f × u，与 BasisWithLocalZ 同款约定）
+					Vec3 r = Vec3.CrossProduct(fwd, Vec3.Up);
+					return r.LengthSquared < 1e-6f ? Vec3.Forward : r.NormalizedCopy();
+				}
+				case 2:
+					return fwd;                      // 左右横扫：轴 = 朝向 ⇒ 圆在正面（左右）面里
+				case 3:
+				{
+					// 🔴 **上臂弦（肩 → 手）** —— ⚠️ 手臂一折这条弦就不是小臂了（用户当场指出）⇒ 优先用 4
+					if (SpellCastInput.TryGetArmAxis(player, out Vec3 armAxis))
+					{
+						return armAxis;
+					}
+					return Vec3.Up;
+				}
+				case 4:
+				{
+					// 🔴🔴 **小臂轴（肘 → 手）** —— 用户 2026-10-07 晚的最终口径：
+					// "(手臂)可能是折的，要以**手肘到手**的连线为轴，再向外探一点点"。
+					// 骨索引走官方语义接口 `GetRealBoneIndex(HumanBone.ForearmR / HandR)`。
+					if (SpellCastInput.TryGetForearmAxis(player, out Vec3 foreAxis))
+					{
+						return foreAxis;
+					}
+					return Vec3.Up;                  // 读不到就退回竖直（不让圆乱翻）
+				}
+				default:
+					return Vec3.Up;                  // 世界竖直：手垂在体侧时 = 绕小臂转
+			}
+		}
+
 		/// <summary>命令用（`custom.grapple spin` 无参）：把"手里那枚实体"的状态读成一行 ——
 		/// 回答"到底召唤出实体没有 / 网格挂上没"（别靠猜）。</summary>
 		public string ParkStateLine()
 		{
 			return _hook.ParkState();
+		}
+
+		/// <summary>
+		/// 命令 `custom.grapple hand &lt;0..4&gt;` 的落点：换档。
+		/// 🔴 必须走这里而不是直接写 <see cref="HandProbeStage"/> —— 要顺带重置
+		/// 「档 1 只摆一次」的闸门与日志闸门，否则换回档 1 时它不会重新摆位（看着像"没反应"）。
+		/// </summary>
+		public void SetHandProbe(int stage)
+		{
+			HandProbeStage = stage;
+			_handProbePlaced = false;
+			_handProbeLoggedStage = -1;
+		}
+
+		/// <summary>
+		/// 诊断阶梯的档 1~3（表见 <see cref="HandProbeStage"/>）—— **只摆位**：
+		/// 不判"握着没握着"、不看总开关、不碰绳（绳开着就先收掉，免得它的弧线把判读搅浑）。
+		/// 档 4 不在这里 —— 它落进 <see cref="TickHandHook"/> 那条正常路，保证"就是现行为"。
+		/// </summary>
+		private void TickHandProbe(float dt)
+		{
+			Agent player = Agent.Main;
+			Scene scene = Mission != null ? Mission.Scene : null;
+			if (player == null || scene == null)
+			{
+				return;
+			}
+
+			if (_handHookRopeShown)
+			{
+				_handHookRopeShown = false;
+				_rope.Hide();
+			}
+
+			if (HandProbeStage == 1 || HandProbeStage == 2)
+			{
+				// 身前 2 m / 高 1.2 —— **与 `custom.spawn_mesh` 逐字同款**（那件已知可见 ⇒ 这档就是对照组）
+				Vec3 fwd = player.LookDirection;
+				float hl = MathF.Sqrt(fwd.x * fwd.x + fwd.y * fwd.y);
+				Vec3 flat = hl > 1e-3f ? new Vec3(fwd.x / hl, fwd.y / hl, 0f) : new Vec3(0f, 1f, 0f);
+				Vec3 pos = player.Position + flat * 2f + Vec3.Up * 1.2f;
+
+				if (HandProbeStage == 1 && _handProbePlaced)
+				{
+					return;      // 档 1 = **只摆一次**（spawn_mesh 的语义：摆完就不管了，人走开它就留在原地）
+				}
+				_handProbePlaced = true;
+				_hook.Park(scene, pos, Vec3.Up, applyFrameEveryTick: true, identityRotation: true);
+				LogHandProbe($"pos=({pos.x:F2},{pos.y:F2},{pos.z:F2}) 身前 2m/高 1.2m"
+					+ (HandProbeStage == 1 ? " · 只摆一次" : " · 每帧摆"));
+				return;
+			}
+
+			// 档 3：**右手骨上方** —— 与阴魔斩蓄力球同一读法（GetHand → TryGetRightHandAnchor，带 3 m 兜底）
+			Vec3 hand = GetHand();
+			_hook.Park(scene, hand, Vec3.Up, applyFrameEveryTick: true, identityRotation: true);
+			LogHandProbe($"pos=({hand.x:F2},{hand.y:F2},{hand.z:F2}) 右手骨上方 · 每帧摆");
+		}
+
+		/// <summary>每档只打一条（带数字，供事后比对）；换档时由 <see cref="SetHandProbe"/> 重开闸门。</summary>
+		private void LogHandProbe(string what)
+		{
+			if (_handProbeLoggedStage == HandProbeStage)
+			{
+				return;
+			}
+			_handProbeLoggedStage = HandProbeStage;
+			DebugLogger.Log($"[Grapple] hand probe {HandProbeStage} → {what} | {_hook.ParkState()}");
 		}
 
 		/// <summary>此刻"手上拿着钩索"吗？判据 = `Agent.WieldedWeapon` 是**钩索本体**（`taikou_grapple_hook`）
