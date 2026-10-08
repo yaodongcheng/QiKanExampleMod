@@ -666,7 +666,9 @@ namespace LivingWorldNpcs
 				//    旧写法硬问 `Weapon1` / `Weapon0` 两格却一直没炸，**只因为**那两格以前总有东西
 				//    （旧版 `custom.grapple equip` 硬写 0/1 号槽）—— 命令改成"找空槽"之后那两格可能是空的 ⇒ 当场崩。
 				//    ⇒ 纪律：**先看槽里有没有武器**（`MissionWeapon.IsEmpty`），有才问原生；
-				//      顺序 = 主手 → 副手 → 其余主武器槽（谁的帧离身体近用谁，仍走 1.5 m 守卫）。
+				//      顺序 = 主手 → 副手 → 其余主武器槽 —— 距离上**两头都要卡**：
+				//      太远（> 2.5 m）不要、**贴在原点（< 0.35 m = 根本没绑到骨上）也不要**（2026-10-08 补）。
+				string itemNote = "";
 				foreach (EquipmentIndex slot in HandItemSlotOrder(agent))
 				{
 					MissionWeapon held = agent.Equipment[slot];
@@ -683,6 +685,13 @@ namespace LivingWorldNpcs
 						}
 						Vec3 p = e.GetGlobalFrame().origin;
 						float d = Distance(p, agent.Position);
+						if (d < MinHandItemDistance)
+						{
+							// 🔴 "这件没绑到骨头上"的签名：帧被摆在 **agent 原点**（实测 d=0.00）—— 绝不能当手用
+							//    （2026-10-08 实机：就是它把钩/绳一路带到**脚底**，看着像"偶尔消失"）。
+							itemNote = $"{slot} d={d:F2} not-attached";
+							continue;
+						}
 						if (d <= MaxHandDistance)
 						{
 							anchor = p + Vec3.Up * (HandAnchorUpOffset * 0.5f);   // 物品帧已贴手，少抬一点
@@ -695,6 +704,11 @@ namespace LivingWorldNpcs
 					}
 				}
 
+				// 兜底也没成 —— 把"为什么"记进手源串（下次读日志一眼看出是"没绑上"还是"跑太远"）
+				if (itemNote.Length > 0)
+				{
+					LastHandSource = "bone: " + how + " | item " + itemNote;
+				}
 				return false;
 			}
 			catch (Exception)
@@ -737,9 +751,20 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>手相对身体中心的最大合理距离（米）—— 超过它 = "这个读数根本不在同一个空间里"。
-		/// 手垂着离身体中心 ≈ 0.6~0.9 m、抬起来 ≤ 1.2 m；1.5 m 留足余量，又远小于"坐标空间错了"的量级（几百米）。</summary>
-		private const float MaxHandDistance = 1.5f;
+		/// <summary>手相对**脚底**（`Agent.Position`）的最大合理距离（米）——超过它 = "读数根本不在同一个空间里"。
+		/// 🔴 **2026-10-08 从 1.5 抬到 2.5**（实机日志实锤，别再调回去）：这个数**是从脚底量的，不是身体中心**
+		///    —— 手臂抬起来（瞄准 / 走动摆臂）时手骨离脚底**本来就有 1.4~1.5 m**，1.5 的闸门等于天天踩线：
+		///    实测 `d=1.47~1.50` 随 idle 呼吸每 1.1 秒翻过闸门一次 ⇒ 骨读数被拒 ⇒ 掉到兜底（钩甩到脚底）。
+		///    闸门真正要挡的是"**坐标空间搞错了**"（错空间 = 几百米），所以放宽完全安全；肩/肘的闸门本来就是 2.0。
+		/// </summary>
+		private const float MaxHandDistance = 2.5f;
+
+		/// <summary>物品实体**至少要离身体这么远**才算"真挂在手上"（米）。
+		/// 🔴 2026-10-08 实机：引擎给**没绑到骨头上的**武器实体把帧摆在 **agent 原点**（实测 `d=0.00`），
+		///    而原来的守卫只有"别太远"（`d <= 2.5`）⇒ 这种"没绑上"的实体**一路通过** ⇒ 手挂点变成**脚底**，
+		///    钩与绳双双掉到脚踝（用户症状："偶尔消失"/"走动时看不见"）。⇒ 补下限：贴在手边的物品离脚底 ≥ 0.35 m。
+		/// </summary>
+		private const float MinHandItemDistance = 0.35f;
 
 		/// <summary>手挂点的**取法**（`custom.spell handsrc &lt;auto|world|local|item&gt;`，现场对比用）。</summary>
 		public enum HandSource
@@ -808,16 +833,26 @@ namespace LivingWorldNpcs
 				Vec3 asLocal = agent.Frame.TransformToParent(raw);
 				float dw = Distance(raw, agent.Position);
 				float dl = Distance(asLocal, agent.Position);
-				if (HandSourceMode == HandSource.World || (HandSourceMode == HandSource.Auto && dw <= maxDist))
+				if (HandSourceMode == HandSource.World)      // 手工锁定（诊断用）：不判距离、直接采信
 				{
 					world = raw;
-					how = $"world d={dw:F2}";
+					how = $"world d={dw:F2} (locked)";
 					return true;
 				}
-				if (HandSourceMode == HandSource.Local || (HandSourceMode == HandSource.Auto && dl <= maxDist))
+				if (HandSourceMode == HandSource.Local)
 				{
 					world = asLocal;
-					how = $"local d={dl:F2}";
+					how = $"local d={dl:F2} (locked)";
+					return true;
+				}
+				// 🔴 Auto：**两条都能用时取更近的那条**（以前是"世界优先"）—— 角色恰好站在世界原点附近时，
+				//    "世界"那条也会落进闸门；取更近的就不会把角色局部值误当世界值收下。
+				bool okWorld = dw <= maxDist, okLocal = dl <= maxDist;
+				if (okWorld || okLocal)
+				{
+					bool useWorld = okWorld && (!okLocal || dw <= dl);
+					world = useWorld ? raw : asLocal;
+					how = useWorld ? $"world d={dw:F2}" : $"local d={dl:F2}";
 					return true;
 				}
 				how = $"both far (world {dw:F1} local {dl:F1})";

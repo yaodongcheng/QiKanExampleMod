@@ -169,7 +169,7 @@ case("物品：缺 <Flags Civilian=\"true\"/> 必须抓到", "check_items_civili
 #      直接返回 holster 网格）⇒ 进装备/背包界面**搜到这件就 NullReferenceException**（雷 168）
 case("物品：箭类 holster_mesh 留空必须抓到（雷 168）", "check_items_mesh_fields.py",
      lambda m, c: patch_text(m / "ModuleData" / "taikou_items" / "grapple.xml",
-                             'holster_mesh="lwn_proxy_invisible"', 'holster_mesh=""', 1),
+                             'holster_mesh="lwn_grapple_hook"', 'holster_mesh=""', 1),
      1, "taikou_grapple_hook")
 
 #   ② `mesh=""` —— 装备那一刻 AccessViolation（雷 166）；pattern 取「任意类型都命中」的第一处

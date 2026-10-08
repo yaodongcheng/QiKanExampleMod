@@ -126,8 +126,19 @@ namespace LivingWorldNpcs
 
 		// ── 手里待命（设计 B，2026-10-07）：钩索拿在手上 = 钩头实体停在**右手**绕圈、绳连到钩的尾环 ──
 
-		/// <summary>转速（转/分）。0 = 不绕、就停在手上；负值 = 反向。</summary>
-		public static float HandHookRpm = 90f;
+		/// <summary>**待机档**转速（转/分）—— 拿着钩索站着/走动时，手里那枚钩转多快（用户 2026-10-08 定：**135**）。
+		/// 0 = 不绕、停在手上；负值 = 反向。</summary>
+		public static float HandHookRpmIdle = 135f;
+
+		/// <summary>**瞄准 / 蓄力档**转速（转/分）—— 按住左键瞄准期间甩得更急（用户 2026-10-08 定：**270**）。
+		/// 判据见 <see cref="IsAimingGrapple"/>（= 我们的 ready / hold 正在播，**不是**"拿着钩索"就算）。</summary>
+		public static float HandHookRpmAim = 270f;
+
+		/// <summary>此刻生效的转速（转/分）—— 上一帧 <see cref="TickHandHook"/> 用的那个值（给命令回执看的）。</summary>
+		public static float HandHookRpmNow = 135f;
+
+		/// <summary>此刻在瞄准/蓄力吗（上一帧的值；`custom.grapple spin` 无参时回显用）。</summary>
+		public static bool HandHookAimingNow;
 
 		/// <summary>绕圈半径（米）= 手里那截绳的长度（绳走 verlet，甩起来自然有弧线与拖尾）。
 		/// 🔴 2026-10-07 晚用户口径：**半径 ≈ 小臂长度（0.25 m）** ⇒ 默认 0.25
@@ -222,8 +233,10 @@ namespace LivingWorldNpcs
 		public static float HandHookOutShift = 0.10f;
 
 		/// <summary>**每帧诊断**（`custom.grapple spinlog 1 [秒]`，默认抓 2 秒）：开着时**每帧打一行**
-		/// `[Grapple] spinlog #帧号 角度 pos actual shown`，到点**自动关**（免得刷屏）。
+		/// `[Grapple] spinlog #帧号 角度 pos 径向 手源 横偏 内缘 高 | 实体帧 | 两条绳状态`，到点**自动关**（免得刷屏）。
 		/// 🔴 用它抓"钩在圆周运动里瞬间不见"：那一帧的 `actual`/`shown` 直接说明是"我们藏了"还是"位置跳了"还是"都好（= 渲染/遮挡）"。
+		/// 🔴 **2026-10-08 补的三个数**（回答"走动时看不见、站住才出现"）：`手源`（换路 / 退盆骨兜底一眼可见）·
+		///    `横偏`（圆心离身体轴的水平距离）· `内缘` = 横偏 − 半径（**< 0 = 圆扫进躯干/腿里** = 遮挡）· `高`（脚底以上）。
 		/// </summary>
 		public static bool HandHookLog = false;
 
@@ -233,6 +246,15 @@ namespace LivingWorldNpcs
 		private float _handHookLogLeft;      // 剩余抓帧时长（>0 = 正在抓）
 		private int _handHookLogFrame;       // 本次抓帧的帧号（看跳号/丢帧用）
 		private bool _handHookLogArmed;      // 已经开抓了吗（命令置 HandHookLog=true 后，首次 tick 才真正开始计时）
+		private string _lastHandSrcTag;      // 上一帧的手源**路径标签**（换路就落一条日志；null = 手里那套还没起来）
+		private float _handSrcLogCool;       // 「手源换路」日志的节流（秒；防抖时刷屏）
+		/// <summary>上一次读到的**好手点**（世界坐标）与当时的 agent 位置 —— 手读数失败时拿它顶着（见 <see cref="GetHand"/>）。
+		/// 🔴 2026-10-08：以前读失败直接退盆骨/脚底，钩与绳会一起"甩到脚踝消失"（实机日志实锤）。</summary>
+		private Vec3 _lastGoodHand;
+		private Vec3 _lastGoodAgentPos;
+		private float _lastGoodHandAge = float.MaxValue;   // 秒；超过 <see cref="HandHoldSeconds"/> 就作废
+		/// <summary>手读数失败时，"上一次的好手点"还能顶多久（秒）。</summary>
+		private const float HandHoldSeconds = 1.0f;
 		private Vec3 _hookPlaneS;             // 圆平面内的参考方向（状态：逐帧最小旋转，保证平面不跳）
 
 		/// <summary>
@@ -260,6 +282,38 @@ namespace LivingWorldNpcs
 			m.s = s;
 			m.f = Vec3.CrossProduct(axis, s);       // 与 BasisWithLocalZ 同款手性：s × f = u
 			return m;
+		}
+
+		/// <summary>
+		/// 手源字符串的**路径标签**（去掉每帧都在变的距离数字）—— 用来判"这一帧换路了吗"。
+		/// 例：`bone/local d=1.26` → `bone/local` · `item-entity Weapon3 d=1.2` → `item-entity` ·
+		/// `bone: both far (world 575.7 local 1.7)` → `bone:far`（= 骨读数掉线，调用方会退盆骨兜底位）。
+		/// 🔴 直接比整串是不行的：距离每帧都在变 ⇒ 每帧都算"换路"⇒ 刷屏。
+		/// </summary>
+		private static string HandSourceTag(string src)
+		{
+			if (string.IsNullOrEmpty(src))
+			{
+				return "?";
+			}
+			if (src.StartsWith("hold ", StringComparison.Ordinal))
+			{
+				return "hold";          // 读失败、正拿上一次的好手点顶着（见 GetHand）
+			}
+			if (src.StartsWith("bone/", StringComparison.Ordinal))
+			{
+				int sp = src.IndexOf(' ');
+				return sp > 0 ? src.Substring(0, sp) : src;
+			}
+			if (src.StartsWith("item-entity", StringComparison.Ordinal))
+			{
+				return "item-entity";
+			}
+			if (src.StartsWith("bone:", StringComparison.Ordinal))
+			{
+				return "bone:far";
+			}
+			return src;
 		}
 
 		/// <summary>手里待命总开关（`custom.grapple spin off`）。</summary>
@@ -1269,6 +1323,8 @@ namespace LivingWorldNpcs
 			Scene scene = Mission != null ? Mission.Scene : null;
 			bool want = HandHookEnabled && !_anchored && player != null && scene != null && IsHoldingGrapple();
 
+			_lastGoodHandAge += dt;      // 「上一次好手点」的保鲜计时（每帧一次；见 GetHand）
+
 			// 🔴 **先摆根实体**（钩索这件"东西"本身 = 挂在手上）—— 必须在本帧所有子件之前，
 			//    因为子件写的是"相对 root 的局部帧"（用到的 root 帧要是本帧的，否则差一帧 ⇒ 抖）。
 			if (want)
@@ -1327,7 +1383,8 @@ namespace LivingWorldNpcs
 		/// <summary>
 		/// 钩索拿在手上时每帧：钩头实体停在**右手**上、绕着手指定的圈转，绳走"手 → 钩（尾环）"那条。
 		/// 判据 = **此刻握着的是钩索本体**（`Agent.WieldedWeapon`）—— 换武器 / 收起来就收掉钩与绳。
-		/// 参数：<see cref="HandHookRpm"/> · <see cref="HandHookRadius"/> · <see cref="HandHookEnabled"/>。
+		/// 参数：<see cref="HandHookRpmIdle"/> / <see cref="HandHookRpmAim"/>（两档转速，判据 <see cref="IsAimingGrapple"/>）·
+		/// <see cref="HandHookRadius"/> · <see cref="HandHookEnabled"/>。
 		/// 🔴 绳**只在进入时 Show 一次**（Show 会把点链拉直成一条线）；之后每帧只 Tick —— 让它自己甩。
 		/// 🔴 **诊断阶梯**（<see cref="HandProbeStage"/>）：档 1~3 由 <see cref="TickHandProbe"/> 独占；
 		///    档 4 = 落进下面这条正常路（只跳过判据）；档 0 = 正常（判据照旧）。
@@ -1344,6 +1401,7 @@ namespace LivingWorldNpcs
 			if (HandProbeStage == 0 && (!HandHookEnabled || !IsHoldingGrapple()))
 			{
 				_hook.Unpark();
+				_lastHandSrcTag = null;      // 收了就复位 ⇒ 下次拿起来，"手源换路"会重新落一条（带当前几何）
 				if (_handHookRopeShown)
 				{
 					_handHookRopeShown = false;
@@ -1397,7 +1455,13 @@ namespace LivingWorldNpcs
 			Vec3 axis = HandHookAxisDir(player);
 			pivot += axis * HandHookAxisOffset;      // 圆心沿轴外移（"再向外探一点点"）
 			Mat3 plane = ContinuousPlane(axis);      // 🔴 连续基（别再换回 BasisWithLocalZ，见方法注释）
-			_handHookAngle += dt * HandHookRpm / 60f * 6.2831855f;
+			// 🔴 **两档转速**（用户 2026-10-08 定：待机 135 / 瞄准蓄力 270）—— 瞄准判据见 IsAimingGrapple。
+			//    角度是**连续累加**的 ⇒ 切档只改"转多快"，不会跳一下（相位不重置）。
+			bool aiming = IsAimingGrapple(player);
+			float rpm = aiming ? HandHookRpmAim : HandHookRpmIdle;
+			HandHookAimingNow = aiming;
+			HandHookRpmNow = rpm;
+			_handHookAngle += dt * rpm / 60f * 6.2831855f;
 			float c = (float)Math.Cos(_handHookAngle);
 			float s = (float)Math.Sin(_handHookAngle);
 
@@ -1409,7 +1473,41 @@ namespace LivingWorldNpcs
 			radial = radial.NormalizedCopy();
 			Vec3 hookPos = pivot + radial * HandHookRadius;
 
+			// 🔴 **圆心与身体的关系**（2026-10-08 加；回答"移动时 / 转到某角度看不见"）：
+			//    `横偏` = 圆心离**身体轴**（脚底那点）的水平距离 · `内缘` = 横偏 − 半径 ·
+			//    `高` = 圆心在脚底以上多高（配合横偏，一眼看出这个圆是绕胸、绕膝还是绕地）。
+			//    ⇒ **内缘 < 0 = 这个圆有一大半扫进躯干/腿里** —— 那不是渲染问题，是几何问题：
+			//      把 `palm` 调小（圆心别顺着小臂探出去）或 `armout` 调大（整圆离身）。
+			//    🔴 **兜底位签名 = 横偏≈0.00 且 高≈1.25** —— 手挂点退成了 `player.Position + 1.25 m`（盆骨）；
+			//       这种时候 `pos`/`actual`/`shown` 三个自证**全部"正常"**，只有这两个数 + 手源能看出来
+			//       （见下面那条「手源换路」日志 —— 它不用你守着 spinlog 抓，换路那一帧自动落盘）。
+			float lat = 0f, hgt = 0f;
+			try
+			{
+				float ddx = pivot.x - player.Position.x, ddy = pivot.y - player.Position.y;
+				lat = MathF.Sqrt(ddx * ddx + ddy * ddy);
+				hgt = pivot.z - player.Position.z;
+			}
+			catch (Exception)
+			{
+			}
+
+			// **手源换路日志**：路径标签变了才打（0.5 s 节流 = 抖动时最多 2 条/秒，不会刷屏）。
+			//   放在 `Park` 之后 ⇒ 行里的 `pos=` 就是本帧摆的位（与「开摆」那条同口径）。
 			_hook.Park(scene, hookPos, radial);
+			string srcTag = HandSourceTag(SpellCastInput.LastHandSource);
+			if (srcTag != _lastHandSrcTag && _handSrcLogCool <= 0f)
+			{
+				_handSrcLogCool = 0.5f;
+				DebugLogger.Log($"[Grapple] 手源换路 → [{SpellCastInput.LastHandSource}]"
+					+ $" 手=({pivot.x:F2},{pivot.y:F2},{pivot.z:F2}) 横偏={lat:F2} 内缘={lat - HandHookRadius:F2} 高={hgt:F2}"
+					+ $" | {_hook.ParkState()}");
+			}
+			_lastHandSrcTag = srcTag;
+			if (_handSrcLogCool > 0f)
+			{
+				_handSrcLogCool -= dt;
+			}
 
 			if (!_handHookLogged)
 			{
@@ -1418,8 +1516,8 @@ namespace LivingWorldNpcs
 				//    这一行是唯一能看出来的地方（三个向量应当都是单位长、两两垂直）。
 				Mat3 basis = GrappleRope.BasisWithLocalZ(radial);
 				DebugLogger.Log($"[Grapple] 手里的钩：开摆 手={pivot.x:F2},{pivot.y:F2},{pivot.z:F2}"
-					+ $" 手源=[{SpellCastInput.LastHandSource}]"
-					+ $" 钩={hookPos.x:F2},{hookPos.y:F2},{hookPos.z:F2} 半径={HandHookRadius:F2} rpm={HandHookRpm:F0}"
+					+ $" 手源=[{SpellCastInput.LastHandSource}] 横偏={lat:F2} 内缘={lat - HandHookRadius:F2} 高={hgt:F2}"
+					+ $" 钩={hookPos.x:F2},{hookPos.y:F2},{hookPos.z:F2} 半径={HandHookRadius:F2} rpm={rpm:F0}（待机{HandHookRpmIdle:F0}/瞄准{HandHookRpmAim:F0} 现={ (aiming ? "瞄准" : "待机") }）"
 					+ $" 轴模式={HandHookAxis} 轴=({axis.x:F3},{axis.y:F3},{axis.z:F3}) 轴外移={HandHookAxisOffset:F2}"
 					+ $" 臂骨=[{SpellCastInput.LastArmBones}]"
 					+ $" 径向=({radial.x:F3},{radial.y:F3},{radial.z:F3})"
@@ -1450,7 +1548,8 @@ namespace LivingWorldNpcs
 				_handHookLogLeft -= dt;
 				_handHookLogFrame++;
 				DebugLogger.Log($"[Grapple] spinlog #{_handHookLogFrame} 角度={((_handHookAngle * 57.29578f) % 360f + 360f) % 360f:F0}°"
-					+ $" pos={Fmt(hookPos)} 径向=({radial.x:F2},{radial.y:F2},{radial.z:F2})"
+					+ $" rpm={rpm:F0}({(aiming ? "aim" : "idle")}) pos={Fmt(hookPos)} 径向=({radial.x:F2},{radial.y:F2},{radial.z:F2})"
+					+ $" 手源=[{SpellCastInput.LastHandSource}] 横偏={lat:F2} 内缘={lat - HandHookRadius:F2} 高={hgt:F2}"
 					+ $" | {_hook.SpinFrameInfo()}"
 					+ $" | rig[kids={_rig.ChildCount}]"
 					+ $" | ropeB[{_rope.SpinFrameInfo()}]"
@@ -1631,6 +1730,66 @@ namespace LivingWorldNpcs
 			DebugLogger.Log($"[Grapple] hand probe {HandProbeStage} → {what} | {_hook.ParkState()}");
 		}
 
+		/// <summary>瞄准/蓄力那两条动作的索引（懒解析一次；<see cref="ActionIndexCache.act_none"/> = 没注册）。</summary>
+		private static ActionIndexCache _idxAimReady;
+		private static ActionIndexCache _idxAimHold;
+		private static bool _idxAimTried;
+
+		/// <summary>
+		/// 玩家此刻在**瞄准 / 蓄力**吗 —— 决定手里那枚钩用哪档转速（<see cref="HandHookRpmAim"/> / <see cref="HandHookRpmIdle"/>）。
+		///
+		/// 判据 = **当前动作索引命中我们的 `act_grapple_ground_ready` 或 `_hold`**（ch0 / ch1 都查 ——
+		/// 弓系动作跑在通道 1，见方案 §D-0「通道真相」；两条都查 = 通道安排变了也不会失效）。
+		/// 🔴 **为什么不用 `GetCurrentActionStage == AttackReady`**：stage 是引擎按 `action_types.xml` 分类出来的，
+		///    **别的远程武器（真弓）也会是 AttackReady**；而索引是"我们自己在播什么"，一一对应、不会误判。
+		/// ⚠️ 前提 = 这两条动作确实被引擎播着（瞄准时 usage 链会自动播 ready→hold；`custom.do_anim` 手动播的
+		///    那种也算"在瞄"——那是调试动作，不影响）。
+		/// </summary>
+		private static bool IsAimingGrapple(Agent player)
+		{
+			if (player == null)
+			{
+				return false;
+			}
+			if (!_idxAimTried)
+			{
+				_idxAimTried = true;
+				try
+				{
+					_idxAimReady = ActionIndexCache.Create("act_grapple_ground_ready");
+					_idxAimHold = ActionIndexCache.Create("act_grapple_ground_hold");
+				}
+				catch (Exception)
+				{
+				}
+				if (_idxAimReady == ActionIndexCache.act_none || _idxAimHold == ActionIndexCache.act_none)
+				{
+					DebugLogger.Log("[Grapple] 瞄准档转速：动作名解析失败（ready/hold 没注册？）—— 一直用待机档");
+				}
+			}
+			bool hasReady = _idxAimReady != ActionIndexCache.act_none;
+			bool hasHold = _idxAimHold != ActionIndexCache.act_none;
+			if (!hasReady && !hasHold)
+			{
+				return false;
+			}
+			try
+			{
+				for (int ch = 0; ch <= 1; ch++)
+				{
+					ActionIndexCache cur = player.GetCurrentAction(ch);
+					if ((hasReady && cur == _idxAimReady) || (hasHold && cur == _idxAimHold))
+					{
+						return true;
+					}
+				}
+			}
+			catch (Exception)
+			{
+			}
+			return false;
+		}
+
 		/// <summary>此刻"手上拿着钩索"吗？判据 = `Agent.WieldedWeapon` 是**绳**（`taikou_grapple_rope`）
 		/// **或钩**（`taikou_grapple_hook`，= 弹药那件）。
 		/// 🔴 2026-10-07 实机（"瞄准时钩看不见"）：**瞄准期间引擎把 `WieldedWeapon` 报成那支**（弹药），
@@ -1678,6 +1837,15 @@ namespace LivingWorldNpcs
 			Vec3 hand;
 			if (!SpellCastInput.TryGetRightHandAnchor(player, out hand))
 			{
+				// 🔴 **读失败时先拿"上一次读到的好手点"顶着**（窗口 = <see cref="HandHoldSeconds"/>）——
+				//    2026-10-08 实机（日志实锤）：骨读数一旦被闸门拒，这里就直掉**脚底/盆骨** ⇒
+				//    钩与绳双双甩到脚踝（用户症状："偶尔消失" / "走动时看不见"）。
+				//    顶着的点**按 agent 的位移平移**（人走它也走）；超窗口还读不到才认输、退老兜底位。
+				if (_lastGoodHandAge <= HandHoldSeconds)
+				{
+					SpellCastInput.LastHandSource = "hold " + SpellCastInput.LastHandSource;
+					return _lastGoodHand + (player.Position - _lastGoodAgentPos);
+				}
 				return player.Position + Vec3.Up * FallbackHandLift;
 			}
 			hand -= Vec3.Up * SpellCastInput.HandAnchorUpOffset;      // 去掉蓄力球口径的上抬 → 回到手骨原点（腕关节）
@@ -1688,6 +1856,9 @@ namespace LivingWorldNpcs
 			{
 				hand += foreArm * HandPalmOffset;
 			}
+			_lastGoodHand = hand;                    // 记下这次的好点（读失败时靠它顶）
+			_lastGoodAgentPos = player.Position;
+			_lastGoodHandAge = 0f;
 			return hand;
 		}
 	}

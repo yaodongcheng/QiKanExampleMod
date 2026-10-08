@@ -126,7 +126,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
-					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "handring"
+					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens")
@@ -173,6 +173,37 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				}
 				return "OK: grapple hook icon patch = " + (GrappleIconPatch.Enabled ? "ON" : "OFF")
 					+ " (mesh '" + GrappleIconPatch.HookMeshName + "'). Reopen the inventory screen to redraw the icon.";
+			}
+
+			// 🪦 `hookbelt`（2026-10-08 立，同日证伪）—— 它改的是"挂件网格副本"的帧，**实测对挂到骨架那条链无效**
+			//    （反编译：那条链在 native 里，C# 连 holster 的 position/rotation 都没有解析类）。
+			//    保留命令只为**返回正确指引**（静默失效 = 用户以为"没用"，2026-10-05 相机那次事故的教训）：
+			//    挂件朝向的真正杠杆 = 内容包数据 `item_holsters.xml` 的 `holster_rotation_yaw_pitch_roll`。
+			if (sub == "hookbelt")
+			{
+				float deg = ParseF(args, at + 0, float.NaN);
+				if (!float.IsNaN(deg)) { GrappleIconPatch.HookBeltRotDeg = deg; }
+				return "grapple: 'hookbelt' is RETIRED (proven ineffective 2026-10-08) - the holster attach is done by"
+					+ " native code and ignores the mesh frame we set. To rotate the holstered hook, edit the SLOT data:"
+					+ " Taikou/ModuleData/item_holsters.xml -> item_holster 'taikou_grapple_hook_hip' ->"
+					+ " holster_rotation_yaw_pitch_roll. Axis roles (measured in game 2026-10-08):"
+					+ " yaw = turn in the HORIZONTAL plane; pitch = spin about the hook's own long axis;"
+					+ " roll = the VERTICAL tilt (the only one that can make it hang down)."
+					+ " At '0,0,0' the claws point straight FORWARD; roll=70 is the natural hanging angle.";
+			}
+
+			// 🔴 `iconscale` = 图标里两件道具**占画面宽度的比例**（2026-10-08 用户报"图标又小又偏"的修法）。
+			//    背包图标的取景是**按物品类型写死**的（Bow→按真弓取景 / Arrows→按真箭取景）⇒ 我们的
+			//    13 cm 绳 / 20 cm 钩顶着弓/箭的框，自然又小又偏。取景补丁按视场角算距离 ⇒ 这一格就是"填多满"。
+			//    不给参数 = 看当前值；给 0 = 关掉（回到引擎原样，A/B 用）。
+			if (sub == "iconscale")
+			{
+				float ropeF = ParseF(args, at + 0, float.NaN);
+				if (!float.IsNaN(ropeF) && ropeF >= 0f) { GrappleIconPatch.RopeIconFill = ropeF; }
+				float hookF = ParseF(args, at + 1, float.NaN);
+				if (!float.IsNaN(hookF) && hookF >= 0f) { GrappleIconPatch.HookIconFill = hookF; }
+				return $"OK: icon fill = rope {GrappleIconPatch.RopeIconFill:F2} / hook {GrappleIconPatch.HookIconFill:F2}"
+					+ " (fraction of the icon width the item's diagonal spans; 0 = engine original). Reopen the inventory screen to redraw.";
 			}
 
 			// 🔴 瞄准相机的四个旋钮**已迁移到相机模块**（2026-10-05 阶段 3：命令统一到 `custom.cam`）——
@@ -459,10 +490,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 						string park = "-";
 						try { park = GrappleLogic.Ensure().ParkStateLine(); } catch (Exception) { }
 						result = $"grapple: hand hook = {(GrappleLogic.HandHookEnabled ? "ON" : "OFF")}"
-							+ $" | rpm {GrappleLogic.HandHookRpm:F0} | radius {GrappleLogic.HandHookRadius:F2} m"
+							+ $" | rpm idle {GrappleLogic.HandHookRpmIdle:F0} / aim {GrappleLogic.HandHookRpmAim:F0}"
+							+ $" (now {GrappleLogic.HandHookRpmNow:F0} = {(GrappleLogic.HandHookAimingNow ? "aiming" : "idle")})"
+							+ $" | radius {GrappleLogic.HandHookRadius:F2} m"
 							+ $" | rope {(GrappleLogic.HandRopeEnabled ? "ON" : "OFF")}"
 							+ $" | {park}"
-							+ "   (usage: custom.grapple spin <rpm> [radius] | spin on|off | spinrope <0|1>)";
+							+ "   (usage: custom.grapple spin <rpm> [radius] | spin idle|aim <rpm> | spin on|off | spinrope <0|1>)";
 						break;
 					}
 					if (a0 == "off")
@@ -478,17 +511,36 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 						break;
 					}
 
+					// 🔴 分档调（2026-10-08）：`spin idle 135` / `spin aim 270` —— 只改那一档。
+					if (a0 == "idle" || a0 == "aim")
+					{
+						float v = ParseF(args, at + 1, float.NaN);
+						if (float.IsNaN(v))
+						{
+							result = $"Error: spin {a0} needs a number (rpm). e.g. custom.grapple spin {a0} "
+								+ (a0 == "idle" ? GrappleLogic.HandHookRpmIdle.ToString("F0") : GrappleLogic.HandHookRpmAim.ToString("F0"));
+							break;
+						}
+						if (a0 == "idle") { GrappleLogic.HandHookRpmIdle = v; }
+						else { GrappleLogic.HandHookRpmAim = v; }
+						result = $"grapple: hand hook rpm {a0} = {v:F0}"
+							+ $" (idle {GrappleLogic.HandHookRpmIdle:F0} / aim {GrappleLogic.HandHookRpmAim:F0}, takes effect immediately)";
+						break;
+					}
+
 					float rpm = ParseF(args, at + 0, float.NaN);
 					if (float.IsNaN(rpm))
 					{
-						result = "Error: spin needs a number (rpm), or on|off. e.g. custom.grapple spin 90 0.55";
+						result = "Error: spin needs a number (rpm), idle|aim <rpm>, or on|off. e.g. custom.grapple spin 135";
 						break;
 					}
-					GrappleLogic.HandHookRpm = rpm;
+					GrappleLogic.HandHookRpmIdle = rpm;      // 单一数值 = **两档一起设**（老用法不变）
+					GrappleLogic.HandHookRpmAim = rpm;
 					GrappleLogic.HandHookEnabled = true;
 					float radius = ParseF(args, at + 1, -1f);
 					if (radius > 0f) { GrappleLogic.HandHookRadius = radius; }
-					result = $"grapple: hand hook rpm {GrappleLogic.HandHookRpm:F0}, radius {GrappleLogic.HandHookRadius:F2} m";
+					result = $"grapple: hand hook rpm idle+aim {rpm:F0}, radius {GrappleLogic.HandHookRadius:F2} m"
+						+ "   (per-state: custom.grapple spin idle|aim <rpm>)";
 					break;
 				}
 
@@ -664,7 +716,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 						result = $"grapple: spin frame capture = {(GrappleLogic.HandHookLog ? "ARMED" : "off")}"
 							+ $" | default duration {GrappleLogic.HandHookLogSeconds:F1}s"
 							+ "   (usage: custom.grapple spinlog 1 [seconds] | spinlog 0)"
-							+ "   [every frame -> '#n angle pos radial | actual=... shown=...', auto-stops]";
+							+ "   [every frame -> '#n angle pos radial | hand-src lateral inner-edge height | global/local/root/shown | ropes', auto-stops]";
 						break;
 					}
 					if (a0 == "1" || a0 == "on")
