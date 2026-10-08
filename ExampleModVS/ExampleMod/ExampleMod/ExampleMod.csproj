@@ -362,6 +362,7 @@
     <Compile Include="Combat\GrappleLanding.cs" />
     <Compile Include="Combat\GrapplePull.cs" />
     <Compile Include="Combat\GrappleFirePatch.cs" />
+    <Compile Include="Combat\GrappleIconPatch.cs" />
     <!-- 🔴 钩索姿态动画（2026-10-04）：状态机装载/注册 + 谓词与时刻名（定义在 ModuleData/statemachines/grapple.xml）。 -->
     <Compile Include="Combat\GrappleAnimMachine.cs" />
     <Compile Include="Combat\GrappleAnimConditions.cs" />

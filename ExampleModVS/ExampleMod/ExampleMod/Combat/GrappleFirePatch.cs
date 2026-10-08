@@ -30,14 +30,15 @@ namespace LivingWorldNpcs
 	[HarmonyPatch(typeof(Mission), "OnAgentShootMissile")]
 	public static class GrappleFirePatch
 	{
-		/// <summary>绳弹的物品 StringId（内容包 `taikou_items/grapple.xml`）。改了那边这里要跟着改。</summary>
-		public const string DartItemId = "taikou_grapple_dart";
+		/// <summary>**钩**的物品 StringId（= 弹药那件，飞出去勾东西的本体；2026-10-08 由 `taikou_grapple_dart` 改名）。
+		/// 内容包 `taikou_items/grapple.xml`，改了那边这里要跟着改。</summary>
+		public const string HookItemId = "taikou_grapple_hook";
 
-		/// <summary>钩索本体的物品 StringId（判"玩家此刻握着的是不是钩索"用；同上一处，改内容包要跟着改）。</summary>
-		public const string WeaponItemId = "taikou_grapple_hook";
+		/// <summary>**绳**的物品 StringId（= 握着的那件，弓型；判"玩家此刻握着的是不是钩索"用；同上，改内容包要跟着改）。</summary>
+		public const string RopeItemId = "taikou_grapple_rope";
 
-		/// <summary>绳弹"应该有"的数量（玩家身上永远是 1 个 —— 打完立刻退还）。</summary>
-		private const short DartExpectedAmount = 1;
+		/// <summary>钩"应该有"的数量（玩家身上永远是 1 个 —— 打完立刻退还）。</summary>
+		private const short HookExpectedAmount = 1;
 
 		private static readonly System.Collections.Generic.HashSet<string> _logged =
 			new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
@@ -64,7 +65,7 @@ namespace LivingWorldNpcs
 				}
 
 				ItemObject ammoItem = ResolveAmmoItem(shooterAgent, weaponIndex);
-				if (ammoItem == null || ammoItem.StringId != DartItemId)
+				if (ammoItem == null || ammoItem.StringId != HookItemId)
 				{
 					return true;             // 不是绳弹（普通弓箭/弩矢/投掷物）→ 一行都不多做
 				}
@@ -178,7 +179,7 @@ namespace LivingWorldNpcs
 					slot < EquipmentIndex.NumAllWeaponSlots; slot++)
 				{
 					MissionWeapon weapon = agent.Equipment[slot];
-					if (weapon.Item != null && weapon.Item.StringId == DartItemId)
+					if (weapon.Item != null && weapon.Item.StringId == HookItemId)
 					{
 						return slot;
 					}
@@ -215,23 +216,23 @@ namespace LivingWorldNpcs
 					// ② 槽被清空 —— 重新装一份回去（否则弓永远"没弹"）
 					MissionWeapon reload = new MissionWeapon(dartItem, null, main.Origin?.Banner);
 					main.EquipWeaponWithNewEntity(slot, ref reload);
-					main.SetWeaponAmountInSlot(slot, DartExpectedAmount, false);
+					main.SetWeaponAmountInSlot(slot, HookExpectedAmount, false);
 					main.UpdateAgentStats();
-					DebugLogger.Log($"[Grapple] 绳弹退还：槽 {slot} 被清空 → 重新装填 {DartExpectedAmount} 发");
+					DebugLogger.Log($"[Grapple] 钩退还：弹药槽 {slot} 被清空 → 重新装填 {HookExpectedAmount} 发");
 					_refundConfirmed = true;
 				}
-				else if (weapon.Amount != DartExpectedAmount)
+				else if (weapon.Amount != HookExpectedAmount)
 				{
 					// 🔴 数量**钉死在 1**（物品的 stack_amount 是 20，那只是"HUD 计数门槛"，见物品文件注释）。
 					//    HUD 每帧重算 `GetAmmoAmount()`（读的就是这个 Amount），所以改完当帧就刷新 —— 不需要别的动作。
 					short before = weapon.Amount;
-					main.SetWeaponAmountInSlot(slot, DartExpectedAmount, false);
-					DebugLogger.Log($"[Grapple] 绳弹退还：槽 {slot} {before} → {DartExpectedAmount}");
+					main.SetWeaponAmountInSlot(slot, HookExpectedAmount, false);
+					DebugLogger.Log($"[Grapple] 钩退还：弹药槽 {slot} {before} → {HookExpectedAmount}");
 					_refundConfirmed = true;
 				}
 				else if (!_refundConfirmed)
 				{
-					DebugLogger.Log($"[Grapple] 绳弹退还：槽 {slot} 余量已是 {weapon.Amount}（引擎没扣）");
+					DebugLogger.Log($"[Grapple] 钩退还：弹药槽 {slot} 余量已是 {weapon.Amount}（引擎没扣）");
 					_refundConfirmed = true;
 				}
 

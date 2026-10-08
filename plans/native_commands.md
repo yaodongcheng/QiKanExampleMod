@@ -40,17 +40,17 @@ return null;
 | 查法 | `CampaignCheats.GetItemObject(name)` → 比 `ItemObject.Name`（**本地化显示名**） | `Game.Current.ObjectManager.GetObject<ItemObject>(id)` → 查 **StringId** 字典（`ObjectTypeRecord._registeredObjects`，键就是 StringId） |
 | 中文客户端 | 🔴 **得敲中文显示名**（`ItemObject.Name` 是本地化结果；`MBTextManager.GetLocalizedText` 对 `{=KEY}fallback` 按当前语言解析） | 敲 StringId 即可，与语言无关 |
 
-🔴 **推论（给中文环境的物品起名）**：1.2.12 上想让控制台拿到某物品，
-把它的**显示名做成中英同串的 ASCII**（范本：`taikou_items/spells.xml` 的 `SpellSeal`），
-否则中文客户端得在控制台敲中文（吃不吃 IME **未验证**）。
+🔴 **推论（给中文环境的物品起名）**：**不要**再把显示名做成中英同串的 ASCII（2026-10-08 用户裁定，废止）。
+物品的**中文层必须写中文名**；控制台要拿到它，走**按 StringId 查**的命令（我们自己的 `custom.*` 一律如此），
+原版 `campaign.add_item_to_main_party` 只认显示名 ⇒ 中文客户端敲中文名。
 或者干脆不走控制台——`is_merchandise="true"` + `culture` 指对，去市场买。
 
 写错时的症状极具迷惑性：报 `Item is not found`，**看着像物品没注册，其实是名字没对上**
 （2026-09-21 在施法体系 P0 探针上踩过：敲 id → 以为数据没加载 → 翻了两小时数据文件，
 **而数据从没被验到**）。
 
-> 🔴 **推论（给自己的物品起名时）**：想让某物品能靠控制台拿到，就把显示名做成
-> **中英同串的 ASCII**（如 `SpellSeal`）——否则中文客户端得在控制台敲中文，未必吃 IME。
+> 🔴 **推论（给自己的物品起名时）**：**中文层写中文名**（2026-10-08 用户裁定）。
+> 控制台按 StringId 查是第一选择；只有原版 `campaign.add_item_to_main_party` 需要显示名，那时敲中文即可。
 
 ---
 

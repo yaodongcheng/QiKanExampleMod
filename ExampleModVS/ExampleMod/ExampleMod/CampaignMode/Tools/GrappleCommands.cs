@@ -126,7 +126,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
-					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip"
+					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "handring"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens")
@@ -148,6 +148,31 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			if (sub == "equip")
 			{
 				return DoEquip();
+			}
+
+			// 🔴 `iconhook` = **钩索图标补丁**的开关（2026-10-08）：钩那件物品在**背包/装备界面**里的 2D 图标，
+			//    画成真钩还是画成它自己的网格（隐形代理）。**任何界面都能敲**（背包/大地图/场景都行）——
+			//    图标是懒加载 + 缓存的，改完**重开背包界面**才会重画（缓存没释放就重启一次）。
+			if (sub == "iconhook")
+			{
+				if (at < args.Count)
+				{
+					string v = args[at].Trim().ToLowerInvariant();
+					if (v == "0" || v == "off" || v == "false")
+					{
+						GrappleIconPatch.Enabled = false;
+					}
+					else if (v == "1" || v == "on" || v == "true")
+					{
+						GrappleIconPatch.Enabled = true;
+					}
+					else
+					{
+						return "Error: iconhook takes 0|1 (got '" + v + "')";
+					}
+				}
+				return "OK: grapple hook icon patch = " + (GrappleIconPatch.Enabled ? "ON" : "OFF")
+					+ " (mesh '" + GrappleIconPatch.HookMeshName + "'). Reopen the inventory screen to redraw the icon.";
 			}
 
 			// 🔴 瞄准相机的四个旋钮**已迁移到相机模块**（2026-10-05 阶段 3：命令统一到 `custom.cam`）——
@@ -720,6 +745,23 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				// 左手环显示开关（2026-10-08 新增，**默认关**）：左手那件现在由物品网格（绳）负责，环是上一版做法。
+				case "handring":
+				{
+					string hr = ArgAt(args, at + 0);
+					if (!string.IsNullOrEmpty(hr))
+					{
+						string v = hr.Trim().ToLowerInvariant();
+						if (v == "0" || v == "off" || v == "false") { GrappleRig.HandRingEnabled = false; }
+						else if (v == "1" || v == "on" || v == "true") { GrappleRig.HandRingEnabled = true; }
+						else { result = "Error: handring takes 0|1"; break; }
+					}
+					result = "grapple: left-hand ring (runtime entity) = " + (GrappleRig.HandRingEnabled ? "ON" : "OFF")
+						+ "   (usage: custom.grapple handring 0|1)   [default OFF: the left hand is the rope item mesh now]";
+					break;
+				}
+
+
 				case "spinrope":
 				{
 					// 待机时那两条绳的开关（2026-10-08：拆成 a / b 两条，一次只开一条来二分 AV 嫌疑）
@@ -1183,13 +1225,36 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///    没装内容包 / 名字改了 = 这里给一句明确的英文错误，不崩。
 		/// 🔴 两轮查找（铁律 5）：第一轮按 StringId 精确找；第二轮在内存里按名字**包含**扫一遍兜底。
 		/// </summary>
+		/// <summary>找一件物品该进哪个武器槽：**已经在手上**就还给它的槽；否则给第一个**空槽**；
+		/// 没有空槽返回 <see cref="EquipmentIndex.None"/>。
+		/// 🔴 2026-10-08 用户点出的问题：旧版硬写 0/1 号槽 ⇒ **会把玩家手里的剑盾顶掉**。
+		/// 只扫前四个主武器槽（第 5 格 `ExtraWeaponSlot` 是旗子专用的，塞不进弹药）。</summary>
+		private static EquipmentIndex FindFreeWeaponSlotFor(Agent agent, ItemObject item)
+		{
+			EquipmentIndex empty = EquipmentIndex.None;
+			for (EquipmentIndex slot = EquipmentIndex.WeaponItemBeginSlot;
+				slot < EquipmentIndex.NumPrimaryWeaponSlots; slot++)
+			{
+				MissionWeapon w = agent.Equipment[slot];
+				if (w.Item != null && w.Item.StringId == item.StringId)
+				{
+					return slot;                       // 这件已经在手上
+				}
+				if (empty == EquipmentIndex.None && w.IsEmpty)
+				{
+					empty = slot;
+				}
+			}
+			return empty;
+		}
+
 		private static string DoEquip()
 		{
-			ItemObject hook = ResolveContentItem("taikou_grapple_hook", "grapple_hook");
-			ItemObject dart = ResolveContentItem("taikou_grapple_dart", "grapple_dart");
-			if (hook == null || dart == null)
+			ItemObject rope = ResolveContentItem("taikou_grapple_rope", "GrappleRope");
+			ItemObject hook = ResolveContentItem("taikou_grapple_hook", "GrappleHook");
+			if (rope == null || hook == null)
 			{
-				return "Error: grapple items not found (content pack Taikou not loaded? expected taikou_grapple_hook / taikou_grapple_dart)";
+				return "Error: grapple items not found (content pack Taikou not loaded? expected taikou_grapple_rope / taikou_grapple_hook)";
 			}
 
 			// ① 场景里：直接装到玩家手上（当场可用）
@@ -1198,16 +1263,36 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			{
 				try
 				{
-					MissionWeapon hookWeapon = new MissionWeapon(hook, null, main.Origin?.Banner);
-					main.EquipWeaponWithNewEntity(EquipmentIndex.Weapon0, ref hookWeapon);
-					MissionWeapon dartWeapon = new MissionWeapon(dart, null, main.Origin?.Banner);
-					main.EquipWeaponWithNewEntity(EquipmentIndex.Weapon1, ref dartWeapon);
-					// 🔴 把绳弹钉死在 **1 发**（2026-10-03）：物品的 `stack_amount` 是 20 —— 为什么不是 1，
+					// 🔴 先给**绳**找槽 → 装上 → 再给**钩**找槽（顺序不能反：
+					//    两件都在找空槽时若先一起算，会算出同一个槽）。
+					EquipmentIndex ropeSlot = FindFreeWeaponSlotFor(main, rope);
+					if (ropeSlot == EquipmentIndex.None)
+					{
+						return "Error (mission): no free weapon slot for GrappleRope (4 slots all taken; sheath something first).";
+					}
+					if (main.Equipment[ropeSlot].Item == null)
+					{
+						MissionWeapon ropeWeapon = new MissionWeapon(rope, null, main.Origin?.Banner);
+						main.EquipWeaponWithNewEntity(ropeSlot, ref ropeWeapon);
+					}
+
+					EquipmentIndex hookSlot = FindFreeWeaponSlotFor(main, hook);
+					if (hookSlot == EquipmentIndex.None)
+					{
+						return "Error (mission): GrappleRope is on, but no free weapon slot for GrappleHook (it occupies one ammo slot - same cost as vanilla bow + arrows).";
+					}
+					if (main.Equipment[hookSlot].Item == null)
+					{
+						MissionWeapon hookWeapon = new MissionWeapon(hook, null, main.Origin?.Banner);
+						main.EquipWeaponWithNewEntity(hookSlot, ref hookWeapon);
+					}
+
+					// 🔴 把钩的**数量钉死在 1**（2026-10-03）：物品 `stack_amount` 是 20 —— 为什么不是 1，
 					//    见 `taikou_items/grapple.xml` 顶上的注释（HUD 的子弹数只统计"最大堆叠 > 1"的弹药；
 					//    写 1 = 能射但永远显示 0）。装填完立刻设成 1 = "上限 20、实有 1"。
-					main.SetWeaponAmountInSlot(EquipmentIndex.Weapon1, 1, false);
+					main.SetWeaponAmountInSlot(hookSlot, 1, false);
 					main.UpdateAgentStats();
-					return "OK (mission): equipped GrappleHook (slot 0) + GrappleDart x1 (slot 1) - draw with RMB, release to fire.";
+					return $"OK (mission): GrappleRope in slot {(int)ropeSlot} + GrappleHook x1 in slot {(int)hookSlot} - hold LMB to aim, release to fire.";
 				}
 				catch (Exception ex)
 				{
@@ -1215,7 +1300,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				}
 			}
 
-			// ② 大地图：进主队辎重（玩家自己去物品栏装备）
+			// ② 大地图：进主队辎重（玩家自己去物品栏装备 —— 两件是**一对**，要同时装备才有用）
 			try
 			{
 				Hero hero = Hero.MainHero;
@@ -1223,13 +1308,13 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				{
 					return "Error: no main hero.";
 				}
+				int givenRope = AgentControlHelper.TransferItems(null, hero, rope, 1);
 				int givenHook = AgentControlHelper.TransferItems(null, hero, hook, 1);
-				int givenDart = AgentControlHelper.TransferItems(null, hero, dart, 1);
-				if (givenHook <= 0 && givenDart <= 0)
+				if (givenRope <= 0 && givenHook <= 0)
 				{
 					return "Error: could not add grapple items to the party inventory.";
 				}
-				return $"OK (campaign): added to party inventory - GrappleHook x{givenHook}, GrappleDart x{givenDart}. Equip them in the inventory screen (bow slot + arrow slot), then enter a battle and fire. Run again for spares.";
+				return $"OK (campaign): added to party inventory - GrappleRope x{givenRope}, GrappleHook x{givenHook}. Equip BOTH (weapon slot + ammo slot), then enter a battle and fire. Run again for spares.";
 			}
 			catch (Exception ex)
 			{

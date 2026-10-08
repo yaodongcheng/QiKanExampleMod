@@ -45,6 +45,15 @@ namespace LivingWorldNpcs
 		public static float RingScale = 1f;
 
 		/// <summary>
+		/// **左手环要不要显示**（`custom.grapple handring 0|1`；**默认 false = 不显示**）。
+		/// 🔴 为什么默认关（2026-10-08）：左手那件现在由**物品网格**负责 —— 绳那件（`taikou_grapple_rope`）的 `mesh`
+		/// 是 `lwn_grapple_rope`（一盘绳），引擎把它挂在**左手骨**上；环是上一版的做法（运行时实体、每帧跟左手骨），
+		/// 两个一起上 = 同一只手上叠着"环 + 绳"。绳的近端锚点在**右手**（<see cref="GrappleLogic.GetRopeAnchor"/>），
+		/// 与环无关 ⇒ 关掉不丢任何功能。
+		/// </summary>
+		public static bool HandRingEnabled = false;
+
+		/// <summary>
 		/// **环沿自身轴外移**（米，`custom.grapple ringface &lt;档&gt; [米]`；默认 **0.06**）——
 		/// 🔴 与钩的支点同一个道理：骨点 = **腕关节**，不是掌心（用户 2026-10-08 实机："环不在手掌里"）。
 		///    沿"环的轴"往外挪一点，环才落在掌中而不是套在腕上。设 0 = 正好压在骨点上。

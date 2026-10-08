@@ -83,9 +83,11 @@ namespace LivingWorldNpcs
                     // （AssetRegistry/Spells.xml）—— 纯功能包模式下表恒空，挂上去只是白跑一次查表。
                     // 按铁律 5 推论（内容包专属补丁在未装内容包时一律不挂），这里一并收窄。
                     "SpellSealFirePatch",
-                    // 钩索开火拦截：判据是"弹药是绳弹 `taikou_grapple_dart`"，而绳弹物品在内容包里——
+                    // 钩索开火拦截：判据是"弹药是钩 `taikou_grapple_hook`"，而钩这个物品在内容包里——
                     // 同款理由（纯功能包模式下永远匹配不上）。
                     "GrappleFirePatch",
+                    // 钩索图标补丁：把"背包/装备界面里画钩"换成真钩网格（实机不碰），同样只对内容包那件物品有意义。
+                    "GrappleIconPatch",
                 };
                 foreach (System.Type patchType in typeof(MySubModule).Assembly.GetTypes())
                 {

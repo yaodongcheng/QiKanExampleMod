@@ -1276,7 +1276,10 @@ namespace LivingWorldNpcs
 				_rig.PlaceRoot(GetHand());
 			}
 
-			_rig.TickRing(scene, player, want);      // 左手环（根实体下的第三件）
+			// 🔴 **左手环默认关**（2026-10-08）：左手那件现在由**物品网格**（绳，`lwn_grapple_rope`，引擎挂在左手骨上）
+			//    负责 —— 环是它上一版的做法（运行时实体、每帧跟左手骨），两个一起上 = 同一只手上叠着环 + 绳。
+			//    要用回来：`custom.grapple handring 1`（即时生效）。绳的近端锚点在**右手**，与环无关，关掉不丢功能。
+			_rig.TickRing(scene, player, want && GrappleRig.HandRingEnabled);   // 左手环（根实体下的第三件）
 
 			if (!want)
 			{
@@ -1628,8 +1631,8 @@ namespace LivingWorldNpcs
 			DebugLogger.Log($"[Grapple] hand probe {HandProbeStage} → {what} | {_hook.ParkState()}");
 		}
 
-		/// <summary>此刻"手上拿着钩索"吗？判据 = `Agent.WieldedWeapon` 是**钩索本体**（`taikou_grapple_hook`）
-		/// **或绳弹**（`taikou_grapple_dart`）。
+		/// <summary>此刻"手上拿着钩索"吗？判据 = `Agent.WieldedWeapon` 是**绳**（`taikou_grapple_rope`）
+		/// **或钩**（`taikou_grapple_hook`，= 弹药那件）。
 		/// 🔴 2026-10-07 实机（"瞄准时钩看不见"）：**瞄准期间引擎把 `WieldedWeapon` 报成那支**（弹药），
 		///   只判本体 ⇒ 一瞄准钩就被收掉（拔刀那一瞬还在，日志可证）。两件都认即可。
 		/// 换到别的武器（刀/弓）时两件都不匹配 ⇒ 正常收掉 ✓。</summary>
@@ -1644,7 +1647,7 @@ namespace LivingWorldNpcs
 				}
 				MissionWeapon wielded = main.WieldedWeapon;
 				string id = wielded.Item != null ? wielded.Item.StringId : null;
-				return id == GrappleFirePatch.WeaponItemId || id == GrappleFirePatch.DartItemId;
+				return id == GrappleFirePatch.RopeItemId || id == GrappleFirePatch.HookItemId;
 			}
 			catch (Exception)
 			{

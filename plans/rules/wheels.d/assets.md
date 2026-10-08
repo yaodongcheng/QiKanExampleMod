@@ -704,6 +704,17 @@ M_b = Trans(骑砍骨头部) ∘ rot_b ∘ S_沿骨轴 ∘ Trans(−p_b)      p_
 | 1 | **动画** | Blender 重定向 → trf（**旋转 `rest ∘ delta`；位置纯增量**）→ ModKit 导入 → 骨架动画 |
 | 2 | **clip** | 🔴 **元数据整组抄原版**（见 15.5）—— 裸导只填 Source 1/2 是不够的 |
 | 3 | **接线三件套** | `action_types`（带 `type` + `action_stage`）+ `action_sets`（绑进 `as_human_warrior`）+ `project.mbproj`（**soln 行，缺一行文件就不加载**）|
+
+🔴🔴 **2026-10-08 实机补记（雷 169；这条规则的代价实证）**：给**移动组**（`movement_sets.xml` 的 `idle`/`forward`…）接两条新动作时，
+我只写了「`action_sets` 映射」+「`movement_sets` 引用」—— **漏了 `action_types.xml` 声明** ⇒
+**拔出那件武器的那一刻 `AccessViolation`**（栈顶 = `MissionState.TickMission` 的托管→本机转换，**日志零线索**）。
+判据特征：**界面里点装备不崩、拔普通武器不崩，只有自家那件一拔就崩**。
+**已声明动作名的形状**：移动/待机这一族原版是**裸声明**（`<action name="act_walk_forward_bow" />`，零属性）；
+带 `type`/`action_stage` 的只有"要挂进状态机"的动作（装填/待机/拔收）—— 照同族形状抄。
+**自查（改完动画接线必跑）**：把内容包里所有 `act_*` 引用与「本包 + Native/SandBoxCore/SandBox 的 `action_types.xml`」对一遍
+（2026-10-08 实测 4823 个已声明名 / 真缺口 0；误报样例：`impact_particle`、`..._contract_end` 的子串）。
+**规则口径**：新动作 = **① `action_types` 声明 ② `action_sets` 映射 clip ③ 谁引用它**（movement_sets / item_usage_sets / item_holsters）
+—— 和"接线三件套"是同一件事的两层描述，**别只做②③**。
 | 4 | **挂载** | 自定义 `item_usage_set`（**逐字抄原版整块** + 只换 `reload_action`）+ 物品 `item_usage` 指过去 |
 | 5 | **交付** | 中转模块编译 → **改名**拷进内容包 `AssetPackages/`（见 15.7）|
 

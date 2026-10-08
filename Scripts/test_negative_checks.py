@@ -164,6 +164,34 @@ case("物品：缺 <Flags Civilian=\"true\"/> 必须抓到", "check_items_civili
                              '<Flags Civilian="true" />', '<Flags Stealth="true" />', 1),
      1, "taikou_teppo")
 
+# 物品：空网格字段 = 引擎取网格的每条路**都没做 null 兜底**，崩法按字段而异（雷 166/167 同一族，2026-10-08 立）
+#   ① 箭类物品 `holster_mesh=""` —— 背包图标取的就是它（`GetItemMeshForInventory` 对 Arrows/Bolts
+#      直接返回 holster 网格）⇒ 进装备/背包界面**搜到这件就 NullReferenceException**（雷 168）
+case("物品：箭类 holster_mesh 留空必须抓到（雷 168）", "check_items_mesh_fields.py",
+     lambda m, c: patch_text(m / "ModuleData" / "taikou_items" / "grapple.xml",
+                             'holster_mesh="lwn_proxy_invisible"', 'holster_mesh=""', 1),
+     1, "taikou_grapple_hook")
+
+#   ② `mesh=""` —— 装备那一刻 AccessViolation（雷 166）；pattern 取「任意类型都命中」的第一处
+#      （`\t\tmesh=` 不会误伤 `\t\tholster_mesh=`：前缀必须紧贴 `mesh=`）
+case("物品：mesh 留空必须抓到（雷 166）", "check_items_mesh_fields.py",
+     lambda m, c: patch_text(m / "ModuleData" / "taikou_items" / "grapple.xml",
+                             '\t\tmesh="lwn_proxy_invisible"\n', '\t\tmesh=""\n', 1),
+     1, "taikou_grapple_hook")
+
+#   ③ 整个 `mesh` 属性缺失 —— 与空串同源（`MeshName == null`）
+case("物品：整个 mesh 属性缺失必须抓到", "check_items_mesh_fields.py",
+     lambda m, c: patch_text(m / "ModuleData" / "taikou_items" / "grapple.xml",
+                             '\t\tmesh="lwn_proxy_invisible"\n', '', 1),
+     1, "属性缺失")
+
+# 动作接线：被 movement_sets 引用的动作名没在 action_types.xml 声明 = 引擎拿无效动作索引 = 拔装备 AV
+#   （雷 169，2026-10-08 实机：崩在 MissionState.TickMission 的托管→本机转换，日志零线索）
+case("动作接线：漏声明必须抓到（雷 169）", "check_action_wiring.py",
+     lambda m, c: patch_text(m / "ModuleData" / "action_types.xml",
+                             '\t<action name="act_grapple_walk_forward" />\n', '', 1),
+     1, "act_grapple_walk_forward")
+
 # soln 体系：文件在磁盘上但 project.mbproj 没挂 = **完全不加载**（引擎零报错）
 #   造坏 = 把挂 item_usage_sets 的那行**注释掉** —— 注意注释里还留着同一串文本，
 #   所以这条同时验了两件事：①"没挂"能抓到 ②read_mbproj 剥注释（否则会把注释里的示例当成真挂载）
