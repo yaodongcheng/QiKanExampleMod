@@ -68,6 +68,63 @@ namespace LivingWorldNpcs
 		public Vec3 LastRingAxis { get; private set; }
 
 		/// <summary>
+		/// **把根实体摆到世界某点**（钩索这件"东西"本身在哪）—— 2026-10-08 起 root 会动。
+		/// 🔴 口径（用户 2026-10-08：**要符合真实世界的逻辑**，这样才能"丢地上/捡起来"）：
+		///    **root = 这件东西的挂点（手/载体）**，子件全部用**局部坐标**挂在它下面
+		///    ⇒ 以后"把整件东西挪走/丢下"只需摆 root 一件事，全套跟着走 ✓。
+		///    🔴 每帧**必须先摆 root、再摆子件**（子件写的是"相对 root 的局部帧"，用到的 root 帧要是本帧的）。
+		/// </summary>
+		public void PlaceRoot(Vec3 worldPos)
+		{
+			try
+			{
+				GameEntity root = Root(null);       // 已建过就直接拿，不会因 scene=null 去新建
+				if (root == null || root.Pointer == UIntPtr.Zero)
+				{
+					return;
+				}
+				root.SetGlobalFrame(new MatrixFrame(Mat3.Identity, worldPos));
+			}
+			catch (Exception)
+			{
+			}
+		}
+
+		/// <summary>
+		/// **摆一个子件**：给的是**世界**帧（我们的数学照旧全在世界空间算），这里换算成**相对 root 的局部帧**再写。
+		/// 🔴 为什么要换算：子件挂在 root 下，写世界帧会被"父 × 子局部"的引擎重算顶掉（混用会漂移）；
+		///    统一走这一个入口，坐标口径就只有一处。root 不可用时退回写世界帧（至少不崩、位置也对）。
+		/// </summary>
+		public void Place(GameEntity e, MatrixFrame world)
+		{
+			if (e == null || e.Pointer == UIntPtr.Zero)
+			{
+				return;
+			}
+			try
+			{
+				GameEntity root = Root(null);
+				if (root == null || root.Pointer == UIntPtr.Zero)
+				{
+					e.SetGlobalFrame(world);
+					return;
+				}
+				MatrixFrame local = root.GetGlobalFrame().TransformToLocal(world);
+				e.SetFrame(ref local);
+			}
+			catch (Exception)
+			{
+				try
+				{
+					e.SetGlobalFrame(world);
+				}
+				catch (Exception)
+				{
+				}
+			}
+		}
+
+		/// <summary>
 		/// 给实体**起名**（我们自己发的身份证）—— `GameEntity.Name` **可读可写** ✓。
 		/// 命名法 = `lwn_<标签>_<类型><序号>`（如 `lwn_B_link003` / `lwn_hook` / `lwn_ring`）。
 		/// 🔴 为什么必须有编号：**一条绳几十上百个实体**（飞行时 200+），只报"首/末"根本说不清是哪个；
@@ -252,7 +309,7 @@ namespace LivingWorldNpcs
 				{
 					frame.Scale(new Vec3(RingScale, RingScale, RingScale));
 				}
-				_ring.SetGlobalFrame(frame);
+				Place(_ring, frame);
 				_ring.SetVisibilityExcludeParents(true);
 				RingPosition = at;      // 供"环 → 右手"那截绳取起点
 				RingPlaced = true;

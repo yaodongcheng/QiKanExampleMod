@@ -27,6 +27,7 @@ namespace LivingWorldNpcs
 			Idle,
 			Flying,
 			Attached,
+			Returning,   // 🔴 打空返程（2026-10-08 用户要求："相当于飞出去的逆向"）—— 追着手飞回
 		}
 
 		/// <summary>Tick 的返回：这一步发生了什么。</summary>
@@ -47,6 +48,14 @@ namespace LivingWorldNpcs
 		///    而钩头实际飞 `距离 + 0.6` 米（见 Launch 的射程）⇒ 20 米射程 ÷ 42 ≈ 0.49 秒 ✓（35 时是 0.59，超节点）。
 		/// </summary>
 		public static float Speed = 42f;
+
+		/// <summary>
+		/// **返程速度**（米/秒；打空回收时"追着手飞回"的速度）。
+		/// 🔴 2026-10-08：先按"逆向"设成与发射同速（42），实机**太快看不清**（20 m 只要 0.49 s）⇒ 用户要求调低。
+		///    现在 **18**：20 m 约 **1.1 秒**，正好和 recover 动画（≈1.17 s）同步 —— 看着就是"被收回手里" ✓。
+		///    现场调：`custom.grapple retspeed &lt;m/s&gt;`（越小越慢、越看得清）。
+		/// </summary>
+		public static float ReturnSpeed = 18f;
 
 		/// <summary>命中射线的粗细（米）。给人用的连续碰撞；对墙/地那条查询恒用细射线（0.01）。</summary>
 		public static float HitRadius = 0.35f;
@@ -88,6 +97,7 @@ namespace LivingWorldNpcs
 		public Vec3 AttachedPoint { get; private set; }
 
 		private GameEntity _entity;
+		private bool _shown;                 // 我们有没有把它标成"显示"（诊断用：瞬时不见时先看这个）
 		private readonly GrappleRig _rig;      // 根实体（钩/绳/环 同属一个根，2026-10-08）
 
 		/// <summary>构造：把"根实体"传进来（<see cref="GrappleRig"/>）—— 钩的实体会被收进它下面。</summary>
@@ -213,15 +223,16 @@ namespace LivingWorldNpcs
 			{
 				DebugLogger.Log($"[Grapple] 钩头打空（飞满 {_maxDistance:F1} 米，末段已查）@ {Fmt(Position)}");
 				State = Phase.Idle;
-				HideEntity();
+				// 🔴 **这里不再 HideEntity()**（2026-10-08 实机教训）：打空之后调用方可能紧接着 `StartReturn()`
+				//    进入**返程**（要看得见地飞回来）—— 在这里先藏掉 ⇒ 返程全程隐形 ⇒ 用户"没看到飞回" ✗。
+				//    显隐交给调用方：走返程就 StartReturn()（显示），直接收场就 Release()（隐藏）。
 				return StepResult.Missed;
 			}
 
 			return StepResult.Flying;
 		}
 
-		/// <summary>
-		/// 收掉（状态归零、实体**藏着留着复用**）。
+		/// <summary>收掉（状态归零、实体**藏着留着复用**）。
 		/// 🔴 2026-10-08 改：原来这里是 `RemoveEntity()`（拆实体），现在**不拆** —— 钩已挂在**根实体**下，
 		///    每发拆一次 = 频繁制造"被销毁的子件"（引擎会不会自动解链**全 DLL 无先例可查**，不想赌）；
 		///    隐藏 + 复位状态完全等效，场景结束由 <see cref="GrappleRig.Teardown"/> 统一收。
@@ -235,6 +246,56 @@ namespace LivingWorldNpcs
 			AttachedAgent = null;
 			_travelled = 0f;
 			_checkTimer = 0f;
+		}
+
+		// ───────────────────────────── 返程（打空回收，2026-10-08）─────────────────────────────
+
+		/// <summary>
+		/// **开始返程**：钩头从当前位置**追着手**飞回，到了就回 <see cref="Phase.Idle"/>（交回手里那套）。
+		/// 🔴 用户原话："需要做正常的返程飞行吧 相当于飞出去的逆向啊" —— 以前打空是"直接隐藏"（看着像凭空消失），
+		///    现在看得见地飞回来，绳同步收短 ✓。
+		/// 返回 false = 实体不在了（调用方照旧直接收场）。
+		/// </summary>
+		public bool StartReturn()
+		{
+			if (_entity == null || _entity.Pointer == UIntPtr.Zero)
+			{
+				return false;
+			}
+			State = Phase.Returning;
+			ShowEntity();      // 🔴 必须显式亮出来（打空那条路不再负责显隐，返程要看得见）
+			return true;
+		}
+
+		/// <summary>
+		/// 返程一帧。<paramref name="target"/> = 手（**每帧重算 ⇒ 追着手飞**，不是一条死直线）。
+		/// 到达（距离 ≤ <paramref name="arriveDistance"/>）返回 true 并把自己收起来。
+		/// 摆位：**不做钩尖补偿**（尾环落在 <see cref="Position"/> 上 = 绳端 ✓，见 <see cref="MoveEntity"/> 里
+		/// `Phase.Returning` 落进 `else` 分支）；朝向 = 钩尖**背离手**（被绳拽回来时"环领路、钩体拖后"）。
+		/// </summary>
+		public bool TickReturn(float dt, Vec3 target, float arriveDistance)
+		{
+			if (State != Phase.Returning)
+			{
+				return true;
+			}
+			Vec3 to = target - Position;
+			float d = to.Length;
+			if (d <= arriveDistance)
+			{
+				State = Phase.Idle;
+				HideEntity();
+				return true;
+			}
+			if (dt <= 0f || d < 1e-4f)
+			{
+				return false;
+			}
+			Vec3 dir = to * (1f / d);
+			Position += dir * MathF.Min(d, ReturnSpeed * dt);
+			_dir = -dir;
+			MoveEntity();
+			return false;
 		}
 
 		// ───────────────────────────── 实体 ─────────────────────────────
@@ -292,7 +353,7 @@ namespace LivingWorldNpcs
 						// 诊断模式：**不转**，与 `custom.spawn_mesh` 的 `Mat3.Identity` 完全同款
 						MatrixFrame idf = new MatrixFrame(Mat3.Identity, pos);
 						idf.Scale(new Vec3(MeshScale, MeshScale, MeshScale));
-						_entity.SetGlobalFrame(idf);
+						SetFrame(idf);
 						return;
 					}
 				}
@@ -311,11 +372,25 @@ namespace LivingWorldNpcs
 				Mat3 basis = _parked ? ParkBasis(zdir) : GrappleRope.BasisWithLocalZ(zdir);
 				MatrixFrame frame = new MatrixFrame(basis, pos);
 				frame.Scale(new Vec3(MeshScale, MeshScale, MeshScale));
-				_entity.SetGlobalFrame(frame);
+				SetFrame(frame);
 			}
 			catch (Exception)
 			{
 				// 单帧摆位失败不拖垮飞行
+			}
+		}
+
+		/// <summary>写帧的**唯一出口**：走根实体换算成局部帧（坐标口径只在这一处）——
+		/// 没有根实体时退回直接写世界帧（不崩、位置也对）。</summary>
+		private void SetFrame(MatrixFrame world)
+		{
+			if (_rig != null)
+			{
+				_rig.Place(_entity, world);
+			}
+			else
+			{
+				_entity.SetGlobalFrame(world);
 			}
 		}
 
@@ -442,6 +517,12 @@ namespace LivingWorldNpcs
 			try
 			{
 				_entity.SetVisibilityExcludeParents(true);
+				if (!_shown)
+				{
+					// 只在**翻转**时打（每帧都会调 Show，不能每次都打）
+					DebugLogger.Log($"[Grapple] hook 显示（{SpinFrameInfo()}）");
+				}
+				_shown = true;
 			}
 			catch (Exception)
 			{
@@ -457,6 +538,11 @@ namespace LivingWorldNpcs
 			try
 			{
 				_entity.SetVisibilityExcludeParents(false);
+				if (_shown)
+				{
+					DebugLogger.Log($"[Grapple] hook 隐藏（{SpinFrameInfo()}）");   // 只在翻转时打
+				}
+				_shown = false;
 			}
 			catch (Exception)
 			{
@@ -486,6 +572,40 @@ namespace LivingWorldNpcs
 		public void DestroyEntity()
 		{
 			RemoveEntity();
+		}
+
+		/// <summary>**每帧诊断的一行**（`custom.grapple spinlog` 抓帧用；短、可高频打）：
+		/// `global=` 实体自己报的世界帧 · `local=` 它相对**父实体（根）**的局部帧 · `root=` 父实体自己的世界帧 · `shown=` 我们的显隐标志。
+		///
+		/// 🔴 为什么要三个一起打（用户 2026-10-08："钩消失时**绳也跟着不见**"）：钩与绳是**同一个根实体的子件**，
+		///    一起消失 ⇒ 问题在**共享的那一层**。判读：
+		///    · 三个都正常 ⇒ 位置没问题 ⇒ **渲染/遮挡**（不是我们的摆位）
+		///    · `local` 正常但 `global` 跳走 ⇒ **父级变换**出问题（根被动过？）
+		///    · `root=` 自己动了 ⇒ 根的问题
+		/// </summary>
+		public string SpinFrameInfo()
+		{
+			string g = "-", l = "-", rt = "-";
+			try
+			{
+				if (_entity != null && _entity.Pointer != UIntPtr.Zero)
+				{
+					MatrixFrame gf = _entity.GetGlobalFrame();
+					g = $"({gf.origin.x:F2},{gf.origin.y:F2},{gf.origin.z:F2})";
+					MatrixFrame lf = _entity.GetFrame();                 // = 相对父实体的局部帧
+					l = $"({lf.origin.x:F2},{lf.origin.y:F2},{lf.origin.z:F2})";
+				}
+				GameEntity root = _rig?.Root(null);
+				if (root != null && root.Pointer != UIntPtr.Zero)
+				{
+					MatrixFrame rf = root.GetGlobalFrame();
+					rt = $"({rf.origin.x:F2},{rf.origin.y:F2},{rf.origin.z:F2})";
+				}
+			}
+			catch (Exception)
+			{
+			}
+			return $"global={g} local={l} root={rt} shown={(_shown ? "yes" : "NO")}";
 		}
 
 		/// <summary>
@@ -527,7 +647,7 @@ namespace LivingWorldNpcs
 			{
 			}
 			bool alive = _entity != null && _entity.Pointer != UIntPtr.Zero;
-			return $"parked={_parked} entity={(alive ? "built" : "null")} mesh={meshName}"
+			return $"parked={_parked} entity={(alive ? "built" : "null")} shown={(_shown ? "yes" : "NO")} mesh={meshName}"
 				+ $" pos=({_parkPos.x:F2},{_parkPos.y:F2},{_parkPos.z:F2}) {ActualFrame()}";
 		}
 

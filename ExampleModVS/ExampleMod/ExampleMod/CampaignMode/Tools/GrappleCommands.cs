@@ -125,7 +125,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "overlap" || s == "damp" || s == "grav" || s == "mesh" || s == "ground"
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
-					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm"
+					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
@@ -495,6 +495,26 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				case "retspeed":
+				{
+					// 打空返程：钩头"追着手飞回"的速度 / 到位判定距离
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = $"grapple: return speed = {GrappleHook.ReturnSpeed:F0} m/s (flight {GrappleHook.Speed:F0})"
+							+ $" | arrive distance = {GrappleLogic.ReturnArriveDistance:F2} m"
+							+ "   (usage: custom.grapple retspeed <m/s> [arriveMeters])";
+						break;
+					}
+					float v = ParseF(args, at + 0, -1f);
+					if (v <= 0f) { result = "Error: retspeed needs m/s > 0 (e.g. custom.grapple retspeed 25)"; break; }
+					GrappleHook.ReturnSpeed = v;
+					float arr = ParseF(args, at + 1, -1f);
+					if (arr > 0f) { GrappleLogic.ReturnArriveDistance = arr; }
+					result = $"grapple: return speed = {v:F0} m/s | arrive distance = {GrappleLogic.ReturnArriveDistance:F2} m (takes effect immediately)";
+					break;
+				}
+
 				case "palm":
 				{
 					// 手部挂点沿小臂外移（腕关节 → 掌心）—— 绳的近端 / 钩的圆心 / 开火起点**三处共用**
@@ -612,27 +632,31 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
 				case "spinlog":
 				{
-					// 限频帧日志（判"某个角度看不见"是遮挡还是摆位失效）
+					// 每帧抓帧（默认 2 秒后自动关）—— 抓"钩在圆周上瞬间不见"那一帧
 					string a0 = ArgAt(args, at + 0);
 					if (string.IsNullOrEmpty(a0))
 					{
-						result = $"grapple: spin frame log = {(GrappleLogic.HandHookLog ? "ON" : "OFF")}"
-							+ "   (usage: custom.grapple spinlog <0|1>)";
+						result = $"grapple: spin frame capture = {(GrappleLogic.HandHookLog ? "ARMED" : "off")}"
+							+ $" | default duration {GrappleLogic.HandHookLogSeconds:F1}s"
+							+ "   (usage: custom.grapple spinlog 1 [seconds] | spinlog 0)"
+							+ "   [every frame -> '#n angle pos radial | actual=... shown=...', auto-stops]";
 						break;
 					}
 					if (a0 == "1" || a0 == "on")
 					{
-						GrappleLogic.HandHookLog = true;
-						result = "grapple: spin frame log ON (~2.5 lines/sec into the mod log)";
+						float sec = ParseF(args, at + 1, -1f);
+						if (sec > 0f) { GrappleLogic.HandHookLogSeconds = sec; }
+						GrappleLogic.HandHookLog = true;      // 下一帧由 tick 真正开抓（计数清零 + 计时）
+						result = $"grapple: spin frame capture ARMED for {GrappleLogic.HandHookLogSeconds:F1}s (every frame)";
 					}
 					else if (a0 == "0" || a0 == "off")
 					{
 						GrappleLogic.HandHookLog = false;
-						result = "grapple: spin frame log OFF";
+						result = "grapple: spin frame capture OFF";
 					}
 					else
 					{
-						result = "Error: spinlog takes 0|1 (or on|off)";
+						result = "Error: spinlog takes 1 [seconds] | 0";
 					}
 					break;
 				}

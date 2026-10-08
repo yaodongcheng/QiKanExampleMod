@@ -29,6 +29,7 @@ namespace LivingWorldNpcs
 			Flying,     // 钩头在飞
 			Attached,   // 钩头钉住（墙/地 = AttachedPoint；人 = 挂在身上）
 			Pulling,    // 拉自己中（步骤 4：冻结 + 木板 + 曲线）
+			Returning,  // 🔴 打空返程（2026-10-08）：钩头追着手飞回，到了交回手里那套
 		}
 
 		/// <summary>钩索正在忙（钩头在飞 / 已挂住 / 拉拽中）—— 瞄准相机用它决定
@@ -199,6 +200,10 @@ namespace LivingWorldNpcs
 		/// <summary>飞行那档的绳长下限（米，绳的默认值）。</summary>
 		public static float FlightRopeMinLength = 0.3f;
 
+		/// <summary>返程**到位判定**（米）：钩头到手挂点的距离小于它就认为"收回来了"，交回手里那套。
+		/// 别设太小 —— 手在动画里一直在动，可能永远追不到 0。</summary>
+		public static float ReturnArriveDistance = 0.35f;
+
 		/// <summary>
 		/// 🔴 **A 段（左手环 → 右手）要松**（用户 2026-10-08）—— 那是"握在两只手之间的一段绳"，
 		/// 自然垂一点才像话；B 段（手→钩）才是必须绷直的那截。
@@ -216,11 +221,18 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static float HandHookOutShift = 0.10f;
 
-		/// <summary>限频帧日志（`custom.grapple spinlog &lt;0|1&gt;`，默认关）—— 每 ~0.4 s 打一行 `角度 / 钩位置 / actual`
-		/// （`actual` = 实体自己报的帧位置）。判"某个角度看不见"是**被身体/手臂挡住**（actual 正常）还是**摆位失效**（actual 跳走）。</summary>
+		/// <summary>**每帧诊断**（`custom.grapple spinlog 1 [秒]`，默认抓 2 秒）：开着时**每帧打一行**
+		/// `[Grapple] spinlog #帧号 角度 pos actual shown`，到点**自动关**（免得刷屏）。
+		/// 🔴 用它抓"钩在圆周运动里瞬间不见"：那一帧的 `actual`/`shown` 直接说明是"我们藏了"还是"位置跳了"还是"都好（= 渲染/遮挡）"。
+		/// </summary>
 		public static bool HandHookLog = false;
 
-		private float _handHookLogTimer;
+		/// <summary>抓帧时长（秒；`spinlog 1 &lt;秒&gt;` 可改）。</summary>
+		public static float HandHookLogSeconds = 2f;
+
+		private float _handHookLogLeft;      // 剩余抓帧时长（>0 = 正在抓）
+		private int _handHookLogFrame;       // 本次抓帧的帧号（看跳号/丢帧用）
+		private bool _handHookLogArmed;      // 已经开抓了吗（命令置 HandHookLog=true 后，首次 tick 才真正开始计时）
 		private Vec3 _hookPlaneS;             // 圆平面内的参考方向（状态：逐帧最小旋转，保证平面不跳）
 
 		/// <summary>
@@ -520,8 +532,37 @@ namespace LivingWorldNpcs
 				// 相机准星打空 → 退回"这一枪自己的弹道"（见 ThrowFromShot 注释）
 				if (!hasShot || !TryAimAlongShot(mission, shotOrigin, shotDirection, out hand, out aim, out aimAgent))
 				{
-					DebugLogger.Log($"[Grapple] 瞄准失败（相机：{why}；弹道兜底也未命中）");
-					return "Error: " + why;
+					// 🔴🔴 **2026-10-08 用户裁定：没目标也必须能打** ——
+					//    "朝着天射绳索的时候绳索射不出来…这是不应该的，绳索应该正常打，
+					//      只不过没目标的话会随着 recover 飞回手里继续圆周。"
+					//    ⇒ 打空（朝天/开阔地）时**不再拒发**：按"朝视线方向打满射程"合成一个瞄准点，
+					//      钩头飞满射程 → 命中检查一无所获 → `Missed` → 状态机走"打空亮相 → recover"，
+					//      钩随即回到手里继续绕圈 ✓（以前这里是 `return Error` = 干脆不出钩 ✗）。
+					// 🔴🔴 **方向口径（2026-10-08 实机抓出来的坑）**：**以相机视线为准**，弹道方向只当兜底。
+					//    起因：我原来优先用引擎给的 `shotDirection`，而实机日志显示那个方向是**水平的** ——
+					//    玩家准星明明看着天（相机方向 z=+0.60），合成的瞄准点却和手同高 ⇒ 钩**平着飞** ✗。
+					//    这也符合既有口径：瞄准一律"以玩家看到的『指哪』为准"，弹道只是相机打空后的退路。
+					Vec3 dirFallback;
+					if (CameraLook.TryGet(out dirFallback) && dirFallback.LengthSquared > 1e-6f)
+					{
+						dirFallback = dirFallback.NormalizedCopy();
+					}
+					else if (hasShot && shotDirection.LengthSquared > 1e-6f)
+					{
+						dirFallback = shotDirection.NormalizedCopy();
+					}
+					else
+					{
+						DebugLogger.Log($"[Grapple] 瞄准失败且拿不到方向（相机：{why}）");
+						return "Error: " + why;
+					}
+
+					hand = GetHand();
+					aim = hand + dirFallback * AimRange;
+					aimAgent = false;
+					DebugLogger.Log($"[Grapple] 瞄准打空（{why}）→ 按「朝视线打满 {AimRange:F0}m」发射"
+						+ $" 方向=({dirFallback.x:F2},{dirFallback.y:F2},{dirFallback.z:F2})"
+						+ $"（飞满后打空回收，钩回手里继续转）");
 				}
 			}
 
@@ -1033,6 +1074,36 @@ namespace LivingWorldNpcs
 		/// <summary>钩头模式每帧：推进钩头 → 处理命中/打空 → 绳跟着（手 → 远端）。</summary>
 		private void TickHook(float dt)
 		{
+			// 🔴 **返程相位**（2026-10-08）：钩头追着手飞回，绳同步收短（远端 = 尾环 = `_hook.Position` ✓）。
+			//    到了（≤ <see cref="ReturnArriveDistance"/>）就收场 → 相位回 Idle → 手里那套接管（绕圈恢复 ✓）。
+			if (_hookPhase == HookPhase.Returning)
+			{
+				Agent main = Agent.Main;
+				if (main == null)
+				{
+					Release("return: no player agent");
+					return;
+				}
+				bool arrived;
+				try
+				{
+					arrived = _hook.TickReturn(dt, GetHand(), ReturnArriveDistance);
+					_rope.Tick(dt, GetRopeAnchor(), _hook.Position);
+				}
+				catch (Exception ex)
+				{
+					DebugLogger.Log($"[Grapple] 返程 tick 异常，直接收：{ex.GetType().Name} {ex.Message}");
+					Release("return tick exception");
+					return;
+				}
+				if (arrived)
+				{
+					DebugLogger.Log("[Grapple] 返程到位 → 交回手里（接着绕圈）");
+					Release("returned (返程到位)");
+				}
+				return;
+			}
+
 			if (_hookPhase == HookPhase.Flying)
 			{
 				GrappleHook.StepResult step;
@@ -1061,7 +1132,17 @@ namespace LivingWorldNpcs
 				}
 				else if (step == GrappleHook.StepResult.Missed)
 				{
-					Release("missed (打空)");
+					// 🔴 **2026-10-08 用户要求：打空要"看得见地飞回来"**（"相当于飞出去的逆向"）——
+					//    不再直接隐藏收场，切进**返程相位**：钩头追着手飞回、绳同步收短，到了交回手里继续绕圈 ✓。
+					if (_hook.StartReturn())
+					{
+						_hookPhase = HookPhase.Returning;
+						DebugLogger.Log("[Grapple] 打空 → 开始返程（追着手飞回，绳同步收短；到 ArriveDistance 内交回手里）");
+					}
+					else
+					{
+						Release("missed (打空，实体不在→直接收)");
+					}
 					return;
 				}
 			}
@@ -1187,6 +1268,13 @@ namespace LivingWorldNpcs
 			Agent player = Agent.Main;
 			Scene scene = Mission != null ? Mission.Scene : null;
 			bool want = HandHookEnabled && !_anchored && player != null && scene != null && IsHoldingGrapple();
+
+			// 🔴 **先摆根实体**（钩索这件"东西"本身 = 挂在手上）—— 必须在本帧所有子件之前，
+			//    因为子件写的是"相对 root 的局部帧"（用到的 root 帧要是本帧的，否则差一帧 ⇒ 抖）。
+			if (want)
+			{
+				_rig.PlaceRoot(GetHand());
+			}
 
 			_rig.TickRing(scene, player, want);      // 左手环（根实体下的第三件）
 
@@ -1341,14 +1429,34 @@ namespace LivingWorldNpcs
 			// 限频帧日志（默认关）：判"某个角度看不见"是**被身体/手臂遮挡**还是**摆位失效**
 			// —— actual 跟着角度正常画圆 = 遮挡（把 armout / armaxis 的轴外移调大）；
 			//    actual 在某角度跳走 = 摆位真的坏了（把这一行发我）。
-			if (HandHookLog)
+			// 每帧抓帧（`spinlog 1 [秒]`）：**命令置位后由这里真正开抓**（计数清零），到点自动关 ——
+			// 抓的正是"钩在圆周上瞬间不见"那一帧。
+			if (!HandHookLog)
 			{
-				_handHookLogTimer += dt;
-				if (_handHookLogTimer >= 0.4f)
+				_handHookLogArmed = false;      // 关掉即复位 ⇒ 可以**反复武装**（连敲 spinlog 1 = 重新抓一轮）
+			}
+			if (HandHookLog && !_handHookLogArmed)
+			{
+				_handHookLogArmed = true;
+				_handHookLogFrame = 0;
+				_handHookLogLeft = MathF.Max(0.2f, HandHookLogSeconds);
+				DebugLogger.Log($"[Grapple] spinlog 开抓（{_handHookLogLeft:F1}s，每帧一行）");
+			}
+			if (HandHookLog && _handHookLogArmed)
+			{
+				_handHookLogLeft -= dt;
+				_handHookLogFrame++;
+				DebugLogger.Log($"[Grapple] spinlog #{_handHookLogFrame} 角度={((_handHookAngle * 57.29578f) % 360f + 360f) % 360f:F0}°"
+					+ $" pos={Fmt(hookPos)} 径向=({radial.x:F2},{radial.y:F2},{radial.z:F2})"
+					+ $" | {_hook.SpinFrameInfo()}"
+					+ $" | rig[kids={_rig.ChildCount}]"
+					+ $" | ropeB[{_rope.SpinFrameInfo()}]"
+					+ $" | ropeA[{_ropeA.SpinFrameInfo()}]");
+				if (_handHookLogLeft <= 0f)
 				{
-					_handHookLogTimer = 0f;
-					DebugLogger.Log($"[Grapple] spinlog 角度={((_handHookAngle * 57.29578f) % 360f + 360f) % 360f:F0}°"
-						+ $" 钩={Fmt(hookPos)} 圆心={Fmt(pivot)} 轴模式={HandHookAxis} | {_hook.ParkState()}");
+					HandHookLog = false;
+					_handHookLogArmed = false;
+					DebugLogger.Log($"[Grapple] spinlog 抓帧结束（共 {_handHookLogFrame} 帧 / {HandHookLogSeconds:F1}s）");
 				}
 			}
 

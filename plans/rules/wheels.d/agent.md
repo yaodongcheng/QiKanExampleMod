@@ -810,3 +810,20 @@ if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静�
   落地朝向 ≈ 出发朝向（因为终点就在目标旁边）。
 
 **症状对照**：用户看到"落地瞬间角色转了 90°"且**关掉相机后照样出现** ⇒ 先怀疑"朝向目标选错"，不是相机。
+
+### 🔴🔴 运行时实体 / 跟着骨骼走 —— 五条硬事实（2026-10-08 钩索两天实机沉淀）
+
+**全文 + 证据 → [Knowledge/骑砍2场景实体与骨骼挂点.md](../../../Knowledge/骑砍2场景实体与骨骼挂点.md)**。要点先列这儿：
+
+1. **`GetBoneEntitialFrame` 返回的是"角色局部坐标"**（不是世界！）—— 手垂着时给 `(0.28,-0.16,0.85)`。
+   当世界用 ⇒ 离身体 **575 米**；用 `agent.Frame.TransformToParent` 转一次 ⇒ **1.4 米** ✓。
+   ⇒ 正确姿势 = **双解释**：两种解释各量一次"离身体多远"，谁 ≤ 合理距离（手 1.5 m / 肩 2 m）用谁。
+   唯一实现 `SpellCastInput.TryReadBoneWorld`（钩/球/环共用）。**症状**：东西"挂在盆骨上"或"看不见"，而日志显示坐标完全正确。
+2. **骨索引用 `HumanBone` 语义枚举 + `MBAgentVisuals.GetRealBoneIndex(HumanBone.ForearmR/HandR)`** ——
+   骑砍真实骨名是 `r_foretwist` / `r_upperarm_twist`（twist 骨当主干用），**直觉名 `forearm`/`upperarm` 不存在**，按名字找必踩空；
+   `Skeleton.GetBoneName(idx)` 可以印名字自证。**骨骼原点是起点关节**（手骨原点 = 腕关节，不是掌心）。
+3. **实体身份**：`GetGuid()` 只对编辑器资产有效（运行时实体 `IsGuidValid()==false`）⇒ 用 **`Pointer`**（本会话唯一、**会被复用** ⇒ 正好用来发现悬空/双重销毁）+ **`Name`**（**可读可写** ⇒ 自己发编号 `lwn_B_link003`，配 `Scene.FindEntityWithName` 反查）。
+4. **父实体一动，帧口径就不能混**：`SetFrame`=局部 / `SetGlobalFrame`=世界。正确姿势 = **世界空间照旧算，只在最后写帧时 `root.GetGlobalFrame().TransformToLocal(world)` + `SetFrame`**，且**只留一个入口**；**每帧先摆 root、再摆子件**（否则差一帧就抖）。
+   `AddChild(child, autoLocalizeFrame:true)` ✓ 可用；🔴 **`RemoveChild` 全 DLL 零调用**（5 参数无先例）⇒ 不用（销毁由引擎解链）；**别把子件挂到引擎按骨绑的物品实体上**（换武器即孤儿）。
+5. **自管绳/链的显示语义**：`Show()` = **把点链重排成直线**（两端已就位时别调它）；`Tick` 在 `!_visible` 时直接 return ⇒ 判"显示着吗"要问绳自己（`IsVisible`），别只信自己记的标志；
+   绳长 = `clamp(跨度 × SlackRatio, MinLength, MaxLength)` 按 `LengthFollowSpeed` 逼近 ⇒ **跟随速度追不上目标速度时绳永远绷直**（飞行 42 m/s vs 8 m/s ⇒ 一条直线，这就是"飞行绳很硬"的原因）。

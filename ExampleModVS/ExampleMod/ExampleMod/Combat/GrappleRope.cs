@@ -192,6 +192,29 @@ namespace LivingWorldNpcs
 		/// <summary>绳当前是否显示。</summary>
 		public bool IsVisible => _visible;
 
+		/// <summary>
+		/// **每帧抓帧用的紧凑一行**（`custom.grapple spinlog`）：只放判"是不是绳这边藏了/没跟上"必需的几个数。
+		/// `vis=` 是绳自己的显示标志（`Tick` 一开头就 `if (!_visible) return;` ⇒ 它一变 NO，整条绳当帧就不画了）；
+		/// `n=` = 已建件数（链环/管段）· `len` / `span` = 绳长与两端跨度（`len ≈ span` = 绷直 · `len < span` = 会被拉直）。
+		/// </summary>
+		public string SpinFrameInfo()
+		{
+			int n = 0;
+			try { n = (_linkEntities?.Length ?? _seg?.Length ?? 0); } catch (Exception) { }
+			float span = 0f;
+			try
+			{
+				if (_pts != null && _pts.Length >= 2)
+				{
+					span = (_pts[_pts.Length - 1] - _pts[0]).Length;
+				}
+			}
+			catch (Exception)
+			{
+			}
+			return $"vis={(_visible ? "yes" : "NO")} {(ChainMode ? "chain" : "seg")} n={n} len={Length:F2} span={span:F2}";
+		}
+
 		/// <summary>点数（= 段数 + 1）；还没建好时为 0。</summary>
 		public int PointCount => _pts?.Length ?? 0;
 
@@ -542,7 +565,8 @@ namespace LivingWorldNpcs
 					basis.s = basis.f;
 					basis.f = -s;
 				}
-				e.SetGlobalFrame(new MatrixFrame(basis, p));
+				_rig?.Place(e, new MatrixFrame(basis, p));
+				if (_rig == null) { e.SetGlobalFrame(new MatrixFrame(basis, p)); }
 				e.SetVisibilityExcludeParents(true);
 			}
 			catch (Exception)
@@ -997,7 +1021,8 @@ namespace LivingWorldNpcs
 						BasisWithLocalZ(dir * dirSign),
 						a - dir * (len * backOff));
 					frame.Scale(new Vec3(RadiusScale, RadiusScale, len * zScaleBase));
-					e.SetGlobalFrame(frame);
+					_rig?.Place(e, frame);
+					if (_rig == null) { e.SetGlobalFrame(frame); }
 					e.SetVisibilityExcludeParents(true);
 				}
 				catch (Exception)
