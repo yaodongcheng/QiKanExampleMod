@@ -827,3 +827,15 @@ if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静�
    `AddChild(child, autoLocalizeFrame:true)` ✓ 可用；🔴 **`RemoveChild` 全 DLL 零调用**（5 参数无先例）⇒ 不用（销毁由引擎解链）；**别把子件挂到引擎按骨绑的物品实体上**（换武器即孤儿）。
 5. **自管绳/链的显示语义**：`Show()` = **把点链重排成直线**（两端已就位时别调它）；`Tick` 在 `!_visible` 时直接 return ⇒ 判"显示着吗"要问绳自己（`IsVisible`），别只信自己记的标志；
    绳长 = `clamp(跨度 × SlackRatio, MinLength, MaxLength)` 按 `LengthFollowSpeed` 逼近 ⇒ **跟随速度追不上目标速度时绳永远绷直**（飞行 42 m/s vs 8 m/s ⇒ 一条直线，这就是"飞行绳很硬"的原因）。
+
+## 🔴 拿「手/身上那件装备」的原生读法：**空槽别问**（2026-10-08 登记，雷 170）
+
+`agent.GetWeaponEntityFromEquipmentSlot(slot)` 在**该槽没有武器实体**时直接 `AccessViolation`
+（栈只到「托管→本机转换」，**`try/catch` 抓不住 AV** ⇒ 唯一的保险是**进原生之前的前置守卫**）。
+
+- **正确写法**：先 `MissionWeapon w = agent.Equipment[slot]; if (w.IsEmpty || w.Item == null) continue;` 再问原生；
+  顺序 = 主手 → 副手 → 其余主武器槽（范本 `Combat/SpellCastInput.cs` 的 `HandItemSlotOrder` + `TryGetRightHandAnchor` ② 那一段）。
+- **为什么以前没炸**：旧代码硬问 `Weapon0`/`Weapon1`，而那两格当时**总有东西**（旧版钩索 `equip` 命令硬写 0/1 号槽）——
+  命令改成「找空槽」之后那两格可能是空的 ⇒ 当场崩。**教训**：任何「按槽号问原生」的代码都别假设槽里有东西。
+- 修 `TryGetRightHandAnchor` 那次顺手把"手挂点"三路读法的顺序也理了：① 骨读数（双解释，1.5 m 守卫）→
+  ② 手上物品实体（本节的守卫）→ ③ 兜底近似位。诊断：`custom.spell handsrc` / `LastHandSource`。

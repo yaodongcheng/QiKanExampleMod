@@ -660,9 +660,20 @@ namespace LivingWorldNpcs
 				}
 
 				// ── ② 引擎挂在手上的**物品实体**（= 实机里能看见的那件装备所在的帧）──
-				for (int i = 0; i < 2; i++)
+				// 🔴🔴 2026-10-08 实机 `AccessViolation` 教训（栈：托管→本机转换 @
+				//    `Agent.GetWeaponEntityFromEquipmentSlot`）：**空槽绝不能问原生** ——
+				//    该槽没有武器实体时它就是 AV，而 **`catch` 抓不住 AV**（所以下面的 try 不是保险）。
+				//    旧写法硬问 `Weapon1` / `Weapon0` 两格却一直没炸，**只因为**那两格以前总有东西
+				//    （旧版 `custom.grapple equip` 硬写 0/1 号槽）—— 命令改成"找空槽"之后那两格可能是空的 ⇒ 当场崩。
+				//    ⇒ 纪律：**先看槽里有没有武器**（`MissionWeapon.IsEmpty`），有才问原生；
+				//      顺序 = 主手 → 副手 → 其余主武器槽（谁的帧离身体近用谁，仍走 1.5 m 守卫）。
+				foreach (EquipmentIndex slot in HandItemSlotOrder(agent))
 				{
-					EquipmentIndex slot = i == 0 ? EquipmentIndex.Weapon1 : EquipmentIndex.Weapon0;
+					MissionWeapon held = agent.Equipment[slot];
+					if (held.IsEmpty || held.Item == null)
+					{
+						continue;                       // ← 关键守卫：空槽不问原生（会 AV）
+					}
 					try
 					{
 						GameEntity e = agent.GetWeaponEntityFromEquipmentSlot(slot);
@@ -689,6 +700,40 @@ namespace LivingWorldNpcs
 			catch (Exception)
 			{
 				return false;
+			}
+		}
+
+		/// <summary>
+		/// ② 兜底那趟**按什么顺序问槽**：主手 → 副手 → 其余主武器槽（去重）。
+		/// 🔴 这里**只产出候选槽位**，调用方必须自己用 `MissionWeapon.IsEmpty` 过滤 ——
+		///    **空槽问原生 = `AccessViolation`**（见 <see cref="TryGetRightHandAnchor"/> 里那段教训）。
+		/// 只扫前四个主武器槽（第 5 格 `ExtraWeaponSlot` 是旗子专用，且弹药塞那儿引擎取不到）。
+		/// </summary>
+		private static IEnumerable<EquipmentIndex> HandItemSlotOrder(Agent agent)
+		{
+			EquipmentIndex main = EquipmentIndex.None, off = EquipmentIndex.None;
+			try
+			{
+				main = agent.GetWieldedItemIndex(Agent.HandIndex.MainHand);
+				off = agent.GetWieldedItemIndex(Agent.HandIndex.OffHand);
+			}
+			catch (Exception)
+			{
+			}
+			if (main != EquipmentIndex.None)
+			{
+				yield return main;
+			}
+			if (off != EquipmentIndex.None && off != main)
+			{
+				yield return off;
+			}
+			for (EquipmentIndex s = EquipmentIndex.WeaponItemBeginSlot; s < EquipmentIndex.NumPrimaryWeaponSlots; s++)
+			{
+				if (s != main && s != off)
+				{
+					yield return s;
+				}
 			}
 		}
 
