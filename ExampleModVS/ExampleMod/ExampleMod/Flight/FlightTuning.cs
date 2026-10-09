@@ -112,12 +112,19 @@ namespace LivingWorldNpcs.Flight
         public static string CarrierPrefab = "lwn_flight_sigil";
 
         /// <summary>
-        /// 载具网格名（**生成前的存在性探针用**）。
-        /// 🔴 网格不在任何包里却去 `Instantiate` = native 访问违例，**游戏当场崩、try/catch 拦不住**。
+        /// 🪦 **2026-10-10 删除：`CarrierMeshName`（网格探针）** —— 载具预制体现在**一个网格都不引用**
+        /// （纯物理体 = 真的看不见，用户要的"直接不可见"），探针没有对象可查了。
+        /// 🔴 那条探针防的是：预制体引用的网格不在包里 ⇒ `GameEntity.Instantiate` **native 访问违例、
+        ///    游戏当场崩、try/catch 拦不住**（2026-09-21 踩过）。
+        ///    ⇒ **哪天给载具加回网格（法阵/占位板），必须把这个探针一起加回来。**
         /// </summary>
-        public static string CarrierMeshName = "lwn_flight_sigil";
+        // public static string CarrierMeshName = "lwn_proxy_invisible";   ← 已删除（见上）
 
         /// <summary>wooden_platform_a 的顶面在局部坐标里的高度（实测 0.37 米）。</summary>
+        /// <remarks>
+        /// 🔴 2026-10-10 起预制体的根节点带 `scale="0.300, 0.300, 1.000"`（只压 X/Y、足迹缩到 1.59 × 1.55 米）
+        /// —— **Z 没缩，所以这个常量不用改**（顶面仍在原点上方 0.37）。改缩放时盯住 Z 那一格。
+        /// </remarks>
         public static float CarrierTopLocalZ = 0.37f;
 
         /// <summary>
@@ -134,6 +141,20 @@ namespace LivingWorldNpcs.Flight
         ///    🔴 2026-09-21 用户："平面再稍微往下一点点" —— 0.03 → **0.06**（视觉上让脚下留出空隙）。
         /// </summary>
         public static float CarrierSpawnGap = 0.06f;
+
+        // ───────────────── 载具上的"搭便车"（2026-10-10 立）─────────────────
+        // 用户报告："钩锁拉人起飞的时候，如果身边有其他 agent，会把其他人也带飞。"
+        // 根因 = 原版那块木板有 5 米见方（预制体已缩到 1.59 × 1.55，见 lwn_prefabs.xml），
+        //        站在板面上的**任何人**都会被一起抬走 ⇒ 缩完还剩一道兜底：起飞头几帧请他们下车。
+
+        /// <summary>起飞时把站在板上的**其他** agent 请下板（板还低的时候挪开一点点，掉下来不疼）。</summary>
+        public static bool CarrierEvictOthers = true;
+
+        /// <summary>只在"板面离地不超过这么多米"时动手（米）—— 已经飞高了就别碰，挪下去 = 摔伤。</summary>
+        public static float CarrierEvictMaxLift = 1.5f;
+
+        /// <summary>请下车时挪到"板边再往外这么多米"（米）。</summary>
+        public static float CarrierEvictMargin = 0.5f;
 
         /// <summary>
         /// 起飞时**等玩家真的踩到板上**再开始抬升（最多等这么久，秒）。0 = 不等。

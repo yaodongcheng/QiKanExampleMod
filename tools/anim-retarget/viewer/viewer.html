@@ -103,7 +103,7 @@
         <label class="fc">朝向°<input type="text" id="duDir" value="0" size="5"></label>
       </div>
       <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">
-        <button class="pbtn" id="duRedo">⟲ 重对</button>
+        <button class="pbtn" id="duRedo">⟲ 归位</button>
         <button class="pbtn" id="duReset">重置</button>
         <button class="pbtn" id="duSave">保存到 dataset.json</button>
         <button class="pbtn" id="duDump">导出 JSON</button>
@@ -111,7 +111,7 @@
       <div id="duMsg" style="font-size:10.5px;color:#8b98ab;margin-top:4px;min-height:14px;line-height:1.5"></div>
       <textarea id="duJson" readonly style="display:none;width:100%;height:80px;margin-top:6px;background:#161a21;border:1px solid var(--line);color:#9fb0c6;border-radius:6px;font-size:10px;padding:5px;box-sizing:border-box"></textarea>
       <div style="font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.7">
-        受击者(女)保持自己的坐标+朝向（=基准）；攻击者(男)在<b>动画自带相对位</b>上按 <b>右 / 前 / 高(+Y) / 朝向°</b> <b>叠加</b>偏移（全 0 = 保持动画自带、不动手；拖数字才叠加）。改数字后点「⟲ 重对」。
+        受击者(女)保持自己的坐标+朝向（=基准）；攻击者(男)在<b>动画自带相对位</b>上按 <b>右 / 前 / 高(+Y) / 朝向°</b> 叠加偏移（全 0 = 动画自带位）。<b>改数字即时生效</b>（基准+偏移，反复点也不累加）；「⟲ 归位」把偏移清零回到动画自带；「重置」恢复 dataset 默认值。
         <br><span style="color:#6b7686">注：这三项是<b>沿角色自身</b>的「右 / 前 / 高」方向，不是世界轴。世界轴见 3D 场景里的 <b style="color:#ff4d4d">X</b>/<b style="color:#3ddc84">Y(上)</b>/<b style="color:#4d7dff">Z</b> 箭头。</span>
       </div>
     </div>
@@ -126,7 +126,7 @@
         <input type="text" id="curveBone" value="pelvis" size="12" style="flex:1;min-width:80px">
       </div>
       <canvas id="curveCv" width="360" height="190" style="width:100%;height:190px;margin-top:6px;background:#12151b;border:1px solid var(--line);border-radius:6px"></canvas>
-      <div style="font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.6">「应用动画变换」关 = 只把「骨骼」框里那根（默认 <b>pelvis</b> = 根骨/挂接点）的<b>位移+旋转</b>还原为绑定姿势，<b>其余骨骼照常播放</b>。</div>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.6">「应用动画变换」关 = 把「骨骼」框里那根（默认 <b>pelvis</b> = 根骨）的<b>位移</b>还原为绑定姿势；<b>旋转/姿势保留</b>（所以横躺姿态不会变竖直）。</div>
       <div id="curveMsg" style="font-size:10.5px;color:#8b98ab;margin-top:3px;line-height:1.5"></div>
     </div>
     <div class="sec"><b>显示</b>
@@ -782,7 +782,7 @@ function applyPairParams(P, A, B){
 /* ---------- 双人站位（相对受击者）：只在动作开始时对齐一次，之后交给动画 ----------
    受击者(Slave) = 带 duo 配置的那一侧（保持自己的坐标+朝向 = 基准）
    攻击者(Master)= duo.master 指定的一侧；相对受击者 X右/Y前/Z高/朝向(°)，只对一次 */
-let DUO = null, _duoKey = null, _duoDone = null;
+let DUO = null, _duoKey = null;
 function duoKey(){ for(const k of Object.keys(SIDE)){ if((SIDE[k]||{}).duo) return k; } return null; }
 const DUO_MASTER = () => { const k = duoKey(); return k ? (((SIDE[k]||{}).duo||{}).master || Object.keys(SIDE)[0]) : null; };
 function syncDuoUI(){
@@ -800,37 +800,39 @@ function readDuoUI(){
 function initDuo(){
   const vk=duoKey(); const box=document.getElementById('duoSec'); if(!box) return;
   if(!vk){ box.style.display='none'; DUO=null; return; }
-  box.style.display=''; _duoKey=vk; _duoDone=null;
+  box.style.display=''; _duoKey=vk;
   let d=Object.assign({master:Object.keys(SIDE)[0], x:0, y:0, z:0, dir:0}, SIDE[vk].duo||{});
   const pf=(DS_CFG.pairs||{})[current];
   if(pf && pf.duo) d=Object.assign(d, pf.duo);
   DUO=JSON.parse(JSON.stringify(d));
-  const msg=document.getElementById('duMsg'); if(msg) msg.textContent='在动画自带相对位上叠加偏移；全 0 = 不动。改完点「⟲ 重对」。';
+  { const _M=holderFor(d.master||Object.keys(SIDE)[0]); if(_M && _M.group) _M.group.userData.__duoBase=null; }
+  const msg=document.getElementById('duMsg'); if(msg) msg.textContent='改数字即时生效（基准+偏移，不累加）；全 0 = 动画自带位。';
   syncDuoUI();
 }
 function applyDuo(){
-  // 【增量式】在【动画自带的相对位】基础上，叠加手动偏移（X右 / Y前 / Z高 / 朝向°）。
-  //   全 0 = 完全保持动画自带（不覆盖、不把两人叠一起）= 正确不下手；拖动数字才叠加。
-  //   （旧版是"覆盖式"：把 master 的骨盆强行搬到 slave 骨盆 + offset，含 Z，会把两人重叠 → 已废。）
+  // 【增量式·幂等】在【动画自带的相对位】基础上叠加手动偏移（右 / 前 / 高(+Y) / 朝向°）。
+  //   记一个基准位（首次应用时 M 的 group 位置/朝向），每次都算成「基准 + 偏移」——
+  //   所以【改数字即时生效】且【反复点也不会累加】。全 0 = 完全保持动画自带（不动手）。
   const vk=duoKey(); if(!vk || !DUO) return;
-  if(_duoDone === current) return;
   const V=holderFor(vk), M=holderFor(DUO.master);
   if(!V || !M) return;
   const f=facingOf(V); if(!f) return;
   const up=new THREE.Vector3(0,1,0);
   const rt=new THREE.Vector3().crossVectors(f, up).normalize();           // 基准方的右手方向
-  M.group.position
+  const ud=M.group.userData;
+  if(!ud.__duoBase) ud.__duoBase = { p: M.group.position.clone(), ry: M.group.rotation.y };
+  const B=ud.__duoBase;
+  M.group.position.set(B.p.x, B.p.y, B.p.z)
     .addScaledVector(rt, DUO.x||0)
     .addScaledVector(f,  DUO.y||0)
     .addScaledVector(up, DUO.z||0);
-  M.group.rotation.y += (DUO.dir||0)*Math.PI/180;
+  M.group.rotation.y = B.ry + (DUO.dir||0)*Math.PI/180;
   M.group.updateMatrixWorld(true);
-  _duoDone = current;
 }
 (function(){
-  ['duX','duY','duZ','duDir'].forEach(id=>{ const e=document.getElementById(id); if(e) e.addEventListener('input', ()=>{ readDuoUI(); syncDuoUI(); }); });
+  ['duX','duY','duZ','duDir'].forEach(id=>{ const e=document.getElementById(id); if(e) e.addEventListener('input', ()=>{ readDuoUI(); syncDuoUI(); applyDuo(); }); });
   const rs=document.getElementById('duReset'); if(rs) rs.addEventListener('click', ()=>{ initDuo(); });
-  const rd=document.getElementById('duRedo'); if(rd) rd.addEventListener('click', ()=>{ readDuoUI(); _duoDone=null; });
+  const rd=document.getElementById('duRedo'); if(rd) rd.addEventListener('click', ()=>{ DUO.x=0; DUO.y=0; DUO.z=0; DUO.dir=0; syncDuoUI(); applyDuo(); const m=document.getElementById('duMsg'); if(m) m.textContent='已归位（偏移清零，回到动画自带位）。'; });
   const sv=document.getElementById('duSave');
   if(sv) sv.addEventListener('click', async ()=>{
     readDuoUI(); const msg=document.getElementById('duMsg');
@@ -863,7 +865,7 @@ function updateMixers(dt){
     if(APPLY_TRS[L.side] === false){
       const b = (L.bones || {})[bn] || L.rootBone || (L.bones || {})['pelvis'];
       const r = b && L.rest && L.rest[b.name];
-      if(b && r){ b.position.copy(r.p); b.quaternion.copy(r.q); b.scale.copy(r.s); }
+      if(b && r){ b.position.copy(r.p); }   // 只还原【位移】；旋转/姿势保留（否则横躺姿态会变竖直）
     }
   }
 }

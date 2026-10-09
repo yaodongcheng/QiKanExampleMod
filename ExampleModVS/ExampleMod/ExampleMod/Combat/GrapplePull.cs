@@ -140,16 +140,11 @@ namespace LivingWorldNpcs
 		/// 拉长到 1 秒出头才看得出是渐变（旧值 = 相机系统的默认 0.35s）。</summary>
 		public static float CameraReturnGlideSeconds = 1.2f;
 
-		/// <summary>
-		/// **方向归还的起飞点**（拉拽进度 u，0~1）：默认 **0 = 拉拽一开始就把方向朝 0 俯仰转过去**
-		/// （2026-10-04 用户要求"从开始拉拽的时候就开始渐变"）。
-		/// 与 <see cref="CameraReturnStart"/>（臂长/FOV 的归还时机）**各管各的** —— 方向可以更早起跑，
-		/// 臂长仍保持宽镜到后半程（想连臂长也一开始收：`camret 0 1.2`）。
-		/// </summary>
-		public static float LookReturnStart = 0f;
-
-		/// <summary>方向归还的**时长**（秒）：≤0 = 跟拉拽时长一致（整段拉拽平顺转完）；&gt;0 = 固定时长。</summary>
-		public static float LookReturnSeconds = 0f;
+		// 🪦 **2026-10-10 退役：「方向归还」（`LookReturnStart` / `LookReturnSeconds` / `StartLookReturn`）
+		//    连同 `lookret` 命令一起废了。** 它当年解决的是"撒手瞬间镜头跳一下"（引擎解冻会把
+		//    CameraBearing 重置成角色移动方向、俯仰清零），代价却是**把玩家自己转的镜头扳回去**。
+		//    现在改成"撒手那一刻把玩家真实朝向写回引擎"（`CameraReturnPolicy.WriteBackLookOnRelease`）
+		//    —— 既没有跳变，也不动玩家的镜头。旋钮没了：想改方向就自己转鼠标。
 
 
 		/// <summary>拉拽期间把身体**转向钩点**（保住发射时的朝向；不写的话朝向会飘）。</summary>
@@ -173,7 +168,6 @@ namespace LivingWorldNpcs
 		private bool _frozen;
 		private bool _cameraHeld;      // 本次拉拽有没有接管相机（收摊时只还我们接的）
 		private bool _cameraReturning; // 相机是否已"提前归还"（防重复触发/重复日志；归还滑完前 _cameraHeld 保持 true = 中途 Abort 还能硬还）
-		private bool _lookReturnStarted; // 方向归还是否已启动（默认拉拽一开始就起）
 		private Vec3 _faceTarget;      // 拉拽期间身体朝向的目标（= 钩点，保住"发射时的朝向"）
 		private float _bodyYawDeg = float.NaN;
 		private float _logTimer;       // 拉拽诊断日志节流（每 0.25s 一行）
@@ -345,6 +339,23 @@ namespace LivingWorldNpcs
 			top.z += ArcCurve(u);
 			MoveBoardTopTo(top);
 
+			// 🔴 **起飞头几帧：把"搭便车"的人请下板**（2026-10-10 用户报告：
+			//    "钩锁拉人起飞的时候，如果身边有其他 agent，会把其他人也带飞"）。
+			//    只在这个高度之下做（`FlightTuning.CarrierEvictMaxLift`）—— 板还低的时候把人挪到板外，
+			//    他最多掉一两米；飞高了再挪 = 从空中丢人。判据与挪法在 `CarrierBoard.EvictRiders`。
+			if (FlightTuning.CarrierEvictOthers)
+			{
+				float lift = top.z - GroundZ(_board.Origin);
+				if (lift <= FlightTuning.CarrierEvictMaxLift)
+				{
+					int evicted = _board.EvictRiders(_main, FlightTuning.CarrierEvictMargin);
+					if (evicted > 0)
+					{
+						DebugLogger.Log($"[Grapple] 载具搭便车：请下板 {evicted} 人（板面离地 {lift:F2}m）");
+					}
+				}
+			}
+
 			// 🔴 **每帧把身体按住**（2026-10-03 用户实测"落地后脸不对/镜头猛转"）：
 			//    拉拽期间我们一行朝向代码都没写 ⇒ 朝向由引擎/惯性决定，不可控（还会带着相机一起甩）。
 			//    这里明确写：身体朝**钩点**（≈ 发射方向）平滑转过去，帧帧覆盖 ⇒ 朝向可预期。
@@ -365,13 +376,6 @@ namespace LivingWorldNpcs
 				float travelYaw = MathF.Atan2(travel.y, travel.x) * (180f / MathF.PI);
 				DebugLogger.Log($"[Grapple] 拉拽中 u={u:F2} 玩家={Fmt(_main.Position)} 板面={Fmt(top)} "
 					+ $"身体yaw={LookYawDeg(_main):F0}° 行进yaw={travelYaw:F0}°（常量目标）");
-			}
-
-			// 🔴 **方向归还从拉拽一开始就跑**（2026-10-04 用户要求"从开始拉拽的时候就开始渐变"）——
-			//    它和相机归还（臂长/FOV）**分开计时**：方向在整个拉拽里平顺转完，臂长仍宽镜到后半程。
-			if (u >= LookReturnStart)
-			{
-				StartLookReturn();
 			}
 
 			// 🔴 **相机提前归还**（2026-10-03 用户要求"快到终点的时候就开始过渡"）：
@@ -593,7 +597,7 @@ namespace LivingWorldNpcs
 		/// 🔴 **2026-10-05 阶段 2：整段收敛成"一次调用"**（原来是 5 步 setter 舞）——
 		///    · 瞄准相机在手上 ⇒ `CameraService.Adopt(grapple_pull, …)`（**收编、不重播种**）；
 		///    · 否则 ⇒ `CameraService.Play(grapple_pull, …)`（Seed=Engine = 照抄接管那一刻的引擎机位 + 行里的臂长 8）。
-		///    归还三件套（不写回朝向 / 撒手前清引擎特殊相机修正 / 归还预置俯仰）作**调用参数**传进去 ——
+		///    归还策略（**撒手那一刻写回玩家朝向** / 撒手前清引擎特殊相机修正 / 不预置俯仰）作**调用参数**传进去 ——
 		///    它们描述的是"引擎接下来会干什么"（收尾会解冻玩家 ⇒ 引擎必然重置相机），不进表。
 		/// </summary>
 		private void EnterCamera()
@@ -603,7 +607,6 @@ namespace LivingWorldNpcs
 				return;
 			}
 			_cameraReturning = false;
-			_lookReturnStarted = false;
 			if (!GrappleAimCamera.Enabled)      // 钩索相机总开关（`custom.grapple cam off`）
 			{
 				return;
@@ -625,9 +628,18 @@ namespace LivingWorldNpcs
 				float seconds = OnBoardTimeout + _duration + SettleSeconds + CameraExtraSeconds;
 				var policy = new CameraReturnPolicy
 				{
-					WriteBackLook = false,     // 完全交还引擎：方向在滑行期间追引擎实时值（2026-10-03 用户裁定）
+					// 🔴🔴 **2026-10-10 改口径：方向不再"自己回正"，完全听玩家的**（用户裁定二选一）。
+					//    旧行为 = 拉拽一开始就把镜头朝"引擎解冻后会重置成的值"转（yaw 保持、俯仰拉到 0），
+					//    好处是撒手零跳变；坏处 = **玩家自己在飞行途中转的镜头会被扳回去**
+					//    （用户原话："如果玩家转了镜头，最后我们自己还有一个重设旋转镜头的操作"）。
+					//    新行为 = 拉拽全程鼠标可转（`Camera.csv` 的 `grapple_pull` 行 MouseLook=1），
+					//    **撒手那一刻**才把玩家真实的朝向写回引擎（`WriteBackLookOnRelease`）——
+					//    写回必须晚于"引擎解冻时的重置"（那条重置在归还滑行途中发生，早写会被打掉，
+					//    2026-10-03 踩过），所以由机器在撒手那一刻执行，见 SpringArmRig.Stop。
+					WriteBackLook = true,
+					WriteBackLookOnRelease = true,
 					ClearSpecial = true,       // 撒手前清引擎"特殊相机"冻结修正（落地高度台阶的根治）
-					PredictReset = true,       // 收尾会解冻玩家 ⇒ 引擎必然重置相机 ⇒ 预置俯仰
+					PredictReset = false,      // 不再预置俯仰：那正是"把玩家的镜头扳回去"的来源
 				};
 				bool adopt = GrappleAimCamera.IsActive && CameraService.IsHeldBy(GrappleAimCamera.Owner);
 				if (adopt)
@@ -659,31 +671,12 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
-		/// **启动"方向归还"**（拉拽一开始就调；幂等）：让相机方向在整个拉拽里平顺转到
-		/// 引擎解冻后会把值重置成的那个姿态（= 预测重置值，含俯仰 0）。详见 `SpringArmRig.BeginLookReturn`。
-		/// </summary>
-		private void StartLookReturn()
-		{
-			if (!_cameraHeld || _lookReturnStarted)
-			{
-				return;
-			}
-			_lookReturnStarted = true;
-			try
-			{
-				float seconds = LookReturnSeconds > 0.05f ? LookReturnSeconds : _duration;
-				CameraService.BeginLookReturn(seconds);
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.Log($"[Grapple] 方向归还触发异常（忽略）：{ex.GetType().Name} {ex.Message}");
-			}
-		}
-
-		/// <summary>
 		/// **提前开始归还相机**（拉拽尾段每帧调，幂等）：让机器把臂长/FOV 滑回接管时的引擎机位，
 		/// 滑完自己撒手。**归还期间 `_cameraHeld` 保持 true** —— 这样中途 Abort 仍能
 		/// <see cref="ExitCamera"/> 走"立刻还"（滑行中被打断不该留着镜头慢慢飘）。
+		///
+		/// 🔴 **方向不在这里还**（2026-10-10 改）：玩家全程能转镜头（`grapple_pull` 行的 MouseLook=1），
+		///    真正的"朝向交还"发生在**撒手那一刻**（把玩家的角度写回引擎，见 `WriteBackLookOnRelease`）。
 		/// </summary>
 		private void StartCameraReturn()
 		{
@@ -797,6 +790,21 @@ namespace LivingWorldNpcs
 		{
 			return string.Format("pull={0} t={1:F2}/{2:F2} board[{3}]",
 				_phase, _t, _duration, _board.Describe());
+		}
+
+		/// <summary>
+		/// 体检口（`custom.grapple carrier`）：本轮载具的**物理足迹**（世界，半宽/半深/顶面高）
+		/// + 板上"别人"的人数。没在拉拽（或板已拆）= false。
+		/// </summary>
+		public bool TryDescribeBoard(out Vec3 center, out float halfX, out float halfY, out float topZ, out int others)
+		{
+			others = 0;
+			if (!_board.TryGetFootprint(out center, out halfX, out halfY, out topZ))
+			{
+				return false;
+			}
+			others = _board.CountRiders(Agent.Main, 0.15f);
+			return true;
 		}
 	}
 }

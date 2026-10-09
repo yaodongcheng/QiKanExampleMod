@@ -503,6 +503,21 @@ namespace LivingWorldNpcs.Flight
                 return;
             }
 
+            // 🔴 **起飞头几帧：把"搭便车"的人请下板**（2026-10-10 立；与钩索拉拽共用同一道兜底）——
+            //    板面上的**任何人**都会被一起抬走（承载是物理体干的，它不认人）⇒ 板还贴地的时候
+            //    把站上来的"别人"挪到板外（掉一两米，不疼）。判据与挪法见 `CarrierBoard.EvictRiders`。
+            if (FlightTuning.CarrierEvictOthers)
+            {
+                float lift = (_board.Origin.z + FlightTuning.CarrierTopLocalZ)
+                             - GetGroundZ(Mission.Current?.Scene, _board.Origin);
+                if (lift <= FlightTuning.CarrierEvictMaxLift)
+                {
+                    int evicted = _board.EvictRiders(main, FlightTuning.CarrierEvictMargin);
+                    if (evicted > 0)
+                        DebugLogger.Log($"[Flight] 载具搭便车：请下板 {evicted} 人（板面离地 {lift:F2}m）");
+                }
+            }
+
             // 🔴 **板载坠落后回飞：板不能急停**（2026-09-27）—— 人这时带着下坠速度压在板上，
             //    板一停人就离开板面 = 支撑断开 = 又给了引擎那句"按地形重算位置"机会。所以让它
             //    用 `FallRideBrake` 那档减速度把速度收干（36 m/s 大约 1.2 秒），全程人压着板。

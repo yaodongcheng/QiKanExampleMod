@@ -41,65 +41,53 @@
 	</game_entity>
 	
 
-<!-- 飞行载具 + 法阵（合一版，2026-09-21 重做）。
+<!-- 飞行载具（2026-09-21 立；2026-10-10 改结构 + 改外观）。
 
-     🔴 **为什么要合一**（血泪教训，别改回去）：
-        上一版是"隐形木板 + 另挂一张法阵"两个实体，靠 `SetVisibilityExcludeParents(false)`
-        把木板藏起来。**实测把碰撞一起干掉了** —— 隐藏成功后 1.8 秒主角掉下去摔死
-        （日志：`[Flight] 载具可见性 -> 隐藏 | 根vis=False` → `玩家 agent 失效`）。
-        反推 agent 判断"站在什么上"那一步会跳过不可见实体。
-        ⇒ **想让载具隐形这条路走不通**，改成"**承载物本身就是法阵**"。
+     🔴🔴 **结构（2026-10-10）：根节点只当"锚"，承载挂在子节点上** ——
+        为什么不能让根带物理体：`GameEntity.Instantiate(scene, name, frame)` 传进去的 frame 会
+        **覆盖根节点的 transform**（2026-09-27 实机实证，当时症状 = 根上的 position 写了没用），
+        而那个 frame 是 `MatrixFrame.Identity` ⇒ **根上的 scale 会被一并冲成 1**（板就缩不小了）。
+        子节点的局部 transform 不受影响 ⇒ **要留得住的东西（物理体、缩放）一律写子节点**。
 
-     🔴 **预制体这个格式的关键事实**（读 Native/Prefabs/*.xml 得出的）：
-        视觉和碰撞是**两条独立声明的线** ——
-          `<physics shape="引擎内置物理体名"/>`  ← 承载
-          `<meta_mesh_component name="网格名"/>`  ← 视觉
-        两者可以自由组合。所以本实体：
-          · 根   = 只带物理学（`bo_wooden_platform_a`，**与已验证能托人的那块木板同一个物理体**）
-          · 子   = 只带网格（我们的法阵），抬到物理体顶面上方
+     🔴 **视觉 = 没有视觉**（用户 2026-10-10："我希望直接不可见"）：
+        整块板**一个网格都没有** ⇒ 零几何、屏幕上绝对没有东西（不是"缩得很小"，是没东西可画）。
+        ⚠️ **这不是"把实体藏起来"**（那条路 2026-09-21 试过，会连碰撞一起干掉：隐藏后主角 1.8 秒坠落摔死
+        —— 引擎挑"脚下的支撑物"时会跳过**不可见实体**）。现在实体的可见性**原样保留**，只是不带任何网格。
+        ✅ **"纯物理、零几何"是引擎的标准做法**：Native 自己的 prefab 里有 **1069 个**这样的实体
+        （例：`flag_raising_boundary` 升旗围栏 —— 专门挡/托 agent 的隐形边界），本项目自 2026-09-21 起
+        承载实体本来也没有网格（法阵一直是挂在**另一个**子实体上的）。
+        🔎 **想要"看得见的一块板"**（调试/换观感）：加回一个子实体 + `meta_mesh_component` 即可，法阵网格
+        `lwn_flight_sigil` 仍在 `lwn_core.tpac` 里（`custom.spawn_mesh lwn_flight_sigil` 可先看它的样子）。
+        ❌ 真"全透明材质"这条路**不划算**：引擎的网格材质没有真 alpha 混合（只有 alpha_test 裁切），
+        要做就得进 ModKit 导贴图 + 建材质 + Publish 走一轮，结果和"不画"一模一样，还多一笔 draw call。
 
-     引擎行为（官方文档 asset_management/asset_types/overriding_scenes_prefabs 实证）：
-       "Prefab definitions are stored in xml files located in **Prefabs** folder in each module's directory."
-       —— 即 <模块>/Prefabs/*.xml 由引擎**自动扫描**，不需要在 SubModule.xml / project.mbproj 里登记。
+     🔴 **物理足迹缩到 0.30 倍**（用户 2026-10-10："钩锁拉人起飞的时候，如果身边有其他 agent，
+        会把其他人也带飞"）：原版那块木板 5.29 × 5.16 米 ⇒ 站在 2 米外的路人也在板面上，板一升就跟着飞。
+        现在 `scale="0.300, 0.300, 1.000"`（**只压 X/Y、Z 保持 1** ⇒ 顶面还是 0.37 米，
+        `FlightTuning.CarrierTopLocalZ` 不用改）⇒ 足迹 ≈ **1.59 × 1.55 米**。
+        依据：引擎自己的 `Native/Prefabs/editor_barriers.xml` 拿一个 `bo_barrier` 缩成
+        4×4 / 8×4 / 12×4 / 16×4 四种尺寸 ⇒ **物理体吃实体缩放**。
+        ⚠️ 缩完还不够（贴着你站的人仍在足迹内）⇒ 起飞头 1.5 米内还有一道"请下车"兜底，
+        见 `CarrierBoard.EvictRiders`。**验收 = `custom.grapple carrier`**（报引擎自己量的物理盒）。
 
-     用途：飞行时贴在玩家脚下的法阵。由 C# 侧 GameEntity.Instantiate(scene, "lwn_flight_sigil", frame)
-           生成，跟着飞行逐帧瞬移（见 Flight/CarrierBoard.cs）。
+     🔴 **两个名字必须与 C# 侧一致**（改这里就得改那边）：
+        · prefab 名 `lwn_flight_sigil` ↔ `FlightTuning.CarrierPrefab`
+        · 🔴 因为预制体**不引用任何网格**了，`FlightTuning.CarrierMeshName`（生成前探针）已一并删除 ——
+          那条探针防的是"预制体引用的网格不在包里 ⇒ `Instantiate` native 访问违例"。
+          ⚠️ **哪天给它加回网格，必须同时把探针加回来**（网格缺失 = 当场崩、try/catch 拦不住）。
 
-     🔴 `name="lwn_flight_sigil"` 必须与装机包里**实际编译出来的 MetaMesh 名**一致。
-        导入 Publish 后用 `tpaccli list` 核对（不要猜 —— 动画那边 TRF 叫 fly_A_Flight_Idle_A、
-        clip 却叫 flight_idle_a 就是教训）。名字不对的症状：法阵不出现，日志打 [Flight] 法阵没挂上。
+     用途：飞行 / 钩索拉拽时贴在玩家脚下的承载面（逐帧瞬移，见 Flight/CarrierBoard.cs）。
 
      回退：删掉本文件即可（C# 侧查不到会静默跳过）。
 
      🔴 本文件里【不许出现连续两个减号】：XML 注释里那是非法字符，整个文件解析失败、引擎启动即崩。 -->
-	<!-- 根：只负责"托人"。物理体沿用木板那一套 —— 它是本项目里唯一实机验证过能托住玩家的物理体。 -->
 	<game_entity name="lwn_flight_sigil" old_prefab_name="">
-		<physics shape="bo_wooden_platform_a" mass="1.000"/>
 		<children>
-			<!-- 子：只负责"好看"。
-
-			     🔴 **rotation_euler 是必需的 —— 法阵网格是"竖着"导进来的**（2026-09-21 实机确认）：
-			        网格的顶点全在 **Z=0** ⇒ 四边形躺在**网格自己的 XY 平面**、法线是网格的 +Z；
-			        而引擎的网格空间约定把 **+Z 映射到水平方向**（本项目武器规则"长轴 +Z"同源 ——
-			        剑刃在手里就是朝前的）⇒ 法线的世界方向是水平的 ⇒ **四边形竖起来了**。
-			        转 90° 把法线的世界方向扳回竖直，它就是一张躺平的法阵。
-
-			     ⚠️ **这里是试出来的值，不是算出来的**：绕 X 还是绕 Y 转（两者都只差一个 90°），
-			        以及正负号，取决于引擎对 FBX 的轴重映射 —— 而那个映射本项目没实证过。
-			        找法：下面四个值依次试（改完 **重进场景** 再看，不用重开游戏、不用重编译）：
-			          "1.571, 0, 0"   ← 当前值（绕 X 转 90°）
-			          "-1.571, 0, 0"
-			          "0, 1.571, 0"   ← 若上面两个都还竖着，换绕 Y
-			          "0, -1.571, 0"
-			        （角度单位是**弧度**。网格是双面的，所以正负号只影响哪一面朝上，不影响"平不平"。）
-
-			     position z = 0.400 —— 物理体顶面在实体原点上方 0.37（实测），抬到 0.40 就是
-			     "贴着顶面上面一点"，正好在玩家脚底；抬太多会看着人悬空，太低会埋在承载面里看不见。 -->
-			<game_entity name="lwn_flight_sigil_mesh" old_prefab_name="">
-				<transform position="0.000, 0.000, 0.400" rotation_euler="1.571, 0.000, 0.000"/>
-				<components>
-					<meta_mesh_component name="lwn_flight_sigil"/>
-				</components>
+			<!-- 承载：只负责"托人" —— 🔴 **完全没有网格 = 零几何，肉眼绝对看不见**（不是"缩得很小"，是没有东西可画）。
+			     scale 只压 X/Y —— 板一升就把旁边的路人一起带飞，就是从这块 5 米大板来的。 -->
+			<game_entity name="lwn_flight_sigil_body" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="0.300, 0.300, 1.000"/>
+				<physics shape="bo_wooden_platform_a" mass="1.000"/>
 			</game_entity>
 		</children>
 	</game_entity>

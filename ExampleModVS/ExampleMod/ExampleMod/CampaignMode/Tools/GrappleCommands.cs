@@ -96,9 +96,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple camret [&lt;比例&gt; &lt;秒&gt;]  相机（臂长/FOV）归还时机：比例 = 拉拽进度到多少就**提前**滑回引擎机位
 	///                                     （默认 0.5，1 = 到位才开始 = 旧行为）；秒 = 滑行时长（默认 1.2）。
 	///                                     无参 = 看当前值
-	///   custom.grapple lookret [&lt;比例&gt; &lt;秒&gt;] **方向**归还时机（与 camret 分开计时）：比例 = 拉拽进度到多少
-	///                                     就开始把方向转向"引擎重置后"的姿态（默认 **0 = 拉拽一开始**）；
-	///                                     秒 = 转完时长（默认 0 = 跟拉拽时长一致）。无参 = 看当前值
+	///   custom.grapple lookret [&lt;比例&gt; &lt;秒&gt;] 🪦 **已退役（2026-10-10）** —— 拉拽期间镜头现在完全跟玩家
+	///                                     （要方向自己转鼠标；撒手那一刻我们把你转到的朝向写回引擎）。敲它=看迁移说明
+	///   custom.grapple carrier [spawn|clear]  载具体检：无参 = 报告预制体/物理足迹（米）/板上人数；
+	///                                     spawn = 在脚下现生一块（看"看不见" + 量足迹）；clear = 收掉
 	///
 	/// ⚠️ **相机本身的诊断命令不在这一族**（2026-10-04 起）：`custom.cam log|stat|info|test|lift`
 	///    见 `Camera/CameraCommands.cs`（相机自己的模块）。
@@ -108,6 +109,32 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	/// </summary>
 	internal static class GrappleCommands
 	{
+		/// <summary>`custom.grapple carrier spawn` 生成的那块"体检板"（钉在原地，直到 `carrier clear`）。</summary>
+		private static Flight.CarrierBoard ProbeCarrier;
+
+		/// <summary>体检板是在**哪个场景**生的 —— 换场景后实体已被引擎销毁，绝不能再碰它的指针。</summary>
+		private static UIntPtr ProbeScenePtr;
+
+		/// <summary>
+		/// 取体检板（**顺带做场景守卫**）：当前场景不是生它那个 ⇒ 只丢引用、**不碰实体**
+		/// （实体随旧场景一起没了；对已销毁实体调任何东西都可能直接崩）。
+		/// </summary>
+		private static Flight.CarrierBoard LiveProbeCarrier()
+		{
+			if (ProbeCarrier == null)
+			{
+				return null;
+			}
+			Scene scene = Mission.Current?.Scene;
+			if (scene == null || scene.Pointer != ProbeScenePtr)
+			{
+				ProbeCarrier = null;
+				ProbeScenePtr = UIntPtr.Zero;
+				return null;
+			}
+			return ProbeCarrier;
+		}
+
 		[CommandLineFunctionality.CommandLineArgumentFunction("grapple", "custom")]
 		public static string Execute(List<string> args)
 		{
@@ -127,7 +154,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
-					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
+					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "bind"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens")
@@ -1072,31 +1099,15 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
 				case "lookret":
 				{
-					// **方向**归还时机（与 camret 的臂长/FOV 归还分开计时；2026-10-04 用户要求"从开始拉拽就渐变"）：
-					//   比例 = 拉拽进度 u 到多少就开始转（默认 0 = 一开始；0.5 = 后半程）
-					//   秒   = 转完时长（默认 0 = 跟拉拽时长一致）
-					// 无参 = 看当前；只给比例 = 只改比例。
-					float start = ParseF(args, at + 0, -1f);
-					float secs = ParseF(args, at + 1, -1f);
-					string show = $"grapple: look return = start u>={GrapplePull.LookReturnStart:F2} seconds "
-						+ (GrapplePull.LookReturnSeconds <= 0.05f ? "auto(=pull duration)" : GrapplePull.LookReturnSeconds.ToString("F2"));
-					if (start < 0f && secs < 0f)
-					{
-						result = show;
-						break;
-					}
-					if (start >= 0f)
-					{
-						if (start > 1f) { result = "Error: lookret start must be 0..1 (0 = from the very beginning of the pull)"; break; }
-						GrapplePull.LookReturnStart = start;
-					}
-					if (secs >= 0f)
-					{
-						GrapplePull.LookReturnSeconds = secs;      // 0 = auto（跟拉拽时长一致）
-					}
-					show = $"grapple: look return = start u>={GrapplePull.LookReturnStart:F2} seconds "
-						+ (GrapplePull.LookReturnSeconds <= 0.05f ? "auto(=pull duration)" : GrapplePull.LookReturnSeconds.ToString("F2"));
-					result = show;
+					// 🪦 **2026-10-10 退役**（用户二选一裁定："不许玩家转镜头" vs "落地方向用玩家真实转角" ⇒ 选了后者）。
+					//    旧行为 = 拉拽一开始就把方向朝"引擎解冻后会重置成的值"转（俯仰拉到 0）—— 代价是
+					//    **玩家飞行途中自己转的镜头会被扳回去**。现在：全程鼠标可转，**撒手那一刻**把玩家
+					//    真实朝向写回引擎（`CameraReturnPolicy.WriteBackLookOnRelease`），两头都不跳。
+					//    名字留在白名单里只为返回这条说明（静默回落 = 用户以为"没用"，2026-10-05 相机那次事故的教训）。
+					result = "grapple: 'lookret' is RETIRED (2026-10-10) - the camera now follows YOU during the pull"
+						+ " (turn it with the mouse) and we write YOUR heading back to the engine at release,"
+						+ " so there is no forced reset. No knob to tune; just look where you want to land."
+						+ " Arm/FOV return timing is still tunable via 'custom.grapple camret'.";
 					break;
 				}
 
@@ -1167,6 +1178,66 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					GrappleAimCamera.Enabled = true;
 					GrapplePull.CameraArmLength = arm;
 					result = $"grapple: pull camera = engine-look + arm {arm:F1}m";
+					break;
+				}
+
+				case "carrier":
+				{
+					// **载具体检**（2026-10-10 立；用户报的两条都落在这块板子上）：
+					//   ① 视觉 = 隐形代理（预制体的网格换掉了）⇒ `spawn` 之后**脚下应该什么都看不见**；
+					//   ② 物理足迹 = 预制体根节点 scale 0.300 ⇒ 原版 5.29 × 5.16 米缩到 ≈1.59 × 1.55 米
+					//      （谁站在板面上谁被抬走：缩之前站在 2 米外的人也会跟着飞）。
+					//   数值一律问**引擎自己的物理包围盒**（`CarrierBoard.TryGetFootprint`），不是我们算的。
+					string what = (ArgAt(args, at + 0) ?? "").ToLowerInvariant();
+					if (what == "clear")
+					{
+						LiveProbeCarrier()?.Remove();
+						ProbeCarrier = null;
+						ProbeScenePtr = UIntPtr.Zero;
+						result = "grapple: carrier probe board removed.";
+						break;
+					}
+
+					string head = "";
+					if (what == "spawn")
+					{
+						LiveProbeCarrier()?.Remove();
+						ProbeCarrier = null;
+						var probe = new Flight.CarrierBoard();
+						float feet = Flight.CarrierBoard.CollisionCapsuleBottomZ(Agent.Main);
+						if (!probe.Spawn(Mission.Current.Scene,
+								new Vec3(Agent.Main.Position.x, Agent.Main.Position.y, feet - Flight.FlightTuning.CarrierSpawnGap)))
+						{
+							result = "Error: carrier probe spawn failed (prefab or mesh missing? see log)";
+							break;
+						}
+						ProbeCarrier = probe;
+						ProbeScenePtr = Mission.Current.Scene.Pointer;
+						head = "carrier probe spawned under you (must be INVISIBLE) | ";
+					}
+
+					Flight.CarrierBoard live = LiveProbeCarrier();
+					if (live != null && live.TryGetFootprint(out _, out float phx, out float phy, out float ptop))
+					{
+						result = head + $"probe board physics box = {phx * 2f:F2} x {phy * 2f:F2} m (top z={ptop:F2}), "
+							+ $"others standing on it = {live.CountRiders(Agent.Main)}"
+							+ " | vanilla platform = 5.29 x 5.16 m, ours is scaled 0.30";
+						break;
+					}
+
+					GrapplePull pull = GrappleLogic.Current?.Pull;
+					if (pull != null
+						&& pull.TryDescribeBoard(out _, out float hx, out float hy, out float top, out int others))
+					{
+						result = $"pull board physics box = {hx * 2f:F2} x {hy * 2f:F2} m (top z={top:F2}), "
+							+ $"others on board = {others}"
+							+ " | riders other than you get a gentle eviction while the board is still low"
+							+ $" (<= {Flight.FlightTuning.CarrierEvictMaxLift:F1} m)";
+						break;
+					}
+
+					result = head + "no carrier board right now - run 'custom.grapple carrier spawn'"
+						+ " to put a probe board under you (it stays until 'custom.grapple carrier clear').";
 					break;
 				}
 

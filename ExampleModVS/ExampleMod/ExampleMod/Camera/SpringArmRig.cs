@@ -17,6 +17,16 @@ namespace LivingWorldNpcs
 		/// <summary>归还时把我们的朝向**写回引擎**（`CameraBearing/Elevation`，反射写私有 setter）。</summary>
 		public bool WriteBackLook;
 
+		/// <summary>
+		/// **把"写回朝向"推迟到撒手那一刻**（2026-10-10 立）——
+		/// 专给"接管期间玩家能自己转镜头、且收尾会解冻玩家"的调用方（钩索拉拽）。
+		/// 为什么不能按老时机写：引擎的相机重置发生在**归还滑行途中**（解冻 → 下一帧 `HandleUserInput`
+		/// 把 bearing 重置成移动方向、俯仰清零）⇒ 早写会被它打掉（2026-10-03 实机日志实证）。
+		/// 置 true 时：① 滑行期间**鼠标仍然可转**（见 <see cref="ApplyMouseLook"/> 的门）；
+		/// ② 不等"与引擎收敛"（我们本来就要盖掉引擎那份）；③ 撒手那一刻写当前朝向（<see cref="Stop"/>）。
+		/// </summary>
+		public bool WriteBackLookOnRelease;
+
 		/// <summary>撒手前**清掉引擎"特殊相机"的冻结修正**（`_cameraSpecial*`）—— 钩索用（落地高度台阶的根治）。</summary>
 		public bool ClearSpecial;
 
@@ -122,6 +132,10 @@ namespace LivingWorldNpcs
 		private bool _errorLogged;
 		private bool _anchorLogged;                // 锚点解析行（每次接管一行）
 		private float _postReleaseTimer = -1f;     // 撒手后采样（<0 = 没在等）
+		private int _releaseGraceFrames;           // 「延后写回」放行计数（玩家恢复控制后的帧数）
+		private int _handoffWatchLeft;             // 「延后写回」交接采样剩余帧数（常开，只 4 帧）
+		private float _handoffWriteYaw;            // 撒手那一刻写进引擎的朝向（采样对照用）
+		private float _handoffWritePitch;
 		private bool _postReleaseFirst;
 		private float _postReleaseWatchTimer = -1f;
 		private int _postReleaseWatchLeft;
@@ -130,6 +144,8 @@ namespace LivingWorldNpcs
 		private const float HandBackLookChaseTau = 0.35f;    // 方向追赶的时间常数
 		private const float HandBackLookHoldMaxSeconds = 1.2f;
 		private const float HandBackLookConvergedDeg = 2.0f;
+		/// <summary>「延后写回」的放行宽限：玩家拿回控制权后再多拿几帧才撒手（等引擎的重置跑完）。</summary>
+		private const int ReleaseGraceFrames = 4;
 		private const float PostReleaseLogDelaySeconds = 0.5f;
 		private const float PostReleaseWatchSeconds = 3f;
 		private const float RadToDeg = 180f / MathF.PI;
@@ -280,12 +296,18 @@ namespace LivingWorldNpcs
 
 			_lookMouse = kase.MouseLook;
 			_lookExternal = false;
-			// 🔴 收编时方向**回到 target 那一份**（= 原 `ClearFollowLook` 的行为：交还方向控制、跟随不断）——
+			// 🔴 收编时方向**接着现在这份走**（= 原 `ClearFollowLook` 的意图：交还方向控制、跟随不断）——
 			//    除非方向归还已经在跑（那由 chase 状态接着走，不许重置）。
+			// 🔴🔴 **2026-10-10 修：取"当前渲染的那份"（`_current`），别取 `_target`** ——
+			//    上一段（瞄准相机 `grapple_shot`）的 `MouseLook=1`，玩家转镜头只写进 `_lookYaw/_lookPitch`，
+			//    而 `_target.ArmYaw` 还是**接管那一刻播种的引擎角**（从头到尾没动过）⇒ 用它 = 一进拉拽
+			//    镜头就弹回"开火之前"的朝向。用户 2026-10-10 报的"重设旋转镜头的操作"里就有这一份。
 			if (!_lookReturning)
 			{
-				_lookYaw = _target.ArmYaw;
-				_lookPitch = _target.ArmPitch;
+				_lookYaw = _current.ArmYaw;
+				_lookPitch = _current.ArmPitch;
+				_target.ArmYaw = _lookYaw;       // 新一段的"基准方向" = 玩家此刻看的地方
+				_target.ArmPitch = _lookPitch;
 			}
 			if (stage.HasPolicy)
 				_policy = stage.Policy;
@@ -425,8 +447,10 @@ namespace LivingWorldNpcs
 				{
 					ChaseEngineLook(ref _lookYaw, ref _lookPitch, dt);
 				}
-				else if (!_handingBack && _lookMouse && !_lookExternal)
+				else if ((!_handingBack || _policy.WriteBackLookOnRelease) && _lookMouse && !_lookExternal)
 				{
+					// 🔴 "延后写回"的调用方（钩索拉拽）**归还滑行期间也照样收鼠标** ——
+					//    那时玩家多半已经解冻在走动了，镜头必须还归他。
 					ApplyMouseLook(Input.MouseMoveX, Input.MouseMoveY);
 				}
 				if (_lookReturning || _lookMouse || _lookExternal)
@@ -436,23 +460,48 @@ namespace LivingWorldNpcs
 				}
 
 				// ③ 锚点（跟头骨 / 定高）
-				if (!_handingBack)
+				// 🔴 归还滑行**走完**之后仍然要跟锚点：那时臂长已经是引擎视距，但镜头还归我们
+				//    （在等玩家拿回控制权 / 等方向收敛）—— 不跟 = 玩家一动，镜头就把他落下。
+				if (!_handingBack || _handT >= 1f)
 					UpdateAnchor(dt);
 
 				// ④ 归还：臂长走完 + 方向跟平 ⇒ 撒手
 				if (_handingBack && _handT >= 1f)
 				{
-					if (EngineLookConverged(_current))
+					if (_policy.WriteBackLookOnRelease)
+					{
+						// 🔴 **延后写回**的调用方（钩索拉拽）两条都不等，但**要等两件事**：
+						//    ① **玩家拿回控制权**（拉拽收尾"等落地动画"时，滑行可能比解冻先结束）；
+						//    ② **引擎的重置跑完**——它在解冻后的**下一帧**执行（bearing=移动方向、俯仰=0），
+						//       撒手早于它 = 我们写回的朝向被打掉 = 落地镜头跳一下。
+						//    ⇒ 用"恢复控制后再放行 N 帧"兜住这两条（N 帧 ≈ 0.07 秒，肉眼无感：
+						//       臂长此刻已滑回引擎视距，画面就是我们这一份）。
+						if (!V.IsAgentAI(Mission.Current?.MainAgent))
+							_releaseGraceFrames++;
+						else
+							_releaseGraceFrames = 0;
+
+						if (_releaseGraceFrames >= ReleaseGraceFrames || _handHoldT >= HandBackLookHoldMaxSeconds)
+						{
+							CameraService.Stop();
+							return;
+						}
+						_handHoldT += dt;
+					}
+					else if (EngineLookConverged(_current))
 					{
 						CameraService.Stop();
 						return;
 					}
-					_handHoldT += dt;
-					if (_handHoldT >= HandBackLookHoldMaxSeconds)
+					else
 					{
-						DebugLogger.Log($"[FollowCam] 方向没在等待上限内跟完（还差 {EngineLookDeltaDeg(_current):F1}°）—— 强制撒手");
-						CameraService.Stop();
-						return;
+						_handHoldT += dt;
+						if (_handHoldT >= HandBackLookHoldMaxSeconds)
+						{
+							DebugLogger.Log($"[FollowCam] 方向没在等待上限内跟完（还差 {EngineLookDeltaDeg(_current):F1}°）—— 强制撒手");
+							CameraService.Stop();
+							return;
+						}
 					}
 				}
 
@@ -543,7 +592,9 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public void ApplyMouseLook(float mouseDx, float mouseDy)
 		{
-			if (!_active || _case == null || _handingBack)
+			// 🔴 归还滑行期间**照旧收鼠标** —— 但只对"延后写回"的调用方开放（钩索拉拽）：
+			//    它会在撒手那一刻把玩家的朝向写回引擎，所以滑行中玩家转的镜头不会白转。
+			if (!_active || _case == null || (_handingBack && !_policy.WriteBackLookOnRelease))
 				return;
 
 			float s = _case.LookSens * Math.Max(0.05f, Input.MouseSensitivity);
@@ -829,6 +880,7 @@ namespace LivingWorldNpcs
 			_handingBack = true;
 			_handT = 0f;
 			_handHoldT = 0f;
+			_releaseGraceFrames = 0;
 			_handDur = blendSeconds > 0.05f ? blendSeconds : FollowBlendSeconds;
 			_handFrom = _current;
 			_handTo = _target;
@@ -848,16 +900,26 @@ namespace LivingWorldNpcs
 			}
 
 			// 方向 = 独立状态、逐帧累积（**已经在归还中就不要重置**）。
-			if (!_lookReturning)
+			// 🔴🔴 **2026-10-10 修：`WriteBackLookOnRelease` 这一路【不起 chase】** ——
+			//    原实现无条件 `_lookReturning = true`，后果两条（实机撞到，用户报"落地恢复相机硬转、没有过渡"）：
+			//      ① 滑行期间**鼠标被关死**（tick 的方向分支被 `ChaseEngineLook` 抢走，`ApplyMouseLook` 根本不跑）；
+			//      ② 相机被往"引擎重置后的值"拖 —— 那是 **角色移动方向 + 俯仰 0**，而且 τ 在收尾会收紧到 0.06s
+			//         ⇒ 最后几帧是**猛的**。
+			//    这一路的方向**全程归玩家**：滑行期间照收鼠标，撒手那一刻才把玩家这份写回引擎（见 Stop）。
+			if (!_policy.WriteBackLookOnRelease)
 			{
-				_lookYaw = _handFrom.ArmYaw;
-				_lookPitch = _handFrom.ArmPitch;
-				_lookReturnTau = HandBackLookChaseTau;
-				SampleEngineLookBaseline();
+				if (!_lookReturning)
+				{
+					_lookYaw = _handFrom.ArmYaw;
+					_lookPitch = _handFrom.ArmPitch;
+					_lookReturnTau = HandBackLookChaseTau;
+					SampleEngineLookBaseline();
+				}
+				_lookReturning = true;
 			}
-			_lookReturning = true;
 
 			bool wroteBack = false;
+			bool deferredWrite = false;
 			float yawDelta = 0f, pitchDelta = 0f;
 			bool chaseLook = false;
 			if (_current.IsAnchorWorld)
@@ -866,11 +928,18 @@ namespace LivingWorldNpcs
 				_handTo.IsAnchorWorld = true;
 				_handTo.ArmYaw = _handFrom.ArmYaw;              // 方向交给 ChaseEngineLook，不走 Lerp
 				_handTo.ArmPitch = _handFrom.ArmPitch;
-				if (_policy.WriteBackLook)
+				if (_policy.WriteBackLookOnRelease)
+				{
+					// 🔴 **延后到撒手那一刻再写**（2026-10-10）：引擎的相机重置发生在归还滑行**途中**
+					//    （解冻 → 下一帧把 bearing 重置成移动方向、俯仰清零）⇒ 此刻写会被它打掉。
+					//    滑行期间方向**跟玩家**（鼠标照收），撒手那一刻写当前朝向，见 Stop。
+					deferredWrite = true;
+				}
+				else if (_policy.WriteBackLook)
 				{
 					wroteBack = WriteBackLookToEngine(_handFrom.ArmYaw, _handFrom.ArmPitch);
 				}
-				if (!wroteBack)
+				if (!wroteBack && !deferredWrite)
 				{
 					chaseLook = true;
 					if (CameraLook.TryGetEngineAnglesRaw(out float engYawDeg, out float engPitchDeg))
@@ -885,11 +954,13 @@ namespace LivingWorldNpcs
 			DebugLogger.Log($"[FollowCam] 归还渐变开始：臂长 {_handFrom.ArmLength:F1}→{_handTo.ArmLength:F1} "
 				+ $"fov {_handFrom.Fov:F0}→{_handTo.Fov:F0} "
 				+ $"用时 {_handDur:F2}s "
-				+ (wroteBack
-					? $"方向：已写回引擎（{_handFrom.ArmYaw:F0}/{_handFrom.ArmPitch:F0}°）—— 撒手零旋转"
-					: (chaseLook
-						? $"方向：朝预测重置值走（我们 {_handFrom.ArmYaw:F0}/{_handFrom.ArmPitch:F0}°，此刻引擎差 {yawDelta:F0}/{pitchDelta:F0}°）"
-						: "方向：不渐（非世界锚定）")));
+				+ (deferredWrite
+					? "方向：跟玩家（滑行期间鼠标照收；撒手那一刻把玩家朝向写回引擎）"
+					: (wroteBack
+						? $"方向：已写回引擎（{_handFrom.ArmYaw:F0}/{_handFrom.ArmPitch:F0}°）—— 撒手零旋转"
+						: (chaseLook
+							? $"方向：朝预测重置值走（我们 {_handFrom.ArmYaw:F0}/{_handFrom.ArmPitch:F0}°，此刻引擎差 {yawDelta:F0}/{pitchDelta:F0}°）"
+							: "方向：不渐（非世界锚定）"))));
 		}
 
 		/// <summary>
@@ -904,6 +975,23 @@ namespace LivingWorldNpcs
 				_handingBack = false;
 				_lookReturning = false;
 				return;
+			}
+
+			// 🔴 **撒手那一刻把玩家的朝向写回引擎**（`WriteBackLookOnRelease`；钩索拉拽用）——
+			//    必须写在这里：引擎的相机重置（解冻后下一帧）已经在归还滑行途中发生过了，
+			//    此刻写才不会被它打掉（见 <see cref="CameraReturnPolicy.WriteBackLookOnRelease"/>）。
+			if (_policy.WriteBackLookOnRelease)
+			{
+				bool live = _lookMouse || _lookReturning || _lookExternal;
+				float yaw = live ? _lookYaw : _current.ArmYaw;
+				float pitch = live ? _lookPitch : _current.ArmPitch;
+				_handoffWriteYaw = yaw;
+				_handoffWritePitch = pitch;
+				_handoffWatchLeft = 4;            // 撒手后连采 4 帧（`TickHandoffWatch`，常开、只 4 行）
+				if (!WriteBackLookToEngine(yaw, pitch))
+				{
+					DebugLogger.Log("[FollowCam] ⚠ 撒手写回朝向失败（反射不可用）—— 引擎用它自己那份，镜头可能跳一下");
+				}
 			}
 
 			_active = false;
@@ -955,6 +1043,8 @@ namespace LivingWorldNpcs
 			_engineAtTakeover = default;
 			_blendT = 1f;
 			_handT = 1f;
+			_handHoldT = 0f;
+			_releaseGraceFrames = 0;
 			_useTimeout = false;
 			_remain = 0f;
 			_postReleaseTimer = -1f;
@@ -1360,6 +1450,8 @@ namespace LivingWorldNpcs
 		/// 把"引擎相机撒手后到底停在哪、有没有在动"记录成时间序列。</summary>
 		private void TickPostRelease(float dt)
 		{
+			TickHandoffWatch();
+
 			if (!DebugLogging)
 				return;
 			if (_postReleaseFirst)
@@ -1386,6 +1478,25 @@ namespace LivingWorldNpcs
 					CameraService.LogEngineCamera($"撒手后+{(PostReleaseWatchSeconds - _postReleaseWatchLeft * 0.5f):F1}s");
 				}
 			}
+		}
+
+		/// <summary>
+		/// **交接采样**（2026-10-10 立，**常开**；一次拉拽只写 4 行）——
+		/// 回答"撒手那一刻写进引擎的朝向，引擎真吃到了吗"：撒手后连采 4 帧，把**引擎读数**与
+		/// **我们写回的值**并排打出来。差 ≈0 = 写回生效；差很大 / 逐帧变大 = 引擎那边又把它改掉了
+		/// （那时看差值的方向就知道被改成了什么 —— 十有八九是"角色移动方向、俯仰 0"）。
+		/// </summary>
+		private void TickHandoffWatch()
+		{
+			if (_handoffWatchLeft <= 0)
+				return;
+			_handoffWatchLeft--;
+			if (!CameraLook.TryGetEngineAnglesRaw(out float engYaw, out float engPitch))
+				return;
+			float dYaw = Normalize180(engYaw - _handoffWriteYaw);
+			float dPitch = engPitch - _handoffWritePitch;
+			DebugLogger.Log($"[FollowCam] 交接采样#{4 - _handoffWatchLeft}：引擎读数 {engYaw:F0}/{engPitch:F0}°"
+				+ $" vs 我们写回 {_handoffWriteYaw:F0}/{_handoffWritePitch:F0}°（差 {dYaw:F1}/{dPitch:F1}°）");
 		}
 
 		/// <summary>一行报告**我们的跟随相机**现状（`custom.cam info`）。</summary>

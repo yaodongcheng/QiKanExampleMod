@@ -127,6 +127,10 @@ def main():
     ap.add_argument("--auto-yaw", action="store_true",
                     help="用素材【中位 yaw】自动转正（等价于 --yaw = -中位yaw）；逐片段各自取值，"
                          "批量片段建议改用显式 --yaw 保持朝向一致")
+    ap.add_argument("--mirror", action="store_true",
+                    help="只改根骨(pelvis)位移的指定分量符号（见 --mirror-axis）；不动骨骼旋转")
+    ap.add_argument("--mirror-axis", default=None, help="--mirror 翻转哪个世界分量：x | y | z（默认 y）")
+    ap.add_argument("--sub-clip", default=None, help="--pelvis scaled：以该 clip 为参考系（逐帧减去它的骨盆水平位移）")
     ap.add_argument("--no-trf", action="store_true", help="只要 FBX，不导 TRF（默认两者都产）")
     ap.add_argument("--blender", default=os.environ.get("BLENDER", DEFAULT_BLENDER))
     ap.add_argument("--dry-run", action="store_true", help="只打印命令")
@@ -155,6 +159,12 @@ def main():
         cmd += ["--yaw", str(a.yaw)]
     if a.auto_yaw:
         cmd += ["--auto_yaw", "true"]
+    if a.mirror:
+        cmd += ["--mirror", "true"]
+    if a.mirror_axis:
+        cmd += ["--mirror-axis", a.mirror_axis]
+    if a.sub_clip:
+        cmd += ["--sub-clip", a.sub_clip]
     if a.no_trf:
         cmd += ["--no_trf", "true"]
 

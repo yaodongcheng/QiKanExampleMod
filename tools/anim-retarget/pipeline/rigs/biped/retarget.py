@@ -60,6 +60,9 @@ def parse():
     ap.add_argument("--root_basis", default=None)
     ap.add_argument("--yaw", default=None)
     ap.add_argument("--auto_yaw", default=None)
+    ap.add_argument("--mirror", default="false", help="只改根骨位移的指定分量符号（见 --mirror-axis）；不动骨骼旋转")
+    ap.add_argument("--mirror-axis", default="y", help="--mirror 翻转哪个世界分量：x | y | z（默认 y）")
+    ap.add_argument("--sub-clip", default=None, help="--pelvis scaled：逐帧减去这个 clip 的骨盆【水平】位移（以它为参考系：A相对B = A绝对 − B绝对）")
     ns = ap.parse_args(a)
     if not ns.name: ns.name = ns.clip
     if not ns.outdir: ns.outdir = OUTDIR
@@ -67,6 +70,7 @@ def parse():
     if not ns.animdir: ns.animdir = _d
     if not ns.skeleton: ns.skeleton = _sk
     ns.no_trf = str(ns.no_trf).lower() in ("1", "true", "yes")
+    ns.mirror = str(ns.mirror).lower() in ("1", "true", "yes")
     return ns
 args = parse()
 def log(m): print("[biped] %s" % m, flush=True)
@@ -138,6 +142,14 @@ log("导入目标后 场景 fps 已还原为 %d" % sc.render.fps)
 
 PAIRS = {s: t for s, t in PAIRS.items() if s in sanim.pose.bones and s in srest.pose.bones and t in tgt.data.bones}
 log("有效映射 %d 骨" % len(PAIRS))
+# 镜像（--mirror）：**只改根骨(pelvis)位移**的指定分量符号（默认 y），**不动任何骨骼旋转**。
+# （整骨架旋转镜像会把脚尖/左右手脚翻反 —— 已废。）
+_MIRROR = bool(args.mirror)
+_AXIS = str(getattr(args, "mirror_axis", "y") or "y").lower()
+_axi = {"x": 0, "y": 1, "z": 2}.get(_AXIS, 1)
+_S3 = Matrix.Identity(3)
+_S3[_axi][_axi] = -1.0
+log("镜像 = %s（只翻转根骨位移的 %s 分量）" % (_MIRROR, "xyz"[_axi]))
 F = Euler((0.0, 0.0, math.radians(float(args.flip))), 'XYZ').to_matrix()
 log("帧变换 F = Rot(Z,%s deg)" % args.flip)
 
@@ -330,6 +342,17 @@ elif args.pelvis == "scaled":
     w2a = tgt.matrix_world.inverted()
     log("--pelvis scaled: 源站立骨盆 %.4f / 目标站立骨盆 %.4f -> 缩放 k=%.4f（绝对位置映射）"
         % (src_stand, tgt_stand_w.z, k))
+    # --sub-clip：以另一个 clip（扛人者）为参考系 —— 逐帧减去它的骨盆水平位移。
+    _sub = None
+    if args.sub_clip:
+        _cf = os.path.join(args.animdir, args.sub_clip + ".fbx")
+        if os.path.isfile(_cf):
+            _b4 = set(bpy.data.objects)
+            bpy.ops.import_scene.fbx(filepath=_cf)
+            _sub = next((o for o in bpy.data.objects if o.type == 'ARMATURE' and o not in _b4), None)
+            log("--pelvis scaled：参考系 = %s（逐帧减去它的骨盆【水平】位移）" % args.sub_clip)
+        else:
+            log("!! --sub-clip 找不到 %s" % _cf)
     for _i in range(N_OUT):
         _of = 1 + _i
         _sf = int(round(fs + _i * SRC_STEP))
@@ -337,11 +360,17 @@ elif args.pelvis == "scaled":
         # 绝对映射：源骨盆世界位置 -> 过帧变换 F、按站立高等比缩放。这样"已经抬起来"的
         # 姿态（如被扛着走）也保留抬升量；两人在同一场景的相对站位也一并保留。
         p = (sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation
+        if _sub is not None:
+            _ps = (_sub.matrix_world @ _sub.pose.bones["Bip001 Pelvis"].matrix).translation
+            p = Vector((p.x - _ps.x, p.y - _ps.y, p.z))     # A相对B：水平相减，竖直各自保留
         m = PB.matrix.copy()
-        m.translation = w2a @ ((F @ p) * k)
+        _pw = (F @ p) * k
+        if _MIRROR: _pw = _S3 @ _pw
+        m.translation = w2a @ _pw
         PB.matrix = m; bpy.context.view_layer.update()
         PB.keyframe_insert(data_path="location", frame=_of)
-    log("骨盆位移轨完成（--pelvis scaled：源骨盆位置等比缩放）")
+    log("骨盆位移轨完成（--pelvis scaled%s%s）"
+        % ("，已镜像" if _MIRROR else "", "，参考系=%s" % args.sub_clip if _sub is not None else ""))
 else:
     log("跳过骨盆位移轨（--pelvis %s）" % args.pelvis)
 

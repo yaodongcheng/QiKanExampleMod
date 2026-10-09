@@ -12,7 +12,7 @@ namespace LivingWorldNpcs
 	///
 	/// | 子命令 | 干什么 |
 	/// |---|---|
-	/// | `log &lt;0\|1&gt;` | 诊断日志总开关（**默认 0 = 关**；关着只留生命周期行） |
+	/// | `log &lt;on\|off&gt;` | 诊断日志总开关（**默认 off**；关着只留生命周期行）。`1\|0` 也照收 |
 	/// | `stat` | 立刻采一行"引擎默认相机"到日志（站着不动也能敲） |
 	/// | `info` | 一行报告"我们的相机"现状（在跟 / case / 臂长 / 方向 / 鼠标驱动…） |
 	/// | `test [秒]` | **黄金测试**：原地切到引擎机位 N 秒再自动归还（坐标厘米级一致、画面零变化） |
@@ -23,7 +23,7 @@ namespace LivingWorldNpcs
 	/// | `show [case]` | 打印该行解析出的全部数值 + 行为开关（静态核对用） |
 	/// | `list` | 列出 Camera.csv 里的全部 case |
 	///
-	/// 首参可弃、返回纯英文（项目控制台纪律）。常配套：`log 1` → `play follow_engine 3` → 读日志。
+	/// 首参可弃、返回纯英文（项目控制台纪律）。常配套：`log on` → `play follow_engine 3` → 读日志。
 	/// </summary>
 	internal static class CameraCommands
 	{
@@ -60,15 +60,29 @@ namespace LivingWorldNpcs
 
 				case "log":
 				{
+					// 开关字面量统一 `on|off`（2026-10-10 用户要求）；`1|0|true|false` 仍照收。
+					// 🔴 认不出的值**报错回显**，不许静默回落（旧写法是"非 off 即 on" ⇒ 敲错字也生效）。
 					string v = ArgAt(args, at);
 					if (string.IsNullOrEmpty(v))
 					{
-						return $"cam: debug logging = {(SpringArmRig.DebugLogging ? 1 : 0)} (default 0)";
+						return $"cam: debug logging = {(SpringArmRig.DebugLogging ? "on" : "off")} (default off; usage: log on|off)";
 					}
-					bool on = !(v == "0" || v.Equals("false", StringComparison.OrdinalIgnoreCase)
-					            || v.Equals("off", StringComparison.OrdinalIgnoreCase));
+					string w = v.Trim().ToLowerInvariant();
+					bool on;
+					if (w == "on" || w == "true" || w == "1")
+					{
+						on = true;
+					}
+					else if (w == "off" || w == "false" || w == "0")
+					{
+						on = false;
+					}
+					else
+					{
+						return $"Error: log takes on|off (got '{v}') - current = {(SpringArmRig.DebugLogging ? "on" : "off")}";
+					}
 					SpringArmRig.DebugLogging = on;
-					return $"cam: debug logging = {(on ? 1 : 0)}"
+					return $"cam: debug logging = {(on ? "on" : "off")}"
 						+ (on ? " (per-frame / handoff / post-release diagnostics ON)" : " (diagnostics OFF)");
 				}
 

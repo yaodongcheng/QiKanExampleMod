@@ -19,7 +19,8 @@
           "id": "m230",
           "url": "assets/male.glb"
         }
-      ]
+      ],
+      "freezeRootH": true
     },
     "f233": {
       "label": "233 女 · 被扛（承受方）",
