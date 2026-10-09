@@ -318,7 +318,7 @@ namespace LivingWorldNpcs
 		/// <summary>
 		/// 让网格**躺在地面上**的姿态（放置区域、落点指示圈用）。
 		/// 🔴 约定：这些网格的**平面法线 = 本地 +Y**（`lwn_flight_sigil` 就是这样 ——
-		///   它在 Taikou 的 prefab 里必须补一句 `rotation_euler="1.571,0,0"` 才躺得平）。
+		///   它在 LWN 的 prefab 里必须补一句 `rotation_euler="1.571,0,0"` 才躺得平）。
 		///   所以这里把本地 +Y 对齐世界朝上；水平面内不转（网格自己的朝向即它在世界里的朝向）。
 		/// </summary>
 		public static Mat3 BuildGroundRotation()
@@ -419,7 +419,7 @@ namespace LivingWorldNpcs
 			if (mesh == null)
 			{
 				_meshFailed.Add(name);
-				DebugLogger.Log($"[Spell] 网格 '{name}' 查不到 —— 该法术不画飞行物（检查内容包资产名）");
+				DebugLogger.Log($"[Spell] 网格 '{name}' 查不到 —— 该法术不画飞行物（检查 `lwn_core.tpac` 里的资产名）");
 				return null;
 			}
 			_meshes[name] = mesh;
@@ -605,7 +605,7 @@ namespace LivingWorldNpcs
 			if (id < 0)
 			{
 				DebugLogger.Log($"[Spell] 粒子 '{name}' 查不到 —— 该表现不放粒子"
-					+ "（检查内容包是否把粒子 XML 挂上 project.mbproj 的 soln_particle_systems）");
+					+ "（检查 LivingWorldNpcs 的 project.mbproj 挂了 soln_particle_systems、且 lwn_core.tpac / lwn_yinmo_prt.tpac 已装机）");
 			}
 			return id;
 		}
@@ -629,7 +629,7 @@ namespace LivingWorldNpcs
 			_soundIds[name] = id;
 			if (id < 0)
 			{
-				DebugLogger.Log($"[Spell] 音效 '{name}' 查不到 —— 该档静音（检查内容包 module_sounds.xml）");
+				DebugLogger.Log($"[Spell] 音效 '{name}' 查不到 —— 该档静音（检查 module_sounds.xml）");
 			}
 			return id;
 		}

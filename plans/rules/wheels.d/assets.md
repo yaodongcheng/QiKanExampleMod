@@ -748,7 +748,7 @@ python pipeline/common/check_trf_pos.py <TRF目录或.trf文件...>
 **实测事故（2026-09-24）**：FCS 施法 28 条（09-20 导出）**旋转轨与正确版本逐字相同**、
 位移轨却是绝对语义（首帧 `(0, 0.0202, 0.7895)`）⇒ 查看器里角色**整体悬空约 1m**。
 全目录一扫：`output/trf` 212 条里 **140 条**同病（施法 / sw2 / 处决 / 伏击 / 飞行 `*_B~E*` 套，同为 09-20 窗口），
-09-21 之后的批次与**保留发货的 `*_A*` 套全干净**。该批**赶在发货前抓到**（`TaikouAnim` 里当时没有任何施法 trf），没进游戏。
+09-21 之后的批次与**保留发货的 `*_A*` 套全干净**。该批**赶在发货前抓到**（`LwnAnim` 里当时没有任何施法 trf），没进游戏。
 按本条目批量重出 139 条（第 140 条 `sw2_gunner_p006_alig_abs` 无源 FBX，本就是规范点名的作废件）：
 **125 条干净修好**（首帧 0.79~0.91 → ≈0），**14 条暴露了第二种病**（见下）。
 
@@ -868,8 +868,8 @@ TRF 直读烘焙 `0.893/0.255/0.799` ❌；同一份 GLB 里的 `Executed02`（0
 
 ### 15.7 交付：中转沙箱 → 改名拷进内容包
 
-- **Taikou 依赖太多前置 mod，ModKit 打不开它** ⇒ 必须用一个干净的小模块当中转沙箱（历史：`TifaHead2` / `TaikouAnim`），**沙箱运行时都不加载**。
-- 产物要**改名**拷进 `Taikou\AssetPackages\`（例 `lwn_taikou_anim.tpac`）—— 🔴 **那里有个同名 `pack0.tpac` 是 Taikou 自己的内容，直接覆盖会毁掉它**。
+- **Taikou 依赖太多前置 mod，ModKit 打不开它** ⇒ 必须用一个干净的小模块当中转沙箱（历史：`TifaHead2` / `LwnAnim`），**沙箱运行时都不加载**。
+- 产物要**改名**拷进 `Taikou\AssetPackages\`（例 `lwn_core.tpac`）—— 🔴 **那里有个同名 `pack0.tpac` 是 Taikou 自己的内容，直接覆盖会毁掉它**。
 - 🔴 中转模块的 `ModuleData` **不要挂 soln 行**（正本在 `Taikou\ModuleData`）—— 万一沙箱被勾选，也不会把接线声明两遍。
 
 🔴 **完整手法另立一篇**：[Knowledge/资产中转沙箱模块工作流.md](../../../Knowledge/资产中转沙箱模块工作流.md)（2026-09-19）——
@@ -1357,7 +1357,7 @@ python pipeline/common/trf_compose.py        # 单条：--base/--add/--ref/--out
 实体 空实体 + MetaMesh(decal_mesh) · Scale X/Y=地面米数 · Z=竖直厚度
      🔴 scale 必须写在【子节点】——根节点 transform 会被 Instantiate 的 frame 覆盖
 装机 Publish → 改名搬进 Taikou/AssetPackages → 重启
-验收 custom.spawn_prefab customDecalTest 4   （范本 Modules/Taikou/Prefabs/customDecalTest.xml）
+验收 custom.spawn_prefab customDecalTest 4   （范本 Modules/LivingWorldNpcs/Prefabs/customDecalTest.xml）
 迭代 🔴 ModKit 所见 = 游戏所见 ⇒ 改贴花/材质不用重启
 ```
 + **"又压暗又发光"** ⇒ 两个实体叠两层（`Modulate`+白底 / `AddAlpha`+黑底）

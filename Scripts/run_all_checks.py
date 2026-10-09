@@ -52,8 +52,8 @@ CHECKS = [
     ("check_items_civilian.py", "物品平民装可用性（任何装备都必须 <Flags Civilian=\"true\"/>，2026-09-21 铁律）", False, None),
     ("check_items_mesh_fields.py", "物品网格字段不许留空（mesh 空/缺 = 装备 AV 雷 166 · 箭类 holster_mesh 空 = 背包图标 NRE 雷 168）", False, None),
     ("check_action_wiring.py", "动作名接线：被引用的 act_* 必须在 action_types.xml 声明（漏 = 无效索引 = 拔装备 AV，雷 169）", False, None),
-    ("check_spell_modifiers.py", "修正宝石表：字段必须∈属性表 / 子块与子法术引用存在 / stage·name·数值合法（阶段 5）", False, None),
-    ("check_spell_modifiers.py", "修正宝石表负面测试（12 例坏数据必须抓到 + 正向对照零误报）", False, ["--selftest"]),
+    # 🔴 `check_spell_modifiers.py` 两条已移至「第二遍：LWN 自己」——
+    #    法术表（Spells.xml / Modifiers.xml）2026-10-09 随通用玩法搬进了 LivingWorldNpcs。
     ("test_negative_edges.py", "边台账负面测试（故意造坏数据必须抓到；含非人物行豁免反向验证）", False, None),
     ("test_negative_equip_tables.py", "两张装备表的负面测试（故意造坏必须抓到；含正向对照）", False, None),
     ("test_negative_equip_item_defs.py", "物品定义校验的负面测试（含「可锻造武器/引擎硬编码不许误报」反向验证）", False, None),
@@ -83,6 +83,30 @@ CHECKS = [
     ("tools/sw2-pipeline/check_assembly.py",
      "拼装闸门：三件共用 T 的 露缝弧/单档gap/不穿模/浮片（28 人）",
      False, ["--all"], "blender"),
+]
+
+# 🔴 2026-10-09 新增：**再跑一遍 LWN 自己**。
+#    通用玩法（钩索/飞行/处决/法术/贴花）的数据与资产从 Taikou 内容包搬进了 LivingWorldNpcs，
+#    于是「动作接线 / 物品 / 法术表」这几类检查对 LWN 也成立了 ——
+#    只查内容包 = 通用玩法那半边没有体检。
+#
+#    ⚠️ 这里**只列对 LWN 有意义、且当前应当是绿的**检查。三条被**故意排除**的，理由记在这儿：
+#      · `check_module_registration.py` —— 它查的是「内容包必须自备的整个世界段清单」
+#        （SPCultures / Kingdoms / GameText×9 …）。LWN 是**基座不是内容包**，本来就不该有那些段，
+#        跑它必然 27 条红，纯噪声。
+#      · `check_xml_parse.py` —— 它扫的是**整模块**（含 tools/ 下的离线草稿产物），
+#        LWN 里那些草稿不属于交付面。要查新搬进来的 XML 用 `check_action_wiring` 那条链覆盖。
+#      · `check_language_registration.py` —— 它的「自有键中文覆盖」部分本次已人工核过（缺 0）；
+#        剩下的告警打在 `CNs/std_scn_okehazama.xml` 上 —— 那是**剧本工程的在制品**
+#        （繁体、作者尚未登记进 language_data.xml），不归本次工作调整管，别让 WIP 把这一遍染红。
+LWN_MODULE = str(REPO)
+# (脚本, 自定义参数 or None)
+SECOND_MODULE_CHECKS = [
+    ("check_items_civilian.py", None),      # 钩索/法术物品必须平民装可用（铁律 33）
+    ("check_items_mesh_fields.py", None),   # 网格字段不许留空（雷 166/168）
+    ("check_action_wiring.py", None),       # 44 条通用动作名的三处接线（漏声明 = 拔装备 AV，雷 169）
+    ("check_spell_modifiers.py", None),     # 宝石表（已搬到 LWN/ModuleData/AssetRegistry/Modifiers.xml）
+    ("check_spell_modifiers.py", ["--selftest"]),  # 同上，负面测试（夹具里的手环物品名已同步改成 lwn_spell_seal）
 ]
 
 
@@ -145,6 +169,37 @@ def main():
         print(f"  {mark} {script:38} {note:14} {desc}")
     print(f"\n结果：{len(results) - red} 绿 / {red} 红"
           + ("（红 = 有真问题，逐条看上面的输出）" if red else "（全绿 ✓）"))
+
+    # ── 第二遍：LWN 自己（通用玩法的正本所在；见 SECOND_MODULE_CHECKS 的说明）──
+    lwn_results = []
+    if args.module != LWN_MODULE:
+        print(f"\n{'=' * 78}\n第二遍：LWN 自己（{LWN_MODULE}）\n{'=' * 78}")
+        for script, extra in SECOND_MODULE_CHECKS:
+            path = HERE / script
+            if not path.is_file():
+                lwn_results.append((script, None, "脚本缺失"))
+                continue
+            cmd = [sys.executable, str(path)] + (extra or []) + ["--module", LWN_MODULE]
+            r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            lwn_results.append((script + (" " + " ".join(extra) if extra else ""), r.returncode, ""))
+            if r.returncode != 0:
+                print(f"\n{'=' * 78}\n▼ [LWN] {script}（exit {r.returncode}）\n{'=' * 78}")
+                print("\n".join([l for l in r.stdout.splitlines() if l.strip()][-14:]))
+                if r.stderr.strip():
+                    print("[stderr] " + r.stderr.strip()[:400])
+        red2 = 0
+        for script, code, note in lwn_results:
+            if code is None:
+                mark = "⏭ "
+            elif code == 0:
+                mark = "✅"
+            else:
+                mark = "❌"
+                red2 += 1
+            print(f"  {mark} [LWN] {script:38} {note}")
+        print(f"\nLWN 结果：{len(lwn_results) - red2} 绿 / {red2} 红"
+              + ("（红 = 有真问题，逐条看上面的输出）" if red2 else "（全绿 ✓）"))
+        red += red2
     return 1 if red else 0
 
 

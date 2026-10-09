@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using LivingWorldNpcs.Animation;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -2103,8 +2103,8 @@ namespace LivingWorldNpcs
 			return false;
 		}
 
-		/// <summary>此刻"手上拿着钩索"吗？判据 = `Agent.WieldedWeapon` 是**绳**（`taikou_grapple_rope`）
-		/// **或钩**（`taikou_grapple_hook`，= 弹药那件）。
+		/// <summary>此刻"手上拿着钩索"吗？判据 = `Agent.WieldedWeapon` 是**绳**（`lwn_grapple_rope`）
+		/// **或钩**（`lwn_grapple_hook`，= 弹药那件）。
 		/// 🔴 2026-10-07 实机（"瞄准时钩看不见"）：**瞄准期间引擎把 `WieldedWeapon` 报成那支**（弹药），
 		///   只判本体 ⇒ 一瞄准钩就被收掉（拔刀那一瞬还在，日志可证）。两件都认即可。
 		/// 换到别的武器（刀/弓）时两件都不匹配 ⇒ 正常收掉 ✓。</summary>
@@ -2130,7 +2130,7 @@ namespace LivingWorldNpcs
 		/// <summary>绳的**近端**锚点 = **右手**（= 开火/出手点，与 <see cref="GetHand"/> 同一套**已被实机验证**的读法）。
 		/// 🔴 2026-10-07 事故记录（别再照抄那条路）：我一度把它改成"左手的环"（读 `Monster.OffHandItemBoneIndex`
 		///    + `GetBoneEntitialFrame`）—— 那是**本项目第一次**读左手骨，结果**拔刀后第一帧就 AccessViolation**
-		///    （栈顶 = 托管→本机转换、崩在 `MissionState.TickMission` 里；引擎日志最后一行 = `Render Requested: taikou_grapple_hook`）。
+		///    （栈顶 = 托管→本机转换、崩在 `MissionState.TickMission` 里；引擎日志最后一行 = `Render Requested: lwn_grapple_hook`）。
 		///    ⇒ 恢复成右手（已验证）；"绳系在左手环上"那条观感**等有稳妥的左手骨读法再说**（要动就得先单独验证那个 API）。
 		/// 画面口径：绳从**右手**（捏绳那只手）连到钩 —— 左手的环是独立道具，不参与绳的锚点。</summary>
 		private Vec3 GetRopeAnchor()

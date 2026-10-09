@@ -64,7 +64,7 @@ namespace LivingWorldNpcs
 		//    Flags.allow_head_movement），已在编辑器修好并发布（计划 §A4）—— 不是引擎不认我们的动作。
 		// 回退：`FlightTuning.CastOnUpperChannel = false` ⇒ 改由飞行状态机走通道 0 播全身施法姿势。
 
-		/// <summary>蓄力循环动作名（与内容包 `action_types.xml` 的声明一致；词根跟着 clip `magic_idle`）。</summary>
+		/// <summary>蓄力循环动作名（与本模块 `ModuleData/action_types.xml` 的声明一致；词根跟着 clip `magic_idle`）。</summary>
 		private const string ActMagicIdle = "act_magic_idle";
 
 		/// <summary>释放动作名（同上；clip = `magic_projectile_spell`）。</summary>

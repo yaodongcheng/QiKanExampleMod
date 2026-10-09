@@ -258,7 +258,7 @@ python Debug\offline\trf_root_travel.py --trf "<xxx.trf>"
 
 | 产物 | 说明 |
 |---|---|
-| `Taikou\AssetPackages\lwn_taikou_anim.tpac` | 含 clip `execution02`（`displacement = (0.2462, 3.6734, 0)`、`endProgress = 0.4`、flag `displace_position`）· 配套受击侧 clip `executed02`（`(0.63, 1.04, 0)`、`endProgress 0.7`、时长 4.2 s）|
+| `LivingWorldNpcs\AssetPackages\lwn_core.tpac` | 含 clip `execution02`（`displacement = (0.2462, 3.6734, 0)`、`endProgress = 0.4`、flag `displace_position`）· 配套受击侧 clip `executed02`（`(0.63, 1.04, 0)`、`endProgress 0.7`、时长 4.2 s）|
 | `Taikou\ModuleData\action_types.xml` / `action_sets.xml` | 声明动作 `act_execution02` 并绑到 clip（`animation="execution02"`）· 受击侧 `act_executed02` → `executed02`（**2026-09-22 改名**：动作名去掉 `_root` 后缀 —— 动作名只说"演什么"，"带不带位移"是 clip 自己的事）|
 | 备用包 | `Debug\offline\anim_pack_backup\` 两份（ModKit 原产版 / 更早一版）|
 
@@ -295,7 +295,7 @@ ModKit 填值：`Source 1 = 2` / `Source 2 = 102` / **`Duration = 3.367`（秒�
 
 > 两条 clip 的 `displace_position` flag 都要勾；**两边档位要配套**（攻击方 Root 3.68 m + 受击方 Root 1.22 m）。
 > **资源落位（2026-09-22）**：两个 Root 版已放进 Kit 的资产源目录
-> `Modules/TaikouAnim/AssetSources/Execute/ue_GhostSamurai_Execution02__Root.trf` 与 `…/ue_GhostSamurai_Executed02__Root.trf`
+> `Modules/LwnAnim/AssetSources/Execute/ue_GhostSamurai_Execution02__Root.trf` 与 `…/ue_GhostSamurai_Executed02__Root.trf`
 > （原地版 `…__Inplace.trf` 仍留在同目录，两档并存、按需挂）。
 > 攻击方 Root 的重新导出版（改名 `ue_GhostSamurai_Execution02__Root`）与装机验证过的 `gs_execution02_root.trf`
 > **只差第 3 行的资源名**，其余 2962 行逐字节相同 ⇒ 位移/旋转数据与实机验证过的完全一致。
@@ -315,8 +315,8 @@ ModKit 填值：`Source 1 = 2` / `Source 2 = 102` / **`Duration = 3.367`（秒�
 **要做的事**（值已定稿、实机验证过，**不需要再调**）：
 
 1. Kit 里给 `execution_02` 的 `displacement` 填 `X = 0.2462` / `Y = 3.6734` / `Z = 0` / `endProgress = 0.4`
-2. 保存 → Publish（目标 `Modules\Publish\TaikouAnim`）
-3. 产物**改名**拷进 `Taikou\AssetPackages\lwn_taikou_anim.tpac`（🔴 绝不能叫 `pack0.tpac`，同名会覆盖内容包自己的 299 MB 包）
+2. 保存 → Publish（目标 `Modules\Publish\LwnAnim`）
+3. 产物**改名**拷进 `LivingWorldNpcs\AssetPackages\lwn_core.tpac`（🔴 绝不能叫 `pack0.tpac`，同名会覆盖内容包自己的 299 MB 包）
 
 **分工约定（2026-09-20 拟定，⚠️ 用户尚未正式裁定 —— 别当既定规则引用）**：
 **调参阶段由 Claude 离线手填**（一轮几秒、不用开编辑器）；**值定稿后必须由用户在 Kit 回填**（回到源头，否则下次 Publish 必丢）。

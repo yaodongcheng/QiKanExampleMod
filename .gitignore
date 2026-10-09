@@ -122,6 +122,22 @@ ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
 music/
 ModuleSounds/
 
+# ── 模块资产包 AssetPackages/（*.tpac：通用玩法的动画 / 网格 / 材质 / 粒子）──
+#   🔴 不进库（2026-10-09 用户裁定）。理由三条：
+#     ① **它是构建产物，不是源** —— 由 `Modules/LwnAnim/` 那个 ModKit 编辑器工程编出来。
+#        改资产的正道 = 改工程 → 重编 → 覆盖包；入库等于把产物当源。
+#     ② **迭代频繁 + 增量压缩无效** —— 单包 11.8MB，tpac 是已压缩二进制（git 的 delta 对它
+#        几乎不起作用）。钩索那两周就出了 60+ 个 .bak ⇒ 每次重编都提交，.git 按 11.8MB × N 长。
+#        （注意：⚠️ **不改动时重复提交是零成本** —— git 按内容哈希存 blob，同一个文件就是同一个
+#          对象。怕的是"每次重编都提交"，不是"每次提交都重存"。）
+#     ③ **同类先例** —— Taikou 仓库的 .gitignore 第一行就是「AssetSources / Assets / GUI … 一律
+#        不进库」，它那个 314MB 的 pack0.tpac 同样没入库。
+#   ⚠️ 已知代价：LwnAnim 沙箱**不在任何 git 仓库里** ⇒ 这是资产的唯一一份，要备份得单独拷
+#      （或将来上 Git LFS）。改这条规则前先想清楚备份怎么办。
+#   🔴 只是**不进 git**，不影响发布 —— package_mod.py 从磁盘读，照样打进 release zip；
+#      仓库里跟它配套的**源**（Prefabs/ 的 30 个 XML、ModuleData/ 的接线与物品表）照常入库。
+AssetPackages/
+
 # ── 参考素材与研究工作区（太阁5 图片素材、地图研究中间产物，不入库）──
 refs_koei/
 

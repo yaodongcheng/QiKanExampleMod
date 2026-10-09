@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 钩索（2026-10-01 立）—— **绳 + 钩**一对物品（2026-10-08 改名定稿）。
+     方案 = LivingWorldNpcs 的 plans\钩索-实施计划.md §3.0（起手）/ §3.3 复用件对照表。
+     三单元架构：物品与逻辑**都在 LWN 本体**（本文件 + Combat\Grapple*.cs）。
+     🔴 2026-10-09 搬家：从 Taikou 内容包挪进本模块（`ModuleData/items/`），
+        物品 id 由 `taikou_grapple_*` 改为 `lwn_grapple_*`，并去掉了 `culture="Culture.ikoku"`
+        （通用件不能依赖内容包的文化）。挂件槽见 `ModuleData/item_holsters.xml`。
+
+     🔴 两件是什么（2026-10-08 用户裁定："钩子才是本体，名字应该反过来"）：
+        · **`lwn_grapple_rope`（Type=Bow）= 绳**：你握着的那件，模具挂**左手**。
+          ⇒ 左手盘着绳 = 所见即所得（也是它在背包/装备界面的 2D 图标）。
+        · **`lwn_grapple_hook`（Type=Arrows）= 钩**：飞出去勾住东西的**本体**，占弹药槽。
+          ⇒ 它的 2D 图标由 LWN 的 tableau 补丁画成钩（见下"图标"条），**实机手上不显示它**
+          （手里那枚钩是 LWN 的运行时实体，要能绕小臂转，见下"网格"条）。
+
+     🔴 起手链路（为什么是"弓 + 箭"）：
+        装备（**准星自动出现 —— 引擎自带，远程武器通用件，零 UI 代码**）
+        → **按住左键** = 拉弓（原生瞄准姿态；⚠️ 2026-10-04 实机更正：弓系瞄准是**左键**）→ 松手 = 开火
+        → 引擎回调 `Mission.OnAgentShootMissile` → LWN 拦截补丁判"弹药是钩"→ `return false`
+        （**真的没有导弹被建出来**）→ 改发我们自己的钩头实体 + 绳子。**准星/瞄准/射击动画全部白拿。**
+        拦不到（补丁关了）→ 引擎照常发一颗真箭（`flying_mesh` 那件），不会崩。
+
+     🔴 钩要"永远不用管"：LWN 在拦截后**立刻把弹药退还**（幂等：补到"应该有 1 个"）⇒
+        玩家永远只有 1 个钩、永远打不完 —— 体验上就是"不需要箭"。
+        （借的是引擎现成枚举 `Arrow`；所以拦截判据写的是"**弹药是钩**"，与武器无关。）
+
+     🔴 网格策略（2026-10-08 定稿，用户要求"必须有绕小臂旋转"）：
+        · **绳（本文件第一件）`mesh = lwn_grapple_rope`** —— 新造的一盘绳（`tools/grapple-model/scripts/build_rope.py`，
+          经 ModKit 导入）。弓类武器网格挂**左手** ⇒ 左手盘绳 ✓；它的 2D 图标也走 `mesh` ⇒ 图标=绳 ✓。
+        · **钩（第二件）`mesh = holster_mesh = lwn_proxy_invisible`**（1.2 cm 代理）—— **实机两处都隐形**：
+          手里那枚钩是 LWN 的**运行时实体**（`Combat/GrappleHook.cs`），能绕小臂转、朝向可调；
+          引擎挂的网格做不到这两点（钉在骨上）⇒ 物品网格必须隐形，**否则同框两个钩**。
+        · **钩的 2D 图标**（箭类物品的图标取 `holster_mesh`）由 LWN 的 **tableau 补丁**画成真钩
+          （`Combat/GrappleIconPatch.cs`：只在"画图标/预览"那条链上换网格，真 mission 一律不碰）——
+          这样"背包里看得见钩"和"实机手里不出现第二枚钩"同时成立。开关 `custom.grapple iconhook 0|1`。
+        · **绳不需要额外网格**：你看见的那条甩动的绳是 LWN 的**动态 verlet 绳**（近端 = 左手那盘绳）。
+        · ⚠️ **待办（未做）**：发射后引擎扣掉这枚弹药、拦截补丁立刻退还 ⇒ 引擎马上又搭一枚
+          ⇒ **飞行期间"手里 + 空中"同框两个钩**。修法 = 把退还时机从"开火时"挪到"收钩时"。
+        · `flying_mesh = lwn_grapple_hook` = **兜底**：拦截补丁关掉时真飞出去的那件也长得像钩
+          （与运行时实体的网格同一件）。
+        · 显示名 = `GrappleRope` / `GrappleHook`（**英文 fallback**）；**中文层 = 「钩索绳 / 钩爪」**
+          （2026-10-08 用户裁定：中文层必须写中文，废止此前「中英同串 ASCII」的图省事做法）。
+          控制台取物品走 StringId（`custom.grapple equip` 就是）；原版 `campaign.add_item_to_main_party`
+          按显示名查、参数组之间用**竖线 `|`** 分隔 —— 中文客户端敲中文名。
+        · 两件都 `is_merchandise="false"`：探针期不进商人不掉落，用 `custom.grapple equip` 发。
+
+     🔴 两件都带 `<Flags Civilian="true" />`（CLAUDE.md 铁律 33：**任何装备都要平民装可用**）。
+     🔴 任何网格字段都不许写空串（雷 166 `mesh=""` 装备 AV / 雷 168 箭类 `holster_mesh=""` 图标 NRE）。 -->
+<Items>
+	<!-- 绳（钩索本体 = 你握着的那件）：用法组 = 自家 `grapple_rope`（2026-10-08 改名；此前叫 `grapple_hook`）。
+	     🔴 为什么必须挂自家组：待机 / 走跑这类"武器侧"槽位只写在武器的用法组里（弹药的组只有
+	        `<idles>` + `<usages>` 两段、没有 movement_sets），挂原版 `bow` = 什么都改不了
+	        （Native 的 bow 组是所有弓共用的）。自家组 = 逐字抄 bow 只改 id。
+	     2026-10-07 两轮试跑的结论（详见 plans/钩索-实施计划.md §十一 E）：
+	       · **站姿的真身 = 移动组的 `idle` 字段**，不是用法组的 `<idles>`（第一轮改了没用）⇒
+	         本组的 `<movement_sets>` 指向自家 `<full_movement_set id="grapple">`
+	         （= ModuleData/movement_sets.xml + full_movement_sets.xml）。
+	       · 用法组的 `<idles>` 也一并换成 `act_grapple_idle`（对列队/AI 等场合可能有用，对玩家无害）。
+	       · **拔/收那一下**不在用法组里 —— 由本物品下面的 `item_holsters` 决定：已换成自家四个槽
+	         （`lwn_grapple_*`，定义见 ModuleData/item_holsters.xml）。
+	     弓的"拉弓/持械/放箭"仍挂在**钩**的用法组（`grapple_hook`）上，与本组无关。
+	     回退（三处）：本行改回 `bow` + 用法组 `<movement_set id>` 改回 `bow` + item_holsters 改回 bow_hip 一族。
+	     逐字照本包 `hunting_bow` 改写，只动：id / name / 网格 / is_merchandise / 伤害数值。
+	     伤害填 1：正常路径下引擎**根本不会发这颗弹**（被拦截），数值只是补丁关掉时的兜底。 -->
+	<Item
+		id="lwn_grapple_rope"
+		name="{=LWN_grapple_rope}GrappleRope"
+		is_merchandise="false"
+		body_name="bo_composite_shotbow_h"
+		mesh="lwn_grapple_rope"
+		weight="0.6"
+		difficulty="0"
+		appearance="1"
+		Type="Bow"
+		item_holsters="lwn_grapple_hip:lwn_grapple_hip_2">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Bow"
+				ammo_class="Arrow"
+				ammo_limit="1"
+				thrust_speed="75"
+				speed_rating="87"
+				missile_speed="64"
+				weapon_length="110"
+				accuracy="85"
+				thrust_damage="1"
+				thrust_damage_type="Pierce"
+				item_usage="grapple_rope"
+				physics_material="wood_weapon"
+				center_of_mass="0.1,0,-0.15"
+				modifier_group="bow">
+				<WeaponFlags
+					RangedWeapon="true"
+					HasString="true"
+					StringHeldByHand="true"
+					NotUsableWithOneHand="true"
+					TwoHandIdleOnMount="true"
+					AutoReload="true"
+					UnloadWhenSheathed="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			ForceAttachOffHandPrimaryItemBone="true"
+			Civilian="true" />
+	</Item>
+	<!-- 钩（钩索的**本体**，占弹药槽；飞出去勾住东西的就是它）：只随钩索一起发，不给商人、不进掉落。
+	     🔴 `stack_amount` **必须 > 1**（2026-10-03 实机 + 反编译实锤）：HUD 右下角的子弹数走
+	        `MissionEquipment.GetAmmoAmount()`，它累加弹药槽时有个条件 **`ModifiedMaxAmount > 1`** ——
+	        `stack_amount="1"` 的弹**永远不计数** ⇒ 弹袋里有弹、也能射出去，**但 HUD 显示 0**
+	        （一模一样的原因让"退还弹药"看起来也没生效）。
+	     ⟹ 这里写 20（只是"上限"）：**实际数量由 LWN 侧钉死在 1**，
+	        `custom.grapple equip` 装填时设 1、每次开火拦截后幂等补回 1 ⇒ 玩家体验仍是"永远 1 发、打不完"。
+	     🔴 `holster_mesh` **绝不能写空串**（2026-10-08 实机崩因，雷 168）：
+	        箭类物品（Type=Arrows/Bolts）的**背包图标**取的就是 `holster_mesh` —— 反编译
+	        `ItemCollectionElementViewExtensions.GetItemMeshForInventory`：这两种类型直接返回
+	        `GetHolsterMeshCopy()`，而空串被 `string.IsNullOrEmpty` 拦下 ⇒ 返回 **null** 网格 ⇒
+	        `TableauCacheManager.AddItem` 里 `itemMeshForInventory == null` 的那条分支只打一句
+	        warning（发布版无声），随后仍执行 `val.SetVisibilityExcludeParents(false)` ⇒ **NRE**。
+	        症状 = **进背包 / 装备界面搜到这件物品就崩**（图标懒加载，不搜到不崩）。
+	        ⇒ 用 1.2 cm 代理件（与 `mesh` 同款做法），**不许写空串**
+	        —— 雷 166（`mesh=""` 装备时 AccessViolation）的同一族：引擎要求网格字段**非空**。
+	     🔴 图标不靠本字段：本件 `holster_mesh` 是**真钩**（2026-10-08 用户改口径："钩爪的模型
+	        可以和钩锁绳放在一起" ⇒ 让它在**人物预览/身上**也现身），背包图标同样走它
+	        （箭类取 `holster_mesh`）+ LWN 的 tableau 补丁做**居中放大**（`Combat/GrappleIconPatch.cs`）。
+	     🔴 `holster_mesh_with_weapon` **也用真钩**（同一口径）：这一格是**弓和弹同时收起来**时挂在身上的那件
+	        —— 原版箭矢写的是箭袋网格（`arrow_bl_a_quiver`），照抄时最容易只改一格 ⇒ 预览里冒出一个原版箭袋。
+	     🔴 **挂点排第二个髋位组**：绳（Bow）占 `bow_hip_1`（= `lwn_grapple_hip`）⇒ 钩若也排第一个
+	        会**抢同一个组 / 完全重叠**，所以钩把 `lwn_grapple_hip_2`（组 `bow_hip_2`，腹侧另一边）排在最前，
+	        后面几个照旧当兜底 —— 一左一右都在腰上，互不打架。
+	     🔴 `mesh` **仍是 1.2 cm 代理**（这一格是"拿在手里"的那件：手里那枚钩是 LWN 的运行时实体，能绕小臂转、
+	        朝向可调；引擎挂在手上的网格做不到 ⇒ 必须隐形，否则同框两个钩）。
+	     `flying_mesh` = 补丁关掉时真飞出去的那件（与运行时实体同一件网格，一眼能认出是谁的弹）。 -->
+	<Item
+		id="lwn_grapple_hook"
+		name="{=LWN_grapple_hook}GrappleHook"
+		is_merchandise="false"
+		body_name="bo_capsule_arrow"
+		holster_body_name="bo_axe_short"
+		mesh="lwn_proxy_invisible"
+		flying_mesh="lwn_grapple_hook"
+		holster_mesh="lwn_grapple_hook"
+		holster_mesh_with_weapon="lwn_grapple_hook"
+		weight="0.05"
+		appearance="1"
+		Type="Arrows"
+		item_holsters="lwn_grapple_hook_hip:lwn_grapple_hip_2"
+		holster_position_shift="0.0,0.0,0.0">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Arrow"
+				stack_amount="20"
+				thrust_speed="0"
+				speed_rating="0"
+				physics_material="missile"
+				missile_speed="10"
+				weapon_length="97"
+				thrust_damage="1"
+				thrust_damage_type="Pierce"
+				item_usage="grapple_hook"
+				passby_sound_code="event:/mission/combat/missile/passby"
+				rotation="0, -80, 25"
+				sticking_position="0,-0.97,0"
+				sticking_rotation="90,0,0"
+				center_of_mass="-0.00,0.05,-0.00"
+				modifier_group="arrow">
+				<WeaponFlags
+					Consumable="true"
+					AmmoSticksWhenShot="true"
+					AmmoBreaksOnBounceBack="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			Civilian="true" />
+	</Item>
+</Items>

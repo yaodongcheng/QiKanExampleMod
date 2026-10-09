@@ -23,7 +23,7 @@ namespace LivingWorldNpcs.Animation
         public string Name;
 
         /// <summary>
-        /// 引擎动作名（写在内容包的 `action_types.xml` / `action_sets.xml` 里）。
+        /// 引擎动作名（写在 `ModuleData/action_types.xml` / `action_sets.xml` 里）。
         /// **空串 = 这个状态还没接**：状态机会跳过它（等价于"没有这条转移"），
         /// 所以条件里不用写"如果导了就……"。
         /// </summary>
@@ -309,7 +309,7 @@ namespace LivingWorldNpcs.Animation
     /// </summary>
     public sealed class AnimFxPoint
     {
-        /// <summary>粒子系统名（内容包发布包里注册的那个）。</summary>
+        /// <summary>粒子系统名（装机资产包里注册的那个：lwn_core.tpac / lwn_yinmo_prt.tpac）。</summary>
         public string Particle;
 
         /// <summary>

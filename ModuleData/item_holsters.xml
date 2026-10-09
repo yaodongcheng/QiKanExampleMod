@@ -1,0 +1,79 @@
+<!-- 钩索的挂件槽（拔/收那一下演什么 + 挂在身上哪个位置）。
+
+     🔴 2026-10-09 从 Taikou 内容包搬来（通用玩法归 LWN）。同日改名：
+        taikou_grapple_hip / _hip_2 / taikou_grapple_hook_hip → lwn_grapple_hip / _hip_2 / lwn_grapple_hook_hip。
+        同批的火器槽（taikou_firearm / _2）留在 Taikou 的 item_holsters.xml 里。
+
+     【为什么需要新槽】拔/收钩索那一下原来演的是弓的动作（物品的 item_holsters 指 bow_hip 一族），
+     现在换成自家动作。三个新槽**逐字照抄**原版 bow_hip / bow_hip_2 的几何参数
+     （holster_skeleton / base_set / group_name / 位置 / 旋转全部原样）—— 挂的位置和原来一模一样，
+     只有"拔/收那一下演什么"变了：
+       · equip   → act_grapple_equip   （动画 = 我们的 起手 那条 clip）
+       · unequip → act_grapple_unequip （动画 = 我们的 收手 那条 clip）
+     ⚠️ **两处缺一不可**：物品侧（ModuleData/items/grapple.xml）的 item_holsters 也必须写这三个新 id，
+        否则照旧走弓的槽、拔枪动作不变。
+     ⚠️ left_stance 两条也指同一条自家动作 —— 本物品 has_single_stance="true"，这条路径永不触发，
+        指过来只为字段完整（照原版每个槽四个字段都填的惯例）。
+
+     🔴 【加载方式 —— 本文件生效的唯一理由】
+     item_holsters 属 project.mbproj 的 soln 体系（`soln_item_holsters`），
+     **不在 SubModule 的 XmlNode 体系里**：光有这个文件不生效，必须同时在
+     ModuleData/project.mbproj 里挂一行。引擎侧合并函数 =
+     `MBObjectManager.GetMergedXmlForNative("soln_item_holsters")`
+     （TaleWorlds.MountAndBlade.CreateProcessedItemHolstersXMLForNative），
+     它把**所有模块**注册到该 soln id 下的文件合并后原样交给 native。
+     回退方法：删掉 mbproj 那一行即可（本文件留着不生效，无害）。
+
+     🔴 【为什么用新 id，不直接写 bow_hip_1】合并机制**没有** action_sets 那样的同名去重，原样直送
+     native，所以新 id 是硬要求（同名会和所有原版弓抢槽）。
+
+     ⚠️ 注释一律留在 <base> 之外：引擎会「盲读子节点」，节点列表里夹注释 = 反序列化炸
+     （2026-09-10 雷 52 同款，clan_names 里一条注释崩过整个文化段）。 -->
+<base>
+	<item_holsters>
+		<item_holster id="lwn_grapple_hip"
+					  equip_action="act_grapple_equip"
+					  equip_action_left_stance="act_grapple_equip"
+					  unequip_action="act_grapple_unequip"
+					  unequip_action_left_stance="act_grapple_unequip"
+					  show_holster_when_drawn="true"
+					  group_name="bow_hip_1"
+					  holster_skeleton="holster_skeleton_hip_left"
+					  base_set="abdomen"
+					  holster_position="0.07, 0.09, 0.25"
+					  holster_rotation_yaw_pitch_roll="-69.95, 54.63, 29.43" />
+		<item_holster id="lwn_grapple_hip_2"
+					  equip_action="act_grapple_equip"
+					  equip_action_left_stance="act_grapple_equip"
+					  unequip_action="act_grapple_unequip"
+					  unequip_action_left_stance="act_grapple_unequip"
+					  show_holster_when_drawn="true"
+					  group_name="bow_hip_2"
+					  holster_skeleton="holster_skeleton"
+					  base_set="abdomen_right"
+					  holster_position="0.08, 0.12, -0.25"
+					  holster_rotation_yaw_pitch_roll="-69.61, -121.76, -147.21" />
+		<!-- hooks 专用髋位槽（2026-10-08 立）—— 几何照抄 `lwn_grapple_hip`（挂的位置跟绳一样），
+		     只两处不同：① `group_name` 独立（`grapple_hook_hip`；**共用组会抢位**）
+		     ② 旋转 = **`0, 0, 70`**（钩自己的口径，不再借弓的）。
+		     🔴 **三个分量各干什么 —— 用户 2026-10-08 亲自逐个试出来的（这是权威口径，别再改回去）**：
+		        · **pitch** = 绕**钩自身长轴**自旋（只让爪子转圈，杆的朝向不变）
+		        · **yaw**  = **水平转**（在水平面里甩，杆不会竖起来）
+		        · **roll** = ✅ **垂直倾斜**（唯一能把杆从"平"转到"垂"的）
+		     🔴 **标定锚点**：`0, 0, 0` 时**爪朝正前方（水平）** ⇒ 从这个基准起
+		        `roll = 90` 是**正下**，实测 **90° 看着不自然（太僵），70° 才是顺眼的下垂角** ⇒ 现在用 70。
+		     ⇒ 想让钩再往下一点/往上一点：**只改最后一个数（roll）**，±5 一档试。
+		     ⚠️ 别再用 `-69.95, 54.63, 29.43`（那是**弓**的旋转，钩的长轴与弓不同 ⇒ 会横着/扎肚子）。 -->
+		<item_holster id="lwn_grapple_hook_hip"
+					  equip_action="act_grapple_equip"
+					  equip_action_left_stance="act_grapple_equip"
+					  unequip_action="act_grapple_unequip"
+					  unequip_action_left_stance="act_grapple_unequip"
+					  show_holster_when_drawn="true"
+					  group_name="grapple_hook_hip"
+					  holster_skeleton="holster_skeleton_hip_left"
+					  base_set="abdomen"
+					  holster_position="0.07, 0.09, 0.25"
+					  holster_rotation_yaw_pitch_roll="0, 0, 70" />
+	</item_holsters>
+</base>

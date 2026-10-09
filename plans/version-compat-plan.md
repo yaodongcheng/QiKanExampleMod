@@ -15,7 +15,7 @@
 | **1.4.8 编译验证（2026-09-23）** | ✅ | `dotnet build -c Debug` 0 errors —— **四档全绿**（1.2.12 / 1.3.15 / 1.4.8 / 1.5.x） |
 | **Harmony 补丁目标全量核查（2026-09-23）** | ✅ | 1.3.15 一开局就崩在 `PatchAll`（目标被 1.3.0 删掉）→ 新增 `Debug/offline/_check_harmony_targets.ps1`（扫**编译产物** + 四档对比 + 负面测试）；三个 1.2.12-only 守卫整类 `#if` 圈掉；挂载改**逐类**（单类失败不再掐断其余） |
 | **1.3.15 / 1.4.8 实机验证（2026-09-23）** | ✅ | 修完「内容包专属补丁越界」（必备清单雷 156）+ 上面那些之后，**纯功能包模式可正常建号进游戏**（1.3.15 与 1.4.8 均实测通过） |
-| **Taikou 联接到 1.3.15 / 1.4.8（2026-09-23）** | ✅ | `set_junction.py` 改**表驱动**（并补上原先漏掉的 1.4.8）；`Taikou / TaikouAnim / Shokuho_CNs / LivingWorldNpcs` × 三客户端 = **12 格全 `[OK]`**。⚠️ 联接只是让模块可见，**要不要加载由启动器勾选决定** |
+| **Taikou 联接到 1.3.15 / 1.4.8（2026-09-23）** | ✅ | `set_junction.py` 改**表驱动**（并补上原先漏掉的 1.4.8）；`Taikou / LwnAnim / Shokuho_CNs / LivingWorldNpcs` × 三客户端 = **12 格全 `[OK]`**。⚠️ 联接只是让模块可见，**要不要加载由启动器勾选决定** |
 | **战役模式移植到 1.3.x+（2026-09-23）** | ✅ | 三处 `#else` 空壳补成真实现（`LivingWorldCampaign` 出生点置位 / `LivingWorldCampaignGameManager.OnLoadFinished` / `LivingWorldCharacterCreationContent` 的 1.3.x 形态）。1.3.15 编译 0 错 0 警；1.4.8 与 1.5.2 逐成员签名核对一致。**1.2.12 分支一行未动**。差异清单见下方「1.3.0 变更」表（新增 `MobileParty.Position2D` 一行）；接入点全貌见必备清单 ⑧；移植中撞出的新雷 = 必备清单 160~163。**实机验证待做** |
 | csproj 累积阈值宏 | ✅ | v1.3.x → `MB2_V1212`+`MB2_GE_130` 自动侦测，无需改动 |
 | VersionCompat.cs 注册表注释 | ✅ | CommissionHubIssue 行更新为三分支说明 |

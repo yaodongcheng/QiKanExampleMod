@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 法术表 —— Taikou 填值，LWN 侧 SpellRegistry / SpellPieces 读取（照 FirearmFx.xml 的放法，C# 直接读盘）
+     代码侧契约（字段含义、四段模型、三条接口契约）见 LWN 的 Combat/SpellDef.cs 头注释；
+     方案见 plans/法术体系-通用施法框架.md。
+
+     🔴 **法术的身份 = 它用哪个弹药物品**（ammo = 物品 StringId，铁律 20）——不是法术名、不是网格名。
+        所以：装备了「法印 + 这个弹药」开火 = 放这个法术；认不出的弹药 = 一行都不多做，引擎照常发它的导弹。
+     🔴 **一个法术 = 一个弹药 = 一个视觉**：禁止两行 <Spell> 共用同一个 ammo（改一行会静默影响另一行）。
+     🔴 **id 命名规约（计划 §2.4）：族名当前缀** —— projectile_yinmo_zhan 一眼看出是投射族，
+        也防止把 A 族的字段填进 B 族。
+
+     四段（每段都可换实现，加新形态 = 在某一段加一个实现，其余三段不动）：
+       起手 cast_type   谁/什么时候/什么姿势放出去（normal 有前摇 / channel 按住持续 / instant 瞬发）
+                        ⚠️ 阶段 1 走引擎的弩流程当脚手架（开火即出手），本字段与 release_at/end_at 先留位
+       瞄准 targeting   法术往哪去（aim = 准星直视）
+       投送 delivery    从施法者到落点怎么过去（projectile = 直线飞行，自管实体）
+       结算 payloads    到了之后发生什么（damage = 单体伤害 / area = 半径伤害；可多个，逗号分隔）
+
+     🔴 **族（family）= 四段常用组合的预设**：不写 targeting/delivery/payloads 就吃族的默认值，写了就是覆盖。
+        内建族见 SpellRegistry.RegisterBuiltInFamilies()（projectile / channel / skyfall / place / move /
+        rune / buff / heal / summon / morph / teleport，世界观无关）。
+        要加自己的族，本文件加一行即可（后加载覆盖先加载）：
+        <Family id="投射" targeting="aim" delivery="projectile" payloads="damage,area" />
+        ⚠️ 族认不出 = **整个法术不加载**（记日志、不崩）——这是数据填错的兜底，不是"退回引擎导弹"。
+
+     🔴 **area（半径伤害）不重复打"直接被命中的那位"**：单体伤害归 damage 管。
+        否则 damage=60 + radius=3.5 会让被打中的人吃两份伤害（80/20 的配表直觉会错）。
+        ⇒ 只写 area 不写 damage = 打中的人不掉血、周围的人掉血（这是刻意的分工，不是 bug）。
+
+     数值全部可调（这是"自管实体"路线白赚的；旧路线寿命/朝向/爆炸半径全写死在引擎里）：
+       speed 初速 · gravity 重力(0=平飞) · max_distance/max_lifetime 寿命(先到先算)
+       hit_radius 命中半径(喂给引擎射线的粗细 = 连续碰撞) · pierce 最多命中几个目标(1=打中一个就消失)
+       radius/radius_falloff 半径伤害与边缘衰减(边缘保留 1-falloff)
+
+     ⚠️ **字段现在全是活的**（阶段 1~4 已全部落地，2026-09-23）：
+       起手：cast_type / charge_time / charge_bonus / charge_mesh / charge_particle / release_at·end_at(留给自建动作)
+       瞄准：targeting（aim / ground / locked / self）+ lock_max·lock_angle·lock_range
+       投送：delivery（projectile / place / channel）+ speed·gravity·turn_rate·start_height·count·spread_deg
+             · max_distance·max_lifetime·hit_radius·pierce · duration·repeat_interval·start_delay(+_variance)
+       结算：payloads（damage / area / aura / status）+ damage·damage_type·radius·radius_falloff
+             · status·status_damage·status_duration·status_interval·status_particle
+       表现：mesh·scale·tilt_deg·trail_particle·impact_particle·indicator·indicator_scale·sound_release·sound_hit
+       NPC ：ai·ai_weight·ai_cooldown·seal
+     ⚠️ **音效字段**（sound_release 发射 / sound_hit 命中）：名字写在 module_sounds.xml 里即可生效，
+        空 = 不播。目前没有音效资产，全部留空。
+
+     ⚠️ 飞行网格的**朝向约定 = 网格本地 +Z 是飞行方向**（原版弹丸一致：bolt_bl_a 尖端在 +Z）。
+        朝向看着不对时**先调 tilt_deg**（绕飞行轴转，数据改、不用重编资产），别急着改网格几何。
+        `tilt_deg` 怎么定的：月牙烘完是「+Z = 腹（飞行方向）· +Y = 刃面法线 · X = 3.8 m 的展开方向」，
+        而本框架的基准姿态是「+Z = 飞行方向 · +Y = 世界上方」⇒ **0 = 刃面朝上 = 月牙平躺着飞 = 横切**（当前值，
+        2026-09-24 用户实机裁定"竖劈看不清、要横切"）；**90 / −90 = 薄刃立着 = 竖劈**（只差正反面）。
+        标定工具：游戏内 `custom.spell tilt <度>` + `custom.spell cast <法术id>`（**当场生效、不用重启**）。 -->
+<Spells>
+	<!-- 🔴🔴 2026-09-24 临时：三个粒子挂点**全部换成原版件**，用来把「挂点 / 命中爆散 / 蓄力粒子」
+	     这条**管线本身**先跑通（原版件是本项目实机验证过能看见的：诊断件的示踪火线用过
+	     `psys_game_missile_flame`、陪飞拖尾用过 `psys_game_burning_jar_trail`）。
+	     理由：我们自己的三个效果（`lwn_yinmo_trail` / `_burst` / `_charge`，已挂在
+	     `Taikou/ModuleData/particle_systems_yinmo.xml` 并由 project.mbproj 注册）在实机上
+	     **查不到名字**（日志 `[Spell] 粒子 '…' 查不到`），而文件在、注册行在、结构与原版一致、引擎零报错
+	     ⇒ 先用原版件排除"是挂点/管线写错了"这个变量，把"我们那份 XML 为什么加载不了"变成**独立问题**。
+	     换回来的条件：那份 XML 能被 `GetRuntimeIdByName` 认到之后，把 `trail_particle` / `impact_particle` /
+	     `charge_particle` 三个值改回 `lwn_yinmo_*` 即可（**一行数据、不动代码**）。 -->
+
+	<!-- 阴魔斩（阴魔斩 = 阶段 1 的验收件，不新增法术）。
+	     网格/贴图/材质/粒子四样资产都已做好，这里只做接线：
+	       网格 lwn_yinmo_crescent（月牙弧 + 弧心能量核，合并成一件；飞行轴 = 本地 +Z）
+	       拖尾 lwn_yinmo_trail · 命中爆散 lwn_yinmo_burst（粒子 XML 由 Taikou 的 project.mbproj 注册）
+	     🔴 弹药物品 lwn_spell_crescent 的 flying_mesh **保留不删**：法印补丁被关掉 /
+	        这张表没加载时，引擎照常发导弹 = 表现退回旧路线（月牙当 flying_mesh 飞），不会崩。
+	     ⚠️ **`scale="1"` 是对最终资产的预期**（月牙跨度 ≈3.8 m）。若**编辑器里那份资产还是**
+	        2026-09-22 的"放大 5 倍"实验版（跨度 ≈19 m），实机看到的月牙会大 5 倍 ——
+	        那不是这张表的错，去把 `tools/armor-pipeline/scripts/build_spell_mesh.py` 的产物
+	        （`SCALE = 1.0`，2026-09-23 已改）重新编译进 Taikou 包即可；急着看手感也可以先把
+	        这个值临时改成 `0.2`（数据可调，不用重编资产）。 -->
+
+	<!-- 🔴 **三个粒子挂点**（2026-09-24 实机结论，详见计划 §A / §B）：
+	     ① 拖尾与爆散现在挂的是**原版件** —— 我们自己的三个效果（lwn_yinmo_trail / _burst / _charge）
+	        **运行时进不来**。根因已查明：引擎运行期的粒子表来自**编译产物**
+	        （AssetPackages 里的 `Particle` 资产；证据 = `tpaccli dump` 按名字捞
+	        `psys_game_burning_jar_trail`，打出的是 `META Particle`），ModuleData 的 XML + mbproj 注册
+	        只是**编辑器源**（同源实证：HikageRising 一个粒子 XML 都没有，122 个粒子全是 tpac 资产且生效）。
+	        ⇒ 修法 = 在编辑器里把那份 XML 发布成粒子包（走 TaikouAnim 沙箱，它 mbproj 里已经挂好那两行），
+	          产物拷进 Taikou/AssetPackages；之后把下面三个值换成 lwn_yinmo_* 即可（**一行数据，不动代码**）。
+	     ② `charge_particle` 原来是**空的** —— 按住 X 蓄力时只有那颗球、没有火。现在先挂个原版火占位。
+	     ③ `charge_scale` = 蓄力核**满蓄力时**的放大倍率（球的生长曲线 = 从 0 线性长到满，蓄满不再变）。
+	        🔴 **`charge_time` 必须非 0，否则 `Power` 在按下第一帧就 =1** —— 球一下就是满尺寸、看不到生长过程。
+	        现在 `charge_time="1.2"`（满蓄 1.2 秒）；`charge_bonus` 没配 ⇒ **蓄力不改变伤害**（只影响生长与手感）。
+	        2026-09-24 用户裁定"球太大" → 由原来的 1.5 缩到 **0.375**（核网格 ⌀0.72 m ⇒ 满蓄力 ⌀0.27 m）。
+	        运行时想再调：游戏里 `custom.spell core <倍率>`（不用重启）。 -->
+	<!-- 2026-09-24 深夜：我们自己的粒子包做出来了（离线编译：tools/tpactool 的 particleimport，
+	     产物 Modules/Taikou/AssetPackages/lwn_yinmo_prt.tpac）⇒ 本行的三个粒子值从原版占位换回 lwn_yinmo_*。
+	     若实机拖尾/爆散/蓄力火消失 → 先敲 custom.ninja_report lwn_yinmo_trail 看引擎认不认这个名字。 -->
+	<Spell
+		id="projectile_yinmo_zhan"
+		ammo="lwn_spell_crescent"
+		seal="lwn_spell_seal"
+		family="projectile"
+
+		mesh="lwn_yinmo_crescent"
+		scale="1"
+		tilt_deg="0"
+		trail_particle="lwn_yinmo_trail"
+		impact_particle="lwn_yinmo_burst"
+		charge_particle="lwn_yinmo_charge"
+		charge_scale="0.375"
+
+		damage="60"
+		damage_type="Cut"
+		radius="3.5"
+		radius_falloff="0.5"
+
+		speed="60"
+		gravity="0"
+		max_distance="120"
+		max_lifetime="4"
+		hit_radius="1.2"
+		pierce="1"
+
+		cast_type="normal"
+		charge_time="1.2"
+		release_at="0.36"
+		end_at="0.80" />
+
+	<!-- ═══════════ 阶段 2 的三个验收件（2026-09-23 立）═══════════════════════
+
+	     机制验收件：**三行只差几个字段**，而行为完全不同 —— 这正是"四段可组合"要证明的事
+	     （计划 §八 阶段 2 的验收：加瞄准/投送实现而不动已有四段代码）。
+	     三件都复用月牙网格（物品见 items/spells.xml 的 lwn_spell_multi/sky/zone）。
+
+	     ⚠️ 阶段 2 的**新增字段**一览（都在 SpellDef.cs 里有注释）：
+	       锁定轴：lock_max / lock_angle / lock_range
+	       天降：  start_height（>0 = 从落点正上方砸下来）
+	       追踪：  turn_rate（度/秒，0 = 直线）
+	       放置：  duration / repeat_interval / start_delay / start_delay_variance
+	       指示圈：indicator / indicator_scale（平面法线 = 本地 +Y 的网格，如 lwn_flight_sigil）
+	       状态：  status / status_damage / status_duration / status_interval / status_particle -->
+
+	<!-- ① 多目标：**软锁**住锥内最多 3 个人，各追一发（龙之信条的多目标火球 / 星雨那一类）。
+	     族给的是 projectile（准星/直线飞/伤害+半径），这里**覆盖两轴**：
+	       targeting="locked"（换成软锁）· payloads="damage,status"（单体伤害 + 中毒，不要半径伤害）
+	     追踪靠 turn_rate：目标是**活的**，投送每帧重新取它现在的位置（契约 1 的"目标引用"就是为这个）。 -->
+	<Spell
+		id="projectile_multi_bolts"
+		ammo="lwn_spell_multi"
+		seal="lwn_spell_seal"
+		family="projectile"
+		targeting="locked"
+		payloads="damage,status"
+
+		mesh="lwn_yinmo_crescent"
+		scale="1"
+		tilt_deg="0"
+		trail_particle="psys_game_burning_jar_trail"
+		impact_particle="psys_game_missile_flame"
+
+		lock_max="3"
+		lock_angle="25"
+		lock_range="45"
+
+		damage="35"
+		damage_type="Cut"
+		status="poison"
+		status_damage="6"
+		status_duration="6"
+		status_interval="1"
+
+		speed="60"
+		turn_rate="240"
+		max_distance="120"
+		max_lifetime="6"
+		hit_radius="1.2"
+		pierce="1" />
+
+	<!-- ② 天降：落点正上方 25 m 砸下来（陨石 / 落雷那一类）。
+	     族 skyfall = 落点 + 直线飞 + 半径伤害 —— **三个轴一个都不用覆盖**（族预设就是为这种法术准备的），
+	     只补该族专属的参数：start_height。 -->
+	<Spell
+		id="skyfall_meteor"
+		ammo="lwn_spell_sky"
+		seal="lwn_spell_seal"
+		family="skyfall"
+
+		mesh="lwn_yinmo_crescent"
+		scale="1.5"
+		tilt_deg="0"
+		trail_particle="psys_game_burning_jar_trail"
+		impact_particle="psys_game_missile_flame"
+
+		start_height="25"
+		speed="45"
+		gravity="30"
+
+		damage="80"
+		damage_type="Blunt"
+		radius="5"
+		radius_falloff="0.4"
+
+		indicator="lwn_flight_sigil"
+		indicator_scale="4"
+
+		max_distance="200"
+		max_lifetime="8"
+		hit_radius="1.5"
+		pierce="1" />
+
+	<!-- ③ 放置：地上留一片火场，活 8 秒、每秒烧一次（火墙 / 酸雨那一类）。
+	     族 place = 落点 + 留在原地 + 半径伤害 —— 同样是零覆盖，只补该族专属参数：
+	     duration / repeat_interval / start_delay(+抖动)。
+	     🔴 节流在投送手里（契约 3）：这里是"每秒结算一次"，不是"每帧结算一次"。
+	     视觉 = 数据里的 mesh 躺在落点上（网格约定：平面法线 = 本地 +Y）+ 落点指示圈。 -->
+	<Spell
+		id="place_firezone"
+		ammo="lwn_spell_zone"
+		seal="lwn_spell_seal"
+		family="place"
+
+		mesh="lwn_yinmo_crescent"
+		scale="2"
+		impact_particle="psys_game_missile_flame"
+		trail_particle="psys_game_burning_jar_trail"
+
+		duration="8"
+		repeat_interval="1"
+		start_delay="0.5"
+		start_delay_variance="0.3"
+
+		damage="25"
+		damage_type="Cut"
+		radius="4"
+		radius_falloff="0"
+
+		indicator="lwn_flight_sigil"
+		indicator_scale="3"
+		max_lifetime="8" />
+	<!-- ═══════════ 阶段 3 的两个验收件（2026-09-23 立）：引导 + 光环 ═══════════
+
+	     起手轴从此有自己的键（**按住蓄力、松手放**，默认 R / 手柄 RT —— 见 InteractionIds.SpellCast）：
+	       cast_type="normal"  按住 → 手上核长起来 → 松手发一发（蓄满与不蓄满伤害明显不同）
+	       cast_type="channel" 按住 → 攒够 charge_time 开始"一直放" → 松手就停
+	       cast_type="instant" 按下即出，无前摇
+	     ⚠️ 引擎开火那条路（鼠标左键）仍然可用、也不会双发：相位机在施法中时，法印补丁只拦不放。
+
+	     ⚠️ 阶段 3 的新字段：
+	       charge_time 蓄满要按住多久 · charge_bonus 满蓄力伤害加成 · charge_mesh/charge_particle 蓄力视觉
+	       ai / ai_weight / ai_cooldown / seal  ← 阶段 4（NPC 施法者）用 -->
+
+	<!-- ④ 引导光束：按住持续喷射、每 0.4 秒结算一次（彗星亚兹勒 / 喷火器那一类）。
+	     族 channel = 准星 + 持续 + 单体伤害；这里补一个"灼烧"状态（payloads 覆盖成 damage,status）。
+	     🔴 这条法术同时验契约 3：每帧都照到人，但**每 0.4 秒才结算一次**（不然就是秒杀）。 -->
+	<Spell
+		id="channel_beam"
+		ammo="lwn_spell_beam"
+		seal="lwn_spell_seal"
+		family="channel"
+		payloads="damage,status"
+
+		mesh="lwn_lightning_arc"
+		scale="3"
+		tilt_deg="0"
+		trail_particle=""
+		impact_particle="psys_game_missile_flame"
+		charge_particle="psys_game_missile_flame"
+
+		cast_type="channel"
+		charge_time="0.8"
+		charge_bonus="0.5"
+
+		damage="18"
+		damage_type="Cut"
+		status="burn"
+		status_damage="4"
+		status_duration="4"
+		status_interval="1"
+
+		repeat_interval="0.4"
+		max_distance="60"
+		max_lifetime="6"
+		hit_radius="0.8" />
+
+	<!-- ⑤ 雷电领域：**以自己为圆心**持续电周围所有人（大地加护 / 雷电领域那一类）。
+	     族用 channel（准星+持续+单体伤害），覆盖两轴：targeting="self"（自身为心）· payloads="aura"。
+	     🔴 aura 与 area 的差别只在圆心：area 以命中点为心，aura 以**施法者**为心。
+	     ⚠️ 这张会连自己一起打（不区分敌我） —— 与 DOS2 同款直觉，别站进去。 -->
+	<Spell
+		id="aura_field"
+		ammo="lwn_spell_aura"
+		seal="lwn_spell_seal"
+		family="channel"
+		targeting="self"
+		payloads="aura"
+
+		charge_particle="psys_game_missile_flame"
+		indicator="lwn_flight_sigil"
+		indicator_scale="2.5"
+
+		cast_type="channel"
+		charge_time="0.3"
+		charge_bonus="0.4"
+
+		damage="10"
+		damage_type="Blunt"
+		radius="6"
+		radius_falloff="0.6"
+		status="shock"
+		status_damage="3"
+		status_duration="3"
+		status_interval="1"
+
+		repeat_interval="0.5"
+		max_lifetime="8" />
+</Spells>

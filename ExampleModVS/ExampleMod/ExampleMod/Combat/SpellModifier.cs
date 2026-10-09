@@ -17,7 +17,7 @@ namespace LivingWorldNpcs
 	//
 	// 数据在哪：任何模块（内容包）的 ModuleData/AssetRegistry/Modifiers.xml：
 	//   <Modifiers>
-	//     <Loadout seal="taikou_spell_seal" slots="3" />          ← 施法手环的宝石槽位数
+	//     <Loadout seal="lwn_spell_seal" slots="3" />             ← 施法手环的宝石槽位数
 	//     <Modifier id="gem_damage" stage="payload" cost="2" name="{=LWN_gem_damage}Damage+">
 	//       <Mul field="damage" value="1.5" />
 	//       <Set field="trail_particle" value="lwn_fire_trail" />
@@ -232,7 +232,7 @@ namespace LivingWorldNpcs
 				}
 				DebugLogger.Log(_byId.Count > 0
 					? $"[Spell] 宝石表就绪：{_byId.Count} 颗（{string.Join(" / ", _byId.Keys)}）"
-					: "[Spell] 宝石表为空（无内容包提供 AssetRegistry/Modifiers.xml）——装不了修正，法术照常放");
+					: "[Spell] 宝石表为空（本模块 ModuleData/AssetRegistry/Modifiers.xml 没加载）——装不了修正，法术照常放");
 				_loaded = true;
 			}
 		}

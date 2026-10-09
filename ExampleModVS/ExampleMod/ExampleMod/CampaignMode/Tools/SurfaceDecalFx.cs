@@ -80,7 +80,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             string blendHint = _prefab.IndexOf("vanilla", StringComparison.OrdinalIgnoreCase) >= 0
                 ? " (expected modulate -> replace albedo; RGB fade makes a BLACK patch, not a fade)" : "";
             return $"OK: prefab = {_prefab}{blendHint}"
-                 + (exists ? "" : "  ⚠ prefab not found (Taikou module in launch list?)");
+                 + (exists ? "" : "  ⚠ prefab not found (check LivingWorldNpcs/Prefabs/)");
         }
 
         // ── 数据 ──────────────────────────────────────────────────────────
@@ -225,7 +225,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             if (string.IsNullOrEmpty(prefab)) prefab = _prefab;
             if (!GameEntity.PrefabExists(prefab))
             {
-                err = $"prefab '{prefab}' not found (Taikou module must be in the launch list).";
+                err = $"prefab '{prefab}' not found (expected in LivingWorldNpcs/Prefabs/lwn_prefabs.xml or lwn_decal_probes.xml).";
                 return false;
             }
 

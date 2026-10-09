@@ -12,7 +12,7 @@ namespace LivingWorldNpcs.Combat
     /// 螺旋丸的运行时驱动（2026-09-27）。
     ///
     /// 干三件事：
-    ///   ① 实例化 prefab `rasengan`（Taikou\Prefabs\spell_rasengan.xml），
+    ///   ① 实例化 prefab `rasengan`（LivingWorldNpcs\Prefabs\spell_rasengan.xml），
     ///      按名字抓三个子实体：`rasengan_core` / `rasengan_blade` / `rasengan_air`
     ///   ② **每帧**让三个环各转各的（绕螺旋丸自己的局部 Z）
     ///   ③ 蓄力段：**尺度与瞬时转速共用同一个进度 u** ⇒ 越转越快、同时长大
@@ -43,7 +43,6 @@ namespace LivingWorldNpcs.Combat
         private readonly List<Ring> _rings = new List<Ring>();
         private GameEntity _root;
         private float _elapsed;
-        private bool _charging;
 
         // 可调旋钮（验收命令 custom.rasengan 能改）
         private float _chargeSeconds = 1.5f;   // 蓄力时长
@@ -89,7 +88,7 @@ namespace LivingWorldNpcs.Combat
             if (mission == null || mission.Scene == null) return null;
             if (!GameEntity.PrefabExists(PrefabName))
             {
-                DebugLogger.Log($"[Rasengan] prefab '{PrefabName}' 不在当前场景 —— 检查 Taikou/Prefabs/spell_rasengan.xml 是否被加载");
+                DebugLogger.Log($"[Rasengan] prefab '{PrefabName}' 不在当前场景 —— 检查 LivingWorldNpcs/Prefabs/lwn_prefabs.xml（根实体 name=\"rasengan\"）是否被加载");
                 return null;
             }
 
@@ -101,7 +100,6 @@ namespace LivingWorldNpcs.Combat
             _rings.Clear();
             _root = root;
             _elapsed = 0f;
-            _charging = true;
 
             // 按名字抓三个环。`GetChildren()` 只给**直接子节点** —— prefab 里这三个正好都在根下。
             MatrixFrame rootGF = root.GetGlobalFrame();
@@ -140,8 +138,10 @@ namespace LivingWorldNpcs.Combat
             _elapsed += dt;
 
             // 蓄力进度 u：0 → 1。充满就停在那儿（保持转 + 保持满尺寸）
+            // 🔴 「还在蓄力吗」**不另存状态位** —— 读 `u < 1` 就是答案。
+            //    （曾有一个 `_charging` 字段，spawn/recharge 置真、充满置假，但**没有任何地方读它** ⇒
+            //      编译器报 CS0414。它与 `u < 1` 完全等价，已删；别再加回来。）
             float u = _chargeSeconds <= 0f ? 1f : Math.Min(1f, _elapsed / _chargeSeconds);
-            if (u >= 1f) _charging = false;
 
             // 尺度与转速共用同一个 u —— 两条曲线同时到峰值，观感才"聚"
             float scale = _startScale + (1f - _startScale) * u;
@@ -196,7 +196,6 @@ namespace LivingWorldNpcs.Combat
         public void Recharge()
         {
             _elapsed = 0f;
-            _charging = true;
         }
 
         public string Status()

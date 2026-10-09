@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -661,9 +661,9 @@ namespace LivingWorldNpcs
             ActionIndexCache atkIndex = ActionIndexCache.Create(AttackerAction);
             ActionIndexCache vicIndex = ActionIndexCache.Create(VictimAction);
             if (atkIndex == ActionIndexCache.act_none)
-                return $"FAILED: action '{AttackerAction}' is NOT registered (act_none). check Taikou action_types.xml / action_sets.xml";
+                return $"FAILED: action '{AttackerAction}' is NOT registered (act_none). check LivingWorldNpcs ModuleData/action_types.xml + action_sets.xml";
             if (vicIndex == ActionIndexCache.act_none)
-                return $"FAILED: action '{VictimAction}' is NOT registered (act_none). check Taikou action_types.xml / action_sets.xml";
+                return $"FAILED: action '{VictimAction}' is NOT registered (act_none). check LivingWorldNpcs ModuleData/action_types.xml + action_sets.xml";
 
             // 4. 站位：玩家正前方 distance 米、贴地。
             //    🔴 用【角色朝向】LookFrame.rotation.f，不是相机方向 —— 处决的位移是沿角色前方推的，

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Taikou 的"完整移动组"（2026-10-07 立）：把上面 movement_sets.xml 里的四套钩索移动组
+     组装成一个可被用法组引用的整体。
+
+     【这是什么】用法组的 `<movement_sets><movement_set id="…"/></movement_sets>` 里那个 id
+     指向的是**本文件的 `<full_movement_set>`**（不是 movement_sets.xml 里的单套）——
+     一张"移动模式 → 用哪套移动组"的对照表：站着/走路用 walking 那行、跑用 running 那行、蹲用 crouch_*。
+
+     【怎么写】逐字照抄 Native 的 `<full_movement_set id="bow">`（弓那一份），只改：
+       ① id 换成 `grapple`；② 四个成员 id 换成我们自己的；③ 游泳/潜水两条**保持原版 id 不动**
+          （`swim_unarmed` / `dive_unarmed` 是 Native 定义的、所有武器共用 —— 合并后仍能查到，不用重定义）。
+
+     【加载方式】同 movement_sets.xml：属 project.mbproj 的 soln 体系（`soln_full_movement_sets`），
+     要在 project.mbproj 里挂一行才生效。合并机制（反编译实证）：**按 id 合并子节点**、
+     id 不同则纯追加 ⇒ 新 id 不会挤掉原版任何一套。
+     回退方法（两处缺一不可）：删掉 mbproj 那一行 + 用法组的 `<movement_set id="grapple"/>` 改回 `bow`。 -->
+<full_movement_sets>
+	<full_movement_set
+		id="grapple">
+		<movement_set
+			id="walk_grapple"
+			left_stance="False"
+			movement_mode="walking" />
+		<movement_set
+			id="run_grapple"
+			left_stance="False"
+			movement_mode="running" />
+		<movement_set
+			id="crouch_walk_grapple"
+			left_stance="False"
+			movement_mode="crouch_walking" />
+		<movement_set
+			id="crouch_run_grapple"
+			left_stance="False"
+			movement_mode="crouch_running" />
+		<movement_set
+			id="swim_unarmed"
+			left_stance="False"
+			movement_mode="swimming" />
+		<movement_set
+			id="dive_unarmed"
+			left_stance="False"
+			movement_mode="diving" />
+	</full_movement_set>
+</full_movement_sets>

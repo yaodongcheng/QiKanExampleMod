@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LivingWorldNpcs 的自定义物品用法组（通用部分）：钩索两件 —— 把弓的动作换成钩索动作。
+
+     🔴 2026-10-09 从 Taikou 内容包搬来（工作调整：通用玩法归 LWN，内容包只留日本战国内容）。
+        同批留在 Taikou 的是 `tk_firearm`（铁炮装填）。
+     写法与 tk_firearm 完全同一套纪律（**不用 base_set 继承**），详见下面那块注释。
+
+     🔴 【加载方式】本文件属 project.mbproj 的 soln 体系（`soln_item_usage_sets`），
+        **不在 SubModule 的 XmlNode 体系里**：光有文件不生效，必须同时在 ModuleData/project.mbproj 挂一行。
+        引擎把**所有模块**注册到该 soln id 下的文件合并后交给 native —— 两个模块各写各的新 id 是安全的。
+        回退方法：删掉 mbproj 那一行即可。 -->
+<item_usage_sets>
+	<!-- ═══════════ 钩索（2026-10-04 立 · 2026-10-07 补待机 · 2026-10-08 随物品改名）· 把弓的动作换成钩索动作 ═══════════
+	     写法与 tk_firearm 完全同一套纪律（**不用 base_set 继承**）：
+	       · grapple_rope = 逐字抄 Native 的 <item_usage_set id="bow"> 整块，只改 id（**2026-10-08 前叫 `grapple_hook`**）；
+	         🔴 2026-10-07 起**武器（绳那件）正式挂它**（此前挂原版 `bow`）—— 待机/走跑这类"武器侧"槽位只写在
+	            这份组里（弹药的组根本没有 movement_sets 段），挂原版 = 永远是弓的姿势且改不了
+	            （Native 的 bow 组是所有弓共用的，不能动）。
+	       · grapple_hook = 逐字抄 Native 的 <item_usage_set id="arrow_right"> 整块（弓的开火动作挂在**弹药**上，
+	         **2026-10-08 前叫 `grapple_dart`**），
+	         改 id + 站姿那条的槽：
+	           ready_action = act_grapple_ground_ready（按住左键起手）
+	           ready_continue_ranged_action / ready_continue_shake_action = act_grapple_ground_hold（持械循环）
+	           release_action = act_grapple_ground_release（松手甩出）
+	           reload_action / reload_crouched_action = **必须有动作**（2026-10-04 实机：留空 ⇒ AutoReload
+	             上弦链断 ⇒ 左键完全无反应）；2026-10-07 起 = `act_grapple_reload`，动画 = `grapple_ground_recover`
+	             （一次性 1.167 s，**无 keep / 无 cyclic** —— 装填流程要等动作收尾；先前错绑 `ready`（带 keep）
+	             曾导致"按住左键无法瞄准"，见 action_sets.xml 那条注释）⇒ 拔钩索时不再演"拉弓搭箭"。
+	         骑马那条保持原版（骑马不可用；马上播站姿会怪 —— 同 tk_firearm 的做法）。
+	       · 🔴 待机（`<idles>`，2026-10-07 试跑）= 两条组**都**指向 `act_grapple_idle`
+	         （= hold 那条 clip 的另一个动作名，声明见 action_sets.xml / action_types.xml）。
+	         为什么两处都改：站姿到底认**武器组**还是**弹药组**尚未实证（两边的 idle 原来都写
+	         act_idle_bow_1，从现象上看不出谁生效）—— 两处写成同一条 ⇒ 无论哪边赢都出同一个姿势。
+	         ⚠️ 若实机站姿**没变**：下一个嫌疑是 movement_set 里的 idle（Native 的共享表，
+	            要动得先给本包造一套自己的 movement set）。
+	     回退保底 = 两件物品的 item_usage 改回 bow / arrow_right（各一行），两条 idle 改回 act_idle_bow_1。
+	     判据（这条链在工作的证据）：引擎日志出现 opening .../Modules/Taikou/ModuleData/item_usage_sets.xml。 -->
+	<item_usage_set
+		id="grapple_rope"
+		has_single_stance="true"
+		equip_sound="event:/mission/combat/equip/bow_equip"
+		unequip_sound="event:/mission/combat/equip/bow_unequip">
+		<flags>
+			<flag
+				name="requires_no_shield" />
+		</flags>
+		<idles>
+			<idle
+				action="act_grapple_idle"
+				is_left_stance="False"
+				require_free_left_hand="False" />
+		</idles>
+		<movement_sets>
+			<movement_set
+				id="grapple" />
+		</movement_sets>
+		<rider_idles>
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_idle_bow_1"
+				require_free_left_hand="True"
+				required_mount_action="act_horse_idle_1" />
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_idle_bow_2"
+				require_free_left_hand="True"
+				required_mount_action="act_horse_idle_2" />
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_idle_bow_3"
+				require_free_left_hand="True"
+				required_mount_action="act_horse_idle_3" />
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_idle_bow_4"
+				require_free_left_hand="True"
+				required_mount_action="act_horse_idle_4" />
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_stand_bow_1"
+				require_free_left_hand="True"
+				required_mount_action="act_horse_stand_1" />
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_stand_bow_2"
+				require_free_left_hand="True"
+				required_mount_action="act_horse_stand_2" />
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_stand_bow_3"
+				require_free_left_hand="True"
+				required_mount_action="act_horse_stand_3" />
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_stand_bow_4"
+				require_free_left_hand="True"
+				required_mount_action="act_horse_stand_4" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_idle_bow_1"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_idle_1" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_idle_bow_2"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_idle_2" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_idle_bow_3"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_idle_3" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_idle_bow_4"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_idle_4" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_idle_bow_5"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_idle_5" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_stand_bow_1"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_stand_1" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_stand_bow_2"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_stand_2" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_stand_bow_3"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_stand_3" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_stand_bow_4"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_stand_4" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_stand_bow_5"
+				require_free_left_hand="True"
+				required_mount_action="act_camel_stand_5" />
+			<rider_idle
+				mount_id="horse"
+				pace="0"
+				action="act_rider_stand_bow_pace_0"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="horse"
+				pace="1"
+				action="act_rider_stand_bow_pace_1"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="horse"
+				pace="2"
+				action="act_rider_stand_bow_pace_2"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="horse"
+				pace="3"
+				action="act_rider_stand_bow_pace_3"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="horse"
+				pace="4"
+				action="act_rider_stand_bow_pace_4"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="horse"
+				pace="5"
+				action="act_rider_stand_bow_pace_5"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="camel"
+				pace="0"
+				action="act_camel_rider_stand_bow_pace_0"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="camel"
+				pace="1"
+				action="act_camel_rider_stand_bow_pace_1"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="camel"
+				pace="2"
+				action="act_camel_rider_stand_bow_pace_2"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="camel"
+				pace="3"
+				action="act_camel_rider_stand_bow_pace_3"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="camel"
+				pace="4"
+				action="act_camel_rider_stand_bow_pace_4"
+				require_free_left_hand="True" />
+			<rider_idle
+				mount_id="camel"
+				pace="5"
+				action="act_camel_rider_stand_bow_pace_5"
+				require_free_left_hand="True" />
+		</rider_idles>
+		<guards>
+			<guard
+				style="right"
+				action="act_guard_bow" />
+			<guard
+				style="none" />
+		</guards>
+	</item_usage_set>
+	<item_usage_set
+		id="grapple_hook">
+		<idles>
+			<idle
+				action="act_grapple_idle"
+				is_left_stance="False"
+				require_free_left_hand="False" />
+		</idles>
+		<usages>
+			<usage
+				style="attack_any"
+				reload_action="act_grapple_reload"
+				reload_crouched_action="act_grapple_reload"
+				ready_action="act_grapple_ground_ready"
+				release_action="act_grapple_ground_release"
+				ready_continue_ranged_action="act_grapple_ground_hold"
+				ready_continue_shake_action="act_grapple_ground_hold"
+				is_mounted="False"
+				require_free_left_hand="False"
+				strike_type="thrust" />
+			<usage
+				style="attack_any"
+				reload_action="act_reload_bow_right_horseback"
+				ready_action="act_ready_bow_horseback"
+				release_action="act_release_bow_horseback"
+				ready_continue_ranged_action="act_ready_continue_bow_horseback"
+				ready_continue_shake_action="act_ready_continue_bow_shake_horseback"
+				is_mounted="True"
+				require_free_left_hand="False"
+				strike_type="thrust" />
+		</usages>
+	</item_usage_set>
+</item_usage_sets>

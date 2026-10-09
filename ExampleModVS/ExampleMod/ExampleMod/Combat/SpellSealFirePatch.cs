@@ -23,8 +23,9 @@ namespace LivingWorldNpcs
 	/// 🔴 可单独关掉（规矩 4）：config.json 的 `DisabledPatchClasses` 写 `SpellSealFirePatch` 即可。
 	/// 🔴 兜底天然优雅（规矩 6）：补丁关掉 / 弹药不在表里 / 认不出 → 引擎照常发导弹，不会崩。
 	///
-	/// 没装内容包时**不挂载**（MySubModule 的 contentPackOnly 清单）：那时表里一条法术都没有，
-	///   挂上去只是白跑一次查表（铁律 5 推论 —— 内容包专属补丁在纯功能包模式下一律不挂）。
+	/// 🔴 2026-10-09：法术表已搬进**本模块**（`ModuleData/AssetRegistry/Spells.xml`），
+	///   本条**永远挂载**（已从 MySubModule 的 contentPackOnly 清单摘除）。表为空时它只是白跑一次查表，
+	///   不会崩（自我的把关：查不到就原样放行，铁律 5）。
 	/// </summary>
 	[HarmonyPatch(typeof(Mission), "OnAgentShootMissile")]
 	public static class SpellSealFirePatch

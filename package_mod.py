@@ -91,7 +91,9 @@ def main():
     print(f"Game version: v{game_version}")
 
     # 4. Items to package
-    ITEMS = ["ModuleData", "SubModule.xml", "GUI", "config.json", "bin", "Debug"]
+    # 🔴 2026-10-09 新增 AssetPackages / Prefabs：通用玩法（钩索/飞行/处决/法术/贴花）的资产随本模块发布
+    #    —— 编辑器工程在沙箱 Modules/LwnAnim/，产物 Publish 后拷进 AssetPackages/（详见 ModuleData/project.mbproj）。
+    ITEMS = ["ModuleData", "SubModule.xml", "GUI", "config.json", "bin", "Prefabs", "AssetPackages", "Debug"]
     # 开发素材子目录，整体排除（ModuleData/ScenarioData = 剧本源数据 pack.json + story/*.jsonc，不发布）
     SKIP_DIR_NAMES = {"ScenarioData"}
 

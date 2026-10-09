@@ -50,9 +50,9 @@ PNG_FOR_EDITOR = os.path.join(os.path.dirname(TOOL), "face-pipeline", "scripts",
 
 NAME = "lwn_prt_cloud_ring_d.png"
 ASSET = "lwn_prt_cloud_ring"
-STAGE_DIR = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "ImortReady", ASSET)
-MIRROR_DIR = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "materials", ASSET)
-REGISTERED_MARK = os.path.join(REPO, "..", "TaikouAnim", "Assets", "materials", ASSET,
+STAGE_DIR = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "ImortReady", ASSET)
+MIRROR_DIR = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "materials", ASSET)
+REGISTERED_MARK = os.path.join(REPO, "..", "LwnAnim", "Assets", "materials", ASSET,
                                NAME.replace(".png", "_tex.tpac"))
 
 SIZE = 512

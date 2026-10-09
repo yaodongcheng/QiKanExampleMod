@@ -19,7 +19,7 @@
 | `_legacy/trf_deprecated/retarget_to_official.py` | ⚠️ **作废** | 基于「rest 基准必须一致」的错误推论；旋转用绝对语义后不需要重定向 |
 | **`pipeline/common/fbx_to_trf.py`** | ✅ **正确** | 旋转绝对 + 平移纯增量，**当前唯一该用的**（原有 `fbx_to_trf_fixed.py` 与它是同一支，2026-09-20 已并入） |
 | `output/fbx/sw2_gunner_p006_alig.fbx` | ✅ 输入 | 28 骨、0 网格、根节点 `human_skeleton_notused` |
-| **`tools/OpenTrf/out/sw2_gunner_p006_alig_abs.trf`** | ✅ **实机验证通过的黄金样本** | md5 `b78076e31c1e5f38…`，位置轨首帧 `(0, 0, 0)` = 纯增量。同一份已进 `TaikouAnim/AssetSources/animations/gun/` |
+| **`tools/OpenTrf/out/sw2_gunner_p006_alig_abs.trf`** | ✅ **实机验证通过的黄金样本** | md5 `b78076e31c1e5f38…`，位置轨首帧 `(0, 0, 0)` = 纯增量。同一份已进 `LwnAnim/AssetSources/animations/gun/` |
 | `output/trf/sw2_gunner_p006_alig_abs.trf` | ❌ 作废（本表原标 ✅，**标反了**） | 名字里的 `_abs` 就是它的问题：位置轨首帧 `(0, 0.0202, 0.8600)` = 绝对语义，实机抬高约 6cm |
 | `output/trf/sw2_gunner_p006_alig.trf` | ❌ 作废 | 同上，绝对语义 |
 | `_legacy/trf_deprecated/sw2_gunner_p006_retarget.trf` | ❌ 作废 | 更早一版 |

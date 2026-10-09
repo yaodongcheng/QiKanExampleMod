@@ -234,7 +234,7 @@ BAD_CASES = [
     ("id 重复", '<Modifier id="dup"><Mul field="damage" value="2" /></Modifier>'
                 '<Modifier id="dup"><Mul field="damage" value="3" /></Modifier>', "id 重复"),
     ("Loadout 缺 seal", '<Loadout slots="3" />', "缺 seal"),
-    ("Loadout slots 不是数字", '<Loadout seal="taikou_spell_seal" slots="三" />', "非负整数"),
+    ("Loadout slots 不是数字", '<Loadout seal="lwn_spell_seal" slots="三" />', "非负整数"),
     ("子块 Gems 引了不存在的宝石", '<Modifier id="g9"><Sub id="s"><Base spell="projectile_yinmo_zhan" />'
                                     '<Gems>gem_nope</Gems></Sub></Modifier>', "不存在的宝石"),
 ]
@@ -254,7 +254,7 @@ def selftest(module: Path, fields):
             failed += 1
     # 正向对照：一份好数据不许被误报
     good = ET.fromstring(
-        '<Modifiers><Loadout seal="taikou_spell_seal" slots="3" />'
+        '<Modifiers><Loadout seal="lwn_spell_seal" slots="3" />'
         '<Modifier id="gem_ok" stage="payload" name="{=X}Ok"><Mul field="damage" value="1.5" /></Modifier>'
         '<Modifier id="gem_trig" stage="deliver"><Set field="on_hit_cast" sub="s" />'
         '<Sub id="s"><Base spell="projectile_yinmo_zhan" /><Gems>gem_ok</Gems></Sub></Modifier></Modifiers>')
@@ -272,7 +272,7 @@ def selftest(module: Path, fields):
 def main():
     ap = argparse.ArgumentParser(description="Spell modifier table checker")
     ap.add_argument("--module",
-                    default=r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\Taikou")
+                    default=r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs")
     ap.add_argument("--selftest", action="store_true", help="只跑负面测试（造坏数据必须抓到）")
     args = ap.parse_args()
 

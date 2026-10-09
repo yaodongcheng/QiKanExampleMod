@@ -29,7 +29,7 @@ gen_rasengan_tex.py — 螺旋丸气流的「蓝白烟」粒子贴图（拿原�
 【产物】
     tools/particle-pipeline/out/lwn_prt_rasengan_air_d.png           管线产物（2×2 图集）
     tools/particle-pipeline/out/_preview_lwn_prt_rasengan_air_d.png  预览（黑底 + 白底并排）
-    Modules/TaikouAnim/AssetSources/ImortReady/lwn_prt_rasengan_air/   待用户 Import
+    Modules/LwnAnim/AssetSources/ImortReady/lwn_prt_rasengan_air/   待用户 Import
 
 【导入后要在编辑器里做的】见脚本末尾打印的后续步骤（建材质 / 选混合 / 切图集）。
 ⚠️ 生成物纪律（铁律 22）：图是产物，**禁手改** —— 要调色改下面的常量重跑。
@@ -58,10 +58,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 SRC = os.path.join(ROOT, "tools", "particle-pipeline", "out", "mattex_all", "text0", "smoke_d.png")
 OUT = os.path.join(ROOT, "tools", "particle-pipeline", "out")
-# 🔴 待导入目录在**正牌模块** `Modules/TaikouAnim/`（与 LivingWorldNpcs 平级）——
-#    不是 `LivingWorldNpcs/Modules/TaikouAnim`（那是另一份独立副本，编辑器不读它）。
+# 🔴 待导入目录在**正牌模块** `Modules/LwnAnim/`（与 LivingWorldNpcs 平级）——
+#    不是 `LivingWorldNpcs/Modules/LwnAnim`（那是另一份独立副本，编辑器不读它）。
 #    口径与 `build_rasengan.py` / `build_sphere_shell.py` 的 STAGE_ROOT 一致。
-IMR = os.path.join(os.path.dirname(ROOT), "TaikouAnim", "AssetSources", "ImortReady", "lwn_prt_rasengan_air")
+IMR = os.path.join(os.path.dirname(ROOT), "LwnAnim", "AssetSources", "ImortReady", "lwn_prt_rasengan_air")
 NAME = "lwn_prt_rasengan_air_d"
 
 

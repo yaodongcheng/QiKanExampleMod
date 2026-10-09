@@ -40,7 +40,7 @@
 //   custom.spell_trace                   # 开关（不填参数 = 翻转）
 //   custom.spell_trace on|off            # 显式开关
 //   custom.spell_trace status            # 当前配置
-//   custom.spell_trace ammo <item_id>    # 换认领的弹药 StringId（默认 taikou_spell_crescent）
+//   custom.spell_trace ammo <item_id>    # 换认领的弹药 StringId（默认 lwn_spell_crescent）
 //   custom.spell_trace tracer on|off     # 只留日志、关掉火线
 //   custom.spell_trace particle <name>   # 换示踪粒子名（原版件）
 //   custom.spell_trace interval <sec>    # 状态行间隔，默认 0.1（调小 = 更密，日志更大）
@@ -58,7 +58,7 @@
 // `shoot` 为什么重要（2026-09-23 用户要求）：
 //   它走 `Mission.AddCustomMissile`（**攻城器械发射炮弹用的就是它**），
 //   不需要物品能装进槽位、不需要 `ammo_class` 匹配 ⇒ **Boulder 类那种装不上槽的弹也能打**
-//   （原版巨石 `shoot boulder`、BattleArtillery 炮弹配置 `shoot taikou_probe_shell`）。
+//   （原版巨石 `shoot boulder`、BattleArtillery 的炮弹配置）。
 //   发射点 = 玩家眼睛、方向 = 玩家视线、速度可指定（默认 60）。
 //   ⚠️ 与 `alt_mesh` 的区别：`alt_mesh` 建的是**场景实体影子**（不发射、无物理、不碰撞）；
 //      `shoot` 是**真的走导弹管线**发出去 —— 要判断"导弹渲染路径"就必须用 `shoot`。
@@ -75,7 +75,7 @@
 //   · 放大后就看得远得多 ⇒ "看不见"是因为**太小**（薄刃在远处不足一像素），跟 LOD 无关；
 //   · 放大完全没用     ⇒ 是**硬性距离剔除**（LOD/剔除），与大小无关。
 //   实现 = 钩 `MissionWeapon.OnGetWeaponDataHandler` 改 `WeaponData.ScaleFactor`（逐发、不动数据）。
-//   ⚠️ 定稿写法：`spells.xml` 的 `taikou_spell_crescent` 加 `scale_factor="5"`
+//   ⚠️ 定稿写法：`ModuleData/items/spells.xml` 的 `lwn_spell_crescent` 加 `scale_factor="5"`
 //      （物品级该属性是**纯倍率**，默认 1；别照抄 `<Piece scale_factor="100">` 那套百分比约定）。
 //
 // 让弹飞得慢一点（2026-09-22 用户要求）：
@@ -84,8 +84,8 @@
 //   · 试手感（当场生效、不动数据）：`custom.spell_trace speed 0.5`
 //     → 走 `Mission.SetCrossbowMissileSpeedModifier`（原版天气就用它给雨天减速，影响**实际**飞行速度）。
 //     ⚠️ 全局：同场景所有弩（含 NPC 弩手）一起变；且天气系统会重置，所以本件每帧重刷。
-//   · 定稿（写进数据）：改 `Modules/Taikou/ModuleData/taikou_items/spells.xml` 里
-//     `taikou_spell_seal` 的 `missile_speed`（现在 180，原版弩是 60）。改完要重开局。
+//   · 定稿（写进数据）：改本模块 `ModuleData/items/spells.xml` 里
+//     `lwn_spell_seal` 的 `missile_speed`（现在 180，原版弩是 60）。改完要重开局。
 //   ⚠️ 之前那次"60 就没飞多远"的判断**已被日志推翻**：真因是撞到石头（材质号 7）触发碎裂消失，
 //     不是初速低。所以 60~120 段完全值得重试。
 //
@@ -151,7 +151,7 @@ namespace LivingWorldNpcs
         public static bool TracerEnabled = true;
 
         /// <summary>认领哪一发的判据 = 弹药物品的 StringId（铁律 20：一律 StringId，不用显示名）。</summary>
-        public static string AmmoFilter = "taikou_spell_crescent";
+        public static string AmmoFilter = "lwn_spell_crescent";
 
         /// <summary>示踪粒子名（原版现成件；查不到 → 只在日志里报一次，不影响其余功能）。</summary>
         public static string TracerParticle = "psys_game_missile_flame";
@@ -202,7 +202,7 @@ namespace LivingWorldNpcs
         /// —— 原版天气系统就是用它给雨天减速的（`CustomBattleApplyWeatherEffectsModel`），
         /// 所以这是引擎认的正规旋钮，会影响**实际飞行速度**（不只是 AI 瞄准）。
         /// 用法 = 先在这里试出手感（当场生效、不用重开局），定了值再写进
-        /// `Modules/Taikou/ModuleData/taikou_items/spells.xml` 的 `missile_speed`。
+        /// 本模块 `ModuleData/items/spells.xml` 的 `missile_speed`。
         /// ⚠️ 全局生效：同一场景里**所有弩**（含 NPC 弩手）一起变 —— 调试可以，别当成品。
         /// </summary>
         public static float SpeedModifier = 1f;
@@ -215,8 +215,8 @@ namespace LivingWorldNpcs
         /// 实现 = 钩 <c>MissionWeapon.OnGetWeaponDataHandler</c>，把 <c>WeaponData.ScaleFactor</c> 改掉
         /// （该字段的**物品级**约定是纯倍率：`ItemObject.cs:566` 默认 1f；XML 属性 `scale_factor`）。
         /// 逐发生效、不碰共享资产、不动数据文件、不用重开局。
-        /// ⚠️ 定稿要写进数据时 = `Modules/Taikou/ModuleData/taikou_items/spells.xml` 里
-        ///    `taikou_spell_crescent` 加 `scale_factor="5"`（注意：`<CraftedItem><Piece>` 里那个
+        /// ⚠️ 定稿要写进数据时 = 本模块 `ModuleData/items/spells.xml` 里
+        ///    `lwn_spell_crescent` 加 `scale_factor="5"`（注意：`<CraftedItem><Piece>` 里那个
         ///    `scale_factor="100"` 是**铸剑零件的百分比刻度**，另一套约定，别照抄）。
         /// </summary>
         public static float ItemScale = 1f;
@@ -637,7 +637,7 @@ namespace LivingWorldNpcs
         /// 🔴 **用引擎的官方发射入口直接打一发**（`Mission.AddCustomMissile` —— 攻城器械发射炮弹走的就是它）。
         /// 关键：它**绕开整个装备系统** —— 不需要物品能装进槽位、不需要 `ammo_class` 匹配、
         /// 不需要动画/装填流程 ⇒ **Boulder 类那种"玩家装不上槽"的弹也能打出去**
-        /// （原版巨石 `boulder`、BattleArtillery 的炮弹配置 `taikou_probe_shell`）。
+        /// （原版巨石 `boulder`、BattleArtillery 的炮弹配置）。
         /// 发射点 = 玩家眼睛，方向 = 玩家视线。
         /// </summary>
         public static string ShootItem(string itemId, float speed)

@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <base type="string">
   <tags>
     <tag language="English" />
@@ -4483,5 +4483,46 @@
     <string id="LWN_campaign_continue" text="Continue Campaign" />
     <string id="LWN_campaign_continue_disabled" text="Save-loading is not implemented yet." />
     <string id="LWN_q_failed" text="You have failed the mission disgracefully." />
+    <string id="LWN_gem_accel" text="Accelerate" />
+    <string id="LWN_gem_antigrav" text="Anti-Gravity" />
+    <string id="LWN_gem_bounce" text="Bounce" />
+    <string id="LWN_gem_bounce_cast" text="Ricochet" />
+    <string id="LWN_gem_burrower" text="Burrower" />
+    <string id="LWN_gem_crit" text="Critical" />
+    <string id="LWN_gem_delayed_turn" text="Delayed Turn" />
+    <string id="LWN_gem_drag" text="Air Drag" />
+    <string id="LWN_gem_drill" text="Drill" />
+    <string id="LWN_gem_expire_cast" text="Fuse" />
+    <string id="LWN_gem_explode" text="Explode" />
+    <string id="LWN_gem_gravity" text="Heavy Gravity" />
+    <string id="LWN_gem_haste" text="Haste" />
+    <string id="LWN_gem_heavy" text="Heavy" />
+    <string id="LWN_gem_homing" text="Homing" />
+    <string id="LWN_gem_huge" text="Giant" />
+    <string id="LWN_gem_lasting" text="Lasting" />
+    <string id="LWN_gem_light" text="Light" />
+    <string id="LWN_gem_lock" text="Extra Lock" />
+    <string id="LWN_gem_multi" text="Multishot" />
+    <string id="LWN_gem_pierce" text="Pierce" />
+    <string id="LWN_gem_power" text="Power Up" />
+    <string id="LWN_gem_quickcast" text="Quick Cast" />
+    <string id="LWN_gem_skyfall" text="Skyfall" />
+    <string id="LWN_gem_slow" text="Slow" />
+    <string id="LWN_gem_split" text="Split" />
+    <string id="LWN_gem_spread" text="Split Damage" />
+    <string id="LWN_gem_timer" text="Timer" />
+    <string id="LWN_gem_trigger" text="Trigger" />
+    <string id="LWN_gem_wide" text="Widen" />
+    <string id="LWN_gem_wobble" text="Unstable" />
+    <string id="LWN_gem_zerog" text="Weightless" />
+    <string id="LWN_grapple_hook" text="GrappleHook" />
+    <string id="LWN_grapple_rope" text="GrappleRope" />
+    <string id="LWN_spell_aura" text="SpellAura" />
+    <string id="LWN_spell_beam" text="SpellBeam" />
+    <string id="LWN_spell_crescent" text="SpellCrescent" />
+    <string id="LWN_spell_multi" text="SpellMulti" />
+    <string id="LWN_spell_seal" text="SpellSeal" />
+    <string id="LWN_spell_sky" text="SpellSky" />
+    <string id="LWN_spell_zone" text="SpellZone" />
 </strings>
 </base>

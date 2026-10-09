@@ -1,0 +1,201 @@
+<!-- LivingWorldNpcs 的动画接线正本之一：动作名声明（通用部分）。
+     动画资产本体 = AssetPackages/lwn_core.tpac（由资产沙箱模块 LwnAnim 编译后拷入）。
+     本文件由 ModuleData/project.mbproj 的 soln_action_types 那一行注册 —— 不挂那行 = 文件从不解析。
+
+     🔴 2026-10-09 从 Taikou 内容包搬来（工作调整：通用玩法归 LWN，内容包只留日本战国内容）。
+        同日改名连带：物品 taikou_grapple_* / taikou_spell_* → lwn_*（见 ModuleData/items/）。
+     引擎侧合并规则（反编译实证）：同名 soln id 的多模块文件由 C# 层**追加合并**进第一个 action_set，
+        原版几千个动作不会被挤掉；**只有同 id 重复定义才会崩**（KeyNotFoundException，2026-09-08 实锤）。
+        所以本文件只声明**全新动作名**，与 Native / 其它内容包零交集。
+     回退方法：删掉 mbproj 里 soln_action_types 那一行即可。
+
+     🔴🔴 **命名规则（2026-09-25 用户裁定）**：动作名的词跟着动画走 —— 去掉 clip 名的
+        `flight_` 前缀和 `_a` 后缀就是同一个词。全链路一个词：状态名 = 动作名 = album 里的 clip 名。
+          `act_fly_hovermove`       ↔ clip `flight_hovermove_a`      （悬停移动 = 直立巡航，旧名 act_fly_cruise）
+          `act_fly_fastmove`        ↔ clip `flight_fastmove_a`       （快移 = 超人趴姿冲刺，旧名 act_fly_boost）
+        两个词的大白话：**hovermove = 悬停状态下移动**；**fastmove = 快速移动**。
+        旧的一套（act_fly_cruise / act_fly_boost / act_fly_dash_start / act_fly_climb / act_fly_dive /
+        act_fly_lean_l …）全部作废，勿再使用。 -->
+<action_types>
+	<!-- 🔴 2026-09-20 新增：飞行待机（阶段 1A 探针）。
+	     🔴 必须带 type="actt_idle" —— 用法组的 <idles> 只认带这个属性的动作（Native 73 条里 71 条带）。
+	     本次同样与 Native 动作名**零交集**，合并是纯追加，不会重演 09-08 那次 KeyNotFoundException。
+	     验：实机控制台 custom.do_anim act_fly_idle -->
+	<action
+		name="act_fly_idle"
+		type="actt_idle" />
+
+	<!-- 🔴 2026-09-20 新增：处决动画（T17「带位移动画」实验的载体）。
+	     表演类动作：**不带** type / action_stage / usage_direction —— 只靠控制台 do_anim 手动播，
+	     不挂进任何状态机。与 Native 动作名零交集，合并纯追加。
+	     🔴 2026-09-22 改名：原 `act_execution02_root` 的 `_root` 后缀去掉 —— 动作名只说"演什么"，
+	     "带不带位移"是 clip 自己的事，不写进动作名。旧名作废，勿再使用。
+	     验：实机控制台 custom.do_anim act_execution02（播完 custom.print_pos_dir 位置有没有变）-->
+	<action name="act_execution02" />
+
+	<!-- 🔴 2026-09-22 新增：被处决那一侧（clip `executed02`，与上面是同一段表演的配套两侧）。
+	     攻击方播 act_execution02、受击方播 act_executed02，两条要同时起播才对得上；
+	     本次只做声明与接线（供控制台单播检查），两边怎么配对、怎么同步留给玩法实现。
+	     验：实机控制台 custom.do_anim act_executed02 -->
+	<action name="act_executed02" />
+
+	<!-- 🔴 2026-09-21 新增：飞行动作 4 条（起飞 / 悬停移动 / 快移 / 落地）—— 玩家飞行用。
+
+	     表演类动作，照上面 act_execution02 的样式**裸声明**（不带 type / action_stage /
+	     usage_direction）：这 4 条由我们的 Flight 代码每帧 SetActionChannel 直接指定，
+	     **不进引擎的走跑状态机**。理由：引擎那套移动模式只有 走 / 跑 / 蹲走 / 蹲跑 四个且名字写死在
+	     native 里，表达不了「抬头爬升、低头俯冲」，所以飞行整体接管、不走它。
+
+	     与 Native 动作名零交集，合并纯追加（不会重演 09-08 那次 KeyNotFoundException）。
+
+	     验：实机控制台逐条 custom.do_anim act_fly_hovermove / act_fly_fastmove / act_fly_hoverstart / act_fly_superland -->
+	<action name="act_fly_hoverstart" />
+	<action name="act_fly_hovermove" />
+	<action name="act_fly_fastmove" />
+	<action name="act_fly_superland" />
+
+	<!-- 🔴 2026-09-22 新增 7 条：快移入姿 / 四方向闪避 / 抬头 / 低头。
+	     来源：A 套飞行动画进包（`lwn_core.tpac`）。
+	     ① 快移入姿 `act_fly_fastmove_start` 与 四方向闪避 `act_fly_dodge_l/r/u/d`：
+	        C# 侧动作名早已写在 FlightTuning（ActFastMoveStart / ActDodgeL..D），本条只是把 XML 补上。
+	     ② 抬头 `act_fly_hovermove_addu` / 低头 `act_fly_hovermove_addd`：FlightTuning 里
+	        从空串填成这两个名字（之前留空 = 抬头时"保持上一条姿态"，看着像平板上升）。
+	     ⚠️ 现在接的是**悬停移动家（直立）**的抬头/低头姿态；快移时会从趴姿切到直立姿态，
+	        要按"快移家也各有一套"再拆状态，见 plans/玩家飞行-实施方案.md §3.8.1。
+	     验：实机控制台逐条 custom.do_anim act_fly_fastmove_start / act_fly_dodge_l / act_fly_hovermove_addu / act_fly_hovermove_addd -->
+	<action name="act_fly_fastmove_start" />
+	<action name="act_fly_dodge_l" />
+	<action name="act_fly_dodge_r" />
+	<action name="act_fly_dodge_u" />
+	<action name="act_fly_dodge_d" />
+	<action name="act_fly_hovermove_addu" />
+	<action name="act_fly_hovermove_addd" />
+
+	<!-- 🔴 2026-09-22 新增 6 条：压弯（左/右）× 两个家族 + 快移家的抬头/低头。
+	     为什么两个家族分开：**悬停移动家是直立姿势、快移家是趴姿**（实测身体轴一个竖直、一个水平），
+	     混用会硬翻 90°。
+	     触发：压弯 = 横移输入 A/D（带迟滞，`custom.flight tune bank / bankout` 可调）；
+	     快移抬头/低头 = 相机俯仰（快移态时走这两条，不再走 act_fly_hovermove_addu / _addd）。
+	     未接的：`flight_hovermove_a_pitchf / _pitchb`（前倾/后仰）留待定用途，包里已有资源。
+	     验：实机 custom.do_anim 逐条（进飞行后按 A/D、抬头低头更直观） -->
+	<action name="act_fly_hovermove_lean_l" />
+	<action name="act_fly_hovermove_lean_r" />
+	<action name="act_fly_fastmove_lean_l" />
+	<action name="act_fly_fastmove_lean_r" />
+	<action name="act_fly_fastmove_addu" />
+	<action name="act_fly_fastmove_addd" />
+
+	<!-- ═══════════ 施法手势（2026-09-24）· 🔴 **只在【通道 1 = 上身】播**，腿保持飞行姿态 ═══════════
+	     来源 = FlexibleCombatSystem 的魔法动画（经 `tools/anim-retarget` 重定向）：
+	       magic_idle              (55 帧 / 1.80 s) → 蓄力循环（按住右键期间一直播，靠 anf_cyclic 自己转）
+	       magic_projectile_spell  (70 帧 / 2.30 s) → 释放（松左键那一拍播一次；出手帧在 36%）
+	     资产侧：clip 在 `AssetPackages/lwn_core.tpac`（名 `magic_idle` / `magic_projectile_spell`）。
+	     代码侧：`Combat/SpellCastInput.cs` 的 PlayChargeAnim / PlayReleaseAnim。
+	     🔴 2026-09-25 改名：动作名的词跟着 clip 走（原来是 act_cast_charge / act_cast_projectile）。
+	     写错 = 静默 act_none（`ActionIndexCache.Create` 查不到就跳过，不会崩）。
+	     验：实机进飞行 → 按住右键看上身有没有起手姿势。 -->
+	<action name="act_magic_idle" />
+	<action name="act_magic_projectile" />
+
+	<!-- ═══════════ 钩索（2026-10-04）· 六条动作，两类驱动 ═══════════
+	     来源 = UE `A_GrappleOnGround`（经 `tools/anim-retarget` 重定向 + 按用户节点切段）：
+	       · **武器 usage 驱动**（换成自家 `grapple_rope`（绳）/ `grapple_hook`（钩）两组，见 item_usage_sets.xml）：
+	           grapple_ground_ready    ( 6 帧 / 0.200 s) → 按住左键起手
+	           grapple_ground_hold     (15 帧 / 0.500 s) → 持械循环（第 6 帧定格撑长）
+	           grapple_ground_release  (10 帧 / 0.333 s) → 松手甩出
+	       · **状态机驱动**（通道 0，ModuleData/statemachines/grapple.xml）：
+	           grapple_ground_pull     (39 帧 / 1.300 s) → 过程（真开始拉：跟随动作 + 位移，合并件）
+	           grapple_ground_land     (38 帧 / 1.267 s) → 落地（收势 + 落台 + 起身）
+	           grapple_ground_recover  ( 9 帧 / 0.300 s) → 收手（打空的出口用）
+	     资产侧：clip 在 `AssetPackages/lwn_core.tpac`（tpaccli list 实测名 = 上列同名）。
+	     代码侧：`Combat/GrappleAnimMachine.cs` + `Combat/GrappleAnimConditions.cs`。
+
+	     🔴🔴 **2026-10-04 晚补：三条 usage 驱动的动作必须带 `type` / `action_stage`**（照 Native 的
+	        `act_ready_bow` / `act_ready_continue_bow` / `act_release_bow` 逐字抄）——
+	        引擎的远程武器状态机靠这两个属性认"这条动作是 ready 阶段 / 释放阶段"；
+	        **只写名字 = 动作存在、能手动播（usage 也能起手），但引擎认不出阶段** ⇒
+	        实测症状 = 按住左键 ready **反复重播、永远进不了 hold**（0.2 s 一遍遍重放）。
+	        旁证：织丰火枪（`act_ready_musket` 等六条）**每条都带**这两个属性；同族规则见日本内容包
+	        `Taikou/ModuleData/action_types.xml` 里 `act_gun_reload` 那条（"不带 = 引擎的装填流程不会用它"）。
+	     三条**状态机驱动**的动作（pull / land / recover）**保持裸声明**——它们由我们自己的
+	     `GrappleAnimMachine` 每帧 Force，**不进引擎的武器流程**，缺属性无碍（照 act_fly_* 先例）。
+	     写错 = 静默 act_none（查不到就跳过，不会崩）；漏 type/stage = 能播但流程不认（本条教训）。
+	     验：实机 `custom.grapple equip` → 按住左键：起手 → **持械循环（进得去 = 本刀通）**；
+	     `custom.anim_state` 看 channel 0 的 `stage=AttackReady`。 -->
+	<action
+		name="act_grapple_ground_ready"
+		type="actt_ready_ranged"
+		action_stage="as_attack_ready" />
+	<action
+		name="act_grapple_ground_hold"
+		type="actt_ready_ranged"
+		action_stage="as_attack_ready" />
+	<action
+		name="act_grapple_ground_release"
+		type="actt_release_ranged"
+		action_stage="as_attack_release" />
+	<action name="act_grapple_ground_pull" />
+	<action name="act_grapple_ground_land" />
+	<action name="act_grapple_ground_recover" />
+	<!-- 待机（2026-10-07 试跑）：把待机槽从原版 `act_idle_bow_1`（持弓站立）换成钩索自己的姿态。
+	     🔴 为什么不直接把 `<idle action>` 指向 act_grapple_ground_hold —— 那条带
+	        `type="actt_ready_ranged"` + `action_stage="as_attack_ready"`（见上），放进 idle 槽 =
+	        引擎可能把"站着不动"认成"已经进了瞄准阶段"，把开火流程搅乱。
+	     所以新开一条**正牌 idle**：声明形状照原版 `act_idle_bow_1` 逐字（`type="actt_idle"`），
+	     只是 animation 指到同一条 clip —— **同一条 clip 挂两个动作名是合法的**，资产零改动，
+	     换的只是"哪个场合播它"。将来有了正经待机 clip，只改 action_sets.xml 里那一行 animation。 -->
+	<action
+		name="act_grapple_idle"
+		type="actt_idle" />
+	<!-- 移动组待机（2026-10-07）：移动组（movement_sets.xml）的 `idle` 槽要的是**走动类**动作 ——
+	     原版这一族（`act_walk_idle_bow` / `act_crouch_run_idle_bow` …）在这一层全是**裸声明**（无 type）。
+	     照抄其形状：只写名字。加了 type 反而可能被引擎按别的类别认走。 -->
+	<action name="act_grapple_walk_idle" />
+	<!-- 走 / 跑（2026-10-08 用户新做两条 clip）：同上一族，**裸声明**（照抄原版 `act_walk_forward_bow` /
+	     `act_run_forward_bow` 的形状，它们也是零属性）。
+	     🔴🔴 这两条**必须在这里声明**：`movement_sets.xml` 的 `forward` 槽引用的就是这两个名字，
+	     而**没声明的动作名 = native 取到无效索引 = 装备/持械时 AccessViolation**
+	     （2026-10-08 实机：绳那件一拔出来就 AV，栈顶 = `MissionState.TickMission` 的托管→本机转换；
+	       我只把动作加进了 action_sets.xml + movement_sets.xml，漏了这一层 —— 雷 122 同族）。
+	     ⚠️ 加新动作名时**三处都要**：① 本文件声明 ② action_sets.xml 映射到 clip ③ 谁引用它（movement_sets 等）。 -->
+	<action name="act_grapple_walk_forward" />
+	<action name="act_grapple_run_forward" />
+	<action name="act_grapple_walk_back" />
+	<action name="act_grapple_run_back" />
+	<action name="act_grapple_walk_left" />
+	<action name="act_grapple_run_left" />
+	<action name="act_grapple_walk_right" />
+	<action name="act_grapple_run_right" />
+	<!-- 拔/收钩索（2026-10-07）：由 item_holsters.xml 的槽位引用（**不在用法组里**）。
+	     声明形状照抄原版 `act_equip_bow_left_hip`：只写 type、**不带 action_stage** ——
+	     带了 stage = 引擎可能把这当"已进入瞄准"的信号（与上面待机那条同一个理由）。 -->
+	<action
+		name="act_grapple_equip"
+		type="actt_equip_unequip" />
+	<action
+		name="act_grapple_unequip"
+		type="actt_equip_unequip" />
+	<!-- 上弦（reload，2026-10-07）：**每次把钩索拔出来**，引擎都要先"搭箭"才给瞄 —— 那一下原来播
+	     原版 `act_reload_bow_right`（1.3 s 拉弓搭箭、一眼出戏）。声明形状**照抄它**：
+	     `type="actt_reload"` + `action_stage="as_reload_last_phase"`（弓是**单段装填** = last phase；
+	     火器那条 act_gun_reload 在 Taikou 侧，是 `as_reload_mid_phase`，**别抄错**）。
+	     🔴 少这两个属性 = 动作能播、但引擎的装填流程不认 ⇒ 永远停在"没上弦"、左键无反应
+	        （2026-10-04 实测过：reload 槽留空就是这个症状）。 -->
+	<action
+		name="act_grapple_reload"
+		type="actt_reload"
+		action_stage="as_reload_last_phase" />
+	<!-- 被捆缚（2026-10-09，步骤 5「勾人」）：目标被拽倒之后"躺下 / 躺地循环 / 起身"三段。
+	     animation 指向**原版自带**的地牢囚犯躺地三条 clip（接线见 action_sets.xml 同批注释）——
+	     我们只借动作名，**资产零新增**。
+	     🔴 **裸声明**（零属性）：这三条由我们自己的代码（GrappleBind）发，
+	        不进引擎的武器/装填流程 ⇒ 照 `act_fly_*` / `act_grapple_ground_pull` 那一族的形状写。
+	        ⚠️ 原版给 `act_dungeon_prisoner_lay` / `_cycle` 标的是 `type="actt_sit_on_the_floor"`，
+	           **故意不抄** —— 那是"引擎认定该 Agent 处于坐地状态"的分类；我们只是借姿势，
+	           不要把被捆的人塞进引擎的坐地状态机（要试就在这一行加回去，纯数据改动、重启即生效）。
+	     🔴 加动作名**三处都要**：① 本文件声明 ② action_sets.xml 映射 ③ 谁引用它
+	        （漏①= native 取到无效索引 = AccessViolation，雷 169）。 -->
+	<action name="act_grapple_bound_lay" />
+	<action name="act_grapple_bound_cycle" />
+	<action name="act_grapple_bound_standup" />
+</action_types>

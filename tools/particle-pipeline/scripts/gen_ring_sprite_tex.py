@@ -37,9 +37,9 @@ OUTDIR = os.path.join(TOOL, "out")
 PNG_FOR_EDITOR = os.path.join(os.path.dirname(TOOL), "face-pipeline", "scripts", "png_for_editor.py")
 
 NAME = "lwn_prt_ring_d.png"
-STAGE_DIR = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "ImortReady", "lwn_prt_ring")
-MIRROR_DIR = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "materials", "lwn_prt_ring")
-REGISTERED_MARK = os.path.join(REPO, "..", "TaikouAnim", "Assets", "materials", "lwn_prt_ring",
+STAGE_DIR = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "ImortReady", "lwn_prt_ring")
+MIRROR_DIR = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "materials", "lwn_prt_ring")
+REGISTERED_MARK = os.path.join(REPO, "..", "LwnAnim", "Assets", "materials", "lwn_prt_ring",
                                NAME.replace(".png", "_tex.tpac"))
 
 SIZE = 512

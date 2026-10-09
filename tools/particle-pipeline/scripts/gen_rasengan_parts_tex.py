@@ -55,10 +55,10 @@ BLADE_EDGE_SOFT = 0.55          # 横向边缘柔化强度（0 = 硬边、1 = �
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 OUT = os.path.join(ROOT, "tools", "particle-pipeline", "out")
-# 🔴 待导入目录在**正牌模块** `Modules/TaikouAnim/`（与 LivingWorldNpcs 平级）——
-#    不是 `LivingWorldNpcs/Modules/TaikouAnim`（那是另一份独立副本，编辑器不读它）。
+# 🔴 待导入目录在**正牌模块** `Modules/LwnAnim/`（与 LivingWorldNpcs 平级）——
+#    不是 `LivingWorldNpcs/Modules/LwnAnim`（那是另一份独立副本，编辑器不读它）。
 #    口径与 `build_rasengan.py` 的 STAGE_ROOT 一致。
-IMR_ROOT = os.path.join(os.path.dirname(ROOT), "TaikouAnim", "AssetSources", "ImortReady")
+IMR_ROOT = os.path.join(os.path.dirname(ROOT), "LwnAnim", "AssetSources", "ImortReady")
 CONV = os.path.join(ROOT, "tools", "face-pipeline", "scripts", "png_for_editor.py")
 
 

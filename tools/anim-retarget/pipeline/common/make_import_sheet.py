@@ -48,7 +48,7 @@ def _find_travel_tool():
 TRAVEL_TOOL = _find_travel_tool()
 
 DEFAULT_ASSETS = ("H:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/"
-                  "Modules/TaikouAnim/AssetSources")
+                  "Modules/LwnAnim/AssetSources")
 DEFAULT_OUT = os.path.join(ROOT, "output", "modkit_import_sheet.csv")
 FPS = 30
 

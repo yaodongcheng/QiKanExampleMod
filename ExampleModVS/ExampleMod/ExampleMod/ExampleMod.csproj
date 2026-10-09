@@ -277,6 +277,11 @@
     <Compile Include="AI\AgentAIController.cs" />
     <Compile Include="AI\AgentBrain.cs" />
     <Compile Include="AI\SpeechChannel.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
     <Compile Include="Scenario\ScenarioSchema.cs" />
     <Compile Include="Scenario\ScenarioAttrStore.cs" />
     <Compile Include="Scenario\ScenarioStateStore.cs" />
@@ -759,5 +764,11 @@
     <Compile Include="Story\SystemCommands.cs" />
     <Compile Include="Story\Text2Anim.cs" />
     <Compile Include="Story\VisualCommands.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
   </ItemGroup>
 </Project>

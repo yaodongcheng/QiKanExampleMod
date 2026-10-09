@@ -794,7 +794,7 @@ namespace LivingWorldNpcs.Animation
                 {
                     _warnedBadAction = true;
                     DebugLogger.Log($"[Anim:{_def.Name}] 动作 '{state.Action}' 解析为 act_none —— " +
-                                    "检查内容包 action_types.xml / action_sets.xml（写错不报错，只是不播）");
+                                    "检查 LivingWorldNpcs 的 ModuleData/action_types.xml / action_sets.xml（写错不报错，只是不播）");
                 }
                 return;
             }

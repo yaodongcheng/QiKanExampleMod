@@ -1,6 +1,6 @@
 # gen_flight_sigil_assets.py —— 生成「飞行法阵」的源资产（2026-09-21）
 #
-# 产出两件（都进中转沙箱 TaikouAnim/AssetSources/，由用户在 ModKit 里导入）：
+# 产出两件（都进中转沙箱 LwnAnim/AssetSources/，由用户在 ModKit 里导入）：
 #   lwn_flight_sigil_d.png   法阵贴图
 #   lwn_flight_sigil.fbx     承载法阵的平面网格（无骨架、无物理）
 #
@@ -34,7 +34,7 @@ except Exception:
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODULE_ROOT = os.path.dirname(HERE)                       # .../Modules/LivingWorldNpcs
 MODULES_DIR = os.path.dirname(MODULE_ROOT)                # .../Modules
-DEFAULT_OUTDIR = os.path.join(MODULES_DIR, "TaikouAnim", "AssetSources", "sigil", "lwn_flight_sigil")
+DEFAULT_OUTDIR = os.path.join(MODULES_DIR, "LwnAnim", "AssetSources", "sigil", "lwn_flight_sigil")
 
 BASE_NAME = "lwn_flight_sigil"
 DEFAULT_BLENDER = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
@@ -265,7 +265,7 @@ def main():
 
     print()
     print("下一步（ModKit，人工）：")
-    print("  1. 打开 TaikouAnim 模块（先跑 to_editor_mode.bat）")
+    print("  1. 打开 LwnAnim 模块（先跑 to_editor_mode.bat）")
     print("  2. 资源浏览器导入 lwn_flight_sigil.fbx → 静态网格（不勾 Skinning、不要骨架）")
     print("  3. 导入 lwn_flight_sigil_d.png → 贴图")
     print("  4. 建材质：🔴 必须是【加法/自发光】档 —— 建成不透明档会看到一块黑方块")

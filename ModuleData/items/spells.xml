@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 法印与法术弹 —— 施法体系 P0/P1 探针（2026-09-21 立）。
+     依据：plans/法术体系-通用施法框架.md（物品设计 + 阴魔斩）。
+     核心思路 = **把法术伪装成弹药**：骑砍原生的武器/导弹机制已经把「抬起→瞄准→发射→飞行→
+     重力→碰撞→插地→命中→范围伤害」全做完了，我们要做的只是换掉飞行物的外观。
+
+     🔴 2026-10-09 搬家：从 Taikou 内容包挪进本模块（`ModuleData/items/`），
+        物品 id 由 `taikou_spell_*` 改为 `lwn_spell_*`，并去掉了 `culture="Culture.ikoku"`。
+        配套搬过来的还有 `ModuleData/AssetRegistry/Spells.xml`（法术表）与 `Modifiers.xml`（宝石表）
+        —— 那两张表由 LWN 的读取器扫**所有模块**的 `ModuleData/AssetRegistry/`，零代码改动即生效。
+        本地化键同步改成 `LWN_spell_*` / `LWN_gem_*`（见 ModuleData/Languages/）。
+
+     🔴 本文件是 P0/P1 的**最小验证件**，两个网格都是**占位**，不是最终外观：
+        法印    mesh="crossbow_a"            ← 原版轻弩网格（占位）
+        法术弹  flying_mesh="projectile_pot" ← 原版火罐网格（占位）
+     占位是故意的：P0 要验的命题只有一个 ——「换了 flying_mesh，射出去的形状真的会变吗」。
+     网格用原版件 = 排除「我们的资产包坏了」这个变量；形状差异足够大（一支弩矢 vs 一个陶罐），
+     肉眼一眼可判。这条过了，P2 才把 flying_mesh 换成月牙网格。
+     （同类先例：原版 `pot_projectile`（火罐）就是 flying_mesh 与 mesh 都指一个陶罐。）
+
+     🔴 与铁炮（taikou_items/firearms.xml）的三处**刻意不同**，别照抄那边：
+       ① `ammo_class="Bolt"`，不是 `Cartridge`。火器的 Cartridge 是给 FirearmFxLogic 认的
+          （认到就播枪声 + 枪口烟）。法印不是火器，用 Bolt 与弩同口径 → 现有火器逻辑查表
+          查不到 → 静默跳过，不会误播火器表现。法术自己的表现另有 SpellCastFxLogic（计划 P3）。
+       ② `item_usage="crossbow_light"`，用原版弩的用法。自定义 usage 是本工程验证过的可行路
+          （铁炮的 `tk_firearm`），**但前提是 `item_usage_sets.xml` 必须在 `project.mbproj`
+          里挂 `soln_item_usage_sets` 那一行**（雷 122：不挂 = 文件完全不加载 = native 取到
+          无效索引 = AccessViolation）。P1 要"零代码最小验证"，所以先不引入自定义 usage；
+          结印/推掌动作（计划 §4.3）另起一轮做。
+       ③ `reload_phase_count="2"`，照原版弩。计划 §4.1 写的是 1（"法印抬手即可"），但全库
+          18 处该字段**清一色是 2**，没有 1 的先例。P1 先用原版值拿一个干净基线；
+          想试 1 就改这一个数字，一次实机即可定性。
+
+     🔴 伤害两处都填了非零（法印 60 / 法术弹 60）—— 引擎侧到底取"发射器"还是"弹药"的
+        thrust_damage，我们没实测（原版弩 67 + 弩矢 2 看不出是谁生效）。两处都填 =
+        无论取哪边都有伤害，P1 的验收（"打中敌人并造成伤害"）必过；P5 调参时再定。
+     弹药伤害类型写 Cut（月牙是斩击）。范围伤害 `AffectsArea` 按计划 §4.2 **暂不开** ——
+     先让 P1 是一条干净的直线，AOE 留到 P5 单独开、单独看。
+     `is_merchandise="false"` 也是探针期的选择：不进货架、不污染世界，接入玩法时再开。
+     🔴 两件都带 `<Flags Civilian="true" />`（CLAUDE.md 铁律 33：**任何装备都要平民装可用**）——
+        原版 `crossbow_a` / `bolt_a` 自己**没有**这个标记（它们只有 `Stealth`），
+        照抄原版字段时最容易把它一起漏掉（本文件第一版就漏了，全库 195/197 只缺这两件）。
+        漏了的症状 = 玩家在城镇里换日常装时**选不到这件东西**，战场上却用得好好的。
+        检查：`python Scripts/check_items_civilian.py`（已进一键体检）。
+
+     验收入口（游戏内控制台）：
+        campaign.add_item_to_main_party 法印 | 1              （中文客户端；英文客户端敲 SpellSeal）
+        campaign.add_item_to_main_party 月牙法弹 | 40          （英文客户端敲 SpellCrescent）
+     🔴 **两个坑，2026-09-21 各踩一次（反编译 1.2.12 实证，别再猜）**：
+       ① `campaign.add_item_to_main_party` **按「显示名」查，不按 StringId**
+          （`CampaignCheats.GetItemObject`：拿 `ItemObject.Name.ToString()` 去掉所有空格、
+            忽略大小写，跟输入比对；`Name` 是本地化后的显示名，
+            `ItemObject.Deserialize` 里 `Name = new TextObject(node.Attributes["name"].InnerText)`）。
+          ⇒ 敲 `lwn_spell_seal` 永远查不到，**要敲显示名**。
+       ② 参数组之间用**竖线 `|`** 分隔（`GetSeparatedNames(strings, "|")`），组内才用空格拼。
+          敲成 `SpellSeal 1`（没竖线）→ 整串 "SpellSeal 1" 被当成**一个**名字去比对 → 同样 not found。
+     🔴 **显示名（2026-10-08 用户裁定更正）**：此前把这两件做成「中英同串的 ASCII」图控制台省事 ——
+        **该做法已废止**（中文玩家看到的是英文名）。中文层要写中文名；控制台取物品走 **StringId**
+        （我们自己的命令一律如此），走原版 `campaign.add_item_to_main_party` 时敲中文名即可。
+        ✅ 现状（2026-10-08 已改）：中文层 = 法印 / 月牙法弹 / 多重法弹 / 天降法弹 / 焚地法阵 / 引导光束 / 雷电领域；
+        英文层（生成物）仍是 SpellSeal 等 ASCII。
+     然后把法印装到弩槽、法术弹装到弩矢槽，对准人射一发。 -->
+<Items>
+	<!-- 法印（施法武器）。逐字照原版 `crossbow_a`（Simple Light Crossbow）改写，
+	     只动四处：id / name / mesh（占位）/ culture / weight / is_merchandise。
+	     其余字段（AmmoOffset / item_holsters / holster_position_shift / WeaponFlags）
+	     **与原版逐字相同** —— 网格还是那把弩，挂接与偏移就必须照抄，否则枪贴不住背、弹装不上膛。
+	     🔴 `missile_speed = 60`（= **原版弩的值**；探针期一度调到 180，2026-09-22 用户裁定"太快"改回）
+	        —— **弹速写在武器上才有用，写在弹药上无效**（项目已实证：引擎取的是手持武器的弹速
+	        `GetModifiedMissileSpeedForCurrentUsage`，拿的是枪占的槽位；织丰在弹药写 500、
+	        CA_BloodSmoke 写 10，两者都不生效）。
+	        ⚠️ **别再把"没飞多远就消失"归因于初速低** —— 那是 2026-09-22 之前的误判。
+	        诊断日志（`custom.spell_trace`）实测：初速 180 时一发飞了 **492 m / 7.59 s**（高抛弹道），
+	        真正让它"消失"的是命中判定，与初速无关：
+	          · 撞到 `dont_stick_missiles` 的表面（如石头）→ BounceBack → 本弹的
+	            `AmmoBreaksOnBounceBack` → **BecomeInvisible**（碎掉）
+	          · 飞出战场边界 / 落水 → BecomeInvisible
+	        所以降速只会让它飞得近，不会让它"更容易消失"。
+	        旋钮只有一个数：改大 = 更快更平直（原版弩 60 → 曾是 180）；改小 = 更慢更弯。
+	        想先试手感别改这里 —— 控制台 `custom.spell_trace speed 0.5` 当场生效、不用重开局。 -->
+	<Item
+		id="lwn_spell_seal"
+		name="{=LWN_spell_seal}SpellSeal"
+		is_merchandise="false"
+		body_name="bo_cross_bow_heavy"
+		mesh="crossbow_a"
+		weight="1.5"
+		appearance="0.8"
+		difficulty="0"
+		Type="Crossbow"
+		AmmoOffset="0.0, 0.02131, 0.24650"
+		item_holsters="crossbow_back:bow_hip:mace_right_hip:bow_hip_2"
+		holster_position_shift="0.02,0,-0.4">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Crossbow"
+				ammo_class="Bolt"
+				missile_speed="60"
+				accuracy="80"
+				thrust_damage="60"
+				thrust_speed="80"
+				speed_rating="70"
+				weapon_length="95"
+				ammo_limit="1"
+				thrust_damage_type="Pierce"
+				item_usage="crossbow_light"
+				reload_phase_count="2"
+				physics_material="wood_weapon"
+				center_of_mass="0,0,0.4"
+				modifier_group="crossbow">
+				<WeaponFlags
+					RangedWeapon="true"
+					HasString="true"
+					NotUsableWithOneHand="true"
+					TwoHandIdleOnMount="true"
+					CanBeUsedWhileCrouched="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			Stealth="true"
+			Civilian="true" />
+	</Item>
+	<!-- 法术弹（阴魔斩用的那一发）。逐字照原版 `bolt_a`（Light Bolts）改写，两处与它不同：
+	     🔴 ① `flying_mesh` = **我们自己的月牙网格** `lwn_yinmo_crescent`
+	           （名字**核对过**：对 Taikou 的 AssetPackages 跑 tpaccli 的 list、按 `lwn_yinmo` 过滤，
+	            里面有 mesh + metamesh 两种条目，名字就是它；不要猜）
+	     🔴 ② `rotation="0, 0, 0"` —— **别指望它调飞行朝向**（2026-09-22 反编译实证 + 实机）：
+	           它和 `position` 一起只拼出 `WeaponComponentData.Frame`（武器自身的坐标系），
+	           对**飞行中的视觉朝向无效**（实机改 `90,0,0` 毫无变化，确认）。
+	           飞行网格的朝向是 native 按速度方向算的 ⇒ **要改朝向只能改网格**：
+	           月牙相对自身 +Z 怎么摆，飞起来就是什么样（旋钮 = `build_spell_mesh.py` 的 `CRESCENT_TILT_X_DEG`，
+	           现在是 90° = 腹朝飞行方向）。原版弩矢那个 `180, 0, 0` 同理只是它自己的 Frame，别当朝向旋钮抄。
+	     其余保持原版：mesh / holster_mesh = 原版弩矢（袋中外观二期再换）、
+	     body_name = `bo_capsule_arrow`（碰撞胶囊，异形碰撞体见计划 §十 风险 2）、
+	     sticking_position / sticking_rotation = 原版弩矢的 47cm 口径。 -->
+	<Item
+		id="lwn_spell_crescent"
+		name="{=LWN_spell_crescent}SpellCrescent"
+		is_merchandise="false"
+		body_name="bo_capsule_arrow"
+		holster_body_name="bo_axe_short"
+		flying_mesh="lwn_yinmo_crescent"
+		mesh="bolt_bl_a"
+		holster_mesh="bolt_bl_a_quiver"
+		holster_mesh_with_weapon="bolt_bl_a_quiver"
+		weight="0.05"
+		appearance="1"
+		Type="Bolts"
+		item_holsters="quiver_bolts:quiver_bolts_2:quiver_back_middle:quiver_back_top">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Bolt"
+				stack_amount="40"
+				thrust_speed="0"
+				thrust_damage="60"
+				thrust_damage_type="Cut"
+				speed_rating="0"
+				missile_speed="10"
+				weapon_length="47"
+				item_usage=""
+				passby_sound_code="event:/mission/combat/missile/passby"
+				rotation="0, 0, 0"
+				physics_material="missile"
+				sticking_position="0,-0.47,0"
+				sticking_rotation="90,0,0"
+				center_of_mass="0,0,-0.1"
+				modifier_group="bolt">
+				<WeaponFlags
+					AttachAmmoToVisual="true"
+					Consumable="true"
+					AmmoSticksWhenShot="true"
+					AmmoBreaksOnBounceBack="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			ForceAttachOffHandPrimaryItemBone="true"
+			Stealth="true"
+			Civilian="true" />
+	</Item>
+	<!-- ═══════════ 阶段 2 的三个验收件（2026-09-23 立）：多目标 / 天降 / 放置 ═══════════
+
+	     它们是**机制验收件**，不是正式法术：三件都复用月牙那一个网格（`lwn_yinmo_crescent`），
+	     所以"看起来一样、行为不同"正是要看的 —— 区别全部由 `AssetRegistry/Spells.xml` 里那三行决定
+	     （瞄准轴 locked/ground、投送轴 projectile(start_height/turn_rate)/place）。
+	     配套数据行：projectile_multi_bolts / skyfall_meteor / place_firezone。
+
+	     逐字照 `lwn_spell_crescent` 改写，只动 id / name（其余字段一个没变 —— 同一套网格、
+	     同一套碰撞体、同一套挂接，这样出问题一定不在资产上）。
+
+	     验收入口（控制台，**不用装备**）：
+	       custom.spell cast projectile_multi_bolts    多目标：锁住锥内最多 3 人，各追一发
+	       custom.spell cast skyfall_meteor            天降：落点正上方 25 m 砸下来，半径伤害
+	       custom.spell cast place_firezone            放置：地上留一片 8 秒，每秒烧一次
+	     （想走"装备法印开火"那条路：campaign.add_item_to_main_party SpellMulti | 40 之类，
+	       显示名自 2026-10-08 起中文层已有中文名：中文客户端敲「多重法弹」、英文客户端敲 SpellMulti。） -->
+
+	<Item
+		id="lwn_spell_multi"
+		name="{=LWN_spell_multi}SpellMulti"
+		is_merchandise="false"
+		body_name="bo_capsule_arrow"
+		holster_body_name="bo_axe_short"
+		flying_mesh="lwn_yinmo_crescent"
+		mesh="bolt_bl_a"
+		holster_mesh="bolt_bl_a_quiver"
+		holster_mesh_with_weapon="bolt_bl_a_quiver"
+		weight="0.05"
+		appearance="1"
+		Type="Bolts"
+		item_holsters="quiver_bolts:quiver_bolts_2:quiver_back_middle:quiver_back_top">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Bolt"
+				stack_amount="40"
+				thrust_speed="0"
+				thrust_damage="60"
+				thrust_damage_type="Cut"
+				speed_rating="0"
+				missile_speed="10"
+				weapon_length="47"
+				item_usage=""
+				passby_sound_code="event:/mission/combat/missile/passby"
+				rotation="0, 0, 0"
+				physics_material="missile"
+				sticking_position="0,-0.47,0"
+				sticking_rotation="90,0,0"
+				center_of_mass="0,0,-0.1"
+				modifier_group="bolt">
+				<WeaponFlags
+					AttachAmmoToVisual="true"
+					Consumable="true"
+					AmmoSticksWhenShot="true"
+					AmmoBreaksOnBounceBack="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			ForceAttachOffHandPrimaryItemBone="true"
+			Stealth="true"
+			Civilian="true" />
+	</Item>
+
+	<Item
+		id="lwn_spell_sky"
+		name="{=LWN_spell_sky}SpellSky"
+		is_merchandise="false"
+		body_name="bo_capsule_arrow"
+		holster_body_name="bo_axe_short"
+		flying_mesh="lwn_yinmo_crescent"
+		mesh="bolt_bl_a"
+		holster_mesh="bolt_bl_a_quiver"
+		holster_mesh_with_weapon="bolt_bl_a_quiver"
+		weight="0.05"
+		appearance="1"
+		Type="Bolts"
+		item_holsters="quiver_bolts:quiver_bolts_2:quiver_back_middle:quiver_back_top">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Bolt"
+				stack_amount="40"
+				thrust_speed="0"
+				thrust_damage="60"
+				thrust_damage_type="Cut"
+				speed_rating="0"
+				missile_speed="10"
+				weapon_length="47"
+				item_usage=""
+				passby_sound_code="event:/mission/combat/missile/passby"
+				rotation="0, 0, 0"
+				physics_material="missile"
+				sticking_position="0,-0.47,0"
+				sticking_rotation="90,0,0"
+				center_of_mass="0,0,-0.1"
+				modifier_group="bolt">
+				<WeaponFlags
+					AttachAmmoToVisual="true"
+					Consumable="true"
+					AmmoSticksWhenShot="true"
+					AmmoBreaksOnBounceBack="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			ForceAttachOffHandPrimaryItemBone="true"
+			Stealth="true"
+			Civilian="true" />
+	</Item>
+
+	<Item
+		id="lwn_spell_zone"
+		name="{=LWN_spell_zone}SpellZone"
+		is_merchandise="false"
+		body_name="bo_capsule_arrow"
+		holster_body_name="bo_axe_short"
+		flying_mesh="lwn_yinmo_crescent"
+		mesh="bolt_bl_a"
+		holster_mesh="bolt_bl_a_quiver"
+		holster_mesh_with_weapon="bolt_bl_a_quiver"
+		weight="0.05"
+		appearance="1"
+		Type="Bolts"
+		item_holsters="quiver_bolts:quiver_bolts_2:quiver_back_middle:quiver_back_top">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Bolt"
+				stack_amount="40"
+				thrust_speed="0"
+				thrust_damage="60"
+				thrust_damage_type="Cut"
+				speed_rating="0"
+				missile_speed="10"
+				weapon_length="47"
+				item_usage=""
+				passby_sound_code="event:/mission/combat/missile/passby"
+				rotation="0, 0, 0"
+				physics_material="missile"
+				sticking_position="0,-0.47,0"
+				sticking_rotation="90,0,0"
+				center_of_mass="0,0,-0.1"
+				modifier_group="bolt">
+				<WeaponFlags
+					AttachAmmoToVisual="true"
+					Consumable="true"
+					AmmoSticksWhenShot="true"
+					AmmoBreaksOnBounceBack="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			ForceAttachOffHandPrimaryItemBone="true"
+			Stealth="true"
+			Civilian="true" />
+	</Item>
+
+	<!-- 阶段 3 的两个验收件（引导光束 / 雷电领域）：照 SpellZone 同模板改 id/name，
+	     网格与碰撞体一字未动 —— 行为差别全在 AssetRegistry/Spells.xml 那两行。 -->
+	<Item
+		id="lwn_spell_beam"
+		name="{=LWN_spell_beam}SpellBeam"
+		is_merchandise="false"
+		body_name="bo_capsule_arrow"
+		holster_body_name="bo_axe_short"
+		flying_mesh="lwn_yinmo_crescent"
+		mesh="bolt_bl_a"
+		holster_mesh="bolt_bl_a_quiver"
+		holster_mesh_with_weapon="bolt_bl_a_quiver"
+		weight="0.05"
+		appearance="1"
+		Type="Bolts"
+		item_holsters="quiver_bolts:quiver_bolts_2:quiver_back_middle:quiver_back_top">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Bolt"
+				stack_amount="40"
+				thrust_speed="0"
+				thrust_damage="60"
+				thrust_damage_type="Cut"
+				speed_rating="0"
+				missile_speed="10"
+				weapon_length="47"
+				item_usage=""
+				passby_sound_code="event:/mission/combat/missile/passby"
+				rotation="0, 0, 0"
+				physics_material="missile"
+				sticking_position="0,-0.47,0"
+				sticking_rotation="90,0,0"
+				center_of_mass="0,0,-0.1"
+				modifier_group="bolt">
+				<WeaponFlags
+					AttachAmmoToVisual="true"
+					Consumable="true"
+					AmmoSticksWhenShot="true"
+					AmmoBreaksOnBounceBack="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			ForceAttachOffHandPrimaryItemBone="true"
+			Stealth="true"
+			Civilian="true" />
+	</Item>
+	<Item
+		id="lwn_spell_aura"
+		name="{=LWN_spell_aura}SpellAura"
+		is_merchandise="false"
+		body_name="bo_capsule_arrow"
+		holster_body_name="bo_axe_short"
+		flying_mesh="lwn_yinmo_crescent"
+		mesh="bolt_bl_a"
+		holster_mesh="bolt_bl_a_quiver"
+		holster_mesh_with_weapon="bolt_bl_a_quiver"
+		weight="0.05"
+		appearance="1"
+		Type="Bolts"
+		item_holsters="quiver_bolts:quiver_bolts_2:quiver_back_middle:quiver_back_top">
+		<ItemComponent>
+			<Weapon
+				weapon_class="Bolt"
+				stack_amount="40"
+				thrust_speed="0"
+				thrust_damage="60"
+				thrust_damage_type="Cut"
+				speed_rating="0"
+				missile_speed="10"
+				weapon_length="47"
+				item_usage=""
+				passby_sound_code="event:/mission/combat/missile/passby"
+				rotation="0, 0, 0"
+				physics_material="missile"
+				sticking_position="0,-0.47,0"
+				sticking_rotation="90,0,0"
+				center_of_mass="0,0,-0.1"
+				modifier_group="bolt">
+				<WeaponFlags
+					AttachAmmoToVisual="true"
+					Consumable="true"
+					AmmoSticksWhenShot="true"
+					AmmoBreaksOnBounceBack="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			ForceAttachOffHandPrimaryItemBone="true"
+			Stealth="true"
+			Civilian="true" />
+	</Item>
+
+</Items>

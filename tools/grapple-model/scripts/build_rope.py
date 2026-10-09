@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """build_rope.py —— 造"绳"那件物品的网格：**一盘绳**（`lwn_grapple_rope`）。
 
-【它是谁】`taikou_grapple_rope`（弓型那件，玩家握着的那件）的 `mesh` —— 引擎把它挂**左手**，
+【它是谁】`lwn_grapple_rope`（弓型那件，玩家握着的那件）的 `mesh` —— 引擎把它挂**左手**，
    所以形状 = "左手里盘着一盘绳"；同一件网格也是它在背包/装备界面里的 **2D 图标**。
 
 【口径 = 照抄 `build_hand_props.py`（左手那枚环，**实机验证过**）】：
@@ -12,7 +12,7 @@
    默认：盘半径 45 mm、管半径 9 mm、3.25 圈、螺距 12 mm ⇒ 约 110 × 40 × 110 mm（一手可握）。
 
 【产物】`lwn_grapple_rope.fbx`（单件、无骨架、自带材质槽、含一层 UV）→ 写到中转沙箱
-   `TaikouAnim/AssetSources/ImortReady/GrappleModel/`，由**用户在 ModKit 里 Import Create**。
+   `LwnAnim/AssetSources/ImortReady/GrappleModel/`，由**用户在 ModKit 里 Import Create**。
    ⚠️ **导入之前不要启动游戏**：物品 `mesh` 已指向 `lwn_grapple_rope`，网格不在 = 图标渲染时 NRE（雷 168）。
 
 跑法：

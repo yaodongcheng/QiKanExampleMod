@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
   <tags>
     <tag language="简体中文" />
@@ -4588,5 +4588,46 @@
     <string id="LWN_campaign_continue" text="继续战役" />
     <string id="LWN_campaign_continue_disabled" text="读档功能尚未实装。" />
     <string id="LWN_q_failed" text="你耻辱地失败了这项任务。" />
+  <string id="LWN_spell_seal" text="法印" />
+  <string id="LWN_spell_crescent" text="月牙法弹" />
+  <string id="LWN_grapple_rope" text="钩索绳" />
+  <string id="LWN_grapple_hook" text="钩爪" />
+  <string id="LWN_spell_multi" text="多重法弹" />
+  <string id="LWN_spell_sky" text="天降法弹" />
+  <string id="LWN_spell_zone" text="焚地法阵" />
+  <string id="LWN_spell_beam" text="引导光束" />
+  <string id="LWN_spell_aura" text="雷电领域" />
+  <string id="LWN_gem_power" text="伤害强化" />
+  <string id="LWN_gem_haste" text="加速" />
+  <string id="LWN_gem_slow" text="减速" />
+  <string id="LWN_gem_heavy" text="重击" />
+  <string id="LWN_gem_light" text="轻击" />
+  <string id="LWN_gem_huge" text="巨大化" />
+  <string id="LWN_gem_lasting" text="持久" />
+  <string id="LWN_gem_wide" text="扩大范围" />
+  <string id="LWN_gem_multi" text="多发" />
+  <string id="LWN_gem_lock" text="增锁" />
+  <string id="LWN_gem_quickcast" text="速咏" />
+  <string id="LWN_gem_skyfall" text="天降" />
+  <string id="LWN_gem_zerog" text="失重" />
+  <string id="LWN_gem_antigrav" text="反重力" />
+  <string id="LWN_gem_gravity" text="加重力" />
+  <string id="LWN_gem_homing" text="追踪" />
+  <string id="LWN_gem_pierce" text="贯穿" />
+  <string id="LWN_gem_explode" text="爆炸" />
+  <string id="LWN_gem_crit" text="会心" />
+  <string id="LWN_gem_wobble" text="不稳" />
+  <string id="LWN_gem_bounce" text="弹跳" />
+  <string id="LWN_gem_drill" text="钻地" />
+  <string id="LWN_gem_spread" text="伤害均分" />
+  <string id="LWN_gem_drag" text="风阻" />
+  <string id="LWN_gem_accel" text="沿途加速" />
+  <string id="LWN_gem_delayed_turn" text="延迟转向" />
+  <string id="LWN_gem_trigger" text="触发" />
+  <string id="LWN_gem_timer" text="定时" />
+  <string id="LWN_gem_bounce_cast" text="连弹" />
+  <string id="LWN_gem_expire_cast" text="引信" />
+  <string id="LWN_gem_split" text="分裂" />
+  <string id="LWN_gem_burrower" text="遁地" />
 </strings>
 </base>

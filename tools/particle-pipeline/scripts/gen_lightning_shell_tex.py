@@ -57,9 +57,9 @@ PNG_FOR_EDITOR = os.path.join(os.path.dirname(TOOL), "face-pipeline", "scripts",
 NAME = "lwn_lightning_shell_d.png"
 ASSET_DIR = "lightning_shell"
 STAGE_SUB = "lightning_shell"
-MIRROR = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "meshes", ASSET_DIR, NAME)
-STAGE_DIR = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "ImortReady", STAGE_SUB)
-REGISTERED_MARK = os.path.join(REPO, "..", "TaikouAnim", "Assets", "meshes", ASSET_DIR,
+MIRROR = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "meshes", ASSET_DIR, NAME)
+STAGE_DIR = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "ImortReady", STAGE_SUB)
+REGISTERED_MARK = os.path.join(REPO, "..", "LwnAnim", "Assets", "meshes", ASSET_DIR,
                                NAME.replace(".png", "_tex.tpac"))
 
 # ─────────────────────────── 模式 ───────────────────────────

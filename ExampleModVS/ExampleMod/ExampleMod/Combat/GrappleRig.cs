@@ -28,7 +28,7 @@ namespace LivingWorldNpcs
 	/// </summary>
 	internal sealed class GrappleRig
 	{
-		/// <summary>左手环的网格（内容包资产；两轮兜底在 <see cref="SpellWorld.ResolveMesh"/> 里）。</summary>
+		/// <summary>左手环的网格（本模块资产 `lwn_core.tpac`；两轮兜底在 <see cref="SpellWorld.ResolveMesh"/> 里）。</summary>
 		public const string RingMesh = "lwn_grapple_ring";
 
 		/// <summary>
@@ -46,7 +46,7 @@ namespace LivingWorldNpcs
 
 		/// <summary>
 		/// **左手环要不要显示**（`custom.grapple handring 0|1`；**默认 false = 不显示**）。
-		/// 🔴 为什么默认关（2026-10-08）：左手那件现在由**物品网格**负责 —— 绳那件（`taikou_grapple_rope`）的 `mesh`
+		/// 🔴 为什么默认关（2026-10-08）：左手那件现在由**物品网格**负责 —— 绳那件（`lwn_grapple_rope`）的 `mesh`
 		/// 是 `lwn_grapple_rope`（一盘绳），引擎把它挂在**左手骨**上；环是上一版的做法（运行时实体、每帧跟左手骨），
 		/// 两个一起上 = 同一只手上叠着"环 + 绳"。绳的近端锚点在**右手**（<see cref="GrappleLogic.GetRopeAnchor"/>），
 		/// 与环无关 ⇒ 关掉不丢任何功能。
@@ -397,7 +397,7 @@ namespace LivingWorldNpcs
 				if (!_ringWarned)
 				{
 					_ringWarned = true;
-					DebugLogger.Log($"[Grapple] 左手环网格 '{RingMesh}' 查不到 —— 环不显示（检查内容包资产名）");
+					DebugLogger.Log($"[Grapple] 左手环网格 '{RingMesh}' 查不到 —— 环不显示（检查 `lwn_core.tpac` 里的资产名）");
 				}
 				return false;
 			}

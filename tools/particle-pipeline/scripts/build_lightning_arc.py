@@ -3,7 +3,7 @@
 """
 build_lightning_arc.py — 施法框架「引导/射线」那条弧的网格
 ============================================================================
-用途：Blender 无头跑出一个静态网格 FBX，交给 ModKit（TaikouAnim 中转沙箱）导入。
+用途：Blender 无头跑出一个静态网格 FBX，交给 ModKit（LwnAnim 中转沙箱）导入。
 
     "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --python build_lightning_arc.py
 
@@ -20,7 +20,7 @@ build_lightning_arc.py — 施法框架「引导/射线」那条弧的网格
 尺寸：长 1.0 m × 宽 0.12 m —— 宽是**可见宽度**，想更粗的电弧改 `WIDTH` 重跑（不许改长度，
       长度是代码缩放的基准）。
 
-⚠️ 本脚本产出的是 FBX **源**，不是交付。交付 = 放 `TaikouAnim/AssetSources/meshes/lwn_lightning_arc/`
+⚠️ 本脚本产出的是 FBX **源**，不是交付。交付 = 放 `LwnAnim/AssetSources/meshes/lwn_lightning_arc/`
    → **用户在 ModKit 里 Import**（铁律 36：新资产一律由用户导入，Claude 不许往 `Assets/` 塞东西）。
 """
 import math
@@ -45,7 +45,7 @@ OUTDIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 # 交付落点 = **待导入目录**（新资产一律交用户 Import —— CLAUDE.md 铁律 36）
 _TOOL = os.path.dirname(OUTDIR)                                     # tools/particle-pipeline
 _REPO = os.path.dirname(os.path.dirname(_TOOL))                     # 仓库根
-STAGE_ROOT = os.path.join(_REPO, "..", "TaikouAnim", "AssetSources", "ImortReady")
+STAGE_ROOT = os.path.join(_REPO, "..", "LwnAnim", "AssetSources", "ImortReady")
 
 # 导出规格：与 build_spell_mesh.py / build_armor.py 逐字一致（那套已被编辑器验证过）
 FBX_KW = dict(

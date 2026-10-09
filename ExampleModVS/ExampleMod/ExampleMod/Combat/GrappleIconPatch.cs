@@ -37,7 +37,8 @@ namespace LivingWorldNpcs
 	///   每次返回一份 `CreateCopy()` 的**新副本**（`AddItem` 会把网格交给场景，缓存实例共享会出事）。
 	///
 	/// 开关：`custom.grapple iconhook 0|1`（即时生效，重开背包界面刷新图标）。
-	/// 只对内容包有意义 ⇒ 未装内容包时**不挂载**（`MySubModule` 的 contentPackOnly 清单）。
+	/// 🔴 2026-10-09：钩索物品已搬进**本模块**（`ModuleData/items/grapple.xml`）⇒ 本条**永远挂载**
+	///   （已从 `MySubModule` 的 contentPackOnly 清单摘除）；物品缺席时网格解析失败即交回引擎，不崩。
 	/// </summary>
 	[HarmonyPatch(typeof(ItemCollectionElementViewExtensions), "GetItemMeshForInventory")]
 	internal static class GrappleIconPatch

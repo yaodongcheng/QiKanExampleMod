@@ -1,0 +1,262 @@
+<!-- LivingWorldNpcs 的动画接线正本之二：动作名 → 动画 clip 的绑定（通用部分）。
+
+     引擎行为（反编译 TaleWorlds.MountAndBlade.Module.CreateProcessedActionSetsXMLForNative 实证）：
+       同 id 的 <action_set> 由 C# 层【追加合并】进第一个 —— 我们这一条会被 Add() 进 Native 的
+       as_human_warrior 里，原版几千个动作一条都不会被挤掉。
+
+     🔴 animation= 填的是【动画 clip 名】，不是 FBX take 名、不是骨架动画（SkeletonAnimation）资源名。
+        写错 = 静默解析成 act_none，没有任何报错，只是播不出来。
+
+     🔴 2026-10-09 从 Taikou 内容包搬来。为什么不会重演 09-08 那次崩：见 action_types.xml 的说明
+        （只声明全新动作名、与 Native 零交集、合并是纯追加）。
+     回退方法：删掉 mbproj 里 soln_action_sets 那一行即可。
+
+     🔴🔴 **命名规则（2026-09-25 用户裁定）**：动作名的词跟着 clip 走 —— 去掉 clip 名的
+        `flight_` 前缀和 `_a` 后缀就是同一个词，一眼对得上（对照表见 action_types.xml 顶部与
+        Flight/FlightAnimMachine.cs 顶部）。旧的一套 act_fly_cruise / act_fly_boost / act_fly_dash_start /
+        act_fly_climb / act_fly_dive / act_fly_lean_l / act_cast_charge … 全部作废，勿再使用。 -->
+<action_sets>
+	<action_set
+		id="as_human_warrior"
+		skeleton="human_skeleton"
+		movement_system="bipedal">
+		<!-- 🔴 2026-09-20 新增：飞行待机（阶段 1A 探针）。
+		     animation= 填的是**实测出来的 clip 名**（tpaccli list 装机包得到 `flight_idle_a`），
+		     不是计划文档早期建议的 `fly_idle`、不是 TRF/FBX 文件名。写错 = 静默 act_none。 -->
+		<action
+			type="act_fly_idle"
+			animation="flight_idle_a" />
+
+		<!-- 🔴 2026-09-20 新增、2026-09-22 改名：处决动画（T17「带位移动画」实验的载体）。
+		     animation= 填的是**实测出来的 clip 名**（用 tpaccli list 读装机包，挑出
+		     AnimationClip 类型的资产名 = `execution02`；它挂的 SkeletalAnimation = `ue_ghostsamurai_execution02__root`，
+		     即带位移的 Root 变体）。🔴 2026-09-22 用户在 LwnAnim 工程里重导了这条，
+		     旧名 `execution_02` / `gs_execution02_root` 已不在包里，**这里必须跟着改成新名**，
+		     否则静默 act_none。同批的 `executed02`（被处决那一侧）2026-09-22 一并接线为 act_executed02。
+		     写错 = 静默 act_none、do_anim 会报 duration 0.00s。
+		     🔴 本条注释里【不许出现连续两个减号】：XML 注释里那是非法字符，整个文件解析失败、
+		     引擎启动即崩（XmlException @ CreateProcessedActionSetsXMLForNative）。要提命令行参数就只写名字、不带杠。 -->
+		<action
+			type="act_execution02"
+			animation="execution02" />
+		<action
+			type="act_executed02"
+			animation="executed02" />
+
+		<!-- 🔴 2026-09-21 新增：飞行动作 4 条（起飞 / 悬停移动 / 快移 / 落地）。
+		     animation= 一律填【实测 clip 名】（tpaccli list 装机包 lwn_core.tpac 读出来的），
+		     **不是** TRF 文件名、**不是** UE 源动画名、**不是** SkeletalAnimation 资源名。
+		     🔴 注意真实 clip 名和 TRF 文件名并不一一对应，举例：
+		        TRF fly_A_SuperheroLanding_A  ⇒  实测 clip 名 flight_superland_a（不是 flight_landing_a）
+		        TRF fly_A_Flight_Hover_Start_A ⇒  实测 clip 名 flight_hoverstart_a
+		     写错 = 静默 act_none，无报错，只是播不出来。
+		     🔴 本条注释里【不许出现连续两个减号】：XML 注释里那是非法字符，整个文件解析失败、
+		     引擎启动即崩（XmlException @ CreateProcessedActionSetsXMLForNative）。
+		     验：实机逐条 custom.do_anim act_fly_hovermove / act_fly_fastmove / act_fly_hoverstart / act_fly_superland -->
+		<action
+			type="act_fly_hoverstart"
+			animation="flight_hoverstart_a" />
+		<!-- 🔴 2026-09-27：巡航改播**前倾合成件**（HoverMove + AddF）。
+		     为什么换：基础版 `flight_hovermove_a` 是**没叠加法层**的悬停姿势，看不出速度；
+		     AddF 合成件把整体前倾 25°（实测合成后根骨绕 X 轴 25.0°），才有"迎风前倾"的观感。
+		     源 TRF = `fly_A_Flight_HoverMove_A_AddF.trf`；clip 名 = `tpaccli clipinfo` 读出来的
+		     `flight_hovermove_a_addf`（2.033 秒 / cyclic / BlendIn 0.3，与同类循环件一致）。
+		     ⚠️ 同族的 AddB / AddL / AddR / AddD / AddU 五条出了 AddL / AddR（已接线为 lean_l / lean_r），
+		     其余三条**还没导入**——要用得先导，别先写名字：写不存在的 clip = 静默 act_none。
+		     ⚠️ 状态机侧的过渡时长（悬停 ⇄ 巡航）由 `flight.xml` 那条边上的
+		     `blend="hoverBlendSeconds"` 管，热调键 `custom.flight tune hoverblend`。 -->
+		<action
+			type="act_fly_hovermove"
+			animation="flight_hovermove_a_addf" />
+		<action
+			type="act_fly_fastmove"
+			animation="flight_fastmove_a" />
+		<action
+			type="act_fly_superland"
+			animation="flight_superland_a" />
+
+		<!-- 🔴 2026-09-22 新增 7 条：快移入姿 / 四方向闪避 / 抬头 / 低头。
+		     animation= 一律填**装机包里实测的 clip 名**（tpaccli list 读 `lwn_core.tpac` 得到），
+		     不是 TRF 文件名。对应 TRF → clip 名：
+		        fly_A_Flight_FastMove_Start_A   => flight_fastmove_start_a
+		        fly_A_Flight_Dodge_A_L/R/U/D    => flight_dodge_a_l / _r / _u / _d
+		        fly_A_Flight_HoverMove_A_PitchU => flight_hovermove_a_pitchu
+		        fly_A_Flight_HoverMove_A_PitchD => flight_hovermove_a_pitchd
+		     写错 = 静默 act_none。验：实机逐条 custom.do_anim（见 action_types.xml 同名注释） -->
+		<action
+			type="act_fly_fastmove_start"
+			animation="flight_fastmove_start_a" />
+		<action
+			type="act_fly_dodge_l"
+			animation="flight_dodge_a_l" />
+		<action
+			type="act_fly_dodge_r"
+			animation="flight_dodge_a_r" />
+		<action
+			type="act_fly_dodge_u"
+			animation="flight_dodge_a_u" />
+		<action
+			type="act_fly_dodge_d"
+			animation="flight_dodge_a_d" />
+		<action
+			type="act_fly_hovermove_addu"
+			animation="flight_hovermove_a_addu" />
+		<action
+			type="act_fly_hovermove_addd"
+			animation="flight_hovermove_a_addd" />
+
+		<!-- 🔴 2026-09-22 新增 6 条：压弯（左/右）× 两个家族 + 快移家的抬头/低头。
+		     animation= 一律填**装机包里实测的 clip 名**（用 `tpaccli list` 指定 `LivingWorldNpcs\AssetPackages` 目录）。
+		     🔴 **XML 注释里禁止"连续两个半角减号"**（命令行开关就是那个写法）—— 写进注释会让整个
+		        文件 `not well-formed`，2026-09-28 在这上面栽过一次（用户当场发现）。要提命令行开关，
+		        用文字描述，别把符号照抄进来。
+		     🔴 **2026-09-28 用户重导 + 改名**（新包 = Publish 产物，已装机）——
+		        抬头/低头那 4 条从 `_pitchu/_pitchd` 改成 **`_addu/_addd`**，**动作名跟着 clip 改**
+		        （先例 = 2026-09-25 的施法两条）。
+		        source 名（TRF）=> clip 名：
+		           fly_a_flight_hovermove_a_addu => flight_hovermove_a_addu    （原 …_pitchu）
+		           fly_a_flight_hovermove_a_addd => flight_hovermove_a_addd    （原 …_pitchd）
+		           fly_a_flight_fastmove_a_addu  => flight_fastmove_a_addu     （原 …_pitchu）
+		           fly_a_flight_fastmove_a_addd  => flight_fastmove_a_addd     （原 …_pitchd）
+		           fly_a_flight_hovermove_a_addl / addr => flight_hovermove_a_leanl / _leanr   （clip 名没改）
+		           fly_a_flight_fastmove_a_addl / addr  => flight_fastmove_a_leanl / _leanr    （clip 名没改）
+		     写错 = 静默 act_none。 -->
+		<action
+			type="act_fly_hovermove_lean_l"
+			animation="flight_hovermove_a_leanl" />
+		<action
+			type="act_fly_hovermove_lean_r"
+			animation="flight_hovermove_a_leanr" />
+		<action
+			type="act_fly_fastmove_lean_l"
+			animation="flight_fastmove_a_leanl" />
+		<action
+			type="act_fly_fastmove_lean_r"
+			animation="flight_fastmove_a_leanr" />
+		<action
+			type="act_fly_fastmove_addu"
+			animation="flight_fastmove_a_addu" />
+		<action
+			type="act_fly_fastmove_addd"
+			animation="flight_fastmove_a_addd" />
+
+		<!-- 施法手势（2026-09-24）：动画名 = 包里实测的 clip 名（`tpaccli dump` 出来的 AnimationClip），
+		     不是 TRF 名。蓄力 = magic_idle（循环），释放 = magic_projectile_spell（一次性）。
+		     🔴 2026-09-25 动作名跟着 clip 改名（原 act_cast_charge / act_cast_projectile）。 -->
+		<action
+			type="act_magic_idle"
+			animation="magic_idle" />
+		<action
+			type="act_magic_projectile"
+			animation="magic_projectile_spell" />
+
+		<!-- 钩索（2026-10-04）：animation = 装机包里实测的 clip 名（tpaccli list 读出来的；与动作名同名）。
+		     usage 驱动三条（ready/hold/release，挂在自家 grapple_hook 组上（2026-10-08 由 grapple_dart 改名））+ 状态机驱动三条（pull/land/recover）。
+		     写错 = 静默 act_none、播不出来。 -->
+		<action
+			type="act_grapple_ground_ready"
+			animation="grapple_ground_ready" />
+		<action
+			type="act_grapple_ground_hold"
+			animation="grapple_ground_hold" />
+		<action
+			type="act_grapple_ground_release"
+			animation="grapple_ground_release" />
+		<action
+			type="act_grapple_ground_pull"
+			animation="grapple_ground_pull" />
+		<action
+			type="act_grapple_ground_land"
+			animation="grapple_ground_land" />
+		<action
+			type="act_grapple_ground_recover"
+			animation="grapple_ground_recover" />
+		<!-- 待机（2026-10-07 试跑）：新开一条正牌 idle，animation 先借用现成的 hold clip
+		     （同一条 clip 挂两个动作名合法；将来有正经待机件只改这一行）。
+		     🔴 `alternative_group` 用**自家组名**，不要并进 `idle_bow` ——
+		        并进去 = 引擎随机挑待机时会把原版弓的姿势混进来（4 条 idle_bow 变体同组）。 -->
+		<action
+			type="act_grapple_idle"
+			animation="grapple_ground_idle"
+			alternative_group="idle_grapple" />
+		<!-- 移动组待机（2026-10-07）：同一条 clip 的**第三个**动作名，专门给 movement_sets.xml 的 `idle` 槽用
+		     （那条槽按原版惯例不加 alternative_group —— 见 action_types.xml 同批注释）。
+		     🔴 2026-10-07 晚换到**用户新做的** `grapple_ground_idle`（1.833 s 循环，勾了 cycle）——
+		     此前借的是 hold（瞄准循环），现在是正经待机件。 -->
+		<action
+			type="act_grapple_walk_idle"
+			animation="grapple_ground_idle" />
+		<!-- 走动 / 跑动（2026-10-08 用户新做两条 clip）：**只换 `forward` 那一槽**（见 movement_sets.xml），
+		     其余七个方向 + 八条 adder 仍是弓的动作 —— 要全换就一个槽一条 clip、一行一个映射。
+		     ⚠️ clip 元数据口径 = **抄原版 `walk_forward_bow` / `run_forward_bow` 那一行**（见 plans 文档 §A9）：
+		        Flags 只带 `make_walk_sound`（**不要勾 cyclic** —— locomotion 不靠它循环）、Priority 0、
+		        BlendIn 走 0.3 / 跑 0.4、BlendOut 0、Param 走全 0 / 跑 Param1=0.4。
+		     ⚠️ 两条 clip 必须先在 ModKit 里导入发布，否则这两个动作名解析不到动画（走/跑会没动作）。 -->
+		<action
+			type="act_grapple_walk_forward"
+			animation="grapple_ground_move_walk" />
+		<action
+			type="act_grapple_run_forward"
+			animation="grapple_ground_move_run" />
+		<action
+			type="act_grapple_walk_back"
+			animation="grapple_ground_move_walk_back" />
+		<action
+			type="act_grapple_run_back"
+			animation="grapple_ground_move_run_back" />
+		<action
+			type="act_grapple_walk_left"
+			animation="grapple_ground_move_walk_left" />
+		<action
+			type="act_grapple_run_left"
+			animation="grapple_ground_move_run_left" />
+		<action
+			type="act_grapple_walk_right"
+			animation="grapple_ground_move_walk_right" />
+		<action
+			type="act_grapple_run_right"
+			animation="grapple_ground_move_run_right" />
+		<!-- 拔/收钩索（2026-10-07）：由 item_holsters.xml 的槽位引用。
+		     equip = **`grapple_ground_reload`**（= "进入待机过渡"，用户裁定：拔出来那下也用它，跟引擎的上弦那步同一条，
+		             画面上就是"从腰上拔出 → 过渡进待机"）· unequip = `grapple_ground_unload`（"退出的反向"）。
+		     `grapple_ground_ready`（沉身备战）只留给**瞄准起手**那一槽，不掺和拔/收。 -->
+		<action
+			type="act_grapple_equip"
+			animation="grapple_ground_reload" />
+		<action
+			type="act_grapple_unequip"
+			animation="grapple_ground_unload" />
+		<!-- 上弦（reload，2026-10-07 晚改）：动画 = **`grapple_ground_hold`**（持械循环）。
+		     🔴 为什么换成它（用户要求）：**不需要每发都看见一个"上弦"动作** —— 弓每射一箭引擎必"搭下一支箭"，
+		        这一槽非有不可（留空 = 链断、左键无反应，10-04），但**视觉上应该什么变化都没有**；
+		        `hold` 就是开完枪时你**已经在的那个姿势** ⇒ 播它 = 等于没动 ✓。
+		     ✅ **终态（2026-10-07 晚）= `grapple_ground_still`**：2 帧 / 0.067 s、**姿态 = release 最后两帧**
+		        （末帧就是"抛完手还在那个位置"的姿势 ⇒ 视觉上等于没动 ✓，且带 0.78° 微动 ⇒ 编辑器/引擎认 ✓）。
+		        P10、`Flags=[]`、**不带 `enforce_all`** ⇒ 不盖 ch0 的 pull ✓（反面教材见下）。
+		     🔴 **别指带 `enforce_all`/P30 的 clip**（会盖掉 pull）；**别指循环件**（引擎等不到收尾）；**别连留空**（链断）。
+		     · equip（切武器上手）另走一条：`act_grapple_equip` → `grapple_ground_reload`（"进入待机过渡"），
+		       那条用户要有动作的，保持看得见 ✓。 -->
+		<action
+			type="act_grapple_reload"
+			animation="grapple_ground_still" />
+
+		<!-- 被捆缚（2026-10-09，步骤 5「勾人」）：animation 指到**原版自带**的地牢囚犯躺地三条 clip
+		     （在 `Native/AssetPackages/animation_clips.tpac`，1.2.12 与 1.5.x 双端都在；`tpaccli clipinfo` 实读：
+		        lay 3.6 s 躺下 · cycle **11 s 循环**（带 cyclic）· standup 3.6 s 起身，
+		        三条是同一条骨架动画切的段（源帧 1→111 / 111→429 / 111→1）⇒ 首尾姿势天然接得上；
+		        Flags 自带 `enforce_all` + `lock_movement` ⇒ 姿势不会被别的层动掉）。
+		     🔴 跨模块引原版 clip 名 = 本方案唯一"没实机验过"的假设 ⇒ 验收第一步就敲
+		        `custom.do_anim act_grapple_bound_cycle`（自己 / 一个 NPC 各播一次）看姿势。
+		        播不出来 = 静默 act_none（无报错）⇒ 退回"给目标临时切 as_human_hideout_bandit 那套 set"。
+		     写错名字 / clip 不存在 = 同样静默 act_none。 -->
+		<action
+			type="act_grapple_bound_lay"
+			animation="anim_dungeon_prisoner_lay" />
+		<action
+			type="act_grapple_bound_cycle"
+			animation="anim_dungeon_prisoner_lay_cycle" />
+		<action
+			type="act_grapple_bound_standup"
+			animation="anim_dungeon_prisoner_lay_standup" />
+	</action_set>
+</action_sets>

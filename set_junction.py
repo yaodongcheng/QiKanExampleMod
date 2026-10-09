@@ -41,9 +41,10 @@ CLIENTS = {
 # 要联接的模块（= 主项目 Modules\ 下的目录名）
 #   LivingWorldNpcs —— 基座（玩法框架）
 #   Taikou          —— 日本战国数据包（内容包）
-#   TaikouAnim      —— 资产中转沙箱（本身不注册任何东西；带上是为了与 1.2.12 同构）
+#   LwnAnim         —— 资产沙箱（2026-10-09 由旧名 TaikouAnim 改名；给 LWN 编通用玩法的资产，
+#                      本身不注册任何东西，运行时不要勾选）
 #   Shokuho_CNs     —— 中文语言包（Taikou 名字池借用的中文来源）
-MODULES = ["Taikou", "TaikouAnim", "Shokuho_CNs", "LivingWorldNpcs"]
+MODULES = ["Taikou", "LwnAnim", "Shokuho_CNs", "LivingWorldNpcs"]
 
 
 def main_path(module):

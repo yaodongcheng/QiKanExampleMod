@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Taikou 的自定义移动组（2026-10-07 立）：钩索专用。
+
+     【为什么需要这个文件】
+     钩索手里那件是"弓形武器"，站着／走着的姿势全部跟着**弓的移动组**走：
+       · 站着的姿势 = 移动组里的 `idle` 字段（`walk_bow` 的 idle = `act_walk_idle_bow`
+         → 动画 `stand_bow` = "一手提着弓站着"）。
+       · 🔴 用法组（item_usage_sets）的 `<idles>` 段**管不到这个** —— 2026-10-07 实机验证：
+         两组用法组的 idle 都换掉了，站姿一位没变 ⇒ 站姿的真身在这里。
+     ⇒ 想让钩索站出"自己的姿势"，就必须有**自己的移动组**。
+
+     【怎么写】
+     照抄原版 `walk_bow` / `run_bow` / `crouch_walk_bow` / `crouch_run_bow` 四套，只改两处：
+       ① id 换成带 `_grapple` 后缀的新 id（合并机制是**原样拼接、无同名去重** ⇒ 新 id 必须）；
+       ② 站立那两条的 `idle` 换成我们的动作 `act_grapple_walk_idle`。
+     其余槽位（各方向／转身／adder）**逐字保留弓的原值** —— 等将来有正经走动动画再逐条换
+     （那时也只改这一个文件，不动 Native）。
+     🔴 **2026-10-08：走 / 跑的四个正方向已全换成自家的**（`forward` / `backward` / `left` / `right`，走跑各四条 = 八条，
+        clip = `grapple_ground_move_{walk|run}[_back|_left|_right]`）。
+        **仍是弓的九个槽**：两个斜向（`right_back` / `left_back`）、两个转身过渡（`left_to_right` / `right_to_left`）、
+        `rotate`、以及八条 adder（adder 是全武器共用、名字里没有 bow，照抄即可）。
+        ⇒ 现在"直着走/跑/退/横移都是新动作，斜着走与转身还是弓的姿势"；要统一 = 一个槽一条 clip、一行一个映射。
+        🔴 接新动作**三处都要**（`action_types` 声明 + `action_sets` 映射 + 本文件引用）—— 漏第一处 = 拔刀 AccessViolation（雷 169）。
+     ⚠️ 蹲姿两条的 idle **故意保留弓的原值**：我们的 clip 是站姿，套到蹲姿上会出现"蹲着却站直"的穿帮。
+     ⚠️ adder 那八条是**全武器共用**的（名字里没有 bow），照抄即可、不要改。
+
+     【加载方式 —— 本文件存在的必要条件】
+     movement_sets 属 project.mbproj 的 soln 体系（`soln_movement_sets`），**不在 SubModule 的 XmlNode 体系里**：
+     光有这个文件不生效，必须同时在 ModuleData/project.mbproj 里挂一行。
+     引擎侧合并 = `CreateProcessedModuleDataXMLForNative("movement_sets")`
+     （反编译实证：movement_sets **原样拼接、无同名去重**；full_movement_sets 则按 id 合并子节点）
+     ⇒ 新 id = 纯追加，不会挤掉原版任何一套，也不会重演 09-08 那次"同 id 重复定义"的崩。
+     先例（同一台机器上装着的模块）：Shokuho 的 `walk_musket` / `walk_ozutsu`（写法与本文件同款：
+     照抄弩的走动、只把 idle 换成自家动作）、CA_BloodSmoke 也走同一条路。
+     回退方法（两处缺一不可）：删掉 mbproj 那一行 + 把 item_usage_sets.xml 里 `grapple_rope` 的
+     `<movement_set id="grapple"/>` 改回 `bow`。 -->
+<movement_sets>
+	<movement_set
+		id="walk_grapple"
+		idle="act_grapple_walk_idle"
+		forward="act_grapple_walk_forward"
+		backward="act_grapple_walk_back"
+		right="act_grapple_walk_right"
+		right_back="act_walk_right_back_bow"
+		left="act_grapple_walk_left"
+		left_back="act_walk_left_back_bow"
+		left_to_right="act_walk_left_to_right_bow"
+		right_to_left="act_walk_right_to_left_bow"
+		rotate="act_turn_bow"
+		forward_adder="act_walk_forward_adder"
+		backward_adder="act_walk_backward_adder"
+		right_adder="act_walk_right_adder"
+		right_back_adder="act_walk_right_back_adder"
+		left_adder="act_walk_left_adder"
+		left_back_adder="act_walk_left_back_adder"
+		left_to_right_adder="act_walk_left_to_right_adder"
+		right_to_left_adder="act_walk_right_to_left_adder" />
+	<movement_set
+		id="run_grapple"
+		idle="act_grapple_walk_idle"
+		forward="act_grapple_run_forward"
+		backward="act_grapple_run_back"
+		right="act_grapple_run_right"
+		right_back="act_run_right_back_bow"
+		left="act_grapple_run_left"
+		left_back="act_run_left_back_bow"
+		left_to_right="act_run_left_to_right_bow"
+		right_to_left="act_run_right_to_left_bow"
+		rotate="act_turn_bow"
+		forward_adder="act_run_forward_adder"
+		backward_adder="act_run_backward_adder"
+		right_adder="act_run_right_adder"
+		right_back_adder="act_run_right_back_adder"
+		left_adder="act_run_left_adder"
+		left_back_adder="act_run_left_back_adder"
+		left_to_right_adder="act_run_left_to_right_adder"
+		right_to_left_adder="act_run_right_to_left_adder" />
+	<!-- 蹲姿两条：除了 id，**逐字照抄弓的原值**（含 idle）—— 见文件头"蹲姿"那条说明。 -->
+	<movement_set
+		id="crouch_walk_grapple"
+		idle="act_crouch_walk_idle_bow"
+		forward="act_crouch_walk_forward_bow"
+		backward="act_crouch_walk_backward_bow"
+		right="act_crouch_walk_right_bow"
+		right_back="act_crouch_walk_right_back_bow"
+		left="act_crouch_walk_left_bow"
+		left_back="act_crouch_walk_left_back_bow"
+		left_to_right="act_crouch_walk_left_to_right_bow"
+		right_to_left="act_crouch_walk_right_to_left_bow"
+		rotate="act_crouch_turn_bow"
+		forward_adder="act_crouch_walk_forward_adder"
+		backward_adder="act_crouch_walk_backward_adder"
+		right_adder="act_crouch_walk_right_adder"
+		right_back_adder="act_crouch_walk_right_back_adder"
+		left_adder="act_crouch_walk_left_adder"
+		left_back_adder="act_crouch_walk_left_back_adder"
+		left_to_right_adder="act_crouch_walk_left_to_right_adder"
+		right_to_left_adder="act_crouch_walk_right_to_left_adder" />
+	<movement_set
+		id="crouch_run_grapple"
+		idle="act_crouch_run_idle_bow"
+		forward="act_crouch_run_forward_bow"
+		backward="act_crouch_run_backward_bow"
+		right="act_crouch_run_right_bow"
+		right_back="act_crouch_run_right_back_bow"
+		left="act_crouch_run_left_bow"
+		left_back="act_crouch_run_left_back_bow"
+		left_to_right="act_crouch_run_left_to_right_bow"
+		right_to_left="act_crouch_run_right_to_left_bow"
+		rotate="act_crouch_turn_bow"
+		forward_adder="act_crouch_run_forward_adder"
+		backward_adder="act_crouch_run_backward_adder"
+		right_adder="act_crouch_run_right_adder"
+		right_back_adder="act_crouch_run_right_back_adder"
+		left_adder="act_crouch_run_left_adder"
+		left_back_adder="act_crouch_run_left_back_adder"
+		left_to_right_adder="act_crouch_run_left_to_right_adder"
+		right_to_left_adder="act_crouch_run_right_to_left_adder" />
+</movement_sets>

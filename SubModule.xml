@@ -27,6 +27,20 @@
       </Tags>
     </SubModule>
   </SubModules>
+  <!-- 🔴 2026-10-09 新增：通用玩法的物品定义段（钩索 2 件 + 法术 7 件）。
+       路径是**目录**：引擎加载该目录下的全部 XML，都按 Items 解析
+       （照 Taikou 的 `<XmlName id="Items" path="taikou_items"/>` 同一套做法）。
+
+       🔴 故意**不写 IncludedGameTypes** —— 两条理由：
+         ① 本模块是 `<SingleplayerModule value="true"/>`，多人局根本不会加载它，
+            所以"无白名单 = 所有 GameType"不会污染联机物品表；
+         ② 将来接新内容包（三国…）时**不用回来改这里**。写白名单就得把 TaikouCampaign* 一族
+            乃至未来所有战役类名都列进来，那是把内容包的名字焊进基座。
+       反例记档：Taikou 的 BannerIcons 段也是这么处理的（那边是因为加载时机更早、判不出 GameType）。
+       判据（首次实机核这条）：进游戏 `custom.grapple equip` 能发出钩索 = 段被加载。 -->
   <Xmls>
+    <XmlNode>
+      <XmlName id="Items" path="items"/>
+    </XmlNode>
   </Xmls>
 </Module>

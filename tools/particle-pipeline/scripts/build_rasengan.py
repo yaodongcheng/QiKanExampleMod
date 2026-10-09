@@ -76,7 +76,7 @@ LOD_LEVELS = 1
 OUTDIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "out")
 _TOOL = os.path.dirname(OUTDIR)
 _REPO = os.path.dirname(os.path.dirname(_TOOL))
-STAGE_ROOT = os.path.join(_REPO, "..", "TaikouAnim", "AssetSources", "ImortReady")
+STAGE_ROOT = os.path.join(_REPO, "..", "LwnAnim", "AssetSources", "ImortReady")
 
 FBX_KW = dict(
     use_selection=False, object_types={'MESH'}, global_scale=1.0,

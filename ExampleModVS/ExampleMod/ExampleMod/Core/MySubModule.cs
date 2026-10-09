@@ -79,15 +79,13 @@ namespace LivingWorldNpcs
                     // 会把原版文化的固定排序整段跳过（**实打实改了原版体验**），故一并收窄。
                     "CharacterCreationCultureStageSortPatch",
                     "CharacterCreationCultureVisualFallbackPatch",
-                    // 法印开火拦截（通用施法框架）：它认的是"弹药在法术表里"，而法术表只有内容包提供
-                    // （AssetRegistry/Spells.xml）—— 纯功能包模式下表恒空，挂上去只是白跑一次查表。
-                    // 按铁律 5 推论（内容包专属补丁在未装内容包时一律不挂），这里一并收窄。
-                    "SpellSealFirePatch",
-                    // 钩索开火拦截：判据是"弹药是钩 `taikou_grapple_hook`"，而钩这个物品在内容包里——
-                    // 同款理由（纯功能包模式下永远匹配不上）。
-                    "GrappleFirePatch",
-                    // 钩索图标补丁：把"背包/装备界面里画钩"换成真钩网格（实机不碰），同样只对内容包那件物品有意义。
-                    "GrappleIconPatch",
+                    // 🔴 2026-10-09 起，法术表与钩索物品都搬进了**本模块**
+                    // （`ModuleData/AssetRegistry/Spells.xml`、`ModuleData/items/grapple.xml`）——
+                    // 它们的判据不再依赖内容包，所以 `SpellSealFirePatch` / `GrappleFirePatch` /
+                    // `GrappleIconPatch` 三条**已从本清单摘除、改为永远挂载**。
+                    // 三条补丁内部本来就有自我把关（查不到弹药/物品就原样放行，不崩），
+                    // 挂在原版战役上只是多一次字符串比较。
+                    // ⇒ 本清单此后**只放"真的只在自定义世界里才有意义"的补丁**（建号界面 / 自建 race 那几条）。
                 };
                 foreach (System.Type patchType in typeof(MySubModule).Assembly.GetTypes())
                 {

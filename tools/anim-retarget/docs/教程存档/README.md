@@ -30,7 +30,7 @@ pose_bone.location
 
 - 正确脚本：`../../pipeline/common/fbx_to_trf.py`
 - 正确产物（**实机验证通过的黄金样本**）：`tools/OpenTrf/out/sw2_gunner_p006_alig_abs.trf`
-  —— md5 `b78076e31c1e5f38…`，位置轨首帧 `(0, 0, 0)`。同一份已进 `TaikouAnim/AssetSources/animations/gun/`
+  —— md5 `b78076e31c1e5f38…`，位置轨首帧 `(0, 0, 0)`。同一份已进 `LwnAnim/AssetSources/animations/gun/`
 - 判定它对不对：**位置轨首帧 ≈ 0**（纯增量），且脚本打印 `CHECK_OK`；
   **量级是米（≈0.86）反而是错的**（那是平移误用了绝对语义，实机整体抬高约 6cm）
 

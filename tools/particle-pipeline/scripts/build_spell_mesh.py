@@ -3,7 +3,7 @@
 """
 build_spell_mesh.py — 法印施法体系的法术网格（阴魔斩：月牙 + 能量核）
 ============================================================================
-用途：Blender 无头跑出两个静态网格 FBX，交给 ModKit（TaikouAnim 中转沙箱）导入。
+用途：Blender 无头跑出两个静态网格 FBX，交给 ModKit（LwnAnim 中转沙箱）导入。
 
     "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --python build_spell_mesh.py
 
@@ -27,7 +27,7 @@ build_spell_mesh.py — 法印施法体系的法术网格（阴魔斩：月牙 +
        本项目没实证过）。**实机看一眼，错了就翻这个开关重跑**——不用改别的。
 
 ⚠️ 本脚本产出的是 FBX **源**，不是交付。交付还要走：开 ModKit → 分发进
-   `TaikouAnim/AssetSources/meshes/<名>/` → 编辑器重编 + Publish → 产物 tpac **改名**拷进内容包
+   `LwnAnim/AssetSources/meshes/<名>/` → 编辑器重编 + Publish → 产物 tpac **改名**拷进内容包
    （铁律 31：分发必须在 ModKit 开着的时候做，否则文件监视抓不到）。
 """
 import math

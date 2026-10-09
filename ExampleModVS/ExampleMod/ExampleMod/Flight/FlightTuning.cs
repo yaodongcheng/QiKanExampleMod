@@ -105,7 +105,7 @@ namespace LivingWorldNpcs.Flight
         /// <summary>承载用的实心预制体。网格会被隐藏，留下物理体当"地面"。</summary>
         /// <summary>
         /// 飞行载具的预制体 —— 🔴 **2026-09-21 起就是法阵自己**
-        /// （`Taikou/Prefabs/lwn_flight_sigil.xml`：根带 `bo_wooden_platform_a` 碰撞 + 子带法阵网格）。
+        /// （`LivingWorldNpcs/Prefabs/lwn_prefabs.xml` 里的 `<game_entity name="lwn_flight_sigil">`：根带 `bo_wooden_platform_a` 碰撞 + 子带法阵网格）。
         /// 旧值 `wooden_platform_a` 已废 —— 那个方案要另挂一张法阵并"把木板藏起来"，
         /// 而**隐藏会把碰撞一起干掉**（实机摔死过主角）。
         /// </summary>

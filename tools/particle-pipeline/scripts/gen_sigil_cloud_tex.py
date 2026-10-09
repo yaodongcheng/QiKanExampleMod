@@ -54,7 +54,7 @@ UE_TEX_DIR = os.environ.get(
     "BM_UE_TEX",
     r"D:\BrainMaker\骑砍2粒子特效复刻\output\tex\FlexibleCombatSystem\VFX\Textures")
 
-TARGET = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "meshes", "flight_sigil", "lwn_flight_sigil_d.png")
+TARGET = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "meshes", "flight_sigil", "lwn_flight_sigil_d.png")
 NAME = "lwn_flight_sigil_d.png"
 
 MODE = "cloud4"  # 🔴 "cloud4" = **4 格圆云图集**（当前）—— 唯一能同时拿到「圆形 + 内聚外散 + 会动」：

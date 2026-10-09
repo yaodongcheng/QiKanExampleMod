@@ -111,8 +111,22 @@
       <div id="duMsg" style="font-size:10.5px;color:#8b98ab;margin-top:4px;min-height:14px;line-height:1.5"></div>
       <textarea id="duJson" readonly style="display:none;width:100%;height:80px;margin-top:6px;background:#161a21;border:1px solid var(--line);color:#9fb0c6;border-radius:6px;font-size:10px;padding:5px;box-sizing:border-box"></textarea>
       <div style="font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.7">
-        受击者(女)保持自己的坐标+朝向（=基准）；攻击者(男)按 <b>X右 / Y前 / Z高 / 朝向°</b> 摆过去，<b>只在动作开始时对齐一次</b>，之后全交给各自的动画。改数字后点「⟲ 重对」。
+        受击者(女)保持自己的坐标+朝向（=基准）；攻击者(男)在<b>动画自带相对位</b>上按 <b>X右 / Y前 / Z高 / 朝向°</b> <b>叠加</b>偏移（全 0 = 保持动画自带、不动手；拖数字才叠加）。改数字后点「⟲ 重对」。
       </div>
+    </div>
+    <div class="sec" id="trsSec">
+      <b>变换 / 曲线</b>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px">
+        <label class="tg" style="margin:0;white-space:nowrap"><input type="checkbox" id="applyTrs" checked>应用动画变换</label>
+        <select id="trsSide" style="flex:1;min-width:110px"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+        <span class="pl2" style="white-space:nowrap">骨骼</span>
+        <input type="text" id="curveBone" value="pelvis" size="12" style="flex:1;min-width:80px">
+      </div>
+      <canvas id="curveCv" width="360" height="190" style="width:100%;height:190px;margin-top:6px;background:#12151b;border:1px solid var(--line);border-radius:6px"></canvas>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.6">「应用动画变换」关 = 只把「骨骼」框里那根（默认 <b>pelvis</b> = 根骨/挂接点）的<b>位移+旋转</b>还原为绑定姿势，<b>其余骨骼照常播放</b>。</div>
+      <div id="curveMsg" style="font-size:10.5px;color:#8b98ab;margin-top:3px;line-height:1.5"></div>
     </div>
     <div class="sec"><b>显示</b>
       <label class="tg"><input type="checkbox" id="cd" checked>区分材质配色</label>
@@ -313,6 +327,10 @@ function loadModel(cfg){
         if(cfg.footBones && cfg.footBones.indexOf(o.name)>=0) footBones.push(o);
         if(cfg.rootBone && o.name===cfg.rootBone) rootBone = o; } });
 
+      // 记录【绑定姿势】下每根骨的局部变换 —— 供「应用动画变换」关闭时还原（回到绑定姿势）。
+      const rest = {};
+      model.traverse(o=>{ if(o.isBone) rest[o.name] = { p:o.position.clone(), q:o.quaternion.clone(), s:o.scale.clone() }; });
+
       // 头部「脸朝前」标定：绑定姿态下用几何正面（脚踝→脚尖）反推出【头部局部空间】里的前向向量。
       // 之后每帧 head.matrixWorld × 这个局部向量 = 真正的「两眼之间的垂线」，即角色正前方。
       // 与骨盆 / 肩线的朝向解耦 —— 正面以【头（眼）】为准，不以骨盆或肩线为准。
@@ -360,7 +378,7 @@ function loadModel(cfg){
         clips.set(c.name.replace(/^RT_/,''), c);
       });
       const mixer = new THREE.AnimationMixer(model); cfg._h=h; cfg._s=s; cfg._miny=box.min.y; cfg._maxy=box.max.y; cfg._nbone=(function(n){model.traverse(o=>{if(o.isBone)n++;});return n;})(0);
-      loaded[cfg.id] = { cfg, group, model, meshes, mixer, clips, footBones, bones, rootBone, headLocalFwd, side: cfg.side };
+      loaded[cfg.id] = { cfg, group, model, meshes, mixer, clips, footBones, bones, rootBone, headLocalFwd, rest, side: cfg.side };
       res(cfg.id);
     }, undefined, e=>{ rej(new Error(cfg.url+' 载入失败: '+e)); });
   });
@@ -549,6 +567,7 @@ async function boot(){
   initFilters();
   buildHelpers();
   applyColors();
+  try { initTrsUI(); } catch(e){ console.warn('initTrsUI', e); }
   document.getElementById('load').classList.add('hide');
   __ready = true;
   const want = (qs.get('clip')||'').trim();
@@ -785,30 +804,26 @@ function initDuo(){
   const pf=(DS_CFG.pairs||{})[current];
   if(pf && pf.duo) d=Object.assign(d, pf.duo);
   DUO=JSON.parse(JSON.stringify(d));
-  const msg=document.getElementById('duMsg'); if(msg) msg.textContent='改数字后点「⟲ 重对」（只对齐开头一次，之后交给动画）。';
+  const msg=document.getElementById('duMsg'); if(msg) msg.textContent='在动画自带相对位上叠加偏移；全 0 = 不动。改完点「⟲ 重对」。';
   syncDuoUI();
 }
 function applyDuo(){
+  // 【增量式】在【动画自带的相对位】基础上，叠加手动偏移（X右 / Y前 / Z高 / 朝向°）。
+  //   全 0 = 完全保持动画自带（不覆盖、不把两人叠一起）= 正确不下手；拖动数字才叠加。
+  //   （旧版是"覆盖式"：把 master 的骨盆强行搬到 slave 骨盆 + offset，含 Z，会把两人重叠 → 已废。）
   const vk=duoKey(); if(!vk || !DUO) return;
   if(_duoDone === current) return;
   const V=holderFor(vk), M=holderFor(DUO.master);
-  if(!V || !M || !V.bones || !M.bones) return;
+  if(!V || !M) return;
   const f=facingOf(V); if(!f) return;
   const up=new THREE.Vector3(0,1,0);
-  const rt=new THREE.Vector3().crossVectors(f, up).normalize();           // 受击者右手方向
-  const vKey='pelvis', vb=V.bones[vKey]||V.bones[Object.keys(V.bones)[0]];
-  const mb=M.bones[vKey]||M.bones[Object.keys(M.bones)[0]];
-  if(!vb || !mb) return;
-  const vp=new THREE.Vector3(); vb.getWorldPosition(vp);
-  const tgt=vp.clone().addScaledVector(rt, DUO.x||0).addScaledVector(f, DUO.y||0).addScaledVector(up, DUO.z||0);
-  M.group.rotation.y = V.group.rotation.y + (DUO.dir||0)*Math.PI/180;
+  const rt=new THREE.Vector3().crossVectors(f, up).normalize();           // 基准方的右手方向
+  M.group.position
+    .addScaledVector(rt, DUO.x||0)
+    .addScaledVector(f,  DUO.y||0)
+    .addScaledVector(up, DUO.z||0);
+  M.group.rotation.y += (DUO.dir||0)*Math.PI/180;
   M.group.updateMatrixWorld(true);
-  const mp=new THREE.Vector3();
-  for(let it=0; it<3; it++){
-    mb.getWorldPosition(mp);
-    M.group.position.x += tgt.x-mp.x; M.group.position.y += tgt.y-mp.y; M.group.position.z += tgt.z-mp.z;
-    M.group.updateMatrixWorld(true);
-  }
   _duoDone = current;
 }
 (function(){
@@ -828,6 +843,124 @@ function applyDuo(){
   if(dp) dp.addEventListener('click', ()=>{ readDuoUI(); const ta=document.getElementById('duJson');
     ta.style.display=(ta.style.display==='none')?'':'none'; syncDuoUI(); });
 })();
+
+/* ---------- 「应用动画变换」开关 + 位移/旋转曲线 ---------- */
+// 关：该侧不播动画（回到绑定姿势）；位移+旋转是同一个 transform，所以是一个总开关。
+const APPLY_TRS = {};                 // sideKey -> bool（true=应用该侧动画变换）
+function trsSelKey(){ const s=document.getElementById('trsSide'); return s? s.value : null; }
+function applyTrsOf(side){ return APPLY_TRS[side] !== false; }
+let TRS_BONE = 'pelvis';
+function trsBoneName(){ return (TRS_BONE || 'pelvis').trim() || 'pelvis'; }
+// 统一的 mixer 推进入口。
+// 「应用动画变换」关 = 只把【挂接点/指定骨骼（默认 pelvis = 根骨）】的变换覆盖回绑定姿势（位移+旋转都不应用），
+//   其余骨骼照常播放 —— 不是把整个角色冻结。
+function updateMixers(dt){
+  const bn = trsBoneName();
+  for(const id in loaded){
+    const L = loaded[id]; if(!L) continue;
+    L.mixer.update(dt);
+    if(APPLY_TRS[L.side] === false){
+      const b = (L.bones || {})[bn] || L.rootBone || (L.bones || {})['pelvis'];
+      const r = b && L.rest && L.rest[b.name];
+      if(b && r){ b.position.copy(r.p); b.quaternion.copy(r.q); b.scale.copy(r.s); }
+    }
+  }
+}
+
+function initTrsUI(){
+  const sel=document.getElementById('trsSide'); if(!sel) return;
+  const ks=Object.keys(SIDE);
+  sel.innerHTML = ks.map(k=>'<option value="'+k+'">'+(((SIDE[k]||{}).label)||k)+'</option>').join('');
+  const dk=duoKey(); if(dk && ks.indexOf(dk)>=0) sel.value=dk;
+  try{
+    const q=new URLSearchParams(location.search);
+    const ts=q.get('trsSide'); if(ts && ks.indexOf(ts)>=0) sel.value=ts;
+    const at=q.get('applyTrs');
+    if(at!==null && at!==''){ APPLY_TRS[sel.value] = !(at==='0'||at==='false'); }
+  }catch(e){}
+  ks.forEach(k=>{ if(APPLY_TRS[k]===undefined) APPLY_TRS[k]=true; });
+  const cb=document.getElementById('applyTrs'), bone=document.getElementById('curveBone');
+  if(bone){ TRS_BONE = (bone.value||'pelvis'); bone.oninput=()=>{ TRS_BONE=(bone.value||'pelvis'); try{updateMixers(0);}catch(e){} drawCurves(); }; }
+  const sync=()=>{ if(cb) cb.checked = applyTrsOf(sel.value); };
+  sel.onchange=()=>{ sync(); drawCurves(); };
+  if(cb) cb.onchange=()=>{
+    APPLY_TRS[sel.value]=cb.checked;
+    try{ updateMixers(0); }catch(e){}
+    const m=document.getElementById('curveMsg');
+    if(m) m.textContent=sel.value+'：'+(cb.checked?'应用动画变换':'仅「'+trsBoneName()+'」不应用变换（其余照常）');
+    drawCurves();
+  };
+  sync();
+}
+// （旧 freezeSide 已废弃：改为在 updateMixers 里只覆盖「挂接点/指定骨骼」，不再冻结全身）
+function _lerpAt(tr, t, stride){
+  const tm=tr.times, v=tr.values, n=tm.length;
+  if(!n) return null;
+  if(t<=tm[0]) return v.slice(0,stride);
+  if(t>=tm[n-1]) return v.slice((n-1)*stride, n*stride);
+  let lo=0, hi=n-1;
+  while(hi-lo>1){ const mid=(lo+hi)>>1; if(tm[mid]<=t) lo=mid; else hi=mid; }
+  const a=tm[lo], b=tm[hi], f=(b>a)?(t-a)/(b-a):0;
+  const out=new Array(stride);
+  for(let k=0;k<stride;k++) out[k]=v[lo*stride+k]+(v[hi*stride+k]-v[lo*stride+k])*f;
+  return out;
+}
+let _curveFrame=0;
+function drawCurves(){
+  const cv=document.getElementById('curveCv'); if(!cv) return;
+  const g=cv.getContext('2d'); if(!g) return;
+  const W=cv.width, H=cv.height, msg=document.getElementById('curveMsg');
+  g.clearRect(0,0,W,H);
+  const side=trsSelKey(), bone=(((document.getElementById('curveBone')||{}).value)||'pelvis').trim();
+  let L=null; for(const id in loaded){ if(loaded[id] && loaded[id].side===side){ L=loaded[id]; break; } }
+  if(!L){ if(msg) msg.textContent='该侧未载入'; return; }
+  const clip=L.clips.get(current);
+  if(!clip){ if(msg) msg.textContent='没有片段「'+current+'」'; return; }
+  let posT=null, rotT=null;
+  clip.tracks.forEach(tr=>{ const m=tr.name.match(/^(.*)\.(position|quaternion)$/);
+    if(!m || m[1]!==bone) return; if(m[2]==='position') posT=tr; else rotT=tr; });
+  if(!posT && !rotT){ if(msg) msg.textContent='「'+bone+'」没有位移/旋转轨'; return; }
+  const dur=clip.duration||1, N=96, P=[], R=[];
+  const _q=new THREE.Quaternion(), _e=new THREE.Euler();
+  for(let i=0;i<N;i++){
+    const t=dur*i/(N-1);
+    if(posT){ P.push(_lerpAt(posT,t,3)); }
+    if(rotT){ const v=_lerpAt(rotT,t,4); _q.set(v[0],v[1],v[2],v[3]); _e.setFromQuaternion(_q,'XYZ');
+      R.push([_e.x*180/Math.PI,_e.y*180/Math.PI,_e.z*180/Math.PI]); }
+  }
+  const padL=34, padR=6, padT=14, gap=16;
+  const halfH=(H-padT*2-gap)/2;
+  const y0a=padT, y1a=padT+halfH, y0b=y1a+gap, y1b=y0b+halfH;
+  const xOf=i=>padL+(W-padL-padR)*i/(N-1);
+  g.strokeStyle='#242b35'; g.lineWidth=1;
+  for(const yy of [[y0a,y1a],[y0b,y1b]]) for(let k=0;k<=4;k++){ const y=yy[0]+(yy[1]-yy[0])*k/4;
+    g.beginPath(); g.moveTo(padL,y); g.lineTo(W-padR,y); g.stroke(); }
+  const COL=['#e4675f','#6fd08c','#5aa9e6'];
+  function series(data, ci, col, y0, y1, dash){
+    if(!data.length) return;
+    let mn=Infinity, mx=-Infinity;
+    for(const r of data){ const v=r[ci]; if(v<mn)mn=v; if(v>mx)mx=v; }
+    if(!(mx-mn>1e-9)) mx=mn+1e-6;
+    g.strokeStyle=col; g.lineWidth=1.4; g.setLineDash(dash||[]); g.beginPath();
+    for(let i=0;i<data.length;i++){ const x=xOf(i), y=y1-(y1-y0)*((data[i][ci]-mn)/(mx-mn));
+      if(i===0) g.moveTo(x,y); else g.lineTo(x,y); }
+    g.stroke(); g.setLineDash([]);
+  }
+  if(P.length) for(let k=0;k<3;k++) series(P,k,COL[k],y0a,y1a,null);
+  if(R.length) for(let k=0;k<3;k++) series(R,k,COL[k],y0b,y1b,[4,3]);
+  g.fillStyle='#8b98ab'; g.font='10px monospace';
+  g.fillText('位移 pos (m) X/Y/Z', padL, y0a-3);
+  g.fillText('旋转 rot (deg) X/Y/Z', padL, y0b-3);
+  const tcur = (typeof PAIRMODE!=='undefined' && PAIRMODE) ? playHead : (actA? actA.time : 0);
+  const xc=xOf(Math.max(0,Math.min(N-1,Math.round((tcur%(dur||1))/(dur||1)*(N-1)))));
+  g.strokeStyle='#ffd166'; g.lineWidth=1; g.beginPath(); g.moveTo(xc,y0a); g.lineTo(xc,y1b); g.stroke();
+  if(msg){
+    const rng=a=>a.length?('['+Math.min(...a).toFixed(2)+','+Math.max(...a).toFixed(2)+']'):'—';
+    const px=P.length?rng(P.map(r=>r[0])):'', zz=P.length?rng(P.map(r=>r[2])):'';
+    msg.textContent = side+' · '+bone+' · '+current+' · '+dur.toFixed(2)+'s ｜ posZ '+zz+(APPLY_TRS[side]===false?' ｜ 变换:关':'');
+  }
+}
+
 // off > 0：跳过开头 off 秒（动作提前）；off < 0：保持首帧等待 |off| 秒（动作延后）
 function clipTimeFor(head, off, dur){
   return Math.min(Math.max(head + off, 0), Math.max(0, dur - 1e-4));
@@ -966,7 +1099,7 @@ function play(name){
   // 先用 mixer.update(0) 把骨骼求值到第 0 帧，再对齐；之后整段不再重算）
   for(const id in loaded){
     if(!loaded[id]) continue;
-    try{ loaded[id].mixer.update(0); }catch(e){}
+    if(APPLY_TRS[loaded[id].side] !== false){ try{ loaded[id].mixer.update(0); }catch(e){} }
     loaded[id].__anchorDoneClip = null;
   }
   applyPairAnchors();                       // ① 先算 pairAnchor 的自动默认站位
@@ -1065,7 +1198,7 @@ function seekToTime(t){
       e.act.time = Math.min(t, Math.max(0, d - 1e-4));
     }
   }
-  for(const id in loaded){ if(loaded[id]){ try{ loaded[id].mixer.update(0); }catch(e){} } }
+  updateMixers(0);
   return t;
 }
 function updateScrubUI(force){
@@ -1234,6 +1367,18 @@ function chestOf(L){
   }
   return null;
 }
+function _mkLabel(text, color, pos){
+  const S=64, cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const g=cv.getContext('2d');
+  g.font='bold 44px monospace'; g.textAlign='center'; g.textBaseline='middle';
+  const hex='#'+new THREE.Color(color).getHexString();
+  g.strokeStyle='rgba(0,0,0,0.85)'; g.lineWidth=7; g.strokeText(text, S/2, S/2);
+  g.fillStyle=hex; g.fillText(text, S/2, S/2);
+  const tex=new THREE.CanvasTexture(cv); tex.needsUpdate=true;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false, transparent:true}));
+  sp.scale.set(0.24,0.24,1); sp.position.copy(pos); sp.renderOrder=998;
+  return sp;
+}
 function updateAxes(){
   const cb = document.getElementById('cax');
   const on = cb ? cb.checked : (location.search.indexOf('axes=1') >= 0);
@@ -1246,6 +1391,9 @@ function updateAxes(){
   _axG.add(_mkArrow3(O, new THREE.Vector3(1,0,0), 1.0, 0xff4d4d, 0.05));  // X 红
   _axG.add(_mkArrow3(O, new THREE.Vector3(0,1,0), 1.0, 0x3ddc84, 0.05));  // Y 绿
   _axG.add(_mkArrow3(O, new THREE.Vector3(0,0,1), 1.0, 0x4d7dff, 0.05));  // Z 蓝
+  _axG.add(_mkLabel('X', 0xff4d4d, new THREE.Vector3(1.22, 0, 0)));      // 轴名标注
+  _axG.add(_mkLabel('Y', 0x3ddc84, new THREE.Vector3(0, 1.22, 0)));
+  _axG.add(_mkLabel('Z', 0x4d7dff, new THREE.Vector3(0, 0, 1.22)));
   for(const id in loaded){
     const L = loaded[id];
     if(!L.group.visible) continue;
@@ -1315,7 +1463,7 @@ function tick(){
       const hEl = document.getElementById('offHead'); if(hEl) hEl.textContent = playHead.toFixed(2);
       const lEl = document.getElementById('offLoop'); if(lEl) lEl.textContent = L.toFixed(2);
     }
-    for(const id in loaded) loaded[id].mixer.update(dt);
+    updateMixers(dt);
   }
   if(current && actA){
     const d = durOf(current) || 1;
@@ -1333,7 +1481,7 @@ function tick(){
       actA.time = __pendingT % (actA.getClip().duration || 1);
       if(actB) actB.time = __pendingT % (actB.getClip().duration || 1);
     }
-    for(const id in loaded) loaded[id].mixer.update(0.0001);
+    updateMixers(0.0001);
     __pendingT = null;
   }
   if(SHOT && __ready && __fc === 30 && !document.getElementById('shotdata')){
@@ -1345,6 +1493,7 @@ function tick(){
   applyPairAnchors();
   updateMarks();
   updateAxes();
+  if(++_curveFrame % 6 === 0){ try{ drawCurves(); }catch(e){} }
   if(helpers.length){
     for(const id in loaded) if(loaded[id].group.visible) loaded[id].group.updateMatrixWorld(true);
     helpers.forEach(h=>h.update&&h.update());
@@ -1400,7 +1549,7 @@ window.__viewer = {
   setFilter: (o)=>{ o=o||{};
     for(const k of ['fPrio','fWeapon','fFunc']) document.getElementById(k).value = o[k]||'';
     document.getElementById('search').value = o.q||''; render(); return FNAMES.length; },
-  step: (dt)=>{ for(const id in loaded) loaded[id].mixer.update(dt); },
+  step: (dt)=>{ updateMixers(dt); },
   renderOnce: ()=>{ renderer.render(scene, camera); },
   sample: ()=>{
     renderer.render(scene, camera);

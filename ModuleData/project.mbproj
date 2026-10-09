@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LivingWorldNpcs 的 soln 体系注册表 —— 通用玩法的「动画接线 / 挂件槽 / 物品用法组 /
+     移动组 / 粒子」五类正本挂在这里。
+
+     🔴 【为什么必须是这个文件、不是 SubModule.xml】
+        这几类数据**不在 SubModule 的 XmlNode 体系里**，引擎只认 project.mbproj 的 soln 登记：
+        文件在、行没挂 = **完全不加载**（实测症状各异：枪管朝天 / 静默 act_none / 装备时 AccessViolation）。
+        引擎侧合并规则（反编译实证）：把**所有模块**注册到同一个 soln id 下的文件合并后交给 native。
+        · `soln_action_sets` 走 `Module.CreateProcessedActionSetsXMLForNative`，**同名 action_set 追加合并**
+          → 所以 LWN 与内容包各写各的新动作名是安全的；**同名重复定义会崩**（KeyNotFoundException，2026-09-08 实锤）。
+        · `soln_item_holsters` / `soln_movement_sets` 是**原样拼接、无同名去重** → 新 id 是硬要求。
+
+     🔴 【为什么 LWN 自己不是编辑器工程】
+        本模块依赖 Harmony / ButterLib / UIExtenderEx / MCOptionScreen 四前置，ModKit 打不开它；
+        而且模块下多一个空的 `Assets\` 会把 `AssetPackages\` 整个遮蔽（引擎按固定顺序取第一个存在的目录）。
+        ⇒ 编辑器工程永远待在沙箱模块 `Modules/LwnAnim/`，产物 Publish 后改名拷进本模块的 AssetPackages\。
+
+     🔴 【分家说明（2026-10-09）】通用玩法从 Taikou 内容包搬来，Taikou 侧对应改成只留日本战国专属
+        （那边保留 tk_firearm 用法组 / taikou_firearm 挂件槽 / act_gun_reload / 火器粒子与音效）。
+
+     回退方法：逐行删即可 —— 每一行只影响对应的那一类；文件留着不生效，无害。 -->
+<base type="solution">
+	<file id="soln_action_types"       name="ModuleData/action_types.xml"             type="action_type" />
+	<file id="soln_action_sets"        name="ModuleData/action_sets.xml"              type="action_set" />
+	<file id="soln_item_holsters"      name="ModuleData/item_holsters.xml"            type="item_holster" />
+	<file id="soln_item_usage_sets"    name="ModuleData/item_usage_sets.xml"          type="item_usage_set" />
+	<file id="soln_movement_sets"      name="ModuleData/movement_sets.xml"            type="movement_set" />
+	<file id="soln_full_movement_sets" name="ModuleData/full_movement_sets.xml"       type="full_movement_set" />
+	<file id="soln_particle_systems"   name="ModuleData/particle_systems_yinmo.xml"   type="particle_system" />
+</base>

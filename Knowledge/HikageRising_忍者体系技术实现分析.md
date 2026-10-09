@@ -1064,7 +1064,7 @@ None = 0    StrikeAgent = 1    HitWorld = 2    Blocked = 3    Parried = 4    Cha
 ### 通道 ② 的正确认知：拖尾是引擎送的
 
 `trail_particle_name` 是**原版物品字段**（原版燃烧罐 `psys_game_burning_jar_trail` 就是这么用的）。引擎生成弹体时自动把粒子挂到弹体上并带着走，**mod 一行代码都不用写**。
-🔴 即：想让法术弹有拖尾，**只要物品 XML 填对这个字段**。我们的月牙弹（`taikou_spell_crescent`）也走这条路——只是粒子资产还没接（见 `Combat/SpellMissileTrace.cs` 文件头注释）。
+🔴 即：想让法术弹有拖尾，**只要物品 XML 填对这个字段**。我们的月牙弹（`lwn_spell_crescent`）也走这条路——只是粒子资产还没接（见 `Combat/SpellMissileTrace.cs` 文件头注释）。
 
 ## A.3 一次「火球术」的完整时序（两条链叠起来）
 

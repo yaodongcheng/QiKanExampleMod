@@ -17,9 +17,9 @@
 | 项 | 状态 |
 |---|---|
 | 99 个效果的 XML（`D:\BrainMaker\骑砍2粒子特效复刻\output\xml\`） | ✅ 生成 + 硬校验 0 问题（`validate_xml.py`，材质白名单=原版粒子用过的 31 个） |
-| 100 个资产（`TaikouAnim/Assets/particles/`，模块当前=**编辑器态**） | ⚠️ 已用正确 packdir + 修好的材质/亮度/alpha 重编过，但**因为上面的错位问题，只能当"素材库"，不能当"基准"** |
+| 100 个资产（`LwnAnim/Assets/particles/`，模块当前=**编辑器态**） | ⚠️ 已用正确 packdir + 修好的材质/亮度/alpha 重编过，但**因为上面的错位问题，只能当"素材库"，不能当"基准"** |
 | 自动翻译管线（`tools/particle-pipeline/`） | ⏸️ **暂停改动**（除非用户点名要）。它就是上面 99 个 XML 的来源 |
-| 手工复刻 | ✅ **第 1 轮（火焰发射器）已验收**：资产 = `TaikouAnim/Assets/particle_system/lwn_manual_fireball_psys.tpac`（目录名 `particle_system` 单数，编辑器自己建的）。配方见施工单「案例 1」 |
+| 手工复刻 | ✅ **第 1 轮（火焰发射器）已验收**：资产 = `LwnAnim/Assets/particle_system/lwn_manual_fireball_psys.tpac`（目录名 `particle_system` 单数，编辑器自己建的）。配方见施工单「案例 1」 |
 
 **新 session 的第一件事**：给用户**第 2 轮（黑烟）**的表（已写好，施工单「案例 2」，零准备）→ 之后火星。
 **别再动生成器、别再重编资产**（用户明确要求"你只当老师"）。
@@ -152,7 +152,7 @@ lwn_ns_chainlightning::Llightning_0` —— **那个材质在包索引里存在�
 | **T2b-old** | 原始记录：`blizzard` 偏黑 · `icytornado` 太空 · `explosiongroundbig`/`frostbolt`/`frostexplosion` 出锥形扇面 | T1 修完**仍在**。这三条各自待查：① blizzard 是黑烟（haze）占比高 + 雪尘亮部不够；② icytornado 主体发射器尺寸正常（0.39±0.13 m）但渲出来偏空 ⇒ 待确认是材质混合还是发射量；③ 锥形/扇面 = `emit_volume`+初速映射（UE 的 cone/cylinder 发射体骑砍没有对应） |
 | **T3** | ~~只看了约 50/99 个~~ | ✅ **已完成全览**：最新一轮分镜 `tools/particle-pipeline/out/sv6_01…07.png`（16 格/张 × 7 张 = 99/99）；历史对照 `sv2_*`（T1 前）→ `sv4_*`（T1 后）→ `sv5_*`（元素收窄） |
 | **T4** | HTML 预览器**没跟上** | 未动（`render_still.py` 已支持材质贴图/图集/序列帧，`preview.template.html` 仍是程序化圆点）|
-| **T5** | ~~资产重编~~ | ✅ **已完成（2026-09-25）**：**100 个 XML 用正确 packdir 重编进 `TaikouAnim/Assets_disabled/particles/`**（0 失败 0 告警）+ 游戏侧包 `Taikou/AssetPackages/lwn_yinmo_prt.tpac` 重建。⚠️ 重编时发现**旧的那批全是坏档**（`--packdir` 给少了 → 材质解析不到，见 §12.5 坑 10）——所以这批不只是"新尺寸"，还是**第一批材质正确的资产**。批量脚本 = `Debug/offline/_recompile_particles.py` |
+| **T5** | ~~资产重编~~ | ✅ **已完成（2026-09-25）**：**100 个 XML 用正确 packdir 重编进 `LwnAnim/Assets_disabled/particles/`**（0 失败 0 告警）+ 游戏侧包 `Taikou/AssetPackages/lwn_yinmo_prt.tpac` 重建。⚠️ 重编时发现**旧的那批全是坏档**（`--packdir` 给少了 → 材质解析不到，见 §12.5 坑 10）——所以这批不只是"新尺寸"，还是**第一批材质正确的资产**。批量脚本 = `Debug/offline/_recompile_particles.py` |
 
 ### 命令速查（下次直接照抄）
 
@@ -176,7 +176,7 @@ python preview\build_preview_set.py        # → D:\...\output\preview\index.htm
 #       「材质 'prt_shd_xxx' 在原版里也找不到，保留骨架不覆盖」继续编，**产物是缺材质引用的坏档**
 #       （2026-09-25 实锤：同一条 trail 两种编法 1283 vs 1251 字节，沙箱里现役那批正是坏的那种）。
 #    ⚠️ 一次只能喂一个 XML；批量重编用 `python Debug\offline\_recompile_particles.py`。
-tpaccli particleimport --xml <XML> --out "..\TaikouAnim\Assets_disabled\particles" --packdir "Debug\offline\_prt_native_all" --split
+tpaccli particleimport --xml <XML> --out "..\LwnAnim\Assets_disabled\particles" --packdir "Debug\offline\_prt_native_all" --split
 
 # ⑤ 原版材质贴图对照（挑材质用：41 个 prt_shd_* 的贴图长什么样）
 python Debug\offline\_mat_tex_survey.py    # → tools\particle-pipeline\out\sheet_materials.png
@@ -228,7 +228,7 @@ python Debug\offline\_mat_tex_survey.py    # → tools\particle-pipeline\out\she
 | 我的静帧渲染器（**能看材质/图集/序列帧**） | `tools/particle-pipeline/preview/render_still.py` |
 | 分镜工具（批量渲图拼图） | `tools/particle-pipeline/preview/sheet_stills.py` |
 | 产物：99 个 XML | `D:\BrainMaker\骑砍2粒子特效复刻\output\xml\lwn_*.xml` |
-| 产物：ModKit 资产（**99/99 已投**） | `Modules\TaikouAnim\Assets_disabled\particles\*_psys.tpac` |
+| 产物：ModKit 资产（**99/99 已投**） | `Modules\LwnAnim\Assets_disabled\particles\*_psys.tpac` |
 | 材质贴图库（dump 出来的原版真贴图） | `tools\particle-pipeline\out\mattex_all\` |
 
 > **这份文档是什么**：对 UE 商店资产 **FlexibleCombatSystem（FCS）** 里「法术战斗」全部实现的一次**逐字段、逐类、逐帧**拆解，供在骑砍2 里把法术战斗做成 FCS 那个样子。
@@ -318,7 +318,7 @@ tpaccli particleimport --xml <XML> --out <模块>/Assets[_disabled]/particles --
 ```
 | 项 | 值 |
 |---|---|
-| 落点 | `Modules/TaikouAnim/Assets_disabled/particles/`（= 编辑器态的同名目录；**ModKit 打开前记得跑 `to_editor_mode.bat`**） |
+| 落点 | `Modules/LwnAnim/Assets_disabled/particles/`（= 编辑器态的同名目录；**ModKit 打开前记得跑 `to_editor_mode.bat`**） |
 | 结果 | **99/99 成功**（105 个粒子资产 / **701 个 emitter** / 无一个"emitter 全空"） |
 | 材质 | 全用原版 `prt_shd_*`（smoke_1 ×341 · glow ×109 · haze_1 ×88 · fire_1 ×57 · trail ×35 · water_splash2 14 · sparks 14 · lightning 9 · steam_1 8 · 其余零散）—— 所以**不需要自带贴图** |
 | ⚠️ 同目录 3 个空资产是**旧测试残留**（`lwn_clone_blood1` / `lwn_clone_rain` / `lwn_savetest`），与这批无关 |

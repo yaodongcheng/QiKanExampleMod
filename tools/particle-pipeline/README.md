@@ -227,7 +227,7 @@ bin\Win64_Shipping_wEditor\TaleWorlds.MountAndBlade.Launcher.exe
 ```
 
 🔴 **编辑器加载哪些模块 = 启动器里勾选哪些模块**，没有"选工程文件"这一步。
-所以要验证粒子，得把它挂在**编辑器能加载的模块**上（依赖四前置的 LWN 打不开 → 走 TaikouAnim 沙箱，见 ⑥）。
+所以要验证粒子，得把它挂在**编辑器能加载的模块**上（依赖四前置的 LWN 打不开 → 走 LwnAnim 沙箱，见 ⑥）。
 本工程记录过的坑：RGL 警告 `Invalid submodule tag in file:///…SubModule.xml` **点确定可继续**
 （建议把第三方 mod 全部取消勾选再进）；`File > Save Scene` 会把 `Window > Show Model Viewer` 弄坏（要重启编辑器）；
 编辑器内存重，别一上来开大地图场景（织丰 4.1 万 entity 曾有崩编辑器的前科）。
@@ -271,17 +271,17 @@ bin\Win64_Shipping_wEditor\TaleWorlds.MountAndBlade.Launcher.exe
 | 3 | 🟡 **未验证**：给模块**新加** mbproj 会不会影响它现有 `SubModule.xml <Xmls>`（Campaign 数据）的加载 | 两套体系不同但没有实证 → 改完**先进游戏看现有功能** |
 | 4 | 编辑器是**文件监视**：**开之前的改动不补拉** | 顺序必须「先落文件 → 再开编辑器」（铁律 31） |
 | 5 | 模块里一旦出现 `Assets\`，跑游戏前必须改名停用 | `Assets`（编辑器中间产物）与 `AssetPackages`（交付包）互斥，引擎取第一个存在的 |
-| 6 | 只有到「月牙要 mesh / 自制材质贴图」时才需要完整资产管线 | 那时走 `Assets\` + `AssetSources\`（**镜像布局**）+ Publish `.tpac`；ModKit 打不开的内容包走沙箱模块（范本 `Modules/TaikouAnim/`） |
+| 6 | 只有到「月牙要 mesh / 自制材质贴图」时才需要完整资产管线 | 那时走 `Assets\` + `AssetSources\`（**镜像布局**）+ Publish `.tpac`；ModKit 打不开的内容包走沙箱模块（范本 `Modules/LwnAnim/`） |
 
 > **推进顺序建议**：先只注册 **1 个 XML**（阴魔斩三段）跑通「搜得到名字 → 场景里看得见」，再一次性铺 99 个。
 
 **⑥ 已落地（2026-09-22）＋ 四条新证据**
 
-🔴 **挂在 `Modules/TaikouAnim/`（ModKit 中转沙箱），不是 LivingWorldNpcs** —— 用户裁定：
+🔴 **挂在 `Modules/LwnAnim/`（ModKit 中转沙箱），不是 LivingWorldNpcs** —— 用户裁定：
 **ModKit 打不开 LWN**（它依赖 Harmony / ButterLib / UIExtenderEx / MBOptionScreen **四前置**），
 而沙箱只依赖 `Native` ⇒ 编辑器才起得来。同《[Knowledge/资产中转沙箱模块工作流.md](../../Knowledge/资产中转沙箱模块工作流.md)》。
 
-已落地：`Modules/TaikouAnim/ModuleData/project.mbproj` 挂 2 行
+已落地：`Modules/LwnAnim/ModuleData/project.mbproj` 挂 2 行
 （**阴魔斩 3 effect / 15 emitter** + **radial 探针 3 effect**），文件在 `ModuleData/particles/`。
 ⚠️ 沙箱有两态，别搞混：**编辑器里看** = 保持 `Assets/` 存在；**要进游戏看** = 先跑模块的
 `to_game_mode.bat`（把 `Assets` 改名停用，否则引擎读半成品资产会崩）再勾选本模块。

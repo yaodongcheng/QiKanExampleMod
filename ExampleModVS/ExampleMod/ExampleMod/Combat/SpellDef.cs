@@ -171,7 +171,7 @@ namespace LivingWorldNpcs
 		/// 落点指示圈：在地上画一个圈告诉你"法术会落在哪"（放置/天降族的必备件，计划 §3.6）。
 		/// 值 = 网格名；空 = 不画。
 		/// 🔴 网格约定：**平面法线 = 本地 +Y**（我们会对齐世界朝上）。现成可用件 = `lwn_flight_sigil`
-		///   （法阵，2.6 m 见方，本体"竖着"导入 —— Taikou 的 prefab 里也是靠 90° X 旋转才躺平的）。
+		///   （法阵，2.6 m 见方，本体"竖着"导入 —— LWN 的 prefab 里也是靠 90° X 旋转才躺平的）。
 		/// </summary>
 		public string Indicator;
 
@@ -578,7 +578,7 @@ namespace LivingWorldNpcs
 				}
 				DebugLogger.Log(_byAmmo.Count > 0
 					? $"[Spell] 法术表就绪：{_byAmmo.Count} 条（{string.Join(" / ", _byAmmo.Keys)}）· 族 {_families.Count} 个"
-					: "[Spell] 法术表为空（无内容包提供 AssetRegistry/Spells.xml）——法印开火照走引擎导弹");
+					: "[Spell] 法术表为空（本模块 ModuleData/AssetRegistry/Spells.xml 没加载）——法印开火照走引擎导弹");
 				_loaded = true;
 			}
 		}

@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 修正宝石表 —— Taikou 填值，LWN 侧 ModifierRegistry / SpellFields 读取（与 Spells.xml 同一目录、同一套读法）。
+     代码侧契约（五种操作、属性表、触发子块的语义）见 LWN 的 Combat/SpellModifier.cs 头注释；
+     方案见 plans/法术体系-通用施法框架.md §十六。
+
+     🔴 **一句话**：修正不是功能，是**对属性的一组增量** —— 解算成"有效定义"之后四段管线一行不用改。
+        有效法术 = 基础术 ⊕ 修正₁ ⊕ … ⊕ 修正ₙ
+
+     🔴 **五种操作，只有这五种**：
+          <Set field="X" value="V" />   设定（数值 / 枚举名 / 引用 id / true|false）
+          <Add field="X" value="N" />   增减（只有数值字段能用）
+          <Mul field="X" value="N" />   乘（只有数值字段能用）
+          <Set field="on_hit_cast" sub="子块id" />  触发类：引用下面某个 <Sub>
+          （开关 = Set 一个 true/false；追加引用 = Set 一个 id）
+        **新增一条修正不许加代码分支** —— 做不到就说明属性表缺东西：补 SpellFields，不要加特例。
+
+     🔴 **身份型字段不许改**（法术 id / 族 / 瞄准轴 / 投送轴 / 结算列表 / 弹药物品）——
+        修正改的是**行为**，不是"这是什么法术"。写了这些字段 = 加载期报错并跳过那一条。
+
+     🔴 **字段名拼错会在加载期被挡掉并记日志**（`[Spell] 宝石 'x' 改的字段 'y' 不在属性表里 → 跳过`）。
+        核对办法：游戏内 `custom.spell mods`（列出每颗宝石真的会执行哪些操作）。
+
+     ⚠️ **`leave_surface`（留地表）属阶段 8**：字段已登记，但世界层还没做 ⇒ 现在配了只会在命中时
+        打一条"要等阶段 8"的告警，不会真的留下地表。
+
+     `stage` 四值（装配界面的分组，计划 §16.3）：cast 起手 / aim 瞄准 / deliver 投送 / payload 结算。
+     `cost_add` = 这颗宝石给法术加多少查克拉开销（**阶段 6 才读**，现在只登记）。
+     `item` = 解锁凭证物品 id（拥有它才能装；**空 = 不做凭证检查**。阶段 9 补宝石物品时填上，
+             填了之后这道闸门自动开始生效）。 -->
+<Modifiers>
+
+	<!-- 施法手环（`lwn_spell_seal`）自带的宝石槽位数。
+	     槽位总数 = 手环槽（这里）+ 忍术等级（0~4，阶段 9 接线）。
+	     现在给 3 格：够验"同一个术装不同宝石行为不同"，又不至于一开局就全能。 -->
+	<Loadout seal="lwn_spell_seal" slots="3" />
+
+	<!-- ═══════════ A 组：属性在、作用点也在（纯数据，零新代码）═══════════ -->
+
+	<Modifier id="gem_power" stage="payload" cost_add="2" name="{=LWN_gem_power}Power Up">
+		<Mul field="damage" value="1.5" />
+	</Modifier>
+
+	<Modifier id="gem_haste" stage="deliver" cost_add="1" name="{=LWN_gem_haste}Haste">
+		<Mul field="speed_scale" value="1.4" />
+	</Modifier>
+
+	<Modifier id="gem_slow" stage="deliver" cost_add="1" name="{=LWN_gem_slow}Slow">
+		<Mul field="speed_scale" value="0.6" />
+	</Modifier>
+
+	<!-- 轻 / 重互换（Noita 的招牌）：两条操作**显式写出来**，不许有隐藏耦合 -->
+	<Modifier id="gem_heavy" stage="payload" cost_add="2" name="{=LWN_gem_heavy}Heavy">
+		<Mul field="damage" value="1.6" />
+		<Mul field="speed_scale" value="0.7" />
+	</Modifier>
+
+	<Modifier id="gem_light" stage="deliver" cost_add="1" name="{=LWN_gem_light}Light">
+		<Mul field="damage" value="0.6" />
+		<Mul field="speed_scale" value="1.6" />
+	</Modifier>
+
+	<!-- 巨大化：网格与命中半径一起放大（只放网格 = 看着大、打不着） -->
+	<Modifier id="gem_huge" stage="deliver" cost_add="2" name="{=LWN_gem_huge}Giant">
+		<Mul field="scale" value="1.5" />
+		<Mul field="hit_radius" value="1.5" />
+	</Modifier>
+
+	<!-- 延长寿命：距离与时间一起加 —— 只加 lifetime 的话，被 max_distance 卡住的法术一点变化都没有 -->
+	<Modifier id="gem_lasting" stage="deliver" cost_add="1" name="{=LWN_gem_lasting}Lasting">
+		<Mul field="max_lifetime" value="1.5" />
+		<Mul field="max_distance" value="1.5" />
+	</Modifier>
+
+	<Modifier id="gem_wide" stage="payload" cost_add="2" name="{=LWN_gem_wide}Widen">
+		<Mul field="radius" value="1.5" />
+	</Modifier>
+
+	<!-- 多发（发数在**瞄准轴**摊开：契约 1 的那张意图表就是干这个的） -->
+	<Modifier id="gem_multi" stage="aim" cost_add="3" name="{=LWN_gem_multi}Multishot">
+		<Set field="count" value="3" />
+		<Set field="spread_deg" value="8" />
+	</Modifier>
+
+	<Modifier id="gem_lock" stage="aim" cost_add="2" name="{=LWN_gem_lock}Extra Lock">
+		<Add field="lock_max" value="2" />
+	</Modifier>
+
+	<Modifier id="gem_quickcast" stage="cast" cost_add="2" name="{=LWN_gem_quickcast}Quick Cast">
+		<Mul field="charge_time" value="0.5" />
+	</Modifier>
+
+	<Modifier id="gem_skyfall" stage="deliver" cost_add="2" name="{=LWN_gem_skyfall}Skyfall">
+		<Set field="start_height" value="25" />
+	</Modifier>
+
+	<Modifier id="gem_zerog" stage="deliver" cost_add="1" name="{=LWN_gem_zerog}Weightless">
+		<Set field="gravity" value="0" />
+	</Modifier>
+
+	<!-- 反重力：**往上飘**（gravity 变成负数）。
+	     🔴 两条操作都是显式写出来的（不许有隐藏耦合）：
+	          `Mul -1`  = 把原有的重力**反向**（对 skyfall_meteor 那种自带重力的法术才有效）
+	          `Add -20` = **保底抬升** —— 因为 `projectile_yinmo_zhan` 这类平飞法术的 gravity 本来就是 0，
+	                      只反向的话 ×(-1) 还是 0（"反重力"看上去什么也没发生，2026-09-28 踩过）
+	     净效果：平飞法术（g=0）→ **g=-20 往上飘**；自带重力的法术（g=30）→ g=-50 反向 + 抬升。 -->
+	<Modifier id="gem_antigrav" stage="deliver" cost_add="2" name="{=LWN_gem_antigrav}Anti-Gravity">
+		<Mul field="gravity" value="-1" />
+		<Add field="gravity" value="-20" />
+	</Modifier>
+
+	<!-- 加重力：把**平飞**的法术变成抛物线（与 gem_zerog / gem_antigrav 三个方向凑齐）。
+	     🔴 这三颗一起用能一眼看出"弹道是被算出来的"，也能看出**修正是按顺序算的**：
+	          `… gem_gravity gem_zerog`     → 平飞（后写的赢：+25 又被清零）
+	          `… gem_zerog gem_gravity`     → 抛物线（清零后 +25）
+	     为什么要它：现表里唯一带重力的法术是 `skyfall_meteor`，而它是"从正上方砸下来"、
+	     弹道本来就是直的 —— **没有这颗宝石，"重力/反重力"在现有 6 条法术上根本看不出区别**。 -->
+	<Modifier id="gem_gravity" stage="deliver" cost_add="2" name="{=LWN_gem_gravity}Heavy Gravity">
+		<Add field="gravity" value="25" />
+	</Modifier>
+
+	<!-- 追踪：转向速率 + 定向模式一起改（只加转向的话追踪弹会横着飞 —— 网格不跟着速度转） -->
+	<Modifier id="gem_homing" stage="deliver" cost_add="3" name="{=LWN_gem_homing}Homing">
+		<Add field="turn_rate" value="180" />
+		<Set field="orient_mode" value="velocity" />
+	</Modifier>
+
+	<!-- 贯穿：pierce = 最多能命中几个目标（1 = 打中一个就消失） -->
+	<Modifier id="gem_pierce" stage="payload" cost_add="3" name="{=LWN_gem_pierce}Pierce">
+		<Add field="pierce" value="2" />
+	</Modifier>
+
+	<Modifier id="gem_explode" stage="payload" cost_add="3" name="{=LWN_gem_explode}Explode">
+		<Mul field="radius" value="2" />
+		<Set field="impact_particle" value="psys_game_missile_flame" />
+	</Modifier>
+
+	<!-- ═══════════ B 组：要补属性（作用点已有）═══════════ -->
+
+	<Modifier id="gem_crit" stage="payload" cost_add="2" name="{=LWN_gem_crit}Critical">
+		<Add field="crit" value="0.3" />
+	</Modifier>
+
+	<Modifier id="gem_wobble" stage="payload" cost_add="1" name="{=LWN_gem_wobble}Unstable">
+		<Add field="damage_variance" value="0.25" />
+		<Mul field="damage" value="1.15" />
+	</Modifier>
+
+	<!-- ═══════════ C 组：要补属性 + 新作用点（§16.4 五条）═══════════ -->
+
+	<Modifier id="gem_bounce" stage="deliver" cost_add="2" name="{=LWN_gem_bounce}Bounce">
+		<Add field="bounce_count" value="2" />
+		<Set field="bounce_damping" value="0.6" />
+	</Modifier>
+
+	<Modifier id="gem_drill" stage="deliver" cost_add="3" name="{=LWN_gem_drill}Drill">
+		<Set field="drill" value="true" />
+	</Modifier>
+
+	<Modifier id="gem_spread_damage" stage="aim" cost_add="3" name="{=LWN_gem_spread}Split Damage">
+		<Set field="count" value="3" />
+		<Set field="spread_deg" value="6" />
+		<Mul field="damage" value="0.4" />
+	</Modifier>
+
+	<Modifier id="gem_drag" stage="deliver" cost_add="1" name="{=LWN_gem_drag}Air Drag">
+		<Add field="drag" value="1.2" />
+	</Modifier>
+
+	<Modifier id="gem_accel" stage="deliver" cost_add="2" name="{=LWN_gem_accel}Accelerate">
+		<Add field="accel" value="40" />
+	</Modifier>
+
+	<Modifier id="gem_delayed_turn" stage="deliver" cost_add="1" name="{=LWN_gem_delayed_turn}Delayed Turn">
+		<Set field="turn_delay" value="0.3" />
+	</Modifier>
+
+	<!-- 🔴 触发器（§16.4）：命中那一刻在**命中点**派一条新的施法意图。
+	     载荷 = 一个"装配块"（基础术 + 它自己的宝石 + 缩放），**不继承外层修正**。
+	     子块自己的宝石写在 <Gems> 里（空格或逗号分隔）。 -->
+	<Modifier id="gem_trigger" stage="deliver" cost_add="4" name="{=LWN_gem_trigger}Trigger">
+		<Set field="on_hit_cast" sub="sub_burst" />
+		<Sub id="sub_burst">
+			<Base spell="skyfall_meteor" />
+			<Gems>gem_power</Gems>
+			<Scale damage="0.4" count="1" />
+		</Sub>
+	</Modifier>
+
+	<Modifier id="gem_timer" stage="deliver" cost_add="3" name="{=LWN_gem_timer}Timer">
+		<Set field="on_timer_cast" sub="sub_airburst" />
+		<Set field="timer_seconds" value="1.0" />
+		<Sub id="sub_airburst">
+			<Base spell="projectile_yinmo_zhan" />
+			<Scale damage="0.5" count="3" />
+		</Sub>
+	</Modifier>
+
+	<Modifier id="gem_bounce_cast" stage="deliver" cost_add="3" name="{=LWN_gem_bounce_cast}Ricochet">
+		<Add field="bounce_count" value="3" />
+		<Set field="bounce_damping" value="0.7" />
+		<Set field="on_bounce_cast" sub="sub_spark" />
+		<Sub id="sub_spark">
+			<Base spell="projectile_yinmo_zhan" />
+			<Scale damage="0.3" count="1" />
+		</Sub>
+	</Modifier>
+
+	<Modifier id="gem_expire_cast" stage="deliver" cost_add="3" name="{=LWN_gem_expire_cast}Fuse">
+		<Set field="on_expire_cast" sub="sub_mine" />
+		<Set field="max_lifetime" value="1.2" />
+		<Sub id="sub_mine">
+			<Base spell="skyfall_meteor" />
+			<Scale damage="0.8" count="1" />
+		</Sub>
+	</Modifier>
+
+	<Modifier id="gem_split" stage="deliver" cost_add="4" name="{=LWN_gem_split}Split">
+		<Set field="split_at" value="0.5" />
+		<Set field="split_count" value="3" />
+	</Modifier>
+
+	<!-- ═══════════ 用来验"属性表够不够用"的极端组合（人是不会这么配的）═══════════ -->
+
+	<!-- 变大 + 钻地 + 定时器：三颗都要，验的是**解算出来的组合**（没有一处代码认识"变大钻地定时器"这件事） -->
+	<Modifier id="gem_burrower" stage="deliver" cost_add="5" name="{=LWN_gem_burrower}Burrower">
+		<Mul field="scale" value="2" />
+		<Mul field="hit_radius" value="2" />
+		<Set field="drill" value="true" />
+		<Set field="on_timer_cast" sub="sub_burrow" />
+		<Set field="timer_seconds" value="0.6" />
+		<Sub id="sub_burrow">
+			<Base spell="place_firezone" />
+			<Scale damage="1" count="1" />
+		</Sub>
+	</Modifier>
+
+</Modifiers>

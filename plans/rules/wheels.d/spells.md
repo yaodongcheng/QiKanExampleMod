@@ -40,12 +40,12 @@
 
 ```csharp
 // ① 数据：内容包 ModuleData/AssetRegistry/Spells.xml，一行一个法术，**身份 = 它用哪个弹药物品**
-//    <Spell id="projectile_yinmo_zhan" ammo="taikou_spell_crescent" family="projectile"
+//    <Spell id="projectile_yinmo_zhan" ammo="lwn_spell_crescent" family="projectile"
 //           mesh="lwn_yinmo_crescent" trail_particle="…" impact_particle="…"
 //           damage="60" damage_type="Cut" radius="3.5" radius_falloff="0.5"
 //           speed="60" gravity="0" max_distance="120" max_lifetime="4"
 //           hit_radius="1.2" pierce="1" scale="1" tilt_deg="90" />
-SpellDef def = SpellRegistry.FindByAmmo("taikou_spell_crescent");   // 认领（补丁用）
+SpellDef def = SpellRegistry.FindByAmmo("lwn_spell_crescent");   // 认领（补丁用）
 SpellDef def = SpellRegistry.FindById("projectile_yinmo_zhan");
 
 // ② 施法（唯一入口，玩家/NPC 共用 —— 铁律 18）

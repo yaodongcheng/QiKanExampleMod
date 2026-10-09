@@ -24,18 +24,21 @@ namespace LivingWorldNpcs
 	///   可单独关（config.json 的 `DisabledPatchClasses` 写 `GrappleFirePatch`）、
 	///   补引擎跳过的记账（`UpdateLastRangedAttackTimeDueToAnAttack`）。
 	///
-	/// 没装内容包时**不挂载**（MySubModule 的 contentPackOnly 清单）：绳弹物品在内容包里，
-	/// 纯功能包模式下拉不到这件弹，挂上去只是白跑一次字符串比较（铁律 5 推论）。
+	/// 🔴 物品在**本模块**里（`ModuleData/items/grapple.xml`，2026-10-09 随通用玩法从 Taikou 搬来），
+	///   所以**永远挂载**——不再按"内容包在不在"门控（原先登记在 MySubModule 的 contentPackOnly 清单里）。
+	///   物品真缺席时也不会坏事：本条只在"弹药 StringId 等于钩"时才动手，拉不到弹就退化成普通弓箭。
 	/// </summary>
 	[HarmonyPatch(typeof(Mission), "OnAgentShootMissile")]
 	public static class GrappleFirePatch
 	{
-		/// <summary>**钩**的物品 StringId（= 弹药那件，飞出去勾东西的本体；2026-10-08 由 `taikou_grapple_dart` 改名）。
-		/// 内容包 `taikou_items/grapple.xml`，改了那边这里要跟着改。</summary>
-		public const string HookItemId = "taikou_grapple_hook";
+		/// <summary>**钩**的物品 StringId（= 弹药那件，飞出去勾东西的本体；2026-10-08 由 `taikou_grapple_dart` 改名，
+		/// 2026-10-09 随通用玩法搬进 LWN 时把 `taikou_` 前缀改成 `lwn_`）。
+		/// 定义在**本模块** `ModuleData/items/grapple.xml`（SubModule 的 Items 段，path="items"）——
+		/// 改了那边这里要跟着改。⚠️ 另有第二处字面量在 `CampaignMode/Tools/GrappleCommands.cs`，已改成引用本常量。</summary>
+		public const string HookItemId = "lwn_grapple_hook";
 
-		/// <summary>**绳**的物品 StringId（= 握着的那件，弓型；判"玩家此刻握着的是不是钩索"用；同上，改内容包要跟着改）。</summary>
-		public const string RopeItemId = "taikou_grapple_rope";
+		/// <summary>**绳**的物品 StringId（= 握着的那件，弓型；判"玩家此刻握着的是不是钩索"用；同上，改物品要跟着改）。</summary>
+		public const string RopeItemId = "lwn_grapple_rope";
 
 		/// <summary>钩"应该有"的数量（玩家身上永远是 1 个 —— 打完立刻退还）。</summary>
 		private const short HookExpectedAmount = 1;

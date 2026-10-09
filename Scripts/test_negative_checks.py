@@ -38,8 +38,13 @@ REPO = HERE.parent
 CSV_SRC = REPO / "Knowledge" / "太阁5" / "骑砍2织丰角色ID对应" / "csv"
 MODULE_SRC = Path(r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12"
                   r"\Mount & Blade II Bannerlord\Modules\Taikou")
+# 🔴 2026-10-09 新增第二个沙箱：通用玩法（钩索/飞行/处决/法术/贴花）的数据搬进了 LivingWorldNpcs，
+#    于是「物品网格字段」「动作接线」那几条用例的作案对象也搬过去了 —— 用例里用 target="lwn" 指它。
+LWN_SRC = REPO
 # 沙箱只拷这几样（ModuleData + 地图场景 + 段注册）；资产/音乐/视频与检查无关
 SANDBOX_PARTS = ("ModuleData", "SceneObj", "GUI", "SubModule.xml", "Languages")
+# LWN 没有 SceneObj/GUI；要的是物品段 + 动作接线 + project.mbproj（都在 ModuleData 里）
+LWN_SANDBOX_PARTS = ("ModuleData", "SubModule.xml")
 
 # 接受 `--official-root` 的 checker（决定沙箱根怎么传）；
 # ⚠️ 给不认这个参数的脚本传 = argparse exit 2（不是检查失败，是参数没接——雷 92 同族）
@@ -89,8 +94,9 @@ def patch_cell(path, key_col, key_val, col, new_val, head=2):
 CASES = []
 
 
-def case(desc, script, action, want, needle, extra_args=()):
-    CASES.append((desc, script, action, want, needle, list(extra_args)))
+def case(desc, script, action, want, needle, extra_args=(), target="pack"):
+    """target: "pack" = 内容包沙箱（默认）/ "lwn" = LivingWorldNpcs 沙箱。"""
+    CASES.append((desc, script, action, want, needle, list(extra_args), target))
 
 
 def _break_xml(m, c):
@@ -167,30 +173,32 @@ case("物品：缺 <Flags Civilian=\"true\"/> 必须抓到", "check_items_civili
 # 物品：空网格字段 = 引擎取网格的每条路**都没做 null 兜底**，崩法按字段而异（雷 166/167 同一族，2026-10-08 立）
 #   ① 箭类物品 `holster_mesh=""` —— 背包图标取的就是它（`GetItemMeshForInventory` 对 Arrows/Bolts
 #      直接返回 holster 网格）⇒ 进装备/背包界面**搜到这件就 NullReferenceException**（雷 168）
+#   🔴 2026-10-09：钩索物品搬进了 LWN（`ModuleData/items/grapple.xml`）⇒ 这三条改打 LWN 沙箱。
 case("物品：箭类 holster_mesh 留空必须抓到（雷 168）", "check_items_mesh_fields.py",
-     lambda m, c: patch_text(m / "ModuleData" / "taikou_items" / "grapple.xml",
+     lambda m, c: patch_text(m / "ModuleData" / "items" / "grapple.xml",
                              'holster_mesh="lwn_grapple_hook"', 'holster_mesh=""', 1),
-     1, "taikou_grapple_hook")
+     1, "lwn_grapple_hook", target="lwn")
 
 #   ② `mesh=""` —— 装备那一刻 AccessViolation（雷 166）；pattern 取「任意类型都命中」的第一处
 #      （`\t\tmesh=` 不会误伤 `\t\tholster_mesh=`：前缀必须紧贴 `mesh=`）
 case("物品：mesh 留空必须抓到（雷 166）", "check_items_mesh_fields.py",
-     lambda m, c: patch_text(m / "ModuleData" / "taikou_items" / "grapple.xml",
+     lambda m, c: patch_text(m / "ModuleData" / "items" / "grapple.xml",
                              '\t\tmesh="lwn_proxy_invisible"\n', '\t\tmesh=""\n', 1),
-     1, "taikou_grapple_hook")
+     1, "lwn_grapple_hook", target="lwn")
 
 #   ③ 整个 `mesh` 属性缺失 —— 与空串同源（`MeshName == null`）
 case("物品：整个 mesh 属性缺失必须抓到", "check_items_mesh_fields.py",
-     lambda m, c: patch_text(m / "ModuleData" / "taikou_items" / "grapple.xml",
+     lambda m, c: patch_text(m / "ModuleData" / "items" / "grapple.xml",
                              '\t\tmesh="lwn_proxy_invisible"\n', '', 1),
-     1, "属性缺失")
+     1, "属性缺失", target="lwn")
 
 # 动作接线：被 movement_sets 引用的动作名没在 action_types.xml 声明 = 引擎拿无效动作索引 = 拔装备 AV
 #   （雷 169，2026-10-08 实机：崩在 MissionState.TickMission 的托管→本机转换，日志零线索）
+#   🔴 2026-10-09：这 44 条通用动作名的声明搬进了 LWN ⇒ 改打 LWN 沙箱。
 case("动作接线：漏声明必须抓到（雷 169）", "check_action_wiring.py",
      lambda m, c: patch_text(m / "ModuleData" / "action_types.xml",
                              '\t<action name="act_grapple_walk_forward" />\n', '', 1),
-     1, "act_grapple_walk_forward")
+     1, "act_grapple_walk_forward", target="lwn")
 
 # soln 体系：文件在磁盘上但 project.mbproj 没挂 = **完全不加载**（引擎零报错）
 #   造坏 = 把挂 item_usage_sets 的那行**注释掉** —— 注意注释里还留着同一串文本，
@@ -207,15 +215,16 @@ case("soln 体系：project.mbproj 没挂 item_usage_sets 必须抓到（雷 122
 # soln 体系（粒子）：粒子文件名是**带前缀的一族**（particle_systems_<名>.xml），
 #   按整名匹配会漏掉它 —— 这条专门验「前缀匹配」生效（2026-09-23 加，官方数据核过：
 #   Native 挂了 7 行 particle_systems*，粒子同属 soln 体系）。
+#   🔴 2026-10-09：粒子 XML 随通用玩法搬进 LWN ⇒ 改打 LWN 沙箱（锚点也换成那边的行文格式）。
 case("soln 体系：没挂 particle_systems_yinmo 必须抓到（前缀匹配，不是整名）",
      "check_module_registration.py",
      lambda m, c: patch_text(
          m / "ModuleData" / "project.mbproj",
-         '<file id="soln_particle_systems" name="ModuleData/particle_systems_yinmo.xml" '
-         'type="particle_system"/>',
-         '<!-- <file id="soln_particle_systems" name="ModuleData/particle_systems_yinmo.xml" '
-         'type="particle_system"/> -->', 1),
-     1, "particle_systems_yinmo.xml")
+         '<file id="soln_particle_systems"   name="ModuleData/particle_systems_yinmo.xml"   '
+         'type="particle_system" />',
+         '<!-- <file id="soln_particle_systems"   name="ModuleData/particle_systems_yinmo.xml"   '
+         'type="particle_system" /> -->', 1),
+     1, "particle_systems_yinmo.xml", target="lwn")
 
 # 选人目录：Realm/House 的类型引用了不存在的筛档（左列点它会筛出空）
 case("选人目录：悬空的势力类型必须抓到", "check_hero_profile_keys.py",
@@ -290,6 +299,8 @@ def main():
     sandbox_root = tmp / "sandbox"
     pristine_mod = tmp / "_pristine" / "Taikou"
     sandbox_mod = sandbox_root / "Modules" / "Taikou"
+    pristine_lwn = tmp / "_pristine" / "LivingWorldNpcs"
+    sandbox_lwn = sandbox_root / "Modules" / "LivingWorldNpcs"
     pristine_csv, sandbox_csv = tmp / "csv_pristine", tmp / "csv"
     results = []
     try:
@@ -302,10 +313,19 @@ def main():
                     shutil.copytree(str(src), str(d / part))
                 elif src.is_file():
                     shutil.copy2(str(src), str(d / part))
+        # LWN 沙箱（第二批用例：钩索物品与通用动作名）
+        for d in (pristine_lwn, sandbox_lwn):
+            d.mkdir(parents=True)
+            for part in LWN_SANDBOX_PARTS:
+                src = LWN_SRC / part
+                if src.is_dir():
+                    shutil.copytree(str(src), str(d / part))
+                elif src.is_file():
+                    shutil.copy2(str(src), str(d / part))
         shutil.copytree(str(CSV_SRC), str(pristine_csv))
         shutil.copytree(str(CSV_SRC), str(sandbox_csv))
 
-        for desc, script, action, want, needle, _extra in CASES:
+        for desc, script, action, want, needle, _extra, target in CASES:
             # 每个用例前把沙箱恢复成干净副本
             for name in SANDBOX_PARTS:
                 dst, src = sandbox_mod / name, pristine_mod / name
@@ -317,15 +337,24 @@ def main():
             if not (sandbox_mod / "SceneObj" / "Main_map" / "terrain.bin").exists():
                 shutil.copy2(str(pristine_mod / "SceneObj" / "Main_map" / "terrain.bin"),
                              str(sandbox_mod / "SceneObj" / "Main_map" / "terrain.bin"))
+            for name in LWN_SANDBOX_PARTS:
+                dst, src = sandbox_lwn / name, pristine_lwn / name
+                if dst.is_dir():
+                    shutil.rmtree(str(dst))
+                    shutil.copytree(str(src), str(dst))
+                elif src.is_file():
+                    shutil.copy2(str(src), str(dst))
             shutil.rmtree(str(sandbox_csv))
             shutil.copytree(str(pristine_csv), str(sandbox_csv))
 
-            action(sandbox_mod, sandbox_csv)
+            # target="lwn" 的用例：作案对象与 --module 都换成 LWN 沙箱
+            m = sandbox_lwn if target == "lwn" else sandbox_mod
+            action(m, sandbox_csv)
             if script in TAKES_MODULES_ROOT:
                 # 语言登记类：吃「模块根 + 模块名」，不是模块路径
                 extra = ["--modules-root", sandbox_root / "Modules", "--module", "Taikou"]
             else:
-                extra = ["--module", sandbox_mod]
+                extra = ["--module", m]
             if script in TAKES_OFFICIAL_ROOT:
                 extra += ["--official-root", sandbox_root]
             if script == "check_taikou_world_tables.py":

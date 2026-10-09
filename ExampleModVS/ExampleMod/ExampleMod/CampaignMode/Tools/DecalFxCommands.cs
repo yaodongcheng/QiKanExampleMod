@@ -72,7 +72,7 @@ namespace LivingWorldNpcs.CampaignMode
     /// </summary>
     public static class DecalFx
     {
-        /// <summary>prefab 子节点里烘的默认边长（米），见 Taikou/Prefabs/lwn_decal_*.xml。</summary>
+        /// <summary>prefab 子节点里烘的默认边长（米），见 LivingWorldNpcs/Prefabs/lwn_decal_*.xml。</summary>
         public const float LavaDefaultSize = 8f;
 
         /// <inheritdoc cref="LavaDefaultSize"/>
@@ -240,7 +240,7 @@ namespace LivingWorldNpcs.CampaignMode
             if (scene == null) return "error: " + err;
 
             if (!GameEntity.PrefabExists(prefab))
-                return $"error: prefab '{prefab}' not found. (Taikou module must be in the launch list, and Prefabs/{prefab}.xml must exist.)";
+                return $"error: prefab '{prefab}' not found. (expected in LivingWorldNpcs/Prefabs/lwn_prefabs.xml or lwn_decal_probes.xml).";
 
             float def = kind == "ice" ? IceDefaultSize : LavaDefaultSize;
             if (size <= 0f) size = def;

@@ -65,11 +65,11 @@ M9 卡的是「网格材质透明」：贴图是**黑底 + 白闪电**，黑底�
 
       ① 资产**已注册**（`Assets/meshes/lightning_arc/lwn_lightning_arc_d_tex.tpac` 已存在）
          ⇒ **直接覆盖镜像目录**，编辑器会自动同步（**这正是镜像布局的用途** —— "替换已注册资产的内容"）
-            `Modules/TaikouAnim/AssetSources/meshes/lightning_arc/lwn_lightning_arc_d.png`
+            `Modules/LwnAnim/AssetSources/meshes/lightning_arc/lwn_lightning_arc_d.png`
          ⇒ 用户**不用**再手动 Import
 
       ② 资产**从没导入过** ⇒ 放「待导入」目录，交用户 Import：
-            `Modules/TaikouAnim/AssetSources/ImortReady/lwn_lightning_arc/lwn_lightning_arc_d.png`
+            `Modules/LwnAnim/AssetSources/ImortReady/lwn_lightning_arc/lwn_lightning_arc_d.png`
 
     🔴 **两条纪律**：
       · **待导入的"新资产"绝不许放进镜像**（镜像与 `Assets/` 同目录同名 ⇒ 自动同步生成一个、
@@ -125,11 +125,11 @@ NAME = V["name"]
 #    **不会**另开 `lightning_arc2/` 文件夹）⇒ 两个变体共用同一个 asset_dir。
 ASSET_DIR = V["asset_dir"]       # 镜像 / 工程里的资产目录
 STAGE_SUB = V["stage"]           # ImortReady 下的待导入子目录
-MIRROR = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "meshes", ASSET_DIR, NAME)
-STAGE_DIR = os.path.join(REPO, "..", "TaikouAnim", "AssetSources", "ImortReady", STAGE_SUB)
+MIRROR = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "meshes", ASSET_DIR, NAME)
+STAGE_DIR = os.path.join(REPO, "..", "LwnAnim", "AssetSources", "ImortReady", STAGE_SUB)
 STAGE = os.path.join(STAGE_DIR, NAME)
 # 「资产是否已注册」的判据 = 编辑器工程里有没有它的 tpac
-REGISTERED_MARK = os.path.join(REPO, "..", "TaikouAnim", "Assets", "meshes", ASSET_DIR,
+REGISTERED_MARK = os.path.join(REPO, "..", "LwnAnim", "Assets", "meshes", ASSET_DIR,
                                NAME.replace(".png", "_tex.tpac"))
 
 # ─────────────────────────── 图集规格 ───────────────────────────

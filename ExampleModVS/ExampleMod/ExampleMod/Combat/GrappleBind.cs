@@ -175,7 +175,7 @@ namespace LivingWorldNpcs
 		/// <summary>Blow 模式的诊断锚点：出手那一刻目标在哪（1 秒后打位移差，判断"引擎到底推没推、往哪推"）。</summary>
 		private Vec3 _blowOrigin;
 
-		// 三条动作名（内容包 action_types.xml 声明 + action_sets.xml 映射到**原版**地牢囚犯躺地 clip；
+		// 三条动作名（本模块 action_types.xml 声明 + action_sets.xml 映射到**原版**地牢囚犯躺地 clip；
 		// 写错 = 静默 act_none、播不出来 ⇒ `bind state` 会把当前动作名打出来核对）。
 		public const string LayAction = "act_grapple_bound_lay";
 		public const string CycleAction = "act_grapple_bound_cycle";

@@ -1,0 +1,568 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 贴花研究期的灰图/探针 prefab（实验器材，不是玩法内容）
+
+     🔴 本文件是**合并件**（2026-10-09）：原先这些小 prefab 各自一个 xml（30 个文件），
+        合并依据 = 引擎**按 `<game_entity name="...">` 索引，不按文件名** ——
+        原版自己就是这么干的（`Native/Prefabs/archhitecture_aserai.xml` 一个文件装了 549 个）。
+        合并只是重新装箱：**每个 prefab 的注释与内容逐字节原样搬运**，没有任何改动。
+     每个 prefab 前面那段中文注释就是它自己的说明（用途 / 召唤命令 / 踩过的坑），别删。
+     ⚠️ 召唤命令照旧按 **prefab 名**（不是文件名）：`custom.spawn_prefab <名字>`。 -->
+
+<prefabs>
+<!-- 【路线 A：传统 decal / 图集路】用原版血渍材质做贴花。
+
+     与 `lwnDecalMeshBlood` 是**同一个材质、两条渲染路径**的一对：
+       · lwnDecalAtlasBlood = `<decal_component>`  → `Decal.CreateDecal()` + `AddDecalInstance`（图集路）
+       · lwnDecalMeshBlood  = `<meta_mesh_component><mesh decal_mesh>` → 网格贴花路
+
+     语法照抄原版 `Native/Prefabs/archhitecture_aserai.xml` 的 `_decal_leaking_d`：
+       `<decal_component material="decal_leaking_d" argument="0.250, 0.470, 0.130, 0.000"/>`
+
+     🔴 `argument` 的四个数 = **贴图在图集里的矩形 (宽, 高, 起点X, 起点Y)**，
+        顺序由 `SetVectorArgument(scaleX, scaleY, offsetX, offsetY)` 定。
+        （反证：若按 (x, y, w, h) 读原版那条，h=0.000 得出高度为零的矩形，说不通。）
+
+     本 prefab 的 argument 取自 `Native/ModuleData/decal_textures_battle.xml`：
+       blood_terrain_decal_3_d → atlas_pos = "0.753174, 0.308594, 0.124268, 0.125000" (x, y, w, h)
+       ⇒ argument = "0.124268, 0.125000, 0.753174, 0.308594" (w, h, x, y)
+     ⚠️ 同一张贴图在 `_all` / `_battle` / `_town` 三张表里 UV **不一样**（各对应一张图集），
+        战斗场景用 `_battle` 那张。
+
+     🔴 本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalAtlasBlood" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+		<components>
+			<decal_component material="blood_terrain_decal_3" argument="0.124268, 0.125000, 0.753174, 0.308594"/>
+		</components>
+	</game_entity>
+
+<!-- 【判定实验】图集路的 decal 到底用不用「材质自己的贴图」？
+
+     🔴 这一发只回答一个问题，结果二选一，没有中间态：
+
+       材质 = `lwn_manual_scroch_addalpha`（tex[0] = **我们的** `lwn_decal_scorch_d`，橙红余烬）
+       argument = 抄原版 `blood_terrain_decal_3_d` 在 battle 表里的 atlas_pos
+                  （= 血渍那块图集区域）
+
+     判读：
+       · 地上出现**橙红色余烬斑**  ⇒ decal 用的是**材质的贴图** —— 图集限制不存在，
+                                    自绘贴图可以直接走图集路（那条路天然按 alpha lerp）
+       · 地上出现**暗红血渍**      ⇒ decal 用的是**图集**（靠贴图名查表）—— 贴图必须进图集
+       · 什么都没有                ⇒ 该材质不被 decal 接受
+
+     为什么这实验干净：材质和 UV 分别指两套内容 —— 显示谁，就知道读的是谁。
+     来源证据：`TaleWorlds.Native.dll` 里有 `repack_decal_atlases` / `dont_resize_in_atlas`
+               ⇒ 图集是「打包」出来的，不是死的；但表里的 atlas_pos 与 prefab 里手工抄的
+                 argument 又说明打包可能是离线的 —— 只能实测分辨。
+
+     召唤：custom.spawn_prefab lwnDecalAtlasScorch 4
+     🔴 不能用 custom.surface 拉（它只认 decal_mesh，这个是 decal_component）。
+
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalAtlasScorch" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+		<components>
+			<decal_component material="lwn_manual_scroch_addalpha" argument="0.124268, 0.125000, 0.753174, 0.308594"/>
+		</components>
+	</game_entity>
+
+<!-- 【最后一条没试的路】`brush_decal` shader —— 它的 alpha 是**程序化圆形衰减**（不依赖贴图）。
+
+     🔴 为什么值得试（2026-10-01 读 1.2.12 源码得出）：
+       brush_decal 的 `calculate_albedo_deferred_brush_decal` 里：
+         radius = 1 - (片中心到像素的XY距离 / 半边长)
+         alpha  = pow(saturate(radius), …) × 强度
+         pp_modifiable.early_alpha_value = alpha
+       ⇒ **alpha 是几何算出来的圆**，不是贴图 alpha。
+       ⇒ 所以只要它被消费，就能直接得到「中心实、边缘渐隐」的圆形，**不需要形状贴图**。
+
+     🔴 VA2 全默认（=0）时的行为：
+       `g_mesh_vector_argument_2.w = 0` ⇒ 不走世界坐标采样分支 ⇒ `albedo_color.rgb = 1`（纯白）
+       ⇒ 画面上就是一个**纯白的圆形渐变斑** —— 这是最干净的观察对象：
+          · 圆形渐隐  ⇒ alpha 被消费 ✓
+          · 方形硬边  ⇒ alpha 没被消费 ✗
+
+     ⚠️ 材质 `lwn_manual_brush` 需在编辑器里建：
+       从 `lwn_manual_scroch_addalpha` 另存 → 改名 → **Shader 选 `brush_decal`** →
+       Blend 逐个试（`modulate` / `GbufferAlphaBlend` / `add_alpha`）→ Publish。
+
+     召唤：custom.surface spawn lwnDecalBrushTest 5
+     两片重叠：custom.surface strip lwnDecalBrushTest lwnDecalBrushTest2 4 50
+     （若圆形成立，两片重叠区应是**两圆相加**还是**平滑过渡**，取决于 blend）
+
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalBrushTest" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalBrushTest_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="brushdecal_mod" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针：blend = add_modulate_combined（加法+调制组合，2026-10-03 用户新增，之前没试过）。
+     贴图 lwn_decal_gray50_d 有两个测试区：灰区(73%) 验混合语义；正中圆洞 RGBA 全 0(27%) 验消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayAMC" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayAMC_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_addmodulecombined" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针：blend = add_modulate_combined（加法+调制组合，2026-10-03 用户新增，之前没试过）。
+     贴图 lwn_decal_gray50_d 有两个测试区：灰区(73%) 验混合语义；正中圆洞 RGBA 全 0(27%) 验消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayAMC150" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayAMC150_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_addmodulecombined_alphatest150" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针（自动生成，2026-10-03）。贴图 lwn_decal_gray50_d 有两个测试区：
+     灰区(73%) 验 blend 是乘法还是替换；正中圆洞 RGBA 全 0(27%) 验 blend 消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayAdd" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayAdd_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_add" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针（自动生成，2026-10-03）。贴图 lwn_decal_gray50_d 有两个测试区：
+     灰区(73%) 验 blend 是乘法还是替换；正中圆洞 RGBA 全 0(27%) 验 blend 消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayAdd150" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayAdd150_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_add_alphatest150" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针（自动生成，2026-10-03）。贴图 lwn_decal_gray50_d 有两个测试区：
+     灰区(73%) 验 blend 是乘法还是替换；正中圆洞 RGBA 全 0(27%) 验 blend 消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayMod" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayMod_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_mod" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针（自动生成，2026-10-03）。贴图 lwn_decal_gray50_d 有两个测试区：
+     灰区(73%) 验 blend 是乘法还是替换；正中圆洞 RGBA 全 0(27%) 验 blend 消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayMod150" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayMod150_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_mod_alphatest150" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针 · DDS + alpha_test + alphaTest=0（2026-10-06 立）。
+     贴图 = lwn_decal_gray50_d_dds（DXT5）· 材质 = lwn_manual_gray_mod_dds
+     该材质 shaderFlags 已由 tpaccli matflags 写入 alpha_test，但 alphaTest 数值 = 0。
+     预期：clip(alpha − 0) 不裁任何像素 ⇒ 圆洞仍显示为黑色（对照 150 那支的"透明洞"）。
+     用途：把「flag 有没有」与「阈值是否 > 0」两个变量拆开 —— 和 lwnDecalGrayMod150 /
+           lwnDecalGrayModDds150 一起构成 2×2 对照。
+     召唤：custom.surface spawn lwnDecalGrayModDds 5 -->
+	<game_entity name="lwnDecalGrayModDds" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayModDds_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_mod_dds" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针 · DDS + alpha_test 版（2026-10-06 立）。
+     贴图 = lwn_decal_gray50_d_dds（由 PNG 经 TextureConverter/nvcompress 转的 DXT5）
+     材质 = lwn_manual_gray_mod_alphatest150_dds（blend=modulate, alphaTest=0.588,
+            shaderFlags 由 tpaccli matflags 离线强写入了 alpha_test）
+     两个测试区：灰区(73%) / 正中圆洞 RGBA 全 0(27%)。
+     判读：圆洞透出地面 = alpha_test 生效（形状由贴图 alpha 决定）；仍是整块灰方 = 没生效。
+     召唤：custom.surface spawn lwnDecalGrayModDds150 5 -->
+	<game_entity name="lwnDecalGrayModDds150" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayModDds150_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_mod_alphatest150_dds" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针（自动生成，2026-10-03）。贴图 lwn_decal_gray50_d 有两个测试区：
+     灰区(73%) 验 blend 是乘法还是替换；正中圆洞 RGBA 全 0(27%) 验 blend 消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayMul" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayMul_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_mul" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针（自动生成，2026-10-03）。贴图 lwn_decal_gray50_d 有两个测试区：
+     灰区(73%) 验 blend 是乘法还是替换；正中圆洞 RGBA 全 0(27%) 验 blend 消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayMul150" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayMul150_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_mul_alphatest150" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针（自动生成，2026-10-03）。贴图 lwn_decal_gray50_d 有两个测试区：
+     灰区(73%) 验 blend 是乘法还是替换；正中圆洞 RGBA 全 0(27%) 验 blend 消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayNone" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayNone_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_none" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 灰图探针（自动生成，2026-10-03）。贴图 lwn_decal_gray50_d 有两个测试区：
+     灰区(73%) 验 blend 是乘法还是替换；正中圆洞 RGBA 全 0(27%) 验 blend 消不消费 alpha。
+     召唤：custom.surface spawn 本prefab名 5 -->
+	<game_entity name="lwnDecalGrayNone150" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalGrayNone150_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_gray_none_alphatest150" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 贴花 prefab：冰霜（单层、加法层）。材质 `lwn_decal_ice_frost`。
+
+     🔴 与 `lwnDecalIceFrostB` 是**同材质、不同 prefab 名**的一对，这是**故意的** ——
+        custom.surface 的权重退让按「prefab 名」判同类：名字不同才会互相退让；
+        想让两片同元素都保持满浓，就把同一个名字传两次。
+
+     召唤：custom.surface spawn lwnDecalIceFrostA 4
+           custom.surface strip lwnDecalIceFrostA lwnDecalIceFrostB 4 17
+
+     材质实情：blend = add_alpha · tex = lwn_decal_ice_d（自带水洼形状与羽化边）。
+     子节点 scale 写 3.0 ⇒ 控制台里的半径参数就是实际米数（见 SurfaceDecalFx.SpawnAt 的 k）。
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalIceFrostA" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalIceFrostA_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_ice_frost" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 贴花 prefab：冰霜（单层、加法层）。与 `lwnDecalIceFrostA` **同材质、不同 prefab 名**。
+     名字不同的理由见 lwnDecalIceFrostA.xml（权重退让按 prefab 名判同类）。
+
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalIceFrostB" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalIceFrostB_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_ice_frost" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 贴花 prefab：**白底**贴图（`lwn_decal_ice_sheet_v4_d`）配当前材质，用来验证乘法混合。
+     prefab 名与材质对应：`lwnDecalIceWater` ↔ `lwn_decal_ice_water`。
+
+     🔴 材质现状（2026-10-01 从发布包 dump 实测，与旧文档记的不一样）：
+          blend = **add_alpha** · tex[0] = lwn_decal_ice_sheet_v4_d（**白底**）· alphaTest = 0
+        「白底 + 加法」是一个**坏组合** —— 白色 (255,255,255) 在加法里就是"加满白光"，
+        所以默认放下去会看到**一整块方形炸白**，不是冰面形状。
+        （旧文档记的是 modulate，已过期。）
+
+     🔴 但正因为坏，它是验证混合模式最好的素材 —— 对比度拉满：
+
+       custom.surface clear
+       custom.surface spawn lwnDecalIceWater 5   ← 默认 add_alpha：整块方形炸白
+       custom.surface blend Multiply             ← 若乘法语义正确：白区完全无痕，
+                                                    只剩冰面那块把地面压暗成灰蓝
+       custom.surface blend AddAlpha             ← 切回
+
+     判读：
+       · `Multiply` 下白区无痕、只剩冰面形状  ⇒ 乘法确实是「地面 × 贴图」，槽位确认
+       · `Multiply` 下跟 add_alpha 一模一样    ⇒ 运行时切 blend 没生效（那前面的实验全得重来）
+
+     scale 写在【子节点】上（根节点 transform 会被 Instantiate 的 frame 覆盖）。
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalIceWater" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalIceWater_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_ice_water" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 【地表实验 A：decal shader + modulate】火焰地表。
+
+     材质 `lwn_decal_lava_glow`（2026-10-01 实测）：
+       blend = **modulate** · shader = `8490623a-…`（decal 那支）· alphaTest = 0.0235
+       tex[0] = `lwn_decal_lava_magma_v4_d`（**全不透明**、可平铺的无缝岩浆）
+
+     🔴 这一发要看的：`modulate` 的「整块足迹完全覆盖」是不是就能当**地表**用 ——
+        贴图全不透明 ⇒ 没有"空白区变黑"的问题 ⇒ 地面应被**整块替换成岩浆**。
+        若相邻方块能拼得看不出缝，地表就成立（§七 出路 D）。
+
+     与 `lwnDecalLavaMetal` 是**同一张贴图、同一 blend、只差 shader** 的一对：
+        A = decal shader（本文件）
+        B = metallic shader（`328d3572-…`）
+        ⇒ 对比"换 shader 会不会改变投影/混合行为"。
+
+     scale 写在【子节点】上（根节点 transform 会被 Instantiate 的 frame 覆盖）。
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalLavaGlow" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalLavaGlow_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_lava_glow" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 【地表实验 B：metallic shader + modulate】火焰地表。
+
+     材质 `lwn_decal_lava_glow_metallic`（2026-10-01 实测）：
+       blend = **modulate** · shader = **`328d3572-…`（与 A 不同的那支）** · alphaTest = 0.0039
+       tex[0] = `lwn_decal_lava_magma_v4_d`（与 A 同一张）
+
+     🔴 与 `lwnDecalLavaGlow` 构成 A/B 对照 —— **同一张贴图、同一 blend、只差 shader**。
+        要回答的问题：
+          · 换 shader 后**还贴不贴地**（非 decal shader 可能按普通几何渲染，不投影）
+          · 混出来是"替换地面"还是"照普通物件那样盖一层"
+
+     召唤：custom.surface spawn lwnDecalLavaMetal 5
+     对照：custom.surface spawn lwnDecalLavaGlow 5
+
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalLavaMetal" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalLavaMetal_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_lava_glow_metallic" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 【路线 B：decal_mesh 网格路】用**同一个原版血渍材质**做贴花。
+
+     与 `lwnDecalAtlasBlood` 构成 A/B 对照：材质逐字相同（`blood_terrain_decal_3`），
+     只有承载方式不同 —— 一个走 `decal_component`（图集路），一个走 `decal_mesh`（网格路）。
+
+     召唤：custom.surface spawn lwnDecalMeshBlood 5
+     路线 A 那个（decal_component）不能用 custom.surface 拉 —— 它没有 decal_mesh，
+     要用通用召唤命令 `custom.spawn_prefab lwnDecalAtlasBlood <距离米>`。
+
+     scale 写在【子节点】上（根节点 transform 会被 Instantiate 的 frame 覆盖）。
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalMeshBlood" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalMeshBlood_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="blood_terrain_decal_3" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 【过渡实验 B：冷】大面积铺开的冷青色地表。材质 `lwn_manual_probe_cool`。
+
+     与 `lwnDecalProbeWarm` 是**不同元素**的一对（见那边的说明）。
+     贴图 `lwn_decal_probe_cool_d.png`：空白区 RGBA 全 0 ✓ · 实体区冷青 (86,168,205) · 四边羽化。
+
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalProbeCool" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalProbeCool_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_probe_cool" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 【过渡实验 A：暖】大面积铺开的暖橙色地表。材质 `lwn_manual_probe_warm`。
+
+     为什么要有这对：现有地表贴图内容只占 8%~13%（小斑点 + 大片空白），
+     两片叠起来只有两个小点相交，**看不出过渡带**。这对把内容提到 ~47% 并四边羽化。
+
+     与 `lwnDecalProbeCool` 是**不同元素**的一对（不靠"同材质不同名"凑数）——
+     custom.surface 的权重退让按 prefab 名判同类，不同元素自然就是不同名，天然会互相退让。
+
+     贴图 `lwn_decal_probe_warm_d.png`（ImortReady\lwn_decal_probe\）：
+       空白区 RGBA 全 0 ✓ · 实体区暖橙 (205,96,34) · 四边 18% 羽化 · 低频花纹
+
+     用法：
+       custom.surface spawn lwnDecalProbeWarm 5
+       custom.surface twin  lwnDecalProbeWarm lwnDecalProbeCool 4 0    ← 完全重叠：看混色
+       custom.surface strip lwnDecalProbeWarm lwnDecalProbeCool 4 17   ← 错开：看交界过渡
+
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalProbeWarm" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalProbeWarm_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_probe_warm" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 贴花 prefab：**压暗类**地表（焦土）。白底贴图 + 乘法混合。
+     prefab 名与材质对应：`lwnDecalScrochMul` ↔ 材质 `lwn_manual_scroch_mul`。
+
+     🔴 与 `lwnDecalScrochAdd`（黑底 + add_alpha = 加亮）是**两类地表的两个代表**：
+        加法类（火/光/余烬）：贴图黑底，黑 = 加 0 = 无痕
+        乘法类（焦土/油/水迹）：贴图白底，白 = ×1 = 无痕
+
+     本 prefab 用的贴图 `lwn_decal_scorch_mul_cut_d`：
+       空白区 RGB = (255,255,255) 纯白（2026-10-01 实测）⇒ 天然配乘法。
+
+     材质 `lwn_manual_scroch_mul`（2026-10-01 从发布包 dump 实证）：
+       blend = Multiply · 与 addalpha / modulate 两支配成一套对照。
+
+     召唤：custom.surface spawn lwnDecalScrochMul 5
+     判读：白区应当**完全无痕**（看不到方块边），只有焦土斑把地面压暗。
+
+     scale 写在【子节点】上（根节点 transform 会被 Instantiate 的 frame 覆盖）。
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalScrochMul" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalScrochMul_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_scroch_mul" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+</prefabs>

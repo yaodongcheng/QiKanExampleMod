@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通用玩法的场景预制体（在用的功能件）
+
+     🔴 本文件是**合并件**（2026-10-09）：原先这些小 prefab 各自一个 xml（30 个文件），
+        合并依据 = 引擎**按 `<game_entity name="...">` 索引，不按文件名** ——
+        原版自己就是这么干的（`Native/Prefabs/archhitecture_aserai.xml` 一个文件装了 549 个）。
+        合并只是重新装箱：**每个 prefab 的注释与内容逐字节原样搬运**，没有任何改动。
+     每个 prefab 前面那段中文注释就是它自己的说明（用途 / 召唤命令 / 踩过的坑），别删。
+     ⚠️ 召唤命令照旧按 **prefab 名**（不是文件名）：`custom.spawn_prefab <名字>`。 -->
+
+<prefabs>
+	<game_entity name="rasengan" old_prefab_name="" mobility="1">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<!-- 🔴 2026-09-27（实测纠正）：抬高要写在**子节点**上。
+			     `GameEntity.Instantiate(scene, name, frame)` 传进去的 frame 会**覆盖根节点的 transform**
+			     （改根上的 position 完全没效果，实机症状 = "召唤了还是在地面"）；子节点不受那个 frame 影响。
+			     1.700 = 头顶高度；配合 `custom.spawn_prefab rasengan 0`（面前距离 0）= 正头顶。
+			     ⚠️ 临时值：正式位置应由代码摆（螺旋丸要跟人走、要丢出去），编辑器工程里的源也还没同步这几个值。 -->
+			<game_entity name="rasengan_blade" old_prefab_name="" mobility="1">
+				<transform position="0.000, 0.000, 1.700" rotation_euler="0.000, 0.000, 0.000"/>
+				<components>
+					<meta_mesh_component name="lwn_rasengan_blade"/>
+				</components>
+			</game_entity>
+			<game_entity name="rasengan_air" old_prefab_name="" mobility="1">
+				<transform position="0.000, 0.000, 1.700" rotation_euler="0.000, 0.000, 0.000"/>
+				<components>
+					<particle_system_instanced_component>
+						<effect_ref base_effect="{F317DD65-3109-423C-BA33-9BE17DEE34BB}"/>
+					</particle_system_instanced_component>
+				</components>
+			</game_entity>
+			<game_entity name="rasengan_core" old_prefab_name="" mobility="1">
+				<transform position="0.000, 0.000, 1.700" rotation_euler="0.000, 0.000, 0.000"/>
+				<components>
+					<meta_mesh_component name="lwn_rasengan_core" position="0.000, 0.000, 0.000" rotation="0.000, 0.000, 0.000" scale="0.300, 0.300, 0.300"/>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+	
+
+<!-- 飞行载具 + 法阵（合一版，2026-09-21 重做）。
+
+     🔴 **为什么要合一**（血泪教训，别改回去）：
+        上一版是"隐形木板 + 另挂一张法阵"两个实体，靠 `SetVisibilityExcludeParents(false)`
+        把木板藏起来。**实测把碰撞一起干掉了** —— 隐藏成功后 1.8 秒主角掉下去摔死
+        （日志：`[Flight] 载具可见性 -> 隐藏 | 根vis=False` → `玩家 agent 失效`）。
+        反推 agent 判断"站在什么上"那一步会跳过不可见实体。
+        ⇒ **想让载具隐形这条路走不通**，改成"**承载物本身就是法阵**"。
+
+     🔴 **预制体这个格式的关键事实**（读 Native/Prefabs/*.xml 得出的）：
+        视觉和碰撞是**两条独立声明的线** ——
+          `<physics shape="引擎内置物理体名"/>`  ← 承载
+          `<meta_mesh_component name="网格名"/>`  ← 视觉
+        两者可以自由组合。所以本实体：
+          · 根   = 只带物理学（`bo_wooden_platform_a`，**与已验证能托人的那块木板同一个物理体**）
+          · 子   = 只带网格（我们的法阵），抬到物理体顶面上方
+
+     引擎行为（官方文档 asset_management/asset_types/overriding_scenes_prefabs 实证）：
+       "Prefab definitions are stored in xml files located in **Prefabs** folder in each module's directory."
+       —— 即 <模块>/Prefabs/*.xml 由引擎**自动扫描**，不需要在 SubModule.xml / project.mbproj 里登记。
+
+     用途：飞行时贴在玩家脚下的法阵。由 C# 侧 GameEntity.Instantiate(scene, "lwn_flight_sigil", frame)
+           生成，跟着飞行逐帧瞬移（见 Flight/CarrierBoard.cs）。
+
+     🔴 `name="lwn_flight_sigil"` 必须与装机包里**实际编译出来的 MetaMesh 名**一致。
+        导入 Publish 后用 `tpaccli list` 核对（不要猜 —— 动画那边 TRF 叫 fly_A_Flight_Idle_A、
+        clip 却叫 flight_idle_a 就是教训）。名字不对的症状：法阵不出现，日志打 [Flight] 法阵没挂上。
+
+     回退：删掉本文件即可（C# 侧查不到会静默跳过）。
+
+     🔴 本文件里【不许出现连续两个减号】：XML 注释里那是非法字符，整个文件解析失败、引擎启动即崩。 -->
+	<!-- 根：只负责"托人"。物理体沿用木板那一套 —— 它是本项目里唯一实机验证过能托住玩家的物理体。 -->
+	<game_entity name="lwn_flight_sigil" old_prefab_name="">
+		<physics shape="bo_wooden_platform_a" mass="1.000"/>
+		<children>
+			<!-- 子：只负责"好看"。
+
+			     🔴 **rotation_euler 是必需的 —— 法阵网格是"竖着"导进来的**（2026-09-21 实机确认）：
+			        网格的顶点全在 **Z=0** ⇒ 四边形躺在**网格自己的 XY 平面**、法线是网格的 +Z；
+			        而引擎的网格空间约定把 **+Z 映射到水平方向**（本项目武器规则"长轴 +Z"同源 ——
+			        剑刃在手里就是朝前的）⇒ 法线的世界方向是水平的 ⇒ **四边形竖起来了**。
+			        转 90° 把法线的世界方向扳回竖直，它就是一张躺平的法阵。
+
+			     ⚠️ **这里是试出来的值，不是算出来的**：绕 X 还是绕 Y 转（两者都只差一个 90°），
+			        以及正负号，取决于引擎对 FBX 的轴重映射 —— 而那个映射本项目没实证过。
+			        找法：下面四个值依次试（改完 **重进场景** 再看，不用重开游戏、不用重编译）：
+			          "1.571, 0, 0"   ← 当前值（绕 X 转 90°）
+			          "-1.571, 0, 0"
+			          "0, 1.571, 0"   ← 若上面两个都还竖着，换绕 Y
+			          "0, -1.571, 0"
+			        （角度单位是**弧度**。网格是双面的，所以正负号只影响哪一面朝上，不影响"平不平"。）
+
+			     position z = 0.400 —— 物理体顶面在实体原点上方 0.37（实测），抬到 0.40 就是
+			     "贴着顶面上面一点"，正好在玩家脚底；抬太多会看着人悬空，太低会埋在承载面里看不见。 -->
+			<game_entity name="lwn_flight_sigil_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.400" rotation_euler="1.571, 0.000, 0.000"/>
+				<components>
+					<meta_mesh_component name="lwn_flight_sigil"/>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 熔岩地表贴花 prefab（2026-09-29 定稿）。
+
+     用途：在地面上召唤一片**会流动的熔岩**。召唤（本 mod 自带的命令）：
+         ~ custom.decal_fx lava [尺寸米=8] [距离米=3]
+     也可以用通用命令召唤（尺寸固定 8 米、**不动**，只做静态对照）：
+         ~ custom.spawn_prefab lwn_decal_lava 4
+
+     ── 结构：岩壳静止，底下岩浆流动 ──────────────────────────────────────
+     🔴 **熔岩的物理关系**：**岩壳是静止的（裂开就不动了），流动的是岩壳底下那层
+        岩浆，只能从缝里看见。** 所以两层，**顺序有意义：岩浆先画、岩壳后画**。
+
+       [子节点 0] lwn_decal_lava_glow   AddAlpha · **滚动** · 全铺满的无缝岩浆（无形状）
+       [子节点 1] lwn_decal_lava_crust  Modulate · **静止** · 玄武岩，alpha=1 岩板 / 0 裂缝
+
+     · 岩浆层缩到 **0.80×**（下面 scale 6.400 = 8.0 × 0.80）：它的方边必须**始终**躲在
+       岩壳的实心区内（岩壳轮廓下界 d=0.42，岩浆边在 d=0.40；d = 到中心的切比雪夫距离，
+       0.5 = 足迹边）。改岩壳轮廓或改这个比例时，**两边要一起改**，否则会露出一圈亮方框。
+     · 岩壳贴图里裂缝**只在 d<0.40 才切**（外面切出来的洞露的是泥地不是岩浆）。
+     · 哪层滚由 C# 按**子节点名**判定：名字含 `crust`/`rock`/`water` 的层钉住不推 UV。
+
+     ── 🔴 混合语义（2026-09-29 实机校正，别按"乘法/加法"理解）────────────────
+       · `Modulate` = **覆盖 / 替换反照率**（实测：贴图 alpha **不参与混合**，
+         整块足迹都会被换成贴图 RGB —— 除非靠下面的 alphaTest 裁掉）
+       · `AddAlpha` = 地面 + 贴图 RGB（加法提亮）
+       （最早的"Modulate 白=无痕 / 乘法"说法是错的，已从知识文档删除。）
+
+     ── 🔴 形状靠 `Alpha Test`（不是靠 alpha 混合）──────────────────────────
+       材质里 **Alpha Test 必须是 0.024**（原版贴花材质里唯一的非零值）。
+       shader 里那句是 `if (ALPHA_TEST) clip(alpha - g_alpha_ref);` ——
+       **Alpha Test = 0 时整个裁剪被跳过**，贴图 alpha 就白算了（实机症状：
+       整块足迹铺满、裂缝看不见）。开了之后：alpha 低于阈值的像素**整像素丢弃**，
+       底下那层（岩浆）就露出来了。
+       ⚠️ 因为是硬裁，**贴图 alpha 必须做成二值**（0 或 1）—— 平滑衰减按 0.024 裁出来
+          只剩一条发丝细线（岩石贴图 v5 就是这么改的）。
+
+     ── 换算规则（v1.2.12 反编译实证）──────────────────────────────────────
+        投影体积 = 物体空间 [-0.5, 0.5]³ × 实体缩放，中心 = 实体原点。
+          · Scale X/Y = 贴花在地面上的**实际边长（米）**（8.0 ⇒ 8×8 米）
+          · Scale Z   = **竖直厚度**：0.5 ⇒ 上下各留 25cm 容差（地形起伏/台阶）
+          · 贴图沿实体**自身的 Z 轴**往下投 ⇒ **不需要旋转**（只转 Z 调朝向）
+          · UV Scale/Offset（argument）= 贴图内子矩形，1/1/0/0 = 整张贴图铺满；
+            流动 = 这个 offset 由 C# 每帧往前推（这条 shader 自身没有时间项）。
+        ⚠️ **1.2.12 与 1.5.x 口径不同**：1.2.12 的 shader 里多一行 `* 2`
+           （deferred_decal.rsh），同一份 scale 在 1.5.x 上出来的足迹是**两倍大**。
+           本项目实机跑的是 1.2.12，按上表；换 1.5.x 时 scale 要砍半。
+        ⚠️ 还有第二条流动路线（引擎自走 `use_texture_sweep`），见
+           plans/贴花-熔岩与冰面.md 的进阶节；用它的话 C# 只写一次 VA2。
+
+     ── scale 写在【子节点】上 ────────────────────────────────────────────
+        `GameEntity.Instantiate(scene, name, frame)` 传进去的 frame 会**覆盖根节点的
+        transform** —— 根上写 position 一律无效。子节点不受影响。
+        子节点这层的 8.0 是**默认尺寸**；`custom.decal_fx` 再对根节点乘 (size/8) 缩放改大小。
+
+     材质（ModKit 建，配方见 plans/贴花-熔岩与冰面.md）：
+        lwn_decal_lava_glow    tex=lwn_decal_lava_magma_v4_d  blend=add_alpha  alphaTest=0
+        lwn_decal_lava_crust   tex=lwn_decal_lava_rock_v5_d   blend=modulate   alphaTest=0.024
+     材质来自 TaikouAnim 的 Publish 产物，装在 Taikou/AssetPackages/lwn_taikou_anim.tpac 里。
+
+     回退：删掉本文件即可（C# 侧查不到会静默跳过）。
+
+     🔴 本文件里【不许出现连续两个减号】：XML 注释里那是非法字符，
+        整个文件解析失败、引擎启动即崩。 -->
+	<game_entity name="lwn_decal_lava" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<!-- ① 岩浆层（AddAlpha，滚动）：底下那层流动的岩浆。先画，被岩壳盖住。 -->
+			<game_entity name="lwn_decal_lava_glow" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="6.400, 6.400, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_lava_glow" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+			<!-- ② 岩壳层（Modulate + Alpha Test，静止）：玄武岩。alpha=0 的缝被裁掉，透出岩浆。后画。 -->
+			<game_entity name="lwn_decal_lava_crust" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="8.000, 8.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_lava_crust" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 结冰水面贴花 prefab（2026-09-29）。
+
+     用途：在地面上召唤一片**结冰的水洼**。召唤：
+         ~ custom.decal_fx ice [尺寸米=6] [距离米=3]
+     通用命令同样可用（尺寸固定 6 米、静态）：
+         ~ custom.spawn_prefab lwn_decal_ice 4
+
+     冰面**不动**（没有流动），所以形状是**烘在贴图里**的（不规则水洼 + 羽化边），
+     不像熔岩那样受"滚动贴图无法保留羽化边"的限制 —— 冰面这两张图四角就是
+     各自混合模式的无痕色（Modulate 层纯白 / AddAlpha 层纯黑），边界干净。
+
+     两层结构：
+       lwn_decal_ice_water   Modulate（乘）—— 白底 + 暗蓝水体 = 压出深水
+       lwn_decal_ice_frost   AddAlpha（加）—— 黑底 + 冰霜   = 加上冰面与厚霜边
+     顺序：先水体后冰霜（理由同熔岩 prefab 注释）。
+
+     尺寸换算见 lwn_decal_lava.xml 顶部的说明（v1.2.12：Scale X/Y 直接等于米数；
+     竖直厚度 0.5 ⇒ 上下各 25cm 容差）。子节点的 6.0 是默认尺寸。
+
+     材质（在 ModKit 里现建，配方见 plans/贴花-熔岩与冰面.md）：
+        lwn_decal_ice_water   贴图 lwn_decal_ice_water_d   Blend = modulate
+        lwn_decal_ice_frost   贴图 lwn_decal_ice_d         Blend = AddAlpha
+
+     回退：删掉本文件即可。
+
+     🔴 本文件里【不许出现连续两个减号】（XML 注释里的非法字符，会让整个文件解析失败）。 -->
+	<game_entity name="lwn_decal_ice" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<!-- ① 水体层（Modulate）：中间压暗成深水。先画。 -->
+			<game_entity name="lwn_decal_ice_water" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="6.000, 6.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_ice_water" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+			<!-- ② 冰霜层（AddAlpha）：冰面 + 边缘厚霜 + 裂缝亮线。后画。 -->
+			<game_entity name="lwn_decal_ice_frost" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="6.000, 6.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_decal_ice_frost" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 贴花 prefab：焦土贴图 + **add_alpha（加法层）**。
+     prefab 名与材质一一对应：`lwnDecalScrochAdd` ↔ `lwn_manual_scroch_addalpha`。
+
+     🔴 这是 `custom.surface` 的**默认 prefab**。
+        召唤：custom.surface spawn lwnDecalScrochAdd 5   （或直接 custom.surface spawn 5）
+
+     材质实情（2026-10-01 从 Publish 包 dump 实证）：
+       blend = add_alpha · tex[0] = lwn_decal_scorch_d · alphaTest = 0
+       flags = [no_depth_test, no_modify_depth_buffer, cull_front_faces]
+       与 `lwnDecalScrochMod` 是**同一张贴图、只差 blend** 的一对，专门做 A/B 对照。
+
+     ⚠️ 材质装在 `Taikou/AssetPackages/lwn_taikou_anim.tpac`；
+        材质改完要重新 Publish + 搬包（别覆盖同目录 300MB 的 pack0.tpac）。
+
+     scale 写在【子节点】上（根节点 transform 会被 Instantiate 的 frame 覆盖）。
+     本文件里不许出现连续两个 ASCII 减号：XML 注释非法字符，整个文件解析失败、引擎启动即崩。 -->
+	<game_entity name="lwnDecalScrochAdd" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalScrochAdd_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_scroch_addalpha" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+
+<!-- 贴花 prefab：**同一张焦土贴图，走 modulate（覆盖/替换反照率）**。
+     prefab 名与材质一一对应：`lwnDecalScrochMod` ↔ `lwn_manual_scroch_modulate`。
+
+     🔴 与 `lwnDecalScrochAdd` 是**同一张贴图、只差 blend** 的一对：
+        · lwnDecalScrochAdd = lwn_manual_scroch_addalpha → 加法提亮
+        · lwnDecalScrochMod = lwn_manual_scroch_modulate → 整块替换
+        两片的 flags / shaderFlags / alphaTest 逐字相同，**唯一变量就是 blend**。
+
+     召唤：
+       custom.surface spawn lwnDecalScrochMod 5
+       custom.surface twin  lwnDecalScrochAdd lwnDecalScrochMod 4 0     ← 两片完全重叠，看差异
+       custom.surface strip lwnDecalScrochAdd lwnDecalScrochMod 4 17    ← 两片错开，看交界
+
+     ⚠️ 材质必须已在 `Taikou/AssetPackages/lwn_taikou_anim.tpac` 里；
+        材质改完要重新 Publish + 搬包（别覆盖同目录 300MB 的 pack0.tpac）。
+
+     本文件里不许出现连续两个 ASCII 减号（XML 注释非法字符，会让整个文件解析失败、引擎启动即崩）。 -->
+	<game_entity name="lwnDecalScrochMod" old_prefab_name="">
+		<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>
+		<children>
+			<game_entity name="lwnDecalScrochMod_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="3.000, 3.000, 0.500"/>
+				<components>
+					<meta_mesh_component name="decal_mesh">
+						<mesh name="decal_mesh" material="lwn_manual_scroch_modulate" factor="4294967295" argument="1.000, 1.000, 0.000, 0.000"/>
+					</meta_mesh_component>
+				</components>
+			</game_entity>
+		</children>
+	</game_entity>
+</prefabs>

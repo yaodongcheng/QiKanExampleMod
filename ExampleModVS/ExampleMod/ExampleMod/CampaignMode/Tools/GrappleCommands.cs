@@ -178,13 +178,13 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
 			// 🪦 `hookbelt`（2026-10-08 立，同日证伪，**死代码已删**）—— 保留这条命令只为**返回正确指引**
 			//    （静默失效 = 用户以为"没用"，2026-10-05 相机那次事故的教训）：
-			//    改挂件网格的帧对"挂到骨架"那条链**无效**（native 干的），唯一杠杆 = 内容包槽位数据。
+			//    改挂件网格的帧对"挂到骨架"那条链**无效**（native 干的），唯一杠杆 = 本模块的槽位数据。
 			if (sub == "hookbelt")
 			{
 				return "grapple: 'hookbelt' is RETIRED (proven ineffective 2026-10-08; its code has been deleted) -"
 					+ " the holster attach is done by NATIVE code and ignores any mesh frame we set."
-					+ " The only lever is the SLOT data: Taikou/ModuleData/item_holsters.xml ->"
-					+ " item_holster 'taikou_grapple_hook_hip' -> holster_rotation_yaw_pitch_roll."
+					+ " The only lever is the SLOT data: LivingWorldNpcs/ModuleData/item_holsters.xml ->"
+					+ " item_holster 'lwn_grapple_hook_hip' -> holster_rotation_yaw_pitch_roll."
 					+ " Axis roles (measured in game 2026-10-08): yaw = turn in the HORIZONTAL plane;"
 					+ " pitch = spin about the hook's own long axis; roll = the VERTICAL tilt (the only one that"
 					+ " can make it hang down). At '0,0,0' the claws point straight FORWARD; roll=70 is the natural"
@@ -1298,8 +1298,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   · **在场景里** = 直接装到手上（Weapon0 = 钩索 · Weapon1 = 绳弹），当场可试；
 		///   · **在大地图** = 两件物品**进主队辎重**（虚空来源，铁律 4 的 Grant；走 AgentControlHelper），
 		///     玩家自己去物品栏装备 —— 这是"正常流程"验收要走的路（进战斗前装配）。
-		/// 🔴 物品在**内容包**里（`Modules/Taikou/ModuleData/taikou_items/grapple.xml`）；
-		///    没装内容包 / 名字改了 = 这里给一句明确的英文错误，不崩。
+		/// 🔴 物品在**本模块**里（`ModuleData/items/grapple.xml`，2026-10-09 随通用玩法从内容包搬来）；
+		///    名字改了 / 物品段没加载 = 这里给一句明确的英文错误，不崩。
 		/// 🔴 两轮查找（铁律 5）：第一轮按 StringId 精确找；第二轮在内存里按名字**包含**扫一遍兜底。
 		/// </summary>
 		/// <summary>找一件物品该进哪个武器槽：**已经在手上**就还给它的槽；否则给第一个**空槽**；
@@ -1327,11 +1327,14 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
 		private static string DoEquip()
 		{
-			ItemObject rope = ResolveContentItem("taikou_grapple_rope", "GrappleRope");
-			ItemObject hook = ResolveContentItem("taikou_grapple_hook", "GrappleHook");
+			// 🔴 物品 id 的**唯一真相**在 Combat/GrappleFirePatch.cs 的两个常量里（那里是拦截判据；
+			//    该类的 namespace 是 `LivingWorldNpcs`，不是 `.Combat`）——
+			//    这里引用它们，别再抄第二份字面量（2026-10-09 搬进 LWN 时顺手统一）。
+			ItemObject rope = ResolveContentItem(GrappleFirePatch.RopeItemId, "GrappleRope");
+			ItemObject hook = ResolveContentItem(GrappleFirePatch.HookItemId, "GrappleHook");
 			if (rope == null || hook == null)
 			{
-				return "Error: grapple items not found (content pack Taikou not loaded? expected taikou_grapple_rope / taikou_grapple_hook)";
+				return $"Error: grapple items not found (expected {GrappleFirePatch.RopeItemId} / {GrappleFirePatch.HookItemId} from this module's ModuleData/items/grapple.xml)";
 			}
 
 			// ① 场景里：直接装到玩家手上（当场可用）
@@ -1365,7 +1368,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					}
 
 					// 🔴 把钩的**数量钉死在 1**（2026-10-03）：物品 `stack_amount` 是 20 —— 为什么不是 1，
-					//    见 `taikou_items/grapple.xml` 顶上的注释（HUD 的子弹数只统计"最大堆叠 > 1"的弹药；
+					//    见 `ModuleData/items/grapple.xml` 顶上的注释（HUD 的子弹数只统计"最大堆叠 > 1"的弹药；
 					//    写 1 = 能射但永远显示 0）。装填完立刻设成 1 = "上限 20、实有 1"。
 					main.SetWeaponAmountInSlot(hookSlot, 1, false);
 					main.UpdateAgentStats();

@@ -451,7 +451,7 @@ namespace LivingWorldNpcs
 		{
 			if (SpellRegistry.Count == 0)
 			{
-				return "OK: spell table is empty (no content pack provides AssetRegistry/Spells.xml)";
+				return "OK: spell table is empty (no ModuleData/AssetRegistry/Spells.xml loaded)";
 			}
 			var sb = new System.Text.StringBuilder("OK:");
 			foreach (SpellDef def in SpellRegistry.All)
@@ -525,7 +525,7 @@ namespace LivingWorldNpcs
 		{
 			if (ModifierRegistry.Count == 0)
 			{
-				return "OK: no gems (no content pack provides ModuleData/AssetRegistry/Modifiers.xml)";
+				return "OK: no gems (no ModuleData/AssetRegistry/Modifiers.xml loaded)";
 			}
 			var sb = new System.Text.StringBuilder("OK: gems=" + ModifierRegistry.Count
 				+ " fields=" + SpellFields.Count + " sealSlots=");
@@ -718,7 +718,7 @@ namespace LivingWorldNpcs
 			}
 			if (spell == null)
 			{
-				return "FAILED: the spell table is empty (no content pack provides AssetRegistry/Spells.xml).";
+				return "FAILED: the spell table is empty (no ModuleData/AssetRegistry/Spells.xml loaded).";
 			}
 
 			Agent npc = null;
