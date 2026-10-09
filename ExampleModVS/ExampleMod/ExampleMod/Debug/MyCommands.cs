@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.Screens;
+using TaleWorlds.MountAndBlade.View.MissionViews;
 using TaleWorlds.Engine;
 using TaleWorlds.DotNet;
 using TaleWorlds.ScreenSystem;
@@ -868,6 +869,108 @@ namespace LivingWorldNpcs
             DebugLogger.Log(msg);
             return msg;
         }
+        // ═══════════ 进战斗卡 loading 的现场取证（2026-10-09） ═══════════
+        private static float _battleDiagLastTime = -1f;
+        private static int _battleDiagCalls;
+
+        /// <summary>
+        /// 进战斗一直卡 loading 时敲这一条，直接看**哪道闸没过**（全部只读，不动任何游戏状态）。
+        ///
+        /// 【为什么需要它】引擎关掉 loading 画面的条件（反编译 `MissionScreen` 实锤）：
+        ///   ① 场景能渲染（`SceneView.ReadyToRender()`，不满足则任务**根本不 tick**）
+        ///   ② 加载满 15 帧  ③ **所有 MissionView 的 `IsReady()` 为真**  ④ **没有动画还在从磁盘读**
+        /// 卡住时不知道是哪一条，就是猜。本命令把四条全打出来。
+        ///
+        /// 【怎么读结果】
+        ///   · 连敲两次，看 `time=` 有没有往前走 —— **不动 = 主线程卡死**（不是"在等加载"，
+        ///     那是 native 层的问题，跟闸门无关）；动了 = 任务活着，就是某道闸没过。
+        ///   · `view XXX IsReady=False` 这一行 = **元凶的名字**（全游戏只有两个视图会返回 false，
+        ///     都在等雪碧图集，见下面 sprite 那几行）。
+        ///   · `animLoadingFromDisk=True` = 有动画一直读不完（④号闸）。
+        ///
+        /// 用法: custom.battle_diag        （首参随便给，忽略）
+        /// 输出同时进 Debug/StoryEngine_RuntimeLog.txt。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("battle_diag", "custom")]
+        public static string BattleDiag(List<string> args)
+        {
+            var sb = new StringBuilder();
+            try
+            {
+                Mission m = Mission.Current;
+                if (m == null)
+                {
+                    return "error: not in mission (enter a battle first / run it while stuck)";
+                }
+
+                _battleDiagCalls++;
+                float t = m.CurrentTime;
+                string tickInfo = _battleDiagLastTime < 0f
+                    ? "first call (call again to see if time advances)"
+                    : $"+{(t - _battleDiagLastTime):F2}s since last call (call #{_battleDiagCalls})";
+                _battleDiagLastTime = t;
+
+                sb.AppendLine($"[Diag] mission: state={m.CurrentState} time={t:F2} {tickInfo} scene={m.SceneName ?? "(null)"}");
+                sb.AppendLine($"[Diag] gate4 animLoadingFromDisk={MBAnimation.IsAnyAnimationLoadingFromDisk()}");
+                sb.AppendLine($"[Diag] loadingWindow.IsLoadingWindowActive={TaleWorlds.Engine.LoadingWindow.IsLoadingWindowActive}");
+                sb.AppendLine($"[Diag] shaderCompilesInProgress={TaleWorlds.Engine.Utilities.GetNumberOfShaderCompilationsInProgress()}");
+
+                // ① 场景可渲染 + ② 15 帧计数：都藏在 MissionScreen 私有字段里，反射读
+                var ms = ScreenManager.TopScreen as MissionScreen;
+                if (ms == null)
+                {
+                    sb.AppendLine($"[Diag] TopScreen is not MissionScreen -> {ScreenManager.TopScreen?.GetType().Name ?? "null"}");
+                }
+                else
+                {
+                    sb.AppendLine($"[Diag] gate1 MissionScreen.MissionStartedRendering()={ms.MissionStartedRendering()}"
+                        + $" | _isRenderingStarted={ReflectField(ms, "_isRenderingStarted")}"
+                        + $" _loadingScreenFramesLeft={ReflectField(ms, "_loadingScreenFramesLeft")}"
+                        + $" _onSceneRenderingStartedCalled={ReflectField(ms, "_onSceneRenderingStartedCalled")}");
+                }
+
+                // ③ 视图就绪 —— 谁 false 谁是元凶
+                foreach (MissionBehavior b in m.MissionBehaviors)
+                {
+                    if (!(b is MissionView mv)) continue;
+                    string ready;
+                    try { ready = mv.IsReady().ToString(); }
+                    catch (Exception ex) { ready = $"EXCEPTION {ex.GetType().Name}: {ex.Message}"; }
+                    sb.AppendLine($"[Diag] view {mv.GetType().Name} IsReady={ready} order={mv.ViewOrderPriority}");
+                }
+
+                // 视图等的就是这几个图集：IsLoaded / FullyLoaded 谁 false 就是它没读完
+                foreach (string name in new[] { "ui_order", "ui_order_of_battle", "ui_loading" })
+                {
+                    var cat = V.GetSpriteCategory(name);
+                    if (cat == null) { sb.AppendLine($"[Diag] sprite {name}: (not declared)"); continue; }
+                    string full;
+                    try { full = cat.IsCategoryFullyLoaded().ToString(); }
+                    catch (Exception ex) { full = $"EX {ex.GetType().Name}"; }
+                    sb.AppendLine($"[Diag] sprite {name}: IsLoaded={cat.IsLoaded} FullyLoaded={full} sheets={cat.SpriteSheetCount}");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"[Diag] EXCEPTION {ex.GetType().Name}: {ex.Message}");
+            }
+            string msg = sb.ToString();
+            DebugLogger.Log(msg);
+            return msg;
+        }
+
+        /// <summary>反射读私有字段（读不到返回 "?"，不抛）。</summary>
+        private static string ReflectField(object obj, string name)
+        {
+            try
+            {
+                var f = obj.GetType().GetField(name,
+                    BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
+                return f == null ? "?" : (f.GetValue(obj)?.ToString() ?? "null");
+            }
+            catch (Exception ex) { return $"EX {ex.GetType().Name}"; }
+        }
+
         public static string ExecuteTeleportToNpc(List<string> args)
         {
             if (Mission.Current == null) return "Please Enter the mission First.";

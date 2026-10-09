@@ -1,6 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<!-- 2026-10-09：老式 .NET Framework 工程 → SDK 风格（与 ShokuhoTaikouExpansionPack 同一套改法，2026-09-24 那次已验证通过）。
+     起因：VS Code 的 C# Dev Kit 不认老式工程（ToolsVersion + xmlns + 手动 Import），
+     报 "Old C# projects are not supported in C# Dev Kit"（纯 IDE 限制，不影响编译）。
+     本转换只改工程写法，不改编译行为 —— 显式 Compile 清单（342 条）/ Reference（47 条）/
+     版本宏 / OutputPath 全部照搬；EnableDefaultCompileItems=false 保证 .cs 仍由显式清单决定。
+     🔴 转成 SDK 风格后 SDK 自带 ResolveNuGetPackages=false + SkipImportNuGetProps=true
+     （Microsoft.NET.Sdk.props:99-103）⇒ 2026-09-27 的 win-x64 / project.assets.json 坑结构性消失。 -->
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -9,10 +15,17 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>LivingWorldNpcs</RootNamespace>
     <AssemblyName>LivingWorldNpcs</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFramework>net472</TargetFramework>
     <LangVersion>12.0</LangVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <!-- SDK 风格必备三条（老式工程靠显式清单 + 手写 AssemblyInfo，SDK 默认不是这样）：
+         ① 关默认通配 —— 否则目录里的 .cs 会被自动编入，与本工程的显式清单（342 条）不符
+         ② 关自动 AssemblyInfo —— Properties\AssemblyInfo.cs 已手写程序集属性，不关会重复定义报错
+         ③ 输出不再自动加 net472\ 一层 —— Debug 要直接落进模块的 bin\Win64_Shipping_Client\ -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
   <!-- ── DLL 引用路径（两台电脑都用自己游戏目录下的 DLL）── -->
   <PropertyGroup>
@@ -61,7 +74,7 @@
     <MB2_VersionDefines Condition="'$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_150</MB2_VersionDefines>
   </PropertyGroup>
   <!-- Debug：自动检测 -->
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -75,7 +88,7 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <!-- Release：同上，去掉 DEBUG -->
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -747,9 +760,4 @@
     <Compile Include="Story\Text2Anim.cs" />
     <Compile Include="Story\VisualCommands.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
