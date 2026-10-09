@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "note": "两侧同名 clip（男女都有），避免选到只有单侧的动作时另一侧回落到 rest。"
+  },
+  "clips": {
+    "bind_end": {
+      "prio": 0
+    },
+    "bind_idle": {
+      "prio": 0
+    },
+    "bind_start": {
+      "prio": 0
+    },
+    "binded": {
+      "prio": 0
+    },
+    "binded_crash": {
+      "prio": 0
+    },
+    "binded_cry": {
+      "prio": 0
+    },
+    "binded_protect": {
+      "prio": 0
+    },
+    "binded_stand": {
+      "prio": 0
+    },
+    "binded_struggle": {
+      "prio": 0
+    },
+    "binded_walk": {
+      "prio": 0
+    },
+    "cutscene_talk_shufu_zhengtuo": {
+      "prio": 0
+    },
+    "cutscene_talk_shufu_zhengzha_zhenkaishufu": {
+      "prio": 0
+    },
+    "daodibeibang": {
+      "prio": 0
+    },
+    "kunbang": {
+      "prio": 0
+    },
+    "kunbang_loop": {
+      "prio": 0
+    },
+    "pc334_kunbang": {
+      "prio": 0
+    }
+  }
+}

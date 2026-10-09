@@ -204,6 +204,24 @@ namespace LivingWorldNpcs
         [HandleProcessCorruptedStateExceptions]
         public static void ForcePlayAction(Agent agent, string actionId, bool restoreAfter = false)
         {
+            // 老签名 = 默认参数那条路（blendIn 0.15 / blendOutPeriodToNoAnim 0.4 = 引擎默认值）——
+            // 行为与本次改动之前**逐字节相同**（KnockoutFlow / exec_pair 等既有调用方不受影响）。
+            ForcePlayAction(agent, actionId, startProgress: 0f, blendIn: 0.15f,
+                blendOutPeriodToNoAnim: 0.4f, restoreAfter: restoreAfter);
+        }
+
+        /// <summary>
+        /// <see cref="ForcePlayAction(Agent,string,bool)"/> 的**带参数版**（2026-10-09 钩索「勾人」要用）：
+        /// · <paramref name="startProgress"/> —— 从动画的哪个进度起播（"跳过前摇、直接进后半段"）；
+        /// · <paramref name="blendOutPeriodToNoAnim"/> —— 🔴 **循环件必须显式给 0**
+        ///   （默认 0.4 会在末尾把姿势淡出成"无动画" ⇒ 躺地循环看着一闪一闪；
+        ///    见 Knowledge/骑砍2动画通道与上下半身分层.md 的三条纪律）。
+        /// 单实现：无参那条就是拿默认值调本方法，**别再抄第二份 SetActionChannel 序列**。
+        /// </summary>
+        [HandleProcessCorruptedStateExceptions]
+        public static void ForcePlayAction(Agent agent, string actionId, float startProgress, float blendIn,
+            float blendOutPeriodToNoAnim, bool restoreAfter = false)
+        {
             if (agent == null || string.IsNullOrEmpty(actionId) || !AgentControlHelper.SafeIsActive(agent))
                 return;
 
@@ -253,7 +271,9 @@ namespace LivingWorldNpcs
                 }
 
                 // 4. 播放动画
-                agent.SetActionChannel(0, actionCache, ignorePriority: true, blendInPeriod: 0.15f);
+                agent.SetActionChannel(0, actionCache, ignorePriority: true,
+                    blendInPeriod: blendIn, blendOutPeriodToNoAnim: blendOutPeriodToNoAnim,
+                    startProgress: startProgress);
 
                 // 5. 恢复原始 action_set（如有需要；alreadyWarrior 时无需恢复）
                 if (restoreAfter && originalSet.IsValid && !alreadyWarrior)

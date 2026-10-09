@@ -71,8 +71,13 @@ namespace LivingWorldNpcs
 
 				if (!IsActive)
 				{
-					// 进：**开火之后**（钩索流程已在跑）才接入；已经有人拿着相机时不抢
-					if (Enabled && grappleBusy && !CameraService.IsHeld)
+					// 进：**开火之后**（钩索流程已在跑）才接入；已经有人拿着相机时不抢。
+					// 🔴 **骑马期间不接管**（2026-10-09 用户拍板，方案 §13.11）：我们的锚点公式
+					//    （SpringArmMath.ResolveEngineEyeHeight）**只有站/蹲/倒地三支**，引擎骑马那一支
+					//    在站姿眼高之外**另有一项坐骑项**、我们没抄过 ⇒ 接管 = 取景系统性不对；
+					//    而引擎自己的骑马相机本来就是对的 —— 骑马时把它留着。
+					//    （将来做"马上演出机位"时：先把那一支反编译抄进 SpringArmMath，再放开这条守卫。）
+					if (Enabled && grappleBusy && !CameraService.IsHeld && !main.HasMount)
 					{
 						Enter(main);
 					}

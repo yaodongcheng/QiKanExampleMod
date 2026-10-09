@@ -85,6 +85,16 @@ RIGS = {
         "clip_arg": "--clip",
         "desc": "图片/视频 BlazePose 关键点 -> 骑砍2（源为 pose.json）",
     },
+    # 🆕 2026-10-09：3ds Max Biped（Bip001 / MainAce）—— 被绑倒地动画
+    #   结构差异：动画文件的【绑定姿势 = 倒地】，站姿静姿在单独的 230_ske.fbx 里 ⇒
+    #   rig 脚本用 --skeleton 提供 rest，动画文件只提供 pose（否则倒地姿势被约掉）。
+    "biped": {
+        "script": "pipeline/rigs/biped/retarget.py",
+        "map": "pipeline/rigs/biped/map.json",
+        "source_kind": "fbx",
+        "clip_arg": "--clip",
+        "desc": "3ds Max Biped(Bip001/MainAce) -> 骑砍2（源为 FBX，rest 取站姿骨架 230_ske.fbx）",
+    },
 }
 
 

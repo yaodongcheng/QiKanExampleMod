@@ -28,6 +28,7 @@ namespace LivingWorldNpcs
 			Idle,
 			Flying,     // 钩头在飞
 			Attached,   // 钩头钉住（墙/地 = AttachedPoint；人 = 挂在身上）
+			Binding,    // 🔴 勾人（步骤 5，2026-10-09）：缠 → 倒 → 缚 → 解，全交给 GrappleBind
 			Pulling,    // 拉自己中（步骤 4：冻结 + 木板 + 曲线）
 			Returning,  // 🔴 打空返程（2026-10-08）：钩头追着手飞回，到了交回手里那套
 		}
@@ -84,6 +85,14 @@ namespace LivingWorldNpcs
 
 		// ── 拉自己（步骤 4）──
 		private readonly GrapplePull _pull = new GrapplePull();
+
+		/// <summary>**勾人**（步骤 5，2026-10-09）：目标侧状态机（缠 → 倒 → 缚 → 解）。
+		/// 判定与结算全在它里面（铁律 18 平权），这里只负责"把钩的相位与绳的远端接过去"。</summary>
+		private readonly GrappleBind _bind = new GrappleBind();
+
+		/// <summary>这一次捆绑是不是 `custom.grapple bind test`（调试路径）开的 ——
+		/// 那条路径玩家没拿钩索、目标还可能在 30 米外 ⇒ "收起钩索/绳被拉断"两条出口对它无意义（会当场把自己踢掉）。</summary>
+		private bool _bindFromTest;
 		private float _attachTimer;                   // 钩头钉住后过了多久（蓄势计时）
 		private bool _attachFromAir;                  // 这一钩是不是"空中起钩"（决定蓄势/拉升时长的基准）
 		private bool _attachAutoPull;                 // 这一钩钉住后要不要自动拉（武器开火 = 要；命令 throw = 不要）
@@ -750,10 +759,15 @@ namespace LivingWorldNpcs
 			{
 				DebugLogger.Log($"[Grapple] 收钩（{reason}）| 钩头末位置 {Fmt(_hook.Position)} 状态 {_hook.State}");
 			}
+			// 勾人中 ⇒ **放人**（起身动画 + 排队"等演完再把 AI 还回去"；绳这一收不影响起身动画继续演）。
+			// 若本次 Release 正是"绑自己走完了"那条路（GrappleBind 已把相位收成 None），Abort 是空操作。
+			_bind.Abort(reason);
+			_bindFromTest = false;
 			_hook.Clear();
 			_hookPhase = HookPhase.Idle;
 			_rope.Hide();
 			_rope.LengthFollowSpeed = HandLengthFollowSpeed;   // 恢复手里那档（飞行期的临时值到此为止）
+			_rope.SlackRatio = FlightRopeSlackRatio;           // 绑定期可能被压成绷直（见 Binding 分支）—— 收钩恢复默认档
 			_landingNote = "released";
 
 			// ── 姿态动画收摊（2026-10-04 二稿）──
@@ -814,7 +828,13 @@ namespace LivingWorldNpcs
 				if (_animPendingPullTimer <= 0f)
 				{
 					_animPendingPullTimer = 0f;
-					ForceAnim(GrappleAnimConditions.PullTrigger);
+					// 🔴 整条"过程"段（pull）是**拉自己**的姿势（人被绳拽着走）——命中**人**的那一钩
+					//    套到"拉别人"身上是错的（方案 §13.6）⇒ 这一钩跳过 Force，玩家自然回 idle。
+					//    判据用相位（Binding = 真的在捆人）；命中马/儿童被拒的照旧走老路（钩挂在人身上）。
+					if (_hookPhase != HookPhase.Binding)
+					{
+						ForceAnim(GrappleAnimConditions.PullTrigger);
+					}
 				}
 			}
 
@@ -1054,6 +1074,12 @@ namespace LivingWorldNpcs
 		/// <summary>绳的远端：勾住人 = 目标身上；其余 = 钩头位置。</summary>
 		private Vec3 FarEnd()
 		{
+			// 勾人中（步骤 5）：远端 = **钩**（GrappleBind 每帧算好的位置：缠 = 圆上一点 · 倒/缚 = 目标躯干）。
+			// 注：绳永远系在钩的尾环上，而钩的位置在勾人时由我们驱动（不再冻在命中点）。
+			if (_hookPhase == HookPhase.Binding && _bind.IsActive)
+			{
+				return _bind.RopeEnd;
+			}
 			Agent attached = _hook.AttachedAgent;
 			if (attached != null)
 			{
@@ -1122,6 +1148,10 @@ namespace LivingWorldNpcs
 			//    这样武器开火与命令 `throw` 走的是**同一条链路**（都在常规 tick 里）。
 			GrappleFirePatch.ProcessPending();
 			Trace("fire");
+
+			// ⓪‴ 勾人的「起身队列」（步骤 5，2026-10-09）：与钩头相位**无关** ——
+			//      绑结束了还得等起身动画演完再把 AI 还给目标，所以它必须每帧都跑。
+			_bind.TickPending(dt);
 
 			// ⓪″ **手里那套常驻件**（左手环 + "环→右手"那截绳 A，2026-10-08）：与钩头相位**无关** ——
 			//     握着钩索就该在（待命 / 飞行 / 拉拽都跟着两只手），所以放在相位分派**之前**。
@@ -1221,7 +1251,21 @@ namespace LivingWorldNpcs
 				{
 					_hookPhase = HookPhase.Attached;
 					_attachTimer = 0f;
-					_landingNote = "attached to agent (pull-target path = step 5)";
+					_landingNote = "attached to agent";
+					// 🔴 勾人（步骤 5，2026-10-09）：命中人 ⇒ 进"缠 → 倒 → 缚"那条。
+					//    不接受（儿童 / 坐骑 / 骑在马上的人…）= 停在 Attached（旧行为：钩挂人身上不动）。
+					string why = "disabled";
+					if (GrappleBind.Enabled && _hook.AttachedAgent != null
+						&& _bind.Begin(Agent.Main, _hook.AttachedAgent, _hook.AttachedPoint, out why))
+					{
+						_hookPhase = HookPhase.Binding;
+						_bindFromTest = false;              // 真开火那条路：出口②③ 照常生效
+						_landingNote = "binding target";
+					}
+					else if (GrappleBind.Enabled)
+					{
+						_landingNote = "attached to agent (bind refused: " + why + ")";
+					}
 				}
 				else if (step == GrappleHook.StepResult.Missed)
 				{
@@ -1245,6 +1289,25 @@ namespace LivingWorldNpcs
 				_attachTimer += dt;
 				if (_attachAutoPull && AutoPull && _hook.AttachedAgent == null)
 				{
+					// 🔴 骑马勾到地形（2026-10-09 用户拍板，方案 §13.11）：**直接收钩、不提示**。
+					//    "拉自己"骑在马上做不了（切控制权会乱坐骑状态机，GrapplePull.Start 里已挡）
+					//    ⇒ 与其"钩挂在半空什么都不发生"，不如走已有的**返程**（钩头飞回手、绳同步收短）。
+					if (Agent.Main != null && Agent.Main.HasMount)
+					{
+						_attachAutoPull = false;
+						if (_hook.StartReturn())
+						{
+							_hookPhase = HookPhase.Returning;
+							_landingNote = "mounted -> auto retract";
+							DebugLogger.Log("[Grapple] 骑马勾到地形 ⇒ 直接收钩（返程，不提示）");
+						}
+						else
+						{
+							Release("mounted（实体不在→直接收）");
+						}
+						return;
+					}
+
 					// 🔴 蓄势 = **拉拽起点钉在开火后 PullStartSeconds** − 本钩飞行耗时（2026-10-04 时间轴对齐）：
 					//    钩到得早就不多等、飞得远就少等 —— 位移起点始终 ≈ 动画"过程"段的起点（用户定的 1.13 s）。
 					//    （空中起钩的时间轴还没做，先照旧用固定值。）
@@ -1261,6 +1324,52 @@ namespace LivingWorldNpcs
 							_landingNote = "auto-pull refused: " + r;
 						}
 					}
+				}
+			}
+			else if (_hookPhase == HookPhase.Binding)
+			{
+				// 🔴 勾人（步骤 5，2026-10-09）：目标侧的一切（位移 / 动画 / AI 压制 / 犯罪 / 解除）
+				//    都在 GrappleBind 里；这里只做三件事 —— 判出口、推进它、把钩摆到它说的地方。
+				// 🔴 **`bind test`（调试路径）不受这两条出口管**（2026-10-09 实机事故）：
+				//    测试路径玩家**没拿钩索**、目标还可能在 30 米外（> 绳长上限）⇒ 这两条一判就中，
+				//    实测 15 毫秒就把自己踢掉（日志：`收钩（player stowed the grapple）`），
+				//    而"放人"会播起身动画 ⇒ 头几帧正是躺姿 ⇒ 看着像"倒下又立刻起来"。
+				if (!_bindFromTest)
+				{
+					// 出口②：玩家换武器 / 把钩索收起来 ⇒ 视为"松手放人"；
+					if (!IsHoldingGrapple())
+					{
+						Release("player stowed the grapple（换武器/收起）");
+						return;
+					}
+					// 出口③：绳被拉断（玩家走出绳长上限）⇒ 放人（否则绳会无限拉长、目标被拖着走）。
+					try
+					{
+						if ((GetRopeAnchor() - _bind.RopeEnd).Length > _rope.MaxLength)
+						{
+							Release("rope snapped（走出绳长上限）");
+							return;
+						}
+					}
+					catch (Exception) { }
+				}
+
+				// 顺序：先 Tick（本帧的位置才算得出来）再 Park（用本帧的值摆，不差帧）。
+				GrappleBind.BindEvent bindEv = _bind.Tick(dt);
+
+				// 🔴 绳的松紧跟着相位走（2026-10-09 用户反馈"看不出被拉"后加）：
+				//    缠/拽 那两拍**压成绷直**（松绳没有"在拉"的读感）；缚那拍恢复松量（绳在地上拖着才自然）。
+				_rope.SlackRatio = _bind.WantsTautRope ? 1.0f : FlightRopeSlackRatio;
+
+				Scene bindScene = Mission != null ? Mission.Scene : null;
+				if (bindScene != null && _bind.IsActive)
+				{
+					_hook.Park(bindScene, _bind.HookPos, _bind.HookDir);
+				}
+				if (bindEv == GrappleBind.BindEvent.Finished)
+				{
+					Release("bind finished（放人）");
+					return;
 				}
 			}
 			else if (_hookPhase == HookPhase.Pulling)
@@ -1283,6 +1392,7 @@ namespace LivingWorldNpcs
 
 			try
 			{
+				_bind.ApplyRopeTailPin(_rope);   // 缠绕态：绳尾贴身体绕（非缠绕相位=自动解除；见 GrappleRope.SetTailPin）
 				_rope.Tick(dt, GetRopeAnchor(), FarEnd());
 				Trace("hk:rope");
 			}
@@ -1291,6 +1401,58 @@ namespace LivingWorldNpcs
 				DebugLogger.Log($"[Grapple] 绳 tick 异常，收钩：{ex.GetType().Name} {ex.Message}");
 				Release("rope tick exception: " + ex.Message);
 			}
+		}
+
+		// ─────────────────────────────── 勾人（步骤 5，2026-10-09）───────────────────────────────
+
+		/// <summary>命令层：勾人状态一行（`custom.grapple bind state`）。</summary>
+		public string BindStateLine() => _bind.StatusLine();
+
+		/// <summary>命令层：立刻放开当前目标（`custom.grapple bind release`）。</summary>
+		public string BindRelease() => _bind.ReleaseNow()
+			? "OK: target released (standup plays, AI returns after it finishes)"
+			: "Error: no bound target.";
+
+		/// <summary>命令层：观感验收 —— 强制目标播"躺下 / 躺地循环 / 起身"某一段（`bind anim`）。</summary>
+		public string BindForceAnim(string which) => _bind.ForceAnim(which);
+
+		/// <summary>
+		/// **命令入口：对指定目标直接走"缠 → 倒 → 缚"**（`custom.grapple bind test`）——
+		/// 不走飞行、不用开火，用来单独验机制（方案 §13.9 第 1 步）。
+		/// </summary>
+		public string BindTest(Agent target)
+		{
+			if (!GrappleBind.Enabled) return "Error: bind is OFF (custom.grapple bind on)";
+			if (target == null) return "Error: no target agent found nearby (need one within 30 m, on foot, not a child).";
+			if (IsBusy) Release("bind test（清场重来）");
+
+			Vec3 hit = GrappleBind.ChestOf(target);
+			if (!_bind.Begin(Agent.Main, target, hit, out string why))
+			{
+				return "Error: cannot bind this target (" + why + ")";
+			}
+			_hook.Clear();                     // 清掉上一发的残留（Bind 自己拿着目标，不受影响）
+			_hookPhase = HookPhase.Binding;
+			_bindFromTest = true;              // 调试路径：不判"收起钩索/绳被拉断"（见字段注释）
+			_landingNote = "binding (test path)";
+
+			// 绳要看得见（测试路径没经过"飞行"，绳可能还藏/没建）
+			try
+			{
+				Scene scene = Mission != null ? Mission.Scene : null;
+				if (scene != null && !_rope.IsVisible)
+				{
+					if (_rope.Build(scene))
+					{
+						_rope.Show(GetRopeAnchor(), _bind.RopeEnd);
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] bind test：绳显示失败（{ex.GetType().Name}）—— 机制不受影响");
+			}
+			return $"OK: binding target '{target.Name}' (test path; watch 缠→倒→缚, then '{GrappleBind.BoundSeconds:F0}s' auto-release or 'bind release')";
 		}
 
 		// ─────────────────────────────── 拉自己（步骤 4） ───────────────────────────────

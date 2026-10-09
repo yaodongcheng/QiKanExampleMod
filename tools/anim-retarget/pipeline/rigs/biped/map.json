@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "source_skeleton": "3ds Max Biped (Bip001 / MainAce) — 210 骨骼，含头发/裙摆/衣袖/面部骨",
+    "rest_source_fbx": "input/source/biped/230_ske.fbx (站姿 A-pose: Pelvis 世界高 1.3626 m)",
+    "target_skeleton": "Bannerlord human_skeleton (human_lod_4.fbx, Blender 5.2 measured)",
+    "generated": "2026-10-09",
+    "root_bone": "pelvis",
+    "unit_scale_target_m": 1.0,
+    "face_axis_source": "+X（踝→趾 = +X；L 骨在 +Y）",
+    "face_axis_target": "+Y（踝→趾 = +Y；l_clavicle 在 -X）",
+    "frame_flip_z_deg": 90,
+    "note": "源动画文件 230_daodibeibang.fbx 的【绑定姿势 = 倒地姿势】（Bip001 根骨默认位姿 = 躺地），而 230_ske.fbx 的绑定姿势 = 站姿。因此 rest 必须取自 230_ske.fbx、pose 取自动画文件，否则倒地姿势会被当成 rest 约掉。仅烘旋转（骨盆位置由 --pelvis ground 贴地）。"
+  },
+  "bone_map": {
+    "Bip001 Pelvis":  "pelvis",
+    "Bip001 Spine":   "spine",
+    "Bip001 Spine1":  "spine1",
+    "Bip001 Spine2":  "spine2",
+    "Bip001 Neck":    "neck",
+    "Bip001 Head":    "head",
+    "Bip001 L Clavicle": "l_clavicle",
+    "Bip001 L UpperArm": "l_upperarm_twist",
+    "Bip001 L Forearm":  "l_foretwist",
+    "Bip001 L Hand":     "l_hand",
+    "Bip001 R Clavicle": "r_clavicle",
+    "Bip001 R UpperArm": "r_upperarm_twist",
+    "Bip001 R Forearm":  "r_foretwist",
+    "Bip001 R Hand":     "r_hand",
+    "Bip001 L Thigh":    "l_thigh",
+    "Bip001 L Calf":     "l_calf",
+    "Bip001 L Foot":     "l_foot",
+    "Bip001 L Toe0":     "l_toe0",
+    "Bip001 R Thigh":    "r_thigh",
+    "Bip001 R Calf":     "r_calf",
+    "Bip001 R Foot":     "r_foot",
+    "Bip001 R Toe0":     "r_toe0"
+  },
+  "target_keep_rest": [
+    "l_upperarm_twist1",
+    "r_upperarm_twist1",
+    "l_foretwist1",
+    "r_foretwist1",
+    "l_finger0",
+    "r_finger0"
+  ],
+  "ignore_source": [
+    "Bone001",
+    "Bip001"
+  ]
+}

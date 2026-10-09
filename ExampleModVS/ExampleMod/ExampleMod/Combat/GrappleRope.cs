@@ -153,6 +153,66 @@ namespace LivingWorldNpcs
 		public float TubeDiameter = 0.05f;
 		public float TubeUvRepeat = 3.6f;
 
+		// ───────────────────── 缠绕态：绳尾钉（2026-10-09，步骤 5「勾人」）─────────────────────
+		//
+		// **要解决什么**：钩绕人身体一圈（套索）时，绳是"手 → 钩"两点一条直线 ——
+		//   10 米外看就是根直线，钩转到人**背面**时绳会**从人身上穿过去**，一眼假。
+		// **怎么办**：把链尾（靠钩那一头）若干个点**钉在世界位置**上，让绳尾贴着身体绕一圈。
+		//
+		// 调用方（GrappleBind）每帧算好"这些点该在哪"（沿同一个圆、相位落后钩头一点），Tick 之前喂进来。
+		// 🔴 **钉必须落在 Tick 的所有出口之后**：绳在"绷直态"会走**解析解**直接铺成直线并 return
+		//    （见 Tick 里那段），那条路会把缠绕整个压平 ⇒ 统一收进 ApplyTailPin()，每条出口路径都调。
+		private int _tailPinCount;
+		private Vec3[] _tailPinBuf;
+
+		/// <summary>
+		/// **缠绕态**：把链尾 <paramref name="count"/> 个点钉在世界位置
+		/// （<paramref name="worldPositions"/>[0] = 最靠远端的那个点 = 紧挨钩的那一点）。
+		/// <paramref name="count"/> = 0（或 null）= 解除。每帧在 <see cref="Tick"/> 之前调。
+		/// </summary>
+		public void SetTailPin(int count, Vec3[] worldPositions)
+		{
+			if (count <= 0 || worldPositions == null)
+			{
+				_tailPinCount = 0;
+				return;
+			}
+			// 至少留一个自由度给近端（链首永远是"手"，不能被钉吃掉）
+			int max = (_pts != null ? _pts.Length - 2 : 0);
+			if (count > max) count = max;
+			if (count <= 0) { _tailPinCount = 0; return; }
+
+			if (_tailPinBuf == null || _tailPinBuf.Length < count)
+			{
+				_tailPinBuf = new Vec3[Math.Max(count, 16)];
+			}
+			for (int i = 0; i < count; i++)
+			{
+				_tailPinBuf[i] = worldPositions[i];
+			}
+			_tailPinCount = count;
+		}
+
+		/// <summary>解除缠绕态。</summary>
+		public void ClearTailPin() => _tailPinCount = 0;
+
+		/// <summary>缠绕态里钉了几个点（0 = 没在缠绕）。诊断用。</summary>
+		public int TailPinCount => _tailPinCount;
+
+		/// <summary>把钉住的点写回点链（每条 Tick 出口在 Draw 之前调一次）。</summary>
+		private void ApplyTailPin()
+		{
+			if (_tailPinCount <= 0 || _tailPinBuf == null || _pts == null) return;
+			int n = _pts.Length;
+			for (int k = 0; k < _tailPinCount; k++)
+			{
+				int idx = n - 1 - k;               // 链尾往前数
+				if (idx <= 0) break;
+				_pts[idx] = _tailPinBuf[k];
+				_prev[idx] = _tailPinBuf[k];       // 同步清速度：解钉那一帧不会甩
+			}
+		}
+
 		// ─────────────────────────────── 运行时状态 ───────────────────────────────
 
 		private Scene _scene;
@@ -822,6 +882,7 @@ namespace LivingWorldNpcs
 
 			if (Frozen)
 			{
+				ApplyTailPin();
 				Draw();
 				_tickWatch.Stop();
 				return;
@@ -869,6 +930,7 @@ namespace LivingWorldNpcs
 					}
 					ApplyFloors();
 				}
+				ApplyTailPin();          // 🔴 绷直解析解会把缠绕压平 ⇒ 钉在这条出口也要生效（见 SetTailPin 注释）
 				Draw();
 				_tickWatch.Stop();
 				float msTaut = (float)_tickWatch.Elapsed.TotalMilliseconds;
@@ -913,6 +975,7 @@ namespace LivingWorldNpcs
 				ApplyFloors();
 			}
 
+			ApplyTailPin();
 			Draw();
 
 			_tickWatch.Stop();

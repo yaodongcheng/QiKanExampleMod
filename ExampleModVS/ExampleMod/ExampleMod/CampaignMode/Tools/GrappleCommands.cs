@@ -129,6 +129,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
+					|| s == "bind"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens")
 				{
 					sub = s == "status" ? "dump" : s;
@@ -952,12 +953,19 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					}
 					if (what == "target")
 					{
-						result = "Error: pull target not implemented yet (step 5).";
+						result = "Error: 'pull target' is retired -> the step-5 flow is now 'bind'"
+							+ " (try: custom.grapple bind test  |  or just shoot a person with the grapple)";
 						break;
 					}
-					result = "Error: pull needs 'self' (target = step 5)";
+					result = "Error: pull needs 'self' (target = step 5 -> use 'bind')";
 					break;
 				}
+
+				// ─────────────────── 步骤 5：勾人（缠 → 倒 → 缚，2026-10-09）───────────────────
+
+				case "bind":
+					result = DoBind(logic, args, at);
+					break;
 
 				case "pulltime":
 				{
@@ -1438,6 +1446,168 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		{
 			if (args == null || i < 0 || i >= args.Count || args[i] == null) return null;
 			return args[i].Trim();
+		}
+
+		/// <summary>
+		/// `custom.grapple bind ...` —— 步骤 5「勾人」的一族（方案 = plans\钩索-实施计划.md §13.7）。
+		/// 子命令（全部纯英文返回、首参可弃）：
+		///   on|off                      总开关（关 = 勾到人也只挂住不动 = 旧行为）
+		///   test                        对**最近的可捆目标**直接走整套（不走飞行；机制验收主入口）
+		///   release                     立刻放开当前目标（起身动画 + 稍后还 AI）
+		///   state                       状态一行（目标 / 相位 / 计时 / 当前动作名 / 钩位置）
+		///   time &lt;秒&gt;                 超时自动挣脱（默认 20）
+		///   drag &lt;米&gt;                 拽倒时朝玩家拖多远（默认 2）
+		///   yankhold / yankpull / fallwait &lt;秒&gt;   拽倒三段：绷住（默认 0.15）→ 猛拽（0.25）→ 倒下（0.70）
+		///   yank curve|blow             拽倒用哪套（curve = 我们写位移 / blow = 引擎冲量）
+		///   blowforce &lt;数值&gt; · blowalt 0|1       引擎冲量那条的力度与判定路径
+		///   wrap &lt;秒&gt; [圈数]          缠的时长 / 圈数（默认 0.55 / 1.25）
+		///   anim &lt;lay|cycle|standup|auto&gt;  强制目标播某一段（观感验收；auto = 交回流程）
+		///   panim &lt;动作名|auto&gt;        在**玩家自己**身上试播一个动作（只为选型看一眼；auto = 什么都不做）
+		/// </summary>
+		private static string DoBind(GrappleLogic logic, List<string> args, int at)
+		{
+			string what = (ArgAt(args, at + 0) ?? "state").ToLowerInvariant();
+			switch (what)
+			{
+				case "on":
+					GrappleBind.Enabled = true;
+					return "OK: grapple bind = ON";
+				case "off":
+					GrappleBind.Enabled = false;
+					return "OK: grapple bind = OFF (hook hitting a person does nothing = old behavior)";
+				case "state":
+					return logic.BindStateLine();
+				case "release":
+					return logic.BindRelease();
+				case "test":
+					return logic.BindTest(FindNearestBindableAgent(30f));
+				case "time":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: bind auto-release timeout = {GrappleBind.BoundSeconds:F0}s (0 = NEVER struggle free; the default is 0 - release is player-driven)";
+					GrappleBind.BoundSeconds = v;
+					return v <= 0f
+						? "OK: bind auto-release = NEVER (target stays bound until 'bind release' or the interaction panel)"
+						: $"OK: bind auto-release after {v:F1}s (debug value; 0 = never)";
+				}
+				case "drag":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: bind drag = {GrappleBind.DragDistance:F2}m (the target is pulled this far toward the player)";
+					GrappleBind.DragDistance = v;
+					return $"OK: bind drag distance = {v:F2}m (the target is pulled this far toward the player)";
+				}
+				// ── 拽倒三段（2026-10-09：绷住 → 猛拽 → 倒下；位移与倒地必须分开才有"被拽"的读感）──
+				case "yankhold":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: yank hold = {GrappleBind.YankHoldSeconds:F2}s (target stays put this long; the rope goes taut)";
+					GrappleBind.YankHoldSeconds = v;
+					return $"OK: yank hold = {v:F2}s";
+				}
+				case "yankpull":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: yank pull = {GrappleBind.YankPullSeconds:F2}s (fast drag while still standing; shorter = snappier)";
+					GrappleBind.YankPullSeconds = v;
+					return $"OK: yank pull = {v:F2}s (the visible displacement window; short = reads as a jerk)";
+				}
+				case "fallwait":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: fall wait = {GrappleBind.YankFallSeconds:F2}s (how long the lie-down animation plays before the ground loop takes over)";
+					GrappleBind.YankFallSeconds = v;
+					return $"OK: fall wait = {v:F2}s (raise until the cut into the lying loop is invisible)";
+				}
+				case "wrap":
+				{
+					float sec = ParseF(args, at + 1, -1f);
+					if (sec >= 0f) GrappleBind.WrapSeconds = sec;
+					float turns = ParseF(args, at + 2, float.NaN);
+					if (!float.IsNaN(turns)) GrappleBind.WrapTurns = turns;
+					return $"OK: wrap = {GrappleBind.WrapSeconds:F2}s / {GrappleBind.WrapTurns:F2} turns";
+				}
+				// ── 拽倒方式 A/B（2026-10-09 用户提出"用引擎冲量"）──
+				case "yank":
+				{
+					string m = (ArgAt(args, at + 1) ?? "state").ToLowerInvariant();
+					if (m == "curve") { GrappleBind.Yank = GrappleBind.YankMode.Curve; }
+					else if (m == "blow") { GrappleBind.Yank = GrappleBind.YankMode.Blow; }
+					else if (m != "state") { return "Error: bind yank expects curve|blow"; }
+					return $"OK: yank mode = {GrappleBind.Yank}"
+						+ (GrappleBind.Yank == GrappleBind.YankMode.Blow
+							? $" (engine impulse: force={GrappleBind.BlowDamage:F0}, knockDown={GrappleBind.BlowKnockDownFlag}, altAttack={GrappleBind.BlowAlternativeAttack})"
+							: " (our own displacement curve)");
+				}
+				case "blowforce":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: blow force = {GrappleBind.BlowDamage:F0} (damage number fed to the engine; target is Immortal during the blow so no HP is lost)";
+					GrappleBind.BlowDamage = v;
+					return $"OK: blow force = {v:F0} (engine knockdown/knockback threshold is 'damage >= maxHealth * (resistance - penetration)'; no HP is lost)";
+				}
+				case "blowalt":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: blow altAttack = {GrappleBind.BlowAlternativeAttack} (1 = deterministic knockback path, 0 = natural weapon path)";
+					GrappleBind.BlowAlternativeAttack = v > 0.5f;
+					return $"OK: blow altAttack = {GrappleBind.BlowAlternativeAttack}";
+				}
+				case "anim":
+					return logic.BindForceAnim(ArgAt(args, at + 1) ?? "auto");
+				case "panim":
+					return DoBindPanim(args, at);
+			}
+			return "Error: bind expects on|off|test|release|state|time|drag|wrap|anim|panim";
+		}
+
+		/// <summary>
+		/// `bind panim &lt;动作|auto&gt;`：在**玩家自己**身上试播一个动作 —— 只为"拉人时玩家该演什么"选型时看一眼
+		/// （v1 不驱动玩家侧动画，见方案 §13.6）。`auto` = 什么都不做。
+		/// </summary>
+		private static string DoBindPanim(List<string> args, int at)
+		{
+			string act = ArgAt(args, at + 1);
+			if (string.IsNullOrEmpty(act) || act.ToLowerInvariant() == "auto")
+			{
+				return "OK: bind panim = auto (player animation not driven by the bind flow; see plan §13.6)";
+			}
+			Agent main = Agent.Main;
+			if (main == null) return "Error: no main agent.";
+			AgentControlHelper.SetPose(main, act);
+			return $"OK: played '{act}' once on the player (look only; the bind flow does not drive the player's animation)";
+		}
+
+		/// <summary>
+		/// 找**最近的可捆目标**（`bind test` 用）：排除自己 / 坐骑 / 骑在马上的人 / 儿童 / 失效者。
+		/// 与 <see cref="GrappleBind.Begin"/> 的准入同口径（那边还会再判一次 —— 那是权威）。
+		/// </summary>
+		private static Agent FindNearestBindableAgent(float maxDist)
+		{
+			try
+			{
+				Mission mission = Mission.Current;
+				if (mission == null || Agent.Main == null) return null;
+				Agent best = null;
+				float bestD = maxDist;
+				foreach (Agent a in mission.Agents)
+				{
+					if (a == null || a == Agent.Main) continue;
+					if (!AgentControlHelper.SafeIsActive(a)) continue;
+					if (a.IsMount || a.RiderAgent != null) continue;
+					if (a.MountAgent != null) continue;
+					string mid = null;
+					try { mid = a.Monster?.StringId; } catch (Exception) { }
+					if (mid != null && mid.IndexOf("child", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+					float d = a.Position.Distance(Agent.Main.Position);
+					if (d < bestD) { bestD = d; best = a; }
+				}
+				return best;
+			}
+			catch (Exception)
+			{
+				return null;
+			}
 		}
 	}
 }

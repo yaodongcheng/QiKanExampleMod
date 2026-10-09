@@ -1195,6 +1195,10 @@ namespace LivingWorldNpcs
                     "Knockout" when a.TargetName != null => LWNTextHelper.ResolveCompound("LWN_crime_witness_act_knockout_target", "knocked out {TARGET}", ("TARGET", a.TargetName)),
                     // 把人打晕了
                     "Knockout" => LWNTextHelper.ResolveText("LWN_crime_witness_act_knockout", "knocked someone out"),
+                    // 用绳索撂倒了{TARGET}（钩索「勾人」，2026-10-09）
+                    "Bind" when a.TargetName != null => LWNTextHelper.ResolveCompound("LWN_crime_witness_act_bind_target", "roped {TARGET} to the ground", ("TARGET", a.TargetName)),
+                    // 用绳索撂倒了一个人
+                    "Bind" => LWNTextHelper.ResolveText("LWN_crime_witness_act_bind", "roped someone to the ground"),
                     _ => null
                 };
                 if (desc != null) parts.Add(desc);

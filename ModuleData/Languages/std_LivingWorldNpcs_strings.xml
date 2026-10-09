@@ -1222,7 +1222,11 @@
     <string id="LWN_crime_witness_act_knockout_target" text="knocking {TARGET} unconscious" />
     
     <string id="LWN_crime_witness_act_knockout" text="knocking someone unconscious" />
-    
+
+    <string id="LWN_crime_witness_act_bind_target" text="roping {TARGET} to the ground" />
+
+    <string id="LWN_crime_witness_act_bind" text="roping someone to the ground" />
+
     <string id="LWN_crime_witness_act_join_two" text="{ACT1}, and {ACT2}" />
     
     <string id="LWN_crime_witness_act_join_three" text="{ACT1}, {ACT2}, and {ACT3}" />

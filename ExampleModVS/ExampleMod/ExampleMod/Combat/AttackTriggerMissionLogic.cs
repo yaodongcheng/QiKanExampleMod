@@ -1116,6 +1116,10 @@ namespace LivingWorldNpcs
                     "AttackAlly" => LWNTextHelper.ResolveText("LWN_crime_witness_act_attack", "started a fight"),
                     // 本地化：crime_witness_act_knockout（玩家可见文本）
                     "Knockout" => LWNTextHelper.ResolveText("LWN_crime_witness_act_knockout", "knocked someone out"),
+                    // 用绳索撂倒（钩索「勾人」，2026-10-09）：**必须与 Knockout 分开** ——
+                    // 拿"把人打晕了"播报"用绳撂倒"与事实不符（人是清醒的，只是被捆住了）。
+                    // 本地化：crime_witness_act_bind（玩家可见文本）
+                    "Bind" => LWNTextHelper.ResolveText("LWN_crime_witness_act_bind", "roped someone to the ground"),
                     // 本地化：crime_witness_act_someone_stirring（玩家可见文本）
                     _ => LWNTextHelper.ResolveText("LWN_crime_witness_act_someone_stirring", "was making trouble"),
                 };

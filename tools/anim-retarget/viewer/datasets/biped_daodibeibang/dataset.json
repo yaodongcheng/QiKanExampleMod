@@ -1,0 +1,25 @@
+{
+  "name": "biped_daodibeibang",
+  "title": "被绑倒地 · 3ds Max Biped → 骑砍2",
+  "subtitle": "源 = UEAnims/被绑倒地动画（Bip001 骨架；源绑定姿势=躺地，rest 取 230_ske.fbx 站姿）。实测源是【近静止躺姿】：四肢关节 0 位移、头仅 1.8cm、布料骨 5.6cm（源 FBX 曲线里那 ~10° 是 gimbal-lock 表示假象，实际仅 ~2° rot）。含两个 clip：`biped_daodibeibang`(121帧原样) 与 `biped_daodibeibang_still`(1帧静帧)。",
+  "sides": {
+    "dst": {
+      "label": "骑砍2 · 被绑倒地（源: 3ds Max Biped / 230）",
+      "color": "#e0b070",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "assets/main.glb"
+        }
+      ]
+    }
+  }
+}

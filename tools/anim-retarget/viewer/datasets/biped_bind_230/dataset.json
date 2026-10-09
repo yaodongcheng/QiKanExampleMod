@@ -1,0 +1,25 @@
+{
+  "name": "biped_bind_230",
+  "title": "被绑 / 倒地 · 230 男（全部 25 条）",
+  "subtitle": "源 = 230_bind_daodi_export。本数据集是【男角色全部动作】，每一条都能正常播放（不会出现 T-pose）。男女对照请看 ▶【被绑·男230 + 女233 对照】。",
+  "sides": {
+    "dst": {
+      "label": "230 男 · 被绑/倒地（全 25 条）",
+      "color": "#7fa8d8",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "../biped_bind/assets/male.glb"
+        }
+      ]
+    }
+  }
+}

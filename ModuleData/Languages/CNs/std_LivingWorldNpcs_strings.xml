@@ -1277,6 +1277,10 @@
     <string id="LWN_crime_witness_act_knockout_target" text="把{TARGET}打晕了" />
     <!-- 目击描述：把人打晕了 -->
     <string id="LWN_crime_witness_act_knockout" text="把人打晕了" />
+    <!-- 目击描述：用绳索撂倒了{TARGET}（钩索「勾人」，2026-10-09） -->
+    <string id="LWN_crime_witness_act_bind_target" text="用绳索撂倒了{TARGET}" />
+    <!-- 目击描述：用绳索撂倒了一个人 -->
+    <string id="LWN_crime_witness_act_bind" text="用绳索撂倒了一个人" />
     <!-- 目击描述：两段拼接（…，还…） -->
     <string id="LWN_crime_witness_act_join_two" text="{ACT1}，还{ACT2}" />
     <!-- 目击描述：三段拼接（…、…，还…） -->

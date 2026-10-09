@@ -1,0 +1,44 @@
+{
+  "name": "biped_bind",
+  "title": "被绑 / 倒地动作 · 男(230) + 女(233) 对照",
+  "subtitle": "源 = UEAnims/被绑倒地动画。左=230男 / 右=233女，本数据集只列【两侧同名】的动作（16 条）→ 选中即两侧同时播、可直接对照、不会出现另一侧 T-pose。完整清单请切到 ▶【被绑·230男(全25条)】或 ▶【被绑·233女(全23条)】两个数据集。",
+  "sides": {
+    "m230": {
+      "label": "230 男 · 被绑/倒地",
+      "color": "#7fa8d8",
+      "slot": -0.62,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "m230",
+          "url": "assets/male.glb"
+        }
+      ]
+    },
+    "f233": {
+      "label": "233 女 · 被绑/倒地",
+      "color": "#e0a0c0",
+      "slot": 0.62,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "f233",
+          "url": "assets/female.glb"
+        }
+      ]
+    }
+  },
+  "clipsFile": "clips.json"
+}

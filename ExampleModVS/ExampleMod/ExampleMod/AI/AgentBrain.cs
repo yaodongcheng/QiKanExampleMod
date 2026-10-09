@@ -89,6 +89,14 @@ namespace LivingWorldNpcs
         internal bool IsStunned;
 
         /// <summary>
+        /// 是否被绳索捆缚（钩索「勾人」步骤 5，2026-10-09；见 <see cref="GrappleBind"/>）。
+        /// 与 <see cref="IsStunned"/> 同一套机制（ClearAllActions + StayAction 永久占位，
+        /// 防止 Brain 自动 Resume 原生 AI 把躺着的人拽起来），**分开两个标记**是因为后续处置不同：
+        /// 击晕 = 无意识（可搜身/被俘记账），捆缚 = 清醒（还没死、还能被救/被审）。
+        /// </summary>
+        internal bool IsBound;
+
+        /// <summary>
         /// 当前有效行为：_currentAction 不为 null 就返回它，否则 fallback 到队列头。
         /// 代表"NPC 此刻在做什么或马上就要做什么"，用于需要读 Action 属性的场景。
         /// 返回 null 表示大脑完全空闲（无当前动作、无排队）。
@@ -316,6 +324,22 @@ namespace LivingWorldNpcs
             // 优先检查专用标记（CurrentAction 可能尚未出队，有时序问题）
             if (brain?.IsStunned == true) return true;
             return brain?.CurrentAction is StayAction stay && stay.IsKnockout;
+        }
+
+        /// <summary>
+        /// 是否处于**被绳索捆缚**状态（钩索「勾人」，2026-10-09；见 <see cref="GrappleBind"/>）。
+        /// 命名照击晕那对走：字段叫 <see cref="IsBound"/>（同 <see cref="IsStunned"/> 的风格），
+        /// 静态查询另起一个词（`IsKnockedOut` ↔ 本方法），**不是同一个名字**（同名会撞 CS0102）。
+        /// 与击晕同构（"清行为 + StayAction 永久占位"）但**语义不同**：被捆的人是**清醒的**
+        /// （不写 KnockedOut 意图、不进"被击倒俘获"记账），解除走 GrappleBind 的起身队列。
+        /// 广播过滤（<see cref="AgentAIController"/>）两个状态一视同仁 —— 否则一个围观事件
+        /// 就会 ClearAllActions 把占位清掉，躺着的人爬起来围观。
+        /// </summary>
+        public static bool IsRoped(Agent agent)
+        {
+            if (agent == null) return false;
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            return brain?.IsBound == true;
         }
         // --- 核心：决策中枢 ---
         public void ReceiveEvent(AIEvent aiEvent)
@@ -980,6 +1004,23 @@ namespace LivingWorldNpcs
                 // OnAgentHit 的 Health<=0 捕不到——在击晕事件（Agent 存活的安全时机）标记 Down，
                 // Mission 结束转押判定用。
                 AttackTriggerMissionLogic.Instance?.NotifyAgentKnockedOut(Owner);
+            }
+            else if (aiEvent.EventType == "event_agent_bound")
+            {
+                // 被绳索撂倒捆住（2026-10-09，钩索「勾人」= plans\钩索-实施计划.md §十三）。
+                // 与击晕**同构**：清行为 + 一条永不结束的 StayAction 占位 —— 防止 Brain 自动
+                // Resume 原生 AI 把躺着的人拽起来（不占位 = 引擎的战斗 AI 会立刻接管动画通道）。
+                // 与击晕**刻意的两处不同**（所以另开一条事件、另起一个标记，而不是复用 IsStunned）：
+                //   · 人是**清醒的** ⇒ 不写 KnockedOut 意图、**不调 NotifyAgentKnockedOut**
+                //     （那不是"被击倒俘获"，不该进"Mission 结束转押"那本账）；
+                //   · 解除走 GrappleBind 自己的起身队列（起身动画播完再还 AI）。
+                string boundBy = aiEvent.Args != null && aiEvent.Args.Length > 0 && aiEvent.Args[0] is Agent binder
+                    ? (binder.Name?.ToString() ?? "人")
+                    : "人";
+                RecordNarration($"我被{boundBy}用绳索撂倒了");
+                IsBound = true;
+                ClearAllActions();
+                EnqueueAction(new StayAction(null, false, isKnockout: true));
             }
 
             // ═══════════════════════════════════════════════════════════════

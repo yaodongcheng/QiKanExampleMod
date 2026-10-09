@@ -241,6 +241,19 @@
     - **源码里的字符串与正则也要拼出来**（`"<" + "!-- …"` / `new RegExp("<" + "!--…")`）—— **连注释里都别写那个序列**（我第一版就是注释里带着它，又踩一次）。
     - **验收（生成后必须扫一遍）**：脚本块内 `<!--` 与 `-->` 计数**都为 0**，且工具自己的自检（`check_pages.py` / `drive_pages.mjs`）+ **导出往返比对**照旧通过。范本：`tools/anim-statemachine/gen_statemachine_editor.py` 的 `main()`（`payload = json.dumps(...).replace(...)`）与 `_sm_roundtrip.mjs`（无头浏览器导出 → 与 XML 逐条 diff）。
 
+38. 🔴 **给用户的命令与路径一律写全称 —— 禁止相对路径、禁止局部指令**（2026-10-09 用户裁定，原话："**不然我都没法复制**"）—
+    **为什么**：用户拿到的每一句都是要**直接执行**的；缺前缀、缺路径 = 他还要自己补 = 等于没给。
+    （立的当天我连犯两次：贴了一串 `bind test` / `bind drag 5` —— 而游戏控制台里必须敲 `custom.grapple bind test`；又写过 `plans/钩索-实施计划.md` 这种相对路径。）
+    - **命令**：凡是让用户去敲的，一律**整条写全** ——
+      游戏内控制台 = `custom.grapple bind test`（**不许**只写 `bind test`）；
+      PowerShell / bash = 完整命令行（含**完整路径参数**；要 `cd` 就把 `cd` 的路径也写全）。
+    - **路径**：凡是让用户去找 / 去开 / 去贴的，一律给**绝对路径** ——
+      例：`h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\plans\钩索-实施计划.md`；
+      **禁止** `plans\xxx.md` 这类相对路径，**禁止**只写文件名，**禁止**"那个文档"。
+    - **批量步骤**：每一行都要**能独立复制就用** —— 不许把一条命令拆两行、不许"接上一行"、不许让用户自己推。
+    - **例外（只有一条）**：**编辑器内的可点击引用**照旧用相对路径的 markdown 链接（那是给编辑器的跳转能力，不是给复制的）；
+      但凡带"去敲 / 去找 / 去打开 / 去贴"的意图，就按上面三条给全称。
+
 ## 🔴 CSV 表头规范（2026-09-12 用户裁定，最高优先级）
 
 **`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/` 下的数据表一律两行表头**：
@@ -551,6 +564,11 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 
 **🔴 编译归用户 —— 编译不是成本，Claude 编的 DLL 不算交付**（2026-10-08 用户裁定；原铁律 19 里那条已并入本条）：
 - **谁编**：交付物**一律**是用户用 **VS2022 手动编译**的 DLL。Claude 侧 `dotnet build` **仅供验证语法**，**产物不作数**（2026-08-19 约定：环境变量是进程快照、`MB2_PATH` 可能指向别的客户端 ⇒ 版本不对；真要跑，输出与 obj 都要落到隔离目录，别覆盖游戏 bin 与用户 obj）。
+  - 🔴 **验证语法的正确命令**（2026-10-09 立：只给 `BaseOutputPath` **拦不住** —— csproj 里写死了 `OutputPath`，DLL 照样会往游戏 bin 写，而**游戏开着的时候那文件是锁的**，构建会以 `MSB3027 文件被占用` 失败）：
+    ```
+    dotnet build ExampleMod.csproj -c Debug -p:OutputPath="<隔离目录>/bin/" -p:BaseIntermediateOutputPath="<隔离目录>/obj/"
+    ```
+    **两个都要给**：`OutputPath` 管 DLL 落点、`BaseIntermediateOutputPath` 管 obj。判据 = 里只出现 `error CS…`（真语法错）或 `Build succeeded`，**不出现 `MSB3027`（那是文件锁，不是代码问题）**。
 - **改完怎么说**：只报**改了哪几个文件**，编译归用户、他一定会编 —— **"要重编一次"这种话不用说**。
 - ❌ 不要把"即时生效 / 不用重编"当**卖点**写进方案或回执。
 - ❌ 不要为了**绕开一次编译**而把该在 C# 里做的事塞进 XML、或堆只为"免得重编"的运行期开关。

@@ -823,7 +823,8 @@ namespace LivingWorldNpcs
                 // 清掉击晕 StayAction（"永久静止"占位）→ 躺尸起立围观。
                 // 白名单（_knockoutWakeEvents）例外 = 可唤醒/救援类事件（治疗等未来接入点），照常投递；
                 // 定向链（SendEventToAgent 单发：order_execute_plan/event_agent_damaged 等）不经本方法，不受影响。
-                if (AgentBrain.IsKnockedOut(brain.Owner) && !_knockoutWakeEvents.Contains(eventType))
+                if ((AgentBrain.IsKnockedOut(brain.Owner) || AgentBrain.IsRoped(brain.Owner))
+                    && !_knockoutWakeEvents.Contains(eventType))
                     continue;
 
                 // 视线过滤：requireSight 时跳过看不见事件源的 NPC

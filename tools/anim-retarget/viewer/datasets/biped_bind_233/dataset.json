@@ -1,0 +1,25 @@
+{
+  "name": "biped_bind_233",
+  "title": "被绑 / 倒地 · 233 女（全部 23 条）",
+  "subtitle": "源 = 233_female_bind_export。本数据集是【女角色全部动作】，每一条都能正常播放（不会出现 T-pose）。男女对照请看 ▶【被绑·男230 + 女233 对照】。",
+  "sides": {
+    "dst": {
+      "label": "233 女 · 被绑/倒地（全 23 条）",
+      "color": "#e0a0c0",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "dst",
+          "url": "../biped_bind/assets/female.glb"
+        }
+      ]
+    }
+  }
+}
