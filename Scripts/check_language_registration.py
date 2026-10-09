@@ -244,8 +244,15 @@ def main():
         # ④b C# 源码（LWN 的玩家可见文本写在代码里；**先剥注释**——文档里举例的 `{=LWN_KEY}` 不是真键）
         #     ⚠️ 跳过反编译参考副本（Modules/decompile/**）——那是别的版本的原版代码，键不是我们的
         #     （2026-09-10 假报实录：35 个"缺中文"的键全来自 decompile 副本）
+        #     🔴 2026-10-09 扩判：现在的转储落在 `Debug/offline/_shokuho_dump/Shokuho.decompiled.cs`
+        #        —— 目录名不含 "decompile"，**按目录名过滤漏掉它** ⇒ 1650 条假报把真问题淹了
+        #        （判据只剩"文件名带 decompiled"这一条能认出它）。`_` 前缀目录 = 改完即弃的临时物
+        #        （CLAUDE.md 目录归口纪律），一并跳过。
         for p in mod_root.rglob("*.cs"):
-            if {"obj", "bin", "decompile"} & set(p.parts):
+            parts = set(p.parts)
+            if {"obj", "bin", "decompile"} & parts:
+                continue
+            if "decompiled" in p.name.lower() or any(x.startswith("_") for x in p.parts):
                 continue
             try:
                 txt = p.read_text(encoding="utf-8", errors="replace")

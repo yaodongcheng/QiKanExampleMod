@@ -91,6 +91,53 @@ namespace LivingWorldNpcs
 		/// <summary>拽倒时先把目标转向玩家（`SetMovementDirection`，与 GrapplePull.FaceToward 同一套已验证写法）。</summary>
 		public static bool FacePlayerOnYank = true;
 
+		/// <summary>
+		/// 捆缚期**压制复核间隔**（秒；0 = 关）。每这么多个秒复核一次"旗标 + AI 冻结 + 躺地循环还在不在"，
+		/// 被抢就补回来（有日志、有计数，见 <see cref="VerifySuppression"/>）。
+		/// 🔴 **为什么复核放在本类、而不是放进 <see cref="BoundAction"/>**：本类在**任何场景**每帧都跑
+		/// （挂在 <see cref="GrappleLogic"/> 的 mission tick 上），而 `AgentBrain` 在战斗场景里**整套是关的**
+		/// （<see cref="Settings.IsInteractionDisabled"/> ⇒ Tick 早退）—— 战斗里就只剩这一层在管。
+		/// </summary>
+		public static float VerifySeconds = 0.5f;
+
+		/// <summary>
+		/// 🔴 **冻结目标的原版 AI**（2026-10-09 加；战斗场景里唯一真正"按住"他的手段）。
+		///
+		/// **为什么不是"两行旗标就够"**（我先前判断错过一次，依据在此）：`AIScriptedFrameFlags` 一共只有 9 个值
+		/// （`GoToPosition` / `NoAttack` / `ConsiderRotation` / `NeverSlowDown` / `DoNotRun` / `GoWithoutMount` /
+		/// `RangerCanMoveForClearTarget` / `InConversation` / `Crouch`）—— **没有一个语义是"不许动"**。
+		/// 只压 `DoNotRun | NoAttack` = 禁跑、禁攻击，**但没禁"走"、没禁"选目标 / 换武器 / 移动"**
+		/// ⇒ 战斗场景里他照旧归原版战斗 AI 指挥（城镇里之所以看着没事，是因为城镇那套原版 AI 本来就不打架）。
+		///
+		/// **正解 = `Agent.AIStateFlag.Paused`** —— 引擎原生状态，公开 API `Agent.SetIsAIPaused(bool)`
+		/// （走 native 桥 `IMBAgent.SetAIStateFlags` → 原生 `Ai_state_flag::Paused`）。三条实证：
+		///   · **原版自己就在用**：战前部署阶段（OrderOfBattle）拿它把**全场 AI 冻住**；
+		///   · **织丰 `Shokuho.dll` 逐字抄了这套**（反编译实读）——冻结 `SetIsAIPaused(true)`；
+		///     解冻 `SetIsAIPaused(false)` + `ResetEnemyCaches()` + `HumanAIComponent.SyncBehaviorParamsIfNecessary()`；
+		///   · **我们自己的飞行工程**也用它（`Controller = AI` + `SetIsAIPaused(true)` 冻玩家）。
+		/// 1.2.12 / 1.3.15 / 1.4.6 / 1.5.1 四个锚点 DLL 全有 ⇒ **不需要版本分叉**。
+		/// 旋钮 `custom.grapple bind aipause 0|1`（默认开；关掉 = 回到"只压旗标"的旧行为，做 A/B 用）。
+		/// </summary>
+		public static bool PauseVanillaAI = true;
+
+		/// <summary>姿势被抢回了几次（诊断用：正常应恒为 0；`bind state` 会打出来）。</summary>
+		private int _poseReasserts;
+		private float _verifyTimer;
+
+		/// <summary>冻 / 解冻目标的原版 AI（幂等；失败只记日志不抛）。
+		/// 🔴 **解冻永远执行**（不受旋钮管）—— 否则旋钮中途被关掉就会留一个永久冻住的 agent。</summary>
+		private static void SetTargetAIPaused(Agent a, bool paused)
+		{
+			if (a == null) return;
+			if (paused && !PauseVanillaAI) return;
+			try { a.SetIsAIPaused(paused); }
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 勾人：{(paused ? "冻结" : "解冻")}原版 AI 失败（{ex.GetType().Name}）"
+					+ (paused ? " —— 战斗场景里他可能仍归原版 AI 指挥" : " 🔴 目标可能被留成「冻住」状态"));
+			}
+		}
+
 		// ───────────────────── 拽倒方式：曲线 vs 引擎冲量（A/B，2026-10-09 用户提出）─────────────────────
 		//
 		// 用户口径："击退的 blow 来一个冲量就行 —— 我们只是要把他拉倒，又不是拉到身前。"
@@ -254,7 +301,13 @@ namespace LivingWorldNpcs
 			_note = "wrapping";
 			_hookPos = hitPoint;
 			_hookDir = (target.Position - hitPoint).NormalizedCopy();
-			DebugLogger.Log($"[Grapple] 勾人：开始缠（{target.Name}）入口={Fmt(hitPoint)} 圈数={WrapTurns:F2} 半径={WrapRadiusStart:F2}→{WrapRadiusEnd:F2} 时长={WrapSeconds:F2}s");
+			// 🔴 **冻住他的原版 AI —— 就在命中的这一刻**（不是等到"缚"那拍）：缠 0.55s + 拽 1.1s
+			//    这 1.65 秒里若放任原版 AI 指挥，战斗场景中他会一边被我们拽一边打架/走位
+			//    （城镇里看不出来，因为那套原生 AI 本来就不打架）。
+			//    注：钩头飞行那 0.5 秒还没冻（那时还没"命中"，不冻是对的 —— 打空了不该动人家）。
+			SetTargetAIPaused(target, true);
+			DebugLogger.Log($"[Grapple] 勾人：开始缠（{target.Name}）入口={Fmt(hitPoint)} 圈数={WrapTurns:F2} 半径={WrapRadiusStart:F2}→{WrapRadiusEnd:F2} 时长={WrapSeconds:F2}s"
+				+ (PauseVanillaAI ? " · 已冻结其原版 AI" : " · （原版 AI 未冻：bind aipause 0）"));
 			return true;
 		}
 
@@ -269,6 +322,20 @@ namespace LivingWorldNpcs
 				DebugLogger.Log($"[Grapple] 勾人：目标失效 ⇒ 放（{_note}）");
 				Release("target gone");
 				return BindEvent.Finished;
+			}
+
+			// 🔴 **压制复核**（2026-10-09，TODO 2「AI 接管」）：**所有相位都跑** ——
+			//    旗标与 AI 冻结都可能被抢/被清（引擎的部署收尾会把全场解冻、别的系统也可能清旗标）；
+			//    姿势那一项只在"缚"那拍抢（见 VerifySuppression 里的相位判据）。
+			//    每 <see cref="VerifySeconds"/> 秒一次，被抢就补回来（有日志、有计数，肉眼可查）。
+			if (VerifySeconds > 0f)
+			{
+				_verifyTimer += dt;
+				if (_verifyTimer >= VerifySeconds)
+				{
+					_verifyTimer = 0f;
+					VerifySuppression();
+				}
 			}
 
 			switch (_phase)
@@ -494,6 +561,18 @@ namespace LivingWorldNpcs
 				_target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
 			}
 			catch (Exception) { }
+
+			// 🔴 **标记直接置一份**（2026-10-09 TODO 2 加固；事件只当"叙述 + 占位"用）：
+			//    战斗场景里 `SendEventToAgent` 会**整体早退**（IsInteractionDisabled）⇒ 只靠事件的话，
+			//    "被捆"这件事在战斗里对脑完全不可见（`bind state` 也会显示 bound=False，误导排查）。
+			//    直接置 = 任何场景下脑都看得见这件事（战斗里脑不 Tick，但标记与状态读数是对的）。
+			try
+			{
+				var markBrain = AgentAIController.GetBrainForAgent(_target);
+				if (markBrain != null) markBrain.IsBound = true;
+			}
+			catch (Exception) { }
+
 			try
 			{
 				AgentAIController.Instance?.SendEventToAgent(_target, "event_agent_bound", _attacker);
@@ -505,6 +584,7 @@ namespace LivingWorldNpcs
 
 			PlayLoop(_target, CycleAction, "cycle");
 			DebugLogger.Log($"[Grapple] 勾人：捆缚成立（{_target.Name}）—— 躺地循环 {CycleAction}，"
+				+ "AI 接管 = 脑标记 IsBound + BoundAction 占位（不接命令 / 不参战 / 不围观；解绑后立刻恢复），"
 				+ (BoundSeconds > 0f ? $"{BoundSeconds:F0} 秒后自动挣脱（调试档）" : "**永不自动挣脱**")
 				+ " —— 解开：敲 bind release，或走到身边用交互面板的【松绳】（待做，见 §13.14 TODO 4）");
 		}
@@ -523,6 +603,48 @@ namespace LivingWorldNpcs
 				return BindEvent.Finished;
 			}
 			return BindEvent.None;
+		}
+
+		/// <summary>
+		/// 复核"压制还在不在"（**所有相位都跑**，见 <see cref="Tick"/>）：
+		/// ① 脚本旗标（`DoNotRun | NoAttack`）② **原版 AI 冻结**（<see cref="SetTargetAIPaused"/>）
+		/// ③ **只在"缚"那拍**：躺地循环还挂在通道 0 上吗。
+		/// 被抢 = 抢回来并计数（`bind state` 打出来；正常路径恒为 0 条日志）。
+		/// ⚠️ 观感验收模式（`bind anim lay|cycle|standup` 锁了某一段）**不抢姿势** —— 那是用户正在看的东西。
+		/// </summary>
+		private void VerifySuppression()
+		{
+			if (_target == null) return;
+
+			// ① 旗标：幂等重压（被别的系统清掉 = 躺着的人立刻恢复原生 AI）。
+			//    ⚠️ 用"或"叠加、**不覆盖** —— 直接赋值会把 BoundAction 每 0.2s 设的 `InConversation`
+			//    抹掉，两边一帧一变地互相打脸（那一位语义是"别动，你正在交互中"）。
+			try
+			{
+				_target.SetScriptedFlags(_target.GetScriptedFlags()
+					| Agent.AIScriptedFrameFlags.DoNotRun
+					| Agent.AIScriptedFrameFlags.NoAttack);
+			}
+			catch (Exception) { }
+
+			// ② 原版 AI 冻结：幂等重压（引擎的部署收尾会把**全场**解冻，战斗里尤其要盯）
+			SetTargetAIPaused(_target, true);
+
+			// ③ 姿势：只在"缚"那拍抢；锁了观感段就不动
+			if (_phase != Phase.Bound || _forcedAnim != null) return;
+			try
+			{
+				if (AgentControlHelper.IsPlayingPose(_target, CycleAction)) return;
+				_poseReasserts++;
+				PlayLoop(_target, CycleAction, "cycle");
+				// 日志限频：头 3 次 + 每 20 次一条（否则被抢成常态时会刷屏）
+				if (_poseReasserts <= 3 || _poseReasserts % 20 == 0)
+				{
+					DebugLogger.Log($"[Grapple] 勾人：躺地循环被抢走（通道 0 = {AgentControlHelper.GetPose(_target)}）"
+						+ $" ⇒ 抢回 {CycleAction}（第 {_poseReasserts} 次）");
+				}
+			}
+			catch (Exception) { }
 		}
 
 		/// <summary>命令入口：立刻放开当前目标（`custom.grapple bind release`）。</summary>
@@ -564,26 +686,45 @@ namespace LivingWorldNpcs
 		private void BeginStandup(Agent t, string why)
 		{
 			if (t == null) return;
+			// 🔴 **入队必须无条件发生**（2026-10-09 TODO 2 加固）：`RestoreAgent` 是"把 AI 还回去 +
+			//    清掉 brain.IsBound"的**唯一**出口 —— 上面任何一步抛异常而漏掉入队，被捆标记就永久留着
+			//    （那个 agent 从此不接任何事件、拒清队列 = 僵尸）。所以播动画放 try 里，入队放 try 外。
+			float wait = 0.05f;
+			bool wentDown = _wentDown;
 			try
 			{
-				if (!AgentControlHelper.SafeIsActive(t)) return;
-
-				if (_wentDown)
+				if (!AgentControlHelper.SafeIsActive(t))
 				{
-					PlayOnce(t, StandupAction, 0f, 0.2f, "standup");
-					_pending.Add(new Pending { Agent = t, Timer = StandupSeconds, Why = why });
+					// agent 已经没了（死了/离场）：没什么可还的 —— 但**标记得清掉**，
+					// 否则那个脑（若还挂着）从此不接任何事件（本方法入队被跳过 = 永远没人来清）。
+					try
+					{
+						var dead = AgentAIController.GetBrainForAgent(t);
+						if (dead != null) dead.IsBound = false;
+					}
+					catch (Exception) { }
 					return;
 				}
 
-				// 🔴 **没到"躺下"那一步就别播起身动画**（2026-10-09 实机事故，症状 = "倒下又立刻起来"）：
-				//    起身动画的**头几帧就是躺姿**（源帧 111→1，从躺到站）⇒ 给一个还站着的人播它，
-				//    效果是**先趴下去再站起来**。实测：`bind test` 被出口踢掉那两次，每分钟都演这一下。
-				//    ⇒ 没躺下 = 直接还 AI（下一帧就走 <see cref="TickPending"/> 的恢复路）。
-				DebugLogger.Log($"[Grapple] 勾人：没到躺下那步（{why}）⇒ 不播起身动画，直接还 AI");
-				_pending.Add(new Pending { Agent = t, Timer = 0.05f, Why = why + " (never went down)" });
+				if (wentDown)
+				{
+					PlayOnce(t, StandupAction, 0f, 0.2f, "standup");
+					wait = StandupSeconds;
+				}
+				else
+				{
+					// 🔴 **没到"躺下"那一步就别播起身动画**（2026-10-09 实机事故，症状 = "倒下又立刻起来"）：
+					//    起身动画的**头几帧就是躺姿**（源帧 111→1，从躺到站）⇒ 给一个还站着的人播它，
+					//    效果是**先趴下去再站起来**。实测：`bind test` 被出口踢掉那两次，每分钟都演这一下。
+					//    ⇒ 没躺下 = 直接还 AI（下一帧就走 TickPending 的恢复路）。
+					DebugLogger.Log($"[Grapple] 勾人：没到躺下那步（{why}）⇒ 不播起身动画，直接还 AI");
+				}
 			}
-			catch (Exception) { }
-			// agent 已经没了（死了/离场）：没什么可还的
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 勾人：起身动画播放异常（{ex.GetType().Name}）—— 仍照常排队还 AI");
+			}
+			_pending.Add(new Pending { Agent = t, Timer = wait, Why = why + (wentDown ? "" : " (never went down)") });
 		}
 
 		/// <summary>每帧推进"起身队列"（<see cref="GrappleLogic.OnMissionTick"/> **无条件**每帧调一次）。</summary>
@@ -604,28 +745,31 @@ namespace LivingWorldNpcs
 		private static void RestoreAgent(Agent a)
 		{
 			if (a == null) return;
-			try
-			{
-				var brain = AgentAIController.GetBrainForAgent(a);
-				if (brain != null)
-				{
-					brain.IsBound = false;
-					brain.ClearAllActions();       // 清掉那条"永不结束的 StayAction"占位
-				}
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.Log($"[Grapple] 勾人：清脑状态异常（{ex.GetType().Name}）");
-			}
-			try
-			{
-				AgentControlHelper.ForceUnlockAgent(a);   // 清 scripted 旗标 + 速度限制 + 交还 AI 控制器
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.Log($"[Grapple] 勾人：解锁目标异常（{ex.GetType().Name}）");
-			}
-			DebugLogger.Log($"[Grapple] 勾人：AI 已还给 {SafeName(a)}");
+
+			AgentBrain brain = null;
+			try { brain = AgentAIController.GetBrainForAgent(a); }
+			catch (Exception ex) { DebugLogger.Log($"[Grapple] 勾人：取脑异常（{ex.GetType().Name}）"); }
+
+			// 🔴 **顺序要紧**（2026-10-09 TODO 2）：先把标记清掉，`ClearAllActions` 才肯动手
+			//    （被捆者拒清 —— 那条守卫见 AgentBrain.ClearAllActions）。反过来 = 占位永远拆不掉。
+			try { if (brain != null) brain.IsBound = false; }
+			catch (Exception ex) { DebugLogger.Log($"[Grapple] 勾人：清被捆标记异常（{ex.GetType().Name}）"); }
+
+			try { brain?.ClearAllActions(); }       // 清掉那条 BoundAction 占位
+			catch (Exception ex) { DebugLogger.Log($"[Grapple] 勾人：清脑状态异常（{ex.GetType().Name}）"); }
+
+			try { AgentControlHelper.ForceUnlockAgent(a); }   // 清 scripted 旗标 + 速度限制 + 交还 AI 控制器
+			catch (Exception ex) { DebugLogger.Log($"[Grapple] 勾人：解锁目标异常（{ex.GetType().Name}）"); }
+
+			// 🔴 **解冻原版 AI —— 与 <see cref="Begin"/> 里的 SetIsAIPaused(true) 配对，缺一不可**：
+			//    漏了这一步，目标会被**永久冻住**（站着不动、不打架、不逃）。
+			//    后两步照原版部署收尾 / 织丰那套解冻配方抄（`Shokuho.dll` 反编译实读）——
+			//    只解冻不清缓存的话，AI 恢复后可能还攥着"冻住期间"那份过期的敌人/行为参数。
+			SetTargetAIPaused(a, false);
+			try { a.ResetEnemyCaches(); } catch (Exception) { }
+			try { a.HumanAIComponent?.SyncBehaviorParamsIfNecessary(); } catch (Exception) { }
+
+			DebugLogger.Log($"[Grapple] 勾人：AI 已还给 {SafeName(a)}（被捆标记已清、占位已拆、旗标已解锁、原版 AI 已解冻）");
 		}
 
 		// ───────────────────────────── 绳尾钉（缠绕态）─────────────────────────────
@@ -828,8 +972,27 @@ namespace LivingWorldNpcs
 			float limit = _phase == Phase.Bound ? BoundSeconds
 				: (_phase == Phase.Wrapping ? WrapSeconds
 				: (Yank == YankMode.Blow ? BlowYankSeconds : YankTotalSeconds));
+			// 🔴 接管状态（TODO 2 的验收判据，2026-10-09）：脑标记 = 闸门基准（false 时下面几道全不生效）；
+			//    事件忽略 = 被挡下的定向事件条数（该涨就涨 = 调度真的被挡住了）；姿势抢回 = 正常恒为 0。
+			//    ⚠️ 控制台返回文本一律英文（CLAUDE.md 控制台纪律）。
+			string takeover = "-";
+			try
+			{
+				var b = AgentAIController.GetBrainForAgent(_target);
+				// aiPaused 读的是**引擎自己**那份状态（`Agent.IsPaused` ← `AIStateFlag.Paused`），
+				// 不是我们的旋钮 —— 这样"旋钮开了但冻结没生效"也能一眼看出来。
+				string paused = "?";
+				try { paused = _target.IsPaused ? "True" : "False"; } catch (Exception) { }
+				if (b != null)
+					takeover = $"bound={b.IsBound} ignored={b.BoundEventsDropped} poseReassert={_poseReasserts}";
+				else
+					takeover = $"bound=(no brain) poseReassert={_poseReasserts}";
+				takeover += $" aiPaused={paused}";
+			}
+			catch (Exception) { }
 			return $"bind: {_phase} | 目标={tgt} | {timer:F2}/{limit:F2}s | 动作={act}"
 				+ $" | 钩={Fmt(_hookPos)} | 拖距={DragDistance:F1}m 超时={BoundSeconds:F0}s"
+				+ $" | takeover[{takeover}]"
 				+ (_forcedAnim != null ? $" | 🔒强制={_forcedAnim}" : "");
 		}
 

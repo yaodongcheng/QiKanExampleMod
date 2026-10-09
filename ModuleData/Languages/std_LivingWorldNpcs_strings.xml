@@ -4020,6 +4020,12 @@
     <string id="LWN_plan_cancel_player" text="Called off by the player" />
     <string id="LWN_brain_crime_shout" text="Stop, {NAME}!" />
     <string id="LWN_ui_interact_intervene" text="Intervene" />
+    <string id="LWN_ui_interact_cutrope" text="Cut the rope" />
+    <string id="LWN_ui_cutrope_bubble" text="Hold still — I'm cutting you loose." />
+    <string id="LWN_ui_cutrope_msg" text="Cut {NAME} loose — they'll stand up in a moment." />
+    <string id="LWN_ui_cutrope_none" text="There's no rope to cut here." />
+    <string id="LWN_ui_rope_held_title" text="Rope in hand: {NAME}" />
+    <string id="LWN_ui_state_bound" text="(tied up)" />
     <string id="LWN_ui_intervene_bubble" text="Stop! He's my man!" />
     <string id="LWN_ui_arrest_msg" text="Your companion {NAME} has been locked in the jail of {SETTLEMENT}." />
     <string id="LWN_ui_companion_ransom" text="Ransom companions" />

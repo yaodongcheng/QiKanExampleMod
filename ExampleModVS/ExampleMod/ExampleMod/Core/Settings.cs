@@ -287,6 +287,10 @@ namespace LivingWorldNpcs
             // 调停（随从犯法被执法时面向守卫按 F）：与 Talk 同键——上下文互斥替换（守卫警戒非玩家时
             // Intervene 行替换 Talk 行，永不共存，无冲突警告）
             [InteractionIds.Intervene] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Short" },
+            // 松绳（钩索「勾人」§13.14 TODO 4）：目标正被我们捆着时**多出**一行 ——
+            // 🔴 键位 = **F 长按**，与【对话】的 **F 短按** 同键不同按法，同一次按下各按各自阈值触发
+            //    （本输入系统的既定语义，与 Loot/Knockout 那一族"F 长按"同款；同键**同按法**才算冲突）。
+            [InteractionIds.CutRope] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
             // 施法（阶段 3 起手轴）：**按住蓄力、松手放**。
             // 🔴 默认键 = X，**不是 R** —— R 是原版"切换第一人称/视角"的键，按下去会**同时**触发切视角
             //    （我们的 ModInput 是轮询读取、不吞键，所以物理键冲突会双触发；2026-09-24 用户实机报的）。

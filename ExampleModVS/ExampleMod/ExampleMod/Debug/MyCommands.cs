@@ -66,6 +66,116 @@ namespace LivingWorldNpcs
         }
 
 
+        /// <summary>
+        /// **测试用：清场只留一个**（2026-10-10 立，用户要求）—— 战斗里敲一条，把场上清成 1v1，
+        /// 用来安全地验"被捆住的人还打不打"这类**必须真战斗场景**的东西（脑层在战斗里是关的，
+        /// 只有引擎那把 `SetIsAIPaused` 锁在管，得看得见他在挨打的时候停不停手）。
+        ///
+        /// **参数（首参可弃，符合控制台纪律）**：
+        ///   · 什么都不给 / 给不出数字 → **只清敌方**，留**离你最近的那个敌人**（**你的部队一个不动** —— 零伤亡）
+        ///   · 给一个 agent 序号（`custom.print_npcs` 里能看到）→ 留那一个（同样只清敌方）
+        ///   · 给 `all` → **连你自己的兵一起清**（真 1v1）⚠️ 你的部队会有**真实伤亡**，先存档
+        ///
+        /// 🔴 **原版没有这条**：`mission_cpp.kill_all_agents_excluding_this` 是把敌人**全**杀光
+        /// = 当场判定你赢、战斗结束，没法拿来做测试；
+        /// 而 `mission.toggleDisableDying`（原版，**全场无敌**）和本命令**可以叠着用** ——
+        /// 叠起来的配方 = 一个"打不死、被围住、AI 全力战斗"的完美测试靶子。
+        ///
+        /// 🔴 只杀**人**（马留着 —— 马不占队伍、不影响胜负判定）。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("kill_all_but_one", "custom")]
+        public static string ExecuteKillAllButOne(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null) return "Error: not in mission.";
+            Mission mission = Mission.Current;
+
+            string arg0 = (args != null && args.Count > 0) ? (args[0] ?? "").Trim().ToLowerInvariant() : "";
+            bool killOwnSideToo = arg0 == "all";
+            int wantIndex = -1;
+            if (!killOwnSideToo && arg0.Length > 0) int.TryParse(arg0, out wantIndex);
+
+            Team myTeam = Agent.Main.Team;
+
+            // ── ① 选"留谁" ──
+            Agent keep = null;
+            if (wantIndex >= 0)
+            {
+                foreach (Agent a in mission.Agents)
+                {
+                    if (a != null && a.Index == wantIndex && a.IsHuman && a != Agent.Main
+                        && AgentControlHelper.SafeIsActive(a) && a.Health > 0f)
+                    { keep = a; break; }
+                }
+            }
+            if (keep == null)
+            {
+                float best = float.MaxValue;
+                foreach (Agent a in mission.Agents)
+                {
+                    if (a == null || !a.IsHuman || a == Agent.Main) continue;
+                    if (!AgentControlHelper.SafeIsActive(a) || a.Health <= 0f) continue;
+                    if (myTeam == null || a.Team == null || !a.Team.IsValid || !a.Team.IsEnemyOf(myTeam)) continue;
+                    float d = a.Position.Distance(Agent.Main.Position);
+                    if (d < best) { best = d; keep = a; }
+                }
+            }
+            if (keep == null) return "Error: no living enemy found on the field (nothing to keep).";
+
+            // ── ② 收名单（先收再杀：杀的过程中 Agents 集合会变）──
+            Agent playerMount = null;
+            try { playerMount = Agent.Main.MountAgent; } catch (Exception) { }
+            List<Agent> victims = new List<Agent>();
+            foreach (Agent a in mission.Agents)
+            {
+                if (a == null || a == Agent.Main || a == keep || a == playerMount) continue;
+                if (!a.IsHuman || a.IsMount) continue;
+                if (!AgentControlHelper.SafeIsActive(a) || a.Health <= 0f) continue;
+                bool ownSide = myTeam != null && a.Team != null && a.Team.IsValid && !a.Team.IsEnemyOf(myTeam);
+                if (ownSide && !killOwnSideToo) continue;
+                victims.Add(a);
+            }
+
+            // ── ③ 动手（临时关掉"全场无敌" —— 否则 mission.toggleDisableDying 开着时这一刀可能砍不动）──
+            bool savedDisableDying = false;
+            try { savedDisableDying = mission.DisableDying; mission.DisableDying = false; } catch (Exception) { }
+            int killed = 0, failed = 0;
+            foreach (Agent a in victims)
+            {
+                try { KillAgentNow(a); killed++; }
+                catch (Exception ex)
+                {
+                    failed++;
+                    DebugLogger.Log($"[KillAllButOne] {a.Name}(Idx={a.Index}) 击杀失败: {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            try { mission.DisableDying = savedDisableDying; } catch (Exception) { }
+
+            DebugLogger.Log($"[KillAllButOne] 清场：杀 {killed}（失败 {failed}）留 '{keep.Name}'(Idx={keep.Index})"
+                + $" | all={killOwnSideToo} | 场上剩余={mission.Agents.Count}");
+
+            return $"OK: killed {killed}" + (failed > 0 ? $" (failed {failed})" : "")
+                + $", left '{keep.Name}' (Idx={keep.Index}) on the enemy side"
+                + (killOwnSideToo ? " -- YOUR OWN TROOPS ARE DEAD TOO (real casualties)." : " -- your troops untouched.")
+                + " Tip: 'mission.toggleDisableDying' makes everyone immortal; the two stack.";
+        }
+
+        /// <summary>处决式死亡（照 <see cref="AgentDamageHelper"/> 类注释③那条已验证入口：`Agent.Die(Blow)`）。
+        /// 用 `Die` 而不是 `RegisterBlow`：不走 HandleBlow ⇒ 不惊动我们的打击监视/犯罪记账，清场就是清场。</summary>
+        private static void KillAgentNow(Agent a)
+        {
+            Blow blow = new Blow(-1);
+            blow.DamageType = DamageTypes.Blunt;
+            blow.BoneIndex = 0;
+            blow.VictimBodyPart = BoneBodyPartType.Chest;
+            blow.GlobalPosition = a.Position + Vec3.Up * 1.0f;
+            blow.BaseMagnitude = 1000f;
+            blow.InflictedDamage = 1000;
+            blow.BlowFlag = BlowFlags.NoSound;
+            blow.DamageCalculated = true;
+            blow.WeaponRecord.FillAsMeleeBlow(null, null, -1, -1);
+            a.Die(blow);
+        }
+
         //让两个人决斗
         [CommandLineFunctionality.CommandLineArgumentFunction("duel_npc", "custom")]
         public static string ExecuteDuel(List<string> args)

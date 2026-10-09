@@ -1,0 +1,50 @@
+{
+  "name": "biped_carry",
+  "title": "扛人（男扛女）· 230男 + 233女 配对",
+  "subtitle": "源 = UEAnims/被绑倒地动画/230_233_扛人_男扛女。**扛住这段已经烘进女角色的动画里**（被扛住时她的骨盆贴到男的脊柱骨，没被扛住时用她自己的位置）。查看器只需必要时用 4 个参数微调开头：受击者(女)=基准，攻击者(男) 右X/前Y/高Z/朝向°。",
+  "sides": {
+    "m230": {
+      "label": "230 男 · 扛人（施动方）",
+      "color": "#7fa8d8",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "m230",
+          "url": "assets/male.glb"
+        }
+      ]
+    },
+    "f233": {
+      "label": "233 女 · 被扛（承受方）",
+      "color": "#e0a0c0",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "f233",
+          "url": "assets/female.glb"
+        }
+      ],
+      "duo": {
+        "master": "m230",
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "dir": 0.0
+      }
+    }
+  }
+}

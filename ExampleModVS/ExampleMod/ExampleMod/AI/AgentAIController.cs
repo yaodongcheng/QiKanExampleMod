@@ -792,6 +792,15 @@ namespace LivingWorldNpcs
             // "treatment",  // 预留：治疗/救援事件（内容接入时启用）
         };
 
+        /// <summary>被捆者豁免白名单（广播链）：捆缚期间仍能递到他脑里的事件类型。
+        /// 🔴 **2026-10-09 从击晕那张表里独立出来**（钩索「勾人」TODO 2）—— 被捆的人是**清醒的**
+        /// （能听能看、还能被救/被审），"哪些事件允许在捆缚期间递进去"与"昏迷者被什么唤醒"
+        /// 是两件事，将来接救援/审问/松绑类事件时登记在这里，别去动击晕那张表。
+        /// 当前为空 = 一律不递；定向投递另有一层（<see cref="AgentBrain.ReceiveEvent"/> 的 IsBound 闸门）。</summary>
+        private static readonly HashSet<string> _boundWakeEvents = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+        };
+
         private void BroadcastEventInRangeCore(Vec3 center, float radius, string eventType, HashSet<Agent> exclude, bool requireSight, bool isCrime, params object[] args)
         {
             // 战斗模式下不发送 LLM 事件——原生 AI 接管所有战斗行为
@@ -823,8 +832,11 @@ namespace LivingWorldNpcs
                 // 清掉击晕 StayAction（"永久静止"占位）→ 躺尸起立围观。
                 // 白名单（_knockoutWakeEvents）例外 = 可唤醒/救援类事件（治疗等未来接入点），照常投递；
                 // 定向链（SendEventToAgent 单发：order_execute_plan/event_agent_damaged 等）不经本方法，不受影响。
-                if ((AgentBrain.IsKnockedOut(brain.Owner) || AgentBrain.IsRoped(brain.Owner))
-                    && !_knockoutWakeEvents.Contains(eventType))
+                // 🔴 2026-10-09：**被捆的人同样不围观**（钩索「勾人」TODO 2）——捆着还起来围观是同一个病；
+                //    两张白名单**分开**（被捆者清醒，将来看/审类事件不该顺带改到击晕那张表）。
+                if (AgentBrain.IsKnockedOut(brain.Owner) && !_knockoutWakeEvents.Contains(eventType))
+                    continue;
+                if (AgentBrain.IsRoped(brain.Owner) && !_boundWakeEvents.Contains(eventType))
                     continue;
 
                 // 视线过滤：requireSight 时跳过看不见事件源的 NPC

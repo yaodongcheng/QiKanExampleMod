@@ -108,6 +108,14 @@ def main():
                     help="重定向算法（默认 align，唯一交付模式）")
     ap.add_argument("--pelvis", default=None, help="骨盆策略 ground|src|delta|none")
     ap.add_argument("--animdir", default=None, help="源动画目录（缺省用 rig 脚本内置默认）")
+    ap.add_argument("--embrace-clip", default=None, help="--pelvis embrace：被扛者(Slave) clip")
+    ap.add_argument("--embrace-angle", default=None, help="--pelvis embrace：相对角(度)")
+    ap.add_argument("--embrace-dist", default=None, help="--pelvis embrace：相对距离(米)")
+    ap.add_argument("--attach-clip", default=None, help="--pelvis attach：扛人方 clip")
+    ap.add_argument("--attach-bone", default=None, help="--pelvis attach：挂接点父骨（源骨名）")
+    ap.add_argument("--attach-offset", default=None, help="--pelvis attach：局部偏移 x,y,z")
+    ap.add_argument("--attach-near", default=None, help="--pelvis attach：近阈值(米)")
+    ap.add_argument("--attach-far", default=None, help="--pelvis attach：远阈值(米)")
     ap.add_argument("--obj-rot", default=None,
                     help="UE 线：是否把源【骨架对象】相对首帧的旋转增量搬进目标（转身类动作必需，默认 true）；"
                          "传 false 复现旧行为（对象级转身会丢）")
@@ -135,6 +143,10 @@ def main():
         cmd += ["--pelvis", a.pelvis]
     if a.animdir:
         cmd += ["--animdir", a.animdir]
+    for _k in ("attach_clip", "attach_bone", "attach_offset", "attach_near", "attach_far", "embrace_clip", "embrace_angle", "embrace_dist"):
+        _v = getattr(a, _k)
+        if _v:
+            cmd += ["--" + _k.replace("_", "-"), _v]
     if a.obj_rot is not None and a.rig == "ue_mannequin":
         cmd += ["--obj_rot", a.obj_rot]
     if a.root_basis:

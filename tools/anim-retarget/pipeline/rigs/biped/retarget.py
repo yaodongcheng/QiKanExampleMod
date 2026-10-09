@@ -11,7 +11,7 @@
     修法：rest(静姿) 取自 --skeleton（站姿骨架），pose 取自动画文件，两者世界系一致。
 """
 import bpy, sys, os, json, math, argparse
-from mathutils import Euler
+from mathutils import Euler, Matrix, Vector
 
 import os as _os
 def _project_root(p):
@@ -46,7 +46,17 @@ def parse():
     ap.add_argument("--name", default=None)
     ap.add_argument("--outdir", default=None)
     ap.add_argument("--no_trf", default="false")
-    ap.add_argument("--pelvis", default="ground", choices=["ground", "none", "src"])
+    ap.add_argument("--embrace-clip", default=None, help="--pelvis embrace：被扛者(Slave) clip（=锚点，保持自己的世界坐标）")
+    ap.add_argument("--embrace-angle", default="180", help="--pelvis embrace：dir = Slave朝向 + 本角(度)")
+    ap.add_argument("--embrace-dist", default="0.5", help="--pelvis embrace：相对距离（米，源系统默认 50cm）")
+    ap.add_argument("--attach-clip", default=None, help="--pelvis attach：扛人方 clip（挂接点所在那条）")
+    ap.add_argument("--attach-bone", default="Bip001 Spine2", help="--pelvis attach：挂接点父骨（源骨名）")
+    ap.add_argument("--attach-offset", default=None, help="--pelvis attach：挂接点在被扛方 pelvis 相对该骨的局部偏移 x,y,z")
+    ap.add_argument("--attach-near", default="0.25", help="--pelvis attach：距挂接点多近算【被扛住】(米)")
+    ap.add_argument("--attach-far", default="0.75", help="--pelvis attach：距挂接点多远算【没被扛住】(米)")
+    ap.add_argument("--pelvis", default="ground", choices=["ground", "none", "src", "scaled", "attach", "embrace"],
+                    help="ground=逐帧贴地(站立/倒地)；scaled=保留源骨盆世界位置并按站立高度等比缩放"
+                         "（被扛/被抱：角色被抬离地面、且与施动方在同一场景对位）")
     ap.add_argument("--root_basis", default=None)
     ap.add_argument("--yaw", default=None)
     ap.add_argument("--auto_yaw", default=None)
@@ -226,6 +236,112 @@ if args.pelvis in ("ground", "src"):
         PB.matrix = m; bpy.context.view_layer.update()
         PB.keyframe_insert(data_path="location", frame=_of)
     log("骨盆位移轨完成（--pelvis %s 贴地）" % args.pelvis)
+elif args.pelvis == "embrace":
+    # 🔴 用户给的源系统规则：以【被扛者(Slave)】为锚点、把【扛人者(Master，=当前 clip)】摆到相对位。
+    #   Slave 保持自己的世界坐标+朝向（基准）；Master:
+    #       dir  = Slave朝向 + angle(默认180°)
+    #       dest = Slave坐标 + (cos dir, sin dir) * dist(默认0.5m)
+    #   高度(Z) 仍用 Master 自己的（保留他蹲/站的腿）。
+    if not args.embrace_clip:
+        log("!! --pelvis embrace 需要 --embrace-clip"); raise SystemExit(2)
+    import math as _m
+    _ang = _m.radians(float(args.embrace_angle)); _dist = float(args.embrace_dist)
+    _cf = os.path.join(args.animdir, args.embrace_clip + ".fbx")
+    _before = set(bpy.data.objects)
+    bpy.ops.import_scene.fbx(filepath=_cf)
+    slv = next(o for o in bpy.data.objects if o.type == 'ARMATURE' and o not in _before)
+    _slv_rest = slv.matrix_world @ slv.data.bones["Bip001"].matrix_local   # Slave 的静止世界（求朝向增量）
+    PB = tgt.pose.bones["pelvis"]
+    _src_stand = (srest.matrix_world @ srest.data.bones["Bip001 Pelvis"].matrix_local.translation).z
+    _tgt_stand = (tgt.matrix_world @ tgt.data.bones["pelvis"].matrix_local.translation).z
+    _k = (_tgt_stand / _src_stand) if _src_stand > 1e-6 else 1.0
+    w2a = tgt.matrix_world.inverted()
+    log("--pelvis embrace: Slave=%s dir=朝向+%s° dist=%.3fm k=%.4f"
+        % (args.embrace_clip, args.embrace_angle, _dist, _k))
+    for _i in range(N_OUT):
+        _of = 1 + _i
+        _sf = int(round(fs + _i * SRC_STEP))
+        sc.frame_set(_sf); bpy.context.view_layer.update()
+        sp = (slv.matrix_world @ slv.pose.bones["Bip001 Pelvis"].matrix).translation   # Slave 坐标
+        # Slave 朝向 = 其根骨的"静止前向(+X)"被当前姿态旋转后的方向
+        _sw = slv.matrix_world @ slv.pose.bones["Bip001"].matrix
+        _delta = (_sw.to_3x3() @ _slv_rest.to_3x3().inverted())
+        _fwd = (_delta @ Vector((1.0, 0.0, 0.0)))
+        _yaw = _m.atan2(_fwd.y, _fwd.x)
+        _dir = _yaw + _ang
+        _dest = Vector((sp.x + _m.cos(_dir) * _dist, sp.y + _m.sin(_dir) * _dist, 0.0))
+        # Master 自己的 Z
+        p_own = (sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation
+        p_src = Vector((_dest.x, _dest.y, p_own.z))
+        m = PB.matrix.copy()
+        m.translation = w2a @ ((F @ p_src) * _k)
+        PB.matrix = m; bpy.context.view_layer.update()
+        PB.keyframe_insert(data_path="location", frame=_of)
+    log("骨盆位移轨完成（--pelvis embrace：以 Slave 为锚点摆 Master）")
+elif args.pelvis == "attach":
+    # 用【挂接点】把被扛方钉到扛人方身上：carried.pelvis = carrier.<attach-bone> @ offset
+    #   —— 等价于 Guajiedian02(carrier) ↔ Ride(carried) 的刚性挂接（offset 由配对动作反推）。
+    # 适合"已经扛住"的稳态；"扛起/放下"这种中途才建立的，需要在外面按 phase 决定用哪条。
+    if not (args.attach_clip and args.attach_offset):
+        log("!! --pelvis attach 需要 --attach-clip 与 --attach-offset"); raise SystemExit(2)
+    _off = Vector([float(x) for x in args.attach_offset.split(",")])
+    _cf = os.path.join(args.animdir, args.attach_clip + ".fbx")
+    _before = set(bpy.data.objects)
+    bpy.ops.import_scene.fbx(filepath=_cf)
+    car = next(o for o in bpy.data.objects if o.type == 'ARMATURE' and o not in _before)
+    PB = tgt.pose.bones["pelvis"]
+    _src_stand = (srest.matrix_world @ srest.data.bones["Bip001 Pelvis"].matrix_local.translation).z
+    _tgt_stand = (tgt.matrix_world @ tgt.data.bones["pelvis"].matrix_local.translation).z
+    _k = (_tgt_stand / _src_stand) if _src_stand > 1e-6 else 1.0
+    w2a = tgt.matrix_world.inverted()
+    log("--pelvis attach: 挂接源=%s 的 %s @ %s（k=%.4f）" % (args.attach_clip, args.attach_bone, list(_off), _k))
+    # 【门控挂接】—— 把"扛住"这件事烘进动画本身，而不是每帧去算：
+    #   · 没被扛住（她自己离挂接点远，如"扛起"起手她还站在地上）→ 用**她自己的位置**；
+    #   · 被扛住（离得近）→ XY 贴到挂接点（永远在他身上）；Z 始终用她自己的（扛起才会真的升起来）。
+    #   这样查看器侧只需要管"开头 4 个数"，扛的过程完全在动画里。
+    _r0 = float(args.attach_near); _r1 = float(args.attach_far)
+    _npin = 0
+    for _i in range(N_OUT):
+        _of = 1 + _i
+        _sf = int(round(fs + _i * SRC_STEP))
+        sc.frame_set(_sf); bpy.context.view_layer.update()
+        p_own = (sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation
+        cm = car.matrix_world @ car.pose.bones[args.attach_bone].matrix
+        p_sock = cm @ _off
+        _d = (p_own - p_sock).length
+        _w = 0.0 if _d >= _r1 else (1.0 if _d <= _r0 else (_r1 - _d) / (_r1 - _r0))
+        if _w >= 0.999: _npin += 1
+        px = p_own.x + (p_sock.x - p_own.x) * _w
+        py = p_own.y + (p_sock.y - p_own.y) * _w
+        p_src = Vector((px, py, p_own.z))
+        m = PB.matrix.copy()
+        m.translation = w2a @ ((F @ p_src) * _k)
+        PB.matrix = m; bpy.context.view_layer.update()
+        PB.keyframe_insert(data_path="location", frame=_of)
+    log("骨盆位移轨完成（--pelvis attach 门控挂接：%d/%d 帧贴到挂接点，near=%.2f far=%.2f）" % (_npin, N_OUT, _r0, _r1))
+elif args.pelvis == "scaled":
+    # 保留【源骨盆世界位置】，按"站立骨盆高"比例缩放到目标 —— 用于被扛/被抱：
+    #   角色整体被抬离地面，且与施动方在同一场景里对位（两边的相对位置由各自的骨盆轨合成）。
+    #   （ground 会把被抬角色拽回地面；none 不写位移轨，抬升会整段丢失。）
+    PB = tgt.pose.bones["pelvis"]
+    src_stand = (srest.matrix_world @ srest.data.bones["Bip001 Pelvis"].matrix_local.translation).z
+    tgt_stand_w = (tgt.matrix_world @ tgt.data.bones["pelvis"].matrix_local.translation).copy()
+    k = (tgt_stand_w.z / src_stand) if src_stand > 1e-6 else 1.0
+    w2a = tgt.matrix_world.inverted()
+    log("--pelvis scaled: 源站立骨盆 %.4f / 目标站立骨盆 %.4f -> 缩放 k=%.4f（绝对位置映射）"
+        % (src_stand, tgt_stand_w.z, k))
+    for _i in range(N_OUT):
+        _of = 1 + _i
+        _sf = int(round(fs + _i * SRC_STEP))
+        sc.frame_set(_sf); bpy.context.view_layer.update()
+        # 绝对映射：源骨盆世界位置 -> 过帧变换 F、按站立高等比缩放。这样"已经抬起来"的
+        # 姿态（如被扛着走）也保留抬升量；两人在同一场景的相对站位也一并保留。
+        p = (sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation
+        m = PB.matrix.copy()
+        m.translation = w2a @ ((F @ p) * k)
+        PB.matrix = m; bpy.context.view_layer.update()
+        PB.keyframe_insert(data_path="location", frame=_of)
+    log("骨盆位移轨完成（--pelvis scaled：源骨盆位置等比缩放）")
 else:
     log("跳过骨盆位移轨（--pelvis %s）" % args.pelvis)
 

@@ -90,11 +90,17 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 是否被绳索捆缚（钩索「勾人」步骤 5，2026-10-09；见 <see cref="GrappleBind"/>）。
-        /// 与 <see cref="IsStunned"/> 同一套机制（ClearAllActions + StayAction 永久占位，
+        /// 与 <see cref="IsStunned"/> 同一套机制（ClearAllActions + <see cref="BoundAction"/> 永久占位，
         /// 防止 Brain 自动 Resume 原生 AI 把躺着的人拽起来），**分开两个标记**是因为后续处置不同：
         /// 击晕 = 无意识（可搜身/被俘记账），捆缚 = 清醒（还没死、还能被救/被审）。
+        /// 🔴 置真之后有三道闸门（TODO 2，2026-10-09）：`ReceiveEvent` 早退（不接任何事件）、
+        /// <see cref="ClearAllActions"/> 拒清（替身谁也放不走）、`FightEnemyAction.OnStart` 拒战 +
+        /// `DecideDefaultBehavior` 不还 AI。<see cref="GrappleBind"/> 放人时**先**清零本字段、**再**清动作。
         /// </summary>
         internal bool IsBound;
+
+        /// <summary>被捆期间被忽略掉的定向事件条数（验收用：`custom.grapple bind state` 打出来）。</summary>
+        internal int BoundEventsDropped;
 
         /// <summary>
         /// 当前有效行为：_currentAction 不为 null 就返回它，否则 fallback 到队列头。
@@ -330,10 +336,10 @@ namespace LivingWorldNpcs
         /// 是否处于**被绳索捆缚**状态（钩索「勾人」，2026-10-09；见 <see cref="GrappleBind"/>）。
         /// 命名照击晕那对走：字段叫 <see cref="IsBound"/>（同 <see cref="IsStunned"/> 的风格），
         /// 静态查询另起一个词（`IsKnockedOut` ↔ 本方法），**不是同一个名字**（同名会撞 CS0102）。
-        /// 与击晕同构（"清行为 + StayAction 永久占位"）但**语义不同**：被捆的人是**清醒的**
+        /// 与击晕同构（"清行为 + 永久占位"）但**语义不同**：被捆的人是**清醒的**
         /// （不写 KnockedOut 意图、不进"被击倒俘获"记账），解除走 GrappleBind 的起身队列。
-        /// 广播过滤（<see cref="AgentAIController"/>）两个状态一视同仁 —— 否则一个围观事件
-        /// 就会 ClearAllActions 把占位清掉，躺着的人爬起来围观。
+        /// 🔴 广播过滤（<see cref="AgentAIController"/>）两个状态**各有各的豁免白名单**
+        /// （2026-10-09 TODO 2 分开：被捆的人能听能看，将来接"救援/审问"类事件不该去动击晕那张表）。
         /// </summary>
         public static bool IsRoped(Agent agent)
         {
@@ -358,6 +364,19 @@ namespace LivingWorldNpcs
             // 2026-08-14 去重：原两条 [Brain-Receive] 同事件双打，噪音且难 grep）
             if (aiEvent.EventType != "event_agent_damaged")
                 DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 '{aiEvent.EventType}' | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
+
+            // 🔴 **被捆的人不接任何调度**（钩索「勾人」TODO 2，2026-10-09）：捆着 = 不追人 / 不逃跑 /
+            //    不换武器 / 不接命令 / 不回应广播。群发那条已在 AgentAIController 的广播过滤里挡掉，
+            //    这里挡的是**定向**投递（ComeHere / order_follow / order_execute_plan / ReactiveAgent 触发词 /
+            //    event_agent_damaged / 定点质问…全是 `SendEventToAgent` 直发）。
+            //    🔴 唯一放行 = `event_agent_bound` 自己（下面那条分支负责落标记 + 入队占位；重复投递幂等）。
+            //    为什么不逐个 handler 加判：那是一处漏一处；收口在这里 = 一处挡住所有现在与将来的调用者。
+            if (IsBound && aiEvent.EventType != "event_agent_bound")
+            {
+                BoundEventsDropped++;
+                DebugLogger.Log($"[Brain-Bound] {Owner.Name}(Idx={Owner.Index}) 被捆 ⇒ 忽略事件 '{aiEvent.EventType}'（累计 {BoundEventsDropped} 条）");
+                return;
+            }
 
             // ── ReactiveAgent 触发词分发（密谋命令系统 §6）──
             // 被叫方/对手方的人格演算：speaker 请求 → 演算 → 反应动作 + 决策结果广播。
@@ -1008,19 +1027,27 @@ namespace LivingWorldNpcs
             else if (aiEvent.EventType == "event_agent_bound")
             {
                 // 被绳索撂倒捆住（2026-10-09，钩索「勾人」= plans\钩索-实施计划.md §十三）。
-                // 与击晕**同构**：清行为 + 一条永不结束的 StayAction 占位 —— 防止 Brain 自动
+                // 与击晕**同构**：清行为 + 一条永不结束的占位动作 —— 防止 Brain 自动
                 // Resume 原生 AI 把躺着的人拽起来（不占位 = 引擎的战斗 AI 会立刻接管动画通道）。
                 // 与击晕**刻意的两处不同**（所以另开一条事件、另起一个标记，而不是复用 IsStunned）：
                 //   · 人是**清醒的** ⇒ 不写 KnockedOut 意图、**不调 NotifyAgentKnockedOut**
                 //     （那不是"被击倒俘获"，不该进"Mission 结束转押"那本账）；
                 //   · 解除走 GrappleBind 自己的起身队列（起身动画播完再还 AI）。
+                // 🔴 占位动作 2026-10-09 换成 <see cref="BoundAction"/>（TODO 2）：此前借的是
+                //    `StayAction(isKnockout: true)`，会让 `IsKnockedOut()` 把被捆的人判成昏迷。
                 string boundBy = aiEvent.Args != null && aiEvent.Args.Length > 0 && aiEvent.Args[0] is Agent binder
                     ? (binder.Name?.ToString() ?? "人")
                     : "人";
                 RecordNarration($"我被{boundBy}用绳索撂倒了");
-                IsBound = true;
+                // 🔴 **顺序要紧**：`ClearAllActions` 现在带"被捆不许清"的守卫（见那个方法）
+                //    ⇒ 先**临时卸下**标记再清，清完重新立起来。这一次卸标记同时兜住
+                //    "同一个人被连绑两次"（上一次的占位还挂在队列里，不清掉新的永远轮不到）。
+                IsBound = false;
                 ClearAllActions();
-                EnqueueAction(new StayAction(null, false, isKnockout: true));
+                IsBound = true;
+                // 常驻占位（**永不结束 + 不接受中断**）：防 Brain 自动 Resume 原生 AI 把躺着的人拽起来。
+                // 🔴 不用 StayAction(isKnockout: true) —— 那会让全系统把"被捆"当成"昏迷"（见 BoundAction 类注释）。
+                EnqueueAction(new BoundAction());
             }
 
             // ═══════════════════════════════════════════════════════════════
@@ -1287,6 +1314,17 @@ namespace LivingWorldNpcs
         /// （壳无空判/无守卫/无组合，只有可见性差异，属多余包装）。脑内部调用不受影响。</summary>
         internal void ClearAllActions(bool lockPlace = true)
         {
+            // 🔴 **被捆的人不接受"清队列"**（钩索「勾人」TODO 2，2026-10-09）：捆缚占位只能由
+            //    <see cref="GrappleBind"/> 的放人路径解除 —— 那条路先把 `IsBound` 置 false 再调本方法。
+            //    不挡的话，**任何一条**外部 ClearAllActions 都会把躺着的人放走：
+            //    调停（InteractionMissionView.ExecuteIntervene）/ 对话结束清理 / 质问 / 围观反应 / 演出。
+            //    收口在这里 = 一处挡住所有现在与将来的调用者（同"引擎零守卫 → 在唯一收口处封堵"的纪律）。
+            if (IsBound)
+            {
+                DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 被捆 ⇒ 拒绝清空动作（解除归 GrappleBind 的放人队列）");
+                return;
+            }
+
             bool hadActions = _currentAction != null || _actionQueue.Count > 0;
             DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
 
@@ -1311,7 +1349,21 @@ namespace LivingWorldNpcs
             
         }
 
-        /// <summary>暂停原版 AgentNavigator / DailyBehaviorGroup 对该 Agent 的控制。幂等。</summary>
+        /// <summary>暂停原版 AgentNavigator / DailyBehaviorGroup 对该 Agent 的控制。幂等。
+        ///
+        /// 🔴 **它关的是"哪一半"要说清楚**（2026-10-09 补注；名字容易让人以为它管的是"整个原版 AI"）：
+        /// 这里动的是 **SandBox 的日常行为层**（`AgentNavigator` / `DailyBehaviorGroup` —— 逛荡、巡逻、坐椅子、
+        /// 用物件）+ 一个 Harmony 前缀（<see cref="AiSuspendPatch"/>）拦住 `RefreshBehaviorGroups` 每秒复活它。
+        /// **它碰不到 native 的战斗层**（`HumanAIComponent`：选敌、攻击、格挡、编队）—— 城镇里看着"原版 AI 让位了"，
+        /// 是因为城镇那套原生 AI 本来就不打架。
+        ///
+        /// 🔴🔴 **所以这里绝对不能顺手加 `SetIsAIPaused(true)`**（2026-10-09 用户提问时核过，会直接打架）：
+        /// 本函数被**脑接管的一切**调用，**包括战斗** —— `FightEnemyAction` 也是"脑的动作"，入队时同样会走到这里；
+        /// 而战斗那条链是**刻意交给原版战斗 AI 去打**的（`FightEnemyAction.OnStart` → `CombatManager.StartFight`
+        /// → 原生 AI 开打；见 `CombatManager` 的"必须成对 StartFight→EndFight，否则 ResumeVanillaAI 后原版 AI
+        /// 会继续攻击玩家"）。在这个函数里按暂停 = **把全场参战 NPC 的 AI 按停** = 全军站着挨打。
+        /// ⇒ 要"这个人不许动"（击晕 / 捆缚 / 演出 / 坐牢），在**具体那个地方**按 —— 范本 =
+        /// <see cref="GrappleBind"/>（`SetTargetAIPaused`，只按被捆的那一个、放人时按原版配方解冻）。</summary>
         private bool SuspendVanillaAI()
         {
             // 🔴 永不 Suspend 玩家：控制权转移给 mod AI = 玩家整场无法移动（2026-08-09 致命 bug 修复）
@@ -1375,6 +1427,17 @@ namespace LivingWorldNpcs
             if (!AgentControlHelper.SafeIsActive(Owner)) return;
 
             PendingPostConversationCleanup = false;
+
+            // 🔴 **被捆的人：对话结束也不还 AI**（钩索「勾人」TODO 2，2026-10-09）——
+            //    捆缚期间他还是被捆着的，照常解锁 + Resume 会让他就地爬起来。
+            //    捆缚的解除只有一个出口 = GrappleBind 的放人队列（起身动画演完才还 AI）。
+            if (IsBound)
+            {
+                InteractedAgent = null;
+                DebugLogger.Log($"[Brain-PostConvCleanup] {Owner.Name}(Idx={Owner.Index}) 被捆 ⇒ 跳过还 AI（等 GrappleBind 放人）");
+                return;
+            }
+
             DebugLogger.Log($"[Brain-PostConvCleanup] {Owner.Name}(Idx={Owner.Index}) 对话结束清理 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count}");
 
             // 安全收武器：确保 NPC 不会提着刀回归巡逻
@@ -1394,6 +1457,9 @@ namespace LivingWorldNpcs
         public void OnOwnerDeleted()
         {
             SuspendedAgentIndices.Remove(Owner.Index);
+            // 🔴 被捆标记一并清掉（钩索「勾人」TODO 2，2026-10-09）：agent 已经没了，标记留着没意义，
+            //    万一这个脑对象还被别处持有，也不该继续"拒收事件 / 拒清队列"。
+            IsBound = false;
         }
 
         /// <summary>
@@ -1406,7 +1472,39 @@ namespace LivingWorldNpcs
         private void DecideDefaultBehavior()
         {
             if (!AgentControlHelper.SafeIsActive(Owner)) return;
-            ResumeVanillaAI();           
+            // 🔴 被捆的人绝不把控制权交回原生 AI（钩索「勾人」TODO 2，2026-10-09）：
+            //    正常路径下占位动作让脑永不为空、根本走不到这里；这一条是兜底
+            //    （万一占位被谁清了，也不能就地恢复巡逻/战斗 AI）。
+            if (IsBound) return;
+            ResumeVanillaAI();
+        }
+
+        /// <summary>
+        /// 改**被捆的人**的锚点（躺哪就在哪）—— 拖行（钩索 §13.14 TODO 1）每帧把人往玩家那边挪时调。
+        /// 占位动作正握着这个值（每 0.2s 用它钉一次位置），不更新 = 人会被钉回原处。
+        /// </summary>
+        internal void SetBoundAnchor(Vec3 worldPos)
+        {
+            try
+            {
+                if (_currentAction is BoundAction cur) { cur.SetAnchor(worldPos); return; }
+                foreach (var a in _actionQueue)
+                {
+                    if (a is BoundAction q) { q.SetAnchor(worldPos); return; }
+                }
+            }
+            catch (Exception) { }
+        }
+
+        /// <summary>脑里现在还挂着 <see cref="BoundAction"/> 占位吗（安全网判据，见 <see cref="Tick"/>）。</summary>
+        private bool HasBoundAction()
+        {
+            if (_currentAction is BoundAction) return true;
+            foreach (var a in _actionQueue)
+            {
+                if (a is BoundAction) return true;
+            }
+            return false;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -2116,6 +2214,17 @@ namespace LivingWorldNpcs
             // （事件处理/行为队列/警戒认知/默认行为恢复 均无意义）
             if (Settings.Instance.IsInteractionDisabled())
                 return;
+
+            // 🔴 **安全网：被捆标记不许"悬空"**（钩索「勾人」TODO 2，2026-10-09）。正常路径下
+            //    `IsBound = true` 与"入队 BoundAction"是同一条语句块里发生的（中间不会插 Tick），
+            //    且占位永不自己结束 ⇒ 本判据平时恒不成立。它兜的是**病态路径**：占位被外力拆掉
+            //    而标记还立着 —— 那样这个 agent 会**永久**不接任何事件、拒清队列（僵尸）。
+            //    就地自愈：清标记、放行调度（比卡死好；真出这种情况日志里有据可查）。
+            if (IsBound && !HasBoundAction())
+            {
+                IsBound = false;
+                DebugLogger.Log($"[Brain-Bound] {Owner.Name}(Idx={Owner.Index}) 被捆标记悬空（占位动作不在了）⇒ 就地自愈，恢复正常调度");
+            }
 
             // 🔴 2026-08-14：自报武器状态（100ms 降频）——目击者脑遍历 TrackedTargets 读本字段
             // 感知"有人拔刀"（随从拔刀与玩家平权；玩家侧走引擎事件源 AgentAIController.PlayerWeaponDrawn，

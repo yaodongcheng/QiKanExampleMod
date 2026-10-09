@@ -465,6 +465,10 @@ namespace LivingWorldNpcs
                 case InteractionIds.Intervene:
                     if (_lastFocusedAgent != null) ExecuteIntervene(_lastFocusedAgent);
                     break;
+                // ── 钩索「勾人」§13.14 TODO 4 ──
+                case InteractionIds.CutRope:
+                    ExecuteCutRope();   // 🔴 玩家自身动作：不吃 _lastFocusedAgent（牵着人就能松，看谁都行）
+                    break;
             }
         }
 
@@ -502,8 +506,11 @@ namespace LivingWorldNpcs
                 // 可用列表同步（退出项 Reset + 同键同按法冲突检查）
                 SyncAvailable();
 
-                // UI 显隐：近箱子 → 显示 Lockpick 按钮；无目标 → 隐藏（available=[Inspect] 保留探查响应）
-                if (nearChest)
+                // UI 显隐：近箱子 → 显示 Lockpick 按钮；**手里牵着人 → 显示【松绳】**（玩家自身状态行，
+                // 与"在看谁"无关 —— 用户 2026-10-09 拍板：不能要求玩家把准星怼到趴着的身体上才给这个键）；
+                // 其余无目标 → 隐藏（available=[Inspect] 保留探查响应）
+                bool showSelfPanel = nearChest || IsRopeHeld();
+                if (showSelfPanel)
                 {
                     if (!_interactVM.IsVisible || _availableChanged)
                     {
@@ -663,6 +670,71 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 钩索「勾人」§13.14 TODO 4：**松绳** —— 放人 + 收钩。
+        /// 🔴 **玩家自身的动作**（用户 2026-10-09 拍板）：判据是"我手里牵着人吗"，**不是**"我在看谁" ——
+        /// 绳子在玩家手上，这个动作跟玩家走（所以它也不吃 `_lastFocusedAgent`：看着别人/没看人都能松）。
+        /// 判定与结算全在 <see cref="GrappleLogic.CutRopeNow"/>（铁律 18：面板只做壳），
+        /// 这里只负责"玩家看起来发生了什么"（冒泡 + 提示行，均走 LWNTextHelper）。
+        /// </summary>
+        private void ExecuteCutRope()
+        {
+            try
+            {
+                var logic = GrappleLogic.Current;
+                if (logic == null || !logic.CutRopeNow(out string msg))
+                {
+                    // 本地化：松绳失败提示（手里没牵着人）
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveText("LWN_ui_cutrope_none", "There's no rope to cut here."), Colors.Gray));
+                    return;
+                }
+
+                // 玩家冒泡（KCD 手感：动作配一句话，与 ExecuteIntervene 同款）
+                AgentHudMissionView.AgentSay(Agent.Main,
+                    // 本地化：LWN_ui_cutrope_bubble（玩家可见文本）
+                    LWNTextHelper.ResolveText("LWN_ui_cutrope_bubble", "Hold still — I'm cutting you loose."), "cutrope");
+
+                // 本地化：松绳成功提示（{NAME}=被放开的对象名）
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveCompound("LWN_ui_cutrope_msg", "Cut {NAME} loose — they'll stand up in a moment.",
+                        ("NAME", msg)), Colors.Yellow));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CutRope] 松绳失败: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// **玩家此刻手里牵着人吗**（钩索「勾人」§13.14 TODO 4 的面板判据）。
+        /// 全部判定在 <see cref="GrappleLogic.IsBindingSomeone"/>，这里只做空转保护。
+        /// </summary>
+        private static bool IsRopeHeld()
+        {
+            try
+            {
+                var logic = GrappleLogic.Current;
+                return logic != null && logic.IsBindingSomeone();
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// <summary>
+        /// 这个 agent 是不是**当前被钩索捆着的那一个**（面板名字后缀用；§13.14 TODO 4 附带）。
+        /// 全部判定在 <see cref="GrappleLogic.IsBindingTarget"/>（空安全 + 引用比较），这里只做空转保护。
+        /// </summary>
+        private static bool IsBoundTarget(Agent agent)
+        {
+            if (agent == null) return false;
+            try
+            {
+                var logic = GrappleLogic.Current;
+                return logic != null && logic.IsBindingTarget(agent);
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// <summary>
         /// 向当前上下文添加一个玩法行：available（响应）与 UI 项（显示）同源添加。
         /// 结构性杜绝"加了响应忘加按钮 / 加了按钮忘加响应"——显隐与响应不可能错位。
         /// </summary>
@@ -686,12 +758,34 @@ namespace LivingWorldNpcs
                 var (_, title, _) = GetChestTexts(chestCtx);
                 _uiTargetName = title;
                 // 本地化：撬锁交互按钮
-                AddInteractionRow(InteractionIds.Lockpick, LWNTextHelper.ResolveText("LWN_ui_interact_lockpick", "Pick Lock"));
+                // 🔴 牵着绳 ⇒ F 长按归【松绳】（见 BuildAgentContext 里 ropeHeld 的说明）
+                if (!IsRopeHeld())
+                    AddInteractionRow(InteractionIds.Lockpick, LWNTextHelper.ResolveText("LWN_ui_interact_lockpick", "Pick Lock"));
             }
             else
             {
                 // 无目标探查：只加响应（UI 隐藏、无按钮），探查键无 focus 看自己
                 _availableIds.Add(InteractionIds.Inspect);
+            }
+
+            // 🔴 **玩家自身状态行**（钩索「勾人」§13.14 TODO 4）：无目标上下文 = "我自己能做什么"的语境 ——
+            //    牵着绳的时候，【松绳】正属于这里（它跟**玩家**走，不跟 focus 走；这是无目标那一份，
+            //    有目标那一份在 <see cref="BuildAgentContext"/> 末尾）。
+            if (IsRopeHeld())
+            {
+                if (!nearChest)
+                {
+                    // 面板标题 = "手里牵着谁"（无目标语境下这条面板讲的是玩家自己，标题得说明白）
+                    string heldName = GrappleLogic.Current?.BoundTargetAgent is Agent held
+                        ? AgentControlHelper.GetDisplayName(held)
+                        : null;
+                    // 本地化：牵着绳时的面板标题（{NAME}=被牵着的对象名）
+                    _uiTargetName = string.IsNullOrWhiteSpace(heldName)
+                        ? LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope")
+                        : LWNTextHelper.ResolveCompound("LWN_ui_rope_held_title", "Rope in hand: {NAME}", ("NAME", heldName));
+                }
+                // 本地化：松绳交互按钮
+                AddInteractionRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
             }
         }
 
@@ -707,6 +801,12 @@ namespace LivingWorldNpcs
             // 非敌意行（Talk/Inspect/Plot/StopPlan/PlayerSurrender 等）照常。
             // 开关打开（允许对友方动手）→ 不过滤。动物无友方概念，天然不命中。
             bool hostileBlocked = IsHostileBlockedOnFriendly(currentAgent);
+
+            // 🔴 **玩家自身状态**（钩索「勾人」§13.14 TODO 4）：手里牵着人吗？
+            //    绳在玩家手上 ⇒【松绳】是"我"的动作，不是"目标"的属性 ⇒ 它跟着**玩家**走、不跟着 focus 走。
+            //    两件事：① 面板末尾无条件多一行【松绳】；② **所有"F 长按"的行给它让位**
+            //    （同键同按法同时可用 = 一次按住触发两件事，那是真会出事的）。
+            bool ropeHeld = IsRopeHeld();
 
             // 目标名（动物用 agent.Name；人类用统一显示名 AgentIdentity——🔴 2026-08-12 模板 NPC 带 #Index；
             // 死亡/昏迷加状态后缀）
@@ -730,6 +830,13 @@ namespace LivingWorldNpcs
                 // 本地化：目标死亡/昏迷/重伤状态后缀
                 name += isAnimal ? LWNTextHelper.ResolveText("LWN_ui_state_dead", "(dead)") : (isKnockedOut ? LWNTextHelper.ResolveText("LWN_ui_state_unconscious", "(unconscious)") : LWNTextHelper.ResolveText("LWN_ui_state_injured", "(badly injured)"));
             }
+            else if (!isAnimal && IsBoundTarget(currentAgent))
+            {
+                // 🔴 被捆状态后缀（钩索「勾人」§13.14 TODO 4 附带）：活着、但正被我们的钩索捆在地上 ——
+                //    名字后挂个标记，玩家一眼看出"这人现在归我处置"（此刻那一行也正是【松绳】）。
+                // 本地化：目标被捆状态后缀
+                name += LWNTextHelper.ResolveText("LWN_ui_state_bound", "(tied up)");
+            }
             _uiTargetName = name;
             // 🔴 2026-08-19（统一规范）：目标名关系色（玩家金 / 友方绿 / 敌对红 / 中立白）
             _uiTargetColor = NameDisplayRules.ResolveHudNameColor(currentAgent);
@@ -739,14 +846,14 @@ namespace LivingWorldNpcs
                 // 动物：活的蹲下可偷（站立时给提示不给按键），死的搜刮
                 if (isAlive)
                 {
-                    if (isCrouching)
+                    if (isCrouching && !ropeHeld)   // 🔴 牵着绳 ⇒ F 长按归【松绳】（见 ropeHeld 注释）
                     {
                         // 本地化：偷动物交互按钮
                         AddInteractionRow(InteractionIds.StealAnimal, LWNTextHelper.ResolveText("LWN_ui_interact_steal_animal", "Steal"));
                     }
                     // 动物活但未蹲：无可用玩法（仅显示名字，不响应输入）
                 }
-                else
+                else if (!ropeHeld)
                 {
                     // 本地化：搜刮交互按钮
                     AddInteractionRow(InteractionIds.Loot, LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"));
@@ -801,7 +908,9 @@ namespace LivingWorldNpcs
                 if (hostileToPlayer && (intent == NpcIntentType.Fighting || intent == NpcIntentType.Surrendering))
                 {
                     // 本地化：认输交互按钮（玩家认输）
-                    AddInteractionRow(InteractionIds.PlayerSurrender, LWNTextHelper.ResolveText("LWN_ui_interact_surrender", "Surrender"));
+                    // 🔴 牵着绳 ⇒ F 长按归【松绳】（见 ropeHeld 注释）
+                    if (!ropeHeld)
+                        AddInteractionRow(InteractionIds.PlayerSurrender, LWNTextHelper.ResolveText("LWN_ui_interact_surrender", "Surrender"));
                     if (intent == NpcIntentType.Surrendering)
                     {
                         // 本地化：接受认输交互按钮（NPC 投降时玩家才能接受）
@@ -813,7 +922,7 @@ namespace LivingWorldNpcs
                     if (isCrouching)
                     {
                         // 🆕 友方保护：友方目标不注册偷窃行（显示与触发双断）
-                        if (!hostileBlocked)
+                        if (!hostileBlocked && !ropeHeld)   // 🔴 牵着绳 ⇒ F 长按归【松绳】
                         {
                             // 本地化：偷窃交互按钮
                             AddInteractionRow(InteractionIds.Pickpocket, LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"));
@@ -822,7 +931,7 @@ namespace LivingWorldNpcs
                     else
                     {
                         // 🆕 友方保护：友方目标不注册击晕行（显示与触发双断）
-                        if (!hostileBlocked)
+                        if (!hostileBlocked && !ropeHeld)   // 🔴 牵着绳 ⇒ F 长按归【松绳】
                         {
                             // 本地化：击晕交互按钮（附难度预览）
                             AddInteractionRow(InteractionIds.Knockout, LWNTextHelper.ResolveCompound("LWN_ui_interact_knockout", ("DIFFICULTY", ComputeKnockoutChance(currentAgent).difficulty)));
@@ -856,6 +965,9 @@ namespace LivingWorldNpcs
                             AddInteractionRow(InteractionIds.Talk, LWNTextHelper.ResolveText("LWN_ui_interact_talk", "Talk"));
                         }
                     }
+                    // 🔴 钩索「勾人」§13.14 TODO 4：目标正被我们捆着 ⇒ **多出一行【松绳】**（不替换任何行）。
+                    //    键位 = **F 长按**，与上面【对话】的 **F 短按** 同键不同按法（本输入系统的既定语义：
+                    //    短按松手即触发；按住超阈值则短按作废、转入长按行蓄力）。
                     // 本地化：探查交互按钮
                     AddInteractionRow(InteractionIds.Inspect, LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"));
                 }
@@ -864,11 +976,21 @@ namespace LivingWorldNpcs
             {
                 // 尸体/昏迷直接搜刮
                 // 🆕 友方保护：友方尸体/昏迷不注册搜刮行（显示与触发双断；动物尸体分支在 isAnimal 内不受影响）
-                if (!hostileBlocked)
+                if (!hostileBlocked && !ropeHeld)   // 🔴 牵着绳 ⇒ F 长按归【松绳】
                 {
                     // 本地化：搜刮交互按钮
                     AddInteractionRow(InteractionIds.Loot, LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"));
                 }
+            }
+
+            // 🔴 **玩家自身状态行**（钩索「勾人」§13.14 TODO 4）：**只要手里牵着人**，面板末尾就多一行【松绳】——
+            //    与"在看谁"无关（绳在玩家手上，这是"我"的动作，不是目标的属性）；没看任何人那一份在
+            //    <see cref="BuildNoTargetContext"/> 末尾。键位 = F 长按，上面所有 F 长按的行都已为它让位。
+            //    2026-10-09 起 NPC 永不自己挣脱 ⇒ 这一行是玩家**唯一**的放人入口（此前只有控制台）。
+            if (ropeHeld)
+            {
+                // 本地化：松绳交互按钮
+                AddInteractionRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
             }
         }
 

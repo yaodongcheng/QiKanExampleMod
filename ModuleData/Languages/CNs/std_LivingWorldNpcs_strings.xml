@@ -4113,6 +4113,12 @@
     <string id="LWN_plan_cancel_player" text="玩家叫停" />
     <string id="LWN_brain_crime_shout" text="站住，{NAME}！" />
     <string id="LWN_ui_interact_intervene" text="调停" />
+    <string id="LWN_ui_interact_cutrope" text="松绳" />
+    <string id="LWN_ui_cutrope_bubble" text="别动——我给你把绳子解开。" />
+    <string id="LWN_ui_cutrope_msg" text="你解开了 {NAME} 身上的绳——他这就起身。" />
+    <string id="LWN_ui_cutrope_none" text="这里没有绳子可解。" />
+    <string id="LWN_ui_rope_held_title" text="手中牵着：{NAME}" />
+    <string id="LWN_ui_state_bound" text="(被捆)" />
     <string id="LWN_ui_intervene_bubble" text="住手！他是我的人！" />
     <string id="LWN_ui_arrest_msg" text="你的随从 {NAME} 被关进了 {SETTLEMENT} 的牢房。" />
     <string id="LWN_ui_companion_ransom" text="赎回随从" />

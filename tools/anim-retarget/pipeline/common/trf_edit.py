@@ -179,6 +179,16 @@ def renumber(t, start=1):
     return r
 
 
+def reverse(t):
+    """倒放：把每根骨的旋转帧与根骨位移帧**整体反转**，再顺排帧号。
+    语义正确性：TRF 存的是【绝对局部旋转】，倒放 = 按时间反序播放同一批绝对姿态，无需取逆。"""
+    r = Trf(); r.name = t.name
+    for bone in t.bones:
+        r.bones.append(list(reversed(bone)))
+    r.root_pos = list(reversed(t.root_pos))
+    return renumber(r)
+
+
 def concat(parts):
     """把若干段首尾相接（自动顺排帧号）。各段骨数必须一致。"""
     r = Trf(); r.name = parts[0].name
@@ -292,6 +302,9 @@ def _main():
     h.add_argument("--frame", type=int, required=True); h.add_argument("--len", type=int, required=True)
     h.add_argument("--out", required=True); h.add_argument("--name")
 
+    rv = sub.add_parser("reverse"); rv.add_argument("--in", dest="inp", required=True)
+    rv.add_argument("--out", required=True); rv.add_argument("--name")
+
     l = sub.add_parser("layer"); l.add_argument("--peak", required=True)
     l.add_argument("--frame", type=int, required=True); l.add_argument("--motion", required=True)
     l.add_argument("--len", type=int, required=True); l.add_argument("--scale", type=float, default=1.0)
@@ -303,6 +316,8 @@ def _main():
         t = cut(read_trf(a.inp), a.f0, a.f1)
     elif a.op == "hold":
         t = hold_at(read_trf(a.inp), a.frame, a.len)
+    elif a.op == "reverse":
+        t = reverse(read_trf(a.inp))
     else:
         t = layer(read_trf(a.peak), a.frame, read_trf(a.motion), a.len,
                   scale=a.scale, mask_legs=not a.no_mask_legs)

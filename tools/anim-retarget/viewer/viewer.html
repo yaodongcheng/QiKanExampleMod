@@ -95,6 +95,25 @@
         播放轴：<span id="offHead">0.00</span> s ／ 循环长 <span id="offLoop">0.00</span> s
       </div>
     </div>
+    <div class="sec" id="duoSec" style="display:none"><b>双人站位（相对受击者）</b>
+      <div class="pg2"><span class="pl2">攻击者</span>
+        <label class="fc">右X<input type="text" id="duX" value="0.000" size="5"></label>
+        <label class="fc">前Y<input type="text" id="duY" value="0.000" size="5"></label>
+        <label class="fc">高Z<input type="text" id="duZ" value="0.000" size="5"></label>
+        <label class="fc">朝向°<input type="text" id="duDir" value="0" size="5"></label>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">
+        <button class="pbtn" id="duRedo">⟲ 重对</button>
+        <button class="pbtn" id="duReset">重置</button>
+        <button class="pbtn" id="duSave">保存到 dataset.json</button>
+        <button class="pbtn" id="duDump">导出 JSON</button>
+      </div>
+      <div id="duMsg" style="font-size:10.5px;color:#8b98ab;margin-top:4px;min-height:14px;line-height:1.5"></div>
+      <textarea id="duJson" readonly style="display:none;width:100%;height:80px;margin-top:6px;background:#161a21;border:1px solid var(--line);color:#9fb0c6;border-radius:6px;font-size:10px;padding:5px;box-sizing:border-box"></textarea>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.7">
+        受击者(女)保持自己的坐标+朝向（=基准）；攻击者(男)按 <b>X右 / Y前 / Z高 / 朝向°</b> 摆过去，<b>只在动作开始时对齐一次</b>，之后全交给各自的动画。改数字后点「⟲ 重对」。
+      </div>
+    </div>
     <div class="sec"><b>显示</b>
       <label class="tg"><input type="checkbox" id="cd" checked>区分材质配色</label>
       <label class="tg"><input type="checkbox" id="cx">显示骨架线</label>
@@ -396,7 +415,7 @@ async function boot(){
   }).join('');
 
   // 成对动画面板：数据集声明了 pairAnchor / fixedClipReplace / clipStart 才显示
-  PAIRMODE = keys.some(k=>{ const s = SIDE[k] || {}; return !!(s.pairAnchor || s.fixedClipReplace || s.clipStart); });
+  PAIRMODE = keys.some(k=>{ const s = SIDE[k] || {}; return !!(s.pairAnchor || s.fixedClipReplace || s.clipStart || s.pairParams); });
   STORE = loadStore();   // localStorage + dataset.json 的 pairs（文件优先）
   (function(){
     const ps = document.getElementById('pairSec');
@@ -739,6 +758,76 @@ function applyPairParams(P, A, B){
   one(A, P.src); one(B, P.dst);
   OFF.A = P.src[3] || 0; OFF.B = P.dst[3] || 0;
 }
+
+/* ---------- 双人站位（相对受击者）：只在动作开始时对齐一次，之后交给动画 ----------
+   受击者(Slave) = 带 duo 配置的那一侧（保持自己的坐标+朝向 = 基准）
+   攻击者(Master)= duo.master 指定的一侧；相对受击者 X右/Y前/Z高/朝向(°)，只对一次 */
+let DUO = null, _duoKey = null, _duoDone = null;
+function duoKey(){ for(const k of Object.keys(SIDE)){ if((SIDE[k]||{}).duo) return k; } return null; }
+const DUO_MASTER = () => { const k = duoKey(); return k ? (((SIDE[k]||{}).duo||{}).master || Object.keys(SIDE)[0]) : null; };
+function syncDuoUI(){
+  if(!DUO) return;
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e && document.activeElement!==e) e.value=v; };
+  set('duX', (DUO.x||0).toFixed(3)); set('duY', (DUO.y||0).toFixed(3));
+  set('duZ', (DUO.z||0).toFixed(3)); set('duDir', (DUO.dir||0).toFixed(1));
+  const ta=document.getElementById('duJson'); if(ta) ta.value=JSON.stringify({duo:DUO}, null, 1);
+}
+function readDuoUI(){
+  if(!DUO) return;
+  const g=id=>document.getElementById(id).value;
+  DUO.x=+g('duX')||0; DUO.y=+g('duY')||0; DUO.z=+g('duZ')||0; DUO.dir=+g('duDir')||0;
+}
+function initDuo(){
+  const vk=duoKey(); const box=document.getElementById('duoSec'); if(!box) return;
+  if(!vk){ box.style.display='none'; DUO=null; return; }
+  box.style.display=''; _duoKey=vk; _duoDone=null;
+  let d=Object.assign({master:Object.keys(SIDE)[0], x:0, y:0, z:0, dir:0}, SIDE[vk].duo||{});
+  const pf=(DS_CFG.pairs||{})[current];
+  if(pf && pf.duo) d=Object.assign(d, pf.duo);
+  DUO=JSON.parse(JSON.stringify(d));
+  const msg=document.getElementById('duMsg'); if(msg) msg.textContent='改数字后点「⟲ 重对」（只对齐开头一次，之后交给动画）。';
+  syncDuoUI();
+}
+function applyDuo(){
+  const vk=duoKey(); if(!vk || !DUO) return;
+  if(_duoDone === current) return;
+  const V=holderFor(vk), M=holderFor(DUO.master);
+  if(!V || !M || !V.bones || !M.bones) return;
+  const f=facingOf(V); if(!f) return;
+  const up=new THREE.Vector3(0,1,0);
+  const rt=new THREE.Vector3().crossVectors(f, up).normalize();           // 受击者右手方向
+  const vKey='pelvis', vb=V.bones[vKey]||V.bones[Object.keys(V.bones)[0]];
+  const mb=M.bones[vKey]||M.bones[Object.keys(M.bones)[0]];
+  if(!vb || !mb) return;
+  const vp=new THREE.Vector3(); vb.getWorldPosition(vp);
+  const tgt=vp.clone().addScaledVector(rt, DUO.x||0).addScaledVector(f, DUO.y||0).addScaledVector(up, DUO.z||0);
+  M.group.rotation.y = V.group.rotation.y + (DUO.dir||0)*Math.PI/180;
+  M.group.updateMatrixWorld(true);
+  const mp=new THREE.Vector3();
+  for(let it=0; it<3; it++){
+    mb.getWorldPosition(mp);
+    M.group.position.x += tgt.x-mp.x; M.group.position.y += tgt.y-mp.y; M.group.position.z += tgt.z-mp.z;
+    M.group.updateMatrixWorld(true);
+  }
+  _duoDone = current;
+}
+(function(){
+  ['duX','duY','duZ','duDir'].forEach(id=>{ const e=document.getElementById(id); if(e) e.addEventListener('input', ()=>{ readDuoUI(); syncDuoUI(); }); });
+  const rs=document.getElementById('duReset'); if(rs) rs.addEventListener('click', ()=>{ initDuo(); });
+  const rd=document.getElementById('duRedo'); if(rd) rd.addEventListener('click', ()=>{ readDuoUI(); _duoDone=null; });
+  const sv=document.getElementById('duSave');
+  if(sv) sv.addEventListener('click', async ()=>{
+    readDuoUI(); const msg=document.getElementById('duMsg');
+    try{
+      const r=await fetch('api/save-pairs?ds='+encodeURIComponent(DS_NAME),
+        {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pairs:{[current]:{duo:DUO}}})});
+      msg.textContent=(r.status>=200&&r.status<300)?('已保存 duo → dataset.json（clip='+current+'）'):('保存失败 HTTP '+r.status);
+    }catch(e){ msg.textContent='保存失败: '+e; }
+  });
+  const dp=document.getElementById('duDump');
+  if(dp) dp.addEventListener('click', ()=>{ readDuoUI(); const ta=document.getElementById('duJson');
+    ta.style.display=(ta.style.display==='none')?'':'none'; syncDuoUI(); });
+})();
 // off > 0：跳过开头 off 秒（动作提前）；off < 0：保持首帧等待 |off| 秒（动作延后）
 function clipTimeFor(head, off, dur){
   return Math.min(Math.max(head + off, 0), Math.max(0, dur - 1e-4));
@@ -1251,6 +1340,8 @@ function tick(){
     try{ const d=document.createElement('div'); d.id='shotdata'; d.style.display='none';
       d.textContent = renderer.domElement.toDataURL('image/png'); document.body.appendChild(d); }catch(e){}
   }
+  if(!_duoKey && duoKey() && holderFor(DUO_MASTER())){ initDuo(); }
+  applyDuo();               // 双人站位：只在动作开始时把攻击者对到受击者的相对位一次
   applyPairAnchors();
   updateMarks();
   updateAxes();

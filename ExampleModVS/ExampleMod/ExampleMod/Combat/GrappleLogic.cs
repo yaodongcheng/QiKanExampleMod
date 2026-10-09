@@ -1413,6 +1413,91 @@ namespace LivingWorldNpcs
 			? "OK: target released (standup plays, AI returns after it finishes)"
 			: "Error: no bound target.";
 
+		/// <summary>
+		/// **玩家此刻手里牵着人吗**（= 钩索捆着某个目标）—— 交互面板【松绳】行的判据（§13.14 TODO 4）。
+		/// 🔴 **跟玩家走、不跟 focus 走**（用户 2026-10-09 拍板）：绳在玩家手上 ⇒ 这是"我"的状态，
+		/// 不能要求玩家把准星精确怼到一具趴着的身体上才给这个键。
+		/// 缠/拽阶段也算（绳已经挂在人身上了）；只有钩头在飞 / 已收回 = false。
+		/// </summary>
+		public bool IsBindingSomeone()
+		{
+			try { return _bind.IsActive && _bind.Target != null; }
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>当前被捆的那一个（没有则 null；面板标题用 —— 见 `IsBindingSomeone` 的说明）。</summary>
+		public Agent BoundTargetAgent
+		{
+			get { try { return _bind.IsActive ? _bind.Target : null; } catch (Exception) { return null; } }
+		}
+
+		/// <summary>
+		/// 这个 agent 是不是**当前被捆的那一个**（面板名字后缀用）。
+		/// 面板每帧都要问，所以做成最便宜的引用比较 + 空安全。
+		/// </summary>
+		public bool IsBindingTarget(Agent a)
+		{
+			if (a == null) return false;
+			try { return _bind.IsActive && ReferenceEquals(_bind.Target, a); }
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>
+		/// **交互面板【松绳】**（§13.14 TODO 4）：放开当前被捆的那一个 ——
+		/// 走既有的 `Release` 那条路：**收钩 + 绳收回 + 放人**（起身动画 → 3.6 秒后把 AI 还回去）。
+		/// **不要目标参数**：判据是"我牵着人吗"（<see cref="IsBindingSomeone"/>），绳子系在谁身上由我们自己知道。
+		/// 返回 false + <paramref name="message"/> = 手里没牵着人。
+		/// </summary>
+		public bool CutRopeNow(out string message)
+		{
+			Agent target = _bind.Target;
+			if (!IsBindingSomeone())
+			{
+				message = "no bound target";
+				return false;
+			}
+			Release("cut rope (interaction panel)");
+			message = target?.Name?.ToString() ?? "the target";
+			DebugLogger.Log($"[CutRope] 玩家松开 {message} 身上的绳（收钩 + 起身动画）");
+			return true;
+		}
+
+		/// <summary>
+		/// **命令层：验收"被捆的人不接命令"**（`custom.grapple bind probe`，TODO 2）——
+		/// 给当前被捆的目标**真发一条命令**（`ComeHere` 目标 = 玩家），对比"事件忽略"计数：
+		/// 计数 +1 = 命令被闸门挡住 ✓；没涨 = 闸门漏了（那时人当场会站起来走过来，肉眼也看得见）。
+		/// 🔴 只在 `Bound` 相位可用 —— 缠/拽还在演，此刻标记尚未立起（放行会把人从半路拽起来）。
+		/// </summary>
+		public string BindProbe()
+		{
+			Agent t = _bind.Target;
+			if (!_bind.IsActive || t == null) return "Error: no bound target.";
+			if (_bind.Current != GrappleBind.Phase.Bound)
+				return $"Error: target not fully bound yet (phase = {_bind.Current}; wait for Bound).";
+
+			var brain = AgentAIController.GetBrainForAgent(t);
+			if (brain == null) return $"Error: target '{t.Name}' has no brain (no AI to gate).";
+
+			int before = brain.BoundEventsDropped;
+			try
+			{
+				AgentAIController.Instance?.SendEventToAgent(t, "ComeHere", Agent.Main);
+			}
+			catch (Exception ex)
+			{
+				return $"Error: sending the probe command failed ({ex.GetType().Name}).";
+			}
+			int after = brain.BoundEventsDropped;
+			string act = "-";
+			try { act = V.ActName(t, 0); } catch (Exception) { }
+
+			return $"OK: sent 'ComeHere' to '{t.Name}' | bound={brain.IsBound} | events ignored {before}->{after}"
+				+ (after > before
+					? " (+1 = the command was blocked by the gate)"
+					: " (NOT blocked -- the gate leaked; the target should be walking over right now)")
+				+ $" | action={act}";
+		}
+
 		/// <summary>命令层：观感验收 —— 强制目标播"躺下 / 躺地循环 / 起身"某一段（`bind anim`）。</summary>
 		public string BindForceAnim(string which) => _bind.ForceAnim(which);
 

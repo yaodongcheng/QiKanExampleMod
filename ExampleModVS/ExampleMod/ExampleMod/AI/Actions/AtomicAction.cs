@@ -1178,6 +1178,17 @@ namespace LivingWorldNpcs
                 _isFinished = true;
                 return;
             }
+            // 🔴 **被捆的人不参战**（钩索「勾人」TODO 2，2026-10-09）：捆着的人不该被任何战斗调度拉起来 ——
+            //    直接结束本动作（与"目标已失效"同一条出口），占位与压制旗标原样留着。
+            //    ⚠️ **必须排在 `ForceUnlockAgent` 之前**：那一句会把被捆者的压制旗标（DoNotRun|NoAttack）
+            //    与脚本位置锁一并清掉 ⇒ 躺着的人就地恢复原生 AI。同理也要排在 IsKnockedOut **之前**：
+            //    捆缚不是击晕，绝不能走下面那条"起立动画"的路（`KnockoutFlow.StandUp` 会把人拉起来）。
+            if (AgentBrain.IsRoped(agent))
+            {
+                _isFinished = true;
+                DebugLogger.Log($"[Brain-Bound] {agent.Name} 被捆 ⇒ 拒绝参战（FightEnemyAction 直接结束，不动任何锁）");
+                return;
+            }
             // 战斗入口必须解锁：ClearAllActions 默认会给 Agent 留下
             // SetScriptedPosition(DoNotRun | NoAttack) 锁，不清除则原生战斗 AI
             // 不能追人也不能出手（登记为战斗者却傻站着）。
@@ -1464,6 +1475,71 @@ namespace LivingWorldNpcs
             // 结束时不需要做特殊清理
             agent.SetLookAgent(null);
             AgentControlHelper.StopAndReset(agent);
+        }
+    }
+
+    /// <summary>
+    /// **被绳索捆缚的常驻行为**（钩索「勾人」步骤 5；2026-10-09 立 = plans\钩索-实施计划.md §13.14 TODO 2）。
+    ///
+    /// 与 <see cref="StayAction"/>（击晕占位）**同构** —— 永不自己结束、钉住位置、压住旗标 —— 但三处刻意不同：
+    ///   ① 🔴 **不接受任何中断**（<see cref="RequestInterrupt"/> 是空操作）：捆缚的**解除钩子只有一个** ——
+    ///      <see cref="GrappleBind"/> 的放人队列（它先 `IsBound = false` 再 `ClearAllActions`，走的是强制路径）；
+    ///   ② **不冒充击晕** —— 不再借 `StayAction(isKnockout: true)`；
+    ///   ③ 锚点可改（<see cref="SetAnchor"/>）—— 拖行（TODO 1）每帧把人往玩家那边挪。
+    ///
+    /// 🔴 **为什么必须从 `StayAction(isKnockout: true)` 换出来**（换之前 = "被捆的人被全系统当成昏迷"）：
+    ///    `AgentBrain.IsKnockedOut` 的第二条判据是 `CurrentAction is StayAction s &amp;&amp; s.IsKnockout` ⇒ 被捆的人
+    ///    被 `FightEnemyAction.OnStart` 当成"晕着要起立"（对他调 `KnockoutFlow.StandUp`，把躺着的人拉起来）、
+    ///    被交互面板当成"失去行动能力"、被计划 DSL 的 `knocked_out(...)` 判真。**捆缚 ≠ 昏迷**（人是清醒的，还能被审/被救）。
+    ///
+    /// 姿势（躺地循环）的**驱动与复核不在这里** —— 在 <see cref="GrappleBind"/>：它在**任何场景**都跑，
+    /// 而本动作只在"非战斗场景"跑（战斗场景下 `AgentBrain.Tick` 整体早退）。
+    /// </summary>
+    public class BoundAction : IAtomicAction
+    {
+        /// <summary>机械动作：不产生旁白（捆缚这件事由 <see cref="GrappleBind"/> 侧记录）。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        /// <summary>捆缚期间钉住的世界位置（躺哪就在哪）。</summary>
+        private Vec3 _anchor;
+        private float _holdTimer;
+
+        /// <summary>改锚点（拖行用；不调 = 一直钉在 OnStart 那一刻的位置）。</summary>
+        public void SetAnchor(Vec3 worldPos) { _anchor = worldPos; }
+
+        /// <summary>🔴 **空操作** —— 捆缚只由 <see cref="GrappleBind"/> 解除（见类注释①）。</summary>
+        public void RequestInterrupt() { }
+
+        public void OnStart(Agent agent)
+        {
+            if (agent == null) return;
+            _anchor = agent.Position;
+            Hold(agent);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            if (agent == null) return;
+            // 同 StayAction：0.2s 一次原地重置（旗标/速度限制可能被别的系统清掉，反复压回去）
+            _holdTimer += dt;
+            if (_holdTimer < 0.2f) return;
+            _holdTimer = 0f;
+            Hold(agent);
+        }
+
+        private void Hold(Agent agent)
+        {
+            try { AgentControlHelper.MoveEndAndInteractPrepare(agent, _anchor); }
+            catch (Exception) { }
+        }
+
+        /// <summary>永不自己结束（解除 = <see cref="GrappleBind"/> 走 `ClearAllActions` 的强制路径）。</summary>
+        public bool IsFinished(Agent agent) => false;
+
+        public void OnEnd(Agent agent)
+        {
+            try { agent?.SetLookAgent(null); } catch (Exception) { }
+            if (agent != null) AgentControlHelper.StopAndReset(agent);
         }
     }
 

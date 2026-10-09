@@ -1454,7 +1454,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   on|off                      总开关（关 = 勾到人也只挂住不动 = 旧行为）
 		///   test                        对**最近的可捆目标**直接走整套（不走飞行；机制验收主入口）
 		///   release                     立刻放开当前目标（起身动画 + 稍后还 AI）
-		///   state                       状态一行（目标 / 相位 / 计时 / 当前动作名 / 钩位置）
+		///   probe                       验收"被捆的人不接命令"：真发一条 ComeHere 给目标，看"事件忽略"计数涨不涨
+		///   state                       状态一行（目标 / 相位 / 计时 / 当前动作名 / 钩位置 / 接管计数）
 		///   time &lt;秒&gt;                 超时自动挣脱（默认 20）
 		///   drag &lt;米&gt;                 拽倒时朝玩家拖多远（默认 2）
 		///   yankhold / yankpull / fallwait &lt;秒&gt;   拽倒三段：绷住（默认 0.15）→ 猛拽（0.25）→ 倒下（0.70）
@@ -1479,6 +1480,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					return logic.BindStateLine();
 				case "release":
 					return logic.BindRelease();
+				case "probe":
+					return logic.BindProbe();
 				case "test":
 					return logic.BindTest(FindNearestBindableAgent(30f));
 				case "time":
@@ -1555,10 +1558,23 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				}
 				case "anim":
 					return logic.BindForceAnim(ArgAt(args, at + 1) ?? "auto");
+				// 🔴 原版 AI 冻结开关（2026-10-09）：关掉 = 回到"只压旗标"的旧行为，做 A/B 用。
+				//    旗标只禁"跑/攻击"，**不禁走、不禁选目标** ⇒ 战斗场景里关掉它对方照旧打架。
+				case "aipause":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleBind.PauseVanillaAI = false; }
+					else if (m == "1" || m == "on") { GrappleBind.PauseVanillaAI = true; }
+					else if (m != null && m != "state") { return "Error: bind aipause expects 0|1"; }
+					return $"OK: pause target's vanilla AI = {GrappleBind.PauseVanillaAI}"
+						+ (GrappleBind.PauseVanillaAI
+							? " (SetIsAIPaused(true) while bound -- this is what actually holds them in battle)"
+							: " (OFF: only DoNotRun|NoAttack are pressed -- they will still be driven by the combat AI in battle)");
+				}
 				case "panim":
 					return DoBindPanim(args, at);
 			}
-			return "Error: bind expects on|off|test|release|state|time|drag|wrap|anim|panim";
+			return "Error: bind expects on|off|test|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|yank|blowforce|blowalt|anim|panim|aipause";
 		}
 
 		/// <summary>

@@ -699,16 +699,18 @@ namespace LivingWorldNpcs
                 }
             }
         }
-        /// <summary>D4 路径 ②：动作被脑 ClearAllActions 清掉（战斗/护主/击晕/ReactiveAgent 搭话/目击围观）
+        /// <summary>D4 路径 ②：动作被脑 ClearAllActions 清掉（战斗/护主/击晕/**被绳索捆缚**/ReactiveAgent 搭话/目击围观）
         /// → 计划中止（graceful，走既有 @abort_gracefully 词汇）+ 收尾报告立即发。
         /// 玩家在场且脱得开身 → 当面报告（needFaceReport：玩家就在旁边却收密信出戏）；
-        /// 战斗中/击晕（脱不开身）→ 密信通道。</summary>
+        /// 战斗中/击晕/**被捆**（脱不开身）→ 密信通道。</summary>
         private void OnExternalClear(ActorCursor cursor, PlanStep step)
         {
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 步骤 {step.Id}（{step.Action}）动作被外部清除 → 计划中止");
             bool canFaceReport = true;
             var brain = AgentAIController.GetBrainForAgent(cursor.Agent);
-            if (brain != null && (brain.IsInCombat || AgentBrain.IsKnockedOut(cursor.Agent)))
+            // 被捆者也算"脱不开身"（钩索「勾人」TODO 2，2026-10-09）：躺着的人没法当面汇报。
+            if (brain != null && (brain.IsInCombat || AgentBrain.IsKnockedOut(cursor.Agent)
+                || AgentBrain.IsRoped(cursor.Agent)))
                 canFaceReport = false;   // 脱不开身 → 密信（不打断战斗/不叫晕着的人起来转述）
             Finish(ExecutorState.Aborted, PlanTexts.Aborted, needFaceReport: canFaceReport);
         }
