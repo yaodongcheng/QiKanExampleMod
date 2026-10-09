@@ -242,6 +242,16 @@ namespace LivingWorldNpcs.Flight
             _clock += dt;
             Current = this;                 // 给别的系统查（飞行中施法要问"在飞吗"）
 
+            // 🔴 **MCM 总闸**（`Settings.FlightEnabled`，默认关闭）—— 这里管"已经在飞"的那一半：
+            //    开关一关就**立刻收摊**，走的是和「玩家阵亡 / tick 异常」同一条收尾路径
+            //    （`AbortFlight`：拆板 + 把动画通道还给引擎 + 相位归位），不会把冻结状态泄漏出去。
+            //    起飞侧的限制在 `TickGrounded` 里（键盘不响应，但按下沿照样消费）。
+            if (!Settings.Instance.FlightEnabled && _phase != Phase.Grounded)
+            {
+                DebugLogger.Log("[Flight] MCM 飞行开关已关闭 → 强制退出飞行");
+                AbortFlight();
+            }
+
             // 🔴 **坠落接缝：从 XML 读"哪个状态算坠落"**（`when="fall-trigger"` 那条边）——
             //    定义一个进程只装载一次 ⇒ 查一次就够。名字读不到 = 退回"机外 = 出机那一刻"的老写法
             //    （那条路下空中回飞会把人瞬移到地面，只是别把飞行卡死）。
@@ -421,7 +431,14 @@ namespace LivingWorldNpcs.Flight
             //    · 🔴 按下沿**无条件消费**（不管冻没冻、开没开），否则它会跨帧滞留
             //      （在地面起跳那一帧没消费掉 → 下一帧正好离地 → 一跳就直接飞）。
             bool pressed = FlightInput.ConsumeSpacePress();
-            if (FlightTuning.TakeoffByDoubleJump && !main.IsOnLand() && pressed)
+
+            // 🔴 **MCM 总闸**（`Settings.FlightEnabled`，默认关闭）—— 关着 = 键盘不响应起飞。
+            //    ⚠️ 但上面那行**照样消费按下沿**、下面长按也照原样消费：只"读掉丢掉"、不进相位逻辑。
+            //       不消费会跨帧滞留，玩家下次打开开关时一按就直接飞（与上面那条纪律同源）。
+            //    控制台 `custom.flight on` 走 ForceStart，**不受本闸门限制**（显式开发/验收命令）。
+            bool takeoffAllowed = Settings.Instance.FlightEnabled;
+
+            if (takeoffAllowed && FlightTuning.TakeoffByDoubleJump && !main.IsOnLand() && pressed)
             {
                 DebugLogger.Log("[Flight] 二段跳起飞（跳跃中按空格）");
                 BeginTakeoff(main);
@@ -431,10 +448,14 @@ namespace LivingWorldNpcs.Flight
             // 后备：长按空格起飞。🔴 **默认保留** —— 长按同时还是**落地**的触发
             // （`TickAirborne` 里那条），所以"长按管进出"的对称手感还在。
             // 不想要长按起飞就 `custom.flight tune longpressjump 0`（落地触发不受影响）。
-            if (FlightTuning.TakeoffByLongPress && FlightInput.ConsumeSpaceLongPress())
+            if (FlightTuning.TakeoffByLongPress)
             {
-                DebugLogger.Log("[Flight] 长按空格起飞（后备触发）");
-                BeginTakeoff(main);
+                bool longPress = FlightInput.ConsumeSpaceLongPress();
+                if (takeoffAllowed && longPress)
+                {
+                    DebugLogger.Log("[Flight] 长按空格起飞（后备触发）");
+                    BeginTakeoff(main);
+                }
             }
         }
 
@@ -2168,7 +2189,12 @@ namespace LivingWorldNpcs.Flight
             if (main == null || !AgentControlHelper.SafeIsActive(main))
                 return "no player agent";
             BeginTakeoff(main, ridingBoard: _phase == Phase.Falling && FlightTuning.FallRide && _board.IsSpawned);
-            return _phase == Phase.Takeoff ? "takeoff started" : "takeoff failed (carrier spawn failed?)";
+            string result = _phase == Phase.Takeoff ? "takeoff started" : "takeoff failed (carrier spawn failed?)";
+            // 🔴 MCM 总闸关着时这条命令**仍然生效**（显式开发/验收命令不受玩家开关约束），
+            //    但要说清楚 —— 否则"命令飞得起来、键盘飞不起来"看着像 bug。
+            if (!Settings.Instance.FlightEnabled)
+                result += "  [note: Mod Options 'Flight' is OFF - keyboard takeoff stays disabled; this console command bypasses it]";
+            return result;
         }
 
         /// <summary>控制台强制出机（= 与"空中按空格"同一条路：引擎原生掉落接管，掉着按空格可回飞）。</summary>

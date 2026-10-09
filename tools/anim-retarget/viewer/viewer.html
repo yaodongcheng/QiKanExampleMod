@@ -97,9 +97,9 @@
     </div>
     <div class="sec" id="duoSec" style="display:none"><b>双人站位（相对受击者）</b>
       <div class="pg2"><span class="pl2">攻击者</span>
-        <label class="fc">右X<input type="text" id="duX" value="0.000" size="5"></label>
-        <label class="fc">前Y<input type="text" id="duY" value="0.000" size="5"></label>
-        <label class="fc">高Z<input type="text" id="duZ" value="0.000" size="5"></label>
+        <label class="fc">右<input type="text" id="duX" value="0.000" size="5"></label>
+        <label class="fc">前<input type="text" id="duY" value="0.000" size="5"></label>
+        <label class="fc">高+Y<input type="text" id="duZ" value="0.000" size="5"></label>
         <label class="fc">朝向°<input type="text" id="duDir" value="0" size="5"></label>
       </div>
       <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">
@@ -111,7 +111,8 @@
       <div id="duMsg" style="font-size:10.5px;color:#8b98ab;margin-top:4px;min-height:14px;line-height:1.5"></div>
       <textarea id="duJson" readonly style="display:none;width:100%;height:80px;margin-top:6px;background:#161a21;border:1px solid var(--line);color:#9fb0c6;border-radius:6px;font-size:10px;padding:5px;box-sizing:border-box"></textarea>
       <div style="font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.7">
-        受击者(女)保持自己的坐标+朝向（=基准）；攻击者(男)在<b>动画自带相对位</b>上按 <b>X右 / Y前 / Z高 / 朝向°</b> <b>叠加</b>偏移（全 0 = 保持动画自带、不动手；拖数字才叠加）。改数字后点「⟲ 重对」。
+        受击者(女)保持自己的坐标+朝向（=基准）；攻击者(男)在<b>动画自带相对位</b>上按 <b>右 / 前 / 高(+Y) / 朝向°</b> <b>叠加</b>偏移（全 0 = 保持动画自带、不动手；拖数字才叠加）。改数字后点「⟲ 重对」。
+        <br><span style="color:#6b7686">注：这三项是<b>沿角色自身</b>的「右 / 前 / 高」方向，不是世界轴。世界轴见 3D 场景里的 <b style="color:#ff4d4d">X</b>/<b style="color:#3ddc84">Y(上)</b>/<b style="color:#4d7dff">Z</b> 箭头。</span>
       </div>
     </div>
     <div class="sec" id="trsSec">

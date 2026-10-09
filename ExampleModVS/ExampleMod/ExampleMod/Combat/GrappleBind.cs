@@ -898,7 +898,7 @@ namespace LivingWorldNpcs
 				if (ActionIndexCache.Create(action) != ActionIndexCache.act_none) return;
 				if (!s_warnedActions.Add(action)) return;
 				DebugLogger.Log($"[Grapple] 勾人：🔴 动作名解析不到 —— '{action}' 是 act_none！"
-					+ " 检查内容包 action_types.xml（声明）+ action_sets.xml（映射到 anim_dungeon_prisoner_lay* 三条原版 clip）。"
+					+ " 检查本模块（LWN）ModuleData/action_types.xml（声明）+ action_sets.xml（映射到 anim_dungeon_prisoner_lay* 三条原版 clip）。"
 					+ " 症状 = 目标不会躺下/起身（引擎静默跳过，无报错）。");
 			}
 			catch (Exception) { }

@@ -55,6 +55,18 @@ namespace LivingWorldNpcs
             set => Settings.Instance.PlotEnabled = value;
         }
 
+        // ── 玩家飞行总闸（默认关闭，透传核心 Settings）──
+        // Order = 6：这里是**显示最顶部**（本页按 Order 降序显示；现有最大是密信总闸的 5）。
+        //            想挪位置改这个数即可（比 5 小 = 排到密信下面）。
+        [SettingPropertyBool("{=LWN_mcm_flight}Flight", Order = 6, RequireRestart = false,
+            HintText = "{=LWN_mcm_flight_hint}When enabled, the player can take off: while airborne (e.g. mid-jump, or falling) press Space — or hold Space. Disabled by default. When turned off mid-flight you are set down immediately. The console command 'custom.flight on' still works while this is off (explicit dev/acceptance command).")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool FlightEnabled
+        {
+            get => Settings.Instance.FlightEnabled;
+            set => Settings.Instance.FlightEnabled = value;
+        }
+
         // ── LLM 配置（透传核心 Settings；IsLLMConfigured 在调用点实时计算 → 无需重启）──
         [SettingPropertyText("{=LWN_mcm_llm_base_url}LLM API Base URL", Order = 4, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_base_url_hint}The LLM API endpoint base URL, e.g. https://api.example.com/v1")]

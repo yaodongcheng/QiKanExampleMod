@@ -4044,6 +4044,8 @@
     <string id="LWN_dialogue_companion_crime_deny_ok" text="...Very well. Leave, then. But keep him away from here." />
     <string id="LWN_dialogue_companion_crime_handover_msg" text="You hand over {NAME} to the guards." />
     <string id="LWN_crime_suspect_unknown" text="that companion of yours" />
+    <string id="LWN_mcm_flight" text="Flight" />
+    <string id="LWN_mcm_flight_hint" text="When enabled, the player can take off: while airborne (e.g. mid-jump, or falling) press Space (or hold Space). Disabled by default. Turning it off mid-flight sets you down immediately. The console command custom.flight on still works while this is off." />
     <string id="LWN_mcm_plot_enabled" text="Messaging (tested)" />
     <string id="LWN_mcm_plot_enabled_hint" text="When enabled, you can send natural-language messages to companions (press the message key near a companion). Disabled by default; when off, the messaging entry is hidden but already-running plans can still be stopped." />
     <string id="LWN_mcm_hostile_on_allies" text="Allow Hostile Interactions on Allies" />

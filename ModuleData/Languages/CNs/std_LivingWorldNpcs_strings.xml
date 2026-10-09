@@ -2651,7 +2651,9 @@
     <string id="LWN_mcm_display_name" text="Living World NPCs" />
     <!-- 分组：设置（单组。MCM footer 式标题渲染下多组会错位，见 MCMSettings.cs 注释） -->
     <string id="LWN_mcm_grp_main" text="设置" />
-    <string id="LWN_mcm_plot_enabled" text="传讯(测试版)" />
+    <string id="LWN_mcm_flight" text="飞行" />
+  <string id="LWN_mcm_flight_hint" text="开启后玩家可以起飞：在空中（跳跃中，或正在下落）按空格，或长按空格。默认关闭。飞行途中关掉会立刻把你放回地面。控制台命令 custom.flight on 不受此开关限制。" />
+  <string id="LWN_mcm_plot_enabled" text="传讯(测试版)" />
     <string id="LWN_mcm_plot_enabled_hint" text="开启后，可对随从发送自然语言传讯（面向随从按下传讯键）。默认关闭；关闭时传讯入口隐藏，但已执行中的战术仍可用停止键终止。" />
     <string id="LWN_mcm_hostile_on_allies" text="允许对友方使用敌意互动" />
     <string id="LWN_mcm_hostile_on_allies_hint" text="关闭时，击晕/偷窃/搜刮/攻击将不能作用于友方——友方定义见 config.json 的 FriendlyRelationCriteria（默认：同队伍 + 同家族）与 FriendlyRelationThreshold（好感阈值）。默认开启（敌意互动均为长按蓄力触发，误触概率低）。无论开关，友方旁观者看到你对别人犯罪都会无动于衷。" />

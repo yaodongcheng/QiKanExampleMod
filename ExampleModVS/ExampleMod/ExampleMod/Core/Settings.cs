@@ -55,6 +55,14 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool PlotEnabled { get; set; } = false;
 
+        // ── 玩家飞行总闸（🔴 默认关闭；唯一来源 = MCM Mod 选项 UI，config.json 不读）──
+        // true  = 键盘能起飞（二段跳 / 长按空格，见 Flight/PlayerFlightBehavior.TickGrounded）
+        // false = 键盘不响应起飞；**已经在飞的会被就地收摊**（AbortFlight，与"玩家阵亡"同一条收尾路径）
+        // 🔴 关掉只是关**玩法入口**，控制台 `custom.flight on` 仍可强制起飞（开发/验收用）——
+        //    它是显式命令，不受玩家开关约束。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool FlightEnabled { get; set; } = false;
+
         // ── 口吻参数（config.json 侧；世界观 flavor 已退场，2026-08-17：WorldDescription/EraDescription
         // 删除——世界观改由 LLM 自动生成（WorldBackgroundBehavior），见 plans/world-background-auto-summary.md）──
         // 说话风格默认值：口语化、贴合中世纪背景，禁用现代网络用语

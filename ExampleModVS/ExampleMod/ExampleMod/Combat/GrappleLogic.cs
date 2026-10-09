@@ -127,7 +127,7 @@ namespace LivingWorldNpcs
 		public static float PullStartSeconds = 1.133f;
 
 		/// <summary>
-		/// **release 动作的长度**（秒，= 内容包 clip `grapple_ground_release` 的时长；**2026-10-07 晚重切后 = 0.566 s**）：
+		/// **release 动作的长度**（秒，= 本模块资产包 `lwn_core.tpac` 里 clip `grapple_ground_release` 的时长；**2026-10-07 晚重切后 = 0.566 s**）：
 		/// 开火后过这么久，引擎的甩出动作演完 ⇒ C# 把状态机送进"过程"（pull 段无缝接上）。
 		/// ⚠️ **用户每重切一次动画，这个数就要跟着改**（历次：0.333 → 1.167 → **0.566**）。
 		/// </summary>
@@ -182,7 +182,7 @@ namespace LivingWorldNpcs
 		///    ⚠️ 参考量级：腕→掌心 ≈ 0.08、腕→指尖 ≈ 0.18~0.20 ⇒ 0.25 已经**在指尖之外**，
 		///    绳的近端与钩的圆心都会浮在手前方一点（用户明确要这个数）。要贴回手心就 `palm 0.08`。
 		/// </summary>
-		public static float HandPalmOffset = 0.25f;
+		public static float HandPalmOffset = 0.20f;
 
 		/// <summary>
 		/// **圆心再沿轴外移**（米，`custom.grapple armaxis &lt;档&gt; [米]`；**默认 0**）——
