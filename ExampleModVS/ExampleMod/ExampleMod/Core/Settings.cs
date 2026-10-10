@@ -299,6 +299,16 @@ namespace LivingWorldNpcs
             // 🔴 键位 = **F 长按**，与【对话】的 **F 短按** 同键不同按法，同一次按下各按各自阈值触发
             //    （本输入系统的既定语义，与 Loot/Knockout 那一族"F 长按"同款；同键**同按法**才算冲突）。
             [InteractionIds.CutRope] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
+            // 拉紧 / 扛起·放下（2026-10-10 用户要的两件；钩索「勾人」步骤 6）：
+            // 🔴 **都挂 G 长按**，靠**情境互斥**分开 ——
+            //    · 牵着绳 + 离目标 > 3 米 ⇒ 【拉紧】（绳绷上力，把人拽倒）
+            //    · 牵着绳 + 瞄着被捆的人 + 距离够 ⇒ 【扛起】；已经扛着 ⇒ 【放下】
+            //    两条互斥的判据：扛起要求"够得着"（≤ carry maxdist，默认 3 米），
+            //    而拉紧要求"够不着"（> 3 米）⇒ **同一时刻只可能出一条**。
+            // 🔴 牵着绳时 **Plot / StopPlan（也是 G 长按）让位** —— 理由同【松绳】占 F 长按那套：
+            //    手被绳子占着，且对随从下令本来也该先松开绳。
+            [InteractionIds.TugRope] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
+            [InteractionIds.LiftCarried] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
             // 施法（阶段 3 起手轴）：**按住蓄力、松手放**。
             // 🔴 默认键 = X，**不是 R** —— R 是原版"切换第一人称/视角"的键，按下去会**同时**触发切视角
             //    （我们的 ModInput 是轮询读取、不吞键，所以物理键冲突会双触发；2026-09-24 用户实机报的）。

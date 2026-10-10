@@ -153,6 +153,35 @@ log("镜像 = %s（只翻转根骨位移的 %s 分量）" % (_MIRROR, "xyz"[_axi
 F = Euler((0.0, 0.0, math.radians(float(args.flip))), 'XYZ').to_matrix()
 log("帧变换 F = Rot(Z,%s deg)" % args.flip)
 
+# ─────────────────────────── 整体转身 --yaw（2026-10-10 补）───────────────────────────
+# 🔴 **为什么以前没有**：这条线的源是 **3ds Max Biped 拆包素材**，每条 FBX 各自一个场景，
+#    **角色朝向五花八门**（实测同一批里从 0° 到 170° 都有）；而 UE 那条线的素材恰好都是
+#    正面朝前，所以 `--yaw` 这个缺口一直没暴露 —— 直到 `binded_*`（+90°）在实机里
+#    **整个人朝右**（骑砍2 骨架本地系 +Y=前 / +X=右）才被抓到。
+#    `run_retarget.py` 早就声明并透传了 `--yaw`（帮助文字写的正是这件事），
+#    但本脚本**收下就扔**（只有 pose_mediapipe 那条线真的实现了）。
+#
+# 🔴 **怎么施加：转【源】的姿态与位置，绝不转根骨。**
+#    先例（pose_mediapipe/retarget.py 同款注释，有 FK 复核记录）：
+#    本算法的每根骨都被"瞄准"到源方向（`R = F(sp·rp⁻¹)Fᵀ`），
+#    **根骨上的旋转会被子骨的瞄准抵消** —— 实测把 −69.4° 加在根骨上，
+#    骨盆朝向确实转了，但手的位置一动没动 ⇒ "骨盆拧了、四肢原地"的变形骨架。
+#    正解 = 把源的世界姿态/位置整体绕世界 Z 转，再照常解算 ⇒ 全链一致。
+#    数学上：Rz 与 F 都是绕 Z 的旋转、可交换 ⇒ 等价于把结果的世界朝向左乘 Rz。
+#
+# 🔴 **同一批状态机片段必须用同一个值**（否则状态之间朝向会跳）——
+#    取值办法：`Debug/offline/_trf_face_check.py` 量**产出**相对骨架静止姿势的偏航，
+#    归零即对（站着/趴着的都能量）。
+_YAW = float(args.yaw) if getattr(args, "yaw", None) not in (None, "") else 0.0
+RZ = Matrix.Rotation(math.radians(_YAW), 3, 'Z') if abs(_YAW) > 1e-9 else None
+log("整体转身 --yaw = %+.2f°%s" % (_YAW, "" if RZ is not None else "（未施加：0 = 保持源朝向）"))
+
+
+def yawed(v):
+    """把**源世界系**的向量 / 3×3 矩阵整体绕世界 Z 转 `--yaw` 度。0 时原样返回。"""
+    return v if RZ is None else (RZ @ v)
+
+
 tgt_rest_w = {t: rot3(tgt.matrix_world @ tgt.data.bones[t].matrix_local) for t in PAIRS.values()}
 
 
@@ -217,7 +246,7 @@ for _i in range(N_OUT):
     sc.frame_set(_sf); bpy.context.view_layer.update()
     W = {}
     for s, t in PAIRS.items():
-        sp = rot3(sanim.matrix_world @ sanim.pose.bones[s].matrix)          # 当帧世界姿态
+        sp = yawed(rot3(sanim.matrix_world @ sanim.pose.bones[s].matrix))   # 当帧世界姿态（整体转身后再算）
         rp = rot3(srest.matrix_world @ srest.data.bones[s].matrix_local)    # 站姿静姿（世界）
         R = F @ (sp @ rp.inverted()) @ F.transposed()
         A = A_align.get(t)
@@ -274,17 +303,17 @@ elif args.pelvis == "embrace":
         _of = 1 + _i
         _sf = int(round(fs + _i * SRC_STEP))
         sc.frame_set(_sf); bpy.context.view_layer.update()
-        sp = (slv.matrix_world @ slv.pose.bones["Bip001 Pelvis"].matrix).translation   # Slave 坐标
+        sp = yawed((slv.matrix_world @ slv.pose.bones["Bip001 Pelvis"].matrix).translation)   # Slave 坐标
         # Slave 朝向 = 其根骨的"静止前向(+X)"被当前姿态旋转后的方向
-        _sw = slv.matrix_world @ slv.pose.bones["Bip001"].matrix
-        _delta = (_sw.to_3x3() @ _slv_rest.to_3x3().inverted())
+        _sw = yawed((slv.matrix_world @ slv.pose.bones["Bip001"].matrix).to_3x3())
+        _delta = (_sw @ _slv_rest.to_3x3().inverted())
         _fwd = (_delta @ Vector((1.0, 0.0, 0.0)))
         _yaw = _m.atan2(_fwd.y, _fwd.x)
         _dir = _yaw + _ang
         _dest = Vector((sp.x + _m.cos(_dir) * _dist, sp.y + _m.sin(_dir) * _dist, 0.0))
         # Master 自己的 Z
         p_own = (sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation
-        p_src = Vector((_dest.x, _dest.y, p_own.z))
+        p_src = Vector((_dest.x, _dest.y, p_own.z))   # 只借它的 z；xy 来自 _dest（已含 yaw）
         m = PB.matrix.copy()
         m.translation = w2a @ ((F @ p_src) * _k)
         PB.matrix = m; bpy.context.view_layer.update()
@@ -317,9 +346,9 @@ elif args.pelvis == "attach":
         _of = 1 + _i
         _sf = int(round(fs + _i * SRC_STEP))
         sc.frame_set(_sf); bpy.context.view_layer.update()
-        p_own = (sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation
-        cm = car.matrix_world @ car.pose.bones[args.attach_bone].matrix
-        p_sock = cm @ _off
+        p_own = yawed((sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation)
+        cm = car.matrix_world @ car.pose.bones[args.attach_bone].matrix      # 4×4（下面 cm @ _off 是"点变换"）
+        p_sock = yawed(cm @ _off)
         _d = (p_own - p_sock).length
         _w = 0.0 if _d >= _r1 else (1.0 if _d <= _r0 else (_r1 - _d) / (_r1 - _r0))
         if _w >= 0.999: _npin += 1
@@ -359,9 +388,9 @@ elif args.pelvis == "scaled":
         sc.frame_set(_sf); bpy.context.view_layer.update()
         # 绝对映射：源骨盆世界位置 -> 过帧变换 F、按站立高等比缩放。这样"已经抬起来"的
         # 姿态（如被扛着走）也保留抬升量；两人在同一场景的相对站位也一并保留。
-        p = (sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation
+        p = yawed((sanim.matrix_world @ sanim.pose.bones["Bip001 Pelvis"].matrix).translation)
         if _sub is not None:
-            _ps = (_sub.matrix_world @ _sub.pose.bones["Bip001 Pelvis"].matrix).translation
+            _ps = yawed((_sub.matrix_world @ _sub.pose.bones["Bip001 Pelvis"].matrix).translation)
             p = Vector((p.x - _ps.x, p.y - _ps.y, p.z))     # A相对B：水平相减，竖直各自保留
         m = PB.matrix.copy()
         _pw = (F @ p) * k

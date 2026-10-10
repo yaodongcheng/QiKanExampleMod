@@ -389,6 +389,13 @@
     <Compile Include="Combat\GrappleAnimMachine.cs" />
     <Compile Include="Combat\GrappleAnimConditions.cs" />
     <Compile Include="Combat\GrappleAimCamera.cs" />
+    <!-- 🔴 步骤 6「被绑套件 + 扛人」（2026-10-10；方案 = plans\钩索-实施计划.md §十五）：
+         被绑者与扛人者**各一台状态机**（定义在 ModuleData/statemachines/bind.xml / carry.xml），
+         + 扛人的配对控制器（同帧起播 / 每帧摆位 / 放下收尾）。
+         🔴 三个文件都要在（不登记 = 静默不编译 + VS 报"找不到类型"，雷 40）。 -->
+    <Compile Include="Combat\BindAnimMachine.cs" />
+    <Compile Include="Combat\CarryAnimMachine.cs" />
+    <Compile Include="Combat\GrappleCarry.cs" />
     <Compile Include="CampaignMode\Tools\GrappleCommands.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />

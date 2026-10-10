@@ -295,7 +295,26 @@ namespace LivingWorldNpcs
                 //    逐帧取证实测：循环动作一圈里只有中段是真的在播（2026-09-22，见 anim_trace）。
                 executeAgent.SetActionChannel(0, actionIndex, false, 0UL, 0f, 1f, -0.2f, 0f, 0f, false, -0.2f, 0, true);
 
-                return $"OK: {executeAgent.Name} plays '{actionName}' (duration {duration:0.00}s){durNote}{note}";
+                // 🔴 **被优先级挡住就强制重播一次**（2026-10-10 加）。
+                //    第 3 个参数 `ignorePriority: false` = **尊重优先级** ⇒ 当前通道上压着一条
+                //    **更高优先级**的 clip 时，这一发会被**静默丢弃**（引擎不报错，看着就像"命令没反应"）。
+                //    实机现场：播完 `act_grapple_bound_cycle`（当时 P10 循环）之后，P0 的那些全都不播了。
+                //    本命令是**观感验收工具**，职责是"想看的动画一定能看见"，不是复刻引擎的仲裁
+                //    ⇒ 同帧回读一眼，没换过去就**强制**（`ignorePriority: true`）并如实写在返回里。
+                //    ⚠️ 回读只在同帧判"索引换没换"，不看权重（blend 还没起来时权重恒 0，那个不能当判据）。
+                bool forced = false;
+                try
+                {
+                    if (executeAgent.GetCurrentAction(0) != actionIndex)
+                    {
+                        executeAgent.SetActionChannel(0, actionIndex, true, 0UL, 0f, 1f, -0.2f, 0f, 0f, false, -0.2f, 0, true);
+                        forced = true;
+                    }
+                }
+                catch (System.Exception) { }
+
+                return $"OK: {executeAgent.Name} plays '{actionName}' (duration {duration:0.00}s){durNote}{note}"
+                     + (forced ? " [note: the channel was held by a higher-priority clip -> forced past it]" : string.Empty);
             }
             catch (System.Exception e)
             {

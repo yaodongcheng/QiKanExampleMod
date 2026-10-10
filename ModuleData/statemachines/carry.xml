@@ -1,0 +1,46 @@
+<!-- **扛人者**的姿态状态机（2026-10-10 立；方案 = plans\钩索-实施计划.md §十五）。
+
+     🔴 **改这个文件不用重编译** —— 重启游戏即生效（由 Combat/CarryAnimMachine.cs 装载）。
+        读者与校验规则同 bind.xml（顶部注释里那两条）。
+
+     ─────────────────────────── 这台机管谁 ───────────────────────────
+     管**扛人的人**。他不一定是玩家 —— `GrappleCarry.Begin(carrier, carried)` 两边都是 Agent，
+     将来 NPC 扛人也直接复用（铁律 18 平权）。**这里一个"玩家"字样都不该有。**
+
+     ─────────────────────────── 两件事要分清 ───────────────────────────
+     · **竖直 0.68 米（把人托到肩上）在被扛者的动画里**，不在这台机里 —— 扛人者这一侧是"原地"的
+       （根骨水平位移已归零，实测净 0.000 m）。
+     · **玩家扛着人时的腿归引擎的移动层**（"边走边挥刀腿照走"就是它）：本机把 `扛行/扛走` 写在
+       0 号通道，**腿由移动层按速度挑** ⇒ 读作"手在抱人、腿照走"。这是引擎本来的分层方式，
+       不是我们抢来的（见 Knowledge/骑砍2动画通道与上下半身分层.md）。
+
+     ─────────────────────────── 什么时候切换（全从下面 <edges> 读；C# 里没有状态名）───────────────────────────
+       carry-trigger   玩家【扛起】        -> 扛起   （事件边，C# Force）
+       put-trigger     玩家【放下】        -> 放下   （事件边，C# Force）
+       carry-moving    扛人者在移动        扛行 ⇄ 扛走
+       放下 演到剩 15% -> outside（放人收摊，把 0 号通道还给引擎）
+
+     🔴 **`放下 → outside` 是本机的唯一出口**：`anim-rem-pct="15"` = "这条 clip 剩 15% 的时候出机"
+        （照飞行"超人落地"那条的形状写）。C# 侧用 `TryEventExit("outside", …)` 读它。
+-->
+<state_machine name="carry" finish-margin="0.15">
+	<families>
+	</families>
+	<states>
+		<state name="扛起" act="act_grapple_carry_lift" once="true" next="扛行" />
+		<state name="扛行" act="act_grapple_carry_idle" />
+		<state name="扛走" act="act_grapple_carry_walk" />
+		<state name="放下" act="act_grapple_carry_reverse" once="true" />
+	</states>
+	<edges>
+		<edge from="outside" to="扛起" when="carry-trigger" event="true" />
+
+		<edge from="扛行" to="扛走" when="carry-moving" />
+		<edge from="扛走" to="扛行" when="carry-moving" not="true" />
+
+		<edge from="扛行" to="放下" when="put-trigger" event="true" />
+		<edge from="扛走" to="放下" when="put-trigger" event="true" />
+
+		<edge from="放下" to="outside" anim="remaining" anim-rem-pct="15" />
+	</edges>
+</state_machine>

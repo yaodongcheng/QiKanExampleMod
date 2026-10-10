@@ -161,7 +161,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
-					|| s == "bind"
+					|| s == "bind" || s == "carry"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens"
 					|| s == "sound")
 				{
@@ -1000,6 +1000,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					result = DoBind(logic, args, at);
 					break;
 
+				// ─────────────── 步骤 6：扛人（被扛者纵向位移在动画里，2026-10-10）───────────────
+
+				case "carry":
+					result = DoCarry(logic, args, at);
+					break;
+
 				case "pulltime":
 				{
 					float v = ParseF(args, at + 0, -1f);
@@ -1662,6 +1668,44 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				}
 				case "anim":
 					return logic.BindForceAnim(ArgAt(args, at + 1) ?? "auto");
+				// ── 🔴 2026-10-10 新口径（步骤 6）的三个旋钮 ──
+				//    `tug` = **【拉紧】**：把被捆住的人拽倒（命中不再自动拽倒 —— 那是用户拍板的新口径）
+				case "tug":
+					return logic.BindTug();
+				case "tugmin":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: tug min distance = {GrappleBind.TugMinDistance:F1}m (you must be FURTHER than this to pull the bound one off their feet; measured from the feet)";
+					GrappleBind.TugMinDistance = v;
+					return $"OK: tug min distance = {v:F1}m";
+				}
+				case "laytime":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: bind laytime = {GrappleBind.LaySeconds:F1}s (after being tugged down, the target stands up by itself; 0 = never)";
+					GrappleBind.LaySeconds = v;
+					return v <= 0f
+						? "OK: laytime = 0 (once tugged down they stay down until you release them)"
+						: $"OK: laytime = {v:F1}s (auto stand-up after being tugged down)";
+				}
+				case "laystart":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: bind laystart = {GrappleBind.LayStartProgress:F2} (start progress of the lay-down clip; 0 = play it from the beginning)";
+					if (v < 0f || v > 1f) return "Error: bind laystart expects 0..1";
+					GrappleBind.LayStartProgress = v;
+					return $"OK: laystart = {v:F2}";
+				}
+				case "struggle":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { if (logic.BindStruggleState) logic.BindToggleStruggle(); }
+					else if (m == "1" || m == "on") { if (!logic.BindStruggleState) logic.BindToggleStruggle(); }
+					else if (m == "toggle") { logic.BindToggleStruggle(); }
+					else if (m != null && m != "state") { return "Error: bind struggle expects 0|1|toggle"; }
+					return $"OK: struggling = {logic.BindStruggleState}"
+						+ " (station bound <-> struggling; no automatic trigger yet -- manual switch)";
+				}
 				// 🔴 原版 AI 冻结开关（2026-10-09）：关掉 = 回到"只压旗标"的旧行为，做 A/B 用。
 				//    旗标只禁"跑/攻击"，**不禁走、不禁选目标** ⇒ 战斗场景里关掉它对方照旧打架。
 				case "aipause":
@@ -1678,7 +1722,87 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case "panim":
 					return DoBindPanim(args, at);
 			}
-			return "Error: bind expects on|off|test|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|yank|blowforce|blowalt|anim|panim|aipause";
+			return "Error: bind expects on|off|test|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause";
+		}
+
+		/// <summary>
+		/// **`custom.grapple carry …`**（2026-10-10，步骤 6「扛人」；方案 = plans\钩索-实施计划.md §十五）。
+		///
+		/// 把**当前被钩索捆住**的那个人扛到肩上 / 放下来。
+		/// 🔴 **竖直那 0.68 米不在代码里** —— 在被扛者自己的动画里（根骨位置轨）。
+		///    本族只负责"XZ 贴住扛人者 + 朝向对齐"，见 <see cref="GrappleCarry"/> 的类注释。
+		///
+		/// 子命令：
+		///   on | off                    总开关（关 = 面板不出现【扛起】、命令直接拒）
+		///   start                       把当前被捆的人扛起来（默认扛人者 = 玩家）
+		///   put                         放下（两边同帧起播"放下/被放下"，演完才松手）
+		///   state                       状态一行（扛人者状态机 / 被扛者动作 / 距离 / 在不在动 / 偏移）
+		///   offset &lt;前后&gt; [左右]     摆位微调（米；默认 0 —— 对齐量本来就烘在被扛者的动画里）
+		///   maxdist &lt;米&gt;            起扛的最大距离（默认 3.0）
+		/// </summary>
+		private static string DoCarry(GrappleLogic logic, List<string> args, int at)
+		{
+			string what = (ArgAt(args, at + 0) ?? "state").ToLowerInvariant();
+			switch (what)
+			{
+				case "on":
+					return logic.CarrySetEnabled(true);
+				case "off":
+					return logic.CarrySetEnabled(false);
+				case "state":
+					return logic.CarryStateLine();
+				case "start":
+				{
+					if (!logic.CarryPickUp(out string why))
+						return $"Error: cannot pick up ({why}).";
+					return "OK: picking the bound target up (both sides start their carry clip on the same frame)";
+				}
+				case "put":
+				{
+					if (!logic.CarryPutDown(out string why))
+						return $"Error: cannot put down ({why}).";
+					return "OK: putting them down (both sides play the put-down clip; we let go when it is done)";
+				}
+				case "offset":
+				{
+					float fwd = ParseF(args, at + 1, float.NaN);
+					float right = ParseF(args, at + 2, float.NaN);
+					if (float.IsNaN(fwd)) return $"grapple: carry offset = {GrappleCarry.OffsetForward:F2} forward / {GrappleCarry.OffsetRight:F2} right (0/0 = use the alignment baked in the carried animation)";
+					return logic.CarrySetOffset(fwd, float.IsNaN(right) ? GrappleCarry.OffsetRight : right);
+				}
+				// ── Z 三件（2026-10-10 用户："扛起之后每帧写 xy，z 也尝试一下"）──
+				case "z":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleCarry.WriteZ = false; }
+					else if (m == "1" || m == "on") { GrappleCarry.WriteZ = true; }
+					else if (m != null && m != "state") { return "Error: carry z expects 0|1"; }
+					return $"OK: write carrier Z to the carried agent = {GrappleCarry.WriteZ}"
+						+ " (the engine usually re-derives Z from the terrain; watch the '[Grapple] Z probe' log to see which one happens)";
+				}
+				case "zlift":
+				{
+					float v = ParseF(args, at + 1, float.NaN);
+					if (float.IsNaN(v)) return $"grapple: carry zlift = {GrappleCarry.ZLift:F2}m (added on top of the carrier's Z)";
+					GrappleCarry.ZLift = v;
+					return $"OK: carry zlift = {v:F2}m";
+				}
+				case "zprobe":
+				{
+					float v = ParseF(args, at + 1, float.NaN);
+					if (float.IsNaN(v)) return $"grapple: carry zprobe = {GrappleCarry.ZProbeSeconds:F2}s (0 = off)";
+					GrappleCarry.ZProbeSeconds = v;
+					return v <= 0f ? "OK: carry Z probe off" : $"OK: carry Z probe every {v:F2}s (log tag '[Grapple] 扛人 Z 探针')";
+				}
+				case "maxdist":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: carry maxdist = {GrappleCarry.MaxLiftDistance:F1}m (measured from the feet)";
+					GrappleCarry.MaxLiftDistance = v;
+					return $"OK: carry maxdist = {v:F1}m";
+				}
+			}
+			return "Error: carry expects on|off|start|put|state|offset|maxdist|z|zlift|zprobe";
 		}
 
 		/// <summary>

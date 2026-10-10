@@ -164,6 +164,13 @@ namespace LivingWorldNpcs
 					DebugLogger.Log("[Grapple] 开火排队作废：没有 GrappleLogic（Ensure 也拿不到）");
 					return;
 				}
+				// 🔴 **扛着人的时候不开火**（手占着，2026-10-10 步骤 6 口径）——
+				//    拦下的那一发直接作废；**弹已经在上面退过了**（退弹是幂等的，不花玩家的）。
+				if (logic.IsCarryingSomeone)
+				{
+					DebugLogger.Log("[Grapple] 扛着人 ⇒ 这一发作废（手占着；放下之后再开火）");
+					return;
+				}
 				string note = logic.ThrowFromShot(_pendingShotOrigin, _pendingShotDir);
 				DebugLogger.Log($"[Grapple] 开火（排队执行）→ {note}");
 			}

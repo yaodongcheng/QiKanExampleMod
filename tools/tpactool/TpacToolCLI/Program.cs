@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -36,6 +36,9 @@ string alphaTestArg = null; // matflags: 新的 alphaTest 阈值
 string blendArg = null;     // matflags: 新的 blend 模式
 bool withAlphaArg = false;  // texreplace: 走 BC3/DXT5（带 alpha）而不是 DXT1
 bool inPlaceArg = false; // clipprio: 原地覆盖（自动备份）
+bool fixArg = false;     // clipload: 真的改（不加 = 只查）
+int rotFrameArg = 1;     // animrot: 第几帧（负数 = 倒数）
+int rotBoneArg = 0;      // animrot: 第几根骨
 string dispArg = null;   // clipset: "X,Y,Z"
 string endArg = null;    // clipset: endProgress（可省）
 string durArg = null;    // clipduration: 新 Duration（秒），或 "auto"
@@ -69,6 +72,9 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--blend": blendArg = cmdLine[++i]; break;
             case "--alpha": withAlphaArg = true; break;
             case "--inplace": inPlaceArg = true; break;
+            case "--fix": fixArg = true; break;
+            case "--frame": rotFrameArg = int.Parse(args[++i]); break;
+            case "--bone": rotBoneArg = int.Parse(args[++i]); break;
             case "--disp": dispArg = cmdLine[++i]; break;
             case "--end": endArg = cmdLine[++i]; break;
             case "--duration": durArg = cmdLine[++i]; break;
@@ -407,6 +413,33 @@ switch (command)
     case "animbones":
         // 离线量「这条动画动了哪些骨」—— 筛"轨道里没写腿"的动画用（引擎没有按骨遮罩接口）
         return AnimBones.Run(assets, byGuid, filter, allArg);
+    case "clipraw":
+    {
+        // 打 clip 的**未命名字段**（2026-10-10 立）—— 起因 = ModKit 报
+        //   `Animation is flagged Load_when_needed but already shorter than 3.000 seconds!` + native 断言。
+        // 从 wEditor 的 `TaleWorlds.Native.dll` 里挖到：clip 有一个 **`loading_type`** 字段，
+        //   取值 `Always_keep_in_memory` / `Load_when_needed` / `Never_load`，
+        //   而引擎的规矩是「Load_when_needed 的时长必须 > 3 秒」（"shortening time limit"）——
+        //   短于 3 秒直接断言。`clipinfo` 打不出它（它在 `AnimationClip.ReadMetadata` 那几个
+        //   `Unknown*` 字段里，本工程的反编译没给它们命名）⇒ 这条命令把未知字段全摊开，
+        //   **哪条的取值和别的不一样，哪条就是被标了 Load_when_needed 的**。
+        var cs = assets.OfType<AnimationClip>()
+            .Where(a => filter == null || a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(a => a.Name)
+            .ToList();
+        foreach (var c in cs)
+        {
+            Console.WriteLine($"{c.Name}\tdur={c.Duration:F3}"
+                              + $"\tunkInt={c.UnknownInt}\tunkUInt2={c.UnknownUInt2}\tunkUShort={c.UnknownUShort}"
+                              + $"\tgenIdx={c.GeneratedIndex}");
+        }
+        if (cs.Count == 0)
+        {
+            Console.WriteLine("no animation clip matched");
+            return 1;
+        }
+        return 0;
+    }
     case "clipinfo":
     {
         // AnimationClip 全字段速查：Duration / Source 区间 / Flags / ClipUsages（含 displacement 向量）
@@ -444,6 +477,48 @@ switch (command)
         if (clips.Count == 0)
         {
             Console.WriteLine("no animation clip matched");
+            return 1;
+        }
+        return 0;
+    }
+    case "clipload":
+        // 查 / 改 AnimationClip 的 loading_type（0 = Always_keep_in_memory / 1 = Load_when_needed / 2 = Never_load）。
+        // 起因 = ModKit 开工程弹 "Animation is flagged Load_when_needed but already shorter than 3.000 seconds!"
+        // + native 断言（rglSkeleton_inner_data.h:633）。见 Clipload.cs 头注释。
+        return Clipload.Run(dir, filter, fixArg, outDir, inPlaceArg);
+
+    case "animrot":
+        // 打某条动画某帧的骨骼四元数（默认第 1 帧；--bone N 指定骨、--allbones 全打）——
+        // 判"人朝哪边"的读数必须落在交付包上（见 AnimRot.cs 头注释）。
+        return AnimRot.Run(assets, byGuid, filter, rotFrameArg, rotBoneArg, allArg);
+
+    case "animsus":
+    {
+        // 找"带可疑布尔位的动画"—— 2026-10-10 立，起因 = ModKit 开工程时报
+        //   `WARNING: Animation is flagged Load_when_needed but already shorter than 3.000 seconds!`
+        //   紧跟一条 native 断言（`rglSkeleton_inner_data.h:633`，`duration > …_time_limit_second`）。
+        // `SkeletalAnimation.ReadMetadata` 的七个字段里**只有 `UnknownBool` 是个布尔**
+        // （上游注释：*false for almost all animation. true for a few which have strange name*）
+        // ⇒ 它就是"Load when needed（内存缩短优化）"最可能的载体。
+        // 本命令把每条动画的 Duration / UnknownBool / UnknownInt 全打出来，按 Duration 升序 ——
+        // **短（≤ 阈值）且 bool=true 的那条就是元凶**。
+        float limit = 3.0f;   // 引擎报的阈值（秒）
+        var sus = assets.OfType<SkeletalAnimation>()
+            .Where(a => filter == null || a.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(a => a.Duration)
+            .ToList();
+        foreach (var a in sus)
+        {
+            // 帧数 → 秒：本工程 TRF 一律 30 fps（重定向管线的固定口径）
+            float sec = a.Duration / 30f;
+            string mark = (a.UnknownBool && sec <= limit) ? "  <<< SUSPECT (flagged + shorter than limit)"
+                        : (a.UnknownBool ? "  (flagged, long enough)" : "");
+            Console.WriteLine($"{a.Name}\tframes={a.Duration}\tsec={sec:F3}\tunknownBool={a.UnknownBool}"
+                              + $"\tunknownInt={a.UnknownInt}{mark}");
+        }
+        if (sus.Count == 0)
+        {
+            Console.WriteLine("no skeletal animation matched");
             return 1;
         }
         return 0;

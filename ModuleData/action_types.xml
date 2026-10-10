@@ -198,4 +198,28 @@
 	<action name="act_grapple_bound_lay" />
 	<action name="act_grapple_bound_cycle" />
 	<action name="act_grapple_bound_standup" />
+
+	<!-- 被捆缚姿势套件（2026-10-10，步骤 6「被绑套件 + 扛人」；方案 = plans\钩索-实施计划.md §十五）。
+	     这一批**全部指向用户新做的自家 clip**（bind / kangqi 两套，在 lwn_core.tpac）——
+	     上面那三条 `act_grapple_bound_*` 也一并换指向（原来是原版地牢囚犯躺地三条，现在是自家三件套）。
+	     稳态改成**站着被捆**（用户 2026-10-10 拍板）：命中第一拍 = crash，站着循环 = idle，
+	     只有玩家【拉紧】才拉倒（拉倒后定时自己起来）。
+	     🔴 同样是**裸声明**：全部由我们自己的状态机（bind.xml / carry.xml）发，不进引擎的武器流程。
+	     🔴 加动作名**三处都要**：① 本文件声明 ② action_sets.xml 映射 ③ 谁引用它（漏①= AV，雷 169）。 -->
+
+	<!-- ── 被绑者（站缚一族 + 挣扎 + 被牵走）── -->
+	<action name="act_grapple_bound_crash" />
+	<action name="act_grapple_bound_idle" />
+	<action name="act_grapple_bound_struggle" />
+	<action name="act_grapple_bound_walk" />
+	<!-- ── 被扛者（扛在肩上的人）── -->
+	<action name="act_grapple_carried_lift" />
+	<action name="act_grapple_carried_idle" />
+	<action name="act_grapple_carried_walk" />
+	<action name="act_grapple_carried_reverse" />
+	<!-- ── 扛人者（可能是玩家，将来也可能是 NPC）── -->
+	<action name="act_grapple_carry_lift" />
+	<action name="act_grapple_carry_idle" />
+	<action name="act_grapple_carry_walk" />
+	<action name="act_grapple_carry_reverse" />
 </action_types>

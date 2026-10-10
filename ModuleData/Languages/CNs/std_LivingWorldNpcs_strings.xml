@@ -4116,6 +4116,18 @@
     <string id="LWN_brain_crime_shout" text="站住，{NAME}！" />
     <string id="LWN_ui_interact_intervene" text="调停" />
     <string id="LWN_ui_interact_cutrope" text="松绳" />
+    <!-- 钩索「勾人」步骤 6（2026-10-10）：拉紧 / 扛起·放下 -->
+    <string id="LWN_ui_interact_tug" text="拉紧" />
+    <string id="LWN_ui_interact_lift" text="扛起来" />
+    <string id="LWN_ui_interact_putdown" text="放下来" />
+    <string id="LWN_ui_tug_fail" text="要拉开 {DIST} 米以上才拽得动他。" />
+    <string id="LWN_ui_tug_msg" text="你用力一扯（{DIST} 米）。{NOTE}" />
+    <string id="LWN_ui_tug_bubble" text="给我过来！" />
+    <string id="LWN_ui_lift_fail" text="不行：{WHY}" />
+    <string id="LWN_ui_lift_ok" text="你把他扛到了肩上。" />
+    <string id="LWN_ui_lift_bubble" text="起来吧你。" />
+    <string id="LWN_ui_putdown_ok" text="你把他放了下来。" />
+    <string id="LWN_ui_putdown_bubble" text="下去吧。" />
     <string id="LWN_ui_cutrope_bubble" text="别动——我给你把绳子解开。" />
     <string id="LWN_ui_cutrope_msg" text="你解开了 {NAME} 身上的绳——他这就起身。" />
     <string id="LWN_ui_cutrope_none" text="这里没有绳子可解。" />

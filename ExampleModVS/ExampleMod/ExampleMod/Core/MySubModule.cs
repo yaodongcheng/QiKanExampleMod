@@ -173,6 +173,10 @@ namespace LivingWorldNpcs
                 // 钩索（2026-10-04）：放后面 —— 复用的 fall-trigger / land-trigger 靠飞行先登记
                 // （本机也有"没有才登记"的兜底，顺序其实无所谓）。
                 GrappleAnimMachine.Register();
+                // 被绑者 + 扛人者（2026-10-10，步骤 6「被绑套件 + 扛人」；方案 = plans\钩索-实施计划.md §十五）。
+                // 定义在 ModuleData/statemachines/bind.xml / carry.xml —— 改那两个文件不用重编译。
+                BindAnimMachine.Register();
+                CarryAnimMachine.Register();
             }
             catch (Exception ex)
             {

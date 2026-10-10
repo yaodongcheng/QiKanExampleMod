@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LivingWorldNpcs.Animation;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -8,25 +9,35 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
 	/// <summary>
-	/// **步骤 5「勾人」的目标侧控制器**（2026-10-09 立；方案 = plans\钩索-实施计划.md §十三）。
+	/// **步骤 5/6「勾人 → 捆住 → 拉倒 / 被扛」的目标侧控制器**（2026-10-09 立；2026-10-10 改口径）。
+	/// 方案 = plans\钩索-实施计划.md §十三（初版）+ §十五（现行口径）。
 	///
-	/// 四拍（钩头命中人之后）：
-	///   ① **缠 Wrapping** —— 钩绕目标躯干一圈（半径越绕越紧、高度胸口→腰），绳尾贴身体绕
-	///      （<see cref="GrappleRope.SetTailPin"/>，否则绳是两点直线、会从人身上穿过去）；
-	///   ② **倒 Yanking** —— 目标被拽向玩家（原地倒下、拖 <see cref="DragDistance"/> 米），
-	///      同时起播"躺下去"动画（<see cref="LayAction"/>，从 <see cref="LayStartProgress"/> 起播）；
-	///   ③ **缚 Bound** —— 躺地**循环**动画（<see cref="CycleAction"/>，原版地牢囚犯那三条之一）；
-	///      AI 被压制（brain.IsBound + 脚本旗标），超时 <see cref="BoundSeconds"/> 自己挣脱；
-	///   ④ **解 Releasing** —— 起身动画（<see cref="StandupAction"/>）→ 播完再把 AI 还回去。
+	/// 🔴 **2026-10-10 起：姿态不再由本文件直接 ForcePlayAction，改由状态机管**
+	///    （定义在 `ModuleData/statemachines/bind.xml`，一台机走到底：受击 → 站缚 → 拉倒 → 趴缚
+	///     → 起身 → 被扛起 → 被扛行 → 被放下）。本文件只做三件事：
+	///      ① 填上下文（<see cref="BindAnimContext"/>）；
+	///      ② 在**相位切换**时按"时刻名"把机器 Force 进对应状态（`bind-hit` / `yank-trigger` / …）；
+	///      ③ AI 压制（旗标 + 原版 AI 冻结 + 脑标记）与收尾（还 AI）。
+	///    **本文件里一个状态名都没有** —— 改图（bind.xml）即可改行为，不用重编译。
+	///
+	/// 相位（本文件的粗粒度）：
+	///   ① **缠 Wrapping** —— 钩绕目标躯干一圈（半径越绕越紧、高度胸口→腰），绳尾贴身体绕；
+	///   ② **受击** —— 缠完那一刻 Force `bind-hit` ⇒ 播 crash（1.7 s 一次性，**不倒地**）→ 自动接站缚；
+	///   ③ **站缚（稳态）** —— 用户 2026-10-10 拍板：**被捆住的默认姿势是站着**；
+	///   ④ **【拉紧】拉倒** —— 三段位移（绷住 → 猛拽 → 倒下）+ 起播"拉倒" ⇒ 趴缚循环；
+	///      **定时自动起身**（<see cref="LaySeconds"/>），不必玩家做什么；
+	///   ⑤ **【扛起】/【放下】** —— 由 <see cref="GrappleCarry"/> 驱动（同一台机里的"被扛起/被扛行/被放下"）；
+	///   ⑥ **解 Releasing** —— 置 `Released` ⇒ **走哪条路由 bind.xml 决定**（站着直接出机、
+	///      趴着先演起身再出机），本文件只负责"等机器出机之后把 AI 还回去"。
 	///
 	/// 🔴 **平权（铁律 18）**：判定与结算全在本文件（<see cref="Begin"/> / <see cref="Tick"/> /
 	///    <see cref="Release"/> / <see cref="Abort"/>），玩家侧只留"输入 + 相机"壳
 	///    （<see cref="GrappleLogic"/> 负责把钩的相位与绳的远端接到这里）⇒ 将来 NPC 用钩索直接复用。
 	///
 	/// 🔴 **依赖的两条已验证先例**（别另创）：
-	///    · NPC 动画接管 = `AgentControlHelper.ForcePlayAction`（先例 KnockoutFlow：切 as_human_warrior + 通道 0）；
-	///      但**循环件必须显式 `blendOutPeriodToNoAnim = 0`**（默认 0.4 会把躺地循环淡出）。
-	///    · "让人一直躺着手脚不动" = 击晕那套（brain 事件 → 清行为 + 永不结束的 StayAction 占位）。
+	///    · "让人一直站着/躺着不动" = 击晕那套（brain 事件 → 清行为 + 永不结束的 BoundAction 占位）
+	///      + **引擎层的原版 AI 冻结**（`SetIsAIPaused`，见 <see cref="PauseVanillaAI"/>）；
+	///    · 姿态被抢回来 = 状态机自带的 `RecheckStolen`（每 0.5 s 核对 0 号通道），本文件不再自己抢。
 	/// </summary>
 	internal sealed class GrappleBind
 	{
@@ -75,8 +86,20 @@ namespace LivingWorldNpcs
 		/// <summary>终点离玩家至少留多远（米）—— 别拉到贴脸。</summary>
 		public static float MinPlayerDistance = 3.0f;
 
-		/// <summary>"躺下去"动画从哪个进度起播（0~1）。0.35 = 跳过"慢慢蹲下"的开头，直接进"倒下去"。</summary>
-		public static float LayStartProgress = 0.35f;
+		/// <summary>"拉倒"动画从哪个进度起播（0~1）。
+		/// 🔴 **2026-10-10 起默认 0**：新的自家 clip `binded_lay_start`（0.733 s / 22 帧）本身就是
+		/// 用户专门抽帧做的"拉倒"，**不需要再跳过开头**（旧的 0.35 是给原版 3.6 s 的地牢囚犯躺下用的）。
+		/// 旋钮留着：观感不对时可以往后跳。命令 `custom.grapple bind laystart &lt;0~1&gt;`。 </summary>
+		public static float LayStartProgress = 0f;
+
+		/// <summary>
+		/// **【拉紧】把人拉倒之后，多久自动起身**（秒；用户 2026-10-10 拍板："过一会也会起来"）。
+		///
+		/// 计时从"拽倒三段走完、拉倒动画起播"那一刻算起；到点 Force `rise-trigger`
+		/// ⇒ 播 `binded_lay_end`（2.33 s）→ 自动落回站缚。趴着期间玩家【松绳】/ 收摊 = 立即起身（走 released 那条）。
+		/// 命令 `custom.grapple bind laytime &lt;秒&gt;`（0 = 拉倒后永不自动起身，调试档）。
+		/// </summary>
+		public static float LaySeconds = 6.0f;
 
 		/// <summary>
 		/// 捆缚**自动挣脱**的超时（秒）。🔴 **默认 0 = 永不挣脱**（2026-10-09 用户裁定："不要让 NPC 自己挣脱"）——
@@ -85,11 +108,22 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static float BoundSeconds = 0f;
 
-		/// <summary>起身动画时长（秒）—— 起身队列用它决定"多久之后把 AI 还回去"。</summary>
-		public static float StandupSeconds = 3.6f;
+		/// <summary>
+		/// **"解"的兜底超时**（秒）—— 放人之后等状态机自己出机（站着 = 立刻出；趴着 = 先演起身 2.33 s）。
+		/// 正常路径由状态机走到机外触发（见 <see cref="TickPending"/>）；这个数只是**防呆**：
+		/// 机器因故没出机时也必须把 AI 还回去，否则那个人被永久冻住（比"多站两秒"严重得多）。
+		/// </summary>
+		public static float StandupSeconds = 3.0f;
 
 		/// <summary>拽倒时先把目标转向玩家（`SetMovementDirection`，与 GrapplePull.FaceToward 同一套已验证写法）。</summary>
 		public static bool FacePlayerOnYank = true;
+
+		/// <summary>
+		/// **【拉紧】的距离门槛**（米，2026-10-10 用户裁定："绳子系上之后**并且我离绳子另一端的 agent
+		/// 超过 3 米**，就可以拉紧把对方拉倒在地"）。**从脚底量**（`Agent.Position`）。
+		/// 面板那一行由 <see cref="GrappleLogic.CanTugRope"/> 管；命令 `custom.grapple bind tugmin &lt;米&gt;`。
+		/// </summary>
+		public static float TugMinDistance = 3.0f;
 
 		/// <summary>
 		/// 捆缚期**压制复核间隔**（秒；0 = 关）。每这么多个秒复核一次"旗标 + AI 冻结 + 躺地循环还在不在"，
@@ -120,8 +154,7 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static bool PauseVanillaAI = true;
 
-		/// <summary>姿势被抢回了几次（诊断用：正常应恒为 0；`bind state` 会打出来）。</summary>
-		private int _poseReasserts;
+		/// <summary>压制复核的计时器（<see cref="VerifySuppression"/>）。</summary>
 		private float _verifyTimer;
 
 		/// <summary>冻 / 解冻目标的原版 AI（幂等；失败只记日志不抛）。
@@ -175,11 +208,9 @@ namespace LivingWorldNpcs
 		/// <summary>Blow 模式的诊断锚点：出手那一刻目标在哪（1 秒后打位移差，判断"引擎到底推没推、往哪推"）。</summary>
 		private Vec3 _blowOrigin;
 
-		// 三条动作名（本模块 action_types.xml 声明 + action_sets.xml 映射到**原版**地牢囚犯躺地 clip；
-		// 写错 = 静默 act_none、播不出来 ⇒ `bind state` 会把当前动作名打出来核对）。
-		public const string LayAction = "act_grapple_bound_lay";
-		public const string CycleAction = "act_grapple_bound_cycle";
-		public const string StandupAction = "act_grapple_bound_standup";
+		// 🔴 **动作名已经搬进状态机定义**（`ModuleData/statemachines/bind.xml`）——
+		//    本文件不再直接播任何一段姿态，所以这里没有 `LayAction` 之类的常量了
+		//    （动作名 ↔ clip 名的接线在 `ModuleData/action_types.xml` / `action_sets.xml`）。
 
 		// ───────────────────────────── 运行时状态 ─────────────────────────────
 
@@ -189,6 +220,38 @@ namespace LivingWorldNpcs
 		private float _t;                    // 本相位计时
 		private float _boundTimer;
 		private string _note = "-";
+
+		// ── 状态机（2026-10-10）：一台机管"被绑者的一生"，本文件只填上下文 + 按时刻 Force ──
+		private AgentAnimStateMachine _machine;
+		private BindAnimContext _ctx;
+
+		/// <summary>正在演"解"那一段的人（机器还在跑起身动作）—— 出机之后才还 AI，见 <see cref="TickPending"/>。
+		/// 🔴 **机器与上下文也一起搬过来**（不是共用 <see cref="_machine"/>）：否则"旧目标还在起身、
+		///    新目标已经被勾中"时两台机会互相踩（<see cref="Begin"/> 会重置那两组字段）。</summary>
+		private Agent _releasing;
+		private AgentAnimStateMachine _releaseMachine;
+		private BindAnimContext _releaseCtx;
+		private float _releaseTimer;
+
+		/// <summary>【拉紧】拉倒之后"多久自动起身"的倒计时（&lt;= 0 = 没在倒计时）。</summary>
+		private float _layTimer;
+
+		/// <summary>扛人者（谁把目标扛在肩上；没在扛 = null）。**只用来读它的速度** —— 被扛行/被扛走的判据。</summary>
+		private Agent _carrier;
+
+		/// <summary>在挣扎（`站缚 ⇄ 挣扎`）。🔴 本轮**没有自动判据**，由 `custom.grapple bind struggle 0|1` 手动置 ——
+		/// 什么情况下算"在闹"还没定，先把线接齐、行为留空（免得凭空发明一套规则）。</summary>
+		private bool _struggling;
+
+		/// <summary>
+		/// 目标**现在是趴着的**（被拉倒、还没起身）。
+		///
+		/// 为什么要有这个标志（而不是去问状态机"你在哪个状态"）：**C# 里不许出现状态名**
+		/// （状态名可以在编辑器里随手改，写死 = 改完静默失效）。趴/站这件事**只有两个写入者**
+		/// （<see cref="EnterLaidOut"/> 置 true、起身那一刻置 false），所以本文件自己记最省事。
+		/// 消费者 = <see cref="GrappleCarry.Begin"/>（"扛起"那条动画是**从站着的人身上**开始的）。
+		/// </summary>
+		private bool _lying;
 
 		// 缠：圆心/起始角/当前角度与半径（绳尾钉要用同一组数）
 		private Vec3 _center;
@@ -216,12 +279,9 @@ namespace LivingWorldNpcs
 			public string Why;
 		}
 
-		/// <summary>观感验收：强制目标播某一段（`custom.grapple bind anim lay|cycle|standup`）；null = 交回流程。</summary>
+		/// <summary>观感验收：锁在某一段（`custom.grapple bind anim …`）；null = 交回流程。
+		/// 现在它只做一件事：**压住"拉倒后自动起身"的倒计时**（否则看到一半人就自己爬起来了）。</summary>
 		private string _forcedAnim;
-
-		/// <summary>这一绑有没有真的把人放倒（进过 <see cref="Phase.Bound"/>）——
-		/// 决定"放人"时要不要播起身动画（见 <see cref="BeginStandup"/>）。</summary>
-		private bool _wentDown;
 
 		/// <summary>本轮拽倒是否已经起播"倒下"动画（三段的第③段只触发一次）。</summary>
 		private bool _fallStarted;
@@ -232,6 +292,21 @@ namespace LivingWorldNpcs
 		public Phase Current => _phase;
 		public Agent Target => _target;
 		public string Note => _note;
+
+		/// <summary>目标侧那台状态机（扛人时 <see cref="GrappleCarry"/> 要按时刻 Force 它）。没进机 = null。</summary>
+		internal AgentAnimStateMachine Machine => _machine;
+
+		/// <summary>目标侧状态机的上下文（扛人要写 <see cref="BindAnimContext.CarrierMoving"/>）。</summary>
+		internal BindAnimContext Context => _ctx;
+
+		/// <summary>目标当前处在状态机的哪个状态（诊断用；没进机 = null）。</summary>
+		public string AnimState => _machine != null ? _machine.Current : null;
+
+		/// <summary>目标现在是趴着的吗（见 <see cref="_lying"/>）。消费者 = <see cref="GrappleCarry.Begin"/>。</summary>
+		public bool IsLying => _lying;
+
+		/// <summary>扛人者在不在（诊断用）。</summary>
+		public bool HasCarrier => _carrier != null;
 
 		/// <summary>钩头这一帧该待的世界位置（缠 = 圆上的点；倒/缚 = 目标躯干）。</summary>
 		public Vec3 HookPos => _hookPos;
@@ -292,9 +367,12 @@ namespace LivingWorldNpcs
 			_phase = Phase.Wrapping;
 			_t = 0f;
 			_boundTimer = 0f;
-			_forcedAnim = null;
-			_wentDown = false;
+			_layTimer = 0f;
 			_fallStarted = false;
+			_lying = false;
+			// 新的一绑 = 新的一台机（上下文全新：Released / Struggling 都得是 false）
+			_machine = null;
+			_ctx = null;
 			_center = ChestOf(target);
 			_startAngle = MathF.Atan2(hitPoint.y - _center.y, hitPoint.x - _center.x);
 			_wrapSign = WrapTurns >= 0f ? 1f : -1f;
@@ -325,8 +403,9 @@ namespace LivingWorldNpcs
 			}
 
 			// 🔴 **压制复核**（2026-10-09，TODO 2「AI 接管」）：**所有相位都跑** ——
-			//    旗标与 AI 冻结都可能被抢/被清（引擎的部署收尾会把全场解冻、别的系统也可能清旗标）；
-			//    姿势那一项只在"缚"那拍抢（见 VerifySuppression 里的相位判据）。
+			//    旗标与 AI 冻结都可能被抢/被清（引擎的部署收尾会把全场解冻、别的系统也可能清旗标）。
+			//    ⚠️ **姿势那一项不在这里了**（2026-10-10）：姿态归状态机，它自带 `RecheckStolen`
+			//       每 0.5 s 核对 0 号通道、被抢就补回来 ⇒ 本文件不再自己抢姿势。
 			//    每 <see cref="VerifySeconds"/> 秒一次，被抢就补回来（有日志、有计数，肉眼可查）。
 			if (VerifySeconds > 0f)
 			{
@@ -338,13 +417,66 @@ namespace LivingWorldNpcs
 				}
 			}
 
+			BindEvent phaseEvent = BindEvent.None;
 			switch (_phase)
 			{
-				case Phase.Wrapping: return TickWrapping(dt);
-				case Phase.Yanking: return TickYanking(dt);
-				case Phase.Bound: return TickBound(dt);
+				case Phase.Wrapping: phaseEvent = TickWrapping(dt); break;
+				case Phase.Yanking: phaseEvent = TickYanking(dt); break;
+				case Phase.Bound: phaseEvent = TickBound(dt); break;
 			}
-			return BindEvent.None;
+
+			// 姿态：填上下文 + 推进状态机（**放在相位之后** —— 相位这一帧可能刚 Force 过状态）
+			TickTargetMachine(dt);
+
+			return phaseEvent;
+		}
+
+		/// <summary>
+		/// 把"事实"喂进上下文 + 推进目标侧状态机（每帧在相位之后调）。
+		/// 🔴 转移条件**只读上下文**（不读本类的私有字段）—— 这是状态机定义能与系统解耦的前提。
+		/// </summary>
+		private void TickTargetMachine(float dt)
+		{
+			if (_machine == null || _ctx == null || _target == null) return;
+			_ctx.Struggling = _struggling;
+			_ctx.CarrierMoving = IsCarrierMoving();
+			_ctx.AnimRemainFrac = _machine.CurrentRemainFrac;
+			_machine.Tick(_target, dt);
+		}
+
+		/// <summary>
+		/// **扛人者在不在动**（`被扛行 ⇄ 被扛走` 的判据）。
+		/// 🔴 读的是**扛人者**的速度，不是被扛者的 —— 被扛者是每帧被我们摆位的，它自己的速度没有意义。
+		/// 用 `AverageVelocity`（native 平均窗口）不用瞬时速度：防抖动让两个状态每帧互踢
+		/// （同 `FollowAgentAction` 那条先例）。
+		/// </summary>
+		private bool IsCarrierMoving()
+		{
+			Agent c = _carrier;
+			if (c == null) return false;
+			try
+			{
+				Vec3 v = c.AverageVelocity;
+				return new Vec2(v.x, v.y).Length > BindAnimConditions.CarrierMovingSpeed;
+			}
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>
+		/// **按"时刻名"把状态机 Force 进对应状态**（C# 里一个状态名都没有 —— 改图即可改行为，照飞行那条规矩）。
+		/// 定义里没这条边 = 报一行日志（改 bind.xml 改坏了要能一眼看见），返回 false。
+		/// </summary>
+		internal bool ForceEvent(string whenToken, float startProgress = 0f)
+		{
+			if (_machine == null || _target == null) return false;
+			if (_machine.TryEventTarget(whenToken, out string state))
+			{
+				_machine.Force(_target, state, BindAnimMachine.AnimBlendIn, startProgress);
+				return true;
+			}
+			DebugLogger.Log($"[Grapple] 勾人：状态机里没有时刻 '{whenToken}' 的边"
+				+ "（bind.xml 改坏了？）—— 这一拍不会有姿态变化");
+			return false;
 		}
 
 		private BindEvent TickWrapping(float dt)
@@ -360,8 +492,81 @@ namespace LivingWorldNpcs
 			_hookPos = CirclePoint(_wrapAngle, _wrapRadius, _wrapZ);
 			_hookDir = TangentAt(_wrapAngle, _wrapRadius, _wrapZ);
 
-			if (u >= 1f) EnterYank();
+			// 缠完 ⇒ **受击**（2026-10-10 新口径：命中第一拍 = crash，1.7 s 一次性、不倒地）
+			if (u >= 1f) EnterCrash();
 			return BindEvent.None;
+		}
+
+		/// <summary>
+		/// **缠完那一刻**：从"过程"进"已捆"。
+		///
+		/// 🔴 **2026-10-10 改口径**（用户拍板）：命中**不再自动把人拽倒**，改成播 `binded_crash`
+		///    （1.7 s 一次性、站姿基准 — 实测根骨 z 恒 −0.02 ⇒ 不倒地）→ 状态机自动接**站缚**。
+		///    拽倒改成玩家主动【拉紧】（<see cref="StartYank"/>）。
+		/// </summary>
+		private void EnterCrash()
+		{
+			_phase = Phase.Bound;
+			_boundTimer = 0f;
+			_layTimer = 0f;
+			_note = "bound (hit)";
+
+			// 状态机进场：按时刻名 Force（定义里 `outside → 受击` 那条边）
+			if (_machine == null)
+			{
+				_ctx = new BindAnimContext();
+				_machine = AnimMachineRegistry.Create(BindAnimMachine.Name, _ctx);
+			}
+			_ctx.Released = false;
+			ForceEvent(BindAnimConditions.HitTrigger);
+
+			// AI 压制：脚本旗标 + 脑事件（同击晕那套；先把旗标打上，免得 AI 在事件到达前抢动画通道）
+			try
+			{
+				_target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
+			}
+			catch (Exception) { }
+
+			// 🔴 **标记直接置一份**（2026-10-09 TODO 2 加固；事件只当"叙述 + 占位"用）：
+			//    战斗场景里 `SendEventToAgent` 会**整体早退**（IsInteractionDisabled）⇒ 只靠事件的话，
+			//    "被捆"这件事在战斗里对脑完全不可见（`bind state` 也会显示 bound=False，误导排查）。
+			try
+			{
+				var markBrain = AgentAIController.GetBrainForAgent(_target);
+				if (markBrain != null) markBrain.IsBound = true;
+			}
+			catch (Exception) { }
+
+			try
+			{
+				AgentAIController.Instance?.SendEventToAgent(_target, "event_agent_bound", _attacker);
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 勾人：脑事件发送失败（{ex.GetType().Name}）—— 继续（旗标已压制）");
+			}
+
+			DebugLogger.Log($"[Grapple] 勾人：捆缚成立（{_target.Name}）—— 受击 {BindAnimConditions.HitTrigger}"
+				+ " → 站缚（稳态）。AI 接管 = 脑标记 IsBound + BoundAction 占位（不接命令 / 不参战 / 不围观；解绑后立刻恢复），"
+				+ (BoundSeconds > 0f ? $"{BoundSeconds:F0} 秒后自动挣脱（调试档）" : "**永不自动挣脱**")
+				+ " —— 解开：敲 bind release，或走到身边用交互面板的【松绳】"
+				+ "；拉倒：【拉紧】；扛走：【扛起】（见 §十五）");
+		}
+
+		/// <summary>
+		/// **【拉紧】—— 把被捆的人拽倒**（玩家主动触发；命令 `custom.grapple bind yank` / 交互面板那一行）。
+		///
+		/// 复用 §13.12 那三段（绷住 → 猛拽 → 倒下）：位移 + 朝向都在 <see cref="TickYanking"/> 里，
+		/// "拉倒"动画在**第三段起点**才起播（先位移、后姿势 —— 反过来位移会被姿势变化吃掉）。
+		/// 到位之后 = 趴缚循环，<see cref="LaySeconds"/> 秒后自动起身（用户 2026-10-10 拍板）。
+		/// </summary>
+		public bool StartYank(out string why)
+		{
+			why = "-";
+			if (_phase != Phase.Bound) { why = "not bound yet (phase = " + _phase + ")"; return false; }
+			if (_target == null || !AgentControlHelper.SafeIsActive(_target)) { why = "no live target"; return false; }
+			EnterYank();
+			return true;
 		}
 
 		private void EnterYank()
@@ -414,7 +619,7 @@ namespace LivingWorldNpcs
 				if (_t >= BlowYankSeconds)
 				{
 					LogBlowResult();
-					EnterBound();
+					EnterLaidOut("blow");
 				}
 				return BindEvent.None;
 			}
@@ -444,18 +649,42 @@ namespace LivingWorldNpcs
 				DebugLogger.Log($"[Grapple] 勾人：拖拽瞬移失败（{ex.GetType().Name}）—— 停在原地继续流程");
 			}
 
-			// ③ 拽到位那一刻**才**起播"倒下"（顺序：先位移、后倒地 —— 反过来位移会被姿势变化吃掉）
+			// ③ 拽到位那一刻**才**起播"拉倒"（顺序：先位移、后倒地 —— 反过来位移会被姿势变化吃掉）
 			if (!_fallStarted && _t >= pullEnd && Yank == YankMode.Curve)
 			{
 				_fallStarted = true;
-				PlayOnce(_target, LayAction, LayStartProgress, 0.2f, "lay");
+				ForceEvent(BindAnimConditions.YankTrigger, LayStartProgress);
 			}
 
 			_hookPos = ChestOf(_target);
 			_hookDir = AwayFromPlayerDir();
 
-			if (_t >= fallEnd) EnterBound();
+			if (_t >= fallEnd) EnterLaidOut("curve");
 			return BindEvent.None;
+		}
+
+		/// <summary>
+		/// **到位：进"趴缚"**（三段走完 / Blow 模式演完都从这里进）。
+		/// 旧版这里是 <c>EnterBound()</c>（进"缚"那拍）；2026-10-10 起"缚"的稳态改成**站着**，
+		/// 所以这个入口的语义变成"**被拉倒了**"。
+		///
+		/// 🔴 顺带起 **"定时自动起身"倒计时**（<see cref="LaySeconds"/>，用户 2026-10-10 拍板：
+		///    "拉倒进入趴地状态，但是过一会也会起来"）。趴着期间【松绳】/ 收摊 = 立即起身（走 released 那条边）。
+		/// </summary>
+		private void EnterLaidOut(string how)
+		{
+			_phase = Phase.Bound;
+			_note = "bound (laid down by " + how + ")";
+			_lying = true;
+			_layTimer = LaySeconds;      // 0 = 拉倒后永不自动起身（调试档）
+			if (!_fallStarted)
+			{
+				// Blow 模式：引擎演完了它的受击/倒地反应 ⇒ 再用我们的"拉倒"接上趴地循环
+				_fallStarted = true;
+				ForceEvent(BindAnimConditions.YankTrigger, LayStartProgress);
+			}
+			DebugLogger.Log($"[Grapple] 勾人：已拉倒（{how}）⇒ 趴缚循环"
+				+ (LaySeconds > 0f ? $"，{LaySeconds:F1} 秒后自动起身" : "（laytime 0 = 不自动起身）"));
 		}
 
 		/// <summary>
@@ -548,52 +777,26 @@ namespace LivingWorldNpcs
 			catch (Exception) { }
 		}
 
-		private void EnterBound()
-		{
-			_phase = Phase.Bound;
-			_boundTimer = 0f;
-			_note = "bound";
-			_wentDown = true;      // 到这一步才是真"放倒" ⇒ 放人时才播起身动画（见 BeginStandup）
-
-			// AI 压制：脚本旗标 + 脑事件（同击晕那套；先把旗标打上，免得 AI 在事件到达前抢动画通道）
-			try
-			{
-				_target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
-			}
-			catch (Exception) { }
-
-			// 🔴 **标记直接置一份**（2026-10-09 TODO 2 加固；事件只当"叙述 + 占位"用）：
-			//    战斗场景里 `SendEventToAgent` 会**整体早退**（IsInteractionDisabled）⇒ 只靠事件的话，
-			//    "被捆"这件事在战斗里对脑完全不可见（`bind state` 也会显示 bound=False，误导排查）。
-			//    直接置 = 任何场景下脑都看得见这件事（战斗里脑不 Tick，但标记与状态读数是对的）。
-			try
-			{
-				var markBrain = AgentAIController.GetBrainForAgent(_target);
-				if (markBrain != null) markBrain.IsBound = true;
-			}
-			catch (Exception) { }
-
-			try
-			{
-				AgentAIController.Instance?.SendEventToAgent(_target, "event_agent_bound", _attacker);
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.Log($"[Grapple] 勾人：脑事件发送失败（{ex.GetType().Name}）—— 继续（旗标已压制）");
-			}
-
-			PlayLoop(_target, CycleAction, "cycle");
-			DebugLogger.Log($"[Grapple] 勾人：捆缚成立（{_target.Name}）—— 躺地循环 {CycleAction}，"
-				+ "AI 接管 = 脑标记 IsBound + BoundAction 占位（不接命令 / 不参战 / 不围观；解绑后立刻恢复），"
-				+ (BoundSeconds > 0f ? $"{BoundSeconds:F0} 秒后自动挣脱（调试档）" : "**永不自动挣脱**")
-				+ " —— 解开：敲 bind release，或走到身边用交互面板的【松绳】（待做，见 §13.14 TODO 4）");
-		}
-
 		private BindEvent TickBound(float dt)
 		{
 			_boundTimer += dt;
 			_hookPos = ChestOf(_target);
 			_hookDir = AwayFromPlayerDir();
+
+			// 【拉紧】拉倒之后的**定时自动起身**（用户 2026-10-10 拍板："过一会也会起来"）。
+			// 到点 Force `rise-trigger` ⇒ 播 `binded_lay_end`（2.33 s）→ 状态机自动落回站缚。
+			// 观感验收模式（`bind anim …` 锁了某一段）不倒计时 —— 那是用户正在看的东西。
+			if (_layTimer > 0f && _forcedAnim == null)
+			{
+				_layTimer -= dt;
+				if (_layTimer <= 0f)
+				{
+					_layTimer = 0f;
+					_lying = false;
+					ForceEvent(BindAnimConditions.RiseTrigger);
+					DebugLogger.Log($"[Grapple] 勾人：拉倒计时到（{LaySeconds:F1}s）⇒ 自动起身");
+				}
+			}
 
 			// 超时挣脱：**默认关**（BoundSeconds = 0 = 永不）—— 解开只由玩家主动做（用户 2026-10-09 裁定）
 			if (BoundSeconds > 0f && _boundTimer >= BoundSeconds)
@@ -607,16 +810,17 @@ namespace LivingWorldNpcs
 
 		/// <summary>
 		/// 复核"压制还在不在"（**所有相位都跑**，见 <see cref="Tick"/>）：
-		/// ① 脚本旗标（`DoNotRun | NoAttack`）② **原版 AI 冻结**（<see cref="SetTargetAIPaused"/>）
-		/// ③ **只在"缚"那拍**：躺地循环还挂在通道 0 上吗。
-		/// 被抢 = 抢回来并计数（`bind state` 打出来；正常路径恒为 0 条日志）。
-		/// ⚠️ 观感验收模式（`bind anim lay|cycle|standup` 锁了某一段）**不抢姿势** —— 那是用户正在看的东西。
+		/// ① 脚本旗标（`DoNotRun | NoAttack`）② **原版 AI 冻结**（<see cref="SetTargetAIPaused"/>）。
+		///
+		/// 🔴 **姿势那一项 2026-10-10 已从这里删除** —— 姿态归状态机，它自带 `RecheckStolen`
+		///    （每 0.5 s 核对 0 号通道，被抢就补写回来）。两处都抢 = 同一个语义两处实现，
+		///    迟早有一处忘改；而且状态机补写用的是它自己的状态定义，比这里写死动作名更对。
 		/// </summary>
 		private void VerifySuppression()
 		{
 			if (_target == null) return;
 
-			// ① 旗标：幂等重压（被别的系统清掉 = 躺着的人立刻恢复原生 AI）。
+			// ① 旗标：幂等重压（被别的系统清掉 = 站着的人立刻恢复原生 AI）。
 			//    ⚠️ 用"或"叠加、**不覆盖** —— 直接赋值会把 BoundAction 每 0.2s 设的 `InConversation`
 			//    抹掉，两边一帧一变地互相打脸（那一位语义是"别动，你正在交互中"）。
 			try
@@ -629,22 +833,6 @@ namespace LivingWorldNpcs
 
 			// ② 原版 AI 冻结：幂等重压（引擎的部署收尾会把**全场**解冻，战斗里尤其要盯）
 			SetTargetAIPaused(_target, true);
-
-			// ③ 姿势：只在"缚"那拍抢；锁了观感段就不动
-			if (_phase != Phase.Bound || _forcedAnim != null) return;
-			try
-			{
-				if (AgentControlHelper.IsPlayingPose(_target, CycleAction)) return;
-				_poseReasserts++;
-				PlayLoop(_target, CycleAction, "cycle");
-				// 日志限频：头 3 次 + 每 20 次一条（否则被抢成常态时会刷屏）
-				if (_poseReasserts <= 3 || _poseReasserts % 20 == 0)
-				{
-					DebugLogger.Log($"[Grapple] 勾人：躺地循环被抢走（通道 0 = {AgentControlHelper.GetPose(_target)}）"
-						+ $" ⇒ 抢回 {CycleAction}（第 {_poseReasserts} 次）");
-				}
-			}
-			catch (Exception) { }
 		}
 
 		/// <summary>命令入口：立刻放开当前目标（`custom.grapple bind release`）。</summary>
@@ -656,21 +844,47 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
-		/// **放人**：起身动画 + 排队"等动画播完再还 AI"。
-		/// 注意**不是立刻**清旗标 —— 起身动画播到一半被原生 AI 抢走通道就白演了
-		/// （先例：`KnockoutFlow.StandUp` 那条"等起身演完"纪律）。
+		/// **放人**（松绳 / 收摊 / 被新的钩替换）。
+		///
+		/// 🔴 **2026-10-10 起"要不要演起身"不在这里**：本方法只做三件事 ——
+		///    ① 置上下文的 `Released`（**出机正门**，见 <see cref="BindAnimContext.Released"/>）；
+		///    ② 把状态机**连同上下文一起搬进"收尾槽"**（<see cref="_releasing"/>）；
+		///    ③ 剩下的交给 <see cref="TickPending"/>：机器自己走到机外之后再还 AI。
+		///    走哪条路出机（站着直接出 / 趴着先演 2.33 s 起身）由 `bind.xml` 里那两条 `bind-released` 边决定。
 		/// </summary>
 		public void Release(string reason)
 		{
 			Agent t = _target;
 			_phase = Phase.None;
-			_forcedAnim = null;
 			_attacker = null;
 			_target = null;
+			_carrier = null;
+			_layTimer = 0f;
+			_struggling = false;
 			_note = "released (" + reason + ")";
 
-			BeginStandup(t, reason);
-			DebugLogger.Log($"[Grapple] 勾人：放人（{reason}）—— 起身 {StandupSeconds:F1}s 后把 AI 还回去");
+			if (_ctx != null) _ctx.Released = true;
+
+			// 机器搬进收尾槽（与"下一绑"互不干扰：Begin 会重置 _machine/_ctx 那两组）
+			if (t != null && _machine != null)
+			{
+				// 前一个还没还完 AI（极端情况：连着两次替换）⇒ 立刻把它还了，别丢
+				if (_releasing != null) FinishRelease("superseded");
+				_releasing = t;
+				_releaseMachine = _machine;
+				_releaseCtx = _ctx;
+				_releaseTimer = 0f;
+			}
+			else if (t != null)
+			{
+				// 还没进过状态机（缠都没缠完就被放）⇒ 没什么动画可等，直接还 AI
+				_pending.Add(new Pending { Agent = t, Timer = 0.05f, Why = reason + " (never entered machine)" });
+			}
+			_machine = null;
+			_ctx = null;
+
+			DebugLogger.Log($"[Grapple] 勾人：放人（{reason}）—— 交状态机出机（站着=直接出；趴着=先演起身），"
+				+ "走到机外之后把 AI 还回去");
 		}
 
 		/// <summary>收钩/异常时的强制解除（<see cref="GrappleLogic.Release"/> 会调）—— 同样走起身队列。</summary>
@@ -683,53 +897,67 @@ namespace LivingWorldNpcs
 			Release("abort: " + reason);
 		}
 
-		private void BeginStandup(Agent t, string why)
+		/// <summary>
+		/// **"解"的收尾：推进还在演起身的那台机**（每帧，由 <see cref="TickPending"/> 调）。
+		/// 上下文里 `Released` 已经是 true ⇒ 机器自己会 趴缚 → 起身 → 站缚 → 机外 走完。
+		/// </summary>
+		private void TickReleaseMachine(float dt)
 		{
-			if (t == null) return;
-			// 🔴 **入队必须无条件发生**（2026-10-09 TODO 2 加固）：`RestoreAgent` 是"把 AI 还回去 +
-			//    清掉 brain.IsBound"的**唯一**出口 —— 上面任何一步抛异常而漏掉入队，被捆标记就永久留着
-			//    （那个 agent 从此不接任何事件、拒清队列 = 僵尸）。所以播动画放 try 里，入队放 try 外。
-			float wait = 0.05f;
-			bool wentDown = _wentDown;
-			try
-			{
-				if (!AgentControlHelper.SafeIsActive(t))
-				{
-					// agent 已经没了（死了/离场）：没什么可还的 —— 但**标记得清掉**，
-					// 否则那个脑（若还挂着）从此不接任何事件（本方法入队被跳过 = 永远没人来清）。
-					try
-					{
-						var dead = AgentAIController.GetBrainForAgent(t);
-						if (dead != null) dead.IsBound = false;
-					}
-					catch (Exception) { }
-					return;
-				}
-
-				if (wentDown)
-				{
-					PlayOnce(t, StandupAction, 0f, 0.2f, "standup");
-					wait = StandupSeconds;
-				}
-				else
-				{
-					// 🔴 **没到"躺下"那一步就别播起身动画**（2026-10-09 实机事故，症状 = "倒下又立刻起来"）：
-					//    起身动画的**头几帧就是躺姿**（源帧 111→1，从躺到站）⇒ 给一个还站着的人播它，
-					//    效果是**先趴下去再站起来**。实测：`bind test` 被出口踢掉那两次，每分钟都演这一下。
-					//    ⇒ 没躺下 = 直接还 AI（下一帧就走 TickPending 的恢复路）。
-					DebugLogger.Log($"[Grapple] 勾人：没到躺下那步（{why}）⇒ 不播起身动画，直接还 AI");
-				}
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.Log($"[Grapple] 勾人：起身动画播放异常（{ex.GetType().Name}）—— 仍照常排队还 AI");
-			}
-			_pending.Add(new Pending { Agent = t, Timer = wait, Why = why + (wentDown ? "" : " (never went down)") });
+			if (_releaseMachine == null || _releasing == null) return;
+			if (!AgentControlHelper.SafeIsActive(_releasing)) return;
+			_releaseCtx.Struggling = false;
+			_releaseCtx.CarrierMoving = false;
+			_releaseCtx.AnimRemainFrac = _releaseMachine.CurrentRemainFrac;
+			_releaseMachine.Tick(_releasing, dt);
 		}
 
-		/// <summary>每帧推进"起身队列"（<see cref="GrappleLogic.OnMissionTick"/> **无条件**每帧调一次）。</summary>
+		/// <summary>收尾结束：把 AI 还回去 + 清空收尾槽。</summary>
+		private void FinishRelease(string why)
+		{
+			Agent a = _releasing;
+			_releasing = null;
+			_releaseMachine = null;
+			_releaseCtx = null;
+			_releaseTimer = 0f;
+			if (a == null) return;
+			RestoreAgent(a);
+			DebugLogger.Log($"[Grapple] 勾人：起身收尾完成（{why}）—— AI 已归还");
+		}
+
+		/// <summary>
+		/// 每帧推进**收尾**（<see cref="GrappleLogic.OnMissionTick"/> **无条件**每帧调一次）：
+		/// ① 「解」的机器跑到机外 / 超时 ⇒ 还 AI；
+		/// ② 老的"没进过状态机就被放"的短队列。
+		///
+		/// 🔴 **为什么收尾必须挂在"无条件每帧"这条路上**：放人之后钩已经收了，
+		///    <see cref="Tick"/> 那条（钩的相位分支）根本不会再被调 —— 挂那儿 = 起身动画演完没人还 AI。
+		/// </summary>
 		public void TickPending(float dt)
 		{
+			// ① 起身/出机
+			if (_releasing != null)
+			{
+				TickReleaseMachine(dt);
+				_releaseTimer += dt;
+				bool left = _releaseMachine == null
+							|| _releaseMachine.Current == AgentAnimStateMachine.OutsideState
+							|| !AgentControlHelper.SafeIsActive(_releasing);
+				if (left)
+				{
+					FinishRelease("machine left");
+					return;
+				}
+				if (_releaseTimer >= StandupSeconds + 6f)
+				{
+					// 防呆：机器没走到机外也得还 AI（漏了 = 那个人被永久冻住，比"多站两秒"严重得多）
+					DebugLogger.Log($"[Grapple] 勾人：🔴 起身收尾超时（{_releaseTimer:F1}s，状态={_releaseMachine?.Current}）"
+						+ " ⇒ 强制还 AI");
+					FinishRelease("timeout");
+					return;
+				}
+			}
+
+			// ② 老队列（"没进过状态机就被放"的短延迟）
 			if (_pending.Count == 0) return;
 			for (int i = _pending.Count - 1; i >= 0; i--)
 			{
@@ -858,80 +1086,61 @@ namespace LivingWorldNpcs
 			catch (Exception) { return Vec3.Zero; }
 		}
 
-		// ───────────────────────────── 动画 / 记账 ─────────────────────────────
-
-		private void PlayOnce(Agent a, string action, float startProgress, float blendIn, string tag)
-		{
-			if (a == null) return;
-			string forced = _forcedAnim;
-			if (forced != null && forced != tag)
-			{
-				// 观感验收模式：锁在某一段 ⇒ 不再被流程改动（`bind anim auto` 解除）
-				return;
-			}
-			WarnIfUnresolved(action);
-			AgentControlHelper.ForcePlayAction(a, action, startProgress: startProgress, blendIn: blendIn,
-				blendOutPeriodToNoAnim: 0.4f);
-		}
-
-		private void PlayLoop(Agent a, string action, string tag)
-		{
-			if (a == null) return;
-			string forced = _forcedAnim;
-			if (forced != null && forced != tag) return;
-			WarnIfUnresolved(action);
-			// 🔴 循环件：blendOutPeriodToNoAnim 必须显式 0（默认 0.4 会把躺地循环淡出）
-			AgentControlHelper.ForcePlayAction(a, action, startProgress: 0f, blendIn: 0.25f,
-				blendOutPeriodToNoAnim: 0f);
-		}
+		// ───────────────────────────── 姿态 / 记账 ─────────────────────────────
+		//
+		// 🔴 **本文件不再自己播姿态**（2026-10-10）：动作名与"什么时候播哪条"全在
+		//    `ModuleData/statemachines/bind.xml`，本文件只按"时刻名"Force（见 <see cref="ForceEvent"/>）。
+		//    动作名解析不到时的诊断由状态机负责（`[Anim:bind] 动作 '…' 解析为 act_none`）。
 
 		/// <summary>
-		/// 动作名解析不到 ⇒ 打一条**显眼的**日志（只打一次/名字）。
-		/// 这是第 0 步（跨模块引原版 clip 名）失败时的唯一症状 —— 引擎自己**静默** `act_none`、不报错，
-		/// 不主动报的话表现只是"人站着不倒"，会被当成别的 bug 排查半天。
+		/// **观感验收**：按"时刻名"把目标推到他一生里的某一段（`lay|cycle|standup|hit|carry|put|auto`）。
+		/// <paramref name="which"/> = null/auto = 交回流程。
+		///
+		/// 🔴 **只有时刻名，没有状态名**（照飞行那条规矩）—— 状态名可以在编辑器里随手改，
+		///    写死在 C# 里 = 改完静默失效。别名：`lay`/`cycle` 都是"拉倒"那一刻（拉倒演完自然接趴缚）。
 		/// </summary>
-		private static readonly HashSet<string> s_warnedActions = new HashSet<string>();
-		private static void WarnIfUnresolved(string action)
-		{
-			try
-			{
-				if (ActionIndexCache.Create(action) != ActionIndexCache.act_none) return;
-				if (!s_warnedActions.Add(action)) return;
-				DebugLogger.Log($"[Grapple] 勾人：🔴 动作名解析不到 —— '{action}' 是 act_none！"
-					+ " 检查本模块（LWN）ModuleData/action_types.xml（声明）+ action_sets.xml（映射到 anim_dungeon_prisoner_lay* 三条原版 clip）。"
-					+ " 症状 = 目标不会躺下/起身（引擎静默跳过，无报错）。");
-			}
-			catch (Exception) { }
-		}
-
-		/// <summary>观感验收：强制目标播某一段（lay / cycle / standup）；<paramref name="which"/> = null/auto = 交回流程。</summary>
 		public string ForceAnim(string which)
 		{
 			if (!IsActive || _target == null) return "Error: no bound target.";
 			if (string.IsNullOrEmpty(which) || which == "auto")
 			{
 				_forcedAnim = null;
-				// 交回流程：按当前相位重播该播的那条
-				if (_phase == Phase.Bound) PlayLoop(_target, CycleAction, "cycle");
-				else if (_phase == Phase.Yanking) PlayOnce(_target, LayAction, LayStartProgress, 0.2f, "lay");
-				return "OK: bind anim = auto (流程接管)";
+				return "OK: bind anim = auto (flow takes over)";
 			}
+			string token;
 			switch (which)
 			{
+				case "hit": token = BindAnimConditions.HitTrigger; break;
 				case "lay":
-					_forcedAnim = "lay";
-					PlayOnce(_target, LayAction, LayStartProgress, 0.2f, "lay");
-					return "OK: forced lay";
-				case "cycle":
-					_forcedAnim = "cycle";
-					PlayLoop(_target, CycleAction, "cycle");
-					return "OK: forced cycle";
-				case "standup":
-					_forcedAnim = "standup";
-					PlayOnce(_target, StandupAction, 0f, 0.2f, "standup");
-					return "OK: forced standup";
+				case "cycle": token = BindAnimConditions.YankTrigger; break;
+				case "standup": token = BindAnimConditions.RiseTrigger; break;
+				case "carry": token = BindAnimConditions.CarryTrigger; break;
+				case "put": token = BindAnimConditions.PutTrigger; break;
+				default:
+					return "Error: bind anim expects hit|lay|cycle|standup|carry|put|auto";
 			}
-			return "Error: bind anim expects lay|cycle|standup|auto";
+			_forcedAnim = which;      // 压住"拉倒后自动起身"的倒计时（否则看一半人自己爬起来）
+			_layTimer = 0f;
+			if (which == "standup") _lying = false;
+			return ForceEvent(token, which == "lay" || which == "cycle" ? LayStartProgress : 0f)
+				? $"OK: forced {which}"
+				: $"Error: no '{token}' seam in bind.xml";
+		}
+
+		/// <summary>观感/调试旋钮：挣扎开关（`站缚 ⇄ 挣扎`）。返回新值。</summary>
+		public bool ToggleStruggle()
+		{
+			_struggling = !_struggling;
+			return _struggling;
+		}
+
+		/// <summary>在不在闹（诊断用）。</summary>
+		public bool StruggleState => _struggling;
+
+		/// <summary>扛人接线（<see cref="GrappleCarry"/> 用）：记下扛人者（只用来读它的速度）。</summary>
+		internal void SetCarrier(Agent carrier)
+		{
+			_carrier = carrier;
 		}
 
 		/// <summary>犯罪记账（与击晕同源）：袭击记账 + 犯罪感知 + 目击广播。</summary>
@@ -962,8 +1171,11 @@ namespace LivingWorldNpcs
 		{
 			if (!IsActive)
 			{
+				string rel = _releasing != null
+					? $" | releasing={SafeName(_releasing)} state={_releaseMachine?.Current ?? "-"} t={_releaseTimer:F1}s"
+					: "";
 				string pend = _pending.Count > 0 ? $" | 起身队列={_pending.Count}" : "";
-				return $"bind: idle（总开关 {(Enabled ? "on" : "off")}）{pend} | 最近一次：{_note}";
+				return $"bind: idle（总开关 {(Enabled ? "on" : "off")}）{rel}{pend} | 最近一次：{_note}";
 			}
 			string act = "-";
 			try { act = V.ActName(_target, 0); } catch (Exception) { }
@@ -973,7 +1185,9 @@ namespace LivingWorldNpcs
 				: (_phase == Phase.Wrapping ? WrapSeconds
 				: (Yank == YankMode.Blow ? BlowYankSeconds : YankTotalSeconds));
 			// 🔴 接管状态（TODO 2 的验收判据，2026-10-09）：脑标记 = 闸门基准（false 时下面几道全不生效）；
-			//    事件忽略 = 被挡下的定向事件条数（该涨就涨 = 调度真的被挡住了）；姿势抢回 = 正常恒为 0。
+			//    事件忽略 = 被挡下的定向事件条数（该涨就涨 = 调度真的被挡住了）。
+			//    🔴 2026-10-10：`poseReassert` 那项**删了** —— 姿态抢回改由状态机自带的 `RecheckStolen` 管，
+			//       它的证据在 `[Anim:bind] 'X' 被引擎抢走了，重设` 那行（要把 Verbose 打开）。
 			//    ⚠️ 控制台返回文本一律英文（CLAUDE.md 控制台纪律）。
 			string takeover = "-";
 			try
@@ -983,16 +1197,23 @@ namespace LivingWorldNpcs
 				// 不是我们的旋钮 —— 这样"旋钮开了但冻结没生效"也能一眼看出来。
 				string paused = "?";
 				try { paused = _target.IsPaused ? "True" : "False"; } catch (Exception) { }
-				if (b != null)
-					takeover = $"bound={b.IsBound} ignored={b.BoundEventsDropped} poseReassert={_poseReasserts}";
-				else
-					takeover = $"bound=(no brain) poseReassert={_poseReasserts}";
+				takeover = b != null
+					? $"bound={b.IsBound} ignored={b.BoundEventsDropped}"
+					: "bound=(no brain)";
 				takeover += $" aiPaused={paused}";
 			}
 			catch (Exception) { }
-			return $"bind: {_phase} | 目标={tgt} | {timer:F2}/{limit:F2}s | 动作={act}"
+			// 🔴 状态机那一格是**这一版的主判据**：`anim=` 打的是状态机的当前状态 +
+			//    它解析到的引擎动作名（对不上就是接线断了）。
+			string anim = _machine != null
+				? $"{_machine.Current ?? "-"}/{_machine.CurrentAction ?? "-"}"
+				: "(no machine)";
+			string carry = _carrier != null ? $" carrier={SafeName(_carrier)}" : "";
+			return $"bind: {_phase} | 目标={tgt} | {timer:F2}/{limit:F2}s | anim={anim} | 动作={act}"
 				+ $" | 钩={Fmt(_hookPos)} | 拖距={DragDistance:F1}m 超时={BoundSeconds:F0}s"
+				+ $" 拉倒起身={LaySeconds:F1}s{carry}"
 				+ $" | takeover[{takeover}]"
+				+ (_layTimer > 0f ? $" | 起身倒计时={_layTimer:F1}s" : "")
 				+ (_forcedAnim != null ? $" | 🔒强制={_forcedAnim}" : "");
 		}
 

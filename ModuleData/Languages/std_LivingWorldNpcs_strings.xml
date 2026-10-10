@@ -4021,6 +4021,18 @@
     <string id="LWN_brain_crime_shout" text="Stop, {NAME}!" />
     <string id="LWN_ui_interact_intervene" text="Intervene" />
     <string id="LWN_ui_interact_cutrope" text="Cut the rope" />
+    <!-- Grapple step 6 (2026-10-10): pull tight / carry & put down -->
+    <string id="LWN_ui_interact_tug" text="Pull tight" />
+    <string id="LWN_ui_interact_lift" text="Carry them" />
+    <string id="LWN_ui_interact_putdown" text="Put them down" />
+    <string id="LWN_ui_tug_fail" text="You need to be more than {DIST} m away to pull them off their feet." />
+    <string id="LWN_ui_tug_msg" text="You haul on the rope ({DIST} m). {NOTE}" />
+    <string id="LWN_ui_tug_bubble" text="Get over here!" />
+    <string id="LWN_ui_lift_fail" text="Can't do that: {WHY}" />
+    <string id="LWN_ui_lift_ok" text="You hoist them onto your shoulder." />
+    <string id="LWN_ui_lift_bubble" text="Up you go." />
+    <string id="LWN_ui_putdown_ok" text="You set them down." />
+    <string id="LWN_ui_putdown_bubble" text="Down you go." />
     <string id="LWN_ui_cutrope_bubble" text="Hold still — I'm cutting you loose." />
     <string id="LWN_ui_cutrope_msg" text="Cut {NAME} loose — they'll stand up in a moment." />
     <string id="LWN_ui_cutrope_none" text="There's no rope to cut here." />

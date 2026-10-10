@@ -282,6 +282,34 @@ def inplace(t, keep_z=True):
     return r
 
 
+
+def yaw_rotate(t, deg):
+    """**整体绕世界 Z 转 deg 度**（绕竖直轴转身）—— 2026-10-10 立。
+
+    为什么要它：3ds Max Biped 拆包素材**每条 FBX 各自一个朝向**（实测同一批里 0°~170° 都有），
+    而重定向脚本（`rigs/biped/retarget.py`）当年**没实现 `--yaw`** ⇒ 源朝向被原样带进游戏
+    （症状 = 实机里"人整条朝右"：骑砍2 骨架本地系 +Y=前 / +X=右）。
+    取值办法 = `Debug/offline/_trf_face_check.py` 量产出相对骨架静止姿势的**偏航**，
+    转多少能归零就传多少。**同一批状态机片段必须用同一个值**（否则状态之间朝向会跳）。
+
+    🔴 为什么**只转根骨**就够：TRF 存的是【绝对局部变换】，子骨的局部量是相对**父骨**的 ——
+    根骨转了整条链跟着转 ✓。（⚠️ 那是 TRF 的语义；重定向脚本里"瞄准型"算法**相反**：
+    转根骨会被子骨抵消，那边必须转**源数据** —— 两处的注释都写明了，别搞混。）
+    根骨位移轨也要一起转（它在骨架本地系里；只转 XY，Z 不动）。
+    """
+    a = math.radians(deg)
+    c, sn = math.cos(a), math.sin(a)
+    qz = (0.0, 0.0, math.sin(a / 2.0), math.cos(a / 2.0))              # Rot(Z, deg)
+    r = Trf(); r.name = t.name
+    for i, bone in enumerate(t.bones):
+        if i == 0:
+            r.bones.append([(f, qnormalize(qmul(qz, q))) for (f, q) in bone])
+        else:
+            r.bones.append(list(bone))
+    r.root_pos = [(f, (px * c - py * sn, px * sn + py * c, pz)) for (f, (px, py, pz)) in t.root_pos]
+    return r
+
+
 def renumber(t, start=1):
     """把帧号顺排成 start..start+N-1（拼接前必做：TRF 帧号直接映射到时间，留空档=时间被拉伸）。"""
     r = Trf(); r.name = t.name
@@ -512,6 +540,10 @@ def _main():
     pk.add_argument("--keep", required=True, help='帧号，如 "1-3,5,7-9"')
     pk.add_argument("--out", required=True); pk.add_argument("--name")
 
+    yw = sub.add_parser("yaw", help="整体绕世界 Z 转 --deg 度（修正源素材的朝向偏航；只动根骨）")
+    yw.add_argument("--in", dest="inp", required=True)
+    yw.add_argument("--deg", type=float, required=True, help="绕世界 Z 转多少度（+ = 正向，即把 +X 转向 +Y）")
+    yw.add_argument("--out", required=True); yw.add_argument("--name")
     ip = sub.add_parser("inplace", help="根骨水平位移归零 → 原地版（扛人者=参考系用）")
     ip.add_argument("--in", dest="inp", required=True)
     ip.add_argument("--zero-z", action="store_true", help="连竖直也归零（默认只清水平）")
@@ -534,6 +566,8 @@ def _main():
         t = retime(read_trf(a.inp), a.len, ease=a.ease)
     elif a.op == "pick":
         t = pick(read_trf(a.inp), parse_frame_spec(a.keep))
+    elif a.op == "yaw":
+        t = yaw_rotate(read_trf(a.inp), a.deg)
     elif a.op == "inplace":
         t = inplace(read_trf(a.inp), keep_z=not a.zero_z)
     else:

@@ -469,6 +469,13 @@ namespace LivingWorldNpcs
                 case InteractionIds.CutRope:
                     ExecuteCutRope();   // 🔴 玩家自身动作：不吃 _lastFocusedAgent（牵着人就能松，看谁都行）
                     break;
+                // ── 钩索「勾人」步骤 6（2026-10-10）：拉紧 / 扛起·放下 ──
+                case InteractionIds.TugRope:
+                    ExecuteTugRope();
+                    break;
+                case InteractionIds.LiftCarried:
+                    ExecuteLiftCarried();
+                    break;
             }
         }
 
@@ -706,6 +713,130 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// **牵着绳时那几行**（松绳 / 拉紧 / 扛起·放下）—— 有目标 / 无目标两个上下文**共用一份**，
+        /// 免得两处各写一遍条件（本项目最忌"同一个语义两处实现"，迟早有一处忘改）。
+        ///
+        /// 🔴 **三行的情境互斥**（2026-10-10 用户要的两件）：
+        ///    · 正扛着 ⇒ **【放下】**
+        ///    · 离绳另一端 **&gt; 3 米** ⇒ **【拉紧】**（够不着才拽得动 —— 用户原话）
+        ///    · 瞄着的**就是**被捆的人且够得着 ⇒ **【扛起】**
+        ///    · 其余 ⇒ 只给【松绳】
+        /// 扛起要"够得着"、拉紧要"够不着" ⇒ **同一时刻只可能出一条**，两条共用 G 长按不打架。
+        /// 🔴 牵着绳时 **Plot / StopPlan（也是 G 长按）让位** —— 理由同【松绳】占 F 长按那套：
+        ///    手被绳子占着，对随从下令本来也该先松开绳。
+        /// </summary>
+        private void AddRopeRows(Agent focus)
+        {
+            // 本地化：松绳交互按钮（永远在）
+            AddInteractionRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
+
+            var logic = GrappleLogic.Current;
+            if (logic == null) return;
+
+            if (logic.CanPutDownCarried)
+            {
+                // 本地化：放下交互按钮
+                AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_putdown", "Put them down"));
+                return;
+            }
+            if (logic.IsCarryingSomeone) return;      // 正在放下：不再给别的行
+
+            if (logic.CanTugRope(out _))
+            {
+                // 本地化：拉紧交互按钮
+                AddInteractionRow(InteractionIds.TugRope, LWNTextHelper.ResolveText("LWN_ui_interact_tug", "Pull tight"));
+                return;
+            }
+            if (logic.CanLiftCarried(focus, out _))
+            {
+                // 本地化：扛起交互按钮
+                AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_lift", "Carry them"));
+            }
+        }
+
+        /// <summary>
+        /// **【拉紧】**（`custom.grapple bind tug` 的面板入口）：判定与结算全在
+        /// <see cref="GrappleLogic.CanTugRope"/> / <see cref="GrappleLogic.BindTug"/>（铁律 18：面板只做壳）。
+        /// </summary>
+        private void ExecuteTugRope()
+        {
+            try
+            {
+                var logic = GrappleLogic.Current;
+                if (logic == null || !logic.CanTugRope(out float dist))
+                {
+                    // 本地化：拉紧失败提示（太近/没捆稳）
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_ui_tug_fail",
+                            "You need to be further than {DIST} m away to pull them off their feet.",
+                            ("DIST", GrappleBind.TugMinDistance.ToString("0.#"))), Colors.Gray));
+                    return;
+                }
+
+                string note = logic.BindTug();
+                AgentHudMissionView.AgentSay(Agent.Main,
+                    // 本地化：LWN_ui_tug_bubble（玩家可见文本）
+                    LWNTextHelper.ResolveText("LWN_ui_tug_bubble", "Get over here!"), "tugrope");
+                // 本地化：拉紧成功提示（{NOTE}=BindTug 的返回，英文诊断；{DIST}=当前距离）
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveCompound("LWN_ui_tug_msg", "You haul on the rope ({DIST} m). {NOTE}",
+                        ("DIST", dist.ToString("0.0")), ("NOTE", note)), Colors.Yellow));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[TugRope] 拉紧失败: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// **【扛起】/【放下】**（`custom.grapple carry start|put` 的面板入口）：判定与结算全在
+        /// <see cref="GrappleLogic.CanLiftCarried"/> / <see cref="GrappleLogic.CarryPickUp"/> /
+        /// <see cref="GrappleLogic.CarryPutDown"/>（铁律 18：面板只做壳）。
+        /// </summary>
+        private void ExecuteLiftCarried()
+        {
+            try
+            {
+                var logic = GrappleLogic.Current;
+                if (logic == null) return;
+
+                if (logic.CanPutDownCarried)
+                {
+                    if (!logic.CarryPutDown(out string wp))
+                    {
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            LWNTextHelper.ResolveCompound("LWN_ui_lift_fail", "Can't do that: {WHY}", ("WHY", wp)), Colors.Gray));
+                        return;
+                    }
+                    AgentHudMissionView.AgentSay(Agent.Main,
+                        // 本地化：LWN_ui_putdown_bubble（玩家可见文本）
+                        LWNTextHelper.ResolveText("LWN_ui_putdown_bubble", "Down you go."), "putcarried");
+                    // 本地化：放下成功提示
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveText("LWN_ui_putdown_ok", "You set them down."), Colors.Yellow));
+                    return;
+                }
+
+                if (!logic.CarryPickUp(out string why))
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_ui_lift_fail", "Can't do that: {WHY}", ("WHY", why)), Colors.Gray));
+                    return;
+                }
+                AgentHudMissionView.AgentSay(Agent.Main,
+                    // 本地化：LWN_ui_lift_bubble（玩家可见文本）
+                    LWNTextHelper.ResolveText("LWN_ui_lift_bubble", "Up you go."), "liftcarried");
+                // 本地化：扛起成功提示
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveText("LWN_ui_lift_ok", "You hoist them onto your shoulder."), Colors.Yellow));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[LiftCarried] 扛起/放下失败: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// **玩家此刻手里牵着人吗**（钩索「勾人」§13.14 TODO 4 的面板判据）。
         /// 全部判定在 <see cref="GrappleLogic.IsBindingSomeone"/>，这里只做空转保护。
         /// </summary>
@@ -784,8 +915,7 @@ namespace LivingWorldNpcs
                         ? LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope")
                         : LWNTextHelper.ResolveCompound("LWN_ui_rope_held_title", "Rope in hand: {NAME}", ("NAME", heldName));
                 }
-                // 本地化：松绳交互按钮
-                AddInteractionRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
+                AddRopeRows(null);   // 无目标语境：没有 focus ⇒ 只可能出【拉紧】/【放下】/【松绳】
             }
         }
 
@@ -879,12 +1009,13 @@ namespace LivingWorldNpcs
                     // 显示门控：密信玩法开关 + 随从关系或模板 NPC + LLM 已配置（IsLLMConfigured）
                     if (Settings.Instance.PlotEnabled && !executing && !PlanCommandFlow.IsActiveFor(currentAgent)
                         && Settings.Instance.IsLLMConfigured
-                        && (isCompanion || isTemplatePlotEligible))
+                        && (isCompanion || isTemplatePlotEligible)
+                        && !ropeHeld)   // 🔴 牵着绳 ⇒ G 长按归【拉紧】/【扛起】（理由同 F 长按归【松绳】：手被绳子占着）
                     {
                         // 本地化：密信交互按钮（对随从/模板 NPC 写密信）
                         AddInteractionRow(InteractionIds.Plot, LWNTextHelper.ResolveText("LWN_ui_interact_plot", "Message"));
                     }
-                    if (executing)
+                    if (executing && !ropeHeld)   // 🔴 牵着绳 ⇒ G 长按归【拉紧】/【扛起】（同上）
                     {
                         // 本地化：停止键（对执行中的随从喊停；当面/密信双通道）
                         AddInteractionRow(InteractionIds.StopPlan, LWNTextHelper.ResolveText("LWN_ui_interact_stopplan", "Stop the plan"));
@@ -983,14 +1114,14 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 🔴 **玩家自身状态行**（钩索「勾人」§13.14 TODO 4）：**只要手里牵着人**，面板末尾就多一行【松绳】——
-            //    与"在看谁"无关（绳在玩家手上，这是"我"的动作，不是目标的属性）；没看任何人那一份在
-            //    <see cref="BuildNoTargetContext"/> 末尾。键位 = F 长按，上面所有 F 长按的行都已为它让位。
-            //    2026-10-09 起 NPC 永不自己挣脱 ⇒ 这一行是玩家**唯一**的放人入口（此前只有控制台）。
+            // 🔴 **玩家自身状态行**（钩索「勾人」§13.14 TODO 4 + 步骤 6）：**只要手里牵着人**，面板末尾
+            //    就多出【松绳】/【拉紧】/【扛起·放下】—— 与"在看谁"无关（绳在玩家手上，这是"我"的动作，
+            //    不是目标的属性）；没看任何人那一份在 <see cref="BuildNoTargetContext"/> 末尾。
+            //    三行的情境互斥见 <see cref="AddRopeRows"/>。
+            //    2026-10-09 起 NPC 永不自己挣脱 ⇒【松绳】是玩家**唯一**的放人入口（此前只有控制台）。
             if (ropeHeld)
             {
-                // 本地化：松绳交互按钮
-                AddInteractionRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
+                AddRopeRows(currentAgent);
             }
         }
 

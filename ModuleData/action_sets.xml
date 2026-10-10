@@ -240,23 +240,75 @@
 			type="act_grapple_reload"
 			animation="grapple_ground_still" />
 
-		<!-- 被捆缚（2026-10-09，步骤 5「勾人」）：animation 指到**原版自带**的地牢囚犯躺地三条 clip
-		     （在 `Native/AssetPackages/animation_clips.tpac`，1.2.12 与 1.5.x 双端都在；`tpaccli clipinfo` 实读：
-		        lay 3.6 s 躺下 · cycle **11 s 循环**（带 cyclic）· standup 3.6 s 起身，
-		        三条是同一条骨架动画切的段（源帧 1→111 / 111→429 / 111→1）⇒ 首尾姿势天然接得上；
-		        Flags 自带 `enforce_all` + `lock_movement` ⇒ 姿势不会被别的层动掉）。
-		     🔴 跨模块引原版 clip 名 = 本方案唯一"没实机验过"的假设 ⇒ 验收第一步就敲
-		        `custom.do_anim act_grapple_bound_cycle`（自己 / 一个 NPC 各播一次）看姿势。
-		        播不出来 = 静默 act_none（无报错）⇒ 退回"给目标临时切 as_human_hideout_bandit 那套 set"。
-		     写错名字 / clip 不存在 = 同样静默 act_none。 -->
+		<!-- 被捆缚（2026-10-09 立，2026-10-10 **换指向**）：原来借的是**原版自带**的地牢囚犯躺地三条
+		     （`Native/AssetPackages/animation_clips.tpac`），现在全换成**用户新做的自家三件套**。
+		     （历史记录：跨模块引原版 clip 名曾是本方案唯一"没实机验过"的假设，10-09 实机已验通 ——
+		       现在不再需要那条路了，但结论留着：写错名字 / clip 不存在 = 静默 act_none，无报错。）
+		-->
+		<!-- 🔴 2026-10-10 换指向（步骤 6，方案 = plans\钩索-实施计划.md §十五）：三条**全部改指自家资产**
+		     （用户新做的 bind 三件套，在 `lwn_core.tpac`）。名字沿用旧的 —— 这样 C# 常量与 §十三 的文档都还成立。
+		        lay     = `binded_lay_start`   0.733 s  站立 → 趴地（"拉倒"）
+		        cycle   = `binded_lay_loop`    2.000 s  趴地循环（带 cyclic）
+		        standup = `binded_lay_end`     2.333 s  趴地 → 站立（"起身"）
+		     根骨位置轨实测（`Debug/offline/trf_root_travel.py`）：站立 z≈−0.02 / 趴地 z≈−0.79 ——
+		     **"人趴下去"这 0.77 米是动画自己带的**，引擎渲染骨骼时会应用（我们不用写 agent 的 Z）。 -->
 		<action
 			type="act_grapple_bound_lay"
-			animation="anim_dungeon_prisoner_lay" />
+			animation="binded_lay_start" />
 		<action
 			type="act_grapple_bound_cycle"
-			animation="anim_dungeon_prisoner_lay_cycle" />
+			animation="binded_lay_loop" />
 		<action
 			type="act_grapple_bound_standup"
-			animation="anim_dungeon_prisoner_lay_standup" />
+			animation="binded_lay_end" />
+
+		<!-- 被捆缚姿势套件（2026-10-10，步骤 6）：稳态 = **站着被捆**；命中第一拍 = crash。
+		     全部由我们自己的状态机发（`ModuleData/statemachines/bind.xml` / `carry.xml`）。
+		     ⚠️ `act_grapple_bound_walk` 本轮**只接线不驱动**（留给 §13.14 TODO 1「拖行 / 押着走」）。 -->
+		<action
+			type="act_grapple_bound_crash"
+			animation="binded_crash" />
+		<action
+			type="act_grapple_bound_idle"
+			animation="binded_idle" />
+		<action
+			type="act_grapple_bound_struggle"
+			animation="binded_struggle" />
+		<action
+			type="act_grapple_bound_walk"
+			animation="binded_walk" />
+
+		<!-- 被扛者（扛在肩上的人）：相对位移与朝向**都在动画自己身上**（重定向时以扛人者为参考系做的），
+		     ⇒ 摆位只需要"XZ 贴住扛人者 + 朝向对齐"，**不要再叠任何偏移**（§15.4）。
+		     🔴 这四条**不要填 clip 的 displacement** —— 填了 agent 会再平移一份，与动画里的叠成双份。
+		     ⚠️ `beikangqi_walk` 在编辑器里那条 clip 目前指错（指向 idle），要重导（§15.1 ④）。 -->
+		<action
+			type="act_grapple_carried_lift"
+			animation="beikangqi_lift" />
+		<action
+			type="act_grapple_carried_idle"
+			animation="beikangqi_idle" />
+		<action
+			type="act_grapple_carried_walk"
+			animation="beikangqi_walk" />
+		<action
+			type="act_grapple_carried_reverse"
+			animation="beikangqi_reverse" />
+
+		<!-- 扛人者（可能是玩家、将来也可能是 NPC —— 不写死）：扛人者那一侧**原地**（根骨水平位移已归零）。
+		     `_idle` / `_walk` 是循环件 ⇒ clip 元数据必须带 `cyclic`
+		     （⚠️ `kangqi_walk` 现在带的是 `keep` 不是 `cyclic`，要在编辑器里改，见 §15.7 步 0）。 -->
+		<action
+			type="act_grapple_carry_lift"
+			animation="kangqi_lift" />
+		<action
+			type="act_grapple_carry_idle"
+			animation="kangqi_idle" />
+		<action
+			type="act_grapple_carry_walk"
+			animation="kangqi_walk" />
+		<action
+			type="act_grapple_carry_reverse"
+			animation="kangqi_reverse" />
 	</action_set>
 </action_sets>

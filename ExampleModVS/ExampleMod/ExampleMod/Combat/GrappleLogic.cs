@@ -38,6 +38,18 @@ namespace LivingWorldNpcs
 		public bool IsBusy => _hookPhase != HookPhase.Idle;
 
 		/// <summary>
+		/// **瞄准相机该不该继续拿着镜头**（2026-10-10 加）。
+		///
+		/// 🔴 与 <see cref="IsBusy"/> 只差一条：**钩子挂在"绳另一头那个人"身上时（<see cref="HookPhase.Binding"/>）不算忙**。
+		///    理由（实机事故）：那一拍是**长期状态** —— NPC 永不自己挣脱（2026-10-09 裁定）＋ 扛着人走路都在这一相里。
+		///    镜头一直被 <see cref="GrappleAimCamera"/> 拿着 ⇒ 按 CLAUDE.md 铁律 35，
+		///    **`CustomCamera != null` 时引擎整段跳过鼠标 look** ⇒ 玩家**转不了视角**，而移动是**相对相机**的
+		///    ⇒ 按 W 会朝"那个被锁住的相机前方"走（用户报的原话："扛起人之后按 W 前进，却在朝着左方向走"）。
+		///    其余相位（飞 / 钉住 / 拉自己 / 打空返程）都是秒级的，镜头该拿着 —— 保持原行为。
+		/// </summary>
+		public bool IsAimCameraBusy => _hookPhase != HookPhase.Idle && _hookPhase != HookPhase.Binding;
+
+		/// <summary>
 		/// **根实体**（钩 / 绳 / 左手环 同属它的子级 —— 用户 2026-10-08 要求"严格的父子关系"）。
 		/// 🔴 必须先于 <see cref="_rope"/> / <see cref="_hook"/> 初始化（字段初始化按声明顺序跑，构造里要用它）。
 		/// </summary>
@@ -89,6 +101,9 @@ namespace LivingWorldNpcs
 		/// <summary>**勾人**（步骤 5，2026-10-09）：目标侧状态机（缠 → 倒 → 缚 → 解）。
 		/// 判定与结算全在它里面（铁律 18 平权），这里只负责"把钩的相位与绳的远端接过去"。</summary>
 		private readonly GrappleBind _bind = new GrappleBind();
+
+		/// <summary>扛人配对（步骤 6，2026-10-10 立）：扛人者 + 被扛者两台状态机的对齐 + 每帧摆位。</summary>
+		private readonly GrappleCarry _carry = new GrappleCarry();
 
 		/// <summary>这一次捆绑是不是 `custom.grapple bind test`（调试路径）开的 ——
 		/// 那条路径玩家没拿钩索、目标还可能在 30 米外 ⇒ "收起钩索/绳被拉断"两条出口对它无意义（会当场把自己踢掉）。</summary>
@@ -776,6 +791,10 @@ namespace LivingWorldNpcs
 			}
 			// 勾人中 ⇒ **放人**（起身动画 + 排队"等演完再把 AI 还回去"；绳这一收不影响起身动画继续演）。
 			// 若本次 Release 正是"绑自己走完了"那条路（GrappleBind 已把相位收成 None），Abort 是空操作。
+			// 🔴 **扛着人的话先散伙**（2026-10-10）：正常放下走交互面板的【放下】（那条会演完动画才松手）；
+			//    走到这里说明是**异常收摊**（收钩 / 换武器 / 命令）⇒ 直接松手，不演放下动画
+			//    （被扛者会立刻回到自己脚下那一点 —— 这是接受的代价，见 §15.8）。
+			_carry.HardStop("hook released: " + reason);
 			_bind.Abort(reason);
 			_bindFromTest = false;
 			_hook.Clear();
@@ -1168,6 +1187,11 @@ namespace LivingWorldNpcs
 			//      绑结束了还得等起身动画演完再把 AI 还给目标，所以它必须每帧都跑。
 			_bind.TickPending(dt);
 
+			// ⓪⁗ **扛人**（步骤 6，2026-10-10）：与钩头相位**无关** —— 扛着人走路时钩头是 Idle，
+			//      但被扛者每帧都得跟着摆位、两台状态机都得推进；【放下】之后还要等放下动画演完才松手。
+			_carry.Tick(dt, _bind);
+			Trace("carry");
+
 			// ⓪″ **手里那套常驻件**（左手环 + "环→右手"那截绳 A，2026-10-08）：与钩头相位**无关** ——
 			//     握着钩索就该在（待命 / 飞行 / 拉拽都跟着两只手），所以放在相位分派**之前**。
 			TickHandKit(dt);
@@ -1515,6 +1539,151 @@ namespace LivingWorldNpcs
 
 		/// <summary>命令层：观感验收 —— 强制目标播"躺下 / 躺地循环 / 起身"某一段（`bind anim`）。</summary>
 		public string BindForceAnim(string which) => _bind.ForceAnim(which);
+
+		/// <summary>
+		/// **命令 / 面板入口：【拉紧】—— 把当前被捆的人拽倒**（`custom.grapple bind tug`）。
+		/// 🔴 2026-10-10 新口径：**命中不再自动拽倒**（第一拍是 crash，稳态是站着），
+		///    拽倒改成玩家主动做；拉倒后 <see cref="GrappleBind.LaySeconds"/> 秒自动起身。
+		/// </summary>
+		public string BindTug()
+		{
+			if (!_bind.IsActive) return "Error: no bound target.";
+			return _bind.StartYank(out string why)
+				? $"OK: tugging the bound target down (stand-up in {GrappleBind.LaySeconds:F1}s; bind laytime 0 = never)"
+				: $"Error: cannot tug ({why}).";
+		}
+
+		/// <summary>命令层：在闹开关（`站缚 ⇄ 挣扎`）。</summary>
+		public bool BindStruggleState
+		{
+			get { try { return _bind.StruggleState; } catch (Exception) { return false; } }
+		}
+
+		/// <summary>命令层：翻一下在闹开关。</summary>
+		public bool BindToggleStruggle()
+		{
+			try { return _bind.ToggleStruggle(); }
+			catch (Exception) { return false; }
+		}
+
+		// ───────────────────────────── 扛人（步骤 6，2026-10-10）─────────────────────────────
+
+		/// <summary>手里扛着人吗（交互面板与命令用；判据 = 扛人控制器在跑）。</summary>
+		public bool IsCarryingSomeone
+		{
+			get { try { return _carry.IsActive; } catch (Exception) { return false; } }
+		}
+
+		/// <summary>正被扛着的那一个（没有则 null）。</summary>
+		public Agent CarriedAgent
+		{
+			get { try { return _carry.Carried; } catch (Exception) { return null; } }
+		}
+
+		/// <summary>这个 agent 是不是**正被扛着的那一个**（面板名字后缀用）。</summary>
+		public bool IsCarriedTarget(Agent a)
+		{
+			try { return a != null && _carry.IsCarrying(a); }
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>
+		/// **命令 / 面板入口：把当前被捆的那个扛起来**（`custom.grapple carry start`）。
+		/// 默认扛人者 = `Agent.Main`（玩家）；两边都是 Agent，将来 NPC 扛人直接传别的。
+		/// 返回 false + <paramref name="why"/> = 扛不了（没捆着 / 趴着 / 太远 / 已在扛）。
+		/// </summary>
+		public bool CarryPickUp(out string why, Agent carrier = null)
+		{
+			why = "-";
+			Agent t = _bind.IsActive ? _bind.Target : null;
+			if (t == null) { why = "no bound target (lasso someone first)"; return false; }
+			return _carry.Begin(carrier ?? Agent.Main, t, _bind, out why);
+		}
+
+		/// <summary>命令 / 面板入口：把扛着的人放下（演完放下动画才真松手）。</summary>
+		public bool CarryPutDown(out string why)
+		{
+			if (!_carry.IsActive) { why = "not carrying anyone"; return false; }
+			why = "-";
+			return _carry.PutDown(_bind, "command");
+		}
+
+		/// <summary>命令层：扛人状态一行（`custom.grapple carry state`）。**纯英文**。</summary>
+		public string CarryStateLine() => _carry.StatusLine();
+
+		/// <summary>命令层：扛人总开关。</summary>
+		public string CarrySetEnabled(bool on)
+		{
+			GrappleCarry.Enabled = on;
+			if (!on && _carry.IsActive) _carry.HardStop("carry disabled");
+			return $"OK: carry {(on ? "on" : "off")}";
+		}
+
+		// ── 交互面板用的两个判据（2026-10-10 用户要的两件；都是"壳"，判定本体在上面）──
+
+		/// <summary>
+		/// **【拉紧】能不能用**（面板行判据）：牵着绳 **且** 离绳另一端那个人 **超过
+		/// <see cref="GrappleBind.TugMinDistance"/> 米**、而且他已经捆稳了（不再是缠/拽中）。
+		/// 🔴 距离**从脚底量**（`Agent.Position`）—— 与"手挂点闸门"那条先例同口径，
+		///    别拿手/相机去量（抬手就多 1.5 米）。
+		/// </summary>
+		public bool CanTugRope(out float distance)
+		{
+			distance = -1f;
+			try
+			{
+				if (!IsBindingSomeone()) return false;
+				Agent t = _bind.Target;
+				Agent me = Agent.Main;
+				if (t == null || me == null) return false;
+				Vec3 d = t.Position - me.Position;
+				d.z = 0f;
+				distance = d.Length;
+				return distance > GrappleBind.TugMinDistance && _bind.Current == GrappleBind.Phase.Bound;
+			}
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>
+		/// **【扛起】能不能用**（面板行判据）：牵着绳、瞄着的**就是被绳捆着的那个人**、
+		/// 他站着（不是趴着）、而且够得着（≤ <see cref="GrappleCarry.MaxLiftDistance"/> 米）。
+		/// 与 <see cref="CanTugRope"/> **天然互斥**：扛起要"够得着"、拉紧要"够不着" ⇒
+		/// 同一时刻只可能出一条 ⇒ 两条共用 G 长按不会打架。
+		/// </summary>
+		public bool CanLiftCarried(Agent a, out string why)
+		{
+			why = "-";
+			try
+			{
+				if (!GrappleCarry.Enabled) { why = "carry off"; return false; }
+				if (!IsBindingSomeone() || _bind.Target == null) { why = "no bound target"; return false; }
+				if (a == null || !ReferenceEquals(_bind.Target, a)) { why = "not the one on the rope"; return false; }
+				if (_carry.IsActive) { why = "already carrying"; return false; }
+				if (_bind.IsLying) { why = "target is lying down"; return false; }
+				Agent me = Agent.Main;
+				if (me == null) { why = "no main agent"; return false; }
+				Vec3 d = a.Position - me.Position;
+				d.z = 0f;
+				if (d.Length > GrappleCarry.MaxLiftDistance) { why = $"too far ({d.Length:F1}m)"; return false; }
+				return true;
+			}
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>**【放下】能不能用**：正扛着（还没在放下的过程中）。</summary>
+		public bool CanPutDownCarried
+		{
+			get { try { return _carry.Phase == GrappleCarry.CarryPhase.Riding; } catch (Exception) { return false; } }
+		}
+
+		/// <summary>命令层：摆位微调（米；默认 0 —— 对齐量本来就烘在被扛者的动画里）。</summary>
+		public string CarrySetOffset(float forward, float right)
+		{
+			GrappleCarry.OffsetForward = forward;
+			GrappleCarry.OffsetRight = right;
+			return $"OK: carry offset forward={forward:F2} right={right:F2}"
+				+ " (0/0 = the alignment baked in the carried animation)";
+		}
 
 		/// <summary>
 		/// **命令入口：对指定目标直接走"缠 → 倒 → 缚"**（`custom.grapple bind test`）——

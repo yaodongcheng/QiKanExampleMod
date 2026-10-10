@@ -67,7 +67,11 @@ namespace LivingWorldNpcs
 				}
 
 				GrappleLogic logic = GrappleLogic.Current;
-				bool grappleBusy = logic != null && logic.IsBusy;
+				// 🔴 **用 `IsAimCameraBusy` 而不是 `IsBusy`**（2026-10-10）：后者把"钩子挂在人身上"（Binding，
+				//    一个**长期**相位 —— NPC 永不挣脱 + 扛人走路都在里面）也算忙 ⇒ 镜头一直锁着 ⇒
+				//    **玩家转不了视角**（引擎在 CustomCamera 接管期间不处理鼠标 look），而移动相对相机
+				//    ⇒ 按 W 朝着被锁住的那个方向走（实机：用户报"扛起来按 W 却朝左走"）。见那边的注释。
+				bool grappleBusy = logic != null && logic.IsAimCameraBusy;
 
 				if (!IsActive)
 				{

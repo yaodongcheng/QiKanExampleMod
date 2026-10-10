@@ -1,0 +1,91 @@
+<!-- 被绑者的**姿态状态机**（2026-10-10 立；方案 = plans\钩索-实施计划.md §十五）。
+
+     🔴 **改这个文件不用重编译** —— 重启游戏即生效（引擎不解析它，由 Combat/BindAnimMachine.cs 的
+        Register() 在 MySubModule.OnSubModuleLoad 里装载）。两个读者：
+        · 游戏：Animation/AnimMachineLoader.cs 装载 + 强校验（有一处不对 = 整台不注册、全部问题报到日志）
+        · 编辑器页：tools/anim-statemachine/statemachine_editor.html 双击打开 →「打开 XML…」选本文件
+          → 画图 / 点着改 / 存回（本文件头导出时原样保留；写在 <states> 等里面的注释会被覆盖）
+
+     ─────────────────────────── 这台机管谁 ───────────────────────────
+     管**被钩索捆住的那个人**（勾中的目标），从"被勾中"一直到"被放开/被放下"，**一台机走到底**。
+     被扛起来的时候也是它（被扛的人就是被绑的人）—— 拆成两台机就要做 0 号通道交接，白多一处会出错的地方。
+
+     ─────────────────────────── 口径（用户 2026-10-10 拍板）───────────────────────────
+       · **被捆住的稳态 = 站着**（站缚）—— 不再是趴地
+       · **命中第一拍 = 受击**（crash，1.7 s 一次性，不倒地）→ 接站缚
+       · **只有玩家【拉紧】才把人拉倒**（拉倒 = 拉倒段 + 趴缚循环）；**拉倒后定时自动起身**
+       · 【扛起】/【放下】= 扛人（见 carry.xml 那台机）
+       · 放开（松绳 / 收摊）= C# 置 `released` ⇒ **本文件里那两条 `when="released"` 的边负责出机**
+
+     ─────────────────────────── 纵向位移在哪（🔴 别去找代码）───────────────────────────
+     "人趴下去 0.77 米""被扛到肩上 0.68 米"**全是动画自己的根骨位置轨**（`tpaccli`/`trf_root_travel.py` 实测）：
+       站姿基准 z≈−0.02 · 趴地 z≈−0.79 · 肩上 z≈+0.66
+     引擎渲染骨骼时会应用这条轨 ⇒ **我们一个字都不写 agent 的 Z**（那也写不进去，见
+     Knowledge/骑砍2Agent运动与位置机制.md）。被扛者的前后/左右相对位移同样在它自己的动画里
+     ⇒ 摆位只做"XZ 贴住扛人者 + 朝向对齐"，**不叠任何偏移**（§15.4）。
+
+     ─────────────────────────── 什么时候切换（全从下面 <edges> 读；C# 里没有状态名）───────────────────────────
+       bind-hit        命中人（缠完那一刻）            -> 受击   （事件边，C# Force）
+       bind-hold       （备用）不经受击直接进稳态       -> 站缚   （事件边，C# Force）
+       yank-trigger    玩家【拉紧】                     -> 拉倒   （事件边，C# Force）
+       rise-trigger    （备用）任何人主动叫起身        -> 起身   （事件边，C# Force；定时起身也走它）
+       carry-trigger   玩家【扛起】                     -> 被扛起 （事件边，C# Force）
+       put-trigger     玩家【放下】                     -> 被放下 （事件边，C# Force）
+       bind-struggling 在闹（本轮由 `bind struggle 0|1` 手动置）   站缚 ⇄ 挣扎
+       bind-released   已放人                          站缚/趴缚 -> 起身 -> （站缚）-> outside
+       bind-carrier-moving  扛人者在移动               被扛行 ⇄ 被扛走
+
+     🔴 **`released` 那条边是"出机"的正门**：C# 只置标志，**走哪条路出机由本文件说了算**
+        （趴着就先起身再出、站着就直接出）—— 这样"放人要不要演起身"不在代码里。
+
+     🔴 **一次性状态（受击/拉倒/起身/被扛起/被放下）的 `next` = 演完自动去的状态**（引擎侧"演完兜底"）。
+        时长一律**不写** —— 由 clip 自己带。
+
+     clip 在 `AssetPackages/lwn_core.tpac`（编辑器沙箱 = Modules/LwnAnim）；
+     动作名 ↔ clip 名接线在 ModuleData/action_types.xml + action_sets.xml。
+-->
+<state_machine name="bind" finish-margin="0.15">
+	<families>
+	</families>
+	<states>
+		<!-- 命中第一拍：受击（不倒地），演完自动接站缚 -->
+		<state name="受击" act="act_grapple_bound_crash" once="true" next="站缚" />
+		<!-- 稳态 = 站着被捆 -->
+		<state name="站缚" act="act_grapple_bound_idle" />
+		<state name="挣扎" act="act_grapple_bound_struggle" />
+		<!-- 拉倒 → 趴缚（趴地循环）→ 起身 -->
+		<state name="拉倒" act="act_grapple_bound_lay" once="true" next="趴缚" />
+		<state name="趴缚" act="act_grapple_bound_cycle" />
+		<state name="起身" act="act_grapple_bound_standup" once="true" next="站缚" />
+		<!-- 被扛（扛人者在动就切"被扛走"，两条都是循环） -->
+		<state name="被扛起" act="act_grapple_carried_lift" once="true" next="被扛行" />
+		<state name="被扛行" act="act_grapple_carried_idle" />
+		<state name="被扛走" act="act_grapple_carried_walk" />
+		<state name="被放下" act="act_grapple_carried_reverse" once="true" next="站缚" />
+	</states>
+	<edges>
+		<!-- 进机（从机外进来的边**只能**是事件驱动；实际触发在 C#） -->
+		<edge from="outside" to="受击" when="bind-hit" event="true" />
+		<edge from="outside" to="站缚" when="bind-hold" event="true" />
+
+		<!-- 站缚 ⇄ 挣扎 -->
+		<edge from="站缚" to="挣扎" when="bind-struggling" />
+		<edge from="挣扎" to="站缚" when="bind-struggling" not="true" />
+
+		<!-- 拉倒 / 起身（都是事件边，由 C# 按玩家输入与定时器 Force） -->
+		<edge from="站缚" to="拉倒" when="yank-trigger" event="true" />
+		<edge from="趴缚" to="起身" when="rise-trigger" event="true" />
+
+		<!-- 扛人（扛起 / 放下；被扛行与被扛走按"扛人者在不在动"切） -->
+		<edge from="站缚" to="被扛起" when="carry-trigger" event="true" />
+		<edge from="被扛行" to="被扛走" when="bind-carrier-moving" />
+		<edge from="被扛走" to="被扛行" when="bind-carrier-moving" not="true" />
+		<edge from="被扛行" to="被放下" when="put-trigger" event="true" />
+		<edge from="被扛走" to="被放下" when="put-trigger" event="true" />
+
+		<!-- 🔴 出机（放人）：C# 只置 `released`，走哪条路由这两条边决定 ——
+		     站着 = 直接出机；趴着 = 先演起身、起身演完落到站缚、再从这里出机。 -->
+		<edge from="站缚" to="outside" when="bind-released" />
+		<edge from="趴缚" to="起身" when="bind-released" />
+	</edges>
+</state_machine>
