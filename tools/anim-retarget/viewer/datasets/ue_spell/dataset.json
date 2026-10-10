@@ -5,17 +5,52 @@
   "clipsFile": "manifest.json",
   "sides": {
     "src": {
-      "label": "UE5 小白人（源）", "color": "#7fa8d8", "rotY": 0, "slot": -0.62,
-      "footBones": ["foot_l", "foot_r", "ball_l", "ball_r"],
+      "label": "UE5 小白人（源）",
+      "color": "#7fa8d8",
+      "rotY": 3.141592653589793,
+      "slot": -0.62,
+      "footBones": [
+        "foot_l",
+        "foot_r",
+        "ball_l",
+        "ball_r"
+      ],
       "files": [
-        { "id": "src_a", "url": "assets/ue_mannequin_spell.glb" }
+        {
+          "id": "src_a",
+          "url": "assets/ue_mannequin_spell.glb"
+        }
+      ],
+      "note": "源侧承担 180° 对齐：源 glb 按 glTF 规范正面朝 +Z、骑砍产物正面朝 −Z（天生差 180°），这里把源转过去 ⇒ **产物侧 rotY=0 = 游戏里的真实朝向**（所见即所得）。见 项目总纲 §0.14 §十一",
+      "facingBones": [
+        "foot_l",
+        "ball_l",
+        "foot_r",
+        "ball_r"
       ]
     },
     "dst": {
-      "label": "骑砍2（重定向）", "color": "#e0b070", "rotY": 3.141592653589793, "slot": 0.62,
-      "footBones": ["l_toe0", "r_toe0", "l_foot", "r_foot"],
+      "label": "骑砍2（重定向）",
+      "color": "#e0b070",
+      "rotY": 0,
+      "slot": 0.62,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
       "files": [
-        { "id": "dst_a", "url": "assets/bannerlord_spell.glb" }
+        {
+          "id": "dst_a",
+          "url": "assets/bannerlord_spell.glb"
+        }
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
       ]
     }
   }

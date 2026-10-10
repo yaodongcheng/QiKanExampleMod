@@ -19,6 +19,12 @@
           "id": "m230",
           "url": "assets/male.glb"
         }
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
       ]
     },
     "f233": {
@@ -37,6 +43,12 @@
           "id": "f233",
           "url": "assets/female.glb"
         }
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
       ]
     }
   },

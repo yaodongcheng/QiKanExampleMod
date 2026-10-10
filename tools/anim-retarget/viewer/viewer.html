@@ -91,7 +91,7 @@
       <div id="pairMsg" style="font-size:10.5px;color:#8b98ab;margin-top:4px;min-height:14px;line-height:1.5"></div>
       <textarea id="pairJson" readonly style="display:none;width:100%;height:110px;margin-top:6px;background:#161a21;border:1px solid var(--line);color:#9fb0c6;border-radius:6px;font-size:10px;padding:5px;box-sizing:border-box"></textarea>
       <div style="font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.7">
-        X/Y/Z = group 世界坐标（米）；时间：正=跳过开头，负=首帧等待<br>
+        X=右 / Y=前 / Z=高（<b>骑砍轴</b>，米）；时间：正=跳过开头，负=首帧等待<br>
         播放轴：<span id="offHead">0.00</span> s ／ 循环长 <span id="offLoop">0.00</span> s
       </div>
     </div>
@@ -99,7 +99,7 @@
       <div class="pg2"><span class="pl2">攻击者</span>
         <label class="fc">右<input type="text" id="duX" value="0.000" size="5"></label>
         <label class="fc">前<input type="text" id="duY" value="0.000" size="5"></label>
-        <label class="fc">高+Y<input type="text" id="duZ" value="0.000" size="5"></label>
+        <label class="fc">高+Z<input type="text" id="duZ" value="0.000" size="5"></label>
         <label class="fc">朝向°<input type="text" id="duDir" value="0" size="5"></label>
       </div>
       <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">
@@ -112,7 +112,7 @@
       <textarea id="duJson" readonly style="display:none;width:100%;height:80px;margin-top:6px;background:#161a21;border:1px solid var(--line);color:#9fb0c6;border-radius:6px;font-size:10px;padding:5px;box-sizing:border-box"></textarea>
       <div style="font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.7">
         受击者(女)保持自己的坐标+朝向（=基准）；攻击者(男)在<b>动画自带相对位</b>上按 <b>右 / 前 / 高(+Y) / 朝向°</b> 叠加偏移（全 0 = 动画自带位）。<b>改数字即时生效</b>（基准+偏移，反复点也不累加）；「⟲ 归位」把偏移清零回到动画自带；「重置」恢复 dataset 默认值。
-        <br><span style="color:#6b7686">注：这三项是<b>沿角色自身</b>的「右 / 前 / 高」方向，不是世界轴。世界轴见 3D 场景里的 <b style="color:#ff4d4d">X</b>/<b style="color:#3ddc84">Y(上)</b>/<b style="color:#4d7dff">Z</b> 箭头。</span>
+        <br><span style="color:#6b7686">注：这三项是<b>沿角色自身</b>的「右 / 前 / 高」方向，不是世界轴。世界轴见 3D 场景里的 <b style="color:#ff4d4d">X(右)</b>/<b style="color:#3ddc84">Y(前)</b>/<b style="color:#4d7dff">Z(上)</b> 箭头。</span>
       </div>
     </div>
     <div class="sec" id="trsSec">
@@ -135,7 +135,7 @@
       <label class="tg"><input type="checkbox" id="cn" checked>显示地面网格</label>
       <label class="tg"><input type="checkbox" id="ch" checked>显示高度参考网格</label>
       <label class="tg"><input type="checkbox" id="cax" checked>显示世界坐标轴 + 角色前向箭头</label>
-      <div style="font-size:10px;color:#6b7686;margin:-2px 0 4px 18px;line-height:1.5">⚠ 坐标轴是 <b>glTF/three.js 的 Y-up</b>（绿=上）：绿 <b>Y↑</b>=骑砍 <b>Z↑</b>、红 <b>X</b>=骑砍 <b>X</b>、蓝 <b>Z</b>=骑砍 <b>−Y</b>。<b>trf 本身用的是骑砍 Z-up，没问题</b>。</div>
+      <div style="font-size:10px;color:#6b7686;margin:-2px 0 4px 18px;line-height:1.5">坐标轴 = <b>骑砍轴</b>：红 <b>X=右</b> · 绿 <b>Y=前</b>（指向角色脸朝的方向）· 蓝 <b>Z=上</b>。与 trf / 游戏<b>同一套</b>，不用换算（.glb 文件自身仍是 glTF，载入时已摆正）。</div>
       <label class="tg"><input type="checkbox" id="cmk">显示期望站位标记（成对动画）</label>
     </div>
     <div class="sec"><b>视角</b>
@@ -236,32 +236,39 @@ scene.fog = new THREE.Fog(0x181b21, 12, 34);
 // 🔴 2026-10-04：地板改**半透明** —— 空中类动画（钩索 InAir：中段头朝下俯冲）身体会**钻到 z=0 以下**，
 //    不透明的板子把大半个人挡住了（用户实测："有段时间角色大部分身体在 z 轴以下看不见了"）。
 //    半透明后上下的身体都能看见、还能保留影子与脚下参考面（脚是否贴地照样看得出）。
+// 🔴🔴 2026-10-10：**查看器的世界系 = 骑砍轴**（+X 右 / +Y 前 / +Z 上）—— 与 trf / 游戏一致，所见即所得。
+//     规则：**.glb 文件仍是 glTF（+Y 上 / 面朝 −Z）**，加载时套一层 SPIN 节点绕 X 转 +90° 摆正（见 loadModel）；
+//     除此之外**本文件里所有世界坐标一律是骑砍轴**，不许再出现换算。
+//     换算（只在"跟 glb 字节打交道"的地方用）：`(x,y,z)_骑砍 = (X, −Z, Y)_viewer 空间`。
+//     依据与三条自证锚点：tools/anim-retarget/项目总纲.md §0.14 §十一。
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60),
   new THREE.MeshStandardMaterial({ color:0x2a3038, roughness:0.95, metalness:0.0,
                                    transparent:true, opacity:0.45, depthWrite:false }));
-ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+ground.receiveShadow = true; scene.add(ground);      // 平面法线本来就是 +Z（= 骑砍"上"）⇒ 不用转
 const grid = new THREE.GridHelper(40, 40, 0x3a4353, 0x252b34);
-grid.position.y = 0.002; scene.add(grid);
+grid.rotation.x = Math.PI/2;                          // GridHelper 默认躺在 XZ 平面 ⇒ 转到 XY（= 骑砍地面）
+grid.position.z = 0.002; scene.add(grid);
 const hiGrids = [];
 for (let h = 1; h <= 3; h++){
   const g2 = new THREE.GridHelper(40, 40, 0x2f3a4a, 0x222a35);
-  g2.position.y = h; g2.material.opacity = 0.5; g2.material.transparent = true;
+  g2.rotation.x = Math.PI/2; g2.position.z = h;       // 高度参考网格：高度 = +Z
+  g2.material.opacity = 0.5; g2.material.transparent = true;
   scene.add(g2); hiGrids.push(g2);
 }
 scene.add(new THREE.HemisphereLight(0xffffff, 0x3a4457, 1.6));
 const key = new THREE.DirectionalLight(0xffffff, 2.1);
-key.position.set(3.2, 6, 4.4); key.castShadow = true;
+key.position.set(3.2, -4.4, 6); key.castShadow = true;      // 灯光位置已换算到骑砍轴（相对关系与改前逐位一致）
 key.shadow.mapSize.set(1024,1024);
 key.shadow.camera.left=-4; key.shadow.camera.right=4;
 key.shadow.camera.top=4; key.shadow.camera.bottom=-4; key.shadow.camera.far=20;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xbcd4ff, 0.9); fill.position.set(-4, 2.5, 2); scene.add(fill);
-const rim  = new THREE.DirectionalLight(0xffe9c4, 0.7); rim.position.set(0, 3, -5);  scene.add(rim);
+const fill = new THREE.DirectionalLight(0xbcd4ff, 0.9); fill.position.set(-4, -2, 2.5); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0xffe9c4, 0.7); rim.position.set(0, 5, 3);  scene.add(rim);
 
 const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 200);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.08;
-controls.target.set(0, 0.9, 0);
+controls.target.set(0, 0, 0.9);        // 视线焦点 = 角色胸口（骑砍轴：高度在 +Z）
 
 function resize(){
   const w = cv.clientWidth || 1, h = cv.clientHeight || 1;
@@ -299,8 +306,14 @@ function loadModel(cfg){
     loader.load(_vurl, gltf=>{
       const model = gltf.scene;
       const group = new THREE.Group();
-      group.rotation.y = cfg.rotY || 0;
-      group.add(model);
+      group.rotation.z = cfg.rotY || 0;        // 绕【竖直轴】转身：骑砍轴下竖直 = +Z
+      // 🔴🔴 全文件唯一一处 glTF 轴：**.glb 自身是 glTF（+Y 上 / 面朝 −Z）**，套一层 SPIN 绕 X 转 +90°
+      //      就摆进骑砍轴（+Z 上 / 面朝 +Y）：(x,y,z)_glTF → (x, −z, y)_骑砍。
+      //      往里的 bone / animation / scale 都在文件自己的坐标系里，**不受这层影响**（别去动它们）。
+      const spin = new THREE.Group();
+      spin.rotation.x = Math.PI / 2;
+      spin.add(model);
+      group.add(spin);
       group.visible = false;
       scene.add(group);
       const meshes = [];
@@ -314,15 +327,16 @@ function loadModel(cfg){
         }
       });
       const box = bindBox(model);
-      const h = Math.max(box.max.y - box.min.y, 1e-6);
+      const h = Math.max(box.max.z - box.min.z, 1e-6);   // 骑砍轴：身高 = +Z 跨度
       const s = TARGET_H / h;
       model.scale.setScalar(s);
-      model.position.y = -box.min.y * s;
+      // 脚底落到世界 z=0：model.position 在 SPIN 的局部系里，而 SPIN 的局部 +Y = 世界 +Z ⇒ 改 .y 即抬高度
+      model.position.y = -box.min.z * s;
       model.updateWorldMatrix(true, true);
-      // 起始偏移：成对动画（伏击/处决）的「相对站位」不在动画数据里，
-      // 需按原始场景的 Actor 摆放补上（offsetX/offsetZ 为世界单位，offsetY 为高度）
-      const _ox = cfg.offsetX || 0, _oz = cfg.offsetZ || 0, _oy = cfg.offsetY || 0;
-      group.position.set((cfg.slot || 0) + _ox, (cfg.rootFixY || 0) * s + _oy, _oz);
+      // 起始偏移（**一律骑砍轴**：右 / 前 / 高）。
+      // ⚠️ 2026-10-10 前这三个字段是 glTF 轴（offsetY=高、offsetZ=纵身前负），改名以示区别；无数据集用过旧名。
+      const _or = cfg.offsetRight || 0, _of = cfg.offsetForward || 0, _ou = cfg.offsetUp || 0;
+      group.position.set((cfg.slot || 0) + _or, _of, (cfg.rootFixUp || 0) * s + _ou);
       const footBones = [], bones = {};
       let rootBone = null;
       model.traverse(o=>{ if(o.isBone){ bones[o.name]=o;
@@ -339,12 +353,17 @@ function loadModel(cfg){
       let headLocalFwd = null;
       (function(){
         const h = bones['head']; if(!h) return;
+        // 🔴 **`facingBones` 与 `footBones` 不是同一个东西：顺序不同，别互相顶替** ——
+        //    `facingBones` 必须是 `[脚, 脚尖, 脚, 脚尖]`（代码按 (fb[1]−fb[0]) / (fb[3]−fb[2]) 取"脚尖−脚踝"）；
+        //    而 `footBones` 是 `[脚尖, 脚尖, 脚, 脚]`（另作他用）。2026-10-10 我拿 `|| footBones` 兜过底，
+        //    等于用"左−右"当"前"，标定出来的前向偏了 ~90°（实测 bidned_stand 头部读数 68~90°、torso 才是对的）。
+        //    ⇒ 只在 `facingBones` 显式给了才标定；要箭头就得在 dataset.json 里补对顺序的 `facingBones`。
         const fb = cfg.facingBones;
         if(!(fb && fb.length === 4 && bones[fb[0]] && bones[fb[1]] && bones[fb[2]] && bones[fb[3]])) return;
         model.updateWorldMatrix(true, true);
         const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
-        bones[fb[1]].getWorldPosition(A); bones[fb[0]].getWorldPosition(C); A.sub(C); A.y = 0;
-        bones[fb[3]].getWorldPosition(B); bones[fb[2]].getWorldPosition(C); B.sub(C); B.y = 0;
+        bones[fb[1]].getWorldPosition(A); bones[fb[0]].getWorldPosition(C); A.sub(C); A.z = 0;
+        bones[fb[3]].getWorldPosition(B); bones[fb[2]].getWorldPosition(C); B.sub(C); B.z = 0;
         if(A.lengthSq() < 1e-8 || B.lengthSq() < 1e-8) return;
         const rest = A.normalize().add(B.normalize());
         if(rest.lengthSq() < 1e-8) return;
@@ -580,7 +599,7 @@ async function boot(){
   // ?frame=N：暂停并直接定位到第 N 帧（1 格 = 1 帧 @30fps），供无头逐帧核对用
   const _fr = parseInt(qs.get('frame') || '', 10);
   if(isFinite(_fr)) seekToFrame(_fr, true);
-  // ?probe=1：把两侧角色的世界坐标写入 DOM，便于精确核对站位（无头 dump 可读）
+  // ?probe=1：把两侧角色坐标写入 DOM（**骑砍轴 x=右/y=前/z=高**），便于精确核对站位（无头 dump 可读）
   if (qs.get('probe') === '1') {
     setTimeout(() => {
       const out = [];
@@ -606,15 +625,19 @@ async function boot(){
         if (!L.group.visible) continue;
         const v = new THREE.Vector3();
         L.group.getWorldPosition(v);
-        const yaw = L.group.rotation.y;
+        const yaw = L.group.rotation.z;                       // 绕竖直轴的转身角（骑砍轴：竖直 = +Z）
         let extra = '';
         const pb = (L.bones || {})['pelvis'];
         if (pb) { const p = new THREE.Vector3(); pb.getWorldPosition(p);
           extra += '|pelvis=(' + p.x.toFixed(3) + ',' + p.y.toFixed(3) + ',' + p.z.toFixed(3) + ')'; }
         const fh = facingOf(L, 'head'), f = facingOf(L, 'torso'), ft = facingOf(L, 'feet');
-        const deg = g => (Math.atan2(-g.z, g.x) * 180 / Math.PI).toFixed(1);
-        if (fh) extra += '|HEAD=' + fh.x.toFixed(3) + ',' + fh.z.toFixed(3) + '@' + deg(fh) + 'deg';
-        if (f)  extra += '|torso=' + f.x.toFixed(3) + ',' + f.z.toFixed(3) + '@' + deg(f) + 'deg';
+        // 朝向角：骑砍轴口径 —— 0° = +Y（前）、+90° = +X（右）
+        const deg = g => (Math.atan2(g.x, g.y) * 180 / Math.PI).toFixed(1);
+        // ⚠️ 三个口径内部有 fallback（head→torso→feet），退化时三行会是**同一个数**；
+        //    所以标出实际用的是哪种（2026-10-10 加 `[kind]`），别再被"三个独立口径"骗。
+        const kd = '[' + (L.__faceKind || '?') + ']';
+        if (fh) extra += '|HEAD' + kd + '=' + fh.x.toFixed(3) + ',' + fh.y.toFixed(3) + '@' + deg(fh) + 'deg';
+        if (f)  extra += '|torso=' + f.x.toFixed(3) + ',' + f.y.toFixed(3) + '@' + deg(f) + 'deg';
         if (ft) extra += '|toe=' + deg(ft) + 'deg';
         out.push(L.side + '|' + id + '|x=' + v.x.toFixed(3) + '|y=' + v.y.toFixed(3) + '|z=' + v.z.toFixed(3) + '|rotY=' + yaw.toFixed(3) + extra);
       }
@@ -818,16 +841,16 @@ function applyDuo(){
   const V=holderFor(vk), M=holderFor(DUO.master);
   if(!V || !M) return;
   const f=facingOf(V); if(!f) return;
-  const up=new THREE.Vector3(0,1,0);
+  const up=new THREE.Vector3(0,0,1);                       // 骑砍轴：高 = +Z
   const rt=new THREE.Vector3().crossVectors(f, up).normalize();           // 基准方的右手方向
   const ud=M.group.userData;
-  if(!ud.__duoBase) ud.__duoBase = { p: M.group.position.clone(), ry: M.group.rotation.y };
+  if(!ud.__duoBase) ud.__duoBase = { p: M.group.position.clone(), ry: M.group.rotation.z };
   const B=ud.__duoBase;
   M.group.position.set(B.p.x, B.p.y, B.p.z)
     .addScaledVector(rt, DUO.x||0)
     .addScaledVector(f,  DUO.y||0)
     .addScaledVector(up, DUO.z||0);
-  M.group.rotation.y = B.ry + (DUO.dir||0)*Math.PI/180;
+  M.group.rotation.z = B.ry + (DUO.dir||0)*Math.PI/180;
   M.group.updateMatrixWorld(true);
 }
 (function(){
@@ -1139,21 +1162,20 @@ document.getElementById('cn').onchange = e=>{ grid.visible = e.target.checked; }
 document.getElementById('ch').onchange = e=>{ hiGrids.forEach(g=>g.visible = e.target.checked); };
 
 function setView(p){
-  controls.target.set(0, 0.88, 0);
-  // 'top' 必须是【正俯视】：up=(0,0,-1) → 屏幕向右 = +X，屏幕向上 = −Z（即 +Z 朝屏幕下方）
-  // 这样 3D 俯视与 2D 平面图是同一套约定，可以直接对账。
-  camera.up.set(0, 1, 0);
-  // 🔴 2026-09-27 修：角色在查看器里朝 -Z（= bannerlord_target.json 的 facing_after_gltf:"-Z"，
-  //    实测胸口前向箭头也指向 -Z）。所以能拍到【正面】的相机必须在 **-Z 侧**；
-  //    原来放在 +Z(= 角色背后)，点「正面」看到的是背面 —— 既有问题，影响所有数据集。
-  if(p==='front') camera.position.set(0, 1.35, -4.6);
-  if(p==='side')  camera.position.set(4.9, 1.35, 0.0);
-  // 🔴 「源机位(左)」：相机在 **-X = 角色左侧**。与 render_glb_frames.py 的 AZ["sl"] 同一含义。
-  //    侧拍锁机位素材（角色面朝画面左）的解算结果，**只有这个机位**能还原源片视角；
-  //    用 front/side 看会顺着手臂轴看过去（只剩一截手臂），那是侧拍动作的必然，不是解算错。
-  if(p==='sl')    camera.position.set(-4.9, 1.35, 0.0);
-  if(p==='top'){  camera.up.set(0, 0, -1); camera.position.set(0, 9.0, 0.0); }
-  if(p==='fit')   camera.position.set(1.9, 1.9, 4.3);
+  controls.target.set(0, 0, 0.88);            // 角色胸口（骑砍轴，高度在 +Z）
+  // 🔴🔴 2026-10-10：世界系已改成**骑砍轴**（+X 右 / +Y 前 / +Z 上）⇒ 下面的机位全部按骑砍轴写：
+  //    「正面」= 相机在 **+Y 侧**（角色面朝 +Y）；「侧面」= +X（角色右侧）；「源机位」= −X（角色左侧）。
+  //    与离线渲染 render_glb_frames.py 的 AZ 表（f=+Y / s=+X / sl=−X）**同一套语义**，不用再换算。
+  camera.up.set(0, 0, 1);                     // 默认"上" = +Z
+  if(p==='front') camera.position.set(0.0, 4.6, 1.35);
+  if(p==='side')  camera.position.set(4.9, 0.0, 1.35);
+  // 🔴 「源机位(左)」：相机在 **−X = 角色左侧**。侧拍锁机位素材（角色面朝画面左）的解算结果，
+  //    **只有这个机位**能还原源片视角；用 front/side 看会顺着手臂轴看过去（只剩一截手臂），
+  //    那是侧拍动作的必然，不是解算错。
+  if(p==='sl')    camera.position.set(-4.9, 0.0, 1.35);
+  // 正俯视：up=(0,1,0) → 屏幕向右 = +X（右）、屏幕向上 = +Y（前）—— 3D 俯视与 2D 平面图同一套约定，可直接对账。
+  if(p==='top'){  camera.up.set(0, 1, 0); camera.position.set(0.0, 0.0, 9.0); }
+  if(p==='fit')   camera.position.set(1.9, -4.3, 1.9);
   controls.update();
 }
 document.getElementById('vFront').onclick=()=>setView('front');
@@ -1256,7 +1278,7 @@ document.getElementById('cd').onchange = applyColors;
    为什么不用 offset 试数值：成对两者的根位移在导出时被整体取反，方向不可信；
    横向站位只能由「受击方骨盆世界坐标 + 几何求出的背向 × 间距」显式算出来。        */
 const _vA = new THREE.Vector3(), _vB = new THREE.Vector3(), _vC = new THREE.Vector3();
-const _UP = new THREE.Vector3(0,1,0);
+const _UP = new THREE.Vector3(0,0,1);        // 骑砍轴：竖直 = +Z（up × 右 = 前 在这个右手系里同样成立：Z×X=Y）
 
 // 几何法求【角色正前方】（水平化，不看骨骼自身的局部轴约定）：
 //   head  = 头部世界姿态 × 绑定姿态标定出的"脸朝前"局部向量
@@ -1271,22 +1293,22 @@ function facingOf(L, kind){
     if(!h || !lf) return null;
     h.updateWorldMatrix(true, false);
     const v = new THREE.Vector3().copy(lf).transformDirection(h.matrixWorld);
-    v.y = 0;
+    v.z = 0;                                  // 水平化（骑砍轴：抹掉高度 +Z）
     return v.lengthSq() > 1e-8 ? v.normalize() : null;
   };
   const torso = () => {
     if(!(b['r_clavicle'] && b['l_clavicle'])) return null;
     const A = new THREE.Vector3(), B = new THREE.Vector3();
     b['r_clavicle'].getWorldPosition(A); b['l_clavicle'].getWorldPosition(B);
-    A.sub(B); A.y = 0;
+    A.sub(B); A.z = 0;
     return A.lengthSq() > 1e-8 ? new THREE.Vector3().crossVectors(_UP, A.normalize()) : null; // up × 右 = 前
   };
   const feet = () => {
-    const fb = cfg.facingBones;
+    const fb = cfg.facingBones;      // 同上：**不能拿 footBones 顶替**（顺序不同 ⇒ 会把"左−右"当成"前"）
     if(!(fb && fb.length === 4 && b[fb[0]] && b[fb[1]] && b[fb[2]] && b[fb[3]])) return null;
     const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
-    b[fb[1]].getWorldPosition(A); b[fb[0]].getWorldPosition(C); A.sub(C); A.y = 0;
-    b[fb[3]].getWorldPosition(B); b[fb[2]].getWorldPosition(C); B.sub(C); B.y = 0;
+    b[fb[1]].getWorldPosition(A); b[fb[0]].getWorldPosition(C); A.sub(C); A.z = 0;
+    b[fb[3]].getWorldPosition(B); b[fb[2]].getWorldPosition(C); B.sub(C); B.z = 0;
     if(A.lengthSq() < 1e-8 || B.lengthSq() < 1e-8) return null;
     const r = A.normalize().add(B.normalize());
     return r.lengthSq() > 1e-8 ? r.normalize() : null;
@@ -1294,7 +1316,10 @@ function facingOf(L, kind){
   const order = (kind === 'torso') ? [torso, head, feet]
               : (kind === 'feet')  ? [feet, torso, head]
               :                      [head, torso, feet];
-  for(const fn of order){ const r = fn(); if(r) return r; }
+  for(const fn of order){
+    const r = fn();
+    if(r){ L.__faceKind = (fn === head) ? 'head' : (fn === torso) ? 'torso' : 'feet'; return r; }
+  }
   return null;
 }
 
@@ -1328,7 +1353,7 @@ function applyPairAnchors(){
     const pv = new THREE.Vector3(); bp.getWorldPosition(pv);   // 锚点首帧骨盆世界坐标
     // 目标 = 锚点骨盆 ± 锚点正面 × gap（伏击在背后，处决在面前）
     const tx = pv.x + dir * f.x * gap, tz = pv.z + dir * f.z * gap;
-    L.group.rotation.y = A.group.rotation.y + (behind ? 0 : Math.PI);   // 处决要转身面对面
+    L.group.rotation.z = A.group.rotation.z + (behind ? 0 : Math.PI);   // 处决要转身面对面（绕竖直 +Z）
     L.group.updateMatrixWorld(true);
     // 闭环放位：先摆一次，量本侧骨盆实际落点，按差值补正（迭代 2 次）。
     // 这样不依赖 root 位移轨的正负号约定 —— 局部偏移在 group 平移下不变，一次补正即精确。
@@ -1374,13 +1399,14 @@ function chestOf(L){
 function _mkLabel(text, color, pos){
   const S=64, cv=document.createElement('canvas'); cv.width=cv.height=S;
   const g=cv.getContext('2d');
-  g.font='bold 44px monospace'; g.textAlign='center'; g.textBaseline='middle';
+  const two = text.length > 1;
+  g.font='bold '+(two?30:44)+'px monospace'; g.textAlign='center'; g.textBaseline='middle';
   const hex='#'+new THREE.Color(color).getHexString();
-  g.strokeStyle='rgba(0,0,0,0.85)'; g.lineWidth=7; g.strokeText(text, S/2, S/2);
+  g.strokeStyle='rgba(0,0,0,0.85)'; g.lineWidth=two?5:7; g.strokeText(text, S/2, S/2);
   g.fillStyle=hex; g.fillText(text, S/2, S/2);
   const tex=new THREE.CanvasTexture(cv); tex.needsUpdate=true;
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false, transparent:true}));
-  sp.scale.set(0.24,0.24,1); sp.position.copy(pos); sp.renderOrder=998;
+  sp.scale.set(two?0.38:0.24, 0.24, 1); sp.position.copy(pos); sp.renderOrder=998;
   return sp;
 }
 function updateAxes(){
@@ -1392,12 +1418,13 @@ function updateAxes(){
   for(let i=_axG.children.length-1;i>=0;i--){ const ch=_axG.children[i]; _axG.remove(ch);
     ch.traverse && ch.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); }
   const O = new THREE.Vector3(0,0,0);
-  _axG.add(_mkArrow3(O, new THREE.Vector3(1,0,0), 1.0, 0xff4d4d, 0.05));  // X 红
-  _axG.add(_mkArrow3(O, new THREE.Vector3(0,1,0), 1.0, 0x3ddc84, 0.05));  // Y 绿
-  _axG.add(_mkArrow3(O, new THREE.Vector3(0,0,1), 1.0, 0x4d7dff, 0.05));  // Z 蓝
-  _axG.add(_mkLabel('X', 0xff4d4d, new THREE.Vector3(1.22, 0, 0)));      // 轴名标注
-  _axG.add(_mkLabel('Y', 0x3ddc84, new THREE.Vector3(0, 1.22, 0)));
-  _axG.add(_mkLabel('Z', 0x4d7dff, new THREE.Vector3(0, 0, 1.22)));
+  // 🔴 世界系已改成骑砍轴 ⇒ 这三根箭头就是骑砍轴本身（不用换算）：红 X=右 / 绿 Y=前 / 蓝 Z=上
+  _axG.add(_mkArrow3(O, new THREE.Vector3(1,0,0), 1.0, 0xff4d4d, 0.05));  // X 红（右）
+  _axG.add(_mkArrow3(O, new THREE.Vector3(0,1,0), 1.0, 0x3ddc84, 0.05));  // Y 绿（前）
+  _axG.add(_mkArrow3(O, new THREE.Vector3(0,0,1), 1.0, 0x4d7dff, 0.05));  // Z 蓝（上）
+  _axG.add(_mkLabel('X右', 0xff4d4d, new THREE.Vector3(1.22, 0, 0)));    // 轴名标注
+  _axG.add(_mkLabel('Y前', 0x3ddc84, new THREE.Vector3(0, 1.22, 0)));
+  _axG.add(_mkLabel('Z上', 0x4d7dff, new THREE.Vector3(0, 0, 1.22)));
   for(const id in loaded){
     const L = loaded[id];
     if(!L.group.visible) continue;
@@ -1413,12 +1440,12 @@ function updateAxes(){
    蓝线=受击方朝向(前 1 m)  绿线=黄→绿(应为正后方)  红线=黄→红(实际偏移)          */
 let _mk = null;
 function _mkRing(color, r){
-  const g = new THREE.RingGeometry(r*0.86, r, 48); g.rotateX(-Math.PI/2);
+  const g = new THREE.RingGeometry(r*0.86, r, 48);   // RingGeometry 默认就躺在 XY 平面（法线 +Z = 骑砍"上"）⇒ 不用转
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color, side:THREE.DoubleSide, depthTest:false}));
   m.renderOrder = 999; return m;
 }
-function _mkSeg(a, b, color, y){
-  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a.x, y, a.z), new THREE.Vector3(b.x, y, b.z)]);
+function _mkSeg(a, b, color, z){                 // z = 离地高度（骑砍轴）
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a.x, a.y, z), new THREE.Vector3(b.x, b.y, z)]);
   const l = new THREE.Line(g, new THREE.LineBasicMaterial({color, depthTest:false}));
   l.renderOrder = 999; return l;
 }

@@ -310,6 +310,40 @@ def yaw_rotate(t, deg):
     return r
 
 
+def flipside(t, mode="x"):
+    """**把被扛者换到扛人者另一侧**（左右互换）—— 2026-10-10 立（钩索 §十五·扛人）。
+
+    `mode="x"`（默认）：**只把根骨位移的横向分量取反**（骨架本地系 `+X = 角色右手侧`）⇒
+        她从"站他右边"变成"站他左边"，**身体姿态一点不动**（朝向 / 手臂 / 整体姿势全保持）。
+    `mode="yaw180"`：整体绕竖直轴转 180°（连身体一起转过去；起手时她会背对着他）。
+
+    🔴 **为什么不做"真·左右镜像"（连姿态一起翻）**：**这个骨架做不到** ——
+       骨盆的局部轴不沿身体轴（局部 X ≈ 世界上方），在局部系里做镜像共轭 = 把人**倒过来**
+       （实测：头 z 0.29 / 脚 z 1.73，整条倒立）；换成"左右骨轨互换"那套也一样倒立
+       （中线骨没有镜像伙伴，共轭落到骨盆上照样翻）。**能精确做到的"翻面"只有绕竖直轴转 180°。**
+       （历史坑同源：[项目总纲](tools/anim-retarget/项目总纲.md) §十 第 3 条"完全镜像 → 脚尖朝脚后跟"。）
+
+    🔴 **判据（用什么决定该翻哪个分量）**：算出**扛人者两只手到被扛者全身任意骨的最近距离**，
+       全程越小说明两人的相对站位越对得上。实测（`biped_230_kangqi_lift` + `biped_233_beikangqi_lift`，
+       5 个采样帧求和）：**现状 5.43 m → 翻 X 后 2.55 m**（f99 0.48→0.21、f49 1.37→0.38）
+       ⇒ 扛人者那侧的动画**本来就是配"她在左边"拍的**。
+    """
+    r = Trf(); r.name = t.name
+    if mode == "yaw180":
+        qz = (0.0, 0.0, 1.0, 0.0)                     # Rot(Z, 180°)
+        for i, bone in enumerate(t.bones):
+            if i == 0:
+                r.bones.append([(f, qnormalize(qmul(qz, q))) for (f, q) in bone])
+            else:
+                r.bones.append(list(bone))
+        r.root_pos = [(f, (-px, -py, pz)) for (f, (px, py, pz)) in t.root_pos]
+        return r
+    for bone in t.bones:                              # mode="x"：姿态一道不动，只翻位移
+        r.bones.append(list(bone))
+    r.root_pos = [(f, (-px, py, pz)) for (f, (px, py, pz)) in t.root_pos]
+    return r
+
+
 def renumber(t, start=1):
     """把帧号顺排成 start..start+N-1（拼接前必做：TRF 帧号直接映射到时间，留空档=时间被拉伸）。"""
     r = Trf(); r.name = t.name
@@ -549,6 +583,12 @@ def _main():
     ip.add_argument("--zero-z", action="store_true", help="连竖直也归零（默认只清水平）")
     ip.add_argument("--out", required=True); ip.add_argument("--name")
 
+    fsp = sub.add_parser("flipside", help="把被扛者换到扛人者另一侧（左右互换）")
+    fsp.add_argument("--in", dest="inp", required=True)
+    fsp.add_argument("--mode", default="x", choices=("x", "yaw180"),
+                     help="x = 只翻位移轨的 X（姿态不动，默认）｜ yaw180 = 连身体一起绕竖直轴转 180°")
+    fsp.add_argument("--out", required=True); fsp.add_argument("--name")
+
     a = ap.parse_args()
     if a.op == "cut":
         t = cut(read_trf(a.inp), a.f0, a.f1)
@@ -570,6 +610,8 @@ def _main():
         t = yaw_rotate(read_trf(a.inp), a.deg)
     elif a.op == "inplace":
         t = inplace(read_trf(a.inp), keep_z=not a.zero_z)
+    elif a.op == "flipside":
+        t = flipside(read_trf(a.inp), mode=a.mode)
     else:
         t = layer(read_trf(a.peak), a.frame, read_trf(a.motion), a.len,
                   scale=a.scale, mask_legs=not a.no_mask_legs)

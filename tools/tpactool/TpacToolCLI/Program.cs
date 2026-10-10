@@ -39,6 +39,7 @@ bool inPlaceArg = false; // clipprio: 原地覆盖（自动备份）
 bool fixArg = false;     // clipload: 真的改（不加 = 只查）
 int rotFrameArg = 1;     // animrot: 第几帧（负数 = 倒数）
 int rotBoneArg = 0;      // animrot: 第几根骨
+int posBoneArg = -1;     // animpos: 打哪根骨的位置轨（-1 = 根骨那道专用位移轨）
 string dispArg = null;   // clipset: "X,Y,Z"
 string endArg = null;    // clipset: endProgress（可省）
 string durArg = null;    // clipduration: 新 Duration（秒），或 "auto"
@@ -75,6 +76,7 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--fix": fixArg = true; break;
             case "--frame": rotFrameArg = int.Parse(args[++i]); break;
             case "--bone": rotBoneArg = int.Parse(args[++i]); break;
+            case "--posbone": posBoneArg = int.Parse(cmdLine[++i]); break;
             case "--disp": dispArg = cmdLine[++i]; break;
             case "--end": endArg = cmdLine[++i]; break;
             case "--duration": durArg = cmdLine[++i]; break;
@@ -491,6 +493,10 @@ switch (command)
         // 打某条动画某帧的骨骼四元数（默认第 1 帧；--bone N 指定骨、--allbones 全打）——
         // 判"人朝哪边"的读数必须落在交付包上（见 AnimRot.cs 头注释）。
         return AnimRot.Run(assets, byGuid, filter, rotFrameArg, rotBoneArg, allArg);
+
+    case "animpos":
+        // 打某条动画的【根骨位移轨】（--posbone N 换成第 N 根骨的位置轨）—— 见 AnimPos.cs 头注释。
+        return AnimPos.Run(assets, byGuid, filter, posBoneArg);
 
     case "animsus":
     {

@@ -6,7 +6,7 @@
     "after": {
       "label": "③ 合成后的动画（骑砍2）",
       "color": "#e0b070",
-      "rotY": 3.141592653589793,
+      "rotY": 0,
       "slot": 1.9,
       "footBones": [
         "l_toe0",
@@ -19,12 +19,18 @@
           "id": "after",
           "url": "assets/comp.glb"
         }
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
       ]
     },
     "retarget": {
       "label": "② 重定向后的 pose（骑砍2）",
       "color": "#b9c2cc",
-      "rotY": 3.141592653589793,
+      "rotY": 0,
       "slot": 0.0,
       "footBones": [
         "l_toe0",
@@ -37,12 +43,18 @@
           "id": "retarget",
           "url": "../ue_flight/assets/bannerlord_flight.glb"
         }
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
       ]
     },
     "source": {
       "label": "① 源动画的 pose（UE 小白人）",
       "color": "#7fa8d8",
-      "rotY": 0,
+      "rotY": 3.141592653589793,
       "slot": -1.9,
       "footBones": [
         "foot_l",
@@ -55,6 +67,13 @@
           "id": "source",
           "url": "../ue_flight/assets/ue_mannequin_flight.glb"
         }
+      ],
+      "note": "源侧承担 180° 对齐：源 glb 按 glTF 规范正面朝 +Z、骑砍产物正面朝 −Z（天生差 180°），这里把源转过去 ⇒ **产物侧 rotY=0 = 游戏里的真实朝向**（所见即所得）。见 项目总纲 §0.14 §十一",
+      "facingBones": [
+        "foot_l",
+        "ball_l",
+        "foot_r",
+        "ball_r"
       ]
     }
   },

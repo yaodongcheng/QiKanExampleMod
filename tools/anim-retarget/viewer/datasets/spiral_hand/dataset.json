@@ -19,6 +19,12 @@
           "id": "dst",
           "url": "assets/dst.glb"
         }
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
       ]
     }
   }

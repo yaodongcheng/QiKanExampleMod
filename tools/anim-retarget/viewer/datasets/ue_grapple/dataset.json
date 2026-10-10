@@ -7,7 +7,7 @@
       "label": "UE5 小白人（源）",
       "color": "#7fa8d8",
       "slot": -0.62,
-      "rotY": 0.0,
+      "rotY": 3.141592653589793,
       "footBones": [
         "foot_l",
         "foot_r",
@@ -19,13 +19,20 @@
           "id": "src",
           "url": "assets/ue_mannequin_grapple.glb"
         }
+      ],
+      "note": "源侧承担 180° 对齐：源 glb 按 glTF 规范正面朝 +Z、骑砍产物正面朝 −Z（天生差 180°），这里把源转过去 ⇒ **产物侧 rotY=0 = 游戏里的真实朝向**（所见即所得）。见 项目总纲 §0.14 §十一",
+      "facingBones": [
+        "foot_l",
+        "ball_l",
+        "foot_r",
+        "ball_r"
       ]
     },
     "dst": {
       "label": "骑砍2（重定向 · 钩索地面）",
       "color": "#e0b070",
       "slot": 0.62,
-      "rotY": 3.141592653589793,
+      "rotY": 0,
       "footBones": [
         "l_toe0",
         "r_toe0",
@@ -37,6 +44,12 @@
           "id": "dst",
           "url": "assets/bannerlord_grapple.glb"
         }
+      ],
+      "facingBones": [
+        "l_foot",
+        "l_toe0",
+        "r_foot",
+        "r_toe0"
       ]
     }
   }
