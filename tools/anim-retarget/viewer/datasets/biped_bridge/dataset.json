@@ -1,0 +1,43 @@
+{
+  "name": "biped_bridge",
+  "title": "【过渡桥】binded_cry ⇄ daodibeibang（男230 / 女233）",
+  "subtitle": "① `cry180_to_daodi` 24帧：binded_cry@f180（跪地俯身哭）→ daodibeibang（趴地），按运动弧长重采样去掉「等待帧」，0.8s 顺畅塌下去。② `daodi_to_stand` 70帧：反向——倒地→撑起跪→起立站直（前半=①的时间倒放，后半=源 binded_cry 真实的「跪→站」收尾）。③ `cry_to_daodi_full` 62帧：完整序列 站立→跪下→俯身→塌倒→趴地（已砍掉源里那段跪着抽泣的来回抖动）。④ `cry_to_daodi_full_30` 30帧：③ 的**抽帧版（1.0s）**。⑤ `cry_to_daodi_full_22` 22帧（0.73s）：再做**「拉倒」向的二次抽帧**——把下跪段（原第 4~20 帧）隔帧抽掉，站立→跪地的下沉压缩到前半程，读起来更像「被一把拽倒」。做法：逐骨四元数 slerp + 缓动 + 逐帧贴地钳制 + 弧长重采样 + 按帧号抽帧；各接缝逐骨 0.000° 对齐。",
+  "sides": {
+    "m230": {
+      "label": "230 男 · 过渡（主）",
+      "color": "#7fa8d8",
+      "slot": -0.62,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "m230",
+          "url": "assets/male.glb"
+        }
+      ]
+    },
+    "f233": {
+      "label": "233 女 · 过渡（对照）",
+      "color": "#e0a0c0",
+      "slot": 0.62,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "f233",
+          "url": "assets/female.glb"
+        }
+      ]
+    }
+  }
+}

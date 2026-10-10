@@ -113,6 +113,14 @@ namespace LivingWorldNpcs
 		/// <summary>武器开火命中地形后**自动拉过去**（命令 `autopull` 可关；关掉用于"只看勾住"的调试）。</summary>
 		public static bool AutoPull = true;
 
+		// ── 音效（2026-10-10）──
+
+		/// <summary>抛出瞬间的甩绳声开关（命令 `custom.grapple sound off|on` 热切）。</summary>
+		public static bool RopeSoundEnabled = true;
+
+		/// <summary>绳声事件名（`ModuleData/module_sounds.xml` 里声明的名字；空 = 不播）。</summary>
+		public static string RopeSoundName = "lwn_grapple_rope";
+
 		// ── 姿态动画（2026-10-04；定义 = `ModuleData/statemachines/grapple.xml`）──
 
 		/// <summary>动画总开关（命令 `custom.grapple anim`）：**关 = 回"复用弓动画"的旧行为**（对照用）。</summary>
@@ -688,6 +696,13 @@ namespace LivingWorldNpcs
 			DebugLogger.Log($"[Grapple] 发射：起点={Fmt(launchFrom)}{(_hook.IsParked ? "(= 圆周上那枚此刻的位置)" : "(手)")}"
 				+ $" 手={Fmt(hand)} 瞄准={Fmt(aim)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
 				+ $" | 起手={(autoPull ? "武器开火(命中后自动拉)" : "命令(命中即停)")} 空中起钩={_attachFromAir}");
+
+			// 🔊 抛出瞬间的甩绳声（2026-10-10）—— **整条钩索流程只响这一下**
+			//    （钉住 / 拉拽不另配音；用户 2026-10-10 裁定）。名字查不到 = 静默跳过（不崩）。
+			if (RopeSoundEnabled)
+			{
+				SoundFx.Play3D(RopeSoundName, launchFrom);
+			}
 
 			// ── 姿态动画：开火（2026-10-04 二稿）──
 			//    前半段（ready/hold/release）归**武器 usage**，引擎自己在松手那一拍播 release；

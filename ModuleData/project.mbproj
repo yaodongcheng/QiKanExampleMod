@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- LivingWorldNpcs 的 soln 体系注册表 —— 通用玩法的「动画接线 / 挂件槽 / 物品用法组 /
-     移动组 / 粒子」五类正本挂在这里。
+     移动组 / 粒子 / 音效」六类正本挂在这里。
 
      🔴 【为什么必须是这个文件、不是 SubModule.xml】
         这几类数据**不在 SubModule 的 XmlNode 体系里**，引擎只认 project.mbproj 的 soln 登记：
@@ -27,4 +27,10 @@
 	<file id="soln_movement_sets"      name="ModuleData/movement_sets.xml"            type="movement_set" />
 	<file id="soln_full_movement_sets" name="ModuleData/full_movement_sets.xml"       type="full_movement_set" />
 	<file id="soln_particle_systems"   name="ModuleData/particle_systems_yinmo.xml"   type="particle_system" />
+	<!-- 🔴 2026-10-10 新增：soln_module_sound → ModuleData/module_sounds.xml（钩索绳声 + 飞行风噪）。
+	     不开这行 = 本文件的 2 个事件（7 个 wav）**一个都不注册**，`SoundEvent.GetEventIdFromString`
+	     全查不到（实机症状：抛钩/飞行全程静音，日志 `[SoundFx] 音效 'x' 查不到`）。
+	     安全性：事件名 `lwn_*` 与 Native / Taikou(`tk_*`) 零交集 → 引擎按 soln id 合并是**纯追加**，不冲突。
+	     回退方法：删掉下面这一行即可（module_sounds.xml 留着不生效，无害）。 -->
+	<file id="soln_module_sound"       name="ModuleData/module_sounds.xml"           type="module_sound" />
 </base>

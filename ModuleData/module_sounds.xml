@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	  type="module_sound">
+	<module_sounds>
+
+	<!-- ═══════════════════════════════════════════════════════════════════════
+	     LWN 通用玩法音效（2026-10-10 立）—— 钩索绳声 + 飞行风噪。
+
+	     🔴 本文件属 soln 体系：必须由 ModuleData/project.mbproj 的
+	        `<file id="soln_module_sound" … />` 行加载（引擎不看 SubModule.xml）。
+	        **文件在、行没挂 = 一个都不注册**（Taikou 火器 2026-09-16 踩过：
+	        症状是"开火只有引擎默认弩声"）。离线有 Scripts/check_module_registration.py 把守。
+
+	     🔴 音频文件在模块根 ModuleSounds/ 下（引擎标准位置，路径只写文件名）。
+	        格式 = 16bit 立体声 44.1/48kHz WAV —— 引擎直接吃，无需转换
+	        （Shokuho 抽样 250 个音效里 240 个就是 44.1kHz/16bit，正式发布中）。
+
+	     sound_category = **mission_combat**（2026-10-10 用户反馈"太小"后从 mission_foley 换过来）：
+	     `mission_foley` 是"背景动效层"（护甲摩擦一类，混音上**被刻意压低**），
+	     `mission_combat` 是前景层 —— 本项目已验证它够响（Taikou 火器枪声就在这档）。
+	     ⚠️ 引擎**没有音量 API** ⇒ 响度只能靠"素材响度 + 分类"两条：素材由
+	     `Scripts/gen_lwn_module_sounds.py` 规整（改目标值重跑即可，**不用重编译**）；分类就是这一行。
+	     觉得还是不对就先动这两条 —— 别再往代码里找音量开关（没有）。
+
+	     回退方法：删 project.mbproj 那一行 = 全部静音；代码侧查不到名字自行跳过，不崩。
+	     ═══════════════════════════════════════════════════════════════════════ -->
+
+	<!-- 钩索「抛出瞬间」的甩绳声（3D，位置 = 抛出手）。验收：custom.grapple sound -->
+	<module_sound name="lwn_grapple_rope"
+	  sound_category="mission_combat"
+	  path="lwn_grapple_rope.wav" />
+
+	<!-- 飞行风噪（3D，位置由代码每帧跟到玩家身上 —— 见 Flight/FlightWindFx.cs）。
+	     🔴 **为什么不用 2D**（2026-10-10 实机）：`is_2d="true"` + 无位置播放**本项目实测不出声**
+	        —— 同为 3D 的绳声 `custom.grapple sound` 响、风声 `custom.flight sound` 全程静音，
+	        事件 id 解析正常、分类合法（原因在 native，查不到 C# 层）。⇒ **一律走 3D + 锚在玩家身上**
+	        （锚点 = `Agent.Main.Position`，玩家不在时兜底用相机）：玩家处 ≈ 听者处 = 满音量不衰减
+	        = 听感等价 2D，但通道是已验证能响的。
+	     6 个变体 = 每次随机挑一条播（<variation> 机制，Taikou 火器 / Shokuho 撞船声同款），
+	     强度靠 `FlightWindFx` 按速度缩短间隔表达（不是循环音）。
+	     验收：custom.flight sound -->
+	<module_sound name="lwn_flight_wind"
+	  sound_category="mission_combat">
+		<variation path="lwn_flight_wind_1.wav" weight="1" />
+		<variation path="lwn_flight_wind_2.wav" weight="1" />
+		<variation path="lwn_flight_wind_3.wav" weight="1" />
+		<variation path="lwn_flight_wind_4.wav" weight="1" />
+		<variation path="lwn_flight_wind_5.wav" weight="1" />
+		<variation path="lwn_flight_wind_6.wav" weight="1" />
+	</module_sound>
+
+	</module_sounds>
+</base>

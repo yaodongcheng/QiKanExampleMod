@@ -477,6 +477,33 @@ namespace LivingWorldNpcs.Flight
         /// </summary>
         public static float SteerIdleResetSeconds = 0.2f;
 
+        // ───────────────────────── 风噪（2026-10-10）─────────────────────────
+        // 素材 = ModuleSounds/lwn_flight_wind_1~6.wav，事件声明在 ModuleData/module_sounds.xml。
+        // 强度靠"间隔密度"表达 —— 素材是"一阵一阵"的衰减包络（不是无缝循环），所以不做循环音，
+        // 而是按速度缩短两次阵风之间的间隔（速度越快越密 = 听着越猛）。
+        // 播放实现 = Flight/FlightWindFx.cs；验收 = custom.flight sound。
+
+        /// <summary>风噪总开关（`custom.flight sound off` / `on` 热切）。</summary>
+        public static bool WindSoundEnabled = true;
+
+        /// <summary>风噪事件名（module_sounds.xml 里声明的名字；空 = 不播）。</summary>
+        public static string WindSoundName = "lwn_flight_wind";
+
+        /// <summary>静音门槛（m/s）：速度低于它 = 悬停/起降，无风。热调：`custom.flight tune windmin 3`</summary>
+        public static float WindSpeedMin = 3f;
+
+        /// <summary>最密点（m/s）：速度到达它 = 间隔取下限 <see cref="WindIntervalFast"/>。热调：`custom.flight tune windmax 22`</summary>
+        public static float WindSpeedFast = 22f;
+
+        /// <summary>最疏间隔（秒）：速度刚到 <see cref="WindSpeedMin"/> 时，两阵风之间隔多久。热调：`custom.flight tune windgapmax 1.6`</summary>
+        public static float WindIntervalSlow = 1.6f;
+
+        /// <summary>最密间隔（秒）：速度 ≥ <see cref="WindSpeedFast"/> 时的阵风间隔。热调：`custom.flight tune windgapmin 0.45`</summary>
+        public static float WindIntervalFast = 0.45f;
+
+        /// <summary>每阵风的间隔抖动（±比例，防节拍感）。</summary>
+        public static float WindJitter = 0.3f;
+
         // ───────────────────────── 动画 ─────────────────────────
         // 🔴 **"什么时候播哪条动画"的规则不在这里** —— 在注册制的定义 `Flight/FlightAnimMachine.cs`
         //    （状态表 + 转移表）。本节这些值是**定义要用的参数**（过渡时长 / 动作名 / 核对周期）。
@@ -790,6 +817,14 @@ namespace LivingWorldNpcs.Flight
             SteerRateDegPerSec = 360f;
             SteerRateBoostDegPerSec = 180f;
             SteerIdleResetSeconds = 0.2f;
+            // 风噪（2026-10-10）
+            WindSoundEnabled = true;
+            WindSoundName = "lwn_flight_wind";
+            WindSpeedMin = 3f;
+            WindSpeedFast = 22f;
+            WindIntervalSlow = 1.6f;
+            WindIntervalFast = 0.45f;
+            WindJitter = 0.3f;
         }
 
         /// <summary>给控制台 custom.flight status 用的一行摘要。</summary>

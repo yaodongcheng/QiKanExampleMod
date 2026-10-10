@@ -290,6 +290,14 @@ namespace LivingWorldNpcs.Flight
                 AbortFlight();
             }
 
+            // 🌬️ 风噪（2026-10-10）：飞到速度够了就一阵一阵地出风，越快越密（悬停 / 起降无声）。
+            //    喂在相位分发**之后** = 读到的是本帧刚更新过的速度（`TickAirborne` 里写的 `_velocity`）；
+            //    素材 + 事件声明见 ModuleSounds/ 与 ModuleData/module_sounds.xml，调参 `custom.flight tune wind*`。
+            float windSpeed = _phase == Phase.Airborne ? _velocity.Length
+                : _phase == Phase.Falling ? _fallRideVel
+                : 0f;
+            FlightWindFx.Tick(windSpeed, dt);
+
             // 🔴 不在空中 ⇒ 撤掉"头看相机"（落地 / 中止时清；只撤我们自己设过的那个 POI）
             if (_phase != Phase.Airborne)
                 StopAimingHead(main);

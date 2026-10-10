@@ -26,6 +26,18 @@
     # ③ 窗口化姿态层（loop = 峰值姿态 ∘ 施法待机的相对呼吸）
     python trf_edit.py layer --peak ue_BarrierSpell.trf --frame 40 \
         --motion ue_MagicIdle.trf --len 60 --scale 0.85 --out spiral_hand_loop.trf
+
+    # ④ 姿态过渡桥（A 姿态 → B 姿态的缓动 slerp，首末帧逐骨严格等于两端）
+    python trf_edit.py blend --a 230_binded_cry.trf --fa 180 --b 230_daodibeibang.trf --fb 1 \
+        --len 36 --ease smoothstep --out cry180_to_daodi.trf
+    #     ⚠️ blend 只做旋转/位移插值，中段会穿地；随后必须跑
+    #     `pipeline/tools/trf_ground_clamp.py` 做逐帧贴地钳制。
+
+    # ⑤ 多段拼接（自动顺排帧号；用来拼 "cry[..180] + 过渡 + daodi[2..]" 验接缝）
+    python trf_edit.py concat --in a.trf,b.trf,c.trf --out chain.trf
+
+    # ⑥ 去等待：按【运动弧长】重采样（变化小的段被压缩，两端归零的"死段"不再占帧）
+    python trf_edit.py retime --in cry180_to_daodi.trf --len 24 --ease 0.30 --out cry180_to_daodi_fast.trf
 """
 import argparse
 import math
@@ -170,6 +182,106 @@ def rel_layer(peak, peak_frame, motion, f0, f1, start=1, mask_legs=False, bones=
     return r
 
 
+def motion_arc(t):
+    """逐帧"运动量"与累积弧长（旋转最大转角 度 + 根位移 米×100 的合成度量）。"""
+    L = len(t.bones[0])
+    m = []
+    for k in range(1, L):
+        ang = max(qangle_deg(t.bones[b][k - 1][1], t.bones[b][k][1]) for b in range(t.bone_count))
+        dp = math.dist(t.root_pos[k - 1][1], t.root_pos[k][1]) if k < len(t.root_pos) else 0.0
+        m.append(ang + dp * 100.0)
+    S = [0.0]
+    for x in m:
+        S.append(S[-1] + x)
+    return m, S
+
+
+def retime(t, n, ease=0.0):
+    """按【运动弧长】把 t 重采样成 n 帧 —— 变化快的段留帧多、变化慢的段被压缩。
+
+    ⇒ 去掉"等待感"（两端/保持段几乎没有位移却占了很多帧）。
+    `ease`：0 = 匀速（最不留等待）；1 = 与 smoothstep 同形的缓动；中间值 = 二者插值。
+    """
+    L = len(t.bones[0])
+    m, S = motion_arc(t)
+    tot = S[-1]
+    if tot <= 1e-9 or n < 2:
+        return resample(t, n)
+    r = Trf(); r.name = t.name
+
+    def warp(u):
+        return (1.0 - ease) * u + ease * (u * u * (3.0 - 2.0 * u))
+
+    idx = []
+    j = 1
+    for i in range(n):
+        u = i / float(n - 1)
+        target = warp(u) * tot
+        while j < L - 1 and S[j] < target:
+            j += 1
+        seg = S[j] - S[j - 1]
+        s = 0.0 if seg <= 1e-9 else (target - S[j - 1]) / seg
+        idx.append((j - 1, j, max(0.0, min(1.0, s))))
+    for b in range(t.bone_count):
+        out = []
+        for i, (a, c, s) in enumerate(idx):
+            out.append((1 + i, qslerp(t.bones[b][a][1], t.bones[b][c][1], s)))
+        r.bones.append(out)
+    if t.root_pos:
+        out = []
+        for i, (a, c, s) in enumerate(idx):
+            pa = t.root_pos[a][1]; pb = t.root_pos[c][1]
+            out.append((1 + i, tuple(pa[d] + s * (pb[d] - pa[d]) for d in range(3))))
+        r.root_pos = out
+    return r
+
+
+def parse_frame_spec(spec):
+    """解析 "1-3,5,7-9" → 帧号集合。"""
+    out = set()
+    for part in str(spec).split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            a, b = part.split("-", 1)
+            out.update(range(int(a), int(b) + 1))
+        else:
+            out.add(int(part))
+    return out
+
+
+def pick(t, keep):
+    """只保留 keep 里的帧号（原顺序），再顺排 1..N。
+
+    用途：**抽帧** —— 把某段"变化不大/嫌长"的区间按间隔留下几帧、其余丢掉，
+    该段播放速度随之变快（帧数少了但仍是 30fps 时间轴）。
+    """
+    ks = set(keep)
+    r = Trf(); r.name = t.name
+    for bone in t.bones:
+        sel = [(f, q) for (f, q) in bone if f in ks]
+        if not sel:
+            raise ValueError("pick：该骨一帧都没留下")
+        r.bones.append(sel)
+    r.root_pos = [(f, p) for (f, p) in t.root_pos if f in ks]
+    return renumber(r)
+
+
+def inplace(t, keep_z=True):
+    """把根骨位移的**水平分量归零** ⇒ 角色原地（"原地版"）。
+
+    用途（🔴 双人挂接硬规矩）：**扛人者必须是参考系 = 原地**，只有被扛者带"相对位移"。
+    扛人者那条若留着"靠近"的水平位移，实机里他会自己滑一段，与引擎/挂接冲突。
+    `keep_z=True` 只清水平 —— 竖直（蹲/起的高度）要保留，那是姿态的一部分。
+    """
+    r = Trf(); r.name = t.name
+    for bone in t.bones:
+        r.bones.append(list(bone))
+    r.root_pos = [(f, (0.0, 0.0, (p[2] if keep_z else 0.0))) for (f, p) in t.root_pos]
+    return r
+
+
 def renumber(t, start=1):
     """把帧号顺排成 start..start+N-1（拼接前必做：TRF 帧号直接映射到时间，留空档=时间被拉伸）。"""
     r = Trf(); r.name = t.name
@@ -236,6 +348,68 @@ def slerp_tail(t, target, target_frame, n):
                 p = t.root_pos[k][1]
                 out.append((t.root_pos[k][0], tuple(p[j] + s * (pt[j] - p[j]) for j in range(3))))
         r.root_pos = out
+    return r
+
+
+# ─────────────────────── ④ 姿态过渡桥（A 姿态 → B 姿态） ───────────────────────
+
+def _ease(name):
+    """返回 [0,1]→[0,1] 的缓动函数（供 blend 用）。"""
+    if name in ("linear", "lin"):
+        return lambda u: u
+    if name in ("smoothstep", "smooth"):
+        return lambda u: u * u * (3.0 - 2.0 * u)
+    if name == "smootherstep":
+        return lambda u: u * u * u * (u * (6.0 * u - 15.0) + 10.0)
+    if name == "ease_out":
+        return lambda u: 1.0 - (1.0 - u) ** 2
+    if name == "ease_out3":
+        return lambda u: 1.0 - (1.0 - u) ** 3
+    if name == "ease_in":
+        return lambda u: u * u
+    if name == "ease_in3":
+        return lambda u: u ** 3
+    raise ValueError("未知缓动: " + name)
+
+
+def blend(ta, fa, tb, fb, n, ease="smoothstep", leg_lag=0.0, root_arc=0.0,
+          phase=None):
+    """从 ta 的 fa 姿态逐骨 slerp 到 tb 的 fb 姿态，输出 n 帧（1..n）的过渡桥。
+
+    · 旋转：四元数 slerp（短弧），**不做欧拉 lerp**（欧拉 lerp 会让关节路径扭曲/翻转）
+    · 根骨位移：按同一缓动线性插值；`root_arc` 额外叠一条 sin 弧，模拟重心起伏（正=中段抬高）
+    · `leg_lag`：腿骨(索引 1..8)比躯干晚 `leg_lag` 比例启动 → "上身先倒、腿跟上"的错峰
+    · `phase`：可选 [(bone_index, delay)] 覆盖单骨启动延迟
+    """
+    ia = index_of(ta, fa)
+    ib = index_of(tb, fb)
+    E = _ease(ease)
+    delay = {}
+    if phase:
+        for b, d in phase:
+            delay[b] = d
+    r = Trf(); r.name = ta.name
+    for bi, bone in enumerate(ta.bones):
+        qa = bone[ia][1]
+        qb = tb.bones[bi][ib][1]
+        lag = delay.get(bi, leg_lag if 1 <= bi <= 8 else 0.0)
+        lag = max(0.0, min(0.95, lag))
+        out = []
+        for k in range(n):
+            u = k / float(n - 1) if n > 1 else 1.0
+            uu = 0.0 if u <= lag else (u - lag) / (1.0 - lag)
+            out.append((1 + k, qslerp(qa, qb, E(uu))))
+        r.bones.append(out)
+    pa = ta.root_pos[ia][1] if ia < len(ta.root_pos) else (0.0, 0.0, 0.0)
+    pb = tb.root_pos[ib][1] if ib < len(tb.root_pos) else (0.0, 0.0, 0.0)
+    out = []
+    for k in range(n):
+        u = k / float(n - 1) if n > 1 else 1.0
+        s = E(u)
+        z = pa[2] + (pb[2] - pa[2]) * s + root_arc * math.sin(math.pi * u)
+        out.append((1 + k, (pa[0] + (pb[0] - pa[0]) * s,
+                            pa[1] + (pb[1] - pa[1]) * s, z)))
+    r.root_pos = out
     return r
 
 
@@ -311,6 +485,38 @@ def _main():
     l.add_argument("--no-mask-legs", action="store_true")
     l.add_argument("--out", required=True); l.add_argument("--name")
 
+    bl = sub.add_parser("blend", help="A 姿态 → B 姿态的缓动过渡桥")
+    bl.add_argument("--a", dest="a", required=True, help="起始 TRF")
+    bl.add_argument("--fa", type=int, required=True, help="起始帧")
+    bl.add_argument("--b", dest="b", required=True, help="目标 TRF")
+    bl.add_argument("--fb", type=int, required=True, help="目标帧")
+    bl.add_argument("--len", type=int, required=True, help="输出帧数")
+    bl.add_argument("--ease", default="smoothstep",
+                    help="linear|smoothstep|smootherstep|ease_out|ease_out3|ease_in|ease_in3")
+    bl.add_argument("--leg-lag", type=float, default=0.0, help="腿比躯干晚启动的比例 0~0.9")
+    bl.add_argument("--root-arc", type=float, default=0.0, help="根骨中段额外抬降(米)")
+    bl.add_argument("--out", required=True); bl.add_argument("--name")
+
+    cc = sub.add_parser("concat", help="多段首尾相接（自动顺排帧号）")
+    cc.add_argument("--in", dest="inp", required=True, help="逗号分隔的多个 TRF")
+    cc.add_argument("--out", required=True); cc.add_argument("--name")
+
+    rt = sub.add_parser("retime", help="按运动弧长重采样（去掉不动的等待帧）")
+    rt.add_argument("--in", dest="inp", required=True)
+    rt.add_argument("--len", type=int, required=True, help="输出帧数")
+    rt.add_argument("--ease", type=float, default=0.0, help="0=匀速(最紧凑) 1=smoothstep 缓动")
+    rt.add_argument("--out", required=True); rt.add_argument("--name")
+
+    pk = sub.add_parser("pick", help="按帧号白名单裁剪（抽帧：留几帧丢几帧）")
+    pk.add_argument("--in", dest="inp", required=True)
+    pk.add_argument("--keep", required=True, help='帧号，如 "1-3,5,7-9"')
+    pk.add_argument("--out", required=True); pk.add_argument("--name")
+
+    ip = sub.add_parser("inplace", help="根骨水平位移归零 → 原地版（扛人者=参考系用）")
+    ip.add_argument("--in", dest="inp", required=True)
+    ip.add_argument("--zero-z", action="store_true", help="连竖直也归零（默认只清水平）")
+    ip.add_argument("--out", required=True); ip.add_argument("--name")
+
     a = ap.parse_args()
     if a.op == "cut":
         t = cut(read_trf(a.inp), a.f0, a.f1)
@@ -318,6 +524,18 @@ def _main():
         t = hold_at(read_trf(a.inp), a.frame, a.len)
     elif a.op == "reverse":
         t = reverse(read_trf(a.inp))
+    elif a.op == "blend":
+        t = blend(read_trf(a.a), a.fa, read_trf(a.b), a.fb, a.len,
+                  ease=a.ease, leg_lag=a.leg_lag, root_arc=a.root_arc)
+    elif a.op == "concat":
+        parts = [read_trf(p) for p in a.inp.split(",")]
+        t = concat(parts)
+    elif a.op == "retime":
+        t = retime(read_trf(a.inp), a.len, ease=a.ease)
+    elif a.op == "pick":
+        t = pick(read_trf(a.inp), parse_frame_spec(a.keep))
+    elif a.op == "inplace":
+        t = inplace(read_trf(a.inp), keep_z=not a.zero_z)
     else:
         t = layer(read_trf(a.peak), a.frame, read_trf(a.motion), a.len,
                   scale=a.scale, mask_legs=not a.no_mask_legs)

@@ -70,16 +70,21 @@ def trf_frames(path):
 
 
 def travel(path):
-    """量位移 → (X, Y, endProgress)。复用已验证的 trf_root_travel.py，量不出就返回 None。"""
+    """量位移 → (X, Y, endProgress, bend)。复用已验证的 trf_root_travel.py，量不出就返回 None。
+
+    bend = 轨迹相对首末连线的最大偏离（米）—— 大于 ~0.1 说明这条"位移"其实是个弯的，
+    单个向量表达不了，填 displacement 会走直线（口径见 README §0.14 / TRF规范 §4）。
+    """
     if not os.path.isfile(TRAVEL_TOOL):
         return None
     r = subprocess.run([sys.executable, TRAVEL_TOOL, "--trf", path],
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     x = re.search(r"X = ([-\d.]+)\s+Y = ([-\d.]+)", r.stdout)
     e = re.search(r"endProgress = ([\d.]+)", r.stdout)
+    b = re.search(r"离首末连线最远\s*([\d.]+)\s*m", r.stdout)
     if not x:
         return None
-    return x.group(1), x.group(2), (e.group(1) if e else "")
+    return x.group(1), x.group(2), (e.group(1) if e else ""), (b.group(1) if b else "")
 
 
 def role_of(name):
@@ -89,12 +94,20 @@ def role_of(name):
     if "Ambush" in name:     return "暗杀·攻击方"
     if "Executed" in name:   return "处决·受击方"
     if "Execution" in name:  return "处决·攻击方"
+    # 3ds Max Biped 家族「被绑/倒地」+「扛人」（ImortReady/Bind）
+    if "beikangqi" in name:  return "扛人·被扛方(233女)"
+    if "beifangxia" in name: return "扛人·被扛方(233女)"
+    if "kangqi" in name:     return "扛人·扛人方(230男)"
+    if "fangxia" in name:    return "扛人·扛人方(230男)"
+    if "binded" in name or "daodibeibang" in name or "kunbang" in name:
+        return "被绑/倒地·单体"
     return "施法"
 
 
 def kind_of(name):
     if name.endswith("__Root"):    return "带位移版"
     if name.endswith("__Inplace"): return "原地版"
+    if name.startswith("biped_"):  return "biped"      # 由 travel 实测判定（源没有 __Root/__Inplace）
     return "施法"
 
 
@@ -102,10 +115,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--assets", default=DEFAULT_ASSETS)
     ap.add_argument("--out", default=DEFAULT_OUT)
+    ap.add_argument("--subs", default="Magic,Execute",
+                    help="要扫的子目录（逗号分隔）；Bind 用 --subs Bind 扫")
+    ap.add_argument("--travel-thresh", type=float, default=0.05,
+                    help="biped 家族：净水平位移超过该值(米)算「带位移版」，否则「原地版」")
     a = ap.parse_args()
 
     rows = []
-    for sub in ("Magic", "Execute"):
+    for sub in [s.strip() for s in a.subs.split(",") if s.strip()]:
         d = os.path.join(a.assets, sub)
         if not os.path.isdir(d):
             print("!! 目录不存在:", d); continue
@@ -117,15 +134,23 @@ def main():
             dur = "%.4f" % ((f2 - f1 + 1) / float(FPS))
             stem = fn[:-4] if fn.endswith(".trf") else fn      # 🔴 先剥后缀再判类型
             role, kind = role_of(stem), kind_of(stem)
-            if kind == "带位移版":
-                t = travel(p)
+            t = travel(p) if kind in ("带位移版", "biped") else None
+            if kind == "biped":
+                # 源没有 __Root/__Inplace 后缀 —— 用实测净水平位移判"带不带位移"
+                horiz = None
                 if t:
-                    x, y, prog = t
+                    horiz = (float(t[0]) ** 2 + float(t[1]) ** 2) ** 0.5
+                kind = "带位移版" if (horiz is not None and horiz >= a.travel_thresh) else "原地版"
+            if kind == "带位移版":
+                if t:
+                    x, y, prog, bend = t
                 else:
-                    x = y = prog = ""
+                    x = y = prog = bend = ""
                 note = "填 displacement"
+                if bend not in ("", None) and float(bend) >= 0.10:
+                    note = "填 displacement ⚠️轨迹是弯的(偏离 %s m)，单向量走直线会失真" % bend
             else:
-                x = y = prog = ""
+                x = y = prog = bend = ""
                 note = "原地/施法 —— displacement 留空或填 0"
             rows.append({
                 "目录": sub, "文件名": fn.replace(".trf", ""), "角色": role, "类型": kind,

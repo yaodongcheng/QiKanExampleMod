@@ -18,6 +18,7 @@ namespace LivingWorldNpcs.CampaignMode
     /// custom.flight dodge           强制闪避一次（只出位移；闪避**姿态**照常由冲刺中按 Z 触发）
     /// custom.flight log on|off [full]  飞行 tick 日志总闸（默认关；full = 连每帧那行也开）
     /// custom.flight verbose on|off  逐帧日志子开关（要配合总闸）
+    /// custom.flight sound [on|off]  🌬️ 风噪：无参 = 试听一阵 + 打印状态；on/off = 开关（2026-10-10）
     /// custom.flight tune &lt;键&gt; &lt;值&gt;  热调一个参数（见下）
     /// custom.flight reset           参数回出厂值
     /// </code>
@@ -51,6 +52,9 @@ namespace LivingWorldNpcs.CampaignMode
 
                 case "trail":
                     return Trail(args);
+
+                case "sound":
+                    return Sound(args);
 
                 case "log":
                 {
@@ -202,6 +206,43 @@ namespace LivingWorldNpcs.CampaignMode
             return ok
                 ? $"OK. played '{name}' at your feet."
                 : $"ERR {error}";
+        }
+
+        /// <summary>
+        /// <c>custom.flight sound [on|off]</c>（2026-10-10）——
+        ///   无参 = **试听一阵风** + 打印状态（静音故障的第一诊断入口：名字查不到这里直接报）；
+        ///   on/off = 风噪总开关（飞行中按速度密度自动播，见 <see cref="FlightWindFx"/>）。
+        /// 事件名 / 素材在 `ModuleData/module_sounds.xml` + `ModuleSounds/lwn_flight_wind_*.wav`。
+        /// </summary>
+        private static string Sound(List<string> args)
+        {
+            string a1 = (args != null && args.Count > 1 && !string.IsNullOrWhiteSpace(args[1]))
+                ? args[1].Trim().ToLowerInvariant()
+                : null;
+
+            string note = string.Empty;
+            if (a1 == "on")
+            {
+                FlightTuning.WindSoundEnabled = true;
+            }
+            else if (a1 == "off")
+            {
+                FlightTuning.WindSoundEnabled = false;
+            }
+            else if (a1 != null)
+            {
+                // 首参可弃纪律的延伸：认不出的第二参当占位，照旧走试听
+                note = $" | [note: '{a1}' is not on/off]";
+            }
+
+            // 试听：直接播一阵（3D + 锚在玩家身上 —— 同飞行中那条路径，见 FlightWindFx 注释）
+            // ⚠️ 大地图上没有 Mission/Scene —— 别谎报"已播放"（控制台信誉比好看重要）
+            if (Mission.Current?.Scene == null)
+            {
+                return $"ERR not in a mission (wind is a mission sound) | {FlightWindFx.Describe()}{note}";
+            }
+            SoundFx.Play3D(FlightTuning.WindSoundName, FlightWindFx.AnchorPosition());
+            return $"OK. played one wind gust | {FlightWindFx.Describe()}{note}";
         }
 
         /// <summary>
@@ -364,6 +405,11 @@ namespace LivingWorldNpcs.CampaignMode
                 case "steer": FlightTuning.SteerRateDegPerSec = v; break;            // 悬停/巡航档（度/秒；0=瞬时=旧行为）
                 case "steerboost": FlightTuning.SteerRateBoostDegPerSec = v; break;  // 冲刺档（度/秒；更低=高速转向更"重"）
                 case "steeridle": FlightTuning.SteerIdleResetSeconds = v; break;     // 停稳多久算"没有航向动量"（秒）
+                // 风噪（2026-10-10）：风声靠"间隔密度"表达强度（越快越密）；试听/开关 = `custom.flight sound`
+                case "windmin": FlightTuning.WindSpeedMin = v; break;            // 静音门槛（m/s；低于它 = 悬停/起降无风）
+                case "windmax": FlightTuning.WindSpeedFast = v; break;           // 最密点（m/s；速度到这里 = 间隔取下限）
+                case "windgapmax": FlightTuning.WindIntervalSlow = v; break;     // 最疏间隔（秒；速度刚到 windmin 时的阵风间隔）
+                case "windgapmin": FlightTuning.WindIntervalFast = v; break;     // 最密间隔（秒；速度 >= windmax 时的阵风间隔）
                 // 冲刺档：只按 Shift、一个方向键都没按 ⇒ 当作按着 W 往前飞（0 = 关掉，回到"原地趴着悬停"）
                 case "boostfwd": FlightTuning.BoostImpliesForward = v != 0f; break;
                 case "spawngap": FlightTuning.CarrierSpawnGap = v; break;       // 板面比碰撞体底面再低多少（米）

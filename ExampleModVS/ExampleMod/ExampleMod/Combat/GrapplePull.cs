@@ -171,6 +171,9 @@ namespace LivingWorldNpcs
 		private Vec3 _faceTarget;      // 拉拽期间身体朝向的目标（= 钩点，保住"发射时的朝向"）
 		private float _bodyYawDeg = float.NaN;
 		private float _logTimer;       // 拉拽诊断日志节流（每 0.25s 一行）
+		private Vec3 _windPrevPos;     // 风噪用：上一帧玩家位置（位移速度 = 拉拽的真实速度）
+		private bool _windHasPrev;
+		private float _windSpeedNow;   // 本帧喂给风噪的速度（诊断日志用）
 
 		public Phase CurrentPhase => _phase;
 		public bool IsActive => _phase == Phase.WaitingOnBoard || _phase == Phase.Pulling
@@ -289,6 +292,11 @@ namespace LivingWorldNpcs
 				return PullEvent.Aborted;
 			}
 
+			// 🌬️ 风噪（2026-10-10 用户要求：被绳拽着飞也要有风）——用**玩家实际位移速度**喂调度器。
+			//    飞行那边每帧也在喂，但它拉拽期间喂的是 0（它的相位是 Grounded），而"喂 0"只解除待发标记、
+			//    不推进计时器 ⇒ 两边不打架、不会双倍出风（机制见 FlightWindFx.Tick 的注释）。
+			FeedWind(dt);
+
 			try
 			{
 				switch (_phase)
@@ -312,6 +320,30 @@ namespace LivingWorldNpcs
 			return PullEvent.None;
 		}
 
+		/// <summary>
+		/// 把"玩家这一帧的实际位移速度"喂给风噪调度器（`Flight/FlightWindFx.cs`）。
+		/// 为什么用位移而不是对速度曲线求导：板载着人走 ⇒ 玩家位置差就是真速度，一段除法就够；
+		/// 等待/收势/坠落几个相位也顺带被喂到（速度≈0 时调度器自己不出声）。
+		/// </summary>
+		private void FeedWind(float dt)
+		{
+			if (_main == null)
+			{
+				_windHasPrev = false;
+				return;
+			}
+			Vec3 pos = _main.Position;
+			float speed = 0f;
+			if (_windHasPrev && dt > 0f)
+			{
+				speed = (pos - _windPrevPos).Length / dt;
+			}
+			_windPrevPos = pos;
+			_windHasPrev = true;
+			_windSpeedNow = speed;
+			FlightWindFx.Tick(speed, dt);
+		}
+
 		private PullEvent TickWaitingOnBoard(float dt)
 		{
 			_phaseTimer += dt;
@@ -327,6 +359,20 @@ namespace LivingWorldNpcs
 				_board.Origin.z + FlightTuning.CarrierTopLocalZ);
 			_phase = Phase.Pulling;
 			_t = 0f;
+
+			// 🌬️ **被拽走的那一刻强制起一阵风**（2026-10-10 实机：用户"被钩锁拉起来时没听到风声"）。
+			//    拉拽全程只有 ~1 秒、速度曲线末段还掉到门槛以下 ⇒ 光靠"按速度密度"可能一阵都赶不上。
+			//    Kick 不受门槛管；之后仍由 FeedWind 按真实速度接节奏。
+			if (FlightWindFx.Kick())
+			{
+				DebugLogger.Log("[Grapple] 拉拽起风（Kick，起拽瞬间强制一阵）");
+			}
+			else
+			{
+				// 留痕：开关关着 / 事件名空 / 不在场景 —— 否则"没风"分不清是没触发还是被关掉
+				DebugLogger.Log("[Grapple] 拉拽未起风（Kick 被拒：风噪开关关着或不在场景）");
+			}
+
 			DebugLogger.Log($"[Grapple] 拉拽：登板完成（等待={_phaseTimer:F2}s 站住={onboard}）");
 			return PullEvent.None;
 		}
@@ -375,7 +421,8 @@ namespace LivingWorldNpcs
 				Vec3 travel = _endTop - _startTop; travel.z = 0f;
 				float travelYaw = MathF.Atan2(travel.y, travel.x) * (180f / MathF.PI);
 				DebugLogger.Log($"[Grapple] 拉拽中 u={u:F2} 玩家={Fmt(_main.Position)} 板面={Fmt(top)} "
-					+ $"身体yaw={LookYawDeg(_main):F0}° 行进yaw={travelYaw:F0}°（常量目标）");
+					+ $"速度={_windSpeedNow:F1}m/s（风噪门槛 {FlightTuning.WindSpeedMin:F0}）"
+					+ $" 身体yaw={LookYawDeg(_main):F0}° 行进yaw={travelYaw:F0}°（常量目标）");
 			}
 
 			// 🔴 **相机提前归还**（2026-10-03 用户要求"快到终点的时候就开始过渡"）：

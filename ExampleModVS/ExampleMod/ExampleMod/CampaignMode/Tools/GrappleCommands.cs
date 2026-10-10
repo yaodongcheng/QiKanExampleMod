@@ -101,6 +101,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple carrier [spawn|clear]  载具体检：无参 = 报告预制体/物理足迹（米）/板上人数；
 	///                                     spawn = 在脚下现生一块（看"看不见" + 量足迹）；clear = 收掉
 	///
+	/// —— 音效（2026-10-10）——
+	///   custom.grapple sound               🔴 验收：原地试听抛出绳声一次 + 打印状态
+	///                                     （事件名 / 开关 / 名字能不能查到 —— 静音故障的第一诊断入口）
+	///   custom.grapple sound on|off        绳声开关（默认开）
+	///
 	/// ⚠️ **相机本身的诊断命令不在这一族**（2026-10-04 起）：`custom.cam log|stat|info|test|lift`
 	///    见 `Camera/CameraCommands.cs`（相机自己的模块）。
 	///
@@ -157,7 +162,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "bind"
-					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens")
+					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens"
+					|| s == "sound")
 				{
 					sub = s == "status" ? "dump" : s;
 					at = 1;
@@ -1241,6 +1247,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				case "sound":
+					result = DoSound(args, at);
+					break;
+
 				default:
 					result = logic.Status();
 					break;
@@ -1251,6 +1261,26 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				result += " | [note: first arg not a subcommand -> showed status]";
 			}
 			return result;
+		}
+
+		/// <summary>
+		/// `custom.grapple sound [on|off]`（2026-10-10）——
+		///   无参 = **原地试听一次**抛出绳声 + 打印状态（静音故障的第一诊断入口）；
+		///   on/off = 绳声开关（默认开）。事件名在 `ModuleData/module_sounds.xml`（`lwn_grapple_rope`）。
+		/// </summary>
+		private static string DoSound(List<string> args, int at)
+		{
+			string a0 = ArgAt(args, at + 0);
+			if (a0 != null && (a0.Equals("on", StringComparison.OrdinalIgnoreCase) || a0.Equals("off", StringComparison.OrdinalIgnoreCase)))
+			{
+				GrappleLogic.RopeSoundEnabled = a0.Equals("on", StringComparison.OrdinalIgnoreCase);
+				return $"OK. rope sound {(GrappleLogic.RopeSoundEnabled ? "ON" : "OFF")} | {SoundFx.Describe(GrappleLogic.RopeSoundName)}";
+			}
+
+			// 无参（或认不出的占位）= 试听：无视开关直拉一次（显式动作，不是自动播放）
+			Agent main = Agent.Main;
+			SoundFx.Play3D(GrappleLogic.RopeSoundName, main != null ? main.GetEyeGlobalPosition() : Vec3.Zero);
+			return $"OK. played rope sound | enabled={GrappleLogic.RopeSoundEnabled} | {SoundFx.Describe(GrappleLogic.RopeSoundName)}";
 		}
 
 		/// <summary>

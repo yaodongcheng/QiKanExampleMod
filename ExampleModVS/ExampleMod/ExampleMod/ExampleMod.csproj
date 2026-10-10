@@ -348,6 +348,9 @@
          五个文件 = 数据表 / 四段积木 / 施法唯一入口 / 飞行物宿主 / 法印开火拦截补丁。 -->
     <Compile Include="Combat\SpellDef.cs" />
     <Compile Include="Combat\SpellPieces.cs" />
+    <!-- 🔴 2026-10-10 音效接入（钩索绳声 + 飞行风噪）：通用播放助手（module_sounds.xml 事件名 → 引擎 id）。
+         同批新增 Flight\FlightWindFx.cs —— **两行都要在**（不登记 = 静默不编译，雷 40）。 -->
+    <Compile Include="Combat\SoundFx.cs" />
     <Compile Include="Combat\SpellCastFlow.cs" />
     <Compile Include="Combat\SpellProjectileLogic.cs" />
     <!-- 阶段 3/4：起手轴（输入 + 相位机 + 蓄力）+ NPC 施法者。 -->
@@ -562,6 +565,8 @@
     <Compile Include="Animation\AnimPrimitives.cs" />
     <Compile Include="Flight\FlightAnimConditions.cs" />
     <Compile Include="Flight\FlightBoneFx.cs" />
+    <!-- 🌬️ 2026-10-10 飞行风噪：按速度密度播阵风（配套 Combat\SoundFx.cs —— 两行都要在，漏登记 = 静默不编译） -->
+    <Compile Include="Flight\FlightWindFx.cs" />
     <Compile Include="Flight\FlightAnimMachine.cs" />
     <!-- 🔴 2026-09-16 认知状态批量命令 custom.meet_all（原版无对应指令；HasMet 单向、消息清空副作用见文件头） -->
     <Compile Include="CampaignMode\Tools\HeroMeetCommands.cs" />
