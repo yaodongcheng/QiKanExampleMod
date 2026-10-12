@@ -55,17 +55,11 @@ namespace LivingWorldNpcs
             set => Settings.Instance.PlotEnabled = value;
         }
 
-        // ── 玩家飞行总闸（默认关闭，透传核心 Settings）──
-        // Order = 6：这里是**显示最顶部**（本页按 Order 降序显示；现有最大是密信总闸的 5）。
-        //            想挪位置改这个数即可（比 5 小 = 排到密信下面）。
-        [SettingPropertyBool("{=LWN_mcm_flight}Flight", Order = 6, RequireRestart = false,
-            HintText = "{=LWN_mcm_flight_hint}When enabled, the player can take off: while airborne (e.g. mid-jump, or falling) press Space — or hold Space. Disabled by default. When turned off mid-flight you are set down immediately. The console command 'custom.flight on' still works while this is off (explicit dev/acceptance command).")]
-        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
-        public bool FlightEnabled
-        {
-            get => Settings.Instance.FlightEnabled;
-            set => Settings.Instance.FlightEnabled = value;
-        }
+        // ── 玩家飞行开关：**已从 MCM 移除**（2026-10-12 用户裁定）──
+        // 原来这里是 `FlightEnabled` 布尔项（`{=LWN_mcm_flight}Flight`）。
+        // 现在能不能飞只看**披风槽里装的是不是混天绫**（`lwn_huntian_ling`）——
+        // 装备即开关，不再有两处配置互相打架。所以 MCM 里**不再提供这一项**。
+        // （`LWN_mcm_flight` / `LWN_mcm_flight_hint` 两条语言键留着没删：它只是死字符串，无害。）
 
         // ── LLM 配置（透传核心 Settings；IsLLMConfigured 在调用点实时计算 → 无需重启）──
         [SettingPropertyText("{=LWN_mcm_llm_base_url}LLM API Base URL", Order = 4, RequireRestart = false,

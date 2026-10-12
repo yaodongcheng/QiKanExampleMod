@@ -35,8 +35,10 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-DEFAULT_OUT = os.path.join(os.path.abspath(os.path.join(REPO, "..")),
-                           "LwnAnim", "AssetSources", "ImortReady", "HuntianLing")
+# 🔴 待导入落点**必须解析两态名**（AssetSources / AssetSources_disabled）——
+#    直接拼 "AssetSources" 会静默建出一个目录，让 to_editor_mode.bat 罢工（2026-10-12 事故）。
+sys.path.insert(0, HERE)
+from imort_dir import imort_subdir   # noqa: E402
 PNG_FOR_EDITOR = os.path.join(REPO, "tools", "face-pipeline", "scripts", "png_for_editor.py")
 
 # 丝带实物尺寸（与 build_ribbon.py 的默认值一致）—— 用来把"每米多少像素"算准
@@ -47,7 +49,7 @@ TILE_M = 0.50           # v 方向一格覆盖多长（= 3.0 m / 平铺 6 次）
 def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", default="lwn_huntian_ling")
-    ap.add_argument("--out", default=DEFAULT_OUT)
+    ap.add_argument("--out", default=None)
     ap.add_argument("--size", type=int, default=512, help="贴图边长（正方形，会平铺）")
     ap.add_argument("--red", default="198,30,30", help="底色 sRGB，逗号分隔")
     ap.add_argument("--thread-mm", type=float, default=2.6, help="织纹的丝线粗细（毫米）")
@@ -62,7 +64,11 @@ def parse_args():
 A = parse_args()
 S = A.size
 NAME = A.name
-OUT = A.out
+try:
+    OUT = imort_subdir(os.path.abspath(os.path.join(REPO, "..", "LwnAnim")), "HuntianLing", A.out)
+except Exception as _e:
+    print("!! 落点解析失败：" + chr(10) + str(_e))
+    sys.exit(2)
 BASE = np.array([float(x) for x in A.red.split(",")], dtype=np.float32) / 255.0
 
 os.makedirs(OUT, exist_ok=True)

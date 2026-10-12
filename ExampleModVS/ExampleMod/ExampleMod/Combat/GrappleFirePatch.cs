@@ -202,6 +202,19 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
+		/// **这件装备里有没有钩**（= 这一枪打不打得出去）—— 2026-10-12 加，缺件提示与
+		/// "手里那枚钩显不显示"共用这一条判据。
+		///
+		/// 口径与拦截/退弹**完全同源**（走的还是 <see cref="FindDartSlot"/> 那套槽位与物品 id）：
+		/// **只看装备槽**（战斗里换不了背包）—— 有钩 = 引擎有弹可上弦 = 能开火。
+		/// 传 null / 找不到 = false（调用方据此收起手里那枚钩、弹缺件提示）。
+		/// </summary>
+		public static bool HasHookEquipped(Agent agent)
+		{
+			return agent != null && FindDartSlot(agent) != EquipmentIndex.None;
+		}
+
+		/// <summary>
 		/// 把绳弹补回"应该有 1 个"（幂等）。**盯帧期间每帧调**（见 <see cref="ProcessPending"/>）。
 		/// 🔴 三种情况都要处理（实机都可能有）：① 槽还在、余量被扣 ② 槽被引擎**清空**（弹尽即删）③ 找不着槽。
 		/// 日志只在**有变化**或**首次确认**时打，避免盯帧期间刷 4 行。

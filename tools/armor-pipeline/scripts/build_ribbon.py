@@ -109,8 +109,16 @@ BONE = get(A, "--bone", DEFAULTS["bone"])
 UV_V_REPEAT = float(get(A, "--uv-v-repeat", DEFAULTS["uv_v_repeat"]))
 PIN_BAND = float(get(A, "--pin-band", DEFAULTS["pin_band"]))
 ALPHA_MAX = float(get(A, "--alpha-max", DEFAULTS["alpha_max"]))
-OUT_DIR = get(A, "--out") or os.path.join(
-    os.path.abspath(os.path.join(REPO, "..")), "LwnAnim", "AssetSources", "ImortReady", "HuntianLing")
+# 🔴 待导入落点**必须解析两态名**（AssetSources / AssetSources_disabled）——
+#    直接拼 "AssetSources" 会静默建出一个目录，让 to_editor_mode.bat 罢工（2026-10-12 事故）。
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from imort_dir import imort_subdir, ensure_subdir   # noqa: E402
+_MODULE_ROOT = os.path.abspath(os.path.join(REPO, "..", "LwnAnim"))
+try:
+    OUT_DIR = imort_subdir(_MODULE_ROOT, "HuntianLing", get(A, "--out"))
+except Exception as _e:
+    print("!! 落点解析失败：" + chr(10) + str(_e))
+    sys.exit(2)
 DO_WRITE = "--dry-run" not in A
 
 SKEL = None

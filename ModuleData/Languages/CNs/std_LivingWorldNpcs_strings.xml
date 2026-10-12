@@ -4131,6 +4131,7 @@
     <string id="LWN_ui_cutrope_bubble" text="别动——我给你把绳子解开。" />
     <string id="LWN_ui_cutrope_msg" text="你解开了 {NAME} 身上的绳——他这就起身。" />
     <string id="LWN_ui_cutrope_none" text="这里没有绳子可解。" />
+    <string id="LWN_ui_grapple_no_hook" text="没有钩爪：钩索绳要配一个钩爪（弹药槽）才能发射。" />
     <string id="LWN_ui_rope_held_title" text="手中牵着：{NAME}" />
     <string id="LWN_ui_state_bound" text="(被捆)" />
     <string id="LWN_ui_intervene_bubble" text="住手！他是我的人！" />

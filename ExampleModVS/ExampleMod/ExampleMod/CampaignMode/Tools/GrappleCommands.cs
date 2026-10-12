@@ -81,8 +81,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple lreset             落点平台参数恢复默认
 	///
 	/// —— 步骤 3 起（武器接线）——
-	///   custom.grapple equip              把钩索武器 + 绳弹**当场发到玩家手上**（Weapon0/1）——
-	///                                     之后右键瞄准出准星、松手发射 = 钩头飞出（拦截补丁接的）
+	///   custom.grapple equip [both|rope|hook]  把钩索武器 + 绳弹**当场发到玩家手上**（默认 both = 两件一起）——
+	///                                     之后按住左键瞄准出准星、松手发射 = 钩头飞出（拦截补丁接的）。
+	///                                     🔴 在场景里**选装是权威的**：`rope` = 配成"只有绳"（并卸掉身上已装备的钩，
+	///                                     复现"缺钩爪"现场：手里那枚转的钩不显示、按开火键弹缺件提示）；
+	///                                     `hook` = 配成"只有钩"。大地图那条只发物品、不动已有装备。
+	///   custom.grapple hint               强制弹一次"缺钩爪"提示（不按键也能验文案 / 中文层 / 颜色）
 	///
 	/// —— 步骤 4 起（拉自己）——
 	///   custom.grapple pull self          把玩家拉向钩点（要求已勾住：先 throw 或开一枪）
@@ -158,7 +162,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
-					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
+					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "hint" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
 					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "bind" || s == "carry"
@@ -179,9 +183,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			//    · 在场景里 = 直接把钩索+绳弹发到 Weapon0/1（当场可用）；
 			//    · 在大地图 = 把两件物品**进主队辎重**（虚空来源，铁律 4 的 Grant），玩家自己去物品栏装备。
 			//    其余子命令都依赖场景（绳/钩头/落点都在 Mission 里），照旧拦。
+			// 🔴 2026-10-12 起带选装参数：`equip rope` = **只给绳**（复现"缺钩爪"现场，验收用）。
 			if (sub == "equip")
 			{
-				return DoEquip();
+				return DoEquip(ArgAt(args, at));
 			}
 
 			// 🔴 `iconhook` = **钩索图标补丁**的开关（2026-10-08）：钩那件物品在**背包/装备界面**里的 2D 图标，
@@ -971,7 +976,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 
 				case "equip":
-					result = DoEquip();
+					result = DoEquip(ArgAt(args, at));
+					break;
+
+				// 缺件提示（2026-10-12）：不按键直接弹一次 —— 验文案 / 中文层 / 颜色用
+				case "hint":
+					result = DoHint(logic);
 					break;
 
 				// ─────────────────────────── 步骤 4：拉自己 ───────────────────────────
@@ -1432,14 +1442,55 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			return empty;
 		}
 
-		private static string DoEquip()
+		/// <summary>
+		/// 把玩家身上某件物品（按 StringId）从**所有武器槽**卸掉，返回卸掉的件数（`equip rope|hook` 用，2026-10-12）。
+		/// 目的 = 让"只有绳 / 只有钩"这种现场**一条命令就能复现**（否则上一局装的另一件还挂在身上）。
+		/// 引擎 API = `Agent.RemoveEquippedWeapon(EquipmentIndex)`（1.2.12 ~ 1.5.x 各锚点都有）。
+		/// 找不到 = 0（正常，不是错误）；异常吞掉（它只是调试命令的一条捷径，不值得让命令报错）。
+		/// </summary>
+		private static int RemoveEquippedById(Agent agent, string itemId)
 		{
+			int removed = 0;
+			if (agent == null) { return 0; }
+			try
+			{
+				for (EquipmentIndex slot = EquipmentIndex.WeaponItemBeginSlot;
+					slot < EquipmentIndex.NumAllWeaponSlots; slot++)
+				{
+					MissionWeapon w = agent.Equipment[slot];
+					if (w.Item != null && w.Item.StringId == itemId)
+					{
+						agent.RemoveEquippedWeapon(slot);
+						removed++;
+					}
+				}
+			}
+			catch (Exception)
+			{
+			}
+			return removed;
+		}
+
+		/// <summary>
+		/// 发钩索装备（`which` = `both`（默认）| `rope` | `hook`；2026-10-12 起带选装参数）。
+		/// 场景里**选装是权威的**：`rope` = 配成"只有绳"（并卸掉已装备的钩）—— 一条命令复现"缺钩爪"现场。
+		/// </summary>
+		private static string DoEquip(string which = null)
+		{
+			string what = string.IsNullOrEmpty(which) ? "both" : which.Trim().ToLowerInvariant();
+			bool wantRope = what == "both" || what == "rope";
+			bool wantHook = what == "both" || what == "hook";
+			if (!wantRope && !wantHook)
+			{
+				return "Error: equip takes 'both' (default) | 'rope' (rope only - the missing-hook scene) | 'hook' (got '" + which + "')";
+			}
+
 			// 🔴 物品 id 的**唯一真相**在 Combat/GrappleFirePatch.cs 的两个常量里（那里是拦截判据；
 			//    该类的 namespace 是 `LivingWorldNpcs`，不是 `.Combat`）——
 			//    这里引用它们，别再抄第二份字面量（2026-10-09 搬进 LWN 时顺手统一）。
-			ItemObject rope = ResolveContentItem(GrappleFirePatch.RopeItemId, "GrappleRope");
-			ItemObject hook = ResolveContentItem(GrappleFirePatch.HookItemId, "GrappleHook");
-			if (rope == null || hook == null)
+			ItemObject rope = wantRope ? ResolveContentItem(GrappleFirePatch.RopeItemId, "GrappleRope") : null;
+			ItemObject hook = wantHook ? ResolveContentItem(GrappleFirePatch.HookItemId, "GrappleHook") : null;
+			if ((wantRope && rope == null) || (wantHook && hook == null))
 			{
 				return $"Error: grapple items not found (expected {GrappleFirePatch.RopeItemId} / {GrappleFirePatch.HookItemId} from this module's ModuleData/items/grapple.xml)";
 			}
@@ -1450,36 +1501,65 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			{
 				try
 				{
+					// 🔴 选装是**权威**的（2026-10-12）：`equip rope` = 把玩家配成"只有绳"（并卸掉已装备的钩）。
+					//    否则"缺件现场"没法一条命令复现 —— 上一局装的钩还挂在身上，光发新的没用。
+					//    **先卸后装**：顺带把槽腾出来（四个槽全满时也装得上）。
+					var notes = new List<string>();
+					if (!wantHook)
+					{
+						int dropped = RemoveEquippedById(main, GrappleFirePatch.HookItemId);
+						if (dropped > 0) { notes.Add($"removed {dropped}x GrappleHook"); }
+					}
+					if (!wantRope)
+					{
+						int dropped = RemoveEquippedById(main, GrappleFirePatch.RopeItemId);
+						if (dropped > 0) { notes.Add($"removed {dropped}x GrappleRope"); }
+					}
+
 					// 🔴 先给**绳**找槽 → 装上 → 再给**钩**找槽（顺序不能反：
 					//    两件都在找空槽时若先一起算，会算出同一个槽）。
-					EquipmentIndex ropeSlot = FindFreeWeaponSlotFor(main, rope);
-					if (ropeSlot == EquipmentIndex.None)
+					if (wantRope)
 					{
-						return "Error (mission): no free weapon slot for GrappleRope (4 slots all taken; sheath something first).";
-					}
-					if (main.Equipment[ropeSlot].Item == null)
-					{
-						MissionWeapon ropeWeapon = new MissionWeapon(rope, null, main.Origin?.Banner);
-						main.EquipWeaponWithNewEntity(ropeSlot, ref ropeWeapon);
-					}
-
-					EquipmentIndex hookSlot = FindFreeWeaponSlotFor(main, hook);
-					if (hookSlot == EquipmentIndex.None)
-					{
-						return "Error (mission): GrappleRope is on, but no free weapon slot for GrappleHook (it occupies one ammo slot - same cost as vanilla bow + arrows).";
-					}
-					if (main.Equipment[hookSlot].Item == null)
-					{
-						MissionWeapon hookWeapon = new MissionWeapon(hook, null, main.Origin?.Banner);
-						main.EquipWeaponWithNewEntity(hookSlot, ref hookWeapon);
+						EquipmentIndex ropeSlot = FindFreeWeaponSlotFor(main, rope);
+						if (ropeSlot == EquipmentIndex.None)
+						{
+							return "Error (mission): no free weapon slot for GrappleRope (4 slots all taken; sheath something first).";
+						}
+						if (main.Equipment[ropeSlot].Item == null)
+						{
+							MissionWeapon ropeWeapon = new MissionWeapon(rope, null, main.Origin?.Banner);
+							main.EquipWeaponWithNewEntity(ropeSlot, ref ropeWeapon);
+						}
+						notes.Add($"GrappleRope in slot {(int)ropeSlot}");
 					}
 
-					// 🔴 把钩的**数量钉死在 1**（2026-10-03）：物品 `stack_amount` 是 20 —— 为什么不是 1，
-					//    见 `ModuleData/items/grapple.xml` 顶上的注释（HUD 的子弹数只统计"最大堆叠 > 1"的弹药；
-					//    写 1 = 能射但永远显示 0）。装填完立刻设成 1 = "上限 20、实有 1"。
-					main.SetWeaponAmountInSlot(hookSlot, 1, false);
+					if (wantHook)
+					{
+						EquipmentIndex hookSlot = FindFreeWeaponSlotFor(main, hook);
+						if (hookSlot == EquipmentIndex.None)
+						{
+							return wantRope
+								? "Error (mission): GrappleRope is on, but no free weapon slot for GrappleHook (it occupies one ammo slot - same cost as vanilla bow + arrows)."
+								: "Error (mission): no free weapon slot for GrappleHook (it occupies one ammo slot).";
+						}
+						if (main.Equipment[hookSlot].Item == null)
+						{
+							MissionWeapon hookWeapon = new MissionWeapon(hook, null, main.Origin?.Banner);
+							main.EquipWeaponWithNewEntity(hookSlot, ref hookWeapon);
+						}
+
+						// 🔴 把钩的**数量钉死在 1**（2026-10-03）：物品 `stack_amount` 是 20 —— 为什么不是 1，
+						//    见 `ModuleData/items/grapple.xml` 顶上的注释（HUD 的子弹数只统计"最大堆叠 > 1"的弹药；
+						//    写 1 = 能射但永远显示 0）。装填完立刻设成 1 = "上限 20、实有 1"。
+						main.SetWeaponAmountInSlot(hookSlot, 1, false);
+						notes.Add($"GrappleHook x1 in slot {(int)hookSlot}");
+					}
+
 					main.UpdateAgentStats();
-					return $"OK (mission): GrappleRope in slot {(int)ropeSlot} + GrappleHook x1 in slot {(int)hookSlot} - hold LMB to aim, release to fire.";
+					string tail = wantHook
+						? " - hold LMB to aim, release to fire."
+						: " - NO HOOK: cannot fire (this is the missing-hook scene; the hand hook is hidden and pressing fire shows the hint).";
+					return $"OK (mission): {string.Join(" + ", notes)}{tail}";
 				}
 				catch (Exception ex)
 				{
@@ -1495,18 +1575,49 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				{
 					return "Error: no main hero.";
 				}
-				int givenRope = AgentControlHelper.TransferItems(null, hero, rope, 1);
-				int givenHook = AgentControlHelper.TransferItems(null, hero, hook, 1);
-				if (givenRope <= 0 && givenHook <= 0)
+				var notes = new List<string>();
+				int givenRope = 0, givenHook = 0;
+				if (wantRope)
+				{
+					givenRope = AgentControlHelper.TransferItems(null, hero, rope, 1);
+					notes.Add($"GrappleRope x{givenRope}");
+				}
+				if (wantHook)
+				{
+					givenHook = AgentControlHelper.TransferItems(null, hero, hook, 1);
+					notes.Add($"GrappleHook x{givenHook}");
+				}
+				if ((!wantRope || givenRope <= 0) && (!wantHook || givenHook <= 0))
 				{
 					return "Error: could not add grapple items to the party inventory.";
 				}
-				return $"OK (campaign): added to party inventory - GrappleRope x{givenRope}, GrappleHook x{givenHook}. Equip BOTH (weapon slot + ammo slot), then enter a battle and fire. Run again for spares.";
+				string tail = (wantRope && wantHook)
+					? " Equip BOTH (weapon slot + ammo slot), then enter a battle and fire."
+					: (wantRope
+						? " Equip the rope - without a hook the grapple cannot fire."
+						: " The hook alone does nothing without the rope to hold.");
+				return $"OK (campaign): added to party inventory - {string.Join(", ", notes)}.{tail} Run again for spares.";
 			}
 			catch (Exception ex)
 			{
 				return "Error: campaign give failed (" + ex.GetType().Name + ": " + ex.Message + ")";
 			}
+		}
+
+		/// <summary>
+		/// `custom.grapple hint` —— **强制弹一次"缺钩爪"提示**（2026-10-12 加）。
+		/// 为什么要有它：这条提示的正常触发挂在"按开火键"上，验收时未必方便按键（身上有钩时也进不了那条分支）
+		/// ⇒ 给一个"直接弹给我看"的入口（项目纪律：每个功能都要能单独验）。
+		/// </summary>
+		private static string DoHint(GrappleLogic logic)
+		{
+			if (logic == null)
+			{
+				return "Error: no GrappleLogic in this mission.";
+			}
+			logic.ShowNoHookHint();
+			return "OK: popped the missing-hook hint. It normally appears when you hold the GrappleRope,"
+				+ " have no GrappleHook equipped, and press the fire button (LMB / gamepad RT).";
 		}
 
 		/// <summary>两轮查物品：① StringId 精确 ② 内存里按 StringId 包含片段扫一遍（铁律 5）。</summary>

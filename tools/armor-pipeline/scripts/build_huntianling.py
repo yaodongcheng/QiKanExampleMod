@@ -22,6 +22,7 @@
   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --python \
       tools/armor-pipeline/scripts/build_huntianling.py -- [--dry-run] [选项]
 """
+import math
 import os
 import sys
 
@@ -57,11 +58,35 @@ D = {
     "uv-v-repeat": 6.0,
     "pin-band": 0.14,
     "alpha-max": 0.75,
+    # ---- 替身（映射模式）参数 ----
+    "sim-rows": 17,          # 沿长度采几行（渲染件是 61 站，这里稀疏采样）
+    "sim-cols": 5,           # 横向几列
+    "sim-shrink": 0.82,      # 横向缩到渲染件的几成（**必须 <1**：替身要被渲染件裹住，不能穿出去）
+    "sim-alpha-max": 0.55,   # 末端活动半径（米）——原版围脖 0.18 / 原版袍子 0.44，我们飘带长，给 0.55
 }
 
 
 def args_after_ddash():
     return sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+
+
+def sim_centerline(top_x, top_y, top_z, a0, a1, length, seg):
+    """飘带中心线（按切线角积分）。a 从「竖直向下」往「背后(-y)」量。"""
+    pts = [Vector((top_x, top_y, top_z))]
+    ds = length / seg
+    r0, r1 = math.radians(a0), math.radians(a1)
+    for i in range(seg):
+        am = r0 + (r1 - r0) * ((i + 0.5) / seg)
+        pts.append(pts[-1] + Vector((0.0, -math.sin(am), -math.cos(am))) * ds)
+    return pts
+
+
+def sim_wdir(tan, t, twist_deg):
+    """该站的「宽度方向」——以世界 +x 为基准、绕切线扭转 `twist*t` 度。"""
+    ex = Vector((1.0, 0.0, 0.0))
+    n = tan.cross(ex).normalized()
+    tau = math.radians(twist_deg * t)
+    return (ex * math.cos(tau) + n * math.sin(tau)).normalized()
 
 
 A = args_after_ddash()
@@ -96,9 +121,24 @@ BONE = get("--bone", D["bone"])
 UV_REP = float(get("--uv-v-repeat", D["uv-v-repeat"]))
 PIN_BAND = float(get("--pin-band", D["pin-band"]))
 ALPHA_MAX = float(get("--alpha-max", D["alpha-max"]))
+# ---- `--sim`：造**替身**（映射模式的低模模拟网格），不造渲染件 ----
+SIM = "--sim" in A
+SIM_ROWS = int(get("--sim-rows", D["sim-rows"]))
+SIM_COLS = int(get("--sim-cols", D["sim-cols"]))
+SIM_SHRINK = float(get("--sim-shrink", D["sim-shrink"]))
+SIM_ALPHA = float(get("--sim-alpha-max", D["sim-alpha-max"]))
+SIM_NAME = "clo_" + NAME
 TILE_M = LENGTH / UV_REP          # UV 一格覆盖多长（贴图密度，与 build_ribbon_textures 对齐）
-OUT_DIR = get("--out") or os.path.join(os.path.abspath(os.path.join(REPO, "..")),
-                                       "LwnAnim", "AssetSources", "ImortReady", "HuntianLing")
+# 🔴 待导入落点**必须解析两态名**（AssetSources / AssetSources_disabled）——
+#    直接拼 "AssetSources" 会静默建出一个目录，让 to_editor_mode.bat 罢工（2026-10-12 事故）。
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from imort_dir import imort_subdir, ensure_subdir   # noqa: E402
+_MODULE_ROOT = os.path.abspath(os.path.join(REPO, "..", "LwnAnim"))
+try:
+    OUT_DIR = imort_subdir(_MODULE_ROOT, "HuntianLing", get("--out"))
+except Exception as _e:
+    print("!! 落点解析失败：" + chr(10) + str(_e))
+    sys.exit(2)
 DO_WRITE = "--dry-run" not in A
 
 SKEL = None
@@ -188,6 +228,133 @@ if _canary is None or _canary.y > 0:
     sys.exit(3)
 print("   校准 OK  head_13 z=%.5f   朝向金丝雀 OK（左脚踝 y=%+.4f）" % (_hz, _canary.y))
 
+# --------------------------------------------------------------------------- 2') 替身模式（映射模式的低模）
+if SIM:
+    print("\n== [替身模式] 造 %s ==" % SIM_NAME)
+    # 🔴 **必须复用渲染件那条中心线**（同 SEG_L 积分），只在采样密度上稀疏 ——
+    #    若替身自己用别的段数积分，弧长不同 ⇒ 两者位置对不上。
+    _CL = sim_centerline(TOP_X, TOP_Y, TOP_Z, A0, A1, LENGTH, SEG_L)
+    if SIM_ROWS < 2 or SIM_COLS < 2:
+        print("!! --sim-rows / --sim-cols 至少 2"); sys.exit(3)
+    idx = [int(round(k * SEG_L / float(SIM_ROWS - 1))) for k in range(SIM_ROWS)]
+
+    sverts, sfaces = [], []
+    for i in idx:
+        t = float(i) / SEG_L
+        if i == 0:
+            tan = (_CL[1] - _CL[0]).normalized()
+        elif i == SEG_L:
+            tan = (_CL[-1] - _CL[-2]).normalized()
+        else:
+            tan = (_CL[i + 1] - _CL[i - 1]).normalized()
+        w = sim_wdir(tan, t, TWIST)
+        half = (W_ROOT + (W_TIP - W_ROOT) * t) * 0.5 * SIM_SHRINK
+        wave_x = WAVE * math.sin(2.0 * math.pi * WAVE_TURNS * t)
+        for j in range(SIM_COLS):
+            u = float(j) / (SIM_COLS - 1) - 0.5
+            q = _CL[i] + w * (u * half * 2.0)
+            sverts.append(Vector((q.x + wave_x, q.y, q.z)))
+    for r in range(SIM_ROWS - 1):
+        for j in range(SIM_COLS - 1):
+            a = r * SIM_COLS + j
+            b = (r + 1) * SIM_COLS + j
+            sfaces.append((a, b, b + 1, a + 1))
+
+    xs = [p.x for p in sverts]; ys = [p.y for p in sverts]; zs = [p.z for p in sverts]
+    print("   顶点 %d / 面 %d   单子网格、无 LOD（编辑器硬性要求）" % (len(sverts), len(sfaces)))
+    print("   x[%+.3f,%+.3f] y[%+.3f,%+.3f] z[%+.3f,%+.3f]  横向缩到渲染件的 %.0f%%"
+          % (min(xs), max(xs), min(ys), max(ys), min(zs), max(zs), SIM_SHRINK * 100))
+
+    _me = bpy.data.meshes.new(SIM_NAME)
+    _M_INV = ARM.matrix_world.inverted()
+    _loc = [_M_INV @ v for v in sverts]
+    _me.from_pydata([tuple(v) for v in _loc], [], sfaces)
+    _me.update()
+    _rt = [ARM.matrix_world @ v for v in _loc]
+    _d = max((_rt[k] - sverts[k]).length for k in range(len(sverts)))
+    print("   局部↔世界 往返自证：最大偏差 %.6f m  %s" % (_d, "OK" if _d < 1e-3 else "🔴"))
+
+    # 🔴 **必须补 UV 层**（源件 driver 无 UV 导致编辑器选 Simulation mesh **直接崩**，工程踩过）
+    _uv = _me.uv_layers.new(name="UVMap")
+    for poly in _me.polygons:
+        for k in range(poly.loop_total):
+            li = poly.loop_start + k
+            vi = _me.loops[li].vertex_index
+            r, j = divmod(vi, SIM_COLS)
+            _uv.data[li].uv = (float(j) / (SIM_COLS - 1), (float(idx[r]) / SEG_L) * UV_REP)
+
+    # 顶点色 alpha = **活动半径**（米）：顶行钉死 0 → 末端 SIM_ALPHA
+    _alpha = {}
+    for r in range(SIM_ROWS):
+        u = float(r) / (SIM_ROWS - 1)
+        a = SIM_ALPHA * (u * u * (3.0 - 2.0 * u))
+        for j in range(SIM_COLS):
+            _alpha[r * SIM_COLS + j] = round(a, 4)
+    _ca = _me.color_attributes.new(name=COLOR_LAYER, type='BYTE_COLOR', domain='CORNER')
+    _me.color_attributes.active_color = _ca
+    for loop in _me.loops:
+        _ca.data[loop.index].color = (1.0, 1.0, 1.0, _alpha.get(loop.vertex_index, 0.0))
+
+    # 🔴 材质**复用渲染件那个名字**（原版也这么做：模拟网格引用渲染件的材质资产，不新建）
+    _mat = bpy.data.materials.new(NAME)
+    _mat.use_nodes = True
+    _nt = _mat.node_tree
+    _nt.nodes.clear()
+    _o = _nt.nodes.new('ShaderNodeOutputMaterial')
+    _b = _nt.nodes.new('ShaderNodeBsdfPrincipled')
+    _nt.links.new(_b.outputs['BSDF'], _o.inputs['Surface'])
+    _me.materials.append(_mat)
+    print("   材质名 -> %s（复用渲染件的材质资产，不新建）" % NAME)
+
+    _ob = bpy.data.objects.new(SIM_NAME, _me)
+    bpy.context.collection.objects.link(_ob)
+    _ob.parent = ARM
+    _ob.modifiers.new("Armature", 'ARMATURE').object = ARM
+    _vg = _ob.vertex_groups.new(name=BONE)
+    _vg.add(list(range(len(_me.vertices))), 1.0, 'REPLACE')
+    print("   绑骨 %s 权重 1.0" % BONE)
+
+    # ---- 与渲染件的距离（编辑器要求：贴着、且**永远不被渲染件穿出去**）----
+    _render = os.path.join(OUT_DIR, NAME + ".fbx")
+    if os.path.isfile(_render):
+        _b4 = set(bpy.data.objects)
+        bpy.ops.import_scene.fbx(filepath=_render)
+        _rv = []
+        for _o2 in [x for x in bpy.data.objects if x not in _b4 and x.type == 'MESH']:
+            _rv += [_o2.matrix_world @ v.co for v in _o2.data.vertices]
+        if _rv:
+            from mathutils.kdtree import KDTree
+            _kd = KDTree(len(_rv))
+            for _i, _p in enumerate(_rv):
+                _kd.insert(_p, _i)
+            _kd.balance()
+            _ds = sorted(_kd.find(p)[2] for p in sverts)
+            print("   替身->渲染件 最近点距离：中位 %.1f mm / p90 %.1f mm / 最大 %.1f mm"
+                  % (_ds[len(_ds) // 2] * 1000, _ds[int(len(_ds) * 0.9)] * 1000, _ds[-1] * 1000))
+            print("     （替身在渲染件**内侧**，所以有正距离是正常的；要看的是别处太大）")
+
+    print("\n== 导出 ==")
+    if DO_WRITE:
+        os.makedirs(OUT_DIR, exist_ok=True)
+        for o in list(bpy.data.objects):
+            if o not in (_ob, ARM):
+                bpy.data.objects.remove(o, do_unlink=True)
+        bpy.context.scene.unit_settings.scale_length = 1.0
+        _p2 = os.path.join(OUT_DIR, SIM_NAME + ".fbx")
+        bpy.ops.export_scene.fbx(
+            filepath=_p2, use_selection=False, object_types={'ARMATURE', 'MESH'},
+            global_scale=1.0, apply_unit_scale=False, apply_scale_options='FBX_SCALE_UNITS',
+            bake_space_transform=False, use_mesh_modifiers=False, add_leaf_bones=False,
+            primary_bone_axis='Y', secondary_bone_axis='X', axis_forward='Y', axis_up='Z',
+            bake_anim=False, path_mode='RELATIVE', embed_textures=False, use_custom_props=False,
+            colors_type='SRGB', prioritize_active_color=True)
+        print("   写出 -> %s" % _p2)
+    else:
+        print("   --dry-run：不写盘")
+    print("\n替身要点：单子网格 · 无 LOD · 有 UV · alpha 0→%.2f（米）· 材质名复用 %s" % (SIM_ALPHA, NAME))
+    sys.exit(0)
+
+
 # --------------------------------------------------------------------------- 2) 围脖（原版）
 print("\n== 2/5 取原版围脖 ==")
 before = set(bpy.data.objects)
@@ -264,8 +431,6 @@ def centerline():
         pts.append(pts[-1] + Vector((0.0, -__import__("math").sin(am), -__import__("math").cos(am))) * ds)
     return pts
 
-
-import math   # noqa: E402
 
 CL = centerline()
 str_verts, str_faces = [], []

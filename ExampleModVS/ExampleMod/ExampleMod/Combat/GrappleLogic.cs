@@ -1,6 +1,7 @@
 using System;
 using LivingWorldNpcs.Animation;
 using TaleWorlds.Engine;
+using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.Screens;
@@ -1197,6 +1198,11 @@ namespace LivingWorldNpcs
 			TickHandKit(dt);
 			Trace("handkit");
 
+			// ⓪‴ **缺件提示**（2026-10-12）：握着绳、按了开火键、可装备里没有钩爪 ⇒ 弹一句。
+			//     与钩头相位无关（缺件时相位恒为 Idle），同样放在相位分派**之前**。
+			TickNoHookHint();
+			Trace("nohookhint");
+
 			// ① 钩头模式（步骤 2 起）：它接管绳子；手动锚定让位
 			if (_hookPhase != HookPhase.Idle)
 			{
@@ -1888,7 +1894,12 @@ namespace LivingWorldNpcs
 			}
 
 			// 档 0 = 正常；**档 4 = 强制走下面那条**（不看总开关、不看握着谁 —— 它就是"现行为"的对照）
-			if (HandProbeStage == 0 && (!HandHookEnabled || !IsHoldingGrapple()))
+			// 🔴 **"装备里没有钩"也要收**（2026-10-12 用户裁定：视觉一致 —— "看得见的钩" = "能用的钩"）：
+			//    手里那枚钩是**运行时实体**，判据原先只有"握着的是绳/钩" ⇒ 一个没带钩爪的玩家手里**照样**
+			//    有一枚转着的钩，"看着一切正常、按开火键却打不出去"（缺件时引擎连拉弓都不进）。
+			//    加上这条之后：缺钩爪 ⇒ 手里只剩左手那盘绳（物品网格），缺口一眼可见。
+			bool hasHook = GrappleFirePatch.HasHookEquipped(Agent.Main);
+			if (HandProbeStage == 0 && (!HandHookEnabled || !IsHoldingGrapple() || !hasHook))
 			{
 				_hook.Unpark();
 				_lastHandSrcTag = null;      // 收了就复位 ⇒ 下次拿起来，"手源换路"会重新落一条（带当前几何）
@@ -1909,7 +1920,11 @@ namespace LivingWorldNpcs
 					catch (Exception)
 					{
 					}
-					DebugLogger.Log($"[Grapple] 手里的钩：停（此刻握着 {wieldedId}，开开关={HandHookEnabled}）");
+					// 停摆原因三分（2026-10-12）：没握绳 / **缺钩爪** / 总开关关 —— 日志里一眼可辨
+					string stopWhy = !IsHoldingGrapple()
+						? $"此刻握着 {wieldedId}"
+						: (!hasHook ? "装备里没有钩爪（缺件 ⇒ 手里的钩收掉、只剩那盘绳）" : $"总开关关着，握着 {wieldedId}");
+					DebugLogger.Log($"[Grapple] 手里的钩：停（{stopWhy}，开开关={HandHookEnabled}）");
 				}
 				return;
 			}
@@ -2089,6 +2104,93 @@ namespace LivingWorldNpcs
 			}
 			_rope.Tick(dt, ropeAnchor, hookPos);
 			Trace("hh:B:tick");
+		}
+
+		// ─────────────────── 缺件提示（2026-10-12）：握着绳、按开火键、装备里没有钩 ───────────────────
+
+		/// <summary>缺件提示的冷却（秒）—— 连点开火键时最多每这么久一句（防刷屏）。</summary>
+		public static float NoHookHintCooldown = 1.5f;
+
+		private float _noHookHintLastAt = float.MinValue;
+
+		/// <summary>
+		/// **缺件提示**（2026-10-12 用户裁定）：握着钩索绳、按了开火键、可装备里**没有钩爪** ⇒ 弹一句红字。
+		///
+		/// **为什么挂在"按开火键"上、而不是"握上绳就提示"**：
+		///   · 缺件时手里那枚钩**已经收掉了**（见 <see cref="TickHandHook"/> 的闸门）⇒ 不按开火键，玩家只是
+		///     "拿着一盘绳"，此时提示 = 背景噪音；按下去打不响才是"我遇到问题了"的那一刻（设计哲学①反馈明确）。
+		///     而且缺件时引擎**连拉弓都不进**（弓没有匹配弹药上不了弦），不按就完全没有别的信号。
+		///   · 判据与"能不能开火"完全同源：`IsHoldingGrapple()` + `GrappleFirePatch.HasHookEquipped()`。
+		///
+		/// 触发 = **按下沿**（松手再按才再弹；按住不放不重复）+ <see cref="NoHookHintCooldown"/> 冷却。
+		/// 装备好钩爪后判据自然为假 ⇒ 下次缺件立刻能再提示（不需要额外的"重新武装"状态）。
+		/// 🔴 **UI 模态门控**：IM 面板里点卡片用的也是左键 ⇒ 面板 / 全屏界面 / ESC 菜单开着时不弹。
+		/// </summary>
+		private void TickNoHookHint()
+		{
+			// ① 开火键按下沿（左键 = 弓系的瞄准/放箭键；手柄 = 右扳机）。读输入失败 = 当作没按。
+			bool pressed;
+			try
+			{
+				pressed = Input.IsKeyPressed(InputKey.LeftMouseButton)
+					|| Input.IsKeyPressed(InputKey.ControllerRTrigger);
+			}
+			catch (Exception)
+			{
+				return;
+			}
+			if (!pressed)
+			{
+				return;
+			}
+
+			// ② 缺件吗：握着绳（或瞄准时引擎报的钩）而装备里没有钩
+			Agent main = Agent.Main;
+			if (main == null || !IsHoldingGrapple() || GrappleFirePatch.HasHookEquipped(main))
+			{
+				return;
+			}
+
+			// ③ UI 模态门控（在面板里点左键不该弹这条）
+			try
+			{
+				if (ImChatView.IsOpen || UiFullScreenHelper.IsFullScreenUiOpen() || UiFullScreenHelper.IsEscapeMenuOpen())
+				{
+					return;
+				}
+			}
+			catch (Exception)
+			{
+			}
+
+			// ④ 冷却（连点不刷屏）
+			float now = Mission != null ? Mission.CurrentTime : 0f;
+			if (now - _noHookHintLastAt < NoHookHintCooldown)
+			{
+				return;
+			}
+			_noHookHintLastAt = now;
+			ShowNoHookHint();
+		}
+
+		/// <summary>
+		/// 弹一次"缺钩爪"提示（命令 `custom.grapple hint` 也调它 —— 不按键也能验文案 / 本地化 / 颜色）。
+		/// 玩家可见文本一律走 <see cref="LWNTextHelper"/>（铁律 13），key = `LWN_ui_grapple_no_hook`。
+		/// </summary>
+		public void ShowNoHookHint()
+		{
+			try
+			{
+				// 本地化：LWN_ui_grapple_no_hook（玩家可见文本）
+				string text = LWNTextHelper.ResolveText("LWN_ui_grapple_no_hook",
+					"No hook equipped - the grappling rope needs a Grapple Hook in an ammo slot to fire.");
+				InformationManager.DisplayMessage(new InformationMessage(text, Colors.Red));
+				DebugLogger.Log("[Grapple] 缺件提示：握着钩索绳、装备里没有钩爪（已提示玩家）");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 缺件提示弹出失败（忽略）：{ex.GetType().Name} {ex.Message}");
+			}
 		}
 
 		/// <summary>绕转轴（世界坐标、单位向量），见 <see cref="HandHookAxis"/>。
