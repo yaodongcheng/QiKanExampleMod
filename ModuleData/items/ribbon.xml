@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 混天绫 —— 一条超长丝带披风（披风槽装备，2026-10-10 立）。
+     方案 = LivingWorldNpcs 的 plans\丝带披风与飞行开关.md。
+     网格/材质/三件套贴图在 LWN 自己的资产包里（AssetPackages\lwn_core.tpac，
+     由沙箱 Modules\LwnAnim 编译、发布后改名拷进来）—— 引擎按**名字**找网格，
+     名字对不上 = 拿默认白材质渲染，所以 id 与 mesh 必须同名同源。
+
+     🔴 **为什么是 `Type="Cape"`（披风槽）而不是自己做一套**：
+        · 槽位现成（`EquipmentIndex.Cape = 9`），原版 91 件披风类物品都在用；
+        · **原版披风自带布料模拟**（实测 `battania_cloak_furr`：有低模替身 + 碰撞体 +
+          `uses_cloth_simulation` 标记）⇒ 不用自己写物理、不用绑骨；
+        · 装备/卸下天然就是"开关" —— 飞行门控直接读这个槽（方案 §五）。
+
+     🔴 `Civilian="true"` 是硬门槛（铁律 33）：缺了 = 玩家在城镇换日常装时**选不到这件东西**，
+        进城 / 潜入 / 典狱长等一切要求平民装的场合全被挡住。装备件一律都要，无例外。
+
+     `culture` 用 `neutral_culture`：**原版与 Taikou 两侧都有定义**，是唯一跨世界安全的选择
+        （钩索那两件当初就是因为挂了 Taikou 的 `ikoku` 才被要求去掉文化的）。
+     价格不写死 —— 由 `body_armor` 自动折算；`is_merchandise="true"` = 进商店货架与战利品池。
+     想让它更好拿/更难拿，改 `body_armor` 或显式加 `value="<第纳尔>"`。 -->
+<Items>
+	<Item
+		id="lwn_huntian_ling"
+		name="{=LWN_huntian_ling}HuntianLing"
+		mesh="lwn_huntian_ling"
+		culture="Culture.neutral_culture"
+		is_merchandise="true"
+		weight="0.3"
+		appearance="2"
+		Type="Cape">
+		<ItemComponent>
+			<Armor
+				body_armor="1"
+				modifier_group="cloth_unarmoured"
+				material_type="Cloth" />
+		</ItemComponent>
+		<Flags
+			Civilian="true" />
+	</Item>
+</Items>

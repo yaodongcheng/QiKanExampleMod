@@ -1866,7 +1866,7 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 | `trf_edit.py flipside` | `tools/anim-retarget/pipeline/common/trf_edit.py` | **把被扛者换到另一侧** | `--mode x`（默认）= **只翻根骨位移轨的 X**，姿态一字节不动；`--mode yaw180` = 整体绕竖直轴转 180°（连身体转过去 = 起手她背对他）。骨架本地系 **`+X` = 角色右手侧** |
 | `tpaccli animpos` | `tools/tpactool/TpacToolCLI/` | **读交付包里的根骨位移轨**（`animrot` 只读旋转，读不到它） | `--filter <动画名>`；`--posbone N` 换成第 N 根骨的位置轨；`#` 开头是摘要行。**左右就写在 X 的符号上** |
 | `tpaccli animrot` | 同上 | 读某帧骨骼四元数（判朝向） | `--bone 0 --frame 1` 看根骨朝向；**"这套动画整体转了多少度"= 与基准的角差** |
-| `mirror_trf.py`（**既有 · 补登**） | `tools/anim-retarget/pipeline/tools/` | **真·左右镜像**（连姿态一起翻） | 🔴 正解 = **`desired_world = Mx @ R_src @ Dz`（`Dz=diag(1,1,-1)`）+ 左右骨名互换**；⚠️ **`Mx@R@Mx` 恰好差 180°**（我 2026-10-10 又自己推了一遍，白踩）。⚠️ **该脚本现在跑不起来**（依赖 `_adjust_upper_body.py` 不在仓里）—— 要用先补依赖。**双人挂接一般不用它**（见下） |
+| `mirror_trf.py`（**既有 · 补登**） | `tools/anim-retarget/pipeline/tools/` | **真·左右镜像**（连姿态一起翻） | 🔴 正解 = **`desired_world = Mx @ R_src @ Dz`（`Dz=diag(1,1,-1)`）+ 左右骨名互换**；⚠️ **`Mx@R@Mx` 恰好差 180°**（我 2026-10-10 又自己推了一遍，白踩）。✅ **2026-10-10：依赖 `_adjust_upper_body.py` 已收编进 `pipeline/tools/`，脚本可直接跑**（原记的"跑不起来"作废）。**双人挂接一般不用它**（见下） |
 
 **判据（唯一认可的尺子）**：两人骨架**叠在同一原点**（游戏里就是 XZ 重合 + 朝向对齐），拿
 `output/verify/bannerlord_skel.json` 当静止姿势做 FK，逐帧量**扛人者两只手到被扛者全身任意一根骨的最近距离**，

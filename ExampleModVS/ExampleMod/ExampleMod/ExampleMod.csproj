@@ -605,6 +605,10 @@
     <Compile Include="CampaignMode\Tools\SurfaceTerrainFx.cs" />
     <!-- 🔴 冰冻效果控制台入口（2026-10-07），本体在 Combat\IceFxBehavior.cs。 -->
     <Compile Include="CampaignMode\Tools\IceFxCommands.cs" />
+    <!-- 通用物品命令（custom.item add|list）——**按 StringId 查**，不依赖本地化显示名。
+         2026-10-10 立：原版 campaign.add_item_to_main_party 只认显示名（中文客户端得敲中文 +
+         竖线分组），名字对不上就报 Item is not found，极易误判成"物品没注册"。 -->
+    <Compile Include="CampaignMode\Tools\ItemCommands.cs" />
     <!-- GUI -->
     <Compile Include="GUI\LoadingRandomPatch.cs" />
     <Compile Include="GUI\SecretLetterButtonInjector.cs" />
