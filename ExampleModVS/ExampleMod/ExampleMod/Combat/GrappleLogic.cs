@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using LivingWorldNpcs.Animation;
+using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
@@ -1179,6 +1181,11 @@ namespace LivingWorldNpcs
 			TickAnim(dt);
 			Trace("anim");
 
+			// ⓪″ 弹药顺序归一化（2026-10-12 晚）：**进战场一次性**把"钩爪 vs 其它箭类"的槽位顺序排对
+			//     （每个 Mission 只做一次；**不能**在装备界面做 —— 那样会坏物品栏，见方法注释）
+			NormalizeAmmoOrderOncePerMission();
+			Trace("ammoorder");
+
 			// ⓪ 开火拦截的排队执行（2026-10-03）：拦截补丁只"记一笔"，真正的发射与退弹在这一帧做 ——
 			//    这样武器开火与命令 `throw` 走的是**同一条链路**（都在常规 tick 里）。
 			GrappleFirePatch.ProcessPending();
@@ -2113,6 +2120,9 @@ namespace LivingWorldNpcs
 
 		private float _noHookHintLastAt = float.MinValue;
 
+		/// <summary>「钩不能当箭用」提示的冷却（同上一档；两个提示各自计时）。</summary>
+		private float _wrongWeaponHintLastAt = float.MinValue;
+
 		/// <summary>
 		/// **缺件提示**（2026-10-12 用户裁定）：握着钩索绳、按了开火键、可装备里**没有钩爪** ⇒ 弹一句红字。
 		///
@@ -2191,6 +2201,177 @@ namespace LivingWorldNpcs
 			{
 				DebugLogger.Log($"[Grapple] 缺件提示弹出失败（忽略）：{ex.GetType().Name} {ex.Message}");
 			}
+		}
+
+		/// <summary>
+		/// **「钩不能当箭用」的提示**（2026-10-12 用户裁定："普通弓应该射不出钩，不准把钩作为普通弓的箭"）。
+		///
+		/// **主调用方 = <see cref="GrappleAimGatePatch"/>**（每帧、在"进入瞄准之前"就把攻击输入抹掉，
+		/// 并在按下沿调这里给玩家一句话）；<see cref="GrappleFirePatch"/> 的 refused 分支保留为**安全网**。
+		///
+		/// 🔴 为什么必须给字：拦下 = 按下攻击键什么都不发生，不解释就是看着像 bug。
+		/// 冷却照 <see cref="NoHookHintCooldown"/>（连点不刷屏）。
+		/// </summary>
+		public void ShowWrongWeaponHint()
+		{
+			float now = Mission != null ? Mission.CurrentTime : 0f;
+			if (now - _wrongWeaponHintLastAt < NoHookHintCooldown)
+			{
+				return;
+			}
+			_wrongWeaponHintLastAt = now;
+			try
+			{
+				// 本地化：LWN_ui_grapple_hook_needs_rope（玩家可见文本）
+				string text = LWNTextHelper.ResolveText("LWN_ui_grapple_hook_needs_rope",
+					"The Grapple Hook only fires from the Grapple Rope - a normal bow cannot shoot it.");
+				InformationManager.DisplayMessage(new InformationMessage(text, Colors.Red));
+				DebugLogger.Log("[Grapple] 钩被别的武器开火 ⇒ 已拦下并提示玩家（钩只能通过钩索绳发射）");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 拒发提示弹出失败（忽略）：{ex.GetType().Name} {ex.Message}");
+			}
+		}
+
+		// ─────────────── 弹药顺序归一化（2026-10-12 晚：从装备界面搬到"进战场一次性"） ───────────────
+
+		private bool _ammoOrderNormalized;
+
+		/// <summary>
+		/// **进战场后一次性把"钩爪 vs 其它箭类"的槽位顺序排对**（每个 Mission 只做一次）。
+		///
+		/// **为什么要排**（用户实测 2026-10-12）：弓的弹药是**开火那一刻由引擎现挑**的，规则 = **按槽位顺序
+		/// 取第一个同类弹药** ⇒ 弓(W1)+箭(W2)+钩(W3) 会先把箭射完、轮到钩时被瞄准闸拦下；箭/钩对调则一上来就打不出去。
+		/// **方向由装备决定**：装备里有**绳**且**没有别的远程武器** ⇒ **钩在前**（绳要用钩）；
+		/// 否则 ⇒ **钩在后**（让别的弓/弩优先用箭）。
+		///
+		/// 🔴 **为什么不在装备界面做**（原来那样做**会坏物品栏**，2026-10-12 实机事故）：直接写战役侧
+		///    `Equipment` 的槽位会跟 `InventoryLogic` 的内部状态**脱钩**（界面上的槽位 VM 还指着原来的物品）
+		///    ⇒ 症状 = **箭和钩爪再也脱不下来**。⇒ 改到"进战场那一刻"排：没有任何界面在看着这份装备，
+		///    零 UI 风险，效果一样（弓按顺序挑弹药）。原实现留在 `Combat/GrappleAmmoOrderPatch.cs`（已停用备查）。
+		///
+		/// 🔴 只动**弹药槽之间**的顺序（钩 + 其它箭类，限 0-3 号主武器槽）：**绳、刀、盾一概不挪**。
+		/// </summary>
+		private void NormalizeAmmoOrderOncePerMission()
+		{
+			if (_ammoOrderNormalized)
+			{
+				return;
+			}
+			Agent main = Agent.Main;
+			if (main == null)
+			{
+				return;          // 还没出生 ⇒ 下一帧再看
+			}
+			_ammoOrderNormalized = true;
+			try
+			{
+				int first = (int)EquipmentIndex.WeaponItemBeginSlot;
+				int last = (int)EquipmentIndex.NumPrimaryWeaponSlots;
+				List<int> slots = new List<int>();          // 钩 + 其它箭 所在槽位
+				int hookSlot = -1;
+				bool ropePresent = false;
+				bool otherRangedPresent = false;
+
+				for (int i = first; i < last; i++)
+				{
+					MissionWeapon w = main.Equipment[(EquipmentIndex)i];
+					if (w.Item == null)
+					{
+						continue;
+					}
+					bool isHook = w.Item.StringId == GrappleFirePatch.HookItemId;
+					if (w.Item.StringId == GrappleFirePatch.RopeItemId)
+					{
+						ropePresent = true;
+					}
+					else if (!isHook
+						&& (w.Item.Type == ItemObject.ItemTypeEnum.Bow || w.Item.Type == ItemObject.ItemTypeEnum.Crossbow))
+					{
+						otherRangedPresent = true;
+					}
+
+					if (isHook)
+					{
+						hookSlot = i;
+						slots.Add(i);
+					}
+					else if (w.Item.Type == ItemObject.ItemTypeEnum.Arrows)
+					{
+						slots.Add(i);
+					}
+				}
+
+				if (hookSlot < 0 || slots.Count < 2)
+				{
+					return;      // 没有"钩 + 至少一个其它箭" ⇒ 不动
+				}
+
+				slots.Sort();
+				bool hookFirst = ropePresent && !otherRangedPresent;
+				int hookIdx = slots.IndexOf(hookSlot);
+				int wantIdx = hookFirst ? 0 : slots.Count - 1;
+				if (hookIdx == wantIdx)
+				{
+					return;      // 顺序本来就对 ⇒ 一行都不动
+				}
+
+				int guard = 0;
+				while (hookIdx != wantIdx && guard++ < 8)      // 只在**这批弹药槽之间**挪，不碰别的物品
+				{
+					int nextIdx = hookIdx + (wantIdx > hookIdx ? 1 : -1);
+					SwapAgentSlots(main, (EquipmentIndex)slots[hookIdx], (EquipmentIndex)slots[nextIdx]);
+					int tmp = slots[hookIdx];
+					slots[hookIdx] = slots[nextIdx];
+					slots[nextIdx] = tmp;
+					hookIdx = nextIdx;
+				}
+
+				DebugLogger.Log($"[Grapple] 弹药顺序归一化（进战场一次性）：钩爪挪到 {(hookFirst ? "最前" : "最后")}"
+					+ $"（{(hookFirst ? "装备里有钩索绳、且没有别的远程武器 ⇒ 钩优先" : "有别的弓/弩 ⇒ 让箭优先")}）");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 弹药顺序归一化失败（忽略，不影响玩）：{ex.GetType().Name} {ex.Message}");
+			}
+		}
+
+		/// <summary>把两个装备槽的内容**互换**（物品 + 品质修正 + 数量；空槽也支持）。</summary>
+		private static void SwapAgentSlots(Agent a, EquipmentIndex x, EquipmentIndex y)
+		{
+			MissionWeapon wx = a.Equipment[x];
+			MissionWeapon wy = a.Equipment[y];
+			ItemObject ix = wx.Item;
+			ItemObject iy = wy.Item;
+			ItemModifier mx = wx.ItemModifier;
+			ItemModifier my = wy.ItemModifier;
+			short ax = wx.Amount;
+			short ay = wy.Amount;
+			Banner banner = a.Origin?.Banner;
+
+			if (iy != null)
+			{
+				MissionWeapon w = new MissionWeapon(iy, my, banner);
+				a.EquipWeaponWithNewEntity(x, ref w);
+				a.SetWeaponAmountInSlot(x, ay, false);
+			}
+			else
+			{
+				a.RemoveEquippedWeapon(x);
+			}
+
+			if (ix != null)
+			{
+				MissionWeapon w = new MissionWeapon(ix, mx, banner);
+				a.EquipWeaponWithNewEntity(y, ref w);
+				a.SetWeaponAmountInSlot(y, ax, false);
+			}
+			else
+			{
+				a.RemoveEquippedWeapon(y);
+			}
+			a.UpdateAgentStats();
 		}
 
 		/// <summary>绕转轴（世界坐标、单位向量），见 <see cref="HandHookAxis"/>。

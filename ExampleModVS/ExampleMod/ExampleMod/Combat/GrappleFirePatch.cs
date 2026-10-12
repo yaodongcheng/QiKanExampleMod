@@ -12,13 +12,33 @@ namespace LivingWorldNpcs
 	/// 不拦会怎样：弓正常射出一颗**真箭**（绳弹自己的 flying_mesh），玩家看到的是"射了支箭"，
 	/// 而不是"甩出钩索"。前缀返回 false = **真的没有导弹被建出来**（不是"建了再藏起来"）。
 	///
-	/// 判据 = **这一发用的弹药物品是绳弹**（与武器无关）：
-	///   · 引擎的弹种只能借现成枚举（`Arrow`），别的弓也能装这发弹 ⇒ 判据必须落在"弹药是谁"上；
-	///   · 认不出 = 一行都不多做，引擎照常发它的导弹（原版弓箭/弩矢/投掷物**一律不管**）。
+	/// 判据 = **两条同时成立**（2026-10-12 起）：
+	///   ① **这一发用的弹药物品是钩**（`ResolveAmmoItem`，取法与引擎逐字同源）；
+	///   ② **开火的那把武器是绳**（`Equipment[weaponIndex]`；`weaponIndex` = 引擎给的"开火武器槽"，
+	///      反编译实锤 —— 引擎自己也是拿它去取 `AmmoWeapon` 当弹的）。
+	///   ⇒ 两条都中 = **钩索发射**（拦掉引擎导弹、改发我们的钩头实体）；
+	///     ①中②不中 = **钩被别的武器（普通弓/弩）当箭打** —— 2026-10-12 用户裁定**不许**
+	///     （"普通弓应该射不出钩，不准把钩作为普通弓的箭"）⇒ **整发拦下**（不放钩索、也不让它变成
+	///     一支钩形箭）+ 退弹（不花玩家的弹）+ 下一帧给玩家一句话（见 `ProcessPending` 的 refused 分支）；
+	///     ①不中 = 一行都不多做，引擎照常发它的导弹（原版弓箭/弩矢/投掷物**一律不管**）。
+	///
+	/// 🔴 为什么只判"弹药是谁"不够：引擎按「武器的 `ammo_class` == 弹药的 `weapon_class`」配对，
+	///   借 `Arrow` 时**任何弓都能装这发弹** ⇒ 只判弹药挡不住别的弓，必须再判武器。
+	///
+	/// 🔴🔴 **2026-10-12：这第二条判据是唯一可行的手段**（先试过"数据级排他"，不成立、当天已回退）——
+	///   原打算把绳的 `ammo_class` 与钩的 `weapon_class` 一起换成没人用的类（如 `Javelin`），
+	///   让普通弓**装不进**这发弹（那样就是引擎自己拦在"进瞄准之前"）；**但 1.2.12 的
+	///   `ItemObject.Deserialize` 会用 `weapon_class` 反推 ItemType 并覆盖 XML 里写的 `Type`**
+	///   （`WeaponComponentData.GetItemTypeFromWeaponClass`：只有 `Arrow` 推出 `Arrows`，
+	///   `Javelin`/`Stone`/… 一律推出 `Thrown`）⇒ 换类 = 钩不再是「箭矢」类 = 整套"弓 + 弹药"塌掉。
+	///   ⇒ **只能代码拦，且只能拦在开火之后**（拉弓动作已经播过 —— 已知代价；根因与"想拦在进瞄准之前
+	///   只剩抹输入这条路"都记在 `ModuleData/items/grapple.xml` 文件头）。
 	///
 	/// 🔴 只拦**玩家**的（`shooterAgent != Agent.Main` 一律放行）：NPC 拿这发弹我们不会帮他钩，
 	///   拦下来 = NPC 的箭凭空消失（比"射了支箭"更怪）。平权是目标，但拉拽那套（木板/冻结）
 	///   目前是玩家专属（§八 #3），等 NPC 侧做出来再放开这条判据。
+	///   ⚠️ **连带（2026-10-12 记）**：因为这条放行，NPC 拿**普通弓**装钩开火仍会射出一颗钩形弹
+	///   （玩家那条"钩只能通过绳发射"的判据管不到它）—— 与"NPC 侧整体没做"是同一件事，将来一起收。
 	///
 	/// 🔴 与 `SpellSealFirePatch` 同款纪律（照抄那份）：前缀内**吞异常并放行**（出错顶多退回"射真箭"）、
 	///   可单独关（config.json 的 `DisabledPatchClasses` 写 `GrappleFirePatch`）、
@@ -73,6 +93,26 @@ namespace LivingWorldNpcs
 					return true;             // 不是绳弹（普通弓箭/弩矢/投掷物）→ 一行都不多做
 				}
 
+				// 🔴 **② 开火的是不是"绳"**（2026-10-12 用户裁定："普通弓应该射不出钩，
+				//    不准把钩作为普通弓的箭"）—— 判据落在这把**武器**上。
+				//    不是绳 ⇒ 这一发**不能变成一支"钩形箭"**：与正常拦截同样**只排队**（引擎的扣弹
+				//    发生在本回调之后），由下一帧退弹 + 给玩家一句说明，**不发钩索**。
+				MissionWeapon fired = shooterAgent.Equipment[weaponIndex];
+				bool fromRope = fired.Item != null && fired.Item.StringId == RopeItemId;
+				if (!fromRope)
+				{
+					_pendingRefundSlot = FindDartSlot(shooterAgent);
+					_pendingDartItem = ammoItem;
+					_refundWatchTicks = RefundWatchTicks;
+					_refundConfirmed = false;
+					_pendingRefused = true;
+					// 同样补上引擎被跳过的那句记账（规矩 5）
+					shooterAgent.UpdateLastRangedAttackTimeDueToAnAttack(MBCommon.GetTotalMissionTime());
+					DebugLogger.Log($"[Grapple] 钩被别的武器开火（{fired.Item?.StringId ?? "?"}）⇒ 整发拦下："
+						+ "不发钩索、也不当箭射出去（下一帧退弹 + 提示玩家）");
+					return false;
+				}
+
 				// 🔴🔴 **只排队，不在这里干活**（2026-10-03 实机教训）：
 				//    这里是**引擎发弹流程的内部**（native 回调进来的）—— 在里面打瞄准射线 / 造实体 / 退弹，
 				//    实测出事：钩头飞出去了、绳随即消失，且**弹药被扣成 0 退不回来**
@@ -121,6 +161,9 @@ namespace LivingWorldNpcs
 		private static Vec3 _pendingShotOrigin;
 		private static Vec3 _pendingShotDir;
 
+		/// <summary>这一发是**被拒**的（钩被别的武器当箭打，2026-10-12）：只退弹 + 给玩家一句话，**不发射**。</summary>
+		private static bool _pendingRefused;
+
 		/// <summary>
 		/// 退弹要**盯几帧**（2026-10-03 实机）：引擎的扣弹发生在拦截回调**之后**（实测：回调里读是 1，
 		/// 紧跟着它自己扣成 0）⇒ 只退一次会被它再扣掉。盯满这几帧、每帧幂等补一次，才能保证补得住。
@@ -136,15 +179,32 @@ namespace LivingWorldNpcs
 		public static void ProcessPending()
 		{
 			bool fire = HasPendingFire;
+			bool refused = _pendingRefused;
 			Agent shooter = PendingShooter;
 			HasPendingFire = false;
 			PendingShooter = null;
+			_pendingRefused = false;
 
 			// ① 退弹（无论发射成不成功都要退 —— 这一枪是我们拦下的，不该花掉玩家的弹）
 			if (_refundWatchTicks > 0)
 			{
 				_refundWatchTicks--;
 				RefundDart();
+			}
+
+			// ①′ **被拒的那一发**（钩被别的武器当箭打）：退弹已在上面做了，这里只补一句人话，**不发射**
+			if (refused)
+			{
+				try
+				{
+					// 🔴 `Ensure()`：本行为可能还没挂（玩家从没敲过命令）—— 拿不到就现挂一个（同下面的发射路径）
+					GrappleLogic.Ensure()?.ShowWrongWeaponHint();
+				}
+				catch (Exception ex)
+				{
+					LogOnce("refusedhint", $"拒发提示异常（忽略）：{ex.GetType().Name} {ex.Message}");
+				}
+				return;
 			}
 
 			// ② 发射（走与命令 `throw` 完全相同的链路）
@@ -212,6 +272,40 @@ namespace LivingWorldNpcs
 		public static bool HasHookEquipped(Agent agent)
 		{
 			return agent != null && FindDartSlot(agent) != EquipmentIndex.None;
+		}
+
+		/// <summary>
+		/// **这个人此刻是不是"拿别的远程武器、膛里装填着我们的钩"**（= 该在**进瞄准之前**拦下的那一刻）。
+		/// 供 <see cref="GrappleAimGatePatch"/> 每帧问一次（2026-10-12 加）。
+		///
+		/// 🔴 判据写法有讲究，别简化：
+		///   · **只认"远程武器本体"**（`IsRangedWeapon &amp;&amp; !IsConsumable`，即弓/弩这类）。为什么必须排除
+		///     投掷本体与弹药：**瞄准期间引擎会把 `WieldedWeapon` 报成弹药**（我们自己的绳在瞄准时也会被
+		///     报成钩 —— 见 `GrappleLogic.IsHoldingGrapple` 的 2026-10-07 事故记录）⇒ 不排除的话，
+		///     **绳自己的瞄准会被我们误拦**。
+		///   · 武器是绳 ⇒ 直接放行（正主）。
+		///   · 最后才看它装填的弹药是不是我们的钩。
+		/// </summary>
+		public static bool IsHoldingHookInForeignWeapon(Agent agent)
+		{
+			try
+			{
+				if (agent == null) return false;
+				MissionWeapon wielded = agent.WieldedWeapon;
+				if (wielded.Item == null) return false;
+				if (wielded.Item.StringId == RopeItemId) return false;      // 绳 = 正主，放行
+				WeaponComponentData usage = wielded.CurrentUsageItem;
+				if (usage == null || !usage.IsRangedWeapon || usage.IsConsumable)
+				{
+					return false;        // 近战 / 投掷本体 / 瞄准时报上来的弹药 ⇒ 都不管
+				}
+				MissionWeapon ammo = wielded.AmmoWeapon;
+				return ammo.Item != null && ammo.Item.StringId == HookItemId;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
 		}
 
 		/// <summary>

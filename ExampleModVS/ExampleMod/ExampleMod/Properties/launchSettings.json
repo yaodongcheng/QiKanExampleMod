@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ExampleMod": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

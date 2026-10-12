@@ -16,13 +16,36 @@
      🔴 起手链路（为什么是"弓 + 箭"）：
         装备（**准星自动出现 —— 引擎自带，远程武器通用件，零 UI 代码**）
         → **按住左键** = 拉弓（原生瞄准姿态；⚠️ 2026-10-04 实机更正：弓系瞄准是**左键**）→ 松手 = 开火
-        → 引擎回调 `Mission.OnAgentShootMissile` → LWN 拦截补丁判"弹药是钩"→ `return false`
+        → 引擎回调 `Mission.OnAgentShootMissile` → LWN 拦截补丁判"**弹药是钩 && 开火的是绳**"→ `return false`
         （**真的没有导弹被建出来**）→ 改发我们自己的钩头实体 + 绳子。**准星/瞄准/射击动画全部白拿。**
         拦不到（补丁关了）→ 引擎照常发一颗真箭（`flying_mesh` 那件），不会崩。
 
+     🔴🔴 **弹药类只能是 `Arrow` —— "数据级排他"在 1.2.12 上做不到（2026-10-12 试过并已回退）**：
+        动机：用户 2026-10-12 裁定"普通弓应该射不出钩，不准把钩作为普通弓的箭"。第一版想法是
+        **换一个没人用的 `weapon_class`/`ammo_class`**，让普通弓**根本装不进**这发弹 ——
+        这样引擎自己那道闸（没可用弹药 ⇒ 进不了瞄准）就会把它拦在**进瞄准之前**。
+        **试了 `Javelin`，不成立、已回退。根因（1.2.12 反编译实据）**：
+          · 🔴 `ItemObject.Deserialize` 会用 **`weapon_class` 反推 ItemType 并强制覆盖 XML 里写的 `Type`**
+            （原文：`ItemTypeEnum itemType = WeaponComponent.GetItemType(); if (Type != itemType) { Debug.Print(...); } Type = itemType;`）。
+          · 映射表 `WeaponComponentData.GetItemTypeFromWeaponClass`：**只有 `Arrow` 推出 `Arrows`**；
+            `Javelin`/`Stone`/`Boulder`/`ThrowingAxe`/`ThrowingKnife` 全推出 **`Thrown`**；
+            另有 `Bolt→Bolts`、`Cartridge→Bullets`、`Bow→Bow`……
+          ⇒ 钩一旦不是 `Arrow`，它就**不再是「箭矢(Arrows)」类**（被引擎改成投掷类）—— 而"弓 + 弹药"
+            这整套（弹药槽、装填、HUD 计数、图标取 `holster_mesh`）都建立在 Arrows 类上。
+          ⇒ **1.2.12 里没有第二个"能推出 Arrows 的类"**：想当弓的弹药只能是 `Arrow`；而是 `Arrow`，
+            就任何弓都装得上 —— **数据层面无解**。
+        ⇒ 结论：**"钩只能配绳"只能靠代码拦**（`GrappleFirePatch`：弹药是钩 && 开火的是绳）。
+          ⚠️ 已知代价：代码只能拦在**开火之后**（导弹回调），此时**拉弓动作已经播过**，而且播的是钩索动作
+          （弓系开火动作挂在**弹药**的用法组上，见下面 `item_usage` 那条）⇒ 观感是"拉了个寂寞"。
+          ⚠️ 想真正拦在"进瞄准之前"，1.2.12 上只剩一条路：**在托管侧把玩家的攻击输入抹掉**
+          （`MissionMainAgentController.ControlTick`，托管、每帧跑）—— 那是跟引擎抢输入，要做需单独评估（**未做**）。
+          ℹ️ 引擎在 **1.3+ 才**给出第二个"独立弹药族"（投石索：`SlingStone` → `SlingStones`）——
+          想走"数据级排他"，得先接受只支持 1.3+。
+
      🔴 钩要"永远不用管"：LWN 在拦截后**立刻把弹药退还**（幂等：补到"应该有 1 个"）⇒
         玩家永远只有 1 个钩、永远打不完 —— 体验上就是"不需要箭"。
-        （借的是引擎现成枚举 `Arrow`；所以拦截判据写的是"**弹药是钩**"，与武器无关。）
+        （⚠️ 这条口径只在 `custom.grapple equip` **命令路径**下成立：走物品栏流程时，进战场那一刻槽里的
+          数量是引擎按它自己的模型给的（实测 = `stack_amount` 20），**打第一枪之后**才被我们钉回 1。）
 
      🔴 网格策略（2026-10-08 定稿，用户要求"必须有绕小臂旋转"）：
         · **绳（本文件第一件）`mesh = lwn_grapple_rope`** —— 新造的一盘绳（`tools/grapple-model/scripts/build_rope.py`，

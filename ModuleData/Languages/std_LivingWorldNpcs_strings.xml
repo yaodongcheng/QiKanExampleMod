@@ -4037,6 +4037,7 @@
     <string id="LWN_ui_cutrope_msg" text="Cut {NAME} loose — they'll stand up in a moment." />
     <string id="LWN_ui_cutrope_none" text="There's no rope to cut here." />
     <string id="LWN_ui_grapple_no_hook" text="No hook equipped — the grappling rope needs a Grapple Hook in an ammo slot to fire." />
+    <string id="LWN_ui_grapple_hook_needs_rope" text="The Grapple Hook only fires from the Grapple Rope — a normal bow cannot shoot it." />
     <string id="LWN_ui_rope_held_title" text="Rope in hand: {NAME}" />
     <string id="LWN_ui_state_bound" text="(tied up)" />
     <string id="LWN_ui_intervene_bubble" text="Stop! He's my man!" />

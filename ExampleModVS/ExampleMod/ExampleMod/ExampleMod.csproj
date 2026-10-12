@@ -387,6 +387,11 @@
     <Compile Include="Combat\GrapplePull.cs" />
     <Compile Include="Combat\GrappleBind.cs" />
     <Compile Include="Combat\GrappleFirePatch.cs" />
+    <Compile Include="Combat\GrappleAimGatePatch.cs" />
+    <!-- 🪦 2026-10-12 晚**停用**：GrappleAmmoOrderPatch（装备界面里直接写 Equipment 槽位会跟 InventoryLogic 脱钩
+         ⇒ 实机症状：箭和钩爪**再也脱不下来**）。顺序归一化已改到"进战场一次性"做（Combat\GrappleLogic.cs 里
+         NormalizeAmmoOrderOncePerMission）。文件留着备查，**不要重新启用**。 -->
+    <!-- <Compile Include="Combat\GrappleAmmoOrderPatch.cs" /> -->
     <Compile Include="Combat\GrappleIconPatch.cs" />
     <!-- 🔴 钩索姿态动画（2026-10-04）：状态机装载/注册 + 谓词与时刻名（定义在 ModuleData/statemachines/grapple.xml）。 -->
     <Compile Include="Combat\GrappleAnimMachine.cs" />
