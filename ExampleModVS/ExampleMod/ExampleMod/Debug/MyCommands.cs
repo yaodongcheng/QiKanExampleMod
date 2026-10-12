@@ -368,7 +368,7 @@ namespace LivingWorldNpcs
                     (flags.HasAnyFlag(AnimFlags.anf_cyclic) ? 1 : 0),
                     (flags.HasAnyFlag(AnimFlags.anf_enforce_lowerbody) ? 1 : 0),
                     (flags.HasAnyFlag(AnimFlags.anf_enforce_all) ? 1 : 0),
-                    MBActionSet.GetActionAnimationContinueToAction(agent.ActionSet, ActionIndexValueCache.Create(idx)).Index,
+                    V.ContinueToActionIndex(agent.ActionSet, idx),
                     MBActionSet.GetActionBlendOutStartProgress(agent.ActionSet, idx),
                     MBActionSet.GetActionDisplacementVector(agent.ActionSet, idx));
                 DebugLogger.Log("[Cmd] anim_meta -> " + line);
@@ -517,7 +517,7 @@ namespace LivingWorldNpcs
                 // 🔴 **返回值就是判据**：`SetActionChannel` 返回 bool —— false = 这一发**被引擎拒了**
                 //    （优先级/通道占用/动作不适用），不是"播了但看不见"。原版欢呼也是这么用的：
                 //    `if (!agent.SetActionChannel(1, ...)) { 做别的 }`（Ballista.cs:283）。
-                bool accepted = agent.SetActionChannel(channel, idx, ignorePriority: ignorePriority, additionalFlags: flags,
+                bool accepted = V.SetActionChannel(agent, channel, idx, ignorePriority: ignorePriority, additionalFlags: flags,
                     blendInPeriod: 0.12f, blendOutPeriodToNoAnim: 0f);
 
                 // 🔴 回读（比 ACCEPTED 更死）：收下之后通道里到底是不是这条动作、权重多少。

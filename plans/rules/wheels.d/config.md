@@ -289,3 +289,49 @@ ilspycmd <dll> -t <全名> | grep "<方法名>"
 **正确判据**：`TaleWorlds.Engine.Utilities.GetModulesNames()` = `IUtil.GetModulesCode().Split('*')`——launcher 传入的启用列表，引擎 `LoadSubModules` 装配 DLL 同一来源；**1.2.12~1.5.1 四版本同签名，无版本分支**。
 
 **落地**：`ModuleActivationHelper.IsModuleEnabled(string moduleId)`（Any 忽略大小写；任何异常保守判 false + `[ModuleActivation]` 日志）。**已统一替换的 4 个调用点**（禁止再出现第二套判据）：`Core/SplashVideoReplacePatch` / `Core/MenuSoundtrackPatch` / `Data/DesignDataLoad` / `CampaignMode/CampaignModeActivator.IsModuleLoaded`；新文件 `Core/ModuleActivationHelper.cs`。
+
+## 🔴 Harmony 补丁的宿主类跨版本搬家（2026-10-12 登记，钩索图标实战）—— 补丁体一份 + 两版空壳 + 生效自证日志
+
+**问题**：补丁**目标方法一字没改**，但**宿主类在某个版本改了名 / 搬了家** ⇒ 当年照老版本写的补丁被 `#if` 圈掉，
+新版本上**静默不起作用**。症状固定长这样：**同一件东西，老版本上是对的、新版本上又斜又偏 / 干脆没效果**——
+⚠️ 这种失效**不报错、不崩溃、日志里也没有**（整块被编译掉），只能靠"现象对比"发现。
+
+**实例（2026-10-12）**：物品 2D 图标的取景函数 `GetItemPoseAndCamera` ——
+1.2.12 挂在 `TableauCacheManager`（`…View.Tableaus`）；**1.3+ 搬到 `ItemThumbnailCache`**（`…View.Tableaus.Thumbnails`）。
+四份 `View.dll`（1.2.12 / 1.3.15 / 1.4.6 / 1.5.1）逐行比对：**方法体完全相同，只有宿主类换了**
+⇒ 补丁当年用 `#if !MB2_GE_130` 整块圈掉，于是 1.3+ 的钩索图标**又斜又偏**（只剩一条"放大网格"的近似做法在撑）。
+
+**写法（范本 `Combat/GrappleIconPatch.cs` 尾部 `GrappleIconPosePatch` + `GrappleIconPose`）**：
+
+```csharp
+#if MB2_GE_130
+	[HarmonyPatch(typeof(ItemThumbnailCache), "GetItemPoseAndCamera")]      // 1.3+ 的宿主
+#else
+	[HarmonyPatch(typeof(TableauCacheManager), "GetItemPoseAndCamera")]     // 1.2.12 的宿主
+#endif
+	internal static class GrappleIconPosePatch
+	{
+		[HarmonyPostfix]
+		private static void Postfix(ItemObject item, ref Camera camera, ref MatrixFrame itemFrame)
+		{
+			GrappleIconPose.Apply(item, ref camera, ref itemFrame);             // 唯一实现，两版共用
+		}
+	}
+```
+
+三条纪律：
+1. **补丁体只写一份**（`GrappleIconPose.Apply`）—— 两版各挂一个"空壳"类，壳里只有转发一行。
+   照抄两份 = 下次改逻辑要改两遍（铁律 18 的同款毛病）。
+2. **`#if` 只包 `[HarmonyPatch(...)]` 那一行**，不要包整个类（包整类 = 又走回老路）；`using` 也跟着 `#if`
+   （两边命名空间不同）。**私有方法照样能打**（Harmony 走 NonPublic + 字符串名匹配，两版的取景函数都是 private）。
+3. 🔴 **加一行"生效自证"日志** —— 一次性布尔 `_logged` + `DebugLogger.Log($"[域] …生效（{HostName}）")`，
+   `HostName` 本身就是 `#if` 出来的常量（`ItemThumbnailCache/1.3+` vs `TableauCacheManager/1.2.12`）。
+   这是**唯一能一眼区分"补丁没挂上"和"挂上了但逻辑不对"**的手段，否则排查只能靠猜。
+
+**迁移前的核实动作**（别凭"应该一样"就搬）：把两个宿主类**各自反编译出来，逐行比对目标方法体**
+（`Modules/<版本>DLL/` 有现成参考副本，见本卷"版本兼容三锚点"）。
+确认差异**只在宿主类名**才照搬；方法体真有差异 ⇒ 那是真·版本差异，老实写分支。
+
+**同族已知坑**：`InventoryManager` → `InventoryScreenHelper` + `PartyScreenHelper`（见本卷上一节）——
+**类改名 ≠ API 移除**。给"某版本没有这个 API"下结论之前，先二进制 grep 类名字符串 + 三版本 `ilspycmd` 对比。
+

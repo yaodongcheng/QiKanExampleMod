@@ -13,13 +13,16 @@ namespace LivingWorldNpcs
 	///
 	/// 三步（详见 §3.7）：
 	///   ① 在钩点四周做环形采样（8 方向 × 几档半径）；
-	///   ② 每个采样点从高处**向下问地面**（`GetGroundHeightAtPositionMT` 带法线），
+	///   ② 每个采样点从高处**向下问地面**（`V.GroundHeightAndNormal`，带法线），
 	///      同时满足「站得住（法线够竖直）+ 高度在钩点附近 + 头顶有净空」才算候选；
 	///   ③ 打分取最优 = 飞行终点；**一个都没有** = 从钩点沿射线退一段（自由落体，见 §3.7 第 3 条）。
 	///
-	/// 🔴 **引擎 API 事实（反编译 1.2.12 实证，别改写法）**：
-	///   · 只有带 **MT** 的重载 `GetGroundHeightAtPositionMT(pos, out normal, flags)` 真填法线；
-	///     不带 MT 的同名重载是引擎绑定 bug（把 normal 填成 Invalid 就返回了）。
+	/// 🔴 **引擎 API 事实（反编译实证，别改写法）**：
+	///   · 带法线的地面查询**只有一条真填法线的路**，两版各不同（都收在 `V.GroundHeightAndNormal` 里）：
+	///     v1.2.12 = `GetGroundHeightAtPositionMT(pos, out normal, flags)` —— 注意**只有带 MT 的**那个
+	///     重载真填法线，不带 MT 的同名重载是引擎绑定 bug（把 normal 填成 Invalid 就返回了）；
+	///     v1.3.0+ = `Scene` 上两个公开重载**都不填法线**，走 internal `IScene.GetGroundHeightAndNormalAtPosition`
+	///     的反射桥（native 里是同一个函数）。
 	///   · 返回值可能是 `NaN` / `±1e5` 哨兵 ⇒ 一律当"此处没有地面"（与 `GrappleRope.SampleFloors` 同款判据）。
 	///   · flags 一律 `BodyFlags.CommonCollisionExcludeFlags`（不打自己人/自己身上的东西）。
 	///
@@ -198,7 +201,7 @@ namespace LivingWorldNpcs
 			normal = Vec3.Up;
 			try
 			{
-				float z = scene.GetGroundHeightAtPositionMT(probe, out normal, BodyFlags.CommonCollisionExcludeFlags);
+				float z = V.GroundHeightAndNormal(scene, probe, out normal, BodyFlags.CommonCollisionExcludeFlags);
 				if (float.IsNaN(z) || z > 1e5f || z < -1e5f || float.IsNaN(normal.z))
 				{
 					return false;                       // 哨兵 = 此处没有地面（同 GrappleRope.SampleFloors 的口径）

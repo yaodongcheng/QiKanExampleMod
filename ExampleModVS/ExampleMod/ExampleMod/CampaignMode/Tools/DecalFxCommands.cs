@@ -219,8 +219,8 @@ namespace LivingWorldNpcs.CampaignMode
         {
             try
             {
-                float z = scene.GetGroundHeightAtPositionMT(new Vec3(pos.X, pos.Y, fallbackZ + 50f),
-                                                            BodyFlags.CommonCollisionExcludeFlags);
+                float z = V.GroundHeight(scene, new Vec3(pos.X, pos.Y, fallbackZ + 50f),
+                                         BodyFlags.CommonCollisionExcludeFlags);
                 if (float.IsNaN(z) || z > 1e5f || z < -1e5f) return fallbackZ;
                 return z;
             }

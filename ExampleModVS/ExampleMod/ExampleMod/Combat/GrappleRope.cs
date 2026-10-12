@@ -997,7 +997,7 @@ namespace LivingWorldNpcs
 
 		/// <summary>
 		/// 逐点问"这个位置的地面高度"（限频调用）。
-		/// 🔴 **用 `Scene.GetGroundHeightAtPositionMT`，不是 `GetTerrainHeight`**：
+		/// 🔴 **用 `V.GroundHeight`（= `Scene` 的地面查询），不是 `GetTerrainHeight`**：
 		///   后者是**高度图**——城镇/城堡里脚下是**网格铺装**，高度图在铺装之下（实测：绳原地陷进石板路）。
 		///   前者是引擎的"地面查询"（地表系统 `SurfaceDecalFx.GroundZ` 同款：**带上探针高度、从上方往下找**），
 		///   铺装/地形/物件都能落上去；返回值可能是 NaN 或 ±1e5 这种哨兵 ⇒ 一律当"悬空"处理。
@@ -1011,7 +1011,7 @@ namespace LivingWorldNpcs
 				Vec3 p = _pts[i];
 				try
 				{
-					float z = _scene.GetGroundHeightAtPositionMT(new Vec3(p.x, p.y, p.z + 2f),
+					float z = V.GroundHeight(_scene, new Vec3(p.x, p.y, p.z + 2f),
 						BodyFlags.CommonCollisionExcludeFlags);
 					_floorZ[i] = (float.IsNaN(z) || z > 1e5f || z < -1e5f) ? float.NegativeInfinity : z;
 				}

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.GameState;
@@ -1141,6 +1142,164 @@ namespace LivingWorldNpcs
 #else
             return mission.RayCastForClosestAgent(from, to, out distance, excludedAgentIndex, rayThickness);
 #endif
+        }
+
+        // ── 动作通道（1.3.0 把 additionalFlags 从 ulong 改成 AnimFlags）──────────
+        // v1.2.12: SetActionChannel(ch, idx, ignorePriority, ulong additionalFlags, …)
+        // v1.3.0+ : SetActionChannel(ch, idx, ignorePriority, AnimFlags additionalFlags, …)
+        //   用途：动画状态机 / 施法手势 / `custom.anim` 动作命令的**唯一播放入口**（写 0/1 号通道）。
+        //   数值语义一致（同一个 native 位标志参数），只有形参类型变了 ⇒ V 层转一手。
+        //   形参名与引擎逐字一致：调用点把 `agent.SetActionChannel(` 换成 `V.SetActionChannel(agent, `
+        //   之后，原有的命名参数（`ignorePriority:` / `blendInPeriod:` …）原样保留。
+        public static bool SetActionChannel(Agent agent, int channel, ActionIndexCache idx,
+            bool ignorePriority = false, ulong additionalFlags = 0UL,
+            float blendInPeriod = -0.2f, float blendOutPeriodToNoAnim = 0.4f, float startProgress = 0f)
+        {
+            if (agent == null) return false;
+#if MB2_GE_130
+            return agent.SetActionChannel(channel, idx, ignorePriority, (AnimFlags)additionalFlags,
+                blendInPeriod: blendInPeriod, blendOutPeriodToNoAnim: blendOutPeriodToNoAnim,
+                startProgress: startProgress);
+#else
+            return agent.SetActionChannel(channel, idx, ignorePriority, additionalFlags,
+                blendInPeriod: blendInPeriod, blendOutPeriodToNoAnim: blendOutPeriodToNoAnim,
+                startProgress: startProgress);
+#endif
+        }
+
+        // ── 动作名（1.3.0 把属性 `.Name` 改成方法 `GetName()`）──────────────────
+        // v1.2.12: idx.Name        v1.3.0+: idx.GetName()
+        //   ⚠️ `ActionIndexCache.ToString()` 没被重写（打出来是类型名），要真名只能走这里。
+        public static string ActionName(ActionIndexCache idx, string fallback = "?")
+        {
+            if (idx == null) return fallback;
+            try
+            {
+#if MB2_GE_130
+                return idx.GetName() ?? fallback;
+#else
+                return idx.Name ?? fallback;
+#endif
+            }
+            catch (Exception)
+            {
+                return fallback;
+            }
+        }
+
+        // ── 动作的"接续动作"（1.3.0 删掉了 ActionIndexValueCache 类型）──────────
+        // v1.2.12: GetActionAnimationContinueToAction(set, ActionIndexValueCache.Create(idx)) → ActionIndexValueCache
+        // v1.3.0+ : GetActionAnimationContinueToAction(set, in ActionIndexCache)             → ActionIndexCache
+        public static int ContinueToActionIndex(MBActionSet set, ActionIndexCache idx)
+        {
+            if (idx == null) return -1;                 // MBActionSet 是结构体，没有 null 可判
+#if MB2_GE_130
+            return MBActionSet.GetActionAnimationContinueToAction(set, idx).Index;
+#else
+            return MBActionSet.GetActionAnimationContinueToAction(set, ActionIndexValueCache.Create(idx)).Index;
+#endif
+        }
+
+        // ── 地面高度（1.3.0 去掉了 MT 重载）──────────────────────────────────
+        // v1.2.12: GetGroundHeightAtPositionMT(pos, flags)
+        // v1.3.0+ : GetGroundHeightAtPosition(pos, flags)
+        //   同名同义，只是 1.3.0 起只剩不带 MT 的那个名字。
+        //   返回值可能是 NaN / ±1e5 哨兵 ⇒ 调用方一律当"此处没有地面"（钩索各处同款判据）。
+        public static float GroundHeight(Scene scene, Vec3 position,
+            BodyFlags excludeFlags = BodyFlags.CommonCollisionExcludeFlags)
+        {
+            if (scene == null) return float.NaN;
+#if MB2_GE_130
+            return scene.GetGroundHeightAtPosition(position, excludeFlags);
+#else
+            return scene.GetGroundHeightAtPositionMT(position, excludeFlags);
+#endif
+        }
+
+        // ── 地面高度 + 法线（1.3.0 的 public 重载不填法线，只能反射走 native 桥）──
+        // v1.2.12: GetGroundHeightAtPositionMT(pos, out normal, flags) —— 只有 MT 版真填法线
+        // v1.3.0+ : public 的两个重载都是把 normal 置 Invalid 就返回（引擎绑定遗留）⇒
+        //           走 internal 的 EngineApplicationInterface.IScene.GetGroundHeightAndNormalAtPosition
+        //           （native 里同一个函数；SurfaceTerrainFx 反射调 ITerrainEdit 是同款套路）。
+        //   ⚠️ 拿不到桥（反射失败）时返回 NaN 且 normal = Invalid —— 调用方一律当"此处没有地面"。
+        public static float GroundHeightAndNormal(Scene scene, Vec3 position, out Vec3 normal,
+            BodyFlags excludeFlags = BodyFlags.CommonCollisionExcludeFlags)
+        {
+            normal = Vec3.Invalid;
+            if (scene == null) return float.NaN;
+#if MB2_GE_130
+            return GroundHeightAndNormalReflected(scene.Pointer, position, ref normal, excludeFlags);
+#else
+            return scene.GetGroundHeightAtPositionMT(position, out normal, excludeFlags);
+#endif
+        }
+
+#if MB2_GE_130
+        private static object _isSceneBridge;
+        private static MethodInfo _groundNormalMI;
+        private static bool _groundNormalBridged;   // 只尝试绑一次（失败也记住，不每帧重试）
+
+        /// <summary>反射桥：internal `IScene.GetGroundHeightAndNormalAtPosition`（懒绑定，只解一次）。</summary>
+        private static float GroundHeightAndNormalReflected(UIntPtr scenePointer, Vec3 position,
+            ref Vec3 normal, BodyFlags excludeFlags)
+        {
+            if (!_groundNormalBridged)
+            {
+                _groundNormalBridged = true;
+                try
+                {
+                    Type eai = typeof(Scene).Assembly.GetType("TaleWorlds.Engine.EngineApplicationInterface", false);
+                    FieldInfo f = eai?.GetField("IScene",
+                        BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    _isSceneBridge = f?.GetValue(null);
+                    _groundNormalMI = _isSceneBridge?.GetType().GetMethod("GetGroundHeightAndNormalAtPosition",
+                        BindingFlags.Instance | BindingFlags.Public);
+                }
+                catch (Exception)
+                {
+                }
+                if (_groundNormalMI == null)
+                {
+                    DebugLogger.Log("[VersionCompat] 1.3+ IScene bridge unavailable - ground-normal queries disabled (landing platform search will find nothing)");
+                }
+            }
+            if (_groundNormalMI == null)
+            {
+                return float.NaN;
+            }
+            object[] args = { scenePointer, position, normal, (uint)excludeFlags };
+            float z = (float)_groundNormalMI.Invoke(_isSceneBridge, args);
+            normal = (Vec3)args[2];                 // ref 出参由 Invoke 写回数组
+            return z;
+        }
+#endif
+
+        // ── 装备槽上的武器实体帧（1.3.0 返回类型 GameEntity → WeakGameEntity 结构体）──
+        // v1.2.12: agent.GetWeaponEntityFromEquipmentSlot(slot) → GameEntity（类，可能 null）
+        // v1.3.0+ : 同名 → WeakGameEntity（**结构体**；空判断用 IsValid，不能 == null）
+        //   返回 false = 没有实体 / 指针无效 / 查询抛异常 —— 调用方一律跳过该槽位。
+        //   ⚠️ 用前必须自检 `MissionWeapon.IsEmpty`：**空槽问原生 = AccessViolation**
+        //      （SpellCastInput.TryGetRightHandAnchor 的教训，2026-10-08 实机踩到）。
+        public static bool TryGetWeaponEntityOrigin(Agent agent, EquipmentIndex slot, out Vec3 origin)
+        {
+            origin = Vec3.Zero;
+            if (agent == null) return false;
+            try
+            {
+#if MB2_GE_130
+                WeakGameEntity e = agent.GetWeaponEntityFromEquipmentSlot(slot);
+                if (!e.IsValid) return false;
+#else
+                GameEntity e = agent.GetWeaponEntityFromEquipmentSlot(slot);
+                if (e == null || e.Pointer == UIntPtr.Zero) return false;
+#endif
+                origin = e.GetGlobalFrame().origin;
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
     }
 }

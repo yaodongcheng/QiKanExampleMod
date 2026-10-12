@@ -384,12 +384,12 @@ namespace LivingWorldNpcs.Flight
             return false;
         }
 
-        /// <summary>某点下方的地面高度（口径同 §22.4：`GetGroundHeightAtPositionMT`；拿不到 = NaN）。</summary>
+        /// <summary>某点下方的地面高度（口径同 §22.4：`V.GroundHeight`；拿不到 = NaN）。</summary>
         private float GroundZOf(Vec3 probe)
         {
             try
             {
-                float z = _scene.GetGroundHeightAtPositionMT(probe, BodyFlags.CommonCollisionExcludeFlags);
+                float z = V.GroundHeight(_scene, probe, BodyFlags.CommonCollisionExcludeFlags);
                 if (float.IsNaN(z) || z > 1e5f || z < -1e5f)
                     return float.NaN;
                 return z;

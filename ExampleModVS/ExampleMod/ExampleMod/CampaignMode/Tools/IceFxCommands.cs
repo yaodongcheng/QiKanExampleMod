@@ -240,7 +240,7 @@ namespace LivingWorldNpcs.CampaignMode
                 Vec3 origin = m.GetCameraFrame().origin;
                 Vec3 finish = origin + forward * LookRayLength;
                 float dist;
-                return m.RayCastForClosestAgent(origin, finish, out dist, me.Index, 0.15f);
+                return V.RayCastForClosestAgent(m, origin, finish, me.Index, 0.15f, out dist);
             }
             catch (Exception ex)
             {

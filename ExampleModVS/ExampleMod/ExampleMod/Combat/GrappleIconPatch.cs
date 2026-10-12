@@ -5,8 +5,10 @@ using TaleWorlds.Library;
 using HarmonyLib;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View;
-#if !MB2_GE_130
-using TaleWorlds.MountAndBlade.View.Tableaus;      // TableauCacheManager（1.2.12；1.3+ 改名 ThumbnailCacheManager）
+#if MB2_GE_130
+using TaleWorlds.MountAndBlade.View.Tableaus.Thumbnails;   // ItemThumbnailCache（1.3+：物品图标取景搬进这个类）
+#else
+using TaleWorlds.MountAndBlade.View.Tableaus;              // TableauCacheManager（1.2.12）
 #endif
 
 namespace LivingWorldNpcs
@@ -25,11 +27,12 @@ namespace LivingWorldNpcs
 	///
 	/// 🔴 为什么可以这么做（关键事实，反编译 + 引擎日志实证）：
 	///   界面的 2D 图标（列表格子 + 点开的大图）**和实机是两条不同的渲染链**：
-	///     · 图标 = `TableauCacheManager` 拿物品网格**离屏渲染成一张贴图**（场景 `scn_item_tableau`，
+	///     · 图标 = 图标缓存管理器（1.2.12 `TableauCacheManager` / 1.3+ `ItemThumbnailCache`）
+	///       拿物品网格**离屏渲染成一张贴图**（场景 `scn_item_tableau`，
 	///       启动时就和 `scn_soldier` / `inventory_character_scene` 一起当 tableau 场景加载）；
 	///     · 实机 = `AgentVisuals` 把装备网格挂到角色骨头上。
 	///   本补丁打在 `ItemCollectionElementViewExtensions.GetItemMeshForInventory` 上 —— 反编译确认
-	///   **全游戏只有 View.dll 里的 `TableauCacheManager` 调它**（三个调用点全在 tableau 方法里）
+	///   **全游戏只有 View.dll 里那两个图标缓存类调它**（调用点全在 tableau 方法里）
 	///   ⇒ 打它 = 只影响图标，**碰不到实机**。
 	///
 	/// 行为：只对**钩那件物品**（`GrappleFirePatch.HookItemId`）生效，其余物品一行都不多做（返回 true 走原版）；
@@ -60,9 +63,9 @@ namespace LivingWorldNpcs
 		/// （所以葡萄/谷物的图标永远是对的）。⇒ 我们的绳只有 **13 cm**、钩只有 **20 cm**，顶着"弓/箭"的取景框
 		/// ⇒ **又小又偏**（钩还会被推出画面）。
 		///
-		/// **在哪治**：`GrappleIconPosePatch`（1.2.12 专用，打在 `GetItemPoseAndCamera` 上 —— 那里才有 camera）。
-		/// 本类只负责**换网格**（钩那件实物是隐形代理，图标得自己解析真钩）；1.3+ 没有取景补丁，
-		/// 于是这里退回"把网格副本按对角线放大"的近似做法（`ScaleAndCenter`）。
+		/// **在哪治**：`GrappleIconPosePatch`（打在 `GetItemPoseAndCamera` 上 —— 那里才有 camera）。
+		/// 🔴 两版的宿主类不同、**代码相同**：1.2.12 = `TableauCacheManager` · 1.3+ = `ItemThumbnailCache`。
+		/// 本类（换网格那条）**不碰尺寸与居中** —— 摆位、取景一律归取景补丁。
 		/// 数值口径 = **占画面宽度的比例**（0.6 ≈ 葡萄那种大小）。设 0 = 不缩放（A/B）。
 		/// </summary>
 		public static float RopeIconFill = 0.62f;
@@ -93,19 +96,17 @@ namespace LivingWorldNpcs
 
 				// 钩那件在世界上是**隐形代理** ⇒ 图标得自己去解析真钩的网格；
 				// 绳那件物品网格本身就是那盘绳 ⇒ 走引擎同款取法（`GetItemMeshForInventory` 的弓类分支）。
+				// ⚠️ 第 2 参用**位置传值**：参数名两版不同（1.3.x = `hasGloves` / 1.5+ = `useSlimVersion`），
+				//    位置与含义一致（false = 走默认网格），具名写法会在 1.5+ 编译失败。
 				MetaMesh source = isHook
 					? SpellWorld.ResolveMesh(HookMeshName)
-					: rosterElement.EquipmentElement.GetMultiMesh(isFemale, hasGloves: false, needBatchedVersion: false);
+					: rosterElement.EquipmentElement.GetMultiMesh(isFemale, false, needBatchedVersion: false);
 				if (source == null)
 				{
 					DebugLogger.Log($"[Grapple] 图标补丁：{(isHook ? HookMeshName : "rope mesh")} 解析不到 → 交回引擎");
 					return true;
 				}
 				MetaMesh copy = source.CreateCopy();
-#if MB2_GE_130
-				// 1.3+ 没有取景补丁（那版的取景代码搬走了）⇒ 退回"按对角线放大"的近似做法。
-				ScaleAndCenter(copy, isHook ? 0.85f : 1.15f);
-#endif
 				__result = copy;
 				return false;
 			}
@@ -114,53 +115,20 @@ namespace LivingWorldNpcs
 				return true;                      // 出错退回原版（补丁永不成为新的崩溃源）
 			}
 		}
-
-	/// <summary>
-	/// 把一份网格副本**居中 + 缩放**到目标对角线尺寸（米）—— 只动这一份副本，**碰不到资产本身、也碰不到实机**。
-	/// 做法：① 求全部子网格的局部包围盒 → ② `k = 目标对角线 / 实际对角线`（缩放它的帧）
-	/// → ③ 把包围盒中心反向平移，使**中心落在帧原点上**（这一条就是"不居中"的修法）。
-	/// 🔴 写 `MetaMesh.Frame` 是引擎自己的用法（`AddItem` 对锻造武器就改它的 `Frame` 来抬升图标）；
-	///    但**蒙皮网格**写它会把蒙皮绑定冲掉（`IceFxBehavior` 2026-10-07 实机栽过）⇒ 只对**静态件**这么干。
-	/// </summary>
-	private static void ScaleAndCenter(MetaMesh mesh, float targetDiagonal)
-	{
-		if (mesh == null || targetDiagonal <= 0.01f)
-		{
-			return;                            // 目标 ≤0 = 不缩放（A/B 用）
-		}
-		Vec3 mn = new Vec3(1e6f, 1e6f, 1e6f);
-		Vec3 mx = new Vec3(-1e6f, -1e6f, -1e6f);
-		for (int i = 0; i < mesh.MeshCount; i++)
-		{
-			Mesh m = mesh.GetMeshAtIndex(i);
-			if (m == null)
-			{
-				continue;
-			}
-			mn = Vec3.Vec3Min(mn, m.GetBoundingBoxMin());
-			mx = Vec3.Vec3Max(mx, m.GetBoundingBoxMax());
-		}
-		Vec3 size = mx - mn;
-		float diag = size.Length;
-		if (diag <= 1e-4f)
-		{
-			return;                            // 空网格 / 退化包围盒：原样交出去
-		}
-		float k = targetDiagonal / diag;
-		Vec3 center = (mn + mx) * 0.5f;
-		MatrixFrame f = mesh.Frame;
-		f.rotation.ApplyScaleLocal(k);                          // 先缩放
-		f.origin -= f.rotation.TransformToParent(center);       // 再把（已缩放的）中心挪到原点
-		mesh.Frame = f;
-	}
 	}
 
-#if !MB2_GE_130
 	/// <summary>
-	/// 🔴 **图标取景补丁**（1.2.12 专用）—— 把两件钩索物品**摆到相机正前方**、按"占画面宽度"定尺寸、
+	/// 🔴 **图标取景补丁** —— 把两件钩索物品**摆到相机正前方**、按"占画面宽度"定尺寸、
 	/// 并把**展示轴对准相机**（钩要"平躺"、绳要看得见一圈圈）。
 	///
-	/// **为什么非打这一刀**（反编译 `TableauCacheManager.GetItemPoseAndCamera` 实证）：
+	/// 🔴 **两个版本、两个宿主类、同一段代码**（2026-10-12 补齐 —— 此前只打了 1.2.12，1.3+ 退回"放大网格"
+	///   的近似做法 ⇒ 图标又斜又偏）：物品图标取景那段（`GetItemPoseAndCamera`）在 1.2.12 与 1.3+ 之间
+	///   **逐行相同**（反编译比对过），**只是宿主类搬了家** ⇒ 补丁体只写一份（`GrappleIconPose.Apply`），
+	///   两版各挂一个空壳：· 1.2.12 → `TableauCacheManager`（`…View.Tableaus`）
+	///   · 1.3+ → `ItemThumbnailCache`（`…View.Tableaus.Thumbnails`；注册进 `ThumbnailCacheManager`）。
+	///   1.3+ 入口链：`ItemThumbnailCache.OnCreateTexture` → `CreateItemBaseEntity` → 本方法 → `AddItem`。
+	///
+	/// **为什么非打这一刀**（反编译实证）：
 	///   背包图标的取景**按物品类型写死** —— Bow 用 `bow_cam`/`bow_frame`（按真弓 ≈1.2 m 摆）、
 	///   Arrows 用 `arrow_cam`/`arrow_frame`（按真箭 ≈0.85 m 摆）；**只有 "goods"（杂货）那条兜底分支**
 	///   才自动居中 + 自动定距。我们 13 cm 的绳 / 20 cm 的钩顶着弓/箭的框 ⇒ 小、偏、出画
@@ -176,11 +144,34 @@ namespace LivingWorldNpcs
 	///      · **绳**：局部 **+Z**（盘轴）→ 相机 ⇒ 看到一圈圈的绳（而不是"管子口"）· +Y → 画面向上
 	///      · **钩**：局部 **+X** → 相机 · **+Y（长轴）→ 画面向右** ⇒ 钩**平躺**、三爪朝上张开
 	/// </summary>
+#if MB2_GE_130
+	[HarmonyPatch(typeof(ItemThumbnailCache), "GetItemPoseAndCamera")]
+#else
 	[HarmonyPatch(typeof(TableauCacheManager), "GetItemPoseAndCamera")]
+#endif
 	internal static class GrappleIconPosePatch
 	{
 		[HarmonyPostfix]
 		private static void Postfix(ItemObject item, ref Camera camera, ref MatrixFrame itemFrame)
+		{
+			GrappleIconPose.Apply(item, ref camera, ref itemFrame);
+		}
+	}
+
+	/// <summary>取景补丁的**唯一实现** —— 两个版本的壳都调它（方法体沿用 1.2.12 实测通过的那份，一字未改）。</summary>
+	internal static class GrappleIconPose
+	{
+		/// <summary>只在第一次命中时写一行日志：这是"补丁在本版本上确实挂上了"的自证。</summary>
+		private static bool _logged;
+
+		/// <summary>宿主类名（写日志用）。</summary>
+#if MB2_GE_130
+		private const string HostName = "ItemThumbnailCache/1.3+";
+#else
+		private const string HostName = "TableauCacheManager/1.2.12";
+#endif
+
+		public static void Apply(ItemObject item, ref Camera camera, ref MatrixFrame itemFrame)
 		{
 			try
 			{
@@ -238,6 +229,12 @@ namespace LivingWorldNpcs
 				Vec3 centerLocal = (mn + mx) * 0.5f;
 				Vec3 at = cam.origin - back * dist;
 				itemFrame = new MatrixFrame(R, at - R.TransformToParent(centerLocal));
+
+				if (!_logged)
+				{
+					_logged = true;
+					DebugLogger.Log($"[Grapple] 图标取景补丁生效（{HostName}）：{(isHook ? "钩" : "绳")} 已按相机重新摆位");
+				}
 			}
 			catch (Exception)
 			{
@@ -263,5 +260,4 @@ namespace LivingWorldNpcs
 			return mx.x > mn.x && mx.y > mn.y && mx.z > mn.z;
 		}
 	}
-#endif
 }

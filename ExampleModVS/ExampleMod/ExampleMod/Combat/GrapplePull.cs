@@ -270,6 +270,7 @@ namespace LivingWorldNpcs
 			EnterCamera();
 			DebugLogger.Log($"[Grapple] 拉拽开始：起点板面={Fmt(_startTop)} 终点板面={Fmt(_endTop)} 距离={dist:F1}m "
 				+ $"时长={_duration:F2}s 弧线={ArcHeight:F1}m 平台={(_landingFound ? "有" : "无(拉完自由落体)")} 空中起钩={fromAir}");
+			LogBoardGeometry("就位");
 
 			return string.Format("OK: pulling | dist={0:F1}m dur={1:F2}s arc={2:F1}m landing={3}",
 				dist, _duration, ArcHeight, _landingFound ? "platform" : "free-fall");
@@ -409,6 +410,7 @@ namespace LivingWorldNpcs
 
 			if (FellOffBoard())
 			{
+				LogBoardGeometry("掉板");
 				Abort("fell off board");
 				return PullEvent.Aborted;
 			}
@@ -793,6 +795,39 @@ namespace LivingWorldNpcs
 			return dz > FallOffLimit || dx > FallOffLimit;
 		}
 
+		/// <summary>
+		/// 板子几何诊断（一行）：**代码口径的板面** vs **引擎物理盒的真实顶面**。
+		///
+		/// 🔴 2026-10-12 立（1.3.15 实机"发射后定在地上"排查）：那次日志里
+		///    `[Flight] ⚠ 载具足迹 5.11 × 4.92 m` = **未缩放的原始木板尺寸**，
+		///    而预制体写的是 `scale="0.300,…"`（缩放生效时应为 1.53 × 1.48，半足迹 0.77）。
+		///    怀疑 1.3.x 不再把子节点的 transform scale 应用到物理体上 —— 若属实，
+		///    板面真实高度是 `原点 + 1.23`（未缩放），而代码按 `原点 + 0.37` 算 ⇒
+		///    **物理体顶面从玩家腰上穿过去**，人根本没机会站上去，板子飞走 = "定在地上"。
+		///
+		/// 这一行用来分辨两种可能：① 物理体真没缩（盒顶 − 代码板面 ≈ +0.86 m）
+		/// ② 只是读数的口径问题（两者吻合）。
+		/// </summary>
+		private void LogBoardGeometry(string tag)
+		{
+			try
+			{
+				float codeTop = _board.Origin.z + FlightTuning.CarrierTopLocalZ;
+				float feet = CarrierBoard.CollisionCapsuleBottomZ(_main);
+				string fp = "物理盒=读不到";
+				if (_board.TryGetFootprint(out Vec3 fc, out float hx, out float hy, out float boxTop))
+				{
+					fp = $"物理盒={hx * 2f:F2}×{hy * 2f:F2}m 盒心=({fc.x:F2},{fc.y:F2}) 盒顶={boxTop:F2}";
+				}
+				DebugLogger.Log($"[Grapple] 板子几何（{tag}）：原点={Fmt(_board.Origin)} 代码板面={codeTop:F2} "
+					+ $"玩家={Fmt(_main.Position)} 脚底={feet:F2}（脚底−代码板面={feet - codeTop:F2}m） | {fp}");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 板子几何诊断异常: {ex.Message}");
+			}
+		}
+
 		private static float CarrierBottomZ(Agent agent)
 		{
 			return CarrierBoard.CollisionCapsuleBottomZ(agent);
@@ -808,7 +843,7 @@ namespace LivingWorldNpcs
 				{
 					return boardOrigin.z;
 				}
-				float z = scene.GetGroundHeightAtPositionMT(
+				float z = V.GroundHeight(scene,
 					new Vec3(boardOrigin.x, boardOrigin.y, boardOrigin.z + 2f),
 					BodyFlags.CommonCollisionExcludeFlags);
 				if (float.IsNaN(z) || z > 1e5f || z < -1e5f)

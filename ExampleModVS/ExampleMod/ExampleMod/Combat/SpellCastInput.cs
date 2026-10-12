@@ -157,7 +157,7 @@ namespace LivingWorldNpcs
 				{
 					DebugLogger.Log($"[Spell] 手势动作 '{actionId}' 时长 0.00s —— 注册了但 clip 解析不到");
 				}
-				player.SetActionChannel(1, idx, ignorePriority: true,
+				V.SetActionChannel(player, 1, idx, ignorePriority: true,
 					additionalFlags: cyclic ? (ulong)AnimFlags.anf_cyclic : 0UL,
 					blendInPeriod: CastAnimBlendIn,
 					blendOutPeriodToNoAnim: 0f);
@@ -179,7 +179,7 @@ namespace LivingWorldNpcs
 			_castAnim = CastAnim.None;
 			try
 			{
-				player.SetActionChannel(1, ActionIndexCache.act_none, ignorePriority: true,
+				V.SetActionChannel(player, 1, ActionIndexCache.act_none, ignorePriority: true,
 					additionalFlags: 0UL, blendInPeriod: 0f,
 					blendOutPeriodToNoAnim: CastAnimBlendOut);
 			}
@@ -706,12 +706,10 @@ namespace LivingWorldNpcs
 					}
 					try
 					{
-						GameEntity e = agent.GetWeaponEntityFromEquipmentSlot(slot);
-						if (e == null || e.Pointer == UIntPtr.Zero)
+						if (!V.TryGetWeaponEntityOrigin(agent, slot, out Vec3 p))
 						{
 							continue;
 						}
-						Vec3 p = e.GetGlobalFrame().origin;
 						float d = Distance(p, agent.Position);
 						if (d < MinHandItemDistance)
 						{
@@ -756,8 +754,8 @@ namespace LivingWorldNpcs
 			EquipmentIndex main = EquipmentIndex.None, off = EquipmentIndex.None;
 			try
 			{
-				main = agent.GetWieldedItemIndex(Agent.HandIndex.MainHand);
-				off = agent.GetWieldedItemIndex(Agent.HandIndex.OffHand);
+				main = V.MainWpn(agent);
+				off = V.OffWpn(agent);
 			}
 			catch (Exception)
 			{

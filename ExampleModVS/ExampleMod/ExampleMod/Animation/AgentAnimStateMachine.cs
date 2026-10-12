@@ -864,7 +864,7 @@ namespace LivingWorldNpcs.Animation
                 //    一圈里只有中段 ~0.25~0.75 是真正的动画，头尾分别被 blendIn / blendOutToNoAnim
                 //    拖走 —— 膝角从数据里的 8~11° 被拉到精确 0.00（= 子骨 == 父骨 == 静止）再弹回，
                 //    观感就是"腿摆得很硬"。飞行这条链上全部是循环姿态，**永远不需要"淡出到无"**。
-                agent.SetActionChannel(0, idx, ignorePriority: true,
+                V.SetActionChannel(agent, 0, idx, ignorePriority: true,
                                        additionalFlags: (ulong)Math.Max(0, _def.ActionPriority()),
                                        blendInPeriod: useBlend, blendOutPeriodToNoAnim: 0f,
                                        startProgress: startProgress);
@@ -935,7 +935,7 @@ namespace LivingWorldNpcs.Animation
                     return;                       // 还是我们的，没事
                 if (VerboseOn)
                     DebugLogger.Log($"[Anim:{_def.Name}] '{_current.Name}' 被引擎抢走了，重设");
-                agent.SetActionChannel(0, idx, ignorePriority: true,
+                V.SetActionChannel(agent, 0, idx, ignorePriority: true,
                                        additionalFlags: (ulong)Math.Max(0, _def.ActionPriority()),
                                        blendInPeriod: _def.DefaultBlend(), blendOutPeriodToNoAnim: 0f);
             }
@@ -972,7 +972,7 @@ namespace LivingWorldNpcs.Animation
             try
             {
                 ActionIndexCache got = agent.GetCurrentAction(0);
-                actual = got != null ? got.Name : "?";
+                actual = V.ActionName(got);
                 ok = got == want.Index();
             }
             catch (Exception ex)

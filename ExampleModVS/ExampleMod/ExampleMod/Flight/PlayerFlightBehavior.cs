@@ -1269,8 +1269,8 @@ namespace LivingWorldNpcs.Flight
                 z = main.Position.z;
                 bottom = CarrierBoard.CollisionCapsuleBottomZ(main);
                 onLand = main.IsOnLand();
-                // ⚠️ 用 `.Name` —— `ActionIndexCache.ToString()` 没被重写，打出来是类型名（这个坑踩过一次）
-                anim = main.GetCurrentAction(0).Name ?? "-";
+                // ⚠️ 要真名走 `V.ActionName` —— `ActionIndexCache.ToString()` 没被重写，打出来是类型名（这个坑踩过一次）
+                anim = V.ActionName(main.GetCurrentAction(0), "-");
             }
             catch { /* 诊断自己出问题不该影响坠落 */ }
             return string.Format(
