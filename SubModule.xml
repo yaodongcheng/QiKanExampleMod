@@ -27,9 +27,17 @@
       </Tags>
     </SubModule>
   </SubModules>
-  <!-- 🔴 2026-10-09 新增：通用玩法的物品定义段（钩索 2 件 + 法术 7 件）。
-       路径是**目录**：引擎加载该目录下的全部 XML，都按 Items 解析
-       （照 Taikou 的 `<XmlName id="Items" path="taikou_items"/>` 同一套做法）。
+  <!-- 🔴 2026-10-09 新增：通用玩法的物品定义段（钩索 2 件 · 混天绫 1 件）。
+
+       🔴 2026-10-12 改法：**逐文件列出**（原来是整目录 `<XmlName id="Items" path="items"/>`）——
+          引擎遇到"目录"会把该目录下每个 `*.xml` 都当物品**无条件**加载（反编译实锤：
+          `MBObjectManager.GetMergedXmlForManaged` 里是 `GetFiles("*.xml")`），
+          而**法术体系的 7 件物品（`items/spells.xml`）未发布、默认关**，必须做到"引擎压根看不见它"。
+          ⇒ 所以这里**故意不列 `items/spells`**：开关打开时改由 C# 现场注册
+            （`ExampleModVS/ExampleMod/ExampleMod/Combat/SpellSystemGate.cs`，开关 = config.json 的
+             `SpellSystemEnabled`，默认 false）。
+          ⚠️ **以后往 `ModuleData/items/` 加文件，必须回来加一行** —— 漏了 = 文件在磁盘上、游戏里没有。
+             这条有脚本把守：`python Scripts/check_module_registration.py`（"孤儿数据文件"那条）。
 
        🔴 故意**不写 IncludedGameTypes** —— 两条理由：
          ① 本模块是 `<SingleplayerModule value="true"/>`，多人局根本不会加载它，
@@ -39,8 +47,13 @@
        反例记档：Taikou 的 BannerIcons 段也是这么处理的（那边是因为加载时机更早、判不出 GameType）。
        判据（首次实机核这条）：进游戏 `custom.grapple equip` 能发出钩索 = 段被加载。 -->
   <Xmls>
+    <!-- 路径不带扩展名：引擎按 `<模块>/ModuleData/<path>.xml` 解析（与 Native 的 `path="items/items"` 同款） -->
     <XmlNode>
-      <XmlName id="Items" path="items"/>
+      <XmlName id="Items" path="items/grapple" />
     </XmlNode>
+    <XmlNode>
+      <XmlName id="Items" path="items/ribbon" />
+    </XmlNode>
+    <!-- ⚠️ `items/spells` 故意不在这 —— 法术体系未发布、默认关，由 SpellSystemGate 按需注册（见上） -->
   </Xmls>
 </Module>

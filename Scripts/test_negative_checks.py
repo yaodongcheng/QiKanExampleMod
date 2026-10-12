@@ -226,6 +226,36 @@ case("soln 体系：没挂 particle_systems_yinmo 必须抓到（前缀匹配，
          'type="particle_system" /> -->', 1),
      1, "particle_systems_yinmo.xml", target="lwn")
 
+# 🔴 法术体系总闸（2026-10-12）：`items/spells.xml` 的加载权在 C# 手里（config.json
+#   `SpellSystemEnabled` 默认 false），SubModule.xml **必须不声明它** —— 声明了引擎就会
+#   无条件吃掉（`GetFiles("*.xml")` 的老路），那 7 件物品照样进发布版，且**零报错**。
+#   这条跑的是窄模式（`--unloaded-only`）：全量模式查的是"内容包世界段清单"，基座跑必然一片红。
+case("总闸：法术物品文件被段声明必须抓到（开关失效）",
+     "check_module_registration.py",
+     lambda m, c: patch_text(
+         m / "SubModule.xml",
+         '<!-- ⚠️ `items/spells` 故意不在这',
+         '<XmlNode><XmlName id="Items" path="items/spells" /></XmlNode>\n<!-- ⚠️ `items/spells` 故意不在这', 1),
+     1, "总闸失效", extra_args=["--unloaded-only"], target="lwn")
+
+# 阳性对照：**不改动**时必须绿 —— 否则上一条可能只是"这个检查压根跑不起来"（假绿）。
+case("总闸：没被动过时必须绿（阳性对照）",
+     "check_module_registration.py",
+     lambda m, c: None,
+     0, "都还关着", extra_args=["--unloaded-only"], target="lwn")
+
+# `items/` 被改成**逐文件声明**之后，"往目录里加新文件"不再自动加载（静默）。
+# 这条守的就是那个代价：漏声明的文件必须被抓到，否则将来谁加了件装备会一头雾水。
+case("总闸：items/ 下新加文件漏声明必须抓到（逐文件声明的代价）",
+     "check_module_registration.py",
+     lambda m, c: (m / "ModuleData" / "items" / "_leaked_probe.xml").write_text(
+         '<?xml version="1.0" encoding="utf-8"?>\n<Items>\n'
+         '\t<Item id="lwn_leak_probe" name="{=LWN_leak_probe}LeakProbe" '
+         'mesh="bolt_bl_a" Type="Bolts">\n'
+         '\t\t<Flags Civilian="true" />\n\t</Item>\n</Items>\n',
+         encoding="utf-8"),
+     1, "没被任何段声明", extra_args=["--unloaded-only"], target="lwn")
+
 # 选人目录：Realm/House 的类型引用了不存在的筛档（左列点它会筛出空）
 case("选人目录：悬空的势力类型必须抓到", "check_hero_profile_keys.py",
      lambda m, c: patch_text(m / "ModuleData" / "AssetRegistry" / "HeroCatalog.xml",
@@ -359,6 +389,10 @@ def main():
                 extra += ["--official-root", sandbox_root]
             if script == "check_taikou_world_tables.py":
                 extra += ["--csv-dir", sandbox_csv]
+            # 用例自带的附加参数（`case(..., extra_args=[...])`）—— 2026-10-12 起生效：
+            # 原先这个字段被忽略（形参叫 `_extra`），于是「只跑某一条规则的窄模式」没法测。
+            # ⚠️ 只传**该 checker 认**的参数：不认的会 argparse exit 2（= 参数没接，不是检查失败，雷 92 同族）。
+            extra += _extra
             code, out = run(script, *extra)
             ok = (code == want) and (needle in out)
             results.append((desc, ok, code, want, out))

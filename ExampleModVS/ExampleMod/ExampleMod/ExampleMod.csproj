@@ -353,6 +353,9 @@
     <Compile Include="Combat\SoundFx.cs" />
     <Compile Include="Combat\SpellCastFlow.cs" />
     <Compile Include="Combat\SpellProjectileLogic.cs" />
+    <!-- 🔴 法术体系总闸（2026-10-12，未发布功能默认关）：物品按需注册 + 开关状态。
+         SubModule.xml 故意不声明 items/spells.xml，就靠这里在开关打开时补上。 -->
+    <Compile Include="Combat\SpellSystemGate.cs" />
     <!-- 阶段 3/4：起手轴（输入 + 相位机 + 蓄力）+ NPC 施法者。 -->
     <Compile Include="Combat\SpellCastInput.cs" />
     <Compile Include="Combat\SpellNpcCaster.cs" />
@@ -675,6 +678,9 @@
     <!-- Dialogue (dynamic dialogue injection pipeline) -->
     <!-- Input (UE4-style action mapping: keyboard/gamepad glyphs) -->
     <Compile Include="Input\ModInput.cs" />
+    <!-- 🔴 战场侧 ModInput 驱动（2026-10-12）：从法术宿主手里接过来的职责 ——
+         法术加总闸后宿主可能不挂，而战场/竞技场/自定义战斗里 ModInput.Tick 原本只有它推。 -->
+    <Compile Include="Input\ModInputMissionDriver.cs" />
     <Compile Include="Input\EditableTextImePatch.cs" />
     <Compile Include="Input\EditableTextBackspacePatch.cs" />
     <Compile Include="Input\SteamDeckKeyboardPatch.cs" />

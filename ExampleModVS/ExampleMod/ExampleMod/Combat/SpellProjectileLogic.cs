@@ -126,6 +126,12 @@ namespace LivingWorldNpcs
 
 		public SpellProjectileLogic()
 		{
+			// 🔴 法术物品兜底注册（2026-10-12）：正常路径是 `MySubModule.OnGameStart` 那次，
+			//    这里补一处"进场景时再确认一遍"——因为引擎的"开局回调"是否覆盖自定义战斗这条
+			//    路径我们没能反编译证实（那个 GameType 不在常规 DLL 里）。幂等，第一个到场的做掉。
+			//    总闸关着时它什么都不做（`SpellSystemGate.Enabled` 为 false 直接 return）。
+			SpellSystemGate.EnsureItemsLoaded();
+
 			// 预热法术表：把"首次查询才扫模块读文件"的活儿放在进场时做掉，
 			// 免得第一发法术在战场中途卡一下（顺带每场景记一条"表里有什么"）。
 			// 🔴 同时**重读一次**：改 Spells.xml / Modifiers.xml 不用重启游戏，重进一场就生效
@@ -168,13 +174,12 @@ namespace LivingWorldNpcs
 				return;
 			}
 
-			// 🔴 输入系统：**只有玩法闸门关着（= 战场/竞技场/潜入）的时候才由我们推进**
-			//    —— 那些场景里 InteractionMissionView 不在场（它才是平时的推进入口），
-			//    两边都推 = 按住时长按两倍速走，长按阈值会变快（会悄悄改掉别的玩法行的手感）。
-			if (Settings.Instance.IsInteractionDisabled())
-			{
-				ModInput.Tick(dt);
-			}
+			// 🔴 输入系统：**战场那一侧的 ModInput.Tick 已经搬走了**（2026-10-12）——
+			//    原先由本宿主顺带推进（"玩法闸门关着 = 战场/竞技场/潜入，那些场景里
+			//    InteractionMissionView 不在场，它才是平时的推进入口"）。
+			//    法术加总闸后本宿主可能整个不挂（config.json `SpellSystemEnabled=false`，默认），
+			//    那条驱动就断了 ⇒ 已单独拆成常驻件 `Input/ModInputMissionDriver.cs`。
+			//    ⚠️ **别再往这里加回去**：两个驱动者 = 长按两倍速、阈值变快（会悄悄改掉别的玩法行的手感）。
 
 			// 起手（玩家相位机）+ 阶段 4（NPC 施法者）
 			_castInput.Tick(dt);
@@ -381,6 +386,16 @@ namespace LivingWorldNpcs
 		{
 			try
 			{
+				// 🔴 总闸（2026-10-12 用户裁定：法术体系未发布，默认关）——
+				//    关着时**连子命令一起封**（"法术的代码路径一条都不走"），回一句纯英文自证。
+				//    ⚠️ 这条命令在关着时给不了状态（早退）—— "物品到底在不在"请用常开的
+				//    `custom.spell_gate`（它不受总闸影响，专门为自证这件事而设）。
+				if (!SpellSystemGate.Enabled)
+				{
+					return "spell system DISABLED (config.json SpellSystemEnabled=false)"
+						+ " -> items are NOT registered and no spell code runs"
+						+ " (use custom.spell_gate to verify)";
+				}
 				if (args == null || args.Count == 0)
 				{
 					return Status();
@@ -442,7 +457,14 @@ namespace LivingWorldNpcs
 			string tilt = SpellDebug.TiltOverrideDeg.HasValue
 				? SpellDebug.TiltOverrideDeg.Value.ToString("F1", CultureInfo.InvariantCulture)
 				: "data";
-			return $"OK: spells={SpellRegistry.Count} families={SpellRegistry.Families.Count}"
+			// 🔴 总闸状态**分两格报**（2026-10-12）：配置值（system）与"这一局物品到底注册了没"（items）。
+			//    两者会不一致的唯一情形 = 中途热改了 config.json 但没重启 —— 那一眼就能看出来，
+			//    不会变成"明明开着怎么没反应"的悬案。
+			string items = SpellSystemGate.ItemsLoaded
+				? "loaded"
+				: "NOT loaded (restart the game after setting SpellSystemEnabled=true)";
+			return $"OK: system=ENABLED items={items}"
+				+ $" spells={SpellRegistry.Count} families={SpellRegistry.Families.Count}"
 				+ $" live={(host != null ? host.LiveCount : 0)}/{SpellDebug.MaxLive}"
 				+ $" verbose={(SpellDebug.Verbose ? "on" : "off")} tilt={tilt}";
 		}

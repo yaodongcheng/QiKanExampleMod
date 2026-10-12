@@ -2301,9 +2301,12 @@ namespace LivingWorldNpcs.Flight
             string cape = IsRibbonWorn(me)
                 ? "ribbon=worn"
                 : (me == null ? "ribbon=? (no agent)" : "ribbon=none");
-            return string.Format("phase={0} frozen={1} anim={2} v={3:F1} {4}{5}{6}",
+            // 空中施法（内部测试功能）开关状态（2026-10-12）：默认关 ⇒ 右键只剩瞄准机位。
+            // 这一格是给"右键怎么不出蓄力球"自证用的 —— spellcast=off 就是被 config.json 关着。
+            string spell = Settings.Instance.FlightSpellCastEnabled ? "spellcast=on" : "spellcast=off";
+            return string.Format("phase={0} frozen={1} anim={2} v={3:F1} {4}{5}{6}{7}",
                 _phase, _frozenMode.HasValue ? _frozenMode.Value.ToString() : "off", _anim.CurrentAction ?? "-",
-                _velocity.Length, cape, fall, _board.Describe());
+                _velocity.Length, cape, spell, fall, _board.Describe());
         }
     }
 }

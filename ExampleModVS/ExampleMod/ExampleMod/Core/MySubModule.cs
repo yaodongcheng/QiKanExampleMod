@@ -37,6 +37,14 @@ namespace LivingWorldNpcs
             //    因此必须加载 English XML 作为 fallback 字典，否则英文玩家看到的是 raw key 名。
             LWNTextHelper.InitializeEnglishFallback(ModuleHelper.GetModuleFullPath("LivingWorldNpcs"));
 
+            // ── 🔴 法术体系总闸（2026-10-12 用户裁定：未发布功能，默认关）──
+            //    这里只负责**打一行日志**说明"这轮是开是关、关掉了哪几件"（验收判据之一，
+            //    见 plans/法术体系-通用施法框架.md 的「总闸」一节）。
+            //    ⚠️ 物品注册不在这儿做 —— `MBObjectManager` 要到"有游戏在跑"才存在
+            //    （`Game.CreateGame` 里才 Init），主菜单阶段是 null ⇒ 挪到每次开局的
+            //    `OnGameStart`（外加法术宿主进场的兜底），见 Combat/SpellSystemGate.cs。
+            SpellSystemGate.AnnounceAtStartup();
+
             //harmony测试，屏蔽掉F的交互
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
 
@@ -104,6 +112,14 @@ namespace LivingWorldNpcs
                         {
                             DebugLogger.Log($"[LWN-patch] 内容包未加载 → 跳过内容包专属补丁：{patchType.Name}");
                         }
+                    }
+                    // 🔴 法术总闸关着 ⇒ 法印开火拦截不挂（2026-10-12）。
+                    //    它本来就自我把关（查不到弹药就原样放行、不崩），但那属于"挂着但空转"；
+                    //    总闸的语义是"法术的代码路径一条都不走"，所以这里直接不挂。
+                    if (!skipThis && !SpellSystemGate.Enabled && patchType.Name == "SpellSealFirePatch")
+                    {
+                        skipThis = true;
+                        DebugLogger.Log("[Spell] 总闸关闭 → 跳过补丁：SpellSealFirePatch");
                     }
                     if (skipThis)
                     {
@@ -247,6 +263,13 @@ namespace LivingWorldNpcs
             //    没收绳时每帧只判一个 bool，零开销。
             mission.AddMissionBehavior(new GrappleLogic());
 
+            // 🔴 战场侧的 ModInput 驱动（2026-10-12）—— 从法术宿主手里接过来的职责。
+            //    原先战场/竞技场/自定义战斗里，`ModInput.Tick` 是由 `SpellProjectileLogic` 顺带推进的
+            //    （那些场景里 InteractionMissionView 不在场）；法术加总闸后宿主可能不挂，
+            //    这条驱动就断了 ⇒ 单独拆成这个常驻件，与法术再无关系。
+            //    覆盖面与原来逐字一致（同在这道战役闸门之前）。详见 Input/ModInputMissionDriver.cs 文件头。
+            mission.AddMissionBehavior(new ModInputMissionDriver());
+
             // 🔴 非战役模式（自定义战斗 / 联机 / 主菜单试玩等）不挂载任何行为：
             // 没有 Campaign 时 Settlement.CurrentSettlement、Hero.MainHero 等战役 API 会 NRE
             // （实测 2026-08-12：自定义战斗 AgentAIController.AfterStart 崩，getter 内部访问
@@ -276,15 +299,25 @@ namespace LivingWorldNpcs
             // 🔴 法术飞行物宿主（2026-09-23，通用施法框架）—— 同 FirearmFxLogic，**必须置于玩法闸门之前**：
             //    法术的主战场就是战场/攻城，被那道闸门拦在外面就没意义了。纯表现+判定，不碰战役 API；
             //    没有法术在飞时每帧只做一次 List.Count 判断，零开销。
-            //    数据来自内容包 ModuleData/AssetRegistry/Spells.xml（没有内容包 = 表为空 = 空转）。
+            //    数据来自本模块 ModuleData/AssetRegistry/Spells.xml（没有内容包 = 表为空 = 空转）。
             //    方案见 plans/法术体系-通用施法框架.md；契约见 Combat/SpellDef.cs 头注释。
-            mission.AddMissionBehavior(new SpellProjectileLogic());
+            // 🔴 🔴 总闸（2026-10-12 用户裁定：法术体系未发布，默认关）：关着时**整个不挂** ——
+            //    手势 / 蓄力球 / 粒子 / 飞行物 / 伤害结算 / NPC 施法 / custom.spell 一起消失。
+            //    开关 = config.json `SpellSystemEnabled`（默认 false，唯一来源；见 Combat/SpellSystemGate.cs）。
+            if (SpellSystemGate.Enabled)
+            {
+                mission.AddMissionBehavior(new SpellProjectileLogic());
+            }
 
             // 🔴 法术弹飞行诊断（2026-09-22，custom.spell_trace）—— 同上置于闸门之前：
             //    要测的正是战场里的弹道，被玩法闸门拦在外面就没意义（同 FirearmFxLogic）。
             //    关着时每帧只判一个 bool，零开销。判据见 Combat/SpellMissileTrace.cs 文件头。
             //    验完即删（连同本行与 csproj 那一行）。
-            mission.AddMissionBehavior(new SpellMissileTrace());
+            // 🔴 它**对玩家每一发**（不看弹药种类）都要记日志 ⇒ 跟着总闸一起不挂（2026-10-12）。
+            if (SpellSystemGate.Enabled)
+            {
+                mission.AddMissionBehavior(new SpellMissileTrace());
+            }
 
             // 舞台道具匀速移动（2026-09-20，custom.prop speed）：同上；没生成过道具时
             // 每帧只做一次 Count 判断，零开销。验完即整对删。
@@ -382,6 +415,15 @@ namespace LivingWorldNpcs
         protected override void OnGameStart(Game game, IGameStarter gameStarter)
         {
             base.OnGameStart(game, gameStarter);
+
+            // ⚠️🔴 **法术物品注册不在这里**（2026-10-12 实机前推翻过一次，别再挪回来）——
+            //    两个钩子都在下面（`AfterRegisterSubModuleObjects` / `OnGameInitializationFinished`）。
+            //    为什么不能放这儿：引擎各 GameType 都把 `SetBasicModels(...)` 排在
+            //    `GameManager.OnGameStart(...)` 的**下一行**，而物品反序列化会走
+            //    `ItemObject.DetermineValue → Game.Current.BasicModels.ItemValueModel`
+            //    （`BasicModels` 裸解引用）⇒ 在此刻加载**必 NRE**，还会被引擎静默吞掉，
+            //    症状是"只注册了第 1 件、且它没就绪"。完整时序见 Combat/SpellSystemGate.cs 文件头。
+
             if (game.GameType is Campaign)
             {
                 var campaignGameStarter = (CampaignGameStarter)gameStarter;
@@ -412,7 +454,14 @@ namespace LivingWorldNpcs
                 campaignGameStarter.AddBehavior(new CompanionDetentionBehavior());
 
                 // 法术：手环宝石槽的配装仓（阶段 5，存档键 lwn_spell_loadout）—— 存角色身上 + 进存档
-                campaignGameStarter.AddBehavior(new SpellLoadoutBehavior());
+                // 🔴 总闸关着时**不挂**（2026-10-12）：它存在的意义就是服务法术的宝石修正，
+                //    法术整个不开时挂着它只会往存档里写一条没人看的键。
+                //    存档兼容已核实：行为缺席时 SyncData 不会被调（那段数据被忽略，不报错），
+                //    `SpellLoadoutBehavior.Instance` 返回 null 且所有调用点都 null 安全。
+                if (SpellSystemGate.Enabled)
+                {
+                    campaignGameStarter.AddBehavior(new SpellLoadoutBehavior());
+                }
 
                 // 建号内容接线（🔴 1.3.x+ 战役模式必需：那儿的内容只能靠**战役行为**在
                 //   OnCharacterCreationInitializedEvent 里挂进去；1.2.12 下本调用是空操作，
@@ -430,6 +479,40 @@ namespace LivingWorldNpcs
           
 
 
+        }
+
+        /// <summary>
+        /// 🔴 法术物品注册 —— **战役这条路走这里**（2026-10-12）。
+        ///
+        /// 为什么是它：本钩子由 `SandBoxManager.OnCampaignStart` 调起，位置正好在
+        /// `Campaign.OnInitialize` 里「引擎 `LoadXML("Items")` 之后、`UnregisterNonReadyObjects()` **之前**」
+        /// （反编译实证）。那正是我们需要的窗口，两条理由：
+        ///   ① 此时 `SetBasicModels` 早已执行 ⇒ 物品反序列化不会撞上 `BasicModels` 为 null
+        ///      （早一步 = 必 NRE，见 `OnGameStart` 里那段警告）；
+        ///   ② **读档连续性**：读档时存档里的物品实例先被恢复但未就绪，若我们晚于那次"清理未就绪对象"
+        ///      才注册，它们会被当垃圾注销、背包里那几件随后被换成破烂（`ReplaceInvalidItemsWithTrash`）。
+        ///      卡在这个窗口里注册，旧实例会被重新反序列化 → 物品保住。
+        ///
+        /// 总闸关着时这个调用什么都不做（物品文件压根不在 SubModule.xml 里 ⇒ 引擎从头到尾没加载过它）。
+        /// 完整时序与踩坑记录见 Combat/SpellSystemGate.cs 文件头。
+        /// </summary>
+        public override void AfterRegisterSubModuleObjects(bool isSavedCampaign)
+        {
+            base.AfterRegisterSubModuleObjects(isSavedCampaign);
+            SpellSystemGate.EnsureItemsLoaded();
+        }
+
+        /// <summary>
+        /// 🔴 法术物品注册 —— **非战役那条路走这里**（自定义战斗 / 编辑器 / 其它 GameType）。
+        ///
+        /// 战役有自己的窗口（见上面那个钩子），而 `CustomGame.OnInitialize` 的最后一步就是这个回调 ——
+        /// 那时 `SetBasicModels` / `LoadBasicFiles` / `LoadCustomGameXmls`（含 `LoadXML("Items")`）都已跑完
+        /// （反编译实证）。两条路都调是**幂等**的，先到的那个做掉，后面的直接返回。
+        /// </summary>
+        public override void OnGameInitializationFinished(Game game)
+        {
+            base.OnGameInitializationFinished(game);
+            SpellSystemGate.EnsureItemsLoaded();
         }
 
         // 定义一个简单的日志路径，直接放在桌面，方便你查找

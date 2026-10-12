@@ -160,6 +160,8 @@ if (CameraLook.TryGet(out Vec3 look)) { /* 用 look */ }   // 接管中自动问
 
 **规则**（用户裁定）：蓄力 / 引导期间**身体与头都朝相机方向**（"看相机无限远处"），压过飞行那条"朝实际移动方向"；
 松手/取消/放完立刻回到原规则。**不看有没有移动输入**（站着不动也能瞄）。**只在空中施法**（地面本阶段停用）。
+🔴 **空中施法默认关**（2026-10-12）：它是内部测试功能，总闸 = config.json `FlightSpellCastEnabled`（默认 false，不进 MCM）
+—— 关着时 `IsPlayerAiming` 恒 false，下面这段瞄准偏移整段不生效（飞行姿全程不变）。
 
 ```csharp
 // ① 身体（飞行侧，PlayerFlightBehavior 第 ⑧ 条机身朝向）：施法瞄准优先

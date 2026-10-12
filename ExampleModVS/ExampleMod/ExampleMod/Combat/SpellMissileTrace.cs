@@ -1260,6 +1260,12 @@ namespace LivingWorldNpcs
         {
             try
             {
+                // 🔴 总闸（2026-10-12）：法术体系未发布、默认关 —— 本诊断件也不挂，
+                //    命令同样封掉（回一句纯英文自证，别让人以为"是这条命令坏了"）。
+                if (!SpellSystemGate.Enabled)
+                {
+                    return "spell system DISABLED (config.json SpellSystemEnabled=false) -> spell_trace unavailable";
+                }
                 if (args == null || args.Count == 0)
                 {
                     SpellMissileTraceState.Enabled = !SpellMissileTraceState.Enabled;

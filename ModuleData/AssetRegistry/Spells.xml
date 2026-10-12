@@ -67,6 +67,10 @@
 	       拖尾 lwn_yinmo_trail · 命中爆散 lwn_yinmo_burst（粒子 XML 由 Taikou 的 project.mbproj 注册）
 	     🔴 弹药物品 lwn_spell_crescent 的 flying_mesh **保留不删**：法印补丁被关掉 /
 	        这张表没加载时，引擎照常发导弹 = 表现退回旧路线（月牙当 flying_mesh 飞），不会崩。
+	        ⚠️ 2026-10-12 补一种状态：**法术总闸关着时（config.json `SpellSystemEnabled=false`，默认）
+	        弹药物品根本不存在**（`items/spells.xml` 故意不被引擎加载，见 Combat/SpellSystemGate.cs）——
+	        那时"退回旧路线"也谈不上，是"这发弹药不存在，谁也射不出来"。flying_mesh 这行照样保留：
+	        它服务的是"总闸开着、但补丁关掉/表没加载"那种中间状态。
 	     ⚠️ **`scale="1"` 是对最终资产的预期**（月牙跨度 ≈3.8 m）。若**编辑器里那份资产还是**
 	        2026-09-22 的"放大 5 倍"实验版（跨度 ≈19 m），实机看到的月牙会大 5 倍 ——
 	        那不是这张表的错，去把 `tools/armor-pipeline/scripts/build_spell_mesh.py` 的产物

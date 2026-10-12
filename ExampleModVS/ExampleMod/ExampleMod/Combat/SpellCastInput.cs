@@ -24,6 +24,9 @@ namespace LivingWorldNpcs
 	/// 🔴 打断：换武器 / 换法术 / 目标失效 / 施法者倒下 / 场景结束 → 一律 <see cref="Cancel"/>（核与粒子当场清掉）。
 	///
 	/// 玩家专属（NPC 没有输入；NPC 的起手见 <see cref="SpellNpcCaster"/>）。
+	///
+	/// 🔴 **现状：玩家侧这条路默认关**（2026-10-12 用户裁定）—— 空中手势是**内部测试功能**，
+	///    总闸 = config.json `FlightSpellCastEnabled`（默认 false，不进 MCM），见 <see cref="Tick"/> 空中段。
 	/// </summary>
 	public sealed class SpellCastInput
 	{
@@ -318,7 +321,32 @@ namespace LivingWorldNpcs
 			//    地面怎么兼容以后再看。落地 = 当场取消（含"飞着蓄力一半落地"，免得球挂在手上不放）。
 			//    ⚠️ 不受影响的两条：① `custom.spell cast`（控制台，测试用）② 法印开火拦截那条路
 			//       （引擎开火 → SpellSealFirePatch 改发我们的实体，它不需要手势、也不加动作）。
+			// 🔴 **空中施法 = 内部测试功能，默认关**（config.json `FlightSpellCastEnabled`，2026-10-12 用户裁定）——
+			//    下面整套空中手势（右键蓄力 → 左键放 → 松右键取消）是我们验证施法体系用的，不是给玩家玩的功能。
+			//    关着时相位**永远回 Idle** ⇒ 蓄力球 / 粒子 / 手势动画都不出现；对外可见的 `IsPlayerAiming` 恒 false
+			//    ⇒ 机身不再"朝相机瞄准"（`PlayerFlightBehavior` 第 ⑧ 条），全程维持正常飞行姿。
+			//    🔴 关着时右键在飞行中**只剩「瞄准机位」**——那条在 `FlightTuning.AimOnRightClick`，不归这里管。
+			//    中途被关（`custom.input_reload` 热改）⇒ 当场收干净：挂起的那一发**丢掉不补发**（不补发是纪律，
+			//    见下面那句"人都落地了月牙才飞出来最出戏"），`Cancel` 清核与引导，
+			//    紧随其后的 `TickCastAnim` 把通道 1 的蓄力手势收回。
+			// 🔴 两个开关都在这里判，**总闸优先**（2026-10-12）：
+			//    ① `SpellSystemGate.Enabled` = 法术体系总闸（config.json `SpellSystemEnabled`，默认关）——
+			//       关着时法术宿主根本不挂，本函数压根不会被调到；把它写进条件是为了**不靠这种巧合**：
+			//       "总闸关、空中施法开"必须仍然是"什么都不发生"，而不是等哪天有人加了第二个驱动点才暴露。
+			//    ② `FlightSpellCastEnabled` = 空中施法这个内部测试功能本身（见上面那段）。
+			bool spellCastOff = !SpellSystemGate.Enabled || !Settings.Instance.FlightSpellCastEnabled;
+			if (spellCastOff)
+			{
+				_hasPendingRelease = false;
+				_pendingSpell = null;
+				Cancel();
+			}
+
 			TickCastAnim(player);              // 收势：释放播完 / 蓄力被取消 ⇒ 收回通道 1
+			if (spellCastOff)
+			{
+				return;                        // 测试功能关着：本帧到此为止（右键另有瞄准机位那条路，不受影响）
+			}
 			TickPendingRelease(player, dt);    // 出手帧到了 ⇒ 把挂起的那一发真放出去
 			if (!IsFlyingNow())
 			{

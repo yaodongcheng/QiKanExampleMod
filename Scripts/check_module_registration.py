@@ -52,8 +52,21 @@ REQUIRED_GAMETEXT_PATHS = [
 CONVENTIONAL_FILES = {
     "action_sets", "action_types", "collision_infos", "combat_parameters", "face_animations",
     "module_sounds", "native_parameters", "physics_materials",
-    "skins", "items",
+    "skins",
 }
+# 🔴 2026-10-12 更正（反编译实证，别再被旧注释误导）：**引擎没有"惯例文件名加载"这条路**。
+#    全引擎只有**两个**加载列表，写入方各一个、读取方各一个：
+#      · `XmlResource.GetXmlListAndApply`（读各模块 `SubModule.xml` 的 `<Xmls><XmlNode>`）→ `XmlInformationList`
+#        → 供 `GetMergedXmlForManaged`（托管类型：Items / NPCCharacters / …）
+#      · `XmlResource.GetMbprojxmls`（读 `ModuleData/project.mbproj` 的 `<file>` 行）→ `MbprojXmls`
+#        → 供 `GetMergedXmlForNative`（native 类型：action_sets / skins / item_usage_sets / …）
+#    **没有第三处**：全 bin 反编译搜 `XmlInformationList` / `MbprojXmls`，除上面两写两读之外零命中。
+#    ⇒ 上面这张表里剩下的名字（`skins` 等）**并不是"惯例加载"**，而是"官方模块里存在、且通常已由
+#      mbproj 挂上"（如 Native 的 `soln_skins`）。它们留在这张表里只为**不误报官方的空模板文件**；
+#      ⚠️ 反过来说：**任何模块里一份没被声明、又有定义的 XML 都真的不会被加载** —— 别指望惯例。
+#    本次据此删掉了旧的 `"items"` 项：`ModuleData/items.xml` 是模板自带的**空占位**（`<Items/>`，
+#    官方注释写着 "You can add nodes to this xml"），不是被引擎惯例吃掉的；照旧留着它会让
+#    "items 目录/文件没声明也不报" 变成一条**假的安全感** —— 而法术总闸正是靠"没声明 = 不加载"成立的。
 # ④ 🔴 **soln 体系文件**：不经 SubModule.xml 的 XmlNode，而是挂在 `ModuleData/project.mbproj` 的
 #    `<file id="soln_xxx" name="…" type="…"/>` 行上，引擎 `GetMergedXmlForNative` 合并后才交给 native。
 #    **文件在磁盘上 ≠ 被加载** —— 不挂 mbproj 行 = 完全不加载（静默），后果看文件而定：
@@ -90,10 +103,83 @@ SOLN_ONLY_FILES = {"item_usage_sets", "item_holsters", "module_sounds", "action_
 #      按整名只认一个字面文件名，`particle_systems_yinmo.xml` 这类就漏网了（点名 = 漏网的老教训）。
 SOLN_ONLY_PREFIXES = ("particle_systems", "gpu_particle_systems")
 
+# ⑤ 🔴 **故意不被引擎加载**的数据文件（2026-10-12 立）—— 它们的加载权**已经交给 C#**，
+#    所以"没有任何段声明它"是**对的**，不是孤儿。
+#    ⚠️ 进这张表的**前提**：真有一处 C# 会在运行时按需加载它（表里的说明必须点名那处代码）。
+#       这不是"眼不见为净"的收容所 —— 只是想消掉一条告警，就该回去把文件接回段里。
+#    ⚠️ 配套**反向断言**（本文件第 3 段末尾）：表里哪个文件**又被某个段声明了** = 报错，
+#       因为那说明它会被引擎**无条件**加载 ⇒ 开关失效（这份表的存在意义就是"关得掉"）。
+INTENTIONALLY_UNLOADED = {
+    "items/spells":
+        "法术体系未发布（config.json SpellSystemEnabled 默认 false）：SubModule.xml 故意不声明它，"
+        "改由 ExampleModVS/ExampleMod/ExampleMod/Combat/SpellSystemGate.cs 在开关打开时按需注册"
+        "（引擎的 GetFiles(\"*.xml\") 会把整目录无条件吃掉，所以只能逐文件声明）",
+}
+
+# ⑤b 🔴 **正向断言要盯的目录**（2026-10-12 立）：这些目录**原本是整目录声明**，后来被改成
+#     「逐文件声明」—— 改动带来的**唯一代价**就是：往目录里加新文件**不再自动加载**（静默）。
+#     引擎为什么非改不可见 `INTENTIONALLY_UNLOADED` 的说明；代价必须由脚本兜住，不能靠人记。
+#     判据 = 目录下每个 `*.xml` 要么被某个段覆盖、要么在 `INTENTIONALLY_UNLOADED` 里，否则 ERROR。
+PER_FILE_DECLARED_DIRS = {
+    "items": "SubModule.xml 把 items/ 改成了逐文件声明（为了让 items/spells 能被开关关掉）——"
+             "新加文件必须回 SubModule.xml 补一行，或进 INTENTIONALLY_UNLOADED",
+}
+
+
+def report_undeclared_in_per_file_dirs(data_dir, covered, errors):
+    """⑤b 正向断言：逐文件声明的目录里，不许有"既没被声明、也不在白名单"的文件。
+
+    返回漏声明条数（0 = 干净）。命中即 ERROR —— 那种文件的症状是"文件在磁盘上、游戏里没有"。"""
+    missing = 0
+    for sub, why in sorted(PER_FILE_DECLARED_DIRS.items()):
+        d = data_dir / sub
+        if not d.is_dir():
+            continue
+        for f in sorted(d.rglob("*.xml")):
+            stem = f.relative_to(data_dir).as_posix()[:-4]
+            if stem in covered or stem in INTENTIONALLY_UNLOADED:
+                continue
+            missing += 1
+            errors.append(f"{stem} 落在逐文件声明的目录里却没被声明")
+            print(f"  [ERROR] {stem} —— **既没被任何段声明、也不在故意不加载的白名单里** ⇒ "
+                  f"引擎不会加载它（文件在磁盘上、游戏里没有）")
+            print(f"          来历：{why}")
+    return missing
+
 
 def is_soln_only(stem):
     """这个文件名是否属于「只有 project.mbproj 一条加载路径」的 soln 体系。"""
     return stem in SOLN_ONLY_FILES or stem.startswith(SOLN_ONLY_PREFIXES)
+
+
+def section_covered(sections, data_dir):
+    """段声明**覆盖到**的文件集合（目录声明会展开成目录下每个 xml）。
+
+    键 = 相对 `ModuleData` 的 posix 路径（**去掉 `.xml` 后缀**，与段 path 的写法对齐）。
+    第 3 段（孤儿）与第 3c 段（反向断言）共用这一份，避免两处各算一遍算出分歧。"""
+    covered = set()
+    for _sid, path, _g, _act in sections:
+        covered.add(path)
+        d = data_dir / path
+        if d.is_dir():
+            for f in d.rglob("*.xml"):
+                covered.add(f.relative_to(data_dir).as_posix()[:-4])
+    return covered
+
+
+def report_unloaded_not_declared(covered, errors):
+    """⑤ 反向断言：`INTENTIONALLY_UNLOADED` 里的文件**不许**被任何段声明。
+
+    返回命中条数（0 = 全还关着）。命中即 ERROR —— 见那张表上方的说明。"""
+    regained = 0
+    for stem, why in sorted(INTENTIONALLY_UNLOADED.items()):
+        if stem in covered or stem.split("/")[0] in covered:
+            regained += 1
+            errors.append(f"{stem} 又被段声明了（总闸失效）")
+            print(f"  [ERROR] {stem} —— **它被某个段声明了** ⇒ 引擎会无条件加载它，"
+                  f"开关再也关不掉")
+            print(f"          来历：{why}")
+    return regained
 
 
 def read_mbproj(data_dir):
@@ -164,6 +250,12 @@ def main():
     ap.add_argument("--official-root", default=None)
     ap.add_argument("--game-type", default=None)
     ap.add_argument("--repo", default=None, help="仓库根（缺省=脚本上一级）——用于 csproj 检查")
+    ap.add_argument("--unloaded-only", action="store_true",
+                    help="🔴 只跑「⑤ 故意不加载的文件不许被段声明」那一条（2026-10-12）——"
+                         "给**基座模块**（LivingWorldNpcs）用：本脚本其余规则查的是"
+                         "「内容包必须自备的整个世界段清单」，基座本来就没有那些段，跑全量必然一片红；"
+                         "但「开关关掉的数据不许被引擎无条件加载」这条对基座**同样成立**，"
+                         "所以单开一个模式让一键体检能把这条也挂在基座上。")
     args = ap.parse_args()
 
     mod_path = Path(args.module)
@@ -198,6 +290,31 @@ def main():
         errors, warns = [], []
         data = mod_path / "ModuleData"
 
+        # 🔴 `--unloaded-only`（2026-10-12）：**基座模块专用** —— 只查 ⑤ 那一条，其余全跳过。
+        #    为什么单开一个模式：本脚本其余规则查的是「内容包必须自备的整个世界段清单」
+        #    （SPCultures / Kingdoms / GameText×9 …），而基座（LivingWorldNpcs）本来就不该有那些段，
+        #    跑全量必然一片红 —— run_all_checks.py 正是因为这个才把它排除在第二遍之外。
+        #    但「开关关掉的数据不许被引擎无条件加载」这条对基座**同样成立**（法术物品就在基座里），
+        #    ⇒ 留一个能挂进一键体检的窄入口（用法见 run_all_checks.py 的 SECOND_MODULE_CHECKS）。
+        if args.unloaded_only:
+            print("== ⑤ 故意不加载的文件不许被段声明（被声明 = 总闸失效） ==")
+            _covered = section_covered(sections, data)
+            regained = report_unloaded_not_declared(_covered, errors)
+            if not regained:
+                print(f"  （{len(INTENTIONALLY_UNLOADED)} 个文件都还关着 ✓）")
+            else:
+                print(f"\n  修：把那几行从 SubModule.xml 的 <Xmls> 里删掉 —— "
+                      f"它们该由 C# 在开关打开时按需注册，不能被引擎无条件加载")
+            print("\n== ⑤b 逐文件声明的目录里不许有漏网文件（漏了 = 文件在、游戏里没有） ==")
+            undeclared = report_undeclared_in_per_file_dirs(data, _covered, errors)
+            if not undeclared:
+                print(f"  （{len(PER_FILE_DECLARED_DIRS)} 个目录下的文件都已交代 ✓）")
+            else:
+                print("\n  修：在 SubModule.xml 的 <Xmls> 里加一行 "
+                      "<XmlNode><XmlName id=\"…\" path=\"…\" /></XmlNode>")
+            print(f"\nSummary: sections={len(sections)} errors={len(errors)} warnings={len(warns)}")
+            return 1 if errors else 0
+
         # ── 1. 必需段在位且对本 GameType 生效 ──
         print("== 必需段注册（缺 = 每次崩一个，雷 3/4/5；9 个文本段 = 雷 35） ==")
         have = {sid for sid, _p, _g, act in sections if act}
@@ -227,19 +344,17 @@ def main():
 
         # ── 3. 孤儿数据文件 ──
         print("\n== 孤儿数据文件（写了但没有任何段加载它） ==")
-        covered = set()
-        for _sid, path, _g, _act in sections:
-            covered.add(path)
-            d = data / path
-            if d.is_dir():
-                for f in d.rglob("*.xml"):
-                    covered.add(f.relative_to(data).as_posix()[:-4])
+        covered = section_covered(sections, data)
         mbproj = read_mbproj(data)          # ④ soln 体系挂载的（相对 ModuleData 的 posix 路径）
         orphans = 0
         for f in sorted(data.rglob("*.xml")):
             rel = f.relative_to(data).as_posix()
             stem = rel[:-4]
             if stem in covered or stem.split("/")[0] in covered:
+                continue
+            if stem in INTENTIONALLY_UNLOADED:
+                # ⑤ 加载权在 C# 手里（如法术物品）—— 没段声明是对的
+                print(f"  [INFO]  {rel} —— 故意不被引擎加载：{INTENTIONALLY_UNLOADED[stem]}")
                 continue
             if rel in mbproj:
                 continue                    # 挂在 project.mbproj 的 soln 行上 → 加载路径成立
@@ -260,6 +375,16 @@ def main():
                 print(f"  [INFO]  {rel} —— 0 个定义（模板/占位，忽略）")
         if not orphans:
             print("  （无 ✓）")
+
+        # ── 3c. 🔴 反向断言：⑤ 表里的文件**不许**再被任何段声明（2026-10-12 立） ──
+        #    理由：那些文件的加载权已经交给 C#（开关控制）。一旦某个段声明了它，
+        #    引擎就会**无条件**加载 ⇒ 总闸失效（"发布时关掉"这个目的当场落空，而且零报错）。
+        #    ⚠️ 这条是**结构性**的：`path="items"`（整目录）会把目录下每个 xml 都吃掉，
+        #       所以目录形态同样要被抓到（下面 `stem.split("/")[0] in covered` 就管这个）。
+        print("\n== ⑤ 故意不加载的文件不许被段声明（被声明 = 总闸失效） ==")
+        regained = report_unloaded_not_declared(covered, errors)
+        if not regained:
+            print(f"  （{len(INTENTIONALLY_UNLOADED)} 个文件都还关着 ✓）")
 
         # ── 3b. soln 体系文件必须挂 project.mbproj（雷 122/136） ──
         #    判据不靠猜：这些文件**没有**任何"惯例文件名"回退路径，只有 mbproj 一条。

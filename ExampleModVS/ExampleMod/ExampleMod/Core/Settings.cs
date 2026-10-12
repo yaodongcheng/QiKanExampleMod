@@ -61,6 +61,33 @@ namespace LivingWorldNpcs
         // （`Flight/PlayerFlightBehavior.IsRibbonWorn`）—— 装备即开关，玩家看得见摸得着。
         // 控制台 `custom.flight start` 仍可强制起飞（显式开发/验收命令，不受此限）。
 
+        // ── 🔴 空中施法 = **内部测试功能，默认关**（2026-10-12 用户裁定）──
+        // 管的是飞行中这套手势：**按住右键蓄力（手上长能量球）→ 点左键放阴魔斩 → 松右键取消**。
+        // 它是我们验证施法体系用的，不是给玩家玩的功能 ⇒ 默认关：
+        // 关着的时候飞行中按右键**只剩「瞄准机位」**（那条归 `FlightTuning.AimOnRightClick`，与本开关无关），
+        // 蓄力球 / 粒子 / 手势动画一个都不会出现（闸门在 `Combat/SpellCastInput.Tick` 的空中段）。
+        // 🔴 唯一来源 = config.json（**不进 MCM** —— 不让玩家在 Mod 选项里看见这项）；
+        //    改完 `custom.input_reload` 即热生效（它内部就是 `Settings.Reload()`），不用重启。
+        // 不受影响的两条：`custom.spell cast`（控制台）与法印开火拦截（走法印那条路，不需要这套手势）。
+        public bool FlightSpellCastEnabled { get; set; } = false;
+
+        // ── 🔴 法术体系总闸 = **未发布功能，默认关**（2026-10-12 用户裁定）──
+        // 法术体系（法印 + 6 种法术弹 + 32 颗宝石修正 + 施法手势 + NPC 施法）代码与数据都在，
+        // 但**没经过测试，不能进发布版** ⇒ 默认关。用户原话：「不只是功能，这些道具也不应该看到。」
+        // 关着的时候：
+        //   · **7 件法术物品根本不注册** —— 不是藏起来，是游戏里彻底不存在（背包/商店/控制台都查不到）。
+        //     实现 = `ModuleData/items/spells.xml` 故意不在 SubModule.xml 声明，改由
+        //     `Combat/SpellSystemGate.cs` 在本开关打开时按需注册（详见那边与 SubModule.xml 的注释）。
+        //   · 施法管线不挂（`SpellProjectileLogic` / `SpellMissileTrace`）、宝石配装仓不挂
+        //     （`SpellLoadoutBehavior`）、法印开火拦截不挂（`SpellSealFirePatch`，Harmony）。
+        //   · 控制台 `custom.spell` / `custom.spell_trace` 回一句"已关闭"，不再能用。
+        // 🔴 唯一来源 = config.json（**不进 MCM** —— 不让玩家在 Mod 选项里看见这项）。
+        // 🔴 **改完要重启游戏**（不像 `FlightSpellCastEnabled` 能热重载）：物品注册只在每次开局那一次，
+        //    中途热改只会造成"配置开了但物品没出来"的半开状态（状态命令会把这两件事分开报，一眼可判）。
+        // 不受影响：钩索 / 飞行 / 相机 —— 它们借用了法术命名空间下的通用工具（读骨、解析网格），
+        //           那些工具一行都没动。
+        public bool SpellSystemEnabled { get; set; } = false;
+
         // ── 口吻参数（config.json 侧；世界观 flavor 已退场，2026-08-17：WorldDescription/EraDescription
         // 删除——世界观改由 LLM 自动生成（WorldBackgroundBehavior），见 plans/world-background-auto-summary.md）──
         // 说话风格默认值：口语化、贴合中世纪背景，禁用现代网络用语
