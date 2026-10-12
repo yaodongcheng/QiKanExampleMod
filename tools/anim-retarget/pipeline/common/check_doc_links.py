@@ -66,6 +66,8 @@ WHITELIST_SUB = [
     "4DHumans/",               # docs/图视频…：外部研究项目（HMR2.0），不在本仓也不在数据面
     "pose_dianxue_pair/assets", # 09-28 移除的实验数据集（同一个 GLB 装两条动画那份）
     "pose_dianxue_v8/assets",   # 同上，v8 那份
+    "verify_shards.mjs",        # 2026-10-10 死代码清理退役的脚本；docs/历史_交接与TODO.md §8 仍会点名（历史记录）
+    "shot_headless.py",         # 同上（其 --dump-dom 方法已被硬约束 20 判为不可靠）
     "../../viewer/viewer.html", # 总纲 §5：这是在【描述展示页里该怎么写链接】（展示页在数据面
                                 #   output/交付总览/ 下），不是本仓路径 —— 解析根够不着它
 ]

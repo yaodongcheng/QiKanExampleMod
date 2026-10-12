@@ -293,6 +293,10 @@ cd web_flight && python serve.py     # 自动找空闲端口并开浏览器
 新增脚本：`pipeline/common/export_ue_fbx_slim.py`（清单精确导出）、`pipeline/common/make_manifest.py`、
 `pipeline/common/verify_shards.mjs`、`web_slim/check_*.mjs`、`pipeline/common/shot_headless.py`（无头截图）。
 
+> ⚠️ **退役说明（2026-10-10 补）**：本节点名的 `verify_shards.mjs` / `shot_headless.py` 与那一批 `check_*.mjs`
+> 已随「死代码清理」**从工作区删除**（`shot_headless` 的 `--dump-dom` 方法更早已被硬约束 20 判为不可靠）——
+> 它们是**当时这批活的工具**，属历史记录，**需要时从 git 历史取回**。现行闸门见总纲 §11。
+
 ### 8.2 ★ 本轮抓到的关键 bug：查看器左侧的"源"GLB 只有 10 根骨在动
 
 - **现象**：查看器左右两侧姿态对不上（源垂手 / 骑砍举手、源平躺 / 骑砍站立…），
