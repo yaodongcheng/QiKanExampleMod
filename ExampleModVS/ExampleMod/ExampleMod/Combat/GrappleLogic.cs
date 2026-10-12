@@ -1817,9 +1817,9 @@ namespace LivingWorldNpcs
 			}
 			Trace("kit:root");
 
-			// 🔴 **左手环默认关**（2026-10-08）：左手那件现在由**物品网格**（绳，`lwn_grapple_rope`，引擎挂在左手骨上）
-			//    负责 —— 环是它上一版的做法（运行时实体、每帧跟左手骨），两个一起上 = 同一只手上叠着环 + 绳。
-			//    要用回来：`custom.grapple handring 1`（即时生效）。绳的近端锚点在**右手**，与环无关，关掉不丢功能。
+			// **左手环**（`custom.grapple handring 0|1`，**默认显示**）—— 环与"环→右手"那截绳（A）是一套：
+			// 环没摆上时 A 也会被下面 `RingPlaced` 那道闸收掉 ⇒ **"看不到两手之间那截绳"先看这个开关**。
+			// （2026-10-12：此前这里写着"默认关（2026-10-08 用户口径）"，用户明确否认 ⇒ 那是错归属，已改回默认开。）
 			_rig.TickRing(scene, player, want && GrappleRig.HandRingEnabled);   // 左手环（根实体下的第三件）
 			Trace("kit:ring");
 
@@ -1833,7 +1833,8 @@ namespace LivingWorldNpcs
 				return;
 			}
 
-			// A（环 → 右手）：独立开关 —— 默认关（与 B 一样是 AV 嫌疑，见 HandRopeAEnabled）
+			// A（环 → 右手）：独立开关（**默认开**，见 HandRopeAEnabled）；⚠️ 它还要过下面 `RingPlaced` 那道闸
+			// —— 环没摆上就不建 A（那时 A 的两端会退化成同一个点，2026-10-08 修过）
 			if (!HandRopeAEnabled)
 			{
 				if (_ropeAShown)

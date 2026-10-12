@@ -45,13 +45,17 @@ namespace LivingWorldNpcs
 		public static float RingScale = 1f;
 
 		/// <summary>
-		/// **左手环要不要显示**（`custom.grapple handring 0|1`；**默认 false = 不显示**）。
-		/// 🔴 为什么默认关（2026-10-08）：左手那件现在由**物品网格**负责 —— 绳那件（`lwn_grapple_rope`）的 `mesh`
-		/// 是 `lwn_grapple_rope`（一盘绳），引擎把它挂在**左手骨**上；环是上一版的做法（运行时实体、每帧跟左手骨），
-		/// 两个一起上 = 同一只手上叠着"环 + 绳"。绳的近端锚点在**右手**（<see cref="GrappleLogic.GetRopeAnchor"/>），
-		/// 与环无关 ⇒ 关掉不丢任何功能。
+		/// **左手环要不要显示**（`custom.grapple handring 0|1`；**默认 true = 显示**）。
+		///
+		/// 🔴 **2026-10-12 改回默认开**：此前默认关，且注释把它归成"用户 2026-10-08 口径" ——
+		///    用户 2026-10-12 明确否认（"我什么时候让你关掉环了 肯定是你之前误会了"）⇒ **那是错归属**。
+		///    现在恢复正常显示：**左手环 + "环→右手"那截绳（A）一起在**（A 还要过 `GrappleLogic.TickHandKit`
+		///    里 `RingPlaced` 那道闸 —— 环收起来时 A 也会跟着收）。
+		/// 想看对照（关掉环 + A）：`custom.grapple handring 0`（即时生效）。
+		/// ⚠️ 左手同时还有**物品网格那盘绳**（`lwn_grapple_rope` 的 `mesh`，引擎挂在左手骨上）—— 环绘在它上面，
+		///    这是资产层的既有事实，开/关环都改不了。
 		/// </summary>
-		public static bool HandRingEnabled = false;
+		public static bool HandRingEnabled = true;
 
 		/// <summary>
 		/// **环沿自身轴外移**（米，`custom.grapple ringface &lt;档&gt; [米]`；默认 **0.06**）——
