@@ -102,27 +102,37 @@ namespace LivingWorldNpcs.Flight
         // 机制依据：Knowledge/骑砍2Agent运动与位置机制.md §6.6 ——
         // 引擎写不进 agent 的 Z，只能靠"脚下一块实心道具 + 每帧瞬移它"把人托起来。
 
-        /// <summary>承载用的实心预制体。网格会被隐藏，留下物理体当"地面"。</summary>
         /// <summary>
-        /// 飞行载具的预制体 —— 🔴 **2026-09-21 起就是法阵自己**
-        /// （`LivingWorldNpcs/Prefabs/lwn_prefabs.xml` 里的 `<game_entity name="lwn_flight_sigil">`：根带 `bo_wooden_platform_a` 碰撞 + 子带法阵网格）。
+        /// 飞行载具的预制体（`LivingWorldNpcs/Prefabs/lwn_prefabs.xml`）—— 结构 = **根当锚、
+        /// 两个子实体分工**：`lwn_flight_sigil_body`（物理体，托人）+ `lwn_flight_sigil_mesh`（法阵，给人看）。
         /// 旧值 `wooden_platform_a` 已废 —— 那个方案要另挂一张法阵并"把木板藏起来"，
-        /// 而**隐藏会把碰撞一起干掉**（实机摔死过主角）。
+        /// 而**隐藏承载物会把碰撞一起干掉**（实机摔死过主角）。
         /// </summary>
         public static string CarrierPrefab = "lwn_flight_sigil";
 
         /// <summary>
-        /// 🪦 **2026-10-10 删除：`CarrierMeshName`（网格探针）** —— 载具预制体现在**一个网格都不引用**
-        /// （纯物理体 = 真的看不见，用户要的"直接不可见"），探针没有对象可查了。
-        /// 🔴 那条探针防的是：预制体引用的网格不在包里 ⇒ `GameEntity.Instantiate` **native 访问违例、
-        ///    游戏当场崩、try/catch 拦不住**（2026-09-21 踩过）。
-        ///    ⇒ **哪天给载具加回网格（法阵/占位板），必须把这个探针一起加回来。**
+        /// 🔴 **网格探针**（2026-10-12 随法阵视觉件一起加回）：预制体引用的网格**必须真的在包里**，
+        /// 否则 `GameEntity.Instantiate` 会 **native 访问违例、游戏当场崩、try/catch 拦不住**（2026-09-21 踩过）。
+        /// 生成前用 `MetaMesh.GetCopy(name, showErrors:false, mayReturnNull:true)` 探一次。
+        /// ⚠️ **哪天把法阵从预制体里拿掉，这个探针也要一起删**（没有网格可查时它只会误报）。
         /// </summary>
-        // public static string CarrierMeshName = "lwn_proxy_invisible";   ← 已删除（见上）
+        public static string CarrierMeshName = "lwn_flight_sigil";
+
+        /// <summary>法阵视觉件在预制体里的**子实体名**（生成后按名字找到它、单独控制可见性）。</summary>
+        public static string CarrierSigilChildName = "lwn_flight_sigil_mesh";
+
+        /// <summary>
+        /// 法阵视觉件是否显示（运行时旋钮：`custom.flight tune sigil 0|1`）。
+        ///
+        /// 🔴 **开关只作用在视觉子实体上，物理体永远不动** —— 反面教材是 2026-09-21 那次
+        /// "把承载物本身隐藏"：碰撞跟着一起没了，主角 1.8 秒后摔死。
+        /// 默认可见（2026-10-12 用户要求"看得见自己踩在什么上"，也是排查飞行问题的肉眼判据）。
+        /// </summary>
+        public static bool CarrierSigilVisible = true;
 
         /// <summary>wooden_platform_a 的顶面在局部坐标里的高度（实测 0.37 米）。</summary>
         /// <remarks>
-        /// 🔴 2026-10-10 起预制体的根节点带 `scale="0.300, 0.300, 1.000"`（只压 X/Y、足迹缩到 1.59 × 1.55 米）
+        /// 🔴 2026-10-10 起预制体的**承载子节点**带 `scale="0.300, 0.300, 1.000"`（只压 X/Y、足迹缩到 1.59 × 1.55 米）
         /// —— **Z 没缩，所以这个常量不用改**（顶面仍在原点上方 0.37）。改缩放时盯住 Z 那一格。
         /// </remarks>
         public static float CarrierTopLocalZ = 0.37f;
@@ -751,6 +761,9 @@ namespace LivingWorldNpcs.Flight
         public static void ResetToDefaults()
         {
             CarrierPrefab = "lwn_flight_sigil";
+            CarrierMeshName = "lwn_flight_sigil";
+            CarrierSigilChildName = "lwn_flight_sigil_mesh";
+            CarrierSigilVisible = true;
             CarrierTopLocalZ = 0.37f;
             CarrierSpawnGap = 0.06f;
             TakeoffSettleSeconds = 1.0f;

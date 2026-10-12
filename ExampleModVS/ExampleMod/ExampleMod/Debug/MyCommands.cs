@@ -357,9 +357,14 @@ namespace LivingWorldNpcs
             {
                 AnimFlags flags = MBActionSet.GetActionAnimationFlags(agent.ActionSet, idx);
                 ulong f = (ulong)flags;
+                // ⚠️ 2026-10-12：原最后两项在 **1.3.15 上实测 native 崩**（0xC0000005 @ TaleWorlds.Native，
+                //    读地址 0x8；VS 调用栈实锤是 `MBActionSet.GetActionDisplacementVector`）：
+                //      · `contToAction`（GetActionAnimationContinueToAction）
+                //      · `disp`（GetActionDisplacementVector）  ← 调用栈点名的是它
+                //    1.2.12 时期两项都在。**要恢复先查新版 native 侧的签名/边界**。
                 string line = string.Format(CultureInfo.InvariantCulture,
                     "OK: action='{0}' clip='{1}' duration={2:0.00}s animIdx={3} flags=0x{4:X} "
-                    + "[cyclic={5} lowerbody={6} all={7}] contToAction={8} blendOutStart={9:0.00} disp={10}",
+                    + "[cyclic={5} lowerbody={6} all={7}] blendOutStart={8:0.00}",
                     actionName,
                     MBActionSet.GetActionAnimationName(agent.ActionSet, idx) ?? "?",
                     MBActionSet.GetActionAnimationDuration(agent.ActionSet, idx),
@@ -368,11 +373,76 @@ namespace LivingWorldNpcs
                     (flags.HasAnyFlag(AnimFlags.anf_cyclic) ? 1 : 0),
                     (flags.HasAnyFlag(AnimFlags.anf_enforce_lowerbody) ? 1 : 0),
                     (flags.HasAnyFlag(AnimFlags.anf_enforce_all) ? 1 : 0),
-                    V.ContinueToActionIndex(agent.ActionSet, idx),
-                    MBActionSet.GetActionBlendOutStartProgress(agent.ActionSet, idx),
-                    MBActionSet.GetActionDisplacementVector(agent.ActionSet, idx));
+                    MBActionSet.GetActionBlendOutStartProgress(agent.ActionSet, idx));
                 DebugLogger.Log("[Cmd] anim_meta -> " + line);
                 return line;
+            }
+            catch (System.Exception e)
+            {
+                return "Error: " + e.Message;
+            }
+        }
+
+        /// <summary>
+        /// **读引擎此刻实际在播什么**（2026-10-12 立）—— 逐通道回读，回答
+        /// "屏幕上这个动作到底是什么"。排查 1.3.15 飞行时"人在做铁匠打铁动作"用它：
+        /// **状态机以为自己切了 A，引擎可能正在播 B**（动作表错位 / 通道被抢 / 写了无效索引）。
+        ///
+        /// 🔴 与 `custom.anim_meta` 的分工：那个查**动作名 → 引擎怎么理解它**（静态表；⚠️ 在 1.3.15 上会
+        ///    native 崩，见那边的注释）；这个查**运行时真相** —— 只读 agent 通道，不碰静态表。
+        /// 用法：`custom.anim_now`（默认玩家）；`custom.anim_now 12` = 按 Agent.Index 指定。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("anim_now", "custom")]
+        public static string ExecuteAnimNow(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+            {
+                return "error: must be in a scene/mission to use this command.";
+            }
+
+            // 首参可弃（工作流约定）：认不出就回落到玩家并注明
+            Agent agent = Agent.Main;
+            string note = "";
+            if (args != null && args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]))
+            {
+                string tok = args[0].Trim();
+                if (int.TryParse(tok, out int want))
+                {
+                    Agent found = null;
+                    foreach (Agent a in Mission.Current.Agents)
+                    {
+                        if (a != null && a.Index == want) { found = a; break; }
+                    }
+                    if (found != null) { agent = found; }
+                    else { note = $" [note: no agent with index {want} -> using main]"; }
+                }
+                else
+                {
+                    note = $" [note: '{tok}' is not an agent index -> using main]";
+                }
+            }
+
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append("agent=").Append(agent.Index);
+                for (int ch = 0; ch <= 3; ch++)
+                {
+                    // 🔴 打 **索引号 + clip 名**：索引号是判"引擎通道里到底是不是我们写的那个"的唯一硬判据
+                    //    （`ActionIndexCache` 的 `==` 在 1.3.15 上就是比 `Index`，所以拿 `anim_meta` 的
+                    //    `animIdx=` 跟这里对一下就知道有没有被换）。
+                    //    clip 名走 `V.ClipName`（= `GetActionAnimationName`），**不要**用 `GetName()` 凑数。
+                    ActionIndexCache chIdx = agent.GetCurrentAction(ch);
+                    sb.Append(" ch").Append(ch).Append("=#").Append(chIdx.Index).Append(':')
+                      .Append(V.ClipName(agent, chIdx))
+                      .Append("(w=").Append(agent.GetActionChannelWeight(ch).ToString("F2", CultureInfo.InvariantCulture)).Append(')');
+                }
+                // ⚠️ 本想顺带打 action set 的索引（"整套动作错位"的旁证），但 `MBActionSet.Index`
+                //    是 internal（CS0122）—— 公开面只有那几个静态查询方法，先不碰。
+                sb.Append(" land=").Append(agent.IsOnLand() ? 1 : 0);
+                string line = sb.ToString();
+                DebugLogger.Log("[Cmd] anim_now -> " + line);
+                return line + note;
             }
             catch (System.Exception e)
             {

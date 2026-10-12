@@ -131,6 +131,7 @@ namespace LivingWorldNpcs.Flight
         private float _velYawRateDeg;           // 平滑后的航向角速度（度/秒）—— 运动驱动真正消费的那个
         private bool _takeoffSettled;        // 起飞阶段：玩家是否已经真的站到板上（没站住不抬升）
         private float _takeoffTimer;         // 起飞阶段计时（登板等待用）
+        private float _takeoffDiagTimer;     // 登板等待期间的诊断节流（0.25s 一行，见 TickTakeoff）
         private float _landingApproach;      // 进入落地那一刻的下冲速度（硬着陆按它下降）
         private string _landPoseState;       // 落地动作的状态名 —— 从 XML 的事件边读（`超人落地 → 机外` 的 from）
         private float _landExitPct = -1f;    // 出机时机（剩余百分比）—— 同上那条边上的 anim-rem-pct；<0 = 没写
@@ -523,6 +524,7 @@ namespace LivingWorldNpcs.Flight
                 }
                 _boardSpawned = true;
                 _takeoffTimer = 0f;               // 登板计时从"板出现"那一刻起算
+                _takeoffDiagTimer = 0f;
                 DebugLogger.Log($"[Flight] 板已召唤（延迟 {_boardSpawnTimer:F2}s） | {CarrierBoard.DescribeCapsule(main)} | {_board.Describe()}");
             }
 
@@ -533,6 +535,24 @@ namespace LivingWorldNpcs.Flight
             if (!_takeoffSettled)
             {
                 _takeoffTimer += dt;
+
+                // 🔴 2026-10-12 诊断（1.3.15 实机：用户报"被木板托起来了 / 板子有垂直向上的速度 /
+                //    人一直在缓慢抬升"，而日志里这一段**一行板子位置的记录都没有**）。
+                //    板子本该"生成后一动不动、等人自己落回板面"（下面那段注释），可现在 1 秒内
+                //    人板差就涨到 1.2 米。0.25 秒一行把双方位置钉下来：
+                //      · 板离地 > 0 且持续涨 ⇒ **板子自己在升**（不是我们写的，是物理/引擎干的）
+                //      · 人板差持续涨 ⇒ 谁快谁慢一目了然
+                _takeoffDiagTimer += dt;
+                if (_takeoffDiagTimer >= 0.25f)
+                {
+                    _takeoffDiagTimer = 0f;
+                    float feet = CarrierBoard.CollisionCapsuleBottomZ(main);
+                    float boardTop = _board.Origin.z + FlightTuning.CarrierTopLocalZ;
+                    float lift = boardTop - GetGroundZ(Mission.Current?.Scene, _board.Origin);
+                    DebugLogger.Log($"[Flight] 登板等待 t={_takeoffTimer:F2}s | 板原点z={_board.Origin.z:F3} 板面={boardTop:F3} "
+                        + $"玩家脚底={feet:F3} 人板差={feet - boardTop:F3}m | 板离地={lift:F3}m land={main.IsOnLand()}");
+                }
+
                 bool standing = main.IsOnLand();
                 if (!standing && _takeoffTimer < FlightTuning.TakeoffSettleSeconds)
                     return;                       // 板保持不动，等人落回来
@@ -2285,6 +2305,18 @@ namespace LivingWorldNpcs.Flight
             BeginDodge(forward);
             return $"dodge: {FlightTuning.DodgeDistance:F1}m over {FlightTuning.DodgeDisplaceSeconds:F2}s " +
                    "(pose needs the C key in boost: XML edge FlyFastPoses -> dodgeU keys=\"C\")";
+        }
+
+        /// <summary>
+        /// 把 <see cref="FlightTuning.CarrierSigilVisible"/> 应用到**当前**载具（命令层 `tune sigil` 调，幂等）。
+        /// 没在飞 / 板不在场 = 什么都不做（下次召唤时会读同一个开关）。
+        /// 🔴 只碰法阵视觉件 —— 物理体永远不动（"隐藏承载物 = 碰撞消失"是 2026-09-21 验死过的路）。
+        /// </summary>
+        public string ApplySigilVisibility()
+        {
+            _board.SetSigilVisible(FlightTuning.CarrierSigilVisible);
+            return "sigil " + (FlightTuning.CarrierSigilVisible ? "shown" : "hidden")
+                 + (_board.IsSpawned ? "" : " (no carrier right now - takes effect on next spawn)");
         }
 
         /// <summary>控制台强制出机进入掉落（<c>custom.flight drop</c>）—— 与 <see cref="ForceStop"/> 同义，名字更贴新语义。</summary>

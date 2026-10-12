@@ -374,7 +374,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | anim: blend hoverblend pitchblend | camPreset: presetblend camblend camhandover camhandback mergedrig | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camLook: camsens caminvertx caminverty campitchmin campitchmax camlag cammotion | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle boostfwd spawngap settle";
+                return "ERR usage: custom.flight tune <key> <value> | anim: blend hoverblend pitchblend | camPreset: presetblend camblend camhandover camhandback mergedrig | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camLook: camsens caminvertx caminverty campitchmin campitchmax camlag cammotion | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle boostfwd spawngap settle sigil";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -470,6 +470,12 @@ namespace LivingWorldNpcs.CampaignMode
                 // 运动驱动的**总增益**（竖直速率 / 航向角速度 → FOV·臂长·侧倾）。0 = 一键关掉整套。
                 case "cammotion": FlightTuning.CamMotionGain = v; break;
                 case "camblend": FlightTuning.CamBlendIn = v; FlightTuning.AnimBlendIn = v; break;  // 两个一起调（两个字段本来就该同源）
+                case "sigil":
+                    FlightTuning.CarrierSigilVisible = v != 0f;
+                    // 🔴 立即作用于**当前**载具（飞行中改要马上看见）；不在飞行中 = 下次召唤生效。
+                    //    开关只碰法阵视觉件 —— 物理体（托人的那块）永远不动。
+                    WithBehavior(b => { b.ApplySigilVisibility(); return ""; });
+                    break;
                 default:
                     return $"ERR unknown key '{key}'";
             }

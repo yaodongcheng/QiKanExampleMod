@@ -240,6 +240,57 @@ agent.SetActionChannel(0, ActionIndexCache.Create(bucketName),
 
 ---
 
+## 七、🔴 动作名 → 索引的解析：查不到时返回 **0**，不是 -1（2026-10-12 实机踩坑）
+
+> 这一节与 §一 是**上下游**：`SetActionChannel` 收的是 `ActionIndexCache`，
+> 而拿到它的第一步是"**动作名 → 索引**"。这一步会**静默失败**，而且失败值**长得像一个合法索引**。
+
+### 7.1 两版 `ActionIndexCache` 的实现不同（`TaleWorlds.MountAndBlade`）
+
+| | 1.2.12 | 1.3.15+ |
+|---|---|---|
+| 类型 | `class`（含 `_name` / `_actionIndex` / `_isValidAction`） | `readonly struct`（只含 `Index`） |
+| `Create(name)` | **只存名字**（`_actionIndex = -2`） | **立即解析**：构造里就 `MBAnimation.GetActionCodeWithName(name)` 并**当场定格** |
+| 取名字 | `idx.Name`（属性，懒解析） | ❌ 无该属性；改 `GetName()`（方法，直接问 native） |
+| `ActionIndexValueCache` | 有 | **已删除**（相关签名改用 `ActionIndexCache`） |
+
+⇒ **1.2.12 上"Create 得早"无害**（真正的解析推迟到用时）；**1.3.15 上"Create 得早 = 定格得早"**，
+若那一刻动作表还没就绪，就会拿到错误值并**一直用下去**（如果调用方还缓存了它）。
+
+### 7.2 🔴🔴 失败值是 **0**（不是 -1）
+
+- `MBAnimation.GetActionCodeWithName(name)` → `MBAPI.IMBAnimation.GetActionCodeWithName(name)`（native）。
+  名字不存在时 native 返回 **`0`**（1.3.15 实测）—— 而 **0 是引擎第 0 号动作的合法索引**
+  （本机那条 = `act_smithing_machine_anvil_part_1` → clip `blacksmith_working_part_2`，锻造打铁）。
+- `act_none` 才是 **-1**（`ActionIndexCache.act_none = new ActionIndexCache(-1)`）—— **两者别混**。
+- ⇒ **判据写成 `idx.Index <= 0`**（只判 `< 0` 会放 0 过闸）；**且不要把 0 缓存起来**。
+
+### 7.3 名字的两个口径（别混着对）
+
+| 方法 | 返回什么 | 本机例子 |
+|---|---|---|
+| `ActionIndexCache.GetName()`（1.2.12 的 `.Name`） | **动作名**（索引反查） | `act_smithing_machine_anvil_part_1` |
+| `MBActionSet.GetActionAnimationName(set, idx)` | **该 set 里这条动作绑的 clip 名** | `blacksmith_working_part_2` |
+
+同一条动作这两个名字可以**完全不同** —— 排查时"用哪个名字对"会得出相反结论。
+
+### 7.4 一调就崩的兄弟方法（1.3.15 实测，C# 能编过 ≠ native 能调）
+
+- ❌ `MBActionSet.GetActionDisplacementVector(set, idx)` —— **native 崩**：
+  `0xC0000005` @ `TaleWorlds.Native`，读地址 `0x8`（VS 调用栈点名 `MBActionSet.GetActionDisplacementVector`）。1.2.12 上可用。
+- ⚠️ `MBActionSet.GetActionAnimationContinueToAction(set, idx)` —— 同批摘除，**未单独验证**，启用前先在 1.3.15 实测一次。
+- ✅ 实测安全：`GetActionAnimationName` / `GetActionAnimationDuration` / `GetAnimationIndexOfAction` /
+  `GetActionAnimationFlags` / `GetActionBlendOutStartProgress`。
+
+### 7.5 自查口径（这两条能省几小时）
+
+1. **让写入日志带上索引号**（本项目 `[Anim:<名>] … #idx=…`）—— 一眼看出"写进去的到底是几号"，
+   和静态解析值（如 `custom.anim_meta` 的 `animIdx=`）一对即知有没有被换。
+2. **"写入 = 回读 = 校验"三方一致 ≠ 写对了**：静默失败成 0 时，写入 0 / 回读 0 / `got == want` **全部通过**，
+   只有肉眼看得见不对。**凡"名字 → 引擎 id"的解析，判据里必须含「0 / 哨兵值也算失败」。**
+
+---
+
 ## 附：反编译命令与产物位置
 
 ```bash

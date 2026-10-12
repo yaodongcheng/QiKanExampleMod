@@ -29,7 +29,7 @@ DEFAULT_VERSION = "1.3.15"
 # 版本 -> 游戏根目录（不带尾斜杠；新增客户端位置时改这里）
 # 🔴 主目录（SteamLibrary）= latest，跟随 Steam 官方更新——版本号不写死，实测以 Version.xml 为准（2026-09-08 实测 v1.5.2，之后随时更新）
 TARGETS = {
-    "1.5.2":  r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord",
+    "1.5.5":  r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord",
     "1.4.8":  r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.4.8\Mount & Blade II Bannerlord",
     "1.3.15": r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.3.15\Mount & Blade II Bannerlord",
     "1.2.12": r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord",

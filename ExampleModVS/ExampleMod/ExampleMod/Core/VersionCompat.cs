@@ -1187,9 +1187,35 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>
+        /// 动作索引 → **动画 clip 名**（`MBActionSet.GetActionAnimationName`）。
+        ///
+        /// 🔴 **日志里要显示"在播什么"一律用这个，不要用 <see cref="ActionName"/>** ——
+        ///    2026-10-12 实测：`ActionIndexCache.GetName()`（索引 → 动作名反查）在 **1.3.15 上是坏的**：
+        ///    同一个索引 6189，它返回 `act_smithing_machine_anvil_part_1`，而该索引真实绑定的 clip 是
+        ///    `flight_hoverstart_a`（`custom.anim_meta` 实测，两个查法当场对质）。
+        ///    照 GetName 的读数排查会一路跑偏 —— "飞行时在做打铁动作"那条假警报就是这么来的。
+        /// </summary>
+        public static string ClipName(Agent agent, ActionIndexCache idx, string fallback = "?")
+        {
+            if (agent == null || idx == null) return fallback;
+            try
+            {
+                return MBActionSet.GetActionAnimationName(agent.ActionSet, idx) ?? fallback;
+            }
+            catch (Exception)
+            {
+                return fallback;
+            }
+        }
+
         // ── 动作的"接续动作"（1.3.0 删掉了 ActionIndexValueCache 类型）──────────
         // v1.2.12: GetActionAnimationContinueToAction(set, ActionIndexValueCache.Create(idx)) → ActionIndexValueCache
         // v1.3.0+ : GetActionAnimationContinueToAction(set, in ActionIndexCache)             → ActionIndexCache
+        // ⚠️ 2026-10-12：**当前无调用者**（`custom.anim_meta` 里那处已随崩溃一起摘除）。
+        //    同批的 `MBActionSet.GetActionDisplacementVector` 在 1.3.15 上已实锤 native 崩
+        //    （VS 调用栈点名：0xC0000005 @ TaleWorlds.Native，读 0x8），这条**未单独验证过** ——
+        //    要启用先在 1.3.15 上实测一次。
         public static int ContinueToActionIndex(MBActionSet set, ActionIndexCache idx)
         {
             if (idx == null) return -1;                 // MBActionSet 是结构体，没有 null 可判

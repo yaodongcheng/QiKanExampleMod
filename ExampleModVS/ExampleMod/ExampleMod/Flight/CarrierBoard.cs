@@ -30,6 +30,9 @@ namespace LivingWorldNpcs.Flight
     {
         private Scene _scene;
         private GameEntity _carrier;
+        /// <summary>法阵视觉件（预制体子节点）。可见性开关**只碰它** —— 物理体永远不动。</summary>
+        private GameEntity _sigil;
+        private bool _meshWarned;
 
         /// <summary>载具原点（在碰撞体中心底面）的世界坐标。</summary>
         public Vec3 Origin { get; private set; }
@@ -52,10 +55,14 @@ namespace LivingWorldNpcs.Flight
 
             Remove();                     // 幂等：重复调不会漏掉旧实体
 
-            // 🔴🔴 这里原来有一道"预制体引用的网格必须在包里"的探针 —— **2026-10-10 连同
-            //     `FlightTuning.CarrierMeshName` 一起删了**：载具预制体现在**一个网格都不引用**
-            //     （纯物理体 = 真的看不见），`Instantiate` 没有网格可查，那条 AV 陷阱不存在了。
-            //     ⚠️ **哪天给载具加回网格，探针必须加回来**（网格缺失 = native 访问违例，当场崩、拦不住）。
+            // 🔴🔴 硬门禁：预制体引用的网格（法阵视觉件）**必须真的存在**，否则 `GameEntity.Instantiate`
+            //     会 native 访问违例把游戏打崩，**try/catch 拦不住**（2026-09-21 踩过）。
+            //     2026-10-10 曾随网格一起删掉，2026-10-12 法阵加回 ⇒ 探针一并加回。
+            if (!MeshExists(FlightTuning.CarrierMeshName))
+            {
+                LogMeshMissingOnce($"网格 '{FlightTuning.CarrierMeshName}' 不在任何已加载的包里（资产还没装）");
+                return false;
+            }
 
             _scene = scene;
 
@@ -83,6 +90,16 @@ namespace LivingWorldNpcs.Flight
             }
 
             Origin = frame.origin;
+
+            // 找法阵视觉件并应用可见性开关。找不到**不算失败** —— 板照常托人，只是脚下看不见。
+            _sigil = FindSigilChild();
+            if (_sigil == null)
+            {
+                DebugLogger.Log($"[Flight] 法阵子实体 '{FlightTuning.CarrierSigilChildName}' 没找到 —— "
+                    + "板照常托人，只是脚下看不见（核对预制体 lwn_flight_sigil 的子节点名）");
+            }
+            SetSigilVisible(FlightTuning.CarrierSigilVisible);
+
             return true;
         }
 
@@ -150,6 +167,7 @@ namespace LivingWorldNpcs.Flight
             if (!IsAlive(_carrier))
             {
                 _carrier = null;
+                _sigil = null;
                 return;
             }
             try
@@ -161,6 +179,71 @@ namespace LivingWorldNpcs.Flight
                 DebugLogger.Log($"[Flight] 拆除载具异常: {ex.Message}");
             }
             _carrier = null;
+            _sigil = null;
+        }
+
+        /// <summary>
+        /// 法阵视觉件的可见性开关（运行时旋钮：`custom.flight tune sigil 0|1`）。
+        ///
+        /// 🔴 只碰**视觉子实体** —— 承载件（`..._body`）的可见性一个字都不改：
+        ///    "隐藏承载物 = 碰撞跟着消失"是 2026-09-21 验死过的路（隐藏后主角 1.8 秒坠落摔死）。
+        /// 🔴 `SetVisibilityExcludeParents` 是**写给引擎的可见性状态**；它要等下一帧渲染才见效，
+        ///    而且**只影响画不画** —— 物理体不受任何影响。
+        /// </summary>
+        public void SetSigilVisible(bool visible)
+        {
+            if (_sigil == null)
+                return;
+            try
+            {
+                _sigil.SetVisibilityExcludeParents(visible);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Flight] 设置法阵可见性异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>法阵子实体（预制体里那个只挂 `meta_mesh_component` 的节点）。找不到返回 null。</summary>
+        private GameEntity FindSigilChild()
+        {
+            try
+            {
+                foreach (GameEntity child in _carrier.GetChildren())
+                {
+                    if (child != null && child.Name == FlightTuning.CarrierSigilChildName)
+                        return child;
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Flight] 读载具子实体异常: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>网格是否已在某个已加载的包里。找不到返回 false，**不会崩**。</summary>
+        private static bool MeshExists(string meshName)
+        {
+            if (string.IsNullOrEmpty(meshName))
+                return false;
+            try
+            {
+                MetaMesh probe = MetaMesh.GetCopy(meshName, showErrors: false, mayReturnNull: true);
+                return probe != null && probe.IsValid;
+            }
+            catch
+            {
+                return false;   // 探针本身出问题就当作"不存在"，宁可不生成也不崩
+            }
+        }
+
+        private void LogMeshMissingOnce(string why)
+        {
+            if (_meshWarned)
+                return;
+            _meshWarned = true;
+            DebugLogger.Log($"[Flight] 载具没生成（{why}）—— 飞不起来，先确认资产是否进了包。");
         }
 
         /// <summary>

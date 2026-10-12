@@ -787,9 +787,9 @@ namespace LivingWorldNpcs.Animation
             if (!state.IsWired)
                 return;      // 动作名空串 = 这条还没接 ⇒ 静默跳过（等价于没有这条转移）
 
-            ActionIndexCache idx = state.Index();      // 缓存在定义上，整个进程只解析一次
-            if (idx.Index < 0)
-            {
+            ActionIndexCache idx = state.Index();      // 缓存在定义上（0/负 = 未解析，见 AnimState.Index 的说明）
+            if (idx.Index <= 0)                        // 🔴 0 也要拦：1.3.15 上"查不到"返回的是 0（不是 -1），
+            {                                          //    而 0 = 引擎第 0 号动作（实机上那条是铁匠打铁）
                 if (!_warnedBadAction)
                 {
                     _warnedBadAction = true;
@@ -869,7 +869,7 @@ namespace LivingWorldNpcs.Animation
                                        blendInPeriod: useBlend, blendOutPeriodToNoAnim: 0f,
                                        startProgress: startProgress);
                 if (VerboseOn || TraceOn)
-                    DebugLogger.Log($"[Anim:{_def.Name}] {from} → {state.Name}（{state.Action}）" +
+                    DebugLogger.Log($"[Anim:{_def.Name}] {from} → {state.Name}（{state.Action} #idx={idx.Index}）" +
                                     $" blend={useBlend:F2}{(startProgress > 0f ? $" start={startProgress:F2}" : "")}" +
                                     (forced ? " [强制]" : ""));
 
@@ -972,7 +972,9 @@ namespace LivingWorldNpcs.Animation
             try
             {
                 ActionIndexCache got = agent.GetCurrentAction(0);
-                actual = V.ActionName(got);
+                // 🔴 用 **clip 名**（`V.ClipName`），不用 `ActionIndexCache.GetName()` ——
+                //    后者（索引→动作名反查）在 1.3.15 上是坏的，会报出别人家的动作名（2026-10-12 实锤）。
+                actual = V.ClipName(agent, got);
                 ok = got == want.Index();
             }
             catch (Exception ex)

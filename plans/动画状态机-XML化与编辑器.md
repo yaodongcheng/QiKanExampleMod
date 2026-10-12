@@ -1,4 +1,4 @@
-# 动画状态机：XML 化 + 编辑器（**最新 = 顶部 ⓿⁵ 会话 11 交接（2026-09-28）**）
+# 动画状态机：XML 化 + 编辑器（**最新 = 顶部 ⓿⁶ 会话 12 交接（2026-10-12）**）
 
 > **会话 2** = 把这台状态机做出来（XML 化 + 编辑器，§七~§二十）；
 > **会话 3**（同日）= 工具链归位 + 只删一个渲染器（§二十一）；
@@ -45,6 +45,53 @@
 | 验收口径 = "编译通过 / 规则镜像通过" | 验收口径 = **跑完是不是落了正确的 clip 到 0 号通道** |
 
 > 仍然**要**如实标注"哪条路径没人走过" —— 但那是**状态描述（告诉你先盯哪里）**，**不是挡箭牌**。
+
+---
+
+## ⓿⁶ 会话 12 交接（2026-10-12）· **1.3.15 上"动作名 → 索引"静默失败成 0**（新 session 先看这段）
+
+> **一句话**：飞行时**玩家一直在做铁匠打铁动作**、`act_fly_*` 全不生效。查了两小时，
+> 根因**不在引擎、不在 action set、不在 Controller** —— 是**动作名解析失败返回了 `0`**，
+> 而 `0` 是引擎第 0 号动作（那条恰好是铁匠），**我们两道防线都只拦负数** ⇒ 全线"自洽"地播错。
+
+**症状（照这个对，能省两小时）**
+- 1.3.15 上飞行动作全不生效，玩家在做**别人的**动作（实机：铁匠打铁）。
+- 🔴 **日志一片正常**：`✓ 生效（通道 0 = …）`、防被抢核对通过、没有 `✗ 被抢走` ——
+  **写入 / 回读 / 校验三方一致**，只有肉眼看得出不对。
+- **手动敲 `custom.do_anim <动作名>` / `custom.anim_meta <动作名>` 全部正确**（播出来是飞行动画、时长正常）
+  ⇒ 极易误判成"引擎抢通道 / action set 被换"，实测两条都不是。
+
+**根因（三步）**
+1. `ActionIndexCache` 两版行为不同：1.2.12 = **class + 懒解析**（首次读 `.Index` 才查表）；
+   1.3.15 = **readonly struct + 创建即解析**（构造里当场定格）。
+2. 🔴 **名字查不到时，1.3.15 的 native 返回 `0`，不是 `-1`** —— 而 0 是**合法索引**（= 引擎第 0 号动作）。
+3. **两道防线都只拦负数**：`AnimState.Index()` 缓存首次解析结果（错误的 0 被**永久缓存**）；
+   `AgentAnimStateMachine.SwitchTo` 用 `if (idx.Index < 0)`（**0 大摇大摆过闸**）。
+
+**修法（已落盘，2026-10-12）**
+- `Animation/AnimMachineRegistry.cs` 的 `AnimState.Index()`：**索引 ≤ 0 一律视为"这次没查到"** ⇒ 不缓存、每次重试。
+- `Animation/AgentAnimStateMachine.cs` 的保护改成 **`<= 0`** ⇒ 走 `动作 '…' 解析为 act_none` 的明确警告。
+
+**新增的两个诊断口径（本会话加，长期留用）**
+- 状态机切换行带**索引号**：`[Anim:flight] - → 进入飞行（act_fly_hoverstart #idx=6189）` —— 一眼看出写进去的是几号。
+- `custom.anim_now`：打"引擎通道里的**索引 + clip 名**"（形如 `ch0=#6189:flight_hoverstart_a(w=1.00)`）；
+  与 `custom.anim_meta`（静态解析，给 `animIdx=` + `clip=`）对一下即可定案。
+
+**同轮连带（同一族 API 里的雷）**
+- `MBActionSet.GetActionDisplacementVector(...)` 在 **1.3.15 上一调就 native 崩**（`0xC0000005` @ `TaleWorlds.Native`，
+  VS 调用栈点名）—— `custom.anim_meta` 原来打它，**已摘除**。同批 `GetActionAnimationContinueToAction` **未单独验证**，要用先实测。
+- ✅ **可靠口径**：`MBActionSet.GetActionAnimationName(set, idx)`（查 clip 名）、`ActionIndexCache.Index`（拿索引）。
+- ⚠️ `ActionIndexCache.GetName()`（索引→**动作名**）与 `GetActionAnimationName`（→**clip 名**）**是两个不同的名字**，别混着对
+  （本机实测：`act_smithing_machine_anvil_part_1` 的 clip 叫 `blacksmith_working_part_2`）。
+
+**教训（已同步进 [rules/pitfalls.md](rules/pitfalls.md)）**：
+**"写入 = 回读 = 校验"三方一致 ≠ 写对了** —— 静默失败成 0 时，整条自洽链会**一起错**且毫无痕迹。
+**凡"自定义名字 → 引擎 id"的解析，判据里必须含「0 / 哨兵值也算失败」。**
+
+**遗留（下一步 · 未解）**：`Controller=AI + SetIsAIPaused(true)` 这套冻结在 1.3.15 上**按 WASD 玩家仍会移动**。
+已排除"闸门逻辑变了"（两版的 `IsAIControlled` 与 `OnPreMissionTick` 逐字相同、日志确为 `Controller=AI paused=True`）
+⇒ **闸门之外还有东西在写玩家输入/位移**。待办：开 `custom.flight log on` 飞一次并按 WASD，
+用 `[Flight-Diag]` 的 `playerVel` 分清「输入漏入 / AI 在带他走 / 板跑了」三种情况再动手。
 
 ---
 

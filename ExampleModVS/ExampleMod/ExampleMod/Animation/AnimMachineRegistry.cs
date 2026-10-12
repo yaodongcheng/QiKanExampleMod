@@ -44,12 +44,26 @@ namespace LivingWorldNpcs.Animation
         // 引擎动作名 → 索引的解析是**懒的**（`ActionIndexCache.Create` 每次给一个新实例，首次取 Index 才去查表），
         // 所以缓存必须在**定义**这一层做：一份定义整个进程只解析一次，与"多少个 agent 在跑"无关。
         private ActionIndexCache _index;
+        private bool _indexResolved;
 
-        /// <summary>取引擎动作索引（首次调用解析，之后直接命中）。</summary>
+        /// <summary>
+        /// 取引擎动作索引（首次调用解析，之后直接命中）。
+        ///
+        /// ⚠️🔴 **2026-10-12 加固：索引 ≤ 0 一律视为"这次没查到"，不缓存、每次重试。**
+        ///    1.3.15 实测：动作名查不到时 native 返回的是 **0**（**不是** -1）——
+        ///    而 0 恰好是引擎第 0 号动作（实机上那条 = `act_smithing_machine_anvil_part_1` 铁匠打铁）。
+        ///    照旧缓存 + 上层只拦 `Index &lt; 0` ⇒ 后果是一路静默播错：
+        ///    写入 0、回读也是 0，`✓ 生效` 与"防被抢"核对**全部通过**，日志看着一切正常
+        ///    （2026-10-12 "飞行时在做打铁动作"整整查了两小时的实录）。
+        ///    不缓存 + 重试 ⇒ 动作表一旦就绪就自动纠正；表真缺了则每次都会走警告分支。
+        /// </summary>
         internal ActionIndexCache Index()
         {
-            if (_index == null)
+            if (!_indexResolved || _index.Index <= 0)
+            {
                 _index = ActionIndexCache.Create(Action);
+                _indexResolved = true;
+            }
             return _index;
         }
 

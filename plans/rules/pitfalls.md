@@ -1819,3 +1819,44 @@ subModule2.OnMissionBehaviorInitialize(this);       // ← 各模块在这一步
   **`内缘`（= 横偏 − 半径）< 0 = 圆扫进躯干/腿**（那是遮挡，不是渲染）;
 - 「**手源换路**」事件日志（路径标签一变落一条 + 0.5 s 节流）—— **自动**记下"哪一刻换了读数来源"，不用守着抓帧；
 - 判"看不见"的顺序：先 `shown` → 再 `actual` vs `pos` → **全对却看不见 = 位置本身错了（掉兜底）**，别去查渲染。
+
+---
+
+## 🔴 自定义动作"静默播成别人的动画"（飞行时在做铁匠打铁）→ 查不到的索引是 **0**，不是 -1（2026-10-12，1.3.15 实机）
+
+**症状**
+- 1.3.15 上飞行时玩家**一直在做铁匠打铁动作**，`act_fly_*` 全不生效。
+- 🔴 **日志却一片"正常"**：`✓ 生效（通道 0 = …）`、防被抢核对通过、没有 `✗ 被抢走` ——
+  写入/回读/校验**三方一致**，只有**肉眼**看得出不对。
+- **手动敲 `custom.do_anim <动作名>` / `custom.anim_meta <动作名>` 全部正确**（播出来是飞行动画、时长 1.50s）⇒
+  极易误判成"引擎抢通道 / action set 被换"，实测两条都不是。
+
+**根因（三步，逐条实测）**
+1. **`ActionIndexCache` 两版行为不同**：1.2.12 = **class + 懒解析**（`Create` 只存名字，首次读 `.Index` 才查表）；
+   1.3.15 = **readonly struct + 创建即解析**（构造函数里就查表、当场**定格**）。
+2. 🔴 **名字查不到时，1.3.15 的 native 返回 `0`，不是 `-1`** —— 而 `0` 是**引擎第 0 号动作**的**合法**索引
+   （本机那条 = `act_smithing_machine_anvil_part_1` → clip `blacksmith_working_part_2` ⇒ 看到的"打铁"就是它）。
+3. **我们两道防线都只拦负数**：`AnimState.Index()` 用 `if (_index == null)` 缓存首次解析结果（**错误的 0 被永久缓存**）；
+   `AgentAnimStateMachine.SwitchTo` 用 `if (idx.Index < 0)`（**0 大摇大摆过闸**）。
+   ⇒ 写入 0、回读 0、`got == want` 为真 ⇒ 校验与防抢**全部通过**。
+
+**一眼定位（2026-10-12 起已内置）**
+- 状态机切换行带**索引号**：`- → 进入飞行（act_fly_hoverstart #idx=0）` —— **`#idx=0` 就是它**；
+  正解查 `custom.anim_meta act_fly_hoverstart`（本机 `animIdx=6189`）。
+- `custom.anim_now` 打"**索引 + clip 名**"：`ch0=#0:blacksmith_working_part_2(w=1.00)` —— 两边一对即知。
+
+**修法（已落盘）**
+- `AnimState.Index()`：**索引 ≤ 0 一律视为"这次没查到"** ⇒ 不缓存、每次重试（动作表一旦就绪就自动纠正）。
+- `SwitchTo` 的保护改 **`<= 0`** ⇒ 走 `动作 '…' 解析为 act_none` 的**明确警告**，不再静默播错。
+
+**同轮连带（同一族 API 里的雷）**
+- `MBActionSet.GetActionDisplacementVector(...)` 在 **1.3.15 上一调就 native 崩**
+  （`0xC0000005` @ `TaleWorlds.Native`，读地址 0x8；VS 调用栈点名）—— `custom.anim_meta` 原来打它，**已摘除**。
+  **同批的 `GetActionAnimationContinueToAction` 未单独验证，启用前先在 1.3.15 实测一次。**
+- ✅ **可靠口径**：`MBActionSet.GetActionAnimationName(set, idx)`（查 clip 名）、`ActionIndexCache.Index`（拿索引）。
+  ⚠️ `ActionIndexCache.GetName()`（索引→动作名反查）与 `GetActionAnimationName`（查 clip 名）**是两个不同的名字**，
+  别混着对（本机实测：`act_smithing_machine_anvil_part_1` 的 clip 叫 `blacksmith_working_part_2`）。
+
+**教训**：**"写入 = 回读 = 校验"三方一致 ≠ 写对了** —— 当"名字 → 引擎 id"这一步**静默失败成 0** 时，
+整条自洽链会**一起错**，而且错得毫无痕迹。
+**凡"自定义名字 → 引擎 id"的解析，判据里必须包含「0 / 哨兵值也算失败」。**

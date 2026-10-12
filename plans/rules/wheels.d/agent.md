@@ -860,3 +860,38 @@ if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静�
    ② 「**手源换路**」事件日志（路径标签一变落一条 + 0.5 s 节流）—— **自动**记下"哪一刻换了读数来源"；
    ③ 判"看不见"的顺序 = `shown` → `actual` vs `pos` → **三者全对却看不见 = 位置本身错了**。
    命令：`custom.grapple spinlog 1 5`（边玩边录，如边走边录）。
+
+## 🔴🔴 动作名 → 索引解析失败 = **0**（不是 -1）—— 症状 = "写入/回读/校验全过"却**在播别人的动作**（2026-10-12 实机，1.3.15）
+
+> **实机**：1.3.15 上飞行时玩家**一直在做铁匠打铁动作**，`act_fly_*` 全不生效；
+> 而日志**一片正常**：`✓ 生效（通道 0 = …）`、防被抢核对通过、没有 `✗ 被抢走`。
+> 手动 `custom.do_anim` / `custom.anim_meta` **全对** ⇒ 极易误判成"引擎抢通道 / action set 被换"，两条都试过、都不是。
+
+1. 🔴 **`ActionIndexCache` 两版行为不同，`Create` 的时机含义变了**：
+   1.2.12 = `class` + **懒解析**（`Create` 只存名字；首次读 `.Index` 才查表）；
+   1.3.15 = `readonly struct` + **创建即解析**（构造函数里就 `MBAnimation.GetActionCodeWithName` 并**当场定格**）。
+   ⇒ **1.2.12 上"Create 得早"无害；1.3.15 上"Create 得早 = 定格得早"** —— 表没就绪就永久拿错值（调用方再一缓存就锁死）。
+2. 🔴🔴 **名字查不到时 native 返回 `0`，不是 `-1`** —— 而 `0` 是**引擎第 0 号动作的合法索引**
+   （本机那条 = `act_smithing_machine_anvil_part_1` → clip `blacksmith_working_part_2`，就是"打铁"）。
+   `act_none` 才是 `-1`。⇒ **判据必须写 `idx.Index <= 0`**（只判 `< 0` 会放 0 过闸），**且不要把 0 缓存起来**。
+   范本 = `Animation/AnimMachineRegistry.cs` 的 `AnimState.Index()`（≤0 视为"没查到"、每次重试）
+   + `Animation/AgentAnimStateMachine.cs` 的 `SwitchTo`（`<= 0` 走"解析为 act_none"的明确警告）。
+3. 🔴 **"写入 = 回读 = 校验"三方一致 ≠ 写对了**：静默失败成 0 时，写入 0 / 回读 0 / `got == want` **全部通过**，
+   只有肉眼看得见不对。**凡"自定义名字 → 引擎 id"的解析，判据里必须含「0 / 哨兵值也算失败」。**
+4. **两个名字口径别混**：`ActionIndexCache.GetName()`（= 1.2.12 的 `.Name` 属性）= **动作名**；
+   `MBActionSet.GetActionAnimationName(set, idx)` = **该 set 里这条动作绑的 clip 名**。同一条动作两者可以完全不同
+   （`act_smithing_machine_anvil_part_1` ↔ `blacksmith_working_part_2`），**拿哪个去对会得出相反结论**。
+5. ⚠️ **1.3.15 上一调就崩的兄弟方法**：`MBActionSet.GetActionDisplacementVector(set, idx)` → `0xC0000005` @ `TaleWorlds.Native`
+   （VS 调用栈点名，读地址 0x8）；同批 `GetActionAnimationContinueToAction` **未单独验证**，要用先实测。
+   ✅ 实测安全：`GetActionAnimationName` / `GetActionAnimationDuration` / `GetAnimationIndexOfAction` /
+   `GetActionAnimationFlags` / `GetActionBlendOutStartProgress`。
+   教训：**C# 能编过 ≠ native 能调** —— 换版本时这类薄壳 API 要单独实测一轮。
+
+**诊断口径（本会话新加，长期留用）**
+- 状态机切换行带**索引号**：`[Anim:flight] - → 进入飞行（act_fly_hoverstart #idx=6189）` —— 一眼看出写进去的是几号；
+  正解查 `custom.anim_meta <动作名>`（给 `animIdx=` + `clip=`）。
+- `custom.anim_now`：打"引擎通道里的**索引 + clip 名**"（形如 `ch0=#6189:flight_hoverstart_a(w=1.00)`）——
+  与 `anim_meta` 一对照即可分清「是我们写错了 / 还是引擎真换了动作」。
+- 详情：[Knowledge/骑砍2骨骼级动画API与运行时姿势合成.md](../../../Knowledge/骑砍2骨骼级动画API与运行时姿势合成.md) §七 ·
+  坑点：[pitfalls.md](../pitfalls.md)「自定义动作静默播成别人的动画」·
+  plan：[动画状态机-XML化与编辑器.md](../../../plans/动画状态机-XML化与编辑器.md) ⓿⁶

@@ -83,11 +83,22 @@
      🔴 本文件里【不许出现连续两个减号】：XML 注释里那是非法字符，整个文件解析失败、引擎启动即崩。 -->
 	<game_entity name="lwn_flight_sigil" old_prefab_name="">
 		<children>
-			<!-- 承载：只负责"托人" —— 🔴 **完全没有网格 = 零几何，肉眼绝对看不见**（不是"缩得很小"，是没有东西可画）。
+			<!-- 承载：只负责"托人" —— 🔴 **完全没有网格 = 零几何**（不是"缩得很小"，是没有东西可画）。
 			     scale 只压 X/Y —— 板一升就把旁边的路人一起带飞，就是从这块 5 米大板来的。 -->
 			<game_entity name="lwn_flight_sigil_body" old_prefab_name="">
 				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="0.300, 0.300, 1.000"/>
 				<physics shape="bo_wooden_platform_a" mass="1.000"/>
+			</game_entity>
+			<!-- 视觉：法阵（2026-10-12 加回 —— 用户要"看得见自己踩在什么上"，也是排查问题的肉眼判据）。
+			     🔴 与承载件【分成两个实体】是有意为之：可见性开关只隐藏这一件，物理体一个字都不动。
+			        曾经把"承载物本身"隐藏掉（2026-09-21），结果碰撞一起没了、主角当场摔死 —— 那条路是死的。
+			     position z = 0.400：物理体顶面在原点上方 0.37，抬到 0.40 = 贴着脚底上面一点。
+			     rotation_euler 1.571：把网格从"竖着"扳成"躺平"（2026-09-21 试出来的值，不是算出来的）。 -->
+			<game_entity name="lwn_flight_sigil_mesh" old_prefab_name="">
+				<transform position="0.000, 0.000, 0.400" rotation_euler="1.571, 0.000, 0.000"/>
+				<components>
+					<meta_mesh_component name="lwn_flight_sigil"/>
+				</components>
 			</game_entity>
 		</children>
 	</game_entity>
