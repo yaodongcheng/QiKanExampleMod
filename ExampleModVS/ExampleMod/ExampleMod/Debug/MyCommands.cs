@@ -368,7 +368,7 @@ namespace LivingWorldNpcs
                     actionName,
                     MBActionSet.GetActionAnimationName(agent.ActionSet, idx) ?? "?",
                     MBActionSet.GetActionAnimationDuration(agent.ActionSet, idx),
-                    MBActionSet.GetAnimationIndexOfAction(agent.ActionSet, idx),
+                    MBActionSet.GetAnimationIndexOfAction(agent.ActionSet, idx), 
                     f,
                     (flags.HasAnyFlag(AnimFlags.anf_cyclic) ? 1 : 0),
                     (flags.HasAnyFlag(AnimFlags.anf_enforce_lowerbody) ? 1 : 0),

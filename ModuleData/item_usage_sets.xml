@@ -26,7 +26,8 @@
 	             上弦链断 ⇒ 左键完全无反应）；2026-10-07 起 = `act_grapple_reload`，动画 = `grapple_ground_recover`
 	             （一次性 1.167 s，**无 keep / 无 cyclic** —— 装填流程要等动作收尾；先前错绑 `ready`（带 keep）
 	             曾导致"按住左键无法瞄准"，见 action_sets.xml 那条注释）⇒ 拔钩索时不再演"拉弓搭箭"。
-	         骑马那条保持原版（骑马不可用；马上播站姿会怪 —— 同 tk_firearm 的做法）。
+	         骑马那条 **2026-10-13 也换成自家动作了** —— 原写"骑马不可用；马上播站姿会怪"，
+	         该顾虑已推翻（下半身归骑乘层、与武器动作无关，详见下面骑马 usage 那段注释）。
 	       · 🔴 待机（`<idles>`，2026-10-07 试跑）= 两条组**都**指向 `act_grapple_idle`
 	         （= hold 那条 clip 的另一个动作名，声明见 action_sets.xml / action_types.xml）。
 	         为什么两处都改：站姿到底认**武器组**还是**弹药组**尚未实证（两边的 idle 原来都写
@@ -252,13 +253,22 @@
 				is_mounted="False"
 				require_free_left_hand="False"
 				strike_type="thrust" />
+			<!-- 骑马（2026-10-13 改）：不再借弓的骑马版，改用**自家地面动作**。
+			     依据 ① = 原版**弩**就是这么做的：它骑马那条 usage 的 ready / release / 瞄准
+			             全指向 `act_*_crossbow`（地面动作），只有 reload 另有骑马版；
+			     依据 ② = 全库只有**骑乘待机**那条 clip 带 `synch_with_horse` + `enforce_lowerbody`，
+			             武器攻击动作**一条都没有** ⇒ 下半身归骑乘层、武器动作只驱动上半身，
+			             所以地面动作里的站姿腿在马上不生效（原注释"马上播站姿会怪"的顾虑作废）。
+			     回退 = 五条改回 `act_reload_bow_right_horseback` / `act_ready_bow_horseback` /
+			            `act_release_bow_horseback` / `act_ready_continue_bow_horseback` /
+			            `act_ready_continue_bow_shake_horseback`。 -->
 			<usage
 				style="attack_any"
-				reload_action="act_reload_bow_right_horseback"
-				ready_action="act_ready_bow_horseback"
-				release_action="act_release_bow_horseback"
-				ready_continue_ranged_action="act_ready_continue_bow_horseback"
-				ready_continue_shake_action="act_ready_continue_bow_shake_horseback"
+				reload_action="act_grapple_reload"
+				ready_action="act_grapple_ground_ready"
+				release_action="act_grapple_ground_release"
+				ready_continue_ranged_action="act_grapple_ground_hold"
+				ready_continue_shake_action="act_grapple_ground_hold"
 				is_mounted="True"
 				require_free_left_hand="False"
 				strike_type="thrust" />
