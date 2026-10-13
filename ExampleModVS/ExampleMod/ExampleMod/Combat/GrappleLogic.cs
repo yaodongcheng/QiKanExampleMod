@@ -1870,7 +1870,7 @@ namespace LivingWorldNpcs
 		//
 		// ⚠️ 这是**测试夹具**，不是正式玩法逻辑：默认没有任何请求，等于什么都不做。
 
-		private enum HorseReqKind { None, Mount, Dismount }
+		private enum HorseReqKind { None, Mount, Dismount, DownWatch }
 
 		private HorseReqKind _reqKind;
 		private Agent _reqNpc;
@@ -1903,6 +1903,18 @@ namespace LivingWorldNpcs
 			_reqWasAI = wasAI;
 		}
 
+		/// <summary>落马 blow 出手之后的**看结果窗口**（只读数、不下手）：每秒打一行骑手/马的动作，
+		/// 到点给判据行（还在马上 / 已落马 + 引擎选的受击动画）。</summary>
+		public void RequestDownWatch(Agent rider, Agent horse, float seconds)
+		{
+			_reqKind = HorseReqKind.DownWatch;
+			_reqNpc = rider;
+			_reqHorse = horse;
+			_reqTimer = seconds;
+			_reqLogTimer = 0f;
+			_reqWasAI = false;
+		}
+
 		private void TickMountRequest(float dt)
 		{
 			if (_reqKind == HorseReqKind.None || _reqNpc == null)
@@ -1922,13 +1934,36 @@ namespace LivingWorldNpcs
 
 				if (_reqKind == HorseReqKind.Mount)
 				{
-					if (mounted) { FinishHorseRequest("MOUNTED"); return; }
+					if (mounted) { FinishHorseRequest("MOUNTED", ok: true); return; }
+
+					// 🔴 **马被别人骑走了 ⇒ 立刻中止并说清**（2026-10-13 实机）：那天连试三次都"没反应"，
+					//    日志里 `horseHasRider` 从 0 变 1、我们却干等到超时才回一句 "timeout" —— 用户以为是命令失效。
+					Agent horseRider = null;
+					try { horseRider = _reqHorse != null ? _reqHorse.RiderAgent : null; } catch (Exception) { }
+					if (horseRider != null && horseRider != _reqNpc)
+					{
+						string who = "someone else";
+						try { who = horseRider.Name != null ? horseRider.Name.ToString() : who; } catch (Exception) { }
+						FinishHorseRequest($"the horse was taken by {who} -- spawn another one and retry");
+						return;
+					}
+
 					if (_reqTimer <= 0f) { FinishHorseRequest("timeout (still on foot)"); return; }
+					ResendHorseFlag();
 				}
-				else
+				else if (_reqKind == HorseReqKind.Dismount)
 				{
 					if (!mounted) { FinishHorseRequest("DISMOUNTED"); return; }
 					if (_reqTimer <= 0f) { FinishHorseRequest("timeout (still mounted)"); return; }
+					ResendHorseFlag();
+				}
+				else // DownWatch：只读数不下手，到点给判据
+				{
+					if (_reqTimer <= 0f)
+					{
+						FinishHorseRequest("watch done: " + DownWatchVerdict(mounted));
+						return;
+					}
 				}
 
 				// 🔴 **每秒回读**：用来分清"native 把我们设的值清掉了"与"native 收下但不动手"
@@ -1948,7 +1983,11 @@ namespace LivingWorldNpcs
 					}
 					catch (Exception) { }
 					DebugLogger.Log($"[GrappleHorse] {_reqKind} request held: mounted={(mounted ? 1 : 0)}"
-						+ $" controller={SafeController(_reqNpc)}{extra} left={_reqTimer:F1}s");
+						+ $" controller={SafeController(_reqNpc)}{extra}"
+						+ (_reqKind == HorseReqKind.DownWatch
+							? $" clip='{ClipOf(_reqNpc)}' horseClip='{ClipOf(_reqHorse)}'"
+							: "")
+						+ $" left={_reqTimer:F1}s");
 				}
 			}
 			catch (Exception ex)
@@ -1958,12 +1997,66 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>收尾：**把控制权还回去**（引擎会按 Controller 重新挂上 AI 组件）+ 落一行日志。</summary>
-		private void FinishHorseRequest(string why)
+		/// <summary>🔴 **每帧重发上下马旗标**（2026-10-13 调研结论，修"玩家点了没反应"）：
+		/// 玩家侧的一切 `EventControlFlags` **会被输入层每帧清零重建**
+		/// （`MissionMainAgentController` 先 `EventControlFlags = 0` 再按输入重建）⇒ 只点一次 = 下一帧就没了；
+		/// NPC 侧虽然摘了控制器不会被覆写，重发同样幂等无害。
+		/// 重发走 `Agent.Mount(...)` 而不是裸写旗标 —— 它顺手把 `SetInteractionAgent` 也补上（上马那一半需要）。
+		/// ⚠️ 引擎放行下马还有一道"前进速度 &lt; 0.5 m/s 且马不在扬蹄"的门槛（native）—— 重发会一直等到它满足。</summary>
+		private void ResendHorseFlag()
 		{
-			Agent npc = _reqNpc;
 			try
 			{
+				if (_reqKind == HorseReqKind.Mount && _reqHorse != null)
+				{
+					_reqNpc.Mount(_reqHorse);
+				}
+				else if (_reqKind == HorseReqKind.Dismount)
+				{
+					// 🔴 必须传"他正骑着的那匹"——`Agent.Mount()` 的 else 分支（= 下马）只在 `MountAgent == 传入者` 时才点旗标
+					Agent m = _reqNpc.MountAgent;
+					if (m != null) _reqNpc.Mount(m);
+				}
+			}
+			catch (Exception) { }
+		}
+
+		/// <summary>落马 blow 的判据行：他还在马上吗 + 引擎给他选了哪条受击/摔落动画 + 马在做什么。</summary>
+		private string DownWatchVerdict(bool mounted)
+		{
+			string riderClip = ClipOf(_reqNpc), horseClip = ClipOf(_reqHorse), horseAct = "-";
+			try { if (_reqHorse != null) horseAct = _reqHorse.GetCurrentActionType(0).ToString(); } catch (Exception) { }
+			return $"{(mounted ? "STILL MOUNTED (the flag did not take him off)" : "DISMOUNTED")}"
+				+ $" rider-clip='{riderClip}' horse-clip='{horseClip}' horse-action={horseAct}"
+				+ " (expect rider-clip in act_rider_only_fall_* / act_fall_rider_* for a real fall)";
+		}
+
+		/// <summary>读 agent 当前 0 号通道的 clip 名（失败 = "-"）。</summary>
+		private static string ClipOf(Agent a)
+		{
+			try { return a != null ? V.ActName(a, 0) : "-"; } catch (Exception) { return "-"; }
+		}
+
+		/// <summary>收尾：**把控制权还回去**（引擎会按 Controller 重新挂上 AI 组件）+ 落一行日志。
+		/// <paramref name="ok"/> = 这一趟是不是真成了（只有上马用得上：**没成就把我们设的坐骑令撤回**）。</summary>
+		private void FinishHorseRequest(string why, bool ok = false)
+		{
+			Agent npc = _reqNpc;
+			HorseReqKind kind = _reqKind;
+			try
+			{
+				// 🔴 上马没成 ⇒ **撤回我们设的坐骑令**（`horse mount` 给他的 `SetRidingOrder(Mount)` + 选中的马）。
+				//    留着会一直挂在他身上（2026-10-13 实机：那几次失败之后他的 `ridingOrder` 一直是 1）。
+				if (kind == HorseReqKind.Mount && !ok && npc != null && AgentControlHelper.SafeIsActive(npc))
+				{
+					try
+					{
+						npc.SetRidingOrder(RidingOrder.RidingOrderEnum.Free);
+						npc.SetSelectedMountIndex(-1);
+					}
+					catch (Exception) { }
+				}
+
 				if (_reqWasAI && npc != null && AgentControlHelper.SafeIsActive(npc) && !npc.IsAIControlled)
 				{
 					V.SetAgentAI(npc);
@@ -1975,7 +2068,7 @@ namespace LivingWorldNpcs
 				DebugLogger.Log($"[GrappleHorse] 🔴 restoring the controller failed ({ex.GetType().Name}) "
 					+ "—— 那个人会一直没 AI（重进场景可恢复）");
 			}
-			DebugLogger.Log($"[GrappleHorse] {_reqKind} request finished: {why}");
+			DebugLogger.Log($"[GrappleHorse] {kind} request finished: {why}");
 			_reqKind = HorseReqKind.None;
 			_reqNpc = null;
 			_reqHorse = null;

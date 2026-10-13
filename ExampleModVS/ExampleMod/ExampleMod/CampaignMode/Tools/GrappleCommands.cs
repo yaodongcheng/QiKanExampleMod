@@ -1715,7 +1715,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   wrap &lt;秒&gt; [圈数]          缠的时长 / 圈数（默认 0.55 / 1.25）
 		///   anim &lt;lay|cycle|standup|auto&gt;  强制目标播某一段（观感验收；auto = 交回流程）
 		///   panim &lt;动作名|auto&gt;        在**玩家自己**身上试播一个动作（只为选型看一眼；auto = 什么都不做）
-		///   mounted 0|1                 骑马的目标照不照收（默认 on = **拉下马**：点引擎的下马事件，落地才捆）
+		///   mounted 0|1                 骑马的目标照不照收（默认 on = **拉下马**，落地才捆）
+		///   mountedblow 0|1             "拉下马"要不要**同时打一发 `CanDismount` blow**（默认 on）——
+		///                               native 直接执行、**不看马速**（观感 = 被绳扯下来）；关掉只走下马事件（A/B 用）
 		///   diswait &lt;秒&gt;               "拉下马"等他落地的超时（默认 3.0；超时 = 收钩收绳）
 		/// </summary>
 		private static string DoBind(GrappleLogic logic, List<string> args, int at)
@@ -1851,7 +1853,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 						+ " (station bound <-> struggling; no automatic trigger yet -- manual switch)";
 				}
 				// ── 骑马的目标：拉下马（2026-10-13 立）──
-				//    钩住骑手 = 点引擎自己的"下马"事件，等他落地再走"缠 → 倒 → 缚"。
+				//    钩住骑手 = ① 先打一发 CanDismount blow（native 直接执行、不看马速）
+				//               ② 同时反复点引擎自己的"下马"事件兜底（它按马速可能拒收）
+				//    两条都在跑，谁先把他弄下来算谁的；落地再走"缠 → 倒 → 缚"。
 				case "mounted":
 				{
 					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
@@ -1859,8 +1863,18 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					else if (m == "1" || m == "on") { GrappleBind.PullDownMounted = true; }
 					else if (m != null && m != "state") { return "Error: bind mounted expects 0|1"; }
 					return $"OK: pull a mounted target off the horse = {GrappleBind.PullDownMounted}"
-						+ " (on = use the engine's own dismount event, then bind them on foot once they land;"
+						+ " (on = yank the rider off, then bind them on foot once they land;"
 						+ " off = old behavior, the hook just dangles on them)";
+				}
+				case "mountedblow":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleBind.MountedBlow = false; }
+					else if (m == "1" || m == "on") { GrappleBind.MountedBlow = true; }
+					else if (m != null && m != "state") { return "Error: bind mountedblow expects 0|1"; }
+					return $"OK: hand-made CanDismount blow when pulling a rider off = {GrappleBind.MountedBlow}"
+						+ " (on = also fire a hand-made blow that the engine executes regardless of horse speed;"
+						+ " off = engine's dismount event only -- use this for A/B)";
 				}
 				case "diswait":
 				{
@@ -1885,7 +1899,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case "panim":
 					return DoBindPanim(args, at);
 			}
-			return "Error: bind expects on|off|test|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause|mounted|diswait";
+			return "Error: bind expects on|off|test|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause|mounted|mountedblow|diswait";
 		}
 
 		/// <summary>
@@ -2009,9 +2023,18 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		//   custom.grapple horse spawn [数量] [物品id]  在**面前 3 米**刷马（站着不走 —— 自动清掉 CanWander）
 		//   custom.grapple horse mount [#编号|名字|me]  让一个 NPC（或 `me` = 你自己）上最近那匹空马
 		//   custom.grapple horse dismount [#编号|名字]  让骑着的那个落马（**引擎下马事件** = 我们"拉下马"用的同一条）
+		//   custom.grapple horse down [#编号|名字] [blow|rear|kill]  **被动落马**三条路（blow = 掀人 blow / rear = 让马扬蹄 / kill = 杀马）
 		//
 		// 🔴 **mount / dismount 都是异步的**（引擎要演一段上下马动画）⇒ 判据 = 隔一秒再敲一次不带参数的
-		//    `custom.grapple horse`，看状态行变了没有。
+		//    `custom.grapple horse`，看状态行变了没有；`down` 另有一行结论落在运行时日志里
+		//    （`[GrappleHorse] DownWatch request finished: watch done: …`）。
+		//
+		// 🔴 **命令别名口径（2026-10-13 改）**：`fall` / `unhorse` 从"下马"改挂到 **`down`（被动落马）** 上 ——
+		//    "被掀下马"才是这两个词的意思；主动下马一律敲 `dismount`。
+		//
+		// 🔴 **`walkoff` 探针已撤**（2026-10-13，用户裁定"多此一举"）：它只是拿 `AIScriptedFrameFlags.GoWithoutMount`
+		//    （官方马上比武"别骑着过去"那一处的旗标）做的语义探针；"下马 + 移动"我们本来就有两条命令，用不着它。
+		//    旗标本身的知识保留在 Knowledge 骑乘文档 §5.5（哪天要"骑着到地方再自己下马"再回来查）。
 		//
 		// 🔴 测试夹具的两处"开挂"（回执里都会注明，别当成正式行为）：
 		//   ① 目标缺 `AgentFlag.CanRide` 就补上（村民本来一辈子不上马）
@@ -2030,12 +2053,13 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			{
 				case "spawn": return HorseSpawn(args, at);
 				case "mount": case "ride": return HorseMount(args, at);
-				case "dismount": case "fall": case "unhorse": return HorseDismount(args, at);
+				case "dismount": return HorseDismount(args, at);
+				case "down": case "fall": case "unhorse": return HorseDown(args, at);
 				case "rider": return HorseSpawnRider(args, at);
 				case "why": return HorseWhy(args, at);
 				case "state": return HorseState();
 			}
-			return "Error: horse expects spawn|mount|dismount|rider|why|state";
+			return "Error: horse expects spawn|mount|dismount|down|rider|why|state";
 		}
 
 		/// <summary>`custom.grapple horse spawn [数量] [物品id]` —— 在玩家面前刷马（站着不走）。
@@ -2235,13 +2259,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			}
 			catch (Exception) { }
 
-			// 🔴 **把请求按住 6 秒** + 收尾时把控制权还回去（见 `GrappleLogic.TickMountRequest`）。
-			//    玩家不用（他走事件旗标那条）。
-			if (npc != Agent.Main)
-			{
-				try { GrappleLogic.Ensure()?.RequestMount(npc, horse, 6f, wasAI); }
-				catch (Exception) { }
-			}
+			// 🔴 **把请求按住 6 秒**（**每帧重发旗标**）+ 收尾时把控制权还回去（见 `GrappleLogic.TickMountRequest`）。
+			//    🔴 2026-10-13 调研修正：**玩家也要按住** —— 玩家侧的事件旗标会被输入层**每帧清零重建**
+			//    （`MissionMainAgentController` 先 `EventControlFlags = 0` 再按输入重建）⇒ 只点一次 = 下一帧就没了。
+			//    NPC 侧重发同样幂等无害（同一位反复置 1）。
+			try { GrappleLogic.Ensure()?.RequestMount(npc, horse, 6f, wasAI); }
+			catch (Exception) { }
 
 			// 往运行时日志再落一行（回执本身也会被 `[Cmd]` 记，但那行太长不好搜）——
 			// 下次"没反应"先看这行：它把**选中了哪匹马、什么物品、距离、动作、两条路各自的回执**一次打全。
@@ -2264,7 +2287,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				+ $" | controller->None={controllerOff} mount-flag={accepted} riding-order={orderSet}"
 				+ (npc == Agent.Main ? "" : $" (now {orderNow}/sel#{selNow}; kept for 6s)")
 				+ (npc == Agent.Main
-					? ". (you are the player: the engine plays the mount clip now -- re-run 'custom.grapple horse' in a second.)"
+					? ". (you are the player: the mount flag is re-sent every frame for 6s, so just stand next to the horse;"
+						+ " re-run 'custom.grapple horse' in a second.)"
 					: ". (NPC: AI controller taken off so nothing overwrites the mount flag, the engine plays the mount clip"
 						+ " and we hand the AI back when it is done; re-run 'custom.grapple horse' in a few seconds to confirm.)")
 				+ note;
@@ -2302,11 +2326,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			try { set = (npc.EventControlFlags & Agent.EventControlFlag.Dismount) != 0; }
 			catch (Exception) { }
 
-			if (npc != Agent.Main)
-			{
-				try { GrappleLogic.Ensure()?.RequestDismount(npc, 6f, wasAI); }
-				catch (Exception) { }
-			}
+			// 🔴 **玩家也要按住**（2026-10-13 调研）：玩家侧的事件旗标被输入层每帧清零重建 ⇒ 只点一次无效；
+			//    引擎放行下马还有一道"**前进速度 < 0.5 m/s 且马不在扬蹄**"的门槛（native）——
+			//    重发会一直等到它满足（所以骑着跑的时候点它没反应是正常的，勒住马就下来了）。
+			try { GrappleLogic.Ensure()?.RequestDismount(npc, 6f, wasAI); }
+			catch (Exception) { }
 
 			DebugLogger.Log($"[GrappleHorse] dismount: npc={AgentName(npc)}#{npc.Index}"
 				+ $" mount=#{mount.Index} item='{HorseItemIdOf(mount)}' clip-before='{CurrentClipOf(npc)}'"
@@ -2314,10 +2338,85 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
 			return $"OK: pressed the engine's DISMOUNT on {AgentName(npc)}"
 				+ $" (mount #{mount.Index}, item '{HorseItemIdOf(mount)}') | flag set={set}"
-				+ (npc == Agent.Main ? "" : $" | controller->None={controllerOff}")
+				+ (npc == Agent.Main
+					? " | the flag is re-sent every frame for 6s (the engine only lets go when you are slow, <0.5 m/s)"
+					: $" | controller->None={controllerOff}")
 				+ $" | clip-before={CurrentClipOf(npc)}"
 				+ ". He plays act_dismount_horse_to_* and steps off;"
 				+ " re-run 'custom.grapple horse' in a second to confirm." + note;
+		}
+
+		/// <summary>`custom.grapple horse down [#编号|名字] [blow|rear|kill]` —— **被动落马**三条路（2026-10-13 调研产出）：
+		/// · `blow`（默认）= 手搓一发带 `BlowFlags.CanDismount`(0x800) 的 blow 打**骑手** ——
+		///   引擎"被击落"的自然判定层很窄（步下攻击者 + 特定武器 flag + 一串判定），自己置 flag = 替引擎下指令、全部绕开；
+		/// · `rear` = 同样手搓一发、但打**马**、带 `BlowFlags.MakesRear`(0x200) —— 让马扬蹄；
+		/// · `kill` = `Mission.KillAgentCheat(马)` —— **马死掀人是纯 native**，这条验"引擎自己会不会把人摔下来"。
+		/// 判据 = 观察窗到点那一行：骑手 clip 落在 `act_rider_only_fall_*` / `act_fall_rider_*` = 真摔。</summary>
+		private static string HorseDown(List<string> args, int at)
+		{
+			if (Mission.Current == null) return "Error: not in mission.";
+
+			// 🔴 **模式词可以在任意位置**（2026-10-13 实机踩到）：`down rear`（不写目标）与 `down #2 rear` 都要能用。
+			//    早先只认第二个参数是模式 ⇒ `down rear` 把 "rear" 当成"目标名字"（回执里那句
+			//    "nobody named 'rear' -> falling back" 就是它），模式悄悄落回默认 `blow`；
+			//    现场症状 = "敲 rear 没扬蹄、敲 kill 马没死，但人都落马了"（因为两发都变成了打车手的掀人 blow）。
+			string mode = null, targetTok = null;
+			for (int i = 1; i <= 2; i++)
+			{
+				string tok = ArgAt(args, at + i);
+				if (string.IsNullOrEmpty(tok)) continue;
+				string low = tok.ToLowerInvariant();
+				if (low == "blow" || low == "rear" || low == "kill")
+				{
+					if (mode != null && mode != low)
+						return $"Error: down got two modes ('{mode}' and '{low}') -- pick one.";
+					mode = low;
+					continue;
+				}
+				if (targetTok == null) targetTok = tok;
+			}
+			mode = mode ?? "blow";
+
+			Agent npc = ResolveHorseTargetToken(targetTok, true, out string note);
+			if (npc == null) return "Error: no mounted NPC found." + note;
+
+			Agent horse = null;
+			try { horse = npc.MountAgent; } catch (Exception) { }
+			if (horse == null) return $"Error: {AgentName(npc)} is not on a horse (nothing to fall from)." + note;
+
+			if (mode == "kill")
+			{
+				try { Mission.Current.KillAgentCheat(horse); }
+				catch (Exception ex) { return $"Error: KillAgentCheat threw ({ex.GetType().Name}: {ex.Message})."; }
+				try { GrappleLogic.Ensure()?.RequestDownWatch(npc, horse, 4f); } catch (Exception) { }
+				DebugLogger.Log($"[GrappleHorse] down kill: horse #{horse.Index} killed (item '{HorseItemIdOf(horse)}')"
+					+ $" -> watching whether the engine throws rider #{npc.Index} off by itself");
+				return $"OK: killed horse #{horse.Index} (item '{HorseItemIdOf(horse)}')"
+					+ $" -- the engine should throw {AgentName(npc)} off on its own (pure native)."
+					+ " Watch it happen; the verdict line lands in the log in ~4s"
+					+ " (or re-run 'custom.grapple horse' to see the state)." + note;
+			}
+
+			// blow / rear：手搓 blow（引擎侧实现在 GrappleBind.FireDismountBlow，配方与已验证的击退 blow 同源）
+			bool rear = mode == "rear";
+			Agent victim = rear ? horse : npc;
+			string err = GrappleBind.FireDismountBlow(victim, rear, 60f);
+			if (err != null) return $"Error: the hand-made blow failed ({err}).";
+
+			try { GrappleLogic.Ensure()?.RequestDownWatch(npc, horse, 5f); } catch (Exception) { }
+
+			DebugLogger.Log($"[GrappleHorse] down {mode}: victim={AgentName(victim)}#{victim.Index}"
+				+ $" flag={(rear ? "MakesRear" : "CanDismount")} damage=60 (victim kept Immortal)"
+				+ $" riderOnHorse={(npc.MountAgent != null ? 1 : 0)}"
+				+ $" riderClip='{CurrentClipOf(npc)}' horseClip='{CurrentClipOf(horse)}'");
+
+			return $"OK: fired a hand-made blow at {(rear ? "the HORSE" : AgentName(npc))}"
+				+ $" with BlowFlags.{(rear ? "MakesRear" : "CanDismount")} (damage 60; the victim is kept Immortal so no HP is lost)"
+				+ $" | rider-on-horse={npc.MountAgent != null} riderClip={CurrentClipOf(npc)} horseClip={CurrentClipOf(horse)}"
+				+ ". The verdict line lands in the log in ~5s"
+				+ " ('[GrappleHorse] DownWatch request finished: watch done: ...')"
+				+ " -- rider-clip in act_rider_only_fall_* / act_fall_rider_* means the engine really took him off."
+				+ " NOTE: the blow walks the real hit pipeline (OnAgentHit fires), so witnesses/alerts may record it." + note;
 		}
 
 		/// <summary>`custom.grapple horse` —— 状态行（mount / dismount 都是异步的，隔一秒再敲一次就是判据）。
@@ -2736,6 +2835,17 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			}
 			catch (Exception) { }
 			return best;
+		}
+
+		/// <summary>
+		/// 同上，但**目标 token 由调用方直接给** —— 给 `down` 这种"模式词可能与目标词换位"的命令用
+		/// （`custom.grapple horse down rear` = 模式在前、无目标）。实现 = 包成单元素列表复用上面那个解析器，
+		/// 不复制任何匹配逻辑。
+		/// </summary>
+		private static Agent ResolveHorseTargetToken(string tok, bool preferMounted, out string note)
+		{
+			var one = new List<string> { tok ?? "" };
+			return ResolveHorseTarget(one, 0, preferMounted, out note);
 		}
 
 		/// <summary>

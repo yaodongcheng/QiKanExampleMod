@@ -67,6 +67,9 @@
 		<!-- 进机（从机外进来的边**只能**是事件驱动；实际触发在 C#） -->
 		<edge from="outside" to="受击" when="bind-hit" event="true" />
 		<edge from="outside" to="站缚" when="bind-hold" event="true" />
+		<!-- 🔴 被绳扯下马那条（2026-10-13）：骑马目标是被 CanDismount blow 掀下来的 ⇒ 跳过
+		     「缠/受击/站缚」，直接把「拉倒」这一拍播出来（C# 侧 = GrappleBind.BeginYankFromFall） -->
+		<edge from="outside" to="拉倒" when="yank-trigger" event="true" />
 
 		<!-- 站缚 ⇄ 挣扎 -->
 		<edge from="站缚" to="挣扎" when="bind-struggling" />

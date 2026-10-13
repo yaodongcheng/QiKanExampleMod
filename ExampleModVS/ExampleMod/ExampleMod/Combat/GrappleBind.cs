@@ -128,14 +128,23 @@ namespace LivingWorldNpcs
 		/// <summary>
 		/// **骑马的目标照收 —— 钩住骑手 = 把他拉下马**（`custom.grapple bind mounted 0|1`，默认开）。
 		///
-		/// 手法 = 引擎自己的**下马事件**（`Agent.EventControlFlags |= Agent.EventControlFlag.Dismount`；
-		/// 反编译实证 `Agent.Mount()` 内部就是这么下马的）⇒ 他演一段"翻身下马"，
+		/// 手法 = **两条一起跑**（2026-10-13 改口径，加第 ① 条）：
+		///   ① **`CanDismount` blow**（见 <see cref="MountedBlow"/>）：native 直接执行、**不看马速** ——
+		///      观感是"绳一绷被扯下来"（走 `act_rider_only_fall_*` 那族），这是"拉下马"想要的那版；
+		///   ② 引擎自己的**下马事件**（`Agent.EventControlFlags |= EventControlFlag.Dismount`）兜底 ——
+		///      它按马速可能拒收（`DismountVelocityLimit = 0.5f`），但目标慢下来时一定收。
 		/// **脚一落地**才接"缠 → 倒 → 缚"（骑在马上时那一套位移/姿势全对不上，必须先下来）。
 		/// 关掉 = 回到旧行为（钩挂在他身上、什么都不发生）。
-		/// 🔴 代价说明：演的是**正常下马动作**，不是"被绳子扯下来"。要换成"摔下马"那版
-		/// （引擎击退 blow 的 `DecideAgentDismountedByBlow`）是另一条路，方案 §13.5 里列着。
 		/// </summary>
 		public static bool PullDownMounted = true;
+
+		/// <summary>
+		/// 拉下马时**要不要同时打一发 `CanDismount` blow**（`custom.grapple bind mountedblow 0|1`，默认开）。
+		/// 关掉 = 只走下马事件那条（老行为，A/B 对照用）。
+		/// 🔴 代价（与勾人的击退 blow 同款，已知并接受）：走真实打击管线 ⇒ `OnAgentHit` 会广播
+		/// （犯罪/警戒可能记账）、目标会演一下受击反应；血不掉（临时 Immortal）。
+		/// </summary>
+		public static bool MountedBlow = true;
 
 		/// <summary>**等他下马的超时**（秒）—— 超时就不捆了（收钩收绳），别把人晾在那儿。</summary>
 		public static float DismountTimeoutSeconds = 3.0f;
@@ -239,6 +248,7 @@ namespace LivingWorldNpcs
 		private float _boundTimer;
 		private float _dismountTimer;        // "拉下马"那一相的计时（超时用）
 		private float _dismountRetry;        // 下马事件的重发节拍
+		private bool _dismountBlowFired;     // 这一相里那发 CanDismount blow 有没有真的出手（判据行用）
 		private string _note = "-";
 
 		// ── 状态机（2026-10-10）：一台机管"被绑者的一生"，本文件只填上下文 + 按时刻 Force ──
@@ -404,8 +414,11 @@ namespace LivingWorldNpcs
 			_hookPos = hitPoint;
 			_hookDir = (target.Position - hitPoint).NormalizedCopy();
 
-			// 🔴 **骑马的目标：先拉下马**（2026-10-13）。这一相里我们只做一件事 ——
-			//    反复点他的"下马"事件，等他自己落地（见 TickDismounting）。
+			// 🔴 **骑马的目标：先拉下马**（2026-10-13）。这一相里我们只做两件事 ——
+			//    ① **先打一发 `CanDismount` blow**（`MountedBlow` 开着时）：native 直接执行、**不看马速**，
+			//       观感就是"被绳一绷扯下来"（走 `act_rider_only_fall_*` 那族）；
+			//    ② 同时照旧**反复点他的"下马"事件**兜底（引擎那条按马速可能拒收：`DismountVelocityLimit = 0.5f`）
+			//       —— 两条都在跑，谁先把他弄下来算谁的（见 TickDismounting）。
 			//    ⚠️ **不冻他的 AI**：下马事件是引擎处理的，先不动 AI 少一层不确定；
 			//       进入"缠"那一刻再冻（BeginWrapping 里那行）。
 			if (mounted)
@@ -415,7 +428,24 @@ namespace LivingWorldNpcs
 				_dismountRetry = 0f;
 				_note = "pulling the rider off the horse";
 				TriggerDismount(target);
-				DebugLogger.Log($"[Grapple] 拉下马：命中骑马目标（{SafeName(target)}）⇒ 已点「下马」"
+				string blowNote = "";
+				_dismountBlowFired = false;
+				if (MountedBlow)
+				{
+					// 方向 = 从目标指向我们（绳在往这边扯）；失败不影响流程，下马事件那条还在兜底
+					Vec3 towardAttacker = Vec3.Zero;
+					try
+					{
+						if (attacker != null) towardAttacker = (attacker.Position - target.Position);
+					}
+					catch (Exception) { }
+					string blowErr = FireDismountBlow(target, rear: false, damage: BlowDamage, dirToward: towardAttacker);
+					_dismountBlowFired = blowErr == null;
+					blowNote = blowErr == null
+						? $"，并已发一发 CanDismount blow（力度 {BlowDamage:F0}，目标临时无敌不掉血）"
+						: $"，但 blow 出手失败（{blowErr}，只走下马事件）";
+				}
+				DebugLogger.Log($"[Grapple] 拉下马：命中骑马目标（{SafeName(target)}）⇒ 已点「下马」{blowNote}"
 					+ $"，等他落地再接「缠 → 倒 → 缚」（超时 {DismountTimeoutSeconds:F1}s）");
 				return true;
 			}
@@ -566,8 +596,15 @@ namespace LivingWorldNpcs
 
 			if (!mounted)
 			{
-				DebugLogger.Log($"[Grapple] 拉下马：'{SafeName(_target)}' 已落地（耗时 {_dismountTimer:F2}s）⇒ 接「缠 → 倒 → 缚」");
-				BeginWrapping();
+				// 判据行：耗时 + **这一相里哪条路在场**（blow 已发 / 只走下马事件）——
+				// 实机 A/B（`bind mountedblow 0|1`）就看这两行。
+				DebugLogger.Log($"[Grapple] 拉下马：'{SafeName(_target)}' 已落地（耗时 {_dismountTimer:F2}s"
+					+ (_dismountBlowFired ? "，本相已发 CanDismount blow" : MountedBlow ? "，blow 未出手（只走下马事件）" : "，只走下马事件（mountedblow 关）")
+					+ (_dismountBlowFired
+						? "）⇒ 他是被绳扯下来的 ⇒ 跳过「缠/受击/站缚」，直接进「拉倒」"
+						: "）⇒ 接「缠 → 倒 → 缚」"));
+				if (_dismountBlowFired) BeginYankFromFall();
+				else BeginWrapping();
 				return BindEvent.None;
 			}
 
@@ -611,6 +648,58 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
+		/// **把"被捆"这件事写进他的旗标与脑**（<see cref="EnterCrash"/> 与"被扯下马直接拉倒"两条路共用）：
+		/// ① 脚本旗标压制（`DoNotRun | NoAttack`）② `IsBound` 脑标记 ③ 脑事件 `event_agent_bound`。
+		/// 🔴 **标记必须直接置一份**（2026-10-09 加固；事件只当"叙述 + 占位"用）：战斗场景里
+		/// `SendEventToAgent` 会**整体早退**（IsInteractionDisabled）⇒ 只靠事件的话，"被捆"在战斗里
+		/// 对脑完全不可见（`bind state` 也会显示 bound=False，误导排查）。
+		/// </summary>
+		private void MarkTargetBound()
+		{
+			try
+			{
+				_target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
+			}
+			catch (Exception) { }
+
+			try
+			{
+				var markBrain = AgentAIController.GetBrainForAgent(_target);
+				if (markBrain != null) markBrain.IsBound = true;
+			}
+			catch (Exception) { }
+
+			try
+			{
+				AgentAIController.Instance?.SendEventToAgent(_target, "event_agent_bound", _attacker);
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 勾人：脑事件发送失败（{ex.GetType().Name}）—— 继续（旗标已压制）");
+			}
+		}
+
+		/// <summary>
+		/// 🔴 **被绳扯下马 ⇒ 直接进「拉倒」**（2026-10-13 实机反馈，用户口径）：
+		/// 骑马目标是被 `CanDismount` blow **掀下来**的 —— 再走"缠 0.55s → 受击 1.7s → 站缚"是多余的，
+		/// 他本来就是**被绳拽下来的**：直接接"绷住 → 猛拽 → 倒"三段（<see cref="EnterYank"/>），落点 = 趴缚循环。
+		/// ⚠️ 依赖状态机里那条 `outside → 拉倒` 的边（`ModuleData/statemachines/bind.xml`）。
+		/// </summary>
+		private void BeginYankFromFall()
+		{
+			SetTargetAIPaused(_target, true);
+			MarkTargetBound();
+			if (_machine == null)
+			{
+				_ctx = new BindAnimContext();
+				_machine = AnimMachineRegistry.Create(BindAnimMachine.Name, _ctx);
+			}
+			_ctx.Released = false;
+			DebugLogger.Log($"[Grapple] 拉下马：'{SafeName(_target)}' 是被 blow 掀下来的 ⇒ 跳过「缠/受击/站缚」，直接进「拉倒」");
+			EnterYank();
+		}
+
+		/// <summary>
 		/// **缠完那一刻**：从"过程"进"已捆"。
 		///
 		/// 🔴 **2026-10-10 改口径**（用户拍板）：命中**不再自动把人拽倒**，改成播 `binded_crash`
@@ -634,30 +723,7 @@ namespace LivingWorldNpcs
 			ForceEvent(BindAnimConditions.HitTrigger);
 
 			// AI 压制：脚本旗标 + 脑事件（同击晕那套；先把旗标打上，免得 AI 在事件到达前抢动画通道）
-			try
-			{
-				_target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
-			}
-			catch (Exception) { }
-
-			// 🔴 **标记直接置一份**（2026-10-09 TODO 2 加固；事件只当"叙述 + 占位"用）：
-			//    战斗场景里 `SendEventToAgent` 会**整体早退**（IsInteractionDisabled）⇒ 只靠事件的话，
-			//    "被捆"这件事在战斗里对脑完全不可见（`bind state` 也会显示 bound=False，误导排查）。
-			try
-			{
-				var markBrain = AgentAIController.GetBrainForAgent(_target);
-				if (markBrain != null) markBrain.IsBound = true;
-			}
-			catch (Exception) { }
-
-			try
-			{
-				AgentAIController.Instance?.SendEventToAgent(_target, "event_agent_bound", _attacker);
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.Log($"[Grapple] 勾人：脑事件发送失败（{ex.GetType().Name}）—— 继续（旗标已压制）");
-			}
+			MarkTargetBound();
 
 			DebugLogger.Log($"[Grapple] 勾人：捆缚成立（{_target.Name}）—— 受击 {BindAnimConditions.HitTrigger}"
 				+ " → 站缚（稳态）。AI 接管 = 脑标记 IsBound + BoundAction 占位（不接命令 / 不参战 / 不围观；解绑后立刻恢复），"
@@ -865,9 +931,97 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>Blow 模式的结果读数：引擎到底推没推、推了多远、往哪边 —— 这是这条 A/B 的判据。</summary>
-		private void LogBlowResult()
+		/// <summary>
+		/// **手搓一发"掀下马 / 让马扬蹄"的 blow**（`custom.grapple horse down blow|rear` 的引擎侧，2026-10-13）。
+		///
+		/// 为什么要手搓：引擎的**自然路径很窄** —— `CanWeaponDismount` 只认「**步下**攻击者 + 挥砍 + `WeaponFlags.CanHook`」
+		/// 或「戳刺 + `WeaponFlags.CanDismount`」，再过 `DecideAgentDismountedByBlow`（不能打死 + 没被 ShrugOff + 穿透 vs 抗性）。
+		/// 而 `BlowFlags.CanDismount` / `BlowFlags.MakesRear` 在**托管层只写不读**（唯二写点都在 `Mission` 构造 blow 处）
+		/// ⇒ 我们自己往 blow 上置这两位，就等于**替引擎下"把他掀下去 / 让马扬蹄"这道指令**，上面那整套判定全部绕开。
+		///
+		/// 门槛链（反编译实锤）：`Agent.RegisterBlow` → `HandleBlow`，**唯一硬门槛 = `InflictedDamage &gt; 0`**
+		/// （所以照 <see cref="FireYankBlow"/> 的老办法：临时 Immortal 顶着，伤害数只当力度、血一滴不掉）→
+		/// `Mission.OnAgentHit` 广播 → `HandleBlowAux(ref b)`（**native 在这里读 flag**）。
+		/// ⚠️ 两个已知代价：① 走 `Agent.RegisterBlow` **不触发** `MissionBehavior.OnRegisterBlow`（那个只在原生管线里调），
+		/// 但**会**触发 `OnAgentHit`（犯罪/警戒体系可能记账）；② native 内部还会不会有别的条件 —— **读不到，只能实机验**
+		/// （判据 = 引擎选的受击动画落在 `act_rider_only_fall_*` / `act_fall_rider_*`）。
+		/// </summary>
+		/// <param name="victim">挨打的那个：掀人 = **骑手**；扬蹄 = **马**。</param>
+		/// <param name="rear">true = 给**马**发 `MakesRear`（扬蹄）；false = 给**骑手**发 `CanDismount`（掀下马）。</param>
+		/// <param name="damage">力度（写进 blow 的伤害数；Immortal 顶着所以不扣血）。</param>
+		/// <param name="dirToward">推他的方向（世界系水平向量）；留空（`default`）= 自动 ——
+		/// 掀人用"从他右手侧"，扬蹄用"正面顶"（照自然路径的条件）。拉下马时传"目标 → 我们"，读感是"被绳扯下来"。</param>
+		/// <returns>null = 已出手；非 null = 出错原因（命令直接回给用户）。</returns>
+		public static string FireDismountBlow(Agent victim, bool rear, float damage, Vec3 dirToward = default(Vec3))
 		{
+			if (victim == null) return "no victim";
+			Agent.MortalityState prev = Agent.MortalityState.Mortal;
+			bool hadPrev = false;
+			try { prev = victim.CurrentMortalityState; hadPrev = true; } catch (Exception) { }
+			try
+			{
+				victim.SetMortalityState(Agent.MortalityState.Immortal);   // 血不掉（同上）
+
+				Vec3 dir;
+				bool given = false;
+				try { dir = dirToward; dir.z = 0f; given = dir.LengthSquared > 1e-6f; }
+				catch (Exception) { dir = Vec3.Zero; }
+				if (!given)
+				{
+					try { dir = victim.LookDirection; } catch (Exception) { dir = Vec3.Forward; }
+					dir.z = 0f;
+					if (dir.LengthSquared < 1e-4f) dir = Vec3.Forward;
+					dir = dir.NormalizedCopy();
+					// 马：**正面顶**（照自然路径 `DecideMountRearedByBlow` 的条件 `Dot(blow.Direction, 马朝向) < −0.35`）；
+					// 骑手：**从右手侧掀**（"被撞下马"的自然方向）。
+					dir = rear ? -dir : new Vec3(dir.y, -dir.x, 0f);
+				}
+				else
+				{
+					dir = dir.NormalizedCopy();
+				}
+
+				Agent attacker = Agent.Main;
+				Blow blow = new Blow(attacker != null ? attacker.Index : -1);
+				blow.DamageType = DamageTypes.Blunt;
+				blow.BoneIndex = victim.Monster != null ? victim.Monster.HeadLookDirectionBoneIndex : (sbyte)0;
+				blow.VictimBodyPart = BoneBodyPartType.Chest;
+				blow.GlobalPosition = victim.Position + Vec3.Up * 1.0f;
+				blow.BaseMagnitude = damage;
+				blow.WeaponRecord.FillAsMeleeBlow(null, null, -1, -1);
+				blow.InflictedDamage = (int)damage;
+				blow.SwingDirection = dir;
+				blow.Direction = dir;
+				blow.BlowFlag = BlowFlags.NoSound                     // 音效在伤害检查之前播 ⇒ 必须自己抑制
+					| (rear ? BlowFlags.MakesRear : BlowFlags.CanDismount);
+				blow.DamageCalculated = true;
+
+				AttackCollisionData collision = AttackCollisionData.GetAttackCollisionDataForDebugPurpose(
+					_attackBlockedWithShield: false, _correctSideShieldBlock: false,
+					_isAlternativeAttack: true,                        // 确定性路径（同 FireYankBlow 的口径）
+					_isColliderAgent: true, _collidedWithShieldOnBack: false, _isMissile: false,
+					_isMissileBlockedWithWeapon: false, _missileHasPhysics: false, _entityExists: false,
+					_thrustTipHit: false, _missileGoneUnderWater: false, _missileGoneOutOfBorder: false,
+					CombatCollisionResult.StrikeAgent, -1, 0, (int)DamageTypes.Blunt, blow.BoneIndex,
+					BoneBodyPartType.Chest, -1, Agent.UsageDirection.AttackLeft, -1,
+					CombatHitResultFlags.NormalHit, 0.5f, 1f, 0f, 0f, 0f, 0f, 0f, 0f,
+					Vec3.Up, dir, blow.GlobalPosition, Vec3.Zero, Vec3.Zero, victim.Velocity, Vec3.Up);
+
+				victim.RegisterBlow(blow, in collision);
+				return null;
+			}
+			catch (Exception ex)
+			{
+				return $"{ex.GetType().Name}: {ex.Message}";
+			}
+			finally
+			{
+				if (hadPrev) { try { victim.SetMortalityState(prev); } catch (Exception) { } }
+			}
+		}
+
+		/// <summary>Blow 模式的结果读数：引擎到底推没推、推了多远、往哪边 —— 这是这条 A/B 的判据。</summary>
+		private void LogBlowResult()		{
 			try
 			{
 				Vec3 d = _target.Position - _blowOrigin;
