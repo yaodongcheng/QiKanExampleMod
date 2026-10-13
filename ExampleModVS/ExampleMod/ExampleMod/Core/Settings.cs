@@ -226,6 +226,12 @@ namespace LivingWorldNpcs
         // config.json 高级配置（小白玩家不需要分开控制；想只留刻度带的改 config.json 此项）。
         public bool ShowCompassIcons { get; set; } = true;
 
+        // ── 飞行 / 钩索的载具法阵（脚下那块"板子"）默认显不显示（默认 false = 看不见）──
+        // 🔴 2026-10-13（用户裁定）：钩索与飞行**起飞时默认隐藏底下的板子**。
+        //    只影响"画不画"——**托人的物理体永远不动**（隐藏承载物会连碰撞一起干掉，09-21 实机摔死过主角）。
+        //    运行期旋钮 `custom.flight tune sigil 0|1` 可临时覆盖（重启复位，回到这里的值）。
+        public bool ShowCarrierSigil { get; set; } = false;
+
         // ── 友方敌意互动保护开关（唯一来源 = MCM Mod 选项 UI，Core/MCMSettings.cs 写入）──
         // true（默认）= 允许对友方使用敌意互动（保持原行为——敌意互动均为长按蓄力触发，
         // 误触概率低，不需要默认禁止）；false = 禁止（防误伤保护：击晕/偷窃/搜刮/主动攻击
@@ -325,14 +331,15 @@ namespace LivingWorldNpcs
             //    （本输入系统的既定语义，与 Loot/Knockout 那一族"F 长按"同款；同键**同按法**才算冲突）。
             [InteractionIds.CutRope] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
             // 拉紧 / 扛起·放下（2026-10-10 用户要的两件；钩索「勾人」步骤 6）：
-            // 🔴 **都挂 G 长按**，靠**情境互斥**分开 ——
-            //    · 牵着绳 + 离目标 > 3 米 ⇒ 【拉紧】（绳绷上力，把人拽倒）
-            //    · 牵着绳 + 瞄着被捆的人 + 距离够 ⇒ 【扛起】；已经扛着 ⇒ 【放下】
+            // 🔴 **同一把 G 键、两种按法**（2026-10-13 用户裁定：拉紧要"点一下就走"，不要长按）——
+            //    · 牵着绳 + 离目标 > 3 米 ⇒ 【拉紧】**G 短按**
+            //    · 牵着绳 + 瞄着被捆的人 + 距离够 ⇒ 【扛起】；已经扛着 ⇒ 【放下】**G 长按**
             //    两条互斥的判据：扛起要求"够得着"（≤ carry maxdist，默认 3 米），
-            //    而拉紧要求"够不着"（> 3 米）⇒ **同一时刻只可能出一条**。
+            //    而拉紧要求"够不着"（> 3 米）⇒ **同一时刻只可能出一条**，共用一把键不打架。
+            //    （与"F 短按=对话 / F 长按=搜刮"同一套家规：短按给轻动作、长按给要意图的大动作。）
             // 🔴 牵着绳时 **Plot / StopPlan（也是 G 长按）让位** —— 理由同【松绳】占 F 长按那套：
             //    手被绳子占着，且对随从下令本来也该先松开绳。
-            [InteractionIds.TugRope] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
+            [InteractionIds.TugRope] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Short" },
             [InteractionIds.LiftCarried] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
             // 施法（阶段 3 起手轴）：**按住蓄力、松手放**。
             // 🔴 默认键 = X，**不是 R** —— R 是原版"切换第一人称/视角"的键，按下去会**同时**触发切视角

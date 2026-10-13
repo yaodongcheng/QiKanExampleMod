@@ -518,6 +518,7 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 |------|------|---------|
 | [原版骑砍2战略层分析](Knowledge/原版骑砍2战略层分析.md) | 🔴 **王国→家族→军团→部队 四层决策金字塔**，含 500 行战争评分公式分解、KingdomDecision 提案系统、Army 状态机、MobilePartyAi.GetBehaviors 决策流、60 个 Action 类全览 | 规划王国层外交/军团扩展、理解原版 AI 与本 mod 的边界 |
 | [🔴 Agent 运动与位置机制](Knowledge/骑砍2Agent运动与位置机制.md) | 🔴 **位置写入语义（实测 2026-09-18/19）：X/Y 可写、Z 写不进去（设多大都自动贴地）、与控制权无关**；运动模式四层结构（`movement_sets.xml`/`full_movement_sets.xml`，人形 4 档写死在 native，换 action set 才能换外观）；人形 vs 非人形两套并行表（pace 只能靠调速间接影响）；**没有重力开关 / 没有飞行态 / 没有电梯物件**；🔴🔴 **§6「离地尝试全记录」：9 条路全死（直写Z / 切控制权 / 骑马 / 放大坐骑 / 抬坐点骨 / 抬外观帧 / 导航件升降板 / 物件载人 / 空中态跳跃坠落），每条都有实测证据与失败机理——做飞天类功能前必读，别重试**；🔴 **§6.7（2026-09-27 实机）：「由悬空变成被托住」那一瞬间引擎会把 agent 位置按地形重算**（离地多高就瞬移多少，实测 63 米一帧；低空看不出）⇒ **对策 = 别让支撑断开**（出机后板不拆、运着人一起掉，回飞时把下坠速度收干再交回）；§6.5 跳跃上升速度 = monster 数据（`jump_acceleration`/`jump_speed_limit`，native 独占无运行时接口）+ **唯一还有理论空间的路（改跳参 + 空中反复起跳）**；唯一能飞的是相机（XiuXian 形状） | 做飞天/位移/垂直移动类功能前必读；排查"位置写了没反应" |
+| [🔴 Agent 骑乘机制 — 引擎能力与实现](Knowledge/骑砍2Agent骑乘机制_引擎能力与实现.md) | 🔴 **让 NPC/随从上马·下马·控制马上行为的唯一权威（2026-10-13 实机验证通过）**：正规链路 = **① `Controller = None`（命门）② `EventControlFlags \|= Mount` + `SetInteractionAgent(马)` ③ native 演上马动画 ④ 把 `Controller` 还回去** ——**少了 ① 就不行**，因为 `Agent.Tick` 里 `if (AllowAiTicking && IsAIControlled) TickAsAI()` 会**每帧把输入旗标整个重算写回**，外部点的位活不过一帧；🔴 **能骑判据只有 `HorseComponent.IsRideable`**（`Agent.IsMount` 太粗；`HorseComponent.IsMount` 会把**驮马判死**——`sumpter_horse` 是 `is_mountable=true is_pack_animal=true`，**能骑**）；刷马 = `Mission.SpawnMonster(ItemRosterElement(马物品,1,null), default, pos, dir, -1)`；"出生就骑着" = `AgentBuildData` 的马槽里放马（引擎自己挂）；**AI 自找马那条链（`SetRidingOrder(Mount)` + `HumanAIComponent` 每 2~3 秒搜 `MountsWithoutRiders`）对和平场景的平民/随从不管用**（托管层只"预定"，走路+上马在 native）；**上马之后归引擎**（移动/骑射/骑砍全由 native + 原版行为组驱动，我们只负责"把人放上去"）；§五 是"马上移动/转圈/射击/挥砍/主动下马/被动落马"的初查表；命令 `custom.grapple horse …` | 做任何"NPC 骑马/马上行为"的功能前必读；排查"点了 Mount 旗标没反应" |
 | [Agent_AI底层原理](Knowledge/Agent_AI底层原理.md) | Agent 装配管线、五层控制参数、战斗 AI 决策流、NavMesh | Mission 层 Agent 控制 |
 | [Agent_AI冲突解决与接管策略](Knowledge/Agent_AI冲突解决与接管策略.md) | SuspendVanillaAI/ResumeVanillaAI、AgentNavigator/DailyBehaviorGroup 接管机制 | NPC 行为接管、原子 Action 开发 |
 | [🔴 原版场景跟随系统分析](Knowledge/原版场景跟随系统分析.md) | 🔴 **队伍成员进场景跟随完整链路**：ClanMemberRolesCampaignBehavior 名单（触发时机表/资格条件/位置白名单）+ MissionAgentHandler 出生+挂载 + FollowAgentBehavior 源码分析（状态机/多跟随者排队/视线校验）、与本 mod AgentBrain 冲突点、复用 API | 实现「队友/随从常驻跟随」、理解原版跟随行为、避免与 Brain 接管打架 |
@@ -574,6 +575,12 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
     dotnet build ExampleMod.csproj -c Debug -p:OutputPath="<隔离目录>/bin/" -p:BaseIntermediateOutputPath="<隔离目录>/obj/"
     ```
     **两个都要给**：`OutputPath` 管 DLL 落点、`BaseIntermediateOutputPath` 管 obj。判据 = 里只出现 `error CS…`（真语法错）或 `Build succeeded`，**不出现 `MSB3027`（那是文件锁，不是代码问题）**。
+  - 🔴🔴 **这条命令吃的是 shell 自己的 `MB2_PATH` 快照 —— Claude 的 shell 常常指向别的客户端！**（2026-10-13 实测：Claude shell 快照 = `MB2_Version\MB2_1.2.12\`（v1.2.12），注册表 = Steam 主目录（v1.5.5）⇒ **那一整轮"编译通过"验的全是 1.2.12 分支**，1.5.x 的 `#if` 分支一次没编过，直到某个 API 报 CS0246 才暴露。）
+    ⇒ **验证"当前目标版本"必须显式给路径**（值现查注册表，别写死）：
+    ```
+    dotnet build ExampleMod.csproj -c Debug -p:MB2_PATH="<注册表里的 MB2_PATH>" -p:OutputPath="<隔离目录>/bin/" -p:BaseIntermediateOutputPath="<隔离目录>/obj/"
+    ```
+    改动碰了 `#if` / `V.` 兼容层 / 新 API 时，**两个客户端各编一遍**才算验证完（1.2.12 用 shell 默认值即可，1.5.x 用上面这条显式路径）。
 - **改完怎么说**：只报**改了哪几个文件**，编译归用户、他一定会编 —— **"要重编一次"这种话不用说**。
 - ❌ 不要把"即时生效 / 不用重编"当**卖点**写进方案或回执。
 - ❌ 不要为了**绕开一次编译**而把该在 C# 里做的事塞进 XML、或堆只为"免得重编"的运行期开关。

@@ -865,6 +865,23 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 按角色随机配一套装备（**战斗**那套）—— 版本兼容包装。
+        /// v1.2.12: `GetRandomEquipmentElements(char, bool, bool isCivilianEquipment, int seed)`
+        /// v1.3.0+ : `GetRandomEquipmentElements(char, bool, Equipment.EquipmentType, int seed)`
+        /// （第 3 个参数从"是不是平民装"的 bool 换成了 `EquipmentType` 枚举；2026-10-13 给"刷骑手"夹具时踩到。）
+        /// 返回 null = 输入无效（调用方跳过即可）。
+        /// </summary>
+        public static Equipment RandomBattleEquipment(BasicCharacterObject character, int seed)
+        {
+            if (character == null) return null;
+#if MB2_GE_130
+            return Equipment.GetRandomEquipmentElements(character, true, Equipment.EquipmentType.Battle, seed);
+#else
+            return Equipment.GetRandomEquipmentElements(character, true, false, seed);
+#endif
+        }
+
+        /// <summary>
         /// hero 的 stealth 装备层（v1.4.0+ 新增；v1.3.x 及更早的 Hero 无此属性）。
         /// 返回 null = 当前版本无此层，调用方跳过 stealth 处理即可。
         /// 用于偷窃/搜刮时清空英雄第三套装备（Battle/Civilian/Stealth 三套一致处理）。

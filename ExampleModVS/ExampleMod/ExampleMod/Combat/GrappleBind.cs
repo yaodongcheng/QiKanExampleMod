@@ -41,7 +41,7 @@ namespace LivingWorldNpcs
 	/// </summary>
 	internal sealed class GrappleBind
 	{
-		public enum Phase { None, Wrapping, Yanking, Bound }
+		public enum Phase { None, Dismounting, Wrapping, Yanking, Bound }
 
 		/// <summary>Tick 的返回：这一拍发生了什么（与 <see cref="GrappleHook.StepResult"/> 同风格）。</summary>
 		public enum BindEvent
@@ -124,6 +124,24 @@ namespace LivingWorldNpcs
 		/// 面板那一行由 <see cref="GrappleLogic.CanTugRope"/> 管；命令 `custom.grapple bind tugmin &lt;米&gt;`。
 		/// </summary>
 		public static float TugMinDistance = 3.0f;
+
+		/// <summary>
+		/// **骑马的目标照收 —— 钩住骑手 = 把他拉下马**（`custom.grapple bind mounted 0|1`，默认开）。
+		///
+		/// 手法 = 引擎自己的**下马事件**（`Agent.EventControlFlags |= Agent.EventControlFlag.Dismount`；
+		/// 反编译实证 `Agent.Mount()` 内部就是这么下马的）⇒ 他演一段"翻身下马"，
+		/// **脚一落地**才接"缠 → 倒 → 缚"（骑在马上时那一套位移/姿势全对不上，必须先下来）。
+		/// 关掉 = 回到旧行为（钩挂在他身上、什么都不发生）。
+		/// 🔴 代价说明：演的是**正常下马动作**，不是"被绳子扯下来"。要换成"摔下马"那版
+		/// （引擎击退 blow 的 `DecideAgentDismountedByBlow`）是另一条路，方案 §13.5 里列着。
+		/// </summary>
+		public static bool PullDownMounted = true;
+
+		/// <summary>**等他下马的超时**（秒）—— 超时就不捆了（收钩收绳），别把人晾在那儿。</summary>
+		public static float DismountTimeoutSeconds = 3.0f;
+
+		/// <summary>下马事件的重发间隔（秒）—— 引擎按马速（`DismountVelocityLimit`）可能先拒后收，隔一会儿再点一次。</summary>
+		public static float DismountRetrySeconds = 0.25f;
 
 		/// <summary>
 		/// 捆缚期**压制复核间隔**（秒；0 = 关）。每这么多个秒复核一次"旗标 + AI 冻结 + 躺地循环还在不在"，
@@ -219,6 +237,8 @@ namespace LivingWorldNpcs
 		private Phase _phase = Phase.None;
 		private float _t;                    // 本相位计时
 		private float _boundTimer;
+		private float _dismountTimer;        // "拉下马"那一相的计时（超时用）
+		private float _dismountRetry;        // 下马事件的重发节拍
 		private string _note = "-";
 
 		// ── 状态机（2026-10-10）：一台机管"被绑者的一生"，本文件只填上下文 + 按时刻 Force ──
@@ -321,8 +341,9 @@ namespace LivingWorldNpcs
 		/// 这一段该不该把绳**压成绷直**（2026-10-09 用户反馈"看不出被拉"后加）：
 		/// 缠 + 拽倒 = 绷直（读感是"在拉"，而不是飘着一根松绳）；缚 = 恢复松量（绳在地上拖着才自然）。
 		/// 消费者 = <see cref="GrappleLogic"/> 的 Binding 分支（每帧喂给 <see cref="GrappleRope.SlackRatio"/>）。
+		/// 2026-10-13 起"拉下马"那一相也算（绳正吃着力把他从马上拽下来）。
 		/// </summary>
-		public bool WantsTautRope => _phase == Phase.Wrapping || _phase == Phase.Yanking;
+		public bool WantsTautRope => _phase == Phase.Dismounting || _phase == Phase.Wrapping || _phase == Phase.Yanking;
 
 		// ───────────────────────────── 进入 / 推进 / 结束 ─────────────────────────────
 
@@ -338,10 +359,13 @@ namespace LivingWorldNpcs
 			if (ReferenceEquals(attacker, target)) { why = "self"; return false; }
 			if (!AgentControlHelper.SafeIsActive(target)) { why = "target inactive"; return false; }
 			if (target.IsMount || target.RiderAgent != null) { why = "target is a mount"; return false; }
-			if (target.MountAgent != null)
+			// 骑马的目标 ⇒ **拉下马**（2026-10-13 新口径）：先触发他的下马事件，落地后才进"缠"。
+			// 开关关掉 = 回到旧行为（不接受，钩照旧挂住）。
+			bool mounted = false;
+			try { mounted = target.MountAgent != null; } catch (Exception) { }
+			if (mounted && !PullDownMounted)
 			{
-				// 骑马的目标 = 另一小步（"拽下马"，方案 §13.5）—— 本版先不受理，钩照旧挂住。
-				why = "target mounted (pull-down path = 5B)";
+				why = "target mounted (pull-down off: 'custom.grapple bind mounted 1' to enable)";
 				return false;
 			}
 			string monsterId = null;
@@ -379,14 +403,57 @@ namespace LivingWorldNpcs
 			_note = "wrapping";
 			_hookPos = hitPoint;
 			_hookDir = (target.Position - hitPoint).NormalizedCopy();
-			// 🔴 **冻住他的原版 AI —— 就在命中的这一刻**（不是等到"缚"那拍）：缠 0.55s + 拽 1.1s
-			//    这 1.65 秒里若放任原版 AI 指挥，战斗场景中他会一边被我们拽一边打架/走位
-			//    （城镇里看不出来，因为那套原生 AI 本来就不打架）。
-			//    注：钩头飞行那 0.5 秒还没冻（那时还没"命中"，不冻是对的 —— 打空了不该动人家）。
-			SetTargetAIPaused(target, true);
-			DebugLogger.Log($"[Grapple] 勾人：开始缠（{target.Name}）入口={Fmt(hitPoint)} 圈数={WrapTurns:F2} 半径={WrapRadiusStart:F2}→{WrapRadiusEnd:F2} 时长={WrapSeconds:F2}s"
-				+ (PauseVanillaAI ? " · 已冻结其原版 AI" : " · （原版 AI 未冻：bind aipause 0）"));
+
+			// 🔴 **骑马的目标：先拉下马**（2026-10-13）。这一相里我们只做一件事 ——
+			//    反复点他的"下马"事件，等他自己落地（见 TickDismounting）。
+			//    ⚠️ **不冻他的 AI**：下马事件是引擎处理的，先不动 AI 少一层不确定；
+			//       进入"缠"那一刻再冻（BeginWrapping 里那行）。
+			if (mounted)
+			{
+				_phase = Phase.Dismounting;
+				_dismountTimer = 0f;
+				_dismountRetry = 0f;
+				_note = "pulling the rider off the horse";
+				TriggerDismount(target);
+				DebugLogger.Log($"[Grapple] 拉下马：命中骑马目标（{SafeName(target)}）⇒ 已点「下马」"
+					+ $"，等他落地再接「缠 → 倒 → 缚」（超时 {DismountTimeoutSeconds:F1}s）");
+				return true;
+			}
+
+			BeginWrapping();
 			return true;
+		}
+
+		/// <summary>
+		/// **进入"缠"那一拍**（原来是 <see cref="Begin"/> 的尾巴，2026-10-13 拆出来 —— 现在有两条入口：
+		/// 步行目标 = 直接进；骑马目标 = 下了马才进）。
+		/// 🔴 **冻住他的原版 AI 就在这一刻**（不是等到"缚"那拍）：缠 0.55s + 拽 1.1s 这 1.65 秒里
+		///    若放任原版 AI 指挥，战斗场景中他会一边被我们拽一边打架/走位
+		///    （城镇里看不出来，因为那套原生 AI 本来就不打架）。
+		/// </summary>
+		private void BeginWrapping()
+		{
+			_phase = Phase.Wrapping;
+			_note = "wrapping";
+			SetTargetAIPaused(_target, true);
+			DebugLogger.Log($"[Grapple] 勾人：开始缠（{_target.Name}）入口={Fmt(_hookPos)} 圈数={WrapTurns:F2} 半径={WrapRadiusStart:F2}→{WrapRadiusEnd:F2} 时长={WrapSeconds:F2}s"
+				+ (PauseVanillaAI ? " · 已冻结其原版 AI" : " · （原版 AI 未冻：bind aipause 0）"));
+		}
+
+		/// <summary>
+		/// **给目标点一次"下马"**（引擎的 <see cref="Agent.EventControlFlag.Dismount"/>）。
+		/// 反编译依据：`Agent.Mount(mount)` 在"已骑着这匹马"那一支里就是 `EventControlFlags |= Dismount`
+		/// ⇒ 这是引擎自己的下马入口，不是我们造的。马在狂飙（>`Agent.DismountVelocityLimit`）时
+		/// 引擎可能先不收，所以调用方每 <see cref="DismountRetrySeconds"/> 重发一次。
+		/// </summary>
+		private static void TriggerDismount(Agent a)
+		{
+			if (a == null) return;
+			try { a.EventControlFlags |= Agent.EventControlFlag.Dismount; }
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 拉下马：点下马事件失败（{ex.GetType().Name}: {ex.Message}）");
+			}
 		}
 
 		/// <summary>每帧推进（<see cref="GrappleLogic"/> 在钩头相位里调）。</summary>
@@ -420,6 +487,7 @@ namespace LivingWorldNpcs
 			BindEvent phaseEvent = BindEvent.None;
 			switch (_phase)
 			{
+				case Phase.Dismounting: phaseEvent = TickDismounting(dt); break;
 				case Phase.Wrapping: phaseEvent = TickWrapping(dt); break;
 				case Phase.Yanking: phaseEvent = TickYanking(dt); break;
 				case Phase.Bound: phaseEvent = TickBound(dt); break;
@@ -477,6 +545,51 @@ namespace LivingWorldNpcs
 			DebugLogger.Log($"[Grapple] 勾人：状态机里没有时刻 '{whenToken}' 的边"
 				+ "（bind.xml 改坏了？）—— 这一拍不会有姿态变化");
 			return false;
+		}
+
+		/// <summary>
+		/// **拉下马那一相**（2026-10-13 立）：钩已经挂住骑手，我们只做三件事 ——
+		///   ① 反复点他的"下马"（引擎按马速可能先拒后收，所以隔 <see cref="DismountRetrySeconds"/> 再点）；
+		///   ② 钩头停在**他的胸口**（绳绷着、人还挂在马上，读感就是"被绳子拽住"）；
+		///   ③ 他脚一落地 ⇒ 交给 <see cref="BeginWrapping"/> 走原来那条"缠 → 倒 → 缚"。
+		/// 超时（<see cref="DismountTimeoutSeconds"/>）= 这钩不成了 ⇒ <see cref="BindEvent.Finished"/>，
+		/// 调用方照"整条流程结束"收钩收绳（不把人晾在半空）。
+		/// </summary>
+		private BindEvent TickDismounting(float dt)
+		{
+			_t += dt;
+			_dismountTimer += dt;
+			_dismountRetry += dt;
+
+			bool mounted = false;
+			try { mounted = _target.MountAgent != null; } catch (Exception) { }
+
+			if (!mounted)
+			{
+				DebugLogger.Log($"[Grapple] 拉下马：'{SafeName(_target)}' 已落地（耗时 {_dismountTimer:F2}s）⇒ 接「缠 → 倒 → 缚」");
+				BeginWrapping();
+				return BindEvent.None;
+			}
+
+			// 钩头 / 绳的远端停在胸口（他还在马上，位置由马带着走 —— 每帧重取）。
+			_center = ChestOf(_target);
+			_hookPos = _center;
+			try { _hookDir = (_target.Position - _attacker.Position).NormalizedCopy(); } catch (Exception) { }
+
+			if (_dismountRetry >= DismountRetrySeconds)
+			{
+				_dismountRetry = 0f;
+				TriggerDismount(_target);
+			}
+
+			if (_dismountTimer >= DismountTimeoutSeconds)
+			{
+				DebugLogger.Log($"[Grapple] 拉下马：⚠ '{SafeName(_target)}' {DismountTimeoutSeconds:F1}s 内没下来"
+					+ "（马速可能一直超引擎的下马门槛）⇒ 这一钩作废、收钩收绳");
+				Release("dismount timeout");
+				return BindEvent.Finished;
+			}
+			return BindEvent.None;
 		}
 
 		private BindEvent TickWrapping(float dt)
@@ -819,6 +932,13 @@ namespace LivingWorldNpcs
 		private void VerifySuppression()
 		{
 			if (_target == null) return;
+
+			// 🔴 **"拉下马"那一相不压**（2026-10-13）：那一段靠的是**引擎自己的下马事件**，
+			//    而我们**没验过"AI 冻结着还能不能吃下马事件"**（`SetIsAIPaused` 改的是
+			//    `AIStateFlag.Paused`，与 native 处理 EventControlFlags 是两回事，但没实测）
+			//    ⇒ 不去冒这个险：等他落地、进"缠"那一刻才冻（见 BeginWrapping）。
+			if (_phase == Phase.Dismounting)
+				return;
 
 			// ① 旗标：幂等重压（被别的系统清掉 = 站着的人立刻恢复原生 AI）。
 			//    ⚠️ 用"或"叠加、**不覆盖** —— 直接赋值会把 BoundAction 每 0.2s 设的 `InConversation`
@@ -1182,8 +1302,9 @@ namespace LivingWorldNpcs
 			string tgt = SafeName(_target);
 			float timer = _phase == Phase.Bound ? _boundTimer : _t;
 			float limit = _phase == Phase.Bound ? BoundSeconds
+				: (_phase == Phase.Dismounting ? DismountTimeoutSeconds
 				: (_phase == Phase.Wrapping ? WrapSeconds
-				: (Yank == YankMode.Blow ? BlowYankSeconds : YankTotalSeconds));
+				: (Yank == YankMode.Blow ? BlowYankSeconds : YankTotalSeconds)));
 			// 🔴 接管状态（TODO 2 的验收判据，2026-10-09）：脑标记 = 闸门基准（false 时下面几道全不生效）；
 			//    事件忽略 = 被挡下的定向事件条数（该涨就涨 = 调度真的被挡住了）。
 			//    🔴 2026-10-10：`poseReassert` 那项**删了** —— 姿态抢回改由状态机自带的 `RecheckStolen` 管，

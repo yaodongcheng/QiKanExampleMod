@@ -66,6 +66,10 @@ namespace LivingWorldNpcs.Flight
 
             _scene = scene;
 
+            // 法阵可见性初值来自 config.json（`ShowCarrierSigil`，默认不可见）—— 只取一次，
+            // 之后 `custom.flight tune sigil 0|1` 当场的改动不会被它盖掉。
+            FlightTuning.ApplyConfigDefaultOnce();
+
             MatrixFrame frame = MatrixFrame.Identity;
             frame.origin = new Vec3(
                 boardTopWorldPos.x,

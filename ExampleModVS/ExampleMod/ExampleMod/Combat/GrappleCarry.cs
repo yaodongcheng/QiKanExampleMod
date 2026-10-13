@@ -42,6 +42,23 @@ namespace LivingWorldNpcs
 		/// <summary>起扛时两者最远距离（米）—— 太远够不着。**从脚底量**（同钩索那条先例）。</summary>
 		public static float MaxLiftDistance = 3.0f;
 
+		/// <summary>
+		/// **起扛时把扛人者手里的武器收进鞘**（`custom.grapple carry sheathe 0|1`，默认开）。
+		///
+		/// 🔴 为什么（2026-10-13 用户）：扛着人时手里还握着钩索绳（那件是 `Type=Bow`）⇒ 屏幕上挂着
+		///    **准星**、人还端着弓的待机姿势，跟"抱着一个人"打架。收进鞘就干净了。
+		/// 放下动画演完会**自动把钩索拿回手里**（前提：玩家自己没在扛人期间另拿了别的）。
+		/// </summary>
+		public static bool SheatheOnCarry = true;
+
+		/// <summary>
+		/// 收武器 / 还武器之后，给"收起钩索 = 松手放人"那条出口（<see cref="GrappleLogic"/> 出口②）的
+		/// **豁免窗**（秒）。
+		/// 🔴 为什么需要：`TryToWieldWeaponInSlot` 写下去，引擎要下一帧才认（`WieldedWeapon` 才变）——
+		///    中间那一帧 `IsHoldingGrapple()` 仍是 false ⇒ 出口② 会把绳判成"被收起"当场放人。
+		/// </summary>
+		public static float StowGraceSeconds = 1.2f;
+
 		/// <summary>放下动画播完之后、还没等到状态机出机时的兜底超时（秒）。</summary>
 		public static float PutdownTimeoutSeconds = 6.0f;
 
@@ -85,12 +102,21 @@ namespace LivingWorldNpcs
 		private CarryPhase _phase = CarryPhase.None;
 		private float _t;
 		private string _note = "-";
+		private bool _weSheathed;      // 武器是"我们"收的才由我们还（玩家自己收的/自己换的，不碰）
+		private float _stowGrace;      // >0 = 给出口② 的豁免窗（见 StowGraceSeconds）
 
 		public bool IsActive => _phase != CarryPhase.None && _carried != null;
 		public Agent Carrier => _carrier;
 		public Agent Carried => _carried;
 		public CarryPhase Phase => _phase;
 		public string Note => _note;
+
+		/// <summary>
+		/// **"收起钩索 = 松手放人"那条出口现在要不要让路**（消费者 = <see cref="GrappleLogic"/> 出口②）。
+		/// 扛着人期间一律豁免 —— 那时武器是**我们收的**（见 <see cref="SheatheOnCarry"/>），
+		/// 不能被当成"玩家把钩索收起来了"；还武器之后再撑 <see cref="StowGraceSeconds"/> 秒等引擎认账。
+		/// </summary>
+		public bool SuppressStowCheck => IsActive || _stowGrace > 0f;
 
 		/// <summary>被扛者是不是**这一个**（交互面板 / 命令用）。</summary>
 		public bool IsCarrying(Agent a) => IsActive && ReferenceEquals(_carried, a);
@@ -150,6 +176,11 @@ namespace LivingWorldNpcs
 			bind.ForceEvent(BindAnimConditions.CarryTrigger);
 			bind.SetCarrier(carrier);
 
+			// 🔴 **顺手把武器收进鞘**（2026-10-13 用户要的）：不收的话手里还握着绳（弓），
+			//    屏幕上有准星、人端着弓，跟"抱着人"打架。放下（HardStop）时自动还回去。
+			if (SheatheOnCarry)
+				SheatheCarrier(carrier);
+
 			// 让被扛者知道扛人者是谁 —— 之后每帧只用来读它的速度（被扛行 ⇄ 被扛走的判据）
 			AttachCarried();
 
@@ -161,6 +192,11 @@ namespace LivingWorldNpcs
 		/// <summary>每帧推进（<see cref="GrappleLogic.OnMissionTick"/> 调；扛着时必然每帧）。</summary>
 		public void Tick(float dt, GrappleBind bind)
 		{
+			// 豁免窗的倒计时**要跑在 IsActive 早退之前** —— 它恰恰是"已经不扛了"之后的那段时间
+			// （还武器 → 引擎认账之间的那一两帧），见 StowGraceSeconds。
+			if (_stowGrace > 0f)
+				_stowGrace -= dt;
+
 			if (!IsActive) return;
 
 			// ── 失效守卫：任一方没了 / 换了目标 ⇒ 立刻散伙（**不再摆位**，让人自己倒回地面）──
@@ -227,6 +263,9 @@ namespace LivingWorldNpcs
 		{
 			if (_carried == null && _carrier == null) return;
 			DebugLogger.Log($"[Grapple] 扛人：结束（{reason}）");
+			// 🔴 **还武器要排在收摊之前**（`_carrier` 一清就没对象了）。
+			//    无论走哪条路结束都还 —— "我们收走的，我们负责还"；玩家自己另拿了东西就不抢（见方法注释）。
+			RestoreCarrierWeapon();
 			try { _bind?.SetCarrier(null); } catch (Exception) { }   // 别在被绑者那侧留个悬空的扛人者引用
 			_carrier = null;
 			_carried = null;
@@ -236,6 +275,81 @@ namespace LivingWorldNpcs
 			_phase = CarryPhase.None;
 			_t = 0f;
 			_note = "stopped (" + reason + ")";
+		}
+
+		// ───────────────────────────── 武器收 / 还（2026-10-13 立）─────────────────────────────
+		//
+		// 🔴 起因（用户）："扛起一个人的时候，希望自动收起武器 —— 现在看还处于钩锁拿起状态、有准星不太好。"
+		//    钩索绳是 `Type=Bow`：握在手里 = 引擎给弓的那套（准星 + 端弓待机），跟"抱着一个人"打架。
+		//    收进鞘 = 手上空着 ⇒ 准星没了、待机回徒手。
+		//
+		// 🔴 **连带必须改的一处**（见 `GrappleLogic` 出口② 的注释）：那条"收起钩索 = 松手放人"的规矩
+		//    会把"我们主动收武器"误判成玩家收起了钩索 ⇒ 用 `SuppressStowCheck` 给它开豁免。
+
+		/// <summary>把扛人者双手的武器收进鞘（成功置 <see cref="_weSheathed"/>，放下时由我们负责还）。</summary>
+		private void SheatheCarrier(Agent a)
+		{
+			if (a == null) return;
+			try
+			{
+				// 先主手后副手（与 `CombatManager` 那两行同一套已验证写法；Instant = 不做拔/收动画）
+				a.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+				a.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
+				_weSheathed = true;
+				_stowGrace = StowGraceSeconds;
+				DebugLogger.Log($"[Grapple] 扛人：已收起 {SafeName(a)} 的武器（扛着期间手上不拿东西 —— 不要准星/端弓姿势）");
+			}
+			catch (Exception ex)
+			{
+				_weSheathed = false;
+				DebugLogger.Log($"[Grapple] 扛人：收武器失败（忽略，照常扛）: {ex.GetType().Name} {ex.Message}");
+			}
+		}
+
+		/// <summary>
+		/// **把钩索还回扛人者手里**（扛人结束的收尾）。三条前提缺一不可：
+		///   ① 是**我们**收的（<see cref="_weSheathed"/> —— 玩家自己收的不管）；
+		///   ② 玩家现在手上是空的（扛人期间自己又拔了刀 ⇒ 别抢他的）；
+		///   ③ 装备里还找得到那根绳（没有就没什么可还的）。
+		/// 还完撑一个 <see cref="StowGraceSeconds"/> 的豁免窗（等引擎把 `WieldedWeapon` 认过来）。
+		/// </summary>
+		private void RestoreCarrierWeapon()
+		{
+			Agent a = _carrier;
+			bool weSheathed = _weSheathed;
+			_weSheathed = false;
+			if (!weSheathed || a == null)
+				return;
+			try
+			{
+				if (!AgentControlHelper.SafeIsActive(a)) return;
+				if (a.WieldedWeapon.Item != null) return;             // 玩家自己手里有东西 ⇒ 不抢
+				EquipmentIndex slot = FindItemSlot(a, GrappleFirePatch.RopeItemId);
+				if (slot == EquipmentIndex.None) return;              // 装备里没绳（被扒了/换成别的）⇒ 没得还
+				a.TryToWieldWeaponInSlot(slot, Agent.WeaponWieldActionType.Instant, false);
+				_stowGrace = StowGraceSeconds;
+				DebugLogger.Log($"[Grapple] 扛人：钩索已还回 {SafeName(a)} 手里（扛人收尾）");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 扛人：还武器失败（忽略 —— 用数字键自己拿）: {ex.GetType().Name} {ex.Message}");
+			}
+		}
+
+		/// <summary>在装备里找某件物品所在的槽（口径同 `GrappleFirePatch.FindDartSlot`）。找不到 = None。</summary>
+		private static EquipmentIndex FindItemSlot(Agent a, string itemId)
+		{
+			try
+			{
+				for (EquipmentIndex slot = EquipmentIndex.WeaponItemBeginSlot;
+					slot < EquipmentIndex.NumAllWeaponSlots; slot++)
+				{
+					MissionWeapon w = a.Equipment[slot];
+					if (w.Item != null && w.Item.StringId == itemId) return slot;
+				}
+			}
+			catch (Exception) { }
+			return EquipmentIndex.None;
 		}
 
 		// ───────────────────────────── 摆位（这一版的核心）─────────────────────────────
@@ -351,6 +465,7 @@ namespace LivingWorldNpcs
 				+ $" | carried={SafeName(_carried)} act={carriedAct}"
 				+ $" | dist={d:F2}m moving={(IsCarrierMoving() ? "True" : "False")}"
 				+ $" | offset={OffsetForward:F2}/{OffsetRight:F2}"
+				+ $" | sheathe={(SheatheOnCarry ? "on" : "off")} weStowed={_weSheathed} grace={_stowGrace:F1}s"
 				+ $" | t={_t:F1}s";
 		}
 

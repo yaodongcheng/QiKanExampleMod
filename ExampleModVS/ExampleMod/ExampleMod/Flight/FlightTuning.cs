@@ -1,3 +1,4 @@
+using System;
 using TaleWorlds.Library;
 
 namespace LivingWorldNpcs.Flight
@@ -126,9 +127,28 @@ namespace LivingWorldNpcs.Flight
         ///
         /// 🔴 **开关只作用在视觉子实体上，物理体永远不动** —— 反面教材是 2026-09-21 那次
         /// "把承载物本身隐藏"：碰撞跟着一起没了，主角 1.8 秒后摔死。
-        /// 默认可见（2026-10-12 用户要求"看得见自己踩在什么上"，也是排查飞行问题的肉眼判据）。
+        ///
+        /// 🔴 **默认不可见**（2026-10-13 用户裁定：钩索 / 飞行起飞时"继续默认隐藏底下的板子"）。
+        ///    持久开关在 `config.json` 的 <c>ShowCarrierSigil</c>（默认 false）——
+        ///    本字段在**每次进场景第一次生成载具前**从它取一次初值（见 <see cref="ApplyConfigDefaultOnce"/>），
+        ///    之后 `custom.flight tune sigil 1` 可临时打开（重启复位）。
         /// </summary>
-        public static bool CarrierSigilVisible = true;
+        public static bool CarrierSigilVisible = false;
+
+        /// <summary>
+        /// **把 config.json 的载具法阵开关读成初值**（只生效一次）。
+        /// 调用点 = <see cref="CarrierBoard.Spawn"/>（两条召唤路径——飞行与钩索——都从那里过）。
+        /// 「只一次」是为了不让它把玩家当场的 `tune sigil` 覆盖掉。
+        /// </summary>
+        private static bool _sigilDefaultApplied;
+        public static void ApplyConfigDefaultOnce()
+        {
+            if (_sigilDefaultApplied)
+                return;
+            _sigilDefaultApplied = true;
+            try { CarrierSigilVisible = LivingWorldNpcs.Settings.Instance.ShowCarrierSigil; }
+            catch (Exception) { /* Settings 拿不到就用上面的字面默认（false） */ }
+        }
 
         /// <summary>wooden_platform_a 的顶面在局部坐标里的高度（实测 0.37 米）。</summary>
         /// <remarks>
@@ -763,7 +783,7 @@ namespace LivingWorldNpcs.Flight
             CarrierPrefab = "lwn_flight_sigil";
             CarrierMeshName = "lwn_flight_sigil";
             CarrierSigilChildName = "lwn_flight_sigil_mesh";
-            CarrierSigilVisible = true;
+            CarrierSigilVisible = Settings.Instance.ShowCarrierSigil;
             CarrierTopLocalZ = 0.37f;
             CarrierSpawnGap = 0.06f;
             TakeoffSettleSeconds = 1.0f;

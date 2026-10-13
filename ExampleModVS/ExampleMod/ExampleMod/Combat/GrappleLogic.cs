@@ -114,6 +114,24 @@ namespace LivingWorldNpcs
 		private float _attachTimer;                   // 钩头钉住后过了多久（蓄势计时）
 		private bool _attachFromAir;                  // 这一钩是不是"空中起钩"（决定蓄势/拉升时长的基准）
 		private bool _attachAutoPull;                 // 这一钩钉住后要不要自动拉（武器开火 = 要；命令 throw = 不要）
+		private float _mountWait;                     // "骑马勾到地形 ⇒ 自动下马"等了多久（秒；0 = 没在等）
+
+		/// <summary>
+		/// **骑马勾到地形时：自动下马，然后把下马藏进"蓄势"里直接起飞**（2026-10-13 用户拍板，取代 §13.11 的"直接收钩"）。
+		///
+		/// 🔴 **为什么必须先下马**（硬约束，不是设计选择）："拉自己"要**冻结玩家 + 用底板托起来**
+		///    （见 <see cref="GrapplePull.Start"/>），而骑在马上时**骑手的位置由马决定**
+		///    （`Agent.TeleportToPosition` 会把马一起搬走）、切控制权会乱坐骑状态机 ⇒ 不下马就拉不动。
+		///
+		/// 🔴 **下马动画藏在哪里**：钩一咬住地形就点引擎的"下马"事件，人演完翻身上/下马的那一拍
+		///    正好落在本来就要等的"蓄势"窗口里；**脚一落地（`HasMount` 变 false）立刻起飞** ——
+		///    玩家不用自己按 E、也不用多等一秒。
+		/// 关掉 = 回到 2026-10-09 的旧行为（直接收钩、什么都不发生）。
+		/// </summary>
+		public static bool MountedPull = true;
+
+		/// <summary>等他下马的超时（秒）——超时 = 这一钩作废（收钩返程），别把人晾在马上。</summary>
+		public static float MountedDismountTimeoutSeconds = 2.5f;
 
 		/// <summary>瞄准射线的最大长度（米）。UE 参考工程是 12 米；骑砍地图更大，默认 20（命令 `range` 可调）。</summary>
 		public static float AimRange = 20f;
@@ -704,6 +722,7 @@ namespace LivingWorldNpcs
 			}
 
 			_hookPhase = HookPhase.Flying;
+			_mountWait = 0f;                      // 新的一钩：清掉上一钩"等骑马玩家下马"的计时
 			_aimPoint = aim;
 			_aimHitAgent = aimAgent;
 			_landingNote = "-";
@@ -1195,6 +1214,9 @@ namespace LivingWorldNpcs
 			//      绑结束了还得等起身动画演完再把 AI 还给目标，所以它必须每帧都跑。
 			_bind.TickPending(dt);
 
+			// ⓪‴′ 骑马夹具的"上马请求"保持（2026-10-13）：见 TickMountRequest 的注释
+			TickMountRequest(dt);
+
 			// ⓪⁗ **扛人**（步骤 6，2026-10-10）：与钩头相位**无关** —— 扛着人走路时钩头是 Idle，
 			//      但被扛者每帧都得跟着摆位、两台状态机都得推进；【放下】之后还要等放下动画演完才松手。
 			_carry.Tick(dt, _bind);
@@ -1341,23 +1363,58 @@ namespace LivingWorldNpcs
 				_attachTimer += dt;
 				if (_attachAutoPull && AutoPull && _hook.AttachedAgent == null)
 				{
-					// 🔴 骑马勾到地形（2026-10-09 用户拍板，方案 §13.11）：**直接收钩、不提示**。
-					//    "拉自己"骑在马上做不了（切控制权会乱坐骑状态机，GrapplePull.Start 里已挡）
-					//    ⇒ 与其"钩挂在半空什么都不发生"，不如走已有的**返程**（钩头飞回手、绳同步收短）。
+					// 🔴 骑马勾到地形（2026-10-13 改口径，用户拍板 —— 取代 §13.11 的"直接收钩"）：
+					//    **自动下马，然后把下马那一拍藏进"蓄势"里直接起飞**（见 MountedPull 的注释：
+					//    拉自己必须先下马 —— 骑在马上时骑手位置由马决定，冻不住也托不起来）。
 					if (Agent.Main != null && Agent.Main.HasMount)
 					{
-						_attachAutoPull = false;
-						if (_hook.StartReturn())
+						if (!MountedPull)
 						{
-							_hookPhase = HookPhase.Returning;
-							_landingNote = "mounted -> auto retract";
-							DebugLogger.Log("[Grapple] 骑马勾到地形 ⇒ 直接收钩（返程，不提示）");
+							// 旋钮关掉 = 旧行为（2026-10-09 拍板那条）：直接收钩、不提示
+							_attachAutoPull = false;
+							if (_hook.StartReturn())
+							{
+								_hookPhase = HookPhase.Returning;
+								_landingNote = "mounted -> auto retract (MountedPull off)";
+								DebugLogger.Log("[Grapple] 骑马勾到地形 ⇒ 直接收钩（MountedPull 关着）");
+							}
+							else
+							{
+								Release("mounted（实体不在→直接收）");
+							}
+							return;
 						}
-						else
+
+						// 点"下马"（每帧一次；引擎按马速可能先拒后收 —— 重发是幂等的，标志位而已）
+						try { Agent.Main.EventControlFlags |= Agent.EventControlFlag.Dismount; }
+						catch (Exception) { }
+
+						_mountWait += dt;
+						if (_mountWait >= MountedDismountTimeoutSeconds)
 						{
-							Release("mounted（实体不在→直接收）");
+							_attachAutoPull = false;
+							_landingNote = "mounted -> dismount timeout";
+							DebugLogger.Log($"[Grapple] ⚠ 骑马勾到地形：{MountedDismountTimeoutSeconds:F1}s 内没能下马"
+								+ "（马一直在跑？）⇒ 这一钩作废、收钩返程");
+							if (!_hook.StartReturn())
+							{
+								Release("mounted（下马超时，实体不在→直接收）");
+							}
+							else
+							{
+								_hookPhase = HookPhase.Returning;
+							}
+							return;
 						}
-						return;
+
+						_landingNote = $"waiting for dismount ({_mountWait:F1}s)";
+						return;                       // 还骑在马上 —— 落地那一帧自然走下面那条
+					}
+					if (_mountWait > 0f)
+					{
+						// 刚从马上下来：起飞（蓄势那一拍正好把下马动作吃掉了）
+						DebugLogger.Log($"[Grapple] 骑马勾到地形 ⇒ 已下马（{_mountWait:F2}s）⇒ 起飞");
+						_mountWait = 0f;
 					}
 
 					// 🔴 蓄势 = **拉拽起点钉在开火后 PullStartSeconds** − 本钩飞行耗时（2026-10-04 时间轴对齐）：
@@ -1389,7 +1446,10 @@ namespace LivingWorldNpcs
 				if (!_bindFromTest)
 				{
 					// 出口②：玩家换武器 / 把钩索收起来 ⇒ 视为"松手放人"；
-					if (!IsHoldingGrapple())
+					// 🔴 **扛着人时豁免**（2026-10-13）：扛起那一刻是**我们**把武器收进鞘的
+					//    （不要准星/端弓姿势），那不是"玩家收起了钩索" ⇒ 由 `_carry.SuppressStowCheck`
+					//    在"扛着期间 + 还武器后的一小段"里把这条出口挡住（见 GrappleCarry.StowGraceSeconds）。
+					if (!IsHoldingGrapple() && !_carry.SuppressStowCheck)
 					{
 						Release("player stowed the grapple（换武器/收起）");
 						return;
@@ -1705,7 +1765,7 @@ namespace LivingWorldNpcs
 		public string BindTest(Agent target)
 		{
 			if (!GrappleBind.Enabled) return "Error: bind is OFF (custom.grapple bind on)";
-			if (target == null) return "Error: no target agent found nearby (need one within 30 m, on foot, not a child).";
+			if (target == null) return "Error: no target agent found nearby (need one within 30 m, not a child; 'bind test mounted' picks a rider instead).";
 			if (IsBusy) Release("bind test（清场重来）");
 
 			Vec3 hit = GrappleBind.ChestOf(target);
@@ -1791,6 +1851,142 @@ namespace LivingWorldNpcs
 			{
 				return false;
 			}
+		}
+
+		// ─────────────────── 骑马夹具：上/下马请求（2026-10-13）───────────────────
+		//
+		// 🔴🔴 **为什么必须先把 AI 摘掉**（用户给的线索 + 反编译印证）：
+		//    `Agent.EventControlFlags` 这个旗标字**每帧由 AI 重写**（`Agent.Tick`：
+		//    `if (Mission.AllowAiTicking && IsAIControlled) TickAsAI();`，AI 走 `OnAIInputSet(ref eventFlag…)`
+		//    把整字算出来再写回去）⇒ 我们外部 `|= Mount` 的位**活不过一帧**，native 根本看不到。
+		//    ⇒ 正规顺序（CSDN 教程同款）：
+		//        ① `agent.Controller = AgentControllerType.None` —— 摘掉 AI 控制器，旗标就没人覆盖了
+		//        ② `agent.Mount(horse)` —— 内部 = `EventControlFlags |= Mount` + `SetInteractionAgent(horse)`
+		//        ③ native 接手：播 `act_mount_horse_from_*`、把人挂到马上、回调 `Mission.OnAgentMount`
+		//        ④ 上完把 Controller 还回去（引擎自己按 Controller 增减 AI 组件，见 `AgentCommonAILogic
+		//           .OnAgentControllerChanged`：离 AI 就 `RemoveComponent`，回 AI 就 `AddComponent`）
+		//    顺带说明：`Agent.Mount()` 里那三道 managed 检查（CanRide 旗标 / 骑术≥难度 / 当前动作 act_none）
+		//    我们已经在命令里全部满足了（回执里那三个 True 就是它们）。
+		//
+		// ⚠️ 这是**测试夹具**，不是正式玩法逻辑：默认没有任何请求，等于什么都不做。
+
+		private enum HorseReqKind { None, Mount, Dismount }
+
+		private HorseReqKind _reqKind;
+		private Agent _reqNpc;
+		private Agent _reqHorse;
+		private float _reqTimer;
+		private float _reqLogTimer;
+		private bool _reqWasAI;          // 请求前他是不是 AI 控制（收尾时按这个还回去）
+
+		/// <summary>请引擎把 <paramref name="npc"/> 弄上 <paramref name="horse"/>（保持 <paramref name="seconds"/> 秒）。
+		/// 调用方**负责先把 Controller 摘成 None**（<see cref="V.SetAgentControllerNone"/>，见上面那段"为什么"），
+		/// 并把摘之前的状态用 <paramref name="wasAI"/> 传进来 —— 收尾时按它还原。</summary>
+		public void RequestMount(Agent npc, Agent horse, float seconds, bool wasAI)
+		{
+			_reqKind = HorseReqKind.Mount;
+			_reqNpc = npc;
+			_reqHorse = horse;
+			_reqTimer = seconds;
+			_reqLogTimer = 0f;
+			_reqWasAI = wasAI;
+		}
+
+		/// <summary>请引擎把 <paramref name="npc"/> 弄下马（同样要先摘 Controller）。</summary>
+		public void RequestDismount(Agent npc, float seconds, bool wasAI)
+		{
+			_reqKind = HorseReqKind.Dismount;
+			_reqNpc = npc;
+			_reqHorse = null;
+			_reqTimer = seconds;
+			_reqLogTimer = 0f;
+			_reqWasAI = wasAI;
+		}
+
+		private void TickMountRequest(float dt)
+		{
+			if (_reqKind == HorseReqKind.None || _reqNpc == null)
+				return;
+
+			_reqTimer -= dt;
+			try
+			{
+				if (!AgentControlHelper.SafeIsActive(_reqNpc))
+				{
+					FinishHorseRequest("npc gone");
+					return;
+				}
+
+				bool mounted = false;
+				try { mounted = _reqNpc.MountAgent != null; } catch (Exception) { }
+
+				if (_reqKind == HorseReqKind.Mount)
+				{
+					if (mounted) { FinishHorseRequest("MOUNTED"); return; }
+					if (_reqTimer <= 0f) { FinishHorseRequest("timeout (still on foot)"); return; }
+				}
+				else
+				{
+					if (!mounted) { FinishHorseRequest("DISMOUNTED"); return; }
+					if (_reqTimer <= 0f) { FinishHorseRequest("timeout (still mounted)"); return; }
+				}
+
+				// 🔴 **每秒回读**：用来分清"native 把我们设的值清掉了"与"native 收下但不动手"
+				_reqLogTimer += dt;
+				if (_reqLogTimer >= 1f)
+				{
+					_reqLogTimer = 0f;
+					string extra = "";
+					try
+					{
+						extra = $" ridingOrder={_reqNpc.GetRidingOrder()} selMount={_reqNpc.GetSelectedMountIndex()}";
+						if (_reqHorse != null)
+						{
+							extra += $" horseHasRider={(_reqHorse.RiderAgent != null ? 1 : 0)}"
+								+ $" horseReserved={(_reqHorse.CommonAIComponent != null ? _reqHorse.CommonAIComponent.ReservedRiderAgentIndex : -1)}";
+						}
+					}
+					catch (Exception) { }
+					DebugLogger.Log($"[GrappleHorse] {_reqKind} request held: mounted={(mounted ? 1 : 0)}"
+						+ $" controller={SafeController(_reqNpc)}{extra} left={_reqTimer:F1}s");
+				}
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[GrappleHorse] horse request tick exception (dropped): {ex.GetType().Name} {ex.Message}");
+				FinishHorseRequest("exception");
+			}
+		}
+
+		/// <summary>收尾：**把控制权还回去**（引擎会按 Controller 重新挂上 AI 组件）+ 落一行日志。</summary>
+		private void FinishHorseRequest(string why)
+		{
+			Agent npc = _reqNpc;
+			try
+			{
+				if (_reqWasAI && npc != null && AgentControlHelper.SafeIsActive(npc) && !npc.IsAIControlled)
+				{
+					V.SetAgentAI(npc);
+					DebugLogger.Log($"[GrappleHorse] controller restored to AI on '{why}'");
+				}
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[GrappleHorse] 🔴 restoring the controller failed ({ex.GetType().Name}) "
+					+ "—— 那个人会一直没 AI（重进场景可恢复）");
+			}
+			DebugLogger.Log($"[GrappleHorse] {_reqKind} request finished: {why}");
+			_reqKind = HorseReqKind.None;
+			_reqNpc = null;
+			_reqHorse = null;
+			_reqTimer = 0f;
+			_reqLogTimer = 0f;
+			_reqWasAI = false;
+		}
+
+		private static string SafeController(Agent a)
+		{
+			try { return a != null ? a.Controller.ToString() : "?"; } catch (Exception) { return "?"; }
 		}
 
 		// ─────────────────── 手里那套常驻件（左手环 + 环→右手那截绳 A，2026-10-08） ───────────────────

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using LivingWorldNpcs.Animation;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.AgentOrigins;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -164,7 +165,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "hint" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
-					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
+					|| s == "mountedpull" || s == "mountedwait" || s == "horse"					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "bind" || s == "carry"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens"
 					|| s == "sound")
@@ -1109,6 +1110,34 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				// ── 骑马勾到地形（2026-10-13）：自动下马 → 起飞（取代旧的"直接收钩"）──
+				//    ⚠️ 名字带 pull：**玩家自己**骑马时"拉自己"的那条；"骑马的目标收不收"是 `bind mounted`。
+				case "mountedpull":
+				{
+					string m = (ArgAt(args, at + 0) ?? "state").ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleLogic.MountedPull = false; }
+					else if (m == "1" || m == "on") { GrappleLogic.MountedPull = true; }
+					else if (m != "state") { return "Error: mountedpull expects 0|1"; }
+					result = $"grapple: self-pull while mounted = {GrappleLogic.MountedPull}"
+						+ (GrappleLogic.MountedPull
+							? " (hook bites terrain while YOU are on a horse -> we press the engine's DISMOUNT for you,"
+								+ " the dismount plays inside the wind-up, and you take off the moment you are on foot)"
+							: " (OFF = old behavior: the hook just retracts, nothing happens)");
+					break;
+				}
+				case "mountedwait":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v < 0f) return $"grapple: mounted dismount wait = {GrappleLogic.MountedDismountTimeoutSeconds:F1}s (give up + retract if still on the horse by then)";
+					GrappleLogic.MountedDismountTimeoutSeconds = v;
+					return $"OK: mounted dismount wait = {v:F1}s";
+				}
+
+				// ── 骑马测试夹具（2026-10-13）：召马 / 让人上马 / 让人落马 ──
+				case "horse":
+					result = DoHorse(args, at);
+					break;
+
 				case "facehook":
 				{
 					// 隔离实验用：拉拽期间"把身体转向钩点"的写入开关（关掉 = 朝向完全交给引擎）
@@ -1673,7 +1702,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		/// `custom.grapple bind ...` —— 步骤 5「勾人」的一族（方案 = plans\钩索-实施计划.md §13.7）。
 		/// 子命令（全部纯英文返回、首参可弃）：
 		///   on|off                      总开关（关 = 勾到人也只挂住不动 = 旧行为）
-		///   test                        对**最近的可捆目标**直接走整套（不走飞行；机制验收主入口）
+		///   test [mounted]              对**最近的可捆目标**直接走整套（不走飞行；机制验收主入口）。
+		///                               加 `mounted` = 只挑**骑马的**（验收"拉下马"那条路）。
 		///   release                     立刻放开当前目标（起身动画 + 稍后还 AI）
 		///   probe                       验收"被捆的人不接命令"：真发一条 ComeHere 给目标，看"事件忽略"计数涨不涨
 		///   state                       状态一行（目标 / 相位 / 计时 / 当前动作名 / 钩位置 / 接管计数）
@@ -1685,6 +1715,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   wrap &lt;秒&gt; [圈数]          缠的时长 / 圈数（默认 0.55 / 1.25）
 		///   anim &lt;lay|cycle|standup|auto&gt;  强制目标播某一段（观感验收；auto = 交回流程）
 		///   panim &lt;动作名|auto&gt;        在**玩家自己**身上试播一个动作（只为选型看一眼；auto = 什么都不做）
+		///   mounted 0|1                 骑马的目标照不照收（默认 on = **拉下马**：点引擎的下马事件，落地才捆）
+		///   diswait &lt;秒&gt;               "拉下马"等他落地的超时（默认 3.0；超时 = 收钩收绳）
 		/// </summary>
 		private static string DoBind(GrappleLogic logic, List<string> args, int at)
 		{
@@ -1704,7 +1736,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case "probe":
 					return logic.BindProbe();
 				case "test":
-					return logic.BindTest(FindNearestBindableAgent(30f));
+					return logic.BindTest(FindNearestBindableAgent(30f,
+						(ArgAt(args, at + 1) ?? "").ToLowerInvariant() == "mounted"));
 				case "time":
 				{
 					float v = ParseF(args, at + 1, -1f);
@@ -1817,6 +1850,25 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					return $"OK: struggling = {logic.BindStruggleState}"
 						+ " (station bound <-> struggling; no automatic trigger yet -- manual switch)";
 				}
+				// ── 骑马的目标：拉下马（2026-10-13 立）──
+				//    钩住骑手 = 点引擎自己的"下马"事件，等他落地再走"缠 → 倒 → 缚"。
+				case "mounted":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleBind.PullDownMounted = false; }
+					else if (m == "1" || m == "on") { GrappleBind.PullDownMounted = true; }
+					else if (m != null && m != "state") { return "Error: bind mounted expects 0|1"; }
+					return $"OK: pull a mounted target off the horse = {GrappleBind.PullDownMounted}"
+						+ " (on = use the engine's own dismount event, then bind them on foot once they land;"
+						+ " off = old behavior, the hook just dangles on them)";
+				}
+				case "diswait":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: dismount wait = {GrappleBind.DismountTimeoutSeconds:F1}s (give up + retract if the rider is not on foot by then)";
+					GrappleBind.DismountTimeoutSeconds = v;
+					return $"OK: dismount wait = {v:F1}s";
+				}
 				// 🔴 原版 AI 冻结开关（2026-10-09）：关掉 = 回到"只压旗标"的旧行为，做 A/B 用。
 				//    旗标只禁"跑/攻击"，**不禁走、不禁选目标** ⇒ 战斗场景里关掉它对方照旧打架。
 				case "aipause":
@@ -1833,7 +1885,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case "panim":
 					return DoBindPanim(args, at);
 			}
-			return "Error: bind expects on|off|test|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause";
+			return "Error: bind expects on|off|test|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause|mounted|diswait";
 		}
 
 		/// <summary>
@@ -1912,8 +1964,19 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					GrappleCarry.MaxLiftDistance = v;
 					return $"OK: carry maxdist = {v:F1}m";
 				}
+				// ── 起扛时收武器（2026-10-13 用户要的："扛起来就别再端着弓、别挂准星"）──
+				case "sheathe":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleCarry.SheatheOnCarry = false; }
+					else if (m == "1" || m == "on") { GrappleCarry.SheatheOnCarry = true; }
+					else if (m != null && m != "state") { return "Error: carry sheathe expects 0|1"; }
+					return $"OK: sheathe while carrying = {GrappleCarry.SheatheOnCarry}"
+						+ " (on = the weapon is stowed the moment you pick someone up -> no crosshair, no archer idle;"
+						+ " it is handed back to you when the carry ends, unless you drew something yourself)";
+				}
 			}
-			return "Error: carry expects on|off|start|put|state|offset|maxdist|z|zlift|zprobe";
+			return "Error: carry expects on|off|start|put|state|offset|maxdist|sheathe|z|zlift|zprobe";
 		}
 
 		/// <summary>
@@ -1937,7 +2000,789 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		/// 找**最近的可捆目标**（`bind test` 用）：排除自己 / 坐骑 / 骑在马上的人 / 儿童 / 失效者。
 		/// 与 <see cref="GrappleBind.Begin"/> 的准入同口径（那边还会再判一次 —— 那是权威）。
 		/// </summary>
-		private static Agent FindNearestBindableAgent(float maxDist)
+		// ═════════════════════ 骑马测试夹具（2026-10-13 立）═════════════════════
+		//
+		// 目的 = **验收"骑马"那两条链**（`bind mounted` 拉下马 · `mountedpull` 马上勾墙自动下马）——
+		// 不然每次都要真去战场上找一个敌骑才能试。
+		//
+		//   custom.grapple horse                      状态行：谁骑着什么 / 身边几匹空马
+		//   custom.grapple horse spawn [数量] [物品id]  在**面前 3 米**刷马（站着不走 —— 自动清掉 CanWander）
+		//   custom.grapple horse mount [#编号|名字|me]  让一个 NPC（或 `me` = 你自己）上最近那匹空马
+		//   custom.grapple horse dismount [#编号|名字]  让骑着的那个落马（**引擎下马事件** = 我们"拉下马"用的同一条）
+		//
+		// 🔴 **mount / dismount 都是异步的**（引擎要演一段上下马动画）⇒ 判据 = 隔一秒再敲一次不带参数的
+		//    `custom.grapple horse`，看状态行变了没有。
+		//
+		// 🔴 测试夹具的两处"开挂"（回执里都会注明，别当成正式行为）：
+		//   ① 目标缺 `AgentFlag.CanRide` 就补上（村民本来一辈子不上马）
+		//   ② 把那匹马的 `MountDifficulty` 压到 0（引擎的 `CheckSkillForMounting` 要求骑术 ≥ 难度）
+		//   两处都只作用在**这一次调用**涉及的 agent 上，不碰任何持久数据、也不改世界状态。
+		//
+		// 🔴 刷马的配方抄的是**官方** `SandBoxHelpers.MissionHelper.SpawnHorses`：
+		//   `Mission.SpawnMonster(new ItemRosterElement(马物品, 1, null), default, pos, dir, -1)`
+		//   —— 马是**物品**驱动的（`ItemObject.HorseComponent`，`IsMount` = 能骑且不是驮畜）。
+		//   物品查找走铁律 5 两轮：先常见原版 id，再遍历内存里所有已注册物品兜底。
+
+		private static string DoHorse(List<string> args, int at)
+		{
+			string what = (ArgAt(args, at + 0) ?? "state").ToLowerInvariant();
+			switch (what)
+			{
+				case "spawn": return HorseSpawn(args, at);
+				case "mount": case "ride": return HorseMount(args, at);
+				case "dismount": case "fall": case "unhorse": return HorseDismount(args, at);
+				case "rider": return HorseSpawnRider(args, at);
+				case "why": return HorseWhy(args, at);
+				case "state": return HorseState();
+			}
+			return "Error: horse expects spawn|mount|dismount|rider|why|state";
+		}
+
+		/// <summary>`custom.grapple horse spawn [数量] [物品id]` —— 在玩家面前刷马（站着不走）。
+		/// 不给物品 id 时：先试常见原版骑乘马，再遍历内存兜底（见 <see cref="ResolveHorseItem"/>）。</summary>
+		private static string HorseSpawn(List<string> args, int at)
+		{
+			Mission mission = Mission.Current;
+			Agent main = Agent.Main;
+			if (mission == null || main == null) return "Error: not in mission.";
+			Scene scene = mission.Scene;
+			if (scene == null) return "Error: no scene.";
+
+			// 可选：点名要哪种马（按物品 StringId 精确查；查不到就报错 —— 不静默换一匹）
+			string wantId = ArgAt(args, at + 2);
+			ItemObject item;
+			string how;
+			if (!string.IsNullOrEmpty(wantId))
+			{
+				item = null;
+				try { item = MBObjectManager.Instance.GetObject<ItemObject>(wantId); } catch (Exception) { }
+				if (item == null || !item.HasHorseComponent)
+					return $"Error: no horse item with id '{wantId}' (check the id; 'saddle_horse' / 'empire_horse' are vanilla ones).";
+				if (!item.HorseComponent.IsMount)
+					return $"Error: '{wantId}' is not rideable (pack animal / not a mount).";
+				how = "by given id";
+			}
+			else
+			{
+				item = ResolveHorseItem(out how);
+				if (item == null) return "Error: no rideable horse item found in the loaded modules.";
+			}
+
+			int count = (int)ParseF(args, at + 1, 1f);
+			if (count < 1) count = 1;
+			if (count > 6) count = 6;
+
+			Vec3 fwd = main.LookDirection;                 // Vec3（1.2.12 与 1.5.x 同签名）
+			fwd.z = 0f;
+			if (fwd.LengthSquared < 1e-4f) fwd = Vec3.Forward;
+			fwd = fwd.NormalizedCopy();
+			Vec3 right = new Vec3(fwd.y, -fwd.x, 0f);      // 右手侧（同 GrappleCarry 那条口径）
+			Vec2 dir = fwd.AsVec2;
+
+			string made = "";
+			for (int i = 0; i < count; i++)
+			{
+				// 面前 3 米；刷多匹时左右错开，免得叠在一起
+				float side = (i - (count - 1) * 0.5f) * 1.6f;
+				Vec3 pos = main.Position + fwd * 3.0f + right * side;
+				float gz = V.GroundHeight(scene, pos, BodyFlags.CommonCollisionExcludeFlags);
+				pos.z = (float.IsNaN(gz) || Math.Abs(gz) > 1e5f) ? main.Position.z : gz + 0.05f;
+
+				Agent horse;
+				try
+				{
+					horse = mission.SpawnMonster(new ItemRosterElement(item, 1, null),
+						default(ItemRosterElement), pos, dir, -1);
+				}
+				catch (Exception ex)
+				{
+					return $"Error: SpawnMonster threw ({ex.GetType().Name}: {ex.Message}).";
+				}
+				if (horse == null) return "Error: SpawnMonster returned null (is that item a rideable mount?).";
+
+				// 🔴 **站着不走**：官方 `AnimalSpawnSettings.CheckAndSetAnimalAgentFlags` 干的就是这件事
+				//    （把 `CanWander` 清掉）—— 不清的话马会自己溜达走，下一步"上马"就够不着了。
+				try { horse.SetAgentFlags(horse.GetAgentFlags() & ~AgentFlag.CanWander); }
+				catch (Exception) { }
+
+				made += (made.Length > 0 ? ", " : "") + $"#{horse.Index}";
+				SpawnedHorseIndices.Add(horse.Index);      // 让 `horse mount` 优先挑它（见 FindSpawnedRiderlessMount）
+			}
+
+			return $"OK: spawned {count} horse(s) [item '{item.StringId}', {how}] 3m in front of you -> {made}"
+				+ " (wandering disabled so they stay put). Next: custom.grapple horse mount";
+		}
+
+		/// <summary>`custom.grapple horse mount [#编号|名字|me]` —— 让目标上最近那匹空马。</summary>
+		private static string HorseMount(List<string> args, int at)
+		{
+			if (Mission.Current == null) return "Error: not in mission.";
+
+			Agent npc = ResolveHorseTarget(args, at + 1, false, out string note);
+			if (npc == null) return "Error: no NPC found." + note;
+			if (npc.MountAgent != null)
+				return $"Error: {AgentName(npc)} is already on a horse (use 'custom.grapple horse dismount' first).";
+
+			// 🔴 **优先用自己刚刷的那匹**（2026-10-13 加）：镇上本来就有马时，"最近的一匹"可能不是你刚刷的。
+			//    记的是 Agent.Index（agent 每局重建，索引会变 ⇒ 取到的一定是当下这一匹，或者取不到）。
+			//    没刷过 = 这一步跳过 ⇒ 直接落到"最近的、能骑的、空着的"（**玩家自己那匹马也算**，
+			//    前提是玩家先下来 —— 还骑着的马有主，会被跳过）。
+			Agent horse = FindSpawnedRiderlessMount(npc.Position, 60f) ?? FindNearestRiderlessMount(npc.Position, 60f);
+			if (horse == null)
+			{
+				bool mainMounted = false;
+				try { mainMounted = Agent.Main != null && Agent.Main.MountAgent != null; } catch (Exception) { }
+				return "Error: no rideable riderless horse nearby (60m)."
+					+ (mainMounted
+						? " NOTE: you are still ON your own horse -- a ridden horse is skipped, dismount first and re-run this."
+						: " (spawn one with: custom.grapple horse spawn)")
+					+ note;
+			}
+
+			// ── 夹具开挂 ①：补 CanRide（村民本来一辈子不上马）──
+			bool grantedRide = false;
+			try
+			{
+				if ((npc.GetAgentFlags() & AgentFlag.CanRide) == 0)
+				{
+					npc.SetAgentFlags(npc.GetAgentFlags() | AgentFlag.CanRide);
+					grantedRide = true;
+				}
+			}
+			catch (Exception) { }
+
+			// ── 夹具开挂 ②：马的难度压到 0（`CheckSkillForMounting` 要求 骑术 ≥ MountDifficulty）──
+			// 🔴 注意 API 落点：`MountDifficulty` 是 `AgentDrivenProperties` 上的属性，**不在 Agent 上**
+			//    （`Agent` 侧只有这两个：读 `GetAgentDrivenPropertyValue` / 写 `SetAgentDrivenPropertyValueFromConsole`
+			//    —— 后者是引擎自己的控制台写入口，也是唯一的公开 setter；1.2.12 / 1.5.x 同签名）。
+			float oldDiff = float.NaN;
+			try
+			{
+				oldDiff = horse.GetAgentDrivenPropertyValue(DrivenProperty.MountDifficulty);
+				horse.SetAgentDrivenPropertyValueFromConsole(DrivenProperty.MountDifficulty, 0f);
+			}
+			catch (Exception) { }
+
+			// 引擎的挂载交互**由 native 管距离**（managed 侧只有常量 `Agent.MaxMountInteractionDistance` = 1.75 m，
+			// 谁在用读不到）⇒ 太远就先**挪到马身侧**。
+			// 🔴 这是**测试夹具的捷径**：真实流程是 AI 自己走过去（那要驱动寻路 + 等，验收太慢），
+			//    这里直接 `TeleportToPosition`（画面上就是"人闪一下站到马旁"）。
+			float dist = 0f;
+			bool moved = false;
+			try
+			{
+				dist = npc.Position.Distance(horse.Position);
+				if (dist > 1.6f)
+				{
+					Vec3 hv = horse.LookDirection; hv.z = 0f;
+					if (hv.LengthSquared < 1e-4f) hv = Vec3.Forward;
+					hv = hv.NormalizedCopy();
+					Vec3 side = new Vec3(hv.y, -hv.x, 0f);       // 马身侧
+					npc.TeleportToPosition(horse.Position + side * 1.2f);
+					moved = true;
+				}
+			}
+			catch (Exception) { }
+
+			string act = CurrentClipOf(npc);
+
+			// 🔴🔴 **第一步：把 AI 控制器摘掉**（2026-10-13，用户给的线索 + 反编译印证）——
+			//    `Agent.EventControlFlags` 每帧由 AI 重写（`Agent.Tick` 里 `if (AllowAiTicking && IsAIControlled) TickAsAI()`），
+			//    我们外部 `|= Mount` 的位**活不过一帧**，native 看不到 ⇒ 必须先 `Controller = None`。
+			//    `V.SetAgentControllerNone` 是现成的版本兼容包装（飞行 spike 立的）。
+			//    玩家自己不走这条（他是 Player 控制器，按 E 就行，摘了反而失控）。
+			bool wasAI = false;
+			bool controllerOff = false;
+			if (npc != Agent.Main)
+			{
+				try
+				{
+					wasAI = npc.IsAIControlled;
+					if (wasAI) { V.SetAgentControllerNone(npc); controllerOff = true; }
+				}
+				catch (Exception) { }
+			}
+
+			// ① 引擎的"点一下"入口（**玩家**按 E 上马走的就是这条：`Mission.OnAgentInteraction` → `Agent.Mount`）。
+			npc.Mount(horse);
+
+			bool accepted = false;
+			try { accepted = (npc.EventControlFlags & Agent.EventControlFlag.Mount) != 0; }
+			catch (Exception) { }
+
+			// ② 🔴 **NPC 真正能上马的那条路 = 引擎自己的 AI 坐骑令**（2026-10-13 查明）：
+			//    托管层**只有三处**会写 `EventControlFlag`（`Run` / `Mount` / `Dismount`，都在 `Agent.Mount()` 里），
+			//    **AI 从来不写** ⇒ 我们外部点的 Mount 旗标对 AI agent **不生效**（实机症状：旗标读回来是 True，
+			//    但什么都没发生）。引擎给 AI 的入口是 **`SetRidingOrder(Mount)` + `SetSelectedMountIndex`**：
+			//    `HumanAIComponent.OnTick` 每 **2~3 秒**（`MissionTimer(2f + 随机)`）查一次
+			//    「`GetRidingOrder() == 1` 且没马且没在撤退」→ 从 `Mission.Current.MountsWithoutRiders` 里挑
+			//    最近的、过得了 `CanAgentRideMount`（= `CheckSkillForMounting`）的马 → `ReserveMount` → 走过去 → 上马。
+			//    🔴 引擎 `ReserveMount` 内部只干两件事（反编译）：`Agent.SetSelectedMountIndex(mount.Index)`
+			//       + `mount.CommonAIComponent.OnMountReserved(Agent.Index)`（后者是 internal，我们写不了，
+			//       它只是"别被别人抢"的标记）⇒ **骑手侧那一半我们自己设**。
+			bool orderSet = false;
+			int orderNow = -1, selNow = -1;
+			try
+			{
+				if (npc != Agent.Main)
+				{
+					npc.SetRidingOrder(RidingOrder.RidingOrderEnum.Mount);
+					npc.SetSelectedMountIndex(horse.Index);
+					orderSet = true;
+					orderNow = npc.GetRidingOrder();
+					selNow = npc.GetSelectedMountIndex();
+				}
+			}
+			catch (Exception) { }
+
+			// 🔴 **把请求按住 6 秒** + 收尾时把控制权还回去（见 `GrappleLogic.TickMountRequest`）。
+			//    玩家不用（他走事件旗标那条）。
+			if (npc != Agent.Main)
+			{
+				try { GrappleLogic.Ensure()?.RequestMount(npc, horse, 6f, wasAI); }
+				catch (Exception) { }
+			}
+
+			// 往运行时日志再落一行（回执本身也会被 `[Cmd]` 记，但那行太长不好搜）——
+			// 下次"没反应"先看这行：它把**选中了哪匹马、什么物品、距离、动作、两条路各自的回执**一次打全。
+			DebugLogger.Log($"[GrappleHorse] mount: npc={AgentName(npc)}#{npc.Index} -> horse #{horse.Index}"
+				+ $" item='{HorseItemIdOf(horse)}' monster={MonsterIdOf(horse)}"
+				+ $" dist={dist:F1}m moved={moved} clip-before='{act}'"
+				+ $" controllerOff={controllerOff} eventFlagAccepted={accepted} ridingOrderSet={orderSet}"
+				+ $" ridingOrderNow={orderNow} selectedMountNow={selNow}"
+				+ $" canRide={(grantedRide ? "granted" : "already")} difficulty={oldDiff:F0}->0");
+			// 🔴 **顺手把整条 AI 链的读数也落一条**（省一轮"再敲 horse why"）：
+			//    `why:` 那行里每一格就是引擎 `CommonAIComponent` 找马流程上的一道门。
+			DebugLogger.Log("[GrappleHorse] " + HorseWhyLine(npc));
+
+			return $"OK: ordered {AgentName(npc)} onto horse #{horse.Index}"
+				+ $" (item '{HorseItemIdOf(horse)}', monster {MonsterIdOf(horse)})"
+				+ $" | dist={dist:F1}m" + (moved ? " (too far -> teleported to its flank)" : " (already close enough)")
+				+ $" clip-before={act}"
+				+ (grantedRide ? " | [test helper] granted AgentFlag.CanRide" : "")
+				+ (float.IsNaN(oldDiff) ? "" : $" | [test helper] mount difficulty {oldDiff:F0}->0")
+				+ $" | controller->None={controllerOff} mount-flag={accepted} riding-order={orderSet}"
+				+ (npc == Agent.Main ? "" : $" (now {orderNow}/sel#{selNow}; kept for 6s)")
+				+ (npc == Agent.Main
+					? ". (you are the player: the engine plays the mount clip now -- re-run 'custom.grapple horse' in a second.)"
+					: ". (NPC: AI controller taken off so nothing overwrites the mount flag, the engine plays the mount clip"
+						+ " and we hand the AI back when it is done; re-run 'custom.grapple horse' in a few seconds to confirm.)")
+				+ note;
+		}
+
+		/// <summary>`custom.grapple horse dismount [#编号|名字]` —— 让骑着的那个落马（引擎下马事件）。</summary>
+		private static string HorseDismount(List<string> args, int at)
+		{
+			if (Mission.Current == null) return "Error: not in mission.";
+
+			Agent npc = ResolveHorseTarget(args, at + 1, true, out string note);
+			if (npc == null) return "Error: no mounted NPC found." + note;
+
+			Agent mount = null;
+			try { mount = npc.MountAgent; } catch (Exception) { }
+			if (mount == null) return $"Error: {AgentName(npc)} is not on a horse." + note;
+
+			// 🔴 **同"上马"那一套**：先摘 AI 控制器（否则 Dismount 旗标会被 AI 每帧覆写），
+			//    点旗标，然后由 `GrappleLogic` 在"下来了/超时"时把控制权还回去。
+			bool wasAI = false, controllerOff = false;
+			if (npc != Agent.Main)
+			{
+				try
+				{
+					wasAI = npc.IsAIControlled;
+					if (wasAI) { V.SetAgentControllerNone(npc); controllerOff = true; }
+				}
+				catch (Exception) { }
+			}
+
+			try { npc.EventControlFlags |= Agent.EventControlFlag.Dismount; }
+			catch (Exception ex) { return $"Error: setting the dismount flag failed ({ex.GetType().Name})."; }
+
+			bool set = false;
+			try { set = (npc.EventControlFlags & Agent.EventControlFlag.Dismount) != 0; }
+			catch (Exception) { }
+
+			if (npc != Agent.Main)
+			{
+				try { GrappleLogic.Ensure()?.RequestDismount(npc, 6f, wasAI); }
+				catch (Exception) { }
+			}
+
+			DebugLogger.Log($"[GrappleHorse] dismount: npc={AgentName(npc)}#{npc.Index}"
+				+ $" mount=#{mount.Index} item='{HorseItemIdOf(mount)}' clip-before='{CurrentClipOf(npc)}'"
+				+ $" flagSet={set} controllerOff={controllerOff}");
+
+			return $"OK: pressed the engine's DISMOUNT on {AgentName(npc)}"
+				+ $" (mount #{mount.Index}, item '{HorseItemIdOf(mount)}') | flag set={set}"
+				+ (npc == Agent.Main ? "" : $" | controller->None={controllerOff}")
+				+ $" | clip-before={CurrentClipOf(npc)}"
+				+ ". He plays act_dismount_horse_to_* and steps off;"
+				+ " re-run 'custom.grapple horse' in a second to confirm." + note;
+		}
+
+		/// <summary>`custom.grapple horse` —— 状态行（mount / dismount 都是异步的，隔一秒再敲一次就是判据）。
+		/// 🔴 空马一律标出**马物品 id** 与**能不能骑**：驮马/骡子的 monster 也叫 "horse"，只看名字分不出来
+		/// （2026-10-13 就是挂在驮马上"没反应"的）。</summary>
+		private static string HorseState()
+		{
+			Mission mission = Mission.Current;
+			if (mission == null) return "Error: not in mission.";
+			Agent main = Agent.Main;
+
+			int nMounted = 0, nFree = 0;
+			string mounted = "", free = "";
+			try
+			{
+				foreach (Agent a in mission.Agents)
+				{
+					if (a == null || !AgentControlHelper.SafeIsActive(a) || !a.IsMount) continue;
+					float d = main != null ? a.Position.Distance(main.Position) : 0f;
+					Agent r = a.RiderAgent;
+					if (r != null)
+					{
+						nMounted++;
+						if (nMounted <= 4) mounted += (mounted.Length > 0 ? ", " : "")
+							+ $"{AgentName(r)}#{r.Index} on #{a.Index} '{HorseItemIdOf(a)}' ({d:F0}m)";
+					}
+					else
+					{
+						nFree++;
+						if (nFree <= 4) free += (free.Length > 0 ? ", " : "")
+							+ $"#{a.Index} '{HorseItemIdOf(a)}'{(IsRideableMount(a) ? "" : " NOT-RIDEABLE")} ({d:F0}m)";
+					}
+				}
+			}
+			catch (Exception) { }
+
+			return $"grapple horse: mounted={nMounted} [{mounted}] | riderless={nFree} [{free}]"
+				+ " | usage: horse spawn [n] [itemid] | horse mount [#idx|name|me] | horse dismount [#idx|name]";
+		}
+
+		/// <summary>
+		/// 找一匹**能骑的活马**（铁律 5 两轮：先常见原版 id，再遍历内存里所有已注册物品兜底）。
+		/// 🔴 判据 = `HorseComponent.IsMount`（= **能骑 且不是驮畜**）—— 骆驼/驴都算（本来就是骑乘兽），
+		///    驮马 / 骡子被它排除。**不要**自己按名字猜哪些能骑。
+		/// </summary>
+		private static ItemObject ResolveHorseItem(out string how)
+		{
+			string[] prefer =
+			{
+				"saddle_horse", "empire_horse", "khuzait_horse", "aserai_horse",
+				"vlandia_horse", "sturgia_horse", "battania_horse", "camel"
+			};
+			try
+			{
+				foreach (string id in prefer)
+				{
+					ItemObject it = MBObjectManager.Instance.GetObject<ItemObject>(id);
+					if (it != null && it.HasHorseComponent && it.HorseComponent.IsMount)
+					{
+						how = "by known id";
+						return it;
+					}
+				}
+			}
+			catch (Exception) { }
+
+			how = "by memory scan";
+			try
+			{
+				return MBObjectManager.Instance.GetObject<ItemObject>(
+					it => it != null && it.HasHorseComponent && it.HorseComponent.IsMount);
+			}
+			catch (Exception) { return null; }
+		}
+
+		/// <summary>**本会话刷出来的马**的 `Agent.Index`（`horse spawn` 记，`mount` 优先挑它）。
+		/// 只做"优先"用：agent 每局重建、索引会变 ⇒ 取不到就干净回落"最近那匹能骑的"。</summary>
+		private static readonly List<int> SpawnedHorseIndices = new List<int>();
+
+		/// <summary>刚刷的那几匹里，离 <paramref name="near"/> 最近、还能骑、还没主的。没有 = null。</summary>
+		private static Agent FindSpawnedRiderlessMount(Vec3 near, float maxDist)
+		{
+			Agent best = null;
+			float bestD = maxDist;
+			try
+			{
+				foreach (Agent a in Mission.Current.Agents)
+				{
+					if (a == null || !AgentControlHelper.SafeIsActive(a) || !IsRideableMount(a)) continue;
+					if (a.RiderAgent != null) continue;
+					if (!SpawnedHorseIndices.Contains(a.Index)) continue;
+					float d = a.Position.Distance(near);
+					if (d < bestD) { bestD = d; best = a; }
+				}
+			}
+			catch (Exception) { }
+			return best;
+		}
+
+		/// <summary>
+		/// `custom.grapple horse rider [模板id]` —— **刷一个"已经骑在马上"的 NPC**（必成的夹具）。
+		///
+		/// 🔴 为什么要有它（2026-10-13）：`horse mount` 让**已有 NPC**上马走的是引擎自己的 AI 坐骑令，
+		///    那条链在村镇平民身上没跑通（见 `horse why` 的断点诊断）；而验"拉下马"只需要
+		///    **一个骑在马上的人**，不需要他真的会自己上马。
+		///
+		/// 🔴 配方来自引擎自己的 spawn 分支（反编译 `Mission.SpawnAgent`）：
+		///    <code>
+		///    ItemObject item = agentSpawnEquipment[EquipmentIndex.ArmorItemEndSlot].Item;
+		///    if (item != null && item.HasHorseComponent && item.HorseComponent.IsRideable)
+		///        agent2 = CreateHorseAgentFromRosterElements(...);   // ← 造马并挂上去
+		///    </code>
+		///    ⇒ **只要 spawn 装备的马槽里有能骑的马，引擎就把人直接生成在马上**（`NoHorses(true)` 就是用来
+		///    关掉这件事的 —— 我们别的 spawn 命令都带着它）。注意引擎这里用的判据也是 **`IsRideable`**。
+		/// 默认模板 = **准星/最近那个人的角色**（连他的装备一起克隆 ⇒ 看着就是"本村的人骑了匹马"）；
+		/// 也可以给模板 id（`custom.grapple horse rider imperial_vigla_recruit`）。
+		/// </summary>
+		private static string HorseSpawnRider(List<string> args, int at)
+		{
+			Mission mission = Mission.Current;
+			Agent main = Agent.Main;
+			if (mission == null || main == null) return "Error: not in mission.";
+
+			ItemObject horseItem = null;
+			try { horseItem = ResolveHorseItem(out _); } catch (Exception) { }
+			if (horseItem == null) return "Error: no rideable horse item found in the loaded modules.";
+
+			// 模板：给了 id 就用 id；没给就用"准星/最近那个人"的角色（克隆他的装备 ⇒ 外观一致）
+			string wantId = ArgAt(args, at + 1);
+			Equipment equip = null;
+			string who = "";
+			if (!string.IsNullOrEmpty(wantId))
+			{
+				CharacterObject tpl = null;
+				try { tpl = CharacterObject.Find(wantId); } catch (Exception) { }
+				if (tpl == null) return $"Error: no character template '{wantId}'.";
+				who = tpl.StringId;
+				equip = V.RandomBattleEquipment(tpl, MBRandom.RandomInt());
+			}
+			else
+			{
+				Agent from = ResolveHorseTarget(args, at + 1, false, out _) ?? main;
+				who = AgentName(from) + "#" + from.Index;
+				try { equip = from.SpawnEquipment.Clone(); } catch (Exception) { }
+				if (equip == null)
+				{
+					var c = from.Character as CharacterObject;
+					if (c != null) equip = V.RandomBattleEquipment(c, MBRandom.RandomInt());
+				}
+			}
+			if (equip == null) return "Error: could not build equipment for the rider.";
+
+			// 🔴 把马塞进"马槽"（ArmorItemEndSlot）—— 引擎看到它就会把人直接生成在马上
+			equip[EquipmentIndex.ArmorItemEndSlot] = new EquipmentElement(horseItem);
+
+			Vec3 fwd = main.LookDirection; fwd.z = 0f;
+			if (fwd.LengthSquared < 1e-4f) fwd = Vec3.Forward;
+			fwd = fwd.NormalizedCopy();
+			Vec3 pos = main.Position + fwd * 3f;
+			Scene scene = mission.Scene;
+			if (scene != null)
+			{
+				float gz = V.GroundHeight(scene, pos, BodyFlags.CommonCollisionExcludeFlags);
+				pos.z = (float.IsNaN(gz) || Math.Abs(gz) > 1e5f) ? main.Position.z : gz + 0.05f;
+			}
+
+			Agent rider;
+			try
+			{
+				CharacterObject tpl = null;
+				if (!string.IsNullOrEmpty(wantId)) tpl = CharacterObject.Find(wantId);
+				if (tpl == null) tpl = (ResolveHorseTarget(args, at + 1, false, out _) ?? main).Character as CharacterObject;
+				if (tpl == null) return "Error: no usable character template.";
+
+				var data = new AgentBuildData(new SimpleAgentOrigin(tpl, -1, null))
+					.Equipment(equip)                       // ← 覆盖 spawn 装备（马就在里面）
+					.InitialPosition(pos)
+					.InitialDirection(fwd.AsVec2)
+					.Team(main.Team);
+				rider = mission.SpawnAgent(data);
+			}
+			catch (Exception ex)
+			{
+				return $"Error: SpawnAgent threw ({ex.GetType().Name}: {ex.Message}).";
+			}
+			if (rider == null) return "Error: SpawnAgent returned null.";
+
+			Agent mount = null;
+			try { mount = rider.MountAgent; } catch (Exception) { }
+
+			DebugLogger.Log($"[GrappleHorse] rider: spawned '{AgentName(rider)}'#{rider.Index}"
+				+ $" from={who} horseItem='{horseItem.StringId}' mounted={(mount != null)}"
+				+ (mount != null ? $" mount=#{mount.Index}" : ""));
+
+			return $"OK: spawned '{AgentName(rider)}' #{rider.Index} 3m ahead"
+				+ (mount != null
+					? $" ALREADY MOUNTED on #{mount.Index} ('{HorseItemIdOf(mount)}')."
+					: " (⚠ not mounted: the engine did not attach a horse -- check the item).")
+				+ " Next: 'custom.grapple bind test mounted' to test the pull-down.";
+		}
+
+		/// <summary>
+		/// `custom.grapple horse why [#编号|名字]` —— **"为什么他不上马"的断点诊断**（2026-10-13 立）。
+		/// 把引擎那条链上**每一道门**的当前值打出来（缺哪个一眼可见），并落运行时日志 `[GrappleHorse] why:`。
+		///
+		/// 引擎的 AI 上马链（反编译 `CommonAIComponent.OnTick` / `FindClosestMountAvailable`）：
+		///   `Mission.AllowAiTicking` → `IsAIControlled` → `CommonAIComponent != null` → 没马 →
+		///   `!IsRetreating` → 搜索计时器到点（2~3 s）→ **`GetRidingOrder() == 1`** →
+		///   从 `Mission.Current.MountsWithoutRiders` 里挑「活跃 + 没主 + **!IsRunningAway** +
+		///   `CanAgentRideMount`」的最近一匹 → `ReserveMount` → native 走过去上马。
+		/// </summary>
+		private static string HorseWhy(List<string> args, int at)
+		{
+			Mission mission = Mission.Current;
+			if (mission == null) return "Error: not in mission.";
+
+			Agent npc = ResolveHorseTarget(args, at + 1, false, out string note);
+			if (npc == null) return "Error: no NPC found." + note;
+
+			string line = HorseWhyLine(npc);
+			DebugLogger.Log("[GrappleHorse] " + line);
+			return line;
+		}
+
+		/// <summary>
+		/// 断点诊断那一行（`horse why` 与 `horse mount` 共用 —— **mount 跑完自动落一条**，
+		/// 这样"上不去"的时候不用再让人多敲一次命令）。
+		/// </summary>
+		private static string HorseWhyLine(Agent npc)
+		{
+			Mission mission = Mission.Current;
+			bool allowTick = false;
+			try { allowTick = mission != null && mission.AllowAiTicking; } catch (Exception) { }
+
+			Agent horse = FindSpawnedRiderlessMount(npc.Position, 60f) ?? FindNearestRiderlessMount(npc.Position, 60f);
+
+			string npcPart = $"npc='{AgentName(npc)}'#{npc.Index}"
+				+ $" aiControlled={Safe(() => npc.IsAIControlled)}"
+				+ $" paused={Safe(() => npc.IsPaused)}"
+				+ $" ridingOrder={SafeI(() => npc.GetRidingOrder())} (1=Mount)"
+				+ $" retreating={Safe(() => npc.IsRetreating())}"
+				+ $" commonAI={Safe(() => npc.CommonAIComponent != null)}"
+				+ $" humanAI={Safe(() => npc.HumanAIComponent != null)}"
+				+ $" formation={SafeS(() => npc.Formation != null ? npc.Formation.Index.ToString() : "none")}"
+				+ $" canRideFlag={Safe(() => (npc.GetAgentFlags() & AgentFlag.CanRide) != 0)}"
+				+ $" ridingSkill={SafeF(() => MissionGameModels.Current.AgentStatCalculateModel.GetEffectiveSkill(npc, DefaultSkills.Riding))}"
+				+ $" clip='{CurrentClipOf(npc)}'";
+
+			string horsePart = "(none)", checkPart = "-";
+			if (horse != null)
+			{
+				Agent h = horse;
+				horsePart = $"horse #{h.Index} '{HorseItemIdOf(h)}' dist={h.Position.Distance(npc.Position):F1}m"
+					+ $" active={Safe(() => h.IsActive())}"
+					+ $" riderless={Safe(() => h.RiderAgent == null)}"
+					+ $" runningAway={Safe(() => h.IsRunningAway)}"
+					+ $" inMountList={Safe(() => InMountsWithoutRiders(h))}"
+					+ $" reservedRider={SafeI(() => h.CommonAIComponent?.ReservedRiderAgentIndex ?? -1)}";
+				checkPart = $"checkSkillForMounting={Safe(() => npc.CheckSkillForMounting(h))}"
+					+ $" canAgentRideMount={Safe(() => MissionGameModels.Current.AgentStatCalculateModel.CanAgentRideMount(npc, h))}";
+			}
+
+			return $"horse why: allowAiTicking={allowTick} | {npcPart} | {horsePart} | {checkPart}";
+		}
+
+		/// <summary>马是不是在引擎那份"无主马"表里（`Mission.MountsWithoutRiders` —— AI 只从这里挑马）。</summary>
+		private static bool InMountsWithoutRiders(Agent horse)
+		{
+			try
+			{
+				foreach (var kv in Mission.Current.MountsWithoutRiders)
+				{
+					if (ReferenceEquals(kv.Key, horse)) return true;
+				}
+			}
+			catch (Exception) { }
+			return false;
+		}
+
+		// 诊断取值的小包装（任何一个读数抛异常都不该让整条诊断挂掉）
+		private static string Safe(Func<bool> f) { try { return f() ? "1" : "0"; } catch (Exception) { return "?"; } }
+		private static string SafeI(Func<int> f) { try { return f().ToString(); } catch (Exception) { return "?"; } }
+		private static string SafeF(Func<float> f) { try { return f().ToString("F0"); } catch (Exception) { return "?"; } }
+		private static string SafeS(Func<string> f) { try { return f() ?? "?"; } catch (Exception) { return "?"; } }
+
+		/// <summary>离 <paramref name="near"/> 最近的**能骑的**空马。找不到 = null。</summary>
+		private static Agent FindNearestRiderlessMount(Vec3 near, float maxDist)		{
+			Agent best = null;
+			float bestD = maxDist;
+			try
+			{
+				foreach (Agent a in Mission.Current.Agents)
+				{
+					if (a == null || !AgentControlHelper.SafeIsActive(a) || !IsRideableMount(a)) continue;
+					if (a.RiderAgent != null) continue;               // 有主的不要
+					float d = a.Position.Distance(near);
+					if (d < bestD) { bestD = d; best = a; }
+				}
+			}
+			catch (Exception) { }
+			return best;
+		}
+
+		/// <summary>
+		/// 这个 agent 是不是**能骑的**坐骑 —— 判据 = 它那件马物品的 `HorseComponent.IsRideable`
+		/// （= 物品 XML 里的 `is_mountable`，也正是引擎 `ItemObject.IsMountable` 用的那一个）。
+		///
+		/// 🔴🔴 **别用 `Agent.IsMount`，也别用 `HorseComponent.IsMount`** —— 两个都会把**驮马**判死：
+		///    · `Agent.IsMount` = `AgentFlag.Mountable`（旗标太粗，不可靠）；
+		///    · `HorseComponent.IsMount` = `IsRideable && !IsPackAnimal` —— 而 `sumpter_horse`（驮马）
+		///      的 XML 是 **`is_mountable="true" is_pack_animal="true"`** ⇒ 它是**能骑的**（只是同时算驮畜、
+		///      进商队负重那套逻辑），却被 `IsMount` 判成 false。
+		///    2026-10-13 实机两次踩坑：第一次挑中了玩家自己那匹驮马（`Agent.IsMount` 放行、驮马其实能骑，
+		///    但后面另有原因没上去）；第二次我用 `HorseComponent.IsMount` 当过滤器 —— 那会把**玩家自己的马
+		///    也筛掉**，方向反了。**唯一正确判据 = `IsRideable`**（引擎自己也是这么判的）。
+		/// </summary>
+		private static bool IsRideableMount(Agent a)
+		{
+			if (a == null || !a.IsMount) return false;
+			try
+			{
+				ItemObject it = a.SpawnEquipment[EquipmentIndex.ArmorItemEndSlot].Item;
+				return it != null && it.HasHorseComponent && it.HorseComponent.IsRideable;
+			}
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>这个坐骑**是哪件马物品**（回执里显示用 —— 驮马 / 骑乘马在这里才分得开，
+		/// 两者的 `Monster.StringId` 都是 `"horse"`）。取不到给 "?"。</summary>
+		private static string HorseItemIdOf(Agent a)
+		{
+			try
+			{
+				ItemObject it = a?.SpawnEquipment[EquipmentIndex.ArmorItemEndSlot].Item;
+				return it != null ? it.StringId : "?";
+			}
+			catch (Exception) { return "?"; }
+		}
+
+		/// <summary>agent 此刻在播哪个动作（**用 clip 名，不用动作名** —— 见 `V.ClipName` 的注释：
+		/// `ActionIndexCache.GetName()` 在 1.3.15 上是坏的；`V.ActName` 给的又是动作**类别**不是名字）。</summary>
+		private static string CurrentClipOf(Agent a)
+		{
+			try { return V.ClipName(a, a.GetCurrentAction(0), "-"); }
+			catch (Exception) { return "-"; }
+		}
+
+		/// <summary>
+		/// **目标怎么指**（骑马三条命令共用）：
+		///   · `me` / `player` / `main` → 玩家自己（**验"骑马勾墙"那条链要用**）
+		///   · `#12` 或 `12`            → 按 `Agent.Index` 精确找（编号从状态行或 `custom.ice list` 拿）
+		///   · 别的字串                  → 按名字找（包含匹配，忽略大小写）
+		///   · 不写 / 认不出             → **准星指着的人** → 最近的其他人
+		///     （<paramref name="preferMounted"/> = true 时两条兜底都**只挑骑在马上的**）
+		/// 认不出时往 <paramref name="note"/> 里写一句说明（控制台纪律：首参可弃、回落要注明）。
+		/// </summary>
+		private static Agent ResolveHorseTarget(List<string> args, int at, bool preferMounted, out string note)
+		{
+			note = "";
+			string tok = ArgAt(args, at);
+			if (!string.IsNullOrEmpty(tok))
+			{
+				string low = tok.ToLowerInvariant();
+				if (low == "me" || low == "player" || low == "main" || low == "self")
+					return Agent.Main;
+
+				string num = low.StartsWith("#") ? low.Substring(1) : low;
+				if (int.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out int idx))
+				{
+					try
+					{
+						foreach (Agent a in Mission.Current.Agents)
+						{
+							if (a != null && a.Index == idx && AgentControlHelper.SafeIsActive(a) && !a.IsMount)
+								return a;
+						}
+					}
+					catch (Exception) { }
+					note = $" [note: no active agent with index {idx} -> falling back]";
+				}
+				else
+				{
+					Agent byName = null;
+					try
+					{
+						foreach (Agent a in Mission.Current.Agents)
+						{
+							if (a == null || !AgentControlHelper.SafeIsActive(a) || a.IsMount) continue;
+							string n = AgentName(a);
+							if (n != null && n.IndexOf(tok, StringComparison.OrdinalIgnoreCase) >= 0) { byName = a; break; }
+						}
+					}
+					catch (Exception) { }
+					if (byName != null) return byName;
+					note = $" [note: nobody named '{tok}' -> falling back]";
+				}
+			}
+
+			// 准星 → 最近的其他人（preferMounted = 只挑骑着的；玩家自己也算候选，验"我自己骑马"用）
+			Agent looked = FindLookedAtAgent();
+			if (looked != null && (!preferMounted || looked.MountAgent != null)) return looked;
+
+			Agent best = null;
+			float bestD = 60f;
+			try
+			{
+				Vec3 from = Agent.Main != null ? Agent.Main.Position : Vec3.Zero;
+				foreach (Agent a in Mission.Current.Agents)
+				{
+					if (a == null || !AgentControlHelper.SafeIsActive(a) || a.IsMount) continue;
+					if (preferMounted && a.MountAgent == null) continue;
+					if (!preferMounted && a == Agent.Main) continue;      // 不写目标时不默认挑玩家自己
+					float d = a.Position.Distance(from);
+					if (d < bestD) { bestD = d; best = a; }
+				}
+			}
+			catch (Exception) { }
+			return best;
+		}
+
+		/// <summary>
+		/// 准星指着谁 —— 相机原点沿视线打一条 30 m 的射线问引擎。
+		/// 方向走 <see cref="CameraLook.TryGet"/>（铁律 35：接管期间只有它算得对），位置照读
+		/// `Mission.GetCameraFrame().origin`（位置两种相机下都对）。找不到 = null。
+		/// </summary>
+		private static Agent FindLookedAtAgent()
+		{
+			Mission m = Mission.Current;
+			Agent me = Agent.Main;
+			if (m == null || me == null) return null;
+			try
+			{
+				if (!CameraLook.TryGet(out Vec3 forward)) return null;
+				Vec3 origin = m.GetCameraFrame().origin;
+				Agent hit = V.RayCastForClosestAgent(origin, origin + forward * 30f, me.Index, out float _, 0.15f);
+				if (hit == null || hit == me || hit.IsMount) return null;
+				return hit;
+			}
+			catch (Exception) { return null; }
+		}
+
+		/// <summary>名字（取不到就用 `agent#Index`）—— 控制台回执里显示用。</summary>
+		private static string AgentName(Agent a)
+		{
+			try
+			{
+				string n = a?.Name?.ToString();
+				return string.IsNullOrEmpty(n) ? ("agent#" + (a?.Index ?? -1)) : n;
+			}
+			catch (Exception) { return "agent"; }
+		}
+
+		/// <summary>出回执用的怪物 id（马 = "horse"/"camel"…）。取不到给 "?"。</summary>
+		private static string MonsterIdOf(Agent a)
+		{
+			try { return a?.Monster?.StringId ?? "?"; }
+			catch (Exception) { return "?"; }
+		}
+
+		/// <summary>
+		/// `bind test` 的目标拾取：最近的一个"能捆的"。
+		/// <paramref name="wantMounted"/> = true 时**只挑骑马的**（2026-10-13 加：验收"拉下马"用 ——
+		/// 不然还得先去战场上找个敌骑才能试）。默认 false = 只挑步行的（旧行为）。
+		/// </summary>
+		private static Agent FindNearestBindableAgent(float maxDist, bool wantMounted = false)
 		{
 			try
 			{
@@ -1949,8 +2794,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				{
 					if (a == null || a == Agent.Main) continue;
 					if (!AgentControlHelper.SafeIsActive(a)) continue;
-					if (a.IsMount || a.RiderAgent != null) continue;
-					if (a.MountAgent != null) continue;
+					if (a.IsMount || a.RiderAgent != null) continue;      // 马本身不收（两条路都不收）
+					bool mounted = false;
+					try { mounted = a.MountAgent != null; } catch (Exception) { }
+					if (mounted != wantMounted) continue;
 					string mid = null;
 					try { mid = a.Monster?.StringId; } catch (Exception) { }
 					if (mid != null && mid.IndexOf("child", StringComparison.OrdinalIgnoreCase) >= 0) continue;
