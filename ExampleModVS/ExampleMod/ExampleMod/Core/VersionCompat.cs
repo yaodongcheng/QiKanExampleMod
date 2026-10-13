@@ -598,6 +598,81 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // ── 实体挂载 + 重力豁免（1.3.0 海军 DLC 同批新增；**1.2.12 上不存在**）──────────
+        // 用处：引擎给"人站在会动的甲板上"准备的官方三件套 ——
+        //   `SetForceAttachedEntity`（把人挂到实体上，父子关系）/ `SetExcludedFromGravity`（豁免重力）
+        //   / `IsAgentParentEntitySameAs`（挂载判据）。另配 `GetRealGlobalVelocity`（真实速度读数）。
+        // 🔴 与 §6.6 的"物理板托人"是**两条不同的机制**：一个靠接触面，一个靠**父子挂载关系**（含 Z）。
+        // 🔴 1.2.12 = 0 命中（真客户端 + 仓库副本全 DLL 扫过）⇒ 这里全是 no-op；
+        //    调用方先问 <see cref="SupportsEntityAttach"/> 再决定走哪条路。
+
+        /// <summary>本客户端有没有"实体挂载 + 重力豁免"这套 API（1.3.0+ 才有）。</summary>
+        public static bool SupportsEntityAttach
+        {
+            get
+            {
+#if MB2_GE_130
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>把 agent 挂到一个实体上（引擎侧建立父子关系）。1.2.12 = no-op。</summary>
+        public static void ForceAttachEntity(Agent agent, GameEntity entity)
+        {
+            if (agent == null || entity == null) return;
+#if MB2_GE_130
+            try { agent.SetForceAttachedEntity(entity.WeakEntity); }
+            catch (Exception ex) { DebugLogger.Log($"[V] SetForceAttachedEntity 异常: {ex.Message}"); }
+#endif
+        }
+
+        /// <summary>摘掉挂载（传 `WeakGameEntity.Invalid`）。1.2.12 = no-op。</summary>
+        public static void DetachEntity(Agent agent)
+        {
+            if (agent == null) return;
+#if MB2_GE_130
+            try { agent.SetForceAttachedEntity(WeakGameEntity.Invalid); }
+            catch (Exception ex) { DebugLogger.Log($"[V] SetForceAttachedEntity(Invalid) 异常: {ex.Message}"); }
+#endif
+        }
+
+        /// <summary>重力豁免（1.3.0+）。第二个参数名与引擎一致。1.2.12 = no-op。</summary>
+        public static void SetExcludedFromGravity(Agent agent, bool exclude, bool applyAverageGlobalVelocity)
+        {
+            if (agent == null) return;
+#if MB2_GE_130
+            try { agent.SetExcludedFromGravity(exclude, applyAverageGlobalVelocity); }
+            catch (Exception ex) { DebugLogger.Log($"[V] SetExcludedFromGravity 异常: {ex.Message}"); }
+#endif
+        }
+
+        /// <summary>「我的父实体是不是它」—— 挂载是否生效的唯一硬判据。1.2.12 = 恒 false。</summary>
+        public static bool IsAttachedTo(Agent agent, GameEntity entity)
+        {
+            if (agent == null || entity == null) return false;
+#if MB2_GE_130
+            try { return agent.IsAgentParentEntitySameAs(entity); }
+            catch (Exception) { return false; }
+#else
+            return false;
+#endif
+        }
+
+        /// <summary>「真实全局速度」（1.3.0+ 新增；旧版只有缺 Z 分量的 `GetCurrentVelocity`）。1.2.12 = 零。</summary>
+        public static Vec3 GetRealVelocity(Agent agent)
+        {
+            if (agent == null) return Vec3.Zero;
+#if MB2_GE_130
+            try { return agent.GetRealGlobalVelocity(); }
+            catch (Exception) { return Vec3.Zero; }
+#else
+            return Vec3.Zero;
+#endif
+        }
+
         // ── Map weather ──────────────────────────────────────────────
         // 天气（方案 G1，2026-08-16）：Campaign.Current.Models.MapWeatherModel.GetWeatherEventInPosition
         // ✅ 反编译实锤三版本均有；MapWeatherModel = ComponentInterfaces 命名空间，

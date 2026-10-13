@@ -525,6 +525,13 @@ namespace LivingWorldNpcs.Flight
                 _boardSpawned = true;
                 _takeoffTimer = 0f;               // 登板计时从"板出现"那一刻起算
                 _takeoffDiagTimer = 0f;
+
+                // 🔴 **1.3.0+ 版本兼容：把玩家挂到载具上**（2026-10-13 用户裁定）。
+                //    1.2.12 靠"物理板托人"；**1.3.15 实测托不住**（人直接穿过板面掉到地面，
+                //    诊断：`人板差=-0.462m`）⇒ 补一层引擎官方的父子挂载（实测跟随零漂移）。
+                //    板照旧生成/移动/解算；挂载只补"托人"这一环。
+                //    摘除 = <see cref="ExitFreeze"/>（所有结束路径的统一出口）。
+                _board.AttachAgent(main);
                 DebugLogger.Log($"[Flight] 板已召唤（延迟 {_boardSpawnTimer:F2}s） | {CarrierBoard.DescribeCapsule(main)} | {_board.Describe()}");
             }
 
@@ -558,6 +565,11 @@ namespace LivingWorldNpcs.Flight
                     return;                       // 板保持不动，等人落回来
                 _takeoffSettled = true;
                 _airTime = 0f;
+                // 🔴 **站住之后才开重力豁免**（2026-10-13）：站住 = 速度≈0，此时开才不会把
+                //    跳跃那份上升速度永久保留（实测开早了 = 人一路往上飘，人板差 0.28→1.2 判脱离）。
+                //    与挂载的分工：挂载管"跟着板走"，豁免管"别自己往下掉"—— 缺一不可，但时机要对。
+                if (standing)
+                    _board.ExemptGravity(main);
                 DebugLogger.Log($"[Flight] 登板完成: 等待={_takeoffTimer:F2}s 站住={standing} | {CarrierBoard.DescribeCapsule(main)}");
                 _takeoffTimer = 0f;               // 计时切给"入姿动画演多久"（避免这一帧被记两次）
                 return;
@@ -1511,8 +1523,9 @@ namespace LivingWorldNpcs.Flight
                         break;
 
                     case FlightFreezeMode.AiPaused:
-                        V.SetPlayerControlFrozen(main, true);
-                        main.SetIsAIPaused(true);
+                        // 🔴 走**共用件**（飞行/钩索同一套：冻结 + 尽力挂载）—— 板此刻还没生成
+                        //    （延迟 0.2s），挂载那一半由板召唤处补 `_board.AttachAgent(main)`。
+                        _board.EngagePlayer(main);
                         DebugLogger.Log($"[Flight] 冻结档 = AiPaused（Controller={main.Controller} paused={main.IsPaused}）");
                         break;
 
@@ -1581,6 +1594,21 @@ namespace LivingWorldNpcs.Flight
             _engineMoveFlags = 0;
             _engineInput = Vec2.Zero;
 
+            // 🔴 **1.3.0+：先摘掉"挂到载具上"的挂载**（与板召唤处的 `_board.AttachAgent` 配对）。
+            //    放在最前 = **所有档位、所有结束路径都会经过这里**（落地/坠落/中止/换场景）。
+            //    不摘的后果 = 人永久跟着那块板走（板拆了也一样被挂载关系拽着）。
+            //    1.2.12 上 `V.DetachEntity` 是 no-op，不影响旧路径。
+            try
+            {
+                Agent me = Agent.Main;
+                if (me != null)
+                    _board.DetachAgent(me);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Flight] 🔴 摘挂载失败（人可能还被载具拽着）: {ex.Message}");
+            }
+
             // Off / Flags 档：没改过引擎状态，直接收工
             if (mode == FlightFreezeMode.Off || mode == FlightFreezeMode.Flags)
                 return;
@@ -1617,13 +1645,14 @@ namespace LivingWorldNpcs.Flight
 
             try
             {
-                main.SetIsAIPaused(false);
+                // 🔴 **走共用件**（摘挂载 + 解冻）—— 与 `_board.EngagePlayer` 配对。
+                //    摘那一半上面已经做过一次（多档通用），这里幂等重复无害。
+                _board.ReleasePlayer(main);
                 if (_savedFormation != null)
                 {
                     main.Formation = _savedFormation;
                     _savedFormation = null;
                 }
-                V.SetPlayerControlFrozen(main, false);
 
                 DebugLogger.Log($"[Flight] 解冻（{mode}）：Controller={main.Controller} paused={main.IsPaused} 编队={(main.Formation != null ? "已还" : "无")}");
             }

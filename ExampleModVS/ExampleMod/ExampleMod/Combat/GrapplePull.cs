@@ -242,11 +242,12 @@ namespace LivingWorldNpcs
 			_phaseTimer = 0f;
 			_fallSpeed = 0f;
 
-			// ① 冻结（照抄飞行工程：两条一起上，缺一不可）
+			// ① 冻结（**走共用件** —— 飞行/钩索同一套；2026-10-13 统一通用化。
+			//     以前这里写着"照抄飞行工程"、两边各一份 ⇒ 版本兼容补丁总会漏掉一边。）
+			//     此刻板还没生成 ⇒ EngagePlayer 只冻结；挂载那一半在下面 Spawn 成功后补。
 			try
 			{
-				V.SetPlayerControlFrozen(main, true);
-				main.SetIsAIPaused(true);
+				_board.EngagePlayer(main);
 				_frozen = true;
 			}
 			catch (Exception ex)
@@ -265,6 +266,8 @@ namespace LivingWorldNpcs
 				_main = null;
 				return "Error: carrier board spawn failed (mesh missing?)";
 			}
+			// 板到场 ⇒ 补上挂载那一半（1.3+ 才真挂；1.2.12 = no-op）
+			_board.AttachAgent(main);
 
 			_phase = Phase.WaitingOnBoard;
 			EnterCamera();
@@ -360,6 +363,11 @@ namespace LivingWorldNpcs
 				_board.Origin.z + FlightTuning.CarrierTopLocalZ);
 			_phase = Phase.Pulling;
 			_t = 0f;
+
+			// 🔴 **站住之后才开重力豁免**（2026-10-13，与飞行同一时序）：站住 = 速度≈0，
+			//    此时开才不会把"跳跃/下落"那份速度永久留下。与挂载的分工见 CarrierBoard.ExemptGravity。
+			if (onboard)
+				_board.ExemptGravity(_main);
 
 			// 🌬️ **被拽走的那一刻强制起一阵风**（2026-10-10 实机：用户"被钩锁拉起来时没听到风声"）。
 			//    拉拽全程只有 ~1 秒、速度曲线末段还掉到门槛以下 ⇒ 光靠"按速度密度"可能一阵都赶不上。
@@ -543,8 +551,8 @@ namespace LivingWorldNpcs
 			}
 			try
 			{
-				main.SetIsAIPaused(false);
-				V.SetPlayerControlFrozen(main, false);
+				// 🔴 走共用件（摘挂载 + 解冻）—— 与上面的 `_board.EngagePlayer` 配对
+				_board.ReleasePlayer(main);
 				DebugLogger.Log($"[Grapple] 解冻：Controller={main.Controller} paused={main.IsPaused}");
 			}
 			catch (Exception ex)

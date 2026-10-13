@@ -1503,6 +1503,96 @@ namespace LivingWorldNpcs.CampaignMode
     {
         /* 控制台命令注册纪律：public static string F(List<string>)，返回文本纯英文，首参可弃。 */
 
+        /// <summary>当前挂着的 prop id（0 = 没挂）。</summary>
+        public static int AttachedId;
+
+        /// <summary>
+        /// **`custom.attach [&lt;id&gt;|off|status]`** —— 把玩家「挂」到 `custom.prop` 生成的实体上并豁免重力（2026-10-13 立）。
+        ///
+        /// 🔴 **这是「引擎官方版载体」的实测入口**：1.3.0 海军 DLC 同批加的
+        ///    `SetForceAttachedEntity`（把人挂到实体上）+ `SetExcludedFromGravity`（豁免重力）——
+        ///    与 §6.6「物理板托人」是**两条不同的机制**：一个靠接触面，一个靠**父子挂载关系**（含 Z）。
+        ///
+        /// **用法**（配合 `custom.prop`；木板是**可见**的，跟不跟肉眼能看）：
+        ///   1. `custom.prop`                     召唤原版木板（可见）
+        ///   2. `custom.prop list`                拿 id
+        ///   3. `custom.attach &lt;id&gt;`              挂上去（同时开重力豁免）
+        ///   4. `custom.prop speed &lt;id&gt; 0 0 1`    让板以 1 m/s 匀速上升
+        ///   5. 观察：人跟不跟着升；`custom.attach status` 可复查 `parentSame` 判据
+        ///   6. `custom.attach off` → 摘挂载、还重力
+        ///
+        /// ⚠️ 1.2.12 上这三个 API **不存在** ⇒ 命令直接拒绝（`V.SupportsEntityAttach` 判）。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("attach", "custom")]
+        public static string Attach(List<string> args)
+        {
+            if (Mission.Current == null)
+                return "[Attach] no active mission";
+
+            Agent player = Agent.Main;
+            if (player == null)
+                return "[Attach] no player agent";
+
+            if (!V.SupportsEntityAttach)
+                return "[Attach] this client has no attach API (1.3.0+ only; 1.2.12 = no-op).";
+
+            string a = args.Count > 0 ? args[0].Trim() : "status";
+
+            if (a.Equals("off", StringComparison.OrdinalIgnoreCase) ||
+                a.Equals("stop", StringComparison.OrdinalIgnoreCase) ||
+                a.Equals("none", StringComparison.OrdinalIgnoreCase))
+            {
+                V.DetachEntity(player);
+                V.SetExcludedFromGravity(player, false, false);
+                AttachedId = 0;
+                return "[Attach] detached + gravity restored";
+            }
+
+            // 🔴 **只开重力豁免、不挂任何实体**（2026-10-13 用户指出这个模式才验得了"生死前提"）：
+            //    挂了实体就有位移来源了，分不清"人跟上了"是挂载的功劳还是豁免的功劳。
+            //    只开豁免 ⇒ 直接回答 §9.3 那个问题："豁免后 agent 的 Z 还归不归地面/导航面管？"
+            //    · 若直写 Z 留得住 ⇒ **真·飞行**：悬停 + WASD 水平 + 我们直写 Z，**一块板都不需要**
+            //    · 若照样被拉回地面 ⇒ 它只是个"不摔死"开关，对飞行无用
+            //    配合现成命令验：`custom.set_height <米>` / `custom.move 0 0 <dz>`（§八 表）。
+            if (a.Equals("grav", StringComparison.OrdinalIgnoreCase) ||
+                a.Equals("gravity", StringComparison.OrdinalIgnoreCase))
+            {
+                V.SetExcludedFromGravity(player, true, true);
+                AttachedId = 0;
+                return "[Attach] gravity EXCLUDED (no entity attached). now test if Z is writable: " +
+                       "custom.set_height <meters> / custom.move 0 0 <dz> - if he stays up, flight needs no platform at all.";
+            }
+
+            if (a.Equals("status", StringComparison.OrdinalIgnoreCase) || a.Length == 0)
+            {
+                string whose = "none";
+                if (AttachedId != 0)
+                {
+                    PropSpikeState.Entry cur = PropSpikeState.Find(AttachedId);
+                    if (cur != null && cur.Entity != null)
+                        whose = $"prop {AttachedId} parentSame={V.IsAttachedTo(player, cur.Entity)}";
+                }
+                Vec3 rv = V.GetRealVelocity(player);
+                return $"[Attach] id={AttachedId} ({whose}) | realVel=({rv.x:F2},{rv.y:F2},{rv.z:F2}) " +
+                       "| usage: custom.attach <propId> | custom.attach off";
+            }
+
+            if (!int.TryParse(a, out int id))
+                return $"[Attach] '{a}' is not a prop id. usage: custom.attach <propId> | custom.attach off | custom.attach status";
+
+            PropSpikeState.Entry en = PropSpikeState.Find(id);
+            if (en == null || en.Entity == null)
+                return $"[Attach] prop {id} not found - spawn one with 'custom.prop', list with 'custom.prop list'";
+
+            V.ForceAttachEntity(player, en.Entity);
+            V.SetExcludedFromGravity(player, true, true);
+            AttachedId = id;
+
+            bool same = V.IsAttachedTo(player, en.Entity);
+            return $"[Attach] attached to prop {id} ({en.Prefab}) | gravity excluded | parentSame={same} " +
+                   "(now drive the prop: custom.prop speed <id> 0 0 1)";
+        }
+
         [CommandLineFunctionality.CommandLineArgumentFunction("plate", "custom")]
         public static string Plate(List<string> args)
         {

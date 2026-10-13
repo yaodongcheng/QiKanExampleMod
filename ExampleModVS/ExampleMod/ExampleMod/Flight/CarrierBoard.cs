@@ -183,6 +183,114 @@ namespace LivingWorldNpcs.Flight
         }
 
         /// <summary>
+        /// **把 agent 挂到承载实体上**（2026-10-13 立，**1.3.0+ 的版本兼容补丁**）。
+        ///
+        /// 🔴 **为什么需要**：1.3.15 实测**瞬移的物理板托不住人** —— 板面就在脚底 6cm，
+        ///    人却直接穿过去掉到地面（诊断：`人板差=-0.462m`）。1.2.12 上同款做法能托人。
+        ///    而引擎官方的父子挂载（`SetForceAttachedEntity`）实测**跟随零漂移**
+        ///    （板升 8.5 米、`dz` 恒 +0.17、`rel` 恒 (+1.5,+1.5)，且**人没站在板上也跟走**）。
+        ///
+        /// 🔴 **只补"托人"这一环**：板照旧生成/每帧瞬移/做落点解算与特效 —— 换成挂载后它们全不受影响。
+        ///    1.2.12 上没有这套 API ⇒ `V.ForceAttachEntity` 是 no-op，旧路径（物理托）原样跑。
+        /// </summary>
+        public void AttachAgent(Agent agent)
+        {
+            if (!IsSpawned || agent == null)
+                return;
+            V.ForceAttachEntity(agent, _carrier);
+        }
+
+        /// <summary>摘掉 agent 的挂载（与 <see cref="AttachAgent"/> 配对；1.2.12 = no-op）。</summary>
+        public void DetachAgent(Agent agent)
+        {
+            if (agent == null)
+                return;
+            V.DetachEntity(agent);
+        }
+
+        // ═════════════════ 接管玩家 / 归还玩家（2026-10-13 统一通用化）═════════════════
+        //
+        // 🔴 **飞行与钩索共用这一对**。以前两边各写一份冻结/解冻（`GrapplePull` 的注释里
+        //    自己都标着"照抄飞行工程"），代价是**每个版本兼容补丁都要改两处** ——
+        //    1.3.15 的挂载补丁就漏掉钩索一次（结果钩索那条链上仍托不住人）。
+        //
+        // 分工：
+        //   · <see cref="EngagePlayer"/> = 冻结 + **尽力挂载**（板不在场时只冻结，之后调用方
+        //     在板生成处补一次 <see cref="AttachAgent"/> —— 那是飞行的时序：先冻结、板延迟 0.2s 才出现）。
+        //   · <see cref="ReleasePlayer"/> = 摘挂载 + 解冻（**必须与 Engage 成对**，否则玩家永久失去控制权）。
+        //   · 多档冻结（Off / Flags / CtrlOff / AiDetach / None）是**飞行专属的调试档**，
+        //     不在这一对里 —— 它们走 `PlayerFlightBehavior` 自己的 EnterFreeze/ExitFreeze。
+
+        /// <summary>
+        /// **接管玩家**：冻结（`Controller=AI` + `SetIsAIPaused(true)`，两条缺一不可）+ 挂到载体上。
+        ///
+        /// 🔴 **这里【不开】重力豁免**（2026-10-13 实机教训）：豁免会把你**当时带着的速度永久保留**
+        ///    —— 二段跳起飞时人还在上升，一开豁免他就带着那份速度**一路往上飘**
+        ///    （实测人板差 0.28 → 0.51 → 0.74 一路涨，到 1.2 判脱离）。
+        ///    正确时机 = **人已经站住（`IsOnLand()`）之后**再开 —— 见 <see cref="ExemptGravity"/>，
+        ///    由调用方在"登板完成"那一刻调。
+        /// 板还没生成时只冻结（`AttachAgent` 内部会跳过），之后由调用方补挂。
+        /// </summary>
+        public void EngagePlayer(Agent agent)
+        {
+            if (agent == null)
+                return;
+            try
+            {
+                V.SetPlayerControlFrozen(agent, true);
+                agent.SetIsAIPaused(true);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Carrier] 🔴 冻结玩家失败: {ex.Message}");
+            }
+            AttachAgent(agent);          // 1.3+ 才真挂；1.2.12 = no-op；板不在场 = 跳过
+        }
+
+        /// <summary>
+        /// **开重力豁免**（与挂载配对的那一半）—— 🔴 **必须在"人已经站住"之后调**。
+        ///
+        /// 分工：**挂载提供位移**（板动，人跟着动，含 Z）；**豁免阻止他自己的下落**。
+        /// 但豁免的副作用 = **把当时的速度永久留着** ⇒ 人还在上升时开 = 一路飘。
+        /// 所以时序固定为：冻结（起飞那一刻）→ 挂载（板生成那一刻）→ **豁免（站住那一刻）**。
+        /// 引擎自己的用法正是这个次序（人先站在甲板上，船才动）。
+        /// </summary>
+        public void ExemptGravity(Agent agent)
+        {
+            if (agent == null)
+                return;
+            try
+            {
+                V.SetExcludedFromGravity(agent, true, true);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Carrier] 🔴 开重力豁免失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// **归还玩家**：摘挂载 + 解冻（幂等 —— 没接管过也不会出事，但别指望它救场）。
+        /// 🔴 **所有结束路径都必须经过这里**，漏了 = 玩家永久失去控制权 / 被板拽着走。
+        /// </summary>
+        public void ReleasePlayer(Agent agent)
+        {
+            if (agent == null)
+                return;
+            DetachAgent(agent);
+            try
+            {
+                agent.SetIsAIPaused(false);
+                V.SetPlayerControlFrozen(agent, false);
+                V.SetExcludedFromGravity(agent, false, false);   // 与 EngagePlayer 配对，把重力还回去
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Carrier] 🔴 解冻玩家失败（落地后可能不能走，重进场景可恢复）: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 法阵视觉件的可见性开关（运行时旋钮：`custom.flight tune sigil 0|1`）。
         ///
         /// 🔴 只碰**视觉子实体** —— 承载件（`..._body`）的可见性一个字都不改：
