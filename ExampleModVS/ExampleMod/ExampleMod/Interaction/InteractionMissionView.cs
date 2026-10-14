@@ -728,11 +728,19 @@ namespace LivingWorldNpcs
         /// </summary>
         private void AddRopeRows(Agent focus)
         {
-            // 本地化：松绳交互按钮（永远在）
-            AddInteractionRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
-
             var logic = GrappleLogic.Current;
             if (logic == null) return;
+
+            // 🔴 **扛着人 ⇒ 不给【松绳】**（2026-10-14 用户报"扛起来的时候还有松绳交互"）：
+            //    那一拍唯一该做的是【放下】—— 这时按【松绳】= 直接放人，而被扛的人正被每帧摆在肩上
+            //    ⇒ 两条状态机（bind 出机 + carry 放下）同时动同一个人 = 一具半放下/半出机的定格身体。
+            //    **出口互斥：扛着 = 只有【放下】。**（这一条同时管住"F 长按"—— 行不注册，输入就不监听。）
+            bool carrying = logic.CanPutDownCarried || logic.IsCarryingSomeone;
+            if (!carrying)
+            {
+                // 本地化：松绳交互按钮（牵着绳、且没扛着人）
+                AddInteractionRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
+            }
 
             if (logic.CanPutDownCarried)
             {
@@ -841,6 +849,9 @@ namespace LivingWorldNpcs
         /// **玩家此刻手里牵着人吗**（钩索「勾人」§13.14 TODO 4 的面板判据）。
         /// 全部判定在 <see cref="GrappleLogic.IsBindingSomeone"/>，这里只做空转保护。
         /// </summary>
+        /// <summary>手里牵着绳吗（= <see cref="GrappleLogic.IsBindingSomeone"/>）。
+        /// 🔴 **扛着人也算**（绳还连着）—— 这一格是"够不够格出绳那一族行"的总闸，
+        ///    【松绳】自己那条在 <see cref="AddRopeRows"/> 里按"没在扛人"再筛一次（见那里的注释）。</summary>
         private static bool IsRopeHeld()
         {
             try

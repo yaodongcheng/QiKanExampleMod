@@ -1243,17 +1243,24 @@ namespace LivingWorldNpcs
         //   数值语义一致（同一个 native 位标志参数），只有形参类型变了 ⇒ V 层转一手。
         //   形参名与引擎逐字一致：调用点把 `agent.SetActionChannel(` 换成 `V.SetActionChannel(agent, `
         //   之后，原有的命名参数（`ignorePriority:` / `blendInPeriod:` …）原样保留。
+        //   🔴 `actionSpeed`（播放速度倍率，默认 1）2026-10-14 补上 —— 此前**没有透出来**，
+        //      于是所有走状态机的动作都恒为原速（钩索"牵着人走"要按实际速度自适应时才发现）。
+        //      位置照引擎签名放（`blendWithNextActionFactor` 之后、`blendInPeriod` 之前）；
+        //      调用点全用命名实参，位置改动不影响它们。
         public static bool SetActionChannel(Agent agent, int channel, ActionIndexCache idx,
             bool ignorePriority = false, ulong additionalFlags = 0UL,
+            float actionSpeed = 1f,
             float blendInPeriod = -0.2f, float blendOutPeriodToNoAnim = 0.4f, float startProgress = 0f)
         {
             if (agent == null) return false;
 #if MB2_GE_130
             return agent.SetActionChannel(channel, idx, ignorePriority, (AnimFlags)additionalFlags,
+                actionSpeed: actionSpeed,
                 blendInPeriod: blendInPeriod, blendOutPeriodToNoAnim: blendOutPeriodToNoAnim,
                 startProgress: startProgress);
 #else
             return agent.SetActionChannel(channel, idx, ignorePriority, additionalFlags,
+                actionSpeed: actionSpeed,
                 blendInPeriod: blendInPeriod, blendOutPeriodToNoAnim: blendOutPeriodToNoAnim,
                 startProgress: startProgress);
 #endif

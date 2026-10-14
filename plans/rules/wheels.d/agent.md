@@ -895,3 +895,68 @@ if (idx != ActionIndexCache.act_none)          // 没注册 = act_none ⇒ 静�
 - 详情：[Knowledge/骑砍2骨骼级动画API与运行时姿势合成.md](../../../Knowledge/骑砍2骨骼级动画API与运行时姿势合成.md) §七 ·
   坑点：[pitfalls.md](../pitfalls.md)「自定义动作静默播成别人的动画」·
   plan：[动画状态机-XML化与编辑器.md](../../../plans/动画状态机-XML化与编辑器.md) ⓿⁶
+
+---
+
+## 🔴 牵引 / 拖行：绳长上限（2026-10-14 实机通过；玩家牵 NPC、NPC 牵玩家同一套）
+
+**解决什么问题**：一根系在人身上的绳 —— 绳长**锁死**（不再无限变长）⇒ 走远绳绷紧、**被系的人被迫跟上**；
+绳主走得快（骑马 / 跑）⇒ 改**拖在地上**。**平权**：绳主是玩家还是 NPC 走的是同一条路
+（反向绑 = NPC 牵玩家，玩家控制器被收走、由绳拽着走）。
+
+**五个关键决定**（都在 `Combat/GrappleBind.cs` 的 `TickLeash`，每条都有实机依据）：
+
+| # | 做什么 | 为什么 |
+|---|---|---|
+| 1 | **锁长** = 绑上那一刻 `手→胸口 × 1.05`；**只托底不封顶** | 乘 1.05 = 锁定那一帧画面不变；封顶过 ⇒ 一上来就有"超出量" ⇒ 人当场被拽飞（25 米外绑上时实测） |
+| 2 | **进出迟滞**：进 `excess > 0.12`、出 `< 0.06` | 单阈值实测**每帧翻**（日志 200 行 93 次"松了⇄拖在地上"），状态机跟着抖 |
+| 3 | **拽速** = 绳主水平速度（前馈）+ 超出量 × 3，封顶 12 m/s | 纯弹簧 = 稳态滞后 = 绳被拉稀；前馈让"跟上就不掉队" |
+| 4 | **形态判据用绳主"平滑"速度**（`AverageVelocity`），不用本帧拽速 | 拽速含"追回超出量"那一份，起步瞬间冲高 ⇒ 拿它判会一加速就翻形态、下一帧翻回来 |
+| 5 | **挪人 = 位置直写**（`TeleportToPosition` + `SetMovementDirection`），不走引擎寻路 | 被捆期间 AI 是冻的（`SetIsAIPaused`）⇒ 引擎寻路那套不赌；且"趴着被拖"只能自己写。代价：脚会滑、会被拖过墙角 |
+
+**状态机接法**（`ModuleData/statemachines/bind.xml`）：新状态 `被拖行`（`act_grapple_bound_walk`）
++ 两条**谓词边** `bind-being-pulled`（站缚 ⇄ 被拖行）/ `bind-being-dragged`（→ 拉倒 → 趴缚）；
+C# 只填上下文（`BindAnimContext.BeingPulled/BeingDragged`）+ 形态切换那一刻 `ForceEvent`。
+⚠️ **拖动期间 `laytime` 自动起身要清零**，松了才恢复倒计时（否则拖着拖着他自己站起来）。
+
+**命令**：`custom.grapple bind test` / `reverse` / `lead [米] [run]` / `leadstop` / `state`；
+旋钮 `leash 0|1` · `leashlen` · `leashstiff` · `leashspeed` · `dragthr` · `dragmounted` · `dragface` · `leashprobe` ·
+`walkrate` · `walkmax` · `walkmin` · `walkspeed` · `walkspeedauto`。方案 = `plans/钩索-实施计划.md` §十七。
+
+## 🔴 播放倍率（动画快慢）：两条路，都通（2026-10-14）
+
+| 路 | 签名 | 用在哪 |
+|---|---|---|
+| **写一次** | `Agent.SetActionChannel(ch, idx, …, actionSpeed: 倍率, …)`（**第 6 参，默认 1f**） | 切状态那一刻；`V.SetActionChannel` 已把它透出来 |
+| **连续** | `Skeleton.SetAnimationSpeedAtChannel(ch, x)`（孪生 getter `GetAnimationSpeedAtChannel`） | 每帧跟着速度改（`custom.anim_trace` 打的 `spd=` 就是它） |
+
+**通用件** = `Animation/AgentAnimStateMachine.cs` 的 `SpeedMultiplier` + `PushSpeedEveryFrame`
+（不设 = 恒 1 = 与从前逐字节相同，别的消费者零影响）。
+🔴 **归还通道时必须把倍率还原成 1**（`Release` 里做了）—— 倍率写在**骨架**上，不还原就留给后面播的任何东西
+（那个 agent 之后走路/打架全部慢放或快放）。**用法**：钩索"牵着人走"按实际拽速自适应（治脚滑）。
+
+## 🔴 三个 clip flag 的实机事实（2026-10-14，抗人陷地那件事换来的）
+
+| flag | 事实 | 判据 / 出处 |
+|---|---|---|
+| `ignore_all_collisions` | **0x200 = agent 与世界几何全不碰** ⇒ **会陷进地面**（官方原文 *"Dangerous; can sink through the floor"*）。原用途是"大型生物尸体别把部队推飞" | 官方/社区文档对照表 |
+| `disable_agent_agent_collisions` | **0x100 = 穿过别的 agent、仍与地形/墙实心** —— "两个人别互顶"要的是**它**，不是上面那个 | 同上（扛人时 8 条 clip 已换） |
+| `cyclic` | **循环状态用的 clip 必须勾**：缺了不报错、只是"**播一次就定格**"（`binded_walk` 实测：走一步定住 + 拖着滑） | `tpaccli clipinfo --filter <名>` 看 Flags |
+
+换 flag 的落地：`tpaccli clipflags --packdir <目录> --filter <clip 名> --remove X --add Y --out <目录>`
+（字节级改元数据；**装机包 + 编辑器工程两份都要改**，否则下次 Publish 写回老值）。
+
+## 🔴 一个 agent 同一时刻只能有一条"出口"（2026-10-14 实机事故）
+
+两条能动的出口同时给同一个人 = 两套状态机抢同一个 0 号通道 = **定格姿势**。
+实例：扛着人时面板同时给【松绳】+【放下】（松绳 = 放人、放下 = 另一条路）。
+**规矩**：出口互斥做在**面板注册层**（不注册 = 不显示 + 输入不监听 = "双断"），别指望玩家按对。
+
+## 🔴 "我们替玩家自动收武器"与"收起武器 = 松开手上东西"那条出口天然打架（同日）
+
+扛人时我们主动把玩家武器收进鞘（不要准星/端弓姿势），而"收起钩索 = 放人"那条出口会把它读成
+**玩家自己收的** ⇒ **同一毫秒把整条绑放掉**（日志实证：结束 → 1 ms 后 `player stowed the grapple`）。
+两条纪律：
+① **收武器之前先记下"东西在哪个槽"**（`FindItemSlot` 收完再找**实测找不到** ⇒ 还不了 ⇒ 玩家报"武器没了"、
+   且紧接着触发上面那条出口 ⇒ "对方没法再次被我扛起"）；
+② 收摊后**无条件**开一段豁免窗（不是"还成功才开"），让那条出口让路。

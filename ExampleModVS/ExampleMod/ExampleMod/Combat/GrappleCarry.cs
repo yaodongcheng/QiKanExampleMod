@@ -103,6 +103,7 @@ namespace LivingWorldNpcs
 		private float _t;
 		private string _note = "-";
 		private bool _weSheathed;      // 武器是"我们"收的才由我们还（玩家自己收的/自己换的，不碰）
+		private EquipmentIndex _stowSlot = EquipmentIndex.None;   // 收武器**之前**记下的"绳在哪个槽"
 		private float _stowGrace;      // >0 = 给出口② 的豁免窗（见 StowGraceSeconds）
 
 		public bool IsActive => _phase != CarryPhase.None && _carried != null;
@@ -266,6 +267,12 @@ namespace LivingWorldNpcs
 			// 🔴 **还武器要排在收摊之前**（`_carrier` 一清就没对象了）。
 			//    无论走哪条路结束都还 —— "我们收走的，我们负责还"；玩家自己另拿了东西就不抢（见方法注释）。
 			RestoreCarrierWeapon();
+			// 🔴 **收摊后一律开豁免窗**（2026-10-14 实机事故的止血）：此前只有"还武器成功"才开窗
+			//    ⇒ 一旦还失败，玩家手上是空的 → `IsHoldingGrapple()` 假 → 那条"收起钩索 = 放人"的出口
+			//    **在同一毫秒把整条绑放掉**（日志实证：结束 → 1 毫秒后"player stowed the grapple"），
+			//    表现就是"放下来之后对方再也不能被扛起"。窗口期内出口②会让路，玩家自己拔回来即可。
+			if (_stowGrace <= 0f)
+				_stowGrace = StowGraceSeconds;
 			try { _bind?.SetCarrier(null); } catch (Exception) { }   // 别在被绑者那侧留个悬空的扛人者引用
 			_carrier = null;
 			_carried = null;
@@ -292,6 +299,13 @@ namespace LivingWorldNpcs
 			if (a == null) return;
 			try
 			{
+				// 🔴 **先记住"绳在哪个槽"再收**（2026-10-14 实机事故）：收完之后再去装备里找，
+				//    实测**找不到**（日志：放下时既没有"已还回"也没有失败行 ⇒ 走了"槽位= None"那条静默早退）
+				//    ⇒ 钩索留在鞘里 = 玩家抱怨的"武器没了"，而且紧接着触发"收起钩索 = 放人"那条出口
+				//    ⇒ 绑被放掉（"对方无法再次被我扛起"）。记槽位这一步不依赖收完之后的任何状态，最稳。
+				_stowSlot = FindItemSlot(a, GrappleFirePatch.RopeItemId);
+				DebugLogger.Log($"[Grapple] 扛人：收武器前记下绳的槽位 = {_stowSlot}"
+					+ (_stowSlot == EquipmentIndex.None ? "（🔴 没找到 —— 收完就还不了了）" : ""));
 				// 先主手后副手（与 `CombatManager` 那两行同一套已验证写法；Instant = 不做拔/收动画）
 				a.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
 				a.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
@@ -310,30 +324,83 @@ namespace LivingWorldNpcs
 		/// **把钩索还回扛人者手里**（扛人结束的收尾）。三条前提缺一不可：
 		///   ① 是**我们**收的（<see cref="_weSheathed"/> —— 玩家自己收的不管）；
 		///   ② 玩家现在手上是空的（扛人期间自己又拔了刀 ⇒ 别抢他的）；
-		///   ③ 装备里还找得到那根绳（没有就没什么可还的）。
-		/// 还完撑一个 <see cref="StowGraceSeconds"/> 的豁免窗（等引擎把 `WieldedWeapon` 认过来）。
+		///   ③ 还找得到那个槽（<see cref="_stowSlot"/> 优先 —— 收之前记下的那个；找不到再现场扫一遍）。
+		/// 🔴 **每一条早退都要有日志**（2026-10-14）：此前全是静默 return，实机只能看到"武器没还回来"，
+		///    查不出是哪一条挡的（日志里连一行都没有）。
 		/// </summary>
 		private void RestoreCarrierWeapon()
 		{
 			Agent a = _carrier;
 			bool weSheathed = _weSheathed;
+			EquipmentIndex stowSlot = _stowSlot;
 			_weSheathed = false;
+			_stowSlot = EquipmentIndex.None;
 			if (!weSheathed || a == null)
+			{
+				DebugLogger.Log($"[Grapple] 扛人：不还武器（weSheathed={weSheathed}，carrier={(a == null ? "null" : "ok")}）");
 				return;
+			}
 			try
 			{
-				if (!AgentControlHelper.SafeIsActive(a)) return;
-				if (a.WieldedWeapon.Item != null) return;             // 玩家自己手里有东西 ⇒ 不抢
-				EquipmentIndex slot = FindItemSlot(a, GrappleFirePatch.RopeItemId);
-				if (slot == EquipmentIndex.None) return;              // 装备里没绳（被扒了/换成别的）⇒ 没得还
+				if (!AgentControlHelper.SafeIsActive(a))
+				{
+					DebugLogger.Log("[Grapple] 扛人：不还武器（扛人者已失效）");
+					return;
+				}
+				if (a.WieldedWeapon.Item != null)
+				{
+					DebugLogger.Log($"[Grapple] 扛人：不还武器（手上已有 '{a.WieldedWeapon.Item.StringId}' —— 不抢玩家的）");
+					return;
+				}
+				// 优先用"收之前记下的槽"；它要是失效了（装备被动过）再现场扫一遍
+				EquipmentIndex slot = stowSlot;
+				if (slot == EquipmentIndex.None || !SlotHasItem(a, slot, GrappleFirePatch.RopeItemId))
+				{
+					slot = FindItemSlot(a, GrappleFirePatch.RopeItemId);
+				}
+				if (slot == EquipmentIndex.None)
+				{
+					DebugLogger.Log($"[Grapple] 扛人：🔴 还不了武器 —— 装备里找不到 '{GrappleFirePatch.RopeItemId}'"
+						+ $"（收武器时记的槽 = {stowSlot}）。当前装备：{DumpWeaponSlots(a)}");
+					return;
+				}
 				a.TryToWieldWeaponInSlot(slot, Agent.WeaponWieldActionType.Instant, false);
 				_stowGrace = StowGraceSeconds;
-				DebugLogger.Log($"[Grapple] 扛人：钩索已还回 {SafeName(a)} 手里（扛人收尾）");
+				DebugLogger.Log($"[Grapple] 扛人：钩索已还回 {SafeName(a)} 手里（槽 {slot}）");
 			}
 			catch (Exception ex)
 			{
 				DebugLogger.Log($"[Grapple] 扛人：还武器失败（忽略 —— 用数字键自己拿）: {ex.GetType().Name} {ex.Message}");
 			}
+		}
+
+		/// <summary>某个槽里是不是那件东西（用于校验"收之前记下的槽"还有效）。</summary>
+		private static bool SlotHasItem(Agent a, EquipmentIndex slot, string itemId)
+		{
+			try
+			{
+				if (slot < EquipmentIndex.WeaponItemBeginSlot || slot >= EquipmentIndex.NumAllWeaponSlots) return false;
+				MissionWeapon w = a.Equipment[slot];
+				return w.Item != null && w.Item.StringId == itemId;
+			}
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>把 5 个武器槽的内容打成一行（还不了武器时的取证用）。</summary>
+		private static string DumpWeaponSlots(Agent a)
+		{
+			try
+			{
+				var sb = new System.Text.StringBuilder();
+				for (EquipmentIndex slot = EquipmentIndex.WeaponItemBeginSlot;
+					slot < EquipmentIndex.NumAllWeaponSlots; slot++)
+				{
+					MissionWeapon w = a.Equipment[slot];
+					sb.Append(slot).Append('=').Append(w.Item != null ? w.Item.StringId : "-").Append(' ');
+				}
+				return sb.ToString();
+			}
+			catch (Exception) { return "(dump failed)"; }
 		}
 
 		/// <summary>在装备里找某件物品所在的槽（口径同 `GrappleFirePatch.FindDartSlot`）。找不到 = None。</summary>

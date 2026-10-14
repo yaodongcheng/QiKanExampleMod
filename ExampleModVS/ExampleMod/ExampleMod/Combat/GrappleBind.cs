@@ -125,6 +125,131 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static float TugMinDistance = 3.0f;
 
+		// ═════════════════ 绳长上限："牵着走 / 拖在地上"（2026-10-13 立，用户口述）═════════════════
+		//
+		// **要解决什么**：绳绑上人之后，玩家走远绳就无限变长（`GrappleRope.AutoLength` 那条橡皮筋），
+		//   被绑的人杵在原地不动 —— 读感是"一根会伸缩的绳"，不是"我牵着他"。
+		//
+		// **怎么做的**（用户 2026-10-13 原话拆成三条）：
+		//   ① 绑上那一刻把**绳长锁死**（= 当时"手 → 胸口"的距离），之后**不再延长**；
+		//   ② 玩家走进绳长以内 ⇒ 绳松着、人不动；**走出绳长 ⇒ 绳绷紧，人被拽着跟上**（`binded_walk`）；
+		//   ③ 玩家**骑马 / 跑得快** ⇒ 人跟不上 ⇒ **直接拖在地上**（趴缚循环，脚在前头在后）。
+		//
+		// 🔴 **挪人是"我们自己写位置"，不走引擎寻路**。三条理由：
+		//   · 被捆期间他的**原版 AI 是冻着的**（`SetIsAIPaused`）⇒ 引擎寻路那套（`SetScriptedPosition`）
+		//     在他身上到底还动不动**我们没验过**，不赌；
+		//   · "拖在地上"这条**只能**自己写位置（引擎不会导航一个趴着的人）；
+		//   · 一条路管两种形态（走 / 拖），行为一致、没有两套代码。
+		//   **代价**（接受，写进方案已知边界）：脚会滑（动画速率不跟速度）、会被拖过墙角与台阶。
+		//   要"不滑不穿"就得改走引擎寻路（方案 §15.9 路线 B/C，那是另一档工作量）。
+
+		/// <summary>总开关（`custom.grapple bind leash 0|1`）。关 = 回到"绳随跨度自由伸缩"的旧行为。</summary>
+		public static bool LeashEnabled = true;
+
+		/// <summary>锁定绳长的下限（米）—— 贴脸绑上时别锁成 0.5 米，那样一动就拽。</summary>
+		public static float LeashMinLength = 2.5f;
+
+		/// <summary>
+		/// **绳的"可视长度"上限**（米）—— 只影响**画出来的那根绳**，不影响"多远才算绷紧"。
+		///
+		/// 🔴 为什么两件事要分开（2026-10-13 自查抓到的一个坑）：锁定量**不能**被上限压小 ——
+		///    在 25 米外绑上一个人（`bind test` 的调试路径能到 30 米）时，若把锁定量压成 18，
+		///    那"超出量"一上来就是 7 米 ⇒ **人会当场被 12 m/s 拽飞**（玩家啥都没干）。
+		///    所以：锁定量按**真实距离**算（只受 <see cref="LeashMinLength"/> 托底），
+		///    上限只管"绳子画多长"（超了就绷成一条直线，链节被拉稀 —— 只在调试路径上见得到，
+		///    正常钩索射程 ≤20 米，锁定量本来就在这之下）。
+		/// </summary>
+		public static float LeashMaxLength = 18.0f;
+
+		/// <summary>锁定绳长时乘的余量（1.05 = 与绳"自动长度"平时的口径一致：永远比跨度长 5%）。
+		/// 乘上它，**锁定那一帧画面不变**；不乘 = 绳当场被拉成直线、跳一下。</summary>
+		public static float LeashSlackAtLock = 1.05f;
+
+		/// <summary>拽人的**前馈**：速度里"直接跟上绳主"那一份（1 = 完全跟上，不掉队）。</summary>
+		public static float LeashFeedForward = 1.0f;
+
+		/// <summary>拽人的**弹簧**：每超出 1 米给多少速度（把多出来的那点收回去）。</summary>
+		public static float LeashStiffness = 3.0f;
+
+		/// <summary>拽人速度上限（米/秒）。</summary>
+		public static float LeashMaxSpeed = 12f;
+
+		/// <summary>拽的**死区**（米）—— 手在走路时前后摆，别让几厘米的抖动每帧都拽人一下。
+		/// 🔴 进用死区、**出用它乘 <see cref="LeashReleaseRatio"/>**（迟滞，防每帧翻）。</summary>
+		public static float LeashDeadzone = 0.12f;
+
+		/// <summary>退出"在拽"的阈值比例（默认 0.5 ⇒ 超出量掉到死区一半以下才算松）。</summary>
+		public static float LeashReleaseRatio = 0.5f;
+
+		/// <summary>
+		/// **`binded_walk` 这条动画"原速时看着像每秒走几米"**（米/秒，默认 1.1）。
+		///
+		/// 🔴 为什么要有这个数（2026-10-14）：这条 clip **原地无位移轨**（`tpaccli animpos` 实测 X/Y 恒 0），
+		///    管线里量不出"它每秒走几米"，只能实机看着调。它决定两件事：
+		///    ① **播放倍率**：倍率 = 实际拽速 ÷ 这个数（1.1 m/s 时倍率刚好 1）；
+		///    ② **什么时候改拖在地上**（<see cref="WalkMaxMult"/> × 这个数 = 以 m/s 表示的门槛）。
+		/// 调法：`custom.grapple bind walkrate &lt;米/秒&gt;`（看着脚不滑就是对的）。
+		/// </summary>
+		public static float WalkNaturalSpeed = 1.1f;
+
+		/// <summary>
+		/// **倍率上限**：需要的倍率超过它 ⇒ **直接改"拖在地上"**（用户 2026-10-14 裁定：
+		/// "倍率太高就自动进入拉倒"）。默认 2.0 —— 再快腿就是快放，不如趴着被拖自然。
+		/// 命令 `custom.grapple bind walkmax &lt;倍率&gt;` / `dragthr &lt;米/秒&gt;`（同一个门槛，两种写法）。
+		/// </summary>
+		public static float WalkMaxMult = 2.0f;
+
+		/// <summary>倍率下限：拽得比动画还慢时最多慢放到它（默认 0.55；再慢就像在放幻灯片）。</summary>
+		public static float WalkMinMult = 0.55f;
+
+		/// <summary>
+		/// **退出"拖在地上"的倍率比例**（默认 0.7）—— 进用 <see cref="WalkMaxMult"/>、出用它的 0.7 倍。
+		/// 单阈值会在门槛附近来回翻（人一会儿站着一会儿趴着），这是迟滞（照 <see cref="AnimLatch"/> 那套）。
+		/// </summary>
+		public static float WalkDragExitRatio = 0.7f;
+
+		/// <summary>形态判据的迟滞开关（进 <see cref="WalkMaxMult"/>、出 ×0.7）。</summary>
+		private readonly AnimLatch _dragLatch = new AnimLatch(2f, 1.4f);
+
+		/// <summary>手动锁定倍率（0 = 自适应，默认）。命令 `custom.grapple bind walkspeed &lt;倍率&gt;`。</summary>
+		public static float WalkSpeedOverride = 0f;
+
+		/// <summary>
+		/// **连续调速那条路开不开**（默认开；命令 `custom.grapple bind walkspeedauto 0|1`）。
+		/// 开 = 每帧把倍率推到骨架（`Skeleton.SetAnimationSpeedAtChannel`）；
+		/// 关 = 只在**切进"被拖行"那一刻**用 `actionSpeed` 写一次（速率就不再跟着速度变）。
+		/// 🔴 这是给"倍率到底吃没吃上"做 A/B 用的：两条路互为对照（见 `AgentAnimStateMachine.SpeedMultiplier`）。
+		/// </summary>
+		public static bool WalkSpeedAuto = true;
+
+		/// <summary>绳主速度超过这个（米/秒）= "跑起来了" ⇒ 人被**拖在地上**（趴缚）而不是跟着走。
+		/// 🔴 2026-10-14 起它是**派生值**（= <see cref="WalkMaxMult"/> × <see cref="WalkNaturalSpeed"/>），
+		///    不再是独立旋钮 —— 唯一的门槛是"倍率"，这样"腿演不演得过来"只有一处口径。</summary>
+		public static float DragSpeedThreshold => WalkMaxMult * WalkNaturalSpeed;
+
+		/// <summary>绳主**骑着马**且在动 ⇒ 一律拖在地上（用户 2026-10-13："玩家骑马速度快起来"）。</summary>
+		public static bool DragWhenMounted = true;
+
+		/// <summary>骑马判定用的最小速度（米/秒）—— 骑着但原地不动不算"拖"。</summary>
+		public static float DragMountedMinSpeed = 0.4f;
+
+		/// <summary>
+		/// 拖在地上时**背朝行进方向**（= 脚在前、头在后）—— 默认 **false**。
+		///
+		/// 🔴 2026-10-14 用户裁定改成 **false = 头朝着绳主**：绳系在胸口，人被往绳主那边拽 ⇒
+		///    **头朝绳主**才读得通（"他被我拽着，脸朝着我"）；脚在前那种（拖麻袋）留成开关做 A/B。
+		///    `custom.grapple bind dragface 0|1` 现改现看。
+		/// </summary>
+		public static bool DragFaceAway = false;
+
+		/// <summary>拽人的日志间隔（秒；0 = 关）。只在"开始拽 / 停 / 换形态"时各打一行。</summary>
+		private bool _leashPullingPrev;
+		private bool _leashDraggedPrev;
+
+		/// <summary>拽人的诊断行间隔（秒；0 = 关）—— 每这么多秒打一行距离/速度（看"是不是真绷住了"）。</summary>
+		public static float LeashProbeSeconds = 0f;
+		private float _leashProbeTimer;
+
 		/// <summary>
 		/// **骑马的目标照收 —— 钩住骑手 = 把他拉下马**（`custom.grapple bind mounted 0|1`，默认开）。
 		///
@@ -195,6 +320,29 @@ namespace LivingWorldNpcs
 			{
 				DebugLogger.Log($"[Grapple] 勾人：{(paused ? "冻结" : "解冻")}原版 AI 失败（{ex.GetType().Name}）"
 					+ (paused ? " —— 战斗场景里他可能仍归原版 AI 指挥" : " 🔴 目标可能被留成「冻住」状态"));
+			}
+		}
+
+		/// <summary>
+		/// **把目标"按住"**（进绑那一刻调）：① 冻住他的原版 AI（<see cref="SetTargetAIPaused"/>）；
+		///   ② **目标是玩家时还要切他的控制器**（`Controller = AI`，见
+		///   <see cref="V.SetPlayerControlFrozen"/>）—— 不切的话玩家照旧能自己走，
+		///   绳就成了摆设，"**带着玩家走**"（用户 2026-10-13 第 3 条）根本不成立。
+		///
+		/// 🔴 **对称的"松开"在 <see cref="RestoreAgent"/>，而且必须排在那里的 `ForceUnlockAgent` 之后** ——
+		///    `ForceUnlockAgent` 内部有一步"确保控制器回归 AI"，会把我们先还回去的 Player 控制器再抢走。
+		/// </summary>
+		private static void HoldTarget(Agent a)
+		{
+			SetTargetAIPaused(a, true);
+			if (a != null && ReferenceEquals(a, Agent.Main))
+			{
+				try { V.SetPlayerControlFrozen(a, true); }
+				catch (Exception ex)
+				{
+					DebugLogger.Log($"[Grapple] 勾人：切玩家控制器失败（{ex.GetType().Name}: {ex.Message}）"
+						+ " —— 玩家还能自己走，绳拉不动他");
+				}
 			}
 		}
 
@@ -269,6 +417,18 @@ namespace LivingWorldNpcs
 		/// <summary>扛人者（谁把目标扛在肩上；没在扛 = null）。**只用来读它的速度** —— 被扛行/被扛走的判据。</summary>
 		private Agent _carrier;
 
+		// ── 绳长上限（牵着走 / 拖在地上；见上面那一大段"绳长上限"注释）──
+		private float _leashLength;          // 锁定的绳长（米）
+		private bool _leashLocked;           // 锁过没有（绑上之后第一帧锁）
+		private Vec3 _leashAnchor;           // 绳主那只手这一帧在哪（GrappleLogic 每帧喂进来）
+		private bool _leashHadAnchor;        // 这一绑里收到过锚点没有
+		private bool _leashPulling;          // 本帧绳绷着、人正被拽
+		private bool _leashEngaged;          // "在拽"这个状态本身（带迟滞：进用死区、出用一半）
+		private bool _leashDragged;          // 本帧是"拖在地上"那种拽（否则 = 被拖着走）
+		private float _leashSpeed;           // 本帧拽人速度（诊断）
+		private float _leashMult = 1f;       // 本帧给"被拖行"那个动画的播放倍率（1 = 原速）
+		private float _leashDist;            // 本帧手→胸口距离（诊断）
+
 		/// <summary>在挣扎（`站缚 ⇄ 挣扎`）。🔴 本轮**没有自动判据**，由 `custom.grapple bind struggle 0|1` 手动置 ——
 		/// 什么情况下算"在闹"还没定，先把线接齐、行为留空（免得凭空发明一套规则）。</summary>
 		private bool _struggling;
@@ -322,6 +482,26 @@ namespace LivingWorldNpcs
 		public Phase Current => _phase;
 		public Agent Target => _target;
 		public string Note => _note;
+
+		/// <summary>绳主（牵绳那一头的人）。**可能是玩家、也可能是 NPC**（反向绑 = NPC 牵玩家）——
+		/// 消费者的判据一律写 <c>ReferenceEquals(Attacker, Agent.Main)</c>，不要假设是玩家。</summary>
+		public Agent Attacker => _attacker;
+
+		/// <summary>锁定的绳长（米；0 = 还没锁）。消费者 = <see cref="GrappleLogic"/>（把绳的可视长度也钉住）。</summary>
+		public float LeashLength => _leashLocked ? _leashLength : 0f;
+
+		/// <summary>**画出来的那根绳该多长**（= 锁定量，再被 <see cref="LeashMaxLength"/> 封顶）——
+		/// 与"多远才算绷紧"（<see cref="LeashLength"/>）是两件事，理由见 <see cref="LeashMaxLength"/> 注释。</summary>
+		public float LeashRopeLength => _leashLocked ? MathF.Min(_leashLength, LeashMaxLength) : 0f;
+
+		/// <summary>绳长上限**此刻生效吗**（开关开 + 锁过 + 在缚那一相 + 没被扛着）。</summary>
+		public bool LeashActive => LeashEnabled && _leashLocked && _phase == Phase.Bound && _carrier == null;
+
+		/// <summary>本帧绳绷着、人正被拽（诊断 + 消费者判"在拖行"用）。</summary>
+		public bool LeashPulling => _leashPulling;
+
+		/// <summary>本帧是"拖在地上"那种拽（true = 趴着被拖 · false = 站着被牵着走）。</summary>
+		public bool LeashDragged => _leashDragged;
 
 		/// <summary>目标侧那台状态机（扛人时 <see cref="GrappleCarry"/> 要按时刻 Force 它）。没进机 = null。</summary>
 		internal AgentAnimStateMachine Machine => _machine;
@@ -404,6 +584,21 @@ namespace LivingWorldNpcs
 			_layTimer = 0f;
 			_fallStarted = false;
 			_lying = false;
+			// 绳长上限：新的一绑 = 重新锁（长度按"绑上那一刻的手→胸口"，见 TickLeash）
+			_leashLength = 0f;
+			_leashLocked = false;
+			_leashHadAnchor = false;
+			_leashPulling = false;
+			_leashEngaged = false;
+			_leashDragged = false;
+			_leashSpeed = 0f;
+			_leashMult = 1f;
+			_leashPullingPrev = false;
+			_leashDraggedPrev = false;
+			_leashProbeTimer = 0f;
+			// 🔴 形态迟滞也要归零：它是**跨"绑"存活**的实例字段，上一绑拖着人时的 +1 会留到这一绑，
+			//    第一帧就把刚绑上的人判成"该拖在地上"（凭空放倒）。见 _dragLatch。
+			_dragLatch.Reset();
 			// 新的一绑 = 新的一台机（上下文全新：Released / Struggling 都得是 false）
 			_machine = null;
 			_ctx = null;
@@ -465,7 +660,7 @@ namespace LivingWorldNpcs
 		{
 			_phase = Phase.Wrapping;
 			_note = "wrapping";
-			SetTargetAIPaused(_target, true);
+			HoldTarget(_target);
 			DebugLogger.Log($"[Grapple] 勾人：开始缠（{_target.Name}）入口={Fmt(_hookPos)} 圈数={WrapTurns:F2} 半径={WrapRadiusStart:F2}→{WrapRadiusEnd:F2} 时长={WrapSeconds:F2}s"
 				+ (PauseVanillaAI ? " · 已冻结其原版 AI" : " · （原版 AI 未冻：bind aipause 0）"));
 		}
@@ -486,10 +681,17 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>每帧推进（<see cref="GrappleLogic"/> 在钩头相位里调）。</summary>
-		public BindEvent Tick(float dt)
+		/// <summary>
+		/// 每帧推进（<see cref="GrappleLogic"/> 在钩头相位里调）。
+		/// <paramref name="ropeAnchor"/> = **绳主那只手这一帧在哪**（绳长上限要用它量"手 → 胸口"，
+		/// 见本文件顶部"绳长上限"那段）；取不到就传 <c>Vec3.Zero</c>，那一帧不拽人。
+		/// </summary>
+		public BindEvent Tick(float dt, Vec3 ropeAnchor)
 		{
 			if (_phase == Phase.None) return BindEvent.None;
+
+			_leashAnchor = ropeAnchor;
+			_leashHadAnchor = ropeAnchor.LengthSquared > 0.01f;
 
 			// 目标没了 / 死了 / 失效 ⇒ 直接收
 			if (_target == null || !AgentControlHelper.SafeIsActive(_target))
@@ -539,6 +741,11 @@ namespace LivingWorldNpcs
 			_ctx.Struggling = _struggling;
 			_ctx.CarrierMoving = IsCarrierMoving();
 			_ctx.AnimRemainFrac = _machine.CurrentRemainFrac;
+			// 🔴 **播放倍率**（2026-10-14）："被拖行"那一拍按实际拽速自适应 —— 拽得快动画就播快，
+			//    脚才不滑。倍率的值由牵绳那一拍算（<see cref="TickLeash"/>），这里只负责喂进去
+			//    （**每帧都喂**，所以相位离开缚那拍时会自动回到 1，见 StopLeash）。
+			_machine.SpeedMultiplier = _leashMult;
+			_machine.PushSpeedEveryFrame = WalkSpeedAuto;
 			_machine.Tick(_target, dt);
 		}
 
@@ -687,7 +894,7 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void BeginYankFromFall()
 		{
-			SetTargetAIPaused(_target, true);
+			HoldTarget(_target);
 			MarkTargetBound();
 			if (_machine == null)
 			{
@@ -1047,6 +1254,11 @@ namespace LivingWorldNpcs
 		private BindEvent TickBound(float dt)
 		{
 			_boundTimer += dt;
+
+			// 🔴 **绳长上限（牵着走 / 拖在地上）走在最前**：它可能在这一帧把人挪走 / 把他放倒
+			//    ⇒ 下面的钩位置、朝向都得按"挪完之后"的算（不然绳与钩差一帧，看着像甩）。
+			TickLeash(dt);
+
 			_hookPos = ChestOf(_target);
 			_hookDir = AwayFromPlayerDir();
 
@@ -1073,6 +1285,260 @@ namespace LivingWorldNpcs
 				return BindEvent.Finished;
 			}
 			return BindEvent.None;
+		}
+
+		/// <summary>
+		/// **绳长上限 + 拽着跟上 / 拖在地上**（每帧，缚那一相跑）。机制说明见本文件顶部那段。
+		///
+		/// 四拍：
+		///   ① **锁长**：第一帧把绳长锁在"此刻手 → 胸口"的距离上（下限/上限 <see cref="LeashMinLength"/> /
+		///      <see cref="LeashMaxLength"/>）—— 之后**不再延长**（用户 2026-10-13："以当前长度为上限"）；
+		///   ② **量差**：只有**超出**锁定量（且超出 &gt; <see cref="LeashDeadzone"/>）才拽；
+		///   ③ **定形态**：绳主骑马在动 / 速度 &gt; <see cref="DragSpeedThreshold"/> ⇒ **拖在地上**（趴缚），
+		///      否则 = **牵着走**（`binded_walk`）；
+		///   ④ **挪人**：速度 = 绳主水平速度（前馈，跟上就不掉队）+ 超出量 × 弹簧系数，封顶
+		///      <see cref="LeashMaxSpeed"/>；水平直写位置（竖直由引擎贴地），朝向按形态给。
+		///
+		/// 🔴 **被扛着的时候一律不拽**（`_carrier != null`）：那一拍由 <see cref="GrappleCarry"/> 每帧摆位，
+		///    两边同时写同一个人的位置 = 打架（人会在两个点之间抖）。
+		/// </summary>
+		private void TickLeash(float dt)
+		{
+			if (!LeashEnabled || _target == null || _attacker == null || !_leashHadAnchor || _carrier != null)
+			{
+				StopLeash("off / no anchor / being carried");
+				return;
+			}
+
+			Vec3 chest = ChestOf(_target);
+			Vec3 d = chest - _leashAnchor;
+			d.z = 0f;
+			float dist = d.Length;
+			_leashDist = dist;
+
+			// ① 锁长：绑上那一刻的跨度 = 上限
+			//    🔴 乘 <see cref="LeashSlackAtLock"/>（默认 1.05 = 与绳平时的"自动长度留 5% 余量"同一个口径）：
+			//       锁在**绳此刻真实的那点长度**上，锁定那一帧看不出任何变化（不乘 = 绳当场被拉直、跳一下）。
+			//    🔴 **不设上限**（只托底）：上限压小 = 一上来就有"超出量" = 人当场被拽飞，见 LeashMaxLength 注释。
+			if (!_leashLocked)
+			{
+				_leashLength = MathF.Max(LeashMinLength, dist * LeashSlackAtLock);
+				_leashLocked = true;
+				DebugLogger.Log($"[Grapple] 牵绳：绳长锁定 = {_leashLength:F2} m（手 → 胸口 {dist:F2} m × {LeashSlackAtLock:F2}）"
+					+ " —— 之后走远不再延长，超出就拽着他跟上（要松手才解）");
+			}
+
+			// ② 量差
+			//    🔴 **进出用两个阈值**（2026-10-14 实机抓到）：单阈值下"超出量"正好卡在死区边上时，
+			//       `松了 ⇄ 拖在地上` 会**每帧翻一次**（实测日志里 200 行里 93 次翻转）——
+			//       既刷屏，又让状态机的"被拖行 ⇄ 站缚"跟着抖。进用死区、出用死区的一半。
+			float excess = dist - _leashLength;
+			if (!_leashEngaged)
+			{
+				if (excess > LeashDeadzone && dist > 1e-3f) _leashEngaged = true;
+			}
+			else if (excess < LeashDeadzone * LeashReleaseRatio)
+			{
+				_leashEngaged = false;
+			}
+			if (!_leashEngaged || dist < 1e-3f)
+			{
+				StopLeash(excess > 0f ? $"slack ({excess:F2} m < {LeashDeadzone:F2} m)" : "slack");
+				return;
+			}
+
+			// ③ 形态：拖在地上 / 牵着走
+			//    🔴 判据 = **这条走路动画演不演得过来**（2026-10-14 用户裁定："倍率太高就自动进入拉倒"）：
+			//       需要的倍率 = **绳主的持续速度** ÷ 动画自然速率；超过 <see cref="WalkMaxMult"/> ⇒ 不再硬撑走着跟，
+			//       直接改"拖在地上"（趴着滑行不需要跟速率，也没有腿在滑）。
+			//    🔴 判据用**绳主速度**、不用本帧拽速：拽速里有"追回超出量"那一份，会在起步/加速的瞬间冲高，
+			//       拿它判 = 一加速就翻形态、下一帧又翻回来（来回切）。绳主速度经 `AverageVelocity` 本身就是平滑量。
+			//    🔴 进出用**两个阈值**（<see cref="AnimLatch"/>）：进 2.0x / 出 1.4x —— 单阈值会在门槛附近来回翻。
+			float leadSpeed = HorizontalSpeed(_attacker);
+			bool mountedLead = DragWhenMounted && IsRidingSomething(_attacker) && leadSpeed > DragMountedMinSpeed;
+			float leadMult = WalkNaturalSpeed > 0.05f ? leadSpeed / WalkNaturalSpeed : 1f;
+			_dragLatch.SetThresholds(WalkMaxMult, WalkMaxMult * WalkDragExitRatio);
+			bool dragged = mountedLead || _dragLatch.Update(leadMult) > 0;
+
+			// ④ 挪人 + ⑤ 定倍率
+			//    🔴 牵着走时速度**封顶在"动画演得过来"那一档**（倍率上限 × 自然速率）—— 多出来的不硬追
+			//       （追了就是滑步）：绳会稍微绷过一点，等绳主慢下来再自己收回去。
+			float wantSpeed = MathF.Min(LeashMaxSpeed, leadSpeed * LeashFeedForward + excess * LeashStiffness);
+			float speed = dragged ? wantSpeed : MathF.Min(wantSpeed, WalkMaxMult * WalkNaturalSpeed);
+			_leashSpeed = speed;
+			_leashMult = dragged
+				? 1f                                                            // 趴着被拖：不需要跟速率
+				: MathF.Max(WalkMinMult, MathF.Min(WalkMaxMult,
+					WalkSpeedOverride > 0f
+						? WalkSpeedOverride
+						: speed / MathF.Max(0.05f, WalkNaturalSpeed)));         // 强制档 / 自适应档
+			try
+			{
+				Vec3 dir = d * (-1f / dist);                         // 从胸口指向手 = 被拽的方向
+				_target.TeleportToPosition(_target.Position + dir * (speed * dt));
+				// 朝向：牵着走 = 朝行进方向（他自己在走）；拖在地上 = 背朝行进方向（脚在前头在后）
+				Vec3 face = dragged && DragFaceAway ? -dir : dir;
+				_target.SetMovementDirection(face.AsVec2);
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 牵绳：挪人失败（{ex.GetType().Name}: {ex.Message}）—— 这一帧不拽");
+				return;
+			}
+
+			// ⑤ 形态落到状态机（**只有它变的那一刻**做事，其余每帧只填上下文）
+			if (dragged)
+			{
+				_layTimer = 0f;                                      // 拖着期间不倒计时起身（松了才起）
+				if (!_lying) EnterDraggedLay(leadSpeed);             // 站着/走着 ⇒ 先放倒，之后一直趴着被拖
+			}
+
+			_leashPulling = true;
+			_leashDragged = dragged;
+			if (_ctx != null)
+			{
+				_ctx.BeingPulled = !dragged;    // 🔴 两个标志互斥（拖在地上那条不走"被拖行"）
+				_ctx.BeingDragged = dragged;
+			}
+
+			// 只在"开始拽 / 换形态"时各打一行（每帧打会淹掉日志）
+			if (!_leashPullingPrev || _leashDraggedPrev != dragged)
+			{
+				DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 距离 {dist:F2} m > 绳长 {_leashLength:F2} m"
+					+ $"（超出 {excess:F2} m）· 绳主速度 {leadSpeed:F1} m/s ⇒ 拽速 {speed:F1} m/s"
+					+ (dragged
+						? $"（绳主需要的倍率 {leadMult:F2} > {WalkMaxMult:F2} ⇒ 趴缚循环：脚在前头在后）"
+						: $"（binded_walk 倍率 {_leashMult:F2} = 拽速 {speed:F2} ÷ 自然速率 {WalkNaturalSpeed:F2}）"));
+			}
+			_leashPullingPrev = true;
+			_leashDraggedPrev = dragged;
+
+			if (LeashProbeSeconds > 0f)
+			{
+				_leashProbeTimer += dt;
+				if (_leashProbeTimer >= LeashProbeSeconds)
+				{
+					_leashProbeTimer = 0f;
+					DebugLogger.Log($"[Grapple] 牵绳探针：手→胸口 {dist:F2} m · 绳长 {_leashLength:F2} m · 超出 {excess:F2} m"
+						+ $" · 绳主 {leadSpeed:F1} m/s · 拽速 {speed:F1} m/s · 形态={(dragged ? "拖在地上" : "牵着走")}"
+						+ $" · 倍率 {_leashMult:F2}");
+				}
+			}
+		}
+
+		/// <summary>这一帧没在拽（绳松着 / 关掉了 / 被扛着）—— 清标志 + 把"拖完该起身"的倒计时接上。</summary>
+		private void StopLeash(string why)
+		{
+			if (_leashPullingPrev)
+			{
+				DebugLogger.Log($"[Grapple] 牵绳：松了（{why}）—— 人停下"
+					+ (_leashDragged ? $"；拖着的那位按 laytime（{LaySeconds:F1}s）起身" : ""));
+			}
+			// 拖行结束 ⇒ 趴着的人重新开始"自动起身"倒计时（拖着的时候这个计时是清零的）
+			if (_leashDragged && _lying && _layTimer <= 0f && LaySeconds > 0f)
+			{
+				_layTimer = LaySeconds;
+			}
+			_leashPulling = false;
+			_leashEngaged = false;           // 迟滞态一起清（下次要重新"进"）
+			_leashDragged = false;
+			_leashSpeed = 0f;
+			_leashMult = 1f;                 // 不拽了 ⇒ 动画回原速（TickTargetMachine 每帧把它推给状态机）
+			_leashPullingPrev = false;
+			_leashDraggedPrev = false;
+			if (_ctx != null)
+			{
+				_ctx.BeingPulled = false;
+				_ctx.BeingDragged = false;
+			}
+		}
+
+		/// <summary>
+		/// **把被拽的人放倒**（"拖在地上"那条的入口）—— 只做两件事：记 `_lying` + Force "拉倒"那一拍。
+		/// 🔴 **不走 <see cref="EnterYank"/>**：那套自带"朝玩家拖 2 米"的位移曲线，与绳的拽人**两处写位置**；
+		///    拖在地上时位移**全交给绳**（绳才是那个"在拉"的东西）。
+		/// </summary>
+		private void EnterDraggedLay(float leadSpeed)
+		{
+			_lying = true;
+			_layTimer = 0f;
+			ForceEvent(BindAnimConditions.YankTrigger);
+			DebugLogger.Log($"[Grapple] 牵绳：'{SafeName(_target)}' 被拖倒（绳主 {leadSpeed:F1} m/s"
+				+ (IsRidingSomething(_attacker) ? "，骑着马" : "") + $"）⇒ 拖在地上（趴缚循环），"
+				+ (LaySeconds > 0f ? $"停下后 {LaySeconds:F1}s 自己起身" : "停下也不会自己起身（laytime=0）"));
+		}
+
+		/// <summary>某个 agent 的**水平**速度（米/秒）。用 `AverageVelocity`（native 平均窗口）防瞬时抖动。</summary>
+		private static float HorizontalSpeed(Agent a)
+		{
+			if (a == null) return 0f;
+			try
+			{
+				Vec3 v = a.AverageVelocity;
+				return new Vec2(v.x, v.y).Length;
+			}
+			catch (Exception) { return 0f; }
+		}
+
+		// ───────────────────── 牵着走：给绳主下"走到哪"的指令（2026-10-13）─────────────────────
+		//
+		// 🔴 **谁需要它**：`bind lead` 那条**反向绑**（NPC 牵着玩家走）。
+		//    玩家牵 NPC 时不需要 —— 玩家自己会走，绳长上限那条（TickLeash）负责把 NPC 拽着跟上。
+		// 🔴 **给绳主下的是引擎的脚本移动**（`SetScriptedPosition`，走引擎寻路：绕障碍、上下台阶都归它），
+		//    **不是**我们自己写位置 —— 绳主是自由的（没被冻），就该让引擎好好走。
+
+		/// <summary>`bind lead` 不写米数时的默认距离。</summary>
+		public static float LeadDefaultMeters = 6f;
+
+		/// <summary>这一绑里给绳主下过"往前走"的指令没有（诊断用）。</summary>
+		private bool _leadActive;
+		private Vec3 _leadTarget;
+
+		/// <summary>
+		/// **牵着人往前走**（"带着玩家走"那条腿）：给**绳主**下一个"走到前方 N 米"的脚本移动指令。
+		/// 被牵的人由绳长上限那条拽着跟上 —— 两者天然配合：绳主走 → 绳绷紧 → 被牵的人被拽着走。
+		/// </summary>
+		public string LeadForward(float meters, bool run)
+		{
+			if (_phase == Phase.None || _attacker == null) return "Error: no active bind (nothing to lead).";
+			if (ReferenceEquals(_attacker, Agent.Main)) return "Error: the rope holder is the player - just walk (the bound one follows by the rope).";
+			if (meters <= 0f) meters = LeadDefaultMeters;
+			try
+			{
+				Vec3 fwd = _attacker.LookFrame.rotation.f;
+				fwd.z = 0f;
+				fwd = fwd.LengthSquared > 1e-4f ? fwd.NormalizedCopy() : Vec3.Forward;
+				Vec3 to = _attacker.Position + fwd * meters;
+				AgentControlHelper.ScriptedMoveToPoint(_attacker, to, run);
+				_leadTarget = to;
+				_leadActive = true;
+				DebugLogger.Log($"[Grapple] 牵人：绳主 {SafeName(_attacker)} 出发 → {Fmt(to)}（{meters:F1} m{(run ? "，跑" : "")}）"
+					+ " —— 绳一绷，被牵的就被拽着跟上来");
+				return $"OK: {SafeName(_attacker)} walks {meters:F1} m{(run ? " (running)" : "")}; the bound one is dragged along by the rope.";
+			}
+			catch (Exception ex)
+			{
+				return $"Error: lead failed ({ex.GetType().Name}: {ex.Message})";
+			}
+		}
+
+		/// <summary>绳主停下（解除上一条 <see cref="LeadForward"/> 的脚本移动）。</summary>
+		public string LeadStop()
+		{
+			if (_attacker == null) return "Error: no rope holder.";
+			try { _attacker.DisableScriptedMovement(); }
+			catch (Exception ex) { return $"Error: stop failed ({ex.GetType().Name}: {ex.Message})"; }
+			_leadActive = false;
+			DebugLogger.Log($"[Grapple] 牵人：绳主 {SafeName(_attacker)} 停下");
+			return $"OK: {SafeName(_attacker)} stops walking.";
+		}
+
+		/// <summary>他骑着东西吗（骑马；`MountAgent` 就是引擎的"我骑在谁身上"）。</summary>
+		private static bool IsRidingSomething(Agent a)
+		{
+			if (a == null) return false;
+			try { return a.MountAgent != null; }
+			catch (Exception) { return false; }
 		}
 
 		/// <summary>
@@ -1106,7 +1572,9 @@ namespace LivingWorldNpcs
 			catch (Exception) { }
 
 			// ② 原版 AI 冻结：幂等重压（引擎的部署收尾会把**全场**解冻，战斗里尤其要盯）
-			SetTargetAIPaused(_target, true);
+			//    🔴 走 HoldTarget 而不是只 SetTargetAIPaused：**目标是玩家**时它还会把"控制器归 AI"
+			//       一起补回来（不然玩家中途被别的系统还回控制器，就能自己跑掉了）。
+			HoldTarget(_target);
 		}
 
 		/// <summary>命令入口：立刻放开当前目标（`custom.grapple bind release`）。</summary>
@@ -1137,7 +1605,25 @@ namespace LivingWorldNpcs
 			_struggling = false;
 			_note = "released (" + reason + ")";
 
-			if (_ctx != null) _ctx.Released = true;
+			// 绳长上限：这一绑结束 ⇒ 锁解掉（下一绑重新锁）
+			_leashLocked = false;
+			_leashLength = 0f;
+			_leashPulling = false;
+			_leashDragged = false;
+			_leashSpeed = 0f;
+			_leashPullingPrev = false;
+			_leashDraggedPrev = false;
+
+			if (_ctx != null)
+			{
+				_ctx.Released = true;
+				// 🔴 **牵绳那两个标志必须一起清掉**（2026-10-13）：它们在图里是**普通谓词边**
+				//    （`站缚 ⇄ 被拖行`），而"放人"那条边（`bind-released`）排在同一条状态轨道上 ——
+				//    标志留着为真 = **放人那条边永远轮不到**（人被放开却还演着"被牵着走"，直到别的边把它踢走）。
+				//    释放之后牵绳那一拍也不会再跑（相位已 None）⇒ 不在这里清就没人清了。
+				_ctx.BeingPulled = false;
+				_ctx.BeingDragged = false;
+			}
 
 			// 机器搬进收尾槽（与"下一绑"互不干扰：Begin 会重置 _machine/_ctx 那两组）
 			if (t != null && _machine != null)
@@ -1271,7 +1757,23 @@ namespace LivingWorldNpcs
 			try { a.ResetEnemyCaches(); } catch (Exception) { }
 			try { a.HumanAIComponent?.SyncBehaviorParamsIfNecessary(); } catch (Exception) { }
 
-			DebugLogger.Log($"[Grapple] 勾人：AI 已还给 {SafeName(a)}（被捆标记已清、占位已拆、旗标已解锁、原版 AI 已解冻）");
+			// 🔴 **玩家当目标时**：把控制器还给玩家 —— **必须排在 `ForceUnlockAgent` 之后**
+			//    （它内部"确保控制器回归 AI"那一步会把它抢成 AI，先还 = 白还，见 HoldTarget 注释）。
+			if (ReferenceEquals(a, Agent.Main))
+			{
+				try { V.SetPlayerControlFrozen(a, false); }
+				catch (Exception ex) { DebugLogger.Log($"[Grapple] 勾人：还玩家控制器失败（{ex.GetType().Name}: {ex.Message}）—— 用控制台/重进场景恢复"); }
+			}
+
+			DebugLogger.Log($"[Grapple] 勾人：AI 已还给 {SafeName(a)}（被捆标记已清、占位已拆、旗标已解锁、原版 AI 已解冻）"
+				+ $"；0 号通道此刻 = {SafeOrNone(a)}（应是 act_none / 引擎自己的动作 —— 若还挂着 act_grapple_bound_* 就是没还干净）");
+		}
+
+		/// <summary>目标 0 号通道现在是什么动作（还 AI 时打一行做判据：应该是 act_none）。</summary>
+		private static string SafeOrNone(Agent a)
+		{
+			try { return V.ActName(a, 0) ?? "?"; }
+			catch (Exception) { return "(read failed)"; }
 		}
 
 		// ───────────────────────────── 绳尾钉（缠绕态）─────────────────────────────
@@ -1484,9 +1986,17 @@ namespace LivingWorldNpcs
 				? $"{_machine.Current ?? "-"}/{_machine.CurrentAction ?? "-"}"
 				: "(no machine)";
 			string carry = _carrier != null ? $" carrier={SafeName(_carrier)}" : "";
+			// 🔴 牵绳那一格（2026-10-13）：绳长锁没锁 / 手→胸口多远 / 在不在拽 / 走还是拖 ——
+			//    "走远了人没跟上来"这类问题的第一判据就是这一格（`leashprobe` 打开还能看连续值）。
+			string leash = !LeashEnabled ? "off"
+				: !_leashLocked ? "not locked yet"
+				: $"{_leashLength:F2}m dist={_leashDist:F2}m pull={(_leashPulling ? (_leashDragged ? "DRAGGED" : "walking") : "slack")}"
+					+ (_leashPulling ? $" v={_leashSpeed:F1}m/s x{_leashMult:F2}" : "");
+			string lead = _leadActive ? $" | lead→{Fmt(_leadTarget)}" : "";
 			return $"bind: {_phase} | 目标={tgt} | {timer:F2}/{limit:F2}s | anim={anim} | 动作={act}"
 				+ $" | 钩={Fmt(_hookPos)} | 拖距={DragDistance:F1}m 超时={BoundSeconds:F0}s"
 				+ $" 拉倒起身={LaySeconds:F1}s{carry}"
+				+ $" | leash[{leash}]{lead}"
 				+ $" | takeover[{takeover}]"
 				+ (_layTimer > 0f ? $" | 起身倒计时={_layTimer:F1}s" : "")
 				+ (_forcedAnim != null ? $" | 🔒强制={_forcedAnim}" : "");

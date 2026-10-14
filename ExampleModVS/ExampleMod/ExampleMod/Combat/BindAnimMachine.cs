@@ -30,6 +30,18 @@ namespace LivingWorldNpcs
 		/// （被扛者是每帧被我们摆位的，它自己的速度没有意义）。</summary>
 		public bool CarrierMoving;
 
+		/// <summary>
+		/// **绳绷着、人正被牵着走**（`站缚 ⇄ 被拖行`）—— 2026-10-13 立，配合"绳长上限"。
+		/// 由 <see cref="GrappleBind"/> 的牵绳那一拍每帧填（绳主走远、绳绷紧了才是 true）。
+		/// 🔴 **被拖在地上时它是 false**（那个形态由 <see cref="BeingDragged"/> 走"拉倒"，两个标志互斥）。
+		/// </summary>
+		public bool BeingPulled;
+
+		/// <summary>**被拖在地上**（绳主骑马在动 / 跑得快）—— 2026-10-13 立。
+		/// 入形态那一刻 C# 会直接 Force "拉倒"（见 <see cref="GrappleBind"/>），本标志是**兜底**：
+		/// 万一那时人正处在别的状态、Force 没落上，状态机自己也知道"该趴下"。</summary>
+		public bool BeingDragged;
+
 		/// <summary>喂给 `anim=` 原语用（本机现在的边没用它，但接口要齐 —— 见 <see cref="IAnimInputFacts"/>）。</summary>
 		public float AnimRemainFrac = float.PositiveInfinity;
 
@@ -58,6 +70,8 @@ namespace LivingWorldNpcs
 		public const string Struggling = "bind-struggling";
 		public const string Released = "bind-released";
 		public const string CarrierMoving = "bind-carrier-moving";
+		public const string BeingPulled = "bind-being-pulled";
+		public const string BeingDragged = "bind-being-dragged";
 
 		// ── 时刻标签（事件边用；真身 c => false，真正的触发在 C#）──
 		public const string HitTrigger = "bind-hit";
@@ -93,6 +107,16 @@ namespace LivingWorldNpcs
 			{
 				BindAnimContext b = C(c);
 				return b != null && b.CarrierMoving;
+			});
+			AnimConditions.Register(BeingPulled, c =>
+			{
+				BindAnimContext b = C(c);
+				return b != null && b.BeingPulled;
+			});
+			AnimConditions.Register(BeingDragged, c =>
+			{
+				BindAnimContext b = C(c);
+				return b != null && b.BeingDragged;
 			});
 
 			// ── 时刻标签：真身只是"这个时刻存在" ──

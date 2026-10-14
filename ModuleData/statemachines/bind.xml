@@ -14,6 +14,8 @@
        · **被捆住的稳态 = 站着**（站缚）—— 不再是趴地
        · **命中第一拍 = 受击**（crash，1.7 s 一次性，不倒地）→ 接站缚
        · **只有玩家【拉紧】才把人拉倒**（拉倒 = 拉倒段 + 趴缚循环）；**拉倒后定时自动起身**
+       · 🔴 **绳长上限（2026-10-13）**：绑上那一刻绳长锁死 ⇒ 绳主走远绳绷紧、**人被拽着跟上**
+         （站着的走 = 被拖行；绳主骑马/跑得快 = 拖在地上 = 趴缚循环）；绳一松人就停，趴着的按 `laytime` 起身
        · 【扛起】/【放下】= 扛人（见 carry.xml 那台机）
        · 放开（松绳 / 收摊）= C# 置 `released` ⇒ **本文件里那两条 `when="released"` 的边负责出机**
 
@@ -32,6 +34,8 @@
        carry-trigger   玩家【扛起】                     -> 被扛起 （事件边，C# Force）
        put-trigger     玩家【放下】                     -> 被放下 （事件边，C# Force）
        bind-struggling 在闹（本轮由 `bind struggle 0|1` 手动置）   站缚 ⇄ 挣扎
+       bind-being-pulled   绳绷着、人被牵着走（C# 每帧填）          站缚 ⇄ 被拖行
+       bind-being-dragged  被拖在地上（绳主骑马/跑得快）            站缚/被拖行 -> 拉倒 -> 趴缚
        bind-released   已放人                          站缚/趴缚 -> 起身 -> （站缚）-> outside
        bind-carrier-moving  扛人者在移动               被扛行 ⇄ 被扛走
 
@@ -52,6 +56,8 @@
 		<state name="受击" act="act_grapple_bound_crash" once="true" next="站缚" />
 		<!-- 稳态 = 站着被捆 -->
 		<state name="站缚" act="act_grapple_bound_idle" />
+		<!-- 🔴 被牵着走（2026-10-13）：绳绷着、人被迫跟着绳主走（腿在动画里） -->
+		<state name="被拖行" act="act_grapple_bound_walk" />
 		<state name="挣扎" act="act_grapple_bound_struggle" />
 		<!-- 拉倒 → 趴缚（趴地循环）→ 起身 -->
 		<state name="拉倒" act="act_grapple_bound_lay" once="true" next="趴缚" />
@@ -74,6 +80,16 @@
 		<!-- 站缚 ⇄ 挣扎 -->
 		<edge from="站缚" to="挣扎" when="bind-struggling" />
 		<edge from="挣扎" to="站缚" when="bind-struggling" not="true" />
+
+		<!-- 🔴 被牵着走 / 被拖在地上（2026-10-13 立；两个谓词互斥，C# 保证同时只有一个为真）
+		     · 牵着走（绳主走路）      = 站缚 ⇄ 被拖行（binded_walk，他自己在走）
+		     · 拖在地上（绳主骑马/跑）  = → 拉倒 → 趴缚（趴着被拖）；C# 入形态那一刻也会直接 Force "yank-trigger"，
+		       这两条边是**兜底**（万一那一刻人正处在别的状态、Force 没落上）。
+		     🔴 拖在地上那条必须**排在"被牵着走"前面**（命中即定：先判是不是被拖，再判是不是被牵）。 -->
+		<edge from="站缚" to="拉倒" when="bind-being-dragged" />
+		<edge from="被拖行" to="拉倒" when="bind-being-dragged" />
+		<edge from="站缚" to="被拖行" when="bind-being-pulled" />
+		<edge from="被拖行" to="站缚" when="bind-being-pulled" not="true" />
 
 		<!-- 拉倒 / 起身（都是事件边，由 C# 按玩家输入与定时器 Force） -->
 		<edge from="站缚" to="拉倒" when="yank-trigger" event="true" />

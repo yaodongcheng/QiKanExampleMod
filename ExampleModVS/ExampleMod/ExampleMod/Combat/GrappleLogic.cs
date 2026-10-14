@@ -510,6 +510,20 @@ namespace LivingWorldNpcs
 			catch (Exception)
 			{
 			}
+			// 🔴 **反向绑的兜底**（2026-10-13）：玩家被绑着时**场景结束**（战斗结束 / 退出场景）——
+			//    控制器必须还回玩家，否则"人已经离场了控制器还在 AI 手里"（下个场景能不能自愈不做赌注）。
+			//    只做这一件事：实体 / 状态机 / 旗标都随场景一起走，不用在这里逐个收。
+			try
+			{
+				if (_bind.Target != null && ReferenceEquals(_bind.Target, Agent.Main))
+				{
+					V.SetPlayerControlFrozen(Agent.Main, false);
+				}
+			}
+			catch (Exception)
+			{
+			}
+			try { _bind.Abort("mission end"); } catch (Exception) { }
 			_anchored = false;
 			_hookPhase = HookPhase.Idle;
 			if (Current == this) Current = null;
@@ -824,6 +838,7 @@ namespace LivingWorldNpcs
 			_rope.Hide();
 			_rope.LengthFollowSpeed = HandLengthFollowSpeed;   // 恢复手里那档（飞行期的临时值到此为止）
 			_rope.SlackRatio = FlightRopeSlackRatio;           // 绑定期可能被压成绷直（见 Binding 分支）—— 收钩恢复默认档
+			_rope.AutoLength = true;                           // 绳长上限那条可能把它钉住了（见 Binding 分支）—— 收钩必须解开
 			_landingNote = "released";
 
 			// ── 姿态动画收摊（2026-10-04 二稿）──
@@ -851,6 +866,16 @@ namespace LivingWorldNpcs
 		{
 			if (_anim == null || _animCtx == null || Agent.Main == null)
 			{
+				return;
+			}
+
+			// 🔴 **玩家自己被绑着的时候，这台武器机整体让位**（2026-10-13 反向绑）：
+			//    0 号通道同一时刻只能有一套全身姿态 —— 被绑那台机（bind.xml）正在写，
+			//    这台再写就是**两台机抢同一个通道**（每帧互踢 = 人抖成筛子）。
+			//    让位方式 = 把自己送出机（回引擎待机），等放人之后自然接回来。
+			if (_bind.Target != null && ReferenceEquals(_bind.Target, Agent.Main))
+			{
+				if (IsAnimInside()) ExitAnim();
 				return;
 			}
 
@@ -1467,11 +1492,27 @@ namespace LivingWorldNpcs
 				}
 
 				// 顺序：先 Tick（本帧的位置才算得出来）再 Park（用本帧的值摆，不差帧）。
-				GrappleBind.BindEvent bindEv = _bind.Tick(dt);
+				// 🔴 锚点要喂进去：**绳长上限**（"牵着走 / 拖在地上"）要拿"绳主的手 → 目标胸口"量距离，
+				//    见 GrappleBind 顶部那段；反向绑（NPC 牵玩家）时这个锚点自动是**那个 NPC 的手**。
+				GrappleBind.BindEvent bindEv = _bind.Tick(dt, GetRopeAnchor());
+
+				// 🔴 绳的**可视长度**跟着"绳长上限"钉住（2026-10-13）：锁了长就**不再伸缩**
+				//    （否则玩家走远，绳先自己变长、人再被拽 —— 读感是"橡皮筋"，不是"绷紧的绳"）。
+				//    没锁（还没到缚那一拍 / 开关关掉 / 被扛着）⇒ 回到"每帧按跨度推"的旧行为。
+				if (_bind.LeashActive)
+				{
+					_rope.AutoLength = false;
+					_rope.Length = _bind.LeashRopeLength;   // 可视长度（被封顶过）≠ 绷紧判据（LeashLength），见那条注释
+				}
+				else
+				{
+					_rope.AutoLength = true;
+				}
 
 				// 🔴 绳的松紧跟着相位走（2026-10-09 用户反馈"看不出被拉"后加）：
 				//    缠/拽 那两拍**压成绷直**（松绳没有"在拉"的读感）；缚那拍恢复松量（绳在地上拖着才自然）。
-				_rope.SlackRatio = _bind.WantsTautRope ? 1.0f : FlightRopeSlackRatio;
+				//    2026-10-13：牵着人走那一拍也压成绷直（绳正吃着力；松着读不出"在牵"）。
+				_rope.SlackRatio = (_bind.WantsTautRope || _bind.LeashPulling) ? 1.0f : FlightRopeSlackRatio;
 
 				Scene bindScene = Mission != null ? Mission.Scene : null;
 				if (bindScene != null && _bind.IsActive)
@@ -1777,8 +1818,43 @@ namespace LivingWorldNpcs
 			_hookPhase = HookPhase.Binding;
 			_bindFromTest = true;              // 调试路径：不判"收起钩索/绳被拉断"（见字段注释）
 			_landingNote = "binding (test path)";
+			ShowBindRope();
+			return $"OK: binding target '{target.Name}' (test path; watch 缠→倒→缚, then '{GrappleBind.BoundSeconds:F0}s' auto-release or 'bind release')";
+		}
 
-			// 绳要看得见（测试路径没经过"飞行"，绳可能还藏/没建）
+		/// <summary>
+		/// **反向绑（调试路径，2026-10-13 第 3 条）**：**最近的 NPC 把玩家绑了**，
+		/// 之后 `bind lead &lt;米&gt;` 让他牵着玩家走（绳长上限那条拽着玩家跟上）。
+		///
+		/// 与 <see cref="BindTest"/> 是**同一套机制、角色对调**（铁律 18 平权）：
+		///   绳主 = 那个 NPC（他的右手是绳的近端）· 目标 = 玩家（被冻控制器、被拽着走、姿态归 bind.xml）。
+		/// 玩家的控制器冻结/归还在 <see cref="GrappleBind.HoldTarget"/> / `RestoreAgent` 里，与 NPC 目标共用一条路。
+		/// </summary>
+		public string BindReverse(Agent attacker)
+		{
+			if (!GrappleBind.Enabled) return "Error: bind is OFF (custom.grapple bind on)";
+			if (attacker == null) return "Error: no NPC found nearby (need one within 30 m, not a child, on foot).";
+			if (Agent.Main == null) return "Error: no player agent.";
+			if (IsBusy) Release("bind reverse（清场重来）");
+
+			Vec3 hit = GrappleBind.ChestOf(Agent.Main);
+			if (!_bind.Begin(attacker, Agent.Main, hit, out string why))
+			{
+				return "Error: cannot bind the player (" + why + ")";
+			}
+			_hook.Clear();
+			_hookPhase = HookPhase.Binding;
+			_bindFromTest = true;
+			_landingNote = "binding (reverse test path)";
+			ShowBindRope();
+			return $"OK: '{attacker.Name}' binds YOU (test path). 'custom.grapple bind lead 6' = they walk 6 m and drag you along; "
+				+ "'custom.grapple bind leadstop' = stop; 'custom.grapple bind release' = let go (you get your controls back).";
+		}
+
+		/// <summary>把"勾人那条绳"显示出来（测试路径没经过"飞行"，绳可能还藏着 / 没建）。
+		/// 失败只记日志 —— 机制不受影响（绳是纯观感）。</summary>
+		private void ShowBindRope()
+		{
 			try
 			{
 				Scene scene = Mission != null ? Mission.Scene : null;
@@ -1792,10 +1868,15 @@ namespace LivingWorldNpcs
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.Log($"[Grapple] bind test：绳显示失败（{ex.GetType().Name}）—— 机制不受影响");
+				DebugLogger.Log($"[Grapple] 绑人：绳显示失败（{ex.GetType().Name}）—— 机制不受影响");
 			}
-			return $"OK: binding target '{target.Name}' (test path; watch 缠→倒→缚, then '{GrappleBind.BoundSeconds:F0}s' auto-release or 'bind release')";
 		}
+
+		/// <summary>命令层：**绳主牵着走**（反向绑那条：NPC 走，玩家被拽着跟）—— 判定与执行在 GrappleBind。</summary>
+		public string BindLead(float meters, bool run) => _bind.LeadForward(meters, run);
+
+		/// <summary>命令层：绳主停下。</summary>
+		public string BindLeadStop() => _bind.LeadStop();
 
 		// ─────────────────────────────── 拉自己（步骤 4） ───────────────────────────────
 
@@ -2095,6 +2176,14 @@ namespace LivingWorldNpcs
 			Agent player = Agent.Main;
 			Scene scene = Mission != null ? Mission.Scene : null;
 			bool want = HandHookEnabled && !_anchored && player != null && scene != null && IsHoldingGrapple();
+
+			// 🔴 **反向绑（NPC 把我们绑了，2026-10-13）**：那一拍玩家手是被捆着的（状态机在演站缚/被拖行），
+			//    手里再挂着"环 + 两截绳 + 一枚转着的钩"是错位的（而且钩已经挂在**我们胸口**了）。
+			//    ⇒ 玩家是绳另一头那个人时，手里那套整体收掉（钩头那套由 Binding 分支自己摆）。
+			if (want && _bind.Target != null && ReferenceEquals(_bind.Target, player))
+			{
+				want = false;
+			}
 
 			_lastGoodHandAge += dt;      // 「上一次好手点」的保鲜计时（每帧一次；见 GetHand）
 
@@ -2892,6 +2981,21 @@ namespace LivingWorldNpcs
 		/// 画面口径：绳从**右手**（捏绳那只手）连到钩 —— 左手的环是独立道具，不参与绳的锚点。</summary>
 		private Vec3 GetRopeAnchor()
 		{
+			// 🔴 **反向绑（NPC 牵玩家，2026-10-13 第 3 条）**：绳的近端永远在**绳主**那只手上 ——
+			//    绳主是玩家 = 右手（下面那套，实机验证过）；绳主是 NPC = 读**那个 NPC**的右手，
+			//    用的是同一个骨读数（`SpellCastInput.TryGetRightHandAnchor` 本来就收任意 agent）。
+			//    读不到就退回"他身上抬一点"，**绝不退回玩家的手**（那会让绳从玩家身上长出来，一眼假）。
+			try
+			{
+				Agent holder = _bind.Attacker;
+				if (_bind.IsActive && holder != null && !ReferenceEquals(holder, Agent.Main))
+				{
+					if (SpellCastInput.TryGetRightHandAnchor(holder, out Vec3 npcHand))
+						return npcHand - Vec3.Up * SpellCastInput.HandAnchorUpOffset;
+					return holder.Position + Vec3.Up * FallbackHandLift;
+				}
+			}
+			catch (Exception) { }
 			return GetHand();
 		}
 

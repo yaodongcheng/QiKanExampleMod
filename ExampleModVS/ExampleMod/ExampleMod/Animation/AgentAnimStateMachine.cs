@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TaleWorlds.Engine;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs.Animation
@@ -148,6 +149,28 @@ namespace LivingWorldNpcs.Animation
         /// 用途：相位自己掌控动画的那两段（起飞入姿 / 落地）。
         /// </summary>
         public bool Hold;
+
+        /// <summary>
+        /// **当前播放速度倍率**（1 = 原速；2026-10-14 立）。消费者每帧写（例：钩索"牵着人走"按实际拽速自适应）。
+        ///
+        /// 两条路一起用（**写一次 + 每帧推**）：
+        ///   · **切状态那一刻**把它当 `actionSpeed` 传给 `SetActionChannel`（新动作一上来就是对的速率）；
+        ///   · **每帧**经 <see cref="Skeleton.SetAnimationSpeedAtChannel"/> 推到 0 号通道（**连续**跟着速度走）。
+        ///
+        /// 🔴 为什么连续那一路走骨架、不走"每帧重调 SetActionChannel"：**重调同一个动作会不会把动画从头开始
+        ///    我们没验过**（原生行为未知）—— 万一会，人就每帧重播第一步、看着像抽搐。
+        ///    骨架那条是**纯速率写入**，不碰"播哪条、播到哪"，没有这个风险。
+        ///    ⇒ 若实机发现"倍率完全不起作用"，第一个要试的就是把 <see cref="PushSpeedEveryFrame"/> 关掉，
+        ///      看写一次那条路是不是其实生效了（两条路互为 A/B）。
+        /// </summary>
+        public float SpeedMultiplier = 1f;
+
+        /// <summary>要不要每帧把 <see cref="SpeedMultiplier"/> 推到骨架（关 = 只在切状态那一刻写一次）。</summary>
+        public bool PushSpeedEveryFrame = true;
+
+        /// <summary>上一次推过的倍率（变化小于这个就不推 —— 免得每帧都跨界调原生）。</summary>
+        private float _pushedSpeed = 1f;
+        private const float SpeedPushEpsilon = 0.01f;
 
         internal AgentAnimStateMachine(AnimMachineDef def, AnimContext context)
         {
@@ -492,7 +515,39 @@ namespace LivingWorldNpcs.Animation
             TickTrack();
 
             RecheckStolen(agent, dt);
+            PushSpeed(agent);
             TickConfirm(agent, dt);
+        }
+
+        /// <summary>
+        /// **把当前倍率推到骨架的 0 号通道**（连续调速那条路；见 <see cref="SpeedMultiplier"/> 的注释）。
+        /// 只在**变化超过 <see cref="SpeedPushEpsilon"/>** 时才写（免得每帧跨界调原生）。
+        /// 机外 / 没在驱动通道时不写（那时 0 号通道不归我们）。
+        /// </summary>
+        private void PushSpeed(Agent agent)
+        {
+            if (!PushSpeedEveryFrame || _current == null || _inOutside)
+            {
+                return;
+            }
+            if (Math.Abs(SpeedMultiplier - _pushedSpeed) < SpeedPushEpsilon)
+            {
+                return;
+            }
+            try
+            {
+                Skeleton skel = agent.AgentVisuals?.GetSkeleton();
+                if (skel == null)
+                {
+                    return;
+                }
+                skel.SetAnimationSpeedAtChannel(0, SpeedMultiplier);
+                _pushedSpeed = SpeedMultiplier;
+            }
+            catch (Exception)
+            {
+                // 取不到骨架 / 原生拒收：静默（写一次那条还在，速率不会完全失控）
+            }
         }
 
         /// <summary>
@@ -590,6 +645,16 @@ namespace LivingWorldNpcs.Animation
                 return;
             try
             {
+                // 🔴 **先把播放倍率还原成 1 再交还通道**（2026-10-14）：倍率是写在**骨架的 0 号通道**上的
+                //    （见 PushSpeed），不还原的话它会**留给后面播的任何东西** —— 那个 agent 之后走路、
+                //    站着、打架全部慢放/快放（"放人之后他还怪怪的"这类症状先查这里）。
+                Skeleton skel = agent.AgentVisuals?.GetSkeleton();
+                if (skel != null && Math.Abs(_pushedSpeed - 1f) >= SpeedPushEpsilon)
+                {
+                    skel.SetAnimationSpeedAtChannel(0, 1f);
+                }
+                SpeedMultiplier = 1f;
+                _pushedSpeed = 1f;
                 agent.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: false, blendInPeriod: 0.3f);
             }
             catch (Exception ex)
@@ -866,8 +931,10 @@ namespace LivingWorldNpcs.Animation
                 //    观感就是"腿摆得很硬"。飞行这条链上全部是循环姿态，**永远不需要"淡出到无"**。
                 V.SetActionChannel(agent, 0, idx, ignorePriority: true,
                                        additionalFlags: (ulong)Math.Max(0, _def.ActionPriority()),
+                                       actionSpeed: SpeedMultiplier,
                                        blendInPeriod: useBlend, blendOutPeriodToNoAnim: 0f,
                                        startProgress: startProgress);
+                _pushedSpeed = SpeedMultiplier;   // 写一次那条已经用上它了 ⇒ 每帧推那条不必再推一遍
                 if (VerboseOn || TraceOn)
                     DebugLogger.Log($"[Anim:{_def.Name}] {from} → {state.Name}（{state.Action} #idx={idx.Index}）" +
                                     $" blend={useBlend:F2}{(startProgress > 0f ? $" start={startProgress:F2}" : "")}" +

@@ -1719,6 +1719,25 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   mountedblow 0|1             "拉下马"要不要**同时打一发 `CanDismount` blow**（默认 on）——
 		///                               native 直接执行、**不看马速**（观感 = 被绳扯下来）；关掉只走下马事件（A/B 用）
 		///   diswait &lt;秒&gt;               "拉下马"等他落地的超时（默认 3.0；超时 = 收钩收绳）
+		///   ── 🔴 绳长上限：牵着走 / 拖在地上（2026-10-13）──
+		///   leash 0|1                   总开关（关 = 绳随跨度自由伸缩的旧行为）
+		///   leashlen &lt;下限&gt; [上限]      锁定绳长的取值范围（锁定值本身 = 绑上那一刻的"手→胸口"距离）
+		///   leashstiff &lt;值&gt;            拽人的弹簧系数（每超出 1 米给多少速度；越大追得越急）
+		///   leashspeed &lt;米/秒&gt;         拽人速度上限
+		///   dragthr &lt;米/秒&gt;            绳主速度超过它 = 被牵的人**拖在地上**（= 倍率门槛 × 自然速率，两种写法之一）
+		///   dragmounted 0|1             绳主骑马在动就拖在地上（默认 on）
+		///   dragface 0|1                拖在地上时背朝行进方向（脚在前；默认 on）
+		///   leashprobe &lt;秒&gt;            牵绳探针（距离 / 绳长 / 拽速），默认关
+		///   ── 🔴 自适应播放倍率（2026-10-14）：被牵着走时按实际拽速调 `binded_walk` 的播放倍率（治脚滑）──
+		///   walkrate &lt;米/秒&gt;           那条走路动画"原速时看着像每秒走几米"（默认 1.1；原地无位移轨，只能实机看）
+		///   walkmax &lt;倍率&gt;             倍率上限（默认 2.0）—— **超过它就直接改"拖在地上"**（用户裁定）
+		///   walkmin &lt;倍率&gt;             倍率下限（默认 0.55；再慢像放幻灯片）
+		///   walkspeed &lt;倍率&gt;           手动锁死倍率（0 = 自适应，默认）
+		///   walkspeedauto 0|1           连续调速那条路（每帧推骨架；默认 on。关掉 = 只在切状态时写一次，做 A/B）
+		///   ── 🔴 反向绑：NPC 牵着玩家走（2026-10-13）──
+		///   reverse                     最近的 NPC 把**玩家**绑了（玩家控制器会被收走、姿态归 bind.xml）
+		///   lead [米] [run]             绳主（NPC）往前走到 N 米外（默认 6），牵着玩家跟上来
+		///   leadstop                    绳主停下
 		/// </summary>
 		private static string DoBind(GrappleLogic logic, List<string> args, int at)
 		{
@@ -1898,8 +1917,144 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				}
 				case "panim":
 					return DoBindPanim(args, at);
+
+				// ═════════ 绳长上限：牵着走 / 拖在地上（2026-10-13，用户第 1、2 条）═════════
+				//
+				// 机制：绑上那一刻把绳长锁死 ⇒ 走远绳不再变长、绳绷紧、**人被拽着跟上**；
+				//       绳主骑马 / 跑得快 ⇒ 直接**拖在地上**（趴缚循环）。
+				// 验收：绑住一个人（`bind test`）→ 走远 → 看他是不是被拽着跟上来；
+				//       骑马跑起来 → 看他是不是被拖在地上。
+				case "leash":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleBind.LeashEnabled = false; }
+					else if (m == "1" || m == "on") { GrappleBind.LeashEnabled = true; }
+					else if (m != null && m != "state") { return "Error: bind leash expects 0|1"; }
+					return $"OK: rope length cap (leash) = {GrappleBind.LeashEnabled}"
+						+ (GrappleBind.LeashEnabled
+							? $" (the rope length is locked when the bind starts; walk beyond it and the bound one gets pulled along;"
+								+ $" riding/running above {GrappleBind.DragSpeedThreshold:F1} m/s drags them on the ground)"
+							: " (OFF: the rope stretches freely again -- the bound one stays where they are)");
+				}
+				case "leashlen":
+				{
+					float lo = ParseF(args, at + 1, -1f);
+					if (lo < 0f) return $"grapple: leash floor = {GrappleBind.LeashMinLength:F1} m | rope visual cap = {GrappleBind.LeashMaxLength:F1} m"
+						+ " (the lock itself = the hand-to-chest distance when the bind starts x slack; the cap only limits how long the rope is DRAWN)";
+					GrappleBind.LeashMinLength = lo;
+					float hi = ParseF(args, at + 2, float.NaN);
+					if (!float.IsNaN(hi)) GrappleBind.LeashMaxLength = hi;
+					return $"OK: leash floor = {GrappleBind.LeashMinLength:F1} m | rope visual cap = {GrappleBind.LeashMaxLength:F1} m";
+				}
+				case "leashstiff":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: leash stiffness = {GrappleBind.LeashStiffness:F1} (extra m/s per metre beyond the rope length)";
+					GrappleBind.LeashStiffness = v;
+					return $"OK: leash stiffness = {v:F1} (higher = the bound one catches up harder)";
+				}
+				case "leashspeed":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: leash max pull speed = {GrappleBind.LeashMaxSpeed:F1} m/s";
+					GrappleBind.LeashMaxSpeed = v;
+					return $"OK: leash max pull speed = {v:F1} m/s";
+				}
+				case "dragthr":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: drag threshold = {GrappleBind.DragSpeedThreshold:F2} m/s"
+						+ $" (= mult {GrappleBind.WalkMaxMult:F2} x natural {GrappleBind.WalkNaturalSpeed:F2} m/s; rope holder faster than this = the bound one is dragged on the ground)";
+					if (v <= 0f || GrappleBind.WalkNaturalSpeed <= 0.05f) return "Error: dragthr needs a positive m/s value";
+					GrappleBind.WalkMaxMult = v / GrappleBind.WalkNaturalSpeed;
+					return $"OK: drag threshold = {GrappleBind.DragSpeedThreshold:F2} m/s (mult {GrappleBind.WalkMaxMult:F2} x natural {GrappleBind.WalkNaturalSpeed:F2} m/s)";
+				}
+				// ── 🔴 自适应播放倍率（2026-10-14）：`binded_walk` 按实际拽速调速，脚才不滑 ──
+				case "walkrate":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: bound-walk natural speed = {GrappleBind.WalkNaturalSpeed:F2} m/s"
+						+ $" (the clip is in-place, so this is measured by eye: at this drag speed the playback rate is 1x; drag threshold becomes {GrappleBind.DragSpeedThreshold:F2} m/s)";
+					if (v <= 0.05f) return "Error: walkrate must be > 0.05 m/s";
+					GrappleBind.WalkNaturalSpeed = v;
+					return $"OK: bound-walk natural speed = {v:F2} m/s (rate 1x at this speed; drag threshold is now {GrappleBind.DragSpeedThreshold:F2} m/s)";
+				}
+				case "walkmax":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: walk-rate cap = {GrappleBind.WalkMaxMult:F2}x (ask for more than this and the bound one is dragged on the ground instead = {GrappleBind.DragSpeedThreshold:F2} m/s)";
+					if (v <= 0.05f) return "Error: walkmax must be > 0.05";
+					GrappleBind.WalkMaxMult = v;
+					return $"OK: walk-rate cap = {v:F2}x (drag threshold = {GrappleBind.DragSpeedThreshold:F2} m/s)";
+				}
+				case "walkmin":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: walk-rate floor = {GrappleBind.WalkMinMult:F2}x (never play the bound walk slower than this)";
+					if (v <= 0.05f) return "Error: walkmin must be > 0.05";
+					GrappleBind.WalkMinMult = v;
+					return $"OK: walk-rate floor = {v:F2}x";
+				}
+				case "walkspeed":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: walk-rate override = {(GrappleBind.WalkSpeedOverride > 0f ? $"{GrappleBind.WalkSpeedOverride:F2}x (LOCKED)" : "auto (follows the drag speed)")}";
+					GrappleBind.WalkSpeedOverride = v;
+					return v <= 0f
+						? "OK: walk-rate = AUTO (follows the actual drag speed; cap "
+							+ $"{GrappleBind.WalkMaxMult:F2}x, floor {GrappleBind.WalkMinMult:F2}x)"
+						: $"OK: walk-rate LOCKED at {v:F2}x (use 'walkspeed 0' to go back to auto)";
+				}
+				case "walkspeedauto":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleBind.WalkSpeedAuto = false; }
+					else if (m == "1" || m == "on") { GrappleBind.WalkSpeedAuto = true; }
+					else if (m != null && m != "state") { return "Error: bind walkspeedauto expects 0|1"; }
+					return $"OK: per-frame rate push = {GrappleBind.WalkSpeedAuto}"
+						+ (GrappleBind.WalkSpeedAuto
+							? " (the rate is written to the skeleton every frame: continuous adaptation)"
+							: " (OFF: the rate is only written once when the bound-walk state starts -- A/B for 'does the rate work at all')");
+				}
+				case "dragmounted":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleBind.DragWhenMounted = false; }
+					else if (m == "1" || m == "on") { GrappleBind.DragWhenMounted = true; }
+					else if (m != null && m != "state") { return "Error: bind dragmounted expects 0|1"; }
+					return $"OK: riding a horse drags the bound one on the ground = {GrappleBind.DragWhenMounted}";
+				}
+				case "dragface":
+				{
+					string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleBind.DragFaceAway = false; }
+					else if (m == "1" || m == "on") { GrappleBind.DragFaceAway = true; }
+					else if (m != null && m != "state") { return "Error: bind dragface expects 0|1"; }
+					return $"OK: dragged one faces away from the pull = {GrappleBind.DragFaceAway}"
+						+ (GrappleBind.DragFaceAway ? " (feet first, head away from the rope holder)" : " (head toward the rope holder -- default)");
+				}
+				case "leashprobe":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: leash probe interval = {GrappleBind.LeashProbeSeconds:F1}s (0 = off; logs distance / rope length / pull speed)";
+					GrappleBind.LeashProbeSeconds = v;
+					return v <= 0f ? "OK: leash probe OFF" : $"OK: leash probe every {v:F1}s";
+				}
+
+				// ═════════ 反向绑：NPC 牵着玩家走（2026-10-13，用户第 3 条）═════════
+				case "reverse":
+					return logic.BindReverse(FindNearestBindableAgent(30f));
+				case "lead":
+				{
+					float m = ParseF(args, at + 1, float.NaN);
+					string runArg = ArgAt(args, at + 2)?.ToLowerInvariant();
+					bool run = runArg == "run" || runArg == "1" || runArg == "on";
+					return logic.BindLead(float.IsNaN(m) ? 0f : m, run);
+				}
+				case "leadstop":
+					return logic.BindLeadStop();
 			}
-			return "Error: bind expects on|off|test|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause|mounted|mountedblow|diswait";
+			return "Error: bind expects on|off|test|reverse|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause|mounted|mountedblow|diswait|leash|leashlen|leashstiff|leashspeed|dragthr|dragmounted|dragface|leashprobe|walkrate|walkmax|walkmin|walkspeed|walkspeedauto|lead|leadstop";
 		}
 
 		/// <summary>
