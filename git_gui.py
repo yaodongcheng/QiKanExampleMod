@@ -565,6 +565,53 @@ def update_status_label():
             push_only_btn.config(state=tk.DISABLED, bg="#9E9E9E")
 
 
+# ============================================================
+# 资产快照 —— 把 AssetPackages 的包传到远程 assets 分支当网盘
+#   远程那条分支永远只有一个提交（每次整个换掉），所以仓库不会越滚越大。
+#   细节与判据见 git_assets.py 顶部说明。
+# ============================================================
+
+ASSET_TOOL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "git_assets.py")
+
+
+def _call_asset_tool(action, yes=False):
+    """跑 git_assets.py，返回 (退出码, 输出文本)"""
+    if not os.path.isfile(ASSET_TOOL):
+        return 1, f"找不到 {ASSET_TOOL}"
+    cmd = [sys.executable, ASSET_TOOL, action] + (["--yes"] if yes else [])
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True,
+                                encoding="utf-8", errors="replace", timeout=900)
+    except subprocess.TimeoutExpired:
+        return 1, "等了 15 分钟还没结束，先检查网络再试"
+    return result.returncode, ((result.stdout or "") + (result.stderr or "")).strip()
+
+
+def _run_asset_tool(action, title, ask_title, ask_question):
+    """上传/下载资产；脚本说要确认（退出码 3）时弹框问一句，确认后带 --yes 重跑"""
+    code, text = _call_asset_tool(action)
+    if code == 3:
+        if not messagebox.askyesno(ask_title, f"{text}\n\n{ask_question}"):
+            return
+        code, text = _call_asset_tool(action, yes=True)
+    if code == 0:
+        messagebox.showinfo(f"{title} - 完成", text or "（没有输出）")
+    else:
+        messagebox.showerror(f"{title} - 失败", text or "（没有输出）")
+
+
+def assets_upload():
+    """上传资产：把 AssetPackages 的 tpac 传到远程 assets 分支"""
+    _run_asset_tool("save", "上传资产", "要覆盖远程快照吗？",
+                    "上传会把远程那份整个换掉，找不回来。")
+
+
+def assets_download():
+    """下载资产：把远程 assets 分支的 tpac 拉回本地"""
+    _run_asset_tool("load", "下载资产", "要覆盖本地这些包吗？",
+                    "下载会把本地改过的包覆盖掉，找不回来。")
+
+
 def main():
     """主界面"""
     global status_label, file_list_text, push_only_btn
@@ -573,13 +620,13 @@ def main():
 
     root = tk.Tk()
     root.title(f"Git 快捷工具 - {project_name}")
-    root.geometry("620x600")
+    root.geometry("620x690")
     root.resizable(False, False)
 
     # 居中显示
     root.update_idletasks()
     x = (root.winfo_screenwidth() // 2) - 310
-    y = (root.winfo_screenheight() // 2) - 300
+    y = (root.winfo_screenheight() // 2) - 345
     root.geometry(f'+{x}+{y}')
 
     # 标题
@@ -630,6 +677,18 @@ def main():
     tk.Button(row2, text="🗑️ 放弃更改", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 10), bg="#f44336", fg="white",
               command=discard_changes).pack(side=tk.LEFT, padx=5)
+
+    # 第三行按钮（资产快照：AssetPackages 的包存到远程 assets 分支，换电脑能拿回来）
+    row3 = tk.Frame(btn_frame)
+    row3.pack(pady=5)
+
+    tk.Button(row3, text="📦 上传资产", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#3F51B5", fg="white",
+              command=assets_upload).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row3, text="📥 下载资产", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#009688", fg="white",
+              command=assets_download).pack(side=tk.LEFT, padx=5)
 
     # 文件列表显示区
     list_frame = tk.LabelFrame(root, text="文件状态", font=("Microsoft YaHei", 11), padx=10, pady=10)
