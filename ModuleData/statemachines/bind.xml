@@ -32,6 +32,7 @@
        yank-trigger    玩家【拉紧】                     -> 拉倒   （事件边，C# Force）
        rise-trigger    （备用）任何人主动叫起身        -> 起身   （事件边，C# Force；定时起身也走它）
        carry-trigger   玩家【扛起】                     -> 被扛起 （事件边，C# Force）
+       horse-trigger   玩家【放上马背】                 -> 马背   （事件边，C# Force；从马背拿下走 put-trigger）
        put-trigger     玩家【放下】                     -> 被放下 （事件边，C# Force）
        bind-struggling 在闹（本轮由 `bind struggle 0|1` 手动置）   站缚 ⇄ 挣扎
        bind-being-pulled   绳绷着、人被牵着走（C# 每帧填）          站缚 ⇄ 被拖行
@@ -68,6 +69,10 @@
 		<state name="被扛行" act="act_grapple_carried_idle" />
 		<state name="被扛走" act="act_grapple_carried_walk" />
 		<state name="被放下" act="act_grapple_carried_reverse" once="true" next="站缚" />
+		<!-- 🔴 马背（2026-10-14）：人搁在马背上、跟着马走（位置由 GrappleCarry 每帧贴马）；循环。
+		     ⚠️ 悬空高度靠这条 clip 的**根骨位置轨**（agent 的 Z 写不进去）—— 新 clip 出来之前
+		        占位指向 `beikangqi_idle`（见 action_sets.xml），届时只换那一行指向即可。 -->
+		<state name="马背" act="act_grapple_horse_drape" />
 	</states>
 	<edges>
 		<!-- 进机（从机外进来的边**只能**是事件驱动；实际触发在 C#） -->
@@ -101,6 +106,13 @@
 		<edge from="被扛走" to="被扛行" when="bind-carrier-moving" not="true" />
 		<edge from="被扛行" to="被放下" when="put-trigger" event="true" />
 		<edge from="被扛走" to="被放下" when="put-trigger" event="true" />
+
+		<!-- 🔴 马背（2026-10-14）：扛着 → 放上马背（人换"载体"：玩家 → 马）；从马背拿下 = 走"被放下"那条 -->
+		<edge from="被扛行" to="马背" when="horse-trigger" event="true" />
+		<edge from="被扛走" to="马背" when="horse-trigger" event="true" />
+		<edge from="马背" to="被放下" when="put-trigger" event="true" />
+		<!-- 松绳（放人）时：从马背先回站缚，再由 站缚 → outside 那条出机 -->
+		<edge from="马背" to="站缚" when="bind-released" />
 
 		<!-- 🔴 出机（放人）：C# 只置 `released`，走哪条路由这两条边决定 ——
 		     站着 = 直接出机；趴着 = 先演起身、起身演完落到站缚、再从这里出机。 -->

@@ -4025,6 +4025,11 @@
     <string id="LWN_ui_interact_tug" text="Pull tight" />
     <string id="LWN_ui_interact_lift" text="Carry them" />
     <string id="LWN_ui_interact_putdown" text="Put them down" />
+    <string id="LWN_ui_interact_horseput" text="Put them on the horse" />
+    <string id="LWN_ui_interact_horsetakeoff" text="Take them off the horse" />
+    <string id="LWN_ui_horseput_ok" text="You drape them over the horse's back." />
+    <string id="LWN_ui_horseput_bubble" text="Up on the horse you go." />
+    <string id="LWN_ui_horsetakeoff_ok" text="You take them off the horse." />
     <string id="LWN_ui_tug_fail" text="You need to be more than {DIST} m away to pull them off their feet." />
     <string id="LWN_ui_tug_msg" text="You haul on the rope ({DIST} m). {NOTE}" />
     <string id="LWN_ui_tug_bubble" text="Get over here!" />

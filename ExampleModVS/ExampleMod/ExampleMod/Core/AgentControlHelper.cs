@@ -738,7 +738,52 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 挂原版持续跟随（FollowAgentBehavior 三连，2026-08-13 用户裁定）：
+        /// <summary>
+        /// 这个 agent 是不是**能骑的**坐骑 —— 判据 = 它那件马物品的 `HorseComponent.IsRideable`
+        /// （= 物品 XML 的 `is_mountable`，引擎自己也是这么判的）。
+        ///
+        /// 🔴🔴 **别用 `Agent.IsMount`，也别用 `HorseComponent.IsMount`** —— 两个都会把**驮马**判死：
+        ///    · `Agent.IsMount` = `AgentFlag.Mountable`（旗标太粗，不可靠）；
+        ///    · `HorseComponent.IsMount` = `IsRideable && !IsPackAnimal` —— 而 `sumpter_horse`（驮马）
+        ///      XML 是 `is_mountable="true" is_pack_animal="true"` ⇒ **能骑**（只是同时算驮畜），却被判 false。
+        /// 2026-10-14 实机第三次踩到：用户牵来的正是**驮马** ⇒「放上马背」那条死活不出现。
+        /// 详见 [Knowledge/骑砍2Agent骑乘机制_引擎能力与实现.md]。
+        /// </summary>
+        public static bool IsRideableMount(Agent a)
+        {
+            if (a == null) return false;
+            try
+            {
+                if (!a.IsMount) return false;
+                ItemObject it = a.SpawnEquipment[EquipmentIndex.ArmorItemEndSlot].Item;
+                return it != null && it.HasHorseComponent && it.HorseComponent.IsRideable;
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// <summary>**就近一匹"能骑的"马**（不管有没有人骑；判据 = <see cref="IsRideableMount"/>）。
+        /// 用途：`carry horse` / 交互面板"放上马背"（扛着人时准星被人挡着，只能就近挑）。</summary>
+        public static Agent FindNearestRideableMount(Vec3 near, float maxDist)
+        {
+            try
+            {
+                Mission m = Mission.Current;
+                if (m == null) return null;
+                Agent best = null;
+                float bestD = maxDist;
+                foreach (Agent a in m.Agents)
+                {
+                    if (a == null || !SafeIsActive(a)) continue;
+                    if (!IsRideableMount(a)) continue;
+                    float d = a.Position.Distance(near);
+                    if (d < bestD) { bestD = d; best = a; }
+                }
+                return best;
+            }
+            catch (Exception) { return null; }
+        }
+
+        /// <summary>挂原版持续跟随（FollowMemberBehavior 三连，2026-08-13 用户裁定）：
         /// 跟随目标=玩家时走原版行为接管——Brain 队列清空/计划结束后 NPC 依然跟随，
         /// 解除靠 stop_following 调 StopVanillaFollow。三连挂在 DailyBehaviorGroup 内，
         /// 组级 Suspend/Resume（Brain 接管）不摘行为，天然实现"插队做事、做完继续跟"。

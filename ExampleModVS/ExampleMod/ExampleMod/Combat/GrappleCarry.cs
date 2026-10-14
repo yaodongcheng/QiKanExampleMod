@@ -32,7 +32,7 @@ namespace LivingWorldNpcs
 	/// </summary>
 	internal sealed class GrappleCarry
 	{
-		public enum CarryPhase { None, Riding, PuttingDown }
+		public enum CarryPhase { None, Riding, PuttingDown, OnHorse }
 
 		// ───────────────────────────── 可调参数（命令热调；重启复位）─────────────────────────────
 
@@ -70,7 +70,50 @@ namespace LivingWorldNpcs
 		public static float OffsetForward = 0f;
 		public static float OffsetRight = 0f;
 
+		// ───────────────────── 马背载人（2026-10-14 立；用户要"荒野大镖客"那种）─────────────────────
+		//
+		// **要什么**：扛着人时**瞄着马**可以把他放到马背**靠后**的位置，之后这个人的位置**从"绑玩家"
+		//   改成"绑马背"** —— 玩家骑马就能带着他跑。靠近再【从马背拿下】把他放回地面。
+		//
+		// 🔴 **竖直那一段（悬在马背上）只能由动画给** —— agent 的 Z 写不进去（写多少都贴地，
+		//    见 Knowledge/骑砍2Agent运动与位置机制.md），所以"人在马背上"靠的是 clip 的**根骨位置轨**
+		//    （`beikangqi_*` 的 +0.68 米就是这个套路）。⇒ **需要一条新动画**：
+		//    根骨 z ≈ 马背高（≈1.40 m）、趴/横在马背上、循环。
+		//    ⚠️ 在它出来之前，这条状态**占位指向 `beikangqi_idle`**（见 action_sets.xml）——
+		//    机制能跑、能验位置/跟随，只是"人悬在马肚子高度"看着不对。
+
+				/// <summary>
+		/// **马背朝向探针**（秒；0 = 关，`custom.grapple carry horseprobe <秒>`）—— 人搁马上时每这么多秒打一行：
+		/// 马的朝向 / 我们写进去的朝向 / **回读**人自己的 `LookDirection` / 两者夹角。
+		/// 判据："人没跟着马转"这类问题看这一行就够：写进去的和回读的对不上 = 引擎把朝向改回去了；
+		/// 马那一列**恒定不变** = 我们读马的朝向读错了（见 <see cref="ForwardOf"/>）。
+		/// </summary>
+		public static float HorseProbeSeconds = 0f;
+		private float _horseProbeTimer;
+
+		/// <summary>放到马背时**朝马屁股方向偏多少米**（默认 0.55 —— 马身 ~2.4 m，鞍在中间、臀在这后面）。</summary>
+		public static float HorseBackOffset = 0.55f;
+
+		/// <summary>放到马背时**朝马右手侧偏多少米**（默认 0 —— 正对脊线）。</summary>
+		public static float HorseSideOffset = 0f;
+
 		/// <summary>
+		/// 放到马背上之后，那个人**朝哪**：
+		///   · `along`（默认）= 跟马同向（头朝马头，顺着脊线趴）
+		///   · `across` = 横过来（头朝马的右手侧 —— "打横驮着"，荒野大镖客那种）
+		///   · `reverse` = 跟马反向（头朝马尾）
+		/// 命令 `custom.grapple carry horseface along|across|reverse`。
+		/// </summary>
+		public static string HorseFaceMode = "along";
+
+		/// <summary>
+		/// **放到马背时允许的最远距离**（米）—— 只当**命令路径**的兜底保险；
+		/// 真正决定"给不给【放上马背】"的是**面板焦点**（与"身边有什么尸体 / NPC"同一套检测），不是这个数。
+		/// 🔴 2026-10-14 教训：**别再拿它当"附近有没有马"的判据** —— 那是我自己另造的第二套口径，
+		///    与面板焦点打架 ⇒ 用户看到"隔老远也显示 / 走近了却不显示"两个 bug 来回翻。
+		/// </summary>
+		public static float MaxHorseDistance = 4.0f;
+
 		/// **扛着的时候要不要把扛人者的 Z 也写给被扛者**（用户 2026-10-10："z 也尝试一下"）。
 		///
 		/// 引擎的既有事实是 **agent 的 Z 写不进去、会自动贴地**（见
@@ -96,6 +139,7 @@ namespace LivingWorldNpcs
 
 		private Agent _carrier;
 		private Agent _carried;
+		private Agent _horse;          // 人搁在哪匹马的背上（OnHorse 相位；null = 没搁马上）
 		private GrappleBind _bind;              // 只为了收摊时把"扛人者"从被绑者那侧清掉（别留悬空引用）
 		private AgentAnimStateMachine _machine;
 		private CarryAnimContext _ctx;
@@ -114,6 +158,12 @@ namespace LivingWorldNpcs
 		public bool IsActive => _phase != CarryPhase.None && _carried != null;
 		public Agent Carrier => _carrier;
 		public Agent Carried => _carried;
+
+		/// <summary>人现在搁在哪匹马的背上（没搁 = null）。交互面板"从马背拿下"的判据。</summary>
+		public Agent Horse => _horse;
+
+		/// <summary>人是不是正搁在**这匹**马上。</summary>
+		public bool IsOnHorse(Agent horse) => IsActive && _horse != null && ReferenceEquals(_horse, horse);
 		public CarryPhase Phase => _phase;
 		public string Note => _note;
 
@@ -206,9 +256,13 @@ namespace LivingWorldNpcs
 			if (!IsActive) return;
 
 			// ── 失效守卫：任一方没了 / 换了目标 ⇒ 立刻散伙（**不再摆位**，让人自己倒回地面）──
-			if (!AgentControlHelper.SafeIsActive(_carrier) || !AgentControlHelper.SafeIsActive(_carried))
+			//    🔴 马背相位只看**马**和**人**：扛人者（玩家）走远了不管（人已经交给马了）。
+			bool carrierNeeded = _phase != CarryPhase.OnHorse;
+			if (!AgentControlHelper.SafeIsActive(_carried)
+				|| (carrierNeeded && !AgentControlHelper.SafeIsActive(_carrier))
+				|| (_horse != null && !AgentControlHelper.SafeIsActive(_horse)))
 			{
-				HardStop("agent gone");
+				HardStop(_horse != null ? "horse gone" : "agent gone");
 				return;
 			}
 			if (bind == null || !bind.IsActive || !ReferenceEquals(bind.Target, _carried))
@@ -231,6 +285,31 @@ namespace LivingWorldNpcs
 				_ctx.Moving = IsCarrierMoving();
 				_ctx.AnimRemainFrac = _machine.CurrentRemainFrac;
 				_machine.Tick(_carrier, dt);
+			}
+
+			// ③′ **马背相位**：扛人者那台机演完"放下"就把他撒手（**不 HardStop** —— 人还在马上、继续摆位）；
+			//     玩家这时候就自由了（武器也还回去），可以上马带着走。
+			if (_phase == CarryPhase.OnHorse)
+			{
+				bool carrierDone = _machine == null
+							|| _machine.Current == AgentAnimStateMachine.OutsideState
+							|| !AgentControlHelper.SafeIsActive(_carrier);
+				if (carrierDone && _machine != null)
+				{
+					RestoreCarrierWeapon();
+					_machine = null;
+					_ctx = null;
+					if (_stowGrace <= 0f) _stowGrace = StowGraceSeconds;
+					DebugLogger.Log($"[Grapple] 马背：扛人者那侧已撒手（{SafeName(_carrier)} 自由了）"
+						+ " —— 人继续跟着马走，直到【从马背拿下】/ 松绳");
+				}
+				else if (_t >= PutdownTimeoutSeconds + 6f && _machine != null)
+				{
+					DebugLogger.Log($"[Grapple] 马背：🔴 扛人者收势超时（{_t:F1}s）⇒ 直接撒手");
+					RestoreCarrierWeapon();
+					_machine = null;
+					_ctx = null;
+				}
 			}
 
 			// ③ 放下中：扛人者那台机走到机外（放下动画剩 15% 出机，见 carry.xml）⇒ 收摊
@@ -267,6 +346,70 @@ namespace LivingWorldNpcs
 			return true;
 		}
 
+		/// <summary>
+		/// **把人放到马背上**（用户 2026-10-14：扛着人 + 瞄着马 ⇒ 放马背靠后的位置，之后位置**绑马**）。
+		///
+		/// 与"放下"的区别：放下 = 人落地、扛人关系结束；这条 = **人换了个"载体"**（玩家 → 马），
+		/// 扛人关系也结束（扛人者那侧演完"放下"就自由了），但**被扛的这个人继续由本控制器每帧摆位**
+		/// （贴在马背后靠的位置上），直到【从马背拿下】或松绳。
+		///
+		/// 🔴 **竖直方向（悬在马背上）不在代码里** —— 靠那个人自己的 clip 根骨位置轨给（见类顶部的说明），
+		///    所以这条相位在拿到新动画之前是**占位演出**（人看上去悬在马肚子高度）。
+		/// </summary>
+		public bool PlaceOnHorse(Agent horse, GrappleBind bind, out string why)
+		{
+			why = "-";
+			if (!Enabled) { why = "carry disabled"; return false; }
+			if (!IsActive || _phase != CarryPhase.Riding) { why = "not carrying anyone (phase = " + _phase + ")"; return false; }
+			if (horse == null) { why = "no horse"; return false; }
+			if (!AgentControlHelper.SafeIsActive(horse)) { why = "horse inactive"; return false; }
+			// 🔴 判据 = `HorseComponent.IsRideable`（2026-10-14 实机：用户那匹是**驮马**，
+			//    `Agent.IsMount` 会把驮马判死 ⇒ 面板不给【放上马背】）。见 GrappleCommands.IsRideableMount。
+			if (!AgentControlHelper.IsRideableMount(horse)) { why = "that is not a rideable horse"; return false; }
+			float d = 0f;
+			try { Vec3 v = horse.Position - _carried.Position; v.z = 0f; d = v.Length; } catch (Exception) { }
+			if (d > MaxHorseDistance) { why = $"too far from the horse ({d:F1} m > {MaxHorseDistance:F1} m)"; return false; }
+
+			_horse = horse;
+			_phase = CarryPhase.OnHorse;
+			_t = 0f;
+			_note = "on horse back";
+			// 扛人者那侧：演"放下"（手臂把人放下去）—— 演完（出机）就不再管它，见 Tick ③
+			ForceCarrier(BindAnimConditions.PutTrigger);
+			// 被扛者那侧：进"马背"那个状态（bind.xml 的 horse-trigger 边）
+			bind?.ForceEvent(BindAnimConditions.HorseTrigger);
+			DebugLogger.Log($"[Grapple] 马背：把 {SafeName(_carried)} 放到 {SafeName(horse)} 的背上"
+				+ $"（后偏 {HorseBackOffset:F2} m · 侧偏 {HorseSideOffset:F2} m · 朝向 {HorseFaceMode}）"
+				+ " —— 之后他的位置**跟着马走**；【从马背拿下】或松绳才回来"
+				+ "（⚠️ 悬空高度靠动画根骨轨：现在占位指向 beikangqi_idle，新 clip 出来换指向即可）");
+			return true;
+		}
+
+		/// <summary>
+		/// **从马背拿下**（放回地面）：人落到马旁边、播"被放下"（→ 站缚），扛人关系结束。
+		/// 玩家离得远也能敲（命令路径）；面板那条要求人在交互距离内。
+		/// </summary>
+		public bool TakeOffHorse(GrappleBind bind, string reason)
+		{
+			if (!IsActive || _horse == null) return false;
+			Agent horse = _horse;
+			_horse = null;
+			// 落点：马旁边（右脚侧 1 米）—— 先摆到位再播"被放下"，不然人会从马背上"瞬移"到原地
+			try
+			{
+				Vec3 f = ForwardOf(horse, mount: true);
+				Vec3 right = new Vec3(f.y, -f.x, 0f);
+				Vec3 p = horse.Position + right * 1.0f;
+				p.z = _carried.Position.z;
+				_carried.TeleportToPosition(p);
+			}
+			catch (Exception) { }
+			bind?.ForceEvent(BindAnimConditions.PutTrigger);
+			DebugLogger.Log($"[Grapple] 马背：把 {SafeName(_carried)} 从 {SafeName(horse)} 背上拿下（{reason}）—— 落地回站缚");
+			HardStop("taken off horse (" + reason + ")");
+			return true;
+		}
+
 		/// <summary>立刻散伙（不再摆位、不再管动画）—— 用于 agent 没了之类的异常路径。</summary>
 		public void HardStop(string reason)
 		{
@@ -284,6 +427,7 @@ namespace LivingWorldNpcs
 			try { _bind?.SetCarrier(null); } catch (Exception) { }   // 别在被绑者那侧留个悬空的扛人者引用
 			_carrier = null;
 			_carried = null;
+			_horse = null;
 			_bind = null;
 			_machine = null;
 			_ctx = null;
@@ -484,6 +628,13 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void AttachCarried()
 		{
+			// 🔴 **马背相位**：贴的是**马**（不是扛人者）—— 马背靠后的位置 + 沿马脊线的朝向。
+			//    竖直（悬在马背上）**不在这里写**，靠那个人自己的 clip 根骨位置轨（见类顶部说明）。
+			if (_horse != null)
+			{
+				AttachCarriedToHorse();
+				return;
+			}
 			try
 			{
 				Vec3 fwd = ForwardOf(_carrier);
@@ -518,19 +669,116 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
-		/// 扛人者的**水平朝向**（配对表演那条先例：站位/朝向基准 = 角色朝向，**不是**相机方向 ——
-		/// 配对动画的位移是沿角色前方推的）。相机那边见 CLAUDE.md 铁律 35。
+		/// **把人摆到马背靠后的位置**（每帧）：XZ 贴马、朝向按 <see cref="HorseFaceMode"/>。
+		/// 前后/左右两个偏移都是**沿马自己**量的（前进方向 / 右手方向），所以马转弯时人跟着转。
 		/// </summary>
-		private static Vec3 ForwardOf(Agent a)
+		private void AttachCarriedToHorse()
 		{
 			try
 			{
-				Vec3 f = a.LookFrame.rotation.f;
-				f.z = 0f;
-				if (f.LengthSquared > 1e-4f) return f.NormalizedCopy();
+				Vec3 f = ForwardOf(_horse, mount: true);   // 马：优先读它自己的"运动方向"（= 朝向），见 ForwardOf
+				Vec3 right = new Vec3(f.y, -f.x, 0f);
+				Vec3 p = _horse.Position - f * HorseBackOffset + right * HorseSideOffset;
+				if (WriteZ) p.z = _horse.Position.z + ZLift;
+				_carried.TeleportToPosition(p);
+
+				// 朝向：along = 跟马同向 · reverse = 反向 · across = 横过来（头朝马的右手侧）
+				Vec3 face = HorseFaceMode == "across" ? right
+					: HorseFaceMode == "reverse" ? -f
+					: f;
+				_carried.SetMovementDirection(face.AsVec2);
+
+				// 探针（默认关）：写在**写完朝向之后**，这样"写进去的"与"回读的"能直接对比
+				if (HorseProbeSeconds > 0f)
+				{
+					_horseProbeTimer += 1f / 60f;
+					if (_horseProbeTimer >= HorseProbeSeconds)
+					{
+						_horseProbeTimer = 0f;
+						Vec3 back = Vec3.Forward;
+						try { back = _carried.LookDirection; back.z = 0f; } catch (Exception) { }
+						float dot = 0f;
+						try
+						{
+							if (back.LengthSquared > 1e-4f)
+								dot = Vec3.DotProduct(face.NormalizedCopy(), back.NormalizedCopy());
+						}
+						catch (Exception) { }
+						DebugLogger.Log($"[Grapple] 马背探针：马 {SafeName(_horse)} 朝向 = {Fmt(f)}（源 {_lastForwardSrc} · 模式 {HorseFaceMode}）"
+							+ $" · 写入朝向 = {Fmt(face)} · 回读人朝向 = {Fmt(back)}"
+							+ $" · 夹角 = {(float)(Math.Acos(Math.Max(-1f, Math.Min(1f, dot))) * 180.0 / Math.PI):F0}°"
+							+ $"（回读≈写入 = 引擎收下了；马那列恒定 = 读马的朝向读错了）");
+					}
+				}
 			}
 			catch (Exception) { }
+		}
+
+		/// <summary>
+		/// 扛人者的**水平朝向**（配对表演那条先例：站位/朝向基准 = 角色朝向，**不是**相机方向 ——
+		/// 配对动画的位移是沿角色前方推的）。相机那边见 CLAUDE.md 铁律 35。
+		/// </summary>
+		/// <summary>人的"面朝方向"（读 look —— 人横着走时运动方向 ≠ 面朝方向，不能拿运动方向）。</summary>
+		private static Vec3 ForwardOf(Agent a) => ForwardOf(a, mount: false);
+
+		/// <summary>
+		/// 取"某个 agent 现在面朝哪"（水平、已归一化）—— **按物种分源**（2026-10-14 用户：
+		/// "马有没有自己的 movementDirection 呢，别用 look 吧"）：
+		///
+		///   · **马（mount:true）**：先读 **`GetMovementDirection()`** —— 我们自己的轮子里写着
+		///     "**转向 = `SetMovementDirection(Vec2)`**"，即引擎的**运动方向就是它的朝向**（马不会横着走）；
+		///     读不到（站着不动时可能是零向量）再退到**世界帧 `Frame`**（引擎渲染它用的那一帧），最后才 look。
+		///   · **人（mount:false）**：先读 **look**（面朝），再 Frame、最后运动方向。
+		///
+		/// 🔴 原来只有一个源 `LookFrame.rotation.f`，读不到就**静默**退回世界 +Y 常量 —— 对**马**这种坐骑
+		///    agent，`LookFrame` 很可能就是退化的 ⇒ 摆位用的"前向量"成了常量 ⇒ 人跟着马**平移**、
+		///    既不绕着马转也不自己转（实机症状："挂到马身上不跟着马转"）。
+		///    现在四个源依次试，**全失败才退回常量，且第一次会打日志**（不再静默）。
+		/// </summary>
+		private static Vec3 ForwardOf(Agent a, bool mount)
+		{
+			Vec3 f;
+			if (mount)
+			{
+				if (TryFlat(a, () => a.GetMovementDirection().ToVec3(), out f)) { NoteForwardSource(a, "moveDir"); return f; }
+				if (TryFlat(a, () => a.Frame.rotation.f, out f)) { NoteForwardSource(a, "frame"); return f; }
+			}
+			if (TryFlat(a, () => a.LookFrame.rotation.f, out f)) { NoteForwardSource(a, "look"); return f; }
+			if (TryFlat(a, () => a.Frame.rotation.f, out f)) { NoteForwardSource(a, "frame"); return f; }
+			if (TryFlat(a, () => a.GetMovementDirection().ToVec3(), out f)) { NoteForwardSource(a, "moveDir"); return f; }
+			NoteForwardSource(a, "NONE");
 			return Vec3.Forward;
+		}
+
+		/// <summary>取向量的水平分量并归一化；长度太小（退化）返回 false。</summary>
+		private static bool TryFlat(Agent a, Func<Vec3> get, out Vec3 flat)
+		{
+			flat = Vec3.Forward;
+			try
+			{
+				Vec3 v = get();
+				v.z = 0f;
+				if (v.LengthSquared > 1e-4f) { flat = v.NormalizedCopy(); return true; }
+			}
+			catch (Exception) { }
+			return false;
+		}
+
+		/// <summary>记下"这次用的是哪个源"，变了就打一行（首次必打）—— 排查"读不到朝向"时一眼定位。</summary>
+		private static string _lastForwardSrc;
+		private static void NoteForwardSource(Agent a, string src)
+		{
+			if (string.Equals(_lastForwardSrc, src, StringComparison.Ordinal)) return;
+			_lastForwardSrc = src;
+			if (src == "NONE")
+			{
+				DebugLogger.Log($"[Grapple] 扛人：🔴 读不到 {SafeName(a)} 的朝向（moveDir / frame / look 全空）"
+					+ " —— 摆位改用世界 +Y 常量（人不会跟着他转！请把这一行发给开发）");
+			}
+			else
+			{
+				DebugLogger.Log($"[Grapple] 扛人：读 {SafeName(a)} 的朝向改用了 '{src}' 这个源（马应优先 moveDir；人优先 look）");
+			}
 		}
 
 		/// <summary>扛人者在不在动（判据口径 = <see cref="BindAnimConditions.CarrierMovingSpeed"/>；
@@ -578,13 +826,18 @@ namespace LivingWorldNpcs
 				d = v.Length;
 			}
 			catch (Exception) { }
-			return $"carry: {_phase} | carrier={SafeName(_carrier)} ({carState}/{carAct})"
+			string horseNote = _horse != null
+				? $" onHorse={SafeName(_horse)} (back {HorseBackOffset:F2}/side {HorseSideOffset:F2}/{HorseFaceMode})"
+				: "";
+			return $"carry: {_phase} | carrier={SafeName(_carrier)} ({carState}/{carAct}){horseNote}"
 				+ $" | carried={SafeName(_carried)} act={carriedAct}"
 				+ $" | dist={d:F2}m moving={(IsCarrierMoving() ? "True" : "False")}"
 				+ $" | offset={OffsetForward:F2}/{OffsetRight:F2}"
 				+ $" | sheathe={(SheatheOnCarry ? "on" : "off")} weStowed={_weSheathed} grace={_stowGrace:F1}s"
 				+ $" | t={_t:F1}s";
 		}
+
+		private static string Fmt(Vec3 v) => $"({v.x:F2},{v.y:F2})";
 
 		private static string SafeName(Agent a)
 		{

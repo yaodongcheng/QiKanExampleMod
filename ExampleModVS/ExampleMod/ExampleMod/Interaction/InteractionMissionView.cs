@@ -252,8 +252,10 @@ namespace LivingWorldNpcs
         {
             // 1. 快速排除
             if (agent == null || agent == Agent.Main) return;
-            // 2. 类型排除：非人类（含儿童）且非动物 → 排除
-            if (!AgentControlHelper.IsHumanOrChild(agent) && !IsAnimalAgent(agent)) return;
+            // 2. 类型排除：非人类（含儿童）、非牲畜、**也非能骑的马** → 排除
+            //    🔴 马那一条是 2026-10-14 补的（同 ① 的理由）：不加它，身边 4 米内的马永远参选不了。
+            if (!AgentControlHelper.IsHumanOrChild(agent) && !IsAnimalAgent(agent)
+                && !AgentControlHelper.IsRideableMount(agent)) return;
 
   
 
@@ -282,12 +284,25 @@ namespace LivingWorldNpcs
             if (dot < minDot) return;
 
             // 6. 擂台法：谁更接近 1.0 (正中心)，谁就胜出
+            // 🔴 被扛在身上的那个**不参选**（他天然最"对得准"，不排除就永远是他）—— 2026-10-14
+            if (IsCarriedBody(agent)) return;
             if (dot > bestDot)
             {
                 bestDot = dot;
                 bestAgent = agent;
             }
         }
+        /// <summary>这个 agent 是不是"正被我们扛在身上的那个"（焦点要过滤掉 —— 见 <see cref="GrappleLogic.IsBodyCarried"/>）。</summary>
+        private static bool IsCarriedBody(Agent a)
+        {
+            try
+            {
+                var logic = GrappleLogic.Current;
+                return logic != null && logic.IsBodyCarried(a);
+            }
+            catch (Exception) { return false; }
+        }
+
         public Agent GetFocusdAgent()
         {
             // 如果玩家自己都死了，就不探测了
@@ -302,17 +317,33 @@ namespace LivingWorldNpcs
             float dist = 0;
             Agent raycastedAgent = V.RayCastForClosestAgent(rayStart, rayEnd, Agent.Main.Index, out dist, 0.1f);
             //去掉IsActive 不然人死了就拿不到了
-            // 人类：需要 Character 有名字；动物：IsHuman=false，靠 Monster 识别
+            // 人类：需要 Character 有名字；牲畜：IsHuman=false，靠 Monster 名单识别；**马**：靠 IsRideableMount
             if (raycastedAgent != null)
             {
                 bool isHumanTarget = AgentControlHelper.IsHumanOrChild(raycastedAgent)
                     && raycastedAgent.Character != null
                     && !string.IsNullOrWhiteSpace(raycastedAgent.Character.Name?.ToString());
                 bool isAnimalTarget = IsAnimalAgent(raycastedAgent);
+                // 🔴 **马也要能当焦点**（2026-10-14 用户："本来找人的那个就是有一个 ishuman 的筛选吧，
+                //    那你直接把 ishuman 去掉是不是就行了"）—— 一针见血：原来的入口只收
+                //    「人（IsHumanOrChild）或牲畜（IsAnimalAgent，名单里是鹅/羊/猪/牛…）」，
+                //    **马两头都不占** ⇒ 射线打到马也被丢掉 ⇒ "永远无法对准马"，
+                //    跟"被扛的人挡住准星"是两回事（那条上一轮已修）。
+                //    这里按精确版收：**人 / 牲畜 / 能骑的马** 三类（不是无脑放行所有 agent）。
+                bool isMountTarget = AgentControlHelper.IsRideableMount(raycastedAgent);
 
-                if (isHumanTarget || isAnimalTarget)
+                // 🔴 **被我们扛在身上的那个不当目标**（他压在准星上，会让整个面板锁死在他身上）——
+                //    跳过之后往下走"广域模糊搜索"，才可能选中旁边的马/人（2026-10-14 用户实机反馈）。
+                if (isHumanTarget || isAnimalTarget || isMountTarget)
                 {
-                    return raycastedAgent;
+                    if (IsCarriedBody(raycastedAgent))
+                    {
+                        // 掉到下面的锥形搜索（它也会跳过被扛的人）
+                    }
+                    else
+                    {
+                        return raycastedAgent;
+                    }
                 }
             }
             // =================================================================
@@ -735,6 +766,7 @@ namespace LivingWorldNpcs
             //    那一拍唯一该做的是【放下】—— 这时按【松绳】= 直接放人，而被扛的人正被每帧摆在肩上
             //    ⇒ 两条状态机（bind 出机 + carry 放下）同时动同一个人 = 一具半放下/半出机的定格身体。
             //    **出口互斥：扛着 = 只有【放下】。**（这一条同时管住"F 长按"—— 行不注册，输入就不监听。）
+            // 🔴 只有"**扛在肩上**"才把【松绳】收掉（马背上不算：那时扛人关系已结束，松绳 = 放人，得留着）
             bool carrying = logic.CanPutDownCarried || logic.IsCarryingSomeone;
             if (!carrying)
             {
@@ -744,11 +776,30 @@ namespace LivingWorldNpcs
 
             if (logic.CanPutDownCarried)
             {
-                // 本地化：放下交互按钮
-                AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_putdown", "Put them down"));
+                // 🔴 身边有够得着的马 ⇒【放上马背】（同一把键，情境互斥）；否则 ⇒【放下】（2026-10-14 马背载人）
+                if (logic.ResolveHorseForPlacement(focus, out Agent horseOffer, out _))
+                {
+                    _lastHorseOffer = horseOffer;      // 记下来：按下时优先用**这一匹**（看到什么就做什么）
+                    // 本地化：放上马背交互按钮
+                    AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_horseput", "Put them on the horse"));
+                }
+                else
+                {
+                    _lastHorseOffer = null;
+                    // 本地化：放下交互按钮
+                    AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_putdown", "Put them down"));
+                }
                 return;
             }
             if (logic.IsCarryingSomeone) return;      // 正在放下：不再给别的行
+
+            // 🔴 马背上搁着我们的人 + 瞄着那匹马 ⇒【从马背拿下】（2026-10-14）
+            if (logic.CanTakeOffHorse(focus, out _))
+            {
+                // 本地化：从马背拿下交互按钮
+                AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_horsetakeoff", "Take them off the horse"));
+                return;
+            }
 
             if (logic.CanTugRope(out _))
             {
@@ -811,6 +862,39 @@ namespace LivingWorldNpcs
 
                 if (logic.CanPutDownCarried)
                 {
+                    // 🔴 **行上写的是哪一匹就用哪一匹**（`_lastHorseOffer` 由面板渲染时记下）——
+                    //    否则"看到【放上马背】、按下去却变成【放下】"（2026-10-14 实机事故）。
+                    //    有马那条：解析失败就**报原因、绝不静默改成放下**。
+                    Agent horseFocus = _lastHorseOffer ?? GetFocusdAgent();
+                    // 🔴 行上写的是【放上马背】 ⇒ **解析不出来就报原因、绝不偷偷改成【放下】**
+                    //    （2026-10-14 实机事故：用户按了"放上马背"，人却躺在地上）。
+                    bool rowSaidHorse = _lastHorseOffer != null;
+                    Agent horseWant = null;
+                    string horseWhy = "-";
+                    bool canHorse = horseFocus != null
+                        && logic.ResolveHorseForPlacement(horseFocus, out horseWant, out horseWhy);
+                    if (rowSaidHorse && !canHorse)
+                    {
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            LWNTextHelper.ResolveCompound("LWN_ui_lift_fail", "Can't do that: {WHY}", ("WHY", horseWhy)), Colors.Gray));
+                        return;
+                    }
+                    if (canHorse)
+                    {
+                        string r = logic.CarryPlaceOnHorse(horseWant);
+                        if (!r.StartsWith("OK"))
+                        {
+                            InformationManager.DisplayMessage(new InformationMessage(r, Colors.Gray));
+                            return;
+                        }
+                        AgentHudMissionView.AgentSay(Agent.Main,
+                            // 本地化：LWN_ui_horseput_bubble（玩家可见文本）
+                            LWNTextHelper.ResolveText("LWN_ui_horseput_bubble", "Up on the horse you go."), "horseput");
+                        // 本地化：放上马背成功提示
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            LWNTextHelper.ResolveText("LWN_ui_horseput_ok", "You drape them over the horse's back."), Colors.Yellow));
+                        return;
+                    }
                     if (!logic.CarryPutDown(out string wp))
                     {
                         InformationManager.DisplayMessage(new InformationMessage(
@@ -823,6 +907,22 @@ namespace LivingWorldNpcs
                     // 本地化：放下成功提示
                     InformationManager.DisplayMessage(new InformationMessage(
                         LWNTextHelper.ResolveText("LWN_ui_putdown_ok", "You set them down."), Colors.Yellow));
+                    return;
+                }
+
+                // 🔴 瞄着**搁了我们人的那匹马** ⇒【从马背拿下】（2026-10-14）
+                Agent horseWithBody = GetFocusdAgent();
+                if (horseWithBody != null && logic.CanTakeOffHorse(horseWithBody, out _))
+                {
+                    string r2 = logic.CarryTakeOffHorse();
+                    if (!r2.StartsWith("OK"))
+                    {
+                        InformationManager.DisplayMessage(new InformationMessage(r2, Colors.Gray));
+                        return;
+                    }
+                    // 本地化：从马背拿下成功提示
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveText("LWN_ui_horsetakeoff_ok", "You take them off the horse."), Colors.Yellow));
                     return;
                 }
 
@@ -852,6 +952,10 @@ namespace LivingWorldNpcs
         /// <summary>手里牵着绳吗（= <see cref="GrappleLogic.IsBindingSomeone"/>）。
         /// 🔴 **扛着人也算**（绳还连着）—— 这一格是"够不够格出绳那一族行"的总闸，
         ///    【松绳】自己那条在 <see cref="AddRopeRows"/> 里按"没在扛人"再筛一次（见那里的注释）。</summary>
+        /// <summary>面板**这一帧**给的是哪一匹"放上马背"的马（null = 那一行现在是【放下】）。
+        /// 🔴 按下时优先用它 —— 保证"看到什么就做什么"（见 <see cref="ExecuteLiftCarried"/>）。</summary>
+        private static Agent _lastHorseOffer;
+
         private static bool IsRopeHeld()
         {
             try

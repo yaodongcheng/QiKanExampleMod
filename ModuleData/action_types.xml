@@ -212,6 +212,9 @@
 	<action name="act_grapple_bound_idle" />
 	<action name="act_grapple_bound_struggle" />
 	<action name="act_grapple_bound_walk" />
+	<!-- 🔴 马背（2026-10-14）：人搁在马背上跟着走。**新 clip 还没做** ⇒ 先在 action_sets 里占位
+	     指向 beikangqi_idle（肩上那套）—— 机制先跑起来，新 clip 出来只换 action_sets 那一行。 -->
+	<action name="act_grapple_horse_drape" />
 	<!-- ── 被扛者（扛在肩上的人）── -->
 	<action name="act_grapple_carried_lift" />
 	<action name="act_grapple_carried_idle" />

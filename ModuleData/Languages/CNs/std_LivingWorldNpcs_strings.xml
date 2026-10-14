@@ -4120,6 +4120,11 @@
     <string id="LWN_ui_interact_tug" text="拉紧" />
     <string id="LWN_ui_interact_lift" text="扛起来" />
     <string id="LWN_ui_interact_putdown" text="放下来" />
+    <string id="LWN_ui_interact_horseput" text="放上马背" />
+    <string id="LWN_ui_interact_horsetakeoff" text="从马背拿下" />
+    <string id="LWN_ui_horseput_ok" text="你把他横搭在马背上。" />
+    <string id="LWN_ui_horseput_bubble" text="上马背待着吧。" />
+    <string id="LWN_ui_horsetakeoff_ok" text="你把他从马背上拿了下来。" />
     <string id="LWN_ui_tug_fail" text="要拉开 {DIST} 米以上才拽得动他。" />
     <string id="LWN_ui_tug_msg" text="你用力一扯（{DIST} 米）。{NOTE}" />
     <string id="LWN_ui_tug_bubble" text="给我过来！" />

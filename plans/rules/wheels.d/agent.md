@@ -962,3 +962,27 @@ C# 只填上下文（`BindAnimContext.BeingPulled/BeingDragged`）+ 形态切换
 ① **收武器之前先记下"东西在哪个槽"**（`FindItemSlot` 收完再找**实测找不到** ⇒ 还不了 ⇒ 玩家报"武器没了"、
    且紧接着触发上面那条出口 ⇒ "对方没法再次被我扛起"）；
 ② 收摊后**无条件**开一段豁免窗（不是"还成功才开"），让那条出口让路。
+
+## 🔴 马背载人（把绑住的人搁到马背上带走，2026-10-14 实机通过）
+
+**要什么**：扛着人 + **准星对着马** ⇒ 搁到**马背靠后**的位置（荒野大镖客那种）；之后这人的位置**从"绑玩家"改成"绑马"**，
+玩家骑马就能带着他跑；靠近再【从马背拿下】放回地面。**一条链全在 `Combat/GrappleCarry.cs` 的 `CarryPhase.OnHorse`。**
+
+**五条要点**：
+1. **判定用哪匹马 = 面板焦点那一匹** —— 就是"身边有什么尸体/NPC"用的**同一套**（`InteractionMissionView.GetFocusdAgent`：
+   射线 7 m + 身边 4 m 锥形）。**别再自己另写"就近找马"**：两套口径必然打架，症状是"隔老远也提示 / 走近了不提示 / 按下去变别的"。
+2. 🔴 **焦点白名单要认马**：`GetFocusdAgent` 原来只收「人（`IsHumanOrChild`）/ 牲畜（`IsAnimalAgent`）」，**马两头都不占**
+   ⇒ 射线打到马也被丢、锥形搜索里连参选资格都没有 ⇒ **"永远无法对准马"**。现在 = 人 / 牲畜 / **能骑的马** 三类。
+   **加任何新目标类型（载具/器械）先看这个白名单。**
+3. 🔴 **骑乘判据只有 `HorseComponent.IsRideable`**（`AgentControlHelper.IsRideableMount`）——
+   `Agent.IsMount` / `HorseComponent.IsMount` 会把**驮马**判死。
+4. 🔴 **读"某个 agent 面朝哪"按物种分源**：**马先读 `GetMovementDirection()`**（"转向 = `SetMovementDirection`"是本项目已验证的写法
+   ⇒ 引擎的运动方向就是马的朝向；马不横着走），再退 `Frame` → look；**人仍是 look 优先**（横走/倒退时运动方向 ≠ 面朝）。
+   失败要出声（别静默退常量 —— 那会让人"跟着马平移却不转"，排查半天）。
+5. **扛人者放完就撒手**（`GrappleCarry.Tick` ③′：扛人者那台机演完"放下"就还武器、不再管它；玩家这时自由了）；
+   被搁的人的**姿态/悬空高度归状态机 + clip 根骨位置轨**（`bind.xml` 的 **马背** 状态 → `act_grapple_horse_drape`；
+   ⚠️ 悬空那 1.4 米只能由 clip 给，见方案 §18.3 的动画规格）。绳那条自动停摆（`_carrier != null` 那道闸）。
+
+**命令**：`custom.grapple carry horse` / `horseoff` / `horseoffset <后偏> [侧偏]` / `horseface along|across|reverse` /
+`horseprobe <秒>`（朝向探针，默认关）· `carry state` 多一格 `onHorse=<马名>`。
+**方案**：`plans/钩索-实施计划.md` §十八（含那条待做动画的规格与换指向方式）。

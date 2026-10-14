@@ -315,6 +315,14 @@
 			type="act_grapple_bound_walk"
 			animation="binded_walk" />
 
+		<!-- 🔴 马背（2026-10-14）：人搁在马背上跟着马走（循环）。
+		     ⚠️ **占位**：新 clip 还没做 ⇒ 暂时指 `beikangqi_idle`（肩上那套，根骨 z +0.68）。
+		     真正要的是"横趴在马背上"那条（根骨 z ≈ **马背高 1.40 m**，见方案 §十八）——
+		     新 clip 进包之后把这一行的 animation= 换掉即可（状态机/C# 一个字都不用动）。 -->
+		<action
+			type="act_grapple_horse_drape"
+			animation="beikangqi_idle" />
+
 		<!-- 被扛者（扛在肩上的人）：相对位移与朝向**都在动画自己身上**（重定向时以扛人者为参考系做的），
 		     ⇒ 摆位只需要"XZ 贴住扛人者 + 朝向对齐"，**不要再叠任何偏移**（§15.4）。
 		     🔴 这四条**不要填 clip 的 displacement** —— 填了 agent 会再平移一份，与动画里的叠成双份。

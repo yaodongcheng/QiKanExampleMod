@@ -81,6 +81,10 @@ namespace LivingWorldNpcs
 		public const string CarryTrigger = "carry-trigger";
 		public const string PutTrigger = "put-trigger";
 
+		/// <summary>**放上马背**（`custom.grapple carry horse` / 面板那条）：被扛者 → "马背"那个状态。
+		/// 🔴 与 `carry-trigger` 一样是**两台机共用的时刻名**（扛人者那侧不用它，但登记要齐）。</summary>
+		public const string HorseTrigger = "horse-trigger";
+
 		/// <summary>
 		/// **被扛行／被扛走的切换阈值**（米/秒）。扛人者走得比这快 ⇒ 播"被扛走"，否则"被扛行"。
 		/// 与飞行那台 `BoostStartSeconds` 同类：**运行期旋钮**（`custom.grapple carry movethr`）。
@@ -134,6 +138,10 @@ namespace LivingWorldNpcs
 			if (!AnimConditions.TryGet(PutTrigger, out _))
 			{
 				AnimConditions.Register(PutTrigger, c => false);
+			}
+			if (!AnimConditions.TryGet(HorseTrigger, out _))
+			{
+				AnimConditions.Register(HorseTrigger, c => false);
 			}
 		}
 	}

@@ -2097,6 +2097,13 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   on | off                    总开关（关 = 面板不出现【扛起】、命令直接拒）
 		///   start                       把当前被捆的人扛起来（默认扛人者 = 玩家）
 		///   put                         放下（两边同帧起播"放下/被放下"，演完才松手）
+		///   ── 🔴 马背载人（2026-10-14）──
+		///   horse                       把扛着的人**放到附近那匹马的背上**（之后他跟着马走；⚠️ 悬空高度等新动画）
+		///   horseoff                    从马背拿下（落地回站缚，扛人关系结束）
+		///   horserange                   （已退役：不再有独立半径 —— 用与面板同一套焦点检测）
+		///   horseoffset &lt;后偏米&gt; [侧偏米]   放上去的位置（默认 0.55 / 0）
+		///   horseface along|across|reverse   他在马背上的朝向（默认 along = 头朝马头）
+		///   horseprobe &lt;秒&gt;            马背朝向探针（马朝向 / 写入 / 回读 / 夹角），默认关
 		///   state                       状态一行（扛人者状态机 / 被扛者动作 / 距离 / 在不在动 / 偏移）
 		///   offset &lt;前后&gt; [左右]     摆位微调（米；默认 0 —— 对齐量本来就烘在被扛者的动画里）
 		///   maxdist &lt;米&gt;            起扛的最大距离（默认 3.0）
@@ -2118,7 +2125,41 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 						return $"Error: cannot pick up ({why}).";
 					return "OK: picking the bound target up (both sides start their carry clip on the same frame)";
 				}
-				case "put":
+				// ── 🔴 马背载人（2026-10-14；用户："扛起之后瞄着马可以放到马背上，玩家骑马带着他跑"）──
+			case "horse":
+				// 与面板**同一套**：取焦点那一匹（射线 + 身边 4 m 锥形；被扛的人已从焦点过滤）
+				return logic.CarryPlaceOnHorse(null);
+			case "horseoff":
+				return logic.CarryTakeOffHorse();
+			case "horseoffset":
+			{
+				float back = ParseF(args, at + 1, float.NaN);
+				if (float.IsNaN(back)) return $"grapple: horse-back offset = {GrappleCarry.HorseBackOffset:F2} m back / {GrappleCarry.HorseSideOffset:F2} m side (face={GrappleCarry.HorseFaceMode})";
+				GrappleCarry.HorseBackOffset = back;
+				float side = ParseF(args, at + 2, float.NaN);
+				if (!float.IsNaN(side)) GrappleCarry.HorseSideOffset = side;
+				return $"OK: horse-back offset = {GrappleCarry.HorseBackOffset:F2} m back / {GrappleCarry.HorseSideOffset:F2} m side";
+			}
+			case "horserange":
+				return "OK: no separate horse range any more -- 【放上马背】uses the SAME focus detection as everything else"
+					+ " (ray + 4 m cone, i.e. the thing under/near your crosshair). Just look at the horse.";
+			case "horseprobe":
+			{
+				float v = ParseF(args, at + 1, -1f);
+				if (v < 0f) return $"grapple: horse probe = {GrappleCarry.HorseProbeSeconds:F1}s (0 = off; logs horse facing / written facing / read-back facing / angle)";
+				GrappleCarry.HorseProbeSeconds = v;
+				return v <= 0f ? "OK: horse probe OFF"
+					: $"OK: horse probe every {v:F1}s (ride around and read '[Grapple] 马背探针' in the log)";
+			}
+			case "horseface":
+			{
+				string m = ArgAt(args, at + 1)?.ToLowerInvariant();
+				if (m == "along" || m == "across" || m == "reverse") GrappleCarry.HorseFaceMode = m;
+				else if (m != null && m != "state") return "Error: carry horseface expects along|across|reverse";
+				return $"OK: on the horse the body faces = {GrappleCarry.HorseFaceMode}"
+					+ " (along = head to the horse's head / across = side-on over the back / reverse = head to the tail)";
+			}
+			case "put":
 				{
 					if (!logic.CarryPutDown(out string why))
 						return $"Error: cannot put down ({why}).";
@@ -2887,6 +2928,17 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		private static string SafeS(Func<string> f) { try { return f() ?? "?"; } catch (Exception) { return "?"; } }
 
 		/// <summary>离 <paramref name="near"/> 最近的**能骑的**空马。找不到 = null。</summary>
+		/// <summary>最近的**能骑的马**（不管有没有人骑 —— "放上马背"允许放到别人骑着的马上）。</summary>
+		/// <summary>
+		/// **就近一匹能骑的马**（不管有没有人骑）—— 判据 = <see cref="IsRideableMount"/>（驮马也算）。
+		/// 消费者：（放上马背时挑马）、。
+		/// </summary>
+		internal static Agent FindNearestRideableMount(Vec3 near, float maxDist)
+			=> AgentControlHelper.FindNearestRideableMount(near, maxDist);
+
+		private static Agent FindNearestAnyMount(Vec3 near, float maxDist)
+			=> FindNearestRideableMount(near, maxDist);
+
 		private static Agent FindNearestRiderlessMount(Vec3 near, float maxDist)		{
 			Agent best = null;
 			float bestD = maxDist;
@@ -2917,16 +2969,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///    但后面另有原因没上去）；第二次我用 `HorseComponent.IsMount` 当过滤器 —— 那会把**玩家自己的马
 		///    也筛掉**，方向反了。**唯一正确判据 = `IsRideable`**（引擎自己也是这么判的）。
 		/// </summary>
-		private static bool IsRideableMount(Agent a)
-		{
-			if (a == null || !a.IsMount) return false;
-			try
-			{
-				ItemObject it = a.SpawnEquipment[EquipmentIndex.ArmorItemEndSlot].Item;
-				return it != null && it.HasHorseComponent && it.HorseComponent.IsRideable;
-			}
-			catch (Exception) { return false; }
-		}
+		internal static bool IsRideableMount(Agent a) => AgentControlHelper.IsRideableMount(a);
 
 		/// <summary>这个坐骑**是哪件马物品**（回执里显示用 —— 驮马 / 骑乘马在这里才分得开，
 		/// 两者的 `Monster.StringId` 都是 `"horse"`）。取不到给 "?"。</summary>

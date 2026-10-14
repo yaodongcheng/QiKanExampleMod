@@ -1685,7 +1685,38 @@ namespace LivingWorldNpcs
 		/// <summary>手里扛着人吗（交互面板与命令用；判据 = 扛人控制器在跑）。</summary>
 		public bool IsCarryingSomeone
 		{
-			get { try { return _carry.IsActive; } catch (Exception) { return false; } }
+			// 🔴 **2026-10-14 收窄**：只算"**扛在肩上**"（含正在放下）。
+			//    人被搁到**马背上**之后，扛人关系已经结束（玩家双手空着、能开火/骑马）⇒ 不算"扛着人"。
+			//    消费者按这个口径走：① 面板"扛着就不给松绳" ② 开火拦截"手占着不许开火"。
+			get
+			{
+				try
+				{
+					return _carry.Phase == GrappleCarry.CarryPhase.Riding
+						|| _carry.Phase == GrappleCarry.CarryPhase.PuttingDown;
+				}
+				catch (Exception) { return false; }
+			}
+		}
+
+		/// <summary>
+		/// **这个 agent 是不是"正被我们扛在身上的那个"**（准星/面板的焦点要把他过滤掉）。
+		///
+		/// 🔴 为什么必须过滤（2026-10-14 实机，用户："你没有过滤你当前扛着的这个 NPC，所以你永远无法对准马"）：
+		///    扛着人时那个人**被摆在玩家身上** ⇒ 从相机打出去的射线**第一个命中的就是他** ⇒
+		///    准星永远锁在他身上、面板永远在讲他，**任何"瞄准别人/别的活物"的交互都用不了**
+		///    （不只是放上马背 —— 牵着人时想瞄旁边的马/人/箱子，全都被他挡住）。
+		/// </summary>
+		public bool IsBodyCarried(Agent a)
+		{
+			try { return a != null && _carry.Carried != null && ReferenceEquals(_carry.Carried, a); }
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>人被搁在**马背上**（扛人关系已结束，但位置还由我们每帧贴马 —— 见 `GrappleCarry`）。</summary>
+		public bool IsBodyOnHorse
+		{
+			get { try { return _carry.Horse != null; } catch (Exception) { return false; } }
 		}
 
 		/// <summary>正被扛着的那一个（没有则 null）。</summary>
@@ -1764,6 +1795,89 @@ namespace LivingWorldNpcs
 		/// 与 <see cref="CanTugRope"/> **天然互斥**：扛起要"够得着"、拉紧要"够不着" ⇒
 		/// 同一时刻只可能出一条 ⇒ 两条共用 G 长按不会打架。
 		/// </summary>
+		/// <summary>
+		/// **能不能把扛着的人放到这匹马的背上**（交互面板那条的判据；命令路径走 <see cref="CarryPlaceOnHorse"/>）。
+		/// 条件：正扛着人（Riding）+ 目标是**能骑的马**（`HorseComponent.IsMount`）+ 够得着 + 那匹马上还没搁着人。
+		/// </summary>
+		public bool CanPlaceOnHorse(Agent focus, out string why)
+			=> ResolveHorseForPlacement(focus, out _, out why);
+
+		/// <summary>
+		/// **要放上去的那匹马 = 面板焦点那一匹**（用户 2026-10-14 裁定："不是和检测身边有什么尸体或者
+		/// NPC 一样的办法吗"）—— **就用同一套焦点检测**（射线 + 身边 4 米锥形搜索，
+		/// 见 `InteractionMissionView.GetFocusdAgent`），**不再自己另写"就近找马"**。
+		///
+		/// 🔴 为什么把"就近找马"删了（我自己造的两轮 bug 的根源）：那是我为了绕开"人被扛在肩上挡住准星"
+		///    加的旁路，结果它和焦点**口径不一致** —— 面板说"有马"、按下时又按另一套算，两个方向来回翻
+		///    （隔老远也显示 / 走近了却不显示 / 按下去变成放下）。真正该修的是**焦点本身**：
+		///    扛着的那个人已经从焦点里过滤掉了（<see cref="IsBodyCarried"/>）⇒ 准星能落到马上 ✓。
+		/// </summary>
+		public bool ResolveHorseForPlacement(Agent focus, out Agent horse, out string why)
+		{
+			horse = null;
+			why = "-";
+			try
+			{
+				if (!GrappleCarry.Enabled) { why = "carry off"; return false; }
+				if (_carry.Phase != GrappleCarry.CarryPhase.Riding) { why = "not carrying anyone"; return false; }
+				if (_carry.Carried == null) { why = "no carried agent"; return false; }
+				// 焦点可能是 null（没看任何人）⇒ 命令路径会自己去取面板焦点，取不到就是"没对着马"
+				Agent f = focus ?? InteractionMissionView.Instance?.GetFocusdAgent();
+				if (f == null) { why = "look at the horse (nothing in focus)"; return false; }
+				if (!AgentControlHelper.SafeIsActive(f)) { why = "that agent is gone"; return false; }
+				if (!AgentControlHelper.IsRideableMount(f)) { why = "the focused thing is not a rideable horse"; return false; }
+				if (_carry.IsOnHorse(f)) { why = "already on that horse"; return false; }
+				horse = f;
+				return true;
+			}
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>命令层：**把扛着的人放上马背**（`custom.grapple carry horse`）。</summary>
+		public string CarryPlaceOnHorse(Agent focus)
+		{
+			if (!ResolveHorseForPlacement(focus, out Agent horse, out string whyPick))
+				return $"Error: cannot put them on a horse ({whyPick})"
+					+ " -- point your crosshair at the horse (same detection as any nearby corpse/NPC);"
+					+ " 'custom.grapple horse spawn' spawns one if you have none.";
+			if (!_carry.PlaceOnHorse(horse, _bind, out string whyPut))
+				return "Error: cannot put them on that horse (" + whyPut + ")";
+			return $"OK: {horse.Name} now carries them on its back (walk/ride away and they follow;"
+				+ " 'custom.grapple carry horseoff' to take them off;"
+				+ " tune with 'custom.grapple carry horseoffset <back> [side]' / 'carry horseface along|across|reverse')";
+		}
+
+		/// <summary>**马背上是不是搁着我们的人**（交互面板"从马背拿下"那条的判据）。</summary>
+		public bool CanTakeOffHorse(Agent horse, out string why)
+		{
+			why = "-";
+			try
+			{
+				if (horse == null || !_carry.IsOnHorse(horse)) { why = "no one on that horse"; return false; }
+				Agent me = Agent.Main;
+				Agent carried = _carry.Carried;
+				if (me == null || carried == null) { why = "no agent"; return false; }
+				Vec3 d = carried.Position - me.Position;
+				d.z = 0f;
+				if (d.Length > GrappleCarry.MaxHorseDistance)
+				{
+					why = $"too far ({d.Length:F1}m)";
+					return false;
+				}
+				return true;
+			}
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>命令层：**从马背拿下**（`custom.grapple carry horseoff`）：放回地面、回站缚。</summary>
+		public string CarryTakeOffHorse()
+		{
+			if (_carry.Horse == null) return "Error: no one is on a horse back (carry horse first).";
+			return _carry.TakeOffHorse(_bind, "command")
+				? "OK: taken off the horse and set on the ground (back to standing bound); carry is over."
+				: "Error: take-off failed.";
+		}
+
 		public bool CanLiftCarried(Agent a, out string why)
 		{
 			why = "-";
