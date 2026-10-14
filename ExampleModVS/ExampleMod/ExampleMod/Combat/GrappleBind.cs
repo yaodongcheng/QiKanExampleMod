@@ -174,9 +174,30 @@ namespace LivingWorldNpcs
 		/// <summary>拽人速度上限（米/秒）。</summary>
 		public static float LeashMaxSpeed = 12f;
 
-		/// <summary>拽的**死区**（米）—— 手在走路时前后摆，别让几厘米的抖动每帧都拽人一下。
-		/// 🔴 进用死区、**出用它乘 <see cref="LeashReleaseRatio"/>**（迟滞，防每帧翻）。</summary>
-		public static float LeashDeadzone = 0.12f;
+		/// <summary>
+		/// **"绳绷过多少才算绷紧"**（米，默认 0.05）—— 超过它 = **拽着他走**：
+		/// 身体往绳主那边收 **且** 同时进"被拖行"走姿（**同一条闸，不会再出现"人在挪、却演 idle"的滑步**）。
+		/// 🔴 进用这个值、**出用它乘 <see cref="LeashReleaseRatio"/>**（迟滞，防每帧翻）。
+		/// 它敢开这么小，是因为判据量的是 **root→root 的距离增量**（稳）而不是"手→胸口"（手在待机里摆 ±5 cm）。
+		/// </summary>
+		public static float LeashDeadzone = 0.05f;
+
+		/// <summary>超出量的轻平滑率（每秒收敛比例，默认 20）—— 只压单帧跳，不引入可感滞后。</summary>
+		public static float LeashSmoothSpeed = 20f;
+
+		// ── 🔴 动画那条线（只看"他自己动了多快"，判据里没有绳的任何量；2026-10-14 第三轮）──
+
+		/// <summary>**多快才算"他在走"**（米/秒，默认 0.15）：超过它 ⇒ 演"被拖行"（走姿）。</summary>
+		public static float LeashWalkEnterSpeed = 0.15f;
+
+		/// <summary>退出走姿的速度（米/秒，默认 0.06）—— 迟滞，防在门槛上每帧翻。</summary>
+		public static float LeashWalkExitSpeed = 0.06f;
+
+		/// <summary>速度读数的平滑率（每秒收敛比例，默认 12）。</summary>
+		public static float LeashSpeedSmooth = 12f;
+
+		/// <summary>"在拽"这个读感的**保持窗**（秒）—— 手一晃不至于让走姿闪一下再切回来。</summary>
+		public static float LeashHoldSeconds = 0.35f;
 
 		/// <summary>退出"在拽"的阈值比例（默认 0.5 ⇒ 超出量掉到死区一半以下才算松）。</summary>
 		public static float LeashReleaseRatio = 0.5f;
@@ -193,23 +214,22 @@ namespace LivingWorldNpcs
 		public static float WalkNaturalSpeed = 1.1f;
 
 		/// <summary>
-		/// **倍率上限**：需要的倍率超过它 ⇒ **直接改"拖在地上"**（用户 2026-10-14 裁定：
-		/// "倍率太高就自动进入拉倒"）。默认 2.0 —— 再快腿就是快放，不如趴着被拖自然。
-		/// 命令 `custom.grapple bind walkmax &lt;倍率&gt;` / `dragthr &lt;米/秒&gt;`（同一个门槛，两种写法）。
+		/// **播放倍率上限**（默认 2.0）—— 只管"这条走路动画最多快放到几倍"（腿别快进成电风扇）。
+		///
+		/// 🔴 **2026-10-14 第二轮改口径**：它**不再触发**"改拖在地上"了（用户裁定："我步行甚至奔跑，
+		///    NPC 都应该能跟上，不要直接倒地；只有我【拉紧】，或者上马且速度较高时才拖躺地上"）。
+		///    现在躺在地上只有两条路：① 绳主**骑马且在动** ② 玩家**【拉紧】**。
+		///    凡"倍率不够用"的表现，现在是**滑步**（动画演不了那么快），不再是摔倒。
+		/// 命令 `custom.grapple bind walkmax &lt;倍率&gt;` / `dragthr &lt;米/秒&gt;`（同一个量，两种写法）。
 		/// </summary>
 		public static float WalkMaxMult = 2.0f;
 
 		/// <summary>倍率下限：拽得比动画还慢时最多慢放到它（默认 0.55；再慢就像在放幻灯片）。</summary>
 		public static float WalkMinMult = 0.55f;
 
-		/// <summary>
-		/// **退出"拖在地上"的倍率比例**（默认 0.7）—— 进用 <see cref="WalkMaxMult"/>、出用它的 0.7 倍。
-		/// 单阈值会在门槛附近来回翻（人一会儿站着一会儿趴着），这是迟滞（照 <see cref="AnimLatch"/> 那套）。
-		/// </summary>
-		public static float WalkDragExitRatio = 0.7f;
 
-		/// <summary>形态判据的迟滞开关（进 <see cref="WalkMaxMult"/>、出 ×0.7）。</summary>
-		private readonly AnimLatch _dragLatch = new AnimLatch(2f, 1.4f);
+		/// <summary>"在拽"的保持窗计时（见 <see cref="LeashHoldSeconds"/>）。</summary>
+		private float _pullHold;
 
 		/// <summary>手动锁定倍率（0 = 自适应，默认）。命令 `custom.grapple bind walkspeed &lt;倍率&gt;`。</summary>
 		public static float WalkSpeedOverride = 0f;
@@ -222,16 +242,16 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static bool WalkSpeedAuto = true;
 
-		/// <summary>绳主速度超过这个（米/秒）= "跑起来了" ⇒ 人被**拖在地上**（趴缚）而不是跟着走。
-		/// 🔴 2026-10-14 起它是**派生值**（= <see cref="WalkMaxMult"/> × <see cref="WalkNaturalSpeed"/>），
-		///    不再是独立旋钮 —— 唯一的门槛是"倍率"，这样"腿演不演得过来"只有一处口径。</summary>
+		/// <summary>**动画最多演到多快**（米/秒）= <see cref="WalkMaxMult"/> × <see cref="WalkNaturalSpeed"/>。
+		/// 只是个换算（`dragthr` 命令按 m/s 读写同一个量），**不再当"拖在地上"的门槛**。</summary>
 		public static float DragSpeedThreshold => WalkMaxMult * WalkNaturalSpeed;
 
 		/// <summary>绳主**骑着马**且在动 ⇒ 一律拖在地上（用户 2026-10-13："玩家骑马速度快起来"）。</summary>
 		public static bool DragWhenMounted = true;
 
-		/// <summary>骑马判定用的最小速度（米/秒）—— 骑着但原地不动不算"拖"。</summary>
-		public static float DragMountedMinSpeed = 0.4f;
+		/// <summary>骑马判定的最小速度（米/秒）—— 骑着但基本没动不算"拖"（默认 1.0：马一走起来才算）。
+		/// 用户口径："上马**且速度较高**的时候才让 npc 被拖躺地上"。</summary>
+		public static float DragMountedMinSpeed = 1.0f;
 
 		/// <summary>
 		/// 拖在地上时**背朝行进方向**（= 脚在前、头在后）—— 默认 **false**。
@@ -418,7 +438,16 @@ namespace LivingWorldNpcs
 		private Agent _carrier;
 
 		// ── 绳长上限（牵着走 / 拖在地上；见上面那一大段"绳长上限"注释）──
-		private float _leashLength;          // 锁定的绳长（米）
+		private float _leashLength;          // 锁定的绳长（米；= 绑上那一刻"手→胸口"× 1.05）
+		private float _leashSlackAtLock;     // 绑上那一刻的松量（= 锁定量 − 当时跨度，≈5%）
+		private float _leashRootAtLock;      // 绑上那一刻的 root→root 距离（**物理判据的零点**）
+		private float _leashOver;            // 本帧"走远了多远"（root→root 增量，轻平滑过）
+		// ── 动画那条线：他自己这帧实际挪了多快（位置差算的）──
+		private Vec3 _lastTargetPos;         // 上一帧末的位置（量速度用）
+		private bool _haveLastTargetPos;
+		private float _followerSpeed;        // 平滑后的实际速度（米/秒）
+		private bool _followerMoving;        // 迟滞态：> LeashWalkEnterSpeed 进、< LeashWalkExitSpeed 出
+		private float _followerHold;         // 走姿保持窗计时（防门槛上闪）
 		private bool _leashLocked;           // 锁过没有（绑上之后第一帧锁）
 		private Vec3 _leashAnchor;           // 绳主那只手这一帧在哪（GrappleLogic 每帧喂进来）
 		private bool _leashHadAnchor;        // 这一绑里收到过锚点没有
@@ -426,7 +455,6 @@ namespace LivingWorldNpcs
 		private bool _leashEngaged;          // "在拽"这个状态本身（带迟滞：进用死区、出用一半）
 		private bool _leashDragged;          // 本帧是"拖在地上"那种拽（否则 = 被拖着走）
 		private float _leashSpeed;           // 本帧拽人速度（诊断）
-		private float _leashMult = 1f;       // 本帧给"被拖行"那个动画的播放倍率（1 = 原速）
 		private float _leashDist;            // 本帧手→胸口距离（诊断）
 
 		/// <summary>在挣扎（`站缚 ⇄ 挣扎`）。🔴 本轮**没有自动判据**，由 `custom.grapple bind struggle 0|1` 手动置 ——
@@ -502,6 +530,12 @@ namespace LivingWorldNpcs
 
 		/// <summary>本帧是"拖在地上"那种拽（true = 趴着被拖 · false = 站着被牵着走）。</summary>
 		public bool LeashDragged => _leashDragged;
+
+		/// <summary>被牵的人**自己的**实际速度（米/秒；走姿与播放倍率的唯一判据）。</summary>
+		public float FollowerSpeed => _followerSpeed;
+
+		/// <summary>本帧给"被拖行"那条走路动画的播放倍率（= 他自己的速度 ÷ 动画自然速率；没在走 = 1）。</summary>
+		private float _bindedWalkRate = 1f;
 
 		/// <summary>目标侧那台状态机（扛人时 <see cref="GrappleCarry"/> 要按时刻 Force 它）。没进机 = null。</summary>
 		internal AgentAnimStateMachine Machine => _machine;
@@ -586,19 +620,24 @@ namespace LivingWorldNpcs
 			_lying = false;
 			// 绳长上限：新的一绑 = 重新锁（长度按"绑上那一刻的手→胸口"，见 TickLeash）
 			_leashLength = 0f;
+			_leashSlackAtLock = 0f;
+			_leashRootAtLock = 0f;
+			_leashOver = 0f;
+			_lastTargetPos = default(Vec3);
+			_haveLastTargetPos = false;
+			_followerSpeed = 0f;
+			_followerMoving = false;
+			_followerHold = 0f;
 			_leashLocked = false;
 			_leashHadAnchor = false;
 			_leashPulling = false;
 			_leashEngaged = false;
 			_leashDragged = false;
 			_leashSpeed = 0f;
-			_leashMult = 1f;
 			_leashPullingPrev = false;
 			_leashDraggedPrev = false;
 			_leashProbeTimer = 0f;
-			// 🔴 形态迟滞也要归零：它是**跨"绑"存活**的实例字段，上一绑拖着人时的 +1 会留到这一绑，
-			//    第一帧就把刚绑上的人判成"该拖在地上"（凭空放倒）。见 _dragLatch。
-			_dragLatch.Reset();
+			_pullHold = 0f;
 			// 新的一绑 = 新的一台机（上下文全新：Released / Struggling 都得是 false）
 			_machine = null;
 			_ctx = null;
@@ -725,7 +764,9 @@ namespace LivingWorldNpcs
 				case Phase.Bound: phaseEvent = TickBound(dt); break;
 			}
 
-			// 姿态：填上下文 + 推进状态机（**放在相位之后** —— 相位这一帧可能刚 Force 过状态）
+			// 姿态：先量"他自己这帧挪了多快"（用位置差），再填上下文 + 推进状态机
+			// （**放在相位之后** —— 相位这一帧可能刚 Force 过状态，也可能刚把他挪走）
+			TickFollowerSpeed(dt);
 			TickTargetMachine(dt);
 
 			return phaseEvent;
@@ -741,12 +782,66 @@ namespace LivingWorldNpcs
 			_ctx.Struggling = _struggling;
 			_ctx.CarrierMoving = IsCarrierMoving();
 			_ctx.AnimRemainFrac = _machine.CurrentRemainFrac;
-			// 🔴 **播放倍率**（2026-10-14）："被拖行"那一拍按实际拽速自适应 —— 拽得快动画就播快，
-			//    脚才不滑。倍率的值由牵绳那一拍算（<see cref="TickLeash"/>），这里只负责喂进去
-			//    （**每帧都喂**，所以相位离开缚那拍时会自动回到 1，见 StopLeash）。
-			_machine.SpeedMultiplier = _leashMult;
+
+			// ═════════ 🔴 **动画只看"他自己动了多快"**（2026-10-14 第三轮，用户口径：
+			//   "动画本身应只和自己的速度相关联来表现统一"）═════════
+			//
+			//   上一版把"绳绷没绷"当成了走姿的开关 ⇒ **绳还没绷到门槛、人已经在被挪** ⇒
+			//   一直在移动却一直演 idle = 滑步。现在两根线彻底分开：
+			//     · **绳**：绷紧 ⇒ 拽身体（`TickLeash`，判据是 root→root 的走远量）
+			//     · **动画**：他自己这帧实际挪了多快 ⇒ 走姿 / 站姿 + 播放倍率（**判据里没有绳的任何量**）
+			//   这也是引擎自己的模型（移动层按速度挑走路动画），我们只是把它搬到自己这条腿上。
+			//
+			//   速度 = **位置差**量出来的（上一帧末 → 这一帧末，水平），不是我们下发的那个数 ——
+			//   被墙/别人顶住时实际没动，动画就不该走（腿不会空转）。
+			bool moving;
+			if (!_followerMoving)
+			{
+				moving = _followerSpeed > LeashWalkEnterSpeed;
+			}
+			else
+			{
+				moving = _followerSpeed > LeashWalkExitSpeed;
+			}
+			_followerMoving = moving;
+			_followerHold = moving ? LeashHoldSeconds : MathF.Max(0f, _followerHold - dt);
+
+			// 被扛着的时候不算"他在自己走"（那一拍由 carry 那台机摆位，走姿另有 被扛行/被扛走 两条）
+			bool walking = _followerHold > 0f && _carrier == null;
+			_ctx.BeingPulled = walking && !_leashDragged;
+			_bindedWalkRate = walking
+				? MathF.Max(WalkMinMult, MathF.Min(WalkMaxMult,
+					WalkSpeedOverride > 0f
+						? WalkSpeedOverride
+						: _followerSpeed / MathF.Max(0.05f, WalkNaturalSpeed)))
+				: 1f;    // 没在走 ⇒ 原速（站缚的待机不该被倍率改快慢）
+			_machine.SpeedMultiplier = _bindedWalkRate;
 			_machine.PushSpeedEveryFrame = WalkSpeedAuto;
 			_machine.Tick(_target, dt);
+		}
+
+		/// <summary>
+		/// **量"被牵的人自己这帧实际挪了多快"**（米/秒，水平；轻平滑）。
+		/// 用**位置差**（上一帧末 → 这一帧末）而不是我们下发的那个数：被墙/别人顶住时实际没动，
+		/// 动画就不该走（"动画只跟自己的速度关联"）。每帧在相位之后、状态机之前调一次。
+		/// </summary>
+		private void TickFollowerSpeed(float dt)
+		{
+			if (_target == null) { _followerSpeed = 0f; _haveLastTargetPos = false; return; }
+			try
+			{
+				Vec3 p = _target.Position;
+				if (_haveLastTargetPos)
+				{
+					Vec3 d = p - _lastTargetPos;
+					d.z = 0f;
+					float v = d.Length / MathF.Max(1e-3f, dt);
+					_followerSpeed += (v - _followerSpeed) * MathF.Min(1f, LeashSpeedSmooth * dt);
+				}
+				_lastTargetPos = p;
+				_haveLastTargetPos = true;
+			}
+			catch (Exception) { _followerSpeed = 0f; _haveLastTargetPos = false; }
 		}
 
 		/// <summary>
@@ -1294,8 +1389,8 @@ namespace LivingWorldNpcs
 		///   ① **锁长**：第一帧把绳长锁在"此刻手 → 胸口"的距离上（下限/上限 <see cref="LeashMinLength"/> /
 		///      <see cref="LeashMaxLength"/>）—— 之后**不再延长**（用户 2026-10-13："以当前长度为上限"）；
 		///   ② **量差**：只有**超出**锁定量（且超出 &gt; <see cref="LeashDeadzone"/>）才拽；
-		///   ③ **定形态**：绳主骑马在动 / 速度 &gt; <see cref="DragSpeedThreshold"/> ⇒ **拖在地上**（趴缚），
-		///      否则 = **牵着走**（`binded_walk`）；
+		///   ③ **定形态**：绳主**骑马且在动** ⇒ **拖在地上**（趴缚）；否则一律**牵着走**（`binded_walk`）——
+		///      步行/奔跑都让他跟着（2026-10-14 用户裁定）；"被拉倒躺地上"只剩【拉紧】那条手动路；
 		///   ④ **挪人**：速度 = 绳主水平速度（前馈，跟上就不掉队）+ 超出量 × 弹簧系数，封顶
 		///      <see cref="LeashMaxSpeed"/>；水平直写位置（竖直由引擎贴地），朝向按形态给。
 		///
@@ -1323,42 +1418,56 @@ namespace LivingWorldNpcs
 			if (!_leashLocked)
 			{
 				_leashLength = MathF.Max(LeashMinLength, dist * LeashSlackAtLock);
+				_leashSlackAtLock = _leashLength - dist;          // 一开始那点松量（≈ 跨度的 5%）
+				_leashRootAtLock = RootDist();                    // 物理判据的**零点**（root→root，稳）
+				_leashOver = 0f;
 				_leashLocked = true;
 				DebugLogger.Log($"[Grapple] 牵绳：绳长锁定 = {_leashLength:F2} m（手 → 胸口 {dist:F2} m × {LeashSlackAtLock:F2}）"
-					+ " —— 之后走远不再延长，超出就拽着他跟上（要松手才解）");
+					+ $" · 物理零点 = root→root {_leashRootAtLock:F2} m —— 之后走远不再延长，超出就拽着他跟上（要松手才解）");
 			}
 
-			// ② 量差
-			//    🔴 **进出用两个阈值**（2026-10-14 实机抓到）：单阈值下"超出量"正好卡在死区边上时，
-			//       `松了 ⇄ 拖在地上` 会**每帧翻一次**（实测日志里 200 行里 93 次翻转）——
-			//       既刷屏，又让状态机的"被拖行 ⇄ 站缚"跟着抖。进用死区、出用死区的一半。
-			float excess = dist - _leashLength;
+			// ② 绷没绷紧 —— 🔴 **一条闸，身体和走姿共用**（2026-10-14 第三轮，用户："只要速度大于 0 就该走，
+			//    不是被绑的 idle"）：上一版把"身体"和"走姿"分成两条闸（2 cm / 25 cm）⇒ 身体那道一直在收、
+			//    走姿那道永远轮不到 ⇒ **一直在挪却一直演 idle = 滑步**。现在合成一条。
+			//
+			//    判据用 **root→root 的距离增量**，不用"手→胸口"：
+			//      手在待机动画里前后摆（±5 cm），拿它当尺子 ⇒ 站着不动也会假装"绷紧了"，
+			//      于是门槛不敢开小、只能开大，一大就滑步。改成量**两个人的根位置**（都是稳的）：
+			//        超出量 = (现在 root 距离 − 绑上那一刻的 root 距离) + 一开始那点松量(≈5%)
+			//      站着不动 ⇒ 增量≈0 ⇒ 不拽（用户上一轮报的"我没动他却朝我走"也没了）；
+			//      绳主一走 ⇒ 增量就是"他走了多远" ⇒ 到了门槛就拽、且**同时**进走姿。
+			//
+			//    迟滞（进 <see cref="LeashDeadzone"/>、出它的一半）+ 保持窗，防门槛上每帧翻。
+			float over = RootDist() - _leashRootAtLock;
+			_leashOver = _leashOver <= 0f && over <= 0f
+				? over
+				: _leashOver + (over - _leashOver) * MathF.Min(1f, LeashSmoothSpeed * dt);   // 轻平滑（防单帧跳）
+			float excess = _leashOver + _leashSlackAtLock;
+			float leadSpeed = HorizontalSpeed(_attacker);
+
 			if (!_leashEngaged)
 			{
-				if (excess > LeashDeadzone && dist > 1e-3f) _leashEngaged = true;
+				if (excess > LeashDeadzone) _leashEngaged = true;
 			}
 			else if (excess < LeashDeadzone * LeashReleaseRatio)
 			{
 				_leashEngaged = false;
 			}
+			_pullHold = _leashEngaged ? LeashHoldSeconds : MathF.Max(0f, _pullHold - dt);
+
 			if (!_leashEngaged || dist < 1e-3f)
 			{
-				StopLeash(excess > 0f ? $"slack ({excess:F2} m < {LeashDeadzone:F2} m)" : "slack");
+				StopLeash(excess > 0f ? $"taut within {LeashDeadzone:F2} m ({excess:F2} m over)" : "slack");
 				return;
 			}
 
 			// ③ 形态：拖在地上 / 牵着走
-			//    🔴 判据 = **这条走路动画演不演得过来**（2026-10-14 用户裁定："倍率太高就自动进入拉倒"）：
-			//       需要的倍率 = **绳主的持续速度** ÷ 动画自然速率；超过 <see cref="WalkMaxMult"/> ⇒ 不再硬撑走着跟，
-			//       直接改"拖在地上"（趴着滑行不需要跟速率，也没有腿在滑）。
-			//    🔴 判据用**绳主速度**、不用本帧拽速：拽速里有"追回超出量"那一份，会在起步/加速的瞬间冲高，
-			//       拿它判 = 一加速就翻形态、下一帧又翻回来（来回切）。绳主速度经 `AverageVelocity` 本身就是平滑量。
-			//    🔴 进出用**两个阈值**（<see cref="AnimLatch"/>）：进 2.0x / 出 1.4x —— 单阈值会在门槛附近来回翻。
-			float leadSpeed = HorizontalSpeed(_attacker);
+			//    🔴 **2026-10-14 用户裁定（第二轮）**：**步行/奔跑一律"被牵着走"**（他就是得跟上），
+			//       只有两种情况让人躺在地上被拖：① **绳主骑马且在动** ② **玩家自己【拉紧】**（那条走 `StartYank`）。
+			//       ⇒ 原先"需要的倍率 > 上限就自动拉倒"那条**删掉了** —— 用户跑起来也想让他跟着跑。
+			//    倍率上限（`WalkMaxMult`）现在**只管"动画最多快放到几倍"**（腿别快进成电风扇），不再触发形态切换。
 			bool mountedLead = DragWhenMounted && IsRidingSomething(_attacker) && leadSpeed > DragMountedMinSpeed;
-			float leadMult = WalkNaturalSpeed > 0.05f ? leadSpeed / WalkNaturalSpeed : 1f;
-			_dragLatch.SetThresholds(WalkMaxMult, WalkMaxMult * WalkDragExitRatio);
-			bool dragged = mountedLead || _dragLatch.Update(leadMult) > 0;
+			bool dragged = mountedLead;
 
 			// ④ 挪人 + ⑤ 定倍率
 			//    🔴 牵着走时速度**封顶在"动画演得过来"那一档**（倍率上限 × 自然速率）—— 多出来的不硬追
@@ -1366,12 +1475,6 @@ namespace LivingWorldNpcs
 			float wantSpeed = MathF.Min(LeashMaxSpeed, leadSpeed * LeashFeedForward + excess * LeashStiffness);
 			float speed = dragged ? wantSpeed : MathF.Min(wantSpeed, WalkMaxMult * WalkNaturalSpeed);
 			_leashSpeed = speed;
-			_leashMult = dragged
-				? 1f                                                            // 趴着被拖：不需要跟速率
-				: MathF.Max(WalkMinMult, MathF.Min(WalkMaxMult,
-					WalkSpeedOverride > 0f
-						? WalkSpeedOverride
-						: speed / MathF.Max(0.05f, WalkNaturalSpeed)));         // 强制档 / 自适应档
 			try
 			{
 				Vec3 dir = d * (-1f / dist);                         // 从胸口指向手 = 被拽的方向
@@ -1393,24 +1496,27 @@ namespace LivingWorldNpcs
 				if (!_lying) EnterDraggedLay(leadSpeed);             // 站着/走着 ⇒ 先放倒，之后一直趴着被拖
 			}
 
-			_leashPulling = true;
+			_leashPulling = true;                // 事实：这一帧绳在拽他（绳的"绷直"显示 + 日志用）
 			_leashDragged = dragged;
 			if (_ctx != null)
 			{
-				_ctx.BeingPulled = !dragged;    // 🔴 两个标志互斥（拖在地上那条不走"被拖行"）
+				// 🔴 **动画那两个标志不在这里填了**（2026-10-14 第三轮）：走姿由"他自己动了多快"决定，
+				//    与绳绷没绷**无关** —— 见 <see cref="TickTargetMachine"/> 的注释。
 				_ctx.BeingDragged = dragged;
 			}
 
-			// 只在"开始拽 / 换形态"时各打一行（每帧打会淹掉日志）
-			if (!_leashPullingPrev || _leashDraggedPrev != dragged)
+			// 只在**读感那一档真的起来了**、且"开始拽 / 换形态"时各打一行 ——
+			// 🔴 第一档（收那几厘米）**不打日志**：它每几秒就动一次，打了就是刷屏（且会让人误以为在拖他走）。
+			if (_leashPulling && (!_leashPullingPrev || _leashDraggedPrev != dragged))
 			{
-				DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 距离 {dist:F2} m > 绳长 {_leashLength:F2} m"
-					+ $"（超出 {excess:F2} m）· 绳主速度 {leadSpeed:F1} m/s ⇒ 拽速 {speed:F1} m/s"
+				DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 走远 {_leashOver:F2} m + 松量 {_leashSlackAtLock:F2} m"
+					+ $" = 超出 {excess:F2} m > 门槛 {LeashDeadzone:F2} m（绳长 {_leashLength:F2} m）"
+					+ $"· 绳主速度 {leadSpeed:F1} m/s ⇒ 拽速 {speed:F1} m/s · 他自己的速度 {_followerSpeed:F1} m/s"
 					+ (dragged
-						? $"（绳主需要的倍率 {leadMult:F2} > {WalkMaxMult:F2} ⇒ 趴缚循环：脚在前头在后）"
-						: $"（binded_walk 倍率 {_leashMult:F2} = 拽速 {speed:F2} ÷ 自然速率 {WalkNaturalSpeed:F2}）"));
+						? $"（绳主骑着马在动 ⇒ 拖在地上：趴缚循环）"
+						: $"（binded_walk 倍率 {_bindedWalkRate:F2} = 他自己的速度 {_followerSpeed:F2} ÷ 自然速率 {WalkNaturalSpeed:F2}）"));
 			}
-			_leashPullingPrev = true;
+			_leashPullingPrev = _leashPulling;
 			_leashDraggedPrev = dragged;
 
 			if (LeashProbeSeconds > 0f)
@@ -1419,9 +1525,9 @@ namespace LivingWorldNpcs
 				if (_leashProbeTimer >= LeashProbeSeconds)
 				{
 					_leashProbeTimer = 0f;
-					DebugLogger.Log($"[Grapple] 牵绳探针：手→胸口 {dist:F2} m · 绳长 {_leashLength:F2} m · 超出 {excess:F2} m"
+					DebugLogger.Log($"[Grapple] 牵绳探针：手→胸口 {dist:F2} m · 绳长 {_leashLength:F2} m · 走远 {_leashOver:F2} + 松量 {_leashSlackAtLock:F2} = 超出 {excess:F2} m"
 						+ $" · 绳主 {leadSpeed:F1} m/s · 拽速 {speed:F1} m/s · 形态={(dragged ? "拖在地上" : "牵着走")}"
-						+ $" · 倍率 {_leashMult:F2}");
+						+ $" · 他自己的速度 {_followerSpeed:F2} m/s ⇒ 倍率 {_bindedWalkRate:F2}");
 				}
 			}
 		}
@@ -1441,15 +1547,14 @@ namespace LivingWorldNpcs
 			}
 			_leashPulling = false;
 			_leashEngaged = false;           // 迟滞态一起清（下次要重新"进"）
+			_pullHold = 0f;
 			_leashDragged = false;
 			_leashSpeed = 0f;
-			_leashMult = 1f;                 // 不拽了 ⇒ 动画回原速（TickTargetMachine 每帧把它推给状态机）
 			_leashPullingPrev = false;
 			_leashDraggedPrev = false;
 			if (_ctx != null)
 			{
-				_ctx.BeingPulled = false;
-				_ctx.BeingDragged = false;
+				_ctx.BeingDragged = false;   // 走姿那个标志归 TickTargetMachine 管（看他自己动没动）
 			}
 		}
 
@@ -1466,6 +1571,23 @@ namespace LivingWorldNpcs
 			DebugLogger.Log($"[Grapple] 牵绳：'{SafeName(_target)}' 被拖倒（绳主 {leadSpeed:F1} m/s"
 				+ (IsRidingSomething(_attacker) ? "，骑着马" : "") + $"）⇒ 拖在地上（趴缚循环），"
 				+ (LaySeconds > 0f ? $"停下后 {LaySeconds:F1}s 自己起身" : "停下也不会自己起身（laytime=0）"));
+		}
+
+		/// <summary>
+		/// **两个人的根位置之间的水平距离**（米）—— 牵绳的**物理判据尺子**。
+		/// 🔴 为什么不用"手 → 胸口"那把尺子：绳主的手挂在待机动画上前后摆（±5 cm），拿它当尺子
+		///    站着不动也会假装"绷紧了" ⇒ 门槛只能开大 ⇒ 一开大就"人在挪、动画还在 idle"（滑步）。
+		///    根位置是稳的 ⇒ 门槛能开到 5 cm 量级。
+		/// </summary>
+		private float RootDist()
+		{
+			try
+			{
+				Vec3 d = _target.Position - _attacker.Position;
+				d.z = 0f;
+				return d.Length;
+			}
+			catch (Exception) { return 0f; }
 		}
 
 		/// <summary>某个 agent 的**水平**速度（米/秒）。用 `AverageVelocity`（native 平均窗口）防瞬时抖动。</summary>
@@ -1608,6 +1730,8 @@ namespace LivingWorldNpcs
 			// 绳长上限：这一绑结束 ⇒ 锁解掉（下一绑重新锁）
 			_leashLocked = false;
 			_leashLength = 0f;
+			_leashSlackAtLock = 0f;
+			_leashOver = 0f;
 			_leashPulling = false;
 			_leashDragged = false;
 			_leashSpeed = 0f;
@@ -1991,7 +2115,8 @@ namespace LivingWorldNpcs
 			string leash = !LeashEnabled ? "off"
 				: !_leashLocked ? "not locked yet"
 				: $"{_leashLength:F2}m dist={_leashDist:F2}m pull={(_leashPulling ? (_leashDragged ? "DRAGGED" : "walking") : "slack")}"
-					+ (_leashPulling ? $" v={_leashSpeed:F1}m/s x{_leashMult:F2}" : "");
+					+ (_leashPulling ? $" v={_leashSpeed:F1}m/s" : "")
+					+ $" mine={_followerSpeed:F1}m/s x{_bindedWalkRate:F2}";
 			string lead = _leadActive ? $" | lead→{Fmt(_leadTarget)}" : "";
 			return $"bind: {_phase} | 目标={tgt} | {timer:F2}/{limit:F2}s | anim={anim} | 动作={act}"
 				+ $" | 钩={Fmt(_hookPos)} | 拖距={DragDistance:F1}m 超时={BoundSeconds:F0}s"

@@ -104,6 +104,11 @@ namespace LivingWorldNpcs
 		private string _note = "-";
 		private bool _weSheathed;      // 武器是"我们"收的才由我们还（玩家自己收的/自己换的，不碰）
 		private EquipmentIndex _stowSlot = EquipmentIndex.None;   // 收武器**之前**记下的"绳在哪个槽"
+		private MissionWeapon _stowWeapon;                        // 收之前那件东西**本身**（引擎弄丢时原样塞回）
+		private float _stowWatchTimer;                            // "看着点"那班岗的计时（见 WatchStowSlot）
+
+		/// <summary>"看着点"的查岗间隔（秒）—— 收完武器后每这么久看一次那个槽还在不在。</summary>
+		public const float StowWatchSeconds = 0.25f;
 		private float _stowGrace;      // >0 = 给出口② 的豁免窗（见 StowGraceSeconds）
 
 		public bool IsActive => _phase != CarryPhase.None && _carried != null;
@@ -214,6 +219,9 @@ namespace LivingWorldNpcs
 
 			_t += dt;
 
+			// ⓪ **看着点那个槽**（我们收过武器才查）：引擎把它弄丢就原样塞回去（见 WatchStowSlot）
+			WatchStowSlot(dt);
+
 			// ① **每帧摆位**（放下过程中也要摆 —— 否则人会立刻跳回自己脚下那一点）
 			AttachCarried();
 
@@ -299,24 +307,58 @@ namespace LivingWorldNpcs
 			if (a == null) return;
 			try
 			{
-				// 🔴 **先记住"绳在哪个槽"再收**（2026-10-14 实机事故）：收完之后再去装备里找，
-				//    实测**找不到**（日志：放下时既没有"已还回"也没有失败行 ⇒ 走了"槽位= None"那条静默早退）
-				//    ⇒ 钩索留在鞘里 = 玩家抱怨的"武器没了"，而且紧接着触发"收起钩索 = 放人"那条出口
-				//    ⇒ 绑被放掉（"对方无法再次被我扛起"）。记槽位这一步不依赖收完之后的任何状态，最稳。
+				// 🔴 **先记住"绳在哪个槽、整件东西长什么样"再收**（2026-10-14 实机事故）：
+				//    收完之后绳会**从装备里消失**（用户实机："不是收起武器，是丢在了地上，我得捡回来"）。
+				//    实测日志（`还不了武器 … 当前装备：… Weapon3=-`）证实：收起那一刻还在 Weapon3，
+				//    扛人期间没了。备忘录 = 万一引擎真弄丢，我们能**原样塞回去**。
 				_stowSlot = FindItemSlot(a, GrappleFirePatch.RopeItemId);
+				_stowWeapon = _stowSlot != EquipmentIndex.None ? a.Equipment[_stowSlot] : default(MissionWeapon);
 				DebugLogger.Log($"[Grapple] 扛人：收武器前记下绳的槽位 = {_stowSlot}"
-					+ (_stowSlot == EquipmentIndex.None ? "（🔴 没找到 —— 收完就还不了了）" : ""));
-				// 先主手后副手（与 `CombatManager` 那两行同一套已验证写法；Instant = 不做拔/收动画）
+					+ (_stowSlot == EquipmentIndex.None ? "（🔴 没找到 —— 收完就还不了了）"
+						: $"（{_stowWeapon.Item?.StringId}）"));
+				// 先主手后副手（与 `CombatManager` / 原版 `StandingPoint.AutoSheathWeapons` 同一套写法）
 				a.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
 				a.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
 				_weSheathed = true;
 				_stowGrace = StowGraceSeconds;
+				_stowWatchTimer = 0f;          // 开"看着点"那班岗（下面 Tick 里跑）
 				DebugLogger.Log($"[Grapple] 扛人：已收起 {SafeName(a)} 的武器（扛着期间手上不拿东西 —— 不要准星/端弓姿势）");
 			}
 			catch (Exception ex)
 			{
 				_weSheathed = false;
 				DebugLogger.Log($"[Grapple] 扛人：收武器失败（忽略，照常扛）: {ex.GetType().Name} {ex.Message}");
+			}
+		}
+
+		/// <summary>
+		/// **"看着点"那班岗**（扛人期间每 0.25 s 一次）：收完武器之后盯着那个槽，**空了就原样塞回去**。
+		///
+		/// 🔴 为什么要有它（2026-10-14 实机）：收起那一下引擎会把绳**从装备里弄没**（掉在地上），
+		///    用户得自己捡回来才能用。塞回去之后**东西在槽里、但手上不拿** —— 正好就是我们想要的状态
+		///    （不要准星/端弓），比"真收进鞘"还干净。
+		/// ⚠️ 只在**我们收过武器**、且这一班岗还没下的时候查（玩家自己中途拔刀/换武器都不碰）。
+		/// </summary>
+		private void WatchStowSlot(float dt)
+		{
+			if (!_weSheathed || _carrier == null || _stowSlot == EquipmentIndex.None || _stowWeapon.Item == null)
+				return;
+			_stowWatchTimer += dt;
+			if (_stowWatchTimer < StowWatchSeconds) return;
+			_stowWatchTimer = 0f;
+			try
+			{
+				if (!AgentControlHelper.SafeIsActive(_carrier)) return;
+				if (_carrier.Equipment[_stowSlot].Item != null) return;      // 还在 ⇒ 没事
+				// 空了 ⇒ 引擎把它弄丢了：原样塞回去（**不 wield** —— 手上空着正是我们要的）
+				MissionWeapon w = _stowWeapon;
+				_carrier.EquipWeaponWithNewEntity(_stowSlot, ref w);
+				DebugLogger.Log($"[Grapple] 扛人：🔴 绳从装备里消失了（引擎弄丢的，槽 {_stowSlot}）—— 已原样塞回"
+					+ "（东西在槽里、手上不拿 = 本来要的状态）。若这条反复出现说明引擎**见不得**把它收起来");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 扛人：塞回绳失败（{ex.GetType().Name}: {ex.Message}）—— 放下时会再试一次");
 			}
 		}
 
@@ -357,6 +399,14 @@ namespace LivingWorldNpcs
 				if (slot == EquipmentIndex.None || !SlotHasItem(a, slot, GrappleFirePatch.RopeItemId))
 				{
 					slot = FindItemSlot(a, GrappleFirePatch.RopeItemId);
+				}
+				// 🔴 装备里真没有 ⇒ 把"收之前存下的那件"原样塞回它自己的槽（见 WatchStowSlot 的注释）
+				if (slot == EquipmentIndex.None && stowSlot != EquipmentIndex.None && _stowWeapon.Item != null)
+				{
+					MissionWeapon w = _stowWeapon;
+					a.EquipWeaponWithNewEntity(stowSlot, ref w);
+					slot = stowSlot;
+					DebugLogger.Log($"[Grapple] 扛人：装备里没有绳 ⇒ 已把收之前存的那件原样塞回槽 {stowSlot}");
 				}
 				if (slot == EquipmentIndex.None)
 				{

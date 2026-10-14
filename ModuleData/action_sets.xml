@@ -177,13 +177,24 @@
 		     注 ③：`act_grapple_idle` / `act_grapple_walk_idle` 指向自家 clip `grapple_ground_idle`
 		         （站姿不受本试验影响，站着不动还是原姿势）。
 		     🔴 教训（写死在这）：**直接引用别的武器的 clip = 连它的元数据一起借**。
-		        正路是 TRF 把**动画数据**搬进我们自己的包，clip 元数据仍用我们这套。 -->
+		        正路是 TRF 把**动画数据**搬进我们自己的包，clip 元数据仍用我们这套。
+
+		     ═══ 2026-10-14 全退：三条都回自家 clip（原因 = 破案，见 plans/钩索-实施计划.md §14.8）═══
+		     悬了四轮的"偶发 AccessViolation"，根因 = 引擎在读 **clip 的 `ContinueWithAction`（后续动作）** 时，
+		     该字段是**空串**（运行时存成 -1），而引擎的查表函数**不挡 -1** ⇒ 读到表前面那一格的内存（堆布局运气）
+		     ⇒ 拿垃圾当索引查全局片段表 ⇒ AV。崩点在引擎 `Agent_anim_system`，**与我们的代码无关**。
+		     · 借来的 `ready_continue_sling`：元数据是原版投石索那套，**该字段也是 -1**（原版弩/投石索的链同样没接完）
+		       ⇒ **换 clip 改不了"答"，所以换了个寂寞**（用户 2026-10-14 实测吻合）。
+		     · 修法 = 让**我们自己的** clip 答一个**真实动作名**（填 `act_grapple_ground_hold` 自己，
+		       = "这一循环完了接着还是它"，照原版弓 `ready_continue_bow` → 抖变体那条唯一接得完整的链的写法）。
+		     · 🔴 **绝不填 release**：那等于告诉引擎"循环走完接着甩出去"，玩家还按着键它就会自己往下播（甚至走开火链）。
+		     · 投石索那套观感要回来 ⇒ 走注 ③ 的老路（TRF 把动画搬成自家 clip），再把字段填上。 -->
 		<action
 			type="act_grapple_ground_ready"
 			animation="grapple_ground_ready" />
 		<action
 			type="act_grapple_ground_hold"
-			animation="ready_continue_sling" />
+			animation="grapple_ground_hold" />
 		<action
 			type="act_grapple_ground_release"
 			animation="grapple_ground_release" />

@@ -30,6 +30,9 @@ string prioArg = null;   // clipprio: 目标 Priority
 string p1Arg = null;     // clipparams: Param1（可省）
 string p2Arg = null;     // clipparams: Param2（可省）
 string p3Arg = null;     // clipparams: Param3（可省）
+string actionArg = null; // clipcontinue: 要写进该字段的动作名
+string fieldArg = null;  // clipcontinue: 写哪个字段（continue | blends）
+bool clearArg = false;   // clipcontinue: 把该字段清回空串
 string addArg = null;    // clipflags: 要加的 flag（逗号分隔）
 string removeArg = null; // clipflags: 要删的 flag
 string alphaTestArg = null; // matflags: 新的 alphaTest 阈值
@@ -67,6 +70,9 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--p1": p1Arg = cmdLine[++i]; break;
             case "--p2": p2Arg = cmdLine[++i]; break;
             case "--p3": p3Arg = cmdLine[++i]; break;
+            case "--action": actionArg = cmdLine[++i]; break;
+            case "--field": fieldArg = cmdLine[++i]; break;
+            case "--clear": clearArg = true; break;
             case "--add": addArg = cmdLine[++i]; break;
             case "--remove": removeArg = cmdLine[++i]; break;
             case "--alphatest": alphaTestArg = cmdLine[++i]; break;
@@ -382,6 +388,11 @@ switch (command)
             return 1;
         }
         return ClipPrio.Run(dir, filter, prioVal, outDir, inPlaceArg);
+    }
+    case "clipcontinue":
+    {
+        // 离线改 AnimationClip 的 ContinueWithAction（字节级；见 ClipContinue.cs 的说明）
+        return ClipContinue.Run(dir, filter, actionArg, fieldArg, outDir, inPlaceArg, clearArg);
     }
     case "clipparams":
     {
