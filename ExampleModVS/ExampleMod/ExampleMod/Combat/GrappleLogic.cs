@@ -805,8 +805,11 @@ namespace LivingWorldNpcs
 		/// <summary>
 		/// 收钩（命令 `retract`；也是打空与异常的兜底）。
 		/// <paramref name="reason"/> **只进日志**（2026-10-03 加：实机出现"绳突然消失"，没有原因日志没法定位）。
+		/// <paramref name="landed"/> = **这次收摊是"已经落地"**（拉拽到位 / 板载坠落着地）⇒
+		/// 不许再问 <see cref="IsMainAirborne"/>：板刚拆、人刚解冻，引擎还没把 `IsOnLand` 翻成 true，
+		/// 问出来是"还在空中"⇒ 动画被推回 自由落体后**再没有出口**（2026-10-15 实机，详见 <see cref="ExitAnim"/>）。
 		/// </summary>
-		public string Release(string reason = "command")
+		public string Release(string reason = "command", bool landed = false)
 		{
 			bool wasPulling = _pull.IsActive;    // 动画收摊的判据要在 Abort 之前取（Abort 会把它收掉）
 			// 正在拉拽 ⇒ 先中止（拆板 + 解冻 —— 绝不留冻结状态）
@@ -843,13 +846,15 @@ namespace LivingWorldNpcs
 
 			// ── 姿态动画收摊（2026-10-04 二稿）──
 			//    · **人已空中**（拉拽中掉板 / 空中收摊）：立即收摊（按 fall-trigger 送 自由落体）；
+			//    · **已落地**（`landed`）：跳过空中判据 —— 这一帧 `IsOnLand` 还是假（板刚拆、人刚解冻），
+			//        按它判会把动画又推回 自由落体（2026-10-15 实机）；调用方已在上一步收过摊。
 			//    · **其余**（打空 / 命令 / 正常收尾）：只打"已放弃"标志 —— 状态机自己走：
 			//        过程段 → recover-due 边 → 收手（打空亮相）；落地/收手段 → rem 15% 自己出机。
 			if (_animCtx != null)
 			{
 				_animCtx.Cancelled = true;
 			}
-			if (IsMainAirborne())
+			if (!landed && IsMainAirborne())
 			{
 				ExitAnim();
 			}
@@ -959,8 +964,15 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>动画收摊：在机内才动；人在空中 ⇒ 按 `fall-trigger` 送 自由落体，否则送机外。</summary>
-		private void ExitAnim()
+		/// <summary>
+		/// 动画收摊：在机内才动。
+		/// <paramref name="landed"/> = **这次收摊是"已经落地"**（拉拽到位 / 板载坠落着地）——
+		/// 此时**不许再问** <see cref="IsMainAirborne"/>：板刚拆、人刚解冻，引擎还没把 `IsOnLand` 翻成 true，
+		/// 问出来是"还在空中"⇒ 动画被推回 自由落体，而那个状态**除这条边以外没有别的出口** ⇒
+		/// 人站在地上一直播下落动画（2026-10-15 实机，日志 `姿态动画 → 自由落体（人还在空中；从 自由落体）`）。
+		/// 人还在空中（拉拽途中掉板 / 空中收摊）⇒ 按 `fall-trigger` 送 自由落体，否则送机外。
+		/// </summary>
+		private void ExitAnim(bool landed = false)
 		{
 			_animPendingPullTimer = 0f;      // 收摊 = 作废"待进过程"的计时
 			if (!IsAnimInside() || Agent.Main == null || !AnimEnabled)
@@ -968,6 +980,16 @@ namespace LivingWorldNpcs
 				return;
 			}
 			string cur = _anim.Current;
+			if (landed)
+			{
+				// 已落地 ⇒ 送机外（0 号通道还引擎）。
+				// 🔴 定义里那条出边就是 `自由落体 → outside`，而 `TryEventTarget` **刻意不认"指向 outside 的边"**
+				//    （见 `AgentAnimStateMachine.TryEventTarget` 的 `e.To != "outside"`）⇒ 这里读不出目标、
+				//    只能直接送机外。日志带"已落地"四个字，用来和"打空/命令收摊"那条区分（验收就看这一行）。
+				_anim.Force(Agent.Main, AgentAnimStateMachine.OutsideState, GrappleAnimMachine.AnimBlendIn);
+				DebugLogger.Log($"[Grapple] 姿态动画收摊（已落地；0 号通道还引擎）| 从 {cur}");
+				return;
+			}
 			if (IsMainAirborne() && _anim.TryEventTarget(GrappleAnimConditions.FallTrigger, out string fallState))
 			{
 				_anim.Force(Agent.Main, fallState, GrappleAnimMachine.AnimBlendIn);
@@ -1530,10 +1552,12 @@ namespace LivingWorldNpcs
 				GrapplePull.PullEvent ev = _pull.Tick(dt);
 				if (ev == GrapplePull.PullEvent.Finished)
 				{
-					// 拉拽整段完成：落地那条在 WaitAnimExit 的等待门里已自己出机（此处空操作）；
-					// 板载自由落体落地的那条还留在 自由落体 状态 ⇒ 送它出机。
-					ExitAnim();
-					Release("pull finished（到位拆板）");
+					// 拉拽整段完成 = **已经落地**（平台那条：落地动作早已自己出机，此处空操作；
+					// 板载自由落体那条：板顶刚贴地）⇒ 收摊必须**带上"已落地"这个事实**：
+					// 这一帧 `IsOnLand()` 还是假（板刚拆、人刚解冻），按它判会把动画又推回 自由落体，
+					// 而那个状态除触地边以外没有别的出口 ⇒ 人站在地上一直播下落（2026-10-15 实机）。
+					ExitAnim(landed: true);
+					Release("pull finished（到位拆板）", landed: true);
 					return;
 				}
 				if (ev == GrapplePull.PullEvent.Aborted)

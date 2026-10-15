@@ -1399,6 +1399,51 @@ namespace LivingWorldNpcs
         }
 #endif
 
+        // ── 地形高度图（🔴 室内场景**没有**地形 ⇒ 直接问 = native 空指针崩）────────────
+        //   起因（2026-10-15 实机）：主城城主大厅（任务 "Indoor civilian level_3"，场景
+        //   `empire_castle_keep_a_l3_interior`）里开钩索 → `Scene.GetTerrainHeightAndNormal`
+        //   当场 0xC0000005（读 0x68）—— native 侧拿到的是空地形指针；**托管 catch 拦不住**
+        //   （所以调用点外面那圈 try/catch 一直是假保险）。
+        //   判据 = `ContainsTerrain`（原版自己的"这场景有没有地形"谓词 —— 反编译实证
+        //   `ProceduralTerrainComponent.OnInit`: `_pendingGenerate = !Scene.ContainsTerrain`；
+        //   本项目 `SurfaceTerrainFx.Info()` 同款）**且** `HasTerrainHeightmap`（再收一道，
+        //   防"有地形骨架但没高度图"）。
+        //   两个属性 + 两个查询方法在 1.2.12 / 1.3.15 / 1.4.6 / 1.5.1 上签名一致 ⇒ 不需要版本分支。
+        //   返回 false = 此处没有地形高度图，**调用方走兜底**（别自己 try/catch 硬问）。
+        //   ⚠️ 别和上面 `GroundHeight` 搞混：那是**物理地面查询**（铺装 / 地形 / 物件通吃，
+        //      室内也活），这是**高度图**（室内根本没有）。
+        public static bool CanQueryTerrain(Scene scene)
+        {
+            if (scene == null) return false;
+            try
+            {
+                return scene.ContainsTerrain && scene.HasTerrainHeightmap;
+            }
+            catch (Exception)
+            {
+                return false;      // 问不出来 = 当没有地形（宁可不走地形，也不冒 native 崩的险）
+            }
+        }
+
+        /// <summary>地形高度。false = 这场景没有地形高度图（室内），<paramref name="height"/> 无意义。</summary>
+        public static bool TerrainHeight(Scene scene, Vec2 position, out float height)
+        {
+            height = float.NaN;
+            if (!CanQueryTerrain(scene)) return false;
+            height = scene.GetTerrainHeight(position, true);
+            return true;
+        }
+
+        /// <summary>地形高度 + 法线。false = 这场景没有地形高度图（室内），两个出参都无意义。</summary>
+        public static bool TerrainHeightAndNormal(Scene scene, Vec2 position, out float height, out Vec3 normal)
+        {
+            height = float.NaN;
+            normal = Vec3.Invalid;
+            if (!CanQueryTerrain(scene)) return false;
+            scene.GetTerrainHeightAndNormal(position, out height, out normal);
+            return true;
+        }
+
         // ── 装备槽上的武器实体帧（1.3.0 返回类型 GameEntity → WeakGameEntity 结构体）──
         // v1.2.12: agent.GetWeaponEntityFromEquipmentSlot(slot) → GameEntity（类，可能 null）
         // v1.3.0+ : 同名 → WeakGameEntity（**结构体**；空判断用 IsValid，不能 == null）

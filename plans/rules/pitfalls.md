@@ -1913,3 +1913,74 @@ subModule2.OnMissionBehaviorInitialize(this);       // ← 各模块在这一步
 **教训**：**"写入 = 回读 = 校验"三方一致 ≠ 写对了** —— 当"名字 → 引擎 id"这一步**静默失败成 0** 时，
 整条自洽链会**一起错**，而且错得毫无痕迹。
 **凡"自定义名字 → 引擎 id"的解析，判据里必须包含「0 / 哨兵值也算失败」。**
+
+---
+
+## 🔴 室内场景（城主大厅 / 酒馆 / 竞技场）问地形高度图 → 直接 native 崩（读 0x68，2026-10-15 实机，钩索）
+
+**症状**
+- 主城**城主大厅**里开钩索（开火那一下的下一帧）：`0xC0000005: 读取位置 0x0000000000000068 时发生访问冲突`，
+  崩点在 `TaleWorlds.Native.dll`，而**托管栈清清楚楚**指向我们自己的一行（难得的一次，别放过）：
+  ```
+  TaleWorlds.Engine.Scene.GetTerrainHeightAndNormal(…)     ← native 侧空地形指针解引用
+    SpellSweep.ResolveWorldNormal (Combat/SpellPieces.cs:984)
+    SpellSweep.FindNearestHit → GrappleLogic.TryAim → GrappleFirePatch.ProcessPending → OnMissionTick
+  ```
+- 🔴 **不是偶发**：室内开火**必崩**；室外（村镇 / 野战 / 大地图）同一条代码一点事没有。
+  现场佐证：引擎日志最后一行 = `[Grapple] 拦截开火 → 排队（下一帧发射）`，任务名 `Indoor civilian level_3`（场景 `empire_castle_keep_a_l3_interior`）。
+- 🔴 **外面那圈 `try/catch` 是假保险** —— native 崩（corrupted state）**不会被托管 catch 接住**（同 §114 那条的教训）。
+  凡是"引擎调用外面套 catch 求安心"的写法，都要按这条重新审一遍。
+
+**根因**
+- `Scene.GetTerrainHeight*` 家族读的是**地形高度图**；**室内场景根本没有地形**（脚下是铺装网格），
+  native 侧地形对象为空 ⇒ 解引用空指针。
+- 判据来源（**不是猜的**，两处独立印证）：
+  · 原版自己的谓词 = `ContainsTerrain` —— 反编译实证 `ProceduralTerrainComponent.OnInit`：
+    `_pendingGenerate = !base.GameEntity.Scene.ContainsTerrain;`（"这场景没有地形"）；
+  · 本项目 `SurfaceTerrainFx.Info()` 同款：`if (!ContainsTerrain) return "… (this scene has no terrain)"`。
+- 四个版本签名一致（反编译核对）：`ContainsTerrain` / `HasTerrainHeightmap` / `GetTerrainHeight` /
+  `GetTerrainHeightAndNormal` 在 1.2.12 / 1.3.15 / 1.4.6 / 1.5.1 全有 ⇒ **不需要版本分支**。
+
+**规避**
+- 🔴 **问地形高度图之前必须先过闸门**：`scene.ContainsTerrain && scene.HasTerrainHeightmap`。
+  已收成统一入口（[Core/VersionCompat.cs](../../ExampleModVS/ExampleMod/ExampleMod/Core/VersionCompat.cs)）：
+  `V.CanQueryTerrain(scene)` / `V.TerrainHeight(scene, pos, out z)` / `V.TerrainHeightAndNormal(scene, pos, out z, out n)`
+  —— **新代码一律走它，别再自己 try/catch 硬问**。
+- ⚠️ **别和 `V.GroundHeight` / `V.GroundHeightAndNormal` 搞混**：那是**物理地面查询**（铺装 / 地形 / 物件通吃，
+  **室内也活**，绳索贴地 / 钩索落点找平台用的就是它）；出事的这个是**高度图**（室内根本没有）。
+- **验收探针**：`custom.surface terrain` —— 室内应打印 `ContainsTerrain=False … (this scene has no terrain)`，
+  室外 `True`；**不用开火就能验**。
+- **日志判据**：室内首次撞墙 / 撞地时出现 `[Spell] 本场景没有地形高度图（室内）→ 表面法线走三探针`。
+- 同轮连带修掉的同类隐患：`Flight/PlayerFlightBehavior.GetGroundZ`、`Flight/FlightAnimConditions.PlayFx`
+  （原来也是裸问 `GetTerrainHeight`，**在室内飞就是同一个崩**）。
+
+---
+
+## 🔴 拆板 / 解冻的那一帧问 `IsOnLand()` → 读到的是旧值（人站地上了还播下落动画，2026-10-15 钩索）
+
+**症状**
+- 钩索"没平台 → 板载自由落体"落地后：人已经站在地板上，动作**一直播空中下落循环**，走跑也不恢复。
+- 日志一眼可辨（同一帧内先落地、后又被推回空中态）：
+  ```
+  板载坠落着地（板面=0.57 地面=0.57 落速=22.2m/s）→ 拆板交还控制
+  解冻：Controller=Player paused=False
+  姿态动画 → 自由落体（人还在空中；从 自由落体）   ← 此刻板已拆、人已解冻，但引擎还没翻牌
+  ```
+
+**根因**
+- 收尾判据写成"`!Agent.Main.IsOnLand()` = 人还在空中 ⇒ 送空中态"。而**拆板（`_board.Remove()`）与解冻
+  （`Controller` 还回去）都发生在同一帧、紧接着就问** —— 引擎更新"脚踩实了没有"是它自己 tick 里的事，
+  这一帧读到的仍是 false ⇒ 把已经落地的人判成空中 ⇒ 动画被推回空中态。
+- 该状态在 `grapple.xml` 里**只有一条事件出边**（`自由落体 → outside when="land-trigger"`），C# 不送就**没有出口** ⇒ 永久停在下落循环。
+
+**规避**
+- 🔴 **"落没落地"要由调用方把事实传下去，不要在拆板/解冻的当帧去问引擎**：
+  `ExitAnim(landed: true)` / `Release(reason, landed: true)`（范本 `Combat/GrappleLogic.cs`）。
+- 同类先例：飞行工程给"出机后坠落"的着地判据留了 **0.2 s 宽限 + 兜底超时**（`PlayerFlightBehavior` ③④），
+  就是同一条坑的另一面（那次是**旧值仍为真**，这次是**旧值仍为假**）。
+- **凡"我们刚拆掉支撑物 / 刚交还控制权"的收尾**（载具、坐骑、扛人、钩索、飞行），
+  落地类判据一律用"自己知道的事实"或留宽限，**禁止裸信 `IsOnLand()` 当帧值**。
+- ⚠️ XML 里画了出边 ≠ 有人送那个事件：**事件边（`event="true"`）必须有一处 C# 在送**
+  （判据：全仓 grep 那个 `when` 名字 —— 只有 `Register` 没有引用 = **死边**）。
+  且 `AgentAnimStateMachine.TryEventTarget` **刻意不认"指向 outside 的边"**（源码 `e.To != "outside"`）
+  ⇒ 事件边的目标是 outside 时读不出状态，只能直接 `Force(OutsideState)`（`land-trigger` 这条就是）。

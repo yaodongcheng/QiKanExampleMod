@@ -211,9 +211,14 @@ namespace LivingWorldNpcs.Flight
                 if (atFeet)
                 {
                     // 落地：水平用人的位置、**竖直用地面**（撞地判定是"板顶触地"，直接用人的 z 会浮空/埋地）
+                    // 🔴 室内场景没有地形高度图，直接问 = native 崩 ⇒ 走带闸门的 V.TerrainHeight，
+                    //    拿不到就用人物高度兜底（与原来 catch 分支同口径）。
                     z = p.z;
-                    try { z = scene.GetTerrainHeight(new Vec2(p.x, p.y), true); }
-                    catch { /* 拿不到地形就用人物高度兜底 */ }
+                    float terrainZ;
+                    if (V.TerrainHeight(scene, new Vec2(p.x, p.y), out terrainZ) && !float.IsNaN(terrainZ))
+                    {
+                        z = terrainZ;
+                    }
                 }
                 else
                 {

@@ -838,6 +838,9 @@ namespace LivingWorldNpcs
 		/// <summary>一次扫掠里最多跳过几个人（防"所有人都在已命中表里"时死循环）。</summary>
 		private const int MaxSkipPerSweep = 8;
 
+		/// <summary>已经报过"本场景没有地形高度图"的那一局（只报一次，免得刷屏）。</summary>
+		private static Mission _noTerrainMission;
+
 		/// <summary>
 		/// 找这一段里最近的一次碰撞（**不带修正过滤**的旧口径 —— 引导/领域那条路继续用它）。
 		/// 返回 false = 什么都没撞到（<paramref name="victim"/> / <paramref name="point"/> 无意义）。
@@ -971,25 +974,28 @@ namespace LivingWorldNpcs
 		/// <summary>
 		/// 撞到世界的**表面法线**（弹跳按它反射速度）。
 		/// ① 地形：引擎直接给（<c>GetTerrainHeightAndNormal</c>，一次调用、精确）；
-		/// ② 墙面/物件：引擎的射线不给法线 ⇒ 打三根探针估一个平面（弹跳是低频事件，多两次射线无所谓）。
+		///    🔴 **只在有地形的场景才问** —— 室内（城主大厅 / 酒馆 / 竞技场…）没有地形高度图，
+		///    直接问 = native 空指针崩（0xC0000005，托管 catch 拦不住；2026-10-15 实机）。
+		///    闸门 = <see cref="V.CanQueryTerrain"/>，室内自动落到 ②。
+		/// ② 墙面/物件/室内网格：引擎的射线不给法线 ⇒ 打三根探针估一个平面（弹跳是低频事件，多两次射线无所谓）。
 		/// 估不出来时退回 <c>-来向</c>（= 正面撞上去弹回来），不抛异常（铁律 1）。
 		/// </summary>
 		private static Vec3 ResolveWorldNormal(Mission mission, Vec3 point, Vec3 travel)
 		{
 			Vec3 dir = travel.LengthSquared > 1e-8f ? travel.NormalizedCopy() : Vec3.Forward;
-			try
+			float height;
+			Vec3 terrainNormal;
+			if (V.TerrainHeightAndNormal(mission?.Scene, new Vec2(point.x, point.y), out height, out terrainNormal))
 			{
-				float height;
-				Vec3 terrainNormal;
-				mission.Scene.GetTerrainHeightAndNormal(new Vec2(point.x, point.y), out height, out terrainNormal);
 				if (terrainNormal.LengthSquared > 1e-6f && Math.Abs(point.z - height) < 1.5f)
 				{
 					return terrainNormal.NormalizedCopy();
 				}
 			}
-			catch (Exception)
+			else if (!ReferenceEquals(_noTerrainMission, mission))
 			{
-				// 取不到地形法线 → 走探针
+				_noTerrainMission = mission;
+				DebugLogger.Log("[Spell] 本场景没有地形高度图（室内）→ 表面法线走三探针");
 			}
 			return ProbeNormal(mission, point, dir);
 		}

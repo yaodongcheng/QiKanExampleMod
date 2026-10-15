@@ -2266,19 +2266,20 @@ namespace LivingWorldNpcs.Flight
 
         // ─────────────────────────── 地形 ───────────────────────────
 
-        /// <summary>取地表高度。只用地形，不查物理体 —— 免得查到我们自己的板。</summary>
+        /// <summary>
+        /// 取地表高度。只用地形，不查物理体 —— 免得查到我们自己的板。
+        /// 🔴 室内场景（大厅 / 酒馆 / 竞技场）**没有地形高度图**，直接问 = native 空指针崩
+        ///    （2026-10-15 钩索实机同款）⇒ 一律走带闸门的 <see cref="V.TerrainHeight"/>；
+        ///     拿不到地形就退回"人物当前高度"，与原来的 catch 分支同一个兜底口径。
+        /// </summary>
         private static float GetGroundZ(Scene scene, Vec3 pos)
         {
             if (scene == null)
                 return pos.z;
-            try
-            {
-                return scene.GetTerrainHeight(new Vec2(pos.x, pos.y), true);
-            }
-            catch
-            {
+            float z;
+            if (!V.TerrainHeight(scene, new Vec2(pos.x, pos.y), out z) || float.IsNaN(z))
                 return pos.z;
-            }
+            return z;
         }
 
         // ─────────────────────────── 给控制台用的手动手控 ───────────────────────────
