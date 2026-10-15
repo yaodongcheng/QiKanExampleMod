@@ -1,0 +1,50 @@
+{
+ "name": "rdr2_stow",
+ "title": "RDR2 扛人上马（stow@lt） ↔ 骑砍2 重定向",
+ "subtitle": "左=RDR2 源（运行期骨架 .ycd 动画），右=骑砍2 align 重定向产物（28 骨 + 身体网格）。157 帧 @30fps = 5.23s。RDR2 与骑砍同为 Z-up/+Y面/+X右 ⇒ 帧变换 identity，两侧 rotY=0。",
+ "sides": {
+  "src": {
+   "label": "RDR2 源（.ycd stow@lt）",
+   "color": "#7fa8d8",
+   "rotY": 0,
+   "slot": -0.62,
+   "rootBone": "SKEL_ROOT",
+   "footBones": [
+    "SKEL_L_Toe0",
+    "SKEL_R_Toe0",
+    "SKEL_L_Foot",
+    "SKEL_R_Foot"
+   ],
+   "files": [
+    {
+     "id": "rdr2_src",
+     "url": "assets/rdr2_src_stow_lt_ped.gltf"
+    }
+   ]
+  },
+  "dst": {
+   "label": "骑砍2（align 重定向）",
+   "color": "#e0b070",
+   "rotY": 0,
+   "slot": 0.62,
+   "footBones": [
+    "l_toe0",
+    "r_toe0",
+    "l_foot",
+    "r_foot"
+   ],
+   "facingBones": [
+    "l_foot",
+    "l_toe0",
+    "r_foot",
+    "r_toe0"
+   ],
+   "files": [
+    {
+     "id": "bl_rdr2_stow",
+     "url": "assets/rdr2_stow_lt_ped.glb"
+    }
+   ]
+  }
+ }
+}

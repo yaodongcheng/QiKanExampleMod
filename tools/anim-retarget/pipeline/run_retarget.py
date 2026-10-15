@@ -68,6 +68,13 @@ RIGS = {
         "clip_arg": "--action",
         "desc": "战国无双2 铁炮兵 -> 骑砍2（源为 glTF）",
     },
+    "rdr2": {
+        "script": "pipeline/rigs/rdr2/retarget.py",
+        "map": "pipeline/rigs/rdr2/map.json",
+        "source_kind": "gltf",
+        "clip_arg": "--action",
+        "desc": "RDR2 RAGE ped -> 骑砍2（源为自产 GLTF；帧变换 identity）",
+    },
     "ue_mannequin": {
         "script": "pipeline/rigs/ue_mannequin/retarget.py",
         "map": "pipeline/rigs/ue_mannequin/map.json",

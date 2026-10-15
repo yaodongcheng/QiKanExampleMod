@@ -1931,3 +1931,34 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 3. **对比数据集里那 180° 由【源侧】承担**（2026-10-10 定）：`src.rotY = 180°`、**产物侧 `rotY` 一律 0** ⇒ 查看器里看到的产物 = 它在游戏里的真实朝向（已改 sw2_gunner / ue_flight / ue_grapple / ue_grapple_seg / ue_slim / ue_spell / ue_fly_comp / ue_exec_pair(ref)）。
 
 > 🔴 **全局纪律（用户 2026-10-10 裁定）**：**本项目不允许"先后矛盾的知识"** —— 坐标/朝向这类知识**只能有一处权威说法**（= 总纲 §0.14 §十一）；**改了知识就全仓 grep 一遍**（`Y-up` / `朝向` / `坐标轴` / `facing` / `rotY`…），旧说法**同步或删掉，不许并排留两份**；发现矛盾当场改，别记 TODO。
+
+## 🔴 改资产属性的「正路 / 旁路」分工（2026-10-15 用户裁定）
+
+| 情况 | 走哪条 | 为什么 |
+|---|---|---|
+| **ModKit 里能看见、能改的属性**（clip 的 `flags` / `priority` / `blend_*` / `source1·2` / `duration` / `animation=` 指向 / `clip_usage_data`…） | **一律在 ModKit 里改** —— **这是正路** | 编辑器是这些属性的**作者与索引持有者**：它 Save/Publish 时以内存里那份为准，磁盘上的离线改动会被**静默盖回去** |
+| **ModKit 看不见的属性** | Claude 离线用 `tpaccli`（字节级）改 | 编辑器不暴露 = 没有别的入口 |
+| **临时测试**（懒得开编辑器） | 离线**只改发布包 / 装机包**，快速验证观感或行为 | 改的是产物、不动工程；**验证完回编辑器把正路补上**，否则下次 Publish 回退 |
+
+🔴 **混为一谈的两个后果**（都踩过）：① 把"导入新资产"（铁律 31/36 管的）当成"改属性"，于是该在编辑器里改的也去离线改 ⇒ 下次 Publish 被覆盖；
+② 反过来把"改属性"当成"必须用户导入"，于是让用户去点一堆本可以一条命令搞定的东西。
+**判据一句话**：**打开编辑器能不能改到？能 ⇒ 在编辑器改；不能 ⇒ Claude 离线改；只是想临时看效果 ⇒ 改产物。**
+
+## 🔴 沙箱里 clip 元数据引用「自建动作名」⇒ 沙箱必须自己挂 `soln_action_types`（2026-10-15 实机）
+
+**症状**：在 ModKit 里给 clip 填了 `Blends with action = act_grapple_ground_hold`（自建动作），
+**重开编辑器立刻弹断言**：
+`Assertion Failed! … action_codes.cpp:94  Expression: get_action_code_index failed for act_grapple_ground_hold!`
+
+**根因**：引擎**在加载 clip 时就把该字段的名字解析成"动作号"**（就是运行时 `clip+0x1EC` 那一格）。
+编辑器只加载**沙箱模块 + Native**（LWN 打不开，所以才有沙箱），而沙箱的 `project.mbproj` 里
+**故意没挂** `soln_action_types`（怕运行时和 LWN 声明两遍）⇒ 名字解析不到 ⇒ 断言。
+
+**修法**：在沙箱的 `ModuleData/project.mbproj` 里挂一行
+`<file id="soln_action_types" name="ModuleData/action_types.xml" type="action_type" />`
+（沙箱自己那份 `action_types.xml` 里**必须已有同名声明**），**重启编辑器**生效。
+⇒ 编辑器能解析 ✓；游戏里正本仍是 LWN 的 action_types；**沙箱不进 `_MODULES_` ⇒ 运行时不会声明两遍**。
+
+⚠️ 只挂 `action_types`：断言只跟"名字→动作号"有关。`action_sets` / `item_usage_sets` 仍**不挂**（正本在 LWN，挂了两边都要维护）。
+🔴 同理：**任何"clip 元数据里写自建名字"的字段**（blends / continue / clip_usage…）都会踩这条 ——
+加之前先确认"**谁加载这条 clip，谁就认这个名字**"。

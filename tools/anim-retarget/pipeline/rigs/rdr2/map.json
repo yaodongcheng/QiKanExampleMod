@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "source_skeleton": "RDR2 ped (RAGE Skeleton) — 133 核心骨（运行期取证：骨名/索引/父子表）",
+    "target_skeleton": "Bannerlord human_skeleton (human_lod_4.fbx, 28骨)",
+    "source_frame": {
+      "up": "+Z",
+      "face": "+Y",
+      "right": "+X",
+      "unit": "m",
+      "note": "由 .yft bind（= inverse(TransformationsInverted)）实测：Z 跨度 1.95(身高) > X 1.27(左右) > Y 0.48(前后)；左右守恒：左侧=+X"
+    },
+    "target_frame": {
+      "up": "+Z",
+      "face": "+Y",
+      "right": "+X",
+      "unit": "m"
+    },
+    "frame_transform": "identity  # 源与目标同为 Z-up / +Y面 / +X右 ⇒ 无需帧变换",
+    "root_bone_source": "SKEL_Pelvis",
+    "root_bone_target": "pelvis",
+    "unit_scale_root_translation": 1.0,
+    "generated": "2026-10-15",
+    "note": "RDR2 有 133 核心骨，但只有 20 根能映射到骑砍 28 骨（与 SW2 情形相同）。骑砍的 twist1 / finger0 在 RDR2 侧取 *_01_01 变体骨。",
+    "root_rotation_source": "SKEL_Pelvis",
+    "root_rotation_note": "RDR2 的 SKEL_ROOT/SKEL_Spine_Root 只承载全局变换；骑砍 pelvis 是腿与脊柱的唯一共同父骨 ⇒ 取 SKEL_Pelvis 朝向。"
+  },
+
+  "bone_map": {
+    "SKEL_Pelvis":    "pelvis",
+    "SKEL_Spine0":    "spine",
+    "SKEL_Spine1":    "spine1",
+    "SKEL_Spine2":    "spine2",
+    "SKEL_Neck0":     "neck",
+    "SKEL_Head":      "head",
+
+    "SKEL_L_Thigh":   "l_thigh",
+    "SKEL_L_Calf":    "l_calf",
+    "SKEL_L_Foot":    "l_foot",
+    "SKEL_L_Toe0":    "l_toe0",
+    "SKEL_R_Thigh":   "r_thigh",
+    "SKEL_R_Calf":    "r_calf",
+    "SKEL_R_Foot":    "r_foot",
+    "SKEL_R_Toe0":    "r_toe0",
+
+    "SKEL_L_Clavicle":         "l_clavicle",
+    "SKEL_L_UpperArm":         "l_upperarm_twist",
+    "SKEL_L_UpperArm_02_01":   "l_upperarm_twist1",
+    "SKEL_L_Forearm":          "l_foretwist",
+    "SKEL_L_Forearm_01_01":    "l_foretwist1",
+    "SKEL_L_Hand_01_01":       "l_hand",
+    "SKEL_L_Finger00":         "l_finger0",
+
+    "SKEL_R_Clavicle":         "r_clavicle",
+    "SKEL_R_UpperArm":         "r_upperarm_twist",
+    "SKEL_R_UpperArm_02_01":   "r_upperarm_twist1",
+    "SKEL_R_Forearm":          "r_foretwist",
+    "SKEL_R_Forearm_01_01":    "r_foretwist1",
+    "SKEL_R_Hand_01_01":       "r_hand",
+    "SKEL_R_Finger00":         "r_finger0"
+  },
+
+  "target_keep_rest": [],
+
+  "source_unmapped": [
+    "SKEL_ROOT",
+    "SKEL_Spine_Root",
+    "SKEL_Neck1",
+    "SKEL_Neck2",
+    "SKEL_L_Toe_T0", "SKEL_L_Toe_T1", "SKEL_L_Toe_P0", "SKEL_L_Toe_P1", "SKEL_L_Toe_P2",
+    "SKEL_L_Toe_M0", "SKEL_L_Toe_M1", "SKEL_L_Toe_M2", "SKEL_L_Toe_I0", "SKEL_L_Toe_I1", "SKEL_L_Toe_I2",
+    "SKEL_R_Toe_T0", "SKEL_R_Toe_T1", "SKEL_R_Toe_P0", "SKEL_R_Toe_P1", "SKEL_R_Toe_P2",
+    "SKEL_R_Toe_M0", "SKEL_R_Toe_M1", "SKEL_R_Toe_M2", "SKEL_R_Toe_I0", "SKEL_R_Toe_I1", "SKEL_R_Toe_I2",
+    "SKEL_L_UpperArm_01_01", "SKEL_L_UpperArm_01_02", "SKEL_L_UpperArm_02_02",
+    "SKEL_L_Forearm_01_02", "SKEL_L_Forearm_03_01", "SKEL_L_Forearm_03_02",
+    "SKEL_L_Hand_01_02", "SKEL_L_Hand_03_01", "SKEL_L_Hand_03_02",
+    "SKEL_R_UpperArm_01_01", "SKEL_R_UpperArm_01_02", "SKEL_R_UpperArm_02_02",
+    "SKEL_R_Forearm_01_02", "SKEL_R_Forearm_03_01", "SKEL_R_Forearm_03_02",
+    "SKEL_R_Hand_01_02", "SKEL_R_Hand_03_01", "SKEL_R_Hand_03_02",
+    "SKEL_L_*_Pelt_*", "SKEL_R_*_Pelt_*", "SKEL_Tail0..2", "SKEL_*_Tail0..1",
+    "PH_*", "OH_*", "REV_*", "ID_PH_HEART", "MH_*", "ES_*", "CP_*", "SH_*", "SM_*", "RB_*", "FACIAL_*"
+  ],
+
+  "side_note": "RDR2 左侧=SKEL_L_*、右侧=SKEL_R_*；两侧同为 +Z-up/+Y面；经 identity 帧变换后左->左、右->右，无需镜像。",
+  "open_questions": [
+    "twist1 / finger0 的对应骨（_01_01 vs _02_01 vs _03_01）需用『肢段方向误差』实测择优（参考 sw2_gunner/compare_methods.py）",
+    "RDR2 的 face 究竟是 +Y 还是 -Y：需用一次『脚趾相对脚踝的朝向』实测确认（Toe0 应在 Foot 的前方）",
+    "RDR2 侧是否 Z=up：由 .yft bind 跨度推断，需用『头在最高』再确认一次"
+  ]
+}
