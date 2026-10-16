@@ -1,0 +1,60 @@
+{
+ "name": "rdr2_walk",
+ "title": "RDR2 标准走路（基准） ↔ 骑砍2 重定向",
+ "subtitle": "★ 基准用例：RDR2 通用走路 mech_loco_m@generic@normal@unarmed@walk_slow（404 帧 ≈13.5s）。【重要结论】源骨架 rest 是退化的（骨方向几乎全指 −X，实测），align 模式靠骨方向 ⇒ 会错；delta 模式只用旋转增量、不依赖骨方向 ⇒ 更稳。右侧提供两条对照：rdr2_walk(align) 与 rdr2_walk_delta(delta)。",
+ "sides": {
+  "src": {
+   "label": "RDR2 源（walk_slow）",
+   "color": "#7fa8d8",
+   "rotY": 0,
+   "slot": -0.62,
+   "rootBone": "SKEL_ROOT",
+   "footBones": [
+    "SKEL_L_Toe0",
+    "SKEL_R_Toe0",
+    "SKEL_L_Foot",
+    "SKEL_R_Foot"
+   ],
+   "files": [
+    {
+     "id": "src_walk",
+     "url": "assets/src_walk.gltf"
+    },
+    {
+     "id": "src_walk_delta",
+     "url": "assets/src_walk_delta.gltf"
+    }
+   ]
+  },
+  "dst": {
+   "label": "骑砍2（align 重定向）",
+   "color": "#e0b070",
+   "rotY": 0,
+   "slot": 0.62,
+   "footBones": [
+    "l_toe0",
+    "r_toe0",
+    "l_foot",
+    "r_foot"
+   ],
+   "facingBones": [
+    "l_foot",
+    "l_toe0",
+    "r_foot",
+    "r_toe0"
+   ],
+   "files": [
+    {
+     "id": "dst_walk_align",
+     "url": "assets/bl_walk.glb",
+     "label": "align"
+    },
+    {
+     "id": "dst_walk_delta",
+     "url": "assets/bl_walk_delta.glb",
+     "label": "delta"
+    }
+   ]
+  }
+ }
+}

@@ -238,17 +238,14 @@ def main():
         if not b or not tb: continue
         ks = mapped_kids(src, s, True); kt = mapped_kids(tgt, t, False)
         if not ks or not kt: continue
-        if len(ks) == 1 and len(kt) == 1:
-            cs, ct = ks[0], kt[0]
-        else:
-            # 多分支骨(pelvis/spine2)：只认"躯干延续"子骨(子树含 head)，否则不做对齐
-            ct = next((k for k in kt if subtree_has(tgt, k, "head")), None)
-            if not ct: continue
-            cs = next((k for k in ks if mapping.get(k) == ct), None)
-            if not cs:
-                # 回退：目标子骨在源侧无同名映射时，按"同样含 head 子树"挑
-                cs = next((k for k in ks if any(mapping.get(k2) == ct for k2 in ks)), None)
-            if not cs: continue
+        # ★ 配对规则（按"目标侧优先"）：
+        #   目标只有 1 个映射子骨(绝大多数骨，含手臂链) ⇒ 直接取"源侧映射到它的那一根"
+        #   —— 这样源侧多出来的 twist/分支骨不会把手臂整条链挤掉（曾导致手臂横张）
+        #   目标有多个映射子骨(仅 pelvis/spine2) ⇒ 认"躯干延续"(子树含 head)那一支
+        ct = kt[0] if len(kt) == 1 else next((k for k in kt if subtree_has(tgt, k, "head")), None)
+        if not ct: continue
+        cs = next((k for k in ks if mapping.get(k) == ct), None)
+        if not cs: continue
         vs = out_dir(src, s, cs); vt = out_dir(tgt, t, ct)
         if vs is None or vt is None: continue
         vs = (F @ vs).normalized(); vt = vt.normalized()
@@ -286,7 +283,7 @@ def main():
             pb.rotation_mode = 'QUATERNION'
             pb.keyframe_insert(data_path="rotation_quaternion", frame=f)
 
-        if args.pelvis == "delta" and tgt_root in tgt.pose.bones:
+        if args.pelvis in ("delta", "delta_ground") and tgt_root in tgt.pose.bones:
             head = (src.matrix_world @ src.pose.bones[src_root].matrix).translation
             off = F @ ((head - src_root_head0) * uscale)
             pb = tgt.pose.bones[tgt_root]
@@ -295,7 +292,6 @@ def main():
             pb.matrix = m
             bpy.context.view_layer.update()
             pb.keyframe_insert(data_path="location", frame=f)
-
         if args.dump:
             row = {"f": f}
             for s, t in sorted(mapping.items(), key=lambda kv: kv[1]):
@@ -315,6 +311,29 @@ def main():
             dump_rows.append(row)
 
     # ---------- 4) 贴地 ----------
+    if args.pelvis == "delta_ground" and tgt_root in tgt.pose.bones:
+        # ★ 常量贴地（RDR2 专用）：源动画相对 bind 是"抬根"的（走路时骨盆比 bind 高 ~0.16 m），
+        #   直接走 delta 会**脚悬空**（实测最低脚 z 0.29~0.62 m）；而逐帧 ground 又会**造假颠簸**
+        #   （骨盆垂直行程被放大 8 倍：源 0.035 m → 0.29 m）。
+        #   正解：整段只算一次常量偏移（取"整段最低脚"贴到 0），既保住源自身的摆动又让接触帧落地。
+        ground_bones = [b for b in ("l_toe0", "r_toe0", "l_foot", "r_foot") if b in tgt.pose.bones]
+        lows = []
+        for f in frames:
+            sc.frame_set(f); bpy.context.view_layer.update()
+            lows.append(min((tgt.matrix_world @ tgt.pose.bones[b].head).z for b in ground_bones))
+        shift = min(lows)
+        log("常量贴地: 整段最低脚 z=%.4f（逐帧最低范围 %.4f~%.4f）⇒ 整体下移 %.4f" %
+            (shift, min(lows), max(lows), shift))
+        for f in frames:
+            sc.frame_set(f); bpy.context.view_layer.update()
+            pb = tgt.pose.bones[tgt_root]
+            m = pb.matrix.copy()
+            m.translation.z -= shift
+            pb.matrix = m
+            bpy.context.view_layer.update()
+            pb.keyframe_insert(data_path="location", frame=f)
+        log("常量贴地完成")
+
     if args.pelvis == "ground" and tgt_root in tgt.pose.bones:
         ground_bones = [b for b in ("l_toe0","r_toe0","l_foot","r_foot") if b in tgt.pose.bones]
         log("自动贴地 (脚最低点 -> 地面 0)")

@@ -648,7 +648,8 @@ namespace LivingWorldNpcs
 			Vec3 hand, aim;
 			bool aimAgent;
 			string why;
-			if (!TryAim(out hand, out aim, out aimAgent, out why))
+			Vec3 aimNormal;
+			if (!TryAim(out hand, out aim, out aimAgent, out why, out aimNormal))
 			{
 				// 相机准星打空 → 退回"这一枪自己的弹道"（见 ThrowFromShot 注释）
 				if (!hasShot || !TryAimAlongShot(mission, shotOrigin, shotDirection, out hand, out aim, out aimAgent))
@@ -745,7 +746,7 @@ namespace LivingWorldNpcs
 			_attachAutoPull = autoPull;
 			_attachTimer = 0f;
 			DebugLogger.Log($"[Grapple] 发射：起点={Fmt(launchFrom)}{(_hook.IsParked ? "(= 圆周上那枚此刻的位置)" : "(手)")}"
-				+ $" 手={Fmt(hand)} 瞄准={Fmt(aim)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
+				+ $" 手={Fmt(hand)} 瞄准={Fmt(aim)} 瞄准面法线={Fmt(aimNormal)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
 				+ $" | 起手={(autoPull ? "武器开火(命中后自动拉)" : "命令(命中即停)")} 空中起钩={_attachFromAir}");
 
 			// 🔊 抛出瞬间的甩绳声（2026-10-10）—— **整条钩索流程只响这一下**
@@ -785,7 +786,8 @@ namespace LivingWorldNpcs
 			Vec3 hand, aim;
 			bool aimAgent;
 			string why;
-			if (!TryAim(out hand, out aim, out aimAgent, out why))
+			Vec3 aimNormal;
+			if (!TryAim(out hand, out aim, out aimAgent, out why, out aimNormal))
 			{
 				return "Error: " + why;
 			}
@@ -797,9 +799,10 @@ namespace LivingWorldNpcs
 			}
 
 			Vec3 playerPos = Agent.Main != null ? Agent.Main.Position : hand;
-			GrappleLanding.Result r = GrappleLanding.Solve(mission.Scene, aim, playerPos);
-			return string.Format("probe: aim=({0:F2},{1:F2},{2:F2}) dist={3:F1}m | {4}",
-				aim.x, aim.y, aim.z, (aim - playerPos).Length, GrappleLanding.Describe(r));
+			GrappleLanding.Result r = GrappleLanding.Solve(mission.Scene, aim, playerPos, aimNormal);
+			return string.Format("probe: aim=({0:F2},{1:F2},{2:F2}) n=({3:F2},{4:F2},{5:F2}) dist={6:F1}m | {7}",
+				aim.x, aim.y, aim.z, aimNormal.x, aimNormal.y, aimNormal.z,
+				(aim - playerPos).Length, GrappleLanding.Describe(r));
 		}
 
 		/// <summary>
@@ -1046,12 +1049,13 @@ namespace LivingWorldNpcs
 		/// 返回 false = 拿不到方向（接管中没人注册）或打空（天上）。
 		/// 🔴 方向来源 = <see cref="CameraLook.TryGet"/>（铁律 35）；位置可以照读（相机 frame 的 origin）。
 		/// </summary>
-		private bool TryAim(out Vec3 hand, out Vec3 aim, out bool hitAgent, out string why)
+		private bool TryAim(out Vec3 hand, out Vec3 aim, out bool hitAgent, out string why, out Vec3 normal)
 		{
 			hand = GetHand();
 			aim = hand;
 			hitAgent = false;
 			why = "";
+			normal = Vec3.Up;                       // 没命中 = 当作"朝上的面"（不受盖板判据管）
 
 			Mission mission = Mission;
 			if (mission?.Scene == null)
@@ -1088,8 +1092,9 @@ namespace LivingWorldNpcs
 			{
 				Agent victim;
 				Vec3 point;
-				if (!SpellSweep.FindNearestHit(mission, origin, end, AimAgentRadius, main.Index, null,
-					out victim, out point))
+				Vec3 hitNormal;
+				if (!SpellSweep.FindNearestHit(mission, origin, end, AimAgentRadius, main.Index, null, null, null,
+					out victim, out point, out hitNormal))
 				{
 					// 打空时把射线的三个关键量打进日志 —— "相机泡在几何体里"这类问题一看就知道
 					DebugLogger.Log(string.Format(
@@ -1110,6 +1115,7 @@ namespace LivingWorldNpcs
 				}
 
 				aim = point;
+				normal = hitNormal;                     // 命中面朝向（只进日志/回执 —— 盖板判据锚在钩点上方，不看法线）
 				hitAgent = victim != null;
 				DebugLogger.Log(string.Format(
 					"[Grapple] 瞄准：相机→命中 {0:F2}m · 手→命中 {1:F2}m · 目标={2} 命中点=({3:F2},{4:F2},{5:F2})",
@@ -1169,9 +1175,21 @@ namespace LivingWorldNpcs
 		private void ResolveLanding()
 		{
 			Vec3 playerPos = Agent.Main != null ? Agent.Main.Position : GetHand();
-			_landing = GrappleLanding.Solve(Mission?.Scene, _hook.AttachedPoint, playerPos);
+			_landing = GrappleLanding.Solve(Mission?.Scene, _hook.AttachedPoint, playerPos, _hook.AttachedNormal);
 			_landingNote = GrappleLanding.Describe(_landing);
-			DebugLogger.Log($"[Grapple] 落点解算 @ 钩点 {Fmt(_hook.AttachedPoint)}：{_landingNote}");
+			DebugLogger.Log($"[Grapple] 落点解算 @ 钩点 {Fmt(_hook.AttachedPoint)} 法线={Fmt(_hook.AttachedNormal)}：{_landingNote}");
+			// 🔴 **盖板**（2026-10-15/16 室内勾天花板事故；方案 §二十一）——命中了就多打一行，验收看这一行：
+			//    盖板 = **钩点正上方**最近的那块东西（天花板 / 檐口 / 楼板 / 桥面…；量法见 `GrappleLanding.FindLid`）。
+			//    `否掉 N 个候选` = 那些"算在盖板上面"的落点被判死；
+			//    `压到盖板下面` = 没有可站的平台 ⇒ 兜底落点被压到盖板下方（表现 = 拉上去→再掉回地面），
+			//    而不是旧行为那样把脚直接放到天花板那一层（会穿出房顶）。
+			if (GrappleLanding.LidCheck && (_landing.Blocked > 0 || _landing.LidClamped))
+			{
+				DebugLogger.Log($"[Grapple] 盖板 z={_landing.LidZ:F2}（钩点正上方那块）：否掉 {_landing.Blocked} 个候选"
+					+ (_landing.LidClamped
+						? $"；兜底落点压到盖板下面 ({_landing.Endpoint.z:F2}) ⇒ 拉上去再掉回地面"
+						: "；落点仍在盖板下面，照常拉"));
+			}
 		}
 
 		/// <summary>绳的远端：勾住人 = 目标身上；其余 = 钩头位置。</summary>

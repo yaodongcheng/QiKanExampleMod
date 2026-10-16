@@ -1,0 +1,122 @@
+{
+ "name": "rdr2_carry",
+ "title": "RDR2 扛/搬 系列 8 条 ↔ 骑砍2 重定向（横向对比）",
+ "subtitle": "左=RDR2 源（运行期骨架 + .ycd 原动画），右=骑砍2 align 重定向（28 骨 + 身体网格）。两点提醒：①源骨架 rest 由运行期 quat 合成、偏含背前倾；②drop_body 的 CHECK_POS=1.295（项目判定线 >0.86 视为位移语义误用，待修）。",
+ "sides": {
+  "src": {
+   "label": "RDR2 源",
+   "color": "#7fa8d8",
+   "rotY": 0,
+   "slot": -0.62,
+   "rootBone": "SKEL_ROOT",
+   "footBones": [
+    "SKEL_L_Toe0",
+    "SKEL_R_Toe0",
+    "SKEL_L_Foot",
+    "SKEL_R_Foot"
+   ],
+   "files": [
+    {
+     "id": "src_pickup_body",
+     "url": "assets/src_pickup_body.gltf",
+     "label": "扛起"
+    },
+    {
+     "id": "src_putdown_body",
+     "url": "assets/src_putdown_body.gltf",
+     "label": "放下"
+    },
+    {
+     "id": "src_throw_body",
+     "url": "assets/src_throw_body.gltf",
+     "label": "扔出"
+    },
+    {
+     "id": "src_stow_lt",
+     "url": "assets/src_stow_lt.gltf",
+     "label": "放上马(左)"
+    },
+    {
+     "id": "src_remove_lt",
+     "url": "assets/src_remove_lt.gltf",
+     "label": "取下(左)"
+    },
+    {
+     "id": "src_carried_mount",
+     "url": "assets/src_carried_mount.gltf",
+     "label": "驮着"
+    },
+    {
+     "id": "src_injured_idle",
+     "url": "assets/src_injured_idle.gltf",
+     "label": "受伤待机"
+    },
+    {
+     "id": "src_drop_body",
+     "url": "assets/src_drop_body.gltf",
+     "label": "丢下"
+    }
+   ]
+  },
+  "dst": {
+   "label": "骑砍2（align 重定向）",
+   "color": "#e0b070",
+   "rotY": 0,
+   "slot": 0.62,
+   "footBones": [
+    "l_toe0",
+    "r_toe0",
+    "l_foot",
+    "r_foot"
+   ],
+   "facingBones": [
+    "l_foot",
+    "l_toe0",
+    "r_foot",
+    "r_toe0"
+   ],
+   "files": [
+    {
+     "id": "dst_pickup_body",
+     "url": "assets/bl_pickup_body.glb",
+     "label": "扛起"
+    },
+    {
+     "id": "dst_putdown_body",
+     "url": "assets/bl_putdown_body.glb",
+     "label": "放下"
+    },
+    {
+     "id": "dst_throw_body",
+     "url": "assets/bl_throw_body.glb",
+     "label": "扔出"
+    },
+    {
+     "id": "dst_stow_lt",
+     "url": "assets/bl_stow_lt.glb",
+     "label": "放上马(左)"
+    },
+    {
+     "id": "dst_remove_lt",
+     "url": "assets/bl_remove_lt.glb",
+     "label": "取下(左)"
+    },
+    {
+     "id": "dst_carried_mount",
+     "url": "assets/bl_carried_mount.glb",
+     "label": "驮着"
+    },
+    {
+     "id": "dst_injured_idle",
+     "url": "assets/bl_injured_idle.glb",
+     "label": "受伤待机"
+    },
+    {
+     "id": "dst_drop_body",
+     "url": "assets/bl_drop_body.glb",
+     "label": "丢下"
+    }
+   ]
+  }
+ }
+}

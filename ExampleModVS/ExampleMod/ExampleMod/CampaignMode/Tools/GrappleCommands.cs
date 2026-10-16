@@ -79,6 +79,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple headroom &lt;米&gt;      落点平台：头顶净空要求（默认 2.0）
 	///   custom.grapple ring &lt;r1,r2,...&gt;   落点平台：环形采样半径表（米，默认 0.4,0.8,1.3,2.0）
 	///   custom.grapple backoff &lt;米&gt;       没平台时沿射线退回的距离（默认 1.5）
+	///   custom.grapple lid 0|1 [余量]      盖板判据（默认 ON）：落点不许高过"**钩点正上方**那块东西"
+	///                                     （勾天花板时就是天花板；没平台就把兜底落点压到板下 = 拉上去→再掉回地面）。0 = 旧行为（会落到房顶上）
 	///   custom.grapple lreset             落点平台参数恢复默认
 	///
 	/// —— 步骤 3 起（武器接线）——
@@ -163,7 +165,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
-					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lreset" || s == "equip" || s == "hint" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
+					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lid" || s == "lreset" || s == "equip" || s == "hint" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
 					|| s == "mountedpull" || s == "mountedwait" || s == "horse"					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "bind" || s == "carry"
@@ -968,6 +970,33 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					if (v < 0f) { result = "Error: backoff needs meters >= 0 (e.g. custom.grapple backoff 1.5)"; break; }
 					GrappleLanding.FallbackBackoff = v;
 					result = $"grapple: no-platform backoff = {v:F1}m";
+					break;
+				}
+
+				// 🔴 **盖板开关**（2026-10-15/16「室内勾天花板 → 人被抬到房顶上」事故；方案 §二十一）。
+				//    判据与取舍的长注释在 `GrappleLanding.LidCheck` 上。默认 ON；`lid 0` = 旧行为（对照用）。
+				case "lid":
+				{
+					float on = ParseF(args, at + 0, float.NaN);
+					if (float.IsNaN(on))
+					{
+						// 首参可弃：给了别的东西（或干脆没给）= 只回状态，不报错
+						result = $"grapple: ceiling (lid) check = {(GrappleLanding.LidCheck ? "ON" : "OFF")}"
+							+ $", clearance = {GrappleLanding.LidClearance:F2}m"
+							+ " -- usage: custom.grapple lid 0|1 [clearance]"
+							+ " (lid = whatever sits right above the HOOK point - a ceiling you hooked from below, an eave over a"
+							+ " wall... A landing above the lid is rejected; with no platform the pull is clamped under it ->"
+							+ " you get yanked up and drop back. OFF = old behaviour, e.g. onto the roof)";
+						break;
+					}
+					GrappleLanding.LidCheck = on > 0.5f;
+					float c = ParseF(args, at + 1, -1f);
+					if (c > 0f)
+					{
+						GrappleLanding.LidClearance = c;
+					}
+					result = $"grapple: ceiling (lid) check = {(GrappleLanding.LidCheck ? "ON" : "OFF")}"
+						+ $", clearance = {GrappleLanding.LidClearance:F2}m";
 					break;
 				}
 

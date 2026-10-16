@@ -96,6 +96,19 @@ namespace LivingWorldNpcs
 		/// <summary>命中点（Attached 后有效，供落点解算与绳用）。</summary>
 		public Vec3 AttachedPoint { get; private set; }
 
+		/// <summary>
+		/// 勾住的**表面法线**（朝向来向；`Vec3.Up` = 未知 / 勾的是人 / 还没命中）。
+		///
+		/// 🔴 2026-10-16 加（用户指出"室内**斜着**打天花板"的缺口）：它是"盖板判据"的**第二条来源** ——
+		///    `normal.z &lt; 0` 说明勾住的是一块**朝下的面**（天花板 / 屋檐 / 桥底）⇒ 那块面本身就算"盖板"，
+		///    落点不许高过它。第一条来源（玩家头顶那块板）只管得住"你正站在它下面"，
+		///    斜着打时勾住的点在几米外、你头顶可能什么都没有，只有这条能说清。
+		/// 来源 = `SpellSweep.FindNearestHit` 的第三个出参（**引擎一直在算，只是原来被丢掉了**）。
+		/// ⚠️ 口径：地形命中给的是**地形自身法线**（永远朝上）；墙面/物件走三探针估平面；
+		///    估不出来时退 `-来向`——朝上打的钩在那种情况下也会得到"朝下的法线"（保守，方向是对的）。
+		/// </summary>
+		public Vec3 AttachedNormal { get; private set; } = Vec3.Up;
+
 		private GameEntity _entity;
 		private bool _shown;                 // 我们有没有把它标成"显示"（诊断用：瞬时不见时先看这个）
 		private readonly GrappleRig _rig;      // 根实体（钩/绳/环 同属一个根，2026-10-08）
@@ -135,6 +148,7 @@ namespace LivingWorldNpcs
 			_checkTimer = 0f;
 			AttachedAgent = null;
 			AttachedPoint = from;
+			AttachedNormal = Vec3.Up;                    // 上一根的旧法线不许带进这一根（见 AttachedNormal 的注释）
 			State = Phase.Flying;
 
 			SpawnEntity(scene);
@@ -186,16 +200,21 @@ namespace LivingWorldNpcs
 
 				Agent victim;
 				Vec3 point;
+				Vec3 normal;
 				bool hit = false;
 				try
 				{
+					// 🔴 **把法线留下来**（2026-10-16）：落点判据要用它判"勾住的是不是一块朝下的面（盖板）"。
+					//    法线本来就在算（FindNearestHit 内部按命中类型给：地形法线 / 三探针平面 / -来向），
+					//    以前只是用不带 normal 的重载把它丢了 —— 换重载即可，零额外开销。
 					hit = SpellSweep.FindNearestHit(mission, _checkFrom, next, HitRadius,
-						excludeAgentIndex, null, out victim, out point);
+						excludeAgentIndex, null, null, null, out victim, out point, out normal);
 				}
 				catch (Exception)
 				{
 					victim = null;
 					point = next;
+					normal = Vec3.Up;
 				}
 				_checkFrom = next;
 
@@ -203,6 +222,7 @@ namespace LivingWorldNpcs
 				{
 					Position = point;
 					AttachedPoint = point;
+					AttachedNormal = normal;
 					AttachedAgent = victim;
 					State = Phase.Attached;
 					MoveEntity();
@@ -211,7 +231,8 @@ namespace LivingWorldNpcs
 						DebugLogger.Log($"[Grapple] 钩头勾住人：{victim.Name} @ {Fmt(point)}");
 						return StepResult.HitAgent;
 					}
-					DebugLogger.Log($"[Grapple] 钩头勾住地形 @ {Fmt(point)}");
+					DebugLogger.Log($"[Grapple] 钩头勾住地形 @ {Fmt(point)} 法线=({normal.x:F2},{normal.y:F2},{normal.z:F2})"
+						+ (normal.z < 0f ? " ⇒ 朝下的面（天花板/屋檐/桥底一类）" : ""));
 					return StepResult.HitWorld;
 				}
 			}
@@ -244,6 +265,7 @@ namespace LivingWorldNpcs
 			_parked = false;              // 手里待命态一并清掉（发射前会先 Clear）
 			State = Phase.Idle;
 			AttachedAgent = null;
+			AttachedNormal = Vec3.Up;     // 收掉 = 上一根的"勾住的是什么面"作废（见 AttachedNormal 的注释）
 			_travelled = 0f;
 			_checkTimer = 0f;
 		}
