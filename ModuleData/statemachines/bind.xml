@@ -90,14 +90,23 @@
 		     · 牵着走（绳主走路）      = 站缚 ⇄ 被拖行（binded_walk，他自己在走）
 		     · 拖在地上（绳主骑马/跑）  = → 拉倒 → 趴缚（趴着被拖）；C# 入形态那一刻也会直接 Force "yank-trigger"，
 		       这两条边是**兜底**（万一那一刻人正处在别的状态、Force 没落上）。
-		     🔴 拖在地上那条必须**排在"被牵着走"前面**（命中即定：先判是不是被拖，再判是不是被牵）。 -->
+		     🔴 拖在地上那条必须**排在"被牵着走"前面**（命中即定：先判是不是被拖，再判是不是被牵）。
+		     🔴🔴 **2026-10-19 实机（战场骑马拖人 = 他一直站着）：`受击` 那 1.7 秒里也会开始拖** ——
+		        原来 `拉倒` 只从「站缚/被拖行」有边，`受击` 里来的 Force **静默落空**，
+		        而 C# 那边已经把"已放倒"记上了 ⇒ **永远不再尝试**。所以这里必须把
+		        「受击 / 被拖行 / 挣扎」都补上 `yank-trigger`（事件）与 `bind-being-dragged`（谓词兜底）。 -->
 		<edge from="站缚" to="拉倒" when="bind-being-dragged" />
 		<edge from="被拖行" to="拉倒" when="bind-being-dragged" />
+		<edge from="受击" to="拉倒" when="bind-being-dragged" />
+		<edge from="挣扎" to="拉倒" when="bind-being-dragged" />
 		<edge from="站缚" to="被拖行" when="bind-being-pulled" />
 		<edge from="被拖行" to="站缚" when="bind-being-pulled" not="true" />
 
 		<!-- 拉倒 / 起身（都是事件边，由 C# 按玩家输入与定时器 Force） -->
 		<edge from="站缚" to="拉倒" when="yank-trigger" event="true" />
+		<edge from="被拖行" to="拉倒" when="yank-trigger" event="true" />
+		<edge from="受击" to="拉倒" when="yank-trigger" event="true" />
+		<edge from="挣扎" to="拉倒" when="yank-trigger" event="true" />
 		<edge from="趴缚" to="起身" when="rise-trigger" event="true" />
 
 		<!-- 扛人（扛起 / 放下；被扛行与被扛走按"扛人者在不在动"切） -->

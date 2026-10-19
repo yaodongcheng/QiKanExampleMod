@@ -348,10 +348,17 @@ namespace LivingWorldNpcs
             //    两条互斥的判据：扛起要求"够得着"（≤ carry maxdist，默认 3 米），
             //    而拉紧要求"够不着"（> 3 米）⇒ **同一时刻只可能出一条**，共用一把键不打架。
             //    （与"F 短按=对话 / F 长按=搜刮"同一套家规：短按给轻动作、长按给要意图的大动作。）
-            // 🔴 牵着绳时 **Plot / StopPlan（也是 G 长按）让位** —— 理由同【松绳】占 F 长按那套：
-            //    手被绳子占着，且对随从下令本来也该先松开绳。
-            [InteractionIds.TugRope] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Short" },
-            [InteractionIds.LiftCarried] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
+            // ⚠️ 历史：G 时代【拉紧/扛起】与 Plot/StopPlan（G 长按）同键，所以有一条"牵着绳时 Plot 让位"；
+            //    改成 T 之后两者已不同键，那条让位逻辑保留无害（不再被触发）。
+            //
+            // 🔴🔴 **2026-10-19 键位从 G 改成 T（实机事故）**：G 是原版 `CombatHotKeyCategory` 的
+            //    **`DropWeapon`**（见用户 `Configs/BannerlordGameKeys.xml`）——我们的输入是**轮询、不吞键**
+            //    ⇒ 按 G 拉紧的同时**把绳扔在地上** ⇒ `玩家收刀` ⇒ 触发"玩家收起钩索 = 松手放人"那条出口
+            //    ⇒ 实机症状："**我拉紧之后绳子突然没了**"（日志同一毫秒：`拽倒` → `玩家收刀` → `收钩`）。
+            //    T 在单机任务里**没有任何原版绑定**（只有联机聊天），是 Combat/Generic 两类里最干净的字母键。
+            //    ⚠️ 想换回 G（或别的键）：改这里 / `config.json` → `Interactions`，但先确认它不是原版战斗键。
+            [InteractionIds.TugRope] = new InteractionBindingConfig { Keyboard = "T", Gamepad = "LB", PressMode = "Short" },
+            [InteractionIds.LiftCarried] = new InteractionBindingConfig { Keyboard = "T", Gamepad = "LB", PressMode = "Long" },
             // 施法（阶段 3 起手轴）：**按住蓄力、松手放**。
             // 🔴 默认键 = X，**不是 R** —— R 是原版"切换第一人称/视角"的键，按下去会**同时**触发切视角
             //    （我们的 ModInput 是轮询读取、不吞键，所以物理键冲突会双触发；2026-09-24 用户实机报的）。

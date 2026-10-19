@@ -171,6 +171,10 @@ switch (command)
     {
         return ParticleDump.Run(dir, filter);
     }
+    case "shapedump":
+    {
+        return ShapeDump.Run(dir, filter);
+    }
     case "prtroundtrip":
     {
         return ParticleRoundtrip.Run(dir, filter);

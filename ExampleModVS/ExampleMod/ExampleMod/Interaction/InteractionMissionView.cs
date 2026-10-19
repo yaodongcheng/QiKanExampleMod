@@ -439,9 +439,9 @@ namespace LivingWorldNpcs
 
         private void HandleInput()
         {
-            // 战斗模式下不处理任何交互输入（击晕/偷窃/对话均不可用）
-            if (Settings.Instance.IsInteractionDisabled())
-                return;
+            // 🔴 2026-10-19（用户裁定）：**面板与输入在所有场景通用** —— 门控不再按 Mission 模式提前 return，
+            //    改由**选项级**白名单决定谁能在被禁模式（战斗等）里出现（见 <see cref="AddInteractionRow"/> /
+            //    <see cref="IsOptionAllowedNow"/>）。`_availableIds` 里只会有"允许注册"的那几行 ⇒ 这里直接分发。
 
             // 遍历当前可用玩法列表：短/长按触发即执行。
             // 同一物理键多玩法行的互斥由状态机保证（一次按下只短或长其一）；
@@ -547,7 +547,7 @@ namespace LivingWorldNpcs
                 // UI 显隐：近箱子 → 显示 Lockpick 按钮；**手里牵着人 → 显示【松绳】**（玩家自身状态行，
                 // 与"在看谁"无关 —— 用户 2026-10-09 拍板：不能要求玩家把准星怼到趴着的身体上才给这个键）；
                 // 其余无目标 → 隐藏（available=[Inspect] 保留探查响应）
-                bool showSelfPanel = nearChest || IsRopeHeld();
+                bool showSelfPanel = (nearChest || IsRopeHeld()) && _uiItems.Count > 0;
                 if (showSelfPanel)
                 {
                     if (!_interactVM.IsVisible || _availableChanged)
@@ -602,7 +602,10 @@ namespace LivingWorldNpcs
             bool crouchStateChanged = (isCrouching != _lastWasCrouching);
             bool animalStateChanged = (isAnimal != _lastWasAnimal);
 
-            if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || intentChanged || _availableChanged || !_interactVM.IsVisible)
+            // 🔴 2026-10-19（面板全场景通用）：**一行选项都没有就不显示面板** ——
+            //    战场等被禁模式里选项被逐个门控掉之后，面板不该以"只剩一个名字"的空壳出现。
+            bool hasRows = _uiItems.Count > 0;
+            if (hasRows && (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || intentChanged || _availableChanged || !_interactVM.IsVisible))
             {
                 _interactVM.UpdateTarget(_uiTargetName, _uiItems, _uiTargetColor);
                 _interactVM.IsVisible = true;
@@ -615,6 +618,12 @@ namespace LivingWorldNpcs
                 _lastWasCrouching = isCrouching;
                 _lastWasAnimal = isAnimal;
                 _lastNpcIntentType = currentNpcIntentType;
+            }
+            else if (!hasRows && _interactVM.IsVisible)
+            {
+                // 没有任何可用选项（例如战场里全部被选项级门控挡掉）⇒ 面板收起来
+                _interactVM.IsVisible = false;
+                IsHandlingInteraction = false;
             }
         }
 
@@ -985,8 +994,29 @@ namespace LivingWorldNpcs
         /// 向当前上下文添加一个玩法行：available（响应）与 UI 项（显示）同源添加。
         /// 结构性杜绝"加了响应忘加按钮 / 加了按钮忘加响应"——显隐与响应不可能错位。
         /// </summary>
+        /// <summary>
+        /// **选项级门控**（2026-10-19 用户裁定，取代"整块面板跟着战斗关"）：
+        /// 交互面板在**所有场景**通用；被禁模式（`Settings.DisabledInteractionMissionModes`，默认含 Battle）里
+        /// **每个选项默认不注册**，**只有白名单放行**。
+        ///
+        /// 🔴 白名单当前 = **【松绳】+【拉紧】+【扛起/放下/马背】**（`CutRope` / `TugRope` / `LiftCarried`）——
+        ///    绳上绑着人时这些是**唯一出口**：松绳 = 放人；拉紧 = 把人拉倒；
+        ///    扛起/放下/放上马背/从马背拿下 共用 `LiftCarried` 一个 id，一起放行
+        ///    （否则"扛着俘虏"在战场里出得去、放不下 = 死结）。
+        ///    被关掉 = 玩家被自己的绳卡死在战场里（实机："战场里面交互面板被隐藏了无法松绳"）。
+        /// 🔴 **新增选项默认就是"被禁模式里不放行"**——要放到战场用，必须往这里加一条并写清理由。
+        /// </summary>
+        private static bool IsOptionAllowedNow(string id)
+        {
+            if (!Settings.Instance.IsInteractionDisabled()) return true;
+            return id == InteractionIds.CutRope
+                || id == InteractionIds.TugRope
+                || id == InteractionIds.LiftCarried;
+        }
+
         private void AddInteractionRow(string interactionId, string displayText)
         {
+            if (!IsOptionAllowedNow(interactionId)) return;   // 被禁模式 ⇒ 选项默认不注册（白名单见上）
             _availableIds.Add(interactionId);
             _uiItems.Add((displayText, interactionId));
         }
@@ -1012,7 +1042,11 @@ namespace LivingWorldNpcs
             else
             {
                 // 无目标探查：只加响应（UI 隐藏、无按钮），探查键无 focus 看自己
-                _availableIds.Add(InteractionIds.Inspect);
+                // 🔴 2026-10-19：同样走**选项级**门控（被禁模式里默认不给）
+                if (IsOptionAllowedNow(InteractionIds.Inspect))
+                {
+                    _availableIds.Add(InteractionIds.Inspect);
+                }
             }
 
             // 🔴 **玩家自身状态行**（钩索「勾人」§13.14 TODO 4）：无目标上下文 = "我自己能做什么"的语境 ——
@@ -1104,6 +1138,18 @@ namespace LivingWorldNpcs
                     // 本地化：搜刮交互按钮
                     AddInteractionRow(InteractionIds.Loot, LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"));
                 }
+            }
+            else if (isAlive && currentAgent.Character == null)
+            {
+                // 🔴 无 Character 的活 agent = **马/驮畜**（2026-10-19 实机崩溃）：
+                //    引擎的 Mission.CreateHorseAgentFromRosterElements 只按 Monster 造马，**从不填 Character**
+                //    ⇒ 原版对话链 HeroKnownInformationCampaignBehavior.OnAgentJoinedConversation 第一行
+                //    `((CharacterObject)agent.Character).IsHero` 当场 NRE（对马按【对话】必崩）。
+                //    Talk/密信/偷/击晕/认输 对马也没有语义 —— 这里只给【探查】，
+                //    显示与触发同源双断：行不注册，HandleInput 就不会监听该键。
+                //    （牵着绳时的【从马背拿下】等行由末尾 AddRopeRows 单独追加，不受这里影响。）
+                // 本地化：探查交互按钮
+                AddInteractionRow(InteractionIds.Inspect, LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"));
             }
             else if (isAlive)
             {
@@ -1343,9 +1389,11 @@ namespace LivingWorldNpcs
             CompassHud.OnTick(dt);
             PerfProfiler.Accum(PerfSlot.IMV_Compass, p3); // perf: IMV_Compass
 
-            // 战斗模式下跳过交互 UI 全部逻辑：大世界遭遇/箱子/射线检测/交互选项构建
-            if (Settings.Instance.IsInteractionDisabled())
-                return;
+            // 🔴 2026-10-19（用户裁定）：**交互面板提升为所有场景通用** —— 这里不再按 Mission 模式整块 return。
+            //    门控下沉到**选项**：被禁模式（`DisabledInteractionMissionModes`，默认含 Battle）里
+            //    **每个选项默认不注册**，只有白名单（目前 = 【松绳】）能出现 —— 见 `AddInteractionRow` /
+            //    `IsOptionAllowedNow`。理由：绳绑着人时若没有"松绳"这个出口，玩家会被自己的绳卡死；
+            //    而其余社交/犯罪选项在战场本来就没意义。
 
             // ── 大世界遭遇对话：自动触发自定义对话 ──
             if (MapEncounterDialogState.Active && !_encounterDialogStarted)
@@ -1483,6 +1531,17 @@ namespace LivingWorldNpcs
         }
         private void StartVanillaConversation(Agent agent)
         {
+            // 🔴 硬门槛（2026-10-19 实机 NRE）：原版对话链假设 agent.Character 是 CharacterObject ——
+            //    HeroKnownInformationCampaignBehavior.OnAgentJoinedConversation 直接 `((CharacterObject)agent.Character).IsHero`。
+            //    马/驮畜的 Character 恒为 null（引擎只按 Monster 造）⇒ 放进去必崩。
+            //    注册层（BuildAgentContext）已经不给这类目标注册【对话】；这里是**兜底**，
+            //    任何别的调用方（旧列表时序 / 未来新增入口）都拦得住。
+            if (agent == null || !(agent.Character is CharacterObject))
+            {
+                DebugLogger.Log($"[Interaction] StartVanillaConversation skipped: agent={(agent == null ? "null" : agent.Name?.ToString() ?? "?")} 没有 CharacterObject（马/牲畜？）");
+                return;
+            }
+
             // 获取任务中的对话逻辑控制器
             var conversationLogic = Mission.Current.GetMissionBehavior<MissionConversationLogic>();
 

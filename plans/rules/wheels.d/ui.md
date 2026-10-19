@@ -704,3 +704,20 @@ V.LoadMov(_layer, "HeroDetail", _detailVm);          // 同层换片
 
 **推论（2026-09-11 实践）**：把界面的取数从活世界搬到**内容包预生成的静态表**（见 campaign-mode.md「AssetRegistry 契约」），
 就能把界面**从世界之后提到主菜单阶段**——玩家不用先干等一个长 loading 才轮到选人。选人流程就是这么改的。
+
+## 🔴 交互面板 = 全场景通用；**门控在选项，不在面板**（2026-10-19 用户裁定）
+
+**规则**：`Interaction/InteractionMissionView` 的**面板与输入在所有 Mission 模式里都跑**（不再按
+`Settings.IsInteractionDisabled()` 整块 return）；**每个选项在注册时自己过门**：
+`AddInteractionRow` → `IsOptionAllowedNow(id)` ——
+**被禁模式（`DisabledInteractionMissionModes`，默认含 Battle/Duel/Tournament…）里所有选项默认不注册**，
+**只有白名单放行**。当前白名单 = **【松绳】+【拉紧】+【扛起/放下/马背】**
+（`CutRope` / `TugRope` / `LiftCarried` —— 后一个 id 同时覆盖 扛起、放下、放上马背、从马背拿下；
+绳上绑着人时这一族是唯一出口，关掉 = 玩家被自己的绳卡死，实机踩过）。
+
+**为什么要这个结构**（而不是"给某个功能开个后门"）：面板是**呈现层**，选项才是**玩法**；
+按面板关闭 ⇒ 任何"玩家自己状态的出口"（松绳/放下这类）都会跟着整块消失，玩家被卡住。
+按选项关闭 ⇒ 战斗里自然不会冒出社交/犯罪选项，而自救类出口可以逐个放行。
+
+**加新选项时的默认动作**：什么都不做（它自动在战斗等模式里不出现）。要放行 = 往 `IsOptionAllowedNow`
+白名单加一条并**写清理由**。另：**一行选项都没有就不显示面板**（`hasRows` 判据），别留"只剩名字"的空壳。

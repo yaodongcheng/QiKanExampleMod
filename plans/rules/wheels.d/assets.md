@@ -1962,3 +1962,22 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 ⚠️ 只挂 `action_types`：断言只跟"名字→动作号"有关。`action_sets` / `item_usage_sets` 仍**不挂**（正本在 LWN，挂了两边都要维护）。
 🔴 同理：**任何"clip 元数据里写自建名字"的字段**（blends / continue / clip_usage…）都会踩这条 ——
 加之前先确认"**谁加载这条 clip，谁就认这个名字**"。
+
+## 🔴🔴 预制体的 `scale` **不影响物理体** —— 物理尺寸只看 `<physics shape="bo_xxx">`（2026-10-19 实机定案）
+
+**事实**：`<transform … scale="0.300,0.300,1.000">` 只缩**渲染**；挂在该子实体上的
+`<physics shape="bo_xxx">` **用的是 shape 资产自己的尺寸，不吃这个缩放**
+⇒ 看上去小小的板子，碰撞体可能还是 5 米宽（实机：飞行承载板"把旁边的马一起抬上天"）。
+
+**量法（离线，不用进游戏）**：`tpaccli shapedump --packdir <游戏>/Modules/Native/AssetPackages [--filter 子串]`
+→ 打每个 `PhysicsShape` 的**凸包包围盒**（X×Y×Z + 各自的本地范围）。
+- 原形状 `bo_wooden_platform_a` 实测 **5.111 × 4.923 × 0.193，顶面本地 z = 0.368**；
+- 换用的 `bo_sheep_farm` = **1.248 × 1.333 × 0.149，顶面本地 z = 0.149**（1.2.12 / 1.5.x 两客户端同尺寸）。
+
+**换 shape 的两条连带**：
+1. **板面高度常量必须同步**：谁在用 `origin.z + TopLocalZ` 摆位（范本 `FlightTuning.CarrierTopLocalZ`），
+   `TopLocalZ` 就取新形状的 **z[max]** —— 差 0.2 米级，人就站不上/悬空。
+2. **别用"渲染尺度"倒推碰撞尺度**：想缩碰撞只有两条 —— 换一个小 `shape`，或让引擎侧真正缩 shape。
+
+**预制体 XML 的注释里禁止出现两个连字符**（`--`，XML 规范）：写命令示例时用别的方式绕
+（`shapedump` 这类命令行里的 `--packdir` 直接写进去 = **整个 prefab 解析失败**，2026-10-19 当场踩）。

@@ -1578,6 +1578,10 @@ namespace LivingWorldNpcs
 						//    · **攻击者传 −1**：不归属于任何人（否则会被记成"玩家攻击玩家"）。
 						//    · 方向 = 朝钩点（绳绷紧把人往墙那边扯，和接下来起飞的方向一致）。
 						//    旗标那条**保留**：万一 blow 被引擎拒（Immortal 之外的情况），还有老路兜底。
+						// 🔴 2026-10-19（用户："木板带着马也飞起来了" / "我不希望我的坐骑被挪走"）：
+						//    **不挪坐骑** —— 改用"承载板物理体本身变小"来根治（预制体换 shape，见
+						//    `Prefabs/lwn_prefabs.xml` 的 `lwn_flight_sigil_body` + `FlightTuning.CarrierTopLocalZ`）。
+						//    旧板物理盒 5.1 m 宽、马站在旁边 2 m 内就被抬走；新板 1.25 × 1.33 m，马本来就在板外。
 						if (MountedSelfBlow && !_mountedBlowFired)
 						{
 							_mountedBlowFired = true;

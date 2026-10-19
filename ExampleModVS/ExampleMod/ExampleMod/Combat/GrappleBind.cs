@@ -328,6 +328,7 @@ namespace LivingWorldNpcs
 
 		/// <summary>压制复核的计时器（<see cref="VerifySuppression"/>）。</summary>
 		private float _verifyTimer;
+		private float _poseProbeTimer;      // "状态机 vs 引擎实际动作"一致性探针的 1s 闸门（见 TickTargetMachine）
 
 		/// <summary>冻 / 解冻目标的原版 AI（幂等；失败只记日志不抛）。
 		/// 🔴 **解冻永远执行**（不受旋钮管）—— 否则旋钮中途被关掉就会留一个永久冻住的 agent。</summary>
@@ -837,6 +838,30 @@ namespace LivingWorldNpcs
 			_machine.SpeedMultiplier = _bindedWalkRate;
 			_machine.PushSpeedEveryFrame = WalkSpeedAuto;
 			_machine.Tick(_target, dt);
+
+			// 🔴 2026-10-19 姿态一致性探针（实机：战场拖人"一直站着"）：**状态机认为的动作 ≠ 引擎实际在播的动作**
+			//    时，每秒打一行 —— 一眼分辨是"我们压根没进拉倒"还是"进了但被引擎压掉/没写进去"。
+			//    只在**不一致**时打（一致 = 静默，不刷屏）；一致性检查顺带接住"姿态被抢但 RecheckStolen 没抓到"。
+			//    ⚠️ **比索引，不比名字**：`V.ActName` 给的是 clip 名（如 `binded_lay_end`），
+			//       与我们 `anim="act_xxx"` 的动作名永远不相等（2026-10-18 那条日志把两者并排打过，别被它带偏）。
+			_poseProbeTimer += dt;
+			if (_poseProbeTimer >= 1f)
+			{
+				_poseProbeTimer = 0f;
+				int want = _machine.CurrentActionIndex;
+				int got = -1;
+				string gotName = "-";
+				try { got = _target.GetCurrentAction(0).Index; } catch (Exception) { }
+				try { gotName = V.ActName(_target, 0) ?? "-"; } catch (Exception) { }
+				if (want > 0 && got != want)
+				{
+					string paused = "?";
+					try { paused = _target.IsPaused ? "True" : "False"; } catch (Exception) { }
+					DebugLogger.Log($"[Grapple] ⚠ 姿态没跟上：状态机={_machine.Current}（应播动作 #{want}"
+						+ $" '{_machine.CurrentAction}'）· 引擎实际 #{got} '{gotName}'"
+						+ $" · aiPaused={paused} · dragged={(_leashDragged ? "yes" : "no")} · 速度={_followerSpeed:F1} m/s");
+				}
+			}
 		}
 
 		/// <summary>
@@ -1458,16 +1483,23 @@ namespace LivingWorldNpcs
 			//    判据用 **root→root 的距离增量**，不用"手→胸口"：
 			//      手在待机动画里前后摆（±5 cm），拿它当尺子 ⇒ 站着不动也会假装"绷紧了"，
 			//      于是门槛不敢开小、只能开大，一大就滑步。改成量**两个人的根位置**（都是稳的）：
-			//        超出量 = (现在 root 距离 − 绑上那一刻的 root 距离) + 一开始那点松量(≈5%)
-			//      站着不动 ⇒ 增量≈0 ⇒ 不拽（用户上一轮报的"我没动他却朝我走"也没了）；
-			//      绳主一走 ⇒ 增量就是"他走了多远" ⇒ 到了门槛就拽、且**同时**进走姿。
+			//        超出量 = 现在 root 距离 − 绑上那一刻的 root 距离（**初始松量不算**，见下面 2026-10-19 那条）
+			//      站着不动 ⇒ 增量≈0 ⇒ 不拽；绳主一走 ⇒ 增量就是"他走了多远" ⇒ 到了门槛就拽、且**同时**进走姿。
 			//
 			//    迟滞（进 <see cref="LeashDeadzone"/>、出它的一半）+ 保持窗，防门槛上每帧翻。
+			//
+			// 🔴🔴 **2026-10-19 实机：停下之后人还在"反复移动"** —— 真凶 = 下面这行以前是
+			//    `excess = _leashOver + _leashSlackAtLock`：把**绑上那一刻本来就松的 5%（≈0.33 m）**
+			//    当成了"超出量" ⇒ 一绑上就"超门槛"，立刻把人拽近；拽到门槛附近后，**身体呼吸级的
+			//    1~2 cm 起伏**就够让它在 0.05 / 0.025 两个门槛之间每几毫秒翻一次
+			//    （日志：`走着/拖着` ↔ `松了` 每 10 ms 一行），人就被一点点反复推着挪。
+			//    物理上绳长 = 跨度 × 1.05 ⇒ 锁定那一帧**绳子是松的**，"超出"就是 0。
+			//    ⇒ 判据只用 `_leashOver`（相对锁定距离的增量）；玩家不动 = 超出 0 = 不拽。
 			float over = RootDist() - _leashRootAtLock;
 			_leashOver = _leashOver <= 0f && over <= 0f
 				? over
 				: _leashOver + (over - _leashOver) * MathF.Min(1f, LeashSmoothSpeed * dt);   // 轻平滑（防单帧跳）
-			float excess = _leashOver + _leashSlackAtLock;
+			float excess = _leashOver;         // ⚠️ 不再加 `_leashSlackAtLock`（见上）
 			float leadSpeed = HorizontalSpeed(_attacker);
 
 			if (!_leashEngaged)
@@ -1534,8 +1566,8 @@ namespace LivingWorldNpcs
 			// 🔴 第一档（收那几厘米）**不打日志**：它每几秒就动一次，打了就是刷屏（且会让人误以为在拖他走）。
 			if (_leashPulling && (!_leashPullingPrev || _leashDraggedPrev != dragged))
 			{
-				DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 走远 {_leashOver:F2} m + 松量 {_leashSlackAtLock:F2} m"
-					+ $" = 超出 {excess:F2} m > 门槛 {LeashDeadzone:F2} m（绳长 {_leashLength:F2} m）"
+				DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 走远 {_leashOver:F2} m"
+					+ $" ⇒ 超出 {excess:F2} m > 门槛 {LeashDeadzone:F2} m（绳长 {_leashLength:F2} m，锁定松量 {_leashSlackAtLock:F2} m 不计）"
 					+ $"· 绳主速度 {leadSpeed:F1} m/s ⇒ 拽速 {speed:F1} m/s · 他自己的速度 {_followerSpeed:F1} m/s"
 					+ (dragged
 						? $"（绳主骑着马在动 ⇒ 拖在地上：趴缚循环）"
@@ -1550,7 +1582,7 @@ namespace LivingWorldNpcs
 				if (_leashProbeTimer >= LeashProbeSeconds)
 				{
 					_leashProbeTimer = 0f;
-					DebugLogger.Log($"[Grapple] 牵绳探针：手→胸口 {dist:F2} m · 绳长 {_leashLength:F2} m · 走远 {_leashOver:F2} + 松量 {_leashSlackAtLock:F2} = 超出 {excess:F2} m"
+					DebugLogger.Log($"[Grapple] 牵绳探针：手→胸口 {dist:F2} m · 绳长 {_leashLength:F2} m · 走远 {_leashOver:F2} ⇒ 超出 {excess:F2} m"
 						+ $" · 绳主 {leadSpeed:F1} m/s · 拽速 {speed:F1} m/s · 形态={(dragged ? "拖在地上" : "牵着走")}"
 						+ $" · 他自己的速度 {_followerSpeed:F2} m/s ⇒ 倍率 {_bindedWalkRate:F2}");
 				}
@@ -1590,9 +1622,15 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void EnterDraggedLay(float leadSpeed)
 		{
+			// 🔴 2026-10-19 实机（战场骑马拖人："绑着拖动但是居然没有倒地"）：
+			//    **先确认"拉倒"那一拍真的落上了，再记"已放倒"**。
+			//    以前是先 `_lying = true` 再 Force ⇒ 那一刻他若正处在**没有这条边的状态**
+			//    （实机 = 命中的第一拍【受击】那 1.7 s 里绳就绷紧了，而你骑马一直在动），
+			//    Force 静默落空、`!_lying` 那道门却永远关上 ⇒ **他站着被拖一辈子**。
+			//    现在：Force 失败就不记账（下一帧再试）；数据侧也把「受击/被拖行/挣扎 → 拉倒」的边补齐了。
+			if (!ForceEvent(BindAnimConditions.YankTrigger)) return;
 			_lying = true;
 			_layTimer = 0f;
-			ForceEvent(BindAnimConditions.YankTrigger);
 			DebugLogger.Log($"[Grapple] 牵绳：'{SafeName(_target)}' 被拖倒（绳主 {leadSpeed:F1} m/s"
 				+ (IsRidingSomething(_attacker) ? "，骑着马" : "") + $"）⇒ 拖在地上（趴缚循环），"
 				+ (LaySeconds > 0f ? $"停下后 {LaySeconds:F1}s 自己起身" : "停下也不会自己起身（laytime=0）"));

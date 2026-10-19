@@ -527,6 +527,11 @@ namespace LivingWorldNpcs.Flight
                         continue;
                     if (!AgentControlHelper.SafeIsActive(a))
                         continue;
+                    // 🔴 2026-10-19（用户："我不希望我的坐骑被挪走"）：**坐骑永远不挪** ——
+                    //    板已换成小物理体（1.25×1.33 m，见 Prefabs/lwn_prefabs.xml），马本来就在板外；
+                    //    万一真站上了，宁可它跟着板一帧（罕见），也不要突然把它瞬移走。
+                    if (a.IsMount)
+                        continue;
 
                     float feet = CollisionCapsuleBottomZ(a);
                     // 站在板面上（脚底≈顶面）；在板底下 / 跳在半空的都不算

@@ -190,6 +190,23 @@ namespace LivingWorldNpcs.Animation
         /// <summary>当前引擎动作名（没接管 / 机外时 null）。</summary>
         public string CurrentAction => _inOutside ? null : _current?.Action;
 
+        /// <summary>
+        /// 当前状态解析到的**引擎动作索引**（诊断用；-1 = 没状态 / 在机外）。
+        /// 🔴 用途 = 与 `Agent.GetCurrentAction(0).Index` 直接对比（**别拿动作名比** ——
+        ///    `V.ActName` 给的是**clip 名**，与 `anim="act_xxx"` 永远不相等）。
+        /// </summary>
+        public int CurrentActionIndex
+        {
+            get
+            {
+                if (_inOutside || _current == null)
+                {
+                    return -1;
+                }
+                try { return _current.Index().Index; } catch (Exception) { return -1; }
+            }
+        }
+
         /// <summary>当前状态已经播了多久（秒）。</summary>
         public float CurrentElapsed => _elapsed;
 
@@ -655,7 +672,25 @@ namespace LivingWorldNpcs.Animation
                 }
                 SpeedMultiplier = 1f;
                 _pushedSpeed = 1f;
-                agent.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: false, blendInPeriod: 0.3f);
+                // 🔴🔴 **清通道必须 `ignorePriority: true`**（2026-10-19 实机："松绳之后对方手还别在背后"）。
+                //    以前这里是 `ignorePriority: false` —— 而我们的动作（捆绑 idle / 趴缚 = Priority 30）
+                //    优先级高于 `act_none` ⇒ **引擎直接拒收这次写入** ⇒ 通道 0 继续挂着 `act_grapple_bound_idle`
+                //    ⇒ 人已放走、手还别在背后（当时那条自带判据的日志就把答案打出来了：
+                //    `0 号通道此刻 = act_grapple_bound_idle（应是 act_none…）`）。
+                //    与 `RecheckStolen` 抢回同款口径（那里也必须 ignorePriority）。
+                V.SetActionChannel(agent, 0, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0.3f);
+
+                // 自证：交还之后通道 0 还挂着我们的动作 = 这次清没生效（下一帧引擎自己会接走，仍值得记一行）
+                try
+                {
+                    ActionIndexCache now = agent.GetCurrentAction(0);
+                    if (now.Index != ActionIndexCache.act_none.Index)
+                    {
+                        DebugLogger.Log($"[Anim:{_def.Name}] ⚠ 交还通道没生效：通道 0 仍是 '{V.ActName(agent, 0)}'"
+                            + "（若反复出现 = 还有更高优先级的东西压着）");
+                    }
+                }
+                catch (Exception) { }
             }
             catch (Exception ex)
             {

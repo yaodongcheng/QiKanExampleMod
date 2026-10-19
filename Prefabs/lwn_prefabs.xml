@@ -87,7 +87,14 @@
 			     scale 只压 X/Y —— 板一升就把旁边的路人一起带飞，就是从这块 5 米大板来的。 -->
 			<game_entity name="lwn_flight_sigil_body" old_prefab_name="">
 				<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" scale="0.300, 0.300, 1.000"/>
-				<physics shape="bo_wooden_platform_a" mass="1.000"/>
+				<!-- 🔴 2026-10-19：形状由 `bo_wooden_platform_a`（实测 **5.111 × 4.923 × 0.193**，顶面本地 z = 0.368）
+				     换成 `bo_sheep_farm`（实测 **1.248 × 1.333 × 0.149**，X/Y 居中，顶面本地 z = **0.149**）。
+				     原因：上面那个 `scale` 只作用于**渲染**，**引擎的 physics shape 不吃缩放** ⇒ 板其实是 5 米宽的
+				     隐形物理盒，站在玩家旁边 2 米内的东西（坐骑 / 路人）会被一起抬上天（实机："木板带着马也飞起来了"）。
+				     换 shape 是唯一不动渲染的做法。量法：`tpaccli shapedump`（`packdir` 指到
+				     `Modules/Native/AssetPackages`，`filter` 给 `bo_` 前缀即可）。
+				     ⚠️ 换 shape 会改**顶面本地 z** ⇒ `FlightTuning.CarrierTopLocalZ` 必须同步（现 = 0.149）。 -->
+				<physics shape="bo_sheep_farm" mass="1.000"/>
 			</game_entity>
 			<!-- 视觉：法阵（2026-10-12 加回 —— 用户要"看得见自己踩在什么上"，也是排查问题的肉眼判据）。
 			     🔴 与承载件【分成两个实体】是有意为之：可见性开关只隐藏这一件，物理体一个字都不动。

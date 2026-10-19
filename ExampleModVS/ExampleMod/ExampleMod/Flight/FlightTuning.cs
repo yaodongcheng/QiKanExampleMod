@@ -150,12 +150,17 @@ namespace LivingWorldNpcs.Flight
             catch (Exception) { /* Settings 拿不到就用上面的字面默认（false） */ }
         }
 
-        /// <summary>wooden_platform_a 的顶面在局部坐标里的高度（实测 0.37 米）。</summary>
+        /// <summary>承载物理体**顶面**在实体局部坐标里的高度（米）。当前形状 = `bo_sheep_farm` ⇒ **0.149**。</summary>
         /// <remarks>
-        /// 🔴 2026-10-10 起预制体的**承载子节点**带 `scale="0.300, 0.300, 1.000"`（只压 X/Y、足迹缩到 1.59 × 1.55 米）
-        /// —— **Z 没缩，所以这个常量不用改**（顶面仍在原点上方 0.37）。改缩放时盯住 Z 那一格。
+        /// 🔴 **2026-10-19 换 shape**：预制体 `lwn_flight_sigil_body` 的 physics 由 `bo_wooden_platform_a`
+        ///    改成 **`bo_sheep_farm`** —— 因为那个 `scale="0.300,0.300,1.000"` **只缩渲染、物理体不吃**
+        ///    （实测旧板物理盒 5.111 × 4.923 m ⇒ 站在玩家旁边 2 米内的坐骑/路人会被一起抬上天）。
+        ///    新形状实测 **1.248 × 1.333 × 0.149、X/Y 居中** ⇒ 顶面本地 z = **0.149**（旧值 0.37 作废）。
+        /// 📏 **量法**：`tpaccli shapedump --packdir <Native>/AssetPackages --filter bo_`
+        ///    （打的是 shape 凸包顶点的包围盒；顶面 = `z[max]`）。
+        /// ⚠️ 每换一次 shape，这个数必须跟着改 —— 否则板会整体高/低 0.2 米级，人就站不上/悬空。
         /// </remarks>
-        public static float CarrierTopLocalZ = 0.37f;
+        public static float CarrierTopLocalZ = 0.149f;
 
         /// <summary>
         /// 生成时板面比**玩家真实碰撞体的底面**再低多少（米）。
@@ -784,7 +789,7 @@ namespace LivingWorldNpcs.Flight
             CarrierMeshName = "lwn_flight_sigil";
             CarrierSigilChildName = "lwn_flight_sigil_mesh";
             CarrierSigilVisible = Settings.Instance.ShowCarrierSigil;
-            CarrierTopLocalZ = 0.37f;
+            CarrierTopLocalZ = 0.149f;      // = bo_sheep_farm 顶面本地 z（换 shape 必须同步，见属性注释）
             CarrierSpawnGap = 0.06f;
             TakeoffSettleSeconds = 1.0f;
             TakeoffAnimSeconds = 1.5f;

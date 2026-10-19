@@ -536,3 +536,16 @@ Tick():                                   // 每帧一次
 
 **文件位置**：`Flight/FlightInput.cs`（`_spacePressedEdge` / `ConsumeSpacePress`）、
 `Flight/PlayerFlightBehavior.cs`（`TickGrounded` 里无条件消费）
+
+## 🔴 新增默认键之前：先查 `BannerlordGameKeys.xml`（2026-10-19 实机，拉紧键 G 事故）
+
+**规则**：我们的 `ModInput` 是**轮询读键、不吞键** ⇒ 任何字母键都可能**同时触发原版功能**（双触发）。
+新增/改动交互默认键前，必须查用户 `Documents\Mount and Blade II Bannerlord\Configs\BannerlordGameKeys.xml`，
+看它是否在 **`CombatHotKeyCategory` / `Generic`** 里（这两类是**任务内**生效的）。
+
+- 实例：`TugRope`/`LiftCarried` 默认 **G** —— 而 `CombatHotKeyCategory` 里 **`DropWeapon` = G**
+  ⇒ 按 G 拉紧的同时**把手里的绳丢在地上** ⇒ `玩家收刀` ⇒ 命中"收起钩索 = 松手放人"出口 ⇒ 绳子凭空消失。
+- 现行默认：**T**（单机任务里没有任何原版绑定；Combat/Generic 两类都干净，只有联机聊天用）。
+- 已被原版任务内占用的字母（别用）：`F`(Action) `E`(Kick) `Z`(Crouch) `X`(ToggleWeaponMode)
+  `G`(DropWeapon) `V`(PushToTalk) `U`(EquipmentSwitch) `O`(Cheer) `R`(CameraToggle) `Space`(Jump)
+  `LeftShift`(Zoom) `BackSlash`(SheathWeapon) —— 另有 `M` 已被本项目的 IM 面板占用。
