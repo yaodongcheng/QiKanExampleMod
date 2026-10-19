@@ -453,6 +453,12 @@ namespace LivingWorldNpcs
                 // 随从逮捕善后（Phase E）：被执法转押的随从 → 定居点菜单「赎回随从」（罚金）
                 campaignGameStarter.AddBehavior(new CompanionDetentionBehavior());
 
+                // 钩索两件（绳 + 钩）的**货架上架**（2026-10-17）：进游戏全量补一次 + 每天补不足的，
+                // 让所有城镇商店与村庄都买得到（物品定义里 is_merchandise="true" 只是"有资格"，
+                // 货架本身是经济模拟长出来的、老档更是建号那刻定死的 —— 详见该文件头）。
+                // 验收：custom.grapple market（换台机器/删档都不影响：两件物品在**本模块**里）。
+                campaignGameStarter.AddBehavior(new GrappleMarketBehavior());
+
                 // 法术：手环宝石槽的配装仓（阶段 5，存档键 lwn_spell_loadout）—— 存角色身上 + 进存档
                 // 🔴 总闸关着时**不挂**（2026-10-12）：它存在的意义就是服务法术的宝石修正，
                 //    法术整个不开时挂着它只会往存档里写一条没人看的键。

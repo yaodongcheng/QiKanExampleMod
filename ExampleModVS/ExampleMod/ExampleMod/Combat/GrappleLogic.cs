@@ -115,6 +115,7 @@ namespace LivingWorldNpcs
 		private bool _attachFromAir;                  // 这一钩是不是"空中起钩"（决定蓄势/拉升时长的基准）
 		private bool _attachAutoPull;                 // 这一钩钉住后要不要自动拉（武器开火 = 要；命令 throw = 不要）
 		private float _mountWait;                     // "骑马勾到地形 ⇒ 自动下马"等了多久（秒；0 = 没在等）
+		private bool _mountedBlowFired;               // 这一钩的"催下马 blow"打过了吗（只打一次，见调用点）
 
 		/// <summary>
 		/// **骑马勾到地形时：自动下马，然后把下马藏进"蓄势"里直接起飞**（2026-10-13 用户拍板，取代 §13.11 的"直接收钩"）。
@@ -132,6 +133,19 @@ namespace LivingWorldNpcs
 
 		/// <summary>等他下马的超时（秒）——超时 = 这一钩作废（收钩返程），别把人晾在马上。</summary>
 		public static float MountedDismountTimeoutSeconds = 2.5f;
+
+		/// <summary>
+		/// **玩家自己骑马钩到地形时，要不要额外打一发 `CanDismount` blow 催下马**（默认**开**，2026-10-19）。
+		///
+		/// 🔴 为什么加它（实机，日志 `09:47:23.776` / `09:47:31.058`）：光点引擎的"下马"旗标
+		///    （`EventControlFlag.Dismount`，每帧重发）在**玩家**身上被顶着不放行 —— 连打两枪都是
+		///    "2.5 s 内没能下马 ⇒ 这一钩作废"。而 blow 是 **native 直接执行、不看马速**
+		///    （目标侧实测 0.20 s 落地，2026-10-13）。
+		/// 代价（已知并接受）：玩家身上走一次真实打击管线 —— 血不掉（`FireDismountBlow` 内部临时 Immortal），
+		///    但会播"被击落"的受击反应（正好读作"绳一绷把人扯下马"），`OnAgentHit` 会广播一发（攻击者传 −1）。
+		/// 关掉 = 回到"只点旗标"的老路（`custom.grapple mountedselfblow 0`，现场 A/B 用）。
+		/// </summary>
+		public static bool MountedSelfBlow = true;
 
 		/// <summary>瞄准射线的最大长度（米）。UE 参考工程是 12 米；骑砍地图更大，默认 20（命令 `range` 可调）。</summary>
 		public static float AimRange = 20f;
@@ -169,6 +183,28 @@ namespace LivingWorldNpcs
 		/// 蓄势 = 它 − 本钩飞行耗时（见 <see cref="TickHook"/> 的自动拉拽段）。
 		/// </summary>
 		public static float PullStartSeconds = 1.133f;
+
+		/// <summary>
+		/// **过程段（`act_grapple_ground_pull`）的总长**（秒）= `lwn_core.tpac` 里那条 clip 的实测时长
+		/// （2026-10-17 `tpaccli clipinfo` 量的：**1.30 s**，源帧 2→40 @30fps）。
+		/// 用途 = 把"过程段内第几秒"换算成 `Force(..., startProgress)` 要的 0~1 比例（见 <see cref="PullAnchorIntoClip"/>）。
+		/// ⚠️ 用户每重切一次这条动画，它要跟着改（与 <see cref="ReleaseSeconds"/> 同款纪律）。
+		/// </summary>
+		public static float PullClipSeconds = 1.30f;
+
+		/// <summary>
+		/// **过程段里"人开始被带走"的那一拍，距这段动画开头多少秒** = <see cref="PullStartSeconds"/> − <see cref="ReleaseSeconds"/>
+		/// = 1.133 − 0.566 = **0.567 s**（0~1 比例 ≈ 0.436）。
+		///
+		/// 🔴 为什么需要它（2026-10-17，用户口径 A「落地即飞」）：地面钩锁里过程段是"开火后 0.566 进、
+		///    位移在 0.567 处发生"—— 也就是说**位移永远落在过程段播到 0.567 秒的那一刻**。
+		///    骑马钩地形时位移被"下马"推迟（T = max(开火+1.133, 下马完成)），若过程段仍按开火时刻进场，
+		///    等能飞的时候它已经播过头了 ⇒ 观感错位。
+		///    ⇒ 做法 = **等到起飞那一刻再进场，并直接从这一拍开始播**（`startProgress = 0.567 / 1.30`），
+		///    这样"位移 ↔ 姿态"的关系与地面**逐帧一致**，且不额外等那 0.567 秒"使劲"（用户选的 A 口径）。
+		/// </summary>
+		public static float PullAnchorIntoClip =>
+			MathF.Max(0f, MathF.Min(PullClipSeconds, PullStartSeconds - ReleaseSeconds));
 
 		/// <summary>
 		/// **release 动作的长度**（秒，= 本模块资产包 `lwn_core.tpac` 里 clip `grapple_ground_release` 的时长；**2026-10-07 晚重切后 = 0.566 s**）：
@@ -417,6 +453,16 @@ namespace LivingWorldNpcs
 		private GrappleAnimContext _animCtx;
 		private AgentAnimStateMachine _anim;
 		private float _animPendingPullTimer;  // >0 = 开火后计时中，到点把状态机送进"过程"（release 演完那一刻）
+
+		/// <summary>
+		/// **过程姿态被"压住"了吗**（2026-10-17，骑马口径 A）：release 演完时如果玩家还在马上、
+		/// 这一钩又勾到了地形（= 正在等引擎放行下马），就**先不进过程段** —— 理由两条：
+		/// ① 此刻引擎的下马动作（Priority 64）正在占 0 号通道，我们过程段（30）写了也会被压 / 互相闪；
+		/// ② 真正起飞还要等马下来，过程段早播的时间全是浪费（起飞时已越过"被拽走"那一拍）。
+		/// ⇒ 压到"已下马"那一帧，用 <see cref="PullAnchorIntoClip"/> 换算的 `startProgress` **从中段进**。
+		/// 地面钩锁 / 打空 / 勾到人 / 命令路径**都不受影响**（那些情况不会置位）。
+		/// </summary>
+		private bool _animPullHeld;
 		private float _flightSeconds;         // 本钩飞行耗时（蓄势 = PullStartSeconds − 它）
 		private string _lockedAnimState;      // 命令 `animlock`：非空 = 强锁该状态 + Hold（静观用）
 
@@ -638,6 +684,19 @@ namespace LivingWorldNpcs
 				return "Error: no scene.";
 			}
 
+			// 🔴 **绳上还绑着人 ⇒ 真开火一律不许**（2026-10-18 用户裁定，安全网）。
+			//    以前这里是"发射即替换"（下面那句"先清场"会把人悄悄放掉）。一根绳只能系一头 ⇒
+			//    "再钩一次"必然 = 放掉上一个人；玩家看不到提示 ⇒ 实机反馈"我没松绳怎么还能钩人"。
+			//    正门拦截在 <see cref="GrappleAimGatePatch"/>（进瞄准之前就抹掉攻击输入）；
+			//    这条是它没拦住（补丁被关 / 漏网）时的兜底 —— **绝不许悄悄放人**。
+			//    ⚠️ 只管**真开火**（hasShot）；命令 `custom.grapple throw` 不受限（调试要能强发）。
+			if (hasShot && _bind != null && _bind.IsActive)
+			{
+				ShowBoundNoFireHint();
+				return "Error: rope is tied to a bound target - release it first "
+					+ "(panel: Slack Rope / 'custom.grapple bind release').";
+			}
+
 			// 🔴 **先清场再瞄准**（2026-10-03 用户要求）：上一根钩头/绳**不该留着** ——
 			//    以前是"瞄失败直接 return"，于是旧绳旧钩挂在原地（实机症状："第二次射的时候没销毁前一次"）。
 			if (_hookPhase != HookPhase.Idle)
@@ -761,6 +820,8 @@ namespace LivingWorldNpcs
 			//    本机只在 release 演完（+ReleaseSeconds）那一刻接管"过程"。这里只记计时 + 重置上下文。
 			_flightSeconds = (dist + 0.6f) / MathF.Max(1f, GrappleHook.Speed);   // 蓄势用它（见 TickHook）
 			_animPendingPullTimer = ReleaseSeconds;
+			_animPullHeld = false;              // 新的一钩：清掉上一钩"骑马等马"压住过程姿态的标志
+			_mountedBlowFired = false;          // 同上：新的一钩可以再打一发"催下马 blow"
 			if (_animCtx != null)
 			{
 				_animCtx.LandingFound = false;    // 上一钩的平台别带进这一钩（这一钩解算了才置真）
@@ -922,7 +983,17 @@ namespace LivingWorldNpcs
 					//    判据用相位（Binding = 真的在捆人）；命中马/儿童被拒的照旧走老路（钩挂在人身上）。
 					if (_hookPhase != HookPhase.Binding)
 					{
-						ForceAnim(GrappleAnimConditions.PullTrigger);
+						// 🔴 2026-10-17（口径 A「落地即飞」）：骑马勾到地形时，此刻人还在马上 ⇒
+						//    **压住不进过程段**（下马动作正占着 0 号通道；真正起飞还要等马下来）。
+						//    等"已下马"那一帧再从中段进 —— 见 TickHook 自动拉拽段里的 _animPullHeld 分支。
+						if (IsWaitingForDismount())
+						{
+							_animPullHeld = true;
+						}
+						else
+						{
+							ForceAnim(GrappleAnimConditions.PullTrigger);
+						}
 					}
 				}
 			}
@@ -947,7 +1018,8 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>按 XML 里的"时刻名"Force 进对应状态（C# 里没有状态名；改名/换状态只改 XML）。</summary>
-		private void ForceAnim(string whenToken)
+		/// <param name="startProgress">0~1：从动作的哪个进度开始播（只给"骑马：落地即飞、从中段进"这一条用）。</param>
+		private void ForceAnim(string whenToken, float startProgress = 0f)
 		{
 			if (_anim == null || Agent.Main == null || !AnimEnabled)
 			{
@@ -955,15 +1027,38 @@ namespace LivingWorldNpcs
 			}
 			if (_anim.TryEventTarget(whenToken, out string state))
 			{
-				_anim.Force(Agent.Main, state, GrappleAnimMachine.AnimBlendIn);
+				_anim.Force(Agent.Main, state, GrappleAnimMachine.AnimBlendIn, startProgress);
 				// 🔴 常开一行/次（2026-10-04 深夜：用户问"状态机有没有 setactionchannel 的记录"——
 				//    以前成功的 Force 是静默的，日志里查不到"到底进没进"，只有缺边才报错）。
-				DebugLogger.Log($"[Grapple] 姿态动画 Force → {state}（时刻名 {whenToken}）");
+				DebugLogger.Log($"[Grapple] 姿态动画 Force → {state}（时刻名 {whenToken}"
+					+ (startProgress > 0f ? $"，从中段 {startProgress:P0} 进（骑马：落地即飞）" : "")
+					+ "）");
 			}
 			else
 			{
 				DebugLogger.Log($"[Grapple] 状态机里没有 '{whenToken}' 这条事件边 —— 动画不起"
 					+ "（检查 ModuleData/statemachines/grapple.xml）");
+			}
+		}
+
+		/// <summary>
+		/// 这一钩是不是**"骑马勾到地形、正在等引擎放行下马"**（= 过程姿态要压着等的那一刻）。
+		/// 判据与 TickHook 自动拉拽段里那段"骑马"分支**同一组条件**（保持同源，改一处要改两处）：
+		/// 已钉住地形（不是人/马）+ 这一钩会自动拉 + 玩家还骑着。
+		/// 任何一条不成立（打空 / 勾到人 / 命令路径 / 已经下马）⇒ false = 过程姿态照旧按开火时刻进。
+		/// </summary>
+		private bool IsWaitingForDismount()
+		{
+			try
+			{
+				return _hookPhase == HookPhase.Attached
+					&& _hook != null && _hook.AttachedAgent == null
+					&& _attachAutoPull && AutoPull
+					&& Agent.Main != null && Agent.Main.HasMount;
+			}
+			catch (Exception)
+			{
+				return false;
 			}
 		}
 
@@ -978,6 +1073,7 @@ namespace LivingWorldNpcs
 		private void ExitAnim(bool landed = false)
 		{
 			_animPendingPullTimer = 0f;      // 收摊 = 作废"待进过程"的计时
+			_animPullHeld = false;           // 同理：被压住的"过程进场"也一并作废（下马超时/收钩那条路）
 			if (!IsAnimInside() || Agent.Main == null || !AnimEnabled)
 			{
 				return;
@@ -1400,10 +1496,30 @@ namespace LivingWorldNpcs
 						_hookPhase = HookPhase.Binding;
 						_bindFromTest = false;              // 真开火那条路：出口②③ 照常生效
 						_landingNote = "binding target";
+						// 🔴 **骑马钩人 = 玩家不下马**（2026-10-17 核；方案 §13.11 的口径：
+						//    "骑马勾人是本玩法最顺的用法"—— 玩家在马上不动、只有目标被拽倒/拖行）。
+						//    这行是那条口径的**判据日志**：谁想确认"骑马钩人会不会把玩家弄下马"，
+						//    看它 + 之后的拖行行（`骑着马`）就够，不用去猜。
+						//    （对照：**骑马钩到地形**才会自动下马 —— 那是"拉自己"的硬约束，见 _mountWait 那一段。）
+						try
+						{
+							if (Agent.Main != null && Agent.Main.HasMount)
+							{
+								DebugLogger.Log("[Grapple] 骑马钩人：绳主仍在马上 —— 玩家**不下马**（设计口径 §13.11）；"
+									+ "目标照旧被拽倒，玩家骑马移动（>1 m/s）时他被拖在地上");
+							}
+						}
+						catch (Exception) { }
 					}
 					else if (GrappleBind.Enabled)
 					{
 						_landingNote = "attached to agent (bind refused: " + why + ")";
+						// 🔴 2026-10-18 加这行（用户实机："我还是锁在马上"）：以前"钩挂住了但捆不了"
+						//    只在状态串里留一句，日志一个字没有 ⇒ 看上去就像"下马/拉拽没执行"。
+						//    典型 = 钩到**坐骑**（含自己骑的那匹，已由 GrappleHook 跳过自己那匹）；
+						//    钩到儿童 / 目标失效同理。看到这行 = 这一钩不会拉、也不会飞，收钩重打即可。
+						DebugLogger.Log($"[Grapple] 钩头挂在目标上但**没法捆**（{why}）⇒ 这一钩不拉不飞"
+							+ "（坐骑/儿童/失效目标；收钩重打）");
 					}
 				}
 				else if (step == GrappleHook.StepResult.Missed)
@@ -1450,9 +1566,36 @@ namespace LivingWorldNpcs
 							return;
 						}
 
-						// 点"下马"（每帧一次；引擎按马速可能先拒后收 —— 重发是幂等的，标志位而已）
+						// ① 点"下马"（每帧一次；引擎按马速可能先拒后收 —— 重发是幂等的，标志位而已）
 						try { Agent.Main.EventControlFlags |= Agent.EventControlFlag.Dismount; }
 						catch (Exception) { }
+
+						// ② 🔴 2026-10-19 实机（日志 09:47:23.776 / 09:47:31.058）：**旗标这条路在玩家身上被引擎顶着不放行**
+						//    ——两枪都是"2.5 s 内没能下马 ⇒ 作废"。⇒ **同时打一发 `CanDismount` blow** 催下马：
+						//    native 直接执行、**不看马速**（目标侧实测 0.20 s 落地，见 §13.5）。
+						//    · 只打一次：blow 会播"被击落"的受击反应，重复打 = 反复踉跄；
+						//    · 临时无敌在 `FireDismountBlow` 内部做（血一滴不掉）；
+						//    · **攻击者传 −1**：不归属于任何人（否则会被记成"玩家攻击玩家"）。
+						//    · 方向 = 朝钩点（绳绷紧把人往墙那边扯，和接下来起飞的方向一致）。
+						//    旗标那条**保留**：万一 blow 被引擎拒（Immortal 之外的情况），还有老路兜底。
+						if (MountedSelfBlow && !_mountedBlowFired)
+						{
+							_mountedBlowFired = true;
+							try
+							{
+								Vec3 toHook = _hook.AttachedPoint - Agent.Main.Position;
+								toHook.z = 0f;
+								string err = GrappleBind.FireDismountBlow(Agent.Main, rear: false, damage: 60f,
+									dirToward: toHook, attackerIndex: -1);
+								DebugLogger.Log(err == null
+									? "[Grapple] 骑马勾到地形 ⇒ 已打 CanDismount blow 催下马（native、不看马速；免疫掉血）"
+									: $"[Grapple] ⚠ 骑马下马 blow 出手失败（{err}）—— 只靠旗标（引擎可能不放行）");
+							}
+							catch (Exception ex)
+							{
+								DebugLogger.Log($"[Grapple] ⚠ 骑马下马 blow 异常（{ex.GetType().Name}）—— 只靠旗标");
+							}
+						}
 
 						_mountWait += dt;
 						if (_mountWait >= MountedDismountTimeoutSeconds)
@@ -1491,6 +1634,26 @@ namespace LivingWorldNpcs
 					if (_attachTimer >= delay)
 					{
 						_attachAutoPull = false;              // 只自动拉一次
+
+						// 🔴 2026-10-17（口径 A「落地即飞」）：骑马钩地形时过程姿态被压到**这一刻**才进 ——
+						//    并且**从中段进**（<see cref="PullAnchorIntoClip"/> = 0.567 s = "被拽走"那一拍），
+						//    这样"位移 ↔ 姿态"的关系与地面钩锁**逐帧一致**，也不额外等那 0.567 秒"使劲"。
+						//    · `_animPullHeld` = 按预想的"等马"压住了（正常骑马路径）；
+						//    · 另一条兜底：**进场过晚**（姿态早就进了、但位移被各种原因推迟 —— 例如把
+						//      `custom.grapple range` 调大到钩子飞过 0.566 s 才咬住）⇒ 同样从锚点重进。
+						//      地面钩锁这里恒等于 anchor（按构造：delay = 1.133 − 飞行 ⇒ elapsed ≡ 0.567），
+						//      **不会**误触发；打空 / 勾到人 / 命令路径同样不受影响。
+						//      ⚠️ 容差必须跟**帧长**挂钩：`_attachTimer` 是逐帧累加的，触发那一帧最多超出一个 dt
+						//      （慢机器 dt 0.067 ⇒ elapsed 0.634）—— 固定 0.05 会在 15fps 上把地面误判成"过晚"。
+						float poseElapsed = _attachTimer + _flightSeconds - ReleaseSeconds;
+						float lateTolerance = MathF.Max(0.10f, dt * 1.5f);
+						if (_animPullHeld || poseElapsed > PullAnchorIntoClip + lateTolerance)
+						{
+							_animPullHeld = false;
+							ForceAnim(GrappleAnimConditions.PullTrigger,
+								PullClipSeconds > 0.01f ? PullAnchorIntoClip / PullClipSeconds : 0f);
+						}
+
 						string r = StartPull("auto（武器开火）");
 						DebugLogger.Log($"[Grapple] 自动拉拽（蓄势 {_attachTimer:F2}s ≥ {delay:F2}s）→ {r}");
 						if (!r.StartsWith("OK"))
@@ -2658,6 +2821,9 @@ namespace LivingWorldNpcs
 		/// <summary>「钩不能当箭用」提示的冷却（同上一档；两个提示各自计时）。</summary>
 		private float _wrongWeaponHintLastAt = float.MinValue;
 
+		/// <summary>"绑着人时不能开火"提示的冷却时间戳（2026-10-18；同上，连点不刷屏）。</summary>
+		private float _boundHintLastAt = float.MinValue;
+
 		/// <summary>
 		/// **缺件提示**（2026-10-12 用户裁定）：握着钩索绳、按了开火键、可装备里**没有钩爪** ⇒ 弹一句红字。
 		///
@@ -2766,6 +2932,38 @@ namespace LivingWorldNpcs
 			catch (Exception ex)
 			{
 				DebugLogger.Log($"[Grapple] 拒发提示弹出失败（忽略）：{ex.GetType().Name} {ex.Message}");
+			}
+		}
+
+		/// <summary>
+		/// **「绳上还绑着人，不能开火」的提示**（2026-10-18 用户裁定，主调用方 = <see cref="GrappleAimGatePatch"/>）。
+		///
+		/// 背景：以前是"发射即替换"—— 绳上绑着人时再开一枪，会**把人悄悄放掉**再钩新的
+		/// （`ThrowInternal` 的"先清场"）。一根绳只能系一头，"再钩一次"必然放掉上一个人，而玩家看不到任何提示
+		/// ⇒ 实机反馈就是"我没松绳，怎么又能钩人？有 bug 吧"。
+		/// ⇒ 现在**绑着人时禁止开火**（`GrappleAimGatePatch` 在"进瞄准之前"就抹掉攻击输入），
+		///    并在这里给一句话：先松绳（交互面板【松绳】/ `custom.grapple bind release`）。
+		/// 冷却照 <see cref="NoHookHintCooldown"/>（连点不刷屏）。
+		/// </summary>
+		public void ShowBoundNoFireHint()
+		{
+			float now = Mission != null ? Mission.CurrentTime : 0f;
+			if (now - _boundHintLastAt < NoHookHintCooldown)
+			{
+				return;
+			}
+			_boundHintLastAt = now;
+			try
+			{
+				// 本地化：LWN_ui_grapple_bound_no_fire（玩家可见文本）
+				string text = LWNTextHelper.ResolveText("LWN_ui_grapple_bound_no_fire",
+					"The rope is still tied to someone - slack the rope first (panel: Slack Rope). The grapple cannot fire while it holds a person.");
+				InformationManager.DisplayMessage(new InformationMessage(text, Colors.Red));
+				DebugLogger.Log("[Grapple] 绑着人时开火 ⇒ 已拦下并提示玩家（先松绳；不再「发射即替换」）");
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 绑人拒发提示弹出失败（忽略）：{ex.GetType().Name} {ex.Message}");
 			}
 		}
 

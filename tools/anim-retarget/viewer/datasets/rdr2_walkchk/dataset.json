@@ -1,0 +1,25 @@
+{
+  "name": "rdr2_walkchk",
+  "title": "【RDR2 走路验证】解包 .ycd → 重定向到骑砍2 28 骨",
+  "subtitle": "源：mech_loco_m@character@arthur@normal@unarmed@walk_interior.ycd block1（398 帧）。这条用来验证：RDR2 解出来的走路挂到已知正常的骑砍2 骨架上，步态是否正常（对比 RDR2 模型上的表现）。",
+  "sides": {
+    "main": {
+      "label": "骑砍2 28骨 · 播 RDR2 解包出来的走路",
+      "color": "#e0b070",
+      "slot": 0.0,
+      "rotY": 0.0,
+      "footBones": [
+        "l_toe0",
+        "r_toe0",
+        "l_foot",
+        "r_foot"
+      ],
+      "files": [
+        {
+          "id": "main",
+          "url": "assets/main.glb"
+        }
+      ]
+    }
+  }
+}

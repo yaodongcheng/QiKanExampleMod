@@ -2688,6 +2688,9 @@
     <!-- 警戒拉满直接战斗开关 -->
     <string id="LWN_mcm_alarmed_direct_combat" text="警戒拉满直接开战" />
     <string id="LWN_mcm_alarmed_direct_combat_hint" text="开启后，NPC 警戒值拉满时不再质问，而是直接动手攻击（跳过质问对话，直接进入战斗）。关闭则维持原质问流程。" />
+
+    <string id="LWN_mcm_weapon_drawn_alert" text="拔刀会引发警戒" />
+    <string id="LWN_mcm_weapon_drawn_alert_hint" text="开启后，NPC 看到你（或随从）握着武器出鞘会缓慢积累警戒，可能引来质问甚至被记成犯罪。默认关闭——关着时随便拔刀，只有蹲下和打开扒窃界面才会引起怀疑。" />
     <!-- NPC 血条显示开关 -->
     <string id="LWN_mcm_show_health_bar" text="显示NPC血条" />
     <string id="LWN_mcm_show_health_bar_hint" text="开启后，NPC 头顶显示血条（战斗中/受伤/警戒时）。关闭可减少屏幕上的血条元素——此时 NPC 名字仅在说话或显示警戒时出现。" />
@@ -4138,6 +4141,7 @@
     <string id="LWN_ui_cutrope_none" text="这里没有绳子可解。" />
     <string id="LWN_ui_grapple_no_hook" text="没有钩爪：钩索绳要配一个钩爪（弹药槽）才能发射。" />
     <string id="LWN_ui_grapple_hook_needs_rope" text="钩爪只能通过钩索绳发射——普通弓射不出去。" />
+    <string id="LWN_ui_grapple_bound_no_fire" text="绳上还绑着人——先松绳（交互面板【松绳】）。绑着人时不能发射钩索。" />
     <string id="LWN_ui_rope_held_title" text="手中牵着：{NAME}" />
     <string id="LWN_ui_state_bound" text="(被捆)" />
     <string id="LWN_ui_intervene_bubble" text="住手！他是我的人！" />

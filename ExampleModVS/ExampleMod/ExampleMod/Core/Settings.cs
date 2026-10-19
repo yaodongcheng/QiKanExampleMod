@@ -169,6 +169,17 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool AlarmedDirectCombat { get; set; } = false;
 
+        // ── 「掏出武器会引发警戒」开关（**默认关闭**，2026-10-17 用户裁定）──
+        // true  = 旧行为：NPC 看到玩家/随从武器出鞘 ⇒ 按 0.20/s 持续累加警戒，
+        //         拉满后走质问 → 犯罪记录 → 赔偿那条完整链（AlertTypes.PlayerActionType.WeaponDrawn）。
+        // false（默认）= **整条链都不发生**：不累加警戒、不进 PulseTarget、不记犯罪、不触发质问；
+        //         蹲姿 / 偷窃界面那两条可疑行为不受影响（各归各的开关）。
+        // 生效点 = AgentBrain.UpdateAlertCognition 里那一处（唯一的 WeaponDrawn 累加点，2026-10-17 核）。
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
+        // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool WeaponDrawnAlert { get; set; } = false;
+
         // ── NPC 血条显示开关（默认开启，玩家在 MCM 里关闭后 NPC 头顶血条/伤害数字隐藏）──
         // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
         // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。

@@ -404,6 +404,10 @@
     <Compile Include="Combat\BindAnimMachine.cs" />
     <Compile Include="Combat\CarryAnimMachine.cs" />
     <Compile Include="Combat\GrappleCarry.cs" />
+    <!-- 🔴 钩索两件的**货架上架**（2026-10-17）：城镇商店 + 村庄都买得到。
+         物品侧 `is_merchandise="true"` + 本行为"保底补货"两件一起才算数（原因见文件头）。
+         验收命令：custom.grapple market（进游戏全量补 / market restock 手动触发 / market <n> 调每店件数）。 -->
+    <Compile Include="Combat\GrappleMarketBehavior.cs" />
     <Compile Include="CampaignMode\Tools\GrappleCommands.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />

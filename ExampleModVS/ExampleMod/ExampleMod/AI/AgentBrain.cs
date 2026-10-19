@@ -1546,6 +1546,11 @@ namespace LivingWorldNpcs
             var sightTargets = NpcSightSystem.Instance?.TrackedTargets;
             if (sightTargets != null)
             {
+                // 🔴 2026-10-17（用户裁定）：**"掏出武器会引发警戒"总开关**（MCM，默认关）——
+                //    关掉时这里把 weaponDrawn 一律算成 false ⇒ 不 SetPulseTarget、不 AddAlert、
+                //    也就没有后续的犯罪记账与 L3 质问（整条链一起消失，这是这条开关的定义）。
+                //    蹲姿与偷窃界面两条各归各的，不受影响。设置项 = Settings.WeaponDrawnAlert。
+                bool weaponSuspicion = Settings.Instance.WeaponDrawnAlert;
                 bool crouchHandled = false, weaponHandled = false;   // 同类型只跟第一个看到的人（原 break 语义）
                 foreach (var t in sightTargets)
                 {
@@ -1553,9 +1558,9 @@ namespace LivingWorldNpcs
                     bool isPlayer = t == Agent.Main;
                     bool crouching = isPlayer ? t.CrouchMode
                         : AgentAIController.GetBrainForAgent(t)?.CrouchPoseActive == true;
-                    bool weaponDrawn = isPlayer
+                    bool weaponDrawn = weaponSuspicion && (isPlayer
                         ? (AgentAIController.Instance?.PlayerWeaponDrawn ?? false)
-                        : AgentAIController.GetBrainForAgent(t)?.WeaponDrawnActive == true;
+                        : AgentAIController.GetBrainForAgent(t)?.WeaponDrawnActive == true);
                     if ((!crouching || crouchHandled) && (!weaponDrawn || weaponHandled)) continue;
                     bool visible = isPlayer ? canSeePlayer
                         : NpcSightSystem.CanAgentSeeTarget(Owner, t, 15f, 120f);
@@ -1584,7 +1589,17 @@ namespace LivingWorldNpcs
                     if (weaponDrawn && !weaponHandled)
                     {
                         SetPulseTarget(PlayerActionType.WeaponDrawn, t.Name?.ToString(), null, -1, suspect);
-                        AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f * GetAlertDistanceMultiplier(t));
+                        float weaponAmt = dt * 0.20f * GetAlertDistanceMultiplier(t);
+                        AddAlert(PlayerActionType.WeaponDrawn, weaponAmt);
+                        // 1s 闸门降频（与 [Brain-Crouch] 同款）：验"这条链有没有在跑"就看它 ——
+                        // 🔴 2026-10-17 起本分支默认**关着**（MCM 开关 WeaponDrawnAlert），
+                        //    日志里出现 [Brain-Weapon] = 开关已被打开（这就是那条开关的判据）。
+                        float wnow = Mission.Current?.CurrentTime ?? 0f;
+                        if (wnow - _lastWeaponLogTime >= 1f)
+                        {
+                            _lastWeaponLogTime = wnow;
+                            DebugLogger.Log($"[Brain-Weapon] {Owner.Name}(Idx={Owner.Index}) 看到 {(isPlayer ? "玩家" : t.Name)}(Idx={t.Index}) 持械 → +{weaponAmt:F3} 警戒, suspect={(isPlayer ? "-1(玩家)" : t.Index.ToString())}");
+                        }
                         weaponHandled = true;
                         anySuspicious = true;
                     }
@@ -1704,6 +1719,9 @@ namespace LivingWorldNpcs
 
         // 蹲姿感知日志 1s 闸门（DebugLogger 无条件写，每帧刷屏会爆炸；只留验证节奏）
         private float _lastCrouchLogTime = -1f;
+
+        // 持械感知日志 1s 闸门（同上；2026-10-17 加，兼作「拔刀警戒」MCM 开关的判据行）
+        private float _lastWeaponLogTime = -1f;
 
         /// <summary>
         /// 友方旁观者豁免判定（双向豁免核心，不读开关）：本脑（Owner）是玩家友方旁观者，

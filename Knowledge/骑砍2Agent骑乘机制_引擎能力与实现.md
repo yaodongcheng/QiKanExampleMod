@@ -233,6 +233,37 @@ V.SetAgentAI(agent);
 **观测上下马的正规钩子**（四版都有）：`MissionBehavior.OnAgentMount(Agent)` / `OnAgentDismount(Agent)`；
 更细的每-agent 钩子 = `Agent.OnAgentMountedStateChanged`（public `Action` 字段，上下马都调）。
 
+### 5.5.1 🔴 玩家**自己**下马：旗标不可靠 ⇒ 用 blow（2026-10-19 实机定案）
+
+**症状**：骑马对墙开钩索（语义 = 自动下马 → 起飞），连打两枪全部
+`⚠ 骑马勾到地形：2.5 s 内没能下马 ⇒ 这一钩作废`（`Debug/StoryEngine_RuntimeLog.txt` 09:47:23.776 / 09:47:31.058）。
+**每帧重发旗标也拉不回来**。
+
+**结论（修正 §5.5 里"每帧重发就能下"的乐观口径）**
+- **旗标**（`EventControlFlags |= Dismount`）只在**你几乎停住**的时刻才被受理
+  （门槛 = 前进速度 < 0.5 m/s 且马不在扬蹄）⇒ **骑着 / 走着 = 一直拒**。"边骑边下马"不成立。
+- **`CanDismount` blow 是唯一可靠路径**：native 直接执行、**不看马速**，实测 **0.2 s** 摘马
+  （与 §5.6 目标侧结论同源）。
+- **三种下马的动画时长**（`tpaccli clipinfo` 实测，1.2.12 装机包）：
+
+  | 动作 | clip | 时长 |
+  |---|---|---|
+  | 主动下马 | `dismount_rider_to_left/right` | **1.2 s** 主段（+0.5 s 站稳续段；带 `lock_camera`/`lock_movement`） |
+  | 被掀下马 | `rider_only_fall_left/right_*` | **0.2 s** 主段（后面 1.7~2.3 s 是 `_get_up`，**不用等**） |
+
+  ⇒ 快 6 倍；而且被掀的观感（"绳一绷把人扯下来"）更贴动作语义。
+
+**给玩家自己打 blow 的配方**（范本 = `GrappleLogic`"骑马等马"分支 + `GrappleBind.FireDismountBlow`）
+- **只打一发**（重复打 = 反复踉跄）；
+- `attackerIndex = -1`（**不归属任何人** —— 否则会被伤害/犯罪链记成"玩家攻击玩家"）；
+- 血不掉：`FireDismountBlow` 内部临时 `Immortal`、`finally` 还原；
+- 方向朝**钩点**（读作"绳绷紧把人往墙那边扯"，与接下来起飞同向）；
+- **旗标照旧每帧重发当兜底**（blow 万一被拒还有老路）；
+- 旋钮：`custom.grapple mountedselfblow 0|1`（默认开；关掉 = 只点旗标，A/B 用）。
+
+**代价（已知并接受）**：玩家身上走一次真实打击管线 —— 会播"被击落"的受击反应、`OnAgentHit` 广播一发
+（犯罪/警戒体系可能收到，攻击者 −1 不归属）。
+
 ### 5.6 被动落马 —— 手搓 blow 是正道（✅ 2026-10-13 实机通过）
 
 - 🔴🔴 **实机结论（最要紧的一条）：`BlowFlags.CanDismount` 在 native 侧不做二次判定** ——

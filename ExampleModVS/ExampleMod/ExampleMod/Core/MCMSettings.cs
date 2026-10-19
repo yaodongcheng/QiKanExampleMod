@@ -162,6 +162,19 @@ namespace LivingWorldNpcs
             set => Settings.Instance.AlarmedDirectCombat = value;
         }
 
+        // ── 拔刀警戒开关（透传核心 Settings；**默认关闭**，2026-10-17 用户裁定）──
+        // Order = 0：与上面两条警戒/战斗开关并列成一簇（显示顺序见类头部注释）。
+        // 关闭 = 看到武器出鞘完全不涨警戒（连带没有质问、没有犯罪记录）；
+        // 开启 = 旧行为（0.20/s 持续累加，拉满走质问链）。
+        [SettingPropertyBool("{=LWN_mcm_weapon_drawn_alert}React to Drawn Weapons", Order = 0, RequireRestart = false,
+            HintText = "{=LWN_mcm_weapon_drawn_alert_hint}When enabled, NPCs treat a drawn weapon as suspicious: seeing your weapon (or a companion's) out slowly raises their alarm, which can end in an interrogation or a crime report. Disabled by default — with it off, weapons can be drawn freely and only crouching or opening the pickpocket screen still draws suspicion.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool WeaponDrawnAlert
+        {
+            get => Settings.Instance.WeaponDrawnAlert;
+            set => Settings.Instance.WeaponDrawnAlert = value;
+        }
+
         // ── 战斗（透传核心 Settings）──
         // Order = -1：显示顺序为 Order 升序的倒序（见类头部注释），-1 使其排在列表最底部
         [SettingPropertyBool("{=LWN_mcm_show_health_bar}Show NPC Health Bars", Order = -1, RequireRestart = false,

@@ -610,6 +610,25 @@ namespace LivingWorldNpcs
 			//    （2026-10-09 立：`bind test` 连测同一个 NPC 时就是这条潜伏 bug 的现场。）
 			_pending.RemoveAll(p => p.Agent == target);
 
+			// 🔴 **收尾槽里正是这同一个人**（刚被放开、还在演 2.33 s 起身）⇒ **把那台起身机丢掉**。
+			//    2026-10-18 实机事故（用户："他还是保持站姿动画，没进倒地动画"）：
+			//    同一个人被连钩两次 —— 第一枪被"发射前清场"放掉时他是**趴着**的 ⇒ 收尾机开播
+			//    `binded_lay_end`（起身）；第二枪又钩中他 ⇒ 新绑缚机往**同一个 agent 的 0 号通道**
+			//    写 受击/拉倒 ⇒ 两台机每帧互踩（日志 `[Anim:bind] ✗ 被抢走 … 实际是 binded_lay_end`）
+			//    ⇒ 观感 = 他一次次被"拉起来"站着，永远趴不下。
+			//    ⚠️ 只丢"同一个人"那一槽；**别人**在起身就让他演完（那正是收尾槽存在的意义）。
+			//    ⚠️ **不走 RestoreAgent**：下面 `BeginWrapping` 的 `HoldTarget` 会立刻重新压住他，
+			//       中间不需要"先还 AI 再收"（那样反而多一次旗标翻动）。
+			if (_releasing != null && ReferenceEquals(_releasing, target))
+			{
+				_releasing = null;
+				_releaseMachine = null;
+				_releaseCtx = null;
+				_releaseTimer = 0f;
+				DebugLogger.Log($"[Grapple] 勾人：'{SafeName(target)}' 上一次的起身还没演完又被钩中 ⇒ 丢弃那台起身机"
+					+ "（两台机抢同一个 0 号通道会互踩 —— 他会一直站着、趴不下）");
+			}
+
 			_attacker = attacker;
 			_target = target;
 			_phase = Phase.Wrapping;
@@ -1254,7 +1273,8 @@ namespace LivingWorldNpcs
 		/// <param name="dirToward">推他的方向（世界系水平向量）；留空（`default`）= 自动 ——
 		/// 掀人用"从他右手侧"，扬蹄用"正面顶"（照自然路径的条件）。拉下马时传"目标 → 我们"，读感是"被绳扯下来"。</param>
 		/// <returns>null = 已出手；非 null = 出错原因（命令直接回给用户）。</returns>
-		public static string FireDismountBlow(Agent victim, bool rear, float damage, Vec3 dirToward = default(Vec3))
+		public static string FireDismountBlow(Agent victim, bool rear, float damage, Vec3 dirToward = default(Vec3),
+			int attackerIndex = int.MinValue)
 		{
 			if (victim == null) return "no victim";
 			Agent.MortalityState prev = Agent.MortalityState.Mortal;
@@ -1284,7 +1304,12 @@ namespace LivingWorldNpcs
 				}
 
 				Agent attacker = Agent.Main;
-				Blow blow = new Blow(attacker != null ? attacker.Index : -1);
+				// 🔴 2026-10-19：`attackerIndex` 可指定（默认省 = 老口径"玩家打的人"）。
+				//    玩家**自己**被掀下马时传 −1 —— 那一发不归属任何人（否则会被记成"玩家攻击玩家"）。
+				int who = attackerIndex != int.MinValue
+					? attackerIndex
+					: (attacker != null ? attacker.Index : -1);
+				Blow blow = new Blow(who);
 				blow.DamageType = DamageTypes.Blunt;
 				blow.BoneIndex = victim.Monster != null ? victim.Monster.HeadLookDirectionBoneIndex : (sbyte)0;
 				blow.VictimBodyPart = BoneBodyPartType.Chest;

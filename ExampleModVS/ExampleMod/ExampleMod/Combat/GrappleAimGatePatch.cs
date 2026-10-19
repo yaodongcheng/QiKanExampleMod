@@ -56,6 +56,24 @@ namespace LivingWorldNpcs
 				{
 					return;
 				}
+
+				// 🔴🔴 **绳上还绑着人 ⇒ 禁止开火**（2026-10-18 用户裁定）。
+				//    以前是"发射即替换"：再开一枪会先"清场" ⇒ **把绑着的人悄悄放掉**再钩新的
+				//    （一根绳只能系一头，物理上必然如此）⇒ 玩家看到的是"我没松绳，怎么又能钩人"。
+				//    这里与"钩不能当箭"同一套手法：抹掉这一帧攻击输入（连瞄准都不让进）+ 按下沿给一句话。
+				//    要再钩东西 = 先松绳（交互面板【松绳】/ `custom.grapple bind release`）。
+				GrappleLogic boundLogic = GrappleLogic.Current;
+				if (boundLogic != null && boundLogic.IsBindingSomeone())
+				{
+					agent.MovementFlags &= ~agent.AttackDirectionToMovementFlag(agent.GetAttackDirection());
+					if (Input.IsKeyPressed(InputKey.LeftMouseButton)
+						|| Input.IsKeyPressed(InputKey.ControllerRTrigger))
+					{
+						boundLogic.ShowBoundNoFireHint();
+					}
+					return;
+				}
+
 				if (!GrappleFirePatch.IsHoldingHookInForeignWeapon(agent))
 				{
 					return;          // 绝大多数情况：一行都不多做

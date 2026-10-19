@@ -90,6 +90,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///                                     复现"缺钩爪"现场：手里那枚转的钩不显示、按开火键弹缺件提示）；
 	///                                     `hook` = 配成"只有钩"。大地图那条只发物品、不动已有装备。
 	///   custom.grapple hint               强制弹一次"缺钩爪"提示（不按键也能验文案 / 中文层 / 颜色）
+	///   custom.grapple market [n|restock|on|off]  **钩索两件在所有城镇商店 + 村庄上架**（2026-10-17）：
+	///                                     无参 = 状态（覆盖面 towns=X/Y · 每店件数 · 引擎实价）·
+	///                                     `market &lt;n&gt;` = 每店保底 n 件（0 = 停补），改完立刻补一轮 ·
+	///                                     `market restock` = 立刻补一轮 · `market on|off` = 总开关。
+	///                                     🔴 **任何界面都能敲**（大地图也管用）；货架 = `Settlement.ItemRoster`
 	///
 	/// —— 步骤 4 起（拉自己）——
 	///   custom.grapple pull self          把玩家拉向钩点（要求已勾住：先 throw 或开一枪）
@@ -167,8 +172,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lid" || s == "lreset" || s == "equip" || s == "hint" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
-					|| s == "mountedpull" || s == "mountedwait" || s == "horse"					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
-					|| s == "bind" || s == "carry"
+					|| s == "mountedpull" || s == "mountedwait" || s == "mountedselfblow" || s == "horse"					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
+					|| s == "bind" || s == "carry" || s == "market"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens"
 					|| s == "sound")
 				{
@@ -190,6 +195,14 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			if (sub == "equip")
 			{
 				return DoEquip(ArgAt(args, at));
+			}
+
+			// 🔴 `market` = 钩索两件的**商店/村庄上架**（2026-10-17 用户要求"所有的主城商店和村庄都能买到"）。
+			//    **任何界面都能敲**（大地图 / 场景都行）：管的是大地图货架，与 Mission 无关 ——
+			//    所以必须排在下面那条 `Mission.Current == null` 拦截**之前**（`equip` 同理）。
+			if (sub == "market")
+			{
+				return DoMarket(args, at);
 			}
 
 			// 🔴 `iconhook` = **钩索图标补丁**的开关（2026-10-08）：钩那件物品在**背包/装备界面**里的 2D 图标，
@@ -1162,6 +1175,20 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					return $"OK: mounted dismount wait = {v:F1}s";
 				}
 
+				// ── 玩家自己骑马钩地形："催下马 blow"（2026-10-19）──
+				//    实机证据：光点"下马"旗标在玩家身上被引擎顶着不放行（2.5 s 超时、两枪都作废）
+				//    ⇒ 默认同时打一发 CanDismount blow（native、不看马速）。这个旋钮是 A/B 关它用的。
+				case "mountedselfblow":
+				{
+					string m = ArgAt(args, at + 0)?.ToLowerInvariant();
+					if (m == "0" || m == "off") { GrappleLogic.MountedSelfBlow = false; }
+					else if (m == "1" || m == "on") { GrappleLogic.MountedSelfBlow = true; }
+					else if (m != null && m != "state") { return "Error: mountedselfblow expects 0|1"; }
+					return $"OK: mounted self dismount blow = {GrappleLogic.MountedSelfBlow}"
+						+ " (on = also fire a native CanDismount blow at yourself when hooking terrain while mounted;"
+						+ " HP is protected, attacker = none). Off = flag only (the engine may refuse while moving).";
+				}
+
 				// ── 骑马测试夹具（2026-10-13）：召马 / 让人上马 / 让人落马 ──
 				case "horse":
 					result = DoHorse(args, at);
@@ -1527,6 +1554,48 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			{
 			}
 			return removed;
+		}
+
+		/// <summary>
+		/// `custom.grapple market [...]` —— 钩索两件（绳 + 钩）的**商店/村庄上架**（2026-10-17 立）。
+		/// · 无参            = 状态（覆盖面 towns=X/Y villages=X/Y · 每店件数 · 引擎给的实价）
+		/// · `market &lt;n&gt;`     = 每店保底改成 n 件（**0 = 停止补货**），改完**立刻补一轮**
+		/// · `market restock` = 立刻补一轮（不改件数；进游戏时本来就会自动补一次）
+		/// · `market on|off`  = 总开关（诊断用）
+		/// 🔴 **任何界面都能敲**（大地图 / 场景都行）：管的是大地图货架，与 Mission 无关。
+		/// 实现 = <see cref="GrappleMarketBehavior"/>（货架 = `Settlement.ItemRoster`，机制见那边文件头）。
+		/// </summary>
+		private static string DoMarket(List<string> args, int at)
+		{
+			GrappleMarketBehavior behavior = GrappleMarketBehavior.Instance;
+			if (behavior == null)
+			{
+				return "Error: market behavior not registered - start or load a campaign first.";
+			}
+
+			string a0 = ArgAt(args, at);
+			if (a0 == null)
+			{
+				return behavior.StatusLine();
+			}
+			string v = a0.Trim().ToLowerInvariant();
+			if (v == "restock" || v == "stock" || v == "now")
+			{
+				return behavior.RestockAll();
+			}
+			if (v == "on" || v == "off")
+			{
+				GrappleMarketBehavior.Enabled = v == "on";
+				return "OK: market restock = " + (GrappleMarketBehavior.Enabled ? "ON" : "OFF")
+					+ " per-shop=" + GrappleMarketBehavior.PerShopStock + " | " + behavior.RestockAll();
+			}
+			int n = (int)ParseF(args, at, -1f);
+			if (n < 0)
+			{
+				return "Error: market takes no arg (status) | <n> (per-shop count, 0 = stop) | restock | on|off";
+			}
+			GrappleMarketBehavior.PerShopStock = n;
+			return "OK: per-shop=" + n + " (0 = stop restocking) | " + behavior.RestockAll();
 		}
 
 		/// <summary>

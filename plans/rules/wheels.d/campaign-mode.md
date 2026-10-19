@@ -895,3 +895,33 @@ if dedicated:                                # ② 只带自己那套，不补�
 `csv/TaikouTroop.csv` + `csv/HeroEquip.csv`（手维护源表）· `TaikouHero.csv` 的五个专属列 ·
 工程文档 `plans/兵种装备接线.md` §三之二「三条硬规矩」。
 
+## 卷十六 城镇/村庄商店货架：货架是谁、货从哪来、怎么"上架"（2026-10-18 登记）
+
+**一句话**：**货架 = `Settlement.ItemRoster`**（= `Settlement.Party.ItemRoster`）；**货是隐藏工匠工坊/村庄产能"长"出来的**；
+想让 mod 物品**在所有城镇与村庄**都能买到 ⇒ **自己补货**（别指望 `is_merchandise="true"` 自动上架）。
+
+**交易口子（反编译实证，1.2.12 / 1.5.1 同名成员一致）**
+- 城镇菜单【Trade】→ `InventoryManager.ActivateTradeWithCurrentSettlement` → `OpenScreenAsTrade(Settlement.CurrentSettlement.ItemRoster, …)`
+- 村庄菜单【Buy products】→ `game_menu_village_buy_good_on_consequence` 同一句
+- 城镇里跟**具体商人**对话开的那张屏读的也是它，只是多一层**按职业的品类过滤**（武器匠只显示 Weapon 类）。
+
+**货怎么来的**
+- **工匠工坊**（`SandBox/ModuleData/spworkshops.xml` 里的隐藏 `isHidden` 类型）按 **`ItemCategory`** 产出：
+  `WorkshopsCampaignBehavior.GetItemsToProduce` → `GetRandomItem(category, town)` → 从该品类里
+  **按 `1 / (max(100, 物品价值) + 100)` 加权**抽一件（`IsItemPreferredForTown`：文化相同，或物品文化为空）。
+- 村庄：`VillageGoodProductionCampaignBehavior` 只产它的村型产出。
+- AI 队伍进城卖战利品（`PartiesBuyHorseCampaignBehavior` 里的 `SellItemsAction`）也会进货架。
+
+**🔴 `is_merchandise="true"` 对"价值很低的武器/弹药"是陷阱**
+- `ItemObject.NotMerchandise` 是引擎各池子的过滤器（工坊可产 / 战利品 / 奖池 …）。
+- 一件**价值极低**（几十第纳尔）的武器/弹药标成 `true` ⇒ 在它自己的品类里**抽取权重极高**
+  （实测推导：价值 36 的绳 ≈ 1/136，普通一等弓 1/400~1/1100 ⇒ **3~8 倍**），而且**没写 `culture` = 每个城都优先**
+  ⇒ **全图城镇天天产这件、把真武器挤出货架**。
+- ✅ 正确做法：**保持 `is_merchandise="false"`** + **自己写 CampaignBehavior 补货**
+  （每次进游戏全量一次 + `CampaignEvents.DailyTickSettlementEvent` 补不足）。
+  **交易界面不读这个字段**（`InventoryLogic` + 三个 VM/UI 程序集全库 0 命中）⇒ 摆在货架上照常可见 / 可买 / 可卖回。
+
+**现成实现（照抄）**：`Combat/GrappleMarketBehavior.cs`（每店保底 N 件）· 验收 `custom.grapple market`
+（无参 = 覆盖面/件数/实价 · `market <n>` 改件数 · `market restock` 手动补一轮）。
+⚠️ **城堡没有交易菜单**（`IsTown` 天然排除）；村庄货架会被村民队搬去城里卖 ⇒ 补货是"每天补回"，不是"钉死"。
+

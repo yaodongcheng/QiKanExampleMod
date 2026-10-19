@@ -65,7 +65,23 @@
           （2026-10-08 用户裁定：中文层必须写中文，废止此前「中英同串 ASCII」的图省事做法）。
           控制台取物品走 StringId（`custom.grapple equip` 就是）；原版 `campaign.add_item_to_main_party`
           按显示名查、参数组之间用**竖线 `|`** 分隔 —— 中文客户端敲中文名。
-        · 两件都 `is_merchandise="false"`：探针期不进商人不掉落，用 `custom.grapple equip` 发。
+        · 🔴 **2026-10-17：两件改成「所有城镇商店 + 村庄都能买到」**（用户要求）。做法**只有一件事**：
+          **代码侧保底上架**（`Combat/GrappleMarketBehavior.cs`）—— 每次进游戏 + 每天，把每个城镇/村庄的
+          货架（= `Settlement.ItemRoster`，城镇菜单【Trade】与村庄【Buy products】读的都是它，反编译实证）
+          补到每样 1 件。`custom.grapple market` 看覆盖面、`custom.grapple market <n>` 调件数。
+          🔴🔴 **`is_merchandise` 仍然是 `false`，这是故意的 —— 别改成 true**（2026-10-17 查证后回退过一次）：
+          · 城镇货架上的武器/箭**不是凭空生成的**，是**隐藏的"工匠"工坊**每天产出来的
+            （`SandBox/ModuleData/spworkshops.xml` 里的 `ItemCategory.ranged_weapons*` / `arrows` 产出
+             → `WorkshopsCampaignBehavior.GetItemsToProduce` → `GetRandomItem` 按 **`1/(max(100,价值)+100)`**
+             加权从该品类里抽一件，详见那边 1.2.12 反编译）。
+          · 我们这两件的品类恰好**都在被产出的品类里**（绳 = Bow → `ranged_weapons`；
+            钩 = Arrow → `arrows`，由 `DefaultItemCategorySelector.GetItemCategoryForItem` 按类型+档次定）。
+          · 而它们**价值极低**（绳 ≈ 36 / 钩 ≈ 275）⇒ 权重 1/136 ≈ 普通一等弓（1/400~1/1100）的 **3~8 倍**；
+            再加上本文件**没写 `culture`** ⇒ `IsItemPreferredForTown` 对**每个城**都为真
+            ⇒ 一旦 `is_merchandise="true"`，**全图城镇会天天产钩索绳**，把真弓从货架上挤掉。
+          · `is_merchandise="false"`（= `ItemObject.NotMerchandise`）正是"**别让经济/奖池自己捡起这件**"的开关，
+            而**交易界面不读它**（`InventoryLogic` 与三个 VM/UI 程序集全库 0 命中）⇒ 摆在货架上照常可见、可买、可卖回。
+          价格由引擎按物品数值折算（不写死）：绳 ≈ 36 第纳尔（弓公式，伤害填 1 ⇒ 低档）· 钩 ≈ 275 第纳尔（弹药公式，按 `stack_amount`）。
 
      🔴 两件都带 `<Flags Civilian="true" />`（CLAUDE.md 铁律 33：**任何装备都要平民装可用**）。
      🔴 任何网格字段都不许写空串（雷 166 `mesh=""` 装备 AV / 雷 168 箭类 `holster_mesh=""` 图标 NRE）。 -->
@@ -126,7 +142,9 @@
 			ForceAttachOffHandPrimaryItemBone="true"
 			Civilian="true" />
 	</Item>
-	<!-- 钩（钩索的**本体**，占弹药槽；飞出去勾住东西的就是它）：只随钩索一起发，不给商人、不进掉落。
+	<!-- 钩（钩索的**本体**，占弹药槽；飞出去勾住东西的就是它）：🔴 2026-10-17 起**也进商店**
+	     （与绳配对卖 —— 只买绳没弹药、只买钩没发射器，两件都得挂上货架；上架**只由我们那条行为**做，
+	     本件 `is_merchandise` 保持 `false` 的原因见文件头那条长注）。
 	     🔴 `stack_amount` **必须 > 1**（2026-10-03 实机 + 反编译实锤）：HUD 右下角的子弹数走
 	        `MissionEquipment.GetAmmoAmount()`，它累加弹药槽时有个条件 **`ModifiedMaxAmount > 1`** ——
 	        `stack_amount="1"` 的弹**永远不计数** ⇒ 弹袋里有弹、也能射出去，**但 HUD 显示 0**

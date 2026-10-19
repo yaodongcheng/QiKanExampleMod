@@ -1015,3 +1015,27 @@ C# 只填上下文（`BindAnimContext.BeingPulled/BeingDragged`）+ 形态切换
 `custom.grapple lid 0|1 [余量]`（`lid 0` = 关掉判据、复现旧行为"落到房顶"，对照用）。
 实机证据（2026-10-17 酒馆，连打四枪）：`盖板 z=11.69（钩点正上方那块）：否掉 0 个候选；兜底落点压到盖板下面 (9.49) ⇒ 拉上去再掉回地面`。
 **方案**：`plans/钩索-实施计划.md` §二十一（§二十二 = 遗留：拉拽/瞄准相机没有碰撞，室内会穿到墙外）。
+
+## 🔴 骑乘下马：**玩家自己**别指望旗标，用 `CanDismount` blow（2026-10-19 实机定案）
+
+- **旗标**（`EventControlFlags |= EventControlFlag.Dismount`，每帧重发）只在**几乎停住**时被引擎受理
+  （门槛 = 前进速度 < 0.5 m/s 且马不在扬蹄）⇒ **骑着/走着 = 一直拒**。
+  实机：骑马钩墙要"自动下马 → 起飞"，连打两枪都 `2.5 s 内没能下马 ⇒ 这一钩作废`。
+- **blow**（手搓 `RegisterBlow` + `BlowFlags.CanDismount`）**native 直接执行、不看马速**，**0.2 s** 摘马。
+  对照：主动下马动画 = **1.2 s** 主段 + 0.5 s 续段（带 `lock_camera`/`lock_movement`）⇒ blow 快 6 倍，
+  观感也更贴"被绳扯下马"。
+- **给玩家自己打 blow 的配方**（少一条都会出怪账）：
+  只打**一发**（重复打 = 反复踉跄）· `attackerIndex = -1`（不归属任何人，否则记成"玩家攻击玩家"）·
+  血不掉（`FireDismountBlow` 内部临时 `Immortal`，`finally` 还原）· 方向朝钩点 · 旗标留作兜底 ·
+  旋钮 `custom.grapple mountedselfblow 0|1`（默认开）。
+- 完整证据/时长表/配方：[Knowledge/骑砍2Agent骑乘机制_引擎能力与实现.md](../../../Knowledge/骑砍2Agent骑乘机制_引擎能力与实现.md) §5.5.1 ·
+  落地 = `Combat/GrappleLogic.cs`（"骑马等马"分支）+ `GrappleBind.FireDismountBlow(…, attackerIndex)` ·
+  上下文 = `plans/钩索-实施计划.md` §23.8。
+
+### 附带一条通用教训：**位移要与动画节拍绑，而不是与"事件时刻"绑**
+
+钩索的过程动画（`grapple_ground_pull`，1.30 s）里，"人开始被带走"在**第 0.567 秒**
+（= `PullStartSeconds 1.133 − ReleaseSeconds 0.566`；源 30 fps 第 34 帧）。
+⇒ 任何"等外部条件（下马/读条/被击中）才能开始移动"的系统，**姿态时钟要跟着"真正开始的时刻"平移**
+（起飞 T 定了 ⇒ 动画在 `T − 0.567` 进场 / 或直接从 0.567 处 `Force(..., startProgress)`），
+否则会出现"动画已经演过被拽那一拍、人却还没动"。钩索的做法与验收（两行日志时间差恒为 0.567 s）见 `plans/钩索-实施计划.md` §23.4。

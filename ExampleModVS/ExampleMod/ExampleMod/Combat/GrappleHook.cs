@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -123,6 +124,21 @@ namespace LivingWorldNpcs
 		private float _maxDistance;
 		private float _checkTimer;
 		private Vec3 _checkFrom;                  // 上一次碰撞检查的位置（线段 = 它 → 本次位置，天然连续）
+
+		/// <summary>
+		/// 扫掠时**要跳过**的 agent（复用同一份，避免每帧 new）。
+		///
+		/// 🔴 2026-10-18 实机事故（用户："我还是锁在马上，你执行了下马吗"）：
+		///    骑马开火时，钩头从**手上**飞出，第一个扫掠段就撞上了**自己骑的坐骑**
+		///    （马脖子正好在手正前下方，实测离手 0.6 m）⇒ 命中类型算成 `HitAgent`（驮马）
+		///    ⇒ 自动拉拽那条分支要求 `AttachedAgent == null` ⇒ **"骑马→下马→起飞"整段压根没进**，
+		///    而 `GrappleBind` 又按"目标是坐骑"拒绝 ⇒ 钩挂在自己马身上、什么都不发生，人被锁在马上。
+		///    ⇒ 修法 = 把**玩家当前骑的那匹**加进跳过表（`SpellSweep` 的 `alreadyHit` 参数就是干这个的），
+		///    扫掠会越过它继续找目标/地形。
+		/// ⚠️ 只排"自己骑的这匹"；别人的马/空马**照旧能勾到**（目前勾到坐骑 = 不接受、什么都不发生 ——
+		///    "钩马该是什么语义"是**待拍板**的设计题，别在这里顺手改）。
+		/// </summary>
+		private readonly HashSet<int> _skipAgents = new HashSet<int>();
 		private bool _meshWarned;
 
 		// ───────────────────────────── 发射 / 推进 / 收掉 ─────────────────────────────
@@ -207,8 +223,21 @@ namespace LivingWorldNpcs
 					// 🔴 **把法线留下来**（2026-10-16）：落点判据要用它判"勾住的是不是一块朝下的面（盖板）"。
 					//    法线本来就在算（FindNearestHit 内部按命中类型给：地形法线 / 三探针平面 / -来向），
 					//    以前只是用不带 normal 的重载把它丢了 —— 换重载即可，零额外开销。
+					// 🔴 2026-10-18：**跳过玩家自己骑的那匹坐骑**（见 _skipAgents 的注释 —— 骑马开火
+					//    第一个扫掠段就撞上自己的马，整条"骑马→下马→起飞"因此没进）。
+					_skipAgents.Clear();
+					try
+					{
+						Agent mount = Agent.Main?.MountAgent;
+						if (mount != null && mount.Index != excludeAgentIndex)
+						{
+							_skipAgents.Add(mount.Index);
+						}
+					}
+					catch (Exception) { }
 					hit = SpellSweep.FindNearestHit(mission, _checkFrom, next, HitRadius,
-						excludeAgentIndex, null, null, null, out victim, out point, out normal);
+						excludeAgentIndex, null, _skipAgents.Count > 0 ? _skipAgents : null, null,
+						out victim, out point, out normal);
 				}
 				catch (Exception)
 				{
