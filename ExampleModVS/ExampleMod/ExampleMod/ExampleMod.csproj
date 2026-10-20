@@ -388,6 +388,8 @@
     <Compile Include="Combat\GrappleBind.cs" />
     <Compile Include="Combat\GrappleFirePatch.cs" />
     <Compile Include="Combat\GrappleAimGatePatch.cs" />
+    <!-- 2026-10-20：绳上有人时让原版 G 键（DropWeapon）让位 —— 【拉紧】/【扛起】都在这把键上 -->
+    <Compile Include="Combat\GrappleDropWeaponGatePatch.cs" />
     <!-- 🪦 2026-10-12 晚**停用**：GrappleAmmoOrderPatch（装备界面里直接写 Equipment 槽位会跟 InventoryLogic 脱钩
          ⇒ 实机症状：箭和钩爪**再也脱不下来**）。顺序归一化已改到"进战场一次性"做（Combat\GrappleLogic.cs 里
          NormalizeAmmoOrderOncePerMission）。文件留着备查，**不要重新启用**。 -->
@@ -403,12 +405,20 @@
          🔴 三个文件都要在（不登记 = 静默不编译 + VS 报"找不到类型"，雷 40）。 -->
     <Compile Include="Combat\BindAnimMachine.cs" />
     <Compile Include="Combat\CarryAnimMachine.cs" />
+    <Compile Include="Combat\ExecutedAnimMachine.cs" />
     <Compile Include="Combat\GrappleCarry.cs" />
+    <Compile Include="Combat\PairActionDef.cs" />
+    <Compile Include="Combat\PairActionPose.cs" />
+    <Compile Include="Combat\PairActionPlayback.cs" />
+    <Compile Include="Combat\PairActionLogic.cs" />
+    <Compile Include="Combat\AgentStatus.cs" />
     <!-- 🔴 钩索两件的**货架上架**（2026-10-17）：城镇商店 + 村庄都买得到。
          物品侧 `is_merchandise="true"` + 本行为"保底补货"两件一起才算数（原因见文件头）。
          验收命令：custom.grapple market（进游戏全量补 / market restock 手动触发 / market <n> 调每店件数）。 -->
     <Compile Include="Combat\GrappleMarketBehavior.cs" />
     <Compile Include="CampaignMode\Tools\GrappleCommands.cs" />
+    <Compile Include="CampaignMode\Tools\PairCommands.cs" />
+    <Compile Include="CampaignMode\Tools\StatusCommands.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />

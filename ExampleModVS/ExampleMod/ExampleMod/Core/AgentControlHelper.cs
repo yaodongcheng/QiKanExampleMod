@@ -702,6 +702,36 @@ namespace LivingWorldNpcs
             //agent.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
             // agent.SetScriptedFlags(agent.GetScriptedFlags() & ~Agent.AIScriptedFrameFlags.DoNotRun);
         }
+
+        /// <summary>
+        /// **停止"他自己在走"**（2026-10-20 立；两处共用：脑接管的一瞬 + 捆缚的每帧）。
+        ///
+        /// 🔴 引擎的走路由 **`Agent.MovementInputVector`** 驱动（玩家控制器每帧写它，没按键写 `Vec2.Zero`；
+        ///    AI 也每帧写同一个字段）。**AI 一停就没人清它** ⇒ 最后那一脚的方向会一直生效 ——
+        ///    实机症状 = "被绑住的人沿着他自己原版的方向一直走"。
+        /// 🔴 **`SetMovementDirection` 是另一个字段**（朝向/转身），清它拦不住走路 —— 别拿它当"停步"。
+        /// 顺带清掉"走到某点"的合同（村镇导航器/上一个动作留下的 `SetScriptedPosition`）。
+        /// 幂等、只吞异常不抛。
+        /// </summary>
+        public static void StopMovement(Agent agent)
+        {
+            if (agent == null) return;
+            try { agent.DisableScriptedMovement(); } catch (Exception) { }
+            try { agent.MovementInputVector = Vec2.Zero; } catch (Exception) { }
+        }
+
+        /// <summary>
+        /// **把他"钉在原地"** = <see cref="StopMovement"/> + 限速 0 + 朝向归零。
+        /// 🔴 只给**真的要被按住**的状态用（捆缚 / 处决倒地）；**不要**在通用接管里调 ——
+        ///    限速 0 会一直挂着（`ForceUnlockAgent` 才恢复 -1），战斗 NPC 会被钉死。
+        /// </summary>
+        public static void HoldInPlace(Agent agent)
+        {
+            if (agent == null) return;
+            StopMovement(agent);
+            try { agent.SetMovementDirection(Vec2.Zero); } catch (Exception) { }   // 朝向（不是走路，见 StopMovement）
+            try { agent.SetMaximumSpeedLimit(0f, false); } catch (Exception) { }
+        }
         public static void ForceUnlockAgent(Agent agent)
         {
             if (agent == null) return;

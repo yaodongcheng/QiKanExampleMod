@@ -572,6 +572,9 @@ namespace LivingWorldNpcs
             bool isAnimal = IsAnimalAgent(currentAgent);
             bool isAlive = AgentControlHelper.SafeIsActive(currentAgent);
             bool isKnockedOut = AgentBrain.IsKnockedOut(currentAgent);
+            // 处在特殊状态里（当前 = 被处决倒地）同样视为失去行动能力 —— 不给正常交互入口（2026-10-20）。
+            if (!isKnockedOut && AgentBrain.IsHeldByStatus(currentAgent))
+                isKnockedOut = true;
 
             // 已被击晕的Agent视为失去行动能力（引擎可能未立即转为Unconscious时兜底）
             if (isKnockedOut)

@@ -2147,18 +2147,16 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					return $"OK: dragged one faces away from the pull = {GrappleBind.DragFaceAway}"
 						+ (GrappleBind.DragFaceAway ? " (feet first, head away from the rope holder)" : " (head toward the rope holder -- default)");
 				}
-				// ── 🔴 "绷紧"两个门槛（2026-10-14 加）：档一 = 身体（绳的硬约束）/ 档二 = 走姿读感 ──
+				// ── "绷紧"判据（2026-10-20 简化）：当前两人直线距离 vs 绳长，只留一个容差旋钮 ──
 				case "leashtaut":
 				{
 					float a = ParseF(args, at + 1, -1f);
-					if (a < 0f) return $"grapple: tautness gate = {GrappleBind.LeashDeadzone:F2} m"
-						+ " (beyond this the bound one is pulled AND starts walking -- one gate for both, so he never slides in idle)"
-						+ $" | smoothing = {GrappleBind.LeashSmoothSpeed:F0}/s (measured on root-to-root distance growth, not hand-to-chest)";
-					if (a <= 0f || a > 3f) return "Error: leashtaut expects 0..3 (metres over the rope length)";
+					if (a < 0f) return $"grapple: tautness tolerance = {GrappleBind.LeashDeadzone:F2} m"
+						+ " (distance - rope length beyond this => he is pulled; back to <= 0 => released)"
+						+ " | rope length is locked at bind time and never changes by itself";
+					if (a < 0f || a > 3f) return "Error: leashtaut expects 0..3 (metres over the rope length)";
 					GrappleBind.LeashDeadzone = a;
-					float b = ParseF(args, at + 2, float.NaN);
-					if (!float.IsNaN(b)) GrappleBind.LeashSmoothSpeed = b;
-					return $"OK: tautness gate = {GrappleBind.LeashDeadzone:F2} m (exit at {GrappleBind.LeashDeadzone * GrappleBind.LeashReleaseRatio:F2} m) | smoothing {GrappleBind.LeashSmoothSpeed:F0}/s";
+					return $"OK: tautness tolerance = {GrappleBind.LeashDeadzone:F2} m (release when distance is back within the rope length)";
 				}
 				case "leashprobe":
 				{
@@ -2166,6 +2164,17 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					if (v < 0f) return $"grapple: leash probe interval = {GrappleBind.LeashProbeSeconds:F1}s (0 = off; logs distance / rope length / pull speed)";
 					GrappleBind.LeashProbeSeconds = v;
 					return v <= 0f ? "OK: leash probe OFF" : $"OK: leash probe every {v:F1}s";
+				}
+				// ── 压制复核节拍（2026-10-20 加）：每 N 秒把"旗标 / AI 冻结 / 控制器=None"重压一遍 ──
+				//    平时是保险（引擎部署收尾会全场解冻）；A/B 用 0 关掉，看他会不会自己走。
+				case "verify":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: suppression re-assert interval = {GrappleBind.VerifySeconds:F1}s"
+						+ " (0 = off; while bound it re-applies scripted flags / AI pause / controller=None, and logs when something restored them)";
+					GrappleBind.VerifySeconds = v;
+					return v <= 0f ? "OK: suppression re-assert OFF"
+						: $"OK: suppression re-assert every {v:F1}s";
 				}
 
 				// ═════════ 反向绑：NPC 牵着玩家走（2026-10-13，用户第 3 条）═════════

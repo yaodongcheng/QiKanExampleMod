@@ -711,13 +711,26 @@ namespace LivingWorldNpcs
                 return "error: must be in a scene/mission to use this command.";
             }
 
-            const string AttackerAction = "act_execution02";   // 玩家（攻击方）
-            const string VictimAction = "act_executed02";      // 焦点 NPC（受击方）
+            // 0. pair id 由调用方给（数据驱动：代码里不写死任何动作 id）。
+            string pairId = null;
+            for (int i = 0; i < args.Count; i++)
+            {
+                string a = (args[i] ?? "").Trim();
+                if (a.StartsWith("pair=", StringComparison.OrdinalIgnoreCase))
+                    pairId = a.Substring(5).Trim();
+            }
+            if (string.IsNullOrWhiteSpace(pairId))
+            {
+                return "FAILED: pair id is required."
+                     + " usage: custom.exec_pair <targetId> [distance] [camera] pair=<id>"
+                     + " (e.g. pair=execution02; or use 'custom.pair start <id>')";
+            }
 
             // 1. 受击方：可弃首参（解析不出就回落 interact 焦点，不报 not found）
             Agent victim = null;
             string note = string.Empty;
-            if (args.Count >= 1 && !string.IsNullOrWhiteSpace(args[0]))
+            if (args.Count >= 1 && !string.IsNullOrWhiteSpace(args[0])
+                && !args[0].StartsWith("pair=", StringComparison.OrdinalIgnoreCase))
             {
                 victim = Mission.Current.Agents.FirstOrDefault(a => a.Character?.StringId == args[0]);
                 if (victim == null)
@@ -738,58 +751,44 @@ namespace LivingWorldNpcs
             if (!AgentControlHelper.SafeIsActive(attacker) || !AgentControlHelper.SafeIsActive(victim))
                 return "FAILED: attacker or victim is not active (dead / removed)";
 
-            // 2. 距离（第 2 参，默认 2 m）；相机模式在第 3 参（见下方第 7 步）
-            float distance = 2.0f;
+            // 2. 距离（第 2 参）**已废弃**：站位现在来自 PairActions.csv 的 Stance_*。
+            //    保留解析只为兼容旧输入；返回里注明忽略。
+            string distanceNote = string.Empty;
             if (args.Count >= 2 && !string.IsNullOrWhiteSpace(args[1])
-                && float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
+                && float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float ignoredDistance))
             {
-                distance = MathF.Clamp(parsed, 0.5f, 5f);
+                distanceNote = $" [note: distance arg '{ignoredDistance:0.0}' ignored; stance comes from PairActions.csv]";
             }
 
-            // 3. 动作名先解析：解析失败 = act_none，引擎不报错、只是不播（与 custom.do_anim 同款检查）
-            ActionIndexCache atkIndex = ActionIndexCache.Create(AttackerAction);
-            ActionIndexCache vicIndex = ActionIndexCache.Create(VictimAction);
-            if (atkIndex == ActionIndexCache.act_none)
-                return $"FAILED: action '{AttackerAction}' is NOT registered (act_none). check LivingWorldNpcs ModuleData/action_types.xml + action_sets.xml";
-            if (vicIndex == ActionIndexCache.act_none)
-                return $"FAILED: action '{VictimAction}' is NOT registered (act_none). check LivingWorldNpcs ModuleData/action_types.xml + action_sets.xml";
+            // 3. 定义 + 运行时
+            if (!PairActionTable.TryGet(pairId, out PairActionDef def) || def == null)
+                return $"FAILED: pair action '{pairId}' not found in ModuleData/DesignData/PairActions.csv";
+            if (PairActionLogic.Current == null)
+                return "FAILED: PairActionLogic is not mounted (not in a mission?)";
 
-            // 4. 站位：玩家正前方 distance 米、贴地。
-            //    🔴 用【角色朝向】LookFrame.rotation.f，不是相机方向 —— 处决的位移是沿角色前方推的，
-            //       按相机放会把目标放到"镜头看着的位置"，跟动画行进方向对不上。
-            Vec3 forward = attacker.LookFrame.rotation.f;
-            forward.z = 0f;
-            if (forward.LengthSquared < 1e-4f)
+            // 4. 同帧起播交给 PairAction：它会两边都解析、再在同一个 C# 调用里连续写通道。
+            var atkDriver = new DirectActionDriver(def.Attacker, 0f);
+            var vicDriver = new DirectActionDriver(def.Defender, 0f);
+            if (!PairActionLogic.Current.Begin(def, attacker, victim, atkDriver, vicDriver,
+                    ignoreApproachDistance: true, out string why))
+                return $"FAILED: {why}{note}{distanceNote}";
+
+            // 5. 时长（相机保持用；动作解析失败时 0）
+            ActionIndexCache atkIndex = ActionIndexCache.Create(def.Attacker.ActionId);
+            ActionIndexCache vicIndex = ActionIndexCache.Create(def.Defender.ActionId);
+            float atkDur = 0f, vicDur = 0f;
+            try { atkDur = MBActionSet.GetActionAnimationDuration(attacker.ActionSet, atkIndex); } catch (Exception) { }
+            try
             {
-                forward = attacker.LookDirection;   // 兜底：角色帧取不到时
-                forward.z = 0f;
+                MBActionSet warrior = MBActionSet.GetActionSet("as_human_warrior");
+                vicDur = warrior.IsValid
+                    ? MBActionSet.GetActionAnimationDuration(warrior, vicIndex)
+                    : MBActionSet.GetActionAnimationDuration(victim.ActionSet, vicIndex);
             }
-            if (forward.LengthSquared < 1e-4f)
-                return "FAILED: cannot read player facing direction";
-            forward.Normalize();
+            catch (Exception) { }
 
-            Vec3 spot = attacker.Position + forward * distance;
-            if (Mission.Current.Scene != null)
-                spot.z = Mission.Current.Scene.GetGroundHeightAtPosition(new Vec3(spot.x, spot.y, spot.z));
-
-            // 5. 放下 + 让他面朝玩家。
-            //    🔴 转朝向只能用 SetMovementDirection（LookDirection 赋值那条实测转不动）。
-            victim.TeleportToPosition(spot);
-            victim.SetMovementDirection(-1f * forward.AsVec2);
-
-            // 6. 同帧起播（这就是"同时"）：
-            //    玩家走 0 号通道，与 custom.do_anim 同一条调用（实测这条 clip 能推着玩家走 3.68 m）；
-            //    受击方走 ForcePlayAction —— 它负责切到 as_human_warrior（村民/平民的 action_set 里没有我们的动作）
-            //    并打断坐椅子之类的交互，否则引擎每帧会把动画覆盖回去。
-            float atkDur = MBActionSet.GetActionAnimationDuration(attacker.ActionSet, atkIndex);
-            attacker.SetActionChannel(0, atkIndex, false, 0UL, 0f, 1f, -0.2f, 0.4f, 0f, false, -0.2f, 0, true);
-            AgentControlHelper.ForcePlayAction(victim, VictimAction);
-            float vicDur = MBActionSet.GetActionAnimationDuration(victim.ActionSet, vicIndex);
-
-            // 7. 演出相机：整段表演（含收尾一拍）把镜头接管过来跟着玩家走。
-            //    为什么要"跟"：这条动画会把玩家往前推 3.68 m，镜头不跟人就走出画面。
-            //    默认 = **照抄引擎相机开演那一刻的机位**（方向冻住、只跟位置）——
-            //    观感是"视角还是你原来的视角，只是跟着人平移"，见 Camera/SpringArmCameraView.cs「跟随模式」段。
+            // 6. 演出相机：整段表演（含收尾一拍）把镜头接管过来跟着玩家走。
+            //    默认 = **照抄引擎相机开演那一刻的机位**（方向冻住、只跟位置）。
             string camMode = (args.Count >= 3 && !string.IsNullOrWhiteSpace(args[2])) ? args[2] : "engine";
             string camNote = " [camera: engine default]";
             if (camMode.Equals("none", StringComparison.OrdinalIgnoreCase))
@@ -820,8 +819,8 @@ namespace LivingWorldNpcs
                 ? string.Empty
                 : " [note: duration 0.00s -> the clip name in action_sets.xml may not resolve]";
 
-            return $"OK: {attacker.Name} plays '{AttackerAction}' ({atkDur:0.00}s) + {victim.Name} plays '{VictimAction}' ({vicDur:0.00}s)"
-                 + $", victim placed {distance:0.0}m in front of you, facing you{note}{durNote}{camNote}";
+            return $"OK: pair '{pairId}' started ({attacker.Name} + {victim.Name}, auto-step to stance)"
+                 + note + distanceNote + durNote + camNote;
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("print_npcs", "custom")]

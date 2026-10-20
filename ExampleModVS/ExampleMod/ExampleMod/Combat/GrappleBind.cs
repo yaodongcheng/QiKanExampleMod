@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using LivingWorldNpcs.Animation;
 using TaleWorlds.Core;
@@ -130,10 +130,13 @@ namespace LivingWorldNpcs
 		// **要解决什么**：绳绑上人之后，玩家走远绳就无限变长（`GrappleRope.AutoLength` 那条橡皮筋），
 		//   被绑的人杵在原地不动 —— 读感是"一根会伸缩的绳"，不是"我牵着他"。
 		//
-		// **怎么做的**（用户 2026-10-13 原话拆成三条）：
-		//   ① 绑上那一刻把**绳长锁死**（= 当时"手 → 胸口"的距离），之后**不再延长**；
-		//   ② 玩家走进绳长以内 ⇒ 绳松着、人不动；**走出绳长 ⇒ 绳绷紧，人被拽着跟上**（`binded_walk`）；
+		// **怎么做的**（2026-10-20 按用户口径收敛成三句）：
+		//   ① **绳长 = 绑上那一刻两人的直线距离（含高度）**；之后**不会自动变长**，只有【拉紧】会把它收短；
+		//   ② **绷紧 = 当前直线距离 > 绳长**（同一把尺子，根位置量）——
+		//      超出容差就拽着他跟上（`binded_walk`）；拽回绳长以内就松手，他站定；
 		//   ③ 玩家**骑马 / 跑得快** ⇒ 人跟不上 ⇒ **直接拖在地上**（趴缚循环，脚在前头在后）。
+		//   🔴 **前提是"他不会自己走"** —— 绑上那一刻由 <see cref="AgentControlHelper.HoldInPlace"/>
+		//      摘控制器 + 清行进输入（AI 冻结 ≠ 站住）；距离一乱，"绷没绷紧"这个判据就整个失去意义。
 		//
 		// 🔴 **挪人是"我们自己写位置"，不走引擎寻路**。三条理由：
 		//   · 被捆期间他的**原版 AI 是冻着的**（`SetIsAIPaused`）⇒ 引擎寻路那套（`SetScriptedPosition`）
@@ -161,10 +164,6 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static float LeashMaxLength = 18.0f;
 
-		/// <summary>锁定绳长时乘的余量（1.05 = 与绳"自动长度"平时的口径一致：永远比跨度长 5%）。
-		/// 乘上它，**锁定那一帧画面不变**；不乘 = 绳当场被拉成直线、跳一下。</summary>
-		public static float LeashSlackAtLock = 1.05f;
-
 		/// <summary>拽人的**前馈**：速度里"直接跟上绳主"那一份（1 = 完全跟上，不掉队）。</summary>
 		public static float LeashFeedForward = 1.0f;
 
@@ -175,15 +174,15 @@ namespace LivingWorldNpcs
 		public static float LeashMaxSpeed = 12f;
 
 		/// <summary>
-		/// **"绳绷过多少才算绷紧"**（米，默认 0.05）—— 超过它 = **拽着他走**：
-		/// 身体往绳主那边收 **且** 同时进"被拖行"走姿（**同一条闸，不会再出现"人在挪、却演 idle"的滑步**）。
-		/// 🔴 进用这个值、**出用它乘 <see cref="LeashReleaseRatio"/>**（迟滞，防每帧翻）。
-		/// 它敢开这么小，是因为判据量的是 **root→root 的距离增量**（稳）而不是"手→胸口"（手在待机里摆 ±5 cm）。
+		/// **绷紧的容差**（米，默认 0.05）。
+		///
+		/// 判据就一句话：**当前「玩家 ↔ 目标」的直线距离（含高度）vs 绳长**（两者都是根位置，同一把尺子）——
+		///   · 距离 − 绳长 &gt; 这个数 ⇒ **开始拽**（同时进"被拖行"走姿）；
+		///   · 拽回到 距离 − 绳长 ≤ 0 ⇒ **松开**。
+		/// 这点容差只是防浮点噪声在门槛上每帧翻，**不是用来压抖动的**：绑上之后他不会自己走
+		/// （见 <see cref="AgentControlHelper.HoldInPlace"/>），距离只会因为玩家移动而变，方向单一、不会来回过门槛。
 		/// </summary>
 		public static float LeashDeadzone = 0.05f;
-
-		/// <summary>超出量的轻平滑率（每秒收敛比例，默认 20）—— 只压单帧跳，不引入可感滞后。</summary>
-		public static float LeashSmoothSpeed = 20f;
 
 		// ── 🔴 动画那条线（只看"他自己动了多快"，判据里没有绳的任何量；2026-10-14 第三轮）──
 
@@ -198,9 +197,6 @@ namespace LivingWorldNpcs
 
 		/// <summary>"在拽"这个读感的**保持窗**（秒）—— 手一晃不至于让走姿闪一下再切回来。</summary>
 		public static float LeashHoldSeconds = 0.35f;
-
-		/// <summary>退出"在拽"的阈值比例（默认 0.5 ⇒ 超出量掉到死区一半以下才算松）。</summary>
-		public static float LeashReleaseRatio = 0.5f;
 
 		/// <summary>
 		/// **`binded_walk` 这条动画"原速时看着像每秒走几米"**（米/秒，默认 1.1）。
@@ -298,8 +294,14 @@ namespace LivingWorldNpcs
 		public static float DismountRetrySeconds = 0.25f;
 
 		/// <summary>
-		/// 捆缚期**压制复核间隔**（秒；0 = 关）。每这么多个秒复核一次"旗标 + AI 冻结 + 躺地循环还在不在"，
-		/// 被抢就补回来（有日志、有计数，见 <see cref="VerifySuppression"/>）。
+		/// 捆缚期**压制复核间隔**（秒；0 = 关，命令 `custom.grapple bind verify <秒>`）。
+		/// 每这么多个秒复核一次"旗标 + AI 冻结 + 行进输入/限速/朝向"，被还原就补回来；
+		/// **只有真被还原过才打一行日志**（`[Grapple] 压制复核：被外部还原过 ⇒ 已补回…`）。
+		///
+		/// **典型还原时机**（反编译实证）：战前部署结束时 `MissionAgentSpawnLogic.FinishDeployment()`
+		/// 会对**每个 `IsAIControlled` 的 agent** 执行 `SetIsAIPaused(false)` + 打 `Alarmed` + `ResetEnemyCaches`
+		/// —— 和我们的冻结是同一个标志位 ⇒ 战场里必须有人把它补回来。
+		///
 		/// 🔴 **为什么复核放在本类、而不是放进 <see cref="BoundAction"/>**：本类在**任何场景**每帧都跑
 		/// （挂在 <see cref="GrappleLogic"/> 的 mission tick 上），而 `AgentBrain` 在战斗场景里**整套是关的**
 		/// （<see cref="Settings.IsInteractionDisabled"/> ⇒ Tick 早退）—— 战斗里就只剩这一层在管。
@@ -355,7 +357,19 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private static void HoldTarget(Agent a)
 		{
+			// 🔴 **按住他 = 冻 AI + 停掉"行进输入"**（2026-10-20）。
+			//
+			//   实机症状：绑上之后玩家站着不动，他仍以 1.1~1.4 m/s 沿着**自己原版的方向**走
+			//   （`绳主速度 0.0 / 他自己的速度 1.4`）⇒ 绳每 50 ms 拽一下 ⇒ 人左右闪。
+			//
+			//   原因：引擎的**行进输入**是 `Agent.MovementInputVector`（玩家控制器每帧写它，没按键写 Zero）；
+			//   AI 一停就没人清它 ⇒ 最后那一脚的方向一直生效。停它就够了，**不要动控制器**
+			//   （`Controller` 有全局副作用：引擎会摘/挂 `HumanAIComponent`，落地/贴地那套兜底也跟着没了）。
+			//
+			//   `HoldInPlace` = 清脚本化移动 + `MovementInputVector = Zero` + 朝向归零 + 限速 0（共用管线）。
+			//   村镇导航器如果又发"走去某点"，由 `BoundAction.Hold`（0.2s）与 `VerifySuppression`（0.5s）压回去。
 			SetTargetAIPaused(a, true);
+			AgentControlHelper.HoldInPlace(a);
 			if (a != null && ReferenceEquals(a, Agent.Main))
 			{
 				try { V.SetPlayerControlFrozen(a, true); }
@@ -439,10 +453,7 @@ namespace LivingWorldNpcs
 		private Agent _carrier;
 
 		// ── 绳长上限（牵着走 / 拖在地上；见上面那一大段"绳长上限"注释）──
-		private float _leashLength;          // 锁定的绳长（米；= 绑上那一刻"手→胸口"× 1.05）
-		private float _leashSlackAtLock;     // 绑上那一刻的松量（= 锁定量 − 当时跨度，≈5%）
-		private float _leashRootAtLock;      // 绑上那一刻的 root→root 距离（**物理判据的零点**）
-		private float _leashOver;            // 本帧"走远了多远"（root→root 增量，轻平滑过）
+		private float _leashLength;          // 锁定的绳长（米；= 绑上那一刻两人的直线距离，含高度；【拉紧】会收短它）
 		// ── 动画那条线：他自己这帧实际挪了多快（位置差算的）──
 		private Vec3 _lastTargetPos;         // 上一帧末的位置（量速度用）
 		private bool _haveLastTargetPos;
@@ -453,10 +464,13 @@ namespace LivingWorldNpcs
 		private Vec3 _leashAnchor;           // 绳主那只手这一帧在哪（GrappleLogic 每帧喂进来）
 		private bool _leashHadAnchor;        // 这一绑里收到过锚点没有
 		private bool _leashPulling;          // 本帧绳绷着、人正被拽
-		private bool _leashEngaged;          // "在拽"这个状态本身（带迟滞：进用死区、出用一半）
+		private bool _leashEngaged;          // "在拽"这个状态本身（进闸留死区、出闸回落到 0）
 		private bool _leashDragged;          // 本帧是"拖在地上"那种拽（否则 = 被拖着走）
 		private float _leashSpeed;           // 本帧拽人速度（诊断）
-		private float _leashDist;            // 本帧手→胸口距离（诊断）
+		private float _leashDist;            // 本帧两人直线距离（诊断；与绳长同一把尺子）
+		private float _leashBeforeTug;       // 【拉紧】之前的绳长（打"收短了多少"那行日志用；0 = 这次没记）
+		private float _lastJumpLogTime;      // "目标位置跳变"日志的节流（2s）
+		private float _lastYankGuardLogTime; // "拽倒瞬移被守卫拦下"日志的节流（2s）
 
 		/// <summary>在挣扎（`站缚 ⇄ 挣扎`）。🔴 本轮**没有自动判据**，由 `custom.grapple bind struggle 0|1` 手动置 ——
 		/// 什么情况下算"在闹"还没定，先把线接齐、行为留空（免得凭空发明一套规则）。</summary>
@@ -510,6 +524,14 @@ namespace LivingWorldNpcs
 		public bool IsActive => _phase != Phase.None;
 		public Phase Current => _phase;
 		public Agent Target => _target;
+
+		/// <summary>
+		/// 🔴 **此刻被绑者的"位置/移动"归本类写** —— 缠（0.55s）/ 拽倒（1.1s）/ 牵绳正在拖。
+		/// 这段时间**别的系统一个字都不许碰**（`BoundAction` 的按住、压制复核的按住都要让路）：
+		/// 一边每帧瞬移、一边每 0.2s 写"行进输入=0/朝向=0/限速=0"，是 2026-10-20 之前从没有过的组合
+		/// （旧版 `BoundAction` 写的是"脚本位置"，不是这几个字段）。
+		/// </summary>
+		public bool IsMovingBody => _phase == Phase.Wrapping || _phase == Phase.Yanking || _leashPulling;
 		public string Note => _note;
 
 		/// <summary>绳主（牵绳那一头的人）。**可能是玩家、也可能是 NPC**（反向绑 = NPC 牵玩家）——
@@ -638,11 +660,9 @@ namespace LivingWorldNpcs
 			_layTimer = 0f;
 			_fallStarted = false;
 			_lying = false;
-			// 绳长上限：新的一绑 = 重新锁（长度按"绑上那一刻的手→胸口"，见 TickLeash）
+			// 绳长上限：新的一绑 = 重新锁（长度按"绑上那一刻两人的直线距离"，见 TickLeash）
 			_leashLength = 0f;
-			_leashSlackAtLock = 0f;
-			_leashRootAtLock = 0f;
-			_leashOver = 0f;
+			_leashBeforeTug = 0f;
 			_lastTargetPos = default(Vec3);
 			_haveLastTargetPos = false;
 			_followerSpeed = 0f;
@@ -721,7 +741,7 @@ namespace LivingWorldNpcs
 			_note = "wrapping";
 			HoldTarget(_target);
 			DebugLogger.Log($"[Grapple] 勾人：开始缠（{_target.Name}）入口={Fmt(_hookPos)} 圈数={WrapTurns:F2} 半径={WrapRadiusStart:F2}→{WrapRadiusEnd:F2} 时长={WrapSeconds:F2}s"
-				+ (PauseVanillaAI ? " · 已冻结其原版 AI" : " · （原版 AI 未冻：bind aipause 0）"));
+				+ (PauseVanillaAI ? " · 已冻结其原版 AI + 停掉行进输入" : " · （原版 AI 未冻：bind aipause 0）"));
 		}
 
 		/// <summary>
@@ -879,13 +899,52 @@ namespace LivingWorldNpcs
 				{
 					Vec3 d = p - _lastTargetPos;
 					d.z = 0f;
-					float v = d.Length / MathF.Max(1e-3f, dt);
+					float dist = d.Length;
+					// 🔴 **位置跳变探针**（2026-10-20）：单帧挪 >3 米 = 有人瞬移了他（我们或引擎）。
+					//    实机事故（"拉紧之后人直接消失"）就是这里跳去 (-100, 10385) 的 —— 有这行就能一眼定位。
+					if (dist > 3f) LogTargetJump(dist, p);
+					float v = dist / MathF.Max(1e-3f, dt);
 					_followerSpeed += (v - _followerSpeed) * MathF.Min(1f, LeashSpeedSmooth * dt);
 				}
 				_lastTargetPos = p;
 				_haveLastTargetPos = true;
 			}
 			catch (Exception) { _followerSpeed = 0f; _haveLastTargetPos = false; }
+		}
+
+		/// <summary>位置跳变日志（每 2 秒最多一条，避免刷屏）。</summary>
+		private void LogTargetJump(float dist, Vec3 now)
+		{
+			float t = Mission.Current?.CurrentTime ?? 0f;
+			if (t - _lastJumpLogTime < 2f) return;
+			_lastJumpLogTime = t;
+			DebugLogger.Log($"[Grapple] ⚠ 目标位置跳变：单帧 {dist:F1} m → 现在 {Fmt(now)}"
+				+ $"（相位={_phase} · 被拽={_leashPulling} · 被扛={_carrier != null}）"
+				+ " —— >100m 基本就是引擎对'掉出世界/非法落点'的纠正，查拽倒落点与寻路网格");
+		}
+
+		/// <summary>拽倒瞬移守卫触发（每 2 秒最多一条）。</summary>
+		private void LogYankTeleportGuard(string why, Vec3 p)
+		{
+			float t = Mission.Current?.CurrentTime ?? 0f;
+			if (t - _lastYankGuardLogTime < 2f) return;
+			_lastYankGuardLogTime = t;
+			DebugLogger.Log($"[Grapple] ⚠ 拽倒瞬移被守卫拦下（{why}）：目标点 {Fmt(p)}"
+				+ $" · 目标现在={FmtAgent(_target)} · 玩家={FmtAgent(_attacker)} —— 这一帧不写位置");
+		}
+
+		/// <summary>某个 agent 位置的字符串（null / 异常 → "?"），日志用。</summary>
+		private static string FmtAgent(Agent a)
+		{
+			try { return a != null ? Fmt(a.Position) : "?"; }
+			catch (Exception) { return "?"; }
+		}
+
+		/// <summary>向量是否有限（NaN / ∞ 都算非法）。</summary>
+		private static bool IsFinite(Vec3 v)
+		{
+			return !(float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z)
+				|| float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z));
 		}
 
 		/// <summary>
@@ -979,6 +1038,10 @@ namespace LivingWorldNpcs
 		{
 			_t += dt;
 			float u = MathF.Min(1f, _t / MathF.Max(0.05f, WrapSeconds));
+
+			// 缠的这 0.55 秒里**他不许自己走** —— 已由 `BeginWrapping` 的 `HoldTarget` 一次性做掉
+			// （摘控制器 + 清行进输入）。这里不再每帧重申：真正的写入者（AI/村镇导航器）已经被摘掉，
+			// 没人会再写回去；每帧写只是心理安慰，还会跟 `TickLeash` 的朝向写打架。
 
 			// 圆心每帧跟躯干（目标在走/在转也跟得上）；起始角按命中那一刻的世界方位角定死
 			_center = ChestOf(_target);
@@ -1100,6 +1163,10 @@ namespace LivingWorldNpcs
 			_t = 0f;
 			_note = "yanking";
 
+			// 🔴 **【拉紧】= 收绳**（2026-10-20）：拖拽全程绳长跟着收（见 TickYanking 每帧的 ShrinkLeashToSpan），
+			//    这里只记下"拉之前多长"，落地时打一行总账。
+			_leashBeforeTug = _leashLocked ? _leashLength : 0f;
+
 			// 起点 = 目标此刻的位置；终点 = 朝玩家方向拖 DragDistance，且离玩家不少于 MinPlayerDistance
 			_yankFrom = _target.Position;
 			Vec3 toPlayer = _attacker != null ? _attacker.Position - _yankFrom : Vec3.Zero;
@@ -1107,8 +1174,40 @@ namespace LivingWorldNpcs
 			float dist = toPlayer.Length;
 			Vec3 dir = dist > 0.05f ? toPlayer * (1f / dist) : Vec3.Forward;
 			float want = MathF.Min(DragDistance, MathF.Max(0f, dist - MinPlayerDistance));
-			_yankTo = _yankFrom + dir * want;
-			_yankTo.z = _yankFrom.z;
+			Vec3 intended = _yankFrom + dir * want;
+			intended.z = _yankFrom.z;
+
+			// 🔴🔴 **落点必须"能站人"**（2026-10-20 实机事故："拉紧之后人直接消失"）：
+			//    现场日志 = 拽倒开始后 ~150 ms，目标位置突然变成 **(-100, 10385)** —— 9.8 公里外，
+			//    **z 却保留着原来的高度**（这就是"引擎把非法落点的人挪到场景外默认点"的样子），
+			//    绳随即判定"走出绳长上限"放人 ⇒ 玩家看到"人直接消失"。
+			//    直线拖拽不看墙和落差：落点在墙里 / 崖外 / 地形下方时就会触发。
+			//    ⇒ 终点先查寻路网格（`TrySnapToNavMesh`：1.2.12 顺手吸附并把高度校正）。
+			//      查不到就**沿这条线退一个距离再试**（2 m → 1.3 → 0.7），全查不到才"只拉倒、不挪"。
+			//      别一上来就放弃位移 —— 拖拽是玩法本体。
+			_yankTo = _yankFrom;
+			try
+			{
+				float tryDist = want;
+				for (int i = 0; i < 3 && tryDist > 0.15f; i++)
+				{
+					Vec3 candidate = _yankFrom + dir * tryDist;
+					candidate.z = _yankFrom.z;
+					Vec3 snapped = candidate;
+					bool onMesh = V.TrySnapToNavMesh(_target.Mission.Scene, ref snapped);
+					if (onMesh && IsFinite(snapped) && (snapped - candidate).Length <= 3f)
+					{
+						_yankTo = snapped;
+						break;
+					}
+					tryDist *= (i == 0 ? 0.65f : 0.5f);
+				}
+				if (ReferenceEquals(_yankTo, _yankFrom) || (_yankTo - _yankFrom).LengthSquared < 1e-4f)
+				{
+					DebugLogger.Log($"[Grapple] 勾人：拽倒落点沿这条线都站不了人 ⇒ 这次只拉倒、不挪位移（目标点 {Fmt(intended)}）");
+				}
+			}
+			catch (Exception) { _yankTo = intended; }
 
 			// 转向玩家（竖直分量清零；`SetMovementDirection` 是已验证写法，LookDirection 赋值转不动）
 			if (FacePlayerOnYank && dir.LengthSquared > 0.01f)
@@ -1128,8 +1227,9 @@ namespace LivingWorldNpcs
 			ReportBind(_attacker, _target);
 
 			DebugLogger.Log(Yank == YankMode.Blow
-				? $"[Grapple] 勾人：拽倒（引擎冲量）@{Fmt(_yankFrom)} 力度={BlowDamage:F0} 方向→玩家 {Fmt(dir)}"
-				: $"[Grapple] 勾人：拽倒 {Fmt(_yankFrom)} → {Fmt(_yankTo)}（拖 {want:F2}m；绷 {YankHoldSeconds:F2}s → 拽 {YankPullSeconds:F2}s → 倒 {YankFallSeconds:F2}s）");
+				? $"[Grapple] 勾人：拽倒（引擎冲量）@{Fmt(_yankFrom)} 力度={BlowDamage:F0} 方向→玩家 {Fmt(dir)} · 玩家={FmtAgent(_attacker)}"
+				: $"[Grapple] 勾人：拽倒 {Fmt(_yankFrom)} → {Fmt(_yankTo)}（拖 {want:F2}m；绷 {YankHoldSeconds:F2}s → 拽 {YankPullSeconds:F2}s → 倒 {YankFallSeconds:F2}s）"
+					+ $" · 玩家={FmtAgent(_attacker)} · 相距 {dist:F2} m");
 		}
 
 		private BindEvent TickYanking(float dt)
@@ -1139,6 +1239,7 @@ namespace LivingWorldNpcs
 			// ── Blow 模式：**引擎在搬人**，我们一个字都不写，只等它演完 ──
 			if (Yank == YankMode.Blow)
 			{
+				ShrinkLeashToSpan();          // 收绳：绳长跟着"被引擎搬近"的距离缩
 				_hookPos = ChestOf(_target);
 				_hookDir = AwayFromPlayerDir();
 				if (_t >= BlowYankSeconds)
@@ -1165,20 +1266,54 @@ namespace LivingWorldNpcs
 			Vec3 p = _yankFrom + (_yankTo - _yankFrom) * k;
 			try
 			{
+				// 🔴 **绷住那 0.15 秒不写位置**（k=0）：他本来就在起点，逐帧重复写同一个坐标没有任何意义，
+				//    只会平白多出"瞬移"事件（2026-10-20 排查方向之一）。
+				if (k <= 1e-4f)
+				{
+					// 什么都不写
+				}
+				else if (!IsFinite(p))
+				{
+					LogYankTeleportGuard("目标点不是有限值", p);
+				}
+				else
+				{
+					Vec3 cur = _target.Position;
+					// 🔴 落点先**顺手校正到寻路网格**（1.2.12 会连高度一起校正）；差 ≤1.5 m 才采用。
+					//    查不到网格 = 这个点站不了人 ⇒ 这一帧不写（宁可慢一帧，也不要把人送出场景）。
+					Vec3 checkedPos = p;
+					bool onMesh = V.TrySnapToNavMesh(_target.Mission.Scene, ref checkedPos);
+					if (onMesh && IsFinite(checkedPos) && (checkedPos - p).Length <= 1.5f)
+						p = checkedPos;
+					if (IsFinite(cur) && (p - cur).Length > 2f)
+						LogYankTeleportGuard("单帧位移 >2m", p);
+					else if (!onMesh || !IsFinite(checkedPos))
+						LogYankTeleportGuard("落点站不了人（不在寻路网格）", p);
+					else
+						_target.TeleportToPosition(p);
+				}
 				// 🔴 每帧瞬移 = 飞行工程 CarrierBoard 同款手法；Z 由引擎按地形重算
 				//    （agent 的 Z 写不进去 —— 骑砍底层行为，见 Knowledge/骑砍Agent运动与位置机制.md）
-				_target.TeleportToPosition(p);
 			}
 			catch (Exception ex)
 			{
 				DebugLogger.Log($"[Grapple] 勾人：拖拽瞬移失败（{ex.GetType().Name}）—— 停在原地继续流程");
 			}
 
+			// 🔴 **收绳**：他被拖近多少，绳就缩多少（用户 2026-10-20："拉紧本身会缩短绳子的长度"）。
+			//    每帧收 ⇒ 绳的**可视长度**（GrappleLogic 读 `LeashRopeLength`）全程贴着两人距离，
+			//    读感是"我把绳收回来了一段"，而不是"人自己滑过来了、绳还那么长"。
+			ShrinkLeashToSpan();
+
 			// ③ 拽到位那一刻**才**起播"拉倒"（顺序：先位移、后倒地 —— 反过来位移会被姿势变化吃掉）
 			if (!_fallStarted && _t >= pullEnd && Yank == YankMode.Curve)
 			{
 				_fallStarted = true;
 				ForceEvent(BindAnimConditions.YankTrigger, LayStartProgress);
+				// 🔴 **位置校验行**（2026-10-20 用户要求）：拽到位这一刻把双方坐标都打出来 ——
+				//    正常应满足 `目标 ≈ 落点`、`相距 ≈ want`；对不上就说明中途有人写了位置。
+				DebugLogger.Log($"[Grapple] 勾人：拽到位 —— 目标={Fmt(_target.Position)} · 玩家={FmtAgent(_attacker)}"
+					+ $" · 相距 {RootDist3D():F2} m · 落点={Fmt(_yankTo)}");
 			}
 
 			_hookPos = ChestOf(_target);
@@ -1202,6 +1337,21 @@ namespace LivingWorldNpcs
 			_note = "bound (laid down by " + how + ")";
 			_lying = true;
 			_layTimer = LaySeconds;      // 0 = 拉倒后永不自动起身（调试档）
+
+			// 🔴 **【拉紧】= 收绳**（2026-10-20 用户口径："拉紧本身会缩短绳子的长度，同时把人拉倒在地"）：
+			//    拖拽过程里绳长**每帧跟着收**（`ShrinkLeashToSpan`，所以绳视觉上始终是绷的），
+			//    到这里打一行总账：这一下收短了多少。
+			if (_leashBeforeTug > 0f)
+			{
+				float before = _leashBeforeTug;
+				_leashBeforeTug = 0f;
+				if (_leashLength < before - 1e-3f)
+				{
+					DebugLogger.Log($"[Grapple] 牵绳：拉紧收绳 —— 绳长 {before:F2} → {_leashLength:F2} m"
+						+ $"（收短 {before - _leashLength:F2} m，现在两人相距 {RootDist3D():F2} m）");
+				}
+			}
+
 			if (!_fallStarted)
 			{
 				// Blow 模式：引擎演完了它的受击/倒地反应 ⇒ 再用我们的"拉倒"接上趴地循环
@@ -1210,6 +1360,22 @@ namespace LivingWorldNpcs
 			}
 			DebugLogger.Log($"[Grapple] 勾人：已拉倒（{how}）⇒ 趴缚循环"
 				+ (LaySeconds > 0f ? $"，{LaySeconds:F1} 秒后自动起身" : "（laytime 0 = 不自动起身）"));
+		}
+
+		/// <summary>
+		/// **收绳**：把绳长收到"此刻两人的直线距离"（只缩不放，下限 <see cref="LeashMinLength"/>）。
+		/// 调用点 = 【拉紧】拖拽的每一帧（`TickYanking`）—— 所以绳在拖拽全程都是绷的，
+		/// 拖到位之后绳就永久短了那一截。静默执行，总账在 <see cref="EnterLaidOut"/> 打一行。
+		/// </summary>
+		private void ShrinkLeashToSpan()
+		{
+			if (_target == null || _attacker == null || !_leashLocked) return;
+			try
+			{
+				float span = MathF.Max(LeashMinLength, RootDist3D());
+				if (span < _leashLength) _leashLength = span;
+			}
+			catch (Exception) { }
 		}
 
 		/// <summary>
@@ -1404,6 +1570,11 @@ namespace LivingWorldNpcs
 			//    ⇒ 下面的钩位置、朝向都得按"挪完之后"的算（不然绳与钩差一帧，看着像甩）。
 			TickLeash(dt);
 
+			// 🔴 **不再每帧重申"按住"**（2026-10-20 收口）：绑上那一刻（`HoldTarget`）已经
+			//    ①摘掉控制器（AI/村镇导航器整条停摆，没人再写移动）②清空行进输入 ③限速 0；
+			//    之后每 0.5 s 还有 `VerifySuppression` 复核一次（防引擎部署收尾之类的"全场解冻"）。
+			//    每帧再写一次没有额外作用，只会和 `TickLeash` 拖动时写的朝向互相打架。
+
 			_hookPos = ChestOf(_target);
 			_hookDir = AwayFromPlayerDir();
 
@@ -1436,13 +1607,17 @@ namespace LivingWorldNpcs
 		/// **绳长上限 + 拽着跟上 / 拖在地上**（每帧，缚那一相跑）。机制说明见本文件顶部那段。
 		///
 		/// 四拍：
-		///   ① **锁长**：第一帧把绳长锁在"此刻手 → 胸口"的距离上（下限/上限 <see cref="LeashMinLength"/> /
-		///      <see cref="LeashMaxLength"/>）—— 之后**不再延长**（用户 2026-10-13："以当前长度为上限"）；
-		///   ② **量差**：只有**超出**锁定量（且超出 &gt; <see cref="LeashDeadzone"/>）才拽；
+		///   ① **锁长**：绑上那一刻，绳长 = **两人的直线距离（含高度）**（下限 <see cref="LeashMinLength"/>）——
+		///      之后**不会自动变长**；只有玩家【拉紧】会把它收短（见 <see cref="ShrinkLeashToSpan"/>）；
+		///   ② **量差**：绷紧 = **当前直线距离 &gt; 绳长**（同一把尺子）——
+		///      超出 &gt; <see cref="LeashDeadzone"/> 才开始拽，拽回绳长以内就松；
 		///   ③ **定形态**：绳主**骑马且在动** ⇒ **拖在地上**（趴缚）；否则一律**牵着走**（`binded_walk`）——
 		///      步行/奔跑都让他跟着（2026-10-14 用户裁定）；"被拉倒躺地上"只剩【拉紧】那条手动路；
 		///   ④ **挪人**：速度 = 绳主水平速度（前馈，跟上就不掉队）+ 超出量 × 弹簧系数，封顶
 		///      <see cref="LeashMaxSpeed"/>；水平直写位置（竖直由引擎贴地），朝向按形态给。
+		///
+		/// 🔴 **他不会自己走**（绑上那一刻已由 <see cref="AgentControlHelper.HoldInPlace"/> 按住 + 摘控制器），
+		///    绷/松不会来回翻 —— 这里**不需要平滑、也不需要多段迟滞**。
 		///
 		/// 🔴 **被扛着的时候一律不拽**（`_carrier != null`）：那一拍由 <see cref="GrappleCarry"/> 每帧摆位，
 		///    两边同时写同一个人的位置 = 打架（人会在两个点之间抖）。
@@ -1455,64 +1630,42 @@ namespace LivingWorldNpcs
 				return;
 			}
 
+			// 绳的方向（从目标胸口指向绳主的手）—— 只用来定"往哪拽 / 面朝哪"
+			Vec3 hand = _leashAnchor;
 			Vec3 chest = ChestOf(_target);
-			Vec3 d = chest - _leashAnchor;
-			d.z = 0f;
-			float dist = d.Length;
-			_leashDist = dist;
+			Vec3 dirVec = chest - hand;
+			dirVec.z = 0f;
+			float handDist = MathF.Max(1e-3f, dirVec.Length);
 
-			// ① 锁长：绑上那一刻的跨度 = 上限
-			//    🔴 乘 <see cref="LeashSlackAtLock"/>（默认 1.05 = 与绳平时的"自动长度留 5% 余量"同一个口径）：
-			//       锁在**绳此刻真实的那点长度**上，锁定那一帧看不出任何变化（不乘 = 绳当场被拉直、跳一下）。
-			//    🔴 **不设上限**（只托底）：上限压小 = 一上来就有"超出量" = 人当场被拽飞，见 LeashMaxLength 注释。
+			// 绷紧判据 = 两人的**直线距离（含高度）** vs 绳长（**同一个量**，根位置量，稳）
+			float span = RootDist3D();
+			_leashDist = span;
+
+			// ① 锁长：绑上那一刻的直线距离 = 绳长。之后恒定，只有玩家自己【拉紧】收绳才会变短。
 			if (!_leashLocked)
 			{
-				_leashLength = MathF.Max(LeashMinLength, dist * LeashSlackAtLock);
-				_leashSlackAtLock = _leashLength - dist;          // 一开始那点松量（≈ 跨度的 5%）
-				_leashRootAtLock = RootDist();                    // 物理判据的**零点**（root→root，稳）
-				_leashOver = 0f;
+				_leashLength = MathF.Max(LeashMinLength, span);
 				_leashLocked = true;
-				DebugLogger.Log($"[Grapple] 牵绳：绳长锁定 = {_leashLength:F2} m（手 → 胸口 {dist:F2} m × {LeashSlackAtLock:F2}）"
-					+ $" · 物理零点 = root→root {_leashRootAtLock:F2} m —— 之后走远不再延长，超出就拽着他跟上（要松手才解）");
+				DebugLogger.Log($"[Grapple] 牵绳：绳长锁定 = {_leashLength:F2} m（绑上那一刻两人直线距离 {span:F2} m）"
+					+ " —— 之后不自动变长；【拉紧】会把它收短（要松手才解）");
 			}
 
-			// ② 绷没绷紧 —— 🔴 **一条闸，身体和走姿共用**（2026-10-14 第三轮，用户："只要速度大于 0 就该走，
-			//    不是被绑的 idle"）：上一版把"身体"和"走姿"分成两条闸（2 cm / 25 cm）⇒ 身体那道一直在收、
-			//    走姿那道永远轮不到 ⇒ **一直在挪却一直演 idle = 滑步**。现在合成一条。
-			//
-			//    判据用 **root→root 的距离增量**，不用"手→胸口"：
-			//      手在待机动画里前后摆（±5 cm），拿它当尺子 ⇒ 站着不动也会假装"绷紧了"，
-			//      于是门槛不敢开小、只能开大，一大就滑步。改成量**两个人的根位置**（都是稳的）：
-			//        超出量 = 现在 root 距离 − 绑上那一刻的 root 距离（**初始松量不算**，见下面 2026-10-19 那条）
-			//      站着不动 ⇒ 增量≈0 ⇒ 不拽；绳主一走 ⇒ 增量就是"他走了多远" ⇒ 到了门槛就拽、且**同时**进走姿。
-			//
-			//    迟滞（进 <see cref="LeashDeadzone"/>、出它的一半）+ 保持窗，防门槛上每帧翻。
-			//
-			// 🔴🔴 **2026-10-19 实机：停下之后人还在"反复移动"** —— 真凶 = 下面这行以前是
-			//    `excess = _leashOver + _leashSlackAtLock`：把**绑上那一刻本来就松的 5%（≈0.33 m）**
-			//    当成了"超出量" ⇒ 一绑上就"超门槛"，立刻把人拽近；拽到门槛附近后，**身体呼吸级的
-			//    1~2 cm 起伏**就够让它在 0.05 / 0.025 两个门槛之间每几毫秒翻一次
-			//    （日志：`走着/拖着` ↔ `松了` 每 10 ms 一行），人就被一点点反复推着挪。
-			//    物理上绳长 = 跨度 × 1.05 ⇒ 锁定那一帧**绳子是松的**，"超出"就是 0。
-			//    ⇒ 判据只用 `_leashOver`（相对锁定距离的增量）；玩家不动 = 超出 0 = 不拽。
-			float over = RootDist() - _leashRootAtLock;
-			_leashOver = _leashOver <= 0f && over <= 0f
-				? over
-				: _leashOver + (over - _leashOver) * MathF.Min(1f, LeashSmoothSpeed * dt);   // 轻平滑（防单帧跳）
-			float excess = _leashOver;         // ⚠️ 不再加 `_leashSlackAtLock`（见上）
+			// ② 绷没绷紧：超出量 = 当前距离 − 绳长。
+			//    进闸留 <see cref="LeashDeadzone"/> 容差、出闸回落到 0（只防浮点噪声在门槛上每帧翻）。
+			float excess = span - _leashLength;
 			float leadSpeed = HorizontalSpeed(_attacker);
 
 			if (!_leashEngaged)
 			{
 				if (excess > LeashDeadzone) _leashEngaged = true;
 			}
-			else if (excess < LeashDeadzone * LeashReleaseRatio)
+			else if (excess <= 0f)
 			{
 				_leashEngaged = false;
 			}
 			_pullHold = _leashEngaged ? LeashHoldSeconds : MathF.Max(0f, _pullHold - dt);
 
-			if (!_leashEngaged || dist < 1e-3f)
+			if (!_leashEngaged || handDist < 1e-3f)
 			{
 				StopLeash(excess > 0f ? $"taut within {LeashDeadzone:F2} m ({excess:F2} m over)" : "slack");
 				return;
@@ -1534,11 +1687,28 @@ namespace LivingWorldNpcs
 			_leashSpeed = speed;
 			try
 			{
-				Vec3 dir = d * (-1f / dist);                         // 从胸口指向手 = 被拽的方向
-				_target.TeleportToPosition(_target.Position + dir * (speed * dt));
-				// 朝向：牵着走 = 朝行进方向（他自己在走）；拖在地上 = 背朝行进方向（脚在前头在后）
-				Vec3 face = dragged && DragFaceAway ? -dir : dir;
-				_target.SetMovementDirection(face.AsVec2);
+				Vec3 dir = dirVec * (-1f / handDist);                // 从胸口指向手 = 被拽的方向
+				Vec3 cur = _target.Position;
+				Vec3 p = cur + dir * (speed * dt);
+				// 🔴 **只拦"明显非法"的（2026-10-20）**：NaN / 单帧跨 >2 m（拽速上限 12 m/s ⇒ 正常远小于它）。
+				//    ⚠️ **绝不能因为"寻路网格查不到"就不拽** —— 牵绳是持续拖动，人本来就可能站在网格边缘，
+				//       一拦就整段拖不动（实机："拖着走直接不行了"）。网格只用来**顺手校正**：
+				//       查得到且挪动 ≤1.5 m 就用校正后的点，否则照旧用原计划点。
+				Vec3 checkedPos = p;
+				bool onMesh = V.TrySnapToNavMesh(_target.Mission.Scene, ref checkedPos);
+				if (onMesh && IsFinite(checkedPos) && (checkedPos - p).Length <= 1.5f)
+					p = checkedPos;
+				if (!IsFinite(p) || !IsFinite(cur) || (p - cur).Length > 2f)
+				{
+					LogYankTeleportGuard("牵绳步长/落点异常", p);
+				}
+				else
+				{
+					_target.TeleportToPosition(checkedPos);
+					// 朝向：牵着走 = 朝行进方向（他自己在走）；拖在地上 = 背朝行进方向（脚在前头在后）
+					Vec3 face = dragged && DragFaceAway ? -dir : dir;
+					_target.SetMovementDirection(face.AsVec2);
+				}
 			}
 			catch (Exception ex)
 			{
@@ -1566,8 +1736,8 @@ namespace LivingWorldNpcs
 			// 🔴 第一档（收那几厘米）**不打日志**：它每几秒就动一次，打了就是刷屏（且会让人误以为在拖他走）。
 			if (_leashPulling && (!_leashPullingPrev || _leashDraggedPrev != dragged))
 			{
-				DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 走远 {_leashOver:F2} m"
-					+ $" ⇒ 超出 {excess:F2} m > 门槛 {LeashDeadzone:F2} m（绳长 {_leashLength:F2} m，锁定松量 {_leashSlackAtLock:F2} m 不计）"
+				DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 距离 {span:F2} m / 绳长 {_leashLength:F2} m"
+					+ $" ⇒ 超出 {excess:F2} m > 容差 {LeashDeadzone:F2} m"
 					+ $"· 绳主速度 {leadSpeed:F1} m/s ⇒ 拽速 {speed:F1} m/s · 他自己的速度 {_followerSpeed:F1} m/s"
 					+ (dragged
 						? $"（绳主骑着马在动 ⇒ 拖在地上：趴缚循环）"
@@ -1582,7 +1752,7 @@ namespace LivingWorldNpcs
 				if (_leashProbeTimer >= LeashProbeSeconds)
 				{
 					_leashProbeTimer = 0f;
-					DebugLogger.Log($"[Grapple] 牵绳探针：手→胸口 {dist:F2} m · 绳长 {_leashLength:F2} m · 走远 {_leashOver:F2} ⇒ 超出 {excess:F2} m"
+					DebugLogger.Log($"[Grapple] 牵绳探针：两人距离 {span:F2} m · 绳长 {_leashLength:F2} m ⇒ 超出 {excess:F2} m"
 						+ $" · 绳主 {leadSpeed:F1} m/s · 拽速 {speed:F1} m/s · 形态={(dragged ? "拖在地上" : "牵着走")}"
 						+ $" · 他自己的速度 {_followerSpeed:F2} m/s ⇒ 倍率 {_bindedWalkRate:F2}");
 				}
@@ -1637,18 +1807,18 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
-		/// **两个人的根位置之间的水平距离**（米）—— 牵绳的**物理判据尺子**。
+		/// **两个人的根位置之间的直线距离**（米，**含高度**）—— 牵绳的**物理判据尺子**。
 		/// 🔴 为什么不用"手 → 胸口"那把尺子：绳主的手挂在待机动画上前后摆（±5 cm），拿它当尺子
 		///    站着不动也会假装"绷紧了" ⇒ 门槛只能开大 ⇒ 一开大就"人在挪、动画还在 idle"（滑步）。
 		///    根位置是稳的 ⇒ 门槛能开到 5 cm 量级。
+		/// 🔴 **含 z**（2026-10-20 用户口径）：玩家在墙头/台阶上时，绳是真的斜着绷的 ——
+		///    只看水平距离会把"高差也算进绳长"的部分漏掉。拽人方向仍是水平（agent 的 z 写不进去）。
 		/// </summary>
-		private float RootDist()
+		private float RootDist3D()
 		{
 			try
 			{
-				Vec3 d = _target.Position - _attacker.Position;
-				d.z = 0f;
-				return d.Length;
+				return (_target.Position - _attacker.Position).Length;
 			}
 			catch (Exception) { return 0f; }
 		}
@@ -1748,18 +1918,35 @@ namespace LivingWorldNpcs
 			// ① 旗标：幂等重压（被别的系统清掉 = 站着的人立刻恢复原生 AI）。
 			//    ⚠️ 用"或"叠加、**不覆盖** —— 直接赋值会把 BoundAction 每 0.2s 设的 `InConversation`
 			//    抹掉，两边一帧一变地互相打脸（那一位语义是"别动，你正在交互中"）。
+			bool flagsWereMissing = false;
 			try
 			{
-				_target.SetScriptedFlags(_target.GetScriptedFlags()
+				Agent.AIScriptedFrameFlags before = _target.GetScriptedFlags();
+				Agent.AIScriptedFrameFlags want = before
 					| Agent.AIScriptedFrameFlags.DoNotRun
-					| Agent.AIScriptedFrameFlags.NoAttack);
+					| Agent.AIScriptedFrameFlags.NoAttack;
+				flagsWereMissing = want != before;
+				if (flagsWereMissing) _target.SetScriptedFlags(want);
 			}
 			catch (Exception) { }
 
 			// ② 原版 AI 冻结：幂等重压（引擎的部署收尾会把**全场**解冻，战斗里尤其要盯）
-			//    🔴 走 HoldTarget 而不是只 SetTargetAIPaused：**目标是玩家**时它还会把"控制器归 AI"
-			//       一起补回来（不然玩家中途被别的系统还回控制器，就能自己跑掉了）。
-			HoldTarget(_target);
+			//    🔴 走 HoldTarget 而不只 SetTargetAIPaused：它还会把"行进输入=0 / 限速 0 / 朝向 0"
+			//       一起补回来（目标中途被别的系统还回可动状态时，这里重新按住）。
+			bool wasUnpaused = false;
+			try { wasUnpaused = !_target.IsPaused; } catch (Exception) { }
+			// 🔴 **缠 / 拽倒 / 拖动 期间不碰他的移动**（2026-10-20）：那几拍位置与移动归本类，
+			//    复核只补"AI 冻结"这一项；否则就是"一边每帧瞬移、一边每 0.2~0.5s 写行进输入/朝向/限速"。
+			if (IsMovingBody) SetTargetAIPaused(_target, true);
+			else HoldTarget(_target);
+
+			// ③ 只有"真的被还原过"才打一行 —— 这是"复核到底有没有在干活"的唯一证据
+			//    （平时一致 = 静默；被部署收尾/别的系统还原 = 每次一条，不刷屏）。
+			if (flagsWereMissing || wasUnpaused)
+			{
+				DebugLogger.Log($"[Grapple] 压制复核：被外部还原过 ⇒ 已补回"
+					+ $"（旗标={flagsWereMissing} · AI冻结={wasUnpaused}）");
+			}
 		}
 
 		/// <summary>命令入口：立刻放开当前目标（`custom.grapple bind release`）。</summary>
@@ -1793,8 +1980,7 @@ namespace LivingWorldNpcs
 			// 绳长上限：这一绑结束 ⇒ 锁解掉（下一绑重新锁）
 			_leashLocked = false;
 			_leashLength = 0f;
-			_leashSlackAtLock = 0f;
-			_leashOver = 0f;
+			_leashBeforeTug = 0f;
 			_leashPulling = false;
 			_leashDragged = false;
 			_leashSpeed = 0f;

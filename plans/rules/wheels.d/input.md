@@ -545,7 +545,18 @@ Tick():                                   // 每帧一次
 
 - 实例：`TugRope`/`LiftCarried` 默认 **G** —— 而 `CombatHotKeyCategory` 里 **`DropWeapon` = G**
   ⇒ 按 G 拉紧的同时**把手里的绳丢在地上** ⇒ `玩家收刀` ⇒ 命中"收起钩索 = 松手放人"出口 ⇒ 绳子凭空消失。
-- 现行默认：**T**（单机任务里没有任何原版绑定；Combat/Generic 两类都干净，只有联机聊天用）。
-- 已被原版任务内占用的字母（别用）：`F`(Action) `E`(Kick) `Z`(Crouch) `X`(ToggleWeaponMode)
+- 🔴 **2026-10-20 的解法（比"换键"更好用，可复用）**：原版的处理入口在**托管层**，可以 Harmony 让位 ——
+  实例 = `Combat/GrappleDropWeaponGatePatch.cs`（Prefix 返回 false 跳过
+  `MissionGauntletMainAgentEquipmentControllerView.DropWeaponTick`，闸门 = 我们自己那个功能正占着这把键）。
+  **代价**：该键在"我们占着"的那段时间里**原版功能整体不可用**（本例 = 绳上有人时不能丢武器）⇒ 门要开小。
+  找入口的法子：`BannerlordGameKeys.xml` 里查到 `GameKey` 的名字 → 在 `Modules/*/bin/.../*.dll`
+  里二进制搜那个名字/方法名（本例 `DropWeaponTick`）→ `ilspycmd` 看它短按/长按各做什么。
+- **为什么不用 T 绕**（2026-10-19 曾改 T，10-20 回退）：`ChatLogHotKeyCategory.InitiateAllChat = T`
+  **单机也响应** ⇒ 按 T 会弹聊天框。字母键在任务内基本都有主，**换键往往只是换个坑**。
+- 已被原版任务内占用的字母（别裸用）：`F`(Action) `E`(Kick) `Z`(Crouch) `X`(ToggleWeaponMode)
   `G`(DropWeapon) `V`(PushToTalk) `U`(EquipmentSwitch) `O`(Cheer) `R`(CameraToggle) `Space`(Jump)
   `LeftShift`(Zoom) `BackSlash`(SheathWeapon) —— 另有 `M` 已被本项目的 IM 面板占用。
+  ⚠️ 其中 **`G` 我们已经占用**（绳上有人时由上面那条补丁把原版让位）—— 但这是**例外**，
+  新功能要占用原版键，必须同样把原版入口堵死并写清"什么时候放行"。
+- 另外两类**单机也会响应**、容易漏看的：`ChatLogHotKeyCategory`（`T`=全员聊天 / `Y`=队伍聊天）
+  和 `PhotoModeHotKeyCategory`（`T`=Reset）。查键时**别只看 Combat/Generic**。

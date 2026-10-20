@@ -193,6 +193,8 @@ namespace LivingWorldNpcs
                 // 定义在 ModuleData/statemachines/bind.xml / carry.xml —— 改那两个文件不用重编译。
                 BindAnimMachine.Register();
                 CarryAnimMachine.Register();
+                // 被处决者（2026-10-19）：受击 → 躺地循环 → 起身；定义在 ModuleData/statemachines/executed.xml。
+                ExecutedAnimMachine.Register();
             }
             catch (Exception ex)
             {
@@ -203,6 +205,9 @@ namespace LivingWorldNpcs
             try
             {
                 GameDatabase.Initialize();
+
+                // 双人动作表（2026-10-19）：装载日志 + 每条定义自检（一次，不注册任何东西）。
+                PairActionTable.LogLoadedOnce();
 
                 // 主菜单 BGM 内容包重载（仅 1.2.12；Psai 工程在启动最早段已被引擎加载，
                 // Harmony 拦截时机太晚，必须在此主动重载——见 Core/MenuSoundtrackPatch.cs）
@@ -262,6 +267,14 @@ namespace LivingWorldNpcs
             //    钩头飞行 / 命中 / 拉拽 / 弓形武器接线在后面几步（plans\钩索-实施计划.md）。
             //    没收绳时每帧只判一个 bool，零开销。
             mission.AddMissionBehavior(new GrappleLogic());
+
+            // 🔴 双人动作宿主（2026-10-19）：站位 / 同帧起播 / 挂接 / handoff / 唯一占用。
+            //    与 GrappleLogic 同为 Mission 级；未使用 `custom.pair` 时每帧只做一次空表判断。
+            mission.AddMissionBehavior(new PairActionLogic());
+
+            // 🔴 角色状态（2026-10-20）：pair 只描述"两个人之间的交互"，演完就解散；
+            //    之后人还在状态里（当前实例 = 被处决倒地）——那是角色自己的状态，归这里。
+            mission.AddMissionBehavior(new AgentStatus());
 
             // 🔴 战场侧的 ModInput 驱动（2026-10-12）—— 从法术宿主手里接过来的职责。
             //    原先战场/竞技场/自定义战斗里，`ModInput.Tick` 是由 `SpellProjectileLogic` 顺带推进的

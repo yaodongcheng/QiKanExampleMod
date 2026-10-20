@@ -1,0 +1,33 @@
+<!-- 被处决者的**姿态状态机**（2026-10-19 立）。
+
+     为什么要有它：处决不是"播一条一次性 clip 就完"——演完之后**躺地循环还是起身**必须是一个状态。
+     本机把后处置态做成数据：
+       受击（act_executed02，一次性）→ 躺地（循环）→ 起身（一次性）→ outside
+
+     什么时候切换（全从下面 <edges> 读；C# 里没有状态名）：
+       exec-hit    处决开始                -> 受击   （事件边，由 MachinePairDriver 按 PairActions.csv 的 EnterEvent Force）
+       受击 演完   -> 躺地（`next`，引擎侧自动）
+       exec-rise   玩家让他起来 / 离开      -> 起身   （事件边，按 PairActions.csv 的 ExitEvent Force）
+       起身 演完   -> outside（`next`，引擎侧自动）
+
+     🔴 两条占位：
+        · `躺地` 现在指 `act_executed_lie` → `binded_lay_loop`（被绑套件的趴地循环，姿势不对；
+          等专门的"被处决躺地"clip 出来，只换 action_sets.xml 的指向）。
+        · `起身` 现在指 `act_executed_standup` → `binded_lay_end`（同上）。
+     动作名接线在 ModuleData/action_types.xml + action_sets.xml。
+-->
+<state_machine name="executed" finish-margin="0.0">
+	<families>
+	</families>
+	<states>
+		<state name="受击" act="act_executed02" once="true" next="躺地" />
+		<state name="躺地" act="act_executed_lie" />
+		<!-- 🔴 不能写 next="outside"（loader 要求 next 指向已声明状态）；用 remaining 边出机。 -->
+		<state name="起身" act="act_executed_standup" once="true" />
+	</states>
+	<edges>
+		<edge from="outside" to="受击" when="exec-hit" event="true" />
+		<edge from="躺地" to="起身" when="exec-rise" event="true" />
+		<edge from="起身" to="outside" anim="remaining" anim-rem-pct="5" />
+	</edges>
+</state_machine>

@@ -1787,6 +1787,15 @@ namespace LivingWorldNpcs
 			catch (Exception) { return false; }
 		}
 
+		/// <summary>
+		/// **此刻被绑者的位置/移动归 `GrappleBind` 写**（缠 / 拽倒 / 牵绳拖动中）。
+		/// 这些时候 `BoundAction` 与压制复核**不许再碰他的移动**（见 `GrappleBind.IsMovingBody`）。
+		/// </summary>
+		public bool IsMovingBoundBody
+		{
+			get { try { return _bind.IsActive && _bind.IsMovingBody; } catch (Exception) { return false; } }
+		}
+
 		/// <summary>当前被捆的那一个（没有则 null；面板标题用 —— 见 `IsBindingSomeone` 的说明）。</summary>
 		public Agent BoundTargetAgent
 		{
@@ -1990,9 +1999,9 @@ namespace LivingWorldNpcs
 				Agent t = _bind.Target;
 				Agent me = Agent.Main;
 				if (t == null || me == null) return false;
-				Vec3 d = t.Position - me.Position;
-				d.z = 0f;
-				distance = d.Length;
+				// 🔴 **含高度**（2026-10-20）：与绳长的判据同一把尺子 —— 目标在墙头/台阶上时，
+				//    水平距离可能很近，但绳是真的斜着绷的，那时该出的是【拉紧】不是【扛起】。
+				distance = (t.Position - me.Position).Length;
 				return distance > GrappleBind.TugMinDistance && _bind.Current == GrappleBind.Phase.Bound;
 			}
 			catch (Exception) { return false; }
@@ -2116,10 +2125,9 @@ namespace LivingWorldNpcs
 		/// <summary>命令层：摆位微调（米；默认 0 —— 对齐量本来就烘在被扛者的动画里）。</summary>
 		public string CarrySetOffset(float forward, float right)
 		{
-			GrappleCarry.OffsetForward = forward;
-			GrappleCarry.OffsetRight = right;
+			_carry.SetRuntimeOffset(forward, right);
 			return $"OK: carry offset forward={forward:F2} right={right:F2}"
-				+ " (0/0 = the alignment baked in the carried animation)";
+				+ " (runtime offset on top of PairActions.csv stance)";
 		}
 
 		/// <summary>

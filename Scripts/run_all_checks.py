@@ -107,6 +107,9 @@ SECOND_MODULE_CHECKS = [
     ("check_action_wiring.py", None),       # 44 条通用动作名的三处接线（漏声明 = 拔装备 AV，雷 169）
     ("check_spell_modifiers.py", None),     # 宝石表（已搬到 LWN/ModuleData/AssetRegistry/Modifiers.xml）
     ("check_spell_modifiers.py", ["--selftest"]),  # 同上，负面测试（夹具里的手环物品名已同步改成 lwn_spell_seal）
+    # 双人动作设计表（2026-10-19）：四行头 / 交接目标 / persistent⇒motion=none / token 白名单。
+    ("check_pair_actions.py", None),
+    ("check_pair_actions.py", ["--selftest"]),
     # 🔴 法术体系总闸（2026-10-12）：开关关掉的数据（`items/spells.xml`）**不许**被引擎无条件加载 ——
     #    被某个段声明 = 引擎会吃掉它 = 总闸失效（发布时那 7 件物品照样进游戏，且零报错）。
     #    跑的是那个脚本的**窄模式**：全量模式查的是"内容包世界段清单"，基座跑必然一片红（见上文说明）。

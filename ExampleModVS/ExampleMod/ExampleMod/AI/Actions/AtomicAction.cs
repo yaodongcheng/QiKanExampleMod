@@ -1189,6 +1189,14 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Brain-Bound] {agent.Name} 被捆 ⇒ 拒绝参战（FightEnemyAction 直接结束，不动任何锁）");
                 return;
             }
+            // 🔴 **被处决倒地的人不参战**（2026-10-20）：同被捆，必须排在 ForceUnlockAgent 之前 ——
+            //    那一句会清掉压制旗标，躺着的人就地恢复原生 AI。
+            if (AgentBrain.IsHeldByStatus(agent))
+            {
+                _isFinished = true;
+                DebugLogger.Log($"[Brain-Status] {agent.Name} 处在特殊状态（倒地）⇒ 拒绝参战（不动任何锁）");
+                return;
+            }
             // 战斗入口必须解锁：ClearAllActions 默认会给 Agent 留下
             // SetScriptedPosition(DoNotRun | NoAttack) 锁，不清除则原生战斗 AI
             // 不能追人也不能出手（登记为战斗者却傻站着）。
@@ -1529,11 +1537,98 @@ namespace LivingWorldNpcs
 
         private void Hold(Agent agent)
         {
-            try { AgentControlHelper.MoveEndAndInteractPrepare(agent, _anchor); }
+            // 🔴🔴 **绝不能给"走到某个点"的合同**（2026-10-20 实机修正）：
+            //    `MoveEndAndInteractPrepare` 走的是 `SetScriptedPosition` —— 文档写得很清楚，
+            //    那是**给引擎一个目标位置、引擎每帧自己寻路走过去**（Knowledge/Agent_AI底层原理.md §3.3），
+            //    **不是**"原地锁住"。被捆的人本该由 `GrappleBind` 全权摆位，结果绳刚把人拽开几厘米，
+            //    引擎又把他走回锚点 —— 两套控制互拉 ⇒ 实机症状「被绑住之后人左右闪」。
+            //    现在只做四件"原地按住"的事，一个"去哪"的字都不写：
+            //      · 清掉脚本化移动合同 + **停掉行进输入**（`AgentControlHelper.HoldInPlace`）；
+            //      · 压旗标（不跑 / 不攻击 / 对话态）；
+            //      · 限速 0；
+            //      · 朝向归零。
+            try
+            {
+                // 🔴 **被扛着 / 搁在马背上时一个字都不写**（2026-10-20）：那一拍他的**位置与朝向**
+                //    由 `GrappleCarry`（配对动作运行时）每帧写 —— 这里每 0.2 s 清一次方向，
+                //    会和它的每帧朝向打架 = 5 Hz 抽搐。扛人期间本动作只当"脑侧占位"。
+                // 🔴 **缠 / 拽倒 / 牵绳拖动中同样一个字都不写**（2026-10-20）：那几拍位置归 `GrappleBind`。
+                //    "每帧瞬移 + 每 0.2 s 写行进输入/朝向/限速"是旧版从没有过的组合，实机表现为
+                //    拉紧瞬间人被引擎按"非法位置"处理、挪到场景外。
+                GrappleLogic grapple = GrappleLogic.Current;
+                if (grapple != null && (grapple.IsBodyCarried(agent) || grapple.IsMovingBoundBody)) return;
+
+                AgentControlHelper.HoldInPlace(agent);   // 清脚本化移动 + 停行进输入 + 朝向归零 + 限速 0（共用管线）
+                agent.SetScriptedFlags(AIScriptedFrameFlags.DoNotRun
+                    | AIScriptedFrameFlags.NoAttack
+                    | AIScriptedFrameFlags.InConversation);
+            }
             catch (Exception) { }
         }
 
         /// <summary>永不自己结束（解除 = <see cref="GrappleBind"/> 走 `ClearAllActions` 的强制路径）。</summary>
+        public bool IsFinished(Agent agent) => false;
+
+        public void OnEnd(Agent agent)
+        {
+            try { agent?.SetLookAgent(null); } catch (Exception) { }
+            if (agent != null) AgentControlHelper.StopAndReset(agent);
+        }
+    }
+
+    /// <summary>
+    /// **角色状态期间的脑侧占位**（2026-10-20 立；与 <see cref="BoundAction"/> 同构）。
+    ///
+    /// 用于"这个人正处在某个特殊状态里"（当前唯一实例 = 被处决倒地）：
+    /// 交互演完、pair 解散之后，状态仍然挂在他身上 —— 但他的脑还在跑：
+    /// 别人打他会入队 <see cref="FightEnemyAction"/>、外部 `ClearAllActions` 会把他放走、
+    /// 空窗期 `DecideDefaultBehavior` 会把控制权交回原生 AI（人就爬起来）。
+    /// 本动作 = **脑侧占位**（永不自己结束、钉住位置、拒清），与 <see cref="GrappleBind"/> +
+    /// <see cref="BoundAction"/> 的"姿势驱动 / 脑占位"分工完全一致。
+    ///
+    /// 🔴 **姿势不在这里驱动**：状态机由 <see cref="AgentStatus"/> 每帧 Tick
+    ///    （战斗场景里 `AgentBrain.Tick` 整体早退，只有 Mission 级的 `AgentStatus` 能继续驱动）。
+    /// 🔴 **解除钩子只有一个** = <see cref="AgentStatus"/> 的结束/收尾路径：
+    ///    它先 `IsStatusHeld = false` 再 `ClearAllActions`（同 GrappleBind 的放人顺序）。
+    /// </summary>
+    public class StatusHoldAction : IAtomicAction
+    {
+        /// <summary>机械动作：不产生旁白（状态本身由触发方记录）。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        /// <summary>状态期间钉住的世界位置。</summary>
+        private Vec3 _anchor;
+        private float _holdTimer;
+
+        /// <summary>🔴 **空操作** —— 只由 <see cref="AgentStatus"/> 解除（见类注释）。</summary>
+        public void RequestInterrupt() { }
+
+        public void OnStart(Agent agent)
+        {
+            if (agent == null) return;
+            _anchor = agent.Position;
+            Hold(agent);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            if (agent == null) return;
+            // 同 BoundAction：0.2s 一次原地重置（旗标/速度限制可能被别的系统清掉，反复压回去）
+            _holdTimer += dt;
+            if (_holdTimer < 0.2f) return;
+            _holdTimer = 0f;
+            Hold(agent);
+        }
+
+        private void Hold(Agent agent)
+        {
+            // 🔴 与 <see cref="BoundAction"/> 同一套"原地按住"（2026-10-20）：**不写"走去某点"的合同**，
+            //    清脚本化移动 + 停行进输入 + 限速 0 + 朝向归零（共用 `AgentControlHelper.HoldInPlace`）。
+            try { AgentControlHelper.HoldInPlace(agent); }
+            catch (Exception) { }
+        }
+
+        /// <summary>永不自己结束（解除 = <see cref="AgentStatus"/> 的强制路径）。</summary>
         public bool IsFinished(Agent agent) => false;
 
         public void OnEnd(Agent agent)

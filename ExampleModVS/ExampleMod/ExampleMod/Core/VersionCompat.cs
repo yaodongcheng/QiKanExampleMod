@@ -962,6 +962,26 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        /// <summary>
+        /// **这个点能不能站人**（在寻路网格上）+ 尽量把它吸附到最近的可站点。
+        /// 返回 false = 附近没有可站立网格（悬崖外 / 墙里 / 地形下方）——
+        /// 🔴 对这种点做 `TeleportToPosition`，引擎会当"掉出世界"把人挪到场景外（2026-10-20 实机：
+        ///    拉紧时目标被丢到 (-100, 10385) ⇒ 绳判超距放人 ⇒ 玩家看到"人直接消失"）。
+        ///
+        /// 版本差异：1.2.12 是 `ref` 查询 → **会顺手把点吸附**到网格上（并把高度也校正）；
+        ///          1.3+ 是 `in` 查询 → 只能判断、改不了点（返回 navmesh 指针，Zero = 没有）。
+        /// </summary>
+        public static bool TrySnapToNavMesh(Scene scene, ref Vec3 position)
+        {
+            if (scene == null) return true;      // 没场景 = 无从判断，放行（不要在热路径上误杀）
+#if MB2_GE_130
+            UIntPtr nav = scene.GetNavigationMeshForPosition(in position, out _, 1.5f, false);
+            return nav != UIntPtr.Zero;
+#else
+            return scene.GetNavigationMeshForPosition(ref position, out _);
+#endif
+        }
+
         // ── 导航面查询：位置 → PathFaceRecord（1.3.0 插参数）──────
         // v1.2.12: Scene.GetNavMeshFaceIndex(ref rec, Vec2 pos, bool checkIfDisabled, bool ignoreHeight = false)
         // v1.3.0+ : 第 3 位**插入** bool isRegion1 → (ref rec, Vec2 pos, isRegion1, checkIfDisabled, ignoreHeight = false)

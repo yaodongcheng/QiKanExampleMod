@@ -43,6 +43,17 @@
 			type="act_executed02"
 			animation="executed02" />
 
+		<!-- 🔴 2026-10-19：被处决者的后处置态（executed.xml）
+		     ⚠️ 目前是**占位**：躺地循环用被绑套件的 `binded_lay_loop`、起身用 `binded_lay_end`
+		        （姿势是"手反绑"，不是"被处决后手自由"）。等专门的 clip 出来，只改这两行 animation。
+		     验：custom.do_anim act_executed_lie / act_executed_standup -->
+		<action
+			type="act_executed_lie"
+			animation="binded_lay_loop" />
+		<action
+			type="act_executed_standup"
+			animation="binded_lay_end" />
+
 		<!-- 🔴 2026-09-21 新增：飞行动作 4 条（起飞 / 悬停移动 / 快移 / 落地）。
 		     animation= 一律填【实测 clip 名】（tpaccli list 装机包 lwn_core.tpac 读出来的），
 		     **不是** TRF 文件名、**不是** UE 源动画名、**不是** SkeletalAnimation 资源名。

@@ -348,17 +348,23 @@ namespace LivingWorldNpcs
             //    两条互斥的判据：扛起要求"够得着"（≤ carry maxdist，默认 3 米），
             //    而拉紧要求"够不着"（> 3 米）⇒ **同一时刻只可能出一条**，共用一把键不打架。
             //    （与"F 短按=对话 / F 长按=搜刮"同一套家规：短按给轻动作、长按给要意图的大动作。）
-            // ⚠️ 历史：G 时代【拉紧/扛起】与 Plot/StopPlan（G 长按）同键，所以有一条"牵着绳时 Plot 让位"；
-            //    改成 T 之后两者已不同键，那条让位逻辑保留无害（不再被触发）。
+            // ⚠️ 历史：G 时代【拉紧/扛起】与 Plot/StopPlan（G 长按）同键，所以有一条"牵着绳时 Plot 让位"
+            //    （`InteractionMissionView.AddRowsForAgent` 里的 `ropeHeld`）—— 回到 G 之后它重新生效。
             //
-            // 🔴🔴 **2026-10-19 键位从 G 改成 T（实机事故）**：G 是原版 `CombatHotKeyCategory` 的
-            //    **`DropWeapon`**（见用户 `Configs/BannerlordGameKeys.xml`）——我们的输入是**轮询、不吞键**
-            //    ⇒ 按 G 拉紧的同时**把绳扔在地上** ⇒ `玩家收刀` ⇒ 触发"玩家收起钩索 = 松手放人"那条出口
-            //    ⇒ 实机症状："**我拉紧之后绳子突然没了**"（日志同一毫秒：`拽倒` → `玩家收刀` → `收钩`）。
-            //    T 在单机任务里**没有任何原版绑定**（只有联机聊天），是 Combat/Generic 两类里最干净的字母键。
-            //    ⚠️ 想换回 G（或别的键）：改这里 / `config.json` → `Interactions`，但先确认它不是原版战斗键。
-            [InteractionIds.TugRope] = new InteractionBindingConfig { Keyboard = "T", Gamepad = "LB", PressMode = "Short" },
-            [InteractionIds.LiftCarried] = new InteractionBindingConfig { Keyboard = "T", Gamepad = "LB", PressMode = "Long" },
+            // 🔴🔴 **2026-10-20 键位回到 G（用户裁定）**：2026-10-19 曾因下面这条原版冲突改成 T，
+            //    但**单机里按 T 会弹出聊天框**（原版 `ChatLogHotKeyCategory.InitiateAllChat = T`，
+            //    连单机也响应）—— 比原来的问题更烦，用户要求改回 G。
+            //    **G 的原版冲突已在代码里堵死**：G 是 `CombatHotKeyCategory.DropWeapon`
+            //    （单机也生效：`MissionGauntletMainAgentEquipmentControllerView.DropWeaponTick`，
+            //     短按 = 扔掉手里的武器，长按 0.5s = 开丢弃菜单）⇒ 按下 G 拉紧时会把绳扔在地上
+            //    ⇒ `玩家收刀` ⇒ 触发"玩家收起钩索 = 松手放人"那条出口（2026-10-19 实机"绳子突然没了"）。
+            //    **修法 = 绳上有人的时候让原版那条 tick 整个让位**：
+            //    `Combat/GrappleDropWeaponGatePatch.cs`（Harmony Prefix 直接跳过它）。
+            //    ⇒ G 在"绳上没人"时仍是原版丢弃武器，只在"我们牵着人"时归我们。
+            //    ⚠️ 想换键：改这里 / `config.json` → `Interactions`；换回字母键前先查
+            //       `BannerlordGameKeys.xml` 有没有被原版占用（见 wheels.d/input.md 那条）。
+            [InteractionIds.TugRope] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Short" },
+            [InteractionIds.LiftCarried] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
             // 施法（阶段 3 起手轴）：**按住蓄力、松手放**。
             // 🔴 默认键 = X，**不是 R** —— R 是原版"切换第一人称/视角"的键，按下去会**同时**触发切视角
             //    （我们的 ModInput 是轮询读取、不吞键，所以物理键冲突会双触发；2026-09-24 用户实机报的）。

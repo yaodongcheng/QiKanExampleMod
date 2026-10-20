@@ -229,6 +229,13 @@ namespace LivingWorldNpcs
         public static DataTable TagPoint { get; private set; }
         public static DataTable Camera { get; private set; }
 
+        /// <summary>
+        /// 双人动作设计表（2026-10-19 立）：`ModuleData/DesignData/PairActions.csv`。
+        /// 一行一个双人动作（扛人 / 处决 / 坐骑挂接…）；四行头与 `Camera.csv` 完全一致。
+        /// 消费方 = <see cref="PairActionTable"/>。
+        /// </summary>
+        public static DataTable PairActions { get; private set; }
+
         public static DataTable Emotion { get; private set; }
 
         /// <summary>英雄扩展属性表（2026-09-12 加）：LWN 给骑砍2英雄的通用扩展列 ——
@@ -266,6 +273,8 @@ namespace LivingWorldNpcs
         {
             // Camera.csv 是唯一泛用表，始终从 Mod A 加载
             Camera = CsvLoader.LoadTable(Path.Combine(directoryPath, "Camera.csv"), "Camera");
+            // 双人动作设计表（2026-10-19）：与 Camera.csv 同一套四行头 CSV。
+            PairActions = CsvLoader.LoadTable(Path.Combine(directoryPath, "PairActions.csv"), "PairActions");
 
             // Narrative/NpcSpeech 已迁移到 XML，不再加载
 

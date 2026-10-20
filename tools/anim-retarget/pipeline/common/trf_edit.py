@@ -282,6 +282,24 @@ def inplace(t, keep_z=True):
     return r
 
 
+def rebase(t, right, forward, z=0.0):
+    """**把根骨位移轨整体减去一个常量**（配对站姿偏移）—— 2026-10-19 立（双人动作体系）。
+
+    为什么需要：被扛者的 4 条 clip 首帧水平带着"她站在他旁边"的偏移（例如 lift 首帧
+    `(-0.735, 0.0846)`）。新的模型要求 **agent 坐标 = 真实站位**，clip 只表达"相对自己
+    站位的姿态变化" ⇒ 把这段常量从所有帧里减掉，首帧归零；偏移改由配对表的 `Stance_*` 表达。
+
+    🔴 只减 **X/Y**（默认 `z=0`）：竖直是姿态的一部分（站姿基准/肩上高度），不动。
+    🔴 旋转轨一个字节不动（只重写 `root_pos`）。
+    🔴 同一对的所有 clip 必须用**同一个常量**减（不要各减各的首帧），否则 clip 之间接缝会跳。
+    """
+    r = Trf(); r.name = t.name
+    for bone in t.bones:
+        r.bones.append(list(bone))
+    r.root_pos = [(f, (px - right, py - forward, pz - z)) for (f, (px, py, pz)) in t.root_pos]
+    return r
+
+
 
 def yaw_rotate(t, deg):
     """**整体绕世界 Z 转 deg 度**（绕竖直轴转身）—— 2026-10-10 立。
@@ -583,6 +601,13 @@ def _main():
     ip.add_argument("--zero-z", action="store_true", help="连竖直也归零（默认只清水平）")
     ip.add_argument("--out", required=True); ip.add_argument("--name")
 
+    rb = sub.add_parser("rebase", help="根骨位移轨整体减去常量（配对站姿偏移归零，Z 保留）")
+    rb.add_argument("--in", dest="inp", required=True)
+    rb.add_argument("--right", type=float, required=True, help="要减掉的 +X（米，角色右手侧）")
+    rb.add_argument("--forward", type=float, required=True, help="要减掉的 +Y（米，角色正前）")
+    rb.add_argument("--z", type=float, default=0.0, help="要减掉的 Z（默认 0，竖直保留）")
+    rb.add_argument("--out", required=True); rb.add_argument("--name")
+
     fsp = sub.add_parser("flipside", help="把被扛者换到扛人者另一侧（左右互换）")
     fsp.add_argument("--in", dest="inp", required=True)
     fsp.add_argument("--mode", default="x", choices=("x", "yaw180"),
@@ -610,6 +635,28 @@ def _main():
         t = yaw_rotate(read_trf(a.inp), a.deg)
     elif a.op == "inplace":
         t = inplace(read_trf(a.inp), keep_z=not a.zero_z)
+    elif a.op == "rebase":
+        src = read_trf(a.inp)
+        before_first = src.root_pos[0][1] if src.root_pos else (0.0, 0.0, 0.0)
+        before_net = ((src.root_pos[-1][1][0] - before_first[0],
+                       src.root_pos[-1][1][1] - before_first[1],
+                       src.root_pos[-1][1][2] - before_first[2]) if len(src.root_pos) > 1
+                      else (0.0, 0.0, 0.0))
+        t = rebase(src, a.right, a.forward, a.z)
+        after_first = t.root_pos[0][1] if t.root_pos else (0.0, 0.0, 0.0)
+        after_net = ((t.root_pos[-1][1][0] - after_first[0],
+                      t.root_pos[-1][1][1] - after_first[1],
+                      t.root_pos[-1][1][2] - after_first[2]) if len(t.root_pos) > 1
+                     else (0.0, 0.0, 0.0))
+        print("CHECK_REBASE first before=(%.4f, %.4f, %.4f) after=(%.4f, %.4f, %.4f)"
+              % (before_first + after_first))
+        print("CHECK_REBASE net   before=(%.4f, %.4f, %.4f) after=(%.4f, %.4f, %.4f)"
+              % (before_net + after_net))
+        if any(abs(before_net[i] - after_net[i]) > 1e-6 for i in range(3)):
+            raise SystemExit("!! rebase 改变了净位移 —— 实现有 bug，停")
+        if abs(after_first[0]) > 1e-4 or abs(after_first[1]) > 1e-4:
+            print("NOTE: 首帧水平仍非 0（%.4f, %.4f）—— 入口 clip 应≈0；其余片段保留相对偏移是正常的"
+                  % (after_first[0], after_first[1]))
     elif a.op == "flipside":
         t = flipside(read_trf(a.inp), mode=a.mode)
     else:

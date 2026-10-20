@@ -7,21 +7,18 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
 	/// <summary>
-	/// **步骤 6「扛人」的配对控制器**（2026-10-10 立；方案 = plans\钩索-实施计划.md §十五）。
+	/// **「扛人」适配器**（2026-10-10 立；**2026-10-19 改成通用双人动作运行时的消费者**）。
 	///
-	/// 管一对 agent：**扛人者**（v1 = 玩家）+ **被扛者**（= 被钩索捆住的那个人）。
-	/// 两边各有自己的状态机（扛人者 = `carry.xml`；被扛者 = `bind.xml` 里那三个"被扛"状态），
-	/// 本文件负责**把它们对齐**：
-	///   ① **同帧起播**（扛起 / 放下各 Force 一次，两个 Agent 同一帧进状态）；
-	///   ② **每帧摆位**（被扛者的世界位置与朝向 —— 见 <see cref="AttachCarried"/>）；
-	///   ③ 结束与收尾（放下动画播完才松手）。
+	/// 分工（改架构后）：
+	///   · **站位 / 同帧起播 / 每帧摆位 / 结束提交 / 控制权租约** = <see cref="PairActionInstance"/>
+	///     （数据 = `ModuleData/DesignData/PairActions.csv` 的 `grapple_carry` 行）；
+	///   · **本类只保留钩索专属**：绑缚前置校验、武器收/还、马背 handoff 触发、
+	///     以及两侧状态机驱动（`carry.xml` / `bind.xml`）。
 	///
 	/// 🔴 **竖直 0.68 米不在这里**（这是最容易找错地方的一件）：把人托到肩上那一下
 	///    **在被扛者自己的动画里**（根骨位置轨 z：站姿基准 0 → 肩上 +0.66，`tpaccli` / `trf_root_travel.py` 实测）。
 	///    引擎渲染骨骼时会应用那条轨 ⇒ **我们一个字都不写 Z**（本来也写不进去，见
 	///    [Knowledge/骑砍2Agent运动与位置机制.md](../../../Knowledge/骑砍2Agent运动与位置机制.md)）。
-	///    同理，被扛者的**前后 / 左右相对位移也在它自己的动画里**（重定向时就是"以扛人者为参考系"做的）
-	///    ⇒ 摆位**只做 XZ 贴住 + 朝向对齐，不叠任何偏移**，否则位移叠成双份。
 	///
 	/// 🔴 **平权（铁律 18）**：两边都是 Agent，本文件里没有"玩家"分支 —— 将来 NPC 扛人直接调
 	///    <see cref="Begin"/> 即可（v1 的入口恰好是玩家而已）。
@@ -143,6 +140,7 @@ namespace LivingWorldNpcs
 		private GrappleBind _bind;              // 只为了收摊时把"扛人者"从被绑者那侧清掉（别留悬空引用）
 		private AgentAnimStateMachine _machine;
 		private CarryAnimContext _ctx;
+		private PairActionInstance _pair;       // 2026-10-19：站位/起播/摆位/结束交给通用双人动作运行时
 		private CarryPhase _phase = CarryPhase.None;
 		private float _t;
 		private string _note = "-";
@@ -157,15 +155,35 @@ namespace LivingWorldNpcs
 
 		public bool IsActive => _phase != CarryPhase.None && _carried != null;
 		public Agent Carrier => _carrier;
-		public Agent Carried => _carried;
+		public Agent Carried => _carried ?? MountPair?.Defender;
 
 		/// <summary>人现在搁在哪匹马的背上（没搁 = null）。交互面板"从马背拿下"的判据。</summary>
-		public Agent Horse => _horse;
+		public Agent Horse => _horse ?? MountPair?.Attacker;
 
 		/// <summary>人是不是正搁在**这匹**马上。</summary>
-		public bool IsOnHorse(Agent horse) => IsActive && _horse != null && ReferenceEquals(_horse, horse);
+		public bool IsOnHorse(Agent horse) => horse != null && ReferenceEquals(Horse, horse);
 		public CarryPhase Phase => _phase;
 		public string Note => _note;
+
+		/// <summary>
+		/// 当前有没有一对「坐骑 ↔ 人」的挂接 pair（2026-10-19：马背走 handoff，旧 pair 演完就退场，
+		/// 之后 **位置由后继 pair 每帧摆**；`GrappleCarry` 只负责查询/触发）。
+		/// </summary>
+		private static PairActionInstance MountPair
+		{
+			get
+			{
+				// 适配器按**自己拥有的两台状态机**找行（carry / bind），再顺着 `HandoffTo` 找后继。
+				if (!PairActionTable.FindByMachines(CarryAnimMachine.Name, BindAnimMachine.Name, out PairActionDef carryDef)
+					|| string.IsNullOrWhiteSpace(carryDef.HandoffTo))
+					return null;
+
+				PairActionLogic logic = PairActionLogic.Current;
+				if (logic == null) return null;
+				PairActionInstance inst = logic.FindByDefId(carryDef.HandoffTo);
+				return inst != null && !inst.IsDone ? inst : null;
+			}
+		}
 
 		/// <summary>
 		/// **"收起钩索 = 松手放人"那条出口现在要不要让路**（消费者 = <see cref="GrappleLogic"/> 出口②）。
@@ -225,24 +243,62 @@ namespace LivingWorldNpcs
 			_t = 0f;
 			_note = "riding";
 
-			// 🔴 **同帧起播**：扛人者一侧 Force `carry-trigger`（carry.xml：outside → 扛起）；
-			//    被扛者一侧 Force 同一个时刻名（bind.xml：站缚 → 被扛起）。两边的状态机各自
-			//    从自己的定义里读"这个时刻该进哪个状态" —— **C# 里一个状态名都没有**。
-			ForceCarrier(BindAnimConditions.CarryTrigger);
-			bind.ForceEvent(BindAnimConditions.CarryTrigger);
+			// 让被扛者知道扛人者是谁 —— 之后每帧只用来读它的速度（被扛行 ⇄ 被扛走的判据）
 			bind.SetCarrier(carrier);
+
+			// 🔴 2026-10-19：站位 / 同帧起播 / 每帧摆位 / 结束提交全部交给通用双人动作运行时。
+			//    两侧播什么仍由本类的 carry.xml + GrappleBind 的 bind.xml 决定（驱动只 Force 时刻名）。
+			PairActionLogic logic = PairActionLogic.Current;
+			if (logic == null)
+			{
+				RollbackBegin();
+				why = "PairActionLogic not mounted (not in a mission?)";
+				return false;
+			}
+			if (!PairActionTable.FindByMachines(CarryAnimMachine.Name, BindAnimMachine.Name, out PairActionDef def)
+				|| def == null)
+			{
+				RollbackBegin();
+				why = $"no PairActions.csv row with machines '{CarryAnimMachine.Name}/{BindAnimMachine.Name}'";
+				return false;
+			}
+
+			if (!logic.Begin(def, carrier, carried, new CarryMachineDriver(this), new BindMachineDriver(this),
+					ignoreApproachDistance: false, defenderHeldByOther: true, out why))
+			{
+				RollbackBegin();
+				return false;
+			}
+
+			_pair = logic.GetByAgent(carrier);
+			if (_pair != null)
+			{
+				_pair.ExtraAttachRight = OffsetRight;
+				_pair.ExtraAttachForward = OffsetForward;
+			}
 
 			// 🔴 **顺手把武器收进鞘**（2026-10-13 用户要的）：不收的话手里还握着绳（弓），
 			//    屏幕上有准星、人端着弓，跟"抱着人"打架。放下（HardStop）时自动还回去。
 			if (SheatheOnCarry)
 				SheatheCarrier(carrier);
 
-			// 让被扛者知道扛人者是谁 —— 之后每帧只用来读它的速度（被扛行 ⇄ 被扛走的判据）
-			AttachCarried();
-
 			DebugLogger.Log($"[Grapple] 扛人：开始（{SafeName(carrier)} 扛 {SafeName(carried)}，"
-				+ $"距离 {d:F2} m）—— 两边同帧起播 扛起 / 被扛起");
+				+ $"距离 {d:F2} m）—— 走 PairAction 'grapple_carry'（先走到站位，再同帧起播扛起/被扛起）");
 			return true;
+		}
+
+		/// <summary>`Begin` 失败时把临时建好的状态清干净（不碰 agent）。</summary>
+		private void RollbackBegin()
+		{
+			_machine = null;
+			_ctx = null;
+			_phase = CarryPhase.None;
+			_carried = null;
+			_carrier = null;
+			_bind = null;
+			_pair = null;
+			_t = 0f;
+			_note = "-";
 		}
 
 		/// <summary>每帧推进（<see cref="GrappleLogic.OnMissionTick"/> 调；扛着时必然每帧）。</summary>
@@ -276,56 +332,34 @@ namespace LivingWorldNpcs
 			// ⓪ **看着点那个槽**（我们收过武器才查）：引擎把它弄丢就原样塞回去（见 WatchStowSlot）
 			WatchStowSlot(dt);
 
-			// ① **每帧摆位**（放下过程中也要摆 —— 否则人会立刻跳回自己脚下那一点）
-			AttachCarried();
+			// ⓪′ 🔴 **同步脑里 BoundAction 的钉位锚点**（2026-10-20 实机：被扛者动画闪烁）。
+			//     `BoundAction` 每 0.2s 把人的位置/朝向钉回它记下的锚点，而那个锚点在**绑上那一刻**
+			//     就定死了、之后再没更新过（`SetBoundAnchor` 之前**没有任何调用方**）—— 人早被 pair
+			//     搬到肩上/扛着走了，它还在往旧绑定点钉 ⇒ 与每帧摆位互相打脸（位置/朝向每 0.2s 被拉回去一次）。
+			//     扛着 = 人一直在动 ⇒ 每帧把锚点跟着他自己走。
+			try { AgentAIController.GetBrainForAgent(_carried)?.SetBoundAnchor(_carried.Position); }
+			catch (Exception) { }
 
-			// ② 扛人者那台机：填上下文 + 推进
-			if (_machine != null && _ctx != null)
+			// ① 2026-10-19：站位 / 每帧摆位 / 扛人者状态机 Tick 全部在 PairActionInstance 里
+			//    （它由 PairActionLogic 每帧推进；本类只在驱动里补"扛人者那台机"的上下文）。
+			if (_pair == null)
 			{
-				_ctx.Moving = IsCarrierMoving();
-				_ctx.AnimRemainFrac = _machine.CurrentRemainFrac;
-				_machine.Tick(_carrier, dt);
+				HardStop("pair lost");
+				return;
 			}
-
-			// ③′ **马背相位**：扛人者那台机演完"放下"就把他撒手（**不 HardStop** —— 人还在马上、继续摆位）；
-			//     玩家这时候就自由了（武器也还回去），可以上马带着走。
-			if (_phase == CarryPhase.OnHorse)
+			if (_pair.IsDone)
 			{
-				bool carrierDone = _machine == null
-							|| _machine.Current == AgentAnimStateMachine.OutsideState
-							|| !AgentControlHelper.SafeIsActive(_carrier);
-				if (carrierDone && _machine != null)
-				{
-					RestoreCarrierWeapon();
-					_machine = null;
-					_ctx = null;
-					if (_stowGrace <= 0f) _stowGrace = StowGraceSeconds;
-					DebugLogger.Log($"[Grapple] 马背：扛人者那侧已撒手（{SafeName(_carrier)} 自由了）"
-						+ " —— 人继续跟着马走，直到【从马背拿下】/ 松绳");
-				}
-				else if (_t >= PutdownTimeoutSeconds + 6f && _machine != null)
-				{
-					DebugLogger.Log($"[Grapple] 马背：🔴 扛人者收势超时（{_t:F1}s）⇒ 直接撒手");
-					RestoreCarrierWeapon();
-					_machine = null;
-					_ctx = null;
-				}
+				HardStop("pair finished");
+				return;
 			}
+			_note = "pair: " + _pair.Phase;
 
-			// ③ 放下中：扛人者那台机走到机外（放下动画剩 15% 出机，见 carry.xml）⇒ 收摊
-			if (_phase == CarryPhase.PuttingDown)
+			// ② 放下/收势超时兜底（正常路径由 pair 的 Ending 收尾）
+			if (_phase == CarryPhase.PuttingDown && _t >= PutdownTimeoutSeconds + 6f)
 			{
-				bool done = _machine == null
-							|| _machine.Current == AgentAnimStateMachine.OutsideState;
-				if (done)
-				{
-					HardStop("put down finished");
-				}
-				else if (_t >= PutdownTimeoutSeconds + 6f)
-				{
-					DebugLogger.Log($"[Grapple] 扛人：🔴 放下超时（{_t:F1}s，状态={_machine?.Current}）⇒ 强制收摊");
-					HardStop("put down timeout");
-				}
+				DebugLogger.Log($"[Grapple] 扛人：🔴 放下超时（{_t:F1}s）⇒ 强制收摊");
+				_pair.Abort("put down timeout");
+				HardStop("put down timeout");
 			}
 		}
 
@@ -339,10 +373,14 @@ namespace LivingWorldNpcs
 			_phase = CarryPhase.PuttingDown;
 			_t = 0f;
 			_note = "putting down (" + reason + ")";
-			ForceCarrier(BindAnimConditions.PutTrigger);
-			bind?.ForceEvent(BindAnimConditions.PutTrigger);
-			DebugLogger.Log($"[Grapple] 扛人：放下（{reason}）—— 两边同帧起播 放下 / 被放下"
-				+ $"，动画演完再松手（摆位继续）");
+			if (_pair == null || _pair.IsDone)
+			{
+				HardStop("put down: no active pair");
+				return false;
+			}
+			_pair.RequestStop("put down (" + reason + ")");
+			DebugLogger.Log($"[Grapple] 扛人：放下（{reason}）—— pair 会 Force put-trigger（两侧），"
+				+ "退出 clip 演完再松手");
 			return true;
 		}
 
@@ -369,18 +407,51 @@ namespace LivingWorldNpcs
 			float d = 0f;
 			try { Vec3 v = horse.Position - _carried.Position; v.z = 0f; d = v.Length; } catch (Exception) { }
 			if (d > MaxHorseDistance) { why = $"too far from the horse ({d:F1} m > {MaxHorseDistance:F1} m)"; return false; }
+			if (_pair == null || _pair.IsDone) { why = "no active pair"; return false; }
+
+			// 🔴 交接目标 / 进入事件全部来自 CSV：
+			//    本行 `HandoffTo` → 后继行 `EnterEvent`（例如 grapple_carry → mounted_on_mount / horse-trigger）。
+			string successorId = _pair.Def?.HandoffTo;
+			if (string.IsNullOrWhiteSpace(successorId))
+			{
+				why = $"pair '{_pair.Def?.Id}' has no HandoffTo (add it in PairActions.csv)";
+				return false;
+			}
+			if (!PairActionTable.TryGet(successorId, out PairActionDef successor) || successor == null)
+			{
+				why = $"handoff target '{successorId}' not found in PairActions.csv";
+				return false;
+			}
+			if (string.IsNullOrWhiteSpace(successor.EnterEvent))
+			{
+				why = $"handoff target '{successorId}' has no EnterEvent (add it in PairActions.csv)";
+				return false;
+			}
+
+			// 被扛者那侧：按后继行的 EnterEvent 进挂接状态；扛人者那侧由 pair 的 handoff 演"放下"。
+			bind?.ForceEvent(successor.EnterEvent);
+
+			if (!_pair.RequestHandoff(successorId, horse, out why))
+				return false;
+
+			// 后继 pair 已经建好：把旧的马背旋钮（horseoffset / horseface）映射成它的运行期偏移。
+			PairActionInstance mountPair = MountPair;
+			if (mountPair != null)
+			{
+				mountPair.ExtraAttachForward = -HorseBackOffset - mountPair.Def.Stance.Forward;
+				mountPair.ExtraAttachRight = HorseSideOffset - mountPair.Def.Stance.Right;
+				mountPair.ExtraAttachYawDeg = HorseFaceMode == "across" ? 90f
+					: HorseFaceMode == "reverse" ? 180f : 0f;
+			}
 
 			_horse = horse;
 			_phase = CarryPhase.OnHorse;
 			_t = 0f;
-			_note = "on horse back";
-			// 扛人者那侧：演"放下"（手臂把人放下去）—— 演完（出机）就不再管它，见 Tick ③
-			ForceCarrier(BindAnimConditions.PutTrigger);
-			// 被扛者那侧：进"马背"那个状态（bind.xml 的 horse-trigger 边）
-			bind?.ForceEvent(BindAnimConditions.HorseTrigger);
+			_note = "handing off to mount";
+
 			DebugLogger.Log($"[Grapple] 马背：把 {SafeName(_carried)} 放到 {SafeName(horse)} 的背上"
 				+ $"（后偏 {HorseBackOffset:F2} m · 侧偏 {HorseSideOffset:F2} m · 朝向 {HorseFaceMode}）"
-				+ " —— 之后他的位置**跟着马走**；【从马背拿下】或松绳才回来"
+				+ $" —— 交接给 PairAction '{successorId}'（坐骑 ↔ 人），之后位置**跟着马走**"
 				+ "（⚠️ 悬空高度靠动画根骨轨：现在占位指向 beikangqi_idle，新 clip 出来换指向即可）");
 			return true;
 		}
@@ -391,21 +462,35 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public bool TakeOffHorse(GrappleBind bind, string reason)
 		{
-			if (!IsActive || _horse == null) return false;
-			Agent horse = _horse;
-			_horse = null;
+			PairActionInstance mountPair = MountPair;
+			Agent horse = mountPair?.Attacker ?? _horse;
+			Agent carried = mountPair?.Defender ?? _carried;
+			if (horse == null || carried == null) return false;
+
 			// 落点：马旁边（右脚侧 1 米）—— 先摆到位再播"被放下"，不然人会从马背上"瞬移"到原地
 			try
 			{
 				Vec3 f = ForwardOf(horse, mount: true);
 				Vec3 right = new Vec3(f.y, -f.x, 0f);
 				Vec3 p = horse.Position + right * 1.0f;
-				p.z = _carried.Position.z;
-				_carried.TeleportToPosition(p);
+				p.z = carried.Position.z;
+				carried.TeleportToPosition(p);
 			}
 			catch (Exception) { }
-			bind?.ForceEvent(BindAnimConditions.PutTrigger);
-			DebugLogger.Log($"[Grapple] 马背：把 {SafeName(_carried)} 从 {SafeName(horse)} 背上拿下（{reason}）—— 落地回站缚");
+
+			// 出挂接状态的事件也来自 CSV（后继行的 ExitEvent）。
+			string exitEvent = mountPair?.Def?.ExitEvent;
+			if (string.IsNullOrWhiteSpace(exitEvent))
+				DebugLogger.Log("[Grapple] 马背：后继 pair 缺 ExitEvent —— 取下时被扛者不会回站缚（检查 PairActions.csv）");
+			else
+				bind?.ForceEvent(exitEvent);
+
+			if (mountPair != null)
+				mountPair.RequestStop("taken off horse (" + reason + ")");
+			if (_pair != null && !_pair.IsDone)
+				_pair.Abort("taken off horse");
+
+			DebugLogger.Log($"[Grapple] 马背：把 {SafeName(carried)} 从 {SafeName(horse)} 背上拿下（{reason}）—— 落地回站缚");
 			HardStop("taken off horse (" + reason + ")");
 			return true;
 		}
@@ -413,8 +498,22 @@ namespace LivingWorldNpcs
 		/// <summary>立刻散伙（不再摆位、不再管动画）—— 用于 agent 没了之类的异常路径。</summary>
 		public void HardStop(string reason)
 		{
+			// 马背的后继 pair 独立存在（人已经交给马了）；松绳/收摊时也要把它收掉。
+			try
+			{
+				PairActionInstance mountPair = MountPair;
+				if (mountPair != null && !mountPair.IsDone)
+					mountPair.Abort("carry stopped: " + reason);
+			}
+			catch (Exception) { }
+
 			if (_carried == null && _carrier == null) return;
 			DebugLogger.Log($"[Grapple] 扛人：结束（{reason}）");
+
+			// 先把 pair 收掉（归还玩家控制权 / AI），再还武器、清本地状态。
+			try { if (_pair != null && !_pair.IsDone) _pair.Abort("carry stopped: " + reason); } catch (Exception) { }
+			_pair = null;
+
 			// 🔴 **还武器要排在收摊之前**（`_carrier` 一清就没对象了）。
 			//    无论走哪条路结束都还 —— "我们收走的，我们负责还"；玩家自己另拿了东西就不抢（见方法注释）。
 			RestoreCarrierWeapon();
@@ -626,6 +725,10 @@ namespace LivingWorldNpcs
 		/// · **朝向只认 `SetMovementDirection`**（`LookDirection` 赋值实测转不动）——
 		///   照"配对表演"那条已验证先例（`custom.exec_pair`）。
 		/// </summary>
+		/// <summary>
+		/// 🪦 **2026-10-19 起不再调用**：每帧摆位已移到 `PairActionInstance.TryPlaceAttached`
+		/// （站位由 `PairActions.csv` 的 `grapple_carry` 行驱动）。保留本方法仅作旧行为对照。
+		/// </summary>
 		private void AttachCarried()
 		{
 			// 🔴 **马背相位**：贴的是**马**（不是扛人者）—— 马背靠后的位置 + 沿马脊线的朝向。
@@ -781,6 +884,21 @@ namespace LivingWorldNpcs
 			}
 		}
 
+		/// <summary>
+		/// 命令层：摆位微调（米；默认 0 —— 正式站位在 `PairActions.csv` 的 `Stance_*`）。
+		/// 这是**运行期额外偏移**，叠加在 CSV 站位上；扛着时改立即生效。
+		/// </summary>
+		public void SetRuntimeOffset(float forward, float right)
+		{
+			OffsetForward = forward;
+			OffsetRight = right;
+			if (_pair != null)
+			{
+				_pair.ExtraAttachForward = forward;
+				_pair.ExtraAttachRight = right;
+			}
+		}
+
 		/// <summary>扛人者在不在动（判据口径 = <see cref="BindAnimConditions.CarrierMovingSpeed"/>；
 		/// 用 `AverageVelocity` 防瞬时抖动让两个状态每帧互踢）。</summary>
 		private bool IsCarrierMoving()
@@ -805,6 +923,115 @@ namespace LivingWorldNpcs
 			DebugLogger.Log($"[Grapple] 扛人：状态机里没有时刻 '{whenToken}' 的边（carry.xml 改坏了？）");
 		}
 
+		/// <summary>给 pair 的扛人者驱动用：填上下文 + 推进状态机（原来在 `Tick` 里那一段）。</summary>
+		private void TickCarrierMachine(float dt)
+		{
+			if (_machine == null || _ctx == null || _carrier == null) return;
+			_ctx.Moving = IsCarrierMoving();
+			_ctx.AnimRemainFrac = _machine.CurrentRemainFrac;
+			_machine.Tick(_carrier, dt);
+		}
+
+		/// <summary>
+		/// 事件 token 从 `PairActions.csv` 读（`EnterEvent` / `ExitEvent`，两侧共用）。
+		/// 🔴 **没有代码兜底**：表里空 = 直接报错（数据驱动，事件名不在 C# 里写第二份）。
+		/// </summary>
+		private string PairEvent(bool enter)
+		{
+			PairActionDef def = _pair?.Def;
+			string token = def != null ? (enter ? def.EnterEvent : def.ExitEvent) : null;
+			if (!string.IsNullOrWhiteSpace(token))
+				return token;
+
+			DebugLogger.Log($"[Grapple] 🔴 pair '{def?.Id ?? "?"}' 缺 {(enter ? "EnterEvent" : "ExitEvent")}"
+							+ " —— 状态机驱动无法起播/收势（检查 PairActions.csv）");
+			return null;
+		}
+
+		// ═════════════════════════ 双人动作驱动（2026-10-19）═════════════════════════
+		//
+		// pair 运行时只认 IPairSideDriver；**状态机仍归本类 / GrappleBind 所有**。
+		// 驱动只做三件事：按时刻 token Force 进/出、每帧推进（扛人者那台）、报告出机。
+
+		/// <summary>扛人者一侧：carry.xml（扛起 / 扛行 / 扛走 / 放下）。</summary>
+		private sealed class CarryMachineDriver : IPairSideDriver
+		{
+			private readonly GrappleCarry _owner;
+
+			public CarryMachineDriver(GrappleCarry owner) { _owner = owner; }
+
+			public bool CanStart(Agent agent, out string why)
+			{
+				why = _owner._machine == null ? "carry state machine not created" : "-";
+				return _owner._machine != null;
+			}
+
+			public bool Start(Agent agent, out string why)
+			{
+				why = "-";
+				string token = _owner.PairEvent(true);
+				if (string.IsNullOrEmpty(token)) { why = "missing EnterEvent in PairActions.csv"; return false; }
+				_owner.ForceCarrier(token);
+				return true;
+			}
+
+			public void Tick(Agent agent, float dt) => _owner.TickCarrierMachine(dt);
+
+			public bool IsFinished(Agent agent)
+				=> _owner._machine == null
+				|| _owner._machine.Current == AgentAnimStateMachine.OutsideState;
+
+			public bool KeepsPairAlive => false;
+
+			public void RequestExit(Agent agent)
+			{
+				string token = _owner.PairEvent(false);
+				if (!string.IsNullOrEmpty(token)) _owner.ForceCarrier(token);
+			}
+
+			public void Release(Agent agent) { }
+		}
+
+		/// <summary>被扛者一侧：bind.xml（状态机由 <see cref="GrappleBind"/> 自己 Tick）。</summary>
+		private sealed class BindMachineDriver : IPairSideDriver
+		{
+			private readonly GrappleCarry _owner;
+
+			public BindMachineDriver(GrappleCarry owner) { _owner = owner; }
+
+			public bool CanStart(Agent agent, out string why)
+			{
+				bool ok = _owner._bind != null && _owner._bind.IsActive;
+				why = ok ? "-" : "bind is not active";
+				return ok;
+			}
+
+			public bool Start(Agent agent, out string why)
+			{
+				why = "-";
+				string token = _owner.PairEvent(true);
+				if (string.IsNullOrEmpty(token)) { why = "missing EnterEvent in PairActions.csv"; return false; }
+				_owner._bind?.ForceEvent(token);
+				return true;
+			}
+
+			// bind.xml 的 Tick 归 GrappleBind，pair 不重复推进。
+			public void Tick(Agent agent, float dt) { }
+
+			// 放下的收尾（被放下 → 站缚）由 GrappleBind 继续；pair 只等扛人者那侧出机。
+			public bool IsFinished(Agent agent) => true;
+
+			public bool KeepsPairAlive => false;
+
+			public void RequestExit(Agent agent)
+			{
+				string token = _owner.PairEvent(false);
+				if (!string.IsNullOrEmpty(token)) _owner._bind?.ForceEvent(token);
+			}
+
+			public void Release(Agent agent) { }
+		}
+
 		// ───────────────────────────── 诊断 ─────────────────────────────
 
 		/// <summary>一行状态（命令 `custom.grapple carry state`）。**纯英文**（控制台纪律）。</summary>
@@ -814,6 +1041,7 @@ namespace LivingWorldNpcs
 			{
 				return $"carry: idle (switch {(Enabled ? "on" : "off")}) | last: {_note}";
 			}
+			string pairState = _pair != null ? _pair.Phase.ToString() : "-";
 			string carState = _machine != null ? _machine.Current ?? "-" : "(no machine)";
 			string carAct = _machine != null ? _machine.CurrentAction ?? "-" : "-";
 			string carriedAct = "-";
@@ -826,10 +1054,10 @@ namespace LivingWorldNpcs
 				d = v.Length;
 			}
 			catch (Exception) { }
-			string horseNote = _horse != null
-				? $" onHorse={SafeName(_horse)} (back {HorseBackOffset:F2}/side {HorseSideOffset:F2}/{HorseFaceMode})"
+			string horseNote = Horse != null
+				? $" onHorse={SafeName(Horse)} (back {HorseBackOffset:F2}/side {HorseSideOffset:F2}/{HorseFaceMode})"
 				: "";
-			return $"carry: {_phase} | carrier={SafeName(_carrier)} ({carState}/{carAct}){horseNote}"
+			return $"carry: {_phase} | pair={pairState} | carrier={SafeName(_carrier)} ({carState}/{carAct}){horseNote}"
 				+ $" | carried={SafeName(_carried)} act={carriedAct}"
 				+ $" | dist={d:F2}m moving={(IsCarrierMoving() ? "True" : "False")}"
 				+ $" | offset={OffsetForward:F2}/{OffsetRight:F2}"

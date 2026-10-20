@@ -103,6 +103,18 @@ namespace LivingWorldNpcs
         internal int BoundEventsDropped;
 
         /// <summary>
+        /// 是否**正处在某个特殊状态**里（2026-10-20；见 <see cref="AgentStatus"/> / <see cref="StatusHoldAction"/>）。
+        /// 当前唯一实例 = 被处决倒地（downed），以后还会有别的状态。
+        /// 与 <see cref="IsBound"/> 同一套机制（ClearAllActions 拒清 + <see cref="StatusHoldAction"/> 永久占位），
+        /// 但**姿势驱动不在这里** —— 状态机由 <see cref="AgentStatus"/> 每帧 Tick
+        /// （战斗场景里 `AgentBrain.Tick` 整体早退，脑驱动不了姿势）。
+        /// 🔴 置真之后三道闸门：`ReceiveEvent` 早退、<see cref="ClearAllActions"/> 拒清、
+        /// <see cref="FightEnemyAction.OnStart"/> 拒战 + `DecideDefaultBehavior` 不还 AI。
+        /// <see cref="AgentStatus"/> 结束状态时**先**清零本字段、**再**清动作。
+        /// </summary>
+        internal bool IsStatusHeld;
+
+        /// <summary>
         /// 当前有效行为：_currentAction 不为 null 就返回它，否则 fallback 到队列头。
         /// 代表"NPC 此刻在做什么或马上就要做什么"，用于需要读 Action 属性的场景。
         /// 返回 null 表示大脑完全空闲（无当前动作、无排队）。
@@ -347,6 +359,17 @@ namespace LivingWorldNpcs
             var brain = AgentAIController.GetBrainForAgent(agent);
             return brain?.IsBound == true;
         }
+
+        /// <summary>
+        /// 是否**正处在某个特殊状态**里（2026-10-20；与 <see cref="IsRoped"/> 同一个查询口径）。
+        /// 当前实例 = 被处决倒地。处在状态里的人不参与战斗调度、不接事件、不被外部清队列。
+        /// </summary>
+        public static bool IsHeldByStatus(Agent agent)
+        {
+            if (agent == null) return false;
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            return brain?.IsStatusHeld == true;
+        }
         // --- 核心：决策中枢 ---
         public void ReceiveEvent(AIEvent aiEvent)
         {
@@ -375,6 +398,14 @@ namespace LivingWorldNpcs
             {
                 BoundEventsDropped++;
                 DebugLogger.Log($"[Brain-Bound] {Owner.Name}(Idx={Owner.Index}) 被捆 ⇒ 忽略事件 '{aiEvent.EventType}'（累计 {BoundEventsDropped} 条）");
+                return;
+            }
+
+            // 🔴 **被处决倒地的人不接任何调度**（2026-10-20，同 IsBound 纪律）：打他 / 喊他 / 下命令
+            //    都不该把他从地上拉起来。解除只有一条路 = AgentStatus 的起身/补刀。
+            if (IsStatusHeld)
+            {
+                DebugLogger.Log($"[Brain-Status] {Owner.Name}(Idx={Owner.Index}) 处在特殊状态 ⇒ 忽略事件 '{aiEvent.EventType}'");
                 return;
             }
 
@@ -1325,6 +1356,15 @@ namespace LivingWorldNpcs
                 return;
             }
 
+            // 🔴 **被处决倒地的人同样不接受"清队列"**（2026-10-20）：占位只能由 AgentStatus
+            //    的起身/补刀路径解除（它先把 IsStatusHeld 置 false 再调本方法）。不挡的话，
+            //    对话结束清理 / 调停 / 围观反应 / 演出 任何一条都会把躺着的人放走。
+            if (IsStatusHeld)
+            {
+                DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 被处决倒地 ⇒ 拒绝清空动作（解除归 AgentStatus）");
+                return;
+            }
+
             bool hadActions = _currentAction != null || _actionQueue.Count > 0;
             DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
 
@@ -1373,6 +1413,15 @@ namespace LivingWorldNpcs
                 return true; // 已在集合中，幂等
 
             DebugLogger.Log($"[AI-Debug] Suspend {Owner.Name} (Idx={Owner.Index}) | 集合size={SuspendedAgentIndices.Count} | 当前行为={_currentAction?.GetType().Name ?? "null"}");
+
+            // 🔴🔴 **接管的那一刻，把他"正在走的那一步"停掉**（2026-10-20 用户裁定：这段属于"停原版 AI"）：
+            //   `AgentControlHelper.StopMovement` = 清脚本化移动 + **清 `MovementInputVector`**
+            //   （引擎的行进输入；AI 一停就没人清 ⇒ 最后一脚的方向会一直生效：
+            //    实机症状 = "被绑住的人沿着他自己原版的方向一直走"）。
+            //   ⚠️ **只写一次、不每帧写，也不动限速**：战斗动作（`FightEnemyAction`）也从这里走 ——
+            //      战斗的移动必须留给原生战斗 AI（同下面那段"绝不能顺手加 SetIsAIPaused"的理由）。
+            //      需要**持续按住**的状态（捆缚）由拥有那个状态的一方每帧重申（`GrappleBind`）。
+            AgentControlHelper.StopMovement(Owner);
 
             var nav = Owner.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
             if (nav == null) return false;
@@ -1476,6 +1525,8 @@ namespace LivingWorldNpcs
             //    正常路径下占位动作让脑永不为空、根本走不到这里；这一条是兜底
             //    （万一占位被谁清了，也不能就地恢复巡逻/战斗 AI）。
             if (IsBound) return;
+            // 被处决倒地的同理（2026-10-20）：占位动作让脑永不为空，这一条是兜底。
+            if (IsStatusHeld) return;
             ResumeVanillaAI();
         }
 
@@ -1503,6 +1554,17 @@ namespace LivingWorldNpcs
             foreach (var a in _actionQueue)
             {
                 if (a is BoundAction) return true;
+            }
+            return false;
+        }
+
+        /// <summary>脑里现在还挂着 <see cref="StatusHoldAction"/> 占位吗（安全网判据）。</summary>
+        private bool HasStatusHoldAction()
+        {
+            if (_currentAction is StatusHoldAction) return true;
+            foreach (var a in _actionQueue)
+            {
+                if (a is StatusHoldAction) return true;
             }
             return false;
         }
@@ -2242,6 +2304,15 @@ namespace LivingWorldNpcs
             {
                 IsBound = false;
                 DebugLogger.Log($"[Brain-Bound] {Owner.Name}(Idx={Owner.Index}) 被捆标记悬空（占位动作不在了）⇒ 就地自愈，恢复正常调度");
+            }
+
+            // 🔴 **安全网：被处决标记不许"悬空"**（2026-10-20，同被捆那条，但方向相反——
+            //    被捆丢了占位说明该放人，被处决丢了占位**不能**放人 ⇒ 就地补一个，
+            //    否则躺着的人会被 DecideDefaultBehavior 交回原生 AI 爬起来）。
+            if (IsStatusHeld && !HasStatusHoldAction())
+            {
+                EnqueueAction(new StatusHoldAction());
+                DebugLogger.Log($"[Brain-Status] {Owner.Name}(Idx={Owner.Index}) 状态占位不在了 ⇒ 就地补入队（自愈）");
             }
 
             // 🔴 2026-08-14：自报武器状态（100ms 降频）——目击者脑遍历 TrackedTargets 读本字段
