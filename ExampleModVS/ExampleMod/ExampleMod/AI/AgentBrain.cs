@@ -1530,23 +1530,6 @@ namespace LivingWorldNpcs
             ResumeVanillaAI();
         }
 
-        /// <summary>
-        /// 改**被捆的人**的锚点（躺哪就在哪）—— 拖行（钩索 §13.14 TODO 1）每帧把人往玩家那边挪时调。
-        /// 占位动作正握着这个值（每 0.2s 用它钉一次位置），不更新 = 人会被钉回原处。
-        /// </summary>
-        internal void SetBoundAnchor(Vec3 worldPos)
-        {
-            try
-            {
-                if (_currentAction is BoundAction cur) { cur.SetAnchor(worldPos); return; }
-                foreach (var a in _actionQueue)
-                {
-                    if (a is BoundAction q) { q.SetAnchor(worldPos); return; }
-                }
-            }
-            catch (Exception) { }
-        }
-
         /// <summary>脑里现在还挂着 <see cref="BoundAction"/> 占位吗（安全网判据，见 <see cref="Tick"/>）。</summary>
         private bool HasBoundAction()
         {

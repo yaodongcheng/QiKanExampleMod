@@ -332,13 +332,9 @@ namespace LivingWorldNpcs
 			// ⓪ **看着点那个槽**（我们收过武器才查）：引擎把它弄丢就原样塞回去（见 WatchStowSlot）
 			WatchStowSlot(dt);
 
-			// ⓪′ 🔴 **同步脑里 BoundAction 的钉位锚点**（2026-10-20 实机：被扛者动画闪烁）。
-			//     `BoundAction` 每 0.2s 把人的位置/朝向钉回它记下的锚点，而那个锚点在**绑上那一刻**
-			//     就定死了、之后再没更新过（`SetBoundAnchor` 之前**没有任何调用方**）—— 人早被 pair
-			//     搬到肩上/扛着走了，它还在往旧绑定点钉 ⇒ 与每帧摆位互相打脸（位置/朝向每 0.2s 被拉回去一次）。
-			//     扛着 = 人一直在动 ⇒ 每帧把锚点跟着他自己走。
-			try { AgentAIController.GetBrainForAgent(_carried)?.SetBoundAnchor(_carried.Position); }
-			catch (Exception) { }
+			// ⓪′ 🔴 **不用再同步"脑里占位的锚点"了**（2026-10-20 单权威收口）：
+			//     `BoundAction` 已改成**纯占位**（一个字都不碰身体）—— 位置/朝向/限速全归 `GrappleBind`，
+			//     这里每帧摆位不会再跟脑那边 0.2 s 一次的"钉回锚点"互相打脸。
 
 			// ① 2026-10-19：站位 / 每帧摆位 / 扛人者状态机 Tick 全部在 PairActionInstance 里
 			//    （它由 PairActionLogic 每帧推进；本类只在驱动里补"扛人者那台机"的上下文）。

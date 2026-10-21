@@ -295,18 +295,27 @@ namespace LivingWorldNpcs
 
 		/// <summary>
 		/// 捆缚期**压制复核间隔**（秒；0 = 关，命令 `custom.grapple bind verify <秒>`）。
-		/// 每这么多个秒复核一次"旗标 + AI 冻结 + 行进输入/限速/朝向"，被还原就补回来；
+		/// 每这么多个秒复核一次"旗标 + AI 冻结 + 行进输入/限速"，被还原就补回来；
 		/// **只有真被还原过才打一行日志**（`[Grapple] 压制复核：被外部还原过 ⇒ 已补回…`）。
 		///
 		/// **典型还原时机**（反编译实证）：战前部署结束时 `MissionAgentSpawnLogic.FinishDeployment()`
 		/// 会对**每个 `IsAIControlled` 的 agent** 执行 `SetIsAIPaused(false)` + 打 `Alarmed` + `ResetEnemyCaches`
 		/// —— 和我们的冻结是同一个标志位 ⇒ 战场里必须有人把它补回来。
 		///
-		/// 🔴 **为什么复核放在本类、而不是放进 <see cref="BoundAction"/>**：本类在**任何场景**每帧都跑
-		/// （挂在 <see cref="GrappleLogic"/> 的 mission tick 上），而 `AgentBrain` 在战斗场景里**整套是关的**
-		/// （<see cref="Settings.IsInteractionDisabled"/> ⇒ Tick 早退）—— 战斗里就只剩这一层在管。
+		/// 🔴🔴 **"身体"的写入权收归钩索这一侧（本类 + 配对驱动的 `GrappleCarry`）**（2026-10-20 收口）：
+		///    · 位置/朝向：`EnterYank`（朝玩家）、`TickLeash`（朝绳主）、`GrappleCarry`（扛/马背摆位）；
+		///    · 行进输入/限速/旗标/AI 冻结：本方法（+ 进相那一刻的 `HoldTarget`）。
+		///    脑侧的 `BoundAction` 已改成**纯占位**（不碰身体）—— 两个写者只要有一项不一致就会互相打脸
+		///    （实机症状 = 被拉倒的目标"头先朝玩家、过一会又转回原方向"）。
+		///    本类挂在 <see cref="GrappleLogic"/> 的 mission tick 上、**任何场景每帧都跑**；而 `AgentBrain`
+		///    在战斗场景里**整套是关的**（<see cref="Settings.IsInteractionDisabled"/> ⇒ Tick 早退）
+		///    —— 所以权威只能在这边。
+		///
+		/// 🔴 **默认 0.2 秒**（2026-10-20 由 0.5 收紧）：这是原来脑侧 `BoundAction` 的节拍。
+		///    收掉脑侧那层之后，必须由这里**接管同样的节拍** —— 否则"村镇导航器又写了一次行进输入"
+		///    要等 0.5 s 才被清掉（人会在原地慢慢漂出去半步）。
 		/// </summary>
-		public static float VerifySeconds = 0.5f;
+		public static float VerifySeconds = 0.2f;
 
 		/// <summary>
 		/// 🔴 **冻结目标的原版 AI**（2026-10-09 加；战斗场景里唯一真正"按住"他的手段）。
@@ -366,8 +375,12 @@ namespace LivingWorldNpcs
 			//   AI 一停就没人清它 ⇒ 最后那一脚的方向一直生效。停它就够了，**不要动控制器**
 			//   （`Controller` 有全局副作用：引擎会摘/挂 `HumanAIComponent`，落地/贴地那套兜底也跟着没了）。
 			//
-			//   `HoldInPlace` = 清脚本化移动 + `MovementInputVector = Zero` + 朝向归零 + 限速 0（共用管线）。
-			//   村镇导航器如果又发"走去某点"，由 `BoundAction.Hold`（0.2s）与 `VerifySuppression`（0.5s）压回去。
+			//   `HoldInPlace` = 清脚本化移动 + `MovementInputVector = Zero` + 限速 0（共用管线）。
+			//   村镇导航器如果又发"走去某点"，由 `VerifySuppression`（0.2s，本类独占）压回去
+			//   —— 脑侧 `BoundAction` 已改成纯占位，不再参与按住（2026-10-20 单权威）。
+			//   🔴 **它不写朝向**（2026-10-20 实机修正）：写 `SetMovementDirection(Vec2.Zero)` 不是"保持"，
+			//      引擎会把身体转回它自己的 look 方向 ⇒ 实机症状「拉倒后头先朝玩家、过一会又转回原方向」。
+			//      朝向归本文件：`EnterYank` 的"朝玩家"、`TickLeash` 的"朝绳主"写完之后，没人再盖它。
 			SetTargetAIPaused(a, true);
 			AgentControlHelper.HoldInPlace(a);
 			if (a != null && ReferenceEquals(a, Agent.Main))
@@ -527,9 +540,8 @@ namespace LivingWorldNpcs
 
 		/// <summary>
 		/// 🔴 **此刻被绑者的"位置/移动"归本类写** —— 缠（0.55s）/ 拽倒（1.1s）/ 牵绳正在拖。
-		/// 这段时间**别的系统一个字都不许碰**（`BoundAction` 的按住、压制复核的按住都要让路）：
-		/// 一边每帧瞬移、一边每 0.2s 写"行进输入=0/朝向=0/限速=0"，是 2026-10-20 之前从没有过的组合
-		/// （旧版 `BoundAction` 写的是"脚本位置"，不是这几个字段）。
+		/// 这段时间**别的系统一个字都不许碰**：`VerifySuppression` 只补"AI 冻结"，不补按住
+		/// —— 不然就是"一边每帧瞬移、一边每 0.2s 写行进输入/限速"两套控制互拉。
 		/// </summary>
 		public bool IsMovingBody => _phase == Phase.Wrapping || _phase == Phase.Yanking || _leashPulling;
 		public string Note => _note;
@@ -1572,7 +1584,8 @@ namespace LivingWorldNpcs
 
 			// 🔴 **不再每帧重申"按住"**（2026-10-20 收口）：绑上那一刻（`HoldTarget`）已经
 			//    ①摘掉控制器（AI/村镇导航器整条停摆，没人再写移动）②清空行进输入 ③限速 0；
-			//    之后每 0.5 s 还有 `VerifySuppression` 复核一次（防引擎部署收尾之类的"全场解冻"）。
+			//    之后每 0.2 s 由 `VerifySuppression` 复核一次（**本类是身体唯一权威**；
+			//    脑侧 `BoundAction` 已改成纯占位，不再写身体）。
 			//    每帧再写一次没有额外作用，只会和 `TickLeash` 拖动时写的朝向互相打架。
 
 			_hookPos = ChestOf(_target);
@@ -1916,27 +1929,31 @@ namespace LivingWorldNpcs
 				return;
 
 			// ① 旗标：幂等重压（被别的系统清掉 = 站着的人立刻恢复原生 AI）。
-			//    ⚠️ 用"或"叠加、**不覆盖** —— 直接赋值会把 BoundAction 每 0.2s 设的 `InConversation`
-			//    抹掉，两边一帧一变地互相打脸（那一位语义是"别动，你正在交互中"）。
+			//    ⚠️ 用"或"叠加、**不覆盖** —— 直接赋值会把别人（对话/交互系统）设的位抹掉，
+			//    两边一帧一变地互相打脸。
+			//    🔴 **`InConversation` 现在由本方法负责压**（2026-10-20 单权威收口）：以前是脑侧
+			//    `BoundAction` 每 0.2s 设的，那层已改成纯占位 —— 这个位语义是"别动，你正在交互中"，
+			//    少了它，被捆的人会被别的系统当成"空闲可搭话"。
 			bool flagsWereMissing = false;
 			try
 			{
 				Agent.AIScriptedFrameFlags before = _target.GetScriptedFlags();
 				Agent.AIScriptedFrameFlags want = before
 					| Agent.AIScriptedFrameFlags.DoNotRun
-					| Agent.AIScriptedFrameFlags.NoAttack;
+					| Agent.AIScriptedFrameFlags.NoAttack
+					| Agent.AIScriptedFrameFlags.InConversation;
 				flagsWereMissing = want != before;
 				if (flagsWereMissing) _target.SetScriptedFlags(want);
 			}
 			catch (Exception) { }
 
 			// ② 原版 AI 冻结：幂等重压（引擎的部署收尾会把**全场**解冻，战斗里尤其要盯）
-			//    🔴 走 HoldTarget 而不只 SetTargetAIPaused：它还会把"行进输入=0 / 限速 0 / 朝向 0"
-			//       一起补回来（目标中途被别的系统还回可动状态时，这里重新按住）。
+			//    🔴 走 HoldTarget 而不只 SetTargetAIPaused：它还会把"行进输入=0 / 限速 0"
+			//       一起补回来（目标中途被别的系统还回可动状态时，这里重新按住）。**不写朝向**。
 			bool wasUnpaused = false;
 			try { wasUnpaused = !_target.IsPaused; } catch (Exception) { }
 			// 🔴 **缠 / 拽倒 / 拖动 期间不碰他的移动**（2026-10-20）：那几拍位置与移动归本类，
-			//    复核只补"AI 冻结"这一项；否则就是"一边每帧瞬移、一边每 0.2~0.5s 写行进输入/朝向/限速"。
+			//    复核只补"AI 冻结"这一项；否则就是"一边每帧瞬移、一边每 0.2s 写行进输入/限速"。
 			if (IsMovingBody) SetTargetAIPaused(_target, true);
 			else HoldTarget(_target);
 
@@ -2367,10 +2384,24 @@ namespace LivingWorldNpcs
 					+ (_leashPulling ? $" v={_leashSpeed:F1}m/s" : "")
 					+ $" mine={_followerSpeed:F1}m/s x{_bindedWalkRate:F2}";
 			string lead = _leadActive ? $" | lead→{Fmt(_leadTarget)}" : "";
+			// 🔴 朝向那一格（2026-10-20 立，专治"被拉倒之后头自己转回去"这一类问题）：
+			//    `move` = 我们写的运动方向（0° = +X / 90° = +Y，与 `custom.turntodir` 同一套口径），
+			//    `look` = 引擎自己的看向方向。**趴着/站着被捆期间 `move` 应当保持不变** ——
+			//    若它忽然跳到 `look` 附近，就是又有谁往 `SetMovementDirection` 写了零向量
+			//    （写零 ≠ 保持：引擎会把身体转回 look 方向；见 AgentControlHelper.HoldInPlace 注释）。
+			string face = "-";
+			try
+			{
+				Vec2 md = _target.GetMovementDirection();
+				Vec3 ld = _target.LookDirection;
+				face = $"move={MathF.Atan2(md.y, md.x) * (180f / MathF.PI):F0}deg look={MathF.Atan2(ld.y, ld.x) * (180f / MathF.PI):F0}deg";
+			}
+			catch (Exception) { }
 			return $"bind: {_phase} | 目标={tgt} | {timer:F2}/{limit:F2}s | anim={anim} | 动作={act}"
 				+ $" | 钩={Fmt(_hookPos)} | 拖距={DragDistance:F1}m 超时={BoundSeconds:F0}s"
 				+ $" 拉倒起身={LaySeconds:F1}s{carry}"
 				+ $" | leash[{leash}]{lead}"
+				+ $" | face[{face}]"
 				+ $" | takeover[{takeover}]"
 				+ (_layTimer > 0f ? $" | 起身倒计时={_layTimer:F1}s" : "")
 				+ (_forcedAnim != null ? $" | 🔒强制={_forcedAnim}" : "");

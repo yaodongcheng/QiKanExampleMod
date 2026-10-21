@@ -1489,82 +1489,42 @@ namespace LivingWorldNpcs
     /// <summary>
     /// **被绳索捆缚的常驻行为**（钩索「勾人」步骤 5；2026-10-09 立 = plans\钩索-实施计划.md §13.14 TODO 2）。
     ///
-    /// 与 <see cref="StayAction"/>（击晕占位）**同构** —— 永不自己结束、钉住位置、压住旗标 —— 但三处刻意不同：
+    /// 与 <see cref="StayAction"/>（击晕占位）**同构** —— 永不自己结束、占住队列 —— 但三处刻意不同：
     ///   ① 🔴 **不接受任何中断**（<see cref="RequestInterrupt"/> 是空操作）：捆缚的**解除钩子只有一个** ——
     ///      <see cref="GrappleBind"/> 的放人队列（它先 `IsBound = false` 再 `ClearAllActions`，走的是强制路径）；
     ///   ② **不冒充击晕** —— 不再借 `StayAction(isKnockout: true)`；
-    ///   ③ 锚点可改（<see cref="SetAnchor"/>）—— 拖行（TODO 1）每帧把人往玩家那边挪。
+    ///   ③ 🔴 **一个字都不碰身体**（2026-10-20 单权威收口）。
+    ///
+    /// 🔴🔴 **为什么身体只留一个写者**（2026-10-20 实机教训）：
+    ///    本动作以前每 0.2 s 也"按一次"（`HoldInPlace` + 压旗标），与 `GrappleBind.VerifySuppression`
+    ///    的每 0.5 s 是**两个写者**。两边只要有一项写值不一致就会互相打脸 —— 实机症状 =
+    ///    被【拉紧】拉倒的目标"头先朝玩家、过一会儿又自己转回原方向"（本动作写
+    ///    `SetMovementDirection(Vec2.Zero)`，把 `GrappleBind.EnterYank` 写的"朝玩家"整个盖掉；
+    ///    写零 ≠ 保持 —— 引擎会把身体转回它自己的 look 方向）。
+    ///    ⇒ 现在分工：**脑只管占位**（动作永不结束 ⇒ 脑不会另起行为、不会 `DecideDefaultBehavior`
+    ///    把控制权交回原生 AI）；**身体全归 `GrappleBind`** —— 它不是脑、挂在 Mission 每帧的 tick 上，
+    ///    而脑在战斗场景里整体早退（`IsInteractionDisabled`），只有 `GrappleBind` 覆盖所有场景。
     ///
     /// 🔴 **为什么必须从 `StayAction(isKnockout: true)` 换出来**（换之前 = "被捆的人被全系统当成昏迷"）：
     ///    `AgentBrain.IsKnockedOut` 的第二条判据是 `CurrentAction is StayAction s &amp;&amp; s.IsKnockout` ⇒ 被捆的人
     ///    被 `FightEnemyAction.OnStart` 当成"晕着要起立"（对他调 `KnockoutFlow.StandUp`，把躺着的人拉起来）、
     ///    被交互面板当成"失去行动能力"、被计划 DSL 的 `knocked_out(...)` 判真。**捆缚 ≠ 昏迷**（人是清醒的，还能被审/被救）。
     ///
-    /// 姿势（躺地循环）的**驱动与复核不在这里** —— 在 <see cref="GrappleBind"/>：它在**任何场景**都跑，
-    /// 而本动作只在"非战斗场景"跑（战斗场景下 `AgentBrain.Tick` 整体早退）。
+    /// 姿势（躺地循环）与移动压制的**驱动与复核都不在这里** —— 在 <see cref="GrappleBind"/>。
     /// </summary>
     public class BoundAction : IAtomicAction
     {
         /// <summary>机械动作：不产生旁白（捆缚这件事由 <see cref="GrappleBind"/> 侧记录）。</summary>
         public string GetNarration(Agent owner) => null;
 
-        /// <summary>捆缚期间钉住的世界位置（躺哪就在哪）。</summary>
-        private Vec3 _anchor;
-        private float _holdTimer;
-
-        /// <summary>改锚点（拖行用；不调 = 一直钉在 OnStart 那一刻的位置）。</summary>
-        public void SetAnchor(Vec3 worldPos) { _anchor = worldPos; }
-
         /// <summary>🔴 **空操作** —— 捆缚只由 <see cref="GrappleBind"/> 解除（见类注释①）。</summary>
         public void RequestInterrupt() { }
 
-        public void OnStart(Agent agent)
-        {
-            if (agent == null) return;
-            _anchor = agent.Position;
-            Hold(agent);
-        }
+        /// <summary>不碰身体（见类注释③）：身体压制由 `GrappleBind` 独占。</summary>
+        public void OnStart(Agent agent) { }
 
-        public void OnTick(Agent agent, float dt)
-        {
-            if (agent == null) return;
-            // 同 StayAction：0.2s 一次原地重置（旗标/速度限制可能被别的系统清掉，反复压回去）
-            _holdTimer += dt;
-            if (_holdTimer < 0.2f) return;
-            _holdTimer = 0f;
-            Hold(agent);
-        }
-
-        private void Hold(Agent agent)
-        {
-            // 🔴🔴 **绝不能给"走到某个点"的合同**（2026-10-20 实机修正）：
-            //    `MoveEndAndInteractPrepare` 走的是 `SetScriptedPosition` —— 文档写得很清楚，
-            //    那是**给引擎一个目标位置、引擎每帧自己寻路走过去**（Knowledge/Agent_AI底层原理.md §3.3），
-            //    **不是**"原地锁住"。被捆的人本该由 `GrappleBind` 全权摆位，结果绳刚把人拽开几厘米，
-            //    引擎又把他走回锚点 —— 两套控制互拉 ⇒ 实机症状「被绑住之后人左右闪」。
-            //    现在只做四件"原地按住"的事，一个"去哪"的字都不写：
-            //      · 清掉脚本化移动合同 + **停掉行进输入**（`AgentControlHelper.HoldInPlace`）；
-            //      · 压旗标（不跑 / 不攻击 / 对话态）；
-            //      · 限速 0；
-            //      · 朝向归零。
-            try
-            {
-                // 🔴 **被扛着 / 搁在马背上时一个字都不写**（2026-10-20）：那一拍他的**位置与朝向**
-                //    由 `GrappleCarry`（配对动作运行时）每帧写 —— 这里每 0.2 s 清一次方向，
-                //    会和它的每帧朝向打架 = 5 Hz 抽搐。扛人期间本动作只当"脑侧占位"。
-                // 🔴 **缠 / 拽倒 / 牵绳拖动中同样一个字都不写**（2026-10-20）：那几拍位置归 `GrappleBind`。
-                //    "每帧瞬移 + 每 0.2 s 写行进输入/朝向/限速"是旧版从没有过的组合，实机表现为
-                //    拉紧瞬间人被引擎按"非法位置"处理、挪到场景外。
-                GrappleLogic grapple = GrappleLogic.Current;
-                if (grapple != null && (grapple.IsBodyCarried(agent) || grapple.IsMovingBoundBody)) return;
-
-                AgentControlHelper.HoldInPlace(agent);   // 清脚本化移动 + 停行进输入 + 朝向归零 + 限速 0（共用管线）
-                agent.SetScriptedFlags(AIScriptedFrameFlags.DoNotRun
-                    | AIScriptedFrameFlags.NoAttack
-                    | AIScriptedFrameFlags.InConversation);
-            }
-            catch (Exception) { }
-        }
+        /// <summary>不碰身体（见类注释③）：这里没有任何"按住"要重复。</summary>
+        public void OnTick(Agent agent, float dt) { }
 
         /// <summary>永不自己结束（解除 = <see cref="GrappleBind"/> 走 `ClearAllActions` 的强制路径）。</summary>
         public bool IsFinished(Agent agent) => false;
@@ -1577,27 +1537,28 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>
-    /// **角色状态期间的脑侧占位**（2026-10-20 立；与 <see cref="BoundAction"/> 同构）。
+    /// **角色状态期间的脑侧占位**（2026-10-20 立；与 <see cref="BoundAction"/> 的"占位"那一半同构）。
     ///
     /// 用于"这个人正处在某个特殊状态里"（当前唯一实例 = 被处决倒地）：
     /// 交互演完、pair 解散之后，状态仍然挂在他身上 —— 但他的脑还在跑：
     /// 别人打他会入队 <see cref="FightEnemyAction"/>、外部 `ClearAllActions` 会把他放走、
     /// 空窗期 `DecideDefaultBehavior` 会把控制权交回原生 AI（人就爬起来）。
-    /// 本动作 = **脑侧占位**（永不自己结束、钉住位置、拒清），与 <see cref="GrappleBind"/> +
-    /// <see cref="BoundAction"/> 的"姿势驱动 / 脑占位"分工完全一致。
+    /// 本动作 = **脑侧占位**（永不自己结束、拒清）。
     ///
     /// 🔴 **姿势不在这里驱动**：状态机由 <see cref="AgentStatus"/> 每帧 Tick
     ///    （战斗场景里 `AgentBrain.Tick` 整体早退，只有 Mission 级的 `AgentStatus` 能继续驱动）。
     /// 🔴 **解除钩子只有一个** = <see cref="AgentStatus"/> 的结束/收尾路径：
     ///    它先 `IsStatusHeld = false` 再 `ClearAllActions`（同 GrappleBind 的放人顺序）。
+    ///
+    /// ⚠️ **已知不对称（2026-10-20）**：它的 `Hold` 仍然压身体（行进输入/限速/旗标），因为
+    ///    `AgentStatus` 目前只管动画、不管这些。捆缚那条已经把身体**全部**收归 `GrappleBind`；
+    ///    这里等 `AgentStatus` 长出同样的复核之后，也应改成纯占位（照 `BoundAction` 的做法）。
     /// </summary>
     public class StatusHoldAction : IAtomicAction
     {
         /// <summary>机械动作：不产生旁白（状态本身由触发方记录）。</summary>
         public string GetNarration(Agent owner) => null;
 
-        /// <summary>状态期间钉住的世界位置。</summary>
-        private Vec3 _anchor;
         private float _holdTimer;
 
         /// <summary>🔴 **空操作** —— 只由 <see cref="AgentStatus"/> 解除（见类注释）。</summary>
@@ -1606,14 +1567,13 @@ namespace LivingWorldNpcs
         public void OnStart(Agent agent)
         {
             if (agent == null) return;
-            _anchor = agent.Position;
             Hold(agent);
         }
 
         public void OnTick(Agent agent, float dt)
         {
             if (agent == null) return;
-            // 同 BoundAction：0.2s 一次原地重置（旗标/速度限制可能被别的系统清掉，反复压回去）
+            // 0.2s 一次原地重置（旗标/速度限制可能被别的系统清掉，反复压回去）
             _holdTimer += dt;
             if (_holdTimer < 0.2f) return;
             _holdTimer = 0f;
@@ -1622,8 +1582,10 @@ namespace LivingWorldNpcs
 
         private void Hold(Agent agent)
         {
-            // 🔴 与 <see cref="BoundAction"/> 同一套"原地按住"（2026-10-20）：**不写"走去某点"的合同**，
-            //    清脚本化移动 + 停行进输入 + 限速 0 + 朝向归零（共用 `AgentControlHelper.HoldInPlace`）。
+            // 🔴 **不写"走去某点"的合同**（2026-10-20）：清脚本化移动 + 停行进输入 + 限速 0
+            //    （共用 `AgentControlHelper.HoldInPlace`）。
+            // 🔴 **不碰朝向** —— 处决倒地那一拍的朝向由配对动作运行时摆，这里写零向量会把它盖掉
+            //    （写零 ≠ 保持：引擎会把身体转回它自己的 look 方向）。
             try { AgentControlHelper.HoldInPlace(agent); }
             catch (Exception) { }
         }

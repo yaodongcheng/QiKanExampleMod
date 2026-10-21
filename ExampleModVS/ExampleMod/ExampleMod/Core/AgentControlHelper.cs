@@ -721,15 +721,21 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// **把他"钉在原地"** = <see cref="StopMovement"/> + 限速 0 + 朝向归零。
+        /// **把他"钉在原地"** = <see cref="StopMovement"/> + 限速 0。
         /// 🔴 只给**真的要被按住**的状态用（捆缚 / 处决倒地）；**不要**在通用接管里调 ——
         ///    限速 0 会一直挂着（`ForceUnlockAgent` 才恢复 -1），战斗 NPC 会被钉死。
+        /// 🔴🔴 **本方法一个字都不写朝向**（2026-10-20 实机修正，别再加回去）：
+        ///    `SetMovementDirection(Vec2.Zero)` ≠ "没有偏好" —— 引擎拿到零向量后**不会保持**，
+        ///    身体会**转回它自己的 look 方向**。实机症状 = 被【拉紧】拉倒的目标"头先朝向玩家、
+        ///    过一会儿又自己转回原来那个方向"（`BoundAction` 每 0.2 s / `VerifySuppression` 每 0.5 s
+        ///    各写一次零向量，把 `GrappleBind.EnterYank` 写的"朝玩家"整个盖掉）。
+        ///    "不写 = 保持最后朝向"（飞行工程已实测）⇒ 朝向**归调用方**：
+        ///    捆缚 = `GrappleBind`（拉紧/牵绳时写），处决 = 配对动作运行时写。
         /// </summary>
         public static void HoldInPlace(Agent agent)
         {
             if (agent == null) return;
             StopMovement(agent);
-            try { agent.SetMovementDirection(Vec2.Zero); } catch (Exception) { }   // 朝向（不是走路，见 StopMovement）
             try { agent.SetMaximumSpeedLimit(0f, false); } catch (Exception) { }
         }
         public static void ForceUnlockAgent(Agent agent)
