@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using LivingWorldNpcs;
@@ -50,8 +51,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                     case "handoff": return CmdHandoff(Arg(args, 1), Arg(args, 2)) + note;
                     case "dismount": return CmdDismount(Arg(args, 1)) + note;
                     case "trace": return CmdTrace(Arg(args, 1)) + note;
+                    case "camturn": return CmdCamTurn(Arg(args, 1)) + note;
                     default:
-                        return $"pair: unknown subcommand '{sub}' (use: list / verify / state / stance / start / stop / commit / bones / npc / victim / handoff / dismount / trace)";
+                        return $"pair: unknown subcommand '{sub}' (use: list / verify / state / stance / start / stop / commit / bones / npc / victim / handoff / dismount / trace / camturn)";
                 }
             }
             catch (Exception ex)
@@ -488,6 +490,21 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             return $"pair trace: {(_verbose ? "on" : "off")} (verbose flag; core logging is always on)";
         }
 
+        /// <summary>
+        /// `custom.pair camturn [秒]` —— 对齐后**镜头转到最终朝向**的时长（默认 0.80s；越小越硬）。
+        /// 🔴 镜头有自己的时间轴：配对起播后它继续转，**转完才交还引擎相机**。
+        /// </summary>
+        private static string CmdCamTurn(string value)
+        {
+            if (!string.IsNullOrWhiteSpace(value)
+                && float.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float secs))
+            {
+                PairActionInstance.CameraTurnSeconds = MathF.Max(0.05f, MathF.Min(3f, secs));
+            }
+            return $"pair camturn: {PairActionInstance.CameraTurnSeconds:F2}s"
+                 + " (camera turn duration after align; the custom camera is handed back only when it finishes)";
+        }
+
         // ───────────────────────────── 工具 ─────────────────────────────
 
         private static string Arg(List<string> args, int i)
@@ -569,7 +586,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             return best;
         }
 
-        private static bool TryBuildDriver(PairActionDef def, PairSideDef side,
+        internal static bool TryBuildDriver(PairActionDef def, PairSideDef side,
             out IPairSideDriver driver, out string why)
         {
             driver = null;

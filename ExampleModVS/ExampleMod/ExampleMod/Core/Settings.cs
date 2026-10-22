@@ -317,6 +317,9 @@ namespace LivingWorldNpcs
             [InteractionIds.Talk] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Short" },
             [InteractionIds.Loot] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
             [InteractionIds.Knockout] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
+            // 暗杀（2026-10-22）：与 Knockout **上下文互斥** —— 背后 + 手持单手剑/双手剑/匕首时显示【暗杀】，
+            // 否则显示【击晕】。同一个 F 长按，同一时刻只会出现其中一行。
+            [InteractionIds.Assassinate] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
             [InteractionIds.Pickpocket] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
             [InteractionIds.StealAnimal] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
             [InteractionIds.Lockpick] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },

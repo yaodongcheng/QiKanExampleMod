@@ -1514,12 +1514,19 @@ namespace LivingWorldNpcs
 					else if (GrappleBind.Enabled)
 					{
 						_landingNote = "attached to agent (bind refused: " + why + ")";
-						// 🔴 2026-10-18 加这行（用户实机："我还是锁在马上"）：以前"钩挂住了但捆不了"
-						//    只在状态串里留一句，日志一个字没有 ⇒ 看上去就像"下马/拉拽没执行"。
-						//    典型 = 钩到**坐骑**（含自己骑的那匹，已由 GrappleHook 跳过自己那匹）；
-						//    钩到儿童 / 目标失效同理。看到这行 = 这一钩不会拉、也不会飞，收钩重打即可。
-						DebugLogger.Log($"[Grapple] 钩头挂在目标上但**没法捆**（{why}）⇒ 这一钩不拉不飞"
-							+ "（坐骑/儿童/失效目标；收钩重打）");
+						// 🔴 2026-10-22 用户裁定：**捆不了的目标直接收钩，不提示**。
+						//    原来停在 Attached：钩子钉在人身上、玩家的拉拽姿态已经起了、绳一直抖 ——
+						//    观感像"勾住了却抽风"，而且玩家什么也做不了、只能自己收钩。
+						//    现在走"打空"同一条返程（看得见地飞回来），零提示（技术日志照留）。
+						//    典型 = 儿童（child immune）/ 坐骑 / 骑在马上的人（下拉关闭时）/ 失效目标。
+						DebugLogger.Log($"[Grapple] 钩到无法捆的目标（{why}）⇒ 直接收钩返程");
+						if (_hook.StartReturn())
+						{
+							_hookPhase = HookPhase.Returning;
+							return;
+						}
+						Release("bind refused（实体不在→直接收）");
+						return;
 					}
 				}
 				else if (step == GrappleHook.StepResult.Missed)

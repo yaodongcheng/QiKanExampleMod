@@ -1060,7 +1060,7 @@ namespace LivingWorldNpcs
 		/// 角度口径实测对称：引擎 look = `RotateAboutUp(bearing)` 再 `RotateAboutSide(elevation)`，
 		/// 而 `Vec3.RotationZ/RotationX` 正好是它的可逆分解 ⇒ 直接对写，无需符号校准。
 		/// </summary>
-		public static bool WriteBackLookToEngine(float yawDeg, float pitchDeg)
+		public static bool WriteBackLookToEngine(float yawDeg, float pitchDeg, bool log = true)
 		{
 			try
 			{
@@ -1075,7 +1075,8 @@ namespace LivingWorldNpcs
 					return false;
 				bearingSet.Invoke(screen, new object[] { yawDeg * DegToRad });
 				elevSet.Invoke(screen, new object[] { pitchDeg * DegToRad });
-				DebugLogger.Log($"[FollowCam] 朝向已写回引擎：bearing={yawDeg:F0}° elev={pitchDeg:F0}°（撒手零旋转）");
+				if (log)
+					DebugLogger.Log($"[FollowCam] 朝向已写回引擎：bearing={yawDeg:F0}° elev={pitchDeg:F0}°（撒手零旋转）");
 				return true;
 			}
 			catch (Exception ex)

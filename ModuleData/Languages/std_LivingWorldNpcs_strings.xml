@@ -660,6 +660,8 @@
     <string id="LWN_ui_interact_accept_surrender" text="Accept Surrender" />
     <string id="LWN_ui_interact_pickpocket" text="Pickpocket" />
     <string id="LWN_ui_interact_knockout" text="Knock Out *{DIFFICULTY}*" />
+    <string id="LWN_ui_interact_assassinate" text="Assassinate" />
+    <string id="LWN_ui_assassinate_msg_start" text="Assassinating {NAME}" />
     <string id="LWN_ui_interact_smalltalk" text="Small Talk" />
     <string id="LWN_ui_interact_inspect" text="Inspect" />
     <string id="LWN_ui_interact_talk" text="Talk" />

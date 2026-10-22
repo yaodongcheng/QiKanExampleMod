@@ -332,7 +332,7 @@
 		     新 clip 进包之后把这一行的 animation= 换掉即可（状态机/C# 一个字都不用动）。 -->
 		<action
 			type="act_grapple_horse_drape"
-			animation="beikangqi_idle" />
+			animation="beikangqi_idle_horse" />
 
 		<!-- 被扛者（扛在肩上的人）：相对位移与朝向**都在动画自己身上**（重定向时以扛人者为参考系做的），
 		     ⇒ 摆位只需要"XZ 贴住扛人者 + 朝向对齐"，**不要再叠任何偏移**（§15.4）。

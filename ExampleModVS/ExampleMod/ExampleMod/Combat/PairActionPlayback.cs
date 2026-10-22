@@ -339,7 +339,7 @@ namespace LivingWorldNpcs
         /// 玩家发起者/玩家受击方：冻结控制器 + 暂停 AI + 保存相机角度。
         /// <paramref name="takeOwnership"/> = false 时只记 PrePaused（调用方自己负责归还，如 `GrappleBind` 按住的玩家）。
         /// </summary>
-        public void AcquirePlayerControl(Agent a, bool takeOwnership = true)
+        public void AcquirePlayerControl(Agent a, bool takeOwnership = true, bool pauseAi = true)
         {
             if (a == null)
                 return;
@@ -355,6 +355,23 @@ namespace LivingWorldNpcs
             SaveCameraAngles();
             try { V.SetPlayerControlFrozen(a, true); } catch (Exception ex) { DebugLogger.Log($"[Pair] 冻结玩家失败：{ex.Message}"); }
             rec.PlayerFrozen = true;
+            if (pauseAi)
+            {
+                try { a.SetIsAIPaused(true); } catch (Exception) { }
+                rec.AiPaused = true;
+            }
+        }
+
+        /// <summary>
+        /// **走路结束后暂停 AI**（2026-10-22）：配对让玩家用 `ScriptedMoveToPoint` **真实走过去**，
+        /// 期间 AI 必须**不暂停**（`Agent.Tick` 的 AI 分支才跑）；到 Align 用本方法压住他。
+        /// 与 `AcquirePlayerControl(..., pauseAi:false)` 配对使用（归还时按 `AiPaused` 统一解冻）。
+        /// </summary>
+        public void PauseAi(Agent a)
+        {
+            if (a == null)
+                return;
+            Rec rec = GetOrCreate(a);
             try { a.SetIsAIPaused(true); } catch (Exception) { }
             rec.AiPaused = true;
         }
@@ -481,6 +498,17 @@ namespace LivingWorldNpcs
                 _haveCameraAngles = true;
             }
             catch (Exception) { }
+        }
+
+        /// <summary>
+        /// **更新“记下的相机角度”**（2026-10-22）：pair 对齐时把镜头平滑转到最终朝向，
+        /// 释放时写回的就是转完的值 —— 否则 <see cref="ReleaseActor"/> 会把镜头打回冻结前那个方向。
+        /// </summary>
+        public void SetSavedLook(float yawDeg, float pitchDeg)
+        {
+            _savedBearingDeg = yawDeg;
+            _savedElevationDeg = pitchDeg;
+            _haveCameraAngles = true;
         }
 
         private void WriteBackCameraAngles()

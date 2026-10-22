@@ -16,6 +16,7 @@ namespace LivingWorldNpcs
         public const string Talk = "Talk";
         public const string Loot = "Loot";
         public const string Knockout = "Knockout";
+        public const string Assassinate = "Assassinate"; // 暗杀：背后 + 手持单手/双手剑/匕首 ⇒ **替换** Knockout 行（上下文互斥）
         public const string Pickpocket = "Pickpocket";
         public const string StealAnimal = "StealAnimal";
         public const string Lockpick = "Lockpick";

@@ -76,6 +76,14 @@ namespace LivingWorldNpcs
             return MathF.Atan2(forward.x, forward.y) * (180f / MathF.PI);
         }
 
+        /// <summary>把角度折到 (-180, 180]。</summary>
+        public static float Normalize180(float deg)
+        {
+            while (deg > 180f) deg -= 360f;
+            while (deg <= -180f) deg += 360f;
+            return deg;
+        }
+
         /// <summary>偏航角（度）→ 前向量（+Y 起算，+90 = 右手侧）。</summary>
         public static Vec3 ForwardFromYaw(float yawDeg)
         {
@@ -95,11 +103,21 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 算**发起者**应该站到哪、两人起播时各朝哪。
         ///
-        /// 配对朝向 = 发起者当前朝向；defender 起播方向 = 发起者朝向 + `Stance_Direction`。
-        /// （`YawSource=defender` 的旧分支已删：当前没有动作需要"目标定朝向"，少一列少一处分叉。）
+        /// 🔴 **2026-10-22 起：按「触发那一刻的连线」定最终朝向**（用户裁定）——
+        ///   旧模型 = 发起者保持当前朝向、走到 `D − R(当前朝向)×stance`（可能是横向平移）；
+        ///   新模型 = 让 stance 向量指向连线方向 ⇒ 发起者**只沿连线走**，两人一起转身。
+        ///
+        ///   由 stance 指回连线：
+        ///     stance 在发起者本地系里的方位角 = `atan2(Right, Forward)`（扛人 = -83.4°）
+        ///     最终朝向 = 连线方位角 − 上述方位角
+        ///   站位点 = `D − u × |stance|`（沿连线离目标 |stance| 米；近了就是沿连线退一点）。
+        ///   `defenderYaw = attackerYaw + Stance_Direction`。
+        ///
+        /// `lineDir` = **冻结的**“发起者→目标”水平方向（零向量 = 现算）。
+        /// 发起点在触发时冻结，PrePosition 期间只用它 + 目标实时位置重算 —— 发起者走歪了也会回到连线。
         /// </summary>
         public static bool TryComputeStartPose(PairActionDef def, Agent attacker, Agent defender,
-            out Vec3 attackerSpot, out float attackerYawDeg, out float defenderYawDeg, out string why)
+            Vec3 lineDir, out Vec3 attackerSpot, out float attackerYawDeg, out float defenderYawDeg, out string why)
         {
             attackerSpot = Vec3.Zero;
             attackerYawDeg = 0f;
@@ -117,12 +135,45 @@ namespace LivingWorldNpcs
                 return false;
             }
 
-            attackerYawDeg = YawDegOf(ForwardOf(attacker));
-            defenderYawDeg = attackerYawDeg + def.Stance.DirectionDeg;
+            float stanceLen = MathF.Sqrt(def.Stance.Right * def.Stance.Right
+                                       + def.Stance.Forward * def.Stance.Forward);
 
-            Vec3 f = ForwardFromYaw(attackerYawDeg);
-            Vec3 r = RightFromYaw(attackerYawDeg);
-            attackerSpot = defender.Position - r * def.Stance.Right - f * def.Stance.Forward;
+            // 连线方向：优先用冻结值，否则现算（触发那一刻）。
+            Vec3 u = Vec3.Zero;
+            bool haveLine = false;
+            if (lineDir.LengthSquared > 1e-6f)
+            {
+                u = lineDir.NormalizedCopy();
+                haveLine = true;
+            }
+            else
+            {
+                Vec3 toDef = defender.Position - attacker.Position;
+                toDef.z = 0f;
+                if (toDef.LengthSquared > 1e-4f)
+                {
+                    u = toDef.NormalizedCopy();
+                    haveLine = true;
+                }
+            }
+
+            // 退化（没有站位偏移 / 两人重合）：保持旧行为 —— 发起者当前朝向、站到目标脚下。
+            if (stanceLen < 1e-4f || !haveLine)
+            {
+                attackerYawDeg = YawDegOf(ForwardOf(attacker));
+                defenderYawDeg = Normalize180(attackerYawDeg + def.Stance.DirectionDeg);
+                attackerSpot = defender.Position;
+                attackerSpot.z = defender.Position.z;
+                return TrySnapToGround(ref attackerSpot, defender.Position.z, out why);
+            }
+
+            float lineYaw = YawDegOf(u);
+            float stanceLocalYaw = MathF.Atan2(def.Stance.Right, def.Stance.Forward) * (180f / MathF.PI);
+
+            attackerYawDeg = Normalize180(lineYaw - stanceLocalYaw);
+            defenderYawDeg = Normalize180(attackerYawDeg + def.Stance.DirectionDeg);
+
+            attackerSpot = defender.Position - u * stanceLen;
             attackerSpot.z = defender.Position.z;
 
             if (!TrySnapToGround(ref attackerSpot, defender.Position.z, out why))
@@ -130,6 +181,12 @@ namespace LivingWorldNpcs
 
             return true;
         }
+
+        /// <summary>旧入口（现算连线）：命令预览 / 没有冻结连线的调用方用。</summary>
+        public static bool TryComputeStartPose(PairActionDef def, Agent attacker, Agent defender,
+            out Vec3 attackerSpot, out float attackerYawDeg, out float defenderYawDeg, out string why)
+            => TryComputeStartPose(def, attacker, defender, Vec3.Zero,
+                out attackerSpot, out attackerYawDeg, out defenderYawDeg, out why);
 
         /// <summary>
         /// 算**被挂接者**这一帧应该摆在哪、朝哪（锚点 = attacker 或坐骑）。

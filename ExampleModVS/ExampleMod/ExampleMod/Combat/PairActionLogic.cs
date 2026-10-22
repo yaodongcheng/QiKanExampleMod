@@ -36,16 +36,24 @@ namespace LivingWorldNpcs
     public sealed class PairActionInstance
     {
         private const float AlignHoldSeconds = 0.10f;
+        private const float AlignYawToleranceDeg = 8.0f;   // 对齐后允许的朝向误差（超过就继续等它转过来）
+        private const float AlignMaxSeconds = 0.80f;       // 等朝向收敛的上限（引擎转身有速率，不能无限等）
+        /// <summary>
+        /// 对齐时镜头转到最终朝向的时长（秒）—— **和起播解耦**：起播只看身体对齐，
+        /// 镜头按自己的时长慢慢转，转完才交还相机。热调：`custom.pair camturn &lt;秒&gt;`。
+        /// </summary>
+        public static float CameraTurnSeconds = 0.80f;
+        private const string PairCameraOwner = "pair";      // 相机服务的持有者标签
         private const float NpcReissueSeconds = 0.50f;
         private const float NpcRunDistance = 2.0f;
         private const float ExitTimeoutSeconds = 8.0f;
 
         // ── 全局默认（不进 CSV：没有哪个动作真正需要逐条调它们）──
         private const float DefaultApproachMaxDistance = 4.0f;   // 发起者距站位点上限（米）
-        private const float ApproachPlayerSpeed = 4.0f;          // 玩家自动小步速度（米/秒）
-        private const float ApproachMinTime = 0.25f;
-        private const float ApproachMaxTime = 0.50f;
         private const float ApproachNpcTimeout = 6.0f;
+        private const float ArrivalStallMaxDistance = 0.80f;   // 离站位点这么近 + 停住 = 到了（引擎寻路会停在 0.2~0.5m）
+        private const float ArrivalStallSeconds = 0.20f;
+        private const float ArrivalStallSpeed = 0.20f;         // 米/秒
         private const float ApproachNpcStopDistance = 0.15f;
         private const float PlayTimeoutSeconds = 10.0f;
 
@@ -79,13 +87,25 @@ namespace LivingWorldNpcs
         public bool IsDone => Phase == PairPhase.Done;
 
         private float _phaseTimer;
-        private float _moveElapsed;
-        private float _moveDuration;
-        private Vec3 _moveStart;
         private Vec3 _startSpot;
         private float _attackerYawDeg;
         private float _defenderYawDeg;
+
+        // 🔴 2026-10-22：触发那一刻冻结的“发起者→目标”水平方向 —— 站位/朝向只沿它算。
+        private Vec3 _lineDir;
+        private bool _haveLine;
+
+        // 🔴 2026-10-22：对齐时镜头跟着渐变（只用引擎相机，不接管）
+        private float _camStartYawDeg;      // 渐变起点 = 对齐那一刻的引擎真实角度
+        private float _camPitchDeg;
+        private float _camTurnElapsed;      // 镜头转动已经走了多久（和 _phaseTimer 解耦）
+        private float _camLogTimer;         // [PairCam] 取证日志节流
+        private bool _haveCamStart;
+
         private float _npcReissueTimer;
+        private Vec3 _lastWalkPos;          // 走到位判定：上一帧位置
+        private float _stallTimer;          // 停住多久了
+        private bool _hasWalkPos;
 
         private bool _stopRequested;
         private string _stopReason;
@@ -139,7 +159,14 @@ namespace LivingWorldNpcs
                 return true;
             }
 
+            // 🔴 2026-10-22：先把“触发那一刻的连线”冻结下来 —— 之后所有站位/朝向重算都用它。
+            Vec3 toDef = Defender.Position - Attacker.Position;
+            toDef.z = 0f;
+            _haveLine = toDef.LengthSquared > 1e-4f;
+            _lineDir = _haveLine ? toDef.NormalizedCopy() : Vec3.Zero;
+
             if (!PairActionPose.TryComputeStartPose(Def, Attacker, Defender,
+                    _haveLine ? _lineDir : Vec3.Zero,
                     out _startSpot, out _attackerYawDeg, out _defenderYawDeg, out why))
             {
                 return false;
@@ -158,28 +185,22 @@ namespace LivingWorldNpcs
             else
                 Lease?.AcquireDefenderHold(Defender);
 
+            // 🔴 2026-10-22：玩家与 NPC 同一条 —— **真实步行**（引擎寻路），不再每帧 Teleport 滑步。
+            //    玩家：冻结控制器（Controller=AI）但**不暂停 AI**，靠 scripted position 驱动他走过去；
+            //    到 Align 才停脚本移动 + 暂停 AI。
             if (ReferenceEquals(Attacker, Agent.Main))
-            {
-                Lease?.AcquirePlayerControl(Attacker);
-                _moveStart = Attacker.Position;
-                _moveDuration = MathF.Max(ApproachMinTime,
-                    MathF.Min(ApproachMaxTime, dist / ApproachPlayerSpeed));
-                _moveElapsed = 0f;
-                Phase = PairPhase.PrePosition;
-                Note = $"pre-position (auto-step {_moveDuration:F2}s, {dist:F2} m)";
-                DebugLogger.Log($"[Pair] {Def.Id}：发起者=玩家，自动小步 {dist:F2} m / {_moveDuration:F2}s → 站位点 "
-                                + $"({_startSpot.x:F2},{_startSpot.y:F2})");
-            }
-            else
-            {
-                AgentControlHelper.ScriptedMoveToPoint(Attacker, _startSpot, isRun: dist > NpcRunDistance, hasNav: false);
-                Lease?.NoteScripted(Attacker);
-                _npcReissueTimer = 0f;
-                Phase = PairPhase.PrePosition;
-                Note = $"pre-position (npc walk {dist:F2} m)";
-                DebugLogger.Log($"[Pair] {Def.Id}：发起者='{PairActionPose.Describe(Attacker)}' 寻路 {dist:F2} m → 站位点 "
-                                + $"({_startSpot.x:F2},{_startSpot.y:F2})");
-            }
+                Lease?.AcquirePlayerControl(Attacker, pauseAi: false);
+
+            AgentControlHelper.ScriptedMoveToPoint(Attacker, _startSpot, isRun: dist > NpcRunDistance, hasNav: false);
+            Lease?.NoteScripted(Attacker);
+            _npcReissueTimer = 0f;
+            _lastWalkPos = Attacker.Position;
+            _hasWalkPos = true;
+            _stallTimer = 0f;
+            Phase = PairPhase.PrePosition;
+            Note = $"pre-position (walk {dist:F2} m)";
+            DebugLogger.Log($"[Pair] {Def.Id}：发起者='{PairActionPose.Describe(Attacker)}' 步行 {dist:F2} m → 站位点 "
+                            + $"({_startSpot.x:F2},{_startSpot.y:F2})");
             return true;
         }
 
@@ -200,6 +221,9 @@ namespace LivingWorldNpcs
                 return;
             }
 
+            // 🔴 2026-10-22：镜头有自己的时间轴 —— 起播后继续转，转完才交还（见 TickCameraTurn）。
+            TickCameraTurn(dt);
+
             switch (Phase)
             {
                 case PairPhase.PrePosition: TickPrePosition(dt); break;
@@ -218,6 +242,7 @@ namespace LivingWorldNpcs
             if (Math.Abs(_phaseTimer % 0.25f) < dt)
             {
                 if (PairActionPose.TryComputeStartPose(Def, Attacker, Defender,
+                        _haveLine ? _lineDir : Vec3.Zero,
                         out Vec3 spot, out float aYaw, out float dYaw, out _))
                 {
                     _startSpot = spot;
@@ -226,42 +251,43 @@ namespace LivingWorldNpcs
                 }
             }
 
-            if (ReferenceEquals(Attacker, Agent.Main))
+            // 🔴 2026-10-22：玩家与 NPC 同一条 —— 脚本走路（每 0.5s 重发），到位/超时才进 Align。
+            //    不再每帧 Teleport（那是“滑步”，用户实机反馈太明显）。
+            _npcReissueTimer += dt;
+            if (_npcReissueTimer >= NpcReissueSeconds)
             {
-                _moveElapsed += dt;
-                float u = _moveDuration <= 0.001f ? 1f : MathF.Min(1f, _moveElapsed / _moveDuration);
-                float s = u * u * (3f - 2f * u);   // smoothstep
-                Vec3 pos = _moveStart + (_startSpot - _moveStart) * s;
-                pos.z = Attacker.Position.z;       // Z 交给引擎按地形重算
-                Attacker.TeleportToPosition(pos);
-                try { Attacker.SetMovementDirection(PairActionPose.ForwardFromYaw(_attackerYawDeg).AsVec2); }
-                catch (Exception) { }
-
-                if (u >= 1f)
-                    EnterAlign();
+                _npcReissueTimer = 0f;
+                float d = PairActionPose.HorizontalDistance(Attacker.Position, _startSpot);
+                AgentControlHelper.ScriptedMoveToPoint(Attacker, _startSpot, isRun: d > NpcRunDistance, hasNav: false);
+                Lease?.NoteScripted(Attacker);
             }
-            else
-            {
-                _npcReissueTimer += dt;
-                if (_npcReissueTimer >= NpcReissueSeconds)
-                {
-                    _npcReissueTimer = 0f;
-                    float d = PairActionPose.HorizontalDistance(Attacker.Position, _startSpot);
-                    AgentControlHelper.ScriptedMoveToPoint(Attacker, _startSpot, isRun: d > NpcRunDistance, hasNav: false);
-                    Lease?.NoteScripted(Attacker);
-                }
 
-                float dist = PairActionPose.HorizontalDistance(Attacker.Position, _startSpot);
-                if (dist <= ApproachNpcStopDistance)
-                {
-                    EnterAlign();
-                }
-                else if (_phaseTimer > ApproachNpcTimeout)
-                {
-                    DebugLogger.Log($"[Pair] {Def.Id}：NPC 寻路超时（{_phaseTimer:F1}s，还差 {dist:F2} m）⇒ 贴到站位点");
-                    Attacker.TeleportToPosition(_startSpot);
-                    EnterAlign();
-                }
+            float dist = PairActionPose.HorizontalDistance(Attacker.Position, _startSpot);
+
+            // 🔴 2026-10-22：引擎寻路**到不了 0.15m**（实机日志：停在 0.22m ⇒ 干等 6s 超时才起播）。
+            //    ⇒ 加“停住即到达”判定：已经离站位点 ≤0.8m、且连续 0.2s 几乎不动 = 到了，
+            //       剩下的几厘米由 `EnterAlign` 的精确贴点补掉（沿连线的一小步，肉眼无感）。
+            float moved = _hasWalkPos ? PairActionPose.HorizontalDistance(Attacker.Position, _lastWalkPos) : 0f;
+            _lastWalkPos = Attacker.Position;
+            _hasWalkPos = true;
+            float speed = dt > 1e-4f ? moved / dt : 0f;
+            if (speed < ArrivalStallSpeed) _stallTimer += dt;
+            else _stallTimer = 0f;
+
+            bool arrived = dist <= ApproachNpcStopDistance
+                        || (dist <= ArrivalStallMaxDistance && _stallTimer >= ArrivalStallSeconds);
+
+            if (arrived)
+            {
+                if (dist > ApproachNpcStopDistance)
+                    DebugLogger.Log($"[Pair] {Def.Id}：走路停住 = 到达（还差 {dist:F2} m，停顿 {_stallTimer:F2}s）⇒ 贴到站位点");
+                EnterAlign();
+            }
+            else if (_phaseTimer > ApproachNpcTimeout)
+            {
+                DebugLogger.Log($"[Pair] {Def.Id}：步行超时（{_phaseTimer:F1}s，还差 {dist:F2} m）⇒ 贴到站位点");
+                Attacker.TeleportToPosition(_startSpot);
+                EnterAlign();
             }
         }
 
@@ -271,7 +297,15 @@ namespace LivingWorldNpcs
             _phaseTimer = 0f;
             Note = "align";
 
-            // 精确贴到站位点 + 两人朝向对齐（LookDirection 写不动，只有 SetMovementDirection 管用）。
+            // 停掉脚本走路 + 暂停 AI（玩家在 TryInit 里特意没有暂停 AI；NPC 也停一下，别继续走）
+            try { Attacker.DisableScriptedMovement(); } catch (Exception) { }
+            if (ReferenceEquals(Attacker, Agent.Main))
+            {
+                try { Attacker.SetMaximumSpeedLimit(-1f, false); } catch (Exception) { }
+                Lease?.PauseAi(Attacker);
+            }
+
+            // 精确贴到站位点 + 两人朝向对齐（movement 管身体；look 在 TickAlign 里双写）。
             try
             {
                 Attacker.TeleportToPosition(_startSpot);
@@ -284,17 +318,227 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Pair] {Def.Id}：对齐摆位异常：{ex.Message}");
             }
 
+            // 🔴 2026-10-22：**走相机服务那套成熟方案**（与钩索同一套）——
+            //    用 `follow_engine` 从引擎此刻的机位无缝接管（Seed=Engine，不硬切），
+            //    对齐期间由我们逐帧 `SetLook` 把镜头平滑转向最终朝向，转完 `RequestHandBack` 渐变交还。
+            _haveCamStart = false;
+            try
+            {
+                if (ReferenceEquals(Attacker, Agent.Main)
+                    && CameraLook.TryGetEngineAnglesRaw(out float camYaw, out float camPitch)
+                    && CameraService.Play("follow_engine", Attacker, 0f, PairCameraOwner,
+                        new CameraReturnPolicy
+                        {
+                            WriteBackLook = true,
+                            WriteBackLookOnRelease = true,   // 收尾会解冻玩家 ⇒ 撒手那一刻写回（同钩索拉拽）
+                            ClearSpecial = true,             // 清掉引擎瞄准态的冻结修正（防高度台阶）
+                        }))
+                {
+                    _camStartYawDeg = camYaw;
+                    _camPitchDeg = camPitch;
+                    _camTurnElapsed = 0f;
+                    _haveCamStart = true;
+                }
+                else
+                {
+                    DebugLogger.Log($"[Pair] {Def.Id}：相机没接管"
+                        + $"（持有者={CameraService.Holder ?? "无"} / 读不到引擎角度）—— 镜头不跟转");
+                }
+            }
+            catch (Exception) { }
+
+            LogPairCam("takeover");
+
             Lease?.StopInteraction(Attacker);
             Lease?.StopInteraction(Defender);
         }
 
         private void TickAlign()
         {
-            if (_phaseTimer >= AlignHoldSeconds)
+            // 🔴 2026-10-22：等**朝向收敛**再起播。
+            //    配对几何的基准是 `ForwardOf(attacker)`（人优先读 look）；如果它还停在“走过来的方向”，
+            //    第一帧挂接会按旧朝向摆位 —— 误差 ≈ 2·|stance|·sin(Δ/2)，Δ=83° 时约 0.98 m。
+            //    这里每帧重申最终朝向（movement + look 双写）；收敛或超时才进 Starting。
+            try
             {
+                Attacker.SetMovementDirection(PairActionPose.ForwardFromYaw(_attackerYawDeg).AsVec2);
+                Attacker.LookDirection = PairActionPose.ForwardFromYaw(_attackerYawDeg);
+            }
+            catch (Exception) { }
+            if (Defender != null && AgentControlHelper.SafeIsActive(Defender))
+            {
+                try
+                {
+                    Defender.SetMovementDirection(PairActionPose.ForwardFromYaw(_defenderYawDeg).AsVec2);
+                    Defender.LookDirection = PairActionPose.ForwardFromYaw(_defenderYawDeg);
+                }
+                catch (Exception) { }
+            }
+
+            float yawErr = 0f;
+            try
+            {
+                yawErr = MathF.Abs(PairActionPose.Normalize180(
+                    PairActionPose.YawDegOf(PairActionPose.ForwardOf(Attacker)) - _attackerYawDeg));
+            }
+            catch (Exception) { }
+
+            bool aligned = yawErr <= AlignYawToleranceDeg;
+            if (_phaseTimer >= AlignHoldSeconds && (aligned || _phaseTimer >= AlignMaxSeconds))
+            {
+                DebugLogger.Log($"[Pair] {Def.Id}：对齐完成（{_phaseTimer:F2}s，发起者朝向误差 {yawErr:F1}°"
+                    + (_haveCamStart ? $"，镜头开始转（{CameraTurnSeconds:F2}s，转完再交还）" : "")
+                    + "）"
+                    + (aligned ? "" : " 🔴 未收敛 —— look 没跟上 SetMovementDirection，起播会跳"));
                 Phase = PairPhase.Starting;
                 _phaseTimer = 0f;
                 Note = "starting";
+            }
+        }
+
+        /// <summary>
+        /// **镜头的独立时间轴**（2026-10-22）：和配对起播解耦 —— 起播只看身体对齐（~0.1s），
+        /// 镜头按 <see cref="CameraTurnSeconds"/> 慢慢转；**转完才** `RequestHandBack` 交还。
+        /// 扛着人时的前 0.8 秒仍是自定义相机（`follow_engine`），转完才回到引擎相机。
+        /// </summary>
+        private void TickCameraTurn(float dt)
+        {
+            if (!_haveCamStart)
+                return;
+
+            _camTurnElapsed += dt;
+            _camLogTimer += dt;
+            if (_camLogTimer >= 0.10f)
+            {
+                _camLogTimer = 0f;
+                LogPairCam($"turn t={_camTurnElapsed:F2}/{CameraTurnSeconds:F2}");
+            }
+
+            float dur = MathF.Max(0.05f, CameraTurnSeconds);
+            float t = MathF.Min(1f, _camTurnElapsed / dur);
+            float s = t * t * (3f - 2f * t);          // smoothstep
+            // 🔴 **口径差 180°**：`CameraService.SetLook` / `ArmYaw` 用的是引擎 `RotationZ` 口径，
+            //    与 `YawDegOf`/`ForwardFromYaw` **符号相反**（实机日志：rigYaw=-33° 时 camFwd 的
+            //    `YawDegOf` = +33°）⇒ 目标要取负，否则镜头转到镜像方向 = 看着角色正脸。
+            float camTargetYaw = PairActionPose.Normalize180(-_attackerYawDeg);
+            float dy = PairActionPose.Normalize180(camTargetYaw - _camStartYawDeg);
+            float yaw = PairActionPose.Normalize180(_camStartYawDeg + dy * s);
+
+            CameraService.SetLook(yaw, _camPitchDeg);
+            Lease?.SetSavedLook(yaw, _camPitchDeg);   // 万一归还被打断，释放时也写回转到的角度
+
+            if (t >= 1f)
+                ReleasePairCamera();                  // 转完 → 0.35s 渐变交还引擎
+        }
+
+        /// <summary>
+        /// **交还相机**（2026-10-22）：停掉外部朝向驱动 → 走与钩索同款的 0.35 s 渐变归还
+        /// （`RequestHandBack` 把臂长/FOV 滑回接管时引擎的值，滑完才真撒手；方向在撒手那一刻写回引擎）。
+        /// 幂等：没接管 / 已经在归还 = 空操作。
+        /// </summary>
+        private void ReleasePairCamera()
+        {
+            if (!_haveCamStart)
+                return;
+            _haveCamStart = false;
+            try
+            {
+                LogPairCam("release");
+                if (CameraService.IsHeldBy(PairCameraOwner))
+                {
+                    CameraService.ReleaseLook();
+                    CameraService.RequestHandBack(0.35f);
+                    DebugLogger.Log($"[Pair] {Def.Id}：相机交还（0.35s 渐变，最终朝向 {_attackerYawDeg:F0}°）");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Pair] 相机交还异常：{ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// **相机/角色位姿取证**（2026-10-22，用户要求）：在相机变换的每个节点记录
+        /// 「相机位置/朝向」+「角色位置/朝向」+ 三个判据点积。
+        ///
+        ///   · `behindDot` = (相机 − 角色) 与 **角色身体朝向** 的点积：
+        ///       负 = 相机在角色**后方**（正常，看到后脑）；正 = 在**前方**（看到正脸）。
+        ///   · `lookDot` = 相机前向 与 **角色视线** 的点积：
+        ///       +1 = 同向（正常）；−1 = 反向（相机看着角色）。
+        ///   · `bodyLookDot` = 角色身体朝向 与 角色视线 的点积：
+        ///       +1 = 一致；−1 = 身体和视线反了（`SetMovementDirection` / `LookDirection` 打架）。
+        /// </summary>
+        private void LogPairCam(string tag)
+        {
+            try
+            {
+                Vec3 playerPos = Attacker.Position;
+                Vec3 look = Vec3.Zero, body = Vec3.Zero;
+                try { look = Attacker.LookDirection; } catch (Exception) { }
+                try { body = Attacker.Frame.rotation.f; } catch (Exception) { }
+
+                Vec3 camPos = Vec3.Zero;
+                bool haveCamPos = false;
+                try
+                {
+                    if (Mission.Current != null)
+                    {
+                        camPos = Mission.Current.GetCameraFrame().origin;
+                        haveCamPos = true;
+                    }
+                }
+                catch (Exception) { }
+
+                Vec3 camFwd = Vec3.Zero;
+                bool haveCamFwd = false;
+                try { haveCamFwd = CameraService.TryGetBasis(out camFwd, out _); } catch (Exception) { }
+                if (!haveCamFwd)
+                {
+                    try { haveCamFwd = CameraLook.TryGet(out camFwd); } catch (Exception) { }
+                }
+
+                float behindDot = 0f, lookDot = 0f, bodyLookDot = 0f;
+                Vec3 b = body; b.z = 0f;
+                Vec3 l = look; l.z = 0f;
+                Vec3 cf = camFwd; cf.z = 0f;
+                if (b.LengthSquared > 1e-4f && l.LengthSquared > 1e-4f)
+                    bodyLookDot = Vec3.DotProduct(b.NormalizedCopy(), l.NormalizedCopy());
+                if (haveCamPos && b.LengthSquared > 1e-4f)
+                {
+                    Vec3 toCam = camPos - playerPos;
+                    toCam.z = 0f;
+                    if (toCam.LengthSquared > 1e-4f)
+                        behindDot = Vec3.DotProduct(toCam.NormalizedCopy(), b.NormalizedCopy());
+                }
+                if (haveCamFwd && l.LengthSquared > 1e-4f && cf.LengthSquared > 1e-4f)
+                    lookDot = Vec3.DotProduct(cf.NormalizedCopy(), l.NormalizedCopy());
+
+                float engYaw = float.NaN;
+                try
+                {
+                    if (!CameraLook.TryGetEngineAnglesRaw(out engYaw, out _))
+                        engYaw = float.NaN;
+                }
+                catch (Exception) { }
+
+                float rigYaw = float.NaN;
+                try { rigYaw = CameraService.Machine.LookYaw; } catch (Exception) { }
+
+                string camPosStr = haveCamPos ? $"({camPos.x:F2},{camPos.y:F2},{camPos.z:F2})" : "?";
+                string camFwdStr = haveCamFwd ? $"({camFwd.x:F2},{camFwd.y:F2})" : "?";
+                DebugLogger.Log($"[PairCam] {tag} | rigYaw={rigYaw:F0}° bodyYaw={_attackerYawDeg:F0}°"
+                    + $" armTarget={PairActionPose.Normalize180(-_attackerYawDeg):F0}° engYaw={engYaw:F0}°"
+                    + $" | camPos={camPosStr} camFwd={camFwdStr}"
+                    + $" | playerPos=({playerPos.x:F2},{playerPos.y:F2},{playerPos.z:F2})"
+                    + $" look=({look.x:F2},{look.y:F2}) body=({body.x:F2},{body.y:F2})"
+                    + $" | behindDot={behindDot:F2} lookDot={lookDot:F2} bodyLookDot={bodyLookDot:F2}"
+                    + (behindDot > 0.3f ? " 🔴 相机在角色前方" : "")
+                    + (lookDot < -0.3f ? " 🔴 相机与角色反向" : "")
+                    + (bodyLookDot < -0.3f ? " 🔴 身体与视线反向" : ""));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PairCam] {tag} 取证异常：{ex.GetType().Name}: {ex.Message}");
             }
         }
 
@@ -337,6 +581,8 @@ namespace LivingWorldNpcs
             //    · NPC：清掉脚本移动（否则他会继续走）。
             //    defender 的冻结**继续保留**（挂接期间要按住他），到 Ending 才还。
             Lease?.ReleaseActor(Attacker);
+
+            LogPairCam("starting");
 
             Phase = Def.IsPersistent ? PairPhase.Attached : PairPhase.Playing;
             _phaseTimer = 0f;
@@ -617,6 +863,7 @@ namespace LivingWorldNpcs
 
         private void Finish()
         {
+            ReleasePairCamera();
             try { AttackerDriver?.Release(Attacker); } catch (Exception) { }
             // 倒地状态已挂到 AgentStatus ⇒ defender 的驱动归它 Tick/Release，这里不能再碰。
             if (!_defenderMovedToStatus)
@@ -637,6 +884,7 @@ namespace LivingWorldNpcs
 
         private void Bail(string reason)
         {
+            ReleasePairCamera();
             // 攻击方先消失（死亡/离场）时，如果这一对本来就该把倒地状态交出去，先交 ——
             // 否则受害者会随着 pair 一起被 Release，当场弹回站立。
             if (!_defenderMovedToStatus && Phase == PairPhase.Playing

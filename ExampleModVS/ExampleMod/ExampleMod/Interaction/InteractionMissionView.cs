@@ -30,6 +30,7 @@ using TaleWorlds.MountAndBlade.ViewModelCollection;
 using TaleWorlds.ObjectSystem;
 using TaleWorlds.ScreenSystem;
 using static TaleWorlds.MountAndBlade.Agent;
+using LivingWorldNpcs.CampaignMode.Tools;
 
 namespace LivingWorldNpcs
 {
@@ -491,6 +492,9 @@ namespace LivingWorldNpcs
                     break;
                 case InteractionIds.Knockout:
                     if (_lastFocusedAgent != null) TryKnockoutAgent(_lastFocusedAgent);
+                    break;
+                case InteractionIds.Assassinate:
+                    if (_lastFocusedAgent != null) TryAssassinateAgent(_lastFocusedAgent);
                     break;
                 case InteractionIds.Pickpocket:
                     if (_lastFocusedAgent != null) TryStealFromAgent(_lastFocusedAgent);
@@ -1326,11 +1330,21 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
-                        // 🆕 友方保护：友方目标不注册击晕行（显示与触发双断）
+                        // 🆕 友方保护：友方目标不注册击晕/暗杀行（显示与触发双断）
                         if (!hostileBlocked && !ropeHeld)   // 🔴 牵着绳 ⇒ F 长按归【松绳】
                         {
-                            // 本地化：击晕交互按钮（附难度预览）
-                            AddInteractionRow(InteractionIds.Knockout, LWNTextHelper.ResolveCompound("LWN_ui_interact_knockout", ("DIFFICULTY", ComputeKnockoutChance(currentAgent).difficulty)));
+                            // 🔴 2026-10-22（用户裁定）：**手里有单手/双手剑或匕首 ⇒【击晕】换成【暗杀】**。
+                            //    同一时刻只出一行（上下文互斥），按法仍是同一个 F 长按。
+                            if (HasAssassinationWeapon(Agent.Main) && !IsChildAgent(currentAgent))
+                            {
+                                AddInteractionRow(InteractionIds.Assassinate,
+                                    LWNTextHelper.ResolveText("LWN_ui_interact_assassinate", "Assassinate"));
+                            }
+                            else
+                            {
+                                // 本地化：击晕交互按钮（附难度预览）
+                                AddInteractionRow(InteractionIds.Knockout, LWNTextHelper.ResolveCompound("LWN_ui_interact_knockout", ("DIFFICULTY", ComputeKnockoutChance(currentAgent).difficulty)));
+                            }
                         }
                     }
                     // 闲聊已屏蔽（EnableSmallTalk=false）：若未来恢复，在此加一行 SmallTalk 玩法行 + ExecuteInteraction 分发即可，无需改键位
@@ -2526,6 +2540,108 @@ namespace LivingWorldNpcs
                     // 本地化：击晕失败提示
                     new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_knockout_fail", "Failed to knock out"), Colors.Red));
             }
+        }
+
+        /// <summary>儿童（human_child 骨骼）：暗杀/处决不适用（死亡动画不兼容，口径同 `KnockoutFlow.Roll`）。</summary>
+        private static bool IsChildAgent(Agent agent)
+            => agent?.Monster?.StringId?.Contains("child") == true;
+
+        /// <summary>
+        /// **暗杀武器判定**（2026-10-22 用户裁定）：手**里**（`WieldedWeapon`，不是背包里）拿着
+        /// **单手剑 / 双手剑 / 匕首** ⇒ 背后交互的【击晕】行换成【暗杀】。
+        /// 🔴 用 `WieldedWeapon` 而不是扫装备槽：收在鞘里的不算“手中有”。
+        /// </summary>
+        private static bool HasAssassinationWeapon(Agent agent)
+        {
+            try
+            {
+                if (agent == null) return false;
+                MissionWeapon wielded = agent.WieldedWeapon;
+                if (wielded.Item == null) return false;
+                WeaponComponentData weapon = wielded.Item.PrimaryWeapon;
+                if (weapon == null) return false;
+                switch (weapon.WeaponClass)
+                {
+                    case WeaponClass.OneHandedSword:
+                    case WeaponClass.TwoHandedSword:
+                    case WeaponClass.Dagger:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// <summary>
+        /// **暗杀**（2026-10-22）：背后 + 手持单手/双手剑/匕首 ⇒ 代替【击晕】。
+        /// 走通用双人动作 `execution02`（attacker=`action:act_execution02`，defender=`machine:executed`），
+        /// 结束时 `kill_defender`（**真杀死**，不是击晕倒地）。
+        /// ⚠️ 目前 `execution02` 是**面对面 3.7m** 的处决演出：从背后触发时玩家会先沿连线退到 3.7m 再演；
+        ///    真正的“背后抹脖子”需要单独的 clip + pair 行（后续内容）。
+        /// </summary>
+        private void TryAssassinateAgent(Agent target)
+        {
+            if (target == null || !AgentControlHelper.SafeIsActive(target)) return;
+            if (Settings.Instance.IsInteractionDisabled()) return;
+            if (ReferenceEquals(target, Agent.Main)) return;
+            if (IsChildAgent(target))
+            {
+                DebugLogger.Log("[Assassinate] 目标是儿童 —— 不执行");
+                return;
+            }
+            if (IsHostileBlockedOnFriendly(target))
+            {
+                ShowFriendlyBlocked(target);
+                return;
+            }
+            // 执行瞬间再校验一次武器（长按期间可能收起/换武器）
+            if (!HasAssassinationWeapon(Agent.Main))
+            {
+                DebugLogger.Log("[Assassinate] 手里没有单手/双手剑或匕首 —— 不执行");
+                return;
+            }
+
+            PairActionLogic logic = PairActionLogic.Current;
+            if (logic == null)
+            {
+                DebugLogger.Log("[Assassinate] PairActionLogic 未挂载（不在 mission？）");
+                return;
+            }
+            if (!PairActionTable.TryGet("execution02", out PairActionDef def) || def == null)
+            {
+                DebugLogger.Log("[Assassinate] PairActions.csv 里没有 execution02");
+                return;
+            }
+
+            bool aOk = PairCommands.TryBuildDriver(def, def.Attacker, out IPairSideDriver aDriver, out string whyA);
+            bool dOk = PairCommands.TryBuildDriver(def, def.Defender, out IPairSideDriver dDriver, out string whyD);
+            if (!aOk || !dOk)
+            {
+                DebugLogger.Log($"[Assassinate] 驱动构建失败：attacker={whyA} / defender={whyD}");
+                return;
+            }
+
+            if (!logic.Begin(def, Agent.Main, target, aDriver, dDriver, false, out string why))
+            {
+                DebugLogger.Log($"[Assassinate] 无法开始 execution02：{why}");
+                return;
+            }
+
+            PairActionInstance inst = logic.FindByDefId(def.Id);
+            if (inst != null)
+                inst.EndPolicyOverride = PairEndPolicy.KillDefender;
+
+            DebugLogger.Log($"[Assassinate] '{Agent.Main.Name}' → '{target.Name}'（execution02，end=kill_defender）");
+            InformationManager.DisplayMessage(
+                new InformationMessage(
+                    LWNTextHelper.ResolveCompound("LWN_ui_assassinate_msg_start",
+                        ("NAME", target.Name?.ToString() ?? "?")),
+                    Colors.Green));
+
+            _interactVM.IsVisible = false;
+            IsHandlingInteraction = false;
+            _lastFocusedAgent = null;
         }
 
         private List<Agent> _lootedCorpses = new List<Agent>(); // 用于记录已经搜刮过的尸体，避免重复搜刮

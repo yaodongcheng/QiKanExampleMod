@@ -1,6 +1,6 @@
 ID,Start,Stance_Right,Stance_Forward,Stance_Direction,Attacker_Play,Defender_Play,EnterEvent,ExitEvent,Motion,Attach_Mode,End_Policy,HandoffTo,HandoffOn
 string,string,float,float,float,string,string,string,string,string,string,string,string,string
 ID,起点方式,横向偏移,纵向偏移,方向,攻击方播放,防守方播放,进入事件,退出事件,位移方式,挂接模式,结束策略,交接目标,交接触发
-grapple_carry,preposition,0,0,0,machine:carry,machine:bind,carry-trigger,put-trigger,none,persistent,release,mounted_on_mount,put-on-mount
+grapple_carry,preposition,-0.735167,0.084623,0,machine:carry,machine:bind,carry-trigger,put-trigger,none,persistent,release,mounted_on_mount,put-on-mount
 mounted_on_mount,handoff,0,-0.55,0,,,horse-trigger,put-trigger,none,persistent,release,,
 execution02,preposition,0,3.70,180,action:act_execution02,machine:executed,exec-hit,exec-rise,engine,none,release,,
