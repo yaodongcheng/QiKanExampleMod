@@ -365,6 +365,10 @@ namespace LivingWorldNpcs
             //       `BannerlordGameKeys.xml` 有没有被原版占用（见 wheels.d/input.md 那条）。
             [InteractionIds.TugRope] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Short" },
             [InteractionIds.LiftCarried] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
+            // 2026-10-22：扛起/放下/放上马背/从马背拿下 = 四个独立 id（同键同按法，情境互斥只出一条）。
+            [InteractionIds.PutDownCarried] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
+            [InteractionIds.HorsePutCarried] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
+            [InteractionIds.HorseTakeOffCarried] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
             // 施法（阶段 3 起手轴）：**按住蓄力、松手放**。
             // 🔴 默认键 = X，**不是 R** —— R 是原版"切换第一人称/视角"的键，按下去会**同时**触发切视角
             //    （我们的 ModInput 是轮询读取、不吞键，所以物理键冲突会双触发；2026-09-24 用户实机报的）。

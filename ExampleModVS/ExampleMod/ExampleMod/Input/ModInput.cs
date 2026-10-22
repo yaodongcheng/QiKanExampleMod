@@ -30,7 +30,14 @@ namespace LivingWorldNpcs
         public const string Intervene = "Intervene"; // 调停：随从犯法被执法时面向守卫按 F（替换 Talk 行，上下文互斥）
         public const string CutRope = "CutRope";     // 松绳：目标正被钩索捆着时多出一行（F 长按；与 Talk 的 F 短按同键不同按法；钩索「勾人」§13.14 TODO 4）
         public const string TugRope = "TugRope";     // 拉紧：牵着绳且离目标 > 3 米 ⇒ 把他拽倒在地（G 短按；2026-10-10 立，2026-10-13 用户裁定改短按）
-        public const string LiftCarried = "LiftCarried"; // 扛起/放下：牵着绳且瞄着被捆的人 ⇒ 扛起来；扛着时 ⇒ 放下（G 长按；与 TugRope 同键不同按法）
+        public const string LiftCarried = "LiftCarried"; // 扛起：牵着绳且瞄着被捆的人 ⇒ 扛起来（G 长按；与 TugRope 同键不同按法）
+        // 🔴 2026-10-22 **拆成四个 id**（原来共用 LiftCarried，执行时再按世界状态反推该做哪件事）：
+        //    "行上写什么"与"按下做什么"必须是**同一件事**。共用 id 时，长按途中焦点漂走（马走出准星、
+        //    人倒下……）会让可用行从【放上马背】换成【放下】，而松开沿用同一个 id 执行 ⇒
+        //    "看到放上马背、实际把人放下"（实机）。拆开后：行 id 就是动作，执行时只校验、不换动作。
+        public const string PutDownCarried = "PutDownCarried";       // 放下（G 长按）
+        public const string HorsePutCarried = "HorsePutCarried";     // 放上马背（G 长按）
+        public const string HorseTakeOffCarried = "HorseTakeOffCarried"; // 从马背拿下（G 长按）
         public const string SpellCast = "SpellCast"; // 施法：按住蓄力、松手放（阶段 3 起手轴；只在战场上用，不占 HUD 行）
     }
 

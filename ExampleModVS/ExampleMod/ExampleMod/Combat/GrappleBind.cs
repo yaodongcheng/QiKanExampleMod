@@ -384,6 +384,9 @@ namespace LivingWorldNpcs
 
 		/// <summary>压制复核的计时器（<see cref="VerifySuppression"/>）。</summary>
 		private float _verifyTimer;
+		/// <summary>"压制复核"日志的节流（2026-10-22：引擎每帧重写旗标 ⇒ 不节流就是 0.2 s 一行）。</summary>
+		private float _verifyLogTime;
+		private int _verifyLogRepeat;
 		private float _poseProbeTimer;      // "状态机 vs 引擎实际动作"一致性探针的 1s 闸门（见 TickTargetMachine）
 
 		/// <summary>冻 / 解冻目标的原版 AI（幂等；失败只记日志不抛）。
@@ -2006,22 +2009,36 @@ namespace LivingWorldNpcs
 			// ② 原版 AI 冻结：幂等重压（引擎的部署收尾会把**全场**解冻，战斗里尤其要盯）
 			//    🔴 走 HoldTarget 而不只 SetTargetAIPaused：它还会把"行进输入=0 / 限速 0"
 			//       一起补回来（目标中途被别的系统还回可动状态时，这里重新按住）。**不写朝向**。
+			// 🔴🔴 **2026-10-22：`wasUnpaused` 必须在"本轮打算冻"的前提下才有意义** ——
+			//    城镇故意不冻 AI，若还按旧写法算 `!IsPaused`，他永远"未暂停" ⇒
+			//    每 0.2 秒打一行 `AI冻结=True` 的**假警报**（用户实机看到的刷屏就是这么来的）。
+			bool pauseWanted = ShouldPauseAI();
 			bool wasUnpaused = false;
-			try { wasUnpaused = !_target.IsPaused; } catch (Exception) { }
-			// 🔴 **缠 / 拽倒 / 拖动 期间不碰他的移动**（2026-10-20）：那几拍位置与移动归本类，
-			//    复核只补"AI 冻结"这一项；否则就是"一边每帧瞬移、一边每 0.2s 写行进输入/限速"。
-			if (IsMovingBody)
+			if (pauseWanted)
 			{
-				if (ShouldPauseAI()) SetTargetAIPaused(_target, true);
+				try { wasUnpaused = !_target.IsPaused; } catch (Exception) { }
 			}
-			else HoldTarget(_target);
+			// 🔴 **缠 / 拽倒 / 拖动 期间不碰他的移动**（2026-10-20）：那几拍位置与移动归本类，
+			//    复核只补"AI 冻结"这一项（若本轮需要冻）；静止时才走完整的"按住"。
+			if (!IsMovingBody) HoldTarget(_target);
+			else if (pauseWanted) SetTargetAIPaused(_target, true);
 
 			// ③ 只有"真的被还原过"才打一行 —— 这是"复核到底有没有在干活"的唯一证据
 			//    （平时一致 = 静默；被部署收尾/别的系统还原 = 每次一条，不刷屏）。
+			// 🔴 2026-10-22 加节流：引擎每帧都会重写脚本旗标（`flagsWereMissing` 恒 True 属正常），
+			//    不节流就是每 0.2 s 一行；改成**最多 2 秒一行**，并带上被压次数。
 			if (flagsWereMissing || wasUnpaused)
 			{
-				DebugLogger.Log($"[Grapple] 压制复核：被外部还原过 ⇒ 已补回"
-					+ $"（旗标={flagsWereMissing} · AI冻结={wasUnpaused}）");
+				float now = Mission.Current?.CurrentTime ?? 0f;
+				if (now - _verifyLogTime >= 2f)
+				{
+					DebugLogger.Log($"[Grapple] 压制复核：被外部还原过 ⇒ 已补回"
+						+ $"（旗标={flagsWereMissing} · AI冻结={wasUnpaused}"
+						+ (_verifyLogRepeat > 0 ? $"，2s 内重复 {_verifyLogRepeat} 次" : "") + "）");
+					_verifyLogTime = now;
+					_verifyLogRepeat = 0;
+				}
+				else _verifyLogRepeat++;
 			}
 		}
 

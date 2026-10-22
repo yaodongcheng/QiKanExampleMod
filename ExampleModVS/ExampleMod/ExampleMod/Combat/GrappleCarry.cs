@@ -152,6 +152,7 @@ namespace LivingWorldNpcs
 		/// <summary>"看着点"的查岗间隔（秒）—— 收完武器后每这么久看一次那个槽还在不在。</summary>
 		public const float StowWatchSeconds = 0.25f;
 		private float _stowGrace;      // >0 = 给出口② 的豁免窗（见 StowGraceSeconds）
+		private bool _carrierReleased; // 马背相位：扛人者那侧已撒手（还武器 / 放控制权只做一次）
 
 		public bool IsActive => _phase != CarryPhase.None && _carried != null;
 		public Agent Carrier => _carrier;
@@ -237,6 +238,7 @@ namespace LivingWorldNpcs
 			_carrier = carrier;
 			_carried = carried;
 			_bind = bind;
+			_carrierReleased = false;
 			_ctx = new CarryAnimContext();
 			_machine = AnimMachineRegistry.Create(CarryAnimMachine.Name, _ctx);
 			_phase = CarryPhase.Riding;
@@ -299,6 +301,7 @@ namespace LivingWorldNpcs
 			_pair = null;
 			_t = 0f;
 			_note = "-";
+			_carrierReleased = false;
 		}
 
 		/// <summary>每帧推进（<see cref="GrappleLogic.OnMissionTick"/> 调；扛着时必然每帧）。</summary>
@@ -335,6 +338,38 @@ namespace LivingWorldNpcs
 			// ⓪′ 🔴 **不用再同步"脑里占位的锚点"了**（2026-10-20 单权威收口）：
 			//     `BoundAction` 已改成**纯占位**（一个字都不碰身体）—— 位置/朝向/限速全归 `GrappleBind`，
 			//     这里每帧摆位不会再跟脑那边 0.2 s 一次的"钉回锚点"互相打脸。
+
+			// ①′ 🔴 **马背相位：旧的「扛人 pair」演完退场是正常的**（2026-10-22 实机：骑马后人掉落）。
+			//     人已经交给「坐骑 ↔ 人」的后继 pair；旧 pair 只负责演完"放下"的收势就结束。
+			//     若把它当"整条扛人结束"⇒ HardStop ⇒ 后继 pair 被一起 Abort ⇒ 人从马背上被放开。
+			if (_phase == CarryPhase.OnHorse)
+			{
+				// 扛人者那侧演完（或超时）⇒ 还武器、撒手；人继续由后继 pair 摆在马背上。
+				bool carrierDone = _pair != null && _pair.IsDone;
+				bool carrierTimeout = !carrierDone && _t >= PutdownTimeoutSeconds + 6f;
+				if ((carrierDone || carrierTimeout) && !_carrierReleased)
+				{
+					_carrierReleased = true;
+					RestoreCarrierWeapon();
+					if (_stowGrace <= 0f) _stowGrace = StowGraceSeconds;
+					_machine = null;
+					_ctx = null;
+					_pair = null;
+					DebugLogger.Log($"[Grapple] 马背：扛人者那侧已撒手（{SafeName(_carrier)} 自由了）"
+						+ (carrierTimeout ? "（🔴 收势超时）" : "")
+						+ " —— 人继续跟着马走，直到【从马背拿下】/ 松绳");
+				}
+
+				// 后继 pair 没了 / 结束了 = 人已经不在马背上 ⇒ 才收摊。
+				PairActionInstance mountPair = MountPair;
+				if (mountPair == null || mountPair.IsDone)
+				{
+					HardStop("mount pair finished");
+					return;
+				}
+				_note = "on horse (mount pair: " + mountPair.Phase + ")";
+				return;
+			}
 
 			// ① 2026-10-19：站位 / 每帧摆位 / 扛人者状态机 Tick 全部在 PairActionInstance 里
 			//    （它由 PairActionLogic 每帧推进；本类只在驱动里补"扛人者那台机"的上下文）。
@@ -529,6 +564,7 @@ namespace LivingWorldNpcs
 			_phase = CarryPhase.None;
 			_t = 0f;
 			_note = "stopped (" + reason + ")";
+			_carrierReleased = false;
 		}
 
 		// ───────────────────────────── 武器收 / 还（2026-10-13 立）─────────────────────────────

@@ -469,6 +469,15 @@ namespace LivingWorldNpcs
         /// <summary>玩法 ID → 业务执行（上下文条件已在构建 available 列表时判定，此处只分发）。</summary>
         private void ExecuteInteraction(string id)
         {
+            // 🔴 2026-10-22 **交互入口统一留痕**（排查"我按的是这个、结果做成那个"）：
+            //    记录按下的是哪个行 id + 当时的焦点 —— 行 id 与动作一一对应，日志与画面能对上。
+            try
+            {
+                string focus = _lastFocusedAgent != null ? (string.IsNullOrEmpty(_lastFocusedAgent.Name) ? "agent#" + _lastFocusedAgent.Index : _lastFocusedAgent.Name) : "-";
+                DebugLogger.Log($"[Interact] {id} | focus='{focus}' | ropeHeld={IsRopeHeld()} | carrying={GrappleLogic.Current?.IsCarryingSomeone == true}");
+            }
+            catch (Exception) { }
+
             switch (id)
             {
                 case InteractionIds.Talk:
@@ -519,6 +528,16 @@ namespace LivingWorldNpcs
                     break;
                 case InteractionIds.LiftCarried:
                     ExecuteLiftCarried();
+                    break;
+                // 🔴 2026-10-22：四个动作四个 id —— 按哪个 id 就做哪件事（见 AddRopeRows 的锁行注释）。
+                case InteractionIds.PutDownCarried:
+                    ExecutePutDownCarried();
+                    break;
+                case InteractionIds.HorsePutCarried:
+                    ExecuteHorsePutCarried();
+                    break;
+                case InteractionIds.HorseTakeOffCarried:
+                    ExecuteTakeOffCarried();
                     break;
             }
         }
@@ -787,6 +806,23 @@ namespace LivingWorldNpcs
             var logic = GrappleLogic.Current;
             if (logic == null) return;
 
+            // 🔴 **长按途中锁行**（2026-10-22 实机："看到【放上马背】，松开却把人放下了"）：
+            //    四个动作共用 G 长按，按住期间每帧都会重算"现在该给哪条行"。
+            //    只要焦点在这半秒里漂走（马出准星 / 目标倒下 / 走近……），行会**当场换掉**，
+            //    而松开执行的是"换掉之后"那条 ⇒ 看到的和做到的可以不是一件事。
+            //    这里锁死：按住期间一直显示**按下那一刻**那条，松开也按那一条执行
+            //    （执行时照常校验；校验不过就报原因，**绝不改成另一个动作**）。
+            if (_ropeRowLockId != null)
+            {
+                if (ModInput.IsHeld(_ropeRowLockId))
+                {
+                    AddRopeRow(_ropeRowLockId, _ropeRowLockText);
+                    return;
+                }
+                _ropeRowLockId = null;
+                _ropeRowLockText = null;
+            }
+
             // 🔴 **扛着人 ⇒ 不给【松绳】**（2026-10-14 用户报"扛起来的时候还有松绳交互"）：
             //    那一拍唯一该做的是【放下】—— 这时按【松绳】= 直接放人，而被扛的人正被每帧摆在肩上
             //    ⇒ 两条状态机（bind 出机 + carry 放下）同时动同一个人 = 一具半放下/半出机的定格身体。
@@ -796,23 +832,24 @@ namespace LivingWorldNpcs
             if (!carrying)
             {
                 // 本地化：松绳交互按钮（牵着绳、且没扛着人）
-                AddInteractionRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
+                AddRopeRow(InteractionIds.CutRope, LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope"));
             }
 
             if (logic.CanPutDownCarried)
             {
-                // 🔴 身边有够得着的马 ⇒【放上马背】（同一把键，情境互斥）；否则 ⇒【放下】（2026-10-14 马背载人）
+                // 🔴 身边有够得着的马 ⇒【放上马背】；否则 ⇒【放下】。
+                //    两条是**不同的行 id**（2026-10-22）—— 执行时不再按世界状态反推动作。
                 if (logic.ResolveHorseForPlacement(focus, out Agent horseOffer, out _))
                 {
                     _lastHorseOffer = horseOffer;      // 记下来：按下时优先用**这一匹**（看到什么就做什么）
                     // 本地化：放上马背交互按钮
-                    AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_horseput", "Put them on the horse"));
+                    AddRopeRow(InteractionIds.HorsePutCarried, LWNTextHelper.ResolveText("LWN_ui_interact_horseput", "Put them on the horse"));
                 }
                 else
                 {
                     _lastHorseOffer = null;
                     // 本地化：放下交互按钮
-                    AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_putdown", "Put them down"));
+                    AddRopeRow(InteractionIds.PutDownCarried, LWNTextHelper.ResolveText("LWN_ui_interact_putdown", "Put them down"));
                 }
                 return;
             }
@@ -822,21 +859,29 @@ namespace LivingWorldNpcs
             if (logic.CanTakeOffHorse(focus, out _))
             {
                 // 本地化：从马背拿下交互按钮
-                AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_horsetakeoff", "Take them off the horse"));
+                AddRopeRow(InteractionIds.HorseTakeOffCarried, LWNTextHelper.ResolveText("LWN_ui_interact_horsetakeoff", "Take them off the horse"));
                 return;
             }
 
             if (logic.CanTugRope(out _))
             {
                 // 本地化：拉紧交互按钮
-                AddInteractionRow(InteractionIds.TugRope, LWNTextHelper.ResolveText("LWN_ui_interact_tug", "Pull tight"));
+                AddRopeRow(InteractionIds.TugRope, LWNTextHelper.ResolveText("LWN_ui_interact_tug", "Pull tight"));
                 return;
             }
             if (logic.CanLiftCarried(focus, out _))
             {
                 // 本地化：扛起交互按钮
-                AddInteractionRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_lift", "Carry them"));
+                AddRopeRow(InteractionIds.LiftCarried, LWNTextHelper.ResolveText("LWN_ui_interact_lift", "Carry them"));
             }
+        }
+
+        /// <summary>加一条"绳上"行，并记住它（长按期间锁行用；见 <see cref="AddRopeRows"/>）。</summary>
+        private void AddRopeRow(string interactionId, string displayText)
+        {
+            AddInteractionRow(interactionId, displayText);
+            _ropeRowLockId = interactionId;
+            _ropeRowLockText = displayText;
         }
 
         /// <summary>
@@ -874,9 +919,12 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// **【扛起】/【放下】**（`custom.grapple carry start|put` 的面板入口）：判定与结算全在
-        /// <see cref="GrappleLogic.CanLiftCarried"/> / <see cref="GrappleLogic.CarryPickUp"/> /
-        /// <see cref="GrappleLogic.CarryPutDown"/>（铁律 18：面板只做壳）。
+        /// **【扛起】**（`custom.grapple carry start` 的面板入口）。判定与结算在
+        /// <see cref="GrappleLogic.CanLiftCarried"/> / <see cref="GrappleLogic.CarryPickUp"/>（铁律 18：面板只做壳）。
+        ///
+        /// 🔴 2026-10-22：**一个行 id = 一个动作**。【放下】【放上马背】【从马背拿下】各有自己的 id 与入口
+        ///    （见 <see cref="ExecutePutDownCarried"/> 等），这里**不再**按世界状态改做别的事 ——
+        ///    否则按住期间焦点一变，就会"看到【放上马背】、实际把人放下"（实机事故）。
         /// </summary>
         private void ExecuteLiftCarried()
         {
@@ -885,76 +933,9 @@ namespace LivingWorldNpcs
                 var logic = GrappleLogic.Current;
                 if (logic == null) return;
 
-                if (logic.CanPutDownCarried)
-                {
-                    // 🔴 **行上写的是哪一匹就用哪一匹**（`_lastHorseOffer` 由面板渲染时记下）——
-                    //    否则"看到【放上马背】、按下去却变成【放下】"（2026-10-14 实机事故）。
-                    //    有马那条：解析失败就**报原因、绝不静默改成放下**。
-                    Agent horseFocus = _lastHorseOffer ?? GetFocusdAgent();
-                    // 🔴 行上写的是【放上马背】 ⇒ **解析不出来就报原因、绝不偷偷改成【放下】**
-                    //    （2026-10-14 实机事故：用户按了"放上马背"，人却躺在地上）。
-                    bool rowSaidHorse = _lastHorseOffer != null;
-                    Agent horseWant = null;
-                    string horseWhy = "-";
-                    bool canHorse = horseFocus != null
-                        && logic.ResolveHorseForPlacement(horseFocus, out horseWant, out horseWhy);
-                    if (rowSaidHorse && !canHorse)
-                    {
-                        InformationManager.DisplayMessage(new InformationMessage(
-                            LWNTextHelper.ResolveCompound("LWN_ui_lift_fail", "Can't do that: {WHY}", ("WHY", horseWhy)), Colors.Gray));
-                        return;
-                    }
-                    if (canHorse)
-                    {
-                        string r = logic.CarryPlaceOnHorse(horseWant);
-                        if (!r.StartsWith("OK"))
-                        {
-                            InformationManager.DisplayMessage(new InformationMessage(r, Colors.Gray));
-                            return;
-                        }
-                        AgentHudMissionView.AgentSay(Agent.Main,
-                            // 本地化：LWN_ui_horseput_bubble（玩家可见文本）
-                            LWNTextHelper.ResolveText("LWN_ui_horseput_bubble", "Up on the horse you go."), "horseput");
-                        // 本地化：放上马背成功提示
-                        InformationManager.DisplayMessage(new InformationMessage(
-                            LWNTextHelper.ResolveText("LWN_ui_horseput_ok", "You drape them over the horse's back."), Colors.Yellow));
-                        return;
-                    }
-                    if (!logic.CarryPutDown(out string wp))
-                    {
-                        InformationManager.DisplayMessage(new InformationMessage(
-                            LWNTextHelper.ResolveCompound("LWN_ui_lift_fail", "Can't do that: {WHY}", ("WHY", wp)), Colors.Gray));
-                        return;
-                    }
-                    AgentHudMissionView.AgentSay(Agent.Main,
-                        // 本地化：LWN_ui_putdown_bubble（玩家可见文本）
-                        LWNTextHelper.ResolveText("LWN_ui_putdown_bubble", "Down you go."), "putcarried");
-                    // 本地化：放下成功提示
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveText("LWN_ui_putdown_ok", "You set them down."), Colors.Yellow));
-                    return;
-                }
-
-                // 🔴 瞄着**搁了我们人的那匹马** ⇒【从马背拿下】（2026-10-14）
-                Agent horseWithBody = GetFocusdAgent();
-                if (horseWithBody != null && logic.CanTakeOffHorse(horseWithBody, out _))
-                {
-                    string r2 = logic.CarryTakeOffHorse();
-                    if (!r2.StartsWith("OK"))
-                    {
-                        InformationManager.DisplayMessage(new InformationMessage(r2, Colors.Gray));
-                        return;
-                    }
-                    // 本地化：从马背拿下成功提示
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveText("LWN_ui_horsetakeoff_ok", "You take them off the horse."), Colors.Yellow));
-                    return;
-                }
-
                 if (!logic.CarryPickUp(out string why))
                 {
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveCompound("LWN_ui_lift_fail", "Can't do that: {WHY}", ("WHY", why)), Colors.Gray));
+                    ShowLiftFailure(why);
                     return;
                 }
                 AgentHudMissionView.AgentSay(Agent.Main,
@@ -966,8 +947,106 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[LiftCarried] 扛起/放下失败: {ex.GetType().Name}: {ex.Message}");
+                DebugLogger.Log($"[LiftCarried] 扛起失败: {ex.GetType().Name}: {ex.Message}");
             }
+        }
+
+        /// <summary>**【放下】** —— 只放下，**绝不**改成"放上马背"。</summary>
+        private void ExecutePutDownCarried()
+        {
+            try
+            {
+                var logic = GrappleLogic.Current;
+                if (logic == null || !logic.CanPutDownCarried) return;
+
+                if (!logic.CarryPutDown(out string why))
+                {
+                    ShowLiftFailure(why);
+                    return;
+                }
+                AgentHudMissionView.AgentSay(Agent.Main,
+                    // 本地化：LWN_ui_putdown_bubble（玩家可见文本）
+                    LWNTextHelper.ResolveText("LWN_ui_putdown_bubble", "Down you go."), "putcarried");
+                // 本地化：放下成功提示
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveText("LWN_ui_putdown_ok", "You set them down."), Colors.Yellow));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[LiftCarried] 放下失败: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>**【放上马背】** —— 只放马背；马解析不出来就报原因，**绝不**偷偷改成"放下"。</summary>
+        private void ExecuteHorsePutCarried()
+        {
+            try
+            {
+                var logic = GrappleLogic.Current;
+                if (logic == null || !logic.CanPutDownCarried) return;
+
+                // 行上写的是哪一匹就用哪一匹（`_lastHorseOffer` 由面板渲染时记下；长按期间被锁行冻结）。
+                Agent horseFocus = _lastHorseOffer ?? GetFocusdAgent();
+                Agent horseWant = null;
+                string horseWhy = "-";
+                bool canHorse = horseFocus != null
+                    && logic.ResolveHorseForPlacement(horseFocus, out horseWant, out horseWhy);
+                if (!canHorse)
+                {
+                    ShowLiftFailure(horseWhy);
+                    return;
+                }
+
+                string r = logic.CarryPlaceOnHorse(horseWant);
+                if (!r.StartsWith("OK"))
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(r, Colors.Gray));
+                    return;
+                }
+                AgentHudMissionView.AgentSay(Agent.Main,
+                    // 本地化：LWN_ui_horseput_bubble（玩家可见文本）
+                    LWNTextHelper.ResolveText("LWN_ui_horseput_bubble", "Up on the horse you go."), "horseput");
+                // 本地化：放上马背成功提示
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveText("LWN_ui_horseput_ok", "You drape them over the horse's back."), Colors.Yellow));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[LiftCarried] 放上马背失败: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>**【从马背拿下】** —— 只取下；目标不对就什么都不做。</summary>
+        private void ExecuteTakeOffCarried()
+        {
+            try
+            {
+                var logic = GrappleLogic.Current;
+                if (logic == null) return;
+
+                Agent horseWithBody = GetFocusdAgent();
+                if (!logic.CanTakeOffHorse(horseWithBody, out _)) return;
+
+                string r = logic.CarryTakeOffHorse();
+                if (!r.StartsWith("OK"))
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(r, Colors.Gray));
+                    return;
+                }
+                // 本地化：从马背拿下成功提示
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveText("LWN_ui_horsetakeoff_ok", "You take them off the horse."), Colors.Yellow));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[LiftCarried] 从马背拿下失败: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        private static void ShowLiftFailure(string why)
+        {
+            InformationManager.DisplayMessage(new InformationMessage(
+                LWNTextHelper.ResolveCompound("LWN_ui_lift_fail", "Can't do that: {WHY}", ("WHY", why)), Colors.Gray));
         }
 
         /// <summary>
@@ -978,8 +1057,12 @@ namespace LivingWorldNpcs
         /// 🔴 **扛着人也算**（绳还连着）—— 这一格是"够不够格出绳那一族行"的总闸，
         ///    【松绳】自己那条在 <see cref="AddRopeRows"/> 里按"没在扛人"再筛一次（见那里的注释）。</summary>
         /// <summary>面板**这一帧**给的是哪一匹"放上马背"的马（null = 那一行现在是【放下】）。
-        /// 🔴 按下时优先用它 —— 保证"看到什么就做什么"（见 <see cref="ExecuteLiftCarried"/>）。</summary>
+        /// 🔴 按下时优先用它 —— 保证"看到什么就做什么"（见 <see cref="ExecuteHorsePutCarried"/>）。</summary>
         private static Agent _lastHorseOffer;
+
+        /// <summary>长按期间锁定的"绳上行"（见 <see cref="AddRopeRows"/>）：id + 文案，按住期间不再重算。</summary>
+        private string _ropeRowLockId;
+        private string _ropeRowLockText;
 
         private static bool IsRopeHeld()
         {
@@ -1015,9 +1098,10 @@ namespace LivingWorldNpcs
         /// 交互面板在**所有场景**通用；被禁模式（`Settings.DisabledInteractionMissionModes`，默认含 Battle）里
         /// **每个选项默认不注册**，**只有白名单放行**。
         ///
-        /// 🔴 白名单当前 = **【松绳】+【拉紧】+【扛起/放下/马背】**（`CutRope` / `TugRope` / `LiftCarried`）——
-        ///    绳上绑着人时这些是**唯一出口**：松绳 = 放人；拉紧 = 把人拉倒；
-        ///    扛起/放下/放上马背/从马背拿下 共用 `LiftCarried` 一个 id，一起放行
+        /// 🔴 白名单当前 = **【松绳】+【拉紧】+ 扛人四件**（`CutRope` / `TugRope` /
+        ///    `LiftCarried` / `PutDownCarried` / `HorsePutCarried` / `HorseTakeOffCarried`）——
+        ///    绳上绑着人时这些是**唯一出口**：松绳 = 放人；拉紧 = 把人拉倒；扛起/放下/放上马背/从马背拿下
+        ///    （2026-10-22 起是**四个独立 id**，不再是共用一个）
         ///    （否则"扛着俘虏"在战场里出得去、放不下 = 死结）。
         ///    被关掉 = 玩家被自己的绳卡死在战场里（实机："战场里面交互面板被隐藏了无法松绳"）。
         /// 🔴 **新增选项默认就是"被禁模式里不放行"**——要放到战场用，必须往这里加一条并写清理由。
@@ -1027,7 +1111,10 @@ namespace LivingWorldNpcs
             if (!Settings.Instance.IsInteractionDisabled()) return true;
             return id == InteractionIds.CutRope
                 || id == InteractionIds.TugRope
-                || id == InteractionIds.LiftCarried;
+                || id == InteractionIds.LiftCarried
+                || id == InteractionIds.PutDownCarried
+                || id == InteractionIds.HorsePutCarried
+                || id == InteractionIds.HorseTakeOffCarried;
         }
 
         private void AddInteractionRow(string interactionId, string displayText)
