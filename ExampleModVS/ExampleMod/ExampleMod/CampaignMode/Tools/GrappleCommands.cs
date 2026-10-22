@@ -1804,6 +1804,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///                               加 `mounted` = 只挑**骑马的**（验收"拉下马"那条路）。
 		///   release                     立刻放开当前目标（起身动画 + 稍后还 AI）
 		///   probe                       验收"被捆的人不接命令"：真发一条 ComeHere 给目标，看"事件忽略"计数涨不涨
+		///   brain [on|off|state]        🔴 **只做脑层**（2026-10-21）：对**交互焦点**那个人（与面板/HUD
+		///                               显示的是同一个，`GetFocusdAgent`）落
+		///                               `IsBound + BoundAction 占位`（与真钩索同一个脑入口），
+		///                               **完全不碰身体**（不冻 AI / 不摘控制器 / 不碰限速与旗标）
+		///                               —— 用来单独判"脑层到底能不能让这个人停下"。
+		///                               返回行带 suspended/aiPaused/moveInput/speed，一眼看出哪一层在动。
 		///   state                       状态一行（目标 / 相位 / 计时 / 当前动作名 / 钩位置 / 接管计数）
 		///   time &lt;秒&gt;                 超时自动挣脱（默认 20）
 		///   drag &lt;米&gt;                 拽倒时朝玩家拖多远（默认 2）
@@ -1856,6 +1862,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					return logic.BindRelease();
 				case "probe":
 					return logic.BindProbe();
+				case "brain":
+					return DoBindBrain(logic, args, at + 1);
+				case "body":
+					return DoBindBody(args, at + 1);
 				case "test":
 					return logic.BindTest(FindNearestBindableAgent(30f,
 						(ArgAt(args, at + 1) ?? "").ToLowerInvariant() == "mounted"));
@@ -2340,6 +2350,232 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			if (main == null) return "Error: no main agent.";
 			AgentControlHelper.SetPose(main, act);
 			return $"OK: played '{act}' once on the player (look only; the bind flow does not drive the player's animation)";
+		}
+
+		/// <summary>
+		/// `custom.grapple bind body [state|pause|hold|flags|nav|all|none] [0|1]` ——
+		/// **真实钩锁路径**的身体层逐件开关（2026-10-21 立，用户裁定的二分方式）。
+		///
+		/// 用法：先把四件全关（`body all 0`）→ 用钩索勾一个**正在走**的村民（此时只剩脑层，
+		/// 应停住）→ 每次开**一件**（如 `body pause 1`）→ 重新勾一个正在走的人 → 看他动没动。
+		/// 开关是热改的：`VerifySuppression` 每 0.2 s 按当前开关重压，**不用重开场景**。
+		/// </summary>
+		private static string DoBindBody(List<string> args, int at)
+		{
+			string k = (ArgAt(args, at) ?? "state").Trim().ToLowerInvariant();
+			string raw = ArgAt(args, at + 1)?.Trim().ToLowerInvariant();
+
+			// `body only <piece>` = 一条命令做完"全关 + 只开这一件"（每轮试验只敲一条）
+			if (k == "only")
+			{
+				if (raw != "pause" && raw != "hold" && raw != "flags" && raw != "nav")
+					return "Error: bind body only expects pause|hold|flags|nav";
+				GrappleBind.BodyPause = raw == "pause";
+				GrappleBind.BodyHold = raw == "hold";
+				GrappleBind.BodyFlags = raw == "flags";
+				GrappleBind.BodyNav = raw == "nav";
+			}
+			else if (k != "state")
+			{
+				bool on = raw == "1" || raw == "on";
+				bool off = raw == "0" || raw == "off";
+				bool all = k == "all" || k == "none";
+				if (k == "none") { on = false; off = true; }
+				if (!on && !off)
+					return "Error: bind body expects state | only <piece> | pause|hold|flags|nav|all|none 0|1";
+
+				if (k == "pause" || all) GrappleBind.BodyPause = on;
+				if (k == "hold" || all) GrappleBind.BodyHold = on;
+				if (k == "flags" || all) GrappleBind.BodyFlags = on;
+				if (k == "nav" || all) GrappleBind.BodyNav = on;
+				if (k != "pause" && k != "hold" && k != "flags" && k != "nav" && !all)
+					return $"Error: unknown piece '{k}' (pause|hold|flags|nav|all|none|only)";
+			}
+
+			// `body battlepause 0|1` = 战场是否自动冻 AI（默认 on；推断未复验，用它可以验伪）
+			if (k == "battlepause")
+			{
+				if (raw != "0" && raw != "1" && raw != "on" && raw != "off")
+					return "Error: bind body battlepause expects 0|1";
+				GrappleBind.BodyPauseInBattle = raw == "1" || raw == "on";
+				return $"OK: battle auto-pause = {GrappleBind.BodyPauseInBattle}"
+					+ (GrappleBind.BodyPauseInBattle ? "" : " (battle will NOT pause AI -- test whether 'hold' alone is enough)")
+					+ $" | effective now: pause:{GrappleBind.BodyPause} hold:{GrappleBind.BodyHold}"
+					+ $" flags:{GrappleBind.BodyFlags} nav:{GrappleBind.BodyNav}";
+			}
+
+			return $"OK: bind body = pause:{GrappleBind.BodyPause} hold:{GrappleBind.BodyHold}"
+				+ $" flags:{GrappleBind.BodyFlags} nav:{GrappleBind.BodyNav}"
+				+ (GrappleBind.BodyPause ? "" : $" (towns: pause off; battle auto-pause={(GrappleBind.BodyPauseInBattle ? "on" : "off")})")
+				+ " (real-hook path; takes effect within 0.2s, no scene reload needed)";
+		}
+
+		// ── `bind brain` 的逐件身体动作开关（二分用；默认全关 = 纯脑层）──
+		private static bool BrainExtraPause;
+		private static bool BrainExtraHold;
+		private static bool BrainExtraFlags;
+		private static bool BrainExtraNav;
+
+		/// <summary>
+		/// `custom.grapple bind brain [piece|on|off|state]` —— **只做脑层 + 逐件加身体动作**（2026-10-21 立）。
+		///
+		/// 一条命令 = 一次完整试验：**先把他身上的身体压制全清掉，再绑脑层，再只加指定的那一件**。
+		///   `brain`        只做脑层（基线 —— 已实测会停）
+		///   `brain pause`  脑层 + `SetIsAIPaused(true)`
+		///   `brain hold`   脑层 + `HoldInPlace`（清脚本移动/行进输入 + 限速 0）
+		///   `brain flags`  脑层 + `DoNotRun|NoAttack` 旗标
+		///   `brain nav`    脑层 + `SuspendNavigator`（清导航器目标 + 关三组）
+		///   `brain all`    脑层 + 四件全开（≈ 真钩索的身体层）
+		///   `brain off`    放人（解冻 AI、解锁旗标、恢复导航器）
+		/// 判据只看回执里的 `body: ... speed=`：`0.00` = 停住，`≈1.3` = 又走了。
+		///
+		/// 目标 = **交互焦点**（`InteractionMissionView.GetAimedAgent` 唯一入口 —— 与交互面板/HUD 同一个）
+		/// → 取不到时兜底最近的能捆目标（回执里注明）。
+		/// </summary>
+		private static string DoBindBrain(GrappleLogic logic, List<string> args, int at)
+		{
+			string modeNote = "";
+			// 🔴 `at` 已经在调用方指向 **"brain" 本身**（`DoBindBrain(logic, args, at + 1)`）——
+			//    所以模式词就是 `args[at]`，再 +1 会把 `brain pause` 里的 `pause` 整个跳过
+			//    （2026-10-21 实机：所有 piece 命令都回落成基线，日志里 `extras` 全 False、`brain off` 还回 brain-bound）。
+			string mode = (ArgAt(args, at) ?? "on").Trim().ToLowerInvariant();
+
+			// ── 一条命令一次试验：`brain pause|hold|flags|nav|all` = 全清 → 绑脑 → 只开这一件 ──
+			if (mode == "pause" || mode == "hold" || mode == "flags" || mode == "nav" || mode == "all")
+			{
+				BrainExtraPause = mode == "pause" || mode == "all";
+				BrainExtraHold = mode == "hold" || mode == "all";
+				BrainExtraFlags = mode == "flags" || mode == "all";
+				BrainExtraNav = mode == "nav" || mode == "all";
+			}
+			else if (mode == "on" || mode == "1" || mode == "state")
+			{
+				// 基线 / 只读：不再叠加任何身体动作
+				BrainExtraPause = BrainExtraHold = BrainExtraFlags = BrainExtraNav = false;
+			}
+
+			if (mode != "on" && mode != "off" && mode != "state" && mode != "1" && mode != "0"
+				&& mode != "pause" && mode != "hold" && mode != "flags" && mode != "nav" && mode != "all")
+			{
+				// 首参可弃纪律（用户习惯随手补占位）：认不出就回落到 on，并在回执里注明。
+				modeNote = $" [note: '{mode}' is not a mode -> using on]";
+				mode = "on";
+			}
+
+			// 🔴 目标 = **交互面板此刻命中的那个人**（唯一入口 `GetAimedAgent`，不另写射线）：
+			//    当帧焦点 → 上一帧缓存 → 取不到（没对着人 / 战场里没有交互面板）→
+			//    最近的能捆目标（与 `bind test` 同一条路）。
+			Agent target = null;
+			try { target = InteractionMissionView.Instance?.GetAimedAgent(); }
+			catch (Exception) { }
+			string note = "";
+			if (target == null)
+			{
+				target = FindNearestBindableAgent(30f);
+				if (target != null) note = " [note: nothing in interaction focus -> nearest bindable]";
+			}
+			if (target == null)
+				return "Error: no target (aim at a person within 30 m, or stand near one).";
+			note += modeNote;
+
+			AgentBrain brain = null;
+			try { brain = AgentAIController.GetBrainForAgent(target); } catch (Exception) { }
+			if (brain == null)
+				return $"Error: '{AgentName(target)}' (#{target.Index}) has no brain -- the brain layer is not attached to this agent.";
+
+			bool apply = mode == "on" || mode == "1"
+				|| mode == "pause" || mode == "hold" || mode == "flags" || mode == "nav" || mode == "all";
+			bool remove = mode == "off" || mode == "0";
+
+			// 真钩索正牵着这个人 ⇒ 不许在这里拆脑层（解除归 `bind release` 的收尾队列）。
+			bool heldByRealBind = false;
+			try { heldByRealBind = logic != null && logic.IsBindingTarget(target); } catch (Exception) { }
+
+			string did = "unchanged";
+			if (apply)
+			{
+				// ① **先清干净**：上一条试验留下的脑层/身体压制全部撤掉 —— 保证"这一件"是唯一变量。
+				if (brain.IsBound)
+				{
+					try { brain.ExitBoundState(); } catch (Exception) { }
+				}
+				try { target.SetIsAIPaused(false); } catch (Exception) { }
+				try { target.SetMaximumSpeedLimit(-1f, false); } catch (Exception) { }
+				try { AgentControlHelper.ForceUnlockAgent(target); } catch (Exception) { }
+				try { AgentControlHelper.ResumeNavigator(target); } catch (Exception) { }
+
+				// ② **顺序照真钩索**：身体动作先做（`BeginWrapping` 的 HoldTarget），
+				//    脑层后做（`EnterCrash` 才立 IsBound）—— 顺序不同可能得出不同结论。
+				if (BrainExtraPause)
+				{
+					try { target.SetIsAIPaused(true); } catch (Exception) { }
+				}
+				if (BrainExtraHold)
+				{
+					try { AgentControlHelper.HoldInPlace(target); } catch (Exception) { }
+				}
+				if (BrainExtraFlags)
+				{
+					try
+					{
+						target.SetScriptedFlags(target.GetScriptedFlags()
+							| Agent.AIScriptedFrameFlags.DoNotRun
+							| Agent.AIScriptedFrameFlags.NoAttack);
+					}
+					catch (Exception) { }
+				}
+				if (BrainExtraNav)
+				{
+					try { AgentControlHelper.SuspendNavigator(target); } catch (Exception) { }
+				}
+				brain.EnterBoundState();
+				did = "brain-bound";
+			}
+			else if (remove)
+			{
+				if (heldByRealBind)
+					return $"Error: '{AgentName(target)}' is held by a REAL grapple bind -- use 'custom.grapple bind release'.";
+				brain.ExitBoundState();
+				// 把逐件叠加的东西一起还回去（顺序：先解冻/解锁，再让导航器重新挑组）
+				try { target.SetIsAIPaused(false); } catch (Exception) { }
+				try { target.SetMaximumSpeedLimit(-1f, false); } catch (Exception) { }
+				try { AgentControlHelper.ForceUnlockAgent(target); } catch (Exception) { }
+				try { AgentControlHelper.ResumeNavigator(target); } catch (Exception) { }
+				did = "brain-unbound";
+			}
+			else if (heldByRealBind)
+			{
+				note += " [note: this one is also held by a real grapple bind]";
+			}
+
+			// ── 判据行（四格：哪一层在起作用，一眼可读）──
+			string action = "-";
+			try { action = brain.CurrentAction?.GetType().Name ?? "(none)"; } catch (Exception) { }
+			bool suspended = false;
+			try { suspended = AgentBrain.SuspendedAgentIndices.Contains(target.Index); } catch (Exception) { }
+			// 🔴 **最关键的一格**：村镇的"逛荡/巡逻/坐椅子"那一层（`DailyBehaviorGroup`）到底关没关。
+			//    `suspended` 只说明脑"登记了要接管"；`daily` 才是那个导航器此刻真实的状态
+			//    （`off` = 没人再给他下"走去某点"，他才会真的停）。
+			string daily = "?";
+			try
+			{
+				var nav = target.GetComponent<SandBox.CampaignAgentComponent>()?.AgentNavigator;
+				var grp = nav?.GetBehaviorGroup<SandBox.Missions.AgentBehaviors.DailyBehaviorGroup>();
+				daily = nav == null ? "no-navigator" : (grp == null ? "no-group" : (grp.IsActive ? "active" : "off"));
+			}
+			catch (Exception) { }
+			string paused = "?";
+			try { paused = target.IsPaused ? "True" : "False"; } catch (Exception) { }
+			float moveInput = -1f;
+			try { moveInput = target.MovementInputVector.Length; } catch (Exception) { }
+			float speed = -1f;
+			try { Vec3 v = target.AverageVelocity; speed = new Vec2(v.x, v.y).Length; } catch (Exception) { }
+
+			return $"OK: {did} '{AgentName(target)}' (#{target.Index}){note}"
+				+ $" | brain: bound={brain.IsBound} action={action} queued={brain.QueuedActionCount} suspended={suspended} daily={daily}"
+				+ $" | extras[pause={BrainExtraPause} hold={BrainExtraHold} flags={BrainExtraFlags} nav={BrainExtraNav}]"
+				+ $" | body: aiPaused={paused} moveInput={moveInput:F2} speed={speed:F2}m/s"
+				+ (apply || remove ? "" : " (state only; pass on|off to change)");
 		}
 
 		/// <summary>
@@ -3149,8 +3385,15 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				}
 			}
 
-			// 准星 → 最近的其他人（preferMounted = 只挑骑着的；玩家自己也算候选，验"我自己骑马"用）
-			Agent looked = FindLookedAtAgent();
+			// 焦点 → 最近的其他人（preferMounted = 只挑骑着的；玩家自己也算候选，验"我自己骑马"用）
+			// 🔴 **"瞄着谁"只认唯一入口 `GetAimedAgent`**（当帧焦点 → 上一帧缓存；与面板/HUD 同一个目标）
+			//    —— **不再自己打射线**（2026-10-21 收口：本文件原来那份 `FindLookedAtAgent` 已删）。
+			//    ⚠️ 焦点是**交互距离**口径（射线 7 m / 身边 4 m 锥形）：想指定远处的人请写 `#编号` / 名字。
+			//    马本身会被下面那道 `IsMount` 过滤掉（这几条命令要的是"人"，与旧行为一致）。
+			Agent looked = null;
+			try { looked = InteractionMissionView.Instance?.GetAimedAgent(); }
+			catch (Exception) { }
+			if (looked != null && looked.IsMount) looked = null;
 			if (looked != null && (!preferMounted || looked.MountAgent != null)) return looked;
 
 			Agent best = null;
@@ -3180,27 +3423,6 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		{
 			var one = new List<string> { tok ?? "" };
 			return ResolveHorseTarget(one, 0, preferMounted, out note);
-		}
-
-		/// <summary>
-		/// 准星指着谁 —— 相机原点沿视线打一条 30 m 的射线问引擎。
-		/// 方向走 <see cref="CameraLook.TryGet"/>（铁律 35：接管期间只有它算得对），位置照读
-		/// `Mission.GetCameraFrame().origin`（位置两种相机下都对）。找不到 = null。
-		/// </summary>
-		private static Agent FindLookedAtAgent()
-		{
-			Mission m = Mission.Current;
-			Agent me = Agent.Main;
-			if (m == null || me == null) return null;
-			try
-			{
-				if (!CameraLook.TryGet(out Vec3 forward)) return null;
-				Vec3 origin = m.GetCameraFrame().origin;
-				Agent hit = V.RayCastForClosestAgent(origin, origin + forward * 30f, me.Index, out float _, 0.15f);
-				if (hit == null || hit == me || hit.IsMount) return null;
-				return hit;
-			}
-			catch (Exception) { return null; }
 		}
 
 		/// <summary>名字（取不到就用 `agent#Index`）—— 控制台回执里显示用。</summary>

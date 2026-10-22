@@ -1074,3 +1074,37 @@ C# 只填上下文（`BindAnimContext.BeingPulled/BeingDragged`）+ 形态切换
 **零点必须是"系统静止时的实际状态"**，初始余量不算作"超出"；
 要留余量就把它体现在**阈值大小**上，别塞进被比较的量里。
 判据日志也要把这两者分开打（`走远 X ⇒ 超出 Z（锁定松量 Y 不计）`），否则排查会被那个余量数误导。
+
+## 🔴🔴 `SetIsAIPaused(true)` 在城镇会把行走输入"冻在最后一帧" —— 人反而直走不停（2026-10-22 实机定案，钩索勾人；两天排查）
+
+**症状**：钩索勾住**正在走**的村镇 NPC —— 他不停，以步速（≈1.3 m/s）沿固定方向直走，方向不随玩家变化；
+`bind leash 0` 也照走；勾**原本静止**的 NPC 一切正常。
+`custom.grapple bind state` 读数：`aiPaused=True · nav=none/none · machine=no · tgt[none] · move=1.00 speed≈1.3`。
+
+**根因**：`SetIsAIPaused(true)` 停的只是"AI 不再写输入"，**引擎继续按最后一帧 `MovementInputVector` 驱动移动**，
+而暂停期间对它清零（`HoldInPlace`）**不生效** ⇒ 方向盘冻住、油门还踩着。
+城镇里真正驱动走位的是村镇行为组（`DailyBehaviorGroup`），**脑层（`BoundAction` → `SuspendVanillaAI`）已经足够**。
+
+**修法**（`GrappleBind.ShouldPauseAI()`）：
+- **城镇不冻**（`BodyPause=false`）—— 脑层在场就靠脑层；
+- **战场自动冻**（`BodyPauseInBattle=true`，条件 = `Settings.Instance.IsInteractionDisabled()`，那里脑整体早退）——
+  实机对照：`battlepause 1` 正常 / `0` 异常 ⇒ 战场必须冻。
+
+**逐件诊断开关**（真实钩锁路径，热改、0.2 s 生效；判据只看回执 `speed=`）：
+`custom.grapple bind body state | all 0|1 | only pause|hold|flags|nav | battlepause 0|1`。
+`bind state` 的 `body[...]`（move/speed/nav/machine/tgt）与 `eng[ctrl/vel/tpos/using/form/flags]` 是驱动源探针。
+
+**方法论（比结论更值钱）**：
+1. **先证伪"以为的驱动源"**：一行读数（`nav=none machine=no tgt[none]`）就把导航器/物件/跟随全排除，别再猜。
+2. **逐件开关必须在真实流程里做，且每轮换一个"正在走"的目标** —— 人一旦被按住，再加开关永远不会重新动
+   （本轮踩过：同一目标连测六条，全是"不走"，白跑一轮）。
+3. **同一 API 在不同场景语义不同**（城镇 vs 战场），必须分场景验证；"原版也这么用"不能外推。
+4. 相关但独立的两个坑（本轮同时排除）：`SetMovementDirection` 是**纯转向**（vanilla 也在 Teleport 后用它设朝向）；
+   `binded_walk` 动画**没有位移**（`tpaccli clipinfo` 无 displacement、`animpos` 根骨 X/Y 恒 0）。
+5. 🔴 **玩家不受这条影响，别去"顺修"它**：飞行冻结走的是 `Controller=AI` + `SetIsAIPaused(true)`，
+   玩家没有脑/村镇行为组，行进输入由我们自己清 ⇒ 那条路继续有效（见本节上方"玩家冻结 + 机身转向"）。
+
+**代码位置**：`Combat/GrappleBind.cs`（`ShouldPauseAI` / `HoldTarget` / `VerifySuppression` / `BodyPause*`） ·
+`Core/AgentControlHelper.cs`（`HoldInPlace` / `SuspendNavigator` / `ResumeNavigator`） ·
+`CampaignMode/Tools/GrappleCommands.cs`（`bind body` / `bind brain`）。
+**工程记录**：`plans/钩索-实施计划.md` §二十四。

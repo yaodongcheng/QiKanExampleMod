@@ -738,6 +738,60 @@ namespace LivingWorldNpcs
             StopMovement(agent);
             try { agent.SetMaximumSpeedLimit(0f, false); } catch (Exception) { }
         }
+
+        /// <summary>
+        /// **恢复村镇导航器**（与 <see cref="SuspendNavigator"/> 配对；`bind brain off` 用）。
+        /// = 让它自己按分数重新挑一个行为组（`RefreshBehaviorGroups` → `ActivateGroup`）。
+        /// ⚠️ 若 agent 还在 `AgentBrain.SuspendedAgentIndices` 里，`AiSuspendPatch` 会挡掉这次刷新 ——
+        ///   所以调用方必须**先**把脑层解除（`AgentBrain.ExitBoundState` 内部会 `ResumeVanillaAI` 并从集合移除）。
+        /// </summary>
+        public static void ResumeNavigator(Agent agent)
+        {
+            if (agent == null) return;
+            try
+            {
+                var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+                nav?.RefreshBehaviorGroups(false);
+            }
+            catch (Exception) { }
+        }
+
+        /// <summary>
+        /// **掐断村镇导航器对他的驱动**（2026-10-21 立；实机根因）。
+        ///
+        /// 🔴 **为什么光关 `DailyBehaviorGroup` 不够**（实机日志铁证）：
+        ///    · `AgentNavigator.Tick` 里有一支**绕过行为组**的通道 ——
+        ///      `if (TargetUsableMachine != null) _targetBehavior.Tick(...)`；
+        ///      它**每帧**调 `SetScriptedPositionAndDirection`（反编译 `UsableMachineAIBase.Tick` 实锤），
+        ///      ⇒ 人一直朝那个物件走，**而且每帧把我们的 `DoNotRun|NoAttack` 旗标整个覆盖掉**
+        ///      （实机症状 = `压制复核` 每 0.2 s 都报"旗标被还原"，人还以 1.5 m/s 走）。
+        ///    · 另外两个行为组（`Interrupting` / `Alarmed`）`SuspendVanillaAI` 从来没管过 ——
+        ///      谁在 `Suspend` 那一刻正在跑，谁就继续跑。
+        ///    ⇒ 对**要被按住的人**，必须三件事一起做：清导航器的目标 + 关掉三组。
+        ///
+        /// 🔴 **幂等、只吞异常**：`GrappleBind.HoldTarget` 每 0.2 s 调一次（防被重新设上）。
+        /// 玩家没有这个组件 ⇒ 天然 no-op。
+        /// </summary>
+        public static void SuspendNavigator(Agent agent)
+        {            if (agent == null) return;
+            try
+            {
+                var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+                if (nav == null) return;
+
+                // ① 取消"走向并使用某物件"（椅子/摊位/墙沿…）—— 这是每帧重写旗标与位置的元凶
+                try { nav.ClearTarget(); } catch (Exception) { }
+
+                // ② 三个组全关（SuspendVanillaAI 只关了 Daily）
+                var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+                if (daily != null && daily.IsActive) daily.IsActive = false;
+                var interrupting = nav.GetBehaviorGroup<InterruptingBehaviorGroup>();
+                if (interrupting != null && interrupting.IsActive) interrupting.IsActive = false;
+                var alarmed = nav.GetBehaviorGroup<AlarmedBehaviorGroup>();
+                if (alarmed != null && alarmed.IsActive) alarmed.IsActive = false;
+            }
+            catch (Exception) { }
+        }
         public static void ForceUnlockAgent(Agent agent)
         {
             if (agent == null) return;

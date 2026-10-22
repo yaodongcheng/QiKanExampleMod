@@ -738,8 +738,8 @@ namespace LivingWorldNpcs
             }
             if (victim == null)
             {
-                var view = InteractionMissionView.Instance;
-                victim = view?.GetFocusdAgent() ?? view?.LastFocusedAgent;
+                // 交互焦点 = 唯一口径（`GetAimedAgent`：当帧焦点 → 上一帧缓存）
+                victim = InteractionMissionView.Instance?.GetAimedAgent();
             }
 
             if (victim == null)

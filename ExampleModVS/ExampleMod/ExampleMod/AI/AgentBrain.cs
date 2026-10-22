@@ -1070,15 +1070,7 @@ namespace LivingWorldNpcs
                     ? (binder.Name?.ToString() ?? "人")
                     : "人";
                 RecordNarration($"我被{boundBy}用绳索撂倒了");
-                // 🔴 **顺序要紧**：`ClearAllActions` 现在带"被捆不许清"的守卫（见那个方法）
-                //    ⇒ 先**临时卸下**标记再清，清完重新立起来。这一次卸标记同时兜住
-                //    "同一个人被连绑两次"（上一次的占位还挂在队列里，不清掉新的永远轮不到）。
-                IsBound = false;
-                ClearAllActions();
-                IsBound = true;
-                // 常驻占位（**永不结束 + 不接受中断**）：防 Brain 自动 Resume 原生 AI 把躺着的人拽起来。
-                // 🔴 不用 StayAction(isKnockout: true) —— 那会让全系统把"被捆"当成"昏迷"（见 BoundAction 类注释）。
-                EnqueueAction(new BoundAction());
+                EnterBoundState();
             }
 
             // ═══════════════════════════════════════════════════════════════
@@ -1326,6 +1318,45 @@ namespace LivingWorldNpcs
                 SuspendVanillaAI();
             }
             _actionQueue.Enqueue(action);
+        }
+
+        /// <summary>队列里还排着几个动作（诊断用：`custom.grapple bind brain` 的返回行）。</summary>
+        internal int QueuedActionCount => _actionQueue.Count;
+
+        /// <summary>
+        /// **脑侧进入"被捆"** —— 唯一实现：事件 `event_agent_bound` 与调试命令
+        /// `custom.grapple bind brain` 都走这里（两处各写一遍 = 迟早分叉）。
+        ///
+        /// 只做脑内的事：清行为 + `IsBound = true` + 挂一条永不结束的 <see cref="BoundAction"/> 占位。
+        /// 🔴 **副作用说明**：占位入队时脑从"空"变"有" ⇒ <see cref="EnqueueAction"/> 会调
+        ///    <see cref="SuspendVanillaAI"/> —— 那会关掉村镇的 `DailyBehaviorGroup`（逛荡/巡逻/坐椅子）
+        ///    并清掉"正在走的那一脚"（`StopMovement`）。**这就是"脑层让村民停下"的全部内容**；
+        ///    冻 AI / 摘控制器 / 限速 / 旗标这些**身体层**的事一律不在这里（归 <see cref="GrappleBind"/>）。
+        /// </summary>
+        internal void EnterBoundState()
+        {
+            // 🔴 **顺序要紧**：`ClearAllActions` 带"被捆不许清"的守卫（见那个方法）
+            //    ⇒ 先**临时卸下**标记再清，清完重新立起来。这一次卸标记同时兜住
+            //    "同一个人被连绑两次"（上一次的占位还挂在队列里，不清掉新的永远轮不到）。
+            IsBound = false;
+            ClearAllActions();
+            IsBound = true;
+            // 常驻占位（**永不结束 + 不接受中断**）：防 Brain 自动 Resume 原生 AI 把人拽起来。
+            // 🔴 不用 StayAction(isKnockout: true) —— 那会让全系统把"被捆"当成"昏迷"（见 BoundAction 类注释）。
+            EnqueueAction(new BoundAction());
+        }
+
+        /// <summary>
+        /// **脑侧解除"被捆"**（调试命令 `custom.grapple bind brain off` 用）。
+        /// 真钩索的放人**不走这里** —— 它有自己的收尾队列（起身动画演完才还 AI）。
+        /// = 清标记 + 拆占位 + 解锁旗标 + 还回原版日常行为层。
+        /// </summary>
+        internal void ExitBoundState()
+        {
+            IsBound = false;
+            ClearAllActions();
+            try { AgentControlHelper.ForceUnlockAgent(Owner); } catch (Exception) { }
+            try { ResumeVanillaAI(); } catch (Exception) { }
         }
 
         /// 强行中断当前正在执行的 Action（不碰队列）。

@@ -78,6 +78,19 @@ namespace LivingWorldNpcs
         /// </summary>
         public Agent LastFocusedAgent => _lastFocusedAgent;
 
+        /// <summary>
+        /// 🔴 **"此刻瞄着谁"的唯一入口**（2026-10-21 收口）：当帧焦点 → 上一帧缓存 → null。
+        ///
+        /// 调试命令/玩法要"准星指着的那个人"**一律走这里**，禁止再自己打相机射线
+        /// （`GrappleCommands` 与 `IceFxCommands` 原来各有一份自己的射线实现，均已删）。
+        /// 口径 = 交互距离（射线 7 m / 身边 4 m 锥形搜索），与面板/HUD 显示的是同一个目标；
+        /// 想指定远处的人请用 `#编号` / 名字。
+        /// </summary>
+        public Agent GetAimedAgent()
+        {
+            return GetFocusdAgent() ?? _lastFocusedAgent;
+        }
+
         private bool _lastAgentWasAlive = false;
         private bool _lastIsBehind = false;
         private bool _lastWasCrouching = false;

@@ -2015,3 +2015,20 @@ subModule2.OnMissionBehaviorInitialize(this);       // ← 各模块在这一步
 - 分隔线用 `—`（全角破折号）或 `===`，别用 `----`。
 **自检**：改完任何 XML 立刻 `python -c "import xml.etree.ElementTree as ET; ET.parse('文件')"`
 —— 本仓库的一键体检不覆盖 `Prefabs/`，这条只能自己跑。
+
+## 🔴🔴 被"按住"的 NPC 反而直走不停 → `SetIsAIPaused(true)` 把行走输入冻在最后一帧（2026-10-22，钩索勾人，两天排查）
+
+**症状**：钩索勾住**正在走**的村镇 NPC，他不停、以步速沿固定方向直走、方向不随玩家变；勾**静止**的 NPC 正常。
+`bind state`：`aiPaused=True · nav=none machine=no tgt[none] · move=1.00 speed≈1.3`。
+日志：`压制复核：被外部还原过 ⇒ 已补回（旗标=True · AI冻结=False）` 每 0.2 秒一条。
+
+**根因**：`SetIsAIPaused(true)` 只停"AI 写输入"，引擎继续按**最后一帧 `MovementInputVector`** 驱动移动，
+暂停期间清零**不生效** ⇒ 人直走。城镇里脑层（`BoundAction` → `SuspendVanillaAI` 关村镇行为组）已经够用，不要冻。
+
+**修法**：`GrappleBind.ShouldPauseAI()` —— 城镇不冻、战场（`IsInteractionDisabled`，脑不跑）自动冻。
+开关：`custom.grapple bind body state | all 0|1 | only pause|hold|flags|nav | battlepause 0|1`。
+
+**排查纪律**：① 逐件开关要在**真实流程**里做；② 每轮必须换一个"正在走"的目标（已按住的人加开关不会再动，本轮为此白跑一轮）；
+③ 同一 API 在城镇/战场语义不同，必须分场景验。
+
+完整条目（含方法论与证据）：[wheels.d/agent.md](wheels.d/agent.md) 末节 · 工程记录 `plans/钩索-实施计划.md` §二十四。

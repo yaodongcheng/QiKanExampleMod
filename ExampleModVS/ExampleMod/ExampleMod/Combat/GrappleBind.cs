@@ -337,6 +337,51 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static bool PauseVanillaAI = true;
 
+		// ───────── 🔴 身体层四件开关（2026-10-21 立：真实钩锁路径的**逐件二分**用）─────────
+		//
+		// 背景：`bind brain`（只脑层）能让走着的村民停下，但真钩索路径他照走。
+		// 在真实流程里逐件开关，才能回答"哪一件让他开始走"：
+		//   `pause` = `SetIsAIPaused(true)` · `hold` = `HoldInPlace`（清输入 + 限速 0）
+		//   `flags` = `DoNotRun|NoAttack` · `nav` = `SuspendNavigator`（清目标 + 关三组）
+		// 命令：`custom.grapple bind body <pause|hold|flags|nav|all> 0|1` / `bind body state`。
+		// 🔴 默认全开 = 现行行为；全关 = 只剩脑层（相当于 bind brain 的真流程版）。
+		public static bool BodyPause = false;
+		public static bool BodyHold = true;
+		public static bool BodyFlags = true;
+		public static bool BodyNav = true;
+
+		/// <summary>
+		/// **战场是否自动冻 AI**（`custom.grapple bind body battlepause 0|1`；默认 on）。
+		/// 🔴 **这条是推断、尚未实机复验**（2026-10-22）：依据只是"战场里 `IsInteractionDisabled()`
+		///    让脑事件与占位整体早退 ⇒ 脑层不在场"。用户要验证时把它关掉（`battlepause 0`）再勾人，
+		///    看只靠 `hold`（清输入 + 限速 0）能不能按住一个正在打架/走位的人。
+		///    若验证结论是"不冻也停得住"，就把这条默认改 false（甚至删掉），别留没证据的分支。
+		/// </summary>
+		public static bool BodyPauseInBattle = true;
+
+		/// <summary>
+		/// **到底要不要冻 AI**（2026-10-22 实机定案）。
+		///
+		/// 🔴🔴 **城镇里绝对不能冻**（用户逐件二分出来的元凶）：`SetIsAIPaused(true)` 之后没人再写
+		///    `MovementInputVector` ⇒ 引擎沿用最后一帧那个"往前走"的输入，**人反而以步速直走不停**
+		///    （实机 = `body[move=1.00 speed=1.3 nav=none] aiPaused=True`；`bind body all 0` 或
+		///    只不冻 AI 就正常停下、也能被牵着走）。而且暂停期间我们每 0.2 s 的清零（`hold`）不生效
+		///    —— 2026-10-20 那条"沿自己原版方向走"的补丁其实一直在治这个副作用。
+		///    城镇里**脑层（关村镇行为组）已经足够**，不需要冻 AI。
+		///
+		/// 🔴 **战场**：默认仍自动冻（见 <see cref="BodyPauseInBattle"/>，推断未复验，可用开关关闭验伪）。
+		/// </summary>
+		private static bool ShouldPauseAI()
+		{
+			if (BodyPause) return true;          // 显式打开（A/B 用；`custom.grapple bind body pause 1`）
+			try
+			{
+				// 战场/决斗/竞技场等（脑不跑）—— 可被 `battlepause 0` 关掉做验证
+				return BodyPauseInBattle && Settings.Instance.IsInteractionDisabled();
+			}
+			catch (Exception) { return false; }
+		}
+
 		/// <summary>压制复核的计时器（<see cref="VerifySuppression"/>）。</summary>
 		private float _verifyTimer;
 		private float _poseProbeTimer;      // "状态机 vs 引擎实际动作"一致性探针的 1s 闸门（见 TickTargetMachine）
@@ -381,8 +426,13 @@ namespace LivingWorldNpcs
 			//   🔴 **它不写朝向**（2026-10-20 实机修正）：写 `SetMovementDirection(Vec2.Zero)` 不是"保持"，
 			//      引擎会把身体转回它自己的 look 方向 ⇒ 实机症状「拉倒后头先朝玩家、过一会又转回原方向」。
 			//      朝向归本文件：`EnterYank` 的"朝玩家"、`TickLeash` 的"朝绳主"写完之后，没人再盖它。
-			SetTargetAIPaused(a, true);
-			AgentControlHelper.HoldInPlace(a);
+			if (ShouldPauseAI()) SetTargetAIPaused(a, true);
+			if (BodyHold) AgentControlHelper.HoldInPlace(a);
+			// 🔴 **还必须掐断村镇导航器**（2026-10-21 实机根因）：`DailyBehaviorGroup` 之外，
+			//    `AgentNavigator.Tick` 有一支"走向并使用物件"的通道（`TargetUsableMachine`）——
+			//    它**每帧**重下 `SetScriptedPositionAndDirection`，既把人拖着走、又把我们的
+			//    `DoNotRun|NoAttack` 旗标整个覆盖（实机 = 每 0.2 s 报"旗标被还原"、人以 1.5 m/s 走）。
+			if (BodyNav) AgentControlHelper.SuspendNavigator(a);
 			if (a != null && ReferenceEquals(a, Agent.Main))
 			{
 				try { V.SetPlayerControlFrozen(a, true); }
@@ -1077,11 +1127,14 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void MarkTargetBound()
 		{
-			try
+			if (BodyFlags)
 			{
-				_target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
+				try
+				{
+					_target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
+				}
+				catch (Exception) { }
 			}
-			catch (Exception) { }
 
 			try
 			{
@@ -1935,17 +1988,20 @@ namespace LivingWorldNpcs
 			//    `BoundAction` 每 0.2s 设的，那层已改成纯占位 —— 这个位语义是"别动，你正在交互中"，
 			//    少了它，被捆的人会被别的系统当成"空闲可搭话"。
 			bool flagsWereMissing = false;
-			try
+			if (BodyFlags)
 			{
-				Agent.AIScriptedFrameFlags before = _target.GetScriptedFlags();
-				Agent.AIScriptedFrameFlags want = before
-					| Agent.AIScriptedFrameFlags.DoNotRun
-					| Agent.AIScriptedFrameFlags.NoAttack
-					| Agent.AIScriptedFrameFlags.InConversation;
-				flagsWereMissing = want != before;
-				if (flagsWereMissing) _target.SetScriptedFlags(want);
+				try
+				{
+					Agent.AIScriptedFrameFlags before = _target.GetScriptedFlags();
+					Agent.AIScriptedFrameFlags want = before
+						| Agent.AIScriptedFrameFlags.DoNotRun
+						| Agent.AIScriptedFrameFlags.NoAttack
+						| Agent.AIScriptedFrameFlags.InConversation;
+					flagsWereMissing = want != before;
+					if (flagsWereMissing) _target.SetScriptedFlags(want);
+				}
+				catch (Exception) { }
 			}
-			catch (Exception) { }
 
 			// ② 原版 AI 冻结：幂等重压（引擎的部署收尾会把**全场**解冻，战斗里尤其要盯）
 			//    🔴 走 HoldTarget 而不只 SetTargetAIPaused：它还会把"行进输入=0 / 限速 0"
@@ -1954,7 +2010,10 @@ namespace LivingWorldNpcs
 			try { wasUnpaused = !_target.IsPaused; } catch (Exception) { }
 			// 🔴 **缠 / 拽倒 / 拖动 期间不碰他的移动**（2026-10-20）：那几拍位置与移动归本类，
 			//    复核只补"AI 冻结"这一项；否则就是"一边每帧瞬移、一边每 0.2s 写行进输入/限速"。
-			if (IsMovingBody) SetTargetAIPaused(_target, true);
+			if (IsMovingBody)
+			{
+				if (ShouldPauseAI()) SetTargetAIPaused(_target, true);
+			}
 			else HoldTarget(_target);
 
 			// ③ 只有"真的被还原过"才打一行 —— 这是"复核到底有没有在干活"的唯一证据
@@ -2397,14 +2456,100 @@ namespace LivingWorldNpcs
 				face = $"move={MathF.Atan2(md.y, md.x) * (180f / MathF.PI):F0}deg look={MathF.Atan2(ld.y, ld.x) * (180f / MathF.PI):F0}deg";
 			}
 			catch (Exception) { }
+			// 🔴 **身体驱动源诊断**（2026-10-21 立）：`move` = 引擎行进输入长度，`speed` = 实际速度，
+			//    `nav` = 村镇导航器**当前激活的组/行为**，`machine` = 是否还挂着"走向并使用物件"的目标
+			//    （`yes` ⇒ `AgentNavigator.Tick` 会绕过行为组每帧重下移动指令，人被它拖着走）。
+			//    被绑住时正确读数：`move≈0 speed≈0 nav=DailylBehaviorGroup/none machine=no`。
+			string body = "-";
+			try
+			{
+				string mv = "?", sp = "?", navGrp = "no-nav", navBeh = "-", navMachine = "-", navTgt = "-";
+				try { mv = _target.MovementInputVector.Length.ToString("F2"); } catch (Exception) { }
+				try { Vec3 av = _target.AverageVelocity; sp = new Vec2(av.x, av.y).Length.ToString("F2"); } catch (Exception) { }
+				try
+				{
+					var nav = _target.GetComponent<SandBox.CampaignAgentComponent>()?.AgentNavigator;
+					if (nav != null)
+					{
+						navGrp = nav.GetActiveBehaviorGroup()?.GetType().Name ?? "none";
+						navBeh = nav.GetActiveBehavior()?.GetType().Name ?? "none";
+						if (nav.TargetUsableMachine != null)
+						{
+							// ⚠️ 只打类型名：`GameEntity` 在 1.5.x 是 `WeakGameEntity` 结构体（不能 `?.`），
+							//    类型名已经够分辨"椅子/摊位/站位点"这一类，且两版都安全。
+							navMachine = nav.TargetUsableMachine.GetType().Name;
+						}
+						else navMachine = "no";
+						// 🔴 **导航器当前的目标点**（决定性判据）：它离玩家多远 = 他"想去哪"。
+						//    `dPlayer≈0` = 目标就是玩家（跟随/追人）；`dPlayer` 很大 = 固定点（物件/门）。
+						try
+						{
+							WorldPosition tp = nav.TargetPosition;
+							if (tp.IsValid)
+							{
+								float dP = Agent.Main != null ? tp.GetGroundVec3().Distance(Agent.Main.Position) : -1f;
+								navTgt = $"dPlayer={dP:F1}";
+							}
+							else navTgt = "none";
+						}
+						catch (Exception) { navTgt = "?"; }
+					}
+				}
+				catch (Exception) { }
+				body = $"move={mv} speed={sp} nav={navGrp}/{navBeh} machine={navMachine} tgt[{navTgt}]"
+					+ EngineProbe();
+			}
+			catch (Exception) { }
 			return $"bind: {_phase} | 目标={tgt} | {timer:F2}/{limit:F2}s | anim={anim} | 动作={act}"
 				+ $" | 钩={Fmt(_hookPos)} | 拖距={DragDistance:F1}m 超时={BoundSeconds:F0}s"
 				+ $" 拉倒起身={LaySeconds:F1}s{carry}"
 				+ $" | leash[{leash}]{lead}"
 				+ $" | face[{face}]"
+				+ $" | body[{body}]"
 				+ $" | takeover[{takeover}]"
 				+ (_layTimer > 0f ? $" | 起身倒计时={_layTimer:F1}s" : "")
 				+ (_forcedAnim != null ? $" | 🔒强制={_forcedAnim}" : "");
+		}
+
+		/// <summary>
+		/// **引擎侧驱动探针**（2026-10-21 立）：`bind state` 的 `body[...]` 尾巴。
+		/// 当导航器、牵绳、动画都排除之后，用它一眼看出**引擎自己手里还攥着什么**：
+		///   · `ctrl`  = `Agent.Controller`（AI / Player / None）—— 不是 AI 就说明有人改了控制器；
+		///   · `vel`   = 本帧速度（水平，m/s）；
+		///   · `tpos`  = **引擎原生目标点** `Agent.GetTargetPosition()` + 离他自己多远
+		///               （`d` 在缩小 = 引擎在朝那个点走；`d` 很大 = 没设/无效）；
+		///   · `using` = 正在使用的物件类型（`CurrentlyUsedGameObject`）；
+		///   · `form`  = 所属编队（编队移动令也会推人走）；
+		///   · `flags` = 脚本旗标整数（`DoNotRun|NoAttack|InConversation` 稳定在 13 就对）。
+		/// 只读、全部吞异常 —— 读不到打 `?`，绝不影响流程。
+		/// </summary>
+		private string EngineProbe()
+		{
+			string ctrl = "?", vel = "?", tpos = "?", usingGo = "?", form = "?", flags = "?";
+			try { ctrl = _target.Controller.ToString(); } catch (Exception) { }
+			try
+			{
+				Vec3 v = _target.Velocity;
+				vel = $"{new Vec2(v.x, v.y).Length:F2}";
+			}
+			catch (Exception) { }
+			try
+			{
+				Vec2 tp = _target.GetTargetPosition();
+				float d = tp.Distance(_target.Position.AsVec2);
+				tpos = $"({tp.x:F1},{tp.y:F1}) d={d:F1}";
+			}
+			catch (Exception) { }
+			try
+			{
+				UsableMissionObject go = _target.CurrentlyUsedGameObject;
+				usingGo = go == null ? "no" : go.GetType().Name;
+			}
+			catch (Exception) { }
+			try { form = _target.Formation == null ? "none" : ((int)_target.Formation.FormationIndex).ToString(); }
+			catch (Exception) { }
+			try { flags = ((int)_target.GetScriptedFlags()).ToString(); } catch (Exception) { }
+			return $" | eng[ctrl={ctrl} vel={vel} tpos{tpos} using={usingGo} form={form} flags={flags}]";
 		}
 
 		private static string SafeName(Agent a)

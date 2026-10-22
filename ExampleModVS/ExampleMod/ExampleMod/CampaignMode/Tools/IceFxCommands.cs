@@ -25,7 +25,8 @@ namespace LivingWorldNpcs.CampaignMode
     /// </code>
     ///
     /// **怎么指定"哪个士兵"**（三选一）：
-    ///   · **不写** —— 先看**准星指着谁**，没指着人就退到"最近的其他人"（多数时候够用）；
+    ///   · **不写** —— 先看**交互焦点**（准星指着、面板/HUD 显示的那一个，`GetAimedAgent`），
+    ///     没指着人就退到"最近的其他人"（多数时候够用）；
     ///   · `#12` 或 `12` —— 按 agent 编号（编号哪来？敲 `custom.ice list` 看）；
     ///   · `me` —— 玩家自己。
     ///
@@ -37,9 +38,6 @@ namespace LivingWorldNpcs.CampaignMode
     /// </summary>
     public static class IceFxCommands
     {
-        /// <summary>准星射线打这么远（米）。</summary>
-        private const float LookRayLength = 80f;
-
         [CommandLineFunctionality.CommandLineArgumentFunction("ice", "custom")]
         public static string ExecuteIce(List<string> args)
         {
@@ -187,7 +185,7 @@ namespace LivingWorldNpcs.CampaignMode
             Agent me = Agent.Main;
             if (m == null || me == null) return "error: no main agent.";
 
-            Agent looked = FindLookedAt();
+            Agent looked = AimedHuman();
             List<KeyValuePair<float, Agent>> list = new List<KeyValuePair<float, Agent>>();
             foreach (Agent ag in m.Agents)
             {
@@ -224,29 +222,19 @@ namespace LivingWorldNpcs.CampaignMode
         }
 
         /// <summary>
-        /// 准星指着谁 —— 相机原点沿视线打一条 80m 的射线问引擎（`Mission.RayCastForClosestAgent`）。
-        /// 方向走 <see cref="CameraLook.TryGet"/>（铁律 35：接管期间只有它算得对），
-        /// 位置照读 `Mission.GetCameraFrame().origin`（位置两种相机下都对）。
+        /// 准星指着谁 —— 🔴 **走唯一轮子**：`InteractionMissionView.GetAimedAgent()`
+        /// （当帧焦点 → 上一帧缓存；与交互面板/HUD 显示的是同一个目标）。
+        /// 2026-10-21 收口：本文件原来那份 80 m 自打射线已删（"瞄着谁"只留一个口径）。
+        /// 这里只要**人**（马/牲畜不是本命令的对象）。
         /// </summary>
-        private static Agent FindLookedAt()
+        private static Agent AimedHuman()
         {
-            Mission m = Mission.Current;
-            Agent me = Agent.Main;
-            if (m == null || me == null) return null;
             try
             {
-                Vec3 forward;
-                if (!CameraLook.TryGet(out forward)) return null;
-                Vec3 origin = m.GetCameraFrame().origin;
-                Vec3 finish = origin + forward * LookRayLength;
-                float dist;
-                return V.RayCastForClosestAgent(m, origin, finish, me.Index, 0.15f, out dist);
+                Agent a = InteractionMissionView.Instance?.GetAimedAgent();
+                return a != null && a.IsHuman ? a : null;
             }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[IceFx] 准星射线异常: {ex.Message}");
-                return null;
-            }
+            catch (Exception) { return null; }
         }
 
         // ── 目标选择 ──────────────────────────────────────────────
@@ -288,7 +276,7 @@ namespace LivingWorldNpcs.CampaignMode
             }
 
             // 准星优先（不写目标时也走这条路）—— "冻住我面前这个"是最自然的手感
-            Agent looked = FindLookedAt();
+            Agent looked = AimedHuman();
             if (looked != null && looked != Agent.Main) return looked;
             if (explicitLook)
                 note += " [note: nothing under the crosshair -> using nearest]";

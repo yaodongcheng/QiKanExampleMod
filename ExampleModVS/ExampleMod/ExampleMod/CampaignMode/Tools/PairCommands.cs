@@ -550,8 +550,8 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                     return byId;
             }
 
-            InteractionMissionView view = InteractionMissionView.Instance;
-            return view?.GetFocusdAgent() ?? view?.LastFocusedAgent;
+            // 交互焦点 = 唯一口径（`GetAimedAgent`：当帧焦点 → 上一帧缓存）
+            return InteractionMissionView.Instance?.GetAimedAgent();
         }
 
         private static Agent FindNearestNpc(Agent around, Agent exclude1, Agent exclude2, float maxDist)
