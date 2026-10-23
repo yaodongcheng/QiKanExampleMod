@@ -16,6 +16,7 @@ git_assets.py — 把 AssetPackages 的包存到 GitHub 上当网盘（只留最
 用法
     python git_assets.py            看两边一不一样（默认动作，只看不动）
     python git_assets.py status     同上
+    python git_assets.py check      只报结论，给 GUI 判断按钮亮不亮（比 status 省流量）
     python git_assets.py save       上传（内容跟上次一样就什么都不做）
     python git_assets.py load       下载，覆盖本地
     python git_assets.py save --yes 远程那份你没见过时，别问，直接覆盖
@@ -23,6 +24,7 @@ git_assets.py — 把 AssetPackages 的包存到 GitHub 上当网盘（只留最
 
 退出码
     0 = 正常 / 内容没变      1 = 出错      3 = 需要你确认（加 --yes 再跑一次）
+    check 专用：0 = 两边一样   4 = 两边不一样   5 = 远程还没有快照
 
 铁律
     .bak 备份文件绝不上传：只认 *.tpac 结尾，名字里带 bak 的一律跳过。
@@ -483,6 +485,48 @@ def cmd_status():
     return 0
 
 
+# ── 快速核对（给 GUI 用）──────────────────────────────────────────────
+
+def cmd_check():
+    """只报一句结论、不写任何东西 —— 让 GUI 知道「上传/下载」该不该亮。
+
+    比 status 省：本地见过远程那一份时，清单直接从本地引用读，
+    不用把十几兆的包再拉一遍。
+
+    退出码：0 = 两边一样 · 4 = 两边不一样 · 5 = 远程还没有快照
+    """
+    local = scan_local()
+    exists, remote_sha = ls_remote()
+    if not exists:
+        out("远程还没有资产快照（上传会建第一份）")
+        return 5
+
+    if ref_sha(REF) == remote_sha:
+        manifest = read_manifest(REF) or {}       # 本地就有这份，免联网取包
+    else:
+        fetch_snapshot()
+        manifest = read_manifest(REMOTE_REF) or {}
+
+    remote_files = manifest.get("files") or {}
+    if fmt_map(local) == fmt_map(remote_files):
+        out(f"两边一样（{len(local)} 个包）")
+        return 0
+
+    same = set(local) & set(remote_files)
+    changed = sorted(n for n in same if local[n]["md5"] != remote_files[n]["md5"])
+    local_only = sorted(set(local) - set(remote_files))
+    remote_only = sorted(set(remote_files) - set(local))
+    bits = []
+    if changed:
+        bits.append("改了 " + "、".join(changed))
+    if local_only:
+        bits.append("本地多 " + "、".join(local_only))
+    if remote_only:
+        bits.append("远程多 " + "、".join(remote_only))
+    out("两边不一样 —— " + "；".join(bits))
+    return 4
+
+
 # ── 入口 ──────────────────────────────────────────────────────────────
 
 def main(argv=None):
@@ -490,8 +534,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(
         description="把 AssetPackages 的包存到 GitHub 上当网盘（只留最新一份）")
     ap.add_argument("action", nargs="?", default="status",
-                    choices=["status", "save", "load"],
-                    help="status=看两边差异（默认） save=上传 load=下载")
+                    choices=["status", "save", "load", "check"],
+                    help="status=看两边差异（默认） check=只报结论 save=上传 load=下载")
     ap.add_argument("--yes", action="store_true",
                     help="需要确认的时候别问，直接干（覆盖远程 / 覆盖本地）")
     args = ap.parse_args(argv)
@@ -501,6 +545,8 @@ def main(argv=None):
             return cmd_save(args.yes)
         if args.action == "load":
             return cmd_load(args.yes)
+        if args.action == "check":
+            return cmd_check()
         return cmd_status()
     except GitError as e:
         print(f"❌ {e}")

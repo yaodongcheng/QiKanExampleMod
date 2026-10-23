@@ -8,6 +8,7 @@ from tkinter import messagebox, simpledialog, scrolledtext, ttk
 import subprocess
 import sys
 import os
+import threading
 
 # 切换到项目目录
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -20,6 +21,10 @@ GIT_PATH = None
 status_label = None
 file_list_text = None
 push_only_btn = None
+assets_upload_btn = None
+assets_download_btn = None
+root_window = None
+asset_note = ""          # 资产核对结论，贴在状态栏最后
 
 
 def run_git(cmd):
@@ -548,6 +553,9 @@ def update_status_label():
     if total == 0 and unpushed == 0 and behind == 0:
         parts.append("工作区干净")
 
+    if asset_note:
+        parts.append(asset_note)
+
     if behind > 0 or unpushed > 0:
         color = "red"
     elif total > 0:
@@ -573,18 +581,67 @@ def update_status_label():
 
 ASSET_TOOL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "git_assets.py")
 
+UPLOAD_COLOR = "#3F51B5"
+DOWNLOAD_COLOR = "#009688"
+GRAY_COLOR = "#9E9E9E"
 
-def _call_asset_tool(action, yes=False):
+
+def _call_asset_tool(action, yes=False, timeout=900):
     """跑 git_assets.py，返回 (退出码, 输出文本)"""
     if not os.path.isfile(ASSET_TOOL):
         return 1, f"找不到 {ASSET_TOOL}"
     cmd = [sys.executable, ASSET_TOOL, action] + (["--yes"] if yes else [])
     try:
         result = subprocess.run(cmd, capture_output=True, text=True,
-                                encoding="utf-8", errors="replace", timeout=900)
+                                encoding="utf-8", errors="replace", timeout=timeout)
     except subprocess.TimeoutExpired:
-        return 1, "等了 15 分钟还没结束，先检查网络再试"
+        return 1, f"等了 {max(1, timeout // 60)} 分钟还没结束，先检查网络再试"
     return result.returncode, ((result.stdout or "") + (result.stderr or "")).strip()
+
+
+def _set_asset_buttons(same):
+    """两边一模一样就把两个按钮压灰：按下去也只会弹"没有可传/可拉的东西"。"""
+    state = tk.DISABLED if same else tk.NORMAL
+    if assets_upload_btn is not None:
+        assets_upload_btn.config(state=state, bg=GRAY_COLOR if same else UPLOAD_COLOR)
+    if assets_download_btn is not None:
+        assets_download_btn.config(state=state, bg=GRAY_COLOR if same else DOWNLOAD_COLOR)
+
+
+def _apply_asset_state(code, text):
+    """核对结果回来：0=一样 4=不一样 5=远程还没有，其他=没核对上（联网失败）"""
+    global asset_note
+    if code == 0:
+        _set_asset_buttons(True)
+    else:
+        # 4/5 该亮；出错时也不锁死 —— 网络抖一下不该让按钮点不了
+        _set_asset_buttons(False)
+
+    first_line = (text or "").strip().splitlines()
+    # 只取冒号前面那一小段，免得状态栏里括号套括号
+    detail = (first_line[0] if first_line else "").split("：")[0].split("（")[0].strip("。 ")
+    if code == 0:
+        asset_note = "📦 资产：与远程一致"
+    elif code == 4:
+        asset_note = "📦 资产：有改动待上传"
+    elif code == 5:
+        asset_note = "📦 资产：远程还没有快照"
+    else:
+        # 只有"没核对上"才把原因贴出来（别的结论说了也够，状态栏放不下）
+        asset_note = "📦 资产：未能核对" + (f"（{detail[:24]}）" if detail else "")
+    update_status_label()
+
+
+def refresh_asset_state():
+    """后台比对本地包和远程快照的 md5，回来后决定按钮亮不亮（不卡界面）"""
+    def work():
+        code, text = _call_asset_tool("check", timeout=60)
+        if root_window is not None:
+            try:
+                root_window.after(0, lambda: _apply_asset_state(code, text))
+            except RuntimeError:
+                pass               # 窗口已经关了
+    threading.Thread(target=work, daemon=True).start()
 
 
 def _run_asset_tool(action, title, ask_title, ask_question):
@@ -604,21 +661,25 @@ def assets_upload():
     """上传资产：把 AssetPackages 的 tpac 传到远程 assets 分支"""
     _run_asset_tool("save", "上传资产", "要覆盖远程快照吗？",
                     "上传会把远程那份整个换掉，找不回来。")
+    refresh_asset_state()
 
 
 def assets_download():
     """下载资产：把远程 assets 分支的 tpac 拉回本地"""
     _run_asset_tool("load", "下载资产", "要覆盖本地这些包吗？",
                     "下载会把本地改过的包覆盖掉，找不回来。")
+    refresh_asset_state()
 
 
 def main():
     """主界面"""
     global status_label, file_list_text, push_only_btn
+    global assets_upload_btn, assets_download_btn, root_window
 
     project_name = get_project_name()
 
     root = tk.Tk()
+    root_window = root
     root.title(f"Git 快捷工具 - {project_name}")
     root.geometry("620x690")
     root.resizable(False, False)
@@ -668,7 +729,8 @@ def main():
 
     tk.Button(row2, text="🔄 刷新状态", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 10),
-              command=lambda: [update_file_list(), update_status_label()]).pack(side=tk.LEFT, padx=5)
+              command=lambda: [update_file_list(), update_status_label(),
+                               refresh_asset_state()]).pack(side=tk.LEFT, padx=5)
 
     tk.Button(row2, text="📜 提交历史", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 10),
@@ -682,13 +744,15 @@ def main():
     row3 = tk.Frame(btn_frame)
     row3.pack(pady=5)
 
-    tk.Button(row3, text="📦 上传资产", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10), bg="#3F51B5", fg="white",
-              command=assets_upload).pack(side=tk.LEFT, padx=5)
+    assets_upload_btn = tk.Button(row3, text="📦 上传资产", width=btn_width, height=btn_height,
+                                  font=("Microsoft YaHei", 10), bg=UPLOAD_COLOR, fg="white",
+                                  command=assets_upload)
+    assets_upload_btn.pack(side=tk.LEFT, padx=5)
 
-    tk.Button(row3, text="📥 下载资产", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10), bg="#009688", fg="white",
-              command=assets_download).pack(side=tk.LEFT, padx=5)
+    assets_download_btn = tk.Button(row3, text="📥 下载资产", width=btn_width, height=btn_height,
+                                    font=("Microsoft YaHei", 10), bg=DOWNLOAD_COLOR, fg="white",
+                                    command=assets_download)
+    assets_download_btn.pack(side=tk.LEFT, padx=5)
 
     # 文件列表显示区
     list_frame = tk.LabelFrame(root, text="文件状态", font=("Microsoft YaHei", 11), padx=10, pady=10)
@@ -718,6 +782,7 @@ def main():
     # 初始化状态
     update_file_list()
     update_status_label()
+    refresh_asset_state()      # 后台联网比对一次，决定资产按钮亮不亮
 
     root.mainloop()
 
