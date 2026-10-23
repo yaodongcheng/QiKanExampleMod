@@ -230,6 +230,21 @@ namespace LivingWorldNpcs.Flight
         private SpringArmCameraParam _handBackFrom;
         private SpringArmCameraParam _handBackTo;
 
+        // 🔴 归还（2026-10-23，照抄钩索 `SpringArmRig` 的归还规则）：
+        //    · 时长与进场**分开**（`CamHandBackSeconds` 默认 1.2s；进场仍是 `CamBlendIn` 0.45s）；
+        //    · 滑完**不立刻撒手** —— 要等"玩家拿回控制权（解冻）+ 引擎那次相机重置跑完"，
+        //      否则我们写回的朝向会被引擎重置打掉 = 落地镜头跳一下（合并机器 2026-10-10 踩过）。
+        private float _handBackDur = 0.45f;
+        private float _handHoldT;             // 滑完之后的等待计时（秒）
+        private int _releaseGrace;            // 控制权回来后又等了几帧
+
+        /// <summary>滑完后再等几帧才撒手（照抄 <see cref="SpringArmRig"/> 的 ReleaseGraceFrames = 4）。</summary>
+        private const int HandBackReleaseGraceFrames = 4;
+
+        /// <summary>滑完之后最多等多久（秒）。比合并机器的 1.2 更长：飞行落地是"下滑段 + 落地动画"
+        /// 两段（`LandAnimSeconds` 默认 2s），滑行可能还没演完就结束了 —— 等够才不会在解冻前撒手。</summary>
+        private const float HandBackHoldMaxSeconds = 3f;
+
         /// <summary>相机是否正在接管。</summary>
         public bool IsActive => _active;
 
@@ -288,6 +303,8 @@ namespace LivingWorldNpcs.Flight
                 _current = PresetOf((int)FlightCamPreset.Cruise);
                 _blendDur = Math.Max(0.01f, FlightTuning.CamBlendIn);
                 _handingBack = false;              // 二次起飞：取消可能还在走的归还渐变
+                _handHoldT = 0f;
+                _releaseGrace = 0;
 
                 // 记下默认相机此刻的**视距 / FOV**（归还时按它们渐变回去）
                 _engineDistAtTakeover = _screen != null ? _screen.CameraResultDistanceToTarget : -1f;
@@ -397,11 +414,11 @@ namespace LivingWorldNpcs.Flight
         }
 
         /// <summary>
-        /// **开始"渐变回默认相机"**（2026-09-22 用户要求）—— 不马上撒手，先用
-        /// <see cref="FlightTuning.CamBlendIn"/> 的时间把**视距 / FOV** 渐变回接管时记下的默认值，
-        /// 渐变走完才真的 `CustomCamera = null`。
+        /// **开始"渐变回默认相机"**（2026-09-22 用户要求；2026-10-23 照抄钩索重做时机与时长）—— 不马上撒手，
+        /// 先用 <see cref="FlightTuning.CamHandBackSeconds"/>（默认 1.2s）把**视距 / FOV** 渐变回接管时记下的默认值，
+        /// 滑完还要等"玩家拿回控制权 + 引擎那次相机重置跑完"才真的撒手（见 <see cref="Tick"/>）。
         ///
-        /// 为什么：归还时引擎相机按它自己的视距/FOV 复位，而我们的机位跟它差很多
+        /// 为什么要渐变：归还时引擎相机按它自己的视距/FOV 复位，而我们的机位跟它差很多
         /// （实测引擎 3.4/65 vs 巡航 5.5/70、冲刺 9/80）⇒ 硬切一下，俯冲落地尤其明显。
         /// 朝向不渐（我们的 yaw/pitch 就是玩家刚看的方向，撒手前会写回引擎，见 <see cref="HandBackLookToEngine"/>）。
         /// </summary>
@@ -417,10 +434,30 @@ namespace LivingWorldNpcs.Flight
             if (_engineFovAtTakeover > 20f && _engineFovAtTakeover < 130f)
                 _handBackTo.Fov = _engineFovAtTakeover;
 
+            // 🔴🔴 **终点必须是"引擎等价机位"**（2026-10-23 修用户报的"落地相机各种参数突变"）：
+            //    引擎算锚点用的是 VisualPosition + (眼高+0.2)×缩放（人形 ≈1.90 m）+ **引擎自带的 +0.484 m 抬升**；
+            //    而飞行四档在 `Camera.csv` 里 `UseEngineEyeHeight=0`（旧口径 = 逻辑位置 + 1.46 m，**不带**那条抬升）
+            //    ⇒ 两边锚点差 ≈0.9 米。只渐臂长/FOV 的话，这 0.9 米（还有 `fly_aim` 的 0.75 m 横移）
+            //    就在撒手瞬间一次性补上 —— 玩家看到的就是"参数突变"。
+            //    钩索的 `grapple_pull` 行本来就是 `UseEngineEyeHeight=1`、偏移全 0，所以它落地不跳。
+            //    ⇒ 这里把终点按引擎口径对齐；真正收敛靠 Tick 里的**插帧**（插参数会踩 `SpringArmMath.Lerp`
+            //      对眼高口径那个 t=0.5 的硬开关）。
+            _handBackTo.UseEngineEyeHeight = true;
+            _handBackTo.PivotX = _handBackTo.PivotY = _handBackTo.PivotZ = 0f;
+            _handBackTo.SocketX = _handBackTo.SocketY = _handBackTo.SocketZ = 0f;
+            _handBackTo.SelfYaw = _handBackTo.SelfPitch = _handBackTo.SelfRoll = 0f;
+            _handBackTo.FovPerVz = _handBackTo.ArmPerVz = _handBackTo.RollPerYawRate = 0f;
+            _handBackTo.LagSpeed = 0f;
+            _handBackTo.LagMaxDistance = 0f;
+
             _handBackT = 0f;
+            _handBackDur = Math.Max(0.05f, FlightTuning.CamHandBackSeconds);
+            _handHoldT = 0f;
+            _releaseGrace = 0;
             _handingBack = true;
             DebugLogger.Log($"[FlightCam] 开始渐变回默认相机（视距 {_handBackFrom.ArmLength:F1}→{_handBackTo.ArmLength:F1} " +
-                            $"fov {_handBackFrom.Fov:F0}→{_handBackTo.Fov:F0}，用时 {_blendDur:F2}s）");
+                            $"fov {_handBackFrom.Fov:F0}→{_handBackTo.Fov:F0}，用时 {_handBackDur:F2}s，" +
+                            $"撒手前等玩家拿回控制权；清特殊相机修正={(FlightTuning.CamHandBackClearSpecial ? "开" : "关")}）");
         }
 
         /// <summary>归还渐变是否还在走（行为层据此决定还要不要继续 Tick 相机）。</summary>
@@ -433,11 +470,17 @@ namespace LivingWorldNpcs.Flight
                 return;
 
             _active = false;
+            _handingBack = false;                // 立刻归还时别把"归还中"留在状态里
             _lag.Reset();                        // 弹簧跟随状态不留到下次（下次接管当帧对齐）
             _motion = default;
             try
             {
                 HandBackLookToEngine();          // 🔴 先写回朝向，再撒手（否则引擎相机甩回接管那一刻）
+                // 🔴 **撒手前清掉引擎"特殊相机"的冻结修正**（照抄钩索的 `ClearSpecial`）：
+                //    我们接管期间 `CheckForUpdateCamera` 整段早退 ⇒ `_cameraSpecial*` 冻在接管那一刻；
+                //    引擎恢复的第一帧会先带上这份冻值、再按 4/s 抹掉 —— 观感就是落地"咯噔"一下。
+                if (FlightTuning.UseCamHandover && FlightTuning.CamHandBackClearSpecial)
+                    SpringArmRig.ClearEngineSpecialCameraAdds();
                 // 🔴 **只还自己那台**（2026-10-05 阶段 2 修的老 bug：原来无条件置 null，
                 //    会把别人（演出/钩索）正在用的相机踩掉）：服务先退登记，再按对象比对撒手。
                 CameraService.ReleaseExternal("flight");
@@ -509,6 +552,10 @@ namespace LivingWorldNpcs.Flight
             _blendDur = Math.Max(0.01f, transitionSeconds);
         }
 
+        /// <summary>按比例缩放运动量（归还期间淡出用；Speed 只做诊断，原样带过）。</summary>
+        private static SpringArmMotion ScaleMotion(in SpringArmMotion m, float k)
+            => new SpringArmMotion { Vz = m.Vz * k, YawRate = m.YawRate * k, Speed = m.Speed };
+
         /// <summary>每帧推进渐变并写入相机。**必须在飞行期间每帧调**。</summary>
         public void Tick(Agent agent, float dt)
         {
@@ -517,16 +564,32 @@ namespace LivingWorldNpcs.Flight
 
             try
             {
+                float handT = 0f;
                 if (_handingBack)
                 {
                     // 归还渐变：**不再走常规机位解算**（否则下面那两行会把 _current 覆盖回预置）
-                    _handBackT = Math.Min(1f, _handBackT + (_blendDur <= 0f ? 1f : dt / _blendDur));
-                    _current = SpringArmMath.Lerp(in _handBackFrom, in _handBackTo, SpringArmMath.Ease(_handBackT));
+                    _handBackT = Math.Min(1f, _handBackT + (_handBackDur <= 0f ? 1f : dt / _handBackDur));
+                    handT = SpringArmMath.Ease(_handBackT);
+                    _current = SpringArmMath.Lerp(in _handBackFrom, in _handBackTo, handT);
                     if (_handBackT >= 1f)
                     {
-                        _handingBack = false;
-                        Exit();                       // 渐变走完 → 真的撒手（内部会写回朝向）
-                        return;
+                        // 🔴 **滑完不立刻撒手**（2026-10-23，照抄钩索/合并机器的规则）：
+                        //    撒手必须晚于「玩家拿回控制权」与「引擎解冻后那次相机重置」——
+                        //    否则我们写回的朝向会被引擎重置打掉 = 落地镜头跳一下。
+                        //    控制权判据 = 主角不再由 AI 控制（飞行冻结 = Controller=AI + AI 暂停）。
+                        bool hasControl = !V.IsAgentAI(Mission.Current?.MainAgent);
+                        _releaseGrace = hasControl ? _releaseGrace + 1 : 0;
+                        if (_releaseGrace < HandBackReleaseGraceFrames && _handHoldT < HandBackHoldMaxSeconds)
+                        {
+                            // 等：本帧继续用"引擎视距 + 玩家当前朝向"摆相机（画面不变，只是不再归我们之后才撒手）
+                            _handHoldT += dt;
+                        }
+                        else
+                        {
+                            _handingBack = false;
+                            Exit();                   // 真的撒手（内部写回朝向 + 清特殊相机修正）
+                            return;
+                        }
                     }
                 }
                 else
@@ -541,15 +604,49 @@ namespace LivingWorldNpcs.Flight
                 }
 
                 // 🔴 世界锚定 + 鼠标朝向：机位预置里的 ArmYaw/ArmPitch 当**额外偏置**加在鼠标角上
-                SpringArmCameraParam p = _current;
-                p.IsAnchorWorld = true;
-                p.ArmYaw = _lookYaw + _current.ArmYaw;
-                p.ArmPitch = _lookPitch + _current.ArmPitch;
+                MatrixFrame frame;
+                float fovDeg;
+                if (_handingBack)
+                {
+                    SpringArmCameraParam from = _handBackFrom;
+                    from.IsAnchorWorld = true;
+                    from.ArmYaw = _lookYaw + from.ArmYaw;
+                    from.ArmPitch = _lookPitch + from.ArmPitch;
+                    // 运动驱动随归还进度淡出 —— 视场 / 臂长 / 侧倾每一项不归零，撒手时都是一次"参数突变"
+                    SpringArmMotion fadeMotion = ScaleMotion(in _motion, 1f - handT);
+                    from = SpringArmMath.WithMotion(in from, in fadeMotion);
 
-                // 运动驱动（2026-09-28）：把本帧的运动量叠到 FOV / 臂长 / 侧倾上（`_motion` 全零 ⇒ 等于没这行）
-                p = SpringArmMath.WithMotion(in p, in _motion);
+                    SpringArmCameraParam to = _handBackTo;
+                    to.IsAnchorWorld = true;
+                    to.ArmYaw = _lookYaw + to.ArmYaw;
+                    to.ArmPitch = _lookPitch + to.ArmPitch;
 
-                SpringArmMath.ComputeFrame(agent, in p, out MatrixFrame frame, out float fovDeg);
+                    SpringArmMath.ComputeFrame(agent, in from, out MatrixFrame frameFrom, out float fovFrom);
+                    SpringArmMath.ComputeFrame(agent, in to, out MatrixFrame frameTo, out float fovTo);
+
+                    // 🔴🔴 **插的是"帧"，不是"参数"**（2026-10-23，用户实机"落地相机各种参数突变"的根治）：
+                    //    两套参数的语义不同 —— 飞行档 `UseEngineEyeHeight=0`（旧眼高 1.46），引擎/钩索用 1
+                    //    （VisualPosition + (眼高+0.2)×缩放 ≈1.90，**再加 +0.484 抬升**）；`fly_aim` 还有 0.75 m 横移。
+                    //    逐项插参数会在中途/撒手时把这些差一次性补上（眼高口径在 SpringArmMath.Lerp 里还是
+                    //    t=0.5 的硬开关）。插帧则保证进度 1 时**逐字等于引擎机位**。
+                    //    方向两边同源（同一 yaw/pitch、预置自转全 0、运动侧倾已淡出）⇒ 用 from 的旋转即可。
+                    frame = frameTo;
+                    frame.origin = frameFrom.origin + (frameTo.origin - frameFrom.origin) * handT;
+                    frame.rotation = frameFrom.rotation;
+                    fovDeg = fovFrom + (fovTo - fovFrom) * handT;
+                }
+                else
+                {
+                    SpringArmCameraParam p = _current;
+                    p.IsAnchorWorld = true;
+                    p.ArmYaw = _lookYaw + p.ArmYaw;
+                    p.ArmPitch = _lookPitch + p.ArmPitch;
+
+                    // 运动驱动（2026-09-28）：把本帧的运动量叠到 FOV / 臂长 / 侧倾上（`_motion` 全零 ⇒ 等于没这行）
+                    p = SpringArmMath.WithMotion(in p, in _motion);
+
+                    SpringArmMath.ComputeFrame(agent, in p, out frame, out fovDeg);
+                }
 
                 // ── 弹簧跟随（相机位置滞后，2026-09-27；状态已抽成共用件）──
                 //    · 归还渐变期间**不滞后**、并把偏移按 `1−进度` 淡出 ⇒ 撒手那一刻正好归零，不弹

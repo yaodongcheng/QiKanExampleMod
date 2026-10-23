@@ -27,7 +27,10 @@
       </Tags>
     </SubModule>
   </SubModules>
-  <!-- 🔴 2026-10-09 新增：通用玩法的物品定义段（钩索 2 件 · 混天绫 1 件）。
+  <!-- 🔴 2026-10-09 新增：通用玩法的物品定义段（钩索 2 件）。
+
+       ⚠️ 2026-10-23：**混天绫（`items/ribbon`）已取消注册** —— 布料模拟没做通，
+          它不再是一件物品（文件已删）。飞行开关改回 MCM Mod 选项（`Settings.FlightEnabled`）。
 
        🔴 2026-10-12 改法：**逐文件列出**（原来是整目录 `<XmlName id="Items" path="items"/>`）——
           引擎遇到"目录"会把该目录下每个 `*.xml` 都当物品**无条件**加载（反编译实锤：
@@ -50,9 +53,6 @@
     <!-- 路径不带扩展名：引擎按 `<模块>/ModuleData/<path>.xml` 解析（与 Native 的 `path="items/items"` 同款） -->
     <XmlNode>
       <XmlName id="Items" path="items/grapple" />
-    </XmlNode>
-    <XmlNode>
-      <XmlName id="Items" path="items/ribbon" />
     </XmlNode>
     <!-- ⚠️ `items/spells` 故意不在这 —— 法术体系未发布、默认关，由 SpellSystemGate 按需注册（见上） -->
   </Xmls>

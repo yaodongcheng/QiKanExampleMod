@@ -63,9 +63,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             sb.Append("  custom.item add <StringId> [amount]   add items to the main party (default 1)\n");
             sb.Append("  custom.item list [keyword]            list items: StringId + display name\n");
             sb.Append("examples:\n");
-            sb.Append("  custom.item add lwn_huntian_ling\n");
-            sb.Append("  custom.item add lwn_huntian_ling 5\n");
-            sb.Append("  custom.item list huntian\n");
+            sb.Append("  custom.item add lwn_grapple_hook\n");
+            sb.Append("  custom.item add lwn_grapple_rope 5\n");
+            sb.Append("  custom.item list grapple\n");
             return sb.ToString();
         }
 

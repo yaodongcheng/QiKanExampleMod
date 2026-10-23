@@ -69,12 +69,15 @@ namespace LivingWorldNpcs.Flight
         private const string Owner = "flight";
         private FlightCamPreset _preset = FlightCamPreset.Cruise;
 
-        /// <summary>归还策略：飞行**没有冻结/解冻**（玩家一直在操作），所以不清特殊修正、不预置俯仰；
-        /// 写回朝向跟着 `FlightTuning` 那两个开关走（与旧机器一致）。</summary>
+        /// <summary>归还策略：飞行**没有冻结/解冻**（玩家一直在操作），所以不预置俯仰；
+        /// 写回朝向跟着 `FlightTuning` 那两个开关走（与旧机器一致）。
+        /// 🔴 2026-10-23：`WriteBackLookOnRelease` = **滑行期间镜头仍归玩家**，撒手那一刻才写回
+        /// （与钩索拉拽同一套）；`ClearSpecial` = 清掉接管期间冻住的引擎特殊相机修正（落地高度台阶的根治）。</summary>
         private static CameraReturnPolicy Policy => new CameraReturnPolicy
         {
             WriteBackLook = FlightTuning.UseCamHandover && FlightTuning.CamHandBackLook,
-            ClearSpecial = false,
+            WriteBackLookOnRelease = true,
+            ClearSpecial = FlightTuning.CamHandBackClearSpecial,
             PredictReset = false,
         };
 
@@ -100,8 +103,8 @@ namespace LivingWorldNpcs.Flight
 
         public void Exit() => CameraService.Stop();
 
-        /// <summary>归还滑行时长用 <see cref="FlightTuning.CamBlendIn"/>（与旧机器的 `_blendDur` 同源）。</summary>
-        public void BeginHandBack() => CameraService.RequestHandBack(FlightTuning.CamBlendIn);
+        /// <summary>归还滑行时长用 <see cref="FlightTuning.CamHandBackSeconds"/>（默认 1.2s，与钩索同档）。</summary>
+        public void BeginHandBack() => CameraService.RequestHandBack(FlightTuning.CamHandBackSeconds);
 
         /// <summary>合并机器**自己读鼠标**（`fly_*` 行的 `MouseLook=1`）⇒ 这条是空实现。</summary>
         public void ApplyLook(float mouseDx, float mouseDy) { }

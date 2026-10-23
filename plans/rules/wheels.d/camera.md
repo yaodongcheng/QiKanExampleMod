@@ -256,3 +256,49 @@ frame.origin += _lag.Update(agent.LookFrame.origin, p.LagSpeed, p.LagMaxDistance
 5. **切 Controller（冻结/解冻玩家）⇒ 引擎重置相机**：解冻（`Agent.Controller = Player`）→ `Mission.MainAgent = this` → 下一帧 `HandleUserInput`（**每帧跑、不受 CustomCamera 挡板保护**）执行 `CameraBearing = 角色移动方向; CameraElevation = 0`。⇒ **任何"冻结玩家"的功能（钩索/飞行/未来载具），解冻后都必须按这条重新对齐**。
 6. **调试工具已归位相机模块**（2026-10-04）：`custom.cam log|stat|info|test|lift`（`Camera/CameraCommands.cs`）；`[FollowCam]` 诊断日志**默认关**（`custom.cam log 1` 打开，会话级）。
    **黄金测试** = `custom.cam test` 原地切换相机：两边**坐标厘米级一致、画面零变化**即通过（收官实测四方坐标 `(420.61,391.81,6.97)` 完全相同）。
+
+## 🔴🔴 交接两套机位参数语义不同 ⇒ **插帧，不插参数**（2026-10-23 飞行落地实战）
+
+> 症状：飞行落地时"相机各种参数突变"，钩索落地却完全平滑。**根因不在归还时长，在参数语义**：
+> `Camera.csv` 里飞行四档 `fly_*` 是 `UseEngineEyeHeight=0`（旧口径：逻辑位置 + 1.46 m、**不带** +0.484 抬升），
+> 而 `grapple_pull` 是 **1**（`VisualPosition` + (眼高+0.2)×缩放 ≈1.90 m + 抬升）⇒ 两边锚点差 **≈0.9 米**；
+> 再叠加 `fly_aim` 的 `SocketX=0.75`、运动驱动（`FovPerVz/ArmPerVz/RollPerYawRate`）——
+> 归还时**只渐臂长/FOV**，这些差就在撒手那一帧一次性补上 = 参数突变。
+
+**规则（新接管/归还相机照此办）**：
+1. 两套参数**逐项同义**（同一眼高口径、偏移全 0、无运动项）⇒ 参数 lerp / 逐项朝向引擎值即可（钩索就是这样）。
+2. 只要有一项**不同义**（布尔口径、离散开关）⇒ **归还期间按进度插"帧"**：
+   分别用"我方参数 + 已淡出的运动量"和"引擎等价参数（眼高 1 / 偏移归零 / 臂长·FOV 取接管值）"
+   各算一个 `MatrixFrame`，然后 `origin` 线性插值、`fov` 线性插值、方向用同源那个（yaw/pitch 两边相同）。
+   **判据**：进度 1 的那一帧必须与引擎机位的 5 个参数逐项相同。
+3. ⚠️ `SpringArmMath.Lerp` 对 `UseEngineEyeHeight` 是 **t=0.5 的硬开关** —— 拿它插"旧口径→引擎口径"会在中途跳 0.9 米，这正是不能插参数的原因。
+4. 运动驱动必须随进度淡出（`WithMotion(motion × (1−t))`），否则视场/侧倾各是一次撒手跳变。
+
+**关键签名**：`SpringArmMath.ComputeFrame(Agent, in SpringArmCameraParam, out MatrixFrame, out float fovDeg)` · `SpringArmMath.WithMotion(in SpringArmCameraParam, in SpringArmMotion)` · `SpringArmRig.ClearEngineSpecialCameraAdds()`（反射清 `_cameraSpecial*`，须在 `CustomCamera = null` 之前）· 表列 = `Camera.csv` 的 `UseEngineEyeHeight` / `Pivot*` / `Socket*` / `Self*` / `FovPerVz` / `ArmPerVz` / `RollPerYawRate`。
+
+**调用范例**（照抄 `Flight/FlightCameraRig.cs`）：
+
+```csharp
+// ① BeginHandBack：终点 = 引擎等价机位
+_handBackTo = _current;                       // 先照抄我方参数
+_handBackTo.ArmLength = engineDistAtTakeover; // 接管时的 CameraResultDistanceToTarget
+_handBackTo.Fov       = engineFovAtTakeover;  // 接管时的 CameraViewAngle
+_handBackTo.UseEngineEyeHeight = true;        // ← 关键：VisualPosition + 引擎眼高 + +0.484 抬升
+_handBackTo.PivotX = _handBackTo.PivotY = _handBackTo.PivotZ = 0f;
+_handBackTo.SocketX = _handBackTo.SocketY = _handBackTo.SocketZ = 0f;
+_handBackTo.SelfYaw = _handBackTo.SelfPitch = _handBackTo.SelfRoll = 0f;
+_handBackTo.FovPerVz = _handBackTo.ArmPerVz = _handBackTo.RollPerYawRate = 0f;
+
+// ② Tick 的归还分支：插帧（t = Ease(进度)）
+var fade = new SpringArmMotion { Vz = m.Vz * (1f - t), YawRate = m.YawRate * (1f - t), Speed = m.Speed };
+from = SpringArmMath.WithMotion(in from, in fade);
+SpringArmMath.ComputeFrame(agent, in from, out MatrixFrame f0, out float fov0);
+SpringArmMath.ComputeFrame(agent, in to,   out MatrixFrame f1, out float fov1);
+frame = f1;
+frame.origin = f0.origin + (f1.origin - f0.origin) * t;   // 位置插值
+frame.rotation = f0.rotation;                             // 方向同源（两边 yaw/pitch 相同）
+fovDeg = fov0 + (fov1 - fov0) * t;
+```
+
+范本 = `Flight/FlightCameraRig.cs` 的 `BeginHandBack`（终点按引擎口径归零）+ `Tick` 的 `_handingBack` 分支（插帧）。
+**配套三件（缺一仍会跳）**：撞地/落下就 `BeginHandBack`（别等落地动画演完）· 滑完等 `!V.IsAgentAI(MainAgent)` 连续 4 帧再撒手（引擎重置在解冻后的下一帧）· 撒手前 `HandBackLookToEngine()` + `ClearEngineSpecialCameraAdds()`。

@@ -524,6 +524,17 @@ namespace LivingWorldNpcs.Flight
         /// <summary>风噪事件名（module_sounds.xml 里声明的名字；空 = 不播）。</summary>
         public static string WindSoundName = "lwn_flight_wind";
 
+        /// <summary>
+        /// **只在冲刺（按住 Shift）时出风噪**（默认 <c>true</c>，2026-10-23 用户裁定）。
+        ///
+        /// 关着 = 老口径（按速度密度：巡航 9 m/s 也过门槛、照样一阵一阵地出风）；
+        /// 开着 = **巡航 / 悬停 / 坠落全部静音**，只有冲刺那一档有风。
+        /// 来历：用户实机反馈「我没有冲刺怎么也有布料的声音了」—— 素材本身就是布料拂动声
+        /// （源文件 `clothwind1~6.WAV`），放在普通巡航里很出戏。
+        /// 热调：`custom.flight tune windboost 0`（0 = 回到按速度密度）。
+        /// </summary>
+        public static bool WindOnlyWhenBoosting = true;
+
         /// <summary>静音门槛（m/s）：速度低于它 = 悬停/起降，无风。热调：`custom.flight tune windmin 3`</summary>
         public static float WindSpeedMin = 3f;
 
@@ -635,6 +646,22 @@ namespace LivingWorldNpcs.Flight
         /// 写回失败（反射拿不到 setter，换版本/换引擎）只打一行日志，不影响飞行。
         /// </summary>
         public static bool CamHandBackLook = true;
+
+        /// <summary>
+        /// **归还相机（落地 / 收摊）的滑行时长**（秒，默认 1.2）—— 与钩索
+        /// （`GrapplePull.CameraReturnGlideSeconds`）同档；2026-10-23 用户要求"落地镜头学钩索"。
+        /// 进场仍用 <see cref="CamBlendIn"/>（0.45），两者互不影响。
+        /// 热调：`custom.flight tune camreturn 1.2`
+        /// </summary>
+        public static float CamHandBackSeconds = 1.2f;
+
+        /// <summary>
+        /// 归还**撒手前**清掉引擎"特殊相机"的冻结修正（默认开；照抄钩索的
+        /// `CameraReturnPolicy.ClearSpecial`）。我们接管期间引擎的 `_cameraSpecial*` 冻在接管那一刻，
+        /// 不清 = 撒手第一帧先带上这份冻值再按 4/s 抹掉 —— 观感就是落地瞬间镜头高度"咯噔"一下。
+        /// 热调：`custom.flight tune camclear 0`
+        /// </summary>
+        public static bool CamHandBackClearSpecial = true;
 
         // ── 相机接管后的"看"（🔴 接管相机就必须接管看，见 FlightCameraRig 的类型注释）──
         //
@@ -825,6 +852,8 @@ namespace LivingWorldNpcs.Flight
             CamBlendIn = 0.45f;
             UseCamHandover = true;
             CamHandBackLook = true;
+            CamHandBackSeconds = 1.2f;
+            CamHandBackClearSpecial = true;
             AimOnRightClick = true;
             // 🪦 2026-10-05：`CamLookSensitivity` / `CamPitchMin` / `CamPitchMax` 已挪进 Camera.csv（逐 case 列），
             //    不再在这里恢复出厂 —— 要改就 `custom.flight tune camsens|campitchmin|campitchmax`（改表行内存态）。
@@ -858,6 +887,7 @@ namespace LivingWorldNpcs.Flight
             // 风噪（2026-10-10）
             WindSoundEnabled = true;
             WindSoundName = "lwn_flight_wind";
+            WindOnlyWhenBoosting = true;
             WindSpeedMin = 3f;
             WindSpeedFast = 22f;
             WindIntervalSlow = 1.6f;

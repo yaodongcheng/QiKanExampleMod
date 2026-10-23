@@ -374,7 +374,7 @@ namespace LivingWorldNpcs.CampaignMode
         private static string Tune(List<string> args)
         {
             if (args.Count < 3)
-                return "ERR usage: custom.flight tune <key> <value> | anim: blend hoverblend pitchblend | camPreset: presetblend camblend camhandover camhandback mergedrig | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camLook: camsens caminvertx caminverty campitchmin campitchmax camlag cammotion | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle boostfwd spawngap settle sigil";
+                return "ERR usage: custom.flight tune <key> <value> | anim: blend hoverblend pitchblend | camPreset: presetblend camblend camreturn camhandover camhandback camclear mergedrig | gesture: dbljump longpressjump landtouch landeps landgrace landanim landmax falloff takeoffanim takeoffdelay takeoffblend takeoffskip | dodge: dodgeinboost dodgedist dodgetime dodgecd dodgeanim dashanim | fall: fallcam fallgate fallride fallg fallterm fallbrake | camLook: camsens caminvertx caminverty campitchmin campitchmax camlag cammotion | flight: cruise boost accel longpress pitch pitchout turnrate steer steerboost steeridle boostfwd spawngap settle sigil | wind: windmin windmax windgapmax windgapmin windboost";
 
             string key = args[1].ToLowerInvariant();
             if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
@@ -400,6 +400,8 @@ namespace LivingWorldNpcs.CampaignMode
                 case "presetblend": FlightTuning.CamBlendIn = v; break;         // 只改【机位之间】的过渡时长（动画交叉淡化不变）
                 case "camhandover": FlightTuning.UseCamHandover = v != 0f; break;   // 进出相机是否做交接（0=硬切，旧行为）
                 case "camhandback": FlightTuning.CamHandBackLook = v != 0f; break;  // 归还时是否把朝向写回引擎
+                case "camreturn": FlightTuning.CamHandBackSeconds = v; break;      // 归还滑行时长（秒；默认 1.2，与钩索同档）
+                case "camclear": FlightTuning.CamHandBackClearSpecial = v != 0f; break; // 撒手前清引擎特殊相机修正（落地高度台阶）
                 case "turnrate": FlightTuning.TurnRateDegPerSec = v; break;     // 机身转向角速度（度/秒；0=瞬时，回到旧行为）
                 // 航向惯性（2026-09-27）：实际"往哪走"的转向角速度 —— 与上面 turnrate 分工见 FlightTuning
                 case "steer": FlightTuning.SteerRateDegPerSec = v; break;            // 悬停/巡航档（度/秒；0=瞬时=旧行为）
@@ -410,6 +412,7 @@ namespace LivingWorldNpcs.CampaignMode
                 case "windmax": FlightTuning.WindSpeedFast = v; break;           // 最密点（m/s；速度到这里 = 间隔取下限）
                 case "windgapmax": FlightTuning.WindIntervalSlow = v; break;     // 最疏间隔（秒；速度刚到 windmin 时的阵风间隔）
                 case "windgapmin": FlightTuning.WindIntervalFast = v; break;     // 最密间隔（秒；速度 >= windmax 时的阵风间隔）
+                case "windboost": FlightTuning.WindOnlyWhenBoosting = v != 0f; break; // 只在冲刺时出风（0=老口径：按速度密度，巡航也有风）
                 // 冲刺档：只按 Shift、一个方向键都没按 ⇒ 当作按着 W 往前飞（0 = 关掉，回到"原地趴着悬停"）
                 case "boostfwd": FlightTuning.BoostImpliesForward = v != 0f; break;
                 case "spawngap": FlightTuning.CarrierSpawnGap = v; break;       // 板面比碰撞体底面再低多少（米）

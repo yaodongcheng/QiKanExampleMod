@@ -21,6 +21,9 @@ namespace LivingWorldNpcs.Flight
 	/// 🔴 **为什么用"密度"而不是音量**：引擎没有音量 API（SoundEvent 只有位置 / 速度 / 参数），
 	///    而素材 `lwn_flight_wind_1~6` 是带衰减包络的阵风（不是无缝循环）——所以强度靠
 	///    "速度越快、两阵之间越短"表达：悬停没风 → 巡航约 1.6 秒一阵 → 冲刺约 0.45 秒一阵。
+	///    🔴 2026-10-23 用户裁定：素材本身是**布料拂动声**（源 `clothwind1~6.WAV`），普通巡航里出戏
+	///    ⇒ 飞行侧默认**只在冲刺档才喂速度**（`FlightTuning.WindOnlyWhenBoosting`）；
+	///    本调度器本身不管这个闸门，谁喂谁负责（钩索拉拽那条仍按拉拽速度）。
 	///
 	/// **谁在喂速度**（两条都喂同一个调度器，机制见 <see cref="Tick"/>）：
 	/// `PlayerFlightBehavior.OnMissionTick`（飞行模式：起飞/空中/坠落）· `GrapplePull.Tick`（被钩索拽着飞）。
@@ -229,8 +232,9 @@ namespace LivingWorldNpcs.Flight
 		public static string Describe()
 		{
 			return string.Format(
-				"enabled={0} name={1} | speedMin={2} speedFast={3} | gapSlow={4} gapFast={5} jitter={6} | gusts={7} liveA={8} lastGap={9:F2}s",
+				"enabled={0} name={1} boostOnly={2} | speedMin={3} speedFast={4} | gapSlow={5} gapFast={6} jitter={7} | gusts={8} liveA={9} lastGap={10:F2}s",
 				FlightTuning.WindSoundEnabled, FlightTuning.WindSoundName,
+				FlightTuning.WindOnlyWhenBoosting ? "on" : "off",
 				FlightTuning.WindSpeedMin, FlightTuning.WindSpeedFast,
 				FlightTuning.WindIntervalSlow, FlightTuning.WindIntervalFast, FlightTuning.WindJitter,
 				_gusts, _live.Count, _lastInterval);

@@ -55,11 +55,15 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool PlotEnabled { get; set; } = false;
 
-        // ── 玩家飞行开关：**已改为「穿没穿混天绫」**（2026-10-12 用户裁定）──
-        // 原来这里是 `FlightEnabled`（MCM Mod 选项里的总闸，默认关）。现在**删掉**：
-        // 能不能飞只看**披风槽里装的是不是 `lwn_huntian_ling`**
-        // （`Flight/PlayerFlightBehavior.IsRibbonWorn`）—— 装备即开关，玩家看得见摸得着。
-        // 控制台 `custom.flight start` 仍可强制起飞（显式开发/验收命令，不受此限）。
+        // ── 玩家飞行总闸（🔴 默认关闭；唯一来源 = MCM Mod 选项 UI，config.json 不读）──
+        // 2026-10-12 曾改成「披风槽里穿没穿混天绫」，2026-10-23 **改回** MCM 开关
+        // （布料模拟没做通，混天绫取消注册、不再是物品）。
+        // true  = 键盘能起飞（二段跳 / 长按空格，见 Flight/PlayerFlightBehavior.TickGrounded）
+        // false = 键盘不响应起飞；**已经在飞的会被就地收摊**（AbortFlight，与"玩家阵亡"同一条收尾路径）
+        // 🔴 关掉只是关**玩法入口**，控制台 `custom.flight start` 仍可强制起飞（开发/验收用）——
+        //    它是显式命令，不受玩家开关约束。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool FlightEnabled { get; set; } = false;
 
         // ── 🔴 空中施法 = **内部测试功能，默认关**（2026-10-12 用户裁定）──
         // 管的是飞行中这套手势：**按住右键蓄力（手上长能量球）→ 点左键放阴魔斩 → 松右键取消**。

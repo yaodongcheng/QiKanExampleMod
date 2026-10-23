@@ -1,5 +1,4 @@
 using System;
-using TaleWorlds.Core;                 // EquipmentIndex / EquipmentElement（飞行开关读披风槽）
 using TaleWorlds.Engine;
 using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
@@ -215,32 +214,11 @@ namespace LivingWorldNpcs.Flight
         /// <summary>飞行中（含起飞 / 落地）。</summary>
         public bool IsFlying => _phase != Phase.Grounded;
 
-        // ─────────────────────── 飞行开关 = 穿没穿混天绫（2026-10-12 用户裁定）───────────────────────
-        // 原来这里是 MCM 里的总闸 `Settings.FlightEnabled`（默认关）。**已删除**，改成：
-        // **能不能飞只看披风槽里装的是不是混天绫** —— 装备即开关。
-        //   · 玩家看得见摸得着：穿的什么一目了然，不用去翻 Mod 选项；
-        //   · 合设计哲学（①反馈明确 ④信息塑造目标：想要飞 → 先弄到混天绫）；
-        //   · 只有一处判定，不会出现"MCM 开着但没穿"或"穿了但 MCM 关着"这种两处打架。
-        // 物品定义 = `ModuleData/items/ribbon.xml`（`Type="Cape"`，`is_merchandise="true"` 进商店与战利品）；
-        // 网格/材质/贴图在 LWN 自己的资产包 `AssetPackages/lwn_core.tpac`。
-        // 🔴 取物品的正道是 **StringId**（与语言无关）—— 别按显示名查。
-        public const string RibbonItemId = "lwn_huntian_ling";
-
-        /// <summary>主角披风槽里装的是不是混天绫。</summary>
-        public static bool IsRibbonWorn(Agent agent)
-        {
-            if (agent == null) return false;
-            try
-            {
-                EquipmentElement cape = agent.SpawnEquipment[EquipmentIndex.Cape];
-                return cape.Item != null && cape.Item.StringId == RibbonItemId;
-            }
-            catch (Exception)
-            {
-                // 取装备失败 = 当作没穿：宁可飞不起来，也别让这里把每帧 tick 打崩
-                return false;
-            }
-        }
+        // ─────────────────────── 飞行开关 = MCM Mod 选项（2026-10-23 改回）───────────────────────
+        // 2026-10-12 曾改成「披风槽里穿没穿混天绫」（`IsRibbonWorn`）——**已撤销**：
+        // 布料模拟没做通，混天绫**整件取消**（不再是物品、`ModuleData/items/ribbon.xml` 已删），
+        // 能不能飞回到唯一一处判定 = MCM Mod 选项里的 `Flight`（`Settings.FlightEnabled`，默认关）。
+        // 控制台 `custom.flight start` 仍可强制起飞（显式开发/验收命令，不受本开关限制）。
 
         // ─────────────────────────── 主循环 ───────────────────────────
 
@@ -271,15 +249,13 @@ namespace LivingWorldNpcs.Flight
             _clock += dt;
             Current = this;                 // 给别的系统查（飞行中施法要问"在飞吗"）
 
-            // 🔴 **飞行开关 = 穿没穿混天绫** —— 这里管"已经在飞"的那一半：
-            //    披风一旦不在身上就**立刻收摊**，走的是和「玩家阵亡 / tick 异常」同一条收尾路径
+            // 🔴 **MCM 总闸**（`Settings.FlightEnabled`，默认关闭）—— 这里管"已经在飞"的那一半：
+            //    开关一关就**立刻收摊**，走的是和「玩家阵亡 / tick 异常」同一条收尾路径
             //    （`AbortFlight`：拆板 + 把动画通道还给引擎 + 相位归位），不会把冻结状态泄漏出去。
             //    起飞侧的限制在 `TickGrounded` 里（键盘不响应，但按下沿照样消费）。
-            //    注：`SpawnEquipment` 在一场 mission 内是固定的，正常玩不会中途失效 ——
-            //        这条主要防「进场景时就没穿」与异常态。
-            if (_phase != Phase.Grounded && !IsRibbonWorn(Agent.Main))
+            if (!Settings.Instance.FlightEnabled && _phase != Phase.Grounded)
             {
-                DebugLogger.Log("[Flight] 披风槽里没有混天绫 → 强制退出飞行");
+                DebugLogger.Log("[Flight] MCM 飞行开关已关闭 → 强制退出飞行");
                 AbortFlight();
             }
 
@@ -321,12 +297,22 @@ namespace LivingWorldNpcs.Flight
                 AbortFlight();
             }
 
-            // 🌬️ 风噪（2026-10-10）：飞到速度够了就一阵一阵地出风，越快越密（悬停 / 起降无声）。
+            // 🌬️ 风噪（2026-10-10；🔴 2026-10-23 用户裁定改为**只在冲刺时**出风）：
+            //    素材是布料拂动声（源 `clothwind1~6.WAV`），普通巡航里一直响很出戏 ⇒
+            //    默认（`WindOnlyWhenBoosting`）只有按住 Shift 的冲刺档才喂速度，巡航 / 悬停 / 坠落一律静音。
+            //    关掉那个开关 = 老口径（按速度密度，越快越密）。
             //    喂在相位分发**之后** = 读到的是本帧刚更新过的速度（`TickAirborne` 里写的 `_velocity`）；
             //    素材 + 事件声明见 ModuleSounds/ 与 ModuleData/module_sounds.xml，调参 `custom.flight tune wind*`。
-            float windSpeed = _phase == Phase.Airborne ? _velocity.Length
-                : _phase == Phase.Falling ? _fallRideVel
-                : 0f;
+            float windSpeed = 0f;
+            if (_phase == Phase.Airborne)
+            {
+                if (!FlightTuning.WindOnlyWhenBoosting || FlightInput.BoostHeld)
+                    windSpeed = _velocity.Length;
+            }
+            else if (_phase == Phase.Falling && !FlightTuning.WindOnlyWhenBoosting)
+            {
+                windSpeed = _fallRideVel;
+            }
             FlightWindFx.Tick(windSpeed, dt);
 
             // 🔴 不在空中 ⇒ 撤掉"头看相机"（落地 / 中止时清；只撤我们自己设过的那个 POI）
@@ -471,13 +457,12 @@ namespace LivingWorldNpcs.Flight
             //      （在地面起跳那一帧没消费掉 → 下一帧正好离地 → 一跳就直接飞）。
             bool pressed = FlightInput.ConsumeSpacePress();
 
-            // 🔴 **飞行开关 = 穿没穿混天绫**（`IsRibbonWorn`）—— 没穿 = 键盘不响应起飞。
+            // 🔴 **MCM 总闸**（`Settings.FlightEnabled`，默认关闭）—— 关着 = 键盘不响应起飞。
             //    ⚠️ 但上面那行**照样消费按下沿**、下面长按也照原样消费：只"读掉丢掉"、不进相位逻辑。
-            //       不消费会跨帧滞留，玩家下次穿上披风时一按就直接飞（与上面那条纪律同源）。
+            //       不消费会跨帧滞留，玩家下次打开开关时一按就直接飞（与上面那条纪律同源）。
             //    控制台 `custom.flight start` 走 ForceStart，**不受本闸门限制**（显式开发/验收命令）。
-            //    🔴 **没穿时不弹任何提示**（2026-10-12 用户裁定）：空中按跳 = 无事发生，
-            //       与原版一致；要查"为什么飞不起来"看 `custom.flight` 的 `ribbon=` 那一段。
-            bool takeoffAllowed = IsRibbonWorn(main);
+            //    开关关着时不弹提示；要查"为什么飞不起来"看 `custom.flight` 状态行里的 `flight=`。
+            bool takeoffAllowed = Settings.Instance.FlightEnabled;
 
             if (takeoffAllowed && FlightTuning.TakeoffByDoubleJump && !main.IsOnLand() && pressed)
             {
@@ -1114,6 +1099,14 @@ namespace LivingWorldNpcs.Flight
             //    （改前这里是 `Hold = true` + 写死 Force `"idle"`：那个 idle 是从 XML 读不到的硬编码状态名，
             //      编辑器里一改名就静默失效。）
             _anim.Hold = false;
+
+            // 🔴 **相机从"撞地那一刻"就开始往回滑**（2026-10-23，照抄钩索的"还没落地就开始收"）：
+            //    原来要等落地动画演完（`FinishFlight`）才开始 0.45s 的归还，玩家看到的是
+            //    "整段落地都在广角机位里，最后一瞬间镜头才猛地缩回引擎视距"。
+            //    现在 = 下滑段就开始滑（`CamHandBackSeconds`，默认 1.2s，与钩索同档），
+            //    滑完由 rig 自己等到"玩家拿回控制权 + 引擎那次重置跑完"再撒手（见 FlightCameraRig.Tick）。
+            ExitCamera();
+
             DebugLogger.Log($"[Flight] 进入落地（撞地）下冲={approachSpeed:F1}m/s " +
                             $"下降速度={Math.Max(FlightTuning.LandRate, approachSpeed):F1}m/s 落地动作=待触地后播");
         }
@@ -2295,11 +2288,11 @@ namespace LivingWorldNpcs.Flight
                 return "no player agent";
             BeginTakeoff(main, ridingBoard: _phase == Phase.Falling && FlightTuning.FallRide && _board.IsSpawned);
             string result = _phase == Phase.Takeoff ? "takeoff started" : "takeoff failed (carrier spawn failed?)";
-            // 🔴 没穿混天绫时这条命令**仍然生效**（显式开发/验收命令不受装备约束），
+            // 🔴 MCM 总闸关着时这条命令**仍然生效**（显式开发/验收命令不受玩家开关约束），
             //    但要说清楚 —— 否则"命令飞得起来、键盘飞不起来"看着像 bug。
-            if (!IsRibbonWorn(main))
-                result += "  [note: the flight ribbon ('" + RibbonItemId + "') is NOT in the cape slot"
-                        + " - keyboard takeoff stays disabled; this console command bypasses it]";
+            if (!Settings.Instance.FlightEnabled)
+                result += "  [note: Mod Options 'Flight' is OFF - keyboard takeoff stays disabled;"
+                        + " this console command bypasses it]";
             return result;
         }
 
@@ -2357,18 +2350,15 @@ namespace LivingWorldNpcs.Flight
             string fall = _phase == Phase.Falling
                 ? string.Format(" fall={0:F2}s vz={1:F1} ", _fallTimer, _fallSpeedZ)
                 : " ";
-            // 飞行开关 = 披风槽里的混天绫（2026-10-12）：这一行让"为什么飞不起来"一眼可判 ——
-            // ribbon=none 就是没穿（或穿的不是我们那件）。
-            Agent me = Agent.Main;
-            string cape = IsRibbonWorn(me)
-                ? "ribbon=worn"
-                : (me == null ? "ribbon=? (no agent)" : "ribbon=none");
+            // 飞行开关 = MCM Mod 选项（2026-10-23 改回）：这一格让"为什么飞不起来"一眼可判 ——
+            // flight=off 就是 Mod 选项里的 Flight 没开（控制台 custom.flight start 不受它限制）。
+            string mcm = Settings.Instance.FlightEnabled ? "flight=on" : "flight=off";
             // 空中施法（内部测试功能）开关状态（2026-10-12）：默认关 ⇒ 右键只剩瞄准机位。
             // 这一格是给"右键怎么不出蓄力球"自证用的 —— spellcast=off 就是被 config.json 关着。
             string spell = Settings.Instance.FlightSpellCastEnabled ? "spellcast=on" : "spellcast=off";
             return string.Format("phase={0} frozen={1} anim={2} v={3:F1} {4}{5}{6}{7}",
                 _phase, _frozenMode.HasValue ? _frozenMode.Value.ToString() : "off", _anim.CurrentAction ?? "-",
-                _velocity.Length, cape, spell, fall, _board.Describe());
+                _velocity.Length, mcm, spell, fall, _board.Describe());
         }
     }
 }

@@ -42,6 +42,7 @@ sound.Play();
 **🔴 3D 听不见先量距离**：听者 = 相机，本项目机位常在身后几米（拉拽机位臂长 8 米）⇒ 用 `SoundEvent.GetEventMinMaxDistance()` 打出衰减区间（`SoundFx` 首次播放打 `[SoundFx] '<名>' 衰减距离 vec=(…)`）再对比。
 
 **已挂的事件**（LWN）：`lwn_grapple_rope`（3D，钩索抛出瞬间）· `lwn_flight_wind`（3D，飞行与被拽两路按速度密度，6 变体随机）。
+🔴 **2026-10-23 口径**：`lwn_flight_wind` 的素材是**布料拂动声**（源 `clothwind1~6.WAV`）⇒ 飞行侧默认**只在冲刺（按住 Shift）时喂速度**（`FlightTuning.WindOnlyWhenBoosting = true`，`custom.flight tune windboost 0` 回到老口径）；钩索拉拽那条不受影响。
 **验收命令**：`custom.grapple sound` / `custom.flight sound`（试听 + 状态；**名字查不到直接报** = 静音故障的第一诊断入口）。
 **同款先例**：`Combat/FirearmFxLogic.cs`（火器三档枪声；音效名走内容包 `AssetRegistry/FirearmFx.xml` 契约 —— 基座不硬编码世界观词汇）· `SpellPieces.cs` 的 `SpellWorld.PlaySound`（法术 `sound_release`/`sound_hit` 字段）。
 **📚 完整版**（能力边界 / API 全貌 / 未挖清单 / 三条管线怎么分）=[Knowledge/骑砍2音效系统_引擎能力与实现.md](../../../Knowledge/骑砍2音效系统_引擎能力与实现.md) —— 本卷只是速查，细节看它。

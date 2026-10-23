@@ -2654,7 +2654,7 @@
     <!-- 分组：设置（单组。MCM footer 式标题渲染下多组会错位，见 MCMSettings.cs 注释） -->
     <string id="LWN_mcm_grp_main" text="设置" />
     <string id="LWN_mcm_flight" text="飞行" />
-  <string id="LWN_mcm_flight_hint" text="开启后玩家可以起飞：在空中（跳跃中，或正在下落）按空格，或长按空格。默认关闭。飞行途中关掉会立刻把你放回地面。控制台命令 custom.flight on 不受此开关限制。" />
+  <string id="LWN_mcm_flight_hint" text="开启后玩家可以起飞：在空中（跳跃中，或正在下落）按空格，或长按空格。默认关闭。飞行途中关掉会立刻把你放回地面。控制台命令 custom.flight start 不受此开关限制。" />
   <string id="LWN_mcm_plot_enabled" text="传讯(测试版)" />
     <string id="LWN_mcm_plot_enabled_hint" text="开启后，可对随从发送自然语言传讯（面向随从按下传讯键）。默认关闭；关闭时传讯入口隐藏，但已执行中的战术仍可用停止键终止。" />
     <string id="LWN_mcm_hostile_on_allies" text="允许对友方使用敌意互动" />
@@ -4680,7 +4680,6 @@
   <string id="LWN_bark_grapple_timid_hit_v1" text="别、别杀我……" />
   <string id="LWN_bark_grapple_timid_carry_v1" text="我什么都没看见……" />
   <string id="LWN_bark_grapple_timid_hit_b1" text="我、我什么都没看见……" />
-  <string id="LWN_huntian_ling" text="混天绫" />
   <string id="LWN_spell_multi" text="多重法弹" />
   <string id="LWN_spell_sky" text="天降法弹" />
   <string id="LWN_spell_zone" text="焚地法阵" />
