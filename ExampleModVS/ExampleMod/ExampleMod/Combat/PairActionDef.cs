@@ -51,13 +51,40 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>
-    /// **音效/粒子轨道的一条事件**（2026-10-23）：`time@id`。
-    /// `Time` = 从演出（Playing）开始算的秒；`Id` = `module_sounds` 的事件名 / 粒子系统名。
+    /// **音效轨道的一条事件**（2026-10-23）：`time@id`。
+    /// `Time` = 从演出（Playing）开始算的秒；`Id` = `module_sounds` 的事件名。
     /// </summary>
     public sealed class PairTimedEvent
     {
         public float Time;
         public string Id;
+    }
+
+    /// <summary>
+    /// **粒子轨道的一条事件**（2026-10-23 起一个单元格自带全部属性）：
+    /// `time=1.30;psys=粒子名;bone=neck;offset=0:-0.2:0.1` —— 键顺序随意，`bone` / `offset` 可省。
+    /// 🔴 为什么不用真 JSON：`CsvLoader` 是裸 `Split(',')`（不支持引号字段），JSON 里的逗号会把行切裂；
+    ///    这里用 `;` 分键、`|` 分多段、`:` 分三元组，单元格里永远没有半角逗号。
+    /// </summary>
+    public sealed class PairFxEvent
+    {
+        public float Time;
+        public string Particle;
+
+        /// <summary>粒子挂**受害者**哪根骨：`neck`（默认）/ `head` / `chest` / `spine` / `waist` /
+        /// `pelvis` / `arm` / `hand` / 纯数字骨索引。见 `PairActionLogic.TryResolveFxBone`。</summary>
+        public string Bone = "neck";
+
+        /// <summary>
+        /// 相对那根骨的**位置偏移**（米，**受害者自身坐标系**：`右:前:上`）。
+        /// 用途 = 骨点埋在身体里（比如颈根骨）时把特效挪到看得见的地方。
+        /// 例：`offset=0:-0.2:0.1` = 往后 20cm（朝攻击者那侧）、往上 10cm。
+        /// </summary>
+        public float OffsetRight;
+        public float OffsetForward;
+        public float OffsetUp;
+
+        public bool HasOffset => OffsetRight != 0f || OffsetForward != 0f || OffsetUp != 0f;
     }
 
     /// <summary>CSV 的一行 = 一个双人动作。</summary>
@@ -111,10 +138,10 @@ namespace LivingWorldNpcs
         public List<PairTimedEvent> SoundTrack = new List<PairTimedEvent>();
 
         /// <summary>
-        /// **粒子轨道**：`time@粒子名|time@粒子名`。到点挂到受害者**颈根骨**上
-        /// （`MBAgentVisuals.CreateParticleSystemAttachedToBone`）。
+        /// **粒子轨道**（一个单元格自带全部属性）：多段用 `|` 分隔，每段 `time=1.30;psys=粒子名;bone=neck`。
+        /// 到点挂到**受害者**的 `bone` 那根骨上（`MBAgentVisuals.CreateParticleSystemAttachedToBone`）。
         /// </summary>
-        public List<PairTimedEvent> FxTrack = new List<PairTimedEvent>();
+        public List<PairFxEvent> FxTrack = new List<PairFxEvent>();
 
         public bool IsPersistent => AttachMode == PairAttachMode.Persistent;
         public bool StartsByHandoff => string.Equals(Start, "handoff", StringComparison.OrdinalIgnoreCase);
@@ -351,7 +378,7 @@ namespace LivingWorldNpcs
             d.HandoffTo = Str(row, "HandoffTo").Trim();
             d.HandoffOn = Str(row, "HandoffOn").Trim();
             d.SoundTrack = ParseTimedEvents(Str(row, "Sound_Track"));
-            d.FxTrack = ParseTimedEvents(Str(row, "Fx_Track"));
+            d.FxTrack = ParseFxEvents(Str(row, "Fx_Track"));
 
             return d;
         }
@@ -437,6 +464,80 @@ namespace LivingWorldNpcs
                 string id = s.Substring(at + 1).Trim();
                 if (id.Length == 0 || time < 0f) continue;
                 list.Add(new PairTimedEvent { Time = time, Id = id });
+            }
+
+            list.Sort((a, b) => a.Time.CompareTo(b.Time));
+            return list;
+        }
+
+        /// <summary>
+        /// 解析粒子轨道：多段用 `|`，每段 `time=1.30;psys=粒子名;bone=neck`（键顺序随意，`bone` 可省）。
+        /// 也认旧写法 `1.30@粒子名`（bone 用默认）。解析失败的单条静默跳过 —— 数据表体检脚本会把坏的抓出来。
+        /// </summary>
+        private static List<PairFxEvent> ParseFxEvents(string raw)
+        {
+            var list = new List<PairFxEvent>();
+            if (string.IsNullOrWhiteSpace(raw))
+                return list;
+
+            foreach (string part in raw.Split('|'))
+            {
+                string s = (part ?? "").Trim();
+                if (s.Length == 0) continue;
+
+                var ev = new PairFxEvent();
+                if (s.IndexOf('=') < 0)
+                {
+                    // 旧写法 `time@粒子名`
+                    int at = s.IndexOf('@');
+                    if (at <= 0 || at >= s.Length - 1) continue;
+                    if (!float.TryParse(s.Substring(0, at).Trim(), NumberStyles.Float,
+                            CultureInfo.InvariantCulture, out ev.Time))
+                        continue;
+                    ev.Particle = s.Substring(at + 1).Trim();
+                }
+                else
+                {
+                    float? time = null;
+                    string psys = null;
+                    string bone = null;
+                    foreach (string kv in s.Split(';'))
+                    {
+                        int eq = kv.IndexOf('=');
+                        if (eq <= 0) continue;
+                        string k = kv.Substring(0, eq).Trim().ToLowerInvariant();
+                        string v = kv.Substring(eq + 1).Trim();
+                        if (k == "time")
+                        {
+                            if (float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out float t))
+                                time = t;
+                        }
+                        else if (k == "psys" || k == "particle" || k == "fx") psys = v;
+                        else if (k == "bone") bone = v;
+                        else if (k == "offset")
+                        {
+                            // 右:前:上（米，受害者自身坐标系）
+                            string[] xyz = v.Split(':');
+                            if (xyz.Length == 3
+                                && float.TryParse(xyz[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float ox)
+                                && float.TryParse(xyz[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float oy)
+                                && float.TryParse(xyz[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float oz))
+                            {
+                                ev.OffsetRight = ox;
+                                ev.OffsetForward = oy;
+                                ev.OffsetUp = oz;
+                            }
+                        }
+                    }
+                    if (time == null || string.IsNullOrEmpty(psys)) continue;
+                    ev.Time = time.Value;
+                    ev.Particle = psys;
+                    if (!string.IsNullOrWhiteSpace(bone)) ev.Bone = bone.ToLowerInvariant();
+                }
+
+                if (string.IsNullOrEmpty(ev.Particle) || ev.Time < 0f) continue;
+                if (string.IsNullOrEmpty(ev.Bone)) ev.Bone = "neck";
+                list.Add(ev);
             }
 
             list.Sort((a, b) => a.Time.CompareTo(b.Time));

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using LivingWorldNpcs;
 using TaleWorlds.Core;
+using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -51,9 +52,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                     case "handoff": return CmdHandoff(Arg(args, 1), Arg(args, 2)) + note;
                     case "dismount": return CmdDismount(Arg(args, 1)) + note;
                     case "trace": return CmdTrace(Arg(args, 1)) + note;
+                    case "fx": return CmdFx(Arg(args, 1)) + note;
                     case "camturn": return CmdCamTurn(Arg(args, 1)) + note;
                     default:
-                        return $"pair: unknown subcommand '{sub}' (use: list / verify / state / stance / start / stop / commit / bones / npc / victim / handoff / dismount / trace / camturn)";
+                        return $"pair: unknown subcommand '{sub}' (use: list / verify / state / stance / start / stop / commit / bones / npc / victim / handoff / dismount / trace / fx / camturn)";
                 }
             }
             catch (Exception ex)
@@ -490,6 +492,34 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             PairActionInstance.PerfCameraDebug = _verbose;
             return $"pair trace: {(_verbose ? "on" : "off")}"
                  + $" (verbose flag + performance-camera log every 0.25s; core logging is always on)";
+        }
+
+        /// <summary>
+        /// `custom.pair fx [粒子名|off]` —— 临时替换 `Fx_Track` 的粒子（对比观感用，关游戏即失效）。
+        /// 不给参数 = 只查询；`off` = 清掉覆盖、回到 CSV 的值。
+        /// </summary>
+        private static string CmdFx(string name)
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                string n = name.Trim();
+                if (n.Equals("off", StringComparison.OrdinalIgnoreCase) || n == "0")
+                {
+                    PairActionInstance.FxOverrideName = null;
+                }
+                else
+                {
+                    int pid = ParticleSystemManager.GetRuntimeIdByName(n);
+                    if (pid == -1)
+                        return $"pair fx: particle '{n}' NOT registered (id -1). Nothing changed.";
+                    PairActionInstance.FxOverrideName = n;
+                }
+            }
+
+            string current = PairActionInstance.FxOverrideName;
+            return string.IsNullOrEmpty(current)
+                ? "pair fx: no override (uses PairActions.csv Fx_Track)."
+                : $"pair fx: override = '{current}' (id {ParticleSystemManager.GetRuntimeIdByName(current)}).";
         }
 
         /// <summary>

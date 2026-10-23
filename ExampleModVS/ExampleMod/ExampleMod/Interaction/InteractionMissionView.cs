@@ -56,6 +56,13 @@ namespace LivingWorldNpcs
         private const int StealSlowmoRequestId = 731007;
         private bool _stealSlowmoActive = false;
 
+        // 近身长按（暗杀 / 击晕）蓄力时的子弹时间（2026-10-23 用户裁定）：世界变慢 ⇒ 走动中的目标不再
+        // "一眨眼就走开"，玩家有足够真实时间把长按按完。做法与偷窃完全同款（请求队列，独立 id）。
+        // 🔴 两者共用同一个 F 长按、且上下文互斥（同一时刻只有一行），所以只维护一个请求。
+        private const int HoldSlowmoRequestId = 731008;
+        private const float HoldSlowmoTimeScale = 0.35f;
+        private bool _holdSlowmoActive = false;
+
         // 偷窃期间冻结玩家控制（Controller→AI：输入移交 AI 组件，主角待机；v1.2.12/1.4.x 均支持）
         private bool _playerControlFrozen = false;
         // 冻结前的蹲姿（切 AI 后原生姿态被重置为站立，需用 scripted flag 保持）
@@ -1475,7 +1482,19 @@ namespace LivingWorldNpcs
 
             // ── 输入状态机每帧驱动（先于一切消费点；战斗禁用期间也保持物理键状态一致，帧窗口过期防陈旧触发）──
             long p0 = PerfProfiler.Now();          // perf: IMV_ModInput
-            ModInput.Tick(dt);
+            // 🔴 慢放期间把输入时钟**补偿回真实时间**（2026-10-23 用户反馈"子弹时间仍按不完"）：
+            //    `dt` 是缩放过的，若长按阈值也跟着变慢，目标在"按住期间"走的距离一分没少
+            //    （慢放把两边一起拖慢 = 白慢）。除以实际时间流速后，按住 650ms 是**真实** 650ms，
+            //    世界只走了 0.23s ⇒ 目标几乎原地，玩家能按完。
+            float inputDt = dt;
+            if (_holdSlowmoActive)
+            {
+                float scale = Mission.Current != null && Mission.Current.Scene != null
+                    ? Mission.Current.Scene.TimeSpeed
+                    : 1f;
+                if (scale > 0.01f) inputDt = dt / scale;
+            }
+            ModInput.Tick(inputDt);
             PerfProfiler.Accum(PerfSlot.IMV_ModInput, p0); // perf: IMV_ModInput
 
             // 🔴 Q5（2026-08-17 呼出按钮）：Mission 侧驱动——与 InteractArea 同 tick（玩家认知：
@@ -1635,6 +1654,9 @@ namespace LivingWorldNpcs
 
             // ----------------- 3b. 长按进度框每帧驱动（Long 玩法行 → 4 段像素值；短按项内部跳过） -----------------
             _interactVM?.UpdateHoldProgresses();
+
+            // ----------------- 3c. 近身长按 = 子弹时间（暗杀 / 击晕；走动中的目标不至于一眨眼就走开） -----------------
+            UpdateHoldSlowmo();
 
             // ----------------- 4. 高频逻辑：available 列表驱动输入响应（每帧必须执行） -----------------
             // 门控 = available 非空（IsVisible 只管 UI 显示）：无目标场景 available=[Inspect] 且 UI 隐藏时，探查键依然响应
@@ -1975,6 +1997,38 @@ namespace LivingWorldNpcs
                 mission.RemoveTimeSpeedRequest(StealSlowmoRequestId);
         }
 
+        // ── 近身长按 = 子弹时间（2026-10-23；暗杀 / 击晕共用）──
+        // 判据 = 那一行**在可用列表里**（目标仍在条件内）+ 玩家**正按着它的键**（HoldProgress > 0）。
+        // 触发/松手/目标走出条件 ⇒ 当天那一帧就恢复，不会留着世界一直慢。
+        private void UpdateHoldSlowmo()
+        {
+            bool holding =
+                (ModInput.HoldProgress(InteractionIds.Assassinate) > 0f && _availableIds.Contains(InteractionIds.Assassinate))
+                || (ModInput.HoldProgress(InteractionIds.Knockout) > 0f && _availableIds.Contains(InteractionIds.Knockout));
+            if (holding) StartHoldSlowmo();
+            else StopHoldSlowmo();
+        }
+
+        private void StartHoldSlowmo()
+        {
+            if (_holdSlowmoActive) return;
+            var mission = Mission.Current;
+            if (mission == null) return;
+            mission.AddTimeSpeedRequest(new Mission.TimeSpeedRequest(HoldSlowmoTimeScale, HoldSlowmoRequestId));
+            _holdSlowmoActive = true;
+            DebugLogger.Log($"[HoldSlowmo] 近身长按蓄力 → 子弹时间 {HoldSlowmoTimeScale:0.00}（目标放慢，给玩家按下去的时间）");
+        }
+
+        private void StopHoldSlowmo()
+        {
+            if (!_holdSlowmoActive) return;
+            _holdSlowmoActive = false;
+            var mission = Mission.Current;
+            if (mission != null && mission.GetRequestedTimeSpeed(HoldSlowmoRequestId, out _))
+                mission.RemoveTimeSpeedRequest(HoldSlowmoRequestId);
+            DebugLogger.Log("[HoldSlowmo] 长按结束 → 恢复时间流速");
+        }
+
         // ── 偷窃输入隔离：冻结/恢复玩家控制（冻结期间跳/走/攻击全死，幂等）──
         private void FreezePlayerControl()
         {
@@ -2046,6 +2100,7 @@ namespace LivingWorldNpcs
             _stealBarVM = null;
             // 子弹时间兜底回收（防 ESC 直接退 mission 泄漏）
             StopStealSlowmo();
+            StopHoldSlowmo();
             // 玩家控制兜底恢复（同上）
             UnfreezePlayerControl();
             StealManager.IsUIOpen = false;

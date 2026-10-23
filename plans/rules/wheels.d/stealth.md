@@ -287,6 +287,31 @@ if (mission.GetRequestedTimeSpeed(requestId, out _))
 - dt 缩放链路（反编译确认）：`Scene.TimeSpeed` → `OnTick(dt=缩放, realDt=真实)` → `OnMissionTick(dt)`——VM 动画/警戒累积/节流计时全走缩放 dt，子弹时间下世界与 UI 同步变慢，难度不被白嫖。
 - 配 `_stealSlowmoActive` 幂等标志；关闭每条路径 + `OnMissionScreenFinalize` 兜底回收。
 
+**别的系统也能直接用**（2026-10-23 登记）：近身长按【暗杀 / 击晕】蓄力期间同样开子弹时间
+（`InteractionMissionView.UpdateHoldSlowmo`，request id `731008`，0.35×）——判据 = 那一行在 `_availableIds` 里
++ `ModInput.HoldProgress(id) > 0`；触发/松手/目标走出条件当帧恢复。
+
+🔴🔴 **但"只慢世界"没用 —— 必须同时把输入时钟补偿回真实时间**（2026-10-23 用户实机反馈"子弹时间仍按不完"）：
+`ModInput` 吃的是缩放 dt，若长按阈值也跟着变慢，**目标在"按住期间"走的游戏时间距离一分没少**（慢放两边一起拖 = 白慢）。
+做法（`InteractionMissionView.OnMissionTick`）：
+
+```csharp
+float inputDt = dt;
+if (_holdSlowmoActive)
+{
+    float scale = Mission.Current?.Scene?.TimeSpeed ?? 1f;   // 实际生效流速（请求队列取最小值）
+    if (scale > 0.01f) inputDt = dt / scale;                 // 长按按**真实时间**计
+}
+ModInput.Tick(inputDt);
+```
+
+| | 按住期间真实等待 | 目标在按住期间走的路（1.4 m/s 行人） |
+|---|---|---|
+| 只慢世界（错） | 1.86 s | ≈ 0.91 m（= 650ms 游戏时间，和白按一样） |
+| 慢世界 + 时钟补偿 | 0.65 s | ≈ 0.32 m |
+
+⚠️ 只在本系统慢放期间补偿；其它玩法（对话/搜刮）计时不受影响。
+
 
 ---
 

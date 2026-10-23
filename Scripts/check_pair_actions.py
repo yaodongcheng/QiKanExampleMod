@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""check_pair_actions.py —— 双人动作设计表体检（2026-10-19 精简版：15 列）。
+"""check_pair_actions.py —— 双人动作设计表体检（2026-10-23：16 列）。
 
 检查对象：`ModuleData/DesignData/PairActions.csv`（四行头，与 Camera.csv 同格式）。
 检查项（都是"写错会静默失效/运行时才炸"的那类）：
@@ -12,6 +12,8 @@
   · 同一组 `machine:攻击方/防守方` 只能出现一次（适配器按状态机名找行）
   · `Start=handoff` 必须有 `EnterEvent`；`machine:` 驱动必须同时有 Enter/ExitEvent
   · `Attacker_Play` / `Defender_Play` = 空 / `action:动作名` / `machine:状态机名`
+  · `Fx_Track` 格式合法：多段 `|`，每段 `time=1.30;psys=粒子名;bone=neck`（bone 可省 = neck，
+    或 neck/head/chest/spine/waist/pelvis/arm/hand / 纯数字骨索引）；也认旧写法 `1.30@粒子名`
 
 用法：
     python Scripts/check_pair_actions.py
@@ -36,6 +38,10 @@ REQUIRED = [
     "Sound_Track", "Fx_Track",
 ]
 
+# Fx_Track = 粒子轨道：多段 `|` 分隔，每段 `time=1.30;psys=粒子名;bone=neck`（bone 可省，默认 neck）。
+# 运行时解析见 PairActionDef.ParseFxEvents / PairActionLogic.TryResolveFxBone。
+FX_BONES = {"neck", "head", "chest", "thorax", "spine", "waist", "pelvis", "arm", "shoulder", "hand"}
+
 VALID = {
     "Start": {"preposition", "handoff"},
     "Attach_Mode": {"none", "persistent"},
@@ -52,6 +58,57 @@ def load(path):
     if len(rows) < 4:
         return rows[0] if rows else [], rows[1] if len(rows) > 1 else [], [], []
     return rows[0], rows[1], rows[2], rows[3:]
+
+
+def check_fx_track(value, pid, errors):
+    """粒子轨道：`time=1.30;psys=粒子名;bone=neck`，多段用 `|`；也认旧写法 `1.30@粒子名`。"""
+    raw = (value or "").strip()
+    if not raw:
+        return
+    for i, part in enumerate(raw.split("|"), 1):
+        seg = part.strip()
+        if not seg:
+            continue
+        if "=" not in seg:
+            time_txt, _, psys = seg.partition("@")
+            try:
+                float(time_txt)
+            except ValueError:
+                errors.append("%s：Fx_Track 第 %d 段 '%s' 的 time 不是数字" % (pid, i, seg))
+                continue
+            if not psys.strip():
+                errors.append("%s：Fx_Track 第 %d 段 '%s' 缺粒子名" % (pid, i, seg))
+            continue
+
+        kv = {}
+        for piece in seg.split(";"):
+            k, _, v = piece.partition("=")
+            if k.strip():
+                kv[k.strip().lower()] = v.strip()
+        try:
+            float(kv.get("time", ""))
+        except ValueError:
+            errors.append("%s：Fx_Track 第 %d 段 '%s' 缺 time= 或不是数字" % (pid, i, seg))
+        if not kv.get("psys"):
+            errors.append("%s：Fx_Track 第 %d 段 '%s' 缺 psys=" % (pid, i, seg))
+        bone = (kv.get("bone") or "").strip().lower()
+        if bone and bone not in FX_BONES and not bone.lstrip("-").isdigit():
+            errors.append("%s：Fx_Track 第 %d 段 bone='%s' 不认识（合法值 %s 或纯数字骨索引）"
+                          % (pid, i, bone, "/".join(sorted(FX_BONES))))
+        offset = kv.get("offset")
+        if offset is not None:
+            parts = offset.split(":")
+            ok_offset = len(parts) == 3
+            if ok_offset:
+                for p in parts:
+                    try:
+                        float(p)
+                    except ValueError:
+                        ok_offset = False
+                        break
+            if not ok_offset:
+                errors.append("%s：Fx_Track 第 %d 段 offset='%s' 必须是 右:前:上 三个数字（米，用冒号分隔）"
+                              % (pid, i, offset))
 
 
 def check_play(value, pid, col, errors):
@@ -106,6 +163,8 @@ def validate(keys, data):
 
         check_play(d.get("Attacker_Play"), pid, "Attacker_Play", errors)
         check_play(d.get("Defender_Play"), pid, "Defender_Play", errors)
+
+        check_fx_track(d.get("Fx_Track"), pid, errors)
 
         start = (d.get("Start") or "").strip().lower()
         if start == "handoff" and not (d.get("EnterEvent") or "").strip():
@@ -165,20 +224,33 @@ def selftest():
     print("selftest:", "OK（persistent+engine 被抓到）" if ok else "FAIL（坏行没被抓到）")
     if not ok:
         print("  errors:", errors)
-    return 0 if ok else 1
+
+    # 负面测试 2：Fx_Track 的 bone= 填了不认识的骨名必须被抓到
+    bad = dict(good)
+    bad.update({"Attach_Mode": "none", "Motion": "engine", "End_Policy": "release",
+                "Fx_Track": "time=1.30;psys=psys_game_blood_1;bone=belly"})
+    errors2, _ = validate(keys, [[bad[k] for k in keys]])
+    ok2 = any("Fx_Track" in e for e in errors2)
+    print("selftest:", "OK（坏 Fx_Track bone 被抓到）" if ok2 else "FAIL（坏 Fx_Track bone 没被抓到）")
+    if not ok2:
+        print("  errors:", errors2)
+
+    return 0 if (ok and ok2) else 1
 
 
 def main():
     ap = argparse.ArgumentParser(description="PairActions.csv 体检")
+    ap.add_argument("--module", default=REPO, help="模块根目录（默认本仓库；run_all_checks 会传进来）")
     ap.add_argument("--selftest", action="store_true", help="负面测试（坏行必须被抓到）")
     args = ap.parse_args()
 
     if args.selftest:
         return selftest()
 
-    keys, types, labels, data = load(CSV_PATH)
+    csv_path = os.path.join(args.module, "ModuleData", "DesignData", "PairActions.csv")
+    keys, types, labels, data = load(csv_path)
     if keys is None:
-        print("[pair] FAIL 找不到 %s" % CSV_PATH)
+        print("[pair] FAIL 找不到 %s" % csv_path)
         return 1
     if len(keys) != len(types):
         print("[pair] FAIL 表头列数 %d ≠ 类型列数 %d" % (len(keys), len(types)))

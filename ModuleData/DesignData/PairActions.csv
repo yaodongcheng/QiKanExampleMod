@@ -4,4 +4,4 @@ ID,起点方式,横向偏移,纵向偏移,方向,攻击方播放,防守方播放
 grapple_carry,preposition,-0.735167,0.084623,0,machine:carry,machine:bind,carry-trigger,put-trigger,none,persistent,release,mounted_on_mount,put-on-mount,,
 mounted_on_mount,handoff,0,-0.55,0,,,horse-trigger,put-trigger,none,persistent,release,,,,
 execution02,preposition,0,3.70,180,action:act_execution02,machine:executed,exec-hit,exec-rise,engine,none,release,,,,
-assassination01,preposition,0,1.30,0,action:act_ambush01,action:act_ambushed01,,,none,none,knockout,,,1.30@lwn_assassinate_hit,1.30@psys_game_blood_1
+assassination01,preposition,0,1.30,0,action:act_ambush01,action:act_ambushed01,,,none,none,knockout,,,1.30@lwn_assassinate_hit,time=1.30;psys=psys_game_blood_sword_enter;bone=neck;offset=-0.5:0.00:0.00

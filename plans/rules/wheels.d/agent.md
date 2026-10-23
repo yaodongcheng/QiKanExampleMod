@@ -647,6 +647,81 @@ AgentControlHelper.ForcePlayAction(victim, "act_executed02");              // �
 目标默认取 interact 焦点（`InteractionMissionView.Instance.GetFocusdAgent()`，回落 `LastFocusedAgent`）；
 演出相机见 [camera.md](camera.md)。
 
+## 🔴 双人动作的「音效 / 粒子轨道」：一格自带属性 `time=…;psys=…;bone=…`（2026-10-23 登记，暗杀实战）
+
+**解决什么问题**：双人动作演到第几秒要**出声 / 出血**，而**挂点每个动作不一样**（暗杀 = 脖子，处决将来可能是胸口），
+且这类配置要人能直接在表里改 —— 不能为每个属性单开一列，也不能塞真 JSON。
+
+**数据**（`ModuleData/DesignData/PairActions.csv`，两列，**同一格里不许出现半角逗号**）：
+
+| 列 | 写法 | 位置 |
+|---|---|---|
+| `Sound_Track` | `time@音效事件名\|time@…` | 3D，位置 = **受害者颈根骨**世界坐标 |
+| `Fx_Track` | `time=1.30;psys=粒子名;bone=neck;offset=右:前:上`，多段用 `\|` | 挂**受害者** `bone` 那根骨，再按 `offset` 挪 |
+
+```csv
+assassination01,…,1.30@lwn_assassinate_hit,time=1.30;psys=psys_game_blood_sword_enter;bone=neck;offset=0:-0.20:0.10
+# 多段 + 不同骨头：
+time=1.30;psys=psys_game_blood_sword_enter;bone=neck|time=1.55;psys=psys_game_blood_sword_exit;bone=chest
+```
+
+- `bone` 可省 = `neck`；可填 `neck`/`head`/`chest`/`spine`/`waist`/`pelvis`/`arm`/`hand` 或纯数字骨索引。
+  🔴 **用语义名不用数字** —— 名字走 `Monster` 的骨位，换种族（人/儿童）仍然指向"脖子"那个位置。
+- 🔴 `offset=右:前:上`（**米**，**受害者自身坐标系**，冒号分隔不是逗号）—— 骨点埋在身体里（颈根骨就在脖子里）时
+  把特效挪到看得见的位置；换算走 `Skeleton.GetBoneEntitialFrameWithIndex(bone).rotation.TransformToLocal(offset)`，
+  **不用碰世界坐标**（骨帧本身就是角色局部系）。省 = 不偏移。
+- 旧写法 `1.30@粒子名` 仍被接受（bone 默认 neck）。
+
+**🔴 为什么不是真 JSON**：`CsvLoader` 是**裸 `line.Split(',')`、不支持引号字段**（`Data/DesignDataLoad.cs:165-175`）——
+JSON 里的逗号会把整行切裂、后面的列当场丢光。所以用 `;` 分键、`|` 分段：**语义等价于 JSON 键值对，但单元格无逗号**。
+
+**运行时链路**（全在 `Combat/`）：
+- 解析：`PairActionDef.ParseFxEvents`（→ `PairFxEvent{Time, Particle, Bone}`，按时间排序）
+- 到点：`PairActionInstance.TickTracks` → `FireFxTrack(particle, bone)` → `AttachFxToVictimBone`
+- 名字→骨索引：`TryResolveFxBone`（`Monster.NeckRootBoneIndex` / `HeadLookDirection…` / `ThoraxLookDirection…` /
+  `SpineUpper` / `SpineLower` / `Pelvis` / `RightUpperArm` / `MainHand`；不认识的**不瞎猜**，记日志不挂）
+- 挂接：`MBAgentVisuals.CreateParticleSystemAttachedToBone(pid, bone, ref local)` —— 骨骼挂接是**实机验证能看见**的路；
+  `local` 的 origin = `offset` 换到骨局部系的结果，rotation = Identity；
+  ⚠️ 挂**人物实体**看不见（每帧被刷），挂**武器实体**未验证
+- 音效：`SoundFx.Play3D(id, ImpactPoint())`
+
+**验收 / 调观感**：
+```
+custom.pair fx                          # 看当前覆盖
+custom.pair fx psys_game_blood_7        # 运行期换粒子（CSV 是启动期加载的，否则每换一次都要重启）
+custom.pair fx off                      # 回到 CSV 的值
+```
+日志证据：`[Pair] assassination01：粒子 '…' @ t=1.30s（挂在 '某某' 骨 N = NeckRootBoneIndex）`。
+数据体检：`python Scripts/check_pair_actions.py`（缺 `time=`/`psys=`、`bone=` 不认识都报；`--selftest` 是负面测试）。
+
+**四条踩坑**：
+1. **挂点选错 = "特效看不见"**，不是特效太小：起点埋在受害者身体里 / 喷射轴朝身体内都会被模型挡掉 ——
+   先用 **`offset=`** 把挂点挪出身体（如颈根骨 `offset=0:-0.2:0.1` = 往后 20cm 朝攻击者、往上 10cm），
+   换 `bone=` 是第二步。日志里会打 `偏移 0.00:-0.20:0.10`，能确认值真的读进去了。
+2. 🔴 **粒子没有运行期缩放**（引擎无 scale 接口，传进 `MatrixFrame` 的缩放不生效）⇒ "要更大"只能**换粒子系统名**。
+3. 粒子名必须先 `ParticleSystemManager.GetRuntimeIdByName` 查（-1 = 没注册，静默不播）；原版血液备选
+   `blood_1`（最小）/`blood_4`/`blood_6`/`blood_7`/`blood_sword_enter`/`blood_sword_exit`（逐个体量见 `Debug/offline/_blood_psys_probe.py`）。
+4. **CSV 一格一个半角逗号 = 静默裂列**（列数不匹配，后面全丢）；体检脚本会抓，但手改时别赌。
+
+## 🔴 双人动作「什么时候开演」：贴脸触发直接贴、超时从开演算起（2026-10-23 实机，暗杀踩出来的）
+
+**症状**：玩家长按暗杀后，**干等 6 秒**看着目标站着（他在"走向站位点"却卡在 0.75 m 外）；
+好不容易开演，动画播到一半被掐断，日志 `🔴 中止（timeout (10.0s)）`，`end_policy=knockout` 没执行 ⇒ **受害者自己站起来**。
+
+**三条根因 / 三条改法**（`Combat/PairActionLogic.cs`）：
+
+| 现象 | 根因 | 改法 |
+|---|---|---|
+| 玩家干等 6s | 玩家也走引擎寻路到站位点，卡在 0.75m 外就是不动 | 🔴 **玩家离站位点 ≤ 2 m 直接贴过去**（`PlayerSnapMaxDistance`，`EnterAlign` 本来就精确落位），相机同一刻接管 ⇒ 位移看不出来。NPC 发起者仍走原路（走路对 NPC 是自然表现） |
+| 演出被掐断 | `Elapsed > PlayTimeoutSeconds` 从 **pair 创建**算起，走位把 10s 预算吃光 | **超时改从开演算起**（`_playTime > PlayTimeoutSeconds`）；走位/对齐各有自己的超时 |
+| 走位判定抓不住 | 只认"速度 < 0.2 m/s"，贴墙打转/撞人原地蹭时速度不为 0 ⇒ 永远判不到 | 补一条**距离 0.3 s 无 5 cm 改善 = 到了**（`_bestWalkDist` / `WalkNoProgressSeconds`） |
+
+**自检两问**：
+1. 「超时计时是从**哪一刻**开始的？」——凡是跨了多个阶段（走位→对齐→演出）的实例级计时，几乎一定是错的。
+2. 「'到了'的判据在**玩家被卡住**时成立吗？」——只判速度不判进度，会被"原地打转"骗过去。
+
+**日志证据**：`离站位点 0.75 m（≤ 2.0 m）⇒ 直接贴过去，不走位` / `两侧同帧起播成功` / `end.policy=knockout`（最后这行**必须有**）。
+
 ## 🔴 叠加动作与"通道 1"—— **两层模型 + `enforce_lowerbody`**（2026-09-25 结案；本节下面的 09-24 结论已作废）
 
 > 🔴🔴 **旧的"我们导入的 clip 走通道 0，别指望通道 1"已作废** —— 那是"通道 1 收下了不播"

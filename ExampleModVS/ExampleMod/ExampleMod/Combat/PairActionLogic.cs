@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -54,6 +55,9 @@ namespace LivingWorldNpcs
         private const float ArrivalStallMaxDistance = 0.80f;   // 离站位点这么近 + 停住 = 到了（引擎寻路会停在 0.2~0.5m）
         private const float ArrivalStallSeconds = 0.20f;
         private const float ArrivalStallSpeed = 0.20f;         // 米/秒
+        private const float WalkNoProgressSeconds = 0.30f;     // 距离多久没实质改善 = 走到了（"在挪但没靠近"兜底）
+        /// <summary>玩家长按触发时离站位点多近就**直接贴过去**（不走位）：长按暗杀本来就是贴脸，走位只会让人干等。</summary>
+        private const float PlayerSnapMaxDistance = 2.0f;
         private const float ApproachNpcStopDistance = 0.15f;
         private const float PlayTimeoutSeconds = 10.0f;
 
@@ -125,6 +129,8 @@ namespace LivingWorldNpcs
         private Vec3 _lastWalkPos;          // 走到位判定：上一帧位置
         private float _stallTimer;          // 停住多久了
         private bool _hasWalkPos;
+        private float _bestWalkDist;        // 走位：历史最近距离（"在挪但没靠近"判定用）
+        private float _walkNoProgressTimer; // 走位：距离多久没有实质改善
 
         private bool _stopRequested;
         private string _stopReason;
@@ -208,7 +214,21 @@ namespace LivingWorldNpcs
             //    玩家：冻结控制器（Controller=AI）但**不暂停 AI**，靠 scripted position 驱动他走过去；
             //    到 Align 才停脚本移动 + 暂停 AI。
             if (ReferenceEquals(Attacker, Agent.Main))
+            {
                 Lease?.AcquirePlayerControl(Attacker, pauseAi: false);
+
+                // 🔴 2026-10-23 用户裁定：**长按暗杀 = 已经贴脸，别再让玩家走**。
+                //    实测走位会卡满 6 秒（离站位点还差 0.75 m 就是不靠近），期间受害者站着、玩家干等；
+                //    而且走位时间会把演出的超时预算吃掉（进而 knockout 没执行、人自己站起来）。
+                //    ⇒ 近距离直接贴到站位点（`EnterAlign` 本来就会精确落位），相机同一刻接管，位移看不出来。
+                if (dist <= PlayerSnapMaxDistance)
+                {
+                    DebugLogger.Log($"[Pair] {Def.Id}：发起者='{PairActionPose.Describe(Attacker)}' 离站位点 "
+                        + $"{dist:F2} m（≤ {PlayerSnapMaxDistance:F1} m）⇒ 直接贴过去，不走位");
+                    EnterAlign();
+                    return true;
+                }
+            }
 
             AgentControlHelper.ScriptedMoveToPoint(Attacker, _startSpot, isRun: dist > NpcRunDistance, hasNav: false);
             Lease?.NoteScripted(Attacker);
@@ -216,6 +236,8 @@ namespace LivingWorldNpcs
             _lastWalkPos = Attacker.Position;
             _hasWalkPos = true;
             _stallTimer = 0f;
+            _bestWalkDist = float.MaxValue;
+            _walkNoProgressTimer = 0f;
             Phase = PairPhase.PrePosition;
             Note = $"pre-position (walk {dist:F2} m)";
             DebugLogger.Log($"[Pair] {Def.Id}：发起者='{PairActionPose.Describe(Attacker)}' 步行 {dist:F2} m → 站位点 "
@@ -296,8 +318,22 @@ namespace LivingWorldNpcs
             if (speed < ArrivalStallSpeed) _stallTimer += dt;
             else _stallTimer = 0f;
 
+            // 🔴 2026-10-23：光看"速度 < 0.2"抓不住"在动但没靠近"（贴墙打转 / 撞人原地蹭），
+            //    实测卡在 0.75m 干等 6s 超时 ⇒ 再按"距离有没有实质改善"兜一层（5cm 才算改善）。
+            if (dist < _bestWalkDist - 0.05f)
+            {
+                _bestWalkDist = dist;
+                _walkNoProgressTimer = 0f;
+            }
+            else
+            {
+                _walkNoProgressTimer += dt;
+            }
+
             bool arrived = dist <= ApproachNpcStopDistance
-                        || (dist <= ArrivalStallMaxDistance && _stallTimer >= ArrivalStallSeconds);
+                        || (dist <= ArrivalStallMaxDistance
+                            && (_stallTimer >= ArrivalStallSeconds
+                                || _walkNoProgressTimer >= WalkNoProgressSeconds));
 
             if (arrived)
             {
@@ -723,8 +759,11 @@ namespace LivingWorldNpcs
             }
 
             bool keepAlive = HasKeepAliveDriver;
-            if (!keepAlive && Elapsed > PlayTimeoutSeconds)
-                Bail($"timeout ({Elapsed:F1}s)");
+            // 🔴 演出超时从**开演**算起（`_playTime`），不是从 pair 创建算起：
+            //    走位/对齐各有自己的超时，不该吃掉演出的预算。2026-10-23 实机：走位卡 6s ⇒ 演出只剩 ~3.9s
+            //    就被掐断 ⇒ `end.policy=knockout` 没执行 ⇒ 受害者自己站起来（日志 `🔴 中止（timeout (10.0s)）`）。
+            if (!keepAlive && _playTime > PlayTimeoutSeconds)
+                Bail($"play timeout ({_playTime:F1}s)");
         }
 
         /// <summary>
@@ -752,7 +791,7 @@ namespace LivingWorldNpcs
                 while (_fxFired < Def.FxTrack.Count
                        && Def.FxTrack[_fxFired].Time <= _playTime)
                 {
-                    FireFxTrack(Def.FxTrack[_fxFired].Id);
+                    FireFxTrack(Def.FxTrack[_fxFired]);
                     _fxFired++;
                 }
             }
@@ -773,35 +812,137 @@ namespace LivingWorldNpcs
             }
         }
 
-        private void FireFxTrack(string id)
+        /// <summary>
+        /// 运行期粒子覆盖：`custom.pair fx &lt;粒子名&gt;`。空 = 用 `PairActions.csv` 的 `Fx_Track`。
+        /// 存在的理由 = 换一种血要重启游戏才生效（CSV 是启动期加载的），调观感时没法当场对比。
+        /// </summary>
+        public static string FxOverrideName;
+
+        private void FireFxTrack(PairFxEvent ev)
         {
+            if (ev == null) return;
+            string id = ev.Particle;
             try
             {
-                Agent victim = Defender;
-                if (victim == null || !AgentControlHelper.SafeIsActive(victim))
-                    return;
-
-                int pid = ParticleSystemManager.GetRuntimeIdByName(id);
+                string fxName = string.IsNullOrEmpty(FxOverrideName) ? id : FxOverrideName;
+                int pid = ParticleSystemManager.GetRuntimeIdByName(fxName);
                 if (pid == -1)
                 {
-                    DebugLogger.Log($"[Pair] {Def.Id}：粒子 '{id}' 未注册（id=-1）");
+                    DebugLogger.Log($"[Pair] {Def.Id}：粒子 '{fxName}' 未注册（id=-1）");
                     return;
                 }
 
-                MBAgentVisuals visuals = victim.AgentVisuals;
-                if (visuals == null || !visuals.IsValid())
-                    return;
-
-                sbyte bone = victim.Monster != null ? victim.Monster.NeckRootBoneIndex : (sbyte)0;
-                MatrixFrame local = new MatrixFrame(Mat3.Identity, Vec3.Zero);
-                visuals.CreateParticleSystemAttachedToBone(pid, bone, ref local);
-                DebugLogger.Log($"[Pair] {Def.Id}：粒子 '{id}' @ t={_playTime:F2}s（挂在 "
-                    + $"'{PairActionPose.Describe(victim)}' 颈骨 {bone}）");
+                // 🔴 挂点写在粒子轨道里（`time=...;psys=...;bone=neck;offset=右:前:上`），每个双人动作自己定。
+                AttachFxToVictimBone(pid, fxName, ev);
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[Pair] {Def.Id}：粒子 '{id}' 失败：{ex.GetType().Name}");
+                DebugLogger.Log($"[Pair] {Def.Id}：粒子 '{id}' 失败：{ex.GetType().Name} {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 把粒子挂到受害者的一根骨头上（2026-10-23）。
+        /// **挂哪根 = `Fx_Track` 里的 `bone=`**（省 = `neck` 颈根）；
+        /// **位置微调 = `offset=右:前:上`**（米，受害者自身坐标系）—— 骨点埋在身体里时把特效挪出来。
+        /// 骨骼挂接是实机验证过能看见、能跟随的路（`custom.psys_head` 同款）。
+        /// </summary>
+        private void AttachFxToVictimBone(int pid, string fxName, PairFxEvent ev)
+        {
+            Agent victim = Defender;
+            if (victim == null || !AgentControlHelper.SafeIsActive(victim))
+                return;
+
+            MBAgentVisuals visuals = victim.AgentVisuals;
+            if (visuals == null || !visuals.IsValid())
+                return;
+
+            string note;
+            if (!TryResolveFxBone(victim, ev != null ? ev.Bone : null, out sbyte bone, out note))
+            {
+                DebugLogger.Log($"[Pair] {Def?.Id}：粒子 '{fxName}' 没挂 —— {note}");
+                return;
+            }
+
+            // 偏移：受害者自身系（右/前/上）→ 骨局部系。骨帧是"角色局部坐标"（不是世界），
+            // 所以直接用骨 entitial 的朝向做一次反变换即可，不必碰世界坐标。
+            Vec3 localOffset = Vec3.Zero;
+            string offsetNote = "none";
+            if (ev != null && ev.HasOffset)
+            {
+                try
+                {
+                    Skeleton skel = visuals.GetSkeleton();
+                    if (skel != null)
+                    {
+                        MatrixFrame boneEntitial = skel.GetBoneEntitialFrameWithIndex(bone);
+                        localOffset = boneEntitial.rotation.TransformToLocal(
+                            new Vec3(ev.OffsetRight, ev.OffsetForward, ev.OffsetUp));
+                        offsetNote = $"{ev.OffsetRight:F2}:{ev.OffsetForward:F2}:{ev.OffsetUp:F2}";
+                    }
+                    else
+                    {
+                        offsetNote = "no skeleton (offset skipped)";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    offsetNote = $"offset failed ({ex.GetType().Name})";
+                }
+            }
+
+            MatrixFrame local = new MatrixFrame(Mat3.Identity, localOffset);
+            visuals.CreateParticleSystemAttachedToBone(pid, bone, ref local);
+            DebugLogger.Log($"[Pair] {Def?.Id}：粒子 '{fxName}' @ t={_playTime:F2}s（挂在 "
+                + $"'{PairActionPose.Describe(victim)}' 骨 {bone} = {note}，偏移 {offsetNote}）");
+        }
+
+        /// <summary>
+        /// `Fx_Track` 里的 `bone=` → 骨索引。名字取 `Monster` 的语义骨位（跨种族通用），也接受纯数字 = 原始骨索引。
+        /// 返回 false = 名字不认识（不瞎猜，直接不挂并说明）。
+        /// </summary>
+        private static bool TryResolveFxBone(Agent victim, string spec, out sbyte bone, out string note)
+        {
+            bone = -1;
+            string key = string.IsNullOrWhiteSpace(spec) ? "neck" : spec.Trim().ToLowerInvariant();
+
+            if (sbyte.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out sbyte raw))
+            {
+                bone = raw;
+                note = "raw index";
+                return true;
+            }
+
+            Monster m = victim != null ? victim.Monster : null;
+            if (m == null)
+            {
+                note = "victim has no monster";
+                return false;
+            }
+
+            switch (key)
+            {
+                case "neck": bone = m.NeckRootBoneIndex; note = "NeckRootBoneIndex"; break;
+                case "head": bone = m.HeadLookDirectionBoneIndex; note = "HeadLookDirectionBoneIndex"; break;
+                case "chest":
+                case "thorax": bone = m.ThoraxLookDirectionBoneIndex; note = "ThoraxLookDirectionBoneIndex"; break;
+                case "spine": bone = m.SpineUpperBoneIndex; note = "SpineUpperBoneIndex"; break;
+                case "waist": bone = m.SpineLowerBoneIndex; note = "SpineLowerBoneIndex"; break;
+                case "pelvis": bone = m.PelvisBoneIndex; note = "PelvisBoneIndex"; break;
+                case "arm":
+                case "shoulder": bone = m.RightUpperArmBoneIndex; note = "RightUpperArmBoneIndex"; break;
+                case "hand": bone = m.MainHandBoneIndex; note = "MainHandBoneIndex"; break;
+                default:
+                    note = $"unknown bone '{key}' in Fx_Track (use neck/head/chest/spine/waist/pelvis/arm/hand or a raw index)";
+                    return false;
+            }
+
+            if (bone < 0)
+            {
+                note += " (this monster has no such bone)";
+                return false;
+            }
+            return true;
         }
 
         /// <summary>发力点 = 受害者颈根骨的世界位置；读不到就退到身体上方 1.5 m。</summary>

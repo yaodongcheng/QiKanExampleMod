@@ -107,6 +107,36 @@ namespace LivingWorldNpcs
         private static readonly Dictionary<string, InteractionBinding> _bindings = new Dictionary<string, InteractionBinding>();
         private static readonly Dictionary<string, RowState> _states = new Dictionary<string, RowState>();
 
+        // 🔴 物理键按住时长（与玩法行无关，2026-10-23）。
+        //    行的跟踪会被 `Reset` 清零（行中途消失 / 出现），但玩家的手指没松开 ——
+        //    短按行若按"行自己的计时"判定，就会在「长按行消失 → 同键短按行出现」时误触发
+        //    （实机：暗杀长按途中目标走开 → 松手直接开了对话）。
+        //    ⇒ 短按一律看**物理键**按了多久；长按仍看行自己的计时（行重新出现要求重新蓄力，防误杀）。
+        private static readonly Dictionary<InputKey, float> _keyHoldTime = new Dictionary<InputKey, float>();
+        private static readonly HashSet<InputKey> _keyClockScratch = new HashSet<InputKey>();
+
+        private static float PhysicalHoldSeconds(InteractionBinding b)
+        {
+            float kb = _keyHoldTime.TryGetValue(b.Keyboard, out float a) ? a : 0f;
+            float gp = _keyHoldTime.TryGetValue(b.Gamepad, out float c) ? c : 0f;
+            return MathF.Max(kb, gp);
+        }
+
+        /// <summary>物理键时钟：每帧只推进一次（多个玩法行共用同一物理键），松开即清零。</summary>
+        private static void AdvanceKeyClocks(float dt)
+        {
+            _keyClockScratch.Clear();
+            foreach (var kvp in _bindings)
+            {
+                _keyClockScratch.Add(kvp.Value.Keyboard);
+                _keyClockScratch.Add(kvp.Value.Gamepad);
+            }
+            foreach (InputKey key in _keyClockScratch)
+                _keyHoldTime[key] = Input.IsKeyDown(key)
+                    ? (_keyHoldTime.TryGetValue(key, out float t) ? t : 0f) + dt
+                    : 0f;
+        }
+
         // ── 手柄逻辑键别名表（大小写不敏感）：Xbox 名与 PS 名等价解析，归一到同一引擎键 ──
         private static readonly Dictionary<string, InputKey> _gamepadAliases = new Dictionary<string, InputKey>(StringComparer.OrdinalIgnoreCase)
         {
@@ -495,16 +525,21 @@ namespace LivingWorldNpcs
                 else if (st.Tracking)
                 {
                     // 松开沿：长按行已待命（满）→ 触发（玩家选时机松手）；阈值前松开无触发；
-                    // 短按行在阈值前松开 → 触发；超阈值 → 取消（转入同键其他行的长按路径）
+                    // 短按行在阈值前松开 → 触发；超阈值 → 取消（转入同键其他行的长按路径）。
+                    // 🔴 短按的"阈值前"看**物理键**按了多久（不是本行计时）：行中途被 Reset 过也一样。
+                    float physicalHoldMs = PhysicalHoldSeconds(b) * 1000f;
                     if (b.PressMode == ModInputPressMode.Long && st.LongReady)
                         st.LongFired = true;
-                    else if (b.PressMode == ModInputPressMode.Short && st.HoldTime * 1000f < b.ThresholdMs)
+                    else if (b.PressMode == ModInputPressMode.Short && physicalHoldMs < b.ThresholdMs)
                         st.ShortFired = true;
                     st.Tracking = false;
                     st.HoldTime = 0f;
                     st.LongReady = false;
                 }
             }
+
+            // 物理键时钟放在最后推进：本帧的"松开沿"读到的是**松手前**已按住的时长。
+            AdvanceKeyClocks(dt);
         }
 
         /// <summary>
