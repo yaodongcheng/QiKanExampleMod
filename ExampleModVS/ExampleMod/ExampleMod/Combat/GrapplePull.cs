@@ -157,6 +157,7 @@ namespace LivingWorldNpcs
 
 		private readonly CarrierBoard _board = new CarrierBoard();
 		private Agent _main;
+		private bool _ownerIsPlayer = true;
 		private Phase _phase = Phase.Idle;
 		private Vec3 _startTop;        // 起点：**板面**（= 脚底）世界坐标
 		private Vec3 _endTop;          // 终点：板面世界坐标（平台面；没平台时是空中那个点）
@@ -226,6 +227,7 @@ namespace LivingWorldNpcs
 			}
 
 			_main = main;
+			_ownerIsPlayer = ReferenceEquals(main, Agent.Main);
 			_landingFound = landingFound;
 			_endTop = endTop;
 			_faceTarget = faceTarget;
@@ -247,7 +249,7 @@ namespace LivingWorldNpcs
 			//     此刻板还没生成 ⇒ EngagePlayer 只冻结；挂载那一半在下面 Spawn 成功后补。
 			try
 			{
-				_board.EngagePlayer(main);
+				_board.EngageAgent(main, _ownerIsPlayer);
 				_frozen = true;
 			}
 			catch (Exception ex)
@@ -331,6 +333,12 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void FeedWind(float dt)
 		{
+			// 2026-10-23：风噪锚在玩家身上；NPC 拉拽不播（属性能/镜头例外）。
+			if (!_ownerIsPlayer)
+			{
+				_windHasPrev = false;
+				return;
+			}
 			if (_main == null)
 			{
 				_windHasPrev = false;
@@ -543,16 +551,17 @@ namespace LivingWorldNpcs
 				return;
 			}
 			_frozen = false;
-			Agent main = _main ?? Agent.Main;
+			Agent main = _main;
+			if (main == null && _ownerIsPlayer) main = Agent.Main;
 			if (main == null || !AgentControlHelper.SafeIsActive(main))
 			{
-				DebugLogger.Log("[Grapple] 解冻：玩家 agent 已失效，无需归还");
+				DebugLogger.Log("[Grapple] 解冻：agent 已失效，无需归还");
 				return;
 			}
 			try
 			{
-				// 🔴 走共用件（摘挂载 + 解冻）—— 与上面的 `_board.EngagePlayer` 配对
-				_board.ReleasePlayer(main);
+				// 🔴 走共用件（摘挂载 + 解冻）—— 与上面的 `_board.EngageAgent` 配对
+				_board.ReleaseAgent(main, _ownerIsPlayer);
 				DebugLogger.Log($"[Grapple] 解冻：Controller={main.Controller} paused={main.IsPaused}");
 			}
 			catch (Exception ex)
@@ -659,6 +668,11 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void EnterCamera()
 		{
+			// 2026-10-23：NPC 拉拽**不接管相机**（用户裁定：NPC 平权，除 UI/镜头）。
+			if (!_ownerIsPlayer)
+			{
+				return;
+			}
 			if (_main == null)
 			{
 				return;
@@ -893,7 +907,7 @@ namespace LivingWorldNpcs
 			{
 				return false;
 			}
-			others = _board.CountRiders(Agent.Main, 0.15f);
+			if (_main != null) others = _board.CountRiders(_main, 0.15f);
 			return true;
 		}
 	}

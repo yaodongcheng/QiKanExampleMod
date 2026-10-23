@@ -562,6 +562,20 @@ namespace LivingWorldNpcs
             bool nearChest = _chestEntity != null && Agent.Main != null
                 && Agent.Main.Position.Distance(_chestEntity.GetGlobalFrame().origin) < 3f;
 
+            // 🔴 2026-10-23：玩家正被 NPC 的绳绑着 ⇒ 不给任何交互入口（控制器已被收走，面板也该收）。
+            if (GrappleLogic.IsPlayerBoundByOtherRope())
+            {
+                _lastFocusedAgent = null;
+                BuildNoTargetContext(nearChest: false);
+                SyncAvailable();
+                if (_interactVM.IsVisible)
+                {
+                    _interactVM.IsVisible = false;
+                    IsHandlingInteraction = false;
+                }
+                return;
+            }
+
             // B. 排除空目标或玩家自己 → 箱子上下文 / 无目标上下文
             if (currentAgent == null || currentAgent == Mission.Current.MainAgent)
             {
@@ -1170,14 +1184,17 @@ namespace LivingWorldNpcs
             {
                 if (!nearChest)
                 {
-                    // 面板标题 = "手里牵着谁"（无目标语境下这条面板讲的是玩家自己，标题得说明白）
-                    string heldName = GrappleLogic.Current?.BoundTargetAgent is Agent held
-                        ? AgentControlHelper.GetDisplayName(held)
-                        : null;
-                    // 本地化：牵着绳时的面板标题（{NAME}=被牵着的对象名）
+                    // 面板标题 = "手里牵着谁" / "扛着谁"（无目标语境下这条面板讲的是玩家自己，标题得说明白）
+                    GrappleLogic logic = GrappleLogic.Current;
+                    bool carrying = logic != null && logic.IsCarryingSomeone;
+                    Agent held = carrying ? logic.CarriedAgent : logic?.BoundTargetAgent;
+                    string heldName = held != null ? AgentControlHelper.GetDisplayName(held) : null;
+                    // 本地化：牵着绳 / 扛着人时的面板标题（{NAME}=被牵/被扛的对象名）
                     _uiTargetName = string.IsNullOrWhiteSpace(heldName)
                         ? LWNTextHelper.ResolveText("LWN_ui_interact_cutrope", "Cut the rope")
-                        : LWNTextHelper.ResolveCompound("LWN_ui_rope_held_title", "Rope in hand: {NAME}", ("NAME", heldName));
+                        : carrying
+                            ? LWNTextHelper.ResolveCompound("LWN_ui_carried_title", "Carrying: {NAME}", ("NAME", heldName))
+                            : LWNTextHelper.ResolveCompound("LWN_ui_rope_held_title", "Rope in hand: {NAME}", ("NAME", heldName));
                 }
                 AddRopeRows(null);   // 无目标语境：没有 focus ⇒ 只可能出【拉紧】/【放下】/【松绳】
             }
@@ -2632,7 +2649,7 @@ namespace LivingWorldNpcs
         /// **暗杀**（2026-10-22）：背后 + 手持单手/双手剑/匕首 ⇒ 代替【击晕】。
         /// 走通用双人动作 `assassination01`（伏击动画：attacker=`action:act_ambush01` /
         /// defender=`action:act_ambushed01`，动画源 = 重定向库 `ue_GhostSamurai_Ambush01__Inplace` /
-        /// `...Ambushed01__Inplace`）；`End_Policy=kill_defender`（真杀死）。
+        /// `...Ambushed01__Inplace`）；`End_Policy=knockout`（**非致命**：目标进入被击晕/重伤，不杀死）。
         /// 站位 = **攻击方在目标正后方 1.3 m、两人同向**（`PairActions.csv` 的 stance）。
         /// ⚠️ 用的是 **Inplace** 变体（无根位移）：受害者原地倒地、攻击方不垫步；
         ///    `__Root` 变体带攻击方 0.43m 垫步 + 受害者 2.16m 击退，但要先做“根轨+displacement 是否双份”实验再换。

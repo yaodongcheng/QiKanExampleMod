@@ -81,14 +81,15 @@ namespace LivingWorldNpcs
 					//    在站姿眼高之外**另有一项坐骑项**、我们没抄过 ⇒ 接管 = 取景系统性不对；
 					//    而引擎自己的骑马相机本来就是对的 —— 骑马时把它留着。
 					//    （将来做"马上演出机位"时：先把那一支反编译抄进 SpringArmMath，再放开这条守卫。）
-					if (Enabled && grappleBusy && !CameraService.IsHeld && !main.HasMount)
+					if (Enabled && grappleBusy && !CameraService.IsHeld && !main.HasMount
+						&& !GrappleLogic.IsPlayerBoundByOtherRope())
 					{
 						Enter(main);
 					}
 					return;
 				}
 
-				if (grappleBusy)
+				if (grappleBusy && !GrappleLogic.IsPlayerBoundByOtherRope())
 				{
 					DriveBodyTowardCamera(main);
 				}

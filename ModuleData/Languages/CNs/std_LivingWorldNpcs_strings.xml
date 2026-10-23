@@ -4145,6 +4145,7 @@
     <string id="LWN_ui_grapple_hook_needs_rope" text="钩爪只能通过钩索绳发射——普通弓射不出去。" />
     <string id="LWN_ui_grapple_bound_no_fire" text="绳上还绑着人——先松绳（交互面板【松绳】）。绑着人时不能发射钩索。" />
     <string id="LWN_ui_rope_held_title" text="手中牵着：{NAME}" />
+    <string id="LWN_ui_carried_title" text="扛着：{NAME}" />
     <string id="LWN_ui_state_bound" text="(被捆)" />
     <string id="LWN_ui_intervene_bubble" text="住手！他是我的人！" />
     <string id="LWN_ui_arrest_msg" text="你的随从 {NAME} 被关进了 {SETTLEMENT} 的牢房。" />

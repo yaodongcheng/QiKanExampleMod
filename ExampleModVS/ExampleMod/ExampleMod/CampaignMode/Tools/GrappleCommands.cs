@@ -175,7 +175,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lid" || s == "lreset" || s == "equip" || s == "hint" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
 					|| s == "mountedpull" || s == "mountedwait" || s == "mountedselfblow" || s == "horse"					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
-					|| s == "bind" || s == "carry" || s == "market"
+					|| s == "bind" || s == "carry" || s == "market" || s == "npc"
 					|| s == "aimcam" || s == "aimanchor" || s == "aimlift" || s == "aimsens"
 					|| s == "sound")
 				{
@@ -1058,6 +1058,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					break;
 				}
 
+				// ─────────────── 步骤 7：NPC 平权（2026-10-23）───────────────
+
+				case "npc":
+					result = DoNpc(args, at);
+					break;
+
 				// ─────────────────── 步骤 5：勾人（缠 → 倒 → 缚，2026-10-09）───────────────────
 
 				case "bind":
@@ -1539,6 +1545,51 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		}
 
 		/// <summary>
+		/// 腾一个 0~3 号武器槽：**先丢当前主手，再副手，再按槽位顺序**；跳过绳/钩本身
+		/// （2026-10-23：NPC 装备格满了也能换上钩索 —— 用户要求"丢下手上的武器换上"）。
+		/// 返回 false = 没有可丢的（例如四个槽全是钩索物品）。
+		/// </summary>
+		private static bool DropOneForSlot(Agent agent, out string note)
+		{
+			note = null;
+			if (agent == null) return false;
+			try
+			{
+				EquipmentIndex main = EquipmentIndex.None;
+				EquipmentIndex off = EquipmentIndex.None;
+				try { main = V.MainWpn(agent); } catch (Exception) { }
+				try { off = V.OffWpn(agent); } catch (Exception) { }
+
+				EquipmentIndex[] candidates = new EquipmentIndex[6];
+				candidates[0] = main;
+				candidates[1] = off;
+				for (int i = 0; i < 4; i++)
+				{
+					candidates[2 + i] = (EquipmentIndex)((int)EquipmentIndex.WeaponItemBeginSlot + i);
+				}
+
+				for (int i = 0; i < candidates.Length; i++)
+				{
+					EquipmentIndex slot = candidates[i];
+					if ((int)slot < (int)EquipmentIndex.WeaponItemBeginSlot
+						|| (int)slot >= (int)EquipmentIndex.NumPrimaryWeaponSlots)
+					{
+						continue;
+					}
+					MissionWeapon w = agent.Equipment[slot];
+					if (w.IsEmpty || w.Item == null) continue;
+					string id = w.Item.StringId;
+					if (id == GrappleFirePatch.RopeItemId || id == GrappleFirePatch.HookItemId) continue;
+					agent.DropItem(slot);
+					note = $"dropped {id} (slot {(int)slot}) to make room";
+					return true;
+				}
+			}
+			catch (Exception) { }
+			return false;
+		}
+
+		/// <summary>
 		/// 把玩家身上某件物品（按 StringId）从**所有武器槽**卸掉，返回卸掉的件数（`equip rope|hook` 用，2026-10-12）。
 		/// 目的 = 让"只有绳 / 只有钩"这种现场**一条命令就能复现**（否则上一局装的另一件还挂在身上）。
 		/// 引擎 API = `Agent.RemoveEquippedWeapon(EquipmentIndex)`（1.2.12 ~ 1.5.x 各锚点都有）。
@@ -1856,6 +1907,671 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///   lead [米] [run]             绳主（NPC）往前走到 N 米外（默认 6），牵着玩家跟上来
 		///   leadstop                    绳主停下
 		/// </summary>
+		// ═══════════════════ NPC 平权命令（2026-10-23，方案 §二十五）═══════════════════
+
+		/// <summary>
+		/// `custom.grapple npc ...` —— NPC 那套钩索的命令入口。
+		/// 阶段 2 只做：`bind` / `state` / `list` / `release` / `stop`；
+		/// `equip` / `throw` / `pull` / `ai` 在后面阶段接。
+		/// </summary>
+		private static string DoNpc(List<string> args, int at)
+		{
+			string sub = (ArgAt(args, at) ?? "state").ToLowerInvariant();
+			switch (sub)
+			{
+				case "bind":
+					return DoNpcBind(args, at + 1);
+				case "equip":
+					return DoNpcEquip(args, at + 1);
+				case "throw":
+					return DoNpcThrow(args, at + 1);
+				case "pull":
+					return DoNpcPull(args, at + 1);
+				case "state":
+				case "list":
+					return DoNpcState();
+				case "release":
+					return DoNpcRelease(ArgAt(args, at + 1));
+				case "stop":
+					return DoNpcStop(ArgAt(args, at + 1));
+				case "ai":
+					return DoNpcAi(args, at + 1);
+				case "nearby":
+					return DoNpcNearby(args, at + 1);
+				case "carry":
+					return DoNpcCarry(args, at + 1);
+				case "walkto":
+					return DoNpcWalkTo(args, at + 1);
+				case "walkstop":
+					return DoNpcWalkStop(args, at + 1);
+				case "sword":
+					return DoNpcSword(args, at + 1);
+				default:
+					return "npc: usage: equip [agent] [both|rope|hook] | sword [agent] | bind [attacker] [target] | throw [attacker] [target|roof|x y z] | pull [attacker] [roof|x y z] | carry [carrier] | walkto [agent] <target|me|x y z> | walkstop [agent] | nearby [radius] | ai on|off|verbose|cap|cooldown|lod|state | state | list | release <index|all> | stop <index|all>";
+			}
+		}
+
+		private static string DoNpcBind(List<string> args, int at)
+		{
+			if (Mission.Current == null) return "Error: not in mission.";
+			Agent focus = null;
+			try { focus = InteractionMissionView.Instance?.GetAimedAgent(); }
+			catch (Exception) { }
+
+			Agent attacker = ResolveNpcToken(ArgAt(args, at));
+			Agent target = ResolveNpcToken(ArgAt(args, at + 1));
+
+			if (attacker == null && target == null)
+			{
+				attacker = FindNearestNpc(Agent.Main, null, 30f);
+				target = focus ?? Agent.Main;
+			}
+			else if (attacker != null && target == null)
+			{
+				target = focus ?? Agent.Main;
+				if (ReferenceEquals(target, attacker))
+				{
+					target = ReferenceEquals(attacker, Agent.Main)
+						? FindNearestNpc(attacker, null, 30f)
+						: Agent.Main;
+				}
+			}
+			else if (attacker == null)
+			{
+				attacker = FindNearestNpc(target, Agent.Main, 30f);
+			}
+
+			if (attacker == null) return "Error: no NPC attacker nearby (need one within 30 m, not a child/mount).";
+			if (target == null) return "Error: no target (aim at someone, or pass #index/name).";
+			if (ReferenceEquals(attacker, target)) return "Error: attacker and target are the same agent.";
+
+			GrappleLogic session = GrappleLogic.EnsureFor(attacker);
+			if (session == null) return "Error: no grapple session for the attacker.";
+			return session.BindFromTo(attacker, target, testPath: true);
+		}
+
+		private static string DoNpcEquip(List<string> args, int at)
+		{
+			Agent a = ResolveNpcToken(ArgAt(args, at));
+			if (a == null)
+			{
+				try { a = InteractionMissionView.Instance?.GetAimedAgent(); } catch (Exception) { }
+			}
+			if (a == null) a = FindNearestNpc(Agent.Main, null, 30f);
+			if (a == null) return "Error: no NPC found (pass #index / a name, or stand near one).";
+
+			string what = (ArgAt(args, at + 1) ?? "both").Trim().ToLowerInvariant();
+			bool wantRope = what == "both" || what == "rope";
+			bool wantHook = what == "both" || what == "hook";
+			if (!wantRope && !wantHook)
+				return "Error: equip takes 'both' (default) | 'rope' | 'hook'.";
+
+			ItemObject rope = wantRope ? ResolveContentItem(GrappleFirePatch.RopeItemId, "GrappleRope") : null;
+			ItemObject hook = wantHook ? ResolveContentItem(GrappleFirePatch.HookItemId, "GrappleHook") : null;
+			if ((wantRope && rope == null) || (wantHook && hook == null))
+				return "Error: grapple items not found (expected lwn_grapple_rope / lwn_grapple_hook).";
+
+			try
+			{
+				var notes = new List<string>();
+				if (!wantHook)
+				{
+					int dropped = RemoveEquippedById(a, GrappleFirePatch.HookItemId);
+					if (dropped > 0) notes.Add($"removed {dropped}x hook");
+				}
+				if (!wantRope)
+				{
+					int dropped = RemoveEquippedById(a, GrappleFirePatch.RopeItemId);
+					if (dropped > 0) notes.Add($"removed {dropped}x rope");
+				}
+
+				if (wantRope)
+				{
+					EquipmentIndex slot = FindFreeWeaponSlotFor(a, rope);
+					if (slot == EquipmentIndex.None)
+					{
+						if (!DropOneForSlot(a, out string droppedRope))
+							return "Error: no free weapon slot for the rope on that NPC, and nothing droppable (all slots are grapple items).";
+						notes.Add(droppedRope);
+						slot = FindFreeWeaponSlotFor(a, rope);
+						if (slot == EquipmentIndex.None)
+							return "Error: still no free weapon slot for the rope after dropping one item.";
+					}
+					if (a.Equipment[slot].Item == null)
+					{
+						MissionWeapon w = new MissionWeapon(rope, null, a.Origin != null ? a.Origin.Banner : null);
+						a.EquipWeaponWithNewEntity(slot, ref w);
+					}
+					notes.Add($"rope in slot {(int)slot}");
+				}
+
+				if (wantHook)
+				{
+					EquipmentIndex slot = FindFreeWeaponSlotFor(a, hook);
+					if (slot == EquipmentIndex.None)
+					{
+						if (!DropOneForSlot(a, out string droppedHook))
+							return "Error: no free weapon slot for the hook on that NPC (it uses one ammo slot), and nothing droppable (all slots are grapple items).";
+						notes.Add(droppedHook);
+						slot = FindFreeWeaponSlotFor(a, hook);
+						if (slot == EquipmentIndex.None)
+							return "Error: still no free weapon slot for the hook after dropping one item.";
+					}
+					if (a.Equipment[slot].Item == null)
+					{
+						MissionWeapon w = new MissionWeapon(hook, null, a.Origin != null ? a.Origin.Banner : null);
+						a.EquipWeaponWithNewEntity(slot, ref w);
+					}
+					a.SetWeaponAmountInSlot(slot, 1, false);
+					notes.Add($"hook x1 in slot {(int)slot}");
+				}
+
+				a.UpdateAgentStats();
+				return $"OK: '{a.Name}'#{a.Index} equipped: {string.Join(" + ", notes)}"
+					+ " (AI uses it only when its grapple session starts; 'custom.grapple npc throw' to test now).";
+			}
+			catch (Exception ex)
+			{
+				return $"Error: NPC equip failed ({ex.GetType().Name}: {ex.Message})";
+			}
+		}
+
+		private static string DoNpcThrow(List<string> args, int at)
+		{
+			if (Mission.Current == null) return "Error: not in mission.";
+			Agent focus = null;
+			try { focus = InteractionMissionView.Instance?.GetAimedAgent(); } catch (Exception) { }
+
+			string aTok = ArgAt(args, at);
+			string tTok = ArgAt(args, at + 1);
+			bool aRoof = IsRoofWord(aTok);
+			Agent attacker = aRoof ? null : ResolveNpcToken(aTok);
+			if (attacker == null && (string.IsNullOrEmpty(aTok) || aRoof))
+				attacker = FindNearestNpc(Agent.Main, null, 30f);
+
+			// 屋顶模式：`npc throw roof` / `npc throw #16 roof`（钩最近的屋顶并拉自己）
+			if (attacker != null && (aRoof || IsRoofWord(tTok)))
+			{
+				if (!NpcGrappleDirector.TryFindRoofPoint(attacker, out Vec3 roofPoint))
+					return "Error: no roof/high point found around that NPC (within 20 m and clearly above him).";
+				return BeginNpcThrowAt(attacker, roofPoint, aimAgent: false, autoPull: true, what: "the nearest roof");
+			}
+
+			// 点模式：`npc throw <attacker> x y z`（钩墙拉自己）
+			if (attacker != null && TryParsePoint(args, at + 1, out Vec3 point))
+			{
+				return BeginNpcThrowAt(attacker, point, aimAgent: false, autoPull: true, what: "the wall point");
+			}
+
+			Agent target = ResolveNpcToken(tTok);
+
+			if (attacker == null && target == null)
+			{
+				attacker = FindNearestNpc(Agent.Main, null, 30f);
+				target = focus ?? Agent.Main;
+			}
+			else if (attacker != null && target == null)
+			{
+				target = focus ?? Agent.Main;
+				if (ReferenceEquals(target, attacker))
+					target = ReferenceEquals(attacker, Agent.Main) ? FindNearestNpc(attacker, null, 30f) : Agent.Main;
+			}
+			else if (attacker == null)
+			{
+				attacker = FindNearestNpc(target, Agent.Main, 30f);
+			}
+
+			if (attacker == null) return "Error: no NPC attacker nearby (need one within 30 m).";
+			if (target == null) return "Error: no target (aim at someone, or pass #index/name).";
+			if (ReferenceEquals(attacker, target)) return "Error: attacker and target are the same agent.";
+
+			Vec3 aim = GrappleBind.ChestOf(target);
+			string r = BeginNpcThrowAt(attacker, aim, aimAgent: true, autoPull: false, what: $"'{target.Name}'", aimTarget: target);
+			return r.StartsWith("OK", StringComparison.Ordinal)
+				? r + " (watch the hook fly from its right hand; see [GrappleNPC] in the log)."
+				: r;
+		}
+
+		private static string DoNpcPull(List<string> args, int at)
+		{
+			if (Mission.Current == null) return "Error: not in mission.";
+			string aTok = ArgAt(args, at);
+			bool roofFirst = IsRoofWord(aTok);
+			Agent attacker = roofFirst ? null : ResolveNpcToken(aTok);
+			if (attacker == null) attacker = FindNearestNpc(Agent.Main, null, 30f);
+			if (attacker == null) return "Error: no NPC found (pass #index / a name, or stand near one).";
+			if (ReferenceEquals(attacker, Agent.Main))
+				return "Error: the attacker is the player - use 'custom.grapple pull self' instead.";
+
+			Vec3 aim;
+			string mode = roofFirst ? aTok : (ArgAt(args, at + 1) ?? "");
+			if (IsRoofWord(mode))
+			{
+				if (!NpcGrappleDirector.TryFindRoofPoint(attacker, out aim))
+					return "Error: no roof/high point found around that NPC (within 20 m and clearly above him).";
+			}
+			else if (!TryParsePoint(args, at + 1, out aim))
+			{
+				Scene scene = Mission.Current.Scene;
+				if (scene == null) return "Error: no scene.";
+				Vec3 from = attacker.Position + Vec3.Up * 1.5f;
+				Vec3 dir = attacker.LookDirection;
+				if (dir.LengthSquared < 1e-4f)
+					return "Error: the NPC has no look direction; pass an explicit point: 'custom.grapple npc pull <agent> x y z' (or 'roof').";
+				Vec3 to = from + dir.NormalizedCopy() * GrappleLogic.AimRange;
+				if (!scene.RayCastForClosestEntityOrTerrain(from, to, out float d, out Vec3 point, 0.01f,
+					BodyFlags.CommonCollisionExcludeFlagsForMissile))
+				{
+					return "Error: no wall/terrain in front of the NPC (pass an explicit point x y z or 'roof').";
+				}
+				aim = point;
+			}
+
+			return BeginNpcThrowAt(attacker, aim, aimAgent: false, autoPull: true,
+				what: IsRoofWord(mode) ? "the nearest roof" : "the wall/terrain point");
+		}
+
+		private static string BeginNpcThrowAt(Agent attacker, Vec3 aim, bool aimAgent, bool autoPull, string what,
+			Agent aimTarget = null)
+		{
+			if (ReferenceEquals(attacker, Agent.Main))
+				return "Error: the attacker is the player - use the player throw path instead.";
+			if (!GrappleFirePatch.HasRopeEquipped(attacker) || !GrappleFirePatch.HasHookEquipped(attacker))
+				return $"Error: '{attacker.Name}' is missing the grapple items (run 'custom.grapple npc equip {attacker.Index}' first).";
+
+			GrappleLogic session = GrappleLogic.EnsureFor(attacker);
+			if (session == null) return "Error: no grapple session for the attacker.";
+			if (!session.BeginNpcThrow(aim, aimAgent, autoPull, out string why, 0f, aimTarget))
+				return "Error: cannot start the NPC throw (" + why + ")";
+
+			string approach = "";
+			try
+			{
+				if (aimTarget != null && attacker.Position.Distance(aimTarget.Position) > GrappleNpcKit.ApproachDistance)
+					approach = $" It will walk to within {GrappleNpcKit.ApproachDistance:F0} m first.";
+			}
+			catch (Exception) { }
+
+			return $"OK: '{attacker.Name}' starts the throw at {what}"
+				+ $" (aim=({aim.x:F1},{aim.y:F1},{aim.z:F1}), autoPull={autoPull}; ready → hold → release).{approach}";
+		}
+
+		private static bool IsRoofWord(string s)
+		{
+			if (string.IsNullOrWhiteSpace(s)) return false;
+			s = s.Trim().ToLowerInvariant();
+			return s == "roof" || s == "rooftop" || s == "high";
+		}
+
+		private static bool TryParsePoint(List<string> args, int at, out Vec3 point)
+		{
+			point = default(Vec3);
+			float x = ParseF(args, at + 0, float.NaN);
+			float y = ParseF(args, at + 1, float.NaN);
+			float z = ParseF(args, at + 2, float.NaN);
+			if (float.IsNaN(x) || float.IsNaN(y) || float.IsNaN(z)) return false;
+			point = new Vec3(x, y, z);
+			return true;
+		}
+
+		private static string DoNpcAi(List<string> args, int at)
+		{
+			string sub = (ArgAt(args, at) ?? "state").ToLowerInvariant();
+			switch (sub)
+			{
+				case "on":
+					NpcGrappleDirector.Enabled = true;
+					return "OK: NPC grapple AI = ON. " + AiStateLine();
+				case "off":
+					NpcGrappleDirector.Enabled = false;
+					return "OK: NPC grapple AI = OFF (active sessions keep running; 'npc stop all' to end them).";
+				case "verbose":
+				{
+					string v = ArgAt(args, at + 1);
+					if (v != null) NpcGrappleDirector.Verbose = v == "1" || v.Equals("on", StringComparison.OrdinalIgnoreCase);
+					return $"OK: NPC grapple AI verbose = {(NpcGrappleDirector.Verbose ? "ON" : "OFF")}.";
+				}
+				case "cap":
+				{
+					int s = (int)ParseF(args, at + 1, -1f);
+					int b = (int)ParseF(args, at + 2, -1f);
+					int p = (int)ParseF(args, at + 3, -1f);
+					if (s >= 0) NpcGrappleDirector.MaxSessions = s;
+					if (b >= 0) NpcGrappleDirector.MaxBindings = b;
+					if (p >= 0) NpcGrappleDirector.MaxPulls = p;
+					return "OK: caps = " + AiStateLine();
+				}
+				case "cooldown":
+				{
+					float b = ParseF(args, at + 1, -1f);
+					float w = ParseF(args, at + 2, -1f);
+					float g = ParseF(args, at + 3, -1f);
+					if (b >= 0f) NpcGrappleDirector.BindCooldown = b;
+					if (w >= 0f) NpcGrappleDirector.WallCooldown = w;
+					if (g >= 0f) NpcGrappleDirector.GlobalCooldown = g;
+					return "OK: cooldowns = " + AiStateLine();
+				}
+				case "lod":
+				{
+					float full = ParseF(args, at + 1, -1f);
+					float off = ParseF(args, at + 2, -1f);
+					if (full >= 0f) GrappleLogic.NpcFullVisualDistance = full;
+					if (off >= 0f) GrappleLogic.NpcVisualDistance = off;
+					return $"OK: NPC visual LOD full <= {GrappleLogic.NpcFullVisualDistance:F0}m, off > {GrappleLogic.NpcVisualDistance:F0}m.";
+				}
+				case "state":
+					return AiStateLine();
+				default:
+					return "npc ai: usage: on | off | verbose 0|1 | cap <sessions> <bindings> <pulls> | cooldown <bind> <wall> <global> | lod <full> <off> | state";
+			}
+		}
+
+		private static string AiStateLine()
+		{
+			int bindings = 0, pulls = 0, total = 0;
+			try
+			{
+				List<GrappleLogic> list = GrappleLogic.GetNpcSessions();
+				total = list.Count;
+				for (int i = 0; i < list.Count; i++)
+				{
+					if (list[i].HasBoundTarget) bindings++;
+					if (list[i].IsPullingSelf) pulls++;
+				}
+			}
+			catch (Exception) { }
+			return $"ai={(NpcGrappleDirector.Enabled ? "ON" : "OFF")} verbose={(NpcGrappleDirector.Verbose ? "1" : "0")}"
+				+ $" sessions={total}/{NpcGrappleDirector.MaxSessions} bindings={bindings}/{NpcGrappleDirector.MaxBindings} pulls={pulls}/{NpcGrappleDirector.MaxPulls}"
+				+ $" cooldown(bind={NpcGrappleDirector.BindCooldown:F0}s wall={NpcGrappleDirector.WallCooldown:F0}s global={NpcGrappleDirector.GlobalCooldown:F0}s)"
+				+ $" range(bind={NpcGrappleDirector.BindRange:F0}m wall={NpcGrappleDirector.WallRange:F0}m scan={NpcGrappleDirector.ScanRadius:F0}m)";		}
+
+		private static string DoNpcNearby(List<string> args, int at)
+		{
+			Mission mission = Mission.Current;
+			Agent player = Agent.Main;
+			if (mission == null || player == null) return "Error: not in mission.";
+			float radius = ParseF(args, at, 30f);
+			if (radius <= 0f) radius = 30f;
+
+			try
+			{
+				MBList<Agent> nearby = new MBList<Agent>();
+				mission.GetNearbyAgents(new Vec2(player.Position.x, player.Position.y), radius, nearby);
+				List<Agent> list = new List<Agent>();
+				for (int i = 0; i < nearby.Count; i++)
+				{
+					Agent a = nearby[i];
+					if (a == null || ReferenceEquals(a, player) || a.IsMount || !a.IsHuman) continue;
+					if (!AgentControlHelper.SafeIsActive(a)) continue;
+					list.Add(a);
+				}
+				list.Sort((x, y) => x.Position.Distance(player.Position).CompareTo(y.Position.Distance(player.Position)));
+
+				string s = $"nearby NPCs (radius {radius:F0}m): {list.Count} | R=rope H=hook";
+				int shown = Math.Min(list.Count, 12);
+				for (int i = 0; i < shown; i++)
+				{
+					Agent a = list[i];
+					bool rope = GrappleFirePatch.HasRopeEquipped(a);
+					bool hook = GrappleFirePatch.HasHookEquipped(a);
+					GrappleLogic session = GrappleLogic.GetSession(a);
+					string sess = session == null ? "-" : (session.IsSessionBusy ? "busy" : "idle");
+					string ai = "?";
+					try { ai = V.IsAgentAI(a) ? "AI" : "scripted"; } catch (Exception) { }
+					s += $"\n  {AgentControlHelper.GetDisplayName(a)}  d={a.Position.Distance(player.Position):F1}m"
+						+ $"  items={(rope ? "R" : "-")}{(hook ? "H" : "-")}  session={sess}  ctrl={ai}";
+				}
+				if (list.Count > shown) s += $"\n  ... and {list.Count - shown} more";
+				return s;
+			}
+			catch (Exception ex)
+			{
+				return $"Error: nearby failed ({ex.GetType().Name}: {ex.Message})";
+			}
+		}
+
+		private static string DoNpcCarry(List<string> args, int at)
+		{
+			Agent carrier = ResolveNpcToken(ArgAt(args, at));
+			if (carrier == null) carrier = FindNearestNpc(Agent.Main, null, 30f);
+			if (carrier == null) return "Error: no NPC found (pass #index / a name, or stand near one).";
+			if (ReferenceEquals(carrier, Agent.Main)) return "Error: the carrier is the player - use 'custom.grapple carry start'.";
+
+			GrappleLogic session = GrappleLogic.GetSession(carrier);
+			if (session == null) return "Error: that NPC has no active grapple (lasso someone first).";
+			Agent carried = session.BoundTarget;
+			if (carried == null) return "Error: that NPC is not holding anyone on its rope.";
+			Agent explicitTarget = ResolveNpcToken(ArgAt(args, at + 1));
+			if (explicitTarget != null && !ReferenceEquals(explicitTarget, carried))
+				return $"Error: {carrier.Name} is holding {carried.Name}, not that target.";
+			if (session.IsCarryingSomeone) return $"OK: {carrier.Name} is already carrying {carried.Name}.";
+
+			float d = 0f;
+			try { d = carrier.Position.Distance(carried.Position); } catch (Exception) { }
+			if (d <= GrappleCarry.MaxLiftDistance)
+			{
+				if (session.CarryPickUp(out string why, carrier))
+					return $"OK: {carrier.Name} lifts {carried.Name} onto the shoulder.";
+				return "Error: cannot carry (" + why + ").";
+			}
+
+			if (NpcGrappleDirector.Instance == null)
+				return "Error: NpcGrappleDirector is not mounted in this mission.";
+			NpcGrappleDirector.Instance.RequestCarry(carrier);
+			try { AgentControlHelper.ScriptedMoveToAgent(carrier, carried, false); } catch (Exception) { }
+			return $"OK: {carrier.Name} walks to {carried.Name} ({d:F1} m); will lift when within {GrappleCarry.MaxLiftDistance:F1} m."
+				+ " Watch [Grapple] 扛人：开始 in the log.";
+		}
+
+		private static string DoNpcWalkTo(List<string> args, int at)
+		{
+			Agent a = ResolveNpcToken(ArgAt(args, at));
+			if (a == null) a = FindNearestNpc(Agent.Main, null, 30f);
+			if (a == null) return "Error: no NPC found (pass #index / a name, or stand near one).";
+			if (ReferenceEquals(a, Agent.Main)) return "Error: use the player's own movement keys for the player.";
+
+			string tok = ArgAt(args, at + 1);
+			if (string.IsNullOrWhiteSpace(tok))
+				return "Error: walkto needs a target: '#index', a name, 'me', or 'x y z'.";
+
+			Agent target = ResolveNpcToken(tok);
+			if (target != null)
+			{
+				if (ReferenceEquals(target, a)) return "Error: that is the same agent.";
+				try { AgentControlHelper.ScriptedMoveToAgent(a, target, false); }
+				catch (Exception ex) { return $"Error: walk failed ({ex.GetType().Name})."; }
+				return $"OK: '{a.Name}' walks to '{target.Name}'.";
+			}
+			if (TryParsePoint(args, at + 1, out Vec3 point))
+			{
+				try { AgentControlHelper.ScriptedMoveToPoint(a, point, false); }
+				catch (Exception ex) { return $"Error: walk failed ({ex.GetType().Name})."; }
+				return $"OK: '{a.Name}' walks to ({point.x:F1},{point.y:F1},{point.z:F1}).";
+			}
+			return "Error: target not understood (use '#index', a name, 'me', or 'x y z').";
+		}
+
+		private static string DoNpcWalkStop(List<string> args, int at)
+		{
+			Agent a = ResolveNpcToken(ArgAt(args, at));
+			if (a == null) a = FindNearestNpc(Agent.Main, null, 30f);
+			if (a == null) return "Error: no NPC found (pass #index / a name, or stand near one).";
+			try { AgentControlHelper.StopMovement(a); } catch (Exception) { }
+			return $"OK: '{a.Name}' stops.";
+		}
+
+		/// <summary>给 NPC 一把单手剑并握在手上（暗杀测试用；两轮查找，不写死单个 id）。</summary>
+		private static string DoNpcSword(List<string> args, int at)
+		{
+			Agent a = ResolveNpcToken(ArgAt(args, at));
+			if (a == null)
+			{
+				try { a = InteractionMissionView.Instance?.GetAimedAgent(); } catch (Exception) { }
+			}
+			if (a == null) a = FindNearestNpc(Agent.Main, null, 30f);
+			if (a == null) return "Error: no NPC found (pass #index / a name, or stand near one).";
+
+			ItemObject sword = ResolveOneHandedSword(out string how);
+			if (sword == null) return "Error: no one-handed sword item found in the loaded modules.";
+
+			try
+			{
+				EquipmentIndex slot = FindFreeWeaponSlotFor(a, sword);
+				if (slot == EquipmentIndex.None)
+				{
+					if (!DropOneForSlot(a, out string dropped))
+						return "Error: no free weapon slot for a sword, and nothing droppable.";
+					slot = FindFreeWeaponSlotFor(a, sword);
+					if (slot == EquipmentIndex.None) return "Error: still no free slot for a sword.";
+					DebugLogger.Log($"[Grapple] npc sword: {dropped}");
+				}
+				if (a.Equipment[slot].Item == null)
+				{
+					MissionWeapon w = new MissionWeapon(sword, null, a.Origin != null ? a.Origin.Banner : null);
+					a.EquipWeaponWithNewEntity(slot, ref w);
+				}
+				a.SetWeaponAmountInSlot(slot, 1, false);
+				a.UpdateAgentStats();
+				a.TryToWieldWeaponInSlot(slot, Agent.WeaponWieldActionType.Instant, false);
+				return $"OK: '{a.Name}'#{a.Index} got '{sword.StringId}' ({how}) in slot {(int)slot}, wielded.";
+			}
+			catch (Exception ex)
+			{
+				return $"Error: sword equip failed ({ex.GetType().Name}: {ex.Message})";
+			}
+		}
+
+		private static ItemObject ResolveOneHandedSword(out string how)
+		{
+			how = "-";
+			string[] known =
+			{
+				"iron_spatha_sword_t2", "falchion_sword_t2",
+				"simple_sabre_sword_t2", "broad_arming_sword_t4",
+			};
+			for (int i = 0; i < known.Length; i++)
+			{
+				try
+				{
+					ItemObject it = MBObjectManager.Instance.GetObject<ItemObject>(known[i]);
+					if (it != null) { how = "known id"; return it; }
+				}
+				catch (Exception) { }
+			}
+			try
+			{
+				ItemObject any = MBObjectManager.Instance.GetObject<ItemObject>(x =>
+					x != null && x.Type == ItemObject.ItemTypeEnum.OneHandedWeapon
+					&& x.PrimaryWeapon != null
+					&& x.PrimaryWeapon.WeaponClass == WeaponClass.OneHandedSword);
+				if (any != null) { how = "dynamic scan"; return any; }
+			}
+			catch (Exception) { }
+			return null;
+		}
+
+		private static string DoNpcState()		{
+			List<GrappleLogic> list = GrappleLogic.GetNpcSessions();
+			if (list.Count == 0) return "npc: no active NPC grapple sessions.";
+			string s = "npc sessions: " + list.Count;
+			for (int i = 0; i < list.Count; i++)
+			{
+				s += "\n  " + list[i].SessionStateLine();
+			}
+			return s;
+		}
+
+		private static string DoNpcRelease(string token)
+		{
+			if (string.IsNullOrEmpty(token) || token.Equals("all", StringComparison.OrdinalIgnoreCase))
+			{
+				int n = 0;
+				List<GrappleLogic> list = GrappleLogic.GetNpcSessions();
+				for (int i = 0; i < list.Count; i++)
+				{
+					if (list[i].ReleaseBindNow("npc release (all)")) n++;
+				}
+				return $"npc release all: released {n} bind(s).";
+			}
+
+			Agent a = ResolveNpcToken(token);
+			if (a == null) return $"npc release: no agent '{token}' (pass #index, a name, or 'all').";
+			GrappleLogic session = GrappleLogic.GetSession(a);
+			if (session == null) return $"npc release: '{a.Name}' has no active grapple.";
+			return session.ReleaseBindNow("npc release")
+				? $"OK: release requested for '{a.Name}' (if carrying, the put-down clip plays first, then the rope lets go)."
+				: $"npc release: '{a.Name}' has nothing bound.";
+		}
+
+		private static string DoNpcStop(string token)
+		{
+			if (string.IsNullOrEmpty(token) || token.Equals("all", StringComparison.OrdinalIgnoreCase))
+			{
+				GrappleLogic.TerminateAllNpcSessions("command");
+				return "npc stop all: terminated every NPC grapple session.";
+			}
+			Agent a = ResolveNpcToken(token);
+			if (a == null) return $"npc stop: no agent '{token}' (pass #index, a name, or 'all').";
+			GrappleLogic session = GrappleLogic.GetSession(a);
+			if (session == null) return $"npc stop: '{a.Name}' has no active grapple.";
+			session.TerminateSession("command");
+			return $"OK: stopped '{a.Name}'s grapple session.";
+		}
+
+		/// <summary>解析 `#编号` / 名字 / `me|player|main|self`；认不出 = null（不回落，便于命令自己决定默认）。</summary>
+		private static Agent ResolveNpcToken(string tok)
+		{
+			if (string.IsNullOrWhiteSpace(tok)) return null;
+			string low = tok.Trim().ToLowerInvariant();
+			if (low == "me" || low == "player" || low == "main" || low == "self") return Agent.Main;
+
+			string num = low.StartsWith("#") ? low.Substring(1) : low;
+			if (int.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out int idx))
+			{
+				try
+				{
+					foreach (Agent a in Mission.Current.Agents)
+					{
+						if (a != null && a.Index == idx && AgentControlHelper.SafeIsActive(a) && !a.IsMount) return a;
+					}
+				}
+				catch (Exception) { }
+				return null;
+			}
+
+			try
+			{
+				foreach (Agent a in Mission.Current.Agents)
+				{
+					if (a == null || !AgentControlHelper.SafeIsActive(a) || a.IsMount) continue;
+					string n = AgentName(a);
+					if (n != null && n.IndexOf(tok, StringComparison.OrdinalIgnoreCase) >= 0) return a;
+				}
+			}
+			catch (Exception) { }
+			return null;
+		}
+
+		/// <summary>找离玩家最近的 NPC（排除两个指定 agent；不含玩家/坐骑）。</summary>
+		private static Agent FindNearestNpc(Agent except, Agent alsoExcept, float maxDistance)
+		{
+			Agent best = null;
+			float bestD = maxDistance;
+			try
+			{
+				Vec3 from = Agent.Main != null ? Agent.Main.Position : Vec3.Zero;
+				foreach (Agent a in Mission.Current.Agents)
+				{
+					if (a == null || !AgentControlHelper.SafeIsActive(a) || a.IsMount) continue;
+					if (ReferenceEquals(a, Agent.Main) || ReferenceEquals(a, except) || ReferenceEquals(a, alsoExcept)) continue;
+					float d = a.Position.Distance(from);
+					if (d < bestD) { bestD = d; best = a; }
+				}
+			}
+			catch (Exception) { }
+			return best;
+		}
+
 		private static string DoBind(GrappleLogic logic, List<string> args, int at)
 		{
 			string what = (ArgAt(args, at + 0) ?? "state").ToLowerInvariant();
@@ -1925,6 +2641,13 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					float turns = ParseF(args, at + 2, float.NaN);
 					if (!float.IsNaN(turns)) GrappleBind.WrapTurns = turns;
 					return $"OK: wrap = {GrappleBind.WrapSeconds:F2}s / {GrappleBind.WrapTurns:F2} turns";
+				}
+				case "rope":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"bind rope = {GrappleBind.BoundRopeRadius:F2} m (radius of the rope loop around the bound body)";
+					GrappleBind.BoundRopeRadius = v;
+					return $"OK: bound rope radius = {v:F2} m";
 				}
 				// ── 拽倒方式 A/B（2026-10-09 用户提出"用引擎冲量"）──
 				case "yank":
@@ -2219,7 +2942,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case "leadstop":
 					return logic.BindLeadStop();
 			}
-			return "Error: bind expects on|off|test|reverse|release|probe|state|time|drag|wrap|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause|mounted|mountedblow|diswait|leash|leashlen|leashstiff|leashspeed|dragthr|dragmounted|dragface|leashprobe|leashtaut|walkrate|walkmax|walkmin|walkspeed|walkspeedauto|walkthr|lead|leadstop";
+			return "Error: bind expects on|off|test|reverse|release|probe|state|time|drag|wrap|rope|yankhold|yankpull|fallwait|tug|tugmin|laytime|laystart|struggle|yank|blowforce|blowalt|anim|panim|aipause|mounted|mountedblow|diswait|leash|leashlen|leashstiff|leashspeed|dragthr|dragmounted|dragface|leashprobe|leashtaut|walkrate|walkmax|walkmin|walkspeed|walkspeedauto|walkthr|lead|leadstop";
 		}
 
 		/// <summary>

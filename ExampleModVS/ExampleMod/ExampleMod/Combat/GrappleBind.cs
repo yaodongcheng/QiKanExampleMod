@@ -63,7 +63,17 @@ namespace LivingWorldNpcs
 
 		/// <summary>缠的半径：入口 → 收紧（米）。目标躯干半径大约 0.3 m。</summary>
 		public static float WrapRadiusStart = 0.45f;
-		public static float WrapRadiusEnd = 0.28f;
+
+		/// <summary>
+		/// 绑住之后钩子停在**身体表面、朝绳主的那一侧**（2026-10-23 实机：停在胸口中心 ⇒ 近距离看绳子从肚子穿到背后）。
+		/// 偏移 0.22 m 大约落在衣服表面；绳主在哪边就停哪边，绳不会穿过躯干。
+		/// </summary>
+		public static float BoundHookSurfaceOffset = 0.22f;
+
+		public static float WrapRadiusEnd = 0.34f;
+
+		/// <summary>缚住之后绳尾绕在身上的半径（米；2026-10-23 实机"稍微小一点、但要看得见"，0.29）。</summary>
+		public static float BoundRopeRadius = 0.29f;
 
 		/// <summary>绳尾贴身体绕的那一段有多长（米）—— 按当前绳的点距折算成"钉几个点"。</summary>
 		public static float WrapTailSpan = 1.8f;
@@ -107,6 +117,10 @@ namespace LivingWorldNpcs
 		/// 非 0 时按超时自动放（调试试用）。命令 `custom.grapple bind time &lt;秒&gt;`（0 = 永不）。
 		/// </summary>
 		public static float BoundSeconds = 0f;
+
+		/// <summary>**AI 绑人的自动放开秒数**（0 = 关；玩家自己绑人永远走 <see cref="BoundSeconds"/>）——
+		/// 2026-10-23：NPC 绑住玩家后玩家没有任何解除手段，不自动放会永久锁死。</summary>
+		public float AiBindHoldSeconds;
 
 		/// <summary>
 		/// **"解"的兜底超时**（秒）—— 放人之后等状态机自己出机（站着 = 立刻出；趴着 = 先演起身 2.33 s）。
@@ -503,6 +517,17 @@ namespace LivingWorldNpcs
 		private Agent _attacker;
 		private Agent _target;
 		private Phase _phase = Phase.None;
+
+		// 目标如果不是 warrior 动作集（村民等），绑缚期间临时切过去，放人收尾时还原。
+		// （2026-10-23：`bind.xml` 的动作名只在 `as_human_warrior` 里；不切的话村民目标播不出受击/站缚）
+		// 按目标存：连续绑不同的人时，前一个的起身尾巴还在演，不能把它的原动作集弄丢。
+		private readonly Dictionary<Agent, MBActionSet> _savedTargetSets = new Dictionary<Agent, MBActionSet>();
+
+		/// <summary>
+		/// **谁被绑着**（2026-10-23）：一个目标同一时刻只能被一根绳绑。
+		/// 键 = `Agent.Index`，值 = 绑他的那套钩索的 <see cref="GrappleBind"/>；读取时用 Agent 引用复核，防编号复用。
+		/// </summary>
+		private static readonly Dictionary<int, GrappleBind> _claims = new Dictionary<int, GrappleBind>();
 		private float _t;                    // 本相位计时
 		private float _boundTimer;
 		private float _dismountTimer;        // "拉下马"那一相的计时（超时用）
@@ -595,11 +620,116 @@ namespace LivingWorldNpcs
 		/// <summary>本轮拽倒是否已经起播"倒下"动画（三段的第③段只触发一次）。</summary>
 		private bool _fallStarted;
 
+		/// <summary>本轮"受击"是否已经起播（2026-10-23：命中即播；缠完只切相位，不再重复 Force）。</summary>
+		private bool _crashStarted;
+
 		// ───────────────────────────── 只读面（GrappleLogic / 命令用）─────────────────────────────
 
 		public bool IsActive => _phase != Phase.None;
 		public Phase Current => _phase;
 		public Agent Target => _target;
+
+		/// <summary>这个目标此刻是不是被某根绳绑着（含"刚绑上、还在缠"）。</summary>
+		public static bool IsTargetClaimed(Agent target)
+		{
+			return ClaimHolder(target) != null;
+		}
+
+		/// <summary>放人之后还有"起身/还 AI"的尾巴没演完吗（NPC 那套不能提前收摊）。</summary>
+		public bool HasPendingRelease => _releasing != null || _pending.Count > 0;
+
+		/// <summary>绑着这个目标的那套钩索（没有 = null；顺带清理失效/过期的登记）。</summary>
+		public static GrappleBind ClaimHolder(Agent target)
+		{
+			if (target == null) return null;
+			if (!_claims.TryGetValue(target.Index, out GrappleBind holder) || holder == null) return null;
+			if (!ReferenceEquals(holder._target, target) || !holder.IsActive || !AgentControlHelper.SafeIsActive(target))
+			{
+				_claims.Remove(target.Index);
+				return null;
+			}
+			return holder;
+		}
+
+		/// <summary>场景结束统一清表（正常靠 <see cref="Release"/> 逐条清）。</summary>
+		public static void ClearAllClaims()
+		{
+			_claims.Clear();
+		}
+
+		private void ClaimTarget(Agent target)
+		{
+			if (target != null) _claims[target.Index] = this;
+		}
+
+		private void ReleaseClaim()
+		{
+			if (_target == null) return;
+			if (_claims.TryGetValue(_target.Index, out GrappleBind holder) && ReferenceEquals(holder, this))
+			{
+				_claims.Remove(_target.Index);
+			}
+		}
+
+		/// <summary>目标不是 warrior 动作集（村民等）⇒ 绑缚期间临时切过去；收尾时 <see cref="RestoreTargetSet"/> 还原。</summary>
+		private void EnsureTargetWarriorSet()
+		{
+			if (_target == null || ReferenceEquals(_target, Agent.Main)) return;   // 玩家本来就是 warrior
+			try
+			{
+				MBActionSet set = _target.ActionSet;
+				if (!set.IsValid) return;
+				if (set.GetName() == "as_human_warrior") return;
+				MBActionSet warrior = MBActionSet.GetActionSet("as_human_warrior");
+				if (!warrior.IsValid) return;
+
+				if (!_savedTargetSets.ContainsKey(_target))
+				{
+					_savedTargetSets[_target] = set;
+				}
+				AnimationSystemData data = _target.Monster.FillAnimationSystemData(
+					warrior, _target.Character.GetStepSize(), hasClippingPlane: false);
+				_target.SetActionSet(ref data);
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 目标切 warrior 动作集失败（{ex.GetType().Name}: {ex.Message}）—— 绑缚动作可能播不出");
+			}
+		}
+
+		private void RestoreTargetSet(Agent a)
+		{
+			if (a == null) return;
+			if (!_savedTargetSets.TryGetValue(a, out MBActionSet saved) || !saved.IsValid)
+			{
+				_savedTargetSets.Remove(a);
+				return;
+			}
+			_savedTargetSets.Remove(a);
+			try
+			{
+				if (AgentControlHelper.SafeIsActive(a))
+				{
+					AnimationSystemData data = a.Monster.FillAnimationSystemData(
+						saved, a.Character.GetStepSize(), hasClippingPlane: false);
+					a.SetActionSet(ref data);
+				}
+			}
+			catch (Exception) { }
+		}
+
+		/// <summary>整套收摊时强制还原（正常路径由 <see cref="FinishRelease"/> / <see cref="TickPending"/> 还原）。</summary>
+		public void RestoreAllActionSets()
+		{
+			RestoreTargetSet(_target);
+			RestoreTargetSet(_releasing);
+			if (_savedTargetSets.Count > 0)
+			{
+				Agent[] keys = new Agent[_savedTargetSets.Count];
+				_savedTargetSets.Keys.CopyTo(keys, 0);
+				for (int i = 0; i < keys.Length; i++) RestoreTargetSet(keys[i]);
+			}
+		}
 
 		/// <summary>
 		/// 🔴 **此刻被绑者的"位置/移动"归本类写** —— 缠（0.55s）/ 拽倒（1.1s）/ 牵绳正在拖。
@@ -699,6 +829,18 @@ namespace LivingWorldNpcs
 				return false;
 			}
 
+			// 🔴 2026-10-23（多人同时用）：目标自己正用着钩索 / 已经被别的绳绑着 ⇒ 拒绝。
+			if (GrappleLogic.IsAgentInGrapple(target))
+			{
+				why = "target is busy with its own grapple";
+				return false;
+			}
+			if (IsTargetClaimed(target) && !ReferenceEquals(ClaimHolder(target), this))
+			{
+				why = "target already bound by another rope";
+				return false;
+			}
+
 			// 前一个还绑着 ⇒ 先放掉（同一时刻只有一根绳，与"发射即替换"的既有口径一致）
 			if (IsActive) Release("replaced by a new target");
 
@@ -729,11 +871,13 @@ namespace LivingWorldNpcs
 
 			_attacker = attacker;
 			_target = target;
+			ClaimTarget(target);
 			_phase = Phase.Wrapping;
 			_t = 0f;
 			_boundTimer = 0f;
 			_layTimer = 0f;
 			_fallStarted = false;
+			_crashStarted = false;
 			_lying = false;
 			// 绳长上限：新的一绑 = 重新锁（长度按"绑上那一刻两人的直线距离"，见 TickLeash）
 			_leashLength = 0f;
@@ -816,8 +960,28 @@ namespace LivingWorldNpcs
 			_phase = Phase.Wrapping;
 			_note = "wrapping";
 			HoldTarget(_target);
+			EnsureTargetWarriorSet();
+
+			// 🔴 2026-10-23：**命中即受击** —— 不再等 0.55 秒缠完。
+			//    缠照旧（钩的位置由 TickWrapping 每帧走），但目标从接触这一帧就开始播 binded_crash；
+			//    EnterCrash 只负责 0.55 秒后把相位切到 Bound（不再重复 Force）。
+			MarkTargetBound();
+			if (_machine == null)
+			{
+				_ctx = new BindAnimContext();
+				_machine = AnimMachineRegistry.Create(BindAnimMachine.Name, _ctx);
+			}
+			_ctx.Released = false;
+			bool crashNow = false;
+			if (!_crashStarted)
+			{
+				_crashStarted = true;
+				crashNow = ForceEvent(BindAnimConditions.HitTrigger);
+			}
+
 			DebugLogger.Log($"[Grapple] 勾人：开始缠（{_target.Name}）入口={Fmt(_hookPos)} 圈数={WrapTurns:F2} 半径={WrapRadiusStart:F2}→{WrapRadiusEnd:F2} 时长={WrapSeconds:F2}s"
-				+ (PauseVanillaAI ? " · 已冻结其原版 AI + 停掉行进输入" : " · （原版 AI 未冻：bind aipause 0）"));
+				+ (PauseVanillaAI ? " · 已冻结其原版 AI + 停掉行进输入" : " · （原版 AI 未冻：bind aipause 0）")
+				+ (crashNow ? " · 受击已在接触这一帧起播" : " · ⚠ 受击没能起播（状态机缺边？）"));
 		}
 
 		/// <summary>
@@ -1176,6 +1340,7 @@ namespace LivingWorldNpcs
 		private void BeginYankFromFall()
 		{
 			HoldTarget(_target);
+			EnsureTargetWarriorSet();
 			MarkTargetBound();
 			if (_machine == null)
 			{
@@ -1208,13 +1373,18 @@ namespace LivingWorldNpcs
 				_machine = AnimMachineRegistry.Create(BindAnimMachine.Name, _ctx);
 			}
 			_ctx.Released = false;
-			ForceEvent(BindAnimConditions.HitTrigger);
+			// 2026-10-23：受击已在 BeginWrapping（接触那一帧）起播；这里只在"没起播过"时补一次。
+			if (!_crashStarted)
+			{
+				_crashStarted = true;
+				ForceEvent(BindAnimConditions.HitTrigger);
+			}
 
 			// AI 压制：脚本旗标 + 脑事件（同击晕那套；先把旗标打上，免得 AI 在事件到达前抢动画通道）
 			MarkTargetBound();
 
-			DebugLogger.Log($"[Grapple] 勾人：捆缚成立（{_target.Name}）—— 受击 {BindAnimConditions.HitTrigger}"
-				+ " → 站缚（稳态）。AI 接管 = 脑标记 IsBound + BoundAction 占位（不接命令 / 不参战 / 不围观；解绑后立刻恢复），"
+			DebugLogger.Log($"[Grapple] 勾人：缠完成 → 站缚（{_target.Name}）—— 受击 {BindAnimConditions.HitTrigger}"
+				+ " 已在接触那一帧起播；AI 接管 = 脑标记 IsBound + BoundAction 占位（不接命令 / 不参战 / 不围观；解绑后立刻恢复），"
 				+ (BoundSeconds > 0f ? $"{BoundSeconds:F0} 秒后自动挣脱（调试档）" : "**永不自动挣脱**")
 				+ " —— 解开：敲 bind release，或走到身边用交互面板的【松绳】"
 				+ "；拉倒：【拉紧】；扛走：【扛起】（见 §十五）");
@@ -1319,7 +1489,7 @@ namespace LivingWorldNpcs
 			if (Yank == YankMode.Blow)
 			{
 				ShrinkLeashToSpan();          // 收绳：绳长跟着"被引擎搬近"的距离缩
-				_hookPos = ChestOf(_target);
+				_hookPos = HookSurfaceOf();
 				_hookDir = AwayFromPlayerDir();
 				if (_t >= BlowYankSeconds)
 				{
@@ -1395,7 +1565,7 @@ namespace LivingWorldNpcs
 					+ $" · 相距 {RootDist3D():F2} m · 落点={Fmt(_yankTo)}");
 			}
 
-			_hookPos = ChestOf(_target);
+			_hookPos = HookSurfaceOf();
 			_hookDir = AwayFromPlayerDir();
 
 			if (_t >= fallEnd) EnterLaidOut("curve");
@@ -1655,7 +1825,7 @@ namespace LivingWorldNpcs
 			//    脑侧 `BoundAction` 已改成纯占位，不再写身体）。
 			//    每帧再写一次没有额外作用，只会和 `TickLeash` 拖动时写的朝向互相打架。
 
-			_hookPos = ChestOf(_target);
+			_hookPos = HookSurfaceOf();
 			_hookDir = AwayFromPlayerDir();
 
 			// 【拉紧】拉倒之后的**定时自动起身**（用户 2026-10-10 拍板："过一会也会起来"）。
@@ -1678,6 +1848,14 @@ namespace LivingWorldNpcs
 			{
 				DebugLogger.Log($"[Grapple] 勾人：捆缚超时（{BoundSeconds:F0}s）⇒ 目标挣脱");
 				Release("timeout");
+				return BindEvent.Finished;
+			}
+
+			// AI 绑人的自动放开（2026-10-23）：只对"AI 发起"的绑生效，玩家自己绑的不受影响。
+			if (AiBindHoldSeconds > 0f && _boundTimer >= AiBindHoldSeconds)
+			{
+				DebugLogger.Log($"[Grapple] 勾人：AI 绑缚到点（{AiBindHoldSeconds:F1}s）⇒ 自动放人（防止把玩家永久锁住）");
+				Release("ai hold timeout");
 				return BindEvent.Finished;
 			}
 			return BindEvent.None;
@@ -2089,6 +2267,8 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public void Release(string reason)
 		{
+			ReleaseClaim();          // 先放开"这个目标被这根绳绑着"的登记（下面会把 _target 清空）
+			AiBindHoldSeconds = 0f;
 			Agent t = _target;
 			_phase = Phase.None;
 			_attacker = null;
@@ -2175,6 +2355,7 @@ namespace LivingWorldNpcs
 			_releaseCtx = null;
 			_releaseTimer = 0f;
 			if (a == null) return;
+			RestoreTargetSet(a);
 			RestoreAgent(a);
 			DebugLogger.Log($"[Grapple] 勾人：起身收尾完成（{why}）—— AI 已归还");
 		}
@@ -2219,6 +2400,7 @@ namespace LivingWorldNpcs
 				Pending p = _pending[i];
 				p.Timer -= dt;
 				if (p.Timer > 0f) continue;
+				RestoreTargetSet(p.Agent);
 				RestoreAgent(p.Agent);
 				_pending.RemoveAt(i);
 			}
@@ -2273,31 +2455,55 @@ namespace LivingWorldNpcs
 
 		// ───────────────────────────── 绳尾钉（缠绕态）─────────────────────────────
 
+		/// <summary>绑住之后绳尾绕在身上的弧长（米；≈ 一整圈）。</summary>
+		public static float BoundWrapTailSpan = 2.2f;
+
 		/// <summary>
 		/// 把"绳尾该在哪"喂给绳（每帧、在 <see cref="GrappleRope.Tick"/> 之前调）。
 		/// 缠绕时 = 沿同一个圆铺、**相位落后钩头一点**（绳跟着钩走，不是绳头领先），半径比钩大 2 厘米；
+		/// **缚住后** = 保持一圈"绕在身上的绳"（圆心跟胸口、终点朝钩子那一侧）——
+		/// 否则一进入缚，绳就变成"手→胸口"一条直线，近距离看像从肚子穿过去（2026-10-23 实机）。
 		/// 其余相位 = 解除（绳自己按"手 → 钩"拉直）。
 		/// </summary>
 		public void ApplyRopeTailPin(GrappleRope rope)
 		{
 			if (rope == null) return;
-			if (_phase != Phase.Wrapping)
+
+			if (_phase == Phase.Wrapping)
 			{
-				rope.ClearTailPin();
+				PinTailCircle(rope, _wrapAngle, _wrapRadius + 0.02f, _wrapZ, WrapTailSpan);
 				return;
 			}
+
+			if (_phase == Phase.Bound && _target != null)
+			{
+				Vec3 chest = ChestOf(_target);
+				_center = chest;
+				Vec3 hs = HookSurfaceOf();
+				float endAng = MathF.Atan2(hs.y - chest.y, hs.x - chest.x);
+				if (float.IsNaN(endAng) || float.IsInfinity(endAng)) endAng = _wrapAngle;
+				float span = MathF.Min(BoundWrapTailSpan, MathF.Max(0.4f, rope.Length * 0.8f));
+				PinTailCircle(rope, endAng, BoundRopeRadius, chest.z + 0.05f, span);
+				return;
+			}
+
+			rope.ClearTailPin();
+		}
+
+		private void PinTailCircle(GrappleRope rope, float endAng, float radius, float z, float span)
+		{
 			// 每点弧长 ≈ 绳长 ÷ 段数（绳长每帧在变，所以每帧重算点数）
 			float rest = rope.Length / Math.Max(1, rope.Segments);
 			if (rest <= 0.001f) rest = 0.2f;
-			int count = (int)MathF.Ceiling(WrapTailSpan / rest);
+			int count = (int)MathF.Ceiling(span / rest);
 			if (count < 2) count = 2;
 			if (count > 24) count = 24;
 			if (_tailBuf == null || _tailBuf.Length < count) _tailBuf = new Vec3[24];
 
-			float dAng = rest / MathF.Max(0.05f, _wrapRadius) * _wrapSign;
+			float dAng = rest / MathF.Max(0.05f, radius) * _wrapSign;
 			for (int k = 0; k < count; k++)
 			{
-				_tailBuf[k] = CirclePoint(_wrapAngle - dAng * (k + 1), _wrapRadius + 0.02f, _wrapZ);
+				_tailBuf[k] = CirclePoint(endAng - dAng * (k + 1), radius, z);
 			}
 			rope.SetTailPin(count, _tailBuf);
 		}
@@ -2318,6 +2524,30 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>倒/缚阶段的钩朝向：背向玩家（钩挂在人身上那个方向）。</summary>
+		/// <summary>绑住时钩子的落点：胸口**朝绳主那一面**的身体表面（不塞进胸腔）。</summary>
+		private Vec3 HookSurfaceOf()
+		{
+			Vec3 chest = ChestOf(_target);
+			Vec3 toAttacker = Vec3.Zero;
+			try
+			{
+				if (_attacker != null) toAttacker = _attacker.Position - _target.Position;
+			}
+			catch (Exception) { }
+			toAttacker.z = 0f;
+			if (toAttacker.LengthSquared < 0.01f)
+			{
+				try
+				{
+					Vec3 look = _target.LookDirection;
+					toAttacker = new Vec3(-look.x, -look.y, 0f);
+				}
+				catch (Exception) { }
+			}
+			if (toAttacker.LengthSquared < 1e-4f) return chest;
+			return chest + toAttacker.NormalizedCopy() * BoundHookSurfaceOffset;
+		}
+
 		private Vec3 AwayFromPlayerDir()
 		{
 			try

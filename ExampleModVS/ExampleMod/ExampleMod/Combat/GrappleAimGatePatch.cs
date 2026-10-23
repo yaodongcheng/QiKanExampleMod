@@ -62,6 +62,13 @@ namespace LivingWorldNpcs
 				//    （一根绳只能系一头，物理上必然如此）⇒ 玩家看到的是"我没松绳，怎么又能钩人"。
 				//    这里与"钩不能当箭"同一套手法：抹掉这一帧攻击输入（连瞄准都不让进）+ 按下沿给一句话。
 				//    要再钩东西 = 先松绳（交互面板【松绳】/ `custom.grapple bind release`）。
+				// 🔴 2026-10-23：**玩家自己正被另一根绳绑着**（NPC 绑玩家）⇒ 同样不许开火/进瞄准。
+				if (GrappleLogic.IsPlayerBoundByOtherRope())
+				{
+					agent.MovementFlags &= ~agent.AttackDirectionToMovementFlag(agent.GetAttackDirection());
+					return;
+				}
+
 				GrappleLogic boundLogic = GrappleLogic.Current;
 				if (boundLogic != null && boundLogic.IsBindingSomeone())
 				{

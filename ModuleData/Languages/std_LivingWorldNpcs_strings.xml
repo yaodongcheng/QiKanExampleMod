@@ -4050,6 +4050,7 @@
     <string id="LWN_ui_grapple_hook_needs_rope" text="The Grapple Hook only fires from the Grapple Rope — a normal bow cannot shoot it." />
     <string id="LWN_ui_grapple_bound_no_fire" text="The rope is still tied to someone — slack the rope first (panel: Slack Rope). The grapple cannot fire while it holds a person." />
     <string id="LWN_ui_rope_held_title" text="Rope in hand: {NAME}" />
+    <string id="LWN_ui_carried_title" text="Carrying: {NAME}" />
     <string id="LWN_ui_state_bound" text="(tied up)" />
     <string id="LWN_ui_intervene_bubble" text="Stop! He's my man!" />
     <string id="LWN_ui_arrest_msg" text="Your companion {NAME} has been locked in the jail of {SETTLEMENT}." />

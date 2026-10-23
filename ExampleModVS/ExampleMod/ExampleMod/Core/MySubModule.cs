@@ -268,6 +268,10 @@ namespace LivingWorldNpcs
             //    没收绳时每帧只判一个 bool，零开销。
             mission.AddMissionBehavior(new GrappleLogic());
 
+            // 🔴 NPC 钩索总管（2026-10-23）：每帧推进所有 NPC 那套钩索（玩家那套仍走上面的 GrappleLogic）。
+            //    与 GrappleLogic 同为 Mission 级、同样挂在战役闸门之前。
+            mission.AddMissionBehavior(new NpcGrappleDirector());
+
             // 🔴 双人动作宿主（2026-10-19）：站位 / 同帧起播 / 挂接 / handoff / 唯一占用。
             //    与 GrappleLogic 同为 Mission 级；未使用 `custom.pair` 时每帧只做一次空表判断。
             mission.AddMissionBehavior(new PairActionLogic());

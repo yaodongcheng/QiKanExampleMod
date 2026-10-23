@@ -33,6 +33,8 @@ namespace LivingWorldNpcs.Flight
         /// <summary>法阵视觉件（预制体子节点）。可见性开关**只碰它** —— 物理体永远不动。</summary>
         private GameEntity _sigil;
         private bool _meshWarned;
+        private bool _savedWasAI = true;
+        private bool _savedPaused;
 
         /// <summary>载具原点（在碰撞体中心底面）的世界坐标。</summary>
         public Vec3 Origin { get; private set; }
@@ -224,6 +226,64 @@ namespace LivingWorldNpcs.Flight
         //   · <see cref="ReleasePlayer"/> = 摘挂载 + 解冻（**必须与 Engage 成对**，否则玩家永久失去控制权）。
         //   · 多档冻结（Off / Flags / CtrlOff / AiDetach / None）是**飞行专属的调试档**，
         //     不在这一对里 —— 它们走 `PlayerFlightBehavior` 自己的 EnterFreeze/ExitFreeze。
+
+        /// <summary>
+        /// **接管任意 agent**（2026-10-23，NPC 平权）：玩家走原来的冻结；NPC 走"摘控制器 + 暂停 AI"，
+        /// 并**保存原控制者/暂停状态**，结束时由 <see cref="ReleaseAgent"/> 原样还回去。
+        /// 🔴 绝不把 NPC 设成 `Controller = Player`（那会把它变成玩家控制）。
+        /// </summary>
+        public void EngageAgent(Agent agent, bool isPlayer)
+        {
+            if (agent == null)
+                return;
+            try
+            {
+                if (isPlayer)
+                {
+                    V.SetPlayerControlFrozen(agent, true);
+                    agent.SetIsAIPaused(true);
+                }
+                else
+                {
+                    _savedWasAI = V.IsAgentAI(agent);
+                    _savedPaused = agent.IsPaused;
+                    V.SetAgentControllerNone(agent);
+                    agent.SetIsAIPaused(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Carrier] 🔴 冻结 agent 失败（isPlayer={isPlayer}）: {ex.Message}");
+            }
+            AttachAgent(agent);
+        }
+
+        /// <summary>与 <see cref="EngageAgent"/> 配对：摘挂载 + 还原控制者/暂停/重力。</summary>
+        public void ReleaseAgent(Agent agent, bool isPlayer)
+        {
+            if (agent == null)
+                return;
+            DetachAgent(agent);
+            try
+            {
+                if (isPlayer)
+                {
+                    agent.SetIsAIPaused(false);
+                    V.SetPlayerControlFrozen(agent, false);
+                }
+                else
+                {
+                    agent.SetIsAIPaused(_savedPaused);
+                    if (_savedWasAI) V.SetAgentAI(agent);
+                    else V.SetAgentControllerNone(agent);
+                }
+                V.SetExcludedFromGravity(agent, false, false);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Carrier] 🔴 还控制权失败（isPlayer={isPlayer}）：{ex.Message}");
+            }
+        }
 
         /// <summary>
         /// **接管玩家**：冻结（`Controller=AI` + `SetIsAIPaused(true)`，两条缺一不可）+ 挂到载体上。

@@ -1487,6 +1487,37 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>
+    /// **NPC 用钩索时脑侧的占位动作**（2026-10-23，NPC 平权）。
+    ///
+    /// 只做三件事：
+    ///   ① **占住脑的队列** —— 出手/绑人/拉自己这几秒里，脑不会另起行为、不会 `DecideDefaultBehavior` 把控制权交回原生 AI；
+    ///   ② **写一条第一人称旁白**（"我朝 X 甩出钩索"）—— 这是 NPC 自己的经历，不是上帝视角；
+    ///   ③ **一个字都不碰身体** —— 身体全归 `GrappleNpcKit` / `GrappleBind` / `GrapplePull`（单权威，照 `BoundAction` 的教训）。
+    ///
+    /// 🔴 **只在非战斗场景入队**：战斗里 `AgentBrain.Tick` 整体早退（`IsInteractionDisabled`），
+    ///    脑不跑，入队只会留一条没人 tick 的尾巴；战场侧由 `NpcGrappleDirector` 的 Mission tick 全权驱动。
+    /// </summary>
+    public class GrappleUseAction : IAtomicAction
+    {
+        /// <summary>租约结束时由 <see cref="GrappleNpcKit"/> 置真；脑下一拍收尾。</summary>
+        public bool Done;
+
+        private readonly string _narration;
+
+        public GrappleUseAction(string narration)
+        {
+            _narration = narration;
+        }
+
+        public string GetNarration(Agent owner) => _narration;
+        public void RequestInterrupt() { }
+        public void OnStart(Agent agent) { }
+        public void OnTick(Agent agent, float dt) { }
+        public bool IsFinished(Agent agent) => Done;
+        public void OnEnd(Agent agent) { }
+    }
+
+    /// <summary>
     /// **被绳索捆缚的常驻行为**（钩索「勾人」步骤 5；2026-10-09 立 = plans\钩索-实施计划.md §13.14 TODO 2）。
     ///
     /// 与 <see cref="StayAction"/>（击晕占位）**同构** —— 永不自己结束、占住队列 —— 但三处刻意不同：

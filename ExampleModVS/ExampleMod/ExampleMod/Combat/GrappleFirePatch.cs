@@ -82,8 +82,22 @@ namespace LivingWorldNpcs
 					return true;
 				}
 				// 只拦玩家的（见类注释：NPC 侧还没有拉拽那套）
+				// 2026-10-23：NPC 拿钩弹药开火也拦下 —— 否则 NPC 的弓 AI 会把钩当箭射出去
+				// （NPC 平权后它们可能真的带着这两件）。不退弹，直接补回 1 发。
 				if (shooterAgent != Agent.Main)
 				{
+					ItemObject npcAmmo = ResolveAmmoItem(shooterAgent, weaponIndex);
+					if (npcAmmo != null && npcAmmo.StringId == HookItemId)
+					{
+						try
+						{
+							EquipmentIndex slot = FindDartSlot(shooterAgent);
+							if (slot != EquipmentIndex.None) shooterAgent.SetWeaponAmountInSlot(slot, 1, false);
+						}
+						catch (Exception) { }
+						LogOnce("npc_hook_shot", $"[Grapple] NPC '{shooterAgent.Name}' 想把钩当箭射 ⇒ 已拦下（补回 1 发）");
+						return false;
+					}
 					return true;
 				}
 
@@ -240,16 +254,17 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>在玩家身上找绳弹所在的装备槽（找不到 = Invalid）。</summary>
-		private static EquipmentIndex FindDartSlot(Agent agent)
+		/// <summary>在 agent 身上找某件物品所在的装备槽（找不到 = None）。</summary>
+		public static EquipmentIndex FindItemSlot(Agent agent, string itemId)
 		{
+			if (agent == null || string.IsNullOrEmpty(itemId)) return EquipmentIndex.None;
 			try
 			{
 				for (EquipmentIndex slot = EquipmentIndex.WeaponItemBeginSlot;
 					slot < EquipmentIndex.NumAllWeaponSlots; slot++)
 				{
 					MissionWeapon weapon = agent.Equipment[slot];
-					if (weapon.Item != null && weapon.Item.StringId == HookItemId)
+					if (weapon.Item != null && weapon.Item.StringId == itemId)
 					{
 						return slot;
 					}
@@ -259,6 +274,18 @@ namespace LivingWorldNpcs
 			{
 			}
 			return EquipmentIndex.None;
+		}
+
+		/// <summary>在玩家身上找绳弹所在的装备槽（找不到 = Invalid）。</summary>
+		private static EquipmentIndex FindDartSlot(Agent agent)
+		{
+			return FindItemSlot(agent, HookItemId);
+		}
+
+		/// <summary>这件装备里有没有绳（= 能不能"掏出钩索"；NPC 平权用）。</summary>
+		public static bool HasRopeEquipped(Agent agent)
+		{
+			return agent != null && FindItemSlot(agent, RopeItemId) != EquipmentIndex.None;
 		}
 
 		/// <summary>

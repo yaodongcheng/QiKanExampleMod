@@ -75,8 +75,67 @@ namespace LivingWorldNpcs
 		// ── 钩头模式（步骤 2）──
 		private readonly GrappleHook _hook;
 
-		public GrappleLogic()
+		/// <summary>
+		/// **这一套钩索的使用者**（2026-10-23 立，NPC 平权）：玩家那套 = null（运行时取 `Agent.Main`）；
+		/// NPC 那套 = 固定的 agent。每个使用者各有一套绳/钩/状态/动画，互不共用。
+		/// </summary>
+		private readonly Agent _npcOwner;
+
+		/// <summary>本套钩索所属的 Mission —— NPC 那套不挂在引擎的行为列表里，拿不到 `Mission` 属性。</summary>
+		private readonly Mission _sessionMission;
+
+		/// <summary>NPC 那套的静态登记表（按 `Agent.Index`；用 Agent 引用复核，防编号复用）。</summary>
+		private static readonly Dictionary<int, GrappleLogic> _sessions = new Dictionary<int, GrappleLogic>();
+
+		/// <summary>每帧推进用的临时表（避免在遍历时改字典）。</summary>
+		private static readonly List<GrappleLogic> _sessionScratch = new List<GrappleLogic>();
+
+		/// <summary>玩家那套（引擎每帧调的那一个）。</summary>
+		public bool IsPlayerOwner => _npcOwner == null;
+
+		/// <summary>NPC 那套已经收摊了吗（防重复拆实体）。</summary>
+		private bool _terminated;
+
+		/// <summary>这一套的使用者（玩家那套动态取 `Agent.Main`）。</summary>
+		public Agent Owner
 		{
+			get
+			{
+				try { return _npcOwner ?? Agent.Main; }
+				catch (Exception) { return _npcOwner; }
+			}
+		}
+
+		/// <summary>本套所属 Mission（替代基类的 `Mission` 属性，供不登记为引擎行为的 NPC 那套使用）。</summary>
+		private Mission MissionOf => _sessionMission ?? Mission.Current;
+
+		/// <summary>这一套正绑着人吗 / 正拉着自己吗 / 绑的是谁（AI 判据用）。</summary>
+		public bool HasBoundTarget => _bind.IsActive;
+		public bool IsPullingSelf => _pull.IsActive;
+		public Agent BoundTarget => _bind.Target;
+
+		/// <summary>这一套是否"正在干活"（钩头忙 / 绑人 / 拉自己 / 扛人 / 出手租约）。</summary>
+		public bool IsSessionBusy => IsBusy || _bind.IsActive || _bind.HasPendingRelease
+			|| _pull.IsActive || _carry.IsActive || _npcKit.Active;
+
+		// ── NPC 视觉降级（2026-10-23，用户裁定：远处可以不渲染或简化）──
+		/// <summary>≤ 这个距离：全渲染（手环 + 绳 A + 绳 B + 手里的钩）。</summary>
+		public static float NpcFullVisualDistance = 25f;
+		/// <summary>> 这个距离：不渲染（隐藏绳/手部道具；机制照常跑）。</summary>
+		public static float NpcVisualDistance = 80f;
+
+		private float _npcLodTimer;
+		private int _npcVisualLevel;
+
+		public GrappleLogic() : this(Mission.Current, null)
+		{
+		}
+
+		public GrappleLogic(Mission mission, Agent npcOwner)
+		{
+			_sessionMission = mission;
+			_npcOwner = npcOwner;
+
 			_rope = new GrappleRope(_rig, "B");
 			_ropeA = new GrappleRope(_rig, "A");
 			_hook = new GrappleHook(_rig);
@@ -91,10 +150,30 @@ namespace LivingWorldNpcs
 			//    `RadiusScale` 是实例级、初始化自静态默认（`radius` 命令的那个）⇒ 这里做乘法，不动静态值。
 			_rope.RadiusScale *= 0.5f;
 			_ropeA.RadiusScale *= 0.5f;
+
+			InitSession();
+		}
+
+		/// <summary>姿态动画状态机实例（幂等；玩家那套在构造时建，`OnCreated` 再调一次也无害）。</summary>
+		private void InitSession()
+		{
+			if (_anim != null) return;
+			_animCtx = new GrappleAnimContext();
+			_anim = AnimMachineRegistry.Create(GrappleAnimMachine.Name, _animCtx);
+			_pull.WaitAnimExit = AnimExited;      // 落地动作没演完就先别拆板（GrapplePull.TickSettling 的等待门）
 		}
 		private HookPhase _hookPhase = HookPhase.Idle;
 		private Vec3 _aimPoint;                       // 本次发射的瞄准点（命中点）
 		private bool _aimHitAgent;                    // 瞄准点是不是人（是人就不解算落点平台）
+
+		/// <summary>NPC 发射时跳过相机瞄准：由 <see cref="ThrowAtForOwner"/> 填这三个字段。</summary>
+		private bool _forcedAimActive;
+		private Vec3 _forcedAim;
+		private bool _forcedAimAgent;
+		private string _launchSource = "command";
+
+		/// <summary>下一次"钩中人"时给 <see cref="GrappleBind.AiBindHoldSeconds"/> 的值（AI 绑人自动放开）。</summary>
+		private float _pendingAiBindHoldSeconds;
 		private GrappleLanding.Result _landing;       // 命中后解算的落点（飞行终点）
 		private string _landingNote = "-";            // 落点解算的一行摘要（dump 用）
 
@@ -107,6 +186,19 @@ namespace LivingWorldNpcs
 
 		/// <summary>扛人配对（步骤 6，2026-10-10 立）：扛人者 + 被扛者两台状态机的对齐 + 每帧摆位。</summary>
 		private readonly GrappleCarry _carry = new GrappleCarry();
+
+		/// <summary>放人时如果正扛着：先演"放下"，演完再松绳（2026-10-23 用户："release 要播被放下动作"）。</summary>
+		private bool _releaseAfterCarry;
+		private string _releaseAfterCarryReason;
+
+		/// <summary>NPC 出手的一次租约（2026-10-23）：装备 / 动作集 / ready-hold-release。</summary>
+		private readonly GrappleNpcKit _npcKit = new GrappleNpcKit();
+
+		/// <summary>NPC 那套手里那盘道具要不要摆（由 <see cref="GrappleNpcKit"/> 的租约开关）。</summary>
+		public bool NpcHandKitEnabled { get; set; }
+
+		/// <summary>这一套的手部道具总闸：玩家看全局开关，NPC 看自己的租约。</summary>
+		private bool HandKitWanted => IsPlayerOwner ? HandHookEnabled : NpcHandKitEnabled;
 
 		/// <summary>这一次捆绑是不是 `custom.grapple bind test`（调试路径）开的 ——
 		/// 那条路径玩家没拿钩索、目标还可能在 30 米外 ⇒ "收起钩索/绳被拉断"两条出口对它无意义（会当场把自己踢掉）。</summary>
@@ -519,6 +611,143 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
+		/// **拿某个 agent 的那一套钩索**（没有就现建一套，2026-10-23 立）。
+		/// 玩家 ⇒ <see cref="Ensure()"/>（引擎每帧会调它）；NPC ⇒ 建一个**不登记为 MissionBehavior** 的普通对象，
+		/// 由 <see cref="NpcGrappleDirector"/> 每帧调 <see cref="TickSession"/>。
+		/// </summary>
+		public static GrappleLogic EnsureFor(Agent owner)
+		{
+			if (owner == null) return null;
+			if (ReferenceEquals(owner, Agent.Main)) return Ensure();
+			Mission mission = Mission.Current;
+			if (mission == null) return null;
+			if (_sessions.TryGetValue(owner.Index, out GrappleLogic existing)
+				&& existing != null && !existing._terminated && ReferenceEquals(existing.Owner, owner))
+			{
+				return existing;
+			}
+			GrappleLogic session = new GrappleLogic(mission, owner);
+			_sessions[owner.Index] = session;
+			return session;
+		}
+
+		/// <summary>查某个 agent 的那一套钩索（不新建；玩家 = <see cref="Current"/>）。</summary>
+		public static GrappleLogic GetSession(Agent owner)
+		{
+			if (owner == null) return null;
+			if (ReferenceEquals(owner, Agent.Main)) return Current;
+			if (_sessions.TryGetValue(owner.Index, out GrappleLogic s)
+				&& s != null && !s._terminated && ReferenceEquals(s.Owner, owner))
+			{
+				return s;
+			}
+			return null;
+		}
+
+		/// <summary>这个 agent 此刻是不是正用着钩索（钩头在飞/挂着/绑着人）。</summary>
+		public static bool IsAgentInGrapple(Agent agent)
+		{
+			GrappleLogic s = GetSession(agent);
+			return s != null && (s.IsBusy || s._bind.IsActive);
+		}
+
+		/// <summary>玩家此刻是不是正被别的一根绳绑着（NPC 绑玩家时，玩家自己的钩索要让位）。</summary>
+		public static bool IsPlayerBoundByOtherRope()
+		{
+			Agent player = Agent.Main;
+			return player != null && GrappleBind.IsTargetClaimed(player);
+		}
+
+		/// <summary>场景结束/收摊：把所有 NPC 那套清掉（玩家那套走 <see cref="OnEndMission"/>）。</summary>
+		public static void TerminateAllNpcSessions(string reason)
+		{
+			if (_sessions.Count == 0) return;
+			GrappleLogic[] list = new GrappleLogic[_sessions.Count];
+			_sessions.Values.CopyTo(list, 0);
+			for (int i = 0; i < list.Length; i++)
+			{
+				try { list[i].TerminateSession(reason); } catch (Exception) { }
+			}
+			_sessions.Clear();
+			GrappleBind.ClearAllClaims();
+		}
+
+		/// <summary>命令/诊断用：当前所有 NPC 那套（拷贝一份，遍历安全）。</summary>
+		public static List<GrappleLogic> GetNpcSessions()
+		{
+			return new List<GrappleLogic>(_sessions.Values);
+		}
+
+		/// <summary>命令/诊断用：一句话状态（谁 / 钩头相位 / 绑着谁）。</summary>
+		public string SessionStateLine()
+		{
+			Agent o = Owner;
+			string owner = o != null ? $"{o.Name}#{o.Index}" : "(gone)";
+			string target = _bind.Target != null ? _bind.Target.Name?.ToString() : "-";
+			return $"[{owner}] phase={_hookPhase} bind={_bind.Current} target={target} busy={IsBusy}";
+		}
+
+		/// <summary>放掉这一套正绑着的人（命令用；不终止整套）。</summary>
+		public bool ReleaseBindNow(string reason)
+		{
+			if (!_bind.IsActive) return false;
+
+			// 🔴 2026-10-23：正扛着人 ⇒ 先演"放下/被放下"（beikangqi_reverse），演完再松绳。
+			//    直接 Release 会走 `_carry.HardStop`，把放下动画当场切掉（用户实机："没有播放下的动作"）。
+			if (_carry.IsActive)
+			{
+				if (_carry.Phase == GrappleCarry.CarryPhase.PuttingDown
+					|| _carry.PutDown(_bind, reason))
+				{
+					_releaseAfterCarry = true;
+					_releaseAfterCarryReason = reason;
+					DebugLogger.Log($"[Grapple] 放人：正扛着 ⇒ 先演放下（{reason}），演完再松绳");
+					return true;
+				}
+			}
+
+			Release(reason);
+			return true;
+		}
+
+		/// <summary>每帧：放下动画演完（扛人关系结束）⇒ 真正松绳。</summary>
+		private void TickDeferredRelease()
+		{
+			if (!_releaseAfterCarry) return;
+			if (_carry.IsActive) return;
+			string reason = _releaseAfterCarryReason ?? "release";
+			_releaseAfterCarry = false;
+			_releaseAfterCarryReason = null;
+			Release(reason);
+		}
+
+		/// <summary>每帧推进所有 NPC 那套（由 <see cref="NpcGrappleDirector"/> 调）。</summary>
+		public static void TickAllNpcSessions(float dt)
+		{
+			if (_sessions.Count == 0) return;
+			_sessionScratch.Clear();
+			foreach (GrappleLogic s in _sessions.Values) _sessionScratch.Add(s);
+			for (int i = 0; i < _sessionScratch.Count; i++)
+			{
+				GrappleLogic s = _sessionScratch[i];
+				if (s == null) continue;
+				Agent owner = s.Owner;
+				if (owner == null || !AgentControlHelper.SafeIsActive(owner))
+				{
+					s.TerminateSession("owner gone");
+					continue;
+				}
+				try { s.TickSession(dt); }
+				catch (Exception ex)
+				{
+					DebugLogger.Log($"[Grapple] NPC 那套 tick 异常（{owner.Name}）：{ex.GetType().Name} {ex.Message} ⇒ 终止");
+					s.TerminateSession("tick exception");
+				}
+			}
+			_sessionScratch.Clear();
+		}
+
+		/// <summary>
 		/// 🔴🔴 **`Current` 在这里设，不能只在 <see cref="OnBehaviorInitialize"/> 里设**（2026-10-03 实机踩到）：
 		/// 引擎的顺序是「先给已在列表里的行为调 `OnBehaviorInitialize`，**之后**才调各 SubModule 的
 		/// `OnMissionBehaviorInitialize`」（反编译 `Mission.Initialize` 实锤）—— 本行为是在后者里
@@ -529,22 +758,56 @@ namespace LivingWorldNpcs
 		public override void OnCreated()
 		{
 			base.OnCreated();
-			Current = this;
-			// 姿态动画状态机实例（从注册表按名字取；定义没注册 = 一台空机器 —— 动不了，但一切照常，铁律 1）
-			_animCtx = new GrappleAnimContext();
-			_anim = AnimMachineRegistry.Create(GrappleAnimMachine.Name, _animCtx);
-			_pull.WaitAnimExit = AnimExited;      // 落地动作没演完就先别拆板（GrapplePull.TickSettling 的等待门）
+			if (IsPlayerOwner) Current = this;
+			InitSession();
 		}
 
 		public override void OnBehaviorInitialize()
 		{
 			base.OnBehaviorInitialize();
-			Current = this;
+			if (IsPlayerOwner) Current = this;
 		}
 
 		protected override void OnEndMission()
 		{
 			base.OnEndMission();
+
+			// 🔴 **反向绑的兜底**（2026-10-13）：玩家被绑着时**场景结束**（战斗结束 / 退出场景）——
+			//    控制器必须还回玩家，否则"人已经离场了控制器还在 AI 手里"（下个场景能不能自愈不做赌注）。
+			//    只做这一件事：实体 / 状态机 / 旗标都随场景一起走，不用在这里逐个收。
+			try
+			{
+				if (_bind.Target != null && ReferenceEquals(_bind.Target, Agent.Main))
+				{
+					V.SetPlayerControlFrozen(Agent.Main, false);
+				}
+			}
+			catch (Exception)
+			{
+			}
+
+			// 玩家那套收摊；顺手把 NPC 那套也清掉（正常由 NpcGrappleDirector 收，这里只是兜底）
+			TeardownSession("mission end");
+			try { TerminateAllNpcSessions("mission end"); } catch (Exception) { }
+			if (IsPlayerOwner && Current == this) Current = null;
+		}
+
+		/// <summary>收掉**NPC 那套**（玩家那套只由 <see cref="OnEndMission"/> 收）。</summary>
+		public void TerminateSession(string reason)
+		{
+			if (IsPlayerOwner || _terminated) return;
+			_terminated = true;
+			TeardownSession(reason);
+			if (_npcOwner != null && _sessions.TryGetValue(_npcOwner.Index, out GrappleLogic s) && ReferenceEquals(s, this))
+			{
+				_sessions.Remove(_npcOwner.Index);
+			}
+		}
+
+		/// <summary>实体 / 绳 / 钩 / 拉拽 / 绑人 / 扛人的统一收摊（幂等）。</summary>
+		private void TeardownSession(string reason)
+		{
+			try { _rope.ClearTailPin(); _ropeA.ClearTailPin(); } catch (Exception) { }
 			try
 			{
 				_rope.Teardown();
@@ -571,28 +834,33 @@ namespace LivingWorldNpcs
 			}
 			try
 			{
-				_pull.Abort("mission end");
+				_pull.Abort(reason);
 			}
 			catch (Exception)
 			{
 			}
-			// 🔴 **反向绑的兜底**（2026-10-13）：玩家被绑着时**场景结束**（战斗结束 / 退出场景）——
-			//    控制器必须还回玩家，否则"人已经离场了控制器还在 AI 手里"（下个场景能不能自愈不做赌注）。
-			//    只做这一件事：实体 / 状态机 / 旗标都随场景一起走，不用在这里逐个收。
 			try
 			{
-				if (_bind.Target != null && ReferenceEquals(_bind.Target, Agent.Main))
-				{
-					V.SetPlayerControlFrozen(Agent.Main, false);
-				}
+				_carry.HardStop(reason);
 			}
 			catch (Exception)
 			{
 			}
-			try { _bind.Abort("mission end"); } catch (Exception) { }
+			try
+			{
+				_bind.Abort(reason);
+			}
+			catch (Exception)
+			{
+			}
+			try { _bind.RestoreAllActionSets(); } catch (Exception) { }
+			// 🔴 租约必须排在 `_pull.Abort` **之后**：板子解冻会把控制器恢复成"它接手时看到的那个"
+			//    （而那时已经被租约设成 None）—— 租约最后再还，才能把真正的原控制者还回去。
+			try { _npcKit.EndLease(reason); } catch (Exception) { }
+			_releaseAfterCarry = false;
+			_releaseAfterCarryReason = null;
 			_anchored = false;
 			_hookPhase = HookPhase.Idle;
-			if (Current == this) Current = null;
 		}
 
 		// ─────────────────────────────── 对外操作（命令调） ───────────────────────────────
@@ -604,7 +872,7 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public string Anchor(Vec3 point, float ropeLength = -1f, int segments = -1)
 		{
-			Scene scene = Mission?.Scene;
+			Scene scene = MissionOf?.Scene;
 			if (scene == null) return "Error: no scene.";
 
 			float span = (point - GetHand()).Length;
@@ -655,7 +923,7 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public string Refresh()
 		{
-			if (!_rope.Build(Mission?.Scene))
+			if (!_rope.Build(MissionOf?.Scene))
 			{
 				return "grapple: rebuild failed (" + _rope.LastError + ")";
 			}
@@ -695,14 +963,69 @@ namespace LivingWorldNpcs
 			return ThrowInternal(true, shotOrigin, shotDirection, autoPull: true);
 		}
 
+		/// <summary>
+		/// **NPC 的发射入口**（2026-10-23）：瞄准点由调用方给（目标胸口 / 墙上的钩点），不走相机。
+		/// 手部动作由 <see cref="GrappleNpcKit"/> 播；本方法只负责"从这只手把钩放出去"。
+		/// </summary>
+		public string ThrowAtForOwner(Vec3 aim, bool aimAgent, bool autoPull)
+		{
+			if (Owner == null) return "Error: no owner agent.";
+			_forcedAim = aim;
+			_forcedAimAgent = aimAgent;
+			_forcedAimActive = true;
+			try
+			{
+				return ThrowInternal(false, Vec3.Zero, Vec3.Zero, autoPull);
+			}
+			finally
+			{
+				_forcedAimActive = false;
+			}
+		}
+
+		/// <summary>
+		/// **NPC 出手的完整入口**（动作 + 道具 + 到时放钩）：命令/AI 调这个，不是直接调 <see cref="ThrowAtForOwner"/>。
+		/// 返回 false + why = 缺件 / 改不了动作集（什么都没动）。
+		/// </summary>
+		public bool BeginNpcThrow(Vec3 aim, bool aimAgent, bool autoPull, out string why,
+			float aiBindHoldSeconds = 0f, Agent aimTarget = null)
+		{
+			if (IsPlayerOwner)
+			{
+				why = "this is the player session (use the normal throw path)";
+				return false;
+			}
+			if (_bind.IsActive)
+			{
+				why = "rope is tied to a bound target - release it first";
+				return false;
+			}
+			// 🔴 起手前先清掉上一钩：否则等下 `ThrowInternal` 里的"清场 Release"会把**新租约**一起收掉
+			//    （人已经握好绳、切好动作集，结果钩飞出去时手上的东西没了）。
+			if (_hookPhase != HookPhase.Idle) Release("npc throw（起手前清场）");
+			_pendingAiBindHoldSeconds = aiBindHoldSeconds;
+			return _npcKit.BeginThrow(Owner, this, aim, aimAgent, autoPull, aimTarget, out why);
+		}
+
+		/// <summary>收掉手部道具（租约结束时由 <see cref="GrappleNpcKit"/> 调）。</summary>
+		internal void HideNpcHandKitVisuals()
+		{
+			try { _hook.Unpark(); } catch (Exception) { }
+			try { _ropeA.Hide(); } catch (Exception) { }
+			_handHookRopeShown = false;
+			// 🔴 不在这里 `_rig.Teardown()`：整套收摊要走 TeardownSession 的顺序
+			//    （先拆钩/绳子件，再拆根）—— 先拆根会让随后的 Clear 摸到已销毁的子件。
+		}
+
 		private string ThrowInternal(bool hasShot, Vec3 shotOrigin, Vec3 shotDirection, bool autoPull)
 		{
-			Mission mission = Mission;
+			Mission mission = MissionOf;
 			Scene scene = mission?.Scene;
 			if (scene == null)
 			{
 				return "Error: no scene.";
 			}
+			_launchSource = hasShot ? "weapon" : (_forcedAimActive ? "npc" : "command");
 
 			// 🔴 **绳上还绑着人 ⇒ 真开火一律不许**（2026-10-18 用户裁定，安全网）。
 			//    以前这里是"发射即替换"（下面那句"先清场"会把人悄悄放掉）。一根绳只能系一头 ⇒
@@ -728,7 +1051,16 @@ namespace LivingWorldNpcs
 			bool aimAgent;
 			string why;
 			Vec3 aimNormal;
-			if (!TryAim(out hand, out aim, out aimAgent, out why, out aimNormal))
+			if (_forcedAimActive)
+			{
+				// NPC：瞄准点由调用方给（目标胸口 / 墙上的钩点），不碰相机。
+				hand = GetHand(Owner);
+				aim = _forcedAim;
+				aimAgent = _forcedAimAgent;
+				aimNormal = Vec3.Up;
+				why = "forced";
+			}
+			else if (!TryAim(out hand, out aim, out aimAgent, out why, out aimNormal))
 			{
 				// 相机准星打空 → 退回"这一枪自己的弹道"（见 ThrowFromShot 注释）
 				if (!hasShot || !TryAimAlongShot(mission, shotOrigin, shotDirection, out hand, out aim, out aimAgent))
@@ -824,12 +1156,12 @@ namespace LivingWorldNpcs
 			//    留着上一钩的 `Found=true` 会让状态机以为"有平台"而演「过程 → 落地」。
 			_landing = default(GrappleLanding.Result);
 			// 这一钩的两个属性：从空中起的吗（决定蓄势/拉升时长）、要不要自动拉（武器开火 = 要）
-			_attachFromAir = Agent.Main != null && !Agent.Main.IsOnLand();
+			_attachFromAir = Owner != null && !Owner.IsOnLand();
 			_attachAutoPull = autoPull;
 			_attachTimer = 0f;
 			DebugLogger.Log($"[Grapple] 发射：起点={Fmt(launchFrom)}{(_hook.IsParked ? "(= 圆周上那枚此刻的位置)" : "(手)")}"
 				+ $" 手={Fmt(hand)} 瞄准={Fmt(aim)} 瞄准面法线={Fmt(aimNormal)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
-				+ $" | 起手={(autoPull ? "武器开火(命中后自动拉)" : "命令(命中即停)")} 空中起钩={_attachFromAir}");
+				+ $" | 起手={_launchSource}({(autoPull ? "命中后自动拉" : "命中即停")}) 空中起钩={_attachFromAir}");
 
 			// 🔊 抛出瞬间的甩绳声（2026-10-10）—— **整条钩索流程只响这一下**
 			//    （钉住 / 拉拽不另配音；用户 2026-10-10 裁定）。名字查不到 = 静默跳过（不崩）。
@@ -861,7 +1193,7 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public string Probe()
 		{
-			Mission mission = Mission;
+			Mission mission = MissionOf;
 			if (mission?.Scene == null)
 			{
 				return "Error: no scene.";
@@ -882,7 +1214,7 @@ namespace LivingWorldNpcs
 					aim.x, aim.y, aim.z);
 			}
 
-			Vec3 playerPos = Agent.Main != null ? Agent.Main.Position : hand;
+			Vec3 playerPos = Owner != null ? Owner.Position : hand;
 			GrappleLanding.Result r = GrappleLanding.Solve(mission.Scene, aim, playerPos, aimNormal);
 			return string.Format("probe: aim=({0:F2},{1:F2},{2:F2}) n=({3:F2},{4:F2},{5:F2}) dist={6:F1}m | {7}",
 				aim.x, aim.y, aim.z, aimNormal.x, aimNormal.y, aimNormal.z,
@@ -915,6 +1247,8 @@ namespace LivingWorldNpcs
 			{
 				DebugLogger.Log($"[Grapple] 收钩（{reason}）| 钩头末位置 {Fmt(_hook.Position)} 状态 {_hook.State}");
 			}
+			// 2026-10-23：NPC 那套的出手租约先还（武器 / 动作集 / AI），再收实体。
+			try { _npcKit.EndLease("hook released: " + reason); } catch (Exception) { }
 			// 勾人中 ⇒ **放人**（起身动画 + 排队"等演完再把 AI 还回去"；绳这一收不影响起身动画继续演）。
 			// 若本次 Release 正是"绑自己走完了"那条路（GrappleBind 已把相位收成 None），Abort 是空操作。
 			// 🔴 **扛着人的话先散伙**（2026-10-10）：正常放下走交互面板的【放下】（那条会演完动画才松手）；
@@ -923,8 +1257,14 @@ namespace LivingWorldNpcs
 			_carry.HardStop("hook released: " + reason);
 			_bind.Abort(reason);
 			_bindFromTest = false;
+			_pendingAiBindHoldSeconds = 0f;
+			_releaseAfterCarry = false;
+			_releaseAfterCarryReason = null;
 			_hook.Clear();
 			_hookPhase = HookPhase.Idle;
+			// 🔴 2026-10-23：解绳必须清掉"绕在身上的绳尾钉"，否则 hide 之后手里那截再显示时
+			//    会把上一圈绳圈画回来（用户实机："解开绳子之后对方身上的圈还在"）。
+			try { _rope.ClearTailPin(); } catch (Exception) { }
 			_rope.Hide();
 			_rope.LengthFollowSpeed = HandLengthFollowSpeed;   // 恢复手里那档（飞行期的临时值到此为止）
 			_rope.SlackRatio = FlightRopeSlackRatio;           // 绑定期可能被压成绷直（见 Binding 分支）—— 收钩恢复默认档
@@ -956,7 +1296,7 @@ namespace LivingWorldNpcs
 		/// <summary>每帧推进状态机：喂事实 → Tick（照飞行，"填完才 Tick"）。</summary>
 		private void TickAnim(float dt)
 		{
-			if (_anim == null || _animCtx == null || Agent.Main == null)
+			if (_anim == null || _animCtx == null || Owner == null)
 			{
 				return;
 			}
@@ -965,7 +1305,8 @@ namespace LivingWorldNpcs
 			//    0 号通道同一时刻只能有一套全身姿态 —— 被绑那台机（bind.xml）正在写，
 			//    这台再写就是**两台机抢同一个通道**（每帧互踢 = 人抖成筛子）。
 			//    让位方式 = 把自己送出机（回引擎待机），等放人之后自然接回来。
-			if (_bind.Target != null && ReferenceEquals(_bind.Target, Agent.Main))
+			if (GrappleBind.IsTargetClaimed(Owner)
+				|| (_bind.Target != null && ReferenceEquals(_bind.Target, Owner)))
 			{
 				if (IsAnimInside()) ExitAnim();
 				return;
@@ -987,7 +1328,7 @@ namespace LivingWorldNpcs
 				_anim.Hold = true;
 				if (_anim.Current != _lockedAnimState)
 				{
-					_anim.Force(Agent.Main, _lockedAnimState, GrappleAnimMachine.AnimBlendIn);
+					_anim.Force(Owner, _lockedAnimState, GrappleAnimMachine.AnimBlendIn);
 				}
 				return;
 			}
@@ -1033,7 +1374,7 @@ namespace LivingWorldNpcs
 			_animCtx.LandingFound = (_hookPhase == HookPhase.Attached || _hookPhase == HookPhase.Pulling)
 				&& _landing.Found;
 
-			_anim.Tick(Agent.Main, dt);
+			_anim.Tick(Owner, dt);
 
 			if (_anim.Current == AgentAnimStateMachine.OutsideState)
 			{
@@ -1052,13 +1393,13 @@ namespace LivingWorldNpcs
 		/// <param name="startProgress">0~1：从动作的哪个进度开始播（只给"骑马：落地即飞、从中段进"这一条用）。</param>
 		private void ForceAnim(string whenToken, float startProgress = 0f)
 		{
-			if (_anim == null || Agent.Main == null || !AnimEnabled)
+			if (_anim == null || Owner == null || !AnimEnabled)
 			{
 				return;
 			}
 			if (_anim.TryEventTarget(whenToken, out string state))
 			{
-				_anim.Force(Agent.Main, state, GrappleAnimMachine.AnimBlendIn, startProgress);
+				_anim.Force(Owner, state, GrappleAnimMachine.AnimBlendIn, startProgress);
 				// 🔴 常开一行/次（2026-10-04 深夜：用户问"状态机有没有 setactionchannel 的记录"——
 				//    以前成功的 Force 是静默的，日志里查不到"到底进没进"，只有缺边才报错）。
 				DebugLogger.Log($"[Grapple] 姿态动画 Force → {state}（时刻名 {whenToken}"
@@ -1084,8 +1425,8 @@ namespace LivingWorldNpcs
 			{
 				return _hookPhase == HookPhase.Attached
 					&& _hook != null && _hook.AttachedAgent == null
-					&& _attachAutoPull && AutoPull
-					&& Agent.Main != null && Agent.Main.HasMount;
+					&& _attachAutoPull && (AutoPull || !IsPlayerOwner)
+					&& Owner != null && Owner.HasMount;
 			}
 			catch (Exception)
 			{
@@ -1126,7 +1467,7 @@ namespace LivingWorldNpcs
 		{
 			_animPendingPullTimer = 0f;      // 收摊 = 作废"待进过程"的计时
 			_animPullHeld = false;           // 同理：被压住的"过程进场"也一并作废（下马超时/收钩那条路）
-			if (!IsAnimInside() || Agent.Main == null || !AnimEnabled)
+			if (!IsAnimInside() || Owner == null || !AnimEnabled)
 			{
 				return;
 			}
@@ -1137,17 +1478,17 @@ namespace LivingWorldNpcs
 				// 🔴 定义里那条出边就是 `自由落体 → outside`，而 `TryEventTarget` **刻意不认"指向 outside 的边"**
 				//    （见 `AgentAnimStateMachine.TryEventTarget` 的 `e.To != "outside"`）⇒ 这里读不出目标、
 				//    只能直接送机外。日志带"已落地"四个字，用来和"打空/命令收摊"那条区分（验收就看这一行）。
-				_anim.Force(Agent.Main, AgentAnimStateMachine.OutsideState, GrappleAnimMachine.AnimBlendIn);
+				_anim.Force(Owner, AgentAnimStateMachine.OutsideState, GrappleAnimMachine.AnimBlendIn);
 				DebugLogger.Log($"[Grapple] 姿态动画收摊（已落地；0 号通道还引擎）| 从 {cur}");
 				return;
 			}
 			if (IsMainAirborne() && _anim.TryEventTarget(GrappleAnimConditions.FallTrigger, out string fallState))
 			{
-				_anim.Force(Agent.Main, fallState, GrappleAnimMachine.AnimBlendIn);
+				_anim.Force(Owner, fallState, GrappleAnimMachine.AnimBlendIn);
 				DebugLogger.Log($"[Grapple] 姿态动画 → 自由落体（人还在空中；从 {cur}）");
 				return;
 			}
-			_anim.Force(Agent.Main, AgentAnimStateMachine.OutsideState, GrappleAnimMachine.AnimBlendIn);
+			_anim.Force(Owner, AgentAnimStateMachine.OutsideState, GrappleAnimMachine.AnimBlendIn);
 			DebugLogger.Log($"[Grapple] 姿态动画收摊（0 号通道还引擎）| 从 {cur}");
 		}
 
@@ -1167,7 +1508,7 @@ namespace LivingWorldNpcs
 		/// <summary>命令 `animlock`：锁死播某个状态（静观）· 空参 = 解锁。返回英文回执（控制台纪律）。</summary>
 		internal string SetAnimLock(string stateName)
 		{
-			if (_anim == null || Agent.Main == null)
+			if (_anim == null || Owner == null)
 			{
 				return "Error: no anim machine (in mission?)";
 			}
@@ -1179,7 +1520,7 @@ namespace LivingWorldNpcs
 			}
 			_lockedAnimState = stateName;
 			_anim.Hold = true;
-			_anim.Force(Agent.Main, stateName, GrappleAnimMachine.AnimBlendIn);
+			_anim.Force(Owner, stateName, GrappleAnimMachine.AnimBlendIn);
 			return _anim.Current == stateName
 				? $"OK: locked '{stateName}' (hold=true; 'animlock clear' to release)."
 				: $"FAILED: could not enter '{stateName}' —— 名字不在定义里，或这条动作的 clip 还没导入（act_none，看日志）"
@@ -1187,9 +1528,9 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>主角在空中吗（口径同 <see cref="ThrowInternal"/> 的 `_attachFromAir`）。</summary>
-		private static bool IsMainAirborne()
+		private bool IsMainAirborne()
 		{
-			return Agent.Main != null && !Agent.Main.IsOnLand();
+			return Owner != null && !Owner.IsOnLand();
 		}
 
 		/// <summary>
@@ -1205,7 +1546,7 @@ namespace LivingWorldNpcs
 			why = "";
 			normal = Vec3.Up;                       // 没命中 = 当作"朝上的面"（不受盖板判据管）
 
-			Mission mission = Mission;
+			Mission mission = MissionOf;
 			if (mission?.Scene == null)
 			{
 				why = "no scene.";
@@ -1322,8 +1663,8 @@ namespace LivingWorldNpcs
 		/// <summary>命中地形后解算落点平台（§3.7）；结果暂存，步骤 4 的拉拽直接消费。</summary>
 		private void ResolveLanding()
 		{
-			Vec3 playerPos = Agent.Main != null ? Agent.Main.Position : GetHand();
-			_landing = GrappleLanding.Solve(Mission?.Scene, _hook.AttachedPoint, playerPos, _hook.AttachedNormal);
+			Vec3 playerPos = Owner != null ? Owner.Position : GetHand();
+			_landing = GrappleLanding.Solve(MissionOf?.Scene, _hook.AttachedPoint, playerPos, _hook.AttachedNormal);
 			_landingNote = GrappleLanding.Describe(_landing);
 			DebugLogger.Log($"[Grapple] 落点解算 @ 钩点 {Fmt(_hook.AttachedPoint)} 法线={Fmt(_hook.AttachedNormal)}：{_landingNote}");
 			// 🔴 **盖板**（2026-10-15/16 室内勾天花板事故；方案 §二十一）——命中了就多打一行，验收看这一行：
@@ -1398,9 +1739,120 @@ namespace LivingWorldNpcs
 
 		// ─────────────────────────────── 每帧 ───────────────────────────────
 
+		/// <summary>
+		/// **NPC 那套的每帧**（由 <see cref="NpcGrappleDirector"/> 调，2026-10-23）。
+		/// 只跑"这一套钩索自己的"东西：起身队列 / 扛人 / 姿态动画 / 钩头相位。
+		/// **不碰**玩家独占的：瞄准相机、开火队列、弹药顺序、缺件提示、骑马夹具命令。
+		/// </summary>
+		public void TickSession(float dt)
+		{
+			if (_terminated) return;
+			if (IsPlayerOwner)
+			{
+				OnMissionTick(dt);
+				return;
+			}
+
+			try { _bind.TickPending(dt); }
+			catch (Exception ex) { DebugLogger.Log($"[Grapple] NPC 起身队列异常（忽略）：{ex.GetType().Name} {ex.Message}"); }
+
+			try { _carry.Tick(dt, _bind); }
+			catch (Exception ex) { DebugLogger.Log($"[Grapple] NPC 扛人 tick 异常（忽略）：{ex.GetType().Name} {ex.Message}"); }
+			TickDeferredRelease();
+
+			TickAnim(dt);
+			_npcKit.Tick(dt);
+			TickNpcVisualLod(dt);
+			if (NpcHandKitEnabled && _npcVisualLevel == 0)
+			{
+				TickHandKit(dt);
+				TickHandHook(dt);
+			}
+
+			if (_hookPhase != HookPhase.Idle)
+			{
+				TickHook(dt);
+				ApplyNpcVisualLodAfterTick();
+				return;
+			}
+
+			if (!_anchored) return;
+			try
+			{
+				_rope.Tick(dt, GetRopeAnchor(), _anchor);
+			}
+			catch (Exception ex)
+			{
+				_anchored = false;
+				_rope.Hide();
+				DebugLogger.Log($"[Grapple] NPC 锚定 tick 异常，收绳：{ex.GetType().Name} {ex.Message}");
+			}
+			ApplyNpcVisualLodAfterTick();
+		}
+
+		/// <summary>按与玩家的距离算 NPC 那套的渲染档（0 全 / 1 简化 / 2 不渲染）。</summary>
+		private void TickNpcVisualLod(float dt)
+		{
+			_npcLodTimer += dt;
+			if (_npcLodTimer < 0.5f) return;
+			_npcLodTimer = 0f;
+
+			Agent player = Agent.Main;
+			Agent owner = Owner;
+			int level = 0;
+			if (player != null && owner != null)
+			{
+				float d = owner.Position.Distance(player.Position);
+				level = d > NpcVisualDistance ? 2 : (d > NpcFullVisualDistance ? 1 : 0);
+			}
+			if (level == _npcVisualLevel) return;
+			_npcVisualLevel = level;
+			ApplyNpcVisualLod();
+		}
+
+		private void ApplyNpcVisualLod()
+		{
+			if (_npcVisualLevel >= 1)
+			{
+				// 简化：手部那盘（环 / 绳 A / 手里转的钩）不画
+				try { _ropeA.Hide(); } catch (Exception) { }
+				try { _hook.Unpark(); } catch (Exception) { }
+			}
+			if (_npcVisualLevel >= 2)
+			{
+				// 不渲染：连绳 B 也收掉（机制照常跑）
+				try { _rope.Hide(); } catch (Exception) { }
+			}
+			else if (_hookPhase != HookPhase.Idle)
+			{
+				// 回到近处：把绳重新摆出来（Show 会把点链拉直，绑定期/飞行期都可以）
+				try
+				{
+					if (!_rope.IsVisible)
+					{
+						_rope.Show(GetRopeAnchor(), _bind.IsActive ? _bind.RopeEnd : _hook.Position);
+					}
+				}
+				catch (Exception) { }
+			}
+		}
+
+		private void ApplyNpcVisualLodAfterTick()
+		{
+			if (_npcVisualLevel >= 2)
+			{
+				try { _rope.Hide(); } catch (Exception) { }
+			}
+		}
+
 		public override void OnMissionTick(float dt)
 		{
 			base.OnMissionTick(dt);
+			if (!IsPlayerOwner)
+			{
+				TickSession(dt);
+				return;
+			}
 			_traceFrame++;
 			Trace("tick:begin");
 
@@ -1434,6 +1886,7 @@ namespace LivingWorldNpcs
 			//      但被扛者每帧都得跟着摆位、两台状态机都得推进；【放下】之后还要等放下动画演完才松手。
 			_carry.Tick(dt, _bind);
 			Trace("carry");
+			TickDeferredRelease();
 
 			// ⓪″ **手里那套常驻件**（左手环 + "环→右手"那截绳 A，2026-10-08）：与钩头相位**无关** ——
 			//     握着钩索就该在（待命 / 飞行 / 拉拽都跟着两只手），所以放在相位分派**之前**。
@@ -1487,10 +1940,10 @@ namespace LivingWorldNpcs
 			//    到了（≤ <see cref="ReturnArriveDistance"/>）就收场 → 相位回 Idle → 手里那套接管（绕圈恢复 ✓）。
 			if (_hookPhase == HookPhase.Returning)
 			{
-				Agent main = Agent.Main;
+				Agent main = Owner;
 				if (main == null)
 				{
-					Release("return: no player agent");
+					Release("return: no owner agent");
 					return;
 				}
 				bool arrived;
@@ -1518,7 +1971,10 @@ namespace LivingWorldNpcs
 				GrappleHook.StepResult step;
 				try
 				{
-					step = _hook.Tick(Mission, dt, Agent.Main != null ? Agent.Main.Index : -1);
+					int ownerIndex = Owner != null ? Owner.Index : -1;
+					int ownerMount = -1;
+					try { ownerMount = Owner?.MountAgent != null ? Owner.MountAgent.Index : -1; } catch (Exception) { }
+					step = _hook.Tick(MissionOf, dt, ownerIndex, ownerMount);
 				}
 				catch (Exception ex)
 				{
@@ -1543,8 +1999,10 @@ namespace LivingWorldNpcs
 					//    不接受（儿童 / 坐骑 / 骑在马上的人…）= 停在 Attached（旧行为：钩挂人身上不动）。
 					string why = "disabled";
 					if (GrappleBind.Enabled && _hook.AttachedAgent != null
-						&& _bind.Begin(Agent.Main, _hook.AttachedAgent, _hook.AttachedPoint, out why))
+						&& _bind.Begin(Owner, _hook.AttachedAgent, _hook.AttachedPoint, out why))
 					{
+						_bind.AiBindHoldSeconds = _pendingAiBindHoldSeconds;
+						_pendingAiBindHoldSeconds = 0f;
 						_hookPhase = HookPhase.Binding;
 						_bindFromTest = false;              // 真开火那条路：出口②③ 照常生效
 						_landingNote = "binding target";
@@ -1555,10 +2013,10 @@ namespace LivingWorldNpcs
 						//    （对照：**骑马钩到地形**才会自动下马 —— 那是"拉自己"的硬约束，见 _mountWait 那一段。）
 						try
 						{
-							if (Agent.Main != null && Agent.Main.HasMount)
+							if (Owner != null && Owner.HasMount)
 							{
-								DebugLogger.Log("[Grapple] 骑马钩人：绳主仍在马上 —— 玩家**不下马**（设计口径 §13.11）；"
-									+ "目标照旧被拽倒，玩家骑马移动（>1 m/s）时他被拖在地上");
+								DebugLogger.Log("[Grapple] 骑马钩人：绳主仍在马上 —— **不下马**（设计口径 §13.11）；"
+									+ "目标照旧被拽倒，绳主骑马移动（>1 m/s）时他被拖在地上");
 							}
 						}
 						catch (Exception) { }
@@ -1605,12 +2063,12 @@ namespace LivingWorldNpcs
 			{
 				// 钉住之后：蓄势（UE 参考工程的那半秒）→ 自动拉（只有武器开火那一钩会）
 				_attachTimer += dt;
-				if (_attachAutoPull && AutoPull && _hook.AttachedAgent == null)
+				if (_attachAutoPull && (AutoPull || !IsPlayerOwner) && _hook.AttachedAgent == null)
 				{
 					// 🔴 骑马勾到地形（2026-10-13 改口径，用户拍板 —— 取代 §13.11 的"直接收钩"）：
 					//    **自动下马，然后把下马那一拍藏进"蓄势"里直接起飞**（见 MountedPull 的注释：
 					//    拉自己必须先下马 —— 骑在马上时骑手位置由马决定，冻不住也托不起来）。
-					if (Agent.Main != null && Agent.Main.HasMount)
+					if (Owner != null && Owner.HasMount)
 					{
 						if (!MountedPull)
 						{
@@ -1630,7 +2088,7 @@ namespace LivingWorldNpcs
 						}
 
 						// ① 点"下马"（每帧一次；引擎按马速可能先拒后收 —— 重发是幂等的，标志位而已）
-						try { Agent.Main.EventControlFlags |= Agent.EventControlFlag.Dismount; }
+						try { Owner.EventControlFlags |= Agent.EventControlFlag.Dismount; }
 						catch (Exception) { }
 
 						// ② 🔴 2026-10-19 实机（日志 09:47:23.776 / 09:47:31.058）：**旗标这条路在玩家身上被引擎顶着不放行**
@@ -1650,9 +2108,9 @@ namespace LivingWorldNpcs
 							_mountedBlowFired = true;
 							try
 							{
-								Vec3 toHook = _hook.AttachedPoint - Agent.Main.Position;
+								Vec3 toHook = _hook.AttachedPoint - Owner.Position;
 								toHook.z = 0f;
-								string err = GrappleBind.FireDismountBlow(Agent.Main, rear: false, damage: 60f,
+								string err = GrappleBind.FireDismountBlow(Owner, rear: false, damage: 60f,
 									dirToward: toHook, attackerIndex: -1);
 								DebugLogger.Log(err == null
 									? "[Grapple] 骑马勾到地形 ⇒ 已打 CanDismount blow 催下马（native、不看马速；免疫掉血）"
@@ -1784,7 +2242,7 @@ namespace LivingWorldNpcs
 				//    2026-10-13：牵着人走那一拍也压成绷直（绳正吃着力；松着读不出"在牵"）。
 				_rope.SlackRatio = (_bind.WantsTautRope || _bind.LeashPulling) ? 1.0f : FlightRopeSlackRatio;
 
-				Scene bindScene = Mission != null ? Mission.Scene : null;
+				Scene bindScene = MissionOf != null ? MissionOf.Scene : null;
 				if (bindScene != null && _bind.IsActive)
 				{
 					_hook.Park(bindScene, _bind.HookPos, _bind.HookDir);
@@ -2023,7 +2481,7 @@ namespace LivingWorldNpcs
 			why = "-";
 			Agent t = _bind.IsActive ? _bind.Target : null;
 			if (t == null) { why = "no bound target (lasso someone first)"; return false; }
-			return _carry.Begin(carrier ?? Agent.Main, t, _bind, out why);
+			return _carry.Begin(carrier ?? Owner, t, _bind, out why);
 		}
 
 		/// <summary>命令 / 面板入口：把扛着的人放下（演完放下动画才真松手）。</summary>
@@ -2060,7 +2518,7 @@ namespace LivingWorldNpcs
 			{
 				if (!IsBindingSomeone()) return false;
 				Agent t = _bind.Target;
-				Agent me = Agent.Main;
+				Agent me = Owner;
 				if (t == null || me == null) return false;
 				// 🔴 **含高度**（2026-10-20）：与绳长的判据同一把尺子 —— 目标在墙头/台阶上时，
 				//    水平距离可能很近，但绳是真的斜着绷的，那时该出的是【拉紧】不是【扛起】。
@@ -2135,7 +2593,7 @@ namespace LivingWorldNpcs
 			try
 			{
 				if (horse == null || !_carry.IsOnHorse(horse)) { why = "no one on that horse"; return false; }
-				Agent me = Agent.Main;
+				Agent me = Owner;
 				Agent carried = _carry.Carried;
 				if (me == null || carried == null) { why = "no agent"; return false; }
 				Vec3 d = carried.Position - me.Position;
@@ -2169,7 +2627,7 @@ namespace LivingWorldNpcs
 				if (a == null || !ReferenceEquals(_bind.Target, a)) { why = "not the one on the rope"; return false; }
 				if (_carry.IsActive) { why = "already carrying"; return false; }
 				if (_bind.IsLying) { why = "target is lying down"; return false; }
-				Agent me = Agent.Main;
+				Agent me = Owner;
 				if (me == null) { why = "no main agent"; return false; }
 				Vec3 d = a.Position - me.Position;
 				d.z = 0f;
@@ -2245,13 +2703,45 @@ namespace LivingWorldNpcs
 				+ "'custom.grapple bind leadstop' = stop; 'custom.grapple bind release' = let go (you get your controls back).";
 		}
 
+		/// <summary>
+		/// **任意两个人直接绑**（不飞钩；2026-10-23，NPC 平权入口）。
+		/// `testPath` = true 时不判"收起钩索/绳被拉断"（调试命令）；AI 用 false。
+		/// </summary>
+		public string BindFromTo(Agent attacker, Agent target, bool testPath = true)
+		{
+			if (!GrappleBind.Enabled) return "Error: bind is OFF (custom.grapple bind on)";
+			if (attacker == null || target == null) return "Error: no attacker/target.";
+			if (!ReferenceEquals(attacker, Owner))
+			{
+				GrappleLogic other = EnsureFor(attacker);
+				if (other == null) return "Error: no grapple session for the attacker.";
+				return other.BindFromTo(attacker, target, testPath);
+			}
+			if (IsBusy) Release("bind from-to（清场重来）");
+
+			Vec3 hit = GrappleBind.ChestOf(target);
+			if (!_bind.Begin(attacker, target, hit, out string why))
+			{
+				return "Error: cannot bind (" + why + ")";
+			}
+			_bind.AiBindHoldSeconds = _pendingAiBindHoldSeconds;
+			_pendingAiBindHoldSeconds = 0f;
+			_hook.Clear();
+			_hookPhase = HookPhase.Binding;
+			_bindFromTest = testPath;
+			_landingNote = "binding (from-to)";
+			ShowBindRope();
+			return $"OK: '{attacker.Name}' binds '{target.Name}'"
+				+ (testPath ? " (test path)." : ".") + " Watch 缠→受击→站缚; release with 'custom.grapple npc release' or the panel.";
+		}
+
 		/// <summary>把"勾人那条绳"显示出来（测试路径没经过"飞行"，绳可能还藏着 / 没建）。
 		/// 失败只记日志 —— 机制不受影响（绳是纯观感）。</summary>
 		private void ShowBindRope()
 		{
 			try
 			{
-				Scene scene = Mission != null ? Mission.Scene : null;
+				Scene scene = MissionOf != null ? MissionOf.Scene : null;
 				if (scene != null && !_rope.IsVisible)
 				{
 					if (_rope.Build(scene))
@@ -2298,11 +2788,11 @@ namespace LivingWorldNpcs
 		/// <summary>起一次拉拽（命令与自动两条路共用）。失败时什么都不动。</summary>
 		private string StartPull(string why)
 		{
-			Agent main = Agent.Main;
-			Scene scene = Mission?.Scene;
+			Agent main = Owner;
+			Scene scene = MissionOf?.Scene;
 			if (main == null || scene == null)
 			{
-				return "Error: no player/scene.";
+				return "Error: no owner/scene.";
 			}
 			bool fromAir = !main.IsOnLand();
 			string r = _pull.Start(main, _landing.Endpoint, _landing.Found, scene, fromAir, _hook.AttachedPoint);
@@ -2567,14 +3057,15 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void TickHandKit(float dt)
 		{
-			Agent player = Agent.Main;
-			Scene scene = Mission != null ? Mission.Scene : null;
-			bool want = HandHookEnabled && !_anchored && player != null && scene != null && IsHoldingGrapple();
+			Agent player = Owner;
+			Scene scene = MissionOf != null ? MissionOf.Scene : null;
+			bool want = HandKitWanted && !_anchored && player != null && scene != null && IsHoldingGrapple();
 
 			// 🔴 **反向绑（NPC 把我们绑了，2026-10-13）**：那一拍玩家手是被捆着的（状态机在演站缚/被拖行），
 			//    手里再挂着"环 + 两截绳 + 一枚转着的钩"是错位的（而且钩已经挂在**我们胸口**了）。
 			//    ⇒ 玩家是绳另一头那个人时，手里那套整体收掉（钩头那套由 Binding 分支自己摆）。
-			if (want && _bind.Target != null && ReferenceEquals(_bind.Target, player))
+			if (want && (GrappleBind.IsTargetClaimed(player)
+				|| (_bind.Target != null && ReferenceEquals(_bind.Target, player))))
 			{
 				want = false;
 			}
@@ -2674,13 +3165,25 @@ namespace LivingWorldNpcs
 				return;
 			}
 
+			// 🔴 2026-10-23：自己正被另一根绳绑着 ⇒ 手里那套整体收掉（与 TickHandKit 同一条口径）。
+			if (Owner == null || GrappleBind.IsTargetClaimed(Owner))
+			{
+				_hook.Unpark();
+				if (_handHookRopeShown)
+				{
+					_handHookRopeShown = false;
+					_rope.Hide();
+				}
+				return;
+			}
+
 			// 档 0 = 正常；**档 4 = 强制走下面那条**（不看总开关、不看握着谁 —— 它就是"现行为"的对照）
 			// 🔴 **"装备里没有钩"也要收**（2026-10-12 用户裁定：视觉一致 —— "看得见的钩" = "能用的钩"）：
 			//    手里那枚钩是**运行时实体**，判据原先只有"握着的是绳/钩" ⇒ 一个没带钩爪的玩家手里**照样**
 			//    有一枚转着的钩，"看着一切正常、按开火键却打不出去"（缺件时引擎连拉弓都不进）。
 			//    加上这条之后：缺钩爪 ⇒ 手里只剩左手那盘绳（物品网格），缺口一眼可见。
-			bool hasHook = GrappleFirePatch.HasHookEquipped(Agent.Main);
-			if (HandProbeStage == 0 && (!HandHookEnabled || !IsHoldingGrapple() || !hasHook))
+			bool hasHook = GrappleFirePatch.HasHookEquipped(Owner);
+			if (HandProbeStage == 0 && (!HandKitWanted || !IsHoldingGrapple() || !hasHook))
 			{
 				_hook.Unpark();
 				_lastHandSrcTag = null;      // 收了就复位 ⇒ 下次拿起来，"手源换路"会重新落一条（带当前几何）
@@ -2695,7 +3198,7 @@ namespace LivingWorldNpcs
 					string wieldedId = "(?)";
 					try
 					{
-						Agent m = Agent.Main;
+						Agent m = Owner;
 						wieldedId = (m != null && m.WieldedWeapon.Item != null) ? m.WieldedWeapon.Item.StringId : "(空手)";
 					}
 					catch (Exception)
@@ -2705,13 +3208,13 @@ namespace LivingWorldNpcs
 					string stopWhy = !IsHoldingGrapple()
 						? $"此刻握着 {wieldedId}"
 						: (!hasHook ? "装备里没有钩爪（缺件 ⇒ 手里的钩收掉、只剩那盘绳）" : $"总开关关着，握着 {wieldedId}");
-					DebugLogger.Log($"[Grapple] 手里的钩：停（{stopWhy}，开开关={HandHookEnabled}）");
+					DebugLogger.Log($"[Grapple] 手里的钩：停（{stopWhy}，开开关={HandKitWanted}）");
 				}
 				return;
 			}
 
-			Agent player = Agent.Main;
-			Scene scene = Mission != null ? Mission.Scene : null;
+			Agent player = Owner;
+			Scene scene = MissionOf != null ? MissionOf.Scene : null;
 			if (player == null || scene == null)
 			{
 				return;
@@ -2752,10 +3255,14 @@ namespace LivingWorldNpcs
 			//    瞄准两档都照旧 270。停住 = 角度不再累加 ⇒ 钩停在圆周上这一刻的位置，瞄准时从这一刻接着转（不跳）。
 			bool mounted = false;
 			try { mounted = player.HasMount; } catch (Exception) { }
-			HandHookMountedNow = mounted;
 			float rpm = aiming ? HandHookRpmAim : (mounted ? HandHookRpmMountedIdle : HandHookRpmIdle);
-			HandHookAimingNow = aiming;
-			HandHookRpmNow = rpm;
+			// 这三个是**玩家诊断**用的静态读数（`custom.grapple hand`）；NPC 那套不要覆盖它们。
+			if (IsPlayerOwner)
+			{
+				HandHookMountedNow = mounted;
+				HandHookAimingNow = aiming;
+				HandHookRpmNow = rpm;
+			}
 			_handHookAngle += dt * rpm / 60f * 6.2831855f;
 			float c = (float)Math.Cos(_handHookAngle);
 			float s = (float)Math.Sin(_handHookAngle);
@@ -3306,8 +3813,8 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void TickHandProbe(float dt)
 		{
-			Agent player = Agent.Main;
-			Scene scene = Mission != null ? Mission.Scene : null;
+			Agent player = Owner;
+			Scene scene = MissionOf != null ? MissionOf.Scene : null;
 			if (player == null || scene == null)
 			{
 				return;
@@ -3420,11 +3927,11 @@ namespace LivingWorldNpcs
 		/// 🔴 2026-10-07 实机（"瞄准时钩看不见"）：**瞄准期间引擎把 `WieldedWeapon` 报成那支**（弹药），
 		///   只判本体 ⇒ 一瞄准钩就被收掉（拔刀那一瞬还在，日志可证）。两件都认即可。
 		/// 换到别的武器（刀/弓）时两件都不匹配 ⇒ 正常收掉 ✓。</summary>
-		private static bool IsHoldingGrapple()
+		private bool IsHoldingGrapple()
 		{
 			try
 			{
-				Agent main = Agent.Main;
+				Agent main = Owner;
 				if (main == null)
 				{
 					return false;
@@ -3451,10 +3958,11 @@ namespace LivingWorldNpcs
 			//    绳主是玩家 = 右手（下面那套，实机验证过）；绳主是 NPC = 读**那个 NPC**的右手，
 			//    用的是同一个骨读数（`SpellCastInput.TryGetRightHandAnchor` 本来就收任意 agent）。
 			//    读不到就退回"他身上抬一点"，**绝不退回玩家的手**（那会让绳从玩家身上长出来，一眼假）。
+			//    2026-10-23：NPC 那套的 Owner 就是绳主；这里的"不同人"只剩反向绑那条调试路。
 			try
 			{
 				Agent holder = _bind.Attacker;
-				if (_bind.IsActive && holder != null && !ReferenceEquals(holder, Agent.Main))
+				if (_bind.IsActive && holder != null && !ReferenceEquals(holder, Owner))
 				{
 					if (SpellCastInput.TryGetRightHandAnchor(holder, out Vec3 npcHand))
 						return npcHand - Vec3.Up * SpellCastInput.HandAnchorUpOffset;
@@ -3469,13 +3977,18 @@ namespace LivingWorldNpcs
 		/// 🔴 **2026-10-08：把"蓄力球口径"的上抬减掉**，再**沿小臂外移到掌心**（<see cref="HandPalmOffset"/>）——
 		///    三处（绳的近端 / 钩的圆心 / 开火起点）共用这一个点，所以只需调一个旋钮。
 		///    （原 0.18 上抬是给阴魔斩球的：球挂手上方好看；钩/绳拿它当支点就会比掌心靠内靠上。）
-		/// ⚠️ 球那边不受影响（它自己走 <see cref="SpellCastInput.TryGetRightHandAnchor"/>）。</summary>
+		/// ⚠️ 球那边不受影响（它自己走 <see cref="SpellCastInput.TryGetRightHandAnchor"/>）。
+		/// 2026-10-23：按**这一套的使用者**读手（NPC 那套就是 NPC 的右手）。</summary>
 		private Vec3 GetHand()
 		{
-			Agent player = Agent.Main;
-			if (player == null) return _anchor;
+			return GetHand(Owner);
+		}
+
+		private Vec3 GetHand(Agent agent)
+		{
+			if (agent == null) return _anchor;
 			Vec3 hand;
-			if (!SpellCastInput.TryGetRightHandAnchor(player, out hand))
+			if (!SpellCastInput.TryGetRightHandAnchor(agent, out hand))
 			{
 				// 🔴 **读失败时先拿"上一次读到的好手点"顶着**（窗口 = <see cref="HandHoldSeconds"/>）——
 				//    2026-10-08 实机（日志实锤）：骨读数一旦被闸门拒，这里就直掉**脚底/盆骨** ⇒
@@ -3484,20 +3997,20 @@ namespace LivingWorldNpcs
 				if (_lastGoodHandAge <= HandHoldSeconds)
 				{
 					SpellCastInput.LastHandSource = "hold " + SpellCastInput.LastHandSource;
-					return _lastGoodHand + (player.Position - _lastGoodAgentPos);
+					return _lastGoodHand + (agent.Position - _lastGoodAgentPos);
 				}
-				return player.Position + Vec3.Up * FallbackHandLift;
+				return agent.Position + Vec3.Up * FallbackHandLift;
 			}
 			hand -= Vec3.Up * SpellCastInput.HandAnchorUpOffset;      // 去掉蓄力球口径的上抬 → 回到手骨原点（腕关节）
 
 			// 沿**小臂方向**外移到掌心（读不到就保持腕关节，不乱挪）
 			if (Math.Abs(HandPalmOffset) > 0.0005f
-				&& SpellCastInput.TryGetForearmAxis(player, out Vec3 foreArm))
+				&& SpellCastInput.TryGetForearmAxis(agent, out Vec3 foreArm))
 			{
 				hand += foreArm * HandPalmOffset;
 			}
 			_lastGoodHand = hand;                    // 记下这次的好点（读失败时靠它顶）
-			_lastGoodAgentPos = player.Position;
+			_lastGoodAgentPos = agent.Position;
 			_lastGoodHandAge = 0f;
 			return hand;
 		}

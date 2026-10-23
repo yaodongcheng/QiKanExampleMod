@@ -382,6 +382,8 @@
     <Compile Include="Combat\GrappleRope.cs" />
     <Compile Include="Combat\GrappleRig.cs" />
     <Compile Include="Combat\GrappleLogic.cs" />
+    <Compile Include="Combat\GrappleNpcKit.cs" />
+    <Compile Include="Combat\NpcGrappleDirector.cs" />
     <Compile Include="Combat\GrappleHook.cs" />
     <Compile Include="Combat\GrappleLanding.cs" />
     <Compile Include="Combat\GrapplePull.cs" />

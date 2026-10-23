@@ -344,20 +344,85 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         {
             string id = Arg(args, 1);
             if (string.IsNullOrWhiteSpace(id))
-                return "pair npc: usage: custom.pair npc <id> [targetId] [end=hold|kill]";
+                return "pair npc: usage: custom.pair npc <id> <attacker> <defender>"
+                     + " (e.g. 'custom.pair npc assassination01 #16 #25' = 16 backstabs 25;"
+                     + " assassination01 is ALWAYS non-lethal knockout, 'end=kill' is rejected)";
             if (!PairActionTable.TryGet(id, out PairActionDef def) || def == null)
                 return $"pair npc: '{id}' not found";
             if (PairActionLogic.Current == null || Mission.Current == null)
                 return "pair npc: not in a mission";
 
-            ParseStartFlags(args, 2, out _, out PairEndPolicy? endOverride, out string targetId);
+            // 2026-10-23 用户要求：**两个 NPC 参数放最后**（`<动作> [end=…] <attacker> <defender>`）。
+            // 兼容旧写法：只写一个 = defender（攻击者取最近）；`attacker=#A` / `defender=#B` 也照收。
+            PairEndPolicy? endOverride = null;
+            bool sawEndKill = false;
+            string attackerToken = null;
+            string defenderToken = null;
+            var positional = new List<string>();
+            for (int i = 2; i < args.Count; i++)
+            {
+                string a = (args[i] ?? "").Trim();
+                if (a.Length == 0) continue;
+                if (a.Equals("force", StringComparison.OrdinalIgnoreCase)) continue;
+                if (a.StartsWith("end=", StringComparison.OrdinalIgnoreCase))
+                {
+                    string v = a.Substring(4).Trim().ToLowerInvariant();
+                    if (v == "hold") endOverride = PairEndPolicy.Hold;
+                    else if (v == "kill") { endOverride = PairEndPolicy.KillDefender; sawEndKill = true; }
+                    continue;
+                }
+                if (a.StartsWith("attacker=", StringComparison.OrdinalIgnoreCase))
+                {
+                    attackerToken = a.Substring(9).Trim();
+                    continue;
+                }
+                if (a.StartsWith("defender=", StringComparison.OrdinalIgnoreCase))
+                {
+                    defenderToken = a.Substring(9).Trim();
+                    continue;
+                }
+                if (a.StartsWith("target=", StringComparison.OrdinalIgnoreCase))
+                {
+                    defenderToken = a.Substring(7).Trim();
+                    continue;
+                }
+                positional.Add(a);
+            }
             if (!endOverride.HasValue)
                 endOverride = PairEndPolicy.Hold;   // 测试命令默认不杀 NPC；要杀请显式 end=kill
 
-            Agent defender = ResolveAgent(targetId);
+            // 🔴 2026-10-23 用户裁定：**暗杀永远不杀人** —— 固定走 knockout（被击晕/重伤），
+            //    `end=kill` 一律拒绝（玩家侧 `TryAssassinateAgent` 也走 CSV 的 knockout）。
+            if (string.Equals(def.Id, "assassination01", StringComparison.OrdinalIgnoreCase))
+            {
+                if (sawEndKill)
+                    return "pair npc: assassination01 is non-lethal (knockout only); 'end=kill' is not allowed.";
+                endOverride = PairEndPolicy.Knockout;
+            }
+
+            if (positional.Count == 1 && string.IsNullOrWhiteSpace(defenderToken))
+            {
+                defenderToken = positional[0];      // 旧写法：单个参数 = 被打的人
+            }
+            else if (positional.Count >= 2)
+            {
+                // 新写法：最后两个 = 攻击者、被打的人
+                if (string.IsNullOrWhiteSpace(attackerToken)) attackerToken = positional[positional.Count - 2];
+                if (string.IsNullOrWhiteSpace(defenderToken)) defenderToken = positional[positional.Count - 1];
+            }
+
+            Agent defender = string.IsNullOrWhiteSpace(defenderToken)
+                ? ResolveAgent(null)
+                : ResolvePairAgentToken(defenderToken);
             if (defender == null) return "pair npc: no defender (aim at someone or pass an id)";
-            Agent attacker = FindNearestNpc(defender, defender, Agent.Main, 15f);
+
+            Agent attacker = string.IsNullOrWhiteSpace(attackerToken)
+                ? null
+                : ResolvePairAgentToken(attackerToken);
+            if (attacker == null) attacker = FindNearestNpc(defender, defender, Agent.Main, 15f);
             if (attacker == null) return "pair npc: no other human NPC within 15 m to act as attacker";
+            if (ReferenceEquals(attacker, Agent.Main)) return "pair npc: attacker must be an NPC (use 'pair start' for the player)";
+            if (ReferenceEquals(attacker, defender)) return "pair npc: attacker and defender are the same agent";
 
             if (!TryBuildDriver(def, def.Attacker, out IPairSideDriver aDriver, out string whyA))
                 return $"pair npc: attacker side not supported ({whyA})";
@@ -559,6 +624,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
                 string a = (args[i] ?? "").Trim();
                 if (a.Length == 0) continue;
                 if (a.Equals("force", StringComparison.OrdinalIgnoreCase)) { force = true; continue; }
+                if (a.StartsWith("attacker=", StringComparison.OrdinalIgnoreCase)) { continue; }
                 if (a.StartsWith("end=", StringComparison.OrdinalIgnoreCase))
                 {
                     string v = a.Substring(4).Trim().ToLowerInvariant();
@@ -584,6 +650,19 @@ namespace LivingWorldNpcs.CampaignMode.Tools
             return status.MostRecent();
         }
 
+        /// <summary>`#编号` / `名字#编号` / 角色 StringId / 准星焦点 —— 双人动作命令的 agent 解析。</summary>
+        private static Agent ResolvePairAgentToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return null;
+            try
+            {
+                if (AgentControlHelper.TryResolveIndexedTarget(token, out Agent byIndex, out _))
+                    return byIndex;
+            }
+            catch (Exception) { }
+            return ResolveAgent(token);
+        }
+
         /// <summary>按角色 StringId 找 agent；空 = 当前焦点 / 上一次焦点。状态命令也用它。</summary>
         internal static Agent ResolveAgent(string idOrNull)
         {
@@ -592,6 +671,14 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
             if (!string.IsNullOrWhiteSpace(idOrNull))
             {
+                // 2026-10-23：先认 HUD 上的 `名字#编号` / `#编号`（与钩索 npc 命令同口径）
+                try
+                {
+                    if (AgentControlHelper.TryResolveIndexedTarget(idOrNull, out Agent byIndex, out _))
+                        return byIndex;
+                }
+                catch (Exception) { }
+
                 Agent byId = Mission.Current.Agents.FirstOrDefault(
                     a => a != null && a.Character != null
                          && string.Equals(a.Character.StringId, idOrNull, StringComparison.OrdinalIgnoreCase));

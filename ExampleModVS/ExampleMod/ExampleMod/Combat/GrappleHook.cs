@@ -177,7 +177,7 @@ namespace LivingWorldNpcs
 		/// 推进一帧。命中即钉住（<see cref="StepResult.HitWorld"/> / <see cref="StepResult.HitAgent"/>）。
 		/// <paramref name="excludeAgentIndex"/> 一般是玩家自己的 Index（别打到自己）。
 		/// </summary>
-		public StepResult Tick(Mission mission, float dt, int excludeAgentIndex)
+		public StepResult Tick(Mission mission, float dt, int excludeAgentIndex, int excludeMountIndex = -1)
 		{
 			if (State != Phase.Flying)
 			{
@@ -228,10 +228,10 @@ namespace LivingWorldNpcs
 					_skipAgents.Clear();
 					try
 					{
-						Agent mount = Agent.Main?.MountAgent;
-						if (mount != null && mount.Index != excludeAgentIndex)
+						// 2026-10-23：跳过**这一套使用者**自己的坐骑（原来是写死玩家；NPC 平权后按 owner 传）。
+						if (excludeMountIndex >= 0 && excludeMountIndex != excludeAgentIndex)
 						{
-							_skipAgents.Add(mount.Index);
+							_skipAgents.Add(excludeMountIndex);
 						}
 					}
 					catch (Exception) { }
