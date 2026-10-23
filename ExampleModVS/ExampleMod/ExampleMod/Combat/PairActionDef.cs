@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace LivingWorldNpcs
@@ -19,7 +20,7 @@ namespace LivingWorldNpcs
     public enum PairPlayKind { None, Action, Machine }
     public enum PairMotionKind { None, Engine, Clip }
     public enum PairAttachMode { None, Persistent }
-    public enum PairEndPolicy { Release, KillDefender, RagdollDefender, Hold }
+    public enum PairEndPolicy { Release, KillDefender, RagdollDefender, Hold, Knockout }
 
     /// <summary>
     /// 配对首帧相对站位（**defender 相对 attacker**，attacker 本地系）。
@@ -47,6 +48,16 @@ namespace LivingWorldNpcs
 
         /// <summary>`machine:carry` 里的状态机名。</summary>
         public string MachineName;
+    }
+
+    /// <summary>
+    /// **音效/粒子轨道的一条事件**（2026-10-23）：`time@id`。
+    /// `Time` = 从演出（Playing）开始算的秒；`Id` = `module_sounds` 的事件名 / 粒子系统名。
+    /// </summary>
+    public sealed class PairTimedEvent
+    {
+        public float Time;
+        public string Id;
     }
 
     /// <summary>CSV 的一行 = 一个双人动作。</summary>
@@ -92,6 +103,18 @@ namespace LivingWorldNpcs
         /// 后继 pair 的参数 = 它的 `EnterEvent`/`ExitEvent`/`Stance_*`；新 attacker = 触发目标（那匹马）。
         /// </summary>
         public string HandoffOn;
+
+        /// <summary>
+        /// **音效轨道**：`time@事件名|time@事件名`（时间 = 从演出开始算的秒）。
+        /// 到点由 `PairActionInstance` 在受害者**颈根骨**处 3D 播放（`SoundFx.Play3D`）。
+        /// </summary>
+        public List<PairTimedEvent> SoundTrack = new List<PairTimedEvent>();
+
+        /// <summary>
+        /// **粒子轨道**：`time@粒子名|time@粒子名`。到点挂到受害者**颈根骨**上
+        /// （`MBAgentVisuals.CreateParticleSystemAttachedToBone`）。
+        /// </summary>
+        public List<PairTimedEvent> FxTrack = new List<PairTimedEvent>();
 
         public bool IsPersistent => AttachMode == PairAttachMode.Persistent;
         public bool StartsByHandoff => string.Equals(Start, "handoff", StringComparison.OrdinalIgnoreCase);
@@ -327,6 +350,8 @@ namespace LivingWorldNpcs
             d.EndPolicy = ParseEnd(Str(row, "End_Policy", "release"));
             d.HandoffTo = Str(row, "HandoffTo").Trim();
             d.HandoffOn = Str(row, "HandoffOn").Trim();
+            d.SoundTrack = ParseTimedEvents(Str(row, "Sound_Track"));
+            d.FxTrack = ParseTimedEvents(Str(row, "Fx_Track"));
 
             return d;
         }
@@ -382,9 +407,40 @@ namespace LivingWorldNpcs
             {
                 case "kill_defender": return PairEndPolicy.KillDefender;
                 case "ragdoll_defender": return PairEndPolicy.RagdollDefender;
+                case "knockout": return PairEndPolicy.Knockout;
                 case "hold": return PairEndPolicy.Hold;
                 default: return PairEndPolicy.Release;
             }
+        }
+
+        /// <summary>
+        /// 解析 `time@id|time@id`（`@` 避开事件名里的 `:` / `/`，`|` 避开 CSV 逗号）。
+        /// 解析失败的单条静默跳过（数据表里留空 = 没有轨道）。
+        /// </summary>
+        private static List<PairTimedEvent> ParseTimedEvents(string raw)
+        {
+            var list = new List<PairTimedEvent>();
+            if (string.IsNullOrWhiteSpace(raw))
+                return list;
+
+            foreach (string part in raw.Split('|'))
+            {
+                string s = (part ?? "").Trim();
+                if (s.Length == 0) continue;
+
+                int at = s.IndexOf('@');
+                if (at <= 0 || at >= s.Length - 1) continue;
+                if (!float.TryParse(s.Substring(0, at).Trim(), NumberStyles.Float,
+                        CultureInfo.InvariantCulture, out float time))
+                    continue;
+
+                string id = s.Substring(at + 1).Trim();
+                if (id.Length == 0 || time < 0f) continue;
+                list.Add(new PairTimedEvent { Time = time, Id = id });
+            }
+
+            list.Sort((a, b) => a.Time.CompareTo(b.Time));
+            return list;
         }
 
         /// <summary>一行摘要（命令 / 日志用）。</summary>

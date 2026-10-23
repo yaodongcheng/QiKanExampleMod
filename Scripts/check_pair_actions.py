@@ -33,13 +33,14 @@ REQUIRED = [
     "Attacker_Play", "Defender_Play",
     "EnterEvent", "ExitEvent",
     "Motion", "Attach_Mode", "End_Policy", "HandoffTo", "HandoffOn",
+    "Sound_Track", "Fx_Track",
 ]
 
 VALID = {
     "Start": {"preposition", "handoff"},
     "Attach_Mode": {"none", "persistent"},
     "Motion": {"engine", "clip", "none", ""},
-    "End_Policy": {"release", "kill_defender", "ragdoll_defender", "hold"},
+    "End_Policy": {"release", "kill_defender", "ragdoll_defender", "hold", "knockout"},
 }
 
 

@@ -100,7 +100,26 @@ namespace LivingWorldNpcs
         private float _camPitchDeg;
         private float _camTurnElapsed;      // 镜头转动已经走了多久（和 _phaseTimer 解耦）
         private float _camLogTimer;         // [PairCam] 取证日志节流
+        private bool _camTurnDone;          // 对齐转向已走完（一次性演出继续持有镜头，见 TickPerformanceCamera）
+        private float _camPerfYawDeg;       // 演出镜头 yaw（低通后的值）
+        private bool _camPerfYawInit;
         private bool _haveCamStart;
+
+        // ── 音效 / 粒子轨道（2026-10-23）──
+        private float _playTime;            // 从演出（Playing）开始算的秒
+        private int _soundFired;            // 已触发到第几条（表按时间排好）
+        private int _fxFired;
+
+        /// <summary>演出镜头 yaw 的低通时间常数（秒）—— 滤掉骨盆随动作的高频摇摆，只跟整体转身。
+        /// 2026-10-23 实测从 0.15 提到 0.60：暗杀 clip 里骨盆会先甩到 -169° 再回 -105°，
+        /// 0.15 跟得太紧（镜头明显甩一下）；0.60 只跟净转身。</summary>
+        private const float PerfCamYawTau = 0.60f;
+        /// <summary>演出镜头 yaw 的最大转速（度/秒）—— 防 180° 转身时甩头（2026-10-23 360→180）。</summary>
+        private const float PerfCamYawMaxRate = 180f;
+
+        /// <summary>`custom.pair trace 1` 打开：演出镜头每 0.25s 打一行取证（raw/smooth/bodyLook/位置）。</summary>
+        public static bool PerfCameraDebug = false;
+        private float _camPerfLogTimer;
 
         private float _npcReissueTimer;
         private Vec3 _lastWalkPos;          // 走到位判定：上一帧位置
@@ -223,6 +242,9 @@ namespace LivingWorldNpcs
 
             // 🔴 2026-10-22：镜头有自己的时间轴 —— 起播后继续转，转完才交还（见 TickCameraTurn）。
             TickCameraTurn(dt);
+            // 一次性演出：镜头继续持有，跟攻击者的**动画身体朝向**（execution02 会自己转 180°）。
+            if (Phase == PairPhase.Playing || Phase == PairPhase.Ending)
+                TickPerformanceCamera(dt);
 
             switch (Phase)
             {
@@ -326,7 +348,7 @@ namespace LivingWorldNpcs
             {
                 if (ReferenceEquals(Attacker, Agent.Main)
                     && CameraLook.TryGetEngineAnglesRaw(out float camYaw, out float camPitch)
-                    && CameraService.Play("follow_engine", Attacker, 0f, PairCameraOwner,
+                    && CameraService.Play("pair_shot", Attacker, 0f, PairCameraOwner,
                         new CameraReturnPolicy
                         {
                             WriteBackLook = true,
@@ -337,6 +359,9 @@ namespace LivingWorldNpcs
                     _camStartYawDeg = camYaw;
                     _camPitchDeg = camPitch;
                     _camTurnElapsed = 0f;
+                    _camTurnDone = false;
+                    _camPerfYawInit = false;
+                    _camPerfLogTimer = 0f;
                     _haveCamStart = true;
                 }
                 else
@@ -428,7 +453,79 @@ namespace LivingWorldNpcs
             Lease?.SetSavedLook(yaw, _camPitchDeg);   // 万一归还被打断，释放时也写回转到的角度
 
             if (t >= 1f)
-                ReleasePairCamera();                  // 转完 → 0.35s 渐变交还引擎
+            {
+                if (Def != null && !Def.IsPersistent)
+                {
+                    // 一次性演出：镜头**继续持有**，演出期间跟攻击者背影（见 TickPerformanceCamera）
+                    _camTurnDone = true;
+                }
+                else
+                {
+                    ReleasePairCamera();              // 持续性挂接：转完就交还（玩家要自由视角）
+                }
+            }
+        }
+
+        /// <summary>
+        /// **演出镜头（通用，一次性动作）**（2026-10-22 用户裁定）：演出期间镜头保持在攻击者**背后**，
+        /// 且朝向他**当前动画里的身体朝向**。
+        ///
+        /// 🔴 为什么需要它：有些 clip 会自己转身（`execution02` 的根骨 180°），而 `Agent.LookFrame`/
+        ///    `Frame` **不跟动画根骨转** —— 只看逻辑朝向的相机会停在旧方向（看到正脸）。这里每帧读
+        ///    **骨盆骨的世界前向**（含动画根旋转）来驱动相机 yaw；机位仍是 `follow_engine` 的默认背后视角。
+        ///
+        /// 持续性挂接（扛人）不走这条：玩家要自由视角（`TickCameraTurn` 转完就交还）。
+        /// </summary>
+        private void TickPerformanceCamera(float dt)
+        {
+            if (!_haveCamStart || !_camTurnDone || Def == null || Def.IsPersistent)
+                return;
+            if (Attacker == null || Attacker.Monster == null)
+                return;
+            if (!SpellCastInput.TryReadBoneWorldForward(Attacker, Attacker.Monster.PelvisBoneIndex, out Vec3 fwd))
+                return;
+
+            // ArmYaw 口径与 YawDegOf 符号相反（见 TickCameraTurn 里的注释）
+            float target = PairActionPose.Normalize180(-PairActionPose.YawDegOf(fwd));
+
+            if (!_camPerfYawInit)
+            {
+                _camPerfYawInit = true;
+                // 从对齐转完那一刻的机位接上，避免第一帧跳
+                _camPerfYawDeg = PairActionPose.Normalize180(CameraService.Machine.LookYaw);
+            }
+
+            // 🔴 低通：骨盆的局部旋转带着动作的左右拧/前倾，直接跟 = 镜头跟着身体抖。
+            //    τ=0.15s 只跟整体转身；再加转速上限，180° 转身也不甩头。
+            float k = 1f - (float)Math.Exp(-MathF.Max(1e-4f, dt) / PerfCamYawTau);
+            float step = PairActionPose.Normalize180(target - _camPerfYawDeg) * k;
+            float maxStep = PerfCamYawMaxRate * dt;
+            if (MathF.Abs(step) > maxStep)
+                step = MathF.Sign(step) * maxStep;
+            _camPerfYawDeg = PairActionPose.Normalize180(_camPerfYawDeg + step);
+
+            if (PerfCameraDebug)
+            {
+                _camPerfLogTimer += dt;
+                if (_camPerfLogTimer >= 0.25f)
+                {
+                    _camPerfLogTimer = 0f;
+                    Vec3 camPos = Vec3.Zero; bool haveCam = false;
+                    try { if (Mission.Current != null) { camPos = Mission.Current.GetCameraFrame().origin; haveCam = true; } } catch (Exception) { }
+                    float bodyYaw = 0f;
+                    try { bodyYaw = PairActionPose.YawDegOf(PairActionPose.ForwardOf(Attacker)); } catch (Exception) { }
+                    Vec3 vp = Vec3.Zero; try { vp = Attacker.VisualPosition; } catch (Exception) { }
+                    DebugLogger.Log($"[PairCam] perf t={Elapsed:F2} raw={target:F0}° smooth={_camPerfYawDeg:F0}°"
+                        + $" rate={(dt > 1e-4f ? step / dt : 0f):F0}°/s bodyLook={bodyYaw:F0}°"
+                        + $" pelvis=({fwd.x:F2},{fwd.y:F2})"
+                        + (haveCam ? $" cam=({camPos.x:F2},{camPos.y:F2},{camPos.z:F2})" : "")
+                        + $" player=({Attacker.Position.x:F2},{Attacker.Position.y:F2},{Attacker.Position.z:F2})"
+                        + $" visual=({vp.x:F2},{vp.y:F2},{vp.z:F2})");
+                }
+            }
+
+            CameraService.SetLook(_camPerfYawDeg, _camPitchDeg);
+            Lease?.SetSavedLook(_camPerfYawDeg, _camPitchDeg);
         }
 
         /// <summary>
@@ -584,6 +681,11 @@ namespace LivingWorldNpcs
 
             LogPairCam("starting");
 
+            // 轨道计时从演出那一帧开始（对齐/走路不算）
+            _playTime = 0f;
+            _soundFired = 0;
+            _fxFired = 0;
+
             Phase = Def.IsPersistent ? PairPhase.Attached : PairPhase.Playing;
             _phaseTimer = 0f;
             Note = Def.IsPersistent ? "attached" : "playing";
@@ -592,6 +694,8 @@ namespace LivingWorldNpcs
 
         private void TickPlaying(float dt)
         {
+            TickTracks(dt);
+
             AttackerDriver?.Tick(Attacker, dt);
             DefenderDriver?.Tick(Defender, dt);
 
@@ -621,6 +725,96 @@ namespace LivingWorldNpcs
             bool keepAlive = HasKeepAliveDriver;
             if (!keepAlive && Elapsed > PlayTimeoutSeconds)
                 Bail($"timeout ({Elapsed:F1}s)");
+        }
+
+        /// <summary>
+        /// **音效 / 粒子轨道**（2026-10-23）：从演出（Playing）开始计时，到点触发一次。
+        /// 数据 = `PairActions.csv` 的 `Sound_Track` / `Fx_Track`（`time@id`，`|` 分隔）。
+        /// 位置 / 挂点 = **受害者的颈根骨**（`NeckRootBoneIndex`）—— 暗杀的发力点。
+        /// </summary>
+        private void TickTracks(float dt)
+        {
+            if (Def == null) return;
+            _playTime += dt;
+
+            if (Def.SoundTrack != null)
+            {
+                while (_soundFired < Def.SoundTrack.Count
+                       && Def.SoundTrack[_soundFired].Time <= _playTime)
+                {
+                    FireSoundTrack(Def.SoundTrack[_soundFired].Id);
+                    _soundFired++;
+                }
+            }
+
+            if (Def.FxTrack != null)
+            {
+                while (_fxFired < Def.FxTrack.Count
+                       && Def.FxTrack[_fxFired].Time <= _playTime)
+                {
+                    FireFxTrack(Def.FxTrack[_fxFired].Id);
+                    _fxFired++;
+                }
+            }
+        }
+
+        private void FireSoundTrack(string id)
+        {
+            try
+            {
+                Vec3 at = ImpactPoint();
+                SoundFx.Play3D(id, at);
+                DebugLogger.Log($"[Pair] {Def.Id}：音效 '{id}' @ t={_playTime:F2}s "
+                    + $"({at.x:F2},{at.y:F2},{at.z:F2})");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Pair] {Def.Id}：音效 '{id}' 失败：{ex.GetType().Name}");
+            }
+        }
+
+        private void FireFxTrack(string id)
+        {
+            try
+            {
+                Agent victim = Defender;
+                if (victim == null || !AgentControlHelper.SafeIsActive(victim))
+                    return;
+
+                int pid = ParticleSystemManager.GetRuntimeIdByName(id);
+                if (pid == -1)
+                {
+                    DebugLogger.Log($"[Pair] {Def.Id}：粒子 '{id}' 未注册（id=-1）");
+                    return;
+                }
+
+                MBAgentVisuals visuals = victim.AgentVisuals;
+                if (visuals == null || !visuals.IsValid())
+                    return;
+
+                sbyte bone = victim.Monster != null ? victim.Monster.NeckRootBoneIndex : (sbyte)0;
+                MatrixFrame local = new MatrixFrame(Mat3.Identity, Vec3.Zero);
+                visuals.CreateParticleSystemAttachedToBone(pid, bone, ref local);
+                DebugLogger.Log($"[Pair] {Def.Id}：粒子 '{id}' @ t={_playTime:F2}s（挂在 "
+                    + $"'{PairActionPose.Describe(victim)}' 颈骨 {bone}）");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Pair] {Def.Id}：粒子 '{id}' 失败：{ex.GetType().Name}");
+            }
+        }
+
+        /// <summary>发力点 = 受害者颈根骨的世界位置；读不到就退到身体上方 1.5 m。</summary>
+        private Vec3 ImpactPoint()
+        {
+            Agent victim = Defender;
+            if (victim == null)
+                return Attacker != null ? Attacker.Position : Vec3.Zero;
+            if (victim.Monster != null
+                && SpellCastInput.TryReadBoneWorld(victim, victim.Monster.NeckRootBoneIndex, 5f,
+                    out Vec3 p, out _))
+                return p;
+            return victim.Position + Vec3.Up * 1.5f;
         }
 
         /// <summary>
@@ -864,6 +1058,9 @@ namespace LivingWorldNpcs
         private void Finish()
         {
             ReleasePairCamera();
+            // 🔴 2026-10-22：**结束提交（X/Y）**必须在 Release **之前**做 —— 那时 clip 还停在末帧，
+            //    骨盆世界位置 = agent + 根轨位移 + 姿态；提交后同一帧根轨消失、agent 移动同样的量 ⇒ 视觉连续。
+            ApplyEndCommit();
             try { AttackerDriver?.Release(Attacker); } catch (Exception) { }
             // 倒地状态已挂到 AgentStatus ⇒ defender 的驱动归它 Tick/Release，这里不能再碰。
             if (!_defenderMovedToStatus)
@@ -909,6 +1106,82 @@ namespace LivingWorldNpcs
             Note = "aborted: " + reason;
         }
 
+        /// <summary>
+        /// **结束提交（X/Y）**（2026-10-22）：一次性动作若用**纯视觉根轨**（`Motion=none`，如伏击 Root 版），
+        /// 释放 clip 时根轨消失 = 视觉弹回。这里在 Release **之前**把 agent 的 X/Y 设成**骨盆世界位置**
+        /// （骨盆世界 = agent + 根轨位移 + 姿态）⇒ 同一帧根轨消失 + agent 移动同样的量 = 视觉连续。
+        /// 🔴 只提交 X/Y；Z 永不提交（引擎按地形重算）。朝向暂不提交（伏击演完即死，ragdoll 会盖住）。
+        /// </summary>
+        private void ApplyEndCommit()
+        {
+            if (Def == null || Def.IsPersistent || Def.Motion != PairMotionKind.None)
+                return;
+            CommitXyFromPelvis(Attacker);
+            CommitXyFromPelvis(Defender);
+        }
+
+        private static void CommitXyFromPelvis(Agent a)
+        {
+            if (a == null || !AgentControlHelper.SafeIsActive(a) || a.Monster == null)
+                return;
+            try
+            {
+                if (!SpellCastInput.TryReadBoneWorld(a, a.Monster.PelvisBoneIndex, 10f, out Vec3 p, out _))
+                    return;
+                Vec3 pos = a.Position;
+                float dx = p.x - pos.x, dy = p.y - pos.y;
+                if (dx * dx + dy * dy < 1e-4f)
+                    return;   // 没有位移（原地动作）——不提交
+                pos.x = p.x;
+                pos.y = p.y;
+                a.TeleportToPosition(pos);
+                DebugLogger.Log($"[Pair] 结束提交 X/Y：'{PairActionPose.Describe(a)}' 移动 ({dx:F2},{dy:F2}) m（根轨 → 逻辑位置）");
+            }
+            catch (Exception) { }
+        }
+
+        /// <summary>
+        /// **古老的重伤/击晕落地**（2026-10-22 用户裁定）：暗杀/处决**不杀死**，走 `KnockoutFlow.Resolve`
+        /// 的旧管线 —— 袭击记账 + Knockout 罪 + `event_agent_knocked_out`（脑侧 `StayAction(isKnockout:true)`
+        /// 永久占位，可被搜身/俘获，直到 `KnockoutFlow.StandUp`）。
+        ///
+        /// 🔴 **2026-10-23 修正（用户指出“动画和逻辑位置长时间不一致”）**：
+        ///    `ambushed01` 的末帧还带着 **2.16m 根轨**；只 keep 的话，视觉一直停在“agent + 根轨”的位置，
+        ///    而 agent 已被结束提交挪到骨盆处 ⇒ 两者差 2.16m。这里改成：
+        ///    ① 先由 `ApplyEndCommit` 把 agent 的 X/Y 提交到**骨盆世界位置**（= 画面倒地处）；
+        ///    ② 再把受害者切到**我们自己的趴地循环** `binded_lay_loop`（`act_grapple_bound_cycle`）——
+        ///       2.0s cyclic、**原地无位移**、循环保持；视觉与逻辑重合。
+        ///    ❌ 不用原版 `act_death_fall_front`：它是“站→倒”的一次性动画，且带 **1.5m displacement**。
+        /// </summary>
+        private void KnockoutDefender()
+        {
+            if (Defender == null || !AgentControlHelper.SafeIsActive(Defender))
+                return;
+
+            // ① 从“伏击 clip 的倒地末帧（带 2.16m 根轨）”切到**我们自己的趴地循环**：
+            //    `binded_lay_loop`（cyclic、原地、无位移）。循环件必须 blendOutPeriodToNoAnim=0，
+            //    否则末尾会淡出成“无动画”一闪一闪（见 Knowledge/骑砍2动画通道与上下半身分层.md）。
+            try
+            {
+                AgentControlHelper.ForcePlayAction(Defender, "act_grapple_bound_cycle",
+                    startProgress: 0f, blendIn: 0.2f, blendOutPeriodToNoAnim: 0f);
+            }
+            catch (Exception) { }
+
+            // ② 旧击晕管线的记账/罪/事件（不重播倒地动画）
+            var r = new KnockoutFlow.RollResult
+            {
+                Success = true,
+                SuccessRate = 1f,
+                Roll = 1f,
+                Threshold = 0f,
+                IsChild = false,
+            };
+            KnockoutFlow.Resolve(Attacker, Defender, r, playFall: false);
+            DebugLogger.Log($"[Pair] {Def.Id}：end.policy=knockout —— "
+                + $"'{PairActionPose.Describe(Defender)}' 进入旧击晕/重伤占位（不杀，已切被绑趴地循环）");
+        }
+
         private void ApplyEndPolicy()
         {
             PairEndPolicy policy = EndPolicyOverride ?? Def.EndPolicy;
@@ -919,6 +1192,9 @@ namespace LivingWorldNpcs
                     break;
                 case PairEndPolicy.RagdollDefender:
                     DebugLogger.Log("[Pair] RagdollDefender 本版未实现（按 Hold 处理）");
+                    break;
+                case PairEndPolicy.Knockout:
+                    KnockoutDefender();
                     break;
                 case PairEndPolicy.Hold:
                     break;

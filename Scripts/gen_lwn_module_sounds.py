@@ -40,6 +40,7 @@ DST = os.path.join(_REPO, "ModuleSounds")
 FILES = [
     # 源文件              产物名                      目标    阈值   比例
     ("RopeGrapple.WAV", "lwn_grapple_rope.wav",  -7.0, -18.0, 5.0),   # 甩绳：峰值已顶 0 dB ⇒ 较重压缩
+    ("execute8.WAV",    "lwn_assassinate_hit.wav", -9.0, -20.0, 3.0),  # 暗杀命中（刀入肉；2026-10-23 用户素材）
     ("clothwind1.WAV",  "lwn_flight_wind_1.wav", -10.0, -24.0, 3.0),
     ("clothwind2.WAV",  "lwn_flight_wind_2.wav", -10.0, -24.0, 3.0),
     ("clothwind3.WAV",  "lwn_flight_wind_3.wav", -10.0, -24.0, 3.0),

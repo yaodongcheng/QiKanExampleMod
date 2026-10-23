@@ -39,6 +39,12 @@
 	     验：实机控制台 custom.do_anim act_executed02 -->
 	<action name="act_executed02" />
 
+	<!-- 🔴 2026-10-22 暗杀（伏击）：成对动作，攻击方 Ambush01 / 受击方 Ambushed01。
+	     源 = 动画重定向库 `output/trf/ue_GhostSamurai_Ambush01__Inplace` / `...Ambushed01__Inplace`；
+	     clip 名 = `ambush01` / `ambushed01`（ModKit 新建，指向上面两条动画）。 -->
+	<action name="act_ambush01" />
+	<action name="act_ambushed01" />
+
 	<!-- 🔴 2026-10-19 新增：被处决者的后处置态（executed.xml 用）。
 	     `躺地` / `起身` 目前**指向被绑套件的占位 clip**（见 action_sets.xml）；
 	     等专门的"被处决躺地 / 起身"clip 出来，只换 action_sets 的 animation 指向。

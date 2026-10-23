@@ -43,6 +43,15 @@
 			type="act_executed02"
 			animation="executed02" />
 
+		<!-- 🔴 2026-10-22 暗杀（伏击）：clip `ambush01` / `ambushed01`
+		     （ModKit 新建，SkeletalAnimation = 导入的 `ue_GhostSamurai_Ambush01__Inplace` / `...Ambushed01__Inplace`）。 -->
+		<action
+			type="act_ambush01"
+			animation="ambush01" />
+		<action
+			type="act_ambushed01"
+			animation="ambushed01" />
+
 		<!-- 🔴 2026-10-19：被处决者的后处置态（executed.xml）
 		     ⚠️ 目前是**占位**：躺地循环用被绑套件的 `binded_lay_loop`、起身用 `binded_lay_end`
 		        （姿势是"手反绑"，不是"被处决后手自由"）。等专门的 clip 出来，只改这两行 animation。

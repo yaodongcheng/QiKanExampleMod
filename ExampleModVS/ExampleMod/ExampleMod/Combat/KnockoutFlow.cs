@@ -83,8 +83,10 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>结算（起手延迟后调用一次）：无论成败袭击记账 → 成功击晕落地 / 失败反击
-        /// / 儿童免疫不反击 → 目击广播（受害者始终排除）。</summary>
-        public static void Resolve(Agent attacker, Agent target, RollResult r)
+        /// / 儿童免疫不反击 → 目击广播（受害者始终排除）。
+        /// <paramref name="playFall"/> = false 时**不重播倒地动画**（用于双人动作：受害者已经演完倒地，
+        /// 重播 `act_death_fall_front` 会从躺姿"站起来再倒"）——其余记账/罪/事件照旧。</summary>
+        public static void Resolve(Agent attacker, Agent target, RollResult r, bool playFall = true)
         {
             if (attacker == null || target == null || r == null) return;
 
@@ -102,10 +104,11 @@ namespace LivingWorldNpcs
                 // 成功：目标倒地 + 击晕事件。★ 必须先标记受害者状态再广播第三方目击——
                 // 否则证人 Brain 处理 WitnessCrime_GatherOnLook 时调 IsKnockedOut(victim)
                 // 返回 false（event 尚未入队），罪行被错误归类为 Steal。
-                AgentControlHelper.ForcePlayAction(target, "act_death_fall_front");
+                // playFall=false：调用方已经演完倒地（双人动作），重播会"站起来再倒"
+                if (playFall)
+                    AgentControlHelper.ForcePlayAction(target, "act_death_fall_front");
                 target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
-                AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
-            }
+                AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");            }
             else if (!r.IsChild)
             {
                 // 失败（非儿童）：目标察觉反击，直接进战斗（sight check 拦不住直接事件）

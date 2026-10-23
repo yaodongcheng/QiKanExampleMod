@@ -891,6 +891,43 @@ namespace LivingWorldNpcs
 			}
 		}
 
+		/// <summary>
+		/// 读某根骨的**世界前向**（水平、归一化）—— 相机“跟着动画里的真人转身”用它。
+		/// 🔴 为什么不用 `Agent.LookFrame`/`Frame`：动画的**根骨旋转**（如 execution02 的 180° 转身）
+		///    只改骨架，不改 agent 的逻辑朝向；只看逻辑朝向的相机会停在旧方向（看到正脸）。
+		/// 口径与 <see cref="TryReadBoneWorld"/> 同：原生给的是角色局部坐标，按离身体的距离二选一。
+		/// </summary>
+		public static bool TryReadBoneWorldForward(Agent agent, sbyte bone, out Vec3 forward)
+		{
+			forward = Vec3.Zero;
+			try
+			{
+				if (agent == null || bone < 0)
+					return false;
+				MBAgentVisuals v = agent.AgentVisuals;
+				if (v == null || !v.IsValid())
+					return false;
+
+				MatrixFrame f = v.GetBoneEntitialFrame(bone, useBoneMapping: false);
+				Vec3 rawO = f.origin;
+				Vec3 rawF = f.origin + f.rotation.f;
+				Vec3 localO = agent.Frame.TransformToParent(rawO);
+				Vec3 localF = agent.Frame.TransformToParent(rawF);
+
+				bool useLocal = Distance(rawO, agent.Position) > Distance(localO, agent.Position);
+				Vec3 d = useLocal ? (localF - localO) : (rawF - rawO);
+				d.z = 0f;
+				if (d.LengthSquared < 1e-4f)
+					return false;
+				forward = d.NormalizedCopy();
+				return true;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
 		/// <summary>两条骨 → 方向（世界单位向量）。闸门 = 两点距离落在 [minLen, maxLen]（量级不对 = 读数不可信）。</summary>
 		public static bool TryBoneToBoneAxis(Agent agent, sbyte fromBone, sbyte toBone,
 			float minLen, float maxLen, out Vec3 axis, out float len)

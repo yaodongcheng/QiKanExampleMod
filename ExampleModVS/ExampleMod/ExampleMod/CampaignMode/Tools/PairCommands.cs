@@ -487,7 +487,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _verbose = value.Trim() == "1" || value.Equals("on", StringComparison.OrdinalIgnoreCase);
-            return $"pair trace: {(_verbose ? "on" : "off")} (verbose flag; core logging is always on)";
+            PairActionInstance.PerfCameraDebug = _verbose;
+            return $"pair trace: {(_verbose ? "on" : "off")}"
+                 + $" (verbose flag + performance-camera log every 0.25s; core logging is always on)";
         }
 
         /// <summary>

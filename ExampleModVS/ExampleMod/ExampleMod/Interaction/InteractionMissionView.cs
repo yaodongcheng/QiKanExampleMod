@@ -2575,10 +2575,12 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// **暗杀**（2026-10-22）：背后 + 手持单手/双手剑/匕首 ⇒ 代替【击晕】。
-        /// 走通用双人动作 `execution02`（attacker=`action:act_execution02`，defender=`machine:executed`），
-        /// 结束时 `kill_defender`（**真杀死**，不是击晕倒地）。
-        /// ⚠️ 目前 `execution02` 是**面对面 3.7m** 的处决演出：从背后触发时玩家会先沿连线退到 3.7m 再演；
-        ///    真正的“背后抹脖子”需要单独的 clip + pair 行（后续内容）。
+        /// 走通用双人动作 `assassination01`（伏击动画：attacker=`action:act_ambush01` /
+        /// defender=`action:act_ambushed01`，动画源 = 重定向库 `ue_GhostSamurai_Ambush01__Inplace` /
+        /// `...Ambushed01__Inplace`）；`End_Policy=kill_defender`（真杀死）。
+        /// 站位 = **攻击方在目标正后方 1.3 m、两人同向**（`PairActions.csv` 的 stance）。
+        /// ⚠️ 用的是 **Inplace** 变体（无根位移）：受害者原地倒地、攻击方不垫步；
+        ///    `__Root` 变体带攻击方 0.43m 垫步 + 受害者 2.16m 击退，但要先做“根轨+displacement 是否双份”实验再换。
         /// </summary>
         private void TryAssassinateAgent(Agent target)
         {
@@ -2608,9 +2610,9 @@ namespace LivingWorldNpcs
                 DebugLogger.Log("[Assassinate] PairActionLogic 未挂载（不在 mission？）");
                 return;
             }
-            if (!PairActionTable.TryGet("execution02", out PairActionDef def) || def == null)
+            if (!PairActionTable.TryGet("assassination01", out PairActionDef def) || def == null)
             {
-                DebugLogger.Log("[Assassinate] PairActions.csv 里没有 execution02");
+                DebugLogger.Log("[Assassinate] PairActions.csv 里没有 assassination01");
                 return;
             }
 
@@ -2624,15 +2626,12 @@ namespace LivingWorldNpcs
 
             if (!logic.Begin(def, Agent.Main, target, aDriver, dDriver, false, out string why))
             {
-                DebugLogger.Log($"[Assassinate] 无法开始 execution02：{why}");
+                DebugLogger.Log($"[Assassinate] 无法开始 assassination01：{why}");
                 return;
             }
 
-            PairActionInstance inst = logic.FindByDefId(def.Id);
-            if (inst != null)
-                inst.EndPolicyOverride = PairEndPolicy.KillDefender;
-
-            DebugLogger.Log($"[Assassinate] '{Agent.Main.Name}' → '{target.Name}'（execution02，end=kill_defender）");
+            // 🔴 2026-10-22 用户裁定：**不杀死** —— 走 `End_Policy=knockout`（旧的击晕/重伤占位）。
+            DebugLogger.Log($"[Assassinate] '{Agent.Main.Name}' → '{target.Name}'（assassination01，end=knockout）");
             InformationManager.DisplayMessage(
                 new InformationMessage(
                     LWNTextHelper.ResolveCompound("LWN_ui_assassinate_msg_start",

@@ -31,6 +31,12 @@
 	  sound_category="mission_combat"
 	  path="lwn_grapple_rope.wav" />
 
+	<!-- 暗杀命中（2026-10-23）：源 = `UEAnims/execute8.WAV`（已响度规整，peak -2.5 dB / 短时 RMS -9 dB）。
+	     由 `PairActions.csv` 的 `Sound_Track` 在发力点播放（3D，位置 = 受害者颈骨）。 -->
+	<module_sound name="lwn_assassinate_hit"
+	  sound_category="mission_combat"
+	  path="lwn_assassinate_hit.wav" />
+
 	<!-- 飞行风噪（3D，位置由代码每帧跟到玩家身上 —— 见 Flight/FlightWindFx.cs）。
 	     🔴 **为什么不用 2D**（2026-10-10 实机）：`is_2d="true"` + 无位置播放**本项目实测不出声**
 	        —— 同为 3D 的绳声 `custom.grapple sound` 响、风声 `custom.flight sound` 全程静音，
