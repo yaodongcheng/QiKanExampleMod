@@ -409,6 +409,7 @@
     <Compile Include="Combat\CarryAnimMachine.cs" />
     <Compile Include="Combat\ExecutedAnimMachine.cs" />
     <Compile Include="Combat\GrappleCarry.cs" />
+    <Compile Include="Combat\GrappleBarks.cs" />
     <Compile Include="Combat\PairActionDef.cs" />
     <Compile Include="Combat\PairActionPose.cs" />
     <Compile Include="Combat\PairActionPlayback.cs" />

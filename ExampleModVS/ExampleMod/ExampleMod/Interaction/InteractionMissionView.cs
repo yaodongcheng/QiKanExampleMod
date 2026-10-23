@@ -780,15 +780,16 @@ namespace LivingWorldNpcs
         /// 钩索「勾人」§13.14 TODO 4：**松绳** —— 放人 + 收钩。
         /// 🔴 **玩家自身的动作**（用户 2026-10-09 拍板）：判据是"我手里牵着人吗"，**不是**"我在看谁" ——
         /// 绳子在玩家手上，这个动作跟玩家走（所以它也不吃 `_lastFocusedAgent`：看着别人/没看人都能松）。
-        /// 判定与结算全在 <see cref="GrappleLogic.CutRopeNow"/>（铁律 18：面板只做壳），
-        /// 这里只负责"玩家看起来发生了什么"（冒泡 + 提示行，均走 LWNTextHelper）。
+        /// 判定与结算全在 <see cref="GrappleLogic.CutRopeNow"/>（铁律 18：面板只做壳）。
+        /// 🔴 2026-10-23 用户口径：**玩家不出声、成功不弹左下角提示**；反馈 = 被放开的人一句冒泡
+        /// （<see cref="GrappleBarks.OnReleased"/>，在 <see cref="GrappleLogic.CutRopeNow"/> 里触发）。
         /// </summary>
         private void ExecuteCutRope()
         {
             try
             {
                 var logic = GrappleLogic.Current;
-                if (logic == null || !logic.CutRopeNow(out string msg))
+                if (logic == null || !logic.CutRopeNow(out _))
                 {
                     // 本地化：松绳失败提示（手里没牵着人）
                     InformationManager.DisplayMessage(new InformationMessage(
@@ -796,15 +797,8 @@ namespace LivingWorldNpcs
                     return;
                 }
 
-                // 玩家冒泡（KCD 手感：动作配一句话，与 ExecuteIntervene 同款）
-                AgentHudMissionView.AgentSay(Agent.Main,
-                    // 本地化：LWN_ui_cutrope_bubble（玩家可见文本）
-                    LWNTextHelper.ResolveText("LWN_ui_cutrope_bubble", "Hold still — I'm cutting you loose."), "cutrope");
-
-                // 本地化：松绳成功提示（{NAME}=被放开的对象名）
-                InformationManager.DisplayMessage(new InformationMessage(
-                    LWNTextHelper.ResolveCompound("LWN_ui_cutrope_msg", "Cut {NAME} loose — they'll stand up in a moment.",
-                        ("NAME", msg)), Colors.Yellow));
+                // 🔴 2026-10-23 用户口径：**玩家自己不出声、成功也不弹左下角提示** ——
+                //    反馈交给被放开的那个人（GrappleBarks.OnReleased：一句冒泡）。
             }
             catch (Exception ex)
             {
@@ -929,13 +923,9 @@ namespace LivingWorldNpcs
                 }
 
                 string note = logic.BindTug();
-                AgentHudMissionView.AgentSay(Agent.Main,
-                    // 本地化：LWN_ui_tug_bubble（玩家可见文本）
-                    LWNTextHelper.ResolveText("LWN_ui_tug_bubble", "Get over here!"), "tugrope");
-                // 本地化：拉紧成功提示（{NOTE}=BindTug 的返回，英文诊断；{DIST}=当前距离）
-                InformationManager.DisplayMessage(new InformationMessage(
-                    LWNTextHelper.ResolveCompound("LWN_ui_tug_msg", "You haul on the rope ({DIST} m). {NOTE}",
-                        ("DIST", dist.ToString("0.0")), ("NOTE", note)), Colors.Yellow));
+                // 🔴 2026-10-23 用户口径：玩家不出声、成功不弹提示 —— 反馈由被拽的那位冒泡
+                //    （GrappleBarks.OnTug），`note` 只留技术日志价值，不再回显到左下角。
+                DebugLogger.Log($"[TugRope] {note} · 相距 {dist:F1} m");
             }
             catch (Exception ex)
             {
@@ -963,12 +953,8 @@ namespace LivingWorldNpcs
                     ShowLiftFailure(why);
                     return;
                 }
-                AgentHudMissionView.AgentSay(Agent.Main,
-                    // 本地化：LWN_ui_lift_bubble（玩家可见文本）
-                    LWNTextHelper.ResolveText("LWN_ui_lift_bubble", "Up you go."), "liftcarried");
-                // 本地化：扛起成功提示
-                InformationManager.DisplayMessage(new InformationMessage(
-                    LWNTextHelper.ResolveText("LWN_ui_lift_ok", "You hoist them onto your shoulder."), Colors.Yellow));
+                // 2026-10-23 用户口径：玩家不出声、成功不弹提示 —— 反馈由被扛起的那位冒泡
+                // （GrappleBarks.OnCarried，在 GrappleCarry.Begin 里触发）。
             }
             catch (Exception ex)
             {
@@ -989,12 +975,7 @@ namespace LivingWorldNpcs
                     ShowLiftFailure(why);
                     return;
                 }
-                AgentHudMissionView.AgentSay(Agent.Main,
-                    // 本地化：LWN_ui_putdown_bubble（玩家可见文本）
-                    LWNTextHelper.ResolveText("LWN_ui_putdown_bubble", "Down you go."), "putcarried");
-                // 本地化：放下成功提示
-                InformationManager.DisplayMessage(new InformationMessage(
-                    LWNTextHelper.ResolveText("LWN_ui_putdown_ok", "You set them down."), Colors.Yellow));
+                // 2026-10-23 用户口径：玩家不出声、成功不弹提示（放下不再另配台词）。
             }
             catch (Exception ex)
             {
@@ -1028,12 +1009,8 @@ namespace LivingWorldNpcs
                     InformationManager.DisplayMessage(new InformationMessage(r, Colors.Gray));
                     return;
                 }
-                AgentHudMissionView.AgentSay(Agent.Main,
-                    // 本地化：LWN_ui_horseput_bubble（玩家可见文本）
-                    LWNTextHelper.ResolveText("LWN_ui_horseput_bubble", "Up on the horse you go."), "horseput");
-                // 本地化：放上马背成功提示
-                InformationManager.DisplayMessage(new InformationMessage(
-                    LWNTextHelper.ResolveText("LWN_ui_horseput_ok", "You drape them over the horse's back."), Colors.Yellow));
+                // 2026-10-23 用户口径：玩家不出声、成功不弹提示 —— 反馈由被放上马的那位冒泡
+                // （GrappleBarks.OnPutOnHorse，在 GrappleCarry.PlaceOnHorse 里触发）。
             }
             catch (Exception ex)
             {
@@ -1058,9 +1035,8 @@ namespace LivingWorldNpcs
                     InformationManager.DisplayMessage(new InformationMessage(r, Colors.Gray));
                     return;
                 }
-                // 本地化：从马背拿下成功提示
-                InformationManager.DisplayMessage(new InformationMessage(
-                    LWNTextHelper.ResolveText("LWN_ui_horsetakeoff_ok", "You take them off the horse."), Colors.Yellow));
+                // 2026-10-23 用户口径：成功不弹提示 —— 反馈由被拿下来的那位冒泡
+                // （GrappleBarks.OnTakenOffHorse，在 GrappleCarry.TakeOffHorse 里触发）。
             }
             catch (Exception ex)
             {

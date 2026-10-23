@@ -57,6 +57,11 @@ namespace LivingWorldNpcs
         // 偷窃绕后卡住/等「没人看见」卡住时用）；润色 prompt 按此要求括号包裹，模板本身也带括号。
         public bool Monologue;
 
+        // 🔴 2026-10-23（动作冒泡，钩索立）：true = **极短冒泡**——prompt 里要求"只准一句、≤15 个汉字
+        //（英文 ≤10 个词）、像脱口而出的痛呼/怒骂/求饶"；**这是对 LLM 的要求，不是事后否决**
+        //（拿到什么就播什么，超了也不丢、不截断——用户 2026-10-23 口径）。
+        public bool ShortBark;
+
         /// <summary>
         /// 从说话者的 brain 快照当前动作语境（null-guard 铁律 2）。
         /// 🔴 参数语义（2026-08-12 澄清，防止传反）：
@@ -177,36 +182,54 @@ namespace LivingWorldNpcs
         /// </summary>
         /// <param name="fallbackText">离线模板文本（永远存在：铁律 1 兜底）</param>
         /// <param name="budgetS">LLM 预算秒数（上限 1.5s：用户要求 2s 内返回、尽量 1.5s；终局时敏台词可传更小）</param>
+        /// <param name="forwardToNearby">false = 只冒泡、不转发 IM 附近频道（纯环境反馈用）</param>
+        /// <param name="fallbackWhenBusy">同 agent 已有润色在途且优先级不高于它时：false = 丢弃（既有行为），
+        /// true = **立刻播模板**（钩索这类"必须有人出声"的时敏反馈用；默认 false 不影响既有调用点）</param>
         public static void SayPolished(Agent agent, string fallbackText, SpeechPriority priority = SpeechPriority.Chat,
-            SpeechContext context = default, float budgetS = 2f)
+            SpeechContext context = default, float budgetS = 2f, bool forwardToNearby = true, bool fallbackWhenBusy = false)
         {
             if (agent == null || string.IsNullOrWhiteSpace(fallbackText)) return;
             // 🔴 分级：非有效互动（无 LLM/开关关/纯氛围冒泡）→ 直接模板（零延迟）
             if (!ShouldPolish(agent, priority, context))
             {
-                Say(agent, fallbackText, priority, context);
+                Say(agent, fallbackText, priority, context, 0f, forwardToNearby);
                 return;
             }
             var ch = Get(agent);
             if (ch == null) return;
-            int seq;
+            int seq = 0;
+            bool templateNow = false;
             lock (_syncLock)
             {
                 // 同 agent 单飞 + 抢占（防乱序/刷屏，同时根治双轨）
                 if (ch._polishing)
                 {
-                    if (priority <= ch._polishPriority) return;   // 低/等优先级：丢弃（不播模板）
-                    ch._polishSeq++;                              // 高优先级：抢占（旧结果作废）
+                    if (priority <= ch._polishPriority)
+                    {
+                        if (fallbackWhenBusy) templateNow = true;   // 不丢这句：直接播模板
+                        else return;                                // 低/等优先级：丢弃（不播模板）
+                    }
+                    else
+                    {
+                        ch._polishSeq++;                            // 高优先级：抢占（旧结果作废）
+                        ch._polishPriority = priority;
+                        seq = ch._polishSeq;
+                    }
                 }
                 else
                 {
                     ch._polishing = true;
                     ch._polishSeq++;
+                    ch._polishPriority = priority;
+                    seq = ch._polishSeq;
                 }
-                ch._polishPriority = priority;
-                seq = ch._polishSeq;
             }
-            _ = PolishLineAsync(agent, fallbackText, priority, context, budgetS, seq);
+            if (templateNow)
+            {
+                Say(agent, fallbackText, priority, context, 0f, forwardToNearby);
+                return;
+            }
+            _ = PolishLineAsync(agent, fallbackText, priority, context, budgetS, forwardToNearby, seq);
         }
 
         /// <summary>
@@ -226,7 +249,7 @@ namespace LivingWorldNpcs
         /// <summary>润色后台任务：预算内 LLM 润色 → 成功播润色版，否则播模板（finally 释放单飞锁）。
         /// 🔴 2026-08-12：seq 校验——被抢占的任务完成时不播、不释放（释放权归最新任务）。</summary>
         private static async Task PolishLineAsync(Agent agent, string fallback, SpeechPriority priority,
-            SpeechContext context, float budgetS, int seq)
+            SpeechContext context, float budgetS, bool forwardToNearby, int seq)
         {
             string polished = null;
             try
@@ -246,7 +269,7 @@ namespace LivingWorldNpcs
                 ch._polishing = false;
             }
             // 播放（成功 = 润色版；失败/超时/空 = 模板兜底——用户裁定：模板只在这时用）
-            Say(agent, string.IsNullOrWhiteSpace(polished) ? fallback : polished, priority, context);
+            Say(agent, string.IsNullOrWhiteSpace(polished) ? fallback : polished, priority, context, 0f, forwardToNearby);
         }
 
         /// <summary>LLM 润色构造（🔴 2026-08-12 重构）：身份真名 + 对方关系 + 当前处境（刺激/意图/血量）
@@ -305,6 +328,14 @@ namespace LivingWorldNpcs
                 string topic = string.IsNullOrEmpty(context.Topic) ? LWNTextHelper.ResolvePrompt("LWN_speech_topic_fallback") : context.Topic;
                 // 本地化：LWN_speech_anchor（大意锚定模板，双桶；{TEXT} = 模板台词原文）
                 string anchor = string.IsNullOrEmpty(fallback) ? "" : LWNTextHelper.ResolveCompound("LWN_speech_anchor", ("TEXT", fallback));
+                // 本地化：LWN_speech_rule_assembly（要求段拼装，双桶；{MOOD} = 语气指令，{ANCHOR} = 大意锚定，可空）
+                string rule = LWNTextHelper.ResolveCompound("LWN_speech_rule_assembly", ("MOOD", mood), ("ANCHOR", anchor));
+                // 🔴 2026-10-23：`ruleFallback` 只在 **key 不存在**时生效 —— 所以"极短冒泡"必须**换 key**
+                //    （原来把短规则拼进 fallback，实机日志证明根本没进 prompt，LLM 照 10-40 字写）。
+                string ruleKey = context.ShortBark ? "LWN_speech_rule_short_bark" : "LWN_plan_respond_rule";
+                string ruleFallback = context.ShortBark
+                    ? LWNTextHelper.ResolvePrompt("LWN_speech_rule_short_bark")
+                    : rule;
                 var dline = await DialogueComponent.GenerateLine(
                     WorldBackgroundProvider.GetWorldSection(agent), identity, attitude,
                     topic, "",
@@ -313,14 +344,16 @@ namespace LivingWorldNpcs
                     context.Speaker?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_other"),
                     "", "",
                     // 本地化：LWN_plan_respond_rule（玩家可见文本）
-                    "LWN_plan_respond_rule",
-                    // 本地化：LWN_speech_rule_assembly（要求段拼装，双桶；{MOOD} = 语气指令，{ANCHOR} = 大意锚定，可空）
-                    LWNTextHelper.ResolveCompound("LWN_speech_rule_assembly", ("MOOD", mood), ("ANCHOR", anchor)),
+                    ruleKey,
+                    ruleFallback,
                     null, maxTokens: 60, timeoutMs: Math.Max(300, (int)(Math.Min(budgetS, 1.5f) * 1000)),
-                    addressSection: PromptBuilder.BuildAddressAndKinshipSections(agent, context.Speaker));
-                return dline != null && dline.FromLlm
-                    ? DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "")
-                    : null;
+                    addressSection: PromptBuilder.BuildAddressAndKinshipSections(agent, context.Speaker),
+                    extraRule: context.ShortBark ? anchor : null);
+                if (dline == null || !dline.FromLlm) return null;
+                string line = DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "");
+                // 🔴 2026-10-23 用户口径：15 字只是**对 LLM 的要求**（prompt 里写清楚）；
+                //    拿到结果就正常用 —— **即使超了也不丢、不截断**（截断会留半句话）。
+                return line;
             }
             catch (Exception ex)
             {
@@ -397,6 +430,22 @@ namespace LivingWorldNpcs
                     case "plan_report": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_plan_report");
                     // 本地化：LWN_speech_situation_im_message（收到消息处境，双桶）
                     case "im_message": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_im_message");
+                    // 🔴 2026-10-23 钩索（当事人 = 被直接操作的那位；旁人不走润色）：
+                    //    处境段让 LLM 知道"发生了什么"，台词才不会泛泛而谈。
+                    // 本地化：LWN_speech_situation_grapple_hit（被钩中处境，双桶；{HP} = 血况后缀，可空）
+                    case "grapple_hit": return LWNTextHelper.ResolveCompound("LWN_speech_situation_grapple_hit", ("HP", hp));
+                    // 本地化：LWN_speech_situation_grapple_tug（被拉紧处境，双桶；{HP}）
+                    case "grapple_tug": return LWNTextHelper.ResolveCompound("LWN_speech_situation_grapple_tug", ("HP", hp));
+                    // 本地化：LWN_speech_situation_grapple_drag（被拖在地上处境，双桶；{HP}）
+                    case "grapple_drag": return LWNTextHelper.ResolveCompound("LWN_speech_situation_grapple_drag", ("HP", hp));
+                    // 本地化：LWN_speech_situation_grapple_carry（被扛起处境，双桶；{HP}）
+                    case "grapple_carry": return LWNTextHelper.ResolveCompound("LWN_speech_situation_grapple_carry", ("HP", hp));
+                    // 本地化：LWN_speech_situation_grapple_horse（被放上马背处境，双桶；{HP}）
+                    case "grapple_horse": return LWNTextHelper.ResolveCompound("LWN_speech_situation_grapple_horse", ("HP", hp));
+                    // 本地化：LWN_speech_situation_grapple_horseoff（被从马背拿下处境，双桶；{HP}）
+                    case "grapple_horseoff": return LWNTextHelper.ResolveCompound("LWN_speech_situation_grapple_horseoff", ("HP", hp));
+                    // 本地化：LWN_speech_situation_grapple_release（被松开处境，双桶；{HP}）
+                    case "grapple_release": return LWNTextHelper.ResolveCompound("LWN_speech_situation_grapple_release", ("HP", hp));
                     default: return null;
                 }
             }

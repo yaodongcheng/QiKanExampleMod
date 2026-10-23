@@ -279,6 +279,9 @@ namespace LivingWorldNpcs
 				_pair.ExtraAttachForward = OffsetForward;
 			}
 
+			// 冒泡反馈（2026-10-23）：被扛起来的那位 + 看得见的旁人（纯反馈，非犯罪）
+			GrappleBarks.OnCarried(carrier, carried);
+
 			// 🔴 **顺手把武器收进鞘**（2026-10-13 用户要的）：不收的话手里还握着绳（弓），
 			//    屏幕上有准星、人端着弓，跟"抱着人"打架。放下（HardStop）时自动还回去。
 			if (SheatheOnCarry)
@@ -480,6 +483,9 @@ namespace LivingWorldNpcs
 			_t = 0f;
 			_note = "handing off to mount";
 
+			// 冒泡反馈（2026-10-23）：被搁到马背上的那位 + 看得见的旁人
+			GrappleBarks.OnPutOnHorse(_carrier, _carried, horse);
+
 			DebugLogger.Log($"[Grapple] 马背：把 {SafeName(_carried)} 放到 {SafeName(horse)} 的背上"
 				+ $"（后偏 {HorseBackOffset:F2} m · 侧偏 {HorseSideOffset:F2} m · 朝向 {HorseFaceMode}）"
 				+ $" —— 交接给 PairAction '{successorId}'（坐骑 ↔ 人），之后位置**跟着马走**"
@@ -522,6 +528,8 @@ namespace LivingWorldNpcs
 				_pair.Abort("taken off horse");
 
 			DebugLogger.Log($"[Grapple] 马背：把 {SafeName(carried)} 从 {SafeName(horse)} 背上拿下（{reason}）—— 落地回站缚");
+			// 冒泡反馈（2026-10-23）：被从马背拿下来的那位
+			GrappleBarks.OnTakenOffHorse(_carrier, carried);
 			HardStop("taken off horse (" + reason + ")");
 			return true;
 		}

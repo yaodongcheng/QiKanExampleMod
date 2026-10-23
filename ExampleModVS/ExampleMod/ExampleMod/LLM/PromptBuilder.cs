@@ -720,7 +720,11 @@ namespace LivingWorldNpcs
             return BuildAddressAndKinshipSections(
                 npc.IsFemale, npc.Age, npc,
                 Hero.MainHero?.IsFemale == true, Hero.MainHero?.Age ?? 0f, Hero.MainHero,
-                otherIsPlayer: true);
+                otherIsPlayer: true,
+                // 🔴 2026-10-23：称呼必须按**真实从属关系**注入 —— 同族才说"你们家族的族长"，
+                //    真的在这支队伍里才说"队长"（原来对陌生人也这么写 ⇒ LLM 对着路人喊"族长"）。
+                npcSameClan: npc.Clan != null && npc.Clan == Hero.MainHero?.Clan,
+                npcInPlayerParty: FriendlinessHelper.IsInMainParty(npc));
         }
 
         /// <summary>respond 链（当面对话/附近喊话/劝说/旁观插嘴）入口：self = 说话 NPC，other = 对话对象。
@@ -735,14 +739,20 @@ namespace LivingWorldNpcs
             return BuildAddressAndKinshipSections(
                 selfChar?.IsFemale == true, selfChar?.Age ?? 0f, selfHero,
                 otherChar?.IsFemale == true, otherChar?.Age ?? 0f, otherHero,
-                otherIsPlayer: other == Agent.Main);
+                otherIsPlayer: other == Agent.Main,
+                // 同族 / 同队都要真的成立才注入（模板 NPC 没有 Hero ⇒ 同族恒 false）
+                npcSameClan: selfHero != null && selfHero.Clan != null && selfHero.Clan == Hero.MainHero?.Clan,
+                npcInPlayerParty: FriendlinessHelper.IsPlayerPartyMember(self));
         }
 
         /// <summary>核心构建：称呼纪律（双方性别年龄 + 对方族长/队长身份）+ 亲缘认知（有亲缘才注入）。
-        /// 空串 = 不注入（调用方判断 IsNullOrWhiteSpace 跳过）。</summary>
+        /// 空串 = 不注入（调用方判断 IsNullOrWhiteSpace 跳过）。
+        /// 🔴 2026-10-23：`npcSameClan` / `npcInPlayerParty` = **真实从属关系**——
+        ///    陌生人绝不注入"你们家族的族长 / 这支队伍的队长"（实机：路人对着玩家喊"族长"）。</summary>
         private static string BuildAddressAndKinshipSections(
             bool npcIsFemale, float npcAge, Hero npcHero,
-            bool otherIsFemale, float otherAge, Hero otherHero, bool otherIsPlayer)
+            bool otherIsFemale, float otherAge, Hero otherHero, bool otherIsPlayer,
+            bool npcSameClan, bool npcInPlayerParty)
         {
             try
             {
@@ -768,17 +778,20 @@ namespace LivingWorldNpcs
                 }
                 // 本地化：LWN_prompt_address_close（括号闭合，双桶）
                 sb.Append(LWNTextHelper.ResolvePrompt("LWN_prompt_address_close"));
-                // 对方（玩家）身份：族长/无家族 + 队长（随从语境恒真，见 NpcTierHelper）
-                if (otherIsPlayer && otherHero != null)
+                // 对方（玩家）身份：族长（**是不是"你们家族的"按真实同族判定**）+ 队长（真在队里才说）
+                string playerIdentity = (otherIsPlayer && otherHero != null)
+                    ? BuildPlayerIdentityClause(otherHero, npcSameClan, npcInPlayerParty)
+                    : null;
+                if (!string.IsNullOrEmpty(playerIdentity))
                 {
                     // 本地化：LWN_prompt_address_player（玩家身份拼接，双桶）
-                    sb.Append(LWNTextHelper.ResolveCompound("LWN_prompt_address_player", ("IDENTITY", BuildPlayerIdentityClause(otherHero))));
+                    sb.Append(LWNTextHelper.ResolveCompound("LWN_prompt_address_player", ("IDENTITY", playerIdentity)));
                 }
                 // 本地化：LWN_prompt_address_end（句号，双桶）
                 sb.Append(LWNTextHelper.ResolvePrompt("LWN_prompt_address_end"));
                 sb.AppendLine();
                 // ── 【亲缘与身份认知】段（有亲缘才注入；关系×性别×年龄封闭集规则生成）──
-                string kinship = BuildKinshipSection(npcHero, otherHero, otherIsPlayer);
+                string kinship = BuildKinshipSection(npcHero, otherHero, otherIsPlayer, playerIdentity);
                 if (!string.IsNullOrWhiteSpace(kinship))
                 {
                     sb.AppendLine(kinship);
@@ -792,22 +805,32 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>对方（玩家）身份句：族长判定 = Clan.Leader == MainHero；无家族变体「尚未建立自己的家族」；
-        /// 队长 = 随从语境恒真（NPC 在玩家队伍/家族体系内，玩家必然是其队长）。</summary>
-        private static string BuildPlayerIdentityClause(Hero player)
+        /// <summary>对方（玩家）身份句：族长判定 = Clan.Leader == MainHero；
+        /// 🔴 2026-10-23：**只对同族 / 同队的人说身份** —— 异族/陌生人**整段不注入**族长身份
+        ///   （实机：哪怕写着"另一个家族的族长"，LLM 照样喊"族长"；干脆不给这个词）。
+        ///   "这支队伍的队长"只在对方真的随队时才加。</summary>
+        private static string BuildPlayerIdentityClause(Hero player, bool npcSameClan, bool npcInPlayerParty)
         {
-            // 本地化：LWN_prompt_player_clan_leader/clanless（族长身份句，双桶）
-            string family = (player != null && player.Clan != null && player.Clan.Leader == player)
-                // 本地化：LWN_prompt_player_clan_leader（双桶）
-                ? LWNTextHelper.ResolvePrompt("LWN_prompt_player_clan_leader")
+            // 本地化：LWN_prompt_player_clan_leader / clanless（族长身份句，双桶）
+            string family = "";
+            if (player != null && player.Clan != null && player.Clan.Leader == player)
+            {
+                if (npcSameClan)
+                    // 本地化：LWN_prompt_player_clan_leader（双桶）
+                    family = LWNTextHelper.ResolvePrompt("LWN_prompt_player_clan_leader");
+                // 异族：不注入（见上）
+            }
+            else
+            {
                 // 本地化：LWN_prompt_player_clanless（双桶）
-                : LWNTextHelper.ResolvePrompt("LWN_prompt_player_clanless");
-            // 本地化：LWN_prompt_player_captain（队长身份句，双桶）
-            return family + LWNTextHelper.ResolvePrompt("LWN_prompt_player_captain");
+                family = LWNTextHelper.ResolvePrompt("LWN_prompt_player_clanless");
+            }
+            // 本地化：LWN_prompt_player_captain（队长身份句，双桶）—— 只对真正随队的人说
+            return family + (npcInPlayerParty ? LWNTextHelper.ResolvePrompt("LWN_prompt_player_captain") : "");
         }
 
         /// <summary>亲缘认知段（第一人称亲缘关系 + 对方身份）；无亲缘返回 null（零注入）。</summary>
-        private static string BuildKinshipSection(Hero npc, Hero other, bool otherIsPlayer)
+        private static string BuildKinshipSection(Hero npc, Hero other, bool otherIsPlayer, string playerIdentity)
         {
             if (npc == null || other == null || npc == other) return null;
             string relation = DescribeKinship(npc, other);
@@ -815,8 +838,8 @@ namespace LivingWorldNpcs
             string playerName = other.Name?.ToString() ?? "the other";
             // 本地化：LWN_prompt_kinship_head（亲缘段头，双桶）
             string section = LWNTextHelper.ResolveCompound("LWN_prompt_kinship_head", ("NAME", playerName), ("REL", relation));
-            if (otherIsPlayer)
-                section += BuildPlayerIdentityClause(other) + "。";
+            if (otherIsPlayer && !string.IsNullOrEmpty(playerIdentity))
+                section += playerIdentity + "。";
             return section;
         }
 

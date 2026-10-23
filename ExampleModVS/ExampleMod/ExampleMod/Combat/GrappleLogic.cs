@@ -2349,6 +2349,8 @@ namespace LivingWorldNpcs
 				return false;
 			}
 			Release("cut rope (interaction panel)");
+			// 冒泡反馈（2026-10-23）：被松开的那位说一句（玩家自己不出声、也不弹左下角提示）
+			GrappleBarks.OnReleased(target, Agent.Main);
 			message = target?.Name?.ToString() ?? "the target";
 			DebugLogger.Log($"[CutRope] 玩家松开 {message} 身上的绳（收钩 + 起身动画）");
 			return true;

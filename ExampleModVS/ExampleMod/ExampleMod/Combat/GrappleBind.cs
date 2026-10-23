@@ -908,6 +908,10 @@ namespace LivingWorldNpcs
 			_hookPos = hitPoint;
 			_hookDir = (target.Position - hitPoint).NormalizedCopy();
 
+			// 冒泡反馈（2026-10-23）：被钩中的那一刻出声 —— 当事人 + 看得见的旁人。
+			// 🔴 纯反馈：不记账、不报警（犯罪那条仍只走 ReportBind，见"拽倒"那一拍）。
+			GrappleBarks.OnHit(target, attacker);
+
 			// 🔴 **骑马的目标：先拉下马**（2026-10-13）。这一相里我们只做两件事 ——
 			//    ① **先打一发 `CanDismount` blow**（`MountedBlow` 开着时）：native 直接执行、**不看马速**，
 			//       观感就是"被绳一绷扯下来"（走 `act_rider_only_fall_*` 那族）；
@@ -1479,6 +1483,9 @@ namespace LivingWorldNpcs
 				? $"[Grapple] 勾人：拽倒（引擎冲量）@{Fmt(_yankFrom)} 力度={BlowDamage:F0} 方向→玩家 {Fmt(dir)} · 玩家={FmtAgent(_attacker)}"
 				: $"[Grapple] 勾人：拽倒 {Fmt(_yankFrom)} → {Fmt(_yankTo)}（拖 {want:F2}m；绷 {YankHoldSeconds:F2}s → 拽 {YankPullSeconds:F2}s → 倒 {YankFallSeconds:F2}s）"
 					+ $" · 玩家={FmtAgent(_attacker)} · 相距 {dist:F2} m");
+
+			// 冒泡反馈（2026-10-23）：玩家按【拉紧】把他说出口（当事人 + 看得见的旁人）
+			GrappleBarks.OnTug(_target, _attacker);
 		}
 
 		private BindEvent TickYanking(float dt)
@@ -1984,6 +1991,12 @@ namespace LivingWorldNpcs
 			{
 				_layTimer = 0f;                                      // 拖着期间不倒计时起身（松了才起）
 				if (!_lying) EnterDraggedLay(leadSpeed);             // 站着/走着 ⇒ 先放倒，之后一直趴着被拖
+
+				// 冒泡反馈（2026-10-23）：**进入"拖在地上"这个形态的那一刻**出声（当事人 + 看得见的旁人）。
+				// 🔴 判据用形态切换、不用 `EnterDraggedLay`：他若已被【拉紧】放倒（`_lying` 已为真），
+				//    那条分支不会走 —— 但"被拖着在地上跑"这件事仍然发生了，照样该喊。
+				if (!_leashDraggedPrev)
+					GrappleBarks.OnDragged(_target, _attacker);
 			}
 
 			_leashPulling = true;                // 事实：这一帧绳在拽他（绳的"绷直"显示 + 日志用）
@@ -2252,7 +2265,11 @@ namespace LivingWorldNpcs
 		public bool ReleaseNow()
 		{
 			if (!IsActive) return false;
+			Agent released = _target;
+			Agent releaser = _attacker;
 			Release("command");
+			// 冒泡反馈（2026-10-23）：被松开的那位说一句（玩家自己不出声）
+			GrappleBarks.OnReleased(released, releaser);
 			return true;
 		}
 

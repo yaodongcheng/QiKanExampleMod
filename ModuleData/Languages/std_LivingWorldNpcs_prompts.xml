@@ -605,6 +605,7 @@ A dispute is under way. The specifics: {CONFLICT}" />
     <string id="LWN_speech_topic_fallback" text="speaking" />
     <string id="LWN_speech_anchor" text="(roughly: {TEXT} — you may phrase it more naturally, but do not stray from the meaning)" />
     <string id="LWN_speech_rule_assembly" text="【Requirement】{MOOD}. {ANCHOR}Say the line itself — no quotes, no explanation, no action descriptions." />
+    <string id="LWN_speech_rule_short_bark" text="【Ultra short】One line only, at most 15 Chinese characters (or 10 English words); a raw outcry, curse or plea — no explanation, no narration, no titles." />
     <string id="LWN_speech_relation_master" text="【Other's Relation】The other party is your lord {NAME} (the player)" />
     <string id="LWN_speech_relation_player" text="【Other's Relation】The other party is the player {NAME}" />
     <string id="LWN_speech_relation_companion" text="【Other's Relation】The other party is your companion {NAME}" />
@@ -619,6 +620,14 @@ A dispute is under way. The specifics: {CONFLICT}" />
     <string id="LWN_speech_situation_plan_command" text="【Current Situation】Your lord just issued you a command" />
     <string id="LWN_speech_situation_plan_report" text="【Current Situation】You are reporting the outcome of your task to your lord" />
     <string id="LWN_speech_situation_im_message" text="【Current Situation】The other party just sent you a message" />
+    <!-- 钩索冒泡的处境段（2026-10-23）：只用于"被直接操作的那位"的实时润色 -->
+    <string id="LWN_speech_situation_grapple_hit" text="【Current Situation】You were just hooked and bound by a rope from a distance; the other party still holds the line{HP}" />
+    <string id="LWN_speech_situation_grapple_tug" text="【Current Situation】The rope just jerked hard and pulled you off balance{HP}" />
+    <string id="LWN_speech_situation_grapple_drag" text="【Current Situation】You are being dragged along the ground by a rope{HP}" />
+    <string id="LWN_speech_situation_grapple_carry" text="【Current Situation】You have just been hoisted onto someone's shoulder{HP}" />
+    <string id="LWN_speech_situation_grapple_horse" text="【Current Situation】You have just been laid across a horse's back{HP}" />
+    <string id="LWN_speech_situation_grapple_horseoff" text="【Current Situation】You have just been pulled down from a horse{HP}" />
+    <string id="LWN_speech_situation_grapple_release" text="【Current Situation】The rope has just been released; you are free again{HP}" />
     <string id="LWN_speech_hp_exhausted" text=", and you are utterly spent" />
     <string id="LWN_speech_hp_wounded" text=", and you are wounded" />
     <string id="LWN_prompt_dialogcomp_topic_chat" text="casual chat" />
@@ -1261,7 +1270,7 @@ Requirements: 1. Output a single passage — first line literally &quot;=== 世�
     <string id="LWN_word_time_last_month" text="last month" />
     <string id="LWN_word_time_months_ago" text="months ago" />
     <string id="LWN_word_time_long_ago" text="long ago" />
-    <string id="LWN_prompt_address_head" text="【Address Discipline】Choose how to address the other by your relationship and standing (kinship terms first; use a title of office when the other is a clan head or captain). Keep the address you have used in the conversation history — do not force a fixed honorific. Both: you (" />
+    <string id="LWN_prompt_address_head" text="【Address Discipline】Choose how to address the other by your relationship and standing (kinship terms first; use a title of office only when the other really is your own clan head or party captain — for strangers use a neutral honorific or their name). Keep the address you have used in the conversation history — do not force a fixed honorific. Both: you (" />
     <string id="LWN_prompt_address_close" text=")" />
     <string id="LWN_word_gender_male" text="male" />
     <string id="LWN_word_gender_female" text="female" />

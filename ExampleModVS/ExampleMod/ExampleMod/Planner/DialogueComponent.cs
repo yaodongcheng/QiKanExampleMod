@@ -403,6 +403,8 @@ namespace LivingWorldNpcs
         /// </summary>
         /// <param name="ruleKey">台词要求段（XML 单一事实源；respond 用 JSON 版纪律，续话用纯文本版）</param>
         /// <param name="ruleFallback">台词要求段兜底（缺 key 不崩）</param>
+        /// <param name="extraRule">追加在要求段之后的一句话（2026-10-23：极短冒泡的"大意锚定"用；
+        /// 注意 ruleFallback 只在 **key 不存在**时才生效，临时追加规则必须走这里）</param>
         /// <param name="actionSpace">动作空间段（ActionHandler.GetActionSpacePrompt 按空间裁剪；null = 纯文本通道）</param>
         public static async Task<DialogueLine> GenerateLine(
             string world, string identity, string attitude, string topic, string roundText,
@@ -410,7 +412,7 @@ namespace LivingWorldNpcs
             string ruleKey, string ruleFallback, string actionSpace = null,
             int maxTokens = 220, int timeoutMs = 8000,
             string worldFacts = null, string sceneAnchor = null, string distressSection = null,
-            string addressSection = null)
+            string addressSection = null, string extraRule = null)
         {
             var line = new DialogueLine();
             try
@@ -480,6 +482,10 @@ namespace LivingWorldNpcs
                 sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_history"));
                 // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
                 sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
+                // 🔴 2026-10-23：调用点临时追加的规则（极短冒泡等）**放在最后一行** ——
+                //    模型对越靠后的指令服从度越高；放在要求段后面会被语言纪律段挤掉权重。
+                if (!string.IsNullOrEmpty(extraRule))
+                    sb.AppendLine(extraRule);
 
                 bool needJson = !string.IsNullOrEmpty(actionSpace);
                 string raw = await LLMService.Instance.ChatOnceAsync(

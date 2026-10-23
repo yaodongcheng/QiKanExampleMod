@@ -236,6 +236,13 @@ namespace LivingWorldNpcs
         /// </summary>
         public static DataTable PairActions { get; private set; }
 
+        /// <summary>
+        /// 钩索冒泡台词表（2026-10-23 立）：`ModuleData/DesignData/GrappleBarks.csv`。
+        /// 一行一句（Event = 时机 / Role = 当事人或旁观者 / TextKey = 语言键）。
+        /// 消费方 = <see cref="GrappleBarks"/>（加台词 = 加行 + 加语言键，不改代码）。
+        /// </summary>
+        public static DataTable GrappleBarks { get; private set; }
+
         public static DataTable Emotion { get; private set; }
 
         /// <summary>英雄扩展属性表（2026-09-12 加）：LWN 给骑砍2英雄的通用扩展列 ——
@@ -275,6 +282,8 @@ namespace LivingWorldNpcs
             Camera = CsvLoader.LoadTable(Path.Combine(directoryPath, "Camera.csv"), "Camera");
             // 双人动作设计表（2026-10-19）：与 Camera.csv 同一套四行头 CSV。
             PairActions = CsvLoader.LoadTable(Path.Combine(directoryPath, "PairActions.csv"), "PairActions");
+            // 钩索冒泡台词表（2026-10-23）：同上。
+            GrappleBarks = CsvLoader.LoadTable(Path.Combine(directoryPath, "GrappleBarks.csv"), "GrappleBarks");
 
             // Narrative/NpcSpeech 已迁移到 XML，不再加载
 

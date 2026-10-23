@@ -553,6 +553,7 @@
     <string id="LWN_speech_topic_fallback" text="说话" />
     <string id="LWN_speech_anchor" text="（大意是：{TEXT}，可以换更自然的说法，但别偏离意思）" />
     <string id="LWN_speech_rule_assembly" text="【要求】{MOOD}。{ANCHOR}直接说台词本身——不要引号、不要解释、不要动作描写。" />
+    <string id="LWN_speech_rule_short_bark" text="【极短】只能喊一句，中文不超过15个字（英文不超过10个词）；像脱口而出的痛呼、怒骂或求饶，不要解释、不要叙述、不要称呼对方头衔。" />
     <string id="LWN_speech_relation_master" text="【对方关系】对方是你的主公{NAME}（玩家）" />
     <string id="LWN_speech_relation_player" text="【对方关系】对方是玩家{NAME}" />
     <string id="LWN_speech_relation_companion" text="【对方关系】对方是你的同伴{NAME}" />
@@ -567,6 +568,14 @@
     <string id="LWN_speech_situation_plan_command" text="【当前处境】主公刚给你下达了命令" />
     <string id="LWN_speech_situation_plan_report" text="【当前处境】你正在向主公汇报任务结果" />
     <string id="LWN_speech_situation_im_message" text="【当前处境】对方刚给你发来消息" />
+  <!-- 钩索冒泡的处境段（2026-10-23）：只用于"被直接操作的那位"的实时润色 -->
+  <string id="LWN_speech_situation_grapple_hit" text="【当前处境】你刚被一根带钩的绳子从远处缠住，绳子还在对方手里{HP}" />
+  <string id="LWN_speech_situation_grapple_tug" text="【当前处境】绳子猛地一拽，你被拉得失去平衡{HP}" />
+  <string id="LWN_speech_situation_grapple_drag" text="【当前处境】你正被绳子拖着在地上滑行{HP}" />
+  <string id="LWN_speech_situation_grapple_carry" text="【当前处境】你刚被人扛到肩上{HP}" />
+  <string id="LWN_speech_situation_grapple_horse" text="【当前处境】你刚被人横放在马背上{HP}" />
+  <string id="LWN_speech_situation_grapple_horseoff" text="【当前处境】你刚被人从马背上拽下来{HP}" />
+  <string id="LWN_speech_situation_grapple_release" text="【当前处境】绳子刚松开，你重获自由{HP}" />
     <string id="LWN_speech_hp_exhausted" text="，你已筋疲力尽" />
     <string id="LWN_speech_hp_wounded" text="，你身上带伤" />
     <string id="LWN_prompt_dialogcomp_topic_chat" text="闲聊" />
@@ -1209,7 +1218,7 @@
     <string id="LWN_word_time_last_month" text="上个月" />
     <string id="LWN_word_time_months_ago" text="几个月前" />
     <string id="LWN_word_time_long_ago" text="很久以前" />
-    <string id="LWN_prompt_address_head" text="【称呼纪律】称呼对方时按你们的关系与身份自然选择（亲缘称呼优先；对方是族长/队长时按职位敬称），沿用对话历史里你用过的称呼保持一致，不要生硬套用固定敬语。双方：你（" />
+    <string id="LWN_prompt_address_head" text="【称呼纪律】称呼对方时按你们的关系与身份自然选择（亲缘称呼优先；只有对方确实是你这一族/这支队伍的首领或队长时才按职位敬称，对陌生人用普通敬称或直呼其名），沿用对话历史里你用过的称呼保持一致，不要生硬套用固定敬语。双方：你（" />
     <string id="LWN_prompt_address_close" text="）" />
     <string id="LWN_word_gender_male" text="男" />
     <string id="LWN_word_gender_female" text="女" />

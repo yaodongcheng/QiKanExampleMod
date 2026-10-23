@@ -133,6 +133,65 @@ CampaignPersuadeHub.OnDirectMessage / OnGroupMessage / Tick / Clear    // 入口
 - **旁观插嘴**（M2，ReactiveAgent.TryBystanderInterject）：seen_speaking 中签后独立演算 = 距离≤10m × social≥0.5 × 30% + 15s 闸门 → SpeechChannel Interject（**不接管 brain**——与 _pendingReplies 的 RunReactiveAction 语义相反）；围观者只知话题不知全文（叙事铁律）。
 - **say_to 语法**：`PlanStep.Persuade`（JSON `"persuade":true`）→ 说服会话；wait 的 following 超时放宽到 20s（BRING 模板已更新）。
 
+## 6. 事件冒泡反馈 —— 当事人 + 看见这件事的人（🔴 2026-10-23 登记，钩索立）
+
+**解决什么问题**：一次「人身动作」（被钩中 / 拉紧 / 拖在地上 / 扛起 / 放上马 / 松绳）需要有人出声——
+**当事人一句、看得见的旁人可能一句**，且**不当犯罪处理**（不涨警戒、不记账、不走围观走位）。
+同一套件可套到任何「动作 → 冒泡」场景。
+
+**分层（全部复用既有轮子，禁止另造）**：
+
+| 层 | 用的什么 |
+|---|---|
+| 发声 / 队列 / 优先级 / LLM | `SpeechChannel.Say` / `SayPolished`（唯一出口） |
+| 3D 冒泡 | `SpeechChannel` 内部调 `AgentHudMissionView.AgentSay` |
+| 谁看得见 | `NpcSightSystem.GetObserversOf(当事人, 12m, 120°)` |
+| 说话者特征 | `ReactiveAgent.ClassifyOccupation` / `FriendlinessHelper.IsPlayerPartyMember` / `ReactivePersonality` |
+| 文本 | `LWNTextHelper` + 语言 XML（铁律 13） |
+| 数据 | `ModuleData/DesignData/GrappleBarks.csv`（四行头） |
+
+**关键签名 / 调用范例**：
+
+```csharp
+// Combat/GrappleBarks.cs
+GrappleBarks.OnHit(victim, attacker);        // 命中（含拽下马）
+GrappleBarks.OnTug(victim, attacker);        // 拉紧
+GrappleBarks.OnDragged(victim, attacker);    // 拖在地上（进入形态那一刻）
+GrappleBarks.OnCarried(carrier, carried);
+GrappleBarks.OnPutOnHorse(carrier, carried, horse);
+GrappleBarks.OnTakenOffHorse(carrier, carried);
+GrappleBarks.OnReleased(victim, releaser);
+```
+
+**三条硬口径**：
+
+1. **当事人 LLM 优先、旁观者只模板**：当事人走 `SayPolished`（prompt 自动带身份 / 职业 / 人格 / 关系 /【当前处境】），
+   没配 LLM / 超时 / 失败 → 模板；旁观者走 `Say`（省额度）。两者都 `forwardToNearby:false`（只冒泡，不进 IM 附近频道）。
+2. **极短要求 = `SpeechContext.ShortBark`**：要求段换成 `LWN_speech_rule_short_bark`
+   （中文 ≤15 字 / 英文 ≤10 词、脱口而出的痛呼 / 怒骂 / 求饶、不要头衔）。
+   🔴 **这是对 LLM 的要求，不是事后否决** —— 返回超长也照用、不截断（用户 2026-10-23 裁定）；
+   模板侧由 `Scripts/check_grapple_barks.py` 卡 ≤15 字。
+3. **条件台词表**：列 = `ID / Event / Role / Relation / Occupation / Trait / Weight / TextKey`。
+   选句 = 先过滤匹配 → 取「非 Any 列最多」的一档 → 加权随机、同一人不连发；
+   **每个 Event × Role 必须有通用行**（体检强制），否则某类 NPC 会一句都不说。
+
+**坑（踩过的）**：
+
+- 🔴 `DialogueComponent.GenerateLine` 的 `ruleFallback` **只在 key 不存在时生效**：
+  临时追加规则必须走 `extraRule`（2026-10-23 新增，放在 prompt **最后一行**）。
+  否则规则静默不生效——实机日志：prompt 里还是「10-40 字」，LLM 每次写 20~27 字。
+- **不要复用** `BroadcastEventInRange` + `AgentBrain.WitnessCrime_*` 做非犯罪反馈：那套带警戒 / 犯罪 / 围观走位副作用。
+- `SpeechContext` 是 **struct**：`FromBrain` 之后改字段（如 `ShortBark`）必须在本地副本上赋值再用。
+- **称呼纪律**：`PromptBuilder` 的族长 / 队长身份只在**真实同族 / 同队**时注入；
+  异族陌生人整段不注入（LLM 看到「族长」两个字就会喊「族长」）。
+
+**文件**：`Combat/GrappleBarks.cs` · `ModuleData/DesignData/GrappleBarks.csv` ·
+`Scripts/check_grapple_barks.py`（体检 + `--selftest`，已进 `run_all_checks.py`）·
+`AI/SpeechChannel.cs`（`ShortBark` / `SayPolished` 可选参数）· `Planner/DialogueComponent.cs`（`extraRule`）·
+`LLM/PromptBuilder.cs`（称呼身份）。
+**验收**：`custom.grapple bark` · `custom.grapple bark test <hit|tug|drag|carry|horse|horseoff|release>`；
+判据 = `[ReactiveRespond] 回包` 与 `[Say]` 同句（LLM）或只有 `[Say]`（模板）。
+
 ## 陷阱
 
 - `MathF`/`MBRandom` 在 **TaleWorlds.Core.dll**（需要 `using TaleWorlds.Core`）；`Math.Clamp` 在 .NET 4.7.2 不存在（用 `MathF.Clamp`）。

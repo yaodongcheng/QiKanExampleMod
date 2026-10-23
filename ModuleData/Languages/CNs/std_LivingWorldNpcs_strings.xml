@@ -4620,6 +4620,66 @@
   <string id="LWN_spell_crescent" text="月牙法弹" />
   <string id="LWN_grapple_rope" text="钩索绳" />
   <string id="LWN_grapple_hook" text="钩爪" />
+  <!-- 钩索冒泡反馈（2026-10-23）：台词表 = ModuleData/DesignData/GrappleBarks.csv -->
+  <string id="LWN_bark_grapple_hit_v1" text="什么东西——！" />
+  <string id="LWN_bark_grapple_hit_v2" text="喂！放开我！" />
+  <string id="LWN_bark_grapple_hit_v3" text="呃啊——谁？！" />
+  <string id="LWN_bark_grapple_hit_v4" text="把这东西弄开！" />
+  <string id="LWN_bark_grapple_hit_v5" text="啊——！" />
+  <string id="LWN_bark_grapple_tug_v1" text="别拽了！" />
+  <string id="LWN_bark_grapple_tug_v2" text="行了行了，我跟你走！" />
+  <string id="LWN_bark_grapple_tug_v3" text="你要把我胳膊扯断吗！" />
+  <string id="LWN_bark_grapple_tug_v4" text="呃！" />
+  <string id="LWN_bark_grapple_drag_v1" text="停下……停下！" />
+  <string id="LWN_bark_grapple_drag_v2" text="我的腿——！" />
+  <string id="LWN_bark_grapple_drag_v3" text="我走！我走还不行吗！" />
+  <string id="LWN_bark_grapple_drag_v4" text="疼！疼！" />
+  <string id="LWN_bark_grapple_carry_v1" text="放我下来！" />
+  <string id="LWN_bark_grapple_carry_v2" text="你疯了吗！" />
+  <string id="LWN_bark_grapple_carry_v3" text="呃……头好晕……" />
+  <string id="LWN_bark_grapple_horse_v1" text="你要把我带去哪？！" />
+  <string id="LWN_bark_grapple_horse_v2" text="别放马上——我会掉下去的！" />
+  <string id="LWN_bark_grapple_horse_v3" text="这是绑架！" />
+  <string id="LWN_bark_grapple_horseoff_v1" text="总算下来了……" />
+  <string id="LWN_bark_grapple_horseoff_v2" text="腿都麻了。" />
+  <string id="LWN_bark_grapple_release_v1" text="滚！别再让我看见你！" />
+  <string id="LWN_bark_grapple_release_v2" text="这事我记下了。" />
+  <string id="LWN_bark_grapple_release_v3" text="哈……总算松了。" />
+  <string id="LWN_bark_grapple_hit_b1" text="喂，那边怎么回事？" />
+  <string id="LWN_bark_grapple_hit_b2" text="有人被绳子套住了！" />
+  <string id="LWN_bark_grapple_hit_b3" text="光天化日之下？！" />
+  <string id="LWN_bark_grapple_tug_b1" text="轻点——脖子要勒断了！" />
+  <string id="LWN_bark_grapple_tug_b2" text="放开他！" />
+  <string id="LWN_bark_grapple_drag_b1" text="有人在地上拖人！" />
+  <string id="LWN_bark_grapple_drag_b2" text="让开！别挡道！" />
+  <string id="LWN_bark_grapple_drag_b3" text="这也太狠了。" />
+  <string id="LWN_bark_grapple_carry_b1" text="他肩上扛的是个人吧？" />
+  <string id="LWN_bark_grapple_carry_b2" text="这是要把人扛去哪？" />
+  <string id="LWN_bark_grapple_horse_b1" text="把人放马背上？要带走了！" />
+  <string id="LWN_bark_grapple_horse_b2" text="看着像是绑人。" />
+  <!-- 特征台词（2026-10-23）：按职业 / 队伍关系 / 性格挑句；通用行始终保底 -->
+  <string id="LWN_bark_grapple_guard_hit_v1" text="你知道你动的是谁吗？！" />
+  <string id="LWN_bark_grapple_guard_tug_v1" text="袭警！快来人！" />
+  <string id="LWN_bark_grapple_guard_carry_v1" text="放下我！这是重罪！" />
+  <string id="LWN_bark_grapple_guard_hit_b1" text="住手！把人放下！" />
+  <string id="LWN_bark_grapple_villager_hit_v1" text="救命啊——！" />
+  <string id="LWN_bark_grapple_villager_carry_v1" text="我什么都没做啊！" />
+  <string id="LWN_bark_grapple_villager_horse_v1" text="大爷饶命……" />
+  <string id="LWN_bark_grapple_drunk_hit_v1" text="嗝……你、你抓我干嘛？" />
+  <string id="LWN_bark_grapple_drunk_carry_v1" text="嘿……我飞起来了……" />
+  <string id="LWN_bark_grapple_merchant_hit_v1" text="别动我！我有钱、我有钱！" />
+  <string id="LWN_bark_grapple_merchant_horse_v1" text="货、我的货还没结账……" />
+  <string id="LWN_bark_grapple_chief_hit_v1" text="放肆！你知道我是谁吗！" />
+  <string id="LWN_bark_grapple_party_hit_v1" text="主公？！您这是做什么！" />
+  <string id="LWN_bark_grapple_party_tug_v1" text="主公，有话好说！" />
+  <string id="LWN_bark_grapple_party_carry_v1" text="主公……这样不合适吧？" />
+  <string id="LWN_bark_grapple_party_drag_v1" text="主公！我跟着走就是了！" />
+  <string id="LWN_bark_grapple_party_release_v1" text="主公，您总算想通了。" />
+  <string id="LWN_bark_grapple_hot_hit_v1" text="找死！" />
+  <string id="LWN_bark_grapple_hot_tug_v1" text="我跟你拼了！" />
+  <string id="LWN_bark_grapple_timid_hit_v1" text="别、别杀我……" />
+  <string id="LWN_bark_grapple_timid_carry_v1" text="我什么都没看见……" />
+  <string id="LWN_bark_grapple_timid_hit_b1" text="我、我什么都没看见……" />
   <string id="LWN_huntian_ling" text="混天绫" />
   <string id="LWN_spell_multi" text="多重法弹" />
   <string id="LWN_spell_sky" text="天降法弹" />

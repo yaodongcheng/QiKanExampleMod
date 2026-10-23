@@ -4545,6 +4545,66 @@
     <string id="LWN_gem_zerog" text="Weightless" />
     <string id="LWN_grapple_hook" text="GrappleHook" />
     <string id="LWN_grapple_rope" text="GrappleRope" />
+    <!-- 钩索冒泡反馈（2026-10-23）：台词表 = ModuleData/DesignData/GrappleBarks.csv -->
+    <string id="LWN_bark_grapple_hit_v1" text="What the—!" />
+    <string id="LWN_bark_grapple_hit_v2" text="Hey! Let go of me!" />
+    <string id="LWN_bark_grapple_hit_v3" text="Ugh— who did that?!" />
+    <string id="LWN_bark_grapple_hit_v4" text="Get this thing off me!" />
+    <string id="LWN_bark_grapple_hit_v5" text="Agh—!" />
+    <string id="LWN_bark_grapple_tug_v1" text="Stop pulling!" />
+    <string id="LWN_bark_grapple_tug_v2" text="All right, all right — I'm coming!" />
+    <string id="LWN_bark_grapple_tug_v3" text="You'll tear my arms off!" />
+    <string id="LWN_bark_grapple_tug_v4" text="Ugh!" />
+    <string id="LWN_bark_grapple_drag_v1" text="Stop— stop!" />
+    <string id="LWN_bark_grapple_drag_v2" text="My legs—!" />
+    <string id="LWN_bark_grapple_drag_v3" text="I'll walk! I'll walk, damn you!" />
+    <string id="LWN_bark_grapple_drag_v4" text="It hurts— it hurts!" />
+    <string id="LWN_bark_grapple_carry_v1" text="Put me down!" />
+    <string id="LWN_bark_grapple_carry_v2" text="Have you lost your mind?!" />
+    <string id="LWN_bark_grapple_carry_v3" text="Ugh— my head..." />
+    <string id="LWN_bark_grapple_horse_v1" text="Where are you taking me?!" />
+    <string id="LWN_bark_grapple_horse_v2" text="Not the horse— I'll fall!" />
+    <string id="LWN_bark_grapple_horse_v3" text="This is kidnapping!" />
+    <string id="LWN_bark_grapple_horseoff_v1" text="Finally..." />
+    <string id="LWN_bark_grapple_horseoff_v2" text="My legs are numb." />
+    <string id="LWN_bark_grapple_release_v1" text="Get lost— don't let me see you again!" />
+    <string id="LWN_bark_grapple_release_v2" text="I won't forget this." />
+    <string id="LWN_bark_grapple_release_v3" text="Hah... finally." />
+    <string id="LWN_bark_grapple_hit_b1" text="Hey— what's going on over there?" />
+    <string id="LWN_bark_grapple_hit_b2" text="Someone's caught in a rope!" />
+    <string id="LWN_bark_grapple_hit_b3" text="In broad daylight?!" />
+    <string id="LWN_bark_grapple_tug_b1" text="Easy— you'll break his neck!" />
+    <string id="LWN_bark_grapple_tug_b2" text="Leave him alone!" />
+    <string id="LWN_bark_grapple_drag_b1" text="They're dragging a man on the ground!" />
+    <string id="LWN_bark_grapple_drag_b2" text="Move— get out of the way!" />
+    <string id="LWN_bark_grapple_drag_b3" text="That's just cruel." />
+    <string id="LWN_bark_grapple_carry_b1" text="Is he carrying a person?" />
+    <string id="LWN_bark_grapple_carry_b2" text="Where's he taking him?" />
+    <string id="LWN_bark_grapple_horse_b1" text="Putting him on a horse? He's taking him away!" />
+    <string id="LWN_bark_grapple_horse_b2" text="That looks like a kidnapping." />
+    <!-- 特征台词（2026-10-23）：按职业 / 队伍关系 / 性格挑句；通用行始终保底 -->
+    <string id="LWN_bark_grapple_guard_hit_v1" text="Do you know who you just laid hands on?!" />
+    <string id="LWN_bark_grapple_guard_tug_v1" text="Assaulting the watch— sound the alarm!" />
+    <string id="LWN_bark_grapple_guard_carry_v1" text="Put me down! This is a capital offense!" />
+    <string id="LWN_bark_grapple_guard_hit_b1" text="Stop! Put that man down!" />
+    <string id="LWN_bark_grapple_villager_hit_v1" text="Help—!" />
+    <string id="LWN_bark_grapple_villager_carry_v1" text="I've done nothing wrong!" />
+    <string id="LWN_bark_grapple_villager_horse_v1" text="Please, spare me..." />
+    <string id="LWN_bark_grapple_drunk_hit_v1" text="Hic... what're you grabbing me for?" />
+    <string id="LWN_bark_grapple_drunk_carry_v1" text="Hey... I'm flying..." />
+    <string id="LWN_bark_grapple_merchant_hit_v1" text="Don't hurt me— I have money!" />
+    <string id="LWN_bark_grapple_merchant_horse_v1" text="My goods... I haven't been paid..." />
+    <string id="LWN_bark_grapple_chief_hit_v1" text="Insolent fool! Do you know who I am?!" />
+    <string id="LWN_bark_grapple_party_hit_v1" text="My lord?! What are you doing?!" />
+    <string id="LWN_bark_grapple_party_tug_v1" text="My lord, let's talk this through!" />
+    <string id="LWN_bark_grapple_party_carry_v1" text="My lord... this is hardly proper." />
+    <string id="LWN_bark_grapple_party_drag_v1" text="My lord! I'll walk, I'll walk!" />
+    <string id="LWN_bark_grapple_party_release_v1" text="My lord... finally, some sense." />
+    <string id="LWN_bark_grapple_hot_hit_v1" text="You're a dead man!" />
+    <string id="LWN_bark_grapple_hot_tug_v1" text="I'll tear you apart!" />
+    <string id="LWN_bark_grapple_timid_hit_v1" text="P-please don't kill me..." />
+    <string id="LWN_bark_grapple_timid_carry_v1" text="I saw nothing, I swear..." />
+    <string id="LWN_bark_grapple_timid_hit_b1" text="I— I saw nothing..." />
     <string id="LWN_huntian_ling" text="HuntianLing" />
     <string id="LWN_spell_aura" text="SpellAura" />
     <string id="LWN_spell_beam" text="SpellBeam" />

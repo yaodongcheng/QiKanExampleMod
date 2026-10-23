@@ -110,6 +110,10 @@ SECOND_MODULE_CHECKS = [
     # 双人动作设计表（2026-10-19）：四行头 / 交接目标 / persistent⇒motion=none / token 白名单。
     ("check_pair_actions.py", None),
     ("check_pair_actions.py", ["--selftest"]),
+    # 钩索冒泡台词表（2026-10-23）：Event/Role/Relation/职业/性格合法 + 每类事件必须有通用行 +
+    # 每条台词两份语言层都在（缺中文 = 显示英文）。
+    ("check_grapple_barks.py", None),
+    ("check_grapple_barks.py", ["--selftest"]),
     # 🔴 法术体系总闸（2026-10-12）：开关关掉的数据（`items/spells.xml`）**不许**被引擎无条件加载 ——
     #    被某个段声明 = 引擎会吃掉它 = 总闸失效（发布时那 7 件物品照样进游戏，且零报错）。
     #    跑的是那个脚本的**窄模式**：全量模式查的是"内容包世界段清单"，基座跑必然一片红（见上文说明）。

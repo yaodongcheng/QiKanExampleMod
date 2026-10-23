@@ -1369,6 +1369,11 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					result = DoSound(args, at);
 					break;
 
+				// ─────────────── 冒泡反馈（2026-10-23：当事人 + 看得见的旁人）───────────────
+				case "bark":
+					result = DoBark(args, at);
+					break;
+
 				default:
 					result = logic.Status();
 					break;
@@ -1399,6 +1404,71 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 			Agent main = Agent.Main;
 			SoundFx.Play3D(GrappleLogic.RopeSoundName, main != null ? main.GetEyeGlobalPosition() : Vec3.Zero);
 			return $"OK. played rope sound | enabled={GrappleLogic.RopeSoundEnabled} | {SoundFx.Describe(GrappleLogic.RopeSoundName)}";
+		}
+
+		/// <summary>
+		/// `custom.grapple bark [on|off|state|radius &lt;m&gt;|gap &lt;s&gt;|test &lt;event&gt;]`（2026-10-23）——
+		/// 钩索冒泡反馈的验收 / 调参入口。台词表 = `ModuleData/DesignData/GrappleBarks.csv`
+		/// （加台词 = 加一行 + 一条语言键，不改代码）。
+		/// </summary>
+		private static string DoBark(List<string> args, int at)
+		{
+			string what = (ArgAt(args, at + 0) ?? "state").ToLowerInvariant();
+			switch (what)
+			{
+				case "on":
+					GrappleBarks.Enabled = true;
+					return "OK: grapple barks = ON | " + GrappleBarks.Describe();
+				case "off":
+					GrappleBarks.Enabled = false;
+					return "OK: grapple barks = OFF";
+				case "radius":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v <= 0f) return $"grapple: bark witness radius = {GrappleBarks.WitnessRadius:F0} m";
+					GrappleBarks.WitnessRadius = v;
+					return $"OK: bark witness radius = {v:F0} m";
+				}
+				case "gap":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v <= 0f)
+					{
+						return $"grapple: bark gaps: event {GrappleBarks.WitnessEventGapSeconds:F0}s"
+							+ $" / witness {GrappleBarks.WitnessPerAgentGapSeconds:F0}s"
+							+ $" / victim {GrappleBarks.VictimEventGapSeconds:F0}s";
+					}
+					GrappleBarks.WitnessEventGapSeconds = v;
+					GrappleBarks.VictimEventGapSeconds = v;
+					return $"OK: bark gaps = {v:F0}s (event / victim); witness per-agent gap unchanged ({GrappleBarks.WitnessPerAgentGapSeconds:F0}s)";
+				}
+				case "test":
+				{
+					string evtName = ArgAt(args, at + 1) ?? "hit";
+					if (!GrappleBarks.TryParseEvent(evtName, out GrappleBarks.BarkEvent evt))
+						return $"Error: unknown bark event '{evtName}' (hit|tug|drag|carry|horse|horseoff|release)";
+
+					Agent target = FindNearestBindableAgent(30f);
+					if (target == null) return "Error: no nearby NPC to bark (need a human within 30 m).";
+
+					// 测试路径无视冷却，保证每次敲都能听到（真实流程仍按冷却防刷屏）
+					GrappleBarks.ResetCooldowns();
+					switch (evt)
+					{
+						case GrappleBarks.BarkEvent.Tug: GrappleBarks.OnTug(target, Agent.Main); break;
+						case GrappleBarks.BarkEvent.Drag: GrappleBarks.OnDragged(target, Agent.Main); break;
+						case GrappleBarks.BarkEvent.Carry: GrappleBarks.OnCarried(Agent.Main, target); break;
+						case GrappleBarks.BarkEvent.Horse: GrappleBarks.OnPutOnHorse(Agent.Main, target, null); break;
+						case GrappleBarks.BarkEvent.HorseOff: GrappleBarks.OnTakenOffHorse(Agent.Main, target); break;
+						case GrappleBarks.BarkEvent.Release: GrappleBarks.OnReleased(target, Agent.Main); break;
+						default: GrappleBarks.OnHit(target, Agent.Main); break;
+					}
+					return $"OK: fired bark '{evt}' on {target.Name} (victim + one witness if anyone can see him)"
+						+ $" | {GrappleBarks.Describe()} (cooldowns reset for this test)";
+				}
+				default:
+					return GrappleBarks.Describe();
+			}
 		}
 
 		/// <summary>
