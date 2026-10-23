@@ -57,7 +57,8 @@ namespace LivingWorldNpcs
 		/// **沿用钩点高度** ⇒ 脚直接放到天花板那一层（实机：钩点 11.69 → 板载坠落当场报"着地（板面=11.69 地面=11.69）"）。
 		///
 		/// 判据 = **盖板 ="钩点正上方最近的那块东西"**（天花板 / 楼板 / 屋檐 / 桥底 / 树枝…）。有盖板时：
-		///   ① 落在盖板**上面**的候选平台**作废**（那块板你过不去）；
+		///   ① 落在盖板**上面**的候选平台**作废** —— 除非它头顶是**露天**（见 <see cref="LidTopSkyClearance"/>；
+		///      2026-10-23 加：室外墙头 / 檐口 / 桥面必须能爬上去，否则"勾墙永远上不去"）；
 		///   ② 没平台时的兜底落点**压到盖板下面**（留 <see cref="LidClearance"/> 米身高）—— 人会被拽到盖板下方，
 		///      再随板自由落体掉回地面（用户 2026-10-15 选的表现："拉上去再掉回地面"）。
 		///
@@ -97,6 +98,30 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static float LidNetNormalZ = -0.5f;
 
+		/// <summary>
+		/// **盖板上面那些候选的放行条件（2026-10-23 加）**：候选台面在盖板上面时**不再一律作废** ——
+		/// 从台面往上打这么长的射线，**头顶没有遮挡**（= 露天）才放行。
+		///
+		/// 🔴 为什么（实机 23:40:27 / 23:40:36，用户"勾墙好几次上不去"）：
+		///    旧口径"候选在盖板上面 ⇒ 作废"只在**室内勾天花板**时是对的。一旦在**室外**勾到墙头/檐口/桥面
+		///    这些**朝下的面**（实测法线 z = −0.74 / −0.90），那块板本身就是"盖板"，而玩家想去的正是它**上面**
+		///    ⇒ 候选全被否光 → 兜底压到板下 → **拉上去再掉回地面**
+		///    （日志：`blocked=16 lid=77.79 clamp=1` / `blocked=7 lid=86.16 clamp=1`）。
+		///    室外与室内的几何区别 = **那块台面头顶是天空，还是又一层楼板/天花板** ⇒ 用它当判据。
+		///    20 米保守（骑砍室内挑高很少超过它）；现场调 `custom.grapple lidsky &lt;米&gt;`，设 0 = 关掉放行（回到旧口径）。
+		/// </summary>
+		public static float LidTopSkyClearance = 20f;
+
+		/// <summary>
+		/// **玩家自己头顶的净空要求**（2026-10-23 加，与 <see cref="LidTopSkyClearance"/> 配对）：
+		/// 玩家头顶这么多米内没有遮挡，才允许把落点放到盖板**上面**。
+		///
+		/// 🔴 为什么还要这一条：单层小屋的**屋顶**从里面看，屋顶上表面同样是"头顶露天"的合法候选 ——
+		///    只靠候选那条检查挡不住"站在屋里勾天花板 ⇒ 被拉上屋顶"（就是 2026-10-15 那起事故的形态）。
+		///    人在屋里 ⇒ 头顶几米内就是天花板/屋顶 ⇒ 这里直接挡掉。5 米：骑砍室内层高一般 3~4 米。
+		/// </summary>
+		public static float PlayerOpenClearance = 5f;
+
 		/// <summary>八方向采样点（单位圆上的方向）。固定 8 个，不开放。</summary>
 		private static readonly float[] DirX = { 1f, 0.7071f, 0f, -0.7071f, -1f, -0.7071f, 0f, 0.7071f };
 		private static readonly float[] DirY = { 0f, 0.7071f, 1f, 0.7071f, 0f, -0.7071f, -1f, -0.7071f };
@@ -118,6 +143,10 @@ namespace LivingWorldNpcs
 			public int Accepted;
 			/// <summary>被「盖板」否掉的候选数（诊断用；`custom.grapple probe` 会打）。</summary>
 			public int Blocked;
+			/// <summary>「在盖板上面、但头顶露天」被**放行**的候选数（诊断用；2026-10-23 加）。</summary>
+			public int LidPassed;
+			/// <summary>最终选中的落点在**盖板上面**（= 这次是靠"头顶露天"放行才爬上去的）。</summary>
+			public bool EndpointAboveLid;
 			/// <summary>盖板的高度 = **钩点正上方**那块东西（`float.MaxValue` = 钩点上方没有东西 ⇒ 不受这条判据管）。</summary>
 			public float LidZ;
 			/// <summary>没平台时，兜底落点被压到盖板下面了吗（= 本次会"拉上去再掉回地面"）。</summary>
@@ -169,6 +198,12 @@ namespace LivingWorldNpcs
 			// 探针起点高度：高于"允许的最高平台"，这样平台在钩点上方时也能被下方探针找到。
 			float probeTopZ = hookPoint.z + MaxDz + 1.0f;
 
+			// 🔴 2026-10-23：**盖板上面的候选**只有"人在露天 + 台面头顶也露天"才放行。
+			//    玩家的检查只做一次（与候选无关），见 PlayerOpenClearance 的注释 ——
+			//    它挡的是"站在单层小屋里勾天花板 ⇒ 被拉上屋顶"（屋顶上表面头顶也是天空）。
+			bool playerOpenAbove = LidCheck && LidTopSkyClearance > 0f
+				&& HasClearanceAbove(scene, playerPos, PlayerOpenClearance);
+
 			Vec3 bestPoint = Vec3.Invalid;
 			Vec3 bestNormal = Vec3.Up;
 			Vec3 bestProbe = Vec3.Invalid;
@@ -211,13 +246,22 @@ namespace LivingWorldNpcs
 					{
 						continue;                       // 头顶被挡，站不直
 					}
-					// 🔴 盖板（2026-10-15/16 室内事故）：这块台面在**钩点正上方那块板**的上面 ⇒ 你过不去
-					//    （室内勾天花板时，从上方往下问出来的"地面"正是天花板的背面）。整条候选作废。
+					// 🔴 盖板（2026-10-15/16 室内事故）：这块台面在**钩点正上方那块板**的上面 ⇒ 本来要作废
+					//    （室内勾天花板时，从上方往下问出来的"地面"正是天花板的背面）。
+					// 🔴 2026-10-23 改：**先看那块台面头顶是不是露天** ——
+					//    露天 = 室外墙头 / 檐口 / 桥面 ⇒ 放行（用户要的就是"勾墙能爬上去"）；
+					//    不露天 = 室内上层楼板（上面还有天花板/屋顶）⇒ 照旧作废（防穿顶上房）。
 					if (groundZ + LidClearance > lidZ)
 					{
-						blockedThisRing++;
-						r.Blocked++;
-						continue;
+						if (!playerOpenAbove
+							|| LidTopSkyClearance <= 0f
+							|| !HasClearanceAbove(scene, new Vec3(probe.x, probe.y, groundZ), LidTopSkyClearance))
+						{
+							blockedThisRing++;
+							r.Blocked++;
+							continue;
+						}
+						r.LidPassed++;                  // 放行（诊断计数）——继续走下面的打分
 					}
 
 					acceptedThisRing++;
@@ -255,6 +299,7 @@ namespace LivingWorldNpcs
 				r.Endpoint = bestPoint;
 				r.Normal = bestNormal;
 				r.ProbePoint = bestProbe;
+				r.EndpointAboveLid = LidCheck && bestPoint.z > lidZ;
 				return r;
 			}
 
@@ -281,6 +326,7 @@ namespace LivingWorldNpcs
 
 			r.Detail = r.Detail
 				+ (r.Blocked > 0 ? " || " + r.Blocked + " candidate(s) above the lid (z=" + lidZ.ToString("F2") + ")" : "")
+				+ (r.LidPassed > 0 ? " || " + r.LidPassed + " above-lid candidate(s) accepted (open sky)" : "")
 				+ " || no platform -> backoff " + FallbackBackoff.ToString("F1") + "m"
 				+ (r.LidClamped ? " (clamped under the lid z=" + lidZ.ToString("F2") + ")" : "");
 			return r;
@@ -348,11 +394,19 @@ namespace LivingWorldNpcs
 
 		/// <summary>候选平台上方有没有 <see cref="Headroom"/> 米的净空（一条细射线，向上）。</summary>
 		private static bool HasHeadroom(Scene scene, Vec3 groundPoint)
+			=> HasClearanceAbove(scene, groundPoint, Headroom);
+
+		/// <summary>
+		/// 从台面往上打一条细射线：<paramref name="height"/> 米内**没有遮挡** ⇒ true。
+		/// 两处消费者：① 候选的头顶净空（<see cref="Headroom"/>）② **盖板上方候选"头顶是不是露天"**
+		/// （<see cref="LidTopSkyClearance"/>，2026-10-23）。查询本身出错 = false（宁可保守）。
+		/// </summary>
+		private static bool HasClearanceAbove(Scene scene, Vec3 groundPoint, float height)
 		{
 			try
 			{
 				Vec3 from = new Vec3(groundPoint.x, groundPoint.y, groundPoint.z + 0.25f);
-				Vec3 to = new Vec3(groundPoint.x, groundPoint.y, groundPoint.z + 0.25f + Headroom);
+				Vec3 to = new Vec3(groundPoint.x, groundPoint.y, groundPoint.z + 0.25f + height);
 				float distance;
 				Vec3 hitPoint;
 				bool blocked = scene.RayCastForClosestEntityOrTerrain(from, to, out distance, out hitPoint,
@@ -371,13 +425,15 @@ namespace LivingWorldNpcs
 		public static string Describe(Result r)
 		{
 			string lid = r.LidZ >= float.MaxValue * 0.5f ? "none" : r.LidZ.ToString("F2");
-			return string.Format("found={0} ep=({1:F2},{2:F2},{3:F2}) n=({4:F2},{5:F2},{6:F2}) probes={7} ok={8} blocked={9} lid={10}{11} [{12}]",
+			return string.Format("found={0} ep=({1:F2},{2:F2},{3:F2}) n=({4:F2},{5:F2},{6:F2}) probes={7} ok={8} blocked={9} lid={10}{11}{13} [{12}]",
 				r.Found ? 1 : 0,
 				r.Endpoint.x, r.Endpoint.y, r.Endpoint.z,
 				r.Normal.x, r.Normal.y, r.Normal.z,
 				r.Probes, r.Accepted, r.Blocked, lid,
 				r.LidClamped ? " clamp=1" : "",
-				r.Detail ?? "-");
+				r.Detail ?? "-",
+				(r.LidPassed > 0 ? " lidpass=" + r.LidPassed : "")
+					+ (r.EndpointAboveLid ? " above=1" : ""));
 		}
 
 		/// <summary>把参数恢复默认（命令 `custom.grapple probe reset` 用）。</summary>
@@ -394,6 +450,8 @@ namespace LivingWorldNpcs
 			LidOffset = 0.25f;
 			LidProbeReach = 60f;
 			LidNetNormalZ = -0.5f;
+			LidTopSkyClearance = 20f;
+			PlayerOpenClearance = 5f;
 		}
 	}
 }

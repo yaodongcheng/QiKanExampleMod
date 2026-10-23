@@ -2680,11 +2680,8 @@ namespace LivingWorldNpcs
 
             // 🔴 2026-10-22 用户裁定：**不杀死** —— 走 `End_Policy=knockout`（旧的击晕/重伤占位）。
             DebugLogger.Log($"[Assassinate] '{Agent.Main.Name}' → '{target.Name}'（assassination01，end=knockout）");
-            InformationManager.DisplayMessage(
-                new InformationMessage(
-                    LWNTextHelper.ResolveCompound("LWN_ui_assassinate_msg_start",
-                        ("NAME", target.Name?.ToString() ?? "?")),
-                    Colors.Green));
+            // 🔴 2026-10-23 用户裁定：**不再弹「正在暗杀 xxx」** —— 动作本身已经演出来了，
+            //    这句提示纯属废话（玩家看得到自己在做什么）。日志保留（上面那行）做诊断。
 
             _interactVM.IsVisible = false;
             IsHandlingInteraction = false;

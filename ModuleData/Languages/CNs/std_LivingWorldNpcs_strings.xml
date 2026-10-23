@@ -702,7 +702,6 @@
     <string id="LWN_ui_interact_pickpocket" text="偷窃" />
     <string id="LWN_ui_interact_knockout" text="击晕({DIFFICULTY})" />
     <string id="LWN_ui_interact_assassinate" text="暗杀" />
-    <string id="LWN_ui_assassinate_msg_start" text="正在暗杀 {NAME}" />
     <string id="LWN_ui_interact_smalltalk" text="闲聊" />
     <string id="LWN_ui_interact_inspect" text="探查" />
     <string id="LWN_ui_interact_talk" text="对话" />

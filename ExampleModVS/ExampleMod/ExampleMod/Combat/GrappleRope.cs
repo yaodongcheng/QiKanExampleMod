@@ -55,11 +55,18 @@ namespace LivingWorldNpcs
 
 		/// <summary>自动长度的上下限（米）。上限也决定实体池的大小。
 		/// 下限只是防退化（跨度极小时别把绳压成零长），别指望它"兜住余量"。
-		/// 🔴 上限 24 = 覆盖钩索的瞄准射程（`GrappleLogic.AimRange` 默认 20 米 + 余量）——
+		/// 🔴 上限 33 = 覆盖钩索的瞄准射程（`GrappleLogic.AimRange` **30 米**，2026-10-23 由 20 抬起）
+		///   + 钩头多飞的 0.6 米 + 5% 余量（30.6 × 1.05 ≈ 32.1）——
 		///   绳长被夹到比跨度短时走"绷直解析解"，绳仍会连到钩头，**但链节会被拉稀**（节距 &gt; 链环长）⇒
-		///   射程内别让它发生。第 1 步的 16 米是当时"手到锚点"的合理上限，随射程一起抬了。</summary>
+		///   射程内别让它发生。改 `AimRange` 必须同步改这里和 <see cref="MaxChainLinks"/>。</summary>
 		public float MinLength = 0.3f;
-		public float MaxLength = 24f;
+		public float MaxLength = 33f;
+
+		/// <summary>链节实体池的**硬上限**（性能闸，也决定绳能画多长）。
+		/// 33 米 ÷ 节距 0.0744 米 ≈ 446 节 ⇒ 留到 600。🔴 旧口径 400 是 24 米时代的
+		/// （400 × 0.0744 ≈ 29.6 米）—— 射程抬到 30 后不跟着抬 = 链节建到 400 就停，
+		/// **绳尾凭空少一截**（`PlaceChain` 的 `placed &lt; _linkEntities.Length` 到头了）。</summary>
+		private const int MaxChainLinks = 600;
 
 		/// <summary>段的粗细倍率（1.0 = 管网格原直径 5cm）。</summary>
 		public float RadiusScale = s_radiusScale;
@@ -399,7 +406,7 @@ namespace LivingWorldNpcs
 		/// <summary>实体池要备几个环：按**最大长度**备（绳长每帧在变，池子不能跟着变）。
 		/// 真正显示几个由每帧铺到哪算 —— 多的藏起来，不重建。</summary>
 		private int ChainLinkCount()
-			=> Math.Max(2, Math.Min(400, (int)MathF.Ceiling((AutoLength ? MaxLength : Length) / ChainPitch()) + 2));
+			=> Math.Max(2, Math.Min(MaxChainLinks, (int)MathF.Ceiling((AutoLength ? MaxLength : Length) / ChainPitch()) + 2));
 
 		/// <summary>铁链模式：建 <see cref="ChainLinkCount"/> 个环实体（环网格共用一份）。</summary>
 		private bool BuildChain(Scene scene)

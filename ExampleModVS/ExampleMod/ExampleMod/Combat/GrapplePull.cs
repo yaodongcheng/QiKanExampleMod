@@ -59,7 +59,7 @@ namespace LivingWorldNpcs
 		public static float DurationGround = 1.17f;
 		public static float DurationAir = 0.95f;
 
-		/// <summary>时长按距离缩放的参照距离（米）：UE 那次是 12 米射程；我们射程 20 米，按比例放大但钳住。</summary>
+		/// <summary>时长按距离缩放的参照距离（米）：UE 那次是 12 米射程；我们射程 30 米，按比例放大但钳住。</summary>
 		public static float RefDistance = 12f;
 		/// <summary>
 		/// 距离缩放区间（2026-10-04 起默认 **1.0~1.0 = 关掉缩放**）：动画时间轴是固定的，

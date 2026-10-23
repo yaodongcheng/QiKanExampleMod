@@ -44,11 +44,52 @@ namespace LivingWorldNpcs
 		// ───────────────────────────── 可调参数（命令改） ─────────────────────────────
 
 		/// <summary>
-		/// 飞行速度（米/秒）。UE 参考工程换算 ≈ 33~35（12 米用 0.36 秒飞完）。
-		/// 🔴 2026-10-04 抬到 42：动画时间轴要求"**0.5 秒前钩头应已命中拉直**"（用户定的节点），
-		///    而钩头实际飞 `距离 + 0.6` 米（见 Launch 的射程）⇒ 20 米射程 ÷ 42 ≈ 0.49 秒 ✓（35 时是 0.59，超节点）。
+		/// **手动模式的固定飞行速度**（米/秒）—— 只在 <see cref="FlightSeconds"/> ≤ 0 时生效
+		/// （`custom.grapple hspeed <m/s>` 会把模式切到手动）。
+		///
+		/// 🔴 2026-10-23 **默认改成"按距离自动调速"**（见 <see cref="FlightSeconds"/>）：动画时间轴是固定的，
+		///    所以钩头必须**在固定时长内飞完全程**，而不是固定速度。旧口径固定 42 m/s 在 20 米射程下正好 0.49 秒、
+		///    对得上节点；射程抬到 30 米后同一速度要 0.73 秒 ⇒ 远距目标的"拉直"晚于投掷动画
+		///    （用户裁定："动画时间不变，那么钩子速度要随着绳子长度变"）。
+		///    自动模式下 20 米射程算出来 ≈ 42 m/s，与旧手感逐字一致。
 		/// </summary>
 		public static float Speed = 42f;
+
+		/// <summary>
+		/// **自动模式的目标飞行时长（秒）**：不管多远，钩头都在这么久内飞完全程（默认 0.49）。
+		/// 速度由 `距离 ÷ 本值` 现算（<see cref="SpeedForDistance"/>），再夹到
+		/// <see cref="MinAutoSpeed"/> ~ <see cref="MaxAutoSpeed"/> 之间。
+		///
+		/// 🔴 为什么必须恒定（2026-10-23 用户裁定）：拉拽起点**钉死在开火后 `PullStartSeconds`**（动画时间轴），
+		///    蓄势 = `PullStartSeconds − 本钩飞行耗时` ⇒ 飞行耗时随距离变 = 远目标没蓄势、近目标蓄势过长。
+		/// 0.49 = 旧口径（20.6 米 ÷ 42 m/s，20 米射程时的实测值）。
+		/// 设 ≤ 0 = 回到固定速度 <see cref="Speed"/>（`custom.grapple hspeed <m/s>` 就是这么切的）。
+		/// </summary>
+		public const float DefaultFlightSeconds = 0.49f;
+		public static float FlightSeconds = DefaultFlightSeconds;
+
+		/// <summary>自动速度的夹取（米/秒）：太近别慢悠悠（2 米也按 8 m/s 飞），太远别失控（120 ≈ 59 米射程）。</summary>
+		public static float MinAutoSpeed = 8f;
+		public static float MaxAutoSpeed = 120f;
+
+		/// <summary>这一钩实际用的速度（<see cref="Launch"/> 时按距离算好，<see cref="Tick"/> 用它）。</summary>
+		private float _speed = 42f;
+
+		/// <summary>**这一钩该用多快**：自动模式 = `距离 ÷ FlightSeconds`（夹取），手动 = <see cref="Speed"/>。</summary>
+		public static float SpeedForDistance(float maxDistance)
+		{
+			if (FlightSeconds <= 0f)
+			{
+				return MathF.Max(1f, Speed);
+			}
+			float v = maxDistance / FlightSeconds;
+			return MathF.Max(MinAutoSpeed, MathF.Min(MaxAutoSpeed, v));
+		}
+
+		/// <summary>**这一钩要飞多久**（秒）—— 与 <see cref="SpeedForDistance"/> 同一口径（夹取后反算）。
+		/// 蓄势/姿态时间轴用它（`GrappleLogic._flightSeconds`），**别再自己拿 Speed 除**。</summary>
+		public static float FlightTimeFor(float maxDistance)
+			=> maxDistance / MathF.Max(1f, SpeedForDistance(maxDistance));
 
 		/// <summary>
 		/// **返程速度**（米/秒；打空回收时"追着手飞回"的速度）。
@@ -161,6 +202,7 @@ namespace LivingWorldNpcs
 			_checkFrom = from;
 			_travelled = 0f;
 			_maxDistance = maxDistance;
+			_speed = SpeedForDistance(maxDistance);   // 自动模式 = 距离 ÷ FlightSeconds（动画时间轴固定，见字段注释）
 			_checkTimer = 0f;
 			AttachedAgent = null;
 			AttachedPoint = from;
@@ -188,7 +230,7 @@ namespace LivingWorldNpcs
 				return StepResult.None;
 			}
 
-			float step = Speed * dt;
+			float step = _speed * dt;
 			float remaining = _maxDistance - _travelled;
 
 			// 🔴🔴 **本帧会到达/越过终点 ⇒ 只飞到终点，并强制做一次碰撞检查**（2026-10-03 实机定死的 bug）：

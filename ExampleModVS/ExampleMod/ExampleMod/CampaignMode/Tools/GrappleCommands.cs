@@ -44,8 +44,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple throw              朝准星发一根钩头（完整链路：飞行 → 命中 → 落点平台解算）
 	///   custom.grapple probe              只解算不发射：打印瞄准点 + 落点平台逐环明细（调参主力）
 	///   custom.grapple retract            收钩（钩头拆掉、绳藏起来）
-	///   custom.grapple range &lt;米&gt;         瞄准射线最大长度（默认 20；UE 参考工程是 12）
-	///   custom.grapple hspeed &lt;m/s&gt;       钩头飞行速度（默认 35）
+	///   custom.grapple range &lt;米&gt;         瞄准射线最大长度（默认 30；UE 参考工程是 12；绳的上限见 GrappleRope.MaxLength）
+	///   custom.grapple hspeed &lt;m/s|auto [秒]&gt; 钩头飞行速度：**auto = 默认**（按距离调速，全程固定 0.49 秒；
+	///                                    可跟一个秒数调那个时长）；给 m/s = 切成固定速度（关掉自动计时，A/B 用）
 	///   custom.grapple hscale &lt;倍率&gt;      钩头网格缩放（默认 0.30）
 	///   custom.grapple hmesh &lt;网格名&gt;     换钩头网格（第一候选；后两个兜底保留）
 	///   custom.grapple spin &lt;rpm&gt; [半径]   **手里的钩**：绕右手转的转速 / 半径（= 手里那截绳的长度，默认 90 rpm / 0.20 m）
@@ -83,6 +84,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple backoff &lt;米&gt;       没平台时沿射线退回的距离（默认 1.5）
 	///   custom.grapple lid 0|1 [余量]      盖板判据（默认 ON）：落点不许高过"**钩点正上方**那块东西"
 	///                                     （勾天花板时就是天花板；没平台就把兜底落点压到板下 = 拉上去→再掉回地面）。0 = 旧行为（会落到房顶上）
+	///   custom.grapple lidsky &lt;米&gt;       盖板**上方**的落点：你和台面头顶都露天才放行（默认 20；0 = 关）
 	///   custom.grapple lreset             落点平台参数恢复默认
 	///
 	/// —— 步骤 3 起（武器接线）——
@@ -172,7 +174,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					|| s == "auto" || s == "slack" || s == "smooth" || s == "mat" || s == "chain" || s == "part" || s == "freeze" || s == "release" || s == "dump" || s == "status"
 					|| s == "throw" || s == "probe" || s == "retract" || s == "range" || s == "hspeed" || s == "hscale" || s == "hmesh" || s == "spin" || s == "spinrope" || s == "hand" || s == "armaxis" || s == "hookface" || s == "hookroll" || s == "armout" || s == "spinlog"
 					|| s == "ringface" || s == "ringscale" || s == "ropelog" || s == "palm" || s == "retspeed"
-					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lid" || s == "lreset" || s == "equip" || s == "hint" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
+					|| s == "nz" || s == "dz" || s == "headroom" || s == "ring" || s == "backoff" || s == "lid" || s == "lidsky" || s == "lreset" || s == "equip" || s == "hint" || s == "iconhook" || s == "iconscale" || s == "hookbelt" || s == "handring" || s == "tracelog"
 					|| s == "pull" || s == "pulltime" || s == "arc" || s == "delay" || s == "autopull" || s == "cam" || s == "facehook" || s == "camret" || s == "lookret" || s == "carrier"
 					|| s == "mountedpull" || s == "mountedwait" || s == "mountedselfblow" || s == "horse"					|| s == "anim" || s == "animlock" || s == "animblend" || s == "animthr"
 					|| s == "bind" || s == "carry" || s == "market" || s == "npc"
@@ -502,7 +504,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case "range":
 				{
 					float v = ParseF(args, at + 0, -1f);
-					if (v <= 0f) { result = "Error: range needs meters > 0 (e.g. custom.grapple range 20)"; break; }
+					if (v <= 0f) { result = "Error: range needs meters > 0 (e.g. custom.grapple range 30)"; break; }
 					GrappleLogic.AimRange = v;
 					result = $"grapple: aim range = {v:F1}m";
 					break;
@@ -510,10 +512,32 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 
 				case "hspeed":
 				{
+					// 2026-10-23：默认改成**按距离调速**（动画时间轴固定 ⇒ 飞行时长必须恒定）。
+					//   `hspeed auto` = 回到自动；`hspeed <m/s>` = 固定速度（关掉自动，A/B 对比用）。
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						result = GrappleHook.FlightSeconds > 0f
+							? $"grapple: hook flight time = {GrappleHook.FlightSeconds:F2}s (AUTO speed by distance:"
+								+ $" 5m≈{GrappleHook.SpeedForDistance(5.6f):F0} · 20m≈{GrappleHook.SpeedForDistance(20.6f):F0}"
+								+ $" · 30m≈{GrappleHook.SpeedForDistance(30.6f):F0} m/s)"
+							: $"grapple: hook speed = {GrappleHook.Speed:F0} m/s (FIXED; auto timing OFF)"
+								+ "   ('custom.grapple hspeed auto' restores)";
+						break;
+					}
+					if (a0 == "auto")
+					{
+						// `hspeed auto [秒]` —— 可选手动指定"全程飞行时长"（调动画对齐用；不给 = 0.49）。
+						float t = ParseF(args, at + 1, -1f);
+						GrappleHook.FlightSeconds = t > 0f ? t : GrappleHook.DefaultFlightSeconds;
+						result = $"grapple: hook flight time = {GrappleHook.FlightSeconds:F2}s (AUTO speed by distance)";
+						break;
+					}
 					float v = ParseF(args, at + 0, -1f);
-					if (v <= 0f) { result = "Error: hspeed needs m/s > 0 (e.g. custom.grapple hspeed 35)"; break; }
+					if (v <= 0f) { result = "Error: hspeed needs m/s > 0 or 'auto' (e.g. custom.grapple hspeed 42 | custom.grapple hspeed auto)"; break; }
 					GrappleHook.Speed = v;
-					result = $"grapple: hook speed = {v:F1} m/s";
+					GrappleHook.FlightSeconds = 0f;      // 固定速度 = 关掉"按距离调速"
+					result = $"grapple: hook speed = {v:F1} m/s (FIXED; auto timing OFF - 'custom.grapple hspeed auto' restores)";
 					break;
 				}
 
@@ -642,7 +666,10 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					string a0 = ArgAt(args, at + 0);
 					if (string.IsNullOrEmpty(a0))
 					{
-						result = $"grapple: return speed = {GrappleHook.ReturnSpeed:F0} m/s (flight {GrappleHook.Speed:F0})"
+						result = $"grapple: return speed = {GrappleHook.ReturnSpeed:F0} m/s (flight "
+							+ (GrappleHook.FlightSeconds > 0f
+								? $"auto {GrappleHook.FlightSeconds:F2}s: 20m≈{GrappleHook.SpeedForDistance(20.6f):F0} m/s)"
+								: $"fixed {GrappleHook.Speed:F0} m/s)")
 							+ $" | arrive distance = {GrappleLogic.ReturnArriveDistance:F2} m"
 							+ "   (usage: custom.grapple retspeed <m/s> [arriveMeters])";
 						break;
@@ -1007,10 +1034,12 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 						// 首参可弃：给了别的东西（或干脆没给）= 只回状态，不报错
 						result = $"grapple: ceiling (lid) check = {(GrappleLanding.LidCheck ? "ON" : "OFF")}"
 							+ $", clearance = {GrappleLanding.LidClearance:F2}m"
-							+ " -- usage: custom.grapple lid 0|1 [clearance]"
+							+ $", open-sky pass = {GrappleLanding.LidTopSkyClearance:F1}m"
+							+ " -- usage: custom.grapple lid 0|1 [clearance] | custom.grapple lidsky <m>"
 							+ " (lid = whatever sits right above the HOOK point - a ceiling you hooked from below, an eave over a"
-							+ " wall... A landing above the lid is rejected; with no platform the pull is clamped under it ->"
-							+ " you get yanked up and drop back. OFF = old behaviour, e.g. onto the roof)";
+							+ " wall... A landing above the lid is rejected UNLESS the spot is open to the sky (lidsky), in which"
+							+ " case you can climb onto it; with no platform the pull is clamped under it -> you get yanked up and"
+							+ " drop back. OFF = old behaviour, e.g. onto the roof)";
 						break;
 					}
 					GrappleLanding.LidCheck = on > 0.5f;
@@ -1021,6 +1050,25 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					}
 					result = $"grapple: ceiling (lid) check = {(GrappleLanding.LidCheck ? "ON" : "OFF")}"
 						+ $", clearance = {GrappleLanding.LidClearance:F2}m";
+					break;
+				}
+
+				// 🔴 **盖板上方候选的"露天放行"距离**（2026-10-23 加；判据见 GrappleLanding.LidTopSkyClearance）：
+				//    室外墙头/檐口/桥面 ⇒ 头顶是天空 ⇒ 允许落上去（"勾墙要能爬上去"）；
+				//    室内上层楼板 ⇒ 头顶还有天花板 ⇒ 照旧作废。设 0 = 关掉放行（回到旧口径，对照用）。
+				case "lidsky":
+				{
+					float v = ParseF(args, at + 0, -1f);
+					if (v < 0f)
+					{
+						result = $"grapple: lid open-sky pass = {GrappleLanding.LidTopSkyClearance:F1}m"
+							+ "   (usage: custom.grapple lidsky <m>; 0 = disable the pass)";
+						break;
+					}
+					GrappleLanding.LidTopSkyClearance = v;
+					result = v > 0f
+						? $"grapple: lid open-sky pass = {v:F1}m (a landing above the lid is allowed only if BOTH the spot and YOU have open sky overhead; you = {GrappleLanding.PlayerOpenClearance:F0}m)"
+						: "grapple: lid open-sky pass DISABLED (any landing above the lid is rejected - old behaviour)";
 					break;
 				}
 

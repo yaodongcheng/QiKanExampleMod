@@ -173,10 +173,12 @@ namespace LivingWorldNpcs
 		///    在 25 米外绑上一个人（`bind test` 的调试路径能到 30 米）时，若把锁定量压成 18，
 		///    那"超出量"一上来就是 7 米 ⇒ **人会当场被 12 m/s 拽飞**（玩家啥都没干）。
 		///    所以：锁定量按**真实距离**算（只受 <see cref="LeashMinLength"/> 托底），
-		///    上限只管"绳子画多长"（超了就绷成一条直线，链节被拉稀 —— 只在调试路径上见得到，
-		///    正常钩索射程 ≤20 米，锁定量本来就在这之下）。
+		///    上限只管"绳子画多长"（超了就绷成一条直线，链节被拉稀）。
+		/// 🔴 2026-10-23 **18 → 30**：瞄准射程抬到 30 米后，钩可能勾住 20~30 米外的人 ——
+		///    上限还留 18 的话那根绳会被画短、链节拉稀（纯视觉，绷紧判据不受影响）。
+		///    绳的实体池同轮抬到 33 米（`GrappleRope.MaxLength`），画 30 米放得下。
 		/// </summary>
-		public static float LeashMaxLength = 18.0f;
+		public static float LeashMaxLength = 30.0f;
 
 		/// <summary>拽人的**前馈**：速度里"直接跟上绳主"那一份（1 = 完全跟上，不掉队）。</summary>
 		public static float LeashFeedForward = 1.0f;

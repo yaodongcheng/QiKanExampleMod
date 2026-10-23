@@ -239,8 +239,17 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public static bool MountedSelfBlow = true;
 
-		/// <summary>瞄准射线的最大长度（米）。UE 参考工程是 12 米；骑砍地图更大，默认 20（命令 `range` 可调）。</summary>
-		public static float AimRange = 20f;
+		/// <summary>瞄准射线的最大长度（米）。UE 参考工程是 12 米；骑砍地图更大。
+		/// 🔴 2026-10-23 用户裁定 **20 → 30**（"天上的城墙"够不着：20 米外相机/手射线全打空，
+		///    钩只能沿视线飞满 20 米回收）。跟着一起抬的还有 <see cref="GrappleRope.MaxLength"/>（33）
+		///    与链节实体池上限 —— 只改这一个数字 = 绳子跟不上钩头（见那两处的注释）。
+		/// 命令 `range` 可调。</summary>
+		public static float AimRange = 30f;
+
+		/// <summary>**勾住人之后"绳被拉断"的距离**（米；玩家走出这么远 = 放人，见 `OnMissionTick` 出口③）。
+		/// 🔴 2026-10-23 与绳的可视上限**解耦**：射程从 20 抬到 30 会带着 `GrappleRope.MaxLength` 一起抬，
+		///    但"能拖多远"是玩法参数 —— 跟着射程变 = 绑人 leash 悄悄从 24 米变成 33 米（不是这次要改的）。</summary>
+		public static float BindRopeSnapLength = 24f;
 
 		/// <summary>瞄准射线找人时的粗细（米）。</summary>
 		public static float AimAgentRadius = 0.3f;
@@ -1062,40 +1071,34 @@ namespace LivingWorldNpcs
 			}
 			else if (!TryAim(out hand, out aim, out aimAgent, out why, out aimNormal))
 			{
-				// 相机准星打空 → 退回"这一枪自己的弹道"（见 ThrowFromShot 注释）
-				if (!hasShot || !TryAimAlongShot(mission, shotOrigin, shotDirection, out hand, out aim, out aimAgent))
+				// 🔴🔴 **2026-10-23 修：相机射线打空时，方向仍以相机视线为准**（见 <see cref="TryAimAlongLook"/>）。
+				//    旧链路在这里**先退到"这一枪的弹道"**，而引擎给的箭道实测是**水平的**
+				//    （实机日志 23:24:04：相机方向 z=+0.90，箭道方向 z≈0）⇒ 那条平射只要在 20 米内蹭到脚下的坡，
+				//    钩头就平着飞出去（实机症状："瞄天上的城墙，钩锁往前飞"）。
+				//    现在的顺序 = ① 相机原点射线（<see cref="TryAim"/>）② **手起、沿相机视线**的射线（本节）
+				//    ③ 相机拿不到方向时，才轮到这个弹道兜底。
+				if (!TryAimAlongLook(mission, out hand, out aim, out aimAgent, out aimNormal))
 				{
-					// 🔴🔴 **2026-10-08 用户裁定：没目标也必须能打** ——
-					//    "朝着天射绳索的时候绳索射不出来…这是不应该的，绳索应该正常打，
-					//      只不过没目标的话会随着 recover 飞回手里继续圆周。"
-					//    ⇒ 打空（朝天/开阔地）时**不再拒发**：按"朝视线方向打满射程"合成一个瞄准点，
-					//      钩头飞满射程 → 命中检查一无所获 → `Missed` → 状态机走"打空亮相 → recover"，
-					//      钩随即回到手里继续绕圈 ✓（以前这里是 `return Error` = 干脆不出钩 ✗）。
-					// 🔴🔴 **方向口径（2026-10-08 实机抓出来的坑）**：**以相机视线为准**，弹道方向只当兜底。
-					//    起因：我原来优先用引擎给的 `shotDirection`，而实机日志显示那个方向是**水平的** ——
-					//    玩家准星明明看着天（相机方向 z=+0.60），合成的瞄准点却和手同高 ⇒ 钩**平着飞** ✗。
-					//    这也符合既有口径：瞄准一律"以玩家看到的『指哪』为准"，弹道只是相机打空后的退路。
-					Vec3 dirFallback;
-					if (CameraLook.TryGet(out dirFallback) && dirFallback.LengthSquared > 1e-6f)
+					if (hasShot && TryAimAlongShot(mission, shotOrigin, shotDirection, out hand, out aim, out aimAgent))
 					{
-						dirFallback = dirFallback.NormalizedCopy();
+						aimNormal = Vec3.Up;
 					}
 					else if (hasShot && shotDirection.LengthSquared > 1e-6f)
 					{
-						dirFallback = shotDirection.NormalizedCopy();
+						// 🔴 相机方向确实拿不到（不在任务屏 / 接管中没人注册）—— 用这一枪的弹道方向打满射程。
+						//    （**没目标也必须能打**：2026-10-08 用户裁定，飞满后打空回收、钩回手里继续转。）
+						hand = GetHand();
+						aim = hand + shotDirection.NormalizedCopy() * AimRange;
+						aimAgent = false;
+						aimNormal = Vec3.Up;
+						DebugLogger.Log($"[Grapple] 瞄准失败（{why}）且无相机方向 → 按弹道方向打满 {AimRange:F0}m"
+							+ "（飞满后打空回收，钩回手里继续转）");
 					}
 					else
 					{
 						DebugLogger.Log($"[Grapple] 瞄准失败且拿不到方向（相机：{why}）");
 						return "Error: " + why;
 					}
-
-					hand = GetHand();
-					aim = hand + dirFallback * AimRange;
-					aimAgent = false;
-					DebugLogger.Log($"[Grapple] 瞄准打空（{why}）→ 按「朝视线打满 {AimRange:F0}m」发射"
-						+ $" 方向=({dirFallback.x:F2},{dirFallback.y:F2},{dirFallback.z:F2})"
-						+ $"（飞满后打空回收，钩回手里继续转）");
 				}
 			}
 
@@ -1161,6 +1164,8 @@ namespace LivingWorldNpcs
 			_attachTimer = 0f;
 			DebugLogger.Log($"[Grapple] 发射：起点={Fmt(launchFrom)}{(_hook.IsParked ? "(= 圆周上那枚此刻的位置)" : "(手)")}"
 				+ $" 手={Fmt(hand)} 瞄准={Fmt(aim)} 瞄准面法线={Fmt(aimNormal)} 距离={dist:F1}m 目标={(aimAgent ? "人" : "地形")}"
+				+ $" 速度={GrappleHook.SpeedForDistance(dist + 0.6f):F0}m/s"
+				+ (GrappleHook.FlightSeconds > 0f ? $"（自动：全程 {GrappleHook.FlightTimeFor(dist + 0.6f):F2}s）" : "（固定速度）")
 				+ $" | 起手={_launchSource}({(autoPull ? "命中后自动拉" : "命中即停")}) 空中起钩={_attachFromAir}");
 
 			// 🔊 抛出瞬间的甩绳声（2026-10-10）—— **整条钩索流程只响这一下**
@@ -1173,7 +1178,9 @@ namespace LivingWorldNpcs
 			// ── 姿态动画：开火（2026-10-04 二稿）──
 			//    前半段（ready/hold/release）归**武器 usage**，引擎自己在松手那一拍播 release；
 			//    本机只在 release 演完（+ReleaseSeconds）那一刻接管"过程"。这里只记计时 + 重置上下文。
-			_flightSeconds = (dist + 0.6f) / MathF.Max(1f, GrappleHook.Speed);   // 蓄势用它（见 TickHook）
+			// 🔴 2026-10-23：与钩头实际调速**同源**（自动模式 = 距离 ÷ FlightSeconds，夹取后反算）。
+			//    自己拿 `Speed` 除会在自动模式里算错（远距离亏蓄势 / 近距离多等）。
+			_flightSeconds = GrappleHook.FlightTimeFor(dist + 0.6f);   // 蓄势用它（见 TickHook）
 			_animPendingPullTimer = ReleaseSeconds;
 			_animPullHeld = false;              // 新的一钩：清掉上一钩"骑马等马"压住过程姿态的标志
 			_mountedBlowFired = false;          // 同上：新的一钩可以再打一发"催下马 blow"
@@ -1205,7 +1212,12 @@ namespace LivingWorldNpcs
 			Vec3 aimNormal;
 			if (!TryAim(out hand, out aim, out aimAgent, out why, out aimNormal))
 			{
-				return "Error: " + why;
+				// 🔴 与真发射**同一条兜底链**（2026-10-23）：相机射线打空 ⇒ 改「手起、沿相机视线」再打一条；
+				//    否则 probe 会在"瞄天上的城墙"时报 `nothing within 20m`，与实际开火行为对不上（调参就失灵了）。
+				if (!TryAimAlongLook(mission, out hand, out aim, out aimAgent, out aimNormal))
+				{
+					return "Error: " + why;
+				}
 			}
 
 			if (aimAgent)
@@ -1620,6 +1632,93 @@ namespace LivingWorldNpcs
 		}
 
 		/// <summary>
+		/// **相机射线打空后的兜底瞄准（2026-10-23 加）**：**方向照旧取相机视线**，只把射线起点从相机换成手。
+		///
+		/// 🔴 为什么要有它（实机日志 23:23:31 / 23:23:59 / 23:24:04）：玩家朝**天上的城墙**射，
+		///    相机射线因为目标超出 <see cref="AimRange"/> 而打空 ⇒ 旧链路退到"这一枪的弹道"
+		///    （<see cref="TryAimAlongShot"/>），而引擎给的箭道方向**是水平的**（相机方向 z=+0.90，箭道 z≈0）⇒
+		///    那条平射在 4~7 米外蹭到脚下坡地，钩头就**平着往前飞**，与玩家看到的"指哪"完全对不上。
+		///    ⇒ 顺序反过来：**相机方向永远优先**，弹道只在"相机方向也拿不到"时才用。
+		///
+		/// 起点换到手还顺带覆盖了另一类打空：**相机泡在几何体里**时，射线从实体内部出发没有入射面
+		/// （2026-10-03 实机那条）—— 手的起点在几何体外，同一条视线就能打中。
+		///
+		/// 返回 false = 这一帧拿不到相机方向（不在任务屏 / 接管中没人注册）。
+		/// 返回 true 时**一定有**可用的 <paramref name="aim"/>（打空 = 沿视线打满 <see cref="AimRange"/>）。
+		/// </summary>
+		private bool TryAimAlongLook(Mission mission, out Vec3 hand, out Vec3 aim, out bool hitAgent, out Vec3 normal)
+		{
+			hand = GetHand();
+			aim = hand;
+			hitAgent = false;
+			normal = Vec3.Up;
+			if (mission?.Scene == null)
+			{
+				return false;
+			}
+			Vec3 forward;
+			if (!CameraLook.TryGet(out forward) || forward.LengthSquared < 1e-6f)
+			{
+				return false;
+			}
+			forward = forward.NormalizedCopy();
+			Vec3 end = hand + forward * AimRange;
+
+			// 骑马时把马排掉：马是**独立 agent**，`excludeAgentIndex` 只排得掉人 ⇒
+			// 不排的话射线一出膛就打在自己马脖子上（钩头飞 1 米就停）。
+			System.Collections.Generic.HashSet<int> skip = null;
+			try
+			{
+				Agent mount = Owner != null ? Owner.MountAgent : null;
+				if (mount != null)
+				{
+					skip = new System.Collections.Generic.HashSet<int> { mount.Index };
+				}
+			}
+			catch (Exception)
+			{
+			}
+			int exclude = -1;
+			try
+			{
+				exclude = Owner != null ? Owner.Index : (Agent.Main != null ? Agent.Main.Index : -1);
+			}
+			catch (Exception)
+			{
+			}
+
+			try
+			{
+				Agent victim;
+				Vec3 point;
+				Vec3 hitNormal;
+				if (SpellSweep.FindNearestHit(mission, hand, end, AimAgentRadius, exclude, null, skip, null,
+					out victim, out point, out hitNormal))
+				{
+					aim = point;
+					normal = hitNormal;
+					hitAgent = victim != null;
+					DebugLogger.Log(string.Format(
+						"[Grapple] 相机射线打空 → 改从手沿视线再打：命中 {0:F2}m · 目标={1} 命中点=({2:F2},{3:F2},{4:F2})",
+						(point - hand).Length, hitAgent ? "人" : "地形", point.x, point.y, point.z));
+					return true;
+				}
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.Log($"[Grapple] 沿视线兜底射线异常（按打满射程处理）：{ex.GetType().Name} {ex.Message}");
+			}
+
+			// 视线内什么都没有（朝天 / 开阔地）⇒ 打满射程：飞满 → 打空回收，钩回手里继续转。
+			aim = end;
+			hitAgent = false;
+			normal = Vec3.Up;
+			DebugLogger.Log($"[Grapple] 相机射线打空 → 沿视线 {AimRange:F0}m 内无遮挡，按打满射程发射"
+				+ $" 方向=({forward.x:F2},{forward.y:F2},{forward.z:F2})（飞满后打空回收，钩回手里继续转）");
+			return true;
+		}
+
+		/// <summary>
 		/// **弹道兜底瞄准**（武器开火路径专用）：从**这一枪的起点**（弓上）沿**引擎给的箭道方向**打射线。
 		/// 相机射线打空时用它 —— 起点在弓上、方向是引擎算的，不受"相机泡在几何体里"影响。
 		/// 返回 false = 这条也没打到（真的是朝天上放的）。
@@ -1672,12 +1771,17 @@ namespace LivingWorldNpcs
 			//    `否掉 N 个候选` = 那些"算在盖板上面"的落点被判死；
 			//    `压到盖板下面` = 没有可站的平台 ⇒ 兜底落点被压到盖板下方（表现 = 拉上去→再掉回地面），
 			//    而不是旧行为那样把脚直接放到天花板那一层（会穿出房顶）。
-			if (GrappleLanding.LidCheck && (_landing.Blocked > 0 || _landing.LidClamped))
+			if (GrappleLanding.LidCheck && (_landing.Blocked > 0 || _landing.LidPassed > 0 || _landing.LidClamped))
 			{
 				DebugLogger.Log($"[Grapple] 盖板 z={_landing.LidZ:F2}（钩点正上方那块）：否掉 {_landing.Blocked} 个候选"
+					+ (_landing.LidPassed > 0
+						? $"；**放行 {_landing.LidPassed} 个在盖板上面但头顶露天的**（室外墙头/檐口 → 可以爬上去）"
+						: "")
 					+ (_landing.LidClamped
 						? $"；兜底落点压到盖板下面 ({_landing.Endpoint.z:F2}) ⇒ 拉上去再掉回地面"
-						: "；落点仍在盖板下面，照常拉"));
+						: _landing.EndpointAboveLid
+							? $"；落点 = 盖板**上面**那块（z={_landing.Endpoint.z:F2}，头顶露天 ⇒ 放行）"
+							: "；落点仍在盖板下面，照常拉"));
 			}
 		}
 
@@ -2208,9 +2312,11 @@ namespace LivingWorldNpcs
 						return;
 					}
 					// 出口③：绳被拉断（玩家走出绳长上限）⇒ 放人（否则绳会无限拉长、目标被拖着走）。
+					// 🔴 判据用 <see cref="BindRopeSnapLength"/>（玩法参数，24 米）**不是** `_rope.MaxLength` ——
+					//    后者 2026-10-23 随射程抬到了 33 米（绳能画多长），跟着它走 = 绑人 leash 悄悄变长。
 					try
 					{
-						if ((GetRopeAnchor() - _bind.RopeEnd).Length > _rope.MaxLength)
+						if ((GetRopeAnchor() - _bind.RopeEnd).Length > BindRopeSnapLength)
 						{
 							Release("rope snapped（走出绳长上限）");
 							return;
