@@ -455,7 +455,7 @@ namespace LivingWorldNpcs
 					{
 						sbyte fore = v.GetRealBoneIndex(HumanBone.ForearmL);
 						sbyte hand = v.GetRealBoneIndex(HumanBone.HandL);
-						if (SpellCastInput.TryBoneToBoneAxis(player, fore, hand, 0.10f, 0.60f, out Vec3 ax, out _))
+						if (SpellCastInput.TryBoneToBoneAxis(player, fore, hand, 0.10f, 0.60f, out Vec3 ax, out _, out _))
 						{
 							RingAxisFromBones = true;
 							return ax;

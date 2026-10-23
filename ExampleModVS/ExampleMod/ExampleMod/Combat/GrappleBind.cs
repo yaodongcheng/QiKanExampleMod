@@ -262,6 +262,16 @@ namespace LivingWorldNpcs
 		private bool _leashPullingPrev;
 		private bool _leashDraggedPrev;
 
+		/// <summary>
+		/// **牵绳状态日志的节流**（2026-10-23 用户报"日志刷屏"）：
+		/// 拖行时"绷/松"本身**每 0.5 秒左右就翻一次**（行为正常 —— 拽回绳长以内就松、绳主再跑开又绷），
+		/// 以前每翻一次打两行（`拖在地上` + `松了`）⇒ 一分钟能刷两百行。
+		/// **规则**：形态变化（牵着走 ⇄ 拖在地上）**立刻打**；同一形态内反复翻按本冷却打（默认 5 秒一次）。
+		/// 想要原始逐次日志 = `custom.grapple bind leaselog 0`（0 = 关节流）。
+		/// </summary>
+		public static float LeashLogCooldownSeconds = 5f;
+		private float _leashLogCool;
+
 		/// <summary>拽人的诊断行间隔（秒；0 = 关）—— 每这么多秒打一行距离/速度（看"是不是真绷住了"）。</summary>
 		public static float LeashProbeSeconds = 0f;
 		private float _leashProbeTimer;
@@ -742,6 +752,7 @@ namespace LivingWorldNpcs
 			_leashPullingPrev = false;
 			_leashDraggedPrev = false;
 			_leashProbeTimer = 0f;
+			_leashLogCool = 0f;              // 新的一次绑：第一条牵绳日志照常打
 			_pullHold = 0f;
 			// 新的一绑 = 新的一台机（上下文全新：Released / Struggling 都得是 false）
 			_machine = null;
@@ -1693,6 +1704,11 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void TickLeash(float dt)
 		{
+			// 日志节流计时（见 LeashLogCooldownSeconds）—— 放在最前，早退路径也照常走表
+			if (_leashLogCool > 0f)
+			{
+				_leashLogCool = MathF.Max(0f, _leashLogCool - dt);
+			}
 			if (!LeashEnabled || _target == null || _attacker == null || !_leashHadAnchor || _carrier != null)
 			{
 				StopLeash("off / no anchor / being carried");
@@ -1803,14 +1819,21 @@ namespace LivingWorldNpcs
 
 			// 只在**读感那一档真的起来了**、且"开始拽 / 换形态"时各打一行 ——
 			// 🔴 第一档（收那几厘米）**不打日志**：它每几秒就动一次，打了就是刷屏（且会让人误以为在拖他走）。
+			// 🔴 **2026-10-23 加节流**（用户报刷屏）：拖行时绷/松每 0.5 秒左右翻一次（行为正常）——
+			//    **形态变化（牵着走 ⇄ 拖在地上）立刻打**，同一形态内反复翻按 `LeashLogCooldownSeconds` 节流。
 			if (_leashPulling && (!_leashPullingPrev || _leashDraggedPrev != dragged))
 			{
-				DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 距离 {span:F2} m / 绳长 {_leashLength:F2} m"
-					+ $" ⇒ 超出 {excess:F2} m > 容差 {LeashDeadzone:F2} m"
-					+ $"· 绳主速度 {leadSpeed:F1} m/s ⇒ 拽速 {speed:F1} m/s · 他自己的速度 {_followerSpeed:F1} m/s"
-					+ (dragged
-						? $"（绳主骑着马在动 ⇒ 拖在地上：趴缚循环）"
-						: $"（binded_walk 倍率 {_bindedWalkRate:F2} = 他自己的速度 {_followerSpeed:F2} ÷ 自然速率 {WalkNaturalSpeed:F2}）"));
+				bool formChanged = _leashPullingPrev && _leashDraggedPrev != dragged;
+				if (formChanged || _leashLogCool <= 0f)
+				{
+					DebugLogger.Log($"[Grapple] 牵绳：{(dragged ? "拖在地上" : "牵着走")} —— 距离 {span:F2} m / 绳长 {_leashLength:F2} m"
+						+ $" ⇒ 超出 {excess:F2} m > 容差 {LeashDeadzone:F2} m"
+						+ $"· 绳主速度 {leadSpeed:F1} m/s ⇒ 拽速 {speed:F1} m/s · 他自己的速度 {_followerSpeed:F1} m/s"
+						+ (dragged
+							? $"（绳主骑着马在动 ⇒ 拖在地上：趴缚循环）"
+							: $"（binded_walk 倍率 {_bindedWalkRate:F2} = 他自己的速度 {_followerSpeed:F2} ÷ 自然速率 {WalkNaturalSpeed:F2}）"));
+					_leashLogCool = LeashLogCooldownSeconds;
+				}
 			}
 			_leashPullingPrev = _leashPulling;
 			_leashDraggedPrev = dragged;
@@ -1833,8 +1856,13 @@ namespace LivingWorldNpcs
 		{
 			if (_leashPullingPrev)
 			{
-				DebugLogger.Log($"[Grapple] 牵绳：松了（{why}）—— 人停下"
-					+ (_leashDragged ? $"；拖着的那位按 laytime（{LaySeconds:F1}s）起身" : ""));
+				// 🔴 2026-10-23 节流：拖行时"松了"每 0.5 秒就来一次 ⇒ 按冷却打（0 = 关节流 = 每次都打）。
+				if (_leashLogCool <= 0f)
+				{
+					DebugLogger.Log($"[Grapple] 牵绳：松了（{why}）—— 人停下"
+						+ (_leashDragged ? $"；拖着的那位按 laytime（{LaySeconds:F1}s）起身" : ""));
+					_leashLogCool = LeashLogCooldownSeconds;
+				}
 			}
 			// 拖行结束 ⇒ 趴着的人重新开始"自动起身"倒计时（拖着的时候这个计时是清零的）
 			if (_leashDragged && _lying && _layTimer <= 0f && LaySeconds > 0f)
@@ -2079,6 +2107,7 @@ namespace LivingWorldNpcs
 			_leashSpeed = 0f;
 			_leashPullingPrev = false;
 			_leashDraggedPrev = false;
+			_leashLogCool = 0f;
 
 			if (_ctx != null)
 			{

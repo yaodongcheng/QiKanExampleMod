@@ -813,8 +813,12 @@ namespace LivingWorldNpcs
 			return MathF.Sqrt(dx * dx + dy * dy + dz * dz);
 		}
 
-		/// <summary>骨读数离身体中心的最大合理距离（米）。肩膀可以到 1.5 m 以上 ⇒ 读上臂骨时放宽到 2。</summary>
-		private const float ArmBoneMaxDist = 2.0f;
+		/// <summary>骨读数离身体中心的最大合理距离（米）—— 这道闸门**只防"坐标空间搞错"**（错空间 = 几百米），
+		/// 不该拿它卡正常姿势。🔴 **2026-10-23 从 2.0 抬到 3.0**（实机日志实锤）：
+		///   骑马时手骨离 `Agent.Position` 是 `local 2.0 / visuals 2.2`（站地上是 1.69），
+		///   卡在 2.0 门槛上 ⇒ **每次上马小臂轴与 `palm` 外移同时失效**，还在门槛上来回抖
+		///   （日志里成对的"⚠ 小臂读不到 / 小臂读数恢复"）。</summary>
+		private const float ArmBoneMaxDist = 3.0f;
 
 		/// <summary>
 		/// 读一条骨 → **世界坐标点**。**双解释**：原始值既当"世界坐标"量一次离身体的距离，
@@ -857,8 +861,19 @@ namespace LivingWorldNpcs
 					return false;
 				}
 				Vec3 asLocal = agent.Frame.TransformToParent(raw);
+				// 🔴 **第三种解释：角色视觉实体的全局帧**（2026-10-23 加；**引擎官方口径**）——
+				//    `GetBoneEntitialFrame` 给的是"**相对实体**"的帧，引擎自己取世界帧用的是
+				//    `agentVisuals.GetGlobalFrame().TransformToParent(boneEntitial)`（反编译 `Mission.cs:6187`；
+				//    本项目 `FlightBoneFx.cs:150` 也是这条）。
+				//    **骑乘时 `Agent.Frame` 与视觉实体帧不是同一个点** ⇒ 只用 `agent.Frame` 换算会偏出闸门
+				//    ⇒ 实机（2026-10-23 日志）：站地上 `len=0.268` 正常，**一上马就 `rejected`**，
+				//    钩的绕转轴被迫走兜底。
+				Vec3 asVisual = asLocal;
+				try { asVisual = v.GetGlobalFrame().TransformToParent(raw); }
+				catch (Exception) { }
 				float dw = Distance(raw, agent.Position);
 				float dl = Distance(asLocal, agent.Position);
+				float dv = Distance(asVisual, agent.Position);
 				if (HandSourceMode == HandSource.World)      // 手工锁定（诊断用）：不判距离、直接采信
 				{
 					world = raw;
@@ -871,17 +886,22 @@ namespace LivingWorldNpcs
 					how = $"local d={dl:F2} (locked)";
 					return true;
 				}
-				// 🔴 Auto：**两条都能用时取更近的那条**（以前是"世界优先"）—— 角色恰好站在世界原点附近时，
-				//    "世界"那条也会落进闸门；取更近的就不会把角色局部值误当世界值收下。
-				bool okWorld = dw <= maxDist, okLocal = dl <= maxDist;
-				if (okWorld || okLocal)
+				// 🔴 Auto：**三条都能用时取离身体最近的那条**（以前是"世界优先"，后来"世界/局部取近"）——
+				//    正常情况下三条里有两条是同一个点（站地上 `agent.Frame` ≈ 视觉实体帧），近的那条就是对的；
+				//    骑乘时只有视觉实体帧落进闸门 ⇒ 自动选中它。
+				Vec3 best = Vec3.Zero;
+				float bestD = float.MaxValue;
+				string bestTag = "-";
+				if (dw <= maxDist && dw < bestD) { bestD = dw; best = raw; bestTag = "world"; }
+				if (dl <= maxDist && dl < bestD) { bestD = dl; best = asLocal; bestTag = "local(agent.Frame)"; }
+				if (dv <= maxDist && dv < bestD) { bestD = dv; best = asVisual; bestTag = "visuals"; }
+				if (bestTag != "-")
 				{
-					bool useWorld = okWorld && (!okLocal || dw <= dl);
-					world = useWorld ? raw : asLocal;
-					how = useWorld ? $"world d={dw:F2}" : $"local d={dl:F2}";
+					world = best;
+					how = $"{bestTag} d={bestD:F2}";
 					return true;
 				}
-				how = $"both far (world {dw:F1} local {dl:F1})";
+				how = $"all far (world {dw:F1} local {dl:F1} visuals {dv:F1})";
 				return false;
 			}
 			catch (Exception)
@@ -928,37 +948,45 @@ namespace LivingWorldNpcs
 			}
 		}
 
-		/// <summary>两条骨 → 方向（世界单位向量）。闸门 = 两点距离落在 [minLen, maxLen]（量级不对 = 读数不可信）。</summary>
+		/// <summary>两条骨 → 方向（世界单位向量）。闸门 = 两点距离落在 [minLen, maxLen]（量级不对 = 读数不可信）。
+		/// <paramref name="detail"/> = 失败原因（诊断：把闸门里量到的原始数带出来，别只说 "rejected"）。</summary>
 		public static bool TryBoneToBoneAxis(Agent agent, sbyte fromBone, sbyte toBone,
-			float minLen, float maxLen, out Vec3 axis, out float len)
+			float minLen, float maxLen, out Vec3 axis, out float len, out string detail)
 		{
 			axis = Vec3.Zero;
 			len = 0f;
+			detail = "-";
 			try
 			{
 				if (fromBone < 0 || toBone < 0 || fromBone == toBone)
 				{
+					detail = $"bone index bad (from={fromBone} to={toBone})";
 					return false;
 				}
-				if (!TryReadBoneWorld(agent, toBone, ArmBoneMaxDist, out Vec3 toW, out _))
+				if (!TryReadBoneWorld(agent, toBone, ArmBoneMaxDist, out Vec3 toW, out string howTo))
 				{
+					detail = $"to-bone read failed: {howTo}";
 					return false;
 				}
-				if (!TryReadBoneWorld(agent, fromBone, ArmBoneMaxDist, out Vec3 fromW, out _))
+				if (!TryReadBoneWorld(agent, fromBone, ArmBoneMaxDist, out Vec3 fromW, out string howFrom))
 				{
+					detail = $"from-bone read failed: {howFrom}";
 					return false;
 				}
 				Vec3 d = toW - fromW;
 				len = d.Length;
 				if (len < minLen || len > maxLen)
 				{
+					detail = $"len={len:F3} outside [{minLen:F2},{maxLen:F2}] (to {howTo} / from {howFrom})";
 					return false;
 				}
 				axis = d * (1f / len);
+				detail = $"ok len={len:F3} (to {howTo} / from {howFrom})";
 				return true;
 			}
 			catch (Exception)
 			{
+				detail = "exception";
 				return false;
 			}
 		}
@@ -980,12 +1008,12 @@ namespace LivingWorldNpcs
 				}
 				sbyte handBone = agent.Monster.MainHandBoneIndex;
 				sbyte armBone = agent.Monster.RightUpperArmBoneIndex;
-				if (TryBoneToBoneAxis(agent, armBone, handBone, 0.15f, 0.95f, out axis, out float len))
+				if (TryBoneToBoneAxis(agent, armBone, handBone, 0.15f, 0.95f, out axis, out float len, out string detail))
 				{
 					LastArmBones = $"UpperarmR={armBone} HandR={handBone} len={len:F3}";
 					return true;
 				}
-				LastArmBones = $"UpperarmR={armBone} HandR={handBone} rejected";
+				LastArmBones = $"UpperarmR={armBone} HandR={handBone} rejected: {detail}";
 				return false;
 			}
 			catch (Exception)
@@ -1035,12 +1063,12 @@ namespace LivingWorldNpcs
 				{
 				}
 
-				if (TryBoneToBoneAxis(agent, fore, hand, 0.10f, 0.60f, out axis, out float len))
+				if (TryBoneToBoneAxis(agent, fore, hand, 0.10f, 0.60f, out axis, out float len, out string detail))
 				{
 					LastArmBones = $"{names} (ForearmR={fore} HandR={hand}) len={len:F3}";
 					return true;
 				}
-				LastArmBones = $"{names} (ForearmR={fore} HandR={hand}) rejected";
+				LastArmBones = $"{names} (ForearmR={fore} HandR={hand}) rejected: {detail}";
 				return false;
 			}
 			catch (Exception)

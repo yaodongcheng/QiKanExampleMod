@@ -223,6 +223,20 @@ namespace LivingWorldNpcs
 		/// 判据见 <see cref="IsAimingGrapple"/>（= 我们的 ready / hold 正在播，**不是**"拿着钩索"就算）。</summary>
 		public static float HandHookRpmAim = 270f;
 
+		/// <summary>
+		/// **骑马待机档**转速（转/分）—— 骑在马上、**没在瞄准**时手里那枚钩转多快。
+		/// 🔴 **默认 0 = 不转**（2026-10-23 用户裁定）：
+		///    · 站地上维持原样（仍然用 <see cref="HandHookRpmIdle"/> 135）；
+		///    · 骑马时手臂姿势与站地上完全不同（小臂方向变了）⇒ 钩绕那个平面转观感不对 ⇒ **停住**；
+		///    · **瞄准时照旧转**（<see cref="HandHookRpmAim"/> 270），两个状态都要有"甩起来"的读感。
+		/// 判据 = `Agent.HasMount` 且 `!IsAimingGrapple`（见 <see cref="TickHandHook"/>）。
+		/// 现场调：`custom.grapple spin mounted &lt;rpm&gt;`（0 = 停 · 135 = 跟站地上一样 · 负值 = 反向）。
+		/// </summary>
+		public static float HandHookRpmMountedIdle = 0f;
+
+		/// <summary>此刻玩家骑着马吗（上一帧 <see cref="TickHandHook"/> 读到的值；命令回显用）。</summary>
+		public static bool HandHookMountedNow;
+
 		/// <summary>此刻生效的转速（转/分）—— 上一帧 <see cref="TickHandHook"/> 用的那个值（给命令回执看的）。</summary>
 		public static float HandHookRpmNow = 135f;
 
@@ -246,9 +260,15 @@ namespace LivingWorldNpcs
 		/// ⚠️ 真"小臂骨方向"要读 `Monster.RightUpperArmBoneIndex`（本项目**从没读过这条**，且有
 		///    裸读左手骨当场 AccessViolation 的前科）—— 先不碰；竖直轴在手垂下时就是小臂方向。
 		/// </summary>
-		/// 🔴 **默认值已改为 4（小臂轴）**（2026-10-07 晚用户裁定："别让我多打一个指令了"）——
-		///    上面 · 里写的"0（默认）"作废，0/1/2/3 现在都只是备选对照档。
+		/// 🔴 **默认值 = 4（小臂轴）**（2026-10-07 晚用户裁定，2026-10-23 复核保留）：
+		///    **小臂读得到就永远用小臂**（读法见 <see cref="SpellCastInput.TryGetForearmAxis"/>）；
+		///    **只有读不到时**才退回"体侧前后甩"（见 <see cref="HandHookAxisDir"/> —— 旧兜底是世界竖直，
+		///    轴从朝下变朝上会让转向整个翻过来，2026-10-23 改掉）。
+		///    上面 · 里写的"0（默认）"作废，0/1/2/3 都只是备选对照档（`custom.grapple armaxis <n>` 现场切）。
 		public static int HandHookAxis = 4;
+
+		/// <summary>「小臂读不到 ⇒ 已退回前后甩」的状态（只在**翻转那一刻**打一行日志，不刷屏）。</summary>
+		private static bool _armAxisFallbackOn;
 
 		/// <summary>
 		/// **手部挂点沿小臂外移**（米，`custom.grapple palm &lt;米&gt;`；默认 **0.08**）——
@@ -800,6 +820,9 @@ namespace LivingWorldNpcs
 			_aimPoint = aim;
 			_aimHitAgent = aimAgent;
 			_landingNote = "-";
+			// 🔴 新的一钩：**把上一钩的落点结果清掉**（2026-10-23）—— 打空那一钩从不跑 ResolveLanding，
+			//    留着上一钩的 `Found=true` 会让状态机以为"有平台"而演「过程 → 落地」。
+			_landing = default(GrappleLanding.Result);
 			// 这一钩的两个属性：从空中起的吗（决定蓄势/拉升时长）、要不要自动拉（武器开火 = 要）
 			_attachFromAir = Agent.Main != null && !Agent.Main.IsOnLand();
 			_attachAutoPull = autoPull;
@@ -981,7 +1004,10 @@ namespace LivingWorldNpcs
 					// 🔴 整条"过程"段（pull）是**拉自己**的姿势（人被绳拽着走）——命中**人**的那一钩
 					//    套到"拉别人"身上是错的（方案 §13.6）⇒ 这一钩跳过 Force，玩家自然回 idle。
 					//    判据用相位（Binding = 真的在捆人）；命中马/儿童被拒的照旧走老路（钩挂在人身上）。
-					if (_hookPhase != HookPhase.Binding)
+					// 🔴 **已放弃的钩也不进**（2026-10-23 加）：打空 / 钩到捆不了的目标时
+					//    <see cref="CancelPullAnim"/> 会打 `Cancelled` 标志 —— 这一钩根本不会拉人，
+					//    再进"过程"就是"人站着被绳拽一遍"（实机：钩空了却演完整套 pull→落地）。
+					if (_hookPhase != HookPhase.Binding && !(_animCtx != null && _animCtx.Cancelled))
 					{
 						// 🔴 2026-10-17（口径 A「落地即飞」）：骑马勾到地形时，此刻人还在马上 ⇒
 						//    **压住不进过程段**（下马动作正占着 0 号通道；真正起飞还要等马下来）。
@@ -1000,7 +1026,12 @@ namespace LivingWorldNpcs
 
 			// 喂事实（填完才 Tick）：段剩余 = 当前状态的剩余（所以 landing-due 拿到的就是"过程段"的）
 			_animCtx.AnimRemainFrac = _anim.CurrentRemainFrac;
-			_animCtx.LandingFound = _landing.Found;
+			// 🔴🔴 **"有落点平台"只在"钩真的钉在地形上 / 正在被拉过去"时才算数**（2026-10-23 实机修）：
+			//    `_landing` 是**上一钩**留下的字段 —— 打空那一钩**从没跑过** <see cref="ResolveLanding"/>，
+			//    这里照抄 `_landing.Found` 就等于把上一钩的"有平台"带进来 ⇒ 状态机走 `landing-due`
+			//    ⇒ 人站着把「过程 → 落地」整套演一遍（用户报的现象："钩空了，角色没飞，却播了 pull 到落地"）。
+			_animCtx.LandingFound = (_hookPhase == HookPhase.Attached || _hookPhase == HookPhase.Pulling)
+				&& _landing.Found;
 
 			_anim.Tick(Agent.Main, dt);
 
@@ -1060,6 +1091,27 @@ namespace LivingWorldNpcs
 			{
 				return false;
 			}
+		}
+
+		/// <summary>
+		/// 🔴 **这一钩不会拉人了**（打空 / 钩到捆不了的目标）—— 姿态立刻作废，别把"被绳拽走"演一遍：
+		/// ① **还没进"过程"** ⇒ 把待进计时清零，干脆不进（正常打空就是这一条：漏的时刻 = 开火后 0.566 s）；
+		/// ② **已经在"过程"里**（远距离飞满才判打空）⇒ 打 `Cancelled` 标志，`recover-due` 边会把它切到 **收手**
+		///    （= XML 里写的"打空/中止的标准出口"）。
+		/// 不做的后果（2026-10-23 实机）：人站着把「过程 → 落地」整套播完，而钩其实一直在往回飞 —— 角色没被拉，
+		/// 动作却像被拽了一趟。（"落地"那一支还有第二个帮凶，见 <see cref="TickAnim"/> 里 `LandingFound` 的注释。）
+		/// </summary>
+		private void CancelPullAnim(string why)
+		{
+			bool wasPending = _animPendingPullTimer > 0f;
+			_animPendingPullTimer = 0f;
+			_animPullHeld = false;
+			if (_animCtx != null)
+			{
+				_animCtx.Cancelled = true;
+			}
+			DebugLogger.Log($"[Grapple] 姿态：这一钩不拉了（{why}）⇒ "
+				+ (wasPending ? "还没进「过程」，不再进" : "已在「过程」，走 recover 边切「收手」"));
 		}
 
 		/// <summary>
@@ -1520,6 +1572,8 @@ namespace LivingWorldNpcs
 						//    现在走"打空"同一条返程（看得见地飞回来），零提示（技术日志照留）。
 						//    典型 = 儿童（child immune）/ 坐骑 / 骑在马上的人（下拉关闭时）/ 失效目标。
 						DebugLogger.Log($"[Grapple] 钩到无法捆的目标（{why}）⇒ 直接收钩返程");
+						// 同上：这一钩不会拉人 ⇒ 姿态作废（别演"被绳拽走"）
+						CancelPullAnim("钩到捆不了的目标");
 						if (_hook.StartReturn())
 						{
 							_hookPhase = HookPhase.Returning;
@@ -1536,6 +1590,8 @@ namespace LivingWorldNpcs
 					if (_hook.StartReturn())
 					{
 						_hookPhase = HookPhase.Returning;
+						// 🔴 打空 = 这一钩**不会拉人** ⇒ 姿态立刻作废（否则人站着把 过程→落地 演一遍）
+						CancelPullAnim("打空");
 						DebugLogger.Log("[Grapple] 打空 → 开始返程（追着手飞回，绳同步收短；到 ArriveDistance 内交回手里）");
 					}
 					else
@@ -2603,7 +2659,8 @@ namespace LivingWorldNpcs
 		/// <summary>
 		/// 钩索拿在手上时每帧：钩头实体停在**右手**上、绕着手指定的圈转，绳走"手 → 钩（尾环）"那条。
 		/// 判据 = **此刻握着的是钩索本体**（`Agent.WieldedWeapon`）—— 换武器 / 收起来就收掉钩与绳。
-		/// 参数：<see cref="HandHookRpmIdle"/> / <see cref="HandHookRpmAim"/>（两档转速，判据 <see cref="IsAimingGrapple"/>）·
+		/// 参数：<see cref="HandHookRpmIdle"/> / <see cref="HandHookRpmAim"/> / <see cref="HandHookRpmMountedIdle"/>
+		/// （三档转速：站地待机 / 瞄准 / **骑马待机**，判据 <see cref="IsAimingGrapple"/> 与 `Agent.HasMount`）·
 		/// <see cref="HandHookRadius"/> · <see cref="HandHookEnabled"/>。
 		/// 🔴 绳**只在进入时 Show 一次**（Show 会把点链拉直成一条线）；之后每帧只 Tick —— 让它自己甩。
 		/// 🔴 **诊断阶梯**（<see cref="HandProbeStage"/>）：档 1~3 由 <see cref="TickHandProbe"/> 独占；
@@ -2690,7 +2747,13 @@ namespace LivingWorldNpcs
 			// 🔴 **两档转速**（用户 2026-10-08 定：待机 135 / 瞄准蓄力 270）—— 瞄准判据见 IsAimingGrapple。
 			//    角度是**连续累加**的 ⇒ 切档只改"转多快"，不会跳一下（相位不重置）。
 			bool aiming = IsAimingGrapple(player);
-			float rpm = aiming ? HandHookRpmAim : HandHookRpmIdle;
+			// 🔴 **骑马待机不转**（2026-10-23 用户裁定，见 HandHookRpmMountedIdle）：
+			//    骑马时**没瞄准**用"骑马待机档"（默认 0 = 停住），站地上仍用 135；
+			//    瞄准两档都照旧 270。停住 = 角度不再累加 ⇒ 钩停在圆周上这一刻的位置，瞄准时从这一刻接着转（不跳）。
+			bool mounted = false;
+			try { mounted = player.HasMount; } catch (Exception) { }
+			HandHookMountedNow = mounted;
+			float rpm = aiming ? HandHookRpmAim : (mounted ? HandHookRpmMountedIdle : HandHookRpmIdle);
 			HandHookAimingNow = aiming;
 			HandHookRpmNow = rpm;
 			_handHookAngle += dt * rpm / 60f * 6.2831855f;
@@ -3126,6 +3189,24 @@ namespace LivingWorldNpcs
 			a.UpdateAgentStats();
 		}
 
+		/// <summary>
+		/// **体侧前后甩的轴** = 角色的**右方向**（水平、单位长，= `fwd × Up`，与 `BasisWithLocalZ` 同款手性）。
+		/// 圆 ⊥ 它 ⇒ 圆落在**竖直面**里、在体侧前后甩。
+		/// 只在"面朝哪"上依赖角色（`LookDirection`，竖直分量被叉乘自然消掉）；**完全不读骨骼** ⇒ 站地上/骑马一致。
+		/// 用途 = ① `armaxis 1` 档 ② 小臂读不到时的兜底（2026-10-23 起，取代原来的"世界竖直"）。
+		/// ⚠️ 它和"小臂垂下时的轴"（近似 -Up）是**两根不同的线**：不会出现"圆看着一样、转向反了"的错觉。
+		/// </summary>
+		private static Vec3 SideAxis(Agent player)
+		{
+			Vec3 fwd = player.LookDirection;
+			if (fwd.LengthSquared < 1e-6f)
+			{
+				fwd = Vec3.Forward;
+			}
+			Vec3 r = Vec3.CrossProduct(fwd.NormalizedCopy(), Vec3.Up);
+			return r.LengthSquared < 1e-6f ? Vec3.Forward : r.NormalizedCopy();
+		}
+
 		/// <summary>绕转轴（世界坐标、单位向量），见 <see cref="HandHookAxis"/>。
 		/// 三种都只用**已验证过的读法**（`LookDirection` / 世界轴），不碰新骨骼（避免再撞 AV）。</summary>
 		private static Vec3 HandHookAxisDir(Agent player)
@@ -3140,11 +3221,7 @@ namespace LivingWorldNpcs
 			switch (HandHookAxis)
 			{
 				case 1:
-				{
-					// 体侧前后甩：轴 = 角色右方向（= f × u，与 BasisWithLocalZ 同款约定）
-					Vec3 r = Vec3.CrossProduct(fwd, Vec3.Up);
-					return r.LengthSquared < 1e-6f ? Vec3.Forward : r.NormalizedCopy();
-				}
+					return SideAxis(player);         // 体侧前后甩：轴 = 角色右方向 ⇒ 圆在竖直面里
 				case 2:
 					return fwd;                      // 左右横扫：轴 = 朝向 ⇒ 圆在正面（左右）面里
 				case 3:
@@ -3154,18 +3231,34 @@ namespace LivingWorldNpcs
 					{
 						return armAxis;
 					}
-					return Vec3.Up;
+					return SideAxis(player);
 				}
 				case 4:
 				{
 					// 🔴🔴 **小臂轴（肘 → 手）** —— 用户 2026-10-07 晚的最终口径：
 					// "(手臂)可能是折的，要以**手肘到手**的连线为轴，再向外探一点点"。
 					// 骨索引走官方语义接口 `GetRealBoneIndex(HumanBone.ForearmR / HandR)`。
+					// 🔴 **读得到就永远用它**（用户 2026-10-23 复核："能找到小臂数据还是小臂"）。
+					// **读不到**才兜底 —— 兜底 = **体侧前后甩**（不是世界竖直！）：
+					//    世界竖直与"小臂垂下"是同一根线、方向相反 ⇒ 转向整个翻过来
+					//    （实机嫌疑：站地上对、骑马上反）。改成前后甩 = 换一个**明显不同**的平面，
+					//    不会再和"对的形态"长得像却转反。
 					if (SpellCastInput.TryGetForearmAxis(player, out Vec3 foreAxis))
 					{
+						if (_armAxisFallbackOn)
+						{
+							_armAxisFallbackOn = false;
+							DebugLogger.Log("[Grapple] 小臂读数恢复 ⇒ 绕转轴回到小臂");
+						}
 						return foreAxis;
 					}
-					return Vec3.Up;                  // 读不到就退回竖直（不让圆乱翻）
+					if (!_armAxisFallbackOn)
+					{
+						_armAxisFallbackOn = true;
+						DebugLogger.Log("[Grapple] ⚠ 小臂读不到 ⇒ 绕转轴退回「体侧前后甩」"
+							+ $"（臂骨=[{SpellCastInput.LastArmBones}]；骑马时出现这条 = 马上读不到小臂）");
+					}
+					return SideAxis(player);
 				}
 				default:
 					return Vec3.Up;                  // 世界竖直：手垂在体侧时 = 绕小臂转

@@ -49,6 +49,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 	///   custom.grapple hscale &lt;倍率&gt;      钩头网格缩放（默认 0.30）
 	///   custom.grapple hmesh &lt;网格名&gt;     换钩头网格（第一候选；后两个兜底保留）
 	///   custom.grapple spin &lt;rpm&gt; [半径]   **手里的钩**：绕右手转的转速 / 半径（= 手里那截绳的长度，默认 90 rpm / 0.20 m）
+	///   custom.grapple spin idle|aim|mounted &lt;rpm&gt;  分档调：站地待机（135）/ 瞄准（270）/ **骑马待机（默认 0 = 不转）**
 	///   custom.grapple spin on|off        手里的钩总开关（off = 手上不显示钩与绳）；无参 = 看当前值
 	///   custom.grapple spinrope &lt;0|1&gt;     **待机那条绳**的开关（**默认 0 = 关**；开着才能看出"绳从手连到钩"）
 	///   custom.grapple hand &lt;0..4&gt;       🔴 the "why is the hand hook invisible" LADDER（**每档只比上一档多一个变量** ⇒「第一档开始看不见」= 元凶就是那一档新加的变量；
@@ -59,8 +60,9 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 		///                                     4 = 手骨 + 离心（默认 0.25 m）· **径向朝向** · 每帧 = **现行为** → 比 3 多的是"径向基底"
 		///                                     0 = 关（回正常那条：受 spin 开关与"握着钩索"判据管）· 无参 = 看当前档与含义
 		///   custom.grapple armaxis &lt;0..4&gt; [轴外移米]  **手里那枚的绕转轴**（圆所在的平面 ⊥ 这个轴；即时生效、不用重编）：
-		///                                     4 = 小臂轴（肘→手）**默认**（2026-10-07 晚用户裁定）·
-		///                                     0 = 世界竖直 · 1 = 体侧前后甩 · 2 = 左右横扫 · 3 = 上臂弦（折臂时不准）
+		///                                     4 = 小臂轴（肘→手）**默认**（2026-10-23 复核：读得到就用小臂）·
+		///                                     1 = 体侧前后甩（**小臂读不到时的兜底**，也是 `armaxis 1` 对照档）·
+		///                                     0 = 世界竖直（水平圆；旧兜底，已弃用）· 2 = 左右横扫 · 3 = 上臂弦（折臂时不准）
 		///                                     第 2 参 = 圆心沿轴外移（**默认 0**；掌心的那 8 cm 由 `palm` 统一负责）
 		///   custom.grapple palm &lt;米&gt;          **手部挂点沿小臂外移**（默认 0.08 = 掌心）—— **绳的近端 / 钩的圆心 / 开火起点三处共用**：
 		///                                     0 = 正好压在腕关节 · 负值 = 往腕方向回缩
@@ -544,11 +546,14 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 						try { park = GrappleLogic.Ensure().ParkStateLine(); } catch (Exception) { }
 						result = $"grapple: hand hook = {(GrappleLogic.HandHookEnabled ? "ON" : "OFF")}"
 							+ $" | rpm idle {GrappleLogic.HandHookRpmIdle:F0} / aim {GrappleLogic.HandHookRpmAim:F0}"
-							+ $" (now {GrappleLogic.HandHookRpmNow:F0} = {(GrappleLogic.HandHookAimingNow ? "aiming" : "idle")})"
+							+ $" / mounted-idle {GrappleLogic.HandHookRpmMountedIdle:F0}"
+							+ $" (now {GrappleLogic.HandHookRpmNow:F0} = "
+							+ $"{(GrappleLogic.HandHookAimingNow ? "aiming" : (GrappleLogic.HandHookMountedNow ? "mounted, not aiming" : "on foot, idle"))})"
+							+ $" | mounted={GrappleLogic.HandHookMountedNow}"
 							+ $" | radius {GrappleLogic.HandHookRadius:F2} m"
 							+ $" | rope {(GrappleLogic.HandRopeEnabled ? "ON" : "OFF")}"
 							+ $" | {park}"
-							+ "   (usage: custom.grapple spin <rpm> [radius] | spin idle|aim <rpm> | spin on|off | spinrope <0|1>)";
+							+ "   (usage: custom.grapple spin <rpm> [radius] | spin idle|aim|mounted <rpm> | spin on|off | spinrope <0|1>)";
 						break;
 					}
 					if (a0 == "off")
@@ -565,26 +570,32 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					}
 
 					// 🔴 分档调（2026-10-08）：`spin idle 135` / `spin aim 270` —— 只改那一档。
-					if (a0 == "idle" || a0 == "aim")
+					// 🔴 2026-10-23 加 `spin mounted <rpm>`：**骑马待机档**（默认 0 = 骑在马上不瞄准时不转；
+					//    站地上仍用 `idle` 档，瞄准两档通吃 `aim`）。
+					if (a0 == "idle" || a0 == "aim" || a0 == "mounted")
 					{
 						float v = ParseF(args, at + 1, float.NaN);
 						if (float.IsNaN(v))
 						{
 							result = $"Error: spin {a0} needs a number (rpm). e.g. custom.grapple spin {a0} "
-								+ (a0 == "idle" ? GrappleLogic.HandHookRpmIdle.ToString("F0") : GrappleLogic.HandHookRpmAim.ToString("F0"));
+								+ (a0 == "idle" ? GrappleLogic.HandHookRpmIdle.ToString("F0")
+									: a0 == "aim" ? GrappleLogic.HandHookRpmAim.ToString("F0")
+									: GrappleLogic.HandHookRpmMountedIdle.ToString("F0"));
 							break;
 						}
 						if (a0 == "idle") { GrappleLogic.HandHookRpmIdle = v; }
-						else { GrappleLogic.HandHookRpmAim = v; }
+						else if (a0 == "aim") { GrappleLogic.HandHookRpmAim = v; }
+						else { GrappleLogic.HandHookRpmMountedIdle = v; }
 						result = $"grapple: hand hook rpm {a0} = {v:F0}"
-							+ $" (idle {GrappleLogic.HandHookRpmIdle:F0} / aim {GrappleLogic.HandHookRpmAim:F0}, takes effect immediately)";
+							+ $" (idle {GrappleLogic.HandHookRpmIdle:F0} / aim {GrappleLogic.HandHookRpmAim:F0}"
+							+ $" / mounted-idle {GrappleLogic.HandHookRpmMountedIdle:F0}, takes effect immediately)";
 						break;
 					}
 
 					float rpm = ParseF(args, at + 0, float.NaN);
 					if (float.IsNaN(rpm))
 					{
-						result = "Error: spin needs a number (rpm), idle|aim <rpm>, or on|off. e.g. custom.grapple spin 135";
+						result = "Error: spin needs a number (rpm), idle|aim|mounted <rpm>, or on|off. e.g. custom.grapple spin 135";
 						break;
 					}
 					GrappleLogic.HandHookRpmIdle = rpm;      // 单一数值 = **两档一起设**（老用法不变）
@@ -593,7 +604,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					float radius = ParseF(args, at + 1, -1f);
 					if (radius > 0f) { GrappleLogic.HandHookRadius = radius; }
 					result = $"grapple: hand hook rpm idle+aim {rpm:F0}, radius {GrappleLogic.HandHookRadius:F2} m"
-						+ "   (per-state: custom.grapple spin idle|aim <rpm>)";
+						+ "   (per-state: custom.grapple spin idle|aim|mounted <rpm>)";
 					break;
 				}
 
@@ -1466,7 +1477,7 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 				case 1: return "1 = axis along your right => circle in the vertical plane, swinging fore/aft";
 				case 2: return "2 = axis along your facing => circle in the frontal plane, sweeping left/right";
 				case 3: return "3 = axis = shoulder->hand chord (two bone reads) => circle PERPENDICULAR to that chord";
-				case 4: return "4 = axis = FOREARM (elbow->hand, HumanBone.ForearmR/HandR) => circle PERPENDICULAR to the forearm   [DEFAULT]";
+				case 4: return "4 = axis = FOREARM (elbow->hand, HumanBone.ForearmR/HandR) => circle PERPENDICULAR to the forearm   [DEFAULT; falls back to 1 when the bone cannot be read]";
 				default: return "0 = axis = world up => horizontal circle (spins around a hanging forearm)";
 			}
 		}
@@ -2062,6 +2073,14 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					if (v < 0f) return $"grapple: leash stiffness = {GrappleBind.LeashStiffness:F1} (extra m/s per metre beyond the rope length)";
 					GrappleBind.LeashStiffness = v;
 					return $"OK: leash stiffness = {v:F1} (higher = the bound one catches up harder)";
+				}
+				case "leaselog":
+				{
+					float v = ParseF(args, at + 1, -1f);
+					if (v < 0f) return $"grapple: leash log cooldown = {GrappleBind.LeashLogCooldownSeconds:F1}s"
+						+ " (0 = log every engage/disengage; a form change -- walking vs dragged -- is always logged)";
+					GrappleBind.LeashLogCooldownSeconds = v;
+					return $"OK: leash log cooldown = {v:F1}s (0 = every time)";
 				}
 				case "leashspeed":
 				{
