@@ -53,7 +53,7 @@ string[] cmdLine = Environment.GetCommandLineArgs().Skip(1).ToArray();
 string command = cmdLine.Length > 0 ? cmdLine[0] : "help";
 
 // assetclone / morphinfo / morphfix 有自己完整参数集——顶层解析只认命令名,参数原样透传
-if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "clothinfo" or "particleimport"))
+if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "clothinfo" or "particleimport" or "meshmake"))
 {
     for (int i = 1; i < cmdLine.Length; i++)
     {
@@ -178,6 +178,10 @@ switch (command)
     case "prtroundtrip":
     {
         return ParticleRoundtrip.Run(dir, filter);
+    }
+    case "meshmake":
+    {
+        return MeshMake.Run(cmdLine.Skip(1).ToArray());
     }
     case "assetclone":
     {

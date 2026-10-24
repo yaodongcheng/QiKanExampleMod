@@ -120,6 +120,13 @@ namespace LivingWorldNpcs.CampaignMode
 		private static LivingWorldCampaign CreateCampaignForActiveContentPack(string era)
 		{
 			string pack = CampaignModeActivator.ActiveContentPack;
+			if (pack == "RD2")
+			{
+				if (era == "RD2Campaign")
+				{
+					return new RD2Campaign(CampaignGameMode.Campaign);
+				}
+			}
 			if (pack == "Taikou")
 			{
 				switch (era)

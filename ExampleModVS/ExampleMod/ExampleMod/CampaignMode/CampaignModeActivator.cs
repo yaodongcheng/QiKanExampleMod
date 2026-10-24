@@ -18,8 +18,16 @@ namespace LivingWorldNpcs.CampaignMode
 	/// </summary>
 	public static class CampaignModeActivator
 	{
-		/// <summary>已加载的内容包名（当前仅 Taikou；三国扩展在此追加）。null = 纯功能包模式。</summary>
-		public static string ActiveContentPack => IsModuleLoaded("Taikou") ? "Taikou" : null;
+		/// <summary>已加载的内容包名（RD2 / Taikou；都未加载 = null = 纯功能包模式）。</summary>
+		public static string ActiveContentPack
+		{
+			get
+			{
+				if (IsModuleLoaded("RD2")) return "RD2";
+				if (IsModuleLoaded("Taikou")) return "Taikou";
+				return null;
+			}
+		}
 
 		/// <summary>
 		/// 模块是否在本次启动的启用列表中。
@@ -47,7 +55,49 @@ namespace LivingWorldNpcs.CampaignMode
 				return;
 			}
 			TaleWorlds.Library.Debug.Print($"[LivingWorldNpcs] CampaignMode: 内容包 {pack} 已加载——激活通用战役模式。");
+			if (pack == "RD2")
+			{
+				WireRd2MainMenu();
+				return;
+			}
 			WireMainMenu();
+		}
+
+		/// <summary>
+		/// RD2（荒野大镖客 2）主菜单：只有一个「New Game」入口，直接走通用建号流程。
+		/// 走 RD2 专用入口而不是 Taikou 的选剧本/选人界面（那套绑的是 Taikou 的英雄目录）。
+		/// </summary>
+		private static void WireRd2MainMenu()
+		{
+			var kept = new List<InitialStateOption>();
+			foreach (InitialStateOption item in Module.CurrentModule.GetInitialStateOptions())
+			{
+				if (item.Id != "SandBoxNewGame" && item.Id != "StoryModeNewGame" && item.Id != "ContinueCampaign")
+				{
+					kept.Add(item);
+				}
+			}
+			Module.CurrentModule.ClearStateOptions();
+			foreach (InitialStateOption item in kept)
+			{
+				Module.CurrentModule.AddInitialStateOption(item);
+			}
+
+			Module.CurrentModule.AddInitialStateOption(new InitialStateOption(
+				"RD2NewGame",
+				new TextObject("{=LWN_rd2_new_game}Red Dead Redemption 2"),
+				2,
+				() => EraCatalog.StartCampaignWithCharacterCreation("RD2Campaign"),
+				() => new ValueTuple<bool, TextObject>(false, null),
+				null));
+
+			Module.CurrentModule.AddInitialStateOption(new InitialStateOption(
+				"LivingWorldContinueGame",
+				new TextObject("{=LWN_campaign_continue}Continue Campaign"),
+				2,
+				() => { },
+				() => new ValueTuple<bool, TextObject>(true, new TextObject("{=LWN_campaign_continue_disabled}Save-loading is not implemented yet.")),
+				null));
 		}
 
 		private static void WireMainMenu()

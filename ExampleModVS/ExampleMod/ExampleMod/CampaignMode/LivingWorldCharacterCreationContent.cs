@@ -158,10 +158,10 @@ namespace LivingWorldNpcs.CampaignMode
 		public override void OnCharacterCreationFinalized()
 		{
 			base.OnCharacterCreationFinalized();
-			var taikouCampaign = Campaign.Current as TaikouCampaign;
-			if (taikouCampaign != null && MobileParty.MainParty != null)
+			var lwCampaign = Campaign.Current as LivingWorldCampaign;
+			if (lwCampaign != null && MobileParty.MainParty != null)
 			{
-				MobileParty.MainParty.Position2D = taikouCampaign.StartingPosition.GetValueOrDefault();
+				MobileParty.MainParty.Position2D = lwCampaign.StartingPosition.GetValueOrDefault();
 				// 🔴 相机拉回玩家（织丰母本同款：ShokuhoCharacterCreationContent.OnCharacterCreationFinalized 实锤）——
 				// CC 完成落场时地图默认机位停在官方地图坐标（camera_top/默认），不拉回 = 开局看不见角色（2026-09-08 用户实测）。
 				if (GameStateManager.Current.ActiveState is MapState mapState && mapState.Handler != null)
