@@ -2122,3 +2122,50 @@ do {
 **排查口诀**
 **"进战场 loading 不撤 + 有战吼 + 没崩溃 + 日志停住" = 装备预装载死等**，
 不是对话/行为/AI 的问题，**别去翻我们的 MissionBehavior**；先抓栈，再点名资产，最后查权威表。
+
+---
+
+## 🔴 没配 LLM 的玩家照样撞 LLM 异常 → 「崩溃跳过」弹红字（fire-and-forget + 抛异常的单例）（2026-10-24 玩家反馈）
+
+**症状**
+- 玩家**没配 LLM**（三个框空着），进战场时弹红字 `[ExceptionSentry] Crash skipped: ...`，
+  并生成一份 `SkippedCrashes_*.html`；**游戏其实没崩**，战斗照常继续（日志在红字之后又正常走了 96 秒）。
+- 报告里的内部异常栈（决定性证据）：
+  ```
+  LLMService not initialized: LLMApiKey 未配置（请在 Mod 选项中填写）
+    at LivingWorldNpcs.LLMService.get_Instance()
+    at LivingWorldNpcs.SingNpcMemorySystem.<MaintainMemoryAsync>...
+  ```
+- 我们自己的运行日志同一时刻有 `[FirstChance]` 行（由 `CrashLogHook` 记）。
+
+**根因（三环，缺一不成立）**
+
+| 环 | 事实 |
+|---|---|
+| ① | `LLMService.Instance` 的 getter **没 Key 直接 `throw`**（不是返回 null）——设计意图是逼调用方 try-catch |
+| ② | 记忆总结管道**漏了 `IsLLMConfigured` 闸**（其余 30+ 处都有），直接去拿单例 |
+| ③ | `AddHistory` 是 `_ = MaintainMemoryAsync()` **fire-and-forget** ⇒ 异常没人 await ⇒ 终结器线程 `UnobservedTaskException` ⇒ 被第三方 mod「崩溃跳过」当崩溃报出来 |
+
+- 🔴 **"没配 LLM"恰恰是触发条件**：记忆写入是纯数据功能（感知把「主公在附近交战」写进 7 个 NPC 记忆），
+  不依赖 LLM；只有"历史超 2× 上限要压缩"那一步才要 LLM ⇒ **只有没配 LLM 的玩家走得到这条分支**。
+  开发机配了 LLM ⇒ 永远撞不到 = **假绿**。
+
+**附带损害（比红字更隐蔽）**
+- `_isSummarizing` 在抛点之前已置 `true`，旧实现只在最后一段 `try/finally` 复位 ⇒
+  抛一次就**永久卡 true**，该 NPC 此后不再总结记忆、历史只增不减（每个 NPC 各卡一次）。
+- 同一个方法的 **JSON 解析失败提前 `return`** 也在 finally 之前 ⇒ 同病（配了 LLM 的玩家会中）。
+
+**规避 / 修法**（已落 `Memory/SingNpcMemorySystem.cs`）
+- **调度壳 + 本体**：壳负责 `if (_isSummarizing) return; _isSummarizing = true; try { await Core(); } catch { 记日志 } finally { _isSummarizing = false; }`，
+  本体只管流程。异常再也出不去、标记无条件复位。
+- 本体入口 `if (!Settings.Instance.IsLLMConfigured)` → 不总结、**直接淘汰最旧一批**
+  （不能只 return：`RecentHistory` 只在这里裁剪，不裁剪会无界增长进存档）。
+- 旁白总结 `MaintainNarrationAsync`、永续记忆 `CheckAndPromoteToPermanent` 同样补闸。
+- 验收：`custom.memory status` / `custom.memory fill 100` / `custom.memory maintain`
+  （判据 = `IsSummarizing` 回到 False + 日志出现「记忆维护：LLM 未配置…」+ 无 `[FirstChance]`）。
+
+**通用教训（与记忆系统无关，一切改动适用）**
+1. **凡是 `_ = XxxAsync()` 的 fire-and-forget，方法内部必须自带 `try/catch`** —— 抛出就等于在别人眼里"崩溃"。
+2. **状态标记（正在跑 / 已处理 / 冷却中）必须走 `try/finally` 复位**，不能靠"每条 return 前手动置回"。
+3. **"没配置所以没影响"是错觉**：配置开关关掉的往往是**功能**，不是**代码路径**。
+   排查这类问题先问"谁在这条路上、它有没有闸"，别问"玩家开没开这个功能"。
