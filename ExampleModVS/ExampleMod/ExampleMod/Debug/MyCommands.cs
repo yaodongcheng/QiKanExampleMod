@@ -3842,6 +3842,82 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 记忆管道诊断/验收（2026-10-24 立，对应「LLM 未配置时记忆总结崩」修复）。
+        /// 用法（首参可弃：解析不出英雄 → 回落主角并注明）：
+        ///   custom.memory status   [heroId]   容量 / 标记 / LLM 是否配置
+        ///   custom.memory maintain [heroId]   强制跑一次总结管道（不配 LLM 时应静默降级、日志无异常）
+        ///   custom.memory fill N   [heroId]   灌 N 条假历史顶过阈值（⚠ 会写进该 NPC 记忆，调试用）
+        /// 验收判据：不配 LLM 时 fill 之后运行日志只出现
+        ///   「记忆维护：LLM 未配置，不总结，直接淘汰最旧 N 条历史。」
+        /// 且**不再出现** `[FirstChance] LLMService not initialized` / 崩溃跳过红字。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("memory", "custom")]
+        public static string MemoryDiag(List<string> args)
+        {
+            if (Campaign.Current == null || Hero.MainHero == null) return "Error: Campaign not loaded.";
+
+            string note = "";
+            string sub = args != null && args.Count > 0 ? (args[0] ?? "").ToLowerInvariant() : "status";
+            int heroArgIndex = 1;
+            int fillCount = 0;
+
+            if (sub == "fill")
+            {
+                if (args.Count < 2 || !int.TryParse(args[1], out fillCount) || fillCount <= 0)
+                    return "Error: usage = custom.memory fill <N> [heroId] (N > 0).";
+                heroArgIndex = 2;
+            }
+            else if (sub != "status" && sub != "maintain")
+            {
+                // 🔴 首参可弃（CLAUDE.md 工作流约定）：占位符（如 "1"）解析不出子命令 → 回落 status 并注明
+                note = $" [note: '{sub}' is not a subcommand (status|maintain|fill) -> using status]";
+                sub = "status";
+            }
+
+            Hero hero = Hero.MainHero;
+            if (args != null && args.Count > heroArgIndex && !string.IsNullOrWhiteSpace(args[heroArgIndex]))
+            {
+                Hero found = Campaign.Current.CampaignObjectManager.Find<Hero>(args[heroArgIndex]);
+                if (found != null) hero = found;
+                else note += $" [note: '{args[heroArgIndex]}' is not a hero id -> using main hero]";
+            }
+
+            SingNpcMemorySystem mem = AllNpcMemoryManager.GetMemory(hero.StringId);
+            if (mem == null) return $"Error: memory system unavailable for '{hero.StringId}' (hero not alive?).{note}";
+
+            int threshold = mem.MaxRecentHistoryCount * 2;
+
+            switch (sub)
+            {
+                case "fill":
+                    for (int i = 0; i < fillCount; i++)
+                        mem.AddHistory("system", $"[diag] synthetic history line {i + 1}", "system");
+                    return $"OK: added {fillCount} synthetic history lines to {hero.Name}. "
+                         + $"history={mem.RecentHistory.Count} triggerAt={threshold} "
+                         + $"summarizing={mem.IsSummarizing} (maintenance fires automatically; check Debug/StoryEngine_RuntimeLog.txt){note}";
+
+                case "maintain":
+                    _ = mem.ForceMaintainMemoryAsync();
+                    return $"OK: maintenance triggered for {hero.Name}. "
+                         + $"IsLLMConfigured={Settings.Instance.IsLLMConfigured} "
+                         + $"history={mem.RecentHistory.Count} triggerAt={threshold} "
+                         + $"summarizing={mem.IsSummarizing}{note}";
+
+                default:
+                    var sb = new StringBuilder();
+                    sb.AppendLine("=== Memory Pipeline Status ===");
+                    sb.AppendLine($"Hero: {hero.Name} ({hero.StringId})");
+                    sb.AppendLine($"IsLLMConfigured: {Settings.Instance.IsLLMConfigured}");
+                    sb.AppendLine($"RecentHistory: {mem.RecentHistory.Count} / triggerAt {threshold} (cap {mem.MaxRecentHistoryCount})");
+                    sb.AppendLine($"DynamicMemories: {mem.DynamicMemories.Count}");
+                    sb.AppendLine($"NarrationLog: {mem.SnapshotNarrationLog().Count}");
+                    sb.AppendLine($"IsSummarizing: {mem.IsSummarizing}");
+                    sb.AppendLine($"IsNarrating: {mem.IsNarrating}");
+                    return sb.ToString() + note;
+            }
+        }
+
+        /// <summary>
         /// 自动世界观状态查询。
         /// 用法: custom.worldbg_status
         /// </summary>

@@ -28,6 +28,14 @@ namespace LivingWorldNpcs
         public StringBuilder PermanentMemory { get; private set; } = new StringBuilder();
         private volatile bool _isSummarizing = false; // 新增标记
 
+        // ── 诊断（custom.memory，2026-10-24 立）──
+        /// <summary>当前是否正在总结 / 旁白总结（验收"标记卡死"用）。</summary>
+        public bool IsSummarizing => _isSummarizing;
+        public bool IsNarrating => _isNarrating;
+
+        /// <summary>强制跑一次总结管道（异常已在调度壳内兜住，不会抛）。</summary>
+        public Task ForceMaintainMemoryAsync() => MaintainMemoryAsync();
+
         // 🔴 2026-08-16（方案 N）：大事记槽（≤12 条 FIFO）——写入时 C# 白名单分级锚定，
         // 平行于 LLM 淘汰晋升（CheckAndPromoteToPermanent 保留不动）。建国/获封/大婚等大事
         // 不被日常进城挤掉（D 感知闸门每日 30 条 vs 动态记忆 FIFO 8 条）。
@@ -365,6 +373,8 @@ namespace LivingWorldNpcs
         /// </summary>
         private async Task MaintainNarrationAsync()
         {
+            // 🔴 铁律 1：LLM 不可用不总结（旁白自身有 3× 硬上限兜底，不裁剪也不会无界增长）
+            if (!Settings.Instance.IsLLMConfigured) return;
             List<RecentMemory> linesToSummarize = null;
             double timeStamp_Start = 0, timeStamp_End = 0;
             lock (_lock)
@@ -748,7 +758,34 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>
+        /// 记忆总结调度壳（🔴 2026-10-24 玩家反馈修复，铁律 1）：
+        /// 本方法由 AddHistory fire-and-forget 发起（`_ = MaintainMemoryAsync();`），两条硬纪律——
+        /// ① **异常绝不能逃出**（逃出 = 未观察的异步异常 = 崩溃跳过弹红字 + 写报告，游戏其实没崩）；
+        /// ② **_isSummarizing 必须无条件复位**（旧实现只在最后一段 try/finally 里复位，中途抛异常
+        ///    ——如 LLM 未配置时 LLMService.Instance 直接 throw——或 JSON 解析失败提前 return，
+        ///    都会让本 NPC 永久卡在"正在总结"，此后再也不总结记忆、历史只增不减）。
+        /// </summary>
         private async Task MaintainMemoryAsync()
+        {
+            if (_isSummarizing) return; // 如果正在总结，直接跳过本次触发
+            _isSummarizing = true;
+            try
+            {
+                await MaintainMemoryCoreAsync();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[警告] 记忆总结异常，本轮作废（历史保留，下次触发重试）：{ex.Message}");
+            }
+            finally
+            {
+                _isSummarizing = false; // 重置标记（任何路径都复位）
+            }
+        }
+
+        /// <summary>总结流程本体：不碰 _isSummarizing，异常向上抛给调度壳统一兜底。</summary>
+        private async Task MaintainMemoryCoreAsync()
         {
            
 
@@ -771,8 +808,20 @@ namespace LivingWorldNpcs
 
             if (messagesToSummarize != null)
             {
-                if (_isSummarizing) return; // 如果正在总结，直接跳过本次触发
-                _isSummarizing = true;
+                // 🔴 铁律 1：LLM 未配置 → 不总结，直接淘汰最旧一批。
+                //   不能"什么都不做"：RecentHistory 只在这里裁剪，不裁剪会无界增长（存档越写越大）。
+                //   淘汰口径与下方 channel_nearby 分支一致（只移除，不产生任何记忆）。
+                if (!Settings.Instance.IsLLMConfigured)
+                {
+                    int dropCount = messagesToSummarize.Count;
+                    lock (_lock)
+                    {
+                        if (RecentHistory.Count >= dropCount)
+                            RecentHistory.RemoveRange(0, dropCount);
+                    }
+                    DebugLogger.Log($"记忆维护：LLM 未配置，不总结，直接淘汰最旧 {dropCount} 条历史。");
+                    return;
+                }
 
                 //获取即将移除的对话历史的时间戳
                 foreach (ChatMessage message in messagesToSummarize)
@@ -801,7 +850,6 @@ namespace LivingWorldNpcs
                             RecentHistory.RemoveRange(0, messagesToSummarize.Count);
                     }
                     DebugLogger.Log($"记忆维护：仅瞬时亲历行（channel_nearby），直接淘汰 {messagesToSummarize.Count} 条，不总结。");
-                    _isSummarizing = false;
                     return;
                 }
                 string summaryPrompt = PromptBuilder.BuildPromptForSummary(this, toSummarize);
@@ -852,12 +900,7 @@ namespace LivingWorldNpcs
                 }
                 catch (Exception ex)
                 {
-
                     DebugLogger.Log("记忆解析失败：" + ex.Message);
-                }
-                finally
-                {
-                    _isSummarizing = false; // 重置标记
                 }
 
               
@@ -908,6 +951,13 @@ namespace LivingWorldNpcs
 
         private async Task CheckAndPromoteToPermanent(RecentMemory memory)
         {
+            // 🔴 铁律 1：LLM 不可用 → 不合并永续记忆。
+            // 本条动态记忆已在 AddDynamicMemory 里出队（按遗忘处理），这里只负责不打 LLM。
+            if (!Settings.Instance.IsLLMConfigured)
+            {
+                DebugLogger.Log($"NPC[{_profile.Name}] LLM 未配置，跳过永续记忆合并（记忆出队遗忘）：{memory.Content}");
+                return;
+            }
             // 这里注意：PermanentMemory 也需要保护，或者仅在这里修改
             string oldMemStr;
             lock (_lock) { oldMemStr = PermanentMemory.ToString(); }

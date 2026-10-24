@@ -32,7 +32,7 @@ import mb2_clients
 # 也可以填 "steam" = 切到 Steam 主目录那份（跟随官方更新，版本号会变，所以别写死版本号）
 # 留空 ""：无参数运行 = 只查询当前值，不切换
 # 命令行带参数（python set_mb2_path.py 1.4.8）优先于本变量
-DEFAULT_VERSION = "1.2.12"
+DEFAULT_VERSION = "1.4.8"
 
 
 def main():
