@@ -73,6 +73,12 @@ MARK = ("<!-- ==== 兵种通用武器名（tools/sw2-pipeline/gen_troop_weapon_i
 BODY = {
     "polearm": "bo_spear_b",
     "sword1h": "bo_sword_one_handed",
+    # 🔴🔴 **这一格故意留成「游戏里不存在的名字」——用户 2026-10-24 裁定，别"顺手修好"**：
+    #    它是保险丝 `Core/PreloadWaitGuard.cs` 的**实机回归用例**（雷 172）。
+    #    正确名 = `bo_composite_longbow_a`；写错的后果 = 引擎的装备预装载**死等**（进战场 loading 永不撤）。
+    #    现在由保险丝兜底：连续 5 秒无进展 → 记日志点名 → 放行进战场（代价 = 弓没有碰撞体 + 多等 ~5 秒）。
+    #    `Scripts/check_item_body_names.py` 里把这条登记成 KNOWN_ACCEPTED（报 WARN、不报红）。
+    #    **要恢复**：改回 `bo_composite_longbow_a` + 重跑本脚本 + 删掉 checker 里那条 KNOWN_ACCEPTED。
     "bow": "bo_longbow_a",
     "gun": "bo_composite_crossbows",      # 与 gen_weapon_items 的 gun 取值一致
 }

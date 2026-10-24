@@ -393,6 +393,21 @@ namespace LivingWorldNpcs
         /// <summary>长按全局默认阈值（毫秒）；玩法级 HoldMs 可单独覆盖。450ms = KCD 手感。</summary>
         public int LongPressDurationMs { get; set; } = 450;
 
+        /// <summary>
+        /// **进战场时"等装备网格装载"的超时秒数**（0 = 关掉这道保险，回到引擎原行为）。
+        ///
+        /// 🔴 为什么需要它（2026-10-24 实机 + 内存转储实证）：引擎
+        /// `PreloadHelper.WaitForMeshesToBeLoaded()` 是个**没有超时的死循环** ——
+        /// 只要参战角色身上有**一件**装备的网格永远装不完、或某个碰撞体名查不到，
+        /// 这一帧就永不返回：loading 界面不撤、画面冻死、战斗音效照放（看起来"进不去战场"）。
+        /// 我们已经踩过一次（太阁弓的 `body_name` 写了个不存在的 `bo_longbow_a`）。
+        ///
+        /// 我们的做法 = 用同样的循环替它等，但**带超时**：正常情况行为完全一致（等完就过），
+        /// 超时就**记一行日志点名卡住的资产**然后放行 —— 宁可少一件装备的网格，也不能卡死玩家。
+        /// 默认 20 秒（正常战场预装载通常 1~3 秒）。
+        /// </summary>
+        public int PreloadWaitTimeoutSeconds { get; set; } = 20;
+
 
         //这里的值会被 config.json覆盖 只作为默认值
         public List<string> DisabledInteractionMissionModes { get; set; } = new List<string>

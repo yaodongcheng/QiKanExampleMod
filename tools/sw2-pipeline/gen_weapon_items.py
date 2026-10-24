@@ -135,7 +135,7 @@ BODY_OF = {
     "polearm": "bo_spear_b",
     "sword2h": "bo_sword_one_handed",
     "sword1h": "bo_knife_a",
-    "bow": "bo_longbow_a",
+    "bow": "bo_composite_longbow_a",
     "gun": "bo_composite_crossbows",
 }
 # 按角色覆盖（形态不是刀剑枪的那几件：槌/斧/扇/球/笼手）

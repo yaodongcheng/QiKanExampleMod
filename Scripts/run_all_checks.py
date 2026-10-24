@@ -51,6 +51,7 @@ CHECKS = [
     ("check_equip_item_defs.py", "三张装备来源表（兵种表/武将表/武将装备档表）引用的物品**必须全部有定义**（本包 ∪ 引擎模块 ∪ 引擎硬编码）", False, None),
     ("check_items_civilian.py", "物品平民装可用性（任何装备都必须 <Flags Civilian=\"true\"/>，2026-09-21 铁律）", False, None),
     ("check_items_mesh_fields.py", "物品网格字段不许留空（mesh 空/缺 = 装备 AV 雷 166 · 箭类 holster_mesh 空 = 背包图标 NRE 雷 168）", False, None),
+    ("check_item_body_names.py", "物品碰撞体名必须在 physics_shape.txt 里（写错 = 进战场 loading 永不撤，雷 172）", False, None),
     ("check_action_wiring.py", "动作名接线：被引用的 act_* 必须在 action_types.xml 声明（漏 = 无效索引 = 拔装备 AV，雷 169）", False, None),
     # 🔴 `check_spell_modifiers.py` 两条已移至「第二遍：LWN 自己」——
     #    法术表（Spells.xml / Modifiers.xml）2026-10-09 随通用玩法搬进了 LivingWorldNpcs。
@@ -104,6 +105,7 @@ LWN_MODULE = str(REPO)
 SECOND_MODULE_CHECKS = [
     ("check_items_civilian.py", None),      # 钩索/法术物品必须平民装可用（铁律 33）
     ("check_items_mesh_fields.py", None),   # 网格字段不许留空（雷 166/168）
+    ("check_item_body_names.py", None),     # 碰撞体名必须存在（写错 = 进战场 loading 卡死，雷 172）
     ("check_action_wiring.py", None),       # 44 条通用动作名的三处接线（漏声明 = 拔装备 AV，雷 169）
     ("check_spell_modifiers.py", None),     # 宝石表（已搬到 LWN/ModuleData/AssetRegistry/Modifiers.xml）
     ("check_spell_modifiers.py", ["--selftest"]),  # 同上，负面测试（夹具里的手环物品名已同步改成 lwn_spell_seal）

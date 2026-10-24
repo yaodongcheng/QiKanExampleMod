@@ -2057,3 +2057,68 @@ subModule2.OnMissionBehaviorInitialize(this);       // ← 各模块在这一步
   类库工程必须新建 **可执行文件（Executable）** 类型的配置文件，并**删掉与工程同名的「项目（Project）」型那条**
   （VS 倾向挑同名配置文件 ⇒ F5 直接报「无法启动项目」）。
 
+
+---
+
+## 🔴 进战场卡 loading 永不撤（还能听到战吼）→ 装备里有一件「装不出来」的资产，引擎那个等待循环**没有超时**（2026-10-24）
+
+**症状（认准这一组）**
+- 点「攻击！」进战场后，**原版那张 loading 图一直不撤**；**能听到战吼**、战斗其实已经在后面跑。
+- 画面完全冻死（两帧截图逐字节一致）；日志停在进 Mission 后一两帧，之后几十秒一行没有。
+- **没有**托管异常、**没有**崩溃转储、进程活着、`responding=True`；CPU ≈ 20% 单核（主线程在 1ms 空转）。
+
+**根因**（反编译 + 内存转储双重实证）
+进战场时引擎先预装载**参战角色身上的每一件装备**，然后原地死等：
+```csharp
+// PreloadHelper.WaitForMeshesToBeLoaded() —— 1.2.12 反编译原文
+do {
+    num = 0;
+    foreach (var m in _uniqueMetaMeshes) num += m.Item1.CheckResources();     // 网格没装完 +1
+    foreach (var s in _uniqueDynamicPhysicsShapeName)
+        num += PhysicsShape.GetFromResource(s, true) == null ? 1 : 0;         // 碰撞体查不到 +1
+    Thread.Sleep(1);
+} while (num != 0);      // ← 没有超时、没有日志
+```
+⇒ **只要有一件装备的网格永远装不完、或某个碰撞体名游戏里根本不存在，这一帧就永不返回**。
+调用方 = `MissionView.OnSceneRenderingStarted()`（战役的 `MissionAgentPreloadView` 等），
+所以卡住时连 `Mission.OnTick` 都进不去 —— 表现就是"loading 不撤"，而不是崩溃。
+
+**已实测两种触发（症状一模一样，根因不同）**
+1. **太阁弓的碰撞体名写错**：`body_name="bo_longbow_a"` —— 游戏里没有这个名字
+   （权威表 `Native/ModuleData/CoreGameReferences/physics_shape.txt`，正确名 `bo_composite_longbow_a`）。
+   弓足轻人人有 ⇒ **场场必卡**。同一批错名还有盾的 `shield_body_name="bo_sturgia_shield_b"`（正确 `_a`）。
+2. **玩家报「装备钩索进战场就卡，不装备没事」**：钩索某件资产装不出来（`CheckResources()` 不归零）。
+   **这是同一个机制，不是钩索逻辑的问题** —— 装备了它，它的网格/碰撞体就进了那份预装载清单。
+
+**怎么定位（三步，别猜）**
+1. **抓栈定性质**：卡死时 dump 进程（`dbghelp!MiniDumpWriteDump` 或任务管理器"创建转储文件"），
+   ClrMD 读托管栈 ⇒ 看到 `PreloadHelper.WaitForMeshesToBeLoaded → MissionScreen.OnSceneRenderingStarted`
+   就实锤是本坑（不是死锁、不是崩溃）。
+2. **点名资产**：我们从内存里把 `_uniqueMetaMeshNames` / `_uniqueDynamicPhysicsShapeName` 两个 set 读出来，
+   再逐个查（我们的 `[Preload]` 日志干的就是这件事）。
+3. **核对权威表**：碰撞体名对着 `physics_shape.txt` 查；网格名对着模块 `AssetPacks` 用 `tpaccli list` 查。
+
+**修法**
+- **数据侧（真修）**：把错名改成存在的名字。生成物**改生成器重跑**（本次 = `tools/sw2-pipeline/gen_troop_weapon_items.py`
+  与 `gen_weapon_items.py` 的 `BODY["bow"]`），手写 XML 直接改（`Taikou/.../shields.xml`）。
+- **代码侧（保险丝）**：`Core/PreloadWaitGuard.cs` —— Prefix 替引擎等，**带超时**
+  （`config.json` 的 `PreloadWaitTimeoutSeconds`，默认 20 秒，`0` = 关掉回到原版）。
+  正常与引擎行为一致；超时就**记一行日志点名卡住的资产**再放行，宁可少一件装备的网格也不卡死玩家。
+  🔴 **无进展提前放行**：pending 连续 5 秒一个都没少 ⇒ 判定"永远好不了"，立刻放（不用干等满 20 秒）。
+  正常装载 pending 是**持续下降**的，不会连续几秒纹丝不动。
+
+**为什么必须是"通用保险丝"而不只是修数据**（用户 2026-10-24 裁定）
+玩家装的**别的 mod** 我们管不了 —— 他们的物品表里同样可能写错碰撞体名、或引用了没随包发布的网格。
+只修我们自己的数据 = 玩家那边照样卡死且无法自救。
+⇒ **数据要修（治本），保险丝必须在（兜底，对所有内容包生效）**，两者缺一不可。
+
+**当前留了一个"故意坏名"当回归用例**（同一裁定）
+`Taikou/.../taikou_items/troop_weapons.xml` 的 `taikou_troop_yumi_weapon_a` **故意**写成不存在的
+`body_name="bo_longbow_a"`，这样**每场战斗都会实机验证一次保险丝**（日志搜 `[Preload]`）。
+- 正确名 = `bo_composite_longbow_a`；脏值写在**生成器**里（`gen_troop_weapon_items.py` 的 `BODY["bow"]`，带注释）；
+- `check_item_body_names.py` 把它登记为 `KNOWN_ACCEPTED`（报 WARN、不报红），**新增的坏名照样红**；
+- **要恢复**：生成器改回正确名 + 重跑 + 删掉 checker 里那条 `KNOWN_ACCEPTED`。
+
+**排查口诀**
+**"进战场 loading 不撤 + 有战吼 + 没崩溃 + 日志停住" = 装备预装载死等**，
+不是对话/行为/AI 的问题，**别去翻我们的 MissionBehavior**；先抓栈，再点名资产，最后查权威表。

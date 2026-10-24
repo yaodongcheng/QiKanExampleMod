@@ -192,6 +192,13 @@ case("物品：整个 mesh 属性缺失必须抓到", "check_items_mesh_fields.p
                              '\t\tmesh="lwn_proxy_invisible"\n', '', 1),
      1, "属性缺失", target="lwn")
 
+# 碰撞体名不存在 = 进战场时引擎的装备预装载**死等**（loading 永不撤，雷 172，2026-10-24 内存转储实证）
+case("物品：碰撞体名不存在必须抓到（雷 172）", "check_item_body_names.py",
+     lambda m, c: patch_text(m / "ModuleData" / "items" / "grapple.xml",
+                             'body_name="bo_capsule_arrow"',
+                             'body_name="bo_no_such_physics_body_xyz"', 1),
+     1, "bo_no_such_physics_body_xyz", target="lwn")
+
 # 动作接线：被 movement_sets 引用的动作名没在 action_types.xml 声明 = 引擎拿无效动作索引 = 拔装备 AV
 #   （雷 169，2026-10-08 实机：崩在 MissionState.TickMission 的托管→本机转换，日志零线索）
 #   🔴 2026-10-09：这 44 条通用动作名的声明搬进了 LWN ⇒ 改打 LWN 沙箱。

@@ -478,6 +478,7 @@
     <Compile Include="CampaignMode\TaikouCampaign1582.cs" />
     <Compile Include="Core\MyBehavior.cs" />
     <Compile Include="Core\NameDisplayRules.cs" />
+    <Compile Include="Core\PreloadWaitGuard.cs" />
     <Compile Include="Core\MySubModule.cs" />
     <Compile Include="Core\PartySplitFlow.cs" />
     <Compile Include="Core\KingdomPoliticsFlow.cs" />
