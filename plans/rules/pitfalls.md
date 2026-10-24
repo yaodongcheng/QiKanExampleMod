@@ -2032,3 +2032,28 @@ subModule2.OnMissionBehaviorInitialize(this);       // ← 各模块在这一步
 ③ 同一 API 在城镇/战场语义不同，必须分场景验。
 
 完整条目（含方法论与证据）：[wheels.d/agent.md](wheels.d/agent.md) 末节 · 工程记录 `plans/钩索-实施计划.md` §二十四。
+
+---
+
+## 🔴 F5 启动后 mod 一个都没加载、还冒出多人模块 → `launchSettings.json` 里照抄了 MSBuild 的 `%2a`（2026-10-24）
+
+**症状**：VS 按 F5 启动，`LivingWorldNpcs` 与**所有内容包一个都没加载**（画面像进了默认/多人环境）。
+`rgl_log_<pid>.txt` 里只加载 Native / SandBox / SandBoxCore / CustomBattle / StoryMode / **Multiplayer**，
+全日志没有一条 `Modules/<我们的模块>/ModuleData/project.mbproj`。
+
+**根因**：启动参数从老位置（`*.csproj.user` 的 `StartArguments`）迁到 `Properties/launchSettings.json` 的 `commandLineArgs` 时，原样照抄了 `%2a`。
+- `%XX` 是 **MSBuild 的转义语法**（`%2a` = `*`）：`.csproj.user` 的值过 MSBuild 求值 ⇒ 命令行上得到的是 `*`，所以以前一直能用。
+- `launchSettings.json` **不过 MSBuild**（VS 只替换 `$(属性)` 与 `%VAR%` 环境变量，实现见 `DebugTokenReplacer`）⇒ `%2a` **原样**进命令行
+  ⇒ `_MODULES_…_MODULES_` 整串解析失败 ⇒ 引擎回落默认模块集（自带 Multiplayer）⇒ mod 全不在。
+
+**判据（别猜，读日志）**：`C:\ProgramData\Mount and Blade II Bannerlord\logs\rgl_log_<pid>.txt` 的 `Command Args:` 行 ——
+正常应是 `_MODULES_*Bannerlord.Harmony*…*_MODULES_`；**出现 `%2a` 就是中招**。
+
+**规避**
+- `launchSettings.json` 的 `commandLineArgs` 写**字面 `*`**，不要写 `%2a`。
+- 从 `.csproj.user` 迁移时 `<StartArguments>` 要**整行删掉** —— 留个空元素仍算「定义了该属性」，黄色警告照样在，而且它会**覆盖**配置文件里的参数。
+- `.csproj.user` 被 `.gitignore` 的 `*.user` 忽略（换电脑不跟随）⇒ **入库的 `launchSettings.json` 才是唯一真源**。
+- SDK 风格工程（本工程 2026-10-09 转过）没有老的「启动外部程序 / 命令行参数」输入框，只有「打开调试启动配置文件 UI」；
+  类库工程必须新建 **可执行文件（Executable）** 类型的配置文件，并**删掉与工程同名的「项目（Project）」型那条**
+  （VS 倾向挑同名配置文件 ⇒ F5 直接报「无法启动项目」）。
+
