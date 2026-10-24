@@ -77,6 +77,9 @@ namespace LivingWorldNpcs.Flight
         /// <summary>已经报过"这个粒子没注册"的粒子名（挂在每帧热路径上，不防会刷屏）。</summary>
         private readonly HashSet<string> _warnedMissing = new HashSet<string>(StringComparer.Ordinal);
 
+        /// <summary>已经报过"本版本不播 mod 粒子"（只报一次）。</summary>
+        private static bool _warnedVersionGate;
+
         /// <summary>现在挂着哪些粒子（命令提示用）。</summary>
         public ICollection<string> LiveParticles => _live.Keys;
 
@@ -119,6 +122,19 @@ namespace LivingWorldNpcs.Flight
             if (string.IsNullOrEmpty(particle) || boneNames == null || boneNames.Length == 0)
             {
                 DebugLogger.Log("[Flight-Fx] 挂载参数不全（粒子名 / 骨名单为空）—— 跳过");
+                return false;
+            }
+
+            // 🔴 mod 自定义粒子只在 v1.2.12 播（2026-10-24 用户裁定）——
+            //    之后的客户端上 mod 粒子实测都有问题 ⇒ 这里整体跳过（状态机 / 命令两条路都走这里）。
+            if (!V.SupportsModParticles)
+            {
+                if (!_warnedVersionGate)
+                {
+                    _warnedVersionGate = true;
+                    DebugLogger.Log("[Flight-Fx] mod 粒子只在 v1.2.12 播放 —— "
+                                    + "当前版本已跳过全部飞行粒子（V.SupportsModParticles = false）");
+                }
                 return false;
             }
 

@@ -598,6 +598,26 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // ── mod 自定义粒子能否播放（2026-10-24 用户裁定）────────────────────────────
+        // 🔴 实机：v1.2.12 之后的客户端上，mod 自带粒子（内容包 Publish 的 prt_*）都有问题
+        //    ⇒ **飞行相关粒子只在 v1.2.12 播**，其它版本静默跳过。
+        //    调用方（`Flight/FlightBoneFx` / `Flight/FlightAnimConditions`）先问本属性；
+        //    false 时**不要**再走"粒子没注册"那句提示（那是另一回事，会误导排查）。
+        //    那批兼容问题查明后把这里改成 true 即全线恢复，调用方一行都不用动。
+
+        /// <summary>当前客户端能不能安全播放 mod 自带粒子（仅 v1.2.12 为 true）。</summary>
+        public static bool SupportsModParticles
+        {
+            get
+            {
+#if MB2_V1212
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
+
         // ── 实体挂载 + 重力豁免（1.3.0 海军 DLC 同批新增；**1.2.12 上不存在**）──────────
         // 用处：引擎给"人站在会动的甲板上"准备的官方三件套 ——
         //   `SetForceAttachedEntity`（把人挂到实体上，父子关系）/ `SetExcludedFromGravity`（豁免重力）

@@ -159,6 +159,9 @@ namespace LivingWorldNpcs.Flight
         /// <summary>已经报过"某个粒子没注册"的名字（**按名字记** —— 免得第二个特效缺失时一句话都不打）。</summary>
         private static readonly HashSet<string> _warnedFxMissing = new HashSet<string>(StringComparer.Ordinal);
 
+        /// <summary>已经报过"本版本不播 mod 粒子"（只报一次，不刷屏）。</summary>
+        private static bool _warnedVersionGate;
+
         /// <summary>
         /// **在主角脚下的地面上放一次粒子**（世界固定的一次性 burst）。
         ///
@@ -197,6 +200,18 @@ namespace LivingWorldNpcs.Flight
             error = null;
             try
             {
+                // 🔴 mod 自定义粒子只在 v1.2.12 播（2026-10-24 用户裁定）——
+                //    之后的客户端上 mod 粒子实测都有问题 ⇒ 静默跳过，别走下面那句"没注册"的误导提示。
+                if (!V.SupportsModParticles)
+                {
+                    error = "custom particles are disabled on this game version (v1.2.12 only)";
+                    if (!_warnedVersionGate)
+                    {
+                        _warnedVersionGate = true;
+                        DebugLogger.Log("[Flight-Fx] " + error);
+                    }
+                    return false;
+                }
                 if (!TryResolveFxId(particleName, out int id, out error))
                 {
                     return false;

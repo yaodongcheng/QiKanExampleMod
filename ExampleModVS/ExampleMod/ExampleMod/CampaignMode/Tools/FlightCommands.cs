@@ -279,6 +279,10 @@ namespace LivingWorldNpcs.CampaignMode
                     {
                         return "ERR '" + particle + "' is not a flight trail particle | known: " + KnownParticles();
                     }
+                    if (!V.SupportsModParticles)
+                    {
+                        return "ERR custom particles are disabled on this game version (v1.2.12 only).";
+                    }
                     bool ok = FlightBoneFx.Instance.Attach(particle, bones.Split('+'));
                     return ok
                         ? $"OK. '{particle}' attached ({FlightBoneFx.Instance.Describe()})."
