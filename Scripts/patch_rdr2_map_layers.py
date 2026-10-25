@@ -23,8 +23,13 @@ import re
 import shutil
 
 MODULES = r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules"
-VANILLA = os.path.join(r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules",
-                       "SandBox", "SceneObj", "Main_map", "scene.xscene")
+VANILLA_MODULES = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules"
+# 源场景：大地图抄 Main_map（8 层 + WorldMap tileset），城镇抄 empire_town_f（15 层 + 无 tileset + 有 snow）
+SRC_KIND = os.environ.get("RDR2_PATCH_SRC", "map")          # map / town
+if SRC_KIND == "town":
+    VANILLA = os.path.join(VANILLA_MODULES, "SandBox", "SceneObj", "empire_town_f", "scene.xscene")
+else:
+    VANILLA = os.path.join(VANILLA_MODULES, "SandBox", "SceneObj", "Main_map", "scene.xscene")
 SCENE = os.environ.get("RDR2_SCENE", "Main_map")     # 场景目录名：Main_map / rdr2_sanit_denis
 DST_DIR = os.path.join(MODULES, "RDR2", "SceneObj", SCENE)
 DST = os.path.join(DST_DIR, "scene.xscene")
@@ -46,7 +51,7 @@ def attr(tag, name):
 
 
 def main():
-    print("scene:", SCENE)
+    print("scene:", SCENE, "| src:", SRC_KIND, os.path.basename(os.path.dirname(VANILLA)))
     van = io.open(VANILLA, encoding="utf-8", errors="ignore").read()
     dst = io.open(DST, encoding="utf-8", errors="ignore").read()
 
@@ -96,7 +101,10 @@ def main():
     io.open(DST, "w", encoding="utf-8", newline="\n").write(out)
     print("wrote", DST)
 
-    # references.txt：保留已有条目，补上图层引用到的贴图
+    # references.txt 只对大地图（走 WorldMap tileset）有意义；城镇场景不走 tileset，跳过
+    if SRC_KIND == "town":
+        print("skip references.txt (town scene)")
+        return
     texs = sorted(set(re.findall(r'name="([a-z0-9_]+_(?:d|n|s|h|mainmap|main_map|flowmap))"', van_layers)))
     texs += sorted(set(re.findall(r'name="(ground_[a-z0-9_]+|main_map_[a-z0-9_]+|cliff_[a-z0-9_]+|water_ground|rock_a|gloss_s|stone_[a-z0-9_]+)"', van_layers)))
     texs = sorted(set(texs))

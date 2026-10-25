@@ -1981,3 +1981,40 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 
 **预制体 XML 的注释里禁止出现两个连字符**（`--`，XML 规范）：写命令示例时用别的方式绕
 （`shapedump` 这类命令行里的 `--packdir` 直接写进去 = **整个 prefab 解析失败**，2026-10-19 当场踩）。
+
+---
+
+## 27. 🔴🔴 **批量导入外部模型到编辑器工程：先建材质资产、再导 FBX**（2026-10-25 登记，圣丹尼斯建筑实战）
+
+**解决什么问题**：几百上千个 RDR2 建筑要进 ModKit，而 `Import FBX` 每次都要手工点；更要命的是**导入后一堆 "Unable to find material for mesh X"**、子网格没有材质。
+
+**根因（实机实证）**
+
+- Bannerlord 导入 FBX 时，拿**每个子网格的材质名**去工程里找同名 `Material` 资产；找不到 → 报警 + **该子网格材质留空**。
+- 这个绑定**发生在导入那一刻**，**后补材质不会回填** —— 必须"先有材质，再导 FBX"（或删掉旧资产重导）。
+
+**正确流程（四步，全部可脚本化）**
+
+| 步 | 谁 | 做什么 |
+|---|---|---|
+| 1 | 用户（编辑器，可多选） | 批量 Import **albedo** PNG → 编辑器自己写 `Assets/.../<贴图名>_tex.tpac` |
+| 2 | 脚本 `tpaccli editormeta --genmats` | 遍历 `_tex.tpac` 读名字+GUID → 克隆一份参考材质，逐个生成 `_mtl.tpac`（材质名 = FBX 里的材质名） |
+| 3 | 脚本（Blender 无头） | 导出 FBX 前**规范化材质名**（见坑③④） |
+| 4 | 用户（编辑器，可多选） | Import FBX → 材质按名字自动挂上 |
+
+**四条必踩的坑**
+
+1. 🔴 **编辑器资产是"元数据 tpac"**：`_tex.tpac` 约 500 B、`_mtl.tpac` 约 440 B，**不含像素**。贴图的 `Source` 用虚拟路径 `$BASE/Modules/<模块>/AssetSources/...`（绝对路径不认）。
+2. 🔴🔴 **`RawMeta` 优先于类型化字段**：只改 `material.Textures[0] = newGuid` 保存出来**还是旧 GUID**（症状：所有材质显示同一张图）。必须同时**字节级替换 RawMeta 里的 16 字节 GUID**（范本 `AssetClone.PatchGuids`，已搬进 `EditorMeta`）。
+3. 🔴 **Blender 会给重名材质加 `.001`** → FBX 里变成 `xxx.001`，对不上 `xxx` 材质 → 导出前统一 `m.name.split('.')[0]` 合并回基名。
+4. 🔴 **Blender 的 `gray` 占位材质**（无贴图的槽）在工程里不存在 → 导出前替换成同楼里一个有贴图的材质。
+5. ⚠️ **贴图名 ≠ 材质名的情况**（例：贴图导入成 `..._abal`，FBX 要 `..._ab`）→ 用**别名表**（`材质名=贴图资产名`）补生成。
+
+**工具位置**
+
+- `tools/tpactool/TpacToolCLI/EditorMeta.cs` → `tpaccli editormeta`
+  `--genmats <贴图目录> --mtlref <参考材质.tpac> [--aliases 别名表] --out <输出>`
+- `tools/tpactool/TpacToolCLI/MeshBatch.cs` → `tpaccli meshbatch`（直接出运行期包，游戏模式用）
+- 建筑 glTF → RMDL1：`Scripts/gltf_tile_to_rmdl.py`；glTF → FBX：`Debug/RD2构造相关/export_sdn_fbx.py`（Blender 无头）
+
+**参考材质从哪来**：用户在编辑器里按正常流程建**一个**材质（选好 shader/flags），把它当模板 —— 其余几百个都克隆它，只换名字和贴图 GUID。

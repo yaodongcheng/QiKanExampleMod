@@ -174,7 +174,7 @@ namespace TpacCli
             return 0;
         }
 
-        private static VertexStreamData BuildVertexStream(Rmdl.SubMesh sub, bool hasQTangent)
+        internal static VertexStreamData BuildVertexStream(Rmdl.SubMesh sub, bool hasQTangent)
         {
             int n = sub.Positions.Length;
             int ni = sub.Indices.Length;
@@ -250,7 +250,7 @@ namespace TpacCli
             return outT;
         }
 
-        private static Guid GuidFromName(string name)
+        internal static Guid GuidFromName(string name)
         {
             using (var md5 = MD5.Create())
             {
@@ -260,7 +260,7 @@ namespace TpacCli
         }
 
         // ── RMDL1 读取器（格式见解包目录 README_骑砍2交接.md §5.3）──
-        private static class Rmdl
+        internal static class Rmdl
         {
             public sealed class SubMesh
             {
