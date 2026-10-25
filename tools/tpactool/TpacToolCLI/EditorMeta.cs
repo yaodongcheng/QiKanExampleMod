@@ -30,7 +30,8 @@ namespace TpacCli
             bool isTex = false, isMat = false;
             string name = null, png = null, outPath = null, texGuid = null;
             string shader = "328d3572-5e9e-4183-b49e-f451a19213d0"; // adobe_stone_wall 默认
-            string fromPath = null, sourcePath = null, genMatsDir = null, mtlRef = null, aliasesPath = null;
+            string fromPath = null, sourcePath = null, genMatsDir = null, mtlRef = null, aliasesPath = null, dumpPath = null;
+            string genTexDir = null, texRef = null, sourcePrefix = null;
             var aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var flags = new List<string> { "use_specular", "bumpmap", "do_not_use_alpha" };
             for (int i = 0; i < args.Length; i++)
@@ -49,6 +50,10 @@ namespace TpacCli
                     case "--source": sourcePath = args[++i]; break;
                     case "--genmats": genMatsDir = args[++i]; break;
                     case "--mtlref": mtlRef = args[++i]; break;
+                    case "--dump": dumpPath = args[++i]; break;
+                    case "--gentex": genTexDir = args[++i]; break;
+                    case "--texref": texRef = args[++i]; break;
+                    case "--sourceprefix": sourcePrefix = args[++i]; break;
                     case "--aliases":
                         aliasesPath = args[++i];
                         foreach (var line in File.ReadAllLines(aliasesPath))
@@ -62,6 +67,87 @@ namespace TpacCli
                 }
             }
             if (name == null || outPath == null) { Console.Error.WriteLine("need --name and --out"); return 1; }
+
+            if (genTexDir != null)
+            {
+                if (texRef == null || sourcePrefix == null)
+                {
+                    Console.Error.WriteLine("--gentex needs --texref <参考_tex.tpac> --sourceprefix <$BASE/...路径前缀>");
+                    return 1;
+                }
+                var rp = new AssetPackage(texRef, true, false);
+                Texture rtex = null;
+                foreach (var it in rp.Items) if (it is Texture t) { rtex = t; break; }
+                if (rtex == null || rtex.RawMeta == null) { Console.Error.WriteLine("texref is not a texture with rawmeta"); return 1; }
+                string oldPath = rtex.Source;
+                var oldB = System.Text.Encoding.UTF8.GetBytes(oldPath);
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath)));
+                int made = 0;
+                foreach (var pngFile in Directory.EnumerateFiles(genTexDir, "*.png"))
+                {
+                    string texName = Path.GetFileNameWithoutExtension(pngFile);
+                    string newPath = sourcePrefix.TrimEnd('/') + "/" + Path.GetFileName(pngFile);
+                    byte[] raw = (byte[])rtex.RawMeta.Clone();
+                    int idx = IndexOf(raw, oldB);
+                    if (idx < 4 || BitConverter.ToInt32(raw, idx - 4) != oldB.Length)
+                    {
+                        Console.Error.WriteLine("  patch point not found in rawmeta for " + texName);
+                        continue;
+                    }
+                    var newB = System.Text.Encoding.UTF8.GetBytes(newPath);
+                    var outRaw = new byte[raw.Length - oldB.Length + newB.Length];
+                    Array.Copy(raw, 0, outRaw, 0, idx - 4);
+                    Array.Copy(BitConverter.GetBytes(newB.Length), 0, outRaw, idx - 4, 4);
+                    Array.Copy(newB, 0, outRaw, idx, newB.Length);
+                    Array.Copy(raw, idx + oldB.Length, outRaw, idx + newB.Length, raw.Length - (idx + oldB.Length));
+
+                    var t2 = new Texture
+                    {
+                        Name = texName,
+                        Source = newPath,
+                        Flags = new List<string>(rtex.Flags),
+                        Width = rtex.Width,
+                        Height = rtex.Height,
+                        MipmapCount = rtex.MipmapCount,
+                        ArrayCount = rtex.ArrayCount,
+                        Format = rtex.Format,
+                        SystemFlags = new List<string>(rtex.SystemFlags),
+                        GeneratedAssets = new List<Tuple<Guid, Guid>>(),
+                    };
+                    t2.Guid = Det("tex:" + texName);
+                    t2.RawMeta = outRaw;
+                    // 编辑器贴图资产不存像素：数据段留空（参考件里也是空的）
+
+                    var pkg2 = new AssetPackage();
+                    pkg2.Items.Add(t2);
+                    pkg2.Save(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(outPath)), texName + "_tex.tpac"));
+                    made++;
+                }
+                Console.WriteLine($"generated {made} textures -> {Path.GetDirectoryName(Path.GetFullPath(outPath))}");
+                return 0;
+            }
+
+            if (dumpPath != null)
+            {
+                var dp = new AssetPackage(dumpPath, true, false);
+                foreach (var it in dp.Items)
+                {
+                    Console.WriteLine($"asset: {it.Name} ({it.GetType().Name}) guid={it.Guid} rawmeta={(it.RawMeta == null ? 0 : it.RawMeta.Length)}");
+                    if (it is Texture tx)
+                    {
+                        Console.WriteLine($"  Source='{tx.Source}' {tx.Width}x{tx.Height} fmt={tx.Format} flags=[{string.Join(",", tx.Flags)}] sys=[{string.Join(",", tx.SystemFlags)}]");
+                        foreach (var seg in tx.TypelessDataSegments)
+                        {
+                            Console.WriteLine($"  segment {seg.GetType().Name}: userdata keys = {seg.UserData.Count}");
+                            foreach (var kv in seg.UserData)
+                                Console.WriteLine($"     {kv.Key} = {kv.Value} ({kv.Value?.GetType().Name})");
+                        }
+                    }
+                    if (it is Material mm)
+                        Console.WriteLine($"  shader={mm.Shader?.Guid} blend={mm.BlendMode} tex slots=[{string.Join(",", mm.Textures.Keys)}]");
+                }
+                return 0;
+            }
 
             if (genMatsDir != null)
             {
@@ -189,6 +275,17 @@ namespace TpacCli
             pkg.Save(outPath);
             Console.WriteLine($"saved {outPath} ({new FileInfo(outPath).Length:N0} bytes)");
             return 0;
+        }
+
+        static int IndexOf(byte[] hay, byte[] needle)
+        {
+            for (int i = 0; i + needle.Length <= hay.Length; i++)
+            {
+                bool ok = true;
+                for (int j = 0; j < needle.Length; j++) if (hay[i + j] != needle[j]) { ok = false; break; }
+                if (ok) return i;
+            }
+            return -1;
         }
 
         static byte[] PatchGuids(byte[] raw, Dictionary<Guid, Guid> oldNew)
