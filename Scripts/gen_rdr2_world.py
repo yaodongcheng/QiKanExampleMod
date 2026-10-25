@@ -25,8 +25,12 @@ import sys
 import xml.etree.ElementTree as ET
 
 MODULES = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules"
-MODULE = os.path.join(MODULES, "RD2")
+# 🔴 唯一合法的 RDR2 世界目录（2026-10-25 用户裁定；RD2 / RD2Map 已废弃）
+MODULE = r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\RDR2"
 RDR2 = r"D:\BrainMaker\大镖客2解包分析"
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import rdr2_world_meta
 
 # ──────────────────────────────────────────────────────────────
 # 世界模型
@@ -226,9 +230,11 @@ def load_world():
         v = v2.get(code, {})
         x = float(v.get("world_x") or 0)
         y = float(v.get("world_y") or 0)
-        # 世界米 → 大地图单位（848×848，1 单位 = 14.5 米）
-        u = (x + 7684.0) / 14.5
-        vv = (4100.0 - y) / 14.5
+        if not rdr2_world_meta.inside(x, y):
+            print("  [skip] %s 在高度图范围外（瓜玛岛 → 以后走独立 mission）" % code)
+            continue
+        # 世界米 → 大地图单位（范围 = 解包高度图覆盖范围，14.5 米/单位；见 terrain_meta.json）
+        u, vv = rdr2_world_meta.world_uv(x, y)
         btype = r["btype"]
         faction = r["faction"]
         clan = r["clan"]

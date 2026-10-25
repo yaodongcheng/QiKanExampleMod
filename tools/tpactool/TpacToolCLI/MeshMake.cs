@@ -14,7 +14,10 @@ namespace TpacCli
     /// 用法：
     ///   tpaccli meshmake --packdir &lt;模板包目录&gt; --src &lt;模板 Metamesh 名&gt;
     ///                    --mdl &lt;RMDL1 文件&gt; --newname &lt;新网格名&gt;
-    ///                    --out &lt;输出目录&gt; [--packname &lt;包名&gt;]
+    ///                    --out &lt;输出目录&gt; [--packname &lt;包名&gt;] [--lods 0,1,2,3]
+    ///
+    /// --lods：把同一份几何复制到这些 LOD 档（不给 = 只出 Lod 0）。大地图据点图标必须给
+    ///         —— 相机离得远，只有 Lod0 的物件在远景可能被跳过。
     ///
     /// 设计：模板 Metamesh 提供材质/顶点布局/各种引擎字段；本工具只替换几何
     /// （位置/法线/UV/索引/切线），并保留模板的 Material guid。
@@ -26,6 +29,7 @@ namespace TpacCli
         {
             string packDir = null, srcName = null, mdlPath = null, newName = null;
             string outDir = ".", packName = null;
+            var lods = new List<int> { 0 };
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])
@@ -36,6 +40,13 @@ namespace TpacCli
                     case "--newname": newName = args[++i]; break;
                     case "--out": outDir = args[++i]; break;
                     case "--packname": packName = args[++i]; break;
+                    case "--lods":
+                    {
+                        lods.Clear();
+                        foreach (var s in args[++i].Split(','))
+                            lods.Add(int.Parse(s.Trim()));
+                        break;
+                    }
                     default: Console.Error.WriteLine("unknown arg: " + args[i]); break;
                 }
             }
@@ -105,15 +116,20 @@ namespace TpacCli
             // 模板数据段是懒加载的；这里不需要原网格数据，q-tangent 按版本判断。
             bool hasQTangent = template.Version >= 1;
 
+            for (int li = 0; li < lods.Count; li++)
             for (int si = 0; si < mdl.SubMeshes.Count; si++)
             {
+                int lod = lods[li];
                 var sub = mdl.SubMeshes[si];
+                string meshName = mdl.SubMeshes.Count == 1
+                    ? (lod == 0 ? newName : newName + ".lod" + lod)
+                    : (lod == 0 ? newName + "_" + si : newName + ".lod" + lod + "." + si);
                 var mesh = new Mesh
                 {
-                    Name = mdl.SubMeshes.Count == 1 ? newName : newName + "_" + si,
-                    Guid = GuidFromName(newName + ":" + si),
+                    Name = meshName,
+                    Guid = GuidFromName(newName + ":" + lod + ":" + si),
                     IsCompleteMesh = true,
-                    Lod = 0,
+                    Lod = lod,
                     UnknownUint1 = tmplMesh.UnknownUint1,
                     Material = tmplMesh.Material,
                     SecondMaterial = tmplMesh.SecondMaterial,
