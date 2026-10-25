@@ -2169,3 +2169,36 @@ do {
 2. **状态标记（正在跑 / 已处理 / 冷却中）必须走 `try/finally` 复位**，不能靠"每条 return 前手动置回"。
 3. **"没配置所以没影响"是错觉**：配置开关关掉的往往是**功能**，不是**代码路径**。
    排查这类问题先问"谁在这条路上、它有没有闸"，别问"玩家开没开这个功能"。
+
+---
+
+## 🔴 启动器 / ModKit 打开几秒后进程直接消失（连错误框都没有）→ `Modules` 里留着**死链 junction**（2026-10-25，1.2.12 删 RD2Map 目录后）
+
+**症状**
+- `MODKIT.lnk`（→ `bin\Win64_Shipping_wEditor\TaleWorlds.MountAndBlade.Launcher.exe`）或游戏启动器双击能起，**几秒后窗口消失、进程退出**，不弹任何错误。
+- 证据在 `C:\ProgramData\Mount and Blade II Bannerlord\logs\launcher_log_<pid>.txt` 末尾：
+  ```
+  Could not find a part of the path '...\Modules\RD2Map'
+     at TaleWorlds.ModuleManager.ModuleHelper.GetModulePaths
+     at TaleWorlds.MountAndBlade.Launcher.Library.LauncherVM..ctor
+     at TaleWorlds.MountAndBlade.Launcher.Library.LauncherUI.Initialize
+  ```
+
+**根因**
+- 模块目录是**目录 junction**（双端同源的老做法）。删模块时删掉的是**目标目录**，`Modules\<名>` 这个链接还留着 → **死链**。
+- 启动器初始化会 `Directory.GetFiles` 扫 Modules 下每个目录找 `SubModule.xml`；碰到死链抛 `DirectoryNotFoundException`，`LauncherVM` 构造失败 ⇒ 整个进程退出（无 UI 错误提示，所以看着像"无缘无故消失"）。
+
+**排查（1 秒扫全量）**
+```powershell
+Get-ChildItem "H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules" -Directory | ForEach-Object {
+  try { $null = [System.IO.Directory]::GetFiles($_.FullName, '*', 'TopDirectoryOnly') } catch { "死链: " + $_.Name } }
+```
+
+**修复**（`rmdir` 对 junction 只删链接，不碰目标数据）
+```
+cmd /c rmdir "H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\RD2Map"
+```
+
+**以后怎么办**
+- 删带 junction 的模块：**先 `rmdir` 链接，再删目标**；只删目标的，删完立刻跑上面那条扫描。
+- 这类"启动即死"的问题，**先读 `launcher_log_*.txt` 的调用栈**，别靠回忆"我最近改了什么"——本次真凶是用户删目录留下的死链，与当轮改动的两个场景文件无关（那两个文件在场景加载时才读）。

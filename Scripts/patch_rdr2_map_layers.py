@@ -25,7 +25,8 @@ import shutil
 MODULES = r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules"
 VANILLA = os.path.join(r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules",
                        "SandBox", "SceneObj", "Main_map", "scene.xscene")
-DST_DIR = os.path.join(MODULES, "RDR2", "SceneObj", "Main_map")
+SCENE = os.environ.get("RDR2_SCENE", "Main_map")     # 场景目录名：Main_map / rdr2_sanit_denis
+DST_DIR = os.path.join(MODULES, "RDR2", "SceneObj", SCENE)
 DST = os.path.join(DST_DIR, "scene.xscene")
 REFS = os.path.join(DST_DIR, "references.txt")
 
@@ -45,24 +46,15 @@ def attr(tag, name):
 
 
 def main():
+    print("scene:", SCENE)
     van = io.open(VANILLA, encoding="utf-8", errors="ignore").read()
     dst = io.open(DST, encoding="utf-8", errors="ignore").read()
 
     van_terrain = re.search(r"<terrain[^>]*>", van).group(0)
     van_layers = re.search(r"<layers version=\"1\".*?</layers>", van, re.S).group(0)
 
-    # 原版 8 层里没有 snow —— 追加一层（复制 default 换贴图 snow_a_d，Native core.tpac 里实证存在）
-    if 'name="snow"' not in van_layers:
-        m = re.search(r'(\t*<layer name="default">.*?</layer>)', van_layers, re.S)
-        if m:
-            block = m.group(1)
-            snow = block.replace('<layer name="default">', '<layer name="snow">', 1)
-            snow = re.sub(r'(<texture type="diffusemap" name=")[^"]*(")', r'\g<1>snow_a_d\g<2>', snow)
-            snow = re.sub(r'(<texture type="displacementmap" name=")[^"]*(")', r'\g<1>\g<2>', snow)
-            snow = re.sub(r'(<texture type="(?:areamap|normalmap|specularmap|splattingmap)" name=")[^"]*(")',
-                          r'\g<1>none\g<2>', snow)
-            van_layers = van_layers.replace("</layers>", snow + "\n\t\t</layers>")
-            print("appended snow layer")
+    # 原版 8 层里没有 snow —— 雪区靠 rock 层（main_map_mountains_d 灰白岩石）表现，
+    # 所以不再追加 snow 层；雪的权重并进 mask_rock（见 gen_rdr2_terrain.py 的 mask_rock_snow）。
     print("vanilla layers:", re.findall(r'<layer name="([^"]+)"', van_layers))
 
     dst_terrain = re.search(r"<terrain[^>]*>", dst).group(0)
@@ -90,6 +82,17 @@ def main():
         body = re.search(r"<terrain[^>]*>(.*?)</terrain>", dst, re.S)
         out = dst.replace(body.group(1), body.group(1) + van_layers)
     out = out.replace(dst_terrain, new_terrain)
+
+    # 🔴 关键一步（wheels.d/terrain.md 2026-09-06 实锤）：层数变了，节点的
+    # `layer_is_used_mask_*` **不会**自动更新 —— 新建场景按"当时层数"写成 1（只认 layer0），
+    # 注入 8 层后除 default 外全不渲染。必须把四个季节的 mask 全部置 255。
+    n_mask = 0
+    for season in ("summer", "fall", "winter", "spring"):
+        out, k = re.subn(r'layer_is_used_mask_%s="\d+"' % season,
+                         'layer_is_used_mask_%s="255"' % season, out)
+        n_mask += k
+    print("layer_is_used_mask -> 255 :", n_mask, "处")
+
     io.open(DST, "w", encoding="utf-8", newline="\n").write(out)
     print("wrote", DST)
 
