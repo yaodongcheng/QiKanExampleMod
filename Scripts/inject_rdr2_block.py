@@ -41,11 +41,73 @@ SIZE = float(_meta["size_m"])
 WX0 = float(_meta["center_m"][0]) - SIZE / 2.0     # 场景西边界对应的世界 x
 WY1 = float(_meta["center_m"][1]) + SIZE / 2.0     # 场景北边界对应的世界 y
 ZSPAN = float(_meta["z_max_m"]) - float(_meta["z_min_m"])
+_Y_SOUTH = float(_meta["center_m"][1]) - SIZE / 2.0   # 场景南边界对应的世界 y
 
 
 def load_height():
     a = np.array(Image.open(HEIGHT), dtype=np.float32)
     return a / 65535.0 * ZSPAN
+
+
+def load_modelsize():
+    """模型最大边（米），用于剔除 <2 m 的家具/碎屑。"""
+    import csv
+    out = {}
+    with io.open(r"D:\BrainMaker\大镖客2解包分析\deliverable\handoff\model_manifest.csv",
+                 encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            try:
+                out[r["name"]] = max(float(r["size_x"]), float(r["size_y"]), float(r["size_z"]))
+            except Exception:
+                pass
+    return out
+
+
+def load_modelsize_xy():
+    """模型 x/y 尺寸（米），用于按足迹取最低地面。"""
+    import csv
+    out = {}
+    with io.open(r"D:\BrainMaker\大镖客2解包分析\deliverable\handoff\model_manifest.csv",
+                 encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            try:
+                out[r["name"]] = (float(r["size_x"]), float(r["size_y"]))
+            except Exception:
+                pass
+    return out
+
+
+def load_contour():
+    """源高程（4 m/px）：判"贴地"用。返回 (meta, array)。"""
+    meta = json.load(io.open(r"D:\BrainMaker\大镖客2解包分析\deliverable\heightmap\continent_height_meta.json",
+                             encoding="utf-8"))
+    hm = meta["heightmap"]
+    a = np.array(Image.open(os.path.join(r"D:\BrainMaker\大镖客2解包分析\deliverable\heightmap",
+                                         hm["file_16bit"])), dtype=np.float32)
+    a = hm["zmin"] + a / 65535.0 * (hm["zmax"] - hm["zmin"])
+    return hm, a
+
+
+def cont_z(hm, a, wx, wy):
+    ix = int(round((wx - hm["x0"]) / hm["res_m"]))
+    iy = int(round((hm["y1"] - wy) / hm["res_m"]))
+    iy = max(0, min(a.shape[0] - 1, iy)); ix = max(0, min(a.shape[1] - 1, ix))
+    return float(a[iy, ix])
+
+
+WATER_Z = float(_meta["water_surface_m"]) - float(_meta["z_min_m"])   # 水面（场景单位）
+
+
+def sample_height(hmap, sx, sy, y_north=True):
+    """双线性采样（原来用最近邻，实测整片地面会差半米级）。"""
+    H, W = hmap.shape
+    fx = sx / SIZE * (W - 1)
+    fy = ((SIZE - sy) / SIZE if y_north else (sy / SIZE)) * (H - 1)
+    ix, iy = int(fx), int(fy)
+    ix = max(0, min(W - 2, ix)); iy = max(0, min(H - 2, iy))
+    tx, ty = fx - ix, fy - iy
+    return float(hmap[iy, ix] * (1 - tx) * (1 - ty) + hmap[iy, ix + 1] * tx * (1 - ty)
+                 + hmap[iy + 1, ix] * (1 - tx) * ty + hmap[iy + 1, ix + 1] * tx * ty)
 
 
 def main():
@@ -55,13 +117,32 @@ def main():
     ap.add_argument("--scene", default=SCENE)
     ap.add_argument("--tag", default="block")
     ap.add_argument("--dry", action="store_true")
+    ap.add_argument("--prefix", default="", help="实体名前缀（区分多组对照）")
+    ap.add_argument("--sink-per-meter", type=float, default=0.0,
+                    help="每米足迹额外下沉多少米（大平板在坡上会悬空，用它压住）")
+    ap.add_argument("--z-offset", type=float, default=0.0,
+                    help="全局高度偏移（米），整片抬高/压低")
+    ap.add_argument("--boat-sink", type=float, default=2.5,
+                    help="船（new_boats*）在水面上的吃水深度（米，默认 2.5）")
+    ap.add_argument("--no-water-clamp", action="store_true",
+                    help="不把水面以下的实例抬到水面（默认会抬）")
+    ap.add_argument("--y-north", action="store_true", default=True,
+                    help="场景 Y+ 朝北（实机确认，默认开）；关掉则按旧的 Y+ 朝南")
+    ap.add_argument("--min-size", type=float, default=2.0,
+                    help="最大边小于这个米数的实例不摆（家具/钉子/碎屑）")
+    ap.add_argument("--max-z-diff", type=float, default=None,
+                    help="只摆与地形高度差 <= 这个米数的实例（剔掉楼上部件/屋顶壳）")
     args = ap.parse_args()
 
     cx, cy = [float(v) for v in args.center.split(",")]
     hmap = load_height()
     meshmap = json.load(io.open(MESHMAP, encoding="utf-8"))
+    msize = load_modelsize()
+    msize2 = load_modelsize_xy()
+    chm, carr = load_contour() if args.max_z_diff is not None else (None, None)
 
     items, missing = [], set()
+    small = elevated = 0
     for fn in sorted(os.listdir(TILES)):
         if not fn.endswith(".gltf"):
             continue
@@ -79,6 +160,13 @@ def main():
             if not mesh:
                 missing.add(nm)
                 continue
+            sz = msize.get(nm)
+            if sz is not None and sz < args.min_size:
+                small += 1
+                continue
+            if args.max_z_diff is not None and abs(t[2] - cont_z(chm, carr, t[0], t[1])) > args.max_z_diff:
+                elevated += 1
+                continue
             q = n.get("rotation") or [0, 0, 0, 1]
             yaw = math.degrees(2 * math.atan2(q[2], q[3]))
             s = n.get("scale") or [1, 1, 1]
@@ -87,20 +175,36 @@ def main():
     frag = []
     for i, (nm, mesh, wx, wy, yaw, sc) in enumerate(items):
         sx = wx - WX0
-        sy = WY1 - wy
-        hx = min(hmap.shape[1] - 1, max(0, int(round(sx / SIZE * (hmap.shape[1] - 1)))))
-        hy = min(hmap.shape[0] - 1, max(0, int(round(sy / SIZE * (hmap.shape[0] - 1)))))
-        sz = float(hmap[hy, hx])
-        rz = -math.radians(yaw)
+        # 场景 Y+ 朝北（2026-10-26 实机确认）：南边界 = 世界 y 最小处
+        sy = (wy - _Y_SOUTH) if args.y_north else (WY1 - wy)
+        cz = sample_height(hmap, sx, sy, args.y_north)
+        if cz < WATER_Z - 0.05:
+            # 水面区：船沉一截吃水，其余（码头/桩）贴水面
+            sz = (WATER_Z - args.boat_sink) if nm.startswith("new_boats") else WATER_Z
+        else:
+            # 陆地：按"足迹四角 + 中心"取最低地面 ⇒ 长条构件不再一端悬空
+            hx, hy = msize2.get(nm, (0.0, 0.0))
+            hs = [cz]
+            for ddx, ddy in ((hx / 2, hy / 2), (hx / 2, -hy / 2), (-hx / 2, hy / 2), (-hx / 2, -hy / 2)):
+                hs.append(sample_height(hmap, sx + ddx, sy + ddy, args.y_north))
+            sz = min(hs)
+            if args.sink_per_meter:
+                sz -= args.sink_per_meter * max(hx, hy)      # 大件多压一点
+            if not args.no_water_clamp:
+                sz = max(sz, WATER_Z)
+        sz += args.z_offset
+        rz = (math.radians(yaw) if args.y_north else -math.radians(yaw))
         scale = '' if abs(sc - 1.0) < 1e-3 else ' scale="%.4f, %.4f, %.4f"' % (sc, sc, sc)
         frag.append(
-            '<game_entity name="%s_%04d" old_prefab_name="" mobility="1">'
+            '<game_entity name="%s%s_%04d" old_prefab_name="" mobility="1">'
             '<transform position="%.3f, %.3f, %.3f" rotation_euler="0.000, 0.000, %.4f"%s/>'
             '<components><meta_mesh_component name="%s"/></components></game_entity>'
-            % (nm, i, sx, sy, sz, rz, scale, mesh))
+            % (args.prefix, nm, i, sx, sy, sz, rz, scale, mesh))
 
-    print("街区 中心(%g,%g) 半径 %g m ⇒ 实例 %d · 唯一模型 %d · 缺网格 %d"
-          % (cx, cy, args.half, len(items), len({x[1] for x in items}), len(missing)))
+    print("街区 中心(%g,%g) 半径 %g m ⇒ 实例 %d（剔除 <%.1f m 的 %d 个、离地 >%s 的 %d 个）· 唯一模型 %d · 缺网格 %d"
+          % (cx, cy, args.half, len(items), args.min_size, small,
+             args.max_z_diff if args.max_z_diff is not None else "-", elevated,
+             len({x[1] for x in items}), len(missing)))
     if missing:
         print("  缺网格的模型:", sorted(missing)[:8])
     if args.dry:
