@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -26,6 +27,7 @@ string format = "png";
 string mapping = null;
 bool mapsonly = false;
 bool allArg = false;     // animbones: 全量一行一条
+bool onlyMultiArg = false; // metameshinfo: 只看多档 LOD 的
 string prioArg = null;   // clipprio: 目标 Priority
 string p1Arg = null;     // clipparams: Param1（可省）
 string p2Arg = null;     // clipparams: Param2（可省）
@@ -66,6 +68,7 @@ if (command is not ("assetclone" or "morphinfo" or "morphfix" or "skinfix" or "m
             case "--mapping": mapping = args[++i]; break;
             case "--mapsonly": mapsonly = true; break;
             case "--all": allArg = true; break;
+            case "--onlymulti": onlyMultiArg = true; break;
             case "--prio": prioArg = cmdLine[++i]; break;
             case "--p1": p1Arg = cmdLine[++i]; break;
             case "--p2": p2Arg = cmdLine[++i]; break;
@@ -138,12 +141,18 @@ if (command is "morphinfo" or "morphfix" or "skinfix" or "meshdiff" or "metapart
 var mgr = new AssetManager();
 // 多目录(--packdir 逗号分隔): 递归收集全部包 → 全局 byGuid + 缺项不炸的 resolver
 var packDirs = (dir ?? ".").Split(',').Select(d => d.Trim()).Where(d => d.Length > 0).ToArray();
-try { mgr.Load(new DirectoryInfo(packDirs[0])); } catch { }
+if (Directory.Exists(packDirs[0])) { try { mgr.Load(new DirectoryInfo(packDirs[0])); } catch { } }
 var byGuid = new Dictionary<Guid, AssetItem>();
+// --packdir 也可以直接给单个 .tpac 文件（研究原版单个包时免去整目录加载）
+var packFiles = new List<string>();
 foreach (var pd in packDirs)
-    foreach (var f in Directory.EnumerateFiles(pd, "*.tpac", SearchOption.AllDirectories))
-        foreach (var it in new AssetPackage(f, true, false).Items)
-            byGuid[it.Guid] = it;
+{
+    if (File.Exists(pd)) packFiles.Add(pd);
+    else if (Directory.Exists(pd)) packFiles.AddRange(Directory.EnumerateFiles(pd, "*.tpac", SearchOption.AllDirectories));
+}
+foreach (var f in packFiles)
+    foreach (var it in new AssetPackage(f, true, false).Items)
+        byGuid[it.Guid] = it;
 DefaultDependenceResolver.Instance = new ByGuidResolver(byGuid);
 IReadOnlyList<AssetItem> assets = byGuid.Values.ToList();
 Console.WriteLine($"Loaded {mgr.LoadedPackages.Count} packages from {packDirs.Length} dirs, {assets.Count} assets");
@@ -210,6 +219,8 @@ switch (command)
     {
         return ReplaceTex.Run(dir, filter, mapping, outDir, withAlphaArg);
     }
+    case "metameshinfo":
+        return MetameshInfo.Run(assets, filter, onlyMultiArg);
     case "inspect":
     {
         var items = assets

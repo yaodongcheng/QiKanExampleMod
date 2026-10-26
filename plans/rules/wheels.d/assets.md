@@ -2018,3 +2018,67 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 - 建筑 glTF → RMDL1：`Scripts/gltf_tile_to_rmdl.py`；glTF → FBX：`Debug/RD2构造相关/export_sdn_fbx.py`（Blender 无头）
 
 **参考材质从哪来**：用户在编辑器里按正常流程建**一个**材质（选好 shader/flags），把它当模板 —— 其余几百个都克隆它，只换名字和贴图 GUID。
+
+## 28. 🔴🔴 **TRF 带 LOD / 批量导入自动化 / 减面配方**（2026-10-26 登记，圣丹尼斯全量实战）
+
+**解决什么问题**：5,211 个建筑要进编辑器，还要带 LOD 链；FBX 一路走下来发现**根本带不了 LOD**，而 ModKit 每导一个 FBX 都要手点一次 Import。
+
+### 28.1 批量导入的容量上限（实机崩溃特征）
+
+| 类型 | 单次会话能扛 | 超了会怎样 |
+|---|---|---|
+| 贴图 | **~1,200 张** | 原生崩溃 `0xC0000409`（fastfail 7 = abort），**不是 OOM**（崩溃时托管堆才 118 MB） |
+| 网格（FBX/TRF） | **~600 个** | 同上（每个 `_geo.tpac` 含几何，体积大得多） |
+
+⇒ **分批导入 + 每批前重启 ModKit**。分批目录按 500 个切最稳。
+
+### 28.2 自动点 Import（ModKit 每个 FBX 弹一次设置框）
+
+- 脚本：`Scripts/rdr2_fbx_auto_import.ps1`（PowerShell，盯标题 `FBX Import Settings`，出现就激活 + 回一次车）。
+- 🔴 **`[Microsoft.VisualBasic.Interaction]::AppActivate` 找不到窗口是抛异常**，不是返回 false → 用 `WScript.Shell` 的 `AppActivate`（返回布尔）。
+- 🔴 **必须做 armed/disarmed 状态机**：按完回车后，**等对话框真的消失**才允许下一次按。否则编辑器忙（1~2 秒）时下一轮又按一次 → 同一个文件被导两遍 → `Item with same name already exists` 警告。
+- 控制台报"已存在"的警告**不致命**（第一次导入是好的），但说明脚本在重按。
+
+### 28.3 导入是「两侧落盘」，删除/替换必须两边一起动
+
+- `Assets\<类>\<名>_geo.tpac`（编辑器注册表）+ `AssetSources\<类>\<名>.fbx`（编辑器**自动写的镜像副本**）。
+- ⚠️ **镜像层级不固定**：网格是**平铺**的 `AssetSources\buildings\<名>.fbx`；head/armor 那类才是 `<类>\<名>\<名>.fbx`。删之前先 `ls` 看实际布局。
+
+### 28.4 🔴🔴 LOD 只能走 TRF，FBX 带不了
+
+**实测结论（2026-10-26）**
+
+- **FBX 不能做 LOD**：把 `<名>_lod` 当独立文件导入时，编辑器会把它**改名成 `<名>` 注册**（去掉 `_lod`）；若 `<名>` 已存在 → 撞名跳过。**永远不会合并成多档**。
+- **TRF 可以**：ModKit 的 `Import` 支持 `.trf`，且按命名还原多档 LOD（实测 0/3/5 三档 → Metamesh 里出现 6 个槽位）。
+  - 命名规则：`<模型>.<子网格序>` = **LOD0**；`<模型>.lod<N>.<子网格序>` = 第 N 档。
+  - TRF 是**纯文本**：`rfver 4` / `mesh <数量>` / 每段 `name 0 材质名` + 顶点/FVF/面。**体积大**（6.9 万面的楼 ≈ 21 MB），全量要按面数挑。
+- **引擎 LOD 距离是固定的**（实测读出，单位米）：
+  `LOD0 8 / LOD1 12 / LOD2 16 / LOD3 27 / LOD4 38 / LOD5 71 / LOD6 116`，更远用最后一档。
+- 导出器：`Scripts/export_rdr2_trf_lods.py`（吃 FBX → 写 TRF），TRF 读写复用 `tools/OpenTrf/trf_meta_mesh_exporter.py`。
+
+### 28.5 减面配方（实测唯一能看的组合）
+
+| 步骤 | 做法 | 为什么 |
+|---|---|---|
+| ① 清理 | `remove_doubles(0.002)` + `normals_make_consistent` | FBX 顶点按 UV 缝拆成"三角岛"，**不合并直接 COLLAPSE 会把屋顶撕出洞** |
+| ② 分组 | **先按材质拆子网格**，逐个子网格减 | 原版统计：每档子网格数几乎不变（中位 4~5）⇒ 是逐材质等比减面，不是丢零件 |
+| ③ 减面 | `DECIMATE / COLLAPSE / ratio`，`use_collapse_triangulate=True` | |
+| ④ 比率 | LOD1 **50%** → LOD2 **30%** → LOD3 **19%** → LOD4 **12%** | 抄原版中位；**低于 ~11% 屋顶会拉出长刺**，宁可停 |
+
+**原版基线（`archhitecture_empire.tpac`，459 个多档网格）**：LOD1~7 相对 LOD0 的面数中位数 = 50.1 / 29.5 / 19.3 / 11.3 / 5.1 / 2.5 / 0.8 %；1,023 个建筑里只有 459 个带多档（小件不做 LOD）。
+
+### 28.6 FBX 导出三坑（批量必踩）
+
+1. 🔴 **材质名 >63 字符会被 Blender 截断并加哈希**（`..._3433e6a`）→ 对不上材质资产。**导出前自己截到 55 字符**（`前46字 + _ + md5[0:8]`），且**生成材质时用同一个函数**。
+2. 🔴 **Windows 大小写不敏感**：只差大小写的材质/贴图会**互相覆盖**（实测 4 例"占位材质把真材质顶掉"）→ 全链统一一个拼写（贴图文件名、FBX 材质名、材质资产名）。
+3. 🔴 **`.fbm` 垃圾**：`path_mode='COPY'` 会给每个模型复制一份贴图（5,211 个模型 ≈ 5 GB）→ 用 **`path_mode='STRIP'`**（编辑器按材质名绑定，根本不需要这些副本）。
+
+### 28.7 工具增强（本次新增）
+
+- `tpaccli metameshinfo --packdir <dir|单个.tpac> [--filter s] [--onlymulti]`
+  → 打印每个 Metamesh 的 **LOD 档位 / 面数 / 顶点 / 材质 / maxdist**（只读元数据，秒出）。研究原版分档、验收自己的 LOD 都用它。
+- `--packdir` 现在**可以直接给一个 `.tpac` 文件**（研究原版单个包时不用整个目录加载）。
+
+### 28.8 Blender 无头脚本的路径坑
+
+`bpy.ops.render.render(write_still=True)` 的 `filepath` **以 Blender 自己的 CWD 为基准**（不是脚本所在目录）——传相对路径会写到 `C:\Debug\...` 去。**一律传绝对路径**（相对路径在脚本里先 `os.path.join(ROOT, ...)` 拼成绝对）。
