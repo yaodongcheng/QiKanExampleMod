@@ -125,7 +125,7 @@ def main():
         print("height rows", y1, "/", H)
 
     # 🔴 B 方案：全局单水位下把陆地垫起来、只挖真正的海/大河
-    wsrc = np.array(Image.open(os.path.join(RDR2, "deliverable/terrain_weights", "w_water.png")), dtype=np.float32)
+    wsrc = np.array(Image.open(os.path.join(RDR2, "deliverable/terrain/weights", "w_water.png")), dtype=np.float32)
     water = np.zeros((H, W), dtype=bool)
     for y0 in range(0, H, 256):
         y1 = min(H, y0 + 256)
@@ -182,7 +182,7 @@ def main():
     # 7 层权重（与高度图同一套重采样）
     weights = {}
     for key in LAYERS:
-        p = os.path.join(RDR2, "deliverable/terrain_weights", "w_%s.png" % key)
+        p = os.path.join(RDR2, "deliverable/terrain/weights", "w_%s.png" % key)
         if not os.path.isfile(p):
             print("  [warn] missing weight", key)
             continue

@@ -134,7 +134,7 @@ def main():
     out_z = bilinear(src_z, fx[None, :], fy[:, None])
     src_land = out_z.copy()                          # 源地形原值（校验"陆地没被动过"用）
     src_land = out_z.copy()                          # 源地形原值（校验"陆地没被动过"用）
-    water = np.clip(bilinear(np.array(Image.open(os.path.join(RDR2, "deliverable/terrain_weights", "w_water.png")),
+    water = np.clip(bilinear(np.array(Image.open(os.path.join(RDR2, "deliverable/terrain/weights", "w_water.png")),
                                        dtype=np.float32), fx[None, :], fy[:, None]), 0, 255) > 127
     print("water fraction of block (raw): %.1f%%" % (water.mean() * 100))
     water_raw = water.copy()
@@ -199,7 +199,7 @@ def main():
     for eng, key in ENGINE_LAYERS.items():
         out = np.zeros((PX, PX), dtype=np.uint8)
         if key:
-            p = os.path.join(RDR2, "deliverable/terrain_weights", "w_%s.png" % key)
+            p = os.path.join(RDR2, "deliverable/terrain/weights", "w_%s.png" % key)
             src = np.array(Image.open(p), dtype=np.float32)
             out = np.clip(bilinear(src, fx[None, :], fy[:, None]), 0, 255).astype(np.uint8)
         elif eng == "default":

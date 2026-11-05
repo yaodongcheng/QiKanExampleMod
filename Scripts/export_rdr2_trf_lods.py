@@ -27,8 +27,9 @@ import mathutils
 ROOT = r"h:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs"
 EXPORTER = os.path.join(ROOT, "tools", "OpenTrf", "trf_meta_mesh_exporter.py")
 
-# 实测：清理后 collapse 到 ~11% 已经极限（再低屋顶会拉长刺），所以只做 5 档，最后一档到无穷远
-RATIOS = [1.0, 0.50, 0.30, 0.19, 0.12]
+# 7 个 LOD 槽位（骑砍2 严格按距离映射：8/12/16/27/38/71/116 m，缺槽 = 后段用错网格）。
+# 中间档可合并：后两档复用 12% 的几何（再减到 8%/5% 会出"屋顶长刺"，2026-11-05 用户裁定）。
+RATIOS = [1.0, 0.50, 0.30, 0.19, 0.12, 0.12, 0.12]
 MIN_FACES = 8
 
 argv = sys.argv[sys.argv.index("--") + 1:]
@@ -124,45 +125,81 @@ def frame_camera(objs):
 
 
 summary = {}
+failures = {}
 for fbx in fbx_list:
     name = os.path.splitext(os.path.basename(fbx))[0]
-    bpy.ops.wm.read_factory_settings(use_empty=True)
     try:
-        bpy.ops.import_scene.fbx(filepath=fbx, axis_forward='Y', axis_up='Z')
-    except Exception as e:
-        print("FAIL_IMPORT", name, e)
-        continue
-    meshes = [o for o in bpy.data.objects if o.type == 'MESH']
-    if not meshes:
-        print("FAIL_EMPTY", name)
-        continue
-    for o in meshes:
-        o.matrix_world = mathutils.Matrix.Identity(4)
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        try:
+            bpy.ops.import_scene.fbx(filepath=fbx, axis_forward='Y', axis_up='Z')
+        except Exception as e:
+            print("FAIL_IMPORT", name, e)
+            failures[name] = "import: %s" % e
+            continue
+        meshes = [o for o in bpy.data.objects if o.type == 'MESH']
+        if not meshes:
+            print("FAIL_EMPTY", name)
+            failures[name] = "empty"
+            continue
+        for o in meshes:
+            o.matrix_world = mathutils.Matrix.Identity(4)
 
-    parts = split_by_material(meshes[0])
-    originals = [p.data for p in parts]
-    for i, p in enumerate(parts):
-        p.name = "%s.%d" % (name, i)
+        # 🔴 多 mesh：先合并成一个再按材质拆 —— 原来只处理 meshes[0]，其余会静默丢失
+        if len(meshes) > 1:
+            bpy.ops.object.select_all(action='DESELECT')
+            for o in meshes:
+                o.select_set(True)
+            bpy.context.view_layer.objects.active = meshes[0]
+            bpy.ops.object.join()
+            meshes = [bpy.context.view_layer.objects.active]
+            print("JOIN_MESH", name, "-> 1")
 
-    trf_meshes, lod_faces = [], {}
-    for lv, ratio in enumerate(RATIOS):
+        parts = split_by_material(meshes[0])
+        originals = [p.data for p in parts]
         for i, p in enumerate(parts):
-            p.data = originals[i].copy()
-            decimate(p, ratio)
-            p.name = ("%s.%d" % (name, i)) if lv == 0 else ("%s.lod%d.%d" % (name, lv, i))
-        lod_faces[lv] = sum(len(p.data.polygons) for p in parts)
-        for p in parts:
-            trf_meshes.append(trfexp.create_trf_mesh(p))
-        if preview_dir and lv in (0, 3, 5):
-            frame_camera(parts)
-            render_preview(os.path.join(preview_dir, "%s_lod%d.png" % (name, lv)))
-            for c in [o for o in bpy.data.objects if o.type == 'CAMERA']:
-                bpy.data.objects.remove(c, do_unlink=True)
+            p.name = "%s.%d" % (name, i)
 
-    out = os.path.join(out_dir, name + ".trf")
-    trfexp.export_trf_file(trf_meshes, out)
-    summary[name] = lod_faces
-    print("TRF %-34s 子网格=%d LOD=%s" % (name, len(parts), lod_faces))
+        trf_meshes, lod_faces = [], {}
+        prev = {}
+        for lv, ratio in enumerate(RATIOS):
+            # 合并档：比率与上一档相同 → 直接复用上一档网格，不重复减面
+            reuse = lv > 0 and abs(ratio - RATIOS[lv - 1]) < 1e-9
+            for i, p in enumerate(parts):
+                p.data = prev[i].copy() if reuse else originals[i].copy()
+                if not reuse:
+                    decimate(p, ratio)
+                prev[i] = p.data
+                p.name = ("%s.%d" % (name, i)) if lv == 0 else ("%s.lod%d.%d" % (name, lv, i))
+            lod_faces[lv] = sum(len(p.data.polygons) for p in parts)
+            for p in parts:
+                trf_meshes.append(trfexp.create_trf_mesh(p))
+            if preview_dir and lv in (0, 3, 6):
+                frame_camera(parts)
+                render_preview(os.path.join(preview_dir, "%s_lod%d.png" % (name, lv)))
+                for c in [o for o in bpy.data.objects if o.type == 'CAMERA']:
+                    bpy.data.objects.remove(c, do_unlink=True)
+
+        # 出厂闸门：面数逐档不增（合并档允许相等）
+        seq = [lod_faces[lv] for lv in range(len(RATIOS))]
+        if any(seq[i] > seq[i - 1] for i in range(1, len(seq))):
+            print("FAIL_LOD_ORDER", name, seq)
+            failures[name] = "lod_order: %s" % seq
+            continue
+        out = os.path.join(out_dir, name + ".trf")
+        trfexp.export_trf_file(trf_meshes, out)
+        if not os.path.exists(out) or os.path.getsize(out) < 128:
+            print("FAIL_TRF_EMPTY", name)
+            failures[name] = "trf_empty"
+            continue
+        summary[name] = lod_faces
+        print("TRF %-34s 子网格=%d LOD=%s" % (name, len(parts), lod_faces))
+    except Exception as e:
+        # 单个模型失败不拖垮整批
+        print("FAIL_TRF", name, repr(e))
+        failures[name] = repr(e)
+        continue
 
 json.dump(summary, open(os.path.join(out_dir, "_lod_faces.json"), "w", encoding="utf-8"), indent=1)
-print("DONE", len(summary))
+json.dump(failures, open(os.path.join(out_dir, "_failures.json"), "w", encoding="utf-8"),
+          ensure_ascii=False, indent=1)
+print("DONE", len(summary), "FAIL", len(failures))
