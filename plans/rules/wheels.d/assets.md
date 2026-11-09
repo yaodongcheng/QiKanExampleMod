@@ -2032,17 +2032,24 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 
 ⇒ **分批导入 + 每批前重启 ModKit**。分批目录按 500 个切最稳。
 
-### 28.2 自动点 Import（ModKit 每个 FBX 弹一次设置框）
+### 28.2 自动点 Import（ModKit 每个网格弹一次设置框）
 
-- 脚本：`Scripts/rdr2_fbx_auto_import.ps1`（PowerShell，盯标题 `FBX Import Settings`，出现就激活 + 回一次车）。
-- 🔴 **`[Microsoft.VisualBasic.Interaction]::AppActivate` 找不到窗口是抛异常**，不是返回 false → 用 `WScript.Shell` 的 `AppActivate`（返回布尔）。
-- 🔴 **必须做 armed/disarmed 状态机**：按完回车后，**等对话框真的消失**才允许下一次按。否则编辑器忙（1~2 秒）时下一轮又按一次 → 同一个文件被导两遍 → `Item with same name already exists` 警告。
-- 控制台报"已存在"的警告**不致命**（第一次导入是好的），但说明脚本在重按。
+- 脚本：`Scripts/rdr2_fbx_auto_import.ps1`（v5，2026-11-09 实机验证）。
+- 🔴 **别用「等对话框真的消失再按下一个」做去抖**：**Windows 会复用 HWND** —— 第一个框关掉后，下一个框拿到同一个句柄，"还开着"永远成立 ⇒ **每 45 秒才按一次**（看起来像"只点一次"）。
+  正解 = **「句柄 + 时间间隔」去抖**（同一句柄在 900 ms 内重复出现才视为同一个框），等价于连续按又不会对同一个框瞬间连按。
+- 匹配对话框用**标题正则**（默认 `(?i)import`），不要写死标题：FBX 与 TRF 的框标题可能不同（本例 = `Geometry File Import Settings`）。`-ListWindows` 可打印所有可见窗口标题/类名。
+- 按前用 `GetForegroundWindow` 校验前台（最多重试 6 次），避免 Enter 发到别的窗口。
+- 异常 `#32770` 弹窗（如 `Item with same name already exists`）只记日志、不自动按——那是要人看的验收信号。
+- **实机数据（2026-11-09）**：184 个连续导入，确认 182 次（+ 前一轮 2 次），**0 告警 / 0 "same name"**，约 1 秒/个。
+- ⚠️ `[Microsoft.VisualBasic.Interaction]::AppActivate` 找不到窗口是抛异常（v2 的坑）；`WScript.Shell.AppActivate` 返回布尔，但连续同名对话框会失效——v5 已完全不用它。
 
 ### 28.3 导入是「两侧落盘」，删除/替换必须两边一起动
 
 - `Assets\<类>\<名>_geo.tpac`（编辑器注册表）+ `AssetSources\<类>\<名>.fbx`（编辑器**自动写的镜像副本**）。
 - ⚠️ **镜像层级不固定**：网格是**平铺**的 `AssetSources\buildings\<名>.fbx`；head/armor 那类才是 `<类>\<名>\<名>.fbx`。删之前先 `ls` 看实际布局。
+- 🔴 **删除只能在编辑器里做**：在外面直接删 `Assets\...` 会让 **ModKit 启动崩溃**（编辑器索引/引用还指着那些文件）。
+  救急恢复（不动资产、先让编辑器能开）：①备份 `Prefabs\*.xml` + 引用它的 `scene.xscene`（记 MD5）；②prefab 改名 `.xml.disabled`；③场景里 `<game_entity ... prefab="...">` 整段注释掉；④重导后恢复原名/解注释，**逐文件核对 MD5 与备份一致**。
+- ⚠️ `Assets\...\*_geo.tpac` 的文件名**仍带 `_lod`**，而 MetaMesh 资产名 / prefab 引用是**去后缀**的——别拿文件名直接和 prefab 引用比（会假报缺件）。
 
 ### 28.4 🔴🔴 LOD 只能走 TRF，FBX 带不了
 
@@ -2082,6 +2089,13 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 ### 28.8 Blender 无头脚本的路径坑
 
 `bpy.ops.render.render(write_still=True)` 的 `filepath` **以 Blender 自己的 CWD 为基准**（不是脚本所在目录）——传相对路径会写到 `C:\Debug\...` 去。**一律传绝对路径**（相对路径在脚本里先 `os.path.join(ROOT, ...)` 拼成绝对）。
+
+### 28.9 🔴🔴 TRF 的 UV V 约定（2026-11-09 实机 A/B 定案）
+
+- **引擎按左下原点采样** ⇒ TRF 里必须写 `1 - 原始 .ydr v`（原始 `.ydr` 是左上原点）。
+- 🔴 **翻转必须全档一致**：统一在 `read_mdl()` 里翻一次，`make_part()` 不再翻。旧版只在 `make_part()` 翻 ⇒ **LOD0 用原始 v、LOD1-6 用 `1-v`**（实测 972 个对位顶点里 971 个翻转），症状 = 同一模型**近处**采到 V 镜像的另一块图、中远景正常（圣丹尼斯花园十字消失即此）。
+- **判据（可复用）**：拿贴图里一个**圆形**特征做 A/B —— 同一网格出 4 个单档 TRF（raw / vflip / uflip / uvswap），只有 `vflip` 出正圆。本例花园在贴图里是 52×24 px 的横椭圆；正确落地 39.0×38.5 m（比值 1.01）；U/V 互换或转 90° 会变成 2.3:1 的横椭圆。
+- 导出器：`Modules/RDR2/Source/tools/export_rdr2_trf_lod.py`（`read_mdl()` 统一翻）。
 
 ## 🔴 RDR2 材质离线生成 + TRF 导入命名（2026-11-09 实测）
 

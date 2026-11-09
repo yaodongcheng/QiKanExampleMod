@@ -1,26 +1,63 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""把 prefabs/sdn.json 转成 Bannerlord prefab XML（远景碎片）。
+"""把 prefabs/<组>.json 转成 Bannerlord prefab XML（远景碎片）。
 
-- 子节点位置 = pos_local（相对据点锚点，单位米）
+用法：
+  python gen_rdr2_lod_prefab.py                      # 默认只做 sdn（兼容旧行为）
+  python gen_rdr2_lod_prefab.py --all                # 全部 56 组 + 2 个占位据点
+  python gen_rdr2_lod_prefab.py --groups sdn,val     # 指定组
+  python gen_rdr2_lod_prefab.py --all --root-at-anchor
+        # 根节点直接放地图坐标（场景里实体放 0,0,0）；
+        # 默认不这样，沿用 sdn 口径：根 0，场景实体放锚点。
+
+输出：
+  Modules/RDR2/Prefabs/rdr2_lod_prefabs.xml    每组两份 prefab：
+      rdr2_<组>_lod       大地图缩略（内部 map_scale 容器 1:14.x）
+      rdr2_<组>_lod_1to1  1:1 场景用（不缩放）
+  Modules/RDR2/AssetSources/ImortReady/rdr2_lod_fragments/prefab_anchors.csv
+      摆位表：group_id / 中英文名 / group_type / anchor_world / 地图坐标 /
+              碎片数 / 已导入数 / 已知缺件数 / placeholder
+
+占位据点（2026-11-09 用户裁定）：
+  `twi` 双子岩、`abe` 阿伯丁猪场 在碎片 JSON 里没有 LOD 组 ⇒ 先用**方块**占位，
+  尺寸取 settlement_scale.csv 的 size_w × size_d × max_h，Z 从地图高度图取样。
+  以后替换成对应建筑群落的 LOD6 版本。
+  占位网格资产 = `rdr2_placeholder_cube`（由 gen_rdr2_placeholder_trf.py 生成、用户导入）。
+
+子节点口径（与既有 sdn 一致）：
+- 位置 = pos_local（相对据点锚点，米）
 - 旋转 = 四元数 (x,y,z,w) → 引擎 Mat3.ApplyEulerAngles 口径
-  （x=asin(f.z), y=atan2(-s.z,u.z), z=atan2(-f.x,f.y)）
 - 缩放 = (sxy, sxy, sz)
-- 输出两份：
-  · rdr2_sdn_lod       大地图缩略用（容器缩放 1:14.x）
-  · rdr2_sdn_lod_1to1  1:1 场景用（不缩放）
+- 世界 → 地图单位：x 768/10768，y 576/8024，z 50/725.278
 """
+import argparse
+import csv
+import glob
 import io
 import json
 import math
 import os
 import re
-import subprocess
 
 DELIV = r"D:\BrainMaker\大镖客2解包分析\deliverable"
 MOD = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\RDR2"
 LWN = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs"
-TOOL = os.path.join(LWN, "tools", "tpactool", "TpacToolCLI", "bin", "Release", "net9.0", "tpaccli.exe")
 OUT = os.path.join(MOD, "Prefabs", "rdr2_lod_prefabs.xml")
+IMPORT_DIR = os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_lod_fragments")
+ANCHOR_CSV = os.path.join(IMPORT_DIR, "prefab_anchors.csv")
+PREFAB_DIR = os.path.join(DELIV, "manifests", "prefabs")
+HEIGHTMAP = os.path.join(LWN, "Debug", "RD2构造相关", "terrain", "rdr2_height_4097.png")
+SETTLE_CSV = os.path.join(DELIV, "manifests", "settlements_world_v2.csv")
+SCALE_CSV = os.path.join(DELIV, "manifests", "settlement_scale.csv")
+
+# 没有 LOD 碎片组、先用方块占位的据点（2026-11-09 用户裁定）
+PLACEHOLDER_CODES = ("twi", "abe")
+PLACEHOLDER_MESH = "rdr2_placeholder_cube"
+
+# 世界 → 地图单位（x 768/10768，y 576/8024，z 50/725.278）
+SX = 768.0 / 10768.0
+SY = 576.0 / 8024.0
+SZ = 50.0 / (690.3469848632812 - (-34.93079376220703))
 
 
 def metamesh_name(model):
@@ -29,27 +66,54 @@ def metamesh_name(model):
 
 
 def imported_assets():
-    p = subprocess.run([TOOL, "list", "--packdir", os.path.join(MOD, "Assets", "models", "sdn_test")],
-                       capture_output=True, text=True)
-    out = (p.stdout or "")
+    """扫描 Assets/models 下所有 *_geo.tpac → MetaMesh 资产名集合。
+
+    ⚠️ `*_geo.tpac` 的**文件名仍带 `_lod`**，而注册的 MetaMesh 名是去掉后缀的；
+    不要拿文件名直接和 prefab 引用比。
+    """
+    root = os.path.join(MOD, "Assets", "models")
     assets = set()
-    for line in out.splitlines():
-        if "\t" not in line:
-            continue
-        parts = line.split()
-        if not parts:
-            continue
-        n = parts[0]
-        if n.endswith(".trf"):
-            continue
-        if re.match(r"^[A-Za-z0-9_].*", n):
-            assets.add(n)
+    for dirpath, _dirs, files in os.walk(root):
+        for fn in files:
+            if not fn.endswith("_geo.tpac"):
+                continue
+            n = fn[:-len("_geo.tpac")]
+            assets.add(metamesh_name(n))
     return assets
 
-# 世界 → 地图单位（x 768/10768，y 576/8024，z 50/725.278）
-SX = 768.0 / 10768.0
-SY = 576.0 / 8024.0
-SZ = 50.0 / (690.3469848632812 - (-34.93079376220703))
+
+def known_missing():
+    """交付里本来就没有网格的模型（允许缺件，不算回归）。"""
+    out = set()
+    for fn in ("missing_models.csv", "missing_sdn.csv"):
+        p = os.path.join(IMPORT_DIR, fn)
+        if not os.path.isfile(p):
+            continue
+        with io.open(p, encoding="utf-8-sig") as fh:
+            for r in csv.DictReader(fh):
+                n = (r.get("model_name") or "").strip()
+                if n:
+                    out.add(n)
+    return out
+
+
+def load_csv_rows(path):
+    out = {}
+    with io.open(path, encoding="utf-8-sig") as fh:
+        for r in csv.DictReader(fh):
+            out[r["code"]] = r
+    return out
+
+
+def heightmap_z(mx, my):
+    """地图坐标 → 地形高度（与 terrain 生成口径一致：行 0 = 北）。"""
+    from PIL import Image
+    im = Image.open(HEIGHTMAP)
+    W, H = im.size
+    px = int(round(mx / 768.0 * (W - 1)))
+    py = int(round((1.0 - my / 576.0) * (H - 1)))
+    px = max(0, min(W - 1, px)); py = max(0, min(H - 1, py))
+    return float(im.getpixel((px, py))) / 65535.0 * 50.0
 
 
 def quat_to_euler(qx, qy, qz, qw):
@@ -88,52 +152,162 @@ def frag_xml(f):
     )
 
 
-def main():
-    g = json.load(io.open(os.path.join(DELIV, "manifests", "prefabs", "sdn.json"), encoding="utf-8"))
-    frags = g["fragments"]
-    # 引擎导入 TRF 时会去掉 _lod/_lodNNN；按实际 MetaMesh 资产名匹配
-    have = imported_assets()
-    keep = [f for f in frags if metamesh_name(f["name"]) in have]
-    skipped = [f for f in frags if metamesh_name(f["name"]) not in have]
-    print("fragments=%d kept=%d skipped=%d" % (len(frags), len(keep), len(skipped)))
-
-    # 只允许已知的“交付里本来就没网格”的件；其它缺失 = 导入/命名回归，直接失败
-    KNOWN_MISSING = {"nopq_11_14_area_slod4__split_sdn"}
-    unexpected = [f for f in skipped if f["name"] not in KNOWN_MISSING]
-    if unexpected:
-        print("UNEXPECTED missing MetaMesh (not in known missing list):")
-        for f in unexpected:
-            print("  ", f["frag_id"], f["name"], "->", metamesh_name(f["name"]))
-        raise SystemExit("FAIL: unexpected missing meshes; import TRF first or fix name mapping")
-
-    body = "".join(frag_xml(f) for f in keep)
-    xml = (
-        '<?xml version="1.0" encoding="utf-8"?>\n'
-        "<!-- 圣丹尼斯 LOD 远景碎片 prefab（2026-11-09 自动生成） -->\n"
-        "<prefabs>\n"
-        '\t<game_entity name="rdr2_sdn_lod" mobility="1">\n'
-        '\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>\n'
-        "\t\t<children>\n"
-        '\t\t\t<game_entity name="map_scale" mobility="1">\n'
+def placeholder_body(code, w, d, h):
+    """一个单位方块 → 按据点 footprint 缩放（底面在 z=0，直接坐地）。"""
+    return (
+        '\t\t\t<game_entity name="%s_placeholder" mobility="1">\n'
         '\t\t\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" '
         'scale="%s, %s, %s"/>\n'
-        "\t\t\t\t<children>\n%s\t\t\t\t</children>\n"
-        "\t\t\t</game_entity>\n"
-        "\t\t</children>\n"
-        "\t</game_entity>\n"
-        '\t<game_entity name="rdr2_sdn_lod_1to1" mobility="1">\n'
-        '\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>\n'
-        "\t\t<children>\n%s\t\t</children>\n"
-        "\t</game_entity>\n"
-        "</prefabs>\n"
-        % (fmt(SX), fmt(SY), fmt(SZ), body, body)
+        '\t\t\t\t<components>\n'
+        '\t\t\t\t\t<meta_mesh_component name="%s"/>\n'
+        '\t\t\t\t</components>\n'
+        '\t\t\t</game_entity>\n'
+        % (code, fmt(w), fmt(d), fmt(h), PLACEHOLDER_MESH)
     )
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with io.open(OUT, "w", encoding="utf-8", newline="\n") as fh:
+
+
+def anchor_map(g):
+    """anchor_world → 地图坐标 (x, y, z)。"""
+    ax, ay, az = g["anchor_world"]
+    return ((ax + 6844.0) / 10768.0 * 768.0,
+            (ay + 4800.0) / 8024.0 * 576.0,
+            (az + 34.93079376220703) / (690.3469848632812 - (-34.93079376220703)) * 50.0)
+
+
+def prefab_xml(gid, body, root_pos):
+    """一组 → 两段 prefab（地图 + 1:1）。"""
+    rx, ry, rz = root_pos
+    scale = "%s, %s, %s" % (fmt(SX), fmt(SY), fmt(SZ))
+    return (
+        '\t<game_entity name="rdr2_%s_lod" mobility="1">\n'
+        '\t\t<transform position="%s, %s, %s" rotation_euler="0.000, 0.000, 0.000"/>\n'
+        '\t\t<children>\n'
+        '\t\t\t<game_entity name="map_scale" mobility="1">\n'
+        '\t\t\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" '
+        'scale="%s"/>\n'
+        '\t\t\t\t<children>\n%s\t\t\t\t</children>\n'
+        '\t\t\t</game_entity>\n'
+        '\t\t</children>\n'
+        '\t</game_entity>\n'
+        '\t<game_entity name="rdr2_%s_lod_1to1" mobility="1">\n'
+        '\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>\n'
+        '\t\t<children>\n%s\t\t</children>\n'
+        '\t</game_entity>\n'
+        % (gid, fmt(rx), fmt(ry), fmt(rz), scale, body, gid, body)
+    )
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--all", action="store_true", help="全部 56 组 + 2 个占位据点")
+    ap.add_argument("--groups", default="", help="逗号分隔的组 id（默认 sdn）")
+    ap.add_argument("--root-at-anchor", action="store_true",
+                    help="地图 prefab 的根节点直接放锚点（场景实体放 0,0,0）")
+    ap.add_argument("--out", default=OUT)
+    a = ap.parse_args()
+
+    if a.all:
+        gids = [os.path.splitext(os.path.basename(p))[0]
+                for p in sorted(glob.glob(os.path.join(PREFAB_DIR, "*.json")))]
+        gids += [c for c in PLACEHOLDER_CODES if c not in gids]
+    elif a.groups:
+        gids = [x.strip() for x in a.groups.split(",") if x.strip()]
+    else:
+        gids = ["sdn"]
+
+    have = imported_assets()
+    missing_known = known_missing()
+    print("已导入 MetaMesh: %d 个；已知缺件: %d 个" % (len(have), len(missing_known)))
+    if any(g in PLACEHOLDER_CODES for g in gids) and PLACEHOLDER_MESH not in have:
+        raise SystemExit(
+            "占位方块未导入：请先在 ModKit 导入\n  %s"
+            % os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_placeholder",
+                           PLACEHOLDER_MESH + ".trf"))
+
+    settle = load_csv_rows(SETTLE_CSV) if any(g in PLACEHOLDER_CODES for g in gids) else {}
+    scale = load_csv_rows(SCALE_CSV) if any(g in PLACEHOLDER_CODES for g in gids) else {}
+
+    chunks = []
+    rows = []
+    total_keep = total_skip = 0
+    for gid in gids:
+        if gid in PLACEHOLDER_CODES:
+            s = settle.get(gid); sc = scale.get(gid)
+            if not s or not sc:
+                raise SystemExit("占位据点缺数据: %s（settlements_world_v2 / settlement_scale）" % gid)
+            wx, wy = float(s["world_x"]), float(s["world_y"])
+            w, d, h = float(sc["size_w"]), float(sc["size_d"]), float(sc["max_h"])
+            mx = (wx + 6844.0) / 10768.0 * 768.0
+            my = (wy + 4800.0) / 8024.0 * 576.0
+            mz = heightmap_z(mx, my)
+            root = (mx, my, mz) if a.root_at_anchor else (0.0, 0.0, 0.0)
+            chunks.append(prefab_xml(gid, placeholder_body(gid, w, d, h), root))
+            rows.append({
+                "group_id": gid, "group_type": s.get("btype", ""),
+                "name_en": s.get("name_en", ""), "name_zh": s.get("name_zh", ""),
+                "scene_name": "rdr2_" + gid,
+                "anchor_world_x": "%.2f" % wx, "anchor_world_y": "%.2f" % wy,
+                "anchor_world_z": "",
+                "map_x": "%.3f" % mx, "map_y": "%.3f" % my, "map_z": "%.3f" % mz,
+                "frags_total": 0, "frags_kept": 1, "frags_known_missing": 0,
+                "placeholder": 1,
+            })
+            print("  %-8s PLACEHOLDER %.0fx%.0fx%.0f m  map=(%.1f, %.1f, %.1f)"
+                  % (gid, w, d, h, mx, my, mz))
+            continue
+
+        p = os.path.join(PREFAB_DIR, gid + ".json")
+        if not os.path.isfile(p):
+            raise SystemExit("找不到组 JSON: %s" % p)
+        g = json.load(io.open(p, encoding="utf-8"))
+        frags = g.get("fragments", [])
+        keep = [f for f in frags if metamesh_name(f["name"]) in have]
+        skipped = [f for f in frags if metamesh_name(f["name"]) not in have]
+        unexpected = [f for f in skipped if f["name"] not in missing_known]
+        if unexpected:
+            print("UNEXPECTED missing MetaMesh in group %s (not in known missing list):" % gid)
+            for f in unexpected:
+                print("  ", f["frag_id"], f["name"], "->", metamesh_name(f["name"]))
+            raise SystemExit("FAIL: unexpected missing meshes; import TRF first or fix name mapping")
+
+        total_keep += len(keep)
+        total_skip += len(skipped)
+        body = "".join(frag_xml(f) for f in keep)
+        mp = anchor_map(g)
+        root = mp if a.root_at_anchor else (0.0, 0.0, 0.0)
+        chunks.append(prefab_xml(gid, body, root))
+        rows.append({
+            "group_id": gid, "group_type": g.get("group_type", ""),
+            "name_en": g.get("name_en", ""), "name_zh": g.get("name_zh", ""),
+            "scene_name": g.get("scene_name", ""),
+            "anchor_world_x": "%.2f" % g["anchor_world"][0],
+            "anchor_world_y": "%.2f" % g["anchor_world"][1],
+            "anchor_world_z": "%.2f" % g["anchor_world"][2],
+            "map_x": "%.3f" % mp[0], "map_y": "%.3f" % mp[1], "map_z": "%.3f" % mp[2],
+            "frags_total": len(frags), "frags_kept": len(keep), "frags_known_missing": len(skipped),
+            "placeholder": 0,
+        })
+        print("  %-8s frags=%-3d kept=%-3d known_missing=%-2d map=(%.1f, %.1f, %.1f)"
+              % (gid, len(frags), len(keep), len(skipped), mp[0], mp[1], mp[2]))
+
+    xml = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<!-- RDR2 LOD 远景碎片 prefab（%d 组，2026-11-09 自动生成；twi/abe 为方块占位） -->\n"
+        "<prefabs>\n%s</prefabs>\n" % (len(gids), "".join(chunks))
+    )
+    os.makedirs(os.path.dirname(a.out), exist_ok=True)
+    with io.open(a.out, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(xml)
-    print("wrote", OUT, "%.1f KB" % (os.path.getsize(OUT) / 1024))
-    if skipped:
-        print("skipped:", [(f["frag_id"], f["name"]) for f in skipped])
+    print("wrote %s  %.1f KB  groups=%d frags_kept=%d known_missing=%d"
+          % (a.out, os.path.getsize(a.out) / 1024, len(gids), total_keep, total_skip))
+
+    if a.all and not a.root_at_anchor:
+        os.makedirs(os.path.dirname(ANCHOR_CSV), exist_ok=True)
+        with io.open(ANCHOR_CSV, "w", encoding="utf-8-sig", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(rows)
+        print("wrote", ANCHOR_CSV)
 
 
 if __name__ == "__main__":
