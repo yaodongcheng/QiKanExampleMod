@@ -110,7 +110,8 @@ try {
         if ($h -eq [IntPtr]::Zero) {
             # 按满 MaxCount 后进入 drain：连续 IdleStopSec 秒没有新框才退出
             $idleSec = ((Get-Date) - $lastSeen).TotalSeconds
-            if ($MaxCount -gt 0 -and $count -ge $MaxCount -and $idleSec -ge $IdleStopSec) { break }
+            $armed = (($MaxCount -eq 0 -and $count -gt 0) -or ($MaxCount -gt 0 -and $count -ge $MaxCount))
+            if ($armed -and $idleSec -ge $IdleStopSec) { break }
             Start-Sleep -Milliseconds 150
             continue
         }

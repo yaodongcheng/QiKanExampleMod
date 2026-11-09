@@ -19,10 +19,9 @@
               碎片数 / 已导入数 / 已知缺件数 / placeholder
 
 占位据点（2026-11-09 用户裁定）：
-  `twi` 双子岩、`abe` 阿伯丁猪场 在碎片 JSON 里没有 LOD 组 ⇒ 先用**方块**占位，
-  尺寸取 settlement_scale.csv 的 size_w × size_d × max_h，Z 从地图高度图取样。
+  `twi` 双子岩、`abe` 阿伯丁猪场 在碎片 JSON 里没有 LOD 组 ⇒ 先用**原版村庄地图缩略**
+  占位（`map_village_a`，原版 `map_icons.xml` 的 mesh_scale = 0.45），**不需要导入任何资产**。
   以后替换成对应建筑群落的 LOD6 版本。
-  占位网格资产 = `rdr2_placeholder_cube`（由 gen_rdr2_placeholder_trf.py 生成、用户导入）。
 
 子节点口径（与既有 sdn 一致）：
 - 位置 = pos_local（相对据点锚点，米）
@@ -50,9 +49,11 @@ HEIGHTMAP = os.path.join(LWN, "Debug", "RD2构造相关", "terrain", "rdr2_heigh
 SETTLE_CSV = os.path.join(DELIV, "manifests", "settlements_world_v2.csv")
 SCALE_CSV = os.path.join(DELIV, "manifests", "settlement_scale.csv")
 
-# 没有 LOD 碎片组、先用方块占位的据点（2026-11-09 用户裁定）
+# 没有 LOD 碎片组、先用原版村庄地图缩略占位的据点（2026-11-09 用户裁定）
 PLACEHOLDER_CODES = ("twi", "abe")
-PLACEHOLDER_MESH = "rdr2_placeholder_cube"
+# 原版 Native/ModuleData/map_icons.xml：map_icon_village_a -> mesh_name="map_village_a", mesh_scale="0.45"
+PLACEHOLDER_MESH = "map_village_a"
+PLACEHOLDER_SCALE = 0.45
 
 # 世界 → 地图单位（x 768/10768，y 576/8024，z 50/725.278）
 SX = 768.0 / 10768.0
@@ -134,12 +135,11 @@ def fmt(v):
     return "%.3f" % v
 
 
-def frag_xml(f):
+def frag_xml(f, asset_name):
     p = f["pos_local"]
     r = f.get("rot", [0, 0, 0, 1])
     s = f.get("scale", [1, 1])
     ex, ey, ez = quat_to_euler(r[0], r[1], r[2], r[3])
-    name = metamesh_name(f["name"])
     return (
         '\t\t\t<game_entity name="%s" mobility="1">\n'
         '\t\t\t\t<transform position="%s, %s, %s" rotation_euler="%s, %s, %s" scale="%s, %s, %s"/>\n'
@@ -148,12 +148,29 @@ def frag_xml(f):
         '\t\t\t\t</components>\n'
         '\t\t\t</game_entity>\n'
         % (f["frag_id"], fmt(p[0]), fmt(p[1]), fmt(p[2]),
-           fmt(ex), fmt(ey), fmt(ez), fmt(s[0]), fmt(s[0]), fmt(s[1]), name)
+           fmt(ex), fmt(ey), fmt(ez), fmt(s[0]), fmt(s[0]), fmt(s[1]), asset_name)
     )
 
 
-def placeholder_body(code, w, d, h):
-    """一个单位方块 → 按据点 footprint 缩放（底面在 z=0，直接坐地）。"""
+def resolve_asset(f, have, by_hash):
+    """碎片 → 实际导入的 MetaMesh 资产名。
+
+    碎片里用原型名（`adl_barn_slod`），但模型库里有一部分按 hash 命名
+    （`e_a47ae07c`）⇒ 名字查不到时按 `hash` 回退。返回 None = 真缺。
+    """
+    a = metamesh_name(f["name"])
+    if a in have:
+        return a
+    r = by_hash.get((f.get("hash") or "").lower())
+    if r:
+        a2 = metamesh_name(r["name"])
+        if a2 in have:
+            return a2
+    return None
+
+
+def placeholder_body(code):
+    """原版村庄地图缩略：它本身就是地图尺度的资产，直接引用，不套 map_scale。"""
     return (
         '\t\t\t<game_entity name="%s_placeholder" mobility="1">\n'
         '\t\t\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" '
@@ -162,7 +179,7 @@ def placeholder_body(code, w, d, h):
         '\t\t\t\t\t<meta_mesh_component name="%s"/>\n'
         '\t\t\t\t</components>\n'
         '\t\t\t</game_entity>\n'
-        % (code, fmt(w), fmt(d), fmt(h), PLACEHOLDER_MESH)
+        % (code, fmt(PLACEHOLDER_SCALE), fmt(PLACEHOLDER_SCALE), fmt(PLACEHOLDER_SCALE), PLACEHOLDER_MESH)
     )
 
 
@@ -174,26 +191,33 @@ def anchor_map(g):
             (az + 34.93079376220703) / (690.3469848632812 - (-34.93079376220703)) * 50.0)
 
 
-def prefab_xml(gid, body, root_pos):
-    """一组 → 两段 prefab（地图 + 1:1）。"""
+def prefab_xml(gid, body, root_pos, map_scale=True):
+    """一组 → 两段 prefab（地图 + 1:1）。
+
+    `map_scale=False` 用于占位：原版村庄地图缩略本身就是地图尺度，不能再套 1:14 容器。
+    """
     rx, ry, rz = root_pos
     scale = "%s, %s, %s" % (fmt(SX), fmt(SY), fmt(SZ))
+    if map_scale:
+        map_children = (
+            '\t\t\t<game_entity name="map_scale" mobility="1">\n'
+            '\t\t\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" '
+            'scale="%s"/>\n'
+            '\t\t\t\t<children>\n%s\t\t\t\t</children>\n'
+            '\t\t\t</game_entity>\n' % (scale, body)
+        )
+    else:
+        map_children = body
     return (
         '\t<game_entity name="rdr2_%s_lod" mobility="1">\n'
         '\t\t<transform position="%s, %s, %s" rotation_euler="0.000, 0.000, 0.000"/>\n'
-        '\t\t<children>\n'
-        '\t\t\t<game_entity name="map_scale" mobility="1">\n'
-        '\t\t\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000" '
-        'scale="%s"/>\n'
-        '\t\t\t\t<children>\n%s\t\t\t\t</children>\n'
-        '\t\t\t</game_entity>\n'
-        '\t\t</children>\n'
+        '\t\t<children>\n%s\t\t</children>\n'
         '\t</game_entity>\n'
         '\t<game_entity name="rdr2_%s_lod_1to1" mobility="1">\n'
         '\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>\n'
         '\t\t<children>\n%s\t\t</children>\n'
         '\t</game_entity>\n'
-        % (gid, fmt(rx), fmt(ry), fmt(rz), scale, body, gid, body)
+        % (gid, fmt(rx), fmt(ry), fmt(rz), map_children, gid, body)
     )
 
 
@@ -218,11 +242,16 @@ def main():
     have = imported_assets()
     missing_known = known_missing()
     print("已导入 MetaMesh: %d 个；已知缺件: %d 个" % (len(have), len(missing_known)))
-    if any(g in PLACEHOLDER_CODES for g in gids) and PLACEHOLDER_MESH not in have:
-        raise SystemExit(
-            "占位方块未导入：请先在 ModKit 导入\n  %s"
-            % os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_placeholder",
-                           PLACEHOLDER_MESH + ".trf"))
+
+    # 碎片原型名 → manifest 模型名（hash 回退）：模型库里有一部分是 e_<hash>
+    by_hash = {}
+    for fn in ("models_export.csv", "models_export_extra.csv"):
+        p = os.path.join(DELIV, "manifests", fn)
+        if not os.path.isfile(p):
+            continue
+        with io.open(p, encoding="utf-8-sig") as fh:
+            for r in csv.DictReader(fh):
+                by_hash.setdefault(r["model_hash"].lower(), r)
 
     settle = load_csv_rows(SETTLE_CSV) if any(g in PLACEHOLDER_CODES for g in gids) else {}
     scale = load_csv_rows(SCALE_CSV) if any(g in PLACEHOLDER_CODES for g in gids) else {}
@@ -236,12 +265,11 @@ def main():
             if not s or not sc:
                 raise SystemExit("占位据点缺数据: %s（settlements_world_v2 / settlement_scale）" % gid)
             wx, wy = float(s["world_x"]), float(s["world_y"])
-            w, d, h = float(sc["size_w"]), float(sc["size_d"]), float(sc["max_h"])
             mx = (wx + 6844.0) / 10768.0 * 768.0
             my = (wy + 4800.0) / 8024.0 * 576.0
             mz = heightmap_z(mx, my)
             root = (mx, my, mz) if a.root_at_anchor else (0.0, 0.0, 0.0)
-            chunks.append(prefab_xml(gid, placeholder_body(gid, w, d, h), root))
+            chunks.append(prefab_xml(gid, placeholder_body(gid), root, map_scale=False))
             rows.append({
                 "group_id": gid, "group_type": s.get("btype", ""),
                 "name_en": s.get("name_en", ""), "name_zh": s.get("name_zh", ""),
@@ -250,10 +278,11 @@ def main():
                 "anchor_world_z": "",
                 "map_x": "%.3f" % mx, "map_y": "%.3f" % my, "map_z": "%.3f" % mz,
                 "frags_total": 0, "frags_kept": 1, "frags_known_missing": 0,
-                "placeholder": 1,
+                "placeholder": 1, "placeholder_mesh": PLACEHOLDER_MESH,
             })
-            print("  %-8s PLACEHOLDER %.0fx%.0fx%.0f m  map=(%.1f, %.1f, %.1f)"
-                  % (gid, w, d, h, mx, my, mz))
+            print("  %-8s PLACEHOLDER %s x%.2f  map=(%.1f, %.1f, %.1f)  (footprint %.0fx%.0f m)"
+                  % (gid, PLACEHOLDER_MESH, PLACEHOLDER_SCALE, mx, my, mz,
+                     float(sc["size_w"]), float(sc["size_d"])))
             continue
 
         p = os.path.join(PREFAB_DIR, gid + ".json")
@@ -261,8 +290,14 @@ def main():
             raise SystemExit("找不到组 JSON: %s" % p)
         g = json.load(io.open(p, encoding="utf-8"))
         frags = g.get("fragments", [])
-        keep = [f for f in frags if metamesh_name(f["name"]) in have]
-        skipped = [f for f in frags if metamesh_name(f["name"]) not in have]
+        keep = []
+        skipped = []
+        for f in frags:
+            asset = resolve_asset(f, have, by_hash)
+            if asset:
+                keep.append((f, asset))
+            else:
+                skipped.append(f)
         unexpected = [f for f in skipped if f["name"] not in missing_known]
         if unexpected:
             print("UNEXPECTED missing MetaMesh in group %s (not in known missing list):" % gid)
@@ -272,7 +307,7 @@ def main():
 
         total_keep += len(keep)
         total_skip += len(skipped)
-        body = "".join(frag_xml(f) for f in keep)
+        body = "".join(frag_xml(f, asset) for f, asset in keep)
         mp = anchor_map(g)
         root = mp if a.root_at_anchor else (0.0, 0.0, 0.0)
         chunks.append(prefab_xml(gid, body, root))
@@ -285,7 +320,7 @@ def main():
             "anchor_world_z": "%.2f" % g["anchor_world"][2],
             "map_x": "%.3f" % mp[0], "map_y": "%.3f" % mp[1], "map_z": "%.3f" % mp[2],
             "frags_total": len(frags), "frags_kept": len(keep), "frags_known_missing": len(skipped),
-            "placeholder": 0,
+            "placeholder": 0, "placeholder_mesh": "",
         })
         print("  %-8s frags=%-3d kept=%-3d known_missing=%-2d map=(%.1f, %.1f, %.1f)"
               % (gid, len(frags), len(keep), len(skipped), mp[0], mp[1], mp[2]))

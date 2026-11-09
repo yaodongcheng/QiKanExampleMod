@@ -2097,6 +2097,24 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 - **判据（可复用）**：拿贴图里一个**圆形**特征做 A/B —— 同一网格出 4 个单档 TRF（raw / vflip / uflip / uvswap），只有 `vflip` 出正圆。本例花园在贴图里是 52×24 px 的横椭圆；正确落地 39.0×38.5 m（比值 1.01）；U/V 互换或转 90° 会变成 2.3:1 的横椭圆。
 - 导出器：`Modules/RDR2/Source/tools/export_rdr2_trf_lod.py`（`read_mdl()` 统一翻）。
 
+### 28.10 🔴 56 组 LOD 远景的批量导入 + prefab 摆位（2026-11-09 实战）
+
+**完整链路**（圣丹尼斯之外的 55 组，2,054 个网格）：
+
+1. TRF 重出：`export_rdr2_trf_lod.py --set import --only-file <名单> --overwrite`（V 约定见 28.9）。
+2. 贴图：`AssetSources\ImortReady\rdr2_lod_fragments\textures\`（本轮 622 张，已剔除 sdn 重名 114 张）→ ModKit 导入。
+3. 材质：`Scripts\gen_rdr2_lod_materials3.py` → 只生成缺失的 309 个（sdn 69 复用）→ `Assets\materials\lod\fragments\`。
+4. 网格：4 批（560/560/376/558）导入，批间重启 ModKit（单会话 ~600 上限）；自动按 Enter = `rdr2_fbx_auto_import.ps1 -MaxCount <n>`（v6 软上限 + 空闲 10 秒退出）。
+5. prefab：`Scripts\gen_rdr2_lod_prefab.py --all` → 56 组 × 2 + 2 占位；`Prefabs\rdr2_lod_prefabs.xml` + `prefab_anchors.csv`。
+6. 摆位：按 CSV 的 `map_x/y/z` 往 `SceneObj\Main_map\scene.xscene` 补 `<game_entity ... prefab="rdr2_<组>_lod">`。
+
+**关键口径**
+- 批次里**不能有已导入的同名资产**（会弹 same-name，自动脚本不按）→ 先移到 `_already_imported\`。
+- **贴图 → 材质 → 网格** 的顺序不能反（导网格时绑定材质，事后不回填）。
+- prefab 锚点：`anchor_world` 转地图坐标；Z 从 `Debug\RD2构造相关\terrain\rdr2_height_4097.png` 取样（行 0 = 北，`/65535*50`）。
+- 没有 LOD 组的据点用原版 `map_village_a` ×0.45，**不套 1:14 容器**（它本身就是地图尺度）。
+- 场景补实体：备份 MD5 + 幂等 + 保留 CRLF/无 BOM。
+
 ## 🔴 RDR2 材质离线生成 + TRF 导入命名（2026-11-09 实测）
 
 - **先材质、后网格**：ModKit 导入网格时按材质名绑定；事后补材质不回填（要删 `_geo.tpac` 重导）。
