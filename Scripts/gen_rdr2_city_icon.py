@@ -11,7 +11,7 @@
   buildings（默认）逐实例出盒子：有 bbox 的按真实尺寸/朝向，没有的按尺寸档给默认体块
   voxel            撒网格出盒子：先把实例撒到 N 米网格，再逐格出版块（更连续，但会糊掉街道）
 
-输入：D:\\BrainMaker\\大镖客2解包分析\\（tiles / lib_native / heightmap/water_mask.png）
+输入：D:\\BrainMaker\\大镖客2解包分析\\（tiles / lib_native / terrain/water_mask.png）
 输出：Debug/RD2构造相关/icon_<code>/
   rdr2_m_<code>.mdl      RMDL1（给 tpaccli meshmake）
   atlas_d.png            2048² 图集（给 texreplace）
@@ -56,7 +56,7 @@ def load_lib():
 
 def load_manifest():
     man = {}
-    p = os.path.join(RDR2, "deliverable/handoff/model_manifest.csv")
+    p = os.path.join(RDR2, "deliverable/manifests/model_manifest.csv")
     for r in csv.DictReader(io.open(p, encoding="utf-8-sig")):
         man[int(r["hash"], 16)] = r
     return man
@@ -77,8 +77,13 @@ def load_instances(x0, x1, y0, y1):
 
 
 def load_water():
-    p = os.path.join(RDR2, "deliverable/heightmap/water_mask.png")
-    return np.asarray(Image.open(p).convert("L")) if os.path.isfile(p) else None
+    # 唯一水网图 = terrain/water_mask.png（2026-11-08；旧 heightmap/ 副本只作兜底）
+    for rel in ("deliverable/terrain/water_mask.png",
+                "deliverable/heightmap/water_mask.png"):
+        p = os.path.join(RDR2, rel)
+        if os.path.isfile(p):
+            return np.asarray(Image.open(p).convert("L"))
+    return None
 
 
 def on_water(wm, wx, wy):

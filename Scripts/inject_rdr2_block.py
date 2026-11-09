@@ -53,7 +53,7 @@ def load_modelsize():
     """模型最大边（米），用于剔除 <2 m 的家具/碎屑。"""
     import csv
     out = {}
-    with io.open(r"D:\BrainMaker\大镖客2解包分析\deliverable\handoff\model_manifest.csv",
+    with io.open(r"D:\BrainMaker\大镖客2解包分析\deliverable\manifests\model_manifest.csv",
                  encoding="utf-8-sig") as f:
         for r in csv.DictReader(f):
             try:
@@ -67,7 +67,7 @@ def load_modelsize_xy():
     """模型 x/y 尺寸（米），用于按足迹取最低地面。"""
     import csv
     out = {}
-    with io.open(r"D:\BrainMaker\大镖客2解包分析\deliverable\handoff\model_manifest.csv",
+    with io.open(r"D:\BrainMaker\大镖客2解包分析\deliverable\manifests\model_manifest.csv",
                  encoding="utf-8-sig") as f:
         for r in csv.DictReader(f):
             try:

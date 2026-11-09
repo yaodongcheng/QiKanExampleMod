@@ -132,3 +132,19 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 - **PNG 编码零依赖**（PNG 签名 + IHDR/IDAT/IEND + zlib(DeflateStream raw) + CRC32/Adler32 手写）；**离线同源验证过**（PIL 打开 I;16 逐像素一致）。注：Filter=0 保守档 4.7MB；PIL 自适应过滤 3.8MB——纯编码差异不伤数据
 - **getter 逐调用分离打 trace**（ContainsTerrain/HasTerrainHeightmap/GetTerrainData/…），任何一步崩一查即知
 - 已知规格：原版 16×16@53m/848m/8 层/Scale 25；织丰 16×16@**132m**/2112m/13 层/Scale 20.968——织丰世界 2.5 倍大、顶点密度 0.516m、**织丰地图列岛全图 = 4096² (h>0 判定)**；海域 ~76%
+
+## 🔴 地形彩图（vista colormap）/ 地形层水 / 纯重采样（2026-11-09 实测）
+
+**解决什么问题**：整张彩图铺地形（不建地形层、不平铺）、局部水面、以及高度图口径。
+
+- **彩图 = vista_diffuse，不是 layer**：`vista_tileset="none"` + `vista_diffuse_name` + `vista_diffuse_blend_type="1"` + `vista_diffuse_blend_amount="1.000"` + `colormap_detail_level="-1"`。
+- `blend_type=1` = 乘法（层颜色 × 彩图）⇒ 层 `diffusemap` 必须 `plain_white`，normal/spec/area/displacement=`none`；`blend_type=2` = lerp 替换（正式场景无先例，需实测）。
+- **tileset 非空会忽略彩图**（走虚拟纹理路径，`VistaDiffuse` 不被采样）。
+- UV = `world_xy / terrain_size`，`v=1-y`；整张一次；行 0=北、列 0=西。
+- 彩图是普通纹理（不用 `for_terrain`）；**非 2 次幂不能生成 mipmap**（编辑器警告）；大地图 8192×6144 是用户 2026-11-09 裁定保留的规格（接受无 mip 闪烁）。
+- **地形层水** = `water_ground` + `gloss_s` + mask；静态、无水深/反射；真水要 `water_plane`（每块一个 z，支持多水位）。
+- 加层后节点 `layer_is_used_mask_{season} = 2^N - 1`、`weightmap_levels` 新层给 8；否则只渲染 layer0。
+- **高度图纯重采样**：大地图 = `01_plateau_plain`（只保留西北/东南外延，02 刻河不用）；sdn = `scene_native`；旧 B 方案（垫陆地/抬低地/挖海床/岸坡）已从脚本删除。
+- sdn = 13×15@256 = 3328×3840（far_rect 3328×3968，北裁 128 m，活动区保留）；高度 3329×3841；Import scale **193.651 / offset −20.289**。
+
+**文件**：`Scripts/gen_rdr2_terrain.py` · `Scripts/gen_rdr2_sdn_terrain.py` · `Scripts/gen_rdr2_terrain_colormap.py` · `Scripts/gen_rdr2_water_mask.py` · `Modules/RDR2/Source/tools/patch_rdr2_terrain_colormap.py` · `Scripts/fix_rdr2_layer_node_masks.py`

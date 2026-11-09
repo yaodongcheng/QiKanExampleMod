@@ -2082,3 +2082,13 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 ### 28.8 Blender 无头脚本的路径坑
 
 `bpy.ops.render.render(write_still=True)` 的 `filepath` **以 Blender 自己的 CWD 为基准**（不是脚本所在目录）——传相对路径会写到 `C:\Debug\...` 去。**一律传绝对路径**（相对路径在脚本里先 `os.path.join(ROOT, ...)` 拼成绝对）。
+
+## 🔴 RDR2 材质离线生成 + TRF 导入命名（2026-11-09 实测）
+
+- **先材质、后网格**：ModKit 导入网格时按材质名绑定；事后补材质不回填（要删 `_geo.tpac` 重导）。
+- `tpaccli editormeta --genmats3 <texdir> --mtlref <3槽参考> --matmap <material,albedo,normal,ma> --out <dir>/x`：克隆参考材质，设 0/2/4 槽，**字节级替换 RawMeta GUID**（只改字段无效）；实现 = `tools/tpactool/TpacToolCLI/EditorMeta.cs`。
+- 参考材质要 3 槽（`Debug/RD2构造相关/mats_stage/nbx_wall_brick_scan_dirtlight_ab_mtl.tpac`）：shader `pbr_metallic`，shader flags `use_specular,do_not_use_vertex_color_as_occlusion`；`bumpmap` 只是 **VertexLayoutFlag**，不是 shader flag（加错会报 “Unknown material shader flag”）。
+- **TRF 导入会去掉网格名末尾的 `_lod` / `_lodNNN`** → MetaMesh 资产名（`new_res_doctor_int_lod` → `new_res_doctor_int`；`new_gar_08_cistern_lod001` → `new_gar_08_cistern`）；prefab 必须用去后缀后的名字。
+- 贴图源路径必须 **ASCII**：FreeImage 打不开 `Debug\RD2构造相关\...`（中文路径），报 `FreeImage_Load: failed to open file`；源图放 `AssetSources`。
+- 导入对话框“全勾”是硬编码默认、**没有配置文件**；静态 TRF 多余选项是 no-op。自动点击脚本 v2 的 `AppActivate` armed 逻辑只点一次；**v3 已改 `FindWindow`/`IsWindow`**（每 `-DelayMs` 按一次，默认 1.2s），待实机验证。
+- prefab：LOD split blend = 每据点独立碎片集合（不是单一网格）；`root + children + <meta_mesh_component name="<MetaMesh>"/>`；地图缩放放**子容器**（`Instantiate` 会覆盖 root transform）；四元数→Euler 用 `Mat3.GetEulerAngles` 反式（`x=asin(f.z)` / `y=atan2(-s.z,u.z)` / `z=atan2(-f.x,f.y)`）。

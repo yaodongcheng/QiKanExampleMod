@@ -1,61 +1,59 @@
-# RDR2 mesh batch import -- auto-click "Import" on the FBX Import Settings dialog.
+# RDR2 mesh batch import -- auto-confirm the import settings dialog.
 #
-# Why: ModKit asks for import settings ONCE for textures, but ONCE PER FILE for FBX
-# (dialog title = "FBX Import Settings"; the default button is Import).
+# 2026-11-09 v3：v2 的“armed/disarmed”逻辑在连续同名对话框时会失效（AppActivate 一直返回 true
+# → 只点一次）。v3 用 Win32 FindWindow/IsWindow 按窗口句柄检测，对话框在就按 Enter（默认每 1.2s 一次）。
+# 如果单个文件导入很慢，把 -DelayMs 调大（例如 3000），避免重复按。
 #
-# Usage:
-#   1) Start this in a separate PowerShell window:
-#        powershell -ExecutionPolicy Bypass -File "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\rdr2_fbx_auto_import.ps1"
-#   2) In ModKit: multi-select FBX files -> Import.
+# 用法（在单独的 PowerShell 窗口里跑）：
+#   powershell -ExecutionPolicy Bypass -File "H:\...\Scripts\rdr2_fbx_auto_import.ps1" -Title "Geometry File Import Settings" -MaxCount 184
 #
-# v2 (2026-10-26): armed/disarmed state machine.
-#   Old version pressed Enter again if the dialog was still on screen after 700ms
-#   (slow import under load) -> the editor started a SECOND import of the same file
-#   -> "Item with same name already exists" warnings. Now we only re-arm after the
-#   dialog has actually disappeared at least once.
-#
-# Params:
-#   -Title           dialog title (default "FBX Import Settings")
-#   -MaxCount        stop after N confirmations (0 = unlimited)
-#   -TimeoutMinutes  give up after N minutes (default 180)
-#   -DelayMs         minimum wait between confirmations (default 1500ms)
+# 注意：-ExecutionPolicy Bypass 属于安全敏感开关，是否使用由用户决定；本脚本不修改系统策略。
 param(
-    [string]$Title = "FBX Import Settings",
+    [string]$Title = "Geometry File Import Settings",
     [int]$MaxCount = 0,
     [int]$TimeoutMinutes = 180,
-    [int]$DelayMs = 1500
+    [int]$DelayMs = 1200
 )
 
 Add-Type -AssemblyName System.Windows.Forms
-$wsh = New-Object -ComObject WScript.Shell
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class Win32DlgRdr2 {
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)]
+    public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+    [DllImport("user32.dll")]
+    public static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+}
+"@
 
 $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
 $count = 0
-$armed = $true
 Write-Host "Watching for window: '$Title' (timeout ${TimeoutMinutes} min, Ctrl+C to stop)"
 
 try {
     while ((Get-Date) -lt $deadline) {
         if ($MaxCount -gt 0 -and $count -ge $MaxCount) { break }
-        $ok = $false
-        try { $ok = $wsh.AppActivate($Title) } catch { $ok = $false }
 
-        if (-not $ok) {
-            # dialog gone -> allow the next confirmation
-            $armed = $true
-            Start-Sleep -Milliseconds 250
+        $h = [Win32DlgRdr2]::FindWindow($null, $Title)
+        if ($h -eq [IntPtr]::Zero) {
+            Start-Sleep -Milliseconds 200
             continue
         }
-        if (-not $armed) {
-            # dialog still lingering after our Enter (editor busy): do NOT press again
-            Start-Sleep -Milliseconds 300
+        if (-not [Win32DlgRdr2]::IsWindow($h)) {
+            Start-Sleep -Milliseconds 200
             continue
         }
 
-        Start-Sleep -Milliseconds 150
+        [Win32DlgRdr2]::ShowWindow($h, 9) | Out-Null   # SW_RESTORE
+        [Win32DlgRdr2]::SetForegroundWindow($h) | Out-Null
+        Start-Sleep -Milliseconds 120
         [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
         $count++
-        $armed = $false
         if ($count % 25 -eq 0) { Write-Host ("confirmed {0} at {1:HH:mm:ss}" -f $count, (Get-Date)) }
         Start-Sleep -Milliseconds $DelayMs
     }

@@ -47,7 +47,7 @@ SCALE = 1.0 / 29.0
 
 def load_manifest():
     man = {}
-    p = os.path.join(RDR2, "deliverable/handoff/model_manifest.csv")
+    p = os.path.join(RDR2, "deliverable/manifests/model_manifest.csv")
     for r in csv.DictReader(open(p, encoding="utf-8-sig")):
         man[int(r["hash"], 16)] = r
     return man

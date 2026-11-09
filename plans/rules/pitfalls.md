@@ -2202,3 +2202,13 @@ cmd /c rmdir "H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Bl
 **以后怎么办**
 - 删带 junction 的模块：**先 `rmdir` 链接，再删目标**；只删目标的，删完立刻跑上面那条扫描。
 - 这类"启动即死"的问题，**先读 `launcher_log_*.txt` 的调用栈**，别靠回忆"我最近改了什么"——本次真凶是用户删目录留下的死链，与当轮改动的两个场景文件无关（那两个文件在场景加载时才读）。
+
+---
+
+## 🔴 RDR2 本轮小坑（2026-11-09）
+
+- **FreeImage 打不开中文路径**：`...\Debug\RD2构造相关\sdn_mat_stage\rdr2_flat_normal.png` → `FreeImage_Load: failed to open file`。**贴图源一律放 `AssetSources`（ASCII 路径）**；`editormeta --tex` 的 `--png` 也别指向中文目录。
+- **TRF 导入会去掉 `_lod` / `_lodNNN`**：MetaMesh 资产名 ≠ 模型名（`new_res_doctor_int_lod` → `new_res_doctor_int`；`new_gar_08_cistern_lod001` → `new_gar_08_cistern`）。prefab 的 `meta_mesh_component name` 必须用去后缀名，否则报 `Meta mesh with name ... cannot be found`。
+- **自动点击脚本只点一次**：v2 的 `AppActivate` armed 逻辑在连续同名对话框时不重置；**v3 已改 `FindWindow`/`IsWindow`**（每 `-DelayMs` 按一次，默认 1.2s，可调大防止重复按），待实机验证；判据 = 连续 50 个对话框每个只按一次。
+- **地形层水不是真水**：`water_ground` + mask 只是静态贴图，不会动、无深度/反射；要真水用 `water_plane`（每块一个 z）。
+- **彩图非 2 次幂没有 mipmap**：编辑器警告 `Texture sizes must be power of two`；用户 2026-11-09 裁定大地图保留 8192×6144（接受远处闪烁风险）。

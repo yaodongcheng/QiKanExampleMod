@@ -7,7 +7,7 @@
 
 数据源（只读）：
   D:/BrainMaker/大镖客2解包分析/export/levels/world/settlements_bannerlord.csv
-  D:/BrainMaker/大镖客2解包分析/deliverable/handoff/settlements_world_v2.csv
+  D:/BrainMaker/大镖客2解包分析/deliverable/manifests/settlements_world_v2.csv
   D:/BrainMaker/大镖客2解包分析/export/levels/world/npc_roster.csv
 
 铁律：
@@ -221,7 +221,7 @@ def read_csv(path):
 
 def load_world():
     bl = read_csv(os.path.join(RDR2, "export/levels/world/settlements_bannerlord.csv"))
-    v2 = {r["code"]: r for r in read_csv(os.path.join(RDR2, "deliverable/handoff/settlements_world_v2.csv"))}
+    v2 = {r["code"]: r for r in read_csv(os.path.join(RDR2, "deliverable/manifests/settlements_world_v2.csv"))}
     roster = {r["name_zh"]: r["name_en"] for r in read_csv(os.path.join(RDR2, "export/levels/world/npc_roster.csv"))}
 
     rows = []

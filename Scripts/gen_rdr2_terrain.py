@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 """烘 RDR2 战役大地图地形（给 ModKit Terrain 面板导入）。
 
-🔴 口径（2026-10-25 用户裁定）：
-  - **只用解包高度图这一份数据**（`deliverable/heightmap/continent_height_4m.png`）。
-    不掺 `raw/campaign/campaign_height.r16` —— 那份是 848² 低清、自带阶梯与斜纹，
+🔴 口径（2026-11-09 用户裁定；2026-11-08 改源）：
+  - **只读 `deliverable/terrain/stages/01_plateau_plain/height_16bit_4m.png`**：
+    01 里只保留「西北/东南地图外延扩展」，**02 的河床雕刻不要**。
+  - **不做任何水面改造**：不垫陆地、不抬低地、不挖海床、不做岸坡 —— 高度 = 01 的纯重采样。
+    2026-10-25 那套「B 方案」是临时实现，计划 2026-11-07 已标废弃，2026-11-09 从脚本删除。
+  - 不掺 `raw/campaign/campaign_height.r16` —— 那份是 848² 低清、自带阶梯与斜纹，
     掺进来会在解包图边界留下大方框接缝（上一版就是这么废掉的）。
   - **世界范围 = 解包图覆盖的真实范围**，按地图比例换算成地图单位：
     10,768 × 8,024 米 ÷ 14.5 = **742.62 × 553.38 单位**。
@@ -26,7 +29,8 @@
   rdr2_color_ref_2048.png     颜色参考（不导入，只对照）
   terrain_meta.json           世界范围 / 节点 / min-max（下游脚本读它，禁止手抄）
 
-高度口径：输出值 0..65535 ↔ 米 [-34.931, 690.347]（解包高度图自己的范围）；场景 min/max = 米 ÷ 14.5。
+高度口径：输出值 0..65535 ↔ Z_MIN/Z_MAX（−34.93 ~ 690.35 m；低于 −34.93 的海底截到 0）；
+场景 min/max = 0 / 50 单位。
 """
 
 import io
@@ -34,15 +38,13 @@ import json
 import os
 import numpy as np
 from PIL import Image
-from scipy import ndimage
-
-# 河岸过渡用圣丹尼斯那套现成的调和插值，别抄第二份
-from gen_rdr2_sdn_terrain import smooth_fill
 
 RDR2 = r"D:\BrainMaker\大镖客2解包分析"
 OUT = os.path.join(r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\RD2构造相关\terrain")
 
-# 解包高度图覆盖的真实范围（continent_height_meta.json）
+# 大地图模式（三选一）：00_raw 底图 / 01_plateau_plain 平整 / 02_river_carve 刻河
+STAGE = "01_plateau_plain"
+# 地图框范围（与 stage meta 的 world 一致）
 SRC_X0, SRC_Y1 = -6844.0, 3224.0
 SRC_W_M, SRC_H_M = 10768.0, 8024.0
 SRC_RES = 4.0
@@ -60,21 +62,15 @@ VERTICAL_UNITS = 50.0
 
 Z_MIN, Z_MAX = -34.93079376220703, 690.3469848632812
 
-# 🔴 全局水位（2026-10-25 用户裁定 B 方案）：骑砍大地图只有**一个**海平面。
-# RDR2 的西南盆地底在 −25 米左右 ⇒ 水位只要高过它就会淹掉沙漠。
-# 解法：把水位放到盆地底以下（−25 米），海/大湖挖到 −30 米（低于水位才有真水面），
-# 陆地**不做任何压平**，保留原本起伏；只有低于水位的极少量陆地会被垫到水位以上。
-WATER_LEVEL_M = -25.0        # 全局水位（米）
-LAND_FLOOR_M = -24.5         # 陆地最低高度（米）= 水位 + 0.5，只影响水位以下的极深点
-SEA_CARVE_MAX_M = 25.0       # 低于这个高程的水体算"海/大河"，统一挖到海床
-SEA_BED_M = -30.0            # 海床高度（米），必须低于水位、且 ≥ Z_MIN
-# 低地平滑抬升：把西南盆地从"低于水面"抬上来（否则水位一开就淹成湖）
-LIFT_M = 10.0                # 最大抬升（米）：只作用在低地
-LIFT_Z_FULL = -15.0          # 高程 ≤ 这个值 → 抬满
-LIFT_Z_ZERO = 15.0           # 高程 ≥ 这个值 → 不抬
-LAND_BANK_M = 45.0           # 岸坡宽度（米）：把水 mask 外侧的陆地按斜坡降到水面
-DEEP_WIDTH_M = 90.0          # 水下坡宽度（米）：水面 → 海床（这一段在水里，不影响水面面积）
-SHORE_ITERS = 120            # 调和插值的 Jacobi 松弛次数（次数×2.6 米 ≈ 边界影响半径）
+# 场景水位（米）：**只写进 meta 给场景侧参考，不再参与地形生成**。
+# 2026-11-09 用户裁定：地形只做 01 阶段的纯重采样，水面怎么处理由场景单独决定。
+WATER_LEVEL_M = -25.0
+
+# 🔴 2026-11-09 用户裁定：**不做任何水域加深 / 低地抬升 / 岸线改造**。
+# 大地图高度 = `01_plateau_plain` 的纯重采样（01 里只保留西北/东南「地图外延扩展」，
+# 02 的河床雕刻不用）。旧版这里有一整套「B 方案」（把陆地垫到水位以上、水挖到 −30、
+# 岸坡 45 m）——那是 2026-10-25 的临时实现，计划 2026-11-07 已标「旧实现废弃」，
+# 但脚本一直没删；2026-11-09 彻底移除。水面怎么处理由场景侧单独决定，不在地形里做。
 
 LAYERS = ["grass", "conifer", "rock", "dirt", "broadleaf", "water", "snow"]
 ENGINE_LAYERS = {
@@ -105,11 +101,12 @@ def bilinear(arr, fx, fy):
 def main():
     os.makedirs(OUT, exist_ok=True)
 
-    meta = json.load(io.open(os.path.join(RDR2, "deliverable/heightmap/continent_height_meta.json"), encoding="utf-8"))
-    hm = meta["heightmap"]
+    stage_dir = os.path.join(RDR2, "deliverable/terrain/stages", STAGE)
+    meta = json.load(io.open(os.path.join(stage_dir, "meta.json"), encoding="utf-8"))
+    hm = meta["height"]
     src_zmin, src_zmax = hm["zmin"], hm["zmax"]
 
-    src_img = np.array(Image.open(os.path.join(RDR2, "deliverable/heightmap", hm["file_16bit"])), dtype=np.uint16)
+    src_img = np.array(Image.open(os.path.join(stage_dir, hm["file"])), dtype=np.uint16)
     src_z = (src_zmin + src_img.astype(np.float32) / 65535.0 * (src_zmax - src_zmin)).astype(np.float32)
     print("source height:", src_z.shape, src_zmin, src_zmax)
     print("world (map units): %.2f x %.2f | node %dx%d @ %.4f | out %dx%d"
@@ -124,54 +121,16 @@ def main():
         out_z[y0:y1] = bilinear(src_z, sx_full[None, :], sy_full[y0:y1][:, None])
         print("height rows", y1, "/", H)
 
-    # 🔴 B 方案：全局单水位下把陆地垫起来、只挖真正的海/大河
-    wsrc = np.array(Image.open(os.path.join(RDR2, "deliverable/terrain/weights", "w_water.png")), dtype=np.float32)
-    water = np.zeros((H, W), dtype=bool)
-    for y0 in range(0, H, 256):
-        y1 = min(H, y0 + 256)
-        water[y0:y1] = bilinear(wsrc, sx_full[None, :], sy_full[y0:y1][:, None]) > 127
+    # 🔴 2026-11-09：这里原本有「B 方案」水处理（陆地垫高 / 低地抬升 / 海床挖深 / 岸坡），
+    # 已按用户裁定整体移除。高度 = 01_plateau_plain 的纯重采样，不做任何水面改造。
 
-    low_land = (~water) & (out_z < LAND_FLOOR_M)
-    n_land = int(low_land.sum())
-    out_z[~water] = np.maximum(out_z[~water], LAND_FLOOR_M)
-
-    # 🔴 低地平滑抬升（2026-10-25 用户要求）：西南盆地比水面还低 ⇒ 水面一开就把整片沙漠淹成湖。
-    # 按**高度**做平滑抬升（低处抬得多、高处为 0），而不是按东南西北乘系数 ——
-    # 乘系数会把西南的山一起拔高，按高度则只动真正低的地方，且过渡连续。
-    t_lift = np.clip((out_z - LIFT_Z_FULL) / (LIFT_Z_ZERO - LIFT_Z_FULL), 0.0, 1.0)
-    w_lift = 1.0 - t_lift * t_lift * (3.0 - 2.0 * t_lift)     # z ≤ LIFT_Z_FULL → 1；z ≥ LIFT_Z_ZERO → 0
-    out_z[~water] += (LIFT_M * w_lift)[~water]
-    print("  basin lift: up to %.1f m (full below %.0f m, zero above %.0f m); land min now %.2f m"
-          % (LIFT_M, LIFT_Z_FULL, LIFT_Z_ZERO, float(out_z[~water].min())))
-
-    # 🔴 岸线处理（2026-10-25 用户裁定：**水 mask 是权威，水面不能被岸坡吃掉**）
-    #   ① 水区：整片压到水面以下 —— 边界处 = 水面，向内 DEEP_WIDTH_M 米降到海床（这才叫"刻深"）；
-    #   ② 岸：做在**水 mask 外面的陆地**上 —— 临水 LAND_BANK_M 米内把地"只降不抬"降到水面，
-    #      走出这条带就回到原始地形。
-    #   这样水面面积 = 水体掩膜 100% 保留，岸边是连续斜坡而不是垂直悬崖。
-    carve = water & (out_z < SEA_CARVE_MAX_M)
-    n_carve = int(carve.sum())
-    if n_carve:
-        mpp = SRC_W_M / (W - 1)
-        # ① 水下：边界 = 水面，向内降到海床
-        d_in = ndimage.distance_transform_edt(carve) * mpp
-        t2 = np.clip(d_in / DEEP_WIDTH_M, 0.0, 1.0)
-        t2 = t2 * t2 * (3.0 - 2.0 * t2)
-        z_water = WATER_LEVEL_M * (1.0 - t2) + SEA_BED_M * t2
-        # ② 岸：水外的陆地条带，从水线斜坡回到原始地形（只降不抬）
-        d_out = ndimage.distance_transform_edt(~carve) * mpp
-        near = (~carve) & (d_out <= LAND_BANK_M)
-        t1 = np.clip(d_out / LAND_BANK_M, 0.0, 1.0)
-        t1 = t1 * t1 * (3.0 - 2.0 * t1)
-        ramp = WATER_LEVEL_M + (out_z - WATER_LEVEL_M) * t1
-        lowered = np.minimum(out_z, ramp)
-
-        src_before = out_z[near].copy()
-        out_z = np.where(carve, z_water, np.where(near, lowered, out_z))
-        n_near = int(near.sum())
-        d_lower = float((src_before - out_z[near]).mean()) if n_near else 0.0
-        print("  shore band: %d px land lowered (mean %.2f m, %.2f%% of land)"
-              % (n_near, d_lower, n_near / max(int((~water).sum()), 1) * 100))
+    # 🔴 自检：纯重采样 —— 任何水/陆地改造（垫陆地/抬低地/挖海床/岸坡）都会在这里失败。
+    #    分块计算与整块计算可能有 1e-6 级浮点差异，所以用 0.1mm 容差，不要求逐位相等。
+    ref = bilinear(src_z, sx_full[None, :], sy_full[:, None])
+    diff = float(np.max(np.abs(out_z - ref)))
+    if diff > 1e-4:
+        raise SystemExit("FAIL: out_z was modified (max diff %.3f m) — pure resample only" % diff)
+    print("pure resample check: max diff %.6f m" % diff)
 
     out_v = np.clip((out_z - Z_MIN) / (Z_MAX - Z_MIN) * 65535.0, 0, 65535).astype(np.uint16)
     Image.fromarray(out_v, mode="I;16").save(os.path.join(OUT, "rdr2_height_4097.png"))
@@ -243,8 +202,7 @@ def main():
         "import_offset": 0.0,
         "water_level_m": WATER_LEVEL_M,
         "water_level_units": (WATER_LEVEL_M - Z_MIN) / (Z_MAX - Z_MIN) * VERTICAL_UNITS,
-        "land_floor_m": LAND_FLOOR_M,
-        "sea_bed_m": SEA_BED_M,
+        "water_rework": "none (2026-11-09: no land lift / no sea carve / no shore band)",
         "heightmap": "rdr2_height_4097.png",
         "note": "世界范围 = 解包高度图覆盖范围；地图是缩微沙盘，真实米 ÷ 14.5 = 地图单位。瓜玛岛不在此范围（独立 mission）。",
     }

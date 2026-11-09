@@ -42,7 +42,8 @@ ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 ap = argparse.ArgumentParser()
 ap.add_argument('--out', required=True)
 ap.add_argument('--min-faces', type=int, default=2000)
-ap.add_argument('--limit', type=int, default=3)
+ap.add_argument('--limit', type=int, default=3, help='最多导几个；<=0 表示全部（批量用）')
+ap.add_argument('--no-lod', action='store_true', help='只出 LOD0（单档，暂不要 LOD0-6 链）')
 ap.add_argument('--classes', default='')
 ap.add_argument('--prefer-ring0', action='store_true', default=True)
 ap.add_argument('--preview', action='store_true', help='给 LOD0/3/6 各渲一张预览图')
@@ -50,6 +51,9 @@ ap.add_argument('--planar', action='store_true', help='减面前先做平面溶�
 ap.add_argument('--planar-angle', type=float, default=1.0, help='平面溶解角度（度），默认 1')
 ap.add_argument('--match', default='', help='只取名字含该子串的模型（验证指定样本用）')
 a = ap.parse_args(ARGS)
+if a.no_lod:
+    # 2026-11-08：先出单档版本（只有 LOD0），验证导入链路；LOD0-6 后续再补
+    RATIOS[:] = [1.0]
 
 out_dir = a.out if os.path.isabs(a.out) else os.path.join(ROOT, a.out)
 os.makedirs(out_dir, exist_ok=True)
@@ -187,8 +191,8 @@ for o in bpy.context.scene.objects:
         if cur_ring and not new_ring:
             cands[h] = o
 
-picked = list(cands.values())[:a.limit]
-print('[scene-trf] 候选模型 %d 个，取前 %d 个验证' % (len(cands), len(picked)))
+picked = list(cands.values()) if a.limit <= 0 else list(cands.values())[:a.limit]
+print('[scene-trf] 候选模型 %d 个，取 %d 个' % (len(cands), len(picked)))
 
 summary = {}
 for src in picked:

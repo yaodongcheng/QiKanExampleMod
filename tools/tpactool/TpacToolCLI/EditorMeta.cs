@@ -31,6 +31,7 @@ namespace TpacCli
             string name = null, png = null, outPath = null, texGuid = null;
             string shader = "328d3572-5e9e-4183-b49e-f451a19213d0"; // adobe_stone_wall 默认
             string fromPath = null, sourcePath = null, genMatsDir = null, mtlRef = null, aliasesPath = null, dumpPath = null;
+            string genMats3Dir = null, matMapPath = null;
             string genTexDir = null, texRef = null, sourcePrefix = null;
             var aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var flags = new List<string> { "use_specular", "bumpmap", "do_not_use_alpha" };
@@ -49,6 +50,8 @@ namespace TpacCli
                     case "--from": fromPath = args[++i]; break;
                     case "--source": sourcePath = args[++i]; break;
                     case "--genmats": genMatsDir = args[++i]; break;
+                    case "--genmats3": genMats3Dir = args[++i]; break;
+                    case "--matmap": matMapPath = args[++i]; break;
                     case "--mtlref": mtlRef = args[++i]; break;
                     case "--dump": dumpPath = args[++i]; break;
                     case "--gentex": genTexDir = args[++i]; break;
@@ -144,7 +147,12 @@ namespace TpacCli
                         }
                     }
                     if (it is Material mm)
+                    {
                         Console.WriteLine($"  shader={mm.Shader?.Guid} blend={mm.BlendMode} tex slots=[{string.Join(",", mm.Textures.Keys)}]");
+                        foreach (var kv in mm.Textures)
+                            Console.WriteLine($"    slot {kv.Key} -> {kv.Value.Guid}");
+                        Console.WriteLine($"  shaderflags=[{string.Join(",", mm.ShaderMaterialFlags)}] vertexflags=[{string.Join(",", mm.VertexLayoutFlags)}] rawmeta={mm.RawMeta?.Length}");
+                    }
                 }
                 return 0;
             }
@@ -222,6 +230,66 @@ namespace TpacCli
                     Console.WriteLine($"  alias: {kv.Key} -> {kv.Value}");
                 }
                 Console.WriteLine($"generated {n} materials -> {Path.GetDirectoryName(Path.GetFullPath(outPath))}");
+                return 0;
+            }
+
+            if (genMats3Dir != null)
+            {
+                // 三槽版：按 matmap（material,albedo,normal,ma）克隆参考材质，挂 0/2/4 三个槽
+                if (mtlRef == null || matMapPath == null)
+                { Console.Error.WriteLine("--genmats3 needs --mtlref and --matmap"); return 1; }
+                var refPkg3 = new AssetPackage(mtlRef, true, false);
+                AssetItem refItem3 = null;
+                foreach (var it in refPkg3.Items) { refItem3 = it; break; }
+                if (!(refItem3 is Material refMat3)) { Console.Error.WriteLine("mtlref is not a material"); return 1; }
+                Guid old0 = refMat3.Textures.ContainsKey(0) ? refMat3.Textures[0].Guid : Guid.Empty;
+                Guid old2 = refMat3.Textures.ContainsKey(2) ? refMat3.Textures[2].Guid : Guid.Empty;
+                Guid old4 = refMat3.Textures.ContainsKey(4) ? refMat3.Textures[4].Guid : Guid.Empty;
+                var texG = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+                foreach (var tf in Directory.EnumerateFiles(genMats3Dir, "*_tex.tpac"))
+                {
+                    var tp0 = new AssetPackage(tf, true, false);
+                    foreach (var it0 in tp0.Items) if (it0 is Texture t0) texG[t0.Name] = t0.Guid;
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath)));
+                int n3 = 0;
+                foreach (var line in File.ReadAllLines(matMapPath))
+                {
+                    var t = line.Trim();
+                    if (t.Length == 0 || t.StartsWith("#")) continue;
+                    var parts = t.Split(',');
+                    if (parts.Length < 4) continue;
+                    string mat = parts[0].Trim(), alb = parts[1].Trim(), nor = parts[2].Trim(), ma = parts[3].Trim();
+                    if (mat.Length == 0) continue;
+                    if (!texG.TryGetValue(alb, out var ga)) { Console.Error.WriteLine($"missing albedo tex: {alb} ({mat})"); continue; }
+                    Guid gn = (nor.Length > 0 && texG.TryGetValue(nor, out var g1)) ? g1
+                        : (texG.TryGetValue("rdr2_flat_normal", out var gf) ? gf : Guid.Empty);
+                    Guid gm = (ma.Length > 0 && texG.TryGetValue(ma, out var g2)) ? g2
+                        : (texG.TryGetValue("rdr2_white", out var gw) ? gw : Guid.Empty);
+                    var clone = new AssetPackage(mtlRef, true, false);
+                    AssetItem ci = null;
+                    foreach (var it in clone.Items) { ci = it; break; }
+                    var m = (Material)ci;
+                    m.Name = mat;
+                    m.Guid = Det("mat:" + mat);
+                    m.Textures[0] = new AssetDependence<Texture>(ga);
+                    if (gn != Guid.Empty) m.Textures[2] = new AssetDependence<Texture>(gn);
+                    if (gm != Guid.Empty) m.Textures[4] = new AssetDependence<Texture>(gm);
+                    if (m.RawMeta != null)
+                    {
+                        var map = new Dictionary<Guid, Guid>();
+                        if (!old0.Equals(Guid.Empty)) map[old0] = ga;
+                        if (!old2.Equals(Guid.Empty) && gn != Guid.Empty) map[old2] = gn;
+                        if (!old4.Equals(Guid.Empty) && gm != Guid.Empty) map[old4] = gm;
+                        if (!refMat3.Guid.Equals(Guid.Empty)) map[refMat3.Guid] = m.Guid;
+                        m.RawMeta = PatchGuids((byte[])m.RawMeta.Clone(), map);
+                    }
+                    var outp = new AssetPackage();
+                    outp.Items.Add(m);
+                    outp.Save(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(outPath)), mat + "_mtl.tpac"));
+                    n3++;
+                }
+                Console.WriteLine($"generated {n3} materials (3 slots) -> {Path.GetDirectoryName(Path.GetFullPath(outPath))}");
                 return 0;
             }
 
