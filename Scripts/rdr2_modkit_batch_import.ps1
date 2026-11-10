@@ -31,7 +31,7 @@ param(
     [string]$LogDir = 'H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\RD2构造相关',
     [switch]$NoRestart,
     [switch]$KeepEditorOpen,
-    [int]$MenuWaitSec = 25,
+    [int]$MenuWaitSec = 80,
     [int]$TimeoutMin = 25
 )
 $ErrorActionPreference = 'Continue'
@@ -334,7 +334,7 @@ function Start-Editor {
     # 点「编辑器」（失败就截图 + 检查游戏进程是否还活着）
     $ed = [IntPtr]::Zero
     $attempt = 0
-    foreach ($yy in @(310, 305, 315, 320, 300, 290, 310, 305)) {
+    foreach ($yy in @(310, 305, 315)) {
         $attempt++
         $n = Clear-BlockingDialogs
         if ($n -gt 40) {
@@ -354,7 +354,7 @@ function Start-Editor {
     }
     if ($ed -eq [IntPtr]::Zero) { Log 'FAIL 编辑器没起来（已存 game_fail_*.png）'; return $false }
     Log 'Edit Mode 出现，等加载 30 秒'
-    if (-not (Wait-Status 30 '等编辑器加载工程')) { return $false }
+    if (-not (Wait-Status 20 '等编辑器加载工程')) { return $false }
 
     # 打开资源浏览器（两套坐标，按窗口尺寸选）
     $rb = [MK]::Find('Resource Browser')
@@ -599,7 +599,18 @@ Log ("导入前资产数 = {0}" -f $before)
 
 $rb = [IntPtr]::Zero
 if (-not $NoRestart) {
-    if (-not (Start-Editor)) { exit 10 }
+    # 起不来就杀进程重来（用户 2026-11-10 裁定：加载卡住 ≠ 要干等，80 秒内没菜单就该重来）
+    $ok = $false
+    for ($try = 1; $try -le 3; $try++) {
+        if (Start-Editor) { $ok = $true; break }
+        # F12 急停不能被当成"启动失败"去重来
+        if (Stop-Requested) { Log 'STOPPED_BY_REQUEST（启动阶段）'; exit 20 }
+        Log ("编辑器启动失败（第 {0}/3 次）→ 杀进程重来" -f $try)
+        Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 5
+    }
+    if (-not $ok) { Log 'FAIL 连续 3 次起不来，放弃本批'; exit 10 }
     $rb = Get-RB
 } else {
     $rb = Get-RB
@@ -645,8 +656,8 @@ if (-not (Select-FilesInDialog $SourceDir $wild)) { exit 13 }
 $deadline = (Get-Date).AddMinutes($TimeoutMin)
 $last = $before; $stable = 0; $done = $false
 $script:lastBeat = Get-Date
-# 网格每个文件要编译几十秒，稳定判定必须拉长（贴图 18 秒；网格 2 分钟）
-$needStable = if ($Kind -eq 'mesh') { 20 } else { 3 }
+# 网格每个文件要编译几十秒，稳定判定必须拉长（贴图 18 秒；网格 2026-11-10 实测 560 个/批，60 秒无变化即判完成）
+$needStable = if ($Kind -eq 'mesh') { 10 } else { 3 }
 while ((Get-Date) -lt $deadline) {
     Start-Sleep -Seconds 6
     if (Stop-Requested) {
