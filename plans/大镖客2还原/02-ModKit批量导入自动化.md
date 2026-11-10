@@ -1,5 +1,27 @@
 # ModKit 批量导入自动化 —— 流程与操作手册（2026-11-10 修订版）
 
+> ## 📌 新会话交接（从这里读起，3 分钟能接手）
+>
+> **现状一句话**：贴图 ✅ 25,443 / 材质 ✅ 11,774 / 修补网格 919 ✅ 已回（网格共 7,922）；
+> **主网格 20,079 个（46 批）还没导**，因为 **13:14 起编辑器打不开了**（主菜单 UI 不绘制，点 8 次「编辑器」无效）。
+> prefab / xscene 为修引用链**仍临时摘除**，等所有网格导完再恢复。
+>
+> **接手第一件事**：读下面「🔴 当前卡点」→ 按 3 步排查（离线校验材质 / 加大 `-MenuWaitSec` / 二分挪开新材质）。
+> **在编辑器能打开之前，不要继续批量导入，也不要恢复 prefab/xscene。**
+>
+> **关键路径**
+> - 待导源：`Modules\RDR2\AssetSources\ImortReady\rdr2_models_pending\`（`batches.csv` 是批次清单）
+> - 导入引擎：`Scripts\rdr2_modkit_batch_import.ps1`（内置 F12 急停、可见控制台、`-MenuWaitSec`、`-DestRel`）
+> - 46 批驱动：`Debug\RD2构造相关\run_all_model_batches.ps1`（可续跑，SKIP 已导批次）
+> - 体检：`Scripts\check_rdr2_pending_materials.py`（导前，查 TRF 需要的材质齐不齐）
+>   · `Scripts\check_rdr2_mesh_materials.py`（导后，查已导网格的材质绑定）
+> - 临时摘除：`Prefabs\rdr2_lod_prefabs.xml.disabled` · `SceneObj\Main_map\scene.xscene.bak_20261110`
+>
+> **必须遵守**：CLAUDE.md **铁律 40**（引用链 `xscene → prefab → metamesh → material → texture`，
+> 删/改前先查上游、临时摘除只改名不删）。
+
+---
+
 > 读法：**先读下面「事故复盘 + 现行修复顺序」**（决定现在做什么），再按需查后面的操作细节与坑。
 
 ---
@@ -37,23 +59,63 @@
   在 `Modules\RDR2\Prefabs\*.xml` 搜 `<meta_mesh_component name="X"/>`，在 `SceneObj\*\scene.xscene` 搜 `prefab="..."`。
   计划补 `Scripts\check_rdr2_reference_chain.py`（prefab/xscene 引用的 metamesh 是否存在），纳入开编辑器前体检。
 
+### 🔴 当前卡点（2026-11-10 13:20）—— **新会话先排查这个，别直接继续导**
+
+**现象**：启动 ModKit → 主菜单**背景出现了，但左侧菜单（编辑器/载入游戏…）不绘制** →
+脚本点「编辑器」8 次全部无效 → 该批判 `FAIL 编辑器没起来`（截图 `Debug\RD2构造相关\game_fail_2.png`）。
+`Assets\models` 仍 **7,922**（本批 0 导入，没搞脏）。
+
+**时间线对照（问题就出在这个窗口）**：
+| 时间 | 变化 | 编辑器能否打开 |
+|---|---|---|
+| 12:09 | 跑 fix_01 时（材质 7,735 / 网格 7,003） | ✅ 能开 |
+| 12:20 | 新生成 **4,039 个材质**（→ 11,774） | — |
+| 12:51 | 补导 **919 个网格**（→ 7,922） | — |
+| 13:14 | 第一次跑主批次（`bldg_01`） | ❌ 主菜单 UI 不出来 |
+
+⇒ 变量只有两处：**+4,039 材质 / +919 网格**，优先怀疑新增材质让编辑器加载卡住（或纯加载时间暴涨）。
+
+**排查顺序（按此做，别跳）**：
+1. **离线校验材质**（只读、不碰游戏）：
+   `tpaccli list --packdir "<RDR2>\Assets\materials\base"` —— 看新生成的 4,039 个里有没有读不出来的，记下名字
+2. 若全部合法 → **怀疑加载时间**：把导入脚本参数 `-MenuWaitSec` 从 70 加到 **180**，只试跑 `bldg_01` 一批
+3. 若仍不行 → **二分**：把 12:20 之后新建的材质临时移到 `Assets\materials\_disabled\`，看编辑器能否打开；
+   能打开 = 材质批次问题，再按二分法缩小到具体文件
+
+**这期间不要做**：不要在编辑器能打开之前继续批量导入；不要恢复 prefab / xscene（会再引入悬空引用）。
+
 ### ⚠️ 当前临时状态（恢复前必须记住）
 
 | 项 | 现状 | 恢复动作 |
 |---|---|---|
-| `Prefabs\rdr2_lod_prefabs.xml` | 已改名 **`rdr2_lod_prefabs.xml.disabled`** | 网格导完后再改回 `.xml` |
+| `Prefabs\rdr2_lod_prefabs.xml` | 已改名 **`rdr2_lod_prefabs.xml.disabled`** | **所有网格导完后**再改回 `.xml` |
 | `SceneObj\Main_map\scene.xscene` | 已移除 **58 个** `rdr2_*_lod` 实体 | 用 **`scene.xscene.bak_20261110`** 覆盖回去 |
-| 919 个网格 | 已删；TRF 在 `rdr2_models_pending\fix_01`(137) / `fix_02_1`(560) / `fix_02_2`(222) | 重新导入 |
+| 919 个修补网格 | ✅ **已全部导回**（`main_map_lod` 2,211 / `unknown` 363） | 无需再动 |
 
-### 现行顺序（**自下而上，与引用链相反**）
-1. **贴图** 8,181 张 → 9 批（`textures\{albedo,normal,specular}\batch_NN`）
-2. **材质** **4,107 个**（体检器口径：pending 的 `matmap.csv` 9,255 条里 5,148 已就绪、4,107 等贴图导完后生成；命令 `tpaccli editormeta --genmats3`）
-3. **网格**：先导 3 个 fix 批次（919 个，补回删掉的），再按 `batches.csv` 导 46 批待导（20,079 个）
-4. **prefab**：`rdr2_lod_prefabs.xml.disabled` → 改回 `.xml`
-5. **xscene**：`scene.xscene.bak_20261110` 覆盖回 `SceneObj\Main_map\scene.xscene`
-6. **验证**：体检脚本全绿 → 打开编辑器 → 大地图 58 组远景碎片可见、无 `CONTENT WARNING`
+### 当前进展（2026-11-10 13:0x 实测）
 
-> 步骤 1~3 期间 prefab/xscene 保持摘除状态（否则编辑器又会被悬空引用卡住）。
+| 步 | 内容 | 状态 | 判据（实测） |
+|---|---|---|---|
+| ① 贴图 | 8,181 张 / 10 批 | ✅ **完成** | `Assets\textures` 17,262 → **25,443**；检查器全部 `[OK]` |
+| ② 材质 | 生成 4,039 个 | ✅ **完成（但见上「当前卡点」）** | `Assets\materials` 7,735 → **11,774**；matmap 9,255 条缺 **0** |
+| ③ 网格 · 修补批 | 919 个（fix_01 / fix_02_1 / fix_02_2） | ✅ **完成** | `models` 总量回到 **7,922**；材质体检 **0 缺 / 0 坏** |
+| ③ 网格 · 主批次 | **20,079 个 / 46 批** | ⏳ **待跑（被卡点阻塞）** | 驱动 `Debug\RD2构造相关\run_all_model_batches.ps1`（可续跑） |
+| ④ prefab | 改回 `.xml` | ⏸ 等 ③ | 打开编辑器不报 `Meta mesh ... cannot be found` |
+| ⑤ xscene | 还原备份 | ⏸ 等 ④ | 大地图 58 组远景碎片可见 |
+| ⑥ 验收 | 体检 + 实机 | ⏸ 等 ⑤ | 全绿、无 `CONTENT WARNING` |
+
+**开跑前预检（已通过）**：20,998 个待导 TRF 共引用 **9,475 种材质**，工程里**缺 0 种**
+（`Scripts\check_rdr2_pending_materials.py`，逐个 TRF 全文扫，不是查 matmap 推断）。
+
+### TODO（按顺序，别跳）
+
+0. 🔴 **先解决「当前卡点」**（编辑器打不开）——在此之前第 1 条不要跑
+1. ⏳ **跑 46 批主网格**（20,079 个）：`run_all_model_batches.ps1` —— 可续跑，**F12 停**
+2. 跑 `Scripts\check_rdr2_mesh_materials.py` 全量体检（应为 0 缺 / 0 坏）
+3. `rdr2_lod_prefabs.xml.disabled` → 改回 `rdr2_lod_prefabs.xml`
+4. `scene.xscene.bak_20261110` → 覆盖回 `SceneObj\Main_map\scene.xscene`
+5. 开 ModKit 验收：58 组远景回来、无 `CONTENT WARNING`
+6. 以上全绿后，才轮到"把摆放注入场景"（另一条工程，见总纲）
 
 ### 顺带修好的工具问题（今天实测）
 | 问题 | 修法 |
@@ -62,6 +124,8 @@
 | 热键是假的（只认外部写的停止牌） | 导入脚本**内置** `F12 / Ctrl+Alt+F12` 监听（每 200 ms 查一次，按下即停） |
 | 主菜单没就绪就点「编辑器」 | `-MenuWaitSec` 参数（默认 70 秒），等待期间每 10 秒打印剩余时间 |
 | 自动跑时看不见进度 | 可见控制台：启动横幅 + 每 10 秒倒计时 + 每 30 秒导入进度 |
+| 网格确认器残留拖住上层驱动（`Start-Process -Wait` 等整棵进程树） | 导入脚本**收尾时自杀确认器**（`收尾：杀确认器 PID x`） |
+| 驱动按住 F12 后仍空转刷屏 | 驱动每批**开跑前查停止牌**；单批包 `try/catch`；`Join-Path` 前校验字段（旧版变量残留会把 A 批导进 B 目标） |
 
 ---
 

@@ -676,4 +676,13 @@ if (-not $KeepEditorOpen) {
     $p = Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' }
     if ($p) { Log '收尾：杀进程'; $p | Stop-Process -Force -ErrorAction SilentlyContinue }
 }
+# 🔴 2026-11-10：收尾必须把网格确认器一起杀掉。它是本脚本的子进程，
+#    留着会拖住上层驱动（Start-Process -Wait 等整棵进程树），表现为"下一批不开始"。
+$me = $PID
+Get-CimInstance Win32_Process | Where-Object {
+    $_.ProcessId -ne $me -and $_.CommandLine -and $_.CommandLine -match 'geometry_auto_import'
+} | ForEach-Object {
+    Log ("收尾：杀确认器 PID " + $_.ProcessId)
+    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+}
 exit 0
