@@ -1,10 +1,95 @@
-# ModKit 批量导入自动化 —— 流程与操作手册（2026-11-09 实测版）
+# ModKit 批量导入自动化 —— 流程与操作手册（2026-11-10 修订版）
+
+> 读法：**先读下面「事故复盘 + 现行修复顺序」**（决定现在做什么），再按需查后面的操作细节与坑。
+
+---
+
+## 🔴🔴 2026-11-10 事故复盘 + 现行修复顺序（**先读这一节**）
+
+### 事故（一句话）
+为修「网格材质绑定失败」，删掉了 **919 个已导入网格**。其中 **782 个被 `Prefabs\rdr2_lod_prefabs.xml` 引用**，而这个 prefab 又被 **`SceneObj\Main_map\scene.xscene` 的 58 个实体**引用 ⇒ 编辑器加载即报
+`Meta mesh with name ... cannot be found`，**直接打不开**。白白浪费一个上午。
+
+### 根因（三条，都是我的错）
+1. **资产是引用链**：`xscene → prefab → metamesh(网格) → material → texture`。我只检查了下一层（材质），**没查上游**。
+2. 判断"要重导"是对的（材质比网格晚建 → 绑定已烘坏），但**删之前必须先摘掉引用它的上游**。
+3. **只停 prefab 不动 xscene = 断点上移，不算修好**。
+
+### 教训（已写入 CLAUDE.md 铁律 40）
+
+**删/改任何资产时，按这三步走，缺一步就会像今天这样把工程搞到打不开：**
+
+| 步 | 做什么 | 今天错在哪 |
+|---|---|---|
+| **① 删前查上游** | 先查：有谁引用我？（网格 ← prefab ← xscene；材质 ← 网格；贴图 ← 材质） | 只查了"材质在不在"，没查 prefab/xscene |
+| **② 从最上游往下摘** | xscene 实体（改名前备份）→ prefab（改名 `.disabled`）→ 才动资产 | 直接删了 782 个被 prefab 引用的网格 |
+| **③ 从下往上恢复** | 资产（贴图→材质→网格）→ prefab 改回 → xscene 覆盖回备份 → 再验 | — |
+
+三条纪律：
+- 临时摘除**一律改名/备份留档**（`*.disabled` / `scene.xscene.bak_<日期>`），**不许删**。
+- **"只藏一层"不算修好** —— 断点只会往上游移一层（今天就是藏了 prefab 才发现 xscene 还连着）。
+- **每次开 ModKit 之前先跑体检**，全绿再开：
+  ```powershell
+  python "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\check_rdr2_mesh_materials.py"
+  ```
+  它判两条：**缺材质**（必弹窗）、**材质比网格新**（导入时材质还不存在/后来重建 ⇒ 绑定已烘坏，同样要重导）。
+- ⚠️ **待补**：上游引用还没有脚本化检查。现在要查"删 X 会不会弄断 prefab/xscene"只能手工：
+  在 `Modules\RDR2\Prefabs\*.xml` 搜 `<meta_mesh_component name="X"/>`，在 `SceneObj\*\scene.xscene` 搜 `prefab="..."`。
+  计划补 `Scripts\check_rdr2_reference_chain.py`（prefab/xscene 引用的 metamesh 是否存在），纳入开编辑器前体检。
+
+### ⚠️ 当前临时状态（恢复前必须记住）
+
+| 项 | 现状 | 恢复动作 |
+|---|---|---|
+| `Prefabs\rdr2_lod_prefabs.xml` | 已改名 **`rdr2_lod_prefabs.xml.disabled`** | 网格导完后再改回 `.xml` |
+| `SceneObj\Main_map\scene.xscene` | 已移除 **58 个** `rdr2_*_lod` 实体 | 用 **`scene.xscene.bak_20261110`** 覆盖回去 |
+| 919 个网格 | 已删；TRF 在 `rdr2_models_pending\fix_01`(137) / `fix_02_1`(560) / `fix_02_2`(222) | 重新导入 |
+
+### 现行顺序（**自下而上，与引用链相反**）
+1. **贴图** 8,181 张 → 9 批（`textures\{albedo,normal,specular}\batch_NN`）
+2. **材质** **4,107 个**（体检器口径：pending 的 `matmap.csv` 9,255 条里 5,148 已就绪、4,107 等贴图导完后生成；命令 `tpaccli editormeta --genmats3`）
+3. **网格**：先导 3 个 fix 批次（919 个，补回删掉的），再按 `batches.csv` 导 46 批待导（20,079 个）
+4. **prefab**：`rdr2_lod_prefabs.xml.disabled` → 改回 `.xml`
+5. **xscene**：`scene.xscene.bak_20261110` 覆盖回 `SceneObj\Main_map\scene.xscene`
+6. **验证**：体检脚本全绿 → 打开编辑器 → 大地图 58 组远景碎片可见、无 `CONTENT WARNING`
+
+> 步骤 1~3 期间 prefab/xscene 保持摘除状态（否则编辑器又会被悬空引用卡住）。
+
+### 顺带修好的工具问题（今天实测）
+| 问题 | 修法 |
+|---|---|
+| `SendKeys.Send` 在无消息循环的进程里抛异常 ⇒ 警告框关不掉、日志里"关掉 70 个"其实是同一个框 | 改用 `WM_COMMAND + IDOK` 直接点「确定」，失败再走 UIA 点按钮 |
+| 热键是假的（只认外部写的停止牌） | 导入脚本**内置** `F12 / Ctrl+Alt+F12` 监听（每 200 ms 查一次，按下即停） |
+| 主菜单没就绪就点「编辑器」 | `-MenuWaitSec` 参数（默认 70 秒），等待期间每 10 秒打印剩余时间 |
+| 自动跑时看不见进度 | 可见控制台：启动横幅 + 每 10 秒倒计时 + 每 30 秒导入进度 |
+
+---
 
 > 配套流程图：`H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\plans\大镖客2还原\02-ModKit批量导入自动化流程图.png`
 >
 > **一句话**：整条链路（杀进程 → 启动 ModKit → 点 PLAY → 过 CAUTION → 主菜单点「编辑器」→ 打开资源浏览器 → 定位目录 → 右键 Import new asset → 选文件 → 等跑完）
 > 已经**全部用脚本做过一遍**，其中「贴图 1009 张 / 一个批次」这一次是完整跑通的。
 > 现在缺的只是把这些临时脚本收成一个正式脚本、然后按批次循环。
+
+---
+
+## 🔴 2026-11-10 全量重导口径（**现行，优先于下文 §0 的 9,875 旧计划**）
+
+**待导目录只有一个**：`H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\RDR2\AssetSources\ImortReady\rdr2_models_pending\`
+—— 里面 **100% 是编辑器里还没有的模型**（已导的 5,527 个不会出现）。
+
+| 项 | 数量 |
+|---|---:|
+| 模型 | **20,079 个 / 46 批**（27.4 GB） |
+| 贴图 | **8,181 张**（albedo 4,083 / normal 2,389 / specular 1,709） |
+| 材质（要新生成） | **4,107 个**（体检器口径，见上） |
+| 批次清单 | `rdr2_models_pending\batches.csv`（目录 → 目标 → 个数） |
+
+**目录约定**：
+- 旧的 `ImortReady\rdr2_models\`（9,875 个的旧计划）**已删除**；它的 4,331 个未导模型已并入新目录，17 个水面件按用户裁定丢弃。
+- 目标目录不变：`Assets\models\<类>`；子场景远景（`lod`）也进 `Assets\models\main_map_lod`；贴花 5 类进 `Assets\decal_models\<类>`；室内件保留 `Assets\models\interior`。
+- 下文 §0 / §0.1~0.4 的批次清单与数字都是 **2026-11-09 的旧计划**，留作历史记录。
+
 
 ---
 

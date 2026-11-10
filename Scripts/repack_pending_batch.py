@@ -25,7 +25,7 @@ import re
 import shutil
 
 MOD = r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\RDR2"
-STAGE = os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_models")
+STAGE = os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_models_pending")
 TEX_STAGE = os.path.join(STAGE, "textures")
 
 

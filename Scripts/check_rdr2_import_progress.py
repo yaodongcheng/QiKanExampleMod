@@ -25,14 +25,15 @@ import re
 
 MOD = r"H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\RDR2"
 LWN = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs"
-STAGE = os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_models")
+STAGE = os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_models_pending")
 TEX_STAGE = os.path.join(STAGE, "textures")
 OUT_JSON = os.path.join(LWN, "Debug", "RD2构造相关", "import_progress.json")
 
 ROLES = [
     ("albedo", ["albedo", "_todo_albedo", "_already_imported_lod"]),
-    ("normal", ["_todo_normal"]),
-    ("specular", ["_todo_specular"]),
+    # 2026-11-10：新暂存目录用 textures\normal / textures\specular（旧的是 _todo_*）
+    ("normal", ["normal", "_todo_normal"]),
+    ("specular", ["specular", "_todo_specular"]),
 ]
 MODEL_CLASSES = ("bldg", "part", "prop", "junk", "veh", "veg", "rock", "rail", "rail_decal",
                  "struct", "ruin", "stone", "unknown", "misc", "interior")

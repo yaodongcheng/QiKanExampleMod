@@ -278,6 +278,14 @@
     **判定**：任何会在 `Debug/`、`tools/`、模块目录里产生"与别处共享数据块"的文件（`mklink /H`、`fsutil hardlink create`、以及变相的 `Copy-Item` + `New-Item HardLink`）——**一律禁止**。
     **不在此限**（这些是有意为之、文档已写明的）：模块目录的**目录 junction**（`Modules\LivingWorldNpcs` 双端同源）· `RD2Map` 场景的 `TileSets` 目录 junction（避免 2.1 GB 复制）。判据 = **是否是目录级 junction 且已在文档里登记**；其余一律不许。
 
+40. 🔴🔴 **资产是引用链，删/改任何一环必须先把上游一起处理 —— `xscene → prefab → metamesh(网格) → material → texture`**（2026-11-10 用户裁定；当天我删 782 个网格没查 prefab，导致 `Meta mesh ... cannot be found`、编辑器直接打不开）——
+    - **向下**：网格引用材质、材质引用贴图。**先材质后网格**（导入那一刻按名字绑定，事后补不回填）；贴图同理。
+    - **向上**：`Prefabs\*.xml` 引用 metamesh；`SceneObj\<场景>\scene.xscene` 引用 prefab。**删网格前必须查有哪些 prefab 引用了它；停用 prefab 前必须查有哪些场景实体引用了那个 prefab。**
+    - **正确顺序**：① 查引用（脚本）→ ② 备份 → ③ 从最上游开始临时摘除（先 xscene 实体 → 再 prefab）→ ④ 补/换资产 → ⑤ 按相反顺序恢复（prefab → xscene）→ ⑥ 再验一次。
+    - **"藏一层"不算修好**：只停 prefab 不动 xscene，断点只是上移一层，照样打不开。
+    - **判据脚本**：`Scripts\check_rdr2_mesh_materials.py`（材质链）+ 引用链检查（prefab/xscene 引用是否存在对应 metamesh）。
+    - **恢复纪律**：临时摘除的文件一律**改名/备份留档**（如 `scene.xscene.bak_<日期>`、`*.xml.disabled`），不得删除，否则恢复时无从下手。
+
 ## 🔴 CSV 表头规范（2026-09-12 用户裁定，最高优先级）
 
 **`Knowledge/太阁5/骑砍2织丰角色ID对应/csv/` 下的数据表一律两行表头**：

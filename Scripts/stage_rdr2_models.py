@@ -5,7 +5,7 @@
 为什么全局：模型是跨场景复用的（同一栋房子在 3 个镇出现），按场景切会重复导入；
 贴图同理。**56 个场景的摆放表全部扫一遍，按模型名去重**。
 
-输出（Modules/RDR2/AssetSources/ImortReady/rdr2_models/）：
+输出（Modules/RDR2/AssetSources/ImortReady/rdr2_models_pending/）—— 只含**尚未导入编辑器**的模型：
   textures/            全世界用到的 albedo/normal/ma（去重，同名 .png）
   matmap.csv           material,albedo,normal,ma —— 喂 `tpaccli editormeta --genmats3`
   <class>/             按**多数类**归类的 TRF；>560 个自动切 <class>_01/_02…
@@ -36,13 +36,17 @@ import shutil
 
 DELIV = r"D:\BrainMaker\大镖客2解包分析\deliverable"
 MOD = r"H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\RDR2"
-OUT = os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_models")
+OUT = os.path.join(MOD, "AssetSources", "ImortReady", "rdr2_models_pending")
 
 IMPORT_CLASSES = [
     ("bldg", "建筑"), ("part", "建筑部件"), ("prop", "道具"), ("junk", "杂物堆"),
     ("veh", "载具"), ("struct", "桥梁结构"), ("rail", "铁路"), ("rail_decal", "铁路贴花"),
     ("road", "道路"), ("decal", "地面贴花"), ("veg", "植被"), ("rock", "岩石地形"),
-    ("stone", "石块"), ("ruin", "废墟"), ("watertile", "水面块"), ("bldg_decal", "建筑贴花"),
+    ("stone", "石块"), ("ruin", "废墟"), ("bldg_decal", "建筑贴花"),
+    # 2026-11-10 用户裁定：室内贴花 / 轨道贴花 也是游戏里看得见的，一起导
+    ("int_decal", "室内贴花"), ("track_decal", "轨道贴花"),
+    # 2026-11-10 用户裁定：子场景活动区外圈的远景件要导，放进同一个 main_map_lod 目录
+    ("lod", "远景碎片（子场景外圈）"),
     ("unknown", "未分类"), ("interior", "室内（MLO 专用模型）"), ("misc", "无类别"),
 ]
 BATCH = 560
@@ -71,17 +75,40 @@ def main():
     ap.add_argument("--batch", type=int, default=BATCH)
     ap.add_argument("--no-textures", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--out", default="",
+                    help="暂存根目录（默认 ImortReady\\rdr2_models_pending = 只含未导入的模型）")
+    ap.add_argument("--include-imported", action="store_true",
+                    help="连编辑器里已导过的也装（默认跳过，避免重复导入撞同名）")
     ap.add_argument("--rebuild-matmap", action="store_true",
                     help="只按现有批次目录里的 models.csv 重建 matmap.csv（不拷贝任何文件）")
     args = ap.parse_args()
+
+    global OUT
+    if args.out:
+        OUT = os.path.abspath(args.out)
 
     want = [c for c, _ in IMPORT_CLASSES]
     if args.classes:
         want = [c.strip() for c in args.classes.split(",") if c.strip()]
     zh = dict(IMPORT_CLASSES)
 
-    hash2name = {(r.get("hash") or "").lower().replace("0x", ""): r.get("name", "")
-                 for r in load(os.path.join(DELIV, "manifests", "model_manifest.csv"))}
+    # 🔴 2026-11-10：已导过的资产跳过 —— 按名字扫编辑器里的 *_geo.tpac。
+    # 目的：全量重装时只装没导过的，已导的原地不动（不重导、不撞同名、不白费昨晚的活）。
+    have_assets = set()
+    if not args.include_imported:
+        for sub in ("models", "decal_models"):
+            base = os.path.join(MOD, "Assets", sub)
+            for root, _dirs, files in os.walk(base):
+                for f in files:
+                    if f.endswith("_geo.tpac"):
+                        have_assets.add(f[:-len("_geo.tpac")])
+        print("编辑器里已有网格资产 %d 个（本次自动跳过）" % len(have_assets))
+
+    # 🔴 2026-11-10：hash→名字 原来用 model_manifest.csv（只有 10,893 行，只覆盖
+    # 44,728 个模型里的 7,678 个）⇒ 解析不到的摆放被静默丢掉（bldg_decal 316 只进 62、
+    # watertile 323 只进 17、track_decal 6 进 0）。改用全量库存表（44,728 行，全覆盖）。
+    hash2name = {(r.get("model_hash") or "").lower().replace("0x", ""): r.get("name", "")
+                 for r in load(os.path.join(DELIV, "manifests", "asset_inventory_models.csv"))}
     models = {}
     for fn in ("models_export.csv", "models_export_extra.csv"):
         p = os.path.join(DELIV, "manifests", fn)
@@ -140,23 +167,40 @@ def main():
                 unresolved += 1
     print("场景 %d 个；模型 %d 个；未解析实例 %d" % (len(files), len(cls_cnt), unresolved))
 
-    # 室内专用模型：不在 placement 里，来自 interior_only_models.txt（一行逗号分隔）
-    if "interior" in want:
-        ip = os.path.join(DELIV, "manifests", "interior_only_models.txt")
-        if os.path.isfile(ip):
-            names = {s.strip() for s in io.open(ip, encoding="utf-8").read().split(",") if s.strip()}
-            for n in names:
-                cls_cnt.setdefault(n, collections.Counter())["interior"] += 1
-            print("室内专用模型 %d 个" % len(names))
+    # 室内专用模型清单：2026-11-10 用户裁定「interior 分类保留」——
+    # 名单里的模型一律归 interior，**覆盖**场景多数类（hash 表修好后它们本来会被并进 part）。
+    interior_names = set()
+    ip = os.path.join(DELIV, "manifests", "interior_only_models.txt")
+    if os.path.isfile(ip):
+        interior_names = {s.strip() for s in
+                          io.open(ip, encoding="utf-8").read().replace("\n", ",").split(",")
+                          if s.strip()}
 
     byname = collections.defaultdict(list)
+    forced = 0
     for n, c in cls_cnt.items():
-        byname[c.most_common(1)[0][0]].append(n)
+        k = c.most_common(1)[0][0]
+        if "interior" in want and n in interior_names and k != "interior":
+            k = "interior"
+            forced += 1
+        byname[k].append(n)
+    if "interior" in want and interior_names:
+        extra = [n for n in interior_names if n not in cls_cnt]
+        byname["interior"].extend(extra)
+        print("室内名单 %d 个 → 归 interior（覆盖场景多数类 %d 个，无摆放补入 %d 个）"
+              % (len(interior_names), forced, len(extra)))
 
     os.makedirs(OUT, exist_ok=True)
+    # 目标目录映射（用户 2026-11-10 裁定）：子场景远景并进 main_map_lod，不另开目录；
+    # 贴花 5 类进 Assets\decal_models\<类>（02 文档 §0.4 口径）；其余进 Assets\models\<类>。
+    DEST = {"lod": "models\\main_map_lod",
+            "decal": "decal_models\\decal", "road": "decal_models\\road",
+            "bldg_decal": "decal_models\\bldg_decal", "rail_decal": "decal_models\\rail_decal",
+            "track_decal": "decal_models\\track_decal", "int_decal": "decal_models\\int_decal"}
+    batch_rows = []
     summary, all_mats = [], set()
     for c in want:
-        names = sorted(byname.get(c, []))
+        names = [n for n in sorted(byname.get(c, [])) if n not in have_assets]
         ok, miss = [], []
         for n in names:
             r = models.get(n)
@@ -168,6 +212,7 @@ def main():
         for i, chunk in enumerate(chunks):
             sub = c if len(chunks) == 1 else "%s_%02d" % (c, i + 1)
             d = os.path.join(OUT, sub)
+            batch_rows.append([sub, DEST.get(c, "models\\" + c), "mesh", len(chunk)])
             if not args.dry_run:
                 os.makedirs(d, exist_ok=True)
             for n in chunk:
@@ -194,13 +239,53 @@ def main():
                 for n in miss:
                     w.writerow([n, "no_trf" if n in models else "not_in_models_export"])
 
+    # 批次清单：每行「暂存目录 → 编辑器目标目录 → 类型 → 个数」，导入脚本照它逐批跑
+    if batch_rows:
+        out_csv = os.path.join(OUT, "batches.csv")
+        if not args.dry_run:
+            with io.open(out_csv, "w", encoding="utf-8-sig", newline="") as fh:
+                w = csv.writer(fh)
+                w.writerow(["batch_dir", "dest_assets_rel", "kind", "count"])
+                w.writerows(batch_rows)
+        print("批次清单 -> %s（%d 批%s）" % (out_csv, len(batch_rows), "" if not args.dry_run else "，dry-run 未落盘"))
+
     # ---- 贴图 / matmap ----
     tex = set()
     for m in all_mats:
         for t in mats.get(m, ("", "", "")):
             if t:
                 tex.add(t)
-    missing_tex = [t for t in tex if t not in texdest or not os.path.isfile(texdest[t])]
+    # 🔴 2026-11-10：有些贴图不在 textures_export.csv 索引里，但 PNG 其实趴在
+    # `deliverable/textures/{alb,nm,ma}/` 池子里（索引只收了"导入子集"用到的）。
+    # 先按索引取；取不到就按名字去池子里捞，仍取不到才算"缺源"。
+    POOL = {r: os.path.join(DELIV, "textures", r) for r in ("alb", "nm", "ma")}
+
+    def resolve_tex(t):
+        src = texdest.get(t)
+        if src and os.path.isfile(src):
+            return texrole.get(t, ""), src
+        for role in ("alb", "nm", "ma"):
+            p = os.path.join(POOL[role], t + ".png")
+            if os.path.isfile(p):
+                return role, p
+        return None, None
+
+    resolved, missing_tex = {}, []
+    for t in tex:
+        role, src = resolve_tex(t)
+        if src:
+            resolved[t] = (role, src)
+        else:
+            missing_tex.append(t)
+
+    # 已导过的贴图不再复制（全量重装时只补缺的）
+    have_tex = set()
+    if not args.include_imported:
+        for root, _dirs, files in os.walk(os.path.join(MOD, "Assets", "textures")):
+            for f in files:
+                if f.endswith("_tex.tpac"):
+                    have_tex.add(f[:-len("_tex.tpac")])
+    todo_tex = {t: v for t, v in resolved.items() if t not in have_tex}
     # 贴图按**角色**分三目录（用户要求 2026-11-09）：漫反射 / 法线 / 高光(ma)
     ROLE_DIR = {"alb": "albedo", "nm": "normal", "ma": "specular"}
     if not args.no_textures:
@@ -208,16 +293,16 @@ def main():
         if not args.dry_run:
             for sub in ROLE_DIR.values():
                 os.makedirs(os.path.join(td, sub), exist_ok=True)
-            for t in sorted(tex):
-                if t in missing_tex:
-                    continue
-                sub = ROLE_DIR.get(texrole.get(t, ""), "")
+            for t in sorted(todo_tex):
+                role, src = todo_tex[t]
+                sub = ROLE_DIR.get(role, "")
                 if not sub:
                     sub = "normal" if t.endswith("_nm") else ("specular" if t.endswith("_ma") else "albedo")
                 dst = os.path.join(td, sub, t + ".png")
                 if not os.path.isfile(dst):
-                    shutil.copy2(texdest[t], dst)
-    print("贴图 %d 张（缺源 %d）" % (len(tex) - len(missing_tex), len(missing_tex)))
+                    shutil.copy2(src, dst)
+    print("贴图 需要 %d 张 ｜ 已导 %d ｜ 待导 %d ｜ 缺源 %d"
+          % (len(resolved) + len(missing_tex), len(resolved) - len(todo_tex), len(todo_tex), len(missing_tex)))
 
     if not args.dry_run:
         # 🔴 matmap 必须**合并写**：分批跑（--classes）时会只累到本次的材质，

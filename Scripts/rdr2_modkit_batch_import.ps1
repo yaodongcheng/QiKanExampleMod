@@ -12,7 +12,7 @@
 #     -SourceDir "...\textures\_todo_albedo\batch_02_retry01" -DestRel "textures\albedo" -Kind texture
 #
 # 用法（网格，一批）：
-#   ... -SourceDir "...\rdr2_models\bldg_01_retry01" -DestRel "models\bldg" -Kind mesh
+#   ... -SourceDir "...\rdr2_models_pending\bldg_01" -DestRel "models\bldg" -Kind mesh
 #
 # 参数：
 #   -SourceDir      要导的源目录（全路径，目录内文件全选）
@@ -31,6 +31,7 @@ param(
     [string]$LogDir = 'H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\RD2构造相关',
     [switch]$NoRestart,
     [switch]$KeepEditorOpen,
+    [int]$MenuWaitSec = 25,
     [int]$TimeoutMin = 25
 )
 $ErrorActionPreference = 'Continue'
@@ -52,6 +53,7 @@ public static class MK {
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
     [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -120,6 +122,7 @@ function Shot([IntPtr]$h, [string]$name) {
 function Wait-Window([string]$title, [int]$sec, [switch]$Prefix) {
     $end = (Get-Date).AddSeconds($sec)
     while ((Get-Date) -lt $end) {
+        if (Stop-Requested -Quiet) { return [IntPtr]::Zero }   # 等待期间也响应热键/停止牌
         $h = if ($Prefix) { [MK]::FindPrefix($title) } else { [MK]::Find($title) }
         if ($h -ne [IntPtr]::Zero) { return $h }
         Start-Sleep -Milliseconds 400
@@ -132,6 +135,57 @@ function Count-Assets([string]$kind) {
     $n = 0
     foreach ($r in $roots) { if (Test-Path $r) { $n += (Get-ChildItem $r -Recurse -File -Filter $pat | Measure-Object).Count } }
     return $n
+}
+
+# 🔴 停止牌：脚本自己监听键盘（Ctrl+Alt+F12 / F12），也认外部写的停止牌文件。
+#    ⚠️ 2026-11-10 教训：原来只靠桌面快捷方式的热键，而快捷键没人监听 = 按了没反应；
+#    鼠标又被自动化占着，用户根本点不到 .bat。所以**热键必须内置在这个脚本里**。
+$script:StopFlag = Join-Path $env:TEMP 'RDR2_IMPORT_STOP'
+Add-Type -Namespace LWN -Name Key -MemberDefinition @'
+[System.Runtime.InteropServices.DllImport("user32.dll")]
+public static extern short GetAsyncKeyState(int vKey);
+'@ -ErrorAction SilentlyContinue
+function HotkeyDown {
+    # 0x11 Ctrl / 0x12 Alt / 0x7B F12；低字节 0x01 = 自上次询问以来按下过（抓"点一下就松"）
+    $f = [LWN.Key]::GetAsyncKeyState(0x7B)
+    if ($f -eq 0) { return $false }
+    if (($f -band 0x0001) -ne 0) { return $true }            # F12 刚按过
+    $c = [LWN.Key]::GetAsyncKeyState(0x11)
+    $a = [LWN.Key]::GetAsyncKeyState(0x12)
+    return ((($c -band 0x8000) -ne 0) -and (($a -band 0x8000) -ne 0) -and (($f -band 0x8000) -ne 0))
+}
+function Stop-Requested([switch]$Quiet) {
+    if (-not (Test-Path $script:StopFlag) -and (HotkeyDown)) {
+        Set-Content -LiteralPath $script:StopFlag -Value ((Get-Date).ToString('o')) -Encoding ASCII
+        if (-not $Quiet) { Log '检测到热键（F12 / Ctrl+Alt+F12）→ 写停止牌，停止导入' }
+    }
+    if (Test-Path $script:StopFlag) {
+        if (-not $Quiet) { Log '检测到停止牌 RDR2_IMPORT_STOP → 立刻停止' }
+        Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' } |
+            ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+        return $true
+    }
+    return $false
+}
+
+# 可见的等待：每 10 秒在控制台打一行"还剩多少秒 + F12 可停"，同时 200ms 查一次热键。
+# 返回 $false = 用户按了 F12（外层应立刻退出）。
+function Wait-Status([int]$sec, [string]$what) {
+    $end = (Get-Date).AddSeconds($sec)
+    $next = (Get-Date).AddSeconds(10)
+    while ((Get-Date) -lt $end) {
+        if (Stop-Requested -Quiet) {
+            Log ("用户按了 F12 → 中止（{0}）" -f $what)
+            return $false
+        }
+        if ((Get-Date) -ge $next) {
+            $left = [int][Math]::Ceiling(($end - (Get-Date)).TotalSeconds)
+            Write-Host ("[{0:HH:mm:ss}]   ... {1}，剩 {2}s   [F12 = 急停]" -f (Get-Date), $what, $left)
+            $next = (Get-Date).AddSeconds(10)
+        }
+        Start-Sleep -Milliseconds 200
+    }
+    return $true
 }
 
 # 关 Safe Mode 对话框：UIA 按名字点「否」→ Alt+N → 客户区坐标三层兜底
@@ -180,6 +234,7 @@ function Dismiss-SafeMode([IntPtr]$h) {
 function Clear-BlockingDialogs {
     $dismissed = 0
     for ($round = 0; $round -lt 400; $round++) {
+        if (Test-Path $script:StopFlag) { break }   # 停止牌优先
         $hit = $false
         foreach ($h in [MK]::All()) {
             if (-not [MK]::IsWindowVisible($h)) { continue }
@@ -194,9 +249,22 @@ function Clear-BlockingDialogs {
             try { $alive = (Get-Process -Id $procId -ErrorAction Stop).Responding } catch { $alive = $false }
             if (-not $alive) { continue }
 
-            [MK]::Act($h) | Out-Null
-            Start-Sleep -Milliseconds 120
-            [System.Windows.Forms.SendKeys]::Send('{ENTER}')
+            # 🔴 2026-11-10：不能再发 SendKeys.Send —— 本进程没有消息循环时会抛
+            # "SendKeys 无法在此应用程序内运行"，弹窗根本关不掉（日志里 70 个"关掉"其实是同一个框）。
+            # 直接给对话框发 WM_COMMAND + IDOK（标准消息框的"确定"按钮），与输入法/焦点无关。
+            [MK]::PostMessage($h, 0x0111, [IntPtr]1, [IntPtr]::Zero) | Out-Null
+            Start-Sleep -Milliseconds 250
+            if ([MK]::IsWindowVisible($h)) {
+                # 兜底：UIA 点第一个按钮
+                try {
+                    $root = [System.Windows.Automation.AutomationElement]::FromHandle($h)
+                    $cond = New-Object System.Windows.Automation.PropertyCondition(
+                        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                        [System.Windows.Automation.ControlType]::Button)
+                    $btn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+                    if ($btn) { $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+                } catch { }
+            }
             $dismissed++
             $hit = $true
             if ($dismissed % 5 -eq 1) { Log ("关掉阻塞提示框 #{0}: {1}" -f $dismissed, $t) }
@@ -250,9 +318,17 @@ function Start-Editor {
         $game = Wait-Window 'Mount and Blade II Bannerlord' 150 -Prefix
     }
     if ($game -eq [IntPtr]::Zero) { Log 'FAIL 游戏窗口没出现'; return $false }
-    Log '游戏窗口出现，等主菜单加载（25 秒 + 截图留证）'
-    Start-Sleep -Seconds 25
-    Clear-BlockingDialogs
+    Log ("游戏窗口出现，等主菜单加载（{0} 秒 + 截图留证）" -f $MenuWaitSec)
+    if (-not (Wait-Status $MenuWaitSec '等主菜单加载')) { return $false }
+    $n0 = Clear-BlockingDialogs
+    if ($n0 -gt 40) {
+        # 弹窗成灾 = 资产数据有问题（例如大量网格缺材质），关是关不完的：
+        # 直接杀游戏，交给驱动器跳过/重试（2026-11-10 用户裁定）
+        Log ("FAIL 启动阶段弹了 {0} 个警告框（>40），判定数据异常，直接杀游戏不再逐个关" -f $n0)
+        Shot $game 'fail_toomanydialogs.png' | Out-Null
+        Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' } | Stop-Process -Force -ErrorAction SilentlyContinue
+        return $false
+    }
     Shot $game 'game_menu.png' | Out-Null
 
     # 点「编辑器」（失败就截图 + 检查游戏进程是否还活着）
@@ -260,20 +336,25 @@ function Start-Editor {
     $attempt = 0
     foreach ($yy in @(310, 305, 315, 320, 300, 290, 310, 305)) {
         $attempt++
-        Clear-BlockingDialogs
-        $alive = Get-Process -Id (Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds' } | Select-Object -First 1).Id -ErrorAction SilentlyContinue
-        if (-not $alive) { Log 'FAIL 游戏进程已消失（疑似崩溃）'; return $false }
+        $n = Clear-BlockingDialogs
+        if ($n -gt 40) {
+            Log ("FAIL 又来 {0} 个警告框，杀游戏跳过本批" -f $n)
+            Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' } | Stop-Process -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+        $gp = Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds' } | Select-Object -First 1
+        if (-not $gp) { Log 'FAIL 游戏进程已消失（疑似崩溃）'; return $false }
+        if (-not $gp.Responding) { Log 'FAIL 游戏进程无响应（崩溃），直接杀'; Stop-Process -Id $gp.Id -Force -ErrorAction SilentlyContinue; return $false }
         [MK]::Act($game) | Out-Null; Start-Sleep -Milliseconds 400
         [MK]::Click(285, $yy, 1)
         Log ("点「编辑器」({0}) 第 {1} 次" -f $yy, $attempt)
         $ed = Wait-Window 'Edit Mode' 25
         if ($ed -ne [IntPtr]::Zero) { break }
-        Clear-BlockingDialogs
         if ($attempt -in @(2, 5)) { Shot $game ("game_fail_{0}.png" -f $attempt) | Out-Null }
     }
     if ($ed -eq [IntPtr]::Zero) { Log 'FAIL 编辑器没起来（已存 game_fail_*.png）'; return $false }
     Log 'Edit Mode 出现，等加载 30 秒'
-    Start-Sleep -Seconds 30
+    if (-not (Wait-Status 30 '等编辑器加载工程')) { return $false }
 
     # 打开资源浏览器（两套坐标，按窗口尺寸选）
     $rb = [MK]::Find('Resource Browser')
@@ -499,6 +580,15 @@ $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $script:LogFile = Join-Path $LogDir ("import_{0}.log" -f $stamp)
 
 Log ("==== 批次导入开始: {0} -> Assets\{1} ({2}) ====" -f $SourceDir, $DestRel, $Kind)
+Write-Host ''
+Write-Host '============================================================'
+Write-Host ("  RDR2 批量导入  {0}" -f $stamp)
+Write-Host ("  源目录: {0}" -f $SourceDir)
+Write-Host ("  目标  : Assets\{0}" -f $DestRel)
+Write-Host "  >>> 随时按 F12（或 Ctrl+Alt+F12）= 立刻急停 <<<"
+Write-Host '============================================================'
+Write-Host ''
+if (Stop-Requested) { Log 'STOPPED_BY_REQUEST（启动前就看到停止牌）'; exit 20 }
 if (-not (Test-Path $SourceDir)) { Log 'FAIL 源目录不存在'; exit 2 }
 $srcCount = (Get-ChildItem $SourceDir -File | Measure-Object).Count
 Log ("源文件数 = {0}" -f $srcCount)
@@ -554,11 +644,21 @@ if (-not (Select-FilesInDialog $SourceDir $wild)) { exit 13 }
 # 等完成：数量稳定 + 没有 Importing file 窗口
 $deadline = (Get-Date).AddMinutes($TimeoutMin)
 $last = $before; $stable = 0; $done = $false
+$script:lastBeat = Get-Date
 # 网格每个文件要编译几十秒，稳定判定必须拉长（贴图 18 秒；网格 2 分钟）
 $needStable = if ($Kind -eq 'mesh') { 20 } else { 3 }
 while ((Get-Date) -lt $deadline) {
     Start-Sleep -Seconds 6
+    if (Stop-Requested) {
+        if ($watcher -ne $null -and -not $watcher.HasExited) { Stop-Process -Id $watcher.Id -Force -ErrorAction SilentlyContinue }
+        Log 'STOPPED_BY_REQUEST'
+        exit 20
+    }
     $n = Count-Assets $Kind
+    if (((Get-Date) - $script:lastBeat).TotalSeconds -ge 30) {
+        Write-Host ("[{0:HH:mm:ss}]   导入中… 现有 {1} 个（本批已 +{2} / 源 {3}）  [F12 = 急停]" -f (Get-Date), $n, ($n - $before), $srcCount)
+        $script:lastBeat = Get-Date
+    }
     $importing = [MK]::Find('Importing file')
     $geoDlg = [MK]::Find('Geometry File Import Settings')
     if ($n -eq $last -and $importing -eq [IntPtr]::Zero -and $geoDlg -eq [IntPtr]::Zero) { $stable++ } else { $stable = 0 }

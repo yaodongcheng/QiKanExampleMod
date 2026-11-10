@@ -49,6 +49,7 @@ $lastLog = Get-Date
 $perRule = @{}
 
 while ((Get-Date) -lt $deadline) {
+    if (Test-Path (Join-Path $env:TEMP 'RDR2_IMPORT_STOP')) { LogLine 'stop flag detected, exit'; break }
     $did = $false
     foreach ($rule in $rules) {
         $hw = [CI]::FindPrefix($rule.Title)
