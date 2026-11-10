@@ -102,8 +102,9 @@ def main():
     print("models=%d materials_total=%d" % (len(models), len(mats)))
 
     existing = set()
-    if os.path.isdir(SDN_MAT):
-        existing = {f[:-len("_mtl.tpac")] for f in os.listdir(SDN_MAT) if f.endswith("_mtl.tpac")}
+    for d in (SDN_MAT, a.outdir):
+        if os.path.isdir(d):
+            existing |= {f[:-len("_mtl.tpac")] for f in os.listdir(d) if f.endswith("_mtl.tpac")}
     todo = sorted(m for m in mats if m not in existing)
     print("existing(sdn)=%d  to_generate=%d" % (len(existing), len(todo)))
     if not todo:

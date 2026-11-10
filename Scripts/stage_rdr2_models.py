@@ -52,6 +52,18 @@ def load(path):
     return list(csv.DictReader(io.open(path, encoding="utf-8-sig")))
 
 
+def resolve_trf(model_row):
+    """TRF 可能在 models\\ 也可能在 models_extra\\（2026-11-09 教训：只查 models\\ 会把
+    bldg_decal / watertile 整类误判成"缺 TRF"）。"""
+    if not model_row or not model_row.get("trf"):
+        return None
+    for base in ("models", "models_extra"):
+        p = os.path.join(DELIV, base, model_row["trf"])
+        if os.path.isfile(p):
+            return p
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--classes", default="", help="逗号分隔；默认导入集")
@@ -59,6 +71,8 @@ def main():
     ap.add_argument("--batch", type=int, default=BATCH)
     ap.add_argument("--no-textures", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--rebuild-matmap", action="store_true",
+                    help="只按现有批次目录里的 models.csv 重建 matmap.csv（不拷贝任何文件）")
     args = ap.parse_args()
 
     want = [c for c, _ in IMPORT_CLASSES]
@@ -85,6 +99,29 @@ def main():
         if r.get("name") and r.get("dest"):
             texdest[r["name"]] = r["dest"]
             texrole[r["name"]] = r.get("role", "")
+
+    # ---- 只重建 matmap（分批跑 --classes 会覆盖掉别的批次，用这个补齐）----
+    if args.rebuild_matmap:
+        need = set()
+        for b in sorted(os.listdir(OUT)):
+            d = os.path.join(OUT, b)
+            mp = os.path.join(d, "models.csv")
+            if os.path.isdir(d) and os.path.isfile(mp):
+                for r in csv.DictReader(io.open(mp, encoding="utf-8-sig")):
+                    need |= mat_of.get(r["asset_name"], set())
+        mpath = os.path.join(OUT, "matmap.csv")
+        merged = {}
+        if os.path.isfile(mpath):
+            for r in csv.DictReader(io.open(mpath, encoding="utf-8")):
+                merged[r["material"]] = (r["albedo"], r["normal"], r["ma"])
+        for m in need:
+            merged[m] = mats.get(m, ("", "", ""))
+        with io.open(mpath, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("material,albedo,normal,ma\n")
+            for m in sorted(merged):
+                fh.write("%s,%s,%s,%s\n" % ((m,) + merged[m]))
+        print("rebuild matmap: %d 条（批次依赖 %d）-> %s" % (len(merged), len(need), mpath))
+        return
 
     # ---- 扫全部场景，按模型统计"多数类" ----
     files = sorted(glob.glob(os.path.join(DELIV, "blender", "scenes", "placement_*.jsonl")))
@@ -123,7 +160,7 @@ def main():
         ok, miss = [], []
         for n in names:
             r = models.get(n)
-            p = os.path.join(DELIV, "models", r["trf"]) if (r and r.get("trf")) else None
+            p = resolve_trf(r)
             (ok if (p and os.path.isfile(p)) else miss).append(n)
         ok.sort(key=lambda n: -int(models[n].get("faces") or 0))
         chunks = [ok[i:i + args.batch] for i in range(0, len(ok), args.batch)]
@@ -134,7 +171,7 @@ def main():
             if not args.dry_run:
                 os.makedirs(d, exist_ok=True)
             for n in chunk:
-                src = os.path.join(DELIV, "models", models[n]["trf"])
+                src = resolve_trf(models[n])
                 if not args.dry_run:
                     shutil.copy2(src, os.path.join(d, os.path.basename(src)))
                 total += os.path.getsize(src)
@@ -183,10 +220,20 @@ def main():
     print("贴图 %d 张（缺源 %d）" % (len(tex) - len(missing_tex), len(missing_tex)))
 
     if not args.dry_run:
-        with io.open(os.path.join(OUT, "matmap.csv"), "w", encoding="utf-8", newline="\n") as fh:
+        # 🔴 matmap 必须**合并写**：分批跑（--classes）时会只累到本次的材质，
+        #    直接覆盖会把别的批次（如 interior）的材质冲掉（2026-11-09 实锤）。
+        mpath = os.path.join(OUT, "matmap.csv")
+        merged = {}
+        if os.path.isfile(mpath):
+            for r in csv.DictReader(io.open(mpath, encoding="utf-8")):
+                merged[r["material"]] = (r["albedo"], r["normal"], r["ma"])
+        for m in all_mats:
+            merged[m] = mats.get(m, ("", "", ""))
+        with io.open(mpath, "w", encoding="utf-8", newline="\n") as fh:
             fh.write("material,albedo,normal,ma\n")
-            for m in sorted(all_mats):
-                fh.write("%s,%s,%s,%s\n" % ((m,) + mats.get(m, ("", "", ""))))
+            for m in sorted(merged):
+                fh.write("%s,%s,%s,%s\n" % ((m,) + merged[m]))
+        print("matmap: %d 条（本次 +%d）" % (len(merged), len(all_mats - set(merged) | all_mats)))
         with io.open(os.path.join(OUT, "staging_summary.csv"), "w",
                      encoding="utf-8-sig", newline="") as fh:
             w = csv.writer(fh)

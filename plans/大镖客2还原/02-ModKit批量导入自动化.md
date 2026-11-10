@@ -8,7 +8,154 @@
 
 ---
 
-## 0. 现状（2026-11-09 · 实测记录）
+## 🔴 开始之前先看这三条（2026-11-09 实机踩过）
+
+**1. 网格导入的"自动确认器"必须确认真的在跑 —— 它是会静默死掉的**
+
+判据（三条同时看）：
+- `Get-CimInstance Win32_Process -Filter "Name like '%powershell%'" | ? { $_.CommandLine -match 'geometry_auto_import' }` **有进程**；
+- 编辑器主窗口标题**不是** `Geometry File Import Settings`（是这行字 = 卡在确认框）；
+- `Assets\models\<类>\*_geo.tpac` 的数量**还在涨**。
+
+实测故障（23:02 那批）：批处理驱动拉起过确认器（日志「启动网格确认器」），但它**连 `start:` 都没写就退了**，导入停在 10/549 长达 5 分钟。手动补跑后 1 分钟从 47 涨到 58。
+
+补跑命令（**整串 `-File "<全路径>"`，不要用 `Start-Process -ArgumentList` 数组** ——
+路径里 `&`（Mount **&** Blade）会被切断，进程静默早退）：
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\rdr2_geometry_auto_import.ps1" -IdleStopSec 1800 -TimeoutMin 180
+```
+
+**2. 中断/崩溃后不许对原批次全选重导**
+
+先杀进程 → `repack_pending_batch.py --target "<批次>"` 抽出 `<批次>_retryNN` → 只导新目录（详见 §0.6）。
+
+**3. 进度只信检查器，不信文档里的数字**
+
+```powershell
+python "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\check_rdr2_import_progress.py"
+```
+
+---
+
+## 0. 导入目录与顺序（先读这一节 · 2026-11-09 用户裁定）
+
+**顺序固定三步，不许跳：贴图 → 材质构建 → 模型。**
+原因：TRF 导入时**按材质名绑定**，材质不存在 = 模型白板/导入失败，**事后补材质不会回填**。
+
+### 0.1 贴图（第一步）
+
+编辑器导入是**两侧同时落盘**：`Assets\` 存编译产物 `*_tex.tpac`，`AssetSources\` 存源 PNG 镜像。
+**进度一律按 `AssetSources` 侧的 PNG 数判**（数得准，且和源文件一一对应）。
+
+| 角色 | 导入目标（编辑器里先选中这个目录再 Import） | 源镜像（判据） | **导入来源（我们提供的待导目录）** |
+|---|---|---|---|
+| albedo 漫反射 | `RDR2\Assets\textures\albedo\` | `RDR2\AssetSources\textures\albedo\*.png` | `RDR2\AssetSources\ImortReady\rdr2_models\textures\_todo_albedo\batch_01 ~ batch_06\` |
+| normal 法线 | `RDR2\Assets\textures\normal\` | `RDR2\AssetSources\textures\normal\*.png` | `...\textures\_todo_normal\batch_01 ~ batch_06\` |
+| specular 高光（RDR2 `_ma`） | `RDR2\Assets\textures\specular\` | `RDR2\AssetSources\textures\specular\*.png` | `...\textures\_todo_specular\batch_01 ~ batch_04\` |
+
+**🔴 实时进度：不要读文档里的数字，跑检查器**
+
+```powershell
+python "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\check_rdr2_import_progress.py"
+```
+
+输出：逐角色 / 逐批次的 `已导 / 总数` + **「下一步该导哪个批次」**；同时写机器可读快照 `Debug\RD2构造相关\import_progress.json`。每导完一批就重跑一次，文档不参与判进度。
+
+检查器用的判据（手查也照这个，别只看单个目录）：
+
+| 角色 | 已导判据 |
+|---|---|
+| 贴图 | `Assets\textures\**\<名>_tex.tpac` —— **全项目查名**。资产名全局唯一、与目录无关；只看 `albedo\` 会把 LOD 批导过的（`textures\lod\sdn_except\`）误判成没导 |
+| 模型 | `Assets\models\**\<名>_geo.tpac` + `Assets\decal_models\**\<名>_geo.tpac` |
+| 材质 | `Assets\materials\**\<材质>_mtl.tpac` |
+
+- `RDR2\AssetSources\ImortReady\rdr2_models\textures\albedo\` 里只剩**已导入的名册**，**不要再导**（同名重复）。
+- `...\textures\_already_imported_lod\`（15 张）= LOD 那批已导过，**跳过**。
+- 每批约 1,000 张；**每批导完杀进程重启**（见 §A1/A2），否则 ModKit 崩。
+- 角色分组来源 = `deliverable\manifests\textures_export.csv` 的 `role` 字段（`alb` / `nm` / `ma`），零猜测。
+
+### 0.2 材质构建（第二步 · 模型的前置）
+
+- **输入**：`RDR2\AssetSources\ImortReady\rdr2_models\matmap.csv`（**7,207 条**：`material,albedo,normal,ma`；旧文档写 3,541，2026-11-09 实测修正）
+- **命令**：`tpaccli editormeta --genmats3 <贴图资产目录> --mtlref <3 槽参考材质> --matmap <matmap.csv> --out <目录>/x`
+- 🔴 **`<贴图资产目录>` 必须合并两类来源**：`RDR2\Assets\textures\albedo|normal|specular\` **+** `RDR2\Assets\textures\lod\**\`（LOD 批导过的贴图在那里，如那 4 张 `gua_rock_wall01_ab` 等）。只喂 albedo/normal/specular 会把它们判成"缺贴图"直接失败。
+- **输出**：`RDR2\Assets\materials\<批次目录>\*_mtl.tpac`（参考：LOD 那批在 `Assets\materials\lod\fragments\`，378 个）
+- **判据**：`matmap.csv` 里每条材质的 albedo / normal / ma **三张 `_tex.tpac` 必须都存在**；缺任何一张脚本直接失败并列名单（禁止用白色顶替）。
+- LOD 那批判已经用过 `materials\lod\`，**不要重跑**；基础模型单独一个批次目录。
+
+### 0.3 模型（第三步）
+
+**导入目标**（编辑器里先选中该类目录）= `RDR2\Assets\models\<类>\*_geo.tpac`；源镜像 = `RDR2\AssetSources\models\<类>\*.trf`。
+**导入来源** = `RDR2\AssetSources\ImortReady\rdr2_models\<批次>\`（每批带 `models.csv`：模型名 / TRF / 面数）。
+
+| 编辑器目标 `Assets\models\` | 来源批次（`ImortReady\rdr2_models\`） | TRF |
+|---|---|---|
+| `bldg` | `bldg_01` / `bldg_02` | 560 / 158 |
+| `part` | `part_01` ~ `part_03` / `part_04` | 560×3 / 361 |
+| `prop` | `prop_01` ~ `prop_03` / `prop_04` | 560×3 / 427 |
+| `interior` | `interior_01` ~ `interior_04` / `interior_05` | 560×4 / 549 |
+| `junk` | `junk` | 462 |
+| `veh` | `veh` | 224 |
+| `veg` | `veg` | 354 |
+| `rock` | `rock` | 138 |
+| `rail` | `rail` | 111 |
+| `struct` / `rail_decal` / `ruin` / `stone` | 同名批次 | 11 / 11 / 4 / 6 |
+| `unknown` | `unknown` + `misc` | 80 + 60 |
+| —（LOD 已做） | `rdr2_lod_fragments\trf_batch_sdn` | 已在 `main_map_lod`（2,238） |
+
+- 每批 **≤560 个 TRF**，批间杀进程重启。
+- **室内最后导**（`interior_*`）：室内只在建筑内出现，先把外壳立好。
+
+### 0.4 贴花（单独一档）
+
+**导入目标** = `RDR2\Assets\decal_models\<子类>\`（目录已建好：`decal` / `bldg_decal` / `int_decal` / `road` / `rail_decal` / `track_decal`）。
+**导入来源** = `RDR2\AssetSources\ImortReady\rdr2_models\` 下的贴花类批次：
+
+| 子类目录 | 来源批次 | TRF |
+|---|---|---|
+| `decal_models\decal` | `decal` | 339 |
+| `decal_models\road` | `road` | 108 |
+| `decal_models\bldg_decal` | `bldg_decal` | 62（TRF 在 `deliverable\models_extra\`） |
+| `decal_models\track_decal` | — | 0 |
+| `decal_models\int_decal` | 来自室内链（`scene_interiors.py`），不在批次里 | — |
+| `decal_models\rail_decal` | `rail_decal` | 11 |
+
+### 0.5 已知缺口
+
+- **TRF 分布在两处**：`deliverable\models\` **和** `deliverable\models_extra\`。**两处都要找**——只查 `models\` 会把 `bldg_decal`(62) / `watertile`(17) / `misc`(293) 整类误判成"缺 TRF"（2026-11-09 实锤，已修）。
+- 仍有零头缺 TRF（`part` 3、`prop` 2、`veg` 2、`veh` 3、`junk` 1），由检查器的 `missing_models_<批次>.csv` 实时列出，不写死在文档里。
+- 摆放实例 hash 查不到名字：约 8.2 万条（主要在 `_wild_*` 野外场景），属名字解析缺口，先不阻塞导入。
+
+---
+
+### 0.6 中断恢复（导入崩溃/报错后）
+
+**不要对原批次目录全选重导** —— 已导的会撞同名，白等一轮还可能报错。固定流程：
+
+```powershell
+# ① 先杀掉 ModKit 进程（见 §A1）
+Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' } | Stop-Process -Force
+
+# ② 把"没导完的那部分"抽成新批次（原批次只留已导的）
+python "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\repack_pending_batch.py" --target "_todo_albedo\batch_03"
+
+# ③ 只导新生成的 batch_03_retry01（原 batch_03 不要再动）
+```
+
+- 新批次命名 `<原名>_retryNN`，**排序紧跟在原批次后面**，按分类顺序继续。
+- 检查全部批次：`python "...\Scripts\repack_pending_batch.py" --all --dry-run`（先看，不落盘）
+  - 只有**部分已导入**（0 < 已导 < 总数）的批次才会生成 retry；
+  - 「尚未开始」→ 直接导原批次；「全部已导」→ 跳过。
+- 恢复后重跑检查器确认，再继续下一批。
+- 🔴 **确认器要确认它真在跑**：网格导入卡在 `Geometry File Import Settings` 时，主窗口标题就是这行字、`_geo.tpac` 不再增加。手动补跑：
+  ```powershell
+  powershell -NoProfile -ExecutionPolicy Bypass -File "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\rdr2_geometry_auto_import.ps1" -IdleStopSec 1800 -TimeoutMin 180
+  ```
+  ⚠️ **别用 `Start-Process -ArgumentList` 数组形式拉起它** —— 路径里有 `&`（Mount **&** Blade），会静默早退（日志里连 `start:` 都不写）。用上面这种整串 `-File "<全路径>"` 的写法。
+
+---
+
+## 0.7 现状（2026-11-09 · 实测记录）
 
 | 项 | 结果 |
 |---|---|
@@ -18,6 +165,32 @@
 | 耗时 | 约 **4 分钟**（≈4 张/秒） |
 | 贴图 vs 网格 | **贴图不需要自动确认脚本**（直接跑）；**TRF 网格必须开** `rdr2_fbx_auto_import.ps1` |
 | 每批必须重启 | 是。TRF 约 560 个/批、贴图约 1000 张/批 就要杀进程重开，否则 ModKit 崩 |
+
+### 0.7.1 贴图阶段最终成绩（2026-11-09 23:2x 收尾）
+
+| 角色 | 结果 |
+|---|---|
+| albedo | **7214 / 7214**（`Assets\textures\albedo` 7171 + lod 等） |
+| normal | **5341 / 5341** |
+| specular | **3954 / 3954** |
+| 合计 | **16509** 张贴图资产，缺贴图 0 |
+| 材质 | **7207 / 7207 就绪**（`Assets\materials\base` 7172 + `materials\lod` 475） |
+
+### 0.7.2 🔴 事故记录：`rdr2_models\textures\` 被误删（2026-11-09 23:5x）
+
+- **发生了什么**：收尾脚本按「目录里没有 TRF 且本层文件数 ≤1」判空目录并删除，
+  但 `ImortReady\rdr2_models\textures\` **本层没有文件、内容全在子目录**，
+  于是被当成空目录整棵删掉（`Remove-Item` 不进回收站）。
+- **损失范围**：只丢了**贴图切片目录**（`_todo_albedo\batch_01~06`、`_todo_normal\*`、
+  `_todo_specular\*`、`textures\albedo\` 名册、`_already_imported_lod\`）。
+- **没丢的东西**（已逐项核对）：
+  - `Assets\textures\**` 的 17262 个 `*_tex.tpac`（贴图资产本体）；
+  - `AssetSources\textures\{albedo,normal,specular,lod}` 的源 PNG 镜像（7171/5321/3934/833）；
+  - 全部模型批次 9919 个文件、`matmap.csv`、中性贴图源 PNG（`rdr2_lod_fragments\textures_sdn\`）。
+- **后果**：`check_rdr2_import_progress.py` 的贴图小节分母变 0（分母来自那些切片目录），
+  已加兜底提示「源批次目录已缺失…项目内实际已存在 _tex.tpac = N 个」。
+- **教训**：判空目录必须用 `-Recurse` 数全部后代，且删除前必须核对**绝对路径白名单**，
+  不能靠「文件数 ≤1」这种间接条件。贴图已 100% 导完，切片目录只是记账用，不用重建。
 
 ---
 
