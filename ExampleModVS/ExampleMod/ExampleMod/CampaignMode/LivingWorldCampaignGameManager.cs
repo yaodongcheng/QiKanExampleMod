@@ -120,6 +120,13 @@ namespace LivingWorldNpcs.CampaignMode
 		private static LivingWorldCampaign CreateCampaignForActiveContentPack(string era)
 		{
 			string pack = CampaignModeActivator.ActiveContentPack;
+			if (pack == "RedDeadRedemption2")
+			{
+				if (era == "RedDeadRedemption2Campaign")
+				{
+					return new RedDeadRedemption2Campaign(CampaignGameMode.Campaign);
+				}
+			}
 			if (pack == "RD2")
 			{
 				if (era == "RD2Campaign")

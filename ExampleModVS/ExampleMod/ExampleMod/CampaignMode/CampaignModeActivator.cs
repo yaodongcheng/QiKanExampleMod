@@ -23,6 +23,8 @@ namespace LivingWorldNpcs.CampaignMode
 		{
 			get
 			{
+				// 新世界优先：RedDeadRedemption2（最小版内容包，2026-11-11 起）
+				if (IsModuleLoaded("RedDeadRedemption2")) return "RedDeadRedemption2";
 				if (IsModuleLoaded("RD2")) return "RD2";
 				if (IsModuleLoaded("Taikou")) return "Taikou";
 				return null;
@@ -55,6 +57,11 @@ namespace LivingWorldNpcs.CampaignMode
 				return;
 			}
 			TaleWorlds.Library.Debug.Print($"[LivingWorldNpcs] CampaignMode: 内容包 {pack} 已加载——激活通用战役模式。");
+			if (pack == "RedDeadRedemption2")
+			{
+				WireSingleCampaignMainMenu("RedDeadRedemption2NewGame", "RedDeadRedemption2Campaign");
+				return;
+			}
 			if (pack == "RD2")
 			{
 				WireRd2MainMenu();
@@ -68,6 +75,15 @@ namespace LivingWorldNpcs.CampaignMode
 		/// 走 RD2 专用入口而不是 Taikou 的选剧本/选人界面（那套绑的是 Taikou 的英雄目录）。
 		/// </summary>
 		private static void WireRd2MainMenu()
+		{
+			WireSingleCampaignMainMenu("RD2NewGame", "RD2Campaign");
+		}
+
+		/// <summary>
+		/// 「只有一个 New Game 入口」的主菜单接线（RD2 / RedDeadRedemption2 共用）。
+		/// 走通用建号流程，不进 Taikou 的选剧本/选人界面（那套绑的是 Taikou 的英雄目录）。
+		/// </summary>
+		private static void WireSingleCampaignMainMenu(string menuId, string eraId)
 		{
 			var kept = new List<InitialStateOption>();
 			foreach (InitialStateOption item in Module.CurrentModule.GetInitialStateOptions())
@@ -84,10 +100,10 @@ namespace LivingWorldNpcs.CampaignMode
 			}
 
 			Module.CurrentModule.AddInitialStateOption(new InitialStateOption(
-				"RD2NewGame",
+				menuId,
 				new TextObject("{=LWN_rd2_new_game}Red Dead Redemption 2"),
 				2,
-				() => EraCatalog.StartCampaignWithCharacterCreation("RD2Campaign"),
+				() => EraCatalog.StartCampaignWithCharacterCreation(eraId),
 				() => new ValueTuple<bool, TextObject>(false, null),
 				null));
 

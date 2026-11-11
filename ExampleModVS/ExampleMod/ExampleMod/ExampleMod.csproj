@@ -452,6 +452,7 @@
     <!-- CampaignMode：通用自定义战役（GameType）层——内容包加载时激活（三单元架构） -->
     <Compile Include="CampaignMode\CampaignModeActivator.cs" />
     <Compile Include="CampaignMode\RD2Campaign.cs" />
+    <Compile Include="CampaignMode\RedDeadRedemption2Campaign.cs" />
     <Compile Include="CampaignMode\EraCatalog.cs" />
     <Compile Include="CampaignMode\ScenarioSelectVM.cs" />
     <Compile Include="CampaignMode\ScenarioSelectScreen.cs" />

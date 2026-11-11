@@ -335,3 +335,31 @@ ilspycmd <dll> -t <全名> | grep "<方法名>"
 **同族已知坑**：`InventoryManager` → `InventoryScreenHelper` + `PartyScreenHelper`（见本卷上一节）——
 **类改名 ≠ API 移除**。给"某版本没有这个 API"下结论之前，先二进制 grep 类名字符串 + 三版本 `ilspycmd` 对比。
 
+## 🔴 崩溃转储看「托管栈」—— `dotnet-dump`（2026-11-11 登记；两个崩溃都是它定的位）
+
+**什么时候用**：游戏崩了，但 `rgl_log_*.txt` 里**没有托管栈**（只有引擎日志尾巴），`watchdog_log` 只给一个异常码。
+🔴 **不要凭异常码下"这是 native 崩的"结论** —— `0xC0000094`（整数除零）很可能就是**托管 `DivideByZeroException` 的首次异常通知**，`0xC0000005` 同理。
+判据：dump 里 `clrthreads` 能列出 `System.XXXException` 就说明是托管异常。
+
+**三步**
+
+```powershell
+dotnet tool install -g dotnet-dump            # 一次性
+dotnet-dump analyze "<崩溃目录>\dump.dmp" -c "clrthreads" -c "exit"
+#   → 在 Apt/Exception 列找 System.XXXException，记下第一列 DBG 号
+dotnet-dump analyze "<崩溃目录>\dump.dmp" -c "setthread <DBG号>" -c "pe" -c "clrstack" -c "exit"
+```
+
+- `pe` = 异常对象 + 生成栈（含函数偏移）；`clrstack` = 带源码行号的托管调用栈
+- 栈顶那一帧就是元凶方法 → 用 `ilspycmd` 反编译该类型，确认是哪个字段为 null / 哪个除数是 0
+
+**⚠️ 崩溃目录名的时区跟系统时间不一致**（实测差 8 小时）——找最新目录别按截图时间拼路径：
+
+```powershell
+ls -dt "C:/ProgramData/Mount and Blade II Bannerlord/crashes/"*/ | head -3
+```
+
+**本轮实例**：`AlleyCampaignBehavior.OnNewGameCreated` 的 `i % source.Count()`（城里 0 个帮派头目）、
+`GuardsCampaignBehavior.CreatePrisonGuard` 的 `culture.PrisonGuard`（文化缺 `prison_guard` 属性）。
+两条都在 `Knowledge/自定义世界内容包从零起步必备清单.md` 雷 176/177。
+

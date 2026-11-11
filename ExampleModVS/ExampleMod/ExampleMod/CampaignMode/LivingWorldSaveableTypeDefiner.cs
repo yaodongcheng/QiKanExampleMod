@@ -32,6 +32,10 @@ namespace LivingWorldNpcs.CampaignMode
 			AddClassDefinition(typeof(TaikouCampaign1598), 8, (IObjectResolver)null);
 			AddClassDefinition(typeof(TaikouCampaign), 4, (IObjectResolver)null);   // 时代基类
 			AddClassDefinition(typeof(LivingWorldCampaign), 2, (IObjectResolver)null);
+			// 荒野大镖客 2：最小版内容包（2026-11-11 实机 SaveFailed 抓到——漏注册 = 存不出来）。
+			AddClassDefinition(typeof(RedDeadRedemption2Campaign), 9, (IObjectResolver)null);
+			// 旧的 RD2 内容包同族问题，一并补上（不再使用，但存档类型得在）。
+			AddClassDefinition(typeof(RD2Campaign), 10, (IObjectResolver)null);
 		}
 	}
 }

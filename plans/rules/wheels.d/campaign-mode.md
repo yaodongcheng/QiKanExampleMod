@@ -925,3 +925,37 @@ if dedicated:                                # ② 只带自己那套，不补�
 （无参 = 覆盖面/件数/实价 · `market <n>` 改件数 · `market restock` 手动补一轮）。
 ⚠️ **城堡没有交易菜单**（`IsTown` 天然排除）；村庄货架会被村民队搬去城里卖 ⇒ 补货是"每天补回"，不是"钉死"。
 
+---
+
+## 卷十七 最小内容包生成器 —— 一条命令出「文化/王国/家族/英雄/据点/兵种/物品库/语言/SubModule + 大地图 + 城市场景」（2026-11-11 登记）
+
+**解决什么问题**：从零起一个新世界观内容包，手写 20+ 个 XML 段必漏字段（官方文化有 75 个属性、引擎硬点名 38 个 id）。
+现成实现 = **一个脚本 + 顶部一组「世界定义」常量**，改完跑一次就出整套可启动数据。
+
+**范本（照抄）**：`Scripts/gen_reddeadredemption2_world.py`（约 700 行，全中文注释）
+
+- 产物模块：`Modules/RedDeadRedemption2` —— `SubModule.xml` + `ModuleData/` + `ModuleData/Languages/` + `Prefabs/` + `SceneObj/Main_map` + `SceneObj/<城镇场景>`
+- 🔴 **拷贝源 = 运行客户端（1.2.12）的官方模块**，不是 Steam 主目录 —— 版本必须跟引擎一致，否则拷来的 GameText 键 / 场景实体在旧引擎上对不上
+- 地图与城市场景源 = `Modules/Publish/RDR2`（ModKit 导出物：带 navmesh、重导出地形、含注入的战役脚本实体）
+- 资产包 = **目录 junction** 指向 `Modules/Publish/RDR2/AssetPackages`（33 GB 不复制第二份；改 Script 重 Publish 自动生效）
+
+**它已经替你踩平的四件事**（漏一个就崩，详见必备清单雷 176~180）
+
+1. 文化 `notable_and_wanderer_templates` 必须含 `occupation=GangLeader` 的模板 —— 否则建号结束 `AlleyCampaignBehavior` 除零（`gangster_1` 是 Gangster 小兵，不算）
+2. 文化必须有 `prison_guard` 属性 —— 否则一进城 `GuardsCampaignBehavior.CreatePrisonGuard` 直接 NRE
+3. ModuleData 的 GameText 段根元素是 **`<strings>`**（只有 `Languages/` 下的语言文件才是 `<base type="string">`）
+4. 1.2.12 的 XSD 不认 `max_prosperity` / `title` / `<Faction><Influence>` —— 生成器按 XSD 产出，可用 lxml 拿 `XmlSchemas/*.xsd` 全量验证
+
+**用法**
+
+```
+python -I "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\gen_reddeadredemption2_world.py"
+```
+
+改世界 = 改脚本顶部常量（`CULTURE / KINGDOM_ID / CLAN_ID / HEROES / SETTLEMENTS / TOWN_SCENE / TOWN_PLAYER_SPAWN`）再重跑，**不要手改生成物**（铁律 22）。
+
+**验收**
+
+1. `python Scripts/check_xml_parse.py --module <内容包>` 等一整套 checker 全绿（XML parse / 硬编码 id / 数据字段 / 文化引用 / 英雄模板 / 场景实体）
+2. 实机：主菜单入口 → 建号 → 进图 → 点据点 → 进城
+

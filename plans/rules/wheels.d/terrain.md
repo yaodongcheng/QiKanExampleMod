@@ -99,6 +99,10 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 **关键事实**：
 - 两器**严格对称**（导入器导出的文件可被导出器读回，已往返验证：几何/面数/FVF/包围盒一致）
 - `.trf` 结构（rfver 4）：`rfver 4 → mesh <count> → <mesh_name/flag/material_name + 顶点数据...>`，经 test.trf 逐行对账验证
+- 🔴 **带蒙皮的 TRF 段序**（2026-11-11 用原版服装 `mongol_cloth_a` 实测校正，**不是面之后**）：
+  `名字 flag 材质` → `顶点数` → `x y z ×N` → `flag` → `FVF数` → `3 行 ×FVF` → **`骨骼槽数` → `槽位索引(一行)` → `蒙皮顶点数` → `每顶点 4 组「索引 权重」`** → `面数` → `i,j,k ×N` → `end`
+  原版一件衣服 = **5 档 LOD**（`<名>` + `.lod1..4`）、**24 骨骼槽**、每顶点 **≤4 影响**、权重和 **=1**、顶点色全 `0xFFFFFFFF`、**UV2 全 0**。
+  ⚠️ `trf_meta_mesh_importer.py` 的骨骼段解析是**按错误顺序猜的**（假设在面之后），读带蒙皮的 TRF 会错位 —— 静态网格不受影响。
 - **路径约定**：脚本目录 = `tools/OpenTrf/`；TRF 目录 = `Modules/MyMapTest/EmAssetPackages/TRF/`（test.trf 样例 4 子 mesh `mi_ship_2.0~2.3`；building.trf/trf_preview 为产物示例）
 
 ## 实机地形导出 — custom.export_heightmap（2026-09-07 定案，织丰实机闭环）

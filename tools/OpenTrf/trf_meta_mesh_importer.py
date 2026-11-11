@@ -23,6 +23,13 @@ try_meta_mesh_importer
     <face_count 行: i,j,k>                        # 面索引引用 vertex_fvfs, 逗号分隔
     <bone ...>                                   # 骨骼段(可选, 样例未含, 见 read_trf_mesh_skinned_bone)
 
+🔴 2026-11-11 实测校正（用原版服装 mongol_cloth_a 的 ModKit 导出件验证）：
+    带蒙皮的 TRF，**骨骼段在 FVF 之后、面之前**，不是面之后：
+      骨骼槽数 -> 槽位索引(一行) -> 蒙皮顶点数 -> 每顶点 4 组「索引 权重」
+    本文件的 read_trf_mesh_skinned_bone() 按「面之后」猜的顺序是错的，
+    读带蒙皮的 TRF 会错位（静态网格不受影响）。解析器范本：
+    Debug/offline/_trf_analyze.py
+
 路径约定 (OpenTrf 工具):
   - 脚本目录: H:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/LivingWorldNpcs/tools/OpenTrf/
   - TRF 目录: H:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/MyMapTest/EmAssetPackages/TRF/

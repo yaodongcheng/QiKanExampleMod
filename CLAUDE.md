@@ -30,6 +30,23 @@
 
 **运行时调试日志**：`Debug/StoryEngine_RuntimeLog.txt`（`DebugLogger.Log` 写入，内容随调试需求变动）。排查问题或验证行为时可直接 `Read` 分析。
 
+### 🔴 启动卡在 `Loading packages …/Assets...` = RuntimeDataCache 解压（2026-11-11 立，别再重查）
+
+**症状**：编辑器/游戏启动后日志停在 `Loading packages $BASE/Modules/<Mod>/Assets...`，无报错，几分钟到十几分钟。
+
+**判定（三步，别猜）**
+1. 日志停在该行、**无 error** ⇒ 不是崩溃；
+2. `Get-Process` 的 CPU **持续上涨**、`Win32_Process.ReadTransferCount` 却很小 ⇒ **不是死锁、不是缺资产**（内存映射的读不计入 ReadTransferCount）；
+3. 数一下 `Modules/<Mod>/RuntimeDataCache/`：**RDR2 实测 59,228 个 `.rdc` / 23.17 GB**。
+
+**根因**：`.rdc` 是**引擎编译后的资产运行时数据**，**LZ4 压缩**（反编译实证 `TaleWorlds.Native.dll` → `rglRuntime_data_cache_manager.cpp`，字符串 `RuntimeDataCache` / `.rdc` / `LZ4` / `Out of date RDC file found`）。启动时全量读取+解压+校验。
+
+**冷热差别（实测）**：冷启动 **≈8 分钟**（23 GB ÷ ~50 MB/s）；第二次启动 **33 秒**（数据在内存页缓存里，本机 64 GB 内存装得下）。⇒ 每天第一次开慢属正常，**不要**误判成 prefab / 场景 / 资产坏了。
+
+**什么时候会重建**：① 新资产首次用到（没有 rdc）；② `Out of date RDC file found`（记录与资产对不上）；③ 资产在编辑器里被改（更新记录）；④ 记录魔数/长度校验不过。
+
+**禁忌**：🔴 **不要整目录删 `RuntimeDataCache`** —— 会全部重建、更慢，且必须有原始资产/源文件在。只可删**孤儿**（对应资产已不存在的 GUID），删前先做只读比对报数字。
+
 ## 🔴 通用件：动画状态机（`Animation/`，2026-09-22 立）—— 任何运动系统可复用
 
 **要加/改"什么时候播哪条动画"的逻辑，一律走它，别再写散落的 if/else。**
