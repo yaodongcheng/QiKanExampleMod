@@ -182,7 +182,7 @@ switch (command)
     }
     case "shapedump":
     {
-        return ShapeDump.Run(dir, filter);
+        return ShapeDump.Run(dir, filter, outDir);
     }
     case "prtroundtrip":
     {

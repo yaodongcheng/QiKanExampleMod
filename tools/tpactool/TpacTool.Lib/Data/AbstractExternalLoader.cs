@@ -27,6 +27,12 @@ namespace TpacTool.Lib
 
 		public Guid OwnerGuid { set; get; }
 
+		/// <summary>解压后的真实字节数（2026-11-11 加，供 shapedump 统计物理体体积）。</summary>
+		public ulong ActualSize => _actualSize;
+
+		/// <summary>在包里占用的字节数（压缩后）。</summary>
+		public ulong StorageSize => _storageSize;
+
 		protected Lazy<Dictionary<object, object>> _userdata = new Lazy<Dictionary<object, object>>();
 
 		public IDictionary<object, object> UserData

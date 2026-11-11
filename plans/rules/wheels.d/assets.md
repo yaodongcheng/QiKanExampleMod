@@ -2124,3 +2124,105 @@ md5sum <发布产物> <装机包>                              # 一致吗（不
 - 贴图源路径必须 **ASCII**：FreeImage 打不开 `Debug\RD2构造相关\...`（中文路径），报 `FreeImage_Load: failed to open file`；源图放 `AssetSources`。
 - 导入对话框“全勾”是硬编码默认、**没有配置文件**；静态 TRF 多余选项是 no-op。自动点击脚本 v2 的 `AppActivate` armed 逻辑只点一次；**v3 已改 `FindWindow`/`IsWindow`**（每 `-DelayMs` 按一次，默认 1.2s），待实机验证。
 - prefab：LOD split blend = 每据点独立碎片集合（不是单一网格）；`root + children + <meta_mesh_component name="<MetaMesh>"/>`；地图缩放放**子容器**（`Instantiate` 会覆盖 root transform）；四元数→Euler 用 `Mat3.GetEulerAngles` 反式（`x=asin(f.z)` / `y=atan2(-s.z,u.z)` / `z=atan2(-f.x,f.y)`）。
+
+---
+
+## 29. 🔴🔴 **物理碰撞体（`bo_`）—— 原版预算 / 怎么量 / 怎么生成**（2026-11-11 登记，圣丹尼斯全城无碰撞实战）
+
+**解决什么问题**：场景里 24,000 个实体 `<physics>` **一个都没有** ⇒ 玩家能穿墙、踩不上木板、桶撞不到。补碰撞前必须先知道「原版做到什么精度」和「资产从哪来」。
+**完整方案**：[plans/大镖客2还原/05-物理碰撞体.md](../../大镖客2还原/05-物理碰撞体.md)
+
+### 29.1 碰撞体是**独立资产**，不是网格的一部分
+
+- 导入资源**名字以 `bo_` 开头** ⇒ 生成 **Physics Shape** 资产（与网格同一套 FBX/TRF 导入流程，靠名字前缀分派）。
+- 解析体三种：`bo_capsule_*`（XY 为半径、Z 为高度，**XY 缩放必须相等**，节点内容忽略）· `bo_sphere_*`（节点中心即球心）· `bo_composite_*`（子节点 capsule/sphere/网格 → 合成一个资产）。
+- 绑定写法（场景或 prefab）：
+
+```xml
+<physics shape="bo_xxx" mass="1.000" override_material="wood">
+    <body_flags><body_flag name="has_steps"/></body_flags>
+</physics>
+```
+
+  常用 flag：`has_steps`（楼梯，必须给，否则 agent 爬不上）· `barrier` · `agent_only` · `missile_only` · `moveable` · `dont_collide_with_camera`。
+- 🔴 **没有 `<physics>` = 没有碰撞**，引擎**不会**拿视觉网格自动生成。
+- 🔴 **`shape` 只能指 `bo_` 资产**：原版所有 prefab 里非 `bo_` 开头的 shape **0 例外**。
+- 🔴 **不能直写 tpac 绕过编辑器**：每个 shape 除「顶点+面」描述外还带一份 **PhysX 烘焙数据**（`bo_crate_a` 解压 4.5 KB 里约 3 KB），只能在编辑器/PhysX 侧产生。
+
+### 29.2 原版预算（Native 全库 7,847 个物理体实测）
+
+| 指标 | 值 |
+|---|---|
+| 顶点数中位 | **32**（≈21 面） |
+| < 100 顶点 | 79.2% · < 500 顶点 96.3% |
+| 最大 | 9,686（`bo_aserai_castle_keep_a_l2_interior`） |
+| 面的四边形占比 | **99%** ⇒ 手搭块体，**不是减面**（减面只出三角面） |
+| 单个体积 | 中位 **4.8 KB**（压缩后），全库 74.3 MB |
+
+对照：`bo_crate_a` = **8 顶点**（一个方块）· `bo_cart` 80 顶点 · `bo_empire_village_house_a` **220 顶点 / 339 面**，而它的视觉 LOD0 有 **13,305 面**（碰撞体只占 2.5%）。
+⇒ **目标预算：道具 8~100 顶点，普通建筑 200~900 面，可进入室内 1k~10k 面。**
+
+### 29.3 怎么量 / 怎么看（`tpaccli shapedump`，2026-11-11 增强）
+
+```bash
+tpaccli shapedump --packdir "<游戏>/Modules/Native/AssetPackages" --filter bo_empire_village_house
+tpaccli shapedump --packdir "<游戏>/Modules/Native/AssetPackages" --filter bo_ --out <输出目录>
+```
+
+- 每行：名字 / 顶点数 / 包围盒 X×Y×Z 与各自范围 / capsules / spheres / manifolds / **`disk=` 包内字节 / `raw=` 解压字节**；末尾给合计 + 中位 + p90 + 最大。
+- `--out` 把每个 shape 导成 **OBJ**（manifold 合并，Z 向上、单位米），可直接丢进 Blender 看原版碰撞体长什么样。
+- 实现：`tools/tpactool/TpacToolCLI/ShapeDump.cs`（读 `PhysicsDescriptionData`）；字节数来自 `AbstractExternalLoader.ActualSize/StorageSize`（2026-11-11 加的公开属性）。
+- 面积/面数换算：`ShapeManifold.Faces` 是**四边面**（`Index4` 有效且 ≠ `Index3`），导出三角面时按 `(1,2,3)+(1,3,4)` 拆。
+
+### 29.4 生成器：视觉 TRF → `bo_` 的 TRF
+
+`Scripts/gen_rdr2_collision_bodies.py`
+
+```
+读 TRF（局部坐标）→ 顶点/面心/边中点打点 → 体素占位 → 膨胀补缝
+                → 贪心盒子合并（x→y→z）→ 按源包围盒裁剪 → 写 bo_<名>.trf
+```
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `--max-grid` | 16 | 体素最长边格数；**可进入的屋子调 24~32**，否则门洞被 1 m 体素封死 |
+| `--voxel` | 自动 | 直接给体素边长（米），覆盖 max-grid |
+| `--dilate` | 1 | 膨胀次数（补三角面之间的缝） |
+| `--list` | — | 批量：每行一个模型名 |
+
+实测（2026-11-11）：`new_com_03_hotel_grand`（16.7×8×6 m，4,766 面）→ **194 顶点 / 396 面**（与原版 220/339 同档）；`new_pie_train_43_2`（25.8 万面）→ **253 顶点 / 588 面**，耗时 < 1 秒；`p_lampfactory02x`（0.8 m）→ 77 顶点 / 132 面。
+🔴 **膨胀必须裁掉**：不按源包围盒裁剪，物理体会比模型大 1~3 个体素（实测大出 8.5 m，玩家撞空气）。
+🔴 产物落 `Modules/<模块>/AssetSources/ImortReady/rdr2_collision/<类>/`（新资产只放这里，铁律 36）。
+
+**TRF 格式（rfver 4，2026-11-11 逐行验证）**：
+
+```
+rfver 4
+mesh <N>
+  <mesh_name> <flag> <material>
+  <vertex_count> / x y z × vc
+  0
+  <fvf_count> / (vertex_index color nx ny nz) (u v) (u2 v2) × fvf_count
+  <morph_key_count>            # 0
+  <face_count> / i j k × fc    # 索引指向 fvf
+end
+```
+
+### 29.5 运行期 API 的边界（纠正「零新资产」这个错说法）
+
+`TaleWorlds.Engine.GameEntityPhysicsExtensions`（1.2.12 已核实）：
+
+| 方法 | 能干什么 | 不能干什么 |
+|---|---|---|
+| `AddPhysics(entity, mass, localCenterOfMass, PhysicsShape body, …, isStatic, collisionGroupID)` | 把**已有** shape 资产挂到实体上 | 造不出几何 |
+| `AddSphereAsBody(entity, Vec3 sphere, float radius, BodyFlags)` | 凭空加**球** | 1.2.12 **没有** capsule/box；胶囊要 1.5.x |
+| `SetBodyShape(entity, PhysicsShape)` / `GetBodyShape` | 换/读 body | 同上 |
+| `PhysicsShape.GetFromResource(name)` | **按名字查**已有 shape | `PhysicsShape` 上**没有** AddTriangle / AddManifold / FromMesh |
+
+⇒ 运行期挂载省的是「改 2 万个实体 XML」和「导入 500 次」，**不免除导入**。合并地块级 `bo_` + 运行期 `AddPhysics` 才是它真正的用武之地。
+
+### 29.6 未验证 / 下一步
+
+- 🔴 **TRF 能不能被编辑器认成 Physics Shape**（官方文档的物理形状规则是按 FBX 写的）—— 整条管线成立与否就看这一步；不成改 FBX。
+- 盒子只能**轴对齐**：斜摆建筑（yaw≠0）碰撞呈阶梯；要贴合得按实体 yaw 旋转后再体素化。
+- 加了碰撞后 **navmesh 必须重生成**（现有 `navmesh.bin` 是零碰撞场地上烘的，NPC 不会走新表面）。

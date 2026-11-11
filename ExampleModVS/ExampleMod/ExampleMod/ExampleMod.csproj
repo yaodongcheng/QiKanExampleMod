@@ -569,6 +569,7 @@
     <!-- 开局落点：领主部队刷到数据指定的城（taikou_lords*.xml 的 initial_settlement 属性，雷 110 同批） -->
     <Compile Include="CampaignMode\HeroInitialSettlementPatch.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshProbeCommands.cs" />
+    <Compile Include="CampaignMode\Tools\EntityDumpCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugCommands.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugRenderer.cs" />
     <Compile Include="CampaignMode\Tools\NavMeshDebugMissionView.cs" />
