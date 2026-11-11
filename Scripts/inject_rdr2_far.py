@@ -21,6 +21,7 @@ import io
 import json
 import math
 import os
+import re
 import shutil
 import sys
 import time
@@ -88,7 +89,20 @@ def main():
             continue
         ids.add(g["group_id"])
 
-    have = {x[:-9].lower() for x in os.listdir(os.path.join(MODULE, r"Assets\models\main_map_lod"))}
+    # 🔴 资产要在**整个 Assets 里**找，不能只看 main_map_lod：
+    #    `new_area_slod4__split_sdn` 实际在 `Assets\models\sdn_test\`；
+    #    且引擎导入时会把文件名末尾 `_lod/_lodNNN` **去掉**再注册 MetaMesh
+    #    （例：`sis_floodlights_lod_geo.tpac` → metamesh `sis_floodlights`），
+    #    所以比对和执行都要用"去 _lod 后的名字"。
+    have = set()
+    for sub in ("models", "decal_models"):
+        b = os.path.join(MODULE, "Assets", sub)
+        if not os.path.isdir(b):
+            continue
+        for root, _, fns in os.walk(b):
+            for fn in fns:
+                if fn.endswith("_geo.tpac"):
+                    have.add(re.sub(r"_lod\d*$", "", fn[:-9], flags=re.I).lower())
     rows = list(csv.DictReader(io.open(FRAG, encoding="utf-8-sig")))
     pick, miss, in_p, out_far = [], [], 0, 0
     for r in rows:
@@ -107,12 +121,14 @@ def main():
         if (not a.include_p) and bb_in_p:
             in_p += 1
             continue
-        if r["name"].lower() not in have:
+        # 引擎注册的 MetaMesh 名 = 去掉末尾 `_lod/_lodNNN`，所以两边都要剥
+        mesh_name = re.sub(r"_lod\d*$", "", r["name"], flags=re.I)
+        if mesh_name.lower() not in have:
             miss.append(r["name"])
             continue
-        pick.append(r)
+        pick.append((r, mesh_name))
 
-    tris = sum(int(r["tris"]) for r in pick if r["tris"].isdigit())
+    tris = sum(int(r["tris"]) for r, _m in pick if r["tris"].isdigit())
     print("组 %d 个 · 候选碎片 %d · 会摆 %d 件 / %.2fM 面（跳过：区内 %d、框外 %d、缺网格 %d）"
           % (len(ids), len(rows), len(pick), tris / 1e6, in_p, out_far, len(miss)))
     if miss:
@@ -127,8 +143,7 @@ def main():
     src, removed = strip_tagged(src, "far")
 
     frag, used = [], {}
-    for r in pick:
-        name = r["name"]
+    for r, name in pick:
         k = used.get(name, 0) + 1
         used[name] = k
         ent = name if k == 1 else "%s_%d" % (name, k)
