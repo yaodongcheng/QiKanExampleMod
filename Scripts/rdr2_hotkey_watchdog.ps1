@@ -1,4 +1,4 @@
-# rdr2_hotkey_watchdog.ps1 —— 专用热键看守（只监听 F12，不做任何 GUI 操作）
+﻿# rdr2_hotkey_watchdog.ps1 —— 专用热键看守（只监听 F12，不做任何 GUI 操作）
 #
 # 为什么需要它：
 #   2026-11-12 两次事故：批量导入的 GUI 自动化脚本在抢鼠标键盘，

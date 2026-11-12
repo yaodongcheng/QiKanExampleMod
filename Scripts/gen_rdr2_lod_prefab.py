@@ -146,7 +146,25 @@ def fmt(v):
     return "%.3f" % v
 
 
-def frag_xml(f, asset_name):
+def make_entity_namer(prefix):
+    """实体名 = <prefix>_<模型名>；同 prefab 内重名追加 _02/_03…"""
+    used = set()
+
+    def pick(base):
+        safe = re.sub(r"[^0-9A-Za-z_]", "_", base or "frag")
+        cand = "%s_%s" % (prefix, safe)
+        n = cand
+        k = 2
+        while n in used:
+            n = "%s_%02d" % (cand, k)
+            k += 1
+        used.add(n)
+        return n
+
+    return pick
+
+
+def frag_xml(f, asset_name, entity_name):
     p = f["pos_local"]
     r = f.get("rot", [0, 0, 0, 1])
     s = f.get("scale", [1, 1])
@@ -158,7 +176,7 @@ def frag_xml(f, asset_name):
         '\t\t\t\t\t<meta_mesh_component name="%s"/>\n'
         '\t\t\t\t</components>\n'
         '\t\t\t</game_entity>\n'
-        % (f["frag_id"], fmt(p[0]), fmt(p[1]), fmt(p[2]),
+        % (entity_name, fmt(p[0]), fmt(p[1]), fmt(p[2]),
            fmt(ex), fmt(ey), fmt(ez), fmt(s[0]), fmt(s[0]), fmt(s[1]), asset_name)
     )
 
@@ -202,11 +220,13 @@ def anchor_map(g):
             (az + 34.93079376220703) / (690.3469848632812 - (-34.93079376220703)) * 50.0)
 
 
-def prefab_xml(gid, body, root_pos, map_scale=True):
+def prefab_xml(gid, body, root_pos, map_scale=True, body_1to1=None):
     """一组 → 两段 prefab（地图 + 1:1）。
 
     `map_scale=False` 用于占位：原版村庄地图缩略本身就是地图尺度，不能再套 1:14 容器。
     """
+    if body_1to1 is None:
+        body_1to1 = body
     rx, ry, rz = root_pos
     scale = "%s, %s, %s" % (fmt(SX), fmt(SY), fmt(SZ))
     if map_scale:
@@ -228,7 +248,7 @@ def prefab_xml(gid, body, root_pos, map_scale=True):
         '\t\t<transform position="0.000, 0.000, 0.000" rotation_euler="0.000, 0.000, 0.000"/>\n'
         '\t\t<children>\n%s\t\t</children>\n'
         '\t</game_entity>\n'
-        % (gid, fmt(rx), fmt(ry), fmt(rz), map_children, gid, body)
+        % (gid, fmt(rx), fmt(ry), fmt(rz), map_children, gid, body_1to1)
     )
 
 
@@ -286,7 +306,9 @@ def main():
             my = (wy + 4800.0) / 8024.0 * 576.0
             mz = heightmap_z(mx, my)
             root = (mx, my, mz) if a.root_at_anchor else (0.0, 0.0, 0.0)
-            chunks.append(prefab_xml(gid, placeholder_body(gid), root, map_scale=False))
+            ph = placeholder_body(gid)
+            ph1 = ph.replace("abe_placeholder", "abe_placeholder_1to1").replace("twi_placeholder", "twi_placeholder_1to1")
+            chunks.append(prefab_xml(gid, ph, root, map_scale=False, body_1to1=ph1))
             rows.append({
                 "group_id": gid, "group_type": s.get("btype", ""),
                 "name_en": s.get("name_en", ""), "name_zh": s.get("name_zh", ""),
@@ -324,10 +346,13 @@ def main():
 
         total_keep += len(keep)
         total_skip += len(skipped)
-        body = "".join(frag_xml(f, asset) for f, asset in keep)
+        pick_map = make_entity_namer("rdr2_%s_lod" % gid)
+        pick_one = make_entity_namer("rdr2_%s_lod_1to1" % gid)
+        body = "".join(frag_xml(f, asset, pick_map(asset)) for f, asset in keep)
+        body_1to1 = "".join(frag_xml(f, asset, pick_one(asset)) for f, asset in keep)
         mp = anchor_map(g)
         root = mp if a.root_at_anchor else (0.0, 0.0, 0.0)
-        chunks.append(prefab_xml(gid, body, root))
+        chunks.append(prefab_xml(gid, body, root, body_1to1=body_1to1))
         rows.append({
             "group_id": gid, "group_type": g.get("group_type", ""),
             "name_en": g.get("name_en", ""), "name_zh": g.get("name_zh", ""),

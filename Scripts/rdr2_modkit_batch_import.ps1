@@ -35,7 +35,11 @@ param(
     [switch]$NoRestart,
     [switch]$KeepEditorOpen,
     [int]$MenuWaitSec = 80,
-    [int]$TimeoutMin = 25
+    [int]$TimeoutMin = 25,
+    # 2026-11-12：启动/加载等待上限（分钟）。ModKit 有时 loading 会卡 5 分钟以上，
+    # 旧值写死 150 秒 → 会被误判成失败并反复重启。现在默认 12 分钟，
+    # 且只对「进程消失 / 连续 3 分钟无响应且标题不变」判真死。
+    [int]$StartupTimeoutMin = 12
 )
 $ErrorActionPreference = 'Continue'
 if (-not $ModuleName) { $ModuleName = Split-Path $ModuleRoot -Leaf }
@@ -425,24 +429,25 @@ function Start-Editor {
         if ($game -ne [IntPtr]::Zero) { break }
     }
     if ($game -eq [IntPtr]::Zero) {
-        Log '游戏窗口还没出现，继续轮询 150 秒'
-        $game = Wait-Window 'Mount and Blade II Bannerlord' 150 -Prefix
+        Log ("游戏窗口还没出现，继续轮询 {0} 分钟（ModKit 有时 loading 会卡 5 分钟以上）" -f $StartupTimeoutMin)
+        $game = Wait-Window 'Mount and Blade II Bannerlord' (60 * $StartupTimeoutMin) -Prefix
     }
     if ($game -eq [IntPtr]::Zero) { Log 'FAIL 游戏窗口没出现'; return $false }
 
     # 2026-11-12：去掉盲等。原流程「窗口出现 → 死等 80s → 点编辑器 → 再死等 20s」，
     # 每批白等约 100 秒；贴图 30 批 + 网格 47 批 ≈ 1.8 小时全耗在等待上。
     # 现在改为**轮询就绪**：窗口一出现就试点「编辑器」，没反应就隔 8 秒再试（点空处无害）。
-    Log '游戏窗口已出现 → 轮询点「编辑器」直到 Edit Mode 出现（最长 150 秒）'
+    Log ("游戏窗口已出现 → 轮询点「编辑器」直到 Edit Mode 出现（最长 {0} 分钟，只对真死判失败）" -f $StartupTimeoutMin)
     $ed = [IntPtr]::Zero
     $attempt = 0
-    $deadline = (Get-Date).AddSeconds(150)
-    $delay = 12
+    $deadline = (Get-Date).AddMinutes($StartupTimeoutMin)
     $shotDone = $false
+    $lastBeat = Get-Date          # 上次「有进展」的时刻
+    $lastTitle = ''
+    $editorClicked = $false       # 一旦点过「编辑器」，就不再按 ESC（ESC 会取消菜单/关面板）
     while ((Get-Date) -lt $deadline) {
         if (Stop-Requested -Quiet) { Log '用户急停（等主菜单阶段）'; return $false }
-        Start-Sleep -Seconds $delay
-        $delay = 8
+        Start-Sleep -Seconds 5
         $n = Clear-BlockingDialogs
         if ($n -gt 40) {
             Log ("FAIL 启动阶段弹了 {0} 个警告框（>40），判定数据异常，直接杀游戏不再逐个关" -f $n)
@@ -453,25 +458,46 @@ function Start-Editor {
         if (Handle-Crash) { Log 'FAIL 启动阶段崩溃（已点否并杀进程）'; return $false }
         $gp = Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds' } | Select-Object -First 1
         if (-not $gp) { Log 'FAIL 游戏进程已消失（疑似崩溃）'; return $false }
-        if (-not $gp.Responding) { Log 'FAIL 游戏进程无响应（崩溃），直接杀'; Stop-Process -Id $gp.Id -Force -ErrorAction SilentlyContinue; return $false }
         if (-not $shotDone) { Shot $game 'game_menu.png' | Out-Null; $shotDone = $true }
-        if (-not (Menu-Ready $game)) {
-            Log '   菜单还没就绪（与模板差异过大，可能还是加载 CG）→ 继续等'
-            $delay = 3
-            continue
+        # 2026-11-12：只要进程「活着且在响应」，就不判失败 —— ModKit loading 可能卡 5 分钟以上。
+        # 只有「进程消失 / 连续无响应超过 3 分钟」才算真死。
+        $gp2 = Get-Process -Id $gp.Id -ErrorAction SilentlyContinue
+        if (-not $gp2) { Log 'FAIL 游戏进程已消失（疑似崩溃）'; return $false }
+        $title = "$($gp2.MainWindowTitle)"
+        if ($title -ne $lastTitle) { $lastBeat = Get-Date; $lastTitle = $title }
+        if ($gp2.Responding) { $lastBeat = Get-Date }
+        $stalled = ((Get-Date) - $lastBeat).TotalMinutes
+        if ($stalled -gt 3) {
+            Log ("FAIL 进程连续 {0:N1} 分钟无响应且标题未变（真卡死）→ 杀" -f $stalled)
+            Shot $game 'fail_stalled.png' | Out-Null
+            Stop-Process -Id $gp.Id -Force -ErrorAction SilentlyContinue
+            return $false
         }
-        Log '   模板比对确认菜单就绪（MAD<=30）→ 点击'
+        # 2026-11-12 用户口径：**不等模板匹配，每 5 秒点一次**。
+        # 点空处无害；加载 CG 阶段菜单还没出来，点了也只是没反应。
+        # 单独保留一次模板比对仅作日志参考，不再当闸门。
+        $mr = $false
+        try { $mr = Menu-Ready $game } catch { }
         [MK]::Act($game) | Out-Null
-        Start-Sleep -Milliseconds 400
+        Start-Sleep -Milliseconds 300
+        # 还没点过编辑器 → 先按 ESC 跳过 CG 过场（2026-11-12 用户口径）。
+        # 一旦点过编辑器就再也不按 ESC，避免把菜单/面板取消掉。
+        if (-not $editorClicked) {
+            try {
+                [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+                Log '   按 ESC 跳过 CG'
+            } catch { }
+            Start-Sleep -Milliseconds 700
+        }
         foreach ($yy in @(310, 305, 315)) {
             $attempt++
+            $editorClicked = $true
             [MK]::Click(285, $yy, 1)
-            Log ("点「编辑器」({0}) 第 {1} 次" -f $yy, $attempt)
-            $ed = Wait-Window 'Edit Mode' 10
+            Log ("点「编辑器」({0}) 第 {1} 次（模板匹配={2}）" -f $yy, $attempt, $(if ($mr) { '是' } else { '否' }))
+            $ed = Wait-Window 'Edit Mode' 3
             if ($ed -ne [IntPtr]::Zero) { break }
         }
         if ($ed -ne [IntPtr]::Zero) { break }
-        Log '   还没进编辑器 → 8 秒后再试'
     }
     if ($ed -eq [IntPtr]::Zero) {
         Log 'FAIL 编辑器没起来（已存 game_fail_final.png）'
