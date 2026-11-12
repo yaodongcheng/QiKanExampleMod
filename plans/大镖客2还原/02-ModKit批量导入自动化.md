@@ -23,6 +23,81 @@
 > ⚠️ 另注：**目标模块从 `RDR2` 改为 `RDR2Map`**，本文所有 `Modules\RDR2\...` 的路径都要换成
 > `Modules\RDR2Map\...`；`RDR2` 仅保留 `Source\docs` 契约与 `Source\tools`。
 
+---
+
+## 🔴 2026-11-11 v2 操作卡（**照这个跑，别用下文 §0 的批次**）
+
+**前提**：launcher 已改好，**只会启动 `RDR2Map`**（不用再手动勾模块）。
+
+### 0. 变量
+
+```powershell
+$MAP   = "H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\RDR2Map"
+$STAGE = "$MAP\AssetSources\ImportReady"
+$IMP   = "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\rdr2_modkit_batch_import.ps1"
+```
+
+### 1. 顺序：**先贴图，再模型**（硬规矩）
+
+TRF 导入时**按材质名绑定**，材质/贴图不在 = 白板，**事后补不会回填**。
+
+### 2. 贴图（3 个通道，共 23,433 张）
+
+```powershell
+# albedo
+pwsh -NoProfile -File $IMP -SourceDir "$STAGE\textures\albedo"   -DestRel "textures\albedo"   -Kind texture -ModuleRoot $MAP
+# normal
+pwsh -NoProfile -File $IMP -SourceDir "$STAGE\textures\normal"   -DestRel "textures\normal"   -Kind texture -ModuleRoot $MAP
+# specular
+pwsh -NoProfile -File $IMP -SourceDir "$STAGE\textures\specular" -DestRel "textures\specular" -Kind texture -ModuleRoot $MAP
+```
+
+- **`-ModuleRoot $MAP` 必须显式传**（脚本默认值还是旧的 `RDR2`）。
+- 一批约 **1,000 张就会崩**（旧实机记录），`rdr2_modkit_batch_import.ps1` 内部会分批 + 重启，别绕过它手工点。
+
+### 3. 模型（13 个分类，共 21,029 个）
+
+```powershell
+foreach ($c in 'main_map_lod','bldg','rail','prop','part','interior','unknown','junk','veh','struct','ruin','rock','stone') {
+    pwsh -NoProfile -File $IMP -SourceDir "$STAGE\meshes\$c" -DestRel "models\$c" -Kind mesh -ModuleRoot $MAP
+}
+```
+
+- 顺序建议：`main_map_lod` 最先（2,529 个、都是单档小件，用来验证管线通不通），然后按体积从大到小。
+- **一批约 560 个就会崩**（旧实机记录）。v2 没有 `batch_01` 这类批次目录，
+  所以崩了之后**手工把该分类目录里剩下的文件挑出来单独建一个子目录再导**，不要对整目录全选重导。
+
+### 4. 进度：只信检查器
+
+```powershell
+python "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\check_rdr2map_progress.py"
+```
+
+输出：逐通道 / 逐分类的 `已导 / 总数` + **「下一步该导哪个」**，并写
+`Debug\RD2构造相关\rdr2map_progress.json`。
+
+- 判据：贴图看 `RDR2Map\Assets\textures\**\*_tex.tpac`，模型看 `Assets\models\**\*_geo.tpac`
+  （**全项目查名**，资产名全局唯一、与目录无关）。
+- 加 `--detail-dir <目录>` 会导出每个分类的缺失清单 CSV。
+- 跑完基线（2026-11-11 22:00，未开始导）：贴图 0/23,433，模型 0/21,029，材质 0/10,176。
+
+### 5. 与旧流程的 5 处差异（照旧的做会错）
+
+| 项 | 旧 | v2 |
+|---|---|---|
+| 模块 | `RDR2` | **`RDR2Map`** |
+| 待导根 | `ImortReady\rdr2_models_pending\` | **`ImportReady\`** |
+| 组织 | `batch_01` 批次目录 | **按 13 个分类目录**，无批次 |
+| 贴图 | PNG，导入时转 | **已经是 DDS**，直接导 |
+| 进度脚本 | `check_rdr2_import_progress.py` | **`check_rdr2map_progress.py`** |
+
+### 6. 导完之后
+
+1. 跑一次检查器确认 **贴图 23,433 / 23,433、模型 21,029 / 21,029**；
+2. **实测一次包体积**（`AssetPackages\` 目录），确认在 10 GB 以内——交付侧估算 **9.61 GB**（几何 8.77 + 贴图 0.84），有 ±3–5% 浮动；
+3. 剥 `MeshEditData`（`deliverable\compress\tools\pac_strip_stream.py`，62 包实测 33.12 → 18.13 GB）；
+4. 2 个 `cablemesh` 手动补导旧 TRF（见 `00-总纲.md` §0.0 待办）。
+
 > ## 📌 新会话交接（从这里读起，3 分钟能接手）
 >
 > **现状一句话**：贴图 ✅ 25,443 / 材质 ✅ 11,774 / 修补网格 919 ✅ 已回（网格共 7,922）；

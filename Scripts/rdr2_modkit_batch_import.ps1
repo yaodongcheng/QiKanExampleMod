@@ -12,11 +12,11 @@
 #     -SourceDir "...\textures\_todo_albedo\batch_02_retry01" -DestRel "textures\albedo" -Kind texture
 #
 # 用法（网格，一批）：
-#   ... -SourceDir "...\rdr2_models_pending\bldg_01" -DestRel "models\bldg" -Kind mesh
+#   ... -SourceDir "...\bldg_01" -DestRel "models\bldg" -Kind mesh`n#   ... -SourceDir "...\textures\albedo" -DestRel "textures\albedo" -Kind texture -Wildcard '*.dds'
 #
 # 参数：
 #   -SourceDir      要导的源目录（全路径，目录内文件全选）
-#   -DestRel        编辑器里的目标目录，相对 Modules\RDR2\Assets，例 "textures\albedo"
+#   -DestRel        编辑器里的目标目录，相对 <ModuleRoot>\Assets，例 "textures\albedo"（模块名自动从 $ModuleRoot 取）
 #   -Kind           texture | mesh
 #   -NoRestart      编辑器已在跑就跳过 A1~A6（默认会重启）
 #   -KeepEditorOpen 跑完不杀进程
@@ -26,7 +26,10 @@ param(
     [Parameter(Mandatory=$true)][string]$DestRel,
     [ValidateSet('texture','mesh')][string]$Kind = 'texture',
     [string]$Launcher = 'H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\bin\Win64_Shipping_wEditor\TaleWorlds.MountAndBlade.Launcher.exe',
-    [string]$ModuleRoot = 'H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\RDR2',
+    # 2026-11-12：默认模块改为 RDR2Map（v2 资产导入目标）；旧批次用 -ModuleRoot 显式指回 RDR2
+    [string]$ModuleRoot = 'H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\RDR2Map',
+    [string]$ModuleName = '',
+    [string]$Wildcard = '',
     [string]$AutoConfirm = 'H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\rdr2_geometry_auto_import.ps1',
     [string]$LogDir = 'H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\RD2构造相关',
     [switch]$NoRestart,
@@ -35,6 +38,7 @@ param(
     [int]$TimeoutMin = 25
 )
 $ErrorActionPreference = 'Continue'
+if (-not $ModuleName) { $ModuleName = Split-Path $ModuleRoot -Leaf }
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName UIAutomationClient
@@ -54,6 +58,8 @@ public static class MK {
     [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+    [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr p, P cb, IntPtr l);
+    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
     [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -131,7 +137,8 @@ function Wait-Window([string]$title, [int]$sec, [switch]$Prefix) {
 }
 function Count-Assets([string]$kind) {
     $pat = if ($kind -eq 'mesh') { '*_geo.tpac' } else { '*_tex.tpac' }
-    $roots = if ($kind -eq 'mesh') { @("$ModuleRoot\Assets\models", "$ModuleRoot\Assets\decal_models") } else { @("$ModuleRoot\Assets\textures") }
+    # 2026-11-12：网格产物目录改为 Assets\meshes（与 ImportReady\meshes 对齐）
+    $roots = if ($kind -eq 'mesh') { @("$ModuleRoot\Assets\meshes") } else { @("$ModuleRoot\Assets\textures") }
     $n = 0
     foreach ($r in $roots) { if (Test-Path $r) { $n += (Get-ChildItem $r -Recurse -File -Filter $pat | Measure-Object).Count } }
     return $n
@@ -231,6 +238,107 @@ function Dismiss-SafeMode([IntPtr]$h) {
 # 🔴 2026-11-10 07:30 真正的坑在这里：导入的网格引用**不存在的材质**时，编辑器加载
 #    会对每个网格弹一次 "Unable to find material for mesh xxx"，几百个，一个接一个。
 #    原来「一次调用只关一个框」根本追不上 → 永远进不了编辑器。改成**循环清空直到没有**。
+# 主菜单就绪探针（2026-11-12 第二版）
+# ⚠️ 第一版用「浅色像素数 >= 40」判断 —— 错了：加载阶段是**明亮 CG**（雪山图），
+#    实测按钮区浅色像素 1100，会直接被误判成"就绪"。
+# 现在改为**模板比对**：拿菜单就绪时截下的按钮区域做模板，算平均绝对差(MAD)。
+#    实测：菜单 MAD = 0.00 ／ 加载CG MAD = 206.72，阈值 30 足够安全。
+$script:MenuTpl = $null
+function Load-MenuTpl {
+    $p = Join-Path $LogDir 'menu_btn_template.png'
+    if (Test-Path $p) {
+        try { $script:MenuTpl = [System.Drawing.Bitmap]::FromFile($p) } catch { $script:MenuTpl = $null }
+    }
+}
+function Menu-Ready([IntPtr]$h) {
+    if ($null -eq $script:MenuTpl) { return $false }
+    $r = Rect $h
+    if (($r.R - $r.L) -lt 400) { return $false }
+    $w = $script:MenuTpl.Width; $h2 = $script:MenuTpl.Height
+    $bmp = New-Object System.Drawing.Bitmap $w, $h2
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try { $g.CopyFromScreen(($r.L + 240), ($r.T + 288), 0, 0, (New-Object System.Drawing.Size $w, $h2)) }
+    catch { $g.Dispose(); $bmp.Dispose(); return $false }
+    $g.Dispose()
+    $sum = 0; $n = 0
+    for ($y = 0; $y -lt $h2; $y += 3) {
+        for ($x = 0; $x -lt $w; $x += 3) {
+            $a = $bmp.GetPixel($x, $y)
+            $b = $script:MenuTpl.GetPixel($x, $y)
+            $sum += [Math]::Abs($a.R - $b.R) + [Math]::Abs($a.G - $b.G) + [Math]::Abs($a.B - $b.B)
+            $n++
+        }
+    }
+    $bmp.Dispose()
+    if ($n -eq 0) { return $false }
+    return (($sum / ($n * 3)) -le 30)
+}
+
+# 崩溃弹窗（"The application faced a problem..."）识别与处置
+# 2026-11-12 三次修正后的事实：
+#   ① 这个弹窗**不属于 TaleWorlds** —— 它属于 csrss.exe（系统硬错误对话框）
+#   ② 标题是 "*_*"，不是那句英文 → 按标题找永远找不到
+#   ③ UIA 读不到它的子控件（系统进程，跨完整性级别）→ UIA 方案全部失效
+#   ④ 可行的只有：EnumChildWindows 读子控件文字 + SendMessage(WM_COMMAND, IDNO=7)
+#      实测一次成功关闭；BM_CLICK / 鼠标点击 / Alt+N 全部无效
+function Find-CrashDialog {
+    $script:crashDlg = [IntPtr]::Zero
+    $script:crashNo = [IntPtr]::Zero
+    $cb = [MK+P]{
+        param($h, $l)
+        try {
+            if (-not [MK]::IsWindowVisible($h)) { return $true }
+            if ([MK]::C($h) -ne '#32770') { return $true }
+            $pid2 = 0
+            [void][MK]::GetWindowThreadProcessId($h, [ref]$pid2)
+            $pn = (Get-Process -Id $pid2 -ErrorAction SilentlyContinue).ProcessName
+            if ($pn -notmatch 'csrss|WerFault') { return $true }
+            $cc = [MK+P]{
+                param($ch, $cl)
+                $cls = [MK]::C($ch)
+                $txt = ''
+                try { $txt = $ch.ToString() } catch { }
+                $sb = New-Object System.Text.StringBuilder 512
+                [void][MK]::GetWindowText($ch, $sb, 512)
+                $txt = $sb.ToString()
+                if ($cls -eq 'Button' -and $txt -match '否|No') { $script:crashNo = $ch }
+                if ($cls -eq 'Static' -and $txt -match 'faced a problem') { $script:crashDlg = $h }
+                return $true
+            }
+            [void][MK]::EnumChildWindows($h, $cc, [IntPtr]::Zero)
+        } catch { }
+        return $true
+    }
+    [void][MK]::EnumWindows($cb, [IntPtr]::Zero)
+    return $script:crashDlg
+}
+
+# 点「否」：WM_COMMAND(0x0111), wParam=IDNO(7), lParam=按钮句柄  ← 实测唯一有效
+function Dismiss-CrashDialog([IntPtr]$dlg) {
+    if ($dlg -eq [IntPtr]::Zero) { return $false }
+    if ($script:crashNo -eq [IntPtr]::Zero) { Log '崩溃弹窗里没找到「否」按钮'; return $false }
+    try {
+        [void][MK]::SendMessage($dlg, 0x0111, [IntPtr]7, $script:crashNo)
+        Start-Sleep -Milliseconds 1200
+        Log '已点「否(N)」（拒绝收集崩溃文件）'
+        return $true
+    } catch { Log ("SendMessage 失败: " + $_.Exception.Message) }
+    return $false
+}
+
+# 检测到崩溃就点「否」再杀进程（返回 $true 表示确实崩了）
+function Handle-Crash {
+    $w = Find-CrashDialog
+    if ($w -eq [IntPtr]::Zero) { return $false }
+    Log '检测到崩溃弹窗「The application faced a problem」(csrss #32770 *_*)'
+    [void](Dismiss-CrashDialog $w)
+    Start-Sleep -Milliseconds 1500
+    Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog|WerFault' } |
+        ForEach-Object { Log ("崩溃收尾：杀 " + $_.ProcessName + " PID " + $_.Id); Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+    Log 'CRASH_HANDLED（已点否并杀进程）'
+    return $true
+}
+
 function Clear-BlockingDialogs {
     $dismissed = 0
     for ($round = 0; $round -lt 400; $round++) {
@@ -279,6 +387,9 @@ function Clear-BlockingDialogs {
 
 # ---------------- A. 启动链 ----------------
 function Start-Editor {
+    if ($null -eq $script:MenuTpl) { Load-MenuTpl }
+    if ($null -eq $script:MenuTpl) { Log 'WARN 没有 menu_btn_template.png，主菜单就绪检测将退化为「试点」' }
+    else { Log ('主菜单模板已加载 {0}x{1}' -f $script:MenuTpl.Width, $script:MenuTpl.Height) }
     $p = Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' }
     if ($p) { Log ("杀进程: " + (($p | ForEach-Object { "$($_.ProcessName)[$($_.Id)]" }) -join ', ')); $p | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 3 }
 
@@ -318,56 +429,78 @@ function Start-Editor {
         $game = Wait-Window 'Mount and Blade II Bannerlord' 150 -Prefix
     }
     if ($game -eq [IntPtr]::Zero) { Log 'FAIL 游戏窗口没出现'; return $false }
-    Log ("游戏窗口出现，等主菜单加载（{0} 秒 + 截图留证）" -f $MenuWaitSec)
-    if (-not (Wait-Status $MenuWaitSec '等主菜单加载')) { return $false }
-    $n0 = Clear-BlockingDialogs
-    if ($n0 -gt 40) {
-        # 弹窗成灾 = 资产数据有问题（例如大量网格缺材质），关是关不完的：
-        # 直接杀游戏，交给驱动器跳过/重试（2026-11-10 用户裁定）
-        Log ("FAIL 启动阶段弹了 {0} 个警告框（>40），判定数据异常，直接杀游戏不再逐个关" -f $n0)
-        Shot $game 'fail_toomanydialogs.png' | Out-Null
-        Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' } | Stop-Process -Force -ErrorAction SilentlyContinue
-        return $false
-    }
-    Shot $game 'game_menu.png' | Out-Null
 
-    # 点「编辑器」（失败就截图 + 检查游戏进程是否还活着）
+    # 2026-11-12：去掉盲等。原流程「窗口出现 → 死等 80s → 点编辑器 → 再死等 20s」，
+    # 每批白等约 100 秒；贴图 30 批 + 网格 47 批 ≈ 1.8 小时全耗在等待上。
+    # 现在改为**轮询就绪**：窗口一出现就试点「编辑器」，没反应就隔 8 秒再试（点空处无害）。
+    Log '游戏窗口已出现 → 轮询点「编辑器」直到 Edit Mode 出现（最长 150 秒）'
     $ed = [IntPtr]::Zero
     $attempt = 0
-    foreach ($yy in @(310, 305, 315)) {
-        $attempt++
+    $deadline = (Get-Date).AddSeconds(150)
+    $delay = 12
+    $shotDone = $false
+    while ((Get-Date) -lt $deadline) {
+        if (Stop-Requested -Quiet) { Log '用户急停（等主菜单阶段）'; return $false }
+        Start-Sleep -Seconds $delay
+        $delay = 8
         $n = Clear-BlockingDialogs
         if ($n -gt 40) {
-            Log ("FAIL 又来 {0} 个警告框，杀游戏跳过本批" -f $n)
+            Log ("FAIL 启动阶段弹了 {0} 个警告框（>40），判定数据异常，直接杀游戏不再逐个关" -f $n)
+            Shot $game 'fail_toomanydialogs.png' | Out-Null
             Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' } | Stop-Process -Force -ErrorAction SilentlyContinue
             return $false
         }
+        if (Handle-Crash) { Log 'FAIL 启动阶段崩溃（已点否并杀进程）'; return $false }
         $gp = Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds' } | Select-Object -First 1
         if (-not $gp) { Log 'FAIL 游戏进程已消失（疑似崩溃）'; return $false }
         if (-not $gp.Responding) { Log 'FAIL 游戏进程无响应（崩溃），直接杀'; Stop-Process -Id $gp.Id -Force -ErrorAction SilentlyContinue; return $false }
-        [MK]::Act($game) | Out-Null; Start-Sleep -Milliseconds 400
-        [MK]::Click(285, $yy, 1)
-        Log ("点「编辑器」({0}) 第 {1} 次" -f $yy, $attempt)
-        $ed = Wait-Window 'Edit Mode' 25
+        if (-not $shotDone) { Shot $game 'game_menu.png' | Out-Null; $shotDone = $true }
+        if (-not (Menu-Ready $game)) {
+            Log '   菜单还没就绪（与模板差异过大，可能还是加载 CG）→ 继续等'
+            $delay = 3
+            continue
+        }
+        Log '   模板比对确认菜单就绪（MAD<=30）→ 点击'
+        [MK]::Act($game) | Out-Null
+        Start-Sleep -Milliseconds 400
+        foreach ($yy in @(310, 305, 315)) {
+            $attempt++
+            [MK]::Click(285, $yy, 1)
+            Log ("点「编辑器」({0}) 第 {1} 次" -f $yy, $attempt)
+            $ed = Wait-Window 'Edit Mode' 10
+            if ($ed -ne [IntPtr]::Zero) { break }
+        }
         if ($ed -ne [IntPtr]::Zero) { break }
-        if ($attempt -in @(2, 5)) { Shot $game ("game_fail_{0}.png" -f $attempt) | Out-Null }
+        Log '   还没进编辑器 → 8 秒后再试'
     }
-    if ($ed -eq [IntPtr]::Zero) { Log 'FAIL 编辑器没起来（已存 game_fail_*.png）'; return $false }
-    Log 'Edit Mode 出现，等加载 30 秒'
-    if (-not (Wait-Status 20 '等编辑器加载工程')) { return $false }
+    if ($ed -eq [IntPtr]::Zero) {
+        Log 'FAIL 编辑器没起来（已存 game_fail_final.png）'
+        Shot $game 'game_fail_final.png' | Out-Null
+        return $false
+    }
+    Log 'Edit Mode 出现 → 直接尝试打开资源浏览器（不再盲等 20 秒）'
 
-    # 打开资源浏览器（两套坐标，按窗口尺寸选）
-    $rb = [MK]::Find('Resource Browser')
-    if ($rb -eq [IntPtr]::Zero) {
-        [MK]::Act($ed) | Out-Null; Start-Sleep -Milliseconds 400
+    # 工程还在加载时菜单点不动，但点空处无害 → 每轮试一次，最长 120 秒
+    $rb = [IntPtr]::Zero
+    $rbDeadline = (Get-Date).AddSeconds(120)
+    $rbRound = 0
+    while ((Get-Date) -lt $rbDeadline) {
+        if (Stop-Requested -Quiet) { Log '用户急停（等资源浏览器）'; return $false }
+        $rbRound++
+        $rb = [MK]::Find('Resource Browser')
+        if ($rb -ne [IntPtr]::Zero) { break }
+        [MK]::Act($ed) | Out-Null
+        Start-Sleep -Milliseconds 400
         foreach ($set in @(@(@(122,37),@(181,214)), @(@(100,35),@(181,214)))) {
             ClickRel $ed $set[0][0] $set[0][1]
             Start-Sleep -Milliseconds 700
             ClickRel $ed $set[1][0] $set[1][1]
-            $rb = Wait-Window 'Resource Browser' 6
+            $rb = Wait-Window 'Resource Browser' 4
             if ($rb -ne [IntPtr]::Zero) { break }
-            Log ("菜单坐标 {0} 没打开，换下一套" -f ($set[0] -join ','))
         }
+        if ($rb -ne [IntPtr]::Zero) { break }
+        Log ("   资源浏览器第 {0} 轮没出来（工程可能还在加载）→ 6 秒后再试" -f $rbRound)
+        Start-Sleep -Seconds 6
     }
     if ($rb -eq [IntPtr]::Zero) { Log 'FAIL 资源浏览器没打开'; return $false }
     Log '资源浏览器已打开'
@@ -410,7 +543,7 @@ function Find-EmptySpot([IntPtr]$rb) {
     return $found
 }
 
-# ---- UIA：读面包屑（例 "Modules/RDR2/Assets/textures/albedo"），用于校验当前目录 ----
+# ---- UIA：读面包屑（例 "Modules/RDR2Map/Assets/textures/albedo"），用于校验当前目录 ----
 function Get-RBCrumb([IntPtr]$rb) {
     try {
         $root = [System.Windows.Automation.AutomationElement]::FromHandle($rb)
@@ -446,9 +579,9 @@ function Open-RBFolderByName([IntPtr]$rb, [string]$name) {
     return $false
 }
 
-# 导航到 Modules/RDR2/Assets/<destRel>，每一步都用面包屑校验；不达标直接返回 $false
+# 导航到 Modules/<ModuleName>/Assets/<destRel>，每一步都用面包屑校验；不达标直接返回 $false
 function Nav-ToAssets([IntPtr]$rb, [string]$destRel) {
-    $expect = 'Modules/RDR2/Assets/' + (($destRel -split '\\') -join '/')
+    $expect = 'Modules/' + $ModuleName + '/Assets/' + (($destRel -split '\\') -join '/')
     Log ("目标面包屑 = {0}" -f $expect)
     $crumb = Get-RBCrumb $rb
     Log ("当前面包屑 = {0}" -f $crumb)
@@ -471,7 +604,7 @@ function Nav-ToAssets([IntPtr]$rb, [string]$destRel) {
     if (-not $clicked) { ClickRel $rb 396 117 }
     Start-Sleep -Milliseconds 1500
 
-    $segs = @('RDR2', 'Assets') + (($destRel -split '\\') | Where-Object { $_ })
+    $segs = @($ModuleName, 'Assets') + (($destRel -split '\\') | Where-Object { $_ })
     foreach ($s in $segs) {
         $crumb = Get-RBCrumb $rb
         if ($crumb -match ('(^|/)' + [regex]::Escape($s) + '$')) { continue }
@@ -582,7 +715,7 @@ $script:LogFile = Join-Path $LogDir ("import_{0}.log" -f $stamp)
 Log ("==== 批次导入开始: {0} -> Assets\{1} ({2}) ====" -f $SourceDir, $DestRel, $Kind)
 Write-Host ''
 Write-Host '============================================================'
-Write-Host ("  RDR2 批量导入  {0}" -f $stamp)
+Write-Host ("  {0} 批量导入  {1}" -f $ModuleName, $stamp)
 Write-Host ("  源目录: {0}" -f $SourceDir)
 Write-Host ("  目标  : Assets\{0}" -f $DestRel)
 Write-Host "  >>> 随时按 F12（或 Ctrl+Alt+F12）= 立刻急停 <<<"
@@ -626,7 +759,7 @@ Shot $rb 'last_before_import.png' | Out-Null
 
 $ok = Invoke-ImportMenu $rb
 if (-not $ok) { Shot $rb 'fail_menu.png' | Out-Null; exit 12 }
-$wild = if ($Kind -eq 'mesh') { '*.trf' } else { '*.png' }
+$wild = if ($Wildcard) { $Wildcard } elseif ($Kind -eq 'mesh') { '*.trf' } else { '*.png' }
 
 # 网格：确认框必须在「打开」提交前就守上，否则第一个框会漏
 #   用 UIA 点 Import 按钮的确认器（回车推不动某些框，踩过：一分钟才前进一个）
@@ -654,7 +787,7 @@ if (-not (Select-FilesInDialog $SourceDir $wild)) { exit 13 }
 
 # 等完成：数量稳定 + 没有 Importing file 窗口
 $deadline = (Get-Date).AddMinutes($TimeoutMin)
-$last = $before; $stable = 0; $done = $false
+$last = $before; $stable = 0; $done = $false; $crash = $false
 $script:lastBeat = Get-Date
 # 网格每个文件要编译几十秒，稳定判定必须拉长（贴图 18 秒；网格 2026-11-10 实测 560 个/批，60 秒无变化即判完成）
 $needStable = if ($Kind -eq 'mesh') { 10 } else { 3 }
@@ -670,6 +803,7 @@ while ((Get-Date) -lt $deadline) {
         Write-Host ("[{0:HH:mm:ss}]   导入中… 现有 {1} 个（本批已 +{2} / 源 {3}）  [F12 = 急停]" -f (Get-Date), $n, ($n - $before), $srcCount)
         $script:lastBeat = Get-Date
     }
+    if (Handle-Crash) { $done = $false; $crash = $true; break }
     $importing = [MK]::Find('Importing file')
     $geoDlg = [MK]::Find('Geometry File Import Settings')
     if ($n -eq $last -and $importing -eq [IntPtr]::Zero -and $geoDlg -eq [IntPtr]::Zero) { $stable++ } else { $stable = 0 }
@@ -681,7 +815,10 @@ if ($watcher -ne $null -and -not $watcher.HasExited) { Stop-Process -Id $watcher
 
 $after = Count-Assets $Kind
 Log ("导入后资产数 = {0}（新增 {1} / 源 {2}）" -f $after, ($after - $before), $srcCount)
-if ($done) { Log 'DONE' } else { Log 'DONE_WITH_WARNING' }
+if ($crash) {
+    Log ("CRASH 本批导入 {0} / 源 {1}（编辑器崩溃，已点否并杀进程）" -f ($after - $before), $srcCount)
+    Log 'CRASH'
+} elseif ($done) { Log 'DONE' } else { Log 'DONE_WITH_WARNING' }
 
 if (-not $KeepEditorOpen) {
     $p = Get-Process | Where-Object { $_.ProcessName -match 'TaleWorlds|Watchdog' }
@@ -696,4 +833,5 @@ Get-CimInstance Win32_Process | Where-Object {
     Log ("收尾：杀确认器 PID " + $_.ProcessId)
     Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
 }
+if ($crash) { exit 21 }
 exit 0

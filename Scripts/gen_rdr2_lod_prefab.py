@@ -62,8 +62,14 @@ SZ = 50.0 / (690.3469848632812 - (-34.93079376220703))
 
 
 def metamesh_name(model):
-    """TRF 导入时引擎会去掉末尾的 _lod / _lodNNN 再命名 MetaMesh。"""
-    return re.sub(r"_lod\d*$", "", model, flags=re.I)
+    """资产名 = 模型名（2026-11-12 起统一用 _far 后缀）。
+
+    ⚠️ 历史：模型名曾用 `_lod` / `_lodNN` 后缀，而 ModKit 导入时会把末尾的
+    `_lod\d*` **剥掉**再注册 MetaMesh 名 —— 于是 135 段铁路全部注册成同一个
+    名字 `jklm_1114_b_rai`，互相覆盖只剩 1 段（实测确认）。
+    现在全量改名为 `_far` / `_farNN`，引擎不剥，名字一一对应，此处不再做转换。
+    """
+    return model
 
 
 def imported_assets():
