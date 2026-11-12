@@ -62,7 +62,7 @@ SZ = 50.0 / (690.3469848632812 - (-34.93079376220703))
 
 
 def metamesh_name(model):
-    """资产名 = 模型名（2026-11-12 起统一用 _far 后缀）。
+    r"""资产名 = 模型名（2026-11-12 起统一用 _far 后缀）。
 
     ⚠️ 历史：模型名曾用 `_lod` / `_lodNN` 后缀，而 ModKit 导入时会把末尾的
     `_lod\d*` **剥掉**再注册 MetaMesh 名 —— 于是 135 段铁路全部注册成同一个
@@ -72,14 +72,19 @@ def metamesh_name(model):
     return model
 
 
-def imported_assets():
-    """扫描 Assets/models 下所有 *_geo.tpac → MetaMesh 资产名集合。
+def imported_assets(module_root=None, assets_subdir="models"):
+    """扫描 <模块>\\Assets\\<子目录> 下所有 *_geo.tpac → MetaMesh 资产名集合。
 
-    ⚠️ `*_geo.tpac` 的**文件名仍带 `_lod`**，而注册的 MetaMesh 名是去掉后缀的；
-    不要拿文件名直接和 prefab 引用比。
+    2026-11-12 起模型名统一改 `_far` 后缀（引擎会剥 `_lodNN`，见 00-总纲.md），
+    所以 `metamesh_name()` 现在是恒等；文件名即资产名。
+
+    默认扫旧模块 `RDR2\\Assets\\models`；导入新模块时传
+    `module_root=...\\RDR2Map, assets_subdir="meshes"`。
     """
-    root = os.path.join(MOD, "Assets", "models")
+    root = os.path.join(module_root or MOD, "Assets", assets_subdir)
     assets = set()
+    if not os.path.isdir(root):
+        return assets
     for dirpath, _dirs, files in os.walk(root):
         for fn in files:
             if not fn.endswith("_geo.tpac"):
@@ -234,6 +239,12 @@ def main():
     ap.add_argument("--root-at-anchor", action="store_true",
                     help="地图 prefab 的根节点直接放锚点（场景实体放 0,0,0）")
     ap.add_argument("--out", default=OUT)
+    ap.add_argument("--module-root", default="",
+                    help="扫哪个模块的 Assets 判「已导入」（默认旧模块 RDR2）")
+    ap.add_argument("--assets-subdir", default="models",
+                    help="Assets 下的子目录名：旧模块 models / 新模块 meshes")
+    ap.add_argument("--anchors-out", default="",
+                    help="摆位表输出路径（默认与 --out 同目录）")
     a = ap.parse_args()
 
     if a.all:
@@ -245,7 +256,7 @@ def main():
     else:
         gids = ["sdn"]
 
-    have = imported_assets()
+    have = imported_assets(a.module_root or None, a.assets_subdir)
     missing_known = known_missing()
     print("已导入 MetaMesh: %d 个；已知缺件: %d 个" % (len(have), len(missing_known)))
 
@@ -343,12 +354,16 @@ def main():
           % (a.out, os.path.getsize(a.out) / 1024, len(gids), total_keep, total_skip))
 
     if a.all and not a.root_at_anchor:
-        os.makedirs(os.path.dirname(ANCHOR_CSV), exist_ok=True)
-        with io.open(ANCHOR_CSV, "w", encoding="utf-8-sig", newline="") as fh:
+        # anchors 跟 prefab 放一起，别写回旧模块 RDR2（2026-11-12 改：
+        # 老模块只读不写；以前这里固定写 RDR2\AssetSources\ImortReady 下）
+        anchors = a.anchors_out or os.path.join(
+            os.path.dirname(a.out), "rdr2_lod_prefab_anchors.csv")
+        os.makedirs(os.path.dirname(anchors), exist_ok=True)
+        with io.open(anchors, "w", encoding="utf-8-sig", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
             w.writeheader()
             w.writerows(rows)
-        print("wrote", ANCHOR_CSV)
+        print("wrote", anchors)
 
 
 if __name__ == "__main__":

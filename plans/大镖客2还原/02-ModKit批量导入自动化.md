@@ -95,7 +95,7 @@ python "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\Liv
 
 1. 跑一次检查器确认 **贴图 23,433 / 23,433、模型 21,029 / 21,029**；
 2. **实测一次包体积**（`AssetPackages\` 目录），确认在 10 GB 以内——交付侧估算 **9.61 GB**（几何 8.77 + 贴图 0.84），有 ±3–5% 浮动；
-3. 剥 `MeshEditData`（`deliverable\compress\tools\pac_strip_stream.py`，62 包实测 33.12 → 18.13 GB）；
+3. 剥 `MeshEditData`（`plans\大镖客2还原\tools\tpac_strip.py`，62 包实测 33.12 → 18.13 GB）；
 4. 2 个 `cablemesh` 手动补导旧 TRF（见 `00-总纲.md` §0.0 待办）。
 
 > ## 📌 新会话交接（从这里读起，3 分钟能接手）
