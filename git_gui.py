@@ -39,24 +39,40 @@ def run_git(cmd):
     return result.returncode == 0, stdout, stderr
 
 
+def run_git_args(args):
+    """按参数列表跑 git（不经过 shell）——路径里带空格 / 中文也不会被拆坏"""
+    if GIT_PATH:
+        args = [GIT_PATH] + list(args[1:])
+    try:
+        result = subprocess.run(args, capture_output=True)
+    except OSError as e:
+        return False, "", f"启动 git 失败: {e}"
+    stdout = result.stdout.decode('utf-8', errors='ignore') if result.stdout else ""
+    stderr = result.stderr.decode('utf-8', errors='ignore') if result.stderr else ""
+    return result.returncode == 0, stdout, stderr
+
+
 def get_file_status():
-    """获取文件状态，返回（暂存区列表，工作区列表，未跟踪列表）"""
+    """获取文件状态，返回（暂存区列表，工作区列表，未跟踪列表）
+
+    -c core.quotepath=false：否则中文路径会显示成 \345\244\247 这种八进制乱码，认不出是哪个文件
+    """
     staged_files = []
     modified_files = []
     untracked_files = []
 
     # 获取暂存区的文件
-    success, stdout, _ = run_git("git diff --cached --name-only")
+    success, stdout, _ = run_git("git -c core.quotepath=false diff --cached --name-only")
     if success and stdout:
         staged_files = [line.strip() for line in stdout.strip().split('\n') if line.strip()]
 
     # 获取工作区已修改但未暂存的文件
-    success, stdout, _ = run_git("git diff --name-only")
+    success, stdout, _ = run_git("git -c core.quotepath=false diff --name-only")
     if success and stdout:
         modified_files = [line.strip() for line in stdout.strip().split('\n') if line.strip()]
 
     # 获取未跟踪的文件
-    success, stdout, _ = run_git("git ls-files --others --exclude-standard")
+    success, stdout, _ = run_git("git -c core.quotepath=false ls-files --others --exclude-standard")
     if success and stdout:
         untracked_files = [line.strip() for line in stdout.strip().split('\n') if line.strip()]
 
@@ -222,6 +238,116 @@ def clear_staging():
     run_git("git reset HEAD")
     messagebox.showinfo("成功", "已清空暂存区")
     update_file_list()
+
+
+def get_all_changes():
+    """把三类状态合并成一张「路径 → 状态」表（同一个文件只出现一次，按 暂存→修改→新文件 排）"""
+    staged, modified, untracked = get_file_status()
+
+    order = []
+    state = {}
+
+    def add(f, text, merge=None):
+        if f in state:
+            if merge:
+                state[f] = merge
+            return
+        order.append(f)
+        state[f] = text
+
+    for f in staged:
+        add(f, "已暂存")
+    for f in modified:
+        add(f, "已修改", merge="已暂存 + 有改动")
+    for f in untracked:
+        add(f, "新文件")
+
+    return [(f, state[f]) for f in order]
+
+
+def stage_and_commit_paths(paths, message):
+    """只把给定路径提交出去，别的改动一概不碰
+
+    git commit 后面跟路径 = 部分提交（这次只收这些路径的内容）。
+    新文件（未跟踪）必须先 add 一次，否则 git 认不出它。
+    """
+    ok, out, err = run_git_args(["git", "add", "--"] + list(paths))
+    if not ok:
+        return False, out, err
+    return run_git_args(["git", "commit", "-m", message, "--"] + list(paths))
+
+
+def commit_selected_files():
+    """弹窗挑文件，只提交选中的那几个（例如只想提交 plans/…/00-总纲.md）"""
+    changes = get_all_changes()
+    if not changes:
+        messagebox.showinfo("提示", "没有需要提交的更改")
+        return
+
+    win = tk.Toplevel(root_window)
+    win.title("只提交选中的文件")
+    win.geometry("820x560")
+    win.transient(root_window)
+
+    tk.Label(win, text="选中要提交的文件（可按住 Ctrl / Shift 多选）",
+             font=("Microsoft YaHei", 11, "bold"), pady=8).pack()
+    tk.Label(win, text="只有选中的文件会进这次提交，其他改动原样留在工作区。",
+             font=("Microsoft YaHei", 9), fg="gray").pack()
+
+    list_frame = tk.Frame(win)
+    list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
+
+    scrollbar = tk.Scrollbar(list_frame)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    box = tk.Listbox(list_frame, font=("Consolas", 10), selectmode=tk.EXTENDED,
+                     yscrollcommand=scrollbar.set, activestyle="dotbox")
+    box.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.config(command=box.yview)
+
+    for path, state in changes:
+        box.insert(tk.END, f"{path}    [{state}]")
+
+    msg_frame = tk.Frame(win)
+    msg_frame.pack(fill=tk.X, padx=10, pady=4)
+    tk.Label(msg_frame, text="提交信息：", font=("Microsoft YaHei", 10)).pack(side=tk.LEFT)
+    msg_var = tk.StringVar()
+    msg_entry = tk.Entry(msg_frame, textvariable=msg_var, font=("Microsoft YaHei", 10))
+    msg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    msg_entry.focus_set()
+
+    def do_commit():
+        selection = box.curselection()
+        if not selection:
+            messagebox.showwarning("提示", "请先选中要提交的文件", parent=win)
+            return
+        msg = msg_var.get().strip()
+        if not msg:
+            messagebox.showwarning("提示", "请填写提交信息", parent=win)
+            return
+
+        paths = [changes[i][0] for i in selection]
+        ok, out, err = stage_and_commit_paths(paths, msg)
+        if not ok:
+            messagebox.showerror("提交失败", (err or out or "（没有输出）").strip(), parent=win)
+            return
+
+        messagebox.showinfo("成功", f"已提交 {len(paths)} 个文件（还没推送）。\n\n"
+                                    f"要上传请回主界面点「📤 仅推送」。", parent=win)
+        win.destroy()
+        update_file_list()
+        update_status_label()
+
+    btn_row = tk.Frame(win)
+    btn_row.pack(pady=8)
+
+    tk.Button(btn_row, text="✅ 提交选中的文件", width=18, height=2,
+              font=("Microsoft YaHei", 10), bg="#4CAF50", fg="white",
+              command=do_commit).pack(side=tk.LEFT, padx=6)
+
+    tk.Button(btn_row, text="取消", width=12, height=2,
+              font=("Microsoft YaHei", 10),
+              command=win.destroy).pack(side=tk.LEFT, padx=6)
 
 
 def commit(push_after=False):
@@ -740,9 +866,13 @@ def main():
               font=("Microsoft YaHei", 10), bg="#f44336", fg="white",
               command=discard_changes).pack(side=tk.LEFT, padx=5)
 
-    # 第三行按钮（资产快照：AssetPackages 的包存到远程 assets 分支，换电脑能拿回来）
+    # 第三行按钮（只提交选中的文件 + 资产快照）
     row3 = tk.Frame(btn_frame)
     row3.pack(pady=5)
+
+    tk.Button(row3, text="📝 单文件提交", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#7E57C2", fg="white",
+              command=commit_selected_files).pack(side=tk.LEFT, padx=5)
 
     assets_upload_btn = tk.Button(row3, text="📦 上传资产", width=btn_width, height=btn_height,
                                   font=("Microsoft YaHei", 10), bg=UPLOAD_COLOR, fg="white",
