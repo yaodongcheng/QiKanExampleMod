@@ -337,6 +337,16 @@ namespace LivingWorldNpcs
         /// <summary>检定结果回写表：afterPlayer token → 是否通过。InjectScriptGateway 注册双线 NPC 回应时查此表。</summary>
         private static readonly Dictionary<string, bool> _intentResults = new Dictionary<string, bool>();
 
+        /// <summary>
+        /// 外部检定钩子（2026-11-12 序章）：CheckType.SkillCheck 且 transition.CheckTag 非空时调用。
+        /// 返回 true/false = 成功/失败（走 NextNodeOnSuccess / OnFail）；返回 null = 交回 Intent 检定。
+        /// 由 StoryProbeDialogue 在注入前注册。
+        /// </summary>
+        public static Func<DialogueTransition, bool?> CustomCheck;
+
+        /// <summary>外部动作钩子：Action = "PROBE:&lt;verb&gt;" 时调用 CustomAction(verb, param)。</summary>
+        public static Action<string, string> CustomAction;
+
         private class InjectOwner { public string FileName; public string BaseLabel; }
 
         private static string NextToken(string fileTag) => $"lwnpc_{fileTag}_atk_{_tokenCounter++}";
@@ -396,6 +406,15 @@ namespace LivingWorldNpcs
                         // no-op marker: Transition 仅用于关窗，无副作用
                         break;
                     default:
+                        // 🆕 外部动作钩子（序章：PROBE:bribe / PROBE:accept_quest …）
+                        if (transition.Action.StartsWith("PROBE:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string verb = transition.Action.Substring(6);
+                            try { CustomAction?.Invoke(verb, transition.ActionParam); }
+                            catch (Exception ex) { DebugLogger.Log($"[DialogueInjector] CustomAction({verb}) failed: {ex.Message}"); }
+                            break;
+                        }
+
                         // ── INTENT:xxx 委托 ──
                         if (transition.Action.StartsWith("INTENT:", StringComparison.OrdinalIgnoreCase))
                         {
@@ -715,6 +734,27 @@ namespace LivingWorldNpcs
                     // ProcessSentence 先设 ActiveToken = outputToken，再跑 consequence，
                     // 所以这里覆写后，引擎随即从目标 token 找下一条 NPC 台词，不会出现空白。
                     string dest;
+
+                    // 🆕 自定义检定钩子（序章：玩家属性 vs NPC 同一属性）。返回 null = 不接管。
+                    if (!string.IsNullOrEmpty(transition.CheckTag) && CustomCheck != null)
+                    {
+                        bool? custom = null;
+                        try { custom = CustomCheck(transition); }
+                        catch (Exception ex) { DebugLogger.Log($"[DialogueInjector] CustomCheck({transition.CheckTag}) failed: {ex.Message}"); }
+                        if (custom.HasValue)
+                        {
+                            dest = custom.Value
+                                ? transition.NextNodeOnSuccess
+                                : (!string.IsNullOrEmpty(transition.NextNodeOnFail)
+                                    ? transition.NextNodeOnFail
+                                    : transition.NextNodeOnSuccess);
+                            dest = ResolveDestinationNode(dest, nodeIds, node, transition);
+                            cm.ActiveToken = cm.GetStateIndex(string.IsNullOrEmpty(dest)
+                                ? "close_window" : NodeToken(fileTag, dest));
+                            return;
+                        }
+                    }
+
                     if (_intentResults.TryGetValue(capturedKey, out bool passed))
                     {
                         dest = passed
@@ -784,6 +824,14 @@ namespace LivingWorldNpcs
         private static void AddNodeNpcLine(ConversationManager cm, string id,
             string inputToken, string outputToken, DialogueNode node, InjectOwner owner, int priority = 125)
         {
+            // 本地化键（铁律 13）：JSON 只写 key，文本走 Languages XML；懒求值 → 换语言/热更也能取到。
+            if (node.LazyNpcLine == null && !string.IsNullOrEmpty(node.NpcKey))
+            {
+                string key = node.NpcKey;
+                string fb = node.NpcFallback ?? node.NpcLine;
+                node.LazyNpcLine = () => LWNTextHelper.ResolveText(key, fb);
+            }
+
             ConversationSentence sentence;
             if (node.LazyNpcLine != null)
             {
@@ -894,6 +942,10 @@ namespace LivingWorldNpcs
             if (transition.LazyPlayerLine != null)
                 text = transition.LazyPlayerLine();
 
+            // 本地化键（铁律 13）：key 优先于裸文本
+            if (text == null && !string.IsNullOrEmpty(transition.PlayerKey))
+                text = LWNTextHelper.ResolveText(transition.PlayerKey, transition.PlayerFallback);
+
             if (text == null && !string.IsNullOrEmpty(transition.PlayerLine))
                 text = transition.PlayerLine;
 
@@ -1001,6 +1053,8 @@ namespace LivingWorldNpcs
 
         public class DialogueInjectScript
         {
+            /// <summary>这段脚本属于哪个序章 NPC（StoryProbe 用；原版 JSON 可留空）。</summary>
+            public string Npc;
             /// <summary>
             /// 对话挂载点 — 你的对话从 NPC 对话树的哪个 token 节点插入。
             /// null (默认): 自动检测当前对话状态，不在对话中时回退到 "hero_main_options"。
@@ -1022,19 +1076,46 @@ namespace LivingWorldNpcs
         {
             /// <summary>唯一标识。其他 node 的 transition 通过 NextNodeOnSuccess/OnFail 引用此 ID 来跳转。</summary>
             public string Id = "injectedStart";
+            /// <summary>本地化键（铁律 13）。设置后优先按 key 取文本（中文 / 英文走 Languages XML），
+            /// 取不到用 NpcFallback，再取不到用 NpcLine。StoryProbe 的 JSON 全部用 key。</summary>
+            public string NpcKey;
+            /// <summary>NpcKey 的英文兜底（XML 未加载/缺 key 时显示）。</summary>
+            public string NpcFallback;
             /// <summary>NPC 的台词。所有 NPC 说话的唯一入口。</summary>
             public string NpcLine;
+            /// <summary>
+            /// 这句台词配的动作（2026-11-13 立）：**与 NpcKey 的行数一一对应**，第 i 个动作配第 i 行；空串 = 这行不配。
+            /// 🔴 动作必须在该 NPC 的 action set 里（人形 = as_human_warrior，铁律 41）。
+            /// </summary>
+            public string[] NpcActions;
             /// <summary>延迟求值：引擎展示此行前才调 delegate 拿最新文本。设置后覆盖 NpcLine。</summary>
             [Newtonsoft.Json.JsonIgnore]
             public Func<string> LazyNpcLine;
             /// <summary>玩家可选的回应。空列表 [] = terminal（NPC 说完直接关窗）。null = 未初始化（非法）。</summary>
             public List<DialogueTransition> Transitions;
+            /// <summary>进入本节点时执行一次的动作（StoryProbe 用；"PROBE:xxx"）。</summary>
+            public string EnterAction;
+            /// <summary>EnterAction 的参数（复合动作按 ';' 分段）。</summary>
+            public string EnterParam;
         }
 
         public class DialogueTransition
         {
             /// <summary>玩家选项的显示文本。</summary>
             public string PlayerLine;
+            /// <summary>玩家选项的本地化键（铁律 13）；设置后优先按 key 取文本。</summary>
+            public string PlayerKey;
+            /// <summary>PlayerKey 的英文兜底。</summary>
+            public string PlayerFallback;
+            /// <summary>检定标签（如 "pawnbroker|charm"）。非空时走 CustomCheck 钩子，
+            /// 而不是 INTENT 检定 —— 序章用它做「玩家属性 vs NPC 同一属性」的对拼。</summary>
+            public string CheckTag;
+            /// <summary>注入前的显示条件（StoryProbe 用；逗号 = AND，前缀 ! = 取反）。
+            /// 支持：disguised / noble / gold&gt;=N / quest_accepted / quest_done / quest_turned /
+            /// item:&lt;id&gt; / clue:&lt;id&gt; / hazard:&lt;id&gt;。</summary>
+            public string Requires;
+            /// <summary>「问过就不再出现」的标签（StoryProbe 用）。</summary>
+            public string Once;
             /// <summary>惰性玩家选项文本（Func 求值）。非 null 时优先于 PlayerLine，引擎显示时才求值。</summary>
             public Func<string> LazyPlayerLine;
             /// <summary>此选项是否有技能检定分支。</summary>

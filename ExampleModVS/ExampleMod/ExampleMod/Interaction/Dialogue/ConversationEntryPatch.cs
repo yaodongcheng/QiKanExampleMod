@@ -366,6 +366,9 @@ namespace LivingWorldNpcs
             AgentBrain.ConfrontingBrain = null;
             DebugLogger.Log($"[ConvLock] Release by {(releasingBrain?.Owner?.Name ?? "null")}(Idx={releasingBrain?.Owner?.Index.ToString() ?? "?"}) | reason=EndConversation");
 
+            // 序章注入的台词同样按"对话结束就清"处理（否则会残留到下一次对话抢 hero_main_options）
+            StoryProbeDialogue.OnConversationEnded();
+
             DebugLogger.Log($"[ConvEnd] Conversation ended. lastEvent={ConversationEntryPatch._lastInjectedEventId} lastTag={ConversationEntryPatch._lastInjectedTag}");
             // 🔴 清理刚结束对话的注入台词，防止残留到下次对话抢占 start token
             if (ConversationEntryPatch._lastInjectedTag != null)
@@ -716,6 +719,10 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"重要错误，一定要关注：[ConvLock] Prefix: effectiveAgent is null, cannot acquire lock.");
                 }
+
+                // 🆕 序章（2026-11-12）：剧情 NPC 的对话树必须在引擎评估 start token **之前**注入。
+                // 非剧情 NPC 时它只做一次残留清理，原版对话一行不受影响（内部自带判定）。
+                StoryProbeDialogue.TryInjectEarly(effectiveAgent);
 
                 if (trigger != DialogueTrigger.PlayerSurrender
                     && trigger != DialogueTrigger.NpcSurrender

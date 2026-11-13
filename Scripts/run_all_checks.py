@@ -120,6 +120,8 @@ SECOND_MODULE_CHECKS = [
     #    被某个段声明 = 引擎会吃掉它 = 总闸失效（发布时那 7 件物品照样进游戏，且零报错）。
     #    跑的是那个脚本的**窄模式**：全量模式查的是"内容包世界段清单"，基座跑必然一片红（见上文说明）。
     ("check_module_registration.py", ["--unloaded-only"]),
+    # 序章「市井 · 城门序章」（2026-11-12）：对话树节点/路由不悬空 + 每个 LWN_story_* 键中英两层都在。
+    ("check_story_probe.py", None),
 ]
 
 

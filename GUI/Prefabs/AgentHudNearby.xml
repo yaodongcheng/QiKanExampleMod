@@ -54,6 +54,17 @@
                         </Children>
                       </Widget>
 
+                      <!-- 0.5 序章事件「!」标记（2026-11-12）：
+                           只在 StreetLifeDirector 说"这个人是正在演的这起事件的参与者"时显示；
+                           事件暂停/结束/不是事件参与者 → ShowEventMark=false（不残留）。 -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                      Brush="MyBrush_16_Left"
+                                      Text="@EventMarkText"
+                                      IsVisible="@ShowEventMark"
+                                      HorizontalAlignment="Center"
+                                      Brush.FontSize="26"
+                                      Brush.FontColor="#FFD24AFF" />
+
                       <!-- 1. 名字 (最上方)（🔴 2026-08-19 统一规范：FontColor 绑 NameColor 关系色——
                            友方绿 / 敌对红 / 中立白，替代硬编码金色；与 IM 名字色同源 NameDisplayRules） -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"

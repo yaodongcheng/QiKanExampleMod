@@ -88,6 +88,17 @@
   // ══════════════════════════════════════════════════════════════
   "SpellSystemEnabled": false,
   // ══════════════════════════════════════════════════════════════
+  // 序章「市井 · 城门序章」（plans/逆水寒511玩法验证-城池剧情任务.md）
+  //   StoryProbeEnabled       总闸（默认 false）。开 = 目标城的城镇菜单出现
+  //                           「入城（玩法测试）」；关 = 原版玩法一行都不碰。
+  //   StoryProbeSettlementId  目标城 StringId（默认 town_ES4 = 吕卡隆 Lycaron）。
+  //                           只在 center 场景触发，酒馆/领主大厅/别的城都不加载。
+  //   运行时切换：custom.story_probe enable|disable（本次游戏有效）；
+  //               验收：custom.story_probe status / where / dialogue。
+  // ══════════════════════════════════════════════════════════════
+  "StoryProbeEnabled": false,
+  "StoryProbeSettlementId": "town_ES4",
+  // ══════════════════════════════════════════════════════════════
   // 顶部罗盘（MCM「显示罗盘」总开关在游戏内 Mod 选项里改，这里只配置任务图标）：
   //   ShowCompassIcons  罗盘任务图标开关（默认 true）：false = 只留刻度带与方向字母，
   //                     不带重要人物（有任务）图标与距离文本。MCM 不提供此项（2026-08-20

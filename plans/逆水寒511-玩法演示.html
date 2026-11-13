@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>城门七路</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root{
+    --bg:#e9e7e1; --panel:#f4f2ec; --ink:#191b19; --muted:#5d615c;
+    --line:#cbc8bf; --copper:#2f6357; --amber:#9c5f14; --danger:#8c2f22;
+    --charm:#6d4a86; --chip:#dedbd2; --shadow:0 1px 2px rgba(25,27,25,.06),0 8px 24px rgba(25,27,25,.05);
+    --serif:"Noto Serif SC","Songti SC","SimSun",serif;
+    --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141716; --panel:#1b1f1d; --ink:#e7e5df; --muted:#9aa09a;
+      --line:#2e3532; --copper:#6fb3a3; --amber:#e0a45a; --danger:#d97a63;
+      --charm:#bda2d8; --chip:#242a27; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141716; --panel:#1b1f1d; --ink:#e7e5df; --muted:#9aa09a;
+    --line:#2e3532; --copper:#6fb3a3; --amber:#e0a45a; --danger:#d97a63;
+    --chip:#242a27; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.65; -webkit-font-smoothing:antialiased;
+    padding-left:max(16px,env(safe-area-inset-left,0px));
+    padding-right:max(16px,env(safe-area-inset-right,0px));
+    padding-block:0 64px;
+  }
+  .wrap{max-width:960px; margin:0 auto}
+  header.top{padding-block:44px 8px}
+  .eyebrow{
+    font-size:12px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--muted); display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--copper)}
+  h1{
+    font-family:var(--serif); font-weight:700; text-wrap:balance;
+    font-size:clamp(34px,7vw,54px); line-height:1.1; margin:14px 0 10px; letter-spacing:.01em;
+  }
+  .lede{font-size:clamp(15px,2.2vw,17px); color:var(--muted); max-width:62ch; margin:0}
+  .lede b{color:var(--ink); font-weight:600}
+
+  .count{
+    display:flex; align-items:baseline; gap:14px; margin:26px 0 4px;
+    padding-block:18px; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+  .count .n{font-family:var(--serif); font-weight:700; font-size:clamp(46px,12vw,76px); line-height:.9; color:var(--copper)}
+  .count .of{font-size:13px; color:var(--muted); letter-spacing:.1em}
+  .count .say{font-size:14px; color:var(--muted); margin-left:auto; text-align:right; max-width:34ch}
+
+  section{margin-top:38px}
+  h2{font-family:var(--serif); font-weight:600; font-size:clamp(20px,3vw,25px); margin:0 0 4px}
+  .sub{color:var(--muted); font-size:14px; margin:0 0 18px}
+
+  .sim{
+    background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    padding:18px 18px 14px; box-shadow:var(--shadow);
+  }
+  .simgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px 22px; min-width:0}
+  .field{min-width:0}
+  .field label{display:flex; justify-content:space-between; gap:8px; font-size:13px; color:var(--muted); margin-bottom:6px}
+  .field label b{color:var(--ink); font-variant-numeric:tabular-nums; font-weight:600}
+  input[type=range]{width:100%; accent-color:var(--copper); margin:0}
+  .checks{display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:16px; padding-top:14px; border-top:1px dashed var(--line)}
+  .checks label{display:flex; gap:8px; align-items:center; font-size:13.5px; cursor:pointer; min-width:0}
+  .checks input{accent-color:var(--copper); width:16px;height:16px; margin:0}
+  .simnote{margin:12px 0 0; font-size:12.5px; color:var(--muted)}
+
+  /* ── 场景示意图 ── */
+  .scene{
+    background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    padding:20px 18px 16px; box-shadow:var(--shadow); margin-top:6px;
+  }
+  .scenestrip{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px}
+  .zone{border:1px dashed var(--line); border-radius:4px; padding:12px 14px; min-width:0}
+  .zone h3{font-family:var(--serif); font-size:15px; margin:0 0 4px; font-weight:600}
+  .zone p{margin:0; font-size:12.5px; color:var(--muted)}
+  .gatepill{
+    font-family:var(--serif); font-size:13px; color:var(--copper);
+    border:1px solid var(--copper); border-radius:999px; padding:6px 12px; white-space:nowrap;
+  }
+  .scalenote{display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums}
+
+  /* ── 人物卡 ── */
+  .cast{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin-top:16px}
+  .person{
+    background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    padding:14px 15px; box-shadow:var(--shadow); min-width:0;
+  }
+  .person .who{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+  .person .who b{font-family:var(--serif); font-size:16px}
+  .person .role{font-size:11.5px; letter-spacing:.05em; color:var(--muted)}
+  .person p{margin:8px 0 0; font-size:13px; color:var(--muted)}
+  .person p em{color:var(--ink); font-style:normal}
+  .person .give{
+    margin-top:10px; padding-top:9px; border-top:1px dashed var(--line);
+    font-size:12.5px; color:var(--copper);
+  }
+  /* ── 物品 ── */
+  .goods{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-top:16px}
+  .good{
+    background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--copper);
+    border-radius:4px; padding:11px 13px; min-width:0;
+  }
+  .good b{font-family:var(--serif); font-size:14px; display:block; margin-bottom:3px}
+  .good span{font-size:12.5px; color:var(--muted)}
+  @media (max-width:560px){
+    .scenestrip{grid-template-columns:1fr; }
+    .gatepill{justify-self:start}
+  }
+
+  /* ── 网状叙事图 ── */
+  .graphwrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:16px;
+    background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:10px; box-shadow:var(--shadow)}
+  .graphwrap svg{display:block; min-width:900px; width:100%; height:auto}
+  .gbox{fill:var(--panel); stroke:var(--line); stroke-width:1.2}
+  .gbox-start{fill:var(--bg)}
+  .gtitle{font-family:var(--serif); font-size:15px; font-weight:600; fill:var(--ink)}
+  .gtxt{font-size:12px; fill:var(--muted)}
+  .gsub{font-size:11.5px; fill:var(--muted)}
+  .gedge{fill:none; stroke:var(--line); stroke-width:1.4; opacity:.95}
+  .gedge-money{stroke:var(--amber)}
+  .gedge-force{stroke:var(--danger)}
+  .gedge-charm{stroke:var(--charm)}
+  .gedge-guile{stroke:var(--copper)}
+  .glabel{font-size:11.5px; fill:var(--muted)}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--muted)}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle}
+
+  /* ── 测试用例 ── */
+  .tt{width:100%; border-collapse:collapse; font-size:13px}
+  .tt th,.tt td{text-align:left; padding:9px 11px; border-bottom:1px solid var(--line); vertical-align:top}
+  .tt th{font-size:11.5px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase}
+  .tt td:first-child{white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums}
+  .tt code{display:inline-block; margin:2px 0; max-width:100%; overflow-wrap:anywhere}
+  .tt tr:last-child td{border-bottom:0}
+
+  /* ── 台词 ── */
+  .dlghead{font-family:var(--serif); font-size:15px; font-weight:600; margin:22px 0 8px; color:var(--muted)}
+  .dlg{border:1px solid var(--line); border-radius:4px; background:var(--panel); margin-bottom:8px; overflow:hidden}
+  .dlg summary{cursor:pointer; padding:11px 14px; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; list-style:none}
+  .dlg summary::-webkit-details-marker{display:none}
+  .dlg summary b{font-family:var(--serif); font-size:14.5px; font-weight:600}
+  .dlg summary span{font-size:12px; color:var(--muted)}
+  .dlg summary::after{content:"＋"; margin-left:auto; color:var(--muted); font-size:13px}
+  .dlg[open] summary::after{content:"－"}
+  .dlg[open] summary{border-bottom:1px dashed var(--line)}
+  .dlgbody{padding:12px 14px 14px}
+  .dlgbody p{margin:0 0 7px; font-size:14px; line-height:1.75; color:var(--ink)}
+  .dlgbody p:last-child{margin-bottom:0}
+
+  .routes{display:grid; gap:12px; margin-top:18px}
+  .route{
+    background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line);
+    border-radius:4px; padding:16px 16px 14px; box-shadow:var(--shadow);
+    display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:4px 14px; align-items:start;
+    transition:border-color .18s ease, opacity .18s ease;
+  }
+  .route.on{border-left-color:var(--copper)}
+  .route.off{opacity:.55}
+  .route .idx{
+    font-family:var(--serif); font-size:19px; font-weight:700; color:var(--muted);
+    font-variant-numeric:tabular-nums; padding-top:2px;
+  }
+  .route.on .idx{color:var(--copper)}
+  .route h3{font-family:var(--serif); font-size:17px; font-weight:600; margin:0; display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+  .chip{
+    font-size:11.5px; letter-spacing:.06em; padding:2px 8px; border-radius:999px;
+    background:var(--chip); color:var(--muted); font-weight:500; white-space:nowrap;
+  }
+  .route .desc{font-size:13.5px; color:var(--muted); margin:6px 0 0; grid-column:2 / -1; min-width:0}
+  .route .desc em{color:var(--ink); font-style:normal; font-weight:500}
+  .odds{
+    text-align:right; font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums;
+    white-space:nowrap; padding-top:3px;
+  }
+  .odds b{display:block; font-family:var(--serif); font-size:19px; color:var(--ink); font-weight:700}
+  .odds.ok b{color:var(--copper)}
+  .odds.no b{color:var(--danger)}
+  .bar{grid-column:2 / -1; height:4px; background:var(--chip); border-radius:2px; overflow:hidden; margin-top:10px}
+  .bar i{display:block; height:100%; width:0; background:var(--copper); transition:width .22s ease}
+  .cost{grid-column:2 / -1; font-size:12.5px; color:var(--muted); margin-top:9px; padding-top:9px; border-top:1px dashed var(--line)}
+  .cost span{color:var(--ink)}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px}
+  .tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:4px; background:var(--panel)}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-weight:600; font-size:12px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase}
+  tr:last-child td{border-bottom:0}
+  td.num{font-variant-numeric:tabular-nums; white-space:nowrap}
+  .foot{margin-top:34px; padding-top:16px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.92em; background:var(--chip); padding:1px 5px; border-radius:3px}
+  @media (max-width:560px){
+    .route{grid-template-columns:26px minmax(0,1fr); }
+    .odds{grid-column:2; text-align:left; padding-top:8px; display:flex; gap:10px; align-items:baseline}
+    .odds b{font-size:16px}
+    .count{flex-wrap:wrap}
+    .count .say{margin-left:0; text-align:left; max-width:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow"><span class="dot"></span>市井 · 城门序章 · 玩法验证</div>
+    <h1>进这座城，有几条路？</h1>
+    <p class="lede">守门人叫铁头。他不认人，只认<b>通行文书</b>；也不怕狠的，只怕麻烦。
+      除了一次必败的硬闯，能让你走到门内的路，一共<b>十二条</b>——六条在对话里，六条是你在世界里真做出来的。</p>
+  </header>
+
+  <div class="count">
+    <div class="n">3</div>
+    <div>
+      <div class="of">条现在就能走（共 12 条）</div>
+      <div style="font-size:13px;color:var(--muted)">6 条掷骰 · 6 条靠手上的活（蹲 / 绑 / 扛 / 击晕 / 扒 / 真翻墙）</div>
+    </div>
+    <div class="say">拖动下面的滑块，看你这条身板<b>实际能走几条</b>。</div>
+  </div>
+
+
+  <section>
+    <h2>这是哪儿</h2>
+    <p class="sub">帝国城镇 <b>吕卡隆 Lycaron</b>（游戏内 <code>town_ES4</code>）的城门。序章只发生在这一块：城门外那片集市。</p>
+    <div class="scene">
+      <div class="scenestrip">
+        <div class="zone">
+          <h3>门外 · 集市</h3>
+          <p>你在这儿开始。摊位、肉案、戏台、墙根，全挤在城门口这一片。<br>四家的人各自守着自己那一摊。</p>
+        </div>
+        <div class="gatepill">城门</div>
+        <div class="zone">
+          <h3>门内</h3>
+          <p>城里。你妹妹三个月前走进去的地方。<br>目标点就在门后——但门是拦人的。</p>
+        </div>
+      </div>
+      <div class="scalenote">
+        <span>玩家出生点 → 城门 约 31 m</span>
+        <span>守门人站门外侧约 24 m 的守卫点</span>
+        <span>门内目标点 在城门后约 31 m（离守门人最远的那个守卫点）</span>
+        <span>四家的人分布在玩家正前方 3~16 m</span>
+        <span>（以上按吕卡隆 <code>empire_town_m</code> 实测；换城由运行时锚点重算）</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>场上的人</h2>
+    <p class="sub">九个能说话的，加一个跟着你的随从。每个人都有自己的算盘——不是工具人。</p>
+    <div class="cast">
+      <div class="person">
+        <div class="who"><b>老周</b><span class="role">当铺老板 · 捉刀人</span></div>
+        <p>六十上下，驼背，左手缺半截小指。这铺子开了二十三年：前十年挣钱，后十三年给别人挣。码头帮每月来收保护费，他给了三年，账本记得一笔不落。</p>
+        <p>他怕砸摊，在意账本，嘴上先讲价再讲事。<em>他知道你妹妹当过一只镯子。</em></p>
+        <div class="give">能给你：消息、零活（50/趟）、收账的委托</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>寡妇</b><span class="role">流浪剧团领班</span></div>
+        <p>戏班子在街上搭台，对台那班子是码头帮捧的，天天在她门口抢客。她刀子嘴、护短，说话带戏腔，但不是花魁——她是管事的人。</p>
+        <p><em>她卖过你妹妹一张通行文书</em>，后来有个水手把人领走了。</p>
+        <div class="give">能给你：贵族行头 + 通行文书（冒充用）</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>儿子</b><span class="role">小贼 · 夜行会</span></div>
+        <p>十七八岁，蹲墙头三年，风大看得远。快嘴、爱吹、心虚。昨天钩子被墙根的野贼抢了，还被打断一根手指。</p>
+        <p><em>上个月夜里，他看见码头帮押着个女的从后巷过去</em>——他没敢看脸。</p>
+        <div class="give">能给你：钩索（绳 + 钩）、墙头路线</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>屠户</b><span class="role">码头帮叛逃者</span></div>
+        <p>肉案、刀背、围裙。话少，一次不超过两句。他们砸他摊子那天他就不是码头帮的人了——现在他们天天来收钱。</p>
+        <p><em>那夜押人之后，他们往码头去了。</em></p>
+        <div class="give">能给你：刀 + 绳子、一手刀法</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>铁头</b><span class="role">守门人 · 码头帮</span></div>
+        <p>只认通行文书。贪，给钱就抬眼皮；但他不怕狠的——你敢亮刀，他真敢捅。他怕的是丢这份差事。</p>
+        <p>他就是那道门。<em>十二种办法，全都绕着他。</em></p>
+        <div class="give">他要你的：100 第纳尔 / 一份通行文书</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>打手 thug</b><span class="role">码头帮 · 收数的</span></div>
+        <p>靠墙抖腿，袖子一卷就动手。天天来砸屠户的摊、收老周的钱。嘴坏、手黑，但怕比自己更不讲理的。</p>
+        <div class="give">能给你：什么都没打算给</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>收数人 debtor</b><span class="role">码头帮 · 放贷收账</span></div>
+        <p>坐墙根数钱，膝上一本账。他欠老周三笔，拖了半年，利钱都不给了。他觉得自己这条命也就值那么多。</p>
+        <div class="give">能给你：120 第纳尔（老周的账）</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>对台领班 rival</b><span class="role">对台剧团</span></div>
+        <p>给木偶换线，嘴也利。牌子是他爹留的，所以他护得死紧——砸他可以，别碰牌子。</p>
+        <div class="give">能给你：一肚子气</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>野贼 outlaw</b><span class="role">墙根的流民</span></div>
+        <p>坐在塌了的马厩横梁上削木棍。抢了儿子的钩子、打断了他的手指。这地方不长眼睛。</p>
+        <div class="give">能给你：一场架</div>
+      </div>
+      <div class="person">
+        <div class="who"><b>随从</b><span class="role">你带来的</span></div>
+        <p>第二次进城时自动跟上的（免费）。他只说三句话：这是哪儿、你为什么不能走正门、接下来该找谁。</p>
+        <p><em>他只负责把方向指出来，不替你办事。</em></p>
+        <div class="give">能给你：三句话和一个跟着走的人</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>能碰的东西</h2>
+    <p class="sub">序章里真正进背包的东西只有这几件，每件都对应一种做法。</p>
+    <div class="goods">
+      <div class="good"><b>妹妹的银镯</b><span>押在老周柜下，押三十第纳尔，赎期早过了。内侧刻着一个「宁」字。赎回来是线索，也是念想。</span></div>
+      <div class="good"><b>贵族行头 + 通行文书</b><span><b>不是买的</b>——替寡妇砸了对台的招牌。穿上它你就是「某位大人」。</span></div>
+      <div class="good"><b>钩索（绳 + 钩）</b><span><b>不是买的</b>——替儿子打发墙根的野贼。钩子会回收、不消耗；<b>绳长和准头都吃技巧</b>：技巧 0 只有 16.5 m / 歪 7°，技巧 100 能甩 34.5 m / 只歪 0.6°。</span></div>
+      <div class="good"><b>刀 + 绳子</b><span><b>不是买的</b>——替屠户教训砸摊的 thug。刀用来打，绳子用来绑。</span></div>
+      <div class="good"><b>三件「念想」</b><span>老周给的<b>账本</b>、儿子给的<b>撬锁包</b>、屠户给的<b>磨刀石</b>——交差时进背包，各长一点本事（对应技能经验）。<br><em>这三件是<b>本包自己注册的物品</b>（<code>ModuleData/items/story_props.xml</code>），原版没有它们。</em></span></div>
+      <div class="good"><b>旧衣 + 面罩</b><span>牢里老囚给的。遮住脸，通缉画像就认不出你——这是你能站在门口的前提。</span></div>
+    </div>
+  </section>
+
+
+  <section>
+    <h2>没有一样是白给的</h2>
+    <p class="sub">你进城的时候是<b>真的什么都没有</b>：0 第纳尔、没有武器、没有钩索、没有能进城的身份。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>你想要的</th><th>从哪来</th><th>要走完什么</th></tr></thead>
+        <tbody>
+          <tr><td>钱（打点用）</td><td>老周的零活 / 替他收账</td><td>零活 50 一趟（1 小时冷却）；收账 120，交差时还他、他给你 30</td></tr>
+          <tr><td>钩索（绳 + 钩）</td><td>儿子</td><td>替他打发墙根那伙抢了他钩子的野贼</td></tr>
+          <tr><td>贵族行头 + 通行文书</td><td>寡妇</td><td>替她砸掉对台剧团的招牌</td></tr>
+          <tr><td>刀 + 绳子</td><td>屠户</td><td>替他教训天天来砸摊的 thug</td></tr>
+          <tr><td>旧衣 + 面罩</td><td>牢里的老囚</td><td>先硬闯一次、被打倒、关进牢里</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="simnote">所以每一件东西背后都有一条委托。你可以只做一条、也可以全做——
+      但没有一条是花钱买来的——钱只能买守门人那一道门。</p>
+  </section>
+  <section>
+    <h2>你要干什么</h2>
+    <div class="scene">
+      <p style="margin:0 0 10px; font-size:15px">
+        <b>三个月前，你妹妹进城做工，再没消息。</b>你一路找来，钱在路上被偷光，身上只剩她最后一封信。
+        更糟的是码头帮栽了你一桩小事——<b>城门上挂着你的小额通缉</b>。
+      </p>
+      <p style="margin:0 0 10px; font-size:15px">
+        所以这一关的目标只有一件事：<b>进城</b>。
+      </p>
+      <p style="margin:0; font-size:13.5px; color:var(--muted)">
+        你在门外能做的：<b>打听</b>（四家各知道妹妹的一截）、<b>求人</b>（帮谁做事，谁教你一手）、
+        <b>赚几个钱</b>（零活、收账）、<b>拿到上面那些东西</b>——然后想办法从守门人那儿过去。
+        第一次进来时你只能硬闯，而硬闯是<b>必败</b>的：那一场不掷骰，直接判你倒地。
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>整张图</h2>
+    <p class="sub">四家的委托各自给你一样东西，十二条路最后都汇到同一道门。左边是你有什么，右边是你能怎么过。</p>
+    <div class="graphwrap">
+      <svg viewBox="0 0 1060 790" role="img" aria-label="序章网状结构：起点 → 街头与四家 → 十二种过门方式 → 门内">
+        <defs>
+          <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--line)"/>
+          </marker>
+        </defs>
+
+        <!-- 起点 -->
+        <rect class="gbox gbox-start" x="12" y="318" width="150" height="164" rx="5"/>
+        <text class="gtitle" x="28" y="344">门外</text>
+        <text class="gtxt" x="28" y="370">0 第纳尔</text>
+        <text class="gtxt" x="28" y="390">没有武器</text>
+        <text class="gtxt" x="28" y="410">旧衣 + 面罩</text>
+        <text class="gtxt" x="28" y="430">城门挂着通缉</text>
+        <text class="gsub" x="28" y="462">你从这儿开始</text>
+
+        <!-- 街头 -->
+        <rect class="gbox" x="196" y="286" width="176" height="228" rx="5"/>
+        <text class="gtitle" x="212" y="312">城门口这片</text>
+        <text class="gtxt" x="212" y="338">6 起事件循环</text>
+        <text class="gsub" x="212" y="358">收保护费 · 砸摊</text>
+        <text class="gsub" x="212" y="376">骂街 · 抓小偷</text>
+        <text class="gsub" x="212" y="394">发呆 · 收拾摊子</text>
+        <text class="gtxt" x="212" y="422">走近 4 m 接入</text>
+        <text class="gsub" x="212" y="442">事件里的人就是四家</text>
+        <text class="gsub" x="212" y="466">不介入就一直循环</text>
+
+        <!-- 四家 -->
+        <rect class="gbox" x="408" y="34" width="186" height="126" rx="5"/>
+        <text class="gtitle" x="424" y="60">老周 · 捉刀人</text>
+        <text class="gtxt" x="424" y="86">零活 50 / 趟</text>
+        <text class="gtxt" x="424" y="106">收账 120 → 交差给 30</text>
+        <text class="gsub" x="424" y="130">妹妹线索 ①</text>
+
+        <rect class="gbox" x="408" y="176" width="186" height="126" rx="5"/>
+        <text class="gtitle" x="424" y="202">寡妇 · 剧团</text>
+        <text class="gtxt" x="424" y="228">贵族行头 + 通行文书</text>
+        <text class="gsub" x="424" y="252">砸对台的招牌才给</text>
+        <text class="gsub" x="424" y="276">妹妹线索 ②</text>
+
+        <rect class="gbox" x="408" y="318" width="186" height="126" rx="5"/>
+        <text class="gtitle" x="424" y="344">儿子 · 夜行会</text>
+        <text class="gtxt" x="424" y="370">绳 + 钩（钩索）</text>
+        <text class="gsub" x="424" y="394">打发墙根的野贼才给</text>
+        <text class="gsub" x="424" y="418">妹妹线索 ③</text>
+
+        <rect class="gbox" x="408" y="460" width="186" height="126" rx="5"/>
+        <text class="gtitle" x="424" y="486">屠户 · 叛逃者</text>
+        <text class="gtxt" x="424" y="512">刀 + 绳</text>
+        <text class="gsub" x="424" y="536">教训砸摊的 thug 才给</text>
+        <text class="gsub" x="424" y="560">妹妹线索 ④</text>
+
+        <!-- 门 -->
+        <rect class="gbox" x="640" y="24" width="268" height="742" rx="6" fill="none" stroke-dasharray="4 4"/>
+
+        <rect class="gbox" x="656" y="40" width="236" height="92" rx="4"/>
+        <text class="gtitle" x="672" y="66">钱 · 1 条</text>
+        <text class="gtxt" x="672" y="92">收买 · 100 第纳尔</text>
+        <text class="gsub" x="672" y="114">不掷骰，钱够就过</text>
+
+        <rect class="gbox" x="656" y="148" width="236" height="176" rx="4"/>
+        <text class="gtitle" x="672" y="174">武力 · 5 条</text>
+        <text class="gtxt" x="672" y="200">威吓（武力检定）</text>
+        <text class="gtxt" x="672" y="222">决斗（真打）</text>
+        <text class="gtxt" x="672" y="244">击晕（背后放倒）</text>
+        <text class="gtxt" x="672" y="266">绑走（需要绳）</text>
+        <text class="gtxt" x="672" y="288">扛走（需要绳）</text>
+
+        <rect class="gbox" x="656" y="340" width="236" height="92" rx="4"/>
+        <text class="gtitle" x="672" y="366">魅力 · 1 条</text>
+        <text class="gtxt" x="672" y="392">冒充（行头 + 魅力检定）</text>
+        <text class="gsub" x="672" y="414">被识破就 「你不是他」</text>
+
+        <rect class="gbox" x="656" y="448" width="236" height="216" rx="4"/>
+        <text class="gtitle" x="672" y="474">技巧 · 5 条</text>
+        <text class="gtxt" x="672" y="500">潜行 · 对话（检定）</text>
+        <text class="gtxt" x="672" y="522">潜行 · 真蹲（背后 8 m）</text>
+        <text class="gtxt" x="672" y="544">钩索 · 对话（检定）</text>
+        <text class="gtxt" x="672" y="566">钩索 · 翻墙（避开视线）</text>
+        <text class="gtxt" x="672" y="588">扒刀（扒窃条）</text>
+        <text class="gsub" x="672" y="614">后三条要钩 / 要手</text>
+
+        <!-- 门内 -->
+        <rect class="gbox" x="944" y="330" width="104" height="150" rx="5"/>
+        <text class="gtitle" x="958" y="356">门内</text>
+        <text class="gtxt" x="958" y="382">序章完</text>
+        <text class="gsmall gsub" x="958" y="404">装备与钱</text>
+        <text class="gsub" x="958" y="422">归还</text>
+        <text class="gsub" x="958" y="452">再进不重开</text>
+
+        <!-- 连线 -->
+        <path class="gedge" d="M162,400 C178,400 180,400 196,400" marker-end="url(#arw)"/>
+        <path class="gedge" d="M372,340 C390,340 390,97 408,97" marker-end="url(#arw)"/>
+        <path class="gedge" d="M372,370 C390,370 390,239 408,239" marker-end="url(#arw)"/>
+        <path class="gedge" d="M372,430 C390,430 390,381 408,381" marker-end="url(#arw)"/>
+        <path class="gedge" d="M372,470 C390,470 390,523 408,523" marker-end="url(#arw)"/>
+
+        <path class="gedge gedge-money" d="M594,97 C622,97 626,86 656,86" marker-end="url(#arw)"/>
+        <path class="gedge gedge-charm" d="M594,239 C622,239 626,386 656,386" marker-end="url(#arw)"/>
+        <path class="gedge gedge-guile" d="M594,381 C622,381 626,556 656,556" marker-end="url(#arw)"/>
+        <path class="gedge gedge-force" d="M594,523 C622,523 626,236 656,236" marker-end="url(#arw)"/>
+
+        <path class="gedge gedge-force" d="M892,200 C916,240 912,340 944,380" marker-end="url(#arw)" stroke-dasharray="3 3"/>
+        <path class="gedge gedge-guile" d="M892,556 C916,520 912,420 944,420" marker-end="url(#arw)" stroke-dasharray="3 3"/>
+
+        <text class="glabel" x="600" y="80">钱</text>
+        <text class="glabel" x="600" y="232">行头</text>
+        <text class="glabel" x="600" y="376">钩 / 手</text>
+        <text class="glabel" x="600" y="516">刀 / 绳</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--amber)"></i>钱</span>
+      <span><i style="background:var(--danger)"></i>武力</span>
+      <span><i style="background:var(--charm)"></i>魅力</span>
+      <span><i style="background:var(--copper)"></i>技巧</span>
+      <span>虚线 = 汇入同一道门</span>
+    </div>
+    <p class="simnote">四条来源链只决定你手上有什么；过门时选哪条都行，也可以好几条一起备着。
+      失败不死：任何一条失败之后都能换下一条。</p>
+  </section>
+  <section>
+    <h2>先看看你自己</h2>
+    <p class="sub">三项数值与三件东西，决定这十二条路有几条对你开着。</p>
+    <div class="sim">
+      <div class="simgrid">
+        <div class="field">
+          <label>武力（Vigor+Control ×5）<b id="vForce">45</b></label>
+          <input id="force" type="range" min="5" max="100" step="1" value="45">
+        </div>
+        <div class="field">
+          <label>技巧（Roguery）<b id="vGuile">30</b></label>
+          <input id="guile" type="range" min="5" max="100" step="1" value="30">
+        </div>
+        <div class="field">
+          <label>魅力（Charm）<b id="vCharm">20</b></label>
+          <input id="charm" type="range" min="5" max="100" step="1" value="20">
+        </div>
+      </div>
+      <div class="checks">
+        <label><input id="hook" type="checkbox"> 有钩索（儿子的委托）</label>
+        <label><input id="noble" type="checkbox"> 有贵族行头（寡妇的委托）</label>
+        <label><input id="gold" type="checkbox"> 身上 ≥ 100 第纳尔</label>
+      </div>
+      <p class="simnote">守门人三项：武力 <b>70</b> · 技巧 <b>30</b> · 魅力 <b>50</b>。钩索的射程与准头也吃技巧（技巧 0 ≈ 16.5 m / 7°，100 ≈ 34.5 m / 0.6°）。
+        成功率 = 你的数值 ÷（你的 + 他的），钳制在 5%~95%；掷点 ≥（100% − 成功率）即过。</p>
+    </div>
+  </section>
+
+
+  <section>
+    <h2>他们到底说些什么</h2>
+    <p class="sub">下面全是游戏里的原文（中文层），不是概述。点开看。实机里按 F 或走近事件就会听到这些。</p>
+      <label class="gtoggle"><input type="checkbox" id="showGated"> 显示「条件未满足」的选项</label>
+  <h3 class="dlghead">四家 · 第一次见面</h3>
+    <details class="dlg">
+      <summary><b>老周 · 当铺老板</b><span></span></summary>
+      <div class="dlgbody"><p>（老周，玩家）：买东西？当东西？还是找门路？</p><p>（老周，玩家）：看你这身土——不像来当东西的。</p><span id="dlg1-pawnbroker_intro"></span><div class="dlg-hub" id="dlg1-pawnbroker_hub"><div class="flow-l">（老周，玩家）：还有事？</div><div class="jnote">↓ 回到下面这组选项（离开也在下面）</div></div><div class="opts"><details class="fnode" id="dlg1-pawnbroker_ask_self"><summary class="flow-o">▸ （玩家，老周）：先说说你自己吧。<span class="jid">→ pawnbroker_ask_self</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：我姓周，街坊都叫老周。</div><div class="flow-l">（老周，玩家）：这铺子开了二十三年——后十三年，是给别人开的。</div><details class="fnode" id="dlg1-pawnbroker_ask_stay"><summary class="flow-o">▸ （玩家，老周）：那你为什么不走？<span class="jid">→ pawnbroker_ask_stay</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：走去哪。我这岁数出了城门，就是路边的死人。</div><div class="flow-l">（老周，玩家）：人啊，不是不想走，是走不动。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details></div></details><details class="fnode" id="dlg1-pawnbroker_ask_sister"><summary class="flow-o">▸ （玩家，老周）：三个月前，见过一个穿青布的姑娘吗？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_ask_sister</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：三个月前，青布衣裳，女的。……有了。</div><div class="flow-l">（老周，玩家）：「银镯一只，押三十，赎期三日」。人没来赎。</div><details class="fnode" id="dlg1-pawnbroker_sister_where"><summary class="flow-o">▸ （玩家，老周）：她后来去哪了？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_sister_where</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：那天她后头跟着个人。穿水靠，站在门外没进来。</div><div class="flow-l">（老周，玩家）：码头帮的。押完镯子，她就跟人走了。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details><details class="fnode" id="dlg1-pawnbroker_sister_why"><summary class="flow-o">▸ （玩家，老周）：你怎么记得这么清楚？<span class="jid">→ pawnbroker_sister_why</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：这行当靠的就是记。记错一笔，摊子就完了。</div><div class="flow-l">（老周，玩家）：你妹妹那只镯子，是我三个月里唯一一只没人来赎的。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details><div class="gated-list" data-gated="1"><details class="fnode" id="dlg1-pawnbroker_sister_redeem"><summary class="flow-o">▸ （玩家，老周）：那镯子我赎。<span class="jcond">需 gold&gt;=30</span><span class="jid">→ pawnbroker_sister_redeem</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：三十。</div><div class="flow-l">（老周，玩家）：赎期过了，按规矩该加二成。……不过，算了，就三十。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：我一定回来赎。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details></div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg1-pawnbroker_ask_gang"><summary class="flow-o">▸ （玩家，老周）：门口那个打手，怎么才能进去？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_ask_gang</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：门口那个，叫铁头。贪，给钱就抬眼皮。</div><div class="flow-l">（老周，玩家）：但他不怕狠的——你亮刀子，他真敢捅你。给钱，或者……</div><details class="fnode" id="dlg1-pawnbroker_ask_gang_2"><summary class="flow-o">▸ （玩家，老周）：要么怎么样？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_ask_gang_2</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：……或者，别让他认出你。</div><div class="flow-l">（老周，玩家）：你这张脸，城门上贴着呢。虽然画得不像。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details><details class="fnode" id="dlg1-pawnbroker_ask_gang_3"><summary class="flow-o">▸ （玩家，老周）：钱要多少？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_ask_gang_3</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：一百。这数我心里有。</div><div class="flow-l">（老周，玩家）：少一个子，他能在门槛上跟你磨到天黑。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details><div class="gated-list" data-gated="3"><details class="fnode" id="dlg1-pawnbroker_deal"><summary class="flow-o">▸ （玩家，老周）：借我点钱。<span class="jcond">需 !quest_accepted,!quest_turned</span><span class="jid">→ pawnbroker_deal</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：码头帮有个收数的，欠我三笔账，拖了半年。</div><div class="flow-l">（老周，玩家）：把钱给我收回来——不用见血。回来我替你想办法。</div><details class="fnode" id="dlg1-pawnbroker_quest_accept"><summary class="flow-o">▸ （玩家，老周）：这事我接了。<span class="jid">→ pawnbroker_quest_accept</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：他叫 debtor，每天午后在城西巷口收数。</div><div class="flow-l">（老周，玩家）：一百二十第纳尔，一分不能少。别出人命——死人比钱麻烦。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg1-pawnbroker_deal_why"><summary class="flow-o">▸ （玩家，老周）：收账这事，你怎么不自己去？<span class="jid">→ pawnbroker_deal_why</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：我去？我这把骨头，去了就是躺着回来。</div><div class="flow-l">（老周，玩家）：我这辈子只跟数字打交道。刀的事，我不懂。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details><details class="fnode" id="dlg1-pawnbroker_deal_refuse"><summary class="flow-o">▸ （玩家，老周）：我只想打听人，不想惹码头帮。<span class="jid">→ pawnbroker_deal_refuse</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：也对。那伙人，进去一个躺一个。</div><div class="flow-l">（老周，玩家）：不过我这话撂这儿——你要找的姑娘，最后也是被他们带走的。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a></div></details></div></details><details class="fnode" id="dlg1-pawnbroker_chat"><summary class="flow-o">▸ （玩家，老周）：还有活要我干吗？<span class="jcond">需 quest_turned</span><span class="jid">→ pawnbroker_chat</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：来了。</div><div class="flow-l">（老周，玩家）：今天不赊账啊。</div><a class="flow-o jgotorow" href="#dlg1-pawnbroker_hub">▸ （玩家，老周）：还有活要我干吗？<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」</span></a><details class="fnode" id="dlg1-pawnbroker_chat_2"><summary class="flow-o">▸ （玩家，老周）：就是来看看。<span class="jid">→ pawnbroker_chat_2</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：看什么，我这糟老头子有什么好看的。</div><div class="flow-l">（老周，玩家）：城西那边最近不安生。你要是往那儿去，天黑之前回来。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg1-pawnbroker_money_covert"><summary class="flow-o">▸ （玩家，老周）：这点意思，您收着。<span class="jcond">需 clue:sister_1</span><span class="jid">→ pawnbroker_money_covert</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：客官，我这铺子做的是明面上的生意。钱我不能这么接。</div><div class="flow-l">（老周，玩家）：你要是想让我卖你点什么——那我卖。</div><details class="fnode" id="dlg1-pawnbroker_money_dealt"><summary class="flow-o">▸ （玩家，老周）：借我点钱。<span class="jid">→ pawnbroker_money_dealt</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：门口那个铁头，欠了赌坊三个月的利。</div><div class="flow-l">（老周，玩家）：他怕丢了这份差事，比怕刀子怕得多。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>寡妇 · 剧团领班</b><span></span></summary>
+      <div class="dlgbody"><p>（寡妇，玩家）：好就多给两个钱。</p><p>（寡妇，玩家）：看戏往里站，别挡台口。</p><p>（寡妇，玩家）：……不过你这个样子，不像来看戏的。</p><span id="dlg2-widow_intro"></span><div class="dlg-hub" id="dlg2-widow_hub"><div class="flow-l">（寡妇，玩家）：还有话？</div><div class="jnote">↓ 回到下面这组选项（离开也在下面）</div></div><div class="opts"><details class="fnode" id="dlg2-widow_ask_sister"><summary class="flow-o">▸ （玩家，寡妇）：见过一个穿青布的姑娘吗？<span class="jcond">只问一次</span><span class="jid">→ widow_ask_sister</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：穿青布的？</div><div class="flow-l">（寡妇，玩家）：卖过她一张通行文书——不是假的那种，我这儿只卖真的。</div><div class="flow-l">（寡妇，玩家）：后来有个水手把她领走了。穿水靠，手上全是缆绳磨的茧。</div><div class="flow-l">（寡妇，玩家）：我当时还劝过她。她说不去就没活路。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg2-widow_ask_rival"><summary class="flow-o">▸ （玩家，寡妇）：对台那班子什么来路？<span class="jcond">只问一次</span><span class="jid">→ widow_ask_rival</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：那班子？码头帮捧起来的。</div><div class="flow-l">（寡妇，玩家）：天天在我门口抢客，还占我的台口。</div><div class="flow-l">（寡妇，玩家）：你要能让他们闭嘴，我记你一个人情。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="gated-list" data-gated="3"><details class="fnode" id="dlg2-widow_deal"><summary class="flow-o">▸ （玩家，寡妇）：给我一个能进城的身份。<span class="jcond">需 !quest_accepted,!quest_turned</span><span class="jid">→ widow_deal</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：你要一个能进城的身份？</div><div class="flow-l">（寡妇，玩家）：贵族的行头我有，通行文书我也有——不是我写的，是别人丢的。</div><div class="flow-l">（寡妇，玩家）：可台上的角儿不白给人东西。</div><div class="flow-l">（寡妇，玩家）：对台那块招牌，砸了它。连牌子带场子，让他们今晚开不了锣。</div><details class="fnode" id="dlg2-widow_quest_accept"><summary class="flow-o">▸ （玩家，寡妇）：这事我接了。<span class="jid">→ widow_quest_accept</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：他们散了场会去后巷喝一碗。招牌下面只有一个人看着。</div><div class="flow-l">（寡妇，玩家）：别砸人脸，砸牌子。招牌落下来，明晚他们就没台子。</div><div class="flow-l">（寡妇，玩家）：办成了，回来找我。行头我给你留着。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg2-widow_deal_why"><summary class="flow-o">▸ （玩家，寡妇）：这种脏活，你怎么不自己干？<span class="jid">→ widow_deal_why</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：我自己去？</div><div class="flow-l">（寡妇，玩家）：我一个寡妇，砸人家的场子，明天全城都说我是疯婆子。</div><div class="flow-l">（寡妇，玩家）：你去，你是个生面孔。他们连你姓什么都不知道。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg2-widow_deal_refuse"><summary class="flow-o">▸ （玩家，寡妇）：我不砸人家的饭碗。<span class="jid">→ widow_deal_refuse</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：随你。</div><div class="flow-l">（寡妇，玩家）：反正我这话放这儿：没有能拿出手的身份，那道门你进不去。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></details><details class="fnode" id="dlg2-widow_chat"><summary class="flow-o">▸ （玩家，寡妇）：今天不唱？<span class="jcond">需 quest_turned</span><span class="jid">→ widow_chat</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：来了。</div><div class="flow-l">（寡妇，玩家）：今天不唱了，嗓子哑。</div><div class="flow-l">（寡妇，玩家）：坐吧。台口那儿有张凳子，别嫌脏。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg2-widow_money_open"><summary class="flow-o">▸ （玩家，寡妇）：拿着，买你两句实话。<span class="jcond">需 step&gt;=1</span><span class="jid">→ widow_money_open</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：爽快。我就喜欢跟爽快人说话。</div><div class="flow-l">（寡妇，玩家）：问吧。</div><details class="fnode" id="dlg2-widow_money_taken"><summary class="flow-o">▸ （玩家，寡妇）：那姑娘，进城的路上是什么样子？<span class="jid">→ widow_money_taken</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：不像做工的。</div><div class="flow-l">（寡妇，玩家）：做工的自己背着包袱。她那身青布，是给人领着走的。</div><div class="flow-l">（寡妇，玩家）：这句，值这个价。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>儿子 · 小贼</b><span></span></summary>
+      <div class="dlgbody"><p>（小贼，玩家）：小点声。</p><p>（小贼，玩家）：这墙头我蹲了三年。风大，看得远。</p><p>（小贼，玩家）：你这种走路的，一看就是刚从大道上来的。</p><span id="dlg3-son_intro"></span><div class="dlg-hub" id="dlg3-son_hub"><div class="flow-l">（小贼，玩家）：还有事？</div><div class="jnote">↓ 回到下面这组选项（离开也在下面）</div></div><div class="opts"><details class="fnode" id="dlg3-son_ask_climb"><summary class="flow-o">▸ （玩家，小贼）：怎么翻进去？<span class="jcond">只问一次</span><span class="jid">→ son_ask_climb</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：看见上面那根梁没有？</div><div class="flow-l">（小贼，玩家）：有钩子，三丈的墙跟平地一样。</div><div class="flow-l">（小贼，玩家）：可惜我的钩子，昨天被人抢了。</div><div class="flow-l">（小贼，玩家）：一群野贼，连我一根手指都打断了。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg3-son_ask_sister"><summary class="flow-o">▸ （玩家，小贼）：见过一个姑娘吗？穿青布的。<span class="jcond">只问一次</span><span class="jid">→ son_ask_sister</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：上个月夜里，码头帮押着个女的从后巷过去。</div><div class="flow-l">（小贼，玩家）：两个人架着，嘴上堵了布。</div><div class="flow-l">（小贼，玩家）：我没敢看脸。</div><div class="flow-l">（小贼，玩家）：……我那时候在偷东西，我要是喊一声，我自己也完了。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><a class="flow-o jgotorow" href="#dlg3-son_intro">▸ （玩家，小贼）：你在墙头上看什么？<span class="jid">→ son_intro</span><span class="jback">↩ goto「小点声。」</span></a><div class="gated-list" data-gated="3"><details class="fnode" id="dlg3-son_deal"><summary class="flow-o">▸ （玩家，小贼）：钩子借我。<span class="jcond">需 !quest_accepted,!quest_turned</span><span class="jid">→ son_deal</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：你要钩子？</div><div class="flow-l">（小贼，玩家）：钩子可以给你。可我不能白给。</div><div class="flow-l">（小贼，玩家）：那伙野贼就在墙根底下住着。你替我把他们打发了。</div><div class="flow-l">（小贼，玩家）：不用杀。让他们滚就行。</div><details class="fnode" id="dlg3-son_quest_accept"><summary class="flow-o">▸ （玩家，小贼）：这事我接了。<span class="jid">→ son_quest_accept</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：他们住在墙根那个塌了的马厩里。</div><div class="flow-l">（小贼，玩家）：头儿个子高，脸上有一道疤。你只要让他躺下一次，剩下的人自己就散了。</div><div class="flow-l">（小贼，玩家）：别在墙根底下动手。那地方窄，他们熟。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg3-son_deal_why"><summary class="flow-o">▸ （玩家，小贼）：你怎么不自己去？<span class="jid">→ son_deal_why</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：我这样还怎么去？</div><div class="flow-l">（小贼，玩家）：一根手指就换了我半条命。</div><div class="flow-l">（小贼，玩家）：你要是不愿意，我也不怪你。这城里肯替人出头的，早死光了。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></details><details class="fnode" id="dlg3-son_chat"><summary class="flow-o">▸ （玩家，小贼）：你娘还在骂你？<span class="jcond">需 quest_turned</span><span class="jid">→ son_chat</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：来了。</div><div class="flow-l">（小贼，玩家）：我娘今天又骂我了。</div><div class="flow-l">（小贼，玩家）：她说我跟不三不四的人混。我说我认识个敢打人的，她不信。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg3-son_money_open"><summary class="flow-o">▸ （玩家，小贼）：拿着。别废话。<span class="jcond">需 step&gt;=1</span><span class="jid">→ son_money_open</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：你倒是懂规矩。</div><div class="flow-l">（小贼，玩家）：问吧，趁没人看见。</div><details class="fnode" id="dlg3-son_money_taken"><summary class="flow-o">▸ （玩家，小贼）：门上那根梁，真能挂人？<span class="jid">→ son_money_taken</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：左边那头烂了，中间那一节是好的。</div><div class="flow-l">（小贼，玩家）：没人往上看。你要是勾，勾中间。</div><div class="flow-l">（小贼，玩家）：别摔死。摔死了钱也没法退给你。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>屠户 · 叛逃者</b><span></span></summary>
+      <div class="dlgbody"><p>（屠户，玩家）：新鲜。</p><p>（屠户，玩家）：不买就让开。</p><span id="dlg4-butcher_intro"></span><div class="dlg-hub" id="dlg4-butcher_hub"><div class="flow-l">（屠户，玩家）：说。</div><div class="jnote">↓ 回到下面这组选项（离开也在下面）</div></div><div class="opts"><details class="fnode" id="dlg4-butcher_ask_past"><summary class="flow-o">▸ （玩家，屠户）：你以前是码头帮的？<span class="jcond">只问一次</span><span class="jid">→ butcher_ask_past</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：……你听谁说的。</div><div class="flow-l">（屠户，玩家）：滚。</div><details class="fnode" id="dlg4-butcher_ask_past_2"><summary class="flow-o">▸ （玩家，屠户）：他们砸你摊子那天，发生了什么？<span class="jid">→ butcher_ask_past_2</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：他们砸我摊子那天，我就不是了。</div><div class="flow-l">（屠户，玩家）：我在这儿卖肉，卖得比码头干净。</div><div class="flow-l">（屠户，玩家）：他们要的是我这条腿。我没给。</div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></details><details class="fnode" id="dlg4-butcher_ask_sister"><summary class="flow-o">▸ （玩家，屠户）：见过一个姑娘吗？穿青布的。<span class="jcond">只问一次</span><span class="jid">→ butcher_ask_sister</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：押人的事我不问。</div><div class="flow-l">（屠户，玩家）：……不过那天夜里，他们往码头去了。</div><div class="flow-l">（屠户，玩家）：往码头去的人，没有一个自己走回来的。</div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="gated-list" data-gated="3"><details class="fnode" id="dlg4-butcher_deal"><summary class="flow-o">▸ （玩家，屠户）：教我两手。<span class="jcond">需 !quest_accepted,!quest_turned</span><span class="jid">→ butcher_deal</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：学？</div><div class="flow-l">（屠户，玩家）：先让我看看你敢不敢动手。</div><div class="flow-l">（屠户，玩家）：那个收数的 thug，天天来砸我的摊。</div><div class="flow-l">（屠户，玩家）：你去教训他。别弄死。弄死我麻烦。</div><details class="fnode" id="dlg4-butcher_quest_accept"><summary class="flow-o">▸ （玩家，屠户）：这事我接了。<span class="jid">→ butcher_quest_accept</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：他每天午后从这条街过去，一个人。</div><div class="flow-l">（屠户，玩家）：你把他按在地上，让他记住疼就行。</div><div class="flow-l">（屠户，玩家）：刀不用。手也不用太狠。</div><div class="flow-l">（屠户，玩家）：……算了。你自己看着办。</div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg4-butcher_deal_why"><summary class="flow-o">▸ （玩家，屠户）：你怎么不自己动手？<span class="jid">→ butcher_deal_why</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：我要是动手，就是我砸回去。</div><div class="flow-l">（屠户，玩家）：我砸回去，码头帮就有由头烧我这铺子。</div><div class="flow-l">（屠户，玩家）：你动手，他们只当来了个外人。</div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></details><details class="fnode" id="dlg4-butcher_chat"><summary class="flow-o">▸ （玩家，屠户）：今天的肉不错。<span class="jcond">需 quest_turned</span><span class="jid">→ butcher_chat</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：来了。</div><div class="flow-l">（屠户，玩家）：肉在后头。自己拿。钱明天给。</div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg4-butcher_money_disdain"><summary class="flow-o">▸ （玩家，屠户）：这些钱，买你一句话。<span class="jcond">需 step&gt;=1</span><span class="jid">→ butcher_money_disdain</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：我卖肉。</div><div class="flow-l">（屠户，玩家）：不卖话，也不卖人。</div><div class="flow-l">（屠户，玩家）：你要想让我看得起你，把刀拿起来。</div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+  <h3 class="dlghead">四家 · 他们各自知道的那一截</h3>
+    <details class="dlg">
+      <summary><b>老周：一只没赎回的镯子</b><span></span></summary>
+      <div class="dlgbody"><p>（老周，玩家）：三个月前，青布衣裳，女的。……有了。</p><p>（老周，玩家）：「银镯一只，押三十，赎期三日」。人没来赎。</p><p>（老周，玩家）：那天她后头跟着个人。穿水靠，站在门外没进来。</p><p>（老周，玩家）：码头帮的。押完镯子，她就跟人走了。</p><span id="dlg5-pawnbroker_ask_sister"></span><div class="opts"><details class="fnode" id="dlg5-pawnbroker_sister_where"><summary class="flow-o">▸ （玩家，老周）：她后来去哪了？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_sister_where</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：那天她后头跟着个人。穿水靠，站在门外没进来。</div><div class="flow-l">（老周，玩家）：码头帮的。押完镯子，她就跟人走了。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><details class="fnode" id="dlg5-pawnbroker_sister_why"><summary class="flow-o">▸ （玩家，老周）：你怎么记得这么清楚？<span class="jid">→ pawnbroker_sister_why</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：这行当靠的就是记。记错一笔，摊子就完了。</div><div class="flow-l">（老周，玩家）：你妹妹那只镯子，是我三个月里唯一一只没人来赎的。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><div class="gated-list" data-gated="1"><details class="fnode" id="dlg5-pawnbroker_sister_redeem"><summary class="flow-o">▸ （玩家，老周）：那镯子我赎。<span class="jcond">需 gold&gt;=30</span><span class="jid">→ pawnbroker_sister_redeem</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：三十。</div><div class="flow-l">（老周，玩家）：赎期过了，按规矩该加二成。……不过，算了，就三十。</div><div class="flow-o">▸ （玩家，老周）：我一定回来赎。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details></div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>寡妇：一张通行文书</b><span></span></summary>
+      <div class="dlgbody"><p>（寡妇，玩家）：穿青布的？</p><p>（寡妇，玩家）：卖过她一张通行文书——不是假的那种，我这儿只卖真的。</p><p>（寡妇，玩家）：后来有个水手把她领走了。穿水靠，手上全是缆绳磨的茧。</p><p>（寡妇，玩家）：我当时还劝过她。她说不去就没活路。</p><span id="dlg6-widow_ask_sister"></span><div class="opts"><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>儿子：后巷那一夜</b><span></span></summary>
+      <div class="dlgbody"><p>（小贼，玩家）：上个月夜里，码头帮押着个女的从后巷过去。</p><p>（小贼，玩家）：两个人架着，嘴上堵了布。</p><p>（小贼，玩家）：我没敢看脸。</p><p>（小贼，玩家）：……我那时候在偷东西，我要是喊一声，我自己也完了。</p><span id="dlg7-son_ask_sister"></span><div class="opts"><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>屠户：他们往码头去了</b><span></span></summary>
+      <div class="dlgbody"><p>（屠户，玩家）：押人的事我不问。</p><p>（屠户，玩家）：……不过那天夜里，他们往码头去了。</p><p>（屠户，玩家）：往码头去的人，没有一个自己走回来的。</p><span id="dlg8-butcher_ask_sister"></span><div class="opts"><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+  <h3 class="dlghead">四家 · 他们派你做的事</h3>
+    <details class="dlg">
+      <summary><b>老周：把账收回来</b><span></span></summary>
+      <div class="dlgbody"><p>（老周，玩家）：码头帮有个收数的，欠我三笔账，拖了半年。</p><p>（老周，玩家）：把钱给我收回来——不用见血。回来我替你想办法。</p><p>（老周，玩家）：他叫 debtor，每天午后在城西巷口收数。</p><p>（老周，玩家）：一百二十第纳尔，一分不能少。别出人命——死人比钱麻烦。</p><span id="dlg9-pawnbroker_deal"></span><div class="opts"><details class="fnode" id="dlg9-pawnbroker_quest_accept"><summary class="flow-o">▸ （玩家，老周）：这事我接了。<span class="jid">→ pawnbroker_quest_accept</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：他叫 debtor，每天午后在城西巷口收数。</div><div class="flow-l">（老周，玩家）：一百二十第纳尔，一分不能少。别出人命——死人比钱麻烦。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg9-pawnbroker_deal_why"><summary class="flow-o">▸ （玩家，老周）：收账这事，你怎么不自己去？<span class="jid">→ pawnbroker_deal_why</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：我去？我这把骨头，去了就是躺着回来。</div><div class="flow-l">（老周，玩家）：我这辈子只跟数字打交道。刀的事，我不懂。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><details class="fnode" id="dlg9-pawnbroker_deal_refuse"><summary class="flow-o">▸ （玩家，老周）：我只想打听人，不想惹码头帮。<span class="jid">→ pawnbroker_deal_refuse</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：也对。那伙人，进去一个躺一个。</div><div class="flow-l">（老周，玩家）：不过我这话撂这儿——你要找的姑娘，最后也是被他们带走的。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>寡妇：砸了对台的招牌</b><span></span></summary>
+      <div class="dlgbody"><p>（寡妇，玩家）：你要一个能进城的身份？</p><p>（寡妇，玩家）：贵族的行头我有，通行文书我也有——不是我写的，是别人丢的。</p><p>（寡妇，玩家）：可台上的角儿不白给人东西。</p><p>（寡妇，玩家）：对台那块招牌，砸了它。连牌子带场子，让他们今晚开不了锣。</p><p>（寡妇，玩家）：他们散了场会去后巷喝一碗。招牌下面只有一个人看着。</p><p>（寡妇，玩家）：别砸人脸，砸牌子。招牌落下来，明晚他们就没台子。</p><p>（寡妇，玩家）：办成了，回来找我。行头我给你留着。</p><span id="dlg10-widow_deal"></span><div class="opts"><details class="fnode" id="dlg10-widow_quest_accept"><summary class="flow-o">▸ （玩家，寡妇）：这事我接了。<span class="jid">→ widow_quest_accept</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：他们散了场会去后巷喝一碗。招牌下面只有一个人看着。</div><div class="flow-l">（寡妇，玩家）：别砸人脸，砸牌子。招牌落下来，明晚他们就没台子。</div><div class="flow-l">（寡妇，玩家）：办成了，回来找我。行头我给你留着。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg10-widow_deal_why"><summary class="flow-o">▸ （玩家，寡妇）：这种脏活，你怎么不自己干？<span class="jid">→ widow_deal_why</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：我自己去？</div><div class="flow-l">（寡妇，玩家）：我一个寡妇，砸人家的场子，明天全城都说我是疯婆子。</div><div class="flow-l">（寡妇，玩家）：你去，你是个生面孔。他们连你姓什么都不知道。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg10-widow_deal_refuse"><summary class="flow-o">▸ （玩家，寡妇）：我不砸人家的饭碗。<span class="jid">→ widow_deal_refuse</span></summary><div class="fkids"><div class="flow-l">（寡妇，玩家）：随你。</div><div class="flow-l">（寡妇，玩家）：反正我这话放这儿：没有能拿出手的身份，那道门你进不去。</div><div class="flow-o jleave">（玩家，寡妇）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>儿子：打发墙根的野贼</b><span></span></summary>
+      <div class="dlgbody"><p>（小贼，玩家）：你要钩子？</p><p>（小贼，玩家）：钩子可以给你。可我不能白给。</p><p>（小贼，玩家）：那伙野贼就在墙根底下住着。你替我把他们打发了。</p><p>（小贼，玩家）：不用杀。让他们滚就行。</p><p>（小贼，玩家）：他们住在墙根那个塌了的马厩里。</p><p>（小贼，玩家）：头儿个子高，脸上有一道疤。你只要让他躺下一次，剩下的人自己就散了。</p><p>（小贼，玩家）：别在墙根底下动手。那地方窄，他们熟。</p><span id="dlg11-son_deal"></span><div class="opts"><details class="fnode" id="dlg11-son_quest_accept"><summary class="flow-o">▸ （玩家，小贼）：这事我接了。<span class="jid">→ son_quest_accept</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：他们住在墙根那个塌了的马厩里。</div><div class="flow-l">（小贼，玩家）：头儿个子高，脸上有一道疤。你只要让他躺下一次，剩下的人自己就散了。</div><div class="flow-l">（小贼，玩家）：别在墙根底下动手。那地方窄，他们熟。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg11-son_deal_why"><summary class="flow-o">▸ （玩家，小贼）：你怎么不自己去？<span class="jid">→ son_deal_why</span></summary><div class="fkids"><div class="flow-l">（小贼，玩家）：我这样还怎么去？</div><div class="flow-l">（小贼，玩家）：一根手指就换了我半条命。</div><div class="flow-l">（小贼，玩家）：你要是不愿意，我也不怪你。这城里肯替人出头的，早死光了。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>屠户：教训砸摊的 thug</b><span></span></summary>
+      <div class="dlgbody"><p>（屠户，玩家）：学？</p><p>（屠户，玩家）：先让我看看你敢不敢动手。</p><p>（屠户，玩家）：那个收数的 thug，天天来砸我的摊。</p><p>（屠户，玩家）：你去教训他。别弄死。弄死我麻烦。</p><p>（屠户，玩家）：他每天午后从这条街过去，一个人。</p><p>（屠户，玩家）：你把他按在地上，让他记住疼就行。</p><p>（屠户，玩家）：刀不用。手也不用太狠。</p><p>（屠户，玩家）：……算了。你自己看着办。</p><span id="dlg12-butcher_deal"></span><div class="opts"><details class="fnode" id="dlg12-butcher_quest_accept"><summary class="flow-o">▸ （玩家，屠户）：这事我接了。<span class="jid">→ butcher_quest_accept</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：他每天午后从这条街过去，一个人。</div><div class="flow-l">（屠户，玩家）：你把他按在地上，让他记住疼就行。</div><div class="flow-l">（屠户，玩家）：刀不用。手也不用太狠。</div><div class="flow-l">（屠户，玩家）：……算了。你自己看着办。</div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg12-butcher_deal_why"><summary class="flow-o">▸ （玩家，屠户）：你怎么不自己动手？<span class="jid">→ butcher_deal_why</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：我要是动手，就是我砸回去。</div><div class="flow-l">（屠户，玩家）：我砸回去，码头帮就有由头烧我这铺子。</div><div class="flow-l">（屠户，玩家）：你动手，他们只当来了个外人。</div><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></div>
+    </details>
+  <h3 class="dlghead">守门人 · 铁头（门就在他手里）</h3>
+    <details class="dlg">
+      <summary><b>他拦下你</b><span></span></summary>
+      <div class="dlgbody"><p>（铁头，玩家）：通行文书。</p><p>（铁头，玩家）：没有就别站在这儿。</p><p>（铁头，玩家）：通行文书。</p><p>（铁头，玩家）：……你胆子不小。</p><span id="dlg13-blocker_first"></span><div class="opts"><details class="fnode" id="dlg13-blocker_first_refuse"><summary class="flow-o">▸ （玩家，铁头）：我妹妹在城里做工，我进去找她。<span class="jid">→ blocker_first_refuse</span></summary><div class="fkids"><div class="flow-l">（铁头，玩家）：找人的、讨债的、逃命的——都这么说。</div><div class="flow-l">（铁头，玩家）：退后。</div><div class="flow-o">▸ （玩家，铁头）：……算了。<span class="jid">→ （离开）</span></div></div></details><div class="flow-o">▸ （玩家，铁头）：……算了。<span class="jid">→ （离开）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>塞钱：他当面数两遍</b><span></span></summary>
+      <div class="dlgbody"><p>（铁头，玩家）：进去吧。</p><p>（铁头，玩家）：别让我再看见你。</p><span id="dlg14-blocker_bribe_ok"></span><div class="opts"><div class="flow-o jleave">（玩家，铁头）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>威吓成功</b><span></span></summary>
+      <div class="dlgbody"><p>（铁头，玩家）：……你狠。</p><span id="dlg15-blocker_threat_ok"></span><div class="opts"><div class="flow-o jleave">（玩家，铁头）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>威吓失败</b><span></span></summary>
+      <div class="dlgbody"><p>（铁头，玩家）：找死。</p><span id="dlg16-blocker_threat_fail"></span><div class="opts"><div class="flow-o jleave">（玩家，铁头）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>冒充成功</b><span></span></summary>
+      <div class="dlgbody"><p>（铁头，玩家）：……阁下。</p><p>（铁头，玩家）：失礼了。</p><span id="dlg17-blocker_disguise_ok"></span><div class="opts"><div class="flow-o jleave">（玩家，铁头）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>冒充被识破</b><span></span></summary>
+      <div class="dlgbody"><p>（铁头，玩家）：……不对。</p><p>（铁头，玩家）：你不是他。拿下！</p><span id="dlg18-blocker_disguise_fail"></span><div class="opts"><div class="flow-o jleave">（玩家，铁头）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>潜行成功</b><span></span></summary>
+      <div class="dlgbody"><p>（旁白，玩家）：你贴墙挪过去，他没有回头。</p><span id="dlg19-blocker_sneak_ok"></span><div class="opts"><div class="flow-o jleave">（玩家，旁白）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>钩索翻墙成功</b><span></span></summary>
+      <div class="dlgbody"><p>（旁白，玩家）：钩子咬住横梁，你翻了过去。落地时城门已经在背后。</p><span id="dlg20-blocker_climb_ok"></span><div class="opts"><div class="flow-o jleave">（玩家，旁白）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>钩子滑了</b><span></span></summary>
+      <div class="dlgbody"><p>什么动静？（他抬头看了看城门）</p></div>
+    </details>
+    <details class="dlg">
+      <summary><b>被认出来（通缉 + 没遮面）</b><span></span></summary>
+      <div class="dlgbody"><p>他看看你的脸，又看看城门上那张纸。然后他拔了刀。</p></div>
+    </details>
+    <details class="dlg">
+      <summary><b>扒空了他的刀</b><span></span></summary>
+      <div class="dlgbody"><p>（铁头，玩家）：……</p><p>（铁头，玩家）：进去吧。</p><span id="dlg23-blocker_disarmed_ok"></span><div class="opts"><div class="flow-o jleave">（玩家，铁头）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+  <h3 class="dlghead">街头 · 事件里他们在吵什么</h3>
+    <details class="dlg">
+      <summary><b>事件 1 · 收保护费</b><span></span></summary>
+      <div class="dlgbody"><p>（打手，老周）：看什么看？没你的事。</p><p>（老周，打手）：客官，您别掺和……钱我这就给。</p><span id="dlg24-event_1_join"></span><div class="opts"><details class="fnode" id="dlg24-event_1_win"><summary class="flow-o">▸ （玩家，老周）：钱的事等会儿。你先把手从他领子上拿开。<span class="jid">→ event_1_win</span></summary><div class="fkids"><div class="flow-l">（打手，老周）：行，行……你等着。</div><div class="flow-l">（老周，打手）：三年了。头一回有人拦他。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o">▸ （玩家，老周）：这跟我没关系。<span class="jid">→ （离开）</span></div><div class="gated-list" data-gated="1"><details class="fnode" id="dlg24-event_1_paid"><summary class="flow-o">▸ （玩家，老周）：他欠你多少？我替他出。<span class="jcond">需 gold&gt;=80</span><span class="jid">→ event_1_paid</span></summary><div class="fkids"><div class="flow-l">（打手，老周）：下月照旧。你要是还想当好人，接着掏。</div><div class="flow-l">（老周，打手）：……客官，你这是何苦。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>事件 1 · 你出钱之后</b><span></span></summary>
+      <div class="dlgbody"><p>（打手，老周）：下月照旧。你要是还想当好人，接着掏。</p><p>（老周，打手）：……客官，你这是何苦。</p><span id="dlg25-event_1_paid"></span><div class="opts"><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>事件 2 · 砸摊</b><span></span></summary>
+      <div class="dlgbody"><p>（打手，屠户）：老东西，交钱。</p><p>（屠户，打手）：滚。</p><p>（打手，屠户）：你举着刀，手在抖啊。</p><span id="dlg26-event_2_join"></span><div class="opts"><details class="fnode" id="dlg26-event_2_win"><summary class="flow-o">▸ （玩家，打手）：手别抖，我来。<span class="jid">→ event_2_win</span></summary><div class="fkids"><div class="flow-l">（打手，屠户）：你……你谁啊。</div><div class="flow-l">（屠户，打手）：滚。</div><div class="flow-o jleave">（玩家，打手）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg26-butcher_intro"><summary class="flow-o">▸ （玩家，打手）：他天天来？<span class="jid">→ butcher_intro</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：新鲜。</div><div class="flow-l">（屠户，玩家）：不买就让开。</div><details class="fnode" id="dlg26-butcher_ask_past"><summary class="flow-o">▸ （玩家，打手）：你以前是码头帮的？<span class="jcond">只问一次</span><span class="jid">→ butcher_ask_past</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：……你听谁说的。</div><div class="flow-l">（屠户，玩家）：滚。</div><details class="fnode" id="dlg26-butcher_ask_past_2"><summary class="flow-o">▸ （玩家，打手）：他们砸你摊子那天，发生了什么？<span class="jid">→ butcher_ask_past_2</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：他们砸我摊子那天，我就不是了。</div><div class="flow-l">（屠户，玩家）：我在这儿卖肉，卖得比码头干净。</div><div class="flow-l">（屠户，玩家）：他们要的是我这条腿。我没给。</div><div class="flow-o jleave">（玩家，打手）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></details><details class="fnode" id="dlg26-butcher_ask_sister"><summary class="flow-o">▸ （玩家，打手）：见过一个姑娘吗？穿青布的。<span class="jcond">只问一次</span><span class="jid">→ butcher_ask_sister</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：押人的事我不问。</div><div class="flow-l">（屠户，玩家）：……不过那天夜里，他们往码头去了。</div><div class="flow-l">（屠户，玩家）：往码头去的人，没有一个自己走回来的。</div><div class="flow-o jleave">（玩家，打手）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="gated-list" data-gated="3"><details class="fnode" id="dlg26-butcher_deal"><summary class="flow-o">▸ （玩家，打手）：教我两手。<span class="jcond">需 !quest_accepted,!quest_turned</span><span class="jid">→ butcher_deal</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：学？</div><div class="flow-l">（屠户，玩家）：先让我看看你敢不敢动手。</div><div class="flow-l">（屠户，玩家）：那个收数的 thug，天天来砸我的摊。</div><div class="flow-l">（屠户，玩家）：你去教训他。别弄死。弄死我麻烦。</div><details class="fnode" id="dlg26-butcher_quest_accept"><summary class="flow-o">▸ （玩家，打手）：这事我接了。<span class="jid">→ butcher_quest_accept</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：他每天午后从这条街过去，一个人。</div><div class="flow-l">（屠户，玩家）：你把他按在地上，让他记住疼就行。</div><div class="flow-l">（屠户，玩家）：刀不用。手也不用太狠。</div><div class="flow-l">（屠户，玩家）：……算了。你自己看着办。</div><div class="flow-o jleave">（玩家，打手）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg26-butcher_deal_why"><summary class="flow-o">▸ （玩家，打手）：你怎么不自己动手？<span class="jid">→ butcher_deal_why</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：我要是动手，就是我砸回去。</div><div class="flow-l">（屠户，玩家）：我砸回去，码头帮就有由头烧我这铺子。</div><div class="flow-l">（屠户，玩家）：你动手，他们只当来了个外人。</div><div class="flow-o jleave">（玩家，打手）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div></details><details class="fnode" id="dlg26-butcher_chat"><summary class="flow-o">▸ （玩家，打手）：今天的肉不错。<span class="jcond">需 quest_turned</span><span class="jid">→ butcher_chat</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：来了。</div><div class="flow-l">（屠户，玩家）：肉在后头。自己拿。钱明天给。</div><div class="flow-o jleave">（玩家，打手）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg26-butcher_money_disdain"><summary class="flow-o">▸ （玩家，打手）：这些钱，买你一句话。<span class="jcond">需 step&gt;=1</span><span class="jid">→ butcher_money_disdain</span></summary><div class="fkids"><div class="flow-l">（屠户，玩家）：我卖肉。</div><div class="flow-l">（屠户，玩家）：不卖话，也不卖人。</div><div class="flow-l">（屠户，玩家）：你要想让我看得起你，把刀拿起来。</div><div class="flow-o jleave">（玩家，打手）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div><div class="flow-o jleave">（玩家，打手）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o">▸ （玩家，打手）：不关我的事。<span class="jid">→ （离开）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>事件 3 · 骂街</b><span></span></summary>
+      <div class="dlgbody"><p>（寡妇，对台领班）：抢客抢到我门口来了？</p><p>（对台领班，寡妇）：台子搭在街上，谁都能演。</p><p>（寡妇，对台领班）：那你演到城外去。</p><p>（对台领班，寡妇）：你拦我试试。</p><span id="dlg27-event_3_join"></span><div class="opts"><details class="fnode" id="dlg27-event_3_win"><summary class="flow-o">▸ （玩家，对台领班）：台上的事台上说，堵人家门口算什么本事。<span class="jid">→ event_3_win</span></summary><div class="fkids"><div class="flow-l">（对台领班，寡妇）：……行。今晚让你。</div><div class="flow-l">（寡妇，对台领班）：你这一手，我记着了。</div><div class="flow-o jleave">（玩家，对台领班）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o">▸ （玩家，对台领班）：不关我的事。<span class="jid">→ （离开）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>事件 4 · 抓小偷</b><span></span></summary>
+      <div class="dlgbody"><p>（老周，小贼）：小贼！还我钱袋！</p><p>（小贼，老周）：没拿！我什么都没拿！</p><span id="dlg28-event_4_join"></span><div class="opts"><details class="fnode" id="dlg28-event_4_win"><summary class="flow-o">▸ （玩家，小贼）：搜可以，别在街上动手。<span class="jid">→ event_4_win</span></summary><div class="fkids"><div class="flow-l">（玩家，旁白）：搜可以，别在街上。是你错怪了他，赔他一句。</div><div class="flow-l">（老周，小贼）：……是我急了。</div><div class="flow-o jleave">（玩家，小贼）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o">▸ （玩家，小贼）：不关我的事。<span class="jid">→ （离开）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>事件 5 · 一个人发愁</b><span></span></summary>
+      <div class="dlgbody"><p>（老周，玩家）：三笔……一笔都没收回来。</p><span id="dlg29-event_5_join"></span><div class="opts"><details class="fnode" id="dlg29-pawnbroker_hub"><summary class="flow-o">▸ （玩家，老周）：老板，算什么呢？<span class="jid">→ pawnbroker_hub</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：还有事？</div><details class="fnode" id="dlg29-pawnbroker_ask_self"><summary class="flow-o">▸ （玩家，老周）：先说说你自己吧。<span class="jid">→ pawnbroker_ask_self</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：我姓周，街坊都叫老周。</div><div class="flow-l">（老周，玩家）：这铺子开了二十三年——后十三年，是给别人开的。</div><details class="fnode" id="dlg29-pawnbroker_ask_stay"><summary class="flow-o">▸ （玩家，老周）：那你为什么不走？<span class="jid">→ pawnbroker_ask_stay</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：走去哪。我这岁数出了城门，就是路边的死人。</div><div class="flow-l">（老周，玩家）：人啊，不是不想走，是走不动。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details></div></details><details class="fnode" id="dlg29-pawnbroker_ask_sister"><summary class="flow-o">▸ （玩家，老周）：三个月前，见过一个穿青布的姑娘吗？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_ask_sister</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：三个月前，青布衣裳，女的。……有了。</div><div class="flow-l">（老周，玩家）：「银镯一只，押三十，赎期三日」。人没来赎。</div><details class="fnode" id="dlg29-pawnbroker_sister_where"><summary class="flow-o">▸ （玩家，老周）：她后来去哪了？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_sister_where</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：那天她后头跟着个人。穿水靠，站在门外没进来。</div><div class="flow-l">（老周，玩家）：码头帮的。押完镯子，她就跟人走了。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><details class="fnode" id="dlg29-pawnbroker_sister_why"><summary class="flow-o">▸ （玩家，老周）：你怎么记得这么清楚？<span class="jid">→ pawnbroker_sister_why</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：这行当靠的就是记。记错一笔，摊子就完了。</div><div class="flow-l">（老周，玩家）：你妹妹那只镯子，是我三个月里唯一一只没人来赎的。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><div class="gated-list" data-gated="1"><details class="fnode" id="dlg29-pawnbroker_sister_redeem"><summary class="flow-o">▸ （玩家，老周）：那镯子我赎。<span class="jcond">需 gold&gt;=30</span><span class="jid">→ pawnbroker_sister_redeem</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：三十。</div><div class="flow-l">（老周，玩家）：赎期过了，按规矩该加二成。……不过，算了，就三十。</div><div class="flow-o">▸ （玩家，老周）：我一定回来赎。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details></div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg29-pawnbroker_ask_gang"><summary class="flow-o">▸ （玩家，老周）：门口那个打手，怎么才能进去？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_ask_gang</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：门口那个，叫铁头。贪，给钱就抬眼皮。</div><div class="flow-l">（老周，玩家）：但他不怕狠的——你亮刀子，他真敢捅你。给钱，或者……</div><details class="fnode" id="dlg29-pawnbroker_ask_gang_2"><summary class="flow-o">▸ （玩家，老周）：要么怎么样？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_ask_gang_2</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：……或者，别让他认出你。</div><div class="flow-l">（老周，玩家）：你这张脸，城门上贴着呢。虽然画得不像。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><details class="fnode" id="dlg29-pawnbroker_ask_gang_3"><summary class="flow-o">▸ （玩家，老周）：钱要多少？<span class="jcond">只问一次</span><span class="jid">→ pawnbroker_ask_gang_3</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：一百。这数我心里有。</div><div class="flow-l">（老周，玩家）：少一个子，他能在门槛上跟你磨到天黑。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><div class="gated-list" data-gated="3"><details class="fnode" id="dlg29-pawnbroker_deal"><summary class="flow-o">▸ （玩家，老周）：借我点钱。<span class="jcond">需 !quest_accepted,!quest_turned</span><span class="jid">→ pawnbroker_deal</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：码头帮有个收数的，欠我三笔账，拖了半年。</div><div class="flow-l">（老周，玩家）：把钱给我收回来——不用见血。回来我替你想办法。</div><details class="fnode" id="dlg29-pawnbroker_quest_accept"><summary class="flow-o">▸ （玩家，老周）：这事我接了。<span class="jid">→ pawnbroker_quest_accept</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：他叫 debtor，每天午后在城西巷口收数。</div><div class="flow-l">（老周，玩家）：一百二十第纳尔，一分不能少。别出人命——死人比钱麻烦。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg29-pawnbroker_deal_why"><summary class="flow-o">▸ （玩家，老周）：收账这事，你怎么不自己去？<span class="jid">→ pawnbroker_deal_why</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：我去？我这把骨头，去了就是躺着回来。</div><div class="flow-l">（老周，玩家）：我这辈子只跟数字打交道。刀的事，我不懂。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details><details class="fnode" id="dlg29-pawnbroker_deal_refuse"><summary class="flow-o">▸ （玩家，老周）：我只想打听人，不想惹码头帮。<span class="jid">→ pawnbroker_deal_refuse</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：也对。那伙人，进去一个躺一个。</div><div class="flow-l">（老周，玩家）：不过我这话撂这儿——你要找的姑娘，最后也是被他们带走的。</div><div class="flow-o">▸ （玩家，老周）：别的先不问了。<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div></div></details></div></details><details class="fnode" id="dlg29-pawnbroker_chat"><summary class="flow-o">▸ （玩家，老周）：还有活要我干吗？<span class="jcond">需 quest_turned</span><span class="jid">→ pawnbroker_chat</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：来了。</div><div class="flow-l">（老周，玩家）：今天不赊账啊。</div><div class="flow-o">▸ （玩家，老周）：还有活要我干吗？<span class="jid">→ pawnbroker_hub</span><span class="jback">↩ goto「还有事？」（不在本块展开）</span></div><details class="fnode" id="dlg29-pawnbroker_chat_2"><summary class="flow-o">▸ （玩家，老周）：就是来看看。<span class="jid">→ pawnbroker_chat_2</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：看什么，我这糟老头子有什么好看的。</div><div class="flow-l">（老周，玩家）：城西那边最近不安生。你要是往那儿去，天黑之前回来。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><details class="fnode" id="dlg29-pawnbroker_money_covert"><summary class="flow-o">▸ （玩家，老周）：这点意思，您收着。<span class="jcond">需 clue:sister_1</span><span class="jid">→ pawnbroker_money_covert</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：客官，我这铺子做的是明面上的生意。钱我不能这么接。</div><div class="flow-l">（老周，玩家）：你要是想让我卖你点什么——那我卖。</div><details class="fnode" id="dlg29-pawnbroker_money_dealt"><summary class="flow-o">▸ （玩家，老周）：借我点钱。<span class="jid">→ pawnbroker_money_dealt</span></summary><div class="fkids"><div class="flow-l">（老周，玩家）：门口那个铁头，欠了赌坊三个月的利。</div><div class="flow-l">（老周，玩家）：他怕丢了这份差事，比怕刀子怕得多。</div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details></div><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></details><div class="flow-o jleave">（玩家，老周）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+    <details class="dlg">
+      <summary><b>事件 6 · 一个人收拾</b><span></span></summary>
+      <div class="dlgbody"><p>（屠户，玩家）：又砸了。</p><p>（屠户，玩家）：捡起来。都捡起来。</p><span id="dlg30-event_6_join"></span><div class="opts"><div class="flow-o jleave">（玩家，屠户）：[离开] 结束对话<span class="jid">→ （关闭）</span></div></div></div>
+    </details>
+  <h3 class="dlghead">随从与牢里</h3>
+    <details class="dlg">
+      <summary><b>随从 · 他只说三句</b><span></span></summary>
+      <div class="dlgbody"><p>（旁白，玩家）：就是这儿了。你妹妹三个月前进的这座城。</p><p>（旁白，玩家）：正门挂着你的通缉——硬闯等于自投罗网。</p><p>（旁白，玩家）：先跟门口这几家搭上线。帮谁，谁教你一手。</p></div>
+    </details>
+    <details class="dlg">
+      <summary><b>牢里 · 老囚</b><span></span></summary>
+      <div class="dlgbody"><p>（旁白，玩家）：你醒在稻草上，后脑一片湿。</p><p>（旁白，玩家）：同监的老囚把一套旧衣服和一块面罩塞给你。</p><p>（老囚，玩家）：想进城？先让人认不出你。</p></div>
+    </details>
+
+<script>
+(function(){
+  function markSeen(root){
+    root.querySelectorAll('details.fnode').forEach(function(d){
+      d.addEventListener('toggle', function(){
+        var s = d.querySelector('summary');
+        if (!s) return;
+        if (d.open) s.classList.add('seen');
+      });
+    });
+  }
+  markSeen(document);
+  // goto 行（整行可点）：收起当前分支，回到目标节点 —— 语义上等于"退回上一级"
+  document.addEventListener('click', function(e){
+    var a = e.target.closest ? e.target.closest('a.jgotorow') : null;
+    if (!a) return;
+    e.preventDefault();
+    var id = (a.getAttribute('href') || '').slice(1);
+    var target = id ? document.getElementById(id) : null;
+    if (!target) return;
+    var d = a.closest('details.fnode');       // 收起当前这条链
+    while (d) {
+      d.open = false;
+      var up = d.parentElement;
+      d = up ? up.closest('details.fnode') : null;
+    }
+    var p = target;                            // 展开目标所在链
+    while (p) {
+      if (p.tagName === 'DETAILS') p.open = true;
+      p = p.parentElement;
+    }
+    target.scrollIntoView({block: 'center'});
+    target.classList.add('jflash');
+    setTimeout(function(){ target.classList.remove('jflash'); }, 1200);
+  });
+  var cb = document.getElementById('showGated');
+  if (cb) {
+    cb.addEventListener('change', function(){
+      var sec = cb.closest('section');
+      if (sec) sec.classList.toggle('show-gated', cb.checked);
+    });
+  }
+})();
+</script>
+
+  </section>
+  <section>
+    <h2>十二条路</h2>
+    <p class="sub">前六条在对话里，后六条是你在世界里真做出来的动作。</p>
+    <div class="routes" id="routes"></div>
+  </section>
+
+  <section>
+    <h2>每条路的账</h2>
+    <p class="sub">势力好感记在对应代表身上，守门人关系单独记在他本人身上——两条账分开算。</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>路</th><th>前置</th><th>判定</th><th>守门人</th><th>对应势力</th><th>失败代价</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>收买</td><td class="num">≥100 第纳尔</td><td>不检定</td><td class="num">−5</td><td>捉刀人 +5</td><td>钱不够这条不出现</td></tr>
+          <tr><td>威吓</td><td>无</td><td class="num">武力 vs 70</td><td class="num">−20</td><td>码头帮 +5</td><td>直接开打</td></tr>
+          <tr><td>决斗</td><td>无（空手也行）</td><td>真打，打到判负</td><td class="num">−20</td><td>码头帮 +5</td><td>输了可换路</td></tr>
+          <tr><td>冒充</td><td>贵族行头 + 文书</td><td class="num">魅力 vs 50</td><td class="num">−5</td><td>剧团 +5</td><td>「你不是他。拿下！」</td></tr>
+          <tr><td>潜行</td><td>无</td><td class="num">技巧 vs 30</td><td class="num">0</td><td>夜行会 +5</td><td>他盯上你（隐患）</td></tr>
+          <tr><td>钩索·对话</td><td>有钩</td><td class="num">技巧 vs 30</td><td class="num">0</td><td>夜行会 +5</td><td>同上</td></tr>
+          <tr><td>钩索·真翻墙</td><td>绳 + 钩</td><td>不检定（真操作）</td><td class="num">0</td><td>夜行会 +5</td><td>勾不住就勾不住</td></tr>
+          <tr><td>潜行·真蹲</td><td>无</td><td>真蹲 + 在他背后 8 m 内</td><td class="num">0</td><td>夜行会 +5</td><td>被看见就露馅</td></tr>
+          <tr><td>击晕</td><td>无</td><td>现成击晕（背后）</td><td class="num">0</td><td>—</td><td>失手他反击</td></tr>
+          <tr><td>绑走</td><td>绳</td><td>现成钩索绑人</td><td class="num">−20</td><td>—</td><td>挣脱就喊人</td></tr>
+          <tr><td>扛走</td><td>绳</td><td>绑住后再扛</td><td class="num">−20</td><td>—</td><td>同上</td></tr>
+          <tr><td>扒掉他的刀</td><td>无</td><td>现成扒窃条</td><td class="num">−5</td><td>夜行会 +5</td><td>被目击 = 犯罪</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+
+
+  <section>
+    <h2>需求里写的玩法，落地了几种</h2>
+    <p class="sub">需求 §5 一共列了 15 种手段。这张表是现在的真账，不修饰。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>玩法</th><th>需求怎么写</th><th>现在</th></tr></thead>
+        <tbody>
+          <tr><td>钩索</td><td>勾住门楼翻过去</td><td>✅ 对话检定 + 真钩索翻墙（离地 2 m 判定）</td></tr>
+          <tr><td>潜行</td><td>蹲下趁他转头溜过去</td><td>✅ 真蹲 + 在他背后 8 m 内，不看骰子</td></tr>
+          <tr><td>扒窃</td><td>扒走他的武器 / 钥匙</td><td>✅ 扒掉主手刀 → 他真的「摸了个空」，多了条让他让开的路</td></tr>
+          <tr><td>撬锁</td><td>绕到侧门开锁</td><td>— 需求自己写「没真门就不做这条」</td></tr>
+          <tr><td>偷属性道具</td><td>扒窃条偷他背上那件</td><td>❌ 简化成「交差时给」——原版 Hero 身上没有可扒的背包</td></tr>
+          <tr><td>决斗</td><td>非致命，赢了他让路</td><td>✅ 现成 CombatManager 切磋</td></tr>
+          <tr><td>击晕</td><td>从背后放倒</td><td>✅ 现成 KnockoutFlow；倒地即算门失守</td></tr>
+          <tr><td>威吓</td><td>亮兵器逼上前</td><td>✅ 武力对拼</td></tr>
+          <tr><td>绑 / 扛</td><td>制服后把他挪开</td><td>✅ 现成钩索绑人 / 扛人；绑住或扛走都算门失守</td></tr>
+          <tr><td>遮面</td><td>通缉画像认不出你</td><td>✅ 进城挂小额通缉；没遮面会被认出来直接动手</td></tr>
+          <tr><td>冒充</td><td>贵族行头骗过守门人</td><td>✅ 魅力对拼</td></tr>
+          <tr><td>通缉脱险</td><td>遮面 / 冒充让守卫认错人</td><td>✅ 走遮面即不被认出（同一套旗标）</td></tr>
+          <tr><td>冒充犯法</td><td>罪名记到别人头上</td><td>❌ 需求标「可选」，本阶段没做</td></tr>
+          <tr><td>收买</td><td>打点 / 买消息</td><td>✅ 三种态度：当面收 / 不当面收 / 不屑</td></tr>
+          <tr><td>零活</td><td>跑腿赚几个第纳尔</td><td>✅ 50 第纳尔 / 趟，1 小时冷却</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="simnote">15 种里 12 种能玩、1 种需求自己划掉、2 种明确没做（偷属性道具、冒充犯法）。</p>
+  </section>
+  <section>
+    <h2>钱不是万能钥匙</h2>
+    <p class="sub">每个人对钱的态度不一样——当面递过去，结果分三种。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>谁</th><th>态度</th><th>当面递钱会怎样</th></tr></thead>
+        <tbody>
+          <tr><td>守门人 · 铁头</td><td><span class="chip">厚脸皮收</span></td><td>当面数两遍，一点不避人。100 第纳尔，门就开了</td></tr>
+          <tr><td>寡妇 · 剧团领班</td><td><span class="chip">厚脸皮收</span></td><td>当你面点数，收得干脆：「我就喜欢跟爽快人说话」</td></tr>
+          <tr><td>儿子 · 小贼</td><td><span class="chip">厚脸皮收</span></td><td>飞快捏进手心，眼睛还在扫街——少，但他要</td></tr>
+          <tr><td>当铺老板 · 老周</td><td><span class="chip">不当面收</span></td><td>把钱推回来：「我这铺子做的是明面上的生意」——<b>改口说“买”，他就收</b></td></tr>
+          <tr><td>屠户 · 叛逃者</td><td><span class="chip">不屑</span></td><td>不接，刀背敲一下案板：「我卖肉，不卖话」——关系还要掉</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="simnote">所以「塞钱」不是一键通关：三个人接、一个人要换个说法、一个人会翻脸。
+      收下钱的人还会记住你被拿捏过（隐患），屠户那种则会因此看不起你。</p>
+  </section>
+<!-- CASTDATA:BEGIN (generated by plans/nishuihan511/tools/gen_cast_html.py) -->
+<section id="castdata">
+  <h2>配表：每个人的数据</h2>
+  <p class="sub">这一节由 <code>plans/逆水寒511/tools/gen_cast_html.py</code> 从 <code>StoryProbeCast.json</code> / <code>StoryProbeTuning.json</code> / <code>StoryStage.json</code> 自动生成 —— <b>改表后重跑脚本，页面永远和游戏一致</b>。策划要改的就是这三份文件，不碰代码。</p>
+  <style>
+  .cd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:18px}
+  .cd-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:var(--shadow)}
+  .cd-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .cd-head b{font-family:var(--serif);font-size:19px}
+  .cd-id{font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+  .cd-fac{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--muted)}
+  .cd-row{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:5px 0;border-top:1px dashed var(--line);font-size:13.5px}
+  .cd-row:first-of-type{border-top:0}
+  .cd-k{color:var(--muted);font-size:12px;letter-spacing:.06em}
+  .cd-bar{display:inline-block;width:74px;height:7px;border-radius:4px;background:var(--chip);vertical-align:middle;margin-right:6px;overflow:hidden}
+  .cd-bar i{display:block;height:100%;border-radius:4px}
+  .cd-num{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-right:10px}
+  .cd-code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--chip);padding:1px 6px;border-radius:5px;margin:0 4px 3px 0;display:inline-block;max-width:100%;overflow-wrap:anywhere}
+  .cd-row>span{min-width:0;overflow-wrap:anywhere}
+  .cd-attrs{display:grid;gap:2px}
+  .cd-attrs i{font-style:normal;white-space:nowrap;font-size:12px;color:var(--muted)}
+  .cd-tag{font-size:12px;padding:2px 8px;border-radius:6px;color:#fff;font-weight:600}
+  .cd-tl{position:relative;margin:8px 0 4px;padding:10px 0;border-left:2px solid var(--line)}
+  .cd-beat{position:relative;padding:3px 0 3px 16px;font-size:13px}
+  .cd-beat .t{display:inline-block;min-width:44px;color:var(--copper);font-variant-numeric:tabular-nums;font-weight:600}
+  .cd-beat .c{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--chip);padding:1px 6px;border-radius:5px;margin-right:6px}
+  .cd-beat::before{content:"";position:absolute;left:-5px;top:11px;width:8px;height:8px;border-radius:50%;background:var(--copper)}
+    .dlgbody .fnode{margin:1px 0}
+  .dlgbody .fnode>summary{list-style:none;cursor:pointer}
+  .dlgbody .fnode>summary::-webkit-details-marker{display:none}
+  .dlgbody .fkids{padding-left:20px;border-left:1px solid var(--line);margin-left:6px}
+  .dlgbody .jback{font-size:11px;color:var(--muted);margin-left:8px;font-style:italic;text-decoration:none;cursor:pointer}
+    .dlgbody .jback:hover{color:var(--amber);text-decoration:underline}
+    .dlgbody .jleave{opacity:.62;font-style:italic}
+    .dlgbody a.flow-o{display:block;color:inherit;text-decoration:none}
+    .dlgbody a.flow-o:hover{color:var(--amber)}
+    .dlgbody .dlg-hub{border:1px dashed var(--line);border-radius:8px;padding:6px 10px;margin:6px 0 10px}
+    .dlgbody .dlg-hub::before{content:"↩ 上一级菜单：每条支线聊完回到这里";display:block;font-size:10.5px;color:var(--muted);margin-bottom:2px;letter-spacing:.5px}
+    .dlgbody .jnote{font-size:11px;color:var(--muted);margin-top:2px;font-style:italic}
+    .dlgbody .jflash{animation:jflashBg 1.2s ease-out}
+    @keyframes jflashBg{0%{background:rgba(240,180,80,.30)}100%{background:transparent}}
+    .dlgbody .jcond{font-size:10.5px;color:var(--amber);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px}
+    .dlgbody summary.flow-o{cursor:pointer}
+  .dlgbody summary.flow-o.seen{opacity:.40}
+  .dlgbody summary.flow-o.seen::before{content:"✓ "}
+  .dlgbody .gated-list{display:none;opacity:.55}
+  section.show-gated .gated-list{display:block}
+  .gtoggle{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin:10px 0 6px;cursor:pointer}
+</style>
+  <div class="cd-grid">
+    <article class="cd-card">
+      <div class="cd-head"><b>老周</b><span class="cd-id">pawnbroker</span><span class="cd-fac">The Fixers</span><span class="cd-fac">委托人</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">merchant_empire</code>60 岁 · 男 · 平民装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:30%;background:var(--danger)"></i></span><span class="cd-num">30</span></i><i>技<span class="cd-bar"><i style="width:50%;background:var(--amber)"></i></span><span class="cd-num">50</span></i><i>魅<span class="cd-bar"><i style="width:70%;background:var(--charm)"></i></span><span class="cd-num">70</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--amber)">不当面收</span> 走「买卖」才收 <b>80</b> 第纳尔</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>去 <b>收数人</b>（debtor）· 交差给 jewelry</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span><code class="cd-code">lwn_ledger_book</code> → 交易 +1</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_bartender_wipe</code><code class="cd-code">act_conversation_talk_commenting</code><code class="cd-code">act_conversation_closed_loop</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>player</b> · 前 5.9 米 · 右 -5.0 米 · 面朝玩家</span></div>
+    </article>
+    <article class="cd-card">
+      <div class="cd-head"><b>寡妇</b><span class="cd-id">widow</span><span class="cd-fac">The Players</span><span class="cd-fac">委托人</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">townswoman_empire</code>42 岁 · 女 · 平民装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:30%;background:var(--danger)"></i></span><span class="cd-num">30</span></i><i>技<span class="cd-bar"><i style="width:50%;background:var(--amber)"></i></span><span class="cd-num">50</span></i><i>魅<span class="cd-bar"><i style="width:70%;background:var(--charm)"></i></span><span class="cd-num">70</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--copper)">厚脸皮收</span> 当面 <b>60</b> 第纳尔</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>去 <b>对台领班</b>（rival）· 交差给 fine_town_tunic</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span><code class="cd-code">jewelry</code> → 魅力 +1</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_play_celtic_harp_stand</code><code class="cd-code">act_conversation_hip_loop</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>player</b> · 前 9.4 米 · 右 6.2 米 · 面朝玩家</span></div>
+    </article>
+    <article class="cd-card">
+      <div class="cd-head"><b>小贼</b><span class="cd-id">son</span><span class="cd-fac">The Nightwalkers</span><span class="cd-fac">委托人</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">townsman_empire</code>18 岁 · 男 · 平民装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:30%;background:var(--danger)"></i></span><span class="cd-num">30</span></i><i>技<span class="cd-bar"><i style="width:70%;background:var(--amber)"></i></span><span class="cd-num">70</span></i><i>魅<span class="cd-bar"><i style="width:30%;background:var(--charm)"></i></span><span class="cd-num">30</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--copper)">厚脸皮收</span> 当面 <b>40</b> 第纳尔</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>去 <b>野贼</b>（outlaw）· 交差给 lwn_grapple_rope、lwn_grapple_hook</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span><code class="cd-code">lwn_lockpick_kit</code> → 巧计 +1</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_beggar_idle</code><code class="cd-code">act_conversation_confident_loop</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>player</b> · 前 3.0 米 · 右 -8.0 米 · 面朝玩家</span></div>
+    </article>
+    <article class="cd-card">
+      <div class="cd-head"><b>屠户</b><span class="cd-id">butcher</span><span class="cd-fac">The Dockhands</span><span class="cd-fac">委托人</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">blacksmith_empire</code>45 岁 · 男 · 平民装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:70%;background:var(--danger)"></i></span><span class="cd-num">70</span></i><i>技<span class="cd-bar"><i style="width:50%;background:var(--amber)"></i></span><span class="cd-num">50</span></i><i>魅<span class="cd-bar"><i style="width:30%;background:var(--charm)"></i></span><span class="cd-num">30</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--danger)">不屑</span> 给钱是侮辱</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>去 <b>打手</b>（thug）· 交差给 cleaver_2hsword_t3、lwn_grapple_rope</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span><code class="cd-code">lwn_whetstone</code> → 单手 +1</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_bartender_meat</code><code class="cd-code">act_citizen_cleanup</code><code class="cd-code">act_conversation_closed_loop</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>player</b> · 前 4.4 米 · 右 8.5 米 · 面朝玩家</span></div>
+    </article>
+    <article class="cd-card">
+      <div class="cd-head"><b>铁头</b><span class="cd-id">blocker</span><span class="cd-fac">The Dockhands</span><span class="cd-fac">守门人</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">prison_guard_empire</code>36 岁 · 男 · 战斗装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:70%;background:var(--danger)"></i></span><span class="cd-num">70</span></i><i>技<span class="cd-bar"><i style="width:30%;background:var(--amber)"></i></span><span class="cd-num">30</span></i><i>魅<span class="cd-bar"><i style="width:50%;background:var(--charm)"></i></span><span class="cd-num">50</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--copper)">厚脸皮收</span> 当面 <b>100</b> 第纳尔</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>不派活</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span>身上没有属性道具</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_stealth_mission_guard_look_around_patrolling_cautious_1</code><code class="cd-code">act_conversation_aggressive_loop</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>gate</b> · 前 0.0 米 · 右 0.0 米 · 面朝玩家</span></div>
+    </article>
+    <article class="cd-card">
+      <div class="cd-head"><b>打手</b><span class="cd-id">thug</span><span class="cd-fac">The Dockhands</span><span class="cd-fac">被屠户盯上</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">gangleader_bodyguard_empire</code>30 岁 · 男 · 战斗装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:70%;background:var(--danger)"></i></span><span class="cd-num">70</span></i><i>技<span class="cd-bar"><i style="width:30%;background:var(--amber)"></i></span><span class="cd-num">30</span></i><i>魅<span class="cd-bar"><i style="width:30%;background:var(--charm)"></i></span><span class="cd-num">30</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--danger)">不屑</span> 给钱是侮辱</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>自己是别人的目标（屠户 要办他）</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span>身上没有属性道具</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_bully</code><code class="cd-code">act_conversation_aggressive_loop</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>player</b> · 前 6.5 米 · 右 -1.5 米 · 面朝玩家</span></div>
+    </article>
+    <article class="cd-card">
+      <div class="cd-head"><b>收数人</b><span class="cd-id">debtor</span><span class="cd-fac">The Dockhands</span><span class="cd-fac">被老周盯上</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">merchant_notary_empire</code>40 岁 · 男 · 平民装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:50%;background:var(--danger)"></i></span><span class="cd-num">50</span></i><i>技<span class="cd-bar"><i style="width:50%;background:var(--amber)"></i></span><span class="cd-num">50</span></i><i>魅<span class="cd-bar"><i style="width:50%;background:var(--charm)"></i></span><span class="cd-num">50</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--danger)">不屑</span> 给钱是侮辱</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>自己是别人的目标（老周 要办他）</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span>身上没有属性道具</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_citizen_cleanup_idle</code><code class="cd-code">act_conversation_closed_loop</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>player</b> · 前 1.0 米 · 右 -12.0 米 · 面朝玩家</span></div>
+    </article>
+    <article class="cd-card">
+      <div class="cd-head"><b>对台领班</b><span class="cd-id">rival</span><span class="cd-fac">The Players</span><span class="cd-fac">被寡妇盯上</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">musician_empire</code>38 岁 · 男 · 平民装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:30%;background:var(--danger)"></i></span><span class="cd-num">30</span></i><i>技<span class="cd-bar"><i style="width:50%;background:var(--amber)"></i></span><span class="cd-num">50</span></i><i>魅<span class="cd-bar"><i style="width:70%;background:var(--charm)"></i></span><span class="cd-num">70</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--danger)">不屑</span> 给钱是侮辱</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>自己是别人的目标（寡妇 要办他）</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span>身上没有属性道具</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_argue</code><code class="cd-code">act_conversation_hip_loop</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>player</b> · 前 9.0 米 · 右 11.0 米 · 面朝玩家</span></div>
+    </article>
+    <article class="cd-card">
+      <div class="cd-head"><b>野贼</b><span class="cd-id">outlaw</span><span class="cd-fac">The Nightwalkers</span><span class="cd-fac">被小贼盯上</span></div>
+      <div class="cd-row"><span class="cd-k">外观</span><span><code class="cd-code">looter</code>32 岁 · 男 · 战斗装</span></div>
+      <div class="cd-row"><span class="cd-k">三维</span><span class="cd-attrs"><i>武<span class="cd-bar"><i style="width:30%;background:var(--danger)"></i></span><span class="cd-num">30</span></i><i>技<span class="cd-bar"><i style="width:70%;background:var(--amber)"></i></span><span class="cd-num">70</span></i><i>魅<span class="cd-bar"><i style="width:50%;background:var(--charm)"></i></span><span class="cd-num">50</span></i></span></div>
+      <div class="cd-row"><span class="cd-k">对钱</span><span><span class="cd-tag" style="background:var(--danger)">不屑</span> 给钱是侮辱</span></div>
+      <div class="cd-row"><span class="cd-k">委托</span><span>自己是别人的目标（小贼 要办他）</span></div>
+      <div class="cd-row"><span class="cd-k">能偷</span><span>身上没有属性道具</span></div>
+      <div class="cd-row"><span class="cd-k">常驻</span><span><code class="cd-code">act_argue_soft_1</code><code class="cd-code">act_beggar_idle</code></span></div>
+      <div class="cd-row"><span class="cd-k">站位</span><span>锚点 <b>player</b> · 前 -2.0 米 · 右 -16.0 米 · 面朝玩家</span></div>
+    </article>
+  </div>
+  <h3>一眼对比</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>谁</th><th>武 / 技 / 魅</th><th>对钱</th><th>能给你什么</th><th>他的用处</th></tr></thead>
+    <tbody>
+      <tr><td>老周</td><td class="mono">30 / 50 / 70</td><td><span class="cd-tag" style="background:var(--amber)">不当面收（80）</span></td><td>jewelry</td><td>派活、可偷</td></tr>
+      <tr><td>寡妇</td><td class="mono">30 / 50 / 70</td><td><span class="cd-tag" style="background:var(--copper)">厚脸皮收（60）</span></td><td>fine_town_tunic</td><td>派活、可偷</td></tr>
+      <tr><td>小贼</td><td class="mono">30 / 70 / 30</td><td><span class="cd-tag" style="background:var(--copper)">厚脸皮收（40）</span></td><td>lwn_grapple_rope、lwn_grapple_hook</td><td>派活、可偷</td></tr>
+      <tr><td>屠户</td><td class="mono">70 / 50 / 30</td><td><span class="cd-tag" style="background:var(--danger)">不屑</span></td><td>cleaver_2hsword_t3、lwn_grapple_rope</td><td>派活、可偷</td></tr>
+      <tr><td>铁头</td><td class="mono">70 / 30 / 50</td><td><span class="cd-tag" style="background:var(--copper)">厚脸皮收（100）</span></td><td>—</td><td>过门</td></tr>
+      <tr><td>打手</td><td class="mono">70 / 30 / 30</td><td><span class="cd-tag" style="background:var(--danger)">不屑</span></td><td>—</td><td>被打</td></tr>
+      <tr><td>收数人</td><td class="mono">50 / 50 / 50</td><td><span class="cd-tag" style="background:var(--danger)">不屑</span></td><td>—</td><td>被打</td></tr>
+      <tr><td>对台领班</td><td class="mono">30 / 50 / 70</td><td><span class="cd-tag" style="background:var(--danger)">不屑</span></td><td>—</td><td>被打</td></tr>
+      <tr><td>野贼</td><td class="mono">30 / 70 / 50</td><td><span class="cd-tag" style="background:var(--danger)">不屑</span></td><td>—</td><td>被打</td></tr>
+    </tbody>
+  </table></div>
+  <h3>出场演出：30 条指令</h3>
+  <p class="sub">正本 = <code>StoryStage.json</code>。冻结玩家 → 生成布景 → 摆人 → 切镜头 → 交还。</p>
+  <div class="cd-tl">
+    <div class="cd-beat"><span class="t">0.0s</span><span class="c">player_freeze</span>玩家动不了</div>
+    <div class="cd-beat"><span class="t">0.0s</span><span class="c">camera_cut</span>镜头先背对广场，布景在画面外完成  Case=story_intro_back · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.2s</span><span class="c">prop_spawn</span>老周的当铺案子  Id=pawnbroker_desk · Prefab=bd_table_a · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.2s</span><span class="c">prop_spawn</span>老周旁边的杂物桶  Id=pawnbroker_scale · Prefab=bd_barrel_a · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.2s</span><span class="c">prop_spawn</span>戏台（左半边）  Id=widow_stage_a · Prefab=bd_table_c · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.2s</span><span class="c">prop_spawn</span>戏台（右半边）  Id=widow_stage_b · Prefab=bd_table_c · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.2s</span><span class="c">prop_spawn</span>台前铺地  Id=widow_carpet · Prefab=carpet_empire_a · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.3s</span><span class="c">prop_spawn</span>屠户的肉案  Id=butcher_block · Prefab=bd_table_c · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.3s</span><span class="c">prop_spawn</span>肉案边的桶  Id=butcher_barrel · Prefab=bd_barrel_b · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=pawnbroker · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=widow · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=son · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=butcher · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=blocker · Anchor=gate</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=thug · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=debtor · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=rival · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.5s</span><span class="c">actor_place</span>Actor=outlaw · Anchor=player</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=pawnbroker · Action=act_bartender_wipe</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=widow · Action=act_play_celtic_harp_stand</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=son · Action=act_beggar_idle</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=butcher · Action=act_bartender_meat</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=blocker · Action=act_stealth_mission_guard_look_around_patrolling_cautious_1</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=thug · Action=act_bully</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=debtor · Action=act_bar_talk_to_2</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=rival · Action=act_argue</div>
+    <div class="cd-beat"><span class="t">0.7s</span><span class="c">actor_action</span>Actor=outlaw · Action=act_argue_soft_1</div>
+    <div class="cd-beat"><span class="t">1.6s</span><span class="c">camera_cut</span>布景完成，镜头转过来看全场  Case=story_intro_wide · Anchor=player</div>
+    <div class="cd-beat"><span class="t">4.0s</span><span class="c">camera_return</span>交还引擎相机</div>
+    <div class="cd-beat"><span class="t">4.2s</span><span class="c">player_release</span>解冻（必须在交还相机之后）</div>
+  </div>
+  <p class="simnote">语义位（台本里写名字、运行时去场景找点）：<code>idle</code> → 场景标签 npc_idle；<code>market</code> → 场景标签 sp_merchant；另有内置的 <code>player</code> / <code>gate</code> / <code>gate_inner</code>。</p>
+  <h3>节奏与几何（StoryProbeTuning.json）</h3>
+  <p class="sub">觉得太慢、太快、门太好过——改这张表，<code>custom.story_probe reload</code> 生效。</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>段</th><th>键</th><th>值</th></tr></thead><tbody>
+      <tr><td>Ambient</td><td class="mono">FirstDelayMinSec</td><td class="mono">2.0</td></tr>
+      <tr><td>Ambient</td><td class="mono">FirstDelayMaxSec</td><td class="mono">10.0</td></tr>
+      <tr><td>Ambient</td><td class="mono">GapMinSec</td><td class="mono">8.0</td></tr>
+      <tr><td>Ambient</td><td class="mono">GapMaxSec</td><td class="mono">20.0</td></tr>
+      <tr><td>Events</td><td class="mono">FirstDelaySec</td><td class="mono">12.0</td></tr>
+      <tr><td>Events</td><td class="mono">RetryGapSec</td><td class="mono">5.0</td></tr>
+      <tr><td>Events</td><td class="mono">FirstLineDelaySec</td><td class="mono">1.0</td></tr>
+      <tr><td>Events</td><td class="mono">ResumeLineDelaySec</td><td class="mono">1.5</td></tr>
+      <tr><td>Events</td><td class="mono">LineGapMinSec</td><td class="mono">3.0</td></tr>
+      <tr><td>Events</td><td class="mono">LineGapMaxSec</td><td class="mono">5.0</td></tr>
+      <tr><td>Events</td><td class="mono">ActionChangeAfterSec</td><td class="mono">3.0</td></tr>
+      <tr><td>Events</td><td class="mono">ActionChangeChancePerSec</td><td class="mono">0.25</td></tr>
+      <tr><td>Events</td><td class="mono">SoloActionChancePerSec</td><td class="mono">0.08</td></tr>
+      <tr><td>Events</td><td class="mono">MaxDurationSec</td><td class="mono">20.0</td></tr>
+      <tr><td>Events</td><td class="mono">ActorSpacingMeters</td><td class="mono">4.0</td></tr>
+      <tr><td>Events</td><td class="mono">ActorApproachMeters</td><td class="mono">1.8</td></tr>
+      <tr><td>Events</td><td class="mono">JoinArmDistanceMeters</td><td class="mono">6.0</td></tr>
+      <tr><td>Events</td><td class="mono">JoinDistanceMeters</td><td class="mono">4.0</td></tr>
+      <tr><td>Events</td><td class="mono">PlayerFarMeters</td><td class="mono">20.0</td></tr>
+      <tr><td>Events</td><td class="mono">PlayerFarGraceSec</td><td class="mono">3.0</td></tr>
+      <tr><td>Events</td><td class="mono">ResumeAfterReturnSec</td><td class="mono">4.0</td></tr>
+      <tr><td>Events</td><td class="mono">ResumeGapSec</td><td class="mono">3.0</td></tr>
+      <tr><td>Skits</td><td class="mono">FirstDelaySec</td><td class="mono">90.0</td></tr>
+      <tr><td>Skits</td><td class="mono">MaxDurationSec</td><td class="mono">20.0</td></tr>
+      <tr><td>Gate</td><td class="mono">PastMeters</td><td class="mono">1.0</td></tr>
+      <tr><td>Gate</td><td class="mono">GoalRadiusMeters</td><td class="mono">8.0</td></tr>
+      <tr><td>Gate</td><td class="mono">ClimbHeightMeters</td><td class="mono">2.0</td></tr>
+      <tr><td>Gate</td><td class="mono">PushBackCooldownSec</td><td class="mono">1.2</td></tr>
+      <tr><td>Gate</td><td class="mono">GuardSpawnRadiusMeters</td><td class="mono">60.0</td></tr>
+      <tr><td>Gate</td><td class="mono">RecognizeDistanceMeters</td><td class="mono">12.0</td></tr>
+      <tr><td>Crime</td><td class="mono">SmallBountyAtEntry</td><td class="mono">15.0</td></tr>
+      <tr><td>Crime</td><td class="mono">RecognizedExtra</td><td class="mono">10.0</td></tr>
+      <tr><td>Greeting</td><td class="mono">WeaponRadiusMeters</td><td class="mono">6.0</td></tr>
+      <tr><td>Greeting</td><td class="mono">WeaponCooldownSec</td><td class="mono">10.0</td></tr>
+      <tr><td>Greeting</td><td class="mono">NearRadiusMeters</td><td class="mono">3.0</td></tr>
+      <tr><td>Greeting</td><td class="mono">NearCooldownSec</td><td class="mono">30.0</td></tr>
+      <tr><td>Intro</td><td class="mono">ForcedDefeatHoldSec</td><td class="mono">4.2</td></tr>
+    </tbody></table></div>
+</section>
+<!-- CASTDATA:END -->
+  <section>
+    <h2>怎么验（照着打，看日志）</h2>
+    <p class="sub">每一步都写了它会打的那行日志。日志文件：<code>Modules\LivingWorldNpcs\Debug\StoryEngine_RuntimeLog.txt</code>，
+      每行带 <code>[StoryProbe]</code> 前缀，用编辑器搜这四个字就能顺着走一遍。</p>
+
+    <h3 class="dlghead">T0 · 准备（不进场景）</h3>
+    <div class="tablewrap"><table class="tt">
+      <thead><tr><th>步</th><th>怎么做</th><th>期望日志 / 返回</th></tr></thead>
+      <tbody>
+        <tr><td>T0.1</td><td><code>custom.story_probe enable</code></td><td>命令返回 <code>OK: story_probe enabled…</code>（无日志）</td></tr>
+        <tr><td>T0.2</td><td><code>custom.story_probe status</code></td><td>一行里能看到 <code>phase=FirstAttempt</code>、<code>gameKeys=True</code></td></tr>
+        <tr><td>T0.3</td><td><code>custom.story_probe money</code></td><td>九个人的态度：<code>blocker=OPEN(100) pawnbroker=COVERT(80) widow=OPEN(60) son=OPEN(40) butcher=DISDAIN</code></td></tr>
+        <tr><td>T0.4</td><td><code>custom.story_probe dialogue</code></td><td><code>npc=9 nodes=110 … problems=0</code></td></tr>
+        <tr><td>T0.5</td><td><code>custom.grapple skill</code></td><td><code>grapple: skill scaling=ON roguery01=… rangeScale=0.55~1.15 …</code></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="dlghead">T1 · 第一次进城（必败教学）</h3>
+    <div class="tablewrap"><table class="tt">
+      <thead><tr><th>步</th><th>怎么做</th><th>期望日志</th></tr></thead>
+      <tbody>
+        <tr><td>T1.1</td><td>进城 → 城镇菜单点「入城（玩法测试）」</td><td><code>[StoryProbe] intro inquiry shown (first attempt)</code></td></tr>
+        <tr><td>T1.2</td><td>点【硬闯】</td><td><code>[StoryProbe] entering center of town_ES4 phase=FirstAttempt</code></td></tr>
+        <tr><td>T1.3</td><td>进场后停两秒</td><td><code>[StoryProbe] guard spawns via tag 'sp_guard_with_spear': N</code><br><code>[StoryProbe] spawned blocker hero=… agent=… pos=(…)</code><br><code>[StoryProbe] active phase=FirstAttempt anchor=(…) blocker=(…) goal=(…) fallback=False</code></td></tr>
+        <tr><td>T1.4</td><td>走到守门人 3.5 m 内</td><td><code>[StoryProbe] conversation started npc=blocker entry=blocker_first</code></td></tr>
+        <tr><td>T1.5</td><td>选【动手】<b>或</b>直接绕过他</td><td><code>[StoryProbe] forced defeat sequence start</code><br>（绕过时先有 <code>[StoryProbe] first attempt: player tried to pass (along=…)</code>）</td></tr>
+        <tr><td>T1.6</td><td>倒地后等 4 秒</td><td><code>[StoryProbe] forced defeat done -&gt; end mission …</code></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="dlghead">T2 · 牢房换装</h3>
+    <div class="tablewrap"><table class="tt">
+      <thead><tr><th>步</th><th>怎么做</th><th>期望日志</th></tr></thead>
+      <tbody>
+        <tr><td>T2.1</td><td>回到地图（不要走开）</td><td><code>[StoryProbe] jail inquiry shown (manual=False)</code></td></tr>
+        <tr><td>T2.2</td><td>点【换上】</td><td><code>[StoryProbe] stripped: goldBefore=… battleSlots=12</code></td></tr>
+        <tr><td>T2.3</td><td><code>custom.story_probe status</code></td><td>应看到 <code>phase=Second</code>、<code>stripped=True disguised=True</code></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="dlghead">T3 · 第二次进城（序章本体）</h3>
+    <div class="tablewrap"><table class="tt">
+      <thead><tr><th>步</th><th>怎么做</th><th>期望日志</th></tr></thead>
+      <tbody>
+        <tr><td>T3.1</td><td>再点「入城（玩法测试）」</td><td><code>[StoryProbe] entering center of town_ES4 phase=Second</code><br><code>[StoryProbe] active phase=Second …</code></td></tr>
+        <tr><td>T3.2</td><td>进场</td><td>九行 <code>[StoryProbe] spawned &lt;npc&gt; hero=… agent=…</code></td></tr>
+        <tr><td>T3.3</td><td>看随从</td><td><code>[StoryProbe] companion recruited: …</code> 或 <code>no wanderer to recruit; narration fallback</code><br>然后 <code>[StoryProbe] companion line 1/3 … 3/3</code></td></tr>
+        <tr><td>T3.4</td><td>站 12 秒</td><td><code>[StoryProbe] event start #1 skit=False actors=thug+pawnbroker</code></td></tr>
+        <tr><td>T3.5</td><td>走进事件 4 m</td><td><code>[StoryProbe] event #1 pause (player 3.2 m) -&gt; join dialogue</code></td></tr>
+        <tr><td>T3.6</td><td>选【走开】</td><td><code>[StoryProbe] event #1 resumed after conversation</code></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="dlghead">T4 · 对话与检定</h3>
+    <div class="tablewrap"><table class="tt">
+      <thead><tr><th>步</th><th>怎么做</th><th>期望日志</th></tr></thead>
+      <tbody>
+        <tr><td>T4.1</td><td>对任一剧情 NPC 按 F</td><td><code>[ConvLock] Acquire by … | reason=MissionStartPrefix</code><br><code>[StoryProbe] inject npc=&lt;npc&gt; entry=&lt;入口&gt; nodes=…</code></td></tr>
+        <tr><td>T4.2</td><td>点带检定的选项（如【威吓】）</td><td><code>[StoryProbe] check blocker/force: player=45 npc=70 chance=39% roll=… threshold=61% → success</code></td></tr>
+        <tr><td>T4.3</td><td>点【递钱】给老周</td><td><code>[StoryProbe] money COVERT pawnbroker refused direct cash</code></td></tr>
+        <tr><td>T4.4</td><td>给屠户递钱</td><td><code>[StoryProbe] money DISDAIN butcher insulted</code></td></tr>
+        <tr><td>T4.5</td><td>交差（办完事回来）</td><td><code>[StoryProbe] turn_in back to pawnbroker: 120</code></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="dlghead">T5 · 十二条过门路（每条一行）</h3>
+    <div class="tablewrap"><table class="tt">
+      <thead><tr><th>路</th><th>怎么做</th><th>期望日志</th></tr></thead>
+      <tbody>
+        <tr><td>收买</td><td>钱 ≥100，对话选【塞钱】</td><td><code>[StoryProbe] gate opened approach=money</code></td></tr>
+        <tr><td>威吓</td><td>选【威吓】并掷赢</td><td><code>[StoryProbe] gate opened approach=force</code></td></tr>
+        <tr><td>决斗</td><td>选【动手】把他打倒</td><td><code>[StoryProbe] blocker downed -&gt; gate open (force)</code></td></tr>
+        <tr><td>冒充</td><td>有行头，选【亮身份】掷赢</td><td><code>[StoryProbe] gate opened approach=charm</code></td></tr>
+        <tr><td>钩索·对话</td><td>有钩，选【翻墙】掷赢</td><td><code>[StoryProbe] gate opened approach=guile</code></td></tr>
+        <tr><td>钩索·真翻墙</td><td>真钩住门楼、拉过 2 m，且他没看着你</td><td>成功 <code>gate opened approach=guile</code>；失手 <code>[StoryProbe] climb roll FAILED -&gt; gate stays shut</code></td></tr>
+        <tr><td>翻墙被看见</td><td>他正对着你时翻</td><td><code>[StoryProbe] climb SEEN -&gt; gate stays shut</code></td></tr>
+        <tr><td>真蹲潜行</td><td>蹲下，绕到他背后 8 m 内</td><td><code>[StoryProbe] sneak past: crouch=1 dist=… dot=…</code></td></tr>
+        <tr><td>击晕</td><td>从他背后放倒</td><td><code>[StoryProbe] hands: blocker KNOCKED OUT -&gt; gate open</code></td></tr>
+        <tr><td>绑走</td><td>用钩索把他绑住</td><td><code>[StoryProbe] hands: blocker BOUND -&gt; gate open</code></td></tr>
+        <tr><td>扛走</td><td>绑住后再扛起来</td><td><code>[StoryProbe] hands: blocker CARRIED -&gt; gate open</code></td></tr>
+        <tr><td>扒刀</td><td>扒窃条扒掉他的主手武器</td><td><code>[StoryProbe] hands: blocker DISARMED (all weapon slots empty)</code><br>对话里多出【你手里什么都没有了】</td></tr>
+        <tr><td>（反例）硬闯门</td><td>门没开就往里走</td><td><code>[StoryProbe] barrier: pushed back (along=… distToGoal=…</code></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="dlghead">T6 · 完成 / 存档</h3>
+    <div class="tablewrap"><table class="tt">
+      <thead><tr><th>步</th><th>怎么做</th><th>期望日志</th></tr></thead>
+      <tbody>
+        <tr><td>T6.1</td><td>门开后走到门内目标点</td><td><code>[StoryProbe] PROLOGUE COMPLETE (approach=…) -&gt; restoring belongings</code><br><code>[StoryProbe] belongings restored: +… -&gt; …</code></td></tr>
+        <tr><td>T6.2</td><td>存档 → 读档</td><td><code>[StoryProbe] Loaded state: phase=Done step=…</code></td></tr>
+        <tr><td>T6.3</td><td><code>custom.story_probe status</code></td><td><code>phase=Done goal=True …</code>，菜单项不再出现</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="dlghead">T7 · 最常见的"没生效"怎么判</h3>
+    <div class="tablewrap"><table class="tt">
+      <thead><tr><th>看到这行</th><th>含义</th><th>怎么办</th></tr></thead>
+      <tbody>
+        <tr><td><code>[StoryProbe] skipped: disabled</code></td><td>开关没开</td><td><code>custom.story_probe enable</code></td></tr>
+        <tr><td><code>[StoryProbe] skipped: settlement=… (want town_ES4)</code></td><td>不在目标城</td><td><code>custom.story_probe city &lt;id&gt;</code> 或 <code>goto</code></td></tr>
+        <tr><td><code>[StoryProbe] skipped: location=… (want center)</code></td><td>进的是酒馆/领主大厅</td><td>回城镇菜单点「入城（玩法测试）」</td></tr>
+        <tr><td>完全没有 <code>[StoryProbe]</code> 行</td><td>不是从菜单进的（原版「在城里逛逛」不加载）</td><td>用菜单项进</td></tr>
+        <tr><td><code>source=fallback</code>（<code>where</code> 输出）</td><td>场景锚点没取到，用了兜底坐标</td><td>看 <code>custom.story_probe where</code> 的实际数值</td></tr>
+      </tbody>
+    </table></div>
+
+    <p class="simnote">测完把 <code>StoryEngine_RuntimeLog.txt</code> 留着——我会按这张表逐行对。
+      <b>任何一步没有对应的 <code>[StoryProbe]</code> 行，就是这一步没走到</b>，比"看起来不对"可靠得多。</p>
+  </section>
+
+  <section>
+    <h2>还有一件事：路能走，门不一定开</h2>
+    <p class="sub">序章里那道门是真的拦人的。</p>
+    <div class="route on" style="grid-template-columns:34px minmax(0,1fr)">
+      <div class="idx">!</div>
+      <div>
+        <h3>门没开就过不去</h3>
+        <p class="desc">越过守门人 1 米，或者贴到门内点 8 米内，会被<em>一把推回门外</em>，他喊一句「通行文书」。
+          唯一例外：被钩索拉到 <em>2 米以上</em>——那是真翻过去了，系统自动算你过。
+          门一旦开过，<em>再进城不用重开</em>。</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    台词块由 <code>plans/逆水寒511/tools/gen_dialogue_html.py</code> 从 <code>ModuleData/Languages/CNs/std_LivingWorldNpcs_strings.xml</code> 抽取生成（改了台词要重跑它）；其余数据来自 <code>story_probe_blocker.json</code> 与 <code>StoryProbeDefs.cs</code> 的实际实现；
+    成功率公式 <code>chance = p/(p+n)</code>、门槛 <code>1−chance</code>、掷点 ≥ 门槛即成功。
+    第一次进城是强制必败的教学，不在这七条里。
+  </div>
+</div>
+
+<script>
+(function(){
+  var NPC = { force:70, guile:30, charm:50 };
+  var ROUTES = [
+    { id:"money", name:"收买", tag:"钱", cost:"100 第纳尔归他 · 守门人 −5 · 捉刀人 +5",
+      desc:"把钱塞过去，他掂一掂，侧身让开。不掷骰——钱够就过，钱不够这条根本不出现。你开局 0 钱，这 100 得靠零活或收账挣。",
+      need:function(s){ return s.gold; }, kind:"auto" },
+    { id:"threat", name:"威吓", tag:"武力", cost:"守门人 −20 · 通缉 + · 码头帮 +5",
+      desc:"亮兵器逼上前。他退了半步，但记住了你的脸。输了他直接抽刀。",
+      need:function(){ return true; }, kind:"check", attr:"force" },
+    { id:"duel", name:"决斗", tag:"武力", cost:"守门人 −20 · 通缉 + · 码头帮 +5",
+      desc:"不跟他废话，直接动手。非致命，把他打到血归零判负——赢了门就开了。输了还能换路。",
+      need:function(){ return true; }, kind:"fight" },
+    { id:"disguise", name:"冒充", tag:"魅力", cost:"守门人 −5 · 剧团 +5",
+      desc:"贵族行头 + 通行文书。他低头叫一声「阁下」——前提是他信。",
+      need:function(s){ return s.noble; }, kind:"check", attr:"charm" },
+    { id:"sneakTalk", name:"潜行 · 对话", tag:"技巧", cost:"守门人 0（没看见）· 夜行会 +5",
+      desc:"在对话里赌一次：趁他分神说句场面话，你贴着墙根过去。",
+      need:function(){ return true; }, kind:"check", attr:"guile" },
+    { id:"climbTalk", name:"钩索 · 对话", tag:"技巧", cost:"守门人 0 · 夜行会 +5",
+      desc:"有钩在手，你跟他说「我翻过去」——一次技巧对拼，赌他反应不过来。",
+      need:function(s){ return s.hook; }, kind:"check", attr:"guile" },
+    { id:"climbReal", name:"钩索 · 真翻墙", tag:"技巧", cost:"守门人 0 · 夜行会 +5 · 失手记隐患",
+      desc:"真的把钩子甩上门楼、把自己拉过 2 米线。两道门槛：<b>他得没看着你</b>，而且<b>要过一次技巧检定</b>（勾不勾得稳）。钩索本身不消耗，但每次腾空只掷一次。",
+      need:function(s){ return s.hook; }, kind:"check", attr:"guile" },
+    { id:"sneakReal", name:"潜行 · 真蹲过去", tag:"技巧", cost:"守门人 0（压根没看见）· 夜行会 +5",
+      desc:"蹲下，绕到他背后 8 米内。只要你真的在他视线之外，门就自己过了——不看骰子，看你走位。",
+      need:function(){ return true; }, kind:"manual" },
+    { id:"knockout", name:"击晕", tag:"武力", cost:"无（他没看见是谁）",
+      desc:"从背后一下放倒。他醒来只知道有人进了城，不知道是你。",
+      need:function(){ return true; }, kind:"manual" },
+    { id:"bind", name:"绑走", tag:"武力", cost:"守门人 −20 · 隐患：动了码头帮的人",
+      desc:"用绳子把他绑在原地，然后大摇大摆走过去。人还在，只是动不了。",
+      need:function(s){ return s.hook; }, kind:"manual" },
+    { id:"carry", name:"扛走", tag:"武力", cost:"守门人 −20 · 隐患：动了码头帮的人",
+      desc:"绑住之后还能把他扛到墙角——门口就这么空了。",
+      need:function(s){ return s.hook; }, kind:"manual" },
+    { id:"disarm", name:"扒掉他的刀", tag:"技巧", cost:"守门人 −5",
+      desc:"扒窃条摸走他腰后的刀。他再摸，摸了个空——然后慢慢让开半步。",
+      need:function(){ return true; }, kind:"manual" }
+  ];
+
+  var el = function(id){ return document.getElementById(id); };
+  var state = { force:45, guile:30, charm:20, hook:false, noble:false, gold:false };
+
+  function chance(p, n){ return Math.max(0.05, Math.min(0.95, p / (p + n))); }
+  function pct(x){ return Math.round(x * 100); }
+
+  function build(){
+    var host = el("routes");
+    ROUTES.forEach(function(r, i){
+      var d = document.createElement("div");
+      d.className = "route";
+      d.dataset.id = r.id;
+      d.innerHTML =
+        '<div class="idx">' + String(i+1).padStart(2,"0") + '</div>' +
+        '<div><h3>' + r.name + ' <span class="chip">' + r.tag + '</span></h3></div>' +
+        '<div class="odds" data-odds></div>' +
+        '<p class="desc">' + r.desc + '</p>' +
+        '<div class="bar"><i data-bar></i></div>' +
+        '<div class="cost">代价：<span>' + r.cost + '</span></div>';
+      host.appendChild(d);
+    });
+  }
+
+  function update(){
+    var open = 0;
+    el("vForce").textContent = state.force;
+    el("vGuile").textContent = state.guile;
+    el("vCharm").textContent = state.charm;
+
+    ROUTES.forEach(function(r){
+      var d = document.querySelector('.route[data-id="' + r.id + '"]');
+      if(!d) return;
+      var ok = r.need(state);
+      var oddsEl = d.querySelector("[data-odds]");
+      var barEl = d.querySelector("[data-bar]");
+      d.classList.toggle("on", ok);
+      d.classList.toggle("off", !ok);
+
+      if(!ok){
+        oddsEl.className = "odds no";
+        oddsEl.innerHTML = "<b>缺前置</b>";
+        barEl.style.width = "0%";
+        return;
+      }
+      open++;
+
+      if(r.kind === "check"){
+        var c = chance(state[r.attr], NPC[r.attr]);
+        oddsEl.className = "odds ok";
+        oddsEl.innerHTML = "<b>" + pct(c) + "%</b>成功率";
+        barEl.style.width = pct(c) + "%";
+      } else if(r.kind === "auto"){
+        oddsEl.className = "odds ok";
+        oddsEl.innerHTML = "<b>必过</b>不用掷";
+        barEl.style.width = "100%";
+      } else if(r.kind === "fight"){
+        oddsEl.className = "odds ok";
+        oddsEl.innerHTML = "<b>真打</b>看操作";
+        barEl.style.width = "100%";
+      } else {
+        oddsEl.className = "odds ok";
+        oddsEl.innerHTML = "<b>真操作</b>看手法";
+        barEl.style.width = "100%";
+      }
+    });
+
+    var n = document.querySelector(".count .n");
+    if(n) n.textContent = open;
+    var of = document.querySelector(".count .of");
+    if(of) of.textContent = "条现在就能走（共 12 条）";
+  }
+
+  function onRange(id){
+    el(id).addEventListener("input", function(e){
+      state[id] = parseInt(e.target.value, 10);
+      update();
+    });
+  }
+
+  build();
+  ["force","guile","charm"].forEach(onRange);
+  el("hook").addEventListener("change", function(e){ state.hook = e.target.checked; update(); });
+  el("noble").addEventListener("change", function(e){ state.noble = e.target.checked; update(); });
+  el("gold").addEventListener("change", function(e){ state.gold = e.target.checked; update(); });
+  update();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "Npc": "outlaw",
+  "EntryOption": "LWN_story_outlaw_entry",
+  "EntryNode": "outlaw_intro",
+  "Nodes": [
+    {
+      "Id": "outlaw_intro",
+      "NpcKey": "LWN_story_outlaw_intro",
+      "EnterAction": "PROBE:mark",
+      "EnterParam": "met",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "outlaw_talk",
+      "NpcKey": "LWN_story_outlaw_talk",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "outlaw_fight",
+      "NpcKey": "LWN_story_outlaw_fight",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_very_negative"
+      ]
+    }
+  ]
+}

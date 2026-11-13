@@ -418,6 +418,11 @@ namespace LivingWorldNpcs
             mission.AddMissionBehavior(new CharacterCultureBackfill());
             //AI
             mission.AddMissionBehavior(new AgentAIController());
+
+            // 序章「市井 · 城门序章」（2026-11-12，plans/逆水寒511玩法验证-城池剧情任务.md）。
+            // 🔴 自带总闸：只有「开关开 + 由我们那条菜单进城 + 目标城 + center 地点」才 Active；
+            //    原版「在城里逛逛」进场时 Active=false，每帧只判一个 bool。
+            mission.AddMissionBehavior(new StoryProbeMissionBehavior());
             //IM 传讯（Mission 侧 tick 驱动 + 热键）
             mission.AddMissionBehavior(new ImChatMissionView());
 
@@ -466,6 +471,10 @@ namespace LivingWorldNpcs
 
                 // 玩家被当地人扣押（罚金 / 关几天）——复用原版俘虏菜单
                 campaignGameStarter.AddBehavior(new PlayerDetentionBehavior());
+
+                // 序章战役层（2026-11-12）：城镇菜单「入城（玩法测试）」+ 开场弹窗 + 出狱弹窗。
+                // 默认不出现（Settings.StoryProbeEnabled=false）；存档走 MyBehavior 的 lwn_story_probe。
+                campaignGameStarter.AddBehavior(new StoryProbeBehavior());
 
                 // 随从逮捕善后（Phase E）：被执法转押的随从 → 定居点菜单「赎回随从」（罚金）
                 campaignGameStarter.AddBehavior(new CompanionDetentionBehavior());

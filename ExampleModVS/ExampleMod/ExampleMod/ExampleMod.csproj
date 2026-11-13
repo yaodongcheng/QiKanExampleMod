@@ -287,6 +287,17 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="Interaction\StoryProbe\StoryProbeState.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryProbeDefs.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryProbeData.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryProbeDialogue.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryProbeMissionBehavior.cs" />
+    <Compile Include="Interaction\StoryProbe\StreetLifeDirector.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryStageDefs.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryStageRunner.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryLineActions.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryProbeBehavior.cs" />
+    <Compile Include="CampaignMode\Tools\StoryProbeCommands.cs" />
     <Compile Include="Scenario\ScenarioSchema.cs" />
     <Compile Include="Scenario\ScenarioAttrStore.cs" />
     <Compile Include="Scenario\ScenarioStateStore.cs" />
@@ -427,6 +438,7 @@
     <Compile Include="CampaignMode\Tools\GrappleCommands.cs" />
     <Compile Include="CampaignMode\Tools\PairCommands.cs" />
     <Compile Include="CampaignMode\Tools\StatusCommands.cs" />
+    <Compile Include="CampaignMode\Tools\LlmCommands.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />

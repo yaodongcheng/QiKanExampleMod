@@ -113,6 +113,8 @@ namespace LivingWorldNpcs
 		public bool HasBoundTarget => _bind.IsActive;
 		public bool IsPullingSelf => _pull.IsActive;
 		public Agent BoundTarget => _bind.Target;
+		/// <summary>正扛着谁（没扛 = null）。序章要用它判"守门人被扛走了吗"。</summary>
+		public Agent CarriedTarget => _carry.IsActive ? _carry.Carried : null;
 
 		/// <summary>这一套是否"正在干活"（钩头忙 / 绑人 / 拉自己 / 扛人 / 出手租约）。</summary>
 		public bool IsSessionBusy => IsBusy || _bind.IsActive || _bind.HasPendingRelease
@@ -245,6 +247,70 @@ namespace LivingWorldNpcs
 		///    与链节实体池上限 —— 只改这一个数字 = 绳子跟不上钩头（见那两处的注释）。
 		/// 命令 `range` 可调。</summary>
 		public static float AimRange = 30f;
+
+		// ── 技巧影响「绳长（射程）」与「准度」（2026-11-13 用户裁定）──
+		// 🔴 为什么要这么做：钩索原来是三件写死的手感常量（射程 30 / 绳长 33 / 零散布），
+		//    拿到钩子 = 拿到全部性能，技巧值完全不参与 ⇒ 技巧这条路等于绕过了属性。
+		//    现在：射程按 Roguery 缩放、出手有散布（技巧越低越歪）。**玩家与 NPC 同一套**（铁律 18）。
+		//    · 技巧 0   → 射程 55%（16.5 m），散布 7°
+		//    · 技巧 50  → 射程 85%（25.5 m），散布 3.8°
+		//    · 技巧 100 → 射程 115%（34.5 m），散布 0.6°
+		//    调参入口就是下面四个静态字段（`custom.grapple tune` 一族可热改）。
+		public static bool SkillScaling = true;
+		public static float SkillRangeMinScale = 0.55f;
+		public static float SkillRangeMaxScale = 1.15f;
+		public static float SkillSpreadMaxDeg = 7f;
+		public static float SkillSpreadMinDeg = 0.6f;
+
+		/// <summary>持有者的技巧（Roguery）→ 0..1。Hero 读真实技能，模板 NPC 读它自己的技能值。</summary>
+		public static float Skill01(Agent agent)
+		{
+			try
+			{
+				var ch = agent?.Character;
+				if (ch == null) return 0.5f;
+
+				// Hero（玩家/有名有姓的 NPC）→ 真实技能；模板 NPC → 模板自己的技能值（平权，铁律 18）
+				var hero = (ch as TaleWorlds.CampaignSystem.CharacterObject)?.HeroObject;
+				float raw = hero != null
+					? hero.GetSkillValue(DefaultSkills.Roguery)
+					: ch.GetSkillValue(DefaultSkills.Roguery);
+				return MathF.Max(0f, MathF.Min(1f, raw / 100f));
+			}
+			catch { return 0.5f; }
+		}
+
+		private static float Lerp01(float a, float b, float t) => a + (b - a) * t;
+
+		/// <summary>这个持有者此刻的有效射程（= 绳长上限的依据）。</summary>
+		public float EffectiveAimRange
+			=> SkillScaling ? AimRange * Lerp01(SkillRangeMinScale, SkillRangeMaxScale, Skill01(Owner)) : AimRange;
+
+		/// <summary>出手散布（度）：技巧越低越歪。</summary>
+		public float SpreadDegrees
+			=> SkillScaling ? Lerp01(SkillSpreadMaxDeg, SkillSpreadMinDeg, Skill01(Owner)) : 0f;
+
+		/// <summary>把出手方向在一个圆锥内随机偏一点（角度 ≤ 散布）。高技巧基本等于零偏移。</summary>
+		private static Vec3 ApplySpread(Vec3 dir, float spreadDeg)
+		{
+			if (spreadDeg <= 0.01f) return dir;
+
+			float cone = spreadDeg * (float)Math.PI / 180f;
+			// 随机极角（按面积均匀）：acos(1 - u(1-cos cone))
+			float u = MBRandom.RandomFloat;
+			float theta = (float)Math.Acos(1f - u * (1f - (float)Math.Cos(cone)));
+			float phi = MBRandom.RandomFloat * (float)Math.PI * 2f;
+
+			// 以 dir 为轴建正交基
+			Vec3 n = dir.NormalizedCopy();
+			Vec3 helper = MathF.Abs(n.z) < 0.9f ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
+			Vec3 u1 = Vec3.CrossProduct(helper, n).NormalizedCopy();
+			Vec3 u2 = Vec3.CrossProduct(n, u1).NormalizedCopy();
+
+			Vec3 offset = u1 * ((float)Math.Sin(theta) * (float)Math.Cos(phi))
+			            + u2 * ((float)Math.Sin(theta) * (float)Math.Sin(phi));
+			return (n * (float)Math.Cos(theta) + offset).NormalizedCopy();
+		}
 
 		/// <summary>**勾住人之后"绳被拉断"的距离**（米；玩家走出这么远 = 放人，见 `OnMissionTick` 出口③）。
 		/// 🔴 2026-10-23 与绳的可视上限**解耦**：射程从 20 抬到 30 会带着 `GrappleRope.MaxLength` 一起抬，
@@ -1088,10 +1154,10 @@ namespace LivingWorldNpcs
 						// 🔴 相机方向确实拿不到（不在任务屏 / 接管中没人注册）—— 用这一枪的弹道方向打满射程。
 						//    （**没目标也必须能打**：2026-10-08 用户裁定，飞满后打空回收、钩回手里继续转。）
 						hand = GetHand();
-						aim = hand + shotDirection.NormalizedCopy() * AimRange;
+						aim = hand + shotDirection.NormalizedCopy() * EffectiveAimRange;
 						aimAgent = false;
 						aimNormal = Vec3.Up;
-						DebugLogger.Log($"[Grapple] 瞄准失败（{why}）且无相机方向 → 按弹道方向打满 {AimRange:F0}m"
+						DebugLogger.Log($"[Grapple] 瞄准失败（{why}）且无相机方向 → 按弹道方向打满 {EffectiveAimRange:F0}m"
 							+ "（飞满后打空回收，钩回手里继续转）");
 					}
 					else
@@ -1113,6 +1179,20 @@ namespace LivingWorldNpcs
 				return "Error: target too close.";
 			}
 			Vec3 dir = toAim * (1f / dist);
+
+			// 🔴 技巧 → 准度（2026-11-13）：出手方向在圆锥内随机偏一点。
+			//    技巧 100 ≈ 0.6°（几乎看不出来），技巧 0 ≈ 7°（10 米外能差出一米多）。
+			float spread = SpreadDegrees;
+			if (spread > 0.01f)
+			{
+				Vec3 aimed = dir;
+				dir = ApplySpread(dir, spread);
+				DebugLogger.Log($"[Grapple] skill spread {spread:F1}° skill01={Skill01(Owner):F2} "
+					+ $"dir=({aimed.x:F2},{aimed.y:F2},{aimed.z:F2})->({dir.x:F2},{dir.y:F2},{dir.z:F2})");
+			}
+
+			// 🔴 绳长跟着射程走：技巧低的人绳子也短（不然"射程短但绳 33 m"会自相矛盾）
+			try { _rope.MaxLength = EffectiveAimRange + 3f; } catch { }
 
 			// 绳先摆出来（手 → 钩头方向的一小段），此后每帧跟着钩头 —— 顺序照 Anchor()：先定长度再 Build
 			_rope.AutoLength = true;
@@ -1587,7 +1667,7 @@ namespace LivingWorldNpcs
 			{
 				origin = main.GetEyeGlobalPosition();
 			}
-			Vec3 end = origin + forward.NormalizedCopy() * AimRange;
+			Vec3 end = origin + forward.NormalizedCopy() * EffectiveAimRange;
 
 			try
 			{
@@ -1601,7 +1681,7 @@ namespace LivingWorldNpcs
 					DebugLogger.Log(string.Format(
 						"[Grapple] 相机瞄准打空：起点=({0:F2},{1:F2},{2:F2}) 方向=({3:F2},{4:F2},{5:F2}) 终点=({6:F2},{7:F2},{8:F2})",
 						origin.x, origin.y, origin.z, forward.x, forward.y, forward.z, end.x, end.y, end.z));
-					why = string.Format("nothing within {0:F0}m under the crosshair.", AimRange);
+					why = string.Format("nothing within {0:F0}m under the crosshair.", EffectiveAimRange);
 					return false;
 				}
 
@@ -1662,7 +1742,7 @@ namespace LivingWorldNpcs
 				return false;
 			}
 			forward = forward.NormalizedCopy();
-			Vec3 end = hand + forward * AimRange;
+			Vec3 end = hand + forward * EffectiveAimRange;
 
 			// 骑马时把马排掉：马是**独立 agent**，`excludeAgentIndex` 只排得掉人 ⇒
 			// 不排的话射线一出膛就打在自己马脖子上（钩头飞 1 米就停）。
@@ -1713,7 +1793,7 @@ namespace LivingWorldNpcs
 			aim = end;
 			hitAgent = false;
 			normal = Vec3.Up;
-			DebugLogger.Log($"[Grapple] 相机射线打空 → 沿视线 {AimRange:F0}m 内无遮挡，按打满射程发射"
+			DebugLogger.Log($"[Grapple] 相机射线打空 → 沿视线 {EffectiveAimRange:F0}m 内无遮挡，按打满射程发射"
 				+ $" 方向=({forward.x:F2},{forward.y:F2},{forward.z:F2})（飞满后打空回收，钩回手里继续转）");
 			return true;
 		}
@@ -1736,7 +1816,7 @@ namespace LivingWorldNpcs
 			try
 			{
 				Vec3 dir = shotDirection.NormalizedCopy();
-				Vec3 end = shotOrigin + dir * AimRange;
+				Vec3 end = shotOrigin + dir * EffectiveAimRange;
 				Agent victim;
 				Vec3 point;
 				int exclude = Agent.Main != null ? Agent.Main.Index : -1;

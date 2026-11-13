@@ -1,0 +1,68 @@
+{
+  "_comment": "序章的节奏与几何。改这里不用重编译；进场景读一次。字段含义见 StoryProbeData.cs 的 StoryProbeTuning。",
+
+  "Ambient": {
+    "_comment": "常驻小动作/吆喝的间隔（每个 NPC 各自随机）",
+    "FirstDelayMinSec": 2.0,
+    "FirstDelayMaxSec": 10.0,
+    "GapMinSec": 8.0,
+    "GapMaxSec": 20.0
+  },
+
+  "Events": {
+    "_comment": "开场戏（两人冲突 / 单人发愁）的节奏",
+    "FirstDelaySec": 12.0,
+    "RetryGapSec": 5.0,
+    "FirstLineDelaySec": 1.0,
+    "ResumeLineDelaySec": 1.5,
+    "LineGapMinSec": 3.0,
+    "LineGapMaxSec": 5.0,
+    "ActionChangeAfterSec": 3.0,
+    "ActionChangeChancePerSec": 0.25,
+    "SoloActionChancePerSec": 0.08,
+    "MaxDurationSec": 20.0,
+    "ActorSpacingMeters": 4.0,
+    "ActorApproachMeters": 1.8,
+    "JoinArmDistanceMeters": 6.0,
+    "JoinDistanceMeters": 4.0,
+    "PlayerFarMeters": 20.0,
+    "PlayerFarGraceSec": 3.0,
+    "ResumeAfterReturnSec": 4.0,
+    "ResumeGapSec": 3.0
+  },
+
+  "Skits": {
+    "_comment": "随机桥段（只是氛围，不可接入）",
+    "FirstDelaySec": 90.0,
+    "MaxDurationSec": 20.0
+  },
+
+  "Gate": {
+    "_comment": "城门这道关的几何",
+    "PastMeters": 1.0,
+    "GoalRadiusMeters": 8.0,
+    "ClimbHeightMeters": 2.0,
+    "PushBackCooldownSec": 1.2,
+    "GuardSpawnRadiusMeters": 60.0,
+    "RecognizeDistanceMeters": 12.0
+  },
+
+  "Crime": {
+    "_comment": "通缉值（进场景就挂，让遮面/冒充那几条路有意义）",
+    "SmallBountyAtEntry": 15.0,
+    "RecognizedExtra": 10.0
+  },
+
+  "Greeting": {
+    "_comment": "玩家靠近 / 拔刀时的反应（氛围层）",
+    "WeaponRadiusMeters": 6.0,
+    "WeaponCooldownSec": 10.0,
+    "NearRadiusMeters": 3.0,
+    "NearCooldownSec": 30.0
+  },
+
+  "Intro": {
+    "_comment": "第一次进场的强制失败演出",
+    "ForcedDefeatHoldSec": 4.2
+  }
+}

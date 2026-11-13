@@ -1,0 +1,68 @@
+{
+  "Npc": "debtor",
+  "EntryOption": "LWN_story_debtor_entry",
+  "EntryNode": "debtor_intro",
+  "Nodes": [
+    {
+      "Id": "debtor_intro",
+      "NpcKey": "LWN_story_debtor_intro",
+      "EnterAction": "PROBE:mark",
+      "EnterParam": "met",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_negative"
+      ]
+    },
+    {
+      "Id": "debtor_talk",
+      "NpcKey": "LWN_story_debtor_talk",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "debtor_collect",
+      "NpcKey": "LWN_story_debtor_collect",
+      "EnterAction": "PROBE:collect_debt",
+      "EnterParam": "120",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_debtor_opt_collect_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_negative"
+      ]
+    },
+    {
+      "Id": "debtor_fight",
+      "NpcKey": "LWN_story_debtor_fight",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial"
+      ]
+    }
+  ]
+}

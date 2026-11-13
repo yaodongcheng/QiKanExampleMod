@@ -1,0 +1,65 @@
+{
+  "Npc": "thug",
+  "EntryOption": "LWN_story_thug_entry",
+  "EntryNode": "thug_intro",
+  "Nodes": [
+    {
+      "Id": "thug_intro",
+      "NpcKey": "LWN_story_thug_intro",
+      "EnterAction": "PROBE:mark",
+      "EnterParam": "met",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "thug_talk",
+      "NpcKey": "LWN_story_thug_talk",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "thug_money",
+      "NpcKey": "LWN_story_thug_money",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "thug_fight",
+      "NpcKey": "LWN_story_thug_fight",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial"
+      ]
+    }
+  ]
+}

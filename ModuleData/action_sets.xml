@@ -375,5 +375,48 @@
 		<action
 			type="act_grapple_carry_reverse"
 			animation="kangqi_reverse" />
-	</action_set>
+	
+		<!-- 2026-11-13 补注册：原版这些动作只在职业专用集里（bandit / musician / guard），
+		     我们的人形 NPC 只会 as_human_warrior ⇒ 播了没反应。
+		     clip 名逐条抄自原版对应集，未猜。 -->
+		<action
+			type="act_bartender_wipe"
+			animation="anim_bartender_wipe" />
+		<action
+			type="act_bartender_meat"
+			animation="anim_bartender_meat" />
+		<action
+			type="act_bartender_bake"
+			animation="anim_bartender_bake" />
+		<action
+			type="act_beggar_idle"
+			animation="anim_beggar_idle" />
+		<action
+			type="act_bully"
+			animation="anim_bully" />
+		<action
+			type="act_applaud_3"
+			animation="anim_applaud_3" />
+		<action
+			type="act_citizen_cleanup"
+			animation="citizen_cleanup" />
+		<action
+			type="act_citizen_cleanup_idle"
+			animation="citizen_cleanup_idle" />
+		<action
+			type="act_play_celtic_harp_stand"
+			animation="musician_celtic_harp_stand_loop" />
+		<action
+			type="act_argue"
+			animation="anim_hangout_argue_man" />
+		<action
+			type="act_argue_2"
+			animation="anim_hangout_argue_man" />
+		<action
+			type="act_argue_soft_1"
+			animation="anim_npc_argue_soft_male_1" />
+		<action
+			type="act_stealth_mission_guard_look_around_patrolling_cautious_1"
+			animation="anim_guard_idle_look_around_cautious_1" />
+</action_set>
 </action_sets>

@@ -38,6 +38,8 @@ namespace LivingWorldNpcs
         private bool _showHealth;
         private bool _showDamage;
         private bool _showAlert;
+        private bool _showEventMark;
+        private string _eventMarkText = "!";
 
         // 计时器
         private float _speechTimer;
@@ -144,15 +146,25 @@ namespace LivingWorldNpcs
                     && !string.IsNullOrWhiteSpace(NpcIntentDebugText);
             }
 
+            // 4.5 序章事件「!」标记（2026-11-12）：事件参与者头顶一个「!」——
+            //     复用本 HUD，不新建 UI（plans/逆水寒511…§6.1）。非事件期间恒 false。
+            {
+                bool mark = false;
+                try { mark = StoryProbeMissionBehavior.Current?.Director?.HasEventMark(TargetAgent) ?? false; }
+                catch { }
+                ShowEventMark = mark;
+                if (mark) EventMarkText = LWNTextHelper.ResolveText("LWN_story_event_mark", "!");
+            }
+
             // 5. 名字总领规则：FOV 内任意元素真的显示时浮现名字
             //    意图（ShowIntentDebug）在总领规则内——意图单独显示时名字跟随浮现
             //    ShowAlert 在此处生效是因为 UpdateLogic 只在 FOV 内执行——
             //    FOV 外 NPC 的 ShowName 不会被计算，眼睛独立显示但不带名字
-            ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert || ShowIntentDebug;
+            ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert || ShowIntentDebug || ShowEventMark;
 
             // 6. 容器可见性
             //    IsVisible = ShowName || ShowAlert（警戒眼睛可以独立触发容器显示）
-            bool hasContent = ShowName || ShowAlert;
+            bool hasContent = ShowName || ShowAlert || ShowEventMark;
             if (hasContent)
             {
                 IsVisible = true;
@@ -504,6 +516,20 @@ namespace LivingWorldNpcs
         {
             get => _alertFillHeight;
             set { if (Math.Abs(value - _alertFillHeight) > 0.01f) { _alertFillHeight = value; OnPropertyChangedWithValue(value, "AlertFillHeight"); } }
+        }
+
+        [DataSourceProperty]
+        public bool ShowEventMark
+        {
+            get => _showEventMark;
+            set { if (value != _showEventMark) { _showEventMark = value; OnPropertyChangedWithValue(value, "ShowEventMark"); } }
+        }
+
+        [DataSourceProperty]
+        public string EventMarkText
+        {
+            get => _eventMarkText;
+            set { if (value != _eventMarkText) { _eventMarkText = value; OnPropertyChangedWithValue(value, "EventMarkText"); } }
         }
 
         [DataSourceProperty]

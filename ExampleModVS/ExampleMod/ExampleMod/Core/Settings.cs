@@ -44,6 +44,11 @@ namespace LivingWorldNpcs
         public string LLMApiKey { get; set; } = "";
         [Newtonsoft.Json.JsonIgnore]
         public string LLMModel { get; set; } = "";
+        // LLM 接口方言（2026-11-13）：false = OpenAI 兼容（…/chat/completions，默认）；true = Gemini 原生
+        // （…/v1beta/models/<model>:generateContent，鉴权走 x-goog-api-key 头）。
+        // 服务商两种端点都给的场合优先用 OpenAI 兼容（字段最通用）；只有在只开 Gemini 端点时才需要打开。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool LLMUseGeminiApi { get; set; } = false;
         public bool IsLLMConfigured => !string.IsNullOrWhiteSpace(LLMBaseUrl)
                                && !string.IsNullOrWhiteSpace(LLMApiKey)
                                && !string.IsNullOrWhiteSpace(LLMModel);
@@ -91,6 +96,17 @@ namespace LivingWorldNpcs
         // 不受影响：钩索 / 飞行 / 相机 —— 它们借用了法术命名空间下的通用工具（读骨、解析网格），
         //           那些工具一行都没动。
         public bool SpellSystemEnabled { get; set; } = false;
+
+        // ── 序章「市井 · 城门序章」（2026-11-12；plans/逆水寒511玩法验证-城池剧情任务.md）──
+        // 总闸：默认 **关**。关着 = 城镇菜单不出现「入城（玩法测试）」、Mission 行为不布置任何东西
+        //（原版玩法完全不受影响）。开 = 只在 StoryProbeSettlementId 这座城的 center 场景生效。
+        // 运行时也可用控制台 `custom.story_probe enable|disable` 切换（**只在本次游戏内有效**，
+        // 要长期生效改这里）。验收清单见 plans/逆水寒511玩法验证-城池剧情任务.md §12。
+        public bool StoryProbeEnabled { get; set; } = false;
+
+        // 目标城（StringId；默认 town_ES4 = Lycaron/吕卡隆，帝国城镇，center 场景 empire_town_m）。
+        // 只在 **center** 地点触发；tavern / lordshall / keep 与别的城一律不加载。
+        public string StoryProbeSettlementId { get; set; } = "town_ES4";
 
         // ── 口吻参数（config.json 侧；世界观 flavor 已退场，2026-08-17：WorldDescription/EraDescription
         // 删除——世界观改由 LLM 自动生成（WorldBackgroundBehavior），见 plans/world-background-auto-summary.md）──

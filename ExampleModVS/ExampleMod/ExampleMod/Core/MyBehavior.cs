@@ -99,6 +99,8 @@ namespace LivingWorldNpcs
         {
             try
             {
+                // 序章（lwn_story_probe）
+                StoryProbeState.ResetAll();
                 // 意图冷却 / 据点荣誉（SyncData: lwn_intent_cooldowns / lwn_settlement_honor）
                 IntentCooldownStore.ResetAll();
                 SettlementHonorStore.ResetAll();
@@ -422,6 +424,17 @@ namespace LivingWorldNpcs
             // 记忆系统不进存档，所以冷却走这里以 JSON 字符串保存。
             // 🔴 所有 key 统一过 SaveStringGuard.GuardJson：JSON 超长（UTF-8 字节数 > 30000）即裁剪 +
             // [SyncDataGuard] key 定位日志——存档 Strings 表 short 溢出（32767B）会导致整表错位、读档必崩。
+            // 序章「市井 · 城门序章」（2026-11-12）：阶段 / 步数 / 委托 / 势力好感 / 剥夺状态全在这条 JSON 里。
+            // 一条 key 装完（体积 < 4KB），读档不依赖任何同步时机。
+            string storyProbeJson = SaveStringGuard.GuardJson("lwn_story_probe", StoryProbeState.Serialize());
+            dataStore.SyncData("lwn_story_probe", ref storyProbeJson);
+            if (dataStore.IsLoading)
+            {
+                // 老档（没有这条 key）→ 清成默认值；否则内存里上一局的阶段会漏进老档
+                if (string.IsNullOrEmpty(storyProbeJson)) StoryProbeState.ResetAll();
+                else StoryProbeState.Deserialize(storyProbeJson);
+            }
+
             string cooldownJson = SaveStringGuard.GuardJson("lwn_intent_cooldowns", IntentCooldownStore.Serialize());
             dataStore.SyncData("lwn_intent_cooldowns", ref cooldownJson);
             if (dataStore.IsLoading)

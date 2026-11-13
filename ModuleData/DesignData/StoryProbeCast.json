@@ -1,0 +1,538 @@
+{
+  "_comment": "序章的全部静态数据。改这里就行，不用重编译；改完进场景生效（或 custom.story_probe reload）。字段名 = StoryProbeDefs 的类字段名。",
+  "Factions": [
+    {
+      "Id": "fixers",
+      "NameKey": "LWN_faction_fixers",
+      "NameFallback": "The Fixers",
+      "FactionIdOnHero": "fixers"
+    },
+    {
+      "Id": "nightwalkers",
+      "NameKey": "LWN_faction_nightwalkers",
+      "NameFallback": "The Nightwalkers",
+      "FactionIdOnHero": "nightwalkers"
+    },
+    {
+      "Id": "players",
+      "NameKey": "LWN_faction_players",
+      "NameFallback": "The Players",
+      "FactionIdOnHero": "players"
+    },
+    {
+      "Id": "dockhands",
+      "NameKey": "LWN_faction_dockhands",
+      "NameFallback": "The Dockhands",
+      "FactionIdOnHero": "dockhands"
+    }
+  ],
+  "Npcs": [
+    {
+      "Id": "pawnbroker",
+      "NameKey": "LWN_story_name_pawnbroker",
+      "NameFallback": "Old Zhou",
+      "Faction": "fixers",
+      "Force": 30,
+      "Guile": 50,
+      "Charm": 70,
+      "TemplateId": "merchant_empire",
+      "TemplateCandidates": [
+        "merchant_empire",
+        "artisan_notary_empire"
+      ],
+      "Age": 60,
+      "OffsetForward": 5.5,
+      "OffsetRight": -5.0,
+      "QuestTargetNpcId": "debtor",
+      "QuestLogKey": "LWN_story_quest_pawnbroker_title",
+      "RewardItems": [
+        "jewelry"
+      ],
+      "AttrItemId": "lwn_ledger_book",
+      "AttrSkill": "Trade",
+      "Money": "Covert",
+      "MoneyCovertPrice": 80,
+      "MoneyHintKey": "LWN_story_money_pawnbroker",
+      "MoneyHintFallback": "The gate man owes the gambling den three months. He is more afraid of losing the post than of a knife.",
+      "Civilian": true
+    },
+    {
+      "Id": "widow",
+      "NameKey": "LWN_story_name_widow",
+      "NameFallback": "The Widow",
+      "Faction": "players",
+      "Force": 30,
+      "Guile": 50,
+      "Charm": 70,
+      "TemplateId": "townswoman_empire",
+      "TemplateCandidates": [
+        "townswoman_empire",
+        "village_woman_empire",
+        "tavern_wench_empire"
+      ],
+      "Female": true,
+      "Age": 42,
+      "OffsetForward": 7.0,
+      "OffsetRight": 6.5,
+      "QuestTargetNpcId": "rival",
+      "QuestLogKey": "LWN_story_quest_widow_title",
+      "RewardItems": [
+        "fine_town_tunic"
+      ],
+      "AttrItemId": "jewelry",
+      "AttrSkill": "Charm",
+      "Money": "Open",
+      "MoneyPrice": 60,
+      "MoneyHintKey": "LWN_story_money_widow",
+      "MoneyHintFallback": "Your sister did not look like a worker when she went by. She looked like she was being walked.",
+      "Civilian": true
+    },
+    {
+      "Id": "son",
+      "NameKey": "LWN_story_name_son",
+      "NameFallback": "The Boy",
+      "Faction": "nightwalkers",
+      "Force": 30,
+      "Guile": 70,
+      "Charm": 30,
+      "TemplateId": "townsman_empire",
+      "TemplateCandidates": [
+        "townsman_empire",
+        "beggar_empire",
+        "shop_keeper"
+      ],
+      "Age": 18,
+      "OffsetForward": 3.0,
+      "OffsetRight": -8.0,
+      "QuestTargetNpcId": "outlaw",
+      "QuestLogKey": "LWN_story_quest_son_title",
+      "RewardItems": [
+        "lwn_grapple_rope",
+        "lwn_grapple_hook"
+      ],
+      "AttrItemId": "lwn_lockpick_kit",
+      "AttrSkill": "Roguery",
+      "Money": "Open",
+      "MoneyPrice": 40,
+      "MoneyHintKey": "LWN_story_money_son",
+      "MoneyHintFallback": "The beam over the gate is rotten on the left end. Nobody ever looks up there.",
+      "Civilian": true
+    },
+    {
+      "Id": "butcher",
+      "NameKey": "LWN_story_name_butcher",
+      "NameFallback": "The Butcher",
+      "Faction": "dockhands",
+      "Force": 70,
+      "Guile": 50,
+      "Charm": 30,
+      "TemplateId": "blacksmith_empire",
+      "TemplateCandidates": [
+        "blacksmith_empire",
+        "shop_worker_empire",
+        "artisan_notary_empire"
+      ],
+      "Age": 45,
+      "OffsetForward": 4.0,
+      "OffsetRight": 8.5,
+      "QuestTargetNpcId": "thug",
+      "QuestLogKey": "LWN_story_quest_butcher_title",
+      "RewardItems": [
+        "cleaver_2hsword_t3",
+        "lwn_grapple_rope"
+      ],
+      "AttrItemId": "lwn_whetstone",
+      "AttrSkill": "OneHanded",
+      "Money": "Disdain",
+      "MoneyHintKey": "LWN_story_money_butcher",
+      "MoneyHintFallback": "",
+      "Civilian": true
+    },
+    {
+      "Id": "blocker",
+      "NameKey": "LWN_story_name_blocker",
+      "NameFallback": "Ironhead",
+      "Faction": "dockhands",
+      "Force": 70,
+      "Guile": 30,
+      "Charm": 50,
+      "TemplateId": "prison_guard_empire",
+      "TemplateCandidates": [
+        "prison_guard_empire",
+        "veteran_caravan_guard_empire",
+        "caravan_guard_empire"
+      ],
+      "Age": 36,
+      "OffsetForward": 15.0,
+      "OffsetRight": 0.0,
+      "IsBlocker": true,
+      "Money": "Open",
+      "MoneyPrice": 100,
+      "MoneyHintKey": "LWN_story_money_blocker",
+      "MoneyHintFallback": "He counts it twice. He does not even hide it.",
+      "Civilian": false
+    },
+    {
+      "Id": "thug",
+      "NameKey": "LWN_story_name_thug",
+      "NameFallback": "The Collector's Man",
+      "Faction": "dockhands",
+      "Force": 70,
+      "Guile": 30,
+      "Charm": 30,
+      "TemplateId": "gangleader_bodyguard_empire",
+      "TemplateCandidates": [
+        "gangleader_bodyguard_empire",
+        "civillian_template_gangster_tier2_empire",
+        "townsman_empire"
+      ],
+      "Age": 30,
+      "OffsetForward": 6.5,
+      "OffsetRight": -1.5,
+      "Civilian": false
+    },
+    {
+      "Id": "debtor",
+      "NameKey": "LWN_story_name_debtor",
+      "NameFallback": "Debtor",
+      "Faction": "dockhands",
+      "Force": 50,
+      "Guile": 50,
+      "Charm": 50,
+      "TemplateId": "merchant_notary_empire",
+      "TemplateCandidates": [
+        "merchant_notary_empire",
+        "armed_trader_empire",
+        "merchant_empire"
+      ],
+      "Age": 40,
+      "OffsetForward": 1.0,
+      "OffsetRight": -12.0,
+      "Civilian": true
+    },
+    {
+      "Id": "rival",
+      "NameKey": "LWN_story_name_rival",
+      "NameFallback": "The Rival Troupe Leader",
+      "Faction": "players",
+      "Force": 30,
+      "Guile": 50,
+      "Charm": 70,
+      "TemplateId": "musician_empire",
+      "TemplateCandidates": [
+        "musician_empire",
+        "taverngamehost_empire",
+        "townsman_empire"
+      ],
+      "Age": 38,
+      "OffsetForward": 9.0,
+      "OffsetRight": 11.0,
+      "Civilian": true
+    },
+    {
+      "Id": "outlaw",
+      "NameKey": "LWN_story_name_outlaw",
+      "NameFallback": "The Highway Robber",
+      "Faction": "nightwalkers",
+      "Force": 30,
+      "Guile": 70,
+      "Charm": 50,
+      "TemplateId": "looter",
+      "TemplateCandidates": [
+        "looter",
+        "deserter",
+        "civillian_template_gangster_tier3_empire"
+      ],
+      "Age": 32,
+      "OffsetForward": -2.0,
+      "OffsetRight": -16.0,
+      "Civilian": false
+    }
+  ],
+  "StreetLife": [
+    {
+      "NpcId": "pawnbroker",
+      "Actions": [
+        "act_bartender_wipe",
+        "act_conversation_talk_commenting",
+        "act_conversation_closed_loop"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_pawnbroker_1",
+        "LWN_story_amb_pawnbroker_2"
+      ],
+      "LineFallbacks": [
+        "Pawning or looking for a way in?",
+        "Fair interest. I do not cheat strangers."
+      ]
+    },
+    {
+      "NpcId": "widow",
+      "Actions": [
+        "act_play_celtic_harp_stand",
+        "act_conversation_hip_loop"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_widow_1",
+        "LWN_story_amb_widow_2"
+      ],
+      "LineFallbacks": [
+        "Show is starting!",
+        "Stand back from the stage, please!"
+      ]
+    },
+    {
+      "NpcId": "son",
+      "Actions": [
+        "act_beggar_idle",
+        "act_conversation_confident_loop"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_son_1",
+        "LWN_story_amb_son_2"
+      ],
+      "LineFallbacks": [
+        "Psst.",
+        "Do not stand there."
+      ]
+    },
+    {
+      "NpcId": "butcher",
+      "Actions": [
+        "act_bartender_meat",
+        "act_citizen_cleanup",
+        "act_conversation_closed_loop"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_butcher_1",
+        "LWN_story_amb_butcher_2"
+      ],
+      "LineFallbacks": [
+        "Fresh.",
+        "Buy or move on."
+      ]
+    },
+    {
+      "NpcId": "blocker",
+      "Actions": [
+        "act_stealth_mission_guard_look_around_patrolling_cautious_1",
+        "act_conversation_aggressive_loop"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_blocker_1",
+        "LWN_story_amb_blocker_2"
+      ],
+      "LineFallbacks": [
+        "Halt.",
+        "Pass papers."
+      ]
+    },
+    {
+      "NpcId": "thug",
+      "Actions": [
+        "act_bully",
+        "act_conversation_aggressive_loop"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_thug_1",
+        "LWN_story_amb_thug_2"
+      ],
+      "LineFallbacks": [
+        "Pay up.",
+        "Late again this month?"
+      ]
+    },
+    {
+      "NpcId": "debtor",
+      "Actions": [
+        "act_citizen_cleanup_idle",
+        "act_conversation_closed_loop"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_debtor_1",
+        "LWN_story_amb_debtor_2"
+      ],
+      "LineFallbacks": [
+        "Not paid today? Doubles tomorrow.",
+        "Where is my money?"
+      ]
+    },
+    {
+      "NpcId": "rival",
+      "Actions": [
+        "act_argue",
+        "act_conversation_hip_loop"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_rival_1",
+        "LWN_story_amb_rival_2"
+      ],
+      "LineFallbacks": [
+        "The stage is on the street. Anyone can play.",
+        "Move your crowd, old woman."
+      ]
+    },
+    {
+      "NpcId": "outlaw",
+      "Actions": [
+        "act_argue_soft_1",
+        "act_beggar_idle"
+      ],
+      "LineKeys": [
+        "LWN_story_amb_outlaw_1"
+      ],
+      "LineFallbacks": [
+        "Keep walking."
+      ]
+    }
+  ],
+  "ItemAliases": {},
+  "Events": [
+    {
+      "Index": 1,
+      "TwoPerson": true,
+      "ActorA": "thug",
+      "ActorB": "pawnbroker",
+      "HostNpcId": "pawnbroker",
+      "JoinNode": "event_1_join",
+      "LineKeys": [
+        "LWN_story_event1_l1",
+        "LWN_story_event1_l2",
+        "LWN_story_event1_l3",
+        "LWN_story_event1_l4"
+      ],
+      "LineFallbacks": [
+        "What are you looking at? Not your business.",
+        "Sir, please... he has been drinking.",
+        "The money. This month's.",
+        "...Here. Here it is."
+      ],
+      "ActionA": [
+        "act_bully",
+        "act_argue"
+      ],
+      "ActionB": [
+        "act_bullied",
+        "act_bartender_wipe"
+      ]
+    },
+    {
+      "Index": 2,
+      "TwoPerson": true,
+      "ActorA": "thug",
+      "ActorB": "butcher",
+      "HostNpcId": "butcher",
+      "JoinNode": "event_2_join",
+      "LineKeys": [
+        "LWN_story_event2_l1",
+        "LWN_story_event2_l2",
+        "LWN_story_event2_l3"
+      ],
+      "LineFallbacks": [
+        "Old man. Pay.",
+        "Get lost.",
+        "You will regret that."
+      ],
+      "ActionA": [
+        "act_bully",
+        "act_argue_2"
+      ],
+      "ActionB": [
+        "act_conversation_threat_point",
+        "act_argue_soft_1"
+      ]
+    },
+    {
+      "Index": 3,
+      "TwoPerson": true,
+      "ActorA": "widow",
+      "ActorB": "rival",
+      "HostNpcId": "widow",
+      "JoinNode": "event_3_join",
+      "LineKeys": [
+        "LWN_story_event3_l1",
+        "LWN_story_event3_l2",
+        "LWN_story_event3_l3",
+        "LWN_story_event3_l4"
+      ],
+      "LineFallbacks": [
+        "Stealing customers right at my door?",
+        "The stage is on the street. Anyone can play.",
+        "Then play better.",
+        "...We will see."
+      ],
+      "ActionA": [
+        "act_argue",
+        "act_conversation_threat_point"
+      ],
+      "ActionB": [
+        "act_argue_2",
+        "act_applaud_3"
+      ]
+    },
+    {
+      "Index": 4,
+      "TwoPerson": true,
+      "ActorA": "pawnbroker",
+      "ActorB": "son",
+      "HostNpcId": "son",
+      "JoinNode": "event_4_join",
+      "LineKeys": [
+        "LWN_story_event4_l1",
+        "LWN_story_event4_l2",
+        "LWN_story_event4_l3"
+      ],
+      "LineFallbacks": [
+        "Thief! My purse!",
+        "I did not take it!",
+        "Then what is that in your hand?"
+      ],
+      "ActionA": [
+        "act_bully",
+        "act_conversation_point_somewhere"
+      ],
+      "ActionB": [
+        "act_bullied",
+        "act_beggar_idle"
+      ]
+    },
+    {
+      "Index": 5,
+      "TwoPerson": false,
+      "ActorA": "pawnbroker",
+      "HostNpcId": "pawnbroker",
+      "JoinNode": "event_5_join",
+      "LineKeys": [
+        "LWN_story_event5_l1",
+        "LWN_story_event5_l2"
+      ],
+      "LineFallbacks": [
+        "Three times... and not a coin more.",
+        "Where does it all go."
+      ],
+      "ActionA": [
+        "act_bar_talk_to_2",
+        "act_citizen_cleanup_idle"
+      ]
+    },
+    {
+      "Index": 6,
+      "TwoPerson": false,
+      "ActorA": "butcher",
+      "HostNpcId": "butcher",
+      "JoinNode": "event_6_join",
+      "LineKeys": [
+        "LWN_story_event6_l1",
+        "LWN_story_event6_l2"
+      ],
+      "LineFallbacks": [
+        "Broke again. Of course.",
+        "Pick it up. Pick it all up."
+      ],
+      "ActionA": [
+        "act_citizen_cleanup",
+        "act_bartender_meat"
+      ]
+    }
+  ]
+}

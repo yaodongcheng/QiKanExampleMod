@@ -1,0 +1,283 @@
+{
+  "Npc": "blocker",
+  "EntryOption": "LWN_story_blocker_entry",
+  "EntryNode": "blocker_open",
+  "Nodes": [
+    {
+      "Id": "blocker_first",
+      "NpcKey": "LWN_story_blocker_first",
+      "EnterAction": "PROBE:mark",
+      "EnterParam": "met",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_blocker_opt_insist",
+          "NextNodeOnSuccess": "blocker_first_refuse"
+        },
+        {
+          "PlayerKey": "LWN_story_blocker_opt_step_back",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "blocker_first_refuse",
+      "NpcKey": "LWN_story_blocker_first_refuse",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_blocker_opt_step_back",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_very_negative"
+      ]
+    },
+    {
+      "Id": "blocker_first_blow",
+      "NpcKey": "LWN_story_blocker_first_blow",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "blocker_open",
+      "NpcKey": "LWN_story_blocker_open",
+      "EnterAction": "PROBE:mark",
+      "EnterParam": "met",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_blocker_opt_bribe",
+          "Requires": "gold>=100,!gate_open",
+          "Action": "PROBE:bribe",
+          "ActionParam": "100",
+          "NextNodeOnSuccess": "blocker_bribe_ok"
+        },
+        {
+          "PlayerKey": "LWN_story_blocker_opt_threat",
+          "CheckType": "SkillCheck",
+          "CheckTag": "blocker|force",
+          "NextNodeOnSuccess": "blocker_threat_ok",
+          "NextNodeOnFail": "blocker_threat_fail",
+          "Requires": "!gate_open"
+        },
+        {
+          "PlayerKey": "LWN_story_blocker_opt_disguise",
+          "Requires": "noble,!gate_open",
+          "CheckType": "SkillCheck",
+          "CheckTag": "blocker|charm",
+          "NextNodeOnSuccess": "blocker_disguise_ok",
+          "NextNodeOnFail": "blocker_disguise_fail"
+        },
+        {
+          "PlayerKey": "LWN_story_blocker_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "blocker",
+          "NextNodeOnSuccess": "blocker_fight",
+          "Requires": "!gate_open"
+        },
+        {
+          "PlayerKey": "LWN_story_blocker_opt_pass",
+          "Requires": "gate_open",
+          "NextNodeOnSuccess": "blocker_pass"
+        },
+        {
+          "PlayerKey": "LWN_story_blocker_opt_sneak",
+          "Requires": "!gate_open",
+          "CheckType": "SkillCheck",
+          "CheckTag": "blocker|guile",
+          "NextNodeOnSuccess": "blocker_sneak_ok",
+          "NextNodeOnFail": "blocker_sneak_fail"
+        },
+        {
+          "PlayerKey": "LWN_story_blocker_opt_climb",
+          "Requires": "item:lwn_grapple_hook,!gate_open",
+          "CheckType": "SkillCheck",
+          "CheckTag": "blocker|guile",
+          "NextNodeOnSuccess": "blocker_climb_ok",
+          "NextNodeOnFail": "blocker_sneak_fail"
+        },
+        {
+          "PlayerKey": "LWN_story_blocker_opt_disarmed",
+          "Requires": "blocker_disarmed,!gate_open",
+          "Action": "PROBE:open_gate_award",
+          "ActionParam": "force|dockhands|-5",
+          "NextNodeOnSuccess": "blocker_disarmed_ok"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_negative"
+      ]
+    },
+    {
+      "Id": "blocker_bribe_ok",
+      "NpcKey": "LWN_story_blocker_bribe_ok",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "blocker_threat_ok",
+      "NpcKey": "LWN_story_blocker_threat_ok",
+      "EnterAction": "PROBE:open_gate_award",
+      "EnterParam": "force|dockhands|-20|1",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_negative"
+      ]
+    },
+    {
+      "Id": "blocker_threat_fail",
+      "NpcKey": "LWN_story_blocker_threat_fail",
+      "EnterAction": "PROBE:fight+hazard",
+      "EnterParam": "blocker;hazard_threat_failed",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_very_negative"
+      ]
+    },
+    {
+      "Id": "blocker_disguise_ok",
+      "NpcKey": "LWN_story_blocker_disguise_ok",
+      "EnterAction": "PROBE:open_gate_award",
+      "EnterParam": "charm|players|-5",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_negative",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "blocker_disguise_fail",
+      "NpcKey": "LWN_story_blocker_disguise_fail",
+      "EnterAction": "PROBE:hazard",
+      "EnterParam": "hazard_seen_through",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_negative",
+        "act_conversation_aggressive_very_negative"
+      ]
+    },
+    {
+      "Id": "blocker_fight",
+      "NpcKey": "LWN_story_blocker_fight",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "blocker_pass",
+      "NpcKey": "LWN_story_blocker_pass",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_negative"
+      ]
+    },
+    {
+      "Id": "blocker_sneak_ok",
+      "NpcKey": "LWN_story_blocker_sneak_ok",
+      "EnterAction": "PROBE:open_gate_award",
+      "EnterParam": "guile|nightwalkers|0",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ]
+    },
+    {
+      "Id": "blocker_climb_ok",
+      "NpcKey": "LWN_story_blocker_climb_ok",
+      "EnterAction": "PROBE:open_gate_award",
+      "EnterParam": "guile|nightwalkers|0",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ]
+    },
+    {
+      "Id": "blocker_sneak_fail",
+      "NpcKey": "LWN_story_blocker_sneak_fail",
+      "EnterAction": "PROBE:hazard",
+      "EnterParam": "hazard_seen_sneaking",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_very_negative"
+      ]
+    },
+    {
+      "Id": "blocker_disarmed_ok",
+      "NpcKey": "LWN_story_blocker_disarmed_ok",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_negative",
+        "act_conversation_aggressive_trivial"
+      ]
+    }
+  ]
+}

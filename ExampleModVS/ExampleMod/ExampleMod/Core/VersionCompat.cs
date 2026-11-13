@@ -93,6 +93,30 @@ namespace LivingWorldNpcs
     /// </summary>
     public static class V
     {
+        // ── 主队瞬移（2026-11-12，序章验收命令 custom.story_probe goto）──
+        // v1.2.12: MobileParty.Position2D (Vec2) + Settlement.GatePosition (Vec2)
+        // v1.3.0+: MobileParty.Position (CampaignVec2) + Settlement.GatePosition (CampaignVec2)
+        // （1.5.7 反编译实测：Position 有 public setter；1.2.12 无 Position 只有 Position2D）
+        public static bool TryMovePartyToSettlement(MobileParty party, Settlement settlement)
+        {
+            if (party == null || settlement == null) return false;
+            try
+            {
+#if MB2_V1212
+                party.Position2D = settlement.GatePosition;
+                return true;
+#else
+                party.Position = settlement.GatePosition;
+                return true;
+#endif
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryProbe] TryMovePartyToSettlement failed: {ex.Message}");
+                return false;
+            }
+        }
+
         // ── UI 资源（Sprite partial-load，2026-08-30）─────────────
         // v1.2.12: UIResourceManager.UIResourceDepot（且无 GetSpriteCategory）
         // v1.3.0+: UIResourceManager.ResourceDepot

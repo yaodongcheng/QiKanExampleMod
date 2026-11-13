@@ -54,6 +54,11 @@
     <XmlNode>
       <XmlName id="Items" path="items/grapple" />
     </XmlNode>
+    <!-- 序章三件剧情道具（账本 / 撬锁包 / 磨刀石）。漏这一行 = 整个文件不加载，
+         物品查不到 → `FindItem` 落到别名 → 玩家拿到的东西不对。 -->
+    <XmlNode>
+      <XmlName id="Items" path="items/story_props" />
+    </XmlNode>
     <!-- ⚠️ `items/spells` 故意不在这 —— 法术体系未发布、默认关，由 SpellSystemGate 按需注册（见上） -->
   </Xmls>
 </Module>

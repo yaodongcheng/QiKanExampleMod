@@ -5,6 +5,56 @@
 
 ---
 
+## 🔴 启动弹 `Cannot load …LivingWorldNpcs.dll` → DSH 沙箱留下 Low 安全标签（2026-11-13，已实机修复）
+
+**结论**：DLL 在、依赖能解析，却被 .NET 拒绝加载时，先查 Windows **完整性标签（文件的安全等级）**。这次不是 Mod 代码冲突，是模块目录被标为 **Low**，DLL 继承后被 Windows 当成“互联网来源”。恢复 **Medium** 后，用户确认游戏启动成功。
+
+**症状 / 本次证据**
+- 游戏启动画面弹 `Cannot load: …\Modules\LivingWorldNpcs\bin\Win64_Shipping_Client\LivingWorldNpcs.dll`，尚未进入存档加载。
+- DLL 文件存在；普通 `Assembly.LoadFrom` / `LoadFile` 复现 **`0x80131515`**，内部异常提示 `loadFromRemoteSources` / 从网络位置加载程序集。
+- **没有 `Zone.Identifier` 下载标记，也会触发！** 本次 DLL 无该数据流，不能因“属性里没有解除锁定”就排除安全限制。
+- `icacls` 显示模块根目录 **`Low Mandatory Level:(OI)(CI)(NW)`**；DLL 显示 **`Low Mandatory Level:(I)(NW)`**。`(OI)(CI)` = 向文件和子目录继承，`(I)` = 此项继承而来。
+- Windows 安全区域判定：LWN DLL = **Internet**；正常的 Harmony 对照 DLL = **MyComputer**。
+- 只供诊断的 `Assembly.UnsafeLoadFrom` 能加载，全部 **1597 个类型**解析通过；说明这次拒载不是 DLL 丢失或类型依赖损坏。**不要把绕过安全检查当正式修复。**
+
+**根因 / 复发条件**
+- DSH 的 `workspace-write` 沙箱可能给工作区根写入可继承的 **Low 强制完整性标签**；模块放在工作区内，编译产物也会继承。
+- Windows 将带 Low 标签的本地文件判为 Internet 区，.NET Framework 的普通程序集加载因此被拦。
+- 标签留在磁盘上：**切回“完全权限”、移除工作区或重启 DSH，不等于清除了旧标签**。以后再次用 `workspace-write` 打开同一目录，可能重新被设为 Low。
+- `Get-Acl` 默认输出不展示这条强制完整性标签；**检查用 `icacls`，不要只看普通访问权限。** DSH 的 `S-1-4-*` 允许项、Everyone 删除拒绝项不是本次要清理的对象。
+
+**确认命令（Windows PowerShell；路径为本次实际模块位置）**
+
+```powershell
+icacls "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs"
+icacls "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\bin\Win64_Shipping_Client\LivingWorldNpcs.dll"
+[System.Security.Policy.Zone]::CreateFromUrl("file:///H:/SteamLibrary/steamapps/common/Mount%20%26%20Blade%20II%20Bannerlord/Modules/LivingWorldNpcs/bin/Win64_Shipping_Client/LivingWorldNpcs.dll").SecurityZone
+```
+
+**修复（先获用户明确授权，保存原标签记录；只改已确认受影响的模块，不对游戏根目录或整个盘批量重置权限）**
+
+本次在完全权限会话中执行下面这一条，根目录和抽查的子文件已自动传播为 Medium，**没有执行整树权限重置**：
+
+```powershell
+icacls "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs" /setintegritylevel "(OI)(CI)M"
+```
+
+- 只恢复安全等级，**不改文件内容、所有者或普通访问权限**。
+- 改完必须查根目录、实际 DLL 及子文件：标签应为 **Medium**，安全区域应为 **MyComputer**。若某个子文件仍为 Low，先查它是否有独立标签，**不要把根目录命令成功当作整树验收成功**。
+- 在**全新 Windows PowerShell 进程**验证普通加载，避免此前加载失败的缓存影响结果：
+
+```powershell
+[System.Reflection.Assembly]::LoadFrom("H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\bin\Win64_Shipping_Client\LivingWorldNpcs.dll").FullName
+```
+
+**本次验收**：根目录 / DLL / 模块描述文件均恢复 Medium，安全区域恢复 MyComputer；普通 `LoadFrom` 成功、1597 个类型解析通过；DLL 修改前后 SHA256 完全一致；**用户随后确认游戏启动成功**。原标签及 DLL 哈希记录：[integrity_before_20261113.txt](../../Debug/offline/integrity_before_20261113.txt)。
+
+**别走错方向**：没有下载标记时，`Unblock-File` 不能修这个 Low 标签；不要用 `icacls /reset` 重置普通权限，也不要为此开启全局 `loadFromRemoteSources`。仍须先读启动日志的 `Command Args:`，但若最近一次启动已取消 LWN，不能拿那份日志替截图中的失败启动下结论。
+
+机制参考：[DSH 同类问题讨论 #9819](https://github.com/deepseek-ai/deepseek-harness/discussions/9819) · [Low 标签排查说明](https://dsh-plugin.org/zh/tutorials/fix-windows-sandbox-low-integrity-label)。
+
+---
+
 ## 🔴 通用纪律·写规则 / 改管线前（2026-09-16 蒂法 flags 事故后立，**与子系统无关，一切改动适用**）
 
 > **背景一句话**：那天按「自定义头必须清标记」一刀切改了装机管线，把已经验收通过的蒂法 / 萨菲罗斯弄糊了。
@@ -2220,3 +2270,26 @@ cmd /c rmdir "H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Bl
 - 🔴 **交付表把模型名写成 `e_<hash>` ⇒ 下游按原型名查不到，误报“缺件”**（2026-11-09，163 个远景碎片）：RDR2 的 `names.txt` 有大量 `X_children` 却缺父名 `X`，导出时落到 `e_<hash>`；`lod_fragments.csv` 用原型名（`adl_barn_slod`），`models_export.csv` 用 `e_a47ae07c` ⇒ staging 按原型名查 `models_export` 查不到，把 163 个写成“缺件”。**修法**：`tools\fix_model_names.py` 扩展 `e_<hash>` 解析（`name_source.load_names()` 从 `*_children` 反推），`--apply` 同步改 **5 张表**（models_export / asset_import_models / asset_inventory_models / mesh_usage / model_materials）+ **TRF/FBX 文件名** + **TRF 内部 part 名**（只改文件名不改 part 名，导入出来的 MetaMesh 还是旧名）。实测 157 个可恢复（`e_042e1353` → `bla_blk01_slod`），473 个恢复不了（名字源里连父名都没有，且都是场景小件、不在 LOD 碎片里）。**教训**：查不到 ≠ 没有；先看名字是不是哈希名，再决定“缺件”。
 - **地形层水不是真水**：`water_ground` + mask 只是静态贴图，不会动、无深度/反射；要真水用 `water_plane`（每块一个 z）。
 - **彩图非 2 次幂没有 mipmap**：编辑器警告 `Texture sizes must be power of two`；用户 2026-11-09 裁定大地图保留 8192×6144（接受远处闪烁风险）。
+
+
+---
+
+## 🔴 序章（市井 · 城门序章）实施时踩到的四条（2026-11-12）
+
+- **Peace 切磋判负 = 当帧把血回满，轮询永远读不到 0** → 症状：打赢决斗，委托却不认账。
+  根因：`AttackTriggerMissionLogic.OnDuelLoser` 在 blow 栈里先设 Invulnerable 再 `Health = HealthLimit`，
+  下一帧 `OnMissionTick` 采样时血量已经满了。规避：**用 `MissionBehavior.OnAgentHit` 采样**
+  （引擎 `if (Health < 1) Die()` 之前跑），且**只记 flag、下一帧 tick 再干活**（blow 栈内改队/传送会与
+  asyncAITick 抢 agent → AccessViolation，同 2026-08-13 那条的教训）。范本 `StoryProbeMissionBehavior.OnAgentHit`。
+
+- **`DialogueInjectScript.EntryOption` 是裸文本，不是本地化键** → 症状：入口选项显示成 `LWN_story_xxx_entry`。
+  根因：`InjectScriptGateway` 拿到 `EntryOption` 直接当 PlayerLine 用，只有 `NpcKey`/`PlayerKey` 才走
+  `LWNTextHelper`。规避：JSON 里写 key，**注入前在构建器里 `ResolveText` 一次**（`StoryProbeDialogue.BuildFiltered`）。
+
+- **同一条对话选项「检定 + 落地」不能分两处各掷一次** → 症状：明明掷赢了，门还是没开。
+  根因：检定走 `DialogueInjector.CustomCheck`，落地动作（开门的二次检定）在目标节点又掷了一次。
+  规避：检定的那一处只掷，目标节点只落地（`PROBE:open_gate_award`），**全链路只掷一次**。
+
+- **两个 NPC 的「静态站位」不等于「这场戏的站位」** → 症状：砸摊/骂街演起来两个人隔着十米各自吼。
+  根因：四家/仇家的坐标是"各家摊子"的布局，事件配对是另一套。规避：事件开演时若两人距离 >4 m，
+  把对手挪到发起者面前 1.8 m（`StreetLifeDirector.StartEvent`），只动位置、不碰 agent 内部状态。

@@ -230,6 +230,7 @@ namespace LivingWorldNpcs
                     hud.ShowDamage = false;
                     hud.ShowName = false;           // 屏幕外不显示名字（防残留）
                     hud.ShowIntentDebug = false;    // 意图文本同样防残留（回 FOV 后由 UpdateLogic 重算）
+                    hud.ShowEventMark = false;      // 序章「!」标记同样防残留
 
                     if (!hud.ShowAlert)
                     {

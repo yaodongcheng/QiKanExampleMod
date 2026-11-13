@@ -56,6 +56,35 @@ namespace LivingWorldNpcs
             Mission.Current.SpawnAgent(agentBuildData);
         }
         
+        /// <summary>
+        /// 在指定位置生成一个已存在的 Hero（序章用：9 个剧情 NPC 按场景锚点站位）。
+        /// 与 <see cref="SpawnHeroInFrontOfPlayer"/> 的区别 = 位置/朝向由调用方给，
+        /// 且可选民用装备（城镇场景里代表们不该顶盔掼甲）。
+        /// 返回生成的 Agent（失败返回 null，不抛）。
+        /// </summary>
+        public static Agent SpawnHeroAt(Hero hero, Vec3 position, Vec2 direction, bool civilian = true)
+        {
+            if (hero == null || hero.CharacterObject == null || Mission.Current == null)
+                return null;
+            try
+            {
+                var origin = new SimpleAgentOrigin(hero.CharacterObject, -1, null);
+                var team = Mission.Current.MainAgent?.Team ?? Mission.Current.PlayerTeam;
+                var buildData = new AgentBuildData(origin)
+                    .InitialPosition(position)
+                    .InitialDirection(direction)
+                    .Team(team)
+                    .NoHorses(true);
+                if (civilian) buildData = buildData.CivilianEquipment(true);
+                return Mission.Current.SpawnAgent(buildData);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[HeroSpawner] SpawnHeroAt({hero.StringId}) failed: {ex.Message}");
+                return null;
+            }
+        }
+
         public static void TeleportExistingHeroById(string targetHeroId,float distance)
         {
             Hero existingHero = Hero.AllAliveHeroes.FirstOrDefault(h=> h.StringId == targetHeroId);

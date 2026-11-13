@@ -1,0 +1,273 @@
+{
+  "Script": "story_probe_gate",
+  "Anchors": {
+    "idle": [
+      "npc_idle"
+    ],
+    "market": [
+      "sp_merchant"
+    ]
+  },
+  "Beats": [
+    {
+      "At": 0.0,
+      "Cmd": "player_freeze",
+      "Note": "玩家动不了"
+    },
+    {
+      "At": 0.0,
+      "Cmd": "camera_cut",
+      "Case": "story_intro_back",
+      "Anchor": "player",
+      "Note": "镜头先背对广场，布景在画面外完成"
+    },
+    {
+      "At": 0.2,
+      "Cmd": "prop_spawn",
+      "Id": "pawnbroker_desk",
+      "Prefab": "bd_table_a",
+      "Anchor": "player",
+      "Fwd": 6.8,
+      "Right": -5.0,
+      "Yaw": 0,
+      "Note": "老周的当铺案子"
+    },
+    {
+      "At": 0.2,
+      "Cmd": "prop_spawn",
+      "Id": "pawnbroker_scale",
+      "Prefab": "bd_barrel_a",
+      "Anchor": "player",
+      "Fwd": 6.2,
+      "Right": -6.2,
+      "Yaw": 0,
+      "Note": "老周旁边的杂物桶"
+    },
+    {
+      "At": 0.24,
+      "Cmd": "prop_spawn",
+      "Id": "widow_stage_a",
+      "Prefab": "bd_table_c",
+      "Anchor": "player",
+      "Fwd": 8.6,
+      "Right": 5.0,
+      "Yaw": 90,
+      "Note": "戏台（左半边）"
+    },
+    {
+      "At": 0.24,
+      "Cmd": "prop_spawn",
+      "Id": "widow_stage_b",
+      "Prefab": "bd_table_c",
+      "Anchor": "player",
+      "Fwd": 8.6,
+      "Right": 7.4,
+      "Yaw": 90,
+      "Note": "戏台（右半边）"
+    },
+    {
+      "At": 0.24,
+      "Cmd": "prop_spawn",
+      "Id": "widow_carpet",
+      "Prefab": "carpet_empire_a",
+      "Anchor": "player",
+      "Fwd": 7.4,
+      "Right": 6.5,
+      "Yaw": 0,
+      "Scale": 1.0,
+      "Note": "台前铺地"
+    },
+    {
+      "At": 0.28,
+      "Cmd": "prop_spawn",
+      "Id": "butcher_block",
+      "Prefab": "bd_table_c",
+      "Anchor": "player",
+      "Fwd": 5.4,
+      "Right": 8.5,
+      "Yaw": 0,
+      "Note": "屠户的肉案"
+    },
+    {
+      "At": 0.28,
+      "Cmd": "prop_spawn",
+      "Id": "butcher_barrel",
+      "Prefab": "bd_barrel_b",
+      "Anchor": "player",
+      "Fwd": 4.6,
+      "Right": 9.8,
+      "Yaw": 0,
+      "Note": "肉案边的桶"
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "pawnbroker",
+      "Anchor": "player",
+      "Fwd": 5.9,
+      "Right": -5.0,
+      "Facing": -1,
+      "Civilian": true
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "widow",
+      "Anchor": "player",
+      "Fwd": 9.4,
+      "Right": 6.2,
+      "Facing": -1,
+      "Civilian": true
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "son",
+      "Anchor": "player",
+      "Fwd": 3.0,
+      "Right": -8.0,
+      "Facing": -1,
+      "Civilian": true
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "butcher",
+      "Anchor": "player",
+      "Fwd": 4.4,
+      "Right": 8.5,
+      "Facing": -1,
+      "Civilian": true
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "blocker",
+      "Anchor": "gate",
+      "Fwd": 0.0,
+      "Right": 0.0,
+      "Facing": -1,
+      "Civilian": false
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "thug",
+      "Anchor": "player",
+      "Fwd": 6.5,
+      "Right": -1.5,
+      "Facing": -1,
+      "Civilian": false
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "debtor",
+      "Anchor": "player",
+      "Fwd": 1.0,
+      "Right": -12.0,
+      "Facing": -1,
+      "Civilian": true
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "rival",
+      "Anchor": "player",
+      "Fwd": 9.0,
+      "Right": 11.0,
+      "Facing": -1,
+      "Civilian": true
+    },
+    {
+      "At": 0.5,
+      "Cmd": "actor_place",
+      "Actor": "outlaw",
+      "Anchor": "player",
+      "Fwd": -2.0,
+      "Right": -16.0,
+      "Facing": -1,
+      "Civilian": false
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "pawnbroker",
+      "Action": "act_bartender_wipe",
+      "Async": true
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "widow",
+      "Action": "act_play_celtic_harp_stand",
+      "Async": true
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "son",
+      "Action": "act_beggar_idle",
+      "Async": true
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "butcher",
+      "Action": "act_bartender_meat",
+      "Async": true
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "blocker",
+      "Action": "act_stealth_mission_guard_look_around_patrolling_cautious_1",
+      "Async": true
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "thug",
+      "Action": "act_bully",
+      "Async": true
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "debtor",
+      "Action": "act_bar_talk_to_2",
+      "Async": true
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "rival",
+      "Action": "act_argue",
+      "Async": true
+    },
+    {
+      "At": 0.7,
+      "Cmd": "actor_action",
+      "Actor": "outlaw",
+      "Action": "act_argue_soft_1",
+      "Async": true
+    },
+    {
+      "At": 1.6,
+      "Cmd": "camera_cut",
+      "Case": "story_intro_wide",
+      "Anchor": "player",
+      "Note": "布景完成，镜头转过来看全场"
+    },
+    {
+      "At": 4.0,
+      "Cmd": "camera_return",
+      "Note": "交还引擎相机"
+    },
+    {
+      "At": 4.2,
+      "Cmd": "player_release",
+      "Note": "解冻（必须在交还相机之后）"
+    }
+  ]
+}

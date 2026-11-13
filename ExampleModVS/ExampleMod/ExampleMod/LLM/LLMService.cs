@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -85,17 +86,167 @@ namespace LivingWorldNpcs
         private readonly HttpClient _httpClient;
 
         // Instance
-        // OpenAI 兼容端点 = {LLMBaseUrl}/chat/completions（MCM 配置；缺省回落 DeepSeek 官方）
+        // 请求地址按接口方言二选一（MCM 配置；缺省回落 DeepSeek 官方 / Google 官方）：
+        //   · OpenAI 兼容（默认）= {LLMBaseUrl}/chat/completions
+        //   · Gemini 原生（MCM 开关）= {LLMBaseUrl}/v1beta/models/{model}:generateContent
         private static string ApiUrl
         {
             get
             {
                 var baseUrl = Settings.Instance?.LLMBaseUrl;
+                if (UseGeminiNative)
+                    return ResolveGeminiUrl(baseUrl);
                 if (!string.IsNullOrWhiteSpace(baseUrl))
                     return baseUrl.TrimEnd('/') + "/chat/completions";
                 return "https://api.deepseek.com/v1/chat/completions";
             }
         }
+
+        // ── 接口方言（2026-11-13）：OpenAI 兼容 / Gemini 原生 ──
+        // 内部一律按 OpenAI 形状组请求体（messages / temperature / max_tokens / response_format），
+        // 出门前由 BuildProviderBody 转成目标方言、回包由 ExtractContent 取正文；
+        // 调用点（ChatAsync / ChatOnceAsync / SummarizeAsync / …）不需要知道方言差异。
+
+        /// <summary>true = 走 Gemini 原生 generateContent（MCM 开关，默认关 = OpenAI 兼容）。</summary>
+        private static bool UseGeminiNative => Settings.Instance != null && Settings.Instance.LLMUseGeminiApi;
+
+        /// <summary>Gemini 端点里的模型名（容忍玩家填 "models/xxx" 前缀，也容忍为空——空模型名本就被
+        /// IsLLMConfigured 拦住，这里只保证不拼出畸形 URL）。</summary>
+        private static string GeminiModelName
+        {
+            get
+            {
+                string m = (Settings.Instance?.LLMModel ?? "").Trim();
+                if (m.StartsWith("models/", StringComparison.OrdinalIgnoreCase)) m = m.Substring(7);
+                return m;
+            }
+        }
+
+        /// <summary>Gemini 原生端点 URL。三种写法都吃（中转站文档给的形态各不相同）：
+        /// ① 直接粘整条端点（含 :generateContent）→ 原样用；
+        /// ② 填到 …/v1beta（或 v1alpha）→ 追加 /models/{model}:generateContent；
+        /// ③ 只填域名 → 补 /v1beta/models/{model}:generateContent。</summary>
+        private static string ResolveGeminiUrl(string baseUrl)
+        {
+            string b = string.IsNullOrWhiteSpace(baseUrl)
+                ? "https://generativelanguage.googleapis.com"
+                : baseUrl.Trim();
+            if (b.IndexOf(":generateContent", StringComparison.OrdinalIgnoreCase) >= 0)
+                return b;
+            b = b.TrimEnd('/');
+            if (!b.EndsWith("/v1beta", StringComparison.OrdinalIgnoreCase)
+                && !b.EndsWith("/v1alpha", StringComparison.OrdinalIgnoreCase))
+                b += "/v1beta";
+            return b + "/models/" + GeminiModelName + ":generateContent";
+        }
+
+        /// <summary>把内部 OpenAI 形状的请求体转成目标方言；OpenAI 模式原样返回。
+        /// 映射：messages(role=system) → systemInstruction · 其余消息 → contents ·
+        /// max_tokens → generationConfig.maxOutputTokens · response_format=json_object →
+        /// generationConfig.responseMimeType=application/json。
+        /// 🔴 两个字段**故意不发**（未知/不被支持的字段会让 Gemini 直接 400 拒掉整条请求）：
+        /// · reasoning_effort —— Gemini 原生无等价物；
+        /// · temperature —— 实测先例：Google 自家 gemini-3.7-flash 拒收温度字段
+        ///   （见 Modules/OtherMods/BannerlordTalk 的 README v1.0.1 节）。采样交给模型默认值，
+        ///   NPC 台词/JSON 抽取这个场景不需要收紧温度。</summary>
+        private static JObject BuildProviderBody(JObject openAiBody)
+        {
+            if (!UseGeminiNative || openAiBody == null) return openAiBody;
+
+            string systemText = null;
+            var contents = new JArray();
+            var messages = openAiBody["messages"] as JArray;
+            if (messages != null)
+            {
+                foreach (var m in messages)
+                {
+                    string role = (string)m["role"] ?? "user";
+                    string text = (string)m["content"] ?? "";
+                    if (role == "system")
+                    {
+                        systemText = string.IsNullOrEmpty(systemText) ? text : systemText + "\n" + text;
+                        continue;
+                    }
+                    contents.Add(new JObject
+                    {
+                        ["role"] = role == "assistant" ? "model" : "user",
+                        ["parts"] = new JArray { new JObject { ["text"] = text } },
+                    });
+                }
+            }
+            // Gemini 要求 contents 非空，而本 mod 的调用**全是"只有一条 system"**——
+            // 这种情况把 system 当 user 一轮发（语义等同，且不会撞 400）。
+            if (contents.Count == 0 && !string.IsNullOrEmpty(systemText))
+            {
+                contents.Add(new JObject
+                {
+                    ["role"] = "user",
+                    ["parts"] = new JArray { new JObject { ["text"] = systemText } },
+                });
+                systemText = null;
+            }
+
+            var body = new JObject { ["contents"] = contents };
+            if (!string.IsNullOrEmpty(systemText))
+                body["systemInstruction"] = new JObject
+                {
+                    ["parts"] = new JArray { new JObject { ["text"] = systemText } },
+                };
+
+            var gen = new JObject();
+            // 🔴 不发 temperature（见方法注释：Gemini 有拒收温度的实测先例）
+            if (openAiBody["max_tokens"] != null) gen["maxOutputTokens"] = openAiBody["max_tokens"];
+            var rf = openAiBody["response_format"] as JObject;
+            if (rf != null && (string)rf["type"] == "json_object") gen["responseMimeType"] = "application/json";
+            if (gen.HasValues) body["generationConfig"] = gen;
+            return body;
+        }
+
+        /// <summary>从响应体里取正文。OpenAI 方言 = choices[0].message.content；
+        /// Gemini 原生 = candidates[0].content.parts[*].text（跳过 thought=true 的思考片段）。
+        /// 取不到返回 null（调用方按"空内容"重试，与原逻辑一致）。</summary>
+        private static string ExtractContent(string responseString)
+        {
+            if (string.IsNullOrWhiteSpace(responseString)) return null;
+            try
+            {
+                var root = JObject.Parse(responseString);
+                if (!UseGeminiNative)
+                    return (string)root["choices"]?[0]?["message"]?["content"];
+
+                var candidates = root["candidates"] as JArray;
+                if (candidates == null || candidates.Count == 0) return null;
+                var parts = candidates[0]?["content"]?["parts"] as JArray;
+                if (parts == null) return null;
+                var sb = new StringBuilder();
+                foreach (var p in parts)
+                {
+                    // 思考模型的 parts 里可能混着 thought 片段——那不是台词，拼进去会污染 JSON 解析
+                    var thought = p["thought"];
+                    if (thought != null && thought.Type == JTokenType.Boolean && (bool)thought) continue;
+                    string t = (string)p["text"];
+                    if (!string.IsNullOrEmpty(t)) sb.Append(t);
+                }
+                return sb.ToString();
+            }
+            catch { return null; }
+        }
+
+        /// <summary>按当前方言挂鉴权头（key 每次请求现读，不固化进 DefaultRequestHeaders）：
+        /// OpenAI = Authorization: Bearer；Gemini = x-goog-api-key。
+        /// 🔴 key 绝不进 URL（?key= 会随 Url 一起落进日志）。</summary>
+        private static void ApplyAuthHeader(HttpRequestMessage request, string key)
+        {
+            if (UseGeminiNative)
+                request.Headers.TryAddWithoutValidation("x-goog-api-key", key);
+            else
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+        }
+
+        // ── 供 `custom.llm info` 诊断用（不含 key）──
+        internal static string DiagnosticUrl => ApiUrl;
+        internal static string DiagnosticProvider => UseGeminiNative ? "gemini" : "openai";
+        internal static string DiagnosticModel => CurrentModel;
 
         /// <summary>当前模型（MCM 配置 LLMModel；缺省回落 deepseek-chat）。</summary>
         private static string CurrentModel => Settings.Instance?.LLMModel ?? "deepseek-chat";
@@ -178,7 +329,8 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>发最小请求验证连接（BaseUrl 可达 + key 有效 + 模型存在），返回分类诊断结果。
-        /// 用 1 token 的 chat/completions 而非 /models——OpenAI 兼容端点多支持前者，通用性最好。
+        /// 用 1 token 的聊天请求而非 /models——两种方言都支持它（OpenAI = /chat/completions，
+        /// Gemini 原生 = :generateContent），通用性最好。
         /// 🔴 同步实现（HttpWebRequest）：MCM 按钮回调在 UI 线程——async + GetResult 会死锁
         ///    （await continuation 回不了被阻塞的 UI 线程 → 10s 超时假失败，2026-08-08 实测）。
         ///    同步版无 async 死锁概念：UI 冻结最长 10s（超时），返回本次测试结果。
@@ -210,17 +362,22 @@ namespace LivingWorldNpcs
             }
             try
             {
-                var body = JsonConvert.SerializeObject(new
+                // 请求体按当前方言转换（OpenAI 原样 / Gemini 原生 shape）
+                var openAiBody = JObject.FromObject(new
                 {
                     model = CurrentModel,
                     messages = new object[] { new { role = "user", content = "ping" } },
                     max_tokens = 1,
                 });
+                var body = BuildProviderBody(openAiBody).ToString(Formatting.None);
                 var bodyBytes = Encoding.UTF8.GetBytes(body);
                 var req = (HttpWebRequest)WebRequest.Create(ApiUrl);
                 req.Method = "POST";
                 req.ContentType = "application/json";
-                req.Headers["Authorization"] = "Bearer " + cfg2.LLMApiKey;
+                if (UseGeminiNative)
+                    req.Headers["x-goog-api-key"] = cfg2.LLMApiKey;   // Gemini 原生鉴权头
+                else
+                    req.Headers["Authorization"] = "Bearer " + cfg2.LLMApiKey;
                 // 🔴 必须显式设 ContentLength：HttpWebRequest 不设时默认 chunked 传输，
                 // 雷火等 OpenAI 兼容网关的 nginx 前置直接 400（2026-08-08 实机复现验证）
                 req.ContentLength = bodyBytes.Length;
@@ -276,11 +433,17 @@ namespace LivingWorldNpcs
 
             // ① 响应体关键字最具体，优先于状态码（同一状态码可能对应多种原因，如 404 = 端点 or 模型）
             if (lower.Contains("invalid_api_key") || lower.Contains("authentication_error")
-                || lower.Contains("incorrect api key") || lower.Contains("invalid key"))
+                || lower.Contains("incorrect api key") || lower.Contains("invalid key")
+                // Gemini 原生措辞："API key not valid. Please pass a valid API key."
+                || lower.Contains("api key not valid") || lower.Contains("api_key_invalid"))
                 return Fail(LLMFailureReason.BadApiKey, text);
             if (lower.Contains("insufficient_quota") || lower.Contains("insufficient balance")
                 || lower.Contains("insufficient funds") || lower.Contains("balance"))
                 return Fail(LLMFailureReason.InsufficientFunds, text);
+            // Gemini 原生措辞："models/xxx is not found for API version v1beta, or is not
+            // supported for generateContent." —— 必须排在下面的通用 "not found"（→地址错）之前
+            if (lower.Contains("is not found for api version") || lower.Contains("not supported for generatecontent"))
+                return Fail(LLMFailureReason.ModelNotFound, text);
             if (lower.Contains("model_not_found") || lower.Contains("unknown model")
                 || lower.Contains("does not exist")
                 || (lower.Contains("model") && (lower.Contains("not exist") || lower.Contains("not found"))))
@@ -496,14 +659,15 @@ namespace LivingWorldNpcs
             LogPromptAudit("Respond", systemPrompt);
             try
             {
-                var json = JsonConvert.SerializeObject(requestBody);
+                // 方言转换：内部 OpenAI 形状 → 出门前按需转 Gemini 原生
+                var json = BuildProviderBody(JObject.FromObject(requestBody)).ToString(Formatting.None);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var key = Settings.Instance?.LLMApiKey;
                 if (string.IsNullOrWhiteSpace(key)) return null;
                 using (var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl))
                 {
                     request.Content = content;
-                    request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + key);
+                    ApplyAuthHeader(request, key);
                     // 请求日志（2026-08-10 起不再截断：诊断 prompt 拼装必须看全，曾截断 300 导致问题无法定位）
                     DebugLogger.Log($"[ReactiveRespond] 请求发出: {json}");
                     using (var cts = new CancellationTokenSource(timeoutMs))
@@ -523,8 +687,8 @@ namespace LivingWorldNpcs
                             return null;
                         }
                         string responseString = await response.Content.ReadAsStringAsync();
-                        dynamic result = JsonConvert.DeserializeObject(responseString);
-                        string finalContent = result.choices[0].message.content.ToString().Trim();
+                        // 方言差异：OpenAI = choices[0].message.content；Gemini = candidates[0].content.parts[*].text
+                        string finalContent = (ExtractContent(responseString) ?? "").Trim();
                         // 回包日志：确认实时回应内容（降级排查关键证据）
                         DebugLogger.Log($"[ReactiveRespond] 回包: {finalContent}");
                         if (string.IsNullOrWhiteSpace(finalContent)) return null;
@@ -741,7 +905,8 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    string json = JsonConvert.SerializeObject(requestBody);
+                    // 方言转换：内部一律 OpenAI 形状 → 出门前按需转 Gemini 原生（日志里打的就是实际发出的体）
+                    string json = BuildProviderBody(JObject.FromObject(requestBody)).ToString(Formatting.None);
 
                     if (currentRetry == 0)
                     {
@@ -778,7 +943,7 @@ namespace LivingWorldNpcs
                     using (var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl))
                     {
                         request.Content = content;
-                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+                        ApplyAuthHeader(request, key);
                         var response = await _httpClient.SendAsync(request);
 
                         // 检查 HTTP 状态码
@@ -804,8 +969,8 @@ namespace LivingWorldNpcs
                         string responseString = await response.Content.ReadAsStringAsync();
                         DebugLogger.Log($"大模型生成结果\n{responseString}");
 
-                        dynamic result = JsonConvert.DeserializeObject(responseString);
-                        string finalContent = result.choices[0].message.content.ToString().Trim();
+                        // 方言差异：OpenAI = choices[0].message.content；Gemini = candidates[0].content.parts[*].text
+                        string finalContent = (ExtractContent(responseString) ?? "").Trim();
 
                         // 【核心修复】检查 Content 是否为空白
                         if (string.IsNullOrWhiteSpace(finalContent))

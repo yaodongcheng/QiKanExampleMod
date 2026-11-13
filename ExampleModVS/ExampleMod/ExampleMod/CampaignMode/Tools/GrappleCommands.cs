@@ -501,6 +501,43 @@ namespace LivingWorldNpcs.CampaignMode.Tools
 					result = logic.Release();
 					break;
 
+				case "skill":
+				{
+					// 技巧缩放（2026-11-13）：验收/调参用。
+					//   skill             → 打印当前值 + 本角色此刻的有效射程与散布
+					//   skill on|off      → 开关缩放
+					//   skill <dps? no>   → 四个数一次给全：minScale,maxScale,maxDeg,minDeg
+					string a0 = ArgAt(args, at + 0);
+					if (string.IsNullOrEmpty(a0))
+					{
+						float t = GrappleLogic.Skill01(Agent.Main);
+						result = $"grapple: skill scaling={(GrappleLogic.SkillScaling ? "ON" : "OFF")}"
+							+ $" roguery01={t:F2} rangeScale={GrappleLogic.SkillRangeMinScale:F2}~{GrappleLogic.SkillRangeMaxScale:F2}"
+							+ $" spread={GrappleLogic.SkillSpreadMaxDeg:F1}~{GrappleLogic.SkillSpreadMinDeg:F1}deg"
+							+ $" -> my range≈{GrappleLogic.AimRange * (GrappleLogic.SkillRangeMinScale + (GrappleLogic.SkillRangeMaxScale - GrappleLogic.SkillRangeMinScale) * t):F1}m"
+							+ $", spread≈{(GrappleLogic.SkillSpreadMaxDeg + (GrappleLogic.SkillSpreadMinDeg - GrappleLogic.SkillSpreadMaxDeg) * t):F1}deg";
+						break;
+					}
+					if (a0 == "on" || a0 == "off")
+					{
+						GrappleLogic.SkillScaling = a0 == "on";
+						result = $"grapple: skill scaling {(GrappleLogic.SkillScaling ? "ON" : "OFF")}";
+						break;
+					}
+					var parts = a0.Split(',');
+					if (parts.Length == 4
+						&& float.TryParse(parts[0], out float mn) && float.TryParse(parts[1], out float mx)
+						&& float.TryParse(parts[2], out float dmax) && float.TryParse(parts[3], out float dmin))
+					{
+						GrappleLogic.SkillRangeMinScale = mn; GrappleLogic.SkillRangeMaxScale = mx;
+						GrappleLogic.SkillSpreadMaxDeg = dmax; GrappleLogic.SkillSpreadMinDeg = dmin;
+						result = $"grapple: skill scaling set range={mn:F2}~{mx:F2} spread={dmax:F1}~{dmin:F1}deg";
+						break;
+					}
+					result = "Usage: custom.grapple skill [on|off] | skill <minScale,maxScale,maxDeg,minDeg>";
+					break;
+				}
+
 				case "range":
 				{
 					float v = ParseF(args, at + 0, -1f);

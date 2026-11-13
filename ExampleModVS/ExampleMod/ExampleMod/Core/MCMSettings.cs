@@ -40,10 +40,10 @@ namespace LivingWorldNpcs
         // Order 排序结果的倒序；组标题渲染在分隔行下方（footer 式），标题永远紧贴
         // 下一组的正文。多组 + 单设置组会让标题看起来属于别的组 —— 所以这里全部
         // 设置归入一个组（LWN_mcm_grp_main），彻底消除标题错位观感。
-        // ⚠️ Order 按「显示倒序」赋值：期望显示 地址→密钥→模型→复仇队→回血，
-        //    Order 就必须反过来（回血=0 … 地址=4），显示时才能恢复正序。
+        // ⚠️ Order 按「显示倒序」赋值：期望显示 地址→密钥→模型→接口方言→测试→复仇队→回血，
+        //    Order 就必须反过来（回血=0 … 地址=6），显示时才能恢复正序。
         // ── 密信玩法总闸（默认关闭，透传核心 Settings）──
-        // Order = 5：显示倒序 → Order 最大 = 列表最顶部（玩法总闸置顶）
+        // Order = 7：显示倒序 → Order 最大 = 列表最顶部（玩法总闸置顶）
         // 🔴 2026-08-12（合并闲聊/计划模式）：入口文案随交互行统一为「密信」——
         // 打开私聊后默认闲聊，NPC 判 need_plan 才进计划管线
         [SettingPropertyBool("{=LWN_mcm_plot_enabled}Messaging", Order = 5, RequireRestart = false,
@@ -56,11 +56,10 @@ namespace LivingWorldNpcs
         }
 
         // ── 玩家飞行总闸（默认关闭，透传核心 Settings）──
-        // Order = 6：这里是**显示最顶部**（本页按 Order 降序显示；现有最大是密信总闸的 5）。
-        //            想挪位置改这个数即可（比 5 小 = 排到密信下面）。
+        // Order = 8：这里是**显示最顶部**（本页按 Order 降序显示）。
         // 2026-10-23 改回：2026-10-12 曾删掉本项、改成「披风槽里穿没穿混天绫」——
         // 布料模拟没做通，混天绫已取消注册（不再是物品），开关回到这里。
-        [SettingPropertyBool("{=LWN_mcm_flight}Flight", Order = 6, RequireRestart = false,
+        [SettingPropertyBool("{=LWN_mcm_flight}Flight", Order = 8, RequireRestart = false,
             HintText = "{=LWN_mcm_flight_hint}When enabled, the player can take off: while airborne (e.g. mid-jump, or falling) press Space — or hold Space. Disabled by default. When turned off mid-flight you are set down immediately. The console command 'custom.flight start' still works while this is off (explicit dev/acceptance command).")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public bool FlightEnabled
@@ -70,7 +69,7 @@ namespace LivingWorldNpcs
         }
 
         // ── LLM 配置（透传核心 Settings；IsLLMConfigured 在调用点实时计算 → 无需重启）──
-        [SettingPropertyText("{=LWN_mcm_llm_base_url}LLM API Base URL", Order = 4, RequireRestart = false,
+        [SettingPropertyText("{=LWN_mcm_llm_base_url}LLM API Base URL", Order = 6, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_base_url_hint}The LLM API endpoint base URL, e.g. https://api.example.com/v1")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public string LLMBaseUrl
@@ -102,7 +101,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        [SettingPropertyText("{=LWN_mcm_llm_api_key}LLM API Key", Order = 3, RequireRestart = false,
+        [SettingPropertyText("{=LWN_mcm_llm_api_key}LLM API Key", Order = 5, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_api_key_hint}Your LLM API key. Saved in the MCM settings file.")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public string LLMApiKey
@@ -111,7 +110,7 @@ namespace LivingWorldNpcs
             set { Settings.Instance.LLMApiKey = value; }
         }
 
-        [SettingPropertyText("{=LWN_mcm_llm_model}LLM Model", Order = 2, RequireRestart = false,
+        [SettingPropertyText("{=LWN_mcm_llm_model}LLM Model", Order = 4, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_model_hint}The model name to use, e.g. gpt-4o-mini")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public string LLMModel
@@ -120,10 +119,23 @@ namespace LivingWorldNpcs
             set { Settings.Instance.LLMModel = value; }
         }
 
+        // ── LLM 接口方言（2026-11-13）──
+        // 默认关 = OpenAI 兼容（…/chat/completions，绝大多数服务商与中转站都支持）。
+        // 开 = Gemini 原生（…/v1beta/models/<model>:generateContent，鉴权头 x-goog-api-key）。
+        // 只有在服务商【只给 Gemini 端点】时才需要打开；两种端点都给的场合用 OpenAI 兼容更稳。
+        [SettingPropertyBool("{=LWN_mcm_llm_gemini}Gemini Native API", Order = 3, RequireRestart = false,
+            HintText = "{=LWN_mcm_llm_gemini_hint}Turn this on only if your provider offers the Gemini endpoint (.../v1beta/models/MODEL:generateContent) and no OpenAI-compatible one. Leave it off for OpenAI-compatible services (.../chat/completions). With it on, the Base URL may be just the host, the .../v1beta path, or the full endpoint.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool LLMUseGeminiApi
+        {
+            get => Settings.Instance.LLMUseGeminiApi;
+            set { Settings.Instance.LLMUseGeminiApi = value; }
+        }
+
         // ── LLM 连接测试按钮（交付：验证 BaseUrl 可达 + key 有效；结果飘字提示）──
         // MCM 按钮 = Action 类型属性（PropertyReference.Type == typeof(Action) → SettingType.Button）；
         // 回调同步等待测试（HttpClient 30s 超时兜底，UI 冻结最长 30s 可接受）。
-        [SettingPropertyButton("{=LWN_mcm_llm_test}Test LLM Connection", Order = 1, RequireRestart = false,
+        [SettingPropertyButton("{=LWN_mcm_llm_test}Test LLM Connection", Order = 2, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_test_hint}Send a minimal request to verify the LLM service is reachable and the API key is valid.")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public Action TestLLMConnection

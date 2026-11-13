@@ -1,0 +1,322 @@
+{
+  "Npc": "butcher",
+  "EntryOption": "LWN_story_butcher_entry",
+  "EntryNode": "butcher_intro",
+  "Nodes": [
+    {
+      "Id": "butcher_intro",
+      "NpcKey": "LWN_story_butcher_intro",
+      "EnterAction": "PROBE:mark",
+      "EnterParam": "met",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_past",
+          "Once": "ask_past",
+          "Action": "PROBE:mark",
+          "ActionParam": "ask_past",
+          "NextNodeOnSuccess": "butcher_ask_past"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_sister",
+          "Once": "ask_sister",
+          "Action": "PROBE:mark+clue",
+          "ActionParam": "ask_sister;sister_6",
+          "NextNodeOnSuccess": "butcher_ask_sister"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_deal",
+          "Requires": "!quest_accepted,!quest_turned",
+          "NextNodeOnSuccess": "butcher_deal"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_chat",
+          "Requires": "quest_turned",
+          "NextNodeOnSuccess": "butcher_chat"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_money",
+          "NextNodeOnSuccess": "butcher_money_disdain",
+          "Requires": "step>=1"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_hub",
+      "NpcKey": "LWN_story_butcher_hub",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_past",
+          "Once": "ask_past",
+          "Action": "PROBE:mark",
+          "ActionParam": "ask_past",
+          "NextNodeOnSuccess": "butcher_ask_past"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_sister",
+          "Once": "ask_sister",
+          "Action": "PROBE:mark+clue",
+          "ActionParam": "ask_sister;sister_6",
+          "NextNodeOnSuccess": "butcher_ask_sister"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_deal",
+          "Requires": "!quest_accepted,!quest_turned",
+          "NextNodeOnSuccess": "butcher_deal"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_chat",
+          "Requires": "quest_turned",
+          "NextNodeOnSuccess": "butcher_chat"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_money",
+          "NextNodeOnSuccess": "butcher_money_disdain",
+          "Requires": "step>=1"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_ask_past",
+      "NpcKey": "LWN_story_butcher_ask_past",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_past_more",
+          "NextNodeOnSuccess": "butcher_ask_past_2"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_negative",
+        "act_conversation_closed_very_negative"
+      ]
+    },
+    {
+      "Id": "butcher_ask_past_2",
+      "NpcKey": "LWN_story_butcher_ask_past_2",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_ask_sister",
+      "NpcKey": "LWN_story_butcher_ask_sister",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_deal",
+      "NpcKey": "LWN_story_butcher_deal",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_take_job",
+          "NextNodeOnSuccess": "butcher_quest_accept"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_why",
+          "NextNodeOnSuccess": "butcher_deal_why"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_very_negative",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_deal_why",
+      "NpcKey": "LWN_story_butcher_deal_why",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_very_negative",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_very_negative"
+      ]
+    },
+    {
+      "Id": "butcher_quest_accept",
+      "NpcKey": "LWN_story_butcher_quest_accept",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_negative"
+      ],
+      "EnterAction": "PROBE:accept_quest"
+    },
+    {
+      "Id": "butcher_turnin",
+      "NpcKey": "LWN_story_butcher_turnin",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_turnin_ok",
+          "NextNodeOnSuccess": "butcher_turnin_ok"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        ""
+      ]
+    },
+    {
+      "Id": "butcher_turnin_ok",
+      "NpcKey": "LWN_story_butcher_turnin_ok",
+      "EnterAction": "PROBE:turn_in",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_chat",
+      "NpcKey": "LWN_story_butcher_chat",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "event_2_join",
+      "NpcKey": "LWN_story_event2_join",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_event2_opt_help",
+          "CheckType": "SkillCheck",
+          "CheckTag": "thug|force",
+          "NextNodeOnSuccess": "event_2_win",
+          "NextNodeOnFail": "event_2_lose"
+        },
+        {
+          "PlayerKey": "LWN_story_event2_opt_ask",
+          "NextNodeOnSuccess": "butcher_intro"
+        },
+        {
+          "PlayerKey": "LWN_story_event2_opt_walk",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_closed_very_negative",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "event_2_win",
+      "NpcKey": "LWN_story_event2_win",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "EnterAction": "PROBE:favour",
+      "EnterParam": "dockhands;5",
+      "NpcActions": [
+        "act_conversation_aggressive_negative",
+        "act_conversation_closed_very_negative"
+      ]
+    },
+    {
+      "Id": "event_2_lose",
+      "NpcKey": "LWN_story_event2_lose",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "EnterAction": "PROBE:hazard",
+      "EnterParam": "event2_lost",
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "event_6_join",
+      "NpcKey": "LWN_story_event6_join",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_money_disdain",
+      "NpcKey": "LWN_story_butcher_money_disdain",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
+      ]
+    }
+  ]
+}

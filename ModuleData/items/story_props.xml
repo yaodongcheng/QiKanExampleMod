@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 序章（市井 · 城门序章）的**三件剧情道具**（2026-11-13 立）。
+
+     🔴 为什么要有这个文件：`StoryProbeCast.json` 里三个人各有一件「属性道具」
+        （老周 → 账本 / 儿子 → 撬锁包 / 屠户 → 磨刀石），原来写的是 `ledger_book` /
+        `pick_lock_kit` / `whetstone` —— **这三个 id 在原版根本不存在**，
+        靠 `ItemAliases` 三级回退最后全落到 `jewelry`，玩家拿到的是同一件「饰品」。
+        现在**真的注册成物品**，每人给的东西不一样。
+
+     🔴 网格说明：原版 941 个物品网格里**没有任何书 / 卷轴 / 工具 / 磨刀石形状的网格**
+        （`book`/`scroll`/`tool`/`whet`/`lock` 全部零命中），所以三件都借现有网格：
+          账本  = merchandise_linen（一捆扎好的布包，最接近"卷起来的一沓纸"）
+          撬锁包 = merchandise_leather_a（一只皮件）
+          磨刀石 = silver_ore（一块灰石）
+        要换成贴切的样子 = 做新网格走 ModKit 导入（CLAUDE.md 铁律 31/36：资产必须用户导入）。
+
+     🔴 分类：`item_category` 只接受原版那 29 个（全是贸易货类），这里统一挂 `jewelry`
+        （= "值钱的小东西"，交易界面归到饰品那格，不会新增分类导致加载失败）。
+
+     注册：`SubModule.xml` 的 `<Xmls>` 里有 `items/story_props` 这一行；**漏了那一行 = 整个文件不加载**。 -->
+<Items>
+
+	<Item
+		id="lwn_ledger_book"
+		name="{=LWN_item_ledger_book}Old Zhou's ledger"
+		mesh="merchandise_linen"
+		item_category="jewelry"
+		value="120"
+		weight="1"
+		Type="Goods">
+		<Flags Civilian="true" />
+	</Item>
+
+	<Item
+		id="lwn_lockpick_kit"
+		name="{=LWN_item_lockpick_kit}Lockpick kit"
+		mesh="merchandise_leather_a"
+		item_category="jewelry"
+		value="90"
+		weight="1"
+		Type="Goods">
+		<Flags Civilian="true" />
+	</Item>
+
+	<Item
+		id="lwn_whetstone"
+		name="{=LWN_item_whetstone}Whetstone"
+		mesh="silver_ore"
+		item_category="jewelry"
+		value="60"
+		weight="1"
+		Type="Goods">
+		<Flags Civilian="true" />
+	</Item>
+
+</Items>

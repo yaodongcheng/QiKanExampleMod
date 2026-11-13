@@ -1,0 +1,52 @@
+{
+  "Npc": "rival",
+  "EntryOption": "LWN_story_rival_entry",
+  "EntryNode": "rival_intro",
+  "Nodes": [
+    {
+      "Id": "rival_intro",
+      "NpcKey": "LWN_story_rival_intro",
+      "EnterAction": "PROBE:mark",
+      "EnterParam": "met",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ]
+    },
+    {
+      "Id": "rival_talk",
+      "NpcKey": "LWN_story_rival_talk",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ]
+    },
+    {
+      "Id": "rival_fight",
+      "NpcKey": "LWN_story_rival_fight",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_hip_trivial"
+      ]
+    }
+  ]
+}
