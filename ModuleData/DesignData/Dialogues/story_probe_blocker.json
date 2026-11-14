@@ -14,19 +14,27 @@
           "NextNodeOnSuccess": "blocker_first_refuse"
         },
         {
+          "PlayerKey": "LWN_story_blocker_opt_draw",
+          "NextNodeOnSuccess": "blocker_first_blow"
+        },
+        {
           "PlayerKey": "LWN_story_blocker_opt_step_back",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
         "act_conversation_aggressive_trivial",
-        "act_conversation_aggressive_trivial"
+        "act_conversation_aggressive_very_negative"
       ]
     },
     {
       "Id": "blocker_first_refuse",
       "NpcKey": "LWN_story_blocker_first_refuse",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_blocker_opt_draw",
+          "NextNodeOnSuccess": "blocker_first_blow"
+        },
         {
           "PlayerKey": "LWN_story_blocker_opt_step_back",
           "NextNodeOnSuccess": ""
@@ -40,6 +48,7 @@
     {
       "Id": "blocker_first_blow",
       "NpcKey": "LWN_story_blocker_first_blow",
+      "EnterAction": "PROBE:forced_fail",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -92,22 +101,6 @@
           "NextNodeOnSuccess": "blocker_pass"
         },
         {
-          "PlayerKey": "LWN_story_blocker_opt_sneak",
-          "Requires": "!gate_open",
-          "CheckType": "SkillCheck",
-          "CheckTag": "blocker|guile",
-          "NextNodeOnSuccess": "blocker_sneak_ok",
-          "NextNodeOnFail": "blocker_sneak_fail"
-        },
-        {
-          "PlayerKey": "LWN_story_blocker_opt_climb",
-          "Requires": "item:lwn_grapple_hook,!gate_open",
-          "CheckType": "SkillCheck",
-          "CheckTag": "blocker|guile",
-          "NextNodeOnSuccess": "blocker_climb_ok",
-          "NextNodeOnFail": "blocker_sneak_fail"
-        },
-        {
           "PlayerKey": "LWN_story_blocker_opt_disarmed",
           "Requires": "blocker_disarmed,!gate_open",
           "Action": "PROBE:open_gate_award",
@@ -134,7 +127,7 @@
         }
       ],
       "NpcActions": [
-        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_negative",
         "act_conversation_aggressive_trivial"
       ]
     },
@@ -224,45 +217,6 @@
       ],
       "NpcActions": [
         "act_conversation_aggressive_negative"
-      ]
-    },
-    {
-      "Id": "blocker_sneak_ok",
-      "NpcKey": "LWN_story_blocker_sneak_ok",
-      "EnterAction": "PROBE:open_gate_award",
-      "EnterParam": "guile|nightwalkers|0",
-      "Transitions": [
-        {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
-        }
-      ]
-    },
-    {
-      "Id": "blocker_climb_ok",
-      "NpcKey": "LWN_story_blocker_climb_ok",
-      "EnterAction": "PROBE:open_gate_award",
-      "EnterParam": "guile|nightwalkers|0",
-      "Transitions": [
-        {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
-        }
-      ]
-    },
-    {
-      "Id": "blocker_sneak_fail",
-      "NpcKey": "LWN_story_blocker_sneak_fail",
-      "EnterAction": "PROBE:hazard",
-      "EnterParam": "hazard_seen_sneaking",
-      "Transitions": [
-        {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
-        }
-      ],
-      "NpcActions": [
-        "act_conversation_aggressive_very_negative"
       ]
     },
     {

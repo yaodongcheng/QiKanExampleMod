@@ -10,6 +10,13 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_widow_opt_stage",
+          "Once": "ask_stage",
+          "Action": "PROBE:mark",
+          "ActionParam": "ask_stage",
+          "NextNodeOnSuccess": "widow_ask_stage"
+        },
+        {
           "PlayerKey": "LWN_story_widow_opt_sister",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
@@ -24,10 +31,6 @@
           "NextNodeOnSuccess": "widow_ask_rival"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
-        },
-        {
           "PlayerKey": "LWN_story_widow_opt_deal",
           "Requires": "!quest_accepted,!quest_turned",
           "NextNodeOnSuccess": "widow_deal"
@@ -39,12 +42,18 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_money",
-          "NextNodeOnSuccess": "widow_money_open",
-          "Requires": "step>=1"
+          "Requires": "step>=1,gold>=60",
+          "Once": "widow_money",
+          "Action": "PROBE:mark",
+          "ActionParam": "widow_money",
+          "NextNodeOnSuccess": "widow_money_open"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
-        "act_conversation_hip_trivial",
         "act_conversation_hip_trivial",
         "act_conversation_hip_negative"
       ]
@@ -54,6 +63,13 @@
       "NpcKey": "LWN_story_widow_hub",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_widow_opt_stage",
+          "Once": "ask_stage",
+          "Action": "PROBE:mark",
+          "ActionParam": "ask_stage",
+          "NextNodeOnSuccess": "widow_ask_stage"
+        },
+        {
           "PlayerKey": "LWN_story_widow_opt_sister",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
@@ -68,10 +84,6 @@
           "NextNodeOnSuccess": "widow_ask_rival"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
-        },
-        {
           "PlayerKey": "LWN_story_widow_opt_deal",
           "Requires": "!quest_accepted,!quest_turned",
           "NextNodeOnSuccess": "widow_deal"
@@ -83,11 +95,32 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_money",
-          "NextNodeOnSuccess": "widow_money_open",
-          "Requires": "step>=1"
+          "Requires": "step>=1,gold>=60",
+          "Once": "widow_money",
+          "Action": "PROBE:mark",
+          "ActionParam": "widow_money",
+          "NextNodeOnSuccess": "widow_money_open"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
+        "act_conversation_hip_trivial"
+      ]
+    },
+    {
+      "Id": "widow_ask_stage",
+      "NpcKey": "LWN_story_widow_ask_stage",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
       ]
     },
@@ -96,13 +129,32 @@
       "NpcKey": "LWN_story_widow_ask_sister",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_widow_opt_sister_more",
+          "Once": "sister_more",
+          "Action": "PROBE:mark",
+          "ActionParam": "sister_more",
+          "NextNodeOnSuccess": "widow_ask_sister_2"
+        },
+        {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
         }
       ],
       "NpcActions": [
         "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ]
+    },
+    {
+      "Id": "widow_ask_sister_2",
+      "NpcKey": "LWN_story_widow_ask_sister_2",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
+        }
+      ],
+      "NpcActions": [
         "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
       ]
@@ -112,12 +164,11 @@
       "NpcKey": "LWN_story_widow_ask_rival",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
         }
       ],
       "NpcActions": [
-        "act_conversation_hip_trivial",
         "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
       ]
@@ -132,6 +183,9 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_why",
+          "Once": "widow_why",
+          "Action": "PROBE:mark",
+          "ActionParam": "widow_why",
           "NextNodeOnSuccess": "widow_deal_why"
         },
         {
@@ -141,8 +195,6 @@
       ],
       "NpcActions": [
         "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
       ]
     },
@@ -151,14 +203,17 @@
       "NpcKey": "LWN_story_widow_deal_why",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_opt_take_job",
+          "NextNodeOnSuccess": "widow_quest_accept"
+        },
+        {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
         }
       ],
       "NpcActions": [
         "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
-        "act_conversation_hip_negative"
+        "act_conversation_hip_trivial"
       ]
     },
     {
@@ -166,8 +221,8 @@
       "NpcKey": "LWN_story_widow_deal_refuse",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
         }
       ],
       "NpcActions": [
@@ -178,7 +233,12 @@
     {
       "Id": "widow_quest_accept",
       "NpcKey": "LWN_story_widow_quest_accept",
+      "EnterAction": "PROBE:accept_quest",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
@@ -186,10 +246,8 @@
       ],
       "NpcActions": [
         "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
-      ],
-      "EnterAction": "PROBE:accept_quest"
+      ]
     },
     {
       "Id": "widow_turnin",
@@ -202,8 +260,7 @@
       ],
       "NpcActions": [
         "act_conversation_hip_negative",
-        "",
-        "act_conversation_hip_trivial"
+        ""
       ]
     },
     {
@@ -212,13 +269,15 @@
       "EnterAction": "PROBE:turn_in",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
-        "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
         "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
       ]
@@ -228,12 +287,40 @@
       "NpcKey": "LWN_story_widow_chat",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_widow_opt_work",
+          "Once": "widow_chat_2",
+          "Action": "PROBE:mark",
+          "ActionParam": "widow_chat_2",
+          "NextNodeOnSuccess": "widow_chat_2"
+        },
+        {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
         "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ]
+    },
+    {
+      "Id": "widow_chat_2",
+      "NpcKey": "LWN_story_widow_chat_2",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
         "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
       ]
@@ -250,13 +337,36 @@
           "NextNodeOnFail": "event_3_lose"
         },
         {
+          "PlayerKey": "LWN_story_event3_opt_ask",
+          "NextNodeOnSuccess": "event_3_ask"
+        },
+        {
           "PlayerKey": "LWN_story_event3_opt_walk",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
         "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ]
+    },
+    {
+      "Id": "event_3_ask",
+      "NpcKey": "LWN_story_event3_ask",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_event3_opt_side_widow",
+          "CheckType": "SkillCheck",
+          "CheckTag": "rival|charm",
+          "NextNodeOnSuccess": "event_3_win",
+          "NextNodeOnFail": "event_3_lose"
+        },
+        {
+          "PlayerKey": "LWN_story_event3_opt_walk",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
         "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
       ]
@@ -264,14 +374,18 @@
     {
       "Id": "event_3_win",
       "NpcKey": "LWN_story_event3_win",
+      "EnterAction": "PROBE:favour",
+      "EnterParam": "players;5",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "NextNodeOnSuccess": "widow_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
-      "EnterAction": "PROBE:favour",
-      "EnterParam": "players;5",
       "NpcActions": [
         "act_conversation_hip_negative",
         "act_conversation_hip_trivial"
@@ -280,14 +394,18 @@
     {
       "Id": "event_3_lose",
       "NpcKey": "LWN_story_event3_lose",
+      "EnterAction": "PROBE:hazard",
+      "EnterParam": "event3_lost",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "NextNodeOnSuccess": "widow_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
-      "EnterAction": "PROBE:hazard",
-      "EnterParam": "event3_lost",
       "NpcActions": [
         "act_conversation_hip_trivial",
         "act_conversation_hip_negative"
@@ -299,12 +417,13 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_pay",
+          "Requires": "gold>=60",
           "Action": "PROBE:offer_money",
           "NextNodeOnSuccess": "widow_money_taken"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
         }
       ],
       "NpcActions": [
@@ -317,14 +436,17 @@
       "NpcKey": "LWN_story_widow_money_taken",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "NextNodeOnSuccess": "widow_hub"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
         "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
-        "act_conversation_hip_positive"
+        "act_conversation_hip_trivial"
       ]
     }
   ]

@@ -245,7 +245,7 @@ namespace LivingWorldNpcs
 
             r.Roll = forced >= 0f ? MathF.Clamp(forced / 100f, 0f, 1f) : MBRandom.RandomFloat;
             // 🔴 唯一掷骰入口（铁律 17：d20 风格统一走 SingleRollResolver.Roll 的成功判据）
-            r.Success = r.Roll >= r.Threshold;
+            r.Success = SingleRollResolver.Roll(chance, r.Roll);
 
             DebugLogger.Log($"[StoryProbe] check {id}/{ability}: player={pa:F0} npc={na:F0} chance={chance:P0} " +
                             $"roll={r.Roll:P0} threshold={r.Threshold:P0} → {(r.Success ? "success" : "fail")}");

@@ -10,13 +10,51 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_rival_opt_sign",
+          "Once": "rival_sign",
+          "Action": "PROBE:mark",
+          "ActionParam": "rival_sign",
+          "NextNodeOnSuccess": "rival_talk"
+        },
+        {
+          "PlayerKey": "LWN_story_rival_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "rival",
+          "NextNodeOnSuccess": "rival_fight"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
         "act_conversation_hip_trivial",
-        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ]
+    },
+    {
+      "Id": "rival_hub",
+      "NpcKey": "LWN_story_rival_hub",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_rival_opt_sign",
+          "Once": "rival_sign",
+          "Action": "PROBE:mark",
+          "ActionParam": "rival_sign",
+          "NextNodeOnSuccess": "rival_talk"
+        },
+        {
+          "PlayerKey": "LWN_story_rival_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "rival",
+          "NextNodeOnSuccess": "rival_fight"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
         "act_conversation_hip_trivial"
       ]
     },
@@ -25,12 +63,17 @@
       "NpcKey": "LWN_story_rival_talk",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_rival_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "rival",
+          "NextNodeOnSuccess": "rival_fight"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "rival_hub"
         }
       ],
       "NpcActions": [
-        "act_conversation_hip_trivial",
         "act_conversation_hip_trivial",
         "act_conversation_hip_trivial"
       ]

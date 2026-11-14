@@ -19,8 +19,8 @@ namespace LivingWorldNpcs
     /// 纪律：
     ///   · 只接管我们 spawn 的 9 个人（原版村民 / 守卫一律不动）；
     ///   · 说话走 `SpeechChannel.Say(..., forwardToNearby: false)` —— 只冒泡，不进附近频道；
-    ///   · 播动作只在站桩时（`AgentBrain.IsInStayMode`），走路 / 打架 / 对话时让位；
-    ///   · **不冻结 AI**（城镇里 `SetIsAIPaused` 会把行走输入冻在最后一帧，人反而直走不停）。
+    ///   · 事件、桥段与常驻姿态统一持 PerformanceAction；演员全部 CanControl 才写身体；
+    ///   · 对话暂停先归还身体，攻击/特殊状态撤销演出；不暂停全场 AI、不锁全体候场人物。
     /// </summary>
     public class StreetLifeDirector
     {
@@ -41,6 +41,22 @@ namespace LivingWorldNpcs
         private float _nextEventAt;
         private int _nextEventIndex = 1;
         private readonly HashSet<int> _playedEvents = new HashSet<int>();
+        private readonly Mission _mission = Mission.Current;
+        private string _eventOwner;
+        private string _eventInterrupted;
+        private bool _eventPrepared;
+        private float _eventReadyWait;
+        private readonly Dictionary<Agent, PerformanceAction> _eventActors = new Dictionary<Agent, PerformanceAction>();
+        private sealed class AmbientSlot
+        {
+            public PerformanceAction Lease;
+            public string Action;
+            public bool Played;
+            public float Until;
+            public string LineKey;
+            public string LineFallback;
+        }
+        private readonly Dictionary<Agent, AmbientSlot> _ambientActors = new Dictionary<Agent, AmbientSlot>();
 
         // ── 常驻 / 桥段 / 反应 ──
         private readonly Dictionary<string, float> _nextAmbientAt = new Dictionary<string, float>();
@@ -73,23 +89,20 @@ namespace LivingWorldNpcs
                 _nextGreetingAt[def.Id] = 0f;
             }
 
-            // 让所有人原地站住（城镇场景里我们不希望他们自己走掉）
-            foreach (var kv in _host.AllAgents)
-            {
-                if (kv.Value == null) continue;
-                try { AgentControlHelper.HoldInPlace(kv.Value); } catch { }
-            }
+            // 普通候场不锁全体 NPC；真正起演时才申请 Brain 演出租约。
         }
 
         public bool HasEventMark(Agent agent)
         {
-            if (agent == null || _activeEvent == null || _eventSkit || _eventPaused) return false;
+            if (agent == null || _activeEvent == null || !_eventPrepared || _eventSkit || _eventPaused
+                || _eventInterrupted != null || !OwnsBody(agent)) return false;
             string id = ResolveNpcId(agent);
             return id == _activeEvent.ActorA || (_activeEvent.TwoPerson && id == _activeEvent.ActorB);
         }
 
         public void Tick(float dt)
         {
+            if (Mission.Current != _mission) { DisposeManaged(); return; }
             if (Stopped) return;
             _time += dt;
 
@@ -143,6 +156,33 @@ namespace LivingWorldNpcs
             var b = def.TwoPerson ? _host.GetAgent(def.ActorB) : null;
             if (def.TwoPerson && b == null) { _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec; return; }
 
+            if (IsConversationActive()) { _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec; return; }
+            ReleaseAmbient(a);
+            if (b != null) ReleaseAmbient(b);
+            string session = "street-event-" + Guid.NewGuid().ToString("N");
+            var accepted = new Dictionary<Agent, PerformanceAction>();
+            foreach (var actor in b == null ? new[] { a } : new[] { a, b })
+            {
+                var lease = PerformanceAction.TryAcquire(actor, session, reason =>
+                {
+                    // 对话暂停导致的正常清理不冒充攻击；任何真正攻击/特殊状态必须散场。
+                    if (_eventOwner == session && !(_eventPaused &&
+                        (reason == "EndInteraction" || reason == "queue-cleared" || reason == "replaced" || reason == "conversation")))
+                        _eventInterrupted = reason;
+                });
+                if (lease == null)
+                {
+                    foreach (var rollback in accepted.Values) rollback.Release("group-unavailable");
+                    _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
+                    return;
+                }
+                accepted[actor] = lease;
+            }
+            foreach (var kv in accepted) _eventActors[kv.Key] = kv.Value;
+            _eventOwner = session;
+            _eventInterrupted = null;
+            _eventPrepared = false;
+            _eventReadyWait = 0f;
             _activeEvent = def;
             _eventSkit = skit;
             _eventPaused = false;
@@ -153,43 +193,65 @@ namespace LivingWorldNpcs
             _playerFarSince = -1f;
             _playedEvents.Add(def.Index);
 
-            // 面对面站好（只做一次）
-            try
-            {
-                AgentControlHelper.HoldInPlace(a);
-                if (b != null)
-                {
-                    AgentControlHelper.HoldInPlace(b);
-                    // 🔴 静态站位是"各家摊子"的布局，不是"这场戏"的布局：
-                    //    两个演员离得太远（>4 m）时观众看不出他们在吵 → 把人挪到对方面前 1.8 m。
-                    //    （用场景坐标按 A→B 方向算，不碰任何 agent 内部状态）
-                    if (a.Position.Distance(b.Position) > StoryProbeTuning.Current.Events.ActorSpacingMeters)
-                    {
-                        Vec3 dir = b.Position - a.Position;
-                        dir.z = 0f;
-                        if (dir.LengthSquared < 0.01f) dir = new Vec3(0, 1, 0);
-                        float len = (float)Math.Sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
-                        if (len > 0.001f) dir = new Vec3(dir.x / len, dir.y / len, dir.z / len);
-                        try { b.TeleportToPosition(a.Position + dir * StoryProbeTuning.Current.Events.ActorApproachMeters); } catch { }
-                    }
-                    AgentControlHelper.FaceToActor(a, b);
-                    AgentControlHelper.FaceToActor(b, a);
-                }
-                else
-                {
-                    Vec3 dir = _host.GoalPos - a.Position;
-                    if (dir.LengthSquared > 0.01f)
-                        a.SetMovementDirection(dir.AsVec2.Normalized());
-                }
-            }
-            catch { }
-
             DebugLogger.Log($"[StoryProbe] event start #{def.Index} skit={skit} actors={def.ActorA}{(def.TwoPerson ? "+" + def.ActorB : "")}");
+        }
+
+        private bool OwnsBody(Agent actor)
+        {
+            if (actor == null) return false;
+            if (_eventActors.TryGetValue(actor, out var eventLease) && eventLease.CanControl) return true;
+            return _ambientActors.TryGetValue(actor, out var ambient) && ambient.Lease.CanControl;
+        }
+
+        private void PrepareEventActors()
+        {
+            var a = _host.GetAgent(_activeEvent.ActorA);
+            var b = _activeEvent.TwoPerson ? _host.GetAgent(_activeEvent.ActorB) : null;
+            if (!OwnsBody(a) || (_activeEvent.TwoPerson && !OwnsBody(b))) return;
+            if (b != null)
+            {
+                if (a.Position.Distance(b.Position) > StoryProbeTuning.Current.Events.ActorSpacingMeters)
+                {
+                    Vec3 dir = b.Position - a.Position;
+                    dir.z = 0f;
+                    if (dir.LengthSquared < 0.01f) dir = new Vec3(0, 1, 0);
+                    b.TeleportToPosition(a.Position + dir.NormalizedCopy() * StoryProbeTuning.Current.Events.ActorApproachMeters);
+                }
+                AgentControlHelper.FaceToActor(a, b);
+                AgentControlHelper.FaceToActor(b, a);
+            }
+            _eventPrepared = true;
+            PlayLoopAction(a, _activeEvent.ActionA);
+            if (b != null) PlayLoopAction(b, _activeEvent.ActionB);
         }
 
         private void TickActiveEvent(float dt, bool inConversation)
         {
-            _eventElapsed += dt;
+            if (inConversation && !_eventPaused)
+            {
+                _eventPaused = true;
+                foreach (var lease in _eventActors.Values) lease.Pause(true);
+            }
+            if (_eventInterrupted != null || (!_eventPaused && _eventActors.Values.Any(a => a.Ended
+                || (_eventPrepared && !a.CanControl))))
+            {
+                EndEvent("actor interrupted: " + _eventInterrupted);
+                _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
+                return;
+            }
+            if (!_eventPaused && !_eventPrepared)
+            {
+                if (_eventActors.Values.Any(a => !a.CanControl))
+                {
+                    _eventReadyWait += dt;
+                    if (_eventReadyWait > StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec) EndEvent("actor readiness timeout");
+                    return;
+                }
+                try { PrepareEventActors(); }
+                catch (Exception ex) { EndEvent("actor preparation failed: " + ex.Message); }
+                if (_activeEvent == null || !_eventPrepared) return;
+            }
+            if (!_eventPaused && !inConversation) _eventElapsed += dt;
             var player = Agent.Main;
 
             // ① 玩家走近 4 m → 暂停 + 自动开对话（只有真事件，桥段不接）
@@ -208,6 +270,7 @@ namespace LivingWorldNpcs
                         return;
                     }
                     _eventPaused = true;
+                    foreach (var lease in _eventActors.Values) lease.Pause(true);
                     _joinArmed = false;
                     var host = _host.GetAgent(_activeEvent.HostNpcId);
                     DebugLogger.Log($"[StoryProbe] event #{_activeEvent.Index} pause (player {nearest:F1} m) -> join dialogue");
@@ -222,10 +285,17 @@ namespace LivingWorldNpcs
             {
                 if (!inConversation)
                 {
-                    _eventPaused = false;
+                    var resume = _activeEvent;
+                    bool skit = _eventSkit;
+                    int lineCursor = _lineCursor;
+                    float elapsed = _eventElapsed;
+                    EndEvent("conversation ended");
+                    StartEvent(resume, skit);
+                    _lineCursor = lineCursor;
+                    _eventElapsed = elapsed;
                     _joinArmed = false;
                     _nextEventLineAt = _time + StoryProbeTuning.Current.Events.ResumeLineDelaySec;
-                    DebugLogger.Log($"[StoryProbe] event #{_activeEvent.Index} resumed after conversation");
+                    DebugLogger.Log($"[StoryProbe] event #{resume.Index} reacquired after conversation");
                 }
                 return;
             }
@@ -291,7 +361,7 @@ namespace LivingWorldNpcs
             else actorId = _activeEvent.ActorA;
 
             var agent = _host.GetAgent(actorId);
-            if (agent == null) return;
+            if (agent == null || !OwnsBody(agent)) return;
 
             string fb = fallbacks != null && i < fallbacks.Length ? fallbacks[i] : "";
             _host.SayOnAgent(agent, keys[i], fb,
@@ -302,7 +372,13 @@ namespace LivingWorldNpcs
         {
             if (_activeEvent != null)
                 DebugLogger.Log($"[StoryProbe] event end #{_activeEvent.Index} ({reason})");
+            _eventOwner = null;
+            var leases = _eventActors.Values.ToList();
+            _eventActors.Clear();
+            foreach (var lease in leases) lease.Release(reason);
             _activeEvent = null;
+            _eventPrepared = false;
+            _eventInterrupted = null;
             _eventPaused = false;
             _eventSkit = false;
             _eventElapsed = 0f;
@@ -352,8 +428,35 @@ namespace LivingWorldNpcs
         // 常驻动作 + 反应
         // ═══════════════════════════════════════════════════════════════
 
+        private void ReleaseAmbient(Agent agent)
+        {
+            if (agent == null || !_ambientActors.TryGetValue(agent, out var slot)) return;
+            _ambientActors.Remove(agent);
+            slot.Lease.Release("ambient finished");
+        }
+
+        private void BeginAmbient(Agent agent, string action)
+        {
+            if (agent == null || string.IsNullOrEmpty(action) || _eventActors.ContainsKey(agent)) return;
+            ReleaseAmbient(agent);
+            var lease = PerformanceAction.TryAcquire(agent, "street-ambient-" + Guid.NewGuid().ToString("N"));
+            if (lease != null) _ambientActors[agent] = new AmbientSlot { Lease = lease, Action = action, Until = _time + StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec };
+        }
+
         private void TickAmbient(float dt)
         {
+            foreach (var kv in _ambientActors.ToList())
+            {
+                var slot = kv.Value;
+                if (slot.Lease.Ended || _time >= slot.Until) { ReleaseAmbient(kv.Key); continue; }
+                if (!slot.Played && slot.Lease.CanControl)
+                {
+                    ForceAction(kv.Key, slot.Action);
+                    slot.Played = true;
+                    slot.Until = _time + StoryProbeTuning.Current.Performance.AmbientPoseDurationSec;
+                    if (!string.IsNullOrEmpty(slot.LineKey)) _host.SayOnAgent(kv.Key, slot.LineKey, slot.LineFallback);
+                }
+            }
             if (!string.IsNullOrEmpty(_forcedAmbientNpc))
             {
                 // 命令强制：只播一次
@@ -363,7 +466,7 @@ namespace LivingWorldNpcs
                     var agent = _host.GetAgent(_forcedAmbientNpc);
                     if (def != null && agent != null && _forcedAmbientIndex < def.Actions.Length)
                     {
-                        ForceAction(agent, def.Actions[_forcedAmbientIndex]);
+                        BeginAmbient(agent, def.Actions[_forcedAmbientIndex]);
                         DebugLogger.Log($"[StoryProbe] ambient forced {_forcedAmbientNpc}[{_forcedAmbientIndex}]={def.Actions[_forcedAmbientIndex]}");
                     }
                 }
@@ -386,16 +489,16 @@ namespace LivingWorldNpcs
                 var agent = _host.GetAgent(def.NpcId);
                 if (agent == null) continue;
 
-                var brain = AgentAIController.GetBrainForAgent(agent);
-                if (brain != null && !brain.IsInStayMode) continue;
-
-                PlayLoopAction(agent, def.Actions);
+                if (_ambientActors.ContainsKey(agent) || def.Actions == null || def.Actions.Length == 0) continue;
+                BeginAmbient(agent, def.Actions[_rng.Next(def.Actions.Length)]);
+                if (!_ambientActors.ContainsKey(agent)) continue;
 
                 if (def.LineKeys != null && def.LineKeys.Length > 0 && _rng.NextDouble() < 0.35)
                 {
                     int i = _rng.Next(def.LineKeys.Length);
                     string fb = def.LineFallbacks != null && i < def.LineFallbacks.Length ? def.LineFallbacks[i] : "";
-                    _host.SayOnAgent(agent, def.LineKeys[i], fb);
+                    _ambientActors[agent].LineKey = def.LineKeys[i];
+                    _ambientActors[agent].LineFallback = fb;
                 }
             }
         }
@@ -413,6 +516,9 @@ namespace LivingWorldNpcs
             {
                 var agent = _host.GetAgent(def.Id);
                 if (agent == null) continue;
+                var brain = AgentAIController.GetBrainForAgent(agent);
+                if (brain == null || brain.IsPerforming || brain.IsInCombat || brain.IsStoryIntercepting
+                    || brain.IsBound || brain.IsStatusHeld || brain.IsStunned) continue;
 
                 float next;
                 if (!_nextGreetingAt.TryGetValue(def.Id, out next)) next = 0f;
@@ -426,14 +532,12 @@ namespace LivingWorldNpcs
                     _nextGreetingAt[def.Id] = _time + gr.WeaponCooldownSec;
                     _host.SayOnAgent(agent, "LWN_story_react_weapon_" + def.Id,
                         "Put that away.", SpeechPriority.Warning);
-                    try { AgentControlHelper.FaceToActor(agent, player); } catch { }
                 }
                 else if (d <= gr.NearRadiusMeters)
                 {
                     _nextGreetingAt[def.Id] = _time + gr.NearCooldownSec;
                     _host.SayOnAgent(agent, "LWN_story_react_near_" + def.Id,
                         "…", SpeechPriority.Chat);
-                    try { AgentControlHelper.FaceToActor(agent, player); } catch { }
                 }
             }
         }
@@ -461,7 +565,7 @@ namespace LivingWorldNpcs
 
         private void ForceAction(Agent agent, string action)
         {
-            if (string.IsNullOrEmpty(action)) return;
+            if (string.IsNullOrEmpty(action) || !OwnsBody(agent)) return;
             try { AgentControlHelper.ForcePlayAction(agent, action); }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] action '{action}' failed: {ex.Message}"); }
         }
@@ -485,7 +589,22 @@ namespace LivingWorldNpcs
         {
             Stopped = true;
             EndEvent("stopped");
+            foreach (var actor in _ambientActors.Keys.ToList()) ReleaseAmbient(actor);
+            _forcedAmbientNpc = null;
+            _forcedAmbientIndex = -1;
             DebugLogger.Log("[StoryProbe] street life stopped");
+        }
+
+        public void DisposeManaged()
+        {
+            Stopped = true;
+            _eventOwner = null;
+            foreach (var lease in _eventActors.Values.ToList()) lease.InvalidateManaged();
+            foreach (var slot in _ambientActors.Values.ToList()) slot.Lease.InvalidateManaged();
+            _eventActors.Clear();
+            _ambientActors.Clear();
+            _activeEvent = null;
+            _forcedAmbientNpc = null;
         }
 
         public void ResumeAll()

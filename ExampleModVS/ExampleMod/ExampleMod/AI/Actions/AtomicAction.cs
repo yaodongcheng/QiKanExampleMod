@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using SandBox.Conversation.MissionLogics;
 using System;
 using System.Linq;
@@ -1135,9 +1135,36 @@ namespace LivingWorldNpcs
         public Agent TargetEnemy => _targetEnemy;
 
         /// <summary>🔴 2026-08-13 切磋模式（AgentBrain "duel" 事件）：OnStart 传 Peace=true →
-        /// CombatManager.StartDuel（双方 Invulnerable 底层无敌 + 真实血归零判负，点到为止）。
-        /// 切磋不飘"开始攻击"红字、不喊开战宣言、不触发残血认输对话——胜负由 EndDuel 统一收场。</summary>
+        /// CombatManager.StartFight（真实受伤，致命门槛安全判负；可保护指定发起方）。
+        /// 普通切磋不飘攻击红字；首遇强守卫交战保留攻击反馈，胜负由正常 tick 仲裁收场。</summary>
         private readonly bool _isDuel;
+        private readonly bool _protectInitiator;
+        private readonly Action<Agent> _onDuelResolved;
+        internal bool HasDuelReceipt(Action<Agent> expected)
+            => _isDuel && expected != null && ReferenceEquals(_onDuelResolved, expected);
+        private bool _duelRejectionReported;
+        internal void NotifyQueuedDuelCancelled()
+        {
+            if (!_isDuel) return;
+            _isFinished = true;
+            _interrupted = true;
+            ReportDuelRejected(); // 尚未 OnStart，不调用会停现有其他战斗的 OnEnd。
+        }
+
+        /// <summary>未登记切磋就拒绝/取消时，只回报一次；异常不能打断既有收场。</summary>
+        private void ReportDuelRejected()
+        {
+            if (!_isDuel || _duelRejectionReported) return;
+            _duelRejectionReported = true;
+            try { _onDuelResolved?.Invoke(null); }
+            catch (Exception ex) { DebugLogger.Log($"[FightDuel] rejection callback failed: {ex.Message}"); }
+        }
+
+        private void ForwardDuelResult(Agent loser)
+        {
+            if (loser == null) ReportDuelRejected();
+            else _onDuelResolved?.Invoke(loser);
+        }
 
         /// <summary>起立剩余时长（秒）（2026-08-14）：击晕倒地参战先起立——OnStart 播起立动画后
         /// 留出动画时长再 BeginFight（防原生战斗 AI 覆盖起立动画）。≤0 = 非起立窗口。</summary>
@@ -1155,13 +1182,16 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 战斗行为：锁定并攻击指定敌人
         /// </summary>
-        public FightEnemyAction(Agent targetEnemy, bool canCeaseOnPlayerSheathe = false, bool isDuel = false)
+        public FightEnemyAction(Agent targetEnemy, bool canCeaseOnPlayerSheathe = false, bool isDuel = false,
+            bool protectInitiator = false, Action<Agent> onDuelResolved = null)
         {
             _targetEnemy = targetEnemy;
             _isFinished = false;
             _checkTimer = 0f;
             _canCeaseOnPlayerSheathe = canCeaseOnPlayerSheathe;
             _isDuel = isDuel;
+            _protectInitiator = isDuel && protectInitiator;
+            _onDuelResolved = isDuel ? onDuelResolved : null;
         }
 
         /// <summary>玩家命中自己时刷新受击时间（AgentBrain damaged 处理调用；停战检测依据）。</summary>
@@ -1173,9 +1203,11 @@ namespace LivingWorldNpcs
 
         public void OnStart(Agent agent)
         {
+            if (_interrupted) { _isFinished = true; ReportDuelRejected(); return; }
             if (_targetEnemy == null || !AgentControlHelper.SafeIsActive(_targetEnemy))
             {
                 _isFinished = true;
+                ReportDuelRejected();
                 return;
             }
             // 🔴 **被捆的人不参战**（钩索「勾人」TODO 2，2026-10-09）：捆着的人不该被任何战斗调度拉起来 ——
@@ -1187,6 +1219,7 @@ namespace LivingWorldNpcs
             {
                 _isFinished = true;
                 DebugLogger.Log($"[Brain-Bound] {agent.Name} 被捆 ⇒ 拒绝参战（FightEnemyAction 直接结束，不动任何锁）");
+                ReportDuelRejected();
                 return;
             }
             // 🔴 **被处决倒地的人不参战**（2026-10-20）：同被捆，必须排在 ForceUnlockAgent 之前 ——
@@ -1195,6 +1228,7 @@ namespace LivingWorldNpcs
             {
                 _isFinished = true;
                 DebugLogger.Log($"[Brain-Status] {agent.Name} 处在特殊状态（倒地）⇒ 拒绝参战（不动任何锁）");
+                ReportDuelRejected();
                 return;
             }
             // 战斗入口必须解锁：ClearAllActions 默认会给 Agent 留下
@@ -1220,13 +1254,15 @@ namespace LivingWorldNpcs
         /// <summary>正式开战（起立动画播完 / 非击晕直接进入）：开战飘字 + 登记战斗 + 开战宣言。</summary>
         private void BeginFight(Agent agent)
         {
-            if (Settings.Instance.ShowDebugMessages && !_isDuel)
+            if ((Settings.Instance.ShowDebugMessages && !_isDuel) || _protectInitiator)
                 // 开战飘字：{NAME} 开始攻击 {ENEMY}（切磋不飘——点到为止非敌对）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_attack_start",
                     ("NAME", agent.Name.ToString()), ("INDEX", agent.Index.ToString()), ("ENEMY", _targetEnemy.Name.ToString())), Colors.Yellow));
             //玩家阵营1，自己阵营2，这里之后再看
             // 🔴 2026-08-13：切磋（IsDuel）→ Peace=true → StartDuel（Invulnerable 底层无敌，点到为止）
-            CombatManager.StartFight(agent, _targetEnemy, 2, 1, Peace: _isDuel);
+            CombatManager.StartFight(agent, _targetEnemy, 2, 1, Peace: _isDuel,
+                protectInitiator: _protectInitiator,
+                onDuelResolved: _isDuel ? new Action<Agent>(ForwardDuelResult) : null);
             _lastHealth = agent.Health;
             // 🔴 M0 战斗喊话（说话并联）+ M4 双轨润色：开战宣言（Combat 优先级，有 LLM 润色/无则模板）
             // 切磋跳过宣言——"你想死吗？！"与点到为止的切磋语义相悖。
@@ -1354,6 +1390,17 @@ namespace LivingWorldNpcs
 
         public void OnEnd(Agent agent)
         {
+            if (_isDuel)
+            {
+                var arbiter = AttackTriggerMissionLogic.Instance;
+                if (arbiter != null && arbiter.HasDuelPair(agent, _targetEnemy))
+                {
+                    // 已登记的切磋只能排队取消；正常胜负收场时 CancelDuel 不操作，
+                    // 不能在停战事件里抢先回 null，覆盖仲裁随后发出的真实结果。
+                    arbiter.CancelDuel(agent, _targetEnemy);
+                }
+                else ReportDuelRejected();
+            }
             // 🔴 2026-08-11：玩家参与且分出胜负的战斗 → ①当事人动态记忆（NPC 知道"和谁打、谁赢"，
             // 后续 IM/当面对话的【近期回忆】接得住，不再瞎编结果）②ImEventBroadcaster 队伍广播
             // （框架复用：群聊议论 + 参与度记忆 + 接话，custom.im_test_event 同入口）。
@@ -1484,6 +1531,144 @@ namespace LivingWorldNpcs
             agent.SetLookAgent(null);
             AgentControlHelper.StopAndReset(agent);
         }
+    }
+
+    /// <summary>
+    /// 通用演出占位：Brain 拥有演员租约，台本只在 Started / CanControl 时写身体。
+    /// 不装台本、不另造调度器；结束回执只能登记状态，不能同步清自己的 Brain 队列。
+    /// </summary>
+    public sealed class PerformanceAction : IAtomicAction
+    {
+        private readonly AgentBrain _brain;
+        private readonly Mission _mission;
+        private readonly Action<string> _onStopped;
+        private bool _ended;
+        private bool _bodyHeld;
+        public string OwnerToken { get; }
+        public bool Started { get; private set; }
+        public bool Paused { get; private set; }
+        public bool Ended => _ended;
+        public bool CanControl => Started && !Paused && !_ended
+            && Mission.Current == _mission && _brain.OwnsPerformance(this)
+            && !_brain.IsBound && !_brain.IsStatusHeld && !_brain.IsStunned
+            && AgentControlHelper.SafeIsActive(_brain.Owner) && _brain.Owner.Health > 0f
+            && !ConversationEntryPatch.IsConversationActive();
+
+        internal PerformanceAction(AgentBrain brain, string ownerToken, Action<string> onStopped)
+        {
+            _brain = brain;
+            _mission = Mission.Current;
+            OwnerToken = ownerToken;
+            _onStopped = onStopped;
+        }
+
+        /// <summary>事件同步确认申请；非 null 仍是排队态，Started 前不得摆位/播动作。</summary>
+        public static PerformanceAction TryAcquire(Agent agent, string ownerToken, Action<string> onStopped = null)
+        {
+            if (agent == null || string.IsNullOrEmpty(ownerToken) || AgentAIController.Instance == null) return null;
+            PerformanceAction result = null;
+            AgentAIController.Instance.SendEventToAgent(agent, "event_performance_begin", ownerToken,
+                (Action<PerformanceAction>)(a => result = a), onStopped);
+            return result;
+        }
+
+        public void Release(string reason = "finished")
+        {
+            if (_ended) return;
+            if (Mission.Current != _mission || !AgentControlHelper.SafeIsActive(_brain.Owner))
+            {
+                InvalidateManaged(reason);
+                return;
+            }
+            AgentAIController.Instance?.SendEventToAgent(_brain.Owner, "event_performance_end", OwnerToken, reason);
+        }
+
+        public void Pause(bool paused)
+        {
+            if (!_ended)
+                AgentAIController.Instance?.SendEventToAgent(_brain.Owner, "event_performance_pause", OwnerToken, paused);
+        }
+
+        internal void SetPaused(bool paused)
+        {
+            if (_ended || Paused == paused) return;
+            Paused = paused;
+            if (paused) ReleaseBody();
+            else if (Started && CanControl) HoldBody();
+        }
+
+        public void OnStart(Agent agent)
+        {
+            if (_ended) return;
+            if (Mission.Current != _mission || !AgentControlHelper.SafeIsActive(agent)
+                || _brain.IsBound || _brain.IsStatusHeld || _brain.IsStunned || agent.Health <= 0f
+                || ConversationEntryPatch.IsConversationActive())
+            {
+                Finish("start-unavailable", false);
+                return;
+            }
+            Started = true;
+            if (!Paused) HoldBody();
+            DebugLogger.Log($"[Performance] started owner={OwnerToken}");
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            if (_ended) return;
+            if (Mission.Current != _mission || !AgentControlHelper.SafeIsActive(agent))
+            {
+                Finish("owner-unavailable", false);
+                return;
+            }
+            if (_brain.IsBound || _brain.IsStatusHeld || _brain.IsStunned || agent.Health <= 0f)
+            {
+                Finish("special-state", false);
+                return;
+            }
+            if (!Paused && ConversationEntryPatch.IsConversationActive())
+            {
+                Finish("conversation", true);
+                return;
+            }
+            if (CanControl) HoldBody();
+        }
+
+        private void HoldBody()
+        {
+            if (!CanControl) return;
+            AgentControlHelper.HoldInPlace(_brain.Owner);
+            _bodyHeld = true;
+        }
+
+        private void ReleaseBody()
+        {
+            if (!_bodyHeld) return;
+            _bodyHeld = false;
+            if (Mission.Current != _mission || !_brain.OwnsPerformance(this)
+                || _brain.IsBound || _brain.IsStatusHeld || _brain.IsStunned
+                || !AgentControlHelper.SafeIsActive(_brain.Owner) || _brain.Owner.Health <= 0f) return;
+            _brain.Owner.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0.2f);
+            AgentControlHelper.ForceUnlockAgent(_brain.Owner);
+        }
+
+        internal void Finish(string reason, bool releaseBody = true)
+        {
+            if (_ended) return;
+            try { if (releaseBody) ReleaseBody(); }
+            catch (Exception ex) { DebugLogger.Log($"[Performance] release failed: {ex.Message}"); }
+            _ended = true;
+            _bodyHeld = false;
+            _brain.PerformanceEnded(this);
+            DebugLogger.Log($"[Performance] ended owner={OwnerToken} started={Started} reason={reason}");
+            try { _onStopped?.Invoke(reason); }
+            catch (Exception ex) { DebugLogger.Log($"[Performance] stop receipt failed: {ex.Message}"); }
+        }
+
+        public void InvalidateManaged(string reason = "mission-removed") => Finish(reason, false);
+        public void RequestInterrupt() => Finish("interrupted");
+        public bool IsFinished(Agent agent) => _ended;
+        public void OnEnd(Agent agent) => Finish("replaced");
+        public string GetNarration(Agent owner) => null;
     }
 
     /// <summary>
@@ -1701,15 +1886,61 @@ namespace LivingWorldNpcs
         private readonly ConfrontationType? _detailOverride;
         private readonly PlayerActionType? _actionOverride;
 
-        public AlertForceConversationAction(ConfrontationType? detailOverride = null, PlayerActionType? actionOverride = null)
+        private readonly string _storyEntry;
+        private readonly Action<Agent> _onStoryReady;
+        private bool _storyReadyCalled;
+
+        public AlertForceConversationAction(ConfrontationType? detailOverride = null, PlayerActionType? actionOverride = null,
+            string storyEntry = null, Action<Agent> onStoryReady = null)
         {
             _detailOverride = detailOverride;
             _actionOverride = actionOverride;
+            _storyEntry = storyEntry;
+            _onStoryReady = onStoryReady;
         }
+
+        internal void NotifyStoryCancelled()
+        {
+            if (_storyEntry == null) return;
+            _interrupted = true;
+            if (!_storyReadyCalled)
+            {
+                _storyReadyCalled = true;
+                try { _onStoryReady?.Invoke(null); }
+                catch (Exception ex) { DebugLogger.Log($"[StoryIntercept] cancel receipt failed: {ex.Message}"); }
+            }
+            if (_agentOwner != null) AgentAIController.GetBrainForAgent(_agentOwner)?.StoryInterceptEnded(this);
+        }
+        private Agent _agentOwner;
 
         public void OnStart(Agent agent)
         {
             _started = false;
+            _agentOwner = agent;
+            if (_storyEntry != null)
+            {
+                if (_interrupted) return;
+                if (Agent.Main == null || !AgentControlHelper.SafeIsActive(agent)
+                    || !AgentControlHelper.SafeIsActive(Agent.Main)
+                    || agent.Position.Distance(Agent.Main.Position) > 3f
+                    || ConversationEntryPatch.IsConversationActive())
+                {
+                    NotifyStoryCancelled();
+                    return;
+                }
+                ActiveConversationAgent = agent;
+                ConversationEntryPatch._pendingTrigger = DialogueTrigger.Normal;
+                _storyReadyCalled = true;
+                try
+                {
+                    _onStoryReady?.Invoke(agent); // 调用者闭包使用 entry；AI 不依赖任何剧情宿主。
+                    _started = ConversationEntryPatch.IsConversationActive();
+                    DebugLogger.Log($"[StoryIntercept] ready entry={_storyEntry} conversation={_started}");
+                }
+                catch (Exception ex) { DebugLogger.Log($"[StoryIntercept] ready failed: {ex.Message}"); }
+                if (!_started && ActiveConversationAgent == agent) ActiveConversationAgent = null;
+                return; // 不写犯罪 trigger、不构建警戒对话，也不自动开战。
+            }
 
             if (Agent.Main == null || !AgentControlHelper.SafeIsActive(agent))
             {
@@ -1799,6 +2030,7 @@ namespace LivingWorldNpcs
 
         public void OnEnd(Agent agent)
         {
+            if (_storyEntry != null) NotifyStoryCancelled();
             if (_started)
             {
                 // Patch 已广播 EndInteraction → ClearAllActions 会调到这。

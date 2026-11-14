@@ -4718,245 +4718,246 @@
   <string id="LWN_gem_expire_cast" text="引信" />
   <string id="LWN_gem_split" text="分裂" />
   <string id="LWN_gem_burrower" text="遁地" />
-    <string id="LWN_story_pawnbroker_opt_money" text="[递钱] 这点意思，您收着。" />
-    <string id="LWN_story_widow_opt_money" text="[塞钱] 拿着，买你两句实话。" />
-    <string id="LWN_story_widow_opt_pay" text="[问] 那姑娘，进城的路上是什么样子？" />
-    <string id="LWN_story_son_opt_money" text="[塞钱] 拿着。别废话。" />
-    <string id="LWN_story_son_opt_pay" text="[问] 门上那根梁，真能挂人？" />
-    <string id="LWN_story_butcher_opt_money" text="[递钱] 这些钱，买你一句话。" />
-    <string id="LWN_story_money_pawnbroker" text="（他收下钱，仔仔细细数过，才开口。）&#10;老板：门口那个铁头，欠了赌坊三个月的利。&#10;老板：他怕丢了这份差事，比怕刀子怕得多。" />
-    <string id="LWN_story_money_widow" text="寡妇：（想了想）不像做工的。做工的自己背着包袱。&#10;寡妇：她那身青布，是给人领着走的。" />
-    <string id="LWN_story_money_son" text="儿子：（往上抬了抬下巴）门上那根梁，左边那头烂了，中间那一节是好的。&#10;儿子：没人往上看。你要是勾，勾中间。" />
-    <string id="LWN_story_money_butcher" text="屠户：我卖肉。不卖话，也不卖人。" />
-    <string id="LWN_story_money_blocker" text="（他把钱数了两遍，一点没避着人。）" />
-    <string id="LWN_story_money_refused" text="他不接。这么递过去，他连眼皮都不抬。" />
-    <string id="LWN_story_opt_pay" text="[数钱]" />
-    <string id="LWN_story_gate_dragged" text="守门人被你从他自己的岗位上弄走了。门口空了。" />
-    <string id="LWN_story_gate_sneaked" text="趁他转头的那一息，你贴了过去。" />
-    <string id="LWN_story_blocker_disarmed" text="他手里现在什么都没有了。" />
-    <string id="LWN_story_recognized" text="他看看你的脸，又看看城门上那张纸。然后他拔了刀。" />
-    <string id="LWN_story_blocker_recognize" text="就是你。城门上那张。" />
-    <string id="LWN_story_gate_knocked" text="他躺在地上了。门口没人看着。" />
-    <string id="LWN_story_blocker_opt_disarmed" text="[走过去] 你手里什么都没有了。" />
-    <string id="LWN_story_climb_seen" text="下来！给我下来！" />
-    <string id="LWN_story_climb_seen_narr" text="他看见你翻上去了。等你落地，门口已经等着你了。" />
-    <string id="LWN_story_climb_missed" text="什么动静？（他抬头看了看城门）" />
     <!-- 序章剧情道具（items/story_props.xml） -->
-    <string id="LWN_item_ledger_book" text="老周的账本" />
-    <string id="LWN_item_lockpick_kit" text="撬锁包" />
-    <string id="LWN_item_whetstone" text="磨刀石" />
-    <string id="LWN_story_amb_outlaw_2" text="别在这儿站着。" />
     <string id="LWN_story_pawnbroker_entry" text="[说两句] 老板，生意不错。" />
     <string id="LWN_story_pawnbroker_intro" text="（老周，玩家）：买东西？当东西？还是找门路？&#10;（老周，玩家）：看你这身土——不像来当东西的。" />
     <string id="LWN_story_pawnbroker_hub" text="（老周，玩家）：还有事？" />
     <string id="LWN_story_pawnbroker_ask_self" text="（老周，玩家）：我姓周，街坊都叫老周。&#10;（老周，玩家）：这铺子开了二十三年——后十三年，是给别人开的。" />
     <string id="LWN_story_pawnbroker_ask_stay" text="（老周，玩家）：走去哪。我这岁数出了城门，就是路边的死人。&#10;（老周，玩家）：人啊，不是不想走，是走不动。" />
+    <string id="LWN_story_pawnbroker_ask_know" text="（老周，玩家）：城门口的当铺，进出的东西比人还杂。&#10;（老周，玩家）：谁手头紧、谁刚发横财，翻翻当票就一清二楚。" />
     <string id="LWN_story_pawnbroker_ask_sister" text="（老周，玩家）：三个月前，青布衣裳，女的。……有了。&#10;（老周，玩家）：「银镯一只，押三十，赎期三日」。人没来赎。" />
     <string id="LWN_story_pawnbroker_sister_where" text="（老周，玩家）：那天她后头跟着个人。穿水靠，站在门外没进来。&#10;（老周，玩家）：码头帮的。押完镯子，她就跟人走了。" />
     <string id="LWN_story_pawnbroker_sister_why" text="（老周，玩家）：这行当靠的就是记。记错一笔，摊子就完了。&#10;（老周，玩家）：你妹妹那只镯子，是我三个月里唯一一只没人来赎的。" />
-    <string id="LWN_story_pawnbroker_sister_redeem" text="（老周，玩家）：三十。&#10;（老周，玩家）：赎期过了，按规矩该加二成。……不过，算了，就三十。" />
-    <string id="LWN_story_pawnbroker_sister_got" text="（老周，玩家）：这城里丢过的人，比丢过的钱多。&#10;（老周，玩家）：你要找，往码头那边找。别一个人去。" />
-    <string id="LWN_story_pawnbroker_ask_gang" text="（老周，玩家）：门口那个，叫铁头。贪，给钱就抬眼皮。&#10;（老周，玩家）：但他不怕狠的——你亮刀子，他真敢捅你。给钱，或者……" />
-    <string id="LWN_story_pawnbroker_ask_gang_2" text="（老周，玩家）：……或者，别让他认出你。&#10;（老周，玩家）：你这张脸，城门上贴着呢。虽然画得不像。" />
-    <string id="LWN_story_pawnbroker_ask_gang_3" text="（老周，玩家）：一百。这数我心里有。&#10;（老周，玩家）：少一个子，他能在门槛上跟你磨到天黑。" />
-    <string id="LWN_story_pawnbroker_deal" text="（老周，玩家）：码头帮有个收数的，欠我三笔账，拖了半年。&#10;（老周，玩家）：把钱给我收回来——不用见血。回来我替你想办法。" />
-    <string id="LWN_story_pawnbroker_deal_why" text="（老周，玩家）：我去？我这把骨头，去了就是躺着回来。&#10;（老周，玩家）：我这辈子只跟数字打交道。刀的事，我不懂。" />
-    <string id="LWN_story_pawnbroker_deal_refuse" text="（老周，玩家）：也对。那伙人，进去一个躺一个。&#10;（老周，玩家）：不过我这话撂这儿——你要找的姑娘，最后也是被他们带走的。" />
-    <string id="LWN_story_pawnbroker_quest_accept" text="（老周，玩家）：他叫 debtor，每天午后在城西巷口收数。&#10;（老周，玩家）：一百二十第纳尔，一分不能少。别出人命——死人比钱麻烦。" />
-    <string id="LWN_story_pawnbroker_turnin" text="（玩家，老周）：一百二十，一分不少。&#10;（老周，玩家）：……真收回来了。" />
-    <string id="LWN_story_opt_take_job" text="[接] 这事我接了。" />
+    <string id="LWN_story_pawnbroker_sister_redeem" text="（老周，玩家）：三十第纳尔。&#10;（老周，玩家）：赎期过了，按规矩该加二成。……算了，就收你三十。" />
+    <string id="LWN_story_pawnbroker_sister_got" text="（老周，玩家）：镯子拿好。内侧刻着个「宁」字，没让人碰过。&#10;（老周，玩家）：这城里丢过的人比丢过的钱多。往码头找，别一个人去。" />
+    <string id="LWN_story_pawnbroker_ask_gang" text="（老周，玩家）：守门那个叫铁头。贪，见钱就抬眼皮。&#10;（老周，玩家）：但他不怕横的——你亮刀子，他真敢捅你。给钱，或者……" />
+    <string id="LWN_story_pawnbroker_ask_gang_2" text="（老周，玩家）：……或者，换身有头脸的行头，别让他认出你。&#10;（老周，玩家）：你这张脸，城门海捕文书上贴着呢。虽然画得糙。" />
+    <string id="LWN_story_pawnbroker_ask_gang_3" text="（老周，玩家）：一百第纳尔。这数我心里有。&#10;（老周，玩家）：少一个子儿，他能在门槛上跟你磨到天黑。" />
+    <string id="LWN_story_pawnbroker_deal" text="（老周，玩家）：码头帮有个收数的，欠我三笔死账，拖了半年。&#10;（老周，玩家）：把钱给我收回来——不用见血。办妥了我给你酬劳。" />
+    <string id="LWN_story_pawnbroker_deal_why" text="（老周，玩家）：我去？我这把老骨头，去了就是躺着回来。&#10;（老周，玩家）：我这辈子只跟算盘打交道。拳脚的事，我不碰。" />
+    <string id="LWN_story_pawnbroker_deal_refuse" text="（老周，玩家）：也对。那伙人，惹上一个躺一个。&#10;（老周，玩家）：不过我把话撂这儿——你要找的姑娘，也是他们带走的。" />
+    <string id="LWN_story_pawnbroker_quest_accept" text="（老周，玩家）：那收数人每天午后在西边巷口蹲着。&#10;（老周，玩家）：一百二十第纳尔，一分不能少。别闹出人命。" />
+    <string id="LWN_story_pawnbroker_turnin" text="（玩家，老周）：一百二十第纳尔，原数追回来了。&#10;（老周，玩家）：……真让你从他嘴里撬出来了。" />
+    <string id="LWN_story_opt_take_job" text="[应下] 这活我接了。" />
     <string id="LWN_story_narr_quest_taken" text="（旁白，玩家）：接下「{TASK}」——去找{TARGET}。" />
     <string id="LWN_story_goal_quest_named" text="「{TASK}」——去找{TARGET}。" />
     <string id="LWN_story_goal_asked_dock" text="往码头找。老周说那姑娘跟着穿水靠的走了——别一个人去。" />
-    <string id="LWN_story_pawnbroker_turnin_trouble" text="（老周，玩家）：……你把人怎么了。&#10;（老周，玩家）：我让你收账，没让你拆我的摊子。" />
-    <string id="LWN_story_pawnbroker_turnin_ok" text="（老周，玩家）：这是你的，三十。&#10;（老周，玩家）：门口那个铁头怕麻烦，不怕狠。用钱打点，他抬抬眼皮就放你过去。" />
-    <string id="LWN_story_pawnbroker_turnin_why" text="（老周，玩家）：五拨人在找你这样的人。从正门进去，明早名字就贴城门上。&#10;（老周，Player）：我这儿有个常客，剧团那边的。去问问她。" />
-    <string id="LWN_story_pawnbroker_chat" text="（老周，玩家）：来了。&#10;（老周，玩家）：今天不赊账啊。" />
-    <string id="LWN_story_pawnbroker_chat_2" text="（老周，玩家）：看什么，我这糟老头子有什么好看的。&#10;（老周，玩家）：城西那边最近不安生。你要是往那儿去，天黑之前回来。" />
+    <string id="LWN_story_hud_title" text="进城" />
+    <string id="LWN_story_issue_title_fallback" text="委托" />
+    <string id="LWN_story_issue_brief" text="有件事要办。" />
+    <string id="LWN_story_issue_accept" text="说来听听。" />
+    <string id="LWN_story_quest_ready_turnin" text="办妥了。回去告诉{NAME}。" />
+    <string id="LWN_story_quest_finished" text="跟{NAME}交割完毕。" />
+    <string id="LWN_story_pawnbroker_turnin_trouble" text="（老周，玩家）：……你把人打成那样，明天码头帮就得堵我门。&#10;（老周，玩家）：算了，账清了就好。这三十第纳尔跟旧账本你拿走。" />
+    <string id="LWN_story_pawnbroker_turnin_ok" text="（老周，玩家）：干净利索。这三十第纳尔归你，旧账本也送你参详。&#10;（老周，玩家）：对了，你要不想给铁头送钱，还有条路子。" />
+    <string id="LWN_story_pawnbroker_turnin_why" text="（老周，玩家）：戏台那边演戏的寡妇，手里有富贵人家的行头和真文书。&#10;（老周，玩家）：你去帮她个忙，换身皮囊，铁头连屁都不敢放。" />
+    <string id="LWN_story_pawnbroker_chat" text="（老周，玩家）：来了？&#10;（老周，玩家）：有你替我出过那一回，那帮人今天见我都绕着走。" />
+    <string id="LWN_story_pawnbroker_chat_2" text="（老周，玩家）：城西码头最近夜里总有船靠岸，下货从不点灯。&#10;（老周，玩家）：你要是进了城往那边摸，千万留个神。" />
     <string id="LWN_story_pawnbroker_opt_self" text="[搭话] 先说说你自己吧。" />
     <string id="LWN_story_pawnbroker_opt_sister" text="[打听] 三个月前，见过一个穿青布的姑娘吗？" />
     <string id="LWN_story_pawnbroker_opt_sister2" text="[打听] 再说说那个穿青布的姑娘。" />
-    <string id="LWN_story_pawnbroker_opt_gang" text="[打听] 门口那个打手，怎么才能进去？" />
+    <string id="LWN_story_pawnbroker_opt_gang" text="[打听] 守门那个人，怎么才能过去？" />
     <string id="LWN_story_pawnbroker_opt_gang2" text="[打听] 门口那个铁头，还有什么门路？" />
-    <string id="LWN_story_pawnbroker_opt_gang_how" text="[追问] 要么怎么样？" />
-    <string id="LWN_story_pawnbroker_opt_gang_price" text="[问价] 钱要多少？" />
-    <string id="LWN_story_pawnbroker_opt_self_know" text="[接话] 所以你也知道不少事？" />
-    <string id="LWN_story_pawnbroker_opt_self_stay" text="[问] 那你为什么不走？" />
-    <string id="LWN_story_pawnbroker_opt_sister_where" text="[追问] 她后来去哪了？" />
-    <string id="LWN_story_pawnbroker_opt_sister_redeem" text="[赎] 那镯子我赎。" />
-    <string id="LWN_story_pawnbroker_opt_sister_why" text="[好奇] 你怎么记得这么清楚？" />
-    <string id="LWN_story_pawnbroker_opt_pay30" text="[数出三十第纳尔]" />
-    <string id="LWN_story_pawnbroker_opt_hold" text="[先记着] 我一定回来赎。" />
-    <string id="LWN_story_pawnbroker_opt_deal" text="[求] 借我点钱。" />
-    <string id="LWN_story_pawnbroker_opt_deal2" text="[求] 你缺人，我缺钱——说吧，要我做什么。" />
+    <string id="LWN_story_pawnbroker_opt_gang_how" text="[追问] 或者怎么样？" />
+    <string id="LWN_story_pawnbroker_opt_gang_price" text="[问价] 打点他要多少第纳尔？" />
+    <string id="LWN_story_pawnbroker_opt_self_know" text="[接话] 所以这城门口的事，你都门儿清？" />
+    <string id="LWN_story_pawnbroker_opt_self_stay" text="[追问] 被压榨成这样，你怎么不走？" />
+    <string id="LWN_story_pawnbroker_opt_sister_where" text="[追问] 她当完镯子，往哪去了？" />
+    <string id="LWN_story_pawnbroker_opt_sister_redeem" text="[赎当] 那只银镯，我替她赎回来。" />
+    <string id="LWN_story_pawnbroker_opt_sister_why" text="[追问] 三个月前的当票，你怎么记得这么清？" />
+    <string id="LWN_story_pawnbroker_opt_pay30" text="[付钱] 三十第纳尔，数好了。（30 第纳尔）" />
+    <string id="LWN_story_pawnbroker_opt_hold" text="[暂缓] 先替我留着，我凑够钱再来赎。" />
+    <string id="LWN_story_pawnbroker_opt_deal" text="[求门路] 我手头空，你这儿有什么赚钱的门路？" />
+    <string id="LWN_story_pawnbroker_opt_deal2" text="[求] 你缺人手，我缺钱——说吧，要我做什么。" />
     <string id="LWN_story_pawnbroker_opt_accept" text="[应下] 行。他在哪？" />
     <string id="LWN_story_pawnbroker_opt_deal_why" text="[反问] 收账这事，你怎么不自己去？" />
-    <string id="LWN_story_pawnbroker_opt_refuse" text="[拒绝] 我只想打听人，不想惹码头帮。" />
-    <string id="LWN_story_pawnbroker_opt_turnin_ok" text="[交差] 钱在这儿。" />
-    <string id="LWN_story_pawnbroker_opt_turnin_trouble" text="[先说好] 我惹了码头帮。" />
-    <string id="LWN_story_pawnbroker_opt_turnin_why" text="[问] 为什么？" />
-    <string id="LWN_story_pawnbroker_opt_chat" text="[闲聊] 还有活要我干吗？" />
-    <string id="LWN_story_pawnbroker_opt_work" text="[问] 还有活要我干吗？" />
-    <string id="LWN_story_pawnbroker_opt_visit" text="[说] 就是来看看。" />
+    <string id="LWN_story_pawnbroker_opt_refuse" text="[缓一缓] 我只想找人，暂时不想惹码头帮。" />
+    <string id="LWN_story_pawnbroker_opt_turnin_ok" text="[交差] 一百二十第纳尔都在这儿，没闹出人命。" />
+    <string id="LWN_story_pawnbroker_opt_turnin_trouble" text="[实话] 钱拿回来了，不过动手揍了他一顿。" />
+    <string id="LWN_story_pawnbroker_opt_turnin_why" text="[追问] 还有什么路子？" />
+    <string id="LWN_story_pawnbroker_opt_chat" text="[叙旧] 老周，近来摊子上还安生？" />
+    <string id="LWN_story_pawnbroker_opt_work" text="[收住] 我再问问别的事。" />
+    <string id="LWN_story_pawnbroker_opt_visit" text="[打听] 进城之后，码头那边有什么风声？" />
     <string id="LWN_story_pawnbroker_opt_back" text="[收住] 别的先不问了。" />
     <string id="LWN_story_event1_join" text="（打手，老周）：看什么看？没你的事。&#10;（老周，打手）：客官，您别掺和……钱我这就给。" />
-    <string id="LWN_story_event1_paid" text="（打手，老周）：下月照旧。你要是还想当好人，接着掏。&#10;（老周，打手）：……客官，你这是何苦。" />
-    <string id="LWN_story_event1_win" text="（打手，老周）：行，行……你等着。&#10;（老周，打手）：三年了。头一回有人拦他。" />
-    <string id="LWN_story_event1_lose" text="（打手，老周）：就这点能耐？&#10;（老周，打手）：别打了！钱我给，这就给！" />
-    <string id="LWN_story_event1_opt_pay" text="[出钱] 他欠你多少？我替他出。" />
-    <string id="LWN_story_event1_opt_stop" text="[拦下] 钱的事等会儿。你先把手从他领子上拿开。" />
-    <string id="LWN_story_event1_opt_walk" text="[走开] 这跟我没关系。" />
-    <string id="LWN_story_event5_join" text="（老周，玩家）：三笔……一笔都没收回来。" />
-    <string id="LWN_story_event5_opt_ask" text="[搭话] 老板，算什么呢？" />
+    <string id="LWN_story_event1_paid" text="（打手，老周）：下月照旧。你要是还想当善人，接着掏。&#10;（老周，玩家）：……客官，你这又是何苦。" />
+    <string id="LWN_story_event1_win" text="（打手，玩家）：行，行……你有种，咱们走着瞧。&#10;（老周，玩家）：三年了。头一回有人替我拦住他。" />
+    <string id="LWN_story_event1_lose" text="（打手，玩家）：就这点斤两，也敢多管闲事？&#10;（老周，打手）：别打了！钱我给，这就给！" />
+    <string id="LWN_story_event1_opt_pay" text="[替他交] 他欠多少？我替他付。（80 第纳尔）" />
+    <string id="LWN_story_event1_opt_stop" text="[喝止] 钱的事好说，先把你的手从他领子上拿开。" />
+    <string id="LWN_story_event1_opt_walk" text="[走开] 不关我的事。" />
+    <string id="LWN_story_event5_join" text="（老周，玩家）：三笔死账……一笔都没收回来。&#10;（老周，玩家）：客官，你是来当东西，还是来找门路的？" />
+    <string id="LWN_story_event5_opt_ask" text="[搭话] 我找门路进城，咱们聊聊。" />
     <string id="LWN_story_blocker_entry" text="[说两句] 让一让，我要进城。" />
-    <string id="LWN_story_blocker_first" text="（铁头，玩家）：通行文书。&#10;（铁头，玩家）：没有就别站在这儿。" />
-    <string id="LWN_story_blocker_first_refuse" text="（铁头，玩家）：找人的、讨债的、逃命的——都这么说。&#10;（铁头，玩家）：退后。" />
-    <string id="LWN_story_blocker_first_blow" text="（铁头，玩家）：不知死活。" />
-    <string id="LWN_story_blocker_open" text="（铁头，玩家）：通行文书。&#10;（铁头，玩家）：……你胆子不小。" />
-    <string id="LWN_story_blocker_bribe_ok" text="（铁头，玩家）：进去吧。&#10;（铁头，玩家）：别让我再看见你。" />
-    <string id="LWN_story_blocker_threat_ok" text="（铁头，玩家）：……你狠。" />
-    <string id="LWN_story_blocker_threat_fail" text="（铁头，玩家）：找死。" />
-    <string id="LWN_story_blocker_disguise_ok" text="（铁头，玩家）：……阁下。&#10;（铁头，玩家）：失礼了。" />
-    <string id="LWN_story_blocker_disguise_fail" text="（铁头，玩家）：……不对。&#10;（铁头，玩家）：你不是他。拿下！" />
-    <string id="LWN_story_blocker_fight" text="（铁头，玩家）：来啊。" />
+    <string id="LWN_story_blocker_first" text="（铁头，玩家）：通行文书。&#10;（铁头，玩家）：没有就滚远点。" />
+    <string id="LWN_story_blocker_first_refuse" text="（铁头，玩家）：找人的、讨债的、逃命的——每天八百个都这么说。&#10;（铁头，玩家）：退后，别逼我动手。" />
+    <string id="LWN_story_blocker_first_blow" text="（铁头，玩家）：敬酒不吃吃罚酒。给我躺下！" />
+    <string id="LWN_story_blocker_open" text="（铁头，玩家）：通行文书。&#10;（铁头，玩家）：……怎么，还不死心？" />
+    <string id="LWN_story_blocker_bribe_ok" text="（铁头，玩家）：……还算懂规矩。进去吧。&#10;（铁头，玩家）：进了门安分点，别给我惹事。" />
+    <string id="LWN_story_blocker_threat_ok" text="（铁头，玩家）：……行，你横。我不为这点俸禄拼命，过去吧。" />
+    <string id="LWN_story_blocker_threat_fail" text="（铁头，玩家）：在老子地头上耍横？找死！" />
+    <string id="LWN_story_blocker_disguise_ok" text="（铁头，玩家）：……原来是贵客当面。&#10;（铁头，玩家）：小的眼拙，您里边请。" />
+    <string id="LWN_story_blocker_disguise_fail" text="（铁头，玩家）：……不对，这身衣裳不合身。&#10;（铁头，玩家）：敢冒充贵人？给我拿下！" />
+    <string id="LWN_story_blocker_fight" text="（铁头，玩家）：来啊，看谁先趴下！" />
     <string id="LWN_story_blocker_opt_insist" text="[据理] 我妹妹在城里做工，我进去找她。" />
-    <string id="LWN_story_blocker_opt_draw" text="[动手] 我非要进。" />
-    <string id="LWN_story_blocker_opt_step_back" text="[退开] ……算了。" />
+    <string id="LWN_story_blocker_opt_draw" text="[硬闯] 今天这门我非进不可。" />
+    <string id="LWN_story_blocker_opt_step_back" text="[退开] ……算了，我先退后。" />
     <string id="LWN_story_blocker_opt_bribe" text="[塞钱] 这点钱拿去喝茶。（100 第纳尔）" />
-    <string id="LWN_story_blocker_opt_threat" text="[威吓] 让开。" />
-    <string id="LWN_story_blocker_opt_disguise" text="[亮身份] 放肆。让开。" />
-    <string id="LWN_story_blocker_opt_fight" text="[动手] 那我就自己进去。" />
+    <string id="LWN_story_blocker_opt_threat" text="[威吓] 好狗不挡道，让开。" />
+    <string id="LWN_story_blocker_opt_disguise" text="[亮文书] 睁开眼看看，这也是你能拦的？" />
+    <string id="LWN_story_blocker_opt_fight" text="[动手] 废话少说，手底下见真章。" />
     <string id="LWN_story_opt_leave" text="[离开]" />
     <string id="LWN_story_widow_entry" text="[说两句] 领班，演得真好。" />
-    <string id="LWN_story_widow_intro" text="（寡妇，玩家）：好就多给两个钱。&#10;（寡妇，玩家）：看戏往里站，别挡台口。&#10;（寡妇，玩家）：……不过你这个样子，不像来看戏的。" />
+    <string id="LWN_story_widow_intro" text="（寡妇，玩家）：好就多赏两个钱，看戏往里站，别挡台口。&#10;（寡妇，玩家）：……不过看你这身打扮，不像来看戏的。" />
     <string id="LWN_story_widow_hub" text="（寡妇，玩家）：还有话？" />
-    <string id="LWN_story_widow_ask_sister" text="（寡妇，玩家）：穿青布的？&#10;（寡妇，玩家）：卖过她一张通行文书——不是假的那种，我这儿只卖真的。&#10;（寡妇，玩家）：后来有个水手把她领走了。穿水靠，手上全是缆绳磨的茧。&#10;（寡妇，玩家）：我当时还劝过她。她说不去就没活路。" />
-    <string id="LWN_story_widow_ask_rival" text="（寡妇，玩家）：那班子？码头帮捧起来的。&#10;（寡妇，玩家）：天天在我门口抢客，还占我的台口。&#10;（寡妇，玩家）：你要能让他们闭嘴，我记你一个人情。" />
-    <string id="LWN_story_widow_deal" text="（寡妇，玩家）：你要一个能进城的身份？&#10;（寡妇，玩家）：贵族的行头我有，通行文书我也有——不是我写的，是别人丢的。&#10;（寡妇，玩家）：可台上的角儿不白给人东西。&#10;（寡妇，玩家）：对台那块招牌，砸了它。连牌子带场子，让他们今晚开不了锣。" />
-    <string id="LWN_story_widow_deal_why" text="（寡妇，玩家）：我自己去？&#10;（寡妇，玩家）：我一个寡妇，砸人家的场子，明天全城都说我是疯婆子。&#10;（寡妇，玩家）：你去，你是个生面孔。他们连你姓什么都不知道。" />
-    <string id="LWN_story_widow_deal_refuse" text="（寡妇，玩家）：随你。&#10;（寡妇，玩家）：反正我这话放这儿：没有能拿出手的身份，那道门你进不去。" />
-    <string id="LWN_story_widow_quest_accept" text="（寡妇，玩家）：他们散了场会去后巷喝一碗。招牌下面只有一个人看着。&#10;（寡妇，玩家）：别砸人脸，砸牌子。招牌落下来，明晚他们就没台子。&#10;（寡妇，玩家）：办成了，回来找我。行头我给你留着。" />
-    <string id="LWN_story_widow_turnin" text="（寡妇，玩家）：……砸了？&#10;（玩家，寡妇）：砸了。&#10;（寡妇，玩家）：好。今晚这条街清净了。" />
-    <string id="LWN_story_widow_turnin_ok" text="（寡妇，玩家）：站好。&#10;（寡妇，玩家）：穿上它，你就是别人。&#10;（寡妇，玩家）：这个别丢。他要看，你就给他看。&#10;（寡妇，玩家）：记住——别开口。一开口就露馅。" />
-    <string id="LWN_story_widow_chat" text="（寡妇，玩家）：来了。&#10;（寡妇，玩家）：今天不唱了，嗓子哑。&#10;（寡妇，玩家）：坐吧。台口那儿有张凳子，别嫌脏。" />
+    <string id="LWN_story_widow_ask_stage" text="（寡妇，玩家）：不在这儿唱，难道喝西北风去？&#10;（寡妇，玩家）：城门外人杂，戏词里夹两句私货，官差也听不出来。" />
+    <string id="LWN_story_widow_ask_sister" text="（寡妇，玩家）：穿青布的？我卖过她一张真通行文书。&#10;（寡妇，玩家）：后来有个穿水靠的水手把她领走了。" />
+    <string id="LWN_story_widow_ask_sister_2" text="（寡妇，玩家）：那人满手都是粗缆绳磨出来的死茧，是码头帮跑船的。&#10;（寡妇，玩家）：我当时劝她别跟去，她说不去就没活路。" />
+    <string id="LWN_story_widow_ask_rival" text="（寡妇，玩家）：对台那班子是码头帮捧起来的，天天堵我台口抢客。&#10;（寡妇，玩家）：你要能让他们闭嘴，我记你一份大人情。" />
+    <string id="LWN_story_widow_deal" text="（寡妇，玩家）：贵族行头和别人遗落的通行文书，我箱底都有。&#10;（寡妇，玩家）：但台上的角儿不白送东西——去把对台的招牌给我砸了。" />
+    <string id="LWN_story_widow_deal_why" text="（寡妇，玩家）：我一个寡妇去砸场子，明早全城都得骂我是疯婆子。&#10;（寡妇，玩家）：你是个生面孔，动了手他们也查不到我头上。" />
+    <string id="LWN_story_widow_deal_refuse" text="（寡妇，玩家）：随你便。&#10;（寡妇，玩家）：反正没一套体面行头，正门那个铁头可不会放你过去。" />
+    <string id="LWN_story_widow_quest_accept" text="（寡妇，玩家）：对台领班就在街东头守着那块破牌子。&#10;（寡妇，玩家）：压服他、砸了招牌回来找我，行头给你留着。" />
+    <string id="LWN_story_widow_turnin" text="（寡妇，玩家）：……对台那边没动静了，真让你办成了？&#10;（玩家，寡妇）：招牌替你料理干净了。" />
+    <string id="LWN_story_widow_turnin_ok" text="（寡妇，玩家）：痛快！这身贵族行头和通行文书归你了，护符也拿去。&#10;（寡妇，玩家）：记住——过门时只亮文书少开口，一开口就露馅。" />
+    <string id="LWN_story_widow_chat" text="（寡妇，玩家）：来了？对台歇了菜，今天我这台口总算清净了。&#10;（寡妇，玩家）：台口那儿有张干净凳子，坐下歇歇脚吧。" />
+    <string id="LWN_story_widow_chat_2" text="（寡妇，玩家）：码头帮每隔五天往内城大宅送一批丫鬟，说是做绣活。&#10;（寡妇，玩家）：可从来没见人出来过。你进城找人，多留心东城。" />
     <string id="LWN_story_widow_opt_sister" text="[打听] 见过一个穿青布的姑娘吗？" />
     <string id="LWN_story_widow_opt_sister2" text="[打听] 再说说那个穿青布的姑娘。" />
-    <string id="LWN_story_widow_opt_sister_more" text="[追问] 那个水手，你还记得什么？" />
-    <string id="LWN_story_widow_opt_rival" text="[打听] 对台那班子什么来路？" />
+    <string id="LWN_story_widow_opt_sister_more" text="[追问] 领走她的那个水手，你还记得什么特征？" />
+    <string id="LWN_story_widow_opt_rival" text="[打听] 对台那班子是什么来路？" />
     <string id="LWN_story_widow_opt_rival2" text="[打听] 对台那班子，还是不肯让？" />
-    <string id="LWN_story_widow_opt_stage" text="[接话] 你这台子，天天在街上演？" />
-    <string id="LWN_story_widow_opt_deal" text="[求] 给我一个能进城的身份。" />
+    <string id="LWN_story_widow_opt_stage" text="[搭话] 你这戏班子，天天都在城门口唱？" />
+    <string id="LWN_story_widow_opt_deal" text="[求门路] 给我弄一个能进城的身份。" />
     <string id="LWN_story_widow_opt_deal2" text="[求] 那班子的事，我替你办，你给我行头。" />
     <string id="LWN_story_widow_opt_accept" text="[应下] 招牌我给你砸了。" />
-    <string id="LWN_story_widow_opt_why" text="[反问] 这种脏活，你怎么不自己干？" />
-    <string id="LWN_story_widow_opt_refuse" text="[拒绝] 我不砸人家的饭碗。" />
-    <string id="LWN_story_widow_opt_turnin_ok" text="[交差] 招牌砸了。" />
-    <string id="LWN_story_widow_opt_turnin_trouble" text="[交差] 招牌砸了……还打了人。" />
-    <string id="LWN_story_widow_opt_chat" text="[闲聊] 今天不唱？" />
-    <string id="LWN_story_widow_opt_work" text="[问] 还有用得着我的地方吗？" />
+    <string id="LWN_story_widow_opt_why" text="[反问] 这种得罪人的事，你怎么不自己叫人干？" />
+    <string id="LWN_story_widow_opt_refuse" text="[缓一缓] 我不替人砸戏台饭碗。" />
+    <string id="LWN_story_widow_opt_turnin_ok" text="[交差] 对台领班服软了，今晚开不了锣。" />
+    <string id="LWN_story_widow_opt_turnin_trouble" text="[交差] 人我揍趴下了，招牌也废了。" />
+    <string id="LWN_story_widow_opt_chat" text="[叙旧] 今天生意怎么样？" />
+    <string id="LWN_story_widow_opt_work" text="[打听] 你在城门口唱戏，听说过城里的动静吗？" />
     <string id="LWN_story_widow_opt_back" text="[收住] 别的先不问了。" />
-    <string id="LWN_story_event3_join" text="（寡妇，对台领班）：抢客抢到我门口来了？&#10;（对台领班，寡妇）：台子搭在街上，谁都能演。&#10;（寡妇，对台领班）：那你演到城外去。&#10;（对台领班，寡妇）：你拦我试试。" />
-    <string id="LWN_story_event3_win" text="（对台领班，寡妇）：……行。今晚让你。&#10;（寡妇，对台领班）：你这一手，我记着了。" />
-    <string id="LWN_story_event3_lose" text="（对台领班，寡妇）：诸位听听，一个外乡人替寡妇出头！&#10;（寡妇，对台领班）：……你帮了倒忙。" />
-    <string id="LWN_story_event3_opt_side_widow" text="[帮腔] 台上的事台上说，堵人家门口算什么本事。" />
-    <string id="LWN_story_event3_opt_ask" text="[问] 这是怎么了？" />
-    <string id="LWN_story_event3_opt_walk" text="[走开] 不关我的事。" />
-    <string id="LWN_story_son_entry" text="[说两句] 这墙头是你的？" />
-    <string id="LWN_story_son_intro" text="（小贼，玩家）：小点声。&#10;（小贼，玩家）：这墙头我蹲了三年。风大，看得远。&#10;（小贼，玩家）：你这种走路的，一看就是刚从大道上来的。" />
-    <string id="LWN_story_son_hub" text="（小贼，玩家）：还有事？" />
-    <string id="LWN_story_son_ask_climb" text="（小贼，玩家）：看见上面那根梁没有？&#10;（小贼，玩家）：有钩子，三丈的墙跟平地一样。&#10;（小贼，玩家）：可惜我的钩子，昨天被人抢了。&#10;（小贼，玩家）：一群野贼，连我一根手指都打断了。" />
-    <string id="LWN_story_son_ask_sister" text="（小贼，玩家）：上个月夜里，码头帮押着个女的从后巷过去。&#10;（小贼，玩家）：两个人架着，嘴上堵了布。&#10;（小贼，玩家）：我没敢看脸。&#10;（小贼，玩家）：……我那时候在偷东西，我要是喊一声，我自己也完了。" />
-    <string id="LWN_story_son_deal" text="（小贼，玩家）：你要钩子？&#10;（小贼，玩家）：钩子可以给你。可我不能白给。&#10;（小贼，玩家）：那伙野贼就在墙根底下住着。你替我把他们打发了。&#10;（小贼，玩家）：不用杀。让他们滚就行。" />
-    <string id="LWN_story_son_deal_why" text="（小贼，玩家）：我这样还怎么去？&#10;（小贼，玩家）：一根手指就换了我半条命。&#10;（小贼，玩家）：你要是不愿意，我也不怪你。这城里肯替人出头的，早死光了。" />
-    <string id="LWN_story_son_quest_accept" text="（小贼，玩家）：他们住在墙根那个塌了的马厩里。&#10;（小贼，玩家）：头儿个子高，脸上有一道疤。你只要让他躺下一次，剩下的人自己就散了。&#10;（小贼，玩家）：别在墙根底下动手。那地方窄，他们熟。" />
-    <string id="LWN_story_son_turnin" text="（小贼，玩家）：真打发了？&#10;（玩家，小贼）：打发了。&#10;（小贼，玩家）：……我操。" />
-    <string id="LWN_story_son_turnin_ok" text="（小贼，玩家）：绳子。钩子。都是好东西，我擦了一晚上。&#10;（小贼，玩家）：勾住了别松手。松手就是摔死。&#10;（小贼，玩家）：还有——后墙那段矮。你要是不想走门，也从那儿。" />
-    <string id="LWN_story_son_chat" text="（小贼，玩家）：来了。&#10;（小贼，玩家）：我娘今天又骂我了。&#10;（小贼，玩家）：她说我跟不三不四的人混。我说我认识个敢打人的，她不信。" />
-    <string id="LWN_story_son_opt_climb" text="[打听] 怎么翻进去？" />
-    <string id="LWN_story_son_opt_climb2" text="[打听] 那钩子，现在能给我了吗？" />
-    <string id="LWN_story_son_opt_sister" text="[打听] 见过一个姑娘吗？穿青布的。" />
-    <string id="LWN_story_son_opt_sister2" text="[打听] 那天夜里的事，再说说。" />
-    <string id="LWN_story_son_opt_wall" text="[接话] 你在墙头上看什么？" />
-    <string id="LWN_story_son_opt_deal" text="[求] 钩子借我。" />
+    <string id="LWN_story_event3_join" text="（寡妇，对台领班）：抢客抢到我台口来了，还要不要脸？&#10;（对台领班，寡妇）：街面是官家的，谁有本事谁开锣，你管得着吗？" />
+    <string id="LWN_story_event3_win" text="（对台领班，寡妇）：……行，牙尖嘴利，今天这出先让给你。&#10;（寡妇，玩家）：刚才那两句帮腔漂亮，我记下了。" />
+    <string id="LWN_story_event3_lose" text="（对台领班，寡妇）：大伙儿听听，寡妇请了个嘴笨的外乡人来撑腰！&#10;（寡妇，玩家）：……不会说话就少开口，白白让人看笑话。" />
+    <string id="LWN_story_event3_ask" text="（对台领班，玩家）：这戏婆霸着城门口唱了三年，我们刚支起台子她就来掀场！&#10;（寡妇，玩家）：放屁！是码头帮塞你们过来挤兑我的饭碗！" />
+    <string id="LWN_story_event3_opt_side_widow" text="[帮腔] 台上的角儿凭唱功吃饭，堵人台口算什么本事。" />
+    <string id="LWN_story_event3_opt_ask" text="[插话] 两位因何事当街争执？" />
+    <string id="LWN_story_event3_opt_walk" text="[走开] 戏班子的事我不掺和。" />
+    <string id="LWN_story_son_entry" text="[说两句] 这墙头是你的地盘？" />
+    <string id="LWN_story_son_intro" text="（小贼，玩家）：嘘——小点声！这墙根我蹲了三年，风大看得远。&#10;（小贼，玩家）：看你这步子，刚从城门那儿碰了一鼻子灰吧？" />
+    <string id="LWN_story_son_hub" text="（小贼，玩家）：还有什么事，快说。" />
+    <string id="LWN_story_son_ask_wall" text="（小贼，玩家）：看谁身上带了沉钱袋，看谁走的是背光巷子。&#10;（小贼，玩家）：我娘在那边戏台唱戏，我在这儿替夜行会盯梢。" />
+    <string id="LWN_story_son_ask_climb" text="（小贼，玩家）：瞧见城门上方那根横梁没有？有飞钩，三丈高的墙跟平地一样。&#10;（小贼，玩家）：可惜我那副好钩子，昨天让一伙野贼给抢了。" />
+    <string id="LWN_story_son_ask_climb_2" text="（小贼，玩家）：那帮野贼不守夜行会的规矩，硬抢东西还掰伤了我一根手指。&#10;（小贼，玩家）：我要不是手伤了，早去把场子找回来了。" />
+    <string id="LWN_story_son_ask_sister" text="（小贼，玩家）：上个月半夜，我见码头帮两个人架着个穿青布的女子走后巷。&#10;（小贼，玩家）：嘴里堵着布，走得急，我蹲在瓦上没敢往下看。" />
+    <string id="LWN_story_son_ask_sister_2" text="（小贼，玩家）：那天我正摸进绸缎庄顺东西，出声我自己也得折进去。&#10;（小贼，玩家）：不过他们去的方向，肯定是大西门里头的私仓。" />
+    <string id="LWN_story_son_deal" text="（小贼，玩家）：想要飞钩翻墙？东西可以归你，但你得替我出这口气。&#10;（小贼，玩家）：那伙野贼就窝在西墙根塌马厩那儿，去把他们打发走。" />
+    <string id="LWN_story_son_deal_why" text="（小贼，玩家）：我这根手指肿得像胡萝卜，怎么跟亡命徒动刀子？&#10;（小贼，玩家）：你替我把那领头的放倒，备用钩索和撬锁家伙全归你。" />
+    <string id="LWN_story_son_deal_refuse" text="（小贼，玩家）：不干拉倒。&#10;（小贼，玩家）：没我的飞钩，你就慢慢在城门底下跟铁头耗着吧。" />
+    <string id="LWN_story_son_quest_accept" text="（小贼，玩家）：那野贼头子脸上有道刀疤，就在西边墙根转悠。&#10;（小贼，玩家）：让他躺下一回就行，办妥了回来拿钩子。" />
+    <string id="LWN_story_son_turnin" text="（小贼，玩家）：真把那疤脸野贼给收拾了？&#10;（玩家，小贼）：他以后不敢再往这墙根凑了。" />
+    <string id="LWN_story_son_turnin_ok" text="（小贼，玩家）：够爷们！这副钩索绳、铁钩还有撬锁包，我擦了一宿，全归你。&#10;（小贼，玩家）：趁守门那家伙转头时往梁上勾，千万别当着他的面飞。" />
+    <string id="LWN_story_son_chat" text="（小贼，玩家）：来了？我娘今天又拧我耳朵，骂我跟生人鬼混。&#10;（小贼，玩家）：我说我认了个一拳能打趴野贼的大哥，她还不信。" />
+    <string id="LWN_story_son_chat_2" text="（小贼，玩家）：铁头腰上那把佩刀松得很，你从背后摸过去就能顺下来。&#10;（小贼，玩家）：要是手底下利索，蹲着贴墙根也能趁他转头溜进去。" />
+    <string id="LWN_story_son_opt_climb" text="[打听] 正门被堵死了，怎么才能翻进去？" />
+    <string id="LWN_story_son_opt_climb2" text="[追问] 谁敢抢夜行会的东西？" />
+    <string id="LWN_story_son_opt_sister" text="[打听] 你整天蹲在墙头，见过一个穿青布的姑娘吗？" />
+    <string id="LWN_story_son_opt_sister2" text="[追问] 那天夜里他们把人押去哪了？" />
+    <string id="LWN_story_son_opt_wall" text="[搭话] 你天天蹲在这墙根底下看什么？" />
+    <string id="LWN_story_son_opt_deal" text="[求门路] 把你的飞钩借我用用。" />
     <string id="LWN_story_son_opt_deal2" text="[求] 我替你打发野贼，钩子归我。" />
     <string id="LWN_story_son_opt_accept" text="[应下] 他们住哪？" />
-    <string id="LWN_story_son_opt_why" text="[反问] 你怎么不自己去？" />
-    <string id="LWN_story_son_opt_refuse" text="[拒绝] 我不替小偷卖命。" />
-    <string id="LWN_story_son_opt_turnin_ok" text="[交差] 野贼打发了。" />
-    <string id="LWN_story_son_opt_turnin_doubt" text="[交差] 打发了……你手指没事吧？" />
-    <string id="LWN_story_son_opt_chat" text="[闲聊] 你娘还在骂你？" />
-    <string id="LWN_story_son_opt_work" text="[问] 还有活吗？" />
+    <string id="LWN_story_son_opt_why" text="[反问] 你自己的场子，怎么不自己去找回来？" />
+    <string id="LWN_story_son_opt_refuse" text="[缓一缓] 我不替小偷打架。" />
+    <string id="LWN_story_son_opt_turnin_ok" text="[交差] 墙根那伙野贼已经打发了。" />
+    <string id="LWN_story_son_opt_turnin_doubt" text="[交差] 人收拾了。你的手指不要紧吧？" />
+    <string id="LWN_story_son_opt_chat" text="[叙旧] 这两天墙头上有什么新动静？" />
+    <string id="LWN_story_son_opt_work" text="[请教] 除了钩索翻墙，过门还有什么巧办法？" />
     <string id="LWN_story_son_opt_back" text="[收住] 别的先不问了。" />
-    <string id="LWN_story_event4_join" text="（老周，小贼）：小贼！还我钱袋！&#10;（小贼，老周）：没拿！我什么都没拿！" />
-    <string id="LWN_story_event4_win" text="（玩家，旁白）：搜可以，别在街上。是你错怪了他，赔他一句。&#10;（老周，小贼）：……是我急了。" />
-    <string id="LWN_story_event4_lose" text="（老周，小贼）：你又是谁？跟他一伙的？" />
-    <string id="LWN_story_event4_opt_defend" text="[拦一下] 搜可以，别在街上动手。" />
-    <string id="LWN_story_event4_opt_ask" text="[问] 丢了多少？" />
-    <string id="LWN_story_event4_opt_walk" text="[走开] 不关我的事。" />
+    <string id="LWN_story_event4_join" text="（老周，小贼）：小贼！把我柜上的零钱袋交出来！&#10;（小贼，老周）：冤枉啊周掌柜！我今天连你摊子三尺内都没进过！" />
+    <string id="LWN_story_event4_win" text="（老周，小贼）：……摸到了，压在账本底下。算我老眼昏花，莫怪。&#10;（小贼，玩家）：谢了兄弟，要不是你拦着，我这只手又得挨顿拧。" />
+    <string id="LWN_story_event4_lose" text="（老周，玩家）：你又是哪冒出来的？跟这小毛贼一伙的吧？&#10;（小贼，玩家）：……你别越帮越忙啊！" />
+    <string id="LWN_story_event4_ask" text="（老周，玩家）：柜角一袋散碎铜子不见了，刚才就这小子从檐下溜过去！&#10;（小贼，玩家）：周掌柜，您再翻翻您那厚账本底下，真不在我袖子里！" />
+    <string id="LWN_story_event4_opt_defend" text="[劝解] 掌柜的先摸摸账本底下，当街冤枉人可坏名声。" />
+    <string id="LWN_story_event4_opt_ask" text="[插话] 慢着，到底丢了什么东西？" />
+    <string id="LWN_story_event4_opt_walk" text="[走开] 抓贼的事我不掺和。" />
     <string id="LWN_story_butcher_entry" text="[说两句] 这肉新鲜吗？" />
-    <string id="LWN_story_butcher_intro" text="（屠户，玩家）：新鲜。&#10;（屠户，玩家）：不买就让开。" />
-    <string id="LWN_story_butcher_hub" text="（屠户，玩家）：说。" />
-    <string id="LWN_story_butcher_ask_past" text="（屠户，玩家）：……你听谁说的。&#10;（屠户，玩家）：滚。" />
-    <string id="LWN_story_butcher_ask_past_2" text="（屠户，玩家）：他们砸我摊子那天，我就不是了。&#10;（屠户，玩家）：我在这儿卖肉，卖得比码头干净。&#10;（屠户，玩家）：他们要的是我这条腿。我没给。" />
-    <string id="LWN_story_butcher_ask_sister" text="（屠户，玩家）：押人的事我不问。&#10;（屠户，玩家）：……不过那天夜里，他们往码头去了。&#10;（屠户，玩家）：往码头去的人，没有一个自己走回来的。" />
-    <string id="LWN_story_butcher_deal" text="（屠户，玩家）：学？&#10;（屠户，玩家）：先让我看看你敢不敢动手。&#10;（屠户，玩家）：那个收数的 thug，天天来砸我的摊。&#10;（屠户，玩家）：你去教训他。别弄死。弄死我麻烦。" />
-    <string id="LWN_story_butcher_deal_why" text="（屠户，玩家）：我要是动手，就是我砸回去。&#10;（屠户，玩家）：我砸回去，码头帮就有由头烧我这铺子。&#10;（屠户，玩家）：你动手，他们只当来了个外人。" />
-    <string id="LWN_story_butcher_quest_accept" text="（屠户，玩家）：他每天午后从这条街过去，一个人。&#10;（屠户，玩家）：你把他按在地上，让他记住疼就行。&#10;（屠户，玩家）：刀不用。手也不用太狠。&#10;（屠户，玩家）：……算了。你自己看着办。" />
-    <string id="LWN_story_butcher_turnin" text="（屠户，玩家）：办完了。&#10;（玩家，屠户）：办完了。" />
-    <string id="LWN_story_butcher_turnin_ok" text="（屠户，玩家）：拿去。&#10;（屠户，玩家）：刃口我重新开了，别砍骨头。&#10;（屠户，玩家）：绑住了才好办事。&#10;（屠户，玩家）：学会一件事：刀不是用来吓人的。吓人的刀，一定先伤自己。" />
-    <string id="LWN_story_butcher_chat" text="（屠户，玩家）：来了。&#10;（屠户，玩家）：肉在后头。自己拿。钱明天给。" />
-    <string id="LWN_story_butcher_opt_past" text="[打听] 你以前是码头帮的？" />
+    <string id="LWN_story_butcher_intro" text="（屠户，玩家）：今早刚宰的，新鲜。&#10;（屠户，玩家）：不买肉就往边上站，别挡着案板。" />
+    <string id="LWN_story_butcher_hub" text="（屠户，玩家）：有话直说。" />
+    <string id="LWN_story_butcher_ask_meat" text="（屠户，玩家）：以前有个徒弟帮衬，上个月让码头帮吓跑了。&#10;（屠户，玩家）：现在就我一把刀、一张案板，谁来也不让。" />
+    <string id="LWN_story_butcher_ask_past" text="（屠户，玩家）：……你听哪个碎嘴子说的？&#10;（屠户，玩家）：少打听以前的事。" />
+    <string id="LWN_story_butcher_ask_past_2" text="（屠户，玩家）：他们逼我去干押活人的脏活，我不干，他们就砸了我的摊子。&#10;（屠户，玩家）：从那天起我就跟码头帮断了。要我的命可以，要我再干脏活不行。" />
+    <string id="LWN_story_butcher_ask_sister" text="（屠户，玩家）：押人的脏事我早不沾了。&#10;（屠户，玩家）：不过上个月底半夜，我听见他们押着人往西码头暗仓去了。" />
+    <string id="LWN_story_butcher_ask_sister_2" text="（屠户，玩家）：进那间暗仓的人，没一个能自己走出来。&#10;（屠户，玩家）：你要去救人，手里没把趁手家伙就是白送命。" />
+    <string id="LWN_story_butcher_deal" text="（屠户，玩家）：想从我这儿拿家伙、学两手？先让我看看你的骨头硬不硬。&#10;（屠户，玩家）：码头帮那个收保护费的打手天天来砸摊，你去把他放倒。" />
+    <string id="LWN_story_butcher_deal_why" text="（屠户，玩家）：我要是提刀砍了他，码头帮今晚就有借口带几十号人烧我铺子。&#10;（屠户，玩家）：你是个外乡生面孔，揍了他，他们只当是踢到了铁板。" />
+    <string id="LWN_story_butcher_deal_refuse" text="（屠户，玩家）：不敢动手就别谈学刀。&#10;（屠户，玩家）：胆小鬼拿了刀，也是给别人送菜。" />
+    <string id="LWN_story_butcher_quest_accept" text="（屠户，玩家）：那打手就在街口晃荡，仗着一身横肉欺软怕硬。&#10;（屠户，玩家）：把他打趴下立个威，别闹出人命。去吧。" />
+    <string id="LWN_story_butcher_turnin" text="（屠户，玩家）：刚才街口那阵动静，是你干的？&#10;（玩家，屠户）：那打手躺下了，这几日不敢再来砸你的摊。" />
+    <string id="LWN_story_butcher_turnin_ok" text="（屠户，玩家）：好身手！这把开刃砍刀、捆人麻绳和磨刀石拿去。&#10;（屠户，玩家）：不想跟铁头硬拼的话，从背后敲闷棍或者拿绳子捆走都行。" />
+    <string id="LWN_story_butcher_chat" text="（屠户，玩家）：来了。&#10;（屠户，玩家）：案板后头留了块好肉，饿了自己在锅里捞，不用给钱。" />
+    <string id="LWN_story_butcher_chat_2" text="（屠户，玩家）：铁头以前在码头扛大包，下盘稳，但左手招架慢半拍。&#10;（屠户，玩家）：真动起手来，往他左侧抢步，三刀之内必见分晓。" />
+    <string id="LWN_story_butcher_opt_past" text="[打听] 听街坊说，你以前也是码头帮的人？" />
     <string id="LWN_story_butcher_opt_past2" text="[打听] 你和码头帮，到底怎么断的？" />
-    <string id="LWN_story_butcher_opt_past_more" text="[追问] 他们砸你摊子那天，发生了什么？" />
-    <string id="LWN_story_butcher_opt_sister" text="[打听] 见过一个姑娘吗？穿青布的。" />
-    <string id="LWN_story_butcher_opt_sister2" text="[打听] 那天夜里，你还看见什么？" />
-    <string id="LWN_story_butcher_opt_meat" text="[接话] 这摊子，就你一个人？" />
-    <string id="LWN_story_butcher_opt_deal" text="[求] 教我两手。" />
+    <string id="LWN_story_butcher_opt_past_more" text="[追问] 我不是码头帮的探子——他们为什么砸你的摊？" />
+    <string id="LWN_story_butcher_opt_sister" text="[打听] 见过一个被码头帮带走的青布姑娘吗？" />
+    <string id="LWN_story_butcher_opt_sister2" text="[追问] 西码头暗仓那边，还有什么讲究？" />
+    <string id="LWN_story_butcher_opt_meat" text="[搭话] 这么大个肉案，就你一个人守着？" />
+    <string id="LWN_story_butcher_opt_deal" text="[求门路] 我身上没家伙，能不能借把刀、教我两手？" />
     <string id="LWN_story_butcher_opt_accept" text="[应下] 我去教训他。" />
-    <string id="LWN_story_butcher_opt_why" text="[反问] 你怎么不自己动手？" />
-    <string id="LWN_story_butcher_opt_refuse" text="[拒绝] 我不替你惹码头帮。" />
-    <string id="LWN_story_butcher_opt_turnin_ok" text="[交差] thug 教训了。" />
-    <string id="LWN_story_butcher_opt_turnin_silent" text="[交差] （什么也不说，把拳头摊开）" />
-    <string id="LWN_story_butcher_opt_chat" text="[闲聊] 今天的肉不错。" />
-    <string id="LWN_story_butcher_opt_work" text="[问] 还有活吗？" />
+    <string id="LWN_story_butcher_opt_why" text="[反问] 你手头有刀有肉，怎么不自己剁了他？" />
+    <string id="LWN_story_butcher_opt_refuse" text="[缓一缓] 我暂时不想替人出头。" />
+    <string id="LWN_story_butcher_opt_turnin_ok" text="[交差] 那个收保护费的打手已经教训过了。" />
+    <string id="LWN_story_butcher_opt_turnin_silent" text="[交差] 人我已经放倒了。" />
+    <string id="LWN_story_butcher_opt_chat" text="[叙旧] 今天的肉看着不错。" />
+    <string id="LWN_story_butcher_opt_work" text="[请教] 守门那个铁头，动手时有什么破绽？" />
     <string id="LWN_story_butcher_opt_back" text="[收住] 别的先不问了。" />
-    <string id="LWN_story_event2_join" text="（打手，屠户）：老东西，交钱。&#10;（屠户，打手）：滚。&#10;（打手，屠户）：你举着刀，手在抖啊。" />
-    <string id="LWN_story_event2_win" text="（打手，屠户）：你……你谁啊。&#10;（屠户，打手）：滚。" />
-    <string id="LWN_story_event2_lose" text="（打手，屠户）：多管闲事。&#10;（屠户，打手）：够了！钱我明天给！" />
-    <string id="LWN_story_event2_opt_help" text="[帮屠户] 手别抖，我来。" />
-    <string id="LWN_story_event2_opt_ask" text="[问] 他天天来？" />
-    <string id="LWN_story_event2_opt_walk" text="[走开] 不关我的事。" />
-    <string id="LWN_story_event6_join" text="（屠户，玩家）：又砸了。&#10;（屠户，玩家）：捡起来。都捡起来。" />
-    <string id="LWN_story_event6_opt_help" text="[搭话] 我帮你捡。" />
-    <string id="LWN_story_thug_entry" text="[说两句] 喂，你就是收数的？" />
-    <string id="LWN_story_thug_intro" text="（打手，玩家）：干什么？&#10;（打手，玩家）：你不像这条街上的。" />
-    <string id="LWN_story_thug_talk" text="（打手，玩家）：这月又有人替人出头？&#10;（打手，玩家）：你替谁？那个卖肉的？还是那个记账的老东西？" />
-    <string id="LWN_story_thug_money" text="（打手，玩家）：码头上的事，问那么多做什么。&#10;（打手，玩家）：我劝你别打听夜里的事。&#10;（打手，玩家）：夜里的人，白天不认账。" />
-    <string id="LWN_story_thug_fight" text="（打手，玩家）：行啊，来。" />
-    <string id="LWN_story_thug_opt_ask" text="[搭话] 你在这条街上收钱？" />
-    <string id="LWN_story_thug_opt_money" text="[打听] 上个月半夜，你们押走的那个人是谁？" />
-    <string id="LWN_story_thug_opt_fight" text="[动手]" />
-    <string id="LWN_story_debtor_entry" text="[说两句] 你就是 debtor？" />
-    <string id="LWN_story_debtor_intro" text="（收数人，玩家）：今天不还，明天翻倍。&#10;（收数人，玩家）：……你欠谁的？" />
-    <string id="LWN_story_debtor_talk" text="（收数人，玩家）：老周让你来的？&#10;（收数人，玩家）：他倒是会挑人。&#10;（收数人，玩家）：我劝你回去告诉他，钱在这儿，人也在，就是不能给。" />
-    <string id="LWN_story_debtor_collect" text="（收数人，玩家）：……他这个人，连借据的墨都记得清楚。&#10;（收数人，玩家）：一百二十。拿去。&#10;（收数人，玩家）：……我这条命，也就值这么多了。" />
-    <string id="LWN_story_debtor_fight" text="（收数人，玩家）：不识抬举。" />
-    <string id="LWN_story_debtor_opt_collect" text="[讨账] 老周的账，一百二十，你该给了。" />
-    <string id="LWN_story_debtor_opt_collect_leave" text="[收下] 以后别再拖了。" />
-    <string id="LWN_story_debtor_opt_ask" text="[搭话] 你这账本上都是谁？" />
-    <string id="LWN_story_debtor_opt_fight" text="[动手]" />
-    <string id="LWN_story_rival_entry" text="[说两句] 你就是对台的领班？" />
-    <string id="LWN_story_rival_intro" text="（对台领班，玩家）：对台？台子搭在街上，哪来的对台。&#10;（对台领班，玩家）：你就是那个跟着寡妇转的外乡人吧。&#10;（对台领班，玩家）：她给你多少钱？我出双倍，你来给我拉客。" />
-    <string id="LWN_story_rival_talk" text="（对台领班，玩家）：牌子是我的，人是我的，这条街也是我先来的。&#10;（对台领班，玩家）：你要砸，冲这儿来。&#10;（对台领班，玩家）：别碰我的牌子——那是我爹留下的。" />
-    <string id="LWN_story_rival_fight" text="（对台领班，玩家）：来啊。" />
-    <string id="LWN_story_rival_opt_sign" text="[打听] 那块招牌，谁给你写的？" />
-    <string id="LWN_story_rival_opt_fight" text="[动手]" />
-    <string id="LWN_story_outlaw_entry" text="[说两句] 你们住在这儿？" />
-    <string id="LWN_story_outlaw_intro" text="（野贼，玩家）：走你的路。&#10;（野贼，玩家）：这地方不长眼睛。" />
-    <string id="LWN_story_outlaw_talk" text="（野贼，玩家）：那个小贼让你来的？&#10;（野贼，玩家）：他自己不长手，怪谁。&#10;（野贼，玩家）：我劝你回去。这墙根底下，没人替他出过头。" />
-    <string id="LWN_story_outlaw_fight" text="（野贼，玩家）：找死。" />
-    <string id="LWN_story_outlaw_opt_ask" text="[搭话] 你们抢了个孩子的东西。" />
-    <string id="LWN_story_outlaw_opt_fight" text="[动手]" />
+    <string id="LWN_story_event2_join" text="（打手，屠户）：老东西，这月的例钱呢？举着把破刀手都在抖！&#10;（屠户，打手）：滚开！再碰我案板一下，老子剁了你的爪子！" />
+    <string id="LWN_story_event2_win" text="（打手，玩家）：你……你从哪冒出来的硬茬子！给我等着！&#10;（屠户，玩家）：好手劲。肯替人出头的外乡人不多见了。" />
+    <string id="LWN_story_event2_lose" text="（打手，玩家）：呸，没骨头的软脚虾，也敢学人拔拳头！&#10;（屠户，打手）：够了！别打外人，例钱我明天凑给你！" />
+    <string id="LWN_story_event2_ask" text="（打手，玩家）：这卖肉的欠了码头帮两月例钱，你还想替他掏不成？&#10;（屠户，玩家）：外乡人，这是我跟码头帮的梁子，你少掺和。" />
+    <string id="LWN_story_event2_opt_help" text="[帮屠户] 光天化日砸人买卖，问过我的拳头没有？" />
+    <string id="LWN_story_event2_opt_ask" text="[插话] 慢着，你们这是闹什么？" />
+    <string id="LWN_story_event2_opt_walk" text="[走开] 街面上的混账事我不掺和。" />
+    <string id="LWN_story_event6_join" text="（屠户，玩家）：这群杂碎，又把我的肉案给掀了。&#10;（屠户，玩家）：……外乡人，你看什么？" />
+    <string id="LWN_story_event6_opt_help" text="[搭把手] 搭把手，我帮你把案板扶起来。" />
+    <string id="LWN_story_event6_helped" text="（屠户，玩家）：……沉得很，多谢搭手。&#10;（屠户，玩家）：你不是来买肉的吧？有事就直说。" />
+    <string id="LWN_story_thug_entry" text="[说两句] 喂，你就是码头帮在这条街收例钱的？" />
+    <string id="LWN_story_thug_intro" text="（打手，玩家）：看什么看？&#10;（打手，玩家）：生面孔少在这条街转悠，小心腿折在这儿。" />
+    <string id="LWN_story_thug_hub" text="（打手，玩家）：还没滚？皮痒了是吧？" />
+    <string id="LWN_story_thug_talk" text="（打手，玩家）：这月怎么又有不长眼的替人出头？&#10;（打手，玩家）：说吧，你是替那个卖肉的来挨揍，还是替老周来送钱？" />
+    <string id="LWN_story_thug_money" text="（打手，玩家）：码头上的私货，你也配打听？&#10;（打手，玩家）：劝你少管半夜的事，夜里被拖走的人，白天可不认账。" />
+    <string id="LWN_story_thug_fight" text="（打手，玩家）：找死是吧？来，老子成全你！" />
+    <string id="LWN_story_thug_opt_ask" text="[质问] 这条街的商铺，你每天都来砸一通？" />
+    <string id="LWN_story_thug_opt_money" text="[盘问] 上个月半夜，你们押去码头的姑娘在哪？" />
+    <string id="LWN_story_thug_opt_fight" text="[动手] 屠户让我给你带句话——拿拳头说。" />
+    <string id="LWN_story_debtor_entry" text="[说两句] 你就是码头帮管账的收数人？" />
+    <string id="LWN_story_debtor_intro" text="（收数人，玩家）：今天不还，明天利钱翻倍。&#10;（收数人，玩家）：……不对，我账本上没你这张脸，你找谁？" />
+    <string id="LWN_story_debtor_hub" text="（收数人，玩家）：还有什么账要算？" />
+    <string id="LWN_story_debtor_talk" text="（收数人，玩家）：这本子上记的，全是城门口欠码头帮例钱的铺户。&#10;（收数人，玩家）：只有我向别人讨债的份，还没人敢向我讨债。" />
+    <string id="LWN_story_debtor_collect" text="（收数人，玩家）：……老周连借据上的墨迹都还留着？算你狠。&#10;（收数人，玩家）：一百二十第纳尔拿去，回去告诉他，咱们两清了。" />
+    <string id="LWN_story_debtor_refuse" text="（收数人，玩家）：凭你两句话就想让我掏一百二十第纳尔？&#10;（收数人，玩家）：回去告诉老周，钱在我怀里，有本事拿拳头来取！" />
+    <string id="LWN_story_debtor_fight" text="（收数人，玩家）：敬酒不吃吃罚酒，动手！" />
+    <string id="LWN_story_debtor_opt_collect" text="[逼债] 老周的三笔死账，一百二十第纳尔，今天连本带利吐出来。" />
+    <string id="LWN_story_debtor_opt_collect_leave" text="[收钱] 钱点清了，以后少去当铺耍赖。" />
+    <string id="LWN_story_debtor_opt_ask" text="[打听] 你手里这本账册，记的都是谁的账？" />
+    <string id="LWN_story_debtor_opt_fight" text="[动手] 既然嘴上讨不回来，那就打到你掏钱为止。" />
+    <string id="LWN_story_rival_entry" text="[说两句] 你就是对台戏班的领班？" />
+    <string id="LWN_story_rival_intro" text="（对台领班，玩家）：什么对台？街面是官家的，谁嗓门亮谁唱。&#10;（对台领班，玩家）：我看你跟着那寡妇转悠半天了，她雇你来的？" />
+    <string id="LWN_story_rival_hub" text="（对台领班，玩家）：还不走？想在台口找茬？" />
+    <string id="LWN_story_rival_talk" text="（对台领班，玩家）：这块金字招牌是我爹传下来的，码头帮的大哥亲自捧过场。&#10;（对台领班，玩家）：谁敢碰我的牌子一下，我跟谁拼命！" />
+    <string id="LWN_story_rival_fight" text="（对台领班，玩家）：敢砸我的招牌？我跟你拼了！" />
+    <string id="LWN_story_rival_opt_sign" text="[打听] 你台口这块招牌，看着倒有些年头。" />
+    <string id="LWN_story_rival_opt_fight" text="[动手] 寡妇让我替她清清台口——招牌我砸定了。" />
+    <string id="LWN_story_outlaw_entry" text="[说两句] 你们这帮人就窝在墙根底下？" />
+    <string id="LWN_story_outlaw_intro" text="（野贼，玩家）：识相的走你的阳关道。&#10;（野贼，玩家）：这塌马厩里不迎客，少往里头瞄。" />
+    <string id="LWN_story_outlaw_hub" text="（野贼，玩家）：有屁快放。" />
+    <string id="LWN_story_outlaw_talk" text="（野贼，玩家）：那个蹲墙头的小毛贼让你来讨飞钩的？&#10;（野贼，玩家）：进了老子手里的东西就是老子的，这墙根底下拳头说了算。" />
+    <string id="LWN_story_outlaw_fight" text="（野贼，玩家）：替小毛贼强出头？找死！" />
+    <string id="LWN_story_outlaw_opt_ask" text="[质问] 你们昨天抢了墙头那个半大孩子的飞钩，还伤了人。" />
+    <string id="LWN_story_outlaw_opt_fight" text="[动手] 把飞钩交出来，或者躺在这儿。" />
     <string id="LWN_story_event1_l1" text="（打手，老周）：看什么看？没你的事。" />
     <string id="LWN_story_event1_l2" text="（老周，打手）：……这就给，这就给。" />
     <string id="LWN_story_event1_l3" text="（打手，老周）：钱呢？这月的。" />
@@ -5029,19 +5030,19 @@
     <string id="LWN_story_quest_butcher_title" text="砸摊的那个人" />
     <string id="LWN_story_menu_enter" text="入城（玩法测试）" />
     <string id="LWN_story_intro_inquiry_title" text="城门" />
-    <string id="LWN_story_intro_inquiry_body_1" text="（旁白，玩家）：三个月前，你妹妹进城做工，再没消息。" />
-    <string id="LWN_story_intro_inquiry_body_2" text="（旁白，玩家）：你一路找来，钱在路上被偷光了，身上只剩她最后一封信。" />
-    <string id="LWN_story_intro_inquiry_body_3" text="（旁白，玩家）：更糟的是，码头帮栽了你一桩小事——城门上挂着你的小额通缉。" />
-    <string id="LWN_story_intro_inquiry_body_4" text="（旁白，玩家）：正门是进不去了。城门外的几家，各有各的门路。" />
+    <string id="LWN_story_intro_inquiry_body_1" text="三个月前，你妹妹进城做工，再没消息。" />
+    <string id="LWN_story_intro_inquiry_body_2" text="你一路找来，钱在路上被偷光了，身上只剩她最后一封信。" />
+    <string id="LWN_story_intro_inquiry_body_3" text="更糟的是，码头帮栽了你一桩小事——城门上挂着你的小额通缉。" />
+    <string id="LWN_story_intro_inquiry_body_4" text="正门是进不去了。城门外的几家，各有各的门路。" />
     <string id="LWN_story_intro_btn_go" text="硬闯" />
     <string id="LWN_story_intro_btn_back" text="再想想" />
     <string id="LWN_story_jail_title" text="牢里" />
-    <string id="LWN_story_jail_body_1" text="（旁白，玩家）：你醒在稻草上，后脑一片湿。" />
-    <string id="LWN_story_jail_body_2" text="（旁白，玩家）：同监的老囚把一套旧衣服和一块面罩塞给你。" />
-    <string id="LWN_story_jail_body_3" text="（老囚，玩家）：想进城？先让人认不出你。" />
+    <string id="LWN_story_jail_body_1" text="你醒在稻草上，后脑一片湿。" />
+    <string id="LWN_story_jail_body_2" text="同监的老囚把一套旧衣服和一块面罩塞给你。" />
+    <string id="LWN_story_jail_body_3" text="老囚压着嗓子提点你——想进城，先让人认不出你。" />
     <string id="LWN_story_jail_btn_wear" text="换上" />
     <string id="LWN_story_jail_btn_wait" text="我再想想" />
-    <string id="LWN_story_jail_done" text="（旁白，玩家）：你身上没武器，钱袋也空了。" />
+    <string id="LWN_story_jail_done" text="你身上没武器，钱袋也空了。" />
     <string id="LWN_story_intro_line_1" text="（旁白，玩家）：就是这儿了。你妹妹三个月前进的这座城。" />
     <string id="LWN_story_intro_line_2" text="（旁白，玩家）：正门挂着你的通缉——硬闯等于自投罗网。" />
     <string id="LWN_story_intro_line_3" text="（旁白，玩家）：先跟门口这几家搭上线。帮谁，谁教你一手。" />
@@ -5074,36 +5075,60 @@
     <string id="LWN_story_event_mark" text="（旁白，玩家）：！" />
     <string id="LWN_story_err_not_in_town" text="你不在城里。" />
     <string id="LWN_story_err_no_center" text="这座城没有中心场景。" />
-    <string id="LWN_story_pawnbroker_opt_errand" text="[零活] 有跑腿的活吗？" />
-    <string id="LWN_story_pawnbroker_errand" text="（老周，玩家）：后巷那家要两桶水，绸缎庄有一封信要送。&#10;（老周，玩家）：一趟五十。别把货摔了。" />
-    <string id="LWN_story_errand_done" text="（旁白，玩家）：你跑了一趟，赚了几个钱。" />
-    <string id="LWN_story_errand_cooldown" text="（旁白，玩家）：这会儿没活。过一阵再来。" />
-    <string id="LWN_story_attr_item" text="（旁白，玩家）：你从这东西上学到了一点门道。" />
+    <string id="LWN_story_pawnbroker_opt_errand" text="[零活] 你这铺子里有跑腿打杂的活吗？" />
+    <string id="LWN_story_pawnbroker_errand" text="（老周，玩家）：后巷染坊要挑两桶水，东街绸缎庄有封信要送。&#10;（老周，玩家）：跑一趟五十第纳尔，给你现钱。" />
+    <string id="LWN_story_errand_done" text="（旁白，玩家）：你跑完一趟零活，挣到了五十第纳尔。" />
+    <string id="LWN_story_errand_cooldown" text="（旁白，玩家）：这会儿没零活，过一个时辰再来。" />
+    <string id="LWN_story_attr_item" text="（旁白，玩家）：你从这件东西上悟出了一点门道。" />
     <string id="LWN_story_blocker_opt_pass" text="[走过去] 借过。" />
     <string id="LWN_story_blocker_pass" text="（铁头，玩家）：……进去吧。" />
     <string id="LWN_story_narr_approach" text="（旁白，玩家）：门路：{PATH} —— 势力好感 +5、天赋点 +1，关系 {REL}。" />
-    <string id="LWN_story_gate_blocked" text="（旁白，玩家）：守门人一把把你推了回去。" />
+    <string id="LWN_story_gate_blocked" text="（旁白，玩家）：守门人一把将你推了回来。" />
     <string id="LWN_story_blocker_bar" text="（铁头，玩家）：通行文书。" />
-    <string id="LWN_story_gate_climbed" text="（旁白，玩家）：你从墙上翻了过去。" />
-    <string id="LWN_story_restored_safety" text="（旁白，玩家）：他们把你被拿走的东西还了回来——序章到此为止。" />
+    <string id="LWN_story_gate_climbed" text="（旁白，玩家）：你从城墙高处翻了过去。" />
+    <string id="LWN_story_restored_safety" text="（旁白，玩家）：他们把你被扣下的家当还了回来——序章到此为止。" />
     <string id="LWN_story_event_opt_followup" text="[跟他说两句]" />
-    <string id="LWN_story_first_caught" text="（旁白，玩家）：他一把揪住了你的领子。" />
-    <string id="LWN_story_blocker_opt_sneak" text="[潜行] 趁他转头，贴着墙根过去。" />
-    <string id="LWN_story_blocker_opt_climb" text="[翻墙] 我有钩子。" />
-    <string id="LWN_story_blocker_sneak_ok" text="（旁白，玩家）：你贴墙挪过去，他没有回头。" />
-    <string id="LWN_story_blocker_climb_ok" text="（旁白，玩家）：钩子咬住横梁，你翻了过去。落地时城门已经在背后。" />
-    <string id="LWN_story_blocker_sneak_fail" text="（铁头，玩家）：站住。" />
-    <string id="LWN_story_thug_hub" text="（打手，玩家）：又来了？" />
-    <string id="LWN_story_debtor_hub" text="（收数人，玩家）：还有事？" />
-    <string id="LWN_story_rival_hub" text="（对台领班，玩家）：还有话？" />
-    <string id="LWN_story_outlaw_hub" text="（野贼，玩家）：说。" />
-    <string id="LWN_story_blocker_disarmed_ok" text="（铁头，玩家）：……&#10;（铁头，玩家）：进去吧。" />
-    <string id="LWN_story_butcher_money_disdain" text="（屠户，玩家）：我卖肉。&#10;（屠户，玩家）：不卖话，也不卖人。&#10;（屠户，玩家）：你要想让我看得起你，把刀拿起来。" />
-    <string id="LWN_story_pawnbroker_money_covert" text="（老周，玩家）：客官，我这铺子做的是明面上的生意。钱我不能这么接。&#10;（老周，玩家）：你要是想让我卖你点什么——那我卖。" />
-    <string id="LWN_story_pawnbroker_money_dealt" text="（老周，玩家）：门口那个铁头，欠了赌坊三个月的利。&#10;（老周，玩家）：他怕丢了这份差事，比怕刀子怕得多。" />
-    <string id="LWN_story_son_money_open" text="（小贼，玩家）：你倒是懂规矩。&#10;（小贼，玩家）：问吧，趁没人看见。" />
-    <string id="LWN_story_son_money_taken" text="（小贼，玩家）：左边那头烂了，中间那一节是好的。&#10;（小贼，玩家）：没人往上看。你要是勾，勾中间。&#10;（小贼，玩家）：别摔死。摔死了钱也没法退给你。" />
-    <string id="LWN_story_widow_money_open" text="（寡妇，玩家）：爽快。我就喜欢跟爽快人说话。&#10;（寡妇，玩家）：问吧。" />
-    <string id="LWN_story_widow_money_taken" text="（寡妇，玩家）：不像做工的。&#10;（寡妇，玩家）：做工的自己背着包袱。她那身青布，是给人领着走的。&#10;（寡妇，玩家）：这句，值这个价。" />
+    <string id="LWN_story_first_caught" text="（旁白，玩家）：他一把揪住了你的后领。" />
+    <string id="LWN_story_blocker_opt_sneak" text="[潜行] 趁他转头，贴着墙根溜过去。" />
+    <string id="LWN_story_blocker_opt_climb" text="[翻墙] 趁他不备，用飞钩翻上城门横梁。" />
+    <string id="LWN_story_blocker_sneak_ok" text="（旁白，玩家）：你贴着墙影挪过去，他没有回头。" />
+    <string id="LWN_story_blocker_climb_ok" text="（旁白，玩家）：飞钩咬住横梁，你翻身越过城门，稳稳落在门内。" />
+    <string id="LWN_story_blocker_sneak_fail" text="（铁头，玩家）：鬼鬼祟祟往哪钻？给我站住！" />
+    <string id="LWN_story_blocker_disarmed_ok" text="（铁头，玩家）：……你什么时候顺走我佩刀的？&#10;（铁头，玩家）：算你手快，进去吧。" />
+    <string id="LWN_story_butcher_money_disdain" text="（屠户，玩家）：把你的臭钱收回去！我卖肉，不卖话。&#10;（屠户，玩家）：想让我高看一眼，去把砸摊的人揍趴下。" />
+    <string id="LWN_story_pawnbroker_money_covert" text="（老周，玩家）：客官，我这铺子做的是明面买卖，塞私钱我不能接。&#10;（老周，玩家）：你要是花八十第纳尔「买」条老旧消息——那我卖。" />
+    <string id="LWN_story_pawnbroker_money_dealt" text="（老周，玩家）：守门那个铁头，欠了地下赌坊三个月的印子钱。&#10;（老周，玩家）：他怕丢这趟看门肥差，比怕挨刀子还甚。" />
+    <string id="LWN_story_son_money_open" text="（小贼，玩家）：还是你懂夜行会的规矩。&#10;（小贼，玩家）：四十第纳尔拿来，你想知道哪条暗道？" />
+    <string id="LWN_story_son_money_taken" text="（小贼，玩家）：城门上那根横梁，西头朽了，正中那一截最结实。&#10;（小贼，玩家）：守门那家伙从不抬头，你勾中间保准稳当。" />
+    <string id="LWN_story_widow_money_open" text="（寡妇，玩家）：爽快人。戏班子最喜欢跟爽快人打交道。&#10;（寡妇，玩家）：六十第纳尔放在盘里，你想问什么？" />
+    <string id="LWN_story_widow_money_taken" text="（寡妇，玩家）：那姑娘根本不是来找活干的——找活的人自己背着包袱。&#10;（寡妇，玩家）：她两手空空，是被那穿水靠的男人押着往前走的。" />
+    <string id="LWN_story_pawnbroker_opt_money" text="[递钱] 这点意思，您收着。" />
+    <string id="LWN_story_pawnbroker_opt_money_buy" text="[买消息] 八十第纳尔，买门口那人的底细。" />
+    <string id="LWN_story_widow_opt_money" text="[塞钱] 六十第纳尔，买你两句实话。" />
+    <string id="LWN_story_widow_opt_pay" text="[数出六十第纳尔] 那姑娘进城时到底是什么样？" />
+    <string id="LWN_story_son_opt_money" text="[塞钱] 四十第纳尔，买个准信。" />
+    <string id="LWN_story_son_opt_pay" text="[数出四十第纳尔] 门上那根梁，到底哪截结实？" />
+    <string id="LWN_story_butcher_opt_money" text="[递钱] 这些钱，买你一句话。" />
+    <string id="LWN_story_money_pawnbroker" text="（老周，玩家）：门口那个铁头，欠了赌坊三个月的利。&#10;（老周，玩家）：他怕丢差事，比怕刀子还甚。" />
+    <string id="LWN_story_money_widow" text="（寡妇，玩家）：她不像做工的。做工的自己背着包袱。&#10;（寡妇，玩家）：她那身青布，是给人押着领走的。" />
+    <string id="LWN_story_money_son" text="（小贼，玩家）：门上那根梁，左边烂了，中间那一截结实。&#10;（小贼，玩家）：没人往上看。你要勾，就勾正中。" />
+    <string id="LWN_story_money_butcher" text="（屠户，玩家）：我卖肉。不卖话，也不卖人。" />
+    <string id="LWN_story_money_blocker" text="（旁白，玩家）：他把钱数了两遍，一点没避着人。" />
+    <string id="LWN_story_money_refused" text="（旁白，玩家）：他不接。这么递过去，他连眼皮都不抬。" />
+    <string id="LWN_story_opt_pay" text="[数钱]" />
+    <string id="LWN_story_gate_dragged" text="（旁白，玩家）：守门人被你从岗位上弄走了。门口空了。" />
+    <string id="LWN_story_gate_sneaked" text="（旁白，玩家）：趁他转头的那一息，你贴墙溜了过去。" />
+    <string id="LWN_story_blocker_disarmed" text="（旁白，玩家）：他手里现在什么都没有了。" />
+    <string id="LWN_story_recognized" text="（旁白，玩家）：他看看你的脸，又看看城门上的海捕文书，随即按住了刀柄。" />
+    <string id="LWN_story_blocker_recognize" text="（铁头，玩家）：就是你。城门上贴着的那张脸。" />
+    <string id="LWN_story_gate_knocked" text="（旁白，玩家）：他倒在地上了。门口没人拦着。" />
+    <string id="LWN_story_blocker_opt_disarmed" text="[走过去] 你手里的刀没了。让开。" />
+    <string id="LWN_story_climb_seen" text="（铁头，玩家）：下来！给我下来！" />
+    <string id="LWN_story_climb_seen_narr" text="（旁白，玩家）：他看见你翻上去了。等你落地，门口已经堵住了。" />
+    <string id="LWN_story_climb_missed" text="（铁头，玩家）：什么动静？" />
+    <string id="LWN_item_ledger_book" text="老周的账本" />
+    <string id="LWN_item_lockpick_kit" text="撬锁包" />
+    <string id="LWN_item_whetstone" text="磨刀石" />
+    <string id="LWN_story_amb_outlaw_2" text="（野贼，玩家）：别在这儿站着。" />
 </strings>
 </base>

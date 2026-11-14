@@ -96,6 +96,36 @@ namespace LivingWorldNpcs
         public GreetingTuning Greeting = new GreetingTuning();
         public CrimeTuning Crime = new CrimeTuning();
         public IntroTuning Intro = new IntroTuning();
+        public PerformanceTuning Performance = new PerformanceTuning();
+        public ScreenGoalTuning ScreenGoal = new ScreenGoalTuning();
+    }
+
+    /// <summary>
+    /// 场景内常驻任务卡（右上角 / 左上角）。改 JSON 即改位置与尺寸，不用重编译。
+    /// 形态：任务名 + 目标行（+ 可选进度），只在序章 Mission 里显示。
+    /// </summary>
+    public sealed class ScreenGoalTuning
+    {
+        /// <summary>总开关（关掉就完全不出卡）。</summary>
+        public bool Enabled = true;
+
+        /// <summary>位置："top-right"（默认）或 "top-left"。大小写与连字符不敏感。</summary>
+        public string Position = "top-right";
+
+        /// <summary>卡片宽度（像素）。</summary>
+        public int CardWidth = 380;
+
+        /// <summary>离屏幕左右边缘的距离。</summary>
+        public int SideMargin = 24;
+
+        /// <summary>离屏幕顶部的距离。</summary>
+        public int TopMargin = 18;
+
+        /// <summary>目标变化时高亮秒数（0 = 不闪）。</summary>
+        public float FlashSec = 0.9f;
+
+        /// <summary>刷新间隔（秒）：每帧查目标文本太浪费，按这个频率轮询。</summary>
+        public float PollSec = 0.25f;
     }
 
     public sealed class AmbientTuning
@@ -140,7 +170,19 @@ namespace LivingWorldNpcs
 
     public sealed class GateTuning
     {
-        /// <summary>越过守门人多少米算"想穿门"。</summary>
+        /// <summary>经源场景核对的门区；未知场景不猜门内外。</summary>
+        public Dictionary<string, StoryGateLayout> Layouts = new Dictionary<string, StoryGateLayout>();
+        public float HalfWidthMeters = 3f;
+        public float ClimbHalfWidthMeters = 8f;
+        public float InsideMeters = 8f;
+        public float OutsideMeters = 3f;
+        public float PushBackMeters = 2.5f;
+        public float GroundToleranceMeters = 1.5f;
+        public float LandingToleranceMeters = 0.15f;
+        public float LandingVerticalSpeedMeters = 0.2f;
+        public float LandingStableSec = 0.12f;
+        public float CrossingMaxStepMeters = 6f;
+        /// <summary>实际门内越线距离。</summary>
         public float PastMeters = 1f;
         /// <summary>离门内目标点多少米算"到了"。</summary>
         public float GoalRadiusMeters = 8f;
@@ -151,7 +193,22 @@ namespace LivingWorldNpcs
         public float RecognizeDistanceMeters = 12f;
     }
 
-    /// <summary>通缉值（进场景就挂，因为"遮面/冒充"那几条路要有通缉才有意义）。</summary>
+    /// <summary>演出申请等待与控制台单原子短演出时长。</summary>
+    public sealed class PerformanceTuning
+    {
+        public float ActorReadyTimeoutSec = 3f;
+        public float DebugActorDurationSec = 3f;
+        public float AmbientPoseDurationSec = 3f;
+    }
+
+    /// <summary>固定门中心与原版门外出生点，坐标来源必须经过场景核对。</summary>
+    public sealed class StoryGateLayout
+    {
+        public float[] Gate;
+        public float[] Outside;
+    }
+
+    /// <summary>真实败退之后登记的拘押缘由；进场不制造犯罪。</summary>
     public sealed class CrimeTuning
     {
         /// <summary>第二次进城时城门上挂的小额通缉。</summary>
@@ -173,8 +230,16 @@ namespace LivingWorldNpcs
 
     public sealed class IntroTuning
     {
-        /// <summary>第一次进场的强制失败（被打倒）演出时长。</summary>
-        public float ForcedDefeatHoldSec = 4.2f;
+        /// <summary>实际受击判负之后的倒地停留时间；不能用于触发判负。</summary>
+        public float ForcedDefeatHoldSec = 1.2f;
+        /// <summary>等待战斗动作接受的重试时限；超时只重试，绝不判败。</summary>
+        public float FirstFightStartTimeoutSec = 3f;
+        public float JailWakeDelaySec = 1.0f;
+        /// <summary>首遇真实近战/跑动技能下限；只增强首遇，不改第二次守卫。</summary>
+        public int FirstGuardMinCombatSkill = 300;
+        public int FirstGuardSkillAdvantage = 120;
+        /// <summary>只提高首遇 Agent 的真实血量上限，不复制伤害、不使用虚拟血条。</summary>
+        public float FirstGuardHealthMultiplier = 3f;
     }
 
     /// <summary>全局取用点：`StoryProbeTuning.Current.Gate.PastMeters`。</summary>

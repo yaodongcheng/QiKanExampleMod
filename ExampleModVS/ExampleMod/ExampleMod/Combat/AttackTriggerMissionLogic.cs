@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -46,6 +46,23 @@ namespace LivingWorldNpcs
         private Agent _agentA;
         private Agent _agentB;
         private bool _isDuelActive;
+        // 可选教学规则：只统计对手实际造成伤害的命中，不统计格挡、空挥和时间。
+        private Agent _prescribedLoser;
+        private Agent _resolvedDuelLoser;
+        private Action<Agent> _onDuelResolved;
+
+        public bool HasDuelPair(Agent a, Agent b)
+            => Mission == Mission.Current && a != null && b != null
+                && ((a == _agentA && b == _agentB) || (a == _agentB && b == _agentA));
+
+        public void CancelDuel(Agent a, Agent b)
+        {
+            if (!_isDuelActive || !HasDuelPair(a, b)) return;
+            _isDuelActive = false;
+            _pendingDuel = true;
+            _resolvedDuelLoser = null;
+            // 和判负一样留到正常 tick 收场，避免在动作队列的 OnEnd 内重入清同一队列。
+        }
 
         // 🔴 2026-08-13 崩溃修复（判负拆两段）：OnAgentHit（引擎 HandleBlow 栈内）只做保命
         //（回血 + Invulnerable），完整收场（停战事件 → Brain 链 → EndFight 的 SetTeam/SetAttackState
@@ -260,16 +277,21 @@ namespace LivingWorldNpcs
         ///（OnAgentHit 早于 `if (Health &lt; 1f) Die()`）+ EndDuel 收场窗口 Invulnerable 兜底。
         /// ⚠️ 旧虚拟血量方案已彻底废弃：禁止调用 InitDuel/GetVirtualHealth。
         /// </summary>
-        public void RegisterDuel(Agent a, Agent b)
+        public void RegisterDuel(Agent a, Agent b, Agent prescribedLoser = null,
+            Action<Agent> onResolved = null)
         {
             if (a == null || b == null) return;
             // 强制结束上一场（无人胜出）：判负待收场（_pendingDuel）→ 先走完收场再覆盖引用；
             // 仅登记未判负 → 直接清状态（双方还在打，但新切磋接管仲裁）。
             // 🔴 2026-08-13 崩溃修复后：RegisterDuel 不在 blow 栈内（Brain "duel" 事件链），
             // 此处同步调 EndPendingDuel 线程安全。
-            if (_isDuelActive) { _isDuelActive = false; _pendingDuel = true; EndPendingDuel(); }
+            if (_isDuelActive) { _isDuelActive = false; _pendingDuel = true; }
+            if (_pendingDuel) EndPendingDuel();
             _agentA = a;
             _agentB = b;
+            _prescribedLoser = prescribedLoser == a || prescribedLoser == b ? prescribedLoser : null;
+            _resolvedDuelLoser = null;
+            _onDuelResolved = onResolved;
             _isDuelActive = true;
             DebugLogger.Log($"[Duel] 切磋登记: {a.Name}(Idx={a.Index}) vs {b.Name}(Idx={b.Index})");
         }
@@ -433,6 +455,32 @@ namespace LivingWorldNpcs
                 _playerAttackedAgents.Add(affectedAgent.Index);
             }
 
+            // 非致命判负在尸体登记之前处理，避免把保命回血的切磋者登记成尸体。
+            if (_isDuelActive && (affectedAgent == _agentA || affectedAgent == _agentB))
+            {
+                Agent opponent = affectedAgent == _agentA ? _agentB : _agentA;
+                if (_prescribedLoser != null && affectedAgent != _prescribedLoser && affectedAgent.Health < 1f)
+                {
+                    // 必败教学的守卫不能被处决，但仍正常掉血、正常攻击，不全程无敌。
+                    affectedAgent.Health = Math.Max(1f, affectedAgent.HealthLimit);
+                    DebugLogger.Log($"[Duel] tutorial opponent protected: {affectedAgent.Name}");
+                }
+                if (_prescribedLoser == affectedAgent && attackerAgent == opponent && blow.InflictedDamage > 0
+                    && affectedAgent.Health < 1f)
+                {
+                    DebugLogger.Log($"[Duel] guard actual defeat: {opponent?.Name} -> {affectedAgent.Name}, damage={blow.InflictedDamage}, health={affectedAgent.Health}, distance={opponent?.Position.Distance(affectedAgent.Position):F2}");
+                    OnDuelLoser(affectedAgent);
+                }
+                // 教学模式必须由指定对手的真实命中判负；第三方致命伤只做保命，不冒充守卫打倒。
+                if (_isDuelActive && affectedAgent.Health < 1f)
+                {
+                    if (_prescribedLoser != null)
+                        affectedAgent.Health = Math.Max(1f, affectedAgent.HealthLimit);
+                    else
+                        OnDuelLoser(affectedAgent);
+                }
+            }
+
             //作用一，记录死人
             // 玩家自己永远不进可搜刮尸体列表：引擎在 OnAgentHit 之前就写过 Health，
             // 玩家吃到致命一击时这里会看到 Health<=0。
@@ -457,21 +505,6 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 如果切磋已经结束，或者受伤的不是切磋双方，直接忽略
-            if (!_isDuelActive || affectedAgent == null) return;
-            if (affectedAgent != _agentA && affectedAgent != _agentB) return;
-
-            // 🔴 2026-08-13 切磋判负（替代虚拟血量，用户裁定禁止虚拟血量）：
-            // 双方 Mortal 正常受击（血条真实掉落、打击反馈全保留——实机证明 Invulnerable
-            // native 拦伤害，全程不掉血，不能用来开打）。引擎 HandleBlow 内 OnAgentHit 早于
-            // `if (Health < 1f) Die()`（反编译确认）：血归零即判负，OnDuelLoser 里回满血 →
-            // 引擎根本走不到 Die（不死主保证）。不做第二套数值、不每击回血——
-            // 真实血量掉落即打击反馈，判负一次回血即复原。
-            if (affectedAgent.Health <= 0f)
-            {
-                DebugLogger.Log($"[Duel] 判负: {affectedAgent.Name}(Idx={affectedAgent.Index}) 血量归零");
-                OnDuelLoser(affectedAgent);
-            }
         }
 
         /// <summary>
@@ -491,6 +524,7 @@ namespace LivingWorldNpcs
             if (!_isDuelActive) return;
             _isDuelActive = false;
             _pendingDuel = true;
+            _resolvedDuelLoser = loser;
 
             // 胜负播报（点到为止：无死亡，血条归零判负）——无条件显示（设计哲学①：反馈明确，
             // 玩家是观众时必须知道谁赢了）
@@ -498,7 +532,7 @@ namespace LivingWorldNpcs
             if (loser != null && _agentA != null && _agentB != null)
             {
                 winner = (loser == _agentA) ? _agentB : _agentA;
-                InformationManager.DisplayMessage(new InformationMessage(
+                if (_prescribedLoser == null) InformationManager.DisplayMessage(new InformationMessage(
                     // 本地化：LWN_combat_duel_end（玩家可见文本）
                     LWNTextHelper.ResolveCompound("LWN_combat_duel_end",
                         "The duel is over — winner: {NAME}",
@@ -557,6 +591,14 @@ namespace LivingWorldNpcs
             // 4. 【关键】清空引用，允许下一次攻击触发新的切磋
             _agentA = null;
             _agentB = null;
+            var resolved = _onDuelResolved;
+            var loser = _resolvedDuelLoser;
+            _onDuelResolved = null;
+            _resolvedDuelLoser = null;
+            _prescribedLoser = null;
+            // 场景结算回执只能在正常 tick 栈、完整停战后发；不能在 blow 栈结束场景。
+            try { resolved?.Invoke(loser); }
+            catch (Exception ex) { DebugLogger.Log($"[Duel] result callback failed: {ex.Message}"); }
         }
 
         /// <summary>

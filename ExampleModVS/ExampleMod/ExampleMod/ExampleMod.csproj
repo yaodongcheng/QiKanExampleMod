@@ -296,6 +296,7 @@
     <Compile Include="Interaction\StoryProbe\StoryStageDefs.cs" />
     <Compile Include="Interaction\StoryProbe\StoryStageRunner.cs" />
     <Compile Include="Interaction\StoryProbe\StoryLineActions.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryGoalHud.cs" />
     <Compile Include="Interaction\StoryProbe\StoryProbeBehavior.cs" />
     <Compile Include="CampaignMode\Tools\StoryProbeCommands.cs" />
     <Compile Include="Scenario\ScenarioSchema.cs" />
@@ -778,6 +779,7 @@
     <Compile Include="Quests\IssueFilterPatch.cs" />
     <Compile Include="Quests\IssueFilterBehavior.cs" />
     <Compile Include="Quests\QuestMemoryRecorderPatch.cs" />
+    <Compile Include="Quests\PrologueQuest.cs" />
     <!-- Quests\Causality -->
     <Compile Include="Quests\Causality\QuestConsequenceResolver.cs" />
     <Compile Include="Quests\Causality\QuestConsequenceBehavior.cs" />

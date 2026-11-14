@@ -10,6 +10,19 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_outlaw_opt_ask",
+          "Once": "outlaw_ask",
+          "Action": "PROBE:mark",
+          "ActionParam": "outlaw_ask",
+          "NextNodeOnSuccess": "outlaw_talk"
+        },
+        {
+          "PlayerKey": "LWN_story_outlaw_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "outlaw",
+          "NextNodeOnSuccess": "outlaw_fight"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
@@ -20,16 +33,47 @@
       ]
     },
     {
-      "Id": "outlaw_talk",
-      "NpcKey": "LWN_story_outlaw_talk",
+      "Id": "outlaw_hub",
+      "NpcKey": "LWN_story_outlaw_hub",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_outlaw_opt_ask",
+          "Once": "outlaw_ask",
+          "Action": "PROBE:mark",
+          "ActionParam": "outlaw_ask",
+          "NextNodeOnSuccess": "outlaw_talk"
+        },
+        {
+          "PlayerKey": "LWN_story_outlaw_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "outlaw",
+          "NextNodeOnSuccess": "outlaw_fight"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
-        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ]
+    },
+    {
+      "Id": "outlaw_talk",
+      "NpcKey": "LWN_story_outlaw_talk",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_outlaw_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "outlaw",
+          "NextNodeOnSuccess": "outlaw_fight"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "outlaw_hub"
+        }
+      ],
+      "NpcActions": [
         "act_conversation_aggressive_trivial",
         "act_conversation_aggressive_trivial"
       ]

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -185,6 +185,7 @@ namespace LivingWorldNpcs
             //    这里只负责"注册一下"。以后别的运动系统（坐骑 / 潜行 / 载具）加一行即可。
             try
             {
+                StoryProbeMissionBehavior.RegisterAnimations();
                 FlightAnimMachine.Register();
                 // 钩索（2026-10-04）：放后面 —— 复用的 fall-trigger / land-trigger 靠飞行先登记
                 // （本机也有"没有才登记"的兜底，顺序其实无所谓）。
@@ -423,6 +424,9 @@ namespace LivingWorldNpcs
             // 🔴 自带总闸：只有「开关开 + 由我们那条菜单进城 + 目标城 + center 地点」才 Active；
             //    原版「在城里逛逛」进场时 Active=false，每帧只判一个 bool。
             mission.AddMissionBehavior(new StoryProbeMissionBehavior());
+            // 常驻任务卡（2026-11-13）：右上角「任务名 + 目标行」，位置/尺寸读 StoryProbeTuning.json 的 ScreenGoal。
+            // 纯显示层（整棵 DoNotAcceptEvents），只在序章 Active 时出现；关闭时每帧只判一个 bool。
+            mission.AddMissionBehavior(new StoryGoalHudMissionView());
             //IM 传讯（Mission 侧 tick 驱动 + 热键）
             mission.AddMissionBehavior(new ImChatMissionView());
 
@@ -649,6 +653,8 @@ namespace LivingWorldNpcs
             // 🔴 性能面板驱动（单点 = 应用层：主菜单/创角/全屏 UI/读档/Mission/Campaign 全场景
             // 每帧都到，包括暂停；层挂 TopScreen、层序见 PerfHudManager（ImChatOpenButton 范本））
             PerfHudManager.Tick(dt);
+            // 剧情转场必须在应用层驱动：普通城镇菜单暂停时 Campaign TickEvent 不一定运行。
+            StoryProbeBehavior.Instance?.TickPendingTransition(dt);
             // 🔴 原「选人界面挂层重试」（HeroSelectOverlay.Tick）**已停用**（2026-09-11）：
             //   选人整段挪到了建世界**之前**，改为主菜单阶段的自建屏 CampaignMode/HeroSelectScreen.cs
             //   （它只读静态表，不需要等世界建好，也就不需要"挂到 TopScreen + 每帧重试"这套绕法）。

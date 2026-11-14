@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
@@ -729,8 +729,11 @@ namespace LivingWorldNpcs
         // 2. 发送事件给特定 Agent
         public void SendEventToAgent(Agent target, string eventType, params object[] args)
         {
-            // 战斗模式下不发送 LLM 事件——原生 AI 接管所有战斗行为
-            if (Settings.Instance.IsInteractionDisabled())
+            // 新行为仍服从模式闸门；已取得身体/战斗控制的归还不能被模式切换吞掉。
+            if (target == null) return;
+            bool cleanup = eventType == "event_performance_end" || eventType == "event_performance_pause"
+                || eventType == "event_story_intercept_cancel" || eventType == "event_stop_combat";
+            if (Settings.Instance.IsInteractionDisabled() && !cleanup)
                 return;
 
             if(IsDebugMode)

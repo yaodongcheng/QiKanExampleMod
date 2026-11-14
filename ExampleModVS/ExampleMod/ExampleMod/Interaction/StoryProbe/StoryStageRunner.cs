@@ -26,6 +26,15 @@ namespace LivingWorldNpcs
         private float _time;
         private int _next;
         private bool _running;
+        private Agent _frozenPlayer;
+        private readonly string _cameraOwner = "story-stage-" + Guid.NewGuid().ToString("N");
+        private readonly Mission _mission = Mission.Current;
+        private string _actorOwner;
+        private string _actorInterrupted;
+        private float _readyWait;
+        private readonly Dictionary<string, PerformanceAction> _actors = new Dictionary<string, PerformanceAction>();
+        // 布景归场景，不归一次演出；Stop/重播保留，Mission 移除只清托管引用。
+        private readonly Dictionary<string, GameEntity> _props = new Dictionary<string, GameEntity>();
 
         /// <summary>语义位解算结果（每次 Begin 重算一次，运行期不变）。</summary>
         private readonly Dictionary<string, Vec3> _anchors = new Dictionary<string, Vec3>();
@@ -48,6 +57,7 @@ namespace LivingWorldNpcs
         /// <summary>加载台本 + 解算语义位，从第 0 拍开始播。</summary>
         public bool Begin(string scriptName = "StoryStage")
         {
+            Stop("restart");
             _script = StoryStageDefs.Load(scriptName);
             if (_script == null)
             {
@@ -58,7 +68,11 @@ namespace LivingWorldNpcs
             ResolveAllAnchors();
             _time = 0f;
             _next = 0;
+            _readyWait = 0f;
+            _actorInterrupted = null;
+            _actorOwner = "stage-" + Guid.NewGuid().ToString("N");
             _running = true;
+            if (!AcquireActors()) { Stop("actor group unavailable"); return false; }
             DebugLogger.Log($"[StoryStage] begin '{_script.Script ?? scriptName}' beats={BeatCount} anchors={_anchors.Count}");
             return true;
         }
@@ -66,9 +80,24 @@ namespace LivingWorldNpcs
         /// <summary>控制台单发一个原子（不依赖台本、不动播放游标）。</summary>
         public void RunAtom(StageBeat beat)
         {
+            if (beat == null) return;
             if (_script == null) _script = StoryStageDefs.Load("StoryStage");
             if (_anchors.Count == 0) ResolveAllAnchors();
-            Execute(beat, -1);
+            if (!string.IsNullOrEmpty(beat.Actor) && beat.Cmd != null && beat.Cmd.StartsWith("actor_"))
+            {
+                var anchors = _script?.Anchors;
+                Stop("manual actor restart");
+                _script = new StageScript { Script = "manual_actor", Anchors = anchors,
+                    Beats = new List<StageBeat> { beat, new StageBeat { At = beat.At + Math.Max(StoryProbeTuning.Current.Performance.DebugActorDurationSec, beat.Seconds), Cmd = "wait" } } };
+                _time = 0f;
+                _next = 0;
+                _readyWait = 0f;
+                _actorInterrupted = null;
+                _actorOwner = "stage-" + Guid.NewGuid().ToString("N");
+                _running = true;
+                if (!AcquireActors()) Stop("manual actor unavailable");
+            }
+            else Execute(beat, -1);
         }
 
         /// <summary>台本里有没有给这个角色安排站位（有的话，旧的硬编码偏移就不要再生成他）。</summary>
@@ -82,17 +111,72 @@ namespace LivingWorldNpcs
 
         public void Stop(string reason)
         {
-            if (!_running) return;
+            bool hadResources = _running || _frozenPlayer != null || CameraService.IsHeldBy(_cameraOwner);
             _running = false;
-            DebugLogger.Log($"[StoryStage] stopped: {reason} (at {_time:F2}s, next={_next}/{BeatCount})");
+            var leases = _actors.Values.ToList();
+            _actors.Clear();
+            foreach (var lease in leases) lease.Release(reason);
+            _actorInterrupted = null;
+            ReturnCamera();
+            try { FreezePlayer(false); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryStage] player release failed during stop: {ex.Message}"); }
+            if (hadResources)
+                DebugLogger.Log($"[StoryStage] stopped: {reason} (at {_time:F2}s, next={_next}/{BeatCount})");
         }
+
+        private bool AcquireActors()
+        {
+            if (_script?.Beats == null || Mission.Current != _mission) return false;
+            foreach (string id in _script.Beats.Where(b => b != null && !string.IsNullOrEmpty(b.Actor)
+                && b.Cmd != null && b.Cmd.StartsWith("actor_")).Select(b => b.Actor).Distinct())
+            {
+                var place = _script.Beats.FirstOrDefault(b => b != null && b.Cmd == "actor_place" && b.Actor == id);
+                var def = StoryProbeDefs.GetNpc(id);
+                Vec3 initial = place != null ? PlaceVec(place) : _host.PlayerAnchor;
+                var agent = _host.EnsureStageActor(id, initial, place?.Civilian ?? def?.Civilian ?? true);
+                string session = _actorOwner;
+                var lease = PerformanceAction.TryAcquire(agent, session, reason =>
+                {
+                    if (_running && _actorOwner == session) _actorInterrupted = id + ":" + reason;
+                });
+                if (lease == null) return false; // Begin/RunAtom 的 Stop 撤销此前已经接受的整组。
+                _actors[id] = lease;
+            }
+            return true;
+        }
+
+        public void DisposeManaged()
+        {
+            _running = false;
+            foreach (var lease in _actors.Values.ToList()) lease.InvalidateManaged();
+            _actors.Clear();
+            _props.Clear();
+            _anchors.Clear();
+            _frozenPlayer = null;
+            _script = null;
+        }
+
+        private bool OwnsActor(string id)
+            => !string.IsNullOrEmpty(id) && _actors.TryGetValue(id, out var lease) && lease.CanControl;
 
         public void Tick(float dt)
         {
             if (!_running) return;
+            if (Mission.Current != _mission) { DisposeManaged(); return; }
+            if (_actorInterrupted != null || _actors.Values.Any(a => a.Ended))
+            {
+                Stop("actor interrupted: " + _actorInterrupted);
+                return;
+            }
+            if (_actors.Values.Any(a => !a.CanControl))
+            {
+                _readyWait += dt;
+                if (_readyWait > StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec) Stop("actor readiness timeout");
+                return; // 演员尚未 OnStart：不推进台本、不冻结玩家、不写演员身体。
+            }
             _time += dt;
 
-            while (_next < BeatCount && _script.Beats[_next].At <= _time)
+            while (_running && _next < BeatCount && _script.Beats[_next].At <= _time)
             {
                 Execute(_script.Beats[_next], _next);
                 _next++;
@@ -112,18 +196,15 @@ namespace LivingWorldNpcs
                 return false;
             }
             if (_anchors.Count == 0) ResolveAllAnchors();
-            Execute(_script.Beats[index], index);
+            RunAtom(_script.Beats[index]);
             return true;
         }
 
         /// <summary>跳过演出：把玩家和相机放回去。</summary>
         public void Skip()
         {
-            _running = false;
             _next = BeatCount;
-            try { CameraService.Stop(); } catch (Exception ex) { DebugLogger.Log($"[StoryStage] skip camera stop failed: {ex.Message}"); }
-            FreezePlayer(false);
-            DebugLogger.Log("[StoryStage] skipped by command");
+            Stop("skipped by command");
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -140,7 +221,7 @@ namespace LivingWorldNpcs
                     case "player_freeze":  FreezePlayer(true); break;
                     case "player_release": FreezePlayer(false); break;
                     case "camera_cut":     CutCamera(b); break;
-                    case "camera_return":  CameraService.Stop(); DebugLogger.Log($"[StoryStage] #{index} camera_return"); break;
+                    case "camera_return":  ReturnCamera(); DebugLogger.Log($"[StoryStage] #{index} camera_return"); break;
                     case "prop_spawn":     SpawnProp(b, index); break;
                     case "actor_place":    PlaceActor(b, index); break;
                     case "actor_action":   PlayAction(b, index); break;
@@ -154,26 +235,63 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[StoryStage] #{index} '{b.Cmd}' failed: {ex.Message}");
+                if (b.Cmd == "player_freeze" || b.Cmd == "player_release" || b.Cmd == "camera_cut" || b.Cmd == "camera_return"
+                    || (b.Cmd != null && b.Cmd.StartsWith("actor_")))
+                    Stop("control atom failed");
             }
         }
 
-        private static void FreezePlayer(bool frozen)
+        private void FreezePlayer(bool frozen)
         {
-            var player = Agent.Main;
+            var player = frozen ? Agent.Main : _frozenPlayer;
             if (player == null)
             {
-                DebugLogger.Log($"[StoryStage] player_freeze='{frozen}' skipped: Agent.Main is null");
+                if (frozen) throw new InvalidOperationException("Cannot freeze: Agent.Main is null");
                 return;
             }
-            try
+            if (!AgentControlHelper.SafeIsActive(player))
             {
-                // 冻结 = 摘掉 Player 控制器交给 AI（偷窃条那套轮子）；但 AI 会自己走 ⇒ 再钉住限速
-                V.SetPlayerControlFrozen(player, frozen);
-                if (frozen) AgentControlHelper.HoldInPlace(player);
-                else AgentControlHelper.ForceUnlockAgent(player);
+                if (frozen) throw new InvalidOperationException("Cannot freeze: main agent is inactive");
+                _frozenPlayer = null;
+                return;
             }
-            catch (Exception ex) { DebugLogger.Log($"[StoryStage] freeze player failed: {ex.Message}"); }
-            DebugLogger.Log($"[StoryStage] player frozen={frozen}");
+            if (frozen)
+            {
+                if (_frozenPlayer != null && _frozenPlayer != player)
+                    throw new InvalidOperationException("Cannot freeze: main agent changed during stage");
+                // 只登记本演出拿走的控制权；开始时已被其他系统冻结的玩家不能由本演出擅自释放。
+                if (_frozenPlayer == null && player.Controller.ToString() != "Player")
+                    throw new InvalidOperationException("Cannot freeze: main agent is already controlled by another system");
+                _frozenPlayer = player;
+                V.SetPlayerControlFrozen(player, true);
+                AgentControlHelper.HoldInPlace(player);
+            }
+            else
+            {
+                // 后取得的捆缚/倒地接管优先：演出不能替其解锁，交给该状态的原有收尾归还玩家。
+                if (AgentBrain.IsHeldByStatus(player) || AgentBrain.IsRoped(player)
+                    || AgentBrain.IsKnockedOut(player) || player.Health <= 0f)
+                {
+                    _frozenPlayer = null;
+                    return;
+                }
+                // 先解除位置/限速锁，最后归还 Player，不能被通用 NPC 解锁再改成 AI。
+                try { AgentControlHelper.ForceUnlockAgent(player); }
+                finally
+                {
+                    // 中途换主玩家时只清旧 Agent 的锁，不能把旧人重新设成 MainAgent。
+                    if (player.IsMainAgent) V.SetPlayerControlFrozen(player, false);
+                }
+                _frozenPlayer = null;
+            }
+            DebugLogger.Log($"[StoryStage] player frozen={frozen} controller={player.Controller}");
+        }
+
+        private void ReturnCamera()
+        {
+            if (!CameraService.IsHeldBy(_cameraOwner)) return;
+            try { CameraService.Stop(); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryStage] camera return failed: {ex.Message}"); }
         }
 
         private void CutCamera(StageBeat b)
@@ -184,14 +302,21 @@ namespace LivingWorldNpcs
                 return;
             }
             Vec3 anchor = PlaceVec(b);
-            bool ok = CameraService.ApplyPose(b.Case, null, null, anchor);
+            bool ok = CameraService.ApplyPose(b.Case, null, null, anchor, _cameraOwner);
             DebugLogger.Log($"[StoryStage] camera_cut '{b.Case}' -> {ok} anchor=({anchor.x:F1},{anchor.y:F1},{anchor.z:F1})");
+            if (!ok) throw new InvalidOperationException("Cannot acquire stage camera: " + b.Case);
         }
 
         private void SpawnProp(StageBeat b, int index)
         {
             var scene = Mission.Current?.Scene;
-            if (scene == null) { DebugLogger.Log($"[StoryStage] #{index} prop_spawn '{b.Id}': no scene"); return; }
+            if (scene == null || Mission.Current != _mission) { DebugLogger.Log($"[StoryStage] #{index} prop_spawn '{b.Id}': no scene"); return; }
+            if (string.IsNullOrEmpty(b.Id)) throw new InvalidOperationException("prop_spawn requires stable Id");
+            if (_props.ContainsKey(b.Id))
+            {
+                DebugLogger.Log($"[StoryStage] #{index} prop_spawn '{b.Id}': reuse scene layout");
+                return;
+            }
             if (string.IsNullOrEmpty(b.Prefab)) { DebugLogger.Log($"[StoryStage] #{index} prop_spawn '{b.Id}': no Prefab"); return; }
 
             if (!GameEntity.PrefabExists(b.Prefab))
@@ -208,6 +333,7 @@ namespace LivingWorldNpcs
             if (Math.Abs(scale - 1f) > 0.001f) rot = rot * scale;
 
             var entity = GameEntity.Instantiate(scene, b.Prefab, new MatrixFrame(rot, pos));
+            if (entity != null) _props[b.Id] = entity;
             DebugLogger.Log($"[StoryStage] #{index} spawn '{b.Id}' ({b.Prefab}) at ({pos.x:F1},{pos.y:F1},{pos.z:F1}) yaw={b.Yaw} scale={scale} -> {(entity != null ? "ok" : "FAIL")}");
         }
 
@@ -218,8 +344,12 @@ namespace LivingWorldNpcs
             Vec3 pos = PlaceVec(b);
             float facingDeg = b.Facing < -0.5f ? FacePlayerAngle(pos) : b.Facing;
 
-            bool ok = _host.SpawnOrPlaceActor(b.Actor, pos, facingDeg, b.Civilian);
-            DebugLogger.Log($"[StoryStage] #{index} actor_place '{b.Actor}' at ({pos.x:F1},{pos.y:F1},{pos.z:F1}) facing={facingDeg:F0} civilian={b.Civilian} -> {(ok ? "ok" : "FAIL")}");
+            if (!OwnsActor(b.Actor)) throw new InvalidOperationException("actor_place without active performance: " + b.Actor);
+            var agent = _host.GetAgent(b.Actor);
+            if (agent == null) throw new InvalidOperationException("actor_place actor unavailable: " + b.Actor);
+            agent.TeleportToPosition(pos);
+            agent.LookDirectionAsAngle = facingDeg * (float)Math.PI / 180f;
+            DebugLogger.Log($"[StoryStage] #{index} actor_place '{b.Actor}' at ({pos.x:F1},{pos.y:F1},{pos.z:F1}) facing={facingDeg:F0}");
         }
 
         private void PlayAction(StageBeat b, int index)
@@ -228,7 +358,9 @@ namespace LivingWorldNpcs
             if (agent == null) { DebugLogger.Log($"[StoryStage] #{index} actor_action '{b.Actor}': agent null"); return; }
             if (string.IsNullOrEmpty(b.Action)) return;
 
-            AgentControlHelper.ForcePlayAction(agent, b.Action, restoreAfter: true);
+            if (!OwnsActor(b.Actor)) throw new InvalidOperationException("actor_action without active performance: " + b.Actor);
+            // 租约结束负责清姿态，禁止延迟恢复 action set 回调在另一场演出/战斗中晚到。
+            AgentControlHelper.ForcePlayAction(agent, b.Action, restoreAfter: false);
             DebugLogger.Log($"[StoryStage] #{index} actor_action '{b.Actor}' -> '{b.Action}'");
         }
 
@@ -237,6 +369,7 @@ namespace LivingWorldNpcs
             var agent = _host.GetAgent(b.Actor);
             if (agent == null) { DebugLogger.Log($"[StoryStage] #{index} actor_say '{b.Actor}': agent null"); return; }
 
+            if (!OwnsActor(b.Actor)) throw new InvalidOperationException("actor_say without active performance: " + b.Actor);
             string text = LWNTextHelper.ResolveText(b.TextKey, b.Note ?? "");
             if (string.IsNullOrEmpty(text)) return;
 

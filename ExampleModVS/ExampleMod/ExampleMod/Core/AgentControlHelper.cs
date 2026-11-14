@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -720,6 +720,50 @@ namespace LivingWorldNpcs
             try { agent.MovementInputVector = Vec2.Zero; } catch (Exception) { }
         }
 
+        /// <summary>在已确认的空闲站点出生；不走会锁速度的移动/交互流程，不跨墙吸附。</summary>
+        public static bool PlaceAtStandingPoint(Agent agent, StandingPoint point)
+        {
+            if (!SafeIsActive(agent) || point == null || point.GameEntity == null
+                || point.HasUser || point.IsDeactivated || point.IsDisabled) return false;
+            var scene = agent.Mission?.Scene;
+            if (scene == null) return false;
+            MatrixFrame frame = point.GameEntity.GetGlobalFrame();
+            if (float.IsNaN(frame.origin.x) || float.IsNaN(frame.origin.y) || float.IsNaN(frame.origin.z)
+                || float.IsInfinity(frame.origin.x) || float.IsInfinity(frame.origin.y) || float.IsInfinity(frame.origin.z)) return false;
+            var position = new WorldPosition(scene, frame.origin);
+            float ground = scene.GetGroundHeightAtPosition(frame.origin);
+            if (position.GetNavMesh() == UIntPtr.Zero && (float.IsNaN(ground) || Math.Abs(ground - frame.origin.z) > 0.75f))
+                return false;
+            if (agent.Mission.Agents.Any(a => a != agent && SafeIsActive(a) && a.Position.Distance(frame.origin) < 0.6f))
+                return false;
+            agent.TeleportToPosition(frame.origin);
+            Vec2 forward = frame.rotation.f.AsVec2;
+            if (forward.LengthSquared > 0.0001f) agent.SetMovementDirection(forward.Normalized());
+            return agent.Position.Distance(frame.origin) < 1f;
+        }
+
+        /// <summary>换下来的装备回本人的行囊，不用新衣覆盖掉玩家后来换上的物品。</summary>
+        public static bool ReplaceEquippedItem(Hero hero, Equipment equipment, EquipmentIndex slot, EquipmentElement next)
+        {
+            if (hero == null || equipment == null) return false;
+            var previous = equipment[slot];
+            if (previous.Item == next.Item && previous.ItemModifier == next.ItemModifier) return true;
+            var roster = hero.PartyBelongedTo?.ItemRoster;
+            if (roster == null && hero == Hero.MainHero) roster = MobileParty.MainParty?.ItemRoster;
+            if (!previous.IsEmpty && roster == null) return false;
+            // 转换：同一所有者的穿着 -> 行囊；此处与下面清原槽一起守恒，不是凭空发一份。
+            if (!previous.IsEmpty) roster.AddToCounts(previous, 1);
+            equipment[slot] = next;
+            return true;
+        }
+
+        /// <summary>刷新现有 Agent 的穿着；用于场景内换衣，不仅修改 Hero 下次出生的装备。</summary>
+        public static void RefreshSpawnEquipment(Agent agent, Equipment equipment)
+        {
+            if (!SafeIsActive(agent) || equipment == null) return;
+            agent.UpdateSpawnEquipmentAndRefreshVisuals(equipment);
+        }
+
         /// <summary>
         /// **把他"钉在原地"** = <see cref="StopMovement"/> + 限速 0。
         /// 🔴 只给**真的要被按住**的状态用（捆缚 / 处决倒地）；**不要**在通用接管里调 ——
@@ -812,8 +856,9 @@ namespace LivingWorldNpcs
             // 3. 清除强制盯人 (解除 SetLookAgent)
             agent.SetLookAgent(null);
 
-            // 4. 确保控制器回归 AI
-            if (!V.IsAgentAI(agent))
+            // 4. NPC 回归 AI；主玩家只清移动锁，控制权由冻结/解冻的持有者归还。
+            // IsMainAgent 与 Controller 独立：演出期间切成 AI 的主玩家仍不能走 NPC 分支。
+            if (!agent.IsMainAgent && !V.IsAgentAI(agent))
             {
                 V.SetAgentAI(agent);
             }

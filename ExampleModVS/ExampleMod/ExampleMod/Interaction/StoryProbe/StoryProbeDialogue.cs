@@ -29,6 +29,8 @@ namespace LivingWorldNpcs
         public static string PendingEntryNode;
 
         private static string _lastTag;
+        private static bool _actionFailed; // 本次原版对话付款失败后，所有后续节点动作都停止。
+        private static int _conversationRound;
 
         /// <summary>本次注入对应的 NPC（动作执行时用来定位"谁在说话"）。</summary>
         public static string CurrentNpcId;
@@ -79,6 +81,9 @@ namespace LivingWorldNpcs
 
                 if (!ConversationEntryPatch.IsConversationActive())
                 {
+                    // 只在一段新 talk 开始清失败；同一对话节点重入不能恢复已失败付款的奖励资格。
+                    _actionFailed = false;
+                    unchecked { _conversationRound++; }
                     if (_lastTag != null) DialogueInjector.RemoveRelatedLines(_lastTag);
                     DialogueInjector.RemoveRelatedLines("story_probe_" + npcId);
                 }
@@ -367,8 +372,8 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (term == "disguised") return StoryProbeState.Data.Disguised;
-                if (term == "noble") return StoryProbeState.Data.NobleDisguise;
+                if (term == "disguised") return StoryProbeMissionBehavior.IsWearingStoryDisguise(false);
+                if (term == "noble") return StoryProbeMissionBehavior.IsWearingStoryDisguise(true);
                 if (term == "stripped") return StoryProbeState.Data.Stripped;
                 // 跨 NPC 引用：quest_accepted@pawnbroker（"别人的委托"——收数人身上要用这个）
                 if (term.StartsWith("quest_accepted@"))
@@ -457,17 +462,96 @@ namespace LivingWorldNpcs
         /// <summary>动作入口：支持复合动作 `verb1+verb2` / `param1;param2`（按位置配对）。</summary>
         public static void HandleAction(string verb, string param)
         {
-            if (string.IsNullOrEmpty(verb)) return;
+            if (_actionFailed || string.IsNullOrEmpty(verb) || StoryProbeState.Data.CancellationPending
+                || !StoryProbeSettings.Enabled || StoryProbeMissionBehavior.Current?.Active != true) return;
             string[] verbs = verb.Split('+');
-            string[] pars = string.IsNullOrEmpty(param) ? new string[0] : param.Split(';');
+            // 单条动作自己的参数可能含分号（pay_to="thug;80"），不能当成复合动作拆丢金额。
+            string[] pars = verbs.Length == 1 ? new[] { param }
+                : string.IsNullOrEmpty(param) ? new string[0] : param.Split(';');
             for (int i = 0; i < verbs.Length; i++)
             {
                 string p = i < pars.Length ? pars[i] : null;
-                Dispatch(verbs[i], p);
+                if (!Dispatch(verbs[i], p))
+                {
+                    if (!_actionFailed) FailStoryActionConversation(); // 接单/交差失败也不能继续成功回答节点的自定义奖励。
+                    break;
+                }
             }
         }
 
-        private static void Dispatch(string verb, string param)
+        private static bool FailStoryActionConversation()
+        {
+            _actionFailed = true;
+            var cm = Campaign.Current?.ConversationManager;
+            var host = StoryProbeMissionBehavior.Current;
+            string npcId = CurrentNpcId;
+            string ownerTag = _lastTag;
+            int round = _conversationRound;
+            Func<bool> stillOwnsConversation = () => cm != null && host != null && host.Active
+                && StoryProbeMissionBehavior.Current == host && round == _conversationRound
+                && _actionFailed && CurrentNpcId == npcId && !string.IsNullOrEmpty(npcId)
+                && _lastTag == ownerTag && ownerTag == "story_probe_" + npcId
+                && Campaign.Current?.ConversationManager == cm && cm.IsConversationInProgress
+                && ResolveNpcId(cm.OneToOneConversationAgent as Agent) == npcId;
+            try
+            {
+                if (!stillOwnsConversation()) return false;
+                host.SchedulePublic(0f, () =>
+                {
+                    if (stillOwnsConversation()) cm.EndConversation();
+                });
+                // 复用 Injector 的 SkillCheck 路由写法，只改输出 token，不在 consequence 栈结束对话。
+                // 普通付款的成功应答尚未选择时，这样阻止其显示；已显示的台词无法事后撤回。
+                cm.ActiveToken = cm.GetStateIndex("close_window");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] failed payment conversation cleanup deferred: {ex.Message}"); }
+            return false;
+        }
+
+        private static bool TryPayMoney(Hero recipient, int amount)
+        {
+            var payer = Hero.MainHero;
+            if (payer == null || recipient == null || recipient == payer || amount <= 0)
+            {
+                DebugLogger.Log("[StoryProbe] payment refused: real payer/recipient/positive amount required");
+                Message("LWN_story_turnin_not_done", "That is not done yet.");
+                return FailStoryActionConversation();
+            }
+            if (payer.Gold < amount)
+            {
+                Message("LWN_story_no_money", "You don't have enough.");
+                return FailStoryActionConversation();
+            }
+            if ((long)recipient.Gold + amount > int.MaxValue)
+            {
+                Message("LWN_story_turnin_not_done", "That is not done yet.");
+                return FailStoryActionConversation();
+            }
+            int payerBefore = payer.Gold;
+            int recipientBefore = recipient.Gold;
+            int transferred = 0;
+            try { transferred = AgentControlHelper.TransferGold(payer, recipient, amount, notify: false); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] payment settlement exception: {ex.Message}"); }
+            int debited = Math.Max(0, payerBefore - payer.Gold);
+            int credited = Math.Max(0, recipient.Gold - recipientBefore);
+            // 引擎可能结算后通知抛错；双方实际足额才认付款，不能只凭调用过或余额够。
+            bool paid = debited == amount && credited == amount;
+            if (!paid)
+            {
+                // 共享转移正常是原子且足额；异常的成对部分款退回，不能留下半笔钱却继续开门。
+                int refund = Math.Min(amount, Math.Min(debited, credited));
+                if (refund > 0)
+                {
+                    try { AgentControlHelper.TransferGold(recipient, payer, refund, notify: false); }
+                    catch (Exception ex) { DebugLogger.Log($"[StoryProbe] partial payment refund failed: {ex.Message}"); }
+                }
+                Message("LWN_story_turnin_not_done", "That is not done yet.");
+            }
+            DebugLogger.Log($"[StoryProbe] payment actual={transferred} debit={debited} credit={credited} required={amount} paid={paid}");
+            return paid || FailStoryActionConversation();
+        }
+
+        private static bool Dispatch(string verb, string param)
         {
             var host = StoryProbeMissionBehavior.Current;
             string currentNpc = CurrentNpcId;
@@ -482,6 +566,13 @@ namespace LivingWorldNpcs
                 case "accept_quest":
                     if (!string.IsNullOrEmpty(currentNpc))
                     {
+                        // 原生 Issue/Quest 确认创建后才提交剧情接单标志。
+                        var nativeQuest = PrologueQuestLauncher.Start(currentNpc);
+                        if (nativeQuest == null)
+                        {
+                            Message("LWN_story_turnin_not_done", "That is not done yet.");
+                            return false;
+                        }
                         StoryProbeState.AcceptQuest(currentNpc);
                         StoryProbeState.SetGoal("quest");
                         // 播报带上任务名与目标（QuestLogKey 此前没有消费者，接了也不说去哪）
@@ -505,6 +596,7 @@ namespace LivingWorldNpcs
 
                 case "turn_in":
                     TurnIn(currentNpc);
+                    if (string.IsNullOrEmpty(currentNpc) || !StoryProbeState.IsQuestTurnedIn(currentNpc)) return false;
                     break;
 
                 case "pay_to":
@@ -518,11 +610,7 @@ namespace LivingWorldNpcs
                         if (parts.Length > 0 && !string.IsNullOrWhiteSpace(parts[0])) npcId = parts[0].Trim();
                         if (parts.Length > 1) int.TryParse(parts[1], out amount);
                     }
-                    if (amount < 0) amount = 0;
-                    if (Hero.MainHero.Gold < amount) { Message("LWN_story_no_money", "You don't have enough."); break; }
-                    var to = host?.GetHero(npcId);
-                    if (to != null) AgentControlHelper.TransferGold(Hero.MainHero, to, amount, notify: false);
-                    else AgentControlHelper.SetGold(Hero.MainHero, Hero.MainHero.Gold - amount, notify: false);
+                    if (!TryPayMoney(host?.GetHero(npcId), amount)) return false;
                     break;
                 }
 
@@ -582,26 +670,17 @@ namespace LivingWorldNpcs
                         {
                             DebugLogger.Log($"[StoryProbe] bribe refused: {currentNpc} attitude={bd.Money}");
                             Message("LWN_story_money_refused", "He doesn't take money — not like this.");
-                            break;
+                            return FailStoryActionConversation();
                         }
                     }
 
                     int amount = 100;
                     int.TryParse(param, out amount);
                     if (amount <= 0) amount = 100;
-                    var hero = host?.GetHero("blocker");
-                    if (Hero.MainHero.Gold >= amount)
-                    {
-                        if (hero != null) AgentControlHelper.TransferGold(Hero.MainHero, hero, amount, notify: false);
-                        else AgentControlHelper.SetGold(Hero.MainHero, Hero.MainHero.Gold - amount, notify: false);
-                        StoryProbeState.Data.BribePaid += amount;
-                        host?.OpenGate("money", "LWN_story_gate_bribe", "He weighs the coins and steps aside.");
-                        host?.ResolveApproach("money", "fixers", -5, false, "hazard_money_leverage");
-                    }
-                    else
-                    {
-                        Message("LWN_story_no_money", "You don't have enough.");
-                    }
+                    if (!TryPayMoney(host?.GetHero("blocker"), amount)) return false;
+                    StoryProbeState.Data.BribePaid += amount; // 双方实际足额，才记打点、让路并结算路线。
+                    host?.OpenGate("money", "LWN_story_gate_bribe", "He weighs the coins and steps aside.");
+                    host?.ResolveApproach("money", "fixers", -5, false, "hazard_money_leverage");
                     break;
                 }
 
@@ -619,6 +698,8 @@ namespace LivingWorldNpcs
                 case "mark":
                     if (!string.IsNullOrEmpty(currentNpc) && !string.IsNullOrEmpty(param))
                         StoryProbeState.MarkAsked(currentNpc, param);
+                    if (currentNpc == "blocker" && param == "met")
+                        StoryProbeMissionBehavior.Current?.NotifyFirstGuardQuestioned();
                     break;
 
                 case "clue":
@@ -630,10 +711,7 @@ namespace LivingWorldNpcs
                 {
                     int amount = 30;
                     if (!int.TryParse(param, out amount) || amount < 0) amount = 30;
-                    var to = host?.GetHero(currentNpc);
-                    if (Hero.MainHero.Gold < amount) { Message("LWN_story_no_money", "You don't have enough."); break; }
-                    if (to != null) AgentControlHelper.TransferGold(Hero.MainHero, to, amount, notify: false);
-                    else AgentControlHelper.SetGold(Hero.MainHero, Hero.MainHero.Gold - amount, notify: false);
+                    if (!TryPayMoney(host?.GetHero(currentNpc), amount)) return false;
                     break;
                 }
 
@@ -643,7 +721,7 @@ namespace LivingWorldNpcs
                     // Open=当面收（钱走人、给实话、你被拿捏）；Covert=推回来（他自己不收，得走正经买卖）；
                     // Disdain=把这当成侮辱（关系掉，钱一动不动）。
                     var def = StoryProbeDefs.GetNpc(currentNpc);
-                    if (def == null) break;
+                    if (def == null) return false;
                     int amount = def.Money == MoneyAttitude.Covert
                         ? Math.Max(1, def.MoneyCovertPrice) : Math.Max(1, def.MoneyPrice);
 
@@ -651,14 +729,7 @@ namespace LivingWorldNpcs
                     {
                         case MoneyAttitude.Open:
                         {
-                            if (Hero.MainHero.Gold < amount)
-                            {
-                                Message("LWN_story_no_money", "You don't have enough.");
-                                break;
-                            }
-                            var to = host?.GetHero(currentNpc);
-                            if (to != null) AgentControlHelper.TransferGold(Hero.MainHero, to, amount, notify: false);
-                            else AgentControlHelper.SetGold(Hero.MainHero, Hero.MainHero.Gold - amount, notify: false);
+                            if (!TryPayMoney(host?.GetHero(currentNpc), amount)) return false;
                             StoryProbeState.AddHazard("hazard_money_leverage");
                             AdjustNpcRelation(currentNpc, -5);
                             ShowHint(def);
@@ -669,13 +740,13 @@ namespace LivingWorldNpcs
                         case MoneyAttitude.Covert:
                             // 当面递钱：他手都不伸。钱一分没动 —— 要走下面那条「正经买卖」。
                             DebugLogger.Log($"[StoryProbe] money COVERT {currentNpc} refused direct cash");
-                            break;
+                            return false;
 
                         default: // Disdain
                             AdjustNpcRelation(currentNpc, -10);
                             StoryProbeState.AddHazard("hazard_bribed_the_proud");
                             DebugLogger.Log($"[StoryProbe] money DISDAIN {currentNpc} insulted");
-                            break;
+                            return false;
                     }
                     break;
                 }
@@ -684,16 +755,9 @@ namespace LivingWorldNpcs
                 {
                     // Covert 的"正经买卖"：当/买 —— 钱照收，但面上是生意。
                     var def = StoryProbeDefs.GetNpc(currentNpc);
-                    if (def == null) break;
+                    if (def == null) return false;
                     int amount = Math.Max(1, def.MoneyCovertPrice);
-                    if (Hero.MainHero.Gold < amount)
-                    {
-                        Message("LWN_story_no_money", "You don't have enough.");
-                        break;
-                    }
-                    var to = host?.GetHero(currentNpc);
-                    if (to != null) AgentControlHelper.TransferGold(Hero.MainHero, to, amount, notify: false);
-                    else AgentControlHelper.SetGold(Hero.MainHero, Hero.MainHero.Gold - amount, notify: false);
+                    if (!TryPayMoney(host?.GetHero(currentNpc), amount)) return false;
                     StoryProbeState.AddHazard("hazard_money_leverage");
                     AdjustNpcRelation(currentNpc, -5);
                     ShowHint(def);
@@ -737,17 +801,18 @@ namespace LivingWorldNpcs
 
                 case "collect_debt":
                 {
-                    // 收账：debtor 把 120 第纳尔交出来（走守恒转移），老周的委托完成
-                    var debtor = host?.GetHero("debtor");
                     int amount = 120;
                     if (int.TryParse(param, out int p) && p > 0) amount = p;
-                    if (debtor != null)
+                    if (CollectDebt(amount))
                     {
-                        int moved = AgentControlHelper.TransferGold(debtor, Hero.MainHero, amount, notify: false);
-                        DebugLogger.Log($"[StoryProbe] collect_debt moved={moved}");
+                        StoryProbeState.CompleteQuest("pawnbroker");
+                        PrologueQuestLauncher.FindActive("pawnbroker")?.MarkObjectivesDone();
                     }
-                    StoryProbeState.CompleteQuest("pawnbroker");
-                    StoryProbeState.Data.CoinsFound += amount;
+                    else
+                    {
+                        Message("LWN_story_turnin_not_done", "That is not done yet.");
+                        return false;
+                    }
                     break;
                 }
 
@@ -764,10 +829,18 @@ namespace LivingWorldNpcs
                         Message("LWN_story_errand_cooldown", "Nothing needs doing right now. Come back later.");
                         break;
                     }
-                    StoryProbeState.Data.NextErrandHour = now + 1.0;
-                    StoryProbeState.Data.CoinsFound += pay;
-                    AgentControlHelper.SetGold(Hero.MainHero, Hero.MainHero.Gold + pay, notify: false);
-                    Message("LWN_story_errand_done", "You ran the errand. A few coins for it.");
+                    var player = Hero.MainHero;
+                    if (player == null || (long)player.Gold + pay > int.MaxValue) break;
+                    int before = player.Gold;
+                    try { AgentControlHelper.TransferGold((Hero)null, player, pay, notify: false); }
+                    finally
+                    {
+                        int moved = Math.Min(pay, Math.Max(0, player.Gold - before));
+                        StoryProbeState.Data.CoinsFound += moved;
+                        if (moved > 0) StoryProbeState.Data.NextErrandHour = now + 1.0;
+                    }
+                    if (player.Gold - before == pay)
+                        Message("LWN_story_errand_done", "You ran the errand. A few coins for it.");
                     break;
                 }
 
@@ -785,8 +858,9 @@ namespace LivingWorldNpcs
 
                 default:
                     DebugLogger.Log($"[StoryProbe] unknown action verb '{verb}'");
-                    break;
+                    return false;
             }
+            return true;
         }
 
         /// <summary>把关系记到当前对话的这个人身上（正负都行）。</summary>
@@ -824,6 +898,44 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>交差：给奖励 + 关系 + 进度（§4.1）。</summary>
+        private static bool CollectDebt(int amount)
+        {
+            var d = StoryProbeState.Data;
+            var player = Hero.MainHero;
+            var debtor = StoryProbeMissionBehavior.Current?.GetHero("debtor");
+            if (player == null || debtor == null || amount <= 0) return false;
+            int remaining = Math.Max(0, amount - d.DebtCollected);
+            if (remaining == 0) return true;
+            if ((long)player.Gold + remaining > int.MaxValue) return false;
+            int before = player.Gold;
+            try { AgentControlHelper.TransferGold(debtor, player, remaining, notify: false); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] debt collection failed: {ex.Message}"); }
+            finally
+            {
+                int moved = Math.Min(remaining, Math.Max(0, player.Gold - before));
+                d.DebtCollected += moved;
+                d.CoinsFound += moved;
+                DebugLogger.Log($"[StoryProbe] debt actually collected={moved} total={d.DebtCollected}/{amount}");
+            }
+            return d.DebtCollected >= amount;
+        }
+
+        private static bool GrantRewardItem(string npcId, string receipt, string itemId)
+        {
+            if (StoryProbeState.HasRewardReceipt(npcId, receipt)) return true;
+            var player = Hero.MainHero;
+            var roster = player?.PartyBelongedTo?.ItemRoster;
+            var item = StoryProbeDefs.FindItem(itemId);
+            // TransferItems 的 null roster 分支不能当作实际到货；必须验证真实接收背包。
+            if (roster == null || item == null) return false;
+            int before = roster.GetItemNumber(item);
+            try { StoryProbeDefs.GiveItem(player, itemId); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] reward grant failed {npcId}/{itemId}: {ex.Message}"); }
+            if (roster.GetItemNumber(item) <= before) return false;
+            StoryProbeState.RecordRewardReceipt(npcId, receipt);
+            return true;
+        }
+
         private static void TurnIn(string npcId)
         {
             if (string.IsNullOrEmpty(npcId)) return;
@@ -841,69 +953,100 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            StoryProbeState.TurnInQuest(npcId);
-            StoryProbeState.AddFactionRelation(def.Faction, 10);
-            StoryProbeState.SetGoal("tool");
-
-            // 当铺老板：收上来的 120 是**他的账**，交差时还给他；他按说好的付 30 跑腿费。
-            // （不加这段的话，文本说"这是你的，三十"，实际一分钱没动 —— 文案与账目对不上。）
-            if (npcId == "pawnbroker")
+            var player = Hero.MainHero;
+            var giver = StoryProbeMissionBehavior.Current?.GetHero(npcId);
+            if (player?.PartyBelongedTo?.ItemRoster == null || giver == null) return;
+            var nativeQuest = PrologueQuestLauncher.FindActive(npcId);
+            if (nativeQuest == null && !StoryProbeState.HasRewardReceipt(npcId, "native-finished"))
+                nativeQuest = PrologueQuestLauncher.Start(npcId);
+            if (nativeQuest == null && !StoryProbeState.HasRewardReceipt(npcId, "native-finished")) return;
+            var items = def.RewardItems ?? new string[0];
+            // 所有资源先预检；缺一件时不先吃掉交差资格或收走账款。
+            if (items.Any(id => StoryProbeDefs.FindItem(id) == null)
+                || (!string.IsNullOrEmpty(def.AttrItemId) && StoryProbeDefs.FindItem(def.AttrItemId) == null))
             {
-                var creditor = StoryProbeMissionBehavior.Current?.GetHero("pawnbroker");
-                if (creditor != null && Hero.MainHero.Gold > 0)
-                {
-                    int owed = Math.Min(120, Hero.MainHero.Gold);
-                    AgentControlHelper.TransferGold(Hero.MainHero, creditor, owed, notify: false);
-                    DebugLogger.Log($"[StoryProbe] turn_in back to pawnbroker: {owed}");
-                }
-                AgentControlHelper.SetGold(Hero.MainHero, Hero.MainHero.Gold + 30, notify: false);   // 台词：「这是你的。三十。」
+                Message("LWN_info_equipment_error", "Equipment unavailable.");
+                return;
             }
-
-            foreach (var itemId in def.RewardItems ?? new string[0])
-                StoryProbeDefs.GiveItem(Hero.MainHero, itemId);
-
-            // §5.6 属性道具：交差时一并给你（原版物品当载体）+ 一点对应技能经验。
-            // 「偷」那条路仍走现成扒窃系统（扒身上的武器/护符）；这里保证"不偷也能有一点长进"。
-            if (!string.IsNullOrEmpty(def.AttrItemId))
-            {
-                StoryProbeDefs.GiveItem(Hero.MainHero, def.AttrItemId);
-                var skill = StoryProbeDefs.ResolveSkill(def.AttrSkill);
-                if (skill != null)
-                {
-                    Hero.MainHero.AddSkillXp(skill, 40f);
-                    Message("LWN_story_attr_item", "You learn something from it.");
-                }
-            }
-
-            // 剧团交差 = 贵族制服 + 通行文书（“冒充”线的底子）
-            if (npcId == "widow") GiveNobleDisguise();
-
-            // 关系记到代表身上
+            var d = StoryProbeState.Data;
             try
             {
-                var host = StoryProbeMissionBehavior.Current;
-                var hero = host?.GetHero(npcId);
-                if (hero != null && Hero.MainHero != null)
-                    ChangeRelationAction.ApplyRelationChangeBetweenHeroes(hero, Hero.MainHero, 10);
+                if (npcId == "pawnbroker")
+                {
+                    // 打倒 debtor 的替代路线也必须实际收账，不能把目标倒地当作凭空得到 120。
+                    if (!CollectDebt(120)) { Message("LWN_story_turnin_not_done", "That is not done yet."); return; }
+                    int owed = Math.Max(0, 120 - d.DebtRepaid);
+                    if (player.Gold < owed) { Message("LWN_story_turnin_not_done", "That is not done yet."); return; }
+                    int before = player.Gold;
+                    try { AgentControlHelper.TransferGold(player, giver, owed, notify: false); }
+                    finally { d.DebtRepaid += Math.Min(owed, Math.Max(0, before - player.Gold)); }
+                    if (d.DebtRepaid < 120) return;
+                    int fee = Math.Max(0, 30 - d.PawnbrokerRewardPaid);
+                    before = player.Gold;
+                    try { AgentControlHelper.TransferGold(giver, player, fee, notify: false); }
+                    finally { d.PawnbrokerRewardPaid += Math.Min(fee, Math.Max(0, player.Gold - before)); }
+                    if (d.PawnbrokerRewardPaid < 30) return;
+                }
+                for (int i = 0; i < items.Length; i++)
+                {
+                    string key = npcId == "widow" && items[i] == "fine_town_tunic"
+                        ? "wardrobe" : "item:" + i + ":" + items[i];
+                    if (!GrantRewardItem(npcId, key, items[i])) return;
+                }
+                if (!string.IsNullOrEmpty(def.AttrItemId)
+                    && !GrantRewardItem(npcId, "attribute-item", def.AttrItemId)) return;
+                if (npcId == "widow" && !GiveNobleDisguise()) return;
+                if (!StoryProbeState.HasRewardReceipt(npcId, "skill-xp"))
+                {
+                    var skill = StoryProbeDefs.ResolveSkill(def.AttrSkill);
+                    if (skill != null) player.AddSkillXp(skill, 40f);
+                    StoryProbeState.RecordRewardReceipt(npcId, "skill-xp");
+                }
+                if (!StoryProbeState.HasRewardReceipt(npcId, "relation"))
+                {
+                    ChangeRelationAction.ApplyRelationChangeBetweenHeroes(giver, player, 10);
+                    StoryProbeState.RecordRewardReceipt(npcId, "relation");
+                }
+                if (!StoryProbeState.HasRewardReceipt(npcId, "faction"))
+                {
+                    StoryProbeState.AddFactionRelation(def.Faction, 10);
+                    StoryProbeState.RecordRewardReceipt(npcId, "faction");
+                }
+                if (!StoryProbeState.HasRewardReceipt(npcId, "native-finished"))
+                {
+                    try { nativeQuest.MarkObjectivesDone(); nativeQuest.Finish(); }
+                    catch
+                    {
+                        // 完成回调抛错但原生任务已结算时，仍记录事实，不能另开任务重复发奖。
+                        if (!nativeQuest.IsFinalized) throw;
+                    }
+                    StoryProbeState.RecordRewardReceipt(npcId, "native-finished");
+                }
+                StoryProbeState.TurnInQuest(npcId); // 所有应付项目成功后才提交总完成位。
+                StoryProbeState.SetGoal("tool");
+                Message("LWN_story_narr_turnin", "He pays up, and he remembers your face.");
             }
-            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] turn_in relation failed: {ex.Message}"); }
-
-            Message("LWN_story_narr_turnin", "He pays up, and he remembers your face.");
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] turn_in deferred with receipts retained {npcId}: {ex.Message}"); }
         }
 
         /// <summary>贵族制服 + 通行文书：穿上就是"冒充"（不自动换装，玩家自己穿）。</summary>
-        private static void GiveNobleDisguise()
+        private static bool GiveNobleDisguise()
         {
+            // 与 RewardItems 共用一张到货回执，不能在剧团交差时再发第二件衣服。
+            if (!GrantRewardItem("widow", "wardrobe", "fine_town_tunic")) return false;
+            bool first = !StoryProbeState.Data.NobleDisguise;
             StoryProbeState.Data.NobleDisguise = true;
-            StoryProbeDefs.GiveItem(Hero.MainHero, "fine_town_tunic");
-            Message("LWN_story_got_disguise", "You have the fine clothes and the papers to go with them.");
+            if (first) Message("LWN_story_got_disguise", "You have the fine clothes and the papers to go with them.");
+            return true;
         }
 
         private static void GiveRewards(string csv)
         {
             if (string.IsNullOrEmpty(csv)) return;
-            foreach (var id in csv.Split('|'))
-                StoryProbeDefs.GiveItem(Hero.MainHero, id.Trim());
+            var ids = csv.Split('|').Select(id => id.Trim()).Where(id => id.Length > 0).ToArray();
+            if (Hero.MainHero?.PartyBelongedTo?.ItemRoster == null || ids.Any(id => StoryProbeDefs.FindItem(id) == null)) return;
+            for (int i = 0; i < ids.Length; i++)
+                if (!GrantRewardItem(CurrentNpcId ?? "scene", "give-items:" + csv + ":" + i, ids[i])) return;
         }
 
         /// <summary>非致命决斗：玩家 vs 目标（CombatManager 的 Peace 模式）。</summary>
@@ -918,8 +1061,9 @@ namespace LivingWorldNpcs
             }
             try
             {
-                CombatManager.StartFight(Agent.Main, target, Peace: true);
-                DebugLogger.Log($"[StoryProbe] peace duel started vs {npcId}");
+                if (host.RequestStoryFight(npcId))
+                    DebugLogger.Log($"[StoryProbe] Brain duel queued after conversation vs {npcId}");
+                else Message("LWN_story_fight_no_target", "There is no one to fight.");
             }
             catch (Exception ex)
             {

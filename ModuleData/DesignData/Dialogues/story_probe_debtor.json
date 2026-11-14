@@ -10,6 +10,27 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_debtor_opt_ask",
+          "Once": "debtor_ask",
+          "Action": "PROBE:mark",
+          "ActionParam": "debtor_ask",
+          "NextNodeOnSuccess": "debtor_talk"
+        },
+        {
+          "PlayerKey": "LWN_story_debtor_opt_collect",
+          "Requires": "quest_accepted@pawnbroker,!quest_done@pawnbroker",
+          "CheckType": "SkillCheck",
+          "CheckTag": "debtor|charm",
+          "NextNodeOnSuccess": "debtor_collect",
+          "NextNodeOnFail": "debtor_refuse"
+        },
+        {
+          "PlayerKey": "LWN_story_debtor_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "debtor",
+          "NextNodeOnSuccess": "debtor_fight"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
@@ -20,16 +41,49 @@
       ]
     },
     {
-      "Id": "debtor_talk",
-      "NpcKey": "LWN_story_debtor_talk",
+      "Id": "debtor_hub",
+      "NpcKey": "LWN_story_debtor_hub",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_debtor_opt_ask",
+          "Once": "debtor_ask",
+          "Action": "PROBE:mark",
+          "ActionParam": "debtor_ask",
+          "NextNodeOnSuccess": "debtor_talk"
+        },
+        {
+          "PlayerKey": "LWN_story_debtor_opt_collect",
+          "Requires": "quest_accepted@pawnbroker,!quest_done@pawnbroker",
+          "CheckType": "SkillCheck",
+          "CheckTag": "debtor|charm",
+          "NextNodeOnSuccess": "debtor_collect",
+          "NextNodeOnFail": "debtor_refuse"
+        },
+        {
+          "PlayerKey": "LWN_story_debtor_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "debtor",
+          "NextNodeOnSuccess": "debtor_fight"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
-        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "debtor_talk",
+      "NpcKey": "LWN_story_debtor_talk",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "debtor_hub"
+        }
+      ],
+      "NpcActions": [
         "act_conversation_closed_trivial",
         "act_conversation_closed_trivial"
       ]
@@ -47,8 +101,27 @@
       ],
       "NpcActions": [
         "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "debtor_refuse",
+      "NpcKey": "LWN_story_debtor_refuse",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_debtor_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "debtor",
+          "NextNodeOnSuccess": "debtor_fight"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
         "act_conversation_closed_trivial",
-        "act_conversation_closed_negative"
+        "act_conversation_closed_trivial"
       ]
     },
     {
@@ -61,7 +134,7 @@
         }
       ],
       "NpcActions": [
-        "act_conversation_closed_trivial"
+        "act_conversation_closed_very_negative"
       ]
     }
   ]

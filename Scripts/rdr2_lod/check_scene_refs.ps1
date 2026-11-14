@@ -32,6 +32,7 @@ if (-not (Test-Path -LiteralPath $ModulePath)) {
 
 # ---------- 1. xscene -> prefab ----------
 $scenePrefabs = New-Object System.Collections.Generic.HashSet[string]
+$sceneDirectMesh = New-Object System.Collections.Generic.HashSet[string]
 $xsceneCount = 0
 if ($SceneObjPath) { $sceneObj = $SceneObjPath } else { $sceneObj = Join-Path $ModulePath 'SceneObj' }
 if (Test-Path -LiteralPath $sceneObj) {
@@ -40,6 +41,10 @@ if (Test-Path -LiteralPath $sceneObj) {
         $txt = Get-Content -LiteralPath $xs.FullName -Raw -ErrorAction SilentlyContinue
         if ($txt) {
             foreach ($m in [regex]::Matches($txt, 'prefab="([^"]+)"')) { [void]$scenePrefabs.Add($m.Groups[1].Value) }
+            # 场景里直接挂网格的情况（如 rdr2_sanit_denis）：<meta_mesh_component name="X"/>
+            foreach ($m in [regex]::Matches($txt, '<meta_mesh_component\s+name="([^"]+)"')) {
+                [void]$sceneDirectMesh.Add($m.Groups[1].Value)
+            }
         }
         $ref = Join-Path $xs.DirectoryName 'references.txt'
         if (Test-Path -LiteralPath $ref) {
@@ -50,7 +55,7 @@ if (Test-Path -LiteralPath $sceneObj) {
     }
 }
 Say ""
-Say ("【1】xscene 文件 {0} 个，引用的 prefab（去重）{1} 个" -f $xsceneCount, $scenePrefabs.Count)
+Say ("【1】xscene 文件 {0} 个；引用 prefab {1} 个；场景内直挂网格 {2} 个" -f $xsceneCount, $scenePrefabs.Count, $sceneDirectMesh.Count)
 
 # ---------- 2. prefab 定义 & 它们引用的 meta mesh ----------
 if ($PrefabsPath) { $prefabDir = $PrefabsPath } else { $prefabDir = Join-Path $ModulePath 'Prefabs' }
@@ -106,6 +111,17 @@ if (-not $fromCache) {
     }
     $srcInfo.Add(("Assets\meshes\**\*.tpac -> {0} 个" -f $nTpac))
 
+    # 2026-11-14：网格实际导入到 Assets\models\<类>\<名>_geo.tpac（不是 Assets\meshes）
+    $modelDir = Join-Path $ModulePath 'Assets\models'
+    $nModel = 0
+    if (Test-Path -LiteralPath $modelDir) {
+        foreach ($f in Get-ChildItem -LiteralPath $modelDir -Recurse -File -Filter '*.tpac' -ErrorAction SilentlyContinue) {
+            $base = $f.BaseName -replace '_geo$', ''
+            [void]$index.Add($base); $nModel++
+        }
+    }
+    $srcInfo.Add(("Assets\models\**\*.tpac -> {0} 个" -f $nModel))
+
     $asDir = Join-Path $ModulePath 'AssetSources\meshes'
     $nTrf = 0
     if (Test-Path -LiteralPath $asDir) {
@@ -128,6 +144,7 @@ $missingPrefabs = New-Object System.Collections.Generic.List[string]
 foreach ($p in $scenePrefabs) { if (-not $definedPrefabs.Contains($p)) { $missingPrefabs.Add($p) } }
 $missingMeshes = New-Object System.Collections.Generic.List[string]
 foreach ($m in $allMeshRefs) { if (-not $index.Contains($m)) { $missingMeshes.Add($m) } }
+foreach ($m in $sceneDirectMesh) { if (-not $index.Contains($m)) { $missingMeshes.Add($m) } }
 
 Say ""
 Say "【4】结论" 'Cyan'

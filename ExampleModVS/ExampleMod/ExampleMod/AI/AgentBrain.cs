@@ -81,6 +81,23 @@ namespace LivingWorldNpcs
         private IAtomicAction _currentAction = null;
         public IAtomicAction CurrentAction => _currentAction;
         public bool IsInStayMode => IsCurrentOrPending<StayAction>();
+        private PerformanceAction _performance;
+        private AlertForceConversationAction _storyInterceptAction;
+        private float _storyInterceptElapsed;
+        public bool IsPerforming => _performance != null && !_performance.Ended;
+        public bool IsStoryIntercepting => _storyInterceptAction != null;
+        internal bool OwnsPerformance(PerformanceAction action) => _performance == action;
+        internal void PerformanceEnded(PerformanceAction action)
+        {
+            if (_performance == action) _performance = null;
+        }
+        internal void StoryInterceptEnded(AlertForceConversationAction action)
+        {
+            if (_storyInterceptAction != action) return;
+            _storyInterceptAction = null;
+            if (ConfrontingBrain == this) ConfrontingBrain = null;
+            if (_currentIntent?.Type == NpcIntentType.Confronting) SetNpcIntent(NpcIntentType.None);
+        }
 
         /// <summary>是否处于战斗行为（当前或排队）——HUD 用它决定战斗中不显示警戒眼</summary>
         public bool IsInCombat => IsCurrentOrPending<FightEnemyAction>();
@@ -371,10 +388,97 @@ namespace LivingWorldNpcs
             return brain?.IsStatusHeld == true;
         }
         // --- 核心：决策中枢 ---
+        private bool HandlePerformanceEvent(AIEvent ev)
+        {
+            var args = ev.Args;
+            if (ev.EventType == "event_performance_begin")
+            {
+                string token = args != null && args.Length > 0 ? args[0] as string : null;
+                var receipt = args != null && args.Length > 1 ? args[1] as Action<PerformanceAction> : null;
+                var stopped = args != null && args.Length > 2 ? args[2] as Action<string> : null;
+                PerformanceAction accepted = null;
+                if (!string.IsNullOrEmpty(token) && !IsBound && !IsStatusHeld && !IsStunned
+                    && !IsStoryIntercepting && !Settings.Instance.IsInteractionDisabled()
+                    && AgentControlHelper.SafeIsActive(Owner) && !ConversationEntryPatch.IsConversationActive())
+                {
+                    if (IsPerforming && _performance.OwnerToken == token) accepted = _performance;
+                    else if (!IsPerforming && (EffectiveAction == null || EffectiveAction is StayAction)
+                        && CurrentIntent.Type != NpcIntentType.ExecutingCommand
+                        && CurrentIntent.Type != NpcIntentType.Fighting && CurrentIntent.Type != NpcIntentType.Confronting
+                        && !(EffectiveAction is StayAction stay && stay.IsKnockout))
+                    {
+                        ClearAllActions(lockPlace: false);
+                        accepted = new PerformanceAction(this, token, stopped);
+                        _performance = accepted;
+                        EnqueueAction(accepted); // 身体接管只在该动作 OnStart，排队时不限速。
+                    }
+                }
+                try { receipt?.Invoke(accepted); }
+                catch (Exception ex) { DebugLogger.Log($"[Performance] begin receipt failed: {ex.Message}"); }
+                return true;
+            }
+            if (ev.EventType == "event_performance_end" || ev.EventType == "event_performance_pause")
+            {
+                string token = args != null && args.Length > 0 ? args[0] as string : null;
+                if (_performance == null || _performance.OwnerToken != token) return true;
+                if (ev.EventType == "event_performance_pause")
+                    _performance.SetPaused(args.Length > 1 && args[1] is bool paused && paused);
+                else
+                {
+                    var owned = _performance;
+                    string reason = args.Length > 1 ? args[1] as string : null;
+                    owned.Finish(reason ?? "finished");
+                    // 仅清本次演出占位；旧 owner 的结束不能清新动作。
+                    if (_currentAction == owned || _actionQueue.Contains(owned)) ClearAllActions(lockPlace: false);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        private void StartStoryIntercept(AIEvent ev)
+        {
+            var args = ev.Args;
+            Agent player = args != null && args.Length > 0 ? args[0] as Agent : null;
+            string entry = args != null && args.Length > 1 ? args[1] as string : null;
+            var ready = args != null && args.Length > 2 ? args[2] as Action<Agent> : null;
+            bool available = player == Agent.Main && player != null && !string.IsNullOrEmpty(entry) && ready != null
+                && !IsBound && !IsStatusHeld && !IsStunned && !IsPerforming && !IsStoryIntercepting && !IsInCombat
+                && !Settings.Instance.IsInteractionDisabled() && AgentControlHelper.SafeIsActive(Owner)
+                && AgentControlHelper.SafeIsActive(player) && !ConversationEntryPatch.IsConversationActive()
+                && CurrentIntent.Type != NpcIntentType.ExecutingCommand && ConfrontingBrain == null;
+            if (!available)
+            {
+                try { ready?.Invoke(null); }
+                catch (Exception ex) { DebugLogger.Log($"[StoryIntercept] refusal receipt failed: {ex.Message}"); }
+                return;
+            }
+            ClearAllActions(lockPlace: false);
+            AgentControlHelper.ForceUnlockAgent(Owner);
+            InteractedAgent = player;
+            SetNpcIntent(NpcIntentType.Confronting, player, interceptDetail: ConfrontationType.Deter);
+            ConfrontingBrain = this;
+            _storyInterceptElapsed = 0f;
+            _storyInterceptAction = new AlertForceConversationAction(storyEntry: entry, onStoryReady: ready);
+            EnqueueAction(new FollowAgentAction(player, false, radius: 2f, angleOffset: 0f, stopDistance: 1.5f));
+            EnqueueAction(new LookAtAction(player, 0.0f));
+            EnqueueAction(_storyInterceptAction);
+            DebugLogger.Log($"[StoryIntercept] queued entry={entry}");
+        }
+
         public void ReceiveEvent(AIEvent aiEvent)
         {
-            // 战斗模式下不处理任何事件——原生 AI 接管所有战斗行为
-            if (Settings.Instance.IsInteractionDisabled())
+            if (aiEvent == null || Owner == Agent.Main) return;
+            // 演出释放/拒绝回执必须能越过模式关闭闸门，不能留一条无 Tick 的租约。
+            if (HandlePerformanceEvent(aiEvent)) return;
+            if (aiEvent.EventType == "event_story_intercept") { StartStoryIntercept(aiEvent); return; }
+            if (aiEvent.EventType == "event_story_intercept_cancel")
+            {
+                if (IsStoryIntercepting) ClearAllActions(lockPlace: false);
+                return;
+            }
+            // 战斗模式下不处理普通事件——原生 AI 接管所有战斗行为；清理沿既有 stop 分支。
+            if (Settings.Instance.IsInteractionDisabled() && aiEvent.EventType != "event_stop_combat")
                 return;
 
             // 🔴 纵深防御：玩家不该有 brain（OnAgentCreated 已排除），万一存在（边缘路径）
@@ -382,6 +486,23 @@ namespace LivingWorldNpcs
             // Suspend 玩家导致整场无法移动（2026-08-09 致命 bug 修复）。
             if (Owner == Agent.Main)
                 return;
+
+            if (IsPerforming)
+            {
+                bool damaged = aiEvent.EventType == "event_agent_damaged" && aiEvent.Args != null
+                    && aiEvent.Args.Length > 1 && (aiEvent.Args[1] as Agent) == Owner;
+                bool special = aiEvent.EventType == "event_agent_bound" || aiEvent.EventType == "event_agent_knocked_out";
+                bool interrupt = damaged || special || aiEvent.EventType == "ComeHere"
+                    || aiEvent.EventType == "EndInteraction" || aiEvent.EventType == "order_attack"
+                    || aiEvent.EventType == "duel" || aiEvent.EventType == "DeferredCombat"
+                    || aiEvent.EventType == "order_execute_plan" || aiEvent.EventType == "order_follow"
+                    || aiEvent.EventType == "TheftVictimized" || aiEvent.EventType == "TheftNoise"
+                    || aiEvent.EventType == "PlayerAttackedAlly" || aiEvent.EventType == "PlayerAttackedCivilian"
+                    || (aiEvent.EventType != null && aiEvent.EventType.StartsWith("WitnessCrime_"))
+                    || aiEvent.EventType == "event_npc_surrender" || aiEvent.EventType == "event_player_surrendered";
+                if (interrupt) _performance.Finish(special ? "special-state" : aiEvent.EventType, !special);
+                else return; // 普通招呼、围观、警戒调度让位；攻击和特殊状态照旧进入共享管线。
+            }
 
             // 通用事件追踪；event_agent_damaged 由下方受害分支专用日志接管（含 victim/是否自己，
             // 2026-08-14 去重：原两条 [Brain-Receive] 同事件双打，噪音且难 grep）
@@ -574,18 +695,30 @@ namespace LivingWorldNpcs
             {
                 // 🔴 2026-08-13 切磋分支（ActionRegistry.duel 发 "duel" 事件，与 order_attack 真打区分）：
                 // FightEnemyAction(IsDuel=true) → OnStart 传 Peace:true → CombatManager.StartDuel
-                // → AttackTriggerMissionLogic（双方 Invulnerable 底层无敌 + 真实血归零判负，点到为止）。
-                // 不飘"开始攻击"红字（切磋非敌对）；判负由 EndDuel 统一收场（event_stop_combat）。
+                // → AttackTriggerMissionLogic（正常受伤，致命时保命；可选教学按实际命中判败）。
+                // 普通切磋不飘攻击红字；教学攻击给明确反馈。完整收场与回执等下一正常 tick。
                 Agent targetAgent = aiEvent.Args[0] as Agent;
                 if (targetAgent == null || targetAgent == Owner) return;
                 SetNpcIntent(NpcIntentType.Fighting, targetAgent);
                 InteractedAgent = targetAgent;
                 ClearAllActions();
                 if (IsChildOwner) { EnqueueAction(MoveToPositionAction.FleeFrom(Owner, targetAgent)); return; }
-                EnqueueAction(new FightEnemyAction(targetAgent, isDuel: true));
+                // 首遇可保护守卫，但玩家仍须被真实伤害打到致命门槛；没有命中计数判败。
+                bool protectInitiator = aiEvent.Args.Length > 1 && aiEvent.Args[1] is bool protect && protect;
+                Action<Agent> onDuelResolved = aiEvent.Args.Length > 2 ? aiEvent.Args[2] as Action<Agent> : null;
+                EnqueueAction(new FightEnemyAction(targetAgent, isDuel: true,
+                    protectInitiator: protectInitiator, onDuelResolved: onDuelResolved));
             }
             if (aiEvent.EventType == "event_stop_combat")
             {
+                if (aiEvent.Args != null && aiEvent.Args.Length > 0)
+                {
+                    var expected = aiEvent.Args[0] as Action<Agent>;
+                    bool owned = expected != null &&
+                        ((_currentAction is FightEnemyAction currentFight && currentFight.HasDuelReceipt(expected))
+                        || _actionQueue.Any(a => a is FightEnemyAction queuedFight && queuedFight.HasDuelReceipt(expected)));
+                    if (!owned) return; // 旧 owner / 仅排请求未入队：不清其他战斗或新状态。
+                }
                 // 🔴 2026-08-13 切磋判负收场（AttackTriggerMissionLogic.EndDuel 发）：立即停战。
                 // ClearAllActions → FightEnemyAction.OnEnd → CombatManager.EndFight
                 //（归还原队 + WatchState 恢复 + 收刀），与投降停战同款清理但不开对话。
@@ -1376,6 +1509,17 @@ namespace LivingWorldNpcs
         /// （壳无空判/无守卫/无组合，只有可见性差异，属多余包装）。脑内部调用不受影响。</summary>
         internal void ClearAllActions(bool lockPlace = true)
         {
+            if (IsBound || IsStatusHeld)
+            {
+                _performance?.Finish("special-state", false);
+                if (_storyInterceptAction != null)
+                {
+                    var cancelled = _storyInterceptAction;
+                    cancelled.NotifyStoryCancelled();
+                    StoryInterceptEnded(cancelled);
+                }
+                // 下方原有守卫仍拒绝清理身体/新状态的占位，只撤销旧演出与拦问元数据。
+            }
             // 🔴 **被捆的人不接受"清队列"**（钩索「勾人」TODO 2，2026-10-09）：捆缚占位只能由
             //    <see cref="GrappleBind"/> 的放人路径解除 —— 那条路先把 `IsBound` 置 false 再调本方法。
             //    不挡的话，**任何一条**外部 ClearAllActions 都会把躺着的人放走：
@@ -1400,7 +1544,17 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
 
             if (_currentAction != null) _currentAction.OnEnd(Owner);
+            // 排队尚未 OnStart 的动作没有 OnEnd：分别撤销租约和拦问回执，不能悬空。
+            _performance?.Finish("queue-cleared");
+            if (_storyInterceptAction != null)
+            {
+                var cancelled = _storyInterceptAction;
+                cancelled.NotifyStoryCancelled();
+                StoryInterceptEnded(cancelled);
+            }
             _currentAction = null;
+            foreach (var queuedDuel in _actionQueue.OfType<FightEnemyAction>().ToArray())
+                queuedDuel.NotifyQueuedDuelCancelled();
             _actionQueue.Clear();
 
             if (hadActions && lockPlace)
@@ -1536,6 +1690,18 @@ namespace LivingWorldNpcs
         /// <summary>Owner Agent 从 Mission 中删除时清理挂起状态。</summary>
         public void OnOwnerDeleted()
         {
+            _performance?.InvalidateManaged("owner-deleted");
+            if (_storyInterceptAction != null)
+            {
+                var cancelled = _storyInterceptAction;
+                cancelled.NotifyStoryCancelled();
+                StoryInterceptEnded(cancelled);
+            }
+            _currentAction = null;
+            foreach (var queuedDuel in _actionQueue.OfType<FightEnemyAction>().ToArray())
+                queuedDuel.NotifyQueuedDuelCancelled();
+            _actionQueue.Clear();
+            if (ConfrontingBrain == this) ConfrontingBrain = null;
             SuspendedAgentIndices.Remove(Owner.Index);
             // 🔴 被捆标记一并清掉（钩索「勾人」TODO 2，2026-10-09）：agent 已经没了，标记留着没意义，
             //    万一这个脑对象还被别处持有，也不该继续"拒收事件 / 拒清队列"。
@@ -2236,6 +2402,7 @@ namespace LivingWorldNpcs
         /// </summary>
         internal void StartL3Confrontation()
         {
+            if (IsPerforming || IsStoryIntercepting) return;
             Agent player = Agent.Main;
             if (player == null) return;
 
@@ -2284,6 +2451,14 @@ namespace LivingWorldNpcs
         }
         public void Tick(float dt)
         {
+            if (_storyInterceptAction != null)
+            {
+                _storyInterceptElapsed += dt;
+                if (_storyInterceptElapsed > 30f && !ConversationEntryPatch.IsConversationActive())
+                    ClearAllActions(lockPlace: false);
+            }
+            if (IsPerforming && Settings.Instance.IsInteractionDisabled())
+                _performance.Finish("mode-disabled");
             // 🔴 距离分档降频（2026-09-03 用户裁定：20m 内每帧 / 20-100m 每 0.1s / 100m+ 每 0.25s；
             // ReceiveEvent 同步直发不经本方法，事件响应零延迟）。拦截写在本方法内——
             // 分档判定全用本脑字段（IsInCombat/IsStunned/CurrentIntent 直读，无需经

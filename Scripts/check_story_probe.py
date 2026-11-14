@@ -120,8 +120,64 @@ def check_json(module, problems):
                             continue
                         problems.append(f"{name}:{nid}: unknown Requires term '{term}'")
 
+        # 🔴 规则七：同一个 Once 闸门不许被同一个节点下的多条不同选项共用
+        # 🔴 规则十二：所有节点必须从合法入口可达（禁止孤立死节点）
+        # 🔴 规则十三：禁止自指循环（NextNode == node.Id）与中途跳回 *_intro
+        # 🔴 规则十四：付费动作（pay / pay_to / bribe / money_deal / offer_money）必须有 gold>= 条件
+        valid_roots = set()
+        if data.get("EntryNode"):
+            valid_roots.add(data["EntryNode"])
+        for nid in idset:
+            if (nid.endswith("_intro") or nid.endswith("_hub") or nid.endswith("_turnin")
+                    or nid.endswith("_chat") or nid.startswith("event_") and nid.endswith("_join")
+                    or nid in ("blocker_first", "blocker_open")):
+                valid_roots.add(nid)
+
+        reachable = set(valid_roots)
+        queue = list(valid_roots)
+        by_id = {n.get("Id"): n for n in nodes}
+        while queue:
+            cur = queue.pop(0)
+            cnode = by_id.get(cur)
+            if not cnode:
+                continue
+            for tr2 in (cnode.get("Transitions") or []):
+                for target in (tr2.get("NextNodeOnSuccess"), tr2.get("NextNodeOnFail")):
+                    if target and target in idset and target not in reachable:
+                        reachable.add(target)
+                        queue.append(target)
+
+        for nid in ids:
+            if nid not in reachable:
+                problems.append(f"dialogue[{name}]: 孤立不可达节点 '{nid}'（没有任何入口或选项能走到它）")
+
+        for nd in nodes:
+            nid = nd.get("Id")
+            once_seen = {}
+            for tr2 in (nd.get("Transitions") or []):
+                pk = tr2.get("PlayerKey") or ""
+                once_tag = tr2.get("Once")
+                if once_tag:
+                    if once_tag in once_seen and once_seen[once_tag] != pk:
+                        problems.append(f"dialogue[{name}:{nid}]: 两条选项共用同一个 Once='{once_tag}'（点一条另一条也会消失）")
+                    once_seen[once_tag] = pk
+
+                for target in (tr2.get("NextNodeOnSuccess"), tr2.get("NextNodeOnFail")):
+                    if not target:
+                        continue
+                    if target == nid:
+                        problems.append(f"dialogue[{name}:{nid}]: 选项 '{pk}' 自指循环指向自身 '{nid}'")
+                    if target.endswith("_intro") and not (nid.startswith("event_") and nid.endswith("_join")):
+                        problems.append(f"dialogue[{name}:{nid}]: 选项 '{pk}' 中途跳回开场节点 '{target}'（应跳 *_hub）")
+
+                act = tr2.get("Action") or ""
+                req = tr2.get("Requires") or ""
+                if any(v in act for v in ("PROBE:pay", "PROBE:bribe", "PROBE:money_deal", "PROBE:offer_money")):
+                    if "gold>=" not in req:
+                        problems.append(f"dialogue[{name}:{nid}]: 付费选项 '{pk}' (Action={act}) 缺少 'gold>=' 显示条件")
+
         # 🔴 同一个回答节点不许被"两种不同问法"指向 —— 否则第二次问会得到一模一样的回答（NPC 像失忆）
-        #    菜单节点（出度≥5）除外：那里本来就是"回头再说"的汇总口。
+        #    菜单节点（出度≥5 或 *_hub）除外：那里本来就是"回头再说"的汇总口。
         seg = []
         for nd in data.get("Nodes", []):
             for tr2 in nd.get("Transitions", []):
@@ -155,7 +211,7 @@ def check_json(module, problems):
 STAGE_ATOMS = {"player_freeze", "player_release", "camera_cut", "camera_return",
                "prop_spawn", "actor_place", "actor_action", "actor_say", "wait"}
 STAGE_ANCHORS_BUILTIN = {"player", "gate", "gate_inner"}
-TUNING_SECTIONS = ("Ambient", "Events", "Skits", "Gate", "Greeting", "Crime", "Intro")
+TUNING_SECTIONS = ("Ambient", "Events", "Skits", "Gate", "Greeting", "Crime", "Intro", "Performance")
 
 
 def load_data_json(path):
@@ -285,6 +341,34 @@ def check_tuning(module, problems):
                 mate = key[:-len("MinSec")] + "MaxSec"
                 if mate in obj and obj[mate] < obj[key]:
                     problems.append("tuning: %s.%s > %s" % (sec, key, mate))
+
+    import math
+    for key in ("ActorReadyTimeoutSec", "DebugActorDurationSec", "AmbientPoseDurationSec"):
+        value = (data.get("Performance") or {}).get(key)
+        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+            problems.append("tuning: Performance.%s must be finite and positive" % key)
+    gate = data.get("Gate") or {}
+    for key in ("HalfWidthMeters", "ClimbHalfWidthMeters", "InsideMeters", "OutsideMeters",
+                "PushBackMeters", "GroundToleranceMeters", "LandingToleranceMeters", "LandingVerticalSpeedMeters",
+                "LandingStableSec", "CrossingMaxStepMeters",
+                "PastMeters", "GoalRadiusMeters", "ClimbHeightMeters"):
+        value = gate.get(key)
+        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+            problems.append("tuning: Gate.%s must be finite and positive" % key)
+    layouts = gate.get("Layouts")
+    if not isinstance(layouts, dict) or not layouts:
+        problems.append("tuning: Gate.Layouts must define a verified physical gate")
+    else:
+        for scene_name, layout in layouts.items():
+            valid = isinstance(layout, dict)
+            for key in ("Gate", "Outside"):
+                point = layout.get(key) if valid else None
+                if (not isinstance(point, list) or len(point) != 3
+                    or any(type(x) not in (int, float) or not math.isfinite(x) for x in point)):
+                    problems.append("tuning: Gate.Layouts.%s.%s must be three finite coordinates" % (scene_name, key))
+                    valid = False
+            if valid and sum((layout["Gate"][i] - layout["Outside"][i]) ** 2 for i in (0, 1)) <= 0:
+                problems.append("tuning: Gate.Layouts.%s has no outside-to-inside direction" % scene_name)
 
 
 def check_stage(module, problems):
@@ -632,13 +716,15 @@ def check_references(module, problems, cast, stage, scene=None):
 # 按钮/目标/错误提示这类 UI 串不在此列。
 # ══════════════════════════════════════════════════════════════════
 
-SPOKEN_CN = re.compile(r'^（[^，（）]+，[^，（）]+）：\S')
+SPOKEN_CN = re.compile(r'^（[^，（）A-Za-z]+，[^，（）A-Za-z]+）：\S')
 SPOKEN_EN = re.compile(r'^\([^,()]+, [^,()]+\): \S')
+LEAKED_ID_CN = re.compile(r'\b(debtor|thug|blocker|pawnbroker|widow|outlaw|rival|Player|Narration|Narrator)\b')
 
 
 def check_speech_format(module, problems, en, cn):
     files = sorted(glob.glob(os.path.join(module, "ModuleData", "DesignData", "Dialogues", "story_probe_*.json")))
     keys = set()
+    pkeys = set()
     for path in files:
         try:
             data = json.load(io.open(path, encoding="utf-8"))
@@ -647,6 +733,9 @@ def check_speech_format(module, problems, en, cn):
         for node in data.get("Nodes", []):
             if node.get("NpcKey"):
                 keys.add(node["NpcKey"])
+            for tr in node.get("Transitions", []):
+                if tr.get("PlayerKey"):
+                    pkeys.add(tr["PlayerKey"])
 
     bad = 0
     for key in sorted(keys):
@@ -662,6 +751,15 @@ def check_speech_format(module, problems, en, cn):
                                     % (label, key, line[:48]))
                     bad += 1
                     break
+                if label == "CN" and LEAKED_ID_CN.search(line):
+                    problems.append("speech[CN]: %s 含未本地化英文代号 -> %s" % (key, line[:48]))
+                    bad += 1
+                    break
+    for pk in sorted(pkeys):
+        ctext = cn.get(pk, "")
+        if ctext and LEAKED_ID_CN.search(ctext):
+            problems.append("option[CN]: %s 含未本地化英文代号 -> %s" % (pk, ctext[:48]))
+            bad += 1
     return bad
 
 # ══════════════════════════════════════════════════════════════════
@@ -696,27 +794,28 @@ def check_dialogue_rules(module, problems, en, cn):
                 problems.append("dialogue[%s:%s]: 一屏 %d 个选项（上限 4，多的用显示条件分批）"
                                 % (name, node.get("Id"), n_opts))
             if len(lines) > 2:
-                # ⚠️ 2026-11-13：规则的**目标**是 ≤2 行，但那要靠重写脚本（见 story-dialogue-writing 技能），
-                #    不是机械切行。重写完成前这里只统计、不算失败。
                 TODO_LONG_NODES.append("%s:%s=%d行" % (name, node.get("Id"), len(lines)))
+                problems.append("dialogue[%s:%s]: 节点台词 %d 行（上限 2 行，见规则一）"
+                                % (name, node.get("Id"), len(lines)))
                 bad_lines += 1
             for tr in node.get("Transitions", []):
                 pk = tr.get("PlayerKey") or ""
                 label = cn.get(pk, "")
                 label = re.sub(r"^\[[^\]]*\]\s*", "", label).strip()
 
-            # 🔴 选项不能指向"菜单节点"（出度≥5）—— 指向菜单 = 对方没回应你，只会说"还有事？"
-            nxt = tr.get("NextNodeOnSuccess")
-            if nxt:
-                tgt = next((x for x in data.get("Nodes", []) if x.get("Id") == nxt), None)
-                # 只有"问句"弹回菜单才算错；「别的先不问了」这类本来就是收尾
-                if tgt is not None and len(tgt.get("Transitions") or []) >= 5 and "？" in label:
-                    problems.append("dialogue[%s:%s]: 选项 '%s' 指向菜单节点 '%s'（对方不会回应你）"
-                                    % (name, node.get("Id"), label[:20], nxt))
-                    bad_opts += 1
-                if label and FAKE_OPTION.match(label):
-                    problems.append("dialogue[%s:%s]: 假选项 '%s'（玩家没有任何选择）" % (name, node.get("Id"), label))
-                    bad_opts += 1
+                # 🔴 选项不能指向"菜单节点"（出度≥5 或 *_hub）—— 指向菜单 = 对方没回应你，只会说"还有事？"
+                nxt = tr.get("NextNodeOnSuccess")
+                if nxt:
+                    tgt = next((x for x in data.get("Nodes", []) if x.get("Id") == nxt), None)
+                    # 只有"问句"弹回菜单才算错；「别的先不问了」这类本来就是收尾
+                    is_menu = tgt is not None and (len(tgt.get("Transitions") or []) >= 5 or str(nxt).endswith("_hub"))
+                    if is_menu and ("？" in label or "?" in label):
+                        problems.append("dialogue[%s:%s]: 问句选项 '%s' 指向菜单节点 '%s'（对方不会回应你）"
+                                        % (name, node.get("Id"), label[:20], nxt))
+                        bad_opts += 1
+                    if label and FAKE_OPTION.match(label):
+                        problems.append("dialogue[%s:%s]: 假选项 '%s'（玩家没有任何选择）" % (name, node.get("Id"), label))
+                        bad_opts += 1
     return bad_lines, bad_opts
 
 def selftest():
@@ -747,9 +846,179 @@ def selftest():
             print("SELFTEST FAILED: no structural problems detected")
             return 1
         print("SELFTEST OK: detected missing key(s) " + ", ".join(sorted(missing)[:3]))
+        src = os.path.join(DEFAULT_MODULE, "ExampleModVS", "ExampleMod", "ExampleMod")
+        negative_cases = [
+            ("Combat/AttackTriggerMissionLogic.cs", "blow.InflictedDamage > 0", "false", "actual opponent damaging hits"),
+            ("Interaction/StoryProbe/StoryProbeBehavior.cs", 'GetLocationWithId("prison")', 'GetLocationWithId("center")', "real prison transition"),
+            ("Combat/AttackTriggerMissionLogic.cs", "&& affectedAgent.Health < 1f)", "&& true)", "real lethal health"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "RestoreFirstGuardEnhancement();", "/* restore removed */", "restored before second entry"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", '"event_story_intercept"', '"old_direct_talk"', "guard must question"),
+            ("AI/AgentBrain.cs", '_performance?.Finish("queue-cleared")', '/* queued lease cancellation removed */', "cancel queued/deleted ownership"),
+            ("AI/AgentAIController.cs", "IsInteractionDisabled() && !cleanup", "IsInteractionDisabled()", "cleanup events must survive"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "_climbSucceeded = roll.Success;", "_climbSucceeded = true;", "latched success before landing"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "player.SpawnEquipment[slot].Item == expected", "true", "actual wearing and shared sight"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "_crossedGate", "_fakeCrossing", "real bounded outside-to-inside crossing"),
+            ("Interaction/StoryProbe/StoryStageRunner.cs", "_props.ContainsKey(b.Id)", "false", "deduplicate replayed props"),
+        ]
+        for relative, original, replacement, expected in negative_cases:
+            with io.open(os.path.join(src, *relative.split("/")), encoding="utf-8") as stream:
+                current = stream.read()
+            if original not in current:
+                print("SELFTEST FAILED: source mutation anchor missing: " + original)
+                return 1
+            failures = []
+            check_flow_contract(DEFAULT_MODULE, failures, {relative: current.replace(original, replacement)})
+            if not any(expected in failure for failure in failures):
+                print("SELFTEST FAILED: flow regression not detected: " + expected)
+                return 1
+        print("SELFTEST OK: caught fake-hit and fake-prison source regressions")
         return 0
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def check_flow_contract(module, problems, overrides=None):
+    """源码接线防退回旧计时倒地/地图换装；不代替 C# 编译或实机。"""
+    src = os.path.join(module, "ExampleModVS", "ExampleMod", "ExampleMod")
+    def source(relative):
+        if overrides is not None and relative in overrides:
+            return overrides[relative]
+        path = os.path.join(src, *relative.split("/"))
+        with io.open(path, encoding="utf-8") as stream:
+            return stream.read()
+    def member(text, name):
+        match = re.search(r"(?m)^        (?:public|private|protected|internal) [^\n]*\b" + re.escape(name) + r"\s*\(", text)
+        if not match:
+            return ""
+        tail = text[match.end():]
+        end = re.search(r"(?m)^        (?:public|private|protected|internal) ", tail)
+        return text[match.start():match.end() + (end.start() if end else len(tail))]
+    host = source("Interaction/StoryProbe/StoryProbeMissionBehavior.cs")
+    campaign = source("Interaction/StoryProbe/StoryProbeBehavior.cs")
+    combat = source("Combat/AttackTriggerMissionLogic.cs")
+    helper = source("Core/AgentControlHelper.cs")
+    app = source("Core/MySubModule.cs")
+    brain = source("AI/AgentBrain.cs")
+    atomic = source("AI/Actions/AtomicAction.cs")
+    controller = source("AI/AgentAIController.cs")
+    stage = source("Interaction/StoryProbe/StoryStageRunner.cs")
+    street = source("Interaction/StoryProbe/StreetLifeDirector.cs")
+    dialogue = source("Interaction/StoryProbe/StoryProbeDialogue.cs")
+    state = source("Interaction/StoryProbe/StoryProbeState.cs")
+    defs = source("Interaction/StoryProbe/StoryProbeDefs.cs")
+    request = member(host, "PlayForcedDefeat")
+    hit = re.sub(r"\s+", "", member(combat, "OnAgentHit"))
+    checks = [
+        (bool(request) and "Schedule(" not in request and "SetPose(" not in request,
+         "hard entry must only request combat, not schedule defeat"),
+        ('"duel"' in member(host, "StartFirstGuardFight") and "OnFirstDuelResolved" in member(host, "StartFirstGuardFight"),
+         "first guard must use shared duel and outcome callback"),
+        ("attackerAgent==opponent" in hit and "blow.InflictedDamage>0" in hit
+         and "&&affectedAgent.Health<1f" in hit and "_duelDamageHits" not in combat,
+         "tutorial defeat requires actual opponent damaging hits reaching real lethal health"),
+        ("PlayForcedDefeat(" not in member(host, "TickFirstAttempt")
+         and '"event_story_intercept"' in member(host, "TickFirstAttempt")
+          and 'StartStoryConversation(ready, "blocker_first")' in member(host, "TickFirstAttempt")
+          and "EnqueueAction(" not in host
+         and "_firstGuardQuestioned" in request,
+         "guard must question before explicit hard-entry choice, never fight merely for crossing"),
+        ("BoostFirstGuardSkills" in member(host, "SetupFirstAttempt")
+         and member(host, "SetupFirstAttempt").find("BoostFirstGuardSkills") < member(host, "SetupFirstAttempt").find("SpawnNpc(")
+         and "CancelRuntime" in member(host, "OnEndMissionInternal")
+          and "RestoreFirstGuardEnhancement" in member(host, "CancelRuntime")
+         and "RestoreFirstGuardSkills" in member(host, "SpawnNpc"),
+         "first guard strength must be real and restored before second entry"),
+        ("ApplyFirstArrestBounty" not in member(host, "SetupFirstAttempt")
+         and "ApplyFirstArrestBounty" in member(host, "OnFirstDuelResolved"),
+         "entry must not manufacture crime and bypass guard questioning"),
+        ('GetAllUsablePointsWithTag("sp_prisoner")' in member(host, "TickJailScene")
+         and "AgentControlHelper.PlaceAtStandingPoint(" in member(host, "TickJailScene"),
+         "jail must place player at native prisoner standing point"),
+        ("point.GameEntity.GetGlobalFrame()" in member(helper, "PlaceAtStandingPoint"),
+         "jail placement must use point frame, not current player corridor frame"),
+        ("TickPendingTransition(dt)" in app and 'GetLocationWithId("prison")' in campaign,
+         "real prison transition must tick outside paused Campaign.Tick"),
+        ("Mission.Current != null && StoryProbeState.EnterViaOption" not in campaign,
+         "mission opening receipt must not depend on consumed entry flag"),
+        ("d.Stripped && (d.ConfiscationComplete || d.EscrowVersion == 0)" in member(host, "ConfiscatePlayerBelongings")
+          and "pending.Contains(i)" in member(host, "ConfiscateEquipment"),
+         "retries and disguise must not confiscate belongings again"),
+        ("ReplaceEquippedItem" in member(host, "StripPlayer") and "SavedBattleModifiers" in host,
+         "disguise and escrow must preserve replaced equipment and saved modifiers"),
+        ("HasDuelPair" in member(host, "TickFirstAttempt") and "IsRoped" in member(host, "StartFirstGuardFight"),
+         "rejected combat must allow retry without timer defeat"),
+        ('"event_story_intercept"' in member(brain, "ReceiveEvent") and "ConfrontingBrain" in member(brain, "StartStoryIntercept")
+         and "FollowAgentAction" in member(brain, "StartStoryIntercept"),
+         "story interrogation must reuse Brain follow and conversation ownership"),
+        ("public sealed class PerformanceAction : IAtomicAction" in atomic
+         and "Started && !Paused && !_ended" in atomic and "_brain.OwnsPerformance(this)" in atomic
+         and '_performance?.Finish("queue-cleared")' in member(brain, "ClearAllActions")
+         and "InvalidateManaged" in member(brain, "OnOwnerDeleted"),
+         "performance must confirm start and cancel queued/deleted ownership"),
+        ("PerformanceAction.TryAcquire" in stage and "CanControl" in member(stage, "Tick")
+         and "EnsureStageActor" in stage and "SpawnOrPlaceActor" not in stage
+         and "_props.ContainsKey(b.Id)" in stage and "AgentBrain.IsHeldByStatus(player)" in stage
+         and "DisposeManaged" in member(host, "OnRemoveBehavior"),
+         "stage must acquire actors before body writes and deduplicate replayed props"),
+        ("PerformanceAction.TryAcquire" in street and "CanControl" in street and "lease.Pause(true)" in street
+         and "StopAll" in member(host, "CancelRuntime"),
+         "street performance must release paired actors and pause for conversations"),
+        ('"event_performance_end"' in member(controller, "SendEventToAgent")
+         and "IsInteractionDisabled() && !cleanup" in member(controller, "SendEventToAgent"),
+         "cleanup events must survive interaction mode switches"),
+        ("Layouts.TryGetValue" in member(host, "ResolveAnchors") and "no guessed success" in member(host, "ResolveAnchors")
+         and "CrossingMaxStepMeters" in member(host, "TrackGateCrossing")
+         and "_crossedGate" in member(host, "TickSecondPhase"),
+         "gate passage requires verified geometry and real bounded outside-to-inside crossing"),
+        ("player.SpawnEquipment[slot].Item == expected" in member(host, "IsWearingStoryDisguise")
+         and "IsWearingStoryDisguise(true)" in dialogue and "CanAgentSeeTarget" in member(host, "IsBlockerWatching"),
+         "recognition requires actual wearing and shared sight"),
+        ("_crossingDoor" in member(host, "CheckHandsOnGate")
+         and "GrappleLogic.GetSession(player)?.IsPullingSelf" in member(host, "EnforceGateBarrier")
+         and "_climbSucceeded = roll.Success" in member(host, "EnforceGateBarrier")
+         and "_climbSucceeded && !_climbSeen && _climbCrossed" in member(host, "EnforceGateBarrier")
+         and "IsAtGateGround" in member(host, "EnforceGateBarrier")
+         and "V.GroundHeight" in member(host, "IsAtGateGround")
+         and "LandingVerticalSpeedMeters" in member(host, "IsAtGateGround")
+         and "LandingStableSec" in member(host, "IsAtGateGround"),
+         "sneak needs actual crossing; climb needs actual grapple and latched success before landing"),
+        ('"duel"' in member(host, "PumpStoryFights") and "OnStoryDuelResolved" in member(host, "PumpStoryFights")
+         and "RequestStoryFight(npcId)" in member(dialogue, "StartFight")
+         and "CombatManager.StartFight" not in member(dialogue, "StartFight")
+         and "loser != target" in member(host, "OnStoryDuelResolved"),
+         "all story duels must use shared outcome receipts instead of polling healed health"),
+        ("public static bool RestorePlayerBelongings" in host
+         and "PendingBattleRestoreSlots" in member(host, "RestorePlayerBelongings")
+         and "owed - Math.Max(0, hero.Gold - before)" in member(host, "RestorePlayerBelongings")
+         and member(host, "CompletePrologue").find("RestorePlayerBelongings()") < member(host, "CompletePrologue").find("StoryProbePhase.Done"),
+         "escrow must discharge remaining debts before completion, not fabricate full restoration"),
+        ("InvalidateRuntime" in member(campaign, "CancelPrologue")
+         and "CancellationPending" in member(campaign, "CancelPrologue")
+         and '"event_story_intercept_cancel"' in member(host, "CancelRuntime")
+         and '"event_stop_combat", ownedReceipt' in member(host, "CancelRuntime")
+         and "HasDuelReceipt" in member(brain, "ReceiveEvent")
+         and "NotifyQueuedDuelCancelled" in member(brain, "ClearAllActions")
+         and "IsRuntimeCurrent" in member(host, "Schedule"),
+         "cancel must invalidate delayed receipts and stop active story actions without deleting debt"),
+        ("TryPayMoney" in dialogue and "HasRewardReceipt" in dialogue and "RecordRewardReceipt" in dialogue
+         and "DebtCollected" in dialogue and "DebtRepaid" in dialogue
+         and "FailStoryActionConversation" in member(dialogue, "HandleAction")
+         and "IsQuestTurnedIn(currentNpc)" in member(dialogue, "Dispatch")
+         and "SingleRollResolver.Roll(chance, r.Roll)" in defs,
+         "payments and rewards require real receipts; reported dice must use shared resolver"),
+    ]
+    for ok, message in checks:
+        if not ok:
+            problems.append("flow contract: " + message)
+    import math
+    intro = (load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryProbeTuning.json")) or {}).get("Intro") or {}
+    for key in ("FirstGuardMinCombatSkill", "FirstGuardSkillAdvantage"):
+        value = intro.get(key)
+        if type(value) is not int or value < 0:
+            problems.append("flow tuning: " + key + " must be a nonnegative integer")
+    value = intro.get("FirstGuardHealthMultiplier")
+    if type(value) not in (int, float) or not math.isfinite(value) or value < 1:
+        problems.append("flow tuning: FirstGuardHealthMultiplier must be finite and >= 1")
 
 
 def main():
@@ -787,6 +1056,7 @@ def main():
     # （改了表忘了改对话 = 当面递钱时演的和实际做的对不上，静默错）
     cast_keys, cast = check_cast(module, problems)
     tuning_ok = check_tuning(module, problems)
+    check_flow_contract(module, problems)
     stage_beats = check_stage(module, problems)
 
     stage_data = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryStage.json")) or {}

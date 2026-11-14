@@ -10,6 +10,26 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_thug_opt_ask",
+          "Once": "thug_ask",
+          "Action": "PROBE:mark",
+          "ActionParam": "thug_ask",
+          "NextNodeOnSuccess": "thug_talk"
+        },
+        {
+          "PlayerKey": "LWN_story_thug_opt_money",
+          "Once": "thug_night",
+          "Action": "PROBE:mark",
+          "ActionParam": "thug_night",
+          "NextNodeOnSuccess": "thug_money"
+        },
+        {
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "thug",
+          "NextNodeOnSuccess": "thug_fight"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
@@ -20,12 +40,51 @@
       ]
     },
     {
+      "Id": "thug_hub",
+      "NpcKey": "LWN_story_thug_hub",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_thug_opt_ask",
+          "Once": "thug_ask",
+          "Action": "PROBE:mark",
+          "ActionParam": "thug_ask",
+          "NextNodeOnSuccess": "thug_talk"
+        },
+        {
+          "PlayerKey": "LWN_story_thug_opt_money",
+          "Once": "thug_night",
+          "Action": "PROBE:mark",
+          "ActionParam": "thug_night",
+          "NextNodeOnSuccess": "thug_money"
+        },
+        {
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "thug",
+          "NextNodeOnSuccess": "thug_fight"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_very_negative"
+      ]
+    },
+    {
       "Id": "thug_talk",
       "NpcKey": "LWN_story_thug_talk",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "thug",
+          "NextNodeOnSuccess": "thug_fight"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "thug_hub"
         }
       ],
       "NpcActions": [
@@ -38,12 +97,17 @@
       "NpcKey": "LWN_story_thug_money",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "thug",
+          "NextNodeOnSuccess": "thug_fight"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "thug_hub"
         }
       ],
       "NpcActions": [
-        "act_conversation_aggressive_trivial",
         "act_conversation_aggressive_trivial",
         "act_conversation_aggressive_trivial"
       ]
@@ -58,7 +122,7 @@
         }
       ],
       "NpcActions": [
-        "act_conversation_aggressive_trivial"
+        "act_conversation_aggressive_very_negative"
       ]
     }
   ]

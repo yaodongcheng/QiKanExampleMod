@@ -10,6 +10,13 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_butcher_opt_meat",
+          "Once": "ask_meat",
+          "Action": "PROBE:mark",
+          "ActionParam": "ask_meat",
+          "NextNodeOnSuccess": "butcher_ask_meat"
+        },
+        {
           "PlayerKey": "LWN_story_butcher_opt_past",
           "Once": "ask_past",
           "Action": "PROBE:mark",
@@ -24,10 +31,6 @@
           "NextNodeOnSuccess": "butcher_ask_sister"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
-        },
-        {
           "PlayerKey": "LWN_story_butcher_opt_deal",
           "Requires": "!quest_accepted,!quest_turned",
           "NextNodeOnSuccess": "butcher_deal"
@@ -39,8 +42,15 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_money",
-          "NextNodeOnSuccess": "butcher_money_disdain",
-          "Requires": "step>=1"
+          "Requires": "step>=1",
+          "Once": "butcher_money",
+          "Action": "PROBE:mark+offer_money",
+          "ActionParam": "butcher_money;",
+          "NextNodeOnSuccess": "butcher_money_disdain"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
@@ -53,6 +63,13 @@
       "NpcKey": "LWN_story_butcher_hub",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_butcher_opt_meat",
+          "Once": "ask_meat",
+          "Action": "PROBE:mark",
+          "ActionParam": "ask_meat",
+          "NextNodeOnSuccess": "butcher_ask_meat"
+        },
+        {
           "PlayerKey": "LWN_story_butcher_opt_past",
           "Once": "ask_past",
           "Action": "PROBE:mark",
@@ -67,10 +84,6 @@
           "NextNodeOnSuccess": "butcher_ask_sister"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
-        },
-        {
           "PlayerKey": "LWN_story_butcher_opt_deal",
           "Requires": "!quest_accepted,!quest_turned",
           "NextNodeOnSuccess": "butcher_deal"
@@ -82,11 +95,32 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_money",
-          "NextNodeOnSuccess": "butcher_money_disdain",
-          "Requires": "step>=1"
+          "Requires": "step>=1",
+          "Once": "butcher_money",
+          "Action": "PROBE:mark+offer_money",
+          "ActionParam": "butcher_money;",
+          "NextNodeOnSuccess": "butcher_money_disdain"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_ask_meat",
+      "NpcKey": "LWN_story_butcher_ask_meat",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
         "act_conversation_closed_trivial"
       ]
     },
@@ -96,12 +130,19 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_past_more",
+          "Once": "past_more",
+          "Action": "PROBE:mark",
+          "ActionParam": "past_more",
           "NextNodeOnSuccess": "butcher_ask_past_2"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
         }
       ],
       "NpcActions": [
         "act_conversation_closed_negative",
-        "act_conversation_closed_very_negative"
+        "act_conversation_closed_trivial"
       ]
     },
     {
@@ -109,12 +150,11 @@
       "NpcKey": "LWN_story_butcher_ask_past_2",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
         }
       ],
       "NpcActions": [
-        "act_conversation_closed_trivial",
         "act_conversation_closed_trivial",
         "act_conversation_closed_trivial"
       ]
@@ -124,13 +164,33 @@
       "NpcKey": "LWN_story_butcher_ask_sister",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_butcher_opt_sister2",
+          "Once": "sister_more",
+          "Action": "PROBE:mark",
+          "ActionParam": "sister_more",
+          "NextNodeOnSuccess": "butcher_ask_sister_2"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
         }
       ],
       "NpcActions": [
         "act_conversation_closed_trivial",
-        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_ask_sister_2",
+      "NpcKey": "LWN_story_butcher_ask_sister_2",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
         "act_conversation_closed_trivial"
       ]
     },
@@ -144,12 +204,17 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_why",
+          "Once": "butcher_why",
+          "Action": "PROBE:mark",
+          "ActionParam": "butcher_why",
           "NextNodeOnSuccess": "butcher_deal_why"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_refuse",
+          "NextNodeOnSuccess": "butcher_deal_refuse"
         }
       ],
       "NpcActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_very_negative",
         "act_conversation_closed_trivial",
         "act_conversation_closed_trivial"
       ]
@@ -159,20 +224,42 @@
       "NpcKey": "LWN_story_butcher_deal_why",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_opt_take_job",
+          "NextNodeOnSuccess": "butcher_quest_accept"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_deal_refuse",
+      "NpcKey": "LWN_story_butcher_deal_refuse",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
         }
       ],
       "NpcActions": [
         "act_conversation_closed_very_negative",
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_very_negative"
+        "act_conversation_closed_trivial"
       ]
     },
     {
       "Id": "butcher_quest_accept",
       "NpcKey": "LWN_story_butcher_quest_accept",
+      "EnterAction": "PROBE:accept_quest",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
@@ -180,11 +267,8 @@
       ],
       "NpcActions": [
         "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_negative"
-      ],
-      "EnterAction": "PROBE:accept_quest"
+        "act_conversation_closed_trivial"
+      ]
     },
     {
       "Id": "butcher_turnin",
@@ -206,13 +290,15 @@
       "EnterAction": "PROBE:turn_in",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial",
         "act_conversation_closed_trivial",
         "act_conversation_closed_trivial"
       ]
@@ -221,6 +307,35 @@
       "Id": "butcher_chat",
       "NpcKey": "LWN_story_butcher_chat",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_work",
+          "Once": "butcher_chat_2",
+          "Action": "PROBE:mark",
+          "ActionParam": "butcher_chat_2",
+          "NextNodeOnSuccess": "butcher_chat_2"
+        },
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "butcher_chat_2",
+      "NpcKey": "LWN_story_butcher_chat_2",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
@@ -244,7 +359,7 @@
         },
         {
           "PlayerKey": "LWN_story_event2_opt_ask",
-          "NextNodeOnSuccess": "butcher_intro"
+          "NextNodeOnSuccess": "event_2_ask"
         },
         {
           "PlayerKey": "LWN_story_event2_opt_walk",
@@ -253,37 +368,65 @@
       ],
       "NpcActions": [
         "act_conversation_aggressive_trivial",
-        "act_conversation_closed_very_negative",
-        "act_conversation_aggressive_trivial"
+        "act_conversation_closed_very_negative"
+      ]
+    },
+    {
+      "Id": "event_2_ask",
+      "NpcKey": "LWN_story_event2_ask",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_event2_opt_help",
+          "CheckType": "SkillCheck",
+          "CheckTag": "thug|force",
+          "NextNodeOnSuccess": "event_2_win",
+          "NextNodeOnFail": "event_2_lose"
+        },
+        {
+          "PlayerKey": "LWN_story_event2_opt_walk",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_closed_trivial"
       ]
     },
     {
       "Id": "event_2_win",
       "NpcKey": "LWN_story_event2_win",
+      "EnterAction": "PROBE:favour",
+      "EnterParam": "dockhands;-5",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "NextNodeOnSuccess": "butcher_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
-      "EnterAction": "PROBE:favour",
-      "EnterParam": "dockhands;5",
       "NpcActions": [
         "act_conversation_aggressive_negative",
-        "act_conversation_closed_very_negative"
+        "act_conversation_closed_trivial"
       ]
     },
     {
       "Id": "event_2_lose",
       "NpcKey": "LWN_story_event2_lose",
+      "EnterAction": "PROBE:hazard",
+      "EnterParam": "event2_lost",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "NextNodeOnSuccess": "butcher_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
-      "EnterAction": "PROBE:hazard",
-      "EnterParam": "event2_lost",
       "NpcActions": [
         "act_conversation_aggressive_trivial",
         "act_conversation_closed_trivial"
@@ -294,12 +437,34 @@
       "NpcKey": "LWN_story_event6_join",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_event6_opt_help",
+          "NextNodeOnSuccess": "event_6_helped"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
         "act_conversation_closed_trivial",
+        "act_conversation_closed_negative"
+      ]
+    },
+    {
+      "Id": "event_6_helped",
+      "NpcKey": "LWN_story_event6_helped",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "NextNodeOnSuccess": "butcher_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_negative",
         "act_conversation_closed_trivial"
       ]
     },
@@ -308,12 +473,15 @@
       "NpcKey": "LWN_story_butcher_money_disdain",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_butcher_opt_back",
+          "NextNodeOnSuccess": "butcher_hub"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
-        "act_conversation_closed_trivial",
         "act_conversation_closed_negative",
         "act_conversation_closed_trivial"
       ]

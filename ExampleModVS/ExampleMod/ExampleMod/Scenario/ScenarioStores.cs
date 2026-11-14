@@ -219,6 +219,9 @@ namespace LivingWorldNpcs
 #pragma warning restore CS0618
             AddClassDefinition(typeof(LivingWorldNpcs.CommissionQuest), 13);
             AddClassDefinition(typeof(LivingWorldNpcs.CommissionData), 14);
+            // 序章委托（2026-11-13）：Issue→Quest 管道复用，类型必须注册，否则存档时崩
+            AddClassDefinition(typeof(LivingWorldNpcs.PrologueIssue), 26);
+            AddClassDefinition(typeof(LivingWorldNpcs.PrologueQuest), 27);
             // 4. 自定义 PartyComponent（quest 护送/追击、报复部队、控制台事件）
             AddClassDefinition(typeof(LivingWorldNpcs.SafeLordPartyComponent), 16);
             AddClassDefinition(typeof(LivingWorldNpcs.CustomPartyComponent), 17);

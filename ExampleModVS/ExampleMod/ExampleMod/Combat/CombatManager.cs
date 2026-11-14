@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -320,7 +320,8 @@ namespace LivingWorldNpcs
         /// 1, 2, 3... : 自定义阵营（相同ID的Agent会自动成为队友，缓存复用）
         /// </param>
         /// <param name="factionIdB">同 factionIdA，给 agentB 用。</param>
-        public static void StartFight(Agent agentA, Agent agentB, int factionIdA = -1, int factionIdB = -1, bool Peace = false)
+        public static void StartFight(Agent agentA, Agent agentB, int factionIdA = -1, int factionIdB = -1, bool Peace = false,
+            bool protectInitiator = false, Action<Agent> onDuelResolved = null)
         {
 
             if (agentA == null || agentB == null || !AgentControlHelper.SafeIsActive(agentA) || !AgentControlHelper.SafeIsActive(agentB))
@@ -356,7 +357,15 @@ namespace LivingWorldNpcs
             // 旧 InitDuel 虚拟血量方案已废弃禁止使用。
             if (Peace)
             {
-                AttackTriggerMissionLogic.Instance?.RegisterDuel(agentA, agentB);
+                // 教学判负也是共享非致命仲裁的一种规则，不允许业务自己计时倒地/改队。
+                if (AttackTriggerMissionLogic.Instance == null)
+                {
+                    DebugLogger.Log("[CombatManager] nonlethal fight refused: arbiter missing");
+                    onDuelResolved?.Invoke(null);
+                    return;
+                }
+                AttackTriggerMissionLogic.Instance.RegisterDuel(agentA, agentB,
+                    protectInitiator ? agentB : null, onDuelResolved);
             }
 
             // 1. 缓存清理：如果场景更换，旧的Team引用失效，必须清空

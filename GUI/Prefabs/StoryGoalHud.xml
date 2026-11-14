@@ -1,0 +1,106 @@
+<Prefab>
+  <!-- 序章场景内的常驻任务卡（2026-11-13）。
+       形态：任务名（金色标题）→ 分隔线 → 目标行（+ 可选进度，右对齐）。
+       位置由 ModuleData/DesignData/StoryProbeTuning.json 的 ScreenGoal.Position 决定：
+       "top-right"（默认）显示右上一套，"top-left" 显示左上一套；两套内容相同，只镜像定位。
+       纯显示层：整棵 DoNotAcceptEvents，不吃任何输入。 -->
+  <Window Id="LWN_StoryGoal">
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+
+        <!-- ═══ 右上 ═══ -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
+                SuggestedWidth="@CardWidth"
+                HorizontalAlignment="Right" VerticalAlignment="Top"
+                MarginRight="@SideMargin" MarginTop="@TopMargin"
+                IsVisible="@ShowRight" DoNotAcceptEvents="true">
+          <Children>
+            <!-- 外描边（1px 金线） -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                    Sprite="BlankWhiteSquare_9" Color="#7A5A2AB8" DoNotAcceptEvents="true">
+              <Children>
+                <!-- 卡面 -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                        MarginLeft="1" MarginRight="1" MarginTop="1" MarginBottom="1"
+                        Sprite="BlankWhiteSquare_9" Color="#0C0B09E8" DoNotAcceptEvents="true">
+                  <Children>
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                               MarginLeft="14" MarginRight="14" MarginTop="9" MarginBottom="11"
+                               StackLayout.LayoutMethod="VerticalBottomToTop" DoNotAcceptEvents="true">
+                      <Children>
+                        <!-- 任务名 -->
+                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                        Text="@Title" Brush="MyBrush_18_White"
+                                        Brush.FontSize="18" Brush.FontColor="@TitleColor"
+                                        Brush.TextHorizontalAlignment="Left" DoNotAcceptEvents="true" />
+                        <!-- 分隔线 -->
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="1"
+                                MarginTop="6" MarginBottom="7"
+                                Sprite="BlankWhiteSquare_9" Color="#7A5A2A90" DoNotAcceptEvents="true" />
+                        <!-- 目标行 -->
+                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                        Text="@Objective" Brush="MyBrush_18_White"
+                                        Brush.FontSize="15" Brush.FontColor="#E8E2D0FF"
+                                        Brush.TextHorizontalAlignment="Left" DoNotAcceptEvents="true" />
+                        <!-- 进度（可空，例如 2/4） -->
+                        <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        HorizontalAlignment="Right" MarginTop="4"
+                                        Text="@Progress" Brush="MyBrush_18_White"
+                                        Brush.FontSize="14" Brush.FontColor="@ProgressColor"
+                                        IsVisible="@ShowProgress" DoNotAcceptEvents="true" />
+                      </Children>
+                    </ListPanel>
+                  </Children>
+                </Widget>
+              </Children>
+            </Widget>
+          </Children>
+        </Widget>
+
+        <!-- ═══ 左上（同结构，镜像定位） ═══ -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
+                SuggestedWidth="@CardWidth"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                MarginLeft="@SideMargin" MarginTop="@TopMargin"
+                IsVisible="@ShowLeft" DoNotAcceptEvents="true">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                    Sprite="BlankWhiteSquare_9" Color="#7A5A2AB8" DoNotAcceptEvents="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                        MarginLeft="1" MarginRight="1" MarginTop="1" MarginBottom="1"
+                        Sprite="BlankWhiteSquare_9" Color="#0C0B09E8" DoNotAcceptEvents="true">
+                  <Children>
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                               MarginLeft="14" MarginRight="14" MarginTop="9" MarginBottom="11"
+                               StackLayout.LayoutMethod="VerticalBottomToTop" DoNotAcceptEvents="true">
+                      <Children>
+                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                        Text="@Title" Brush="MyBrush_18_White"
+                                        Brush.FontSize="18" Brush.FontColor="@TitleColor"
+                                        Brush.TextHorizontalAlignment="Left" DoNotAcceptEvents="true" />
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="1"
+                                MarginTop="6" MarginBottom="7"
+                                Sprite="BlankWhiteSquare_9" Color="#7A5A2A90" DoNotAcceptEvents="true" />
+                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                        Text="@Objective" Brush="MyBrush_18_White"
+                                        Brush.FontSize="15" Brush.FontColor="#E8E2D0FF"
+                                        Brush.TextHorizontalAlignment="Left" DoNotAcceptEvents="true" />
+                        <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        HorizontalAlignment="Right" MarginTop="4"
+                                        Text="@Progress" Brush="MyBrush_18_White"
+                                        Brush.FontSize="14" Brush.FontColor="@ProgressColor"
+                                        IsVisible="@ShowProgress" DoNotAcceptEvents="true" />
+                      </Children>
+                    </ListPanel>
+                  </Children>
+                </Widget>
+              </Children>
+            </Widget>
+          </Children>
+        </Widget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

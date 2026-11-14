@@ -349,6 +349,15 @@ public static bool IsBehindSpotValid(Agent target, Vec3 spot);       // 防抖�
 
 ---
 
+## 原版站点出生、场景换衣与教学切磋（2026-11-13）
+
+- `AgentControlHelper.PlaceAtStandingPoint(agent, point)`：只用空闲有效站点的全局位置；检查地面、占用和非有限坐标，不启动会锁速度的走位/交互。实际入牢可直接复用，不用入口走廊当出生点。
+- `AgentControlHelper.RefreshSpawnEquipment(agent, equipment)`：同步场景人物的穿着，不是只改下次出生的 Hero 装备。
+- `AgentControlHelper.ReplaceEquippedItem(hero, equipment, slot, next)`：换下的非空装备回本人行囊，再换槽位；不覆盖删除后来获得的物品。业务层不要裸加行囊数量。
+- `duel` 事件可带 `protectInitiator`（bool，默认 false）和 `Action<Agent>` 回执，仍走 `FightEnemyAction → CombatManager.StartFight(Peace: true) → RegisterDuel`。普通切磋双方按实际血量判胜负；首遇可保护守卫，但玩家仍须被其真实伤害打到原版致命门槛。命中计数判败已撤掉，不能用固定两刀代替实际败退。
+- 伤害回调只保命，致命门槛按原版 `< 1f`，不能在里面改队、传送或结束场景。结果回执等下一次正常 tick 完整停战后才发；`null` 是取消，不是败退。
+- `HasDuelPair(a, b)` 在收场期间仍匹配引用；`CancelDuel(a, b)` 只投下一 tick 收场，不在动作 `OnEnd` 内重入清同一动作队列。纯排队动作被直接清空没有 `OnEnd`，调用方需等待登记后重试，不能用超时虚构落败。
+
 ## 个体战斗统一入口 — `AgentBrain.StartCombatAgainst(target)`
 
 **所有"对指定 Agent 开战"的路径走同一入口**（2026-08-09 提取），禁止各自复制 DeferredCombat 分支代码。事件分支与直调同源：
@@ -1183,3 +1192,20 @@ C# 只填上下文（`BindAnimContext.BeingPulled/BeingDragged`）+ 形态切换
 `Core/AgentControlHelper.cs`（`HoldInPlace` / `SuspendNavigator` / `ResumeNavigator`） ·
 `CampaignMode/Tools/GrappleCommands.cs`（`bind body` / `bind brain`）。
 **工程记录**：`plans/钩索-实施计划.md` §二十四。
+
+## 演出演员占位与剧情拦问（2026-11-14，源码接入，待编译/实机验证）
+
+**位置**：`AI/Actions/AtomicAction.cs` 的 `PerformanceAction`；事件入口在 `AI/AgentBrain.cs`。
+
+- 演出是 Brain 的专用 `IAtomicAction` 占位，不把剧情台本装进动作库，不冒充击晕/捆缚。
+- `PerformanceAction.TryAcquire(Agent, string ownerToken, Action<string> onStopped = null)`：只通过 `event_performance_begin` 申请；返回 null 表示拒绝，返回动作仍可能排队，必须等 `CanControl == true` 才能摆位、播姿态和台词。
+- `Started / Paused / Ended / CanControl / OwnerToken` 为只读状态；`brain.IsPerforming` 包含排队/暂停中的租约，不能与 `IsInStayMode` 混为一谈。
+- `lease.Pause(bool)` / `lease.Release(string reason = "finished")` 分别投递 `event_performance_pause` / `event_performance_end`，参数持 ownerToken；旧结束消息不会清掉新演出。
+- 起演仅接受空闲或普通 Stay；战斗、命令执行、拦问、击晕、捆缚、特殊倒地均拒绝。排队时不冻结身体，`OnStart` 才接管；暂停归还身体，动作仍占位但不写姿态。
+- 被攻击、捆缚、击晕、进入对话会结束/暂停演出，并继续进入既有管线，不做 Bound 式全事件拒收。回执只登记结束原因，禁止在 `OnEnd` 回调里反向清同一 Brain 队列。
+- 清队列显式撤销未开始租约；`OnOwnerDeleted` / `lease.InvalidateManaged()` 只失效托管状态，不碰已销毁 native 身体。场景宿主须在 Mission 尚存活时先 Stop，OnRemove 再 DisposeManaged。
+- 舞台与市井事件共同使用该入口；多人起演须整组申请并等每人 CanControl，拒绝时撤销整组。实体布景按 Id 归场景，正常演出 Stop 不删除市场布局。
+
+**剧情拦问**：投递 `event_story_intercept` 参数 `(Agent player, string entry, Action<Agent> onReady)`；复用 Follow → LookAt → AlertForceConversationAction 的队列与 `ConfrontingBrain` 全局锁，剧情委托替代犯罪 trigger，不调用 BecomeAlarmed 自动战斗。回执为到位 Owner，拒绝/排队取消/未到位为 null，至多一次；调用者闭包负责以 entry 打开原版对话，并检查开窗是否成功。`event_story_intercept_cancel` 只清该 Brain 当前持有的剧情拦问链；`brain.IsStoryIntercepting` 可供宿主防重入。外部仍禁止调用私有 EnqueueAction。
+
+**按回执撤销本方切磋**：`event_stop_combat` 可选参数为实际发送 duel 时保存的同一 `Action<Agent>` 实例。Brain 通过 `FightEnemyAction.HasDuelReceipt(expected)` 比较对象身份；当前/排队动作均不匹配时忽略，匹配才进入既有停战分支。无参数保持旧停战语义，有参数却传 null 不降级为无条件停战。未开始的 duel 从队列移除时 `NotifyQueuedDuelCancelled()` 只通知 null 一次，不调用会动其他战斗身体的 `OnEnd`。

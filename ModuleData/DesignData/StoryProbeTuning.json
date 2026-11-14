@@ -37,10 +37,31 @@
     "MaxDurationSec": 20.0
   },
 
+  "Performance": {
+    "ActorReadyTimeoutSec": 3.0,
+    "DebugActorDurationSec": 3.0,
+    "AmbientPoseDurationSec": 3.0
+  },
   "Gate": {
-    "_comment": "城门这道关的几何",
+    "_comment": "固定门区来自 SandBoxCore empire_town_m 源场景：主门约428/422，门外玩家站点463/421。未知场景不猜成功；不同城门需补核实过的Layouts。",
+    "Layouts": {
+      "empire_town_m": {
+        "Gate": [428.0, 422.2, 72.962],
+        "Outside": [463.453, 421.337, 69.35]
+      }
+    },
+    "HalfWidthMeters": 3.0,
+    "ClimbHalfWidthMeters": 8.0,
+    "InsideMeters": 8.0,
+    "OutsideMeters": 3.0,
+    "PushBackMeters": 2.5,
+    "GroundToleranceMeters": 1.5,
+    "LandingToleranceMeters": 0.15,
+    "LandingVerticalSpeedMeters": 0.2,
+    "LandingStableSec": 0.12,
+    "CrossingMaxStepMeters": 6.0,
     "PastMeters": 1.0,
-    "GoalRadiusMeters": 8.0,
+    "GoalRadiusMeters": 3.0,
     "ClimbHeightMeters": 2.0,
     "PushBackCooldownSec": 1.2,
     "GuardSpawnRadiusMeters": 60.0,
@@ -48,7 +69,7 @@
   },
 
   "Crime": {
-    "_comment": "通缉值（进场景就挂，让遮面/冒充那几条路有意义）",
+    "_comment": "首次硬闯实际败退后登记拘押缘由，让第二次遮面有意义；不在进场时先挂罪抢掉正常质问", 
     "SmallBountyAtEntry": 15.0,
     "RecognizedExtra": 10.0
   },
@@ -62,7 +83,23 @@
   },
 
   "Intro": {
-    "_comment": "第一次进场的强制失败演出",
-    "ForcedDefeatHoldSec": 4.2
+    "_comment": "正常质问后选择硬闯才交战；强守卫真实伤害耗尽玩家血量才判败，无固定命中次数。HoldSec仅为败退后的演出停留", 
+    "ForcedDefeatHoldSec": 1.2,
+    "FirstFightStartTimeoutSec": 3.0,
+    "JailWakeDelaySec": 1.0,
+    "FirstGuardMinCombatSkill": 300,
+    "FirstGuardSkillAdvantage": 120,
+    "FirstGuardHealthMultiplier": 3.0
+  },
+
+  "ScreenGoal": {
+    "_comment": "场景内常驻任务卡：位置 / 尺寸 / 刷新。Position 只认 top-right 与 top-left",
+    "Enabled": true,
+    "Position": "top-right",
+    "CardWidth": 380,
+    "SideMargin": 24,
+    "TopMargin": 18,
+    "FlashSec": 0.9,
+    "PollSec": 0.25
   }
 }

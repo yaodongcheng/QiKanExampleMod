@@ -183,7 +183,12 @@ namespace LivingWorldNpcs
 		/// 摆完的机位是"静态"的（角色一动就出画），**会被新的 Play 顶掉**。
 		/// </summary>
 		public static bool ApplyPose(string caseName, Agent speaker, Agent listener, Vec3 anchorWorldPos)
+			=> ApplyPose(caseName, speaker, listener, anchorWorldPos, "pose");
+
+		/// <summary>具名持有的一次性机位：演出收场只归还自己的相机，不停止后来接管的系统。</summary>
+		public static bool ApplyPose(string caseName, Agent speaker, Agent listener, Vec3 anchorWorldPos, string owner)
 		{
+			if (string.IsNullOrEmpty(owner)) return false;
 			if (!CameraCase.TryGet(caseName, out CameraCase kase))
 			{
 				DebugLogger.Log($"[CamSvc] 摆机位失败：Camera.csv 里没有 case '{caseName}'");
@@ -197,7 +202,7 @@ namespace LivingWorldNpcs
 			if (!Rig.ApplyStaticPose(kase, speaker, listener, anchorWorldPos))
 				return false;
 
-			_holder = "pose";
+			_holder = owner;
 			_holderIsPose = true;
 			_external = null;
 			EnsureLookProvider();

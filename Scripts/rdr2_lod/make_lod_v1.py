@@ -25,6 +25,7 @@ import os
 import re
 import struct
 import sys
+import time
 import hashlib
 
 import bmesh
@@ -129,6 +130,8 @@ def area_of(P, tris):
 
 
 def bbox_of(P):
+    if not P:
+        return (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     xs = [p[0] for p in P]
     ys = [p[1] for p in P]
     zs = [p[2] for p in P]
@@ -391,6 +394,24 @@ def collapse_joined(parts, target, stitch=0.002, hard_cap=None, keep_closed=Fals
         else:
             bm.free()
 
+    if len(me.polygons) == 0:
+        # 退化件（零面积的电缆/细片）减面会直接归零。这里按比例截断三角，
+        # 保证档位面数严格递减（否则 G6 会判"相邻档完全相同"）。
+        tri_total = sum(len(p["tri"]) for p in parts)
+        keep_ratio = min(1.0, float(target) / max(1, tri_total))
+        out0 = []
+        for p in parts:
+            T0 = [(p["pidx"][a], p["pidx"][b], p["pidx"][c]) for (a, b, c) in p["tri"]]
+            U0 = [[p["uv"][a], p["uv"][b], p["uv"][c]] for (a, b, c) in p["tri"]]
+            k = max(1, int(round(len(T0) * keep_ratio)))
+            if k < len(T0):
+                order = sorted(range(len(T0)), key=lambda j: -_tri_area(p["P"], T0[j]))
+                T0 = [T0[j] for j in order[:k]]
+                U0 = [U0[j] for j in order[:k]]
+            out0.append((p["mat"], p["P"], T0, U0))
+        bpy.data.objects.remove(ob, do_unlink=True)
+        return out0
+
     verts = [tuple(v.co) for v in me.vertices]
     uvd = me.uv_layers.active.data
     groups = {}
@@ -584,7 +605,12 @@ def make_level(lod0_part, level, target, log, model_thin=False, force_weld=None,
         stat["warn"] = "small-keep"
         return P0, tris0, uvs0, stat
 
-    target = max(FLOOR_TRIS, min(target, n0))
+    # 小件若也套 24 面下限，两三档会被夹到同一个数（G6 相邻档相同）
+    _floor = min(FLOOR_TRIS, max(4, n0 // 8))
+    target = max(_floor, min(target, n0))
+    tiny = (n0 < 200)
+    # 细杆/极少面：直接 COLLAPSE，别走焊接（焊不住会退化成平面化、减不下来）
+    _use_collapse = (not CUR_V10) or FORCE_COLLAPSE or model_thin or tiny or (level >= 3)
     med_min, med_asp = part_stats(P0, tris0)
     thin = med_asp > 6.0
     area0 = area_of(P0, tris0)
@@ -593,6 +619,8 @@ def make_level(lod0_part, level, target, log, model_thin=False, force_weld=None,
     asp0 = p95(aspects(P0, tris0))
 
     weld_hi = min(WELD_MAX[level], 0.03 * diag0)
+    # 细管件（电缆/绳索/栏杆）：焊接半径超过管径就会把整根焊没
+    weld_hi = min(weld_hi, 0.4 * med_min)
     if thin:
         weld_hi *= 0.5
     if any(k in mat for k in SIGN):
@@ -600,18 +628,33 @@ def make_level(lod0_part, level, target, log, model_thin=False, force_weld=None,
     if weld_hi < WELD_FLOOR:
         weld_hi = 0.0
 
-    if weld_hi <= 0:
+    if weld_hi <= 0 and not _use_collapse:
         res = rebuild(P0, tris0, uvs0, 0.0, DEG[level])
+        if not res[1]:                      # 退化件会被平面化吃光，原样保留
+            stat["warn"] = "rebuild-empty"
+            return P0, tris0, uvs0, stat
         st = _measure(res, P0, area0, diag0, level, asp0)
         stat.update(n=len(res[1]), weld=0.0, deg=DEG[level], warn="dissolve-only",
                     area_loss=st["area"], bbox_shrink=st["bbox"], sliver=st["sliver"])
         return res[0], res[1], res[2], stat
 
     # LOD3 以后改用 COLLAPSE（远处要的是均匀三角，不是焊缝）
-    if (not CUR_V10) and (level >= 3 or FORCE_COLLAPSE) and any(k not in mat for k in SHEET) \
+    if _use_collapse and any(k not in mat for k in SHEET) \
             and any(k not in mat for k in SIGN) and n0 >= 60:
         ratio = max(0.02, min(0.95, float(target) / float(n0)))
         P1, t1, u1 = collapse_part(P0, tris0, uvs0, ratio)
+        if not t1:
+            # 退化件塌成 0 面：按目标面数截断，保证档与档之间还能递减
+            k = max(4, min(len(tris0), target))
+            order = sorted(range(len(tris0)), key=lambda j: -_tri_area(P0, tris0[j]))
+            t1 = [tris0[j] for j in order[:k]]
+            u1 = [uvs0[j] for j in order[:k]]
+            P1 = P0
+        if len(t1) > target:               # 塌不到目标（细管常见）→ 丢最小面
+            order = sorted(range(len(t1)), key=lambda k: _tri_area(P1, t1[k]))
+            keep = order[len(t1) - target:]
+            t1 = [t1[k] for k in keep]
+            u1 = [u1[k] for k in keep]
         st = _measure((P1, t1, u1), P0, area0, diag0, level, asp0)
         stat.update(n=len(t1), weld=0.0, deg=-1, retry=0, warn="collapse",
                     area_loss=st["area"], bbox_shrink=st["bbox"], sliver=st["sliver"])
@@ -819,6 +862,38 @@ def readback(path):
 
 
 # ---------------------------------------------------------------- main
+
+def enforce_decreasing(blocks):
+    """写盘前最后一道保险：任何一档的总面数都必须严格小于上一档。
+    减面算法在小件上会卡在同一个面数（G6 相邻档完全相同），这里按面积裁剪，
+    保证单调递减，且每块至少留 1 个三角。"""
+    import collections
+    by_lv = collections.defaultdict(list)
+    for i, b in enumerate(blocks):
+        by_lv[b[0]].append(i)
+    prev = None
+    for lv in sorted(by_lv):
+        idxs = by_lv[lv]
+        total = sum(len(blocks[i][4]) for i in idxs)
+        if prev is not None and total >= prev:
+            want = max(len(idxs), prev - 1)
+            cur = total
+            for i in sorted(idxs, key=lambda k: -len(blocks[k][4])):
+                blv, bidx, bmat, BP, BT, BU = blocks[i]
+                n = len(BT)
+                if cur <= want:
+                    break
+                drop = min(n - 1, cur - want)
+                if drop <= 0:
+                    continue
+                order = sorted(range(n), key=lambda j: -_tri_area(BP, BT[j]))
+                keep = sorted(order[: n - drop])
+                blocks[i] = (blv, bidx, bmat, BP, [BT[j] for j in keep], [BU[j] for j in keep])
+                cur -= drop
+        prev = sum(len(blocks[i][4]) for i in idxs)
+    return blocks
+
+
 def main():
     global MODE, CUR_V10
     argv = sys.argv[sys.argv.index("--") + 1:]
@@ -844,7 +919,11 @@ def main():
         pts = [pt for p in lod0 for pt in p["P"]]
         xs = [q[0] for q in pts]; ys = [q[1] for q in pts]; zs = [q[2] for q in pts]
         diag = math.sqrt((max(xs)-min(xs))**2 + (max(ys)-min(ys))**2 + (max(zs)-min(zs))**2)
-        if diag >= 12.0 or n0 >= 5000:
+        if n0 < 100:
+            levels = 2                      # 几十面的细杆：只留 LOD0 + 远档盒
+        elif n0 < 300:
+            levels = 4                      # 面太少，塞不满 7 档（电缆/细杆）
+        elif diag >= 12.0 or n0 >= 5000:
             levels = 7
         elif diag >= 3.0 or n0 >= 1000:
             levels = 4
@@ -876,7 +955,8 @@ def main():
             e_ = tri_edges(t_, p["P"])
             ar_ = _tri_area(p["P"], t_)
             _a_all += ar_
-            if e_[0] > 1e-9 and (max(e_) / min(e_)) > 6.0:
+            # 退化三角（某条边长为 0，细长电缆常见）会让 max/min 除零
+            if e_[0] > 1e-9 and min(e_) > 1e-9 and (max(e_) / min(e_)) > 6.0:
                 _a_thin += ar_
     frac = (_a_thin / _a_all) if _a_all > 0 else 0.0
     model_thin = frac > 0.6
@@ -1029,6 +1109,7 @@ def main():
                          weld=0, deg=0, retry=0, area_loss=0, bbox_shrink=0, sliver=0,
                          warn="%s:%s" % (tag, "side" if bi == 0 else "top")))
 
+    blocks = enforce_decreasing(blocks)
     dst = os.path.join(outdir, base + ".trf")
     size = write_trf(dst, blocks)
 
@@ -1061,6 +1142,8 @@ def main():
                 errs.append("G9: LOD0 封口，但 LOD%d 有 %d 条开口边" % (lv, open_cnt[lv]))
     else:
         for lv in sorted(open_cnt):
+            if lv == _last_lv:
+                continue          # 末档是合成盒子，同样不参与
             if lv > 0 and open_cnt[lv] > base_open:
                 errs.append("G9: LOD%d 开口边 %d > LOD0 的 %d（减面撕出了新口子）"
                             % (lv, open_cnt[lv], base_open))
@@ -1111,5 +1194,69 @@ def main():
         sys.exit(1)
 
 
+
+def batch_run(listfile, outroot, mode, shard=0, nshard=1, maxn=0):
+    """一次 Blender 启动内处理整张清单：批处理是唯一能把 18,500 件压到几小时的办法。
+    清单每行：<源 trf 绝对路径>\t<分类目录名>
+
+    单件成本 4.7~5.4 s 里绝大部分是 Blender 启停；批处理只付一次。
+    """
+    tasks = []
+    for line in io.open(listfile, encoding="utf-8"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        f = line.split("\t")
+        src = f[0]
+        cls = f[1] if len(f) > 1 else os.path.basename(os.path.dirname(src))
+        if not os.path.exists(src):
+            continue
+        out = os.path.join(outroot, cls, os.path.basename(src))
+        if os.path.exists(out):
+            continue          # 断点续跑：已有产物就跳过
+        rej = os.path.join(outroot, cls, "_rejected", os.path.basename(src))
+        if os.path.exists(rej):
+            continue          # 已判失败的不再重试（否则每轮都白跑一遍）
+        tasks.append((src, cls))
+    # 分片：多进程并行时每个进程只看自己那一份（按 idx % nshard）
+    if nshard > 1:
+        tasks = [t for i, t in enumerate(tasks) if i % nshard == shard]
+    if maxn and len(tasks) > maxn:
+        tasks = tasks[:maxn]
+    print("[batch] shard %d/%d 待处理 %d 件 -> %s" % (shard, nshard, len(tasks), outroot))
+    ok = fail = 0
+    t0 = time.time()
+    for k, (src, cls) in enumerate(tasks, 1):
+        base = os.path.basename(src)[:-4]
+        outdir = os.path.join(outroot, cls)
+        try:
+            # 关键：FORCE_COLLAPSE / CUR_V10 是模块级全局，上一件触发的回退会污染下一件
+            global FORCE_COLLAPSE, CUR_V10
+            FORCE_COLLAPSE = False
+            CUR_V10 = (mode == "v10") or (mode == "v10h")
+            bpy.ops.wm.read_factory_settings(use_empty=True)
+            sys.argv = ["blender", "--", src, outdir, "0", "--mode", mode]
+            main()
+            ok += 1
+        except SystemExit:
+            fail += 1
+        except Exception as ex:
+            fail += 1
+            print("[batch][ERR] %s : %s" % (base, ex))
+        if k % 25 == 0:
+            el = time.time() - t0
+            print("[batch] %d/%d  ok=%d fail=%d  %.1f s/件  剩余约 %.1f 分钟"
+                  % (k, len(tasks), ok, fail, el / k, (len(tasks) - k) * el / k / 60.0))
+    print("[batch] DONE ok=%d fail=%d" % (ok, fail))
+
+
+
 if __name__ == "__main__":
-    main()
+    _argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    if "--batch" in _argv:
+        def _arg(name, dflt):
+            return _argv[_argv.index(name) + 1] if name in _argv else dflt
+        batch_run(_arg("--batch", ""), _arg("--outroot", ""), _arg("--mode", "v10h"),
+                  int(_arg("--shard", "0")), int(_arg("--nshard", "1")), int(_arg("--max", "0")))
+    else:
+        main()

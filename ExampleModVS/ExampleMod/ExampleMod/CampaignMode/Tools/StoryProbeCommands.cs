@@ -22,7 +22,7 @@ namespace LivingWorldNpcs
             {
                 "enable", "disable", "city", "status", "enter", "intro", "phase", "where", "spawn",
                 "check", "roll", "learn", "resolve", "strip", "restore", "reset", "talk", "goal",
-                "life", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "help",
+                "life", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud", "help",
             };
 
         [CommandLineFunctionality.CommandLineArgumentFunction("story_probe", "custom")]
@@ -42,15 +42,20 @@ namespace LivingWorldNpcs
                                "If you are already inside the town menu, leave and re-enter it to see the new option.";
 
                     case "disable":
+                    {
                         Settings.Instance.StoryProbeEnabled = false;
-                        return "OK: story_probe disabled.";
+                        bool settled = StoryProbeBehavior.CancelPrologue("disabled by command");
+                        return settled ? "OK: story_probe disabled; runtime cancelled and escrow settled."
+                            : "Pending: story_probe disabled; outstanding escrow/skills retained for retry.";
+                    }
 
                     case "city":
                     {
                         string id = Arg(args, used, 0);
                         if (string.IsNullOrWhiteSpace(id)) return $"current city = {StoryProbeSettings.SettlementId}";
+                        bool settled = StoryProbeBehavior.CancelPrologue("target city changed by command");
                         Settings.Instance.StoryProbeSettlementId = id.Trim();
-                        return $"OK: target city = {StoryProbeSettings.SettlementId}";
+                        return $"{(settled ? "OK" : "Pending escrow restoration")}: target city = {StoryProbeSettings.SettlementId}";
                     }
 
                     case "status":
@@ -78,17 +83,19 @@ namespace LivingWorldNpcs
                         string p = (Arg(args, used, 0) ?? "").ToLowerInvariant();
                         if (p == "first")
                         {
-                            StoryProbeState.Phase = StoryProbePhase.FirstAttempt;
-                            StoryProbeState.Data.JailDone = false;
-                            return "OK: phase = FirstAttempt (forced defeat tutorial).";
+                            return StoryProbeBehavior.CancelPrologue("phase first by command")
+                                ? "OK: cancelled safely; phase = FirstAttempt."
+                                : "Pending: original belongings/skills still outstanding; phase not reset.";
                         }
                         if (p == "second")
                         {
-                            StoryProbeState.Phase = StoryProbePhase.Second;
-                            // 真做一遍剥夺（否则跳阶段的测试者全身披挂，§12.2 item 3 验不了）
-                            StoryProbeMissionBehavior.StripPlayer();
-                            StoryProbeState.Data.JailDone = true;
-                            return "OK: phase = Second (full prologue; belongings stripped, gold=" + StoryProbeState.Data.GoldBeforeStrip + ").";
+                            var host = StoryProbeMissionBehavior.Current;
+                            if (host?.Active != true || host.Phase != StoryProbePhase.Jail
+                                || !StoryProbeState.Data.JailSceneEntered)
+                                return "Error: enter the real prison and reach a safe cell point before changing clothes.";
+                            host.CompleteJailDisguise();
+                            return StoryProbeState.Data.JailDone ? "OK: disguise completed; real return transition queued."
+                                : "Pending: disguise not completed; prison phase retained.";
                         }
                         return $"Usage: custom.story_probe phase first|second (current={StoryProbeState.Phase})";
                     }
@@ -179,12 +186,17 @@ namespace LivingWorldNpcs
                     }
 
                     case "strip":
-                        StoryProbeMissionBehavior.StripPlayer();
-                        return "OK: stripped. " + StoryProbeState.Describe();
+                    {
+                        var host = StoryProbeMissionBehavior.Current;
+                        if (host?.Active != true || host.Phase != StoryProbePhase.Jail || !StoryProbeState.Data.JailSceneEntered)
+                            return "Error: disguise is only available at a safe point inside the real prison.";
+                        host.CompleteJailDisguise();
+                        return (StoryProbeState.Data.JailDone ? "OK: disguise completed. " : "Pending: disguise failed. ") + StoryProbeState.Describe();
+                    }
 
                     case "restore":
-                        StoryProbeMissionBehavior.RestorePlayerBelongings();
-                        return "OK: belongings restored. " + StoryProbeState.Describe();
+                        return (StoryProbeBehavior.CancelPrologue("restore by command")
+                            ? "OK: cancelled and belongings restored. " : "Pending: outstanding escrow/skills retained. ") + StoryProbeState.Describe();
 
                     case "money":
                     {
@@ -205,17 +217,17 @@ namespace LivingWorldNpcs
                     }
 
                     case "abort":
-                        // R3 的逃生门：不管卡在哪个阶段，先把钱与装备还回来，再退回第一次进城
-                        StoryProbeMissionBehavior.RestorePlayerBelongings();
-                        StoryProbeState.Phase = StoryProbePhase.FirstAttempt;
-                        StoryProbeState.Data.JailDone = false;
-                        StoryProbeState.Data.IntroPlayed = false;
-                        return "OK: belongings restored; phase reset to FirstAttempt. " + StoryProbeState.Describe();
+                        return (StoryProbeBehavior.CancelPrologue("abort by command")
+                            ? "OK: cancelled safely; escrow settled. " : "Pending: cancellation retained outstanding escrow/skills. ") + StoryProbeState.Describe();
 
                     case "reset":
-                        StoryProbeState.ResetAll();
+                        if (!StoryProbeBehavior.CancelPrologue("reset by command"))
+                            return "Error: reset refused; original belongings or guard skill backup still outstanding.";
+                        if (StoryProbeState.Data.QuestAccepted.Any(id => PrologueQuestLauncher.FindActive(id) != null))
+                            return "Error: reset refused while native prologue quests are active; use abort or complete them first.";
+                        StoryProbeState.ResetAll(); // 新建战役仍走纯 static 清理；只有本命令先清债。
                         StoryProbeDialogue.ClearCache();
-                        return "OK: story probe state reset.";
+                        return "OK: story probe state reset after safe cancellation.";
 
                     case "talk":
                     {
@@ -245,6 +257,34 @@ namespace LivingWorldNpcs
 
                     case "stage":
                         return HandleStage(Arg(args, used, 0), Arg(args, used, 1), Arg(args, used, 2), Arg(args, used, 3));
+
+                    case "hud":
+                    {
+                        // 常驻任务卡（右上/左上）：现场切位置、强制显隐，不用改 JSON 重进场景
+                        string a = (Arg(args, used, 0) ?? "").Trim().ToLowerInvariant();
+                        switch (a)
+                        {
+                            case "on":
+                                StoryGoalHudMissionView.ForceVisible = true;
+                                return "OK: goal HUD forced ON (next tick).";
+                            case "off":
+                                StoryGoalHudMissionView.ForceVisible = false;
+                                return "OK: goal HUD forced OFF (next tick).";
+                            case "auto":
+                                StoryGoalHudMissionView.ForceVisible = null;
+                                return "OK: goal HUD back to auto (prologue active only).";
+                            case "left":
+                                StoryGoalHudMissionView.ForcePosition = "top-left";
+                                return "OK: goal HUD position -> top-left.";
+                            case "right":
+                                StoryGoalHudMissionView.ForcePosition = "top-right";
+                                return "OK: goal HUD position -> top-right.";
+                            default:
+                                return $"OK: hud visible={StoryGoalHudMissionView.LastVisible} " +
+                                       $"position={StoryGoalHudMissionView.LastPosition} " +
+                                       $"(usage: custom.story_probe hud on|off|auto|left|right)";
+                        }
+                    }
 
                     case "reload":
                         // 策划改完 JSON 后：重读数值表 / 节奏常量 / 演出台本 / 对话树，不用重启游戏

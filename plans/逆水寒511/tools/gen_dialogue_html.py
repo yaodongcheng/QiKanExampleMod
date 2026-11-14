@@ -66,11 +66,11 @@ def assign_owner(data, entry_id):
         if not node:
             continue
         for tr in node.get("Transitions", []):
-            t = tr.get("NextNodeOnSuccess")
-            if not t or t in owner:
-                continue
-            owner[t] = nid
-            queue.append(t)
+            for t in (tr.get("NextNodeOnSuccess"), tr.get("NextNodeOnFail")):
+                if not t or t in owner:
+                    continue
+                owner[t] = nid
+                queue.append(t)
     # 🔴 菜单节点（*_hub）固定挂在块入口下 —— 它是所有支线的公共出口。
     #    按最短路径算会把它随机埋进某条支线（实测埋进"门口那个打手"里 3 层深），
     #    读者点"别的先不问了"就跳进一个无关区块。放顶层才是"回到上一级"。
@@ -105,44 +105,53 @@ def render_flow(lang, data, node, who, rendered, depth=0, emit_lines=True, owner
     def emit(tr, out):
         pk = tr.get("PlayerKey")
         nxt = tr.get("NextNodeOnSuccess")
+        fail_nxt = tr.get("NextNodeOnFail")
         if not pk:
             return
         label = re.sub(r"^\[[^\]]*\]\s*", "", lang.get(pk, "")).strip()
         if not label:
             return
-        child = node_by_id(data, nxt) if nxt else None
-        badges = ""
-        if tr.get("Requires"):
-            badges += '<span class="jcond">需 %s</span>' % esc(tr["Requires"])
-        if tr.get("Once"):
-            badges += '<span class="jcond">只问一次</span>'
-        head = '▸ （玩家，%s）：%s%s<span class="jid">→ %s</span>' % (esc(who), esc(label), badges, esc(nxt or "（离开）"))
 
-        if child is None:
-            out.append('<div class="flow-o">%s</div>' % head)
-            return
+        def emit_branch(target_id, branch_badge=""):
+            child = node_by_id(data, target_id) if target_id else None
+            badges = branch_badge
+            if tr.get("Requires"):
+                badges += '<span class="jcond">需 %s</span>' % esc(tr["Requires"])
+            if tr.get("Once"):
+                badges += '<span class="jcond">只问一次</span>'
+            if tr.get("CheckTag"):
+                badges += '<span class="jcond">检定 %s</span>' % esc(tr["CheckTag"])
+            head = '▸ （玩家，%s）：%s%s<span class="jid">→ %s</span>' % (esc(who), esc(label), badges, esc(target_id or "（离开）"))
 
-        # goto 边：目标是别处已展开的节点 —— 整行可点（不是只有尾巴那截标签）
-        def goto_row():
-            label = esc(first_line(lang, child))
-            known = placed if placed is not None else owner
-            if known is not None and nxt in known:
-                return '<a class="flow-o jgotorow" href="#%s%s">%s<span class="jback">↩ goto「%s」</span></a>' \
-                       % (prefix, esc(nxt), head, label)
-            return '<div class="flow-o">%s<span class="jback">↩ goto「%s」（不在本块展开）</span></div>' % (head, label)
+            if child is None:
+                out.append('<div class="flow-o">%s</div>' % head)
+                return
 
-        if owner is not None and owner.get(nxt) != nid:
-            # 这条边不是本节点的树边（目标已被离入口更近的节点认领）→ 真·goto
-            out.append(goto_row())
-            return
+            def goto_row():
+                flabel = esc(first_line(lang, child))
+                known = placed if placed is not None else owner
+                if known is not None and target_id in known:
+                    return '<a class="flow-o jgotorow" href="#%s%s">%s<span class="jback">↩ goto「%s」</span></a>' \
+                           % (prefix, esc(target_id), head, flabel)
+                return '<div class="flow-o">%s<span class="jback">↩ goto「%s」（不在本块展开）</span></div>' % (head, flabel)
 
-        if nxt in rendered:
-            out.append(goto_row())
-            return
+            if owner is not None and owner.get(target_id) != nid:
+                out.append(goto_row())
+                return
 
-        kids = render_flow(lang, data, child, who, rendered, depth + 1, owner=owner, prefix=prefix, placed=placed)
-        out.append('<details class="fnode" id="%s%s"><summary class="flow-o">%s</summary><div class="fkids">%s</div></details>'
-                   % (prefix, esc(nxt), head, "".join(kids)))
+            if target_id in rendered:
+                out.append(goto_row())
+                return
+
+            kids = render_flow(lang, data, child, who, rendered, depth + 1, owner=owner, prefix=prefix, placed=placed)
+            out.append('<details class="fnode" id="%s%s"><summary class="flow-o">%s</summary><div class="fkids">%s</div></details>'
+                       % (prefix, esc(target_id), head, "".join(kids)))
+
+        if fail_nxt:
+            emit_branch(nxt, '<span class="jcond">检定成</span>')
+            emit_branch(fail_nxt, '<span class="jcond">检定败</span>')
+        else:
+            emit_branch(nxt, "")
 
     plain, gated, leave = [], [], []
     for tr in node.get("Transitions", []):
@@ -283,17 +292,39 @@ GROUPS = [
     ]),
     ("四家 · 他们派你做的事", [
         ("老周：把账收回来", "",
-         ["LWN_story_pawnbroker_deal", "LWN_story_pawnbroker_quest_accept"]),
+         ["LWN_story_pawnbroker_deal"]),
         ("寡妇：砸了对台的招牌", "",
-         ["LWN_story_widow_deal", "LWN_story_widow_quest_accept"]),
+         ["LWN_story_widow_deal"]),
         ("儿子：打发墙根的野贼", "",
-         ["LWN_story_son_deal", "LWN_story_son_quest_accept"]),
-        ("屠户：教训砸摊的 thug", "",
-         ["LWN_story_butcher_deal", "LWN_story_butcher_quest_accept"]),
+         ["LWN_story_son_deal"]),
+        ("屠户：教训砸摊的打手", "",
+         ["LWN_story_butcher_deal"]),
+    ]),
+    ("四家 · 办完事回去交差", [
+        ("老周 · 交差（拿酬劳与旧账本）", "",
+         ["LWN_story_pawnbroker_turnin"]),
+        ("寡妇 · 交差（拿贵族行头与文书）", "",
+         ["LWN_story_widow_turnin"]),
+        ("儿子 · 交差（拿飞钩与撬锁包）", "",
+         ["LWN_story_son_turnin"]),
+        ("屠户 · 交差（拿开刃砍刀与麻绳）", "",
+         ["LWN_story_butcher_turnin"]),
+    ]),
+    ("四个仇家 · 登门对质与讨债", [
+        ("收数人（老周的债主 · 可魅力逼债或动手）", "",
+         ["LWN_story_debtor_intro"]),
+        ("对台领班（寡妇的对头 · 护招牌）", "",
+         ["LWN_story_rival_intro"]),
+        ("墙根野贼（抢走小贼飞钩的人）", "",
+         ["LWN_story_outlaw_intro"]),
+        ("码头帮打手（砸屠户肉案的人）", "",
+         ["LWN_story_thug_intro"]),
     ]),
     ("守门人 · 铁头（门就在他手里）", [
-        ("他拦下你", "",
-         ["LWN_story_blocker_first", "LWN_story_blocker_open"]),
+        ("第一次进城 · 硬闯必败教学", "",
+         ["LWN_story_blocker_first"]),
+        ("第二次进城 · 城门过招（六条对话过门路）", "",
+         ["LWN_story_blocker_open"]),
         ("塞钱：他当面数两遍", "",
          ["LWN_story_blocker_bribe_ok"]),
         ("威吓成功", "",

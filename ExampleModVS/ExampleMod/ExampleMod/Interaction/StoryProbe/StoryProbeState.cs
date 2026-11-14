@@ -42,15 +42,33 @@ namespace LivingWorldNpcs
         public int Phase = (int)StoryProbePhase.FirstAttempt;
         public bool TutorialLost;          // 第一次已演完必败教学
         public bool JailDone;              // 牢里换装已完成
+        public bool JailSceneEntered;      // 已在真实牢内站点醒来，不是仅打开城镇菜单
+        public int PendingTransition;      // 0=无，1=进入牢房，2=换装后回门外（应用层消费）
+        public string TransitionSettlementId = "";
+        public string StorySettlementId = ""; // 整轮剧情的城，读档后也能识别 city 设置变化
+        // 首遇的临时真实技能增强需跨存档恢复；第二次沿用同 Hero，不能把强化带过去。
+        public string FirstGuardBoostHeroId = "";
+        public Dictionary<string, int> FirstGuardOriginalSkills = new Dictionary<string, int>();
         public bool IntroPlayed;           // 第二次进场随从 3 句已播
         public bool GoalReached;           // 已走到门内目标点
         public string GoalStage = "enter"; // 屏幕目标（enter/asked/quest/tool/done）
 
         // ── nobody（剥夺）──
-        public bool Stripped;              // 身上那套已被没收
-        public int GoldBeforeStrip;        // 没收前的钱（序章完成归还）
+        public bool Stripped;              // 身上那套已被没收；有尚欠账时保持为 true
+        public int EscrowVersion;          // 1 = 有逐槽销账；旧档在首次恢复时迁移
+        public bool ConfiscationComplete;
+        public List<int> PendingBattleRestoreSlots = new List<int>();
+        public List<int> PendingCivilianRestoreSlots = new List<int>();
+        public bool CancellationPending;   // 停止剧情后仍有归还/技能恢复未成功；禁止重新入场
+        public int DebtCollected;          // debtor 实际交到玩家手中的钱，不是要求金额
+        public int DebtRepaid;             // 已实际交还给当铺的账款，重试只补尚欠
+        public int PawnbrokerRewardPaid;    // 30 跑腿费中实际已付部分
+        public Dictionary<string, List<string>> RewardReceipts = new Dictionary<string, List<string>>();
+        public int GoldBeforeStrip;        // 尚欠没收款；每次实际归还后减少，结清为 0
         public List<string> SavedBattleEquip = new List<string>();   // 没收前的战斗装备（槽位顺序，"" = 空）
         public List<string> SavedCivilianEquip = new List<string>(); // 没收前的民用装备
+        public List<string> SavedBattleModifiers = new List<string>();
+        public List<string> SavedCivilianModifiers = new List<string>();
         public double StripAtHours;        // 剥夺发生的时刻（R3 兜底归还用）
         public bool Disguised;             // 遮面（旧衣 + 面罩）
         public bool NobleDisguise;         // 贵族制服 + 通行文书
@@ -66,6 +84,7 @@ namespace LivingWorldNpcs
         public List<string> Clues = new List<string>();          // sister_1..4
         public List<string> Hazards = new List<string>();        // 隐患 flag
         public string ChosenApproach = "";                       // charm/guile/force/money
+        public bool ApproachResolved;                           // 过门路线后果已经结算，防止重入重复给奖
         public bool GateOpened;                                  // 门已经让开了（跨 Mission 记住）
         public int TalentPoints;                                 // 天赋点（第二阶段才用）
         public int FactionFixers;                                // 四家好感（自己记账，见 §9）
@@ -77,7 +96,7 @@ namespace LivingWorldNpcs
         public Dictionary<string, string> SpawnedHeroIds = new Dictionary<string, string>(); // npcId → Hero.StringId
         public string CompanionHeroId = "";     // 第二次进场招的随从
         public int BribePaid;                   // 打点付了多少（用于 status）
-        public int CoinsFound;                  // 零活赚了多少
+        public int CoinsFound;                  // 零活与收账实际到账累计，不含要求但未到账的金额
         public double NextErrandHour;           // 下一次零活可接的时刻（CampaignTime 小时）
 
         // ── 调试（不进存档：这是"下一次掷点"的一次性旋钮，带进存档会污染下一局）──
@@ -95,8 +114,25 @@ namespace LivingWorldNpcs
 
         public static StoryProbeStateData Data => _data ?? (_data = new StoryProbeStateData());
 
+        // 不持久化：读档/取消/重置都使旧 Mission、弹窗和延迟回调失效。
+        public static int RuntimeToken { get; private set; }
+        public static void InvalidateRuntime() { unchecked { RuntimeToken++; } }
+        public static bool IsRuntimeCurrent(int token)
+            => token == RuntimeToken && !Data.CancellationPending && StoryProbeSettings.Enabled;
+
+        public static bool HasRewardReceipt(string npcId, string key)
+            => Data.RewardReceipts.TryGetValue(npcId, out var receipts) && receipts != null && receipts.Contains(key);
+
+        public static void RecordRewardReceipt(string npcId, string key)
+        {
+            if (!Data.RewardReceipts.TryGetValue(npcId, out var receipts) || receipts == null)
+                Data.RewardReceipts[npcId] = receipts = new List<string>();
+            if (!receipts.Contains(key)) receipts.Add(key);
+        }
+
         /// <summary>本次进场是否由「入城（玩法测试）」菜单触发。**不存档**（transient）。</summary>
         public static bool EnterViaOption { get; set; }
+        public static bool EnterJailViaOption { get; set; }
 
         public static StoryProbePhase Phase
         {
@@ -106,8 +142,10 @@ namespace LivingWorldNpcs
 
         public static void ResetAll()
         {
+            InvalidateRuntime();
             _data = new StoryProbeStateData();
             EnterViaOption = false;
+            EnterJailViaOption = false;
         }
 
         // ── 问过 / 步数 ──
@@ -244,14 +282,27 @@ namespace LivingWorldNpcs
                     _data.Clues ??= new List<string>();
                     _data.Hazards ??= new List<string>();
                     _data.SpawnedHeroIds ??= new Dictionary<string, string>();
+                    _data.FirstGuardOriginalSkills ??= new Dictionary<string, int>();
+                    _data.SavedBattleEquip ??= new List<string>();
+                    _data.SavedCivilianEquip ??= new List<string>();
+                    _data.SavedBattleModifiers ??= new List<string>();
+                    _data.SavedCivilianModifiers ??= new List<string>();
+                    _data.PendingBattleRestoreSlots ??= new List<int>();
+                    _data.PendingCivilianRestoreSlots ??= new List<int>();
+                    _data.RewardReceipts ??= new Dictionary<string, List<string>>();
                 }
+                InvalidateRuntime();
+                EnterJailViaOption = false;
                 EnterViaOption = false;
                 DebugLogger.Log($"[StoryProbe] Loaded state: phase={LoadedPhaseName()} step={string.Join(",", _data.NpcStep.Select(kv => kv.Key + "=" + kv.Value))}");
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[StoryProbe] Deserialize failed (keeping defaults): {ex.Message}");
-                _data = new StoryProbeStateData();
+                // 反序列化失败不能把尚欠账和守卫原技能备份抹掉。
+                DebugLogger.Log($"[StoryProbe] Deserialize failed (keeping existing escrow): {ex.Message}");
+                InvalidateRuntime();
+                EnterViaOption = false;
+                EnterJailViaOption = false;
             }
         }
 
@@ -272,7 +323,11 @@ namespace LivingWorldNpcs
                  + " stripped=" + d.Stripped
                  + " disguised=" + d.Disguised
                  + " noble=" + d.NobleDisguise
-                 + " goldBefore=" + d.GoldBeforeStrip
+                 + " escrowGoldOwed=" + d.GoldBeforeStrip
+                 + " escrowSlots[battle=" + d.PendingBattleRestoreSlots.Count + ",civilian=" + d.PendingCivilianRestoreSlots.Count + "]"
+                 + " cancelPending=" + d.CancellationPending
+                 + " token=" + RuntimeToken
+                 + " debt[collected=" + d.DebtCollected + ",repaid=" + d.DebtRepaid + ",fee=" + d.PawnbrokerRewardPaid + "]"
                  + " talent=" + d.TalentPoints
                  + " approach=" + (string.IsNullOrEmpty(d.ChosenApproach) ? "-" : d.ChosenApproach)
                  + " rel[fixers=" + d.FactionFixers + ",night=" + d.FactionNightwalkers

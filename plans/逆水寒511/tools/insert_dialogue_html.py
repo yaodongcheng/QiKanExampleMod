@@ -63,8 +63,10 @@ SCRIPT = """<script>
 </script>
 """
 
+env = os.environ.copy()
+env["PYTHONIOENCODING"] = "utf-8"
 frag = subprocess.run([sys.executable, GEN], capture_output=True, text=True,
-                      encoding="utf-8", errors="ignore").stdout
+                      encoding="utf-8", errors="ignore", env=env).stdout
 if "dlghead" not in frag:
     raise SystemExit("generator produced nothing; check gen_dialogue_html.py")
 

@@ -353,6 +353,13 @@ function Clear-BlockingDialogs {
             if ([MK]::C($h) -notmatch '32770') { continue }
             $t = [MK]::T($h)
             if ($t -match 'Safe Mode') { [void](Dismiss-SafeMode $h); $hit = $true; break }
+            # 2026-11-14：Steam 的 RGL CONTENT WARNING 用 WM_COMMAND/IDOK 关不掉，
+            # 一轮会被刷成几百个 -> 触发 >40 误判并杀掉启动。对它只发 WM_CLOSE、不计数量。
+            if ($t -match '(?i)RGL CONTENT') {
+                [MK]::PostMessage($h, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+                Start-Sleep -Milliseconds 300
+                return 0
+            }
             if ($t -notmatch '(?i)warning|error|警告|错误|失败|faced a problem') { continue }
 
             $procId = 0

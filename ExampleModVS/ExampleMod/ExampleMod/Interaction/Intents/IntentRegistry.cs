@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
@@ -181,7 +181,13 @@ namespace LivingWorldNpcs
         /// 成功概率不变。所有对话意图检定唯一入口——改这里即全局统一。</summary>
         public static bool Roll(float chance)
         {
-            return MBRandom.RandomFloat >= (1f - chance);
+            return Roll(chance, MBRandom.RandomFloat);
+        }
+
+        /// <summary>同一判据的可记录掷点入口；供剧情测试覆盖掷点并展示真实结果。</summary>
+        public static bool Roll(float chance, float roll)
+        {
+            return roll >= (1f - chance);
         }
 
         /// <summary>

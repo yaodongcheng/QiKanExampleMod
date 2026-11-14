@@ -11,6 +11,9 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_self",
+          "Once": "ask_self",
+          "Action": "PROBE:mark",
+          "ActionParam": "ask_self",
           "NextNodeOnSuccess": "pawnbroker_ask_self"
         },
         {
@@ -28,8 +31,10 @@
           "NextNodeOnSuccess": "pawnbroker_ask_gang"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_pawnbroker_opt_errand",
+          "Action": "PROBE:errand",
+          "ActionParam": "50",
+          "NextNodeOnSuccess": "pawnbroker_errand"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_deal",
@@ -43,8 +48,15 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_money",
-          "NextNodeOnSuccess": "pawnbroker_money_covert",
-          "Requires": "clue:sister_1"
+          "Requires": "clue:sister_1",
+          "Once": "offer_money",
+          "Action": "PROBE:mark",
+          "ActionParam": "offer_money",
+          "NextNodeOnSuccess": "pawnbroker_money_covert"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
@@ -58,6 +70,9 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_self",
+          "Once": "ask_self",
+          "Action": "PROBE:mark",
+          "ActionParam": "ask_self",
           "NextNodeOnSuccess": "pawnbroker_ask_self"
         },
         {
@@ -75,13 +90,20 @@
           "NextNodeOnSuccess": "pawnbroker_ask_gang"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_pawnbroker_opt_errand",
+          "Action": "PROBE:errand",
+          "ActionParam": "50",
+          "NextNodeOnSuccess": "pawnbroker_errand"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_deal",
           "Requires": "!quest_accepted,!quest_turned",
           "NextNodeOnSuccess": "pawnbroker_deal"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
+          "Requires": "clue:sister_1,!clue:sister_3,gold>=30",
+          "NextNodeOnSuccess": "pawnbroker_sister_redeem"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_chat",
@@ -90,8 +112,15 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_money",
-          "NextNodeOnSuccess": "pawnbroker_money_covert",
-          "Requires": "clue:sister_1"
+          "Requires": "clue:sister_1",
+          "Once": "offer_money",
+          "Action": "PROBE:mark",
+          "ActionParam": "offer_money",
+          "NextNodeOnSuccess": "pawnbroker_money_covert"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
@@ -104,7 +133,21 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_self_stay",
+          "Once": "self_stay",
+          "Action": "PROBE:mark",
+          "ActionParam": "self_stay",
           "NextNodeOnSuccess": "pawnbroker_ask_stay"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_self_know",
+          "Once": "self_know",
+          "Action": "PROBE:mark",
+          "ActionParam": "self_know",
+          "NextNodeOnSuccess": "pawnbroker_ask_know"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
       "NpcActions": [
@@ -115,6 +158,20 @@
     {
       "Id": "pawnbroker_ask_stay",
       "NpcKey": "LWN_story_pawnbroker_ask_stay",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "pawnbroker_ask_know",
+      "NpcKey": "LWN_story_pawnbroker_ask_know",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
@@ -139,16 +196,19 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
-          "Requires": "gold>=30",
+          "Requires": "gold>=30,!clue:sister_3",
           "NextNodeOnSuccess": "pawnbroker_sister_redeem"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_why",
+          "Once": "sister_why",
+          "Action": "PROBE:mark",
+          "ActionParam": "sister_why",
           "NextNodeOnSuccess": "pawnbroker_sister_why"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
       "NpcActions": [
@@ -190,6 +250,7 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_pay30",
+          "Requires": "gold>=30",
           "Action": "PROBE:pay",
           "ActionParam": "30",
           "NextNodeOnSuccess": "pawnbroker_sister_got"
@@ -210,6 +271,10 @@
       "EnterAction": "PROBE:clue",
       "EnterParam": "sister_3",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
@@ -286,6 +351,9 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_deal_why",
+          "Once": "deal_why",
+          "Action": "PROBE:mark",
+          "ActionParam": "deal_why",
           "NextNodeOnSuccess": "pawnbroker_deal_why"
         },
         {
@@ -302,6 +370,10 @@
       "Id": "pawnbroker_deal_why",
       "NpcKey": "LWN_story_pawnbroker_deal_why",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_opt_take_job",
+          "NextNodeOnSuccess": "pawnbroker_quest_accept"
+        },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "NextNodeOnSuccess": "pawnbroker_hub"
@@ -329,7 +401,12 @@
     {
       "Id": "pawnbroker_quest_accept",
       "NpcKey": "LWN_story_pawnbroker_quest_accept",
+      "EnterAction": "PROBE:accept_quest",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
@@ -338,13 +415,16 @@
       "NpcActions": [
         "act_conversation_closed_trivial",
         "act_conversation_closed_trivial"
-      ],
-      "EnterAction": "PROBE:accept_quest"
+      ]
     },
     {
       "Id": "pawnbroker_turnin",
       "NpcKey": "LWN_story_pawnbroker_turnin",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_turnin_ok",
+          "NextNodeOnSuccess": "pawnbroker_turnin_ok"
+        },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_trouble",
           "NextNodeOnSuccess": "pawnbroker_turnin_trouble"
@@ -358,7 +438,12 @@
     {
       "Id": "pawnbroker_turnin_trouble",
       "NpcKey": "LWN_story_pawnbroker_turnin_trouble",
+      "EnterAction": "PROBE:turn_in",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
@@ -366,7 +451,7 @@
       ],
       "NpcActions": [
         "act_conversation_closed_negative",
-        "act_conversation_closed_trivial"
+        "act_conversation_closed_negative"
       ]
     },
     {
@@ -377,6 +462,10 @@
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_why",
           "NextNodeOnSuccess": "pawnbroker_turnin_why"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -393,6 +482,10 @@
       "NpcKey": "LWN_story_pawnbroker_turnin_why",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
@@ -407,12 +500,15 @@
       "NpcKey": "LWN_story_pawnbroker_chat",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_pawnbroker_opt_work",
-          "NextNodeOnSuccess": "pawnbroker_hub"
+          "PlayerKey": "LWN_story_pawnbroker_opt_visit",
+          "Once": "chat_docks",
+          "Action": "PROBE:mark",
+          "ActionParam": "chat_docks",
+          "NextNodeOnSuccess": "pawnbroker_chat_2"
         },
         {
-          "PlayerKey": "LWN_story_pawnbroker_opt_visit",
-          "NextNodeOnSuccess": "pawnbroker_chat_2"
+          "PlayerKey": "LWN_story_pawnbroker_opt_work",
+          "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -428,6 +524,10 @@
       "Id": "pawnbroker_chat_2",
       "NpcKey": "LWN_story_pawnbroker_chat_2",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
@@ -445,6 +545,10 @@
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "NextNodeOnSuccess": "pawnbroker_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
         }
       ],
       "NpcActions": [
@@ -458,10 +562,10 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event1_opt_pay",
+          "Requires": "gold>=80",
           "Action": "PROBE:pay_to",
           "ActionParam": "thug;80",
-          "NextNodeOnSuccess": "event_1_paid",
-          "Requires": "gold>=80"
+          "NextNodeOnSuccess": "event_1_paid"
         },
         {
           "PlayerKey": "LWN_story_event1_opt_stop",
@@ -483,6 +587,8 @@
     {
       "Id": "event_1_paid",
       "NpcKey": "LWN_story_event1_paid",
+      "EnterAction": "PROBE:favour",
+      "EnterParam": "fixers;5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
@@ -501,6 +607,8 @@
     {
       "Id": "event_1_win",
       "NpcKey": "LWN_story_event1_win",
+      "EnterAction": "PROBE:favour",
+      "EnterParam": "fixers;5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
@@ -511,8 +619,6 @@
           "NextNodeOnSuccess": ""
         }
       ],
-      "EnterAction": "PROBE:favour",
-      "EnterParam": "fixers;5",
       "NpcActions": [
         "act_conversation_aggressive_negative",
         "act_conversation_closed_trivial"
@@ -521,6 +627,8 @@
     {
       "Id": "event_1_lose",
       "NpcKey": "LWN_story_event1_lose",
+      "EnterAction": "PROBE:hazard",
+      "EnterParam": "event1_lost",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
@@ -531,8 +639,6 @@
           "NextNodeOnSuccess": ""
         }
       ],
-      "EnterAction": "PROBE:hazard",
-      "EnterParam": "event1_lost",
       "NpcActions": [
         "act_conversation_aggressive_trivial",
         "act_conversation_closed_trivial"
@@ -552,7 +658,8 @@
         }
       ],
       "NpcActions": [
-        "act_conversation_closed_negative"
+        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
       ]
     },
     {
@@ -560,13 +667,14 @@
       "NpcKey": "LWN_story_pawnbroker_money_covert",
       "Transitions": [
         {
-          "PlayerKey": "LWN_story_pawnbroker_opt_deal",
+          "PlayerKey": "LWN_story_pawnbroker_opt_money_buy",
+          "Requires": "gold>=80",
           "Action": "PROBE:money_deal",
           "NextNodeOnSuccess": "pawnbroker_money_dealt"
         },
         {
-          "PlayerKey": "LWN_story_opt_leave",
-          "NextNodeOnSuccess": ""
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
       "NpcActions": [
@@ -578,6 +686,10 @@
       "Id": "pawnbroker_money_dealt",
       "NpcKey": "LWN_story_pawnbroker_money_dealt",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
