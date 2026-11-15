@@ -32,7 +32,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_deal",
-          "Requires": "!quest_accepted,!quest_turned",
+          "Requires": "!quest_accepted,!quest_turned,asked:ask_rival",
           "NextNodeOnSuccess": "widow_deal"
         },
         {
@@ -42,7 +42,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_money",
-          "Requires": "step>=1,gold>=60",
+          "Requires": "step>=1,gold>=60,asked:ask_stage,asked:ask_sister",
           "Once": "widow_money",
           "Action": "PROBE:mark",
           "ActionParam": "widow_money",
@@ -85,7 +85,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_deal",
-          "Requires": "!quest_accepted,!quest_turned",
+          "Requires": "!quest_accepted,!quest_turned,asked:ask_rival",
           "NextNodeOnSuccess": "widow_deal"
         },
         {
@@ -95,7 +95,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_money",
-          "Requires": "step>=1,gold>=60",
+          "Requires": "step>=1,gold>=60,asked:ask_stage,asked:ask_sister",
           "Once": "widow_money",
           "Action": "PROBE:mark",
           "ActionParam": "widow_money",
@@ -374,8 +374,8 @@
     {
       "Id": "event_3_win",
       "NpcKey": "LWN_story_event3_win",
-      "EnterAction": "PROBE:favour",
-      "EnterParam": "players;5",
+      "EnterAction": "PROBE:resolve_event",
+      "EnterParam": "3|players|5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",

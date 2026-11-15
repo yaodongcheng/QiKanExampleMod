@@ -268,9 +268,6 @@ namespace LivingWorldNpcs
                     foreach (var tr in node.Transitions)
                     {
                         if (tr == null) continue;
-                        if (!EvaluateRequires(tr.Requires, npcId)) continue;
-                        if (!string.IsNullOrEmpty(tr.Once) && StoryProbeState.HasAsked(npcId, tr.Once)) continue;
-
                         var tcopy = new DialogueInjector.DialogueTransition
                         {
                             PlayerKey = tr.PlayerKey,
@@ -284,6 +281,8 @@ namespace LivingWorldNpcs
                             NextNodeOnFail = tr.NextNodeOnFail,
                             Requires = tr.Requires,
                             Once = tr.Once,
+                            RuntimeCondition = () => EvaluateRequires(tr.Requires, npcId)
+                                && (string.IsNullOrEmpty(tr.Once) || !StoryProbeState.HasAsked(npcId, tr.Once)),
                         };
                         copy.Transitions.Add(tcopy);
                     }
@@ -375,6 +374,20 @@ namespace LivingWorldNpcs
                 if (term == "disguised") return StoryProbeMissionBehavior.IsWearingStoryDisguise(false);
                 if (term == "noble") return StoryProbeMissionBehavior.IsWearingStoryDisguise(true);
                 if (term == "stripped") return StoryProbeState.Data.Stripped;
+                if (term == "can_redeem_keepsake")
+                    return StoryProbeState.HasRewardReceipt("pawnbroker", "keepsake-paid")
+                        || (Hero.MainHero != null && Hero.MainHero.Gold >= 30);
+                if (term == "errand_ready") return CampaignTime.Now.ToHours >= StoryProbeState.Data.NextErrandHour;
+                if (term == "street_help_pending")
+                    return StoryProbeState.IsStreetEventResolved(1)
+                        && !StoryProbeState.HasRewardReceipt("pawnbroker", "street-help");
+                if (term.StartsWith("asked:")) return StoryProbeState.HasAsked(npcId, term.Substring(6));
+                if (term.StartsWith("reward:")) return StoryProbeState.HasRewardReceipt(npcId, term.Substring(7));
+                if (term.StartsWith("event_resolved:") && int.TryParse(term.Substring(15), out int eventId))
+                    return StoryProbeState.IsStreetEventResolved(eventId);
+                if (term.StartsWith("resolution:"))
+                    return StoryProbeState.Data.QuestResolutions.TryGetValue(npcId, out string resolution)
+                        && resolution == term.Substring(11);
                 // 跨 NPC 引用：quest_accepted@pawnbroker（"别人的委托"——收数人身上要用这个）
                 if (term.StartsWith("quest_accepted@"))
                     return StoryProbeState.IsQuestAccepted(term.Substring("quest_accepted@".Length));
@@ -464,19 +477,35 @@ namespace LivingWorldNpcs
         {
             if (_actionFailed || string.IsNullOrEmpty(verb) || StoryProbeState.Data.CancellationPending
                 || !StoryProbeSettings.Enabled || StoryProbeMissionBehavior.Current?.Active != true) return;
-            string[] verbs = verb.Split('+');
+            // 节点进入动作和复合动作都可能带前缀，逐条归一化。
+            string[] verbs = verb.Split('+').Select(NormalizeStoryVerb).ToArray();
             // 单条动作自己的参数可能含分号（pay_to="thug;80"），不能当成复合动作拆丢金额。
             string[] pars = verbs.Length == 1 ? new[] { param }
                 : string.IsNullOrEmpty(param) ? new string[0] : param.Split(';');
             for (int i = 0; i < verbs.Length; i++)
             {
                 string p = i < pars.Length ? pars[i] : null;
-                if (!Dispatch(verbs[i], p))
+                bool succeeded;
+                try { succeeded = Dispatch(verbs[i], p); }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[StoryProbe] action {verbs[i]} failed: {ex.Message}");
+                    succeeded = false;
+                }
+                if (!succeeded)
                 {
                     if (!_actionFailed) FailStoryActionConversation(); // 接单/交差失败也不能继续成功回答节点的自定义奖励。
                     break;
                 }
             }
+        }
+
+        private static string NormalizeStoryVerb(string verb)
+        {
+            string normalized = (verb ?? "").Trim();
+            if (normalized.StartsWith("PROBE:", StringComparison.OrdinalIgnoreCase))
+                normalized = normalized.Substring(6).Trim();
+            return normalized;
         }
 
         private static bool FailStoryActionConversation()
@@ -591,8 +620,40 @@ namespace LivingWorldNpcs
                                     ("TASK", qtitle), ("TARGET", qtarget))));
                         }
                         catch { }
+                        int solvedEvent = currentNpc == "butcher" ? 2 : currentNpc == "widow" ? 3 : 0;
+                        if (solvedEvent > 0 && StoryProbeState.IsStreetEventResolved(solvedEvent))
+                            if (!SyncResolvedStreetQuest(solvedEvent)) return false;
                     }
                     break;
+
+                case "redeem_keepsake":
+                    return RedeemKeepsake();
+
+                case "street_help_reward":
+                    return GrantStreetHelpReward();
+
+                case "complete_quest":
+                {
+                    var parts = (param ?? "").Split('|');
+                    return parts.Length == 2 && CompleteTargetQuest(parts[0], parts[1]);
+                }
+
+                case "resolve_event":
+                {
+                    var parts = (param ?? "").Split('|');
+                    if (parts.Length < 1 || !int.TryParse(parts[0], out int eventId)) return false;
+                    if (StoryProbeState.IsStreetEventResolved(eventId)) break;
+                    if (host?.Director?.ResolveCurrentEvent(eventId) != true) return false;
+                    if (!SyncResolvedStreetQuest(eventId)) return false;
+                    if (parts.Length >= 3 && int.TryParse(parts[2], out int delta))
+                    {
+                        string faction = parts[1];
+                        StoryProbeState.AddFactionRelation(faction, delta);
+                        var rep = StoryProbeDefs.GetNpcByFaction(faction);
+                        if (rep != null) AdjustNpcRelation(rep.Id, delta);
+                    }
+                    break;
+                }
 
                 case "turn_in":
                     TurnIn(currentNpc);
@@ -740,13 +801,13 @@ namespace LivingWorldNpcs
                         case MoneyAttitude.Covert:
                             // 当面递钱：他手都不伸。钱一分没动 —— 要走下面那条「正经买卖」。
                             DebugLogger.Log($"[StoryProbe] money COVERT {currentNpc} refused direct cash");
-                            return false;
+                            break; // 正常拒绝，继续显示专属应答。
 
                         default: // Disdain
                             AdjustNpcRelation(currentNpc, -10);
                             StoryProbeState.AddHazard("hazard_bribed_the_proud");
                             DebugLogger.Log($"[StoryProbe] money DISDAIN {currentNpc} insulted");
-                            return false;
+                            break;
                     }
                     break;
                 }
@@ -803,10 +864,14 @@ namespace LivingWorldNpcs
                 {
                     int amount = 120;
                     if (int.TryParse(param, out int p) && p > 0) amount = p;
+                    var nativeQuest = PrologueQuestLauncher.FindActive("pawnbroker");
+                    if (currentNpc != "debtor" || nativeQuest == null
+                        || !StoryProbeState.IsQuestAccepted("pawnbroker") || StoryProbeState.IsQuestDone("pawnbroker")) return false;
                     if (CollectDebt(amount))
                     {
+                        nativeQuest.MarkObjectivesDone();
+                        StoryProbeState.Data.QuestResolutions["pawnbroker"] = "charm";
                         StoryProbeState.CompleteQuest("pawnbroker");
-                        PrologueQuestLauncher.FindActive("pawnbroker")?.MarkObjectivesDone();
                     }
                     else
                     {
@@ -818,7 +883,7 @@ namespace LivingWorldNpcs
 
                 case "errand":
                 {
-                    // 零活（§5.5）：跑腿 / 搬货 / 送信 —— 每次 20 第纳尔，2 小时冷却。
+                    // 零活（§5.5）：每次 50 第纳尔，1 战役小时冷却。
                     // 钱从"世界"发（Grant，铁律 4 的虚空来源合法情形；注释即标注）。
                     int pay = 50;
                     if (!string.IsNullOrEmpty(param)) int.TryParse(param, out pay);
@@ -827,30 +892,29 @@ namespace LivingWorldNpcs
                     if (now < StoryProbeState.Data.NextErrandHour)
                     {
                         Message("LWN_story_errand_cooldown", "Nothing needs doing right now. Come back later.");
-                        break;
+                        return false;
                     }
                     var player = Hero.MainHero;
-                    if (player == null || (long)player.Gold + pay > int.MaxValue) break;
+                    if (player == null || (long)player.Gold + pay > int.MaxValue) return false;
                     int before = player.Gold;
                     try { AgentControlHelper.TransferGold((Hero)null, player, pay, notify: false); }
+                    catch (Exception ex) { DebugLogger.Log($"[StoryProbe] errand settlement deferred: {ex.Message}"); }
                     finally
                     {
                         int moved = Math.Min(pay, Math.Max(0, player.Gold - before));
                         StoryProbeState.Data.CoinsFound += moved;
                         if (moved > 0) StoryProbeState.Data.NextErrandHour = now + 1.0;
                     }
-                    if (player.Gold - before == pay)
-                        Message("LWN_story_errand_done", "You ran the errand. A few coins for it.");
+                    if (player.Gold - before != pay) return false;
+                    Message("LWN_story_errand_done", "You ran the errand. A few coins for it.");
                     break;
                 }
 
                 case "give_disguise":
-                    GiveNobleDisguise();
-                    break;
+                    return GiveNobleDisguise();
 
                 case "give_items":
-                    GiveRewards(param);
-                    break;
+                    return GiveRewards(param);
 
                 case "start_event":
                     if (int.TryParse(param, out int ev)) host?.Director?.ForceEvent(ev);
@@ -895,6 +959,112 @@ namespace LivingWorldNpcs
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(key, fallback)));
             }
             catch { }
+        }
+
+        private static bool RedeemKeepsake()
+        {
+            if (CurrentNpcId != "pawnbroker" || !StoryProbeState.HasClue("sister_1")) return false;
+            var player = Hero.MainHero;
+            var giver = StoryProbeMissionBehavior.Current?.GetHero("pawnbroker");
+            // 缺物品或真实接收背包时先不收钱；到货失败后的重试沿用付款回执。
+            if (giver == null || player?.PartyBelongedTo?.ItemRoster == null
+                || StoryProbeDefs.FindItem("jewelry") == null) return false;
+            if (!StoryProbeState.HasRewardReceipt("pawnbroker", "keepsake-paid"))
+            {
+                if (!TryPayMoney(giver, 30)) return false;
+                StoryProbeState.RecordRewardReceipt("pawnbroker", "keepsake-paid");
+            }
+            if (!GrantRewardItem("pawnbroker", "keepsake", "jewelry")) return false;
+            StoryProbeState.AddClue("sister_3");
+            return true;
+        }
+
+        private static bool CompleteTargetQuest(string giverId, string resolution)
+        {
+            var def = StoryProbeDefs.GetNpc(giverId);
+            if (def == null || def.QuestTargetNpcId != CurrentNpcId
+                || !StoryProbeState.IsQuestAccepted(giverId) || StoryProbeState.IsQuestTurnedIn(giverId)
+                || (resolution != "charm" && resolution != "guile")) return false;
+            if (StoryProbeState.IsQuestDone(giverId)) return true;
+            var nativeQuest = PrologueQuestLauncher.FindActive(giverId);
+            if (nativeQuest == null) return false;
+            nativeQuest.MarkObjectivesDone();
+            StoryProbeState.Data.QuestResolutions[giverId] = resolution;
+            StoryProbeState.CompleteQuest(giverId);
+            ResolveCompletedQuestConflict(giverId);
+            try
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveCompound("LWN_story_narr_quest_done",
+                        ("NAME", StoryProbeMissionBehavior.NpcName(giverId)))));
+            }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] quest completion feedback failed: {ex.Message}"); }
+            return true;
+        }
+
+        public static void ResolveCompletedQuestConflict(string giverId)
+        {
+            if (!StoryProbeState.IsQuestDone(giverId)) return;
+            int eventId = giverId == "widow" ? 3 : giverId == "butcher" ? 2 : 0;
+            if (eventId == 0) return;
+            var def = StoryProbeDefs.GetNpc(giverId);
+            var streetEvent = StoryProbeDefs.GetEvent(eventId);
+            if (def == null || streetEvent == null
+                || (def.QuestTargetNpcId != streetEvent.ActorA && def.QuestTargetNpcId != streetEvent.ActorB)) return;
+            StoryProbeMissionBehavior.Current?.Director?.ResolveCurrentEvent(eventId);
+            StoryProbeState.ResolveStreetEvent(eventId);
+        }
+
+        private static bool SyncResolvedStreetQuest(int eventId)
+        {
+            // Event 1 is protection money, not debt; event 4 is an accusation, not the robber job.
+            string giverId = eventId == 2 ? "butcher" : eventId == 3 ? "widow" : null;
+            if (giverId == null) return true;
+            if (!StoryProbeState.IsStreetEventResolved(eventId)) return false;
+            var def = StoryProbeDefs.GetNpc(giverId);
+            var streetEvent = StoryProbeDefs.GetEvent(eventId);
+            if (def == null || streetEvent == null
+                || (def.QuestTargetNpcId != streetEvent.ActorA && def.QuestTargetNpcId != streetEvent.ActorB)) return false;
+            // Remember the actual intervention even before an Issue has been accepted.
+            if (!StoryProbeState.Data.QuestResolutions.TryGetValue(giverId, out string resolution))
+            {
+                resolution = eventId == 2 ? "force" : "charm";
+                StoryProbeState.Data.QuestResolutions[giverId] = resolution;
+            }
+            if (!StoryProbeState.IsQuestAccepted(giverId) || StoryProbeState.IsQuestDone(giverId)
+                || StoryProbeState.IsQuestTurnedIn(giverId)) return true;
+            var nativeQuest = PrologueQuestLauncher.FindActive(giverId);
+            if (nativeQuest == null) return false;
+            try { nativeQuest.MarkObjectivesDone(); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] street objective log failed: {ex.Message}"); }
+            if (!nativeQuest.ObjectivesDone) return false;
+            StoryProbeState.CompleteQuest(giverId);
+            try
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveCompound("LWN_story_narr_quest_done",
+                        ("NAME", StoryProbeMissionBehavior.NpcName(giverId)))));
+            }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] street completion feedback failed: {ex.Message}"); }
+            return true;
+        }
+
+        private static bool GrantStreetHelpReward()
+        {
+            const string giverId = "pawnbroker", receipt = "street-help";
+            const int amount = 50;
+            if (CurrentNpcId != giverId || !StoryProbeState.IsStreetEventResolved(1)) return false;
+            if (StoryProbeState.HasRewardReceipt(giverId, receipt)) return true;
+            var player = Hero.MainHero;
+            if (player == null || (long)player.Gold + amount > int.MaxValue) return false;
+            int before = player.Gold;
+            try { AgentControlHelper.TransferGold((Hero)null, player, amount, notify: false); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] street help reward deferred: {ex.Message}"); }
+            int credited = Math.Max(0, player.Gold - before);
+            if (credited != amount) return false;
+            StoryProbeState.Data.CoinsFound += credited;
+            StoryProbeState.RecordRewardReceipt(giverId, receipt);
+            return true;
         }
 
         /// <summary>交差：给奖励 + 关系 + 进度（§4.1）。</summary>
@@ -999,8 +1169,12 @@ namespace LivingWorldNpcs
                 if (!StoryProbeState.HasRewardReceipt(npcId, "skill-xp"))
                 {
                     var skill = StoryProbeDefs.ResolveSkill(def.AttrSkill);
-                    if (skill != null) player.AddSkillXp(skill, 40f);
-                    StoryProbeState.RecordRewardReceipt(npcId, "skill-xp");
+                    if (skill != null)
+                    {
+                        player.AddSkillXp(skill, 40f);
+                        StoryProbeState.RecordRewardReceipt(npcId, "skill-xp");
+                        Message("LWN_story_skill_xp_reward", "You gained 40 skill experience.");
+                    }
                 }
                 if (!StoryProbeState.HasRewardReceipt(npcId, "relation"))
                 {
@@ -1029,24 +1203,25 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] turn_in deferred with receipts retained {npcId}: {ex.Message}"); }
         }
 
-        /// <summary>贵族制服 + 通行文书：穿上就是"冒充"（不自动换装，玩家自己穿）。</summary>
+        /// <summary>贵族戏服 + 剧情通行资格；玩家仍须穿上衣服通过门卫检定。</summary>
         private static bool GiveNobleDisguise()
         {
             // 与 RewardItems 共用一张到货回执，不能在剧团交差时再发第二件衣服。
             if (!GrantRewardItem("widow", "wardrobe", "fine_town_tunic")) return false;
             bool first = !StoryProbeState.Data.NobleDisguise;
             StoryProbeState.Data.NobleDisguise = true;
-            if (first) Message("LWN_story_got_disguise", "You have the fine clothes and the papers to go with them.");
+            if (first) Message("LWN_story_got_disguise", "You have the fine costume. Wear it before approaching the gate.");
             return true;
         }
 
-        private static void GiveRewards(string csv)
+        private static bool GiveRewards(string csv)
         {
-            if (string.IsNullOrEmpty(csv)) return;
+            if (string.IsNullOrEmpty(csv)) return false;
             var ids = csv.Split('|').Select(id => id.Trim()).Where(id => id.Length > 0).ToArray();
-            if (Hero.MainHero?.PartyBelongedTo?.ItemRoster == null || ids.Any(id => StoryProbeDefs.FindItem(id) == null)) return;
+            if (Hero.MainHero?.PartyBelongedTo?.ItemRoster == null || ids.Any(id => StoryProbeDefs.FindItem(id) == null)) return false;
             for (int i = 0; i < ids.Length; i++)
-                if (!GrantRewardItem(CurrentNpcId ?? "scene", "give-items:" + csv + ":" + i, ids[i])) return;
+                if (!GrantRewardItem(CurrentNpcId ?? "scene", "give-items:" + csv + ":" + i, ids[i])) return false;
+            return true;
         }
 
         /// <summary>非致命决斗：玩家 vs 目标（CombatManager 的 Peace 模式）。</summary>

@@ -8,7 +8,7 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// 市井导演（2026-11-12，plans/逆水寒511玩法验证-城池剧情任务.md §6 / §7）。
+    /// 市井导演（2026-11-12，plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md §6 / §7）。
     ///
     /// 三层行为：
     ///   ① 常驻动作 —— 每人 8~20 秒挑一条原版动作 + 偶尔一句吆喝（原版动作名见 vanilla_action_names.txt）；
@@ -143,13 +143,25 @@ namespace LivingWorldNpcs
                 _nextEventIndex = 1;
             }
 
-            var def = StoryProbeDefs.GetEvent(_nextEventIndex) ?? StoryProbeDefs.Events[0];
-            _nextEventIndex = def.Index % StoryProbeDefs.Events.Count + 1;
-            StartEvent(def, skit: false);
+            // Resolved conflicts stay resolved; an exhausted cycle only waits.
+            for (int remaining = StoryProbeDefs.Events.Count; remaining > 0; remaining--)
+            {
+                var def = StoryProbeDefs.GetEvent(_nextEventIndex) ?? StoryProbeDefs.Events[0];
+                _nextEventIndex = def.Index % StoryProbeDefs.Events.Count + 1;
+                if (StoryProbeState.IsStreetEventResolved(def.Index)) continue;
+                StartEvent(def, skit: false);
+                return;
+            }
+            _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
         }
 
         private void StartEvent(StoryEventDef def, bool skit)
         {
+            if (def == null || StoryProbeState.IsStreetEventResolved(def.Index))
+            {
+                _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
+                return;
+            }
             var a = _host.GetAgent(def.ActorA);
             if (a == null) { _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec; return; }
 
@@ -366,6 +378,18 @@ namespace LivingWorldNpcs
             string fb = fallbacks != null && i < fallbacks.Length ? fallbacks[i] : "";
             _host.SayOnAgent(agent, keys[i], fb,
                 _eventSkit ? SpeechPriority.Chat : SpeechPriority.Warning);
+        }
+
+        /// <summary>Only successful intervention resolves the event; leaving/failure resumes it.</summary>
+        public bool ResolveCurrentEvent(int expectedIndex = 0)
+        {
+            if (_activeEvent == null || _eventSkit
+                || (expectedIndex > 0 && _activeEvent.Index != expectedIndex)
+                || StoryProbeState.IsStreetEventResolved(_activeEvent.Index)) return false;
+            StoryProbeState.ResolveStreetEvent(_activeEvent.Index);
+            EndEvent("resolved by player");
+            _nextEventAt = _time + StoryProbeTuning.Current.Events.ResumeGapSec;
+            return true;
         }
 
         private void EndEvent(string reason)

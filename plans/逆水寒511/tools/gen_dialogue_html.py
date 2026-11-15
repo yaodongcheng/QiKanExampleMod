@@ -3,7 +3,7 @@
 
 只读语言 XML；不改任何东西。
 用法：python plans/逆水寒511/tools/gen_dialogue_html.py > 片段.html
-# 片段插进 plans/逆水寒511-玩法演示.html 的「他们到底说些什么」一节（替换 h3/details 块）
+# 片段插进 plans/逆水寒511/逆水寒511-玩法演示.html 的「他们到底说些什么」一节（替换 h3/details 块）
 """
 import io
 import re

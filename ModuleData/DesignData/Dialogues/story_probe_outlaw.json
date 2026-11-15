@@ -10,6 +10,14 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_outlaw_opt_settle",
+          "NextNodeOnSuccess": "outlaw_settled",
+          "Requires": "quest_accepted@son,!quest_done@son",
+          "CheckType": "SkillCheck",
+          "CheckTag": "outlaw|guile",
+          "NextNodeOnFail": "outlaw_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_outlaw_opt_ask",
           "Once": "outlaw_ask",
           "Action": "PROBE:mark",
@@ -20,7 +28,8 @@
           "PlayerKey": "LWN_story_outlaw_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "outlaw",
-          "NextNodeOnSuccess": "outlaw_fight"
+          "NextNodeOnSuccess": "outlaw_fight",
+          "Requires": "!quest_done@son"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -37,6 +46,14 @@
       "NpcKey": "LWN_story_outlaw_hub",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_outlaw_opt_settle",
+          "NextNodeOnSuccess": "outlaw_settled",
+          "Requires": "quest_accepted@son,!quest_done@son",
+          "CheckType": "SkillCheck",
+          "CheckTag": "outlaw|guile",
+          "NextNodeOnFail": "outlaw_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_outlaw_opt_ask",
           "Once": "outlaw_ask",
           "Action": "PROBE:mark",
@@ -47,7 +64,8 @@
           "PlayerKey": "LWN_story_outlaw_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "outlaw",
-          "NextNodeOnSuccess": "outlaw_fight"
+          "NextNodeOnSuccess": "outlaw_fight",
+          "Requires": "!quest_done@son"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -63,10 +81,19 @@
       "NpcKey": "LWN_story_outlaw_talk",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_outlaw_opt_settle",
+          "NextNodeOnSuccess": "outlaw_settled",
+          "Requires": "quest_accepted@son,!quest_done@son",
+          "CheckType": "SkillCheck",
+          "CheckTag": "outlaw|guile",
+          "NextNodeOnFail": "outlaw_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_outlaw_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "outlaw",
-          "NextNodeOnSuccess": "outlaw_fight"
+          "NextNodeOnSuccess": "outlaw_fight",
+          "Requires": "!quest_done@son"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
@@ -89,6 +116,48 @@
       ],
       "NpcActions": [
         "act_conversation_aggressive_very_negative"
+      ]
+    },
+    {
+      "Id": "outlaw_settled",
+      "NpcKey": "LWN_story_outlaw_settled",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "outlaw_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "EnterAction": "PROBE:complete_quest",
+      "EnterParam": "son|guile"
+    },
+    {
+      "Id": "outlaw_settle_refused",
+      "NpcKey": "LWN_story_outlaw_settle_refused",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_outlaw_opt_fight",
+          "NextNodeOnSuccess": "outlaw_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "outlaw"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "outlaw_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial"
       ]
     }
   ]

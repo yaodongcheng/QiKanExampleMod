@@ -34,25 +34,32 @@
           "PlayerKey": "LWN_story_pawnbroker_opt_errand",
           "Action": "PROBE:errand",
           "ActionParam": "50",
-          "NextNodeOnSuccess": "pawnbroker_errand"
+          "NextNodeOnSuccess": "pawnbroker_errand",
+          "Requires": "asked:ask_self,asked:ask_gang,errand_ready,!street_help_pending"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_deal",
-          "Requires": "!quest_accepted,!quest_turned",
+          "Requires": "!quest_accepted,!quest_turned,asked:ask_gang",
           "NextNodeOnSuccess": "pawnbroker_deal"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_chat",
-          "Requires": "quest_turned",
+          "Requires": "quest_turned,asked:ask_gang",
           "NextNodeOnSuccess": "pawnbroker_chat"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_money",
-          "Requires": "clue:sister_1",
+          "Requires": "clue:sister_3,asked:ask_self,asked:ask_sister,asked:ask_gang",
           "Once": "offer_money",
           "Action": "PROBE:mark",
           "ActionParam": "offer_money",
           "NextNodeOnSuccess": "pawnbroker_money_covert"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_help_reward",
+          "NextNodeOnSuccess": "pawnbroker_help_reward",
+          "Requires": "street_help_pending,asked:ask_self,asked:ask_gang",
+          "Action": "PROBE:street_help_reward"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -93,30 +100,37 @@
           "PlayerKey": "LWN_story_pawnbroker_opt_errand",
           "Action": "PROBE:errand",
           "ActionParam": "50",
-          "NextNodeOnSuccess": "pawnbroker_errand"
+          "NextNodeOnSuccess": "pawnbroker_errand",
+          "Requires": "asked:ask_self,asked:ask_gang,errand_ready,!street_help_pending"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_deal",
-          "Requires": "!quest_accepted,!quest_turned",
+          "Requires": "!quest_accepted,!quest_turned,asked:ask_gang",
           "NextNodeOnSuccess": "pawnbroker_deal"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
-          "Requires": "clue:sister_1,!clue:sister_3,gold>=30",
+          "Requires": "clue:sister_1,!clue:sister_3,asked:ask_self,asked:ask_gang,can_redeem_keepsake",
           "NextNodeOnSuccess": "pawnbroker_sister_redeem"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_chat",
-          "Requires": "quest_turned",
+          "Requires": "quest_turned,asked:ask_gang",
           "NextNodeOnSuccess": "pawnbroker_chat"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_money",
-          "Requires": "clue:sister_1",
+          "Requires": "clue:sister_3,asked:ask_self,asked:ask_sister,asked:ask_gang",
           "Once": "offer_money",
           "Action": "PROBE:mark",
           "ActionParam": "offer_money",
           "NextNodeOnSuccess": "pawnbroker_money_covert"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_help_reward",
+          "NextNodeOnSuccess": "pawnbroker_help_reward",
+          "Requires": "street_help_pending,asked:ask_self,asked:ask_gang",
+          "Action": "PROBE:street_help_reward"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -196,7 +210,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
-          "Requires": "gold>=30,!clue:sister_3",
+          "Requires": "can_redeem_keepsake,!clue:sister_3",
           "NextNodeOnSuccess": "pawnbroker_sister_redeem"
         },
         {
@@ -250,9 +264,8 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_pay30",
-          "Requires": "gold>=30",
-          "Action": "PROBE:pay",
-          "ActionParam": "30",
+          "Requires": "can_redeem_keepsake,!clue:sister_3",
+          "Action": "PROBE:redeem_keepsake",
           "NextNodeOnSuccess": "pawnbroker_sister_got"
         },
         {
@@ -268,8 +281,6 @@
     {
       "Id": "pawnbroker_sister_got",
       "NpcKey": "LWN_story_pawnbroker_sister_got",
-      "EnterAction": "PROBE:clue",
-      "EnterParam": "sister_3",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
@@ -423,11 +434,13 @@
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_ok",
-          "NextNodeOnSuccess": "pawnbroker_turnin_ok"
+          "NextNodeOnSuccess": "pawnbroker_turnin_ok",
+          "Requires": "!resolution:force"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_trouble",
-          "NextNodeOnSuccess": "pawnbroker_turnin_trouble"
+          "NextNodeOnSuccess": "pawnbroker_turnin_trouble",
+          "Requires": "resolution:force"
         }
       ],
       "NpcActions": [
@@ -587,8 +600,8 @@
     {
       "Id": "event_1_paid",
       "NpcKey": "LWN_story_event1_paid",
-      "EnterAction": "PROBE:favour",
-      "EnterParam": "fixers;5",
+      "EnterAction": "PROBE:resolve_event",
+      "EnterParam": "1|fixers|5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
@@ -607,8 +620,8 @@
     {
       "Id": "event_1_win",
       "NpcKey": "LWN_story_event1_win",
-      "EnterAction": "PROBE:favour",
-      "EnterParam": "fixers;5",
+      "EnterAction": "PROBE:resolve_event",
+      "EnterParam": "1|fixers|5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
@@ -697,6 +710,23 @@
       ],
       "NpcActions": [
         "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ]
+    },
+    {
+      "Id": "pawnbroker_help_reward",
+      "NpcKey": "LWN_story_pawnbroker_help_reward",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "pawnbroker_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
         "act_conversation_closed_trivial"
       ]
     }

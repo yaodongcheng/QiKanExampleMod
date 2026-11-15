@@ -97,11 +97,11 @@ namespace LivingWorldNpcs
         //           那些工具一行都没动。
         public bool SpellSystemEnabled { get; set; } = false;
 
-        // ── 序章「市井 · 城门序章」（2026-11-12；plans/逆水寒511玩法验证-城池剧情任务.md）──
+        // ── 序章「市井 · 城门序章」（2026-11-12；plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md）──
         // 总闸：默认 **关**。关着 = 城镇菜单不出现「入城（玩法测试）」、Mission 行为不布置任何东西
         //（原版玩法完全不受影响）。开 = 只在 StoryProbeSettlementId 这座城的 center 场景生效。
         // 运行时也可用控制台 `custom.story_probe enable|disable` 切换（**只在本次游戏内有效**，
-        // 要长期生效改这里）。验收清单见 plans/逆水寒511玩法验证-城池剧情任务.md §12。
+        // 要长期生效改这里）。验收清单见 plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md §12。
         public bool StoryProbeEnabled { get; set; } = false;
 
         // 目标城（StringId；默认 town_ES4 = Lycaron/吕卡隆，帝国城镇，center 场景 empire_town_m）。

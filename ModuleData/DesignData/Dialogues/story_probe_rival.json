@@ -10,6 +10,14 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_rival_opt_settle",
+          "NextNodeOnSuccess": "rival_settled",
+          "Requires": "quest_accepted@widow,!quest_done@widow",
+          "CheckType": "SkillCheck",
+          "CheckTag": "rival|charm",
+          "NextNodeOnFail": "rival_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_rival_opt_sign",
           "Once": "rival_sign",
           "Action": "PROBE:mark",
@@ -20,7 +28,8 @@
           "PlayerKey": "LWN_story_rival_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "rival",
-          "NextNodeOnSuccess": "rival_fight"
+          "NextNodeOnSuccess": "rival_fight",
+          "Requires": "!quest_done@widow"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -37,6 +46,14 @@
       "NpcKey": "LWN_story_rival_hub",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_rival_opt_settle",
+          "NextNodeOnSuccess": "rival_settled",
+          "Requires": "quest_accepted@widow,!quest_done@widow",
+          "CheckType": "SkillCheck",
+          "CheckTag": "rival|charm",
+          "NextNodeOnFail": "rival_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_rival_opt_sign",
           "Once": "rival_sign",
           "Action": "PROBE:mark",
@@ -47,7 +64,8 @@
           "PlayerKey": "LWN_story_rival_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "rival",
-          "NextNodeOnSuccess": "rival_fight"
+          "NextNodeOnSuccess": "rival_fight",
+          "Requires": "!quest_done@widow"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -63,10 +81,19 @@
       "NpcKey": "LWN_story_rival_talk",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_rival_opt_settle",
+          "NextNodeOnSuccess": "rival_settled",
+          "Requires": "quest_accepted@widow,!quest_done@widow",
+          "CheckType": "SkillCheck",
+          "CheckTag": "rival|charm",
+          "NextNodeOnFail": "rival_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_rival_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "rival",
-          "NextNodeOnSuccess": "rival_fight"
+          "NextNodeOnSuccess": "rival_fight",
+          "Requires": "!quest_done@widow"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
@@ -89,6 +116,48 @@
       ],
       "NpcActions": [
         "act_conversation_hip_trivial"
+      ]
+    },
+    {
+      "Id": "rival_settled",
+      "NpcKey": "LWN_story_rival_settled",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "rival_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "EnterAction": "PROBE:complete_quest",
+      "EnterParam": "widow|charm"
+    },
+    {
+      "Id": "rival_settle_refused",
+      "NpcKey": "LWN_story_rival_settle_refused",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_rival_opt_fight",
+          "NextNodeOnSuccess": "rival_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "rival"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "rival_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial"
       ]
     }
   ]

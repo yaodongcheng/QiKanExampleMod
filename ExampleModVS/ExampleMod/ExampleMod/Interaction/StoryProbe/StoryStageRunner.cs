@@ -72,6 +72,19 @@ namespace LivingWorldNpcs
             _actorInterrupted = null;
             _actorOwner = "stage-" + Guid.NewGuid().ToString("N");
             _running = true;
+            // Conceal first-time actor spawning with the existing opening camera case.
+            // Player freezing still waits for the entire group to start in Tick.
+            var openingCamera = _script.Beats?.FirstOrDefault(b => b != null && b.At <= 0f && b.Cmd == "camera_cut");
+            if (openingCamera != null)
+            {
+                try { CutCamera(openingCamera); }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[StoryStage] opening camera failed before actor spawning: {ex.Message}");
+                    Stop("opening camera unavailable");
+                    return false;
+                }
+            }
             if (!AcquireActors()) { Stop("actor group unavailable"); return false; }
             DebugLogger.Log($"[StoryStage] begin '{_script.Script ?? scriptName}' beats={BeatCount} anchors={_anchors.Count}");
             return true;

@@ -1,6 +1,6 @@
 # 地形 / 地图资产工具
 
-> 域：战役大地图制作工具（素材 → 高度图/材质图、.trf 网格 Blender 编辑）。2026-09-05 登记。
+> 域：战役大地图制作、场景高度图与关卡空间复核（素材 → 高度图/材质图、.trf 网格 Blender 编辑）。2026-09-05 登记；2026-11-14增加真实场景俯视复核。
 
 ## ExportHeightMatMap — 地图素材 → 高度图 + 材质图管线
 
@@ -152,3 +152,56 @@ python tools/ExportHeightMatMap/make_heightmap.py 1024 640 <src.png> <out_dir>  
 - sdn = 13×15@256 = 3328×3840（far_rect 3328×3968，北裁 128 m，活动区保留）；高度 3329×3841；Import scale **193.651 / offset −20.289**。
 
 **文件**：`Scripts/gen_rdr2_terrain.py` · `Scripts/gen_rdr2_sdn_terrain.py` · `Scripts/gen_rdr2_terrain_colormap.py` · `Scripts/gen_rdr2_water_mask.py` · `Modules/RDR2/Source/tools/patch_rdr2_terrain_colormap.py` · `Scripts/fix_rdr2_layer_node_masks.py`
+
+## 真实场景高度图＋建筑与演员道具投影 — 离线俯视复核（2026-11-14，用户批准登记）
+
+**解决什么问题：**用真实高度、原场景城门/城墙/道路、建筑结构截面与演员道具投影检查关卡布局，识别建筑挡路、朝向不对、占地重叠和请求高度不合理；不以配表页面或几个中心点代替关卡设计与空间验收。
+
+**文件：**[gen_layout_topdown.py](../../逆水寒511/tools/gen_layout_topdown.py)。地形容器证据见[地形制作管线 §三·九](../../../Knowledge/骑砍2战役地形制作管线.md)；511验收要求见[总纲 §5.1～§5.4](../../逆水寒511/逆水寒511-总纲与实施计划.md)。沿用已有[tpaccli资产导出](assets.md)，不另造模型读取器。
+
+**建筑薄适配：**[scene_layout_geometry.py](../../逆水寒511/tools/scene_layout_geometry.py)，沿用`tools/face-pipeline/scene_rebuild/`已有的Prefab→网格、父子矩阵流程，补本次缺少的实例`_index_`覆盖、参考层选择和截面出图；资产仍只消费现有tpaccli的OBJ与材质映射，不读TPAC。
+
+**可复用接口（Python）：**
+
+| 接口 | 输入与返回 | 用途 |
+|---|---|---|
+| `read_terrain(scene_dir)` | 场景目录`Path` → 场景XML根节点、米制高度数组、规格/节点校验元数据 | 从真实HGHT拼高度图；校验容器、节点目录、PNG CRC与共享边 |
+| `sample(grid, points, spacing)` | 高度数组、世界坐标列表、米制格距 → 高度列表 | 双线性地形采样；供独立点位校准与请求Z比较 |
+| `mesh_vertices(asset_dir, name)` | 已有OBJ导出目录、网格名 → LOD0顶点数组、OBJ路径 | 结合`.mat_map.json`筛LOD0，计算真实模型投影和尺寸 |
+| `prop_basis(yaw)` | 与当前Stage相同的角度（度） → 2×2水平基矩阵 | 复现已反编译的`Mat3.CreateMat3WithForward`，避免模型朝向与图示不同 |
+| `collect_scene_meshes(scene, prefab_dirs, wall_level, bounds)` | 场景XML、Prefab目录、明确墙级、世界XY范围 → 网格实例/完整世界矩阵、Prefab来源、跳过项 | 合入索引子节点覆盖，按和平/墙级组筛选；只索引顶层Prefab，实际引用有歧义则报错 |
+| `obj_geometry(asset_dir, name)` | 已有OBJ目录、网格名 → 顶点、LOD0三角面、路径 | 使用现有导出器；只补面索引消费，不另写资产读取器 |
+| `scene_geometry(records, asset_dir, bounds)` | 展开实例、导出目录、范围 → 建筑投影/截面与源文件集合 | 保留真实非凸形状与孔洞，分别输出上部轮廓、根高程+0.3/+0.9/+1.6米结构截面 |
+
+**复用范围：**上述高度读取、采样、LOD0筛选、场景实例展开与投影/截面计算可借用。当前入口与主要建筑命名筛选仍是511/Native适配：读取固定的`StoryStage.json`与`StoryProbeTuning.json`，人物名称、输出名及局部取景也是511的；不能声称任意新关卡只传场景目录就能完成全部预演。接入其他工程时复用函数，薄适配其布局和建筑分类，不复制解码和投影算法。
+
+**运行前提：**Python具备`lz4`、`numpy`、`scipy`、`matplotlib`、`Pillow`、`shapely`（2.x）；现版中文绘图使用Windows的`msyh.ttc`。`Debug/offline/`须存在。道具模型沿用已有导出；建筑可用`--export-assets`调用现有tpaccli按预算导出，详细日志落`Debug/offline/511-建筑模型导出日志.txt`。场景与模型须来自同一目标版本，不能混用不同客户端的资产。
+
+**调用范例（项目根PowerShell）：**
+
+```powershell
+$taskGameRoot = [Environment]::GetEnvironmentVariable('MB2_PATH', 'User')
+$taskPacks = Join-Path $taskGameRoot 'Modules/Native/AssetPackages'
+$taskSceneDir = Join-Path $taskGameRoot 'Modules/SandBoxCore/SceneObj/empire_town_m'
+& 'tools/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe' dump --packdir $taskPacks --filter 'bd_table_a,bd_table_c,bd_barrel_a,bd_barrel_b,carpet_empire_a' --format obj --out Debug/offline
+python -B -X utf8 plans/逆水寒511/tools/gen_layout_topdown.py --scene-dir $taskSceneDir --wall-level 1 --export-assets
+# 后续未变更模型时可省 --export-assets；实际要画2/3级参考图时明确改 --wall-level。
+# 模型放在其他已导出目录时追加：--asset-dir <目录>
+```
+
+**输出（只在模块根`Debug/offline/`，不进发布包）：**一张`511-关卡俯视图.png`及同版PDF，附`511-场景高度图16bit.png`、`511-空间复核数据.json`。主图只有一个地图视口；A1～A9演员、P1～P7道具、K1～K5关键点直接在图形上或紧邻图形标姓名和编号，仅拥挤处使用短引线，对应同张图的详细资料，含XYZ、方向、动作/Prefab/尺寸、执行时间及问题。旧版两张细图不再生成或作为本次交付。JSON保留源文件SHA-256、来源版本、参考层、完整建筑变换、投影/截面、米制规格、点位校准、请求位置/方向和疑点；重跑覆盖生成物，不改游戏资产或正式布局。K5同伴点复核当前宿主的额外生成位置，不在9人Stage名单中。
+
+**已验证：**1.2.12的`empire_town_m`，`ZGR6RTRN v2`、目录标志1、40字节流描述头首值3、LZ4后的16bit灰度PNG节点记录；16张129×129拼513×513，4×4节点×200米=800×800米，格距1.5625米，共享边差0。282个源场景出生点独立对照，高度差中位约0.020米；这是校准统计，不是宣称全场2厘米精度。本次现有Stage为9演员、7道具，实际绘图已检查。
+
+**建筑验证：**明确选`civilian / level_1`，图内92种网格、201个网格实例；城门、城墙、道路、围墙、房屋、粮仓及围栏已经出图并肉眼检查。参考门中心截面的模型开口约3.7米，未被整门楼投影填死；这是模型结构量，不是实机通行净宽。新发现债务人与恶霸站位落入粮仓模型截面候选，已经在图和报告中标红；不据离线结果修改正式坐标。
+
+**使用边界：**
+
+- 原始数组行对应世界Y、列对应世界X，节点按Y外/X内排列；俯视图用`origin="lower"`。导出的16bit PNG行0对应世界Y=0，不要直接与既有实机导出PNG的行0朝向混用；按元数据和场景独立点位校准，也不把+Y随意标为地理北。
+- 高度图不包含铺装、台阶、桥面或建筑碰撞。真正脚下/道具支撑面仍用现有地面与射线查询确认，不能直接拿地形高度贴地。
+- 同名LOD0模型投影尚不证明编译Prefab的父子变换或物理体挂接；NPC半径0.45米只是明确标注的设计预留，实际身体、缩放和动作空间另测。
+- 建筑适配计算原版XML父子/实例变换，Euler顺序用反编译的`Rz @ Rx @ Ry`，不直接套Blender默认XYZ。场景子节点可覆盖自己的层，未覆盖则继承；攻城专用、编辑器可见和破损状态不画入和平参考图。只核实当前Native数据，不承诺引擎的所有层继承/内容包覆盖细节均已复现。
+- 模型截面仅筛结构阻挡，不能当PhysicsShape、人物完整扫过体积或NavMesh；门扇只画正常状态静态候选轮廓，未复现骨骼开合。活动区与路线是审核叠加，未写入AI；低坡度地形候选不等于可达或有实际支撑。
+- 凸投影交叉是疑点，不能当作精确碰撞结论；地毯在桌下等合法叠放须结合高度和用途判断。视觉缩放也不保证碰撞体跟着缩放。
+- 未核实织丰、其他版本容器或其他场景布局。格式不符明确失败；需要运行时高度图时复用已有`custom.export_heightmap 1`，当前离线入口尚未直接支持消费其PNG。`GetTerrainHeightData`等禁用API继续禁用。
+- 离线通过不代替运行快照与俯视/侧视/玩家视角对照；场景、Prefab、布局、演员身型或动作变化后，相关空间验收重新做。

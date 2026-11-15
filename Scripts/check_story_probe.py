@@ -69,9 +69,11 @@ def check_json(module, problems):
         return keys, 0
 
     known_terms = {"disguised", "noble", "stripped", "quest_accepted", "quest_done", "quest_turned",
-                   "gate_open", "blocker_disarmed"}
+                   "gate_open", "blocker_disarmed", "can_redeem_keepsake", "errand_ready", "street_help_pending",
+                   "resolution:force", "resolution:charm", "resolution:guile",
+                   "attitude:open", "attitude:covert", "attitude:disdain"}
     known_prefix = ("gold>=", "item:", "clue:", "hazard:", "step>=",
-                    "quest_accepted@", "quest_done@", "quest_turned@")
+                    "quest_accepted@", "quest_done@", "quest_turned@", "asked:", "reward:", "event_resolved:")
 
     node_total = option_total = 0
     for path in files:
@@ -856,6 +858,10 @@ def selftest():
             ("AI/AgentBrain.cs", '_performance?.Finish("queue-cleared")', '/* queued lease cancellation removed */', "cancel queued/deleted ownership"),
             ("AI/AgentAIController.cs", "IsInteractionDisabled() && !cleanup", "IsInteractionDisabled()", "cleanup events must survive"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "_climbSucceeded = roll.Success;", "_climbSucceeded = true;", "latched success before landing"),
+            ("Interaction/StoryProbe/StoryProbeBehavior.cs", "if (firstRequest) StoryProbeState.InvalidateRuntime();", "/* invalidation removed */", "cancel must invalidate delayed receipts"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "StoryProbeState.IsRuntimeCurrent(token)", "true", "cancel must invalidate delayed receipts"),
+            ("Interaction/StoryProbe/StoryProbeBehavior.cs", "d.Suspended = true;", "/* pause removed */", "pause retains progress"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "!PrologueQuestLauncher.CancelAll()", "false", "completion must retire outstanding chapter quests"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "player.SpawnEquipment[slot].Item == expected", "true", "actual wearing and shared sight"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "_crossedGate", "_fakeCrossing", "real bounded outside-to-inside crossing"),
             ("Interaction/StoryProbe/StoryStageRunner.cs", "_props.ContainsKey(b.Id)", "false", "deduplicate replayed props"),
@@ -887,7 +893,8 @@ def check_flow_contract(module, problems, overrides=None):
         with io.open(path, encoding="utf-8") as stream:
             return stream.read()
     def member(text, name):
-        match = re.search(r"(?m)^        (?:public|private|protected|internal) [^\n]*\b" + re.escape(name) + r"\s*\(", text)
+        # The name must precede the first parameter list, not occur in a forwarding body's call.
+        match = re.search(r"(?m)^        (?:public|private|protected|internal) [^\n;={}()]*\b" + re.escape(name) + r"\s*\(", text)
         if not match:
             return ""
         tail = text[match.end():]
@@ -1000,6 +1007,16 @@ def check_flow_contract(module, problems, overrides=None):
          and "NotifyQueuedDuelCancelled" in member(brain, "ClearAllActions")
          and "IsRuntimeCurrent" in member(host, "Schedule"),
          "cancel must invalidate delayed receipts and stop active story actions without deleting debt"),
+        ("d.Suspended = true" in member(campaign, "CancelPrologue")
+         and "d.CancellationRestart |= restart" in member(campaign, "CancelPrologue")
+         and "PrologueQuestLauncher.CancelAll()" in member(campaign, "CancelPrologue")
+         and "!d.Suspended && StoryProbeState.Phase == StoryProbePhase.Jail" in member(campaign, "TickPendingTransition"),
+         "pause retains progress; restart settles native quests before resetting; suspended jail stays idle"),
+        ("!PrologueQuestLauncher.CancelAll()" in member(host, "CompletePrologue")
+         and member(host, "CompletePrologue").find("!PrologueQuestLauncher.CancelAll()")
+             < member(host, "CompletePrologue").find("Phase = StoryProbePhase.Done")
+         and 'CancelRuntime("prologue completed")' in member(host, "CompletePrologue"),
+         "completion must retire outstanding chapter quests before committing Done and stopping runtime"),
         ("TryPayMoney" in dialogue and "HasRewardReceipt" in dialogue and "RecordRewardReceipt" in dialogue
          and "DebtCollected" in dialogue and "DebtRepaid" in dialogue
          and "FailStoryActionConversation" in member(dialogue, "HandleAction")

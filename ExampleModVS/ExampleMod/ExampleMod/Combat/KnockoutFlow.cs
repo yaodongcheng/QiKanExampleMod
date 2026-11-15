@@ -44,9 +44,7 @@ namespace LivingWorldNpcs
             var (tVigor, tControl) = AgentStatsHelper.GetAgentStats(target);
             float aSum = aVigor + aControl;
             float tSum = tVigor + tControl;
-            return tSum > 0
-                ? MathF.Max(0.05f, MathF.Min(maxRate, 0.5f * (aSum / (float)tSum)))
-                : 0.85f;
+            return AgentStatsHelper.ComputeOpposedSuccessRate(aSum, tSum, maxRate);
         }
 
         /// <summary>击晕判定（纯函数）：attacker Vigor+Control vs target Vigor+Control 比率式；

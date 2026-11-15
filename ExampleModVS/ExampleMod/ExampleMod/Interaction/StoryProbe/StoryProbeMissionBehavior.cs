@@ -17,7 +17,7 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// 序章的 Mission 侧宿主（2026-11-12，plans/逆水寒511玩法验证-城池剧情任务.md §11.2）。
+    /// 序章的 Mission 侧宿主（2026-11-12，plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md §11.2）。
     ///
     /// 职责（只做"场景里发生的事"）：
     ///   ① 判定这次进场是不是序章（开关 / 菜单入口 / 目标城 / center 地点）——原版进城永不加载；
@@ -199,6 +199,9 @@ namespace LivingWorldNpcs
                 {
                     if (!StoryProbeState.IsQuestAccepted(npcId) || StoryProbeState.IsQuestDone(npcId)) continue;
                     StoryProbeState.CompleteQuest(npcId);
+                    if (!StoryProbeState.Data.QuestResolutions.ContainsKey(npcId))
+                        StoryProbeState.Data.QuestResolutions[npcId] = "force";
+                    StoryProbeDialogue.ResolveCompletedQuestConflict(npcId);
                     try { PrologueQuestLauncher.FindActive(npcId)?.MarkObjectivesDone(); }
                     catch (Exception ex) { DebugLogger.Log($"[StoryProbe] objective journal update failed: {ex.Message}"); }
                     InformationManager.DisplayMessage(new InformationMessage(
@@ -536,6 +539,8 @@ namespace LivingWorldNpcs
             {
                 Active = false;
                 DebugLogger.Log($"[StoryProbe] no verified physical gate layout for '{sceneName}'; setup stopped, no guessed success");
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(
+                    "LWN_story_err_gate_layout", "This town's prologue gate is not ready. Choose a supported town.")));
                 return;
             }
             Vec2 inward = (_gateCenter - outside).AsVec2;
@@ -543,6 +548,8 @@ namespace LivingWorldNpcs
             {
                 Active = false;
                 DebugLogger.Log("[StoryProbe] invalid gate direction or bounds; setup stopped");
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(
+                    "LWN_story_err_gate_layout", "This town's prologue gate is not ready. Choose a supported town.")));
                 return;
             }
             Forward = inward.Normalized();
@@ -1040,6 +1047,8 @@ namespace LivingWorldNpcs
             InformationManager.DisplayMessage(new InformationMessage(
                 LWNTextHelper.ResolveText("LWN_story_narr_second_enter",
                     "The gate again. Nothing has changed — except you have nothing left to lose.")));
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(
+                "LWN_story_gate_finish_notice", "Finish any outstanding jobs before stepping inside. Entering ends this chapter.")));
         }
 
         private void TickSecondPhase(float dt)
@@ -1176,6 +1185,9 @@ namespace LivingWorldNpcs
                 if (!downed) continue;
 
                 StoryProbeState.CompleteQuest(def.Id);
+                if (!StoryProbeState.Data.QuestResolutions.ContainsKey(def.Id))
+                    StoryProbeState.Data.QuestResolutions[def.Id] = "force";
+                StoryProbeDialogue.ResolveCompletedQuestConflict(def.Id);
                 // 原生 Quest 同步：任务日志里记一条"回去交差"
                 try { PrologueQuestLauncher.FindActive(def.Id)?.MarkObjectivesDone(); }
                 catch (Exception qex) { DebugLogger.Log($"[StoryProbe] prologue quest mark done failed: {qex.Message}"); }
@@ -1371,12 +1383,17 @@ namespace LivingWorldNpcs
         /// <summary>财物实际归还成功才提交完成；缺资源时保留债务并允许重试。</summary>
         private void CompletePrologue()
         {
+            if (_goalReached || StoryProbeState.Data.GoalReached)
+            {
+                _goalReached = true;
+                return;
+            }
             if (StoryProbeState.Data.CancellationPending) { _goalReached = false; return; }
             if (_time < _belongingsRestoreRetryAt) { _goalReached = false; return; }
             try
             {
                 DebugLogger.Log($"[StoryProbe] goal reached (approach={StoryProbeState.Data.ChosenApproach}) -> restoring belongings");
-                if (!RestorePlayerBelongings())
+                if (!RestorePlayerBelongings() || !PrologueQuestLauncher.CancelAll())
                 {
                     _goalReached = false;
                     _belongingsRestoreRetryAt = _time + 2f;
@@ -1384,9 +1401,12 @@ namespace LivingWorldNpcs
                         LWNTextHelper.ResolveText("LWN_info_equipment_error") + " " + LWNTextHelper.ResolveText("LWN_plan_btn_retry")));
                     return;
                 }
+                _goalReached = true;
+                Phase = StoryProbePhase.Done;
                 StoryProbeState.Data.GoalReached = true;
                 StoryProbeState.Phase = StoryProbePhase.Done;
                 StoryProbeState.SetGoal("done");
+                CancelRuntime("prologue completed");
 
                 InformationManager.DisplayMessage(new InformationMessage(
                     LWNTextHelper.ResolveText("LWN_story_narr_done",
@@ -1396,8 +1416,8 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
-                _goalReached = false;
-                _belongingsRestoreRetryAt = _time + 2f;
+                _goalReached = StoryProbeState.Data.GoalReached;
+                if (!_goalReached) _belongingsRestoreRetryAt = _time + 2f;
                 DebugLogger.Log($"[StoryProbe] CompletePrologue failed: {ex.Message}");
             }
         }
@@ -1672,6 +1692,8 @@ namespace LivingWorldNpcs
                 InformationManager.DisplayMessage(new InformationMessage(
                     LWNTextHelper.ResolveText(messageKey, messageFallback)));
             DebugLogger.Log($"[StoryProbe] gate opened approach={approach}");
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(
+                "LWN_story_gate_finish_notice", "Finish any outstanding jobs before stepping inside. Entering ends this chapter.")));
         }
 
         /// <summary>本次选择结算（§9）：势力好感 / 天赋点 / 通缉 / 隐患。</summary>
@@ -1718,7 +1740,9 @@ namespace LivingWorldNpcs
             // §9：选路反馈当场可见（势力好感 +5 / 天赋点 +1 / 结仇代价）——一条消息说清
             try
             {
-                string path = LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(
+                string path = approach == "money"
+                    ? LWNTextHelper.ResolveText("LWN_story_ability_money", "Money")
+                    : LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(
                     approach == "charm" ? StoryAbility.Charm : approach == "guile" ? StoryAbility.Guile : StoryAbility.Force),
                     approach);
                 InformationManager.DisplayMessage(new InformationMessage(
@@ -1958,8 +1982,7 @@ namespace LivingWorldNpcs
                     AgentControlHelper.RefreshSpawnEquipment(Agent.Main, hero.CivilianEquipment);
                 d.Stripped = false;
                 d.ConfiscationComplete = false;
-                d.Disguised = false;
-                d.NobleDisguise = false;
+                // Entitlements persist when suspended; recognition still checks actual equipment.
                 d.StripAtHours = 0;
                 DebugLogger.Log("[StoryProbe] belongings restored: all escrow slots and gold settled");
                 return true;

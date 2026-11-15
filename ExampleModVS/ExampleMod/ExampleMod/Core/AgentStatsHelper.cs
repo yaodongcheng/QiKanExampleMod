@@ -1,6 +1,7 @@
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;   // DefaultCharacterAttributes（TaleWorlds.Core.dll）
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.Library;
 
 namespace LivingWorldNpcs
 {
@@ -17,6 +18,14 @@ namespace LivingWorldNpcs
     /// </summary>
     public static class AgentStatsHelper
     {
+        /// <summary>Shared opposed-attribute ratio; caller chooses the player/NPC upper bound.</summary>
+        public static float ComputeOpposedSuccessRate(float ownTotal, float targetTotal, float maxRate = 0.95f)
+        {
+            return targetTotal > 0f
+                ? MathF.Max(0.05f, MathF.Min(maxRate, 0.5f * (ownTotal / targetTotal)))
+                : 0.85f;
+        }
+
         /// <summary>Agent 的 Vigor+Control 合计（骑砍版"力量+敏捷"；模板 NPC 估算同口径）。</summary>
         public static int GetAgentStatTotal(Agent agent)
         {

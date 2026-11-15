@@ -10,6 +10,14 @@
       "EnterParam": "met",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_thug_opt_settle",
+          "NextNodeOnSuccess": "thug_settled",
+          "Requires": "quest_accepted@butcher,!quest_done@butcher",
+          "CheckType": "SkillCheck",
+          "CheckTag": "thug|charm",
+          "NextNodeOnFail": "thug_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_thug_opt_ask",
           "Once": "thug_ask",
           "Action": "PROBE:mark",
@@ -21,13 +29,15 @@
           "Once": "thug_night",
           "Action": "PROBE:mark",
           "ActionParam": "thug_night",
-          "NextNodeOnSuccess": "thug_money"
+          "NextNodeOnSuccess": "thug_money",
+          "Requires": "!quest_accepted@butcher"
         },
         {
           "PlayerKey": "LWN_story_thug_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "thug",
-          "NextNodeOnSuccess": "thug_fight"
+          "NextNodeOnSuccess": "thug_fight",
+          "Requires": "!quest_done@butcher"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -44,6 +54,14 @@
       "NpcKey": "LWN_story_thug_hub",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_thug_opt_settle",
+          "NextNodeOnSuccess": "thug_settled",
+          "Requires": "quest_accepted@butcher,!quest_done@butcher",
+          "CheckType": "SkillCheck",
+          "CheckTag": "thug|charm",
+          "NextNodeOnFail": "thug_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_thug_opt_ask",
           "Once": "thug_ask",
           "Action": "PROBE:mark",
@@ -55,13 +73,15 @@
           "Once": "thug_night",
           "Action": "PROBE:mark",
           "ActionParam": "thug_night",
-          "NextNodeOnSuccess": "thug_money"
+          "NextNodeOnSuccess": "thug_money",
+          "Requires": "!quest_accepted@butcher"
         },
         {
           "PlayerKey": "LWN_story_thug_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "thug",
-          "NextNodeOnSuccess": "thug_fight"
+          "NextNodeOnSuccess": "thug_fight",
+          "Requires": "!quest_done@butcher"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
@@ -77,10 +97,19 @@
       "NpcKey": "LWN_story_thug_talk",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_thug_opt_settle",
+          "NextNodeOnSuccess": "thug_settled",
+          "Requires": "quest_accepted@butcher,!quest_done@butcher",
+          "CheckType": "SkillCheck",
+          "CheckTag": "thug|charm",
+          "NextNodeOnFail": "thug_settle_refused"
+        },
+        {
           "PlayerKey": "LWN_story_thug_opt_fight",
           "Action": "PROBE:fight",
           "ActionParam": "thug",
-          "NextNodeOnSuccess": "thug_fight"
+          "NextNodeOnSuccess": "thug_fight",
+          "Requires": "!quest_done@butcher"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
@@ -123,6 +152,48 @@
       ],
       "NpcActions": [
         "act_conversation_aggressive_very_negative"
+      ]
+    },
+    {
+      "Id": "thug_settled",
+      "NpcKey": "LWN_story_thug_settled",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "thug_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "EnterAction": "PROBE:complete_quest",
+      "EnterParam": "butcher|charm"
+    },
+    {
+      "Id": "thug_settle_refused",
+      "NpcKey": "LWN_story_thug_settle_refused",
+      "Transitions": [
+        {
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "NextNodeOnSuccess": "thug_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "thug"
+        },
+        {
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "NextNodeOnSuccess": "thug_hub"
+        },
+        {
+          "PlayerKey": "LWN_story_opt_leave",
+          "NextNodeOnSuccess": ""
+        }
+      ],
+      "NpcActions": [
+        "act_conversation_closed_trivial"
       ]
     }
   ]

@@ -9,7 +9,7 @@ namespace LivingWorldNpcs
     /// <summary>序章阶段（= 进城次数）。</summary>
     public enum StoryProbePhase
     {
-        /// <summary>第一次进城：只有守门人，武力检定强制失败 → 进牢。</summary>
+        /// <summary>第一次进城：只有守门人；硬闯通过真实战斗败退后进牢。</summary>
         FirstAttempt = 0,
         /// <summary>牢里：等玩家换装（旧衣 + 面罩），换完才回到城门。</summary>
         Jail = 1,
@@ -28,7 +28,7 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>
-    /// 序章状态（2026-11-12，plans/逆水寒511玩法验证-城池剧情任务.md）。
+    /// 序章状态（2026-11-12，plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md）。
     /// 单一数据源：一切"玩家走到哪一步"的判断都读这里；存档走 MyBehavior.SyncData 的
     /// `lwn_story_probe` 键（JSON blob），新档由 ResetAllCampaignState 清空。
     ///
@@ -59,6 +59,8 @@ namespace LivingWorldNpcs
         public bool ConfiscationComplete;
         public List<int> PendingBattleRestoreSlots = new List<int>();
         public List<int> PendingCivilianRestoreSlots = new List<int>();
+        public bool Suspended;             // safely stopped, progress retained for resume
+        public bool CancellationRestart;   // persist a requested full restart until restoration succeeds
         public bool CancellationPending;   // 停止剧情后仍有归还/技能恢复未成功；禁止重新入场
         public int DebtCollected;          // debtor 实际交到玩家手中的钱，不是要求金额
         public int DebtRepaid;             // 已实际交还给当铺的账款，重试只补尚欠
@@ -81,6 +83,8 @@ namespace LivingWorldNpcs
         public List<string> QuestAccepted = new List<string>();  // npcId
         public List<string> QuestDone = new List<string>();      // npcId（目标已完成，可交差）
         public List<string> QuestTurnedIn = new List<string>();  // npcId
+        public Dictionary<string, string> QuestResolutions = new Dictionary<string, string>();
+        public List<int> ResolvedStreetEvents = new List<int>();
         public List<string> Clues = new List<string>();          // sister_1..4
         public List<string> Hazards = new List<string>();        // 隐患 flag
         public string ChosenApproach = "";                       // charm/guile/force/money
@@ -213,6 +217,13 @@ namespace LivingWorldNpcs
 
         public static bool HasHazard(string id) => Data.Hazards.Contains(id);
 
+        public static bool IsStreetEventResolved(int id) => Data.ResolvedStreetEvents.Contains(id);
+
+        public static void ResolveStreetEvent(int id)
+        {
+            if (id > 0 && !Data.ResolvedStreetEvents.Contains(id)) Data.ResolvedStreetEvents.Add(id);
+        }
+
         public static string Goal => Data.GoalStage ?? "enter";
 
         /// <summary>屏幕目标只前进不后退（enter → asked → quest → tool → done）。</summary>
@@ -279,6 +290,8 @@ namespace LivingWorldNpcs
                     _data.QuestAccepted ??= new List<string>();
                     _data.QuestDone ??= new List<string>();
                     _data.QuestTurnedIn ??= new List<string>();
+                    _data.QuestResolutions ??= new Dictionary<string, string>();
+                    _data.ResolvedStreetEvents ??= new List<int>();
                     _data.Clues ??= new List<string>();
                     _data.Hazards ??= new List<string>();
                     _data.SpawnedHeroIds ??= new Dictionary<string, string>();
@@ -326,6 +339,10 @@ namespace LivingWorldNpcs
                  + " escrowGoldOwed=" + d.GoldBeforeStrip
                  + " escrowSlots[battle=" + d.PendingBattleRestoreSlots.Count + ",civilian=" + d.PendingCivilianRestoreSlots.Count + "]"
                  + " cancelPending=" + d.CancellationPending
+                 + " restartPending=" + d.CancellationRestart
+                 + " suspended=" + d.Suspended
+                 + " resolvedEvents=" + string.Join(",", d.ResolvedStreetEvents)
+                 + " questResolutions=" + string.Join(",", d.QuestResolutions.Select(kv => kv.Key + ":" + kv.Value))
                  + " token=" + RuntimeToken
                  + " debt[collected=" + d.DebtCollected + ",repaid=" + d.DebtRepaid + ",fee=" + d.PawnbrokerRewardPaid + "]"
                  + " talent=" + d.TalentPoints

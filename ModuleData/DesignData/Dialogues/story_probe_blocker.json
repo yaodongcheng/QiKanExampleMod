@@ -78,22 +78,15 @@
           "CheckTag": "blocker|force",
           "NextNodeOnSuccess": "blocker_threat_ok",
           "NextNodeOnFail": "blocker_threat_fail",
-          "Requires": "!gate_open"
+          "Requires": "!gate_open ,!blocker_disarmed,!noble"
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_disguise",
-          "Requires": "noble,!gate_open",
+          "Requires": "noble,!gate_open,!blocker_disarmed",
           "CheckType": "SkillCheck",
           "CheckTag": "blocker|charm",
           "NextNodeOnSuccess": "blocker_disguise_ok",
           "NextNodeOnFail": "blocker_disguise_fail"
-        },
-        {
-          "PlayerKey": "LWN_story_blocker_opt_fight",
-          "Action": "PROBE:fight",
-          "ActionParam": "blocker",
-          "NextNodeOnSuccess": "blocker_fight",
-          "Requires": "!gate_open"
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_pass",
@@ -153,6 +146,13 @@
       "EnterParam": "blocker;hazard_threat_failed",
       "Transitions": [
         {
+          "PlayerKey": "LWN_story_blocker_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "blocker",
+          "NextNodeOnSuccess": "blocker_fight",
+          "Requires": "!gate_open"
+        },
+        {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""
         }
@@ -183,6 +183,13 @@
       "EnterAction": "PROBE:hazard",
       "EnterParam": "hazard_seen_through",
       "Transitions": [
+        {
+          "PlayerKey": "LWN_story_blocker_opt_fight",
+          "Action": "PROBE:fight",
+          "ActionParam": "blocker",
+          "NextNodeOnSuccess": "blocker_fight",
+          "Requires": "!gate_open"
+        },
         {
           "PlayerKey": "LWN_story_opt_leave",
           "NextNodeOnSuccess": ""

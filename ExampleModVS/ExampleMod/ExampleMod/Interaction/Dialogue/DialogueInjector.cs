@@ -985,6 +985,24 @@ namespace LivingWorldNpcs
         /// </summary>
         private static ConversationSentence.OnConditionDelegate BuildTransitionCondition(DialogueTransition transition)
         {
+            var intentCondition = BuildIntentTransitionCondition(transition);
+            return () =>
+            {
+                try
+                {
+                    return (transition.RuntimeCondition == null || transition.RuntimeCondition())
+                        && intentCondition();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[ConvCondition] runtime display condition failed: {ex.Message}");
+                    return false;
+                }
+            };
+        }
+
+        private static ConversationSentence.OnConditionDelegate BuildIntentTransitionCondition(DialogueTransition transition)
+        {
             if (string.IsNullOrEmpty(transition.Action) || !transition.Action.StartsWith("INTENT:"))
                 return () => true;
 
@@ -1116,6 +1134,8 @@ namespace LivingWorldNpcs
             public string Requires;
             /// <summary>「问过就不再出现」的标签（StoryProbe 用）。</summary>
             public string Once;
+            /// <summary>每次显示选项时重新检查剧情状态，不在注入时冻结。</summary>
+            [Newtonsoft.Json.JsonIgnore] public Func<bool> RuntimeCondition;
             /// <summary>惰性玩家选项文本（Func 求值）。非 null 时优先于 PlayerLine，引擎显示时才求值。</summary>
             public Func<string> LazyPlayerLine;
             /// <summary>此选项是否有技能检定分支。</summary>

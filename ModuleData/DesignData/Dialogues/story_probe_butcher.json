@@ -32,7 +32,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_deal",
-          "Requires": "!quest_accepted,!quest_turned",
+          "Requires": "!quest_accepted,!quest_turned,asked:ask_past",
           "NextNodeOnSuccess": "butcher_deal"
         },
         {
@@ -42,7 +42,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_money",
-          "Requires": "step>=1",
+          "Requires": "step>=1,asked:ask_meat,asked:ask_sister",
           "Once": "butcher_money",
           "Action": "PROBE:mark+offer_money",
           "ActionParam": "butcher_money;",
@@ -85,7 +85,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_deal",
-          "Requires": "!quest_accepted,!quest_turned",
+          "Requires": "!quest_accepted,!quest_turned,asked:ask_past",
           "NextNodeOnSuccess": "butcher_deal"
         },
         {
@@ -95,7 +95,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_money",
-          "Requires": "step>=1",
+          "Requires": "step>=1,asked:ask_meat,asked:ask_sister",
           "Once": "butcher_money",
           "Action": "PROBE:mark+offer_money",
           "ActionParam": "butcher_money;",
@@ -395,8 +395,8 @@
     {
       "Id": "event_2_win",
       "NpcKey": "LWN_story_event2_win",
-      "EnterAction": "PROBE:favour",
-      "EnterParam": "dockhands;-5",
+      "EnterAction": "PROBE:resolve_event",
+      "EnterParam": "2|dockhands|-5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
@@ -466,7 +466,9 @@
       "NpcActions": [
         "act_conversation_closed_negative",
         "act_conversation_closed_trivial"
-      ]
+      ],
+      "EnterAction": "PROBE:resolve_event",
+      "EnterParam": "6"
     },
     {
       "Id": "butcher_money_disdain",

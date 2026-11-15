@@ -420,7 +420,7 @@ namespace LivingWorldNpcs
             //AI
             mission.AddMissionBehavior(new AgentAIController());
 
-            // 序章「市井 · 城门序章」（2026-11-12，plans/逆水寒511玩法验证-城池剧情任务.md）。
+            // 序章「市井 · 城门序章」（2026-11-12，plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md）。
             // 🔴 自带总闸：只有「开关开 + 由我们那条菜单进城 + 目标城 + center 地点」才 Active；
             //    原版「在城里逛逛」进场时 Active=false，每帧只判一个 bool。
             mission.AddMissionBehavior(new StoryProbeMissionBehavior());

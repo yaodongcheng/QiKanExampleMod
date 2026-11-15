@@ -53,7 +53,7 @@ namespace LivingWorldNpcs
                     {
                         string id = Arg(args, used, 0);
                         if (string.IsNullOrWhiteSpace(id)) return $"current city = {StoryProbeSettings.SettlementId}";
-                        bool settled = StoryProbeBehavior.CancelPrologue("target city changed by command");
+                        bool settled = StoryProbeBehavior.CancelPrologue("target city changed by command", restart: true);
                         Settings.Instance.StoryProbeSettlementId = id.Trim();
                         return $"{(settled ? "OK" : "Pending escrow restoration")}: target city = {StoryProbeSettings.SettlementId}";
                     }
@@ -83,7 +83,7 @@ namespace LivingWorldNpcs
                         string p = (Arg(args, used, 0) ?? "").ToLowerInvariant();
                         if (p == "first")
                         {
-                            return StoryProbeBehavior.CancelPrologue("phase first by command")
+                            return StoryProbeBehavior.CancelPrologue("phase first by command", restart: true)
                                 ? "OK: cancelled safely; phase = FirstAttempt."
                                 : "Pending: original belongings/skills still outstanding; phase not reset.";
                         }
@@ -125,8 +125,7 @@ namespace LivingWorldNpcs
                         foreach (var def in StoryProbeDefs.Npcs)
                         {
                             float na = StoryProbeDefs.NpcAttr(def.Id, ability);
-                            float chance = Math.Max(0.05f, Math.Min(0.95f,
-                                StoryProbeDefs.PlayerAttr(ability) / (StoryProbeDefs.PlayerAttr(ability) + na)));
+                            float chance = AgentStatsHelper.ComputeOpposedSuccessRate(StoryProbeDefs.PlayerAttr(ability), na);
                             sb.Append($" {def.Id}={na:F0}(chance {chance:P0}, threshold {(1f - chance):P0})");
                         }
                         return sb.ToString();
@@ -217,16 +216,12 @@ namespace LivingWorldNpcs
                     }
 
                     case "abort":
-                        return (StoryProbeBehavior.CancelPrologue("abort by command")
+                        return (StoryProbeBehavior.CancelPrologue("abort by command", restart: true)
                             ? "OK: cancelled safely; escrow settled. " : "Pending: cancellation retained outstanding escrow/skills. ") + StoryProbeState.Describe();
 
                     case "reset":
-                        if (!StoryProbeBehavior.CancelPrologue("reset by command"))
+                        if (!StoryProbeBehavior.CancelPrologue("reset by command", restart: true))
                             return "Error: reset refused; original belongings or guard skill backup still outstanding.";
-                        if (StoryProbeState.Data.QuestAccepted.Any(id => PrologueQuestLauncher.FindActive(id) != null))
-                            return "Error: reset refused while native prologue quests are active; use abort or complete them first.";
-                        StoryProbeState.ResetAll(); // 新建战役仍走纯 static 清理；只有本命令先清债。
-                        StoryProbeDialogue.ClearCache();
                         return "OK: story probe state reset after safe cancellation.";
 
                     case "talk":

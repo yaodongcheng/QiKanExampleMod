@@ -32,7 +32,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_deal",
-          "Requires": "!quest_accepted,!quest_turned",
+          "Requires": "!quest_accepted,!quest_turned,asked:ask_wall",
           "NextNodeOnSuccess": "son_deal"
         },
         {
@@ -42,7 +42,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_money",
-          "Requires": "step>=1,gold>=40",
+          "Requires": "step>=1,gold>=40,asked:ask_climb,asked:ask_sister",
           "Once": "son_money",
           "Action": "PROBE:mark",
           "ActionParam": "son_money",
@@ -85,7 +85,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_deal",
-          "Requires": "!quest_accepted,!quest_turned",
+          "Requires": "!quest_accepted,!quest_turned,asked:ask_wall",
           "NextNodeOnSuccess": "son_deal"
         },
         {
@@ -95,7 +95,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_money",
-          "Requires": "step>=1,gold>=40",
+          "Requires": "step>=1,gold>=40,asked:ask_climb,asked:ask_sister",
           "Once": "son_money",
           "Action": "PROBE:mark",
           "ActionParam": "son_money",
@@ -395,8 +395,8 @@
     {
       "Id": "event_4_win",
       "NpcKey": "LWN_story_event4_win",
-      "EnterAction": "PROBE:favour",
-      "EnterParam": "nightwalkers;5",
+      "EnterAction": "PROBE:resolve_event",
+      "EnterParam": "4|nightwalkers|5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",

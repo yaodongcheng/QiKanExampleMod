@@ -219,8 +219,7 @@ namespace LivingWorldNpcs
 
             float pa = PlayerAttr(ability);
             float na = NpcAttr(npcId, ability);
-            float chance = na > 0f ? pa / (pa + na) : 0.5f;
-            chance = MathF.Clamp(chance, 0.05f, 0.95f);
+            float chance = AgentStatsHelper.ComputeOpposedSuccessRate(pa, na, maxRate: 0.95f);
 
             var r = new StoryRoll
             {

@@ -160,6 +160,12 @@ namespace LivingWorldNpcs
             CompleteQuestWithSuccess();
         }
 
+        public void CancelForPrologueRestart()
+        {
+            if (IsFinalized) return;
+            CompleteQuestWithCancel();
+        }
+
         protected override void OnCompleteWithSuccess()
         {
             AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_story_quest_finished",
@@ -177,6 +183,23 @@ namespace LivingWorldNpcs
     /// </summary>
     public static class PrologueQuestLauncher
     {
+        public static bool CancelAll()
+        {
+            try
+            {
+                var quests = Campaign.Current?.QuestManager?.Quests;
+                if (quests == null) return StoryProbeState.Data.QuestAccepted.Count == 0;
+                foreach (var quest in quests.OfType<PrologueQuest>().Where(q => !q.IsFinalized).ToList())
+                    quest.CancelForPrologueRestart();
+                return !quests.OfType<PrologueQuest>().Any(q => !q.IsFinalized);
+            }
+            catch (System.Exception ex)
+            {
+                DebugLogger.Log($"[PrologueQuest] cancellation failed: {ex.Message}");
+                return false;
+            }
+        }
+
         public static PrologueQuest Start(string npcId)
         {
             try

@@ -175,6 +175,7 @@ namespace LivingWorldNpcs
             d.PendingTransition = 1;
             d.TransitionSettlementId = Settlement.CurrentSettlement?.StringId ?? StoryProbeSettings.SettlementId;
             d.StorySettlementId = d.TransitionSettlementId;
+            d.Suspended = false;
             d.JailSceneEntered = false;
             StoryProbeState.EnterViaOption = false;
             if (Instance != null)
@@ -200,12 +201,13 @@ namespace LivingWorldNpcs
         public static void AbortPrisonTransition(string reason) => CancelPrologue(reason);
 
         /// <summary>统一取消：先废旧回调并停 Host，再清转场，最后结清尚欠账；失败绝不宣称归还成功。</summary>
-        public static bool CancelPrologue(string reason)
+        public static bool CancelPrologue(string reason, bool restart = false)
         {
             var d = StoryProbeState.Data;
             bool firstRequest = !d.CancellationPending;
             bool hadEscrow = d.Stripped;
             d.CancellationPending = true;
+            d.CancellationRestart |= restart;
             if (firstRequest) StoryProbeState.InvalidateRuntime();
             try { StoryProbeMissionBehavior.Current?.CancelRuntime(reason); }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] runtime cancel failed: {ex.Message}"); }
@@ -235,17 +237,20 @@ namespace LivingWorldNpcs
                         LWNTextHelper.ResolveText("LWN_info_equipment_error") + " " + LWNTextHelper.ResolveText("LWN_plan_btn_retry")));
                 return false;
             }
-            d.CancellationPending = false;
-            d.StorySettlementId = "";
-            d.JailSceneEntered = false;
-            d.JailDone = false;
-            d.TutorialLost = false;
-            d.IntroPlayed = false;
-            d.GoalReached = false;
-            d.GoalStage = "enter";
-            d.GateOpened = false;
-            d.ChosenApproach = "";
-            StoryProbeState.Phase = StoryProbePhase.FirstAttempt;
+            if (d.CancellationRestart)
+            {
+                if (!PrologueQuestLauncher.CancelAll()) return false;
+                StoryProbeState.ResetAll();
+                StoryProbeDialogue.ClearCache();
+            }
+            else
+            {
+                d.CancellationPending = false;
+                d.Suspended = true;
+                d.JailSceneEntered = false;
+                if (StoryProbeState.Phase == StoryProbePhase.Jail && d.JailDone)
+                    StoryProbeState.Phase = StoryProbePhase.Second;
+            }
             DebugLogger.Log($"[StoryProbe] cancellation settled: {reason}");
             if (hadEscrow)
                 InformationManager.DisplayMessage(new InformationMessage(
@@ -284,13 +289,13 @@ namespace LivingWorldNpcs
                 if (!float.IsNaN(dt) && !float.IsInfinity(dt) && dt > 0f)
                     _restoreRetryCooldown = Math.Max(0f, _restoreRetryCooldown - Math.Min(dt, 0.25f));
                 bool hasWork = StoryProbeMissionBehavior.Current?.Active == true || d.Stripped
-                    || d.PendingTransition != 0 || StoryProbeState.Phase == StoryProbePhase.Jail
+                    || d.PendingTransition != 0 || (!d.Suspended && StoryProbeState.Phase == StoryProbePhase.Jail)
                     || d.CancellationPending;
                 bool changedTown = !string.IsNullOrEmpty(d.StorySettlementId)
                     && d.StorySettlementId != StoryProbeSettings.SettlementId;
-                if (hasWork && (!StoryProbeSettings.Enabled || changedTown || d.CancellationPending))
+                if ((hasWork || changedTown) && (!StoryProbeSettings.Enabled || changedTown || d.CancellationPending))
                 {
-                    if (_restoreRetryCooldown <= 0f) CancelPrologue("settings changed or outstanding cancellation");
+                    if (_restoreRetryCooldown <= 0f) CancelPrologue("settings changed or outstanding cancellation", restart: changedTown);
                     return;
                 }
                 // 读档时原 Mission 已不存在，临时增强只能恢复，不能永久留在 Hero 上。
@@ -314,7 +319,7 @@ namespace LivingWorldNpcs
                     || settlement.StringId != StoryProbeSettings.SettlementId)
                 {
                     _transitionStable = false;
-                    if (d.PendingTransition != 0 || d.Stripped || StoryProbeState.Phase == StoryProbePhase.Jail)
+                    if (d.PendingTransition != 0 || d.Stripped || (!d.Suspended && StoryProbeState.Phase == StoryProbePhase.Jail))
                     {
                         if (!_boundaryStable) { _boundaryStable = true; return; }
                         AbortPrisonTransition("prologue disabled or transition target changed at menu");
@@ -323,7 +328,7 @@ namespace LivingWorldNpcs
                 }
                 _boundaryStable = false;
                 // 老失败存档曾停在地图 Jail 阶段：恢复真实入牢，不在地图补弹换装。
-                if (d.PendingTransition == 0 && StoryProbeState.Phase == StoryProbePhase.Jail && !d.JailDone)
+                if (!d.Suspended && d.PendingTransition == 0 && StoryProbeState.Phase == StoryProbePhase.Jail && !d.JailDone)
                     RequestJailInquiry();
                 if (d.PendingTransition == 0) { _transitionStable = false; return; }
                 if (d.TransitionSettlementId != settlement.StringId) { _transitionStable = false; return; }
@@ -420,6 +425,7 @@ namespace LivingWorldNpcs
                 var encounter = PlayerEncounter.LocationEncounter;
                 if (encounter == null) throw new InvalidOperationException("active LocationEncounter unavailable");
                 StoryProbeState.Data.StorySettlementId = settlement.StringId;
+                StoryProbeState.Data.Suspended = false;
                 StoryProbeState.EnterViaOption = true;
                 const string OutsideSpawnTag = "sp_outside_near_town_main_gate";
                 var openedMission = encounter.CreateAndOpenMissionController(location, null, null, OutsideSpawnTag);

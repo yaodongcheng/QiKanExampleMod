@@ -11,7 +11,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 GEN = os.path.join(ROOT, "plans", "逆水寒511", "tools", "gen_dialogue_html.py")
-PAGE = os.path.join(ROOT, "plans", "逆水寒511-玩法演示.html")
+PAGE = os.path.join(ROOT, "plans", "逆水寒511", "逆水寒511-玩法演示.html")
 H2 = "<h2>他们到底说些什么</h2>"
 
 TOGGLE = """      <label class="gtoggle"><input type="checkbox" id="showGated"> 显示「条件未满足」的选项</label>
