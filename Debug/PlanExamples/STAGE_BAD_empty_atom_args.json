@@ -1,0 +1,302 @@
+{
+  "_comment": "审查负例：empty_atom_args；只改正样例一项。夹具不证明空间可用。",
+  "Schema": "story_stage/2",
+  "ContentVersion": 1,
+  "Scene": "empire_town_m",
+  "WallLevel": "civilian",
+  "Layouts": {
+    "town": {
+      "Version": 1,
+      "Anchors": {
+        "player": {
+          "Source": "player",
+          "Pick": "first",
+          "Required": true
+        },
+        "gate": {
+          "Source": "entity",
+          "Value": [
+            "empire_castle_gate_outer_l1",
+            "empire_castle_gate_outer_l2"
+          ],
+          "Pick": "first",
+          "Required": true
+        },
+        "market": {
+          "Source": "tag",
+          "Value": [
+            "sp_merchant"
+          ],
+          "Pick": "nearestToPlayer",
+          "Required": false
+        }
+      },
+      "Gates": {
+        "gate_main": {
+          "Center": {
+            "Anchor": "gate",
+            "Fwd": 0.0,
+            "Right": 0.0,
+            "Up": 0.0
+          },
+          "Outside": {
+            "Anchor": "gate",
+            "Fwd": -12.0,
+            "Right": 0.0,
+            "Up": 0.0
+          },
+          "Inner": {
+            "Anchor": "gate",
+            "Fwd": 10.0,
+            "Right": 0.0,
+            "Up": 0.0
+          },
+          "HalfWidth": 3.0,
+          "InsideMeters": 8.0,
+          "OutsideMeters": 3.0
+        }
+      },
+      "Props": [
+        {
+          "Id": "pawnbroker_desk",
+          "Source": "prefab",
+          "Prefab": "bd_table_a",
+          "Anchor": "player",
+          "Fwd": 6.8,
+          "Right": -5.0,
+          "Up": 0.0,
+          "Yaw": 0.0,
+          "Scale": 1.0,
+          "Support": "ground",
+          "Footprint": [
+            1.521,
+            7.059
+          ],
+          "Required": true
+        },
+        {
+          "Id": "pawnbroker_scale",
+          "Source": "prefab",
+          "Prefab": "bd_barrel_a",
+          "Anchor": "player",
+          "Fwd": 6.2,
+          "Right": -6.2,
+          "Up": 0.0,
+          "Yaw": 0.0,
+          "Scale": 1.0,
+          "Support": "ground",
+          "Footprint": [
+            0.9,
+            0.9
+          ],
+          "Required": false
+        }
+      ],
+      "WorkPoints": [
+        {
+          "Id": "pawnbroker_work",
+          "Prop": "pawnbroker_desk",
+          "Side": "left",
+          "Offset": 1.4,
+          "Contact": [
+            0.4,
+            0.0,
+            0.8
+          ],
+          "Yaw": 180.0,
+          "ArriveTolerance": 0.6,
+          "MaxOccupants": 1,
+          "Action": "act_bartender_wipe"
+        }
+      ],
+      "Posts": [
+        {
+          "Id": "gate_left",
+          "Gate": "gate_main",
+          "Anchor": "gate",
+          "Fwd": -2.0,
+          "Right": -2.5,
+          "Up": 0.0,
+          "Facing": 180.0
+        },
+        {
+          "Id": "gate_right",
+          "Gate": "gate_main",
+          "Anchor": "gate",
+          "Fwd": -2.0,
+          "Right": 2.5,
+          "Up": 0.0,
+          "Facing": 180.0
+        }
+      ],
+      "Standing": [
+        {
+          "Actor": "pawnbroker",
+          "WorkPoint": "pawnbroker_work"
+        },
+        {
+          "Actor": "butcher",
+          "Anchor": "market",
+          "Fwd": 0.0,
+          "Right": 0.0,
+          "Up": 0.0,
+          "Facing": -1.0
+        }
+      ]
+    }
+  },
+  "Stages": {
+    "first_meet": {
+      "Layout": "town",
+      "Actors": [
+        "blocker",
+        "gate_sentry"
+      ],
+      "Props": [],
+      "OptionalActors": [],
+      "OptionalProps": [],
+      "Opening": false,
+      "Prep": {
+        "SkipAllowed": true,
+        "ActorReadyTimeoutSec": 3.0
+      }
+    },
+    "market": {
+      "Layout": "town",
+      "Actors": [
+        "pawnbroker",
+        "butcher"
+      ],
+      "Props": [
+        "pawnbroker_desk",
+        "pawnbroker_scale"
+      ],
+      "OptionalActors": [],
+      "OptionalProps": [
+        "pawnbroker_scale"
+      ],
+      "Opening": true,
+      "Prep": {
+        "SkipAllowed": true,
+        "ActorReadyTimeoutSec": 3.0
+      }
+    }
+  },
+  "Behaviors": {
+    "gate_guard": {
+      "Kind": "post",
+      "Posts": [
+        "gate_left",
+        "gate_right"
+      ],
+      "Stages": [
+        "first_meet"
+      ],
+      "Perception": {
+        "RequiresSight": true,
+        "RangeMeters": 12.0
+      },
+      "Trigger": {
+        "PlayerInsideGate": true,
+        "MaxPerEncounter": 1
+      },
+      "Cooldown": {
+        "RetrySec": 3.0,
+        "ReentrySec": 8.0
+      },
+      "Rank": [
+        "distanceToPlayer",
+        "npcId"
+      ],
+      "Flow": "story_intercept",
+      "MaxActive": 1
+    }
+  },
+  "Flows": {
+    "story_intercept": {
+      "Roles": {
+        "questioner": "candidate",
+        "player": "player"
+      },
+      "Steps": [
+        {
+          "Id": "approach",
+          "Atom": "actor_move",
+          "Actor": "$questioner",
+          "Args": {
+            "To": "$player",
+            "StopMeters": 2.0
+          },
+          "Wait": {
+            "Kind": "arrival",
+            "TimeoutSec": 6.0
+          },
+          "OnFail": "release",
+          "OnTimeout": "retry",
+          "OnReject": "reselect",
+          "OnCancel": "release",
+          "OnInterrupt": "release"
+        },
+        {
+          "Id": "open",
+          "Atom": "dialogue_open",
+          "Actor": "$questioner",
+          "Args": {
+            "Dialogue": "blocker_first"
+          },
+          "Wait": {
+            "Kind": "dialogue_open",
+            "TimeoutSec": 8.0
+          },
+          "OnFail": "release",
+          "OnTimeout": "release",
+          "OnCancel": "release"
+        },
+        {
+          "Id": "wait_end",
+          "Atom": "dialogue_wait",
+          "Actor": "$questioner",
+          "Args": {},
+          "Wait": {
+            "Kind": "dialogue_end",
+            "TimeoutSec": 120.0
+          },
+          "OnTimeout": "release",
+          "OnCancel": "release"
+        },
+        {
+          "Id": "finish",
+          "Atom": "player_release",
+          "Args": {
+            "WrongField": 1
+          },
+          "OnCancel": "release"
+        }
+      ]
+    }
+  },
+  "Beats": [
+    {
+      "At": 0.0,
+      "Cmd": "player_freeze",
+      "Note": "玩家动不了"
+    },
+    {
+      "At": 0.0,
+      "Cmd": "camera_cut",
+      "Case": "story_intro_back",
+      "Anchor": "player",
+      "Note": "镜头先背对广场"
+    },
+    {
+      "At": 4.0,
+      "Cmd": "camera_return",
+      "Note": "交还引擎相机"
+    },
+    {
+      "At": 4.2,
+      "Cmd": "player_release",
+      "Note": "解冻"
+    }
+  ]
+}

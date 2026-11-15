@@ -1,0 +1,948 @@
+{
+  "_comment": "由 Scripts/migrate_story_dialogues.py 从旧 story_probe_son.json 迁移；旧文件仅作回退副本。改内容请改脚本/旧文件后重跑。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "story_son",
+  "ContentVersion": 1,
+  "EntryOption": "LWN_story_son_entry",
+  "SkipVanillaOpening": false,
+  "Participants": [
+    "npc",
+    "player"
+  ],
+  "Actors": [
+    "son"
+  ],
+  "Triggers": [
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "close"
+    },
+    {
+      "Id": "event_join",
+      "Source": "event",
+      "Purpose": "join",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "release"
+    }
+  ],
+  "Entries": [
+    {
+      "Id": "player_turnin",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "quest_done",
+        "!quest_turned"
+      ],
+      "Priority": 100,
+      "Node": "son_turnin"
+    },
+    {
+      "Id": "player_chat",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "quest_turned"
+      ],
+      "Priority": 90,
+      "Node": "son_chat"
+    },
+    {
+      "Id": "player_hub",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "step>=1"
+      ],
+      "Priority": 80,
+      "Node": "son_hub"
+    },
+    {
+      "Id": "player_intro",
+      "Trigger": "player_talk",
+      "Conditions": [],
+      "Priority": 70,
+      "Node": "son_intro"
+    },
+    {
+      "Id": "join_4",
+      "Trigger": "event_join",
+      "Conditions": [
+        "event_active:4"
+      ],
+      "Priority": 100,
+      "Node": "event_4_join"
+    }
+  ],
+  "Nodes": [
+    {
+      "Id": "son_intro",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_intro",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "mark",
+          "Params": {
+            "flag": "met"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "wall",
+          "PlayerKey": "LWN_story_son_opt_wall",
+          "Requires": [
+            "!asked:ask_wall"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_wall"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_ask_wall"
+        },
+        {
+          "Id": "climb",
+          "PlayerKey": "LWN_story_son_opt_climb",
+          "Requires": [
+            "!asked:ask_climb"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_climb"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_ask_climb"
+        },
+        {
+          "Id": "sister",
+          "PlayerKey": "LWN_story_son_opt_sister",
+          "Requires": [
+            "!asked:ask_sister"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_sister"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "sister_5"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_ask_sister"
+        },
+        {
+          "Id": "deal",
+          "PlayerKey": "LWN_story_son_opt_deal",
+          "Requires": [
+            "!quest_accepted",
+            "!quest_turned",
+            "asked:ask_wall"
+          ],
+          "Effects": [],
+          "NextNode": "son_deal"
+        },
+        {
+          "Id": "chat",
+          "PlayerKey": "LWN_story_son_opt_chat",
+          "Requires": [
+            "quest_turned"
+          ],
+          "Effects": [],
+          "NextNode": "son_chat"
+        },
+        {
+          "Id": "money",
+          "PlayerKey": "LWN_story_son_opt_money",
+          "Requires": [
+            "step>=1",
+            "gold>=40",
+            "asked:ask_climb",
+            "asked:ask_sister",
+            "!asked:son_money"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "son_money"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_money_open"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "son_hub",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_hub",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "wall",
+          "PlayerKey": "LWN_story_son_opt_wall",
+          "Requires": [
+            "!asked:ask_wall"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_wall"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_ask_wall"
+        },
+        {
+          "Id": "climb",
+          "PlayerKey": "LWN_story_son_opt_climb",
+          "Requires": [
+            "!asked:ask_climb"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_climb"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_ask_climb"
+        },
+        {
+          "Id": "sister",
+          "PlayerKey": "LWN_story_son_opt_sister",
+          "Requires": [
+            "!asked:ask_sister"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_sister"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "sister_5"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_ask_sister"
+        },
+        {
+          "Id": "deal",
+          "PlayerKey": "LWN_story_son_opt_deal",
+          "Requires": [
+            "!quest_accepted",
+            "!quest_turned",
+            "asked:ask_wall"
+          ],
+          "Effects": [],
+          "NextNode": "son_deal"
+        },
+        {
+          "Id": "chat",
+          "PlayerKey": "LWN_story_son_opt_chat",
+          "Requires": [
+            "quest_turned"
+          ],
+          "Effects": [],
+          "NextNode": "son_chat"
+        },
+        {
+          "Id": "money",
+          "PlayerKey": "LWN_story_son_opt_money",
+          "Requires": [
+            "step>=1",
+            "gold>=40",
+            "asked:ask_climb",
+            "asked:ask_sister",
+            "!asked:son_money"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "son_money"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_money_open"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "son_ask_wall",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_ask_wall",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_ask_climb",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_ask_climb",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "climb2",
+          "PlayerKey": "LWN_story_son_opt_climb2",
+          "Requires": [
+            "!asked:climb_more"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "climb_more"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_ask_climb_2"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_ask_climb_2",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_ask_climb_2",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_ask_sister",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_ask_sister",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "sister2",
+          "PlayerKey": "LWN_story_son_opt_sister2",
+          "Requires": [
+            "!asked:sister_more"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "sister_more"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_ask_sister_2"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_ask_sister_2",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_ask_sister_2",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_deal",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_deal",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "job",
+          "PlayerKey": "LWN_story_opt_take_job",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_quest_accept"
+        },
+        {
+          "Id": "why",
+          "PlayerKey": "LWN_story_son_opt_why",
+          "Requires": [
+            "!asked:son_why"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "son_why"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_deal_why"
+        },
+        {
+          "Id": "refuse",
+          "PlayerKey": "LWN_story_son_opt_refuse",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_deal_refuse"
+        }
+      ]
+    },
+    {
+      "Id": "son_deal_why",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_deal_why",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "job",
+          "PlayerKey": "LWN_story_opt_take_job",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_quest_accept"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_deal_refuse",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_deal_refuse",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_quest_accept",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_quest_accept",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "quest_accept",
+          "Params": {
+            "npc": "son"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "son_turnin",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_turnin",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        ""
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "ok",
+          "PlayerKey": "LWN_story_son_opt_turnin_ok",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_turnin_ok"
+        }
+      ]
+    },
+    {
+      "Id": "son_turnin_ok",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_turnin_ok",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "quest_turn_in",
+          "Params": {
+            "npc": "son"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "son_chat",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_chat",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "work",
+          "PlayerKey": "LWN_story_son_opt_work",
+          "Requires": [
+            "!asked:son_chat_2"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "son_chat_2"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "son_chat_2"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "son_chat_2",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_chat_2",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_4_join",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event4_join",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "defend",
+          "PlayerKey": "LWN_story_event4_opt_defend",
+          "Requires": [],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "son",
+            "Success": "event_4_win",
+            "Fail": "event_4_lose"
+          }
+        },
+        {
+          "Id": "ask",
+          "PlayerKey": "LWN_story_event4_opt_ask",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "event_4_ask"
+        },
+        {
+          "Id": "walk",
+          "PlayerKey": "LWN_story_event4_opt_walk",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_4_ask",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event4_ask",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "defend",
+          "PlayerKey": "LWN_story_event4_opt_defend",
+          "Requires": [],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "son",
+            "Success": "event_4_win",
+            "Fail": "event_4_lose"
+          }
+        },
+        {
+          "Id": "walk",
+          "PlayerKey": "LWN_story_event4_opt_walk",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_4_win",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event4_win",
+      "LineActions": [
+        "act_conversation_closed_negative",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "resolve_event",
+          "Params": {
+            "event": "4"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        },
+        {
+          "Id": "relation",
+          "Params": {
+            "faction": "nightwalkers",
+            "delta": "5"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "followup",
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_4_lose",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event4_lose",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_confident_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "hazard",
+          "Params": {
+            "flag": "event4_lost"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "followup",
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "son_money_open",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_money_open",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "pay",
+          "PlayerKey": "LWN_story_son_opt_pay",
+          "Requires": [
+            "gold>=40"
+          ],
+          "Effects": [
+            {
+              "Id": "money_offer",
+              "Params": {},
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "son_money_taken"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_money_taken",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_son_money_taken",
+      "LineActions": [
+        "act_conversation_confident_trivial",
+        "act_conversation_confident_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    }
+  ]
+}

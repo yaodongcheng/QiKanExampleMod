@@ -1,16 +1,19 @@
 {
   "Npc": "widow",
   "EntryOption": "LWN_story_widow_entry",
+  "EntryOptionZh": "[说两句] 领班，演得真好。",
   "EntryNode": "widow_intro",
   "Nodes": [
     {
       "Id": "widow_intro",
       "NpcKey": "LWN_story_widow_intro",
+      "NpcKeyZh": "（寡妇，玩家）：好就多赏两个钱，看戏往里站，别挡台口。\n（寡妇，玩家）：……不过看你这身打扮，不像来看戏的。",
       "EnterAction": "PROBE:mark",
       "EnterParam": "met",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_stage",
+          "PlayerKeyZh": "[搭话] 你这戏班子，天天都在城门口唱？",
           "Once": "ask_stage",
           "Action": "PROBE:mark",
           "ActionParam": "ask_stage",
@@ -18,6 +21,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_sister",
+          "PlayerKeyZh": "[打听] 见过一个穿青布的姑娘吗？",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
           "ActionParam": "ask_sister;sister_4",
@@ -25,6 +29,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_rival",
+          "PlayerKeyZh": "[打听] 对台那班子是什么来路？",
           "Once": "ask_rival",
           "Action": "PROBE:mark",
           "ActionParam": "ask_rival",
@@ -32,16 +37,19 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_deal",
+          "PlayerKeyZh": "[求门路] 给我弄一个能进城的身份。",
           "Requires": "!quest_accepted,!quest_turned,asked:ask_rival",
           "NextNodeOnSuccess": "widow_deal"
         },
         {
           "PlayerKey": "LWN_story_widow_opt_chat",
+          "PlayerKeyZh": "[叙旧] 今天生意怎么样？",
           "Requires": "quest_turned",
           "NextNodeOnSuccess": "widow_chat"
         },
         {
           "PlayerKey": "LWN_story_widow_opt_money",
+          "PlayerKeyZh": "[塞钱] 六十第纳尔，买你两句实话。",
           "Requires": "step>=1,gold>=60,asked:ask_stage,asked:ask_sister",
           "Once": "widow_money",
           "Action": "PROBE:mark",
@@ -50,6 +58,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -61,9 +70,11 @@
     {
       "Id": "widow_hub",
       "NpcKey": "LWN_story_widow_hub",
+      "NpcKeyZh": "（寡妇，玩家）：还有话？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_stage",
+          "PlayerKeyZh": "[搭话] 你这戏班子，天天都在城门口唱？",
           "Once": "ask_stage",
           "Action": "PROBE:mark",
           "ActionParam": "ask_stage",
@@ -71,6 +82,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_sister",
+          "PlayerKeyZh": "[打听] 见过一个穿青布的姑娘吗？",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
           "ActionParam": "ask_sister;sister_4",
@@ -78,6 +90,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_rival",
+          "PlayerKeyZh": "[打听] 对台那班子是什么来路？",
           "Once": "ask_rival",
           "Action": "PROBE:mark",
           "ActionParam": "ask_rival",
@@ -85,16 +98,19 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_deal",
+          "PlayerKeyZh": "[求门路] 给我弄一个能进城的身份。",
           "Requires": "!quest_accepted,!quest_turned,asked:ask_rival",
           "NextNodeOnSuccess": "widow_deal"
         },
         {
           "PlayerKey": "LWN_story_widow_opt_chat",
+          "PlayerKeyZh": "[叙旧] 今天生意怎么样？",
           "Requires": "quest_turned",
           "NextNodeOnSuccess": "widow_chat"
         },
         {
           "PlayerKey": "LWN_story_widow_opt_money",
+          "PlayerKeyZh": "[塞钱] 六十第纳尔，买你两句实话。",
           "Requires": "step>=1,gold>=60,asked:ask_stage,asked:ask_sister",
           "Once": "widow_money",
           "Action": "PROBE:mark",
@@ -103,6 +119,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -113,9 +130,11 @@
     {
       "Id": "widow_ask_stage",
       "NpcKey": "LWN_story_widow_ask_stage",
+      "NpcKeyZh": "（寡妇，玩家）：不在这儿唱，难道喝西北风去？\n（寡妇，玩家）：城门外人杂，戏词里夹两句私货，官差也听不出来。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         }
       ],
@@ -127,9 +146,11 @@
     {
       "Id": "widow_ask_sister",
       "NpcKey": "LWN_story_widow_ask_sister",
+      "NpcKeyZh": "（寡妇，玩家）：穿青布的？我卖过她一张真通行文书。\n（寡妇，玩家）：后来有个穿水靠的水手把她领走了。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_sister_more",
+          "PlayerKeyZh": "[追问] 领走她的那个水手，你还记得什么特征？",
           "Once": "sister_more",
           "Action": "PROBE:mark",
           "ActionParam": "sister_more",
@@ -137,6 +158,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         }
       ],
@@ -148,9 +170,11 @@
     {
       "Id": "widow_ask_sister_2",
       "NpcKey": "LWN_story_widow_ask_sister_2",
+      "NpcKeyZh": "（寡妇，玩家）：那人满手都是粗缆绳磨出来的死茧，是码头帮跑船的。\n（寡妇，玩家）：我当时劝她别跟去，她说不去就没活路。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         }
       ],
@@ -162,9 +186,11 @@
     {
       "Id": "widow_ask_rival",
       "NpcKey": "LWN_story_widow_ask_rival",
+      "NpcKeyZh": "（寡妇，玩家）：对台那班子是码头帮捧起来的，天天堵我台口抢客。\n（寡妇，玩家）：你要能让他们闭嘴，我记你一份大人情。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         }
       ],
@@ -176,13 +202,16 @@
     {
       "Id": "widow_deal",
       "NpcKey": "LWN_story_widow_deal",
+      "NpcKeyZh": "（寡妇，玩家）：贵族行头我箱底有，可不是白送的。\n（寡妇，玩家）：对台领班堵着我的台口抢客，你去让他收手。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "NextNodeOnSuccess": "widow_quest_accept"
         },
         {
           "PlayerKey": "LWN_story_widow_opt_why",
+          "PlayerKeyZh": "[反问] 这种得罪人的事，你怎么不自己叫人干？",
           "Once": "widow_why",
           "Action": "PROBE:mark",
           "ActionParam": "widow_why",
@@ -190,6 +219,7 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_refuse",
+          "PlayerKeyZh": "[缓一缓] 我不替人砸戏台饭碗。",
           "NextNodeOnSuccess": "widow_deal_refuse"
         }
       ],
@@ -201,13 +231,16 @@
     {
       "Id": "widow_deal_why",
       "NpcKey": "LWN_story_widow_deal_why",
+      "NpcKeyZh": "（寡妇，玩家）：我去，他只当是两家抢生意，根本不听。\n（寡妇，玩家）：你替我把事摆平，能说服最好，动手也别出人命。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "NextNodeOnSuccess": "widow_quest_accept"
         },
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         }
       ],
@@ -219,9 +252,11 @@
     {
       "Id": "widow_deal_refuse",
       "NpcKey": "LWN_story_widow_deal_refuse",
+      "NpcKeyZh": "（寡妇，玩家）：随你便。\n（寡妇，玩家）：反正没一套体面行头，正门那个铁头可不会放你过去。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         }
       ],
@@ -233,14 +268,17 @@
     {
       "Id": "widow_quest_accept",
       "NpcKey": "LWN_story_widow_quest_accept",
+      "NpcKeyZh": "（寡妇，玩家）：领班就在街东头，这件事算你接下了。\n（寡妇，玩家）：纠纷摆平了就来找我交割，行头给你留着。",
       "EnterAction": "PROBE:accept_quest",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -252,9 +290,11 @@
     {
       "Id": "widow_turnin",
       "NpcKey": "LWN_story_widow_turnin",
+      "NpcKeyZh": "（寡妇，玩家）：对台那件事，有结果了？\n（玩家，寡妇）：领班已经服软，这事摆平了。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_turnin_ok",
+          "PlayerKeyZh": "[交差] 对台领班服软了，这事已经摆平。",
           "NextNodeOnSuccess": "widow_turnin_ok"
         }
       ],
@@ -266,14 +306,17 @@
     {
       "Id": "widow_turnin_ok",
       "NpcKey": "LWN_story_widow_turnin_ok",
+      "NpcKeyZh": "（寡妇，玩家）：说到做到。这身贵族戏服和护符归你，我再教你两手说话的分寸。\n（寡妇，玩家）：穿上再去见门卫，能不能瞒过去，还得看你接不接得住他的话。",
       "EnterAction": "PROBE:turn_in",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -285,9 +328,11 @@
     {
       "Id": "widow_chat",
       "NpcKey": "LWN_story_widow_chat",
+      "NpcKeyZh": "（寡妇，玩家）：来了？对台歇了菜，今天我这台口总算清净了。\n（寡妇，玩家）：台口那儿有张干净凳子，坐下歇歇脚吧。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_work",
+          "PlayerKeyZh": "[打听] 你在城门口唱戏，听说过城里的动静吗？",
           "Once": "widow_chat_2",
           "Action": "PROBE:mark",
           "ActionParam": "widow_chat_2",
@@ -295,10 +340,12 @@
         },
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -310,13 +357,16 @@
     {
       "Id": "widow_chat_2",
       "NpcKey": "LWN_story_widow_chat_2",
+      "NpcKeyZh": "（寡妇，玩家）：码头帮每隔五天往内城大宅送一批丫鬟，说是做绣活。\n（寡妇，玩家）：可从来没见人出来过。你进城找人，多留心东城。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -328,9 +378,11 @@
     {
       "Id": "event_3_join",
       "NpcKey": "LWN_story_event3_join",
+      "NpcKeyZh": "（寡妇，对台领班）：抢客抢到我台口来了，还要不要脸？\n（对台领班，寡妇）：街面是官家的，谁有本事谁开锣，你管得着吗？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event3_opt_side_widow",
+          "PlayerKeyZh": "[帮腔] 台上的角儿凭唱功吃饭，堵人台口算什么本事。",
           "CheckType": "SkillCheck",
           "CheckTag": "rival|charm",
           "NextNodeOnSuccess": "event_3_win",
@@ -338,10 +390,12 @@
         },
         {
           "PlayerKey": "LWN_story_event3_opt_ask",
+          "PlayerKeyZh": "[插话] 两位因何事当街争执？",
           "NextNodeOnSuccess": "event_3_ask"
         },
         {
           "PlayerKey": "LWN_story_event3_opt_walk",
+          "PlayerKeyZh": "[走开] 戏班子的事我不掺和。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -353,9 +407,11 @@
     {
       "Id": "event_3_ask",
       "NpcKey": "LWN_story_event3_ask",
+      "NpcKeyZh": "（对台领班，玩家）：这戏婆霸着城门口唱了三年，我们刚支起台子她就来掀场！\n（寡妇，玩家）：放屁！是码头帮塞你们过来挤兑我的饭碗！",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event3_opt_side_widow",
+          "PlayerKeyZh": "[帮腔] 台上的角儿凭唱功吃饭，堵人台口算什么本事。",
           "CheckType": "SkillCheck",
           "CheckTag": "rival|charm",
           "NextNodeOnSuccess": "event_3_win",
@@ -363,6 +419,7 @@
         },
         {
           "PlayerKey": "LWN_story_event3_opt_walk",
+          "PlayerKeyZh": "[走开] 戏班子的事我不掺和。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -374,15 +431,18 @@
     {
       "Id": "event_3_win",
       "NpcKey": "LWN_story_event3_win",
+      "NpcKeyZh": "（对台领班，寡妇）：……行，牙尖嘴利，今天这出先让给你。\n（寡妇，玩家）：刚才那两句帮腔漂亮，我记下了。",
       "EnterAction": "PROBE:resolve_event",
       "EnterParam": "3|players|5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "widow_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -394,15 +454,18 @@
     {
       "Id": "event_3_lose",
       "NpcKey": "LWN_story_event3_lose",
+      "NpcKeyZh": "（对台领班，寡妇）：大伙儿听听，寡妇请了个嘴笨的外乡人来撑腰！\n（寡妇，玩家）：……不会说话就少开口，白白让人看笑话。",
       "EnterAction": "PROBE:hazard",
       "EnterParam": "event3_lost",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "widow_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -414,15 +477,18 @@
     {
       "Id": "widow_money_open",
       "NpcKey": "LWN_story_widow_money_open",
+      "NpcKeyZh": "（寡妇，玩家）：爽快人。戏班子最喜欢跟爽快人打交道。\n（寡妇，玩家）：六十第纳尔放在盘里，你想问什么？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_pay",
+          "PlayerKeyZh": "[数出六十第纳尔] 那姑娘进城时到底是什么样？",
           "Requires": "gold>=60",
           "Action": "PROBE:offer_money",
           "NextNodeOnSuccess": "widow_money_taken"
         },
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         }
       ],
@@ -434,13 +500,16 @@
     {
       "Id": "widow_money_taken",
       "NpcKey": "LWN_story_widow_money_taken",
+      "NpcKeyZh": "（寡妇，玩家）：那姑娘根本不是来找活干的——找活的人自己背着包袱。\n（寡妇，玩家）：她两手空空，是被那穿水靠的男人押着往前走的。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_widow_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "widow_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],

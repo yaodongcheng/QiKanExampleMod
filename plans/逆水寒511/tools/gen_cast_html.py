@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """把序章的**配表数据**渲染成玩法演示页里的一节（2026-11-13 立）。
 
-读三份正本：
+读正式配表及设计总纲：
     ModuleData/DesignData/StoryProbeCast.json
     ModuleData/DesignData/StoryProbeTuning.json
     ModuleData/DesignData/StoryStage.json
+    plans/逆水寒511/逆水寒511-总纲与实施计划.md（集中审阅区）
 写进：
     plans/逆水寒511/逆水寒511-玩法演示.html  的 CASTDATA 标记之间
 
@@ -12,6 +13,7 @@
 用法：python plans/逆水寒511/tools/gen_cast_html.py
 """
 import io
+import html
 import json
 import os
 import re
@@ -269,6 +271,89 @@ def build(cast, tune, stage, cn):
     return "\n".join(out)
 
 
+def render_design_review(overview):
+    """仅渲染总纲集中审阅区用到的格式；新块格式报错，避免静默漏掉设计。"""
+    start = '### 给接手agent的开工说明（先读这一段）'
+    end = '**共同口径：**'
+    if overview.count(start) != 1 or overview.count(end) != 1:
+        raise ValueError('project overview review boundaries missing or duplicated')
+    source = overview.split(start, 1)[1].split(end, 1)[0]
+    lines = (start + source).strip().splitlines()
+
+    def inline(value):
+        tokens = r'`[^`]+`|\*\*.+?\*\*|\[[^\]]+\]\([^\s)]+\)'
+        out, cursor = [], 0
+        for match in re.finditer(tokens, value):
+            out.append(html.escape(value[cursor:match.start()]))
+            token = match.group()
+            if token.startswith('`'):
+                out.append('<code>' + html.escape(token[1:-1]) + '</code>')
+            elif token.startswith('**'):
+                out.append('<strong>' + inline(token[2:-2]) + '</strong>')
+            else:
+                label, target = re.fullmatch(r'\[([^\]]+)\]\(([^\s)]+)\)', token).groups()
+                if target.startswith('#'):
+                    target = os.path.basename(OVERVIEW) + target
+                if ':' in target or target.startswith('//'):
+                    raise ValueError('unsupported design review link: ' + target)
+                out.append('<a href="' + html.escape(target, quote=True) + '">'
+                           + inline(label) + '</a>')
+            cursor = match.end()
+        out.append(html.escape(value[cursor:]))
+        return ''.join(out)
+
+    def cells(line):
+        return [cell.strip() for cell in line.strip().strip('|').split('|')]
+
+    out, i = [], 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+        if line.startswith('### '):
+            out.append('<h3>' + inline(line[4:]) + '</h3>')
+            i += 1
+        elif line.startswith('|'):
+            headers = cells(line)
+            if i + 1 >= len(lines) or any(
+                    not re.fullmatch(r':?-{3,}:?', cell) for cell in cells(lines[i + 1])):
+                raise ValueError('design review table separator missing: ' + line)
+            if len(cells(lines[i + 1])) != len(headers):
+                raise ValueError('design review table separator width mismatch')
+            i += 2
+            rows = []
+            while i < len(lines) and lines[i].strip().startswith('|'):
+                row = cells(lines[i])
+                if len(row) != len(headers):
+                    raise ValueError('design review table width mismatch: ' + lines[i])
+                rows.append('<tr>' + ''.join('<td>' + inline(x) + '</td>' for x in row) + '</tr>')
+                i += 1
+            out.append('<div class="tablewrap"><table><thead><tr>'
+                       + ''.join('<th>' + inline(x) + '</th>' for x in headers)
+                       + '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>')
+        elif line.startswith('- '):
+            items = []
+            while i < len(lines) and lines[i].strip().startswith('- '):
+                items.append('<li>' + inline(lines[i].strip()[2:]) + '</li>')
+                i += 1
+            out.append('<ul>' + ''.join(items) + '</ul>')
+        else:
+            if re.match(r'[#>`~]|\d+\.\s|[-*_]{3,}$|<', line) or lines[i] != lines[i].lstrip():
+                raise ValueError('unsupported design review block: ' + line)
+            paragraph = [line]
+            i += 1
+            while i < len(lines) and lines[i].strip():
+                # 当前审阅区的段落按空行分隔；拒绝未支持的混合块。
+                next_line = lines[i].strip()
+                if next_line.startswith(('#', '|', '- ', '>', '```', '<')):
+                    raise ValueError('design review block needs a blank line: ' + next_line)
+                paragraph.append(next_line)
+                i += 1
+            out.append('<p>' + inline(' '.join(paragraph)) + '</p>')
+    return '\n'.join(out)
+
+
 def sync_project_docs(page, cast, tune, stage):
     """目标口径读取总纲；当前计数读取正式数据，不把拟实施目标当现状。"""
     overview = io.open(OVERVIEW, encoding="utf-8").read()
@@ -281,15 +366,22 @@ def sync_project_docs(page, cast, tune, stage):
               len(stage.get('Beats') or []))
     current = '<p><b>当前数据：</b>%d名演员、%d件时间轴道具、%d拍。' % counts
     body = ('<section id="projectdocs"><h2>先看总纲与实现状态</h2>'
-            '<p class="sub">2026-11-15统一文档口径。完整方案、进阶目标与验收从总纲进入。</p>'
-            '<p><a href="逆水寒511-总纲与实施计划.md">总纲与实施计划</a> · '
-            '<a href="逆水寒511都市开放世界和npc优化玩法核心.md">原始需求与玩法核心</a> · '
-            '<a href="逆水寒511玩法验证-城池剧情任务.md">玩法需求</a> · '
-            '<a href="逆水寒511-玩法演示校验.md">当前校验与历史证据</a></p>'
+            '<p class="sub">2026-11-15三份现行文档已融合；只需审阅一份总纲，细则与证据在同一文件内。</p>'
+            '<p><a href="逆水寒511-总纲与实施计划.md#511-review">唯一总纲：集中审阅区</a> · '
+            '<a href="逆水寒511-总纲与实施计划.md#511-requirements">玩法与数据维护</a> · '
+            '<a href="逆水寒511-总纲与实施计划.md#511-status">实现状态与验收记录</a> · '
+            '<a href="逆水寒511-总纲与实施计划.md#511-history">历史证据</a></p>'
             '<div class="scene"><p><b>目标架构，尚未实施：</b>' + contract + '</p>'
             + current + '下方对白、配表和十种路线展示当前数据/源码规则；'
-            '空间重排、人口隔离、双岗选人、局部对话让位和完整自治仍待实施与验证。</p>'
+            '空间重排、双岗选人、局部对话让位和完整自治仍待实施与验证；'
+            '<b>人口隔离已于 2026-11-15 实机确认生效（1.2.12：城里只剩玩家与剧情演员）。</b></p>'
+            '<p><b>实机与页面的对应关系：</b>本页首遇按<b>当前单守卫（铁头）</b>渲染，'
+            '对白取自动手时直挂开场的那棵树（不再放原版开场白）；'
+            '双守卫、动态选人仍是目标，未实施。进游戏若与本页不符，以 `Debug/StoryEngine_RuntimeLog.txt` 为准并回填 §16。</p>'
             '<p><b>证据边界：</b>已有源码修复与数据检查不等于游戏通过；本页不能证明角色动作、空间和流程实机可玩。</p></div>'
+            '<details class="dlg" id="designreview"><summary><b>最新设计与完成状态（自动同步总纲）</b>'
+            '<span>展开查看玩家流程、S0～S9、NPC闭环、事件协同和验收要求</span></summary>'
+            '<div class="dlgbody">' + render_design_review(overview) + '</div></details>'
             '<p><a href="../../Debug/offline/511-关卡俯视图.png">单张关卡俯视复核图</a> · '
             '<a href="../../Debug/offline/511-空间复核数据.json">空间复核数据</a>。图为旧布局问题复核，尚未通过新布局验收。</p></section>')
     pattern = r'<section id="projectdocs">.*?</section>'
@@ -314,6 +406,10 @@ def sync_gameplay(page, cast, tune):
             '<tr>' + ''.join('<td>' + esc(x) + '</td>' for x in row) + '</tr>' for row in rows
         ) + '</tbody></table></div>'
 
+    page, title_count = re.subn(r'<title>.*?</title>',
+        '<title>市井 · 城门序章 — 511玩法设计与当前数据预览</title>', page, count=1, flags=re.S)
+    if title_count != 1:
+        raise ValueError('preview title missing')
     page = re.sub(r'<p class="lede">.*?</p>',
         '<p class="lede">第二次回到城门后，有四条对话路径和六种现场手段。'
         '每条都要满足真实条件；预览展示当前数据与源码规则，新舞台与AI目标另列，游戏效果仍需实机验收。</p>', page, count=1, flags=re.S)
@@ -353,7 +449,8 @@ def sync_gameplay(page, cast, tune):
     section(['整张图'], '整张图', table(['阶段', '玩家经历与判断'], [
         ['首遇', '守卫质问 → 退让，或选择硬闯 → 真实战斗败退；保持距离、格挡不会按时间强行倒地。'],
         ['入牢', '真实败退 → 自动地牢入场 → 牢内确认换装 → 自动回门外。'],
-        ['准备', '四家打听与委托；可用检定和平办事，也可实际战斗；奖励逐项到账。'],
+        ['第二阶段准备（目标未实施）', '按阶段名单布设9演员、7布景，最多借用1名已有可用同伴；无人则旁白。创建可同帧发起，R1～R7确认真实就绪后才开演。当前仍是30拍旧布局。'],
+        ['市井与委托', '四家打听与委托；可用检定和平办事，也可实际战斗；奖励逐项到账。'],
         ['过门', '付款、威吓、决斗、冒充；或实际潜行、翻墙、击晕、绑、扛、扒空武器后交涉。'],
         ['完成', '实际穿过有限门区并到达目标，归还原物与尚欠款；取消剩余活动委托，提交完成状态并停演出。'],
         ['暂停与重开', '关闭或restore：归还并保留进度；abort、reset、phase first、换城：归还、取消委托、清本轮状态。'],
@@ -415,6 +512,12 @@ def sync_gameplay(page, cast, tune):
     page = page.replace('十二种办法，全都绕着他。', '第二阶段十种过门办法围绕铁头；首遇双岗的实际质问者由AI决定。')
     page = page.replace('第二次进城时自动跟上的（免费）。他只说三句话：这是哪儿、你为什么不能走正门、接下来该找谁。',
                         '目标只借用已有玩家同伴，不自动招募新人；无可用人选则旁白。介绍只播一次，说明地点、处境和可打听的方向。')
+    page = page.replace('三句话和一个跟着走的人',
+                        '一次进城引导；目标借用已有可用同伴，无人则旁白，同伴借用改造尚未实施')
+    page = page.replace('只认通行文书。贪，给钱就抬眼皮；',
+                        '守着门槛收钱，也会检查贵族行头与身份资格。贪，给钱就抬眼皮；')
+    page = page.replace('100 第纳尔 / 一份通行文书', '100 第纳尔 / 实际贵族行头与身份资格')
+    page = page.replace('三项数值与三件东西，', '三项数值与工具、行头、钱，')
     page = page.replace('十七八岁，蹲墙头三年，风大看得远。', '成年，具体年龄见配表；在这一带混了三年，熟悉墙头路线。')
     page = page.replace('下面全是游戏里的原文（中文层），不是概述。点开看。实机里按 F 或走近事件就会听到这些。',
                         '下面读取当前中文语言XML与对话JSON。点开查看原文、跳转和条件；实际出现取决于剧情阶段、个人知识与运行条件，完整流程仍待实机验收。')

@@ -28,7 +28,7 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>
-    /// 序章状态（2026-11-12，plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md）。
+    /// 序章状态（2026-11-12，plans/逆水寒511/逆水寒511-总纲与实施计划.md）。
     /// 单一数据源：一切"玩家走到哪一步"的判断都读这里；存档走 MyBehavior.SyncData 的
     /// `lwn_story_probe` 键（JSON blob），新档由 ResetAllCampaignState 清空。
     ///
@@ -66,6 +66,8 @@ namespace LivingWorldNpcs
         public int DebtRepaid;             // 已实际交还给当铺的账款，重试只补尚欠
         public int PawnbrokerRewardPaid;    // 30 跑腿费中实际已付部分
         public Dictionary<string, List<string>> RewardReceipts = new Dictionary<string, List<string>>();
+        /// <summary>P0-D.4 对话效果收据（`Receipt=once` 的持久防重）。键含对话定义/效果/参数。</summary>
+        public List<string> DialogueReceipts = new List<string>();
         public int GoldBeforeStrip;        // 尚欠没收款；每次实际归还后减少，结清为 0
         public List<string> SavedBattleEquip = new List<string>();   // 没收前的战斗装备（槽位顺序，"" = 空）
         public List<string> SavedCivilianEquip = new List<string>(); // 没收前的民用装备
@@ -132,6 +134,17 @@ namespace LivingWorldNpcs
             if (!Data.RewardReceipts.TryGetValue(npcId, out var receipts) || receipts == null)
                 Data.RewardReceipts[npcId] = receipts = new List<string>();
             if (!receipts.Contains(key)) receipts.Add(key);
+        }
+
+        // ── P0-D.4 对话效果收据（跨会话/重载/重播防重）──
+
+        public static bool HasDialogueReceipt(string key)
+            => !string.IsNullOrEmpty(key) && Data.DialogueReceipts.Contains(key);
+
+        public static void RecordDialogueReceipt(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            if (!Data.DialogueReceipts.Contains(key)) Data.DialogueReceipts.Add(key);
         }
 
         /// <summary>本次进场是否由「入城（玩法测试）」菜单触发。**不存档**（transient）。</summary>
@@ -213,6 +226,22 @@ namespace LivingWorldNpcs
         public static void AddHazard(string id)
         {
             if (!string.IsNullOrEmpty(id) && !Data.Hazards.Contains(id)) Data.Hazards.Add(id);
+        }
+
+        public static void RemoveHazard(string id)
+        {
+            if (!string.IsNullOrEmpty(id)) Data.Hazards.Remove(id);
+        }
+
+        public static void RemoveClue(string id)
+        {
+            if (!string.IsNullOrEmpty(id)) Data.Clues.Remove(id);
+        }
+
+        public static void UnmarkAsked(string npcId, string tag)
+        {
+            if (!string.IsNullOrEmpty(npcId) && !string.IsNullOrEmpty(tag))
+                Data.Asked.Remove(npcId + ":" + tag);
         }
 
         public static bool HasHazard(string id) => Data.Hazards.Contains(id);
@@ -303,6 +332,7 @@ namespace LivingWorldNpcs
                     _data.PendingBattleRestoreSlots ??= new List<int>();
                     _data.PendingCivilianRestoreSlots ??= new List<int>();
                     _data.RewardReceipts ??= new Dictionary<string, List<string>>();
+                    _data.DialogueReceipts ??= new List<string>();
                 }
                 InvalidateRuntime();
                 EnterJailViaOption = false;

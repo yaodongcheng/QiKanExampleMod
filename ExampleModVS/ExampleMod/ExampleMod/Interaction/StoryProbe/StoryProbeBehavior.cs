@@ -427,9 +427,15 @@ namespace LivingWorldNpcs
                 StoryProbeState.Data.StorySettlementId = settlement.StringId;
                 StoryProbeState.Data.Suspended = false;
                 StoryProbeState.EnterViaOption = true;
+                // 🔴 人口限制必须在 Mission 打开**之前**登记：原版 AfterStart 一开始就会批量生成居民。
+                StoryPopulationGuard.Request(settlement.StringId, StoryProbeState.Phase.ToString());
                 const string OutsideSpawnTag = "sp_outside_near_town_main_gate";
                 var openedMission = encounter.CreateAndOpenMissionController(location, null, null, OutsideSpawnTag);
-                if (openedMission == null) throw new InvalidOperationException("town center mission did not open");
+                if (openedMission == null)
+                {
+                    StoryPopulationGuard.CancelPending("mission did not open");
+                    throw new InvalidOperationException("town center mission did not open");
+                }
                 // 返回的 mission 才是开场回执；EnterViaOption 可能已被同步启动的 Host 消费。
                 DebugLogger.Log($"[StoryProbe] entering center of {settlement.StringId} phase={StoryProbeState.Phase}");
                 return true;
@@ -437,6 +443,7 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 StoryProbeState.EnterViaOption = false;
+                StoryPopulationGuard.CancelPending("enter town center failed");
                 DebugLogger.Log($"[StoryProbe] EnterTownCenter failed: {ex.Message}");
                 return false;
             }

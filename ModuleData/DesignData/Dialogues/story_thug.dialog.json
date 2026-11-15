@@ -1,0 +1,431 @@
+{
+  "_comment": "由 Scripts/migrate_story_dialogues.py 从旧 story_probe_thug.json 迁移；旧文件仅作回退副本。改内容请改脚本/旧文件后重跑。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "story_thug",
+  "ContentVersion": 1,
+  "EntryOption": "LWN_story_thug_entry",
+  "SkipVanillaOpening": false,
+  "Participants": [
+    "npc",
+    "player"
+  ],
+  "Actors": [
+    "thug"
+  ],
+  "Triggers": [
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "close"
+    },
+    {
+      "Id": "event_join",
+      "Source": "event",
+      "Purpose": "join",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "release"
+    }
+  ],
+  "Entries": [
+    {
+      "Id": "player_hub",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "step>=1"
+      ],
+      "Priority": 80,
+      "Node": "thug_hub"
+    },
+    {
+      "Id": "player_intro",
+      "Trigger": "player_talk",
+      "Conditions": [],
+      "Priority": 70,
+      "Node": "thug_intro"
+    }
+  ],
+  "Nodes": [
+    {
+      "Id": "thug_intro",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_thug_intro",
+      "LineActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "mark",
+          "Params": {
+            "flag": "met"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "settle",
+          "PlayerKey": "LWN_story_thug_opt_settle",
+          "Requires": [
+            "quest_accepted@butcher",
+            "!quest_done@butcher"
+          ],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "thug",
+            "Success": "thug_settled",
+            "Fail": "thug_settle_refused"
+          }
+        },
+        {
+          "Id": "ask",
+          "PlayerKey": "LWN_story_thug_opt_ask",
+          "Requires": [
+            "!asked:thug_ask"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "thug_ask"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "thug_talk"
+        },
+        {
+          "Id": "money",
+          "PlayerKey": "LWN_story_thug_opt_money",
+          "Requires": [
+            "!quest_accepted@butcher",
+            "!asked:thug_night"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "thug_night"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "thug_money"
+        },
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Requires": [
+            "!quest_done@butcher"
+          ],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "thug"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "thug_fight"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "thug_hub",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_thug_hub",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "settle",
+          "PlayerKey": "LWN_story_thug_opt_settle",
+          "Requires": [
+            "quest_accepted@butcher",
+            "!quest_done@butcher"
+          ],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "thug",
+            "Success": "thug_settled",
+            "Fail": "thug_settle_refused"
+          }
+        },
+        {
+          "Id": "ask",
+          "PlayerKey": "LWN_story_thug_opt_ask",
+          "Requires": [
+            "!asked:thug_ask"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "thug_ask"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "thug_talk"
+        },
+        {
+          "Id": "money",
+          "PlayerKey": "LWN_story_thug_opt_money",
+          "Requires": [
+            "!quest_accepted@butcher",
+            "!asked:thug_night"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "thug_night"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "thug_money"
+        },
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Requires": [
+            "!quest_done@butcher"
+          ],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "thug"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "thug_fight"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "thug_talk",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_thug_talk",
+      "LineActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "settle",
+          "PlayerKey": "LWN_story_thug_opt_settle",
+          "Requires": [
+            "quest_accepted@butcher",
+            "!quest_done@butcher"
+          ],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "thug",
+            "Success": "thug_settled",
+            "Fail": "thug_settle_refused"
+          }
+        },
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Requires": [
+            "!quest_done@butcher"
+          ],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "thug"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "thug_fight"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "thug_hub"
+        }
+      ]
+    },
+    {
+      "Id": "thug_money",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_thug_money",
+      "LineActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_aggressive_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Requires": [],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "thug"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "thug_fight"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "thug_hub"
+        }
+      ]
+    },
+    {
+      "Id": "thug_fight",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_thug_fight",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "thug_settled",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_thug_settled",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "complete_quest",
+          "Params": {
+            "npc": "butcher",
+            "resolution": "charm"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "thug_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "thug_settle_refused",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_thug_settle_refused",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "Requires": [],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "thug"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "thug_fight"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "thug_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    }
+  ]
+}

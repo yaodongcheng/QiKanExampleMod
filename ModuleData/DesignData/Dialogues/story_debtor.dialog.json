@@ -1,0 +1,309 @@
+{
+  "_comment": "由 Scripts/migrate_story_dialogues.py 从旧 story_probe_debtor.json 迁移；旧文件仅作回退副本。改内容请改脚本/旧文件后重跑。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "story_debtor",
+  "ContentVersion": 1,
+  "EntryOption": "LWN_story_debtor_entry",
+  "SkipVanillaOpening": false,
+  "Participants": [
+    "npc",
+    "player"
+  ],
+  "Actors": [
+    "debtor"
+  ],
+  "Triggers": [
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "close"
+    },
+    {
+      "Id": "event_join",
+      "Source": "event",
+      "Purpose": "join",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "release"
+    }
+  ],
+  "Entries": [
+    {
+      "Id": "player_hub",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "step>=1"
+      ],
+      "Priority": 80,
+      "Node": "debtor_hub"
+    },
+    {
+      "Id": "player_intro",
+      "Trigger": "player_talk",
+      "Conditions": [],
+      "Priority": 70,
+      "Node": "debtor_intro"
+    }
+  ],
+  "Nodes": [
+    {
+      "Id": "debtor_intro",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_debtor_intro",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "mark",
+          "Params": {
+            "flag": "met"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "ask",
+          "PlayerKey": "LWN_story_debtor_opt_ask",
+          "Requires": [
+            "!asked:debtor_ask"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "debtor_ask"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "debtor_talk"
+        },
+        {
+          "Id": "collect",
+          "PlayerKey": "LWN_story_debtor_opt_collect",
+          "Requires": [
+            "quest_accepted@pawnbroker",
+            "!quest_done@pawnbroker"
+          ],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "debtor",
+            "Success": "debtor_collect",
+            "Fail": "debtor_refuse"
+          }
+        },
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_debtor_opt_fight",
+          "Requires": [],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "debtor"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "debtor_fight"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "debtor_hub",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_debtor_hub",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "ask",
+          "PlayerKey": "LWN_story_debtor_opt_ask",
+          "Requires": [
+            "!asked:debtor_ask"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "debtor_ask"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "debtor_talk"
+        },
+        {
+          "Id": "collect",
+          "PlayerKey": "LWN_story_debtor_opt_collect",
+          "Requires": [
+            "quest_accepted@pawnbroker",
+            "!quest_done@pawnbroker"
+          ],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "debtor",
+            "Success": "debtor_collect",
+            "Fail": "debtor_refuse"
+          }
+        },
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_debtor_opt_fight",
+          "Requires": [],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "debtor"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "debtor_fight"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "debtor_talk",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_debtor_talk",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "debtor_hub"
+        }
+      ]
+    },
+    {
+      "Id": "debtor_collect",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_debtor_collect",
+      "LineActions": [
+        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "debt_collect",
+          "Params": {
+            "from": "debtor",
+            "amount": "120",
+            "quest": "pawnbroker"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_debtor_opt_collect_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "debtor_refuse",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_debtor_refuse",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_debtor_opt_fight",
+          "Requires": [],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "debtor"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "debtor_fight"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "debtor_fight",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_debtor_fight",
+      "LineActions": [
+        "act_conversation_closed_very_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    }
+  ]
+}

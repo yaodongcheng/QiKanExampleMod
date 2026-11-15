@@ -56,6 +56,10 @@ namespace LivingWorldNpcs
         public string AttrItemId;       // 随身属性道具（偷到 +1 技能）
         public string AttrSkill;        // 对应技能（Charm / Roguery / Vigor / OneHanded / Trade）
         public bool IsBlocker;          // 守门人：不走委托，走五条过门路
+        /// <summary>P2：首遇阶段的登记守卫（两名）。位置 = 守门人刷新点 + 本地偏移。</summary>
+        public bool FirstMeetGuard;
+        public float FirstMeetOffsetForward;
+        public float FirstMeetOffsetRight;
         /// <summary>生成时用平民装（true，默认）还是战斗装（false）。</summary>
         public bool Civilian = true;
 
@@ -88,6 +92,8 @@ namespace LivingWorldNpcs
         public string[] LineFallbacks;
         public string[] ActionA;        // 循环动作
         public string[] ActionB;
+        public List<string> Members = new List<string>();   // 群组全部成员（支持第三人及以上）
+        public List<string> Speakers = new List<string>();  // 与 LineKeys 平行；空 = 按 Members 轮转
         public string HostNpcId;        // 玩家接入时跟谁谈（= 事件节点所属 NPC）
         public string JoinNode;         // "event_<n>_join"
     }
@@ -334,6 +340,24 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[StoryProbe] FindItem({id}) failed: {ex.Message}");
                 return null;
+            }
+        }
+
+        /// <summary>预检：物品是否存在、数量是否合法（不落地）。</summary>
+        public static bool CanGiveItem(string itemId, int count)
+            => !string.IsNullOrEmpty(itemId) && count > 0 && FindItem(itemId) != null;
+
+        /// <summary>回滚：把刚发出的物品从英雄身上收回（与 GiveItem 成对）。</summary>
+        public static bool RemoveItem(Hero hero, string itemId, int count)
+        {
+            if (hero == null || string.IsNullOrEmpty(itemId) || count <= 0) return false;
+            var item = FindItem(itemId);
+            if (item == null) return false;
+            try { return AgentControlHelper.TransferItems(hero, null, item, count) > 0; }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryProbe] RemoveItem({itemId}) failed: {ex.Message}");
+                return false;
             }
         }
 

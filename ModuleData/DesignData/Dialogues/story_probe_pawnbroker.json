@@ -1,16 +1,19 @@
 {
   "Npc": "pawnbroker",
   "EntryOption": "LWN_story_pawnbroker_entry",
+  "EntryOptionZh": "[说两句] 老板，生意不错。",
   "EntryNode": "pawnbroker_intro",
   "Nodes": [
     {
       "Id": "pawnbroker_intro",
       "NpcKey": "LWN_story_pawnbroker_intro",
+      "NpcKeyZh": "（老周，玩家）：买东西？当东西？还是找门路？\n（老周，玩家）：看你这身土——不像来当东西的。",
       "EnterAction": "PROBE:mark",
       "EnterParam": "met",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_self",
+          "PlayerKeyZh": "[搭话] 先说说你自己吧。",
           "Once": "ask_self",
           "Action": "PROBE:mark",
           "ActionParam": "ask_self",
@@ -18,6 +21,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister",
+          "PlayerKeyZh": "[打听] 三个月前，见过一个穿青布的姑娘吗？",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
           "ActionParam": "ask_sister;sister_1",
@@ -25,6 +29,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_gang",
+          "PlayerKeyZh": "[打听] 守门那个人，怎么才能过去？",
           "Once": "ask_gang",
           "Action": "PROBE:mark",
           "ActionParam": "ask_gang",
@@ -32,6 +37,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_errand",
+          "PlayerKeyZh": "[零活] 你这铺子里有跑腿打杂的活吗？",
           "Action": "PROBE:errand",
           "ActionParam": "50",
           "NextNodeOnSuccess": "pawnbroker_errand",
@@ -39,16 +45,19 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_deal",
+          "PlayerKeyZh": "[求门路] 我手头空，你这儿有什么赚钱的门路？",
           "Requires": "!quest_accepted,!quest_turned,asked:ask_gang",
           "NextNodeOnSuccess": "pawnbroker_deal"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_chat",
+          "PlayerKeyZh": "[叙旧] 老周，近来摊子上还安生？",
           "Requires": "quest_turned,asked:ask_gang",
           "NextNodeOnSuccess": "pawnbroker_chat"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_money",
+          "PlayerKeyZh": "[递钱] 这点意思，您收着。",
           "Requires": "clue:sister_3,asked:ask_self,asked:ask_sister,asked:ask_gang",
           "Once": "offer_money",
           "Action": "PROBE:mark",
@@ -57,12 +66,14 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_help_reward",
+          "PlayerKeyZh": "[酬谢] 刚才替你挡了那一下，咱们也算相识了。",
           "NextNodeOnSuccess": "pawnbroker_help_reward",
           "Requires": "street_help_pending,asked:ask_self,asked:ask_gang",
           "Action": "PROBE:street_help_reward"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -74,9 +85,11 @@
     {
       "Id": "pawnbroker_hub",
       "NpcKey": "LWN_story_pawnbroker_hub",
+      "NpcKeyZh": "（老周，玩家）：还有事？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_self",
+          "PlayerKeyZh": "[搭话] 先说说你自己吧。",
           "Once": "ask_self",
           "Action": "PROBE:mark",
           "ActionParam": "ask_self",
@@ -84,6 +97,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister",
+          "PlayerKeyZh": "[打听] 三个月前，见过一个穿青布的姑娘吗？",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
           "ActionParam": "ask_sister;sister_1",
@@ -91,6 +105,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_gang",
+          "PlayerKeyZh": "[打听] 守门那个人，怎么才能过去？",
           "Once": "ask_gang",
           "Action": "PROBE:mark",
           "ActionParam": "ask_gang",
@@ -98,6 +113,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_errand",
+          "PlayerKeyZh": "[零活] 你这铺子里有跑腿打杂的活吗？",
           "Action": "PROBE:errand",
           "ActionParam": "50",
           "NextNodeOnSuccess": "pawnbroker_errand",
@@ -105,21 +121,25 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_deal",
+          "PlayerKeyZh": "[求门路] 我手头空，你这儿有什么赚钱的门路？",
           "Requires": "!quest_accepted,!quest_turned,asked:ask_gang",
           "NextNodeOnSuccess": "pawnbroker_deal"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
+          "PlayerKeyZh": "[赎当] 那只银镯，我替她赎回来。",
           "Requires": "clue:sister_1,!clue:sister_3,asked:ask_self,asked:ask_gang,can_redeem_keepsake",
           "NextNodeOnSuccess": "pawnbroker_sister_redeem"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_chat",
+          "PlayerKeyZh": "[叙旧] 老周，近来摊子上还安生？",
           "Requires": "quest_turned,asked:ask_gang",
           "NextNodeOnSuccess": "pawnbroker_chat"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_money",
+          "PlayerKeyZh": "[递钱] 这点意思，您收着。",
           "Requires": "clue:sister_3,asked:ask_self,asked:ask_sister,asked:ask_gang",
           "Once": "offer_money",
           "Action": "PROBE:mark",
@@ -128,12 +148,14 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_help_reward",
+          "PlayerKeyZh": "[酬谢] 刚才替你挡了那一下，咱们也算相识了。",
           "NextNodeOnSuccess": "pawnbroker_help_reward",
           "Requires": "street_help_pending,asked:ask_self,asked:ask_gang",
           "Action": "PROBE:street_help_reward"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -144,9 +166,11 @@
     {
       "Id": "pawnbroker_ask_self",
       "NpcKey": "LWN_story_pawnbroker_ask_self",
+      "NpcKeyZh": "（老周，玩家）：我姓周，街坊都叫老周。\n（老周，玩家）：这铺子开了二十三年——后十三年，是给别人开的。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_self_stay",
+          "PlayerKeyZh": "[追问] 被压榨成这样，你怎么不走？",
           "Once": "self_stay",
           "Action": "PROBE:mark",
           "ActionParam": "self_stay",
@@ -154,6 +178,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_self_know",
+          "PlayerKeyZh": "[接话] 所以这城门口的事，你都门儿清？",
           "Once": "self_know",
           "Action": "PROBE:mark",
           "ActionParam": "self_know",
@@ -161,6 +186,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -172,9 +198,11 @@
     {
       "Id": "pawnbroker_ask_stay",
       "NpcKey": "LWN_story_pawnbroker_ask_stay",
+      "NpcKeyZh": "（老周，玩家）：走去哪。我这岁数出了城门，就是路边的死人。\n（老周，玩家）：人啊，不是不想走，是走不动。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -186,9 +214,11 @@
     {
       "Id": "pawnbroker_ask_know",
       "NpcKey": "LWN_story_pawnbroker_ask_know",
+      "NpcKeyZh": "（老周，玩家）：城门口的当铺，进出的东西比人还杂。\n（老周，玩家）：谁手头紧、谁刚发横财，翻翻当票就一清二楚。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -200,9 +230,11 @@
     {
       "Id": "pawnbroker_ask_sister",
       "NpcKey": "LWN_story_pawnbroker_ask_sister",
+      "NpcKeyZh": "（老周，玩家）：三个月前，青布衣裳，女的。……有了。\n（老周，玩家）：「银镯一只，押三十，赎期三日」。人没来赎。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_where",
+          "PlayerKeyZh": "[追问] 她当完镯子，往哪去了？",
           "Once": "sister_where",
           "Action": "PROBE:mark+clue",
           "ActionParam": "sister_where;sister_2",
@@ -210,11 +242,13 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
+          "PlayerKeyZh": "[赎当] 那只银镯，我替她赎回来。",
           "Requires": "can_redeem_keepsake,!clue:sister_3",
           "NextNodeOnSuccess": "pawnbroker_sister_redeem"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_why",
+          "PlayerKeyZh": "[追问] 三个月前的当票，你怎么记得这么清？",
           "Once": "sister_why",
           "Action": "PROBE:mark",
           "ActionParam": "sister_why",
@@ -222,6 +256,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -233,9 +268,11 @@
     {
       "Id": "pawnbroker_sister_where",
       "NpcKey": "LWN_story_pawnbroker_sister_where",
+      "NpcKeyZh": "（老周，玩家）：那天她后头跟着个人。穿水靠，站在门外没进来。\n（老周，玩家）：码头帮的。押完镯子，她就跟人走了。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -247,9 +284,11 @@
     {
       "Id": "pawnbroker_sister_why",
       "NpcKey": "LWN_story_pawnbroker_sister_why",
+      "NpcKeyZh": "（老周，玩家）：这行当靠的就是记。记错一笔，摊子就完了。\n（老周，玩家）：你妹妹那只镯子，是我三个月里唯一一只没人来赎的。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -261,15 +300,18 @@
     {
       "Id": "pawnbroker_sister_redeem",
       "NpcKey": "LWN_story_pawnbroker_sister_redeem",
+      "NpcKeyZh": "（老周，玩家）：三十第纳尔。\n（老周，玩家）：赎期过了，按规矩该加二成。……算了，就收你三十。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_pay30",
+          "PlayerKeyZh": "[付钱] 三十第纳尔，数好了。（30 第纳尔）",
           "Requires": "can_redeem_keepsake,!clue:sister_3",
           "Action": "PROBE:redeem_keepsake",
           "NextNodeOnSuccess": "pawnbroker_sister_got"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_hold",
+          "PlayerKeyZh": "[暂缓] 先替我留着，我凑够钱再来赎。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -281,13 +323,16 @@
     {
       "Id": "pawnbroker_sister_got",
       "NpcKey": "LWN_story_pawnbroker_sister_got",
+      "NpcKeyZh": "（老周，玩家）：镯子拿好。内侧刻着个「宁」字，没让人碰过。\n（老周，玩家）：这城里丢过的人比丢过的钱多。往码头找，别一个人去。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -299,9 +344,11 @@
     {
       "Id": "pawnbroker_ask_gang",
       "NpcKey": "LWN_story_pawnbroker_ask_gang",
+      "NpcKeyZh": "（老周，玩家）：守门那个叫铁头。贪，见钱就抬眼皮。\n（老周，玩家）：但他不怕横的——你亮刀子，他真敢捅你。给钱，或者……",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_gang_how",
+          "PlayerKeyZh": "[追问] 或者怎么样？",
           "Once": "gang_how",
           "Action": "PROBE:mark+clue",
           "ActionParam": "gang_how;gate_disguise",
@@ -309,6 +356,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_gang_price",
+          "PlayerKeyZh": "[问价] 打点他要多少第纳尔？",
           "Once": "gang_price",
           "Action": "PROBE:mark+clue",
           "ActionParam": "gang_price;gate_bribe",
@@ -316,6 +364,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -327,9 +376,11 @@
     {
       "Id": "pawnbroker_ask_gang_2",
       "NpcKey": "LWN_story_pawnbroker_ask_gang_2",
+      "NpcKeyZh": "（老周，玩家）：……或者，换身有头脸的行头，别让他认出你。\n（老周，玩家）：你这张脸，城门海捕文书上贴着呢。虽然画得糙。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -341,9 +392,11 @@
     {
       "Id": "pawnbroker_ask_gang_3",
       "NpcKey": "LWN_story_pawnbroker_ask_gang_3",
+      "NpcKeyZh": "（老周，玩家）：一百第纳尔。这数我心里有。\n（老周，玩家）：少一个子儿，他能在门槛上跟你磨到天黑。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -355,13 +408,16 @@
     {
       "Id": "pawnbroker_deal",
       "NpcKey": "LWN_story_pawnbroker_deal",
+      "NpcKeyZh": "（老周，玩家）：码头帮有个收数的，欠我三笔死账，拖了半年。\n（老周，玩家）：把钱给我收回来——不用见血。办妥了我给你酬劳。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "NextNodeOnSuccess": "pawnbroker_quest_accept"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_deal_why",
+          "PlayerKeyZh": "[反问] 收账这事，你怎么不自己去？",
           "Once": "deal_why",
           "Action": "PROBE:mark",
           "ActionParam": "deal_why",
@@ -369,6 +425,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_refuse",
+          "PlayerKeyZh": "[缓一缓] 我只想找人，暂时不想惹码头帮。",
           "NextNodeOnSuccess": "pawnbroker_deal_refuse"
         }
       ],
@@ -380,13 +437,16 @@
     {
       "Id": "pawnbroker_deal_why",
       "NpcKey": "LWN_story_pawnbroker_deal_why",
+      "NpcKeyZh": "（老周，玩家）：我去？我这把老骨头，去了就是躺着回来。\n（老周，玩家）：我这辈子只跟算盘打交道。拳脚的事，我不碰。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "NextNodeOnSuccess": "pawnbroker_quest_accept"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -398,9 +458,11 @@
     {
       "Id": "pawnbroker_deal_refuse",
       "NpcKey": "LWN_story_pawnbroker_deal_refuse",
+      "NpcKeyZh": "（老周，玩家）：也对。那伙人，惹上一个躺一个。\n（老周，玩家）：不过我把话撂这儿——你要找的姑娘，也是他们带走的。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -412,14 +474,17 @@
     {
       "Id": "pawnbroker_quest_accept",
       "NpcKey": "LWN_story_pawnbroker_quest_accept",
+      "NpcKeyZh": "（老周，玩家）：那收数人每天午后在西边巷口蹲着。\n（老周，玩家）：一百二十第纳尔，一分不能少。别闹出人命。",
       "EnterAction": "PROBE:accept_quest",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -431,14 +496,17 @@
     {
       "Id": "pawnbroker_turnin",
       "NpcKey": "LWN_story_pawnbroker_turnin",
+      "NpcKeyZh": "（玩家，老周）：一百二十第纳尔，原数追回来了。\n（老周，玩家）：……真让你从他嘴里撬出来了。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_ok",
+          "PlayerKeyZh": "[交差] 一百二十第纳尔都在这儿，没闹出人命。",
           "NextNodeOnSuccess": "pawnbroker_turnin_ok",
           "Requires": "!resolution:force"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_trouble",
+          "PlayerKeyZh": "[实话] 钱拿回来了，不过动手揍了他一顿。",
           "NextNodeOnSuccess": "pawnbroker_turnin_trouble",
           "Requires": "resolution:force"
         }
@@ -451,14 +519,17 @@
     {
       "Id": "pawnbroker_turnin_trouble",
       "NpcKey": "LWN_story_pawnbroker_turnin_trouble",
+      "NpcKeyZh": "（老周，玩家）：……你把人打成那样，明天码头帮就得堵我门。\n（老周，玩家）：算了，账清了就好。这三十第纳尔跟旧账本你拿走。",
       "EnterAction": "PROBE:turn_in",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -470,18 +541,22 @@
     {
       "Id": "pawnbroker_turnin_ok",
       "NpcKey": "LWN_story_pawnbroker_turnin_ok",
+      "NpcKeyZh": "（老周，玩家）：干净利索。这三十第纳尔归你，旧账本也送你参详。\n（老周，玩家）：对了，你要不想给铁头送钱，还有条路子。",
       "EnterAction": "PROBE:turn_in",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_why",
+          "PlayerKeyZh": "[追问] 还有什么路子？",
           "NextNodeOnSuccess": "pawnbroker_turnin_why"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -493,13 +568,16 @@
     {
       "Id": "pawnbroker_turnin_why",
       "NpcKey": "LWN_story_pawnbroker_turnin_why",
+      "NpcKeyZh": "（老周，玩家）：戏台那边的寡妇有一箱富贵人家的行头。\n（老周，玩家）：帮她摆平对台的纠纷，她能教你装得像个有头脸的人。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -511,9 +589,11 @@
     {
       "Id": "pawnbroker_chat",
       "NpcKey": "LWN_story_pawnbroker_chat",
+      "NpcKeyZh": "（老周，玩家）：来了？\n（老周，玩家）：有你替我出过那一回，那帮人今天见我都绕着走。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_visit",
+          "PlayerKeyZh": "[打听] 进城之后，码头那边有什么风声？",
           "Once": "chat_docks",
           "Action": "PROBE:mark",
           "ActionParam": "chat_docks",
@@ -521,10 +601,12 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_work",
+          "PlayerKeyZh": "[收住] 我再问问别的事。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -536,13 +618,16 @@
     {
       "Id": "pawnbroker_chat_2",
       "NpcKey": "LWN_story_pawnbroker_chat_2",
+      "NpcKeyZh": "（老周，玩家）：城西码头最近夜里总有船靠岸，下货从不点灯。\n（老周，玩家）：你要是进了城往那边摸，千万留个神。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -554,13 +639,16 @@
     {
       "Id": "pawnbroker_errand",
       "NpcKey": "LWN_story_pawnbroker_errand",
+      "NpcKeyZh": "（老周，玩家）：这趟零活算你应下了，先付你五十第纳尔。\n（老周，玩家）：下一份活，一个时辰后再来问。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -572,9 +660,11 @@
     {
       "Id": "event_1_join",
       "NpcKey": "LWN_story_event1_join",
+      "NpcKeyZh": "（打手，老周）：看什么看？没你的事。\n（老周，打手）：客官，您别掺和……钱我这就给。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event1_opt_pay",
+          "PlayerKeyZh": "[替他交] 他欠多少？我替他付。（80 第纳尔）",
           "Requires": "gold>=80",
           "Action": "PROBE:pay_to",
           "ActionParam": "thug;80",
@@ -582,6 +672,7 @@
         },
         {
           "PlayerKey": "LWN_story_event1_opt_stop",
+          "PlayerKeyZh": "[喝止] 钱的事好说，先把你的手从他领子上拿开。",
           "CheckType": "SkillCheck",
           "CheckTag": "thug|force",
           "NextNodeOnSuccess": "event_1_win",
@@ -589,6 +680,7 @@
         },
         {
           "PlayerKey": "LWN_story_event1_opt_walk",
+          "PlayerKeyZh": "[走开] 不关我的事。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -600,15 +692,18 @@
     {
       "Id": "event_1_paid",
       "NpcKey": "LWN_story_event1_paid",
+      "NpcKeyZh": "（打手，老周）：下月照旧。你要是还想当善人，接着掏。\n（老周，玩家）：……客官，你这又是何苦。",
       "EnterAction": "PROBE:resolve_event",
       "EnterParam": "1|fixers|5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -620,15 +715,18 @@
     {
       "Id": "event_1_win",
       "NpcKey": "LWN_story_event1_win",
+      "NpcKeyZh": "（打手，玩家）：行，行……你有种，咱们走着瞧。\n（老周，玩家）：三年了。头一回有人替我拦住他。",
       "EnterAction": "PROBE:resolve_event",
       "EnterParam": "1|fixers|5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -640,15 +738,18 @@
     {
       "Id": "event_1_lose",
       "NpcKey": "LWN_story_event1_lose",
+      "NpcKeyZh": "（打手，玩家）：就这点斤两，也敢多管闲事？\n（老周，打手）：别打了！钱我给，这就给！",
       "EnterAction": "PROBE:hazard",
       "EnterParam": "event1_lost",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -660,13 +761,16 @@
     {
       "Id": "event_5_join",
       "NpcKey": "LWN_story_event5_join",
+      "NpcKeyZh": "（老周，玩家）：三笔死账……一笔都没收回来。\n（老周，玩家）：客官，你是来当东西，还是来找门路的？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event5_opt_ask",
+          "PlayerKeyZh": "[搭话] 我找门路进城，咱们聊聊。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -678,15 +782,18 @@
     {
       "Id": "pawnbroker_money_covert",
       "NpcKey": "LWN_story_pawnbroker_money_covert",
+      "NpcKeyZh": "（老周，玩家）：客官，我这铺子做的是明面买卖，塞私钱我不能接。\n（老周，玩家）：你要是花八十第纳尔「买」条老旧消息——那我卖。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_money_buy",
+          "PlayerKeyZh": "[买消息] 八十第纳尔，买门口那人的底细。",
           "Requires": "gold>=80",
           "Action": "PROBE:money_deal",
           "NextNodeOnSuccess": "pawnbroker_money_dealt"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         }
       ],
@@ -698,13 +805,16 @@
     {
       "Id": "pawnbroker_money_dealt",
       "NpcKey": "LWN_story_pawnbroker_money_dealt",
+      "NpcKeyZh": "（老周，玩家）：守门那个铁头，欠了地下赌坊三个月的印子钱。\n（老周，玩家）：他怕丢这趟看门肥差，比怕挨刀子还甚。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -716,13 +826,16 @@
     {
       "Id": "pawnbroker_help_reward",
       "NpcKey": "LWN_story_pawnbroker_help_reward",
+      "NpcKeyZh": "（老周，玩家）：这五十第纳尔你收着，算我谢你搭手。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "pawnbroker_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],

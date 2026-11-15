@@ -295,6 +295,15 @@
     <Compile Include="Interaction\StoryProbe\StreetLifeDirector.cs" />
     <Compile Include="Interaction\StoryProbe\StoryStageDefs.cs" />
     <Compile Include="Interaction\StoryProbe\StoryStageRunner.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryDialogueFacts.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryDialogueDefs.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryDialogueRuntime.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryPostDirector.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryPrepRunner.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryWorkDirector.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryLayoutDefs.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryPopulationGuard.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryPopulationPatches.cs" />
     <Compile Include="Interaction\StoryProbe\StoryLineActions.cs" />
     <Compile Include="Interaction\StoryProbe\StoryGoalHud.cs" />
     <Compile Include="Interaction\StoryProbe\StoryProbeBehavior.cs" />

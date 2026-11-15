@@ -295,6 +295,15 @@ namespace LivingWorldNpcs
             if (Campaign.Current == null)
                 return;
 
+            // 🔴 剧情 Mission 的人口标记（2026-11-15，对应总纲 §3.2）：
+            //    **必须在原版 AfterStart 批量生成之前绑定** —— OnMissionBehaviorInitialize 是这个窗口。
+            //    只有专用入口（StoryProbeBehavior.EnterTownCenter）会留下待绑定请求；
+            //    普通逛城 / 酒馆 / 地牢没有请求，这里什么都不做，人口照旧。
+            if (StoryPopulationGuard.HasPending)
+            {
+                StoryPopulationGuard.Bind(mission);
+            }
+
             // navmesh 可视化调试（控制台 custom.nav_debug / nav_path / nav_face）——
             // 🔴 置于玩法闸门之前：战场 / 攻城场景调试也需要挂载；无命令请求时每帧只做一次 bool 判断，零开销。
             mission.AddMissionBehavior(new NavMeshDebugMissionView());
@@ -420,7 +429,7 @@ namespace LivingWorldNpcs
             //AI
             mission.AddMissionBehavior(new AgentAIController());
 
-            // 序章「市井 · 城门序章」（2026-11-12，plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md）。
+            // 序章「市井 · 城门序章」（2026-11-12，plans/逆水寒511/逆水寒511-总纲与实施计划.md）。
             // 🔴 自带总闸：只有「开关开 + 由我们那条菜单进城 + 目标城 + center 地点」才 Active；
             //    原版「在城里逛逛」进场时 Active=false，每帧只判一个 bool。
             mission.AddMissionBehavior(new StoryProbeMissionBehavior());

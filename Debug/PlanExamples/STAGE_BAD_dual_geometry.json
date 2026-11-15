@@ -1,0 +1,49 @@
+{
+  "_comment": "负样例 3：双几何来源。pawnbroker_desk 已在布局 Props 里登记完整变换，台本又用 prop_spawn 再写一遍坐标。校验器必须报「两份几何同时生效」。",
+  "Schema": "story_stage/2",
+  "ContentVersion": 1,
+  "Scene": "empire_town_m",
+  "WallLevel": "civilian",
+  "Layouts": {
+    "town": {
+      "Version": 1,
+      "Anchors": {
+        "player": { "Source": "player", "Pick": "first", "Required": true }
+      },
+      "Gates": {},
+      "Props": [
+        {
+          "Id": "pawnbroker_desk",
+          "Source": "prefab",
+          "Prefab": "bd_table_a",
+          "Anchor": "player",
+          "Fwd": 6.8, "Right": -5.0, "Up": 0.0,
+          "Yaw": 0.0,
+          "Scale": 1.0,
+          "Support": "ground",
+          "Footprint": [1.521, 7.059],
+          "Required": true
+        }
+      ],
+      "WorkPoints": [],
+      "Posts": [],
+      "Standing": []
+    }
+  },
+  "Stages": {
+    "market": {
+      "Layout": "town",
+      "Actors": ["pawnbroker"],
+      "Props": ["pawnbroker_desk"],
+      "OptionalActors": [],
+      "OptionalProps": [],
+      "Opening": true,
+      "Prep": { "SkipAllowed": true, "ActorReadyTimeoutSec": 3.0 }
+    }
+  },
+  "Behaviors": {},
+  "Flows": {},
+  "Beats": [
+    { "At": 0.2, "Cmd": "prop_spawn", "Id": "pawnbroker_desk", "Prefab": "bd_table_a", "Anchor": "player", "Fwd": 6.8, "Right": -5.0, "Yaw": 0.0 }
+  ]
+}

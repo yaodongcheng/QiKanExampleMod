@@ -166,10 +166,36 @@
       "OffsetForward": 15.0,
       "OffsetRight": 0.0,
       "IsBlocker": true,
+      "FirstMeetGuard": true,
+      "FirstMeetOffsetForward": 0.0,
+      "FirstMeetOffsetRight": 0.0,
       "Money": "Open",
       "MoneyPrice": 100,
       "MoneyHintKey": "LWN_story_money_blocker",
       "MoneyHintFallback": "He counts it twice. He does not even hide it.",
+      "Civilian": false
+    },
+    {
+      "Id": "gate_sentry",
+      "NameKey": "LWN_story_name_gate_sentry",
+      "NameFallback": "Second Gate Guard",
+      "Faction": "dockhands",
+      "Force": 55,
+      "Guile": 35,
+      "Charm": 40,
+      "TemplateId": "prison_guard_empire",
+      "TemplateCandidates": [
+        "prison_guard_empire",
+        "veteran_caravan_guard_empire"
+      ],
+      "Age": 30,
+      "OffsetForward": 15.0,
+      "OffsetRight": 2.4,
+      "FirstMeetGuard": true,
+      "FirstMeetOffsetForward": 0.0,
+      "FirstMeetOffsetRight": 2.4,
+      "Money": "Disdain",
+      "MoneyHintFallback": "",
       "Civilian": false
     },
     {

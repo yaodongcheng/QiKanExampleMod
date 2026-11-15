@@ -1,0 +1,34 @@
+{
+  "_comment": "负样例 1：未知原子 token（actor_fly 不在注册表）。其余结构合法，校验器必须只因未知 token 报错。",
+  "Schema": "story_stage/2",
+  "ContentVersion": 1,
+  "Scene": "empire_town_m",
+  "WallLevel": "civilian",
+  "Layouts": {
+    "town": {
+      "Version": 1,
+      "Anchors": { "player": { "Source": "player", "Pick": "first", "Required": true } },
+      "Gates": {},
+      "Props": [],
+      "WorkPoints": [],
+      "Posts": [],
+      "Standing": []
+    }
+  },
+  "Stages": {
+    "market": {
+      "Layout": "town",
+      "Actors": ["pawnbroker"],
+      "Props": [],
+      "OptionalActors": [],
+      "OptionalProps": [],
+      "Opening": true,
+      "Prep": { "SkipAllowed": true, "ActorReadyTimeoutSec": 3.0 }
+    }
+  },
+  "Behaviors": {},
+  "Flows": {},
+  "Beats": [
+    { "At": 0.0, "Cmd": "actor_fly", "Actor": "pawnbroker" }
+  ]
+}

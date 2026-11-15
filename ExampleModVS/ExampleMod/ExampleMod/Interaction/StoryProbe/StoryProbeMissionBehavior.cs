@@ -5,6 +5,7 @@ using SandBox.Conversation.MissionLogics;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.ObjectSystem;
 using TaleWorlds.CampaignSystem.AgentOrigins;
@@ -17,7 +18,7 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// 序章的 Mission 侧宿主（2026-11-12，plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md §11.2）。
+    /// 序章的 Mission 侧宿主（2026-11-12，plans/逆水寒511/逆水寒511-总纲与实施计划.md §十五的需求§11.2）。
     ///
     /// 职责（只做"场景里发生的事"）：
     ///   ① 判定这次进场是不是序章（开关 / 菜单入口 / 目标城 / center 地点）——原版进城永不加载；
@@ -62,6 +63,21 @@ namespace LivingWorldNpcs
             return _stage;
         }
         private float _time;
+
+        /// <summary>P4 岗位规则调度（数据驱动质问者与流程）；没有正式 v2 数据时为空。</summary>
+        private StoryPostDirector _posts;
+        public StoryPostDirector Posts => _posts;
+
+        /// <summary>P3 准备批次（布景 + 站位 + R1～R7）。</summary>
+        private StoryPrepRunner _prep;
+        public StoryPrepRunner Prep => _prep;
+
+        /// <summary>P4 工作点（占用/走位/工作动作/局部让位）。</summary>
+        private StoryWorkDirector _work;
+        public StoryWorkDirector Work => _work;
+
+        /// <summary>本 Mission 的演出时钟（秒）。对话请求的冷却/重入与台本共用同一个钟。</summary>
+        public float Clock => _time;
         private readonly List<(float at, Action action)> _schedule = new List<(float, Action)>();
         private bool _gateOpen;
         private bool _blockerWasDisarmed;
@@ -122,6 +138,9 @@ namespace LivingWorldNpcs
 
         private const float AutoTalkRadius = 3.5f;
         private const float AutoTalkRearmRadius = 8f;
+        /// <summary>P0-D.3：拦问请求失败后的退避秒数（禁止每帧重试；2026-11-15 实机 124ms 内 8 轮）。</summary>
+        private const float InterceptRetryCooldownSec = 0.75f;
+        private float _nextInterceptRetryAt;
         private const float GoalRadius = 3.0f;
 
         public override void OnBehaviorInitialize()
@@ -253,7 +272,7 @@ namespace LivingWorldNpcs
             {
                 if (_defeatAnim != null && _defeatPlayer == Agent.Main && AgentControlHelper.SafeIsActive(_defeatPlayer))
                     _defeatAnim.Tick(_defeatPlayer, dt);
-                if (Phase == StoryProbePhase.FirstAttempt) TickFirstAttempt();
+                if (Phase == StoryProbePhase.FirstAttempt) TickFirstAttempt(dt);
                 else if (Phase == StoryProbePhase.Jail) TickJailScene();
                 else if (Phase == StoryProbePhase.Second) TickSecondPhase(dt);
             }
@@ -303,6 +322,8 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] director stop failed: {ex.Message}"); }
             try { _stage?.Stop(reason); }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] stage stop failed: {ex.Message}"); }
+            try { _work?.Stop(reason); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] work stop failed: {ex.Message}"); }
             try
             {
                 if (_defeatPlayer == Agent.Main && AgentControlHelper.SafeIsActive(_defeatPlayer))
@@ -321,6 +342,8 @@ namespace LivingWorldNpcs
             try
             {
                 CancelRuntime("mission ending");
+                // 本场人口标记随 Mission 一起作废：下一场（普通逛城或重进剧情）重新按入口决定。
+                StoryPopulationGuard.Release(Mission, "mission ending");
                 // 提前离开牢房要回牢；真实败退事实已在回执里落盘，不依赖视觉延迟。
                 if (resumeJail) StoryProbeBehavior.RequestJailInquiry();
             }
@@ -329,6 +352,7 @@ namespace LivingWorldNpcs
 
         public override void OnRemoveBehavior()
         {
+            StoryPopulationGuard.Release(Mission, "host removed");
             base.OnRemoveBehavior();
             Active = false;
             _director?.DisposeManaged();
@@ -412,6 +436,9 @@ namespace LivingWorldNpcs
             Active = true;
             ResolveAnchors();
             if (!Active) return;
+
+            _posts = new StoryPostDirector(this);
+            _posts.HasRules(Phase == StoryProbePhase.FirstAttempt ? "first_meet" : "second_meet");
 
             if (Phase == StoryProbePhase.FirstAttempt) SetupFirstAttempt();
             else SetupSecondPhase();
@@ -724,21 +751,34 @@ namespace LivingWorldNpcs
 
         private void SetupFirstAttempt()
         {
-            DebugLogger.Log("[StoryProbe] setup first attempt (blocker only)");
-            // 原值必须先恢复再备份，避免读档/重复进场把已经增强的技能当作原值。
+            // P2：首遇名单来自选角表（FirstMeetGuard），不再写死「只有铁头」。
             RestoreFirstGuardEnhancement();
-            var firstGuardHero = EnsureStoryHero(StoryProbeDefs.GetNpc("blocker"));
-            if (firstGuardHero == null || !BoostFirstGuardSkills(firstGuardHero)) return;
-            var blocker = SpawnNpc("blocker", BlockerPos, civilian: false);
-            if (blocker != null)
-            {
-                BoostFirstGuardAgent(blocker);
-                AgentControlHelper.HoldInPlace(blocker);
-                AgentControlHelper.FaceToActor(blocker, Agent.Main);
-            }
-            // 检查实际 Agent，不把 SpawnAgent 返回非空当成出生点/可见性验收通过。
-            Schedule(1.5f, () => DebugLogger.Log("[StoryProbe] first guard live: " + DescribeActor("blocker")));
+            var guards = StoryProbeDefs.Npcs.Where(n => n.FirstMeetGuard).ToList();
+            if (guards.Count == 0 && StoryProbeDefs.Blocker != null) guards.Add(StoryProbeDefs.Blocker);
+            DebugLogger.Log("[StoryProbe] setup first attempt guards=" + string.Join(",", guards.Select(g => g.Id)));
 
+            foreach (var def in guards)
+            {
+                var hero = EnsureStoryHero(def);
+                if (hero == null) continue;
+                // 只有主质问者（IsBlocker）吃首遇教学强化；副卫保持正常数值。
+                if (def.IsBlocker && !BoostFirstGuardSkills(hero)) return;
+
+                var pos = BlockerPos
+                          + new Vec3(Forward.x, Forward.y, 0f) * def.FirstMeetOffsetForward
+                          + new Vec3(Forward.y, -Forward.x, 0f) * def.FirstMeetOffsetRight;
+                // P3：正式 v2 布局有站位就用它（岗位 -> 点），没有才用选角表偏移。
+                if (_posts != null && _posts.TryGetStandingPosition("first_meet", def.Id, out var placed))
+                    pos = placed;
+                var agent = SpawnNpc(def.Id, pos, def.Civilian);
+                if (agent != null)
+                {
+                    if (def.IsBlocker) BoostFirstGuardAgent(agent);
+                    AgentControlHelper.HoldInPlace(agent);
+                    AgentControlHelper.FaceToActor(agent, Agent.Main);
+                }
+                Schedule(1.5f, () => DebugLogger.Log("[StoryProbe] first guard live: " + DescribeActor(def.Id)));
+            }
         }
 
         // 硬闯实际败退后才登记拘押缘由，不能进场先加罪让原版守卫抢在正常质问前开打。
@@ -786,7 +826,7 @@ namespace LivingWorldNpcs
             catch { return false; }
         }
 
-        private void TickFirstAttempt()
+        private void TickFirstAttempt(float dt)
         {
             var player = Agent.Main;
             var blocker = GetAgent("blocker");
@@ -823,21 +863,65 @@ namespace LivingWorldNpcs
             _firstWasPastGate = triedToPass;
             float distance = player.Position.Distance(blocker.Position);
             if (distance > AutoTalkRearmRadius) _blockerAutoTalkArmed = true;
-            if ((triedToPass || distance <= AutoTalkRadius) && _blockerAutoTalkArmed && !_firstInterceptRequested)
+            if ((triedToPass || distance <= AutoTalkRadius || (_posts?.HasRules("first_meet") == true
+                    && player.Position.Distance(blocker.Position) <= AutoTalkRearmRadius))
+                && _blockerAutoTalkArmed && !_firstInterceptRequested && _time >= _nextInterceptRetryAt)
             {
+                // P4：谁去问由数据（Behaviors + 岗位资格 + 次序）决定；没有正式数据才退回铁头。
+                string questionerId = "blocker";
+                string behaviorId = null;
+                if (_posts?.HasRules("first_meet") == true)
+                {
+                    if (!_posts.TrySelectQuestioner("first_meet", out questionerId, out behaviorId, out string why))
+                    {
+                        _nextInterceptRetryAt = _time + InterceptRetryCooldownSec;
+                        DebugLogger.Log("[StoryV2] no eligible questioner: " + why);
+                        return;
+                    }
+                }
+                var questioner = GetAgent(questionerId);
+                if (questioner == null)
+                {
+                    _nextInterceptRetryAt = _time + InterceptRetryCooldownSec;
+                    return;
+                }
+
                 _firstInterceptRequested = true;
                 _blockerAutoTalkArmed = false;
-                AgentAIController.Instance?.SendEventToAgent(blocker, "event_story_intercept", player,
-                    "blocker_first", new Action<Agent>(ready =>
+                AgentAIController.Instance?.SendEventToAgent(questioner, "event_story_intercept", player,
+                    "auto", new Action<Agent>(ready =>
                     {
                         if (!Active || Current != this || Phase != StoryProbePhase.FirstAttempt) return;
                         _firstInterceptRequested = false;
-                        if (ready == null) { _blockerAutoTalkArmed = true; return; }
-                        StartStoryConversation(ready, "blocker_first");
-                        if (!ConversationEntryPatch.IsConversationActive()) _blockerAutoTalkArmed = true;
+                        if (ready == null)
+                        {
+                            // P0-D.3：失败要退避，不能每帧重试（2026-11-15 实机：124ms 内请求了 8 轮）。
+                            _posts?.NoteAttempt(behaviorId, questionerId, false, "brain refused");
+                            _blockerAutoTalkArmed = true;
+                            _nextInterceptRetryAt = _time + InterceptRetryCooldownSec;
+                            return;
+                        }
+                        // P0-D.2/P4：入口与流程都由数据裁决；未发布定义时由旧 PickEntryNode 兜底。
+                        if (!string.IsNullOrEmpty(behaviorId)
+                            && _posts != null && _posts.BeginQuestionFlow(behaviorId, questionerId, out string flowReason))
+                        {
+                            _posts.NoteAttempt(behaviorId, questionerId, true, flowReason);
+                        }
+                        else
+                        {
+                            StartStoryConversation(ready, null, "first_meet_auto");
+                        }
+                        if (!ConversationEntryPatch.IsConversationActive()
+                            && (_posts == null || string.IsNullOrEmpty(behaviorId)))
+                        {
+                            _blockerAutoTalkArmed = true;
+                            _nextInterceptRetryAt = _time + InterceptRetryCooldownSec;
+                        }
                     }));
-                DebugLogger.Log("[StoryProbe] Brain questioning requested; no combat for approaching/crossing");
+                DebugLogger.Log("[StoryProbe] Brain questioning requested from '" + questionerId
+                    + "' behavior=" + (behaviorId ?? "legacy") + "; no combat for approaching/crossing");
             }
+            _posts?.Tick(dt);
         }
 
         public void NotifyFirstGuardQuestioned()
@@ -1015,21 +1099,31 @@ namespace LivingWorldNpcs
             _stage ??= new StoryStageRunner(this);
             bool staged = _stage.Begin("StoryStage");
 
-            // 四家代表（表里有委托的那些）—— 台本里排过位的跳过，避免"先站一次再被挪一次"的闪烁
+            // P3：开场镜头切下来之后，按 v2 唯一布局布景、摆人；v1 台本里同 id 的 prop_spawn 会被跳过。
+            if (staged)
+            {
+                _prep = new StoryPrepRunner(this);
+                _prep.Begin("second_meet");
+            }
+
+            // 四家代表（表里有委托的那些）—— 台本/准备批次已排过位的跳过，避免"先站一次再被挪一次"的闪烁
             foreach (var def in StoryProbeDefs.Representatives)
             {
                 if (staged && _stage.ScriptPlacesActor(def.Id)) continue;
+                if (_prep != null && _prep.HasActor(def.Id)) continue;
                 SpawnNpc(def.Id, OffsetPos(def.OffsetForward, def.OffsetRight), def.Civilian);
             }
 
             // 守门人 + 仇家（全部从表里推，代码里不再列名单）
             var blockerDef = StoryProbeDefs.Blocker;
-            if (blockerDef != null && !(staged && _stage.ScriptPlacesActor(blockerDef.Id)))
+            if (blockerDef != null && !(staged && _stage.ScriptPlacesActor(blockerDef.Id))
+                && !(_prep != null && _prep.HasActor(blockerDef.Id)))
                 SpawnNpc(blockerDef.Id, BlockerPos, blockerDef.Civilian);
 
             foreach (var def in StoryProbeDefs.QuestTargets)
             {
                 if (staged && _stage.ScriptPlacesActor(def.Id)) continue;
+                if (_prep != null && _prep.HasActor(def.Id)) continue;
                 SpawnNpc(def.Id, OffsetPos(def.OffsetForward, def.OffsetRight), def.Civilian);
             }
 
@@ -1039,6 +1133,13 @@ namespace LivingWorldNpcs
             // 市井导演（常驻动作 / 桥段 / 事件循环）
             _director = new StreetLifeDirector(this);
             _director.Begin();
+
+            // P4：工作点（只在准备批次建出道具之后才算得准位置）。
+            if (_prep != null)
+            {
+                _work = new StoryWorkDirector(this);
+                _work.Begin("second_meet");
+            }
 
             // 随从 + 3 句
             EnsureCompanion();
@@ -1054,8 +1155,10 @@ namespace LivingWorldNpcs
         private void TickSecondPhase(float dt)
         {
             var player = Agent.Main;
+            _prep?.Tick(dt);
 
             if (_stage?.Active == true) return; // 镜头演出占用期间不识破、不开战、不判通关。
+            _work?.Tick(dt);
             TrackGateCrossing(player, dt);
             PumpStoryFights();
             var b = GetAgent("blocker");
@@ -1587,7 +1690,8 @@ namespace LivingWorldNpcs
         /// 开一场剧情对话。入口节点由 StoryProbeDialogue 决定（默认按五步关系挑；传 entryNode 则强制）。
         /// 🔴 注入必须早于 StartConversation（ConversationEntryPatch 的 Prefix 统一收口）。
         /// </summary>
-        public void StartStoryConversation(Agent agent, string entryNode = null)
+        public void StartStoryConversation(Agent agent, string entryNode = null, string triggerId = "player_talk",
+            string dialogueId = null)
         {
             if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
             if (Agent.Main == null) return;
@@ -1602,10 +1706,37 @@ namespace LivingWorldNpcs
                     return;
                 }
 
+                // 🔴 P0-D.3（2026-11-15）：所有非显式入口都走**同一请求入口** —— 触发器冷却、遭遇去重、
+                //    入口裁决、会话编号与取消令牌都在 StoryDialogueRuntime 里；这里只负责把结果交给注入器。
+                //    已有发布定义但请求被拒 = 明确拒绝，不回落旧 PickEntryNode 假装正确。
+                if (string.IsNullOrEmpty(entryNode))
+                {
+                    string resolvedId = !string.IsNullOrEmpty(dialogueId)
+                        ? dialogueId
+                        : StoryDialogueResolver.FindDialogueForActor(npcId, triggerId);
+                    if (!string.IsNullOrEmpty(resolvedId))
+                    {
+                        if (!StoryDialogueRuntime.TryRequest(resolvedId, triggerId, npcId, null, null,
+                                out var session, out string reason))
+                        {
+                            DebugLogger.Log($"[StoryDialogue] request rejected dialogue={resolvedId} trigger={triggerId} actor={npcId}: {reason}");
+                            return;
+                        }
+                        if (!StoryDialogueRuntime.ConfirmForOpen(session, out reason))
+                        {
+                            StoryDialogueRuntime.CancelSession(reason);
+                            DebugLogger.Log($"[StoryDialogue] request {session.Request.Id} cancelled before open: {reason}");
+                            return;
+                        }
+                        entryNode = session.Entry.Node;
+                        DebugLogger.Log($"[StoryDialogue] request {session.Request.Id} session {session.Id} entry={entryNode} actor={npcId}");
+                    }
+                }
+
                 StoryProbeDialogue.PendingEntryNode = entryNode;
-                // 「见过」由对话节点的 PROBE:met 动作标记 —— 在注入前统一标会让入口永远跳到 _hub，看不到 intro。
-                // 但**事件接入**（event_*_join）不走 intro 节点，这一条由事件本身完成"认识"，所以在这里补标。
-                if (!string.IsNullOrEmpty(entryNode) && entryNode.StartsWith("event_"))
+                // 「见过」由对话节点的 mark:met 动作标记 —— 在注入前统一标会让入口永远跳到 _hub，看不到 intro。
+                // 但**事件接入**不走 intro 节点，这一条由事件本身完成"认识"，所以在这里补标。
+                if (triggerId == "event_join" || (!string.IsNullOrEmpty(entryNode) && entryNode.StartsWith("event_")))
                     StoryProbeState.MarkMet(npcId);
 
                 var logic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
@@ -1768,29 +1899,24 @@ namespace LivingWorldNpcs
 
                 if (comp == null)
                 {
-                    var settlement = Settlement.CurrentSettlement;
+                    // P2/S3：只借用**已有的可用同伴**（已经在本队、还活着）；不自动招募、
+                    // 不把流浪者拉进队、结束时也不移队。没有就走旁白分支。
                     comp = Hero.AllAliveHeroes.FirstOrDefault(h =>
                         h != null && h.IsAlive && !h.IsHumanPlayerCharacter
-                        && h.Occupation == Occupation.Wanderer
-                        && h.CurrentSettlement == settlement
-                        && !h.IsPlayerCompanion);
+                        && h.IsPlayerCompanion && h.PartyBelongedTo == MobileParty.MainParty);
                 }
 
                 if (comp == null)
                 {
-                    // 没得招 → 旁白兜底，不阻断（§13 风险表）
-                    DebugLogger.Log("[StoryProbe] no wanderer to recruit; narration fallback");
+                    // 没得借 → 旁白兜底，不阻断（§13 风险表）
+                    DebugLogger.Log("[StoryProbe] no available companion to borrow; narration fallback");
                     InformationManager.DisplayMessage(new InformationMessage(
                         LWNTextHelper.ResolveText("LWN_story_intro_no_companion",
                             "There is no one left to walk in with you.")));
                     return;
                 }
 
-                if (!comp.IsPlayerCompanion)
-                {
-                    AddCompanionAction.Apply(Clan.PlayerClan, comp);
-                    DebugLogger.Log($"[StoryProbe] companion recruited: {comp.Name} ({comp.StringId})");
-                }
+                // 借用 ≠ 招募：不再调用 AddCompanionAction，离开场景也不移队。
                 StoryProbeState.Data.CompanionHeroId = comp.StringId;
 
                 // 站到玩家左后 1.5 m

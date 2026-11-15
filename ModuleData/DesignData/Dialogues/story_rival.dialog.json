@@ -1,0 +1,357 @@
+{
+  "_comment": "由 Scripts/migrate_story_dialogues.py 从旧 story_probe_rival.json 迁移；旧文件仅作回退副本。改内容请改脚本/旧文件后重跑。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "story_rival",
+  "ContentVersion": 1,
+  "EntryOption": "LWN_story_rival_entry",
+  "SkipVanillaOpening": false,
+  "Participants": [
+    "npc",
+    "player"
+  ],
+  "Actors": [
+    "rival"
+  ],
+  "Triggers": [
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "close"
+    },
+    {
+      "Id": "event_join",
+      "Source": "event",
+      "Purpose": "join",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "release"
+    }
+  ],
+  "Entries": [
+    {
+      "Id": "player_hub",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "step>=1"
+      ],
+      "Priority": 80,
+      "Node": "rival_hub"
+    },
+    {
+      "Id": "player_intro",
+      "Trigger": "player_talk",
+      "Conditions": [],
+      "Priority": 70,
+      "Node": "rival_intro"
+    }
+  ],
+  "Nodes": [
+    {
+      "Id": "rival_intro",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_rival_intro",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "mark",
+          "Params": {
+            "flag": "met"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "settle",
+          "PlayerKey": "LWN_story_rival_opt_settle",
+          "Requires": [
+            "quest_accepted@widow",
+            "!quest_done@widow"
+          ],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "rival",
+            "Success": "rival_settled",
+            "Fail": "rival_settle_refused"
+          }
+        },
+        {
+          "Id": "sign",
+          "PlayerKey": "LWN_story_rival_opt_sign",
+          "Requires": [
+            "!asked:rival_sign"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "rival_sign"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "rival_talk"
+        },
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_rival_opt_fight",
+          "Requires": [
+            "!quest_done@widow"
+          ],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "rival"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "rival_fight"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "rival_hub",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_rival_hub",
+      "LineActions": [
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "settle",
+          "PlayerKey": "LWN_story_rival_opt_settle",
+          "Requires": [
+            "quest_accepted@widow",
+            "!quest_done@widow"
+          ],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "rival",
+            "Success": "rival_settled",
+            "Fail": "rival_settle_refused"
+          }
+        },
+        {
+          "Id": "sign",
+          "PlayerKey": "LWN_story_rival_opt_sign",
+          "Requires": [
+            "!asked:rival_sign"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "rival_sign"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "rival_talk"
+        },
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_rival_opt_fight",
+          "Requires": [
+            "!quest_done@widow"
+          ],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "rival"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "rival_fight"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "rival_talk",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_rival_talk",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "settle",
+          "PlayerKey": "LWN_story_rival_opt_settle",
+          "Requires": [
+            "quest_accepted@widow",
+            "!quest_done@widow"
+          ],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "rival",
+            "Success": "rival_settled",
+            "Fail": "rival_settle_refused"
+          }
+        },
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_rival_opt_fight",
+          "Requires": [
+            "!quest_done@widow"
+          ],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "rival"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "rival_fight"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "rival_hub"
+        }
+      ]
+    },
+    {
+      "Id": "rival_fight",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_rival_fight",
+      "LineActions": [
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "rival_settled",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_rival_settled",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "complete_quest",
+          "Params": {
+            "npc": "widow",
+            "resolution": "charm"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "rival_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "rival_settle_refused",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_rival_settle_refused",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "fight",
+          "PlayerKey": "LWN_story_rival_opt_fight",
+          "Requires": [],
+          "Effects": [
+            {
+              "Id": "start_fight",
+              "Params": {
+                "target": "rival"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "rival_fight"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "rival_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    }
+  ]
+}

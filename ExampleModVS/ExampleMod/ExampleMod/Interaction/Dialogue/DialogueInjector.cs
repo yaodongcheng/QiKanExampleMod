@@ -347,6 +347,9 @@ namespace LivingWorldNpcs
         /// <summary>外部动作钩子：Action = "PROBE:&lt;verb&gt;" 时调用 CustomAction(verb, param)。</summary>
         public static Action<string, string> CustomAction;
 
+        /// <summary>节点真正被跳转进入时回调（P0-D.4/Q02）：参数 = 目标节点 Id。</summary>
+        public static Action<string> CustomNodeEnter;
+
         private class InjectOwner { public string FileName; public string BaseLabel; }
 
         private static string NextToken(string fileTag) => $"lwnpc_{fileTag}_atk_{_tokenCounter++}";
@@ -708,7 +711,15 @@ namespace LivingWorldNpcs
             var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
             pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
                 ResolveTransitionText(transition), BuildTransitionCondition(transition),
-                () => ExecuteAction(transition), owner, 125);
+                () =>
+                {
+                    ExecuteAction(transition);
+                    if (!string.IsNullOrEmpty(dest))
+                    {
+                        try { CustomNodeEnter?.Invoke(dest); }
+                        catch (Exception ex) { DebugLogger.Log($"[DialogueInjector] CustomNodeEnter({dest}) failed: {ex.Message}"); }
+                    }
+                }, owner, 125);
             cm.AddDialogFlow(pdf, owner);
             return 1;
         }
@@ -778,6 +789,11 @@ namespace LivingWorldNpcs
                         cm.ActiveToken = cm.GetStateIndex(NodeToken(fileTag, dest));
                     else
                         cm.ActiveToken = cm.GetStateIndex("close_window");
+                    if (!string.IsNullOrEmpty(dest))
+                    {
+                        try { CustomNodeEnter?.Invoke(dest); }
+                        catch (Exception ex) { DebugLogger.Log($"[DialogueInjector] CustomNodeEnter({dest}) failed: {ex.Message}"); }
+                    }
                 }, owner, 125);
             cm.AddDialogFlow(pdf, owner);
 

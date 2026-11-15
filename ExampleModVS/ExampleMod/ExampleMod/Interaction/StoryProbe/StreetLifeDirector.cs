@@ -8,7 +8,7 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// 市井导演（2026-11-12，plans/逆水寒511/逆水寒511玩法验证-城池剧情任务.md §6 / §7）。
+    /// 市井导演（2026-11-12，plans/逆水寒511/逆水寒511-总纲与实施计划.md §十五的需求§6 / §7）。
     ///
     /// 三层行为：
     ///   ① 常驻动作 —— 每人 8~20 秒挑一条原版动作 + 偶尔一句吆喝（原版动作名见 vanilla_action_names.txt）；
@@ -42,6 +42,7 @@ namespace LivingWorldNpcs
         private int _nextEventIndex = 1;
         private readonly HashSet<int> _playedEvents = new HashSet<int>();
         private readonly Mission _mission = Mission.Current;
+        private List<StoryEventDef> _events = new List<StoryEventDef>();
         private string _eventOwner;
         private string _eventInterrupted;
         private bool _eventPrepared;
@@ -66,6 +67,15 @@ namespace LivingWorldNpcs
 
         // ── 调试 ──
         public bool Stopped { get; private set; }
+
+        /// <summary>当前市井事件编号（没有 = 0）；对话条件 `event_active:<n>` 读它。</summary>
+        public int ActiveEventIndex => _activeEvent?.Index ?? 0;
+
+        /// <summary>这个人是不是当前群组事件的参与者（工作点要让位）。</summary>
+        public bool IsEventParticipant(string actorId)
+            => _activeEvent != null && !_eventSkit && !string.IsNullOrEmpty(actorId)
+               && (actorId == _activeEvent.ActorA
+                   || (_activeEvent.TwoPerson && actorId == _activeEvent.ActorB));
         private string _forcedAmbientNpc;
         private int _forcedAmbientIndex = -1;
 
@@ -81,6 +91,7 @@ namespace LivingWorldNpcs
             _nextEventAt = _time + t.Events.FirstDelaySec;   // 进场多久起第一起（§6.1）
             _nextSkitAt = t.Skits.FirstDelaySec;
             _playedEvents.Clear();
+            _events = LoadEvents();
 
             foreach (var def in StoryProbeDefs.Npcs)
             {
@@ -97,7 +108,16 @@ namespace LivingWorldNpcs
             if (agent == null || _activeEvent == null || !_eventPrepared || _eventSkit || _eventPaused
                 || _eventInterrupted != null || !OwnsBody(agent)) return false;
             string id = ResolveNpcId(agent);
-            return id == _activeEvent.ActorA || (_activeEvent.TwoPerson && id == _activeEvent.ActorB);
+            return EventMembers(_activeEvent).Contains(id);
+        }
+
+        private static List<string> EventMembers(StoryEventDef def)
+        {
+            if (def?.Members != null && def.Members.Count > 0) return def.Members;
+            var list = new List<string>();
+            if (!string.IsNullOrEmpty(def?.ActorA)) list.Add(def.ActorA);
+            if (def != null && def.TwoPerson && !string.IsNullOrEmpty(def.ActorB)) list.Add(def.ActorB);
+            return list;
         }
 
         public void Tick(float dt)
@@ -136,24 +156,75 @@ namespace LivingWorldNpcs
 
         private void StartNextEvent()
         {
+            if (_events.Count == 0) return;
             // 依次轮转 1..6；都演过一遍后重新轮（不锁死、没有"错过"）
-            if (_playedEvents.Count >= StoryProbeDefs.Events.Count)
+            if (_playedEvents.Count >= _events.Count)
             {
                 _playedEvents.Clear();
                 _nextEventIndex = 1;
             }
 
             // Resolved conflicts stay resolved; an exhausted cycle only waits.
-            for (int remaining = StoryProbeDefs.Events.Count; remaining > 0; remaining--)
+            for (int remaining = _events.Count; remaining > 0; remaining--)
             {
-                var def = StoryProbeDefs.GetEvent(_nextEventIndex) ?? StoryProbeDefs.Events[0];
-                _nextEventIndex = def.Index % StoryProbeDefs.Events.Count + 1;
+                var def = FindEvent(_nextEventIndex) ?? _events[0];
+                _nextEventIndex = def.Index % _events.Count + 1;
                 if (StoryProbeState.IsStreetEventResolved(def.Index)) continue;
                 StartEvent(def, skit: false);
                 return;
             }
             _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
         }
+
+        /// <summary>
+        /// P4：群组事件优先读 v2 `Behaviors(Kind=group)`；没有正式数据才回退选角表。
+        /// 这样改成员 / 台词 / 动作 / 主持人 / 接入节点只改 JSON。
+        /// </summary>
+        private List<StoryEventDef> LoadEvents()
+        {
+            var fallback = StoryProbeDefs.Events.ToList();
+            if (!StoryV2Data.EnsurePublished()) return fallback;
+            var file = StoryLayoutRegistry.Published;
+            if (file == null) return fallback;
+            var groups = file.Behaviors.Values
+                .Where(b => b != null && b.Kind == "group" && b.Id.StartsWith("event_", StringComparison.Ordinal))
+                .OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
+            if (groups.Count == 0) return fallback;
+
+            var list = new List<StoryEventDef>();
+            foreach (var g in groups)
+            {
+                if (!int.TryParse(g.Id.Substring("event_".Length), out int index) || index <= 0) continue;
+                var cast = fallback.FirstOrDefault(e => e.Index == index);
+                var members = g.Members ?? new List<string>();
+                if (members.Count == 0 && cast != null)
+                {
+                    members = cast.TwoPerson ? new List<string> { cast.ActorA, cast.ActorB }
+                                             : new List<string> { cast.ActorA };
+                }
+                if (members.Count == 0) continue;
+                list.Add(new StoryEventDef
+                {
+                    Index = index,
+                    TwoPerson = members.Count > 1,
+                    ActorA = members[0],
+                    ActorB = members.Count > 1 ? members[1] : null,
+                    LineKeys = g.Lines.Count > 0 ? g.Lines.ToArray() : cast?.LineKeys,
+                    LineFallbacks = g.LineFallbacks.Count > 0 ? g.LineFallbacks.ToArray() : cast?.LineFallbacks,
+                    ActionA = g.ActionsA.Count > 0 ? g.ActionsA.ToArray() : cast?.ActionA,
+                    ActionB = g.ActionsB.Count > 0 ? g.ActionsB.ToArray() : cast?.ActionB,
+                    HostNpcId = !string.IsNullOrEmpty(g.Host) ? g.Host : cast?.HostNpcId,
+                    JoinNode = !string.IsNullOrEmpty(g.JoinNode) ? g.JoinNode : cast?.JoinNode,
+                    Members = new List<string>(members),
+                    Speakers = g.Speakers != null ? new List<string>(g.Speakers) : new List<string>(),
+                });
+            }
+            DebugLogger.Log("[StoryProbe] events from v2 groups=" + list.Count + " (fallback=" + fallback.Count + ")");
+            return list.Count > 0 ? list : fallback;
+        }
+
+        private StoryEventDef FindEvent(int index)
+            => _events.FirstOrDefault(e => e.Index == index);
 
         private void StartEvent(StoryEventDef def, bool skit)
         {
@@ -162,19 +233,32 @@ namespace LivingWorldNpcs
                 _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
                 return;
             }
-            var a = _host.GetAgent(def.ActorA);
-            if (a == null) { _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec; return; }
-
-            var b = def.TwoPerson ? _host.GetAgent(def.ActorB) : null;
-            if (def.TwoPerson && b == null) { _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec; return; }
+            var memberIds = EventMembers(def);
+            var memberAgents = new List<Agent>();
+            foreach (string id in memberIds)
+            {
+                var agent = _host.GetAgent(id);
+                if (agent == null)
+                {
+                    _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
+                    return;
+                }
+                memberAgents.Add(agent);
+            }
+            if (memberAgents.Count == 0)
+            {
+                _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
+                return;
+            }
 
             if (IsConversationActive()) { _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec; return; }
-            ReleaseAmbient(a);
-            if (b != null) ReleaseAmbient(b);
+            foreach (var agent in memberAgents) ReleaseAmbient(agent);
             string session = "street-event-" + Guid.NewGuid().ToString("N");
             var accepted = new Dictionary<Agent, PerformanceAction>();
-            foreach (var actor in b == null ? new[] { a } : new[] { a, b })
+            foreach (var actor in memberAgents)
             {
+                // 工作点正占着身体时先让位（事件结束后 Work 自己恢复）。
+                _host.Work?.YieldActor(ResolveNpcId(actor), "group event");
                 var lease = PerformanceAction.TryAcquire(actor, session, reason =>
                 {
                     // 对话暂停导致的正常清理不冒充攻击；任何真正攻击/特殊状态必须散场。
@@ -205,7 +289,7 @@ namespace LivingWorldNpcs
             _playerFarSince = -1f;
             _playedEvents.Add(def.Index);
 
-            DebugLogger.Log($"[StoryProbe] event start #{def.Index} skit={skit} actors={def.ActorA}{(def.TwoPerson ? "+" + def.ActorB : "")}");
+            DebugLogger.Log($"[StoryProbe] event start #{def.Index} skit={skit} actors={string.Join("+", EventMembers(def))}");
         }
 
         private bool OwnsBody(Agent actor)
@@ -217,24 +301,36 @@ namespace LivingWorldNpcs
 
         private void PrepareEventActors()
         {
-            var a = _host.GetAgent(_activeEvent.ActorA);
-            var b = _activeEvent.TwoPerson ? _host.GetAgent(_activeEvent.ActorB) : null;
-            if (!OwnsBody(a) || (_activeEvent.TwoPerson && !OwnsBody(b))) return;
-            if (b != null)
+            var members = EventMembers(_activeEvent);
+            var agents = members.Select(id => _host.GetAgent(id)).Where(a => a != null).ToList();
+            if (agents.Count == 0 || agents.Any(a => !OwnsBody(a))) return;
+
+            var a = agents[0];
+            for (int i = 1; i < agents.Count; i++)
             {
-                if (a.Position.Distance(b.Position) > StoryProbeTuning.Current.Events.ActorSpacingMeters)
+                var other = agents[i];
+                if (a.Position.Distance(other.Position) > StoryProbeTuning.Current.Events.ActorSpacingMeters)
                 {
-                    Vec3 dir = b.Position - a.Position;
+                    Vec3 dir = other.Position - a.Position;
                     dir.z = 0f;
                     if (dir.LengthSquared < 0.01f) dir = new Vec3(0, 1, 0);
-                    b.TeleportToPosition(a.Position + dir.NormalizedCopy() * StoryProbeTuning.Current.Events.ActorApproachMeters);
+                    var offset = dir.NormalizedCopy() * StoryProbeTuning.Current.Events.ActorApproachMeters;
+                    // 第三人及以上绕圈排开，避免叠在同一点。
+                    if (i > 1)
+                    {
+                        float ang = (i - 1) * 1.2f;
+                        offset = new Vec3((float)Math.Cos(ang), (float)Math.Sin(ang), 0f)
+                                 * StoryProbeTuning.Current.Events.ActorApproachMeters;
+                    }
+                    other.TeleportToPosition(a.Position + offset);
                 }
-                AgentControlHelper.FaceToActor(a, b);
-                AgentControlHelper.FaceToActor(b, a);
+                AgentControlHelper.FaceToActor(a, other);
+                AgentControlHelper.FaceToActor(other, a);
             }
             _eventPrepared = true;
             PlayLoopAction(a, _activeEvent.ActionA);
-            if (b != null) PlayLoopAction(b, _activeEvent.ActionB);
+            for (int i = 1; i < agents.Count; i++)
+                PlayLoopAction(agents[i], i == 1 ? _activeEvent.ActionB : _activeEvent.ActionA);
         }
 
         private void TickActiveEvent(float dt, bool inConversation)
@@ -286,7 +382,7 @@ namespace LivingWorldNpcs
                     _joinArmed = false;
                     var host = _host.GetAgent(_activeEvent.HostNpcId);
                     DebugLogger.Log($"[StoryProbe] event #{_activeEvent.Index} pause (player {nearest:F1} m) -> join dialogue");
-                    if (host != null) _host.StartStoryConversation(host, _activeEvent.JoinNode);
+                    if (host != null) _host.StartStoryConversation(host, null, "event_join");
                     return;
                 }
             }
@@ -340,14 +436,16 @@ namespace LivingWorldNpcs
             if (_eventElapsed >= StoryProbeTuning.Current.Events.ActionChangeAfterSec
                 && _rng.NextDouble() < dt * StoryProbeTuning.Current.Events.ActionChangeChancePerSec)
             {
-                var a = _host.GetAgent(_activeEvent.ActorA);
-                var b = _activeEvent.TwoPerson ? _host.GetAgent(_activeEvent.ActorB) : null;
-                PlayLoopAction(a, _activeEvent.ActionA);
-                if (b != null) PlayLoopAction(b, _activeEvent.ActionB);
+                var members = EventMembers(_activeEvent);
+                for (int i = 0; i < members.Count; i++)
+                {
+                    var agent = _host.GetAgent(members[i]);
+                    PlayLoopAction(agent, i == 1 ? _activeEvent.ActionB : _activeEvent.ActionA);
+                }
             }
 
             // 单人事件：一直重复发愁的动作（§6.1 硬规则 1）
-            if (!_activeEvent.TwoPerson && _rng.NextDouble() < dt * StoryProbeTuning.Current.Events.SoloActionChancePerSec)
+            if (EventMembers(_activeEvent).Count == 1 && _rng.NextDouble() < dt * StoryProbeTuning.Current.Events.SoloActionChancePerSec)
             {
                 var a = _host.GetAgent(_activeEvent.ActorA);
                 PlayLoopAction(a, _activeEvent.ActionA);
@@ -369,8 +467,13 @@ namespace LivingWorldNpcs
             _lineCursor++;
 
             string actorId;
-            if (_activeEvent.TwoPerson) actorId = (i % 2 == 0) ? _activeEvent.ActorA : _activeEvent.ActorB;
-            else actorId = _activeEvent.ActorA;
+            if (_activeEvent.Speakers != null && i < _activeEvent.Speakers.Count)
+                actorId = _activeEvent.Speakers[i];
+            else
+            {
+                var members = EventMembers(_activeEvent);
+                actorId = members.Count > 0 ? members[i % members.Count] : _activeEvent.ActorA;
+            }
 
             var agent = _host.GetAgent(actorId);
             if (agent == null || !OwnsBody(agent)) return;
@@ -411,7 +514,7 @@ namespace LivingWorldNpcs
 
         public void ForceEvent(int index)
         {
-            var def = StoryProbeDefs.GetEvent(index);
+            var def = FindEvent(index) ?? StoryProbeDefs.GetEvent(index);
             if (def == null) return;
             EndEvent("forced");
             StartEvent(def, skit: false);
@@ -422,12 +525,10 @@ namespace LivingWorldNpcs
             var player = Agent.Main;
             if (player == null || _activeEvent == null) return float.MaxValue;
             float best = float.MaxValue;
-            var a = _host.GetAgent(_activeEvent.ActorA);
-            if (a != null) best = Math.Min(best, player.Position.Distance(a.Position));
-            if (_activeEvent.TwoPerson)
+            foreach (string id in EventMembers(_activeEvent))
             {
-                var b = _host.GetAgent(_activeEvent.ActorB);
-                if (b != null) best = Math.Min(best, player.Position.Distance(b.Position));
+                var agent = _host.GetAgent(id);
+                if (agent != null) best = Math.Min(best, player.Position.Distance(agent.Position));
             }
             return best;
         }
@@ -500,8 +601,16 @@ namespace LivingWorldNpcs
 
             foreach (var def in StoryProbeDefs.StreetLife)
             {
-                if (_activeEvent != null && (def.NpcId == _activeEvent.ActorA || def.NpcId == _activeEvent.ActorB))
+                if (_activeEvent != null && IsEventParticipant(def.NpcId))
                     continue;
+
+                // P4：工作点上的 NPC 由 StoryWorkDirector 接管；这里不再给常驻姿态，避免两边抢身体。
+                if (_host.Work?.IsWorkActor(def.NpcId) == true)
+                {
+                    var worker = _host.GetAgent(def.NpcId);
+                    if (worker != null) ReleaseAmbient(worker);
+                    continue;
+                }
 
                 float next;
                 if (!_nextAmbientAt.TryGetValue(def.NpcId, out next)) next = _time;
@@ -647,8 +756,9 @@ namespace LivingWorldNpcs
         public string Describe()
         {
             string evt = _activeEvent == null ? "-" : $"#{_activeEvent.Index}{( _eventSkit ? "(skit)" : "")}{(_eventPaused ? "(paused)" : "")}";
-            return $"time={_time:F1} stopped={Stopped} event={evt} nextEventIn={Math.Max(0f, _nextEventAt - _time):F1}s " +
-                   $"played=[{string.Join(",", _playedEvents)}]";
+            return $"time={_time:F1} stopped={Stopped} event={evt} prepared={_eventPrepared} " +
+                   $"interrupted={(_eventInterrupted ?? "-")} actors={_eventActors.Count} groups={_events.Count} " +
+                   $"nextEventIn={Math.Max(0f, _nextEventAt - _time):F1}s played=[{string.Join(",", _playedEvents)}]";
         }
 
         public string ListDefs()

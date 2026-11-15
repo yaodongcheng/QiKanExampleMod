@@ -1,0 +1,47 @@
+{
+  "_comment": "负样例 4：等待没有超时出口。流程步骤声明了 wait(arrival)，但 Wait 里没有 TimeoutSec。校验器必须报「每个等待须写时钟与上限」。",
+  "Schema": "story_stage/2",
+  "ContentVersion": 1,
+  "Scene": "empire_town_m",
+  "WallLevel": "civilian",
+  "Layouts": {
+    "town": {
+      "Version": 1,
+      "Anchors": { "player": { "Source": "player", "Pick": "first", "Required": true } },
+      "Gates": {},
+      "Props": [],
+      "WorkPoints": [],
+      "Posts": [],
+      "Standing": []
+    }
+  },
+  "Stages": {
+    "market": {
+      "Layout": "town",
+      "Actors": ["pawnbroker"],
+      "Props": [],
+      "OptionalActors": [],
+      "OptionalProps": [],
+      "Opening": false,
+      "Prep": { "SkipAllowed": true, "ActorReadyTimeoutSec": 3.0 }
+    }
+  },
+  "Behaviors": {},
+  "Flows": {
+    "story_intercept": {
+      "Roles": { "questioner": "candidate", "player": "player" },
+      "Steps": [
+        {
+          "Id": "approach",
+          "Atom": "actor_move",
+          "Actor": "$questioner",
+          "Args": { "To": "$player", "StopMeters": 2.0 },
+          "Wait": { "Kind": "arrival" },
+          "OnFail": "release",
+          "OnCancel": "release"
+        }
+      ]
+    }
+  },
+  "Beats": []
+}

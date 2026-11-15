@@ -1,24 +1,30 @@
 {
   "Npc": "blocker",
   "EntryOption": "LWN_story_blocker_entry",
+  "EntryOptionZh": "[说两句] 让一让，我要进城。",
   "EntryNode": "blocker_open",
+  "SkipVanillaOpening": true,
   "Nodes": [
     {
       "Id": "blocker_first",
       "NpcKey": "LWN_story_blocker_first",
+      "NpcKeyZh": "（铁头，玩家）：通行文书。\n（铁头，玩家）：没有就滚远点。",
       "EnterAction": "PROBE:mark",
       "EnterParam": "met",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_blocker_opt_insist",
+          "PlayerKeyZh": "[据理] 我妹妹在城里做工，我进去找她。",
           "NextNodeOnSuccess": "blocker_first_refuse"
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_draw",
+          "PlayerKeyZh": "[硬闯] 今天这门我非进不可。",
           "NextNodeOnSuccess": "blocker_first_blow"
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_step_back",
+          "PlayerKeyZh": "[退开] ……算了，我先退后。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -30,13 +36,16 @@
     {
       "Id": "blocker_first_refuse",
       "NpcKey": "LWN_story_blocker_first_refuse",
+      "NpcKeyZh": "（铁头，玩家）：找人的、讨债的、逃命的——每天八百个都这么说。\n（铁头，玩家）：退后，别逼我动手。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_blocker_opt_draw",
+          "PlayerKeyZh": "[硬闯] 今天这门我非进不可。",
           "NextNodeOnSuccess": "blocker_first_blow"
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_step_back",
+          "PlayerKeyZh": "[退开] ……算了，我先退后。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -48,10 +57,12 @@
     {
       "Id": "blocker_first_blow",
       "NpcKey": "LWN_story_blocker_first_blow",
+      "NpcKeyZh": "（铁头，玩家）：敬酒不吃吃罚酒。给我躺下！",
       "EnterAction": "PROBE:forced_fail",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -62,11 +73,13 @@
     {
       "Id": "blocker_open",
       "NpcKey": "LWN_story_blocker_open",
+      "NpcKeyZh": "（铁头，玩家）：通行文书。\n（铁头，玩家）：……怎么，还不死心？",
       "EnterAction": "PROBE:mark",
       "EnterParam": "met",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_blocker_opt_bribe",
+          "PlayerKeyZh": "[塞钱] 这点钱拿去喝茶。（100 第纳尔）",
           "Requires": "gold>=100,!gate_open",
           "Action": "PROBE:bribe",
           "ActionParam": "100",
@@ -74,6 +87,7 @@
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_threat",
+          "PlayerKeyZh": "[威吓] 好狗不挡道，让开。",
           "CheckType": "SkillCheck",
           "CheckTag": "blocker|force",
           "NextNodeOnSuccess": "blocker_threat_ok",
@@ -82,6 +96,7 @@
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_disguise",
+          "PlayerKeyZh": "[摆架子] 睁开眼看看，这也是你能拦的？",
           "Requires": "noble,!gate_open,!blocker_disarmed",
           "CheckType": "SkillCheck",
           "CheckTag": "blocker|charm",
@@ -90,11 +105,13 @@
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_pass",
+          "PlayerKeyZh": "[走过去] 借过。",
           "Requires": "gate_open",
           "NextNodeOnSuccess": "blocker_pass"
         },
         {
           "PlayerKey": "LWN_story_blocker_opt_disarmed",
+          "PlayerKeyZh": "[走过去] 你手里的刀没了。让开。",
           "Requires": "blocker_disarmed,!gate_open",
           "Action": "PROBE:open_gate_award",
           "ActionParam": "force|dockhands|-5",
@@ -102,6 +119,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -113,9 +131,11 @@
     {
       "Id": "blocker_bribe_ok",
       "NpcKey": "LWN_story_blocker_bribe_ok",
+      "NpcKeyZh": "（铁头，玩家）：……还算懂规矩。进去吧。\n（铁头，玩家）：进了门安分点，别给我惹事。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -127,11 +147,13 @@
     {
       "Id": "blocker_threat_ok",
       "NpcKey": "LWN_story_blocker_threat_ok",
+      "NpcKeyZh": "（铁头，玩家）：……行，你横。我不为这点俸禄拼命，过去吧。",
       "EnterAction": "PROBE:open_gate_award",
       "EnterParam": "force|dockhands|-20|1",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -142,11 +164,13 @@
     {
       "Id": "blocker_threat_fail",
       "NpcKey": "LWN_story_blocker_threat_fail",
+      "NpcKeyZh": "（铁头，玩家）：在老子地头上耍横？找死！",
       "EnterAction": "PROBE:fight+hazard",
       "EnterParam": "blocker;hazard_threat_failed",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_blocker_opt_fight",
+          "PlayerKeyZh": "[动手] 废话少说，手底下见真章。",
           "Action": "PROBE:fight",
           "ActionParam": "blocker",
           "NextNodeOnSuccess": "blocker_fight",
@@ -154,6 +178,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -164,11 +189,13 @@
     {
       "Id": "blocker_disguise_ok",
       "NpcKey": "LWN_story_blocker_disguise_ok",
+      "NpcKeyZh": "（铁头，玩家）：……原来是贵客当面。\n（铁头，玩家）：小的眼拙，您里边请。",
       "EnterAction": "PROBE:open_gate_award",
       "EnterParam": "charm|players|-5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -180,11 +207,13 @@
     {
       "Id": "blocker_disguise_fail",
       "NpcKey": "LWN_story_blocker_disguise_fail",
+      "NpcKeyZh": "（铁头，玩家）：……不对，这身衣裳不合身。\n（铁头，玩家）：敢冒充贵人？给我拿下！",
       "EnterAction": "PROBE:hazard",
       "EnterParam": "hazard_seen_through",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_blocker_opt_fight",
+          "PlayerKeyZh": "[动手] 废话少说，手底下见真章。",
           "Action": "PROBE:fight",
           "ActionParam": "blocker",
           "NextNodeOnSuccess": "blocker_fight",
@@ -192,6 +221,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -203,9 +233,11 @@
     {
       "Id": "blocker_fight",
       "NpcKey": "LWN_story_blocker_fight",
+      "NpcKeyZh": "（铁头，玩家）：来啊，看谁先趴下！",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -216,9 +248,11 @@
     {
       "Id": "blocker_pass",
       "NpcKey": "LWN_story_blocker_pass",
+      "NpcKeyZh": "（铁头，玩家）：……进去吧。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -229,9 +263,11 @@
     {
       "Id": "blocker_disarmed_ok",
       "NpcKey": "LWN_story_blocker_disarmed_ok",
+      "NpcKeyZh": "（铁头，玩家）：……你什么时候顺走我佩刀的？\n（铁头，玩家）：算你手快，进去吧。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],

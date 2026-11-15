@@ -1,16 +1,19 @@
 {
   "Npc": "butcher",
   "EntryOption": "LWN_story_butcher_entry",
+  "EntryOptionZh": "[说两句] 这肉新鲜吗？",
   "EntryNode": "butcher_intro",
   "Nodes": [
     {
       "Id": "butcher_intro",
       "NpcKey": "LWN_story_butcher_intro",
+      "NpcKeyZh": "（屠户，玩家）：今早刚宰的，新鲜。\n（屠户，玩家）：不买肉就往边上站，别挡着案板。",
       "EnterAction": "PROBE:mark",
       "EnterParam": "met",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_meat",
+          "PlayerKeyZh": "[搭话] 这么大个肉案，就你一个人守着？",
           "Once": "ask_meat",
           "Action": "PROBE:mark",
           "ActionParam": "ask_meat",
@@ -18,6 +21,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_past",
+          "PlayerKeyZh": "[打听] 听街坊说，你以前也是码头帮的人？",
           "Once": "ask_past",
           "Action": "PROBE:mark",
           "ActionParam": "ask_past",
@@ -25,6 +29,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_sister",
+          "PlayerKeyZh": "[打听] 见过一个被码头帮带走的青布姑娘吗？",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
           "ActionParam": "ask_sister;sister_6",
@@ -32,16 +37,19 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_deal",
+          "PlayerKeyZh": "[求门路] 我身上没家伙，能不能借把刀、教我两手？",
           "Requires": "!quest_accepted,!quest_turned,asked:ask_past",
           "NextNodeOnSuccess": "butcher_deal"
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_chat",
+          "PlayerKeyZh": "[叙旧] 今天的肉看着不错。",
           "Requires": "quest_turned",
           "NextNodeOnSuccess": "butcher_chat"
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_money",
+          "PlayerKeyZh": "[递钱] 这些钱，买你一句话。",
           "Requires": "step>=1,asked:ask_meat,asked:ask_sister",
           "Once": "butcher_money",
           "Action": "PROBE:mark+offer_money",
@@ -50,6 +58,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -61,9 +70,11 @@
     {
       "Id": "butcher_hub",
       "NpcKey": "LWN_story_butcher_hub",
+      "NpcKeyZh": "（屠户，玩家）：有话直说。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_meat",
+          "PlayerKeyZh": "[搭话] 这么大个肉案，就你一个人守着？",
           "Once": "ask_meat",
           "Action": "PROBE:mark",
           "ActionParam": "ask_meat",
@@ -71,6 +82,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_past",
+          "PlayerKeyZh": "[打听] 听街坊说，你以前也是码头帮的人？",
           "Once": "ask_past",
           "Action": "PROBE:mark",
           "ActionParam": "ask_past",
@@ -78,6 +90,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_sister",
+          "PlayerKeyZh": "[打听] 见过一个被码头帮带走的青布姑娘吗？",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
           "ActionParam": "ask_sister;sister_6",
@@ -85,16 +98,19 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_deal",
+          "PlayerKeyZh": "[求门路] 我身上没家伙，能不能借把刀、教我两手？",
           "Requires": "!quest_accepted,!quest_turned,asked:ask_past",
           "NextNodeOnSuccess": "butcher_deal"
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_chat",
+          "PlayerKeyZh": "[叙旧] 今天的肉看着不错。",
           "Requires": "quest_turned",
           "NextNodeOnSuccess": "butcher_chat"
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_money",
+          "PlayerKeyZh": "[递钱] 这些钱，买你一句话。",
           "Requires": "step>=1,asked:ask_meat,asked:ask_sister",
           "Once": "butcher_money",
           "Action": "PROBE:mark+offer_money",
@@ -103,6 +119,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -113,9 +130,11 @@
     {
       "Id": "butcher_ask_meat",
       "NpcKey": "LWN_story_butcher_ask_meat",
+      "NpcKeyZh": "（屠户，玩家）：以前有个徒弟帮衬，上个月让码头帮吓跑了。\n（屠户，玩家）：现在就我一把刀、一张案板，谁来也不让。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         }
       ],
@@ -127,9 +146,11 @@
     {
       "Id": "butcher_ask_past",
       "NpcKey": "LWN_story_butcher_ask_past",
+      "NpcKeyZh": "（屠户，玩家）：……你听哪个碎嘴子说的？\n（屠户，玩家）：少打听以前的事。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_past_more",
+          "PlayerKeyZh": "[追问] 我不是码头帮的探子——他们为什么砸你的摊？",
           "Once": "past_more",
           "Action": "PROBE:mark",
           "ActionParam": "past_more",
@@ -137,6 +158,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         }
       ],
@@ -148,9 +170,11 @@
     {
       "Id": "butcher_ask_past_2",
       "NpcKey": "LWN_story_butcher_ask_past_2",
+      "NpcKeyZh": "（屠户，玩家）：他们逼我去干押活人的脏活，我不干，他们就砸了我的摊子。\n（屠户，玩家）：从那天起我就跟码头帮断了。要我的命可以，要我再干脏活不行。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         }
       ],
@@ -162,9 +186,11 @@
     {
       "Id": "butcher_ask_sister",
       "NpcKey": "LWN_story_butcher_ask_sister",
+      "NpcKeyZh": "（屠户，玩家）：押人的脏事我早不沾了。\n（屠户，玩家）：不过上个月底半夜，我听见他们押着人往西码头暗仓去了。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_sister2",
+          "PlayerKeyZh": "[追问] 西码头暗仓那边，还有什么讲究？",
           "Once": "sister_more",
           "Action": "PROBE:mark",
           "ActionParam": "sister_more",
@@ -172,6 +198,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         }
       ],
@@ -183,9 +210,11 @@
     {
       "Id": "butcher_ask_sister_2",
       "NpcKey": "LWN_story_butcher_ask_sister_2",
+      "NpcKeyZh": "（屠户，玩家）：进那间暗仓的人，没一个能自己走出来。\n（屠户，玩家）：你要去救人，手里没把趁手家伙就是白送命。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         }
       ],
@@ -197,13 +226,16 @@
     {
       "Id": "butcher_deal",
       "NpcKey": "LWN_story_butcher_deal",
+      "NpcKeyZh": "（屠户，玩家）：想拿家伙、学两手？先替我办件事。\n（屠户，玩家）：收保护费的打手天天来砸摊，让他收手，怎么摆平你自己选。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "NextNodeOnSuccess": "butcher_quest_accept"
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_why",
+          "PlayerKeyZh": "[反问] 你手头有刀有肉，怎么不自己剁了他？",
           "Once": "butcher_why",
           "Action": "PROBE:mark",
           "ActionParam": "butcher_why",
@@ -211,6 +243,7 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_refuse",
+          "PlayerKeyZh": "[缓一缓] 我暂时不想替人出头。",
           "NextNodeOnSuccess": "butcher_deal_refuse"
         }
       ],
@@ -222,13 +255,16 @@
     {
       "Id": "butcher_deal_why",
       "NpcKey": "LWN_story_butcher_deal_why",
+      "NpcKeyZh": "（屠户，玩家）：我提刀砍了他，码头帮就有借口烧我铺子。\n（屠户，玩家）：你是外乡人，替我出面劝他也好，打服他也好，别闹出人命。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "NextNodeOnSuccess": "butcher_quest_accept"
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         }
       ],
@@ -240,9 +276,11 @@
     {
       "Id": "butcher_deal_refuse",
       "NpcKey": "LWN_story_butcher_deal_refuse",
+      "NpcKeyZh": "（屠户，玩家）：不肯出面，那这事先算了。\n（屠户，玩家）：哪天改了主意再来，我要的是摊子能安生。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         }
       ],
@@ -254,14 +292,17 @@
     {
       "Id": "butcher_quest_accept",
       "NpcKey": "LWN_story_butcher_quest_accept",
+      "NpcKeyZh": "（屠户，玩家）：打手就在街口，我这摊子的安生托付给你了。\n（屠户，玩家）：事情摆平了就回来领东西，别闹出人命。",
       "EnterAction": "PROBE:accept_quest",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -273,9 +314,11 @@
     {
       "Id": "butcher_turnin",
       "NpcKey": "LWN_story_butcher_turnin",
+      "NpcKeyZh": "（屠户，玩家）：打手那件事，办妥了？\n（玩家，屠户）：他已经服软，不敢再来砸你的摊。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_turnin_ok",
+          "PlayerKeyZh": "[交差] 那个打手已经服软了。",
           "NextNodeOnSuccess": "butcher_turnin_ok"
         }
       ],
@@ -287,14 +330,17 @@
     {
       "Id": "butcher_turnin_ok",
       "NpcKey": "LWN_story_butcher_turnin_ok",
+      "NpcKeyZh": "（屠户，玩家）：办得好。这把砍刀、麻绳和磨刀石拿去，我再教你两手用刀的门道。\n（屠户，玩家）：不想跟铁头硬拼，可以从背后敲闷棍，或者拿绳子捆住他。",
       "EnterAction": "PROBE:turn_in",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -306,9 +352,11 @@
     {
       "Id": "butcher_chat",
       "NpcKey": "LWN_story_butcher_chat",
+      "NpcKeyZh": "（屠户，玩家）：来了。\n（屠户，玩家）：案板后头留了块好肉，饿了自己在锅里捞，不用给钱。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_work",
+          "PlayerKeyZh": "[请教] 守门那个铁头，动手时有什么破绽？",
           "Once": "butcher_chat_2",
           "Action": "PROBE:mark",
           "ActionParam": "butcher_chat_2",
@@ -316,10 +364,12 @@
         },
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -331,13 +381,16 @@
     {
       "Id": "butcher_chat_2",
       "NpcKey": "LWN_story_butcher_chat_2",
+      "NpcKeyZh": "（屠户，玩家）：铁头以前在码头扛大包，下盘稳，但左手招架慢半拍。\n（屠户，玩家）：真动起手来，往他左侧抢步，三刀之内必见分晓。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -349,9 +402,11 @@
     {
       "Id": "event_2_join",
       "NpcKey": "LWN_story_event2_join",
+      "NpcKeyZh": "（打手，屠户）：老东西，这月的例钱呢？举着把破刀手都在抖！\n（屠户，打手）：滚开！再碰我案板一下，老子剁了你的爪子！",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event2_opt_help",
+          "PlayerKeyZh": "[帮屠户] 光天化日砸人买卖，问过我的拳头没有？",
           "CheckType": "SkillCheck",
           "CheckTag": "thug|force",
           "NextNodeOnSuccess": "event_2_win",
@@ -359,10 +414,12 @@
         },
         {
           "PlayerKey": "LWN_story_event2_opt_ask",
+          "PlayerKeyZh": "[插话] 慢着，你们这是闹什么？",
           "NextNodeOnSuccess": "event_2_ask"
         },
         {
           "PlayerKey": "LWN_story_event2_opt_walk",
+          "PlayerKeyZh": "[走开] 街面上的混账事我不掺和。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -374,9 +431,11 @@
     {
       "Id": "event_2_ask",
       "NpcKey": "LWN_story_event2_ask",
+      "NpcKeyZh": "（打手，玩家）：这卖肉的欠了码头帮两月例钱，你还想替他掏不成？\n（屠户，玩家）：外乡人，这是我跟码头帮的梁子，你少掺和。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event2_opt_help",
+          "PlayerKeyZh": "[帮屠户] 光天化日砸人买卖，问过我的拳头没有？",
           "CheckType": "SkillCheck",
           "CheckTag": "thug|force",
           "NextNodeOnSuccess": "event_2_win",
@@ -384,6 +443,7 @@
         },
         {
           "PlayerKey": "LWN_story_event2_opt_walk",
+          "PlayerKeyZh": "[走开] 街面上的混账事我不掺和。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -395,15 +455,18 @@
     {
       "Id": "event_2_win",
       "NpcKey": "LWN_story_event2_win",
+      "NpcKeyZh": "（打手，玩家）：你……你从哪冒出来的硬茬子！给我等着！\n（屠户，玩家）：好手劲。肯替人出头的外乡人不多见了。",
       "EnterAction": "PROBE:resolve_event",
       "EnterParam": "2|dockhands|-5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "butcher_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -415,15 +478,18 @@
     {
       "Id": "event_2_lose",
       "NpcKey": "LWN_story_event2_lose",
+      "NpcKeyZh": "（打手，玩家）：呸，没骨头的软脚虾，也敢学人拔拳头！\n（屠户，打手）：够了！别打外人，例钱我明天凑给你！",
       "EnterAction": "PROBE:hazard",
       "EnterParam": "event2_lost",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "butcher_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -435,13 +501,16 @@
     {
       "Id": "event_6_join",
       "NpcKey": "LWN_story_event6_join",
+      "NpcKeyZh": "（屠户，玩家）：这群杂碎，又把我的肉案给掀了。\n（屠户，玩家）：……外乡人，你看什么？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event6_opt_help",
+          "PlayerKeyZh": "[关照] 先缓口气。你受伤了没有？",
           "NextNodeOnSuccess": "event_6_helped"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -453,13 +522,16 @@
     {
       "Id": "event_6_helped",
       "NpcKey": "LWN_story_event6_helped",
+      "NpcKeyZh": "（屠户，玩家）：我没事，多谢你问这一声。\n（屠户，玩家）：你不是来买肉的吧？有事就直说。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "butcher_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -473,13 +545,16 @@
     {
       "Id": "butcher_money_disdain",
       "NpcKey": "LWN_story_butcher_money_disdain",
+      "NpcKeyZh": "（屠户，玩家）：把你的臭钱收回去！我卖肉，不卖话。\n（屠户，玩家）：想让我高看一眼，去把砸摊的人揍趴下。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "butcher_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],

@@ -1,0 +1,1521 @@
+{
+  "_comment": "由 Scripts/migrate_story_dialogues.py 从旧 story_probe_pawnbroker.json 迁移；旧文件仅作回退副本。改内容请改脚本/旧文件后重跑。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "story_pawnbroker",
+  "ContentVersion": 1,
+  "EntryOption": "LWN_story_pawnbroker_entry",
+  "SkipVanillaOpening": false,
+  "Participants": [
+    "npc",
+    "player"
+  ],
+  "Actors": [
+    "pawnbroker",
+    "thug"
+  ],
+  "Triggers": [
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "close"
+    },
+    {
+      "Id": "event_join",
+      "Source": "event",
+      "Purpose": "join",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "release"
+    }
+  ],
+  "Entries": [
+    {
+      "Id": "player_turnin",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "quest_done",
+        "!quest_turned"
+      ],
+      "Priority": 100,
+      "Node": "pawnbroker_turnin"
+    },
+    {
+      "Id": "player_chat",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "quest_turned"
+      ],
+      "Priority": 90,
+      "Node": "pawnbroker_chat"
+    },
+    {
+      "Id": "player_hub",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "step>=1"
+      ],
+      "Priority": 80,
+      "Node": "pawnbroker_hub"
+    },
+    {
+      "Id": "player_intro",
+      "Trigger": "player_talk",
+      "Conditions": [],
+      "Priority": 70,
+      "Node": "pawnbroker_intro"
+    },
+    {
+      "Id": "join_1",
+      "Trigger": "event_join",
+      "Conditions": [
+        "event_active:1"
+      ],
+      "Priority": 100,
+      "Node": "event_1_join"
+    },
+    {
+      "Id": "join_5",
+      "Trigger": "event_join",
+      "Conditions": [
+        "event_active:5"
+      ],
+      "Priority": 100,
+      "Node": "event_5_join"
+    }
+  ],
+  "Nodes": [
+    {
+      "Id": "pawnbroker_intro",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_intro",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "mark",
+          "Params": {
+            "flag": "met"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "self",
+          "PlayerKey": "LWN_story_pawnbroker_opt_self",
+          "Requires": [
+            "!asked:ask_self"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_self"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_self"
+        },
+        {
+          "Id": "sister",
+          "PlayerKey": "LWN_story_pawnbroker_opt_sister",
+          "Requires": [
+            "!asked:ask_sister"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_sister"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "sister_1"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_sister"
+        },
+        {
+          "Id": "gang",
+          "PlayerKey": "LWN_story_pawnbroker_opt_gang",
+          "Requires": [
+            "!asked:ask_gang"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_gang"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_gang"
+        },
+        {
+          "Id": "errand",
+          "PlayerKey": "LWN_story_pawnbroker_opt_errand",
+          "Requires": [
+            "asked:ask_self",
+            "asked:ask_gang",
+            "errand_ready",
+            "!street_help_pending"
+          ],
+          "Effects": [
+            {
+              "Id": "errand",
+              "Params": {
+                "pay": "50"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "pawnbroker_errand"
+        },
+        {
+          "Id": "deal",
+          "PlayerKey": "LWN_story_pawnbroker_opt_deal",
+          "Requires": [
+            "!quest_accepted",
+            "!quest_turned",
+            "asked:ask_gang"
+          ],
+          "Effects": [],
+          "NextNode": "pawnbroker_deal"
+        },
+        {
+          "Id": "chat",
+          "PlayerKey": "LWN_story_pawnbroker_opt_chat",
+          "Requires": [
+            "quest_turned",
+            "asked:ask_gang"
+          ],
+          "Effects": [],
+          "NextNode": "pawnbroker_chat"
+        },
+        {
+          "Id": "money",
+          "PlayerKey": "LWN_story_pawnbroker_opt_money",
+          "Requires": [
+            "clue:sister_3",
+            "asked:ask_self",
+            "asked:ask_sister",
+            "asked:ask_gang",
+            "!asked:offer_money"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "offer_money"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_money_covert"
+        },
+        {
+          "Id": "reward",
+          "PlayerKey": "LWN_story_pawnbroker_opt_help_reward",
+          "Requires": [
+            "street_help_pending",
+            "asked:ask_self",
+            "asked:ask_gang"
+          ],
+          "Effects": [
+            {
+              "Id": "grant_gold",
+              "Params": {
+                "amount": "50"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "reward_receipt",
+              "Params": {
+                "npc": "pawnbroker",
+                "key": "street-help"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_help_reward"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_hub",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_hub",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "self",
+          "PlayerKey": "LWN_story_pawnbroker_opt_self",
+          "Requires": [
+            "!asked:ask_self"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_self"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_self"
+        },
+        {
+          "Id": "sister",
+          "PlayerKey": "LWN_story_pawnbroker_opt_sister",
+          "Requires": [
+            "!asked:ask_sister"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_sister"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "sister_1"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_sister"
+        },
+        {
+          "Id": "gang",
+          "PlayerKey": "LWN_story_pawnbroker_opt_gang",
+          "Requires": [
+            "!asked:ask_gang"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_gang"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_gang"
+        },
+        {
+          "Id": "errand",
+          "PlayerKey": "LWN_story_pawnbroker_opt_errand",
+          "Requires": [
+            "asked:ask_self",
+            "asked:ask_gang",
+            "errand_ready",
+            "!street_help_pending"
+          ],
+          "Effects": [
+            {
+              "Id": "errand",
+              "Params": {
+                "pay": "50"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "pawnbroker_errand"
+        },
+        {
+          "Id": "deal",
+          "PlayerKey": "LWN_story_pawnbroker_opt_deal",
+          "Requires": [
+            "!quest_accepted",
+            "!quest_turned",
+            "asked:ask_gang"
+          ],
+          "Effects": [],
+          "NextNode": "pawnbroker_deal"
+        },
+        {
+          "Id": "redeem",
+          "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
+          "Requires": [
+            "clue:sister_1",
+            "!clue:sister_3",
+            "asked:ask_self",
+            "asked:ask_gang",
+            "can_redeem_keepsake"
+          ],
+          "Effects": [],
+          "NextNode": "pawnbroker_sister_redeem"
+        },
+        {
+          "Id": "chat",
+          "PlayerKey": "LWN_story_pawnbroker_opt_chat",
+          "Requires": [
+            "quest_turned",
+            "asked:ask_gang"
+          ],
+          "Effects": [],
+          "NextNode": "pawnbroker_chat"
+        },
+        {
+          "Id": "money",
+          "PlayerKey": "LWN_story_pawnbroker_opt_money",
+          "Requires": [
+            "clue:sister_3",
+            "asked:ask_self",
+            "asked:ask_sister",
+            "asked:ask_gang",
+            "!asked:offer_money"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "offer_money"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_money_covert"
+        },
+        {
+          "Id": "reward",
+          "PlayerKey": "LWN_story_pawnbroker_opt_help_reward",
+          "Requires": [
+            "street_help_pending",
+            "asked:ask_self",
+            "asked:ask_gang"
+          ],
+          "Effects": [
+            {
+              "Id": "grant_gold",
+              "Params": {
+                "amount": "50"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "reward_receipt",
+              "Params": {
+                "npc": "pawnbroker",
+                "key": "street-help"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_help_reward"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_ask_self",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_ask_self",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "stay",
+          "PlayerKey": "LWN_story_pawnbroker_opt_self_stay",
+          "Requires": [
+            "!asked:self_stay"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "self_stay"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_stay"
+        },
+        {
+          "Id": "know",
+          "PlayerKey": "LWN_story_pawnbroker_opt_self_know",
+          "Requires": [
+            "!asked:self_know"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "self_know"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_know"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_ask_stay",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_ask_stay",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_ask_know",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_ask_know",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_ask_sister",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_ask_sister",
+      "LineActions": [
+        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "where",
+          "PlayerKey": "LWN_story_pawnbroker_opt_sister_where",
+          "Requires": [
+            "!asked:sister_where"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "sister_where"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "sister_2"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_sister_where"
+        },
+        {
+          "Id": "redeem",
+          "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
+          "Requires": [
+            "can_redeem_keepsake",
+            "!clue:sister_3"
+          ],
+          "Effects": [],
+          "NextNode": "pawnbroker_sister_redeem"
+        },
+        {
+          "Id": "why",
+          "PlayerKey": "LWN_story_pawnbroker_opt_sister_why",
+          "Requires": [
+            "!asked:sister_why"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "sister_why"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_sister_why"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_sister_where",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_sister_where",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_sister_why",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_sister_why",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_sister_redeem",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_sister_redeem",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "pay30",
+          "PlayerKey": "LWN_story_pawnbroker_opt_pay30",
+          "Requires": [
+            "can_redeem_keepsake",
+            "!clue:sister_3"
+          ],
+          "Effects": [
+            {
+              "Id": "pay",
+              "Params": {
+                "amount": "30",
+                "to": "pawnbroker"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            },
+            {
+              "Id": "reward_receipt",
+              "Params": {
+                "npc": "pawnbroker",
+                "key": "keepsake-paid"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_sister_got"
+        },
+        {
+          "Id": "hold",
+          "PlayerKey": "LWN_story_pawnbroker_opt_hold",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_sister_got",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_sister_got",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_ask_gang",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_ask_gang",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_very_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "how",
+          "PlayerKey": "LWN_story_pawnbroker_opt_gang_how",
+          "Requires": [
+            "!asked:gang_how"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "gang_how"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "gate_disguise"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_gang_2"
+        },
+        {
+          "Id": "price",
+          "PlayerKey": "LWN_story_pawnbroker_opt_gang_price",
+          "Requires": [
+            "!asked:gang_price"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "gang_price"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "gate_bribe"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_ask_gang_3"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_ask_gang_2",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_ask_gang_2",
+      "LineActions": [
+        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_ask_gang_3",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_ask_gang_3",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_deal",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_deal",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_very_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "job",
+          "PlayerKey": "LWN_story_opt_take_job",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_quest_accept"
+        },
+        {
+          "Id": "why",
+          "PlayerKey": "LWN_story_pawnbroker_opt_deal_why",
+          "Requires": [
+            "!asked:deal_why"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "deal_why"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_deal_why"
+        },
+        {
+          "Id": "refuse",
+          "PlayerKey": "LWN_story_pawnbroker_opt_refuse",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_deal_refuse"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_deal_why",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_deal_why",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "job",
+          "PlayerKey": "LWN_story_opt_take_job",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_quest_accept"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_deal_refuse",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_deal_refuse",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_quest_accept",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_quest_accept",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "quest_accept",
+          "Params": {
+            "npc": "pawnbroker"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_turnin",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_turnin",
+      "LineActions": [
+        "",
+        "act_conversation_closed_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "ok",
+          "PlayerKey": "LWN_story_pawnbroker_opt_turnin_ok",
+          "Requires": [
+            "!resolution:force"
+          ],
+          "Effects": [],
+          "NextNode": "pawnbroker_turnin_ok"
+        },
+        {
+          "Id": "trouble",
+          "PlayerKey": "LWN_story_pawnbroker_opt_turnin_trouble",
+          "Requires": [
+            "resolution:force"
+          ],
+          "Effects": [],
+          "NextNode": "pawnbroker_turnin_trouble"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_turnin_trouble",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_turnin_trouble",
+      "LineActions": [
+        "act_conversation_closed_negative",
+        "act_conversation_closed_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "quest_turn_in",
+          "Params": {
+            "npc": "pawnbroker"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_turnin_ok",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_turnin_ok",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "quest_turn_in",
+          "Params": {
+            "npc": "pawnbroker"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "why",
+          "PlayerKey": "LWN_story_pawnbroker_opt_turnin_why",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_turnin_why"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_turnin_why",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_turnin_why",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_chat",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_chat",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "visit",
+          "PlayerKey": "LWN_story_pawnbroker_opt_visit",
+          "Requires": [
+            "!asked:chat_docks"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "chat_docks"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "pawnbroker_chat_2"
+        },
+        {
+          "Id": "work",
+          "PlayerKey": "LWN_story_pawnbroker_opt_work",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_chat_2",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_chat_2",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_errand",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_errand",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_1_join",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event1_join",
+      "LineActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_closed_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "pay",
+          "PlayerKey": "LWN_story_event1_opt_pay",
+          "Requires": [
+            "gold>=80"
+          ],
+          "Effects": [
+            {
+              "Id": "pay",
+              "Params": {
+                "amount": "80",
+                "to": "thug"
+              },
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "event_1_paid"
+        },
+        {
+          "Id": "stop",
+          "PlayerKey": "LWN_story_event1_opt_stop",
+          "Requires": [],
+          "Effects": [],
+          "Check": {
+            "Skill": "force",
+            "Target": "thug",
+            "Success": "event_1_win",
+            "Fail": "event_1_lose"
+          }
+        },
+        {
+          "Id": "walk",
+          "PlayerKey": "LWN_story_event1_opt_walk",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_1_paid",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event1_paid",
+      "LineActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_closed_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "resolve_event",
+          "Params": {
+            "event": "1"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        },
+        {
+          "Id": "relation",
+          "Params": {
+            "faction": "fixers",
+            "delta": "5"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "followup",
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_1_win",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event1_win",
+      "LineActions": [
+        "act_conversation_aggressive_negative",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "resolve_event",
+          "Params": {
+            "event": "1"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        },
+        {
+          "Id": "relation",
+          "Params": {
+            "faction": "fixers",
+            "delta": "5"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "followup",
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_1_lose",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event1_lose",
+      "LineActions": [
+        "act_conversation_aggressive_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "hazard",
+          "Params": {
+            "flag": "event1_lost"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "followup",
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_5_join",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event5_join",
+      "LineActions": [
+        "act_conversation_closed_negative",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "ask",
+          "PlayerKey": "LWN_story_event5_opt_ask",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_money_covert",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_money_covert",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "buy",
+          "PlayerKey": "LWN_story_pawnbroker_opt_money_buy",
+          "Requires": [
+            "gold>=80"
+          ],
+          "Effects": [
+            {
+              "Id": "money_deal",
+              "Params": {},
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "pawnbroker_money_dealt"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_money_dealt",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_money_dealt",
+      "LineActions": [
+        "act_conversation_closed_trivial",
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "pawnbroker_help_reward",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_pawnbroker_help_reward",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "pawnbroker_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    }
+  ]
+}

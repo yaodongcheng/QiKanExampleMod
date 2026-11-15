@@ -2083,4 +2083,50 @@ namespace LivingWorldNpcs
         public void OnEnd(Agent a) { }
         public void RequestInterrupt() => _inline.Interrupt();
     }
+
+    /// <summary>
+    /// P4 工作走位（2026-11-15）：把 MoveToPositionAction 包成“有真实结果”的一次移动。
+    /// · 固定超时（不瞬移）；成功 = 到位距离 ≤ stop+0.5m，超时/中断 = false。
+    /// · 只由 AgentBrain 的 `event_story_move` 入队，外部不直接碰队列。
+    /// </summary>
+    public class StoryMoveAction : IAtomicAction
+    {
+        private readonly MoveToPositionAction _inner;
+        private readonly Vec3 _target;
+        private readonly float _stop;
+        private readonly Action<bool> _done;
+        private bool _fired;
+
+        public StoryMoveAction(Vec3 target, float stopDistance, Action<bool> done)
+        {
+            _target = target;
+            _stop = Math.Max(0.2f, stopDistance);
+            _done = done;
+            _inner = new MoveToPositionAction(target, Vec2.Zero, run: false, stopDistance: _stop,
+                maxTime: 20f, skipGetupDelay: false,
+                endBehavior: MoveToPositionAction.EndBehavior.Unlock, narration: null);
+        }
+
+        public string GetNarration(Agent owner) => null;
+        public void OnStart(Agent agent) => _inner.OnStart(agent);
+        public void OnTick(Agent agent, float dt) => _inner.OnTick(agent, dt);
+
+        public bool IsFinished(Agent agent)
+        {
+            if (!_inner.IsFinished(agent)) return false;
+            Fire(agent != null && agent.Position.Distance(_target) <= _stop + 0.5f);
+            return true;
+        }
+
+        public void OnEnd(Agent agent) => _inner.OnEnd(agent);
+        public void RequestInterrupt() { _inner.RequestInterrupt(); Fire(false); }
+
+        private void Fire(bool ok)
+        {
+            if (_fired) return;
+            _fired = true;
+            try { _done?.Invoke(ok); }
+            catch (Exception ex) { DebugLogger.Log("[StoryMove] callback failed: " + ex.Message); }
+        }
+    }
 }

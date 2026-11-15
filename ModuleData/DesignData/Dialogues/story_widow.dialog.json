@@ -1,0 +1,912 @@
+{
+  "_comment": "由 Scripts/migrate_story_dialogues.py 从旧 story_probe_widow.json 迁移；旧文件仅作回退副本。改内容请改脚本/旧文件后重跑。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "story_widow",
+  "ContentVersion": 1,
+  "EntryOption": "LWN_story_widow_entry",
+  "SkipVanillaOpening": false,
+  "Participants": [
+    "npc",
+    "player"
+  ],
+  "Actors": [
+    "widow",
+    "rival"
+  ],
+  "Triggers": [
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "close"
+    },
+    {
+      "Id": "event_join",
+      "Source": "event",
+      "Purpose": "join",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0,
+      "ReentrySec": 0,
+      "OnCancel": "release"
+    }
+  ],
+  "Entries": [
+    {
+      "Id": "player_turnin",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "quest_done",
+        "!quest_turned"
+      ],
+      "Priority": 100,
+      "Node": "widow_turnin"
+    },
+    {
+      "Id": "player_chat",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "quest_turned"
+      ],
+      "Priority": 90,
+      "Node": "widow_chat"
+    },
+    {
+      "Id": "player_hub",
+      "Trigger": "player_talk",
+      "Conditions": [
+        "step>=1"
+      ],
+      "Priority": 80,
+      "Node": "widow_hub"
+    },
+    {
+      "Id": "player_intro",
+      "Trigger": "player_talk",
+      "Conditions": [],
+      "Priority": 70,
+      "Node": "widow_intro"
+    },
+    {
+      "Id": "join_3",
+      "Trigger": "event_join",
+      "Conditions": [
+        "event_active:3"
+      ],
+      "Priority": 100,
+      "Node": "event_3_join"
+    }
+  ],
+  "Nodes": [
+    {
+      "Id": "widow_intro",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_intro",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "mark",
+          "Params": {
+            "flag": "met"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "stage",
+          "PlayerKey": "LWN_story_widow_opt_stage",
+          "Requires": [
+            "!asked:ask_stage"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_stage"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_ask_stage"
+        },
+        {
+          "Id": "sister",
+          "PlayerKey": "LWN_story_widow_opt_sister",
+          "Requires": [
+            "!asked:ask_sister"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_sister"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "sister_4"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_ask_sister"
+        },
+        {
+          "Id": "rival",
+          "PlayerKey": "LWN_story_widow_opt_rival",
+          "Requires": [
+            "!asked:ask_rival"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_rival"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_ask_rival"
+        },
+        {
+          "Id": "deal",
+          "PlayerKey": "LWN_story_widow_opt_deal",
+          "Requires": [
+            "!quest_accepted",
+            "!quest_turned",
+            "asked:ask_rival"
+          ],
+          "Effects": [],
+          "NextNode": "widow_deal"
+        },
+        {
+          "Id": "chat",
+          "PlayerKey": "LWN_story_widow_opt_chat",
+          "Requires": [
+            "quest_turned"
+          ],
+          "Effects": [],
+          "NextNode": "widow_chat"
+        },
+        {
+          "Id": "money",
+          "PlayerKey": "LWN_story_widow_opt_money",
+          "Requires": [
+            "step>=1",
+            "gold>=60",
+            "asked:ask_stage",
+            "asked:ask_sister",
+            "!asked:widow_money"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "widow_money"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_money_open"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "widow_hub",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_hub",
+      "LineActions": [
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "stage",
+          "PlayerKey": "LWN_story_widow_opt_stage",
+          "Requires": [
+            "!asked:ask_stage"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_stage"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_ask_stage"
+        },
+        {
+          "Id": "sister",
+          "PlayerKey": "LWN_story_widow_opt_sister",
+          "Requires": [
+            "!asked:ask_sister"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_sister"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "clue",
+              "Params": {
+                "clue": "sister_4"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_ask_sister"
+        },
+        {
+          "Id": "rival",
+          "PlayerKey": "LWN_story_widow_opt_rival",
+          "Requires": [
+            "!asked:ask_rival"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "ask_rival"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_ask_rival"
+        },
+        {
+          "Id": "deal",
+          "PlayerKey": "LWN_story_widow_opt_deal",
+          "Requires": [
+            "!quest_accepted",
+            "!quest_turned",
+            "asked:ask_rival"
+          ],
+          "Effects": [],
+          "NextNode": "widow_deal"
+        },
+        {
+          "Id": "chat",
+          "PlayerKey": "LWN_story_widow_opt_chat",
+          "Requires": [
+            "quest_turned"
+          ],
+          "Effects": [],
+          "NextNode": "widow_chat"
+        },
+        {
+          "Id": "money",
+          "PlayerKey": "LWN_story_widow_opt_money",
+          "Requires": [
+            "step>=1",
+            "gold>=60",
+            "asked:ask_stage",
+            "asked:ask_sister",
+            "!asked:widow_money"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "widow_money"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_money_open"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "widow_ask_stage",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_ask_stage",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        }
+      ]
+    },
+    {
+      "Id": "widow_ask_sister",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_ask_sister",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "more",
+          "PlayerKey": "LWN_story_widow_opt_sister_more",
+          "Requires": [
+            "!asked:sister_more"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "sister_more"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_ask_sister_2"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        }
+      ]
+    },
+    {
+      "Id": "widow_ask_sister_2",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_ask_sister_2",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        }
+      ]
+    },
+    {
+      "Id": "widow_ask_rival",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_ask_rival",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        }
+      ]
+    },
+    {
+      "Id": "widow_deal",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_deal",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "job",
+          "PlayerKey": "LWN_story_opt_take_job",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_quest_accept"
+        },
+        {
+          "Id": "why",
+          "PlayerKey": "LWN_story_widow_opt_why",
+          "Requires": [
+            "!asked:widow_why"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "widow_why"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_deal_why"
+        },
+        {
+          "Id": "refuse",
+          "PlayerKey": "LWN_story_widow_opt_refuse",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_deal_refuse"
+        }
+      ]
+    },
+    {
+      "Id": "widow_deal_why",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_deal_why",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "job",
+          "PlayerKey": "LWN_story_opt_take_job",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_quest_accept"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        }
+      ]
+    },
+    {
+      "Id": "widow_deal_refuse",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_deal_refuse",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        }
+      ]
+    },
+    {
+      "Id": "widow_quest_accept",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_quest_accept",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "quest_accept",
+          "Params": {
+            "npc": "widow",
+            "solved_event": "3"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "widow_turnin",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_turnin",
+      "LineActions": [
+        "act_conversation_hip_negative",
+        ""
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "ok",
+          "PlayerKey": "LWN_story_widow_opt_turnin_ok",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_turnin_ok"
+        }
+      ]
+    },
+    {
+      "Id": "widow_turnin_ok",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_turnin_ok",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "quest_turn_in",
+          "Params": {
+            "npc": "widow"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "widow_chat",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_chat",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "work",
+          "PlayerKey": "LWN_story_widow_opt_work",
+          "Requires": [
+            "!asked:widow_chat_2"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "widow_chat_2"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "widow_chat_2"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "widow_chat_2",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_chat_2",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_3_join",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event3_join",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "widow",
+          "PlayerKey": "LWN_story_event3_opt_side_widow",
+          "Requires": [],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "rival",
+            "Success": "event_3_win",
+            "Fail": "event_3_lose"
+          }
+        },
+        {
+          "Id": "ask",
+          "PlayerKey": "LWN_story_event3_opt_ask",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "event_3_ask"
+        },
+        {
+          "Id": "walk",
+          "PlayerKey": "LWN_story_event3_opt_walk",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_3_ask",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event3_ask",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "widow",
+          "PlayerKey": "LWN_story_event3_opt_side_widow",
+          "Requires": [],
+          "Effects": [],
+          "Check": {
+            "Skill": "charm",
+            "Target": "rival",
+            "Success": "event_3_win",
+            "Fail": "event_3_lose"
+          }
+        },
+        {
+          "Id": "walk",
+          "PlayerKey": "LWN_story_event3_opt_walk",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_3_win",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event3_win",
+      "LineActions": [
+        "act_conversation_hip_negative",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "resolve_event",
+          "Params": {
+            "event": "3"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        },
+        {
+          "Id": "relation",
+          "Params": {
+            "faction": "players",
+            "delta": "5"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "followup",
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "event_3_lose",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_event3_lose",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_negative"
+      ],
+      "Requires": [],
+      "OnEnter": [
+        {
+          "Id": "hazard",
+          "Params": {
+            "flag": "event3_lost"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "followup",
+          "PlayerKey": "LWN_story_event_opt_followup",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "widow_money_open",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_money_open",
+      "LineActions": [
+        "act_conversation_hip_positive",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "pay",
+          "PlayerKey": "LWN_story_widow_opt_pay",
+          "Requires": [
+            "gold>=60"
+          ],
+          "Effects": [
+            {
+              "Id": "money_offer",
+              "Params": {},
+              "Commit": "on_select",
+              "Receipt": "never"
+            }
+          ],
+          "NextNode": "widow_money_taken"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        }
+      ]
+    },
+    {
+      "Id": "widow_money_taken",
+      "Speaker": "npc",
+      "TextKey": "LWN_story_widow_money_taken",
+      "LineActions": [
+        "act_conversation_hip_trivial",
+        "act_conversation_hip_trivial"
+      ],
+      "Requires": [],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_widow_opt_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "widow_hub"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    }
+  ]
+}

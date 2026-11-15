@@ -338,6 +338,8 @@ namespace LivingWorldNpcs
             {
                 TryInjectCrimeDialogue(conversationPartnerData.Character?.HeroObject,
                     character: conversationPartnerData.Character);
+                // P0-D.4/Q02：StartConversation 已成功后才提交入口节点的进入效果。
+                StoryProbeDialogue.OnConversationStarted();
             }
             catch (Exception ex)
             {

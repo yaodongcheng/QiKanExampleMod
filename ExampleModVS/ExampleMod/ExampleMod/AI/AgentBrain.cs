@@ -436,6 +436,28 @@ namespace LivingWorldNpcs
             return false;
         }
 
+        /// <summary>
+        /// P4（2026-11-15）：剧情工作走位。参数 = (Vec3 目标, float 停止距离, Action&lt;bool&gt; 回执)。
+        /// 只入队一次 StoryMoveAction；真实到达才回 true，超时/中断/被控回 false，不做“下一个瞬移”。
+        /// </summary>
+        private void StartStoryMove(AIEvent ev)
+        {
+            var args = ev.Args;
+            Action<bool> done = args != null && args.Length > 2 ? args[2] as Action<bool> : null;
+            if (args == null || args.Length < 3 || !(args[0] is Vec3 pos) || !(args[1] is float stop))
+            {
+                done?.Invoke(false);
+                return;
+            }
+            if (Owner == null || !AgentControlHelper.SafeIsActive(Owner) || IsInCombat || IsBound
+                || IsStatusHeld || IsStunned || IsPerforming || AgentBrain.IsRoped(Owner))
+            {
+                done?.Invoke(false);
+                return;
+            }
+            EnqueueAction(new StoryMoveAction(pos, stop, done));
+        }
+
         private void StartStoryIntercept(AIEvent ev)
         {
             var args = ev.Args;
@@ -468,9 +490,11 @@ namespace LivingWorldNpcs
 
         public void ReceiveEvent(AIEvent aiEvent)
         {
-            if (aiEvent == null || Owner == Agent.Main) return;
+            // AIEvent 是 struct（2026-11-15）：没有 null 语义 —— 空事件 = EventType 为空，等价于旧版的 null 判断。
+            if (string.IsNullOrEmpty(aiEvent.EventType) || Owner == Agent.Main) return;
             // 演出释放/拒绝回执必须能越过模式关闭闸门，不能留一条无 Tick 的租约。
             if (HandlePerformanceEvent(aiEvent)) return;
+            if (aiEvent.EventType == "event_story_move") { StartStoryMove(aiEvent); return; }
             if (aiEvent.EventType == "event_story_intercept") { StartStoryIntercept(aiEvent); return; }
             if (aiEvent.EventType == "event_story_intercept_cancel")
             {

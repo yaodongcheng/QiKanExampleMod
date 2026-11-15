@@ -1,16 +1,19 @@
 {
   "Npc": "son",
   "EntryOption": "LWN_story_son_entry",
+  "EntryOptionZh": "[说两句] 这墙头是你的地盘？",
   "EntryNode": "son_intro",
   "Nodes": [
     {
       "Id": "son_intro",
       "NpcKey": "LWN_story_son_intro",
+      "NpcKeyZh": "（小贼，玩家）：嘘——小点声！这墙根我蹲了三年，风大看得远。\n（小贼，玩家）：看你这步子，刚从城门那儿碰了一鼻子灰吧？",
       "EnterAction": "PROBE:mark",
       "EnterParam": "met",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_wall",
+          "PlayerKeyZh": "[搭话] 你天天蹲在这墙根底下看什么？",
           "Once": "ask_wall",
           "Action": "PROBE:mark",
           "ActionParam": "ask_wall",
@@ -18,6 +21,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_climb",
+          "PlayerKeyZh": "[打听] 正门被堵死了，怎么才能翻进去？",
           "Once": "ask_climb",
           "Action": "PROBE:mark",
           "ActionParam": "ask_climb",
@@ -25,6 +29,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_sister",
+          "PlayerKeyZh": "[打听] 你整天蹲在墙头，见过一个穿青布的姑娘吗？",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
           "ActionParam": "ask_sister;sister_5",
@@ -32,16 +37,19 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_deal",
+          "PlayerKeyZh": "[求门路] 把你的飞钩借我用用。",
           "Requires": "!quest_accepted,!quest_turned,asked:ask_wall",
           "NextNodeOnSuccess": "son_deal"
         },
         {
           "PlayerKey": "LWN_story_son_opt_chat",
+          "PlayerKeyZh": "[叙旧] 这两天墙头上有什么新动静？",
           "Requires": "quest_turned",
           "NextNodeOnSuccess": "son_chat"
         },
         {
           "PlayerKey": "LWN_story_son_opt_money",
+          "PlayerKeyZh": "[塞钱] 四十第纳尔，买个准信。",
           "Requires": "step>=1,gold>=40,asked:ask_climb,asked:ask_sister",
           "Once": "son_money",
           "Action": "PROBE:mark",
@@ -50,6 +58,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -61,9 +70,11 @@
     {
       "Id": "son_hub",
       "NpcKey": "LWN_story_son_hub",
+      "NpcKeyZh": "（小贼，玩家）：还有什么事，快说。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_wall",
+          "PlayerKeyZh": "[搭话] 你天天蹲在这墙根底下看什么？",
           "Once": "ask_wall",
           "Action": "PROBE:mark",
           "ActionParam": "ask_wall",
@@ -71,6 +82,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_climb",
+          "PlayerKeyZh": "[打听] 正门被堵死了，怎么才能翻进去？",
           "Once": "ask_climb",
           "Action": "PROBE:mark",
           "ActionParam": "ask_climb",
@@ -78,6 +90,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_sister",
+          "PlayerKeyZh": "[打听] 你整天蹲在墙头，见过一个穿青布的姑娘吗？",
           "Once": "ask_sister",
           "Action": "PROBE:mark+clue",
           "ActionParam": "ask_sister;sister_5",
@@ -85,16 +98,19 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_deal",
+          "PlayerKeyZh": "[求门路] 把你的飞钩借我用用。",
           "Requires": "!quest_accepted,!quest_turned,asked:ask_wall",
           "NextNodeOnSuccess": "son_deal"
         },
         {
           "PlayerKey": "LWN_story_son_opt_chat",
+          "PlayerKeyZh": "[叙旧] 这两天墙头上有什么新动静？",
           "Requires": "quest_turned",
           "NextNodeOnSuccess": "son_chat"
         },
         {
           "PlayerKey": "LWN_story_son_opt_money",
+          "PlayerKeyZh": "[塞钱] 四十第纳尔，买个准信。",
           "Requires": "step>=1,gold>=40,asked:ask_climb,asked:ask_sister",
           "Once": "son_money",
           "Action": "PROBE:mark",
@@ -103,6 +119,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -113,9 +130,11 @@
     {
       "Id": "son_ask_wall",
       "NpcKey": "LWN_story_son_ask_wall",
+      "NpcKeyZh": "（小贼，玩家）：看谁身上带了沉钱袋，看谁走的是背光巷子。\n（小贼，玩家）：我娘在那边戏台唱戏，我在这儿替夜行会盯梢。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         }
       ],
@@ -127,9 +146,11 @@
     {
       "Id": "son_ask_climb",
       "NpcKey": "LWN_story_son_ask_climb",
+      "NpcKeyZh": "（小贼，玩家）：瞧见城门上方那根横梁没有？有飞钩，三丈高的墙跟平地一样。\n（小贼，玩家）：可惜我那副好钩子，昨天让一伙野贼给抢了。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_climb2",
+          "PlayerKeyZh": "[追问] 谁敢抢夜行会的东西？",
           "Once": "climb_more",
           "Action": "PROBE:mark",
           "ActionParam": "climb_more",
@@ -137,6 +158,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         }
       ],
@@ -148,9 +170,11 @@
     {
       "Id": "son_ask_climb_2",
       "NpcKey": "LWN_story_son_ask_climb_2",
+      "NpcKeyZh": "（小贼，玩家）：那帮野贼不守夜行会的规矩，硬抢东西还掰伤了我一根手指。\n（小贼，玩家）：我要不是手伤了，早去把场子找回来了。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         }
       ],
@@ -162,9 +186,11 @@
     {
       "Id": "son_ask_sister",
       "NpcKey": "LWN_story_son_ask_sister",
+      "NpcKeyZh": "（小贼，玩家）：上个月半夜，我见码头帮两个人架着个穿青布的女子走后巷。\n（小贼，玩家）：嘴里堵着布，走得急，我蹲在瓦上没敢往下看。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_sister2",
+          "PlayerKeyZh": "[追问] 那天夜里他们把人押去哪了？",
           "Once": "sister_more",
           "Action": "PROBE:mark",
           "ActionParam": "sister_more",
@@ -172,6 +198,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         }
       ],
@@ -183,9 +210,11 @@
     {
       "Id": "son_ask_sister_2",
       "NpcKey": "LWN_story_son_ask_sister_2",
+      "NpcKeyZh": "（小贼，玩家）：那天我正摸进绸缎庄顺东西，出声我自己也得折进去。\n（小贼，玩家）：不过他们去的方向，肯定是大西门里头的私仓。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         }
       ],
@@ -197,13 +226,16 @@
     {
       "Id": "son_deal",
       "NpcKey": "LWN_story_son_deal",
+      "NpcKeyZh": "（小贼，玩家）：想要飞钩翻墙？东西可以归你，但你得替我出这口气。\n（小贼，玩家）：那伙野贼就窝在西墙根塌马厩那儿，去把他们打发走。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "NextNodeOnSuccess": "son_quest_accept"
         },
         {
           "PlayerKey": "LWN_story_son_opt_why",
+          "PlayerKeyZh": "[反问] 你自己的场子，怎么不自己去找回来？",
           "Once": "son_why",
           "Action": "PROBE:mark",
           "ActionParam": "son_why",
@@ -211,6 +243,7 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_refuse",
+          "PlayerKeyZh": "[缓一缓] 我不替小偷打架。",
           "NextNodeOnSuccess": "son_deal_refuse"
         }
       ],
@@ -222,13 +255,16 @@
     {
       "Id": "son_deal_why",
       "NpcKey": "LWN_story_son_deal_why",
+      "NpcKeyZh": "（小贼，玩家）：我这根手指肿成这样，哪还敢去找他们？\n（小贼，玩家）：让那领头的别再抢我的买卖，备用钩索和撬锁包全归你。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "NextNodeOnSuccess": "son_quest_accept"
         },
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         }
       ],
@@ -240,9 +276,11 @@
     {
       "Id": "son_deal_refuse",
       "NpcKey": "LWN_story_son_deal_refuse",
+      "NpcKeyZh": "（小贼，玩家）：不干拉倒。\n（小贼，玩家）：没我的飞钩，你就慢慢在城门底下跟铁头耗着吧。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         }
       ],
@@ -254,14 +292,17 @@
     {
       "Id": "son_quest_accept",
       "NpcKey": "LWN_story_son_quest_accept",
+      "NpcKeyZh": "（小贼，玩家）：野贼头子就在西边墙根转悠。\n（小贼，玩家）：拆穿他的底细也好，打一顿也好，让他收手，回来拿钩子。",
       "EnterAction": "PROBE:accept_quest",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -273,9 +314,11 @@
     {
       "Id": "son_turnin",
       "NpcKey": "LWN_story_son_turnin",
+      "NpcKeyZh": "（小贼，玩家）：墙根那个野贼，还会来抢我的东西吗？\n（玩家，小贼）：他已经服软，这事过去了。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_turnin_ok",
+          "PlayerKeyZh": "[交差] 墙根那伙野贼已经打发了。",
           "NextNodeOnSuccess": "son_turnin_ok"
         }
       ],
@@ -287,14 +330,17 @@
     {
       "Id": "son_turnin_ok",
       "NpcKey": "LWN_story_son_turnin_ok",
+      "NpcKeyZh": "（小贼，玩家）：够爷们！这副钩索绳、铁钩还有撬锁包，我擦了一宿，全归你。\n（小贼，玩家）：趁守门那家伙转头时往梁上勾，千万别当着他的面飞。",
       "EnterAction": "PROBE:turn_in",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -306,9 +352,11 @@
     {
       "Id": "son_chat",
       "NpcKey": "LWN_story_son_chat",
+      "NpcKeyZh": "（小贼，玩家）：来了？我娘今天又拧我耳朵，骂我跟生人鬼混。\n（小贼，玩家）：我说我认了个一拳能打趴野贼的大哥，她还不信。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_work",
+          "PlayerKeyZh": "[请教] 除了钩索翻墙，过门还有什么巧办法？",
           "Once": "son_chat_2",
           "Action": "PROBE:mark",
           "ActionParam": "son_chat_2",
@@ -316,10 +364,12 @@
         },
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -331,13 +381,16 @@
     {
       "Id": "son_chat_2",
       "NpcKey": "LWN_story_son_chat_2",
+      "NpcKeyZh": "（小贼，玩家）：铁头腰上那把佩刀松得很，你从背后摸过去就能顺下来。\n（小贼，玩家）：要是手底下利索，蹲着贴墙根也能趁他转头溜进去。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -349,9 +402,11 @@
     {
       "Id": "event_4_join",
       "NpcKey": "LWN_story_event4_join",
+      "NpcKeyZh": "（老周，小贼）：小贼！把我柜上的零钱袋交出来！\n（小贼，老周）：冤枉啊周掌柜！我今天连你摊子三尺内都没进过！",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event4_opt_defend",
+          "PlayerKeyZh": "[劝解] 掌柜的先摸摸账本底下，当街冤枉人可坏名声。",
           "CheckType": "SkillCheck",
           "CheckTag": "son|charm",
           "NextNodeOnSuccess": "event_4_win",
@@ -359,10 +414,12 @@
         },
         {
           "PlayerKey": "LWN_story_event4_opt_ask",
+          "PlayerKeyZh": "[插话] 慢着，到底丢了什么东西？",
           "NextNodeOnSuccess": "event_4_ask"
         },
         {
           "PlayerKey": "LWN_story_event4_opt_walk",
+          "PlayerKeyZh": "[走开] 抓贼的事我不掺和。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -374,9 +431,11 @@
     {
       "Id": "event_4_ask",
       "NpcKey": "LWN_story_event4_ask",
+      "NpcKeyZh": "（老周，玩家）：柜角一袋散碎铜子不见了，刚才就这小子从檐下溜过去！\n（小贼，玩家）：周掌柜，您再翻翻您那厚账本底下，真不在我袖子里！",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event4_opt_defend",
+          "PlayerKeyZh": "[劝解] 掌柜的先摸摸账本底下，当街冤枉人可坏名声。",
           "CheckType": "SkillCheck",
           "CheckTag": "son|charm",
           "NextNodeOnSuccess": "event_4_win",
@@ -384,6 +443,7 @@
         },
         {
           "PlayerKey": "LWN_story_event4_opt_walk",
+          "PlayerKeyZh": "[走开] 抓贼的事我不掺和。",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -395,15 +455,18 @@
     {
       "Id": "event_4_win",
       "NpcKey": "LWN_story_event4_win",
+      "NpcKeyZh": "（老周，小贼）：……摸到了，压在账本底下。算我老眼昏花，莫怪。\n（小贼，玩家）：谢了兄弟，要不是你拦着，我这只手又得挨顿拧。",
       "EnterAction": "PROBE:resolve_event",
       "EnterParam": "4|nightwalkers|5",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "son_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -415,15 +478,18 @@
     {
       "Id": "event_4_lose",
       "NpcKey": "LWN_story_event4_lose",
+      "NpcKeyZh": "（老周，玩家）：你又是哪冒出来的？跟这小毛贼一伙的吧？\n（小贼，玩家）：……你别越帮越忙啊！",
       "EnterAction": "PROBE:hazard",
       "EnterParam": "event4_lost",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "NextNodeOnSuccess": "son_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -435,15 +501,18 @@
     {
       "Id": "son_money_open",
       "NpcKey": "LWN_story_son_money_open",
+      "NpcKeyZh": "（小贼，玩家）：还是你懂夜行会的规矩。\n（小贼，玩家）：四十第纳尔拿来，你想知道哪条暗道？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_pay",
+          "PlayerKeyZh": "[数出四十第纳尔] 门上那根梁，到底哪截结实？",
           "Requires": "gold>=40",
           "Action": "PROBE:offer_money",
           "NextNodeOnSuccess": "son_money_taken"
         },
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         }
       ],
@@ -455,13 +524,16 @@
     {
       "Id": "son_money_taken",
       "NpcKey": "LWN_story_son_money_taken",
+      "NpcKeyZh": "（小贼，玩家）：城门上那根横梁，西头朽了，正中那一截最结实。\n（小贼，玩家）：守门那家伙从不抬头，你勾中间保准稳当。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "son_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],

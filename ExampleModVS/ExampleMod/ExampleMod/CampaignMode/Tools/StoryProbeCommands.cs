@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
@@ -22,7 +23,8 @@ namespace LivingWorldNpcs
             {
                 "enable", "disable", "city", "status", "enter", "intro", "phase", "where", "spawn",
                 "check", "roll", "learn", "resolve", "strip", "restore", "reset", "talk", "goal",
-                "life", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud", "help",
+                "life", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud",
+                "script", "population", "layout", "intercept", "work", "group", "help",
             };
 
         [CommandLineFunctionality.CommandLineArgumentFunction("story_probe", "custom")]
@@ -287,8 +289,10 @@ namespace LivingWorldNpcs
                         StoryProbeTuning.Reload();
                         StoryStageDefs.ClearCache();
                         StoryProbeDialogue.ClearCache();
+                        // P0-D.5：新格式对话定义（*.dialog.json）整批重载；坏文件保留旧版
+                        string dialogueReload = StoryDialogueLoader.ReloadAll();
                         return $"OK: reloaded StoryProbeCast/Tuning/Stage/Dialogues -- npcs={StoryProbeDefs.Npcs.Count} " +
-                               $"events={StoryProbeDefs.Events.Count}; run 'stage begin' to replay.";
+                               $"events={StoryProbeDefs.Events.Count}; dialogue defs: {dialogueReload}; run 'stage begin' to replay.";
 
                     case "action":
                     {
@@ -306,6 +310,24 @@ namespace LivingWorldNpcs
                     case "atom":
                         return HandleAtom(args, used);
 
+                    case "script":
+                        return HandleScript(Arg(args, used, 0), Arg(args, used, 1));
+
+                    case "population":
+                        return HandlePopulation(Arg(args, used, 0));
+
+                    case "layout":
+                        return HandleLayout(Arg(args, used, 0));
+
+                    case "intercept":
+                        return HandleIntercept(Arg(args, used, 0));
+
+                    case "work":
+                        return HandleWork(Arg(args, used, 0), Arg(args, used, 1));
+
+                    case "group":
+                        return HandleGroup(Arg(args, used, 0));
+
                     case "event":
                         return HandleEvent(Arg(args, used, 0), Arg(args, used, 1));
 
@@ -322,7 +344,7 @@ namespace LivingWorldNpcs
                     }
 
                     case "dialogue":
-                        return "OK: " + StoryProbeDialogue.ValidateAll();
+                        return HandleDialogue(Arg(args, used, 0), Arg(args, used, 1), Arg(args, used, 2), Arg(args, used, 3));
 
                     default:
                         return HelpText();
@@ -539,6 +561,464 @@ namespace LivingWorldNpcs
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // P0 契约：原子支持表 / 夹具校验 / 数据发布（2026-11-15）
+        //   · script list     —— 看注册表里有哪些原子、哪些已实现（拟实现的不许进正式数据）
+        //   · script validate —— 跑 Debug/PlanExamples 下的 P0 夹具，正样例必须 PASS、负样例必须 FAIL
+        //   · script status   —— 当前已发布的内容版本 + 上次校验结果
+        // ═══════════════════════════════════════════════════════════════
+
+        private static string _lastScriptReport;
+
+        private static readonly Dictionary<string, string> ScriptFixtureExpectations = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { "STAGE_OK_two_guards.json", null },
+            { "STAGE_BAD_unknown_token.json", "unknown_atom" },
+            { "STAGE_BAD_roster_missing_actor.json", "actor_not_in_roster" },
+            { "STAGE_BAD_dual_geometry.json", "dual_geometry" },
+            { "STAGE_BAD_wait_no_timeout.json", "wait_no_timeout" },
+            { "STAGE_BAD_empty_atom_args.json", "unknown_param" },
+            { "STAGE_BAD_duplicate_step.json", "duplicate_id" },
+            { "STAGE_BAD_unknown_role.json", "unknown_role" },
+            { "STAGE_BAD_role_type.json", "wrong_type" },
+            { "STAGE_BAD_arg_type.json", "wrong_type" },
+        };
+
+        private static string ModuleRoot()
+        {
+            try
+            {
+                var dll = typeof(StoryProbeCommands).Assembly.Location;
+                return Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(dll)));
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// 选角表 ID 集合。夹具模式额外并入夹具选角表（gate_sentry 尚未进正式表），
+        /// 正式模式**只认** ModuleData/DesignData/StoryProbeCast.json。
+        /// </summary>
+        private static List<string> CastIds(string moduleRoot, bool includeFixtureCast)
+        {
+            var ids = StoryLayoutParser.LoadCastIds(
+                Path.Combine(moduleRoot, "ModuleData", "DesignData", "StoryProbeCast.json"));
+            if (includeFixtureCast)
+                foreach (string id in StoryLayoutParser.LoadCastIds(
+                    Path.Combine(moduleRoot, "Debug", "PlanExamples", "STAGE_CAST_two_guards.json")))
+                    if (!ids.Contains(id)) ids.Add(id);
+            return ids;
+        }
+
+        private static string HandleScript(string a0, string a1)
+        {
+            string moduleRoot = ModuleRoot();
+            if (string.IsNullOrEmpty(moduleRoot)) return "Error: cannot resolve module root.";
+
+            switch ((a0 ?? "").ToLowerInvariant())
+            {
+                case "":
+                case "status":
+                    return StoryLayoutRegistry.Describe() + "\n" +
+                           (_lastScriptReport ?? "fixtures: run 'custom.story_probe script validate' to check the P0 fixtures.");
+
+                case "list":
+                    return StoryAtomRegistry.Describe();
+
+                case "validate":
+                    return string.IsNullOrWhiteSpace(a1) ? ValidateFixtures(moduleRoot) : ValidateOne(moduleRoot, a1.Trim());
+
+                default:
+                    return "Usage: custom.story_probe script list|status|validate [file]";
+            }
+        }
+
+        private static string ValidateFixtures(string moduleRoot)
+        {
+            string folder = Path.Combine(moduleRoot, "Debug", "PlanExamples");
+            if (!Directory.Exists(folder)) return "Error: fixture folder missing: " + folder;
+
+            var files = Directory.GetFiles(folder, "STAGE_*.json")
+                .Where(p => !Path.GetFileName(p).StartsWith("STAGE_CAST_", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(p => p, StringComparer.Ordinal).ToList();
+            if (files.Count == 0) return "Error: no STAGE_*.json fixtures in " + folder;
+
+            var ids = CastIds(moduleRoot, includeFixtureCast: true);
+            var sb = new System.Text.StringBuilder();
+            int checkedCount = 0, mismatches = 0;
+            var found = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string path in files)
+            {
+                var r = StoryLayoutParser.Parse(File.ReadAllText(path), path, ids, StoryValidationMode.Fixture);
+                string name = Path.GetFileName(path);
+                found.Add(name);
+                string expected;
+                bool matches = ScriptFixtureExpectations.TryGetValue(name, out expected)
+                    && (expected == null ? r.Ok : !r.Ok && r.Issues.Any(i => i.Code == expected));
+                if (matches && expected == null)
+                    matches = StoryLayoutParser.Parse(File.ReadAllText(path), path, ids, StoryValidationMode.Formal)
+                        .Issues.Any(i => i.Code == "unimplemented_atom");
+                checkedCount++;
+                if (!matches) mismatches++;
+                sb.Append(matches ? "  MATCH " : "  MISMATCH ").Append(name)
+                    .Append(" expected=").Append(expected ?? "valid fixture / formal rejection")
+                    .Append(" actual=").Append(r.Ok ? "valid" : string.Join(",", r.Issues.Select(i => i.Code).Distinct()))
+                    .Append('\n');
+            }
+            foreach (string required in ScriptFixtureExpectations.Keys.Where(n => !found.Contains(n)))
+            {
+                mismatches++;
+                sb.Append("  MISSING ").Append(required).Append('\n');
+            }
+            _lastScriptReport = "fixtures: checked=" + checkedCount + " mismatches=" + mismatches;
+            return (mismatches == 0 ? "OK: " : "Error: ") + _lastScriptReport + " (cast=" + ids.Count + ")\n" + sb;
+        }
+
+        private static string ValidateOne(string moduleRoot, string name)
+        {
+            bool explicitPath = name.IndexOf('\\') >= 0 || name.IndexOf('/') >= 0 || name.IndexOf(':') >= 0;
+            string path = explicitPath
+                ? name
+                : Path.Combine(moduleRoot, "Debug", "PlanExamples",
+                               name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? name : name + ".json");
+            if (!File.Exists(path)) return "Error: file not found: " + path;
+
+            bool fixture = path.IndexOf("PlanExamples", StringComparison.OrdinalIgnoreCase) >= 0;
+            var mode = fixture ? StoryValidationMode.Fixture : StoryValidationMode.Formal;
+            var ids = CastIds(moduleRoot, fixture);
+
+            StoryValidationResult result;
+            bool published = false;
+            if (fixture)
+                result = StoryLayoutParser.Parse(File.ReadAllText(path), path, ids, mode);
+            else
+                published = StoryLayoutRegistry.TryPublish(File.ReadAllText(path), path, ids, mode, out result);
+            _lastScriptReport = result.Describe();
+            if (fixture) return _lastScriptReport + "\nINFO: fixture validated only; current content was not changed.";
+            return published
+                ? result.Describe() + "\nOK: published as current content version (any failure keeps the old one)."
+                : result.Describe();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // P1 人口限制诊断（2026-11-15）
+        //   · population status —— 本 Mission 有没有剧情人口标记、各生成来源被拦了几次
+        //   · population verify —— 现场点名：玩家 / 已登记演员 / 名单外对象
+        // ═══════════════════════════════════════════════════════════════
+
+        private static string HandlePopulation(string action)
+        {
+            switch ((action ?? "").ToLowerInvariant())
+            {
+                case "":
+                case "status":
+                    return StoryPopulationGuard.Describe();
+
+                case "verify":
+                {
+                    var mission = Mission.Current;
+                    if (mission == null) return "Error: not in a mission.";
+
+                    var registered = new HashSet<Agent>();
+                    var host = StoryProbeMissionBehavior.Current;
+                    if (host != null && host.Active && ReferenceEquals(host.Mission, mission))
+                    {
+                        foreach (var pair in host.AllAgents)
+                        {
+                            var ag = pair.Value;
+                            if (ag != null) registered.Add(ag);
+                        }
+                    }
+
+                    int player = 0, cast = 0, mounts = 0, unregistered = 0;
+                    var strangers = new List<string>();
+                    foreach (var agent in mission.Agents)
+                    {
+                        if (agent == null || !AgentControlHelper.SafeIsActive(agent)) continue;
+                        if (agent.IsMainAgent) { player++; continue; }
+                        if (!agent.IsHuman || agent.IsMount) { mounts++; continue; }
+                        if (registered.Contains(agent)) { cast++; continue; }
+                        unregistered++;
+                        if (strangers.Count < 10)
+                            strangers.Add((agent.Character?.StringId ?? "?") + "#" + agent.Index);
+                    }
+
+                    var sb = new System.Text.StringBuilder();
+                    bool guarded = StoryPopulationGuard.IsActive;
+                    bool clean = player == 1 && mounts == 0 && unregistered == 0;
+                    bool owned = host != null && host.Active && ReferenceEquals(host.Mission, mission);
+                    sb.Append(guarded ? (clean && owned ? "OK: " : "Error: ") : "INFO: ")
+                      .Append("population verify player=").Append(player)
+                      .Append(" cast=").Append(cast)
+                      .Append(" mounts_animals=").Append(mounts)
+                      .Append(" unregistered=").Append(unregistered)
+                      .Append(" guard=").Append(StoryPopulationGuard.IsActive ? "ACTIVE" : "inactive")
+                      .Append(" scope=population_only roster=not_checked");
+                    if (strangers.Count > 0) sb.Append("\n  unregistered: ").Append(string.Join(", ", strangers));
+                    if (!StoryPopulationGuard.IsActive)
+                        sb.Append("\n  note: this mission carries no story marker, so normal town population is expected here.");
+                    return sb.ToString();
+                }
+
+                default:
+                    return "Usage: custom.story_probe population status|verify";
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // P3/P4 诊断（2026-11-15）：布局 / 岗位选人 / 工作点 / 群组
+        // ═══════════════════════════════════════════════════════════════
+
+        private static string HandleLayout(string a0)
+        {
+            string sub = (a0 ?? "").Trim().ToLowerInvariant();
+            if (!string.IsNullOrEmpty(sub) && sub != "list" && sub != "verify" && sub != "snapshot" && sub != "prep")
+                return "Usage: custom.story_probe layout list|verify|snapshot|prep";
+            if (sub == "prep")
+            {
+                var h = StoryProbeMissionBehavior.Current;
+                return h?.Prep?.Describe() ?? "Error: no prep batch in this mission (enter the second phase first).";
+            }
+            if (!StoryV2Data.EnsurePublished()) return "Error: " + StoryV2Data.Report;
+            var file = StoryLayoutRegistry.Published;
+            if (file == null) return "Error: no published layout.";
+
+            var sb = new System.Text.StringBuilder();
+            if (sub == "verify")
+            {
+                string scene = Mission.Current?.SceneName;
+                bool sceneOk = Mission.Current == null || string.Equals(scene, file.Scene, StringComparison.OrdinalIgnoreCase);
+                sb.Append(sceneOk ? "OK: " : "Error: ").Append("scene published=").Append(file.Scene)
+                  .Append(" mission=").Append(scene ?? "(map)");
+                sb.Append("\n  contentVersion=").Append(file.ContentVersion)
+                  .Append(" layouts=").Append(file.Layouts.Count)
+                  .Append(" stages=").Append(file.Stages.Count)
+                  .Append(" behaviors=").Append(file.Behaviors.Count)
+                  .Append(" flows=").Append(file.Flows.Count)
+                  .Append(" solved=").Append(StoryLayoutRegistry.Solved.Count);
+                foreach (var layout in file.Layouts.Values)
+                    sb.Append("\n  layout ").Append(layout.Id)
+                      .Append(" anchors=").Append(layout.Anchors.Count)
+                      .Append(" gates=").Append(layout.Gates.Count)
+                      .Append(" props=").Append(layout.Props.Count)
+                      .Append(" work=").Append(layout.WorkPoints.Count)
+                      .Append(" posts=").Append(layout.Posts.Count)
+                      .Append(" standing=").Append(layout.Standing.Count);
+                foreach (var p in StoryLayoutRegistry.Solved.Take(20))
+                    sb.Append("\n  solved ").Append(p);
+                sb.Append("\n  note: geometry still needs a real scene snapshot (V06); this command only verifies data/scene binding.");
+                return sb.ToString();
+            }
+
+            if (sub == "snapshot")
+            {
+                var host = StoryProbeMissionBehavior.Current;
+                sb.Append("OK: snapshot");
+                if (host == null) { sb.Append(" (not in a mission; showing data only)"); }
+                foreach (var stage in file.Stages.Values)
+                {
+                    if (!file.Layouts.TryGetValue(stage.Layout, out var layout)) continue;
+                    sb.Append("\n  stage ").Append(stage.Id).Append(" layout=").Append(layout.Id)
+                      .Append(" actors=").Append(stage.Actors.Count);
+                    foreach (var s in layout.Standing)
+                    {
+                        string where = !string.IsNullOrEmpty(s.Post) ? "post:" + s.Post
+                                     : !string.IsNullOrEmpty(s.WorkPoint) ? "work:" + s.WorkPoint : "anchor";
+                        var agent = host?.GetAgent(s.Actor);
+                        sb.Append("\n    ").Append(s.Actor).Append(" -> ").Append(where);
+                        if (host != null)
+                            sb.Append(agent == null ? " [MISSING]" : " at " + agent.Position.ToString());
+                    }
+                }
+                return sb.ToString();
+            }
+
+            sb.Append("OK: layouts=").Append(file.Layouts.Count);
+            foreach (var layout in file.Layouts.Values)
+            {
+                sb.Append("\n  ").Append(layout.Id).Append(" v").Append(layout.Version)
+                  .Append(" anchors=[").Append(string.Join(",", layout.Anchors.Keys)).Append("]")
+                  .Append(" gates=[").Append(string.Join(",", layout.Gates.Keys)).Append("]")
+                  .Append(" posts=[").Append(string.Join(",", layout.Posts.Select(p => p.Id))).Append("]")
+                  .Append(" work=[").Append(string.Join(",", layout.WorkPoints.Select(w => w.Id))).Append("]");
+            }
+            foreach (var stage in file.Stages.Values)
+                sb.Append("\n  stage ").Append(stage.Id).Append(" actors=[").Append(string.Join(",", stage.Actors)).Append("]");
+            return sb.ToString();
+        }
+
+        private static string HandleIntercept(string a0)
+        {
+            string sub = (a0 ?? "").Trim().ToLowerInvariant();
+            if (!string.IsNullOrEmpty(sub) && sub != "status")
+                return "Usage: custom.story_probe intercept status";
+            var host = StoryProbeMissionBehavior.Current;
+            var sb = new System.Text.StringBuilder();
+            sb.Append(host?.Posts?.Describe() ?? ("OK: no active story mission; data=" + (StoryV2Data.EnsurePublished() ? "published" : StoryV2Data.Report)));
+            sb.Append("\n").Append(StoryDialogueRuntime.Describe());
+            sb.Append("\n").Append(StoryDialogueRegistry.Describe());
+            return sb.ToString();
+        }
+
+        private static string HandleWork(string a0, string a1)
+        {
+            string sub = (a0 ?? "").Trim().ToLowerInvariant();
+            if (!string.IsNullOrEmpty(sub) && sub != "status" && sub != "list" && sub != "force")
+                return "Usage: custom.story_probe work status|list|force <npcId>";
+            var host = StoryProbeMissionBehavior.Current;
+            if (sub == "force")
+            {
+                if (string.IsNullOrWhiteSpace(a1)) return "Usage: custom.story_probe work force <npcId>";
+                return host?.Work != null && host.Work.ForceMove(a1.Trim())
+                    ? "OK: work slot reset for " + a1.Trim()
+                    : "Error: no work slot for '" + a1.Trim() + "'.";
+            }
+            if (host?.Work != null)
+            {
+                string live = host.Work.Describe();
+                if (sub != "status") return live;
+                return live + "\n" + DataWorkList();
+            }
+            return DataWorkList();
+        }
+
+        private static string DataWorkList()
+        {
+            if (!StoryV2Data.EnsurePublished()) return "Error: " + StoryV2Data.Report;
+            var file = StoryLayoutRegistry.Published;
+            var sb = new System.Text.StringBuilder();
+            int total = 0;
+            foreach (var layout in file.Layouts.Values)
+            {
+                foreach (var w in layout.WorkPoints)
+                {
+                    total++;
+                    sb.Append("\n  ").Append(layout.Id).Append("/").Append(w.Id)
+                      .Append(" prop=").Append(w.Prop)
+                      .Append(" side=").Append(w.Side)
+                      .Append(" offset=").Append(w.Offset.ToString("F2"))
+                      .Append(" tolerance=").Append(w.ArriveTolerance.ToString("F2"))
+                      .Append(" action=").Append(w.Action ?? "-")
+                      .Append(" occupants=0/").Append(w.MaxOccupants);
+                }
+            }
+            return "OK: workpoints=" + total + " runtime=no_active_mission" + sb;
+        }
+
+        private static string HandleGroup(string a0)
+        {
+            string sub = (a0 ?? "").Trim().ToLowerInvariant();
+            if (!string.IsNullOrEmpty(sub) && sub != "status")
+                return "Usage: custom.story_probe group status";
+            var host = StoryProbeMissionBehavior.Current;
+            if (host == null) return "OK: no active story mission.";
+            return host.Director?.Describe() ?? "Error: director not created yet.";
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // P0-D.1 对话定义契约（2026-11-15）
+        //   · dialogue tree      —— 现有 9 份正式对话树的图校验（旧口径）
+        //   · dialogue validate  —— story_dialogue/2 契约与 DIALOGUE_* 夹具（1 正 + 负例按错误码比对）
+        //   · dialogue status    —— 已发布的对话定义集
+        // ═══════════════════════════════════════════════════════════════
+
+        private static string _lastDialogueReport;
+
+        private static string HandleDialogue(string a0, string a1, string a2, string a3)
+        {
+            switch ((a0 ?? "").ToLowerInvariant())
+            {
+                case "":
+                case "tree":
+                    return "OK: " + StoryProbeDialogue.ValidateAll();
+
+                case "validate":
+                    return string.IsNullOrWhiteSpace(a1) ? ValidateDialogueFixtures() : ValidateDialogueOne(a1.Trim());
+
+                case "resolve":
+                {
+                    if (string.IsNullOrWhiteSpace(a1) || string.IsNullOrWhiteSpace(a2))
+                        return "Usage: custom.story_probe dialogue resolve <dialogueId> <triggerId> [actorId]";
+                    var ctx = new StoryDialogueContext
+                    {
+                        DialogueId = a1.Trim(),
+                        TriggerId = a2.Trim(),
+                        ActorId = (a3 ?? "").Trim()
+                    };
+                    var resolution = StoryDialogueResolver.Resolve(ctx.DialogueId, ctx.TriggerId, ctx);
+                    _lastDialogueReport = resolution.Describe();
+                    return resolution.Describe();
+                }
+
+                case "trace":
+                    return StoryDialogueRuntime.Describe();
+
+                case "status":
+                    return StoryDialogueRegistry.Describe() + "\n" +
+                           (_lastDialogueReport ?? "fixtures: run 'custom.story_probe dialogue validate'");
+
+                default:
+                    return "Usage: custom.story_probe dialogue [tree]|validate [file]|resolve <dialogueId> <triggerId> [actorId]|trace|status";
+            }
+        }
+
+        private static string ValidateDialogueFixtures()
+        {
+            string moduleRoot = ModuleRoot();
+            if (string.IsNullOrEmpty(moduleRoot)) return "Error: cannot resolve module root.";
+            string folder = Path.Combine(moduleRoot, "Debug", "PlanExamples");
+            if (!Directory.Exists(folder)) return "Error: fixture folder missing: " + folder;
+
+            var files = Directory.GetFiles(folder, "DIALOGUE_*.json").OrderBy(p => p, StringComparer.Ordinal).ToList();
+            if (files.Count == 0) return "Error: no DIALOGUE_*.json fixtures in " + folder;
+
+            var sb = new System.Text.StringBuilder();
+            int pass = 0, fail = 0, mismatched = 0;
+            foreach (string path in files)
+            {
+                string name = Path.GetFileName(path);
+                bool expectOk = name.StartsWith("DIALOGUE_OK_", StringComparison.OrdinalIgnoreCase);
+                var r = StoryDialogueParser.Parse(File.ReadAllText(path), path, formalMode: false);
+                bool gotOk = r.Ok;
+                if (gotOk == expectOk)
+                {
+                    if (expectOk) { pass++; sb.Append("  PASS ").Append(name).Append('\n'); }
+                    else { fail++; sb.Append("  FAIL(expected) ").Append(name).Append(" -- ").Append(r.Issues[0]).Append('\n'); }
+                }
+                else
+                {
+                    mismatched++;
+                    sb.Append("  MISMATCH ").Append(name)
+                      .Append(expectOk ? " expected PASS but got issues: " : " expected FAIL but passed")
+                      .Append(gotOk ? (r.Issues.Count > 0 ? r.Issues[0].ToString() : "") : "").Append('\n');
+                }
+            }
+            _lastDialogueReport = "dialogues: pass=" + pass + " fail=" + fail + " mismatched=" + mismatched + " of " + files.Count;
+            return "OK: dialogue fixtures pass=" + pass + " fail=" + fail + " mismatched=" + mismatched + " of " + files.Count
+                 + "\n" + sb;
+        }
+
+        private static string ValidateDialogueOne(string name)
+        {
+            string moduleRoot = ModuleRoot();
+            if (string.IsNullOrEmpty(moduleRoot)) return "Error: cannot resolve module root.";
+            bool explicitPath = name.IndexOf('\\') >= 0 || name.IndexOf('/') >= 0 || name.IndexOf(':') >= 0;
+            string path = explicitPath
+                ? name
+                : Path.Combine(moduleRoot, "Debug", "PlanExamples",
+                               name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? name : name + ".json");
+            if (!File.Exists(path)) return "Error: file not found: " + path;
+
+            bool fixture = path.IndexOf("PlanExamples", StringComparison.OrdinalIgnoreCase) >= 0;
+            var result = StoryDialogueParser.Parse(File.ReadAllText(path), path, formalMode: !fixture);
+            _lastDialogueReport = result.Describe();
+            if (result.Ok && !fixture)
+            {
+                StoryDialogueRegistry.TryPublish(result.Data, path);
+                return result.Describe() + "\nOK: published as current dialogue definition.";
+            }
+            return result.Describe();
+        }
+
         /// <summary>
         /// 单发一个原子：`custom.story_probe atom prop_spawn bd_table_c gate 2.5 -1 90`
         /// 参数顺序见各原子的注释。**不依赖台本**，用于逐件调位置。
@@ -628,7 +1108,9 @@ namespace LivingWorldNpcs
                    "phase first|second | where | spawn | check <ability> | roll <ability> <0-100> | " +
                    "learn <ability> | resolve <ability> | strip | restore | reset | talk <npc> | goal <0..4> | " +
                    "life status|list|force|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
-                   "stage list|only <n>|begin|skip|reload|status|anchor | atom <name> <args> | action <npc> <act> | reload | help";
+                   "stage list|only <n>|begin|skip|reload|status|anchor | atom <name> <args> | action <npc> <act> | " +
+                   "script list|status|validate [file] | population status|verify | " +
+                   "layout list|verify|snapshot|prep | intercept status | work status|list|force <npc> | group status | reload | help";
         }
     }
 }

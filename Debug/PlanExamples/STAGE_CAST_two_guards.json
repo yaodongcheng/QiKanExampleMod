@@ -1,0 +1,57 @@
+{
+  "_comment": "P0 契约夹具的选角表。与 ModuleData/DesignData/StoryProbeCast.json 同构，只多出首遇副卫 gate_sentry（正式表尚未加入，P2 才迁）。仅用于契约校验，不是正式数据、不被运行时加载。",
+  "Factions": [
+    { "Id": "fixers", "NameKey": "LWN_faction_fixers", "NameFallback": "The Fixers", "FactionIdOnHero": "fixers" },
+    { "Id": "dockhands", "NameKey": "LWN_faction_dockhands", "NameFallback": "The Dockhands", "FactionIdOnHero": "dockhands" }
+  ],
+  "Npcs": [
+    {
+      "Id": "blocker",
+      "NameKey": "LWN_story_name_blocker",
+      "NameFallback": "Ironhead",
+      "Faction": "dockhands",
+      "Force": 70, "Guile": 30, "Charm": 50,
+      "TemplateId": "prison_guard_empire",
+      "TemplateCandidates": ["prison_guard_empire", "veteran_caravan_guard_empire", "caravan_guard_empire"],
+      "Age": 36,
+      "IsBlocker": true,
+      "Civilian": false
+    },
+    {
+      "Id": "gate_sentry",
+      "NameKey": "LWN_story_name_gate_sentry",
+      "NameFallback": "Second Gate Guard",
+      "Faction": "dockhands",
+      "Force": 60, "Guile": 40, "Charm": 40,
+      "TemplateId": "prison_guard_empire",
+      "TemplateCandidates": ["prison_guard_empire", "caravan_guard_empire", "veteran_caravan_guard_empire"],
+      "Age": 29,
+      "Civilian": false
+    },
+    {
+      "Id": "pawnbroker",
+      "NameKey": "LWN_story_name_pawnbroker",
+      "NameFallback": "Old Zhou",
+      "Faction": "fixers",
+      "Force": 30, "Guile": 50, "Charm": 70,
+      "TemplateId": "merchant_empire",
+      "TemplateCandidates": ["merchant_empire", "artisan_notary_empire"],
+      "Age": 60,
+      "Civilian": true
+    },
+    {
+      "Id": "butcher",
+      "NameKey": "LWN_story_name_butcher",
+      "NameFallback": "The Butcher",
+      "Faction": "dockhands",
+      "Force": 70, "Guile": 50, "Charm": 30,
+      "TemplateId": "blacksmith_empire",
+      "TemplateCandidates": ["blacksmith_empire", "shop_worker_empire", "artisan_notary_empire"],
+      "Age": 45,
+      "Civilian": true
+    }
+  ],
+  "StreetLife": [],
+  "Events": [],
+  "ItemAliases": {}
+}

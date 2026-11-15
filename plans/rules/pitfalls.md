@@ -5,7 +5,7 @@
 
 ---
 
-## 🔴 启动弹 `Cannot load …LivingWorldNpcs.dll` → DSH 沙箱留下 Low 安全标签（2026-11-13，已实机修复）
+## 🔴 启动弹 `Cannot load …LivingWorldNpcs.dll` → DSH 沙箱留下 Low 安全标签（2026-11-13 首现 / 2026-11-15 复发，两次均实机修复）
 
 **结论**：DLL 在、依赖能解析，却被 .NET 拒绝加载时，先查 Windows **完整性标签（文件的安全等级）**。这次不是 Mod 代码冲突，是模块目录被标为 **Low**，DLL 继承后被 Windows 当成“互联网来源”。恢复 **Medium** 后，用户确认游戏启动成功。
 
@@ -50,6 +50,24 @@ icacls "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\Liv
 **本次验收**：根目录 / DLL / 模块描述文件均恢复 Medium，安全区域恢复 MyComputer；普通 `LoadFrom` 成功、1597 个类型解析通过；DLL 修改前后 SHA256 完全一致；**用户随后确认游戏启动成功**。原标签及 DLL 哈希记录：[integrity_before_20261113.txt](../../Debug/offline/integrity_before_20261113.txt)。
 
 **别走错方向**：没有下载标记时，`Unblock-File` 不能修这个 Low 标签；不要用 `icacls /reset` 重置普通权限，也不要为此开启全局 `loadFromRemoteSources`。仍须先读启动日志的 `Command Args:`，但若最近一次启动已取消 LWN，不能拿那份日志替截图中的失败启动下结论。
+
+**复发记录（2026-11-15，同一条命令再次修好，用户已实机验收通过）**
+- 同一签名原样回来：模块根 `Low:(OI)(CI)(NW)`、DLL 继承 `Low:(I)(NW)`、安全区域 `Internet`、普通 `LoadFrom` 报 **0x80131515**。
+- 启动日志佐证：`rgl_log_20512.txt` 11:41:16 `Loading assembly: …LivingWorldNpcs.dll` → 11:41:32 **`Assembly load result: NULL`**；该次启动的 `Command Args:` **带** LivingWorldNpcs，不是"没勾模块"。
+- **范围只有 LWN 一个目录**：`Modules` 及更上层全部无标签；`Taikou` / `RDR2` / `ShokuhoTaikouExpansionPack` 也都干净 ⇒ 不用动整盘。
+- 修复后复查（本次实测）：根 / DLL / `SubModule.xml` / `ModuleData` / `ExampleModVS` 全 **Medium**，区域 **MyComputer**，`LoadFrom` 返回 Assembly 成功；DLL 的 SHA256 与修复前**完全一致**（只是标签变了，文件没动）。
+- **全树复查命令**（只扫真被游戏读的目录，比整树 `icacls /T` 快）：
+  ```powershell
+  icacls "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\bin" /T /C | Select-String 'Low Mandatory'
+  icacls "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\ModuleData" /T /C | Select-String 'Low Mandatory'
+  ```
+  两条都应输出 **0 条**。验收时用 `GetTypes()` 报 `0x80131602`（`Unable to load one or more of the requested types`）**不算失败** —— 裸 PowerShell 里 183 个 `FileNotFoundException` 全是找不到 `TaleWorlds.*`，属于正常，障碍是否解除只看 `LoadFrom` 能不能返回 Assembly。
+- **复发入口仍未坐实**：目录 ACL 上挂着 `CodexSandboxUsers` 的允许项，指向某个沙箱化 AI 工具在这里写过东西；但"谁又把它打成 Low"没有直接证据，只按已有的复发条件（沙箱模式打开该目录）记录，不当结论用。本次"修复前状态"存档：[integrity_before_20261115.txt](../../Debug/offline/integrity_before_20261115.txt)。
+- **日常自检（一句话版）**：凡是刚用带沙箱的 AI 工具在这个目录里干过活，开游戏前先跑
+  ```powershell
+  icacls "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs" | Select-String 'Mandatory Label'
+  ```
+  看到 `Low` 就说明这次又会弹 `Cannot load`，开游戏前刷回 Medium 即可，不用等它崩了再查。
 
 机制参考：[DSH 同类问题讨论 #9819](https://github.com/deepseek-ai/deepseek-harness/discussions/9819) · [Low 标签排查说明](https://dsh-plugin.org/zh/tutorials/fix-windows-sandbox-low-integrity-label)。
 

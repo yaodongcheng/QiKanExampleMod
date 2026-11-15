@@ -322,6 +322,12 @@ namespace LivingWorldNpcs
 
         private void SpawnProp(StageBeat b, int index)
         {
+            // P3：几何只有布局一份 —— 准备批次已经建过同 id 的道具，v1 台本不再重复生成。
+            if (_host.Prep != null && _host.Prep.HasProp(b.Id))
+            {
+                DebugLogger.Log($"[StoryStage] #{index} prop_spawn '{b.Id}': owned by prep layout (skipped)");
+                return;
+            }
             var scene = Mission.Current?.Scene;
             if (scene == null || Mission.Current != _mission) { DebugLogger.Log($"[StoryStage] #{index} prop_spawn '{b.Id}': no scene"); return; }
             if (string.IsNullOrEmpty(b.Id)) throw new InvalidOperationException("prop_spawn requires stable Id");

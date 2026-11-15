@@ -1,0 +1,87 @@
+{
+  "_comment": "P0-D.1 正样例：一份可被两名守卫复用的质问对话定义（夹具，不是正式数据）。演示稳定定义ID/入口规则/触发器/条件/效果/版本。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "gate_interrogation",
+  "ContentVersion": 1,
+  "Participants": ["questioner", "player"],
+  "Actors": ["blocker", "gate_sentry"],
+  "Triggers": [
+    {
+      "Id": "first_meet_auto",
+      "Source": "post_ai",
+      "Purpose": "interrogate",
+      "Conditions": ["phase:first_meet", "can_see:player"],
+      "Rank": ["distanceToPlayer", "npcId"],
+      "CooldownSec": 3.0,
+      "ReentrySec": 8.0,
+      "OnCancel": "release"
+    },
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0.0,
+      "ReentrySec": 0.0,
+      "OnCancel": "close"
+    }
+  ],
+  "Entries": [
+    { "Id": "first_meet", "Trigger": "first_meet_auto", "Conditions": ["phase:first_meet"], "Priority": 100, "Node": "blocker_first" },
+    { "Id": "later_talk", "Trigger": "player_talk", "Conditions": [], "Priority": 50, "Node": "blocker_open" }
+  ],
+  "Nodes": [
+    {
+      "Id": "blocker_first",
+      "Speaker": "questioner",
+      "TextKey": "LWN_story_blocker_first",
+      "LineActions": [],
+      "Requires": [],
+      "OnEnter": [
+        { "Id": "mark", "Params": { "flag": "met" }, "Commit": "on_enter", "Receipt": "once" }
+      ],
+      "Options": [
+        {
+          "Id": "insist",
+          "PlayerKey": "LWN_story_blocker_opt_insist",
+          "Requires": ["!disguised"],
+          "Effects": [
+            { "Id": "skill_check", "Params": { "skill": "Charm", "threshold": "40" }, "Commit": "on_select", "Receipt": "once" }
+          ],
+          "NextNode": "blocker_refuse"
+        },
+        {
+          "Id": "draw",
+          "PlayerKey": "LWN_story_blocker_opt_draw",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "blocker_open"
+        },
+        {
+          "Id": "step_back",
+          "PlayerKey": "LWN_story_blocker_opt_step_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "blocker_refuse",
+      "Speaker": "questioner",
+      "TextKey": "LWN_story_blocker_first",
+      "Options": [
+        { "Id": "leave", "PlayerKey": "LWN_story_blocker_opt_step_back", "Requires": [], "Effects": [], "NextNode": "" }
+      ]
+    },
+    {
+      "Id": "blocker_open",
+      "Speaker": "questioner",
+      "TextKey": "LWN_story_blocker_open",
+      "Options": [
+        { "Id": "leave", "PlayerKey": "LWN_story_blocker_opt_step_back", "Requires": [], "Effects": [], "NextNode": "" }
+      ]
+    }
+  ]
+}

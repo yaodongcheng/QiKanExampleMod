@@ -1,16 +1,19 @@
 {
   "Npc": "thug",
   "EntryOption": "LWN_story_thug_entry",
+  "EntryOptionZh": "[说两句] 喂，你就是码头帮在这条街收例钱的？",
   "EntryNode": "thug_intro",
   "Nodes": [
     {
       "Id": "thug_intro",
       "NpcKey": "LWN_story_thug_intro",
+      "NpcKeyZh": "（打手，玩家）：看什么看？\n（打手，玩家）：生面孔少在这条街转悠，小心腿折在这儿。",
       "EnterAction": "PROBE:mark",
       "EnterParam": "met",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_thug_opt_settle",
+          "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
           "NextNodeOnSuccess": "thug_settled",
           "Requires": "quest_accepted@butcher,!quest_done@butcher",
           "CheckType": "SkillCheck",
@@ -19,6 +22,7 @@
         },
         {
           "PlayerKey": "LWN_story_thug_opt_ask",
+          "PlayerKeyZh": "[质问] 这条街的商铺，你每天都来砸一通？",
           "Once": "thug_ask",
           "Action": "PROBE:mark",
           "ActionParam": "thug_ask",
@@ -26,6 +30,7 @@
         },
         {
           "PlayerKey": "LWN_story_thug_opt_money",
+          "PlayerKeyZh": "[盘问] 上个月半夜，你们押去码头的姑娘在哪？",
           "Once": "thug_night",
           "Action": "PROBE:mark",
           "ActionParam": "thug_night",
@@ -34,6 +39,7 @@
         },
         {
           "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
           "Action": "PROBE:fight",
           "ActionParam": "thug",
           "NextNodeOnSuccess": "thug_fight",
@@ -41,6 +47,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -52,9 +59,11 @@
     {
       "Id": "thug_hub",
       "NpcKey": "LWN_story_thug_hub",
+      "NpcKeyZh": "（打手，玩家）：还有什么话？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_thug_opt_settle",
+          "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
           "NextNodeOnSuccess": "thug_settled",
           "Requires": "quest_accepted@butcher,!quest_done@butcher",
           "CheckType": "SkillCheck",
@@ -63,6 +72,7 @@
         },
         {
           "PlayerKey": "LWN_story_thug_opt_ask",
+          "PlayerKeyZh": "[质问] 这条街的商铺，你每天都来砸一通？",
           "Once": "thug_ask",
           "Action": "PROBE:mark",
           "ActionParam": "thug_ask",
@@ -70,6 +80,7 @@
         },
         {
           "PlayerKey": "LWN_story_thug_opt_money",
+          "PlayerKeyZh": "[盘问] 上个月半夜，你们押去码头的姑娘在哪？",
           "Once": "thug_night",
           "Action": "PROBE:mark",
           "ActionParam": "thug_night",
@@ -78,6 +89,7 @@
         },
         {
           "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
           "Action": "PROBE:fight",
           "ActionParam": "thug",
           "NextNodeOnSuccess": "thug_fight",
@@ -85,6 +97,7 @@
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -95,9 +108,11 @@
     {
       "Id": "thug_talk",
       "NpcKey": "LWN_story_thug_talk",
+      "NpcKeyZh": "（打手，玩家）：这月怎么又有不长眼的替人出头？\n（打手，玩家）：说吧，你是替那个卖肉的来挨揍，还是替老周来送钱？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_thug_opt_settle",
+          "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
           "NextNodeOnSuccess": "thug_settled",
           "Requires": "quest_accepted@butcher,!quest_done@butcher",
           "CheckType": "SkillCheck",
@@ -106,6 +121,7 @@
         },
         {
           "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
           "Action": "PROBE:fight",
           "ActionParam": "thug",
           "NextNodeOnSuccess": "thug_fight",
@@ -113,6 +129,7 @@
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "thug_hub"
         }
       ],
@@ -124,15 +141,18 @@
     {
       "Id": "thug_money",
       "NpcKey": "LWN_story_thug_money",
+      "NpcKeyZh": "（打手，玩家）：码头上的私货，你也配打听？\n（打手，玩家）：劝你少管半夜的事，夜里被拖走的人，白天可不认账。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
           "Action": "PROBE:fight",
           "ActionParam": "thug",
           "NextNodeOnSuccess": "thug_fight"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "thug_hub"
         }
       ],
@@ -144,9 +164,11 @@
     {
       "Id": "thug_fight",
       "NpcKey": "LWN_story_thug_fight",
+      "NpcKeyZh": "（打手，玩家）：找死是吧？来，老子成全你！",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -157,13 +179,16 @@
     {
       "Id": "thug_settled",
       "NpcKey": "LWN_story_thug_settled",
+      "NpcKeyZh": "（打手，玩家）：行，给你个面子。告诉卖肉的，我不再砸他的摊。",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "thug_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],
@@ -176,19 +201,23 @@
     {
       "Id": "thug_settle_refused",
       "NpcKey": "LWN_story_thug_settle_refused",
+      "NpcKeyZh": "（打手，玩家）：我怎么收例钱，还轮得到你指手画脚？",
       "Transitions": [
         {
           "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
           "NextNodeOnSuccess": "thug_fight",
           "Action": "PROBE:fight",
           "ActionParam": "thug"
         },
         {
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "NextNodeOnSuccess": "thug_hub"
         },
         {
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "NextNodeOnSuccess": ""
         }
       ],

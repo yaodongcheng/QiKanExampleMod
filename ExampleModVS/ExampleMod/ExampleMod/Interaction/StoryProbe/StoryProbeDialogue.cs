@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
@@ -27,6 +28,9 @@ namespace LivingWorldNpcs
     {
         /// <summary>调用方指定入口节点（事件接入 / 命令强制）；消费一次即清。</summary>
         public static string PendingEntryNode;
+
+        /// <summary>P0-D.4/Q02：定义模式下本会话的入口节点，等 StartConversation 真正成功后才提交进入效果。</summary>
+        private static string _pendingEntryNode;
 
         private static string _lastTag;
         private static bool _actionFailed; // 本次原版对话付款失败后，所有后续节点动作都停止。
@@ -60,23 +64,74 @@ namespace LivingWorldNpcs
                     return;
                 }
 
-                var script = Load(npcId);
-                if (script == null || script.Nodes == null || script.Nodes.Count == 0)
+                // P0-D.3/Q01：普通玩家按 F 交谈也必须走同一请求入口；没有活跃会话时先建 player_talk 请求。
+                // 被冷却/重入/原版犯罪仲裁拒绝时**不注入**，让原版树照常走，而不是静默回旧剧情入口。
+                if (StoryDialogueRuntime.Current == null)
                 {
-                    DebugLogger.Log($"[StoryProbe] no dialogue data for '{npcId}'");
-                    PendingEntryNode = null;
-                    return;
+                    string dlg = StoryDialogueResolver.FindDialogueForActor(npcId, "player_talk");
+                    if (!string.IsNullOrEmpty(dlg))
+                    {
+                        if (!StoryDialogueRuntime.TryRequest(dlg, "player_talk", npcId, null, null,
+                                out var requested, out string why))
+                        {
+                            DebugLogger.Log($"[StoryDialogue] player_talk rejected dialogue={dlg} actor={npcId}: {why}");
+                            PendingEntryNode = null;
+                            return;
+                        }
+                        if (!StoryDialogueRuntime.ConfirmForOpen(requested, out why))
+                        {
+                            StoryDialogueRuntime.CancelSession(why);
+                            PendingEntryNode = null;
+                            return;
+                        }
+                    }
                 }
 
-                string entry = PendingEntryNode;
-                PendingEntryNode = null;
-                if (string.IsNullOrEmpty(entry)) entry = PickEntryNode(npcId, script);
+                var session = StoryDialogueRuntime.Current;
+                bool fromDefinition = session != null && !session.Ended
+                    && string.Equals(session.Request?.ActorId, npcId, StringComparison.Ordinal);
 
-                var built = BuildFiltered(script, npcId, entry);
-                if (built == null)
+                DialogueInjector.DialogueInjectScript built;
+                string entry;
+                if (fromDefinition)
                 {
-                    DebugLogger.Log($"[StoryProbe] build filtered script failed npc={npcId} entry={entry}");
-                    return;
+                    // P0-D.5：已迁移的定义整份来自 story_dialogue/2，节点内容不再读旧文件。
+                    entry = session.Entry.Node;
+                    PendingEntryNode = null;
+                    _pendingEntryNode = entry;
+                    DialogueInjector.CustomNodeEnter = id =>
+                    {
+                        if (!StoryDialogueRuntime.NotifyNodeShown(id))
+                            DebugLogger.Log("[StoryDialogue] node enter effects were rejected for " + id);
+                    };
+                    built = BuildFilteredFromDefinition(session.Definition, session, npcId);
+                    if (built == null)
+                    {
+                        StoryDialogueRuntime.CancelSession("definition build failed");
+                        DebugLogger.Log($"[StoryDialogue] build from definition failed npc={npcId} entry={entry}");
+                        return;
+                    }
+                }
+                else
+                {
+                    var script = Load(npcId);
+                    if (script == null || script.Nodes == null || script.Nodes.Count == 0)
+                    {
+                        DebugLogger.Log($"[StoryProbe] no dialogue data for '{npcId}'");
+                        PendingEntryNode = null;
+                        return;
+                    }
+
+                    entry = PendingEntryNode;
+                    PendingEntryNode = null;
+                    if (string.IsNullOrEmpty(entry)) entry = PickEntryNode(npcId, script);
+
+                    built = BuildFiltered(script, npcId, entry);
+                    if (built == null)
+                    {
+                        DebugLogger.Log($"[StoryProbe] build filtered script failed npc={npcId} entry={entry}");
+                        return;
+                    }
                 }
 
                 if (!ConversationEntryPatch.IsConversationActive())
@@ -104,11 +159,33 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>P0-D.4/Q02：引擎真正开始对话后，才提交入口节点的 on_enter 效果。</summary>
+        public static void OnConversationStarted()
+        {
+            try
+            {
+                var session = StoryDialogueRuntime.Current;
+                if (session == null || session.Ended) return;
+                string entry = _pendingEntryNode;
+                _pendingEntryNode = null;
+                if (!string.IsNullOrEmpty(entry) && !session.EnteredNodes.Contains(entry))
+                {
+                    if (!StoryDialogueRuntime.NotifyNodeShown(entry))
+                        DebugLogger.Log("[StoryDialogue] entry node effects rejected: " + entry);
+                }
+            }
+            catch (Exception ex) { DebugLogger.Log("[StoryProbe] OnConversationStarted failed: " + ex.Message); }
+        }
+
         /// <summary>对话结束（ConversationManager.EndConversation postfix 调用）：清理注入的台词，释放钩子。</summary>
         public static void OnConversationEnded()
         {
             try
             {
+                // P0-D.4：会话结束是第三个（也是最后一个）效果提交点；异常也必须走到，不能把窗口留在打开态。
+                StoryDialogueRuntime.EndSession("conversation ended");
+                _pendingEntryNode = null;
+                DialogueInjector.CustomNodeEnter = null;
                 if (_lastTag != null)
                 {
                     DialogueInjector.RemoveRelatedLines(_lastTag);
@@ -223,7 +300,13 @@ namespace LivingWorldNpcs
                 EntryNode = entry,
                 EntryOption = src.EntryOption,
                 InjectAtToken = src.InjectAtToken,
-                SkipVanillaOpening = false,
+                // 🔴 2026-11-15 实机：铁头的模板是 prison_guard_empire（Occupation=PrisonGuard），
+                //    原版在 "start" 挂了监牢守卫开场（优先级 100，条件是 Occupation==23），
+                //    于是 Gateway 模式挂在 hero_main_options 的剧情选项**根本走不到**：
+                //    玩家看到的是「什么？你想要什么？」+ 探监/行贿 825 的整棵原版树。
+                //    ⇒ 拦问类对话必须直挂 start（优先级 200，碾压原版开场白）。
+                //    由数据决定：JSON 里写 "SkipVanillaOpening": true 的 NPC 才跳过原版开场。
+                SkipVanillaOpening = src.SkipVanillaOpening,
                 Nodes = new List<DialogueInjector.DialogueNode>(),
             };
 
@@ -347,6 +430,133 @@ namespace LivingWorldNpcs
             return result;
         }
 
+        /// <summary>
+        /// P0-D.5：把已发布的 `story_dialogue/2` 定义构造成可注入脚本。
+        /// 🔴 与旧路径的区别：条件走三态求值（错误不当 false）、效果走会话提交（带收据）、
+        ///    检定标签指向**本次实际说话者**而不是写死铁头。
+        /// </summary>
+        private static DialogueInjector.DialogueInjectScript BuildFilteredFromDefinition(
+            StoryDialogueDef def, StoryDialogueSession session, string npcId)
+        {
+            if (def == null || session == null || session.Entry == null) return null;
+            var result = new DialogueInjector.DialogueInjectScript
+            {
+                Npc = npcId,
+                EntryNode = session.Entry.Node,
+                EntryOption = LWNTextHelper.ResolveText(def.EntryOption ?? "LWN_story_entry_option", "Say a word."),
+                SkipVanillaOpening = def.SkipVanillaOpening,
+                Nodes = new List<DialogueInjector.DialogueNode>(),
+            };
+
+            var ctx = new StoryDialogueContext
+            {
+                DialogueId = def.DialogueId,
+                TriggerId = session.Trigger?.Id,
+                Purpose = session.Trigger?.Purpose ?? "talk",
+                ActorId = npcId,
+            };
+
+            foreach (var node in def.Nodes)
+            {
+                if (node == null || string.IsNullOrEmpty(node.Id)) continue;
+                var copy = new DialogueInjector.DialogueNode
+                {
+                    Id = node.Id,
+                    NpcKey = node.TextKey,
+                    NpcFallback = null,
+                    NpcActions = node.LineActions != null && node.LineActions.Count > 0 ? node.LineActions.ToArray() : null,
+                    Transitions = new List<DialogueInjector.DialogueTransition>(),
+                };
+
+                // 节点显示的代理：引擎第一次求值这句台词 = 这一节点真正开始展示。
+                // 进入效果按会话收据防重（文本重读不会重复转账/发奖）。
+                string nodeId = node.Id;
+                bool entered = false;
+                copy.LazyNpcLine = () =>
+                {
+                    if (!entered)
+                    {
+                        entered = true;
+                        // 🔴 Q02：这里**不再**提交节点效果 —— 文本读取必须纯读。
+                        // 进入效果由 OnConversationStarted（入口）和 DialogueInjector.CustomNodeEnter（跳转）提交。
+                        try
+                        {
+                            var host = StoryProbeMissionBehavior.Current;
+                            StoryLineActions.Play(host, host?.GetAgent(npcId), node.LineActions?.ToArray());
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"[StoryDialogue] line actions on '{nodeId}' failed: {ex.Message}");
+                        }
+                    }
+                    return LWNTextHelper.ResolveText(node.TextKey, null);
+                };
+
+                foreach (var opt in node.Options)
+                {
+                    if (opt == null || string.IsNullOrEmpty(opt.Id)) continue;
+                    var t = new DialogueInjector.DialogueTransition
+                    {
+                        PlayerKey = opt.PlayerKey,
+                        PlayerFallback = null,
+                        Requires = null,
+                        Once = null,
+                        Action = "PROBE:dialogue_opt",
+                        ActionParam = node.Id + "|" + opt.Id,
+                    };
+
+                    // 显示条件：选项自己的 Requires + 目标节点的准入条件（三态求值，出错 = 不显示）。
+                    var option = opt;
+                    t.RuntimeCondition = () =>
+                    {
+                        if (!StoryDialogueFacts.TryEvaluateAll(option.Requires, ctx, out bool ok, out _, out _) || !ok)
+                            return false;
+                        string target = option.Check != null ? option.Check.Success : option.NextNode;
+                        if (string.IsNullOrEmpty(target)) return true;
+                        var targetNode = def.FindNode(target);
+                        if (targetNode == null) return false;
+                        return StoryDialogueFacts.TryEvaluateAll(targetNode.Requires, ctx, out bool nodeOk, out _, out _)
+                               && nodeOk;
+                    };
+
+                    if (opt.Check != null)
+                    {
+                        string target = string.IsNullOrEmpty(opt.Check.Target) ? npcId : opt.Check.Target;
+                        if (!def.Actors.Contains(target) && !def.Participants.Contains(target)) target = npcId;
+                        t.CheckType = DialogueInjector.TransitionCheckType.SkillCheck;
+                        t.CheckTag = target + "|" + opt.Check.Skill;
+                        t.NextNodeOnSuccess = opt.Check.Success ?? "";
+                        t.NextNodeOnFail = opt.Check.Fail ?? "";
+                    }
+                    else
+                    {
+                        t.NextNodeOnSuccess = opt.NextNode ?? "";
+                    }
+                    copy.Transitions.Add(t);
+                }
+
+                // 没选项 = 死胡同（引擎会卡在"继续"）→ 数据没写出口时补一个「离开」。
+                if (copy.Transitions.Count == 0)
+                {
+                    copy.Transitions.Add(new DialogueInjector.DialogueTransition
+                    {
+                        PlayerKey = "LWN_story_opt_leave",
+                        PlayerFallback = "Leave.",
+                        NextNodeOnSuccess = "",
+                    });
+                }
+
+                result.Nodes.Add(copy);
+            }
+
+            if (!result.Nodes.Any(n => n.Id == session.Entry.Node))
+            {
+                DebugLogger.Log($"[StoryDialogue] definition '{def.DialogueId}' has no entry node '{session.Entry.Node}'");
+                return null;
+            }
+            return result;
+        }
+
         /// <summary>条件表达式：逗号 = AND，`!` 前缀 = 取反。</summary>
         public static bool EvaluateRequires(string requires, string npcId)
         {
@@ -355,22 +565,30 @@ namespace LivingWorldNpcs
             foreach (var raw in requires.Split(','))
             {
                 string term = raw.Trim();
-                if (term.Length == 0) continue;
+                if (term.Length == 0) return false;
 
                 bool negate = term.StartsWith("!");
                 if (negate) term = term.Substring(1);
 
-                bool ok = EvaluateTerm(term, npcId);
-                if (negate) ok = !ok;
-                if (!ok) return false;
+                bool? value = EvaluateTerm(term, npcId);
+                // 求值错误不是真假值；不能被 ! 翻转成有效资格。
+                if (!value.HasValue) return false;
+                if (negate ? value.Value : !value.Value) return false;
             }
             return true;
         }
 
-        private static bool EvaluateTerm(string term, string npcId)
+        /// <summary>
+        /// P0-D.2：把单个条件词求值暴露给对话底座（StoryDialogueFacts）。
+        /// 返回 null = 求值失败或未实现 —— 调用方**不得**把它当成 false 或取反后放行。
+        /// </summary>
+        public static bool? EvaluateTermForDialogue(string term, string npcId) => EvaluateTerm(term, npcId);
+
+        private static bool? EvaluateTerm(string term, string npcId)
         {
             try
             {
+                if (term.EndsWith(":", StringComparison.Ordinal) || term.EndsWith("@", StringComparison.Ordinal)) return null;
                 if (term == "disguised") return StoryProbeMissionBehavior.IsWearingStoryDisguise(false);
                 if (term == "noble") return StoryProbeMissionBehavior.IsWearingStoryDisguise(true);
                 if (term == "stripped") return StoryProbeState.Data.Stripped;
@@ -383,8 +601,9 @@ namespace LivingWorldNpcs
                         && !StoryProbeState.HasRewardReceipt("pawnbroker", "street-help");
                 if (term.StartsWith("asked:")) return StoryProbeState.HasAsked(npcId, term.Substring(6));
                 if (term.StartsWith("reward:")) return StoryProbeState.HasRewardReceipt(npcId, term.Substring(7));
-                if (term.StartsWith("event_resolved:") && int.TryParse(term.Substring(15), out int eventId))
-                    return StoryProbeState.IsStreetEventResolved(eventId);
+                if (term.StartsWith("event_resolved:"))
+                    return int.TryParse(term.Substring(15), NumberStyles.None, CultureInfo.InvariantCulture, out int eventId)
+                        ? (bool?)StoryProbeState.IsStreetEventResolved(eventId) : null;
                 if (term.StartsWith("resolution:"))
                     return StoryProbeState.Data.QuestResolutions.TryGetValue(npcId, out string resolution)
                         && resolution == term.Substring(11);
@@ -401,8 +620,9 @@ namespace LivingWorldNpcs
                 if (term == "quest_turned") return StoryProbeState.IsQuestTurnedIn(npcId);
                 if (term == "gate_open") return StoryProbeMissionBehavior.Current?.GateOpen == true;
 
-                if (term.StartsWith("gold>=") && int.TryParse(term.Substring(6), out int gold))
-                    return Hero.MainHero != null && Hero.MainHero.Gold >= gold;
+                if (term.StartsWith("gold>="))
+                    return int.TryParse(term.Substring(6), NumberStyles.None, CultureInfo.InvariantCulture, out int gold)
+                        ? (bool?)(Hero.MainHero != null && Hero.MainHero.Gold >= gold) : null;
 
                 if (term.StartsWith("item:"))
                 {
@@ -431,16 +651,17 @@ namespace LivingWorldNpcs
 
                 if (term.StartsWith("clue:")) return StoryProbeState.HasClue(term.Substring(5));
                 if (term.StartsWith("hazard:")) return StoryProbeState.HasHazard(term.Substring(6));
-                if (term.StartsWith("step>=") && int.TryParse(term.Substring(6), out int step))
-                    return StoryProbeState.Step(npcId) >= step;
+                if (term.StartsWith("step>="))
+                    return int.TryParse(term.Substring(6), NumberStyles.None, CultureInfo.InvariantCulture, out int step)
+                        ? (bool?)(StoryProbeState.Step(npcId) >= step) : null;
 
-                DebugLogger.Log($"[StoryProbe] unknown requires term '{term}' -> treated as false");
-                return false;
+                DebugLogger.Log($"[StoryProbe] invalid requires term '{term}' -> rejected (including negation)");
+                return null;
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[StoryProbe] requires '{term}' failed: {ex.Message}");
-                return false;
+                return null;
             }
         }
 
@@ -537,7 +758,29 @@ namespace LivingWorldNpcs
             return false;
         }
 
-        private static bool TryPayMoney(Hero recipient, int amount)
+        /// <summary>P0-D.4：回滚已付款项（收款人 → 玩家），与 TryPayMoney 成对。</summary>
+        internal static bool RefundMoney(Hero recipient, int amount)
+        {
+            if (recipient == null || Hero.MainHero == null || amount <= 0) return false;
+            try
+            {
+                int moved = AgentControlHelper.TransferGold(recipient, Hero.MainHero, amount, notify: false);
+                return moved == amount;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryProbe] RefundMoney({amount}) failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>Q09：数据原子调用的通用入口（不读 CurrentNpcId）。</summary>
+        internal static void TurnInFor(string npcId) => TurnIn(npcId);
+
+        /// <summary>Q09：显示一条本地化消息（key 即 fallback）。</summary>
+        internal static void ShowMessageKey(string key) => Message(key, key);
+
+        internal static bool TryPayMoney(Hero recipient, int amount)
         {
             var payer = Hero.MainHero;
             if (payer == null || recipient == null || recipient == payer || amount <= 0)
@@ -920,6 +1163,20 @@ namespace LivingWorldNpcs
                     if (int.TryParse(param, out int ev)) host?.Director?.ForceEvent(ev);
                     break;
 
+                case "dialogue_opt":
+                {
+                    // P0-D.4：选项效果由运行期统一提交（复核 + 收据 + 失败停止），不在这里逐条写账。
+                    var parts = (param ?? "").Split('|');
+                    if (parts.Length != 2 || string.IsNullOrEmpty(parts[0]) || string.IsNullOrEmpty(parts[1]))
+                        return false;
+                    if (!StoryDialogueRuntime.NotifyOptionSelected(parts[0], parts[1], out string reason))
+                    {
+                        DebugLogger.Log($"[StoryDialogue] option commit failed {parts[0]}/{parts[1]}: {reason}");
+                        return FailStoryActionConversation();
+                    }
+                    break;
+                }
+
                 default:
                     DebugLogger.Log($"[StoryProbe] unknown action verb '{verb}'");
                     return false;
@@ -1015,7 +1272,7 @@ namespace LivingWorldNpcs
             StoryProbeState.ResolveStreetEvent(eventId);
         }
 
-        private static bool SyncResolvedStreetQuest(int eventId)
+        internal static bool SyncResolvedStreetQuest(int eventId)
         {
             // Event 1 is protection money, not debt; event 4 is an accusation, not the robber job.
             string giverId = eventId == 2 ? "butcher" : eventId == 3 ? "widow" : null;
@@ -1244,6 +1501,35 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[StoryProbe] StartFight({npcId}) failed: {ex.Message}");
             }
+        }
+
+        /// <summary>P0-D.5 迁移桥：新原子按参数调用既有通用管线（内容后续再拆成更小原子）。</summary>
+        internal static bool RunLegacyVerb(string verb, string param)
+        {
+            if (string.IsNullOrEmpty(verb)) return false;
+            try { return Dispatch(NormalizeStoryVerb(verb), param); }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryProbe] RunLegacyVerb({verb}) failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>P0-D.4：数据效果 `start_fight` 的入口（首遇走真实败退请求，其余走共享决斗管线）。</summary>
+        internal static bool StartStoryFight(string npcId)
+        {
+            if (string.IsNullOrEmpty(npcId)) return false;
+            var host = StoryProbeMissionBehavior.Current;
+            if (host == null) return false;
+            // 首遇守门人：唯一合法的「硬闯→真实战斗」入口是 PlayForcedDefeat（战斗回执决定真假败退）。
+            if (StoryProbeState.Phase == StoryProbePhase.FirstAttempt && npcId == "blocker")
+            {
+                host.PlayForcedDefeat();
+                return true;
+            }
+            if (!host.RequestStoryFight(npcId)) return false;
+            StartFight(npcId);
+            return true;
         }
 
         // ═══════════════════════════════════════════════════════════════

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""把序章的真实台词抽出来，生成一段 HTML（供 city-gate-paths.html 嵌入）。
+"""把序章的真实台词抽出来，生成一段 HTML（供逆水寒511-玩法演示.html嵌入）。
 
-只读语言 XML；不改任何东西。
+读取语言XML和对话JSON；不修改对白真源。
 用法：python plans/逆水寒511/tools/gen_dialogue_html.py > 片段.html
 # 片段插进 plans/逆水寒511/逆水寒511-玩法演示.html 的「他们到底说些什么」一节（替换 h3/details 块）
 """
@@ -283,7 +283,7 @@ GROUPS = [
     ("四家 · 他们各自知道的那一截", [
         ("老周：一只没赎回的镯子", "",
          ["LWN_story_pawnbroker_ask_sister", "LWN_story_pawnbroker_sister_where"]),
-        ("寡妇：一张通行文书", "",
+        ("寡妇：贵族身份的门路", "当前资格不是独立文书物品",
          ["LWN_story_widow_ask_sister"]),
         ("儿子：后巷那一夜", "",
          ["LWN_story_son_ask_sister"]),
@@ -293,7 +293,7 @@ GROUPS = [
     ("四家 · 他们派你做的事", [
         ("老周：把账收回来", "",
          ["LWN_story_pawnbroker_deal"]),
-        ("寡妇：砸了对台的招牌", "",
+        ("寡妇：争取戏台场地", "可魅力说服或真实战斗",
          ["LWN_story_widow_deal"]),
         ("儿子：打发墙根的野贼", "",
          ["LWN_story_son_deal"]),
@@ -303,7 +303,7 @@ GROUPS = [
     ("四家 · 办完事回去交差", [
         ("老周 · 交差（拿酬劳与旧账本）", "",
          ["LWN_story_pawnbroker_turnin"]),
-        ("寡妇 · 交差（拿贵族行头与文书）", "",
+        ("寡妇 · 交差（拿贵族行头与身份资格）", "",
          ["LWN_story_widow_turnin"]),
         ("儿子 · 交差（拿飞钩与撬锁包）", "",
          ["LWN_story_son_turnin"]),
@@ -311,7 +311,7 @@ GROUPS = [
          ["LWN_story_butcher_turnin"]),
     ]),
     ("四个仇家 · 登门对质与讨债", [
-        ("收数人（老周的债主 · 可魅力逼债或动手）", "",
+        ("收数人（欠老周的钱 · 可说服还款或动手）", "",
          ["LWN_story_debtor_intro"]),
         ("对台领班（寡妇的对头 · 护招牌）", "",
          ["LWN_story_rival_intro"]),
@@ -321,9 +321,9 @@ GROUPS = [
          ["LWN_story_thug_intro"]),
     ]),
     ("守门人 · 铁头（门就在他手里）", [
-        ("第一次进城 · 硬闯必败教学", "",
+        ("第一次进城 · 当前单守卫文本", "当前只有铁头一人；走近时由他直接开口（已跳过原版开场白），双岗动态选人未实施；首遇强化与保命设定待裁定",
          ["LWN_story_blocker_first"]),
-        ("第二次进城 · 城门过招（六条对话过门路）", "",
+        ("第二次进城 · 城门过招", "四条对话路径＋六种现场手段；现场手段不靠点选通关",
          ["LWN_story_blocker_open"]),
         ("塞钱：他当面数两遍", "",
          ["LWN_story_blocker_bribe_ok"]),
@@ -335,9 +335,9 @@ GROUPS = [
          ["LWN_story_blocker_disguise_ok"]),
         ("冒充被识破", "",
          ["LWN_story_blocker_disguise_fail"]),
-        ("潜行成功", "",
+        ("潜行成功 · 结果文本参考", "须真实蹲行穿门、视线及技巧判定；此文本不是点选通关入口",
          ["LWN_story_blocker_sneak_ok"]),
-        ("钩索翻墙成功", "",
+        ("钩索翻墙成功 · 结果文本参考", "须真实钩索越墙并稳定落地；此文本不是点选通关入口",
          ["LWN_story_blocker_climb_ok"]),
         ("钩子滑了", "",
          ["LWN_story_climb_missed"]),
@@ -355,17 +355,17 @@ GROUPS = [
          ["LWN_story_event2_join"]),
         ("事件 3 · 骂街", "",
          ["LWN_story_event3_join"]),
-        ("事件 4 · 抓小偷", "",
+        ("事件 4 · 追问偷窃", "抓领子动作未实现",
          ["LWN_story_event4_join"]),
         ("事件 5 · 一个人发愁", "",
          ["LWN_story_event5_join"]),
-        ("事件 6 · 一个人收拾", "",
+        ("事件 6 · 关照伤势", "搬案板演出未实现",
          ["LWN_story_event6_join"]),
     ]),
-    ("随从与牢里", [
-        ("随从 · 他只说三句", "",
+    ("进城引导与牢内换装", [
+        ("进城引导 · 同伴或旁白", "下列为当前旁白原文；目标只借用已有可用同伴，无人走旁白，借用改造未实施",
          ["LWN_story_intro_line_1", "LWN_story_intro_line_2", "LWN_story_intro_line_3"]),
-        ("牢里 · 老囚", "",
+        ("牢内换装确认 · 当前弹窗文本", "原文提到老囚交衣，仅为文字叙述；老囚实体交接、黑屏演出未实现",
          ["LWN_story_jail_body_1", "LWN_story_jail_body_2", "LWN_story_jail_body_3"]),
     ]),
 ]
