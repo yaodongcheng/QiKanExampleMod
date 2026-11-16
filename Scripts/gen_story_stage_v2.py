@@ -9,6 +9,7 @@
 """
 import io
 import json
+import math
 import os
 import sys
 
@@ -23,6 +24,32 @@ WORK_MAP = {
     "butcher": ("butcher_block", "act_shipyard_worker_repair_loop"),
     "widow": ("widow_stage_a", "act_conversation_aggressive_trivial"),
 }
+
+
+POINTS_CSV = os.path.join(DESIGN, "StoryPoints.csv")
+POINTS_HEADER = ["Id", "Scene", "Layout", "Role", "Anchor", "X", "Y", "Z", "Dir",
+                 "Action", "MaxOccupants", "ArriveTolerance"]
+
+def _fmt(v):
+    return ("%g" % v) if isinstance(v, float) else str(v)
+
+def write_points_csv(new_rows):
+    """把 market_square 的点位行换成新算出来的一批；其它布局（如 gate_outer 的两个岗位）原样保留。"""
+    rows = []
+    if os.path.exists(POINTS_CSV):
+        for line in io.open(POINTS_CSV, encoding="utf-8-sig").read().splitlines():
+            if not line.strip():
+                continue
+            cols = [c.strip() for c in line.split(",")]
+            if cols and cols[0] == "Id" and len(cols) > 2 and cols[1] == "Scene":
+                continue
+            if len(cols) >= 3 and cols[2] == "market_square":
+                continue
+            rows.append(cols)
+    rows.extend([[_fmt(v) for v in r] for r in new_rows])
+    out = [",".join(POINTS_HEADER)] + [",".join(r) for r in rows]
+    with io.open(POINTS_CSV, "w", encoding="utf-8", newline="") as f:
+        f.write(chr(10).join(out) + chr(10))
 
 
 def group_behaviors(cast):
@@ -120,32 +147,45 @@ def main():
 
     actors.sort(key=lambda a: a["Actor"])
     props.sort(key=lambda p: p["Id"])
+    scene = v2.get("Scene") or "empire_town_m"
 
-    work = []
+    # 工作点不再挂道具：按"道具位置 + 侧向偏移"折算成**相对锚点**的坐标，写进 StoryPoints.csv
+    # （2026-11-16 用户裁定：点位表只有 Anchor/X/Y/Z/Dir，Anchor 留空才是绝对坐标）。
     work_by_actor = {}
+    work_csv_rows = []
+    by_prop = {x["Id"]: x for x in props}
     for actor, (prop_id, action) in WORK_MAP.items():
         if actor not in actor_seen or prop_id not in prop_seen:
             continue
         wid = actor + "_work"
-        work.append({
-            "Id": wid, "Prop": prop_id, "Side": "front", "Offset": 0.65,
-            "Contact": [0.35, 0.55, 0.9], "Yaw": 0,
-            "ArriveTolerance": 0.6, "MaxOccupants": 1,
-            # 动作必须真的在 as_human_warrior 里（铁律 41），不要抄职业集的动作。
-            "Action": action,
-        })
+        prop = by_prop.get(prop_id)
+        if prop is None:
+            continue
+        yaw = math.radians(prop.get("Yaw", 0.0))
+        cos, sin = math.cos(yaw), math.sin(yaw)
+        r0, f0 = 0.0, 1.0          # side = front
+        offset = 0.65
+        r1 = r0 * cos - f0 * sin
+        f1 = r0 * sin + f0 * cos
+        x = prop.get("Fwd", 0.0) + f1 * offset
+        y = prop.get("Right", 0.0) + r1 * offset
+        z = prop.get("Up", 0.0)
+        # 动作必须真的在 as_human_warrior 里（铁律 41），不要抄职业集的动作。
+        work_csv_rows.append([wid, scene, "market_square", "work", prop.get("Anchor", "player"),
+                              x, y, z, 0, action, 1, 0.6])
         work_by_actor[actor] = wid
 
     standing = []
     for a in actors:
-        s = {"Actor": a["Actor"], "Facing": a["Facing"]}
+        # 空间信息只有一个来源 = Points：没工作点的演员也生成一个自己的点位，Standing 只写 Actor+Point。
+        s = {"Actor": a["Actor"]}
         if a["Actor"] in work_by_actor:
-            s["WorkPoint"] = work_by_actor[a["Actor"]]
+            s["Point"] = work_by_actor[a["Actor"]]
         else:
-            s["Anchor"] = a["Anchor"]
-            s["Fwd"] = a["Fwd"]
-            s["Right"] = a["Right"]
-            s["Up"] = a["Up"]
+            pid = a["Actor"] + "_spot"
+            work_csv_rows.append([pid, scene, "market_square", "spot", a["Anchor"],
+                                  a["Fwd"], a["Right"], a["Up"], a["Facing"], "", "", ""])
+            s["Point"] = pid
         standing.append(s)
 
     layout = {
@@ -160,8 +200,6 @@ def main():
         },
         "Gates": {},
         "Props": props,
-        "WorkPoints": work,
-        "Posts": [],
         "Standing": standing,
     }
 
@@ -181,8 +219,9 @@ def main():
     v2["ContentVersion"] = int(v2.get("ContentVersion") or 1) + (0 if "market_square" in (v1.get("Layouts") or {}) else 0)
     with io.open(V2, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(v2, ensure_ascii=False, indent=2) + "\n")
+    write_points_csv(work_csv_rows)
     print("second_meet: actors=%d props=%d work=%d standing=%d" %
-          (len(actors), len(props), len(work), len(standing)))
+          (len(actors), len(props), len(work_csv_rows), len(standing)))
 
 
 if __name__ == "__main__":

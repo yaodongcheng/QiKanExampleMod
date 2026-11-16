@@ -35,6 +35,8 @@ namespace LivingWorldNpcs
 
         /// <summary>本次入口和业务归属演员；每句真实说话者由节点Speaker决定。</summary>
         public static string CurrentNpcId;
+        private static Agent _entryAgent;
+        private static StoryDialogueSession _entrySession;
 
         // ═══════════════════════════════════════════════════════════════
         // 入口
@@ -73,16 +75,26 @@ namespace LivingWorldNpcs
                 // 被冷却/重入/原版犯罪仲裁拒绝时**不注入**，让原版树照常走，而不是静默回旧剧情入口。
                 if (StoryDialogueRuntime.Current == null)
                 {
-                    string dlg = StoryDialogueResolver.FindDialogueForActor(npcId, "player_talk");
+                    string triggerId = "player_talk";
+                    var director = StoryProbeMissionBehavior.Current?.Director;
+                    if (director != null && director.TryGetDialogueEntry(agent, out string hostActor, out string eventNode))
+                    {
+                        triggerId = "event_join";
+                        DebugLogger.Log($"[StoryDialogue] player F event join clicked={npcId} host={hostActor} groupNode={eventNode}");
+                        npcId = hostActor;
+                    }
+                    string dlg = StoryDialogueResolver.FindDialogueForActor(npcId, triggerId);
                     if (!string.IsNullOrEmpty(dlg))
                     {
-                        if (!StoryDialogueRuntime.TryRequest(dlg, "player_talk", npcId, null, null,
+                        if (!StoryDialogueRuntime.TryRequest(dlg, triggerId, npcId, null, null,
                                 out var requested, out string why))
                         {
                             DebugLogger.Log($"[StoryDialogue] player_talk rejected dialogue={dlg} actor={npcId}: {why}");
                             PendingEntryNode = null;
                             return;
                         }
+                        _entryAgent = agent;
+                        _entrySession = requested;
                         if (!StoryDialogueRuntime.ConfirmForOpen(requested, out why))
                         {
                             StoryDialogueRuntime.CancelSession(why);
@@ -174,6 +186,9 @@ namespace LivingWorldNpcs
         /// <summary>对话结束（ConversationManager.EndConversation postfix 调用）：清理注入的台词，释放钩子。</summary>
         public static void OnConversationEnded()
         {
+            ReleaseDialogueFacing();
+            _entryAgent = null;
+            _entrySession = null;
             try
             {
                 // P0-D.4：会话结束是第三个（也是最后一个）效果提交点；异常也必须走到，不能把窗口留在打开态。
@@ -248,11 +263,12 @@ namespace LivingWorldNpcs
         {
             var cm = Campaign.Current?.ConversationManager;
             var primary = ResolveTurnAgent(session, session.Request.ActorId);
-            if (cm == null || primary == null || !cm.ConversationAgents.Contains(primary)
+            if (cm == null || primary == null || (!cm.ConversationAgents.Contains(primary)
+                && !(_entrySession == session && _entryAgent != null && cm.ConversationAgents.Contains(_entryAgent)))
                 || StoryDialogueRuntime.Current != session || session.Ended || session.Failed
                 || session.Request.RuntimeToken != StoryProbeState.RuntimeToken)
                 return RejectTurn(session, node.Id);
-            var required = new List<Agent> { ResolveTurnAgent(session, node.Speaker), ResolveTurnAgent(session, node.Listener) };
+            var required = new List<Agent> { primary, ResolveTurnAgent(session, node.Speaker), ResolveTurnAgent(session, node.Listener) };
             // 玩家选项的听话对象也必须在选项出现前到位；不是文本查询时才加入。
             foreach (var option in node.Options)
             {
@@ -271,6 +287,105 @@ namespace LivingWorldNpcs
                 return RejectTurn(session, node.Id);
             cm.AddConversationAgents(required.Where(a => a != Agent.Main).Distinct(), false);
             return true;
+        }
+
+        private static StoryDialogueSession _facingSession;
+        private static StoryDialogueNodeDef _facingNode;
+        private static Mission _facingMission;
+        private static float _facingElapsed;
+        private static bool _facingReported;
+        private static readonly HashSet<Agent> _facingActors = new HashSet<Agent>();
+
+        private static void BeginDialogueFacing(StoryDialogueSession session, StoryDialogueNodeDef node)
+        {
+            if (_facingSession != session) ReleaseDialogueFacing();
+            _facingSession = session;
+            _facingNode = node;
+            _facingMission = Mission.Current;
+            _facingElapsed = 0f;
+            _facingReported = false;
+            DebugLogger.Log($"[StoryDialogueFacing] tracking requested session={session.Id} node={node.Id} speaker={node.Speaker} listener={node.Listener} body=scripted-position-direction+FaceToActor gaze=SetLookAgent");
+            TickDialogueFacing(0f);
+        }
+
+        /// <summary>正式会话逐句持有朝向；不重新申请演出动作，不控制玩家，不播放/推进台词。</summary>
+        public static void TickDialogueFacing(float dt)
+        {
+            if (_facingSession == null) return;
+            var cm = Campaign.Current?.ConversationManager;
+            if (Mission.Current != _facingMission || StoryDialogueRuntime.Current != _facingSession
+                || _facingSession.Ended || _facingSession.Failed || cm?.IsConversationInProgress != true)
+            { ReleaseDialogueFacing(); return; }
+            var speaker = ResolveTurnAgent(_facingSession, _facingNode.Speaker);
+            var listener = ResolveTurnAgent(_facingSession, _facingNode.Listener);
+            if (speaker == listener || !CanUseTurnAgent(speaker) || !CanUseTurnAgent(listener)
+                || (speaker != Agent.Main && !cm.IsConversationAgent(speaker))
+                || (listener != Agent.Main && !cm.IsConversationAgent(listener)))
+            {
+                var session = _facingSession;
+                string nodeId = _facingNode.Id;
+                ReleaseDialogueFacing();
+                RejectTurn(session, nodeId);
+                return;
+            }
+            foreach (var old in _facingActors.ToList())
+                if (old != speaker && old != listener) ReleaseFacingActor(old);
+            HoldDialogueFacing(speaker, listener);
+            HoldDialogueFacing(listener, speaker);
+            _facingElapsed += Math.Max(0f, dt);
+            if (!_facingReported && _facingElapsed >= 0.5f)
+            {
+                _facingReported = true;
+                DebugLogger.Log("[StoryDialogueFacing] facing sample " + DescribeDialogueFacing());
+                if (Settings.Instance.ShowPerformanceFacingDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompoundMixed(
+                        "LWN_dialogue_facing_debug", "[Dialogue debug] {SPEAKER} -> {LISTENER}: body error {ANGLE} degrees (0 = facing the listener); gaze requested.",
+                        ("SPEAKER", (object)speaker.Name), ("LISTENER", (object)listener.Name),
+                        ("ANGLE", (object)FacingError(speaker, listener)))));
+            }
+        }
+
+        private static void HoldDialogueFacing(Agent actor, Agent target)
+        {
+            if (actor == Agent.Main) return;
+            _facingActors.Add(actor);
+            AgentControlHelper.HoldFacingActor(actor, target, inConversation: true);
+        }
+
+        private static string FacingError(Agent actor, Agent target)
+        {
+            if (!AgentControlHelper.SafeIsActive(actor) || !AgentControlHelper.SafeIsActive(target)) return "n/a";
+            Vec2 direction = (target.Position - actor.Position).AsVec2;
+            Vec2 facing = actor.Frame.rotation.f.AsVec2;
+            if (direction.LengthSquared < 0.0001f || facing.LengthSquared < 0.0001f) return "n/a";
+            direction.Normalize(); facing.Normalize();
+            double dot = Math.Max(-1d, Math.Min(1d, direction.x * facing.x + direction.y * facing.y));
+            return (Math.Acos(dot) * 180d / Math.PI).ToString("F1", CultureInfo.InvariantCulture);
+        }
+
+        public static string DescribeDialogueFacing()
+        {
+            if (_facingSession == null) return "facing=inactive";
+            var speaker = ResolveTurnAgent(_facingSession, _facingNode.Speaker);
+            var listener = ResolveTurnAgent(_facingSession, _facingNode.Listener);
+            return $"facing=session:{_facingSession.Id} node={_facingNode.Id} speaker={ResolveNpcId(speaker) ?? "player"} listener={ResolveNpcId(listener) ?? "player"} bodyErrorDeg={FacingError(speaker, listener)} listenerBodyErrorDeg={FacingError(listener, speaker)} gaze=SetLookAgent-requested";
+        }
+
+        private static void ReleaseFacingActor(Agent actor)
+        {
+            _facingActors.Remove(actor);
+            if (Mission.Current != _facingMission || !CanUseTurnAgent(actor)) return;
+            // 只清本层的站位/注视，不归还或抢占刚由战斗、击晕、绑缚接管的身体。
+            actor.ClearTargetFrame();
+            AgentControlHelper.StopLooking(actor);
+        }
+
+        public static void ReleaseDialogueFacing()
+        {
+            foreach (var actor in _facingActors.ToList()) ReleaseFacingActor(actor);
+            _facingSession = null;
+            _facingNode = null;
+            _facingMission = null;
         }
 
         private static bool RejectTurn(StoryDialogueSession session, string nodeId)
@@ -353,6 +468,7 @@ namespace LivingWorldNpcs
                     if (!IsTurnValid(session, node) || !StoryDialogueRuntime.NotifyNodeShown(node.Id))
                     { RejectTurn(session, node.Id); return; }
                     PlayNodeLineActions(node.Id);
+                    BeginDialogueFacing(session, node);
                     DebugLogger.Log("[StoryDialogue] turn node=" + node.Id + " speaker=" + node.Speaker
                         + " listener=" + node.Listener + " next=" + (node.NextNode ?? "options/close"));
                 };

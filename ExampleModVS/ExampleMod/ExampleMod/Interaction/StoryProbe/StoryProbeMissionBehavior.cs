@@ -134,6 +134,10 @@ namespace LivingWorldNpcs
         private bool _firstGuardQuestioned;
         /// <summary>本场已经拦问过几次（受 Gate.MaxIntercepts 上限约束；用满后再闯才算硬闯）。</summary>
         private int _gateIntercepts;
+        /// <summary>职责点是否已写进各人脑里（每场只写一次）。</summary>
+        private bool _dutyPointsApplied;
+        /// <summary>每名演员的**岗位点**（SpawnNpc 时记下）：布局里没有站位时用它兜底。</summary>
+        private readonly Dictionary<string, Vec3> _postPositions = new Dictionary<string, Vec3>(StringComparer.Ordinal);
         private bool _firstInterceptRequested;
         private bool _firstDefeatResolved;
         private float _firstFightRequestedAt;
@@ -290,11 +294,13 @@ namespace LivingWorldNpcs
 
             try
             {
+                StoryProbeDialogue.TickDialogueFacing(dt);
                 if (_defeatAnim != null && _defeatPlayer == Agent.Main && AgentControlHelper.SafeIsActive(_defeatPlayer))
                     _defeatAnim.Tick(_defeatPlayer, dt);
                 if (Phase == StoryProbePhase.FirstAttempt) TickFirstAttempt(dt);
                 else if (Phase == StoryProbePhase.Jail) TickJailScene();
                 else if (Phase == StoryProbePhase.Second) TickSecondPhase(dt);
+                TickGuardLeash();
             }
             catch (Exception ex)
             {
@@ -312,6 +318,7 @@ namespace LivingWorldNpcs
         public void CancelRuntime(string reason)
         {
             Active = false;
+            StoryProbeDialogue.ReleaseDialogueFacing();
             _schedule.Clear();
             // 仅实际发出的本轮回执可撤战；pending-only请求不拥有目标后来参加的外部战斗。
             var fights = new Dictionary<string, Action<Agent>>(_duelCallbacks);
@@ -859,6 +866,12 @@ namespace LivingWorldNpcs
             var player = Agent.Main;
             var blocker = GetAgent("blocker");
             if (player == null || Settings.Instance.IsInteractionDisabled()) return;
+            // 首遇没有准备批次：守卫的职责点 = 出生岗位。
+            if (!_dutyPointsApplied && _postPositions.Count > 0)
+            {
+                _dutyPointsApplied = true;
+                ApplyDutyPoints();
+            }
             _posts?.Tick(dt);
             Vec3 previousPosition = _lastGatePosition;
             float previousAlong = GateAlong(previousPosition);
@@ -1206,6 +1219,12 @@ namespace LivingWorldNpcs
         {
             var player = Agent.Main;
             _prep?.Tick(dt);
+            // 准备就绪后按布局给每个人写职责点（只写一次）。
+            if (_prep != null && _prep.Ready && !_dutyPointsApplied)
+            {
+                _dutyPointsApplied = true;
+                ApplyDutyPoints();
+            }
 
             // 🔴 准备失败 ⇒ 不许照常开演：停台本、交还机位与玩家。
             // 🔴 2026-11-16 用户裁定：**不要直接把玩家踢出场景** —— 先弹窗说清缺什么，
@@ -1593,6 +1612,83 @@ namespace LivingWorldNpcs
         /// <summary>同上，半径用当前阶段岗位数据的感知半径。</summary>
         public bool IsPlayerInPostZone(Agent guard) => IsPlayerInPostZone(guard, PostZoneRangeMeters);
 
+        /// <summary>
+        /// 追击 leash（2026-11-16 用户裁定）：玩家跑出职责区（超过两倍岗位半径）就撤销这次拦截，
+        /// 不许一路跟着跑出城。**回岗位不在这里** —— 那是默认行为，归 `AgentBrain.DecideDefaultBehavior`
+        /// （职责点由 `ApplyDutyPoints` 写进脑里：离岗走回去、到位就站住）。
+        /// </summary>
+        private void TickGuardLeash()
+        {
+            if (!_gateGeometryReady) return;
+            float zone = PostZoneRangeMeters;
+            var player = Agent.Main;
+
+            foreach (var def in StoryProbeDefs.Npcs)
+            {
+                if (def == null || !def.FirstMeetGuard) continue;
+                var agent = GetAgent(def.Id);
+                if (agent == null || !AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0f) continue;
+                if (AgentBrain.IsRoped(agent) || AgentBrain.IsHeldByStatus(agent) || AgentBrain.IsKnockedOut(agent)) continue;
+                var brain = AgentAIController.GetBrainForAgent(agent);
+                if (brain == null || brain.IsInCombat) continue;
+
+                // ① 追出职责区就放弃：玩家已经跑远了，不许一路跟过去。
+                if (brain.IsStoryIntercepting && player != null && !IsPlayerInPostZone(agent, zone * 2f))
+                {
+                    try
+                    {
+                        AgentAIController.Instance?.SendEventToAgent(agent, "event_story_intercept_cancel");
+                        DebugLogger.Log($"[StoryGate] {def.Id}: player left the duty zone -> chase cancelled");
+                    }
+                    catch (Exception ex) { DebugLogger.Log($"[StoryGate] chase cancel failed: {ex.Message}"); }
+                    continue;
+                }
+
+            }
+        }
+
+        /// <summary>
+        /// 把每个人的**职责点**写进他自己的脑里（通用规则，2026-11-16 用户裁定）：
+        ///   数据来源 = 本场布局里这名演员的站位（Standing → Post/WorkPoint）；
+        ///   布局里没有的（首遇只有两名守卫）→ 用出生点。
+        ///   写完由 `AgentBrain.DecideDefaultBehavior` 消费：离开岗位就走回去、到位就站住。
+        ///   屠夫回肉铺、守卫回门口——区别只在 JSON 的点位，代码里不区分职业。
+        /// </summary>
+        private void ApplyDutyPoints()
+        {
+            // 数据来源：本阶段布局的 Standing → Point（位置已在准备阶段解好；朝向在这里读）
+            StoryLayoutDef layout = null;
+            var file = StoryLayoutRegistry.Published;
+            string stageId = Phase == StoryProbePhase.Second ? "second_meet" : "first_meet";
+            if (file != null && file.Stages.TryGetValue(stageId, out var stage) && stage != null)
+                file.Layouts.TryGetValue(stage.Layout ?? "", out layout);
+
+            int applied = 0;
+            foreach (var def in StoryProbeDefs.Npcs)
+            {
+                if (def == null || string.IsNullOrEmpty(def.Id)) continue;
+                var agent = GetAgent(def.Id);
+                if (agent == null) continue;
+                var brain = AgentAIController.GetBrainForAgent(agent);
+                if (brain == null) continue;
+
+                Vec3 point;
+                if (_prep != null && _prep.TryGetStandingPosition(def.Id, out var stand)) point = stand;
+                else if (_postPositions.TryGetValue(def.Id, out var spawn)) point = spawn;
+                else continue;
+
+                // 朝向：唯一来源 = 点位自己的 Facing（站位不再带方向）
+                float facing = -1f;
+                var standing = layout?.Standing.FirstOrDefault(x => x != null && x.Actor == def.Id);
+                var pt = layout?.FindPoint(standing?.Point);
+                if (pt != null) facing = pt.Facing;
+
+                brain.SetDutyPoint(point, facing);
+                applied++;
+            }
+            DebugLogger.Log($"[StoryGate] duty points applied: {applied} npc(s) (stage={stageId}, facing from layout)");
+        }
+
         private bool IsAtGateGround(Agent player, float dt)
         {
             var scene = Mission.Current?.Scene;
@@ -1676,6 +1772,7 @@ namespace LivingWorldNpcs
                 if (repositionExisting)
                     try { existing.TeleportToPosition(pos); } catch { }
                 _agents[npcId] = existing;
+                _postPositions[npcId] = pos;
                 ApplyStoryPersona(def, hero, existing);
                 return existing;
             }
@@ -1695,6 +1792,7 @@ namespace LivingWorldNpcs
                 if (agent != null)
                 {
                     _agents[npcId] = agent;
+                    _postPositions[npcId] = pos;
                     ApplyStoryPersona(def, hero, agent);
                     DebugLogger.Log($"[StoryProbe] spawned {npcId} hero={hero.StringId} agent={agent.Index} requested=({pos.x:F1},{pos.y:F1},{pos.z:F1}) actual={agent.Position} controller={agent.Controller}");
                 }

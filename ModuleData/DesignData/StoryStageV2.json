@@ -46,35 +46,14 @@
         }
       },
       "Props": [],
-      "WorkPoints": [],
-      "Posts": [
-        {
-          "Id": "post_a",
-          "Gate": "main_gate",
-          "Anchor": "guard_spawn",
-          "Fwd": 0,
-          "Right": -1.2,
-          "Facing": -1
-        },
-        {
-          "Id": "post_b",
-          "Gate": "main_gate",
-          "Anchor": "guard_spawn",
-          "Fwd": 0,
-          "Right": 1.2,
-          "Facing": -1
-        }
-      ],
       "Standing": [
         {
           "Actor": "blocker",
-          "Post": "post_a",
-          "Facing": -1
+          "Point": "post_a"
         },
         {
           "Actor": "gate_sentry",
-          "Post": "post_b",
-          "Facing": -1
+          "Point": "post_b"
         }
       ]
     },
@@ -245,117 +224,42 @@
           "Required": true
         }
       ],
-      "WorkPoints": [
-        {
-          "Id": "pawnbroker_work",
-          "Prop": "pawnbroker_desk",
-          "Side": "front",
-          "Offset": 0.65,
-          "Contact": [
-            0.35,
-            0.55,
-            0.9
-          ],
-          "Yaw": 0,
-          "ArriveTolerance": 0.6,
-          "MaxOccupants": 1,
-          "Action": "act_wood_workshop_idle_part_01"
-        },
-        {
-          "Id": "butcher_work",
-          "Prop": "butcher_block",
-          "Side": "front",
-          "Offset": 0.65,
-          "Contact": [
-            0.35,
-            0.55,
-            0.9
-          ],
-          "Yaw": 0,
-          "ArriveTolerance": 0.6,
-          "MaxOccupants": 1,
-          "Action": "act_shipyard_worker_repair_loop"
-        },
-        {
-          "Id": "widow_work",
-          "Prop": "widow_stage_a",
-          "Side": "front",
-          "Offset": 0.65,
-          "Contact": [
-            0.35,
-            0.55,
-            0.9
-          ],
-          "Yaw": 0,
-          "ArriveTolerance": 0.6,
-          "MaxOccupants": 1,
-          "Action": "act_conversation_aggressive_trivial"
-        }
-      ],
-      "Posts": [],
       "Standing": [
         {
           "Actor": "blocker",
-          "Facing": -1,
-          "Anchor": "gate",
-          "Fwd": 0.0,
-          "Right": 0.0,
-          "Up": 0
+          "Point": "blocker_spot"
         },
         {
           "Actor": "butcher",
-          "Facing": -1,
-          "WorkPoint": "butcher_work"
+          "Point": "butcher_work"
         },
         {
           "Actor": "debtor",
-          "Facing": -1,
-          "Anchor": "player",
-          "Fwd": 1.0,
-          "Right": -12.0,
-          "Up": 0
+          "Point": "debtor_spot"
         },
         {
           "Actor": "outlaw",
-          "Facing": -1,
-          "Anchor": "player",
-          "Fwd": -2.0,
-          "Right": -16.0,
-          "Up": 0
+          "Point": "outlaw_spot"
         },
         {
           "Actor": "pawnbroker",
-          "Facing": -1,
-          "WorkPoint": "pawnbroker_work"
+          "Point": "pawnbroker_work"
         },
         {
           "Actor": "rival",
-          "Facing": -1,
-          "Anchor": "player",
-          "Fwd": 9.0,
-          "Right": 11.0,
-          "Up": 0
+          "Point": "rival_spot"
         },
         {
           "Actor": "son",
-          "Facing": -1,
-          "Anchor": "player",
-          "Fwd": 3.0,
-          "Right": -8.0,
-          "Up": 0
+          "Point": "son_spot"
         },
         {
           "Actor": "thug",
-          "Facing": -1,
-          "Anchor": "player",
-          "Fwd": 6.5,
-          "Right": -1.5,
-          "Up": 0
+          "Point": "thug_spot"
         },
         {
           "Actor": "widow",
-          "Facing": -1,
-          "WorkPoint": "widow_work"
+          "Point": "widow_work"
         }
       ]
     }
@@ -415,7 +319,7 @@
       ],
       "Perception": {
         "RequiresSight": true,
-        "RangeMeters": 8
+        "RangeMeters": 5
       },
       "Trigger": {
         "PlayerInsideGate": false,

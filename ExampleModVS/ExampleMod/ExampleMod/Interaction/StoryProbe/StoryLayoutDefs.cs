@@ -181,6 +181,10 @@ namespace LivingWorldNpcs
     {
         public string Anchor;
         public float Fwd, Right, Up;
+        /// <summary>绝对世界坐标 [x,y,z]（2026-11-16 用户裁定）：有它就忽略 Anchor/偏移；
+        /// 没有 Anchor 的点位必须写它。长度必须 3。</summary>
+        public float[] Absolute;
+        public bool HasAbsolute => Absolute != null && Absolute.Length == 3;
     }
 
     public sealed class StoryAnchorDef
@@ -215,34 +219,42 @@ namespace LivingWorldNpcs
         public bool Required = true;
     }
 
-    public sealed class StoryWorkPointDef
+    /// <summary>
+    /// **统一点位**（2026-11-16 用户裁定）：岗位（Post）和工作点（WorkPoint）本来就是同一件事
+    /// —— 每个人"该待的地方"。现在只有这一种类型：
+    ///   · 位置三选一：`Pos`（绝对世界坐标）/ `Anchor`+`Fwd/Right/Up`（相对锚点）/ `Prop`+`Side`+`Offset`（挂在道具旁）；
+    ///   · 朝向一个字段：`Facing`（-1 = 面朝玩家/门外；0~360 = 绝对角度；旧数据的 `Yaw` 等价，解析时并入）。
+    ///   · `Role` 只是备注（"post"/"work"），不参与判定。
+    ///   · `Gate` 只对门岗有意义（校验它引用的门区存在）。
+    /// </summary>
+    public sealed class StoryPointDef
     {
         public string Id;
+        public string Role = "";
+        public string Gate;
+        public StoryPoint Place = new StoryPoint();
         public string Prop;
         public string Side = "front";           // front / back / left / right
         public float Offset;
         public float[] Contact = new float[0];
-        public float Yaw;
+        /// <summary>这个点位本身的朝向：-1 = 面朝玩家/门外（哨兵，不是角度），0~360 = 绝对角度（度）。
+        /// 站在这个点位上的人默认就用它；旧数据的 `Yaw` 解析时并入这里。</summary>
+        public float Facing = -1f;
         public float ArriveTolerance = 0.6f;
         public int MaxOccupants = 1;
         public string Action;
+        public bool Required;
     }
 
-    public sealed class StoryPostDef
-    {
-        public string Id;
-        public string Gate;
-        public StoryPoint Place = new StoryPoint();
-        public float Facing = -1f;
-    }
-
+    /// <summary>
+    /// 站位 = **谁站在哪个点位**（2026-11-16 用户裁定：空间信息只有一个来源 = `Points`）。
+    /// 这里不再允许写 `Anchor`/`Fwd`/`Right`/`Up`/`Facing` —— 位置与朝向全部由 `Point` 指向的点位决定。
+    /// </summary>
     public sealed class StoryStandingDef
     {
         public string Actor;
-        public string Post;
-        public string WorkPoint;
-        public StoryPoint Place = new StoryPoint();
-        public float Facing = -1f;
+        /// <summary>点位 id（旧数据的 `Post` / `WorkPoint` 解析时都并入这里）。</summary>
+        public string Point;
     }
 
     public sealed class StoryLayoutDef
@@ -252,11 +264,13 @@ namespace LivingWorldNpcs
         public Dictionary<string, StoryAnchorDef> Anchors = new Dictionary<string, StoryAnchorDef>(StringComparer.Ordinal);
         public Dictionary<string, StoryGateDef> Gates = new Dictionary<string, StoryGateDef>(StringComparer.Ordinal);
         public List<StoryPropDef> Props = new List<StoryPropDef>();
-        public List<StoryWorkPointDef> WorkPoints = new List<StoryWorkPointDef>();
-        public List<StoryPostDef> Posts = new List<StoryPostDef>();
+        /// <summary>全部点位（岗位 + 工作点已合并，2026-11-16）。</summary>
+        public List<StoryPointDef> Points = new List<StoryPointDef>();
         public List<StoryStandingDef> Standing = new List<StoryStandingDef>();
 
         public StoryPropDef FindProp(string id) { return Props.FirstOrDefault(p => p.Id == id); }
+        public StoryPointDef FindPoint(string id)
+            => string.IsNullOrEmpty(id) ? null : Points.FirstOrDefault(p => p != null && p.Id == id);
     }
 
     public sealed class StoryPrepDef
@@ -490,7 +504,9 @@ namespace LivingWorldNpcs
 
             var cast = new HashSet<string>(castIds ?? Enumerable.Empty<string>(), StringComparer.Ordinal);
 
-            ParseLayouts(root, data, errors);
+            // ── 点位改由 CSV 维护（2026-11-16 用户裁定）：JSON 里的内联 Points 仍接受（夹具用）──
+            var csvPoints = LoadPointsCsv(errors, data.Scene);
+            ParseLayouts(root, data, errors, csvPoints);
             ParseStages(root, data, errors, cast);
             ParseFlows(root, data, errors, mode, cast);
             ParseBehaviors(root, data, errors);
@@ -504,7 +520,7 @@ namespace LivingWorldNpcs
                     if (!data.Stages.TryGetValue(stageId, out var stage)) continue;
                     if (!data.Layouts.TryGetValue(stage.Layout ?? "", out var layout)) continue;
                     foreach (string postId in b.Posts)
-                        if (layout.Posts.All(p => p.Id != postId))
+                        if (layout.FindPoint(postId) == null)
                             errors.Add(new StoryValidationIssue("$.Behaviors." + b.Id + ".Posts", "unknown_post",
                                 "岗位 '" + postId + "' 不在阶段 '" + stageId + "' 的布局 '" + layout.Id + "' 里"));
                 }
@@ -521,7 +537,8 @@ namespace LivingWorldNpcs
             { "Schema", "ContentVersion", "Scene", "WallLevel", "Layouts", "Stages", "Behaviors", "Flows", "Beats" };
 
         // ── 布局 ──
-        private static void ParseLayouts(JObject root, StoryLayoutFile data, List<StoryValidationIssue> errors)
+        private static void ParseLayouts(JObject root, StoryLayoutFile data, List<StoryValidationIssue> errors,
+            Dictionary<string, List<StoryPointDef>> csvPoints)
         {
             var layouts = Obj(root, "Layouts", "$", errors, true);
             if (layouts == null) return;
@@ -625,52 +642,57 @@ namespace LivingWorldNpcs
                     }
                 }
 
+                // ── 点位（2026-11-16 统一）：`Points` 是新写法；`WorkPoints` / `Posts` 是旧写法，解析时并入同一列表 ──
+                var points = Arr(lo, "Points", path, errors);
+                if (points != null)
+                {
+                    for (int i = 0; i < points.Count; i++)
+                        ParsePoint(points[i], path + ".Points[" + i + "]", errors, layout, null);
+                }
+
                 var works = Arr(lo, "WorkPoints", path, errors);
                 if (works != null)
                 {
-                    var seen = new HashSet<string>(StringComparer.Ordinal);
                     for (int i = 0; i < works.Count; i++)
-                    {
-                        string wpath = path + ".WorkPoints[" + i + "]";
-                        if (!(works[i] is JObject wo)) { errors.Add(new StoryValidationIssue(wpath, "wrong_type", "工作点必须是对象")); continue; }
-                        Keys(wo, wpath, new[] { "Id", "Prop", "Side", "Offset", "Contact", "Yaw", "ArriveTolerance", "MaxOccupants", "Action" }, errors);
-                        var w = new StoryWorkPointDef { Id = Str(wo, "Id", wpath, errors, true) };
-                        if (string.IsNullOrEmpty(w.Id)) continue;
-                        if (!seen.Add(w.Id)) errors.Add(new StoryValidationIssue(wpath + ".Id", "duplicate_id", "工作点 ID 重复 '" + w.Id + "'"));
-                        w.Prop = Str(wo, "Prop", wpath, errors, true);
-                        if (!string.IsNullOrEmpty(w.Prop) && layout.FindProp(w.Prop) == null)
-                            errors.Add(new StoryValidationIssue(wpath + ".Prop", "unknown_prop", "工作点引用的道具 '" + w.Prop + "' 不在同一布局里"));
-                        w.Side = Str(wo, "Side", wpath, errors, true) ?? "front";
-                        if (w.Side != "front" && w.Side != "back" && w.Side != "left" && w.Side != "right")
-                            errors.Add(new StoryValidationIssue(wpath + ".Side", "bad_token", "Side 只能是 front / back / left / right，实际 '" + w.Side + "'"));
-                        w.Offset = Float(wo, "Offset", wpath, errors, 0f, 0f, 100f);
-                        w.Contact = FloatArray(wo, "Contact", wpath, errors, 3, true);
-                        w.Yaw = Float(wo, "Yaw", wpath, errors, 0f, -3600f, 3600f);
-                        w.ArriveTolerance = Float(wo, "ArriveTolerance", wpath, errors, 0.6f, 0.01f, 20f);
-                        w.MaxOccupants = Int(wo, "MaxOccupants", wpath, errors, 1, 1, 8);
-                        w.Action = Str(wo, "Action", wpath, errors, true);
-                        layout.WorkPoints.Add(w);
-                    }
+                        ParsePoint(works[i], path + ".WorkPoints[" + i + "]", errors, layout, "work");
                 }
 
                 var posts = Arr(lo, "Posts", path, errors);
                 if (posts != null)
                 {
-                    var seen = new HashSet<string>(StringComparer.Ordinal);
                     for (int i = 0; i < posts.Count; i++)
+                        ParsePoint(posts[i], path + ".Posts[" + i + "]", errors, layout, "post");
+                }
+
+                // 把 CSV 里属于「本场景 + 本布局」的点位追加进来（同 id 视为重复定义，报错）。
+                string csvKey = (data.Scene ?? "") + "|" + lp.Name;
+                if (csvPoints != null)
+                {
+                    foreach (var otherKey in csvPoints.Keys)
                     {
-                        string ppath = path + ".Posts[" + i + "]";
-                        if (!(posts[i] is JObject po)) { errors.Add(new StoryValidationIssue(ppath, "wrong_type", "岗位必须是对象")); continue; }
-                        Keys(po, ppath, new[] { "Id", "Gate", "Anchor", "Fwd", "Right", "Up", "Facing" }, errors);
-                        var p = new StoryPostDef { Id = Str(po, "Id", ppath, errors, true) };
-                        if (string.IsNullOrEmpty(p.Id)) continue;
-                        if (!seen.Add(p.Id)) errors.Add(new StoryValidationIssue(ppath + ".Id", "duplicate_id", "岗位 ID 重复 '" + p.Id + "'"));
-                        p.Gate = Str(po, "Gate", ppath, errors, true);
-                        if (!string.IsNullOrEmpty(p.Gate) && !layout.Gates.ContainsKey(p.Gate))
-                            errors.Add(new StoryValidationIssue(ppath + ".Gate", "unknown_gate", "岗位引用的门区 '" + p.Gate + "' 不在同一布局里"));
-                        p.Place = Point(po, null, ppath, errors, layout, true);
-                        p.Facing = Float(po, "Facing", ppath, errors, -1f, -3600f, 3600f);
-                        layout.Posts.Add(p);
+                        if (otherKey == csvKey) continue;
+                        int bar = otherKey.IndexOf('|');
+                        string otherScene = bar > 0 ? otherKey.Substring(0, bar) : "";
+                        string otherLayout = bar > 0 ? otherKey.Substring(bar + 1) : otherKey;
+                        if (otherLayout == lp.Name && otherScene != (data.Scene ?? ""))
+                            errors.Add(new StoryValidationIssue("StoryPoints.csv[" + otherKey + "]", "scene_mismatch",
+                                "点位行写的场景是 '" + otherScene + "'，本文件场景是 '" + data.Scene + "'；坐标不通用，请分场景维护"));
+                    }
+                }
+                if (csvPoints != null && csvPoints.TryGetValue(csvKey, out var extra) && extra != null)
+                {
+                    foreach (var pt in extra)
+                    {
+                        if (layout.FindPoint(pt.Id) != null)
+                        {
+                            errors.Add(new StoryValidationIssue(path + ".Points", "duplicate_id",
+                                "点位 '" + pt.Id + "' 同时出现在 StoryPoints.csv 与 JSON 内联 Points 里"));
+                            continue;
+                        }
+                        if (!string.IsNullOrEmpty(pt.Place.Anchor) && !layout.Anchors.ContainsKey(pt.Place.Anchor))
+                            errors.Add(new StoryValidationIssue("StoryPoints.csv[" + pt.Id + "].Anchor", "unknown_anchor",
+                                "锚点 '" + pt.Place.Anchor + "' 不在布局 '" + layout.Id + "' 里"));
+                        layout.Points.Add(pt);
                     }
                 }
 
@@ -681,19 +703,21 @@ namespace LivingWorldNpcs
                     {
                         string spath = path + ".Standing[" + i + "]";
                         if (!(standing[i] is JObject so)) { errors.Add(new StoryValidationIssue(spath, "wrong_type", "站位必须是对象")); continue; }
-                        Keys(so, spath, new[] { "Actor", "Post", "WorkPoint", "Anchor", "Fwd", "Right", "Up", "Facing" }, errors);
+                        Keys(so, spath, new[] { "Actor", "Point", "Post", "WorkPoint" }, errors);
+                        // 空间信息只有一个来源 = Points：站位里写 Anchor/Fwd/Right/Up/Facing 一律报错。
+                        foreach (string forbidden in new[] { "Anchor", "Fwd", "Right", "Up", "Facing" })
+                            if (so.Property(forbidden) != null)
+                                errors.Add(new StoryValidationIssue(spath + "." + forbidden, "bad_field",
+                                    "站位的空间信息（" + forbidden + "）必须写在 Point 指向的点位上，不能写在站位里"));
                         var s = new StoryStandingDef { Actor = Str(so, "Actor", spath, errors, true) };
-                        s.Post = Str(so, "Post", spath, errors, false);
-                        s.WorkPoint = Str(so, "WorkPoint", spath, errors, false);
-                        int sources = (string.IsNullOrEmpty(s.Post) ? 0 : 1) + (string.IsNullOrEmpty(s.WorkPoint) ? 0 : 1) + (so.Property("Anchor") != null ? 1 : 0);
-                        if (sources != 1)
-                            errors.Add(new StoryValidationIssue(spath, "bad_field", "站位必须在 Post / WorkPoint / Anchor 里三选一（当前 " + sources + " 个）"));
-                        if (!string.IsNullOrEmpty(s.Post) && layout.Posts.All(p => p.Id != s.Post))
-                            errors.Add(new StoryValidationIssue(spath + ".Post", "unknown_post", "站位引用的岗位 '" + s.Post + "' 不存在"));
-                        if (!string.IsNullOrEmpty(s.WorkPoint) && layout.WorkPoints.All(w => w.Id != s.WorkPoint))
-                            errors.Add(new StoryValidationIssue(spath + ".WorkPoint", "unknown_workpoint", "站位引用的工作点 '" + s.WorkPoint + "' 不存在"));
-                        if (so.Property("Anchor") != null) s.Place = Point(so, null, spath, errors, layout, true);
-                        s.Facing = Float(so, "Facing", spath, errors, -1f, -3600f, 3600f);
+                        // 三个键都接受，最后都是同一个概念：点位 id（旧数据留 Post / WorkPoint 也照旧生效）。
+                        s.Point = Str(so, "Point", spath, errors, false);
+                        if (string.IsNullOrEmpty(s.Point)) s.Point = Str(so, "Post", spath, errors, false);
+                        if (string.IsNullOrEmpty(s.Point)) s.Point = Str(so, "WorkPoint", spath, errors, false);
+                        if (string.IsNullOrEmpty(s.Point))
+                            errors.Add(new StoryValidationIssue(spath + ".Point", "missing_field", "站位必须写 Point（点位 id）"));
+                        else if (layout.FindPoint(s.Point) == null)
+                            errors.Add(new StoryValidationIssue(spath + ".Point", "unknown_point", "站位引用的点位 '" + s.Point + "' 不存在"));
                         layout.Standing.Add(s);
                     }
                 }
@@ -1141,9 +1165,9 @@ namespace LivingWorldNpcs
                                     "actor_place 必须在 Post / WorkPoint / Anchor 里三选一（当前 " + sources + " 个）"));
                             if (openingStage != null && data.Layouts.TryGetValue(openingStage.Layout ?? "", out var lp))
                             {
-                                if (!string.IsNullOrEmpty(postId) && lp.Posts.All(x => x.Id != postId))
+                                if (!string.IsNullOrEmpty(postId) && lp.FindPoint(postId) == null)
                                     errors.Add(new StoryValidationIssue(path + ".Post", "unknown_post", "岗位 '" + postId + "' 不在布局里"));
-                                if (!string.IsNullOrEmpty(workId) && lp.WorkPoints.All(x => x.Id != workId))
+                                if (!string.IsNullOrEmpty(workId) && lp.FindPoint(workId) == null)
                                     errors.Add(new StoryValidationIssue(path + ".WorkPoint", "unknown_workpoint", "工作点 '" + workId + "' 不在布局里"));
                             }
                         }
@@ -1225,10 +1249,28 @@ namespace LivingWorldNpcs
                 foreach (var p in layout.Props.Where(p => p.Source == "prefab"))
                     result.Solved.Add(new StorySolvedPoint { Kind = "prop", Id = p.Id, Anchor = p.Place.Anchor, Fwd = p.Place.Fwd, Right = p.Place.Right, Up = p.Place.Up });
 
-                foreach (var post in layout.Posts)
-                    result.Solved.Add(new StorySolvedPoint { Kind = "post", Id = post.Id, Anchor = post.Place.Anchor, Fwd = post.Place.Fwd, Right = post.Place.Right, Up = post.Place.Up });
+                foreach (var pt in layout.Points)
+                {
+                    // 绝对坐标的点位不需要解算（它不依赖锚点）
+                    if (pt.Place.HasAbsolute)
+                    {
+                        result.Solved.Add(new StorySolvedPoint
+                        {
+                            Kind = string.IsNullOrEmpty(pt.Role) ? "point" : pt.Role, Id = pt.Id,
+                            Anchor = "<absolute>", Fwd = pt.Place.Absolute[0], Right = pt.Place.Absolute[1], Up = pt.Place.Absolute[2]
+                        });
+                        continue;
+                    }
+                    // 挂道具旁的点位：以道具为基准算偏移
+                    if (!string.IsNullOrEmpty(pt.Prop)) continue;
+                    result.Solved.Add(new StorySolvedPoint
+                    {
+                        Kind = string.IsNullOrEmpty(pt.Role) ? "point" : pt.Role, Id = pt.Id,
+                        Anchor = pt.Place.Anchor, Fwd = pt.Place.Fwd, Right = pt.Place.Right, Up = pt.Place.Up
+                    });
+                }
 
-                foreach (var w in layout.WorkPoints)
+                foreach (var w in layout.Points.Where(x => !string.IsNullOrEmpty(x.Prop)))
                 {
                     var prop = layout.FindProp(w.Prop);
                     if (prop == null || prop.Source != "prefab") continue;
@@ -1392,6 +1434,161 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 点：写 Anchor + Fwd/Right/Up；name 为 null 时表示这些键直接挂在父对象上。
         /// </summary>
+        /// <summary>
+        /// 读 `ModuleData/DesignData/StoryPoints.csv`（点位唯一来源，2026-11-16 用户裁定）。
+        /// 列：`Id,Scene,Layout,Role,Anchor,X,Y,Z,Dir,Action,MaxOccupants,ArriveTolerance`（12 列）。
+        /// · **Scene = 这张点位所属的场景**（如 `empire_town_m`）：坐标是场景相关的，换场景不通用；
+        ///   本文件只消费与自身 `Scene` 相同、且 `Layout` 名字匹配的行。
+        /// · `Anchor` 留空 = X/Y/Z 是绝对世界坐标；非空 = X/Y/Z 是相对该锚点的 Fwd/Right/Up。
+        /// 🔴 值里禁止出现半角逗号（铁律 24），出现直接报错，不做"猜"。
+        /// 返回的键 = `"场景|布局"`。
+        /// </summary>
+        private static Dictionary<string, List<StoryPointDef>> LoadPointsCsv(List<StoryValidationIssue> errors, string currentScene)
+        {
+            var result = new Dictionary<string, List<StoryPointDef>>(StringComparer.Ordinal);
+            string path;
+            try { path = System.IO.Path.Combine(StoryProbeDataFiles.DesignDataFolder, "StoryPoints.csv"); }
+            catch { return result; }
+            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+            {
+                // 没有 CSV 不算错：夹具/旧数据可能仍把 Points 写在 JSON 里。
+                return result;
+            }
+
+            string[] lines;
+            try { lines = System.IO.File.ReadAllLines(path); }
+            catch (Exception ex)
+            {
+                errors.Add(new StoryValidationIssue("StoryPoints.csv", "read_failed", "读不到 CSV：" + ex.Message));
+                return result;
+            }
+
+            const string header = "Id,Scene,Layout,Role,Anchor,X,Y,Z,Dir,Action,MaxOccupants,ArriveTolerance";
+            int startRow = 0;
+            if (lines.Length > 0 && lines[0].Trim().TrimStart('﻿') == header) startRow = 1;
+
+            for (int i = startRow; i < lines.Length; i++)
+            {
+                string raw = lines[i];
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                var cols = raw.Split(',');
+                if (cols.Length != 12)
+                {
+                    errors.Add(new StoryValidationIssue("StoryPoints.csv:" + (i + 1), "bad_column_count",
+                        "每行必须 12 列（Id,Scene,Layout,Role,Anchor,X,Y,Z,Dir,Action,MaxOccupants,ArriveTolerance），实际 " + cols.Length + " 列"));
+                    continue;
+                }
+                for (int c = 0; c < cols.Length; c++) cols[c] = cols[c].Trim();
+
+                string id = cols[0], scene = cols[1], layoutId = cols[2], role = cols[3], anchorName = cols[4];
+                if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(scene) || string.IsNullOrEmpty(layoutId))
+                {
+                    errors.Add(new StoryValidationIssue("StoryPoints.csv:" + (i + 1), "missing_field", "Id / Scene / Layout 必填"));
+                    continue;
+                }
+
+                var pt = new StoryPointDef { Id = id, Role = role ?? "", Facing = ParseCsvFloat(cols[8], -1f) };
+                pt.Action = string.IsNullOrEmpty(cols[9]) ? null : cols[9];
+                pt.MaxOccupants = (int)ParseCsvFloat(cols[10], 1f);
+                pt.ArriveTolerance = ParseCsvFloat(cols[11], 0.6f);
+
+                float x = ParseCsvFloat(cols[5], 0f), y = ParseCsvFloat(cols[6], 0f), z = ParseCsvFloat(cols[7], 0f);
+                if (string.IsNullOrEmpty(anchorName))
+                    pt.Place.Absolute = new[] { x, y, z };
+                else
+                {
+                    pt.Place.Anchor = anchorName;
+                    pt.Place.Fwd = x; pt.Place.Right = y; pt.Place.Up = z;
+                }
+
+                string key = scene + "|" + layoutId;
+                if (!result.TryGetValue(key, out var list))
+                    result[key] = list = new List<StoryPointDef>();
+                if (list.Any(x2 => x2.Id == id))
+                    errors.Add(new StoryValidationIssue("StoryPoints.csv:" + (i + 1), "duplicate_id",
+                        "点位 ID 在 '" + key + "' 里重复 '" + id + "'"));
+                else list.Add(pt);
+            }
+            return result;
+        }
+
+        private static float ParseCsvFloat(string text, float fallback)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return fallback;
+            return float.TryParse(text.Trim(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : fallback;
+        }
+
+        /// <summary>
+        /// 解析一个统一点位（2026-11-16 用户裁定：Post 与 WorkPoint 合并）。
+        /// 位置三选一：`Pos` 绝对坐标 / `Anchor`+`Fwd/Right/Up` 相对锚点 / `Prop`+`Side`+`Offset` 挂在道具旁。
+        /// 朝向：`Facing`（-1 = 面朝玩家/门外；0~360 = 绝对角度）；旧字段 `Yaw` 并入同一字段。
+        /// </summary>
+        private static void ParsePoint(JToken token, string ppath, List<StoryValidationIssue> errors,
+            StoryLayoutDef layout, string legacyRole)
+        {
+            if (!(token is JObject po)) { errors.Add(new StoryValidationIssue(ppath, "wrong_type", "点位必须是对象")); return; }
+            Keys(po, ppath, new[] { "Id", "Role", "Gate", "Anchor", "Fwd", "Right", "Up", "Pos", "Prop",
+                                    "Side", "Offset", "Contact", "Facing", "Yaw",
+                                    "ArriveTolerance", "MaxOccupants", "Action", "Required" }, errors);
+            var p = new StoryPointDef
+            {
+                Id = Str(po, "Id", ppath, errors, true),
+                Role = Str(po, "Role", ppath, errors, false) ?? (legacyRole ?? "")
+            };
+            if (string.IsNullOrEmpty(p.Id)) return;
+            if (layout.FindPoint(p.Id) != null)
+                errors.Add(new StoryValidationIssue(ppath + ".Id", "duplicate_id", "点位 ID 重复 '" + p.Id + "'"));
+
+            p.Gate = Str(po, "Gate", ppath, errors, false);
+            if (!string.IsNullOrEmpty(p.Gate) && !layout.Gates.ContainsKey(p.Gate))
+                errors.Add(new StoryValidationIssue(ppath + ".Gate", "unknown_gate", "点位引用的门区 '" + p.Gate + "' 不在同一布局里"));
+
+            p.Prop = Str(po, "Prop", ppath, errors, false);
+            if (!string.IsNullOrEmpty(p.Prop) && layout.FindProp(p.Prop) == null)
+                errors.Add(new StoryValidationIssue(ppath + ".Prop", "unknown_prop", "点位引用的道具 '" + p.Prop + "' 不在同一布局里"));
+            p.Side = Str(po, "Side", ppath, errors, false) ?? "front";
+            if (p.Side != "front" && p.Side != "back" && p.Side != "left" && p.Side != "right")
+                errors.Add(new StoryValidationIssue(ppath + ".Side", "bad_token", "Side 只能是 front / back / left / right，实际 '" + p.Side + "'"));
+            p.Offset = Float(po, "Offset", ppath, errors, 0f, 0f, 100f);
+            p.Contact = FloatArray(po, "Contact", ppath, errors, 3, false);
+
+            bool hasPos = po.Property("Pos") != null;
+            bool hasAnchor = po.Property("Anchor") != null;
+            bool hasProp = !string.IsNullOrEmpty(p.Prop);
+            int placeSources = (hasPos ? 1 : 0) + (hasAnchor ? 1 : 0) + (hasProp ? 1 : 0);
+            if (placeSources == 0)
+                errors.Add(new StoryValidationIssue(ppath, "bad_field",
+                    "点位必须给出位置来源：Pos（绝对坐标）/ Anchor+Fwd/Right/Up / Prop+Side+Offset 三选一"));
+            else if (placeSources > 1)
+                errors.Add(new StoryValidationIssue(ppath, "bad_field",
+                    "点位的位置来源只能有一个（当前 " + placeSources + " 个）"));
+
+            if (hasPos)
+            {
+                var arr = FloatArray(po, "Pos", ppath, errors, 3, true);
+                if (arr != null && arr.Length == 3) p.Place.Absolute = arr;
+            }
+            if (hasAnchor)
+            {
+                p.Place.Anchor = Str(po, "Anchor", ppath, errors, true);
+                if (!string.IsNullOrEmpty(p.Place.Anchor) && !layout.Anchors.ContainsKey(p.Place.Anchor))
+                    errors.Add(new StoryValidationIssue(ppath + ".Anchor", "unknown_anchor", "锚点 '" + p.Place.Anchor + "' 不在同一布局里"));
+                p.Place.Fwd = Float(po, "Fwd", ppath, errors, 0f, -1000f, 1000f);
+                p.Place.Right = Float(po, "Right", ppath, errors, 0f, -1000f, 1000f);
+                p.Place.Up = Float(po, "Up", ppath, errors, 0f, -1000f, 1000f);
+            }
+
+            p.Facing = Float(po, "Facing", ppath, errors, -1f, -3600f, 3600f);
+            if (po.Property("Yaw") != null) p.Facing = Float(po, "Yaw", ppath, errors, p.Facing, -3600f, 3600f);
+
+            p.ArriveTolerance = Float(po, "ArriveTolerance", ppath, errors, 0.6f, 0.01f, 20f);
+            p.MaxOccupants = Int(po, "MaxOccupants", ppath, errors, 1, 1, 8);
+            p.Action = Str(po, "Action", ppath, errors, false);
+            p.Required = Bool(po, "Required", ppath, errors, false);
+            layout.Points.Add(p);
+        }
+
         private static StoryPoint Point(JObject o, string name, string path, List<StoryValidationIssue> errors,
             StoryLayoutDef layout, bool required)
         {

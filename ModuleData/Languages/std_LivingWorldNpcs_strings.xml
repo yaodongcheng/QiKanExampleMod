@@ -5,6 +5,10 @@
   </tags>
   <strings>
     <string id="LWN_performance_facing_debug" text="[Performance debug] {SPEAKER} -> {LISTENER}: body turn and gaze requested; body error {ANGLE} degrees (0 = facing the listener)." />
+    <string id="LWN_dialogue_facing_debug" text="[Dialogue debug] {SPEAKER} -> {LISTENER}: body error {ANGLE} degrees (0 = facing the listener); gaze requested." />
+    <string id="LWN_performance_cone_debug" text="[Performance debug] {SPEAKER} -> {LISTENER}: {MODE}; body error {ANGLE} degrees; gaze requested." />
+    <string id="LWN_performance_turn_outside" text="outside view cone: turn body" />
+    <string id="LWN_performance_gaze_inside" text="inside view cone: gaze only" />
     
     
     

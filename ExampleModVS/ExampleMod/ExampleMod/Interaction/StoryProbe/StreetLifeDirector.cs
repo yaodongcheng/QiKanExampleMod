@@ -13,7 +13,7 @@ namespace LivingWorldNpcs
     /// 三层行为：
     ///   ① 常驻动作 —— 每人 8~20 秒挑一条原版动作 + 偶尔一句吆喝（原版动作名见 vanilla_action_names.txt）；
     ///   ② 开场事件 —— 6 起（4 双人 + 2 单人），**开演后停在开头自循环**：台词每 3~5 秒一句、
-    ///      动作循环、头顶「!」，不会自己散场也不会自己结束；玩家走近 4 m 才暂停并接入对话；
+    ///      动作循环、头顶「!」；玩家主动按 F 才暂停并接入对话，靠近只观看；
     ///   ③ 随机桥段 —— 90 秒一段，只是氛围，不可接入（§7.1）。
     ///
     /// 纪律：
@@ -32,7 +32,6 @@ namespace LivingWorldNpcs
         // ── 事件 ──
         private StoryEventDef _activeEvent;
         private bool _eventPaused;
-        private bool _joinArmed = true;   // 走近可接入的闸门（谈完一次要离开 6 m 才重新武装）
         private bool _eventSkit;              // true = 随机桥段（无「!」、不可接入）
         private float _eventElapsed;
         private float _nextEventLineAt;
@@ -285,7 +284,6 @@ namespace LivingWorldNpcs
             _activeEvent = def;
             _eventSkit = skit;
             _eventPaused = false;
-            _joinArmed = true;
             _eventElapsed = 0f;
             _lineCursor = 0;
             _nextEventLineAt = _time + StoryProbeTuning.Current.Events.FirstLineDelaySec;
@@ -365,33 +363,16 @@ namespace LivingWorldNpcs
             if (!_eventPaused && !inConversation) _eventElapsed += dt;
             var player = Agent.Main;
 
-            // ① 玩家走近 4 m → 暂停 + 自动开对话（只有真事件，桥段不接）
-            float nearestNow = NearestParticipantDistance();
-            if (!_joinArmed && nearestNow > StoryProbeTuning.Current.Events.JoinArmDistanceMeters) _joinArmed = true;   // 走远了才允许再次接入
-
-            if (!_eventPaused && !inConversation && player != null && _joinArmed)
+            // ① 近距离只打断不可参与的随机桥段；正式事件继续循环，F入口负责交接。
+            if (!_eventPaused && !inConversation && player != null && _eventSkit
+                && NearestParticipantDistance() <= StoryProbeTuning.Current.Events.JoinDistanceMeters)
             {
-                float nearest = nearestNow;
-                if (nearest <= StoryProbeTuning.Current.Events.JoinDistanceMeters)
-                {
-                    if (_eventSkit)
-                    {
-                        // 桥段：玩家走近就让开，不接入
-                        EndEvent("skit-interrupted");
-                        return;
-                    }
-                    _eventPaused = true;
-                    foreach (var lease in _eventActors.Values) lease.Pause(true);
-                    _joinArmed = false;
-                    var host = _host.GetAgent(_activeEvent.HostNpcId);
-                    DebugLogger.Log($"[StoryProbe] event #{_activeEvent.Index} pause (player {nearest:F1} m) -> join dialogue");
-                    if (host != null) _host.StartStoryConversation(host, null, "event_join");
-                    return;
-                }
+                EndEvent("skit-interrupted");
+                return;
             }
 
             // ② 暂停中：等对话结束 → **回到循环**（§6.2：选【走开】不散场，谈过一场也继续演）
-            //    重新接入的门槛 = 先离开 6 m（_joinArmed），免得刚关窗又被拉进对话
+            //    再次参与仍需主动按 F，不设走远再回来才能交谈的距离门槛。
             if (_eventPaused)
             {
                 if (!inConversation)
@@ -404,7 +385,6 @@ namespace LivingWorldNpcs
                     StartEvent(resume, skit);
                     _lineCursor = lineCursor;
                     _eventElapsed = elapsed;
-                    _joinArmed = false;
                     _nextEventLineAt = _time + StoryProbeTuning.Current.Events.ResumeLineDelaySec;
                     DebugLogger.Log($"[StoryProbe] event #{resume.Index} reacquired after conversation");
                 }
@@ -558,6 +538,19 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════════
         // 常驻动作 + 反应
         // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>纯读F入口路由：成员、业务主持人与接入节点均取当前事件数据。</summary>
+        internal bool TryGetDialogueEntry(Agent clicked, out string hostActor, out string entryNode)
+        {
+            hostActor = null;
+            entryNode = null;
+            if (clicked == null || _activeEvent == null || _eventSkit || _eventInterrupted != null
+                || !EventMembers(_activeEvent).Contains(ResolveNpcId(clicked))
+                || string.IsNullOrEmpty(_activeEvent.JoinNode)) return false;
+            hostActor = _activeEvent.HostNpcId;
+            entryNode = _activeEvent.JoinNode;
+            return _host.GetAgent(hostActor) != null;
+        }
 
         private void ReleaseAmbient(Agent agent, string reason = "ambient finished")
         {
@@ -817,7 +810,7 @@ namespace LivingWorldNpcs
             string evt = _activeEvent == null ? "-" : $"#{_activeEvent.Index}{( _eventSkit ? "(skit)" : "")}{(_eventPaused ? "(paused)" : "")}";
             return $"time={_time:F1} stopped={Stopped} event={evt} prepared={_eventPrepared} " +
                    $"interrupted={(_eventInterrupted ?? "-")} actors={_eventActors.Count} groups={_events.Count} " +
-                   $"nextEventIn={Math.Max(0f, _nextEventAt - _time):F1}s played=[{string.Join(",", _playedEvents)}]";
+                   $"join=player-F nextEventIn={Math.Max(0f, _nextEventAt - _time):F1}s played=[{string.Join(",", _playedEvents)}]";
         }
 
         public string ListDefs()

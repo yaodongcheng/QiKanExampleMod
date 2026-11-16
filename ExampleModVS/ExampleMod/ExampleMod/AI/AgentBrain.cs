@@ -84,6 +84,26 @@ namespace LivingWorldNpcs
         private PerformanceAction _performance;
         private AlertForceConversationAction _storyInterceptAction;
         private float _storyInterceptElapsed;
+        // ── 职责点（2026-11-16 用户裁定，通用）：这名 NPC 自己的岗位/工作点，由宿主按数据写一次。
+        //    屠夫是肉铺、守卫是门口 —— 区别只在 JSON 里的点位，不在代码里。
+        //    默认行为由 DecideDefaultBehavior 消费：离岗走回去、到位就站住。
+        private bool _hasDutyPoint;
+        private Vec3 _dutyPoint;
+        private float _dutyFacing = -1f;   // -1 = 面朝玩家；0~360 = 绝对角度（与 JSON 的 Facing 同义）
+        /// <summary>
+        /// 写这名 NPC 的**职责点**（位置 + 朝向）。
+        /// 朝向语义与 JSON 一致：`facingDeg < 0` = 面朝玩家（首遇即面朝门外），否则按绝对角度（度）。
+        /// 写入后如果正挂着站岗占位（StayAction），清掉重排，让新朝向立刻生效。
+        /// </summary>
+        public void SetDutyPoint(Vec3 point, float facingDeg = -1f)
+        {
+            _dutyPoint = point;
+            _dutyFacing = facingDeg;
+            _hasDutyPoint = true;
+            if (_currentAction is StayAction || (_actionQueue.Count > 0 && _actionQueue.Peek() is StayAction))
+                ClearAllActions(lockPlace: false);
+        }
+        public void ClearDutyPoint() { _hasDutyPoint = false; }
         public bool IsPerforming => _performance != null && !_performance.Ended;
         public bool IsStoryIntercepting => _storyInterceptAction != null;
         internal bool OwnsPerformance(PerformanceAction action) => _performance == action;
@@ -1761,7 +1781,58 @@ namespace LivingWorldNpcs
             if (IsBound) return;
             // 被处决倒地的同理（2026-10-20）：占位动作让脑永不为空，这一条是兜底。
             if (IsStatusHeld) return;
+
+            // 🔴 职责点 = 这名 NPC 的**默认行为**（2026-11-16 用户裁定，通用规则）：
+            //    "追人/对话/演出这类临时行为结束、队列清空"之后，默认行为只有两种 ——
+            //    离开自己的岗位 → 走回去；已在岗位 → 站住（StayAction），不交回原版 AI 乱逛。
+            //    每个人都有自己的点位（屠夫→肉铺、守卫→门口），点位来自 JSON，不是写死。
+            if (_hasDutyPoint && !IsStunned && Owner != null)
+            {
+                if (Owner.Position.Distance(_dutyPoint) > 1.2f)
+                {
+                    EnqueueAction(new StoryMoveAction(_dutyPoint, 0.6f, null));
+                    return;
+                }
+
+                // 到位：先按点位朝向转身（Facing 终于在这里被消费），转正了再站住。
+                if (TryResolveDutyDirection(out var want))
+                {
+                    Vec2 look = Owner.LookDirection.AsVec2;
+                    float dot = look.LengthSquared > 1e-4f && want.LengthSquared > 1e-4f
+                        ? Vec2.DotProduct(look.Normalized(), want.Normalized()) : 1f;
+                    // 阈值要比 TurnToDirectionAction 自己的精度(0.98)更宽松，否则转到了又被判"不够正"→ 无限转圈。
+                    if (dot < 0.96f)   // 约 16° 以内不算要转
+                    {
+                        EnqueueAction(new TurnToDirectionAction(want));
+                        return;
+                    }
+                }
+
+                // -1（面朝玩家）时保留"看着玩家"，绝对角度时纯站住。
+                EnqueueAction(_dutyFacing < 0f ? new StayAction(Agent.Main, keepRotating: true)
+                                               : new StayAction(null, keepRotating: false));
+                return;
+            }
+
             ResumeVanillaAI();
+        }
+
+        /// <summary>把职责点的朝向解成一个水平方向向量；解不出来（比如 -1 但玩家不在附近）就返回 false。</summary>
+        private bool TryResolveDutyDirection(out Vec2 direction)
+        {
+            direction = Vec2.Zero;
+            if (_dutyFacing >= 0f)
+            {
+                float rad = _dutyFacing * MathF.PI / 180f;
+                direction = new Vec2(MathF.Cos(rad), MathF.Sin(rad));
+                return direction.LengthSquared > 1e-4f;
+            }
+            // -1 = 面朝玩家：只在他离得不太远时这么做，别让站岗的人盯着三十米外的路人。
+            var player = Agent.Main;
+            if (player == null || !AgentControlHelper.SafeIsActive(player)) return false;
+            if (Owner.Position.Distance(player.Position) > 30f) return false;
+            direction = (player.Position - Owner.Position).AsVec2;
+            return direction.LengthSquared > 1e-4f;
         }
 
         /// <summary>脑里现在还挂着 <see cref="BoundAction"/> 占位吗（安全网判据，见 <see cref="Tick"/>）。</summary>
@@ -2494,7 +2565,9 @@ namespace LivingWorldNpcs
                 if (_storyInterceptElapsed > 30f && !ConversationEntryPatch.IsConversationActive())
                     ClearAllActions(lockPlace: false);
             }
-            if (IsPerforming && Settings.Instance.IsInteractionDisabled())
+            // 原版开窗会切换到Conversation模式；已交还身体的暂停租约要留到散场恢复。
+            if (IsPerforming && Settings.Instance.IsInteractionDisabled()
+                && !(_performance.Paused && ConversationEntryPatch.IsConversationActive()))
                 _performance.Finish("mode-disabled");
             // 🔴 距离分档降频（2026-09-03 用户裁定：20m 内每帧 / 20-100m 每 0.1s / 100m+ 每 0.25s；
             // ReceiveEvent 同步直发不经本方法，事件响应零延迟）。拦截写在本方法内——

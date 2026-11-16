@@ -24,6 +24,7 @@ namespace LivingWorldNpcs
     /// </summary>
     public class NpcSightSystem : MissionLogic
     {
+        public const float DefaultFovDegrees = 120f;
         // 单例：供 AgentHudMissionView / ProcessAgentCandidate 等处查询缓存
         public static NpcSightSystem Instance { get; private set; }
 
@@ -41,10 +42,32 @@ namespace LivingWorldNpcs
         // 静态查询（任意 Agent → 任意 Agent）
         // ============================================================
 
+        /// <summary>只查询已有水平视野扇形，不包含距离、高差、遮挡或玩家屏幕投影。
+        /// 身体转向门槛以身体为基准，防止SetLookAgent转头改变判定；目击仍以LookDirection为基准。</summary>
+        public static bool IsTargetInViewCone(Agent observer, Agent target,
+            float fovDegrees = DefaultFovDegrees, bool useBodyFacing = false)
+        {
+            if (!AgentControlHelper.SafeIsActive(observer) || !AgentControlHelper.SafeIsActive(target)
+                || observer == target) return false;
+            // 水平同点没有可转的方向；身体保持，仍可注视高低不同的listener。
+            if (useBodyFacing && (target.Position - observer.Position).AsVec2.LengthSquared < 0.0001f) return true;
+            return ViewConeDot(observer, target, useBodyFacing) >= ViewConeThreshold(fovDegrees);
+        }
+
+        private static float ViewConeDot(Agent observer, Agent target, bool useBodyFacing = false)
+        {
+            Vec2 dirToTarget2D = (target.Position - observer.Position).AsVec2.Normalized();
+            Vec2 lookDir2D = (useBodyFacing ? observer.Frame.rotation.f : observer.LookDirection).AsVec2.Normalized();
+            return Vec2.DotProduct(lookDir2D, dirToTarget2D);
+        }
+
+        private static float ViewConeThreshold(float fovDegrees)
+            => MathF.Cos(MathF.DegToRad * (fovDegrees / 2f));
+
         /// <summary>observer 能否看到 target（距离 + 高度 + FOV + RayCast）。
         /// 玩家 observer 直接委托给 IsPlayerSeeing（屏幕投影判断）。</summary>
         public static bool CanAgentSeeTarget(Agent observer, Agent target,
-            float radius = 15f, float fovDegrees = 120f)
+            float radius = 15f, float fovDegrees = DefaultFovDegrees)
         {
             if (observer == null || target == null) return false;
             if (!AgentControlHelper.SafeIsActive(observer) || !AgentControlHelper.SafeIsActive(target)) return false;
@@ -60,11 +83,7 @@ namespace LivingWorldNpcs
 
             if (MathF.Abs(observer.Position.z - target.Position.z) > 3.0f) return false;
 
-            float fovDotThreshold = MathF.Cos(MathF.DegToRad * (fovDegrees / 2f));
-            Vec3 dirToTarget3D = target.Position - observer.Position;
-            Vec2 dirToTarget2D = dirToTarget3D.AsVec2.Normalized();
-            Vec2 lookDir2D = observer.LookDirection.AsVec2.Normalized();
-            if (Vec2.DotProduct(lookDir2D, dirToTarget2D) < fovDotThreshold) return false;
+            if (!IsTargetInViewCone(observer, target, fovDegrees)) return false;
 
             return !IsOccluded(observer, target);
         }
@@ -74,7 +93,7 @@ namespace LivingWorldNpcs
         /// 用途：日志里不要再只写 "no sight" —— 到底是太远、高低差太大、还是没朝这边看，直接打出来。
         /// </summary>
         public static string ExplainSight(Agent observer, Agent target,
-            float radius = 15f, float fovDegrees = 120f)
+            float radius = 15f, float fovDegrees = DefaultFovDegrees)
         {
             if (observer == null || target == null) return "no agent";
             if (!AgentControlHelper.SafeIsActive(observer) || !AgentControlHelper.SafeIsActive(target)) return "inactive";
@@ -87,10 +106,8 @@ namespace LivingWorldNpcs
             float dz = MathF.Abs(observer.Position.z - target.Position.z);
             if (dz > 3.0f) return $"height dz={dz:F2}>3.00";
 
-            float fovDotThreshold = MathF.Cos(MathF.DegToRad * (fovDegrees / 2f));
-            Vec2 dirToTarget2D = (target.Position - observer.Position).AsVec2.Normalized();
-            Vec2 lookDir2D = observer.LookDirection.AsVec2.Normalized();
-            float dot = Vec2.DotProduct(lookDir2D, dirToTarget2D);
+            float fovDotThreshold = ViewConeThreshold(fovDegrees);
+            float dot = ViewConeDot(observer, target);
             if (dot < fovDotThreshold) return $"facing dot={dot:F2}<{fovDotThreshold:F2}";
 
             if (IsOccluded(observer, target)) return "occluded";

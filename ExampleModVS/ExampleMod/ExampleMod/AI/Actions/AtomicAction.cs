@@ -1547,6 +1547,7 @@ namespace LivingWorldNpcs
         private bool _bodyHeld;
         private float _facingDebugElapsed;
         private bool _facingDebugReported;
+        public bool BodyTurnRequested { get; private set; }
         public Agent SpeechListener { get; private set; }
         public string OwnerToken { get; }
         public bool Started { get; private set; }
@@ -1663,10 +1664,17 @@ namespace LivingWorldNpcs
             _bodyHeld = true;
             if (SpeechListener != null)
             {
-                // 气泡消失不解除；目标移动时持续更新身体朝向与注视，动作离开才归还。
-                AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);
+                // 只控制正在冒泡的speaker；扇形内只追踪注视，出了身体前方视野才请求转身。
+                // 复用视线引擎的120度扇形部分，不把远、遮挡或高差当成转身条件。
+                bool turnBody = !NpcSightSystem.IsTargetInViewCone(_brain.Owner, SpeechListener, useBodyFacing: true);
+                bool bodyModeChanged = turnBody != BodyTurnRequested;
+                BodyTurnRequested = turnBody;
+                if (turnBody) AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);
+                else AgentControlHelper.LookAtAgent(_brain.Owner, SpeechListener);
                 if (listenerChanged)
-                    DebugLogger.Log($"[Performance] tracking requested owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body=scripted-position-direction+FaceToActor gaze=SetLookAgent");
+                    DebugLogger.Log($"[Performance] tracking requested owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body={(turnBody ? "turn-outside-cone" : "gaze-only-inside-cone")} fov={NpcSightSystem.DefaultFovDegrees} gaze=SetLookAgent");
+                else if (bodyModeChanged)
+                    DebugLogger.Log($"[Performance] body mode owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body={(turnBody ? "turn-outside-cone" : "gaze-only-inside-cone")} fov={NpcSightSystem.DefaultFovDegrees}");
                 // 等引擎推进半秒再读真实身体朝向；每次换听话者只播一次，不能每帧刷屏。
                 if (Settings.Instance.ShowPerformanceFacingDebugMessages && !_facingDebugReported
                     && _facingDebugElapsed >= 0.5f)
@@ -1679,10 +1687,12 @@ namespace LivingWorldNpcs
                         double dot = Math.Max(-1d, Math.Min(1d, direction.x * facing.x + direction.y * facing.y));
                         string angle = (Math.Acos(dot) * 180d / Math.PI).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
                         _facingDebugReported = true;
-                        DebugLogger.Log($"[Performance] facing sample owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} bodyErrorDeg={angle} gaze=SetLookAgent-requested");
+                        DebugLogger.Log($"[Performance] facing sample owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} bodyTurnRequested={BodyTurnRequested} bodyErrorDeg={angle} fov={NpcSightSystem.DefaultFovDegrees} gaze=SetLookAgent-requested");
                         InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompoundMixed(
-                            "LWN_performance_facing_debug", "[Performance debug] {SPEAKER} -> {LISTENER}: body turn and gaze requested; body error {ANGLE} degrees (0 = facing the listener).",
-                            ("SPEAKER", (object)_brain.Owner.Name), ("LISTENER", (object)SpeechListener.Name), ("ANGLE", (object)angle))));
+                            "LWN_performance_cone_debug", "[Performance debug] {SPEAKER} -> {LISTENER}: {MODE}; body error {ANGLE} degrees; gaze requested.",
+                            ("SPEAKER", (object)_brain.Owner.Name), ("LISTENER", (object)SpeechListener.Name), ("ANGLE", (object)angle),
+                            ("MODE", (object)LWNTextHelper.ResolveText(BodyTurnRequested ? "LWN_performance_turn_outside" : "LWN_performance_gaze_inside",
+                                BodyTurnRequested ? "outside view cone: turn body" : "inside view cone: gaze only")))));
                     }
                 }
             }
@@ -1692,6 +1702,7 @@ namespace LivingWorldNpcs
         {
             if (!_bodyHeld) return;
             _bodyHeld = false;
+            BodyTurnRequested = false;
             if (Mission.Current != _mission || !_brain.OwnsPerformance(this)
                 || _brain.IsBound || _brain.IsStatusHeld || _brain.IsStunned
                 || !AgentControlHelper.SafeIsActive(_brain.Owner) || _brain.Owner.Health <= 0f) return;
@@ -1706,6 +1717,7 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log($"[Performance] release failed: {ex.Message}"); }
             _ended = true;
             SpeechListener = null;
+            BodyTurnRequested = false;
             _bodyHeld = false;
             _brain.PerformanceEnded(this);
             DebugLogger.Log($"[Performance] ended owner={OwnerToken} started={Started} reason={reason}");

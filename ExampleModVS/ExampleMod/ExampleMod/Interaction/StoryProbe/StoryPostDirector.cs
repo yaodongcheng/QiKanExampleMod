@@ -116,7 +116,7 @@ namespace LivingWorldNpcs
                     var standing = layout.Standing.FirstOrDefault(s => s != null && s.Actor == id);
                     bool onPost = standing == null
                         ? def.FirstMeetGuard
-                        : (behavior.Posts.Count == 0 || behavior.Posts.Contains(standing.Post ?? ""));
+                        : (behavior.Posts.Count == 0 || behavior.Posts.Contains(standing.Point ?? ""));
                     if (!onPost) { lines.Add(id + ": not on a post of " + behavior.Id); continue; }
 
                     var agent = _host.GetAgent(id);
@@ -196,15 +196,19 @@ namespace LivingWorldNpcs
             var standing = layout.Standing.FirstOrDefault(s => s != null && s.Actor == actorId);
             if (standing == null) return false;
 
-            StoryPoint point = null;
-            if (!string.IsNullOrEmpty(standing.Post))
-                point = layout.Posts.FirstOrDefault(p => p != null && p.Id == standing.Post)?.Place;
-            else if (!string.IsNullOrEmpty(standing.WorkPoint))
-                // 工作点没有独立坐标（由 Prop + Side/Offset 推导）；这里不猜，交调用方兜底。
-                return false;
-            else
-                point = standing.Place;
+            var def = layout.FindPoint(standing.Point);
+            if (def == null) return false;
+            // 挂道具旁的点位没有独立坐标（由 Prop + Side/Offset 推导）；这里不猜，交调用方兜底。
+            if (!string.IsNullOrEmpty(def.Prop)) return false;
+            StoryPoint point = def.Place;
             if (point == null) return false;
+
+            // 绝对坐标优先（2026-11-16：点位可以不带 Anchor）
+            if (point.HasAbsolute)
+            {
+                position = new TaleWorlds.Library.Vec3(point.Absolute[0], point.Absolute[1], point.Absolute[2]);
+                return true;
+            }
 
             var f = _host.Forward;
             var origin = string.Equals(point.Anchor, "player", StringComparison.OrdinalIgnoreCase)

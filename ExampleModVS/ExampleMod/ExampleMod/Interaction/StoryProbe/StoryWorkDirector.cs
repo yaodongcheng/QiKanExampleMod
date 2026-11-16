@@ -69,8 +69,9 @@ namespace LivingWorldNpcs
 
             foreach (var standing in layout.Standing)
             {
-                if (standing == null || string.IsNullOrEmpty(standing.WorkPoint)) continue;
-                var wp = layout.WorkPoints.FirstOrDefault(w => w != null && w.Id == standing.WorkPoint);
+                if (standing == null || string.IsNullOrEmpty(standing.Point)) continue;
+                var wp = layout.FindPoint(standing.Point);
+                if (wp == null || string.IsNullOrEmpty(wp.Action)) continue;
                 if (wp == null) continue;
                 var prop = layout.FindProp(wp.Prop);
                 if (prop == null) { _reason += "; prop missing for " + wp.Id; continue; }

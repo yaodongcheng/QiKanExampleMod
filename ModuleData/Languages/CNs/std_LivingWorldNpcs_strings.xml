@@ -5,6 +5,10 @@
   </tags>
   <strings>
     <string id="LWN_performance_facing_debug" text="[演出调试] {SPEAKER} → {LISTENER}：已调用身体转向和注视；当前身体偏角 {ANGLE} 度（0 度为正对听话者）。" />
+    <string id="LWN_dialogue_facing_debug" text="[对话调试] {SPEAKER} → {LISTENER}：当前身体偏角 {ANGLE} 度（0 度为正对听话者）；已请求注视。" />
+    <string id="LWN_performance_cone_debug" text="[冒泡调试] {SPEAKER} → {LISTENER}：{MODE}；当前身体偏角 {ANGLE} 度；已请求注视。" />
+    <string id="LWN_performance_turn_outside" text="扇形外，调用身体转向" />
+    <string id="LWN_performance_gaze_inside" text="扇形内，只更新注视" />
     <!-- ═══════════════════════════════════════════ -->
     <!-- Narrative — 委托开场/结账/对话/事件叙事          -->
     <!-- ═══════════════════════════════════════════ -->

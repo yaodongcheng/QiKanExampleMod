@@ -487,7 +487,9 @@ namespace LivingWorldNpcs
                             double dot = Math.Max(-1d, Math.Min(1d, direction.x * facing.x + direction.y * facing.y));
                             info += " bodyErrorDeg=" + (Math.Acos(dot) * 180d / Math.PI).ToString("F1");
                         }
-                        info += " gazeRequested=" + performance.CanControl + " owner=" + performance.OwnerToken;
+                        info += " inBodyViewCone=" + NpcSightSystem.IsTargetInViewCone(agent, listener, useBodyFacing: true)
+                            + " bodyTurnRequested=" + performance.BodyTurnRequested + " fov=" + NpcSightSystem.DefaultFovDegrees
+                            + " gazeRequested=" + performance.CanControl + " owner=" + performance.OwnerToken;
                     }
                     return info;
                 }
@@ -914,8 +916,9 @@ namespace LivingWorldNpcs
                       .Append(" anchors=").Append(layout.Anchors.Count)
                       .Append(" gates=").Append(layout.Gates.Count)
                       .Append(" props=").Append(layout.Props.Count)
-                      .Append(" work=").Append(layout.WorkPoints.Count)
-                      .Append(" posts=").Append(layout.Posts.Count)
+                      .Append(" points=").Append(layout.Points.Count)
+                      .Append(" (post=").Append(layout.Points.Count(x => x.Role == "post"))
+                      .Append(", work=").Append(layout.Points.Count(x => x.Role == "work")).Append(")")
                       .Append(" standing=").Append(layout.Standing.Count);
                 foreach (var p in StoryLayoutRegistry.Solved.Take(20))
                     sb.Append("\n  solved ").Append(p);
@@ -935,8 +938,7 @@ namespace LivingWorldNpcs
                       .Append(" actors=").Append(stage.Actors.Count);
                     foreach (var s in layout.Standing)
                     {
-                        string where = !string.IsNullOrEmpty(s.Post) ? "post:" + s.Post
-                                     : !string.IsNullOrEmpty(s.WorkPoint) ? "work:" + s.WorkPoint : "anchor";
+                        string where = !string.IsNullOrEmpty(s.Point) ? "point:" + s.Point : "anchor";
                         var agent = host?.GetAgent(s.Actor);
                         sb.Append("\n    ").Append(s.Actor).Append(" -> ").Append(where);
                         if (host != null)
@@ -952,8 +954,7 @@ namespace LivingWorldNpcs
                 sb.Append("\n  ").Append(layout.Id).Append(" v").Append(layout.Version)
                   .Append(" anchors=[").Append(string.Join(",", layout.Anchors.Keys)).Append("]")
                   .Append(" gates=[").Append(string.Join(",", layout.Gates.Keys)).Append("]")
-                  .Append(" posts=[").Append(string.Join(",", layout.Posts.Select(p => p.Id))).Append("]")
-                  .Append(" work=[").Append(string.Join(",", layout.WorkPoints.Select(w => w.Id))).Append("]");
+                  .Append(" points=[").Append(string.Join(",", layout.Points.Select(p => p.Id))).Append("]");
             }
             foreach (var stage in file.Stages.Values)
                 sb.Append("\n  stage ").Append(stage.Id).Append(" actors=[").Append(string.Join(",", stage.Actors)).Append("]");
@@ -1008,7 +1009,7 @@ namespace LivingWorldNpcs
             int total = 0;
             foreach (var layout in file.Layouts.Values)
             {
-                foreach (var w in layout.WorkPoints)
+                foreach (var w in layout.Points.Where(x => !string.IsNullOrEmpty(x.Prop)))
                 {
                     total++;
                     sb.Append("\n  ").Append(layout.Id).Append("/").Append(w.Id)
@@ -1074,7 +1075,8 @@ namespace LivingWorldNpcs
                     string NativeId(IAgent agent) => agent != null && agent == Agent.Main ? "player"
                         : StoryProbeDialogue.ResolveNpcId(agent as Agent) ?? "-";
                     return StoryDialogueRuntime.Describe() + "\n  nativeSpeaker=" + NativeId(cm?.SpeakerAgent)
-                        + " nativeListener=" + NativeId(cm?.ListenerAgent);
+                        + " nativeListener=" + NativeId(cm?.ListenerAgent)
+                        + "\n  " + StoryProbeDialogue.DescribeDialogueFacing();
                 }
 
                 case "turns":

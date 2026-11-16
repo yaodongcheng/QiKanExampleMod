@@ -503,22 +503,6 @@
       "Listener": "player"
     },
     {
-      "NpcId": "blocker",
-      "Actions": [
-        "act_stealth_mission_guard_look_around_patrolling_cautious_1",
-        "act_conversation_aggressive_loop"
-      ],
-      "LineKeys": [
-        "LWN_story_amb_blocker_1",
-        "LWN_story_amb_blocker_2"
-      ],
-      "LineFallbacks": [
-        "Halt.",
-        "Pass papers."
-      ],
-      "Listener": "player"
-    },
-    {
       "NpcId": "thug",
       "Actions": [
         "act_bully",

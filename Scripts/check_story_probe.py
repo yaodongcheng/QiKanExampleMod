@@ -881,6 +881,12 @@ def selftest():
             ("WorldEvent/PlayerDetentionBehavior.cs", 'dataStore.SyncData("lwn_detention_release_day", ref releaseDay)', '/* deadline not saved */', "fixed sentence persists deadline"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "if (_firstGuardQuestioned)", "if (true)", "guard must question"),
             ("AI/Actions/AtomicAction.cs", "AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);", "/* facing removed */", "performance must hold body and gaze"),
+            ("AI/Actions/AtomicAction.cs", "if (turnBody) AgentControlHelper.HoldFacingActor", "AgentControlHelper.HoldFacingActor", "bubble body turn must depend"),
+            ("AI/Actions/AtomicAction.cs", "useBodyFacing: true", "useBodyFacing: false", "bubble body turn must depend"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "StoryProbeDialogue.TickDialogueFacing(dt);", "/* formal facing removed */", "formal dialogue must track"),
+            ("Interaction/StoryProbe/StoryProbeDialogue.cs", "BeginDialogueFacing(session, node);", "/* shown handoff removed */", "formal dialogue must track"),
+            ("AI/AgentBrain.cs", "!(_performance.Paused && ConversationEntryPatch.IsConversationActive())", "true", "paused event must survive"),
+            ("Interaction/StoryProbe/StreetLifeDirector.cs", "private void TickActiveEvent(float dt, bool inConversation)", "private void TickActiveEvent(float dt, bool inConversation) /* StartStoryConversation */", "street event must wait for player F"),
             ("Combat/AttackTriggerMissionLogic.cs", "&& affectedAgent.Health < 1f)", "&& true)", "real lethal health"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "RestoreFirstGuardEnhancement();", "/* restore removed */", "restored before second entry"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", '"event_story_intercept"', '"old_direct_talk"', "guard must question"),
@@ -936,6 +942,7 @@ def check_flow_contract(module, problems, overrides=None):
     app = source("Core/MySubModule.cs")
     brain = source("AI/AgentBrain.cs")
     atomic = source("AI/Actions/AtomicAction.cs")
+    sight = source("AI/NpcSightSystem.cs")
     controller = source("AI/AgentAIController.cs")
     stage = source("Interaction/StoryProbe/StoryStageRunner.cs")
     street = source("Interaction/StoryProbe/StreetLifeDirector.cs")
@@ -992,6 +999,27 @@ def check_flow_contract(module, problems, overrides=None):
          and "SetScriptedPositionAndDirection" in member(helper, "HoldFacingActor")
          and "LookAtAgent(speaker, listener)" in member(helper, "HoldFacingActor"),
          "performance must hold body and gaze toward its actual listener"),
+        ("NpcSightSystem.IsTargetInViewCone(_brain.Owner, SpeechListener, useBodyFacing: true)" in atomic
+         and "if (turnBody) AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);" in atomic
+         and "else AgentControlHelper.LookAtAgent(_brain.Owner, SpeechListener);" in atomic
+         and "IsTargetInViewCone(observer, target, fovDegrees)" in member(sight, "CanAgentSeeTarget")
+         and "ViewConeDot(observer, target)" in member(sight, "ExplainSight"),
+         "bubble body turn must depend on shared view cone while formal dialogue keeps its own facing rule"),
+        ("StartStoryConversation" not in member(street, "TickActiveEvent")
+         and "TryGetDialogueEntry(agent," in member(dialogue, "TryInjectEarly")
+         and 'triggerId = "event_join"' in member(dialogue, "TryInjectEarly")
+         and "EventMembers(_activeEvent).Contains(ResolveNpcId(clicked))" in member(street, "TryGetDialogueEntry"),
+         "street event must wait for player F and route any data-defined participant"),
+        ("StoryProbeDialogue.TickDialogueFacing(dt);" in member(host, "OnMissionTick")
+         and "BeginDialogueFacing(session, node);" in member(dialogue, "BuildFilteredFromDefinition")
+         and "HoldDialogueFacing(speaker, listener);" in member(dialogue, "TickDialogueFacing")
+         and "StoryDialogueRuntime.Current != _facingSession" in member(dialogue, "TickDialogueFacing")
+         and "ReleaseDialogueFacing();" in member(dialogue, "OnConversationEnded")
+         and "if (actor == Agent.Main) return;" in member(dialogue, "HoldDialogueFacing")
+         and "speaker.GetScriptedFlags() | Agent.AIScriptedFrameFlags.InConversation" in member(helper, "HoldFacingActor"),
+         "formal dialogue must track actual sentence participants and preserve native conversation ownership"),
+        ("!(_performance.Paused && ConversationEntryPatch.IsConversationActive())" in member(brain, "Tick"),
+         "paused event must survive native conversation mode for same-event recovery"),
         ("Mission.Current != null && StoryProbeState.EnterViaOption" not in campaign,
          "mission opening receipt must not depend on consumed entry flag"),
         ("d.Stripped && (d.ConfiscationComplete || d.EscrowVersion == 0)" in member(host, "ConfiscatePlayerBelongings")
@@ -1143,7 +1171,61 @@ BEAT_KEYS = {
 }
 
 
-def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
+STORY_POINTS_HEADER = ("Id", "Scene", "Layout", "Role", "Anchor", "X", "Y", "Z", "Dir",
+                       "Action", "MaxOccupants", "ArriveTolerance")
+
+
+def load_story_points_csv(module):
+    """读 ModuleData/DesignData/StoryPoints.csv（点位唯一来源）。
+    返回 (rows_by_layout, issues)。Anchor 留空 = X/Y/Z 是绝对坐标；非空 = 相对该锚点的 Fwd/Right/Up。
+    """
+    rows, issues = {}, []
+    path = os.path.join(module, "ModuleData", "DesignData", "StoryPoints.csv")
+    if not os.path.exists(path):
+        return rows, issues          # 没有 CSV 不算错：夹具可能把 Points 写在 JSON 里
+    try:
+        lines = io.open(path, encoding="utf-8-sig").read().splitlines()
+    except Exception as ex:
+        return rows, [{"path": "StoryPoints.csv", "code": "read_failed", "message": "读不到 CSV：%s" % ex}]
+    start = 1 if lines and lines[0].strip() == ",".join(STORY_POINTS_HEADER) else 0
+    for i in range(start, len(lines)):
+        raw = lines[i]
+        if not raw.strip():
+            continue
+        cols = [c.strip() for c in raw.split(",")]
+        where = "StoryPoints.csv:%d" % (i + 1)
+        if len(cols) != 12:
+            issues.append({"path": where, "code": "bad_column_count",
+                           "message": "每行必须 12 列（%s），实际 %d 列" % (",".join(STORY_POINTS_HEADER), len(cols))})
+            continue
+        pid, scene, layout_id, role, anchor_name = cols[0], cols[1], cols[2], cols[3], cols[4]
+        if not pid or not scene or not layout_id:
+            issues.append({"path": where, "code": "missing_field", "message": "Id / Scene / Layout 必填"})
+            continue
+        try:
+            x = float(cols[5]) if cols[5] else 0.0
+            y = float(cols[6]) if cols[6] else 0.0
+            z = float(cols[7]) if cols[7] else 0.0
+            dir_deg = float(cols[8]) if cols[8] else -1.0
+            max_occ = int(cols[10]) if cols[10] else 1
+            arrive = float(cols[11]) if cols[11] else 0.6
+        except ValueError:
+            issues.append({"path": where, "code": "bad_number", "message": "X/Y/Z/Dir/MaxOccupants/ArriveTolerance 必须是数字"})
+            continue
+        row = {"Id": pid, "Role": role, "Facing": dir_deg,
+               "MaxOccupants": max_occ, "ArriveTolerance": arrive}
+        if cols[9]:
+            row["Action"] = cols[9]
+        if anchor_name:
+            row["Anchor"] = anchor_name
+            row["Fwd"], row["Right"], row["Up"] = x, y, z
+        else:
+            row["Pos"] = [x, y, z]
+        rows.setdefault(scene + "|" + layout_id, []).append(row)
+    return rows, issues
+
+
+def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=None):
     """校验一份 story_stage/2。返回 [{path, code, message}]；空列表 = 通过。"""
     issues = []
 
@@ -1287,7 +1369,7 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
         if not isinstance(lo, dict):
             bad(path, "wrong_type", "布局必须是对象")
             continue
-        keys(lo, path, ("Version", "Anchors", "Gates", "Props", "WorkPoints", "Posts", "Standing"))
+        keys(lo, path, ("Version", "Anchors", "Gates", "Props", "Points", "WorkPoints", "Posts", "Standing"))
         integer(lo, "Version", path, 0, 1, 2 ** 31 - 1)
 
         anchors = lo.get("Anchors")
@@ -1362,7 +1444,61 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
             boolean(po, "Required", ppath, True)
             props[pid] = {"place": place, "yaw": yaw}
 
+        # ── 统一点位（2026-11-16）：Points 是新写法；WorkPoints / Posts 是旧写法，全部并入同一个集合 ──
+        points = set()
         works = set()
+        posts = set()
+
+        def parse_point(po, ppath, legacy_role=None):
+            if not isinstance(po, dict):
+                bad(ppath, "wrong_type", "点位必须是对象")
+                return
+            keys(po, ppath, ("Id", "Role", "Gate", "Anchor", "Fwd", "Right", "Up", "Pos", "Prop",
+                             "Side", "Offset", "Contact", "Facing", "Yaw", "ArriveTolerance",
+                             "MaxOccupants", "Action", "Required"))
+            pid = text(po, "Id", ppath)
+            if not pid:
+                return
+            if pid in points:
+                bad(ppath + ".Id", "duplicate_id", "点位 ID 重复 '%s'" % pid)
+            points.add(pid)
+            role = text(po, "Role", ppath, required=False) or (legacy_role or "")
+            gate = text(po, "Gate", ppath, required=False)
+            if gate and gate not in (gates if isinstance(gates, dict) else {}):
+                bad(ppath + ".Gate", "unknown_gate", "点位引用的门区 '%s' 不在同一布局里" % gate)
+            prop = text(po, "Prop", ppath, required=False)
+            if prop and prop not in props:
+                bad(ppath + ".Prop", "unknown_prop", "点位引用的道具 '%s' 不在同一布局里" % prop)
+            if prop:
+                works.add(pid)
+            side = text(po, "Side", ppath, required=False) or "front"
+            if side not in ("front", "back", "left", "right"):
+                bad(ppath + ".Side", "bad_token", "Side 只能是 front / back / left / right，实际 '%s'" % side)
+            num(po, "Offset", ppath, 0.0, 0.0, 100.0)
+            float_list(po, "Contact", ppath, 3, bool(prop))   # 只有"挂道具旁"的点位才必须要接触点
+            has_pos = "Pos" in po
+            has_anchor = "Anchor" in po
+            sources = (1 if has_pos else 0) + (1 if has_anchor else 0) + (1 if prop else 0)
+            if sources != 1:
+                bad(ppath, "bad_field", "点位的位置来源只能是 Pos / Anchor / Prop 三选一（当前 %d 个）" % sources)
+            if has_pos:
+                float_list(po, "Pos", ppath, 3, True)
+            if has_anchor:
+                point(po, None, ppath, anchors, True)
+            if "Facing" in po:
+                num(po, "Facing", ppath, -1.0, -3600.0, 3600.0)
+            if "Yaw" in po:
+                num(po, "Yaw", ppath, 0.0, -3600.0, 3600.0)
+            num(po, "ArriveTolerance", ppath, 0.6, 0.01, 20.0)
+            integer(po, "MaxOccupants", ppath, 1, 1, 8)
+            text(po, "Action", ppath, required=False)
+            boolean(po, "Required", ppath, False)
+            if role == "post" or gate:
+                posts.add(pid)
+
+        for i, po in enumerate(lo.get("Points") or []):
+            parse_point(po, "%s.Points[%d]" % (path, i))
+
         for i, wo in enumerate(lo.get("WorkPoints") or []):
             wpath = "%s.WorkPoints[%d]" % (path, i)
             if not isinstance(wo, dict):
@@ -1373,8 +1509,9 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
             wid = text(wo, "Id", wpath)
             if not wid:
                 continue
-            if wid in works:
-                bad(wpath + ".Id", "duplicate_id", "工作点 ID 重复 '%s'" % wid)
+            if wid in points:
+                bad(wpath + ".Id", "duplicate_id", "点位 ID 重复 '%s'" % wid)
+            points.add(wid)
             works.add(wid)
             prop = text(wo, "Prop", wpath)
             if prop and prop not in props:
@@ -1389,7 +1526,6 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
             integer(wo, "MaxOccupants", wpath, 1, 1, 8)
             text(wo, "Action", wpath)
 
-        posts = set()
         for i, po in enumerate(lo.get("Posts") or []):
             ppath = "%s.Posts[%d]" % (path, i)
             if not isinstance(po, dict):
@@ -1399,8 +1535,9 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
             pid = text(po, "Id", ppath)
             if not pid:
                 continue
-            if pid in posts:
-                bad(ppath + ".Id", "duplicate_id", "岗位 ID 重复 '%s'" % pid)
+            if pid in points:
+                bad(ppath + ".Id", "duplicate_id", "点位 ID 重复 '%s'" % pid)
+            points.add(pid)
             posts.add(pid)
             gate = text(po, "Gate", ppath)
             if gate and gate not in (gates if isinstance(gates, dict) else {}):
@@ -1408,27 +1545,44 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
             point(po, None, ppath, anchors, True)
             num(po, "Facing", ppath, -1.0, -3600.0, 3600.0)
 
+        # 把 CSV 里属于「本场景 + 本布局」的点位并进来（同 id = 重复定义）
+        csv_key = "%s|%s" % (data.get("Scene") or "", lid)
+        for other_key in (csv_points or {}):
+            if other_key == csv_key:
+                continue
+            other_scene, _, other_layout = other_key.partition("|")
+            if other_layout == lid and other_scene != (data.get("Scene") or ""):
+                bad("StoryPoints.csv[%s]" % other_key, "scene_mismatch",
+                    "点位行写的场景是 '%s'，本文件场景是 '%s'；坐标不通用，请分场景维护"
+                    % (other_scene, data.get("Scene")))
+        for row in (csv_points or {}).get(csv_key, []):
+            if row["Id"] in points:
+                bad("%s.Points[csv:%s]" % (path, row["Id"]), "duplicate_id",
+                    "点位 '%s' 同时出现在 StoryPoints.csv 与 JSON 内联 Points 里" % row["Id"])
+                continue
+            parse_point(dict(row), "%s.Points[csv:%s]" % (path, row["Id"]), row.get("Role") or None)
+
         for i, so in enumerate(lo.get("Standing") or []):
             spath = "%s.Standing[%d]" % (path, i)
             if not isinstance(so, dict):
                 bad(spath, "wrong_type", "站位必须是对象")
                 continue
-            keys(so, spath, ("Actor", "Post", "WorkPoint", "Anchor", "Fwd", "Right", "Up", "Facing"))
+            keys(so, spath, ("Actor", "Point", "Post", "WorkPoint"))
             text(so, "Actor", spath)
-            post = text(so, "Post", spath, required=False)
-            work = text(so, "WorkPoint", spath, required=False)
-            sources = (1 if post else 0) + (1 if work else 0) + (1 if "Anchor" in so else 0)
-            if sources != 1:
-                bad(spath, "bad_field", "站位必须在 Post / WorkPoint / Anchor 里三选一（当前 %d 个）" % sources)
-            if post and post not in posts:
-                bad(spath + ".Post", "unknown_post", "站位引用的岗位 '%s' 不存在" % post)
-            if work and work not in works:
-                bad(spath + ".WorkPoint", "unknown_workpoint", "站位引用的工作点 '%s' 不存在" % work)
+            for forbidden in ("Anchor", "Fwd", "Right", "Up", "Facing"):
+                if forbidden in so:
+                    bad(spath + "." + forbidden, "bad_field",
+                        "站位的空间信息（%s）必须写在 Point 指向的点位上，不能写在站位里" % forbidden)
+            point_id = text(so, "Point", spath, required=False)                        or text(so, "Post", spath, required=False)                        or text(so, "WorkPoint", spath, required=False)
+            if not point_id:
+                bad(spath + ".Point", "missing_field", "站位必须写 Point（点位 id）")
+            elif point_id not in points:
+                bad(spath + ".Point", "unknown_point", "站位引用的点位 '%s' 不存在" % point_id)
             if "Anchor" in so:
                 point(so, None, spath, anchors, True)
             num(so, "Facing", spath, -1.0, -3600.0, 3600.0)
 
-        resolved[lid] = {"props": props, "posts": posts, "work": works, "anchors": anchors,
+        resolved[lid] = {"props": props, "posts": points, "work": works, "anchors": anchors,
                          "gates": gates if isinstance(gates, dict) else {}}
 
     stages = data.get("Stages")
@@ -1897,7 +2051,9 @@ def check_stage_v2_formal(module, problems):
     except Exception as ex:
         problems.append("stage v2 formal: not valid JSON (%s)" % ex)
         return 0
-    issues = stage_v2_issues(data, stage_v2_cast_ids(module), formal=True, source="StoryStageV2.json")
+    csv_rows, csv_issues = load_story_points_csv(module)
+    issues = list(csv_issues) + stage_v2_issues(
+        data, stage_v2_cast_ids(module), formal=True, source="StoryStageV2.json", csv_points=csv_rows)
     for issue in issues[:20]:
         problems.append("stage v2 formal: %s [%s] %s" % (issue["path"], issue["code"], issue["message"]))
     return 1 if not issues else 0

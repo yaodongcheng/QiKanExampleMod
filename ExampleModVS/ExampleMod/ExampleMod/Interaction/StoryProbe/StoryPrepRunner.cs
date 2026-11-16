@@ -51,6 +51,10 @@ namespace LivingWorldNpcs
             entity = null;
             return !string.IsNullOrEmpty(id) && _props.TryGetValue(id, out entity) && entity != null;
         }
+        /// <summary>某演员在本场布局里的站位（岗位/工作点）—— 职责点的数据来源。</summary>
+        public bool TryGetStandingPosition(string actorId, out Vec3 position)
+            => _standPos.TryGetValue(actorId, out position);
+
         public bool HasActor(string id) => !string.IsNullOrEmpty(id) && _standPos.ContainsKey(id)
                                            && _host.GetAgent(id) != null;
 
@@ -378,26 +382,22 @@ namespace LivingWorldNpcs
 
         private Vec3 StandingPos(Dictionary<string, Vec3> anchors, StoryStandingDef standing, string actor)
         {
-            if (standing == null) return _host.PlayerAnchor;
-            if (!string.IsNullOrEmpty(standing.Post))
+            var pt = _layout.FindPoint(standing?.Point);
+            if (pt == null) return _host.PlayerAnchor;
+            if (!string.IsNullOrEmpty(pt.Prop))
             {
-                var post = _layout.Posts.FirstOrDefault(p => p != null && p.Id == standing.Post);
-                return post == null ? _host.PlayerAnchor : PointPos(anchors, post.Place);
-            }
-            if (!string.IsNullOrEmpty(standing.WorkPoint))
-            {
-                var wp = _layout.WorkPoints.FirstOrDefault(w => w != null && w.Id == standing.WorkPoint);
-                if (wp == null) return _host.PlayerAnchor;
-                var prop = _layout.FindProp(wp.Prop);
+                var prop = _layout.FindProp(pt.Prop);
                 if (prop == null || !_props.TryGetValue(prop.Id, out var entity) || entity == null)
                     return _host.PlayerAnchor;
-                return WorkPos(entity, prop, wp);
+                return WorkPos(entity, prop, pt);
             }
-            return PointPos(anchors, standing.Place);
+            return pt.Place.HasAbsolute
+                ? new Vec3(pt.Place.Absolute[0], pt.Place.Absolute[1], pt.Place.Absolute[2])
+                : PointPos(anchors, pt.Place);
         }
 
         /// <summary>工作点站位 = 家具位置 + 按家具朝向旋转的侧向偏移。</summary>
-        public static Vec3 WorkPos(GameEntity propEntity, StoryPropDef prop, StoryWorkPointDef wp)
+        public static Vec3 WorkPos(GameEntity propEntity, StoryPropDef prop, StoryPointDef wp)
         {
             Vec3 basePos = propEntity.GlobalPosition;
             float yaw = (prop?.Yaw ?? 0f) * (float)Math.PI / 180f;
