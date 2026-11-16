@@ -5,6 +5,8 @@ description: 检查对话图结构的逻辑完整性 — CheckType、路由可�
 
 # 对话图结构校验
 
+**格式适用范围：**本文的`Transition/NextNodeOnSuccess/Fail`描述通用注入器结构。511策划的唯一源为`ModuleData/DesignData/Dialogues/*.dialog.json`：合法入口来自`Entries[].Node`，连续NPC边来自节点级`NextNode`，玩家分支来自`Options[].NextNode`或`Check.Success/Fail`，两者互斥；正文一句无人物前缀，`Speaker/Listener`必须合法，`EntryActors`与全体`Actors`分开，逐句动作为`LineActions`。审核时先使用真实`StoryDialogueParser`与`check_story_probe.py`核严格契约及中文旁注，再映射到本表做设计走查；不要为配合本表创建旧格式副本。现行修改与验证方法见511总纲需求§22。
+
 ## 触发条件
 
 用户提出以下需求时调用：

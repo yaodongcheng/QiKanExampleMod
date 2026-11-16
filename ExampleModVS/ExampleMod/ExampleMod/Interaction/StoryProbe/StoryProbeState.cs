@@ -244,6 +244,41 @@ namespace LivingWorldNpcs
                 Data.Asked.Remove(npcId + ":" + tag);
         }
 
+        // ── 事务回滚用的「原样恢复」（不是反向操作：原本就成立的事实必须留回来）──
+
+        public static void RestoreAsked(string npcId, string tag, bool present)
+        {
+            if (string.IsNullOrEmpty(npcId) || string.IsNullOrEmpty(tag)) return;
+            string key = npcId + ":" + tag;
+            bool has = Data.Asked.Contains(key);
+            if (present && !has) Data.Asked.Add(key);
+            else if (!present && has) Data.Asked.Remove(key);
+        }
+
+        /// <summary>把某人的人际步数改回指定值（0 = 没有记录）。仅事务回滚使用。</summary>
+        public static void RestoreStep(string npcId, int step)
+        {
+            if (string.IsNullOrEmpty(npcId)) return;
+            if (step <= 0) { Data.NpcStep.Remove(npcId); return; }
+            Data.NpcStep[npcId] = step;
+        }
+
+        public static void RestoreHazard(string id, bool present)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+            bool has = Data.Hazards.Contains(id);
+            if (present && !has) Data.Hazards.Add(id);
+            else if (!present && has) Data.Hazards.Remove(id);
+        }
+
+        public static void RestoreClue(string id, bool present)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+            bool has = Data.Clues.Contains(id);
+            if (present && !has) Data.Clues.Add(id);
+            else if (!present && has) Data.Clues.Remove(id);
+        }
+
         public static bool HasHazard(string id) => Data.Hazards.Contains(id);
 
         public static bool IsStreetEventResolved(int id) => Data.ResolvedStreetEvents.Contains(id);

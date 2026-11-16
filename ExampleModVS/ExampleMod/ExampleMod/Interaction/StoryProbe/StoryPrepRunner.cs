@@ -116,10 +116,17 @@ namespace LivingWorldNpcs
         public void Skip()
         {
             if (!_started || _ready) return;
-            // 跳过只记“意图”：必需项没就绪仍然失败，不能一点就 ready。
+            // 准备期跳过 = **立刻把布景/摆人做完并当场判定**，不再等超时；
+            // 必需项没齐就当场失败（不能一点就 ready，也不能照常开演）。
             _skipRequested = true;
-            DebugLogger.Log("[StoryPrep] skip requested; readiness still evaluated");
+            DebugLogger.Log("[StoryPrep] skip requested; evaluating readiness now");
             EvaluateReadiness();
+            if (!_ready && !_failed)
+            {
+                _failed = true;
+                _reason = "skip requested before ready (elapsed " + _elapsed.ToString("F1") + "s)";
+                DebugLogger.Log("[StoryPrep] FAILED by skip: " + _reason);
+            }
         }
 
         public void Stop(string reason)

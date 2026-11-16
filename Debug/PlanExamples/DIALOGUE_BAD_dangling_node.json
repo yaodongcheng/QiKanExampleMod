@@ -2,13 +2,29 @@
   "Schema": "story_dialogue/2",
   "DialogueId": "bad_fixture",
   "ContentVersion": 1,
-  "Participants": ["questioner"],
-  "Actors": ["blocker"],
+  "Participants": [
+    "questioner"
+  ],
+  "Actors": [
+    "blocker"
+  ],
   "Triggers": [
-    { "Id": "t1", "Source": "player", "Purpose": "talk", "Conditions": [], "Rank": [] }
+    {
+      "Id": "t1",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": []
+    }
   ],
   "Entries": [
-    { "Id": "e1", "Trigger": "t1", "Conditions": [], "Priority": 50, "Node": "nope" }
+    {
+      "Id": "e1",
+      "Trigger": "t1",
+      "Conditions": [],
+      "Priority": 50,
+      "Node": "nope"
+    }
   ],
   "Nodes": [
     {
@@ -16,8 +32,21 @@
       "Speaker": "questioner",
       "TextKey": "LWN_x",
       "Options": [
-        { "Id": "o1", "PlayerKey": "LWN_y", "Requires": [], "Effects": [], "NextNode": "" }
-      ]
+        {
+          "Id": "o1",
+          "PlayerKey": "LWN_y",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "questioner"
+        }
+      ],
+      "Listener": "player"
     }
+  ],
+  "SkipVanillaOpening": true,
+  "EntryActors": [
+    "blocker"
   ]
 }

@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using HarmonyLib;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -22,6 +23,19 @@ namespace LivingWorldNpcs
     /// 核心模型：每轮 = NPC 说一句 → 多个玩家选项 → 每个选项对应一句 NPC 回应。
     /// 不依赖 DialogFlow 建造者，直接用 ConversationManager.AddDialogLine / AddPlayerLine 注册。
     /// </summary>
+    [HarmonyPatch(typeof(ConversationManager), "ProcessPartnerSentence")]
+    internal static class PrepareInjectedNpcTurnPatch
+    {
+        [HarmonyPrefix]
+        private static bool Prefix(ConversationManager __instance, ref bool __result)
+        {
+            if (DialogueInjector.PrepareNpcTurn(__instance)) return true;
+            __instance.ActiveToken = __instance.GetStateIndex("close_window");
+            __result = false;
+            return false;
+        }
+    }
+
     public static class DialogueInjector
     {
         // ═══════════════════════════════════════════════════════════════
@@ -99,7 +113,12 @@ namespace LivingWorldNpcs
                 {
                     string nodeEntryToken = NodeToken(fileTag, node.Id);
 
-                    if (node.Transitions == null || node.Transitions.Count == 0)
+                    if (!string.IsNullOrEmpty(node.NextNode))
+                    {
+                        if (!nodeIds.Contains(node.NextNode)) throw new InvalidOperationException("Unknown continuation: " + node.NextNode);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, NodeToken(fileTag, node.NextNode), node, owner);
+                    }
+                    else if (node.Transitions == null || node.Transitions.Count == 0)
                     {
                         // Terminal node: NPC 说话 → 关窗
                         AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node, owner);
@@ -350,7 +369,28 @@ namespace LivingWorldNpcs
         /// <summary>节点真正被跳转进入时回调（P0-D.4/Q02）：参数 = 目标节点 Id。</summary>
         public static Action<string> CustomNodeEnter;
 
-        private class InjectOwner { public string FileName; public string BaseLabel; }
+        private class InjectOwner
+        {
+            public string FileName, BaseLabel;
+            public readonly Dictionary<int, DialogueNode> PrepareTurns = new Dictionary<int, DialogueNode>();
+        }
+
+        // 真正取下一句之前准备参与者；不在文本/条件查询中改身体或提交效果。
+        internal static bool PrepareNpcTurn(ConversationManager cm)
+        {
+            foreach (var owner in _injectedOwners)
+            {
+                if (!owner.PrepareTurns.TryGetValue(cm.ActiveToken, out var node)) continue;
+                if (node.OwnsTurn != null && !node.OwnsTurn()) continue;
+                try { return node.PrepareTurn(); }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log("[DialogueInjector] prepare turn failed: " + ex.Message);
+                    return false;
+                }
+            }
+            return true;
+        }
 
         private static string NextToken(string fileTag) => $"lwnpc_{fileTag}_atk_{_tokenCounter++}";
 
@@ -606,7 +646,9 @@ namespace LivingWorldNpcs
             try
             {
                 // NPC 台词直接挂在 startToken，优先级 200 碾压原版开场白
-                string afterNpcLine = NextToken(fileTag);
+                string afterNpcLine = !string.IsNullOrEmpty(entryNode.NextNode)
+                    ? NodeToken(fileTag, entryNode.NextNode)
+                    : (entryNode.Transitions == null || entryNode.Transitions.Count == 0 ? "close_window" : NextToken(fileTag));
                 AddNodeNpcLine(cm, $"inj_open_{entryNode.Id}", startToken, afterNpcLine, entryNode, owner, 200);
                 DebugLogger.Log($"[DialogueInjector] 跳过原版Opening: NPC line at '{startToken}' → '{afterNpcLine}' | priority=200 | owner={owner.FileName}");
 
@@ -641,11 +683,15 @@ namespace LivingWorldNpcs
                 // 注册剩余 node
                 foreach (var node in script.Nodes)
                 {
-                    if (node.Id == script.EntryNode) continue;
 
                     string nodeEntryToken = NodeToken(fileTag, node.Id);
 
-                    if (node.Transitions == null || node.Transitions.Count == 0)
+                    if (!string.IsNullOrEmpty(node.NextNode))
+                    {
+                        if (!nodeIds.Contains(node.NextNode)) throw new InvalidOperationException("Unknown continuation: " + node.NextNode);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, NodeToken(fileTag, node.NextNode), node, owner);
+                    }
+                    else if (node.Transitions == null || node.Transitions.Count == 0)
                     {
                         AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node, owner);
                     }
@@ -709,17 +755,19 @@ namespace LivingWorldNpcs
             string afterPlayer = dest != null ? NodeToken(fileTag, dest) : "close_window";
 
             var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
-            pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
+            var playerSentence = pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
                 ResolveTransitionText(transition), BuildTransitionCondition(transition),
                 () =>
                 {
                     ExecuteAction(transition);
-                    if (!string.IsNullOrEmpty(dest))
+                    if (node.OnShown == null && !string.IsNullOrEmpty(dest))
                     {
                         try { CustomNodeEnter?.Invoke(dest); }
                         catch (Exception ex) { DebugLogger.Log($"[DialogueInjector] CustomNodeEnter({dest}) failed: {ex.Message}"); }
                     }
                 }, owner, 125);
+            playerSentence.IsSpeaker = transition.RuntimeSpeaker;
+            playerSentence.IsListener = transition.RuntimeListener;
             cm.AddDialogFlow(pdf, owner);
             return 1;
         }
@@ -735,7 +783,7 @@ namespace LivingWorldNpcs
 
             // 玩家选项 — consequence 中执行检定 + 直接覆写 ActiveToken 跳到目标 node
             var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
-            pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
+            var playerSentence = pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
                 ResolveTransitionText(transition), BuildTransitionCondition(transition),
                 () =>
                 {
@@ -756,9 +804,8 @@ namespace LivingWorldNpcs
                         {
                             dest = custom.Value
                                 ? transition.NextNodeOnSuccess
-                                : (!string.IsNullOrEmpty(transition.NextNodeOnFail)
-                                    ? transition.NextNodeOnFail
-                                    : transition.NextNodeOnSuccess);
+                                : (transition.CloseOnFailedCheck ? transition.NextNodeOnFail
+                                    : (!string.IsNullOrEmpty(transition.NextNodeOnFail) ? transition.NextNodeOnFail : transition.NextNodeOnSuccess));
                             dest = ResolveDestinationNode(dest, nodeIds, node, transition);
                             cm.ActiveToken = cm.GetStateIndex(string.IsNullOrEmpty(dest)
                                 ? "close_window" : NodeToken(fileTag, dest));
@@ -770,9 +817,8 @@ namespace LivingWorldNpcs
                     {
                         dest = passed
                             ? transition.NextNodeOnSuccess
-                            : (!string.IsNullOrEmpty(transition.NextNodeOnFail)
-                                ? transition.NextNodeOnFail
-                                : transition.NextNodeOnSuccess); // fallback：未配 NextNodeOnFail 则走成功线
+                            : (transition.CloseOnFailedCheck ? transition.NextNodeOnFail
+                                : (!string.IsNullOrEmpty(transition.NextNodeOnFail) ? transition.NextNodeOnFail : transition.NextNodeOnSuccess)); // fallback：未配 NextNodeOnFail 则走成功线
                     }
                     else
                     {
@@ -789,12 +835,14 @@ namespace LivingWorldNpcs
                         cm.ActiveToken = cm.GetStateIndex(NodeToken(fileTag, dest));
                     else
                         cm.ActiveToken = cm.GetStateIndex("close_window");
-                    if (!string.IsNullOrEmpty(dest))
+                    if (node.OnShown == null && !string.IsNullOrEmpty(dest))
                     {
                         try { CustomNodeEnter?.Invoke(dest); }
                         catch (Exception ex) { DebugLogger.Log($"[DialogueInjector] CustomNodeEnter({dest}) failed: {ex.Message}"); }
                     }
                 }, owner, 125);
+            playerSentence.IsSpeaker = transition.RuntimeSpeaker;
+            playerSentence.IsListener = transition.RuntimeListener;
             cm.AddDialogFlow(pdf, owner);
 
             // 不再需要静默路由行 — ActiveToken 覆写已替代路由职责。
@@ -856,6 +904,7 @@ namespace LivingWorldNpcs
                 sentence = cm.AddDialogLineMultiAgent(id, inputToken, outputToken, textObj,
                     () =>
                     {
+                        if (node.RuntimeCondition != null && !node.RuntimeCondition()) return false;
                         textObj.Value = node.LazyNpcLine();
                         // 清除内部缓存，确保 GetCachedTokens() 从新 Value 重新 tokenize
                         var tokensField = typeof(TextObject).GetField("cachedTokens",
@@ -866,14 +915,19 @@ namespace LivingWorldNpcs
                         langField?.SetValue(textObj, -1);
                         return true;
                     },
-                    null, 0, -1, priority);
+                    () => node.OnShown?.Invoke(), 0, -1, priority);
             }
             else
             {
                 sentence = cm.AddDialogLineMultiAgent(id, inputToken, outputToken,
                     new TextObject(node.NpcLine ?? ""),
-                    () => true, null, 0, -1, priority);
+                    () => node.RuntimeCondition == null || node.RuntimeCondition(),
+                    () => node.OnShown?.Invoke(), 0, -1, priority);
             }
+
+            sentence.IsSpeaker = node.RuntimeSpeaker;
+            sentence.IsListener = node.RuntimeListener;
+            if (node.PrepareTurn != null) owner.PrepareTurns[cm.GetStateIndex(inputToken)] = node;
 
             // 🔴 反射补设 RelatedObject：AddDialogLineMultiAgent 不传 relatedObject 参数
             // → ConversationSentence 的 RelatedObject 默认为 null → RemoveRelatedLines 无法匹配清理。
@@ -927,7 +981,12 @@ namespace LivingWorldNpcs
                 {
                     string nodeEntryToken = NodeToken(fileTag, node.Id);
 
-                    if (node.Transitions == null || node.Transitions.Count == 0)
+                    if (!string.IsNullOrEmpty(node.NextNode))
+                    {
+                        if (!nodeIds.Contains(node.NextNode)) throw new InvalidOperationException("Unknown continuation: " + node.NextNode);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, NodeToken(fileTag, node.NextNode), node, owner);
+                    }
+                    else if (node.Transitions == null || node.Transitions.Count == 0)
                     {
                         // Terminal node: NPC 说话 → 关窗
                         AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node, owner);
@@ -1110,6 +1169,14 @@ namespace LivingWorldNpcs
         {
             /// <summary>唯一标识。其他 node 的 transition 通过 NextNodeOnSuccess/OnFail 引用此 ID 来跳转。</summary>
             public string Id = "injectedStart";
+            /// <summary>下一句 NPC 台词；与玩家 Transitions 互斥。</summary>
+            public string NextNode;
+            [JsonIgnore] public Func<bool> RuntimeCondition;
+            [JsonIgnore] public Func<bool> PrepareTurn;
+            [JsonIgnore] public Func<bool> OwnsTurn;
+            [JsonIgnore] public Action OnShown;
+            [JsonIgnore] public ConversationSentence.OnMultipleConversationConsequenceDelegate RuntimeSpeaker;
+            [JsonIgnore] public ConversationSentence.OnMultipleConversationConsequenceDelegate RuntimeListener;
             /// <summary>本地化键（铁律 13）。设置后优先按 key 取文本（中文 / 英文走 Languages XML），
             /// 取不到用 NpcFallback，再取不到用 NpcLine。StoryProbe 的 JSON 全部用 key。</summary>
             public string NpcKey;
@@ -1168,6 +1235,9 @@ namespace LivingWorldNpcs
             public string NextNodeOnFail;
             /// <summary>[内部] 注入时分配的 afterPlayer token，用作检定结果回写 key。外部不需要设置。</summary>
             internal string ResultKey = null;
+            [JsonIgnore] public bool CloseOnFailedCheck;
+            [JsonIgnore] public ConversationSentence.OnMultipleConversationConsequenceDelegate RuntimeSpeaker;
+            [JsonIgnore] public ConversationSentence.OnMultipleConversationConsequenceDelegate RuntimeListener;
         }
     }
 }

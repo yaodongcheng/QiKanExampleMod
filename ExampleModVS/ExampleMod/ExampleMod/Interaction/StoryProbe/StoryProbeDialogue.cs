@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
@@ -17,9 +17,9 @@ namespace LivingWorldNpcs
     /// 序章对话构建器（2026-11-12，plans/逆水寒511-序章对话树.md）。
     ///
     /// 分工：
-    ///   · 数据 = `ModuleData/DesignData/Dialogues/story_probe_&lt;npc&gt;.json`（节点 / 选项 / 路由 / 条件 / 检定标签），
+    ///   · 数据 = `ModuleData/DesignData/Dialogues/*.dialog.json`（唯一人工维护源，含中文审核副本），
     ///     文本 = Languages XML 的 `LWN_story_*` 键（铁律 13）。
-    ///   · 本类只做四件事：**挑入口节点 → 按状态过滤选项 → 交给 DialogueInjector 注入 → 执行 PROBE 动作/检定**。
+    ///   · 本类只做四件事：**使用会话裁决入口 → 按状态过滤选项 → 交给 DialogueInjector 注入 → 执行已有动作/检定**。
     ///
     /// 🔴 注入时机：必须早于引擎评估 start token。统一由 ConversationEntryPatch 的
     /// `MissionConversationStartPatch.Prefix` 调 `TryInjectEarly(agent)`（全项目唯一收口）。
@@ -29,16 +29,12 @@ namespace LivingWorldNpcs
         /// <summary>调用方指定入口节点（事件接入 / 命令强制）；消费一次即清。</summary>
         public static string PendingEntryNode;
 
-        /// <summary>P0-D.4/Q02：定义模式下本会话的入口节点，等 StartConversation 真正成功后才提交进入效果。</summary>
-        private static string _pendingEntryNode;
-
         private static string _lastTag;
         private static bool _actionFailed; // 本次原版对话付款失败后，所有后续节点动作都停止。
         private static int _conversationRound;
 
-        /// <summary>本次注入对应的 NPC（动作执行时用来定位"谁在说话"）。</summary>
+        /// <summary>本次入口和业务归属演员；每句真实说话者由节点Speaker决定。</summary>
         public static string CurrentNpcId;
-        private static readonly Dictionary<string, DialogueInjector.DialogueInjectScript> _cache = new Dictionary<string, DialogueInjector.DialogueInjectScript>();
 
         // ═══════════════════════════════════════════════════════════════
         // 入口
@@ -98,12 +94,8 @@ namespace LivingWorldNpcs
                     // P0-D.5：已迁移的定义整份来自 story_dialogue/2，节点内容不再读旧文件。
                     entry = session.Entry.Node;
                     PendingEntryNode = null;
-                    _pendingEntryNode = entry;
-                    DialogueInjector.CustomNodeEnter = id =>
-                    {
-                        if (!StoryDialogueRuntime.NotifyNodeShown(id))
-                            DebugLogger.Log("[StoryDialogue] node enter effects were rejected for " + id);
-                    };
+                    // 真实 NPC sentence consequence 是唯一进入点；玩家选项不提前提交下一句。
+                    DialogueInjector.CustomNodeEnter = null;
                     built = BuildFilteredFromDefinition(session.Definition, session, npcId);
                     if (built == null)
                     {
@@ -114,24 +106,10 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    var script = Load(npcId);
-                    if (script == null || script.Nodes == null || script.Nodes.Count == 0)
-                    {
-                        DebugLogger.Log($"[StoryProbe] no dialogue data for '{npcId}'");
-                        PendingEntryNode = null;
-                        return;
-                    }
-
-                    entry = PendingEntryNode;
+                    // 正式定义未裁决出本演员的会话时，不再从旧文件猜入口或补一棵树。
+                    DebugLogger.Log($"[StoryDialogue] no authorized definition session for '{npcId}'; injection skipped");
                     PendingEntryNode = null;
-                    if (string.IsNullOrEmpty(entry)) entry = PickEntryNode(npcId, script);
-
-                    built = BuildFiltered(script, npcId, entry);
-                    if (built == null)
-                    {
-                        DebugLogger.Log($"[StoryProbe] build filtered script failed npc={npcId} entry={entry}");
-                        return;
-                    }
+                    return;
                 }
 
                 if (!ConversationEntryPatch.IsConversationActive())
@@ -159,22 +137,29 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>P0-D.4/Q02：引擎真正开始对话后，才提交入口节点的 on_enter 效果。</summary>
+        /// <summary>原版启动生命周期通知；节点进入由真实sentence consequence处理。</summary>
         public static void OnConversationStarted()
+        {
+            // 保留生命周期通知入口，节点效果已由原版实际展示该句时提交。
+        }
+
+        /// <summary>
+        /// 节点真正到达时才播这一句配的动作。
+        /// 🔴 只由原版真实处理该句后的OnShown调用，
+        ///    绝不放进 LazyNpcLine —— 文本读取是纯读，读一次不能触发一次表演。
+        /// </summary>
+        private static void PlayNodeLineActions(string nodeId)
         {
             try
             {
                 var session = StoryDialogueRuntime.Current;
-                if (session == null || session.Ended) return;
-                string entry = _pendingEntryNode;
-                _pendingEntryNode = null;
-                if (!string.IsNullOrEmpty(entry) && !session.EnteredNodes.Contains(entry))
-                {
-                    if (!StoryDialogueRuntime.NotifyNodeShown(entry))
-                        DebugLogger.Log("[StoryDialogue] entry node effects rejected: " + entry);
-                }
+                var node = session?.Definition?.FindNode(nodeId);
+                if (node?.LineActions == null || node.LineActions.Count == 0) return;
+                var host = StoryProbeMissionBehavior.Current;
+                StoryLineActions.Play(host, ResolveTurnAgent(session, node.Speaker), node.LineActions.ToArray());
             }
-            catch (Exception ex) { DebugLogger.Log("[StoryProbe] OnConversationStarted failed: " + ex.Message); }
+            catch (Exception ex)
+            { DebugLogger.Log($"[StoryDialogue] line actions on '{nodeId}' failed: {ex.Message}"); }
         }
 
         /// <summary>对话结束（ConversationManager.EndConversation postfix 调用）：清理注入的台词，释放钩子。</summary>
@@ -184,7 +169,6 @@ namespace LivingWorldNpcs
             {
                 // P0-D.4：会话结束是第三个（也是最后一个）效果提交点；异常也必须走到，不能把窗口留在打开态。
                 StoryDialogueRuntime.EndSession("conversation ended");
-                _pendingEntryNode = null;
                 DialogueInjector.CustomNodeEnter = null;
                 if (_lastTag != null)
                 {
@@ -217,217 +201,67 @@ namespace LivingWorldNpcs
             return null;
         }
 
-        /// <summary>入口优先级（对话树文档 §三）：交差 → 熟人 → 已搭话 → 从未见过。</summary>
-        private static string PickEntryNode(string npcId, DialogueInjector.DialogueInjectScript script)
+        private static Agent ResolveTurnAgent(StoryDialogueSession session, string identity)
         {
-            var def = StoryProbeDefs.GetNpc(npcId);
-            if (def != null && def.IsBlocker)
-            {
-                string first = StoryProbeState.Phase == StoryProbePhase.FirstAttempt ? "blocker_first" : "blocker_open";
-                return HasNode(script, first) ? first : npcId + "_open";
-            }
-
-            string want;
-            if (StoryProbeState.IsQuestDone(npcId) && !StoryProbeState.IsQuestTurnedIn(npcId)) want = npcId + "_turnin";
-            else if (StoryProbeState.IsQuestTurnedIn(npcId)) want = npcId + "_chat";
-            else if (StoryProbeState.Step(npcId) >= 1) want = npcId + "_hub";
-            else want = npcId + "_intro";
-
-            if (HasNode(script, want)) return want;
-
-            // 回落链：hub → intro → 第一个节点
-            if (HasNode(script, npcId + "_hub")) return npcId + "_hub";
-            if (HasNode(script, npcId + "_intro")) return npcId + "_intro";
-            return script.Nodes[0].Id;
+            if (session == null || string.IsNullOrEmpty(identity)) return null;
+            if (identity == "player") return Agent.Main;
+            string actor = identity;
+            if ((identity == "npc" || identity == "questioner") && session.Definition.Participants.Contains(identity))
+                actor = session.Request.ActorId;
+            else if (!session.Definition.Actors.Contains(identity)) return null;
+            return StoryProbeMissionBehavior.Current?.GetAgent(actor);
         }
 
-        private static bool HasNode(DialogueInjector.DialogueInjectScript script, string id)
-            => script?.Nodes != null && script.Nodes.Any(n => n != null && n.Id == id);
-
-        // ═══════════════════════════════════════════════════════════════
-        // 数据加载 + 过滤
-        // ═══════════════════════════════════════════════════════════════
-
-        public static string DialogueFolder
+        private static bool CanUseTurnAgent(Agent agent)
         {
-            get
-            {
-                try
-                {
-                    var dll = typeof(StoryProbeDialogue).Assembly.Location;
-                    var modDir = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(dll)));
-                    return Path.Combine(modDir ?? "", "ModuleData", "DesignData", "Dialogues");
-                }
-                catch { return null; }
-            }
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0) return false;
+            if (agent == Agent.Main) return true;
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            return brain == null || (!brain.IsBound && !brain.IsStunned && !brain.IsStatusHeld && !brain.IsInCombat
+                && !brain.IsPerforming);
         }
 
-        public static DialogueInjector.DialogueInjectScript Load(string npcId, bool forceReload = false)
+        private static bool IsTurnValid(StoryDialogueSession session, StoryDialogueNodeDef node)
         {
-            if (!forceReload && _cache.TryGetValue(npcId, out var cached)) return cached;
-
-            string folder = DialogueFolder;
-            if (string.IsNullOrEmpty(folder)) return null;
-            string path = Path.Combine(folder, "story_probe_" + npcId + ".json");
-            if (!File.Exists(path))
+            if (StoryDialogueRuntime.Current != session || session.Ended || session.Failed
+                || session.Request.RuntimeToken != StoryProbeState.RuntimeToken) return false;
+            var speaker = ResolveTurnAgent(session, node.Speaker);
+            var listener = ResolveTurnAgent(session, node.Listener);
+            if (speaker == listener || !CanUseTurnAgent(speaker) || !CanUseTurnAgent(listener)) return false;
+            return StoryDialogueFacts.TryEvaluateAll(node.Requires, new StoryDialogueContext
             {
-                DebugLogger.Log($"[StoryProbe] dialogue file missing: {path}");
-                return null;
-            }
-
-            try
-            {
-                var script = JsonConvert.DeserializeObject<DialogueInjector.DialogueInjectScript>(File.ReadAllText(path));
-                if (script?.Nodes == null) return null;
-                _cache[npcId] = script;
-                return script;
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[StoryProbe] dialogue parse failed {path}: {ex.Message}");
-                return null;
-            }
+                DialogueId = session.Definition.DialogueId, TriggerId = session.Trigger?.Id,
+                Purpose = session.Trigger?.Purpose ?? "talk", ActorId = session.Request.ActorId,
+            }, out bool allowed, out _, out _) && allowed;
         }
 
-        public static void ClearCache() => _cache.Clear();
-
-        /// <summary>按当前状态过滤出一个可注入的副本（原数据不动）。</summary>
-        private static DialogueInjector.DialogueInjectScript BuildFiltered(DialogueInjector.DialogueInjectScript src, string npcId, string entry)
+        private static bool PrepareTurn(StoryDialogueSession session, StoryDialogueNodeDef node)
         {
-            var result = new DialogueInjector.DialogueInjectScript
+            var cm = Campaign.Current?.ConversationManager;
+            var primary = ResolveTurnAgent(session, session.Request.ActorId);
+            if (cm == null || primary == null || !cm.ConversationAgents.Contains(primary) || !IsTurnValid(session, node))
+                return RejectTurn(session, node.Id);
+            var required = new List<IAgent> { ResolveTurnAgent(session, node.Speaker), ResolveTurnAgent(session, node.Listener) };
+            // 玩家选项的听话对象也必须在选项出现前到位；不是文本查询时才加入。
+            foreach (var option in node.Options)
             {
-                Npc = npcId,
-                EntryNode = entry,
-                EntryOption = src.EntryOption,
-                InjectAtToken = src.InjectAtToken,
-                // 🔴 2026-11-15 实机：铁头的模板是 prison_guard_empire（Occupation=PrisonGuard），
-                //    原版在 "start" 挂了监牢守卫开场（优先级 100，条件是 Occupation==23），
-                //    于是 Gateway 模式挂在 hero_main_options 的剧情选项**根本走不到**：
-                //    玩家看到的是「什么？你想要什么？」+ 探监/行贿 825 的整棵原版树。
-                //    ⇒ 拦问类对话必须直挂 start（优先级 200，碾压原版开场白）。
-                //    由数据决定：JSON 里写 "SkipVanillaOpening": true 的 NPC 才跳过原版开场。
-                SkipVanillaOpening = src.SkipVanillaOpening,
-                Nodes = new List<DialogueInjector.DialogueNode>(),
-            };
-
-            foreach (var node in src.Nodes)
-            {
-                if (node == null || string.IsNullOrEmpty(node.Id)) continue;
-
-                var copy = new DialogueInjector.DialogueNode
-                {
-                    Id = node.Id,
-                    NpcKey = node.NpcKey,
-                    NpcFallback = node.NpcFallback,
-                    NpcLine = node.NpcLine,
-                    NpcActions = node.NpcActions,
-                    EnterAction = node.EnterAction,
-                    EnterParam = node.EnterParam,
-                    Transitions = new List<DialogueInjector.DialogueTransition>(),
-                };
-
-                // 进入节点时执行一次（第一次求值台词时触发）——用于"他说完这句就把东西给你"这类副作用
-                if (!string.IsNullOrEmpty(node.EnterAction))
-                {
-                    string enterVerb = node.EnterAction;
-                    string enterParam = node.EnterParam;
-                    string key = node.NpcKey;
-                    string fb = node.NpcFallback ?? node.NpcLine;
-                    bool fired = false;
-                    copy.LazyNpcLine = () =>
-                    {
-                        if (!fired)
-                        {
-                            fired = true;
-                            try { HandleAction(enterVerb, enterParam); }
-                            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] enter action {enterVerb} failed: {ex.Message}"); }
-                        }
-                        return LWNTextHelper.ResolveText(key, fb);
-                    };
-                }
-
-                if (node.Transitions != null)
-                {
-                    foreach (var tr in node.Transitions)
-                    {
-                        if (tr == null) continue;
-                        var tcopy = new DialogueInjector.DialogueTransition
-                        {
-                            PlayerKey = tr.PlayerKey,
-                            PlayerFallback = tr.PlayerFallback,
-                            PlayerLine = tr.PlayerLine,
-                            CheckType = tr.CheckType,
-                            CheckTag = tr.CheckTag,
-                            Action = tr.Action,
-                            ActionParam = tr.ActionParam,
-                            NextNodeOnSuccess = tr.NextNodeOnSuccess,
-                            NextNodeOnFail = tr.NextNodeOnFail,
-                            Requires = tr.Requires,
-                            Once = tr.Once,
-                            RuntimeCondition = () => EvaluateRequires(tr.Requires, npcId)
-                                && (string.IsNullOrEmpty(tr.Once) || !StoryProbeState.HasAsked(npcId, tr.Once)),
-                        };
-                        copy.Transitions.Add(tcopy);
-                    }
-                }
-
-                // 过滤后没选项 = 死胡同（引擎会卡在"继续"）→ 补一个"离开"直连关窗
-                if (copy.Transitions.Count == 0)
-                {
-                    copy.Transitions.Add(new DialogueInjector.DialogueTransition
-                    {
-                        PlayerKey = "LWN_story_opt_leave",
-                        PlayerFallback = "Leave.",
-                        NextNodeOnSuccess = "",
-                    });
-                }
-
-                // 台词配动作：动作写在**本节点**的 NpcActions 上（与行数一一对应）。
-                // 第一次展示这行字之前触发一次，按行依次延迟播出（StoryLineActions.Play）。
-                if (node.NpcActions != null && node.NpcActions.Length > 0)
-                {
-                    var actsToPlay = node.NpcActions;
-                    string npcIdForActions = npcId;
-                    var hostForActions = StoryProbeMissionBehavior.Current;
-                    var innerLazy = copy.LazyNpcLine;
-                    string plain = LWNTextHelper.ResolveText(node.NpcKey, node.NpcFallback ?? node.NpcLine);
-                    bool actsFired = false;
-                    copy.LazyNpcLine = () =>
-                    {
-                        if (!actsFired)
-                        {
-                            actsFired = true;
-                            try
-                            {
-                                StoryLineActions.Play(hostForActions, hostForActions?.GetAgent(npcIdForActions), actsToPlay);
-                            }
-                            catch (Exception ex)
-                            {
-                                DebugLogger.Log($"[StoryLineActions] play on '{node.Id}' failed: {ex.Message}");
-                            }
-                        }
-                        return innerLazy != null ? innerLazy() : plain;
-                    };
-                }
-
-                result.Nodes.Add(copy);
+                var listener = ResolveTurnAgent(session, option.Listener);
+                if (!CanUseTurnAgent(listener)) return RejectTurn(session, node.Id);
+                required.Add(listener);
             }
+            cm.AddConversationAgents(required.Where(a => a != Agent.Main).Distinct(), false);
+            return true;
+        }
 
-            // 入口节点必须存在
-            if (!result.Nodes.Any(n => n.Id == entry))
-            {
-                DebugLogger.Log($"[StoryProbe] entry node '{entry}' filtered out for {npcId}; fallback to first node");
-                if (result.Nodes.Count > 0) result.EntryNode = result.Nodes[0].Id;
-                else return null;
-            }
-
-            // EntryOption 在 JSON 里写的是**本地化键**，入口行是玩家可见文本（铁律 13）→ 注入前解析成真文本
-            if (string.IsNullOrEmpty(result.EntryOption))
-                result.EntryOption = LWNTextHelper.ResolveText("LWN_story_entry_option", "Say a word.");
-            else
-                result.EntryOption = LWNTextHelper.ResolveText(result.EntryOption, null);
-
-            return result;
+        private static bool RejectTurn(StoryDialogueSession session, string nodeId)
+        {
+            // 迟到的旧回调不能关闭新会话。
+            if (StoryDialogueRuntime.Current != session) return false;
+            session.Failed = true;
+            session.EndReason = "turn participants or conditions unavailable: " + nodeId;
+            DebugLogger.Log("[StoryDialogue] " + session.EndReason);
+            FailStoryActionConversation();
+            return false;
         }
 
         /// <summary>
@@ -462,34 +296,45 @@ namespace LivingWorldNpcs
                 var copy = new DialogueInjector.DialogueNode
                 {
                     Id = node.Id,
+                    NextNode = node.NextNode,
                     NpcKey = node.TextKey,
                     NpcFallback = null,
                     NpcActions = node.LineActions != null && node.LineActions.Count > 0 ? node.LineActions.ToArray() : null,
                     Transitions = new List<DialogueInjector.DialogueTransition>(),
                 };
 
-                // 节点显示的代理：引擎第一次求值这句台词 = 这一节点真正开始展示。
-                // 进入效果按会话收据防重（文本重读不会重复转账/发奖）。
-                string nodeId = node.Id;
-                bool entered = false;
-                copy.LazyNpcLine = () =>
+                // 文本查询仅取正文；真实展示该句才调用OnShown，不能把查询次数当进入次数。
+                copy.LazyNpcLine = () => LWNTextHelper.ResolveText(node.TextKey, null);
+                int preparedTurn = 0, shownTurn = -1;
+                copy.OwnsTurn = () => StoryDialogueRuntime.Current == session && !session.Ended
+                    && Campaign.Current?.ConversationManager?.ConversationAgents.Contains(
+                        ResolveTurnAgent(session, session.Request.ActorId)) == true;
+                copy.PrepareTurn = () =>
                 {
-                    if (!entered)
+                    try
                     {
-                        entered = true;
-                        // 🔴 Q02：这里**不再**提交节点效果 —— 文本读取必须纯读。
-                        // 进入效果由 OnConversationStarted（入口）和 DialogueInjector.CustomNodeEnter（跳转）提交。
-                        try
-                        {
-                            var host = StoryProbeMissionBehavior.Current;
-                            StoryLineActions.Play(host, host?.GetAgent(npcId), node.LineActions?.ToArray());
-                        }
-                        catch (Exception ex)
-                        {
-                            DebugLogger.Log($"[StoryDialogue] line actions on '{nodeId}' failed: {ex.Message}");
-                        }
+                        if (!PrepareTurn(session, node)) return false;
+                        preparedTurn++;
+                        return true;
                     }
-                    return LWNTextHelper.ResolveText(node.TextKey, null);
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log("[StoryDialogue] prepare turn exception: " + ex.Message);
+                        return RejectTurn(session, node.Id);
+                    }
+                };
+                copy.RuntimeCondition = () => IsTurnValid(session, node);
+                copy.RuntimeSpeaker = agent => agent == ResolveTurnAgent(session, node.Speaker);
+                copy.RuntimeListener = agent => agent == ResolveTurnAgent(session, node.Listener);
+                copy.OnShown = () =>
+                {
+                    if (StoryDialogueRuntime.Current != session || shownTurn == preparedTurn) return;
+                    shownTurn = preparedTurn;
+                    if (!IsTurnValid(session, node) || !StoryDialogueRuntime.NotifyNodeShown(node.Id))
+                    { RejectTurn(session, node.Id); return; }
+                    PlayNodeLineActions(node.Id);
+                    DebugLogger.Log("[StoryDialogue] turn node=" + node.Id + " speaker=" + node.Speaker
+                        + " listener=" + node.Listener + " next=" + (node.NextNode ?? "options/close"));
                 };
 
                 foreach (var opt in node.Options)
@@ -503,12 +348,18 @@ namespace LivingWorldNpcs
                         Once = null,
                         Action = "PROBE:dialogue_opt",
                         ActionParam = node.Id + "|" + opt.Id,
+                        RuntimeSpeaker = agent => agent == Agent.Main,
+                        RuntimeListener = agent => agent == ResolveTurnAgent(session, opt.Listener),
+                        CloseOnFailedCheck = true,
                     };
 
                     // 显示条件：选项自己的 Requires + 目标节点的准入条件（三态求值，出错 = 不显示）。
                     var option = opt;
                     t.RuntimeCondition = () =>
                     {
+                        if (StoryDialogueRuntime.Current != session || session.Ended || session.Failed
+                            || session.Request.RuntimeToken != StoryProbeState.RuntimeToken
+                            || !CanUseTurnAgent(ResolveTurnAgent(session, option.Listener))) return false;
                         if (!StoryDialogueFacts.TryEvaluateAll(option.Requires, ctx, out bool ok, out _, out _) || !ok)
                             return false;
                         string target = option.Check != null ? option.Check.Success : option.NextNode;
@@ -521,7 +372,8 @@ namespace LivingWorldNpcs
 
                     if (opt.Check != null)
                     {
-                        string target = string.IsNullOrEmpty(opt.Check.Target) ? npcId : opt.Check.Target;
+                        string target = string.IsNullOrEmpty(opt.Check.Target) || opt.Check.Target == "questioner"
+                            || opt.Check.Target == "npc" ? npcId : opt.Check.Target;
                         if (!def.Actors.Contains(target) && !def.Participants.Contains(target)) target = npcId;
                         t.CheckType = DialogueInjector.TransitionCheckType.SkillCheck;
                         t.CheckTag = target + "|" + opt.Check.Skill;
@@ -535,16 +387,7 @@ namespace LivingWorldNpcs
                     copy.Transitions.Add(t);
                 }
 
-                // 没选项 = 死胡同（引擎会卡在"继续"）→ 数据没写出口时补一个「离开」。
-                if (copy.Transitions.Count == 0)
-                {
-                    copy.Transitions.Add(new DialogueInjector.DialogueTransition
-                    {
-                        PlayerKey = "LWN_story_opt_leave",
-                        PlayerFallback = "Leave.",
-                        NextNodeOnSuccess = "",
-                    });
-                }
+                // 无选项且有 NextNode = 原生连续 NPC 句；都为空 = 原生关闭，不补假玩家选项。
 
                 result.Nodes.Add(copy);
             }
@@ -741,14 +584,14 @@ namespace LivingWorldNpcs
                 && StoryProbeMissionBehavior.Current == host && round == _conversationRound
                 && _actionFailed && CurrentNpcId == npcId && !string.IsNullOrEmpty(npcId)
                 && _lastTag == ownerTag && ownerTag == "story_probe_" + npcId
-                && Campaign.Current?.ConversationManager == cm && cm.IsConversationInProgress
-                && ResolveNpcId(cm.OneToOneConversationAgent as Agent) == npcId;
+                && Campaign.Current?.ConversationManager == cm
+                && cm.ConversationAgents.Any(a => ResolveNpcId(a as Agent) == npcId);
             try
             {
                 if (!stillOwnsConversation()) return false;
                 host.SchedulePublic(0f, () =>
                 {
-                    if (stillOwnsConversation()) cm.EndConversation();
+                    if (stillOwnsConversation() && cm.IsConversationInProgress) cm.EndConversation();
                 });
                 // 复用 Injector 的 SkillCheck 路由写法，只改输出 token，不在 consequence 栈结束对话。
                 // 普通付款的成功应答尚未选择时，这样阻止其显示；已显示的台词无法事后撤回。
@@ -1169,6 +1012,13 @@ namespace LivingWorldNpcs
                     var parts = (param ?? "").Split('|');
                     if (parts.Length != 2 || string.IsNullOrEmpty(parts[0]) || string.IsNullOrEmpty(parts[1]))
                         return false;
+                    var session = StoryDialogueRuntime.Current;
+                    var node = session?.Definition?.FindNode(parts[0]);
+                    var option = node?.Options.FirstOrDefault(o => o.Id == parts[1]);
+                    // 显示可用不代替提交时复核；被绑/死亡/战斗等变化必须阻止当前付款和回答。
+                    if (session == null || node == null || option == null) return false;
+                    if (!IsTurnValid(session, node) || !CanUseTurnAgent(ResolveTurnAgent(session, option.Listener)))
+                        return RejectTurn(session, parts[0]);
                     if (!StoryDialogueRuntime.NotifyOptionSelected(parts[0], parts[1], out string reason))
                     {
                         DebugLogger.Log($"[StoryDialogue] option commit failed {parts[0]}/{parts[1]}: {reason}");
@@ -1536,44 +1386,32 @@ namespace LivingWorldNpcs
         // 验证 / 调试
         // ═══════════════════════════════════════════════════════════════
 
-        /// <summary>离线自检：返回每个 NPC 的节点数 / 悬空引用（命令 `custom.story_probe dialogue` 用）。</summary>
+        /// <summary>只读校验唯一维护源：正式定义、入口/节点/选项引用与跨文件 ID。</summary>
         public static string ValidateAll()
         {
             var problems = new List<string>();
-            int totalNodes = 0, totalOptions = 0;
-
-            foreach (var def in StoryProbeDefs.Npcs)
+            int totalNodes = 0, totalOptions = 0, definitions = 0;
+            string dir = Path.Combine(StoryProbeDataFiles.DesignDataFolder ?? "", "Dialogues");
+            if (!Directory.Exists(dir)) return "Error: dialogue folder missing: " + dir;
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string path in Directory.GetFiles(dir, "*.dialog.json").OrderBy(p => p, StringComparer.Ordinal))
             {
-                var script = Load(def.Id, forceReload: true);
-                if (script?.Nodes == null) { problems.Add($"{def.Id}: FILE MISSING"); continue; }
-
-                var ids = new HashSet<string>(script.Nodes.Where(n => n?.Id != null).Select(n => n.Id));
-                totalNodes += script.Nodes.Count;
-
-                foreach (var node in script.Nodes)
+                try
                 {
-                    if (node?.Transitions == null) continue;
-                    totalOptions += node.Transitions.Count;
-                    foreach (var tr in node.Transitions)
-                    {
-                        if (!string.IsNullOrEmpty(tr.NextNodeOnSuccess) && !ids.Contains(tr.NextNodeOnSuccess))
-                            problems.Add($"{def.Id}: {node.Id} -> missing '{tr.NextNodeOnSuccess}'");
-                        if (!string.IsNullOrEmpty(tr.NextNodeOnFail) && !ids.Contains(tr.NextNodeOnFail))
-                            problems.Add($"{def.Id}: {node.Id} -> missing fail '{tr.NextNodeOnFail}'");
-                    }
+                    var parsed = StoryDialogueParser.Parse(File.ReadAllText(path), path, formalMode: true);
+                    if (!parsed.Ok) { problems.Add(parsed.Describe()); continue; }
+                    var def = parsed.Data;
+                    definitions++;
+                    if (!ids.Add(def.DialogueId)) problems.Add("duplicate DialogueId: " + def.DialogueId);
+                    totalNodes += def.Nodes.Count;
+                    totalOptions += def.Nodes.Sum(n => n.Options.Count);
                 }
-
-                if (!ids.Contains(script.EntryNode))
-                    problems.Add($"{def.Id}: entry '{script.EntryNode}' missing");
-
-                if (!ids.Any(i => i == def.Id + "_intro") && !def.IsBlocker)
-                    problems.Add($"{def.Id}: no _intro node");
-                if (!def.IsBlocker && !ids.Any(i => i == def.Id + "_hub"))
-                    problems.Add($"{def.Id}: no _hub node");
+                catch (Exception ex) { problems.Add(Path.GetFileName(path) + ": " + ex.Message); }
             }
-
-            string summary = $"npc={StoryProbeDefs.Npcs.Count} nodes={totalNodes} options={totalOptions} problems={problems.Count}";
+            if (definitions == 0) problems.Add("no valid *.dialog.json definitions");
+            string summary = $"definitions={definitions} nodes={totalNodes} options={totalOptions} problems={problems.Count}";
             return problems.Count == 0 ? summary : summary + " ; " + string.Join(" ; ", problems.Take(20));
         }
+
     }
 }

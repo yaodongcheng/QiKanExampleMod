@@ -75,6 +75,7 @@ namespace LivingWorldNpcs
     public sealed class StreetLifeDef
     {
         public string NpcId;
+        public string Listener;
         public string[] Actions;
         public string[] LineKeys;
         public string[] LineFallbacks;
@@ -94,6 +95,7 @@ namespace LivingWorldNpcs
         public string[] ActionB;
         public List<string> Members = new List<string>();   // 群组全部成员（支持第三人及以上）
         public List<string> Speakers = new List<string>();  // 与 LineKeys 平行；空 = 按 Members 轮转
+        public List<string> Listeners = new List<string>(); // 与 LineKeys 平行，真实听话对象
         public string HostNpcId;        // 玩家接入时跟谁谈（= 事件节点所属 NPC）
         public string JoinNode;         // "event_<n>_join"
     }

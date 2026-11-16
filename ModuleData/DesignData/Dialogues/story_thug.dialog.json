@@ -1,17 +1,14 @@
 {
-  "_comment": "由 Scripts/migrate_story_dialogues.py 从旧 story_probe_thug.json 迁移；旧文件仅作回退副本。改内容请改脚本/旧文件后重跑。",
+  "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_thug",
-  "ContentVersion": 1,
+  "ContentVersion": 2,
   "EntryOption": "LWN_story_thug_entry",
-  "SkipVanillaOpening": false,
-  "Participants": [
-    "npc",
-    "player"
-  ],
-  "Actors": [
-    "thug"
-  ],
+  "EntryOptionZh": "[说两句] 喂，你就是码头帮在这条街收例钱的？",
+  "SkipVanillaOpening": true,
+  "Participants": ["npc", "player"],
+  "EntryActors": ["thug"],
+  "Actors": ["thug"],
   "Triggers": [
     {
       "Id": "player_talk",
@@ -38,9 +35,7 @@
     {
       "Id": "player_hub",
       "Trigger": "player_talk",
-      "Conditions": [
-        "step>=1"
-      ],
+      "Conditions": ["step>=1"],
       "Priority": 80,
       "Node": "thug_hub"
     },
@@ -49,19 +44,27 @@
       "Trigger": "player_talk",
       "Conditions": [],
       "Priority": 70,
-      "Node": "thug_intro"
+      "Node": "thug_intro_line1"
     }
   ],
   "Nodes": [
     {
+      "Id": "thug_intro_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_intro_line1",
+      "TextKeyZh": "看什么看？",
+      "LineActions": ["act_conversation_aggressive_trivial"],
+      "NextNode": "thug_intro",
+      "Options": []
+    },
+    {
       "Id": "thug_intro",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_thug_intro",
-      "LineActions": [
-        "act_conversation_aggressive_trivial",
-        "act_conversation_aggressive_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "生面孔少在这条街转悠，小心腿折在这儿。",
+      "LineActions": ["act_conversation_aggressive_trivial"],
       "OnEnter": [
         {
           "Id": "mark",
@@ -76,24 +79,23 @@
         {
           "Id": "settle",
           "PlayerKey": "LWN_story_thug_opt_settle",
-          "Requires": [
-            "quest_accepted@butcher",
-            "!quest_done@butcher"
-          ],
+          "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
+          "Requires": ["quest_accepted@butcher", "!quest_done@butcher"],
           "Effects": [],
           "Check": {
             "Skill": "charm",
             "Target": "thug",
-            "Success": "thug_settled",
+            "Success": "thug_settled_line1",
             "Fail": "thug_settle_refused"
-          }
+          },
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "ask",
           "PlayerKey": "LWN_story_thug_opt_ask",
-          "Requires": [
-            "!asked:thug_ask"
-          ],
+          "PlayerKeyZh": "[质问] 这条街的商铺，你每天都来砸一通？",
+          "Requires": ["!asked:thug_ask"],
           "Effects": [
             {
               "Id": "mark",
@@ -104,15 +106,15 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "thug_talk"
+          "NextNode": "thug_talk_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "money",
           "PlayerKey": "LWN_story_thug_opt_money",
-          "Requires": [
-            "!quest_accepted@butcher",
-            "!asked:thug_night"
-          ],
+          "PlayerKeyZh": "[盘问] 上个月半夜，你们押去码头的姑娘在哪？",
+          "Requires": ["!quest_accepted@butcher", "!asked:thug_night"],
           "Effects": [
             {
               "Id": "mark",
@@ -123,14 +125,15 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "thug_money"
+          "NextNode": "thug_money_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
-          "Requires": [
-            "!quest_done@butcher"
-          ],
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
+          "Requires": ["!quest_done@butcher"],
           "Effects": [
             {
               "Id": "start_fight",
@@ -141,48 +144,51 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "thug_fight"
+          "NextNode": "thug_fight_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
       "Id": "thug_hub",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_thug_hub",
-      "LineActions": [
-        "act_conversation_aggressive_very_negative"
-      ],
-      "Requires": [],
+      "TextKeyZh": "还有什么话？",
+      "LineActions": ["act_conversation_aggressive_very_negative"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "settle",
           "PlayerKey": "LWN_story_thug_opt_settle",
-          "Requires": [
-            "quest_accepted@butcher",
-            "!quest_done@butcher"
-          ],
+          "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
+          "Requires": ["quest_accepted@butcher", "!quest_done@butcher"],
           "Effects": [],
           "Check": {
             "Skill": "charm",
             "Target": "thug",
-            "Success": "thug_settled",
+            "Success": "thug_settled_line1",
             "Fail": "thug_settle_refused"
-          }
+          },
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "ask",
           "PlayerKey": "LWN_story_thug_opt_ask",
-          "Requires": [
-            "!asked:thug_ask"
-          ],
+          "PlayerKeyZh": "[质问] 这条街的商铺，你每天都来砸一通？",
+          "Requires": ["!asked:thug_ask"],
           "Effects": [
             {
               "Id": "mark",
@@ -193,15 +199,15 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "thug_talk"
+          "NextNode": "thug_talk_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "money",
           "PlayerKey": "LWN_story_thug_opt_money",
-          "Requires": [
-            "!quest_accepted@butcher",
-            "!asked:thug_night"
-          ],
+          "PlayerKeyZh": "[盘问] 上个月半夜，你们押去码头的姑娘在哪？",
+          "Requires": ["!quest_accepted@butcher", "!asked:thug_night"],
           "Effects": [
             {
               "Id": "mark",
@@ -212,14 +218,15 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "thug_money"
+          "NextNode": "thug_money_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
-          "Requires": [
-            "!quest_done@butcher"
-          ],
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
+          "Requires": ["!quest_done@butcher"],
           "Effects": [
             {
               "Id": "start_fight",
@@ -230,49 +237,61 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "thug_fight"
+          "NextNode": "thug_fight_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "thug_talk_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_talk_line1",
+      "TextKeyZh": "这月怎么又有不长眼的替人出头？",
+      "LineActions": ["act_conversation_aggressive_trivial"],
+      "NextNode": "thug_talk",
+      "Options": []
+    },
+    {
       "Id": "thug_talk",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_thug_talk",
-      "LineActions": [
-        "act_conversation_aggressive_trivial",
-        "act_conversation_aggressive_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "说吧，你是替那个卖肉的来挨揍，还是替老周来送钱？",
+      "LineActions": ["act_conversation_aggressive_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "settle",
           "PlayerKey": "LWN_story_thug_opt_settle",
-          "Requires": [
-            "quest_accepted@butcher",
-            "!quest_done@butcher"
-          ],
+          "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
+          "Requires": ["quest_accepted@butcher", "!quest_done@butcher"],
           "Effects": [],
           "Check": {
             "Skill": "charm",
             "Target": "thug",
-            "Success": "thug_settled",
+            "Success": "thug_settled_line1",
             "Fail": "thug_settle_refused"
-          }
+          },
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
-          "Requires": [
-            "!quest_done@butcher"
-          ],
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
+          "Requires": ["!quest_done@butcher"],
           "Effects": [
             {
               "Id": "start_fight",
@@ -283,31 +302,45 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "thug_fight"
+          "NextNode": "thug_fight_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "thug_hub"
+          "NextNode": "thug_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "thug_money_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_money_line1",
+      "TextKeyZh": "码头上的私货，你也配打听？",
+      "LineActions": ["act_conversation_aggressive_trivial"],
+      "NextNode": "thug_money",
+      "Options": []
+    },
+    {
       "Id": "thug_money",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_thug_money",
-      "LineActions": [
-        "act_conversation_aggressive_trivial",
-        "act_conversation_aggressive_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "劝你少管半夜的事，夜里被拖走的人，白天可不认账。",
+      "LineActions": ["act_conversation_aggressive_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
           "Requires": [],
           "Effects": [
             {
@@ -319,44 +352,70 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "thug_fight"
+          "NextNode": "thug_fight_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "thug_hub"
+          "NextNode": "thug_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "thug_fight_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_fight_line1",
+      "TextKeyZh": "找死是吧？",
+      "LineActions": ["act_conversation_aggressive_very_negative"],
+      "NextNode": "thug_fight",
+      "Options": []
+    },
+    {
       "Id": "thug_fight",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_thug_fight",
-      "LineActions": [
-        "act_conversation_aggressive_very_negative"
-      ],
-      "Requires": [],
+      "TextKeyZh": "来，老子成全你！",
+      "LineActions": ["act_conversation_aggressive_very_negative"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "thug_settled_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_settled_line1",
+      "TextKeyZh": "行，给你个面子。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "thug_settled",
+      "Options": []
+    },
+    {
       "Id": "thug_settled",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_thug_settled",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "告诉卖肉的，我不再砸他的摊。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [
         {
           "Id": "complete_quest",
@@ -372,32 +431,38 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "thug_hub"
+          "NextNode": "thug_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
       "Id": "thug_settle_refused",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_thug_settle_refused",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "我怎么收例钱，还轮得到你指手画脚？",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
           "Requires": [],
           "Effects": [
             {
@@ -409,23 +474,36 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "thug_fight"
+          "NextNode": "thug_fight_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "thug_hub"
+          "NextNode": "thug_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     }
-  ]
+  ],
+  "_Speaker说明": "节点只能由NPC说话；npc/questioner绑定本次入口演员，其余为Actors中的实名ID。",
+  "_Listener说明": "听话对象：player或Actors中的实名ID；人物信息不写入TextKeyZh正文。",
+  "_NextNode说明": "NPC说完本句后，点击原版继续进入下一NPC节点；与Options互斥，不增加假玩家选项。",
+  "_EntryOption说明": "保留旧中文审阅资料；SkipVanillaOpening=true时不注册这个玩家网关选项。",
+  "_EntryActors说明": "只有这里的演员能发起/接入本定义；Actors是所有可说话、听话或接受效果的实名演员，不能拿参与名单抢别人的入口。"
 }

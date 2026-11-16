@@ -24,7 +24,7 @@
 | [architecture.md](plans/rules/architecture.md) | Namespace (`LivingWorldNpcs.*`)、目录结构、Mod A/B 拆分 |
 | [coding-style.md](plans/rules/coding-style.md) | 命名/单例/异步/异常/ViewModel 绑定 等编码约定 |
 | [pitfalls.md](plans/rules/pitfalls.md) | **坑点速查（疑难杂症）**，踩到 AccessViolation/native 崩溃等诡异症状时按需查 |
-| [dialogue-design.md](plans/rules/dialogue-design.md) | 🔴**【必读】对话树设计原则**：节点=一次开口(≤2行) · 选项=玩家说出口的话 · **每个选项必须有专属回答节点**（禁止两种问法进同一节点）· 问句禁止弹回菜单 · 禁止假选项（继续/听他说下去）· 同一信息只说一次 · 同一 `Once` 不许两条共用 · 称呼匹配知识状态。含 10 条硬规则 + 对话树标准形状 + 我犯过的 6 个错 |
+| [dialogue-design.md](plans/rules/dialogue-design.md) | 🔴**【必读】对话树设计原则**：节点=一句无硬换行 · NPC先开场 · Speaker/Listener结构化控制 · 连续NPC句走原版继续 · 选项=玩家说出口的话 · **每个选项必须有专属回答节点**（禁止两种问法进同一节点）· 问句禁止弹回菜单 · 禁止假选项（继续/听他说下去）· 同一信息只说一次 · 同一 `Once` 不许两条共用 · 称呼匹配知识状态。含 10 条硬规则 + 对话树标准形状 + 我犯过的 6 个错 |
 | [narrative-design.md](plans/rules/narrative-design.md) | 🔴**【必读】叙事设计铁律**：禁止上帝视角，情报必须来自渠道 |
 | [design-philosophy.md](plans/rules/design-philosophy.md) | 🔴**【必读】设计哲学四原则**：反馈明确、自由感、NPC接得住、信息塑造目标 |
 | 🔴 本文内嵌 | **【必读】LLM 对话日志认知注入检查纪律**（"运行时调试日志"段下方）：分析 LLM 对话日志时的事后检查原则——先判身份再核对注入、以 prompt 文本为准、负面检查、事件类段缺失可能正常；含 L1/分兵/L2 注入矩阵 + 日志标签速查 |
@@ -273,6 +273,7 @@
     **为什么**：用户拿到的每一句都是要**直接执行**的；缺前缀、缺路径 = 他还要自己补 = 等于没给。
     （立的当天我连犯两次：贴了一串 `bind test` / `bind drag 5` —— 而游戏控制台里必须敲 `custom.grapple bind test`；又写过 `plans/钩索-实施计划.md` 这种相对路径。）
     - **命令**：凡是让用户去敲的，一律**整条写全** ——
+      **每条指令必须逐条解释**（2026-11-16用户裁定）：说明作用、何时使用、是否改变位置/配置/剧情进度/财物，以及应观察的结果；不能只给一串命令让用户照打。查询、校验、传送、跳过、重播、恢复和重置必须明确区分；有参数时说明参数含义。
       游戏内控制台 = `custom.grapple bind test`（**不许**只写 `bind test`）；
       PowerShell / bash = 完整命令行（含**完整路径参数**；要 `cd` 就把 `cd` 的路径也写全）。
     - **路径**：凡是让用户去找 / 去开 / 去贴的，一律给**绝对路径** ——
@@ -308,9 +309,9 @@
     - **判据一（存在）**：动作名能在 `Native/ModuleData/action_sets.xml` 里找到（或由我们补注册，见下）。
     - **判据二（能播）**：NPC 是人形 ⇒ 默认 action set = **`as_human_warrior`**（`Native/ModuleData/monsters.xml` 的 `<Monster id="human" action_set=...>` 写死）。**只存在于职业专用集**（`as_human_hideout_bandit` / `as_human_musician` / `as_human_tavern_keeper` / `as_human_beggar` …）的动作，人形 NPC **播不出来** —— 实测：9 个剧情 NPC 的常驻动作 **16/19 条**踩了这个坑，实机表现就是"人站着发呆"。
     - 🔴 **可以自己补注册**：在 LWN 的 `ModuleData/action_sets.xml` 里往 `<action_set id="as_human_warrior">` **追加** `<action type="act_x" animation="clip名" />`。引擎按 soln id **追加合并**，原版几千条不会被挤掉。**`animation=` 填的是动画 clip 名**（不是 FBX take、不是骨架动画资源名），**不要猜** —— 逐条抄原版对应集的 `animation=`。**同名重复定义会崩**（KeyNotFoundException）⇒ 追加前先查该动作是否已在 `as_human_warrior` 里。
-    - **离线闸门**：`python Scripts/check_story_probe.py` 会逐个核对 `StoryLineActions.json` 与 `StoryProbeCast.StreetLife` 的动作是否在「Native warrior ∪ LWN 追加」里，不在就报 `NPC cannot play it`。
+    - **离线闸门**：`python Scripts/check_story_probe.py` 会逐个核对 `Dialogues/*.dialog.json` 节点的 `LineActions` 与 `StoryProbeCast.StreetLife` 的动作是否在「Native warrior ∪ LWN 追加」里，不在就报 `NPC cannot play it`。
     - **实机判据**：`custom.story_probe action <npcId> <actName>` → `OK: ... resolves` / `NO: ... plays nothing`。
-    - **配套技能**：`.claude/skills/story-line-action/SKILL.md`（挑动作、改数据、验收一条龙）。范本：台词动作数据 = `ModuleData/DesignData/StoryLineActions.json`（每句一行，与中文行数对齐）。
+    - **配套技能**：`.claude/skills/story-line-action/SKILL.md`（挑动作、改数据、验收一条龙）。范本：台词动作数据 = `ModuleData/DesignData/Dialogues/*.dialog.json` 内的 `LineActions`（一句一节点，每节点最多一个动作，真实展示时按Speaker播放）；直接维护定稿，不再另存一份动作表。
 
 42. 🔴🔴 **演出内容与行为编排必须由策划脚本/JSON控制，C#只提供原子能力与通用执行机制**（2026-11-14 用户裁定，底层原则）——
     - **数据决定具体逻辑**：出场名单、岗位与行为资格、候选选择规则、日常行为组合、NPC群组成员与配合、触发条件、台词/动作、镜头、时序、分支、等待、循环、打断后的剧情去向与恢复目标，均在无需编译的策划脚本或JSON中定义。

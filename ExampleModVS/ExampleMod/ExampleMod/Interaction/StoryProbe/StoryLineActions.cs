@@ -6,8 +6,8 @@ namespace LivingWorldNpcs
     /// <summary>
     /// **台词配动作的播放器**（2026-11-13 立；同日改版：数据不再单独成表）。
     ///
-    /// 🔴 动作写在**对话节点自己身上**（`Dialogues/story_probe_*.json` 的 `NpcActions`，
-    ///    与 `NpcKey` 的行数一一对应）。曾经的 `StoryLineActions.json` 已删 —— 一句话和它的动作
+    /// 🔴 动作写在**对话节点自己身上**（`Dialogues/*.dialog.json` 的 `LineActions`，
+    ///    与 `TextKey` 的行数一一对应）。曾经的 `StoryLineActions.json` 已删 —— 一句话和它的动作
     ///    本来就该长在一起，分两张表必然会漂移。
     ///
     /// 🔴 动作必须在该 NPC 的 action set 里（人形 = `as_human_warrior`，CLAUDE.md 铁律 41）。
@@ -16,23 +16,13 @@ namespace LivingWorldNpcs
     /// </summary>
     public static class StoryLineActions
     {
-        /// <summary>每行之间隔多久播下一个动作（秒）。</summary>
-        private const float StepSeconds = 2.2f;
-
-        /// <summary>把这条台词配的动作**按行依次**播出来（第 i 个动作延迟 i×2.2 秒）。</summary>
+        /// <summary>真实台词节点展示时播放该句的动作；下一句由原版推进，不靠定时器。</summary>
         public static void Play(StoryProbeMissionBehavior host, Agent agent, string[] acts)
         {
             if (host == null || agent == null || acts == null) return;
-            for (int i = 0; i < acts.Length; i++)
-            {
-                string act = acts[i];
-                if (string.IsNullOrEmpty(act)) continue;
-                float delay = i * StepSeconds;
-                string captured = act;
-                int idx = i;
-                if (delay <= 0f) PlayOne(agent, captured, idx);
-                else host.ScheduleFor(delay, () => PlayOne(agent, captured, idx));
-            }
+            if (acts.Length > 1)
+            { DebugLogger.Log("[StoryLineActions] rejected multiple actions on a single-sentence node"); return; }
+            if (acts.Length == 1 && !string.IsNullOrEmpty(acts[0])) PlayOne(agent, acts[0], 0);
         }
 
         private static void PlayOne(Agent agent, string act, int index)
@@ -57,7 +47,7 @@ namespace LivingWorldNpcs
             {
                 var set = agent.ActionSet;
                 int index = MBActionSet.GetAnimationIndexOfAction(set, ActionIndexCache.Create(act));
-                return index >= 0
+                return index > 0
                     ? $"OK: '{act}' resolves in this agent's action set (index={index})"
                     : $"NO: '{act}' is NOT in this agent's action set (plays nothing)";
             }

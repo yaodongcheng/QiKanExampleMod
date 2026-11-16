@@ -69,6 +69,8 @@ def build(cast, tune, stage, cn):
 
     def nm(npc_id_or_def):
         """中文名：优先本地化层，其次 JSON 里的 fallback。"""
+        if npc_id_or_def == "player":
+            return "玩家"
         n = npc_id_or_def if isinstance(npc_id_or_def, dict) else by_id.get(npc_id_or_def or "", {})
         return cn.get(n.get("NameKey", ""), n.get("NameFallback", n.get("Id", "")))
 
@@ -183,6 +185,10 @@ def build(cast, tune, stage, cn):
         acts = (street.get(nid) or {}).get("Actions") or []
         w('      <div class="cd-row"><span class="cd-k">常驻</span><span>%s</span></div>'
           % ("".join('<code class="cd-code">%s</code>' % esc(a) for a in acts) or "—"))
+        listener = (street.get(nid) or {}).get("Listener")
+        if listener:
+            w('      <div class="cd-row"><span class="cd-k">说给</span><span>%s；演出内发声后身体和视线持续跟随，退出动作才释放（实机待验）</span></div>'
+              % esc(nm(listener)))
 
         pl = placed.get(nid)
         if pl:
@@ -236,7 +242,7 @@ def build(cast, tune, stage, cn):
     for b in beats:
         detail = b.get("Note") or ""
         bits = []
-        for k in ("Actor", "Id", "Prefab", "Case", "Anchor", "Action"):
+        for k in ("Actor", "Listener", "Id", "Prefab", "Case", "Anchor", "Action"):
             if b.get(k):
                 bits.append("%s=%s" % (k, b[k]))
         if bits:
@@ -442,12 +448,13 @@ def sync_gameplay(page, cast, tune):
             ['刀与绳', '接屠户委托，魅力劝止砸摊，或真实战斗取胜，再回去交差。'],
         ]))
     section(['你要干什么'], '你要干什么',
-        '<div class="scene"><p>你来找失联的妹妹，先要通过城门。第一次走近守卫先被质问；退让可以退出。'
-        '选择硬闯后才开始真实战斗，只有守卫造成实际致命伤害才判败入牢。</p>'
+        '<div class="scene"><p>你来找失联的妹妹，先要通过城门。第一次走近守卫就被拦下质问——<b>这是单行道</b>：'
+        '讲理被驳回，只有硬闯能推进；离开对话只是关窗，剧情不走。硬闯后守卫带临时强化，你必然被打倒，'
+        '只有真实致命伤害才判败入牢。</p>'
         '<p>自动进入真实地牢，在牢内确认换装，然后自动回到门外。第二阶段打听消息、办委托、取得工具或赚取钱，'
         '再选择过门办法。到达门内目标并结清财物归还后才完成。</p></div>')
     section(['整张图'], '整张图', table(['阶段', '玩家经历与判断'], [
-        ['首遇', '守卫质问 → 退让，或选择硬闯 → 真实战斗败退；保持距离、格挡不会按时间强行倒地。'],
+        ['首遇', '守卫质问 → 讲理被驳回（离开只关窗，剧情不走）→ 只有硬闯 → 真实战斗必败入牢；保持距离、格挡不会按时间强行倒地。'],
         ['入牢', '真实败退 → 自动地牢入场 → 牢内确认换装 → 自动回门外。'],
         ['第二阶段准备（目标未实施）', '按阶段名单布设9演员、7布景，最多借用1名已有可用同伴；无人则旁白。创建可同帧发起，R1～R7确认真实就绪后才开演。当前仍是30拍旧布局。'],
         ['市井与委托', '四家打听与委托；可用检定和平办事，也可实际战斗；奖励逐项到账。'],
@@ -490,7 +497,7 @@ def sync_gameplay(page, cast, tune):
     section(['怎么验（照着打，看日志）'], '怎么验（照着打，看日志）',
         '<p class="sub">用新托管存档，在吕卡隆测试；以下结果仍须游戏中确认。离线体检不代替画面和操控验收。</p>'
         + table(['步骤', '操作', '验收'], [
-            ['首遇', 'custom.story_probe enable；custom.story_probe goto；从城镇菜单进入，先退让再试硬闯', '退让不入牢；真实战斗致命伤害才败退。'],
+            ['首遇', 'custom.story_probe enable；custom.story_probe goto；从城镇菜单进入，先讲理被驳回、关窗退出，再重进选硬闯', '讲理与关窗不入牢、剧情不推进；硬闯真实战斗，致命伤害才败退。'],
             ['地牢', '败退后等待自动转场，在牢内拒绝/接受换装', '拒绝仍在牢；接受后实际换装，自动回门外。'],
             ['演出', 'custom.story_probe stage skip；custom.story_probe stage begin；演员演出中对话或受击', '玩家恢复移动；演员可中断；重播不叠布景、不抢其他身体状态。'],
             ['对话', 'custom.story_probe dialogue；例如custom.story_probe roll charm 0、custom.story_probe roll guile 100', 'Requires/Once实时变化；正常拒钱不当异常；每句动作真能播。'],

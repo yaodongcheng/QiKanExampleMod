@@ -100,7 +100,7 @@ namespace LivingWorldNpcs
             Add(new StoryAtomSpec
             {
                 Name = "actor_say", Implemented = true,
-                RequiredParams = new[] { "TextKey" }, Params = new[] { "TextKey" },
+                RequiredParams = new[] { "TextKey", "Listener" }, Params = new[] { "TextKey", "Listener" },
                 ActorRole = "required",
                 Notes = "本地化键，必须在中英两侧语言 XML 存在。"
             });
@@ -312,6 +312,7 @@ namespace LivingWorldNpcs
         public string Host;
         public List<string> Lines = new List<string>();
         public List<string> Speakers = new List<string>();
+        public List<string> Listeners = new List<string>();
         public List<string> LineFallbacks = new List<string>();
         public List<string> ActionsA = new List<string>();
         public List<string> ActionsB = new List<string>();
@@ -345,7 +346,7 @@ namespace LivingWorldNpcs
     {
         public float At;
         public string Cmd;
-        public string Id, Case, Actor, Action, TextKey, Prefab, Anchor, Note;
+        public string Id, Case, Actor, Action, TextKey, Listener, Prefab, Anchor, Note;
         public float Fwd, Right, Up, Yaw, Scale = 1f, Facing = -1f, Seconds;
         public bool Async, Civilian = true;
     }
@@ -835,6 +836,13 @@ namespace LivingWorldNpcs
                                     Str(args, ap.Name, stepPath + ".Args", errors, true);
                                 if (ap.Name == "To" && ap.Value.Type == JTokenType.String && ap.Value.ToString().StartsWith("$", StringComparison.Ordinal))
                                     ValidateFlowActor(ap.Value.ToString(), argPath, flow, cast, errors);
+                                if (spec.Name == "actor_say" && ap.Name == "Listener" && ap.Value.Type == JTokenType.String)
+                                {
+                                    string listener = ap.Value.ToString();
+                                    if (listener != "player") ValidateFlowActor(listener, argPath, flow, cast, errors);
+                                    if (listener == step.Actor)
+                                        errors.Add(new StoryValidationIssue(argPath, "unknown_listener", "听话者不能是说话者自己"));
+                                }
                                 if (ap.Value.Type == JTokenType.Null)
                                     errors.Add(new StoryValidationIssue(argPath, "wrong_type", "原子参数不能是 null"));
                             }
@@ -954,7 +962,7 @@ namespace LivingWorldNpcs
                 string path = "$.Behaviors." + bp.Name;
                 if (!(bp.Value is JObject bo)) { errors.Add(new StoryValidationIssue(path, "wrong_type", "行为规则必须是对象")); continue; }
                 Keys(bo, path, new[] { "Kind", "Posts", "Stages", "Perception", "Trigger", "Cooldown", "Rank", "Flow", "MaxActive",
-                    "Members", "Host", "Lines", "Speakers", "LineFallbacks", "ActionsA", "ActionsB", "JoinNode" }, errors);
+                    "Members", "Host", "Lines", "Speakers", "Listeners", "LineFallbacks", "ActionsA", "ActionsB", "JoinNode" }, errors);
                 var b = new StoryBehaviorDef { Id = bp.Name };
                 b.Kind = Str(bo, "Kind", path, errors, true) ?? "post";
                 if (b.Kind != "post" && b.Kind != "group")
@@ -977,6 +985,18 @@ namespace LivingWorldNpcs
                     b.Host = Str(bo, "Host", path, errors, true);
                     b.Lines = StrList(bo, "Lines", path, errors, false);
                     b.Speakers = StrList(bo, "Speakers", path, errors, false);
+                    b.Listeners = StrList(bo, "Listeners", path, errors, b.Lines.Count > 0);
+                    if (b.Listeners.Count != b.Lines.Count)
+                        errors.Add(new StoryValidationIssue(path + ".Listeners", "line_count", "Listeners 必须与 Lines 逐句对应"));
+                    for (int i = 0; i < b.Listeners.Count; i++)
+                    {
+                        string listener = b.Listeners[i];
+                        string speaker = i < b.Speakers.Count ? b.Speakers[i]
+                            : b.Members.Count > 0 ? b.Members[i % b.Members.Count] : null;
+                        if ((listener != "player" && !b.Members.Contains(listener)) || listener == speaker)
+                            errors.Add(new StoryValidationIssue(path + ".Listeners[" + i + "]", "unknown_listener",
+                                "听话者必须为 player 或另一位群组成员"));
+                    }
                     foreach (string sp in b.Speakers)
                         if (!b.Members.Contains(sp))
                             errors.Add(new StoryValidationIssue(path + ".Speakers", "bad_value",
@@ -1131,6 +1151,11 @@ namespace LivingWorldNpcs
                     case "actor_say":
                         beat.Actor = Str(bo, "Actor", path, errors, true);
                         beat.TextKey = Str(bo, "TextKey", path, errors, true);
+                        beat.Listener = Str(bo, "Listener", path, errors, true);
+                        if (beat.Listener == beat.Actor || (beat.Listener != "player"
+                            && (roster == null || !roster.Contains(beat.Listener))))
+                            errors.Add(new StoryValidationIssue(path + ".Listener", "unknown_listener",
+                                "听话者必须为 player 或另一位开场演员"));
                         checkActor();
                         break;
                     case "wait":
@@ -1177,7 +1202,7 @@ namespace LivingWorldNpcs
                 case "actor_action":
                     return new[] { "At", "Cmd", "Actor", "Action", "Async", "Note" };
                 case "actor_say":
-                    return new[] { "At", "Cmd", "Actor", "TextKey", "Note" };
+                    return new[] { "At", "Cmd", "Actor", "TextKey", "Listener", "Note" };
                 case "wait":
                     return new[] { "At", "Cmd", "Seconds", "Note" };
                 default:
@@ -1393,9 +1418,65 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>
-    /// 已发布数据（当前 Mission 固定的内容版本）。
-    /// 🔴 一次发布 = 解析 + 全量校验都通过；失败**保留**上一有效版本，不先清缓存。
+    /// 正式布局的读盘与发布。入场前重读一次；场内查询只使用已发布数据。
+    /// 校验/读盘失败保留旧版，不能先 Clear 再尝试；没有有效旧版则拒绝入场。
     /// </summary>
+    public static class StoryV2Data
+    {
+        private static bool _attempted;
+        private static string _report = "not loaded";
+
+        public static string Report => _report;
+        public static bool Published => StoryLayoutRegistry.Published != null;
+
+        public static bool EnsurePublished() => _attempted ? Published : Reload();
+
+        /// <summary>
+        /// 返回是否有可用布局（新发布或保留的旧版）。只在旧 Mission 已结束时发布，
+        /// 保证一场戏期间不会混用新旧岗位/行为/工作点数据。
+        /// </summary>
+        public static bool Reload()
+        {
+            if (TaleWorlds.MountAndBlade.Mission.Current != null)
+            {
+                // 场内首次需要数据仍允许初始化；已发布内容不可在活跃场景被替换。
+                if (Published)
+                {
+                    _report = "deferred: leave the current mission before reloading; kept v"
+                              + StoryLayoutRegistry.PublishedVersion;
+                    DebugLogger.Log("[StoryV2] " + _report);
+                    return true;
+                }
+            }
+            _attempted = true;
+            try
+            {
+                string folder = StoryProbeDataFiles.DesignDataFolder;
+                if (string.IsNullOrEmpty(folder)) return Reject("no design data folder");
+                string path = Path.Combine(folder, "StoryStageV2.json");
+                if (!File.Exists(path)) return Reject("StoryStageV2.json missing");
+                var ids = StoryLayoutParser.LoadCastIds(Path.Combine(folder, "StoryProbeCast.json"));
+                if (!StoryLayoutRegistry.TryPublish(File.ReadAllText(path), path, ids,
+                    StoryValidationMode.Formal, out var result))
+                    return Reject(result.Describe());
+                _report = "published v" + result.Data.ContentVersion + " layout=" + result.Data.Schema;
+                DebugLogger.Log("[StoryV2] " + _report);
+                return true;
+            }
+            catch (Exception ex) { return Reject(ex.GetType().Name + ": " + ex.Message); }
+        }
+
+        private static bool Reject(string reason)
+        {
+            _report = "rejected: " + reason + (Published
+                ? "; kept previous v" + StoryLayoutRegistry.PublishedVersion
+                : "; no valid layout available");
+            DebugLogger.Log("[StoryV2] " + _report);
+            return Published;
+        }
+    }
+
+    /// <summary>布局解析、校验全部通过才一次发布；失败保留上一有效版本。</summary>
     public static class StoryLayoutRegistry
     {
         private static StoryLayoutFile _published;

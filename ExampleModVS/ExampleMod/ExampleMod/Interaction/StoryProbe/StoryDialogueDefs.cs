@@ -197,6 +197,8 @@ namespace LivingWorldNpcs
     public sealed class StoryDialogueOption
     {
         public string Id;
+        public string Speaker;
+        public string Listener;
         public string PlayerKey;
         public List<string> Requires = new List<string>();
         public List<StoryDialogueEffect> Effects = new List<StoryDialogueEffect>();
@@ -208,6 +210,8 @@ namespace LivingWorldNpcs
     {
         public string Id;
         public string Speaker;                 // 参与者角色名（如 questioner）或实名演员 id
+        public string Listener;                // player / 本次演员角色 / 实名演员 id
+        public string NextNode;                // 连续 NPC 台词；与玩家 Options 互斥
         public string TextKey;
         public List<string> LineActions = new List<string>();
         public List<string> Requires = new List<string>();
@@ -246,6 +250,7 @@ namespace LivingWorldNpcs
         public bool SkipVanillaOpening;
         public List<string> Participants = new List<string>();
         public List<string> Actors = new List<string>();      // 允许出现的实名演员 id
+        public List<string> EntryActors = new List<string>(); // 可作为本定义入口/业务归属的演员；参与者不等于入口
         public List<StoryDialogueTriggerDef> Triggers = new List<StoryDialogueTriggerDef>();
         public List<StoryDialogueEntryRule> Entries = new List<StoryDialogueEntryRule>();
         public List<StoryDialogueNodeDef> Nodes = new List<StoryDialogueNodeDef>();
@@ -291,9 +296,11 @@ namespace LivingWorldNpcs
     public static class StoryDialogueParser
     {
         public const string RequiredSchema = "story_dialogue/2";
+        // 🔴 `*Zh` = 只读中文审核副本（总纲 §18.5.1），由 Scripts/annotate_dialogue_zh.py 从语言表生成，
+        //    解析器只放行、**从不读取**；漏放行 = 整批对话 unknown_key 全部不发布。
         public static readonly string[] RootKeys =
-            { "Schema", "DialogueId", "ContentVersion", "Participants", "Actors", "Triggers", "Entries", "Nodes",
-              "EntryOption", "SkipVanillaOpening" };
+            { "Schema", "DialogueId", "ContentVersion", "Participants", "Actors", "EntryActors", "Triggers", "Entries", "Nodes",
+              "EntryOption", "EntryOptionZh", "SkipVanillaOpening" };
         private static readonly string[] Sources = { "player", "post_ai", "event", "script" };
         private static readonly string[] Commits = { "on_enter", "on_select", "on_session_end" };
         private static readonly string[] Receipts = { "once", "session", "never" };
@@ -335,10 +342,17 @@ namespace LivingWorldNpcs
                 errors.Add(new StoryDialogueIssue("$.ContentVersion", "missing_field", "缺少 ContentVersion"));
             def.Participants = StrArray(root, "Participants", "$", errors, true);
             def.Actors = StrArray(root, "Actors", "$", errors, false);
+            def.EntryActors = StrArray(root, "EntryActors", "$", errors, true);
             def.EntryOption = Str(root, "EntryOption", "$", errors, false);
             def.SkipVanillaOpening = Bool(root, "SkipVanillaOpening", "$", errors, false);
+            if (formalMode && !def.SkipVanillaOpening)
+                errors.Add(new StoryDialogueIssue("$.SkipVanillaOpening", "bad_turn", "正式剧情必须由入口 NPC 先说话，不注册玩家网关开场"));
             Dup(def.Participants, "$.Participants", "参与者", errors);
             Dup(def.Actors, "$.Actors", "实名演员", errors);
+            Dup(def.EntryActors, "$.EntryActors", "入口演员", errors);
+            foreach (var actor in def.EntryActors)
+                if (!def.Actors.Contains(actor))
+                    errors.Add(new StoryDialogueIssue("$.EntryActors", "unknown_actor", "入口演员必须登记在 Actors：" + actor));
 
             ParseTriggers(root, def, errors);
             ParseEntries(root, def, errors);
@@ -411,11 +425,13 @@ namespace LivingWorldNpcs
             {
                 if (!(n is JObject no)) { errors.Add(new StoryDialogueIssue("$.Nodes", "wrong_type", "节点必须是对象")); continue; }
                 string path = "$.Nodes[" + def.Nodes.Count + "]";
-                Keys(no, path, new[] { "Id", "Speaker", "TextKey", "LineActions", "Requires", "OnEnter", "Options" }, errors);
+                Keys(no, path, new[] { "Id", "Speaker", "Listener", "NextNode", "TextKey", "TextKeyZh", "LineActions", "Requires", "OnEnter", "Options" }, errors);
                 var node = new StoryDialogueNodeDef
                 {
                     Id = Str(no, "Id", path, errors, true),
                     Speaker = Str(no, "Speaker", path, errors, true),
+                    Listener = Str(no, "Listener", path, errors, true),
+                    NextNode = Str(no, "NextNode", path, errors, false),
                     TextKey = Str(no, "TextKey", path, errors, true),
                     LineActions = StrList(no, "LineActions", path, errors, false),
                     Requires = StrList(no, "Requires", path, errors, false)
@@ -427,10 +443,12 @@ namespace LivingWorldNpcs
                     string opath = path + ".Options[" + oi + "]";
                     oi++;
                     if (!(o is JObject oo)) { errors.Add(new StoryDialogueIssue(opath, "wrong_type", "选项必须是对象")); continue; }
-                    Keys(oo, opath, new[] { "Id", "PlayerKey", "Requires", "Effects", "Check", "NextNode" }, errors);
+                    Keys(oo, opath, new[] { "Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "Requires", "Effects", "Check", "NextNode" }, errors);
                     var opt = new StoryDialogueOption
                     {
                         Id = Str(oo, "Id", opath, errors, true),
+                        Speaker = Str(oo, "Speaker", opath, errors, true),
+                        Listener = Str(oo, "Listener", opath, errors, true),
                         PlayerKey = Str(oo, "PlayerKey", opath, errors, true),
                         Requires = StrList(oo, "Requires", opath, errors, false),
                         Effects = ParseEffects(oo, "Effects", opath, errors),
@@ -539,11 +557,25 @@ namespace LivingWorldNpcs
                 if (!participants.Contains(node.Speaker ?? "") && !actors.Contains(node.Speaker ?? ""))
                     errors.Add(new StoryDialogueIssue(path + ".Speaker", "unknown_speaker",
                         "说话者 '" + node.Speaker + "' 既不在 Participants 也不在 Actors"));
+                if (!participants.Contains(node.Listener ?? "") && !actors.Contains(node.Listener ?? ""))
+                    errors.Add(new StoryDialogueIssue(path + ".Listener", "unknown_listener", "听话者未登记：" + node.Listener));
+                if (node.Speaker == "player" || node.Speaker == node.Listener)
+                    errors.Add(new StoryDialogueIssue(path, "bad_turn", "节点必须由 NPC 对另一位参与者说一句话"));
+                if (!string.IsNullOrEmpty(node.NextNode) && !nodeIds.Contains(node.NextNode))
+                    errors.Add(new StoryDialogueIssue(path + ".NextNode", "unknown_node", "连续台词目标不存在：" + node.NextNode));
+                if (!string.IsNullOrEmpty(node.NextNode) && node.Options.Count > 0)
+                    errors.Add(new StoryDialogueIssue(path, "bad_turn", "NextNode 与 Options 只能二选一"));
+                if (node.LineActions.Count > 1)
+                    errors.Add(new StoryDialogueIssue(path + ".LineActions", "bad_turn", "一句台词最多配一个动作"));
                 CheckConditions(node.Requires, path, errors, formalMode);
                 CheckEffects(node.OnEnter, path, errors, formalMode);
                 foreach (var opt in node.Options)
                 {
                     string opath = path + ".Options." + opt.Id;
+                    if (opt.Speaker != "player" || opt.Listener == "player")
+                        errors.Add(new StoryDialogueIssue(opath, "bad_turn", "玩家选项必须由 player 对 NPC 说话"));
+                    if (!participants.Contains(opt.Listener ?? "") && !actors.Contains(opt.Listener ?? ""))
+                        errors.Add(new StoryDialogueIssue(opath + ".Listener", "unknown_listener", "选项听话者未登记：" + opt.Listener));
                     CheckConditions(opt.Requires, opath, errors, formalMode);
                     CheckEffects(opt.Effects, opath, errors, formalMode);
                     if (!string.IsNullOrEmpty(opt.NextNode) && !nodeIds.Contains(opt.NextNode))
@@ -564,6 +596,21 @@ namespace LivingWorldNpcs
                             errors.Add(new StoryDialogueIssue(opath + ".Check.Target", "unknown_speaker",
                                 "检定目标 '" + opt.Check.Target + "' 既不在 Participants 也不在 Actors"));
                     }
+                }
+            }
+            // 只检查无选择的连续边；允许有玩家选择的正常话题回环。
+            foreach (var origin in def.Nodes)
+            {
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                var cursor = origin;
+                while (cursor != null && !string.IsNullOrEmpty(cursor.NextNode))
+                {
+                    if (!visited.Add(cursor.Id))
+                    {
+                        errors.Add(new StoryDialogueIssue("$.Nodes." + origin.Id, "continuation_cycle", "连续 NPC 台词不能成环"));
+                        break;
+                    }
+                    cursor = def.FindNode(cursor.NextNode);
                 }
             }
         }
@@ -833,7 +880,7 @@ namespace LivingWorldNpcs
 
     /// <summary>
     /// 正式对话定义的装载（P0-D.5 的迁移桥）：
-    ///   · 只认 `ModuleData/DesignData/Dialogues/*.dialog.json`（新格式），旧 `story_probe_*.json` 原样不动。
+    ///   · 只认 `ModuleData/DesignData/Dialogues/*.dialog.json`（新格式），本目录只维护这一种格式，不回落旧文件。
     ///   · 先解析全部 → 任一失败则**整体不发布**、保留旧版；全部通过才替换。
     ///   · 按需装载一次；`custom.story_probe reload` 会强制重载。
     /// </summary>
@@ -861,7 +908,7 @@ namespace LivingWorldNpcs
             var files = Directory.GetFiles(dir, "*.dialog.json").OrderBy(f => f, StringComparer.Ordinal).ToList();
             if (files.Count == 0)
             {
-                _lastReport = "no *.dialog.json (legacy dialogue data only)";
+                _lastReport = "no *.dialog.json definitions";
                 return _lastReport;
             }
 

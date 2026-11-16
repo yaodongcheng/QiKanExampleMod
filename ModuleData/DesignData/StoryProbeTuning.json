@@ -40,6 +40,7 @@
   "Performance": {
     "ActorReadyTimeoutSec": 3.0,
     "DebugActorDurationSec": 3.0,
+    "DebugSpeechDurationSec": 15.0,
     "AmbientPoseDurationSec": 3.0
   },
   "Gate": {

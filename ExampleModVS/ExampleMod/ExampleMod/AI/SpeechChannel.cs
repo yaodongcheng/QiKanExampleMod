@@ -47,6 +47,8 @@ namespace LivingWorldNpcs
     {
         public string StimulusType;   // spoken_to / attacked / seen_crime / approach_by / combat …
         public Agent Speaker;         // 刺激源（玩家或 NPC，不是说话者自己）
+        public Agent Listener;        // 真实听话者；不从刺激源或正文署名推断
+        internal PerformanceAction Performance; // 发出这句的演出租约，防止排队旧台词控制新动作
         public string Topic;          // 话题（对话会话 topic；战斗 = "战斗"；日常 = null）
         public string CurrentAction;  // 本 agent 当前动作类名（FightEnemyAction/MoveToPositionAction…）
         public string Intent;         // 本 agent 当前 NpcIntentType
@@ -69,11 +71,13 @@ namespace LivingWorldNpcs
         ///   - speaker = **刺激源（对方）**——触发我这次说话的谁（玩家/NPC/敌人），**不是说话者自己**；
         ///     无明确刺激源（自发言语：make_noise/bubble/im_message/plan_report）传 null
         /// </summary>
-        public static SpeechContext FromBrain(AgentBrain brain, Agent speaker = null, string stimulus = null, string topic = null)
+        public static SpeechContext FromBrain(AgentBrain brain, Agent speaker = null, string stimulus = null, string topic = null,
+            Agent listener = null)
         {
             var ctx = new SpeechContext
             {
                 Speaker = speaker,
+                Listener = listener,
                 StimulusType = stimulus,
                 Topic = topic,
             };
@@ -82,6 +86,7 @@ namespace LivingWorldNpcs
                 if (brain != null)
                 {
                     ctx.CurrentAction = brain.CurrentAction?.GetType().Name;
+                    ctx.Performance = brain.CurrentAction as PerformanceAction;
                     if (brain.CurrentIntent != null)
                         ctx.Intent = brain.CurrentIntent.Type.ToString();
                 }
@@ -119,6 +124,7 @@ namespace LivingWorldNpcs
         private readonly Queue<SpeechRequest> _queue = new Queue<SpeechRequest>();
         private readonly Agent _owner;            // 持有 agent（AgentAIController.OnAgentDeleted 清理注册表）
         private SpeechRequest _playing;
+        private SpeechContext _lastPerformanceSpeech;
         private bool _hasPlaying;
         private float _playTimer;
         private float _lastSayAt;                // Mission 时间（闸门基准）
@@ -151,6 +157,16 @@ namespace LivingWorldNpcs
             {
                 lock (_syncLock) { _registry.Remove(agent.Index); }
             }
+        }
+
+        /// <summary>只取已经实际播放的台词人物；身体写入仍由 Brain 主线程的原子动作负责。</summary>
+        internal static Agent GetPerformanceListener(Agent agent, PerformanceAction performance)
+        {
+            if (agent == null || performance == null) return null;
+            lock (_syncLock)
+                return _registry.TryGetValue(agent.Index, out var ch)
+                    && ReferenceEquals(ch._lastPerformanceSpeech.Performance, performance)
+                    ? ch._lastPerformanceSpeech.Listener : null;
         }
 
         /// <summary>统一发声入口（主线程或 LLM 回调线程；线程安全）。高优先级抢占当前播放；同优先级入队排队。
@@ -546,7 +562,14 @@ namespace LivingWorldNpcs
                 if (_owner == null || !AgentControlHelper.SafeIsActive(_owner)) return;
                 // 前因序列化：只收非空字段（context 未传 = 调用点没给前因，仅打优先级兜底）
                 var c = req.Context;
+                // 晚到的旧演出台词不进入新动作；记录目标只改托管状态，不能在 LLM 线程写身体。
+                if (c.Performance != null)
+                {
+                    if (c.Performance.Ended || c.Performance.Paused) return;
+                    if (c.Listener != null) _lastPerformanceSpeech = c;
+                }
                 string reason = $"优先级={req.Priority}";
+                if (c.Listener != null) reason += $" 听话者={c.Listener.Name}";
                 if (!string.IsNullOrEmpty(c.StimulusType)) reason += $" 刺激={c.StimulusType}";
                 if (!string.IsNullOrEmpty(c.CurrentAction)) reason += $" 行动={c.CurrentAction}";
                 if (!string.IsNullOrEmpty(c.Intent)) reason += $" 意图={c.Intent}";

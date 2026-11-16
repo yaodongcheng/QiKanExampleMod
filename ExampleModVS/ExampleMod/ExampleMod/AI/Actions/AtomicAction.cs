@@ -1544,6 +1544,7 @@ namespace LivingWorldNpcs
         private readonly Action<string> _onStopped;
         private bool _ended;
         private bool _bodyHeld;
+        public Agent SpeechListener { get; private set; }
         public string OwnerToken { get; }
         public bool Started { get; private set; }
         public bool Paused { get; private set; }
@@ -1636,8 +1637,26 @@ namespace LivingWorldNpcs
         private void HoldBody()
         {
             if (!CanControl) return;
+            var listener = SpeechChannel.GetPerformanceListener(_brain.Owner, this);
+            if (listener != null && listener != SpeechListener)
+            {
+                SpeechListener = listener;
+                DebugLogger.Log($"[Performance] listener owner={OwnerToken} speaker={_brain.Owner.Name} listener={listener.Name}");
+            }
+            if (SpeechListener != null && (SpeechListener == _brain.Owner
+                || !AgentControlHelper.SafeIsActive(SpeechListener) || SpeechListener.Health <= 0f))
+            {
+                Finish("listener-unavailable");
+                return;
+            }
             AgentControlHelper.HoldInPlace(_brain.Owner);
             _bodyHeld = true;
+            if (SpeechListener != null)
+            {
+                // 气泡消失不解除；目标移动时持续更新身体朝向与注视，动作离开才归还。
+                AgentControlHelper.FaceToActor(_brain.Owner, SpeechListener);
+                AgentControlHelper.LookAtAgent(_brain.Owner, SpeechListener);
+            }
         }
 
         private void ReleaseBody()
@@ -1657,6 +1676,7 @@ namespace LivingWorldNpcs
             try { if (releaseBody) ReleaseBody(); }
             catch (Exception ex) { DebugLogger.Log($"[Performance] release failed: {ex.Message}"); }
             _ended = true;
+            SpeechListener = null;
             _bodyHeld = false;
             _brain.PerformanceEnded(this);
             DebugLogger.Log($"[Performance] ended owner={OwnerToken} started={Started} reason={reason}");

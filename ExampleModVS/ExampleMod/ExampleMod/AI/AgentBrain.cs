@@ -2508,6 +2508,12 @@ namespace LivingWorldNpcs
             if (Settings.Instance.IsInteractionDisabled())
                 return;
 
+            // 原版会话拥有当前参与者的身体；保留行为队列，散场后再继续。
+            // 也覆盖中途加入的真实第三人，防止台词说话者同时被日常走位驱动。
+            var conversation = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager;
+            if (conversation != null && conversation.IsConversationInProgress && conversation.IsConversationAgent(Owner))
+                return;
+
             // 🔴 **安全网：被捆标记不许"悬空"**（钩索「勾人」TODO 2，2026-10-09）。正常路径下
             //    `IsBound = true` 与"入队 BoundAction"是同一条语句块里发生的（中间不会插 Tick），
             //    且占位永不自己结束 ⇒ 本判据平时恒不成立。它兜的是**病态路径**：占位被外力拆掉

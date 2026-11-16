@@ -2,7 +2,7 @@
 """序章（市井 · 城门序章）离线体检。
 
 检查四件事（每条都是实机前能抓的错）：
-  1. 对话 JSON 结构：节点 Id 唯一、EntryNode 存在、NextNode* 不悬空、每个节点至少有 1 个出口。
+  1. 对话 JSON 结构：定义/节点/选项 Id 唯一、Entries 合法、NextNode/Check 分支不悬空、每个节点至少有 1 个出口。
   2. 对话 JSON 用到的本地化键，在 **英文层 + 中文层** 都存在。
   3. C# 里出现过的 `LWN_story_*` 字面量键，两层都存在（防手滑打错 key → 玩家看到 key 名）。
   4. 两个语言 XML 里没有 BMP 外字符（emoji → 引擎解析崩，CLAUDE.md 铁律 14）。
@@ -33,19 +33,31 @@ def load_lang(path):
     return out
 
 
+def dialogue_paths(module):
+    """正式对话的唯一维护源；旧格式不作为校验替身。"""
+    return sorted(glob.glob(os.path.join(module, "ModuleData", "DesignData", "Dialogues", "*.dialog.json")))
+
+
 def dialogue_keys(module):
     keys = set()
-    files = sorted(glob.glob(os.path.join(module, "ModuleData", "DesignData", "Dialogues", "story_probe_*.json")))
+    files = dialogue_paths(module)
     for path in files:
-        data = json.load(io.open(path, encoding="utf-8"))
+        try:
+            data = json.loads(io.open(path, encoding="utf-8").read(), object_pairs_hook=_dlg_dup_keys)
+        except (ValueError, OSError):
+            continue  # 结构检查负责报告坏文件，不能拿旧格式补数。
         if data.get("EntryOption"):
             keys.add(data["EntryOption"])
         for node in data.get("Nodes", []):
-            if node.get("NpcKey"):
-                keys.add(node["NpcKey"])
-            for tr in node.get("Transitions", []):
-                if tr.get("PlayerKey"):
-                    keys.add(tr["PlayerKey"])
+            if node.get("TextKey"):
+                keys.add(node["TextKey"])
+            for opt in node.get("Options", []):
+                if opt.get("PlayerKey"):
+                    keys.add(opt["PlayerKey"])
+            effects = list(node.get("OnEnter", [])) + [e for opt in node.get("Options", []) for e in opt.get("Effects", [])]
+            for effect in effects:
+                if effect.get("Id") == "message" and effect.get("Params", {}).get("key"):
+                    keys.add(effect["Params"]["key"])
     return files, keys
 
 
@@ -63,159 +75,96 @@ def code_keys(module):
 
 
 def check_json(module, problems):
+    """直接审阅正式定义的图和代价；契约仍由既有story_dialogue_issues校验。"""
     cn = _load_lang_cached(module, True)
     files, keys = dialogue_keys(module)
     if not files:
-        problems.append("no dialogue json files under ModuleData/DesignData/Dialogues/")
+        problems.append("no *.dialog.json under ModuleData/DesignData/Dialogues/")
         return keys, 0
-
-    known_terms = {"disguised", "noble", "stripped", "quest_accepted", "quest_done", "quest_turned",
-                   "gate_open", "blocker_disarmed", "can_redeem_keepsake", "errand_ready", "street_help_pending",
-                   "resolution:force", "resolution:charm", "resolution:guile",
-                   "attitude:open", "attitude:covert", "attitude:disdain"}
-    known_prefix = ("gold>=", "item:", "clue:", "hazard:", "step>=",
-                    "quest_accepted@", "quest_done@", "quest_turned@", "asked:", "reward:", "event_resolved:")
-
-    node_total = option_total = 0
+    total = 0
+    definition_ids = set()
+    cast = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryProbeCast.json")) or {}
+    cast_by_id = {n.get("Id"): n for n in cast.get("Npcs", [])}
     for path in files:
         name = os.path.basename(path)
-        data = json.load(io.open(path, encoding="utf-8"))
-        nodes = data.get("Nodes", [])
-        node_total += len(nodes)
-
-        ids = [n.get("Id") for n in nodes]
-        if len(ids) != len(set(ids)):
-            dup = sorted({i for i in ids if ids.count(i) > 1})
-            problems.append(f"{name}: duplicate node ids {dup}")
-
-        idset = set(ids)
-        if data.get("EntryNode") not in idset:
-            problems.append(f"{name}: EntryNode '{data.get('EntryNode')}' missing")
-
-        for node in nodes:
-            nid = node.get("Id")
-            if not node.get("NpcKey"):
-                problems.append(f"{name}:{nid}: missing NpcKey")
-            trs = node.get("Transitions") or []
-            option_total += len(trs)
-            if not trs:
-                problems.append(f"{name}:{nid}: no transitions (dead end)")
-            for tr in trs:
-                if not tr.get("PlayerKey"):
-                    problems.append(f"{name}:{nid}: transition without PlayerKey")
-                nxt = tr.get("NextNodeOnSuccess")
-                if nxt and nxt not in idset:
-                    problems.append(f"{name}:{nid}: -> missing node '{nxt}'")
-                fail = tr.get("NextNodeOnFail")
-                if fail and fail not in idset:
-                    problems.append(f"{name}:{nid}: -> missing fail node '{fail}'")
-                if tr.get("CheckType") == "SkillCheck" and not tr.get("NextNodeOnFail"):
-                    problems.append(f"{name}:{nid}: SkillCheck without NextNodeOnFail")
-
-                # Requires 词表校验：写错一个词 = 那条选项**永远不出现**（静默失效，最难查）
-                req = tr.get("Requires")
-                if req:
-                    for term in req.split(","):
-                        term = term.strip()
-                        if term.startswith("!"):
-                            term = term[1:]
-                        if not term:
-                            problems.append(f"{name}:{nid}: empty Requires term")
-                            continue
-                        numeric = next((p for p in ("gold>=", "step>=", "event_resolved:") if term.startswith(p)), None)
-                        if numeric:
-                            value = term[len(numeric):]
-                            if not re.fullmatch(r"[0-9]+", value) or int(value) > 2147483647:
-                                problems.append(f"{name}:{nid}: invalid numeric Requires term '{term}'")
-                            continue
-                        prefix = next((p for p in known_prefix if term.startswith(p)), None)
-                        if prefix and not term[len(prefix):]:
-                            problems.append(f"{name}:{nid}: missing argument in Requires term '{term}'")
-                            continue
-                        if term in known_terms or term.startswith(known_prefix):
-                            continue
-                        problems.append(f"{name}:{nid}: unknown Requires term '{term}'")
-
-        # 🔴 规则七：同一个 Once 闸门不许被同一个节点下的多条不同选项共用
-        # 🔴 规则十二：所有节点必须从合法入口可达（禁止孤立死节点）
-        # 🔴 规则十三：禁止自指循环（NextNode == node.Id）与中途跳回 *_intro
-        # 🔴 规则十四：付费动作（pay / pay_to / bribe / money_deal / offer_money）必须有 gold>= 条件
-        valid_roots = set()
-        if data.get("EntryNode"):
-            valid_roots.add(data["EntryNode"])
-        for nid in idset:
-            if (nid.endswith("_intro") or nid.endswith("_hub") or nid.endswith("_turnin")
-                    or nid.endswith("_chat") or nid.startswith("event_") and nid.endswith("_join")
-                    or nid in ("blocker_first", "blocker_open")):
-                valid_roots.add(nid)
-
-        reachable = set(valid_roots)
-        queue = list(valid_roots)
-        by_id = {n.get("Id"): n for n in nodes}
+        try:
+            data = json.loads(io.open(path, encoding="utf-8").read(), object_pairs_hook=_dlg_dup_keys)
+        except (ValueError, OSError) as ex:
+            problems.append("%s: json_parse %s" % (name, ex))
+            continue
+        issues = story_dialogue_issues(data, formal=True)
+        if issues:
+            problems.extend("%s: %s [%s] %s" % (name, i["path"], i["code"], i["message"]) for i in issues[:20])
+            continue
+        did = data["DialogueId"]
+        if did in definition_ids:
+            problems.append("duplicate DialogueId: " + did)
+        definition_ids.add(did)
+        nodes = data["Nodes"]
+        total += len(nodes)
+        by_id = {n["Id"]: n for n in nodes}
+        roots = {e["Node"] for e in data["Entries"]}
+        reachable = set(roots)
+        queue = list(roots)
+        by_target = {}
         while queue:
-            cur = queue.pop(0)
-            cnode = by_id.get(cur)
-            if not cnode:
+            node = by_id.get(queue.pop(0))
+            if node is None:
                 continue
-            for tr2 in (cnode.get("Transitions") or []):
-                for target in (tr2.get("NextNodeOnSuccess"), tr2.get("NextNodeOnFail")):
-                    if target and target in idset and target not in reachable:
+            target = node.get("NextNode")
+            if target and target in by_id and target not in reachable:
+                reachable.add(target)
+                queue.append(target)
+            for opt in node.get("Options", []):
+                check = opt.get("Check") or {}
+                for target in (opt.get("NextNode"), check.get("Success"), check.get("Fail")):
+                    if target and target in by_id and target not in reachable:
                         reachable.add(target)
                         queue.append(target)
-
-        for nid in ids:
+        for node in nodes:
+            nid = node["Id"]
             if nid not in reachable:
-                problems.append(f"dialogue[{name}]: 孤立不可达节点 '{nid}'（没有任何入口或选项能走到它）")
-
-        for nd in nodes:
-            nid = nd.get("Id")
-            once_seen = {}
-            for tr2 in (nd.get("Transitions") or []):
-                pk = tr2.get("PlayerKey") or ""
-                once_tag = tr2.get("Once")
-                if once_tag:
-                    if once_tag in once_seen and once_seen[once_tag] != pk:
-                        problems.append(f"dialogue[{name}:{nid}]: 两条选项共用同一个 Once='{once_tag}'（点一条另一条也会消失）")
-                    once_seen[once_tag] = pk
-
-                for target in (tr2.get("NextNodeOnSuccess"), tr2.get("NextNodeOnFail")):
-                    if not target:
-                        continue
+                problems.append("dialogue[%s]: 孤立不可达节点 '%s'" % (name, nid))
+            options = node.get("Options", [])
+            # No player options: NextNode continues natively, otherwise the sentence closes the window.
+            seen_once = {}
+            for opt in options:
+                pk = opt["PlayerKey"]
+                req = opt.get("Requires", [])
+                for effect in opt.get("Effects", []):
+                    flag = effect.get("Params", {}).get("flag", "")
+                    if effect.get("Id") == "mark" and "!asked:" + flag in req:
+                        if flag in seen_once and seen_once[flag] != pk:
+                            problems.append("dialogue[%s:%s]: 两条选项共用同一个 Once='%s'" % (name, nid, flag))
+                        seen_once[flag] = pk
+                check = opt.get("Check") or {}
+                targets = (opt.get("NextNode"), check.get("Success"), check.get("Fail"))
+                for target in targets:
                     if target == nid:
-                        problems.append(f"dialogue[{name}:{nid}]: 选项 '{pk}' 自指循环指向自身 '{nid}'")
-                    if target.endswith("_intro") and not (nid.startswith("event_") and nid.endswith("_join")):
-                        problems.append(f"dialogue[{name}:{nid}]: 选项 '{pk}' 中途跳回开场节点 '{target}'（应跳 *_hub）")
-
-                act = tr2.get("Action") or ""
-                req = tr2.get("Requires") or ""
-                if any(v in act for v in ("PROBE:pay", "PROBE:bribe", "PROBE:money_deal", "PROBE:offer_money")):
-                    if "gold>=" not in req:
-                        problems.append(f"dialogue[{name}:{nid}]: 付费选项 '{pk}' (Action={act}) 缺少 'gold>=' 显示条件")
-
-        # 🔴 同一个回答节点不许被"两种不同问法"指向 —— 否则第二次问会得到一模一样的回答（NPC 像失忆）
-        #    菜单节点（出度≥5 或 *_hub）除外：那里本来就是"回头再说"的汇总口。
-        seg = []
-        for nd in data.get("Nodes", []):
-            for tr2 in nd.get("Transitions", []):
-                tg = tr2.get("NextNodeOnSuccess")
-                if not tg:
-                    continue
-                _outdeg = {x.get("Id"): len(x.get("Transitions") or []) for x in data["Nodes"]}
-                if _outdeg.get(tg, 0) >= 5 or str(tg).endswith("_hub"):
-                    continue
-                lbl = re.sub(r"^\[[^\]]*\]\s*", "", cn.get(tr2.get("PlayerKey"), "")).strip()
-                if lbl:
-                    seg.append((tg, lbl))
-        by_target = {}
-        for tg, lbl in seg:
-            by_target.setdefault(tg, set()).add(lbl)
-        for tg, labels in by_target.items():
+                        problems.append("dialogue[%s:%s]: 选项 '%s' 自指循环" % (name, nid, pk))
+                    if target and target.endswith("_intro") and not (nid.startswith("event_") and nid.endswith("_join")):
+                        problems.append("dialogue[%s:%s]: 中途跳回开场节点 '%s'" % (name, nid, target))
+                effects = {e["Id"] for e in opt.get("Effects", [])} & {"pay", "money_offer", "money_deal"}
+                primary_actor = next(iter(data.get("Actors", [])), "")
+                # Disdain 的递钱是遭拒，不实际收款；节点资格也约束其选项。
+                if cast_by_id.get(primary_actor, {}).get("Money", "").lower() == "disdain":
+                    effects.discard("money_offer")
+                effective_requires = node.get("Requires", []) + req
+                money_guard = any(r.startswith("gold>=") for r in effective_requires)
+                # 已注册的信物资格查询包含资金/已付款重试检查；保留现有合法资格。
+                money_guard = money_guard or "can_redeem_keepsake" in effective_requires
+                if effects and not money_guard:
+                    problems.append("dialogue[%s:%s]: 付费选项 '%s' 缺少 'gold>=' 显示条件" % (name, nid, pk))
+                target = check.get("Success") or opt.get("NextNode")
+                child = by_id.get(target)
+                if child and len(child.get("Options", [])) < 5 and not target.endswith("_hub"):
+                    label = re.sub(r"^\[[^\]]*\]\s*", "", cn.get(pk, "")).strip()
+                    if label:
+                        by_target.setdefault(target, set()).add(label)
+        for target, labels in by_target.items():
             if len(labels) > 1:
-                problems.append("dialogue[%s]: 节点 '%s' 被 %d 种不同问法指向（重复问会得到同样的回答）"
-                                % (name, tg, len(labels)))
-
-
-    return keys, node_total
+                problems.append("dialogue[%s]: 节点 '%s' 被 %d 种不同问法指向" % (name, target, len(labels)))
+    return keys, total
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -309,6 +258,8 @@ def check_cast(module, problems):
             problems.append("cast: StreetLife for unknown npc '%s'" % s.get("NpcId"))
         if not s.get("Actions"):
             problems.append("cast: StreetLife '%s' has no Actions" % s.get("NpcId"))
+        if s.get("LineKeys") and (s.get("Listener") not in set(nids) | {"player"} or s.get("Listener") == s.get("NpcId")):
+            problems.append("cast: StreetLife '%s' has invalid Listener" % s.get("NpcId"))
         keys.update(s.get("LineKeys") or [])
 
     for e in events:
@@ -323,6 +274,15 @@ def check_cast(module, problems):
                             % (e.get("Index"), len(lk), len(lf)))
         if not lk:
             problems.append("cast: event %s has no LineKeys" % e.get("Index"))
+        members = e.get("Members") or ([e.get("ActorA"), e.get("ActorB")] if e.get("TwoPerson") else [e.get("ActorA")])
+        listeners = e.get("Listeners") or []
+        speakers = e.get("Speakers") or []
+        if len(listeners) != len(lk):
+            problems.append("cast: event %s Listeners must match LineKeys" % e.get("Index"))
+        for i, listener in enumerate(listeners):
+            speaker = speakers[i] if i < len(speakers) else members[i % len(members)] if members else None
+            if listener not in set(members) | {"player"} or listener == speaker:
+                problems.append("cast: event %s invalid Listener[%d]" % (e.get("Index"), i))
         if e.get("Index") is None:
             problems.append("cast: an event has no Index")
         keys.update(lk)
@@ -359,7 +319,7 @@ def check_tuning(module, problems):
                     problems.append("tuning: %s.%s > %s" % (sec, key, mate))
 
     import math
-    for key in ("ActorReadyTimeoutSec", "DebugActorDurationSec", "AmbientPoseDurationSec"):
+    for key in ("ActorReadyTimeoutSec", "DebugActorDurationSec", "DebugSpeechDurationSec", "AmbientPoseDurationSec"):
         value = (data.get("Performance") or {}).get(key)
         if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
             problems.append("tuning: Performance.%s must be finite and positive" % key)
@@ -399,6 +359,8 @@ def check_stage(module, problems):
         return 0
 
     anchors = set(STAGE_ANCHORS_BUILTIN) | set((data.get("Anchors") or {}).keys())
+    cast = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryProbeCast.json")) or {}
+    listeners = {n.get("Id") for n in cast.get("Npcs", [])} | {"player"}
     for name, tags in (data.get("Anchors") or {}).items():
         if not isinstance(tags, list) or not tags:
             problems.append("stage: anchor '%s' has no scene tags" % name)
@@ -424,6 +386,8 @@ def check_stage(module, problems):
             problems.append("stage[%d]: %s without Actor" % (i, cmd))
         if cmd == "actor_action" and not b.get("Action"):
             problems.append("stage[%d]: actor_action without Action" % i)
+        if cmd == "actor_say" and (b.get("Listener") not in listeners or b.get("Listener") == b.get("Actor")):
+            problems.append("stage[%d]: actor_say without a distinct Listener" % i)
         if b.get("At") is None:
             problems.append("stage[%d]: missing At" % i)
 
@@ -588,7 +552,7 @@ def human_playable(game_root, module=None):
 
 
 def check_line_actions(module, problems, cast):
-    """动作写在**对话节点**的 `NpcActions` 上：必须能播，且条数与台词行数一致。"""
+    """动作写在**对话节点**的 `LineActions` 上：必须能播，且条数与台词行数一致。"""
     game_root = _game_root(module)
     playable = human_playable(game_root, module)
     if not playable:
@@ -597,12 +561,12 @@ def check_line_actions(module, problems, cast):
 
     cn = _load_lang_cached(module, True)
     total = 0
-    files = sorted(glob.glob(os.path.join(module, "ModuleData", "DesignData", "Dialogues", "story_probe_*.json")))
+    files = dialogue_paths(module)
     for path in files:
         data = json.load(io.open(path, encoding="utf-8"))
         for node in data.get("Nodes", []):
-            key = node.get("NpcKey") or ""
-            acts = node.get("NpcActions")
+            key = node.get("TextKey") or ""
+            acts = node.get("LineActions")
             if not acts:
                 continue
             total += len(acts)
@@ -724,12 +688,11 @@ def check_references(module, problems, cast, stage, scene=None):
 # ══════════════════════════════════════════════════════════════════
 # 台词书写格式（2026-11-13 用户裁定）
 #
-#   · 每句台词 `（说话人，听话人）：文本`；玩家的话也算台词。
+#   · 正文不带人物前缀；说话人和听话人由结构字段控制。
 #   · 3D 游戏不是 AVG：演不出来的动作不写，心理描写不写。
-#   · 只有「结果播报」允许 `（旁白，玩家）：…`。
+#   · 结果播报直接叙述，不带人物前缀。
 #
-# 只检查**对话树真正会显示的那些键**（dialogue JSON 的 NpcKey），
-# 按钮/目标/错误提示这类 UI 串不在此列。
+# 对话节点检查单句；冒泡、反应与群组台词同样禁止人物前缀。
 # ══════════════════════════════════════════════════════════════════
 
 SPOKEN_CN = re.compile(r'^（[^，（）A-Za-z]+，[^，（）A-Za-z]+）：\S')
@@ -737,8 +700,20 @@ SPOKEN_EN = re.compile(r'^\([^,()]+, [^,()]+\): \S')
 LEAKED_ID_CN = re.compile(r'\b(debtor|thug|blocker|pawnbroker|widow|outlaw|rival|Player|Narration|Narrator)\b')
 
 
+def single_sentence_issues(text, language):
+    issues = []
+    if "\n" in text or "\r" in text or "&#10;" in text or "\\n" in text:
+        issues.append("hard_newline: 一句台词不能硬换行")
+    if re.match(r"^(?:（[^）]*，[^）]*）：|\([^)]*,[^)]*\):)", text):
+        issues.append("speaker_prefix: 人物信息必须在Speaker/Listener字段")
+    pattern = r".+?(?:[。！？]+[」”]?|$)" if language == "CN" else r".+?(?:(?<!\.)[!?]+|(?<!\.)\.(?!\.)|$)"
+    if len([x for x in re.findall(pattern, text) if x.strip()]) > 1:
+        issues.append("multiple_sentences: 不同句子必须拆成不同节点")
+    return issues
+
+
 def check_speech_format(module, problems, en, cn):
-    files = sorted(glob.glob(os.path.join(module, "ModuleData", "DesignData", "Dialogues", "story_probe_*.json")))
+    files = dialogue_paths(module)
     keys = set()
     pkeys = set()
     for path in files:
@@ -747,35 +722,44 @@ def check_speech_format(module, problems, en, cn):
         except Exception:
             continue
         for node in data.get("Nodes", []):
-            if node.get("NpcKey"):
-                keys.add(node["NpcKey"])
-            for tr in node.get("Transitions", []):
+            if node.get("TextKey"):
+                keys.add(node["TextKey"])
+            for tr in node.get("Options", []):
                 if tr.get("PlayerKey"):
                     pkeys.add(tr["PlayerKey"])
 
     bad = 0
     for key in sorted(keys):
-        for label, text, pattern in (("CN", cn.get(key), SPOKEN_CN), ("EN", en.get(key), SPOKEN_EN)):
+        for label, text in (("CN", cn.get(key)), ("EN", en.get(key))):
             if not text:
                 continue
-            for line in text.split("&#10;"):
-                line = line.strip()
-                if not line:
-                    continue
-                if not pattern.match(line):
-                    problems.append("speech[%s]: %s not in '(speaker, listener): text' form -> %s"
-                                    % (label, key, line[:48]))
-                    bad += 1
-                    break
-                if label == "CN" and LEAKED_ID_CN.search(line):
-                    problems.append("speech[CN]: %s 含未本地化英文代号 -> %s" % (key, line[:48]))
-                    bad += 1
-                    break
+            for issue in single_sentence_issues(text, label):
+                problems.append("speech[%s]: %s %s -> %s" % (label, key, issue, text[:48]))
+                bad += 1
+            if label == "CN" and LEAKED_ID_CN.search(text):
+                problems.append("speech[CN]: %s 含未本地化英文代号" % key)
+                bad += 1
     for pk in sorted(pkeys):
         ctext = cn.get(pk, "")
         if ctext and LEAKED_ID_CN.search(ctext):
             problems.append("option[CN]: %s 含未本地化英文代号 -> %s" % (pk, ctext[:48]))
             bad += 1
+    cast = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryProbeCast.json")) or {}
+    bubble_keys = {k for s in cast.get("StreetLife", []) for k in s.get("LineKeys", [])}
+    bubble_keys.update(k for e in cast.get("Events", []) for k in e.get("LineKeys", []))
+    bubble_keys.update(k for k in cn if k.startswith("LWN_story_react_"))
+    for name in ("StoryStage.json", "StoryStageV2.json"):
+        stage = load_data_json(os.path.join(module, "ModuleData", "DesignData", name)) or {}
+        bubble_keys.update(b.get("TextKey") for b in stage.get("Beats", []) if b.get("Cmd") == "actor_say" and b.get("TextKey"))
+        bubble_keys.update(k for b in stage.get("Behaviors", {}).values() for k in b.get("Lines", []))
+        bubble_keys.update(s["Args"]["TextKey"] for f in stage.get("Flows", {}).values()
+                           for s in f.get("Steps", []) if s.get("Atom") == "actor_say"
+                           and isinstance(s.get("Args"), dict) and s["Args"].get("TextKey"))
+    for key in sorted(bubble_keys):
+        for label, text in (("CN", cn.get(key)), ("EN", en.get(key))):
+            if text and any(issue.startswith("speaker_prefix:") for issue in single_sentence_issues(text, label)):
+                problems.append("bubble[%s]: %s contains speaker/listener prefix" % (label, key))
+                bad += 1
     return bad
 
 # ══════════════════════════════════════════════════════════════════
@@ -789,7 +773,7 @@ FAKE_OPTION = re.compile(r'^[.…·。\s（(]*(听他说下去|继续说|继续|
 
 
 def check_dialogue_rules(module, problems, en, cn):
-    files = sorted(glob.glob(os.path.join(module, "ModuleData", "DesignData", "Dialogues", "story_probe_*.json")))
+    files = dialogue_paths(module)
     bad_lines = 0
     bad_opts = 0
     for path in files:
@@ -799,32 +783,32 @@ def check_dialogue_rules(module, problems, en, cn):
         except Exception:
             continue
         for node in data.get("Nodes", []):
-            key = node.get("NpcKey") or ""
+            key = node.get("TextKey") or ""
             text = cn.get(key, "")
             lines = [l for l in text.replace("&#10;", chr(10)).split(chr(10)) if l.strip()]
             # 只数「无条件、非离开」的选项 —— 挂了 Requires 的是分批放出来的，不占一屏
-            n_opts = len([t for t in (node.get("Transitions") or [])
+            n_opts = len([t for t in (node.get("Options") or [])
                           if t.get("PlayerKey") and not t.get("Requires")
                           and t.get("PlayerKey") != "LWN_story_opt_leave"])
             if n_opts > 4:
                 problems.append("dialogue[%s:%s]: 一屏 %d 个选项（上限 4，多的用显示条件分批）"
                                 % (name, node.get("Id"), n_opts))
-            if len(lines) > 2:
+            if len(lines) > 1:
                 TODO_LONG_NODES.append("%s:%s=%d行" % (name, node.get("Id"), len(lines)))
-                problems.append("dialogue[%s:%s]: 节点台词 %d 行（上限 2 行，见规则一）"
+                problems.append("dialogue[%s:%s]: 节点台词 %d 行（仅限一句且不能硬换行，见规则一）"
                                 % (name, node.get("Id"), len(lines)))
                 bad_lines += 1
-            for tr in node.get("Transitions", []):
+            for tr in node.get("Options", []):
                 pk = tr.get("PlayerKey") or ""
                 label = cn.get(pk, "")
                 label = re.sub(r"^\[[^\]]*\]\s*", "", label).strip()
 
                 # 🔴 选项不能指向"菜单节点"（出度≥5 或 *_hub）—— 指向菜单 = 对方没回应你，只会说"还有事？"
-                nxt = tr.get("NextNodeOnSuccess")
+                nxt = (tr.get("Check") or {}).get("Success") or tr.get("NextNode")
                 if nxt:
                     tgt = next((x for x in data.get("Nodes", []) if x.get("Id") == nxt), None)
                     # 只有"问句"弹回菜单才算错；「别的先不问了」这类本来就是收尾
-                    is_menu = tgt is not None and (len(tgt.get("Transitions") or []) >= 5 or str(nxt).endswith("_hub"))
+                    is_menu = tgt is not None and (len(tgt.get("Options") or []) >= 5 or str(nxt).endswith("_hub"))
                     if is_menu and ("？" in label or "?" in label):
                         problems.append("dialogue[%s:%s]: 问句选项 '%s' 指向菜单节点 '%s'（对方不会回应你）"
                                         % (name, node.get("Id"), label[:20], nxt))
@@ -842,10 +826,16 @@ def selftest():
     try:
         os.makedirs(os.path.join(tmp, "ModuleData", "DesignData", "Dialogues"))
         os.makedirs(os.path.join(tmp, "ModuleData", "Languages", "CNs"))
-        with io.open(os.path.join(tmp, "ModuleData", "DesignData", "Dialogues", "story_probe_x.json"), "w", encoding="utf-8") as f:
-            json.dump({"Npc": "x", "EntryOption": "LWN_story_x_entry", "EntryNode": "x_intro",
-                       "Nodes": [{"Id": "x_intro", "NpcKey": "LWN_story_x_intro",
-                                  "Transitions": [{"PlayerKey": "LWN_story_x_missing", "NextNodeOnSuccess": "x_nowhere"}]}]}, f)
+        path = os.path.join(tmp, "ModuleData", "DesignData", "Dialogues", "x.dialog.json")
+        fixture = {"Schema": "story_dialogue/2", "DialogueId": "x", "ContentVersion": 1,
+                   "Participants": ["npc", "player"], "Actors": ["x"], "EntryActors": ["x"],
+                   "EntryOption": "LWN_story_x_entry", "SkipVanillaOpening": True,
+                   "Triggers": [{"Id": "player_talk", "Source": "player", "Purpose": "talk"}],
+                   "Entries": [{"Id": "intro", "Trigger": "player_talk", "Node": "x_intro"}],
+                   "Nodes": [{"Id": "x_intro", "Speaker": "npc", "Listener": "player", "TextKey": "LWN_story_x_intro",
+                              "Options": [{"Id": "missing", "Speaker": "player", "Listener": "npc", "PlayerKey": "LWN_story_x_missing", "NextNode": "x_nowhere"}]}]}
+        with io.open(path, "w", encoding="utf-8") as f:
+            json.dump(fixture, f)
         for name in ("std_LivingWorldNpcs_strings.xml", os.path.join("CNs", "std_LivingWorldNpcs_strings.xml")):
             with io.open(os.path.join(tmp, "ModuleData", "Languages", name), "w", encoding="utf-8") as f:
                 f.write('<base><strings><string id="LWN_story_x_entry" text="e" />'
@@ -855,13 +845,29 @@ def selftest():
         keys, _ = check_json(tmp, problems)
         en = load_lang(os.path.join(tmp, "ModuleData", "Languages", "std_LivingWorldNpcs_strings.xml"))
         missing = [k for k in keys if k not in en]
-        if not missing:
-            print("SELFTEST FAILED: a missing key was not detected")
+        if not missing or not any("unknown_node" in p for p in problems):
+            print("SELFTEST FAILED: authoritative missing key/reference was not detected")
             return 1
-        if not problems:
-            print("SELFTEST FAILED: no structural problems detected")
-            return 1
-        print("SELFTEST OK: detected missing key(s) " + ", ".join(sorted(missing)[:3]))
+        # 正式唯一源的中文审阅副本：陈旧、不存在必须都拒绝。
+        fixture["EntryOptionZh"] = "（缺中文）"
+        with io.open(path, "w", encoding="utf-8") as f:
+            json.dump(fixture, f, ensure_ascii=False)
+        drift = []
+        check_dialogue_annotations(tmp, drift)
+        drift_text = "\n".join(drift)
+        for needle in ("EntryOptionZh stale", "no TextKeyZh annotation"):
+            if needle not in drift_text:
+                print("SELFTEST FAILED: annotation drift not detected: " + needle)
+                print(drift_text)
+                return 1
+        for text, lang, needle in (("甲。乙。", "CN", "multiple_sentences"),
+                ("甲\n乙", "CN", "hard_newline"), ("（甲，乙）：好。", "CN", "speaker_prefix"),
+                ("(A, B): Hello.", "EN", "speaker_prefix"), ("One. Two.", "EN", "multiple_sentences")):
+            assert any(needle in x for x in single_sentence_issues(text, lang)), (text, needle)
+        assert not single_sentence_issues("……有了。", "CN")
+        assert not single_sentence_issues("...Here.", "EN")
+        speech_listener_selftest(DEFAULT_MODULE)
+        print("SELFTEST OK: authoritative references, Chinese annotations, sentence/prefix/newline regressions")
         src = os.path.join(DEFAULT_MODULE, "ExampleModVS", "ExampleMod", "ExampleMod")
         negative_cases = [
             ("Combat/AttackTriggerMissionLogic.cs", "blow.InflictedDamage > 0", "false", "actual opponent damaging hits"),
@@ -1073,7 +1079,7 @@ ATOM_SPECS = {
     "prop_spawn": (("Id", "Prefab"), ("Id",), "none", (), True),
     "actor_place": (("Post", "WorkPoint", "Anchor", "Fwd", "Right", "Up", "Facing"), (), "required", (), True),
     "actor_action": (("Action", "Async"), ("Action",), "required", (), True),
-    "actor_say": (("TextKey",), ("TextKey",), "required", (), True),
+    "actor_say": (("TextKey", "Listener"), ("TextKey", "Listener"), "required", (), True),
     "wait": (("Seconds",), ("Seconds",), "none", (), False),
     "actor_move": (("To", "StopMeters"), ("To",), "required", ("arrival",), False),
     "dialogue_open": (("Dialogue",), ("Dialogue",), "required", ("dialogue_open",), True),
@@ -1105,7 +1111,7 @@ BEAT_KEYS = {
     "prop_spawn": ("At", "Cmd", "Id", "Prefab", "Anchor", "Fwd", "Right", "Up", "Yaw", "Scale", "Note"),
     "actor_place": ("At", "Cmd", "Actor", "Post", "WorkPoint", "Anchor", "Fwd", "Right", "Up", "Facing", "Note"),
     "actor_action": ("At", "Cmd", "Actor", "Action", "Async", "Note"),
-    "actor_say": ("At", "Cmd", "Actor", "TextKey", "Note"),
+    "actor_say": ("At", "Cmd", "Actor", "TextKey", "Listener", "Note"),
     "wait": ("At", "Cmd", "Seconds", "Note"),
 }
 
@@ -1513,6 +1519,11 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
                                 text(args, ak, apath)
                             if ak == "To" and isinstance(args[ak], str) and args[ak].startswith("$"):
                                 flow_actor(args[ak], apath + "." + ak)
+                            if atom == "actor_say" and ak == "Listener" and isinstance(args[ak], str):
+                                if args[ak] != "player":
+                                    flow_actor(args[ak], apath + "." + ak)
+                                if args[ak] == actor:
+                                    bad(apath + "." + ak, "unknown_listener", "Listener cannot be the speaker")
                             if args[ak] is None:
                                 bad(apath + "." + ak, "wrong_type", "原子参数不能是 null")
                         for rp in spec[1]:
@@ -1572,7 +1583,7 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
                 bad(bpath, "wrong_type", "行为规则必须是对象")
                 continue
             keys(bo, bpath, ("Kind", "Posts", "Stages", "Perception", "Trigger", "Cooldown", "Rank", "Flow", "MaxActive",
-                             "Members", "Host", "Lines", "Speakers", "LineFallbacks", "ActionsA", "ActionsB", "JoinNode"))
+                             "Members", "Host", "Lines", "Speakers", "Listeners", "LineFallbacks", "ActionsA", "ActionsB", "JoinNode"))
             kind = text(bo, "Kind", bpath) or "post"
             if kind not in ("post", "group"):
                 bad(bpath + ".Kind", "bad_token", "Kind 只能是 post/group，实际 '%s'" % kind)
@@ -1590,8 +1601,16 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
                 host = text(bo, "Host", bpath)
                 if host and host not in members:
                     bad(bpath + ".Host", "bad_value", "Host 必须在 Members 里")
-                str_list(bo, "Lines", bpath, False)
-                for sp in str_list(bo, "Speakers", bpath, False):
+                lines = str_list(bo, "Lines", bpath, False)
+                speakers = str_list(bo, "Speakers", bpath, False)
+                listeners = str_list(bo, "Listeners", bpath, bool(lines))
+                if len(listeners) != len(lines):
+                    bad(bpath + ".Listeners", "line_count", "Listeners must match Lines")
+                for i, listener in enumerate(listeners):
+                    speaker = speakers[i] if i < len(speakers) else members[i % len(members)] if members else None
+                    if listener not in set(members) | {"player"} or listener == speaker:
+                        bad(bpath + ".Listeners[%d]" % i, "unknown_listener", "Listener must be player or another group member")
+                for sp in speakers:
                     if sp not in members:
                         bad(bpath + ".Speakers", "bad_value", "说话者 '%s' 不在 Members 里" % sp)
                 str_list(bo, "LineFallbacks", bpath, False)
@@ -1699,10 +1718,61 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
                 text(bt, "Action", bpath)
             elif cmd == "actor_say":
                 text(bt, "TextKey", bpath)
+                listener = text(bt, "Listener", bpath)
+                if listener == bt.get("Actor") or (listener != "player" and listener not in (roster or set())):
+                    bad(bpath + ".Listener", "unknown_listener", "Listener must be player or another opening actor")
             elif cmd == "wait":
                 num(bt, "Seconds", bpath, 0.0, 0.0, 100000.0, required=True)
 
     return issues
+
+
+def speech_listener_selftest(module):
+    """真实正式数据的听话者变体：漏填、未知、自己、数量错均须拒绝。"""
+    from copy import deepcopy
+    path = os.path.join(module, "ModuleData", "DesignData", "StoryStageV2.json")
+    base = load_data_json(path)
+    cast_ids = stage_v2_cast_ids(module)
+    assert not stage_v2_issues(base, cast_ids, formal=True)
+    group_id = next(k for k, v in base["Behaviors"].items() if v.get("Kind") == "group" and v.get("Lines"))
+    count = 0
+    for mutation, want in (("missing", "missing_field"), ("unknown", "unknown_listener"),
+                           ("self", "unknown_listener"), ("count", "line_count")):
+        data = deepcopy(base)
+        group = data["Behaviors"][group_id]
+        if mutation == "missing":
+            del group["Listeners"]
+        elif mutation == "unknown":
+            group["Listeners"][0] = "missing_actor"
+        elif mutation == "self":
+            group["Listeners"][0] = group["Speakers"][0]
+        else:
+            group["Listeners"].pop()
+        assert any(i["code"] == want for i in stage_v2_issues(data, cast_ids, formal=True)), (mutation, want)
+        count += 1
+    opening = next(v for v in base["Stages"].values() if v.get("Opening"))
+    speaker = opening["Actors"][0]
+    for listener, want in (("player", None), (None, "missing_field"), ("missing_actor", "unknown_listener"),
+                           (speaker, "unknown_listener")):
+        data = deepcopy(base)
+        beat = {"At": 0, "Cmd": "actor_say", "Actor": speaker, "TextKey": "LWN_story_ambient_son_1"}
+        if listener is not None:
+            beat["Listener"] = listener
+        data.setdefault("Beats", []).append(beat)
+        issues = stage_v2_issues(data, cast_ids, formal=True)
+        assert not issues if want is None else any(i["code"] == want for i in issues), (listener, issues)
+        count += 1
+    for listener, want in (("player", None), (None, "missing_field"), ("missing_actor", "unknown_cast_actor"),
+                           (speaker, "unknown_listener")):
+        data = deepcopy(base)
+        args = {"TextKey": "LWN_story_ambient_son_1"}
+        if listener is not None:
+            args["Listener"] = listener
+        data["Flows"]["speech_test"] = {"Steps": [{"Id": "say", "Atom": "actor_say", "Actor": speaker, "Args": args, "OnCancel": "end"}]}
+        issues = stage_v2_issues(data, cast_ids, formal=True)
+        assert not issues if want is None else any(i["code"] == want for i in issues), (listener, issues)
+        count += 1
+    print("SELFTEST OK: %d speech Listener group/beat/flow parser variants" % count)
 
 
 # 夹具期望：文件名 -> (是否应通过, 必须命中的错误码)
@@ -1816,10 +1886,11 @@ def check_dialogue_annotations(module, problems):
     if not cn:
         problems.append("dialogue annotations: CN localization missing")
         return 0
-    fields = ("EntryOption", "NpcKey", "PlayerKey")
+    # 正式唯一维护源的每个文本键都必须带正确中文审核副本。
+    fields = ("EntryOption", "TextKey", "PlayerKey")
     checked = 0
     folder = os.path.join(module, "ModuleData", "DesignData", "Dialogues")
-    for name in sorted(f for f in os.listdir(folder) if f.startswith("story_probe_") and f.endswith(".json")):
+    for name in sorted(f for f in os.listdir(folder) if f.endswith(".dialog.json")):
         try:
             data = json.load(io.open(os.path.join(folder, name), encoding="utf-8"))
         except Exception as ex:
@@ -1855,8 +1926,8 @@ def check_dialogue_annotations(module, problems):
 # ═══════════════════════════════════════════════════════════════════════════
 
 DLG_SCHEMA = "story_dialogue/2"
-DLG_ROOT = ("Schema", "DialogueId", "ContentVersion", "Participants", "Actors", "Triggers", "Entries", "Nodes",
-            "EntryOption", "SkipVanillaOpening")
+DLG_ROOT = ("Schema", "DialogueId", "ContentVersion", "Participants", "Actors", "EntryActors", "Triggers", "Entries", "Nodes",
+            "EntryOption", "EntryOptionZh", "SkipVanillaOpening")
 DLG_SOURCES = ("player", "post_ai", "event", "script")
 DLG_COMMITS = ("on_enter", "on_select", "on_session_end")
 DLG_RECEIPTS = ("once", "session", "never")
@@ -2038,6 +2109,8 @@ def story_dialogue_issues(data, formal=False):
     keys(data, "$", DLG_ROOT, allow_comment=True)
     if data.get("Schema") != DLG_SCHEMA:
         bad("$.Schema", "schema_mismatch", "必须是 '%s'，实际 '%s'" % (DLG_SCHEMA, data.get("Schema")))
+    if formal and data.get("SkipVanillaOpening") is not True:
+        bad("$.SkipVanillaOpening", "bad_turn", "正式剧情必须由NPC先开口")
     dialogue_id = text(data, "$", "DialogueId")
     if dialogue_id and not re.match(r"^[a-z0-9_]+$", dialogue_id):
         bad("$.DialogueId", "bad_token", "只能小写字母/数字/下划线：" + dialogue_id)
@@ -2050,6 +2123,10 @@ def story_dialogue_issues(data, formal=False):
     actors = str_list(data, "$", "Actors", False)
     dup(participants, "$.Participants", "参与者")
     dup(actors, "$.Actors", "实名演员")
+    entry_actors = str_list(data, "$", "EntryActors", True)
+    dup(entry_actors, "$.EntryActors", "入口演员")
+    for actor in entry_actors:
+        if actor not in actors: bad("$.EntryActors", "unknown_actor", "入口演员必须登记在Actors")
 
     triggers = []
     for i, t in enumerate(data.get("Triggers") or []):
@@ -2105,11 +2182,32 @@ def story_dialogue_issues(data, formal=False):
         if not isinstance(n, dict):
             bad(npath, "wrong_type", "节点必须是对象")
             continue
-        keys(n, npath, ("Id", "Speaker", "TextKey", "LineActions", "Requires", "OnEnter", "Options"))
+        keys(n, npath, ("Id", "Speaker", "Listener", "NextNode", "TextKey", "TextKeyZh", "LineActions", "Requires", "OnEnter", "Options"))
         nid = text(n, npath, "Id")
         speaker = text(n, npath, "Speaker")
         if speaker and speaker not in participants and speaker not in actors:
             bad(npath + ".Speaker", "unknown_speaker", "说话者 '%s' 既不在 Participants 也不在 Actors" % speaker)
+        listener = text(n, npath, "Listener")
+        if listener and listener not in participants and listener not in actors:
+            bad(npath + ".Listener", "unknown_listener", "听话者未登记：" + listener)
+        if speaker == "player" or speaker == listener:
+            bad(npath, "bad_turn", "NPC节点必须对另一位参与者说话")
+        continuation = text(n, npath, "NextNode", False)
+        all_nodes = {x.get("Id"): x for x in (data.get("Nodes") or []) if isinstance(x, dict)}
+        if continuation and continuation not in all_nodes:
+            bad(npath + ".NextNode", "unknown_node", "连续台词目标不存在")
+        if continuation and n.get("Options"):
+            bad(npath, "bad_turn", "NextNode与Options互斥")
+        if len(str_list(n, npath, "LineActions", False)) > 1:
+            bad(npath + ".LineActions", "bad_turn", "一句最多配一个动作")
+        visited, cursor = set(), n
+        while cursor and cursor.get("NextNode"):
+            cid = cursor.get("Id")
+            if cid in visited:
+                bad(npath, "continuation_cycle", "连续台词不能成环")
+                break
+            visited.add(cid)
+            cursor = all_nodes.get(cursor.get("NextNode"))
         text(n, npath, "TextKey")
         conditions(str_list(n, npath, "Requires", False), npath)
         effects(n, npath, "OnEnter")
@@ -2119,8 +2217,14 @@ def story_dialogue_issues(data, formal=False):
             if not isinstance(o, dict):
                 bad(opath, "wrong_type", "选项必须是对象")
                 continue
-            keys(o, opath, ("Id", "PlayerKey", "Requires", "Effects", "Check", "NextNode"))
+            keys(o, opath, ("Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "Requires", "Effects", "Check", "NextNode"))
             oid = text(o, opath, "Id")
+            ospeaker = text(o, opath, "Speaker")
+            olistener = text(o, opath, "Listener")
+            if ospeaker != "player" or olistener == "player":
+                bad(opath, "bad_turn", "选项必须由player对NPC说话")
+            if olistener and olistener not in participants and olistener not in actors:
+                bad(opath + ".Listener", "unknown_listener", "选项听话者未登记")
             text(o, opath, "PlayerKey")
             conditions(str_list(o, opath, "Requires", False), opath)
             effects(o, opath, "Effects")
@@ -2161,7 +2265,17 @@ def story_dialogue_issues(data, formal=False):
 
 
 DIALOGUE_FIXTURE_EXPECT = {
+    "DIALOGUE_OK_turns.json": (True, None),
+    "DIALOGUE_BAD_missing_listener.json": (False, "missing_field"),
+    "DIALOGUE_BAD_unknown_listener.json": (False, "unknown_listener"),
+    "DIALOGUE_BAD_player_opening.json": (False, "bad_turn"),
+    "DIALOGUE_BAD_mixed_turn.json": (False, "bad_turn"),
+    "DIALOGUE_BAD_continuation_cycle.json": (False, "continuation_cycle"),
+    "DIALOGUE_BAD_entry_actor.json": (False, "unknown_actor"),
+
     "DIALOGUE_OK_gate.json": (True, None),
+    # `*Zh` 中文审核注释必须被放行：漏放行 = 正式数据 unknown_key = 整批对话不发布
+    "DIALOGUE_OK_annotated.json": (True, None),
     "DIALOGUE_BAD_unknown_field.json": (False, "unknown_key"),
     "DIALOGUE_BAD_duplicate_option.json": (False, "duplicate_id"),
     "DIALOGUE_BAD_dangling_node.json": (False, "unknown_node"),
@@ -2220,6 +2334,39 @@ def check_dialogue_v2(module, problems):
                 problems.append("dialogue formal: %s %s [%s] %s"
                                 % (name, issue["path"], issue["code"], issue["message"]))
     return passed
+
+
+def check_migrated_content(module, problems):
+    """迁移内容契约：旧动词的副作用不许在迁移时丢掉。
+
+    实锤（2026-11-15 复核）：`redeem_keepsake`（当铺赎信物）在旧代码里是**三件事一起** ——
+    付 30 → 拿到 jewelry → 记 sister_3 线索。迁移只搬了付款与账目，
+    玩家会「钱付了、东西和线索一样没有，还照样进『已经给你了』的节点」。
+    """
+    folder = os.path.join(module, "ModuleData", "DesignData", "Dialogues")
+    path = os.path.join(folder, "story_pawnbroker.dialog.json")
+    if not os.path.isfile(path):
+        problems.append("migrated content: story_pawnbroker.dialog.json missing")
+        return
+    try:
+        data = json.loads(io.open(path, encoding="utf-8").read())
+    except Exception as ex:
+        problems.append("migrated content: story_pawnbroker.dialog.json unreadable (%s)" % ex)
+        return
+    for node in data.get("Nodes") or []:
+        for opt in node.get("Options") or []:
+            reqs = opt.get("Requires") or []
+            if "can_redeem_keepsake" not in reqs:
+                continue
+            effects = opt.get("Effects") or []
+            # 只查**真正办事的那条**（带效果的赎回选项）；带 requires 但零效果的是导航选项。
+            if not effects:
+                continue
+            ids = {e.get("Id") for e in effects}
+            missing = {"pay", "give_item", "clue"} - ids
+            if missing:
+                problems.append("migrated content: %s/%s 赎信物缺少效果 %s（付了钱不给物/线索）"
+                                % (node.get("Id"), opt.get("Id"), ", ".join(sorted(missing))))
 
 
 def main():
@@ -2281,7 +2428,7 @@ def main():
                 continue
 
             json_path = os.path.join(module, "ModuleData", "DesignData", "Dialogues",
-                                     "story_probe_%s.json" % npc)
+                                     "story_%s.dialog.json" % npc)
             if not os.path.exists(json_path):
                 continue
             data = json.load(io.open(json_path, encoding="utf-8"))
@@ -2292,8 +2439,9 @@ def main():
                                 % (npc, attitude, want))
 
     # 动态拼出来的键（代码里是 `"LWN_story_react_near_" + def.Id`）按 NPC 名单展开成具体键
-    npc_ids = sorted(os.path.basename(f)[len("story_probe_"):-len(".json")]
-                     for f in glob.glob(os.path.join(module, "ModuleData", "DesignData", "Dialogues", "story_probe_*.json")))
+    npc_ids = sorted({actors[0] for f in dialogue_paths(module)
+                      if (actors := json.load(io.open(f, encoding="utf-8")).get("Actors", []))})
+    # 每份定义的首个演员提供既有动态反馈文案；共享门岗定义不会凭文件名多造一组键。
     dynamic = set()
     for prefix in ("LWN_story_react_near_", "LWN_story_react_weapon_"):
         for npc in npc_ids:
@@ -2308,6 +2456,7 @@ def main():
 
     check_speech_format(module, problems, en, cn)
     check_dialogue_rules(module, problems, en, cn)
+    check_migrated_content(module, problems)
 
     for k in sorted(code):
         # 前缀占位形式（以 _ 结尾）跳过 —— 已按 NPC 名单展开
@@ -2325,7 +2474,7 @@ def main():
 
     summary = (f"story_probe: cast_npcs={len((cast or {}).get('Npcs') or [])} stage_beats={stage_beats} "
                f"stage_v2_positive={stage_v2_positive} dialogue_v2_positive={dialogue_v2} annotated_fields={annotated} "
-               f"long_nodes_todo={len(TODO_LONG_NODES)} line_actions={line_actions} dialogue_files={len(glob.glob(os.path.join(module, 'ModuleData/DesignData/Dialogues/story_probe_*.json')))} "
+               f"long_nodes_todo={len(TODO_LONG_NODES)} line_actions={line_actions} dialogue_files={len(dialogue_paths(module))} "
                f"nodes={node_total} dialogue_keys={len(keys)} code_keys={len(code)} "
                f"en={len(en)} cn={len(cn)} problems={len(problems)}")
     print(summary)

@@ -6,7 +6,7 @@
 
 用法：
     python Scripts/gen_line_actions.py            # 打印预览
-    python Scripts/gen_line_actions.py --write    # 写 对话节点的 NpcActions
+    python Scripts/gen_line_actions.py --write    # 写 对话节点的 LineActions
 """
 import importlib.util
 import io
@@ -17,7 +17,6 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OFFLINE = os.path.join(ROOT, "Debug", "offline")
-OUT = os.path.join(ROOT, "ModuleData", "DesignData", "对话节点的 NpcActions")
 ACTSETS = os.path.join(os.path.dirname(ROOT), "Native", "ModuleData", "action_sets.xml")
 
 # ── 每个 NPC 的身体语言底色 ──
@@ -83,33 +82,25 @@ def main():
     texts = load_texts()
     pool = human_actions()
 
-    out = {}
-    unknown = []
-    for key, val in texts.items():
-        if re.search(r"_opt_|_entry$|_goal_|_ability_|_check_|_err_|_menu_|_btn_|_title$|_faction_|_name_", key):
-            continue
-        cn = val[0]
-        acts = []
-        for line in cn.split(chr(10)):
-            line = line.strip()
-            if not line:
-                continue
-            m = re.match(r"^（([^，]+)，[^）]+）：(.+)$", line)
-            if not m:
-                acts.append("")
-                continue
-            name, body = m.group(1), m.group(2)
-            st = pick_style(name)
-            if not st:                      # 玩家 / 旁白：不配动作
-                acts.append("")
-                continue
-            a = act_for(st, pick_emotion(body))
-            if a not in pool:
-                unknown.append((key, a))
-                a = "act_conversation_talk_explain"   # 兜底：万能"解释"手势
-            acts.append(a)
-        if any(acts):
-            out[key] = acts
+    import glob
+    cast = json.load(io.open(os.path.join(ROOT, "ModuleData", "DesignData", "StoryProbeCast.json"), encoding="utf-8"))
+    names = {n["Id"]: texts.get(n.get("NameKey"), ("", ""))[0] for n in cast.get("Npcs", [])}
+    out, unknown = {}, []
+    for path in sorted(glob.glob(os.path.join(ROOT, "ModuleData", "DesignData", "Dialogues", "*.dialog.json"))):
+        definition = json.load(io.open(path, encoding="utf-8"))
+        for node in definition.get("Nodes", []):
+            speaker = node.get("Speaker")
+            if speaker in ("npc", "questioner"):
+                speaker = definition["Actors"][0]  # Initial draft only; runtime still binds the actual actor.
+            style = pick_style(names.get(speaker, ""))
+            key = node["TextKey"]
+            if not style: raise SystemExit("Unknown structured speaker: " + str(speaker))
+            body = texts.get(key, ("", ""))[0]
+            action = act_for(style, pick_emotion(body))
+            if action not in pool:
+                unknown.append((key, action))
+                action = "act_conversation_talk_explain"
+            out[key] = [action]
 
     print("键数", len(out), " 总行数", sum(len(v) for v in out.values()))
     if unknown:
@@ -121,21 +112,21 @@ def main():
             print("###", k, "->", out[k])
 
     if write:
-        # 写进**对话节点自己身上**（Dialogues/story_probe_*.json 的 NpcActions），不再单独成表
+        # 写进**对话节点自己身上**（Dialogues/*.dialog.json 的 LineActions），不再单独成表
         import glob
         n = 0
-        for f in sorted(glob.glob(os.path.join(ROOT, "ModuleData", "DesignData", "Dialogues", "story_probe_*.json"))):
+        for f in sorted(glob.glob(os.path.join(ROOT, "ModuleData", "DesignData", "Dialogues", "*.dialog.json"))):
             d = json.load(io.open(f, encoding="utf-8"))
             changed = False
             for node in d.get("Nodes", []):
-                k = node.get("NpcKey")
+                k = node.get("TextKey")
                 if k and k in out:
-                    node["NpcActions"] = out[k]
+                    node["LineActions"] = out[k]
                     changed = True
                     n += 1
             if changed:
                 json.dump(d, io.open(f, "w", encoding="utf-8", newline=chr(10)), ensure_ascii=False, indent=2)
-        print("写入节点 NpcActions:", n, "条")
+        print("写入节点 LineActions:", n, "条")
 
 
 if __name__ == "__main__":

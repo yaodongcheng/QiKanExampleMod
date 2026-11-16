@@ -11,7 +11,7 @@ namespace LivingWorldNpcs
         public string DialogueId;
         public string TriggerId;
         public string Purpose = "talk";
-        /// <summary>本次实际说话的剧情角色 id（如 blocker / gate_sentry）。</summary>
+        /// <summary>本次入口与条件/账目归属演员；各句说话者另由节点Speaker决定。</summary>
         public string ActorId;
 
         public override string ToString()
@@ -266,13 +266,13 @@ namespace LivingWorldNpcs
             return result;
         }
 
-        /// <summary>在已发布定义里找一份包含该演员、且有该触发器的定义 id。</summary>
+        /// <summary>只按EntryActors找入口；第三人参与不占有其他演员的交谈定义。</summary>
         public static string FindDialogueForActor(string actorId, string triggerId)
         {
             StoryDialogueLoader.EnsureLoaded();
             foreach (var def in StoryDialogueRegistry.All)
             {
-                if (!def.Actors.Contains(actorId)) continue;
+                if (!def.EntryActors.Contains(actorId)) continue;
                 if (def.Triggers.Any(t => string.Equals(t.Id, triggerId, StringComparison.Ordinal)))
                     return def.DialogueId;
             }

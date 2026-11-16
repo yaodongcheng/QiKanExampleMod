@@ -56,6 +56,8 @@ namespace LivingWorldNpcs
             public float Until;
             public string LineKey;
             public string LineFallback;
+            public Agent Listener;
+            public float Duration;
         }
         private readonly Dictionary<Agent, AmbientSlot> _ambientActors = new Dictionary<Agent, AmbientSlot>();
 
@@ -217,6 +219,7 @@ namespace LivingWorldNpcs
                     JoinNode = !string.IsNullOrEmpty(g.JoinNode) ? g.JoinNode : cast?.JoinNode,
                     Members = new List<string>(members),
                     Speakers = g.Speakers != null ? new List<string>(g.Speakers) : new List<string>(),
+                    Listeners = g.Listeners != null ? new List<string>(g.Listeners) : new List<string>(),
                 });
             }
             DebugLogger.Log("[StoryProbe] events from v2 groups=" + list.Count + " (fallback=" + fallback.Count + ")");
@@ -477,10 +480,13 @@ namespace LivingWorldNpcs
 
             var agent = _host.GetAgent(actorId);
             if (agent == null || !OwnsBody(agent)) return;
+            if (_activeEvent.Listeners == null || i >= _activeEvent.Listeners.Count) return;
+            var listener = _host.ResolveSpeechListener(_activeEvent.Listeners[i]);
+            if (!AgentControlHelper.SafeIsActive(listener) || listener == agent || listener.Health <= 0f) return;
 
             string fb = fallbacks != null && i < fallbacks.Length ? fallbacks[i] : "";
             _host.SayOnAgent(agent, keys[i], fb,
-                _eventSkit ? SpeechPriority.Chat : SpeechPriority.Warning);
+                _eventSkit ? SpeechPriority.Chat : SpeechPriority.Warning, listener);
         }
 
         /// <summary>Only successful intervention resolves the event; leaving/failure resumes it.</summary>
@@ -578,8 +584,9 @@ namespace LivingWorldNpcs
                 {
                     ForceAction(kv.Key, slot.Action);
                     slot.Played = true;
-                    slot.Until = _time + StoryProbeTuning.Current.Performance.AmbientPoseDurationSec;
-                    if (!string.IsNullOrEmpty(slot.LineKey)) _host.SayOnAgent(kv.Key, slot.LineKey, slot.LineFallback);
+                    slot.Until = _time + (slot.Duration > 0f ? slot.Duration : StoryProbeTuning.Current.Performance.AmbientPoseDurationSec);
+                    if (!string.IsNullOrEmpty(slot.LineKey) && AgentControlHelper.SafeIsActive(slot.Listener))
+                        _host.SayOnAgent(kv.Key, slot.LineKey, slot.LineFallback, listener: slot.Listener);
                 }
             }
             if (!string.IsNullOrEmpty(_forcedAmbientNpc))
@@ -632,6 +639,7 @@ namespace LivingWorldNpcs
                     string fb = def.LineFallbacks != null && i < def.LineFallbacks.Length ? def.LineFallbacks[i] : "";
                     _ambientActors[agent].LineKey = def.LineKeys[i];
                     _ambientActors[agent].LineFallback = fb;
+                    _ambientActors[agent].Listener = _host.ResolveSpeechListener(def.Listener);
                 }
             }
         }
@@ -717,6 +725,37 @@ namespace LivingWorldNpcs
         }
 
         // ── 调试命令 ──
+
+        public string ForceSpeech(string npcId, string listenerId)
+        {
+            if (Stopped) return "Error: street life is stopped.";
+            var def = StoryProbeDefs.GetStreetLife(npcId);
+            var agent = _host.GetAgent(npcId);
+            var listener = _host.ResolveSpeechListener(listenerId);
+            if (def?.Actions == null || def.Actions.Length == 0 || def.LineKeys == null || def.LineKeys.Length == 0)
+                return "Error: no ambient action/line for " + npcId;
+            if (!AgentControlHelper.SafeIsActive(agent) || !AgentControlHelper.SafeIsActive(listener)
+                || agent == listener || listener.Health <= 0f)
+                return "Error: speaker/listener unavailable or identical.";
+            if (_eventActors.ContainsKey(agent) || _host.Work?.IsWorkActor(npcId) == true)
+                return "Error: actor belongs to a group or work performance.";
+            BeginAmbient(agent, def.Actions[0]);
+            if (!_ambientActors.TryGetValue(agent, out var slot)) return "Error: performance rejected by Brain.";
+            slot.LineKey = def.LineKeys[0];
+            slot.LineFallback = def.LineFallbacks?.Length > 0 ? def.LineFallbacks[0] : "";
+            slot.Listener = listener;
+            slot.Duration = StoryProbeTuning.Current.Performance.DebugSpeechDurationSec;
+            return "Queued: speaker=" + npcId + " listener=" + listenerId + " line=" + slot.LineKey
+                + " holdSeconds=" + slot.Duration + "; use life facing to confirm actual control.";
+        }
+
+        public string ReleaseSpeech(string npcId)
+        {
+            var agent = _host.GetAgent(npcId);
+            if (agent == null || !_ambientActors.ContainsKey(agent)) return "OK: no ambient lease for " + npcId;
+            ReleaseAmbient(agent);
+            return "OK: ambient lease released for " + npcId;
+        }
 
         public void StopAll()
         {

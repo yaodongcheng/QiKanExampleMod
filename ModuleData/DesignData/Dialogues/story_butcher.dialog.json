@@ -1,18 +1,14 @@
 {
-  "_comment": "由 Scripts/migrate_story_dialogues.py 从旧 story_probe_butcher.json 迁移；旧文件仅作回退副本。改内容请改脚本/旧文件后重跑。",
+  "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_butcher",
-  "ContentVersion": 1,
+  "ContentVersion": 2,
   "EntryOption": "LWN_story_butcher_entry",
-  "SkipVanillaOpening": false,
-  "Participants": [
-    "npc",
-    "player"
-  ],
-  "Actors": [
-    "butcher",
-    "thug"
-  ],
+  "EntryOptionZh": "[说两句] 这肉新鲜吗？",
+  "SkipVanillaOpening": true,
+  "Participants": ["npc", "player"],
+  "EntryActors": ["butcher"],
+  "Actors": ["butcher", "thug"],
   "Triggers": [
     {
       "Id": "player_talk",
@@ -39,28 +35,21 @@
     {
       "Id": "player_turnin",
       "Trigger": "player_talk",
-      "Conditions": [
-        "quest_done",
-        "!quest_turned"
-      ],
+      "Conditions": ["quest_done", "!quest_turned"],
       "Priority": 100,
       "Node": "butcher_turnin"
     },
     {
       "Id": "player_chat",
       "Trigger": "player_talk",
-      "Conditions": [
-        "quest_turned"
-      ],
+      "Conditions": ["quest_turned"],
       "Priority": 90,
-      "Node": "butcher_chat"
+      "Node": "butcher_chat_line1"
     },
     {
       "Id": "player_hub",
       "Trigger": "player_talk",
-      "Conditions": [
-        "step>=1"
-      ],
+      "Conditions": ["step>=1"],
       "Priority": 80,
       "Node": "butcher_hub"
     },
@@ -69,37 +58,41 @@
       "Trigger": "player_talk",
       "Conditions": [],
       "Priority": 70,
-      "Node": "butcher_intro"
+      "Node": "butcher_intro_line1"
     },
     {
       "Id": "join_2",
       "Trigger": "event_join",
-      "Conditions": [
-        "event_active:2"
-      ],
+      "Conditions": ["event_active:2"],
       "Priority": 100,
-      "Node": "event_2_join"
+      "Node": "event_2_join_line1"
     },
     {
       "Id": "join_6",
       "Trigger": "event_join",
-      "Conditions": [
-        "event_active:6"
-      ],
+      "Conditions": ["event_active:6"],
       "Priority": 100,
-      "Node": "event_6_join"
+      "Node": "event_6_join_line1"
     }
   ],
   "Nodes": [
     {
+      "Id": "butcher_intro_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_intro_line1",
+      "TextKeyZh": "今早刚宰的，新鲜。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_intro",
+      "Options": []
+    },
+    {
       "Id": "butcher_intro",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_intro",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "不买肉就往边上站，别挡着案板。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [
         {
           "Id": "mark",
@@ -114,9 +107,8 @@
         {
           "Id": "meat",
           "PlayerKey": "LWN_story_butcher_opt_meat",
-          "Requires": [
-            "!asked:ask_meat"
-          ],
+          "PlayerKeyZh": "[搭话] 这么大个肉案，就你一个人守着？",
+          "Requires": ["!asked:ask_meat"],
           "Effects": [
             {
               "Id": "mark",
@@ -127,14 +119,15 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_ask_meat"
+          "NextNode": "butcher_ask_meat_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "past",
           "PlayerKey": "LWN_story_butcher_opt_past",
-          "Requires": [
-            "!asked:ask_past"
-          ],
+          "PlayerKeyZh": "[打听] 听街坊说，你以前也是码头帮的人？",
+          "Requires": ["!asked:ask_past"],
           "Effects": [
             {
               "Id": "mark",
@@ -145,14 +138,15 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_ask_past"
+          "NextNode": "butcher_ask_past_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "sister",
           "PlayerKey": "LWN_story_butcher_opt_sister",
-          "Requires": [
-            "!asked:ask_sister"
-          ],
+          "PlayerKeyZh": "[打听] 见过一个被码头帮带走的青布姑娘吗？",
+          "Requires": ["!asked:ask_sister"],
           "Effects": [
             {
               "Id": "mark",
@@ -171,37 +165,35 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_ask_sister"
+          "NextNode": "butcher_ask_sister_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "deal",
           "PlayerKey": "LWN_story_butcher_opt_deal",
-          "Requires": [
-            "!quest_accepted",
-            "!quest_turned",
-            "asked:ask_past"
-          ],
+          "PlayerKeyZh": "[求门路] 我身上没家伙，能不能借把刀、教我两手？",
+          "Requires": ["!quest_accepted", "!quest_turned", "asked:ask_past"],
           "Effects": [],
-          "NextNode": "butcher_deal"
+          "NextNode": "butcher_deal_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "chat",
           "PlayerKey": "LWN_story_butcher_opt_chat",
-          "Requires": [
-            "quest_turned"
-          ],
+          "PlayerKeyZh": "[叙旧] 今天的肉看着不错。",
+          "Requires": ["quest_turned"],
           "Effects": [],
-          "NextNode": "butcher_chat"
+          "NextNode": "butcher_chat_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "money",
           "PlayerKey": "LWN_story_butcher_opt_money",
-          "Requires": [
-            "step>=1",
-            "asked:ask_meat",
-            "asked:ask_sister",
-            "!asked:butcher_money"
-          ],
+          "PlayerKeyZh": "[递钱] 这些钱，买你一句话。",
+          "Requires": ["step>=1", "asked:ask_meat", "asked:ask_sister", "!asked:butcher_money"],
           "Effects": [
             {
               "Id": "mark",
@@ -218,33 +210,36 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "butcher_money_disdain"
+          "NextNode": "butcher_money_disdain_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
       "Id": "butcher_hub",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_hub",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "有话直说。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "meat",
           "PlayerKey": "LWN_story_butcher_opt_meat",
-          "Requires": [
-            "!asked:ask_meat"
-          ],
+          "PlayerKeyZh": "[搭话] 这么大个肉案，就你一个人守着？",
+          "Requires": ["!asked:ask_meat"],
           "Effects": [
             {
               "Id": "mark",
@@ -255,14 +250,15 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_ask_meat"
+          "NextNode": "butcher_ask_meat_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "past",
           "PlayerKey": "LWN_story_butcher_opt_past",
-          "Requires": [
-            "!asked:ask_past"
-          ],
+          "PlayerKeyZh": "[打听] 听街坊说，你以前也是码头帮的人？",
+          "Requires": ["!asked:ask_past"],
           "Effects": [
             {
               "Id": "mark",
@@ -273,14 +269,15 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_ask_past"
+          "NextNode": "butcher_ask_past_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "sister",
           "PlayerKey": "LWN_story_butcher_opt_sister",
-          "Requires": [
-            "!asked:ask_sister"
-          ],
+          "PlayerKeyZh": "[打听] 见过一个被码头帮带走的青布姑娘吗？",
+          "Requires": ["!asked:ask_sister"],
           "Effects": [
             {
               "Id": "mark",
@@ -299,37 +296,35 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_ask_sister"
+          "NextNode": "butcher_ask_sister_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "deal",
           "PlayerKey": "LWN_story_butcher_opt_deal",
-          "Requires": [
-            "!quest_accepted",
-            "!quest_turned",
-            "asked:ask_past"
-          ],
+          "PlayerKeyZh": "[求门路] 我身上没家伙，能不能借把刀、教我两手？",
+          "Requires": ["!quest_accepted", "!quest_turned", "asked:ask_past"],
           "Effects": [],
-          "NextNode": "butcher_deal"
+          "NextNode": "butcher_deal_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "chat",
           "PlayerKey": "LWN_story_butcher_opt_chat",
-          "Requires": [
-            "quest_turned"
-          ],
+          "PlayerKeyZh": "[叙旧] 今天的肉看着不错。",
+          "Requires": ["quest_turned"],
           "Effects": [],
-          "NextNode": "butcher_chat"
+          "NextNode": "butcher_chat_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "money",
           "PlayerKey": "LWN_story_butcher_opt_money",
-          "Requires": [
-            "step>=1",
-            "asked:ask_meat",
-            "asked:ask_sister",
-            "!asked:butcher_money"
-          ],
+          "PlayerKeyZh": "[递钱] 这些钱，买你一句话。",
+          "Requires": ["step>=1", "asked:ask_meat", "asked:ask_sister", "!asked:butcher_money"],
           "Effects": [
             {
               "Id": "mark",
@@ -346,54 +341,77 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "butcher_money_disdain"
+          "NextNode": "butcher_money_disdain_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_ask_meat_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_ask_meat_line1",
+      "TextKeyZh": "以前有个徒弟帮衬，上个月让码头帮吓跑了。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_ask_meat",
+      "Options": []
+    },
+    {
       "Id": "butcher_ask_meat",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_ask_meat",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "现在就我一把刀、一张案板，谁来也不让。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_ask_past_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_ask_past_line1",
+      "TextKeyZh": "……你听哪个碎嘴子说的？",
+      "LineActions": ["act_conversation_closed_negative"],
+      "NextNode": "butcher_ask_past",
+      "Options": []
+    },
+    {
       "Id": "butcher_ask_past",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_ask_past",
-      "LineActions": [
-        "act_conversation_closed_negative",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "少打听以前的事。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "more",
           "PlayerKey": "LWN_story_butcher_opt_past_more",
-          "Requires": [
-            "!asked:past_more"
-          ],
+          "PlayerKeyZh": "[追问] 我不是码头帮的探子——他们为什么砸你的摊？",
+          "Requires": ["!asked:past_more"],
           "Effects": [
             {
               "Id": "mark",
@@ -404,54 +422,87 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_ask_past_2"
+          "NextNode": "butcher_ask_past_2_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_ask_past_2_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_ask_past_2_line1",
+      "TextKeyZh": "他们逼我去干押活人的脏活，我不干，他们就砸了我的摊子。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_ask_past_2_line2",
+      "Options": []
+    },
+    {
+      "Id": "butcher_ask_past_2_line2",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_ask_past_2_line2",
+      "TextKeyZh": "从那天起我就跟码头帮断了。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_ask_past_2",
+      "Options": []
+    },
+    {
       "Id": "butcher_ask_past_2",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_ask_past_2",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "要我的命可以，要我再干脏活不行。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_ask_sister_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_ask_sister_line1",
+      "TextKeyZh": "押人的脏事我早不沾了。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_ask_sister",
+      "Options": []
+    },
+    {
       "Id": "butcher_ask_sister",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_ask_sister",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "不过上个月底半夜，我听见他们押着人往西码头暗仓去了。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "sister2",
           "PlayerKey": "LWN_story_butcher_opt_sister2",
-          "Requires": [
-            "!asked:sister_more"
-          ],
+          "PlayerKeyZh": "[追问] 西码头暗仓那边，还有什么讲究？",
+          "Requires": ["!asked:sister_more"],
           "Effects": [
             {
               "Id": "mark",
@@ -462,61 +513,97 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_ask_sister_2"
+          "NextNode": "butcher_ask_sister_2_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_ask_sister_2_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_ask_sister_2_line1",
+      "TextKeyZh": "进那间暗仓的人，没一个能自己走出来。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_ask_sister_2",
+      "Options": []
+    },
+    {
       "Id": "butcher_ask_sister_2",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_ask_sister_2",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "你要去救人，手里没把趁手家伙就是白送命。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_deal_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_deal_line1",
+      "TextKeyZh": "想拿家伙、学两手？",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_deal_line2",
+      "Options": []
+    },
+    {
+      "Id": "butcher_deal_line2",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_deal_line2",
+      "TextKeyZh": "先替我办件事。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_deal",
+      "Options": []
+    },
+    {
       "Id": "butcher_deal",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_deal",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "收保护费的打手天天来砸摊，让他收手，怎么摆平你自己选。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "job",
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_quest_accept"
+          "NextNode": "butcher_quest_accept_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "why",
           "PlayerKey": "LWN_story_butcher_opt_why",
-          "Requires": [
-            "!asked:butcher_why"
-          ],
+          "PlayerKeyZh": "[反问] 你手头有刀有肉，怎么不自己剁了他？",
+          "Requires": ["!asked:butcher_why"],
           "Effects": [
             {
               "Id": "mark",
@@ -527,73 +614,111 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_deal_why"
+          "NextNode": "butcher_deal_why_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "refuse",
           "PlayerKey": "LWN_story_butcher_opt_refuse",
+          "PlayerKeyZh": "[缓一缓] 我暂时不想替人出头。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_deal_refuse"
+          "NextNode": "butcher_deal_refuse_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_deal_why_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_deal_why_line1",
+      "TextKeyZh": "我提刀砍了他，码头帮就有借口烧我铺子。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_deal_why",
+      "Options": []
+    },
+    {
       "Id": "butcher_deal_why",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_deal_why",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "你是外乡人，替我出面劝他也好，打服他也好，别闹出人命。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "job",
           "PlayerKey": "LWN_story_opt_take_job",
+          "PlayerKeyZh": "[应下] 这活我接了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_quest_accept"
+          "NextNode": "butcher_quest_accept_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_deal_refuse_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_deal_refuse_line1",
+      "TextKeyZh": "不肯出面，那这事先算了。",
+      "LineActions": ["act_conversation_closed_very_negative"],
+      "NextNode": "butcher_deal_refuse",
+      "Options": []
+    },
+    {
       "Id": "butcher_deal_refuse",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_deal_refuse",
-      "LineActions": [
-        "act_conversation_closed_very_negative",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "哪天改了主意再来，我要的是摊子能安生。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_quest_accept_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_quest_accept_line1",
+      "TextKeyZh": "打手就在街口，我这摊子的安生托付给你了。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_quest_accept",
+      "Options": []
+    },
+    {
       "Id": "butcher_quest_accept",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_quest_accept",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "事情摆平了就回来领东西，别闹出人命。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [
         {
           "Id": "quest_accept",
@@ -609,48 +734,73 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
       "Id": "butcher_turnin",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_turnin",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        ""
-      ],
-      "Requires": [],
+      "TextKeyZh": "打手那件事，办妥了？",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "ok",
           "PlayerKey": "LWN_story_butcher_opt_turnin_ok",
+          "PlayerKeyZh": "[交差] 那个打手已经服软了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_turnin_ok"
+          "NextNode": "butcher_turnin_ok_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_turnin_ok_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_turnin_ok_line1",
+      "TextKeyZh": "办得好。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_turnin_ok_line2",
+      "Options": []
+    },
+    {
+      "Id": "butcher_turnin_ok_line2",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_turnin_ok_line2",
+      "TextKeyZh": "这把砍刀、麻绳和磨刀石拿去，我再教你两手用刀的门道。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_turnin_ok",
+      "Options": []
+    },
+    {
       "Id": "butcher_turnin_ok",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_turnin_ok",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "不想跟铁头硬拼，可以从背后敲闷棍，或者拿绳子捆住他。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [
         {
           "Id": "quest_turn_in",
@@ -665,36 +815,49 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_chat_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_chat_line1",
+      "TextKeyZh": "来了。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_chat",
+      "Options": []
+    },
+    {
       "Id": "butcher_chat",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_chat",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "案板后头留了块好肉，饿了自己在锅里捞，不用给钱。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "work",
           "PlayerKey": "LWN_story_butcher_opt_work",
-          "Requires": [
-            "!asked:butcher_chat_2"
-          ],
+          "PlayerKeyZh": "[请教] 守门那个铁头，动手时有什么破绽？",
+          "Requires": ["!asked:butcher_chat_2"],
           "Effects": [
             {
               "Id": "mark",
@@ -705,131 +868,232 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "butcher_chat_2"
+          "NextNode": "butcher_chat_2_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
+    },
+    {
+      "Id": "butcher_chat_2_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_chat_2_line1",
+      "TextKeyZh": "铁头以前在码头扛大包，下盘稳，但左手招架慢半拍。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "butcher_chat_2",
+      "Options": []
     },
     {
       "Id": "butcher_chat_2",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_chat_2",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "真动起手来，往他左侧抢步，三刀之内必见分晓。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
+    },
+    {
+      "Id": "event_2_join_line1",
+      "Speaker": "thug",
+      "Listener": "npc",
+      "TextKey": "LWN_story_event2_join_line1",
+      "TextKeyZh": "老东西，这月的例钱呢？",
+      "LineActions": ["act_conversation_aggressive_trivial"],
+      "NextNode": "event_2_join_line2",
+      "Options": []
+    },
+    {
+      "Id": "event_2_join_line2",
+      "Speaker": "thug",
+      "Listener": "npc",
+      "TextKey": "LWN_story_event2_join_line2",
+      "TextKeyZh": "举着把破刀手都在抖！",
+      "LineActions": ["act_conversation_aggressive_trivial"],
+      "NextNode": "event_2_join_line3",
+      "Options": []
+    },
+    {
+      "Id": "event_2_join_line3",
+      "Speaker": "npc",
+      "Listener": "thug",
+      "TextKey": "LWN_story_event2_join_line3",
+      "TextKeyZh": "滚开！",
+      "LineActions": ["act_conversation_closed_very_negative"],
+      "NextNode": "event_2_join",
+      "Options": []
     },
     {
       "Id": "event_2_join",
       "Speaker": "npc",
+      "Listener": "thug",
       "TextKey": "LWN_story_event2_join",
-      "LineActions": [
-        "act_conversation_aggressive_trivial",
-        "act_conversation_closed_very_negative"
-      ],
-      "Requires": [],
+      "TextKeyZh": "再碰我案板一下，老子剁了你的爪子！",
+      "LineActions": ["act_conversation_closed_very_negative"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "help",
           "PlayerKey": "LWN_story_event2_opt_help",
+          "PlayerKeyZh": "[帮屠户] 光天化日砸人买卖，问过我的拳头没有？",
           "Requires": [],
           "Effects": [],
           "Check": {
             "Skill": "force",
             "Target": "thug",
-            "Success": "event_2_win",
-            "Fail": "event_2_lose"
-          }
+            "Success": "event_2_win_line1",
+            "Fail": "event_2_lose_line1"
+          },
+          "Speaker": "player",
+          "Listener": "thug"
         },
         {
           "Id": "ask",
           "PlayerKey": "LWN_story_event2_opt_ask",
+          "PlayerKeyZh": "[插话] 慢着，你们这是闹什么？",
           "Requires": [],
           "Effects": [],
-          "NextNode": "event_2_ask"
+          "NextNode": "event_2_ask_line1",
+          "Speaker": "player",
+          "Listener": "thug"
         },
         {
           "Id": "walk",
           "PlayerKey": "LWN_story_event2_opt_walk",
+          "PlayerKeyZh": "[走开] 街面上的混账事我不掺和。",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "thug"
         }
       ]
     },
     {
+      "Id": "event_2_ask_line1",
+      "Speaker": "thug",
+      "Listener": "player",
+      "TextKey": "LWN_story_event2_ask_line1",
+      "TextKeyZh": "这卖肉的欠了码头帮两月例钱，你还想替他掏不成？",
+      "LineActions": ["act_conversation_aggressive_trivial"],
+      "NextNode": "event_2_ask",
+      "Options": []
+    },
+    {
       "Id": "event_2_ask",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_event2_ask",
-      "LineActions": [
-        "act_conversation_aggressive_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "外乡人，这是我跟码头帮的梁子，你少掺和。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "help",
           "PlayerKey": "LWN_story_event2_opt_help",
+          "PlayerKeyZh": "[帮屠户] 光天化日砸人买卖，问过我的拳头没有？",
           "Requires": [],
           "Effects": [],
           "Check": {
             "Skill": "force",
             "Target": "thug",
-            "Success": "event_2_win",
-            "Fail": "event_2_lose"
-          }
+            "Success": "event_2_win_line1",
+            "Fail": "event_2_lose_line1"
+          },
+          "Speaker": "player",
+          "Listener": "thug"
         },
         {
           "Id": "walk",
           "PlayerKey": "LWN_story_event2_opt_walk",
+          "PlayerKeyZh": "[走开] 街面上的混账事我不掺和。",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "thug"
         }
       ]
     },
     {
+      "Id": "event_2_win_line1",
+      "Speaker": "thug",
+      "Listener": "player",
+      "TextKey": "LWN_story_event2_win_line1",
+      "TextKeyZh": "你……你从哪冒出来的硬茬子！",
+      "LineActions": ["act_conversation_aggressive_negative"],
+      "NextNode": "event_2_win_line2",
+      "Options": []
+    },
+    {
+      "Id": "event_2_win_line2",
+      "Speaker": "thug",
+      "Listener": "player",
+      "TextKey": "LWN_story_event2_win_line2",
+      "TextKeyZh": "给我等着！",
+      "LineActions": ["act_conversation_aggressive_negative"],
+      "NextNode": "event_2_win_line3",
+      "Options": []
+    },
+    {
+      "Id": "event_2_win_line3",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_event2_win_line3",
+      "TextKeyZh": "好手劲。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "event_2_win",
+      "Options": []
+    },
+    {
       "Id": "event_2_win",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_event2_win",
-      "LineActions": [
-        "act_conversation_aggressive_negative",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "肯替人出头的外乡人不多见了。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [
         {
           "Id": "resolve_event",
@@ -853,28 +1117,52 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "event_2_lose_line1",
+      "Speaker": "thug",
+      "Listener": "player",
+      "TextKey": "LWN_story_event2_lose_line1",
+      "TextKeyZh": "呸，没骨头的软脚虾，也敢学人拔拳头！",
+      "LineActions": ["act_conversation_aggressive_trivial"],
+      "NextNode": "event_2_lose_line2",
+      "Options": []
+    },
+    {
+      "Id": "event_2_lose_line2",
+      "Speaker": "npc",
+      "Listener": "thug",
+      "TextKey": "LWN_story_event2_lose_line2",
+      "TextKeyZh": "够了！",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "event_2_lose",
+      "Options": []
+    },
+    {
       "Id": "event_2_lose",
       "Speaker": "npc",
+      "Listener": "thug",
       "TextKey": "LWN_story_event2_lose",
-      "LineActions": [
-        "act_conversation_aggressive_trivial",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "别打外人，例钱我明天凑给你！",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [
         {
           "Id": "hazard",
@@ -889,55 +1177,93 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "event_6_join_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_event6_join_line1",
+      "TextKeyZh": "这群杂碎，又把我的肉案给掀了。",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "event_6_join",
+      "Options": []
+    },
+    {
       "Id": "event_6_join",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_event6_join",
-      "LineActions": [
-        "act_conversation_closed_trivial",
-        "act_conversation_closed_negative"
-      ],
-      "Requires": [],
+      "TextKeyZh": "……外乡人，你看什么？",
+      "LineActions": ["act_conversation_closed_negative"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "help",
           "PlayerKey": "LWN_story_event6_opt_help",
+          "PlayerKeyZh": "[关照] 先缓口气。你受伤了没有？",
           "Requires": [],
           "Effects": [],
-          "NextNode": "event_6_helped"
+          "NextNode": "event_6_helped_line1",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "event_6_helped_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_event6_helped_line1",
+      "TextKeyZh": "我没事，多谢你问这一声。",
+      "LineActions": ["act_conversation_closed_negative"],
+      "NextNode": "event_6_helped_line2",
+      "Options": []
+    },
+    {
+      "Id": "event_6_helped_line2",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_event6_helped_line2",
+      "TextKeyZh": "你不是来买肉的吧？",
+      "LineActions": ["act_conversation_closed_trivial"],
+      "NextNode": "event_6_helped",
+      "Options": []
+    },
+    {
       "Id": "event_6_helped",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_event6_helped",
-      "LineActions": [
-        "act_conversation_closed_negative",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "有事就直说。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [
         {
           "Id": "resolve_event",
@@ -952,45 +1278,80 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
+          "PlayerKeyZh": "[跟他说两句]",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     },
     {
+      "Id": "butcher_money_disdain_line1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_money_disdain_line1",
+      "TextKeyZh": "把你的臭钱收回去！",
+      "LineActions": ["act_conversation_closed_negative"],
+      "NextNode": "butcher_money_disdain_line2",
+      "Options": []
+    },
+    {
+      "Id": "butcher_money_disdain_line2",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_butcher_money_disdain_line2",
+      "TextKeyZh": "我卖肉，不卖话。",
+      "LineActions": ["act_conversation_closed_negative"],
+      "NextNode": "butcher_money_disdain",
+      "Options": []
+    },
+    {
       "Id": "butcher_money_disdain",
       "Speaker": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_butcher_money_disdain",
-      "LineActions": [
-        "act_conversation_closed_negative",
-        "act_conversation_closed_trivial"
-      ],
-      "Requires": [],
+      "TextKeyZh": "想让我高看一眼，去把砸摊的人揍趴下。",
+      "LineActions": ["act_conversation_closed_trivial"],
       "OnEnter": [],
       "Options": [
         {
           "Id": "back",
           "PlayerKey": "LWN_story_butcher_opt_back",
+          "PlayerKeyZh": "[收住] 别的先不问了。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "butcher_hub"
+          "NextNode": "butcher_hub",
+          "Speaker": "player",
+          "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开]",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "npc"
         }
       ]
     }
-  ]
+  ],
+  "_Speaker说明": "节点只能由NPC说话；npc/questioner绑定本次入口演员，其余为Actors中的实名ID。",
+  "_Listener说明": "听话对象：player或Actors中的实名ID；人物信息不写入TextKeyZh正文。",
+  "_NextNode说明": "NPC说完本句后，点击原版继续进入下一NPC节点；与Options互斥，不增加假玩家选项。",
+  "_EntryOption说明": "保留旧中文审阅资料；SkipVanillaOpening=true时不注册这个玩家网关选项。",
+  "_EntryActors说明": "只有这里的演员能发起/接入本定义；Actors是所有可说话、听话或接受效果的实名演员，不能拿参与名单抢别人的入口。"
 }

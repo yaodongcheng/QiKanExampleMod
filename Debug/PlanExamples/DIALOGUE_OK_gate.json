@@ -3,15 +3,27 @@
   "Schema": "story_dialogue/2",
   "DialogueId": "gate_interrogation",
   "ContentVersion": 1,
-  "Participants": ["questioner", "player"],
-  "Actors": ["blocker", "gate_sentry"],
+  "Participants": [
+    "questioner",
+    "player"
+  ],
+  "Actors": [
+    "blocker",
+    "gate_sentry"
+  ],
   "Triggers": [
     {
       "Id": "first_meet_auto",
       "Source": "post_ai",
       "Purpose": "interrogate",
-      "Conditions": ["phase:first_meet", "can_see:player"],
-      "Rank": ["distanceToPlayer", "npcId"],
+      "Conditions": [
+        "phase:first_meet",
+        "can_see:player"
+      ],
+      "Rank": [
+        "distanceToPlayer",
+        "npcId"
+      ],
       "CooldownSec": 3.0,
       "ReentrySec": 8.0,
       "OnCancel": "release"
@@ -28,8 +40,22 @@
     }
   ],
   "Entries": [
-    { "Id": "first_meet", "Trigger": "first_meet_auto", "Conditions": ["phase:first_meet"], "Priority": 100, "Node": "blocker_first" },
-    { "Id": "later_talk", "Trigger": "player_talk", "Conditions": [], "Priority": 50, "Node": "blocker_open" }
+    {
+      "Id": "first_meet",
+      "Trigger": "first_meet_auto",
+      "Conditions": [
+        "phase:first_meet"
+      ],
+      "Priority": 100,
+      "Node": "blocker_first"
+    },
+    {
+      "Id": "later_talk",
+      "Trigger": "player_talk",
+      "Conditions": [],
+      "Priority": 50,
+      "Node": "blocker_open"
+    }
   ],
   "Nodes": [
     {
@@ -39,49 +65,96 @@
       "LineActions": [],
       "Requires": [],
       "OnEnter": [
-        { "Id": "mark", "Params": { "flag": "met" }, "Commit": "on_enter", "Receipt": "once" }
+        {
+          "Id": "mark",
+          "Params": {
+            "flag": "met"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
       ],
       "Options": [
         {
           "Id": "insist",
           "PlayerKey": "LWN_story_blocker_opt_insist",
-          "Requires": ["!disguised"],
-          "Effects": [
-            { "Id": "skill_check", "Params": { "skill": "Charm", "threshold": "40" }, "Commit": "on_select", "Receipt": "once" }
+          "Requires": [
+            "!disguised"
           ],
-          "NextNode": "blocker_refuse"
+          "Effects": [
+            {
+              "Id": "skill_check",
+              "Params": {
+                "skill": "Charm",
+                "threshold": "40"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "blocker_refuse",
+          "Speaker": "player",
+          "Listener": "questioner"
         },
         {
           "Id": "draw",
           "PlayerKey": "LWN_story_blocker_opt_draw",
           "Requires": [],
           "Effects": [],
-          "NextNode": "blocker_open"
+          "NextNode": "blocker_open",
+          "Speaker": "player",
+          "Listener": "questioner"
         },
         {
           "Id": "step_back",
           "PlayerKey": "LWN_story_blocker_opt_step_back",
           "Requires": [],
           "Effects": [],
-          "NextNode": ""
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "questioner"
         }
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "Id": "blocker_refuse",
       "Speaker": "questioner",
       "TextKey": "LWN_story_blocker_first",
       "Options": [
-        { "Id": "leave", "PlayerKey": "LWN_story_blocker_opt_step_back", "Requires": [], "Effects": [], "NextNode": "" }
-      ]
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_blocker_opt_step_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "questioner"
+        }
+      ],
+      "Listener": "player"
     },
     {
       "Id": "blocker_open",
       "Speaker": "questioner",
       "TextKey": "LWN_story_blocker_open",
       "Options": [
-        { "Id": "leave", "PlayerKey": "LWN_story_blocker_opt_step_back", "Requires": [], "Effects": [], "NextNode": "" }
-      ]
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_blocker_opt_step_back",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "questioner"
+        }
+      ],
+      "Listener": "player"
     }
+  ],
+  "SkipVanillaOpening": true,
+  "EntryActors": [
+    "blocker",
+    "gate_sentry"
   ]
 }

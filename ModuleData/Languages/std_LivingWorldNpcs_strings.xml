@@ -4614,25 +4614,26 @@
     <string id="LWN_spell_sky" text="SpellSky" />
     <string id="LWN_spell_zone" text="SpellZone" />
     <!-- 序章剧情道具（items/story_props.xml） -->
+    <string id="LWN_story_prep_failed" text="The stage is not ready - the scene goes on without the show." />
     <string id="LWN_story_pawnbroker_entry" text="[Say a word] Business looks good, old man." />
-    <string id="LWN_story_pawnbroker_intro" text="(Old Zhou, Player): Buying? Pawning? Or looking for a way in?&#10;(Old Zhou, Player): Road dust on you. You are not here to pawn." />
-    <string id="LWN_story_pawnbroker_hub" text="(Old Zhou, Player): Anything else?" />
-    <string id="LWN_story_pawnbroker_ask_self" text="(Old Zhou, Player): Zhou. The street calls me Old Zhou.&#10;(Old Zhou, Player): Twenty-three years this shop has stood. The last thirteen, it belongs to someone else." />
-    <string id="LWN_story_pawnbroker_ask_stay" text="(Old Zhou, Player): Go where. Past that gate at my age, I am a corpse by the road.&#10;(Old Zhou, Player): A man does not stay because he wants to." />
-    <string id="LWN_story_pawnbroker_ask_know" text="(Old Zhou, Player): A pawnshop at the gate sees more than the watch.&#10;(Old Zhou, Player): Who is broke, who just came into coin — it is all in the tickets." />
-    <string id="LWN_story_pawnbroker_ask_sister" text="(Old Zhou, Player): Three months back. Blue cloth, a woman. ...Here.&#10;(Old Zhou, Player): One silver bracelet, thirty down, three days to redeem. Nobody came." />
-    <string id="LWN_story_pawnbroker_sister_where" text="(Old Zhou, Player): A man followed her in. Oilskins. Stopped outside.&#10;(Old Zhou, Player): Dockhands. She left with him after she pawned it." />
-    <string id="LWN_story_pawnbroker_sister_why" text="(Old Zhou, Player): This trade runs on memory. One wrong line and the stall is done.&#10;(Old Zhou, Player): Hers is the only thing nobody came back for in three months." />
-    <string id="LWN_story_pawnbroker_sister_redeem" text="(Old Zhou, Player): Thirty denars.&#10;(Old Zhou, Player): Past the term, the rule says two parts more. ...Never mind. Thirty." />
-    <string id="LWN_story_pawnbroker_sister_got" text="(Old Zhou, Player): Take the bracelet. Marked inside, untouched.&#10;(Old Zhou, Player): This town has lost more people than coin. Look at the docks, and do not go alone." />
-    <string id="LWN_story_pawnbroker_ask_gang" text="(Old Zhou, Player): The one at the gate is Ironhead. Greedy; coin lifts his eyelids.&#10;(Old Zhou, Player): But he does not fear a hard man. Pay him. Or..." />
-    <string id="LWN_story_pawnbroker_ask_gang_2" text="(Old Zhou, Player): ...Or wear a better name so he does not know you.&#10;(Old Zhou, Player): That face is on the gate warrant. Badly drawn, but there." />
-    <string id="LWN_story_pawnbroker_ask_gang_3" text="(Old Zhou, Player): A hundred denars. I know the number by heart.&#10;(Old Zhou, Player): Short him a coin, and he will keep you on that threshold till dark." />
-    <string id="LWN_story_pawnbroker_deal" text="(Old Zhou, Player): A dockhand collector owes me three dead accounts. Half a year now.&#10;(Old Zhou, Player): Get it back. No blood. Do that and I will pay your share." />
-    <string id="LWN_story_pawnbroker_deal_why" text="(Old Zhou, Player): Me? These old bones would come back on a board.&#10;(Old Zhou, Player): All my life I deal with numbers. Fists are not my trade." />
-    <string id="LWN_story_pawnbroker_deal_refuse" text="(Old Zhou, Player): Fair. Cross them and you come back lying down.&#10;(Old Zhou, Player): But mark my words: the girl you seek was taken by them too." />
-    <string id="LWN_story_pawnbroker_quest_accept" text="(Old Zhou, Player): That collector stands at the west alley mouth every afternoon.&#10;(Old Zhou, Player): One hundred twenty denars. Not a coin less. No killing." />
-    <string id="LWN_story_pawnbroker_turnin" text="(Player, Old Zhou): One hundred twenty denars. Every coin of it.&#10;(Old Zhou, Player): ...You actually pried it out of him." />
+    <string id="LWN_story_pawnbroker_intro" text="That road dust tells me you are not here to pawn." />
+    <string id="LWN_story_pawnbroker_hub" text="Anything else?" />
+    <string id="LWN_story_pawnbroker_ask_self" text="This shop has stood twenty-three years, the last thirteen for someone else." />
+    <string id="LWN_story_pawnbroker_ask_stay" text="A man does not stay because he wants to." />
+    <string id="LWN_story_pawnbroker_ask_know" text="Who is broke, who just came into coin — it is all in the tickets." />
+    <string id="LWN_story_pawnbroker_ask_sister" text="Nobody came." />
+    <string id="LWN_story_pawnbroker_sister_where" text="She left with him after she pawned it." />
+    <string id="LWN_story_pawnbroker_sister_why" text="Hers is the only thing nobody came back for in three months." />
+    <string id="LWN_story_pawnbroker_sister_redeem" text="...Never mind, just thirty." />
+    <string id="LWN_story_pawnbroker_sister_got" text="Look at the docks, and do not go alone." />
+    <string id="LWN_story_pawnbroker_ask_gang" text="Pay him, or..." />
+    <string id="LWN_story_pawnbroker_ask_gang_2" text="Badly drawn, but there." />
+    <string id="LWN_story_pawnbroker_ask_gang_3" text="Short him a coin, and he will keep you on that threshold till dark." />
+    <string id="LWN_story_pawnbroker_deal" text="Do that and I will pay your share." />
+    <string id="LWN_story_pawnbroker_deal_why" text="Fists are not my trade." />
+    <string id="LWN_story_pawnbroker_deal_refuse" text="But mark my words: the girl you seek was taken by them too." />
+    <string id="LWN_story_pawnbroker_quest_accept" text="No killing." />
+    <string id="LWN_story_pawnbroker_turnin" text="How did collecting the debt go?" />
     <string id="LWN_story_opt_take_job" text="[Take] I'll do it." />
     <string id="LWN_story_narr_quest_taken" text="(Narrator, Player): Taken: {TASK}. Find {TARGET}." />
     <string id="LWN_story_goal_quest_named" text="{TASK} - find {TARGET}." />
@@ -4643,11 +4644,11 @@
     <string id="LWN_story_issue_accept" text="Tell me." />
     <string id="LWN_story_quest_ready_turnin" text="Done. Go back and tell {NAME}." />
     <string id="LWN_story_quest_finished" text="Settled with {NAME}." />
-    <string id="LWN_story_pawnbroker_turnin_trouble" text="(Old Zhou, Player): ...Beat him like that and the dockhands will be at my door tomorrow.&#10;(Old Zhou, Player): Never mind. The debt is clear. Take your thirty denars and this old ledger." />
-    <string id="LWN_story_pawnbroker_turnin_ok" text="(Old Zhou, Player): Clean work. Thirty denars for you, and this old ledger to study.&#10;(Old Zhou, Player): And if you would rather not pay Ironhead, there is another way." />
-    <string id="LWN_story_pawnbroker_turnin_why" text="(Old Zhou, Player): The widow by the stage has a trunk of fine costumes.&#10;(Old Zhou, Player): Settle her dispute with the rival troupe, and she can teach you to look the part." />
-    <string id="LWN_story_pawnbroker_chat" text="(Old Zhou, Player): Back again?&#10;(Old Zhou, Player): Since you stood up for me, that lot walks around my stall." />
-    <string id="LWN_story_pawnbroker_chat_2" text="(Old Zhou, Player): Boats dock at the west pier at night now, unloading without lanterns.&#10;(Old Zhou, Player): Once you are inside and head that way, watch your step." />
+    <string id="LWN_story_pawnbroker_turnin_trouble" text="Take your thirty denars and this old ledger." />
+    <string id="LWN_story_pawnbroker_turnin_ok" text="And if you would rather not pay Ironhead, there is another way." />
+    <string id="LWN_story_pawnbroker_turnin_why" text="Settle her dispute with the rival troupe, and she can teach you to look the part." />
+    <string id="LWN_story_pawnbroker_chat" text="Since you stood up for me, that lot walks around my stall." />
+    <string id="LWN_story_pawnbroker_chat_2" text="Once you are inside and head that way, watch your step." />
     <string id="LWN_story_pawnbroker_opt_self" text="[Talk] Tell me about yourself." />
     <string id="LWN_story_pawnbroker_opt_sister" text="[Ask] Three months ago — a girl in blue cloth?" />
     <string id="LWN_story_pawnbroker_opt_sister2" text="[Ask] About that girl in blue cloth." />
@@ -4674,26 +4675,26 @@
     <string id="LWN_story_pawnbroker_opt_work" text="[Back] Let me ask about something else." />
     <string id="LWN_story_pawnbroker_opt_visit" text="[Ask] Once I'm inside, what's the word down at the docks?" />
     <string id="LWN_story_pawnbroker_opt_back" text="[Stop] Nothing more on that for now." />
-    <string id="LWN_story_event1_join" text="(Thug, Old Zhou): What are you looking at? Not your business.&#10;(Old Zhou, Thug): Sir, please don't... I will pay, I will pay." />
-    <string id="LWN_story_event1_paid" text="(Thug, Old Zhou): Same next month. Keep playing the good man and keep paying.&#10;(Old Zhou, Player): ...Why would you do that, sir." />
-    <string id="LWN_story_event1_win" text="(Thug, Player): Fine, fine... you wait.&#10;(Old Zhou, Player): Three years. First time anyone stopped him." />
-    <string id="LWN_story_event1_lose" text="(Thug, Player): That all you've got, meddler?&#10;(Old Zhou, Thug): Stop! I will pay, I will pay right now!" />
+    <string id="LWN_story_event1_join" text="Sir, please don't... I will pay, I will pay." />
+    <string id="LWN_story_event1_paid" text="...Why would you do that, sir." />
+    <string id="LWN_story_event1_win" text="First time anyone stopped him." />
+    <string id="LWN_story_event1_lose" text="I will pay, I will pay right now!" />
     <string id="LWN_story_event1_opt_pay" text="[Pay] How much does he owe? I'll cover it. (80 denars)" />
     <string id="LWN_story_event1_opt_stop" text="[Stop him] Money later. Take your hand off his collar first." />
     <string id="LWN_story_event1_opt_walk" text="[Walk away] Not my business." />
-    <string id="LWN_story_event5_join" text="(Old Zhou, Player): Three dead accounts... not one came back.&#10;(Old Zhou, Player): Sir, are you here to pawn, or looking for a way in?" />
+    <string id="LWN_story_event5_join" text="Sir, are you here to pawn, or looking for a way in?" />
     <string id="LWN_story_event5_opt_ask" text="[Speak] I'm looking for a way in. Let's talk." />
     <string id="LWN_story_blocker_entry" text="[Say a word] Step aside. I'm going in." />
-    <string id="LWN_story_blocker_first" text="(Ironhead, Player): Papers.&#10;(Ironhead, Player): No papers, get back." />
-    <string id="LWN_story_blocker_first_refuse" text="(Ironhead, Player): Looking for kin, collecting debts, running for life — they all say that.&#10;(Ironhead, Player): Back up, before I put you down." />
-    <string id="LWN_story_blocker_first_blow" text="(Ironhead, Player): Tired of standing, are you? Down!" />
-    <string id="LWN_story_blocker_open" text="(Ironhead, Player): Papers.&#10;(Ironhead, Player): ...Back again, are you?" />
-    <string id="LWN_story_blocker_bribe_ok" text="(Ironhead, Player): ...You know the rules. Go on in.&#10;(Ironhead, Player): Keep your head down once you're through." />
-    <string id="LWN_story_blocker_threat_ok" text="(Ironhead, Player): ...Fine. You're a hard one. I won't bleed for this wage. Pass." />
-    <string id="LWN_story_blocker_threat_fail" text="(Ironhead, Player): Barking at my gate? Dead man walking!" />
-    <string id="LWN_story_blocker_disguise_ok" text="(Ironhead, Player): ...My lord.&#10;(Ironhead, Player): Forgive my eyes. Right this way." />
-    <string id="LWN_story_blocker_disguise_fail" text="(Ironhead, Player): ...Hold on. Those clothes don't fit you.&#10;(Ironhead, Player): An impostor! Take him!" />
-    <string id="LWN_story_blocker_fight" text="(Ironhead, Player): Come on then! Let's see who drops first!" />
+    <string id="LWN_story_blocker_first" text="No papers, get back." />
+    <string id="LWN_story_blocker_first_refuse" text="Back up, before I put you down." />
+    <string id="LWN_story_blocker_first_blow" text="Down!" />
+    <string id="LWN_story_blocker_open" text="...Back again, are you?" />
+    <string id="LWN_story_blocker_bribe_ok" text="Keep your head down once you're through." />
+    <string id="LWN_story_blocker_threat_ok" text="I won't bleed for this wage, so pass." />
+    <string id="LWN_story_blocker_threat_fail" text="Dead man walking!" />
+    <string id="LWN_story_blocker_disguise_ok" text="Forgive my eyes and come right in." />
+    <string id="LWN_story_blocker_disguise_fail" text="Take him!" />
+    <string id="LWN_story_blocker_fight" text="Come on then, let's see who drops first!" />
     <string id="LWN_story_blocker_opt_insist" text="[Reason] My sister works in there. I'm going to find her." />
     <string id="LWN_story_blocker_opt_draw" text="[Force] I'm walking through this gate today." />
     <string id="LWN_story_blocker_opt_step_back" text="[Back off] ...Never mind. I'll step back." />
@@ -4703,22 +4704,85 @@
     <string id="LWN_story_blocker_opt_fight" text="[Fight] Enough talk. Draw." />
     <string id="LWN_story_opt_leave" text="[Leave]" />
     <string id="LWN_story_pawnbroker_opt_help_reward" text="[Thanks] After stepping in for you, I suppose we know each other now." />
-    <string id="LWN_story_pawnbroker_help_reward" text="(Old Zhou, Player): Take these fifty denars, with my thanks for stepping in." />
+    <string id="LWN_story_pawnbroker_help_reward" text="Take these fifty denars, with my thanks for stepping in." />
+    <string id="LWN_story_blocker_first_line1" text="Papers." />
+    <string id="LWN_story_blocker_first_refuse_line1" text="Looking for kin, collecting debts, running for life — they all say that." />
+    <string id="LWN_story_blocker_first_blow_line1" text="Tired of standing, are you?" />
+    <string id="LWN_story_blocker_open_line1" text="Papers." />
+    <string id="LWN_story_blocker_bribe_ok_line1" text="...You know the rules." />
+    <string id="LWN_story_blocker_bribe_ok_line2" text="Go on in." />
+    <string id="LWN_story_blocker_threat_ok_line1" text="...Fine, you're a hard one." />
+    <string id="LWN_story_blocker_threat_fail_line1" text="Barking at my gate?" />
+    <string id="LWN_story_blocker_disguise_ok_line1" text="...My lord." />
+    <string id="LWN_story_blocker_disguise_fail_line1" text="...Hold on, those clothes don't fit you." />
+    <string id="LWN_story_blocker_disguise_fail_line2" text="An impostor!" />
+    <string id="LWN_story_pawnbroker_intro_line1" text="Buying?" />
+    <string id="LWN_story_pawnbroker_intro_line2" text="Pawning?" />
+    <string id="LWN_story_pawnbroker_intro_line3" text="Or looking for a way in?" />
+    <string id="LWN_story_pawnbroker_ask_self_line1" text="My surname is Zhou, and the street calls me Old Zhou." />
+    <string id="LWN_story_pawnbroker_ask_stay_line1" text="Go where." />
+    <string id="LWN_story_pawnbroker_ask_stay_line2" text="Past that gate at my age, I am a corpse by the road." />
+    <string id="LWN_story_pawnbroker_ask_know_line1" text="A pawnshop at the gate sees more than the watch." />
+    <string id="LWN_story_pawnbroker_ask_sister_line1" text="Three months back, a woman in blue cloth." />
+    <string id="LWN_story_pawnbroker_ask_sister_line2" text="...Here." />
+    <string id="LWN_story_pawnbroker_ask_sister_line3" text="One silver bracelet, thirty down, three days to redeem." />
+    <string id="LWN_story_pawnbroker_sister_where_line1" text="A man followed her that day." />
+    <string id="LWN_story_pawnbroker_sister_where_line2" text="He wore oilskins and stopped outside." />
+    <string id="LWN_story_pawnbroker_sister_where_line3" text="Dockhands." />
+    <string id="LWN_story_pawnbroker_sister_why_line1" text="This trade runs on memory." />
+    <string id="LWN_story_pawnbroker_sister_why_line2" text="One wrong line and the stall is done." />
+    <string id="LWN_story_pawnbroker_sister_redeem_line1" text="Thirty denars." />
+    <string id="LWN_story_pawnbroker_sister_redeem_line2" text="Past the term, the rule says two parts more." />
+    <string id="LWN_story_pawnbroker_sister_got_line1" text="Take the bracelet." />
+    <string id="LWN_story_pawnbroker_sister_got_line2" text="Marked inside, untouched." />
+    <string id="LWN_story_pawnbroker_sister_got_line3" text="This town has lost more people than coin." />
+    <string id="LWN_story_pawnbroker_ask_gang_line1" text="The one at the gate is Ironhead." />
+    <string id="LWN_story_pawnbroker_ask_gang_line2" text="Greedy; coin lifts his eyelids." />
+    <string id="LWN_story_pawnbroker_ask_gang_line3" text="But he does not fear a hard man and will stab you if you draw a blade." />
+    <string id="LWN_story_pawnbroker_ask_gang_2_line1" text="...Or wear a better name so he does not know you." />
+    <string id="LWN_story_pawnbroker_ask_gang_2_line2" text="That face is on the gate warrant." />
+    <string id="LWN_story_pawnbroker_ask_gang_3_line1" text="A hundred denars." />
+    <string id="LWN_story_pawnbroker_ask_gang_3_line2" text="I know the number by heart." />
+    <string id="LWN_story_pawnbroker_deal_line1" text="A dockhand collector has owed me three dead accounts for half a year." />
+    <string id="LWN_story_pawnbroker_deal_line2" text="Get it back without blood." />
+    <string id="LWN_story_pawnbroker_deal_why_line1" text="Me?" />
+    <string id="LWN_story_pawnbroker_deal_why_line2" text="These old bones would come back on a board." />
+    <string id="LWN_story_pawnbroker_deal_why_line3" text="All my life I deal with numbers." />
+    <string id="LWN_story_pawnbroker_deal_refuse_line1" text="Fair." />
+    <string id="LWN_story_pawnbroker_deal_refuse_line2" text="Cross them and you come back lying down." />
+    <string id="LWN_story_pawnbroker_quest_accept_line1" text="That collector stands at the west alley mouth every afternoon." />
+    <string id="LWN_story_pawnbroker_quest_accept_line2" text="One hundred twenty denars, not a coin less." />
+    <string id="LWN_story_pawnbroker_turnin_trouble_line1" text="...Beat him like that and the dockhands will be at my door tomorrow." />
+    <string id="LWN_story_pawnbroker_turnin_trouble_line2" text="Never mind, the debt is clear." />
+    <string id="LWN_story_pawnbroker_turnin_ok_line1" text="Clean work." />
+    <string id="LWN_story_pawnbroker_turnin_ok_line2" text="Thirty denars for you, and this old ledger to study." />
+    <string id="LWN_story_pawnbroker_turnin_why_line1" text="The widow by the stage has a trunk of fine costumes." />
+    <string id="LWN_story_pawnbroker_chat_line1" text="Back again?" />
+    <string id="LWN_story_pawnbroker_chat_2_line1" text="Boats dock at the west pier at night now, unloading without lanterns." />
+    <string id="LWN_story_event1_join_line1" text="What are you looking at?" />
+    <string id="LWN_story_event1_join_line2" text="Not your business." />
+    <string id="LWN_story_event1_paid_line1" text="Same next month." />
+    <string id="LWN_story_event1_paid_line2" text="Keep playing the good man and keep paying." />
+    <string id="LWN_story_event1_win_line1" text="Fine, fine... you wait." />
+    <string id="LWN_story_event1_win_line2" text="Three years." />
+    <string id="LWN_story_event1_lose_line1" text="That all you've got, meddler?" />
+    <string id="LWN_story_event1_lose_line2" text="Stop!" />
+    <string id="LWN_story_event5_join_line1" text="Three dead accounts... not one came back." />
     <string id="LWN_story_widow_entry" text="[Say a word] Fine playing, mistress." />
-    <string id="LWN_story_widow_intro" text="(The Widow, Player): If it was good, drop two coins. Stand back from the boards.&#10;(The Widow, Player): ...Though with that look on you, you're not here for the play." />
-    <string id="LWN_story_widow_hub" text="(The Widow, Player): Something else?" />
-    <string id="LWN_story_widow_ask_stage" text="(The Widow, Player): Where else would we sing? Live on wind?&#10;(The Widow, Player): The gate crowd is thick. Slip a secret into a verse and the watch never notices." />
-    <string id="LWN_story_widow_ask_sister" text="(The Widow, Player): Blue cloth? I sold her a real passage paper.&#10;(The Widow, Player): A sailor in oilskins led her away right after." />
-    <string id="LWN_story_widow_ask_sister_2" text="(The Widow, Player): His hands were thick with rope calluses — a dockhand boatman.&#10;(The Widow, Player): I told her not to go. She said she had no other way to live." />
-    <string id="LWN_story_widow_ask_rival" text="(The Widow, Player): The dockhands back that rival troupe. They block my boards and steal my crowd.&#10;(The Widow, Player): Shut them up, and I will owe you a real favour." />
-    <string id="LWN_story_widow_deal" text="(The Widow, Player): I have noble costumes in my trunk, but not for free.&#10;(The Widow, Player): Their leader blocks my stage and steals the audience. Make him stop." />
-    <string id="LWN_story_widow_deal_why" text="(The Widow, Player): If I go, he calls it a quarrel over customers and refuses to listen.&#10;(The Widow, Player): Settle it for me. Talk him round if you can, and no killing if you fight." />
-    <string id="LWN_story_widow_deal_refuse" text="(The Widow, Player): Suit yourself.&#10;(The Widow, Player): Without a proper name and coat, Ironhead at the gate won't let you pass." />
-    <string id="LWN_story_widow_quest_accept" text="(The Widow, Player): Their leader is at the east end of the street. The job is yours.&#10;(The Widow, Player): Once the dispute is settled, come to collect. The costume is set aside." />
-    <string id="LWN_story_widow_turnin" text="(The Widow, Player): Any news about the rival troupe?&#10;(Player, The Widow): Their leader backed down. It is settled." />
-    <string id="LWN_story_widow_turnin_ok" text="(The Widow, Player): A promise kept. Take this noble costume and charm; I will coach your manners too.&#10;(The Widow, Player): Wear it to the guard. Getting past him still depends on how you answer." />
-    <string id="LWN_story_widow_chat" text="(The Widow, Player): Back again? With the rival quiet, my boards can breathe today.&#10;(The Widow, Player): There's a clean stool by the stage. Rest your feet." />
-    <string id="LWN_story_widow_chat_2" text="(The Widow, Player): Every five days the dockhands send girls to the inner-city manors.&#10;(The Widow, Player): None ever walk back out. Watch the east ward once you're inside." />
+    <string id="LWN_story_widow_intro" text="...Though with that look on you, you're not here for the play." />
+    <string id="LWN_story_widow_hub" text="Something else?" />
+    <string id="LWN_story_widow_ask_stage" text="With this gate crowd, the watch never notices a secret slipped into a verse." />
+    <string id="LWN_story_widow_ask_sister" text="A sailor in oilskins led her away right after." />
+    <string id="LWN_story_widow_ask_sister_2" text="When I told her not to go, she said she had no other way to live." />
+    <string id="LWN_story_widow_ask_rival" text="Shut them up, and I will owe you a real favour." />
+    <string id="LWN_story_widow_deal" text="Make their leader stop blocking my stage and stealing the audience." />
+    <string id="LWN_story_widow_deal_why" text="Settle it for me by talking him round if you can, and without killing if you fight." />
+    <string id="LWN_story_widow_deal_refuse" text="Without a proper name and coat, Ironhead at the gate won't let you pass." />
+    <string id="LWN_story_widow_quest_accept" text="Come to collect the costume I set aside once the dispute is settled." />
+    <string id="LWN_story_widow_turnin" text="Any news about the rival troupe?" />
+    <string id="LWN_story_widow_turnin_ok" text="Wear it to the guard, though getting past him still depends on how you answer." />
+    <string id="LWN_story_widow_chat" text="Rest your feet on the clean stool by the stage." />
+    <string id="LWN_story_widow_chat_2" text="Watch the east ward once you're inside." />
     <string id="LWN_story_widow_opt_sister" text="[Ask] Have you seen a girl in blue cloth?" />
     <string id="LWN_story_widow_opt_sister2" text="[Ask] Tell me more about the girl in blue." />
     <string id="LWN_story_widow_opt_sister_more" text="[Press] That sailor who led her off — what else do you remember?" />
@@ -4735,29 +4799,29 @@
     <string id="LWN_story_widow_opt_chat" text="[Chat] How's the crowd today?" />
     <string id="LWN_story_widow_opt_work" text="[Ask] Singing by the gate, what rumours do you hear from inside?" />
     <string id="LWN_story_widow_opt_back" text="[Stop] Nothing more for now." />
-    <string id="LWN_story_event3_join" text="(The Widow, Rival): Stealing my crowd at my own boards? Have you no shame?&#10;(Rival, The Widow): The street belongs to the town. Whoever draws the crowd plays!" />
-    <string id="LWN_story_event3_win" text="(Rival, The Widow): ...Sharp tongue. Tonight is yours, then.&#10;(The Widow, Player): Nicely spoken just now. I'll remember that." />
-    <string id="LWN_story_event3_lose" text="(Rival, The Widow): Hear that, folks! The widow hired a tongue-tied stranger!&#10;(The Widow, Player): ...If you can't speak well, don't speak at all." />
-    <string id="LWN_story_event3_ask" text="(Rival, Player): She hogged the gate for three years, and now she wants to wreck our boards!&#10;(The Widow, Player): Lies! The dockhands planted you here to choke off my living!" />
+    <string id="LWN_story_event3_join" text="Whoever draws the crowd plays on this public street, so what right have you to stop us?" />
+    <string id="LWN_story_event3_win" text="I'll remember those two nicely spoken lines just now." />
+    <string id="LWN_story_event3_lose" text="...If you can't speak well, don't speak at all." />
+    <string id="LWN_story_event3_ask" text="The dockhands planted you here to choke off my living!" />
     <string id="LWN_story_event3_opt_side_widow" text="[Side with her] True players win by voice, not by blocking another's door." />
     <string id="LWN_story_event3_opt_ask" text="[Ask] What's this quarrel about?" />
     <string id="LWN_story_event3_opt_walk" text="[Walk away] Troupe business is none of mine." />
     <string id="LWN_story_son_entry" text="[Say a word] This wall yours?" />
-    <string id="LWN_story_son_intro" text="(The Boy, Player): Shh — keep it down! Three years I've watched from this wall.&#10;(The Boy, Player): By that step of yours, the gate guard just turned you back." />
-    <string id="LWN_story_son_hub" text="(The Boy, Player): What else? Make it quick." />
-    <string id="LWN_story_son_ask_wall" text="(The Boy, Player): Watching who carries a heavy purse and who takes the dark alleys.&#10;(The Boy, Player): My mother sings by the stage; I keep lookout here for the Nightwalkers." />
-    <string id="LWN_story_son_ask_climb" text="(The Boy, Player): See that beam over the gate? With a hook, a three-fathom wall is flat ground.&#10;(The Boy, Player): Shame a pack of wild thieves took my hook yesterday." />
-    <string id="LWN_story_son_ask_climb_2" text="(The Boy, Player): Those outlaws don't keep Nightwalker rules. Took my gear and twisted my finger.&#10;(The Boy, Player): If my hand worked, I'd have taken it back myself." />
-    <string id="LWN_story_son_ask_sister" text="(The Boy, Player): Last month at midnight, two dockhands dragged a girl in blue down the back alley.&#10;(The Boy, Player): Cloth in her mouth. I stayed flat on the tiles and didn't dare look close." />
-    <string id="LWN_story_son_ask_sister_2" text="(The Boy, Player): I was lifting silk from the draper's roof. One shout and I'd be dead too.&#10;(The Boy, Player): But the way they went leads straight to the private warehouses inside." />
-    <string id="LWN_story_son_deal" text="(The Boy, Player): Want the hook to climb over? It's yours if you settle my score.&#10;(The Boy, Player): Those wild thieves camp by the ruined stable at the west wall. Clear them out." />
-    <string id="LWN_story_son_deal_why" text="(The Boy, Player): With my finger swollen like this, how could I confront them?&#10;(The Boy, Player): Make their leader leave my trade alone, and my spare grapple and lockpick kit are yours." />
-    <string id="LWN_story_son_deal_refuse" text="(The Boy, Player): Suit yourself.&#10;(The Boy, Player): Without my hook, you can stand at that gate and stare at Ironhead till winter." />
-    <string id="LWN_story_son_quest_accept" text="(The Boy, Player): Their leader lurks by the west wall.&#10;(The Boy, Player): Call his bluff or beat him. Make him stop, then come back for the hook." />
-    <string id="LWN_story_son_turnin" text="(The Boy, Player): Will that robber at the wall steal from me again?&#10;(Player, The Boy): He backed down. It is settled." />
-    <string id="LWN_story_son_turnin_ok" text="(The Boy, Player): Ha! Rope, hook, and lockpick kit — cleaned them all night. All yours.&#10;(The Boy, Player): Hook the beam when the guard looks away. Never fly while he's watching." />
-    <string id="LWN_story_son_chat" text="(The Boy, Player): You're back! My mother twisted my ear again for keeping bad company.&#10;(The Boy, Player): Told her I know a brother who flattens robbers. She didn't believe me." />
-    <string id="LWN_story_son_chat_2" text="(The Boy, Player): Ironhead wears his blade loose. Slip behind him and you can lift it clean.&#10;(The Boy, Player): Or crouch low by the wall and slip past when he turns his head." />
+    <string id="LWN_story_son_intro" text="By that step of yours, the gate guard just turned you back." />
+    <string id="LWN_story_son_hub" text="Say whatever else you want, quickly." />
+    <string id="LWN_story_son_ask_wall" text="My mother sings by the stage; I keep lookout here for the Nightwalkers." />
+    <string id="LWN_story_son_ask_climb" text="Shame a pack of wild thieves took my hook yesterday." />
+    <string id="LWN_story_son_ask_climb_2" text="If my hand worked, I'd have taken it back myself." />
+    <string id="LWN_story_son_ask_sister" text="She hurried along with cloth in her mouth, while I stayed flat on the tiles and didn't dare look close." />
+    <string id="LWN_story_son_ask_sister_2" text="But the way they went leads straight to the private warehouses inside." />
+    <string id="LWN_story_son_deal" text="Clear those wild thieves out of their camp by the ruined stable at the west wall." />
+    <string id="LWN_story_son_deal_why" text="Make their leader leave my trade alone, and my spare grapple and lockpick kit are yours." />
+    <string id="LWN_story_son_deal_refuse" text="Without my hook, you can stand at that gate and stare at Ironhead till winter." />
+    <string id="LWN_story_son_quest_accept" text="Call his bluff or beat him until he stops, then come back for the hook." />
+    <string id="LWN_story_son_turnin" text="Will that robber at the wall steal from me again?" />
+    <string id="LWN_story_son_turnin_ok" text="Hook the beam when the guard looks away, and never fly while he's watching." />
+    <string id="LWN_story_son_chat" text="She didn't believe me when I said I knew a brother who flattens robbers." />
+    <string id="LWN_story_son_chat_2" text="Or crouch low by the wall and slip past when he turns his head." />
     <string id="LWN_story_son_opt_climb" text="[Ask] The front gate is blocked. How do I get over the wall?" />
     <string id="LWN_story_son_opt_climb2" text="[Press] Who dared rob a Nightwalker?" />
     <string id="LWN_story_son_opt_sister" text="[Ask] Watching from up there, have you seen a girl in blue cloth?" />
@@ -4773,29 +4837,29 @@
     <string id="LWN_story_son_opt_chat" text="[Chat] Anything new from the top of the wall?" />
     <string id="LWN_story_son_opt_work" text="[Ask] Besides the grapple, any other clever way past the gate?" />
     <string id="LWN_story_son_opt_back" text="[Stop] Nothing more for now." />
-    <string id="LWN_story_event4_join" text="(Old Zhou, The Boy): Thief! Hand back the coin pouch from my counter!&#10;(The Boy, Old Zhou): Wrong man, Master Zhou! I haven't stepped within three paces of your stall!" />
-    <string id="LWN_story_event4_win" text="(Old Zhou, The Boy): ...Found it under the ledger. My old eyes failed me.&#10;(The Boy, Player): Thanks, brother. Without you, my hand would've been twisted again." />
-    <string id="LWN_story_event4_lose" text="(Old Zhou, Player): And who are you? In league with this little pickpocket?&#10;(The Boy, Player): ...You're making it worse!" />
-    <string id="LWN_story_event4_ask" text="(Old Zhou, Player): A pouch of loose copper vanished from my counter right as he slipped past!&#10;(The Boy, Player): Master Zhou, look under your thick ledger — my sleeves are empty!" />
+    <string id="LWN_story_event4_join" text="I haven't stepped within three paces of your stall!" />
+    <string id="LWN_story_event4_win" text="Thanks, brother, because without you my hand would have been twisted again." />
+    <string id="LWN_story_event4_lose" text="...You're making it worse!" />
+    <string id="LWN_story_event4_ask" text="Master Zhou, look under your thick ledger — my sleeves are empty!" />
     <string id="LWN_story_event4_opt_defend" text="[Mediate] Check under your ledger first, master. Accusing a boy in public looks bad." />
     <string id="LWN_story_event4_opt_ask" text="[Ask] Hold on — what exactly went missing?" />
     <string id="LWN_story_event4_opt_walk" text="[Walk away] Not my affair." />
     <string id="LWN_story_butcher_entry" text="[Say a word] Is this meat fresh?" />
-    <string id="LWN_story_butcher_intro" text="(The Butcher, Player): Slaughtered at dawn. Fresh.&#10;(The Butcher, Player): Buy or step aside. Don't shadow the block." />
-    <string id="LWN_story_butcher_hub" text="(The Butcher, Player): Speak plain." />
-    <string id="LWN_story_butcher_ask_meat" text="(The Butcher, Player): Had an apprentice once. The dockhands scared him off last month.&#10;(The Butcher, Player): Now it's just me, one cleaver, and this block." />
-    <string id="LWN_story_butcher_ask_past" text="(The Butcher, Player): ...Whose loose tongue told you that?&#10;(The Butcher, Player): Leave old business alone." />
-    <string id="LWN_story_butcher_ask_past_2" text="(The Butcher, Player): They wanted me hauling live captives. I refused, so they smashed my stall.&#10;(The Butcher, Player): That day I cut ties. I sell meat here — cleaner than dock work." />
-    <string id="LWN_story_butcher_ask_sister" text="(The Butcher, Player): I don't touch their kidnapping business.&#10;(The Butcher, Player): But late last month at midnight, they marched someone toward the west dock sheds." />
-    <string id="LWN_story_butcher_ask_sister_2" text="(The Butcher, Player): Nobody taken into those sheds walks out on their own feet.&#10;(The Butcher, Player): If you're going in there, going bare-handed is suicide." />
-    <string id="LWN_story_butcher_deal" text="(The Butcher, Player): Want a blade and a lesson? Do a job for me first.&#10;(The Butcher, Player): That enforcer keeps smashing my stall. Make him stop, your way." />
-    <string id="LWN_story_butcher_deal_why" text="(The Butcher, Player): If I cut him down, the dockhands have an excuse to burn my stall.&#10;(The Butcher, Player): You are an outlander. Talk him round or beat him, but no killing." />
-    <string id="LWN_story_butcher_deal_refuse" text="(The Butcher, Player): If you will not step in, leave it for now.&#10;(The Butcher, Player): Come back if you change your mind. I want peace at my stall." />
-    <string id="LWN_story_butcher_quest_accept" text="(The Butcher, Player): The enforcer is at the corner. I am trusting you with peace at my stall.&#10;(The Butcher, Player): Once it is settled, come for your reward. No killing." />
-    <string id="LWN_story_butcher_turnin" text="(The Butcher, Player): Settled the matter with that enforcer?&#10;(Player, The Butcher): He backed down. He will not smash your stall again." />
-    <string id="LWN_story_butcher_turnin_ok" text="(The Butcher, Player): Well done. Take the cleaver, rope, and whetstone; I will teach you a few tricks with the blade.&#10;(The Butcher, Player): To avoid a duel with Ironhead, club him from behind or bind him." />
-    <string id="LWN_story_butcher_chat" text="(The Butcher, Player): You're here.&#10;(The Butcher, Player): Saved a good cut in the pot out back. Help yourself, no coin needed." />
-    <string id="LWN_story_butcher_chat_2" text="(The Butcher, Player): Ironhead used to haul sacks at the pier — heavy stance, but slow on his left guard.&#10;(The Butcher, Player): If you cross blades, step to his left. Three strikes will settle it." />
+    <string id="LWN_story_butcher_intro" text="If you aren't buying, step aside and keep clear of my block." />
+    <string id="LWN_story_butcher_hub" text="Speak plain." />
+    <string id="LWN_story_butcher_ask_meat" text="Now it's just me, one cleaver, and this block." />
+    <string id="LWN_story_butcher_ask_past" text="Leave old business alone." />
+    <string id="LWN_story_butcher_ask_past_2" text="I sell meat here — cleaner than dock work." />
+    <string id="LWN_story_butcher_ask_sister" text="But late last month at midnight, they marched someone toward the west dock sheds." />
+    <string id="LWN_story_butcher_ask_sister_2" text="If you're going in there, going bare-handed is suicide." />
+    <string id="LWN_story_butcher_deal" text="Make that enforcer stop smashing my stall, your way." />
+    <string id="LWN_story_butcher_deal_why" text="As an outlander, talk him round or beat him for me, but no killing." />
+    <string id="LWN_story_butcher_deal_refuse" text="Come back if you change your mind, because I want peace at my stall." />
+    <string id="LWN_story_butcher_quest_accept" text="Settle it without killing anyone, then come for your reward." />
+    <string id="LWN_story_butcher_turnin" text="Settled the matter with that enforcer?" />
+    <string id="LWN_story_butcher_turnin_ok" text="To avoid a duel with Ironhead, club him from behind or bind him." />
+    <string id="LWN_story_butcher_chat" text="Help yourself to the good cut I saved in the pot out back, no coin needed." />
+    <string id="LWN_story_butcher_chat_2" text="If you cross blades, step to his left and settle it within three strikes." />
     <string id="LWN_story_butcher_opt_past" text="[Ask] Word on the street says you used to run with the dockhands?" />
     <string id="LWN_story_butcher_opt_past2" text="[Ask] How did you and the dockhands end?" />
     <string id="LWN_story_butcher_opt_past_more" text="[Press] I'm no friend of the dockhands. Why did they smash your stall?" />
@@ -4811,103 +4875,125 @@
     <string id="LWN_story_butcher_opt_chat" text="[Chat] Good cuts on the block today." />
     <string id="LWN_story_butcher_opt_work" text="[Ask] Ironhead at the gate — any weakness when he fights?" />
     <string id="LWN_story_butcher_opt_back" text="[Stop] Nothing more for now." />
-    <string id="LWN_story_event2_join" text="(Thug, The Butcher): Old man, where's this month's coin? Your hand shakes holding that cleaver!&#10;(The Butcher, Thug): Get lost! Touch my block again and I'll chop your paw off!" />
-    <string id="LWN_story_event2_win" text="(Thug, Player): Who... where did a hard man like you come from?! You wait!&#10;(The Butcher, Player): Strong hands. Rare to see an outlander step up like that." />
-    <string id="LWN_story_event2_lose" text="(Thug, Player): Bah, soft-boned meddler playing hero!&#10;(The Butcher, Thug): Enough! Leave the stranger be — I'll have your coin tomorrow!" />
-    <string id="LWN_story_event2_ask" text="(Thug, Player): This butcher owes two months' protection to the dockhands. Gonna pay for him?&#10;(The Butcher, Player): Outlander, this is my feud with the dockhands. Stay back." />
+    <string id="LWN_story_event2_join" text="Touch my block again and I'll chop your paw off!" />
+    <string id="LWN_story_event2_win" text="Rare to see an outlander step up like that." />
+    <string id="LWN_story_event2_lose" text="Leave the stranger be — I'll have your coin tomorrow!" />
+    <string id="LWN_story_event2_ask" text="Outlander, stay out of my feud with the dockhands." />
     <string id="LWN_story_event2_opt_help" text="[Help him] Smashing a man's stall in daylight? Answer to my fists first." />
     <string id="LWN_story_event2_opt_ask" text="[Ask] Hold on — what's this about?" />
     <string id="LWN_story_event2_opt_walk" text="[Walk away] Street brawls are none of mine." />
-    <string id="LWN_story_event6_join" text="(The Butcher, Player): Filthy curs overturned my meat block again.&#10;(The Butcher, Player): ...Outlander, what are you looking at?" />
+    <string id="LWN_story_event6_join" text="...Outlander, what are you looking at?" />
     <string id="LWN_story_event6_opt_help" text="[Check on him] Take a breath. Are you hurt?" />
-    <string id="LWN_story_event6_helped" text="(The Butcher, Player): I am all right. Thanks for asking.&#10;(The Butcher, Player): You are not here for meat, are you? Speak your business." />
+    <string id="LWN_story_event6_helped" text="Speak your business." />
+    <string id="LWN_story_butcher_intro_line1" text="Fresh, slaughtered at dawn." />
+    <string id="LWN_story_butcher_ask_meat_line1" text="I had an apprentice until the dockhands scared him off last month." />
+    <string id="LWN_story_butcher_ask_past_line1" text="...Whose loose tongue told you that?" />
+    <string id="LWN_story_butcher_ask_past_2_line1" text="They wanted me hauling live captives, and smashed my stall when I refused." />
+    <string id="LWN_story_butcher_ask_past_2_line2" text="That day I cut ties." />
+    <string id="LWN_story_butcher_ask_sister_line1" text="I don't touch their kidnapping business." />
+    <string id="LWN_story_butcher_ask_sister_2_line1" text="Nobody taken into those sheds walks out on their own feet." />
+    <string id="LWN_story_butcher_deal_line1" text="Want a blade and a lesson?" />
+    <string id="LWN_story_butcher_deal_line2" text="Do a job for me first." />
+    <string id="LWN_story_butcher_deal_why_line1" text="If I cut him down, the dockhands have an excuse to burn my stall." />
+    <string id="LWN_story_butcher_deal_refuse_line1" text="If you will not step in, leave it for now." />
+    <string id="LWN_story_butcher_quest_accept_line1" text="The enforcer is at the corner, and I am trusting you with peace at my stall." />
+    <string id="LWN_story_butcher_turnin_ok_line1" text="Well done." />
+    <string id="LWN_story_butcher_turnin_ok_line2" text="Take the cleaver, rope, and whetstone; I will teach you a few tricks with the blade." />
+    <string id="LWN_story_butcher_chat_line1" text="You're here." />
+    <string id="LWN_story_butcher_chat_2_line1" text="Ironhead used to haul sacks at the pier — heavy stance, but slow on his left guard." />
+    <string id="LWN_story_event2_join_line1" text="Old man, where's this month's coin?" />
+    <string id="LWN_story_event2_join_line2" text="Your hand shakes holding that cleaver!" />
+    <string id="LWN_story_event2_join_line3" text="Get lost!" />
+    <string id="LWN_story_event2_ask_line1" text="Are you going to pay the two months' protection this butcher owes the dockhands?" />
+    <string id="LWN_story_event2_win_line1" text="Who... where did a hard man like you come from?!" />
+    <string id="LWN_story_event2_win_line2" text="You wait!" />
+    <string id="LWN_story_event2_win_line3" text="Strong hands." />
+    <string id="LWN_story_event2_lose_line1" text="Bah, soft-boned meddler playing hero!" />
+    <string id="LWN_story_event2_lose_line2" text="Enough!" />
+    <string id="LWN_story_event6_join_line1" text="Filthy curs overturned my meat block again." />
+    <string id="LWN_story_event6_helped_line1" text="I am all right, thanks for asking." />
+    <string id="LWN_story_event6_helped_line2" text="You are not here for meat, are you?" />
+    <string id="LWN_story_son_intro_line1" text="Shh — keep it down!" />
+    <string id="LWN_story_son_intro_line2" text="Three years I've watched from this wall." />
+    <string id="LWN_story_son_ask_wall_line1" text="Watching who carries a heavy purse and who takes the dark alleys." />
+    <string id="LWN_story_son_ask_climb_line1" text="See that beam over the gate?" />
+    <string id="LWN_story_son_ask_climb_line2" text="With a hook, a three-fathom wall is flat ground." />
+    <string id="LWN_story_son_ask_climb_2_line1" text="Those outlaws broke Nightwalker rules by taking my gear and twisting my finger." />
+    <string id="LWN_story_son_ask_sister_line1" text="Last month at midnight, two dockhands dragged a girl in blue down the back alley." />
+    <string id="LWN_story_son_ask_sister_2_line1" text="I was lifting silk from the draper's roof, and one shout would have killed me too." />
+    <string id="LWN_story_son_deal_line1" text="Want the hook to climb over?" />
+    <string id="LWN_story_son_deal_line2" text="It's yours if you settle my score." />
+    <string id="LWN_story_son_deal_why_line1" text="With my finger swollen like this, how could I confront them?" />
+    <string id="LWN_story_son_deal_refuse_line1" text="Suit yourself." />
+    <string id="LWN_story_son_quest_accept_line1" text="Their leader lurks by the west wall." />
+    <string id="LWN_story_son_turnin_ok_line1" text="Ha!" />
+    <string id="LWN_story_son_turnin_ok_line2" text="The rope, hook, and lockpick kit I cleaned all night are yours." />
+    <string id="LWN_story_son_chat_line1" text="You're back!" />
+    <string id="LWN_story_son_chat_line2" text="My mother twisted my ear again for keeping bad company." />
+    <string id="LWN_story_son_chat_2_line1" text="Slip behind Ironhead and lift the blade he wears loose at his waist." />
+    <string id="LWN_story_event4_join_line1" text="Thief!" />
+    <string id="LWN_story_event4_join_line2" text="Hand back the coin pouch from my counter!" />
+    <string id="LWN_story_event4_join_line3" text="Wrong man, Master Zhou!" />
+    <string id="LWN_story_event4_ask_line1" text="A pouch of loose copper vanished from my counter right as he slipped past!" />
+    <string id="LWN_story_event4_win_line1" text="...Found it under the ledger." />
+    <string id="LWN_story_event4_win_line2" text="My old eyes failed me." />
+    <string id="LWN_story_event4_lose_line1" text="And who are you?" />
+    <string id="LWN_story_event4_lose_line2" text="In league with this little pickpocket?" />
+    <string id="LWN_story_widow_intro_line1" text="If it was good, drop two coins, then stand back from the boards." />
+    <string id="LWN_story_widow_ask_stage_line1" text="Without singing here, would we have to live on wind?" />
+    <string id="LWN_story_widow_ask_sister_line1" text="Blue cloth?" />
+    <string id="LWN_story_widow_ask_sister_line2" text="I sold her a real passage paper." />
+    <string id="LWN_story_widow_ask_sister_2_line1" text="His hands were thick with rope calluses — a dockhand boatman." />
+    <string id="LWN_story_widow_ask_rival_line1" text="That rival troupe backed by the dockhands blocks my boards and steals my crowd every day." />
+    <string id="LWN_story_widow_deal_line1" text="I have noble costumes in my trunk, but not for free." />
+    <string id="LWN_story_widow_deal_why_line1" text="If I go, he calls it a quarrel over customers and refuses to listen." />
+    <string id="LWN_story_widow_deal_refuse_line1" text="Suit yourself." />
+    <string id="LWN_story_widow_quest_accept_line1" text="Their leader is at the east end of the street, and this job is yours." />
+    <string id="LWN_story_widow_turnin_ok_line1" text="A promise kept." />
+    <string id="LWN_story_widow_turnin_ok_line2" text="Take this noble costume and charm; I will coach your manners too." />
+    <string id="LWN_story_widow_chat_line1" text="Back again?" />
+    <string id="LWN_story_widow_chat_line2" text="With the rival quiet, my boards can breathe today." />
+    <string id="LWN_story_widow_chat_2_line1" text="Every five days the dockhands send girls to the inner-city manors." />
+    <string id="LWN_story_widow_chat_2_line2" text="None ever walk back out." />
+    <string id="LWN_story_event3_join_line1" text="Have you no shame, stealing my crowd at my own boards?" />
+    <string id="LWN_story_event3_ask_line1" text="She hogged the gate for three years, and now she wants to wreck our boards!" />
+    <string id="LWN_story_event3_ask_line2" text="Lies!" />
+    <string id="LWN_story_event3_win_line1" text="...All right, sharp tongue, tonight is yours." />
+    <string id="LWN_story_event3_lose_line1" text="Hear how the widow hired a tongue-tied stranger, folks!" />
     <string id="LWN_story_thug_entry" text="[Say a word] Hey. You're the dockhand collecting on this street?" />
-    <string id="LWN_story_thug_intro" text="(Thug, Player): What are you staring at?&#10;(Thug, Player): New faces shouldn't linger on this street if they like their legs." />
-    <string id="LWN_story_thug_hub" text="(Thug, Player): Anything else to say?" />
-    <string id="LWN_story_thug_talk" text="(Thug, Player): Another fool playing hero this month?&#10;(Thug, Player): Who sent you — the meat man, or that old counting miser?" />
-    <string id="LWN_story_thug_money" text="(Thug, Player): Dock business is none of your concern.&#10;(Thug, Player): Leave midnight questions alone — night cargo leaves no daytime trail." />
-    <string id="LWN_story_thug_fight" text="(Thug, Player): Asking for it, eh? Come on then!" />
+    <string id="LWN_story_thug_intro" text="New faces shouldn't linger on this street if they like their legs." />
+    <string id="LWN_story_thug_hub" text="Anything else to say?" />
+    <string id="LWN_story_thug_talk" text="Who sent you — the meat man, or that old counting miser?" />
+    <string id="LWN_story_thug_money" text="Leave midnight questions alone — night cargo leaves no daytime trail." />
+    <string id="LWN_story_thug_fight" text="Come on then!" />
     <string id="LWN_story_thug_opt_ask" text="[Confront] You smash up stalls on this street every day?" />
     <string id="LWN_story_thug_opt_money" text="[Press] Last month at midnight — where did you take that girl?" />
     <string id="LWN_story_thug_opt_fight" text="[Fight] Your dockhand friends do not scare me." />
     <string id="LWN_story_debtor_entry" text="[Say a word] You're the dockhand debt collector?" />
-    <string id="LWN_story_debtor_intro" text="(Debtor, Player): Not paid today, interest doubles tomorrow.&#10;(Debtor, Player): ...Wait. Your face isn't in my book. Who are you after?" />
-    <string id="LWN_story_debtor_hub" text="(Debtor, Player): More accounts to settle?" />
-    <string id="LWN_story_debtor_talk" text="(Debtor, Player): Every stall outside this gate owes the dockhands in this book.&#10;(Debtor, Player): I collect debts here — nobody collects from me." />
-    <string id="LWN_story_debtor_collect" text="(Debtor, Player): ...Old Zhou still kept the inked notes? Fine, you win.&#10;(Debtor, Player): Take the hundred and twenty denars. Tell him we're square." />
-    <string id="LWN_story_debtor_refuse" text="(Debtor, Player): Two words from you and I hand over a hundred and twenty denars?&#10;(Debtor, Player): Tell Old Zhou the coin stays in my coat unless you take it by force!" />
-    <string id="LWN_story_debtor_fight" text="(Debtor, Player): Asking for a beating, then!" />
+    <string id="LWN_story_debtor_intro" text="...Wait, your face isn't in my book, so who are you after?" />
+    <string id="LWN_story_debtor_hub" text="More accounts to settle?" />
+    <string id="LWN_story_debtor_talk" text="I collect debts here — nobody collects from me." />
+    <string id="LWN_story_debtor_collect" text="Take the hundred and twenty denars and tell him we're square." />
+    <string id="LWN_story_debtor_refuse" text="Tell Old Zhou the coin stays in my coat unless you take it by force!" />
+    <string id="LWN_story_debtor_fight" text="Asking for a beating, then!" />
     <string id="LWN_story_debtor_opt_collect" text="[Demand] Old Zhou's three accounts — a hundred and twenty denars. Cough it up." />
     <string id="LWN_story_debtor_opt_collect_leave" text="[Take it] Counted and clear. Don't cheat the pawnshop again." />
     <string id="LWN_story_debtor_opt_ask" text="[Ask] Whose names are written in that ledger of yours?" />
     <string id="LWN_story_debtor_opt_fight" text="[Fight] If talk won't pry the purse open, my fists will." />
     <string id="LWN_story_rival_entry" text="[Say a word] You lead this rival troupe?" />
-    <string id="LWN_story_rival_intro" text="(Rival, Player): Rival? The street is open to anyone with a loud voice.&#10;(Rival, Player): Clear the boards. Say your business." />
-    <string id="LWN_story_rival_hub" text="(Rival, Player): Anything else?" />
-    <string id="LWN_story_rival_talk" text="(Rival, Player): My father left me this gilded sign, and the dockhand bosses back our stage.&#10;(Rival, Player): Touch one corner of my sign and you'll answer to me!" />
-    <string id="LWN_story_rival_fight" text="(Rival, Player): Trouble at my boards? Come on then!" />
+    <string id="LWN_story_rival_intro" text="Say your business." />
+    <string id="LWN_story_rival_hub" text="Anything else?" />
+    <string id="LWN_story_rival_talk" text="Touch one corner of my sign and you'll answer to me!" />
+    <string id="LWN_story_rival_fight" text="Come on then!" />
     <string id="LWN_story_rival_opt_sign" text="[Ask] That sign by your stage — looks like it has some history." />
     <string id="LWN_story_rival_opt_fight" text="[Fight] You want to settle this with fists? Try me." />
     <string id="LWN_story_outlaw_entry" text="[Say a word] You lot camp right under the wall?" />
-    <string id="LWN_story_outlaw_intro" text="(Outlaw, Player): Walk your own road if you know what's good for you.&#10;(Outlaw, Player): This ruined stable takes no guests. Keep your eyes to yourself." />
-    <string id="LWN_story_outlaw_hub" text="(Outlaw, Player): Spit it out." />
-    <string id="LWN_story_outlaw_talk" text="(Outlaw, Player): That little wall-rat sent you for his grappling hook?&#10;(Outlaw, Player): What's in my hand is mine. Down by this wall, fists make the rules." />
-    <string id="LWN_story_outlaw_fight" text="(Outlaw, Player): Picking a fight with me? Come on!" />
+    <string id="LWN_story_outlaw_intro" text="Keep your eyes to yourself, because this ruined stable takes no guests." />
+    <string id="LWN_story_outlaw_hub" text="Spit it out." />
+    <string id="LWN_story_outlaw_talk" text="What's in my hand is mine, because down by this wall, fists make the rules." />
+    <string id="LWN_story_outlaw_fight" text="Come on!" />
     <string id="LWN_story_outlaw_opt_ask" text="[Confront] You robbed that boy on the wall yesterday and twisted his finger." />
     <string id="LWN_story_outlaw_opt_fight" text="[Fight] If fists are your only argument, come on." />
-    <string id="LWN_story_event1_l1" text="(Thug, Old Zhou): What are you looking at? Not your business." />
-    <string id="LWN_story_event1_l2" text="(Old Zhou, Thug): ...Coming. I have it." />
-    <string id="LWN_story_event1_l3" text="(Thug, Old Zhou): The money. This month's." />
-    <string id="LWN_story_event1_l4" text="(Old Zhou, Thug): I paid last month..." />
-    <string id="LWN_story_event2_l1" text="(Thug, The Butcher): Pay up, old man." />
-    <string id="LWN_story_event2_l2" text="(The Butcher, Thug): Get lost." />
-    <string id="LWN_story_event2_l3" text="(Thug, The Butcher): Price went up." />
-    <string id="LWN_story_event3_l1" text="(The Widow, Rival): Stealing my crowd at my own door?" />
-    <string id="LWN_story_event3_l2" text="(Rival, The Widow): The boards are in the street. Anyone can play." />
-    <string id="LWN_story_event3_l3" text="(The Widow, Rival): Then play outside the walls." />
-    <string id="LWN_story_event3_l4" text="(Rival, The Widow): Try and stop me." />
-    <string id="LWN_story_event4_l1" text="(Old Zhou, The Boy): Thief! My purse!" />
-    <string id="LWN_story_event4_l2" text="(The Boy, Old Zhou): I didn't! I never took it!" />
-    <string id="LWN_story_event4_l3" text="(Old Zhou, The Boy): Then what's in your sleeve?" />
-    <string id="LWN_story_event5_l1" text="(Old Zhou, Player): Three accounts... not one back." />
-    <string id="LWN_story_event5_l2" text="(Old Zhou, Player): Thinner every year, this living." />
-    <string id="LWN_story_event6_l1" text="(The Butcher, Player): Broken again." />
-    <string id="LWN_story_event6_l2" text="(The Butcher, Player): Pick it up. Pick all of it up." />
-    <string id="LWN_story_amb_pawnbroker_1" text="(Old Zhou, Player): Pawning, or looking for a way in?" />
-    <string id="LWN_story_amb_pawnbroker_2" text="(Old Zhou, Player): Fair interest. I don't cheat strangers." />
-    <string id="LWN_story_amb_widow_1" text="(The Widow, Player): The show begins—" />
-    <string id="LWN_story_amb_widow_2" text="(The Widow, Player): Spectators, stand back!" />
-    <string id="LWN_story_amb_son_1" text="(The Boy, Player): Shh—" />
-    <string id="LWN_story_amb_son_2" text="(The Boy, Player): Don't stand there." />
-    <string id="LWN_story_amb_butcher_1" text="(The Butcher, Player): Fresh." />
-    <string id="LWN_story_amb_butcher_2" text="(The Butcher, Player): Buy or move on." />
-    <string id="LWN_story_amb_blocker_1" text="(Ironhead, Player): Halt." />
-    <string id="LWN_story_amb_blocker_2" text="(Ironhead, Player): Papers." />
-    <string id="LWN_story_amb_thug_1" text="(Thug, Player): Pay up." />
-    <string id="LWN_story_amb_thug_2" text="(Thug, Player): Late again this month?" />
-    <string id="LWN_story_amb_debtor_1" text="(Debtor, Player): Not today, doubles tomorrow." />
-    <string id="LWN_story_amb_debtor_2" text="(Debtor, Player): Where's the money?" />
-    <string id="LWN_story_amb_rival_1" text="(Rival, Player): The boards are in the street. Anyone can play." />
-    <string id="LWN_story_amb_rival_2" text="(Rival, Player): Move the idlers back." />
-    <string id="LWN_story_amb_outlaw_1" text="(Outlaw, Player): Keep walking." />
-    <string id="LWN_story_react_near_pawnbroker" text="(Old Zhou, Player): Something you're after, sir?" />
-    <string id="LWN_story_react_near_widow" text="(The Widow, Player): Here for the play? Stand back, don't block the view." />
-    <string id="LWN_story_react_near_son" text="(The Boy, Player): Shh—" />
-    <string id="LWN_story_react_near_butcher" text="(The Butcher, Player): Buying?" />
-    <string id="LWN_story_react_near_blocker" text="(Ironhead, Player): Halt." />
-    <string id="LWN_story_react_near_thug" text="(Thug, Player): What are you looking at?" />
-    <string id="LWN_story_react_near_debtor" text="(Debtor, Player): Who do you owe?" />
-    <string id="LWN_story_react_near_rival" text="(Rival, Player): Clear the boards." />
-    <string id="LWN_story_react_near_outlaw" text="(Outlaw, Player): Don't come closer." />
-    <string id="LWN_story_react_weapon_pawnbroker" text="(Old Zhou, Player): Put that away, sir. My stall is small." />
-    <string id="LWN_story_react_weapon_widow" text="(The Widow, Player): Steel at my door? Put it away." />
-    <string id="LWN_story_react_weapon_son" text="(The Boy, Player): Whoa —" />
-    <string id="LWN_story_react_weapon_butcher" text="(The Butcher, Player): Not at my stall." />
-    <string id="LWN_story_react_weapon_blocker" text="(Ironhead, Player): Put it away." />
-    <string id="LWN_story_react_weapon_thug" text="(Thug, Player): You sure about that?" />
-    <string id="LWN_story_react_weapon_debtor" text="(Debtor, Player): ...We can talk." />
-    <string id="LWN_story_react_weapon_rival" text="(Rival, Player): Draw at my boards. Try it." />
-    <string id="LWN_story_react_weapon_outlaw" text="(Outlaw, Player): Come on, then." />
     <string id="LWN_story_name_pawnbroker" text="Old Zhou" />
     <string id="LWN_story_name_widow" text="The Widow" />
     <string id="LWN_story_name_son" text="The Boy" />
@@ -4974,12 +5060,12 @@
     <string id="LWN_story_err_not_in_town" text="You are not in a town." />
     <string id="LWN_story_err_no_center" text="This town has no center location." />
     <string id="LWN_story_pawnbroker_opt_errand" text="[Errand] Any odd jobs that need running?" />
-    <string id="LWN_story_pawnbroker_errand" text="(Old Zhou, Player): Consider the odd job yours. Fifty denars up front.&#10;(Old Zhou, Player): Ask about the next job in an hour." />
+    <string id="LWN_story_pawnbroker_errand" text="Ask about the next job in an hour." />
     <string id="LWN_story_errand_done" text="(Narration, Player): You took the odd job and received fifty denars." />
     <string id="LWN_story_errand_cooldown" text="(Narration, Player): Nothing needs doing right now. Come back in an hour." />
     <string id="LWN_story_attr_item" text="(Narration, Player): You learn a trick or two from it." />
     <string id="LWN_story_blocker_opt_pass" text="[Walk past] Excuse me." />
-    <string id="LWN_story_blocker_pass" text="(Ironhead, Player): ...Go on in." />
+    <string id="LWN_story_blocker_pass" text="...Go on in." />
     <string id="LWN_story_narr_approach" text="(Narration, Player): Path: {PATH} — favour +5, talent +1, standing {REL}." />
     <string id="LWN_story_gate_blocked" text="(Narration, Player): He shoves you back." />
     <string id="LWN_story_blocker_bar" text="(Ironhead, Player): Papers." />
@@ -4992,27 +5078,60 @@
     <string id="LWN_story_blocker_sneak_ok" text="(Narration, Player): You slip along the wall shadow. He does not turn." />
     <string id="LWN_story_blocker_climb_ok" text="(Narration, Player): The hook bites the beam. You go over. The gate is behind you." />
     <string id="LWN_story_blocker_sneak_fail" text="(Ironhead, Player): Skulking where? Stand still!" />
-    <string id="LWN_story_blocker_disarmed_ok" text="(Ironhead, Player): ...When did you lift my blade?&#10;(Ironhead, Player): Quick hands. Go on in." />
-    <string id="LWN_story_butcher_money_disdain" text="(The Butcher, Player): Put your coin away! I sell meat, not words.&#10;(The Butcher, Player): Want my respect? Go flatten the man who smashed my block." />
-    <string id="LWN_story_pawnbroker_money_covert" text="(Old Zhou, Player): I do open business here. I cannot take a raw bribe.&#10;(Old Zhou, Player): If you pay eighty denars to buy a piece of old news — that I will sell." />
-    <string id="LWN_story_pawnbroker_money_dealt" text="(Old Zhou, Player): Ironhead at the gate owes the gambling den three months.&#10;(Old Zhou, Player): He fears losing his post more than he fears a knife." />
-    <string id="LWN_story_son_money_open" text="(The Boy, Player): You know how the Nightwalkers do business.&#10;(The Boy, Player): Forty denars in hand — what secret passage do you want?" />
-    <string id="LWN_story_son_money_taken" text="(The Boy, Player): That beam over the gate — west end's rotten, the middle is solid.&#10;(The Boy, Player): The guard never looks up. Hook the middle and you're through." />
-    <string id="LWN_story_widow_money_open" text="(The Widow, Player): Direct. Players like dealing with direct folk.&#10;(The Widow, Player): Put sixty denars on the tray and ask." />
-    <string id="LWN_story_widow_money_taken" text="(The Widow, Player): She didn't come to work — a worker carries her own bundle.&#10;(The Widow, Player): Her hands were empty; that man in oilskins was marching her along." />
+    <string id="LWN_story_blocker_disarmed_ok" text="Quick hands, so go on in." />
+    <string id="LWN_story_butcher_money_disdain" text="If you want my respect, flatten the man who smashed my block." />
+    <string id="LWN_story_pawnbroker_money_covert" text="If you pay eighty denars to buy a piece of old news — that I will sell." />
+    <string id="LWN_story_pawnbroker_money_dealt" text="He fears losing his post more than he fears a knife." />
+    <string id="LWN_story_son_money_open" text="Forty denars in hand — what secret passage do you want?" />
+    <string id="LWN_story_son_money_taken" text="Hook the middle and you're through, because the guard never looks up." />
+    <string id="LWN_story_widow_money_open" text="Put sixty denars on the tray and ask." />
+    <string id="LWN_story_widow_money_taken" text="Her hands were empty; that man in oilskins was marching her along." />
     <string id="LWN_story_ability_money" text="Money" />
     <string id="LWN_story_err_gate_layout" text="This town's prologue gate is not ready. Choose a supported town." />
     <string id="LWN_story_skill_xp_reward" text="(Narration, Player): The lesson grants forty experience in the relevant skill." />
     <string id="LWN_story_rival_opt_settle" text="[Persuade] Give each troupe room to perform. Let the audience choose. Why block her trade?" />
-    <string id="LWN_story_rival_settled" text="(Rival, Player): All right. Let the audience choose. Tell her I will leave her stage clear." />
-    <string id="LWN_story_rival_settle_refused" text="(Rival, Player): No lectures from an outlander. Let her come and argue herself!" />
+    <string id="LWN_story_rival_settled" text="Tell her I will leave her stage clear." />
+    <string id="LWN_story_rival_settle_refused" text="Let her come and argue herself!" />
     <string id="LWN_story_outlaw_opt_settle" text="[Call his bluff] Robbing an injured boy is no skill. I can see straight through your tricks." />
-    <string id="LWN_story_outlaw_settled" text="(Outlaw, Player): You have me. Tell the boy it ends here. I will leave him alone." />
-    <string id="LWN_story_outlaw_settle_refused" text="(Outlaw, Player): Big words scare nobody. Get out of my sight." />
+    <string id="LWN_story_outlaw_settled" text="Tell the boy it ends here and I will leave him alone." />
+    <string id="LWN_story_outlaw_settle_refused" text="Get out of my sight." />
     <string id="LWN_story_thug_opt_settle" text="[Persuade] If the stall closes, who pays you tomorrow? Leave it standing and both sides keep a living." />
-    <string id="LWN_story_thug_settled" text="(Thug, Player): Fine, for your sake. Tell the meat seller I will leave his stall alone." />
-    <string id="LWN_story_thug_settle_refused" text="(Thug, Player): Since when do you tell me how to collect my dues?" />
+    <string id="LWN_story_thug_settled" text="Tell the meat seller I will leave his stall alone." />
+    <string id="LWN_story_thug_settle_refused" text="Since when do you tell me how to collect my dues?" />
     <string id="LWN_story_gate_finish_notice" text="Finish any outstanding jobs before stepping inside. Entering ends this chapter." />
+    <string id="LWN_story_blocker_disarmed_ok_line1" text="...When did you lift my blade?" />
+    <string id="LWN_story_butcher_money_disdain_line1" text="Put your coin away!" />
+    <string id="LWN_story_butcher_money_disdain_line2" text="I sell meat, not words." />
+    <string id="LWN_story_debtor_intro_line1" text="Not paid today, interest doubles tomorrow." />
+    <string id="LWN_story_debtor_talk_line1" text="Every stall outside this gate owes the dockhands in this book." />
+    <string id="LWN_story_debtor_collect_line1" text="...Old Zhou still kept the inked notes?" />
+    <string id="LWN_story_debtor_collect_line2" text="Fine, you win." />
+    <string id="LWN_story_debtor_refuse_line1" text="Two words from you and I hand over a hundred and twenty denars?" />
+    <string id="LWN_story_outlaw_intro_line1" text="Walk your own road if you know what's good for you." />
+    <string id="LWN_story_outlaw_talk_line1" text="That little wall-rat sent you for his grappling hook?" />
+    <string id="LWN_story_outlaw_fight_line1" text="Picking a fight with me?" />
+    <string id="LWN_story_outlaw_settled_line1" text="You have me." />
+    <string id="LWN_story_outlaw_settle_refused_line1" text="Big words scare nobody." />
+    <string id="LWN_story_pawnbroker_errand_line1" text="Consider the odd job yours, with fifty denars up front." />
+    <string id="LWN_story_pawnbroker_money_covert_line1" text="I do open business here and cannot take a raw bribe." />
+    <string id="LWN_story_pawnbroker_money_dealt_line1" text="Ironhead at the gate owes the gambling den three months." />
+    <string id="LWN_story_rival_intro_line1" text="Rival?" />
+    <string id="LWN_story_rival_intro_line2" text="The street is open to anyone with a loud voice." />
+    <string id="LWN_story_rival_intro_line3" text="Clear the boards." />
+    <string id="LWN_story_rival_talk_line1" text="My father left me this gilded sign, and the dockhand bosses back our stage." />
+    <string id="LWN_story_rival_fight_line1" text="Trouble at my boards?" />
+    <string id="LWN_story_rival_settled_line1" text="All right, let the audience choose." />
+    <string id="LWN_story_rival_settle_refused_line1" text="No lectures from an outlander." />
+    <string id="LWN_story_son_money_open_line1" text="You know how the Nightwalkers do business." />
+    <string id="LWN_story_son_money_taken_line1" text="That beam over the gate — west end's rotten, the middle is solid." />
+    <string id="LWN_story_thug_intro_line1" text="What are you staring at?" />
+    <string id="LWN_story_thug_talk_line1" text="Another fool playing hero this month?" />
+    <string id="LWN_story_thug_money_line1" text="Dock business is none of your concern." />
+    <string id="LWN_story_thug_fight_line1" text="Asking for it, eh?" />
+    <string id="LWN_story_thug_settled_line1" text="Fine, for your sake." />
+    <string id="LWN_story_widow_money_open_line1" text="Direct." />
+    <string id="LWN_story_widow_money_open_line2" text="Players like dealing with direct folk." />
+    <string id="LWN_story_widow_money_taken_line1" text="She didn't come to work — a worker carries her own bundle." />
     <string id="LWN_story_pawnbroker_opt_money" text="[Offer money] A token of respect. Take it." />
     <string id="LWN_story_pawnbroker_opt_money_buy" text="[Buy word] Eighty denars for the truth about the gate guard." />
     <string id="LWN_story_widow_opt_money" text="[Hand her money] Sixty denars for two honest words." />
@@ -5041,5 +5160,58 @@
     <string id="LWN_item_lockpick_kit" text="Lockpick kit" />
     <string id="LWN_item_whetstone" text="Whetstone" />
     <string id="LWN_story_amb_outlaw_2" text="(Outlaw, Player): Do not stand here." />
+    <string id="LWN_story_react_weapon_son" text="Whoa —" />
+    <string id="LWN_story_event5_l2" text="Thinner every year, this living." />
+    <string id="LWN_story_react_near_thug" text="What are you looking at?" />
+    <string id="LWN_story_event3_l4" text="Try and stop me." />
+    <string id="LWN_story_event3_l3" text="Then play outside the walls." />
+    <string id="LWN_story_event2_l3" text="Price went up." />
+    <string id="LWN_story_amb_pawnbroker_1" text="Pawning, or looking for a way in?" />
+    <string id="LWN_story_event1_l1" text="What are you looking at? Not your business." />
+    <string id="LWN_story_amb_son_2" text="Don't stand there." />
+    <string id="LWN_story_react_weapon_thug" text="You sure about that?" />
+    <string id="LWN_story_event6_l1" text="Broken again." />
+    <string id="LWN_story_react_near_butcher" text="Buying?" />
+    <string id="LWN_story_event1_l2" text="...Coming. I have it." />
+    <string id="LWN_story_event1_l3" text="The money. This month's." />
+    <string id="LWN_story_event5_l1" text="Three accounts... not one back." />
+    <string id="LWN_story_amb_thug_1" text="Pay up." />
+    <string id="LWN_story_amb_blocker_1" text="Halt." />
+    <string id="LWN_story_amb_blocker_2" text="Papers." />
+    <string id="LWN_story_event2_l2" text="Get lost." />
+    <string id="LWN_story_event4_l1" text="Thief! My purse!" />
+    <string id="LWN_story_react_weapon_widow" text="Steel at my door? Put it away." />
+    <string id="LWN_story_event6_l2" text="Pick it up. Pick all of it up." />
+    <string id="LWN_story_react_near_widow" text="Here for the play? Stand back, don't block the view." />
+    <string id="LWN_story_react_weapon_rival" text="Draw at my boards. Try it." />
+    <string id="LWN_story_amb_debtor_2" text="Where's the money?" />
+    <string id="LWN_story_amb_rival_1" text="The boards are in the street. Anyone can play." />
+    <string id="LWN_story_amb_thug_2" text="Late again this month?" />
+    <string id="LWN_story_event4_l2" text="I didn't! I never took it!" />
+    <string id="LWN_story_amb_butcher_1" text="Fresh." />
+    <string id="LWN_story_event3_l1" text="Stealing my crowd at my own door?" />
+    <string id="LWN_story_amb_butcher_2" text="Buy or move on." />
+    <string id="LWN_story_amb_outlaw_1" text="Keep walking." />
+    <string id="LWN_story_amb_debtor_1" text="Not today, doubles tomorrow." />
+    <string id="LWN_story_react_weapon_blocker" text="Put it away." />
+    <string id="LWN_story_event3_l2" text="The boards are in the street. Anyone can play." />
+    <string id="LWN_story_event4_l3" text="Then what's in your sleeve?" />
+    <string id="LWN_story_react_near_son" text="Shh—" />
+    <string id="LWN_story_event1_l4" text="I paid last month..." />
+    <string id="LWN_story_amb_widow_1" text="The show begins—" />
+    <string id="LWN_story_amb_pawnbroker_2" text="Fair interest. I don't cheat strangers." />
+    <string id="LWN_story_react_weapon_pawnbroker" text="Put that away, sir. My stall is small." />
+    <string id="LWN_story_react_weapon_butcher" text="Not at my stall." />
+    <string id="LWN_story_react_near_rival" text="Clear the boards." />
+    <string id="LWN_story_react_weapon_debtor" text="...We can talk." />
+    <string id="LWN_story_react_weapon_outlaw" text="Come on, then." />
+    <string id="LWN_story_amb_son_1" text="Shh—" />
+    <string id="LWN_story_event2_l1" text="Pay up, old man." />
+    <string id="LWN_story_amb_widow_2" text="Spectators, stand back!" />
+    <string id="LWN_story_react_near_pawnbroker" text="Something you're after, sir?" />
+    <string id="LWN_story_react_near_blocker" text="Halt." />
+    <string id="LWN_story_amb_rival_2" text="Move the idlers back." />
+    <string id="LWN_story_react_near_debtor" text="Who do you owe?" />
+    <string id="LWN_story_react_near_outlaw" text="Don't come closer." />
 </strings>
 </base>

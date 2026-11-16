@@ -43,12 +43,23 @@ def group_behaviors(cast):
             "Members": members,
             "Host": e.get("HostNpcId") or members[0],
             "Lines": e.get("LineKeys") or [],
+            "Speakers": e.get("Speakers") or [],
+            "Listeners": e.get("Listeners") or [],
             "LineFallbacks": e.get("LineFallbacks") or [],
             "ActionsA": e.get("ActionA") or [],
             "ActionsB": e.get("ActionB") or [],
             "JoinNode": e.get("JoinNode") or "",
         }
     return out
+
+
+def update_groups(v2, cast):
+    behaviors = {k: v for k, v in (v2.get("Behaviors") or {}).items()
+                 if not (isinstance(v, dict) and v.get("Kind") == "group")}
+    behaviors.update(group_behaviors(cast))
+    if behaviors != v2.get("Behaviors"):
+        v2["ContentVersion"] = int(v2.get("ContentVersion") or 1) + 1
+    v2["Behaviors"] = behaviors
 
 
 def fail(msg):
@@ -60,6 +71,14 @@ def main():
         fail("先有 StoryStageV2.json（first_meet）再生成 second_meet")
     v1 = json.load(io.open(V1, encoding="utf-8"))
     v2 = json.load(io.open(V2, encoding="utf-8"))
+    # 只更新说话人物，不覆盖策划已经审定的布局、岗位、流程或开场名单。
+    if "--groups-only" in sys.argv[1:]:
+        cast = json.load(io.open(os.path.join(DESIGN, "StoryProbeCast.json"), encoding="utf-8"))
+        update_groups(v2, cast)
+        with io.open(V2, "w", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(v2, ensure_ascii=False, indent=2) + "\n")
+        print("updated group speech bindings; contentVersion=%s" % v2["ContentVersion"])
+        return
     beats = v1.get("Beats") or []
 
     props, prop_seen = [], set()
@@ -158,10 +177,7 @@ def main():
     cast_path = os.path.join(DESIGN, "StoryProbeCast.json")
     if os.path.exists(cast_path):
         cast = json.load(io.open(cast_path, encoding="utf-8"))
-        behaviors = {k: v for k, v in (v2.get("Behaviors") or {}).items()
-                     if not (isinstance(v, dict) and v.get("Kind") == "group")}
-        behaviors.update(group_behaviors(cast))
-        v2["Behaviors"] = behaviors
+        update_groups(v2, cast)
     v2["ContentVersion"] = int(v2.get("ContentVersion") or 1) + (0 if "market_square" in (v1.get("Layouts") or {}) else 0)
     with io.open(V2, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(v2, ensure_ascii=False, indent=2) + "\n")

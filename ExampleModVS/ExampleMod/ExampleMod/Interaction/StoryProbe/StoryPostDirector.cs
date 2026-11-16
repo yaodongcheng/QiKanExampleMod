@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using TaleWorlds.MountAndBlade;
@@ -20,42 +19,6 @@ namespace LivingWorldNpcs
     ///   · 资格同时核真实身体（死亡/战斗/绑缚/击晕/Brain 在忙）与视线；不看字典顺序。
     ///   · 同一次遭遇 `MaxPerEncounter` 到了就停；失败按 `RetrySec` 退避，不每帧重试。
     /// </summary>
-    public static class StoryV2Data
-    {
-        private static bool _attempted;
-        private static string _report = "not loaded";
-
-        public static string Report => _report;
-        public static bool Published => StoryLayoutRegistry.Published != null;
-
-        public static bool EnsurePublished()
-        {
-            if (_attempted) return Published;
-            _attempted = true;
-            string folder = StoryProbeDataFiles.DesignDataFolder;
-            if (string.IsNullOrEmpty(folder)) { _report = "no design data folder"; return false; }
-            string path = Path.Combine(folder, "StoryStageV2.json");
-            if (!File.Exists(path)) { _report = "StoryStageV2.json missing"; return false; }
-
-            var castPath = Path.Combine(folder, "StoryProbeCast.json");
-            var ids = StoryLayoutParser.LoadCastIds(castPath);
-            bool ok = StoryLayoutRegistry.TryPublish(File.ReadAllText(path), path, ids,
-                StoryValidationMode.Formal, out var result);
-            _report = ok ? "published v" + result.Data.ContentVersion + " layout=" + result.Data.Schema
-                         : "rejected: " + result.Describe();
-            DebugLogger.Log("[StoryV2] " + _report);
-            return ok;
-        }
-
-        public static void Reload()
-        {
-            _attempted = false;
-            StoryLayoutRegistry.Clear();
-            EnsurePublished();
-        }
-    }
-
-    /// <summary>岗位规则调度 + 流程执行。一个 Mission 一个实例，只由宿主 Tick。</summary>
     public sealed class StoryPostDirector
     {
         private readonly StoryProbeMissionBehavior _host;
@@ -210,7 +173,8 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// P3 准备：按 v2 布局给演员解出站位（岗位优先，其次工作点/显式点）。
-        /// 锚点只支持 `guard_spawn`（= 宿主已解出的守门人刷新点）与 `player`，其余返回 false 由调用方兜底。
+        /// 当前兼容实现：player 用玩家基准，其他 Anchor 均用宿主 BlockerPos。
+        /// 注册锚点与 Facing 尚未在首遇完整消费，不能把偏移计算当成真实门轴对齐。
         /// </summary>
         public bool TryGetStandingPosition(string stageId, string actorId, out TaleWorlds.Library.Vec3 position)
         {
@@ -331,6 +295,8 @@ namespace LivingWorldNpcs
         private string _terminal = "";
         private float _timerSeconds;
         private string _dialogueId;
+        /// <summary>本次流程真正开出来的会话编号（0 = 还没开窗）；用来分辨“我们的窗口”与“别人顶掉了”。</summary>
+        private int _sessionId;
 
         public StoryFlowRunner(StoryProbeMissionBehavior host, StoryBehaviorDef behavior,
             StoryFlowDef flow, string actorId, StoryPostDirector director)
@@ -366,8 +332,21 @@ namespace LivingWorldNpcs
                     satisfied = ConversationEntryPatch.IsConversationActive() && SessionMatches();
                     break;
                 case "dialogue_end":
-                    satisfied = !ConversationEntryPatch.IsConversationActive() || !SessionMatches();
+                {
+                    bool active = ConversationEntryPatch.IsConversationActive();
+                    if (!active) { satisfied = true; break; }
+                    // 没经过 dialogue_open 的流程（等外部开的窗）：沿用旧判定。
+                    if (_sessionId == 0) { satisfied = !SessionMatches(); break; }
+                    var s = StoryDialogueRuntime.Current;
+                    // 🔴 窗口还开着、但已经不是我们那一个：被别人顶掉 / 本次会话失败。
+                    //    这不能算“正常说完了”，要走数据里的中断分支。
+                    if (s == null || s.Id != _sessionId)
+                    { Finish(TokenOr(CurrentStep?.OnInterrupt, "end"), "dialogue interrupted: session replaced"); return; }
+                    if (s.Failed)
+                    { Finish(TokenOr(CurrentStep?.OnInterrupt, "end"), "dialogue interrupted: session failed"); return; }
+                    satisfied = false;
                     break;
+                }
                 case "timer":
                     satisfied = _elapsed >= _timerSeconds;
                     break;
@@ -421,6 +400,8 @@ namespace LivingWorldNpcs
                     if (agent == null) return false;
                     _dialogueId = Arg(step, "Dialogue");
                     _host.StartStoryConversation(agent, null, "first_meet_auto", _dialogueId);
+                    // 记下这次真正开出来的会话编号：后面判定“还是我们”靠它，不靠对话 ID。
+                    _sessionId = StoryDialogueRuntime.Current?.Id ?? 0;
                     return SessionMatches();
 
                 case "dialogue_wait":
@@ -489,12 +470,21 @@ namespace LivingWorldNpcs
             _director?.OnFlowTerminal(_actorId, token);
         }
 
+        /// <summary>
+        /// 是否仍然处于**本次流程开的那个会话**：比会话编号 + 对话 ID + 实际演员。
+        /// 🔴 只比 DialogueId 不够 —— 同一份对话被另一个流程/另一个演员重开时会被误判成“还是我们”，
+        ///    「被替换/被取消」也就走不到对应数据分支。
+        /// </summary>
         private bool SessionMatches()
         {
             var s = StoryDialogueRuntime.Current;
             if (s == null || s.Ended) return false;
-            if (string.IsNullOrEmpty(_dialogueId)) return true;
-            return string.Equals(s.Definition?.DialogueId, _dialogueId, StringComparison.Ordinal);
+            if (_sessionId != 0 && s.Id != _sessionId) return false;
+            if (!string.IsNullOrEmpty(_dialogueId)
+                && !string.Equals(s.Definition?.DialogueId, _dialogueId, StringComparison.Ordinal)) return false;
+            if (!string.IsNullOrEmpty(_actorId)
+                && !string.Equals(s.Request?.ActorId, _actorId, StringComparison.Ordinal)) return false;
+            return true;
         }
     }
 }

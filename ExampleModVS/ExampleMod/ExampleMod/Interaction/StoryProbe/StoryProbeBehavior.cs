@@ -241,7 +241,6 @@ namespace LivingWorldNpcs
             {
                 if (!PrologueQuestLauncher.CancelAll()) return false;
                 StoryProbeState.ResetAll();
-                StoryProbeDialogue.ClearCache();
             }
             else
             {
@@ -424,6 +423,17 @@ namespace LivingWorldNpcs
                 }
                 var encounter = PlayerEncounter.LocationEncounter;
                 if (encounter == null) throw new InvalidOperationException("active LocationEncounter unavailable");
+                // 修改布局后重进专用场景就读新版；此处旧 Mission 已结束、演员尚未创建。
+                // 坏配置保留上次有效发布；首次加载就失败则停止，不走旧布局猜测补生。
+                if (!StoryV2Data.Reload())
+                {
+                    DebugLogger.Log("[StoryProbe] center entry refused: " + StoryV2Data.Report);
+                    if (queuedTransition) throw new InvalidOperationException(StoryV2Data.Report);
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveText("LWN_story_err_gate_layout",
+                            "This town's prologue gate is not ready. Choose a supported town.")));
+                    return false;
+                }
                 StoryProbeState.Data.StorySettlementId = settlement.StringId;
                 StoryProbeState.Data.Suspended = false;
                 StoryProbeState.EnterViaOption = true;

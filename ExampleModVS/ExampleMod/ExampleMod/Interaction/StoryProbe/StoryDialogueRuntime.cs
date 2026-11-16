@@ -136,9 +136,9 @@ namespace LivingWorldNpcs
                 reason = "source_mismatch: trigger expects " + trigger.Source + ", got " + source;
                 return false;
             }
-            if (string.IsNullOrEmpty(actorId) || (!def.Actors.Contains(actorId) && !def.Participants.Contains(actorId)))
+            if (string.IsNullOrEmpty(actorId) || !def.EntryActors.Contains(actorId))
             {
-                reason = "actor_not_participant: " + (actorId ?? "-");
+                reason = "actor_not_entry_actor: " + (actorId ?? "-");
                 return false;
             }
 
@@ -261,16 +261,49 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>节点真正显示之前提交 `on_enter` 效果（同一会话同一节点只提交一次）。</summary>
+        /// <remarks>文本读取是纯读；这里才是「这一节点真的到了」的唯一提交点，所以要核令牌与准入。</remarks>
         public static bool NotifyNodeShown(string nodeId)
         {
             var session = _current;
             if (session == null || session.Ended || string.IsNullOrEmpty(nodeId)) return true;
+            if (session.Failed) return false;                       // 失败会话不再提交任何效果
+            if (session.Request?.RuntimeToken != StoryProbeState.RuntimeToken)
+            {
+                session.Failed = true;
+                session.EndReason = "node callback token stale: " + nodeId;
+                DebugLogger.Log("[StoryDialogue] node callback REJECTED (stale token) " + nodeId);
+                return false;
+            }
             var node = session.Definition?.FindNode(nodeId);
             if (node == null) return true;
+            var ctx = BuildContext(session);
+            if (!StoryDialogueFacts.TryEvaluateAll(node.Requires, ctx, out bool allowed, out string evalError, out _))
+            {
+                session.Failed = true;
+                session.EndReason = "node requires error: " + evalError;
+                DebugLogger.Log("[StoryDialogue] node REJECTED " + nodeId + ": " + evalError);
+                return false;
+            }
+            if (!allowed)
+            {
+                session.Failed = true;
+                session.EndReason = "node requires false: " + nodeId;
+                DebugLogger.Log("[StoryDialogue] node REJECTED (requires false) " + nodeId);
+                return false;
+            }
             session.CurrentNode = nodeId;
             session.EnteredNodes.Add(nodeId);
             return CommitEffects(node.OnEnter, "on_enter", "node:" + nodeId);
         }
+
+        private static StoryDialogueContext BuildContext(StoryDialogueSession session)
+            => new StoryDialogueContext
+            {
+                DialogueId = session?.Definition?.DialogueId,
+                TriggerId = session?.Trigger?.Id,
+                Purpose = session?.Trigger?.Purpose ?? "talk",
+                ActorId = session?.Request?.ActorId,
+            };
 
         /// <summary>
         /// 玩家选择了一个选项：**在真实提交点重核**令牌、当前节点、条件、演员与目标，再原子提交。
@@ -281,6 +314,8 @@ namespace LivingWorldNpcs
             reason = null;
             var session = _current;
             if (session == null || session.Ended) { reason = "no active session"; return false; }
+            // 本次会话已经失败（预检/提交/进入被拒）⇒ 后续选项一律不许再提交。
+            if (session.Failed) { reason = "session already failed: " + (session.EndReason ?? "-"); return false; }
             if (session.Request?.RuntimeToken != StoryProbeState.RuntimeToken)
             { reason = "runtime token changed"; return false; }
 
@@ -303,16 +338,31 @@ namespace LivingWorldNpcs
                 Purpose = session.Trigger?.Purpose ?? "talk",
                 ActorId = actor,
             };
+            // 当前节点自己的准入条件也要重核：显示时成立不代表提交时还成立。
+            if (!StoryDialogueFacts.TryEvaluateAll(node.Requires, ctx, out bool nodeAllowed, out string nodeEvalError, out _))
+            { reason = "node requires error: " + nodeEvalError; return false; }
+            if (!nodeAllowed) { reason = "node requires no longer true: " + nodeId; return false; }
+
             if (!StoryDialogueFacts.TryEvaluateAll(option.Requires, ctx, out bool allowed, out string evalError, out _))
             { reason = "requires error: " + evalError; return false; }
             if (!allowed) { reason = "requires no longer true"; return false; }
 
             string target = option.Check != null ? option.Check.Success : option.NextNode;
-            if (!string.IsNullOrEmpty(target) && session.Definition.FindNode(target) == null)
-            { reason = "option target no longer exists: " + target; return false; }
+            StoryDialogueNodeDef targetNode = null;
+            if (!string.IsNullOrEmpty(target))
+            {
+                targetNode = session.Definition.FindNode(target);
+                if (targetNode == null) { reason = "option target no longer exists: " + target; return false; }
+                // 目标节点的准入条件在提交前一起核：不许“效果先落账、再发现进不去”。
+                if (!StoryDialogueFacts.TryEvaluateAll(targetNode.Requires, ctx, out bool targetAllowed,
+                        out string targetEvalError, out _))
+                { reason = "target requires error: " + targetEvalError; return false; }
+                if (!targetAllowed) { reason = "target requires no longer true: " + target; return false; }
+            }
             if (option.Check != null)
             {
-                string checkTarget = string.IsNullOrEmpty(option.Check.Target) ? actor : option.Check.Target;
+                string checkTarget = string.IsNullOrEmpty(option.Check.Target) || option.Check.Target == "npc"
+                    || option.Check.Target == "questioner" ? actor : option.Check.Target;
                 if (host.GetAgent(checkTarget) == null && host.GetHero(checkTarget) == null)
                 { reason = "check target missing: " + checkTarget; return false; }
             }
@@ -383,19 +433,25 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 一次提交 = 先逐项预检 → 再逐项执行 → 任一失败按逆序回滚 → 全部成功才落收据。
         /// 🔴 不允许“前一项扣了钱、后一项失败还留下半笔”。
+        /// 🔴 回滚用「提交前快照」恢复，不用「相反操作」：本来就有的事实/账目必须原样回来
+        ///    （反例：`mark` 原本就成立，反向 Unmark 会把它抹掉）。
         /// </summary>
         private static bool CommitEffects(List<StoryDialogueEffect> effects, string stage, string owner)
         {
             var session = _current;
             if (session == null || session.Ended || effects == null || effects.Count == 0) return true;
+            // 失败/取消过的会话不再提交任何效果（进入失败后继续点选项反例）。
+            if (session.Failed) return false;
 
-            var planned = new List<(StoryDialogueEffect effect, int index, string receipt)>();
+            var planned = new List<(StoryDialogueEffect effect, string receipt)>();
             for (int i = 0; i < effects.Count; i++)
             {
                 var effect = effects[i];
                 if (effect == null) continue;
                 if (!string.Equals(effect.Commit, stage, StringComparison.Ordinal)) continue;
-                string receipt = ReceiptKey(session, effect, owner, i);
+                // 收据身份 = 动词 + 参数 + 阶段 + 收据类型 + **同名效果的序号**。
+                // 不用列表下标：前面插入无关效果不该让同一笔付款再扣一次。
+                string receipt = ReceiptKey(session, effect, owner, OccurrenceIndex(effects, i));
                 if (effect.Receipt == "once" && StoryProbeState.HasDialogueReceipt(receipt))
                 {
                     DebugLogger.Log("[StoryDialogue] effect skipped (receipt) " + receipt);
@@ -413,20 +469,22 @@ namespace LivingWorldNpcs
                     DebugLogger.Log("[StoryDialogue] effect REJECTED " + effect.Id + " @" + owner + ": " + preError);
                     return false;
                 }
-                planned.Add((effect, i, receipt));
+                planned.Add((effect, receipt));
             }
             if (planned.Count == 0) return true;
 
-            var applied = new List<(StoryDialogueEffect effect, string receipt)>();
+            var applied = new List<EffectBefore>();
             foreach (var item in planned)
             {
+                var before = CaptureBefore(item.effect, session, item.receipt);
                 if (!StoryDialogueEffectRuntime.TryCommit(item.effect, session, out string error))
                 {
-                    // 逆序回滚已经执行的项；回滚失败也要报出来，不能假装干净。
+                    // 逆序回滚已经执行的项：先恢复事实/账目快照，再撤销真实资源（钱/物品/关系）。
                     for (int i = applied.Count - 1; i >= 0; i--)
                     {
-                        if (!StoryDialogueEffectRuntime.TryRollback(applied[i].effect, session, out string rollbackError))
-                            DebugLogger.Log("[StoryDialogue] rollback FAILED " + applied[i].effect.Id + ": " + rollbackError);
+                        RestoreBefore(applied[i]);
+                        if (!StoryDialogueEffectRuntime.TryRollback(applied[i].Effect, session, out string rollbackError))
+                            DebugLogger.Log("[StoryDialogue] rollback FAILED " + applied[i].Effect.Id + ": " + rollbackError);
                     }
                     session.Failed = true;
                     session.EndReason = "effect " + item.effect.Id + " failed: " + error;
@@ -434,16 +492,126 @@ namespace LivingWorldNpcs
                                     + " (rolled back " + applied.Count + ")");
                     return false;
                 }
-                applied.Add((item.effect, item.receipt));
+                applied.Add(before);
             }
 
             foreach (var item in applied)
             {
-                if (item.effect.Receipt == "once") StoryProbeState.RecordDialogueReceipt(item.receipt);
-                if (item.effect.Receipt == "session") session.SessionReceipts.Add(item.receipt);
-                session.Committed.Add(owner + " -> " + item.effect.Id + " (" + item.effect.Receipt + ")");
-                DebugLogger.Log("[StoryDialogue] effect ok " + item.effect.Id + " @" + owner + " receipt=" + item.effect.Receipt);
+                if (item.Effect.Receipt == "once") StoryProbeState.RecordDialogueReceipt(item.Receipt);
+                if (item.Effect.Receipt == "session") session.SessionReceipts.Add(item.Receipt);
+                session.Committed.Add(owner + " -> " + item.Effect.Id + " (" + item.Effect.Receipt + ")");
+                DebugLogger.Log("[StoryDialogue] effect ok " + item.Effect.Id + " @" + owner + " receipt=" + item.Effect.Receipt);
             }
+            return true;
+        }
+
+        /// <summary>效果提交前的事实/账目快照（只覆盖可逆的账目类原子）。</summary>
+        private sealed class EffectBefore
+        {
+            public StoryDialogueEffect Effect;
+            public string Receipt;
+            public string Actor, Flag;
+            public bool Asked, Hazard, Clue;
+            public int Step, BribePaid, CoinsFound, DebtCollected;
+            public List<string> QuestDone;
+            public Dictionary<string, string> QuestResolutions;
+        }
+
+        private static EffectBefore CaptureBefore(StoryDialogueEffect effect, StoryDialogueSession session, string receipt)
+        {
+            var before = new EffectBefore { Effect = effect, Receipt = receipt, Actor = session?.Request?.ActorId };
+            string P(string key) => effect?.Params != null && effect.Params.TryGetValue(key, out var v) ? v : null;
+            switch (effect?.Id)
+            {
+                case "mark":
+                    before.Flag = P("flag");
+                    before.Asked = StoryProbeState.HasAsked(before.Actor, before.Flag);
+                    before.Step = StoryProbeState.Step(before.Actor);
+                    break;
+                case "hazard":
+                    before.Flag = P("flag");
+                    before.Hazard = StoryProbeState.HasHazard(before.Flag);
+                    break;
+                case "clue":
+                    before.Flag = P("clue");
+                    before.Clue = StoryProbeState.HasClue(before.Flag);
+                    break;
+            }
+            before.BribePaid = StoryProbeState.Data?.BribePaid ?? 0;
+            before.CoinsFound = StoryProbeState.Data?.CoinsFound ?? 0;
+            before.DebtCollected = StoryProbeState.Data?.DebtCollected ?? 0;
+            if (StoryProbeState.Data != null)
+            {
+                before.QuestDone = new List<string>(StoryProbeState.Data.QuestDone ?? new List<string>());
+                before.QuestResolutions = StoryProbeState.Data.QuestResolutions != null
+                    ? new Dictionary<string, string>(StoryProbeState.Data.QuestResolutions)
+                    : new Dictionary<string, string>();
+            }
+            return before;
+        }
+
+        /// <summary>把事实/账目恢复成提交前的样子（不是「反过来做一次」）。</summary>
+        private static void RestoreBefore(EffectBefore before)
+        {
+            if (before?.Effect == null) return;
+            switch (before.Effect.Id)
+            {
+                case "mark":
+                    StoryProbeState.RestoreAsked(before.Actor, before.Flag, before.Asked);
+                    StoryProbeState.RestoreStep(before.Actor, before.Step);
+                    break;
+                case "hazard":
+                    StoryProbeState.RestoreHazard(before.Flag, before.Hazard);
+                    break;
+                case "clue":
+                    StoryProbeState.RestoreClue(before.Flag, before.Clue);
+                    break;
+            }
+            if (StoryProbeState.Data != null)
+            {
+                StoryProbeState.Data.BribePaid = before.BribePaid;
+                StoryProbeState.Data.CoinsFound = before.CoinsFound;
+                StoryProbeState.Data.DebtCollected = before.DebtCollected;
+                if (before.QuestDone != null && StoryProbeState.Data.QuestDone != null)
+                {
+                    StoryProbeState.Data.QuestDone.Clear();
+                    StoryProbeState.Data.QuestDone.AddRange(before.QuestDone);
+                }
+                if (before.QuestResolutions != null && StoryProbeState.Data.QuestResolutions != null)
+                {
+                    StoryProbeState.Data.QuestResolutions.Clear();
+                    foreach (var kv in before.QuestResolutions)
+                        StoryProbeState.Data.QuestResolutions[kv.Key] = kv.Value;
+                }
+            }
+        }
+
+        /// <summary>同名效果（同动词/参数/阶段/收据）在本列表里是第几次出现 —— 稳定防重身份。</summary>
+        private static int OccurrenceIndex(List<StoryDialogueEffect> effects, int index)
+        {
+            var effect = effects[index];
+            int seen = 0;
+            for (int i = 0; i < index; i++)
+            {
+                var other = effects[i];
+                if (other == null) continue;
+                if (!string.Equals(other.Id, effect.Id, StringComparison.Ordinal)) continue;
+                if (!string.Equals(other.Commit, effect.Commit, StringComparison.Ordinal)) continue;
+                if (!string.Equals(other.Receipt, effect.Receipt, StringComparison.Ordinal)) continue;
+                if (!SameParams(other.Params, effect.Params)) continue;
+                seen++;
+            }
+            return seen;
+        }
+
+        private static bool SameParams(Dictionary<string, string> a, Dictionary<string, string> b)
+        {
+            int an = a?.Count ?? 0, bn = b?.Count ?? 0;
+            if (an != bn) return false;
+            if (an == 0) return true;
+            foreach (var kv in a)
+                if (!b.TryGetValue(kv.Key, out string other) || !string.Equals(other, kv.Value, StringComparison.Ordinal))
+                    return false;
             return true;
         }
 
@@ -454,14 +622,14 @@ namespace LivingWorldNpcs
         private static bool VanillaHasPriority(string actorId, out string why)
         {
             why = null;
-            var pending = AgentAIController.Instance?.PendingWorldEvent;
-            if (pending == null || pending.Phase != WorldEventPhase.Impending) return false;
             if (!StoryProbeMissionHandler_Wanted()) return false;
             string settlement = StoryProbeSettings.SettlementId;
-            if (!string.IsNullOrEmpty(pending.TargetSettlementId)
-                && !string.Equals(pending.TargetSettlementId, settlement, StringComparison.Ordinal))
-                return false;
-            why = "pending crime " + (pending.EventId ?? "-") + " at " + (pending.TargetSettlementId ?? "-");
+            if (string.IsNullOrEmpty(settlement)) return false;
+            // 🔴 双源查询（铁律 9）：`WorldEventStore.FindOnGoing` 内部已含 PendingWorldEvent 兜底。
+            // 只读 Pending 会漏掉已落库、仍在进行中的案子 —— 原版犯罪/投降入口就抢不到了。
+            var evt = WorldEventStore.FindOnGoing(settlement);
+            if (evt == null || evt.Phase != WorldEventPhase.Impending) return false;
+            why = "ongoing crime " + (evt.EventId ?? "-") + " at " + (evt.TargetSettlementId ?? "-");
             return true;
         }
 
@@ -469,13 +637,14 @@ namespace LivingWorldNpcs
             => StoryProbeMissionBehavior.IsPlayerWanted();
 
         /// <summary>
-        /// 收据身份 = 对话 + 来源节点/选项 + **效果在列表中的稳定序号** + 动作 token + 参数；
+        /// 收据身份 = 对话 + 来源节点/选项 + **同名效果序号** + 动作 token + 参数；
         /// 个人事实（mark/clue/hazard）再带实际演员，避免两名守卫互相吞收据。
+        /// 🔴 序号不是列表下标：插入/换序无关效果不得让同一笔付款再扣一次。
         /// </summary>
-        private static string ReceiptKey(StoryDialogueSession session, StoryDialogueEffect effect, string owner, int index)
+        private static string ReceiptKey(StoryDialogueSession session, StoryDialogueEffect effect, string owner, int ordinal)
         {
             var sb = new StringBuilder();
-            sb.Append(session.Definition.DialogueId).Append(':').Append(owner).Append(':').Append(index)
+            sb.Append(session.Definition.DialogueId).Append(':').Append(owner).Append(':').Append(ordinal)
               .Append(':').Append(effect.Id);
             if (effect.Id == "mark" || effect.Id == "clue" || effect.Id == "hazard")
                 sb.Append(":actor=").Append(session.Request?.ActorId ?? "-");
@@ -499,6 +668,9 @@ namespace LivingWorldNpcs
               .Append(" actor=").Append(s.Request?.ActorId ?? "-")
               .Append(" entry=").Append(s.Entry?.Id ?? "-").Append("->").Append(s.Entry?.Node ?? "-")
               .Append(" node=").Append(s.CurrentNode ?? "-")
+              .Append(" speaker=").Append(s.Definition?.FindNode(s.CurrentNode)?.Speaker ?? "-")
+              .Append(" listener=").Append(s.Definition?.FindNode(s.CurrentNode)?.Listener ?? "-")
+              .Append(" next=").Append(s.Definition?.FindNode(s.CurrentNode)?.NextNode ?? "options/close")
               .Append(" request=").Append(s.Request?.Id ?? 0)
               .Append(" token=").Append(s.Request?.RuntimeToken ?? 0)
               .Append(" ended=").Append(s.Ended)
@@ -530,10 +702,14 @@ namespace LivingWorldNpcs
 
             switch (effect.Id)
             {
+                // 🔴 事实类原子的参数名以 `TryCommit` 为准：mark/hazard 都读 `flag`，clue 读 `clue`。
+                // 预检按「动作名」取参数会把合法 hazard 判成缺参数（2026-11-15 复核反例）。
                 case "mark":
                 case "hazard":
+                    if (string.IsNullOrEmpty(P("flag"))) { error = effect.Id + ".flag missing"; return false; }
+                    return true;
                 case "clue":
-                    if (string.IsNullOrEmpty(P(effect.Id == "mark" ? "flag" : effect.Id))) { error = effect.Id + " 缺参数"; return false; }
+                    if (string.IsNullOrEmpty(P("clue"))) { error = "clue.clue missing"; return false; }
                     return true;
                 case "pay":
                     if (!TryInt(P("amount"), out int amount) || amount < 0) { error = "pay.amount invalid"; return false; }
@@ -621,15 +797,25 @@ namespace LivingWorldNpcs
                         if (P("count") != null) TryInt(P("count"), out count);
                         return StoryProbeDefs.RemoveItem(TaleWorlds.CampaignSystem.Hero.MainHero, P("item"), count);
                     }
-                    case "mark":
-                        StoryProbeState.UnmarkAsked(actor, P("flag"));
-                        return true;
-                    case "hazard":
-                        StoryProbeState.RemoveHazard(P("flag"));
-                        return true;
-                    case "clue":
-                        StoryProbeState.RemoveClue(P("clue"));
-                        return true;
+                    // mark / hazard / clue 由 CommitEffects 的「提交前快照」恢复（RestoreBefore）；
+                    // 这里不再做反向操作 —— 原本就成立的事实被反向删掉才是错。
+                    case "grant_gold":
+                    {
+                        // 凭空发钱：回滚就是把发出去的那笔退回“世界”。
+                        if (!TryInt(P("amount"), out int amount) || amount <= 0) return true;
+                        var player = TaleWorlds.CampaignSystem.Hero.MainHero;
+                        if (player == null) return false;
+                        return AgentControlHelper.TransferGold(player, (TaleWorlds.CampaignSystem.Hero)null, amount, notify: false) == amount;
+                    }
+                    case "debt_collect":
+                    {
+                        // 收债：钱从欠债人转到玩家；回滚原路退回，Quest 状态由快照/预检兜底。
+                        if (!TryInt(P("amount"), out int amount) || amount <= 0) return true;
+                        var debtor = host.GetHero(P("from"));
+                        var player = TaleWorlds.CampaignSystem.Hero.MainHero;
+                        if (debtor == null || player == null) return false;
+                        return AgentControlHelper.TransferGold(player, debtor, amount, notify: false) == amount;
+                    }
                     case "relation":
                     {
                         string faction = P("faction");

@@ -198,6 +198,7 @@ namespace LivingWorldNpcs
     {
         public float ActorReadyTimeoutSec = 3f;
         public float DebugActorDurationSec = 3f;
+        public float DebugSpeechDurationSec = 15f;
         public float AmbientPoseDurationSec = 3f;
     }
 

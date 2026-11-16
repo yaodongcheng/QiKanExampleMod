@@ -1,28 +1,30 @@
 ---
 name: story-dialogue-writing
-description: 写 / 改剧情 NPC 的**对话脚本**（台词 + 选项 + 分段 + 路由拓扑）时走本技能。凡涉及"这句台词怎么写""把长对话拆短""选项该给什么""为什么玩家说他一说再说""对话读起来像独白/像 AVG 旁白""节点几行合适""检查对话漏洞"——都从这里起步。它给一份**可执行的写作与拓扑规格**（≤2 行、信息只说一次、每句必须推进、选项必须有代价或检定、禁止假选项、禁止孤立不可达节点、禁止自指复读、禁止条件与代价脱节、禁止直接关窗吃掉余下话题），配一条离线硬门禁命令，和「改完 → 写进 XML → 配动作 → 刷新页面 → 体检全绿」的固定流程。不要凭感觉发挥，也不要机械切行。
+description: 写 / 改剧情 NPC 的**对话脚本**（台词 + 选项 + 分段 + 路由拓扑）时走本技能。凡涉及"这句台词怎么写""把长对话拆短""选项该给什么""为什么玩家说他一说再说""对话读起来像独白/像 AVG 旁白""节点几行合适""检查对话漏洞"——都从这里起步。它给一份**可执行的写作与拓扑规格**（一句且不硬换行、信息只说一次、每句必须推进、选项必须有代价或检定、禁止假选项、禁止孤立不可达节点、禁止自指复读、禁止条件与代价脱节、禁止直接关窗吃掉余下话题），配一条离线硬门禁命令，和「改完 → 写进 XML → 配动作 → 刷新页面 → 体检全绿」的固定流程。不要凭感觉发挥，也不要机械切行。
 ---
 
 # 剧情对话写作 — 入口
 
 > 🔴 **规则正文只有一份**：`plans/rules/dialogue-design.md`（15 条硬规则 + 标准形状 + 反例库）。本文件只讲"怎么用"。
 
-> **一句话**：一个节点 = **NPC 的一次开口**，最多 2 行；每句话必须**推进**（给信息 / 给态度 / 给任务）；
+**511唯一源：**直接维护`ModuleData/DesignData/Dialogues/*.dialog.json`；旧9份`story_probe_*.json`和迁移生成器已退役。保留`EntryOptionZh/TextKeyZh/PlayerKeyZh`中文旁注；它们由注释工具与语言XML同步，不能清除。字段与命令详见`plans/逆水寒511/逆水寒511-总纲与实施计划.md`需求§22。
+
+> **一句话**：一个节点 = **NPC 的一次开口**，一句且不硬换行；每句话必须**推进**（给信息 / 给态度 / 给任务）；
 > 同一件事**只许说一次**；玩家的每个选项都**得有代价或检定**；**每一个节点都必须可达、有合法出口、称呼与玩家认知一致**。写不出新东西的话，删掉，不要拿填充句凑。
 
 ## 十条硬规格（机器自动查 + 人工走查）
 
 | # | 规则 | 怎么查 |
 |---|---|---|
-| 1 | **单节点 ≤2 行**（一个节点是他一次开口，不是一段独白） | `check_story_probe.py` **硬门禁报错** |
+| 1 | **单节点仅一句，无硬换行**（一个节点是他一次开口，不是一段独白） | `check_story_probe.py` **硬门禁报错** |
 | 2 | **禁止假选项**：`……（听他说下去）`、`继续`、`嗯` 这类不给玩家选择的填充项一律禁用 | `check_story_probe.py` 自动查 |
-| 3 | **禁止孤立不可达节点（Orphan Node）**：每个节点必须能从合法入口（`_intro`/`_hub`/`_turnin`/`_chat`/`event_*_join`/`blocker_*`）通过 `NextNodeOnSuccess`/`NextNodeOnFail` 到达 | `check_story_probe.py` 自动查 |
+| 3 | **禁止孤立不可达节点（Orphan Node）**：正式节点必须从`Entries[].Node`沿`Options[].NextNode`或`Check.Success/Fail`可达，节点后缀不决定运行入口 | `check_story_probe.py` 自动查 |
 | 4 | **禁止自指循环（Self-Loop）与回跳 `_intro`**：选项的目标节点不得等于当前节点，也不得从对话中途跳回 `_intro`（重播初次见面） | `check_story_probe.py` 自动查 |
 | 5 | **禁止问句直接跳菜单（`*_hub`）**：带问号的选项必须跳专门回答节点，不得跳回 `_hub`（否则对方只回"还有事？"） | `check_story_probe.py` 自动查 |
 | 6 | **禁止两种不同问法指向同一个非菜单节点**：首问与再问、不同措辞不可共用同一回答节点 | `check_story_probe.py` 自动查 |
-| 7 | **禁止两条不同选项共用同一个 `Once` 闸门**：一条选项一个 `Once`，否则点一条两条同时消失 | `check_story_probe.py` 自动查 |
-| 8 | **付费/塞钱动作必须配 `Requires: gold>=N` 且选项标明金额**：`PROBE:pay` / `pay_to` / `bribe` / `offer_money` / `money_deal` 不可无条件暴露（铁律 12 + §5.5 钱不够不出现） | `check_story_probe.py` 自动查 |
-| 9 | **台词格式强制双语严格对齐**：每行必须是 `（说话人，听话人）：文本` / `(Speaker, Listener): Text`，禁混用英文 `Player` 或未翻译 ID（如 `debtor`/`thug`） | `check_story_probe.py` 自动查 |
+| 7 | **禁止两条不同选项共用“只问一次”话题**：`Requires: ["!asked:话题"]`配`mark`效果，每条选项一个话题 | `check_story_probe.py` 自动查 |
+| 8 | **付款效果必须配资金或合法补发资格，文案与金额一致**：例如`Requires: ["gold>=30"]`配`pay`；拒钱不转账、已付款补发不再扣款；守卫开价前不让玩家报赔偿金额 | `check_story_probe.py` 自动查 |
+| 9 | **台词格式强制双语严格对齐**：正文禁止人物前缀与硬换行；`Speaker/Listener`显式控制真实参与者，中英句界一致 | `check_story_probe.py` 自动查 |
 | 10 | **同一信息只说一次 & 称呼匹配玩家认知 & 打听完回 `_hub`**：名字/价码/线索不复读；未打听出真名前不直呼其名（或挂 `Requires`）；非终局回答节点给回 `_hub` 的收尾项而非直接关窗 | 人工 + 结构走查 |
 
 ## 🔴 最常见的六个错（都是实战踩过的）
@@ -40,7 +42,7 @@ ask_self：我？姓周，人家都叫老周。        ← 同一句说两遍
 
 把 4 行的节点切成 2+2，中间塞一句 `……（听他说下去）`。
 **错**：玩家没有做任何选择，而且多一次点击。
-✅ **对**：重写这段，让第一段 ≤2 行直接立住核心信息，第二段由**玩家主动追问**引出。
+✅ **对**：重写这段，让连续NPC句由节点级`NextNode`连接，原版点击继续；只有真实追问才增加玩家选项。
 
 ### ③ 删选项留孤岛 / 只配 `[离开]` 导致死路
 
@@ -65,46 +67,34 @@ ask_self：我？姓周，人家都叫老周。        ← 同一句说两遍
 事件 2/3/4/6 赢了或帮了忙，节点只有 `[离开]`，玩家不知道该找谁接委托。
 ✅ **对**：所有事件收尾节点（`event_*_win` / `lose` / `paid`）统一提供 `[跟他说两句] → <host>_hub`。
 
-## 格式（两条都强制）
+## 结构与正文（两条都强制）
 
-```
-（说话人，听话人）：文本          ← NPC 与玩家之间
-（打手，老周）：钱呢？这月的。     ← NPC 之间
-（旁白，玩家）：路让开了。         ← 只用于"结果播报"，不是动作描写
+```json
+{"Id":"guard_line","Speaker":"questioner","Listener":"player","TextKey":"LWN_story_blocker_first_line1","TextKeyZh":"通行文书。","NextNode":"blocker_first","Options":[]}
 ```
 
-英文同构：`(Thug, Old Zhou): The money. This month's.`
+下一句单独一个节点。节点级`NextNode`表示连续NPC句，原版继续推进；`Options`表示玩家的真实回应，两者互斥。所有互动都由NPC先开口，正式`SkipVanillaOpening=true`；旧`EntryOptionZh`仅保留审阅资料，不注册玩家网关。
+
+`Actors`登记所有实名参与者，`EntryActors`登记可占用本定义入口的演员；第三人能插话不代表其普通交谈要打开本定义。
 
 ## 写一场对话的顺序
 
 1. **先列信息清单**：这场戏玩家必须拿到几件事？（例：妹妹押过镯子 / 码头帮押人 / 铁头贪钱）
-2. **一件事 = 一个节点**，每个节点 ≤2 行。信息多的拆成**并列选项**或**递进追问**（玩家问哪个就听哪个），不是排队说。
+2. **一件事 = 一个节点**，每个节点 一句且不硬换行。信息多的拆成**并列选项**或**递进追问**（玩家问哪个就听哪个），不是排队说。
 3. **核对五步关系闭环**：
    - `_intro`（初见）与 `_hub`（菜单，出度 ≥5，无条件非离开选项 ≤4）
    - 打听分支（妹妹线索 / 对手底细 / 过门门路）→ 答完可回 `_hub`
-   - `_deal`（求帮忙/派委托）→ `_quest_accept`（`EnterAction: PROBE:accept_quest`）
+   - `_deal`（求帮忙/派委托）→ `_quest_accept`（节点`OnEnter`中的正式`quest_accept`效果；参数与收据按注册表）
    - 仇家节点（`_intro` / `_hub` / 对质或讨账或劝退 / `_fight`）
-   - `_turnin` → `_turnin_ok`（`EnterAction: PROBE:turn_in`）→ `_chat`（熟人闲聊 + 零活/后续）
-4. **给每个行动/检定选项配代价或检定**（给钱带 `gold>=N` / 掷点带 `NextNodeOnFail` / 关系变化）。
-5. **配动作**：每行台词配一个动作（走 `story-line-action` 技能，动作必须在 `as_human_warrior`）。
+   - `_turnin` → `_turnin_ok`（节点`OnEnter`中的正式`quest_turn_in`效果）→ `_chat`（熟人闲聊＋零活/后续）
+4. **给每个行动/检定选项配代价或检定**（资金`Requires`数组／`Check.Success/Fail`成败节点／关系变化）。检定`Check`与无检定`NextNode`二选一；禁止写旧`Transitions/EnterAction/ActionParam/Once`字段。
+5. **配动作**：每个单句节点配一个动作（走 `story-line-action` 技能，动作必须在 `as_human_warrior`）。
 
-## 改完怎么落地（五步缺一不可）
+## 改完怎么落地（按改动类型选择）
 
-```bash
-# ① 改 Debug/offline/_story_text_*.py（全部文本统一维护，含金钱提示与系统提示）
-# ② 写进中英两个语言 XML
-cd "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Debug\offline"
-python _insert_story_probe_text.py
-
-# ③ 按台词行数重新配动作（写回每个节点的 NpcActions）
-cd "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs"
-python Scripts/gen_line_actions.py --write
-
-# ④ 重新生成玩法演示页（台词树 + 角色配表卡）
-python plans/逆水寒511/tools/insert_dialogue_html.py
-python plans/逆水寒511/tools/gen_cast_html.py
-
-# ⑤ 跑离线体检（必须 problems=0 且 long_nodes_todo=0）
-python Scripts/check_story_probe.py
-```
+1. 只改结构/条件/效果：直接改正式JSON，保留ID与中文旁注；检查后重生预览、游戏重载并走真实入口。不重写文本或已配动作。
+2. 改台词：改既有双语写作源，运行语言插入脚本，再运行`Scripts/annotate_dialogue_zh.py`同步中文旁注，人工核结构人物、句界和`LineActions`。
+3. 动作定稿直接改节点`LineActions`；`gen_line_actions.py`仅可选初稿助手，`--write`会批量覆盖已有动作，不是必跑步骤。
+4. 重生对白/配表HTML，再跑`check_story_probe.py`及`annotate_dialogue_zh.py --check`，预期`problems=0 long_nodes_todo=0`且注释无漂移。
+5. 游戏按玩家主动交谈、岗位AI、事件加入与付款/奖励分支验证；离线/编译通过不代表实机通过。完整绝对路径命令、作用、时机与状态影响统一见511总纲需求§22.4。
 

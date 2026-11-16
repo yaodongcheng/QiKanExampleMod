@@ -288,7 +288,6 @@ namespace LivingWorldNpcs
                         StoryProbeDefs.ReloadCast();
                         StoryProbeTuning.Reload();
                         StoryStageDefs.ClearCache();
-                        StoryProbeDialogue.ClearCache();
                         // P0-D.5：新格式对话定义（*.dialog.json）整批重载；坏文件保留旧版
                         string dialogueReload = StoryDialogueLoader.ReloadAll();
                         return $"OK: reloaded StoryProbeCast/Tuning/Stage/Dialogues -- npcs={StoryProbeDefs.Npcs.Count} " +
@@ -383,6 +382,37 @@ namespace LivingWorldNpcs
                     return $"OK: ambient forced {npc}[{idx}]";
                 }
 
+                case "say":
+                    return director == null ? "Error: no director." : director.ForceSpeech(a1, a2);
+
+                case "release":
+                    return director == null ? "Error: no director." : director.ReleaseSpeech(a1);
+
+                case "facing":
+                {
+                    var agent = StoryProbeMissionBehavior.Current?.GetAgent(a1 ?? "");
+                    if (agent == null) return "Error: speaker unavailable.";
+                    var brain = AgentAIController.GetBrainForAgent(agent);
+                    var performance = brain?.CurrentAction as PerformanceAction;
+                    var listener = performance?.SpeechListener;
+                    string info = "OK: speaker=" + a1 + " action=" + (brain?.CurrentAction?.GetType().Name ?? "none")
+                        + " control=" + (performance?.CanControl == true) + " listener="
+                        + (listener == null ? "none" : listener == Agent.Main ? "player" : StoryProbeDialogue.ResolveNpcId(listener) ?? "other");
+                    if (AgentControlHelper.SafeIsActive(listener))
+                    {
+                        Vec2 direction = (listener.Position - agent.Position).AsVec2;
+                        Vec2 facing = agent.Frame.rotation.f.AsVec2;
+                        if (direction.LengthSquared > 0.0001f && facing.LengthSquared > 0.0001f)
+                        {
+                            direction.Normalize(); facing.Normalize();
+                            double dot = Math.Max(-1d, Math.Min(1d, direction.x * facing.x + direction.y * facing.y));
+                            info += " bodyErrorDeg=" + (Math.Acos(dot) * 180d / Math.PI).ToString("F1");
+                        }
+                        info += " gazeRequested=" + performance.CanControl + " owner=" + performance.OwnerToken;
+                    }
+                    return info;
+                }
+
                 case "scene":
                 {
                     if (director == null) return "Error: no director.";
@@ -400,7 +430,7 @@ namespace LivingWorldNpcs
                     return "OK: street life resumed.";
 
                 default:
-                    return "Usage: custom.story_probe life status|list|force <npc> <i>|scene <n>|stop|resume";
+                    return "Usage: custom.story_probe life status|list|force <npc> <i>|say <speaker> <listener>|facing <npc>|release <npc>|scene <n>|stop|resume";
             }
         }
 
@@ -543,9 +573,11 @@ namespace LivingWorldNpcs
                         : "Error: stage begin failed (StoryStage.json missing? see log).";
 
                 case "skip":
-                    if (runner == null) return "Error: stage not started yet.";
-                    runner.Skip();
-                    return "OK: stage skipped (camera released, player unfrozen).";
+                {
+                    // 准备期跳过：先当场把布景/摆人做完并判定，再交还控制，不播开场。
+                    string prepState = host.SkipStage();
+                    return "OK: stage skipped (camera released, player unfrozen). prep=" + prepState;
+                }
 
                 case "reload":
                     StoryStageDefs.ClearCache();
@@ -619,6 +651,7 @@ namespace LivingWorldNpcs
                 case "":
                 case "status":
                     return StoryLayoutRegistry.Describe() + "\n" +
+                           "loader: " + StoryV2Data.Report + "\n" +
                            (_lastScriptReport ?? "fixtures: run 'custom.story_probe script validate' to check the P0 fixtures.");
 
                 case "list":
@@ -688,12 +721,14 @@ namespace LivingWorldNpcs
 
             StoryValidationResult result;
             bool published = false;
-            if (fixture)
+            bool validateOnly = fixture || Mission.Current != null;
+            if (validateOnly)
                 result = StoryLayoutParser.Parse(File.ReadAllText(path), path, ids, mode);
             else
                 published = StoryLayoutRegistry.TryPublish(File.ReadAllText(path), path, ids, mode, out result);
             _lastScriptReport = result.Describe();
             if (fixture) return _lastScriptReport + "\nINFO: fixture validated only; current content was not changed.";
+            if (validateOnly) return _lastScriptReport + "\nINFO: validated only during a mission; leave and re-enter the story scene to publish layout changes.";
             return published
                 ? result.Describe() + "\nOK: published as current content version (any failure keeps the old one)."
                 : result.Describe();
@@ -853,7 +888,12 @@ namespace LivingWorldNpcs
                 return "Usage: custom.story_probe intercept status";
             var host = StoryProbeMissionBehavior.Current;
             var sb = new System.Text.StringBuilder();
-            sb.Append(host?.Posts?.Describe() ?? ("OK: no active story mission; data=" + (StoryV2Data.EnsurePublished() ? "published" : StoryV2Data.Report)));
+            if (host?.Posts != null) sb.Append(host.Posts.Describe());
+            else
+            {
+                StoryV2Data.EnsurePublished();
+                sb.Append("OK: no active story mission; data=").Append(StoryV2Data.Report);
+            }
             sb.Append("\n").Append(StoryDialogueRuntime.Describe());
             sb.Append("\n").Append(StoryDialogueRegistry.Describe());
             return sb.ToString();
@@ -950,14 +990,32 @@ namespace LivingWorldNpcs
                 }
 
                 case "trace":
-                    return StoryDialogueRuntime.Describe();
+                {
+                    var cm = Campaign.Current?.ConversationManager;
+                    string NativeId(IAgent agent) => agent != null && agent == Agent.Main ? "player"
+                        : StoryProbeDialogue.ResolveNpcId(agent as Agent) ?? "-";
+                    return StoryDialogueRuntime.Describe() + "\n  nativeSpeaker=" + NativeId(cm?.SpeakerAgent)
+                        + " nativeListener=" + NativeId(cm?.ListenerAgent);
+                }
+
+                case "turns":
+                {
+                    if (!StoryDialogueRegistry.TryGet(a1 ?? "", out var definition))
+                        return "Usage: custom.story_probe dialogue turns <dialogueId> (published definition required)";
+                    var lines = new List<string> { "OK: dialogue=" + definition.DialogueId + " v" + definition.ContentVersion };
+                    foreach (var node in definition.Nodes)
+                        lines.Add("  " + node.Id + " speaker=" + node.Speaker + " listener=" + node.Listener
+                            + " text=" + node.TextKey + " next=" + (node.NextNode ?? "options/close")
+                            + " options=" + node.Options.Count);
+                    return string.Join("\n", lines);
+                }
 
                 case "status":
                     return StoryDialogueRegistry.Describe() + "\n" +
                            (_lastDialogueReport ?? "fixtures: run 'custom.story_probe dialogue validate'");
 
                 default:
-                    return "Usage: custom.story_probe dialogue [tree]|validate [file]|resolve <dialogueId> <triggerId> [actorId]|trace|status";
+                    return "Usage: custom.story_probe dialogue [tree]|validate [file]|resolve <dialogueId> <triggerId> [actorId]|turns <dialogueId>|trace|status";
             }
         }
 
@@ -1063,6 +1121,7 @@ namespace LivingWorldNpcs
                     beat.Cmd = "actor_say";
                     beat.Actor = Arg(args, used, 1);
                     beat.TextKey = Arg(args, used, 2);
+                    beat.Listener = Arg(args, used, 3);
                     break;
 
                 case "camera_cut":
@@ -1107,7 +1166,7 @@ namespace LivingWorldNpcs
             return "custom.story_probe <sub> -- subs: enable | disable | city [id] | status | enter | intro | " +
                    "phase first|second | where | spawn | check <ability> | roll <ability> <0-100> | " +
                    "learn <ability> | resolve <ability> | strip | restore | reset | talk <npc> | goal <0..4> | " +
-                   "life status|list|force|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
+                   "life status|list|force|say <speaker> <listener>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
                    "stage list|only <n>|begin|skip|reload|status|anchor | atom <name> <args> | action <npc> <act> | " +
                    "script list|status|validate [file] | population status|verify | " +
                    "layout list|verify|snapshot|prep | intercept status | work status|list|force <npc> | group status | reload | help";

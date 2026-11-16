@@ -1,0 +1,61 @@
+{
+  "_comment": "一句一节点、NPC开场和真实第三人参与的正夹具；数据只定义，不执行。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "turn_contract",
+  "ContentVersion": 1,
+  "SkipVanillaOpening": true,
+  "Participants": [
+    "questioner",
+    "player"
+  ],
+  "Actors": [
+    "blocker",
+    "gate_sentry",
+    "pawnbroker"
+  ],
+  "EntryActors": [
+    "blocker",
+    "gate_sentry"
+  ],
+  "Triggers": [
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk"
+    }
+  ],
+  "Entries": [
+    {
+      "Id": "entry",
+      "Trigger": "player_talk",
+      "Node": "first"
+    }
+  ],
+  "Nodes": [
+    {
+      "Id": "first",
+      "Speaker": "questioner",
+      "Listener": "absent_actor",
+      "TextKey": "LWN_story_blocker_first_line1",
+      "LineActions": [],
+      "NextNode": "second",
+      "Options": []
+    },
+    {
+      "Id": "second",
+      "Speaker": "pawnbroker",
+      "Listener": "questioner",
+      "TextKey": "LWN_story_pawnbroker_hub",
+      "LineActions": [],
+      "Options": [
+        {
+          "Id": "reply",
+          "Speaker": "player",
+          "Listener": "questioner",
+          "PlayerKey": "LWN_story_blocker_opt_step_back",
+          "NextNode": ""
+        }
+      ]
+    }
+  ]
+}

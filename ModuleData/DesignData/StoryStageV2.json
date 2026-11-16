@@ -1,12 +1,12 @@
 {
   "_comment": "P3/P4 正式数据（2026-11-15）：首遇双岗的布局、岗位、候选规则与质问流程。改这里 = 改谁站哪、谁有资格问、先问谁、开窗后等多久，不需要改 C#。几何坐标仍待实机快照复核（V06），当前锚点来自场景 tag。",
   "Schema": "story_stage/2",
-  "ContentVersion": 1,
+  "ContentVersion": 3,
   "Scene": "empire_town_m",
   "WallLevel": "2",
   "Layouts": {
     "gate_outer": {
-      "Version": 1,
+      "Version": 2,
       "Anchors": {
         "guard_spawn": {
           "Source": "tag",
@@ -53,7 +53,7 @@
           "Gate": "main_gate",
           "Anchor": "guard_spawn",
           "Fwd": 0,
-          "Right": 0,
+          "Right": -1.2,
           "Facing": -1
         },
         {
@@ -61,7 +61,7 @@
           "Gate": "main_gate",
           "Anchor": "guard_spawn",
           "Fwd": 0,
-          "Right": 2.4,
+          "Right": 1.2,
           "Facing": -1
         }
       ],
@@ -448,6 +448,18 @@
         "LWN_story_event1_l3",
         "LWN_story_event1_l4"
       ],
+      "Speakers": [
+        "thug",
+        "pawnbroker",
+        "thug",
+        "pawnbroker"
+      ],
+      "Listeners": [
+        "pawnbroker",
+        "thug",
+        "pawnbroker",
+        "thug"
+      ],
       "LineFallbacks": [
         "What are you looking at? Not your business.",
         "Sir, please... he has been drinking.",
@@ -478,6 +490,16 @@
         "LWN_story_event2_l1",
         "LWN_story_event2_l2",
         "LWN_story_event2_l3"
+      ],
+      "Speakers": [
+        "thug",
+        "butcher",
+        "thug"
+      ],
+      "Listeners": [
+        "butcher",
+        "thug",
+        "butcher"
       ],
       "LineFallbacks": [
         "Old man. Pay.",
@@ -510,6 +532,18 @@
         "LWN_story_event3_l3",
         "LWN_story_event3_l4"
       ],
+      "Speakers": [
+        "widow",
+        "rival",
+        "widow",
+        "rival"
+      ],
+      "Listeners": [
+        "rival",
+        "widow",
+        "rival",
+        "widow"
+      ],
       "LineFallbacks": [
         "Stealing customers right at my door?",
         "The stage is on the street. Anyone can play.",
@@ -541,6 +575,16 @@
         "LWN_story_event4_l2",
         "LWN_story_event4_l3"
       ],
+      "Speakers": [
+        "pawnbroker",
+        "son",
+        "pawnbroker"
+      ],
+      "Listeners": [
+        "son",
+        "pawnbroker",
+        "son"
+      ],
       "LineFallbacks": [
         "Thief! My purse!",
         "I did not take it!",
@@ -569,6 +613,14 @@
         "LWN_story_event5_l1",
         "LWN_story_event5_l2"
       ],
+      "Speakers": [
+        "pawnbroker",
+        "pawnbroker"
+      ],
+      "Listeners": [
+        "player",
+        "player"
+      ],
       "LineFallbacks": [
         "Three times... and not a coin more.",
         "Where does it all go."
@@ -592,6 +644,14 @@
       "Lines": [
         "LWN_story_event6_l1",
         "LWN_story_event6_l2"
+      ],
+      "Speakers": [
+        "butcher",
+        "butcher"
+      ],
+      "Listeners": [
+        "player",
+        "player"
       ],
       "LineFallbacks": [
         "Broke again. Of course.",

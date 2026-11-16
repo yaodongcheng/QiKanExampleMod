@@ -48,6 +48,13 @@ namespace LivingWorldNpcs
         public int BeatCount => _script?.Beats?.Count ?? 0;
         public int NextIndex => _next;
         public float Time => _time;
+
+        /// <summary>
+        /// 时间轴闸门：返回 true 时**只保持机位、不推进台本**。
+        /// P3 用它在准备批次（StoryPrepRunner）真实 Ready 之前不许开演 ——
+        /// 准备没到位就演，演员/道具会在观众眼前凭空位移（2026-11-15 复核）。
+        /// </summary>
+        public Func<bool> HoldWhile;
         public IEnumerable<string> AnchorNames => _anchors.Keys;
 
         // ═══════════════════════════════════════════════════════════════
@@ -186,6 +193,12 @@ namespace LivingWorldNpcs
                 _readyWait += dt;
                 if (_readyWait > StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec) Stop("actor readiness timeout");
                 return; // 演员尚未 OnStart：不推进台本、不冻结玩家、不写演员身体。
+            }
+            // 准备批次没 Ready 之前不推进时间轴（机位/持有关系保持，但不播下一拍）。
+            if (HoldWhile != null && HoldWhile())
+            {
+                _readyWait += dt;
+                return;
             }
             _time += dt;
 
@@ -391,8 +404,10 @@ namespace LivingWorldNpcs
             if (!OwnsActor(b.Actor)) throw new InvalidOperationException("actor_say without active performance: " + b.Actor);
             string text = LWNTextHelper.ResolveText(b.TextKey, b.Note ?? "");
             if (string.IsNullOrEmpty(text)) return;
-
-            SpeechChannel.Say(agent, text);
+            var listener = _host.ResolveSpeechListener(b.Listener);
+            if (!AgentControlHelper.SafeIsActive(listener) || listener == agent || listener.Health <= 0f)
+                throw new InvalidOperationException("actor_say listener unavailable: " + b.Listener);
+            _host.SayOnAgent(agent, b.TextKey, b.Note ?? "", listener: listener, forwardToNearby: true);
             DebugLogger.Log($"[StoryStage] #{index} actor_say '{b.Actor}'");
         }
 

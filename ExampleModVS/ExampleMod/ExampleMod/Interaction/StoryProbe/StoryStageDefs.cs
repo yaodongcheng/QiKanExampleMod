@@ -40,6 +40,9 @@ namespace LivingWorldNpcs
         /// <summary>actor_say 的本地化键。</summary>
         public string TextKey;
 
+        /// <summary>actor_say 的真实听话者：player 或已登记 NPC ID。</summary>
+        public string Listener;
+
         /// <summary>prop_spawn 的预制品名（必须是本场景已加载的）。</summary>
         public string Prefab;
 

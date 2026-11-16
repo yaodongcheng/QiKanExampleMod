@@ -123,6 +123,8 @@ public static class ResetCrimeDialogueOnConversationEndPatch
 
 ## KCD2 式轮次对话
 
+**历史实现：**下述`StoryDialogVM`路径已废弃，不再接新功能。现行NPC开场、连续台词与真实人物切换复用[原版轮次扩展](#npc-native-turns)。
+
 **所有 NPC 交互统一流程**：NPC 先说开场白（右侧无选项）→ 玩家点"继续" → 选项出现。
 
 ```csharp
@@ -284,7 +286,7 @@ public class DialogueNode {
     public string Id = "injectedStart";
     public string NpcLine;                        // NPC 台词唯一入口
     public Func<string> LazyNpcLine;              // 惰性求值（设置后覆盖 NpcLine）
-    public List<DialogueTransition> Transitions;  // [] = terminal, null = 非法
+    public List<DialogueTransition> Transitions;  // 无NextNode时[] = terminal；null = 非法
 }
 
 public class DialogueTransition {
@@ -303,6 +305,8 @@ public class DialogueTransition {
 - **CheckType.SkillCheck**：桥接 token + 3 条 silent DialogLine（成功/失败/安全网）→ 目标 Node
 
 ### JSON 格式（v2）
+
+**格式边界：**以下是通用注入器旧示例，不是511正式维护格式。511仅维护`story_dialogue/2`的9份`.dialog.json`，经适配器转成注入器对象；详见[原版轮次扩展](#npc-native-turns)。不要把`NpcLine/Transitions`等旧字段写回511正式源，也不要重建旧`test_talk.json`副本。
 
 文件放在 `ModuleData/DesignData/Dialogues/*.json`。
 
@@ -487,18 +491,24 @@ nodes.Add(BuildConfessNode(r, ctx));  // NpcLine = "有什么要说的？"
 //   玩家: ①赔钱 ②狡辩 ③走人                         ← 终于有选择了
 ```
 
-### ✅ 修复：合并为一个节点
+### ✅ 修复：连续NPC句用原版继续
 
 ```csharp
-// NPC 的情绪反应和提问在同一句 NpcLine 里，直接给玩家选项
+// 一句一节点，NextNode直接接下一NPC句；不注册假玩家回应。
+nodes.Add(new DialogueNode {
+    Id = "confess_reaction",
+    NpcLine = "好，既然认了，咱们可以商量。",
+    NextNode = "confess",
+    Transitions = new List<DialogueTransition>()
+});
 nodes.Add(new DialogueNode {
     Id = "confess",
-    NpcLine = "你？！……好，既然认了，咱们可以商量。有什么要说的？",
+    NpcLine = "有什么要说的？",
     Transitions = { 赔钱 / 狡辩 / 走人 }
 });
 // 实机体验：
-//   NPC: "你？！……好，既然认了，咱们可以商量。有什么要说的？"
-//   玩家: ①赔钱 ②狡辩 ③走人                         ← 直接选
+//   NPC: "好，既然认了，咱们可以商量。" → 原版继续
+//   NPC: "有什么要说的？" → 原版继续 → 玩家真实回应
 ```
 
 ### 自查
@@ -507,7 +517,7 @@ nodes.Add(new DialogueNode {
 
 1. **这个 AckNode 的 next 指向 `continue_chat` / `farewell` / 关窗吗？** → 如果不是（比如指向另一个有实质内容的 node），**大概率是非法拆句**。
 2. **能把 AckNode 的 NpcLine 和 next 指向的那个 Node 的 NpcLine 合并成一句吗？** → 如果能合并且不失自然，**就不该拆**。
-3. **这个"…"是玩家在确认收到信息（OK），还是 NPC 还没说完话？** → 前者合法，后者必须合并。
+3. **这个"…"是玩家在确认收到信息（OK），还是 NPC 还没说完话？** → 前者须改成真实回应，后者用节点级`NextNode`接下一句，不能合并多句。
 
 
 ---
@@ -697,3 +707,98 @@ if (script != null) DialogueInjector.InjectScript(script, "AlertL3_NpcName");
 **裁定（用户 2026-08-28）**：整段注释禁用，保留代码供恢复。若复仇队等特殊场景需要「杂兵→队长」重定向，放**该场景自身调用链**做特判，不进普适入口。恢复前先重读本条目。
 
 **文件位置**：`Interaction/Dialogue/ConversationEntryPatch.cs`（Prefix，两段：`partnerChar` 重定向 + `q` 重建分支，均已注释）
+
+---
+
+<a id="npc-native-turns"></a>
+
+## 连续NPC台词与真实说话者／听话者（2026-11-16，用户批准登记）
+
+**复用结论：**NPC每句一个节点，由原版继续按钮推进；说话者和听话者绑定真实参与者。通用执行能力已接入`DialogueInjector`，511正式JSON经`StoryProbeDialogue`适配使用。新增演出复用这条链，台词、人物和分支写数据。
+
+**解决的问题：**一个节点聚合多句、正文用人物前缀假装换人、假玩家选项串联独白、玩家网关抢第一句，以及第三人参与后抢走主角色的交谈入口和账目归属。
+
+### 通用扩展点（真实签名）
+
+下列类型嵌套于`DialogueInjector`；运行期回调标有`JsonIgnore`，由适配层绑定，不能写成JSON脚本字符串。
+
+```csharp
+// DialogueInjector.DialogueNode 新增字段
+public string NextNode;
+[JsonIgnore] public Func<bool> RuntimeCondition;
+[JsonIgnore] public Func<bool> PrepareTurn;
+[JsonIgnore] public Func<bool> OwnsTurn;
+[JsonIgnore] public Action OnShown;
+[JsonIgnore] public ConversationSentence.OnMultipleConversationConsequenceDelegate RuntimeSpeaker;
+[JsonIgnore] public ConversationSentence.OnMultipleConversationConsequenceDelegate RuntimeListener;
+
+// DialogueInjector.DialogueTransition 新增字段
+[JsonIgnore] public bool CloseOnFailedCheck;
+[JsonIgnore] public ConversationSentence.OnMultipleConversationConsequenceDelegate RuntimeSpeaker;
+[JsonIgnore] public ConversationSentence.OnMultipleConversationConsequenceDelegate RuntimeListener;
+
+// 引擎处理下一NPC句前的通用内部入口
+internal static bool PrepareNpcTurn(ConversationManager cm);
+public static string InjectScript(DialogueInjectScript script, string debugLabel = null);
+```
+
+| 扩展点 | 职责与调用约束 |
+|---|---|
+| 节点`NextNode` | 当前NPC句的输出token直接接下一NPC句的输入token；与玩家`Transitions`互斥。没有连续边且玩家列表为空才是终句 |
+| `OwnsTurn/PrepareTurn` | 按当前input token核会话归属，再准备本句参与者。前者只查询；后者返回false则停止原版处理本句，消费者负责安全收场 |
+| `RuntimeCondition` | 展示前重新查询有效性；不得在条件、人物匹配或取文本时注册身体、执行效果 |
+| `RuntimeSpeaker/RuntimeListener` | 赋给真实`ConversationSentence.IsSpeaker/IsListener`，按`IAgent`匹配；NPC节点与玩家句均支持 |
+| `OnShown` | 真实NPC sentence consequence调用；消费者核会话和运行token、去重，再提交进入效果与动作。不能把查询次数当进入次数 |
+| `CloseOnFailedCheck` | 为true时，检定失败且失败目标为空直接关闭；其他消费者保留原成功目标回落行为 |
+
+**原版生命周期：**`PrepareInjectedNpcTurnPatch`在`ProcessPartnerSentence`之前调用上述入口。额外NPC使用`ConversationManager.AddConversationAgents(IEnumerable<IAgent>, bool setActionsInstantly)`登记，接受原版开始/结束回调。初始第三人加入必须晚于原版启动日志及原主对手开始回调，不能提前破坏`OneToOneConversationCharacter`；多人后`OneToOneConversationAgent`可能为空，归属与收尾应核参与者名单。
+
+### 511适配范本（正式数据的节点节选）
+
+此示例来自[门岗唯一维护源](../../../ModuleData/DesignData/Dialogues/gate_interrogation.dialog.json)，不是独立可加载的完整定义。根字段、触发和合法入口在原文件维护。
+
+```json
+{
+  "Id": "blocker_first_line1",
+  "Speaker": "questioner",
+  "Listener": "player",
+  "TextKey": "LWN_story_blocker_first_line1",
+  "TextKeyZh": "通行文书。",
+  "LineActions": ["act_conversation_aggressive_trivial"],
+  "NextNode": "blocker_first",
+  "Options": []
+}
+```
+
+- **正式解析：**`StoryDialogueDefs`按`story_dialogue/2`严格检查必填人物、引用、连续环、连续边与玩家选项互斥；511仅接受`SkipVanillaOpening=true`。正文不署名、不硬换行；每句最多一个动作，中文审阅字段保留。
+- **人物解析：**`StoryProbeDialogue.BuildFilteredFromDefinition(StoryDialogueDef def, StoryDialogueSession session, string npcId)`构建注入器对象；`ResolveTurnAgent(StoryDialogueSession session, string identity)`解析`player`、已声明的`npc/questioner`别名和`Actors`实名ID。通用注入器本身不解析这些正式字符串。
+- **入口和归属：**`EntryActors`仅允许入口与业务所属演员，`Actors`登记所有参与演员；`StoryDialogueResolver.FindDialogueForActor`按前者找入口。`npc/questioner`绑定`Request.ActorId`，不因每句换人改变账目归属。门岗允许两个入口演员，实际质问人仍由岗位AI选择。
+- **会话保护：**511的`PrepareTurn(StoryDialogueSession session, StoryDialogueNodeDef node)`核存活、血量、捆缚、击晕、特殊状态、战斗和其他演出占用，加入本句及玩家选项所需NPC；不可用则安全结束，不替换成别人代说。玩家提交时再次核人物与条件；`AgentBrain`暂停原版会话参与者的日常Tick，保留队列，散场后继续。
+- **效果时机：**真实`OnShown`经`StoryDialogueRuntime.NotifyNodeShown`提交`OnEnter`，再给实际Speaker播动作。拆句保留旧节点ID、原效果和原选项在链末，前句只放台词、人物、动作与连续边；中途离开不得提前接受任务或领奖。搬动效果之前须解决稳定效果身份，不能破坏旧收据。
+
+### 复用边界与验证状态
+
+**已实施并离线验证：**9份正式源303个单句节点；43项基础检查、28项进度检查、14项真实解析/加载/入口选择检查通过；正式体检与中文审阅一致性通过；1.2.12／1.5.7隔离编译均0错误、0警告。该轮结果与完整实机步骤见[511总纲§16.19](../../逆水寒511/逆水寒511-总纲与实施计划.md)。
+
+**实机待验：**NPC第一句、连续点击、真实人物/镜头/动作、多方收尾和普通犯罪对话兼容。离线宿主替身与编译通过不代表游戏验收；浏览器观感同样未验。新消费者必须自己提供会话归属、人物解析、有效性守卫、回调去重和安全收尾，不能只填正文。
+
+**未由本轮解决：**独立稳定效果实例身份、完整资源事务与不可逆边界、委托通用结算、岗位与布局消费者、空间验收和NPC个人闭环仍按总纲待办处理。
+
+### 已有诊断命令（游戏控制台，逐条用途）
+
+| 完整指令 | 作用与使用时机 | 状态影响与应观察结果 |
+|---|---|---|
+| `custom.story_probe dialogue tree` | 修改正式源后查询全部对话数据的图校验 | 只读；不移动、不改配置/剧情/财物；本轮基准9文件、303节点，无错误 |
+| `custom.story_probe reload` | 结束活动对话后重读Cast/Tuning、清Stage缓存，并尝试发布正式定义 | 更新内存配置；不搬NPC、不重置剧情/财物；查看发布结果，坏新版保留旧定义，后续会话用成功发布版本 |
+| `custom.story_probe dialogue turns gate_interrogation` | 查询已发布定义的逐句结构；参数是稳定DialogueId，可换为其他已发布ID | 只读，不触发质问；应显示Speaker/Listener、next与选项数；门岗首句next=blocker_first、options=0 |
+| `custom.story_probe dialogue trace` | 对话中查询当前句和原版真实人物，散场后查询最后会话 | 只读，不推进句子、不改位置/配置/剧情/财物；对照speaker/listener与nativeSpeaker/nativeListener；散场后原版人物可能已清空 |
+
+### 源码归属
+
+源码路径均相对`ExampleModVS/ExampleMod/ExampleMod/`：
+
+- `Interaction/Dialogue/DialogueInjector.cs`：通用连续边、人物delegate、展示回调和准备钩子。
+- `Interaction/StoryProbe/StoryProbeDialogue.cs`：511正式定义适配、人物准备、会话保护与安全收尾。
+- `Interaction/StoryProbe/StoryDialogueDefs.cs`、`StoryDialogueFacts.cs`、`StoryDialogueRuntime.cs`：正式解析、入口选择、会话提交与诊断。
+- `Interaction/StoryProbe/StoryLineActions.cs`、`AI/AgentBrain.cs`：真实Speaker单句动作与会话期间行为保护。
+- `CampaignMode/Tools/StoryProbeCommands.cs`：逐句结构和真实人物诊断。

@@ -5,7 +5,7 @@ description: 给剧情 NPC 的**每一句台词配一个原版动作**，并保�
 
 # 台词配动作 — 入口
 
-> **一句话**：台词动作是**数据**（对话节点里的 `NpcActions` 字段），不是代码；
+> **一句话**：台词动作是**数据**（唯一对话源 `Dialogues/*.dialog.json` 节点里的 `LineActions` 字段），直接维护定稿；
 > 每一个动作都必须能通过本技能的闸门（离线体检 + 游戏内探针）。
 
 ## 🔴 唯一的硬约束
@@ -51,18 +51,26 @@ python Scripts/gen_line_actions.py            # 会打印生成结果与兜底�
 
 ### ② 写
 
-对话节点里的 `NpcActions` 字段：
+对话节点里的 `LineActions` 字段（以下为节点局部示例，其他字段保留）：
 
-```jsonc
+```json
 {
-  "LWN_story_pawnbroker_intro": ["act_conversation_closed_trivial", "act_conversation_closed_trivial", ""],
+  "Id": "pawnbroker_intro_line1",
+  "Speaker": "npc",
+  "Listener": "player",
+  "TextKey": "LWN_story_pawnbroker_intro_line1",
+  "TextKeyZh": "买东西？",
+  "LineActions": ["act_conversation_closed_trivial"],
+  "NextNode": "pawnbroker_intro_line2",
+  "Options": []
 }
 ```
 
-🔴 **数组长度必须等于这句台词的中文行数**（第 i 个动作配第 i 行）；`""` = 这行不配（玩家说话 / 旁白）。
-运行期：`SayOnAgent` 播这条台词时，按行依次延迟 2.2 秒播动作。
+一句一个节点，最多配一个动作；`""`表示这句不配。真实句子展示时为结构`Speaker`播放动作，下一句由原版继续推进，不再靠2.2秒定时连播。动作初稿助手从结构人物与Cast查身份，不从台词前缀猜角色。
 
 改完 `custom.story_probe reload` 生效（不用重编）。
+
+建议结束当前剧情对话后使用：重读Cast/Tuning、清Stage缓存并尝试发布正式对话，不重置剧情进度或财物，不重新生成或移动演员；当前会话继续使用旧定义。观察返回的对话发布报告；失败保留旧定义。布局仍按专用入口退场重进。维护与验证的完整路径命令见511总纲需求§22.4。
 
 ### ③ 验（两条都得绿）
 

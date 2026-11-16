@@ -1,0 +1,65 @@
+{
+  "_comment": "P0-D.1 正样例补充（2026-11-16）：与 DIALOGUE_OK_gate.json 同构，但带上 *Zh 中文审核注释（根 EntryOptionZh / 节点 TextKeyZh / 选项 PlayerKeyZh）。用途 = 守住解析器白名单：这三处一旦漏放行，新格式就是 unknown_key → 装载器整批不发布，游戏里一句剧情对话都进不去。",
+  "Schema": "story_dialogue/2",
+  "DialogueId": "gate_interrogation",
+  "ContentVersion": 1,
+  "Participants": [
+    "questioner",
+    "player"
+  ],
+  "Actors": [
+    "blocker",
+    "gate_sentry"
+  ],
+  "EntryOption": "LWN_story_blocker_entry",
+  "EntryOptionZh": "[说两句] 让一让，我要进城。",
+  "Triggers": [
+    {
+      "Id": "player_talk",
+      "Source": "player",
+      "Purpose": "talk",
+      "Conditions": [],
+      "Rank": [],
+      "CooldownSec": 0.0,
+      "ReentrySec": 0.0,
+      "OnCancel": "close"
+    }
+  ],
+  "Entries": [
+    {
+      "Id": "later_talk",
+      "Trigger": "player_talk",
+      "Conditions": [],
+      "Priority": 50,
+      "Node": "blocker_open"
+    }
+  ],
+  "Nodes": [
+    {
+      "Id": "blocker_open",
+      "Speaker": "questioner",
+      "TextKey": "LWN_story_blocker_open",
+      "TextKeyZh": "通行文书。没有就滚远点。",
+      "LineActions": [],
+      "Requires": [],
+      "Options": [
+        {
+          "Id": "draw",
+          "PlayerKey": "LWN_story_blocker_opt_draw",
+          "PlayerKeyZh": "[硬闯] 今天这门我非进不可。",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "",
+          "Speaker": "player",
+          "Listener": "questioner"
+        }
+      ],
+      "Listener": "player"
+    }
+  ],
+  "SkipVanillaOpening": true,
+  "EntryActors": [
+    "blocker",
+    "gate_sentry"
+  ]
+}

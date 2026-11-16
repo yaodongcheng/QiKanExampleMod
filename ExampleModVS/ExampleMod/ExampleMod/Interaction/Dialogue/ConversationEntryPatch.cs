@@ -786,6 +786,10 @@ namespace LivingWorldNpcs
 
                 var heroObject = (effectiveAgent?.Character as CharacterObject)?.HeroObject;
                 ConversationEntryPatch.TryInjectCrimeDialogue(heroObject, effectiveAgent);
+                // 🔴 511 走的是这条路（MissionConversationLogic.StartConversation），不是战役地图那条
+                //    （CampaignMapConversation.OpenConversation）：入口节点的进入效果必须在这里提交，
+                //    否则 blocker_first 的 mark met 永远不落实。两者互斥，且 OnConversationStarted 幂等。
+                StoryProbeDialogue.OnConversationStarted();
             }
             catch (Exception ex)
             {

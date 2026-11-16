@@ -290,7 +290,8 @@
       "LineFallbacks": [
         "Pawning or looking for a way in?",
         "Fair interest. I do not cheat strangers."
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "NpcId": "widow",
@@ -305,7 +306,8 @@
       "LineFallbacks": [
         "Show is starting!",
         "Stand back from the stage, please!"
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "NpcId": "son",
@@ -320,7 +322,8 @@
       "LineFallbacks": [
         "Psst.",
         "Do not stand there."
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "NpcId": "butcher",
@@ -336,7 +339,8 @@
       "LineFallbacks": [
         "Fresh.",
         "Buy or move on."
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "NpcId": "blocker",
@@ -351,7 +355,8 @@
       "LineFallbacks": [
         "Halt.",
         "Pass papers."
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "NpcId": "thug",
@@ -366,7 +371,8 @@
       "LineFallbacks": [
         "Pay up.",
         "Late again this month?"
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "NpcId": "debtor",
@@ -381,7 +387,8 @@
       "LineFallbacks": [
         "Not paid today? Doubles tomorrow.",
         "Where is my money?"
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "NpcId": "rival",
@@ -396,7 +403,8 @@
       "LineFallbacks": [
         "The stage is on the street. Anyone can play.",
         "Move your crowd, old woman."
-      ]
+      ],
+      "Listener": "player"
     },
     {
       "NpcId": "outlaw",
@@ -409,7 +417,8 @@
       ],
       "LineFallbacks": [
         "Keep walking."
-      ]
+      ],
+      "Listener": "player"
     }
   ],
   "ItemAliases": {},
@@ -440,6 +449,18 @@
       "ActionB": [
         "act_bullied",
         "act_bartender_wipe"
+      ],
+      "Speakers": [
+        "thug",
+        "pawnbroker",
+        "thug",
+        "pawnbroker"
+      ],
+      "Listeners": [
+        "pawnbroker",
+        "thug",
+        "pawnbroker",
+        "thug"
       ]
     },
     {
@@ -466,6 +487,16 @@
       "ActionB": [
         "act_conversation_threat_point",
         "act_argue_soft_1"
+      ],
+      "Speakers": [
+        "thug",
+        "butcher",
+        "thug"
+      ],
+      "Listeners": [
+        "butcher",
+        "thug",
+        "butcher"
       ]
     },
     {
@@ -494,6 +525,18 @@
       "ActionB": [
         "act_argue_2",
         "act_applaud_3"
+      ],
+      "Speakers": [
+        "widow",
+        "rival",
+        "widow",
+        "rival"
+      ],
+      "Listeners": [
+        "rival",
+        "widow",
+        "rival",
+        "widow"
       ]
     },
     {
@@ -520,6 +563,16 @@
       "ActionB": [
         "act_bullied",
         "act_beggar_idle"
+      ],
+      "Speakers": [
+        "pawnbroker",
+        "son",
+        "pawnbroker"
+      ],
+      "Listeners": [
+        "son",
+        "pawnbroker",
+        "son"
       ]
     },
     {
@@ -539,6 +592,14 @@
       "ActionA": [
         "act_bar_talk_to_2",
         "act_citizen_cleanup_idle"
+      ],
+      "Speakers": [
+        "pawnbroker",
+        "pawnbroker"
+      ],
+      "Listeners": [
+        "player",
+        "player"
       ]
     },
     {
@@ -558,6 +619,14 @@
       "ActionA": [
         "act_citizen_cleanup",
         "act_bartender_meat"
+      ],
+      "Speakers": [
+        "butcher",
+        "butcher"
+      ],
+      "Listeners": [
+        "player",
+        "player"
       ]
     }
   ]

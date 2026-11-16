@@ -62,6 +62,24 @@ namespace LivingWorldNpcs
             if (_stage == null) _stage = new StoryStageRunner(this);
             return _stage;
         }
+
+        /// <summary>
+        /// 调试：跳过演出。准备期跳过 = 先把布景/摆人当场做完并判定，再交还控制，
+        /// 不再播开场（准备没齐则直接判失败，不假装 ready）。
+        /// </summary>
+        public string SkipStage()
+        {
+            string prepState = "n/a";
+            if (_prep != null)
+            {
+                _prep.Skip();
+                prepState = _prep.Ready ? "ready"
+                          : _prep.Failed ? "failed: " + _prep.Reason
+                          : "pending";
+            }
+            _stage?.Skip();
+            return prepState;
+        }
         private float _time;
 
         /// <summary>P4 岗位规则调度（数据驱动质问者与流程）；没有正式 v2 数据时为空。</summary>
@@ -71,6 +89,8 @@ namespace LivingWorldNpcs
         /// <summary>P3 准备批次（布景 + 站位 + R1～R7）。</summary>
         private StoryPrepRunner _prep;
         public StoryPrepRunner Prep => _prep;
+        /// <summary>准备失败已经处置过（停台本/发提示），只做一次。</summary>
+        private bool _prepFailureHandled;
 
         /// <summary>P4 工作点（占用/走位/工作动作/局部让位）。</summary>
         private StoryWorkDirector _work;
@@ -901,7 +921,7 @@ namespace LivingWorldNpcs
                             _nextInterceptRetryAt = _time + InterceptRetryCooldownSec;
                             return;
                         }
-                        // P0-D.2/P4：入口与流程都由数据裁决；未发布定义时由旧 PickEntryNode 兜底。
+                        // P0-D.2/P4：入口与流程都由正式定义裁决；未发布定义时拒绝开剧情窗口。
                         if (!string.IsNullOrEmpty(behaviorId)
                             && _posts != null && _posts.BeginQuestionFlow(behaviorId, questionerId, out string flowReason))
                         {
@@ -1096,15 +1116,19 @@ namespace LivingWorldNpcs
 
             // 🔴 演出层（2026-11-13）：台本 StoryStage.json 驱动「布景 → 摆人 → 玩家出场」。
             //    起不来（文件缺/解析失败）⇒ 退回旧的硬编码偏移，保证不失能。
+            // 🔴 P3 顺序：**先准备、再开演**。准备批次（布景/摆人）没 Ready 之前，
+            //    台本时间轴被 HoldWhile 闸住，不许“演员还没站位就开始演”。
             _stage ??= new StoryStageRunner(this);
-            bool staged = _stage.Begin("StoryStage");
-
-            // P3：开场镜头切下来之后，按 v2 唯一布局布景、摆人；v1 台本里同 id 的 prop_spawn 会被跳过。
-            if (staged)
+            _prepFailureHandled = false;
+            _prep = new StoryPrepRunner(this);
+            if (!_prep.Begin("second_meet"))
             {
-                _prep = new StoryPrepRunner(this);
-                _prep.Begin("second_meet");
+                // v2 数据缺失 = 这套布局功能本身不可用 → 退回旧的硬编码偏移（不是“准备失败还照常演”）。
+                DebugLogger.Log("[StoryProbe] prep unavailable, fallback layout: " + _prep.Reason);
+                _prep = null;
             }
+            bool staged = _stage.Begin("StoryStage");
+            _stage.HoldWhile = () => _prep != null && !_prep.Ready && !_prep.Failed;
 
             // 四家代表（表里有委托的那些）—— 台本/准备批次已排过位的跳过，避免"先站一次再被挪一次"的闪烁
             foreach (var def in StoryProbeDefs.Representatives)
@@ -1156,6 +1180,21 @@ namespace LivingWorldNpcs
         {
             var player = Agent.Main;
             _prep?.Tick(dt);
+
+            // 🔴 准备失败 ⇒ 不许照常开演：停台本、交还机位与玩家，按普通市井继续。
+            if (_prep != null && _prep.Failed && !_prepFailureHandled)
+            {
+                _prepFailureHandled = true;
+                _stage?.Stop("prep failed: " + _prep.Reason);
+                DebugLogger.Log("[StoryProbe] prep FAILED, performance cancelled: " + _prep.Reason);
+                try
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveText("LWN_story_prep_failed",
+                            "The stage is not ready — the scene goes on without the show.")));
+                }
+                catch { }
+            }
 
             if (_stage?.Active == true) return; // 镜头演出占用期间不识破、不开战、不判通关。
             _work?.Tick(dt);
@@ -1708,30 +1747,33 @@ namespace LivingWorldNpcs
 
                 // 🔴 P0-D.3（2026-11-15）：所有非显式入口都走**同一请求入口** —— 触发器冷却、遭遇去重、
                 //    入口裁决、会话编号与取消令牌都在 StoryDialogueRuntime 里；这里只负责把结果交给注入器。
-                //    已有发布定义但请求被拒 = 明确拒绝，不回落旧 PickEntryNode 假装正确。
-                if (string.IsNullOrEmpty(entryNode))
+                //    已有发布定义但请求被拒 = 明确拒绝，不回落旧文件猜入口。
+                string resolvedId = !string.IsNullOrEmpty(dialogueId)
+                    ? dialogueId : StoryDialogueResolver.FindDialogueForActor(npcId, triggerId);
+                if (string.IsNullOrEmpty(resolvedId))
                 {
-                    string resolvedId = !string.IsNullOrEmpty(dialogueId)
-                        ? dialogueId
-                        : StoryDialogueResolver.FindDialogueForActor(npcId, triggerId);
-                    if (!string.IsNullOrEmpty(resolvedId))
-                    {
-                        if (!StoryDialogueRuntime.TryRequest(resolvedId, triggerId, npcId, null, null,
-                                out var session, out string reason))
-                        {
-                            DebugLogger.Log($"[StoryDialogue] request rejected dialogue={resolvedId} trigger={triggerId} actor={npcId}: {reason}");
-                            return;
-                        }
-                        if (!StoryDialogueRuntime.ConfirmForOpen(session, out reason))
-                        {
-                            StoryDialogueRuntime.CancelSession(reason);
-                            DebugLogger.Log($"[StoryDialogue] request {session.Request.Id} cancelled before open: {reason}");
-                            return;
-                        }
-                        entryNode = session.Entry.Node;
-                        DebugLogger.Log($"[StoryDialogue] request {session.Request.Id} session {session.Id} entry={entryNode} actor={npcId}");
-                    }
+                    DebugLogger.Log($"[StoryDialogue] no definition for actor={npcId} trigger={triggerId}; conversation skipped");
+                    return;
                 }
+                if (!StoryDialogueRuntime.TryRequest(resolvedId, triggerId, npcId, null, null,
+                        out var session, out string reason))
+                {
+                    DebugLogger.Log($"[StoryDialogue] request rejected dialogue={resolvedId} trigger={triggerId} actor={npcId}: {reason}");
+                    return;
+                }
+                if (!string.IsNullOrEmpty(entryNode) && entryNode != session.Entry.Node)
+                {
+                    StoryDialogueRuntime.CancelSession("requested node differs from resolved entry");
+                    return;
+                }
+                if (!StoryDialogueRuntime.ConfirmForOpen(session, out reason))
+                {
+                    StoryDialogueRuntime.CancelSession(reason);
+                    DebugLogger.Log($"[StoryDialogue] request {session.Request.Id} cancelled before open: {reason}");
+                    return;
+                }
+                entryNode = session.Entry.Node;
+                DebugLogger.Log($"[StoryDialogue] request {session.Request.Id} session {session.Id} entry={entryNode} actor={npcId}");
 
                 StoryProbeDialogue.PendingEntryNode = entryNode;
                 // 「见过」由对话节点的 mark:met 动作标记 —— 在注入前统一标会让入口永远跳到 _hub，看不到 intro。
@@ -1759,27 +1801,31 @@ namespace LivingWorldNpcs
             }
         }
 
+        public Agent ResolveSpeechListener(string identity)
+            => identity == "player" ? Agent.Main : GetAgent(identity ?? "");
+
         public void SayLine(string npcId, string key, string fallback, SpeechPriority priority = SpeechPriority.Chat)
         {
             var agent = GetAgent(npcId);
             if (agent == null) return;
             try
             {
-                SpeechChannel.Say(agent, LWNTextHelper.ResolveText(key, fallback), priority,
-                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), Agent.Main, "story", null),
-                    0f, false);
+                SayOnAgent(agent, key, fallback, priority);
             }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] SayLine({npcId}) failed: {ex.Message}"); }
         }
 
-        public void SayOnAgent(Agent agent, string key, string fallback, SpeechPriority priority = SpeechPriority.Chat)
+        public void SayOnAgent(Agent agent, string key, string fallback, SpeechPriority priority = SpeechPriority.Chat,
+            Agent listener = null, bool forwardToNearby = false)
         {
             if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
             try
             {
+                listener = listener ?? Agent.Main;
+                if (!AgentControlHelper.SafeIsActive(listener) || listener == agent || listener.Health <= 0f) return;
                 SpeechChannel.Say(agent, LWNTextHelper.ResolveText(key, fallback), priority,
-                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), Agent.Main, "story", null),
-                    0f, false);
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), listener, "story", null, listener),
+                    0f, forwardToNearby);
 
             }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] SayOnAgent failed: {ex.Message}"); }

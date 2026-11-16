@@ -1084,10 +1084,12 @@ namespace LivingWorldNpcs
         }
         public static void FaceToActor(Agent turnAgent, Agent targetAgent)
         {
-            //计算两个人的位置差向量
-            Vec3 direction = targetAgent.Position - turnAgent.Position;
+            if (!SafeIsActive(turnAgent) || !SafeIsActive(targetAgent) || turnAgent == targetAgent) return;
+            // 身体只取水平向量；同点或上下重叠时保留朝向，避免零向量让引擎自行转回。
+            Vec2 direction = (targetAgent.Position - turnAgent.Position).AsVec2;
+            if (direction.LengthSquared < 0.0001f) return;
             direction.Normalize();
-            turnAgent.SetMovementDirection(direction.AsVec2);
+            turnAgent.SetMovementDirection(direction);
 
         }
         public static string GetPartyInfo(Hero targetHero)
