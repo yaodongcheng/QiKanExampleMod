@@ -104,6 +104,11 @@ namespace LivingWorldNpcs
 
 		private bool _active;
 		private bool _handingBack;
+		// 剧情机位仍由本机器推进；跨眼高/锚点语义必须插实际帧。
+		private bool _poseBlending, _poseHandBack;
+		private MatrixFrame _poseFromFrame, _poseTargetFrame, _poseLastFrame;
+		private float _poseFromFov, _poseTargetFov;
+		public bool PoseBlending => _poseBlending || _poseHandBack;
 
 		// ── "看"（世界口径的 yaw/pitch，度）──
 		private float _lookYaw, _lookPitch;
@@ -208,6 +213,7 @@ namespace LivingWorldNpcs
 			_anchorLogged = false;
 			_pivotZInit = false;
 			_engineAtTakeover = engine;      // 归还渐变的终点（见字段注释）
+			_poseBlending = _poseHandBack = false;
 
 			_target = kase.Param;
 			if (kase.Seed == CameraSeed.Engine)
@@ -394,6 +400,58 @@ namespace LivingWorldNpcs
 
 		// ═════════════════════════════ 每帧 ═════════════════════════════
 
+		/// <summary>从此刻呈现的相机帧起步，完整插值位置/旋转/FOV；新机位只解算一次。</summary>
+		public bool BlendPose(CameraCase kase, Agent speaker, Agent listener, Vec3 anchor, float seconds)
+		{
+			if (!(ScreenManager.TopScreen is MissionScreen screen) || Mission.Current?.MainAgent == null)
+			{ DebugLogger.Log("[CamSvc] pose blend 拒绝：TopScreen 不是 MissionScreen，或 MainAgent 还没生成"); return false; }
+			if (kase == null || float.IsNaN(seconds) || float.IsInfinity(seconds) || seconds < 0f)
+			{ DebugLogger.Log($"[CamSvc] pose blend 拒绝：case={kase?.Id ?? "null"} seconds={seconds}"); return false; }
+			var view = Mission.Current.GetMissionBehavior<SpringArmCameraView>();
+			if (view == null || !view.EnsureCameraEntity() || view.Camera == null)
+			{ DebugLogger.Log("[CamSvc] pose blend 拒绝：SpringArmCameraView/相机实体还没就位"); return false; }
+			Camera shown = screen.CustomCamera ?? screen.CombatCamera;
+			if (shown == null)
+			{ DebugLogger.Log("[CamSvc] pose blend 拒绝：CustomCamera 与 CombatCamera 都还是空"); return false; }
+			MatrixFrame from = shown.Frame;
+			float fromFov = shown.GetFovVertical() * RadToDeg;
+			Agent target = kase.AttachType == "Speaker" ? speaker : kase.AttachType == "Listener" ? listener : Agent.Main;
+			if (target == null)
+			{ DebugLogger.Log($"[CamSvc] pose blend 拒绝：机位 '{kase.Id}' 的锚点角色为空（AttachType={kase.AttachType}）"); return false; }
+			SpringArmCameraParam p = kase.Param;
+			// 与旧静态模板的角色相对语义一致；这里不把方向换成世界角。
+			p.IsAnchorWorld = false;
+			SpringArmMath.ComputeFrame(target, in p, out MatrixFrame to, out float toFov);
+			if (!PoseBlending)
+			{
+				var policy = new CameraReturnPolicy { WriteBackLookOnRelease = true, ClearSpecial = true };
+				if (!Start(kase, Agent.Main, 0f, policy, "pose blend"))
+				{ DebugLogger.Log($"[CamSvc] pose blend 拒绝：Start 失败（case={kase.Id}，见 TryBuildEngineCameraParam 那条日志）"); return false; }
+			}
+			_case = kase;
+			_caseName = kase.Id;
+			_poseFromFrame = _poseLastFrame = from;
+			_poseTargetFrame = to;
+			_poseFromFov = fromFov;
+			_poseTargetFov = toFov;
+			_poseBlending = true;
+			_poseHandBack = false;
+			_handingBack = _lookReturning = false;
+			_active = true;
+			_blendT = seconds <= 0f ? 1f : 0f;
+			_blendDur = Math.Max(0.01f, seconds);
+			WritePoseFrame();
+			DebugLogger.Log($"[FollowCam] pose blend case={kase.Id} seconds={seconds:F2} from=({from.origin}) to=({to.origin})");
+			return true;
+		}
+
+		private void WritePoseFrame()
+		{
+			float t = SpringArmMath.Ease(_blendT);
+			_poseLastFrame = MatrixFrame.Slerp(_poseFromFrame, _poseTargetFrame, t);
+			WriteCamera(_poseLastFrame, _poseFromFov + (_poseTargetFov - _poseFromFov) * t);
+		}
+
 		/// <summary>
 		/// 每帧推进（**由 <see cref="CameraService"/> 无条件调用**：没接管时也要跑，因为撒手后的
 		/// 诊断采样挂在这里）。相机出错**绝不能拖垮任务** —— 出错就立刻还给引擎。
@@ -417,6 +475,12 @@ namespace LivingWorldNpcs
 
 			try
 			{
+				if (_poseBlending)
+				{
+					_blendT = Math.Min(1f, _blendT + dt / _blendDur);
+					WritePoseFrame();
+					return;
+				}
 				// ① 推进渐变（臂长 / FOV / Socket …）
 				if (_handingBack)
 				{
@@ -468,6 +532,8 @@ namespace LivingWorldNpcs
 				// ④ 归还：臂长走完 + 方向跟平 ⇒ 撒手
 				if (_handingBack && _handT >= 1f)
 				{
+					// 最后一帧必须已呈现归还终点，不能在插值还没到1时释放。
+					if (_poseHandBack) WriteCurrentFrame(dt);
 					if (_policy.WriteBackLookOnRelease)
 					{
 						// 🔴 **延后写回**的调用方（钩索拉拽）两条都不等，但**要等两件事**：
@@ -549,6 +615,13 @@ namespace LivingWorldNpcs
 				// 固定高度修正（`custom.cam lift` 标定用；0 = 不修）
 				if (CameraLiftMeters != 0f)
 					frame.origin.z += CameraLiftMeters;
+				if (_poseHandBack)
+				{
+					float t = SpringArmMath.Ease(_handT);
+					frame = MatrixFrame.Slerp(_poseFromFrame, frame, t);
+					fovDeg = _poseFromFov + (fovDeg - _poseFromFov) * t;
+					_poseLastFrame = frame;
+				}
 
 				_lastDt = dt;
 				LogFollowTick(_agent, frame, view);
@@ -633,6 +706,12 @@ namespace LivingWorldNpcs
 
 			try
 			{
+				if (PoseBlending)
+				{
+					forward = (-_poseLastFrame.rotation.u).NormalizedCopy();
+					right = _poseLastFrame.rotation.s.NormalizedCopy();
+					return true;
+				}
 				Mat3 m = Mat3.Identity;
 				m.RotateAboutUp(_current.ArmYaw * DegToRad);
 				m.RotateAboutSide(_current.ArmPitch * DegToRad);
@@ -877,6 +956,19 @@ namespace LivingWorldNpcs
 		/// </summary>
 		private void BeginHandBack(float blendSeconds)
 		{
+			if (_poseBlending)
+			{
+				_poseFromFrame = _poseLastFrame;
+				float t = SpringArmMath.Ease(_blendT);
+				_poseFromFov += (_poseTargetFov - _poseFromFov) * t;
+				_poseBlending = false;
+				_poseHandBack = true;
+				_target = _current = _engineAtTakeover;
+				_lookYaw = _engineAtTakeover.ArmYaw;
+				_lookPitch = _engineAtTakeover.ArmPitch;
+				_lookMouse = _lookExternal = _lookReturning = false;
+				DebugLogger.Log("[FollowCam] pose return: frame blend to original engine pose; deferred look writeback");
+			}
 			_handingBack = true;
 			_handT = 0f;
 			_handHoldT = 0f;
@@ -996,6 +1088,7 @@ namespace LivingWorldNpcs
 
 			_active = false;
 			_handingBack = false;
+			_poseBlending = _poseHandBack = false;
 			_lookReturning = false;
 			_lookExternal = false;
 			_offsetsDirty = false;
@@ -1022,6 +1115,7 @@ namespace LivingWorldNpcs
 		/// </summary>
 		public void Reset()
 		{
+			_poseBlending = _poseHandBack = false;
 			_active = false;
 			_handingBack = false;
 			_lookReturning = false;
@@ -1279,6 +1373,17 @@ namespace LivingWorldNpcs
 			if (look.LengthSquared < 0.0001f)
 			{
 				try { look = agent?.LookDirection ?? Vec3.Zero; } catch { look = Vec3.Zero; }
+			}
+			// 🔴 第三级兜底（2026-11-16 实机回归）：开场镜头是在 `AfterStart` 立刻切的，
+			//    那一帧引擎还没填过 CameraFrame、玩家也还没设过 LookDirection ⇒ 前两级都是零向量，
+			//    于是 Start 失败 → 整条过渡接管失败 → 剧情场景直接起不来（硬切路径不需要这份数据，所以以前没事）。
+			//    身体朝向是此刻唯一真实存在的方向；用它当近似起点，至少保证能接管，
+			//    日志会标注走了兜底，归还精度若因此变差可据此排查。
+			if (look.LengthSquared < 0.0001f)
+			{
+				try { look = agent?.Frame.rotation.f ?? Vec3.Zero; } catch { look = Vec3.Zero; }
+				if (look.LengthSquared > 0.0001f)
+					DebugLogger.Log("[CamSvc] 引擎相机帧与朝向均未就绪，用角色身体朝向兜底（开场机位常见）");
 			}
 			if (look.LengthSquared < 0.0001f)
 				return false;

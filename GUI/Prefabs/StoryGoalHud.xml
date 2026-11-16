@@ -5,7 +5,7 @@
        "top-right"（默认）显示右上一套，"top-left" 显示左上一套；两套内容相同，只镜像定位。
        纯显示层：整棵 DoNotAcceptEvents，不吃任何输入。 -->
   <Window Id="LWN_StoryGoal">
-    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsVisible" DoNotAcceptEvents="true">
       <Children>
 
         <!-- ═══ 右上 ═══ -->
@@ -54,6 +54,8 @@
                 </Widget>
               </Children>
             </Widget>
+            <TutorialHighlightItemBrushWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                Brush="TutorialHighlightBrush" IsHighlightEnabled="@IsHighlightEnabled" IsVisible="false" DoNotAcceptEvents="true" />
           </Children>
         </Widget>
 
@@ -97,6 +99,8 @@
                 </Widget>
               </Children>
             </Widget>
+            <TutorialHighlightItemBrushWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                Brush="TutorialHighlightBrush" IsHighlightEnabled="@IsHighlightEnabled" IsVisible="false" DoNotAcceptEvents="true" />
           </Children>
         </Widget>
 

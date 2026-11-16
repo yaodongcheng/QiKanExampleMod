@@ -131,8 +131,9 @@ namespace LivingWorldNpcs
 
         // ── 调试消息全局开关（工作时打开，发布前关掉）──
         public bool ShowDebugMessages { get; set; } = true;
-        // 演出发声后的朝向采样：独立于其他调试消息，用户验收后关闭。
-        public bool ShowPerformanceFacingDebugMessages { get; set; } = true;
+        // 演出发声后的朝向采样：独立于其他调试消息。**默认关**（2026-11-16 用户反馈刷屏）；
+        // 排查朝向问题时在 config.json 打开或运行时 `custom.story_probe life debug on`。
+        public bool ShowPerformanceFacingDebugMessages { get; set; } = false;
 
         // ── 🔴🔴 临时诊断（2026-09-23，定位"建号时文本系统 NRE"用；定位完删）──
         // 逗号分隔的**补丁类名**（带 [HarmonyPatch] 那个类的名字，例：KingdomOnNewGameCreatedGuardPatch）。

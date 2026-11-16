@@ -65,16 +65,6 @@
           "Pick": "first",
           "Required": true
         },
-        "gate_entity": {
-          "Source": "entity",
-          "Value": [
-            "empire_castle_gate_outer_l2",
-            "empire_castle_gate_outer_l1",
-            "european_castle_gate_outer_l2"
-          ],
-          "Pick": "nearestToPlayer",
-          "Required": false
-        },
         "gate": {
           "Source": "entity",
           "Value": [

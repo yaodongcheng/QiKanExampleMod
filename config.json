@@ -18,7 +18,7 @@
   //    LongPressDurationMs
   // ══════════════════════════════════════════════════════════════
   "ShowDebugMessages": false,
-  "ShowPerformanceFacingDebugMessages": true,
+  "ShowPerformanceFacingDebugMessages": false,
   "DisabledPatchClasses": "",
   // ══════════════════════════════════════════════════════════════
   // 进战场「等装备网格装载」的超时（秒；0 = 关掉保险，回到引擎原行为）

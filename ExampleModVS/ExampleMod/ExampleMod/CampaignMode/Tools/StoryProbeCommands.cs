@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
@@ -155,14 +156,16 @@ namespace LivingWorldNpcs
                     case "roll":
                     {
                         string ab = Arg(args, used, 0);
-                        if (!StoryProbeDefs.TryParseAbility(ab, out StoryAbility ability))
-                            return "Usage: custom.story_probe roll charm|guile|force <0-100>";
+                        string kind;
+                        if (StoryProbeDefs.TryParseAbility(ab, out StoryAbility ability)) kind = StoryProbeDefs.AbilityId(ability);
+                        else if (StoryProbeDefs.TryParseDialogueTactic(ab, out var tactic)) kind = tactic.ToString();
+                        else return "Usage: custom.story_probe roll <charm|guile|force|NegotiationTactic> <0-100>";
                         string val = Arg(args, used, 1);
-                        if (!float.TryParse(val, out float pct))
+                        if (!float.TryParse(val, out float pct) || float.IsNaN(pct) || float.IsInfinity(pct))
                             return "Usage: custom.story_probe roll <ability> <0-100> (forced next roll)";
                         StoryProbeState.Data.RollOverride = Math.Max(0f, Math.Min(100f, pct));
-                        StoryProbeState.Data.RollOverrideAbility = StoryProbeDefs.AbilityId(ability);
-                        return $"OK: next {StoryProbeDefs.AbilityId(ability)} roll forced to {pct:F0}% (one use).";
+                        StoryProbeState.Data.RollOverrideAbility = kind;
+                        return $"OK: next {kind} roll forced to {pct:F0}% (one use).";
                     }
 
                     case "learn":
@@ -350,10 +353,16 @@ namespace LivingWorldNpcs
                             case "right":
                                 StoryGoalHudMissionView.ForcePosition = "top-right";
                                 return "OK: goal HUD position -> top-right.";
+                            case "flash":
+                                StoryGoalHudMissionView.RequestFlash = true;
+                                return "OK: goal HUD tutorial highlight requested; no story state changed.";
                             default:
                                 return $"OK: hud visible={StoryGoalHudMissionView.LastVisible} " +
                                        $"position={StoryGoalHudMissionView.LastPosition} " +
-                                       $"(usage: custom.story_probe hud on|off|auto|left|right)";
+                                       $"highlight={StoryGoalHudMissionView.LastHighlight} " +
+                                       $"fightPending={StoryProbeMissionBehavior.Current?.FirstGuardFightPending == true} " +
+                                       $"defeated={StoryProbeMissionBehavior.Current?.FirstGuardDefeated == true} " +
+                                       $"(usage: custom.story_probe hud on|off|auto|left|right|flash|status)";
                         }
                     }
 
@@ -618,12 +627,15 @@ namespace LivingWorldNpcs
                 case "status":
                     if (runner == null) return "OK: stage not started yet. Run 'custom.story_probe stage begin' to start it here.";
                     return $"OK: stage active={runner.Active} beats={runner.BeatCount} next={runner.NextIndex} t={runner.Time:F2}s " +
-                           $"anchors=[{string.Join(",", runner.AnchorNames.ToArray())}]";
+                           $"anchors=[{string.Join(",", runner.AnchorNames.ToArray())}] " +
+                           $"openingCameraReady={runner.OpeningCameraReady} cameraHolder={CameraService.Holder ?? "none"} " +
+                           $"cameraCase={CameraService.CurrentCase} returning={CameraService.IsReturning} " +
+                           $"blend={CameraService.Machine.BlendProgress:F2}";
 
                 case "list":
                 {
-                    var script = StoryStageDefs.Load("StoryStage", forceReload: true);
-                    if (script?.Beats == null) return "Error: StoryStage.json not found or empty (see log).";
+                    var script = StoryStageDefs.Load("StoryOpeningTimeline", forceReload: true);
+                    if (script?.Beats == null) return "Error: StoryOpeningTimeline.json not found or empty (see log).";
                     var sb = new System.Text.StringBuilder();
                     for (int i = 0; i < script.Beats.Count; i++)
                     {
@@ -633,6 +645,8 @@ namespace LivingWorldNpcs
                         if (!string.IsNullOrEmpty(b.Id)) sb.Append(" id=").Append(b.Id);
                         if (!string.IsNullOrEmpty(b.Prefab)) sb.Append(" pf=").Append(b.Prefab);
                         if (!string.IsNullOrEmpty(b.Case)) sb.Append(" case=").Append(b.Case);
+                        if (b.Cmd == "camera_cut" || b.Cmd == "camera_return")
+                            sb.Append(" blend=").Append(b.BlendSeconds.ToString("0.##", CultureInfo.InvariantCulture));
                         if (!string.IsNullOrEmpty(b.Anchor)) sb.Append(" @").Append(b.Anchor);
                         sb.Append("; ");
                     }
@@ -649,9 +663,9 @@ namespace LivingWorldNpcs
 
                 case "begin":
                     // 没有执行器也能建一个 —— 方便在当前场景直接重播整套布景/站位
-                    return host.EnsureStage().Begin("StoryStage")
+                    return host.EnsureStage().Begin("StoryOpeningTimeline")
                         ? "OK: stage started (freeze -> props -> cast -> camera back -> release)."
-                        : "Error: stage begin failed (StoryStage.json missing? see log).";
+                        : "Error: stage begin failed (StoryOpeningTimeline.json missing? see log).";
 
                 case "skip":
                 {
@@ -662,8 +676,8 @@ namespace LivingWorldNpcs
 
                 case "reload":
                     StoryStageDefs.ClearCache();
-                    return StoryStageDefs.Load("StoryStage", forceReload: true) != null
-                        ? "OK: StoryStage.json reloaded (takes effect on next 'stage begin')."
+                    return StoryStageDefs.Load("StoryOpeningTimeline", forceReload: true) != null
+                        ? "OK: StoryOpeningTimeline.json reloaded (takes effect on next 'stage begin')."
                         : "Error: reload failed (see log).";
 
                 case "anchor":
@@ -887,8 +901,21 @@ namespace LivingWorldNpcs
         private static string HandleLayout(string a0)
         {
             string sub = (a0 ?? "").Trim().ToLowerInvariant();
+            if (sub == "lint-file")
+            {
+                string folder = StoryProbeDataFiles.DesignDataFolder;
+                if (string.IsNullOrEmpty(folder)) return "Error: no design data folder.";
+                string path = Path.Combine(folder, "StoryScenePlan.json");
+                if (!File.Exists(path)) return "Error: StoryScenePlan.json missing.";
+                var ids = StoryLayoutParser.LoadCastIds(Path.Combine(folder, "StoryProbeCast.json"));
+                var check = StoryLayoutParser.Parse(File.ReadAllText(path), path, ids, StoryValidationMode.Formal);
+                return (check.Ok ? "OK: " : "Error: ") + "StoryScenePlan.json disk validation; "
+                    + "contentVersion=" + (check.Data?.ContentVersion ?? 0)
+                    + " issues=" + check.Issues.Count + " (published layout unchanged) "
+                    + string.Join("; ", check.Issues.Select(i => i.Path + " [" + i.Code + "]"));
+            }
             if (!string.IsNullOrEmpty(sub) && sub != "list" && sub != "verify" && sub != "snapshot" && sub != "prep")
-                return "Usage: custom.story_probe layout list|verify|snapshot|prep";
+                return "Usage: custom.story_probe layout list|verify|snapshot|prep|lint-file";
             if (sub == "prep")
             {
                 var h = StoryProbeMissionBehavior.Current;
@@ -1079,6 +1106,31 @@ namespace LivingWorldNpcs
                         + "\n  " + StoryProbeDialogue.DescribeDialogueFacing();
                 }
 
+                case "options":
+                {
+                    var session = StoryDialogueRuntime.Current;
+                    if (session == null) return "OK: no active story dialogue.";
+                    var node = session.Definition.FindNode(session.CurrentNode);
+                    if (node == null) return "OK: no shown node yet.";
+                    var lines = new List<string> { "OK: node=" + node.Id + " definition options (including condition-hidden options); previews only; no roll/effects." };
+                    foreach (var option in node.Options)
+                    {
+                        string target = option.Check?.Target;
+                        if (string.IsNullOrEmpty(target) || target == "npc" || target == "questioner") target = session.Request.ActorId;
+                        if (option.Check == null) lines.Add("  " + option.Id + " check=none hintKey=" + (option.HintKey ?? "default"));
+                        else if (StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic))
+                        {
+                            var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic);
+                            lines.Add("  " + option.Id + " resolver=SimpleCompute tactic=" + tactic
+                                + " target=" + target + " skill=" + preview?.Skill?.StringId
+                                + " player=" + preview?.PlayerAttr + " npc=" + preview?.NpcAttr
+                                + " chance=" + (preview?.Chance * 100f)?.ToString("F1") + "%"
+                                + " success=" + option.Check.Success + " fail=" + option.Check.Fail);
+                        }
+                    }
+                    return string.Join("\n", lines);
+                }
+
                 case "turns":
                 {
                     if (!StoryDialogueRegistry.TryGet(a1 ?? "", out var definition))
@@ -1096,7 +1148,7 @@ namespace LivingWorldNpcs
                            (_lastDialogueReport ?? "fixtures: run 'custom.story_probe dialogue validate'");
 
                 default:
-                    return "Usage: custom.story_probe dialogue [tree]|validate [file]|resolve <dialogueId> <triggerId> [actorId]|turns <dialogueId>|trace|status";
+                    return "Usage: custom.story_probe dialogue [tree]|validate [file]|resolve <dialogueId> <triggerId> [actorId]|turns <dialogueId>|options|trace|status";
             }
         }
 
@@ -1209,10 +1261,14 @@ namespace LivingWorldNpcs
                     beat.Cmd = "camera_cut";
                     beat.Case = Arg(args, used, 1);
                     beat.Anchor = Arg(args, used, 2);
+                    if (float.TryParse(Arg(args, used, 3), NumberStyles.Float, CultureInfo.InvariantCulture, out float cutBlend))
+                        beat.BlendSeconds = Math.Max(0f, cutBlend);
                     break;
 
                 case "camera_return":
                     beat.Cmd = "camera_return";
+                    if (float.TryParse(Arg(args, used, 1), NumberStyles.Float, CultureInfo.InvariantCulture, out float returnBlend))
+                        beat.BlendSeconds = Math.Max(0f, returnBlend);
                     break;
 
                 case "player_freeze":
@@ -1251,7 +1307,7 @@ namespace LivingWorldNpcs
                    "life status|list|force|say <speaker> <listener>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
                    "stage list|only <n>|begin|skip|reload|status|anchor | atom <name> <args> | action <npc> <act> | " +
                    "script list|status|validate [file] | population status|verify | " +
-                   "layout list|verify|snapshot|prep | intercept status | work status|list|force <npc> | group status | reload | help";
+                   "layout list|verify|snapshot|prep|lint-file | intercept status | work status|list|force <npc> | group status | reload | help";
         }
     }
 }

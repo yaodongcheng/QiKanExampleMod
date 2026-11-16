@@ -25,6 +25,14 @@ namespace LivingWorldNpcs
         private string _objective = "";
         private string _progress = "";
         private bool _showProgress;
+        private bool _isHighlightEnabled;
+
+        [DataSourceProperty]
+        public bool IsHighlightEnabled
+        {
+            get => _isHighlightEnabled;
+            set { if (_isHighlightEnabled != value) { _isHighlightEnabled = value; OnPropertyChanged(nameof(IsHighlightEnabled)); } }
+        }
         private string _titleColor = "#E8C55AFF";
         private string _progressColor = "#B9A67AFF";
 
@@ -130,6 +138,9 @@ namespace LivingWorldNpcs
 
         public static string LastPosition { get; private set; } = "top-right";
         public static bool LastVisible { get; private set; }
+        public static bool RequestFlash;
+        public static string LastObjective { get; private set; } = "";
+        public static bool LastHighlight { get; private set; }
 
         private StoryGoalHudVM _vm;
         private GauntletLayer _layer;
@@ -139,6 +150,7 @@ namespace LivingWorldNpcs
         private float _flashTimer;
         private string _lastObjective;
         private bool _forceRefresh;
+        private bool _lastFightPending, _lastDefeated;
 
         public override void OnMissionScreenInitialize()
         {
@@ -187,7 +199,17 @@ namespace LivingWorldNpcs
                 if (ForcePosition != null) ApplyPosition(ForcePosition);
                 _vm.IsVisible = show;
                 LastVisible = show;
-                if (!show) return;
+                if (!show) { ApplyFlash(false); return; }
+
+                // 战斗准备、真实败退优先到下一帧刷新，不等常规文字轮询。
+                bool fight = host?.FirstGuardFightPending == true;
+                bool defeated = host?.FirstGuardDefeated == true;
+                if (fight != _lastFightPending || defeated != _lastDefeated)
+                {
+                    _lastFightPending = fight;
+                    _lastDefeated = defeated;
+                    _forceRefresh = true;
+                }
 
                 _pollTimer += dt;
                 if (_forceRefresh || _pollTimer >= Math.Max(0.05f, _cfg.PollSec))
@@ -198,6 +220,11 @@ namespace LivingWorldNpcs
                 }
 
                 TickFlash(dt);
+                if (RequestFlash)
+                {
+                    RequestFlash = false;
+                    StartFlash();
+                }
             }
             catch (Exception ex)
             {
@@ -219,14 +246,23 @@ namespace LivingWorldNpcs
         }
 
         private void RefreshGoal()
-        {            string objective = LWNScreenGoalText.Resolve();
+        {
+            string objective = LWNScreenGoalText.Resolve();
             if (objective == _lastObjective) return;
 
             _lastObjective = objective;
             _vm.Title = LWNTextHelper.ResolveText("LWN_story_hud_title", "Get inside");
             _vm.Objective = objective;
+            LastObjective = objective;
+            DebugLogger.Log($"[StoryGoalHud] objective changed: fight={_lastFightPending} defeated={_lastDefeated} text={objective}");
+            StartFlash();
+        }
+
+        private void StartFlash()
+        {
+            // 原版教程控件收到 false→true 后自行重启原版笔刷动画。
+            ApplyFlash(false);
             _flashTimer = Math.Max(0f, _cfg.FlashSec);
-            ApplyFlash(true);
         }
 
         private void TickFlash(float dt)
@@ -238,6 +274,8 @@ namespace LivingWorldNpcs
 
         private void ApplyFlash(bool on)
         {
+            _vm.IsHighlightEnabled = on;
+            LastHighlight = on;
             _vm.TitleColor = on ? "#FFF3B0FF" : "#E8C55AFF";
             _vm.ProgressColor = on ? "#FFF3B0FF" : "#B9A67AFF";
         }
@@ -257,6 +295,8 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[StoryGoalHud] finalize failed: {ex.Message}");
             }
             _vm = null;
+            LastVisible = LastHighlight = false;
+            RequestFlash = false;
             base.OnMissionScreenFinalize();
         }
     }

@@ -29,7 +29,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-TEXT_FIELDS = ("EntryOption", "TextKey", "PlayerKey")
+TEXT_FIELDS = ("EntryOption", "TextKey", "PlayerKey", "HintKey")
 MISSING = "（缺中文）"
 
 # 只认「整行就是一个文本字段」的行（正式源格式就是这么写的；脚本会核对条数，漏一条就报错）

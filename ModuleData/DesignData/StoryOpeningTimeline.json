@@ -19,7 +19,8 @@
       "Cmd": "camera_cut",
       "Case": "story_intro_back",
       "Anchor": "player",
-      "Note": "镜头先背对广场，布景在画面外完成"
+      "Note": "镜头先背对广场，布景在画面外完成",
+      "BlendSeconds": 0.8
     },
     {
       "At": 0.2,
@@ -257,17 +258,19 @@
       "Cmd": "camera_cut",
       "Case": "story_intro_wide",
       "Anchor": "player",
-      "Note": "布景完成，镜头转过来看全场"
+      "Note": "布景完成，镜头转过来看全场",
+      "BlendSeconds": 0.8
     },
     {
       "At": 4.0,
       "Cmd": "camera_return",
-      "Note": "交还引擎相机"
+      "Note": "先解冻玩家，再平滑归还引擎相机",
+      "BlendSeconds": 0.8
     },
     {
       "At": 4.2,
       "Cmd": "player_release",
-      "Note": "解冻（必须在交还相机之后）"
+      "Note": "归还过渡期保持玩家已解冻；重复释放安全"
     }
   ]
 }

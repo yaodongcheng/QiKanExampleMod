@@ -193,7 +193,7 @@ def main():
         export_meshes(game_root, {r["mesh"] for r in records}, args.asset_dir,
                       ROOT / "tools/tpactool/TpacToolCLI/bin/Release/net9.0/tpaccli.exe")
     architecture, mesh_files = scene_geometry(records, args.asset_dir, bounds)
-    stage = json.loads((DATA / "StoryStage.json").read_text(encoding="utf-8"))
+    stage = json.loads((DATA / "StoryOpeningTimeline.json").read_text(encoding="utf-8"))
     beats = sorted(stage["Beats"], key=lambda beat: beat.get("At", 0))
     action_beats = {beat["Actor"]: beat for beat in beats if beat["Cmd"] == "actor_action"}
     tuning = json.loads((DATA / "StoryProbeTuning.json").read_text(encoding="utf-8"))
@@ -213,7 +213,7 @@ def main():
         return anchors[beat["Anchor"]] + np.r_[forward, 0] * beat.get("Fwd", 0) + np.r_[right, 0] * beat.get("Right", 0) + [0, 0, beat.get("Up", 0)]
 
     props, actors, files = [], [], [args.scene_dir / "terrain.bin", args.scene_dir / "scene.xscene",
-                                  DATA / "StoryStage.json", DATA / "StoryProbeTuning.json",
+                                  DATA / "StoryOpeningTimeline.json", DATA / "StoryProbeTuning.json",
                                   version_path, Path(__file__), Path(__file__).with_name("scene_layout_geometry.py"),
                                   *prefab_files, *mesh_files]
     for beat_index, beat in enumerate(beats):

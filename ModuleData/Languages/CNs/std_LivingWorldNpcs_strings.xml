@@ -4790,7 +4790,6 @@
     <string id="LWN_story_event1_win" text="头一回有人替我拦住他。" />
     <string id="LWN_story_event1_lose" text="钱我给，这就给！" />
     <string id="LWN_story_event1_opt_pay" text="[替他交] 他欠多少？我替他付。（80 第纳尔）" />
-    <string id="LWN_story_event1_opt_stop" text="[喝止] 钱的事好说，先把你的手从他领子上拿开。" />
     <string id="LWN_story_event1_opt_walk" text="[走开] 不关我的事。" />
     <string id="LWN_story_event5_join" text="客官，你是来当东西，还是来找门路的？" />
     <string id="LWN_story_event5_opt_ask" text="[搭话] 我找门路进城，咱们聊聊。" />
@@ -4805,12 +4804,9 @@
     <string id="LWN_story_blocker_disguise_ok" text="小的眼拙，您里边请。" />
     <string id="LWN_story_blocker_disguise_fail" text="给我拿下！" />
     <string id="LWN_story_blocker_fight" text="来啊，看谁先趴下！" />
-    <string id="LWN_story_blocker_opt_insist" text="[据理] 我妹妹在城里做工，我进去找她。" />
-    <string id="LWN_story_blocker_opt_draw" text="[硬闯] 今天这门我非进不可。" />
     <string id="LWN_story_blocker_opt_step_back" text="[退开] ……算了，我先退后。" />
     <string id="LWN_story_blocker_opt_bribe" text="[塞钱] 这点钱拿去喝茶。（100 第纳尔）" />
     <string id="LWN_story_blocker_opt_threat" text="[威吓] 好狗不挡道，让开。" />
-    <string id="LWN_story_blocker_opt_disguise" text="[摆架子] 睁开眼看看，这也是你能拦的？" />
     <string id="LWN_story_blocker_opt_fight" text="[动手] 废话少说，手底下见真章。" />
     <string id="LWN_story_opt_leave" text="[离开]" />
     <string id="LWN_story_pawnbroker_opt_help_reward" text="[酬谢] 刚才替你挡了那一下，咱们也算相识了。" />
@@ -4909,6 +4905,9 @@
     <string id="LWN_story_widow_opt_chat" text="[叙旧] 今天生意怎么样？" />
     <string id="LWN_story_widow_opt_work" text="[打听] 你在城门口唱戏，听说过城里的动静吗？" />
     <string id="LWN_story_widow_opt_back" text="[收住] 别的先不问了。" />
+    <string id="LWN_story_widow_opt_wear" text="[换装] 这身戏服，现在就换上。" />
+    <string id="LWN_story_widow_wear_done" text="站好，这身料子撑人，领口别拉太开。" />
+    <string id="LWN_story_wore_disguise" text="你换上了贵族戏服。" />
     <string id="LWN_story_event3_join" text="街面是官家的，谁有本事谁开锣，你管得着吗？" />
     <string id="LWN_story_event3_win" text="刚才那两句帮腔漂亮，我记下了。" />
     <string id="LWN_story_event3_lose" text="……不会说话就少开口，白白让人看笑话。" />
@@ -5147,7 +5146,9 @@
     <string id="LWN_story_narr_quest_accepted" text="你应下了。" />
     <string id="LWN_story_narr_quest_done" text="办完了。回去告诉{NAME}。" />
     <string id="LWN_story_narr_turnin" text="他把说好的东西给了你，也记住了你的脸。" />
-    <string id="LWN_story_goal_enter" text="进城。城门有人拦着——问问门口这几家。" />
+    <string id="LWN_story_goal_guard_fight" text="击败守卫。" />
+    <string id="LWN_story_goal_guard_defeated" text="你已倒下。等待守卫处置。" />
+    <string id="LWN_story_goal_enter" text="穿过城门，进城去找妹妹。" />
     <string id="LWN_story_goal_asked" text="问出妹妹的下落。四个人，四截线索。" />
     <string id="LWN_story_goal_quest" text="弄到进城的门路。帮谁，谁教你一手。" />
     <string id="LWN_story_goal_tool" text="走过那道门。" />
@@ -5279,6 +5280,9 @@
     <string id="LWN_story_prep_failed_detail" text="这一场的布景和站位没准备齐，所以先不开演。&#xA;缺的东西：{MISSING}&#xA;点「好」回城镇菜单。" />
     <string id="LWN_story_prep_failed_unknown" text="没报出具体缺项（多半是超时或异常，查日志 [StoryPrep]）" />
     <string id="LWN_story_prep_failed_ok" text="好，回城" />
+    <string id="LWN_story_scene_abort_detail" text="这一场没能开起来。&#xA;{REASON}&#xA;点「好」回城镇菜单。" />
+    <string id="LWN_story_abort_camera" text="开场镜头没能就位（相机机位缺失或被占用）。" />
+    <string id="LWN_story_abort_prep" text="布景与站位的数据不全。" />
     <string id="LWN_story_jail_return_manual" text="你出来了。换上旧衣面罩，等你准备好了再回城门。" />
     <string id="LWN_story_gate_pass_granted" text="守卫塞给你一块通行令牌。下回亮出它，直接进门。" />
     <string id="LWN_story_amb_outlaw_2" text="别在这儿站着。" />
@@ -5377,5 +5381,121 @@
     <string id="LWN_story_persona_outlaw_background" text="我混在城外的小路上，欺负落单的人。" />
     <string id="LWN_story_persona_outlaw_temperament" text="我多疑，粗暴，看到强手会先算退路。" />
     <string id="LWN_story_persona_outlaw_specialty" text="我熟悉城外偏路，擅长伏击落单的人。" />
+    <string id="LWN_story_blocker_opt_insist" text="[说明来意] 我妹妹在城里做工，我进去找她。" />
+    <string id="LWN_story_blocker_opt_draw" text="[动手] 今天这门我非进不可。" />
+    <string id="LWN_story_blocker_opt_disguise" text="[施压] 睁开眼看看，这也是你能拦的？" />
+    <string id="LWN_story_event1_opt_stop" text="[喝止] 松手！再碰他，就别怪我动手。" />
+    <string id="LWN_story_option_skill" text="{LINE}（{SKILL}）" />
+    <string id="LWN_story_opt_face_fight" text="[迎战] 那就来吧。" />
+    <string id="LWN_story_opt_surrender" text="[束手就擒] 我不抵抗，跟你走。" />
+    <string id="LWN_story_blocker_first_blow_fight_response" text="那就别怪我不客气！" />
+    <string id="LWN_story_blocker_first_blow_surrender_response" text="把兵器放下，跟我们走。" />
+    <string id="LWN_story_blocker_disguise_fail_fight_response" text="我倒要看看你有多大本事！" />
+    <string id="LWN_story_blocker_disguise_fail_surrender_response" text="冒充贵人的账，进去再算。" />
+    <string id="LWN_story_hint_blocker_entry" text="向守卫提出进城的请求。" />
+    <string id="LWN_story_hint_leave" text="结束交谈。" />
+    <string id="LWN_story_hint_explain" text="向守卫说明进城找人的缘由。" />
+    <string id="LWN_story_hint_guard_fight" text="坚持强闯城门，可能开战或被扣押。" />
+    <string id="LWN_story_hint_fight" text="与眼前的守卫开战。" />
+    <string id="LWN_story_hint_surrender" text="放弃抵抗，接受守卫扣押。" />
+    <string id="LWN_story_hint_blocker_opt_pass" text="凭已有的通行资格过门。" />
+    <string id="LWN_story_hint_pay_gate" text="拿出100第纳尔，打点守卫争取通行。" />
+    <string id="LWN_story_hint_blocker_opt_disarmed" text="指出守卫已无武器，要求让路。" />
+    <string id="LWN_story_hint_back_topics" text="继续聊别的。" />
+    <string id="LWN_story_hint_back_no_trade" text="先放下这桩买卖，聊聊别的。" />
+    <string id="LWN_story_hint_leave_event" text="离开，让他们自己解决。" />
+    <string id="LWN_story_hint_event_opt_followup" text="留下聊聊别的。" />
+    <string id="LWN_story_hint_event5_opt_ask" text="留下问老周，怎么才能进城。" />
+    <string id="LWN_story_hint_event6_opt_help" text="问问屠户的伤势。" />
+    <string id="LWN_story_hint_opt_take_job" text="接下这桩差事，办成后回来领报酬。" />
+    <string id="LWN_story_hint_defer_job" text="暂不接这桩差事。" />
+    <string id="LWN_story_hint_butcher_opt_turnin_ok" text="办妥差事后，领取刀、绳、磨刀石及技能经验。" />
+    <string id="LWN_story_hint_son_opt_turnin_ok" text="办妥差事后，领取钩索绳、铁钩、撬锁包及技能经验。" />
+    <string id="LWN_story_hint_widow_opt_turnin_ok" text="办妥差事后，领取贵族戏服、护符及技能经验。" />
+    <string id="LWN_story_hint_turnin_debt" text="把收回的120第纳尔交给老周，领取30第纳尔报酬、旧账本和技能经验。" />
+    <string id="LWN_story_hint_debtor_opt_collect_leave" text="带着收回的债款离开，回老周处交差。" />
+    <string id="LWN_story_hint_debtor_opt_fight" text="直接与收数人开战。" />
+    <string id="LWN_story_hint_outlaw_opt_fight" text="直接与野贼开战。" />
+    <string id="LWN_story_hint_rival_opt_fight" text="直接与对台领班开战。" />
+    <string id="LWN_story_hint_thug_opt_fight" text="直接与打手开战。" />
+    <string id="LWN_story_hint_butcher_opt_money" text="提出用钱答谢；直接递钱可能冒犯对方。" />
+    <string id="LWN_story_hint_pawnbroker_opt_money" text="问老周买消息的价钱。" />
+    <string id="LWN_story_hint_pawnbroker_opt_money_buy" text="付80第纳尔，买老周手里的消息。" />
+    <string id="LWN_story_hint_son_opt_money" text="问小贼买消息的价钱。" />
+    <string id="LWN_story_hint_son_opt_pay" text="付40第纳尔，打听横梁。" />
+    <string id="LWN_story_hint_widow_opt_money" text="问宋玉娘买消息的价钱。" />
+    <string id="LWN_story_hint_widow_opt_pay" text="付60第纳尔，打听姑娘进城的事。" />
+    <string id="LWN_story_hint_widow_opt_wear" text="换上贵族戏服，原来的上衣收回行囊。" />
+    <string id="LWN_story_hint_pawnbroker_opt_sister_redeem" text="先问赎镯的价钱，再决定要不要赎。" />
+    <string id="LWN_story_hint_pawnbroker_opt_pay30" text="付30第纳尔，赎回银镯。" />
+    <string id="LWN_story_hint_pawnbroker_opt_errand" text="跑这趟腿可得50第纳尔；下次零活要等一个小时。" />
+    <string id="LWN_story_hint_pawnbroker_opt_help_reward" text="收下老周的50第纳尔谢礼。" />
+    <string id="LWN_story_hint_event1_opt_pay" text="替老周付这次的80第纳尔保护费。" />
+    <string id="LWN_story_hint_butcher_opt_meat" text="打听肉摊近况。" />
+    <string id="LWN_story_hint_butcher_opt_past" text="打听屠户与码头帮的过去。" />
+    <string id="LWN_story_hint_butcher_opt_sister" text="打听青布姑娘的下落。" />
+    <string id="LWN_story_hint_butcher_opt_deal" text="打听借刀和学身手的条件。" />
+    <string id="LWN_story_hint_butcher_opt_chat" text="打听肉摊近况。" />
+    <string id="LWN_story_hint_butcher_opt_past_more" text="打听砸摊的缘由。" />
+    <string id="LWN_story_hint_butcher_opt_sister2" text="打听西码头暗仓的情况。" />
+    <string id="LWN_story_hint_butcher_opt_why" text="打听屠户请你出面的原因。" />
+    <string id="LWN_story_hint_butcher_opt_work" text="打听守门人的交战破绽。" />
+    <string id="LWN_story_hint_debtor_opt_ask" text="打听收数人的账册。" />
+    <string id="LWN_story_hint_outlaw_opt_ask" text="打听抢飞钩和伤人的事。" />
+    <string id="LWN_story_hint_pawnbroker_opt_self" text="打听老周的身世。" />
+    <string id="LWN_story_hint_pawnbroker_opt_sister" text="打听青布姑娘的当票。" />
+    <string id="LWN_story_hint_pawnbroker_opt_gang" text="打听过城门的门路。" />
+    <string id="LWN_story_hint_pawnbroker_opt_deal" text="打听赚钱门路和委托条件。" />
+    <string id="LWN_story_hint_pawnbroker_opt_chat" text="打听当铺近况。" />
+    <string id="LWN_story_hint_pawnbroker_opt_self_stay" text="打听老周不离开的原因。" />
+    <string id="LWN_story_hint_pawnbroker_opt_self_know" text="打听老周了解城门口消息的缘由。" />
+    <string id="LWN_story_hint_pawnbroker_opt_sister_where" text="打听姑娘当镯子后的去向。" />
+    <string id="LWN_story_hint_pawnbroker_opt_sister_why" text="打听老周记得当票的缘由。" />
+    <string id="LWN_story_hint_pawnbroker_opt_gang_how" text="打听其他进城办法。" />
+    <string id="LWN_story_hint_pawnbroker_opt_gang_price" text="打听守卫的打点报价。" />
+    <string id="LWN_story_hint_pawnbroker_opt_deal_why" text="打听老周请你收账的原因。" />
+    <string id="LWN_story_hint_pawnbroker_opt_turnin_why" text="打听其他进城门路。" />
+    <string id="LWN_story_hint_pawnbroker_opt_visit" text="打听城内码头风声。" />
+    <string id="LWN_story_hint_rival_opt_sign" text="打听对台戏班的招牌。" />
+    <string id="LWN_story_hint_son_opt_wall" text="打听墙根盯梢的事。" />
+    <string id="LWN_story_hint_son_opt_climb" text="打听翻墙办法和钩索。" />
+    <string id="LWN_story_hint_son_opt_sister" text="打听小贼见到的青布姑娘。" />
+    <string id="LWN_story_hint_son_opt_deal" text="打听借飞钩的条件。" />
+    <string id="LWN_story_hint_son_opt_chat" text="打听墙头近况。" />
+    <string id="LWN_story_hint_son_opt_climb2" text="打听抢走飞钩的人。" />
+    <string id="LWN_story_hint_son_opt_sister2" text="打听姑娘被押走的方向。" />
+    <string id="LWN_story_hint_son_opt_why" text="打听小贼请你出面的原因。" />
+    <string id="LWN_story_hint_son_opt_work" text="打听钩索之外的过门办法。" />
+    <string id="LWN_story_hint_thug_opt_ask" text="打听砸摊的事。" />
+    <string id="LWN_story_hint_thug_opt_money" text="打听夜里押人的事。" />
+    <string id="LWN_story_hint_widow_opt_stage" text="打听戏班在城门口唱戏的事。" />
+    <string id="LWN_story_hint_widow_opt_sister" text="打听青布姑娘的下落。" />
+    <string id="LWN_story_hint_widow_opt_rival" text="打听对台戏班的来路。" />
+    <string id="LWN_story_hint_widow_opt_deal" text="打听贵族行头的取得条件。" />
+    <string id="LWN_story_hint_widow_opt_chat" text="打听戏班近况。" />
+    <string id="LWN_story_hint_widow_opt_sister_more" text="打听领走姑娘的水手特征。" />
+    <string id="LWN_story_hint_widow_opt_why" text="打听宋玉娘请你出面的原因。" />
+    <string id="LWN_story_hint_widow_opt_work" text="打听城内的消息。" />
+    <string id="LWN_story_hint_event2_opt_ask" text="听听双方怎么说砸摊纠纷。" />
+    <string id="LWN_story_hint_event3_opt_ask" text="听听双方怎么说戏班争执。" />
+    <string id="LWN_story_hint_event4_opt_ask" text="听听双方怎么说偷窃指控。" />
+    <string id="LWN_story_hint_threat_gate" text="试图逼守卫让路，有引发战斗或被扣押的风险。" />
+    <string id="LWN_story_hint_disguise_gate" text="借贵族行头施压争取通行；被识破可能遭到武力拘捕。" />
+    <string id="LWN_story_hint_event2_opt_help" text="喝止打手，试着替屠户解围；可能激怒对方。" />
+    <string id="LWN_story_hint_debtor_opt_collect" text="向收数人追讨120第纳尔债款。" />
+    <string id="LWN_story_hint_outlaw_opt_settle" text="试着逼野贼停止找小贼的麻烦。" />
+    <string id="LWN_story_hint_event1_opt_stop" text="喝止打手，试着替老周解围；可能激怒对方。" />
+    <string id="LWN_story_hint_rival_opt_settle" text="试着劝领班停止堵台口。" />
+    <string id="LWN_story_hint_event4_opt_defend" text="试着替小贼澄清偷窃指控；也可能惹上嫌疑。" />
+    <string id="LWN_story_hint_thug_opt_settle" text="试着劝打手停止砸摊。" />
+    <string id="LWN_story_hint_event3_opt_side_widow" text="替宋玉娘说话，试着调解戏班争执。" />
+    <string id="LWN_story_hint_skill_check" text="成功率取决于双方的{SKILL}技能。&#10;你：{PLAYER}／对方：{NPC}&#10;成功率：{CHANCE}%&#10;{NOTE}" />
+    <string id="LWN_story_hint_check_unavailable" text="对方现在无法回应。" />
+    <string id="LWN_story_hint_talk" text="继续交谈。" />
+    <string id="LWN_story_hint_check_branches" text="试着说服对方；对方也可能拒绝。" />
+    <string id="LWN_story_hint_check_fight" text="试着迫使对方退让，有引发战斗的风险。" />
+    <string id="LWN_dialogue_hint_offer_basis" text="你的出价或证据也会影响成功率。" />
+    <string id="LWN_story_blocker_threat_fail_fight_response" text="还敢嘴硬，看招！" />
+    <string id="LWN_story_blocker_threat_fail_surrender_response" text="这会儿知道服软了，走！" />
 </strings>
 </base>

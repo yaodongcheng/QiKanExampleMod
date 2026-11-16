@@ -4685,7 +4685,6 @@
     <string id="LWN_story_event1_win" text="First time anyone stopped him." />
     <string id="LWN_story_event1_lose" text="I will pay, I will pay right now!" />
     <string id="LWN_story_event1_opt_pay" text="[Pay] How much does he owe? I&#x27;ll cover it. (80 denars)" />
-    <string id="LWN_story_event1_opt_stop" text="[Stop him] Money later. Take your hand off his collar first." />
     <string id="LWN_story_event1_opt_walk" text="[Walk away] Not my business." />
     <string id="LWN_story_event5_join" text="Sir, are you here to pawn, or looking for a way in?" />
     <string id="LWN_story_event5_opt_ask" text="[Speak] I&#x27;m looking for a way in. Let&#x27;s talk." />
@@ -4700,12 +4699,9 @@
     <string id="LWN_story_blocker_disguise_ok" text="Forgive my eyes and come right in." />
     <string id="LWN_story_blocker_disguise_fail" text="Take him!" />
     <string id="LWN_story_blocker_fight" text="Come on then, let&#x27;s see who drops first!" />
-    <string id="LWN_story_blocker_opt_insist" text="[Reason] My sister works in there. I&#x27;m going to find her." />
-    <string id="LWN_story_blocker_opt_draw" text="[Force] I&#x27;m walking through this gate today." />
     <string id="LWN_story_blocker_opt_step_back" text="[Back off] ...Never mind. I&#x27;ll step back." />
     <string id="LWN_story_blocker_opt_bribe" text="[Bribe] Have a drink on me. (100 denars)" />
     <string id="LWN_story_blocker_opt_threat" text="[Threaten] Step aside, if you value your teeth." />
-    <string id="LWN_story_blocker_opt_disguise" text="[Bluff] Look at me properly. Is this how you treat someone of standing?" />
     <string id="LWN_story_blocker_opt_fight" text="[Fight] Enough talk. Draw." />
     <string id="LWN_story_opt_leave" text="[Leave]" />
     <string id="LWN_story_pawnbroker_opt_help_reward" text="[Thanks] After stepping in for you, I suppose we know each other now." />
@@ -4804,6 +4800,9 @@
     <string id="LWN_story_widow_opt_chat" text="[Chat] How&#x27;s the crowd today?" />
     <string id="LWN_story_widow_opt_work" text="[Ask] Singing by the gate, what rumours do you hear from inside?" />
     <string id="LWN_story_widow_opt_back" text="[Stop] Nothing more for now." />
+    <string id="LWN_story_widow_opt_wear" text="[Change] Put the costume on now." />
+    <string id="LWN_story_widow_wear_done" text="Stand straight and keep the collar closed." />
+    <string id="LWN_story_wore_disguise" text="You put on the noble costume." />
     <string id="LWN_story_event3_join" text="Whoever draws the crowd plays on this public street, so what right have you to stop us?" />
     <string id="LWN_story_event3_win" text="I&#x27;ll remember those two nicely spoken lines just now." />
     <string id="LWN_story_event3_lose" text="...If you can&#x27;t speak well, don&#x27;t speak at all." />
@@ -5042,7 +5041,9 @@
     <string id="LWN_story_narr_quest_accepted" text="You took the job." />
     <string id="LWN_story_narr_quest_done" text="It&#x27;s done. Go back and tell {NAME}." />
     <string id="LWN_story_narr_turnin" text="He hands over what he promised — and remembers your face." />
-    <string id="LWN_story_goal_enter" text="Get into the town. Someone is blocking the gate — talk to the people outside it." />
+    <string id="LWN_story_goal_guard_fight" text="Defeat the guards." />
+    <string id="LWN_story_goal_guard_defeated" text="You have fallen. Await the guards' next move." />
+    <string id="LWN_story_goal_enter" text="Get through the gate and find your sister." />
     <string id="LWN_story_goal_asked" text="Find out what happened to your sister. Four people, four pieces." />
     <string id="LWN_story_goal_quest" text="Earn your way in. Help one of them, and they teach you a way." />
     <string id="LWN_story_goal_tool" text="Get through that gate." />
@@ -5174,6 +5175,9 @@
     <string id="LWN_story_prep_failed_detail" text="This scene could not be laid out, so it will not start.&#xA;Missing: {MISSING}&#xA;Press OK to return to the town menu." />
     <string id="LWN_story_prep_failed_unknown" text="unknown (no item was reported missing)" />
     <string id="LWN_story_prep_failed_ok" text="OK" />
+    <string id="LWN_story_scene_abort_detail" text="This scene could not start.&#xA;{REASON}&#xA;Press OK to return to the town menu." />
+    <string id="LWN_story_abort_camera" text="The opening camera could not be placed (missing or busy camera case)." />
+    <string id="LWN_story_abort_prep" text="The scene layout data is incomplete." />
     <string id="LWN_story_jail_return_manual" text="You are out. Change into the old clothes, and walk back to the gate when you are ready." />
     <string id="LWN_story_gate_pass_granted" text="The guard hands you a gate pass. Show it next time and you walk straight in." />
     <string id="LWN_story_amb_outlaw_2" text="Do not stand here." />
@@ -5272,5 +5276,121 @@
     <string id="LWN_story_persona_outlaw_background" text="I haunt the side roads outside town and prey on isolated travellers." />
     <string id="LWN_story_persona_outlaw_temperament" text="I am suspicious, rough and watch for a retreat when faced with strength." />
     <string id="LWN_story_persona_outlaw_specialty" text="I know the side roads and ambush lone travellers." />
+    <string id="LWN_story_blocker_opt_insist" text="[Explain] My sister works in there. I am going to find her." />
+    <string id="LWN_story_blocker_opt_draw" text="[Fight] I am walking through this gate today." />
+    <string id="LWN_story_blocker_opt_disguise" text="[Pressure] Look at me properly. Is this how you treat someone of standing?" />
+    <string id="LWN_story_event1_opt_stop" text="[Threaten] Let go! Touch him again and you will answer to me." />
+    <string id="LWN_story_option_skill" text="{LINE} ({SKILL})" />
+    <string id="LWN_story_opt_face_fight" text="[Fight] Come on, then." />
+    <string id="LWN_story_opt_surrender" text="[Surrender] I will not resist. I will go with you." />
+    <string id="LWN_story_blocker_first_blow_fight_response" text="Then you asked for it!" />
+    <string id="LWN_story_blocker_first_blow_surrender_response" text="Put down your weapons and come with us." />
+    <string id="LWN_story_blocker_disguise_fail_fight_response" text="Let us see what you can do!" />
+    <string id="LWN_story_blocker_disguise_fail_surrender_response" text="We will settle this business of impersonation inside." />
+    <string id="LWN_story_hint_blocker_entry" text="Ask the guard to let you into the city." />
+    <string id="LWN_story_hint_leave" text="End the conversation." />
+    <string id="LWN_story_hint_explain" text="Explain why you need to enter the city to find someone." />
+    <string id="LWN_story_hint_guard_fight" text="Insist on forcing your way through the gate; you risk a fight or detention." />
+    <string id="LWN_story_hint_fight" text="Fight the guard in front of you." />
+    <string id="LWN_story_hint_surrender" text="Stop resisting and submit to detention by the guards." />
+    <string id="LWN_story_hint_blocker_opt_pass" text="Go through the gate with your existing permission." />
+    <string id="LWN_story_hint_pay_gate" text="Offer the guard 100 denars to arrange passage." />
+    <string id="LWN_story_hint_blocker_opt_disarmed" text="Point out that the guard is unarmed and demand passage." />
+    <string id="LWN_story_hint_back_topics" text="Talk about something else." />
+    <string id="LWN_story_hint_back_no_trade" text="Leave this deal for now and talk about something else." />
+    <string id="LWN_story_hint_leave_event" text="Leave them to settle it themselves." />
+    <string id="LWN_story_hint_event_opt_followup" text="Stay and talk about something else." />
+    <string id="LWN_story_hint_event5_opt_ask" text="Stay and ask Zhou how to get into the city." />
+    <string id="LWN_story_hint_event6_opt_help" text="Ask how the butcher is recovering." />
+    <string id="LWN_story_hint_opt_take_job" text="Take the job and return for your reward when it is done." />
+    <string id="LWN_story_hint_defer_job" text="Leave the job for now." />
+    <string id="LWN_story_hint_butcher_opt_turnin_ok" text="Once the job is done, collect the blade, rope, whetstone and skill experience." />
+    <string id="LWN_story_hint_son_opt_turnin_ok" text="Once the job is done, collect the grapple rope, hook, lockpick kit and skill experience." />
+    <string id="LWN_story_hint_widow_opt_turnin_ok" text="Once the job is done, collect the noble costume, amulet and skill experience." />
+    <string id="LWN_story_hint_turnin_debt" text="Return the collected 120 denars to Zhou for a 30-denar fee, the old ledger and skill experience." />
+    <string id="LWN_story_hint_debtor_opt_collect_leave" text="Leave with the collected debt and report back to Zhou." />
+    <string id="LWN_story_hint_debtor_opt_fight" text="Start a fight with the debt collector." />
+    <string id="LWN_story_hint_outlaw_opt_fight" text="Start a fight with the outlaw." />
+    <string id="LWN_story_hint_rival_opt_fight" text="Start a fight with the rival troupe leader." />
+    <string id="LWN_story_hint_thug_opt_fight" text="Start a fight with the thug." />
+    <string id="LWN_story_hint_butcher_opt_money" text="Offer money as thanks; handing over money may offend him." />
+    <string id="LWN_story_hint_pawnbroker_opt_money" text="Ask Zhou what he charges for information." />
+    <string id="LWN_story_hint_pawnbroker_opt_money_buy" text="Pay 80 denars for Zhou's information." />
+    <string id="LWN_story_hint_son_opt_money" text="Ask the young thief what he charges for information." />
+    <string id="LWN_story_hint_son_opt_pay" text="Pay 40 denars for information about the beam." />
+    <string id="LWN_story_hint_widow_opt_money" text="Ask Yu-niang what she charges for information." />
+    <string id="LWN_story_hint_widow_opt_pay" text="Pay 60 denars for news of the woman entering the city." />
+    <string id="LWN_story_hint_widow_opt_wear" text="Put on the noble costume and pack away your old tunic." />
+    <string id="LWN_story_hint_pawnbroker_opt_sister_redeem" text="Ask the price before deciding whether to redeem the bracelet." />
+    <string id="LWN_story_hint_pawnbroker_opt_pay30" text="Pay 30 denars to redeem the silver bracelet." />
+    <string id="LWN_story_hint_pawnbroker_opt_errand" text="Earn 50 denars for the errand. Another job will be available in an hour." />
+    <string id="LWN_story_hint_pawnbroker_opt_help_reward" text="Accept Zhou's 50-denar thank-you payment." />
+    <string id="LWN_story_hint_event1_opt_pay" text="Pay this 80-denar protection demand on Zhou's behalf." />
+    <string id="LWN_story_hint_butcher_opt_meat" text="Ask about the meat stall." />
+    <string id="LWN_story_hint_butcher_opt_past" text="Ask about the butcher's past with the dock gang." />
+    <string id="LWN_story_hint_butcher_opt_sister" text="Ask about the woman in blue." />
+    <string id="LWN_story_hint_butcher_opt_deal" text="Ask about terms for a blade and training." />
+    <string id="LWN_story_hint_butcher_opt_chat" text="Ask about the meat stall." />
+    <string id="LWN_story_hint_butcher_opt_past_more" text="Ask about why the stall was attacked." />
+    <string id="LWN_story_hint_butcher_opt_sister2" text="Ask about the western dock warehouse." />
+    <string id="LWN_story_hint_butcher_opt_why" text="Ask about why the butcher needs you." />
+    <string id="LWN_story_hint_butcher_opt_work" text="Ask about the guard's combat weaknesses." />
+    <string id="LWN_story_hint_debtor_opt_ask" text="Ask about the debt collector's ledger." />
+    <string id="LWN_story_hint_outlaw_opt_ask" text="Ask about the stolen hook and injury." />
+    <string id="LWN_story_hint_pawnbroker_opt_self" text="Ask about Zhou's background." />
+    <string id="LWN_story_hint_pawnbroker_opt_sister" text="Ask about the woman in blue's pawn ticket." />
+    <string id="LWN_story_hint_pawnbroker_opt_gang" text="Ask about ways through the gate." />
+    <string id="LWN_story_hint_pawnbroker_opt_deal" text="Ask about work and commission terms." />
+    <string id="LWN_story_hint_pawnbroker_opt_chat" text="Ask about the pawnshop." />
+    <string id="LWN_story_hint_pawnbroker_opt_self_stay" text="Ask about why Zhou stays." />
+    <string id="LWN_story_hint_pawnbroker_opt_self_know" text="Ask about Zhou's knowledge of the gate." />
+    <string id="LWN_story_hint_pawnbroker_opt_sister_where" text="Ask about where the woman went after pawning her bracelet." />
+    <string id="LWN_story_hint_pawnbroker_opt_sister_why" text="Ask about why Zhou remembers the ticket." />
+    <string id="LWN_story_hint_pawnbroker_opt_gang_how" text="Ask about other ways to enter." />
+    <string id="LWN_story_hint_pawnbroker_opt_gang_price" text="Ask about the guard's bribe price." />
+    <string id="LWN_story_hint_pawnbroker_opt_deal_why" text="Ask about why Zhou needs you to collect the debt." />
+    <string id="LWN_story_hint_pawnbroker_opt_turnin_why" text="Ask about other ways to enter." />
+    <string id="LWN_story_hint_pawnbroker_opt_visit" text="Ask about news from the docks." />
+    <string id="LWN_story_hint_rival_opt_sign" text="Ask about the rival troupe's sign." />
+    <string id="LWN_story_hint_son_opt_wall" text="Ask about watching the wall." />
+    <string id="LWN_story_hint_son_opt_climb" text="Ask about climbing and the grapple." />
+    <string id="LWN_story_hint_son_opt_sister" text="Ask about the woman in blue the young thief saw." />
+    <string id="LWN_story_hint_son_opt_deal" text="Ask about terms for the grapple." />
+    <string id="LWN_story_hint_son_opt_chat" text="Ask about news from the wall." />
+    <string id="LWN_story_hint_son_opt_climb2" text="Ask about who stole the grapple." />
+    <string id="LWN_story_hint_son_opt_sister2" text="Ask about where the woman was taken." />
+    <string id="LWN_story_hint_son_opt_why" text="Ask about why the young thief needs you." />
+    <string id="LWN_story_hint_son_opt_work" text="Ask about ways past the gate besides grappling." />
+    <string id="LWN_story_hint_thug_opt_ask" text="Ask about the attacks on the stalls." />
+    <string id="LWN_story_hint_thug_opt_money" text="Ask about the prisoners moved at night." />
+    <string id="LWN_story_hint_widow_opt_stage" text="Ask about performing at the gate." />
+    <string id="LWN_story_hint_widow_opt_sister" text="Ask about the woman in blue." />
+    <string id="LWN_story_hint_widow_opt_rival" text="Ask about the rival troupe." />
+    <string id="LWN_story_hint_widow_opt_deal" text="Ask about terms for noble attire." />
+    <string id="LWN_story_hint_widow_opt_chat" text="Ask about the troupe." />
+    <string id="LWN_story_hint_widow_opt_sister_more" text="Ask about the sailor who took the woman." />
+    <string id="LWN_story_hint_widow_opt_why" text="Ask about why Yu-niang needs you." />
+    <string id="LWN_story_hint_widow_opt_work" text="Ask about news from inside the city." />
+    <string id="LWN_story_hint_event2_opt_ask" text="Hear both sides of the stall dispute." />
+    <string id="LWN_story_hint_event3_opt_ask" text="Hear both sides of the troupe dispute." />
+    <string id="LWN_story_hint_event4_opt_ask" text="Hear both sides of the theft accusation." />
+    <string id="LWN_story_hint_threat_gate" text="Try to force the guard to let you through; you risk a fight or detention." />
+    <string id="LWN_story_hint_disguise_gate" text="Use your noble costume to press for passage; being exposed may lead to arrest by force." />
+    <string id="LWN_story_hint_event2_opt_help" text="Warn the thug off and try to help the butcher; you may anger him." />
+    <string id="LWN_story_hint_debtor_opt_collect" text="Press the debt collector to repay the 120-denar debt." />
+    <string id="LWN_story_hint_outlaw_opt_settle" text="Try to pressure the outlaw into leaving the young thief alone." />
+    <string id="LWN_story_hint_event1_opt_stop" text="Warn the thug off and try to help Zhou; you may anger him." />
+    <string id="LWN_story_hint_rival_opt_settle" text="Try to persuade the troupe leader to stop blocking the stage." />
+    <string id="LWN_story_hint_event4_opt_defend" text="Try to clear the young thief of theft; you may attract suspicion yourself." />
+    <string id="LWN_story_hint_thug_opt_settle" text="Try to persuade the thug to stop wrecking the stall." />
+    <string id="LWN_story_hint_event3_opt_side_widow" text="Speak up for Yu-niang and try to settle the dispute between the troupes." />
+    <string id="LWN_story_hint_skill_check" text="Your chance depends on both sides' {SKILL} skill.&#10;You: {PLAYER} / opponent: {NPC}&#10;Success chance: {CHANCE}%&#10;{NOTE}" />
+    <string id="LWN_story_hint_check_unavailable" text="They cannot respond right now." />
+    <string id="LWN_story_hint_talk" text="Continue the conversation." />
+    <string id="LWN_story_hint_check_branches" text="Try to persuade them. They may refuse." />
+    <string id="LWN_story_hint_check_fight" text="Try to force them to back down; you risk a fight." />
+    <string id="LWN_dialogue_hint_offer_basis" text="Your offer or evidence also affects your chance." />
+    <string id="LWN_story_blocker_threat_fail_fight_response" text="Enough talk, have at you!" />
+    <string id="LWN_story_blocker_threat_fail_surrender_response" text="Move, now that you have given in!" />
 </strings>
 </base>

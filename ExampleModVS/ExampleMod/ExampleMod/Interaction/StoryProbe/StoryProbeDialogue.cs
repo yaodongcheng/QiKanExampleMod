@@ -304,7 +304,8 @@ namespace LivingWorldNpcs
             _facingMission = Mission.Current;
             _facingElapsed = 0f;
             _facingReported = false;
-            DebugLogger.Log($"[StoryDialogueFacing] tracking requested session={session.Id} node={node.Id} speaker={node.Speaker} listener={node.Listener} body=scripted-position-direction+FaceToActor gaze=SetLookAgent");
+            if (Settings.Instance.ShowPerformanceFacingDebugMessages)
+                DebugLogger.Log($"[StoryDialogueFacing] tracking requested session={session.Id} node={node.Id} speaker={node.Speaker} listener={node.Listener} body=scripted-position-direction+FaceToActor gaze=SetLookAgent");
             TickDialogueFacing(0f);
         }
 
@@ -336,12 +337,14 @@ namespace LivingWorldNpcs
             if (!_facingReported && _facingElapsed >= 0.5f)
             {
                 _facingReported = true;
-                DebugLogger.Log("[StoryDialogueFacing] facing sample " + DescribeDialogueFacing());
                 if (Settings.Instance.ShowPerformanceFacingDebugMessages)
+                {
+                    DebugLogger.Log("[StoryDialogueFacing] facing sample " + DescribeDialogueFacing());
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompoundMixed(
                         "LWN_dialogue_facing_debug", "[Dialogue debug] {SPEAKER} -> {LISTENER}: body error {ANGLE} degrees (0 = facing the listener); gaze requested.",
                         ("SPEAKER", (object)speaker.Name), ("LISTENER", (object)listener.Name),
                         ("ANGLE", (object)FacingError(speaker, listener)))));
+                }
             }
         }
 
@@ -488,6 +491,9 @@ namespace LivingWorldNpcs
                         RuntimeListener = agent => agent == ResolveTurnAgent(session, opt.Listener),
                         CloseOnFailedCheck = true,
                     };
+                    t.RuntimeHint = () => new TextObject(DescribeOptionHint(opt, npcId));
+                    if (opt.Check != null)
+                        t.LazyPlayerLine = () => DescribeOptionLine(opt);
 
                     // 显示条件：选项自己的 Requires + 目标节点的准入条件（三态求值，出错 = 不显示）。
                     var option = opt;
@@ -512,7 +518,7 @@ namespace LivingWorldNpcs
                             || opt.Check.Target == "npc" ? npcId : opt.Check.Target;
                         if (!def.Actors.Contains(target) && !def.Participants.Contains(target)) target = npcId;
                         t.CheckType = DialogueInjector.TransitionCheckType.SkillCheck;
-                        t.CheckTag = target + "|" + opt.Check.Skill;
+                        t.CheckTag = target + "|" + opt.Check.Tactic;
                         t.NextNodeOnSuccess = opt.Check.Success ?? "";
                         t.NextNodeOnFail = opt.Check.Fail ?? "";
                     }
@@ -648,7 +654,32 @@ namespace LivingWorldNpcs
         // 检定（DialogueInjector.CustomCheck 钩子）
         // ═══════════════════════════════════════════════════════════════
 
-        /// <summary>CheckTag = "&lt;npcId&gt;|&lt;ability&gt;"。掷一次、播报、返回成功与否。</summary>
+        private static string DescribeOptionLine(StoryDialogueOption option)
+        {
+            string text = LWNTextHelper.ResolveText(option.PlayerKey, null);
+            if (option.Check == null || !StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic)) return text;
+            return LWNTextHelper.ResolveCompound("LWN_story_option_skill", "{LINE} ({SKILL})",
+                ("LINE", text), ("SKILL", SkillCheckSystem.MapTacticToSkill(tactic).Name.ToString()));
+        }
+
+        public static string DescribeOptionHint(StoryDialogueOption option, string actorId)
+        {
+            string note = !string.IsNullOrEmpty(option.HintKey) ? LWNTextHelper.ResolveText(option.HintKey, null)
+                : option.Check != null ? LWNTextHelper.ResolveText("LWN_story_hint_check_branches", "The NPC responds to the result. No payment is taken for this check.")
+                : LWNTextHelper.ResolveText("LWN_story_hint_talk", "Conversation response. No skill roll.");
+            if (option.Check == null) return note;
+            if (!StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic)) return note;
+            string target = string.IsNullOrEmpty(option.Check.Target) || option.Check.Target == "npc"
+                || option.Check.Target == "questioner" ? actorId : option.Check.Target;
+            var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic);
+            if (preview == null) return LWNTextHelper.ResolveText("LWN_story_hint_check_unavailable", "The check target is unavailable.");
+            return LWNTextHelper.ResolveCompound("LWN_story_hint_skill_check",
+                "Your chance depends on both sides' {SKILL} skill.\nYou: {PLAYER} / opponent: {NPC}\nSuccess chance: {CHANCE}%\n{NOTE}",
+                ("SKILL", preview.Skill.Name.ToString()), ("PLAYER", preview.PlayerAttr.ToString("F0")),
+                ("NPC", preview.NpcAttr.ToString("F0")), ("CHANCE", (preview.Chance * 100f).ToString("F1")), ("NOTE", note));
+        }
+
+        /// <summary>CheckTag = npcId|NegotiationTactic；概率与掷点均复用已有对话轮子。</summary>
         public static bool? RunCheck(DialogueInjector.DialogueTransition transition)
         {
             if (transition == null || string.IsNullOrEmpty(transition.CheckTag)) return null;
@@ -657,9 +688,10 @@ namespace LivingWorldNpcs
             if (parts.Length < 2) return null;
 
             string npcId = parts[0].Trim();
-            if (!StoryProbeDefs.TryParseAbility(parts[1], out StoryAbility ability)) return null;
+            if (_actionFailed || !StoryProbeDefs.TryParseDialogueTactic(parts[1], out var tactic)) return false;
 
-            StoryRoll roll = StoryProbeDefs.RollCheck(npcId, ability);
+            StoryRoll roll = StoryProbeDefs.RollDialogueCheck(npcId, tactic);
+            if (roll == null) return false;
             try
             {
                 InformationManager.DisplayMessage(new InformationMessage(roll.PlayerMessage()));
@@ -1508,13 +1540,13 @@ namespace LivingWorldNpcs
             var host = StoryProbeMissionBehavior.Current;
             if (host == null) return false;
             // 首遇守门人：唯一合法的「硬闯→真实战斗」入口是 PlayForcedDefeat（战斗回执决定真假败退）。
-            if (StoryProbeState.Phase == StoryProbePhase.FirstAttempt && npcId == "blocker")
+            if (StoryProbeState.Phase == StoryProbePhase.FirstAttempt
+                && StoryProbeDefs.Npcs.Any(n => n.Id == npcId && n.FirstMeetGuard))
             {
-                host.PlayForcedDefeat();
-                return true;
+                return host.PlayForcedDefeat();
             }
             if (!host.RequestStoryFight(npcId)) return false;
-            StartFight(npcId);
+            DebugLogger.Log($"[StoryProbe] Brain duel queued after conversation vs {npcId}");
             return true;
         }
 

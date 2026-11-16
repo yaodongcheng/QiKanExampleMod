@@ -85,8 +85,7 @@
             {
               "Id": "skill_check",
               "Params": {
-                "skill": "Charm",
-                "threshold": "40"
+                "tactic": "Plead"
               },
               "Commit": "on_select",
               "Receipt": "once"

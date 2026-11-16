@@ -207,7 +207,8 @@ namespace LivingWorldNpcs
             float npcLevel = npc?.GetSkillValue(skill) ?? 50f; // 缺值默认 50
 
             // 基础胜率：同技能比拼
-            float baseChance = playerLevel / (playerLevel + npcLevel);
+            float totalLevel = playerLevel + npcLevel;
+            float baseChance = totalLevel > 0f ? playerLevel / totalLevel : 0.5f;
 
             // 技能为主（85%）+ 献礼/证物加成为辅（15%）
             float offerBonus = MathF.Clamp(offerValue, 0f, 1f);

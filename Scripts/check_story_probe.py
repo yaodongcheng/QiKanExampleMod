@@ -54,6 +54,8 @@ def dialogue_keys(module):
             for opt in node.get("Options", []):
                 if opt.get("PlayerKey"):
                     keys.add(opt["PlayerKey"])
+                if isinstance(opt.get("HintKey"), str) and opt["HintKey"]:
+                    keys.add(opt["HintKey"])
             effects = list(node.get("OnEnter", [])) + [e for opt in node.get("Options", []) for e in opt.get("Effects", [])]
             for effect in effects:
                 if effect.get("Id") == "message" and effect.get("Params", {}).get("key"):
@@ -130,6 +132,9 @@ def check_json(module, problems):
             seen_once = {}
             for opt in options:
                 pk = opt["PlayerKey"]
+                if opt.get("Check") is None and not opt.get("HintKey"):
+                    problems.append("dialogue[%s]: option '%s/%s' missing deterministic outcome HintKey" %
+                                    (name, nid, opt["Id"]))
                 req = opt.get("Requires", [])
                 for effect in opt.get("Effects", []):
                     flag = effect.get("Params", {}).get("flag", "")
@@ -353,14 +358,14 @@ def check_tuning(module, problems):
 
 
 def check_stage(module, problems):
-    """StoryStage.json：原子名 / 语义位 / 必填参数。"""
-    path = os.path.join(module, "ModuleData", "DesignData", "StoryStage.json")
+    """StoryOpeningTimeline.json：原子名 / 语义位 / 必填参数。"""
+    path = os.path.join(module, "ModuleData", "DesignData", "StoryOpeningTimeline.json")
     data = load_data_json(path)
     if data is None:
-        problems.append("StoryStage.json missing")
+        problems.append("StoryOpeningTimeline.json missing")
         return 0
     if "__error__" in data:
-        problems.append("StoryStage.json parse error: %s" % data["__error__"])
+        problems.append("StoryOpeningTimeline.json parse error: %s" % data["__error__"])
         return 0
 
     anchors = set(STAGE_ANCHORS_BUILTIN) | set((data.get("Anchors") or {}).keys())
@@ -372,7 +377,7 @@ def check_stage(module, problems):
 
     beats = data.get("Beats") or []
     if not beats:
-        problems.append("StoryStage.json: no Beats")
+        problems.append("StoryOpeningTimeline.json: no Beats")
         return 0
 
     for i, b in enumerate(beats):
@@ -387,6 +392,10 @@ def check_stage(module, problems):
             problems.append("stage[%d]: prop_spawn without Prefab" % i)
         if cmd == "camera_cut" and not b.get("Case"):
             problems.append("stage[%d]: camera_cut without Case" % i)
+        if cmd in ("camera_cut", "camera_return"):
+            blend = b.get("BlendSeconds", 0.8)
+            if isinstance(blend, bool) or not isinstance(blend, (int, float)) or not math.isfinite(blend) or blend < 0:
+                problems.append("stage[%d]: invalid BlendSeconds" % i)
         if cmd in ("actor_place", "actor_action", "actor_say") and not b.get("Actor"):
             problems.append("stage[%d]: %s without Actor" % (i, cmd))
         if cmd == "actor_action" and not b.get("Action"):
@@ -753,7 +762,7 @@ def check_speech_format(module, problems, en, cn):
     bubble_keys = {k for s in cast.get("StreetLife", []) for k in s.get("LineKeys", [])}
     bubble_keys.update(k for e in cast.get("Events", []) for k in e.get("LineKeys", []))
     bubble_keys.update(k for k in cn if k.startswith("LWN_story_react_"))
-    for name in ("StoryStage.json", "StoryStageV2.json"):
+    for name in ("StoryOpeningTimeline.json", "StoryScenePlan.json"):
         stage = load_data_json(os.path.join(module, "ModuleData", "DesignData", name)) or {}
         bubble_keys.update(b.get("TextKey") for b in stage.get("Beats", []) if b.get("Cmd") == "actor_say" and b.get("TextKey"))
         bubble_keys.update(k for b in stage.get("Behaviors", {}).values() for k in b.get("Lines", []))
@@ -1912,10 +1921,12 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
 def speech_listener_selftest(module):
     """真实正式数据的听话者变体：漏填、未知、自己、数量错均须拒绝。"""
     from copy import deepcopy
-    path = os.path.join(module, "ModuleData", "DesignData", "StoryStageV2.json")
+    path = os.path.join(module, "ModuleData", "DesignData", "StoryScenePlan.json")
     base = load_data_json(path)
     cast_ids = stage_v2_cast_ids(module)
-    assert not stage_v2_issues(base, cast_ids, formal=True)
+    csv_points, csv_issues = load_story_points_csv(module)
+    assert not csv_issues
+    assert not stage_v2_issues(base, cast_ids, formal=True, csv_points=csv_points)
     group_id = next(k for k, v in base["Behaviors"].items() if v.get("Kind") == "group" and v.get("Lines"))
     count = 0
     for mutation, want in (("missing", "missing_field"), ("unknown", "unknown_listener"),
@@ -1930,7 +1941,7 @@ def speech_listener_selftest(module):
             group["Listeners"][0] = group["Speakers"][0]
         else:
             group["Listeners"].pop()
-        assert any(i["code"] == want for i in stage_v2_issues(data, cast_ids, formal=True)), (mutation, want)
+        assert any(i["code"] == want for i in stage_v2_issues(data, cast_ids, formal=True, csv_points=csv_points)), (mutation, want)
         count += 1
     opening = next(v for v in base["Stages"].values() if v.get("Opening"))
     speaker = opening["Actors"][0]
@@ -1941,7 +1952,7 @@ def speech_listener_selftest(module):
         if listener is not None:
             beat["Listener"] = listener
         data.setdefault("Beats", []).append(beat)
-        issues = stage_v2_issues(data, cast_ids, formal=True)
+        issues = stage_v2_issues(data, cast_ids, formal=True, csv_points=csv_points)
         assert not issues if want is None else any(i["code"] == want for i in issues), (listener, issues)
         count += 1
     for listener, want in (("player", None), (None, "missing_field"), ("missing_actor", "unknown_cast_actor"),
@@ -1951,7 +1962,7 @@ def speech_listener_selftest(module):
         if listener is not None:
             args["Listener"] = listener
         data["Flows"]["speech_test"] = {"Steps": [{"Id": "say", "Atom": "actor_say", "Actor": speaker, "Args": args, "OnCancel": "end"}]}
-        issues = stage_v2_issues(data, cast_ids, formal=True)
+        issues = stage_v2_issues(data, cast_ids, formal=True, csv_points=csv_points)
         assert not issues if want is None else any(i["code"] == want for i in issues), (listener, issues)
         count += 1
     print("SELFTEST OK: %d speech Listener group/beat/flow parser variants" % count)
@@ -2041,10 +2052,10 @@ def check_stage_v2(module, problems):
 
 
 def check_stage_v2_formal(module, problems):
-    """校验正式 `StoryStageV2.json`（Formal 模式）：它是运行时真正发布/消费的布局，必须全绿。"""
-    path = os.path.join(module, "ModuleData", "DesignData", "StoryStageV2.json")
+    """校验正式 `StoryScenePlan.json`（Formal 模式）：它是运行时真正发布/消费的布局，必须全绿。"""
+    path = os.path.join(module, "ModuleData", "DesignData", "StoryScenePlan.json")
     if not os.path.exists(path):
-        problems.append("stage v2 formal: StoryStageV2.json missing")
+        problems.append("stage v2 formal: StoryScenePlan.json missing")
         return 0
     try:
         data = json.load(io.open(path, encoding="utf-8"), object_pairs_hook=stage_json_pairs)
@@ -2053,7 +2064,7 @@ def check_stage_v2_formal(module, problems):
         return 0
     csv_rows, csv_issues = load_story_points_csv(module)
     issues = list(csv_issues) + stage_v2_issues(
-        data, stage_v2_cast_ids(module), formal=True, source="StoryStageV2.json", csv_points=csv_rows)
+        data, stage_v2_cast_ids(module), formal=True, source="StoryScenePlan.json", csv_points=csv_rows)
     for issue in issues[:20]:
         problems.append("stage v2 formal: %s [%s] %s" % (issue["path"], issue["code"], issue["message"]))
     return 1 if not issues else 0
@@ -2071,7 +2082,7 @@ def check_dialogue_annotations(module, problems):
         problems.append("dialogue annotations: CN localization missing")
         return 0
     # 正式唯一维护源的每个文本键都必须带正确中文审核副本。
-    fields = ("EntryOption", "TextKey", "PlayerKey")
+    fields = ("EntryOption", "TextKey", "PlayerKey", "HintKey")
     checked = 0
     folder = os.path.join(module, "ModuleData", "DesignData", "Dialogues")
     for name in sorted(f for f in os.listdir(folder) if f.endswith(".dialog.json")):
@@ -2116,7 +2127,7 @@ DLG_SOURCES = ("player", "post_ai", "event", "script")
 DLG_COMMITS = ("on_enter", "on_select", "on_session_end")
 DLG_RECEIPTS = ("once", "session", "never")
 DLG_RANK = ("distanceToPlayer", "npcId")
-DLG_ABILITIES = ("charm", "guile", "force")
+DLG_TACTICS = ("bribe", "gift", "offerpower", "plead", "flatter", "threaten", "coerce", "swear", "submisson", "reason")
 # 条件谓词：name -> (required_params, implemented)
 DLG_PREDICATES = {
     "phase": (True, True), "disguised": (False, True), "noble": (False, True),
@@ -2140,9 +2151,11 @@ DLG_EFFECTS = {
     "force_defeat": ((), (), True),
     "pay": (("amount", "to", "reason"), ("amount",), True),
     "relation": (("faction", "delta"), ("faction", "delta"), True),
-    "skill_check": (("skill", "threshold"), ("skill",), True),
+    "skill_check": (("tactic",), ("tactic",), True),
     "give_item": (("item", "count"), ("item",), True),
+    "wear_item": (("item", "slot"), ("item",), True),
     "start_fight": (("target",), (), True),
+    "detain_player": (("target", "mode"), ("mode",), True),
     "accept_quest": ((), (), True),
     "turn_in": ((), (), True),
     "complete_quest": (("npc", "resolution"), ("npc", "resolution"), True),
@@ -2281,8 +2294,14 @@ def story_dialogue_issues(data, formal=False):
                 for req in required:
                     if req not in params:
                         bad(epath + ".Params", "missing_param", "效果 '%s' 缺必需参数 '%s'" % (eid, req))
+                if eid == "skill_check" and "tactic" in params:
+                    tactic = params["tactic"]
+                    if not isinstance(tactic, str) or tactic.lower() not in DLG_TACTICS:
+                        bad(epath + ".Params.tactic", "bad_param", "检定手段必须是已注册NegotiationTactic")
                 if not implemented and formal:
                     bad(epath, "unimplemented_effect", "效果 '%s' 尚未实现，不能进正式数据" % eid)
+                if eid == "detain_player" and "mode" in params and params["mode"] not in ("intro_sentence", "custody"):
+                    bad(epath + ".Params.mode", "bad_param", "扣押模式只能是intro_sentence/custody")
             out.append({"Id": eid, "Commit": commit, "Receipt": receipt})
         return out
 
@@ -2401,7 +2420,7 @@ def story_dialogue_issues(data, formal=False):
             if not isinstance(o, dict):
                 bad(opath, "wrong_type", "选项必须是对象")
                 continue
-            keys(o, opath, ("Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "Requires", "Effects", "Check", "NextNode"))
+            keys(o, opath, ("Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "HintKey", "HintKeyZh", "Requires", "Effects", "Check", "NextNode"))
             oid = text(o, opath, "Id")
             ospeaker = text(o, opath, "Speaker")
             olistener = text(o, opath, "Listener")
@@ -2410,6 +2429,7 @@ def story_dialogue_issues(data, formal=False):
             if olistener and olistener not in participants and olistener not in actors:
                 bad(opath + ".Listener", "unknown_listener", "选项听话者未登记")
             text(o, opath, "PlayerKey")
+            text(o, opath, "HintKey", False)
             conditions(str_list(o, opath, "Requires", False), opath)
             effects(o, opath, "Effects")
             nxt = text(o, opath, "NextNode", False)
@@ -2419,10 +2439,10 @@ def story_dialogue_issues(data, formal=False):
                 if not isinstance(check, dict):
                     bad(opath + ".Check", "wrong_type", "Check 必须是对象")
                 else:
-                    keys(check, opath + ".Check", ("Skill", "Target", "Success", "Fail"))
-                    skill = text(check, opath + ".Check", "Skill")
-                    if skill and skill.lower() not in DLG_ABILITIES:
-                        bad(opath + ".Check.Skill", "bad_token", "检定技能只能是 charm/guile/force：%s" % skill)
+                    keys(check, opath + ".Check", ("Tactic", "Target", "Success", "Fail"))
+                    tactic = text(check, opath + ".Check", "Tactic")
+                    if tactic and tactic.lower() not in DLG_TACTICS:
+                        bad(opath + ".Check.Tactic", "bad_token", "检定手段必须是已注册NegotiationTactic：%s" % tactic)
                     target = text(check, opath + ".Check", "Target", False)
                     if target and target not in participants and target not in actors:
                         bad(opath + ".Check.Target", "unknown_speaker",
@@ -2595,7 +2615,7 @@ def main():
     annotated = check_dialogue_annotations(module, problems)
     dialogue_v2 = check_dialogue_v2(module, problems)
 
-    stage_data = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryStage.json")) or {}
+    stage_data = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryOpeningTimeline.json")) or {}
     check_references(module, problems, cast, stage_data, args.scene)
     line_actions = check_line_actions(module, problems, cast)
     keys |= cast_keys

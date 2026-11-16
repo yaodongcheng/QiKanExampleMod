@@ -16,7 +16,7 @@ ROOT = os.path.abspath(os.path.join(HERE, ".."))
 DESIGN = os.path.join(ROOT, "ModuleData", "DesignData")
 OUT = os.path.join(ROOT, "Debug", "offline")
 TUNING = os.path.join(DESIGN, "StoryProbeTuning.json")
-V2 = os.path.join(DESIGN, "StoryStageV2.json")
+V2 = os.path.join(DESIGN, "StoryScenePlan.json")
 SCENE = "empire_town_m"
 
 

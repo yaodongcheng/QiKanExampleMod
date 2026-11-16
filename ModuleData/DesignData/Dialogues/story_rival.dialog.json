@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_rival",
-  "ContentVersion": 2,
+  "ContentVersion": 6,
   "EntryOption": "LWN_story_rival_entry",
   "EntryOptionZh": "[说两句] 你就是对台戏班的领班？",
   "SkipVanillaOpening": true,
@@ -100,10 +100,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家留出各自的台口，谁的戏好谁留客，何必堵着她做生意？",
+          "HintKey": "LWN_story_hint_rival_opt_settle",
+          "HintKeyZh": "试着劝领班停止堵台口。",
           "Requires": ["quest_accepted@widow", "!quest_done@widow"],
           "Effects": [],
           "Check": {
-            "Skill": "charm",
+            "Tactic": "Reason",
             "Target": "rival",
             "Success": "rival_settled_line1",
             "Fail": "rival_settle_refused_line1"
@@ -115,6 +117,8 @@
           "Id": "sign",
           "PlayerKey": "LWN_story_rival_opt_sign",
           "PlayerKeyZh": "[打听] 你台口这块招牌，看着倒有些年头。",
+          "HintKey": "LWN_story_hint_rival_opt_sign",
+          "HintKeyZh": "打听对台戏班的招牌。",
           "Requires": ["!asked:rival_sign"],
           "Effects": [
             {
@@ -134,6 +138,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_rival_opt_fight",
           "PlayerKeyZh": "[动手] 你想靠拳头讲理，那就试试。",
+          "HintKey": "LWN_story_hint_rival_opt_fight",
+          "HintKeyZh": "直接与对台领班开战。",
           "Requires": ["!quest_done@widow"],
           "Effects": [
             {
@@ -153,6 +159,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -174,10 +182,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家留出各自的台口，谁的戏好谁留客，何必堵着她做生意？",
+          "HintKey": "LWN_story_hint_rival_opt_settle",
+          "HintKeyZh": "试着劝领班停止堵台口。",
           "Requires": ["quest_accepted@widow", "!quest_done@widow"],
           "Effects": [],
           "Check": {
-            "Skill": "charm",
+            "Tactic": "Reason",
             "Target": "rival",
             "Success": "rival_settled_line1",
             "Fail": "rival_settle_refused_line1"
@@ -189,6 +199,8 @@
           "Id": "sign",
           "PlayerKey": "LWN_story_rival_opt_sign",
           "PlayerKeyZh": "[打听] 你台口这块招牌，看着倒有些年头。",
+          "HintKey": "LWN_story_hint_rival_opt_sign",
+          "HintKeyZh": "打听对台戏班的招牌。",
           "Requires": ["!asked:rival_sign"],
           "Effects": [
             {
@@ -208,6 +220,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_rival_opt_fight",
           "PlayerKeyZh": "[动手] 你想靠拳头讲理，那就试试。",
+          "HintKey": "LWN_story_hint_rival_opt_fight",
+          "HintKeyZh": "直接与对台领班开战。",
           "Requires": ["!quest_done@widow"],
           "Effects": [
             {
@@ -227,6 +241,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -258,10 +274,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家留出各自的台口，谁的戏好谁留客，何必堵着她做生意？",
+          "HintKey": "LWN_story_hint_rival_opt_settle",
+          "HintKeyZh": "试着劝领班停止堵台口。",
           "Requires": ["quest_accepted@widow", "!quest_done@widow"],
           "Effects": [],
           "Check": {
-            "Skill": "charm",
+            "Tactic": "Reason",
             "Target": "rival",
             "Success": "rival_settled_line1",
             "Fail": "rival_settle_refused_line1"
@@ -273,6 +291,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_rival_opt_fight",
           "PlayerKeyZh": "[动手] 你想靠拳头讲理，那就试试。",
+          "HintKey": "LWN_story_hint_rival_opt_fight",
+          "HintKeyZh": "直接与对台领班开战。",
           "Requires": ["!quest_done@widow"],
           "Effects": [
             {
@@ -292,6 +312,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "rival_hub",
@@ -323,6 +345,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -364,6 +388,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "rival_hub",
@@ -374,6 +400,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -405,6 +433,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_rival_opt_fight",
           "PlayerKeyZh": "[动手] 你想靠拳头讲理，那就试试。",
+          "HintKey": "LWN_story_hint_rival_opt_fight",
+          "HintKeyZh": "直接与对台领班开战。",
           "Requires": [],
           "Effects": [
             {
@@ -424,6 +454,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "rival_hub",
@@ -434,6 +466,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",

@@ -31,6 +31,9 @@ namespace LivingWorldNpcs
         /// <summary>camera_cut 的机位 id（= Camera.csv 的 ID 列）。</summary>
         public string Case;
 
+        /// <summary>镜头完整画面过渡时长（秒）；0表示有意硬切。</summary>
+        public float BlendSeconds = 0.8f;
+
         /// <summary>actor_* 的目标角色（= StoryProbeDefs 的 NpcId）。</summary>
         public string Actor;
 
@@ -89,7 +92,7 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>
-    /// 台本文件的读写（`ModuleData/DesignData/StoryStage*.json`，与 Dialogue 数据同一套用法）。
+    /// 台本文件的读写（默认`ModuleData/DesignData/StoryOpeningTimeline.json`，与 Dialogue 数据同一套用法）。
     /// 🔴 放 `DesignData/` 根、**不建子目录**（铁律 26）。
     /// </summary>
     public static class StoryStageDefs
@@ -112,7 +115,7 @@ namespace LivingWorldNpcs
 
         public static StageScript Load(string scriptName, bool forceReload = false)
         {
-            if (string.IsNullOrEmpty(scriptName)) scriptName = "StoryStage";
+            if (string.IsNullOrEmpty(scriptName)) scriptName = "StoryOpeningTimeline";
             if (!forceReload && _cache.TryGetValue(scriptName, out var cached)) return cached;
 
             string folder = DesignDataFolder;
@@ -135,6 +138,9 @@ namespace LivingWorldNpcs
                 }
 
                 // 按 At 稳定排序（同 At 保持文件里的先后）
+                foreach (var beat in script.Beats)
+                    if (beat == null || float.IsNaN(beat.BlendSeconds) || float.IsInfinity(beat.BlendSeconds) || beat.BlendSeconds < 0f)
+                        throw new InvalidDataException("Invalid beat or BlendSeconds (must be finite and non-negative)");
                 script.Beats = StableSortByAt(script.Beats);
                 _cache[scriptName] = script;
                 DebugLogger.Log($"[StoryStage] loaded '{scriptName}' beats={script.Beats.Count} ({path})");

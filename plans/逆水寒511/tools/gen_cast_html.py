@@ -4,7 +4,7 @@
 读正式配表及设计总纲：
     ModuleData/DesignData/StoryProbeCast.json
     ModuleData/DesignData/StoryProbeTuning.json
-    ModuleData/DesignData/StoryStage.json
+    ModuleData/DesignData/StoryOpeningTimeline.json
     plans/逆水寒511/逆水寒511-总纲与实施计划.md（集中审阅区）
 写进：
     plans/逆水寒511/逆水寒511-玩法演示.html  的 CASTDATA 标记之间
@@ -93,7 +93,7 @@ def build(cast, tune, stage, cn):
     w('<section id="castdata">')
     w('  <h2>配表：每个人的数据</h2>')
     w('  <p class="sub">这一节由 <code>plans/逆水寒511/tools/gen_cast_html.py</code> 从 '
-      '<code>StoryProbeCast.json</code> / <code>StoryProbeTuning.json</code> / <code>StoryStage.json</code> '
+      '<code>StoryProbeCast.json</code> / <code>StoryProbeTuning.json</code> / <code>StoryOpeningTimeline.json</code> '
       '自动生成。<b>这里是当前旧版布局数据，尚未迁入总纲的新阶段名单、准备批次和工作点。</b>'
       '页面与配置同源；空间位置和游戏表现仍须验收，这不是载入真实场景的三维预演。</p>')
 
@@ -236,7 +236,7 @@ def build(cast, tune, stage, cn):
     # ── 出场演出 ──
     beats = stage.get("Beats") or []
     w('  <h3>当前出场演出：%d 条指令（旧版数据）</h3>' % len(beats))
-    w('  <p class="sub">当前正本 = <code>StoryStage.json</code>。下表按实际文件顺序展示；'
+    w('  <p class="sub">当前正本 = <code>StoryOpeningTimeline.json</code>。下表按实际文件顺序展示；'
       '新版先按名单准备、确认真实就绪，再启动镜头，静态布景不再靠时间轴生成。新版迁移尚未实施。</p>')
     w('  <div class="cd-tl">')
     for b in beats:
@@ -362,7 +362,7 @@ def render_design_review(overview):
 
 def render_stage_inventory(cast, stage):
     """关卡清单直接读正式数据；明确桌子占位与实机可见是两回事。"""
-    formal = load('StoryStageV2.json')
+    formal = load('StoryScenePlan.json')
     legacy = {b['Id']: b for b in stage.get('Beats', []) if b.get('Cmd') == 'prop_spawn'}
     names = load_cn_names()
     by_id = {n['Id']: names.get(n.get('NameKey'), n.get('NameFallback', n['Id'])) for n in cast['Npcs']}
@@ -401,7 +401,7 @@ def render_stage_inventory(cast, stage):
             '<div class="tablewrap"><table><thead><tr><th>用途与实际外观</th><th>数量</th><th>数据编号 / 原版预制体</th>'
             '<th>创建位置</th><th>核查状态</th></tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>'
             '<p>前方沿本关卡城门方向计算，右侧沿门轴右侧计算；负数表示左侧。正式布局来自 '
-            '<code>StoryStageV2.json</code>，旧台本来自 <code>StoryStage.json</code>。'
+            '<code>StoryScenePlan.json</code>，旧台本来自 <code>StoryOpeningTimeline.json</code>。'
             '程序先准备正式布局，再播旧台本；同编号已创建则跳过重复创建。准备入口失败时仍会回退旧布局，'
             '这是待修问题。表中的“登记了”不能证明你在游戏里已经看见。</p>'
             '<p><b>只读验收：</b><code>custom.story_probe layout prep</code> 查看本次准备结果与逐件道具状态；'
@@ -650,7 +650,7 @@ def sync_gameplay(page, cast, tune):
 def main():
     cast = load("StoryProbeCast.json")
     tune = load("StoryProbeTuning.json")
-    stage = load("StoryStage.json")
+    stage = load("StoryOpeningTimeline.json")
 
     cn = load_cn_names()
     block = BEGIN + "\n" + build(cast, tune, stage, cn) + "\n" + END

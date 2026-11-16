@@ -8,7 +8,7 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// **场景演出执行器**（2026-11-13 立）—— 按台本 `StoryStage.json` 逐条执行原子指令。
+    /// **场景演出执行器**（2026-11-13 立）—— 按台本 `StoryOpeningTimeline.json` 逐条执行原子指令。
     ///
     /// 🔴 **复用接缝**：这一层将来会被 `Story/StoryEngine.cs` 顶掉（见 plans §17.10）。
     ///    换的时候只换这个类，**台本数据和原子名一个字都不用改**。
@@ -32,6 +32,21 @@ namespace LivingWorldNpcs
         private string _actorOwner;
         private string _actorInterrupted;
         private float _readyWait;
+        private bool _actorsAcquired;
+        private StageBeat _openingCameraBeat;
+        private float _returnBlendSeconds = 0.8f;
+        // 🔴 开场镜头重试（2026-11-16 实机）：`AfterStart` 那一刻 `SpringArmCameraView` 的
+        //    `_customCamera` 还没在 `OnMissionScreenInitialize` 里创建 ⇒ `EnsureCameraEntity()` 直接 false。
+        //    硬切路径不查这份数据所以以前没事；过渡路径必须等它就位，不能一帧失败就判定整场起不来。
+        private bool _openingCameraPending;
+        private float _openingCameraWait;
+        private float _openingRetryAt;
+        private const float OpeningCameraRetryStepSec = 0.25f;
+        private const float OpeningCameraTimeoutSec = 4f;
+        /// <summary>开场镜头重试用尽仍拿不到 —— 宿主据此弹窗，而不是无声退出。</summary>
+        public bool OpeningCameraFailed { get; private set; }
+        public bool OpeningCameraReady => _openingCameraBeat == null
+            || (CameraService.IsHeldBy(_cameraOwner) && CameraService.Machine.BlendProgress >= 1f);
         private readonly Dictionary<string, PerformanceAction> _actors = new Dictionary<string, PerformanceAction>();
         // 布景归场景，不归一次演出；Stop/重播保留，Mission 移除只清托管引用。
         private readonly Dictionary<string, GameEntity> _props = new Dictionary<string, GameEntity>();
@@ -62,7 +77,7 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>加载台本 + 解算语义位，从第 0 拍开始播。</summary>
-        public bool Begin(string scriptName = "StoryStage")
+        public bool Begin(string scriptName = "StoryOpeningTimeline")
         {
             Stop("restart");
             _script = StoryStageDefs.Load(scriptName);
@@ -79,20 +94,24 @@ namespace LivingWorldNpcs
             _actorInterrupted = null;
             _actorOwner = "stage-" + Guid.NewGuid().ToString("N");
             _running = true;
+            _actorsAcquired = false;
             // Conceal first-time actor spawning with the existing opening camera case.
             // Player freezing still waits for the entire group to start in Tick.
             var openingCamera = _script.Beats?.FirstOrDefault(b => b != null && b.At <= 0f && b.Cmd == "camera_cut");
-            if (openingCamera != null)
+            _openingCameraBeat = openingCamera;
+            _openingCameraPending = false;
+            _openingCameraWait = 0f;
+            _openingRetryAt = 0f;
+            OpeningCameraFailed = false;
+            if (openingCamera != null && !TryCutOpeningCamera(quiet: true))
             {
-                try { CutCamera(openingCamera); }
-                catch (Exception ex)
-                {
-                    DebugLogger.Log($"[StoryStage] opening camera failed before actor spawning: {ex.Message}");
-                    Stop("opening camera unavailable");
-                    return false;
-                }
+                // 不判死：这一刻 MissionScreen/SpringArmCameraView 往往还没初始化完（_customCamera 为 null），
+                // 等一两帧就能切。Tick 会重试；`HoldSpawning` 会挡住演员生成直到镜头就位。
+                _openingCameraPending = true;
+                DebugLogger.Log("[StoryStage] opening camera not ready yet; retrying before spawning actors");
             }
-            if (!AcquireActors()) { Stop("actor group unavailable"); return false; }
+            // 先转到遮挡布景的机位，完成过渡后才能生成/摆放演员。
+            _returnBlendSeconds = _script.Beats?.LastOrDefault(b => b?.Cmd == "camera_return")?.BlendSeconds ?? 0.8f;
             DebugLogger.Log($"[StoryStage] begin '{_script.Script ?? scriptName}' beats={BeatCount} anchors={_anchors.Count}");
             return true;
         }
@@ -101,7 +120,7 @@ namespace LivingWorldNpcs
         public void RunAtom(StageBeat beat)
         {
             if (beat == null) return;
-            if (_script == null) _script = StoryStageDefs.Load("StoryStage");
+            if (_script == null) _script = StoryStageDefs.Load("StoryOpeningTimeline");
             if (_anchors.Count == 0) ResolveAllAnchors();
             if (!string.IsNullOrEmpty(beat.Actor) && beat.Cmd != null && beat.Cmd.StartsWith("actor_"))
             {
@@ -116,6 +135,7 @@ namespace LivingWorldNpcs
                 _actorOwner = "stage-" + Guid.NewGuid().ToString("N");
                 _running = true;
                 if (!AcquireActors()) Stop("manual actor unavailable");
+                else _actorsAcquired = true;
             }
             else Execute(beat, -1);
         }
@@ -137,9 +157,9 @@ namespace LivingWorldNpcs
             _actors.Clear();
             foreach (var lease in leases) lease.Release(reason);
             _actorInterrupted = null;
-            ReturnCamera();
             try { FreezePlayer(false); }
             catch (Exception ex) { DebugLogger.Log($"[StoryStage] player release failed during stop: {ex.Message}"); }
+            ReturnCamera();
             if (hadResources)
                 DebugLogger.Log($"[StoryStage] stopped: {reason} (at {_time:F2}s, next={_next}/{BeatCount})");
         }
@@ -183,10 +203,44 @@ namespace LivingWorldNpcs
         {
             if (!_running) return;
             if (Mission.Current != _mission) { DisposeManaged(); return; }
+            // 开场机位重试：相机视图通常要等 MissionScreen 初始化后才存在（见 Begin 的注释）。
+            // 重试期间台本一帧都不推进、演员也不生成（HoldSpawning 挡住准备批次）。
+            if (_openingCameraPending)
+            {
+                _openingCameraWait += dt;
+                if (_openingCameraWait >= _openingRetryAt)
+                {
+                    _openingRetryAt = _openingCameraWait + OpeningCameraRetryStepSec;
+                    if (TryCutOpeningCamera(quiet: false))
+                    {
+                        _openingCameraPending = false;
+                        DebugLogger.Log($"[StoryStage] opening camera placed after {_openingCameraWait:F2}s of retry");
+                    }
+                    else if (_openingCameraWait >= OpeningCameraTimeoutSec)
+                    {
+                        OpeningCameraFailed = true;
+                        DebugLogger.Log("[StoryStage] opening camera unavailable after retries");
+                        Stop("opening camera unavailable");
+                        return;
+                    }
+                }
+                return;
+            }
             if (_actorInterrupted != null || _actors.Values.Any(a => a.Ended))
             {
                 Stop("actor interrupted: " + _actorInterrupted);
                 return;
+            }
+            if (!_actorsAcquired)
+            {
+                if (_openingCameraBeat != null && !CameraService.IsHeldBy(_cameraOwner))
+                {
+                    Stop("opening camera ownership lost");
+                    return;
+                }
+                if (!OpeningCameraReady) return;
+                if (!AcquireActors()) { Stop("actor group unavailable"); return; }
+                _actorsAcquired = true;
             }
             if (_actors.Values.Any(a => !a.CanControl))
             {
@@ -204,7 +258,8 @@ namespace LivingWorldNpcs
 
             while (_running && _next < BeatCount && _script.Beats[_next].At <= _time)
             {
-                Execute(_script.Beats[_next], _next);
+                // 开场机位已在Begin接管，不能到第0拍又重启同一过渡。
+                if (!ReferenceEquals(_script.Beats[_next], _openingCameraBeat)) Execute(_script.Beats[_next], _next);
                 _next++;
             }
 
@@ -214,7 +269,7 @@ namespace LivingWorldNpcs
         /// <summary>只播某一条（调试用，不动播放游标）。</summary>
         public bool RunSingle(int index)
         {
-            if (_script == null) _script = StoryStageDefs.Load("StoryStage");
+            if (_script == null) _script = StoryStageDefs.Load("StoryOpeningTimeline");
             if (_script == null) return false;
             if (index < 0 || index >= BeatCount)
             {
@@ -247,7 +302,7 @@ namespace LivingWorldNpcs
                     case "player_freeze":  FreezePlayer(true); break;
                     case "player_release": FreezePlayer(false); break;
                     case "camera_cut":     CutCamera(b); break;
-                    case "camera_return":  ReturnCamera(); DebugLogger.Log($"[StoryStage] #{index} camera_return"); break;
+                    case "camera_return":  _returnBlendSeconds = b.BlendSeconds; FreezePlayer(false); ReturnCamera(); DebugLogger.Log($"[StoryStage] #{index} camera_return"); break;
                     case "prop_spawn":     SpawnProp(b, index); break;
                     case "actor_place":    PlaceActor(b, index); break;
                     case "actor_action":   PlayAction(b, index); break;
@@ -316,11 +371,15 @@ namespace LivingWorldNpcs
         private void ReturnCamera()
         {
             if (!CameraService.IsHeldBy(_cameraOwner)) return;
-            try { CameraService.Stop(); }
+            try
+            {
+                if (Mission.Current != _mission || _returnBlendSeconds <= 0f) CameraService.Stop();
+                else if (!CameraService.IsReturning) CameraService.RequestHandBack(_returnBlendSeconds);
+            }
             catch (Exception ex) { DebugLogger.Log($"[StoryStage] camera return failed: {ex.Message}"); }
         }
 
-        private void CutCamera(StageBeat b)
+        private void CutCamera(StageBeat b, bool quiet = false)
         {
             if (string.IsNullOrEmpty(b.Case))
             {
@@ -328,9 +387,30 @@ namespace LivingWorldNpcs
                 return;
             }
             Vec3 anchor = PlaceVec(b);
-            bool ok = CameraService.ApplyPose(b.Case, null, null, anchor, _cameraOwner);
-            DebugLogger.Log($"[StoryStage] camera_cut '{b.Case}' -> {ok} anchor=({anchor.x:F1},{anchor.y:F1},{anchor.z:F1})");
+            bool ok = CameraService.BlendPose(b.Case, null, null, anchor, _cameraOwner, b.BlendSeconds);
+            if (!quiet || ok)
+                DebugLogger.Log($"[StoryStage] camera_cut '{b.Case}' -> {ok} anchor=({anchor.x:F1},{anchor.y:F1},{anchor.z:F1})");
             if (!ok) throw new InvalidOperationException("Cannot acquire stage camera: " + b.Case);
+        }
+
+        /// <summary>
+        /// 尝试切开场机位（失败不抛、不判死）。做成独立的"可重试"动作，是因为
+        /// `AfterStart` 那一刻相机视图可能还没创建（见字段注释），等一两帧就绪即可。
+        /// </summary>
+        private bool TryCutOpeningCamera(bool quiet)
+        {
+            if (_openingCameraBeat == null) return true;
+            try
+            {
+                CutCamera(_openingCameraBeat, quiet);
+                FreezePlayer(true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (!quiet) DebugLogger.Log($"[StoryStage] opening camera still not ready: {ex.Message}");
+                return false;
+            }
         }
 
         private void SpawnProp(StageBeat b, int index)

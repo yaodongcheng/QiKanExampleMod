@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""从旧 `StoryStage.json`（v1 的 30 拍）生成 `StoryStageV2.json` 的第二阶段布局。
+"""从旧 `StoryOpeningTimeline.json`（v1 的 30 拍）生成 `StoryScenePlan.json` 的第二阶段布局。
 
 - 保留文件里已有的 first_meet（不覆盖）；
 - 把 v1 的 7 个 `prop_spawn` 拍搬成布局 `Props`（几何只有一份）；
@@ -16,8 +16,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 DESIGN = os.path.join(ROOT, "ModuleData", "DesignData")
-V1 = os.path.join(DESIGN, "StoryStage.json")
-V2 = os.path.join(DESIGN, "StoryStageV2.json")
+V1 = os.path.join(DESIGN, "StoryOpeningTimeline.json")
+V2 = os.path.join(DESIGN, "StoryScenePlan.json")
 
 WORK_MAP = {
     "pawnbroker": ("pawnbroker_desk", "act_wood_workshop_idle_part_01"),
@@ -95,7 +95,7 @@ def fail(msg):
 
 def main():
     if not os.path.exists(V2):
-        fail("先有 StoryStageV2.json（first_meet）再生成 second_meet")
+        fail("先有 StoryScenePlan.json（first_meet）再生成 second_meet")
     v1 = json.load(io.open(V1, encoding="utf-8"))
     v2 = json.load(io.open(V2, encoding="utf-8"))
     # 只更新说话人物，不覆盖策划已经审定的布局、岗位、流程或开场名单。
@@ -192,7 +192,8 @@ def main():
         "Version": 1,
         "Anchors": {
             "player": {"Source": "player", "Pick": "first", "Required": True},
-            "gate_entity": {"Source": "entity", "Value": ["empire_castle_gate_outer_l2", "empire_castle_gate_outer_l1", "european_castle_gate_outer_l2"], "Pick": "nearestToPlayer", "Required": True},
+            # 第二阶段没有使用 gate_entity 的点位或门区；不要把一级/二级门实体
+            # 列为开演必需项，否则实际加载 level_3 时会取消已准备好的整场演出。
             # 旧 v1 拍里用 `gate` 这个别名；这里显式登记，避免“未声明锚点”。
             "gate": {"Source": "entity", "Value": ["empire_castle_gate_outer_l2", "empire_castle_gate_outer_l1", "european_castle_gate_outer_l2"], "Pick": "nearestToPlayer", "Required": False},
             "idle": {"Source": "tag", "Value": ["npc_idle"], "Pick": "nearestToPlayer", "Required": False},

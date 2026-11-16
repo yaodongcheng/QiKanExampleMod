@@ -495,26 +495,7 @@ namespace LivingWorldNpcs
                     return;
                 }
 
-                // 从 ConversationManager 获取当前对话的 Agent（非 Agent.Main）
-                Agent partnerAgent = null;
-                try
-                {
-                    var cm = Campaign.Current?.ConversationManager;
-                    if (cm != null)
-                    {
-                        partnerAgent = cm.OneToOneConversationAgent as Agent;
-                    }
-                }
-                catch { }
-
-                // 构建上下文：Agent 可能为 null（大地图无 Mission 时），降级处理。
-                // 模板 NPC（HeroObject==null）时 npc?.CurrentSettlement 为 null ——
-                // 必须与 BuildTransitionCondition 显示路径一样回退 Settlement.CurrentSettlement，
-                // 否则村民（无 Hero）强制对话里所有 INTENT 都会因 ActiveEvent==null 被 Evaluate 静默 Hidden：
-                // 选项照显示、点了没效果（拔剑/赔偿/认罚全部失效）。
-                var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
-                var worldEvt = settlement != null ? WorldEventStore.FindOnGoing(settlement.StringId) : null;
-                var ctx = new IntentContext(partnerAgent, speaker: npc, worldEvent: worldEvt, actionParam: actionParam);
+                var ctx = BuildIntentContext(npc, actionParam);
 
                 var eligibility = intent.Evaluate(ctx);
                 if (eligibility.State == EligState.Hidden)
@@ -768,6 +749,7 @@ namespace LivingWorldNpcs
                 }, owner, 125);
             playerSentence.IsSpeaker = transition.RuntimeSpeaker;
             playerSentence.IsListener = transition.RuntimeListener;
+            AttachOptionHint(playerSentence, transition);
             cm.AddDialogFlow(pdf, owner);
             return 1;
         }
@@ -843,6 +825,7 @@ namespace LivingWorldNpcs
                 }, owner, 125);
             playerSentence.IsSpeaker = transition.RuntimeSpeaker;
             playerSentence.IsListener = transition.RuntimeListener;
+            AttachOptionHint(playerSentence, transition);
             cm.AddDialogFlow(pdf, owner);
 
             // 不再需要静默路由行 — ActiveToken 覆写已替代路由职责。
@@ -1200,6 +1183,64 @@ namespace LivingWorldNpcs
             public string EnterParam;
         }
 
+        /// <summary>正式对话的执行和预览取同一实际对象、事件和参数；不涉及交互面板。</summary>
+        private static IntentContext BuildIntentContext(Hero npc, string actionParam)
+        {
+            Agent partnerAgent = null;
+            try { partnerAgent = Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent; }
+            catch { }
+            var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
+            var worldEvt = settlement != null ? WorldEventStore.FindOnGoing(settlement.StringId) : null;
+            return new IntentContext(partnerAgent, speaker: npc, worldEvent: worldEvt, actionParam: actionParam);
+        }
+
+        /// <summary>沿用意图实际技能与SimpleCompute，只查询，不掷骰、执行结果或写入检定回执。</summary>
+        private static TextObject DescribeIntentCheckHint(DialogueTransition transition)
+        {
+            try
+            {
+                var intent = IntentRegistry.FindByName(transition.Action.Substring("INTENT:".Length));
+                if (intent == null || Hero.MainHero == null) return null;
+                var ctx = BuildIntentContext(Hero.OneToOneConversationHero, transition.ActionParam);
+                // Evaluate决定本次ActionParam的手段；不能读取上一个选项缓存的Tactic。
+                if (intent.Evaluate(ctx).State != EligState.Enabled || !intent.Goal.HasValue) return null;
+                var tactic = intent.Tactic;
+                float offer = intent.GetOfferValue(ctx);
+                var skill = SkillCheckSystem.MapTacticToSkill(tactic);
+                var preview = SingleRollResolver.SimpleCompute(ctx, tactic, offer);
+                string note = intent.ToolTip ?? "";
+                if (offer > 0f)
+                    note = LWNTextHelper.ResolveText("LWN_dialogue_hint_offer_basis",
+                        "Your offer or evidence also affects your chance.") + (string.IsNullOrEmpty(note) ? "" : "\n" + note);
+                return new TextObject(LWNTextHelper.ResolveCompound("LWN_story_hint_skill_check",
+                    "Your chance depends on both sides' {SKILL} skill.\nYou: {PLAYER} / opponent: {NPC}\nSuccess chance: {CHANCE}%\n{NOTE}",
+                    ("SKILL", skill.Name.ToString()),
+                    ("PLAYER", Hero.MainHero.GetSkillValue(skill).ToString("F0")),
+                    ("NPC", (ctx.Speaker?.GetSkillValue(skill) ?? 50).ToString("F0")),
+                    ("CHANCE", (preview.Chance * 100f).ToString("F1")), ("NOTE", note)));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DialogueHint] preview failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void AttachOptionHint(ConversationSentence sentence, DialogueTransition transition)
+        {
+            var hint = transition.RuntimeHint;
+            if (hint == null && !string.IsNullOrEmpty(transition.Action)
+                && transition.Action.StartsWith("INTENT:") && string.IsNullOrEmpty(transition.CheckTag))
+                hint = () => DescribeIntentCheckHint(transition);
+            if (hint == null) return;
+            // 原版可点击选项同样会把HintText传给ConversationItemVM.OptionHint。
+            sentence.OnClickableCondition = (out TextObject explanation) =>
+            {
+                explanation = hint();
+                return true;
+            };
+        }
+
         public class DialogueTransition
         {
             /// <summary>玩家选项的显示文本。</summary>
@@ -1208,8 +1249,8 @@ namespace LivingWorldNpcs
             public string PlayerKey;
             /// <summary>PlayerKey 的英文兜底。</summary>
             public string PlayerFallback;
-            /// <summary>检定标签（如 "pawnbroker|charm"）。非空时走 CustomCheck 钩子，
-            /// 而不是 INTENT 检定 —— 序章用它做「玩家属性 vs NPC 同一属性」的对拼。</summary>
+            /// <summary>检定标签（如 "pawnbroker|Threaten"）。非空时走 CustomCheck 钩子；
+            /// 序章按已登记手段复用 SingleRollResolver.SimpleCompute 比较双方实际技能。</summary>
             public string CheckTag;
             /// <summary>注入前的显示条件（StoryProbe 用；逗号 = AND，前缀 ! = 取反）。
             /// 支持：disguised / noble / gold&gt;=N / quest_accepted / quest_done / quest_turned /
@@ -1219,6 +1260,8 @@ namespace LivingWorldNpcs
             public string Once;
             /// <summary>每次显示选项时重新检查剧情状态，不在注入时冻结。</summary>
             [Newtonsoft.Json.JsonIgnore] public Func<bool> RuntimeCondition;
+            /// <summary>原版选项悬停说明；纯查询，不执行效果或掷骰。</summary>
+            [JsonIgnore] public Func<TextObject> RuntimeHint;
             /// <summary>惰性玩家选项文本（Func 求值）。非 null 时优先于 PlayerLine，引擎显示时才求值。</summary>
             public Func<string> LazyPlayerLine;
             /// <summary>此选项是否有技能检定分支。</summary>

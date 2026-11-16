@@ -123,10 +123,14 @@ namespace LivingWorldNpcs
             Add("pay", true, new[] { "amount", "to", "reason" }, new[] { "amount" },
                 "足额转账；to 省略 = 本次实际说话者，reason=bribe 时记打点账", new[] { "amount" });
             Add("relation", true, new[] { "faction", "delta" }, new[] { "faction", "delta" }, "改势力账与代表英雄关系", new[] { "delta" });
-            Add("skill_check", true, new[] { "skill", "threshold" }, new[] { "skill" },
-                "统一掷点检定（结果写会话事实，路由由选项的 Check 决定）", new[] { "threshold" });
+            Add("skill_check", true, new[] { "tactic" }, new[] { "tactic" },
+                "复用对话技能检定，结果写会话事实；正式选项优先使用Check路由");
             Add("give_item", true, new[] { "item", "count" }, new[] { "item" }, "给玩家物品（失败不假发）", new[] { "count" });
+            Add("wear_item", true, new[] { "item", "slot" }, new[] { "item" },
+                "把背包里的一件穿到身上（默认 Body），旧衣回行囊；场景外观立刻刷新");
             Add("start_fight", true, new[] { "target" }, new string[0], "发起真实战斗；target 省略 = 本次实际说话者");
+            Add("detain_player", true, new[] { "target", "mode" }, new[] { "mode" },
+                "玩家主动接受扣押；mode=intro_sentence 复用序章固定刑期，custody 复用犯罪扣押；对话结束后执行");
             // ── D.5 迁移桥原子：复用既有 Quest/钱/事件管线，参数由数据给出 ──
             Add("accept_quest", true, new string[0], new string[0], "接当前说话者的原生委托");
             Add("turn_in", true, new string[0], new string[0], "向当前说话者交差");
@@ -188,7 +192,7 @@ namespace LivingWorldNpcs
     /// </summary>
     public sealed class StoryDialogueCheck
     {
-        public string Skill;      // charm / guile / force
+        public string Tactic;     // NegotiationTactic；技能取共享MapTacticToSkill
         public string Target;     // 参与者角色名或实名演员 id
         public string Success;    // 成功节点（必填）
         public string Fail;       // 失败节点（可空 = 关闭）
@@ -200,6 +204,7 @@ namespace LivingWorldNpcs
         public string Speaker;
         public string Listener;
         public string PlayerKey;
+        public string HintKey;
         public List<string> Requires = new List<string>();
         public List<StoryDialogueEffect> Effects = new List<StoryDialogueEffect>();
         public StoryDialogueCheck Check;
@@ -443,13 +448,14 @@ namespace LivingWorldNpcs
                     string opath = path + ".Options[" + oi + "]";
                     oi++;
                     if (!(o is JObject oo)) { errors.Add(new StoryDialogueIssue(opath, "wrong_type", "选项必须是对象")); continue; }
-                    Keys(oo, opath, new[] { "Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "Requires", "Effects", "Check", "NextNode" }, errors);
+                    Keys(oo, opath, new[] { "Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "HintKey", "HintKeyZh", "Requires", "Effects", "Check", "NextNode" }, errors);
                     var opt = new StoryDialogueOption
                     {
                         Id = Str(oo, "Id", opath, errors, true),
                         Speaker = Str(oo, "Speaker", opath, errors, true),
                         Listener = Str(oo, "Listener", opath, errors, true),
                         PlayerKey = Str(oo, "PlayerKey", opath, errors, true),
+                        HintKey = Str(oo, "HintKey", opath, errors, false),
                         Requires = StrList(oo, "Requires", opath, errors, false),
                         Effects = ParseEffects(oo, "Effects", opath, errors),
                         Check = ParseCheck(oo, opath, errors),
@@ -504,24 +510,19 @@ namespace LivingWorldNpcs
             if (token == null || token.Type == JTokenType.Null) return null;
             if (!(token is JObject co)) { errors.Add(new StoryDialogueIssue(path + ".Check", "wrong_type", "Check 必须是对象")); return null; }
             string cpath = path + ".Check";
-            Keys(co, cpath, new[] { "Skill", "Target", "Success", "Fail" }, errors);
+            Keys(co, cpath, new[] { "Tactic", "Target", "Success", "Fail" }, errors);
             var check = new StoryDialogueCheck
             {
-                Skill = Str(co, "Skill", cpath, errors, true),
+                Tactic = Str(co, "Tactic", cpath, errors, true),
                 Target = Str(co, "Target", cpath, errors, false),
                 Success = Str(co, "Success", cpath, errors, true),
                 Fail = Str(co, "Fail", cpath, errors, false)
             };
-            if (!string.IsNullOrEmpty(check.Skill) && !IsAbilityToken(check.Skill))
-                errors.Add(new StoryDialogueIssue(cpath + ".Skill", "bad_token",
-                    "检定技能只能是 charm/guile/force：" + check.Skill));
+            if (!string.IsNullOrEmpty(check.Tactic) && !StoryProbeDefs.TryParseDialogueTactic(check.Tactic, out _))
+                errors.Add(new StoryDialogueIssue(cpath + ".Tactic", "bad_token",
+                    "检定手段必须是已注册的NegotiationTactic：" + check.Tactic));
             return check;
         }
-
-        private static bool IsAbilityToken(string value)
-            => string.Equals(value, "charm", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "guile", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "force", StringComparison.OrdinalIgnoreCase);
 
         private static void ValidateReferences(StoryDialogueDef def, List<StoryDialogueIssue> errors, bool formalMode)
         {
@@ -688,9 +689,17 @@ namespace LivingWorldNpcs
                     if (!eff.Params.ContainsKey(req))
                         errors.Add(new StoryDialogueIssue(path + ".Effects." + eff.Id + ".Params", "missing_param",
                             "效果 '" + eff.Id + "' 缺必需参数 '" + req + "'"));
+                if (eff.Id == "skill_check" && eff.Params.TryGetValue("tactic", out string tactic)
+                    && !StoryProbeDefs.TryParseDialogueTactic(tactic, out _))
+                    errors.Add(new StoryDialogueIssue(path + ".Effects.skill_check.Params.tactic", "bad_param",
+                        "检定手段必须是已注册NegotiationTactic：" + tactic));
                 if (!spec.Implemented && formalMode)
                     errors.Add(new StoryDialogueIssue(path + ".Effects." + eff.Id, "unimplemented_effect",
                         "效果 '" + eff.Id + "' 尚未实现，不能进正式数据（" + spec.Notes + "）"));
+                if (eff.Id == "detain_player" && eff.Params.TryGetValue("mode", out string mode)
+                    && mode != "intro_sentence" && mode != "custody")
+                    errors.Add(new StoryDialogueIssue(path + ".Effects.detain_player.Params.mode", "bad_param",
+                        "扣押模式只能是intro_sentence/custody：" + mode));
             }
         }
 

@@ -32,6 +32,8 @@ namespace LivingWorldNpcs
         private string _stageId = "";
         private float _elapsed;
         private bool _started;
+        private bool _spawnPending;
+        public Func<bool> HoldSpawning;
         private bool _ready;
         private bool _failed;
         private string _reason = "";
@@ -57,6 +59,7 @@ namespace LivingWorldNpcs
 
         public bool HasActor(string id) => !string.IsNullOrEmpty(id) && _standPos.ContainsKey(id)
                                            && _host.GetAgent(id) != null;
+        public bool PlansActor(string id) => _layout?.Standing?.Any(s => s.Actor == id) == true;
 
         public bool Begin(string stageId)
         {
@@ -72,6 +75,8 @@ namespace LivingWorldNpcs
             _requiredActors.Clear();
             _placed.Clear();
             _skipRequested = false;
+            _started = false;
+            _spawnPending = false;
 
             if (!StoryV2Data.EnsurePublished())
             {
@@ -101,19 +106,40 @@ namespace LivingWorldNpcs
                 return false;
             }
 
+            _started = true;
+            _spawnPending = true;
+            if (HoldSpawning == null || !HoldSpawning()) Materialize();
+            return true;
+        }
+
+        private void Materialize()
+        {
             var anchors = ResolveAnchors();
             SpawnProps(anchors);
             SpawnAndPlaceActors(anchors);
-            _started = true;
+            _spawnPending = false;
             DebugLogger.Log("[StoryPrep] begin stage=" + _stageId + " props=" + _props.Count
                             + " actors=" + _standPos.Count + " results=" + _results.Count);
             EvaluateReadiness();
-            return true;
         }
 
         public void Tick(float dt)
         {
             if (!_started || _ready || _failed) return;
+            if (_spawnPending)
+            {
+                if (HoldSpawning?.Invoke() == true)
+                {
+                    _elapsed += dt;
+                    if (_elapsed > StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec)
+                    {
+                        _failed = true;
+                        _reason = "opening camera not ready; scenery withheld";
+                    }
+                    return;
+                }
+                Materialize();
+            }
             _elapsed += dt;
             EvaluateReadiness();
         }
@@ -121,6 +147,11 @@ namespace LivingWorldNpcs
         public void Skip()
         {
             if (!_started || _ready) return;
+            if (_spawnPending)
+            {
+                // 明确执行跳过命令时立即落实准备；自然进场仍遵守镜头遮挡闸门。
+                Materialize();
+            }
             // 准备期跳过 = **立刻把布景/摆人做完并当场判定**，不再等超时；
             // 必需项没齐就当场失败（不能一点就 ready，也不能照常开演）。
             _skipRequested = true;
@@ -190,9 +221,15 @@ namespace LivingWorldNpcs
         private static GameEntity FindByPrefabRecursive(GameEntity entity, string name, int depth)
         {
             if (entity == null || depth > 6) return null;
-            string prefab = null;
+            // 🔴 两个名字都要认（2026-11-16 实机）：`GetPrefabName()` 对"场景加载后被展开的 prefab 实例"
+            //    常常返回空，而 `entity.Name` 才是引擎给实例的默认名（`StealManager` 找储物道具用的就是它）。
+            //    只比 GetPrefabName 会让 `gate_entity` 这类锚点永远 missing。
+            string prefab = null, assigned = null;
             try { prefab = entity.GetPrefabName(); } catch { }
-            if (string.Equals(prefab, name, StringComparison.OrdinalIgnoreCase)) return entity;
+            try { assigned = entity.Name; } catch { }
+            if (string.Equals(prefab, name, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(assigned, name, StringComparison.OrdinalIgnoreCase)) return entity;
+            if (_prefabProbe.Count < 12 && !string.IsNullOrEmpty(assigned)) _prefabProbe.Add(assigned);
             int children = 0;
             try { children = entity.ChildCount; } catch { }
             for (int i = 0; i < children; i++)
@@ -204,6 +241,9 @@ namespace LivingWorldNpcs
             }
             return null;
         }
+
+        /// <summary>首次查找失败时把扫到的实体名样本写进日志，省得再猜一轮。</summary>
+        private static readonly List<string> _prefabProbe = new List<string>();
 
         private Dictionary<string, Vec3> ResolveAnchors()
         {
@@ -257,6 +297,10 @@ namespace LivingWorldNpcs
                 {
                     anchors[kv.Key] = _host.PlayerAnchor;
                     _results["anchor:" + kv.Key] = def.Required ? "missing" : "optional-missing";
+                    // 缺锚点时把扫到的实体名样本写出来 —— 一眼就能看出是"名字对不上"还是"压根没扫到"。
+                    if (string.Equals(def.Source, "entity", StringComparison.OrdinalIgnoreCase))
+                        DebugLogger.Log($"[StoryPrep] anchor '{kv.Key}' 未命中 [{(def.Value == null ? "" : string.Join("|", def.Value))}]"
+                            + "；场景实体名样本: " + (_prefabProbe.Count == 0 ? "(扫描为空)" : string.Join(", ", _prefabProbe)));
                 }
             }
             // 与 v1 台本/老锚点语义对齐：`gate` = 守门人位（BlockerPos），不是门洞中心。

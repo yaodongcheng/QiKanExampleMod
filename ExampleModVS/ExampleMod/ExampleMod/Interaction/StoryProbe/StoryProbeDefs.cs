@@ -225,7 +225,65 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>成功率 → 门槛 → 掷点（d20：掷点 ≥ 门槛即成功；铁律 17）。</summary>
+        public static bool TryParseDialogueTactic(string text, out NegotiationTactic tactic)
+        {
+            tactic = default;
+            return !string.IsNullOrWhiteSpace(text)
+                && Enum.GetNames(typeof(NegotiationTactic)).Any(n => string.Equals(n, text, StringComparison.OrdinalIgnoreCase))
+                && Enum.TryParse(text, true, out tactic);
+        }
+
+        /// <summary>纯查询：与普通对话共用技能映射及SimpleCompute；不掷骰、不消费测试覆盖。</summary>
+        public static StoryRoll PreviewDialogueCheck(string npcId, NegotiationTactic tactic)
+        {
+            var host = StoryProbeMissionBehavior.Current;
+            var agent = host?.GetAgent(npcId);
+            var hero = host?.GetHero(npcId);
+            if (Hero.MainHero == null || (agent == null && hero == null)) return null;
+            var context = new IntentContext(agent, speaker: hero);
+            var skill = SkillCheckSystem.MapTacticToSkill(tactic);
+            var computed = SingleRollResolver.SimpleCompute(context, tactic);
+            return new StoryRoll
+            {
+                NpcId = npcId,
+                Tactic = tactic.ToString(),
+                Skill = skill,
+                PlayerAttr = Hero.MainHero.GetSkillValue(skill),
+                NpcAttr = context.Speaker?.GetSkillValue(skill) ?? 50f,
+                Chance = computed.Chance,
+                Threshold = 1f - computed.Chance,
+            };
+        }
+
+        public static StoryRoll RollDialogueCheck(string npcId, NegotiationTactic tactic)
+        {
+            var result = PreviewDialogueCheck(npcId, tactic);
+            if (result == null) return null;
+            // 沿用原有三类覆盖命令，但实际概率和技能完全取共享对话轮子。
+            string legacy = result.Skill == DefaultSkills.Charm ? "charm"
+                : result.Skill == DefaultSkills.Roguery ? "guile" : null;
+            result.Roll = TakeCheckRoll(tactic.ToString(), legacy);
+            result.Success = SingleRollResolver.Roll(result.Chance, result.Roll);
+            DebugLogger.Log("[StoryDialogueCheck] resolver=SimpleCompute " + result.Describe());
+            return result;
+        }
+
+        private static float TakeCheckRoll(string kind, string legacy = null)
+        {
+            string want = StoryProbeState.Data.RollOverrideAbility;
+            if (StoryProbeState.Data.RollOverride >= 0f && (string.IsNullOrEmpty(want)
+                || string.Equals(want, kind, StringComparison.OrdinalIgnoreCase)
+                || (legacy != null && string.Equals(want, legacy, StringComparison.OrdinalIgnoreCase))))
+            {
+                float value = MathF.Clamp(StoryProbeState.Data.RollOverride / 100f, 0f, 1f);
+                StoryProbeState.Data.RollOverride = -1f;
+                StoryProbeState.Data.RollOverrideAbility = "";
+                return value;
+            }
+            return MBRandom.RandomFloat;
+        }
+
+        /// <summary>真实潜行/翻墙的旧属性检定；正式对话改用RollDialogueCheck。</summary>
         public static StoryRoll RollCheck(string npcId, StoryAbility ability)
         {
             var def = GetNpc(npcId);
@@ -245,18 +303,7 @@ namespace LivingWorldNpcs
                 Threshold = 1f - chance,
             };
 
-            // 命令强制掷点（验成功 / 失败）：只对**指定的那一门**生效，用一次即清
-            float forced = -1f;
-            string want = StoryProbeState.Data.RollOverrideAbility;
-            if (StoryProbeState.Data.RollOverride >= 0f
-                && (string.IsNullOrEmpty(want) || want == AbilityId(ability)))
-            {
-                forced = StoryProbeState.Data.RollOverride;
-                StoryProbeState.Data.RollOverride = -1f;
-                StoryProbeState.Data.RollOverrideAbility = "";
-            }
-
-            r.Roll = forced >= 0f ? MathF.Clamp(forced / 100f, 0f, 1f) : MBRandom.RandomFloat;
+            r.Roll = TakeCheckRoll(AbilityId(ability));
             // 🔴 唯一掷骰入口（铁律 17：d20 风格统一走 SingleRollResolver.Roll 的成功判据）
             r.Success = SingleRollResolver.Roll(chance, r.Roll);
 
@@ -404,6 +451,8 @@ namespace LivingWorldNpcs
     public sealed class StoryRoll
     {
         public StoryAbility Ability;
+        public string Tactic;
+        public SkillObject Skill;
         public string NpcId;
         public float PlayerAttr;
         public float NpcAttr;
@@ -413,7 +462,7 @@ namespace LivingWorldNpcs
         public bool Success;
 
         public string Describe()
-            => $"{NpcId}/{Ability} player={PlayerAttr:F0} npc={NpcAttr:F0} chance={Chance:P0} " +
+            => $"{NpcId}/{Tactic ?? Ability.ToString()} skill={Skill?.StringId ?? "attribute"} player={PlayerAttr:F0} npc={NpcAttr:F0} chance={Chance:P0} " +
                $"roll={Roll:P0} threshold={Threshold:P0} → {(Success ? "success" : "fail")}";
 
         /// <summary>玩家可见播报（铁律 17：只写「掷点 X% vs 门槛 Y%」，不写难度措辞）。</summary>

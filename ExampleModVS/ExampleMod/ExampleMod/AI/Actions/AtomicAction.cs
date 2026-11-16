@@ -1671,10 +1671,15 @@ namespace LivingWorldNpcs
                 BodyTurnRequested = turnBody;
                 if (turnBody) AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);
                 else AgentControlHelper.LookAtAgent(_brain.Owner, SpeechListener);
-                if (listenerChanged)
-                    DebugLogger.Log($"[Performance] tracking requested owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body={(turnBody ? "turn-outside-cone" : "gaze-only-inside-cone")} fov={NpcSightSystem.DefaultFovDegrees} gaze=SetLookAgent");
-                else if (bodyModeChanged)
-                    DebugLogger.Log($"[Performance] body mode owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body={(turnBody ? "turn-outside-cone" : "gaze-only-inside-cone")} fov={NpcSightSystem.DefaultFovDegrees}");
+                // 转身/注视诊断：统一受 ShowPerformanceFacingDebugMessages 控制（默认关，
+                // 排查朝向问题时在 config.json 打开或运行时 `custom.story_probe life debug on`）。
+                if (Settings.Instance.ShowPerformanceFacingDebugMessages)
+                {
+                    if (listenerChanged)
+                        DebugLogger.Log($"[Performance] tracking requested owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body={(turnBody ? "turn-outside-cone" : "gaze-only-inside-cone")} fov={NpcSightSystem.DefaultFovDegrees} gaze=SetLookAgent");
+                    else if (bodyModeChanged)
+                        DebugLogger.Log($"[Performance] body mode owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body={(turnBody ? "turn-outside-cone" : "gaze-only-inside-cone")} fov={NpcSightSystem.DefaultFovDegrees}");
+                }
                 // 等引擎推进半秒再读真实身体朝向；每次换听话者只播一次，不能每帧刷屏。
                 if (Settings.Instance.ShowPerformanceFacingDebugMessages && !_facingDebugReported
                     && _facingDebugElapsed >= 0.5f)

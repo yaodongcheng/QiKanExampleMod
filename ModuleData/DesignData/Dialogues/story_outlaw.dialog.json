@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_outlaw",
-  "ContentVersion": 2,
+  "ContentVersion": 6,
   "EntryOption": "LWN_story_outlaw_entry",
   "EntryOptionZh": "[说两句] 你们这帮人就窝在墙根底下？",
   "SkipVanillaOpening": true,
@@ -80,10 +80,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_outlaw_opt_settle",
           "PlayerKeyZh": "[对质] 欺负个伤了手的孩子算什么本事？你的这些手段，我一眼就看穿了。",
+          "HintKey": "LWN_story_hint_outlaw_opt_settle",
+          "HintKeyZh": "试着逼野贼停止找小贼的麻烦。",
           "Requires": ["quest_accepted@son", "!quest_done@son"],
           "Effects": [],
           "Check": {
-            "Skill": "guile",
+            "Tactic": "Coerce",
             "Target": "outlaw",
             "Success": "outlaw_settled_line1",
             "Fail": "outlaw_settle_refused_line1"
@@ -95,6 +97,8 @@
           "Id": "ask",
           "PlayerKey": "LWN_story_outlaw_opt_ask",
           "PlayerKeyZh": "[质问] 你们昨天抢了墙头那个半大孩子的飞钩，还伤了人。",
+          "HintKey": "LWN_story_hint_outlaw_opt_ask",
+          "HintKeyZh": "打听抢飞钩和伤人的事。",
           "Requires": ["!asked:outlaw_ask"],
           "Effects": [
             {
@@ -114,6 +118,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_outlaw_opt_fight",
           "PlayerKeyZh": "[动手] 你要靠拳头讲理，那就来。",
+          "HintKey": "LWN_story_hint_outlaw_opt_fight",
+          "HintKeyZh": "直接与野贼开战。",
           "Requires": ["!quest_done@son"],
           "Effects": [
             {
@@ -133,6 +139,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -154,10 +162,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_outlaw_opt_settle",
           "PlayerKeyZh": "[对质] 欺负个伤了手的孩子算什么本事？你的这些手段，我一眼就看穿了。",
+          "HintKey": "LWN_story_hint_outlaw_opt_settle",
+          "HintKeyZh": "试着逼野贼停止找小贼的麻烦。",
           "Requires": ["quest_accepted@son", "!quest_done@son"],
           "Effects": [],
           "Check": {
-            "Skill": "guile",
+            "Tactic": "Coerce",
             "Target": "outlaw",
             "Success": "outlaw_settled_line1",
             "Fail": "outlaw_settle_refused_line1"
@@ -169,6 +179,8 @@
           "Id": "ask",
           "PlayerKey": "LWN_story_outlaw_opt_ask",
           "PlayerKeyZh": "[质问] 你们昨天抢了墙头那个半大孩子的飞钩，还伤了人。",
+          "HintKey": "LWN_story_hint_outlaw_opt_ask",
+          "HintKeyZh": "打听抢飞钩和伤人的事。",
           "Requires": ["!asked:outlaw_ask"],
           "Effects": [
             {
@@ -188,6 +200,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_outlaw_opt_fight",
           "PlayerKeyZh": "[动手] 你要靠拳头讲理，那就来。",
+          "HintKey": "LWN_story_hint_outlaw_opt_fight",
+          "HintKeyZh": "直接与野贼开战。",
           "Requires": ["!quest_done@son"],
           "Effects": [
             {
@@ -207,6 +221,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -238,10 +254,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_outlaw_opt_settle",
           "PlayerKeyZh": "[对质] 欺负个伤了手的孩子算什么本事？你的这些手段，我一眼就看穿了。",
+          "HintKey": "LWN_story_hint_outlaw_opt_settle",
+          "HintKeyZh": "试着逼野贼停止找小贼的麻烦。",
           "Requires": ["quest_accepted@son", "!quest_done@son"],
           "Effects": [],
           "Check": {
-            "Skill": "guile",
+            "Tactic": "Coerce",
             "Target": "outlaw",
             "Success": "outlaw_settled_line1",
             "Fail": "outlaw_settle_refused_line1"
@@ -253,6 +271,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_outlaw_opt_fight",
           "PlayerKeyZh": "[动手] 你要靠拳头讲理，那就来。",
+          "HintKey": "LWN_story_hint_outlaw_opt_fight",
+          "HintKeyZh": "直接与野贼开战。",
           "Requires": ["!quest_done@son"],
           "Effects": [
             {
@@ -272,6 +292,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "outlaw_hub",
@@ -303,6 +325,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -344,6 +368,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "outlaw_hub",
@@ -354,6 +380,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -385,6 +413,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_outlaw_opt_fight",
           "PlayerKeyZh": "[动手] 你要靠拳头讲理，那就来。",
+          "HintKey": "LWN_story_hint_outlaw_opt_fight",
+          "HintKeyZh": "直接与野贼开战。",
           "Requires": [],
           "Effects": [
             {
@@ -404,6 +434,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "outlaw_hub",
@@ -414,6 +446,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",

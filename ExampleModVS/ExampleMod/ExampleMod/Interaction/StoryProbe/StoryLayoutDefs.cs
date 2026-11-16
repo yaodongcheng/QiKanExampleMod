@@ -1657,8 +1657,8 @@ namespace LivingWorldNpcs
             {
                 string folder = StoryProbeDataFiles.DesignDataFolder;
                 if (string.IsNullOrEmpty(folder)) return Reject("no design data folder");
-                string path = Path.Combine(folder, "StoryStageV2.json");
-                if (!File.Exists(path)) return Reject("StoryStageV2.json missing");
+                string path = Path.Combine(folder, "StoryScenePlan.json");
+                if (!File.Exists(path)) return Reject("StoryScenePlan.json missing");
                 var ids = StoryLayoutParser.LoadCastIds(Path.Combine(folder, "StoryProbeCast.json"));
                 if (!StoryLayoutRegistry.TryPublish(File.ReadAllText(path), path, ids,
                     StoryValidationMode.Formal, out var result))

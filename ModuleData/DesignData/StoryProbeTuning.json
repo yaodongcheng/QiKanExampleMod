@@ -104,7 +104,7 @@
     "CardWidth": 380,
     "SideMargin": 24,
     "TopMargin": 18,
-    "FlashSec": 0.9,
+    "FlashSec": 2.2,
     "PollSec": 0.25
   }
 }

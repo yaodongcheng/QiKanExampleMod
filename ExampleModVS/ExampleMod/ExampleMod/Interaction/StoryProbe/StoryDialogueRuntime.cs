@@ -730,6 +730,15 @@ namespace LivingWorldNpcs
                     { error = "give_item.count invalid"; return false; }
                     if (!StoryProbeDefs.CanGiveItem(P("item"), count)) { error = "item cannot be granted: " + P("item"); return false; }
                     return true;
+                case "wear_item":
+                {
+                    if (string.IsNullOrEmpty(P("item"))) { error = "wear_item.item missing"; return false; }
+                    if (StoryProbeDefs.FindItem(P("item")) == null)
+                    { error = "wear_item item not found: " + P("item"); return false; }
+                    if (P("slot") != null && !Enum.TryParse(P("slot"), true, out TaleWorlds.Core.EquipmentIndex _))
+                    { error = "wear_item.slot invalid: " + P("slot"); return false; }
+                    return true;
+                }
                 case "open_gate":
                     if (string.IsNullOrEmpty(P("route"))) { error = "open_gate.route missing"; return false; }
                     if (P("delta") != null && !TryInt(P("delta"), out _)) { error = "open_gate.delta invalid"; return false; }
@@ -740,6 +749,14 @@ namespace LivingWorldNpcs
                     if (string.IsNullOrEmpty(target) || target == "actor" || target == "questioner") target = actor;
                     if (string.IsNullOrEmpty(target) || host.GetAgent(target) == null)
                     { error = "start_fight target missing: " + (target ?? "-"); return false; }
+                    return true;
+                }
+                case "detain_player":
+                {
+                    string target = P("target");
+                    if (string.IsNullOrEmpty(target) || target == "actor" || target == "questioner") target = actor;
+                    if (!host.CanRequestPlayerDetention(target, P("mode")))
+                    { error = "detain_player unavailable: " + (target ?? "-"); return false; }
                     return true;
                 }
                 case "skill_check":
@@ -923,6 +940,13 @@ namespace LivingWorldNpcs
                         return true;
                     }
 
+                    case "wear_item":
+                    {
+                        if (!StoryProbeMissionBehavior.WearStoryItem(P("item"), P("slot"), out string wearErr))
+                        { error = wearErr ?? "wear_item failed"; return false; }
+                        return true;
+                    }
+
                     case "open_gate":
                     {
                         string route = P("route");
@@ -956,6 +980,14 @@ namespace LivingWorldNpcs
                         return true;
                     }
 
+                    case "detain_player":
+                    {
+                        string target = P("target");
+                        if (string.IsNullOrEmpty(target) || target == "actor" || target == "questioner") target = actor;
+                        if (!host.RequestPlayerDetention(target, P("mode")))
+                        { error = "detention refused: " + (target ?? "-"); return false; }
+                        return true;
+                    }
                     case "accept_quest":
                     case "turn_in":
                     case "street_help_reward":
@@ -1066,18 +1098,18 @@ namespace LivingWorldNpcs
 
                     case "skill_check":
                     {
-                        string skill = P("skill");
-                        if (string.IsNullOrEmpty(skill)) { error = "skill_check.skill missing"; return false; }
-                        if (!StoryProbeDefs.TryParseAbility(skill, out var ability))
-                        { error = "skill_check unknown skill: " + skill; return false; }
-                        var roll = StoryProbeDefs.RollCheck(actor, ability);
+                        string tactic = P("tactic");
+                        if (!StoryProbeDefs.TryParseDialogueTactic(tactic, out var parsed))
+                        { error = "skill_check unknown tactic: " + tactic; return false; }
+                        var roll = StoryProbeDefs.RollDialogueCheck(actor, parsed);
+                        if (roll == null) { error = "skill_check target unavailable"; return false; }
                         try
                         {
                             TaleWorlds.Library.InformationManager.DisplayMessage(
                                 new TaleWorlds.Library.InformationMessage(roll.PlayerMessage()));
                         }
                         catch { }
-                        session.Facts["check:" + skill] = roll.Success ? "success" : "fail";
+                        session.Facts["check:" + tactic] = roll.Success ? "success" : "fail";
                         return true;   // 检定本身总是已提交；成功/失败由数据路由
                     }
 

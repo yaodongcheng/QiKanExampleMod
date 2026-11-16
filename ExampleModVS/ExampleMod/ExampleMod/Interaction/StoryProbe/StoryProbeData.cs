@@ -122,7 +122,7 @@ namespace LivingWorldNpcs
         public int TopMargin = 18;
 
         /// <summary>目标变化时高亮秒数（0 = 不闪）。</summary>
-        public float FlashSec = 0.9f;
+        public float FlashSec = 2.2f;
 
         /// <summary>刷新间隔（秒）：每帧查目标文本太浪费，按这个频率轮询。</summary>
         public float PollSec = 0.25f;

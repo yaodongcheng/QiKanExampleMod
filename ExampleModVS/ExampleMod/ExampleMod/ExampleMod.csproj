@@ -291,6 +291,7 @@
     <Compile Include="Interaction\StoryProbe\StoryProbeDefs.cs" />
     <Compile Include="Interaction\StoryProbe\StoryProbeData.cs" />
     <Compile Include="Interaction\StoryProbe\StoryProbeDialogue.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryProbeInventoryPatch.cs" />
     <Compile Include="Interaction\StoryProbe\StoryProbeMissionBehavior.cs" />
     <Compile Include="Interaction\StoryProbe\StreetLifeDirector.cs" />
     <Compile Include="Interaction\StoryProbe\StoryStageDefs.cs" />

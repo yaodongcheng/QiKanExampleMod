@@ -256,6 +256,31 @@ namespace LivingWorldNpcs
 
 		// ═════════════════════════════ 现场改（仅当前持有者） ═════════════════════════════
 
+		/// <summary>剧情机位按完整画面帧过渡；同一持有者换镜头保留首次接管快照。</summary>
+		public static bool BlendPose(string caseName, Agent speaker, Agent listener, Vec3 anchor, string owner, float seconds)
+		{
+			if (string.IsNullOrEmpty(owner)) return false;
+			if (!CameraCase.TryGet(caseName, out CameraCase kase))
+			{
+				// 静默失败会让上层只看到"拿不到机位"（2026-11-16 实机：开场镜头连挂两次查不出原因）。
+				int total = CameraCase.All().Count;
+				DebugLogger.Log($"[CamSvc] 机位 case 不存在：'{caseName}'；Camera.csv 表内 {total} 条"
+					+ (total == 0 ? "（表为空 = CSV 没加载成功）" : ""));
+				return false;
+			}
+			if (_holder != null && (_holder != owner || !Rig.PoseBlending))
+			{
+				DebugLogger.Log($"[CamSvc] 剧情机位被占用：owner={owner} holder={_holder}");
+				return false;
+			}
+			if (!Rig.BlendPose(kase, speaker, listener, anchor, seconds)) return false;
+			_holder = owner;
+			_holderIsPose = false;
+			_external = null;
+			EnsureLookProvider();
+			return true;
+		}
+
 		/// <summary>改臂长（米）。</summary>
 		public static void SetArmLength(float meters) => Rig.SetArmLength(meters);
 

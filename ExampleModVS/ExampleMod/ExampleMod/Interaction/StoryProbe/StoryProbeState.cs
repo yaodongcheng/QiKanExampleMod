@@ -402,6 +402,7 @@ namespace LivingWorldNpcs
                  + " stripped=" + d.Stripped
                  + " disguised=" + d.Disguised
                  + " noble=" + d.NobleDisguise
+                 + " wearingNoble=" + StoryProbeMissionBehavior.DescribeWearingNoble()
                  + " escrowGoldOwed=" + d.GoldBeforeStrip
                  + " escrowSlots[battle=" + d.PendingBattleRestoreSlots.Count + ",civilian=" + d.PendingCivilianRestoreSlots.Count + "]"
                  + " cancelPending=" + d.CancellationPending

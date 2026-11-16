@@ -91,6 +91,8 @@ namespace LivingWorldNpcs
         public StoryPrepRunner Prep => _prep;
         /// <summary>准备失败已经处置过（停台本/发提示），只做一次。</summary>
         private bool _prepFailureHandled;
+        /// <summary>场景起不来的弹窗只弹一次（开场机位重试用尽 / 布景失败共用）。</summary>
+        private bool _sceneAbortHandled;
 
         /// <summary>P4 工作点（占用/走位/工作动作/局部让位）。</summary>
         private StoryWorkDirector _work;
@@ -130,6 +132,8 @@ namespace LivingWorldNpcs
         private readonly HashSet<string> _pendingQuestDone = new HashSet<string>();
         private bool _goalReached;
         private bool _forcedDefeatQueued;
+        private string _playerDetentionMode;
+        private string _playerDetentionActor;
         private bool _firstFightStarted;
         private bool _firstGuardQuestioned;
         /// <summary>本场已经拦问过几次（受 Gate.MaxIntercepts 上限约束；用满后再闯才算硬闯）。</summary>
@@ -270,6 +274,9 @@ namespace LivingWorldNpcs
             base.OnMissionTick(dt);
             if (!Active) return;
 
+            // 扣押只在原版对话关闭后的正常 tick 转场，不能与战斗泵同时推进。
+            if (PumpPlayerDetention()) return;
+
             _time += dt;
 
             ProcessPendingCombatResults();
@@ -320,6 +327,8 @@ namespace LivingWorldNpcs
             Active = false;
             StoryProbeDialogue.ReleaseDialogueFacing();
             _schedule.Clear();
+            _playerDetentionMode = null;
+            _playerDetentionActor = null;
             // 仅实际发出的本轮回执可撤战；pending-only请求不拥有目标后来参加的外部战斗。
             var fights = new Dictionary<string, Action<Agent>>(_duelCallbacks);
             if (_firstDuelCallback != null)
@@ -463,6 +472,16 @@ namespace LivingWorldNpcs
             if (jailEntry) return;
 
             Active = true;
+            // 剧情场景允许玩家随时打开背包换装（2026-11-16 用户裁定）：
+            // 原版城镇在"未被标记为伪装"时本来就开着物品栏，这里显式确认一次，
+            // 避免被其他系统关掉后玩家没地方换。换装后的外观刷新走事件补丁
+            // （StoryProbeInventoryPatch），不做每帧轮询。
+            try
+            {
+                Mission.IsInventoryAccessible = true;
+                DebugLogger.Log("[StoryProbe] inventory access enabled (scene dressing allowed)");
+            }
+            catch (Exception invEx) { DebugLogger.Log($"[StoryProbe] enable inventory access failed: {invEx.Message}"); }
             ResolveAnchors();
             if (!Active) return;
 
@@ -897,6 +916,12 @@ namespace LivingWorldNpcs
             }
 
             if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true) return;
+            // 🔴 门禁在**第一次进城**也要生效（2026-11-16 实机：此前只有第二阶段调它）。
+            //    症状：玩家选「离开」后可以直接穿过城门走进去；一旦越过 PastMeters，
+            //    `IsPlayerInPostZone` 就永久返回 false（它自己那条 "人已经过去了" 短路），
+            //    两名守卫都判 "outside my post zone" ⇒ 再也不拦 = 白送进城。
+            //    门是物理障碍，跟阶段无关，两个 tick 都要推。
+            EnforceGateBarrier(player, dt);
             if (_firstGuardQuestioned)
             {
                 // 已被问过之后又往门里走：**先允许"再拦一次"**（可以换手段重新谈），
@@ -993,12 +1018,20 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>兼容旧对话动作名；仅在正常质问后明确选择硬闯时请求交战。</summary>
-        public void PlayForcedDefeat()
+        public bool PlayForcedDefeat()
         {
-            if (!Active || Phase != StoryProbePhase.FirstAttempt || !_firstGuardQuestioned || _forcedDefeatQueued) return;
+            if (!Active || Phase != StoryProbePhase.FirstAttempt || !_firstGuardQuestioned
+                || _playerDetentionMode != null) return false;
+            if (_forcedDefeatQueued) return true;
             _forcedDefeatQueued = true;
             DebugLogger.Log("[StoryProbe] hard-entry chosen after questioning; await actual combat defeat");
+            return true;
         }
+
+        /// <summary>真实首遇交战状态只供目标显示；不改持久化任务进度。</summary>
+        public bool FirstGuardFightPending => Active && Phase == StoryProbePhase.FirstAttempt
+            && _forcedDefeatQueued && !_firstDefeatResolved;
+        public bool FirstGuardDefeated => Active && Phase == StoryProbePhase.FirstAttempt && _firstDefeatResolved;
 
         private void StartFirstGuardFight()
         {
@@ -1096,42 +1129,54 @@ namespace LivingWorldNpcs
         {
             DebugLogger.Log("[StoryProbe] setup second phase (full prologue)");
 
-            // 🔴 演出层（2026-11-13）：台本 StoryStage.json 驱动「布景 → 摆人 → 玩家出场」。
+            // 🔴 演出层（2026-11-13）：台本 StoryOpeningTimeline.json 驱动「布景 → 摆人 → 玩家出场」。
             //    准备失败 ⇒ 停止台本并安全回城镇菜单，不能绕过准备继续演。
             // 🔴 P3 顺序：**先准备、再开演**。准备批次（布景/摆人）没 Ready 之前，
             //    台本时间轴被 HoldWhile 闸住，不许“演员还没站位就开始演”。
             _stage ??= new StoryStageRunner(this);
             _prepFailureHandled = false;
+            _sceneAbortHandled = false;
             _prep = new StoryPrepRunner(this);
-            if (!_prep.Begin("second_meet"))
+            _prep.HoldSpawning = () => !_stage.OpeningCameraReady;
+            bool staged = _stage.Begin("StoryOpeningTimeline");
+            if (!staged)
             {
-                DebugLogger.Log("[StoryProbe] prep unavailable; return to menu: " + _prep.Reason);
-                Schedule(0.1f, () => { StoryProbeBehavior.CancelPrologue("layout unavailable"); Mission.EndMission(); });
-                InformationManager.DisplayMessage(new InformationMessage(
-                    LWNTextHelper.ResolveText("LWN_story_prep_failed", "The stage is not ready; returning to the town menu.")));
+                // Begin 只在台本文件加载失败时返回 false（相机未就绪不再算失败，见 StoryStageRunner）。
+                DebugLogger.Log("[StoryProbe] opening timeline script unavailable; asking player before leaving");
+                ShowSceneAbortInquiry(
+                    LWNTextHelper.ResolveText("LWN_story_abort_prep", "the scene layout data is missing"),
+                    "opening timeline unavailable");
                 return;
             }
-            bool staged = _stage.Begin("StoryStage");
+            if (!_prep.Begin("second_meet"))
+            {
+                DebugLogger.Log("[StoryProbe] prep unavailable: " + _prep.Reason);
+                ShowSceneAbortInquiry(
+                    LWNTextHelper.ResolveText("LWN_story_abort_prep", "the scene layout data is missing")
+                    + " " + (_prep.DescribeMissing() ?? ""),
+                    "layout unavailable");
+                return;
+            }
             _stage.HoldWhile = () => _prep != null && !_prep.Ready;
 
             // 四家代表（表里有委托的那些）—— 台本/准备批次已排过位的跳过，避免"先站一次再被挪一次"的闪烁
             foreach (var def in StoryProbeDefs.Representatives)
             {
                 if (staged && _stage.ScriptPlacesActor(def.Id)) continue;
-                if (_prep != null && _prep.HasActor(def.Id)) continue;
+                if (_prep != null && _prep.PlansActor(def.Id)) continue;
                 SpawnNpc(def.Id, OffsetPos(def.OffsetForward, def.OffsetRight), def.Civilian);
             }
 
             // 守门人 + 仇家（全部从表里推，代码里不再列名单）
             var blockerDef = StoryProbeDefs.Blocker;
             if (blockerDef != null && !(staged && _stage.ScriptPlacesActor(blockerDef.Id))
-                && !(_prep != null && _prep.HasActor(blockerDef.Id)))
+                && !(_prep != null && _prep.PlansActor(blockerDef.Id)))
                 SpawnNpc(blockerDef.Id, BlockerPos, blockerDef.Civilian);
 
             foreach (var def in StoryProbeDefs.QuestTargets)
             {
                 if (staged && _stage.ScriptPlacesActor(def.Id)) continue;
-                if (_prep != null && _prep.HasActor(def.Id)) continue;
+                if (_prep != null && _prep.PlansActor(def.Id)) continue;
                 SpawnNpc(def.Id, OffsetPos(def.OffsetForward, def.OffsetRight), def.Civilian);
             }
 
@@ -1163,6 +1208,51 @@ namespace LivingWorldNpcs
                     "The gate again. Nothing has changed — except you have nothing left to lose.")));
             InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(
                 "LWN_story_gate_finish_notice", "Finish any outstanding jobs before stepping inside. Entering ends this chapter.")));
+        }
+
+        /// <summary>
+        /// 场景起不来的统一收场（2026-11-16）：**先弹窗说清原因，点确认才离开**。
+        /// 覆盖此前"无声踢人"的两条路径：开场镜头拿不到、布景准备数据缺失。
+        /// 60 秒兜底，避免玩家没看见弹窗就被永远关在一场坏掉的戏里。
+        /// </summary>
+        private void ShowSceneAbortInquiry(string reasonText, string logReason)
+        {
+            bool answered = false;
+            void Leave()
+            {
+                if (answered) return;
+                answered = true;
+                try
+                {
+                    StoryProbeBehavior.CancelPrologue(logReason);
+                    Mission.EndMission();
+                }
+                catch (Exception ex) { DebugLogger.Log($"[StoryProbe] aborted scene exit failed: {ex.Message}"); }
+            }
+            try
+            {
+                string body = LWNTextHelper.ResolveCompound("LWN_story_scene_abort_detail",
+                    "The scene could not start.\n\n{REASON}\n\nPress OK to return to the town menu.",
+                    ("REASON", string.IsNullOrEmpty(reasonText) ? "unknown reason" : reasonText));
+                InformationManager.ShowInquiry(new InquiryData(
+                    LWNTextHelper.ResolveText("LWN_story_prep_failed_title", "Scene not ready"),
+                    body, true, false,
+                    LWNTextHelper.ResolveText("LWN_story_prep_failed_ok", "OK"),
+                    "",
+                    Leave, null));
+                Schedule(60f, () =>
+                {
+                    if (answered) return;
+                    DebugLogger.Log("[StoryProbe] scene abort inquiry timed out; leaving scene");
+                    Leave();
+                });
+                return;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryProbe] scene abort inquiry failed: {ex.Message}");
+            }
+            Leave();
         }
 
         /// <summary>
@@ -1239,6 +1329,17 @@ namespace LivingWorldNpcs
 
             if (_prep?.Failed == true) return;
 
+            // 开场机位重试用尽（相机视图始终没就位）——同样先弹窗再离开，不许无声踢人。
+            if (_stage?.OpeningCameraFailed == true && !_sceneAbortHandled)
+            {
+                _sceneAbortHandled = true;
+                DebugLogger.Log("[StoryProbe] opening camera failed after retries; asking player before leaving");
+                ShowSceneAbortInquiry(
+                    LWNTextHelper.ResolveText("LWN_story_abort_camera", "the opening camera could not be placed"),
+                    "opening camera unavailable");
+                return;
+            }
+
             if (_stage?.Active == true) return; // 镜头演出占用期间不识破、不开战、不判通关。
             _work?.Tick(dt);
             TrackGateCrossing(player, dt);
@@ -1303,12 +1404,153 @@ namespace LivingWorldNpcs
             return expected != null && player.SpawnEquipment[slot].Item == expected;
         }
 
+        /// <summary>
+        /// 让玩家当场换上指定物品（2026-11-16）：把「行囊里的一件」穿到**本场景实际使用的那套装备**
+        /// （城镇剧情 = 民用装），旧衣由 ReplaceEquippedItem 退回行囊 ⇒ 守恒；随后立刻刷新场景外观。
+        /// 只换一套而不是两套：玩家只有一件实物，换两套会凭空多穿一份。
+        /// </summary>
+        public static bool WearStoryItem(string itemId, string slotName, out string error)
+        {
+            error = null;
+            var hero = Hero.MainHero;
+            var mission = Mission.Current;
+            if (hero == null || mission == null) { error = "no mission/hero"; return false; }
+            var item = StoryProbeDefs.FindItem(itemId);
+            if (item == null) { error = "item not found: " + itemId; return false; }
+            var slot = EquipmentIndex.Body;
+            if (!string.IsNullOrEmpty(slotName)
+                && !Enum.TryParse(slotName, true, out slot))
+            { error = "bad slot: " + slotName; return false; }
+            var equipment = mission.DoesMissionRequireCivilianEquipment
+                ? hero.CivilianEquipment : hero.BattleEquipment;
+            if (equipment == null) { error = "no equipment"; return false; }
+            // 已经穿在身上 = 幂等成功，不再扣行囊。
+            if (equipment[slot].Item == item) return true;
+            var roster = hero.PartyBelongedTo?.ItemRoster ?? MobileParty.MainParty?.ItemRoster;
+            if (roster == null) { error = "no item roster"; return false; }
+            if (roster.GetItemNumber(item) < 1) { error = "item not in inventory: " + itemId; return false; }
+            // 行囊 → 身上：先扣实物（Sink 到 null = 穿到身上，不是虚空），旧衣由 ReplaceEquippedItem 退回。
+            int moved = AgentControlHelper.TransferItems(hero, null, item, 1);
+            if (moved != 1) { error = "transfer failed"; return false; }
+            if (!AgentControlHelper.ReplaceEquippedItem(hero, equipment, slot, new EquipmentElement(item)))
+            { error = "equip failed"; return false; }
+            if (AgentControlHelper.SafeIsActive(Agent.Main))
+                AgentControlHelper.RefreshSpawnEquipment(Agent.Main, equipment);
+            DebugLogger.Log($"[StoryProbe] wore '{itemId}' into {slot} (civilian={mission.DoesMissionRequireCivilianEquipment})");
+            InformationManager.DisplayMessage(new InformationMessage(
+                LWNTextHelper.ResolveText("LWN_story_wore_disguise", "You put on the noble costume.")));
+            return true;
+        }
+
+        /// <summary>
+        /// 玩家在物品栏里换装后的外观同步（**由事件触发，不轮询**）。
+        /// 只有装备真的变了才调 `UpdateSpawnEquipmentAndRefreshVisuals`（重建武器实体有开销）。
+        /// </summary>
+        public static void SyncPlayerAppearanceFromInventory(string reason)
+        {
+            try
+            {
+                var host = Current;
+                if (host == null || !host.Active) return;   // 只在剧情探针场景里接管
+                var mission = Mission.Current;
+                var player = Agent.Main;
+                var hero = Hero.MainHero;
+                if (mission == null || player == null || hero == null) return;
+                if (!AgentControlHelper.SafeIsActive(player)) return;
+                var equipment = mission.DoesMissionRequireCivilianEquipment
+                    ? hero.CivilianEquipment : hero.BattleEquipment;
+                if (equipment == null || SameEquipment(player.SpawnEquipment, equipment)) return;
+                AgentControlHelper.RefreshSpawnEquipment(player, equipment);
+                DebugLogger.Log($"[StoryProbe] appearance refreshed from inventory ({reason})");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] appearance sync failed ({reason}): {ex.Message}"); }
+        }
+
+        private static bool SameEquipment(Equipment a, Equipment b)
+        {
+            if (a == null || b == null) return a == b;
+            for (int i = 0; i < 12; i++)
+            {
+                var slot = (EquipmentIndex)i;
+                if (a[slot].Item != b[slot].Item) return false;
+                if (a[slot].ItemModifier != b[slot].ItemModifier) return false;
+            }
+            return true;
+        }
+
+        /// <summary>验收用：真实穿戴状态（不是存档旗标）。不在场景里时返回 n/a。</summary>
+        public static string DescribeWearingNoble()
+        {
+            if (Mission.Current == null || Agent.Main == null) return "n/a";
+            return IsWearingStoryDisguise(true) ? "true" : "false";
+        }
+
+        /// <summary>对话动作只排请求，等原版对话退出再交给 Brain。</summary>
+        public bool CanRequestPlayerDetention(string npcId, string mode)
+        {
+            var target = GetAgent(npcId);
+            return Active && Current == this && Mission.Current == Mission
+                && (mode == "intro_sentence" || mode == "custody")
+                && (mode != "intro_sentence" || (!StoryProbeState.Data.JailDone
+                    && Settlement.CurrentSettlement?.StringId == StoryProbeSettings.SettlementId))
+                && AgentControlHelper.SafeIsActive(Agent.Main) && Agent.Main.Health > 0f
+                && AgentControlHelper.SafeIsActive(target) && target != Agent.Main && target.Health > 0f
+                && !AgentBrain.IsRoped(target) && !AgentBrain.IsHeldByStatus(target) && !AgentBrain.IsKnockedOut(target)
+                && Hero.MainHero != null && !Hero.MainHero.IsPrisoner
+                && Settlement.CurrentSettlement?.Party != null && PlayerDetentionBehavior.Instance != null
+                && !PlayerDetentionBehavior.IsDetentionActive && !_firstFightStarted && _duelCallbacks.Count == 0
+                && !Settings.Instance.IsInteractionDisabled()
+                && (_playerDetentionMode == null
+                    || (_playerDetentionMode == mode && _playerDetentionActor == npcId));
+        }
+
+        public bool RequestPlayerDetention(string npcId, string mode)
+        {
+            if (!CanRequestPlayerDetention(npcId, mode)) return false;
+            if (_playerDetentionMode != null) return true;
+            // 只能撤本 Host 尚未发出的请求；已参战时上方拒绝，不能替外部系统停战。
+            _forcedDefeatQueued = false;
+            _fightRequests.Clear();
+            _playerDetentionMode = mode;
+            _playerDetentionActor = npcId;
+            DebugLogger.Log($"[StoryProbe] surrender queued: actor={npcId} mode={mode}; no combat/defeat receipt");
+            return true;
+        }
+
+        private bool PumpPlayerDetention()
+        {
+            if (_playerDetentionMode == null) return false;
+            if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true) return true;
+            if (!CanRequestPlayerDetention(_playerDetentionActor, _playerDetentionMode))
+            {
+                DebugLogger.Log($"[StoryProbe] surrender handoff cancelled: actor={_playerDetentionActor} mode={_playerDetentionMode}; context unavailable");
+                _playerDetentionMode = null;
+                _playerDetentionActor = null;
+                return false;
+            }
+            string mode = _playerDetentionMode;
+            var settlement = Settlement.CurrentSettlement;
+            _playerDetentionMode = null;
+            _playerDetentionActor = null;
+            if (mode == "intro_sentence")
+            {
+                StoryProbeBehavior.RequestJailInquiry();
+                ApplyFirstArrestBounty();
+            }
+            DebugLogger.Log($"[StoryProbe] surrender handoff: mode={mode} settlement={settlement.StringId}; ending mission");
+            Mission.EndMission();
+            if (mode == "custody")
+                // 与既有主动坐牢入口一致；不拿同城任意进行中事件替玩家定罪。
+                PlayerDetentionBehavior.ApplyImmediateDetention(settlement, null, "story-dialogue-surrender");
+            return true;
+        }
+
         /// <summary>对话动作只排请求，等原版对话退出再交给 Brain。</summary>
         public bool RequestStoryFight(string npcId)
         {
             var target = GetAgent(npcId);
             if (!Active || Current != this || Phase != StoryProbePhase.Second || target == null
-                || !AgentControlHelper.SafeIsActive(target)) return false;
+                || !AgentControlHelper.SafeIsActive(target) || _playerDetentionMode != null) return false;
             _fightRequests.Add(npcId);
             return true;
         }
@@ -2597,6 +2839,11 @@ namespace LivingWorldNpcs
     {
         public static string Resolve()
         {
+            var host = StoryProbeMissionBehavior.Current;
+            if (host?.FirstGuardDefeated == true)
+                return LWNTextHelper.ResolveText("LWN_story_goal_guard_defeated", "You have fallen. Await the guards' next move.");
+            if (host?.FirstGuardFightPending == true)
+                return LWNTextHelper.ResolveText("LWN_story_goal_guard_fight", "Defeat the guards.");
             switch (StoryProbeState.Goal)
             {
                 case "asked":

@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_thug",
-  "ContentVersion": 2,
+  "ContentVersion": 6,
   "EntryOption": "LWN_story_thug_entry",
   "EntryOptionZh": "[说两句] 喂，你就是码头帮在这条街收例钱的？",
   "SkipVanillaOpening": true,
@@ -80,10 +80,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
+          "HintKey": "LWN_story_hint_thug_opt_settle",
+          "HintKeyZh": "试着劝打手停止砸摊。",
           "Requires": ["quest_accepted@butcher", "!quest_done@butcher"],
           "Effects": [],
           "Check": {
-            "Skill": "charm",
+            "Tactic": "Reason",
             "Target": "thug",
             "Success": "thug_settled_line1",
             "Fail": "thug_settle_refused"
@@ -95,6 +97,8 @@
           "Id": "ask",
           "PlayerKey": "LWN_story_thug_opt_ask",
           "PlayerKeyZh": "[质问] 这条街的商铺，你每天都来砸一通？",
+          "HintKey": "LWN_story_hint_thug_opt_ask",
+          "HintKeyZh": "打听砸摊的事。",
           "Requires": ["!asked:thug_ask"],
           "Effects": [
             {
@@ -114,6 +118,8 @@
           "Id": "money",
           "PlayerKey": "LWN_story_thug_opt_money",
           "PlayerKeyZh": "[盘问] 上个月半夜，你们押去码头的姑娘在哪？",
+          "HintKey": "LWN_story_hint_thug_opt_money",
+          "HintKeyZh": "打听夜里押人的事。",
           "Requires": ["!quest_accepted@butcher", "!asked:thug_night"],
           "Effects": [
             {
@@ -133,6 +139,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "直接与打手开战。",
           "Requires": ["!quest_done@butcher"],
           "Effects": [
             {
@@ -152,6 +160,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -173,10 +183,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
+          "HintKey": "LWN_story_hint_thug_opt_settle",
+          "HintKeyZh": "试着劝打手停止砸摊。",
           "Requires": ["quest_accepted@butcher", "!quest_done@butcher"],
           "Effects": [],
           "Check": {
-            "Skill": "charm",
+            "Tactic": "Reason",
             "Target": "thug",
             "Success": "thug_settled_line1",
             "Fail": "thug_settle_refused"
@@ -188,6 +200,8 @@
           "Id": "ask",
           "PlayerKey": "LWN_story_thug_opt_ask",
           "PlayerKeyZh": "[质问] 这条街的商铺，你每天都来砸一通？",
+          "HintKey": "LWN_story_hint_thug_opt_ask",
+          "HintKeyZh": "打听砸摊的事。",
           "Requires": ["!asked:thug_ask"],
           "Effects": [
             {
@@ -207,6 +221,8 @@
           "Id": "money",
           "PlayerKey": "LWN_story_thug_opt_money",
           "PlayerKeyZh": "[盘问] 上个月半夜，你们押去码头的姑娘在哪？",
+          "HintKey": "LWN_story_hint_thug_opt_money",
+          "HintKeyZh": "打听夜里押人的事。",
           "Requires": ["!quest_accepted@butcher", "!asked:thug_night"],
           "Effects": [
             {
@@ -226,6 +242,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "直接与打手开战。",
           "Requires": ["!quest_done@butcher"],
           "Effects": [
             {
@@ -245,6 +263,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -276,10 +296,12 @@
           "Id": "settle",
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。",
+          "HintKey": "LWN_story_hint_thug_opt_settle",
+          "HintKeyZh": "试着劝打手停止砸摊。",
           "Requires": ["quest_accepted@butcher", "!quest_done@butcher"],
           "Effects": [],
           "Check": {
-            "Skill": "charm",
+            "Tactic": "Reason",
             "Target": "thug",
             "Success": "thug_settled_line1",
             "Fail": "thug_settle_refused"
@@ -291,6 +313,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "直接与打手开战。",
           "Requires": ["!quest_done@butcher"],
           "Effects": [
             {
@@ -310,6 +334,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "thug_hub",
@@ -341,6 +367,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "直接与打手开战。",
           "Requires": [],
           "Effects": [
             {
@@ -360,6 +388,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "thug_hub",
@@ -391,6 +421,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -432,6 +464,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "thug_hub",
@@ -442,6 +476,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
@@ -463,6 +499,8 @@
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[动手] 别拿码头帮的名头吓唬我。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "直接与打手开战。",
           "Requires": [],
           "Effects": [
             {
@@ -482,6 +520,8 @@
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
           "PlayerKeyZh": "[收住] 别的先不问了。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
           "Requires": [],
           "Effects": [],
           "NextNode": "thug_hub",
@@ -492,6 +532,8 @@
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
           "PlayerKeyZh": "[离开]",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
           "Requires": [],
           "Effects": [],
           "NextNode": "",
