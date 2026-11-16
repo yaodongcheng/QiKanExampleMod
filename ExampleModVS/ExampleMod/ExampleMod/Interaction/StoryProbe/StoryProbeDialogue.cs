@@ -60,6 +60,15 @@ namespace LivingWorldNpcs
                     return;
                 }
 
+                // 明确的犯罪质问/投降必须独占开场，不能被已有剧情会话或新 player_talk 覆盖。
+                if (ConversationEntryPatch._pendingTrigger != DialogueTrigger.Normal)
+                {
+                    StoryDialogueRuntime.CancelSession("yield to " + ConversationEntryPatch._pendingTrigger);
+                    PendingEntryNode = null;
+                    DebugLogger.Log($"[StoryDialogue] opening yielded actor={npcId} trigger={ConversationEntryPatch._pendingTrigger}");
+                    return;
+                }
+
                 // P0-D.3/Q01：普通玩家按 F 交谈也必须走同一请求入口；没有活跃会话时先建 player_talk 请求。
                 // 被冷却/重入/原版犯罪仲裁拒绝时**不注入**，让原版树照常走，而不是静默回旧剧情入口。
                 if (StoryDialogueRuntime.Current == null)
@@ -218,7 +227,7 @@ namespace LivingWorldNpcs
             if (agent == Agent.Main) return true;
             var brain = AgentAIController.GetBrainForAgent(agent);
             return brain == null || (!brain.IsBound && !brain.IsStunned && !brain.IsStatusHeld && !brain.IsInCombat
-                && !brain.IsPerforming);
+                && (!brain.IsPerforming || StoryProbeMissionBehavior.Current?.Director?.HasYieldedDialogueActor(agent) == true));
         }
 
         private static bool IsTurnValid(StoryDialogueSession session, StoryDialogueNodeDef node)
@@ -239,16 +248,27 @@ namespace LivingWorldNpcs
         {
             var cm = Campaign.Current?.ConversationManager;
             var primary = ResolveTurnAgent(session, session.Request.ActorId);
-            if (cm == null || primary == null || !cm.ConversationAgents.Contains(primary) || !IsTurnValid(session, node))
+            if (cm == null || primary == null || !cm.ConversationAgents.Contains(primary)
+                || StoryDialogueRuntime.Current != session || session.Ended || session.Failed
+                || session.Request.RuntimeToken != StoryProbeState.RuntimeToken)
                 return RejectTurn(session, node.Id);
-            var required = new List<IAgent> { ResolveTurnAgent(session, node.Speaker), ResolveTurnAgent(session, node.Listener) };
+            var required = new List<Agent> { ResolveTurnAgent(session, node.Speaker), ResolveTurnAgent(session, node.Listener) };
             // 玩家选项的听话对象也必须在选项出现前到位；不是文本查询时才加入。
             foreach (var option in node.Options)
             {
                 var listener = ResolveTurnAgent(session, option.Listener);
-                if (!CanUseTurnAgent(listener)) return RejectTurn(session, node.Id);
                 required.Add(listener);
             }
+            // 原版首句在 StartConversation 内同步处理；不能等下一帧 Brain/导演才归还身体。
+            // 只让出剧情导演拥有的工作/环境/群戏租约；查询保持纯读，外部演出仍拒绝。
+            var host = StoryProbeMissionBehavior.Current;
+            foreach (var actor in required.Distinct())
+            {
+                host?.Work?.YieldActor(ResolveNpcId(actor), "dialogue handoff");
+                host?.Director?.YieldActorForDialogue(actor);
+            }
+            if (!IsTurnValid(session, node) || required.Any(a => !CanUseTurnAgent(a)))
+                return RejectTurn(session, node.Id);
             cm.AddConversationAgents(required.Where(a => a != Agent.Main).Distinct(), false);
             return true;
         }

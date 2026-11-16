@@ -694,7 +694,7 @@ namespace LivingWorldNpcs
         /// Postfix 注入来不及——那时原版开场白已经播放完毕。
         /// </summary>
         [HarmonyPrefix]
-        public static void Prefix(MissionConversationLogic __instance)
+        public static void Prefix(MissionConversationLogic __instance, Agent __0)
         {
             try
             {
@@ -704,13 +704,10 @@ namespace LivingWorldNpcs
 
                 var trigger = ConversationEntryPatch._pendingTrigger;
 
-                // ★ Alert trigger：取 ActiveConversationAgent（已由 AlertForceConversationAction
-                // 在 StartConversation 之前设置），而不是 __instance.ConversationAgent。
-                // 原因：__instance.ConversationAgent 可能返回过期值（例如玩家刚打晕的 NPC），
-                // 导致 TryInjectCrimeDialogue 收到错误的 Hero partner 而跳过模板 NPC 的延迟注入路径。
-                Agent effectiveAgent= AlertForceConversationAction.ActiveConversationAgent?? __instance.ConversationAgent;
-                
-                
+                // __0 是 StartConversation 的真实 Agent 参数，两版签名相同。
+                // ConversationAgent 仅保存造访/传送对象，普通 F 不赋值；Alert 缓存也不能替代本次参数。
+                Agent effectiveAgent = __0;
+                DebugLogger.Log($"[ConvEntry] Mission target source=argument agent={effectiveAgent?.Name} idx={effectiveAgent?.Index} storyActor={StoryProbeDialogue.ResolveNpcId(effectiveAgent) ?? "-"} visitAgent={__instance.ConversationAgent?.Name} alertAgent={AlertForceConversationAction.ActiveConversationAgent?.Name} trigger={trigger}");
 
                 if (effectiveAgent != null)
                 {
@@ -761,17 +758,14 @@ namespace LivingWorldNpcs
         }
 
         [HarmonyPostfix]
-        public static void Postfix(MissionConversationLogic __instance)
+        public static void Postfix(MissionConversationLogic __instance, Agent __0)
         {
             try
             {
                 // Postfix 注入对带开场白的 NPC（如村庄头人）至关重要：
                 // Prefix 注入抢占 start token 后，Postfix 补充注入 hero_main_options 的 gateway 入口句。
                 // 若无此段，原版开场白播完后玩家选项不显示（引擎已走过 hero_main_options 但未找到注入句）。
-                var trigger = ConversationEntryPatch._pendingTrigger;
-                Agent effectiveAgent;
-
-                effectiveAgent = AlertForceConversationAction.ActiveConversationAgent ?? __instance.ConversationAgent;
+                Agent effectiveAgent = __0;
 
                 // 仅当 Prefix 未设置 ConfrontingBrain 时才设置（避免覆盖 Prefix 的正确值）
                 if (AgentBrain.ConfrontingBrain == null && effectiveAgent != null)

@@ -279,7 +279,7 @@ def build(cast, tune, stage, cn):
 
 def render_design_review(overview):
     """仅渲染总纲集中审阅区用到的格式；新块格式报错，避免静默漏掉设计。"""
-    start = '### 给接手agent的开工说明（先读这一段）'
+    start = '### 用户批注：最新优化要求与待办（2026-11-16）'
     end = '**共同口径：**'
     if overview.count(start) != 1 or overview.count(end) != 1:
         raise ValueError('project overview review boundaries missing or duplicated')

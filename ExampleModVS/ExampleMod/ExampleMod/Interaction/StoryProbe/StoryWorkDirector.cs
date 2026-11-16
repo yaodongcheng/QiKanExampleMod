@@ -100,7 +100,6 @@ namespace LivingWorldNpcs
         {
             if (!_started || _stopped) return;
             var now = _host.Clock;
-            string talkingNpc = ResolveConversationNpc();
 
             foreach (var slot in _slots.Values)
             {
@@ -126,7 +125,7 @@ namespace LivingWorldNpcs
                 }
 
                 // 局部让位：只暂停正在跟这个人说话的工作；别人聊天不影响。
-                if (!string.IsNullOrEmpty(talkingNpc) && talkingNpc == slot.ActorId)
+                if (IsConversationActor(agent))
                 {
                     Release(slot, "conversation", now);
                     slot.State = "paused";
@@ -143,7 +142,7 @@ namespace LivingWorldNpcs
                     continue;
                 }
 
-                if (slot.State == "paused" && string.IsNullOrEmpty(talkingNpc))
+                if (slot.State == "paused")
                 {
                     slot.State = "idle";
                     slot.Reason = "";
@@ -262,10 +261,12 @@ namespace LivingWorldNpcs
         public bool YieldActor(string actorId, string reason)
         {
             if (string.IsNullOrEmpty(actorId) || !_slots.TryGetValue(actorId, out var slot)) return false;
+            bool hadLease = slot.Lease != null;
             Release(slot, reason, _host.Clock);
             slot.State = "paused";
             slot.Reason = reason;
             slot.NextTryAt = _host.Clock + 1f;
+            if (hadLease) DebugLogger.Log($"[StoryWork] yield actor={actorId} reason={reason}");
             return true;
         }
 
@@ -319,15 +320,14 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log("[StoryWork] action failed: " + ex.Message); }
         }
 
-        private static string ResolveConversationNpc()
+        private static bool IsConversationActor(Agent agent)
         {
             try
             {
                 var cm = Campaign.Current?.ConversationManager;
-                if (cm == null || !cm.IsConversationInProgress) return null;
-                return StoryProbeDialogue.ResolveNpcId(cm.OneToOneConversationAgent as Agent);
+                return agent != null && cm != null && cm.IsConversationInProgress && cm.IsConversationAgent(agent);
             }
-            catch { return null; }
+            catch { return false; }
         }
     }
 }

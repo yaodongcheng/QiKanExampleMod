@@ -1638,10 +1638,10 @@ namespace LivingWorldNpcs
         {
             if (!CanControl) return;
             var listener = SpeechChannel.GetPerformanceListener(_brain.Owner, this);
-            if (listener != null && listener != SpeechListener)
+            bool listenerChanged = listener != null && listener != SpeechListener;
+            if (listenerChanged)
             {
                 SpeechListener = listener;
-                DebugLogger.Log($"[Performance] listener owner={OwnerToken} speaker={_brain.Owner.Name} listener={listener.Name}");
             }
             if (SpeechListener != null && (SpeechListener == _brain.Owner
                 || !AgentControlHelper.SafeIsActive(SpeechListener) || SpeechListener.Health <= 0f))
@@ -1656,6 +1656,8 @@ namespace LivingWorldNpcs
                 // 气泡消失不解除；目标移动时持续更新身体朝向与注视，动作离开才归还。
                 AgentControlHelper.FaceToActor(_brain.Owner, SpeechListener);
                 AgentControlHelper.LookAtAgent(_brain.Owner, SpeechListener);
+                if (listenerChanged)
+                    DebugLogger.Log($"[Performance] tracking requested owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body=FaceToActor gaze=SetLookAgent");
             }
         }
 

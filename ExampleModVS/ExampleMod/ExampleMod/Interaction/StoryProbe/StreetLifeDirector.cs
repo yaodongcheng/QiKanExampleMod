@@ -559,11 +559,31 @@ namespace LivingWorldNpcs
         // 常驻动作 + 反应
         // ═══════════════════════════════════════════════════════════════
 
-        private void ReleaseAmbient(Agent agent)
+        private void ReleaseAmbient(Agent agent, string reason = "ambient finished")
         {
             if (agent == null || !_ambientActors.TryGetValue(agent, out var slot)) return;
             _ambientActors.Remove(agent);
-            slot.Lease.Release("ambient finished");
+            slot.Lease.Release(reason);
+        }
+
+        /// <summary>在原版准备真实台词时交接本导演的演员，不清外部动作或其他系统的租约。</summary>
+        internal void YieldActorForDialogue(Agent agent)
+        {
+            if (agent == null || agent == Agent.Main) return;
+            ReleaseAmbient(agent, "dialogue handoff");
+            if (!_eventActors.ContainsKey(agent) || _eventPaused) return;
+            // 相关群戏整体暂停保留游标；对话结束沿用既有恢复路径，不能独留搭档继续演。
+            _eventPaused = true;
+            foreach (var lease in _eventActors.Values) lease.Pause(true);
+            DebugLogger.Log($"[StoryProbe] dialogue handoff event={_activeEvent?.Index} actor={agent.Name}");
+        }
+
+        /// <summary>纯读：只有本导演已暂停并仍归该 Brain 所有的同一租约可进入对话。</summary>
+        internal bool HasYieldedDialogueActor(Agent agent)
+        {
+            if (agent == null || !_eventPaused || !_eventActors.TryGetValue(agent, out var lease)) return false;
+            return lease.Started && lease.Paused && !lease.Ended
+                && AgentAIController.GetBrainForAgent(agent)?.OwnsPerformance(lease) == true;
         }
 
         private void BeginAmbient(Agent agent, string action)

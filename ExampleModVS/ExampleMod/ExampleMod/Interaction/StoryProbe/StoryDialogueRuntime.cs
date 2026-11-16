@@ -148,7 +148,7 @@ namespace LivingWorldNpcs
                 return false;
             }
 
-            // P0-D.3 仲裁：玩家主动搭话时，若本城还有未结的犯罪事件，先让原版犯罪/投降入口走完。
+            // P0-D.3 仲裁：玩家与实际处理案件的权威交谈时，让犯罪/投降入口先走。
             // 岗位自动质问（post_ai）不受影响；也不一概禁掉原版犯罪。
             if (string.Equals(trigger.Source, "player", StringComparison.Ordinal)
                 && VanillaHasPriority(actorId, out string vanillaWhy))
@@ -616,25 +616,27 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 原版犯罪/投降入口优先：只拦“玩家主动搭话”，且必须同时满足
-        /// ①本城有正在进行的犯罪事件 ②玩家确实被通缉。自动质问不在此限，也不禁掉原版犯罪。
+        /// 原版犯罪/投降入口优先：只阻止当前对象真正需要接管开场的剧情请求。
+        /// 全城悬赏或无关案件不能让商贩、路人等所有剧情演员失去对话。
         /// </summary>
         private static bool VanillaHasPriority(string actorId, out string why)
         {
             why = null;
-            if (!StoryProbeMissionHandler_Wanted()) return false;
+            if (ConversationEntryPatch._pendingTrigger != DialogueTrigger.Normal)
+            {
+                why = "pending " + ConversationEntryPatch._pendingTrigger;
+                return true;
+            }
             string settlement = StoryProbeSettings.SettlementId;
             if (string.IsNullOrEmpty(settlement)) return false;
             // 🔴 双源查询（铁律 9）：`WorldEventStore.FindOnGoing` 内部已含 PendingWorldEvent 兜底。
             // 只读 Pending 会漏掉已落库、仍在进行中的案子 —— 原版犯罪/投降入口就抢不到了。
             var evt = WorldEventStore.FindOnGoing(settlement);
-            if (evt == null || evt.Phase != WorldEventPhase.Impending) return false;
+            var speaker = StoryProbeMissionBehavior.Current?.GetHero(actorId);
+            if (speaker == null || !CrimeDialogueBuilder.NeedsEarlyInjection(speaker, evt)) return false;
             why = "ongoing crime " + (evt.EventId ?? "-") + " at " + (evt.TargetSettlementId ?? "-");
             return true;
         }
-
-        private static bool StoryProbeMissionHandler_Wanted()
-            => StoryProbeMissionBehavior.IsPlayerWanted();
 
         /// <summary>
         /// 收据身份 = 对话 + 来源节点/选项 + **同名效果序号** + 动作 token + 参数；
