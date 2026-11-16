@@ -286,6 +286,12 @@ namespace LivingWorldNpcs
     public sealed class StoryTriggerDef
     {
         public bool PlayerInsideGate = true;
+        /// <summary>
+        /// 岗位职责区（2026-11-16）：玩家只要进了**我这名守卫的感知半径**就算进我的区，
+        /// 不再要求他正好踩在门轴中线 ±3 米那条窄带里。
+        /// false = 沿用旧的 PlayerInsideGate 口径（旧数据行为不变）。
+        /// </summary>
+        public bool PlayerInPostZone = false;
         public int MaxPerEncounter = 1;
     }
 
@@ -1022,8 +1028,9 @@ namespace LivingWorldNpcs
                 var trigger = Obj(bo, "Trigger", path, errors, b.Kind == "post");
                 if (trigger != null)
                 {
-                    Keys(trigger, path + ".Trigger", new[] { "PlayerInsideGate", "MaxPerEncounter" }, errors);
+                    Keys(trigger, path + ".Trigger", new[] { "PlayerInsideGate", "PlayerInPostZone", "MaxPerEncounter" }, errors);
                     b.Trigger.PlayerInsideGate = Bool(trigger, "PlayerInsideGate", path + ".Trigger", errors, true);
+                    b.Trigger.PlayerInPostZone = Bool(trigger, "PlayerInPostZone", path + ".Trigger", errors, false);
                     b.Trigger.MaxPerEncounter = Int(trigger, "MaxPerEncounter", path + ".Trigger", errors, 1, 1, 16);
                 }
 

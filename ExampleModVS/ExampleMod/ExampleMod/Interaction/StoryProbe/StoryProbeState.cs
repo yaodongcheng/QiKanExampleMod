@@ -43,6 +43,7 @@ namespace LivingWorldNpcs
         public bool TutorialLost;          // 第一次已演完必败教学
         public bool JailDone;              // 牢里换装已完成
         public bool JailSceneEntered;      // 已在真实牢内站点醒来，不是仅打开城镇菜单
+        public string DetentionOwnerId = ""; // 本轮地图刑期的持久收据，读档不会重开刑期
         public int PendingTransition;      // 0=无，1=进入牢房，2=换装后回门外（应用层消费）
         public string TransitionSettlementId = "";
         public string StorySettlementId = ""; // 整轮剧情的城，读档后也能识别 city 设置变化

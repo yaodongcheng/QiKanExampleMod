@@ -94,7 +94,7 @@
             "european_castle_gate_outer_l2"
           ],
           "Pick": "nearestToPlayer",
-          "Required": true
+          "Required": false
         },
         "gate": {
           "Source": "entity",
@@ -418,8 +418,9 @@
         "RangeMeters": 8
       },
       "Trigger": {
-        "PlayerInsideGate": true,
-        "MaxPerEncounter": 1
+        "PlayerInsideGate": false,
+        "PlayerInPostZone": true,
+        "MaxPerEncounter": 2
       },
       "Cooldown": {
         "RetrySec": 3,

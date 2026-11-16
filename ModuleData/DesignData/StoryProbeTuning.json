@@ -66,7 +66,10 @@
     "ClimbHeightMeters": 2.0,
     "PushBackCooldownSec": 1.2,
     "GuardSpawnRadiusMeters": 60.0,
-    "RecognizeDistanceMeters": 12.0
+    "RecognizeDistanceMeters": 12.0,
+  "PassItem": "lwn_gate_pass",
+  "PassApproaches": ["charm", "money"],
+  "MaxIntercepts": 2
   },
 
   "Crime": {
@@ -88,6 +91,7 @@
     "ForcedDefeatHoldSec": 1.2,
     "FirstFightStartTimeoutSec": 3.0,
     "JailWakeDelaySec": 1.0,
+    "DetentionDays": 1,
     "FirstGuardMinCombatSkill": 300,
     "FirstGuardSkillAdvantage": 120,
     "FirstGuardHealthMultiplier": 3.0

@@ -67,9 +67,7 @@ namespace LivingWorldNpcs
                       .Append(" posts=").Append(string.Join(",", b.Posts))
                       .Append(" rank=").Append(string.Join(">", b.Rank))
                       .Append(" range=").Append(b.Perception.RangeMeters.ToString("F1"));
-                    foreach (var kv in _opened)
-                        if (kv.Key.StartsWith(b.Id + "|", StringComparison.Ordinal))
-                            sb.Append(" opened[").Append(kv.Key.Substring(b.Id.Length + 1)).Append("]=").Append(kv.Value);
+                    if (_opened.TryGetValue(b.Id, out int count)) sb.Append(" opened=").Append(count);
                 }
             }
             sb.Append("\n  last: ").Append(_lastReport);
@@ -106,6 +104,8 @@ namespace LivingWorldNpcs
             {
                 if (!file.Stages.TryGetValue(stageId, out var stage) || stage == null) continue;
                 if (!file.Layouts.TryGetValue(stage.Layout, out var layout) || layout == null) continue;
+                if (behavior.Trigger.PlayerInsideGate && !_host.IsPlayerInGateApproach())
+                { lines.Add(behavior.Id + ": player outside gate passage"); continue; }
 
                 foreach (string id in stage.Actors.Concat(stage.OptionalActors).Distinct())
                 {
@@ -131,15 +131,25 @@ namespace LivingWorldNpcs
                     if (brain.IsPerforming || brain.IsInCombat)
                     { lines.Add(id + ": brain busy"); continue; }
 
+                    // 岗位职责区（2026-11-16）：进了"我这名守卫"的感知半径就算轮到我，
+                    // 不再要求玩家正好踩在门轴中线 ±3 米那条窄带里（旧口径见 Trigger.PlayerInsideGate）。
+                    if (behavior.Trigger.PlayerInPostZone && !_host.IsPlayerInPostZone(agent, behavior.Perception.RangeMeters))
+                    { lines.Add(id + ": outside my post zone"); continue; }
+
+                    // 在区里的人必须真的朝玩家看：站着不动的 AI 会一直保持旧朝向，
+                    // 光有距离也会被判"看不见"（LookDirection 是视线判定的输入）。
+                    if (behavior.Trigger.PlayerInPostZone)
+                        AgentControlHelper.LookAtAgent(agent, player);
+
                     float distance = agent.Position.Distance(player.Position);
                     if (distance > behavior.Perception.RangeMeters)
                     { lines.Add(id + ": out of range " + distance.ToString("F1")); continue; }
                     if (behavior.Perception.RequiresSight
                         && !NpcSightSystem.CanAgentSeeTarget(agent, player, behavior.Perception.RangeMeters))
-                    { lines.Add(id + ": no sight"); continue; }
+                    { lines.Add(id + ": no sight (" + NpcSightSystem.ExplainSight(agent, player, behavior.Perception.RangeMeters) + ")"); continue; }
 
                     string key = behavior.Id + "|" + id;
-                    if (_opened.TryGetValue(key, out int opened) && opened >= behavior.Trigger.MaxPerEncounter)
+                    if (_opened.TryGetValue(behavior.Id, out int opened) && opened >= behavior.Trigger.MaxPerEncounter)
                     { lines.Add(id + ": encounter limit " + opened + "/" + behavior.Trigger.MaxPerEncounter); continue; }
                     if (behavior.Cooldown.RetrySec > 0f && _lastAttempt.TryGetValue(key, out float last)
                         && _host.Clock - last < behavior.Cooldown.RetrySec)
@@ -214,8 +224,8 @@ namespace LivingWorldNpcs
             _lastAttempt[key] = _host.Clock;
             if (opened)
             {
-                _opened.TryGetValue(key, out int n);
-                _opened[key] = n + 1;
+                _opened.TryGetValue(behaviorId, out int n);
+                _opened[behaviorId] = n + 1;
             }
             _lastReport = (opened ? "opened " : "refused ") + key + " (" + (reason ?? "-") + ")";
             DebugLogger.Log("[StoryV2] intercept " + _lastReport);

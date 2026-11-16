@@ -279,8 +279,8 @@ def build(cast, tune, stage, cn):
 
 def render_design_review(overview):
     """仅渲染总纲集中审阅区用到的格式；新块格式报错，避免静默漏掉设计。"""
-    start = '### 用户批注：最新优化要求与待办（2026-11-16）'
-    end = '**共同口径：**'
+    start = '### 本次体验反馈核查（2026-11-16）'
+    end = '### 给接手agent的开工说明（先读这一段）'
     if overview.count(start) != 1 or overview.count(end) != 1:
         raise ValueError('project overview review boundaries missing or duplicated')
     source = overview.split(start, 1)[1].split(end, 1)[0]
@@ -360,6 +360,56 @@ def render_design_review(overview):
     return '\n'.join(out)
 
 
+def render_stage_inventory(cast, stage):
+    """关卡清单直接读正式数据；明确桌子占位与实机可见是两回事。"""
+    formal = load('StoryStageV2.json')
+    legacy = {b['Id']: b for b in stage.get('Beats', []) if b.get('Cmd') == 'prop_spawn'}
+    names = load_cn_names()
+    by_id = {n['Id']: names.get(n.get('NameKey'), n.get('NameFallback', n['Id'])) for n in cast['Npcs']}
+    labels = {
+        'butcher_barrel': '屠户摊边杂物桶', 'butcher_block': '屠户操作桌',
+        'pawnbroker_desk': '老周的当铺桌', 'pawnbroker_scale': '当铺杂物桶（不是秤）',
+        'widow_carpet': '戏班前的地毯', 'widow_stage_a': '戏班左侧桌子（临时占位）',
+        'widow_stage_b': '戏班右侧桌子（临时占位）',
+    }
+    rows = []
+    for prop in formal['Layouts']['market_square']['Props']:
+        key = prop['Id']
+        previous = legacy.get(key)
+        same = previous is not None and all(previous.get(k, 0) == prop.get(k, 0)
+                                            for k in ('Prefab', 'Anchor', 'Fwd', 'Right', 'Up', 'Yaw'))
+        rows.append('<tr>' + ''.join('<td>' + esc(v) + '</td>' for v in (
+            labels.get(key, key), '1', key + ' / ' + prop.get('Prefab', '场景既有实体'),
+            '以进入第二阶段时的玩家位置为基点：前 %.1f 米、右 %.1f 米；转 %.0f 度；贴地' %
+            (prop.get('Fwd', 0), prop.get('Right', 0), prop.get('Yaw', 0)),
+            '正式布局与旧台本一致；尚待逐件实机确认' if same else '正式布局与旧台本不同；须核对实际采用哪份位置',
+        )) + '</tr>')
+    actor_rows = []
+    for key, label in [('first_meet', '第一次到城门'), ('second_meet', '第二次到门外市集')]:
+        definition = formal['Stages'][key]
+        actor_rows.append('<tr><td>' + label + '</td><td>'
+                          + esc('、'.join(by_id.get(x, x) for x in definition['Actors']))
+                          + '</td><td>' + str(len(definition['Props'])) + ' 件</td></tr>')
+    return ('<h3 id="stageinventory">关卡到底创建了什么</h3>'
+            '<p><b>现状：</b>第一次只安排两名守卫；第二次安排九名剧情演员和下表七件道具。'
+            '城门、城墙、房屋属于原版城镇场景，这两份剧情布景清单没有新增房屋。'
+            '同伴最多借用一名已经在队伍里的可用同伴，没有则不创建。</p>'
+            '<div class="tablewrap"><table><thead><tr><th>阶段</th><th>安排哪些人</th><th>道具数量</th></tr></thead><tbody>'
+            + ''.join(actor_rows) + '</tbody></table></div>'
+            '<p><b>舞台缺口：</b>目前用两张原版木桌表示戏班位置，并没有做出可供演员站上去的完整戏台；'
+            '屠户的桌子也是普通木桌，没有肉、案板和摊位组合。把它们称为“舞台已完成”或“屠户摊已完成”不准确。</p>'
+            '<div class="tablewrap"><table><thead><tr><th>用途与实际外观</th><th>数量</th><th>数据编号 / 原版预制体</th>'
+            '<th>创建位置</th><th>核查状态</th></tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>'
+            '<p>前方沿本关卡城门方向计算，右侧沿门轴右侧计算；负数表示左侧。正式布局来自 '
+            '<code>StoryStageV2.json</code>，旧台本来自 <code>StoryStage.json</code>。'
+            '程序先准备正式布局，再播旧台本；同编号已创建则跳过重复创建。准备入口失败时仍会回退旧布局，'
+            '这是待修问题。表中的“登记了”不能证明你在游戏里已经看见。</p>'
+            '<p><b>只读验收：</b><code>custom.story_probe layout prep</code> 查看本次准备结果与逐件道具状态；'
+            '<code>custom.story_probe stage status</code> 查看台本是否运行及执行进度。'
+            '两条命令都不传送、不重播、不结算财物或推进剧情；须在第二阶段场景中使用。'
+            '再逐件查看表里的七件实物；如果缺失，保留日志里的准备失败或创建失败记录。</p>')
+
+
 def sync_project_docs(page, cast, tune, stage):
     """目标口径读取总纲；当前计数读取正式数据，不把拟实施目标当现状。"""
     overview = io.open(OVERVIEW, encoding="utf-8").read()
@@ -381,11 +431,12 @@ def sync_project_docs(page, cast, tune, stage):
             + current + '下方对白、配表和十种路线展示当前数据/源码规则；'
             '空间重排、双岗选人、局部对话让位和完整自治仍待实施与验证；'
             '<b>人口隔离已于 2026-11-15 实机确认生效（1.2.12：城里只剩玩家与剧情演员）。</b></p>'
-            '<p><b>实机与页面的对应关系：</b>本页首遇按<b>当前单守卫（铁头）</b>渲染，'
-            '对白取自动手时直挂开场的那棵树（不再放原版开场白）；'
-            '双守卫、动态选人仍是目标，未实施。进游戏若与本页不符，以 `Debug/StoryEngine_RuntimeLog.txt` 为准并回填 §16。</p>'
+            '<p><b>实机与页面的对应关系：</b>首遇已创建两名守卫，共用守门对话，质问者由岗位候选选择。'
+            '靠近即触发、退后后由另一人重复拦问、硬闯仅铁头参战仍是待修问题。'
+            '真实角色、布景与台词以运行日志及用户实机验证为准。</p>'
             '<p><b>证据边界：</b>已有源码修复与数据检查不等于游戏通过；本页不能证明角色动作、空间和流程实机可玩。</p></div>'
-            '<details class="dlg" id="designreview"><summary><b>最新设计与完成状态（自动同步总纲）</b>'
+            + render_stage_inventory(cast, stage)
+            + '<details class="dlg" id="designreview"><summary><b>最新设计与完成状态（自动同步总纲）</b>'
             '<span>展开查看玩家流程、S0～S9、NPC闭环、事件协同和验收要求</span></summary>'
             '<div class="dlgbody">' + render_design_review(overview) + '</div></details>'
             '<p><a href="../../Debug/offline/511-关卡俯视图.png">单张关卡俯视复核图</a> · '

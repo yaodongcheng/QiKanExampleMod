@@ -1262,7 +1262,8 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-13：切磋（IsDuel）→ Peace=true → StartDuel（Invulnerable 底层无敌，点到为止）
             CombatManager.StartFight(agent, _targetEnemy, 2, 1, Peace: _isDuel,
                 protectInitiator: _protectInitiator,
-                onDuelResolved: _isDuel ? new Action<Agent>(ForwardDuelResult) : null);
+                onDuelResolved: _isDuel ? new Action<Agent>(ForwardDuelResult) : null,
+                duelOwnerReceipt: _onDuelResolved);
             _lastHealth = agent.Health;
             // 🔴 M0 战斗喊话（说话并联）+ M4 双轨润色：开战宣言（Combat 优先级，有 LLM 润色/无则模板）
             // 切磋跳过宣言——"你想死吗？！"与点到为止的切磋语义相悖。
@@ -1544,6 +1545,8 @@ namespace LivingWorldNpcs
         private readonly Action<string> _onStopped;
         private bool _ended;
         private bool _bodyHeld;
+        private float _facingDebugElapsed;
+        private bool _facingDebugReported;
         public Agent SpeechListener { get; private set; }
         public string OwnerToken { get; }
         public bool Started { get; private set; }
@@ -1609,6 +1612,7 @@ namespace LivingWorldNpcs
                 return;
             }
             Started = true;
+            AgentControlHelper.SuspendNavigator(agent);
             if (!Paused) HoldBody();
             DebugLogger.Log($"[Performance] started owner={OwnerToken}");
         }
@@ -1631,7 +1635,11 @@ namespace LivingWorldNpcs
                 Finish("conversation", true);
                 return;
             }
-            if (CanControl) HoldBody();
+            if (CanControl)
+            {
+                _facingDebugElapsed += Math.Max(0f, dt);
+                HoldBody();
+            }
         }
 
         private void HoldBody()
@@ -1642,6 +1650,8 @@ namespace LivingWorldNpcs
             if (listenerChanged)
             {
                 SpeechListener = listener;
+                _facingDebugElapsed = 0f;
+                _facingDebugReported = false;
             }
             if (SpeechListener != null && (SpeechListener == _brain.Owner
                 || !AgentControlHelper.SafeIsActive(SpeechListener) || SpeechListener.Health <= 0f))
@@ -1654,10 +1664,27 @@ namespace LivingWorldNpcs
             if (SpeechListener != null)
             {
                 // 气泡消失不解除；目标移动时持续更新身体朝向与注视，动作离开才归还。
-                AgentControlHelper.FaceToActor(_brain.Owner, SpeechListener);
-                AgentControlHelper.LookAtAgent(_brain.Owner, SpeechListener);
+                AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);
                 if (listenerChanged)
-                    DebugLogger.Log($"[Performance] tracking requested owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body=FaceToActor gaze=SetLookAgent");
+                    DebugLogger.Log($"[Performance] tracking requested owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body=scripted-position-direction+FaceToActor gaze=SetLookAgent");
+                // 等引擎推进半秒再读真实身体朝向；每次换听话者只播一次，不能每帧刷屏。
+                if (Settings.Instance.ShowPerformanceFacingDebugMessages && !_facingDebugReported
+                    && _facingDebugElapsed >= 0.5f)
+                {
+                    Vec2 direction = (SpeechListener.Position - _brain.Owner.Position).AsVec2;
+                    Vec2 facing = _brain.Owner.Frame.rotation.f.AsVec2;
+                    if (direction.LengthSquared > 0.0001f && facing.LengthSquared > 0.0001f)
+                    {
+                        direction.Normalize(); facing.Normalize();
+                        double dot = Math.Max(-1d, Math.Min(1d, direction.x * facing.x + direction.y * facing.y));
+                        string angle = (Math.Acos(dot) * 180d / Math.PI).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+                        _facingDebugReported = true;
+                        DebugLogger.Log($"[Performance] facing sample owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} bodyErrorDeg={angle} gaze=SetLookAgent-requested");
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompoundMixed(
+                            "LWN_performance_facing_debug", "[Performance debug] {SPEAKER} -> {LISTENER}: body turn and gaze requested; body error {ANGLE} degrees (0 = facing the listener).",
+                            ("SPEAKER", (object)_brain.Owner.Name), ("LISTENER", (object)SpeechListener.Name), ("ANGLE", (object)angle))));
+                    }
+                }
             }
         }
 

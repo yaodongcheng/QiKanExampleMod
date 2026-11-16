@@ -1406,6 +1406,28 @@ namespace LivingWorldNpcs
         // ────────────────────────────────────────────────────────────────
 
         /// <summary>
+        /// 当前定居点是否命中「公共保管箱生成黑名单」（Settings.ChestSpawnDisabledSettlements）。
+        /// 用途：剧情玩法（如逆水寒511）只要场上 NPC 的经济，不想要那只通用箱子的实体。
+        /// 只认定居点 StringId（铁律 20），空表 = 到处都照常生成。
+        /// </summary>
+        public static bool IsChestSpawnDisabledFor(Settlement settlement)
+        {
+            var list = Settings.Instance?.ChestSpawnDisabledSettlements;
+            if (settlement == null || list == null || list.Count == 0) return false;
+
+            string id = settlement.StringId;
+            if (string.IsNullOrEmpty(id)) return false;
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                string entry = list[i];
+                if (string.IsNullOrWhiteSpace(entry)) continue;
+                if (string.Equals(entry.Trim(), id, StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 根据当前场景类型推断保管箱所在环境。
         /// </summary>
         public static ChestContext GetCurrentChestContext()

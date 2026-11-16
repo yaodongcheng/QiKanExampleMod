@@ -79,6 +79,12 @@ namespace LivingWorldNpcs
         private string _releaseReason;
         /// <summary>是否真的走了 TakePrisonerAction（决定释放时要不要 EndCaptivity）</summary>
         private bool _jailed;
+        private string _sentenceOwner;
+        private string _completedSentenceOwner;
+        private bool _noEarlyRelease;
+        private bool _autoRelease;
+        /// <summary>刑满提示只打一次日志（不存盘，纯粹防刷屏）。</summary>
+        private bool _dueLogged;
 
         private float _menuRetryDelay;
 
@@ -107,13 +113,78 @@ namespace LivingWorldNpcs
             {
                 var inst = Instance;
                 return inst != null && inst._jailed
-                    && (inst._stage == STAGE_DETAINED || inst._stage == STAGE_PENDING_RELEASE);
+                    && (inst._stage == STAGE_DETAINED || inst._stage == STAGE_PENDING_RELEASE)
+                    && (string.IsNullOrEmpty(inst._sentenceOwner)
+                        || Hero.MainHero?.PartyBelongedToAsPrisoner == inst.DetentionSettlement?.Party);
             }
         }
 
         public PlayerDetentionBehavior()
         {
             Instance = this;
+        }
+
+        /// <summary>具名刑期：同一收据重复调用不重开刑期，其他扣押正在处理时拒绝。</summary>
+        public static bool CanBeginSentence(Settlement settlement, string owner, int days)
+        {
+            var inst = Instance;
+            if (inst == null || settlement?.Party == null || string.IsNullOrEmpty(owner) || days < 1
+                || TaleWorlds.MountAndBlade.Mission.Current != null) return false;
+            if (inst._completedSentenceOwner == owner) return true;
+            if (inst._stage != STAGE_NONE) return inst._sentenceOwner == owner && inst._jailed;
+            return Hero.MainHero != null && !Hero.MainHero.IsPrisoner;
+        }
+
+        public static bool TryBeginSentence(Settlement settlement, string owner, int days)
+        {
+            if (!CanBeginSentence(settlement, owner, days)) return false;
+            var inst = Instance;
+            if (inst == null || settlement == null || string.IsNullOrEmpty(owner) || days < 1
+                || TaleWorlds.MountAndBlade.Mission.Current != null) return false;
+            if (inst._completedSentenceOwner == owner) return true;
+            if (inst._stage != STAGE_NONE)
+                return inst._sentenceOwner == owner && inst._jailed;
+            if (Hero.MainHero == null || Hero.MainHero.IsPrisoner) return false;
+            inst._sentenceOwner = owner;
+            inst._noEarlyRelease = true;
+            inst._autoRelease = true;
+            inst._days = days;
+            inst._fine = 0;
+            inst._eventId = null;
+            inst._settlementId = settlement.StringId;
+            inst.StartJail(settlement, "sentence:" + owner);
+            return inst._jailed && inst._sentenceOwner == owner;
+        }
+
+        public static bool IsSentenceRunning(string owner)
+            => !string.IsNullOrEmpty(owner) && Instance?._sentenceOwner == owner
+                && IsDetentionActive;
+
+        public static bool IsSentenceCompleted(string owner)
+            => !string.IsNullOrEmpty(owner) && Instance?._completedSentenceOwner == owner;
+
+        /// <summary>只撤销持有该收据的扣押，不释放犯罪系统或外部系统的俘虏。</summary>
+        public static bool CancelSentence(string owner)
+        {
+            var inst = Instance;
+            if (inst == null || string.IsNullOrEmpty(owner) || inst._sentenceOwner != owner) return true;
+            if (Hero.MainHero?.IsPrisoner == true
+                && Hero.MainHero.PartyBelongedToAsPrisoner != inst.DetentionSettlement?.Party)
+                return false;
+            try
+            {
+                if (inst._jailed && PlayerCaptivity.IsCaptive) PlayerCaptivity.EndCaptivity();
+                inst.Cleanup();
+                return true;
+            }
+            catch (Exception ex) { DebugLogger.Log("[Detention] sentence cancellation failed: " + ex.Message); return false; }
+        }
+
+        public static string DescribeSentence(string owner)
+        {
+            var inst = Instance;
+            if (inst == null) return "Detention unavailable";
+            return $"owner={owner} running={IsSentenceRunning(owner)} completed={IsSentenceCompleted(owner)} stage={inst._stage} days={inst._days} releaseDay={inst._releaseDay:F3} now={CampaignTime.Now.ToDays:F3} noEarlyRelease={inst._noEarlyRelease}";
         }
 
         /// <summary>
@@ -264,6 +335,10 @@ namespace LivingWorldNpcs
             float releaseDay = _releaseDay;
             string releaseReason = _releaseReason ?? string.Empty;
             bool jailed = _jailed;
+            string sentenceOwner = _sentenceOwner ?? "";
+            string completedSentenceOwner = _completedSentenceOwner ?? "";
+            bool noEarlyRelease = _noEarlyRelease;
+            bool autoRelease = _autoRelease;
 
             dataStore.SyncData("lwn_detention_stage", ref stage);
             dataStore.SyncData("lwn_detention_settlement", ref settlementId);
@@ -273,6 +348,10 @@ namespace LivingWorldNpcs
             dataStore.SyncData("lwn_detention_release_day", ref releaseDay);
             dataStore.SyncData("lwn_detention_release_reason", ref releaseReason);
             dataStore.SyncData("lwn_detention_jailed", ref jailed);
+            dataStore.SyncData("lwn_detention_sentence_owner", ref sentenceOwner);
+            dataStore.SyncData("lwn_detention_completed_sentence", ref completedSentenceOwner);
+            dataStore.SyncData("lwn_detention_no_early_release", ref noEarlyRelease);
+            dataStore.SyncData("lwn_detention_auto_release", ref autoRelease);
 
             if (dataStore.IsLoading)
             {
@@ -284,6 +363,10 @@ namespace LivingWorldNpcs
                 _releaseDay = releaseDay;
                 _releaseReason = string.IsNullOrEmpty(releaseReason) ? null : releaseReason;
                 _jailed = jailed;
+                _sentenceOwner = sentenceOwner;
+                _completedSentenceOwner = completedSentenceOwner;
+                _noEarlyRelease = noEarlyRelease;
+                _autoRelease = autoRelease;
                 _menuRetryDelay = 0f;
             }
         }
@@ -291,9 +374,34 @@ namespace LivingWorldNpcs
         private void OnTick(float dt)
         {
             long t0 = PerfProfiler.Now();          // perf: CP_Detention
+            // 已经真实关押，但初次切菜单失败时，保留刑期并低频补回等待界面。
+            if (_stage == STAGE_DETAINED && _autoRelease)
+            {
+                if (TaleWorlds.MountAndBlade.Mission.Current != null
+                    || !(Game.Current?.GameStateManager?.ActiveState is MapState)) return;
+                _menuRetryDelay = Math.Max(0f, _menuRetryDelay - Math.Max(0f, dt));
+                if (_menuRetryDelay > 0f) return;
+                if (Hero.MainHero?.IsPrisoner == true
+                    && Hero.MainHero.PartyBelongedToAsPrisoner == DetentionSettlement?.Party
+                    && !IsCurrentMenu(MENU_WAIT))
+                {
+                    _menuRetryDelay = MENU_RETRY_SECONDS;
+                    ShowMenu(MENU_WAIT);
+                }
+                return;
+            }
             // 只有"待弹释放菜单"需要主动切菜单；待选择阶段的选项是挂在原版定居点菜单上的，
             // 玩家自己走到那儿就能看到，不抢菜单、不打断操作。
             if (_stage != STAGE_PENDING_RELEASE) return;
+            if (_autoRelease)
+            {
+                _menuRetryDelay = Math.Max(0f, _menuRetryDelay - Math.Max(0f, dt));
+                if (_menuRetryDelay > 0f) return;
+                if (TaleWorlds.MountAndBlade.Mission.Current == null
+                    && Game.Current?.GameStateManager?.ActiveState is MapState)
+                    ReleaseContinueOnConsequence(null);
+                return;
+            }
             if (Campaign.Current == null) return;
             if (TaleWorlds.MountAndBlade.Mission.Current != null) return;   // 场景里不弹菜单
             if (!(Game.Current?.GameStateManager?.ActiveState is MapState)) return;
@@ -326,10 +434,27 @@ namespace LivingWorldNpcs
             }
 
             if (_stage != STAGE_DETAINED) return;
+            if (!string.IsNullOrEmpty(_sentenceOwner) && Hero.MainHero?.IsPrisoner == true
+                && Hero.MainHero.PartyBelongedToAsPrisoner != DetentionSettlement?.Party) return;
 
             // 外力（原版/其他 mod/剧情）把玩家放了 → 收尾，别让案件卡住
             if (_jailed && !Hero.MainHero.IsPrisoner)
             {
+                if (_noEarlyRelease && (float)CampaignTime.Now.ToDays < _releaseDay)
+                {
+                    // 外部误释放不刷新截止日，也不重开两天刑期。
+                    try
+                    {
+                        var settlement = DetentionSettlement;
+                        if (settlement?.Party == null) return;
+                        TakePrisonerAction.Apply(settlement.Party, Hero.MainHero);
+                        ShowMenu(MENU_WAIT);
+                        DebugLogger.Log("[Detention] fixed sentence restored after early external release");
+                    }
+                    catch (Exception ex) { DebugLogger.Log("[Detention] fixed sentence restoration failed: " + ex.Message); }
+                    return;
+                }
+                if (_autoRelease) { BeginRelease("served", paidFine: false); return; }
                 DebugLogger.Log("[Detention] Player no longer prisoner (external release) → close case");
                 ResolveCase(paidFine: false);
                 Cleanup();
@@ -337,7 +462,23 @@ namespace LivingWorldNpcs
             }
 
             if ((float)CampaignTime.Now.ToDays >= _releaseDay)
+            {
+                // 🔴 固定刑期（剧情）刑满**不自动放出**（2026-11-16 用户裁定）：
+                //    停在牢里，等玩家在等待菜单里自己点「出狱」。
+                if (_noEarlyRelease)
+                {
+                    bool firstTime = !_dueLogged;
+                    if (firstTime)
+                    {
+                        _dueLogged = true;
+                        DebugLogger.Log("[Detention] sentence served; waiting for player to confirm release");
+                    }
+                    // 第一次到点强制刷一次菜单，让「出狱」选项当场出现（否则要等下一次菜单重建）。
+                    if (!IsCurrentMenu(MENU_WAIT) || firstTime) ShowMenu(MENU_WAIT);
+                    return;
+                }
                 BeginRelease("served", paidFine: false);
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -369,6 +510,12 @@ namespace LivingWorldNpcs
                 "{=LWN_ui_detention_pay_while_jailed}Send word — pay {LWN_FINE}{GOLD_ICON} for release.",
                 PayFineWhileDetainedOnCondition, PayFineWhileDetainedOnConsequence,
                 false, 0);
+
+            // ── 刑满后由玩家自己点「出狱」（2026-11-16 用户裁定：不自动放出）──
+            starter.AddGameMenuOption(MENU_WAIT, "lwn_detention_leave_wait",
+                "{=LWN_ui_detention_leave_now}Leave the cell — your sentence is served.",
+                LeaveCellOnCondition, LeaveCellOnConsequence,
+                false, 1);
 
             // ── 放人（叙事收尾，Continue 里干真活）──
             starter.AddGameMenu(MENU_RELEASE, "{=LWN_ui_detention_release_menu}{LWN_DETENTION_TEXT}", DetentionReleaseOnInit,
@@ -451,6 +598,8 @@ namespace LivingWorldNpcs
         {
             var inst = Instance;
             if (inst == null || inst._stage == STAGE_NONE) return;
+            if (!string.IsNullOrEmpty(inst._sentenceOwner) && Hero.MainHero?.IsPrisoner == true
+                && Hero.MainHero.PartyBelongedToAsPrisoner != inst.DetentionSettlement?.Party) return;
 
             string menuId = vm?.MenuContext?.GameMenu?.StringId;
             if (menuId == null) return;
@@ -501,6 +650,17 @@ namespace LivingWorldNpcs
             var settlement = DetentionSettlement;
             string lockup = LockupName(settlement);
             int daysLeft = Math.Max(1, (int)Math.Ceiling(_releaseDay - (float)CampaignTime.Now.ToDays));
+            if (_noEarlyRelease)
+            {
+                // 刑满：不再自动放出，正文改成"可以走了"，等玩家点「出狱」。
+                if ((float)CampaignTime.Now.ToDays >= _releaseDay)
+                    return LWNTextHelper.ResolveCompound("LWN_ui_detention_fixed_sentence_due",
+                        "Your sentence in the {LOCKUP} is served. The guard unlocks the door — you are free to go.",
+                        ("LOCKUP", lockup));
+                return LWNTextHelper.ResolveCompound("LWN_ui_detention_fixed_sentence_text",
+                    "You are serving a {TOTAL}-day sentence in the {LOCKUP}. {DAYS} days remain. You will be released when the sentence is complete.",
+                    ("TOTAL", _days.ToString()), ("LOCKUP", lockup), ("DAYS", daysLeft.ToString()));
+            }
 
             // 关押阶段正文：天数直接报在开头——玩家一眼看到还要关多久，才不会"无穷无尽"地干等
             string text = LWNTextHelper.ResolveCompound("LWN_ui_detention_detained_text",
@@ -569,8 +729,24 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>关押中出现在原版 settlement_wait 上的赎身选项</summary>
+        /// <summary>刑满才出现的「出狱」选项：玩家自己点，才真的放人（2026-11-16 用户裁定）。</summary>
+        private bool LeaveCellOnCondition(MenuCallbackArgs args)
+        {
+            if (_stage != STAGE_DETAINED || !_jailed || !_noEarlyRelease) return false;
+            if ((float)CampaignTime.Now.ToDays < _releaseDay) return false;
+            args.optionLeaveType = GameMenuOption.LeaveType.Continue;
+            return true;
+        }
+
+        private void LeaveCellOnConsequence(MenuCallbackArgs args)
+        {
+            DebugLogger.Log("[Detention] player confirmed release after sentence served");
+            BeginRelease("served", paidFine: false);
+        }
+
         private bool PayFineWhileDetainedOnCondition(MenuCallbackArgs args)
         {
+            if (_noEarlyRelease) return false;
             if (_stage != STAGE_DETAINED || !_jailed) return false;
 
             args.optionLeaveType = GameMenuOption.LeaveType.Bribe;
@@ -678,10 +854,14 @@ namespace LivingWorldNpcs
             bool wasJailed = _jailed;
             string reason = _releaseReason;
 
-            Cleanup();
-
             if (wasJailed)
             {
+                if (!string.IsNullOrEmpty(_sentenceOwner) && Hero.MainHero?.IsPrisoner == true
+                    && Hero.MainHero.PartyBelongedToAsPrisoner != settlement?.Party)
+                {
+                    _menuRetryDelay = MENU_RETRY_SECONDS;
+                    return; // 外部转押不属于本收据，不替其他系统释放或宣告刑满。
+                }
                 try
                 {
                     // 与原版 menu_captivity_end_* 同源：EndCaptivity 内部会 ExitToLast 回大地图
@@ -693,9 +873,11 @@ namespace LivingWorldNpcs
                 catch (Exception ex)
                 {
                     DebugLogger.Log($"[Detention] EndCaptivity failed: {ex.Message}");
-                    try { GameMenu.ExitToLast(); } catch { }
+                    _menuRetryDelay = MENU_RETRY_SECONDS;
+                    return;
                 }
             }
+
             else
             {
                 // 没真进牢房（当场交钱）→ 回定居点菜单
@@ -706,6 +888,10 @@ namespace LivingWorldNpcs
                     try { GameMenu.ExitToLast(); } catch { }
                 }
             }
+
+            if (!string.IsNullOrEmpty(_sentenceOwner) && reason == "served")
+                _completedSentenceOwner = _sentenceOwner;
+            Cleanup();
 
             // 释放后的黄色系统提示：交钱出来 / 刑满出来
             InformationManager.DisplayMessage(new InformationMessage(
@@ -761,14 +947,16 @@ namespace LivingWorldNpcs
             try
             {
                 TakePrisonerAction.Apply(settlement.Party, Hero.MainHero);
+                // 真实俘虏状态先登记；后续结案/菜单异常不能丢失刑期。
+                _jailed = Hero.MainHero.IsPrisoner;
+                if (!_jailed) { Cleanup(); return; }
+                _stage = STAGE_DETAINED;
+                _settlementId = settlement.StringId;
+                _releaseDay = (float)CampaignTime.Now.ToDays + Math.Max(1, _days);
                 // 坐牢 = 已伏法结案：玩家嫌犯的进行中事件 Resolved + 复仇队解散。
                 // 时机在 MissionEnd 后、Campaign tick 前——源头防生成（后续 DailyTick/AI 不会再派队），
                 // 而不是先派队再删除（见 WorldEventStore.OnPlayerJailed）。
                 WorldEventStore.OnPlayerJailed();
-                _jailed = true;
-                _stage = STAGE_DETAINED;
-                _settlementId = settlement.StringId;
-                _releaseDay = (float)CampaignTime.Now.ToDays + Math.Max(1, _days);
                 DebugLogger.Log($"[Detention] Jailed at {settlement.Name} ({reason}), release on day {_releaseDay:F1}");
 
                 // 关押开始的红色系统提示：报出关押地点与场所
@@ -787,13 +975,15 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[Detention] StartJail failed ({reason}): {ex.Message}");
-                Cleanup();
+                // 菜单切换异常不能抹掉已经真实入俘虏名单的刑期。
+                if (!_jailed) Cleanup();
             }
         }
 
         /// <summary>扣钱。走 AgentControlHelper 归口（收款方 = 权威 NPC，找不到就是"世界"）。</summary>
         private bool PayFine()
         {
+            if (_noEarlyRelease) return false;
             int amount = Math.Max(0, _fine);
             if (amount > Hero.MainHero.Gold)
             {
@@ -828,7 +1018,7 @@ namespace LivingWorldNpcs
             ResolveCase(paidFine);
 
             // 已经在菜单里（交罚金是在菜单里点的）→ 立刻切；否则等 OnTick
-            if (TaleWorlds.MountAndBlade.Mission.Current == null
+            if (!_autoRelease && TaleWorlds.MountAndBlade.Mission.Current == null
                 && Game.Current?.GameStateManager?.ActiveState is MapState)
                 ShowMenu(MENU_RELEASE);
         }
@@ -868,6 +1058,9 @@ namespace LivingWorldNpcs
             _releaseDay = 0f;
             _releaseReason = null;
             _jailed = false;
+            _sentenceOwner = null;
+            _noEarlyRelease = false;
+            _autoRelease = false;
             _menuRetryDelay = 0f;
         }
 

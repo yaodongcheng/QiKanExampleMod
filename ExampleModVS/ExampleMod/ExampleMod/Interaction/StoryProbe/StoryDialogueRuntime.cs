@@ -937,7 +937,7 @@ namespace LivingWorldNpcs
                             { error = "open_gate.delta invalid"; return false; }
                             bool crime = string.Equals(P("crime"), "true", StringComparison.OrdinalIgnoreCase)
                                          || P("crime") == "1";
-                            host.ResolveApproach(route, faction, delta, crime, P("hazard"));
+                            host.ResolveApproach(route, faction, delta, crime, P("hazard"), actor);
                         }
                         return true;
                     }

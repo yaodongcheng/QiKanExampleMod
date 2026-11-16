@@ -24,7 +24,7 @@ namespace LivingWorldNpcs
                 "enable", "disable", "city", "status", "enter", "intro", "phase", "where", "spawn",
                 "check", "roll", "learn", "resolve", "strip", "restore", "reset", "talk", "goal",
                 "life", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud",
-                "script", "population", "layout", "intercept", "work", "group", "help",
+                "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "help",
             };
 
         [CommandLineFunctionality.CommandLineArgumentFunction("story_probe", "custom")]
@@ -64,6 +64,7 @@ namespace LivingWorldNpcs
                         return "OK: " + StoryProbeState.Describe()
                              + " || steps: " + StoryProbeState.DescribeSteps()
                              + " || clues=" + StoryProbeState.ClueCount + " asked=" + StoryProbeState.AskedCount
+                             + " || sentence: " + PlayerDetentionBehavior.DescribeSentence(StoryProbeState.Data.DetentionOwnerId)
                              + " || mission=" + (StoryProbeMissionBehavior.Current?.Active == true
                                  ? "active(" + StoryProbeMissionBehavior.Current.Phase + ")"
                                  : "none");
@@ -91,13 +92,8 @@ namespace LivingWorldNpcs
                         }
                         if (p == "second")
                         {
-                            var host = StoryProbeMissionBehavior.Current;
-                            if (host?.Active != true || host.Phase != StoryProbePhase.Jail
-                                || !StoryProbeState.Data.JailSceneEntered)
-                                return "Error: enter the real prison and reach a safe cell point before changing clothes.";
-                            host.CompleteJailDisguise();
-                            return StoryProbeState.Data.JailDone ? "OK: disguise completed; real return transition queued."
-                                : "Pending: disguise not completed; prison phase retained.";
+                            return "Second entry is automatic after the fixed map sentence; this command does not skip detention. "
+                                + PlayerDetentionBehavior.DescribeSentence(StoryProbeState.Data.DetentionOwnerId);
                         }
                         return $"Usage: custom.story_probe phase first|second (current={StoryProbeState.Phase})";
                     }
@@ -107,6 +103,29 @@ namespace LivingWorldNpcs
                         var host = StoryProbeMissionBehavior.Current;
                         return host != null && host.Active ? "OK: " + host.DescribeWhere()
                                                            : "OK: story probe not active in this mission";
+                    }
+
+                    case "persona":
+                    {
+                        string id = Arg(args, used, 0);
+                        var selected = StoryProbeDefs.Npcs.Where(n => string.IsNullOrEmpty(id)
+                            || StoryProbeDefs.GetNpc(id) == null || n.Id == id);
+                        var host = StoryProbeMissionBehavior.Current;
+                        var report = new System.Text.StringBuilder("OK: cast personas (read only)");
+                        foreach (var def in selected)
+                        {
+                            var hero = host?.GetHero(def.Id);
+                            var agent = host?.GetAgent(def.Id);
+                            var memory = hero != null ? AllNpcMemoryManager.GetMemory(hero.StringId) : null;
+                            bool identityMatches = memory?._profile?.IdentityOverride
+                                == LWNTextHelper.ResolveText(def.IdentityKey, def.IdentityFallback);
+                            bool nameMatches = hero != null && hero.Name.ToString()
+                                == LWNTextHelper.ResolveText(def.NameKey, def.NameFallback);
+                            report.Append($"\n{def.Id}: name={def.NameFallback}; identity={def.IdentityFallback}; role={def.ReactiveRole}; "
+                                + $"agent={(agent != null ? agent.Index.ToString() : "none")}; hero={hero?.StringId ?? "none"}; "
+                                + $"nameMatches={nameMatches}; identityMatches={identityMatches}; history={memory?.RecentHistory?.Count ?? 0}");
+                        }
+                        return report.ToString();
                     }
 
                     case "spawn":
@@ -188,11 +207,8 @@ namespace LivingWorldNpcs
 
                     case "strip":
                     {
-                        var host = StoryProbeMissionBehavior.Current;
-                        if (host?.Active != true || host.Phase != StoryProbePhase.Jail || !StoryProbeState.Data.JailSceneEntered)
-                            return "Error: disguise is only available at a safe point inside the real prison.";
-                        host.CompleteJailDisguise();
-                        return (StoryProbeState.Data.JailDone ? "OK: disguise completed. " : "Pending: disguise failed. ") + StoryProbeState.Describe();
+                        return "Disguise is equipped automatically after the fixed map sentence; this command does not skip detention. "
+                            + PlayerDetentionBehavior.DescribeSentence(StoryProbeState.Data.DetentionOwnerId);
                     }
 
                     case "restore":
@@ -214,6 +230,64 @@ namespace LivingWorldNpcs
                             }
                             sb.Append($" {d.Id}={att}");
                         }
+                        return sb.ToString();
+                    }
+
+                    case "gate":
+                    {
+                        // 通行权（实物凭据）验收：令牌在不在背包里 = 有没有被正式放行过。
+                        string a1 = (Arg(args, used, 0) ?? "").Trim().ToLowerInvariant();
+                        string passItem = StoryProbeTuning.Current?.Gate?.PassItem;
+                        if (string.IsNullOrEmpty(passItem))
+                            return "Error: Gate.PassItem is empty in StoryProbeTuning.json (pass token disabled).";
+
+                        var item = StoryProbeDefs.FindItem(passItem);
+                        var roster = PartyBase.MainParty?.ItemRoster;
+                        int held = item != null && roster != null ? roster.GetItemNumber(item) : 0;
+
+                        if (a1 == "grant")
+                        {
+                            if (held > 0) return $"OK: pass token already held ({passItem} x{held}).";
+                            if (Hero.MainHero == null) return "Error: no main hero.";
+                            return StoryProbeDefs.GiveItem(Hero.MainHero, passItem, 1)
+                                ? $"OK: pass token granted ({passItem}); the next entry walks straight in."
+                                : $"Error: grant failed (item '{passItem}' not registered, or roster unavailable).";
+                        }
+                        if (a1 == "revoke")
+                        {
+                            if (held <= 0) return $"OK: no pass token to revoke ({passItem}).";
+                            return StoryProbeMissionBehavior.RevokeGatePass("command")
+                                ? $"OK: pass token revoked ({passItem}, removed x{held})."
+                                : "Error: revoke failed (see [StoryGate] lines in the runtime log).";
+                        }
+
+                        var host = StoryProbeMissionBehavior.Current;
+                        var sb = new System.Text.StringBuilder("OK: gate pass");
+                        sb.Append($"\n  item       : {passItem}");
+                        sb.Append($"\n  held       : x{held} {(held > 0 ? "(authorized: guards wave you through)" : "(no authorization)")}");
+                        var approaches = StoryProbeTuning.Current?.Gate?.PassApproaches;
+                        sb.Append($"\n  approaches : {(approaches == null || approaches.Length == 0 ? "(none)" : string.Join(",", approaches))}");
+                        sb.Append($"\n  phase      : {StoryProbeState.Phase}");
+                        sb.Append($"\n  gateOpen   : {(host != null && host.Active ? host.GateOpen.ToString() : "n/a (no story mission)")}");
+                        sb.Append($"\n  chosenPath : {StoryProbeState.Data.ChosenApproach ?? ""}");
+                        sb.Append($"\n  legacyFlag : GateOpened={StoryProbeState.Data.GateOpened} (history only; not used as authority)");
+                        // 岗位职责区逐人自检：谁在区里、看不看得见（看得见/看不见的确切原因）、离多远。
+                        if (host != null && host.Active && Agent.Main != null)
+                        {
+                            float zoneRange = host.PostZoneRangeMeters;
+                            sb.Append($"\n  postRange  : {zoneRange:F1}m");
+                            foreach (var def in StoryProbeDefs.Npcs.Where(d => d != null && d.FirstMeetGuard))
+                            {
+                                var a = host.GetAgent(def.Id);
+                                if (a == null || !AgentControlHelper.SafeIsActive(a))
+                                { sb.Append($"\n  {def.Id}: no active agent"); continue; }
+                                float dist = a.Position.Distance(Agent.Main.Position);
+                                float dz = Math.Abs(a.Position.z - Agent.Main.Position.z);
+                                bool inZone = host.IsPlayerInPostZone(a, zoneRange);
+                                sb.Append($"\n  {def.Id}: dist={dist:F1} dz={dz:F2} inZone={inZone} sight={NpcSightSystem.ExplainSight(a, Agent.Main, zoneRange)}");
+                            }
+                        }
+                        sb.Append("\n  usage      : custom.story_probe gate [grant|revoke]");
                         return sb.ToString();
                     }
 
@@ -364,6 +438,11 @@ namespace LivingWorldNpcs
             var director = StoryProbeMissionBehavior.Current?.Director;
             switch ((action ?? "").ToLowerInvariant())
             {
+                case "debug":
+                    if (a1 == "on" || a1 == "off")
+                        Settings.Instance.ShowPerformanceFacingDebugMessages = a1 == "on";
+                    return "OK: performance facing screen debug=" + Settings.Instance.ShowPerformanceFacingDebugMessages
+                        + " (runtime only; use custom.story_probe life debug on|off).";
                 case "status":
                     return director == null ? "OK: no street-life director (not in second phase)"
                                             : "OK: " + director.Describe();
@@ -430,7 +509,7 @@ namespace LivingWorldNpcs
                     return "OK: street life resumed.";
 
                 default:
-                    return "Usage: custom.story_probe life status|list|force <npc> <i>|say <speaker> <listener>|facing <npc>|release <npc>|scene <n>|stop|resume";
+                    return "Usage: custom.story_probe life status|list|debug on|off|force <npc> <i>|say <speaker> <listener>|facing <npc>|release <npc>|scene <n>|stop|resume";
             }
         }
 
@@ -1164,8 +1243,9 @@ namespace LivingWorldNpcs
         private static string HelpText()
         {
             return "custom.story_probe <sub> -- subs: enable | disable | city [id] | status | enter | intro | " +
-                   "phase first|second | where | spawn | check <ability> | roll <ability> <0-100> | " +
+                   "phase first|second | where | persona [actorId] | spawn | check <ability> | roll <ability> <0-100> | " +
                    "learn <ability> | resolve <ability> | strip | restore | reset | talk <npc> | goal <0..4> | " +
+                   "gate [grant|revoke] | " +
                    "life status|list|force|say <speaker> <listener>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
                    "stage list|only <n>|begin|skip|reload|status|anchor | atom <name> <args> | action <npc> <act> | " +
                    "script list|status|validate [file] | population status|verify | " +

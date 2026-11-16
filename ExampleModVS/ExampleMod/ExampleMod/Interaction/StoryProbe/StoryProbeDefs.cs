@@ -33,6 +33,12 @@ namespace LivingWorldNpcs
         public string Id;
         public string NameKey;
         public string NameFallback;
+        public string IdentityKey, IdentityFallback;
+        public string BackgroundKey, BackgroundFallback;
+        public string TemperamentKey, TemperamentFallback;
+        public string SpecialtyKey, SpecialtyFallback;
+        public string ReactiveRole;
+        public ReactivePersonality Personality;
         public string Faction;          // StoryFactionDef.Id
         public int Force, Guile, Charm; // §8.2 三维（0..100，直接填）
         public string TemplateId;       // 原版 NPCCharacter 模板（两轮策略查找）

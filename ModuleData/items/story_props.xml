@@ -20,6 +20,25 @@
      注册：`SubModule.xml` 的 `<Xmls>` 里有 `items/story_props` 这一行；**漏了那一行 = 整个文件不加载**。 -->
 <Items>
 
+	<!-- 通行令牌（2026-11-16 立，用户裁定）：**城门通行权的实物凭据**。
+	     判定 = 主队背包里有没有它（`StoryProbeMissionBehavior.HasGatePass`）；有 ⇒ 下次进城守卫直接放行。
+	     获得 = 只有「跟守卫正式谈成」的路线才发牌（讲理/冒充 charm、塞钱 money；清单在
+	            StoryProbeTuning.json → Gate.PassApproaches）；打晕/绑走/潜行/翻墙/硬闯**不发**。
+	     存档 = 背包本身由引擎保存，不需要我们另写存档字段（旧布尔 GateOpened 已停用）。
+	     🔴 `is_merchandise="false"`：商人不会收货 ⇒ 令牌卖不掉，也就不会因为顺手卖货把通行权弄丢。
+	     🔴 网格是借用的（原版没有令牌形状的网格），要真样子 = 走 ModKit 导入（铁律 31/36）。 -->
+	<Item
+		id="lwn_gate_pass"
+		name="{=LWN_item_gate_pass}Gate Pass"
+		mesh="merchandise_clay"
+		item_category="jewelry"
+		value="0"
+		weight="0"
+		Type="Goods"
+		is_merchandise="false">
+		<Flags Civilian="true" />
+	</Item>
+
 	<Item
 		id="lwn_ledger_book"
 		name="{=LWN_item_ledger_book}Old Zhou's ledger"

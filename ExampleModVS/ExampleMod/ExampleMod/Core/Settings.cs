@@ -131,12 +131,24 @@ namespace LivingWorldNpcs
 
         // ── 调试消息全局开关（工作时打开，发布前关掉）──
         public bool ShowDebugMessages { get; set; } = true;
+        // 演出发声后的朝向采样：独立于其他调试消息，用户验收后关闭。
+        public bool ShowPerformanceFacingDebugMessages { get; set; } = true;
 
         // ── 🔴🔴 临时诊断（2026-09-23，定位"建号时文本系统 NRE"用；定位完删）──
         // 逗号分隔的**补丁类名**（带 [HarmonyPatch] 那个类的名字，例：KingdomOnNewGameCreatedGuardPatch）。
         // 列在这里的类**不挂载** → 用来二分"到底是哪个补丁造成的"。改 config.json 重启即生效，**不用重编**。
         // 空 = 全部照常挂载（默认）。挂载结果见运行日志 [LWN-patch] 行。
         public string DisabledPatchClasses { get; set; } = "";
+
+        // ── 公共保管箱生成黑名单（config.json 侧；2026-11-16 用户裁定）──
+        // 列在这里的定居点（StringId）**不生成**那只自动出现的「公共保管箱」（通用犯罪玩法的箱子）；
+        // 其余一律照旧：定居点财富照样分给场上 NPC（照样能扒窃）、偷窃/目击/记账/处置链路一行不动。
+        // 用途 = 剧情玩法（例：逆水寒511 的 town_ES4，center 场景 empire_town_m）暂时不要那只箱子时，
+        //        把城加进来即可 —— 不动通用逻辑，也不用改代码。
+        // 🔴 只认定居点 StringId（铁律 20），不写显示名；511 换目标城时这里要一起加
+        //   （漏了 `custom.stealth_chest` 会把「黑名单」和「当前城」并排打出来，一眼可见）。
+        // 生效时机 = 每进一场 Mission 判定一次；改完 `custom.input_reload` 热生效（已生成的不回收）。
+        public List<string> ChestSpawnDisabledSettlements { get; set; } = new List<string> { "town_ES4" };
 
         // ── 🔴 偷窃/击晕成功率强制覆盖（config.json 侧调试项；默认 -1 = 关闭）──
         // 本地调试用：NPC 偷窃/击晕老失败时直接锁成功率，不用反复改公式重编译。

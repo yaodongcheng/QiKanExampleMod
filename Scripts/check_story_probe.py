@@ -224,6 +224,11 @@ def check_cast(module, problems):
             problems.append("cast:%s: missing NameKey" % nid)
         else:
             keys.add(n["NameKey"])
+        for field in ("Identity", "Background", "Temperament", "Specialty"):
+            if not n.get(field + "Key") or not n.get(field + "Fallback"):
+                problems.append("cast:%s: missing %s persona" % (nid, field))
+            else:
+                keys.add(n[field + "Key"])
         if n.get("MoneyHintKey"):
             keys.add(n["MoneyHintKey"])
         if n.get("QuestLogKey"):
@@ -871,7 +876,11 @@ def selftest():
         src = os.path.join(DEFAULT_MODULE, "ExampleModVS", "ExampleMod", "ExampleMod")
         negative_cases = [
             ("Combat/AttackTriggerMissionLogic.cs", "blow.InflictedDamage > 0", "false", "actual opponent damaging hits"),
-            ("Interaction/StoryProbe/StoryProbeBehavior.cs", 'GetLocationWithId("prison")', 'GetLocationWithId("center")', "real prison transition"),
+            ("Interaction/StoryProbe/StoryProbeBehavior.cs", "if (TickMapSentence()) return;", "/* sentence removed */", "map sentence transition"),
+            ("WorldEvent/PlayerDetentionBehavior.cs", "if (_noEarlyRelease) return false;", "/* early release allowed */", "fixed sentence forbids early fine release"),
+            ("WorldEvent/PlayerDetentionBehavior.cs", 'dataStore.SyncData("lwn_detention_release_day", ref releaseDay)', '/* deadline not saved */', "fixed sentence persists deadline"),
+            ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "if (_firstGuardQuestioned)", "if (true)", "guard must question"),
+            ("AI/Actions/AtomicAction.cs", "AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);", "/* facing removed */", "performance must hold body and gaze"),
             ("Combat/AttackTriggerMissionLogic.cs", "&& affectedAgent.Health < 1f)", "&& true)", "real lethal health"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "RestoreFirstGuardEnhancement();", "/* restore removed */", "restored before second entry"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", '"event_story_intercept"', '"old_direct_talk"', "guard must question"),
@@ -897,14 +906,14 @@ def selftest():
             if not any(expected in failure for failure in failures):
                 print("SELFTEST FAILED: flow regression not detected: " + expected)
                 return 1
-        print("SELFTEST OK: caught fake-hit and fake-prison source regressions")
+        print("SELFTEST OK: caught combat, fixed map sentence, ownership and facing regressions")
         return 0
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
 def check_flow_contract(module, problems, overrides=None):
-    """源码接线防退回旧计时倒地/地图换装；不代替 C# 编译或实机。"""
+    """源码接线防计时假倒地、假刑期和控制权越界；不代替 C# 编译或实机。"""
     src = os.path.join(module, "ExampleModVS", "ExampleMod", "ExampleMod")
     def source(relative):
         if overrides is not None and relative in overrides:
@@ -933,6 +942,7 @@ def check_flow_contract(module, problems, overrides=None):
     dialogue = source("Interaction/StoryProbe/StoryProbeDialogue.cs")
     state = source("Interaction/StoryProbe/StoryProbeState.cs")
     defs = source("Interaction/StoryProbe/StoryProbeDefs.cs")
+    detention = source("WorldEvent/PlayerDetentionBehavior.cs")
     request = member(host, "PlayForcedDefeat")
     hit = re.sub(r"\s+", "", member(combat, "OnAgentHit"))
     checks = [
@@ -940,15 +950,16 @@ def check_flow_contract(module, problems, overrides=None):
          "hard entry must only request combat, not schedule defeat"),
         ('"duel"' in member(host, "StartFirstGuardFight") and "OnFirstDuelResolved" in member(host, "StartFirstGuardFight"),
          "first guard must use shared duel and outcome callback"),
-        ("attackerAgent==opponent" in hit and "blow.InflictedDamage>0" in hit
+        ("_duelInitiators.Contains(attackerAgent)" in hit and "blow.InflictedDamage>0" in hit
          and "&&affectedAgent.Health<1f" in hit and "_duelDamageHits" not in combat,
          "tutorial defeat requires actual opponent damaging hits reaching real lethal health"),
-        ("PlayForcedDefeat(" not in member(host, "TickFirstAttempt")
+        ("if (_firstGuardQuestioned)" in member(host, "TickFirstAttempt")
+         and "walkingIn && IsPlayerInGateApproach() && GateAlong(player.Position) >= 0f" in member(host, "TickFirstAttempt")
          and '"event_story_intercept"' in member(host, "TickFirstAttempt")
           and 'StartStoryConversation(ready, null, "first_meet_auto")' in member(host, "TickFirstAttempt")
           and "EnqueueAction(" not in host
          and "_firstGuardQuestioned" in request,
-         "guard must question before explicit hard-entry choice, never fight merely for crossing"),
+         "guard must question before hard entry; actual inward movement in gate required"),
         ("BoostFirstGuardSkills" in member(host, "SetupFirstAttempt")
          and member(host, "SetupFirstAttempt").find("BoostFirstGuardSkills") < member(host, "SetupFirstAttempt").find("SpawnNpc(")
          and "CancelRuntime" in member(host, "OnEndMissionInternal")
@@ -958,13 +969,29 @@ def check_flow_contract(module, problems, overrides=None):
         ("ApplyFirstArrestBounty" not in member(host, "SetupFirstAttempt")
          and "ApplyFirstArrestBounty" in member(host, "OnFirstDuelResolved"),
          "entry must not manufacture crime and bypass guard questioning"),
-        ('GetAllUsablePointsWithTag("sp_prisoner")' in member(host, "TickJailScene")
-         and "AgentControlHelper.PlaceAtStandingPoint(" in member(host, "TickJailScene"),
-         "jail must place player at native prisoner standing point"),
+        ("TryBeginSentence" in member(campaign, "TickMapSentence")
+         and "IsSentenceCompleted" in member(campaign, "TickMapSentence")
+         and member(campaign, "TickMapSentence").find("IsSentenceCompleted") < member(campaign, "TickMapSentence").find("StripPlayer")
+         and "ShowInquiry" not in member(campaign, "ShowJailInquiry")
+         and 'GetLocationWithId("prison")' not in campaign,
+         "map jail uses real sentence receipt before real disguise; no prison mission or gift popup"),
         ("point.GameEntity.GetGlobalFrame()" in member(helper, "PlaceAtStandingPoint"),
          "jail placement must use point frame, not current player corridor frame"),
-        ("TickPendingTransition(dt)" in app and 'GetLocationWithId("prison")' in campaign,
-         "real prison transition must tick outside paused Campaign.Tick"),
+        ("TickPendingTransition(dt)" in app and "if (TickMapSentence()) return;" in member(campaign, "TickPendingTransition")
+         and "EncounterManager.StartSettlementEncounter" in member(campaign, "TickMapSentence"),
+         "map sentence transition must tick outside paused Campaign.Tick and reenter settlement after release"),
+        ('dataStore.SyncData("lwn_detention_release_day", ref releaseDay)' in member(detention, "SyncData")
+         and 'dataStore.SyncData("lwn_detention_sentence_owner", ref sentenceOwner)' in member(detention, "SyncData")
+         and 'dataStore.SyncData("lwn_detention_completed_sentence", ref completedSentenceOwner)' in member(detention, "SyncData"),
+         "fixed sentence persists deadline, owner and completion receipt"),
+        ("if (_noEarlyRelease) return false;" in member(detention, "PayFine")
+         and "_noEarlyRelease" in member(detention, "PayFineWhileDetainedOnCondition")
+         and "_menuRetryDelay > 0f" in member(detention, "OnTick"),
+         "fixed sentence forbids early fine release and throttles failed automatic release"),
+        ("AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);" in atomic
+         and "SetScriptedPositionAndDirection" in member(helper, "HoldFacingActor")
+         and "LookAtAgent(speaker, listener)" in member(helper, "HoldFacingActor"),
+         "performance must hold body and gaze toward its actual listener"),
         ("Mission.Current != null && StoryProbeState.EnterViaOption" not in campaign,
          "mission opening receipt must not depend on consumed entry flag"),
         ("d.Stripped && (d.ConfiscationComplete || d.EscrowVersion == 0)" in member(host, "ConfiscatePlayerBelongings")
@@ -1624,8 +1651,9 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>"):
                 num(perception, "RangeMeters", bpath + ".Perception", 12.0, 0.1, 500.0, required=True)
             trigger = bo.get("Trigger")
             if isinstance(trigger, dict):
-                keys(trigger, bpath + ".Trigger", ("PlayerInsideGate", "MaxPerEncounter"))
+                keys(trigger, bpath + ".Trigger", ("PlayerInsideGate", "PlayerInPostZone", "MaxPerEncounter"))
                 boolean(trigger, "PlayerInsideGate", bpath + ".Trigger", True)
+                boolean(trigger, "PlayerInPostZone", bpath + ".Trigger", False)
                 integer(trigger, "MaxPerEncounter", bpath + ".Trigger", 1, 1, 16)
             cooldown = bo.get("Cooldown")
             if isinstance(cooldown, dict):

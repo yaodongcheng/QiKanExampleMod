@@ -18,6 +18,7 @@
   //    LongPressDurationMs
   // ══════════════════════════════════════════════════════════════
   "ShowDebugMessages": false,
+  "ShowPerformanceFacingDebugMessages": true,
   "DisabledPatchClasses": "",
   // ══════════════════════════════════════════════════════════════
   // 进战场「等装备网格装载」的超时（秒；0 = 关掉保险，回到引擎原行为）
@@ -160,6 +161,17 @@
   // 但只要对你好感够，同样算友方。
   "FriendlyRelationThreshold": 50,
   "DisabledInteractionMissionModes": ["Conversation", "Battle", "Duel", "Tournament", "Stealth", "Barter", "Deployment", "Replay", "CutScene", "Benchmark"],
+  // ══════════════════════════════════════════════════════════════
+  // 公共保管箱生成黑名单（2026-11-16 用户裁定）
+  //   列在这里的城（定居点 StringId）**不生成**那只自动出现的「公共保管箱」实体；
+  //   其余一律照旧：定居点财富照样分给场上 NPC（照样能扒窃），偷窃/目击/记账/处置链路一行不动。
+  //   用途 = 剧情玩法暂时不要那只箱子（例：511 的 town_ES4，center 场景 empire_town_m）。
+  //   🔴 只写 StringId（铁律 20），不写显示名；511 换目标城时这里要一起加。
+  //   验收 = 游戏内 custom.stealth_chest（把「黑名单」与「当前城」并排打出来，漏加一眼可见）。
+  //   改完 custom.input_reload 热生效：下一场 Mission 判定，已经生成的不回收。
+  //   想恢复通用玩法 = 把城从这个数组里删掉；空数组 [] = 到处都照常生成。
+  // ══════════════════════════════════════════════════════════════
+  "ChestSpawnDisabledSettlements": ["town_ES4"],
   "Interactions": {
     "Talk":            { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Short" },
     "Loot":            { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Long" },

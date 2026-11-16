@@ -121,6 +121,9 @@ namespace LivingWorldNpcs
         private GameEntity _chestEntity = null;
         private bool _chestSpawned = false;
 
+        /// <summary>本场 Mission 是否因「公共保管箱黑名单」跳过了箱子生成（诊断命令 custom.stealth_chest 用）。</summary>
+        public bool ChestSpawnSuppressed { get; private set; } = false;
+
         // 首次靠近箱子时给出提示（KCD2 风格沉浸引导）
         private bool _chestHintShown = false;
 
@@ -1578,12 +1581,24 @@ namespace LivingWorldNpcs
 
             // ── 箱子生成：财富分配后有钱或有物才生成箱子实体（🔴 2026-08-26 用户裁定：
             //    定居点没资源分配（金币和物品都空）就不生成，省得刷个空箱/幽灵箱）──
-            if (!_chestSpawned
-                && (StealManager.StashGold > 0
-                    || (StealManager.ChestItemRoster != null && !StealManager.ChestItemRoster.IsEmpty())))
+            // 🔴 2026-11-16（用户裁定）：黑名单里的城**不生成**这只箱子（剧情玩法用，例 = 511 的 town_ES4）——
+            //    只掐「箱子实体」这一件；定居点财富照样分给场上 NPC（扒窃/行为链路一行不动）。
+            //    名单 = Settings.ChestSpawnDisabledSettlements，验收 = custom.stealth_chest。
+            if (!_chestSpawned)
             {
-                _chestSpawned = true;
-                SpawnSettlementChest();
+                var chestSettlement = Settlement.CurrentSettlement;
+                if (StealManager.IsChestSpawnDisabledFor(chestSettlement))
+                {
+                    _chestSpawned = true;          // 本场一次性判定，避免每帧查表
+                    ChestSpawnSuppressed = true;
+                    DebugLogger.Log($"[Chest] spawn suppressed by blacklist: settlement={chestSettlement?.StringId}, scene={Mission.Current?.SceneName}, location={CampaignMission.Current?.Location?.StringId}");
+                }
+                else if (StealManager.StashGold > 0
+                         || (StealManager.ChestItemRoster != null && !StealManager.ChestItemRoster.IsEmpty()))
+                {
+                    _chestSpawned = true;
+                    SpawnSettlementChest();
+                }
             }
 
             // ── 偷窃条（扒窃/撬锁）：打开期间独占交互，屏蔽普通 F/G 射线检测 ──
@@ -2110,6 +2125,7 @@ namespace LivingWorldNpcs
             StealManager.ChestEntity = null;
             StealManager.ChestItemRoster = new ItemRoster();
             _chestSpawned = false;
+            ChestSpawnSuppressed = false;
             _pendingLootSession = null; // 挑选界面待处理会话一并丢弃（界面关闭即废）
             _chestHintShown = false;
 

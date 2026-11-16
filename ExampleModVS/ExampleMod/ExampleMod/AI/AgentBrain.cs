@@ -464,13 +464,25 @@ namespace LivingWorldNpcs
             Agent player = args != null && args.Length > 0 ? args[0] as Agent : null;
             string entry = args != null && args.Length > 1 ? args[1] as string : null;
             var ready = args != null && args.Length > 2 ? args[2] as Action<Agent> : null;
+            // 岗位职责优先于"日常闲演"（2026-11-16）：守门人平时被 StreetLife 派着巡逻/张望，
+            // 那是一条 `street-ambient-*` 演出租约。玩家闯到门线上时他还"在演出"，于是以前这里
+            // 直接拒绝质问 —— 实机表现 = 头顶冒一句质问，人却不过来拦。
+            // 现在只放行这一类闲演（真台本/战斗/被绑仍然拒绝），放行后由下面的 ClearAllActions 收掉它。
+            bool ambientPerforming = IsPerforming && !string.IsNullOrEmpty(_performance?.OwnerToken)
+                && _performance.OwnerToken.StartsWith("street-ambient-", StringComparison.Ordinal);
             bool available = player == Agent.Main && player != null && !string.IsNullOrEmpty(entry) && ready != null
-                && !IsBound && !IsStatusHeld && !IsStunned && !IsPerforming && !IsStoryIntercepting && !IsInCombat
+                && !IsBound && !IsStatusHeld && !IsStunned && (!IsPerforming || ambientPerforming)
+                && !IsStoryIntercepting && !IsInCombat
                 && !Settings.Instance.IsInteractionDisabled() && AgentControlHelper.SafeIsActive(Owner)
                 && AgentControlHelper.SafeIsActive(player) && !ConversationEntryPatch.IsConversationActive()
                 && CurrentIntent.Type != NpcIntentType.ExecutingCommand && ConfrontingBrain == null;
             if (!available)
             {
+                DebugLogger.Log($"[StoryIntercept] refused: bound={IsBound} held={IsStatusHeld} stunned={IsStunned} "
+                    + $"performing={(IsPerforming ? (_performance.OwnerToken ?? "?") : "no")} intercepting={IsStoryIntercepting} "
+                    + $"combat={IsInCombat} interactionDisabled={Settings.Instance.IsInteractionDisabled()} "
+                    + $"intent={CurrentIntent.Type} confronting={ConfrontingBrain != null} "
+                    + $"conv={ConversationEntryPatch.IsConversationActive()} entry={entry}");
                 try { ready?.Invoke(null); }
                 catch (Exception ex) { DebugLogger.Log($"[StoryIntercept] refusal receipt failed: {ex.Message}"); }
                 return;
@@ -816,7 +828,8 @@ namespace LivingWorldNpcs
                     // 别人——实机：帝国熟练步兵与随从互殴的挥砍刮到帝国具装骑兵，骑兵被煽动反击）。
                     // 玩家攻击同阵营的照旧反击（下方 playerAttackedSelf 分支，不受本豁免影响）。
                     if (attacker != Agent.Main
-                        && FriendlinessHelper.IsFriendlyBetween(attacker, Owner)
+                        && (CombatManager.AreOnSameCombatSide(attacker, Owner)
+                            || FriendlinessHelper.IsFriendlyBetween(attacker, Owner))
                         && attacker.GetTargetAgent() != Owner)
                     {
                         DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 同阵营误伤（{attacker.Name} 未锁我为目标），不反击");

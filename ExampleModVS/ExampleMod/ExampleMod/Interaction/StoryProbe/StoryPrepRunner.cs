@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using TaleWorlds.Engine;
+using TaleWorlds.DotNet;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -149,6 +150,57 @@ namespace LivingWorldNpcs
 
         // ───────────────────────── 锚点 ─────────────────────────
 
+        /// <summary>
+        /// 找场景实体（两轮策略，铁律 5）：① 按场景命名 `FindEntityWithName`；
+        /// ② 按 **prefab 名**扫一遍（城门这类实体是 prefab 实例，场景命名不一定等于 prefab 名
+        ///   —— 2026-11-16 实机：第二次进城 prep 因 `gate_entity` 判缺失而整场取消，就是这一步没兜底）；
+        /// ③ 再退到 tag 同名。
+        /// </summary>
+        private static GameEntity FindSceneEntity(Scene scene, string name)
+        {
+            if (scene == null || string.IsNullOrWhiteSpace(name)) return null;
+            try { var e = scene.FindEntityWithName(name); if (e != null) return e; } catch { }
+            try
+            {
+                var roots = NativeObjectArray.Create();
+                scene.GetRootEntities(roots);
+                foreach (NativeObject obj in roots)
+                {
+                    if (!(obj is GameEntity root)) continue;
+                    var hit = FindByPrefabRecursive(root, name, 0);
+                    if (hit != null) return hit;
+                }
+            }
+            catch { }
+            try
+            {
+                var list = scene.FindEntitiesWithTag(name);
+                if (list != null)
+                    foreach (var e in list)
+                        if (e != null) return e;
+            }
+            catch { }
+            return null;
+        }
+
+        private static GameEntity FindByPrefabRecursive(GameEntity entity, string name, int depth)
+        {
+            if (entity == null || depth > 6) return null;
+            string prefab = null;
+            try { prefab = entity.GetPrefabName(); } catch { }
+            if (string.Equals(prefab, name, StringComparison.OrdinalIgnoreCase)) return entity;
+            int children = 0;
+            try { children = entity.ChildCount; } catch { }
+            for (int i = 0; i < children; i++)
+            {
+                GameEntity child = null;
+                try { child = entity.GetChild(i); } catch { }
+                var hit = FindByPrefabRecursive(child, name, depth + 1);
+                if (hit != null) return hit;
+            }
+            return null;
+        }
+
         private Dictionary<string, Vec3> ResolveAnchors()
         {
             var anchors = new Dictionary<string, Vec3>(StringComparer.Ordinal)
@@ -171,7 +223,7 @@ namespace LivingWorldNpcs
                 {
                     foreach (string name in def.Value ?? new string[0])
                     {
-                        try { found = scene?.FindEntityWithName(name); } catch { }
+                        found = FindSceneEntity(scene, name);
                         if (found != null) break;
                     }
                 }
@@ -253,13 +305,31 @@ namespace LivingWorldNpcs
                 try
                 {
                     Vec3 pos = PointPos(anchors, prop.Place);
+                    float requestedZ = pos.z;
+                    if (prop.Support == "ground")
+                    {
+                        var probe = pos + new Vec3(0f, 0f, 5f);
+                        float ground = V.GroundHeight(Mission.Current.Scene, probe);
+                        if (float.IsNaN(ground) || float.IsInfinity(ground) || ground > probe.z
+                            || Math.Abs(ground - requestedZ) > 5f)
+                        {
+                            _results["prop:" + prop.Id] = "ground_unavailable";
+                            continue;
+                        }
+                        pos.z = ground + prop.Place.Up;
+                    }
                     float rad = prop.Yaw * (float)Math.PI / 180f;
                     var fwd = new Vec3((float)Math.Cos(rad), (float)Math.Sin(rad), 0f);
                     Mat3 rot = Mat3.CreateMat3WithForward(fwd);
                     float scale = prop.Scale <= 0f ? 1f : prop.Scale;
                     if (Math.Abs(scale - 1f) > 0.001f) rot = rot * scale;
                     var entity = GameEntity.Instantiate(Mission.Current.Scene, prop.Prefab, new MatrixFrame(rot, pos));
-                    if (entity != null) { _props[prop.Id] = entity; _results["prop:" + prop.Id] = "ok (prefab)"; }
+                    if (entity != null)
+                    {
+                        _props[prop.Id] = entity;
+                        _results["prop:" + prop.Id] = "ok (prefab) at " + pos;
+                        DebugLogger.Log($"[StoryPrep] prop created: id={prop.Id} prefab={prop.Prefab} requestedZ={requestedZ:F2} support={prop.Support} actual={pos}");
+                    }
                     else _results["prop:" + prop.Id] = "spawn_failed";
                 }
                 catch (Exception ex)
@@ -344,6 +414,24 @@ namespace LivingWorldNpcs
             return basePos + dir * wp.Offset;
         }
 
+        /// <summary>
+        /// 给玩家看的"这次缺什么"（空 = 不是缺项，多半是超时/异常）。
+        /// 只列真正没过的项：`anchor:xxx` / `prop:xxx` / `actor:xxx`，可选缺失不算。
+        /// </summary>
+        public string DescribeMissing()
+        {
+            var parts = new List<string>();
+            foreach (var kv in _results)
+            {
+                if (string.IsNullOrEmpty(kv.Key) || string.IsNullOrEmpty(kv.Value)) continue;
+                if (kv.Value.StartsWith("ok", StringComparison.Ordinal)) continue;
+                if (kv.Value.StartsWith("optional-missing", StringComparison.Ordinal)) continue;
+                parts.Add(kv.Key + " = " + kv.Value);
+            }
+            parts.Sort(StringComparer.Ordinal);
+            return string.Join("; ", parts);
+        }
+
         // ───────────────────────── 就绪 ─────────────────────────
 
         private void EvaluateReadiness()
@@ -400,7 +488,10 @@ namespace LivingWorldNpcs
                         + " anchorsOk=" + anchorsOk + " propsOk=" + propsOk
                         + " actorsOk=" + actorsOk + " placedOk=" + placedOk
                         + " controlOk=" + controlOk + " spaceOk=" + spaceOk
-                        + " skipRequested=" + _skipRequested;
+                        + " skipRequested=" + _skipRequested
+                        // 失败时把每个锚点的解算结果打出来（缺哪个一眼可见，不用再猜）
+                        + " | anchors: " + string.Join(", ", _layout.Anchors.Keys.Select(k =>
+                            k + "=" + (_results.TryGetValue("anchor:" + k, out var r0) ? r0 : "unresolved")));
                 DebugLogger.Log("[StoryPrep] FAILED stage=" + _stageId + ": " + _reason);
             }
         }

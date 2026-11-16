@@ -303,6 +303,8 @@ namespace LivingWorldNpcs
                 // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
                 string occName = LWNTextHelper.ResolvePrompt("LWN_prompt_trait_occupation_" + occ);
                 if (string.IsNullOrEmpty(occName)) occName = occ;
+                string identityOverride = AllNpcMemoryManager.GetMemoryForAgent(agent)?._profile?.IdentityOverride;
+                if (!string.IsNullOrEmpty(identityOverride)) occName = identityOverride;
                 string personality = ReactiveAgent.DescribePersonalityForPrompt(ReactiveAgent.Get(agent)?.Personality);
                 // 身份：真名（职业、人格）——2026-08-12 升级：不再是无名「路人」
                 string identity = string.Format(

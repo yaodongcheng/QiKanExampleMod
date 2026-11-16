@@ -45,6 +45,9 @@ namespace LivingWorldNpcs
         // 🔴 新切磋仲裁双方（2026-08-13：Invulnerable 底层无敌方案；旧虚拟血量字段已删）
         private Agent _agentA;
         private Agent _agentB;
+        private readonly HashSet<Agent> _duelInitiators = new HashSet<Agent>();
+        private Action<Agent> _duelOwnerReceipt;
+        private readonly HashSet<Agent> _recentDuelParticipants = new HashSet<Agent>();
         private bool _isDuelActive;
         // 可选教学规则：只统计对手实际造成伤害的命中，不统计格挡、空挥和时间。
         private Agent _prescribedLoser;
@@ -53,11 +56,22 @@ namespace LivingWorldNpcs
 
         public bool HasDuelPair(Agent a, Agent b)
             => Mission == Mission.Current && a != null && b != null
-                && ((a == _agentA && b == _agentB) || (a == _agentB && b == _agentA));
+                && ((_duelInitiators.Contains(a) && b == _agentB) || (a == _agentB && _duelInitiators.Contains(b)));
+
+        private IEnumerable<Agent> DuelParticipants => _duelInitiators.Concat(new[] { _agentB }).Where(a => a != null).ToArray();
 
         public void CancelDuel(Agent a, Agent b)
         {
             if (!_isDuelActive || !HasDuelPair(a, b)) return;
+            // 同一回执的增援退出只撤自己；剩余成员仍可完成真实战斗。
+            if (_prescribedLoser == _agentB && _duelOwnerReceipt != null
+                && b == _agentB && _duelInitiators.Contains(a) && _duelInitiators.Count > 1)
+            {
+                _duelInitiators.Remove(a);
+                if (_agentA == a) _agentA = _duelInitiators.First();
+                DebugLogger.Log($"[Duel] group member withdrew: {a.Name} remaining={_duelInitiators.Count}");
+                return;
+            }
             _isDuelActive = false;
             _pendingDuel = true;
             _resolvedDuelLoser = null;
@@ -278,9 +292,17 @@ namespace LivingWorldNpcs
         /// ⚠️ 旧虚拟血量方案已彻底废弃：禁止调用 InitDuel/GetVirtualHealth。
         /// </summary>
         public void RegisterDuel(Agent a, Agent b, Agent prescribedLoser = null,
-            Action<Agent> onResolved = null)
+            Action<Agent> onResolved = null, Action<Agent> ownerReceipt = null)
         {
             if (a == null || b == null) return;
+            // 同一非致命事件的增援共享目标与回执，不覆盖正在运行的仲裁。
+            if (_isDuelActive && prescribedLoser == b && _prescribedLoser == b && _agentB == b
+                && ownerReceipt != null && ReferenceEquals(_duelOwnerReceipt, ownerReceipt))
+            {
+                _duelInitiators.Add(a);
+                DebugLogger.Log($"[Duel] group joined: {a.Name}(Idx={a.Index}) target={b.Name} participants={_duelInitiators.Count}");
+                return;
+            }
             // 强制结束上一场（无人胜出）：判负待收场（_pendingDuel）→ 先走完收场再覆盖引用；
             // 仅登记未判负 → 直接清状态（双方还在打，但新切磋接管仲裁）。
             // 🔴 2026-08-13 崩溃修复后：RegisterDuel 不在 blow 栈内（Brain "duel" 事件链），
@@ -289,9 +311,13 @@ namespace LivingWorldNpcs
             if (_pendingDuel) EndPendingDuel();
             _agentA = a;
             _agentB = b;
+            _duelInitiators.Clear();
+            _duelInitiators.Add(a);
             _prescribedLoser = prescribedLoser == a || prescribedLoser == b ? prescribedLoser : null;
             _resolvedDuelLoser = null;
             _onDuelResolved = onResolved;
+            // onResolved 可能只是 FightEnemyAction 的包装；只有原始回执能用于 Brain 的身份匹配。
+            _duelOwnerReceipt = ownerReceipt;
             _isDuelActive = true;
             DebugLogger.Log($"[Duel] 切磋登记: {a.Name}(Idx={a.Index}) vs {b.Name}(Idx={b.Index})");
         }
@@ -456,19 +482,18 @@ namespace LivingWorldNpcs
             }
 
             // 非致命判负在尸体登记之前处理，避免把保命回血的切磋者登记成尸体。
-            if (_isDuelActive && (affectedAgent == _agentA || affectedAgent == _agentB))
+            if (_isDuelActive && (_duelInitiators.Contains(affectedAgent) || affectedAgent == _agentB))
             {
-                Agent opponent = affectedAgent == _agentA ? _agentB : _agentA;
                 if (_prescribedLoser != null && affectedAgent != _prescribedLoser && affectedAgent.Health < 1f)
                 {
                     // 必败教学的守卫不能被处决，但仍正常掉血、正常攻击，不全程无敌。
                     affectedAgent.Health = Math.Max(1f, affectedAgent.HealthLimit);
                     DebugLogger.Log($"[Duel] tutorial opponent protected: {affectedAgent.Name}");
                 }
-                if (_prescribedLoser == affectedAgent && attackerAgent == opponent && blow.InflictedDamage > 0
+                if (_prescribedLoser == affectedAgent && _duelInitiators.Contains(attackerAgent) && blow.InflictedDamage > 0
                     && affectedAgent.Health < 1f)
                 {
-                    DebugLogger.Log($"[Duel] guard actual defeat: {opponent?.Name} -> {affectedAgent.Name}, damage={blow.InflictedDamage}, health={affectedAgent.Health}, distance={opponent?.Position.Distance(affectedAgent.Position):F2}");
+                    DebugLogger.Log($"[Duel] guard actual defeat: {attackerAgent?.Name} -> {affectedAgent.Name}, damage={blow.InflictedDamage}, health={affectedAgent.Health}, distance={attackerAgent?.Position.Distance(affectedAgent.Position):F2}");
                     OnDuelLoser(affectedAgent);
                 }
                 // 教学模式必须由指定对手的真实命中判负；第三方致命伤只做保命，不冒充守卫打倒。
@@ -544,7 +569,7 @@ namespace LivingWorldNpcs
             // 保命（必须在 blow 栈内完成——引擎 HandleBlow 在 OnAgentHit 之后才检查
             // `if (Health < 1f) Die()`）：① 先设 Invulnerable（native 拦 Die，兜底窗口）② 回满血
             // → 引擎走不到 Die。双方同时无敌：收场前的 ~1 帧窗口内不会再判负（另一方的打击不掉血）。
-            foreach (var duelist in new[] { _agentA, _agentB })
+            foreach (var duelist in DuelParticipants)
             {
                 if (duelist == null || !AgentControlHelper.SafeIsActive(duelist)) continue;
                 try { duelist.SetMortalityState(Agent.MortalityState.Invulnerable); } // ①
@@ -566,17 +591,23 @@ namespace LivingWorldNpcs
             _pendingDuel = false;
 
             // ① 发停战事件（Brain 链的 native 重入此刻在正常 tick 栈，线程安全）
-            foreach (var duelist in new[] { _agentA, _agentB })
+            foreach (var duelist in DuelParticipants)
             {
                 if (duelist == null) continue;
                 if (AgentControlHelper.SafeIsActive(duelist))
                 {
-                    try { AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat", duelist); }
+                    try
+                    {
+                        if (_duelOwnerReceipt != null)
+                            AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat", _duelOwnerReceipt);
+                        else
+                            AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat");
+                    }
                     catch (Exception ex) { DebugLogger.Log($"[Duel] 停战事件失败: {ex.Message}"); }
                 }
             }
             // ② 停战已生效，关闭兜底窗口
-            foreach (var duelist in new[] { _agentA, _agentB })
+            foreach (var duelist in DuelParticipants)
             {
                 if (duelist == null || !AgentControlHelper.SafeIsActive(duelist)) continue;
                 try { duelist.SetMortalityState(Agent.MortalityState.Mortal); }
@@ -586,14 +617,18 @@ namespace LivingWorldNpcs
             // ③ 收场冷却登记：清引用前快照——供 AgentBrain 判断"迟滞伤害是否来自刚结束的切磋"
             _duelEndA = _agentA;
             _duelEndB = _agentB;
+            _recentDuelParticipants.Clear();
+            foreach (var participant in DuelParticipants) _recentDuelParticipants.Add(participant);
             _duelEndTime = Mission.Current?.CurrentTime ?? -100f;
 
             // 4. 【关键】清空引用，允许下一次攻击触发新的切磋
             _agentA = null;
             _agentB = null;
+            _duelInitiators.Clear();
             var resolved = _onDuelResolved;
             var loser = _resolvedDuelLoser;
             _onDuelResolved = null;
+            _duelOwnerReceipt = null;
             _resolvedDuelLoser = null;
             _prescribedLoser = null;
             // 场景结算回执只能在正常 tick 栈、完整停战后发；不能在 blow 栈结束场景。
@@ -612,8 +647,7 @@ namespace LivingWorldNpcs
         {
             if (a == null || b == null || a == b) return false;
             if (_duelEndA == null || _duelEndB == null) return false;
-            if (a != _duelEndA && a != _duelEndB) return false;
-            if (b != _duelEndA && b != _duelEndB) return false;
+            if (!_recentDuelParticipants.Contains(a) || !_recentDuelParticipants.Contains(b)) return false;
             if (Mission.Current == null) return false;
             if (Mission.Current.CurrentTime - _duelEndTime > DuelEndGuardS) return false;
             return true;
@@ -885,7 +919,7 @@ namespace LivingWorldNpcs
             if (_isDuelActive)
             {
                 // 如果被打的是当前的对手，或者玩家自己被打了 -> 属于正常战斗流程，不触发新逻辑
-                if (victim == _agentB || victim == _agentA)
+                if (victim == _agentB || _duelInitiators.Contains(victim))
                 {
                     return;
                 }

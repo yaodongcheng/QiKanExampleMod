@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.GameState;
@@ -11,7 +11,7 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// 序章战役入口：城门菜单、真实 prison 转场、牢内换装确认、回门外。
+    /// 序章战役入口：城门菜单、固定地图刑期、刑满真实换装、回门外。
     /// 转场由应用帧驱动：暂停的 town menu 不会触发 CampaignEvents.TickEvent。
     /// 原版逛城不立 EnterViaOption / EnterJailViaOption，不加载序章。
     /// </summary>
@@ -24,7 +24,6 @@ namespace LivingWorldNpcs
         private bool _boundaryStable;
         private float _transitionCooldown;
         private int _transitionFailures;
-        private bool _jailInquiryOpen;
         private float _restoreRetryCooldown;
 
         public override void RegisterEvents()
@@ -56,7 +55,8 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (!StoryProbeSettings.Enabled || StoryProbeState.Data.CancellationPending) return false;
+                if (!StoryProbeSettings.Enabled || StoryProbeState.Data.CancellationPending
+                    || PlayerDetentionBehavior.IsDetentionActive || Hero.MainHero?.IsPrisoner == true) return false;
                 var settlement = Settlement.CurrentSettlement;
                 if (settlement == null || settlement.StringId != StoryProbeSettings.SettlementId) return false;
                 if (StoryProbeState.Phase == StoryProbePhase.Done) return false;
@@ -118,59 +118,16 @@ namespace LivingWorldNpcs
             => StoryProbeSettings.Enabled && !StoryProbeState.Data.CancellationPending
                && Settlement.CurrentSettlement?.StringId == StoryProbeSettings.SettlementId;
 
-        private static bool IsJailHostReady(StoryProbeMissionBehavior host)
-            => CanUseTargetTown() && Mission.Current != null && host != null && host.Active
-               && host == StoryProbeMissionBehavior.Current && host.Phase == StoryProbePhase.Jail
-               && StoryProbeState.Phase == StoryProbePhase.Jail
-               && StoryProbeState.Data.JailSceneEntered && !StoryProbeState.Data.JailDone
-               && CampaignMission.Current?.Location?.StringId == "prison";
+        /// <summary>兼容调试入口；现在只排地图刑期，不打开地牢或赠衣弹窗。</summary>
+        public static void ShowJailInquiry(bool manual = false) => RequestJailInquiry();
 
-        /// <summary>只在真实 prison 内醒来后确认换装；拒绝后的重提示由 Host 的场景时钟负责。</summary>
-        public static void ShowJailInquiry(bool manual = false)
-        {
-            var host = StoryProbeMissionBehavior.Current;
-            if (!IsJailHostReady(host) || Instance == null || Instance._jailInquiryOpen) return;
-            if (IsTransitionUiBlocked()) return;
-            int token = StoryProbeState.RuntimeToken;
-            var owner = Instance;
-            try
-            {
-                string title = LWNTextHelper.ResolveText("LWN_story_jail_title", "The Cell");
-                string body =
-                    LWNTextHelper.ResolveText("LWN_story_jail_body_1", "You wake on straw. The back of your head is wet.") + "\n" +
-                    LWNTextHelper.ResolveText("LWN_story_jail_body_2", "An old prisoner shoves a bundle at you: a set of old clothes, and a cloth to cover your face.") + "\n" +
-                    LWNTextHelper.ResolveText("LWN_story_jail_body_3", "\"You want in? First make sure nobody knows you.\"");
-                Instance._jailInquiryOpen = true;
-                DebugLogger.Log($"[StoryProbe] jail inquiry shown in prison (manual={manual})");
-                InformationManager.ShowInquiry(new InquiryData(
-                    title, body, true, true,
-                    LWNTextHelper.ResolveText("LWN_story_jail_btn_wear", "Put them on"),
-                    LWNTextHelper.ResolveText("LWN_story_jail_btn_wait", "Not yet"),
-                    () =>
-                    {
-                        if (Instance != owner || !StoryProbeState.IsRuntimeCurrent(token)) return;
-                        owner._jailInquiryOpen = false;
-                        // 同一轮、同一 Host、同一城，且仍在真实牢内才允许结算。
-                        if (IsJailHostReady(host)) host.CompleteJailDisguise();
-                    },
-                    () =>
-                    {
-                        if (Instance == owner && token == StoryProbeState.RuntimeToken) owner._jailInquiryOpen = false;
-                    }), true);
-            }
-            catch (Exception ex)
-            {
-                if (Instance != null) Instance._jailInquiryOpen = false;
-                DebugLogger.Log($"[StoryProbe] ShowJailInquiry failed: {ex.Message}");
-            }
-        }
-
-        /// <summary>保留旧入口名，但只排队；旧 Mission 必须真正结束后才自动打开 prison。</summary>
+        /// <summary>保留旧入口名；场景退出后启动固定地图刑期，不打开地牢或赠衣弹窗。</summary>
         public static void RequestJailInquiry()
         {
             var d = StoryProbeState.Data;
             if (!CanUseTargetTown() || d.JailDone) return;
             d.TutorialLost = true;
+            if (string.IsNullOrEmpty(d.DetentionOwnerId)) d.DetentionOwnerId = Guid.NewGuid().ToString("N");
             StoryProbeState.Phase = StoryProbePhase.Jail;
             d.PendingTransition = 1;
             d.TransitionSettlementId = Settlement.CurrentSettlement?.StringId ?? StoryProbeSettings.SettlementId;
@@ -180,10 +137,9 @@ namespace LivingWorldNpcs
             StoryProbeState.EnterViaOption = false;
             if (Instance != null)
             {
-                Instance._jailInquiryOpen = false;
                 Instance.ResetTransitionRetry();
             }
-            DebugLogger.Log($"[StoryProbe] prison transition queued: {d.TransitionSettlementId}");
+            DebugLogger.Log($"[StoryProbe] map sentence queued: {d.TransitionSettlementId}");
         }
 
         public static void QueueSecondFromJail()
@@ -217,7 +173,6 @@ namespace LivingWorldNpcs
             StoryProbeState.EnterJailViaOption = false;
             if (Instance != null)
             {
-                Instance._jailInquiryOpen = false;
                 Instance.ResetTransitionRetry();
                 Instance._restoreRetryCooldown = 2f;
             }
@@ -227,6 +182,7 @@ namespace LivingWorldNpcs
                 DebugLogger.Log("[StoryProbe] cancellation escrow retry deferred until campaign/save boundary is safe");
                 return false;
             }
+            if (!PlayerDetentionBehavior.CancelSentence(d.DetentionOwnerId)) return false;
             bool skillsRestored = StoryProbeMissionBehavior.RestoreFirstGuardSkills();
             bool restored = StoryProbeMissionBehavior.RestorePlayerBelongings();
             if (!skillsRestored || !restored)
@@ -241,6 +197,8 @@ namespace LivingWorldNpcs
             {
                 if (!PrologueQuestLauncher.CancelAll()) return false;
                 StoryProbeState.ResetAll();
+                // 整轮重开 = 通行权一并作废（令牌在背包里，不收回就会"重置了剧情却还免检进城"）。
+                StoryProbeMissionBehavior.RevokeGatePass("prologue reset");
             }
             else
             {
@@ -305,6 +263,12 @@ namespace LivingWorldNpcs
                     _restoreRetryCooldown = 2f;
                 }
                 if (_transitionCooldown > 0f) return;
+                if (!d.Suspended && StoryProbeState.Phase == StoryProbePhase.Jail && d.TutorialLost
+                    && Mission.Current == null && GameStateManager.Current?.ActiveState is MapState
+                    && !IsTransitionUiBlocked() && Campaign.Current.SaveHandler?.IsSaving != true)
+                {
+                    if (TickMapSentence()) return;
+                }
                 if (Campaign.Current == null || Mission.Current != null
                     || !(GameStateManager.Current?.ActiveState is MapState map) || !map.AtMenu
                     || !UiFullScreenHelper.IsCampaignMapScreen() || IsTransitionUiBlocked()
@@ -341,14 +305,8 @@ namespace LivingWorldNpcs
                 {
                     if (pending == 1)
                     {
-                        var prison = settlement.LocationComplex?.GetLocationWithId("prison");
-                        var encounter = PlayerEncounter.LocationEncounter;
-                        if (prison == null || encounter == null)
-                            throw new InvalidOperationException("prison location or active LocationEncounter unavailable");
-                        StoryProbeState.Phase = StoryProbePhase.Jail;
-                        StoryProbeState.EnterJailViaOption = true;
-                        // 原版 indoor 分支依赖静态 LocationEncounter，且丢弃 spawn tag；牢内摆位归 Host 首 tick。
-                        opened = encounter.CreateAndOpenMissionController(prison) != null;
+                        // 刑期尚未完成时绝不打开 prison mission。
+                        opened = false;
                     }
                     else if (pending == 2)
                     {
@@ -381,6 +339,65 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>地图刑期真实完成后才换装；收据和装备托管均可存档重试。</summary>
+        private bool TickMapSentence()
+        {
+            var d = StoryProbeState.Data;
+            if (d.JailDone && d.PendingTransition == 0) return false;
+            if (string.IsNullOrEmpty(d.DetentionOwnerId))
+                d.DetentionOwnerId = Guid.NewGuid().ToString("N");
+            if (PlayerDetentionBehavior.IsSentenceRunning(d.DetentionOwnerId)) return true;
+            if (!PlayerDetentionBehavior.IsSentenceCompleted(d.DetentionOwnerId))
+            {
+                var settlement = Settlement.CurrentSettlement;
+                if (settlement == null || settlement.StringId != d.StorySettlementId
+                    || Hero.MainHero?.IsPrisoner == true) return true;
+                if (!PlayerDetentionBehavior.CanBeginSentence(settlement, d.DetentionOwnerId,
+                    Math.Max(1, StoryProbeTuning.Current.Intro.DetentionDays))) return true;
+                if (!StoryProbeMissionBehavior.ConfiscatePlayerBelongings()
+                    || !PlayerDetentionBehavior.TryBeginSentence(settlement, d.DetentionOwnerId,
+                        Math.Max(1, StoryProbeTuning.Current.Intro.DetentionDays)))
+                {
+                    _transitionCooldown = 2f;
+                    DebugLogger.Log("[StoryProbe] map sentence pending: escrow or detention entry unavailable");
+                    return true;
+                }
+                d.PendingTransition = 1; // 等持久刑期回执，不依赖场景或应用时钟。
+                DebugLogger.Log("[StoryProbe] map sentence started: " + PlayerDetentionBehavior.DescribeSentence(d.DetentionOwnerId));
+                return true;
+            }
+            if (!d.JailDone)
+            {
+                // 刑满：只做「换装 + 记事实」，**不自动开场景**（2026-11-16 用户裁定）：
+                // 玩家应当停在城镇菜单，自己确认出狱与乔装，再从菜单里主动进城。
+                if (!StoryProbeMissionBehavior.StripPlayer(advancePhase: true))
+                { _transitionCooldown = 2f; return true; }
+                d.StripAtHours = CampaignTime.Now.ToHours;
+                d.PendingTransition = 0;
+                d.TransitionSettlementId = "";
+                DebugLogger.Log("[StoryProbe] sentence complete; disguise equipped; stay at town menu (manual re-entry)");
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveText("LWN_story_jail_return_manual",
+                        "You are out. Change into the old clothes, and walk back to the gate when you are ready.")));
+            }
+            // 原版 EndCaptivity 会离城并结束 Encounter；按原版重新进同一城，下一帧再开场景。
+            if (Settlement.CurrentSettlement == null && PlayerEncounter.Current == null
+                && Hero.MainHero?.IsPrisoner != true && TaleWorlds.CampaignSystem.Party.MobileParty.MainParty?.MapEvent == null)
+            {
+                var town = Settlement.Find(d.StorySettlementId);
+                if (town == null || !town.IsTown) { CancelPrologue("sentence town no longer available"); return true; }
+                EncounterManager.StartSettlementEncounter(TaleWorlds.CampaignSystem.Party.MobileParty.MainParty, town);
+                if (PlayerEncounter.EncounterSettlement == town)
+                {
+                    PlayerEncounter.EnterSettlement();
+                    GameMenu.ActivateGameMenu("town");
+                }
+                _transitionStable = false;
+                return true;
+            }
+            return false;
+        }
+
         private void TransitionFailed(int pending, string reason)
         {
             StoryProbeState.EnterViaOption = false;
@@ -395,7 +412,8 @@ namespace LivingWorldNpcs
         /// <summary>共享门外出生点入口；排队调用失败只记日志，不重复弹错误提示。</summary>
         public static bool EnterTownCenter(bool queuedTransition = false)
         {
-            if (!CanUseTargetTown() || StoryProbeState.Phase == StoryProbePhase.Done || Mission.Current != null
+            if (!CanUseTargetTown() || PlayerDetentionBehavior.IsDetentionActive || Hero.MainHero?.IsPrisoner == true
+                || StoryProbeState.Phase == StoryProbePhase.Done || Mission.Current != null
                 || !(GameStateManager.Current?.ActiveState is MapState map) || !map.AtMenu) return false;
             if (StoryProbeState.Phase == StoryProbePhase.Jail)
             {
@@ -471,7 +489,9 @@ namespace LivingWorldNpcs
                     _boundaryStable = false;
                     return;
                 }
-                _jailInquiryOpen = false;
+                if (PlayerDetentionBehavior.IsSentenceRunning(StoryProbeState.Data.DetentionOwnerId)
+                    || PlayerDetentionBehavior.IsSentenceCompleted(StoryProbeState.Data.DetentionOwnerId)
+                        && StoryProbeState.Data.PendingTransition != 0) return;
                 var settlement = Settlement.CurrentSettlement;
                 bool outside = settlement == null ? !map.AtMenu
                     : settlement.StringId != StoryProbeState.Data.TransitionSettlementId;
@@ -491,7 +511,9 @@ namespace LivingWorldNpcs
         private void TickBelongingsSafety()
         {
             var d = StoryProbeState.Data;
-            if (!d.Stripped || _opening || d.PendingTransition != 0 || Mission.Current != null) return;
+            if (!d.Stripped || _opening || d.PendingTransition != 0 || Mission.Current != null
+                || PlayerDetentionBehavior.IsSentenceRunning(d.DetentionOwnerId)
+                || StoryProbeState.Phase == StoryProbePhase.Jail && d.TutorialLost && !d.JailDone) return;
             if (!(GameStateManager.Current?.ActiveState is MapState)
                 || !UiFullScreenHelper.IsCampaignMapScreen()) return;
             var hero = Hero.MainHero;

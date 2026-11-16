@@ -1092,6 +1092,21 @@ namespace LivingWorldNpcs
             turnAgent.SetMovementDirection(direction);
 
         }
+
+        /// <summary>静止演出也给原生 AI 明确的站位方向，避免只写运动朝向被 AI 下一拍覆盖。</summary>
+        public static void HoldFacingActor(Agent speaker, Agent listener)
+        {
+            if (!SafeIsActive(speaker) || !SafeIsActive(listener) || speaker == listener) return;
+            Vec2 direction = (listener.Position - speaker.Position).AsVec2;
+            if (direction.LengthSquared < 0.0001f) return;
+            direction.Normalize();
+            // 与原版 AgentNavigator.SetTargetFrame 相同的转向合同；站位就是当前脚下，不追人。
+            var position = speaker.GetWorldPosition();
+            speaker.SetScriptedPositionAndDirection(ref position, direction.RotationInRadians, false,
+                Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
+            FaceToActor(speaker, listener);
+            LookAtAgent(speaker, listener);
+        }
         public static string GetPartyInfo(Hero targetHero)
         {
             StringBuilder sb = new StringBuilder();

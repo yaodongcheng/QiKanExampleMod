@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using LivingWorldNpcs.Animation;
 using SandBox.Conversation.MissionLogics;
@@ -121,6 +121,7 @@ namespace LivingWorldNpcs
         private int _duelSerial;
         private readonly Dictionary<string, Action<Agent>> _duelCallbacks = new Dictionary<string, Action<Agent>>();
         private Action<Agent> _firstDuelCallback;
+        private readonly HashSet<string> _firstFightActors = new HashSet<string>(StringComparer.Ordinal);
         private int _firstDuelReceipt;
         private float _verticalGateSpeed;
         private float _gateGroundStable;
@@ -131,12 +132,11 @@ namespace LivingWorldNpcs
         private bool _forcedDefeatQueued;
         private bool _firstFightStarted;
         private bool _firstGuardQuestioned;
+        /// <summary>本场已经拦问过几次（受 Gate.MaxIntercepts 上限约束；用满后再闯才算硬闯）。</summary>
+        private int _gateIntercepts;
         private bool _firstInterceptRequested;
-        private bool _firstWasPastGate;
         private bool _firstDefeatResolved;
         private float _firstFightRequestedAt;
-        private bool _jailPlaced;
-        private float _jailPromptAt = -1f;
         private AgentAnimStateMachine _defeatAnim;
         private Agent _defeatPlayer;
         private sealed class DefeatAnimContext : AnimContext { }
@@ -227,7 +227,7 @@ namespace LivingWorldNpcs
                 if (Phase == StoryProbePhase.Second && !_gateOpen)
                 {
                     OpenGate("force", "LWN_story_gate_open", "The way is clear.");
-                    ResolveApproach("force", "dockhands", -20, true, null);
+                    ResolveApproach("force", "dockhands", -20, true, null, "blocker");
                     DebugLogger.Log("[StoryProbe] blocker downed -> gate open (force)");
                 }
             }
@@ -315,7 +315,9 @@ namespace LivingWorldNpcs
             _schedule.Clear();
             // 仅实际发出的本轮回执可撤战；pending-only请求不拥有目标后来参加的外部战斗。
             var fights = new Dictionary<string, Action<Agent>>(_duelCallbacks);
-            if (_firstDuelCallback != null) fights["blocker"] = _firstDuelCallback;
+            if (_firstDuelCallback != null)
+                foreach (string id in _firstFightActors) fights[id] = _firstDuelCallback;
+            _firstFightActors.Clear();
             _duelCallbacks.Clear();
             _firstDuelCallback = null;
             _firstDuelReceipt = 0;
@@ -611,7 +613,13 @@ namespace LivingWorldNpcs
             _crossedGate = false;
             UsedFallback = false;
             _guardTagUsed = "verified-layout:" + sceneName;
-            DebugLogger.Log($"[StoryProbe] physical gate: outside={outside} gate={_gateCenter} blocker={BlockerPos} goal={GoalPos} width={gate.HalfWidthMeters * 2f:F1}");
+            // 通行权 = 背包里的通行令牌（2026-11-16）：**两个阶段都认** —— 手里有牌就不必再被拦一次。
+            if (HasGatePass())
+            {
+                _gateOpen = true;
+                DebugLogger.Log($"[StoryGate] gate open at geometry setup by pass token: item={StoryProbeTuning.Current?.Gate?.PassItem}");
+            }
+            DebugLogger.Log($"[StoryProbe] physical gate: outside={outside} gate={_gateCenter} blocker={BlockerPos} goal={GoalPos} width={gate.HalfWidthMeters * 2f:F1} gateOpen={_gateOpen}");
         }
 
         private static bool TryLayoutPoint(float[] values, out Vec3 point)
@@ -850,19 +858,21 @@ namespace LivingWorldNpcs
         {
             var player = Agent.Main;
             var blocker = GetAgent("blocker");
-            if (player == null || blocker == null || Settings.Instance.IsInteractionDisabled()) return;
-            if (AgentBrain.IsRoped(blocker) || AgentBrain.IsHeldByStatus(blocker))
-            {
-                _firstInterceptRequested = false;
-                return; // 解除压制后可重新追近质问，不把等待当作硬闯或败退。
-            }
+            if (player == null || Settings.Instance.IsInteractionDisabled()) return;
+            _posts?.Tick(dt);
+            Vec3 previousPosition = _lastGatePosition;
+            float previousAlong = GateAlong(previousPosition);
+            _lastGatePosition = player.Position;
+            // 只滤掉浮点抖动；不能以固定每帧五毫米漏掉高帧率下的慢走。
+            bool walkingIn = GateAlong(player.Position) > previousAlong + 0.0001f
+                && player.Position.Distance(previousPosition) <= StoryProbeTuning.Current.Gate.CrossingMaxStepMeters;
 
             if (_forcedDefeatQueued)
             {
                 // 事件尚未被战斗动作接受就取消/丢弃时允许重试；超时绝不判败。
                 if (_firstFightStarted && !_firstDefeatResolved
                     && _time - _firstFightRequestedAt > StoryProbeTuning.Current.Intro.FirstFightStartTimeoutSec
-                    && AttackTriggerMissionLogic.Instance?.HasDuelPair(blocker, player) != true)
+                    && !_firstFightActors.Any(id => AttackTriggerMissionLogic.Instance?.HasDuelPair(GetAgent(id), player) == true))
                 {
                     _firstFightStarted = false;
                     DebugLogger.Log("[StoryProbe] first fight was not accepted; retry only, no defeat");
@@ -874,18 +884,29 @@ namespace LivingWorldNpcs
             }
 
             if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true) return;
-            var brain = AgentAIController.GetBrainForAgent(blocker);
-            if (brain == null || brain.IsPerforming || brain.IsInCombat) return;
-            bool triedToPass = _gateGeometryReady
-                && GateAlong(player.Position) > StoryProbeTuning.Current.Gate.PastMeters
-                && GateLateral(player.Position) <= StoryProbeTuning.Current.Gate.ClimbHalfWidthMeters;
-            if (triedToPass && !_firstWasPastGate) _blockerAutoTalkArmed = true;
-            _firstWasPastGate = triedToPass;
-            float distance = player.Position.Distance(blocker.Position);
-            if (distance > AutoTalkRearmRadius) _blockerAutoTalkArmed = true;
-            if ((triedToPass || distance <= AutoTalkRadius || (_posts?.HasRules("first_meet") == true
-                    && player.Position.Distance(blocker.Position) <= AutoTalkRearmRadius))
-                && _blockerAutoTalkArmed && !_firstInterceptRequested && _time >= _nextInterceptRetryAt)
+            if (_firstGuardQuestioned)
+            {
+                // 已被问过之后又往门里走：**先允许"再拦一次"**（可以换手段重新谈），
+                // 拦问次数用满才算硬闯（2026-11-16 用户反馈：以前退后回来直接开打，中间一句提醒都没有）。
+                if (walkingIn && IsPlayerInGateApproach() && GateAlong(player.Position) >= 0f)
+                {
+                    var gt = StoryProbeTuning.Current.Gate;
+                    if (_gateIntercepts < gt.MaxIntercepts)
+                    {
+                        _firstGuardQuestioned = false;
+                        _blockerAutoTalkArmed = true;
+                        _nextInterceptRetryAt = 0f;
+                        DebugLogger.Log($"[StoryGate] re-approach after questioning -> intercept again ({_gateIntercepts}/{gt.MaxIntercepts})");
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"[StoryGate] re-approach after questioning, intercept limit {gt.MaxIntercepts} reached -> hard entry");
+                        PlayForcedDefeat();
+                    }
+                }
+                return;
+            }
+            if (walkingIn && _blockerAutoTalkArmed && !_firstInterceptRequested && _time >= _nextInterceptRetryAt)
             {
                 // P4：谁去问由数据（Behaviors + 岗位资格 + 次序）决定；没有正式数据才退回铁头。
                 string questionerId = "blocker";
@@ -899,6 +920,7 @@ namespace LivingWorldNpcs
                         return;
                     }
                 }
+                else if (!IsPlayerInGateApproach()) return;
                 var questioner = GetAgent(questionerId);
                 if (questioner == null)
                 {
@@ -941,14 +963,20 @@ namespace LivingWorldNpcs
                 DebugLogger.Log("[StoryProbe] Brain questioning requested from '" + questionerId
                     + "' behavior=" + (behaviorId ?? "legacy") + "; no combat for approaching/crossing");
             }
-            _posts?.Tick(dt);
         }
+
+        public bool IsPlayerInGateApproach()
+            => _gateGeometryReady && Agent.Main != null
+                && GateAlong(Agent.Main.Position) >= -StoryProbeTuning.Current.Gate.OutsideMeters
+                && GateAlong(Agent.Main.Position) <= StoryProbeTuning.Current.Gate.InsideMeters
+                && GateLateral(Agent.Main.Position) <= StoryProbeTuning.Current.Gate.HalfWidthMeters;
 
         public void NotifyFirstGuardQuestioned()
         {
             if (!Active || Phase != StoryProbePhase.FirstAttempt) return;
+            _gateIntercepts++;
             _firstGuardQuestioned = true;
-            DebugLogger.Log("[StoryProbe] first guard questioning entered; hard-entry choice is now available");
+            DebugLogger.Log($"[StoryGate] guard questioning #{_gateIntercepts} (max {StoryProbeTuning.Current.Gate.MaxIntercepts}); hard-entry choice is now available");
         }
 
         /// <summary>兼容旧对话动作名；仅在正常质问后明确选择硬闯时请求交战。</summary>
@@ -962,19 +990,23 @@ namespace LivingWorldNpcs
         private void StartFirstGuardFight()
         {
             var player = Agent.Main;
-            var blocker = GetAgent("blocker");
-            if (player == null || blocker == null || AgentAIController.GetBrainForAgent(blocker) == null
+            var guards = StoryProbeDefs.Npcs.Where(n => n.FirstMeetGuard).Select(n => GetAgent(n.Id))
+                .Where(a => AgentControlHelper.SafeIsActive(a) && a.Health > 0f
+                    && !AgentBrain.IsRoped(a) && !AgentBrain.IsHeldByStatus(a) && !AgentBrain.IsKnockedOut(a)
+                    && AgentAIController.GetBrainForAgent(a) is AgentBrain b && !b.IsPerforming && !b.IsInCombat).ToList();
+            if (player == null || guards.Count == 0 || AgentAIController.Instance == null
                 || AttackTriggerMissionLogic.Instance == null)
             {
                 DebugLogger.Log("[StoryProbe] first fight not started: player/guard/brain/arbiter missing; no defeat permitted");
                 return;
             }
-            var brain = AgentAIController.GetBrainForAgent(blocker);
-            if (Settings.Instance.IsInteractionDisabled() || brain.IsPerforming || brain.IsInCombat
-                || AgentBrain.IsRoped(blocker) || AgentBrain.IsHeldByStatus(blocker)) return;
+            if (Settings.Instance.IsInteractionDisabled()) return;
             _firstFightStarted = true;
             _firstFightRequestedAt = _time;
-            DebugLogger.Log($"[StoryProbe] first real fight: guard={blocker.Index} player={player.Index} distance={blocker.Position.Distance(player.Position):F2}");
+            _firstFightActors.Clear();
+            foreach (var guard in guards)
+                _firstFightActors.Add(StoryProbeDialogue.ResolveNpcId(guard));
+            DebugLogger.Log($"[StoryProbe] first real fight broadcast: guards={string.Join(",", _firstFightActors)} player={player.Index}");
             int receipt = ++_duelSerial;
             _firstDuelReceipt = receipt;
             _firstDuelCallback = new Action<Agent>(loser =>
@@ -982,12 +1014,21 @@ namespace LivingWorldNpcs
                 if (Current != this || _firstDuelReceipt != receipt) return;
                 OnFirstDuelResolved(loser);
             });
-            AgentAIController.Instance.SendEventToAgent(blocker, "duel", player, true, _firstDuelCallback);
+            var excluded = new HashSet<Agent>(Mission.Agents.Where(a => !guards.Contains(a)));
+            float radius = guards.Max(a => a.Position.Distance(player.Position)) + 1f;
+            AgentAIController.Instance.BroadcastEventInRange(player.Position, radius, "duel", excluded,
+                requireSight: false, isCrime: false, player, true, _firstDuelCallback);
         }
 
         private void OnFirstDuelResolved(Agent loser)
         {
             if (!Active || Current != this || Phase != StoryProbePhase.FirstAttempt || _firstDefeatResolved) return;
+            // 广播中的某一人拒绝并不代表整组失败。正常 tick 确认无人参战后才重试。
+            if (loser == null)
+            {
+                DebugLogger.Log("[StoryProbe] first fight member rejected/cancelled; await remaining guards or tick retry");
+                return;
+            }
             _firstDuelCallback = null;
             _firstDuelReceipt = 0;
             if (loser == null || loser != Agent.Main)
@@ -1003,11 +1044,11 @@ namespace LivingWorldNpcs
             StoryProbeBehavior.RequestJailInquiry();
             ApplyFirstArrestBounty();
             // 共享仲裁已经在正常 tick 栈完整停战；现在才允许倒地演出和随后入牢。
-            DebugLogger.Log("[StoryProbe] first guard hits resolved -> player down -> queue prison");
+            DebugLogger.Log("[StoryProbe] first guard hits resolved -> player down -> queue map sentence");
             // 先安排转场，视觉层异常也不能永久冻结已经真实败退的玩家。
             Schedule(Math.Max(0.1f, StoryProbeTuning.Current.Intro.ForcedDefeatHoldSec), () =>
             {
-                DebugLogger.Log("[StoryProbe] defeated after actual combat -> end center mission; real prison pending");
+                DebugLogger.Log("[StoryProbe] defeated after actual combat -> end center mission; map sentence pending");
                 Mission.EndMission();
             });
             try
@@ -1028,83 +1069,11 @@ namespace LivingWorldNpcs
 
         private void TickJailScene()
         {
-            if (StoryProbeState.Phase != StoryProbePhase.Jail || !StoryProbeSettings.Enabled)
-            {
-                _stage?.Stop("jail interrupted");
-                Mission.EndMission();
-                return;
-            }
-            var player = Agent.Main;
-            if (!AgentControlHelper.SafeIsActive(player))
-            {
-                if (_time > 5f)
-                {
-                    StoryProbeBehavior.AbortPrisonTransition("prison player did not spawn");
-                    Mission.EndMission();
-                }
-                return;
-            }
-            if (!_jailPlaced)
-            {
-                var handler = Mission.GetMissionBehavior<SandBox.Missions.MissionLogics.MissionAgentHandler>();
-                var machines = handler?.GetAllUsablePointsWithTag("sp_prisoner");
-                bool placed = false;
-                EnsureStage().RunAtom(new StageBeat { Cmd = "player_freeze" });
-                if (machines != null)
-                {
-                    foreach (var machine in machines)
-                    {
-                        foreach (var point in machine.StandingPoints)
-                        {
-                            if (!AgentControlHelper.PlaceAtStandingPoint(player, point)) continue;
-                            placed = true;
-                            break;
-                        }
-                        if (placed) break;
-                    }
-                }
-                if (!placed || !ConfiscatePlayerBelongings())
-                {
-                    _stage.Stop("prison setup failed");
-                    StoryProbeBehavior.AbortPrisonTransition("no free valid prisoner standing point or clothing unavailable");
-                    Mission.EndMission();
-                    return;
-                }
-                AgentControlHelper.RefreshSpawnEquipment(player, Hero.MainHero.CivilianEquipment);
-                PlayerAnchor = player.Position;
-                StoryProbeState.Data.JailSceneEntered = true;
-                _jailPlaced = true;
-                _stage.Stop("player placed inside jail");
-                _jailPromptAt = _time + Math.Max(0.1f, StoryProbeTuning.Current.Intro.JailWakeDelaySec);
-                DebugLogger.Log($"[StoryProbe] jail cell entered: location={CampaignMission.Current?.Location?.StringId} player={player.Position} controller={player.Controller} stripped={StoryProbeState.Data.Stripped}");
-            }
-            if (!StoryProbeState.Data.JailDone && _jailPromptAt >= 0 && _time >= _jailPromptAt)
-            {
-                _jailPromptAt = _time + 5f;
-                StoryProbeBehavior.ShowJailInquiry();
-            }
+            StoryProbeBehavior.RequestJailInquiry();
+            Mission.EndMission();
         }
 
-        public void CompleteJailDisguise()
-        {
-            if (!Active || Phase != StoryProbePhase.Jail || !StoryProbeState.Data.JailSceneEntered
-                || StoryProbeState.Data.JailDone || !AgentControlHelper.SafeIsActive(Agent.Main)) return;
-            try
-            {
-                if (!StripPlayer(advancePhase: false)) return;
-                AgentControlHelper.RefreshSpawnEquipment(Agent.Main, Hero.MainHero.CivilianEquipment);
-                DebugLogger.Log($"[StoryProbe] jail disguise equipped in live scene: player={Agent.Main.Position}");
-                StoryProbeBehavior.QueueSecondFromJail();
-                Schedule(0.8f, () => Mission.EndMission());
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[StoryProbe] jail disguise failed: {ex.Message}");
-                StoryProbeBehavior.AbortPrisonTransition("jail disguise refresh exception");
-                Schedule(0.1f, () => Mission.EndMission());
-            }
-            finally { _stage?.Stop("jail disguise complete or failed"); }
-        }
+        public void CompleteJailDisguise() => StoryProbeBehavior.RequestJailInquiry();
 
         // ═══════════════════════════════════════════════════════════════
         // 第二次进场：四家 + 6 起事件 + 随从 + 目标点
@@ -1115,7 +1084,7 @@ namespace LivingWorldNpcs
             DebugLogger.Log("[StoryProbe] setup second phase (full prologue)");
 
             // 🔴 演出层（2026-11-13）：台本 StoryStage.json 驱动「布景 → 摆人 → 玩家出场」。
-            //    起不来（文件缺/解析失败）⇒ 退回旧的硬编码偏移，保证不失能。
+            //    准备失败 ⇒ 停止台本并安全回城镇菜单，不能绕过准备继续演。
             // 🔴 P3 顺序：**先准备、再开演**。准备批次（布景/摆人）没 Ready 之前，
             //    台本时间轴被 HoldWhile 闸住，不许“演员还没站位就开始演”。
             _stage ??= new StoryStageRunner(this);
@@ -1123,12 +1092,14 @@ namespace LivingWorldNpcs
             _prep = new StoryPrepRunner(this);
             if (!_prep.Begin("second_meet"))
             {
-                // v2 数据缺失 = 这套布局功能本身不可用 → 退回旧的硬编码偏移（不是“准备失败还照常演”）。
-                DebugLogger.Log("[StoryProbe] prep unavailable, fallback layout: " + _prep.Reason);
-                _prep = null;
+                DebugLogger.Log("[StoryProbe] prep unavailable; return to menu: " + _prep.Reason);
+                Schedule(0.1f, () => { StoryProbeBehavior.CancelPrologue("layout unavailable"); Mission.EndMission(); });
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveText("LWN_story_prep_failed", "The stage is not ready; returning to the town menu.")));
+                return;
             }
             bool staged = _stage.Begin("StoryStage");
-            _stage.HoldWhile = () => _prep != null && !_prep.Ready && !_prep.Failed;
+            _stage.HoldWhile = () => _prep != null && !_prep.Ready;
 
             // 四家代表（表里有委托的那些）—— 台本/准备批次已排过位的跳过，避免"先站一次再被挪一次"的闪烁
             foreach (var def in StoryProbeDefs.Representatives)
@@ -1151,8 +1122,13 @@ namespace LivingWorldNpcs
                 SpawnNpc(def.Id, OffsetPos(def.OffsetForward, def.OffsetRight), def.Civilian);
             }
 
-            // 门已经开过（上一趟进来时开的）→ 这次直接是通的
-            if (StoryProbeState.Data.GateOpened) _gateOpen = true;
+            // 通行权 = **主队背包里的通行令牌**（2026-11-16 用户裁定，实物凭据）。
+            // 🔴 不再用存档布尔 `GateOpened` 当凭据：打晕 / 翻墙 / 潜行进来一次就会把它置真，
+            //    于是"开过一次 = 以后永远免费通行"，正是用户报的那条。现在只有"被正式放行过"才有牌。
+            // 用 OR：本场已经开过的门绝不能被这里的重新判定关回去。
+            _gateOpen = _gateOpen || HasGatePass();
+            if (_gateOpen)
+                DebugLogger.Log($"[StoryGate] gate open at second-phase setup: item={StoryProbeTuning.Current?.Gate?.PassItem}");
 
             // 市井导演（常驻动作 / 桥段 / 事件循环）
             _director = new StreetLifeDirector(this);
@@ -1176,25 +1152,73 @@ namespace LivingWorldNpcs
                 "LWN_story_gate_finish_notice", "Finish any outstanding jobs before stepping inside. Entering ends this chapter.")));
         }
 
+        /// <summary>
+        /// 准备失败的收场：先弹窗告诉玩家缺什么，**点确认才离开**；不点就一直留在原地
+        /// （60 秒兜底，避免玩家没看见弹窗就被永远关在一场坏掉的戏里）。
+        /// </summary>
+        private void ShowPrepFailureInquiry(string missing)
+        {
+            bool answered = false;
+            try
+            {
+                string body = LWNTextHelper.ResolveCompound("LWN_story_prep_failed_detail",
+                    "The scene could not be laid out, so it will not start.\n\nMissing: {MISSING}\n\nPress OK to return to the town menu.",
+                    ("MISSING", string.IsNullOrEmpty(missing)
+                        ? LWNTextHelper.ResolveText("LWN_story_prep_failed_unknown", "unknown reason")
+                        : missing));
+                InformationManager.ShowInquiry(new InquiryData(
+                    LWNTextHelper.ResolveText("LWN_story_prep_failed_title", "Scene not ready"),
+                    body, true, false,
+                    LWNTextHelper.ResolveText("LWN_story_prep_failed_ok", "OK"),
+                    "",
+                    () => { if (answered) return; answered = true; LeaveAfterPrepFailure(); },
+                    null));
+                Schedule(60f, () =>
+                {
+                    if (answered) return;
+                    answered = true;
+                    DebugLogger.Log("[StoryProbe] prep failure inquiry timed out; leaving scene");
+                    LeaveAfterPrepFailure();
+                });
+                return;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryProbe] prep failure inquiry failed: {ex.Message}");
+            }
+            if (!answered) { answered = true; LeaveAfterPrepFailure(); }
+        }
+
+        private void LeaveAfterPrepFailure()
+        {
+            try
+            {
+                StoryProbeBehavior.CancelPrologue("layout preparation failed");
+                Mission.EndMission();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryProbe] prep failure exit failed: {ex.Message}");
+            }
+        }
+
         private void TickSecondPhase(float dt)
         {
             var player = Agent.Main;
             _prep?.Tick(dt);
 
-            // 🔴 准备失败 ⇒ 不许照常开演：停台本、交还机位与玩家，按普通市井继续。
+            // 🔴 准备失败 ⇒ 不许照常开演：停台本、交还机位与玩家。
+            // 🔴 2026-11-16 用户裁定：**不要直接把玩家踢出场景** —— 先弹窗说清缺什么，
+            //    玩家点确认之后再退出。以前这里是 `CancelPrologue + Mission.EndMission` 立刻执行。
             if (_prep != null && _prep.Failed && !_prepFailureHandled)
             {
                 _prepFailureHandled = true;
                 _stage?.Stop("prep failed: " + _prep.Reason);
                 DebugLogger.Log("[StoryProbe] prep FAILED, performance cancelled: " + _prep.Reason);
-                try
-                {
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveText("LWN_story_prep_failed",
-                            "The stage is not ready — the scene goes on without the show.")));
-                }
-                catch { }
+                ShowPrepFailureInquiry(_prep.DescribeMissing());
             }
+
+            if (_prep?.Failed == true) return;
 
             if (_stage?.Active == true) return; // 镜头演出占用期间不识破、不开战、不判通关。
             _work?.Tick(dt);
@@ -1387,7 +1411,7 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log("[StoryProbe] hands: blocker KNOCKED OUT -> gate open");
                     OpenGate("force", "LWN_story_gate_knocked", "He's on the ground. Nobody is watching the gate.");
-                    ResolveApproach("force", "dockhands", -20, true, null);
+                    ResolveApproach("force", "dockhands", -20, true, null, "blocker");
                     return;
                 }
 
@@ -1403,7 +1427,7 @@ namespace LivingWorldNpcs
                         StoryProbeState.AddHazard("hazard_dragged_the_guard");
                         DebugLogger.Log($"[StoryProbe] hands: blocker {(bound ? "BOUND" : "CARRIED")} -> gate open");
                         OpenGate("guile", "LWN_story_gate_dragged", "Nobody is watching the gate now.");
-                        ResolveApproach("guile", "nightwalkers", -20, true, "hazard_dragged_the_guard");
+                        ResolveApproach("guile", "nightwalkers", -20, true, "hazard_dragged_the_guard", "blocker");
                         return;
                     }
                 }
@@ -1494,18 +1518,80 @@ namespace LivingWorldNpcs
             }
             if (along <= gt.PastMeters || GateLateral(player.Position) > gt.ClimbHalfWidthMeters
                 || _time < _nextBarrierAt) return;
-            var blocker = GetAgent("blocker");
-            if (blocker != null && AgentAIController.GetBrainForAgent(blocker)?.IsInCombat == true) return;
+            // 谁离得近谁推（副卫也履职），并留下可查的日志 —— 以前这里一行日志都没有，
+            // 出现"人就这么走过去了"时查不出是没推还是推了没拦住。
+            Agent pusher = NearestGateGuard();
+            if (pusher != null && AgentAIController.GetBrainForAgent(pusher)?.IsInCombat == true) return;
             _nextBarrierAt = _time + gt.PushBackCooldownSec;
+            float lateralAtPush = GateLateral(player.Position);
             Vec3 outside = _gateCenter - new Vec3(Forward.x, Forward.y, 0f) * gt.PushBackMeters;
             player.TeleportToPosition(outside);
             _lastGatePosition = outside;
             _crossedGate = false;
+            string pusherId = pusher?.Character?.StringId ?? "none";
+            DebugLogger.Log($"[StoryGate] pushback by {pusherId} along={along:F2} lateral={lateralAtPush:F2} → outside {gt.PushBackMeters:F1}m");
             // 朝向交给 Brain 质问/反应，屏障不再另写守卫身体。
-            SayOnAgent(blocker, "LWN_story_blocker_bar", "Papers.", SpeechPriority.Warning);
+            SayOnAgent(pusher ?? GetAgent("blocker"), "LWN_story_blocker_bar", "Papers.", SpeechPriority.Warning);
             InformationManager.DisplayMessage(new InformationMessage(
                 LWNTextHelper.ResolveText("LWN_story_gate_blocked", "He pushes you back.")));
         }
+
+        /// <summary>离玩家最近、还能正常履职的守门人（数据里的 FirstMeetGuard 名单，不写死 id）。</summary>
+        private Agent NearestGateGuard()
+        {
+            Agent best = null;
+            float bestDist = float.MaxValue;
+            foreach (var def in StoryProbeDefs.Npcs)
+            {
+                if (def == null || !def.FirstMeetGuard) continue;
+                var a = GetAgent(def.Id);
+                if (a == null || !AgentControlHelper.SafeIsActive(a) || a.Health <= 0f) continue;
+                if (AgentBrain.IsRoped(a) || AgentBrain.IsHeldByStatus(a) || AgentBrain.IsKnockedOut(a)) continue;
+                float d = Agent.Main != null ? a.Position.Distance(Agent.Main.Position) : 0f;
+                if (d < bestDist) { bestDist = d; best = a; }
+            }
+            return best;
+        }
+
+        /// <summary>当前阶段的岗位感知半径（数据决定；没数据回退 8 米）。</summary>
+        public float PostZoneRangeMeters
+        {
+            get
+            {
+                try
+                {
+                    var file = StoryLayoutRegistry.Published;
+                    if (file == null) return 8f;
+                    string stage = Phase == StoryProbePhase.Second ? "second_meet" : "first_meet";
+                    float best = 0f;
+                    foreach (var b in file.Behaviors.Values)
+                    {
+                        if (b == null || b.Kind != "post" || b.Stages == null || !b.Stages.Contains(stage)) continue;
+                        if (b.Perception.RangeMeters > best) best = b.Perception.RangeMeters;
+                    }
+                    return best > 0f ? best : 8f;
+                }
+                catch { return 8f; }
+            }
+        }
+
+        /// <summary>
+        /// 玩家是否进了这名守卫的**岗位职责区**：他在我感知半径内、我还站着、门没放行、玩家也还没走过去。
+        /// 与旧 `IsPlayerInGateApproach`（门轴 ±3 米窄带）的区别 = 按"岗位到玩家的距离"判，
+        /// 不再要求玩家正好踩中线 —— 这才是"每个守卫有自己的职责区"。
+        /// </summary>
+        public bool IsPlayerInPostZone(Agent guard, float rangeMeters)
+        {
+            if (!_gateGeometryReady || guard == null || Agent.Main == null) return false;
+            if (_gateOpen) return false;                                  // 已放行 = 不用再拦
+            if (!AgentControlHelper.SafeIsActive(guard) || guard.Health <= 0f) return false;
+            if (GateAlong(Agent.Main.Position) >= StoryProbeTuning.Current.Gate.PastMeters) return false; // 人已经过去了
+            if (rangeMeters <= 0f) return false;
+            return guard.Position.Distance(Agent.Main.Position) <= rangeMeters;
+        }
+
+        /// <summary>同上，半径用当前阶段岗位数据的感知半径。</summary>
+        public bool IsPlayerInPostZone(Agent guard) => IsPlayerInPostZone(guard, PostZoneRangeMeters);
 
         private bool IsAtGateGround(Agent player, float dt)
         {
@@ -1590,6 +1676,7 @@ namespace LivingWorldNpcs
                 if (repositionExisting)
                     try { existing.TeleportToPosition(pos); } catch { }
                 _agents[npcId] = existing;
+                ApplyStoryPersona(def, hero, existing);
                 return existing;
             }
 
@@ -1608,6 +1695,7 @@ namespace LivingWorldNpcs
                 if (agent != null)
                 {
                     _agents[npcId] = agent;
+                    ApplyStoryPersona(def, hero, agent);
                     DebugLogger.Log($"[StoryProbe] spawned {npcId} hero={hero.StringId} agent={agent.Index} requested=({pos.x:F1},{pos.y:F1},{pos.z:F1}) actual={agent.Position} controller={agent.Controller}");
                 }
                 return agent;
@@ -1639,7 +1727,10 @@ namespace LivingWorldNpcs
         {
             if (def == null) return null;
             if (_heroes.TryGetValue(def.Id, out var cached) && cached != null && cached.IsAlive)
+            {
+                ApplyStoryPersona(def, cached);
                 return cached;
+            }
 
             if (StoryProbeState.Data.SpawnedHeroIds.TryGetValue(def.Id, out string savedId) && !string.IsNullOrEmpty(savedId))
             {
@@ -1647,6 +1738,7 @@ namespace LivingWorldNpcs
                 if (found != null)
                 {
                     _heroes[def.Id] = found;
+                    ApplyStoryPersona(def, found);
                     return found;
                 }
             }
@@ -1678,6 +1770,7 @@ namespace LivingWorldNpcs
 
                 StoryProbeState.Data.SpawnedHeroIds[def.Id] = hero.StringId;
                 _heroes[def.Id] = hero;
+                ApplyStoryPersona(def, hero);
                 DebugLogger.Log($"[StoryProbe] hero created '{def.Id}' -> {hero.StringId} ({hero.Name})");
                 return hero;
             }
@@ -1686,6 +1779,28 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[StoryProbe] EnsureStoryHero({def.Id}) failed: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>角色设定由 Cast 与本地化提供；更新旧档身份，不清除对话历史或经历。</summary>
+        private static void ApplyStoryPersona(StoryNpcDef def, Hero hero, Agent agent = null)
+        {
+            var name = new TextObject("{=" + def.NameKey + "}" + def.NameFallback);
+            hero.SetName(name, name);
+            var memory = AllNpcMemoryManager.GetMemory(hero.StringId);
+            if (memory != null)
+            {
+                if (!string.IsNullOrEmpty(def.IdentityKey))
+                    memory._profile.IdentityOverride = LWNTextHelper.ResolveText(def.IdentityKey, def.IdentityFallback);
+                if (!string.IsNullOrEmpty(def.BackgroundKey))
+                    memory.BackgroundStory = LWNTextHelper.ResolveText(def.BackgroundKey, def.BackgroundFallback);
+                if (!string.IsNullOrEmpty(def.TemperamentKey))
+                    memory.Personality = LWNTextHelper.ResolveText(def.TemperamentKey, def.TemperamentFallback);
+                if (!string.IsNullOrEmpty(def.SpecialtyKey))
+                    memory.Specialty = LWNTextHelper.ResolveText(def.SpecialtyKey, def.SpecialtyFallback);
+            }
+            if (agent != null)
+                ReactiveAgent.ApplyPlan(agent, new ReactivePlan { Role = def.ReactiveRole, Personality = def.Personality });
+            DebugLogger.Log($"[StoryProbe] persona applied: actor={def.Id} hero={hero.StringId} name={hero.Name} identity={memory?._profile?.IdentityOverride} role={def.ReactiveRole}");
         }
 
         /// <summary>模板查找：两轮策略（铁律 5）。</summary>
@@ -1715,7 +1830,7 @@ namespace LivingWorldNpcs
             => _agents.TryGetValue(npcId, out var a) && a != null && AgentControlHelper.SafeIsActive(a) ? a : null;
 
         public Hero GetHero(string npcId)
-            => _heroes.TryGetValue(npcId, out var h) ? h : null;
+            => npcId != null && _heroes.TryGetValue(npcId, out var h) ? h : null;
 
         public IEnumerable<KeyValuePair<string, Agent>> AllAgents => _agents;
 
@@ -1857,7 +1972,9 @@ namespace LivingWorldNpcs
         {
             if (_gateOpen) return;
             _gateOpen = true;
-            StoryProbeState.Data.GateOpened = true;   // 跨 Mission 记住：再进来不用重新开一次
+            // 存档布尔只当"本轮剧情里开过门"的历史痕迹，**不再**作为下次进城的凭据（凭据 = 背包里的令牌）。
+            StoryProbeState.Data.GateOpened = true;
+            TryGrantGatePass(approach);
             StoryProbeState.Data.ChosenApproach = approach;
             StoryProbeState.Data.TalentPoints += 0;   // 天赋点由 ResolveApproach 统一加（避免重复）
 
@@ -1873,33 +1990,113 @@ namespace LivingWorldNpcs
                 "LWN_story_gate_finish_notice", "Finish any outstanding jobs before stepping inside. Entering ends this chapter.")));
         }
 
-        /// <summary>本次选择结算（§9）：势力好感 / 天赋点 / 通缉 / 隐患。</summary>
-        /// <param name="factionId">这条路**对应**的势力（§9「对应势力 +5」）</param>
+        // ═══════════════════════════════════════════════════════════════
+        // 通行权 = 实物凭据（2026-11-16 用户裁定）
+        //   持有 = 主队背包里有那枚通行令牌（`StoryProbeTuning.json` → Gate.PassItem）。
+        //   存档 = 背包由引擎自己保存，我们不另造字段；令牌丢/卖掉了就等于没有通行权。
+        //   发放 = 只有「守卫正式放行」的路线才发（Gate.PassApproaches，默认 charm / money）；
+        //          打晕、绑走、潜行、翻墙、硬闯都不发 —— 那是进去了，不是被允许。
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>玩家现在是否持有通行令牌（= 被正式放行过）。</summary>
+        public static bool HasGatePass()
+        {
+            try
+            {
+                string id = StoryProbeTuning.Current?.Gate?.PassItem;
+                if (string.IsNullOrEmpty(id)) return false;
+                var item = StoryProbeDefs.FindItem(id);
+                if (item == null) return false;
+                var roster = PartyBase.MainParty?.ItemRoster;
+                return roster != null && roster.GetItemNumber(item) > 0;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryGate] HasGatePass failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>这条过门路线算不算「守卫正式放行」；算就发一枚令牌（已持有则不重复发）。</summary>
+        private static void TryGrantGatePass(string approach)
+        {
+            try
+            {
+                var gt = StoryProbeTuning.Current?.Gate;
+                string id = gt?.PassItem;
+                if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(approach)) return;
+
+                bool authorized = false;
+                var list = gt.PassApproaches;
+                if (list != null)
+                {
+                    for (int i = 0; i < list.Length; i++)
+                    {
+                        if (list[i] == null) continue;
+                        if (string.Equals(list[i].Trim(), approach.Trim(), StringComparison.OrdinalIgnoreCase))
+                        { authorized = true; break; }
+                    }
+                }
+                if (!authorized) return;
+                if (HasGatePass()) return;                 // 幂等：一个人只发一枚
+                if (Hero.MainHero == null) return;
+
+                if (!StoryProbeDefs.GiveItem(Hero.MainHero, id, 1))
+                {
+                    DebugLogger.Log($"[StoryGate] pass token grant FAILED: item={id} approach={approach}");
+                    return;
+                }
+                DebugLogger.Log($"[StoryGate] pass token granted: item={id} approach={approach}");
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveText("LWN_story_gate_pass_granted",
+                        "The guard hands you a gate pass. Show it next time and you walk straight in.")));
+            }
+            catch (Exception ex) { DebugLogger.Log($"[StoryGate] TryGrantGatePass failed: {ex.Message}"); }
+        }
+
+        /// <summary>收回通行令牌（剧情重置/调试用）。返回是否确实收回了东西。</summary>
+        public static bool RevokeGatePass(string reason)
+        {
+            try
+            {
+                string id = StoryProbeTuning.Current?.Gate?.PassItem;
+                if (string.IsNullOrEmpty(id) || Hero.MainHero == null) return false;
+                var item = StoryProbeDefs.FindItem(id);
+                var roster = PartyBase.MainParty?.ItemRoster;
+                int have = item != null && roster != null ? roster.GetItemNumber(item) : 0;
+                if (have <= 0) return false;
+                bool ok = StoryProbeDefs.RemoveItem(Hero.MainHero, id, have);
+                DebugLogger.Log($"[StoryGate] pass token revoked: item={id} count={have} ok={ok} reason={reason}");
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[StoryGate] RevokeGatePass failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>本次选择结算：实际交互对象的个人关系 / 天赋点 / 通缉 / 隐患。</summary>
+        /// <param name="factionId">兼容旧调用的路线归属，不自动结算势力关系。</param>
         /// <param name="gatekeeperDelta">**守门人本人**的关系变化（§9 单独一列：钱/冒充 −5、技巧 0、武力 −20）</param>
-        public void ResolveApproach(string approach, string factionId, int gatekeeperDelta, bool crime, string hazardId)
+        public void ResolveApproach(string approach, string factionId, int gatekeeperDelta, bool crime, string hazardId,
+            string relationshipActorId = null)
         {
             if (!Active || Current != this || Phase != StoryProbePhase.Second || StoryProbeState.Data.ApproachResolved) return;
             StoryProbeState.Data.ApproachResolved = true;
             StoryProbeState.Data.ChosenApproach = approach;
             StoryProbeState.Data.TalentPoints += 1;
-            if (!string.IsNullOrEmpty(factionId)) StoryProbeState.AddFactionRelation(factionId, 5);
             if (!string.IsNullOrEmpty(hazardId)) StoryProbeState.AddHazard(hazardId);
 
-            // 🔴 两种关系分开记（§9 表把它们列成两列）：
-            //   ① 对应势力 +5 → 记到该势力代表身上；② 守门人本人 −5/−20/0 → 只能记到守门人身上。
-            //   旧实现把两者混成一个 delta、还按 faction 找代表 ⇒ 「冒充」会被记成剧团掉关系，明显错。
+            // 个人关系只记实际交互对象；无对象的潜行/翻墙不扣无关人物。
             try
             {
                 if (Hero.MainHero != null)
                 {
-                    var factionRep = StoryProbeDefs.GetNpcByFaction(factionId);
-                    var factionHero = factionRep != null ? GetHero(factionRep.Id) : null;
-                    if (factionHero != null)
-                        ChangeRelationAction.ApplyRelationChangeBetweenHeroes(factionHero, Hero.MainHero, 5);
-
-                    var gateHero = GetHero("blocker");
+                    var gateHero = !string.IsNullOrEmpty(relationshipActorId) ? GetHero(relationshipActorId) : null;
                     if (gateHero != null && gatekeeperDelta != 0)
                         ChangeRelationAction.ApplyRelationChangeBetweenHeroes(gateHero, Hero.MainHero, gatekeeperDelta);
+                    DebugLogger.Log($"[StoryProbe] approach settled: route={approach} actor={relationshipActorId ?? "none"} personalDelta={(gateHero != null ? gatekeeperDelta : 0)} factionDelta=0 talent=1");
                 }
             }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] ResolveApproach relation failed: {ex.Message}"); }
@@ -1914,7 +2111,7 @@ namespace LivingWorldNpcs
                 catch (Exception ex) { DebugLogger.Log($"[StoryProbe] ResolveApproach crime failed: {ex.Message}"); }
             }
 
-            // §9：选路反馈当场可见（势力好感 +5 / 天赋点 +1 / 结仇代价）——一条消息说清
+            // 当场反馈实际对象、个人关系和天赋点。
             try
             {
                 string path = approach == "money"
@@ -1924,8 +2121,11 @@ namespace LivingWorldNpcs
                     approach);
                 InformationManager.DisplayMessage(new InformationMessage(
                     LWNTextHelper.ResolveCompound("LWN_story_narr_approach",
-                        "Path: {PATH} — favour +5, talent +1, standing {REL}.",
-                        ("PATH", path), ("REL", gatekeeperDelta.ToString()))));
+                        "Path: {PATH} — talent +1; relationship with {TARGET}: {REL}.",
+                        ("PATH", path), ("TARGET", GetHero(relationshipActorId)?.Name?.ToString()
+                            ?? LWNTextHelper.ResolveText("LWN_story_relation_no_target", "no participant")),
+                        ("REL", (!string.IsNullOrEmpty(relationshipActorId) && GetHero(relationshipActorId) != null
+                            ? gatekeeperDelta : 0).ToString()))));
             }
             catch { }
         }
@@ -2018,8 +2218,10 @@ namespace LivingWorldNpcs
         {
             var hero = Hero.MainHero;
             var d = StoryProbeState.Data;
+            bool sentenceContext = Mission.Current == null && StoryProbeState.Phase == StoryProbePhase.Jail
+                && d.TutorialLost && !string.IsNullOrEmpty(d.DetentionOwnerId);
             if (hero == null || d.CancellationPending
-                || CampaignMission.Current?.Location?.StringId != "prison") return false;
+                || (!sentenceContext && CampaignMission.Current?.Location?.StringId != "prison")) return false;
             if (d.Stripped && (d.ConfiscationComplete || d.EscrowVersion == 0)) return true;
             var clothes = StoryProbeDefs.FindItem("hemp_tunic");
             if (clothes == null || hero.BattleEquipment == null || hero.CivilianEquipment == null) return false;
@@ -2072,7 +2274,10 @@ namespace LivingWorldNpcs
         {
             var hero = Hero.MainHero;
             var d = StoryProbeState.Data;
-            if (d.CancellationPending || !d.JailSceneEntered || CampaignMission.Current?.Location?.StringId != "prison") return false;
+            bool sentenceReleased = Mission.Current == null
+                && PlayerDetentionBehavior.IsSentenceCompleted(d.DetentionOwnerId);
+            if (d.CancellationPending || (!sentenceReleased
+                && (!d.JailSceneEntered || CampaignMission.Current?.Location?.StringId != "prison"))) return false;
             if (d.JailDone) return true;
             var mask = StoryProbeDefs.FindItem("head_wrapped");
             var clothes = StoryProbeDefs.FindItem("hemp_tunic");
@@ -2091,7 +2296,7 @@ namespace LivingWorldNpcs
                 if (advancePhase) d.Phase = (int)StoryProbePhase.Second;
                 InformationManager.DisplayMessage(new InformationMessage(
                     LWNTextHelper.ResolveText("LWN_story_jail_done",
-                        "You have no weapon, and your purse is empty. The cloth over your face is all you have.")));
+                        "Your sentence is complete. You have put on the old clothes and face covering; your belongings remain in safekeeping.")));
                 DebugLogger.Log($"[StoryProbe] jail disguise ready: goldBefore={d.GoldBeforeStrip} advancePhase={advancePhase}");
                 return true;
             }

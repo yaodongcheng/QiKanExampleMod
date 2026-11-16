@@ -64,6 +64,7 @@ namespace LivingWorldNpcs
     public class ReactiveAgent
     {
         public Agent Agent;
+        public string RoleOverride;
         public ReactivePersonality Personality;
         public List<ReactiveResponse> Responses;
         public Vec3 PostPos;                 // 岗位（return_post 用；首个触发词时记录当前位置）
@@ -200,6 +201,7 @@ namespace LivingWorldNpcs
         {
             if (agent == null || plan == null) return;
             var ra = Get(agent);
+            if (!string.IsNullOrEmpty(plan.Role)) ra.RoleOverride = plan.Role;
             if (plan.Personality != null) ra.Personality = plan.Personality;
             if (plan.Responses != null && plan.Responses.Count > 0)
             {
@@ -275,6 +277,8 @@ namespace LivingWorldNpcs
         /// <summary>职业分类（PersuadeSlot 等外部复用：模板职业风味档）。</summary>
         internal static string ClassifyOccupation(Agent agent)
         {
+            if (agent != null && _registry.TryGetValue(agent.Index, out var configured)
+                && !string.IsNullOrEmpty(configured.RoleOverride)) return configured.RoleOverride;
             try
             {
                 string id = agent.Character?.StringId ?? "";

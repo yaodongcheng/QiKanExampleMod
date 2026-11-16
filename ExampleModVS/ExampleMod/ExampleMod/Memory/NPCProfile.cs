@@ -125,6 +125,7 @@ namespace LivingWorldNpcs
         public string Spouse { get; set; } = "";
         public string SpouseId { get; set; } = "";
         public string Occupation { get; set; } = "";
+        public string IdentityOverride { get; set; } = "";
 
         public bool IsFemale
         {
@@ -1109,7 +1110,7 @@ namespace LivingWorldNpcs
                     ("GENDER", LocalizeGender(BaseHero.IsFemale)),
                     ("AGE", ((int)BaseHero.Age).ToString()),
                     ("SPOUSE", Spouse ?? ""),
-                    ("OCC", LocalizeTrait(Occupation)));
+                    ("OCC", string.IsNullOrEmpty(IdentityOverride) ? LocalizeTrait(Occupation) : IdentityOverride));
                 // Replace the generic header with actual data
                 sb.Clear();
                 sb.AppendLine(heroHeader);

@@ -80,6 +80,11 @@ namespace LivingWorldNpcs
             return _agentsFightingPlayer.Contains(agent);
         }
 
+        /// <summary>已加入同一战斗侧的成员；临时移队后仍能识别协同者的误伤。</summary>
+        public static bool AreOnSameCombatSide(Agent a, Agent b)
+            => a != null && b != null && a != b && _sideFightMembers.ContainsKey(a)
+                && _sideFightMembers.ContainsKey(b) && a.Team != null && a.Team == b.Team;
+
         /// <summary>清理已死亡/消失/场景卸载后的 Agent。安全处理 native 对象已销毁的情况。</summary>
         private static void RemoveDeadAndStaleAgents()
         {
@@ -321,7 +326,7 @@ namespace LivingWorldNpcs
         /// </param>
         /// <param name="factionIdB">同 factionIdA，给 agentB 用。</param>
         public static void StartFight(Agent agentA, Agent agentB, int factionIdA = -1, int factionIdB = -1, bool Peace = false,
-            bool protectInitiator = false, Action<Agent> onDuelResolved = null)
+            bool protectInitiator = false, Action<Agent> onDuelResolved = null, Action<Agent> duelOwnerReceipt = null)
         {
 
             if (agentA == null || agentB == null || !AgentControlHelper.SafeIsActive(agentA) || !AgentControlHelper.SafeIsActive(agentB))
@@ -365,7 +370,7 @@ namespace LivingWorldNpcs
                     return;
                 }
                 AttackTriggerMissionLogic.Instance.RegisterDuel(agentA, agentB,
-                    protectInitiator ? agentB : null, onDuelResolved);
+                    protectInitiator ? agentB : null, onDuelResolved, duelOwnerReceipt);
             }
 
             // 1. 缓存清理：如果场景更换，旧的Team引用失效，必须清空

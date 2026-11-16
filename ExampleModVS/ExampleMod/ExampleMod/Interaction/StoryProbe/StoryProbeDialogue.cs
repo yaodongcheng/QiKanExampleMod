@@ -797,7 +797,7 @@ namespace LivingWorldNpcs
                         if (parts.Length > 3) crime = parts[3].Trim() == "1";
                     }
                     host?.OpenGate(approach, "LWN_story_gate_open", "The way is clear.");
-                    host?.ResolveApproach(approach, faction, delta, crime, null);
+                    host?.ResolveApproach(approach, faction, delta, crime, null, currentNpc);
                     break;
                 }
 
@@ -812,7 +812,7 @@ namespace LivingWorldNpcs
                         host?.ResolveApproach(approach,
                             ab == StoryAbility.Charm ? "players" : ab == StoryAbility.Guile ? "nightwalkers" : "dockhands",
                             ab == StoryAbility.Force ? -20 : -5,
-                            ab == StoryAbility.Force, null);
+                            ab == StoryAbility.Force, null, currentNpc);
                     }
                     else
                     {
@@ -844,10 +844,10 @@ namespace LivingWorldNpcs
                     int amount = 100;
                     int.TryParse(param, out amount);
                     if (amount <= 0) amount = 100;
-                    if (!TryPayMoney(host?.GetHero("blocker"), amount)) return false;
+                    if (!TryPayMoney(host?.GetHero(currentNpc), amount)) return false;
                     StoryProbeState.Data.BribePaid += amount; // 双方实际足额，才记打点、让路并结算路线。
                     host?.OpenGate("money", "LWN_story_gate_bribe", "He weighs the coins and steps aside.");
-                    host?.ResolveApproach("money", "fixers", -5, false, "hazard_money_leverage");
+                    host?.ResolveApproach("money", "fixers", -5, false, "hazard_money_leverage", currentNpc);
                     break;
                 }
 

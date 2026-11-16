@@ -191,6 +191,20 @@ namespace LivingWorldNpcs
         public float PushBackCooldownSec = 1.2f;
         public float GuardSpawnRadiusMeters = 60f;
         public float RecognizeDistanceMeters = 12f;
+
+        // ── 拦问额度（2026-11-16 用户裁定）──
+        // 同一场里守卫最多拦问几次；退后回来还能再被拦，用满这次数之后再往门里走才算硬闯。
+        // 以前是"问过一次 → 再前进 = 直接开打"，中间没有任何提醒，观感太硬。
+        public int MaxIntercepts = 2;
+
+        // ── 通行权 = 实物凭据（2026-11-16 用户裁定）──
+        // PassItem        通行令牌的物品 id。玩家背包里**有它** = 已被正式放行，下次进城守卫直接放行；
+        //                 背包里没有 = 没通行权（打晕/翻墙/潜行进来的不算授权）。空字符串 = 关闭该机制。
+        // PassApproaches  哪几条过门路线算"被正式放行"、会发令牌（路线 id 见 OpenGate 的调用处：
+        //                 charm 讲理/冒充 · money 塞钱 · force 硬闯/缴械 · guile 潜行/翻墙/绑走）。
+        //                 🎯 只列"守卫点头放你过去"的两条；偷偷进去的不发牌，下次仍要自己想办法。
+        public string PassItem = "lwn_gate_pass";
+        public string[] PassApproaches = new[] { "charm", "money" };
     }
 
     /// <summary>演出申请等待与控制台单原子短演出时长。</summary>
@@ -236,6 +250,7 @@ namespace LivingWorldNpcs
         /// <summary>等待战斗动作接受的重试时限；超时只重试，绝不判败。</summary>
         public float FirstFightStartTimeoutSec = 3f;
         public float JailWakeDelaySec = 1.0f;
+        public int DetentionDays = 1;
         /// <summary>首遇真实近战/跑动技能下限；只增强首遇，不改第二次守卫。</summary>
         public int FirstGuardMinCombatSkill = 300;
         public int FirstGuardSkillAdvantage = 120;

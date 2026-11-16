@@ -30,7 +30,7 @@
     {
       "Id": "pawnbroker",
       "NameKey": "LWN_story_name_pawnbroker",
-      "NameFallback": "Old Zhou",
+      "NameFallback": "Zhou Shoucai (Old Zhou)",
       "Faction": "fixers",
       "Force": 30,
       "Guile": 50,
@@ -54,12 +54,28 @@
       "MoneyCovertPrice": 80,
       "MoneyHintKey": "LWN_story_money_pawnbroker",
       "MoneyHintFallback": "The gate man owes the gambling den three months. He is more afraid of losing the post than of a knife.",
-      "Civilian": true
+      "Civilian": true,
+      "IdentityKey": "LWN_story_persona_pawnbroker_identity",
+      "IdentityFallback": "Pawnbroker and broker for the Fixers",
+      "BackgroundKey": "LWN_story_persona_pawnbroker_background",
+      "BackgroundFallback": "I run a pawnshop outside the gate, make introductions and collect debts.",
+      "TemperamentKey": "LWN_story_persona_pawnbroker_temperament",
+      "TemperamentFallback": "I count carefully, speak cautiously and expect a fair return.",
+      "SpecialtyKey": "LWN_story_persona_pawnbroker_specialty",
+      "SpecialtyFallback": "I appraise valuables, keep accounts and know the traders outside the gate.",
+      "ReactiveRole": "merchant",
+      "Personality": {
+        "gullibility": 0.3,
+        "duty": 0.5,
+        "temper": 0.3,
+        "social": 0.7,
+        "greed": 0.7
+      }
     },
     {
       "Id": "widow",
       "NameKey": "LWN_story_name_widow",
-      "NameFallback": "The Widow",
+      "NameFallback": "Song Yuniang",
       "Faction": "players",
       "Force": 30,
       "Guile": 50,
@@ -85,12 +101,28 @@
       "MoneyPrice": 60,
       "MoneyHintKey": "LWN_story_money_widow",
       "MoneyHintFallback": "Your sister did not look like a worker when she went by. She looked like she was being walked.",
-      "Civilian": true
+      "Civilian": true,
+      "IdentityKey": "LWN_story_persona_widow_identity",
+      "IdentityFallback": "Widowed performer and troupe leader",
+      "BackgroundKey": "LWN_story_persona_widow_background",
+      "BackgroundFallback": "I lead a travelling troupe outside town; a rival has taken our performance space.",
+      "TemperamentKey": "LWN_story_persona_widow_temperament",
+      "TemperamentFallback": "I am proud, sharp-tongued and repay those who help me.",
+      "SpecialtyKey": "LWN_story_persona_widow_specialty",
+      "SpecialtyFallback": "I know costumes and manners, and how to look the part.",
+      "ReactiveRole": "chief",
+      "Personality": {
+        "gullibility": 0.4,
+        "duty": 0.6,
+        "temper": 0.5,
+        "social": 0.8,
+        "greed": 0.5
+      }
     },
     {
       "Id": "son",
       "NameKey": "LWN_story_name_son",
-      "NameFallback": "The Boy",
+      "NameFallback": "Xu Xiaoliu",
       "Faction": "nightwalkers",
       "Force": 30,
       "Guile": 70,
@@ -116,12 +148,28 @@
       "MoneyPrice": 40,
       "MoneyHintKey": "LWN_story_money_son",
       "MoneyHintFallback": "The beam over the gate is rotten on the left end. Nobody ever looks up there.",
-      "Civilian": true
+      "Civilian": true,
+      "IdentityKey": "LWN_story_persona_son_identity",
+      "IdentityFallback": "Young thief of the Nightwalkers",
+      "BackgroundKey": "LWN_story_persona_son_background",
+      "BackgroundFallback": "I make a living outside the gate, know its side routes and am bullied by an outlaw.",
+      "TemperamentKey": "LWN_story_persona_son_temperament",
+      "TemperamentFallback": "I am quick, wary and test people before trusting them.",
+      "SpecialtyKey": "LWN_story_persona_son_specialty",
+      "SpecialtyFallback": "I can pick locks, hide things and find grapple points.",
+      "ReactiveRole": "default",
+      "Personality": {
+        "gullibility": 0.3,
+        "duty": 0.3,
+        "temper": 0.4,
+        "social": 0.6,
+        "greed": 0.6
+      }
     },
     {
       "Id": "butcher",
       "NameKey": "LWN_story_name_butcher",
-      "NameFallback": "The Butcher",
+      "NameFallback": "Zheng Dashan",
       "Faction": "dockhands",
       "Force": 70,
       "Guile": 50,
@@ -146,12 +194,28 @@
       "Money": "Disdain",
       "MoneyHintKey": "LWN_story_money_butcher",
       "MoneyHintFallback": "",
-      "Civilian": true
+      "Civilian": true,
+      "IdentityKey": "LWN_story_persona_butcher_identity",
+      "IdentityFallback": "Butcher and neighbour of the Dockhands",
+      "BackgroundKey": "LWN_story_persona_butcher_background",
+      "BackgroundFallback": "I sell meat outside the gate, know the dockhands and have trouble with a thug at my stall.",
+      "TemperamentKey": "LWN_story_persona_butcher_temperament",
+      "TemperamentFallback": "I am blunt, loyal and refuse money offered in place of principle.",
+      "SpecialtyKey": "LWN_story_persona_butcher_specialty",
+      "SpecialtyFallback": "I am strong, know knives and can tend injuries.",
+      "ReactiveRole": "merchant",
+      "Personality": {
+        "gullibility": 0.3,
+        "duty": 0.7,
+        "temper": 0.6,
+        "social": 0.5,
+        "greed": 0.1
+      }
     },
     {
       "Id": "blocker",
       "NameKey": "LWN_story_name_blocker",
-      "NameFallback": "Ironhead",
+      "NameFallback": "Luo Tie (Ironhead)",
       "Faction": "dockhands",
       "Force": 70,
       "Guile": 30,
@@ -173,12 +237,28 @@
       "MoneyPrice": 100,
       "MoneyHintKey": "LWN_story_money_blocker",
       "MoneyHintFallback": "He counts it twice. He does not even hide it.",
-      "Civilian": false
+      "Civilian": false,
+      "IdentityKey": "LWN_story_persona_blocker_identity",
+      "IdentityFallback": "Gate guard known as Ironhead",
+      "BackgroundKey": "LWN_story_persona_blocker_background",
+      "BackgroundFallback": "I guard this gate and check who may pass.",
+      "TemperamentKey": "LWN_story_persona_blocker_temperament",
+      "TemperamentFallback": "I am stern, proud and reluctant to speak about my debts.",
+      "SpecialtyKey": "LWN_story_persona_blocker_specialty",
+      "SpecialtyFallback": "I can fight and know the gate checks.",
+      "ReactiveRole": "guard",
+      "Personality": {
+        "gullibility": 0.3,
+        "duty": 0.8,
+        "temper": 0.7,
+        "social": 0.4,
+        "greed": 0.6
+      }
     },
     {
       "Id": "gate_sentry",
       "NameKey": "LWN_story_name_gate_sentry",
-      "NameFallback": "Second Gate Guard",
+      "NameFallback": "Han Shouyi",
       "Faction": "dockhands",
       "Force": 55,
       "Guile": 35,
@@ -196,12 +276,28 @@
       "FirstMeetOffsetRight": 2.4,
       "Money": "Disdain",
       "MoneyHintFallback": "",
-      "Civilian": false
+      "Civilian": false,
+      "IdentityKey": "LWN_story_persona_gate_sentry_identity",
+      "IdentityFallback": "Second guard at the same gate",
+      "BackgroundKey": "LWN_story_persona_gate_sentry_background",
+      "BackgroundFallback": "I share this gate post with another guard and question travellers while on duty.",
+      "TemperamentKey": "LWN_story_persona_gate_sentry_temperament",
+      "TemperamentFallback": "I follow the rules, speak briefly and support my fellow guard against intruders.",
+      "SpecialtyKey": "LWN_story_persona_gate_sentry_specialty",
+      "SpecialtyFallback": "I keep watch, check travellers and intercept intruders.",
+      "ReactiveRole": "guard",
+      "Personality": {
+        "gullibility": 0.3,
+        "duty": 0.9,
+        "temper": 0.5,
+        "social": 0.4,
+        "greed": 0.3
+      }
     },
     {
       "Id": "thug",
       "NameKey": "LWN_story_name_thug",
-      "NameFallback": "The Collector's Man",
+      "NameFallback": "Ma Heng",
       "Faction": "dockhands",
       "Force": 70,
       "Guile": 30,
@@ -215,12 +311,28 @@
       "Age": 30,
       "OffsetForward": 6.5,
       "OffsetRight": -1.5,
-      "Civilian": false
+      "Civilian": false,
+      "IdentityKey": "LWN_story_persona_thug_identity",
+      "IdentityFallback": "Thug collecting protection money",
+      "BackgroundKey": "LWN_story_persona_thug_background",
+      "BackgroundFallback": "I collect money from stalls outside town, including the butcher.",
+      "TemperamentKey": "LWN_story_persona_thug_temperament",
+      "TemperamentFallback": "I am aggressive and bully those weaker than me.",
+      "SpecialtyKey": "LWN_story_persona_thug_specialty",
+      "SpecialtyFallback": "I fight and intimidate people for money.",
+      "ReactiveRole": "default",
+      "Personality": {
+        "gullibility": 0.5,
+        "duty": 0.2,
+        "temper": 0.9,
+        "social": 0.3,
+        "greed": 0.8
+      }
     },
     {
       "Id": "debtor",
       "NameKey": "LWN_story_name_debtor",
-      "NameFallback": "Debtor",
+      "NameFallback": "Qian Sanshun",
       "Faction": "dockhands",
       "Force": 50,
       "Guile": 50,
@@ -234,12 +346,28 @@
       "Age": 40,
       "OffsetForward": 1.0,
       "OffsetRight": -12.0,
-      "Civilian": true
+      "Civilian": true,
+      "IdentityKey": "LWN_story_persona_debtor_identity",
+      "IdentityFallback": "Gambling-house collector indebted to the pawnbroker",
+      "BackgroundKey": "LWN_story_persona_debtor_background",
+      "BackgroundFallback": "I collect gambling debts but owe the pawnbroker money myself.",
+      "TemperamentKey": "LWN_story_persona_debtor_temperament",
+      "TemperamentFallback": "I talk fast and evade debts until shown firm proof.",
+      "SpecialtyKey": "LWN_story_persona_debtor_specialty",
+      "SpecialtyFallback": "I bargain and know gambling-house rules.",
+      "ReactiveRole": "merchant",
+      "Personality": {
+        "gullibility": 0.4,
+        "duty": 0.2,
+        "temper": 0.4,
+        "social": 0.7,
+        "greed": 0.8
+      }
     },
     {
       "Id": "rival",
       "NameKey": "LWN_story_name_rival",
-      "NameFallback": "The Rival Troupe Leader",
+      "NameFallback": "Gu Changsheng",
       "Faction": "players",
       "Force": 30,
       "Guile": 50,
@@ -253,12 +381,28 @@
       "Age": 38,
       "OffsetForward": 9.0,
       "OffsetRight": 11.0,
-      "Civilian": true
+      "Civilian": true,
+      "IdentityKey": "LWN_story_persona_rival_identity",
+      "IdentityFallback": "Leader of a rival performing troupe",
+      "BackgroundKey": "LWN_story_persona_rival_background",
+      "BackgroundFallback": "I lead another troupe and compete for performance space.",
+      "TemperamentKey": "LWN_story_persona_rival_temperament",
+      "TemperamentFallback": "I am competitive and dislike backing down in public.",
+      "SpecialtyKey": "LWN_story_persona_rival_specialty",
+      "SpecialtyFallback": "I lead performers and negotiate for space.",
+      "ReactiveRole": "chief",
+      "Personality": {
+        "gullibility": 0.4,
+        "duty": 0.5,
+        "temper": 0.7,
+        "social": 0.7,
+        "greed": 0.5
+      }
     },
     {
       "Id": "outlaw",
       "NameKey": "LWN_story_name_outlaw",
-      "NameFallback": "The Highway Robber",
+      "NameFallback": "Du Ye",
       "Faction": "nightwalkers",
       "Force": 30,
       "Guile": 70,
@@ -272,7 +416,23 @@
       "Age": 32,
       "OffsetForward": -2.0,
       "OffsetRight": -16.0,
-      "Civilian": false
+      "Civilian": false,
+      "IdentityKey": "LWN_story_persona_outlaw_identity",
+      "IdentityFallback": "Outlaw on the roads outside town",
+      "BackgroundKey": "LWN_story_persona_outlaw_background",
+      "BackgroundFallback": "I haunt the side roads outside town and prey on isolated travellers.",
+      "TemperamentKey": "LWN_story_persona_outlaw_temperament",
+      "TemperamentFallback": "I am suspicious, rough and watch for a retreat when faced with strength.",
+      "SpecialtyKey": "LWN_story_persona_outlaw_specialty",
+      "SpecialtyFallback": "I know the side roads and ambush lone travellers.",
+      "ReactiveRole": "default",
+      "Personality": {
+        "gullibility": 0.3,
+        "duty": 0.2,
+        "temper": 0.8,
+        "social": 0.3,
+        "greed": 0.7
+      }
     }
   ],
   "StreetLife": [

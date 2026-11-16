@@ -2556,6 +2556,43 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 通用犯罪玩法「公共保管箱」诊断：这个场景到底会不会生成箱子、为什么没生成。
+        /// 也会并排打出「黑名单」与「当前城」，511 换城后忘了同步黑名单时一眼可见。
+        /// 用法: custom.stealth_chest   （不解析参数，首参随便给个占位也行）
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("stealth_chest", "custom")]
+        public static string StealthChest(List<string> args)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("=========== Storage Chest ===========");
+
+            Settlement settlement = Settlement.CurrentSettlement;
+            string sceneName = Mission.Current?.SceneName;
+
+            sb.AppendLine($"Settlement : {(settlement != null ? $"{settlement.Name} ({settlement.StringId})" : "null (not a settlement mission)")}");
+            sb.AppendLine($"Scene      : {sceneName ?? "null"}");
+
+            var blacklist = Settings.Instance?.ChestSpawnDisabledSettlements;
+            string blacklistStr = blacklist == null || blacklist.Count == 0 ? "(empty)" : string.Join(", ", blacklist);
+            sb.AppendLine($"Blacklist  : {blacklistStr}");
+
+            bool blocked = StealManager.IsChestSpawnDisabledFor(settlement);
+            sb.AppendLine($"Verdict    : {(blocked ? "SUPPRESSED - no chest entity spawns here" : "allowed - chest spawns when the settlement has wealth")}");
+
+            var view = InteractionMissionView.Instance;
+            sb.AppendLine($"Suppressed : {(view != null && view.ChestSpawnSuppressed ? "yes (this mission)" : "no")}");
+            sb.AppendLine($"Entity     : {(StealManager.ChestEntity != null ? "present" : "none")}");
+            sb.AppendLine($"Stash      : gold={StealManager.StashGold}, itemTypes={StealManager.ChestItemRoster?.Count ?? 0}");
+
+            if (blocked)
+                sb.AppendLine("Re-enable   : remove the settlement id from config.json -> ChestSpawnDisabledSettlements, run custom.input_reload, then re-enter the scene.");
+            else if (StealManager.ChestEntity == null && StealManager.StashGold <= 0)
+                sb.AppendLine("Note       : stash is empty here, so no chest is the normal case - not the blacklist.");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// 在玩家面前生成指定 prefab，用于预览外观/选型（例如给保管箱挑模型）。
         /// 预览实体不入存档，离开场景重进即消失。
         /// 用法: custom.spawn_prefab bd_chest_a [dist=2]
